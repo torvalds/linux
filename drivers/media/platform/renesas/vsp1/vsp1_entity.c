@@ -104,6 +104,20 @@ void vsp1_entity_configure_partition(struct vsp1_entity *entity,
 						 dl, dlb);
 }
 
+void vsp1_entity_adjust_color_space(struct v4l2_mbus_framefmt *format)
+{
+	u8 xfer_func = format->xfer_func;
+	u8 ycbcr_enc = format->ycbcr_enc;
+	u8 quantization = format->quantization;
+
+	vsp1_adjust_color_space(format->code, &format->colorspace, &xfer_func,
+				&ycbcr_enc, &quantization);
+
+	format->xfer_func = xfer_func;
+	format->ycbcr_enc = ycbcr_enc;
+	format->quantization = quantization;
+}
+
 /* -----------------------------------------------------------------------------
  * V4L2 Subdevice Operations
  */
@@ -334,7 +348,13 @@ int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 	format->height = clamp_t(unsigned int, fmt->format.height,
 				 min_height, max_height);
 	format->field = V4L2_FIELD_NONE;
-	format->colorspace = V4L2_COLORSPACE_SRGB;
+
+	format->colorspace = fmt->format.colorspace;
+	format->xfer_func = fmt->format.xfer_func;
+	format->ycbcr_enc = fmt->format.ycbcr_enc;
+	format->quantization = fmt->format.quantization;
+
+	vsp1_entity_adjust_color_space(format);
 
 	fmt->format = *format;
 

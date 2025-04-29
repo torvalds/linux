@@ -183,5 +183,7 @@ const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
 const struct vsp1_format_info *
 vsp1_get_format_info_by_index(struct vsp1_device *vsp1, unsigned int index,
 			      u32 code);
+void vsp1_adjust_color_space(u32 code, u32 *colorspace, u8 *xfer_func,
+			     u8 *encoding, u8 *quantization);
 
 #endif /* __VSP1_PIPE_H__ */

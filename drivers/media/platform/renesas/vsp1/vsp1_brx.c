@@ -15,6 +15,7 @@
 #include "vsp1.h"
 #include "vsp1_brx.h"
 #include "vsp1_dl.h"
+#include "vsp1_entity.h"
 #include "vsp1_pipe.h"
 #include "vsp1_rwpf.h"
 #include "vsp1_video.h"
@@ -108,6 +109,8 @@ static void brx_try_format(struct vsp1_brx *brx,
 		if (fmt->code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
 		    fmt->code != MEDIA_BUS_FMT_AYUV8_1X32)
 			fmt->code = MEDIA_BUS_FMT_AYUV8_1X32;
+
+		vsp1_entity_adjust_color_space(fmt);
 		break;
 
 	default:
@@ -115,13 +118,17 @@ static void brx_try_format(struct vsp1_brx *brx,
 		format = v4l2_subdev_state_get_format(sd_state,
 						      BRX_PAD_SINK(0));
 		fmt->code = format->code;
+
+		fmt->colorspace = format->colorspace;
+		fmt->xfer_func = format->xfer_func;
+		fmt->ycbcr_enc = format->ycbcr_enc;
+		fmt->quantization = format->quantization;
 		break;
 	}
 
 	fmt->width = clamp(fmt->width, BRX_MIN_SIZE, BRX_MAX_SIZE);
 	fmt->height = clamp(fmt->height, BRX_MIN_SIZE, BRX_MAX_SIZE);
 	fmt->field = V4L2_FIELD_NONE;
-	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 }
 
 static int brx_set_format(struct v4l2_subdev *subdev,

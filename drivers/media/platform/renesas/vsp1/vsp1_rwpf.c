@@ -10,6 +10,7 @@
 #include <media/v4l2-subdev.h>
 
 #include "vsp1.h"
+#include "vsp1_entity.h"
 #include "vsp1_rwpf.h"
 #include "vsp1_video.h"
 
@@ -90,6 +91,8 @@ static int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
 		else
 			format->code = sink_format->code;
 
+		vsp1_entity_adjust_color_space(format);
+
 		fmt->format = *format;
 		goto done;
 	}
@@ -100,7 +103,13 @@ static int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
 	format->height = clamp_t(unsigned int, fmt->format.height,
 				 RWPF_MIN_HEIGHT, rwpf->max_height);
 	format->field = V4L2_FIELD_NONE;
-	format->colorspace = V4L2_COLORSPACE_SRGB;
+
+	format->colorspace = fmt->format.colorspace;
+	format->xfer_func = fmt->format.xfer_func;
+	format->ycbcr_enc = fmt->format.ycbcr_enc;
+	format->quantization = fmt->format.quantization;
+
+	vsp1_entity_adjust_color_space(format);
 
 	fmt->format = *format;
 

@@ -127,12 +127,10 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 		info = vsp1_get_format_info(video->vsp1, VSP1_VIDEO_DEF_FORMAT);
 
 	pix->pixelformat = info->fourcc;
-	pix->colorspace = V4L2_COLORSPACE_SRGB;
 	pix->field = V4L2_FIELD_NONE;
 
-	if (info->fourcc == V4L2_PIX_FMT_HSV24 ||
-	    info->fourcc == V4L2_PIX_FMT_HSV32)
-		pix->hsv_enc = V4L2_HSV_ENC_256;
+	vsp1_adjust_color_space(info->mbus, &pix->colorspace, &pix->xfer_func,
+				&pix->ycbcr_enc, &pix->quantization);
 
 	memset(pix->reserved, 0, sizeof(pix->reserved));
 
@@ -890,7 +888,6 @@ vsp1_video_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 	cap->capabilities = V4L2_CAP_DEVICE_CAPS | V4L2_CAP_STREAMING
 			  | V4L2_CAP_IO_MC | V4L2_CAP_VIDEO_CAPTURE_MPLANE
 			  | V4L2_CAP_VIDEO_OUTPUT_MPLANE;
-
 
 	strscpy(cap->driver, "vsp1", sizeof(cap->driver));
 	strscpy(cap->card, video->video.name, sizeof(cap->card));
