@@ -406,8 +406,18 @@ static void __sync_rcu_exp_select_node_cpus(struct rcu_exp_work *rewp)
 	for_each_leaf_node_cpu_mask(rnp, cpu, mask_ofl_ipi) {
 		struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
 		unsigned long mask = rdp->grpmask;
+		int nr_retries = 0;
 
 retry_ipi:
+		/*
+		 * In case of retrying, CPU either is lagging:
+		 *
+		 * - between CPUHP_TEARDOWN_CPU and rcutree_report_cpu_dead()
+		 * or:
+		 * - between rcutree_report_cpu_starting() and set_cpu_online()
+		 */
+		WARN_ON_ONCE(nr_retries++ > 10);
+
 		if (rcu_watching_snap_stopped_since(rdp, rdp->exp_watching_snap)) {
 			mask_ofl_test |= mask;
 			continue;
