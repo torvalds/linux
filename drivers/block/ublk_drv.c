@@ -205,11 +205,6 @@ static inline struct request *__ublk_check_and_get_req(struct ublk_device *ub,
 static inline unsigned int ublk_req_build_flags(struct request *req);
 static inline struct ublksrv_io_desc *ublk_get_iod(struct ublk_queue *ubq,
 						   int tag);
-static inline bool ublk_dev_is_user_copy(const struct ublk_device *ub)
-{
-	return ub->dev_info.flags & (UBLK_F_USER_COPY | UBLK_F_SUPPORT_ZERO_COPY);
-}
-
 static inline bool ublk_dev_is_zoned(const struct ublk_device *ub)
 {
 	return ub->dev_info.flags & UBLK_F_ZONED;
@@ -609,14 +604,19 @@ static void ublk_apply_params(struct ublk_device *ub)
 		ublk_dev_param_zoned_apply(ub);
 }
 
+static inline bool ublk_support_zero_copy(const struct ublk_queue *ubq)
+{
+	return ubq->flags & UBLK_F_SUPPORT_ZERO_COPY;
+}
+
 static inline bool ublk_support_user_copy(const struct ublk_queue *ubq)
 {
-	return ubq->flags & (UBLK_F_USER_COPY | UBLK_F_SUPPORT_ZERO_COPY);
+	return ubq->flags & UBLK_F_USER_COPY;
 }
 
 static inline bool ublk_need_map_io(const struct ublk_queue *ubq)
 {
-	return !ublk_support_user_copy(ubq);
+	return !ublk_support_user_copy(ubq) && !ublk_support_zero_copy(ubq);
 }
 
 static inline bool ublk_need_req_ref(const struct ublk_queue *ubq)
@@ -624,8 +624,11 @@ static inline bool ublk_need_req_ref(const struct ublk_queue *ubq)
 	/*
 	 * read()/write() is involved in user copy, so request reference
 	 * has to be grabbed
+	 *
+	 * for zero copy, request buffer need to be registered to io_uring
+	 * buffer table, so reference is needed
 	 */
-	return ublk_support_user_copy(ubq);
+	return ublk_support_user_copy(ubq) || ublk_support_zero_copy(ubq);
 }
 
 static inline void ublk_init_req_ref(const struct ublk_queue *ubq,
@@ -2245,6 +2248,9 @@ static struct request *ublk_check_and_get_req(struct kiocb *iocb,
 	if (!ubq)
 		return ERR_PTR(-EINVAL);
 
+	if (!ublk_support_user_copy(ubq))
+		return ERR_PTR(-EACCES);
+
 	if (tag >= ubq->q_depth)
 		return ERR_PTR(-EINVAL);
 
@@ -2783,13 +2789,18 @@ static int ublk_ctrl_add_dev(const struct ublksrv_ctrl_cmd *header)
 	ub->dev_info.flags |= UBLK_F_CMD_IOCTL_ENCODE |
 		UBLK_F_URING_CMD_COMP_IN_TASK;
 
-	/* GET_DATA isn't needed any more with USER_COPY */
-	if (ublk_dev_is_user_copy(ub))
+	/* GET_DATA isn't needed any more with USER_COPY or ZERO COPY */
+	if (ub->dev_info.flags & (UBLK_F_USER_COPY | UBLK_F_SUPPORT_ZERO_COPY))
 		ub->dev_info.flags &= ~UBLK_F_NEED_GET_DATA;
 
-	/* Zoned storage support requires user copy feature */
+	/*
+	 * Zoned storage support requires reuse `ublksrv_io_cmd->addr` for
+	 * returning write_append_lba, which is only allowed in case of
+	 * user copy or zero copy
+	 */
 	if (ublk_dev_is_zoned(ub) &&
-	    (!IS_ENABLED(CONFIG_BLK_DEV_ZONED) || !ublk_dev_is_user_copy(ub))) {
+	    (!IS_ENABLED(CONFIG_BLK_DEV_ZONED) || !(ub->dev_info.flags &
+	     (UBLK_F_USER_COPY | UBLK_F_SUPPORT_ZERO_COPY)))) {
 		ret = -EINVAL;
 		goto out_free_dev_number;
 	}
