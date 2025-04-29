@@ -19,29 +19,24 @@ config MDIO_BUS
 	  reflects whether the mdio_bus/mdio_device code is built as a
 	  loadable module or built-in.
 
+if PHYLIB
+
 config FWNODE_MDIO
-	def_tristate PHYLIB
-	depends on (ACPI || OF) || COMPILE_TEST
+	def_tristate (ACPI || OF) || COMPILE_TEST
 	select FIXED_PHY
 	help
 	  FWNODE MDIO bus (Ethernet PHY) accessors
 
 config OF_MDIO
-	def_tristate PHYLIB
-	depends on OF
-	depends on PHYLIB
+	def_tristate OF
 	select FIXED_PHY
 	help
 	  OpenFirmware MDIO bus (Ethernet PHY) accessors
 
 config ACPI_MDIO
-	def_tristate PHYLIB
-	depends on ACPI
-	depends on PHYLIB
+	def_tristate ACPI
 	help
 	  ACPI MDIO bus (Ethernet PHY) accessors
-
-if MDIO_BUS
 
 config MDIO_DEVRES
 	tristate
@@ -57,7 +52,6 @@ config MDIO_SUN4I
 config MDIO_XGENE
 	tristate "APM X-Gene SoC MDIO bus controller"
 	depends on ARCH_XGENE || COMPILE_TEST
-	depends on PHYLIB
 	help
 	  This module provides a driver for the MDIO busses found in the
 	  APM X-Gene SoC's.
