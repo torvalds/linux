@@ -609,40 +609,26 @@ static void cond_unmask_irq(struct irq_desc *desc)
 }
 
 /**
- *	handle_level_irq - Level type irq handler
- *	@desc:	the interrupt description structure for this irq
+ * handle_level_irq - Level type irq handler
+ * @desc:	the interrupt description structure for this irq
  *
- *	Level type interrupts are active as long as the hardware line has
- *	the active level. This may require to mask the interrupt and unmask
- *	it after the associated handler has acknowledged the device, so the
- *	interrupt line is back to inactive.
+ * Level type interrupts are active as long as the hardware line has the
+ * active level. This may require to mask the interrupt and unmask it after
+ * the associated handler has acknowledged the device, so the interrupt
+ * line is back to inactive.
  */
 void handle_level_irq(struct irq_desc *desc)
 {
-	raw_spin_lock(&desc->lock);
+	guard(raw_spinlock)(&desc->lock);
 	mask_ack_irq(desc);
 
-	if (!irq_can_handle_pm(desc))
-		goto out_unlock;
-
-	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
-
-	/*
-	 * If its disabled or no action available
-	 * keep it masked and get out of here
-	 */
-	if (unlikely(!desc->action || irqd_irq_disabled(&desc->irq_data))) {
-		desc->istate |= IRQS_PENDING;
-		goto out_unlock;
-	}
+	if (!irq_can_handle(desc))
+		return;
 
 	kstat_incr_irqs_this_cpu(desc);
 	handle_irq_event(desc);
 
 	cond_unmask_irq(desc);
-
-out_unlock:
-	raw_spin_unlock(&desc->lock);
 }
 EXPORT_SYMBOL_GPL(handle_level_irq);
 
