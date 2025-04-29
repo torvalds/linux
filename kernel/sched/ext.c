@@ -851,6 +851,10 @@ struct scx_sched {
 	struct scx_exit_info	*exit_info;
 
 	struct kobject		kobj;
+
+	struct kthread_worker	*helper;
+	struct irq_work		error_irq_work;
+	struct kthread_work	disable_work;
 	struct rcu_work		rcu_work;
 };
 
@@ -1024,7 +1028,6 @@ static DEFINE_SPINLOCK(scx_tasks_lock);
 static LIST_HEAD(scx_tasks);
 
 /* ops enable/disable */
-static struct kthread_worker *scx_helper;
 static DEFINE_MUTEX(scx_enable_mutex);
 DEFINE_STATIC_KEY_FALSE(__scx_enabled);
 DEFINE_STATIC_PERCPU_RWSEM(scx_fork_rwsem);
@@ -4418,6 +4421,7 @@ static void scx_sched_free_rcu_work(struct work_struct *work)
 	struct scx_dispatch_q *dsq;
 	int node;
 
+	kthread_stop(sch->helper->task);
 	free_percpu(sch->event_stats_cpu);
 
 	for_each_node_state(node, N_POSSIBLE)
@@ -4740,7 +4744,7 @@ static const char *scx_exit_reason(enum scx_exit_kind kind)
 
 static void scx_disable_workfn(struct kthread_work *work)
 {
-	struct scx_sched *sch = scx_root;
+	struct scx_sched *sch = container_of(work, struct scx_sched, disable_work);
 	struct scx_exit_info *ei = sch->exit_info;
 	struct scx_task_iter sti;
 	struct task_struct *p;
@@ -4886,20 +4890,6 @@ done:
 	scx_bypass(false);
 }
 
-static DEFINE_KTHREAD_WORK(scx_disable_work, scx_disable_workfn);
-
-static void schedule_scx_disable_work(void)
-{
-	struct kthread_worker *helper = READ_ONCE(scx_helper);
-
-	/*
-	 * We may be called spuriously before the first bpf_sched_ext_reg(). If
-	 * scx_helper isn't set up yet, there's nothing to do.
-	 */
-	if (helper)
-		kthread_queue_work(helper, &scx_disable_work);
-}
-
 static void scx_disable(enum scx_exit_kind kind)
 {
 	int none = SCX_EXIT_NONE;
@@ -4912,7 +4902,7 @@ static void scx_disable(enum scx_exit_kind kind)
 	sch = rcu_dereference(scx_root);
 	if (sch) {
 		atomic_try_cmpxchg(&sch->exit_kind, &none, kind);
-		schedule_scx_disable_work();
+		kthread_queue_work(sch->helper, &sch->disable_work);
 	}
 	rcu_read_unlock();
 }
@@ -5214,15 +5204,14 @@ static void scx_dump_state(struct scx_exit_info *ei, size_t dump_len)
 
 static void scx_error_irq_workfn(struct irq_work *irq_work)
 {
-	struct scx_exit_info *ei = scx_root->exit_info;
+	struct scx_sched *sch = container_of(irq_work, struct scx_sched, error_irq_work);
+	struct scx_exit_info *ei = sch->exit_info;
 
 	if (ei->kind >= SCX_EXIT_ERROR)
-		scx_dump_state(ei, scx_root->ops.exit_dump_len);
+		scx_dump_state(ei, sch->ops.exit_dump_len);
 
-	schedule_scx_disable_work();
+	kthread_queue_work(sch->helper, &sch->disable_work);
 }
-
-static DEFINE_IRQ_WORK(scx_error_irq_work, scx_error_irq_workfn);
 
 static __printf(3, 4) void __scx_exit(enum scx_exit_kind kind, s64 exit_code,
 				      const char *fmt, ...)
@@ -5250,17 +5239,7 @@ static __printf(3, 4) void __scx_exit(enum scx_exit_kind kind, s64 exit_code,
 	ei->kind = kind;
 	ei->reason = scx_exit_reason(ei->kind);
 
-	irq_work_queue(&scx_error_irq_work);
-}
-
-static struct kthread_worker *scx_create_rt_helper(const char *name)
-{
-	struct kthread_worker *helper;
-
-	helper = kthread_run_worker(0, name);
-	if (helper)
-		sched_set_fifo(helper->task);
-	return helper;
+	irq_work_queue(&scx_root->error_irq_work);
 }
 
 static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
@@ -5306,17 +5285,26 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
 	if (!sch->event_stats_cpu)
 		goto err_free_gdsqs;
 
+	sch->helper = kthread_run_worker(0, "sched_ext_helper");
+	if (!sch->helper)
+		goto err_free_event_stats;
+	sched_set_fifo(sch->helper->task);
+
 	atomic_set(&sch->exit_kind, SCX_EXIT_NONE);
+	init_irq_work(&sch->error_irq_work, scx_error_irq_workfn);
+	kthread_init_work(&sch->disable_work, scx_disable_workfn);
 	sch->ops = *ops;
 	ops->priv = sch;
 
 	sch->kobj.kset = scx_kset;
 	ret = kobject_init_and_add(&sch->kobj, &scx_ktype, NULL, "root");
 	if (ret < 0)
-		goto err_free_event_stats;
+		goto err_stop_helper;
 
 	return sch;
 
+err_stop_helper:
+	kthread_stop(sch->helper->task);
 err_free_event_stats:
 	free_percpu(sch->event_stats_cpu);
 err_free_gdsqs:
@@ -5393,14 +5381,6 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	}
 
 	mutex_lock(&scx_enable_mutex);
-
-	if (!scx_helper) {
-		WRITE_ONCE(scx_helper, scx_create_rt_helper("sched_ext_helper"));
-		if (!scx_helper) {
-			ret = -ENOMEM;
-			goto err_unlock;
-		}
-	}
 
 	if (scx_enable_state() != SCX_DISABLED) {
 		ret = -EBUSY;
@@ -5630,7 +5610,7 @@ err_disable:
 	 * completion. sch's base reference will be put by bpf_scx_unreg().
 	 */
 	scx_error("scx_enable() failed (%d)", ret);
-	kthread_flush_work(&scx_disable_work);
+	kthread_flush_work(&sch->disable_work);
 	return 0;
 }
 
@@ -5783,7 +5763,7 @@ static void bpf_scx_unreg(void *kdata, struct bpf_link *link)
 	struct scx_sched *sch = ops->priv;
 
 	scx_disable(SCX_EXIT_UNREG);
-	kthread_flush_work(&scx_disable_work);
+	kthread_flush_work(&sch->disable_work);
 	kobject_put(&sch->kobj);
 }
 
@@ -5906,10 +5886,7 @@ static struct bpf_struct_ops bpf_sched_ext_ops = {
 
 static void sysrq_handle_sched_ext_reset(u8 key)
 {
-	if (scx_helper)
-		scx_disable(SCX_EXIT_SYSRQ);
-	else
-		pr_info("sched_ext: BPF scheduler not yet used\n");
+	scx_disable(SCX_EXIT_SYSRQ);
 }
 
 static const struct sysrq_key_op sysrq_sched_ext_reset_op = {
