@@ -2259,6 +2259,17 @@ static void perf_pmu__del_caps(struct perf_pmu *pmu)
 	}
 }
 
+struct perf_pmu_caps *perf_pmu__get_cap(struct perf_pmu *pmu, const char *name)
+{
+	struct perf_pmu_caps *caps;
+
+	list_for_each_entry(caps, &pmu->caps, list) {
+		if (!strcmp(caps->name, name))
+			return caps;
+	}
+	return NULL;
+}
+
 /*
  * Reading/parsing the given pmu capabilities, which should be located at:
  * /sys/bus/event_source/devices/<dev>/caps as sysfs group attributes.

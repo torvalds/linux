@@ -18,8 +18,10 @@
 #include "mem-events.h"
 #include "util/env.h"
 
-void perf_pmu__arch_init(struct perf_pmu *pmu __maybe_unused)
+void perf_pmu__arch_init(struct perf_pmu *pmu)
 {
+	struct perf_pmu_caps *ldlat_cap;
+
 #ifdef HAVE_AUXTRACE_SUPPORT
 	if (!strcmp(pmu->name, INTEL_PT_PMU_NAME)) {
 		pmu->auxtrace = true;
@@ -33,8 +35,20 @@ void perf_pmu__arch_init(struct perf_pmu *pmu __maybe_unused)
 #endif
 
 	if (x86__is_amd_cpu()) {
-		if (!strcmp(pmu->name, "ibs_op"))
-			pmu->mem_events = perf_mem_events_amd;
+		if (strcmp(pmu->name, "ibs_op"))
+			return;
+
+		pmu->mem_events = perf_mem_events_amd;
+
+		if (!perf_pmu__caps_parse(pmu))
+			return;
+
+		ldlat_cap = perf_pmu__get_cap(pmu, "ldlat");
+		if (!ldlat_cap || strcmp(ldlat_cap->value, "1"))
+			return;
+
+		perf_mem_events__loads_ldlat = 0;
+		pmu->mem_events = perf_mem_events_amd_ldlat;
 	} else if (pmu->is_core) {
 		if (perf_pmu__have_event(pmu, "mem-loads-aux"))
 			pmu->mem_events = perf_mem_events_intel_aux;

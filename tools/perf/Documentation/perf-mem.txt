@@ -28,6 +28,8 @@ and kernel support is required. See linkperf:perf-arm-spe[1] for a setup guide.
 Due to the statistical nature of SPE sampling, not every memory operation will
 be sampled.
 
+On AMD this use IBS Op PMU to sample load-store operations.
+
 COMMON OPTIONS
 --------------
 -f::
@@ -67,8 +69,15 @@ RECORD OPTIONS
 	Configure all used events to run in user space.
 
 --ldlat <n>::
-	Specify desired latency for loads event. Supported on Intel and Arm64
-	processors only. Ignored on other archs.
+	Specify desired latency for loads event. Supported on Intel, Arm64 and
+	some AMD processors. Ignored on other archs.
+
+	On supported AMD processors:
+	- /sys/bus/event_source/devices/ibs_op/caps/ldlat file contains '1'.
+	- Supported latency values are 128 to 2048 (both inclusive).
+	- Latency value which is a multiple of 128 incurs a little less profiling
+	  overhead compared to other values.
+	- Load latency filtering is disabled by default.
 
 REPORT OPTIONS
 --------------
