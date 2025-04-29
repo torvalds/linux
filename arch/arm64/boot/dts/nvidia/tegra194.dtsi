@@ -747,6 +747,8 @@
 			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTA>;
 			resets = <&bpmp TEGRA194_RESET_UARTA>;
+			dmas = <&gpcdma 8>, <&gpcdma 8>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -757,6 +759,8 @@
 			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTB>;
 			resets = <&bpmp TEGRA194_RESET_UARTB>;
+			dmas = <&gpcdma 9>, <&gpcdma 9>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -767,6 +771,8 @@
 			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTD>;
 			resets = <&bpmp TEGRA194_RESET_UARTD>;
+			dmas = <&gpcdma 19>, <&gpcdma 19>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -777,6 +783,8 @@
 			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTE>;
 			resets = <&bpmp TEGRA194_RESET_UARTE>;
+			dmas = <&gpcdma 20>, <&gpcdma 20>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -787,6 +795,8 @@
 			interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTF>;
 			resets = <&bpmp TEGRA194_RESET_UARTF>;
+			dmas = <&gpcdma 12>, <&gpcdma 12>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -812,6 +822,8 @@
 			interrupts = <GIC_SPI 207 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTH>;
 			resets = <&bpmp TEGRA194_RESET_UARTH>;
+			dmas = <&gpcdma 13>, <&gpcdma 13>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -1609,6 +1621,8 @@
 			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTC>;
 			resets = <&bpmp TEGRA194_RESET_UARTC>;
+			dmas = <&gpcdma 3>, <&gpcdma 3>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -1619,6 +1633,8 @@
 			interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTG>;
 			resets = <&bpmp TEGRA194_RESET_UARTG>;
+			dmas = <&gpcdma 2>, <&gpcdma 2>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
