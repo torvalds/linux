@@ -141,6 +141,10 @@ extern int irq_setup_affinity(struct irq_desc *desc);
 static inline int irq_setup_affinity(struct irq_desc *desc) { return 0; }
 #endif
 
+
+#define for_each_action_of_desc(desc, act)			\
+	for (act = desc->action; act; act = act->next)
+
 /* Inline functions for support of irq chips on slow busses */
 static inline void chip_bus_lock(struct irq_desc *desc)
 {
@@ -160,13 +164,32 @@ static inline void chip_bus_sync_unlock(struct irq_desc *desc)
 #define IRQ_GET_DESC_CHECK_GLOBAL	(_IRQ_DESC_CHECK)
 #define IRQ_GET_DESC_CHECK_PERCPU	(_IRQ_DESC_CHECK | _IRQ_DESC_PERCPU)
 
-#define for_each_action_of_desc(desc, act)			\
-	for (act = desc->action; act; act = act->next)
-
-struct irq_desc *
-__irq_get_desc_lock(unsigned int irq, unsigned long *flags, bool bus,
-		    unsigned int check);
+struct irq_desc *__irq_get_desc_lock(unsigned int irq, unsigned long *flags, bool bus,
+				     unsigned int check);
 void __irq_put_desc_unlock(struct irq_desc *desc, unsigned long flags, bool bus);
+
+__DEFINE_CLASS_IS_CONDITIONAL(irqdesc_lock, true);
+__DEFINE_UNLOCK_GUARD(irqdesc_lock, struct irq_desc,
+		      __irq_put_desc_unlock(_T->lock, _T->flags, _T->bus),
+		      unsigned long flags; bool bus);
+
+static inline class_irqdesc_lock_t class_irqdesc_lock_constructor(unsigned int irq, bool bus,
+								  unsigned int check)
+{
+	class_irqdesc_lock_t _t = {
+		.bus	= bus,
+		.lock	= __irq_get_desc_lock(irq, &_t.flags, bus, check),
+	};
+	return _t;
+}
+
+#define scoped_irqdesc_get_and_lock(_irq, _check)		\
+	scoped_guard(irqdesc_lock, _irq, false, _check)
+
+#define scoped_irqdesc_get_and_buslock(_irq, _check)		\
+	scoped_guard(irqdesc_lock, _irq, true, _check)
+
+#define scoped_irqdesc		((struct irq_desc *)(__guard_ptr(irqdesc_lock)(&scope)))
 
 static inline struct irq_desc *
 irq_get_desc_buslock(unsigned int irq, unsigned long *flags, unsigned int check)
