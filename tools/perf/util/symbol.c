@@ -98,10 +98,12 @@ static enum dso_binary_type binary_type_symtab[] = {
 
 #define DSO_BINARY_TYPE__SYMTAB_CNT ARRAY_SIZE(binary_type_symtab)
 
-static bool symbol_type__filter(char symbol_type)
+static bool symbol_type__filter(char __symbol_type)
 {
-	symbol_type = toupper(symbol_type);
-	return symbol_type == 'T' || symbol_type == 'W' || symbol_type == 'D' || symbol_type == 'B';
+	// Since 'U' == undefined and 'u' == unique global symbol, we can't use toupper there
+	char symbol_type = toupper(__symbol_type);
+	return symbol_type == 'T' || symbol_type == 'W' || symbol_type == 'D' || symbol_type == 'B' ||
+	       __symbol_type == 'u' || __symbol_type == 'l';
 }
 
 static int prefix_underscores_count(const char *str)
