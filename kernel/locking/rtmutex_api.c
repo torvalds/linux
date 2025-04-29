@@ -9,11 +9,6 @@
 #include "rtmutex.c"
 
 /*
- * Max number of times we'll walk the boosting chain:
- */
-int max_lock_depth = 1024;
-
-/*
  * Debug aware fast / slowpath lock,trylock,unlock
  *
  * The atomic acquire/release ops are compiled away, when either the
