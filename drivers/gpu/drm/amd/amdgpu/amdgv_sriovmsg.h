@@ -331,6 +331,7 @@ enum amd_sriov_mailbox_request_message {
 	MB_REQ_MSG_RAS_POISON = 202,
 	MB_REQ_RAS_ERROR_COUNT = 203,
 	MB_REQ_RAS_CPER_DUMP = 204,
+	MB_REQ_RAS_BAD_PAGES = 205,
 };
 
 /* mailbox message send from host to guest  */
@@ -348,6 +349,8 @@ enum amd_sriov_mailbox_response_message {
 	MB_RES_MSG_GPU_RMA			= 10,
 	MB_RES_MSG_RAS_ERROR_COUNT_READY	= 11,
 	MB_REQ_RAS_CPER_DUMP_READY		= 14,
+	MB_RES_MSG_RAS_BAD_PAGES_READY		= 15,
+	MB_RES_MSG_RAS_BAD_PAGES_NOTIFICATION	= 16,
 	MB_RES_MSG_TEXT_MESSAGE			= 255
 };
 
