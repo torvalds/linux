@@ -3498,6 +3498,14 @@ static void handle_hotplug(struct rq *rq, bool online)
 
 	atomic_long_inc(&scx_hotplug_seq);
 
+	/*
+	 * scx_root updates are protected by cpus_read_lock() and will stay
+	 * stable here. Note that we can't depend on scx_enabled() test as the
+	 * hotplug ops need to be enabled before __scx_enabled is set.
+	 */
+	if (!scx_root)
+		return;
+
 	if (scx_enabled())
 		scx_idle_update_selcpu_topology(&scx_root->ops);
 
@@ -3994,7 +4002,8 @@ void scx_tg_offline(struct task_group *tg)
 
 	percpu_down_read(&scx_cgroup_rwsem);
 
-	if (SCX_HAS_OP(scx_root, cgroup_exit) && (tg->scx_flags & SCX_TG_INITED))
+	if (scx_cgroup_enabled && SCX_HAS_OP(scx_root, cgroup_exit) &&
+	    (tg->scx_flags & SCX_TG_INITED))
 		SCX_CALL_OP(SCX_KF_UNLOCKED, cgroup_exit, NULL, tg->css.cgroup);
 	tg->scx_flags &= ~(SCX_TG_ONLINE | SCX_TG_INITED);
 
