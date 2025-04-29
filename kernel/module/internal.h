@@ -58,6 +58,9 @@ extern const struct kernel_symbol __stop___ksymtab_gpl[];
 extern const u32 __start___kcrctab[];
 extern const u32 __start___kcrctab_gpl[];
 
+#define KMOD_PATH_LEN 256
+extern char modprobe_path[];
+
 struct load_info {
 	const char *name;
 	/* pointer to module in temporary copy, freed at end of load_module() */
