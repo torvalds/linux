@@ -246,7 +246,7 @@ static void intel_ace2x_bpt_close_stream(struct sdw_intel *sdw, struct sdw_slave
 	cdns->bus.bpt_stream = NULL;
 }
 
-#define INTEL_BPT_MSG_BYTE_ALIGNMENT 32
+#define INTEL_BPT_MSG_BYTE_MIN 16
 
 static int intel_ace2x_bpt_send_async(struct sdw_intel *sdw, struct sdw_slave *slave,
 				      struct sdw_bpt_msg *msg)
@@ -254,9 +254,9 @@ static int intel_ace2x_bpt_send_async(struct sdw_intel *sdw, struct sdw_slave *s
 	struct sdw_cdns *cdns = &sdw->cdns;
 	int ret;
 
-	if (msg->len % INTEL_BPT_MSG_BYTE_ALIGNMENT) {
-		dev_err(cdns->dev, "BPT message length %d is not a multiple of %d bytes\n",
-			msg->len, INTEL_BPT_MSG_BYTE_ALIGNMENT);
+	if (msg->len < INTEL_BPT_MSG_BYTE_MIN) {
+		dev_err(cdns->dev, "BPT message length %d is less than the minimum bytes %d\n",
+			msg->len, INTEL_BPT_MSG_BYTE_MIN);
 		return -EINVAL;
 	}
 
