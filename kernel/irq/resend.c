@@ -30,18 +30,17 @@ static DEFINE_RAW_SPINLOCK(irq_resend_lock);
  */
 static void resend_irqs(struct tasklet_struct *unused)
 {
-	struct irq_desc *desc;
-
-	raw_spin_lock_irq(&irq_resend_lock);
+	guard(raw_spinlock_irq)(&irq_resend_lock);
 	while (!hlist_empty(&irq_resend_list)) {
-		desc = hlist_entry(irq_resend_list.first, struct irq_desc,
-				   resend_node);
+		struct irq_desc *desc;
+
+		desc = hlist_entry(irq_resend_list.first, struct irq_desc,  resend_node);
 		hlist_del_init(&desc->resend_node);
+
 		raw_spin_unlock(&irq_resend_lock);
 		desc->handle_irq(desc);
 		raw_spin_lock(&irq_resend_lock);
 	}
-	raw_spin_unlock_irq(&irq_resend_lock);
 }
 
 /* Tasklet to handle resend: */
@@ -75,19 +74,18 @@ static int irq_sw_resend(struct irq_desc *desc)
 	}
 
 	/* Add to resend_list and activate the softirq: */
-	raw_spin_lock(&irq_resend_lock);
-	if (hlist_unhashed(&desc->resend_node))
-		hlist_add_head(&desc->resend_node, &irq_resend_list);
-	raw_spin_unlock(&irq_resend_lock);
+	scoped_guard(raw_spinlock, &irq_resend_lock) {
+		if (hlist_unhashed(&desc->resend_node))
+			hlist_add_head(&desc->resend_node, &irq_resend_list);
+	}
 	tasklet_schedule(&resend_tasklet);
 	return 0;
 }
 
 void clear_irq_resend(struct irq_desc *desc)
 {
-	raw_spin_lock(&irq_resend_lock);
+	guard(raw_spinlock)(&irq_resend_lock);
 	hlist_del_init(&desc->resend_node);
-	raw_spin_unlock(&irq_resend_lock);
 }
 
 void irq_resend_init(struct irq_desc *desc)
@@ -172,30 +170,24 @@ int check_irq_resend(struct irq_desc *desc, bool inject)
  */
 int irq_inject_interrupt(unsigned int irq)
 {
-	struct irq_desc *desc;
-	unsigned long flags;
-	int err;
+	int err = -EINVAL;
 
 	/* Try the state injection hardware interface first */
 	if (!irq_set_irqchip_state(irq, IRQCHIP_STATE_PENDING, true))
 		return 0;
 
 	/* That failed, try via the resend mechanism */
-	desc = irq_get_desc_buslock(irq, &flags, 0);
-	if (!desc)
-		return -EINVAL;
+	scoped_irqdesc_get_and_buslock(irq, 0) {
+		struct irq_desc *desc = scoped_irqdesc;
 
-	/*
-	 * Only try to inject when the interrupt is:
-	 *  - not NMI type
-	 *  - activated
-	 */
-	if (irq_is_nmi(desc) || !irqd_is_activated(&desc->irq_data))
-		err = -EINVAL;
-	else
-		err = check_irq_resend(desc, true);
-
-	irq_put_desc_busunlock(desc, flags);
+		/*
+		 * Only try to inject when the interrupt is:
+		 *  - not NMI type
+		 *  - activated
+		 */
+		if (!irq_is_nmi(desc) && irqd_is_activated(&desc->irq_data))
+			err = check_irq_resend(desc, true);
+	}
 	return err;
 }
 EXPORT_SYMBOL_GPL(irq_inject_interrupt);
