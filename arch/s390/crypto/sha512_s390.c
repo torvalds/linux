@@ -22,13 +22,13 @@ static int sha512_init(struct shash_desc *desc)
 	struct s390_sha_ctx *ctx = shash_desc_ctx(desc);
 
 	ctx->sha512.state[0] = SHA512_H0;
-	ctx->sha512.state[2] = SHA512_H1;
-	ctx->sha512.state[4] = SHA512_H2;
-	ctx->sha512.state[6] = SHA512_H3;
-	ctx->sha512.state[8] = SHA512_H4;
-	ctx->sha512.state[10] = SHA512_H5;
-	ctx->sha512.state[12] = SHA512_H6;
-	ctx->sha512.state[14] = SHA512_H7;
+	ctx->sha512.state[1] = SHA512_H1;
+	ctx->sha512.state[2] = SHA512_H2;
+	ctx->sha512.state[3] = SHA512_H3;
+	ctx->sha512.state[4] = SHA512_H4;
+	ctx->sha512.state[5] = SHA512_H5;
+	ctx->sha512.state[6] = SHA512_H6;
+	ctx->sha512.state[7] = SHA512_H7;
 	ctx->count = 0;
 	ctx->sha512.count_hi = 0;
 	ctx->func = CPACF_KIMD_SHA_512;

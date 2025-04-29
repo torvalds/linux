@@ -24,7 +24,7 @@ struct s390_sha_ctx {
 	union {
 		u32 state[CPACF_MAX_PARMBLOCK_SIZE / sizeof(u32)];
 		struct {
-			u64 state[SHA512_DIGEST_SIZE];
+			u64 state[SHA512_DIGEST_SIZE / sizeof(u64)];
 			u64 count_hi;
 		} sha512;
 	};
