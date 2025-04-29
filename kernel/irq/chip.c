@@ -67,22 +67,19 @@ int irq_set_irq_type(unsigned int irq, unsigned int type)
 EXPORT_SYMBOL(irq_set_irq_type);
 
 /**
- *	irq_set_handler_data - set irq handler data for an irq
- *	@irq:	Interrupt number
- *	@data:	Pointer to interrupt specific data
+ * irq_set_handler_data - set irq handler data for an irq
+ * @irq:	Interrupt number
+ * @data:	Pointer to interrupt specific data
  *
- *	Set the hardware irq controller data for an irq
+ * Set the hardware irq controller data for an irq
  */
 int irq_set_handler_data(unsigned int irq, void *data)
 {
-	unsigned long flags;
-	struct irq_desc *desc = irq_get_desc_lock(irq, &flags, 0);
-
-	if (!desc)
-		return -EINVAL;
-	desc->irq_common_data.handler_data = data;
-	irq_put_desc_unlock(desc, flags);
-	return 0;
+	scoped_irqdesc_get_and_lock(irq, 0) {
+		scoped_irqdesc->irq_common_data.handler_data = data;
+		return 0;
+	}
+	return -EINVAL;
 }
 EXPORT_SYMBOL(irq_set_handler_data);
 
