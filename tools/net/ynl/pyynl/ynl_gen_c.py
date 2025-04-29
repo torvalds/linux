@@ -1281,7 +1281,7 @@ class RenderInfo:
 
         self.struct = dict()
         if op_mode == 'notify':
-            op_mode = 'do'
+            op_mode = 'do' if 'do' in op else 'dump'
         for op_dir in ['request', 'reply']:
             if op:
                 type_list = []
