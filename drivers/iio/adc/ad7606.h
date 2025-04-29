@@ -155,12 +155,15 @@ struct ad7606_state {
 	/*
 	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
-	 * 16 * 16-bit samples + 64-bit timestamp - for AD7616
-	 * 8 * 32-bit samples + 64-bit timestamp - for AD7616C-18 (and similar)
+	 * 16 * 16-bit samples for AD7616
+	 * 8 * 32-bit samples for AD7616C-18 (and similar)
 	 */
-	union {
-		u16 buf16[20];
-		u32 buf32[10];
+	struct {
+		union {
+			u16 buf16[16];
+			u32 buf32[8];
+		};
+		aligned_s64 timestamp;
 	} data __aligned(IIO_DMA_MINALIGN);
 	__be16				d16[2];
 };
