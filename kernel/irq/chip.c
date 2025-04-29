@@ -972,38 +972,34 @@ EXPORT_SYMBOL_GPL(irq_set_chip_and_handler_name);
 
 void irq_modify_status(unsigned int irq, unsigned long clr, unsigned long set)
 {
-	unsigned long flags, trigger, tmp;
-	struct irq_desc *desc = irq_get_desc_lock(irq, &flags, 0);
+	scoped_irqdesc_get_and_lock(irq, 0) {
+		struct irq_desc *desc = scoped_irqdesc;
+		unsigned long trigger, tmp;
+		/*
+		 * Warn when a driver sets the no autoenable flag on an already
+		 * active interrupt.
+		 */
+		WARN_ON_ONCE(!desc->depth && (set & _IRQ_NOAUTOEN));
 
-	if (!desc)
-		return;
+		irq_settings_clr_and_set(desc, clr, set);
 
-	/*
-	 * Warn when a driver sets the no autoenable flag on an already
-	 * active interrupt.
-	 */
-	WARN_ON_ONCE(!desc->depth && (set & _IRQ_NOAUTOEN));
+		trigger = irqd_get_trigger_type(&desc->irq_data);
 
-	irq_settings_clr_and_set(desc, clr, set);
+		irqd_clear(&desc->irq_data, IRQD_NO_BALANCING | IRQD_PER_CPU |
+			   IRQD_TRIGGER_MASK | IRQD_LEVEL);
+		if (irq_settings_has_no_balance_set(desc))
+			irqd_set(&desc->irq_data, IRQD_NO_BALANCING);
+		if (irq_settings_is_per_cpu(desc))
+			irqd_set(&desc->irq_data, IRQD_PER_CPU);
+		if (irq_settings_is_level(desc))
+			irqd_set(&desc->irq_data, IRQD_LEVEL);
 
-	trigger = irqd_get_trigger_type(&desc->irq_data);
+		tmp = irq_settings_get_trigger_mask(desc);
+		if (tmp != IRQ_TYPE_NONE)
+			trigger = tmp;
 
-	irqd_clear(&desc->irq_data, IRQD_NO_BALANCING | IRQD_PER_CPU |
-		   IRQD_TRIGGER_MASK | IRQD_LEVEL);
-	if (irq_settings_has_no_balance_set(desc))
-		irqd_set(&desc->irq_data, IRQD_NO_BALANCING);
-	if (irq_settings_is_per_cpu(desc))
-		irqd_set(&desc->irq_data, IRQD_PER_CPU);
-	if (irq_settings_is_level(desc))
-		irqd_set(&desc->irq_data, IRQD_LEVEL);
-
-	tmp = irq_settings_get_trigger_mask(desc);
-	if (tmp != IRQ_TYPE_NONE)
-		trigger = tmp;
-
-	irqd_set(&desc->irq_data, trigger);
-
-	irq_put_desc_unlock(desc, flags);
+		irqd_set(&desc->irq_data, trigger);
+	}
 }
 EXPORT_SYMBOL_GPL(irq_modify_status);
 
