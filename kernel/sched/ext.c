@@ -4752,13 +4752,9 @@ static void scx_disable_workfn(struct kthread_work *work)
 
 	kind = atomic_read(&sch->exit_kind);
 	while (true) {
-		/*
-		 * NONE indicates that a new scx_ops has been registered since
-		 * disable was scheduled - don't kill the new ops. DONE
-		 * indicates that the ops has already been disabled.
-		 */
-		if (kind == SCX_EXIT_NONE || kind == SCX_EXIT_DONE)
+		if (kind == SCX_EXIT_DONE)	/* already disabled? */
 			return;
+		WARN_ON_ONCE(kind == SCX_EXIT_NONE);
 		if (atomic_try_cmpxchg(&sch->exit_kind, &kind, SCX_EXIT_DONE))
 			break;
 	}
