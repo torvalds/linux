@@ -3265,12 +3265,12 @@ struct fwnode_handle *fwnode_get_phy_node(const struct fwnode_handle *fwnode)
 
 	/* Only phy-handle is used for ACPI */
 	phy_node = fwnode_find_reference(fwnode, "phy-handle", 0);
-	if (is_acpi_node(fwnode) || !IS_ERR(phy_node))
+	if (!IS_ERR(phy_node) || is_acpi_node(fwnode))
 		return phy_node;
 	phy_node = fwnode_find_reference(fwnode, "phy", 0);
-	if (IS_ERR(phy_node))
-		phy_node = fwnode_find_reference(fwnode, "phy-device", 0);
-	return phy_node;
+	if (!IS_ERR(phy_node))
+		return phy_node;
+	return fwnode_find_reference(fwnode, "phy-device", 0);
 }
 EXPORT_SYMBOL_GPL(fwnode_get_phy_node);
 
