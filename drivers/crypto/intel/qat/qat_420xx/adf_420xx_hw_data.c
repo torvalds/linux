@@ -15,9 +15,9 @@
 #include <adf_gen4_pfvf.h>
 #include <adf_gen4_pm.h>
 #include <adf_gen4_ras.h>
-#include <adf_gen4_timer.h>
 #include <adf_gen4_tl.h>
 #include <adf_gen4_vf_mig.h>
+#include <adf_timer.h>
 #include "adf_420xx_hw_data.h"
 #include "icp_qat_hw.h"
 
@@ -468,8 +468,8 @@ void adf_init_hw_data_420xx(struct adf_hw_device_data *hw_data, u32 dev_id)
 	hw_data->enable_pm = adf_gen4_enable_pm;
 	hw_data->handle_pm_interrupt = adf_gen4_handle_pm_interrupt;
 	hw_data->dev_config = adf_gen4_dev_config;
-	hw_data->start_timer = adf_gen4_timer_start;
-	hw_data->stop_timer = adf_gen4_timer_stop;
+	hw_data->start_timer = adf_timer_start;
+	hw_data->stop_timer = adf_timer_stop;
 	hw_data->get_hb_clock = adf_gen4_get_heartbeat_clock;
 	hw_data->num_hb_ctrs = ADF_NUM_HB_CNT_PER_AE;
 	hw_data->clock_frequency = ADF_420XX_AE_FREQ;

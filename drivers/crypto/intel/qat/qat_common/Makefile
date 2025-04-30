@@ -19,7 +19,6 @@ intel_qat-y := adf_accel_engine.o \
 	adf_gen4_hw_data.o \
 	adf_gen4_pm.o \
 	adf_gen4_ras.o \
-	adf_gen4_timer.o \
 	adf_gen4_vf_mig.o \
 	adf_hw_arbiter.o \
 	adf_init.o \
@@ -30,6 +29,7 @@ intel_qat-y := adf_accel_engine.o \
 	adf_sysfs.o \
 	adf_sysfs_ras_counters.o \
 	adf_sysfs_rl.o \
+	adf_timer.o \
 	adf_transport.o \
 	qat_algs.o \
 	qat_algs_send.o \
