@@ -56,6 +56,8 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 	unsigned long *pgd = NULL, *p4d = NULL, *__pgd;
 	unsigned long asce_limit = mm->context.asce_limit;
 
+	mmap_assert_write_locked(mm);
+
 	/* upgrade should only happen from 3 to 4, 3 to 5, or 4 to 5 levels */
 	VM_BUG_ON(asce_limit < _REGION2_SIZE);
 
@@ -78,13 +80,6 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 	}
 
 	spin_lock_bh(&mm->page_table_lock);
-
-	/*
-	 * This routine gets called with mmap_lock lock held and there is
-	 * no reason to optimize for the case of otherwise. However, if
-	 * that would ever change, the below check will let us know.
-	 */
-	VM_BUG_ON(asce_limit != mm->context.asce_limit);
 
 	if (p4d) {
 		__pgd = (unsigned long *) mm->pgd;
