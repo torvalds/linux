@@ -50,6 +50,9 @@ static void iwl_mld_chanctx_usage_iter(void *_data, u8 *mac,
 		if (rcu_access_pointer(link_conf->chanctx_conf) != data->ctx)
 			continue;
 
+		if (vif->type == NL80211_IFTYPE_AP && link_conf->ftm_responder)
+			data->use_def = true;
+
 		if (iwl_mld_chanctx_fils_enabled(vif, data->ctx))
 			data->use_def = true;
 	}
