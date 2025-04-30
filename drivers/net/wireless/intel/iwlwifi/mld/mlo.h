@@ -161,6 +161,10 @@ struct iwl_mld_link_sel_data {
 u32 iwl_mld_emlsr_pair_state(struct ieee80211_vif *vif,
 			     struct iwl_mld_link_sel_data *a,
 			     struct iwl_mld_link_sel_data *b);
+
+bool iwl_mld_bt_allows_emlsr(struct iwl_mld *mld,
+			     struct ieee80211_bss_conf *link,
+			     bool entry_criteria);
 #endif
 
 #endif /* __iwl_mld_mlo_h__ */
