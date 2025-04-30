@@ -3641,7 +3641,7 @@ long memfd_pin_folios(struct file *memfd, loff_t start, loff_t end,
 			}
 
 			for (i = 0; i < nr_found; i++) {
-				folio = page_folio(&fbatch.folios[i]->page);
+				folio = fbatch.folios[i];
 
 				if (try_grab_folio(folio, 1, FOLL_PIN)) {
 					folio_batch_release(&fbatch);
