@@ -46,7 +46,8 @@ int qat_comp_build_ctx(struct adf_accel_dev *accel_dev, void *ctx, enum adf_dc_a
 						      ICP_QAT_FW_COMP_NO_XXHASH_ACC,
 						      ICP_QAT_FW_COMP_CNV_ERROR_NONE,
 						      ICP_QAT_FW_COMP_NO_APPEND_CRC,
-						      ICP_QAT_FW_COMP_NO_DROP_DATA);
+						      ICP_QAT_FW_COMP_NO_DROP_DATA,
+						      ICP_QAT_FW_COMP_NO_PARTIAL_DECOMPRESS);
 	ICP_QAT_FW_COMN_NEXT_ID_SET(comp_cd_ctrl, ICP_QAT_FW_SLICE_DRAM_WR);
 	ICP_QAT_FW_COMN_CURR_ID_SET(comp_cd_ctrl, ICP_QAT_FW_SLICE_COMP);
 
