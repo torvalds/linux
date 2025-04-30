@@ -645,11 +645,9 @@ isp_video_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 
 	strscpy(cap->driver, ISP_VIDEO_DRIVER_NAME, sizeof(cap->driver));
 	strscpy(cap->card, video->video.name, sizeof(cap->card));
-	strscpy(cap->bus_info, "media", sizeof(cap->bus_info));
 
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OUTPUT
-		| V4L2_CAP_STREAMING | V4L2_CAP_DEVICE_CAPS;
-
+		| V4L2_CAP_STREAMING | V4L2_CAP_DEVICE_CAPS | V4L2_CAP_IO_MC;
 
 	return 0;
 }
@@ -1451,10 +1449,10 @@ int omap3isp_video_init(struct isp_video *video, const char *name)
 	video->video.ioctl_ops = &isp_video_ioctl_ops;
 	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		video->video.device_caps = V4L2_CAP_VIDEO_CAPTURE
-					 | V4L2_CAP_STREAMING;
+					 | V4L2_CAP_STREAMING | V4L2_CAP_IO_MC;
 	else
 		video->video.device_caps = V4L2_CAP_VIDEO_OUTPUT
-					 | V4L2_CAP_STREAMING;
+					 | V4L2_CAP_STREAMING | V4L2_CAP_IO_MC;
 
 	video->pipe.stream_state = ISP_PIPELINE_STREAM_STOPPED;
 
