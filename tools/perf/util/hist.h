@@ -100,6 +100,13 @@ enum hist_column {
 struct thread;
 struct dso;
 
+#define MEM_STAT_LEN  8
+
+struct he_mem_stat {
+	/* meaning of entries depends on enum mem_stat_type */
+	u64			entries[MEM_STAT_LEN];
+};
+
 struct hists {
 	struct rb_root_cached	entries_in_array[2];
 	struct rb_root_cached	*entries_in;
@@ -125,6 +132,7 @@ struct hists {
 	struct perf_hpp_list	*hpp_list;
 	struct list_head	hpp_formats;
 	int			nr_hpp_node;
+	int			nr_mem_stats;
 };
 
 #define hists__has(__h, __f) (__h)->hpp_list->__f
@@ -232,6 +240,7 @@ struct hist_entry {
 	} pairs;
 	struct he_stat		stat;
 	struct he_stat		*stat_acc;
+	struct he_mem_stat	*mem_stat;
 	struct map_symbol	ms;
 	struct thread		*thread;
 	struct comm		*comm;
