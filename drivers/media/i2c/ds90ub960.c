@@ -2126,7 +2126,7 @@ static int ub960_rxport_bc_ser_config(struct ub960_rxport *rxport)
 	struct ub960_data *priv = rxport->priv;
 	struct device *dev = &priv->client->dev;
 	u8 nport = rxport->nport;
-	int ret;
+	int ret = 0;
 
 	/* Skip port if serializer's address is not known */
 	if (rxport->ser.addr < 0) {
