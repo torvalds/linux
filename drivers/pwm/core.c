@@ -411,9 +411,8 @@ static int __pwm_set_waveform(struct pwm_device *pwm,
  * possible/needed. In the above example requesting .period_length_ns = 94 and
  * @exact = true, you get the hardware configured with period = 93.5 ns.
  *
- * Returns: 0 on success, 1 if was rounded up (if !@exact), -EDOM if setting
- * failed due to the exact waveform not being possible (if @exact), or a
- * different negative errno on failure.
+ * Returns: 0 on success, -EDOM if setting failed due to the exact waveform not
+ * being possible (if @exact), or a different negative errno on failure.
  * Context: May sleep.
  */
 int pwm_set_waveform_might_sleep(struct pwm_device *pwm,
@@ -442,14 +441,17 @@ int pwm_set_waveform_might_sleep(struct pwm_device *pwm,
 	}
 
 	/*
-	 * map err == 1 to -EDOM for exact requests. Also make sure that -EDOM is
-	 * only returned in exactly that case. Note that __pwm_set_waveform()
-	 * should never return -EDOM which justifies the unlikely().
+	 * map err == 1 to -EDOM for exact requests and 0 for !exact ones. Also
+	 * make sure that -EDOM is only returned in exactly that case. Note that
+	 * __pwm_set_waveform() should never return -EDOM which justifies the
+	 * unlikely().
 	 */
 	if (unlikely(err == -EDOM))
 		err = -EINVAL;
 	else if (exact && err == 1)
 		err = -EDOM;
+	else if (err == 1)
+		err = 0;
 
 	return err;
 }
