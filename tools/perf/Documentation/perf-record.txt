@@ -340,7 +340,7 @@ OPTIONS
 
 -d::
 --data::
-	Record the sample virtual addresses.
+	Record the sample virtual addresses.  Implies --sample-mem-info.
 
 --phys-data::
 	Record the sample physical addresses.
@@ -367,6 +367,11 @@ OPTIONS
 	Record the sample identifier i.e. PERF_SAMPLE_IDENTIFIER bit set in
 	the sample_type member of the struct perf_event_attr argument to the
 	perf_event_open system call.
+
+--sample-mem-info::
+	Record the sample data source information for memory operations.
+	It requires hardware supports and may work on specific events only.
+	Please consider using 'perf mem record' instead if you're not sure.
 
 -n::
 --no-samples::

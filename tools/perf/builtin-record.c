@@ -3436,6 +3436,8 @@ static struct option __record_options[] = {
 		    "Record the sampled data address data page size"),
 	OPT_BOOLEAN(0, "code-page-size", &record.opts.sample_code_page_size,
 		    "Record the sampled code address (ip) page size"),
+	OPT_BOOLEAN(0, "sample-mem-info", &record.opts.sample_data_src,
+		    "Record the data source for memory operations"),
 	OPT_BOOLEAN(0, "sample-cpu", &record.opts.sample_cpu, "Record the sample cpu"),
 	OPT_BOOLEAN(0, "sample-identifier", &record.opts.sample_identifier,
 		    "Record the sample identifier"),
@@ -4129,6 +4131,10 @@ int cmd_record(int argc, const char **argv)
 		}
 		goto out_opts;
 	}
+
+	/* For backward compatibility, -d implies --mem-info */
+	if (rec->opts.sample_address)
+		rec->opts.sample_data_src = true;
 
 	/*
 	 * Allow aliases to facilitate the lookup of symbols for address

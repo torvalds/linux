@@ -1425,7 +1425,7 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 		evsel__set_sample_bit(evsel, CPU);
 	}
 
-	if (opts->sample_address)
+	if (opts->sample_data_src)
 		evsel__set_sample_bit(evsel, DATA_SRC);
 
 	if (opts->sample_phys_addr)
