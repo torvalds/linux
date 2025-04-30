@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2023 Intel Corporation
+ * Copyright (C) 2023, 2025 Intel Corporation
  */
 #include <linux/dmi.h>
 #include "iwl-drv.h"
@@ -34,6 +34,7 @@ IWL_BIOS_TABLE_LOADER(wrds_table);
 IWL_BIOS_TABLE_LOADER(ewrd_table);
 IWL_BIOS_TABLE_LOADER(wgds_table);
 IWL_BIOS_TABLE_LOADER(ppag_table);
+IWL_BIOS_TABLE_LOADER(phy_filters);
 IWL_BIOS_TABLE_LOADER_DATA(tas_table, struct iwl_tas_data);
 IWL_BIOS_TABLE_LOADER_DATA(pwr_limit, u64);
 IWL_BIOS_TABLE_LOADER_DATA(mcc, char);

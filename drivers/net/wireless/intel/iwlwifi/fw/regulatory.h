@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2023-2024 Intel Corporation
+ * Copyright (C) 2023-2025 Intel Corporation
  */
 
 #ifndef __fw_regulatory_h__
@@ -236,6 +236,7 @@ bool iwl_puncturing_is_allowed_in_bios(u32 puncturing, u16 mcc);
 #define IWL_DSBR_PERMANENT_URM_MASK	BIT(9)
 
 int iwl_bios_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value);
+int iwl_bios_get_phy_filters(struct iwl_fw_runtime *fwrt);
 
 static inline void iwl_bios_setup_step(struct iwl_trans *trans,
 				       struct iwl_fw_runtime *fwrt)

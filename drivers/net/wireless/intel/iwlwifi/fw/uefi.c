@@ -810,3 +810,31 @@ out:
 	kfree(data);
 	return ret;
 }
+
+int iwl_uefi_get_phy_filters(struct iwl_fw_runtime *fwrt)
+{
+	struct uefi_cnv_wpfc_data *data __free(kfree);
+	struct iwl_phy_specific_cfg *filters = &fwrt->phy_filters;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_WPFC_NAME,
+					      "WPFC", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != 0) {
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WPFC revision:%d\n",
+			data->revision);
+		return -EINVAL;
+	}
+
+	BUILD_BUG_ON(ARRAY_SIZE(filters->filter_cfg_chains) !=
+		     ARRAY_SIZE(data->chains));
+
+	for (int i = 0; i < ARRAY_SIZE(filters->filter_cfg_chains); i++) {
+		filters->filter_cfg_chains[i] = cpu_to_le32(data->chains[i]);
+		IWL_DEBUG_RADIO(fwrt, "WPFC: chain %d: %u\n", i, data->chains[i]);
+	}
+
+	IWL_DEBUG_RADIO(fwrt, "Loaded WPFC config from UEFI\n");
+	return 0;
+}

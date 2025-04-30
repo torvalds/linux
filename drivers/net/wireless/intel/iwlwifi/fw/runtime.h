@@ -185,9 +185,7 @@ struct iwl_fw_runtime {
 	struct iwl_mcc_allowed_ap_type_cmd uats_table;
 	bool uats_valid;
 	u8 uefi_tables_lock_status;
-#ifdef CONFIG_ACPI
 	struct iwl_phy_specific_cfg phy_filters;
-#endif
 };
 
 void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,

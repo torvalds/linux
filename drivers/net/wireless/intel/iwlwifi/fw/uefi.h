@@ -24,6 +24,7 @@
 #define IWL_UEFI_WBEM_NAME		L"UefiCnvWlanWBEM"
 #define IWL_UEFI_PUNCTURING_NAME	L"UefiCnvWlanPuncturing"
 #define IWL_UEFI_DSBR_NAME		L"UefiCnvCommonDSBR"
+#define IWL_UEFI_WPFC_NAME		L"WPFC"
 
 
 #define IWL_SGOM_MAP_SIZE		339
@@ -230,6 +231,18 @@ struct uefi_cnv_wlan_dsbr_data {
 	u32 config;
 } __packed;
 
+/**
+ * struct uefi_cnv_wpfc_data - BIOS Wi-Fi PHY filter Configuration
+ * @revision: the revision of the table
+ * @chains: configuration of each of the chains (a-d)
+ *
+ * specific PHY filter configuration
+ */
+struct uefi_cnv_wpfc_data {
+	u8 revision;
+	u32 chains[4];
+} __packed;
+
 /*
  * This is known to be broken on v4.19 and to work on v5.4.  Until we
  * figure out why this is the case and how to make it work, simply
@@ -262,6 +275,7 @@ int iwl_uefi_get_uats_table(struct iwl_trans *trans,
 			    struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_puncturing(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value);
+int iwl_uefi_get_phy_filters(struct iwl_fw_runtime *fwrt);
 #else /* CONFIG_EFI */
 static inline void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 {
@@ -367,6 +381,11 @@ int iwl_uefi_get_puncturing(struct iwl_fw_runtime *fwrt)
 
 static inline
 int iwl_uefi_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_uefi_get_phy_filters(struct iwl_fw_runtime *fwrt)
 {
 	return -ENOENT;
 }
