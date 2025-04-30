@@ -1287,6 +1287,7 @@ __HPP_COLOR_ACC_PERCENT_FN(latency_acc, latency, PERF_HPP_FMT_TYPE__LATENCY)
 __HPP_COLOR_MEM_STAT_FN(op, OP)
 __HPP_COLOR_MEM_STAT_FN(cache, CACHE)
 __HPP_COLOR_MEM_STAT_FN(memory, MEMORY)
+__HPP_COLOR_MEM_STAT_FN(snoop, SNOOP)
 
 #undef __HPP_COLOR_PERCENT_FN
 #undef __HPP_COLOR_ACC_PERCENT_FN
@@ -1316,6 +1317,8 @@ void hist_browser__init_hpp(void)
 				hist_browser__hpp_color_mem_stat_cache;
 	perf_hpp__format[PERF_HPP__MEM_STAT_MEMORY].color =
 				hist_browser__hpp_color_mem_stat_memory;
+	perf_hpp__format[PERF_HPP__MEM_STAT_SNOOP].color =
+				hist_browser__hpp_color_mem_stat_snoop;
 
 	res_sample_init();
 }

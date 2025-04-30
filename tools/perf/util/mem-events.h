@@ -93,6 +93,7 @@ enum mem_stat_type {
 	PERF_MEM_STAT_OP,
 	PERF_MEM_STAT_CACHE,
 	PERF_MEM_STAT_MEMORY,
+	PERF_MEM_STAT_SNOOP,
 };
 
 #define MEM_STAT_PRINT_LEN  7  /* 1 space + 5 digits + 1 percent sign */
@@ -124,6 +125,13 @@ enum mem_stat_memory {
 	MEM_STAT_MEMORY_IO,
 	MEM_STAT_MEMORY_PMEM,
 	MEM_STAT_MEMORY_OTHER,
+};
+
+enum mem_stat_snoop {
+	MEM_STAT_SNOOP_HIT,
+	MEM_STAT_SNOOP_HITM,
+	MEM_STAT_SNOOP_MISS,
+	MEM_STAT_SNOOP_OTHER,
 };
 
 int mem_stat_index(const enum mem_stat_type mst, const u64 data_src);

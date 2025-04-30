@@ -2626,6 +2626,7 @@ static struct hpp_dimension hpp_sort_dimensions[] = {
 	DIM_MEM(PERF_HPP__MEM_STAT_OP, "op"),
 	DIM_MEM(PERF_HPP__MEM_STAT_CACHE, "cache"),
 	DIM_MEM(PERF_HPP__MEM_STAT_MEMORY, "memory"),
+	DIM_MEM(PERF_HPP__MEM_STAT_SNOOP, "snoop"),
 };
 
 #undef DIM_MEM

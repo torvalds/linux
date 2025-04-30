@@ -857,6 +857,17 @@ int mem_stat_index(const enum mem_stat_type mst, const u64 val)
 		default:
 			return MEM_STAT_MEMORY_OTHER;
 		}
+	case PERF_MEM_STAT_SNOOP:
+		switch (src.mem_snoop) {
+		case PERF_MEM_SNOOP_HIT:
+			return MEM_STAT_SNOOP_HIT;
+		case PERF_MEM_SNOOP_HITM:
+			return MEM_STAT_SNOOP_HITM;
+		case PERF_MEM_SNOOP_MISS:
+			return MEM_STAT_SNOOP_MISS;
+		default:
+			return MEM_STAT_SNOOP_OTHER;
+		}
 	default:
 		break;
 	}
@@ -916,6 +927,18 @@ const char *mem_stat_name(const enum mem_stat_type mst, const int idx)
 		case MEM_STAT_MEMORY_PMEM:
 			return "PMEM";
 		case MEM_STAT_MEMORY_OTHER:
+		default:
+			return "Other";
+		}
+	case PERF_MEM_STAT_SNOOP:
+		switch (idx) {
+		case MEM_STAT_SNOOP_HIT:
+			return "Hit";
+		case MEM_STAT_SNOOP_HITM:
+			return "HitM";
+		case MEM_STAT_SNOOP_MISS:
+			return "Miss";
+		case MEM_STAT_SNOOP_OTHER:
 		default:
 			return "Other";
 		}
