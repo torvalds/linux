@@ -882,7 +882,7 @@ int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 	goto out_free;
 
 read_table:
-	fwrt->ppag_ver = tbl_rev;
+	fwrt->ppag_bios_rev = tbl_rev;
 	flags = &wifi_pkg->package.elements[1];
 
 	if (flags->type != ACPI_TYPE_INTEGER) {
@@ -891,7 +891,7 @@ read_table:
 	}
 
 	fwrt->ppag_flags = iwl_bios_get_ppag_flags(flags->integer.value,
-						   fwrt->ppag_ver);
+						   fwrt->ppag_bios_rev);
 
 	/*
 	 * read, verify gain values and save them into the PPAG table.
