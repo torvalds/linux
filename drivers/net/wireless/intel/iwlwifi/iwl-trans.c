@@ -81,20 +81,45 @@ void iwl_trans_free_restart_list(void)
 
 struct iwl_trans_reprobe {
 	struct device *dev;
-	struct work_struct work;
+	struct delayed_work work;
 };
 
 static void iwl_trans_reprobe_wk(struct work_struct *wk)
 {
 	struct iwl_trans_reprobe *reprobe;
 
-	reprobe = container_of(wk, typeof(*reprobe), work);
+	reprobe = container_of(wk, typeof(*reprobe), work.work);
 
 	if (device_reprobe(reprobe->dev))
 		dev_err(reprobe->dev, "reprobe failed!\n");
 	put_device(reprobe->dev);
 	kfree(reprobe);
 	module_put(THIS_MODULE);
+}
+
+static void iwl_trans_schedule_reprobe(struct iwl_trans *trans,
+				       unsigned int delay_ms)
+{
+	struct iwl_trans_reprobe *reprobe;
+
+	/*
+	 * get a module reference to avoid doing this while unloading
+	 * anyway and to avoid scheduling a work with code that's
+	 * being removed.
+	 */
+	if (!try_module_get(THIS_MODULE)) {
+		IWL_ERR(trans, "Module is being unloaded - abort\n");
+		return;
+	}
+
+	reprobe = kzalloc(sizeof(*reprobe), GFP_KERNEL);
+	if (!reprobe) {
+		module_put(THIS_MODULE);
+		return;
+	}
+	reprobe->dev = get_device(trans->dev);
+	INIT_DELAYED_WORK(&reprobe->work, iwl_trans_reprobe_wk);
+	schedule_delayed_work(&reprobe->work, msecs_to_jiffies(delay_ms));
 }
 
 #define IWL_TRANS_RESET_OK_TIME	7 /* seconds */
@@ -136,13 +161,19 @@ iwl_trans_determine_restart_mode(struct iwl_trans *trans)
 	return max(at_least, escalation_list[index]);
 }
 
+#define IWL_TRANS_TOP_FOLLOWER_WAIT	180 /* ms */
+
 #define IWL_TRANS_RESET_DELAY	(HZ * 60)
 
 static void iwl_trans_restart_wk(struct work_struct *wk)
 {
 	struct iwl_trans *trans = container_of(wk, typeof(*trans), restart.wk);
-	struct iwl_trans_reprobe *reprobe;
 	enum iwl_reset_mode mode;
+
+	if (trans->restart.mode.type == IWL_ERR_TYPE_TOP_RESET_BY_BT) {
+		iwl_trans_schedule_reprobe(trans, IWL_TRANS_TOP_FOLLOWER_WAIT);
+		return;
+	}
 
 	if (!trans->op_mode)
 		return;
@@ -179,24 +210,7 @@ static void iwl_trans_restart_wk(struct work_struct *wk)
 	case IWL_RESET_MODE_REPROBE:
 		IWL_ERR(trans, "Device error - reprobe!\n");
 
-		/*
-		 * get a module reference to avoid doing this while unloading
-		 * anyway and to avoid scheduling a work with code that's
-		 * being removed.
-		 */
-		if (!try_module_get(THIS_MODULE)) {
-			IWL_ERR(trans, "Module is being unloaded - abort\n");
-			return;
-		}
-
-		reprobe = kzalloc(sizeof(*reprobe), GFP_KERNEL);
-		if (!reprobe) {
-			module_put(THIS_MODULE);
-			return;
-		}
-		reprobe->dev = get_device(trans->dev);
-		INIT_WORK(&reprobe->work, iwl_trans_reprobe_wk);
-		schedule_work(&reprobe->work);
+		iwl_trans_schedule_reprobe(trans, 0);
 		break;
 	default:
 		iwl_trans_pcie_reset(trans, mode);

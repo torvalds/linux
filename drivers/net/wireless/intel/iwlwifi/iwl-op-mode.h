@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2021, 2024 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2021, 2024-2025 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015 Intel Deutschland GmbH
  */
@@ -52,12 +52,14 @@ struct iwl_cfg;
  *	any debug collection must happen synchronously as
  *	the device will be shut down
  * @IWL_ERR_TYPE_CMD_QUEUE_FULL: command queue was full
+ * @IWL_ERR_TYPE_TOP_RESET_BY_BT: TOP reset initiated by BT
  */
 enum iwl_fw_error_type {
 	IWL_ERR_TYPE_IRQ,
 	IWL_ERR_TYPE_NMI_FORCED,
 	IWL_ERR_TYPE_RESET_HS_TIMEOUT,
 	IWL_ERR_TYPE_CMD_QUEUE_FULL,
+	IWL_ERR_TYPE_TOP_RESET_BY_BT,
 };
 
 /**
@@ -241,6 +243,9 @@ static inline void iwl_op_mode_dump_error(struct iwl_op_mode *op_mode,
 					  struct iwl_fw_error_dump_mode *mode)
 {
 	might_sleep();
+
+	if (WARN_ON(mode->type == IWL_ERR_TYPE_TOP_RESET_BY_BT))
+		return;
 
 	if (op_mode->ops->dump_error)
 		op_mode->ops->dump_error(op_mode, mode);

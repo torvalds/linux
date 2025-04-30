@@ -1195,6 +1195,9 @@ static inline void iwl_trans_opmode_sw_reset(struct iwl_trans *trans,
 
 	set_bit(STATUS_IN_SW_RESET, &trans->status);
 
+	if (WARN_ON(type == IWL_ERR_TYPE_TOP_RESET_BY_BT))
+		return;
+
 	if (!trans->op_mode->ops->sw_reset ||
 	    !trans->op_mode->ops->sw_reset(trans->op_mode, type))
 		clear_bit(STATUS_IN_SW_RESET, &trans->status);

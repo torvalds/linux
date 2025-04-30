@@ -13,6 +13,7 @@
 #include "internal.h"
 #include "iwl-op-mode.h"
 #include "iwl-context-info-gen3.h"
+#include "fw/dbg.h"
 
 /******************************************************************************
  *
@@ -1828,6 +1829,54 @@ void iwl_pcie_handle_rfkill_irq(struct iwl_trans *trans, bool from_irq)
 	}
 }
 
+static void iwl_trans_pcie_handle_reset_interrupt(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	u32 state;
+
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_SC) {
+		u32 val = iwl_read32(trans, CSR_IPC_STATE);
+
+		state = u32_get_bits(val, CSR_IPC_STATE_RESET);
+		IWL_DEBUG_ISR(trans, "IPC state = 0x%x/%d\n", val, state);
+	} else {
+		state = CSR_IPC_STATE_RESET_SW_READY;
+	}
+
+	switch (state) {
+	case CSR_IPC_STATE_RESET_SW_READY:
+		if (trans_pcie->fw_reset_state == FW_RESET_REQUESTED) {
+			IWL_DEBUG_ISR(trans, "Reset flow completed\n");
+			trans_pcie->fw_reset_state = FW_RESET_OK;
+			wake_up(&trans_pcie->fw_reset_waitq);
+			break;
+		}
+		fallthrough;
+	case CSR_IPC_STATE_RESET_TOP_READY:
+		/* FIXME: handle this case when requesting TOP reset */
+		fallthrough;
+	case CSR_IPC_STATE_RESET_NONE:
+		IWL_FW_CHECK_FAILED(trans,
+				    "Invalid reset interrupt (state=%d)!\n",
+				    state);
+		break;
+	case CSR_IPC_STATE_RESET_TOP_FOLLOWER:
+		if (trans_pcie->fw_reset_state == FW_RESET_REQUESTED) {
+			/* if we were in reset, wake that up */
+			IWL_INFO(trans,
+				 "TOP reset from BT while doing reset\n");
+			trans_pcie->fw_reset_state = FW_RESET_OK;
+			wake_up(&trans_pcie->fw_reset_waitq);
+		} else {
+			IWL_INFO(trans, "TOP reset from BT\n");
+			trans->state = IWL_TRANS_NO_FW;
+			iwl_trans_schedule_reset(trans,
+						 IWL_ERR_TYPE_TOP_RESET_BY_BT);
+		}
+		break;
+	}
+}
+
 irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 {
 	struct iwl_trans *trans = dev_id;
@@ -1948,10 +1997,8 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 	}
 
 	if (inta & CSR_INT_BIT_RESET_DONE) {
-		IWL_DEBUG_ISR(trans, "Reset flow completed\n");
-		trans_pcie->fw_reset_state = FW_RESET_OK;
+		iwl_trans_pcie_handle_reset_interrupt(trans);
 		handled |= CSR_INT_BIT_RESET_DONE;
-		wake_up(&trans_pcie->fw_reset_waitq);
 	}
 
 	/* Safely ignore these bits for debug checks below */
@@ -2400,11 +2447,8 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 		iwl_pcie_irq_handle_error(trans);
 	}
 
-	if (inta_hw & MSIX_HW_INT_CAUSES_REG_RESET_DONE) {
-		IWL_DEBUG_ISR(trans, "Reset flow completed\n");
-		trans_pcie->fw_reset_state = FW_RESET_OK;
-		wake_up(&trans_pcie->fw_reset_waitq);
-	}
+	if (inta_hw & MSIX_HW_INT_CAUSES_REG_RESET_DONE)
+		iwl_trans_pcie_handle_reset_interrupt(trans);
 
 	if (!polling)
 		iwl_pcie_clear_irq(trans, entry->entry);
