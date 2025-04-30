@@ -1160,8 +1160,8 @@ static void ublk_dispatch_req(struct ublk_queue *ubq,
 	struct ublk_io *io = &ubq->ios[tag];
 	unsigned int mapped_bytes;
 
-	pr_devel("%s: complete: op %d, qid %d tag %d io_flags %x addr %llx\n",
-			__func__, io->cmd->cmd_op, ubq->q_id, req->tag, io->flags,
+	pr_devel("%s: complete: qid %d tag %d io_flags %x addr %llx\n",
+			__func__, ubq->q_id, req->tag, io->flags,
 			ublk_get_iod(ubq, req->tag)->addr);
 
 	/*
@@ -1186,9 +1186,8 @@ static void ublk_dispatch_req(struct ublk_queue *ubq,
 		 */
 		if (!(io->flags & UBLK_IO_FLAG_NEED_GET_DATA)) {
 			io->flags |= UBLK_IO_FLAG_NEED_GET_DATA;
-			pr_devel("%s: need get data. op %d, qid %d tag %d io_flags %x\n",
-					__func__, io->cmd->cmd_op, ubq->q_id,
-					req->tag, io->flags);
+			pr_devel("%s: need get data. qid %d tag %d io_flags %x\n",
+					__func__, ubq->q_id, req->tag, io->flags);
 			ublk_complete_io_cmd(io, UBLK_IO_RES_NEED_GET_DATA,
 					     issue_flags);
 			return;
@@ -1201,8 +1200,8 @@ static void ublk_dispatch_req(struct ublk_queue *ubq,
 		io->flags &= ~UBLK_IO_FLAG_NEED_GET_DATA;
 		/* update iod->addr because ublksrv may have passed a new io buffer */
 		ublk_get_iod(ubq, req->tag)->addr = io->addr;
-		pr_devel("%s: update iod->addr: op %d, qid %d tag %d io_flags %x addr %llx\n",
-				__func__, io->cmd->cmd_op, ubq->q_id, req->tag, io->flags,
+		pr_devel("%s: update iod->addr: qid %d tag %d io_flags %x addr %llx\n",
+				__func__, ubq->q_id, req->tag, io->flags,
 				ublk_get_iod(ubq, req->tag)->addr);
 	}
 
