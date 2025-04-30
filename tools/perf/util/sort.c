@@ -2641,18 +2641,22 @@ void perf_hpp__reset_sort_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 }
 
 static int __sort__hpp_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-			      struct hists *hists, int line __maybe_unused,
+			      struct hists *hists, int line,
 			      int *span __maybe_unused)
 {
 	struct hpp_sort_entry *hse;
 	size_t len = fmt->user_len;
+	const char *hdr = "";
+
+	if (line == hists->hpp_list->nr_header_lines - 1)
+		hdr = fmt->name;
 
 	hse = container_of(fmt, struct hpp_sort_entry, hpp);
 
 	if (!len)
 		len = hists__col_len(hists, hse->se->se_width_idx);
 
-	return scnprintf(hpp->buf, hpp->size, "%-*.*s", len, len, fmt->name);
+	return scnprintf(hpp->buf, hpp->size, "%-*.*s", len, len, hdr);
 }
 
 static int __sort__hpp_width(struct perf_hpp_fmt *fmt,

@@ -1686,7 +1686,8 @@ hists_browser__scnprintf_headers(struct hist_browser *browser, char *buf,
 	return ret;
 }
 
-static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *browser, char *buf, size_t size)
+static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *browser,
+						      char *buf, size_t size, int line)
 {
 	struct hists *hists = browser->hists;
 	struct perf_hpp dummy_hpp = {
@@ -1712,7 +1713,7 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 		if (column++ < browser->b.horiz_scroll)
 			continue;
 
-		ret = fmt->header(fmt, &dummy_hpp, hists, 0, NULL);
+		ret = fmt->header(fmt, &dummy_hpp, hists, line, NULL);
 		if (advance_hpp_check(&dummy_hpp, ret))
 			break;
 
@@ -1722,6 +1723,9 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 
 		first_node = false;
 	}
+
+	if (line < hists->hpp_list->nr_header_lines - 1)
+		return ret;
 
 	if (!first_node) {
 		ret = scnprintf(dummy_hpp.buf, dummy_hpp.size, "%*s",
@@ -1753,7 +1757,7 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 			}
 			first_col = false;
 
-			ret = fmt->header(fmt, &dummy_hpp, hists, 0, NULL);
+			ret = fmt->header(fmt, &dummy_hpp, hists, line, NULL);
 			dummy_hpp.buf[ret] = '\0';
 
 			start = strim(dummy_hpp.buf);
@@ -1772,14 +1776,18 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 
 static void hists_browser__hierarchy_headers(struct hist_browser *browser)
 {
+	struct perf_hpp_list *hpp_list = browser->hists->hpp_list;
 	char headers[1024];
+	int line;
 
-	hists_browser__scnprintf_hierarchy_headers(browser, headers,
-						   sizeof(headers));
+	for (line = 0; line < hpp_list->nr_header_lines; line++) {
+		hists_browser__scnprintf_hierarchy_headers(browser, headers,
+							   sizeof(headers), line);
 
-	ui_browser__gotorc_title(&browser->b, 0, 0);
-	ui_browser__set_color(&browser->b, HE_COLORSET_ROOT);
-	ui_browser__write_nstring(&browser->b, headers, browser->b.width + 1);
+		ui_browser__gotorc_title(&browser->b, line, 0);
+		ui_browser__set_color(&browser->b, HE_COLORSET_ROOT);
+		ui_browser__write_nstring(&browser->b, headers, browser->b.width + 1);
+	}
 }
 
 static void hists_browser__headers(struct hist_browser *browser)

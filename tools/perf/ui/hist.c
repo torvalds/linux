@@ -321,11 +321,16 @@ static int hpp__width_fn(struct perf_hpp_fmt *fmt,
 }
 
 static int hpp__header_fn(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-			  struct hists *hists, int line __maybe_unused,
+			  struct hists *hists, int line,
 			  int *span __maybe_unused)
 {
 	int len = hpp__width_fn(fmt, hpp, hists);
-	return scnprintf(hpp->buf, hpp->size, "%*s", len, fmt->name);
+	const char *hdr = "";
+
+	if (line == hists->hpp_list->nr_header_lines - 1)
+		hdr = fmt->name;
+
+	return scnprintf(hpp->buf, hpp->size, "%*s", len, hdr);
 }
 
 int hpp_color_scnprintf(struct perf_hpp *hpp, const char *fmt, ...)
