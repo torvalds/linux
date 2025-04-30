@@ -1611,16 +1611,11 @@ static void ublk_abort_queue(struct ublk_device *ub, struct ublk_queue *ubq)
 	for (i = 0; i < ubq->q_depth; i++) {
 		struct ublk_io *io = &ubq->ios[i];
 
-		if (!(io->flags & UBLK_IO_FLAG_ACTIVE)) {
+		if (io->flags & UBLK_IO_FLAG_OWNED_BY_SRV) {
 			struct request *rq;
 
-			/*
-			 * Either we fail the request or ublk_rq_task_work_cb
-			 * will do it
-			 */
 			rq = blk_mq_tag_to_rq(ub->tag_set.tags[ubq->q_id], i);
-			if (rq && blk_mq_request_started(rq))
-				__ublk_fail_req(ubq, io, rq);
+			__ublk_fail_req(ubq, io, rq);
 		}
 	}
 }
