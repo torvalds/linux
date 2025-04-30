@@ -17,8 +17,37 @@
 // Controlling CPU stall warnings, including delay calculation.
 
 /* panic() on RCU Stall sysctl. */
-int sysctl_panic_on_rcu_stall __read_mostly;
-int sysctl_max_rcu_stall_to_panic __read_mostly;
+static int sysctl_panic_on_rcu_stall __read_mostly;
+static int sysctl_max_rcu_stall_to_panic __read_mostly;
+
+static const struct ctl_table rcu_stall_sysctl_table[] = {
+	{
+		.procname	= "panic_on_rcu_stall",
+		.data		= &sysctl_panic_on_rcu_stall,
+		.maxlen		= sizeof(sysctl_panic_on_rcu_stall),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	},
+	{
+		.procname	= "max_rcu_stall_to_panic",
+		.data		= &sysctl_max_rcu_stall_to_panic,
+		.maxlen		= sizeof(sysctl_max_rcu_stall_to_panic),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ONE,
+		.extra2		= SYSCTL_INT_MAX,
+	},
+};
+
+static int __init init_rcu_stall_sysctl(void)
+{
+	register_sysctl_init("kernel", rcu_stall_sysctl_table);
+	return 0;
+}
+
+subsys_initcall(init_rcu_stall_sysctl);
 
 #ifdef CONFIG_SYSFS
 
