@@ -172,21 +172,21 @@ static struct kunit_suite link_selection = {
 
 kunit_test_suite(link_selection);
 
-static const struct channel_load_case {
+static const struct link_pair_case {
 	const char *desc;
 	const struct cfg80211_chan_def *chandef_a, *chandef_b;
 	bool low_latency_vif;
 	u32 chan_load_not_by_us;
 	bool primary_link_active;
-	bool expected_result;
-} channel_load_cases[] = {
+	u32 expected_result;
+} link_pair_cases[] = {
 	{
 		.desc = "Unequal bandwidth, primary link inactive, EMLSR not allowed",
 		.low_latency_vif = false,
 		.primary_link_active = false,
 		.chandef_a = &chandef_5ghz_40mhz,
 		.chandef_b = &chandef_6ghz_20mhz,
-		.expected_result = false,
+		.expected_result = IWL_MLD_EMLSR_EXIT_CHAN_LOAD,
 	},
 	{
 		.desc = "Equal bandwidths, sufficient channel load, EMLSR allowed",
@@ -195,7 +195,7 @@ static const struct channel_load_case {
 		.chan_load_not_by_us = 11,
 		.chandef_a = &chandef_5ghz_40mhz,
 		.chandef_b = &chandef_6ghz_40mhz,
-		.expected_result = true,
+		.expected_result = 0,
 	},
 	{
 		.desc = "Equal bandwidths, insufficient channel load, EMLSR not allowed",
@@ -204,7 +204,7 @@ static const struct channel_load_case {
 		.chan_load_not_by_us = 6,
 		.chandef_a = &chandef_5ghz_80mhz,
 		.chandef_b = &chandef_6ghz_80mhz,
-		.expected_result = false,
+		.expected_result = IWL_MLD_EMLSR_EXIT_CHAN_LOAD,
 	},
 	{
 		.desc = "Low latency VIF, sufficient channel load, EMLSR allowed",
@@ -213,7 +213,7 @@ static const struct channel_load_case {
 		.chan_load_not_by_us = 6,
 		.chandef_a = &chandef_5ghz_160mhz,
 		.chandef_b = &chandef_6ghz_160mhz,
-		.expected_result = true,
+		.expected_result = 0,
 	},
 	{
 		.desc = "Different bandwidths (2x ratio), primary link load permits EMLSR",
@@ -222,7 +222,7 @@ static const struct channel_load_case {
 		.chan_load_not_by_us = 30,
 		.chandef_a = &chandef_5ghz_40mhz,
 		.chandef_b = &chandef_6ghz_20mhz,
-		.expected_result = true,
+		.expected_result = 0,
 	},
 	{
 		.desc = "Different bandwidths (4x ratio), primary link load permits EMLSR",
@@ -231,7 +231,7 @@ static const struct channel_load_case {
 		.chan_load_not_by_us = 45,
 		.chandef_a = &chandef_5ghz_80mhz,
 		.chandef_b = &chandef_6ghz_20mhz,
-		.expected_result = true,
+		.expected_result = 0,
 	},
 	{
 		.desc = "Different bandwidths (16x ratio), primary link load insufficient",
@@ -240,15 +240,51 @@ static const struct channel_load_case {
 		.chan_load_not_by_us = 45,
 		.chandef_a = &chandef_6ghz_320mhz,
 		.chandef_b = &chandef_5ghz_20mhz,
-		.expected_result = false,
+		.expected_result = IWL_MLD_EMLSR_EXIT_CHAN_LOAD,
+	},
+	{
+		.desc = "Same band not allowed (2.4 GHz)",
+		.low_latency_vif = false,
+		.primary_link_active = true,
+		.chan_load_not_by_us = 30,
+		.chandef_a = &chandef_2ghz_20mhz,
+		.chandef_b = &chandef_2ghz_11_20mhz,
+		.expected_result = IWL_MLD_EMLSR_EXIT_EQUAL_BAND,
+	},
+	{
+		.desc = "Same band not allowed (5 GHz)",
+		.low_latency_vif = false,
+		.primary_link_active = true,
+		.chan_load_not_by_us = 30,
+		.chandef_a = &chandef_5ghz_40mhz,
+		.chandef_b = &chandef_5ghz_40mhz,
+		.expected_result = IWL_MLD_EMLSR_EXIT_EQUAL_BAND,
+	},
+	{
+		.desc = "Same band allowed (5 GHz separated)",
+		.low_latency_vif = false,
+		.primary_link_active = true,
+		.chan_load_not_by_us = 30,
+		.chandef_a = &chandef_5ghz_40mhz,
+		.chandef_b = &chandef_5ghz_120_40mhz,
+		.expected_result = 0,
+	},
+	{
+		.desc = "Same band not allowed (6 GHz)",
+		.low_latency_vif = false,
+		.primary_link_active = true,
+		.chan_load_not_by_us = 30,
+		.chandef_a = &chandef_6ghz_160mhz,
+		.chandef_b = &chandef_6ghz_221_160mhz,
+		.expected_result = IWL_MLD_EMLSR_EXIT_EQUAL_BAND,
 	},
 };
 
-KUNIT_ARRAY_PARAM_DESC(channel_load, channel_load_cases, desc);
+KUNIT_ARRAY_PARAM_DESC(link_pair, link_pair_cases, desc);
 
-static void test_iwl_mld_channel_load_allows_emlsr(struct kunit *test)
+static void test_iwl_mld_link_pair_allows_emlsr(struct kunit *test)
 {
-	const struct channel_load_case *params = test->param_value;
+	const struct link_pair_case *params = test->param_value;
 	struct iwl_mld *mld = test->priv;
 	struct ieee80211_vif *vif;
 	/* link A is the primary and link B is the secondary */
@@ -264,7 +300,7 @@ static void test_iwl_mld_channel_load_allows_emlsr(struct kunit *test)
 		.chandef = params->primary_link_active ? a.chandef : b.chandef,
 		.id = params->primary_link_active ? a.link_id : b.link_id,
 	};
-	bool result;
+	u32 result;
 
 	vif = iwlmld_kunit_setup_mlo_assoc(BIT(a.link_id) | BIT(b.link_id),
 					   &assoc_link);
@@ -282,22 +318,22 @@ static void test_iwl_mld_channel_load_allows_emlsr(struct kunit *test)
 		phy->avg_channel_load_not_by_us = params->chan_load_not_by_us;
 	}
 
-	result = iwl_mld_channel_load_allows_emlsr(mld, vif, &a, &b);
+	result = iwl_mld_emlsr_pair_state(vif, &a, &b);
 
 	wiphy_unlock(mld->wiphy);
 
 	KUNIT_EXPECT_EQ(test, result, params->expected_result);
 }
 
-static struct kunit_case channel_load_criteria_test_cases[] = {
-	KUNIT_CASE_PARAM(test_iwl_mld_channel_load_allows_emlsr, channel_load_gen_params),
+static struct kunit_case link_pair_criteria_test_cases[] = {
+	KUNIT_CASE_PARAM(test_iwl_mld_link_pair_allows_emlsr, link_pair_gen_params),
 	{}
 };
 
-static struct kunit_suite channel_load_criteria_tests = {
-	.name = "iwlmld_channel_load_allows_emlsr",
-	.test_cases = channel_load_criteria_test_cases,
+static struct kunit_suite link_pair_criteria_tests = {
+	.name = "iwlmld_link_pair_allows_emlsr",
+	.test_cases = link_pair_criteria_test_cases,
 	.init = iwlmld_kunit_test_init,
 };
 
-kunit_test_suite(channel_load_criteria_tests);
+kunit_test_suite(link_pair_criteria_tests);

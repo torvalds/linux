@@ -732,7 +732,7 @@ iwl_mld_get_min_chan_load_thresh(struct ieee80211_chanctx_conf *chanctx)
 	return 10;
 }
 
-VISIBLE_IF_IWLWIFI_KUNIT bool
+static bool
 iwl_mld_channel_load_allows_emlsr(struct iwl_mld *mld,
 				  struct ieee80211_vif *vif,
 				  const struct iwl_mld_link_sel_data *a,
@@ -789,10 +789,9 @@ iwl_mld_channel_load_allows_emlsr(struct iwl_mld *mld,
 
 	return false;
 }
-EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mld_channel_load_allows_emlsr);
 
-static bool
-iwl_mld_valid_emlsr_pair(struct ieee80211_vif *vif,
+VISIBLE_IF_KUNIT u32
+iwl_mld_emlsr_pair_state(struct ieee80211_vif *vif,
 			 struct iwl_mld_link_sel_data *a,
 			 struct iwl_mld_link_sel_data *b)
 {
@@ -801,9 +800,13 @@ iwl_mld_valid_emlsr_pair(struct ieee80211_vif *vif,
 	u32 reason_mask = 0;
 
 	/* Per-link considerations */
-	if (iwl_mld_emlsr_disallowed_with_link(mld, vif, a, true) ||
-	    iwl_mld_emlsr_disallowed_with_link(mld, vif, b, false))
-		return false;
+	reason_mask = iwl_mld_emlsr_disallowed_with_link(mld, vif, a, true);
+	if (reason_mask)
+		return reason_mask;
+
+	reason_mask = iwl_mld_emlsr_disallowed_with_link(mld, vif, b, false);
+	if (reason_mask)
+		return reason_mask;
 
 	if (a->chandef->chan->band == b->chandef->chan->band) {
 		const struct cfg80211_chan_def *c_low = a->chandef;
@@ -839,11 +842,11 @@ iwl_mld_valid_emlsr_pair(struct ieee80211_vif *vif,
 			       nl80211_chan_width_to_mhz(a->chandef->width),
 			       nl80211_chan_width_to_mhz(b->chandef->width));
 		iwl_mld_print_emlsr_exit(mld, reason_mask);
-		return false;
 	}
 
-	return true;
+	return reason_mask;
 }
+EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mld_emlsr_pair_state);
 
 /* Calculation is done with fixed-point with a scaling factor of 1/256 */
 #define SCALE_FACTOR 256
@@ -871,7 +874,7 @@ unsigned int iwl_mld_get_emlsr_grade(struct iwl_mld *mld,
 
 	*primary_id = a->link_id;
 
-	if (!iwl_mld_valid_emlsr_pair(vif, a, b))
+	if (iwl_mld_emlsr_pair_state(vif, a, b))
 		return 0;
 
 	primary_conf = wiphy_dereference(wiphy, vif->link_conf[*primary_id]);

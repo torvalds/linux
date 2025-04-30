@@ -158,10 +158,9 @@ struct iwl_mld_link_sel_data {
 };
 
 #if IS_ENABLED(CONFIG_IWLWIFI_KUNIT_TESTS)
-bool iwl_mld_channel_load_allows_emlsr(struct iwl_mld *mld,
-				       struct ieee80211_vif *vif,
-				       const struct iwl_mld_link_sel_data *a,
-				       const struct iwl_mld_link_sel_data *b);
+u32 iwl_mld_emlsr_pair_state(struct ieee80211_vif *vif,
+			     struct iwl_mld_link_sel_data *a,
+			     struct iwl_mld_link_sel_data *b);
 #endif
 
 #endif /* __iwl_mld_mlo_h__ */
