@@ -63,7 +63,7 @@ void sm750_hw_cursor_set_size(struct lynx_cursor *cursor, int w, int h)
 	cursor->h = h;
 }
 
-void sm750_hw_cursor_setPos(struct lynx_cursor *cursor, int x, int y)
+void sm750_hw_cursor_set_pos(struct lynx_cursor *cursor, int x, int y)
 {
 	u32 reg;
 
