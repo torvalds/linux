@@ -3590,7 +3590,7 @@ long memfd_pin_folios(struct file *memfd, loff_t start, loff_t end,
 {
 	unsigned int flags, nr_folios, nr_found;
 	unsigned int i, pgshift = PAGE_SHIFT;
-	pgoff_t start_idx, end_idx, next_idx;
+	pgoff_t start_idx, end_idx;
 	struct folio *folio = NULL;
 	struct folio_batch fbatch;
 	struct hstate *h;
@@ -3640,19 +3640,7 @@ long memfd_pin_folios(struct file *memfd, loff_t start, loff_t end,
 				folio = NULL;
 			}
 
-			next_idx = 0;
 			for (i = 0; i < nr_found; i++) {
-				/*
-				 * As there can be multiple entries for a
-				 * given folio in the batch returned by
-				 * filemap_get_folios_contig(), the below
-				 * check is to ensure that we pin and return a
-				 * unique set of folios between start and end.
-				 */
-				if (next_idx &&
-				    next_idx != folio_index(fbatch.folios[i]))
-					continue;
-
 				folio = page_folio(&fbatch.folios[i]->page);
 
 				if (try_grab_folio(folio, 1, FOLL_PIN)) {
@@ -3665,7 +3653,6 @@ long memfd_pin_folios(struct file *memfd, loff_t start, loff_t end,
 					*offset = offset_in_folio(folio, start);
 
 				folios[nr_folios] = folio;
-				next_idx = folio_next_index(folio);
 				if (++nr_folios == max_folios)
 					break;
 			}
