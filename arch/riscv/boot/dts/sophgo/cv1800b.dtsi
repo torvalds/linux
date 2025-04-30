@@ -4,6 +4,7 @@
  */
 
 #include <dt-bindings/pinctrl/pinctrl-cv1800b.h>
+#include "cv180x-cpus.dtsi"
 #include "cv18xx.dtsi"
 
 / {
