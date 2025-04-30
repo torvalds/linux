@@ -14,6 +14,7 @@
 struct clk_pwm {
 	struct clk_hw hw;
 	struct pwm_device *pwm;
+	struct pwm_state state;
 	u32 fixed_rate;
 };
 
@@ -26,7 +27,7 @@ static int clk_pwm_prepare(struct clk_hw *hw)
 {
 	struct clk_pwm *clk_pwm = to_clk_pwm(hw);
 
-	return pwm_enable(clk_pwm->pwm);
+	return pwm_apply_might_sleep(clk_pwm->pwm, &clk_pwm->state);
 }
 
 static void clk_pwm_unprepare(struct clk_hw *hw)
@@ -106,14 +107,15 @@ static int clk_pwm_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	/*
-	 * FIXME: pwm_apply_args() should be removed when switching to the
-	 * atomic PWM API.
-	 */
-	pwm_apply_args(pwm);
-	ret = pwm_config(pwm, (pargs.period + 1) >> 1, pargs.period);
+	pwm_init_state(pwm, &clk_pwm->state);
+	pwm_set_relative_duty_cycle(&clk_pwm->state, 1, 2);
+
+	ret = pwm_apply_might_sleep(pwm, &clk_pwm->state);
 	if (ret < 0)
 		return ret;
+
+	/* set enabled only now to not enable output above */
+	clk_pwm->state.enabled = true;
 
 	clk_name = node->name;
 	of_property_read_string(node, "clock-output-names", &clk_name);
