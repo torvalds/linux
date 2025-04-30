@@ -150,19 +150,6 @@ static void iwl_mvm_mld_mac_remove_interface(struct ieee80211_hw *hw,
 
 	iwl_mvm_vif_dbgfs_rm_link(mvm, vif);
 
-	/* For AP/GO interface, the tear down of the resources allocated to the
-	 * interface is be handled as part of the stop_ap flow.
-	 */
-	if (vif->type == NL80211_IFTYPE_AP ||
-	    vif->type == NL80211_IFTYPE_ADHOC) {
-#ifdef CONFIG_NL80211_TESTMODE
-		if (vif == mvm->noa_vif) {
-			mvm->noa_vif = NULL;
-			mvm->noa_duration = 0;
-		}
-#endif
-	}
-
 	iwl_mvm_power_update_mac(mvm);
 
 	/* Before the interface removal, mac80211 would cancel the ROC, and the
@@ -1402,8 +1389,6 @@ const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.event_callback = iwl_mvm_mac_event_callback,
 
 	.sync_rx_queues = iwl_mvm_sync_rx_queues,
-
-	CFG80211_TESTMODE_CMD(iwl_mvm_mac_testmode_cmd)
 
 #ifdef CONFIG_PM_SLEEP
 	/* look at d3.c */

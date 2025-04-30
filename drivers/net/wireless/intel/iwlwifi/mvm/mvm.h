@@ -1246,11 +1246,6 @@ struct iwl_mvm {
 
 	struct iwl_time_quota_cmd last_quota_cmd;
 
-#ifdef CONFIG_NL80211_TESTMODE
-	u32 noa_duration;
-	struct ieee80211_vif *noa_vif;
-#endif
-
 	/* Tx queues */
 	u16 aux_queue;
 	u16 snif_queue;
