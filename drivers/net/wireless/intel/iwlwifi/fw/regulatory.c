@@ -374,7 +374,9 @@ int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 			"PPAG MODE bits were read from bios: %d\n",
 			le32_to_cpu(cmd->v1.flags));
 
-	if (cmd_ver == 5)
+	if (cmd_ver == 6)
+		cmd->v1.flags &= cpu_to_le32(IWL_PPAG_CMD_V6_MASK);
+	else if (cmd_ver == 5)
 		cmd->v1.flags &= cpu_to_le32(IWL_PPAG_CMD_V5_MASK);
 	else if (cmd_ver < 5)
 		cmd->v1.flags &= cpu_to_le32(IWL_PPAG_CMD_V4_MASK);
