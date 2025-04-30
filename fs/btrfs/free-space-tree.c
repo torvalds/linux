@@ -364,6 +364,7 @@ int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 	bitmap = alloc_bitmap(bitmap_size);
 	if (!bitmap) {
 		ret = -ENOMEM;
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
@@ -376,8 +377,10 @@ int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 
 	while (!done) {
 		ret = btrfs_search_prev_slot(trans, root, &key, path, -1, 1);
-		if (ret)
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
 			goto out;
+		}
 
 		leaf = path->nodes[0];
 		nr = 0;
@@ -418,14 +421,17 @@ int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 		}
 
 		ret = btrfs_del_items(trans, root, path, path->slots[0], nr);
-		if (ret)
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
 			goto out;
+		}
 		btrfs_release_path(path);
 	}
 
 	info = search_free_space_info(trans, block_group, path, 1);
 	if (IS_ERR(info)) {
 		ret = PTR_ERR(info);
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 	leaf = path->nodes[0];
@@ -447,8 +453,10 @@ int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 		key.offset = (end_bit - start_bit) * block_group->fs_info->sectorsize;
 
 		ret = btrfs_insert_empty_item(trans, root, path, &key, 0);
-		if (ret)
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
 			goto out;
+		}
 		btrfs_release_path(path);
 
 		extent_count++;
@@ -461,16 +469,14 @@ int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 			  "incorrect extent count for %llu; counted %u, expected %u",
 			  block_group->start, extent_count,
 			  expected_extent_count);
-		DEBUG_WARN();
 		ret = -EIO;
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
 	ret = 0;
 out:
 	kvfree(bitmap);
-	if (ret)
-		btrfs_abort_transaction(trans, ret);
 	return ret;
 }
 
