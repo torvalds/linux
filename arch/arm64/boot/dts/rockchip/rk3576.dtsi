@@ -1557,6 +1557,14 @@
 			status = "disabled";
 		};
 
+		rng: rng@2a410000 {
+			compatible = "rockchip,rk3576-rng";
+			reg = <0x0 0x2a410000 0x0 0x200>;
+			clocks = <&cru HCLK_TRNG_NS>;
+			interrupts = <GIC_SPI 181 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&cru SRST_H_TRNG_NS>;
+		};
+
 		otp: otp@2a580000 {
 			compatible = "rockchip,rk3576-otp";
 			reg = <0x0 0x2a580000 0x0 0x400>;
