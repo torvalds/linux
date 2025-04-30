@@ -35,6 +35,10 @@
 /*
  * NOTE: When adding new media bus codes, always remember to add
  * corresponding in-memory formats to the table below!!!
+ *
+ * If there are multiple entries with the same pixelformat but
+ * different media bus codes, then keep those together. Otherwise
+ * isp_video_enum_format() cannot detect duplicate pixelformats.
  */
 static struct isp_format_info formats[] = {
 	{ MEDIA_BUS_FMT_Y8_1X8, MEDIA_BUS_FMT_Y8_1X8,
@@ -97,12 +101,12 @@ static struct isp_format_info formats[] = {
 	{ MEDIA_BUS_FMT_UYVY8_1X16, MEDIA_BUS_FMT_UYVY8_1X16,
 	  MEDIA_BUS_FMT_UYVY8_1X16, 0,
 	  V4L2_PIX_FMT_UYVY, 16, 2, },
-	{ MEDIA_BUS_FMT_YUYV8_1X16, MEDIA_BUS_FMT_YUYV8_1X16,
-	  MEDIA_BUS_FMT_YUYV8_1X16, 0,
-	  V4L2_PIX_FMT_YUYV, 16, 2, },
 	{ MEDIA_BUS_FMT_UYVY8_2X8, MEDIA_BUS_FMT_UYVY8_2X8,
 	  MEDIA_BUS_FMT_UYVY8_2X8, 0,
 	  V4L2_PIX_FMT_UYVY, 8, 2, },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, MEDIA_BUS_FMT_YUYV8_1X16,
+	  MEDIA_BUS_FMT_YUYV8_1X16, 0,
+	  V4L2_PIX_FMT_YUYV, 16, 2, },
 	{ MEDIA_BUS_FMT_YUYV8_2X8, MEDIA_BUS_FMT_YUYV8_2X8,
 	  MEDIA_BUS_FMT_YUYV8_2X8, 0,
 	  V4L2_PIX_FMT_YUYV, 8, 2, },
@@ -650,6 +654,33 @@ isp_video_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 		| V4L2_CAP_STREAMING | V4L2_CAP_DEVICE_CAPS | V4L2_CAP_IO_MC;
 
 	return 0;
+}
+
+static int
+isp_video_enum_format(struct file *file, void *fh, struct v4l2_fmtdesc *f)
+{
+	struct isp_video *video = video_drvdata(file);
+	unsigned int i, j;
+
+	if (f->type != video->type)
+		return -EINVAL;
+
+	for (i = 0, j = 0; i < ARRAY_SIZE(formats); i++) {
+		/* Weed out duplicate pixelformats with different mbus codes */
+		if (!f->mbus_code && i &&
+		    formats[i - 1].pixelformat == formats[i].pixelformat)
+			continue;
+		if (f->mbus_code && formats[i].code != f->mbus_code)
+			continue;
+
+		if (j == f->index) {
+			f->pixelformat = formats[i].pixelformat;
+			return 0;
+		}
+		j++;
+	}
+
+	return -EINVAL;
 }
 
 static int
@@ -1258,9 +1289,11 @@ isp_video_s_input(struct file *file, void *fh, unsigned int input)
 
 static const struct v4l2_ioctl_ops isp_video_ioctl_ops = {
 	.vidioc_querycap		= isp_video_querycap,
+	.vidioc_enum_fmt_vid_cap	= isp_video_enum_format,
 	.vidioc_g_fmt_vid_cap		= isp_video_get_format,
 	.vidioc_s_fmt_vid_cap		= isp_video_set_format,
 	.vidioc_try_fmt_vid_cap		= isp_video_try_format,
+	.vidioc_enum_fmt_vid_out	= isp_video_enum_format,
 	.vidioc_g_fmt_vid_out		= isp_video_get_format,
 	.vidioc_s_fmt_vid_out		= isp_video_set_format,
 	.vidioc_try_fmt_vid_out		= isp_video_try_format,
