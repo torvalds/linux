@@ -231,7 +231,9 @@ static int __pwm_write_waveform(struct pwm_chip *chip, struct pwm_device *pwm, c
  *
  * Usually all values passed in @wf are rounded down to the nearest possible
  * value (in the order period_length_ns, duty_length_ns and then
- * duty_offset_ns). Only if this isn't possible, a value might grow.
+ * duty_offset_ns). Only if this isn't possible, a value might grow. See the
+ * documentation for pwm_set_waveform_might_sleep() for a more formal
+ * description.
  *
  * Returns: 0 on success, 1 if at least one value had to be rounded up or a
  * negative errno.
@@ -410,6 +412,26 @@ static int __pwm_set_waveform(struct pwm_device *pwm,
  * Note that even with @exact = true, some rounding by less than 1 ns is
  * possible/needed. In the above example requesting .period_length_ns = 94 and
  * @exact = true, you get the hardware configured with period = 93.5 ns.
+ *
+ * Let C be the set of possible hardware configurations for a given PWM device,
+ * consisting of tuples (p, d, o) where p is the period length, d is the duty
+ * length and o the duty offset.
+ *
+ * The following algorithm is implemented to pick the hardware setting
+ * (p, d, o) ∈ C for a given request (p', d', o') with @exact = false::
+ *
+ *   p = max( { ṗ | ∃ ḋ, ȯ : (ṗ, ḋ, ȯ) ∈ C ∧ ṗ ≤ p' } ∪ { min({ ṗ | ∃ ḋ, ȯ : (ṗ, ḋ, ȯ) ∈ C }) })
+ *   d = max( { ḋ | ∃ ȯ : (p, ḋ, ȯ) ∈ C ∧ ḋ ≤ d' } ∪ { min({ ḋ | ∃ ȯ : (p, ḋ, ȯ) ∈ C }) })
+ *   o = max( { ȯ | (p, d, ȯ) ∈ C ∧ ȯ ≤ o' } ∪ { min({ ȯ | (p, d, ȯ) ∈ C }) })
+ *
+ * In words: The chosen period length is the maximal possible period length not
+ * bigger than the requested period length and if that doesn't exist, the
+ * minimal period length. The chosen duty length is the maximal possible duty
+ * length that is compatible with the chosen period length and isn't bigger than
+ * the requested duty length. Again if such a value doesn't exist, the minimal
+ * duty length compatible with the chosen period is picked. After that the duty
+ * offset compatible with the chosen period and duty length is chosen in the
+ * same way.
  *
  * Returns: 0 on success, -EDOM if setting failed due to the exact waveform not
  * being possible (if @exact), or a different negative errno on failure.
