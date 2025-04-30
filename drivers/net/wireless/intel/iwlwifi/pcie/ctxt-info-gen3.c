@@ -97,8 +97,8 @@ out:
 		*control_flags |= IWL_PRPH_SCRATCH_EARLY_DEBUG_EN | dbg_flags;
 }
 
-int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
-				 const struct fw_img *fw)
+int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
+				  const struct fw_img *fw)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_context_info_gen3 *ctxt_info_gen3;
@@ -166,6 +166,11 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 		IWL_DEBUG_FW(trans,
 			     "Context Info: Set SCU_FORCE_ACTIVE (0x%x) in control_flags\n",
 			     IWL_PRPH_SCRATCH_SCU_FORCE_ACTIVE);
+	}
+
+	if (trans->do_top_reset) {
+		WARN_ON(trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_SC);
+		control_flags |= IWL_PRPH_SCRATCH_TOP_RESET;
 	}
 
 	/* initialize RX default queue */
@@ -266,18 +271,6 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 
 	memcpy(trans_pcie->iml, trans->iml, trans->iml_len);
 
-	iwl_enable_fw_load_int_ctx_info(trans);
-
-	/* kick FW self load */
-	iwl_write64(trans, CSR_CTXT_INFO_ADDR,
-		    trans_pcie->ctxt_info_dma_addr);
-	iwl_write64(trans, CSR_IML_DATA_ADDR,
-		    trans_pcie->iml_dma_addr);
-	iwl_write32(trans, CSR_IML_SIZE_ADDR, trans->iml_len);
-
-	iwl_set_bit(trans, CSR_CTXT_INFO_BOOT_CTRL,
-		    CSR_AUTO_FUNC_BOOT_ENA);
-
 	return 0;
 
 err_free_ctxt_info:
@@ -296,6 +289,23 @@ err_free_prph_scratch:
 			trans_pcie->prph_scratch_dma_addr);
 	return ret;
 
+}
+
+void iwl_pcie_ctxt_info_gen3_kick(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	iwl_enable_fw_load_int_ctx_info(trans, trans->do_top_reset);
+
+	/* kick FW self load */
+	iwl_write64(trans, CSR_CTXT_INFO_ADDR,
+		    trans_pcie->ctxt_info_dma_addr);
+	iwl_write64(trans, CSR_IML_DATA_ADDR,
+		    trans_pcie->iml_dma_addr);
+	iwl_write32(trans, CSR_IML_SIZE_ADDR, trans->iml_len);
+
+	iwl_set_bit(trans, CSR_CTXT_INFO_BOOT_CTRL,
+		    CSR_AUTO_FUNC_BOOT_ENA);
 }
 
 void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans, bool alive)

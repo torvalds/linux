@@ -488,12 +488,16 @@ int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	bool hw_rfkill, keep_ram_busy;
+	bool top_reset_done = false;
 	int ret;
 
+	mutex_lock(&trans_pcie->mutex);
+again:
 	/* This may fail if AMT took ownership of the device */
 	if (iwl_pcie_prepare_card_hw(trans)) {
 		IWL_WARN(trans, "Exit HW not ready\n");
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
 	iwl_enable_rfkill_int(trans);
@@ -509,8 +513,6 @@ int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 
 	/* Make sure it finished running */
 	iwl_pcie_synchronize_irqs(trans);
-
-	mutex_lock(&trans_pcie->mutex);
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
 	hw_rfkill = iwl_pcie_check_hw_rf_kill(trans);
@@ -541,12 +543,27 @@ int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 		goto out;
 	}
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
-		ret = iwl_pcie_ctxt_info_gen3_init(trans, fw);
-	else
+	if (WARN_ON(trans->do_top_reset &&
+		    trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_SC))
+		return -EINVAL;
+
+	/* we need to wait later - set state */
+	if (trans->do_top_reset)
+		trans_pcie->fw_reset_state = FW_RESET_TOP_REQUESTED;
+
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+		if (!top_reset_done) {
+			ret = iwl_pcie_ctxt_info_gen3_alloc(trans, fw);
+			if (ret)
+				goto out;
+		}
+
+		iwl_pcie_ctxt_info_gen3_kick(trans);
+	} else {
 		ret = iwl_pcie_ctxt_info_init(trans, fw);
-	if (ret)
-		goto out;
+		if (ret)
+			goto out;
+	}
 
 	keep_ram_busy = !iwl_pcie_set_ltr(trans);
 
@@ -564,6 +581,38 @@ int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 
 	if (keep_ram_busy)
 		iwl_pcie_spin_for_iml(trans);
+
+	if (trans->do_top_reset) {
+		trans->do_top_reset = 0;
+
+#define FW_TOP_RESET_TIMEOUT	(HZ / 4)
+		ret = wait_event_timeout(trans_pcie->fw_reset_waitq,
+					 trans_pcie->fw_reset_state != FW_RESET_TOP_REQUESTED,
+					 FW_TOP_RESET_TIMEOUT);
+
+		if (trans_pcie->fw_reset_state != FW_RESET_OK) {
+			if (trans_pcie->fw_reset_state != FW_RESET_TOP_REQUESTED)
+				IWL_ERR(trans,
+					"TOP reset interrupted by error (state %d)!\n",
+					trans_pcie->fw_reset_state);
+			else
+				IWL_ERR(trans, "TOP reset timed out!\n");
+			iwl_op_mode_nic_error(trans->op_mode,
+					      IWL_ERR_TYPE_TOP_RESET_FAILED);
+			iwl_trans_schedule_reset(trans,
+						 IWL_ERR_TYPE_TOP_RESET_FAILED);
+			ret = -EIO;
+			goto out;
+		}
+
+		msleep(10);
+		IWL_INFO(trans, "TOP reset successful, reinit now\n");
+		/* now load the firmware again properly */
+		trans_pcie->prph_scratch->ctrl_cfg.control.control_flags &=
+			~cpu_to_le32(IWL_PRPH_SCRATCH_TOP_RESET);
+		top_reset_done = true;
+		goto again;
+	}
 
 	/* re-check RF-Kill state since we may have missed the interrupt */
 	hw_rfkill = iwl_pcie_check_hw_rf_kill(trans);

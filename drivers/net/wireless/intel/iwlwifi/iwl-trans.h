@@ -893,6 +893,10 @@ struct iwl_txq {
  * @dsbr_urm_fw_dependent: switch to URM based on fw settings
  * @dsbr_urm_permanent: switch to URM permanently
  * @ext_32khz_clock_valid: if true, the external 32 KHz clock can be used
+ * @request_top_reset: TOP reset was requested, used by the reset
+ *	worker that should be scheduled (with appropriate reason)
+ * @do_top_reset: indication to the (PCIe) transport/context-info
+ *	to do the TOP reset
  */
 struct iwl_trans {
 	bool csme_own;
@@ -973,6 +977,9 @@ struct iwl_trans {
 
 	struct delayed_work me_recheck_wk;
 	s8 me_present;
+
+	u8 request_top_reset:1,
+	   do_top_reset:1;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
@@ -1267,6 +1274,8 @@ enum iwl_reset_mode {
 	/* upper level modes: */
 	IWL_RESET_MODE_SW_RESET,
 	IWL_RESET_MODE_REPROBE,
+	/* TOP reset doesn't require PCIe remove */
+	IWL_RESET_MODE_TOP_RESET,
 	/* PCIE level modes: */
 	IWL_RESET_MODE_REMOVE_ONLY,
 	IWL_RESET_MODE_RESCAN,

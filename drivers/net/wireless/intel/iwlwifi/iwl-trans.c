@@ -130,18 +130,46 @@ iwl_trans_determine_restart_mode(struct iwl_trans *trans)
 	struct iwl_trans_dev_restart_data *data;
 	enum iwl_reset_mode at_least = 0;
 	unsigned int index;
-	static const enum iwl_reset_mode escalation_list[] = {
+	static const enum iwl_reset_mode escalation_list_old[] = {
 		IWL_RESET_MODE_SW_RESET,
 		IWL_RESET_MODE_REPROBE,
 		IWL_RESET_MODE_REPROBE,
 		IWL_RESET_MODE_FUNC_RESET,
-		/* FIXME: add TOP reset */
-		IWL_RESET_MODE_PROD_RESET,
-		/* FIXME: add TOP reset */
-		IWL_RESET_MODE_PROD_RESET,
-		/* FIXME: add TOP reset */
 		IWL_RESET_MODE_PROD_RESET,
 	};
+	static const enum iwl_reset_mode escalation_list_sc[] = {
+		IWL_RESET_MODE_SW_RESET,
+		IWL_RESET_MODE_REPROBE,
+		IWL_RESET_MODE_REPROBE,
+		IWL_RESET_MODE_FUNC_RESET,
+		IWL_RESET_MODE_TOP_RESET,
+		IWL_RESET_MODE_PROD_RESET,
+		IWL_RESET_MODE_TOP_RESET,
+		IWL_RESET_MODE_PROD_RESET,
+		IWL_RESET_MODE_TOP_RESET,
+		IWL_RESET_MODE_PROD_RESET,
+	};
+	const enum iwl_reset_mode *escalation_list;
+	size_t escalation_list_size;
+
+	/* used by TOP fatal error/TOP reset */
+	if (trans->restart.mode.type == IWL_ERR_TYPE_TOP_RESET_FAILED)
+		return IWL_RESET_MODE_PROD_RESET;
+
+	if (trans->request_top_reset) {
+		trans->request_top_reset = 0;
+		if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_SC)
+			return IWL_RESET_MODE_TOP_RESET;
+		return IWL_RESET_MODE_PROD_RESET;
+	}
+
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_SC) {
+		escalation_list = escalation_list_sc;
+		escalation_list_size = ARRAY_SIZE(escalation_list_sc);
+	} else {
+		escalation_list = escalation_list_old;
+		escalation_list_size = ARRAY_SIZE(escalation_list_old);
+	}
 
 	if (trans->restart.during_reset)
 		at_least = IWL_RESET_MODE_REPROBE;
@@ -155,8 +183,8 @@ iwl_trans_determine_restart_mode(struct iwl_trans *trans)
 		data->restart_count = 0;
 
 	index = data->restart_count;
-	if (index >= ARRAY_SIZE(escalation_list))
-		index = ARRAY_SIZE(escalation_list) - 1;
+	if (index >= escalation_list_size)
+		index = escalation_list_size - 1;
 
 	return max(at_least, escalation_list[index]);
 }
@@ -203,8 +231,13 @@ static void iwl_trans_restart_wk(struct work_struct *wk)
 	iwl_trans_inc_restart_count(trans->dev);
 
 	switch (mode) {
+	case IWL_RESET_MODE_TOP_RESET:
+		trans->do_top_reset = 1;
+		IWL_ERR(trans, "Device error - TOP reset\n");
+		fallthrough;
 	case IWL_RESET_MODE_SW_RESET:
-		IWL_ERR(trans, "Device error - SW reset\n");
+		if (mode == IWL_RESET_MODE_SW_RESET)
+			IWL_ERR(trans, "Device error - SW reset\n");
 		iwl_trans_opmode_sw_reset(trans, trans->restart.mode.type);
 		break;
 	case IWL_RESET_MODE_REPROBE:

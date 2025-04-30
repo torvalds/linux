@@ -269,6 +269,7 @@ enum iwl_pcie_fw_reset_state {
 	FW_RESET_REQUESTED,
 	FW_RESET_OK,
 	FW_RESET_ERROR,
+	FW_RESET_TOP_REQUESTED,
 };
 
 /**
@@ -940,11 +941,13 @@ static inline void iwl_enable_fw_load_int(struct iwl_trans *trans)
 	}
 }
 
-static inline void iwl_enable_fw_load_int_ctx_info(struct iwl_trans *trans)
+static inline void iwl_enable_fw_load_int_ctx_info(struct iwl_trans *trans,
+						   bool top_reset)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	IWL_DEBUG_ISR(trans, "Enabling ALIVE interrupt only\n");
+	IWL_DEBUG_ISR(trans, "Enabling %s interrupt only\n",
+		      top_reset ? "RESET" : "ALIVE");
 
 	if (!trans_pcie->msix_enabled) {
 		/*
@@ -954,11 +957,20 @@ static inline void iwl_enable_fw_load_int_ctx_info(struct iwl_trans *trans)
 		 * RX interrupt which will allow us to receive the ALIVE
 		 * notification (which is Rx) and continue the flow.
 		 */
-		trans_pcie->inta_mask =  CSR_INT_BIT_ALIVE | CSR_INT_BIT_FH_RX;
+		if (top_reset)
+			trans_pcie->inta_mask =  CSR_INT_BIT_RESET_DONE;
+		else
+			trans_pcie->inta_mask =  CSR_INT_BIT_ALIVE |
+						 CSR_INT_BIT_FH_RX;
 		iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
 	} else {
-		iwl_enable_hw_int_msk_msix(trans,
-					   MSIX_HW_INT_CAUSES_REG_ALIVE);
+		u32 val = top_reset ? MSIX_HW_INT_CAUSES_REG_RESET_DONE
+				    : MSIX_HW_INT_CAUSES_REG_ALIVE;
+
+		iwl_enable_hw_int_msk_msix(trans, val);
+
+		if (top_reset)
+			return;
 		/*
 		 * Leave all the FH causes enabled to get the ALIVE
 		 * notification.

@@ -58,6 +58,7 @@ enum iwl_prph_scratch_mtr_format {
  * @IWL_PRPH_SCRATCH_RB_SIZE_EXT_16K: 16kB RB size
  * @IWL_PRPH_SCRATCH_SCU_FORCE_ACTIVE: Indicate fw to set SCU_FORCE_ACTIVE
  *	upon reset.
+ * @IWL_PRPH_SCRATCH_TOP_RESET: request TOP reset
  */
 enum iwl_prph_scratch_flags {
 	IWL_PRPH_SCRATCH_IMR_DEBUG_EN		= BIT(1),
@@ -74,6 +75,7 @@ enum iwl_prph_scratch_flags {
 	IWL_PRPH_SCRATCH_RB_SIZE_EXT_12K	= 9 << 20,
 	IWL_PRPH_SCRATCH_RB_SIZE_EXT_16K	= 10 << 20,
 	IWL_PRPH_SCRATCH_SCU_FORCE_ACTIVE	= BIT(29),
+	IWL_PRPH_SCRATCH_TOP_RESET		= BIT(30),
 };
 
 /**
@@ -321,8 +323,9 @@ struct iwl_context_info_gen3 {
 	__le32 reserved;
 } __packed; /* IPC_CONTEXT_INFO_S */
 
-int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
-				 const struct fw_img *fw);
+int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
+				  const struct fw_img *fw);
+void iwl_pcie_ctxt_info_gen3_kick(struct iwl_trans *trans);
 void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans, bool alive);
 
 int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,

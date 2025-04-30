@@ -2133,7 +2133,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 			iwl_enable_rfkill_int(trans);
 		/* Re-enable the ALIVE / Rx interrupt if it occurred */
 		else if (handled & (CSR_INT_BIT_ALIVE | CSR_INT_BIT_FH_RX))
-			iwl_enable_fw_load_int_ctx_info(trans);
+			iwl_enable_fw_load_int_ctx_info(trans, false);
 		spin_unlock_bh(&trans_pcie->irq_lock);
 	}
 
@@ -2356,9 +2356,13 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	if (inta_hw & MSIX_HW_INT_CAUSES_REG_TOP_FATAL_ERR) {
 		IWL_ERR(trans, "TOP Fatal error detected, inta_hw=0x%x.\n",
 			inta_hw);
-		if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
-			iwl_trans_pcie_reset(trans,
-					     IWL_RESET_MODE_PROD_RESET);
+		if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
+			trans->request_top_reset = 1;
+			iwl_op_mode_nic_error(trans->op_mode,
+					      IWL_ERR_TYPE_TOP_FATAL_ERROR);
+			iwl_trans_schedule_reset(trans,
+						 IWL_ERR_TYPE_TOP_FATAL_ERROR);
+		}
 	}
 
 	/* Error detected by uCode */
