@@ -54,6 +54,13 @@
 			wakeup-source;
 			linux,code = <KEY_SLEEP>;
 		};
+
+		smarc_switch_lid: switch-lid {
+			gpios = <&som_ec_gpio_expander 2 GPIO_ACTIVE_LOW>;
+			label = "SMARC_LID#";
+			linux,code = <SW_LID>;
+			linux,input-type = <EV_SW>;
+		};
 	};
 
 	reg_usb0_vbus: regulator-usb0-vbus {
@@ -537,6 +544,24 @@
 	embedded-controller@28 {
 		compatible = "toradex,smarc-imx8mp-ec", "toradex,smarc-ec";
 		reg = <0x28>;
+	};
+
+	som_ec_gpio_expander: gpio@29 {
+		compatible = "toradex,ecgpiol16", "nxp,pcal6416";
+		reg = <0x29>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_mcu_int>;
+		#interrupt-cells = <2>;
+		interrupt-controller;
+		interrupt-parent = <&gpio3>;
+		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
+		#gpio-cells = <2>;
+		gpio-controller;
+		gpio-line-names =
+			"SMARC_CHARGER_PRSNT#",
+			"SMARC_CHARGING#",
+			"SMARC_LID#",
+			"SMARC_BATLOW#";
 	};
 
 	rtc_i2c: rtc@32 {
