@@ -11,9 +11,9 @@
 #define _NOLIBC_POLL_H
 
 #include "arch.h"
-#include "types.h"
 #include "sys.h"
 
+#include <linux/poll.h>
 #include <linux/time.h>
 
 /*
