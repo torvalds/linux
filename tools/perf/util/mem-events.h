@@ -94,6 +94,7 @@ enum mem_stat_type {
 	PERF_MEM_STAT_CACHE,
 	PERF_MEM_STAT_MEMORY,
 	PERF_MEM_STAT_SNOOP,
+	PERF_MEM_STAT_DTLB,
 };
 
 #define MEM_STAT_PRINT_LEN  7  /* 1 space + 5 digits + 1 percent sign */
@@ -132,6 +133,14 @@ enum mem_stat_snoop {
 	MEM_STAT_SNOOP_HITM,
 	MEM_STAT_SNOOP_MISS,
 	MEM_STAT_SNOOP_OTHER,
+};
+
+enum mem_stat_dtlb {
+	MEM_STAT_DTLB_L1_HIT,
+	MEM_STAT_DTLB_L2_HIT,
+	MEM_STAT_DTLB_ANY_HIT,
+	MEM_STAT_DTLB_MISS,
+	MEM_STAT_DTLB_OTHER,
 };
 
 int mem_stat_index(const enum mem_stat_type mst, const u64 data_src);

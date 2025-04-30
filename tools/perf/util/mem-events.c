@@ -868,6 +868,19 @@ int mem_stat_index(const enum mem_stat_type mst, const u64 val)
 		default:
 			return MEM_STAT_SNOOP_OTHER;
 		}
+	case PERF_MEM_STAT_DTLB:
+		switch (src.mem_dtlb) {
+		case PERF_MEM_TLB_L1 | PERF_MEM_TLB_HIT:
+			return MEM_STAT_DTLB_L1_HIT;
+		case PERF_MEM_TLB_L2 | PERF_MEM_TLB_HIT:
+			return MEM_STAT_DTLB_L2_HIT;
+		case PERF_MEM_TLB_L1 | PERF_MEM_TLB_L2 | PERF_MEM_TLB_HIT:
+			return MEM_STAT_DTLB_ANY_HIT;
+		default:
+			if (src.mem_dtlb & PERF_MEM_TLB_MISS)
+				return MEM_STAT_DTLB_MISS;
+			return MEM_STAT_DTLB_OTHER;
+		}
 	default:
 		break;
 	}
@@ -939,6 +952,20 @@ const char *mem_stat_name(const enum mem_stat_type mst, const int idx)
 		case MEM_STAT_SNOOP_MISS:
 			return "Miss";
 		case MEM_STAT_SNOOP_OTHER:
+		default:
+			return "Other";
+		}
+	case PERF_MEM_STAT_DTLB:
+		switch (idx) {
+		case MEM_STAT_DTLB_L1_HIT:
+			return "L1-Hit";
+		case MEM_STAT_DTLB_L2_HIT:
+			return "L2-Hit";
+		case MEM_STAT_DTLB_ANY_HIT:
+			return "L?-Hit";
+		case MEM_STAT_DTLB_MISS:
+			return "Miss";
+		case MEM_STAT_DTLB_OTHER:
 		default:
 			return "Other";
 		}

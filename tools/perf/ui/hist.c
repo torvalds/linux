@@ -354,6 +354,8 @@ static enum mem_stat_type hpp__mem_stat_type(struct perf_hpp_fmt *fmt)
 		return PERF_MEM_STAT_MEMORY;
 	case PERF_HPP__MEM_STAT_SNOOP:
 		return PERF_MEM_STAT_SNOOP;
+	case PERF_HPP__MEM_STAT_DTLB:
+		return PERF_MEM_STAT_DTLB;
 	default:
 		break;
 	}
@@ -653,6 +655,7 @@ HPP_MEM_STAT_FNS(op, OP)
 HPP_MEM_STAT_FNS(cache, CACHE)
 HPP_MEM_STAT_FNS(memory, MEMORY)
 HPP_MEM_STAT_FNS(snoop, SNOOP)
+HPP_MEM_STAT_FNS(dtlb, DTLB)
 
 static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 			    struct hist_entry *a __maybe_unused,
@@ -760,6 +763,7 @@ struct perf_hpp_fmt perf_hpp__format[] = {
 	HPP__MEM_STAT_PRINT_FNS("Cache", cache, CACHE),
 	HPP__MEM_STAT_PRINT_FNS("Memory", memory, MEMORY),
 	HPP__MEM_STAT_PRINT_FNS("Snoop", snoop, SNOOP),
+	HPP__MEM_STAT_PRINT_FNS("D-TLB", dtlb, DTLB),
 };
 
 struct perf_hpp_list perf_hpp_list = {
@@ -1118,6 +1122,7 @@ void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 	case PERF_HPP__MEM_STAT_CACHE:
 	case PERF_HPP__MEM_STAT_MEMORY:
 	case PERF_HPP__MEM_STAT_SNOOP:
+	case PERF_HPP__MEM_STAT_DTLB:
 		fmt->len = MEM_STAT_LEN * MEM_STAT_PRINT_LEN;
 		break;
 
