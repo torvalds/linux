@@ -894,26 +894,7 @@ static void amd_gpio_irq_init(struct amd_gpio *gpio_dev)
 	}
 }
 
-#ifdef CONFIG_SUSPEND
-static bool amd_gpio_should_save(struct amd_gpio *gpio_dev, unsigned int pin)
-{
-	const struct pin_desc *pd = pin_desc_get(gpio_dev->pctrl, pin);
-
-	if (!pd)
-		return false;
-
-	/*
-	 * Only restore the pin if it is actually in use by the kernel (or
-	 * by userspace).
-	 */
-	if (pd->mux_owner || pd->gpio_owner ||
-	    gpiochip_line_is_irq(&gpio_dev->gc, pin))
-		return true;
-
-	return false;
-}
-
-#ifdef CONFIG_ACPI
+#if defined(CONFIG_SUSPEND) && defined(CONFIG_ACPI)
 static void amd_gpio_check_pending(void)
 {
 	struct amd_gpio *gpio_dev = pinctrl_dev;
@@ -936,7 +917,39 @@ static void amd_gpio_check_pending(void)
 static struct acpi_s2idle_dev_ops pinctrl_amd_s2idle_dev_ops = {
 	.check = amd_gpio_check_pending,
 };
+
+static void amd_gpio_register_s2idle_ops(void)
+{
+	acpi_register_lps0_dev(&pinctrl_amd_s2idle_dev_ops);
+}
+
+static void amd_gpio_unregister_s2idle_ops(void)
+{
+	acpi_unregister_lps0_dev(&pinctrl_amd_s2idle_dev_ops);
+}
+#else
+static inline void amd_gpio_register_s2idle_ops(void) {}
+static inline void amd_gpio_unregister_s2idle_ops(void) {}
 #endif
+
+#ifdef CONFIG_PM_SLEEP
+static bool amd_gpio_should_save(struct amd_gpio *gpio_dev, unsigned int pin)
+{
+	const struct pin_desc *pd = pin_desc_get(gpio_dev->pctrl, pin);
+
+	if (!pd)
+		return false;
+
+	/*
+	 * Only restore the pin if it is actually in use by the kernel (or
+	 * by userspace).
+	 */
+	if (pd->mux_owner || pd->gpio_owner ||
+	    gpiochip_line_is_irq(&gpio_dev->gc, pin))
+		return true;
+
+	return false;
+}
 
 static int amd_gpio_suspend_hibernate_common(struct device *dev, bool is_suspend)
 {
@@ -1213,9 +1226,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, gpio_dev);
 	acpi_register_wakeup_handler(gpio_dev->irq, amd_gpio_check_wake, gpio_dev);
-#if defined(CONFIG_ACPI) && defined(CONFIG_SUSPEND)
-	acpi_register_lps0_dev(&pinctrl_amd_s2idle_dev_ops);
-#endif
+	amd_gpio_register_s2idle_ops();
 
 	dev_dbg(&pdev->dev, "amd gpio driver loaded\n");
 	return ret;
@@ -1234,9 +1245,7 @@ static void amd_gpio_remove(struct platform_device *pdev)
 
 	gpiochip_remove(&gpio_dev->gc);
 	acpi_unregister_wakeup_handler(amd_gpio_check_wake, gpio_dev);
-#if defined(CONFIG_ACPI) && defined(CONFIG_SUSPEND)
-	acpi_unregister_lps0_dev(&pinctrl_amd_s2idle_dev_ops);
-#endif
+	amd_gpio_unregister_s2idle_ops();
 }
 
 #ifdef CONFIG_ACPI
@@ -1253,7 +1262,7 @@ static struct platform_driver amd_gpio_driver = {
 	.driver		= {
 		.name	= "amd_gpio",
 		.acpi_match_table = ACPI_PTR(amd_gpio_acpi_match),
-#ifdef CONFIG_SUSPEND
+#ifdef CONFIG_PM_SLEEP
 		.pm	= &amd_gpio_pm_ops,
 #endif
 	},
