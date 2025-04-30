@@ -674,6 +674,13 @@ static bool iwl_mld_sw_reset(struct iwl_op_mode *op_mode,
 {
 	struct iwl_mld *mld = IWL_OP_MODE_GET_MLD(op_mode);
 
+	/* SW reset can happen for TOP error w/o NIC error, so
+	 * also abort scan here and set in_hw_restart, when we
+	 * had a NIC error both were already done.
+	 */
+	iwl_mld_report_scan_aborted(mld);
+	mld->fw_status.in_hw_restart = true;
+
 	/* Do restart only in the following conditions are met:
 	 * - we consider the FW as running
 	 * - The trigger that brought us here is defined as one that requires
