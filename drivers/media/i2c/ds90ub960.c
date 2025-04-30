@@ -2051,7 +2051,7 @@ static int ub960_serializer_temp_ramp(struct ub960_rxport *rxport)
 	u8 temp_dynamic_cfg;
 	u8 nport = rxport->nport;
 	u8 ser_temp_code;
-	int ret;
+	int ret = 0;
 
 	/* Configure temp ramp only on UB953 */
 	if (!fwnode_device_is_compatible(rxport->ser.fwnode, "ti,ds90ub953-q1"))
