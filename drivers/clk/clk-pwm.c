@@ -23,6 +23,23 @@ static inline struct clk_pwm *to_clk_pwm(struct clk_hw *hw)
 	return container_of(hw, struct clk_pwm, hw);
 }
 
+static int clk_pwm_enable(struct clk_hw *hw)
+{
+	struct clk_pwm *clk_pwm = to_clk_pwm(hw);
+
+	return pwm_apply_atomic(clk_pwm->pwm, &clk_pwm->state);
+}
+
+static void clk_pwm_disable(struct clk_hw *hw)
+{
+	struct clk_pwm *clk_pwm = to_clk_pwm(hw);
+	struct pwm_state state = clk_pwm->state;
+
+	state.enabled = false;
+
+	pwm_apply_atomic(clk_pwm->pwm, &state);
+}
+
 static int clk_pwm_prepare(struct clk_hw *hw)
 {
 	struct clk_pwm *clk_pwm = to_clk_pwm(hw);
@@ -60,6 +77,13 @@ static int clk_pwm_get_duty_cycle(struct clk_hw *hw, struct clk_duty *duty)
 
 	return 0;
 }
+
+static const struct clk_ops clk_pwm_ops_atomic = {
+	.enable = clk_pwm_enable,
+	.disable = clk_pwm_disable,
+	.recalc_rate = clk_pwm_recalc_rate,
+	.get_duty_cycle = clk_pwm_get_duty_cycle,
+};
 
 static const struct clk_ops clk_pwm_ops = {
 	.prepare = clk_pwm_prepare,
@@ -115,7 +139,11 @@ static int clk_pwm_probe(struct platform_device *pdev)
 	of_property_read_string(node, "clock-output-names", &clk_name);
 
 	init.name = clk_name;
-	init.ops = &clk_pwm_ops;
+	if (pwm_might_sleep(pwm))
+		init.ops = &clk_pwm_ops;
+	else
+		init.ops = &clk_pwm_ops_atomic;
+
 	init.flags = 0;
 	init.num_parents = 0;
 
