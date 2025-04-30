@@ -146,7 +146,7 @@ iwlmld_kunit_add_link(struct ieee80211_vif *vif, int link_id)
 }
 
 struct ieee80211_chanctx_conf *
-iwlmld_kunit_add_chanctx_from_def(struct cfg80211_chan_def *def)
+iwlmld_kunit_add_chanctx(const struct cfg80211_chan_def *def)
 {
 	struct kunit *test = kunit_get_current_test();
 	struct iwl_mld *mld = test->priv;
@@ -346,8 +346,7 @@ iwlmld_kunit_setup_assoc(bool mlo, struct iwl_mld_kunit_link *assoc_link)
 	else
 		link = &vif->bss_conf;
 
-	chan_ctx = iwlmld_kunit_add_chanctx(assoc_link->band,
-					    assoc_link->bandwidth);
+	chan_ctx = iwlmld_kunit_add_chanctx(assoc_link->chandef);
 
 	wiphy_lock(mld->wiphy);
 	iwlmld_kunit_assign_chanctx_to_link(vif, link, chan_ctx);
@@ -428,7 +427,7 @@ struct ieee80211_vif *iwlmld_kunit_assoc_emlsr(struct iwl_mld_kunit_link *link1,
 	link = wiphy_dereference(mld->wiphy, vif->link_conf[link2->id]);
 	KUNIT_EXPECT_NOT_NULL(test, link);
 
-	chan_ctx = iwlmld_kunit_add_chanctx(link2->band, link2->bandwidth);
+	chan_ctx = iwlmld_kunit_add_chanctx(link2->chandef);
 	iwlmld_kunit_assign_chanctx_to_link(vif, link, chan_ctx);
 
 	wiphy_unlock(mld->wiphy);
@@ -472,3 +471,33 @@ struct iwl_mld_phy *iwlmld_kunit_get_phy_of_link(struct ieee80211_vif *vif,
 
 	return iwl_mld_phy_from_mac80211(chanctx);
 }
+
+static const struct chandef_case {
+	const char *desc;
+	const struct cfg80211_chan_def *chandef;
+} chandef_cases[] = {
+#define CHANDEF(c, ...) { .desc = "chandef " #c " valid", .chandef = &c, },
+	CHANDEF_LIST
+#undef CHANDEF
+};
+
+KUNIT_ARRAY_PARAM_DESC(chandef, chandef_cases, desc);
+
+static void test_iwl_mld_chandef_valid(struct kunit *test)
+{
+	const struct chandef_case *params = test->param_value;
+
+	KUNIT_EXPECT_EQ(test, true, cfg80211_chandef_valid(params->chandef));
+}
+
+static struct kunit_case chandef_test_cases[] = {
+	KUNIT_CASE_PARAM(test_iwl_mld_chandef_valid, chandef_gen_params),
+	{}
+};
+
+static struct kunit_suite chandef_tests = {
+	.name = "iwlmld_valid_test_chandefs",
+	.test_cases = chandef_test_cases,
+};
+
+kunit_test_suite(chandef_tests);

@@ -32,7 +32,7 @@ static const struct link_grading_test_case {
 		.desc = "channel util of 128 (50%)",
 		.input.link = {
 			.link_id = 0,
-			.chandef = &chandef_2ghz,
+			.chandef = &chandef_2ghz_20mhz,
 			.active = false,
 			.has_chan_util_elem = true,
 			.chan_util = 128,
@@ -43,7 +43,7 @@ static const struct link_grading_test_case {
 		.desc = "channel util of 180 (70%)",
 		.input.link = {
 			.link_id = 0,
-			.chandef = &chandef_2ghz,
+			.chandef = &chandef_2ghz_20mhz,
 			.active = false,
 			.has_chan_util_elem = true,
 			.chan_util = 180,
@@ -54,7 +54,7 @@ static const struct link_grading_test_case {
 		.desc = "channel util of 180 (70%), channel load by us of 10%",
 		.input.link = {
 			.link_id = 0,
-			.chandef = &chandef_2ghz,
+			.chandef = &chandef_2ghz_20mhz,
 			.has_chan_util_elem = true,
 			.chan_util = 180,
 			.active = true,
@@ -66,7 +66,7 @@ static const struct link_grading_test_case {
 		.desc = "no channel util element",
 		.input.link = {
 			.link_id = 0,
-			.chandef = &chandef_2ghz,
+			.chandef = &chandef_2ghz_20mhz,
 			.active = true,
 		},
 		.expected_grade = 120,
@@ -132,7 +132,7 @@ static void test_link_grading(struct kunit *test)
 	bool active = test_param->input.link.active;
 	u16 valid_links;
 	struct iwl_mld_kunit_link assoc_link = {
-		.band = test_param->input.link.chandef->chan->band,
+		.chandef = test_param->input.link.chandef,
 	};
 
 	/* If the link is not active, use a different link as the assoc link */
@@ -174,10 +174,9 @@ kunit_test_suite(link_selection);
 
 static const struct channel_load_case {
 	const char *desc;
+	const struct cfg80211_chan_def *chandef_a, *chandef_b;
 	bool low_latency_vif;
 	u32 chan_load_not_by_us;
-	enum nl80211_chan_width bw_a;
-	enum nl80211_chan_width bw_b;
 	bool primary_link_active;
 	bool expected_result;
 } channel_load_cases[] = {
@@ -185,8 +184,8 @@ static const struct channel_load_case {
 		.desc = "Unequal bandwidth, primary link inactive, EMLSR not allowed",
 		.low_latency_vif = false,
 		.primary_link_active = false,
-		.bw_a = NL80211_CHAN_WIDTH_40,
-		.bw_b = NL80211_CHAN_WIDTH_20,
+		.chandef_a = &chandef_5ghz_40mhz,
+		.chandef_b = &chandef_6ghz_20mhz,
 		.expected_result = false,
 	},
 	{
@@ -194,8 +193,8 @@ static const struct channel_load_case {
 		.low_latency_vif = false,
 		.primary_link_active = true,
 		.chan_load_not_by_us = 11,
-		.bw_a = NL80211_CHAN_WIDTH_40,
-		.bw_b = NL80211_CHAN_WIDTH_40,
+		.chandef_a = &chandef_5ghz_40mhz,
+		.chandef_b = &chandef_6ghz_40mhz,
 		.expected_result = true,
 	},
 	{
@@ -203,8 +202,8 @@ static const struct channel_load_case {
 		.low_latency_vif = false,
 		.primary_link_active = true,
 		.chan_load_not_by_us = 6,
-		.bw_a = NL80211_CHAN_WIDTH_80,
-		.bw_b = NL80211_CHAN_WIDTH_80,
+		.chandef_a = &chandef_5ghz_80mhz,
+		.chandef_b = &chandef_6ghz_80mhz,
 		.expected_result = false,
 	},
 	{
@@ -212,8 +211,8 @@ static const struct channel_load_case {
 		.low_latency_vif = true,
 		.primary_link_active = true,
 		.chan_load_not_by_us = 6,
-		.bw_a = NL80211_CHAN_WIDTH_160,
-		.bw_b = NL80211_CHAN_WIDTH_160,
+		.chandef_a = &chandef_5ghz_160mhz,
+		.chandef_b = &chandef_6ghz_160mhz,
 		.expected_result = true,
 	},
 	{
@@ -221,8 +220,8 @@ static const struct channel_load_case {
 		.low_latency_vif = false,
 		.primary_link_active = true,
 		.chan_load_not_by_us = 30,
-		.bw_a = NL80211_CHAN_WIDTH_40,
-		.bw_b = NL80211_CHAN_WIDTH_20,
+		.chandef_a = &chandef_5ghz_40mhz,
+		.chandef_b = &chandef_6ghz_20mhz,
 		.expected_result = true,
 	},
 	{
@@ -230,8 +229,8 @@ static const struct channel_load_case {
 		.low_latency_vif = false,
 		.primary_link_active = true,
 		.chan_load_not_by_us = 45,
-		.bw_a = NL80211_CHAN_WIDTH_80,
-		.bw_b = NL80211_CHAN_WIDTH_20,
+		.chandef_a = &chandef_5ghz_80mhz,
+		.chandef_b = &chandef_6ghz_20mhz,
 		.expected_result = true,
 	},
 	{
@@ -239,8 +238,8 @@ static const struct channel_load_case {
 		.low_latency_vif = false,
 		.primary_link_active = true,
 		.chan_load_not_by_us = 45,
-		.bw_a = NL80211_CHAN_WIDTH_320,
-		.bw_b = NL80211_CHAN_WIDTH_20,
+		.chandef_a = &chandef_6ghz_320mhz,
+		.chandef_b = &chandef_5ghz_20mhz,
 		.expected_result = false,
 	},
 };
@@ -252,22 +251,23 @@ static void test_iwl_mld_channel_load_allows_emlsr(struct kunit *test)
 	const struct channel_load_case *params = test->param_value;
 	struct iwl_mld *mld = test->priv;
 	struct ieee80211_vif *vif;
-	struct cfg80211_chan_def chandef_a, chandef_b;
-	struct iwl_mld_link_sel_data a = {.chandef = &chandef_a,
-					  .link_id = 4};
-	struct iwl_mld_link_sel_data b = {.chandef = &chandef_b,
-					  .link_id = 5};
+	/* link A is the primary and link B is the secondary */
+	struct iwl_mld_link_sel_data a = {
+		.chandef = params->chandef_a,
+		.link_id = 4,
+	};
+	struct iwl_mld_link_sel_data b = {
+		.chandef = params->chandef_b,
+		.link_id = 5,
+	};
 	struct iwl_mld_kunit_link assoc_link = {
+		.chandef = params->primary_link_active ? a.chandef : b.chandef,
 		.id = params->primary_link_active ? a.link_id : b.link_id,
-		.bandwidth = params->primary_link_active ? params->bw_a : params->bw_b,
 	};
 	bool result;
 
 	vif = iwlmld_kunit_setup_mlo_assoc(BIT(a.link_id) | BIT(b.link_id),
 					   &assoc_link);
-
-	chandef_a.width = params->bw_a;
-	chandef_b.width = params->bw_b;
 
 	if (params->low_latency_vif)
 		iwl_mld_vif_from_mac80211(vif)->low_latency_causes = 1;
