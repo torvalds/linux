@@ -76,6 +76,8 @@
 #define CORE_I2C_FREQ		(0x14)
 #define CORE_I2C_GLITCHREG	(0x18)
 #define CORE_I2C_SLAVE1_ADDR	(0x1c)
+#define CORE_I2C_SMBUS_MSG_WR	(0x0)
+#define CORE_I2C_SMBUS_MSG_RD	(0x1)
 
 #define PCLK_DIV_960	(CTRL_CR2)
 #define PCLK_DIV_256	(0)
@@ -424,9 +426,109 @@ static u32 mchp_corei2c_func(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
+static int mchp_corei2c_smbus_xfer(struct i2c_adapter *adap, u16 addr, unsigned short flags,
+				   char read_write, u8 command,
+				   int size, union i2c_smbus_data *data)
+{
+	struct i2c_msg msgs[2];
+	struct mchp_corei2c_dev *idev = i2c_get_adapdata(adap);
+	u8 tx_buf[I2C_SMBUS_BLOCK_MAX + 2];
+	u8 rx_buf[I2C_SMBUS_BLOCK_MAX + 1];
+	int num_msgs = 1;
+
+	msgs[CORE_I2C_SMBUS_MSG_WR].addr = addr;
+	msgs[CORE_I2C_SMBUS_MSG_WR].flags = 0;
+
+	if (read_write == I2C_SMBUS_READ && size <= I2C_SMBUS_BYTE)
+		msgs[CORE_I2C_SMBUS_MSG_WR].flags = I2C_M_RD;
+
+	if (read_write == I2C_SMBUS_WRITE && size <= I2C_SMBUS_WORD_DATA)
+		msgs[CORE_I2C_SMBUS_MSG_WR].len = size;
+
+	if (read_write == I2C_SMBUS_WRITE && size > I2C_SMBUS_BYTE) {
+		msgs[CORE_I2C_SMBUS_MSG_WR].buf = tx_buf;
+		msgs[CORE_I2C_SMBUS_MSG_WR].buf[0] = command;
+	}
+
+	if (read_write == I2C_SMBUS_READ && size >= I2C_SMBUS_BYTE_DATA) {
+		msgs[CORE_I2C_SMBUS_MSG_WR].buf = tx_buf;
+		msgs[CORE_I2C_SMBUS_MSG_WR].buf[0] = command;
+		msgs[CORE_I2C_SMBUS_MSG_RD].addr = addr;
+		msgs[CORE_I2C_SMBUS_MSG_RD].flags = I2C_M_RD;
+		num_msgs = 2;
+	}
+
+	if (read_write == I2C_SMBUS_READ && size > I2C_SMBUS_QUICK)
+		msgs[CORE_I2C_SMBUS_MSG_WR].len = 1;
+
+	switch (size) {
+	case I2C_SMBUS_QUICK:
+		msgs[CORE_I2C_SMBUS_MSG_WR].buf = NULL;
+		return 0;
+	case I2C_SMBUS_BYTE:
+		if (read_write == I2C_SMBUS_WRITE)
+			msgs[CORE_I2C_SMBUS_MSG_WR].buf = &command;
+		else
+			msgs[CORE_I2C_SMBUS_MSG_WR].buf = &data->byte;
+		break;
+	case I2C_SMBUS_BYTE_DATA:
+		if (read_write == I2C_SMBUS_WRITE) {
+			msgs[CORE_I2C_SMBUS_MSG_WR].buf[1] = data->byte;
+		} else {
+			msgs[CORE_I2C_SMBUS_MSG_RD].len = size - 1;
+			msgs[CORE_I2C_SMBUS_MSG_RD].buf = &data->byte;
+		}
+		break;
+	case I2C_SMBUS_WORD_DATA:
+		if (read_write == I2C_SMBUS_WRITE) {
+			msgs[CORE_I2C_SMBUS_MSG_WR].buf[1] = data->word & 0xFF;
+			msgs[CORE_I2C_SMBUS_MSG_WR].buf[2] = (data->word >> 8) & 0xFF;
+		} else {
+			msgs[CORE_I2C_SMBUS_MSG_RD].len = size - 1;
+			msgs[CORE_I2C_SMBUS_MSG_RD].buf = rx_buf;
+		}
+		break;
+	case I2C_SMBUS_BLOCK_DATA:
+		if (read_write == I2C_SMBUS_WRITE) {
+			int data_len;
+
+			data_len = data->block[0];
+			msgs[CORE_I2C_SMBUS_MSG_WR].len = data_len + 2;
+			for (int i = 0; i <= data_len; i++)
+				msgs[CORE_I2C_SMBUS_MSG_WR].buf[i + 1] = data->block[i];
+		} else {
+			msgs[CORE_I2C_SMBUS_MSG_RD].len = I2C_SMBUS_BLOCK_MAX + 1;
+			msgs[CORE_I2C_SMBUS_MSG_RD].buf = rx_buf;
+		}
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	mchp_corei2c_xfer(&idev->adapter, msgs, num_msgs);
+	if (read_write == I2C_SMBUS_WRITE || size <= I2C_SMBUS_BYTE_DATA)
+		return 0;
+
+	switch (size) {
+	case I2C_SMBUS_WORD_DATA:
+		data->word = (rx_buf[0] | (rx_buf[1] << 8));
+		break;
+	case I2C_SMBUS_BLOCK_DATA:
+		if (rx_buf[0] > I2C_SMBUS_BLOCK_MAX)
+			rx_buf[0] = I2C_SMBUS_BLOCK_MAX;
+		/* As per protocol first member of block is size of the block. */
+		for (int i = 0; i <= rx_buf[0]; i++)
+			data->block[i] = rx_buf[i];
+		break;
+	}
+
+	return 0;
+}
+
 static const struct i2c_algorithm mchp_corei2c_algo = {
 	.master_xfer = mchp_corei2c_xfer,
 	.functionality = mchp_corei2c_func,
+	.smbus_xfer = mchp_corei2c_smbus_xfer,
 };
 
 static int mchp_corei2c_probe(struct platform_device *pdev)
