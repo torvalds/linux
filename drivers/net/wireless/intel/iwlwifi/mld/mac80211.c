@@ -2457,8 +2457,10 @@ iwl_mld_change_vif_links(struct ieee80211_hw *hw,
 	for (int i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
 		if (added & BIT(i)) {
 			link_conf = link_conf_dereference_protected(vif, i);
-			if (WARN_ON(!link_conf))
-				return -EINVAL;
+			if (!link_conf) {
+				err = -EINVAL;
+				goto remove_added_links;
+			}
 
 			err = iwl_mld_add_link(mld, link_conf);
 			if (err)
@@ -2493,7 +2495,11 @@ remove_added_links:
 		iwl_mld_remove_link(mld, link_conf);
 	}
 
-	return err;
+	if (WARN_ON(!iwl_mld_error_before_recovery(mld)))
+		return err;
+
+	/* reconfig will fix us anyway */
+	return 0;
 }
 
 static int iwl_mld_change_sta_links(struct ieee80211_hw *hw,
