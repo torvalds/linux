@@ -767,43 +767,6 @@ int pivot_root(const char *new, const char *old)
 
 
 /*
- * int poll(struct pollfd *fds, int nfds, int timeout);
- */
-
-static __attribute__((unused))
-int sys_poll(struct pollfd *fds, int nfds, int timeout)
-{
-#if defined(__NR_ppoll)
-	struct timespec t;
-
-	if (timeout >= 0) {
-		t.tv_sec  = timeout / 1000;
-		t.tv_nsec = (timeout % 1000) * 1000000;
-	}
-	return my_syscall5(__NR_ppoll, fds, nfds, (timeout >= 0) ? &t : NULL, NULL, 0);
-#elif defined(__NR_ppoll_time64)
-	struct __kernel_timespec t;
-
-	if (timeout >= 0) {
-		t.tv_sec  = timeout / 1000;
-		t.tv_nsec = (timeout % 1000) * 1000000;
-	}
-	return my_syscall5(__NR_ppoll_time64, fds, nfds, (timeout >= 0) ? &t : NULL, NULL, 0);
-#elif defined(__NR_poll)
-	return my_syscall3(__NR_poll, fds, nfds, timeout);
-#else
-	return __nolibc_enosys(__func__, fds, nfds, timeout);
-#endif
-}
-
-static __attribute__((unused))
-int poll(struct pollfd *fds, int nfds, int timeout)
-{
-	return __sysret(sys_poll(fds, nfds, timeout));
-}
-
-
-/*
  * ssize_t read(int fd, void *buf, size_t count);
  */
 

@@ -114,6 +114,7 @@
 #include "dirent.h"
 #include "fcntl.h"
 #include "getopt.h"
+#include "poll.h"
 
 /* Used by programs to avoid std includes */
 #define NOLIBC

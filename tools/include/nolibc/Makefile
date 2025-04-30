@@ -36,6 +36,7 @@ all_files := \
 		getopt.h \
 		limits.h \
 		nolibc.h \
+		poll.h \
 		signal.h \
 		stackprotector.h \
 		std.h \
