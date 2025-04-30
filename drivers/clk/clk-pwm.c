@@ -109,12 +109,6 @@ static int clk_pwm_probe(struct platform_device *pdev)
 
 	pwm_init_state(pwm, &clk_pwm->state);
 	pwm_set_relative_duty_cycle(&clk_pwm->state, 1, 2);
-
-	ret = pwm_apply_might_sleep(pwm, &clk_pwm->state);
-	if (ret < 0)
-		return ret;
-
-	/* set enabled only now to not enable output above */
 	clk_pwm->state.enabled = true;
 
 	clk_name = node->name;
