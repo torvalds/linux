@@ -5,7 +5,7 @@
 
 #include <dt-bindings/pinctrl/pinctrl-cv1800b.h>
 #include "cv180x-cpus.dtsi"
-#include "cv18xx.dtsi"
+#include "cv180x.dtsi"
 
 / {
 	compatible = "sophgo,cv1800b";

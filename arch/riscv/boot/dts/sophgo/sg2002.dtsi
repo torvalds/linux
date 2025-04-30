@@ -6,7 +6,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/pinctrl-sg2002.h>
 #include "cv180x-cpus.dtsi"
-#include "cv18xx.dtsi"
+#include "cv180x.dtsi"
 #include "cv181x.dtsi"
 
 / {
