@@ -52,6 +52,7 @@
 			power-domain-names = "psci";
 			capacity-dmips-mhz = <1946>;
 			dynamic-power-coefficient = <472>;
+			qcom,freq-domain = <&cpufreq_hw 0>;
 
 			l2_0: l2-cache {
 				compatible = "cache";
@@ -71,6 +72,7 @@
 			power-domain-names = "psci";
 			capacity-dmips-mhz = <1946>;
 			dynamic-power-coefficient = <472>;
+			qcom,freq-domain = <&cpufreq_hw 0>;
 
 			l2_1: l2-cache {
 				compatible = "cache";
@@ -90,6 +92,7 @@
 			power-domain-names = "psci";
 			capacity-dmips-mhz = <1946>;
 			dynamic-power-coefficient = <507>;
+			qcom,freq-domain = <&cpufreq_hw 2>;
 
 			l2_2: l2-cache {
 				compatible = "cache";
@@ -109,6 +112,7 @@
 			power-domain-names = "psci";
 			capacity-dmips-mhz = <1946>;
 			dynamic-power-coefficient = <507>;
+			qcom,freq-domain = <&cpufreq_hw 2>;
 
 			l2_3: l2-cache {
 				compatible = "cache";
@@ -128,6 +132,7 @@
 			power-domain-names = "psci";
 			capacity-dmips-mhz = <1024>;
 			dynamic-power-coefficient = <100>;
+			qcom,freq-domain = <&cpufreq_hw 1>;
 
 			l2_4: l2-cache {
 				compatible = "cache";
@@ -147,6 +152,7 @@
 			power-domain-names = "psci";
 			capacity-dmips-mhz = <1024>;
 			dynamic-power-coefficient = <100>;
+			qcom,freq-domain = <&cpufreq_hw 1>;
 
 			l2_5: l2-cache {
 				compatible = "cache";
@@ -166,6 +172,7 @@
 			power-domain-names = "psci";
 			capacity-dmips-mhz = <1024>;
 			dynamic-power-coefficient = <100>;
+			qcom,freq-domain = <&cpufreq_hw 1>;
 
 			l2_6: l2-cache {
 				compatible = "cache";
@@ -185,6 +192,7 @@
 			power-domain-names = "psci";
 			capacity-dmips-mhz = <1024>;
 			dynamic-power-coefficient = <100>;
+			qcom,freq-domain = <&cpufreq_hw 1>;
 
 			l2_7: l2-cache {
 				compatible = "cache";
@@ -5277,6 +5285,28 @@
 					};
 				};
 			};
+		};
+
+		cpufreq_hw: cpufreq@18591000 {
+			compatible = "qcom,qcs8300-cpufreq-epss", "qcom,cpufreq-epss";
+			reg = <0x0 0x18591000 0x0 0x1000>,
+			      <0x0 0x18593000 0x0 0x1000>,
+			      <0x0 0x18594000 0x0 0x1000>;
+			reg-names = "freq-domain0",
+				    "freq-domain1",
+				    "freq-domain2";
+
+			interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "dcvsh-irq-0",
+					  "dcvsh-irq-1",
+					  "dcvsh-irq-2";
+
+			clocks = <&rpmhcc RPMH_CXO_CLK>, <&gcc GCC_GPLL0>;
+			clock-names = "xo", "alternate";
+
+			#freq-domain-cells = <1>;
 		};
 
 		remoteproc_gpdsp: remoteproc@20c00000 {
