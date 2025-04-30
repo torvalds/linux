@@ -236,6 +236,11 @@ stages:
       - _build/meson-logs/strace
 
 
+python-artifacts:
+  variables:
+    GIT_DEPTH: 10
+
+
 # Git archive
 make git archive:
   extends:
