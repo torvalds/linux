@@ -404,15 +404,16 @@ static int __pwm_set_waveform(struct pwm_device *pwm,
  * Typically a requested waveform cannot be implemented exactly, e.g. because
  * you requested .period_length_ns = 100 ns, but the hardware can only set
  * periods that are a multiple of 8.5 ns. With that hardware passing @exact =
- * true results in pwm_set_waveform_might_sleep() failing and returning 1. If
- * @exact = false you get a period of 93.5 ns (i.e. the biggest period not bigger
- * than the requested value).
+ * true results in pwm_set_waveform_might_sleep() failing and returning -EDOM.
+ * If @exact = false you get a period of 93.5 ns (i.e. the biggest period not
+ * bigger than the requested value).
  * Note that even with @exact = true, some rounding by less than 1 ns is
  * possible/needed. In the above example requesting .period_length_ns = 94 and
  * @exact = true, you get the hardware configured with period = 93.5 ns.
  *
- * Returns: 0 on success, 1 if was rounded up (if !@exact) or no perfect match was
- * possible (if @exact), or a negative errno
+ * Returns: 0 on success, 1 if was rounded up (if !@exact), -EDOM if setting
+ * failed due to the exact waveform not being possible (if @exact), or a
+ * different negative errno on failure.
  * Context: May sleep.
  */
 int pwm_set_waveform_might_sleep(struct pwm_device *pwm,
@@ -439,6 +440,16 @@ int pwm_set_waveform_might_sleep(struct pwm_device *pwm,
 	} else {
 		err = __pwm_set_waveform(pwm, wf, exact);
 	}
+
+	/*
+	 * map err == 1 to -EDOM for exact requests. Also make sure that -EDOM is
+	 * only returned in exactly that case. Note that __pwm_set_waveform()
+	 * should never return -EDOM which justifies the unlikely().
+	 */
+	if (unlikely(err == -EDOM))
+		err = -EINVAL;
+	else if (exact && err == 1)
+		err = -EDOM;
 
 	return err;
 }
