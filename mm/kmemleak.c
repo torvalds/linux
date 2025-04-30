@@ -210,9 +210,9 @@ static struct kmem_cache *object_cache;
 static struct kmem_cache *scan_area_cache;
 
 /* set if tracing memory operations is enabled */
-static int kmemleak_enabled = 1;
+static int kmemleak_enabled __read_mostly = 1;
 /* same as above but only for the kmemleak_free() callback */
-static int kmemleak_free_enabled = 1;
+static int kmemleak_free_enabled __read_mostly = 1;
 /* set in the late_initcall if there were no errors */
 static int kmemleak_late_initialized;
 /* set if a fatal kmemleak error has occurred */
