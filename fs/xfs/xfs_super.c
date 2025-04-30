@@ -380,10 +380,11 @@ xfs_blkdev_get(
 	struct file		**bdev_filep)
 {
 	int			error = 0;
+	blk_mode_t		mode;
 
-	*bdev_filep = bdev_file_open_by_path(name,
-		BLK_OPEN_READ | BLK_OPEN_WRITE | BLK_OPEN_RESTRICT_WRITES,
-		mp->m_super, &fs_holder_ops);
+	mode = sb_open_mode(mp->m_super->s_flags);
+	*bdev_filep = bdev_file_open_by_path(name, mode,
+			mp->m_super, &fs_holder_ops);
 	if (IS_ERR(*bdev_filep)) {
 		error = PTR_ERR(*bdev_filep);
 		*bdev_filep = NULL;
@@ -1968,6 +1969,20 @@ xfs_remount_rw(
 {
 	struct xfs_sb		*sbp = &mp->m_sb;
 	int error;
+
+	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp &&
+	    bdev_read_only(mp->m_logdev_targp->bt_bdev)) {
+		xfs_warn(mp,
+			"ro->rw transition prohibited by read-only logdev");
+		return -EACCES;
+	}
+
+	if (mp->m_rtdev_targp &&
+	    bdev_read_only(mp->m_rtdev_targp->bt_bdev)) {
+		xfs_warn(mp,
+			"ro->rw transition prohibited by read-only rtdev");
+		return -EACCES;
+	}
 
 	if (xfs_has_norecovery(mp)) {
 		xfs_warn(mp,
