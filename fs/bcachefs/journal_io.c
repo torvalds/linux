@@ -1406,7 +1406,7 @@ int bch2_journal_read(struct bch_fs *c,
 	}
 
 	genradix_for_each(&c->journal_entries, radix_iter, _i) {
-		struct bch_replicas_padded replicas = {
+		union bch_replicas_padded replicas = {
 			.e.data_type = BCH_DATA_journal,
 			.e.nr_devs = 0,
 			.e.nr_required = 1,
@@ -1634,7 +1634,7 @@ static CLOSURE_CALLBACK(journal_write_done)
 	closure_type(w, struct journal_buf, io);
 	struct journal *j = container_of(w, struct journal, buf[w->idx]);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct bch_replicas_padded replicas;
+	union bch_replicas_padded replicas;
 	u64 seq = le64_to_cpu(w->data->seq);
 	int err = 0;
 
@@ -2057,7 +2057,7 @@ CLOSURE_CALLBACK(bch2_journal_write)
 	closure_type(w, struct journal_buf, io);
 	struct journal *j = container_of(w, struct journal, buf[w->idx]);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct bch_replicas_padded replicas;
+	union bch_replicas_padded replicas;
 	unsigned nr_rw_members = dev_mask_nr(&c->rw_devs[BCH_DATA_journal]);
 	int ret;
 

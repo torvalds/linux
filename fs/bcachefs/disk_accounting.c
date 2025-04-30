@@ -287,7 +287,7 @@ static inline bool accounting_to_replicas(struct bch_replicas_entry_v1 *r, struc
 
 static int bch2_accounting_update_sb_one(struct bch_fs *c, struct bpos p)
 {
-	struct bch_replicas_padded r;
+	union bch_replicas_padded r;
 	return accounting_to_replicas(&r.e, p)
 		? bch2_mark_replicas(c, &r.e)
 		: 0;
@@ -361,7 +361,7 @@ err:
 int bch2_accounting_mem_insert(struct bch_fs *c, struct bkey_s_c_accounting a,
 			       enum bch_accounting_mode mode)
 {
-	struct bch_replicas_padded r;
+	union bch_replicas_padded r;
 
 	if (mode != BCH_ACCOUNTING_read &&
 	    accounting_to_replicas(&r.e, a.k->p) &&
@@ -379,7 +379,7 @@ int bch2_accounting_mem_insert(struct bch_fs *c, struct bkey_s_c_accounting a,
 int bch2_accounting_mem_insert_locked(struct bch_fs *c, struct bkey_s_c_accounting a,
 			       enum bch_accounting_mode mode)
 {
-	struct bch_replicas_padded r;
+	union bch_replicas_padded r;
 
 	if (mode != BCH_ACCOUNTING_read &&
 	    accounting_to_replicas(&r.e, a.k->p) &&
@@ -438,10 +438,12 @@ int bch2_fs_replicas_usage_read(struct bch_fs *c, darray_char *usage)
 
 	percpu_down_read(&c->mark_lock);
 	darray_for_each(acc->k, i) {
-		struct {
+		union {
+			u8 bytes[struct_size_t(struct bch_replicas_usage, r.devs,
+					       BCH_BKEY_PTRS_MAX)];
 			struct bch_replicas_usage r;
-			u8 pad[BCH_BKEY_PTRS_MAX];
 		} u;
+		u.r.r.nr_devs = BCH_BKEY_PTRS_MAX;
 
 		if (!accounting_to_replicas(&u.r.r, i->pos))
 			continue;
@@ -640,7 +642,7 @@ static int bch2_disk_accounting_validate_late(struct btree_trans *trans,
 
 	switch (acc->type) {
 	case BCH_DISK_ACCOUNTING_replicas: {
-		struct bch_replicas_padded r;
+		union bch_replicas_padded r;
 		__accounting_to_replicas(&r.e, acc);
 
 		for (unsigned i = 0; i < r.e.nr_devs; i++)

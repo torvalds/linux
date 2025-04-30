@@ -963,7 +963,7 @@ int bch2_journal_flush_device_pins(struct journal *j, int dev_idx)
 	seq = 0;
 	spin_lock(&j->lock);
 	while (!ret) {
-		struct bch_replicas_padded replicas;
+		union bch_replicas_padded replicas;
 
 		seq = max(seq, journal_last_seq(j));
 		if (seq >= j->pin.back)
