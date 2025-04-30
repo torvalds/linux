@@ -3623,6 +3623,19 @@ struct rtw89_c2h_ra_rpt {
 #define RTW89_C2H_RA_RPT_W3_MD_SEL_B2 BIT(15)
 #define RTW89_C2H_RA_RPT_W3_BW_B2 BIT(16)
 
+struct rtw89_c2h_fw_scan_rpt {
+	struct rtw89_c2h_hdr hdr;
+	u8 phy_idx;
+	u8 band;
+	u8 center_ch;
+	u8 ofdm_pd_idx; /* in unit of 2 dBm */
+#define PD_LOWER_BOUND_BASE 102
+	s8 cck_pd_idx;
+	u8 rsvd0;
+	u8 rsvd1;
+	u8 rsvd2;
+} __packed;
+
 /* For WiFi 6 chips:
  *   VHT, HE, HT-old: [6:4]: NSS, [3:0]: MCS
  *   HT-new: [6:5]: NA, [4:0]: MCS

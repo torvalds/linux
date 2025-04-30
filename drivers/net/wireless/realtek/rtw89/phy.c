@@ -3023,6 +3023,35 @@ void (* const rtw89_phy_c2h_ra_handler[])(struct rtw89_dev *rtwdev,
 	[RTW89_PHY_C2H_FUNC_TXSTS] = NULL,
 };
 
+static void
+rtw89_phy_c2h_lowrt_rty(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+}
+
+static void
+rtw89_phy_c2h_fw_scan_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+	const struct rtw89_c2h_fw_scan_rpt *c2h_rpt =
+		(const struct rtw89_c2h_fw_scan_rpt *)c2h->data;
+
+	rtw89_debug(rtwdev, RTW89_DBG_DIG,
+		    "%s: band: %u, op_chan: %u, PD_low_bd(ofdm, cck): (-%d, %d), phy_idx: %u\n",
+		    __func__, c2h_rpt->band, c2h_rpt->center_ch,
+		    PD_LOWER_BOUND_BASE - (c2h_rpt->ofdm_pd_idx << 1),
+		    c2h_rpt->cck_pd_idx, c2h_rpt->phy_idx);
+}
+
+static
+void (* const rtw89_phy_c2h_dm_handler[])(struct rtw89_dev *rtwdev,
+					  struct sk_buff *c2h, u32 len) = {
+	[RTW89_PHY_C2H_DM_FUNC_FW_TEST] = NULL,
+	[RTW89_PHY_C2H_DM_FUNC_FW_TRIG_TX_RPT] = NULL,
+	[RTW89_PHY_C2H_DM_FUNC_SIGB] = NULL,
+	[RTW89_PHY_C2H_DM_FUNC_LOWRT_RTY] = rtw89_phy_c2h_lowrt_rty,
+	[RTW89_PHY_C2H_DM_FUNC_MCC_DIG] = NULL,
+	[RTW89_PHY_C2H_DM_FUNC_FW_SCAN] = rtw89_phy_c2h_fw_scan_rpt,
+};
+
 static void rtw89_phy_c2h_rfk_rpt_log(struct rtw89_dev *rtwdev,
 				      enum rtw89_phy_c2h_rfk_log_func func,
 				      void *content, u16 len)
@@ -3558,9 +3587,9 @@ void rtw89_phy_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 			handler = rtw89_phy_c2h_rfk_report_handler[func];
 		break;
 	case RTW89_PHY_C2H_CLASS_DM:
-		if (func == RTW89_PHY_C2H_DM_FUNC_LOWRT_RTY)
-			return;
-		fallthrough;
+		if (func < ARRAY_SIZE(rtw89_phy_c2h_dm_handler))
+			handler = rtw89_phy_c2h_dm_handler[func];
+		break;
 	default:
 		rtw89_info(rtwdev, "PHY c2h class %d not support\n", class);
 		return;
