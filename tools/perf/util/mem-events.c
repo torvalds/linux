@@ -303,15 +303,12 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr, char **eve
 	}
 
 	if (cpu_map) {
-		struct perf_cpu_map *online = cpu_map__online();
-
-		if (!perf_cpu_map__equal(cpu_map, online)) {
+		if (!perf_cpu_map__equal(cpu_map, cpu_map__online())) {
 			char buf[200];
 
 			cpu_map__snprint(cpu_map, buf, sizeof(buf));
 			pr_warning("Memory events are enabled on a subset of CPUs: %s\n", buf);
 		}
-		perf_cpu_map__put(online);
 		perf_cpu_map__put(cpu_map);
 	}
 
@@ -803,18 +800,32 @@ void c2c_add_stats(struct c2c_stats *stats, struct c2c_stats *add)
 /*
  * It returns an index in hist_entry->mem_stat array for the given val which
  * represents a data-src based on the mem_stat_type.
- *
- * For example, when mst is about cache level, the index can be 1 for L1, 2 for
- * L2 and so on.
  */
 int mem_stat_index(const enum mem_stat_type mst, const u64 val)
 {
+	union perf_mem_data_src src = {
+		.val = val,
+	};
+
 	switch (mst) {
-	case PERF_MEM_STAT_UNKNOWN:  /* placeholder */
+	case PERF_MEM_STAT_OP:
+		switch (src.mem_op) {
+		case PERF_MEM_OP_LOAD:
+			return MEM_STAT_OP_LOAD;
+		case PERF_MEM_OP_STORE:
+			return MEM_STAT_OP_STORE;
+		case PERF_MEM_OP_LOAD | PERF_MEM_OP_STORE:
+			return MEM_STAT_OP_LDST;
+		default:
+			if (src.mem_op & PERF_MEM_OP_PFETCH)
+				return MEM_STAT_OP_PFETCH;
+			if (src.mem_op & PERF_MEM_OP_EXEC)
+				return MEM_STAT_OP_EXEC;
+			return MEM_STAT_OP_OTHER;
+		}
 	default:
 		break;
 	}
-	(void)val;
 	return -1;
 }
 
@@ -822,10 +833,25 @@ int mem_stat_index(const enum mem_stat_type mst, const u64 val)
 const char *mem_stat_name(const enum mem_stat_type mst, const int idx)
 {
 	switch (mst) {
-	case PERF_MEM_STAT_UNKNOWN:
+	case PERF_MEM_STAT_OP:
+		switch (idx) {
+		case MEM_STAT_OP_LOAD:
+			return "Load";
+		case MEM_STAT_OP_STORE:
+			return "Store";
+		case MEM_STAT_OP_LDST:
+			return "Ld+St";
+		case MEM_STAT_OP_PFETCH:
+			return "Pfetch";
+		case MEM_STAT_OP_EXEC:
+			return "Exec";
+		case MEM_STAT_OP_OTHER:
+			return "Other";
+		default:
+			break;
+		}
 	default:
 		break;
 	}
-	(void)idx;
 	return "N/A";
 }

@@ -342,6 +342,12 @@ static enum mem_stat_type hpp__mem_stat_type(struct perf_hpp_fmt *fmt)
 	if (!perf_hpp__is_mem_stat_entry(fmt))
 		return -1;
 
+	switch (fmt->idx) {
+	case PERF_HPP__MEM_STAT_OP:
+		return PERF_MEM_STAT_OP;
+	default:
+		break;
+	}
 	pr_debug("Should not reach here\n");
 	return -1;
 }
@@ -611,7 +617,7 @@ HPP_AVERAGE_FNS(weight1, weight1)
 HPP_AVERAGE_FNS(weight2, weight2)
 HPP_AVERAGE_FNS(weight3, weight3)
 
-HPP_MEM_STAT_FNS(unknown, UNKNOWN)  /* placeholder */
+HPP_MEM_STAT_FNS(op, OP)
 
 static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 			    struct hist_entry *a __maybe_unused,
@@ -715,7 +721,7 @@ struct perf_hpp_fmt perf_hpp__format[] = {
 	HPP__PRINT_FNS("Weight1", weight1, WEIGHT1),
 	HPP__PRINT_FNS("Weight2", weight2, WEIGHT2),
 	HPP__PRINT_FNS("Weight3", weight3, WEIGHT3),
-	HPP__MEM_STAT_PRINT_FNS("Unknown", unknown, UNKNOWN),  /* placeholder */
+	HPP__MEM_STAT_PRINT_FNS("Mem Op", op, OP),
 };
 
 struct perf_hpp_list perf_hpp_list = {
@@ -1070,7 +1076,7 @@ void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 		fmt->len = 8;
 		break;
 
-	case PERF_HPP__MEM_STAT_UNKNOWN:  /* placeholder */
+	case PERF_HPP__MEM_STAT_OP:
 		fmt->len = MEM_STAT_LEN * MEM_STAT_PRINT_LEN;
 		break;
 

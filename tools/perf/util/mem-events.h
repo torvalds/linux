@@ -90,7 +90,16 @@ int c2c_decode_stats(struct c2c_stats *stats, struct mem_info *mi);
 void c2c_add_stats(struct c2c_stats *stats, struct c2c_stats *add);
 
 enum mem_stat_type {
-	PERF_MEM_STAT_UNKNOWN,  /* placeholder */
+	PERF_MEM_STAT_OP,
+};
+
+enum mem_stat_op {
+	MEM_STAT_OP_LOAD,
+	MEM_STAT_OP_STORE,
+	MEM_STAT_OP_LDST,
+	MEM_STAT_OP_PFETCH,
+	MEM_STAT_OP_EXEC,
+	MEM_STAT_OP_OTHER,
 };
 
 #define MEM_STAT_PRINT_LEN  7  /* 1 space + 5 digits + 1 percent sign */
