@@ -9,7 +9,6 @@
 #include <adf_common_drv.h>
 #include <adf_fw_config.h>
 #include <adf_gen4_config.h>
-#include <adf_gen4_dc.h>
 #include <adf_gen4_hw_csr_data.h>
 #include <adf_gen4_hw_data.h>
 #include <adf_gen4_pfvf.h>

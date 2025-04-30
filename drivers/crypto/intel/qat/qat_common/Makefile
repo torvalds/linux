@@ -8,13 +8,12 @@ intel_qat-y := adf_accel_engine.o \
 	adf_cfg_services.o \
 	adf_clock.o \
 	adf_ctl_drv.o \
+	adf_dc.o \
 	adf_dev_mgr.o \
 	adf_gen2_config.o \
-	adf_gen2_dc.o \
 	adf_gen2_hw_csr_data.o \
 	adf_gen2_hw_data.o \
 	adf_gen4_config.o \
-	adf_gen4_dc.o \
 	adf_gen4_hw_csr_data.o \
 	adf_gen4_hw_data.o \
 	adf_gen4_pm.o \
