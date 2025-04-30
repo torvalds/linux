@@ -623,7 +623,7 @@ amdgpu_userq_validate_bos(struct amdgpu_userq_mgr *uq_mgr)
 			clear = false;
 			unlock = true;
 		/* The caller is already holding the reservation lock */
-		} else if (ticket && dma_resv_locking_ctx(resv) == ticket) {
+		} else if (dma_resv_locking_ctx(resv) == ticket) {
 			clear = false;
 			unlock = false;
 		/* Somebody else is using the BO right now */
