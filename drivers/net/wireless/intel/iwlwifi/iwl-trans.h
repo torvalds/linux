@@ -304,6 +304,8 @@ enum iwl_d3_status {
  *	via iwl_trans_finish_sw_reset()
  * @STATUS_RESET_PENDING: reset worker was scheduled, but didn't dump
  *	the firmware state yet
+ * @STATUS_TRANS_RESET_IN_PROGRESS: reset is still in progress, don't
+ *	attempt another reset yet
  */
 enum iwl_trans_status {
 	STATUS_SYNC_HCMD_ACTIVE,
@@ -317,6 +319,7 @@ enum iwl_trans_status {
 	STATUS_SUPPRESS_CMD_ERROR_ONCE,
 	STATUS_IN_SW_RESET,
 	STATUS_RESET_PENDING,
+	STATUS_TRANS_RESET_IN_PROGRESS,
 };
 
 static inline int
@@ -1151,6 +1154,9 @@ static inline void iwl_trans_schedule_reset(struct iwl_trans *trans,
 					    enum iwl_fw_error_type type)
 {
 	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
+		return;
+	/* clear this on device init, not cleared on any unbind/reprobe */
+	if (test_and_set_bit(STATUS_TRANS_RESET_IN_PROGRESS, &trans->status))
 		return;
 
 	trans->restart.mode.type = type;

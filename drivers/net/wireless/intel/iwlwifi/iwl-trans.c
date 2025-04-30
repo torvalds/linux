@@ -393,6 +393,8 @@ int iwl_trans_start_hw(struct iwl_trans *trans)
 {
 	might_sleep();
 
+	clear_bit(STATUS_TRANS_RESET_IN_PROGRESS, &trans->status);
+
 	return iwl_trans_pcie_start_hw(trans);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_start_hw);
