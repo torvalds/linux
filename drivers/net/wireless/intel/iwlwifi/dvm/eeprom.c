@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2019, 2021, 2024 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2019, 2021, 2024-2025 Intel Corporation
  */
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -151,7 +151,7 @@ static u16 iwl_eeprom_query16(const u8 *eeprom, size_t eeprom_size, int offset)
 {
 	if (WARN_ON(offset + sizeof(u16) > eeprom_size))
 		return 0;
-	return le16_to_cpup((__le16 *)(eeprom + offset));
+	return le16_to_cpup((const __le16 *)(eeprom + offset));
 }
 
 static u32 eeprom_indirect_address(const u8 *eeprom, size_t eeprom_size,
@@ -204,8 +204,8 @@ static u32 eeprom_indirect_address(const u8 *eeprom, size_t eeprom_size,
 	return (address & ADDRESS_MSK) + (offset << 1);
 }
 
-static const u8 *iwl_eeprom_query_addr(const u8 *eeprom, size_t eeprom_size,
-				       u32 offset)
+static const void *iwl_eeprom_query_addr(const u8 *eeprom, size_t eeprom_size,
+					 u32 offset)
 {
 	u32 address = eeprom_indirect_address(eeprom, eeprom_size, offset);
 
@@ -218,10 +218,9 @@ static const u8 *iwl_eeprom_query_addr(const u8 *eeprom, size_t eeprom_size,
 static int iwl_eeprom_read_calib(const u8 *eeprom, size_t eeprom_size,
 				 struct iwl_nvm_data *data)
 {
-	struct iwl_eeprom_calib_hdr *hdr;
+	const struct iwl_eeprom_calib_hdr *hdr;
 
-	hdr = (void *)iwl_eeprom_query_addr(eeprom, eeprom_size,
-					    EEPROM_CALIB_ALL);
+	hdr = iwl_eeprom_query_addr(eeprom, eeprom_size, EEPROM_CALIB_ALL);
 	if (!hdr)
 		return -ENODATA;
 	data->calib_version = hdr->version;
@@ -295,7 +294,7 @@ struct iwl_eeprom_enhanced_txpwr {
 } __packed;
 
 static s8 iwl_get_max_txpwr_half_dbm(const struct iwl_nvm_data *data,
-				     struct iwl_eeprom_enhanced_txpwr *txp)
+				     const struct iwl_eeprom_enhanced_txpwr *txp)
 {
 	s8 result = 0; /* (.5 dBm) */
 
@@ -329,7 +328,7 @@ static s8 iwl_get_max_txpwr_half_dbm(const struct iwl_nvm_data *data,
 
 static void
 iwl_eeprom_enh_txp_read_element(struct iwl_nvm_data *data,
-				struct iwl_eeprom_enhanced_txpwr *txp,
+				const struct iwl_eeprom_enhanced_txpwr *txp,
 				int n_channels, s8 max_txpower_avg)
 {
 	int ch_idx;
@@ -360,20 +359,18 @@ static void iwl_eeprom_enhanced_txpower(struct device *dev,
 					const u8 *eeprom, size_t eeprom_size,
 					int n_channels)
 {
-	struct iwl_eeprom_enhanced_txpwr *txp_array, *txp;
+	const struct iwl_eeprom_enhanced_txpwr *txp_array, *txp;
 	int idx, entries;
-	__le16 *txp_len;
+	const __le16 *txp_len;
 	s8 max_txp_avg_halfdbm;
 
 	BUILD_BUG_ON(sizeof(struct iwl_eeprom_enhanced_txpwr) != 8);
 
 	/* the length is in 16-bit words, but we want entries */
-	txp_len = (__le16 *)iwl_eeprom_query_addr(eeprom, eeprom_size,
-						  EEPROM_TXP_SZ_OFFS);
+	txp_len = iwl_eeprom_query_addr(eeprom, eeprom_size, EEPROM_TXP_SZ_OFFS);
 	entries = le16_to_cpup(txp_len) * 2 / EEPROM_TXP_ENTRY_LEN;
 
-	txp_array = (void *)iwl_eeprom_query_addr(eeprom, eeprom_size,
-						  EEPROM_TXP_OFFS);
+	txp_array = iwl_eeprom_query_addr(eeprom, eeprom_size, EEPROM_TXP_OFFS);
 
 	for (idx = 0; idx < entries; idx++) {
 		txp = &txp_array[idx];
@@ -426,7 +423,7 @@ static void iwl_init_band_reference(const struct iwl_cfg *cfg,
 
 	offset |= INDIRECT_ADDRESS | INDIRECT_REGULATORY;
 
-	*ch_info = (void *)iwl_eeprom_query_addr(eeprom, eeprom_size, offset);
+	*ch_info = iwl_eeprom_query_addr(eeprom, eeprom_size, offset);
 
 	switch (eeprom_band) {
 	case 1:		/* 2.4GHz band */
@@ -1098,14 +1095,14 @@ iwl_parse_eeprom_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 				    EEPROM_RAW_TEMPERATURE);
 	if (!tmp)
 		goto err_free;
-	data->raw_temperature = *(__le16 *)tmp;
+	data->raw_temperature = *(const __le16 *)tmp;
 
 	tmp = iwl_eeprom_query_addr(eeprom, eeprom_size,
 				    EEPROM_KELVIN_TEMPERATURE);
 	if (!tmp)
 		goto err_free;
-	data->kelvin_temperature = *(__le16 *)tmp;
-	data->kelvin_voltage = *((__le16 *)tmp + 1);
+	data->kelvin_temperature = *(const __le16 *)tmp;
+	data->kelvin_voltage = *((const __le16 *)tmp + 1);
 
 	radio_cfg =
 		iwl_eeprom_query16(eeprom, eeprom_size, EEPROM_RADIO_CONFIG);

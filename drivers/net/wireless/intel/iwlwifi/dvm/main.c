@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014, 2018 - 2022 Intel Corporation. All rights reserved.
- * Copyright(c) 2024 Intel Corporation. All rights reserved.
+ * Copyright(c) 2024-2025 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * Portions of this file are derived from the ipw3945 project, as well
@@ -824,11 +824,11 @@ int iwl_alive_start(struct iwl_priv *priv)
 	iwlagn_send_tx_ant_config(priv, priv->nvm_data->valid_tx_ant);
 
 	if (iwl_is_associated_ctx(ctx) && !priv->wowlan) {
-		struct iwl_rxon_cmd *active_rxon =
-				(struct iwl_rxon_cmd *)&ctx->active;
+		struct iwl_rxon_cmd *active = (void *)(uintptr_t)&ctx->active;
+
 		/* apply any changes in staging */
 		ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
-		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+		active->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	} else {
 		struct iwl_rxon_context *tmp;
 		/* Initialize our rx_config data */

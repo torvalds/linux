@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
- * Copyright(C) 2018 - 2019, 2022 - 2024 Intel Corporation
+ * Copyright(C) 2018 - 2019, 2022 - 2025 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -549,7 +549,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 	iwlagn_prepare_restart(priv);
 
-	memset((void *)&ctx->active, 0, sizeof(ctx->active));
+	memset((void *)(uintptr_t)&ctx->active, 0, sizeof(ctx->active));
 	iwl_connection_init_rx_config(priv, ctx);
 	iwlagn_set_rxon_chain(priv, ctx);
 
