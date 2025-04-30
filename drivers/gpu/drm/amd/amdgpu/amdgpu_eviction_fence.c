@@ -108,13 +108,22 @@ amdgpu_eviction_fence_suspend_worker(struct work_struct *work)
 	struct amdgpu_eviction_fence *ev_fence;
 
 	mutex_lock(&uq_mgr->userq_mutex);
+	spin_lock(&evf_mgr->ev_fence_lock);
 	ev_fence = evf_mgr->ev_fence;
-	if (!ev_fence)
+	if (ev_fence)
+		dma_fence_get(&ev_fence->base);
+	else
 		goto unlock;
+	spin_unlock(&evf_mgr->ev_fence_lock);
 
 	amdgpu_userq_evict(uq_mgr, ev_fence);
 
+	mutex_unlock(&uq_mgr->userq_mutex);
+	dma_fence_put(&ev_fence->base);
+	return;
+
 unlock:
+	spin_unlock(&evf_mgr->ev_fence_lock);
 	mutex_unlock(&uq_mgr->userq_mutex);
 }
 
