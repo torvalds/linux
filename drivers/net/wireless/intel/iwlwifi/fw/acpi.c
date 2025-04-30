@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2019-2024 Intel Corporation
+ * Copyright (C) 2019-2025 Intel Corporation
  */
 #include <linux/uuid.h>
 #include "iwl-drv.h"
@@ -919,40 +919,39 @@ out_free:
 	return ret;
 }
 
-void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
-			      struct iwl_phy_specific_cfg *filters)
+int iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt)
 {
+	struct iwl_phy_specific_cfg *filters = &fwrt->phy_filters;
 	struct iwl_phy_specific_cfg tmp = {};
-	union acpi_object *wifi_pkg, *data;
+	union acpi_object *wifi_pkg, *data __free(kfree);
 	int tbl_rev, i;
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_WPFC_METHOD);
 	if (IS_ERR(data))
-		return;
+		return PTR_ERR(data);
 
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 					 ACPI_WPFC_WIFI_DATA_SIZE,
 					 &tbl_rev);
 	if (IS_ERR(wifi_pkg))
-		goto out_free;
+		return PTR_ERR(wifi_pkg);
 
 	if (tbl_rev != 0)
-		goto out_free;
+		return -EINVAL;
 
 	BUILD_BUG_ON(ARRAY_SIZE(filters->filter_cfg_chains) !=
 		     ACPI_WPFC_WIFI_DATA_SIZE - 1);
 
 	for (i = 0; i < ARRAY_SIZE(filters->filter_cfg_chains); i++) {
 		if (wifi_pkg->package.elements[i + 1].type != ACPI_TYPE_INTEGER)
-			goto out_free;
+			return -EINVAL;
 		tmp.filter_cfg_chains[i] =
 			cpu_to_le32(wifi_pkg->package.elements[i + 1].integer.value);
 	}
 
 	IWL_DEBUG_RADIO(fwrt, "Loaded WPFC filter config from ACPI\n");
 	*filters = tmp;
-out_free:
-	kfree(data);
+	return 0;
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_phy_filters);
 
