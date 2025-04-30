@@ -696,6 +696,7 @@ void perf_hpp_list__prepend_sort_field(struct perf_hpp_list *list,
 static void perf_hpp__column_unregister(struct perf_hpp_fmt *format)
 {
 	list_del_init(&format->list);
+	list_del_init(&format->sort_list);
 	fmt_free(format);
 }
 
@@ -818,18 +819,12 @@ void perf_hpp__reset_output_field(struct perf_hpp_list *list)
 	struct perf_hpp_fmt *fmt, *tmp;
 
 	/* reset output fields */
-	perf_hpp_list__for_each_format_safe(list, fmt, tmp) {
-		list_del_init(&fmt->list);
-		list_del_init(&fmt->sort_list);
-		fmt_free(fmt);
-	}
+	perf_hpp_list__for_each_format_safe(list, fmt, tmp)
+		perf_hpp__column_unregister(fmt);
 
 	/* reset sort keys */
-	perf_hpp_list__for_each_sort_list_safe(list, fmt, tmp) {
-		list_del_init(&fmt->list);
-		list_del_init(&fmt->sort_list);
-		fmt_free(fmt);
-	}
+	perf_hpp_list__for_each_sort_list_safe(list, fmt, tmp)
+		perf_hpp__column_unregister(fmt);
 }
 
 /*
