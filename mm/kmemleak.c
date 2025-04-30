@@ -322,8 +322,6 @@ static void hex_dump_object(struct seq_file *seq,
  *		sufficient references to it (count >= min_count)
  * - black - ignore, it doesn't contain references (e.g. text section)
  *		(min_count == -1). No function defined for this color.
- * Newly created objects don't have any color assigned (object->count == -1)
- * before the next memory scan when they become white.
  */
 static bool color_white(const struct kmemleak_object *object)
 {
