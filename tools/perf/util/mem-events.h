@@ -91,7 +91,11 @@ void c2c_add_stats(struct c2c_stats *stats, struct c2c_stats *add);
 
 enum mem_stat_type {
 	PERF_MEM_STAT_OP,
+	PERF_MEM_STAT_CACHE,
+	PERF_MEM_STAT_MEMORY,
 };
+
+#define MEM_STAT_PRINT_LEN  7  /* 1 space + 5 digits + 1 percent sign */
 
 enum mem_stat_op {
 	MEM_STAT_OP_LOAD,
@@ -102,7 +106,25 @@ enum mem_stat_op {
 	MEM_STAT_OP_OTHER,
 };
 
-#define MEM_STAT_PRINT_LEN  7  /* 1 space + 5 digits + 1 percent sign */
+enum mem_stat_cache {
+	MEM_STAT_CACHE_L1,
+	MEM_STAT_CACHE_L2,
+	MEM_STAT_CACHE_L3,
+	MEM_STAT_CACHE_L4,
+	MEM_STAT_CACHE_L1_BUF,
+	MEM_STAT_CACHE_L2_BUF,
+	MEM_STAT_CACHE_OTHER,
+};
+
+enum mem_stat_memory {
+	MEM_STAT_MEMORY_RAM,
+	MEM_STAT_MEMORY_MSC,
+	MEM_STAT_MEMORY_UNC,
+	MEM_STAT_MEMORY_CXL,
+	MEM_STAT_MEMORY_IO,
+	MEM_STAT_MEMORY_PMEM,
+	MEM_STAT_MEMORY_OTHER,
+};
 
 int mem_stat_index(const enum mem_stat_type mst, const u64 data_src);
 const char *mem_stat_name(const enum mem_stat_type mst, const int idx);

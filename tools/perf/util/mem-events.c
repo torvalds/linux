@@ -823,6 +823,40 @@ int mem_stat_index(const enum mem_stat_type mst, const u64 val)
 				return MEM_STAT_OP_EXEC;
 			return MEM_STAT_OP_OTHER;
 		}
+	case PERF_MEM_STAT_CACHE:
+		switch (src.mem_lvl_num) {
+		case PERF_MEM_LVLNUM_L1:
+			return MEM_STAT_CACHE_L1;
+		case PERF_MEM_LVLNUM_L2:
+			return MEM_STAT_CACHE_L2;
+		case PERF_MEM_LVLNUM_L3:
+			return MEM_STAT_CACHE_L3;
+		case PERF_MEM_LVLNUM_L4:
+			return MEM_STAT_CACHE_L4;
+		case PERF_MEM_LVLNUM_LFB:
+			return MEM_STAT_CACHE_L1_BUF;
+		case PERF_MEM_LVLNUM_L2_MHB:
+			return MEM_STAT_CACHE_L2_BUF;
+		default:
+			return MEM_STAT_CACHE_OTHER;
+		}
+	case PERF_MEM_STAT_MEMORY:
+		switch (src.mem_lvl_num) {
+		case PERF_MEM_LVLNUM_MSC:
+			return MEM_STAT_MEMORY_MSC;
+		case PERF_MEM_LVLNUM_RAM:
+			return MEM_STAT_MEMORY_RAM;
+		case PERF_MEM_LVLNUM_UNC:
+			return MEM_STAT_MEMORY_UNC;
+		case PERF_MEM_LVLNUM_CXL:
+			return MEM_STAT_MEMORY_CXL;
+		case PERF_MEM_LVLNUM_IO:
+			return MEM_STAT_MEMORY_IO;
+		case PERF_MEM_LVLNUM_PMEM:
+			return MEM_STAT_MEMORY_PMEM;
+		default:
+			return MEM_STAT_MEMORY_OTHER;
+		}
 	default:
 		break;
 	}
@@ -846,9 +880,44 @@ const char *mem_stat_name(const enum mem_stat_type mst, const int idx)
 		case MEM_STAT_OP_EXEC:
 			return "Exec";
 		case MEM_STAT_OP_OTHER:
-			return "Other";
 		default:
-			break;
+			return "Other";
+		}
+	case PERF_MEM_STAT_CACHE:
+		switch (idx) {
+		case MEM_STAT_CACHE_L1:
+			return "L1";
+		case MEM_STAT_CACHE_L2:
+			return "L2";
+		case MEM_STAT_CACHE_L3:
+			return "L3";
+		case MEM_STAT_CACHE_L4:
+			return "L4";
+		case MEM_STAT_CACHE_L1_BUF:
+			return "L1-buf";
+		case MEM_STAT_CACHE_L2_BUF:
+			return "L2-buf";
+		case MEM_STAT_CACHE_OTHER:
+		default:
+			return "Other";
+		}
+	case PERF_MEM_STAT_MEMORY:
+		switch (idx) {
+		case MEM_STAT_MEMORY_RAM:
+			return "RAM";
+		case MEM_STAT_MEMORY_MSC:
+			return "MSC";
+		case MEM_STAT_MEMORY_UNC:
+			return "Uncach";
+		case MEM_STAT_MEMORY_CXL:
+			return "CXL";
+		case MEM_STAT_MEMORY_IO:
+			return "IO";
+		case MEM_STAT_MEMORY_PMEM:
+			return "PMEM";
+		case MEM_STAT_MEMORY_OTHER:
+		default:
+			return "Other";
 		}
 	default:
 		break;

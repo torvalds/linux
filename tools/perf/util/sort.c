@@ -2624,6 +2624,8 @@ static struct hpp_dimension hpp_sort_dimensions[] = {
 	DIM(PERF_HPP__WEIGHT3, "p_stage_cyc"),
 	/* used for output only when SORT_MODE__MEM */
 	DIM_MEM(PERF_HPP__MEM_STAT_OP, "op"),
+	DIM_MEM(PERF_HPP__MEM_STAT_CACHE, "cache"),
+	DIM_MEM(PERF_HPP__MEM_STAT_MEMORY, "memory"),
 };
 
 #undef DIM_MEM
