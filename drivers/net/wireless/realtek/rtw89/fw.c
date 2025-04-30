@@ -1301,6 +1301,18 @@ static const struct rtw89_fw_element_handler __fw_element_handlers[] = {
 		rtw89_fw_recognize_txpwr_from_elm,
 		{ .offset = offsetof(struct rtw89_rfe_data, lmt_6ghz.conf) }, NULL,
 	},
+	[RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_2GHZ] = {
+		rtw89_fw_recognize_txpwr_from_elm,
+		{ .offset = offsetof(struct rtw89_rfe_data, da_lmt_2ghz.conf) }, NULL,
+	},
+	[RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_5GHZ] = {
+		rtw89_fw_recognize_txpwr_from_elm,
+		{ .offset = offsetof(struct rtw89_rfe_data, da_lmt_5ghz.conf) }, NULL,
+	},
+	[RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_6GHZ] = {
+		rtw89_fw_recognize_txpwr_from_elm,
+		{ .offset = offsetof(struct rtw89_rfe_data, da_lmt_6ghz.conf) }, NULL,
+	},
 	[RTW89_FW_ELEMENT_ID_TXPWR_LMT_RU_2GHZ] = {
 		rtw89_fw_recognize_txpwr_from_elm,
 		{ .offset = offsetof(struct rtw89_rfe_data, lmt_ru_2ghz.conf) }, NULL,
@@ -1312,6 +1324,18 @@ static const struct rtw89_fw_element_handler __fw_element_handlers[] = {
 	[RTW89_FW_ELEMENT_ID_TXPWR_LMT_RU_6GHZ] = {
 		rtw89_fw_recognize_txpwr_from_elm,
 		{ .offset = offsetof(struct rtw89_rfe_data, lmt_ru_6ghz.conf) }, NULL,
+	},
+	[RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_RU_2GHZ] = {
+		rtw89_fw_recognize_txpwr_from_elm,
+		{ .offset = offsetof(struct rtw89_rfe_data, da_lmt_ru_2ghz.conf) }, NULL,
+	},
+	[RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_RU_5GHZ] = {
+		rtw89_fw_recognize_txpwr_from_elm,
+		{ .offset = offsetof(struct rtw89_rfe_data, da_lmt_ru_5ghz.conf) }, NULL,
+	},
+	[RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_RU_6GHZ] = {
+		rtw89_fw_recognize_txpwr_from_elm,
+		{ .offset = offsetof(struct rtw89_rfe_data, da_lmt_ru_6ghz.conf) }, NULL,
 	},
 	[RTW89_FW_ELEMENT_ID_TX_SHAPE_LMT] = {
 		rtw89_fw_recognize_txpwr_from_elm,
@@ -9319,6 +9343,26 @@ void rtw89_fw_load_tx_shape_lmt_ru(struct rtw89_tx_shape_lmt_ru_data *data)
 	}
 }
 
+static bool rtw89_fw_has_da_txpwr_table(struct rtw89_dev *rtwdev,
+					const struct rtw89_rfe_parms *parms)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (chip->support_bands & BIT(NL80211_BAND_2GHZ) &&
+	    !(parms->rule_da_2ghz.lmt && parms->rule_da_2ghz.lmt_ru))
+		return false;
+
+	if (chip->support_bands & BIT(NL80211_BAND_5GHZ) &&
+	    !(parms->rule_da_5ghz.lmt && parms->rule_da_5ghz.lmt_ru))
+		return false;
+
+	if (chip->support_bands & BIT(NL80211_BAND_6GHZ) &&
+	    !(parms->rule_da_6ghz.lmt && parms->rule_da_6ghz.lmt_ru))
+		return false;
+
+	return true;
+}
+
 const struct rtw89_rfe_parms *
 rtw89_load_rfe_data_from_fw(struct rtw89_dev *rtwdev,
 			    const struct rtw89_rfe_parms *init)
@@ -9355,6 +9399,21 @@ rtw89_load_rfe_data_from_fw(struct rtw89_dev *rtwdev,
 		parms->rule_6ghz.lmt = &rfe_data->lmt_6ghz.v;
 	}
 
+	if (rtw89_txpwr_conf_valid(&rfe_data->da_lmt_2ghz.conf)) {
+		rtw89_fw_load_txpwr_lmt_2ghz(&rfe_data->da_lmt_2ghz);
+		parms->rule_da_2ghz.lmt = &rfe_data->da_lmt_2ghz.v;
+	}
+
+	if (rtw89_txpwr_conf_valid(&rfe_data->da_lmt_5ghz.conf)) {
+		rtw89_fw_load_txpwr_lmt_5ghz(&rfe_data->da_lmt_5ghz);
+		parms->rule_da_5ghz.lmt = &rfe_data->da_lmt_5ghz.v;
+	}
+
+	if (rtw89_txpwr_conf_valid(&rfe_data->da_lmt_6ghz.conf)) {
+		rtw89_fw_load_txpwr_lmt_6ghz(&rfe_data->da_lmt_6ghz);
+		parms->rule_da_6ghz.lmt = &rfe_data->da_lmt_6ghz.v;
+	}
+
 	if (rtw89_txpwr_conf_valid(&rfe_data->lmt_ru_2ghz.conf)) {
 		rtw89_fw_load_txpwr_lmt_ru_2ghz(&rfe_data->lmt_ru_2ghz);
 		parms->rule_2ghz.lmt_ru = &rfe_data->lmt_ru_2ghz.v;
@@ -9370,6 +9429,21 @@ rtw89_load_rfe_data_from_fw(struct rtw89_dev *rtwdev,
 		parms->rule_6ghz.lmt_ru = &rfe_data->lmt_ru_6ghz.v;
 	}
 
+	if (rtw89_txpwr_conf_valid(&rfe_data->da_lmt_ru_2ghz.conf)) {
+		rtw89_fw_load_txpwr_lmt_ru_2ghz(&rfe_data->da_lmt_ru_2ghz);
+		parms->rule_da_2ghz.lmt_ru = &rfe_data->da_lmt_ru_2ghz.v;
+	}
+
+	if (rtw89_txpwr_conf_valid(&rfe_data->da_lmt_ru_5ghz.conf)) {
+		rtw89_fw_load_txpwr_lmt_ru_5ghz(&rfe_data->da_lmt_ru_5ghz);
+		parms->rule_da_5ghz.lmt_ru = &rfe_data->da_lmt_ru_5ghz.v;
+	}
+
+	if (rtw89_txpwr_conf_valid(&rfe_data->da_lmt_ru_6ghz.conf)) {
+		rtw89_fw_load_txpwr_lmt_ru_6ghz(&rfe_data->da_lmt_ru_6ghz);
+		parms->rule_da_6ghz.lmt_ru = &rfe_data->da_lmt_ru_6ghz.v;
+	}
+
 	if (rtw89_txpwr_conf_valid(&rfe_data->tx_shape_lmt.conf)) {
 		rtw89_fw_load_tx_shape_lmt(&rfe_data->tx_shape_lmt);
 		parms->tx_shape.lmt = &rfe_data->tx_shape_lmt.v;
@@ -9379,6 +9453,8 @@ rtw89_load_rfe_data_from_fw(struct rtw89_dev *rtwdev,
 		rtw89_fw_load_tx_shape_lmt_ru(&rfe_data->tx_shape_lmt_ru);
 		parms->tx_shape.lmt_ru = &rfe_data->tx_shape_lmt_ru.v;
 	}
+
+	parms->has_da = rtw89_fw_has_da_txpwr_table(rtwdev, parms);
 
 	return parms;
 }

@@ -3989,7 +3989,11 @@ struct rtw89_rfe_parms {
 	struct rtw89_txpwr_rule_2ghz rule_2ghz;
 	struct rtw89_txpwr_rule_5ghz rule_5ghz;
 	struct rtw89_txpwr_rule_6ghz rule_6ghz;
+	struct rtw89_txpwr_rule_2ghz rule_da_2ghz;
+	struct rtw89_txpwr_rule_5ghz rule_da_5ghz;
+	struct rtw89_txpwr_rule_6ghz rule_da_6ghz;
 	struct rtw89_tx_shape tx_shape;
+	bool has_da;
 };
 
 struct rtw89_rfe_parms_conf {
@@ -4084,9 +4088,15 @@ struct rtw89_rfe_data {
 	struct rtw89_txpwr_lmt_2ghz_data lmt_2ghz;
 	struct rtw89_txpwr_lmt_5ghz_data lmt_5ghz;
 	struct rtw89_txpwr_lmt_6ghz_data lmt_6ghz;
+	struct rtw89_txpwr_lmt_2ghz_data da_lmt_2ghz;
+	struct rtw89_txpwr_lmt_5ghz_data da_lmt_5ghz;
+	struct rtw89_txpwr_lmt_6ghz_data da_lmt_6ghz;
 	struct rtw89_txpwr_lmt_ru_2ghz_data lmt_ru_2ghz;
 	struct rtw89_txpwr_lmt_ru_5ghz_data lmt_ru_5ghz;
 	struct rtw89_txpwr_lmt_ru_6ghz_data lmt_ru_6ghz;
+	struct rtw89_txpwr_lmt_ru_2ghz_data da_lmt_ru_2ghz;
+	struct rtw89_txpwr_lmt_ru_5ghz_data da_lmt_ru_5ghz;
+	struct rtw89_txpwr_lmt_ru_6ghz_data da_lmt_ru_6ghz;
 	struct rtw89_tx_shape_lmt_data tx_shape_lmt;
 	struct rtw89_tx_shape_lmt_ru_data tx_shape_lmt_ru;
 	struct rtw89_rfe_parms rfe_parms;
