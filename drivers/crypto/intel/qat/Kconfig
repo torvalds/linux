@@ -70,6 +70,18 @@ config CRYPTO_DEV_QAT_420XX
 	  To compile this as a module, choose M here: the module
 	  will be called qat_420xx.
 
+config CRYPTO_DEV_QAT_6XXX
+	tristate "Support for Intel(R) QuickAssist Technology QAT_6XXX"
+	depends on (X86 || COMPILE_TEST)
+	depends on PCI
+	select CRYPTO_DEV_QAT
+	help
+	  Support for Intel(R) QuickAssist Technology QAT_6xxx
+	  for accelerating crypto and compression workloads.
+
+	  To compile this as a module, choose M here: the module
+	  will be called qat_6xxx.
+
 config CRYPTO_DEV_QAT_DH895xCCVF
 	tristate "Support for Intel(R) DH895xCC Virtual Function"
 	depends on PCI && (!CPU_BIG_ENDIAN || COMPILE_TEST)
