@@ -1045,6 +1045,7 @@ int add_to_free_space_tree(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	if (!path) {
 		ret = -ENOMEM;
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
@@ -1052,18 +1053,19 @@ int add_to_free_space_tree(struct btrfs_trans_handle *trans,
 	if (!block_group) {
 		DEBUG_WARN("no block group found for start=%llu", start);
 		ret = -ENOENT;
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
 	mutex_lock(&block_group->free_space_lock);
 	ret = __add_to_free_space_tree(trans, block_group, path, start, size);
 	mutex_unlock(&block_group->free_space_lock);
+	if (ret)
+		btrfs_abort_transaction(trans, ret);
 
 	btrfs_put_block_group(block_group);
 out:
 	btrfs_free_path(path);
-	if (ret)
-		btrfs_abort_transaction(trans, ret);
 	return ret;
 }
 
