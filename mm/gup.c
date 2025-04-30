@@ -26,6 +26,7 @@
 #include <asm/tlbflush.h>
 
 #include "internal.h"
+#include "swap.h"
 
 struct follow_page_context {
 	struct dev_pagemap *pgmap;
