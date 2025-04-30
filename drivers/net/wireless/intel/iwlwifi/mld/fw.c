@@ -8,6 +8,7 @@
 #include "fw/api/alive.h"
 #include "fw/api/scan.h"
 #include "fw/api/rx.h"
+#include "phy.h"
 #include "fw/dbg.h"
 #include "fw/pnvm.h"
 #include "hcmd.h"
@@ -254,7 +255,9 @@ static int iwl_mld_load_fw_wait_alive(struct iwl_mld *mld)
 static int iwl_mld_run_fw_init_sequence(struct iwl_mld *mld)
 {
 	struct iwl_notification_wait init_wait;
-	struct iwl_init_extended_cfg_cmd init_cfg = {};
+	struct iwl_init_extended_cfg_cmd init_cfg = {
+		.init_flags = cpu_to_le32(BIT(IWL_INIT_PHY)),
+	};
 	static const u16 init_complete[] = {
 		INIT_COMPLETE_NOTIF,
 	};
@@ -287,6 +290,13 @@ static int iwl_mld_run_fw_init_sequence(struct iwl_mld *mld)
 				   &init_cfg);
 	if (ret) {
 		IWL_ERR(mld, "Failed to send init config command: %d\n", ret);
+		iwl_remove_notification(&mld->notif_wait, &init_wait);
+		return ret;
+	}
+
+	ret = iwl_mld_send_phy_cfg_cmd(mld);
+	if (ret) {
+		IWL_ERR(mld, "Failed to send PHY config command: %d\n", ret);
 		iwl_remove_notification(&mld->notif_wait, &init_wait);
 		return ret;
 	}

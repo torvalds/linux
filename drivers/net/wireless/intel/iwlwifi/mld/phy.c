@@ -153,3 +153,32 @@ int iwl_mld_phy_fw_action(struct iwl_mld *mld,
 
 	return ret;
 }
+
+static u32 iwl_mld_get_phy_config(struct iwl_mld *mld)
+{
+	u32 phy_config = ~(FW_PHY_CFG_TX_CHAIN |
+			   FW_PHY_CFG_RX_CHAIN);
+	u32 valid_rx_ant = iwl_mld_get_valid_rx_ant(mld);
+	u32 valid_tx_ant = iwl_mld_get_valid_tx_ant(mld);
+
+	phy_config |= valid_tx_ant << FW_PHY_CFG_TX_CHAIN_POS |
+		      valid_rx_ant << FW_PHY_CFG_RX_CHAIN_POS;
+
+	return mld->fw->phy_config & phy_config;
+}
+
+int iwl_mld_send_phy_cfg_cmd(struct iwl_mld *mld)
+{
+	const struct iwl_tlv_calib_ctrl *default_calib =
+		&mld->fw->default_calib[IWL_UCODE_REGULAR];
+	struct iwl_phy_cfg_cmd_v3 cmd = {
+		.phy_cfg = cpu_to_le32(iwl_mld_get_phy_config(mld)),
+		.calib_control.event_trigger = default_calib->event_trigger,
+		.calib_control.flow_trigger = default_calib->flow_trigger,
+		.phy_specific_cfg = mld->fwrt.phy_filters,
+	};
+
+	IWL_INFO(mld, "Sending Phy CFG command: 0x%x\n", cmd.phy_cfg);
+
+	return iwl_mld_send_cmd_pdu(mld, PHY_CONFIGURATION_CMD, &cmd);
+}

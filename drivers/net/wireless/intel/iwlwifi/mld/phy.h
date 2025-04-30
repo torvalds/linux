@@ -52,4 +52,6 @@ iwl_mld_get_chandef_from_chanctx(struct iwl_mld *mld,
 				 struct ieee80211_chanctx_conf *ctx);
 u8 iwl_mld_get_fw_ctrl_pos(const struct cfg80211_chan_def *chandef);
 
+int iwl_mld_send_phy_cfg_cmd(struct iwl_mld *mld);
+
 #endif /* __iwl_mld_phy_h__ */
