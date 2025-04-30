@@ -89,4 +89,10 @@ struct hist_entry;
 int c2c_decode_stats(struct c2c_stats *stats, struct mem_info *mi);
 void c2c_add_stats(struct c2c_stats *stats, struct c2c_stats *add);
 
+enum mem_stat_type {
+	PERF_MEM_STAT_UNKNOWN,  /* placeholder */
+};
+
+int mem_stat_index(const enum mem_stat_type mst, const u64 data_src);
+
 #endif /* __PERF_MEM_EVENTS_H */

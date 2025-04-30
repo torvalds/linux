@@ -4163,6 +4163,10 @@ int setup_sorting(struct evlist *evlist)
 	if (err < 0)
 		return err;
 
+	err = perf_hpp__alloc_mem_stats(&perf_hpp_list, evlist);
+	if (err < 0)
+		return err;
+
 	/* copy sort keys to output fields */
 	perf_hpp__setup_output_field(&perf_hpp_list);
 	/* and then copy output fields to sort keys */

@@ -9,6 +9,7 @@
 #include "events_stats.h"
 #include "evsel.h"
 #include "map_symbol.h"
+#include "mem-events.h"
 #include "mutex.h"
 #include "sample.h"
 #include "spark.h"
@@ -133,6 +134,7 @@ struct hists {
 	struct list_head	hpp_formats;
 	int			nr_hpp_node;
 	int			nr_mem_stats;
+	enum mem_stat_type	*mem_stat_types;
 };
 
 #define hists__has(__h, __f) (__h)->hpp_list->__f
@@ -597,6 +599,8 @@ void perf_hpp__reset_output_field(struct perf_hpp_list *list);
 void perf_hpp__append_sort_keys(struct perf_hpp_list *list);
 int perf_hpp__setup_hists_formats(struct perf_hpp_list *list,
 				  struct evlist *evlist);
+int perf_hpp__alloc_mem_stats(struct perf_hpp_list *list,
+			      struct evlist *evlist);
 
 
 bool perf_hpp__is_sort_entry(struct perf_hpp_fmt *format);

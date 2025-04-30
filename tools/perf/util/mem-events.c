@@ -799,3 +799,21 @@ void c2c_add_stats(struct c2c_stats *stats, struct c2c_stats *add)
 	stats->nomap		+= add->nomap;
 	stats->noparse		+= add->noparse;
 }
+
+/*
+ * It returns an index in hist_entry->mem_stat array for the given val which
+ * represents a data-src based on the mem_stat_type.
+ *
+ * For example, when mst is about cache level, the index can be 1 for L1, 2 for
+ * L2 and so on.
+ */
+int mem_stat_index(const enum mem_stat_type mst, const u64 val)
+{
+	switch (mst) {
+	case PERF_MEM_STAT_UNKNOWN:  /* placeholder */
+	default:
+		break;
+	}
+	(void)val;
+	return -1;
+}

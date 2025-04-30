@@ -349,9 +349,10 @@ static int hists__update_mem_stat(struct hists *hists, struct hist_entry *he,
 	}
 
 	for (int i = 0; i < hists->nr_mem_stats; i++) {
-		int idx = 0; /* TODO: get correct index from mem info */
+		int idx = mem_stat_index(hists->mem_stat_types[i],
+					 mem_info__const_data_src(mi)->val);
 
-		(void)mi;
+		assert(0 <= idx && idx < MEM_STAT_LEN);
 		he->mem_stat[i].entries[idx] += period;
 	}
 	return 0;
@@ -3052,6 +3053,7 @@ static void hists_evsel__exit(struct evsel *evsel)
 	struct perf_hpp_list_node *node, *tmp;
 
 	hists__delete_all_entries(hists);
+	zfree(&hists->mem_stat_types);
 
 	list_for_each_entry_safe(node, tmp, &hists->hpp_formats, list) {
 		perf_hpp_list__for_each_format_safe(&node->hpp, fmt, pos) {

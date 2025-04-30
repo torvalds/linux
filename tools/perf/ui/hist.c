@@ -11,6 +11,7 @@
 #include "../util/sort.h"
 #include "../util/evsel.h"
 #include "../util/evlist.h"
+#include "../util/mem-events.h"
 #include "../util/thread.h"
 #include "../util/util.h"
 
@@ -498,6 +499,12 @@ static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 			    struct hist_entry *b __maybe_unused)
 {
 	return 0;
+}
+
+static bool perf_hpp__is_mem_stat_entry(struct perf_hpp_fmt *fmt)
+{
+	(void)fmt;
+	return false;
 }
 
 static bool perf_hpp__is_hpp_entry(struct perf_hpp_fmt *a)
@@ -1020,5 +1027,37 @@ int perf_hpp__setup_hists_formats(struct perf_hpp_list *list,
 		}
 	}
 
+	return 0;
+}
+
+int perf_hpp__alloc_mem_stats(struct perf_hpp_list *list, struct evlist *evlist)
+{
+	struct perf_hpp_fmt *fmt;
+	struct evsel *evsel;
+	enum mem_stat_type mst[16];
+	unsigned nr_mem_stats = 0;
+
+	perf_hpp_list__for_each_format(list, fmt) {
+		if (!perf_hpp__is_mem_stat_entry(fmt))
+			continue;
+
+		assert(nr_mem_stats < ARRAY_SIZE(mst));
+		mst[nr_mem_stats++] = PERF_MEM_STAT_UNKNOWN;
+	}
+
+	if (nr_mem_stats == 0)
+		return 0;
+
+	evlist__for_each_entry(evlist, evsel) {
+		struct hists *hists = evsel__hists(evsel);
+
+		hists->mem_stat_types = calloc(nr_mem_stats,
+					       sizeof(*hists->mem_stat_types));
+		if (hists->mem_stat_types == NULL)
+			return -ENOMEM;
+
+		memcpy(hists->mem_stat_types, mst, nr_mem_stats * sizeof(*mst));
+		hists->nr_mem_stats = nr_mem_stats;
+	}
 	return 0;
 }
