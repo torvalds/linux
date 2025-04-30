@@ -93,6 +93,30 @@
 #define TRNG_v1_VERSION_CODE			0x46bc
 /* end of TRNG_V1 register definitions */
 
+/*
+ * RKRNG register definitions
+ * The RKRNG IP is a stand-alone TRNG implementation (not part of a crypto IP)
+ * and can be found in the Rockchip RK3576, Rockchip RK3562 and Rockchip RK3528
+ * SoCs. It can either output true randomness (TRNG) or "deterministic"
+ * randomness derived from hashing the true entropy (DRNG). This driver
+ * implementation uses just the true entropy, and leaves stretching the entropy
+ * up to Linux.
+ */
+#define RKRNG_CFG				0x0000
+#define RKRNG_CTRL				0x0010
+#define RKRNG_CTRL_REQ_TRNG			BIT(4)
+#define RKRNG_STATE				0x0014
+#define RKRNG_STATE_TRNG_RDY			BIT(4)
+#define RKRNG_TRNG_DATA0			0x0050
+#define RKRNG_TRNG_DATA1			0x0054
+#define RKRNG_TRNG_DATA2			0x0058
+#define RKRNG_TRNG_DATA3			0x005C
+#define RKRNG_TRNG_DATA4			0x0060
+#define RKRNG_TRNG_DATA5			0x0064
+#define RKRNG_TRNG_DATA6			0x0068
+#define RKRNG_TRNG_DATA7			0x006C
+#define RKRNG_READ_LEN				32
+
 /* Before removing this assert, give rk3588_rng_read an upper bound of 32 */
 static_assert(RK_RNG_MAX_BYTE <= (TRNG_V1_RAND7 + 4 - TRNG_V1_RAND0),
 	      "You raised RK_RNG_MAX_BYTE and broke rk3588-rng, congrats.");
@@ -205,6 +229,46 @@ out:
 	return (ret < 0) ? ret : to_read;
 }
 
+static int rk3576_rng_init(struct hwrng *rng)
+{
+	struct rk_rng *rk_rng = container_of(rng, struct rk_rng, rng);
+
+	return rk_rng_enable_clks(rk_rng);
+}
+
+static int rk3576_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
+{
+	struct rk_rng *rk_rng = container_of(rng, struct rk_rng, rng);
+	size_t to_read = min_t(size_t, max, RKRNG_READ_LEN);
+	int ret = 0;
+	u32 val;
+
+	ret = pm_runtime_resume_and_get(rk_rng->dev);
+	if (ret < 0)
+		return ret;
+
+	rk_rng_writel(rk_rng, RKRNG_CTRL_REQ_TRNG | (RKRNG_CTRL_REQ_TRNG << 16),
+		      RKRNG_CTRL);
+
+	if (readl_poll_timeout(rk_rng->base + RKRNG_STATE, val,
+			       (val & RKRNG_STATE_TRNG_RDY), RK_RNG_POLL_PERIOD_US,
+			       RK_RNG_POLL_TIMEOUT_US)) {
+		dev_err(rk_rng->dev, "timed out waiting for data\n");
+		ret = -ETIMEDOUT;
+		goto out;
+	}
+
+	rk_rng_writel(rk_rng, RKRNG_STATE_TRNG_RDY, RKRNG_STATE);
+
+	memcpy_fromio(buf, rk_rng->base + RKRNG_TRNG_DATA0, to_read);
+
+out:
+	pm_runtime_mark_last_busy(rk_rng->dev);
+	pm_runtime_put_sync_autosuspend(rk_rng->dev);
+
+	return (ret < 0) ? ret : to_read;
+}
+
 static int rk3588_rng_init(struct hwrng *rng)
 {
 	struct rk_rng *rk_rng = container_of(rng, struct rk_rng, rng);
@@ -305,6 +369,14 @@ static const struct rk_rng_soc_data rk3568_soc_data = {
 	.reset_optional = false,
 };
 
+static const struct rk_rng_soc_data rk3576_soc_data = {
+	.rk_rng_init = rk3576_rng_init,
+	.rk_rng_read = rk3576_rng_read,
+	.rk_rng_cleanup = rk3588_rng_cleanup,
+	.quality = 999,		/* as determined by actual testing */
+	.reset_optional = true,
+};
+
 static const struct rk_rng_soc_data rk3588_soc_data = {
 	.rk_rng_init = rk3588_rng_init,
 	.rk_rng_read = rk3588_rng_read,
@@ -397,6 +469,7 @@ static const struct dev_pm_ops rk_rng_pm_ops = {
 
 static const struct of_device_id rk_rng_dt_match[] = {
 	{ .compatible = "rockchip,rk3568-rng", .data = (void *)&rk3568_soc_data },
+	{ .compatible = "rockchip,rk3576-rng", .data = (void *)&rk3576_soc_data },
 	{ .compatible = "rockchip,rk3588-rng", .data = (void *)&rk3588_soc_data },
 	{ /* sentinel */ },
 };
