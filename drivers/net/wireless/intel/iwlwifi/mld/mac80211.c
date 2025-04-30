@@ -1021,12 +1021,19 @@ int iwl_mld_assign_vif_chanctx(struct ieee80211_hw *hw,
 		iwl_mld_send_ap_tx_power_constraint_cmd(mld, vif, link);
 
 	if (vif->type == NL80211_IFTYPE_MONITOR) {
-		/* TODO: task=sniffer add sniffer station */
+		ret = iwl_mld_add_mon_sta(mld, vif, link);
+		if (ret)
+			goto deactivate_link;
+
 		mld->monitor.p80 =
 			iwl_mld_chandef_get_primary_80(&vif->bss_conf.chanreq.oper);
 	}
 
 	return 0;
+
+deactivate_link:
+	if (mld_link->active)
+		iwl_mld_deactivate_link(mld, link);
 err:
 	RCU_INIT_POINTER(mld_link->chan_ctx, NULL);
 	return ret;
@@ -1052,7 +1059,8 @@ void iwl_mld_unassign_vif_chanctx(struct ieee80211_hw *hw,
 
 	iwl_mld_deactivate_link(mld, link);
 
-	/* TODO: task=sniffer remove sniffer station */
+	if (vif->type == NL80211_IFTYPE_MONITOR)
+		iwl_mld_remove_mon_sta(mld, vif, link);
 
 	if (n_active > 1) {
 		/* Indicate to mac80211 that EML is disabled */

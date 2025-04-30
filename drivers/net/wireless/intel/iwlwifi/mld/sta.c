@@ -1087,6 +1087,24 @@ int iwl_mld_add_aux_sta(struct iwl_mld *mld,
 					0, NULL, IWL_MAX_TID_COUNT);
 }
 
+int iwl_mld_add_mon_sta(struct iwl_mld *mld,
+			struct ieee80211_vif *vif,
+			struct ieee80211_bss_conf *link)
+{
+	struct iwl_mld_link *mld_link = iwl_mld_link_from_mac80211(link);
+
+	if (WARN_ON(!mld_link))
+		return -EINVAL;
+
+	if (WARN_ON(vif->type != NL80211_IFTYPE_MONITOR))
+		return -EINVAL;
+
+	return iwl_mld_add_internal_sta(mld, &mld_link->mon_sta,
+					STATION_TYPE_BCAST_MGMT,
+					mld_link->fw_id, NULL,
+					IWL_MAX_TID_COUNT);
+}
+
 static void iwl_mld_remove_internal_sta(struct iwl_mld *mld,
 					struct iwl_mld_int_sta *internal_sta,
 					bool flush, u8 tid)
@@ -1153,6 +1171,22 @@ void iwl_mld_remove_aux_sta(struct iwl_mld *mld,
 		return;
 
 	iwl_mld_remove_internal_sta(mld, &mld_link->aux_sta, false,
+				    IWL_MAX_TID_COUNT);
+}
+
+void iwl_mld_remove_mon_sta(struct iwl_mld *mld,
+			    struct ieee80211_vif *vif,
+			    struct ieee80211_bss_conf *link)
+{
+	struct iwl_mld_link *mld_link = iwl_mld_link_from_mac80211(link);
+
+	if (WARN_ON(!mld_link))
+		return;
+
+	if (WARN_ON(vif->type != NL80211_IFTYPE_MONITOR))
+		return;
+
+	iwl_mld_remove_internal_sta(mld, &mld_link->mon_sta, false,
 				    IWL_MAX_TID_COUNT);
 }
 
