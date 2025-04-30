@@ -5890,8 +5890,10 @@ static int virtnet_xsk_pool_enable(struct net_device *dev,
 
 	hdr_dma = virtqueue_dma_map_single_attrs(sq->vq, &xsk_hdr, vi->hdr_len,
 						 DMA_TO_DEVICE, 0);
-	if (virtqueue_dma_mapping_error(sq->vq, hdr_dma))
-		return -ENOMEM;
+	if (virtqueue_dma_mapping_error(sq->vq, hdr_dma)) {
+		err = -ENOMEM;
+		goto err_free_buffs;
+	}
 
 	err = xsk_pool_dma_map(pool, dma_dev, 0);
 	if (err)
@@ -5919,6 +5921,8 @@ err_rq:
 err_xsk_map:
 	virtqueue_dma_unmap_single_attrs(rq->vq, hdr_dma, vi->hdr_len,
 					 DMA_TO_DEVICE, 0);
+err_free_buffs:
+	kvfree(rq->xsk_buffs);
 	return err;
 }
 
