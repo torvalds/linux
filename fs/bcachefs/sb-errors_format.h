@@ -290,8 +290,8 @@ enum bch_fsck_flags {
 	x(btree_node_bkey_bad_u64s,				260,	0)		\
 	x(btree_node_topology_empty_interior_node,		261,	0)		\
 	x(btree_ptr_v2_min_key_bad,				262,	0)		\
-	x(btree_root_unreadable_and_scan_found_nothing,		263,	0)		\
-	x(snapshot_node_missing,				264,	0)		\
+	x(btree_root_unreadable_and_scan_found_nothing,		263,	FSCK_AUTOFIX)	\
+	x(snapshot_node_missing,				264,	FSCK_AUTOFIX)	\
 	x(dup_backpointer_to_bad_csum_extent,			265,	0)		\
 	x(btree_bitmap_not_marked,				266,	FSCK_AUTOFIX)	\
 	x(sb_clean_entry_overrun,				267,	0)		\

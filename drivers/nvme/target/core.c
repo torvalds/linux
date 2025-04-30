@@ -324,6 +324,9 @@ int nvmet_enable_port(struct nvmet_port *port)
 
 	lockdep_assert_held(&nvmet_config_sem);
 
+	if (port->disc_addr.trtype == NVMF_TRTYPE_MAX)
+		return -EINVAL;
+
 	ops = nvmet_transports[port->disc_addr.trtype];
 	if (!ops) {
 		up_write(&nvmet_config_sem);

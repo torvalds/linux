@@ -654,11 +654,10 @@ static ssize_t sysfs_opt_store(struct bch_fs *c,
 		bch2_set_rebalance_needs_scan(c, 0);
 
 	if (v && id == Opt_rebalance_enabled)
-		rebalance_wakeup(c);
+		bch2_rebalance_wakeup(c);
 
-	if (v && id == Opt_copygc_enabled &&
-	    c->copygc_thread)
-		wake_up_process(c->copygc_thread);
+	if (v && id == Opt_copygc_enabled)
+		bch2_copygc_wakeup(c);
 
 	if (id == Opt_discard && !ca) {
 		mutex_lock(&c->sb_lock);
