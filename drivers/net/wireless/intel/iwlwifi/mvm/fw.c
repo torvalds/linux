@@ -114,7 +114,7 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	u32 i;
 
 
-	if (version == 6) {
+	if (version >= 6) {
 		struct iwl_alive_ntf_v6 *palive;
 
 		if (pkt_len < sizeof(*palive))
@@ -156,6 +156,17 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 					break;
 				}
 			}
+		}
+
+		if (version >= 8) {
+			const struct iwl_alive_ntf *palive_v8 =
+				(void *)pkt->data;
+
+			if (pkt_len < sizeof(*palive_v8))
+				return false;
+
+			IWL_DEBUG_FW(mvm, "platform id: 0x%llx\n",
+				     palive_v8->platform_id);
 		}
 	}
 

@@ -103,12 +103,13 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 			 struct iwl_rx_packet *pkt, void *data)
 {
 	unsigned int pkt_len = iwl_rx_packet_payload_len(pkt);
+	unsigned int expected_sz;
 	struct iwl_mld *mld =
 		container_of(notif_wait, struct iwl_mld, notif_wait);
 	struct iwl_trans *trans = mld->trans;
 	u32 version = iwl_fw_lookup_notif_ver(mld->fw, LEGACY_GROUP,
 					      UCODE_ALIVE_NTFY, 0);
-	struct iwl_alive_ntf_v6 *palive;
+	struct iwl_alive_ntf *palive;
 	bool *alive_valid = data;
 	struct iwl_umac_alive *umac;
 	struct iwl_lmac_alive *lmac1;
@@ -117,7 +118,19 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	u32 umac_error_table;
 	u16 status;
 
-	if (version < 6 || version > 7 || pkt_len != sizeof(*palive))
+	switch (version) {
+	case 6:
+	case 7:
+		expected_sz = sizeof(struct iwl_alive_ntf_v6);
+		break;
+	case 8:
+		expected_sz = sizeof(struct iwl_alive_ntf);
+		break;
+	default:
+		return false;
+	}
+
+	if (pkt_len != expected_sz)
 		return false;
 
 	palive = (void *)pkt->data;
@@ -170,6 +183,10 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	if (version >= 7)
 		IWL_DEBUG_FW(mld, "FW alive flags 0x%x\n",
 			     le16_to_cpu(palive->flags));
+
+	if (version >= 8)
+		IWL_DEBUG_FW(mld, "platform_id 0x%llx\n",
+			     le64_to_cpu(palive->platform_id));
 
 	iwl_fwrt_update_fw_versions(&mld->fwrt, lmac1, umac);
 
