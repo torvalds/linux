@@ -908,16 +908,14 @@ static int st7571_probe(struct i2c_client *client)
 	st7571->hwbuf = devm_kzalloc(&client->dev,
 				     (st7571->nlines * st7571->ncols * st7571->bpp) / 8,
 				     GFP_KERNEL);
-	if (IS_ERR(st7571->hwbuf))
-		return dev_err_probe(&client->dev, PTR_ERR(st7571->hwbuf),
-				     "Failed to allocate intermediate buffer\n");
+	if (!st7571->hwbuf)
+		return -ENOMEM;
 
 	st7571->row = devm_kzalloc(&client->dev,
 				   (st7571->ncols * st7571->bpp),
 				   GFP_KERNEL);
-	if (IS_ERR(st7571->row))
-		return dev_err_probe(&client->dev, PTR_ERR(st7571->row),
-				     "Failed to allocate row buffer\n");
+	if (!st7571->row)
+		return -ENOMEM;
 
 	ret = st7571_mode_config_init(st7571);
 	if (ret)
