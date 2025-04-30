@@ -1266,6 +1266,16 @@ hist_browser__hpp_color_##_type(struct perf_hpp_fmt *fmt,		\
 			_fmttype);					\
 }
 
+#define __HPP_COLOR_MEM_STAT_FN(_name, _type)				\
+static int								\
+hist_browser__hpp_color_mem_stat_##_name(struct perf_hpp_fmt *fmt,	\
+					 struct perf_hpp *hpp,		\
+					 struct hist_entry *he)		\
+{									\
+	return hpp__fmt_mem_stat(fmt, hpp, he, PERF_MEM_STAT_##_type,	\
+				 " %5.1f%%", __hpp__slsmg_color_printf);\
+}
+
 __HPP_COLOR_PERCENT_FN(overhead, period, PERF_HPP_FMT_TYPE__PERCENT)
 __HPP_COLOR_PERCENT_FN(latency, latency, PERF_HPP_FMT_TYPE__LATENCY)
 __HPP_COLOR_PERCENT_FN(overhead_sys, period_sys, PERF_HPP_FMT_TYPE__PERCENT)
@@ -1277,6 +1287,7 @@ __HPP_COLOR_ACC_PERCENT_FN(latency_acc, latency, PERF_HPP_FMT_TYPE__LATENCY)
 
 #undef __HPP_COLOR_PERCENT_FN
 #undef __HPP_COLOR_ACC_PERCENT_FN
+#undef __HPP_COLOR_MEM_STAT_FN
 
 void hist_browser__init_hpp(void)
 {

@@ -587,6 +587,7 @@ enum {
 	PERF_HPP__WEIGHT1,
 	PERF_HPP__WEIGHT2,
 	PERF_HPP__WEIGHT3,
+	PERF_HPP__MEM_STAT_UNKNOWN,  /* placeholder */
 
 	PERF_HPP__MAX_INDEX
 };
@@ -656,6 +657,9 @@ int hpp__fmt_acc(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		 struct hist_entry *he, hpp_field_fn get_field,
 		 const char *fmtstr, hpp_snprint_fn print_fn,
 		 enum perf_hpp_fmt_type fmtype);
+int hpp__fmt_mem_stat(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+		      struct hist_entry *he, enum mem_stat_type mst,
+		      const char *fmtstr, hpp_snprint_fn print_fn);
 
 static inline void advance_hpp(struct perf_hpp *hpp, int inc)
 {

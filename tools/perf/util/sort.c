@@ -2598,9 +2598,11 @@ struct hpp_dimension {
 	struct perf_hpp_fmt	*fmt;
 	int			taken;
 	int			was_taken;
+	int			mem_mode;
 };
 
 #define DIM(d, n) { .name = n, .fmt = &perf_hpp__format[d], }
+#define DIM_MEM(d, n) { .name = n, .fmt = &perf_hpp__format[d], .mem_mode = 1, }
 
 static struct hpp_dimension hpp_sort_dimensions[] = {
 	DIM(PERF_HPP__OVERHEAD, "overhead"),
@@ -2620,8 +2622,11 @@ static struct hpp_dimension hpp_sort_dimensions[] = {
 	DIM(PERF_HPP__WEIGHT2, "ins_lat"),
 	DIM(PERF_HPP__WEIGHT3, "retire_lat"),
 	DIM(PERF_HPP__WEIGHT3, "p_stage_cyc"),
+	/* used for output only when SORT_MODE__MEM */
+	DIM_MEM(PERF_HPP__MEM_STAT_UNKNOWN, "unknown"),  /* placeholder */
 };
 
+#undef DIM_MEM
 #undef DIM
 
 struct hpp_sort_entry {
@@ -3608,15 +3613,6 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 		return __sort_dimension__add(sd, list, level);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(hpp_sort_dimensions); i++) {
-		struct hpp_dimension *hd = &hpp_sort_dimensions[i];
-
-		if (strncasecmp(tok, hd->name, strlen(tok)))
-			continue;
-
-		return __hpp_dimension__add(hd, list, level);
-	}
-
 	for (i = 0; i < ARRAY_SIZE(bstack_sort_dimensions); i++) {
 		struct sort_dimension *sd = &bstack_sort_dimensions[i];
 
@@ -3656,6 +3652,15 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 
 		__sort_dimension__add(sd, list, level);
 		return 0;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(hpp_sort_dimensions); i++) {
+		struct hpp_dimension *hd = &hpp_sort_dimensions[i];
+
+		if (strncasecmp(tok, hd->name, strlen(tok)))
+			continue;
+
+		return __hpp_dimension__add(hd, list, level);
 	}
 
 	if (!add_dynamic_entry(evlist, tok, level))
@@ -4019,6 +4024,9 @@ int output_field_add(struct perf_hpp_list *list, const char *tok, int *level)
 
 		if (!strcasecmp(tok, "weight"))
 			ui__warning("--fields weight shows the average value unlike in the --sort key.\n");
+
+		if (hd->mem_mode && sort__mode != SORT_MODE__MEMORY)
+			continue;
 
 		return __hpp_dimension__add_output(list, hd, *level);
 	}

@@ -12,6 +12,7 @@
 #include "../util/evsel.h"
 #include "../util/evlist.h"
 #include "../util/mem-events.h"
+#include "../util/string2.h"
 #include "../util/thread.h"
 #include "../util/util.h"
 
@@ -149,6 +150,45 @@ int hpp__fmt_acc(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	}
 
 	return hpp__fmt(fmt, hpp, he, get_field, fmtstr, print_fn, fmtype);
+}
+
+int hpp__fmt_mem_stat(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
+		      struct hist_entry *he, enum mem_stat_type mst,
+		      const char *fmtstr, hpp_snprint_fn print_fn)
+{
+	struct hists *hists = he->hists;
+	int mem_stat_idx = -1;
+	char *buf = hpp->buf;
+	size_t size = hpp->size;
+	u64 total = 0;
+	int ret = 0;
+
+	for (int i = 0; i < hists->nr_mem_stats; i++) {
+		if (hists->mem_stat_types[i] == mst) {
+			mem_stat_idx = i;
+			break;
+		}
+	}
+	assert(mem_stat_idx != -1);
+
+	for (int i = 0; i < MEM_STAT_LEN; i++)
+		total += he->mem_stat[mem_stat_idx].entries[i];
+	assert(total != 0);
+
+	for (int i = 0; i < MEM_STAT_LEN; i++) {
+		u64 val = he->mem_stat[mem_stat_idx].entries[i];
+
+		ret += hpp__call_print_fn(hpp, print_fn, fmtstr, 100.0 * val / total);
+	}
+
+	/*
+	 * Restore original buf and size as it's where caller expects
+	 * the result will be saved.
+	 */
+	hpp->buf = buf;
+	hpp->size = size;
+
+	return ret;
 }
 
 static int field_cmp(u64 field_a, u64 field_b)
@@ -295,6 +335,23 @@ static int __hpp__sort_acc(struct hist_entry *a, struct hist_entry *b,
 	return ret;
 }
 
+static bool perf_hpp__is_mem_stat_entry(struct perf_hpp_fmt *fmt);
+
+static enum mem_stat_type hpp__mem_stat_type(struct perf_hpp_fmt *fmt)
+{
+	if (!perf_hpp__is_mem_stat_entry(fmt))
+		return -1;
+
+	pr_debug("Should not reach here\n");
+	return -1;
+}
+
+static int64_t hpp__sort_mem_stat(struct perf_hpp_fmt *fmt __maybe_unused,
+				  struct hist_entry *a, struct hist_entry *b)
+{
+	return a->stat.period - b->stat.period;
+}
+
 static int hpp__width_fn(struct perf_hpp_fmt *fmt,
 			 struct perf_hpp *hpp __maybe_unused,
 			 struct hists *hists)
@@ -332,6 +389,45 @@ static int hpp__header_fn(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		hdr = fmt->name;
 
 	return scnprintf(hpp->buf, hpp->size, "%*s", len, hdr);
+}
+
+static int hpp__header_mem_stat_fn(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+				   struct hists *hists, int line,
+				   int *span __maybe_unused)
+{
+	char *buf = hpp->buf;
+	int ret = 0;
+	int len;
+	enum mem_stat_type mst = hpp__mem_stat_type(fmt);
+
+	(void)hists;
+	if (line == 0) {
+		int left, right;
+
+		len = fmt->len;
+		left = (len - strlen(fmt->name)) / 2 - 1;
+		right = len - left - strlen(fmt->name) - 2;
+
+		if (left < 0)
+			left = 0;
+		if (right < 0)
+			right = 0;
+
+		return scnprintf(hpp->buf, hpp->size, "%.*s %s %.*s",
+				 left, graph_dotted_line, fmt->name, right, graph_dotted_line);
+	}
+
+	len = hpp->size;
+	for (int i = 0; i < MEM_STAT_LEN; i++) {
+		int printed;
+
+		printed = scnprintf(buf, len, "%*s", MEM_STAT_PRINT_LEN,
+				    mem_stat_name(mst, i));
+		ret += printed;
+		buf += printed;
+		len -= printed;
+	}
+	return ret;
 }
 
 int hpp_color_scnprintf(struct perf_hpp *hpp, const char *fmt, ...)
@@ -459,6 +555,23 @@ static int64_t hpp__sort_##_type(struct perf_hpp_fmt *fmt __maybe_unused, 	\
 	return __hpp__sort(a, b, he_get_##_field);				\
 }
 
+#define __HPP_COLOR_MEM_STAT_FN(_name, _type)					\
+static int hpp__color_mem_stat_##_name(struct perf_hpp_fmt *fmt,		\
+				       struct perf_hpp *hpp,			\
+				       struct hist_entry *he)			\
+{										\
+	return hpp__fmt_mem_stat(fmt, hpp, he, PERF_MEM_STAT_##_type,		\
+				 " %5.1f%%", hpp_color_scnprintf);		\
+}
+
+#define __HPP_ENTRY_MEM_STAT_FN(_name, _type)					\
+static int hpp__entry_mem_stat_##_name(struct perf_hpp_fmt *fmt, 		\
+				       struct perf_hpp *hpp,			\
+				       struct hist_entry *he)			\
+{										\
+	return hpp__fmt_mem_stat(fmt, hpp, he, PERF_MEM_STAT_##_type,		\
+				 " %5.1f%%", hpp_entry_scnprintf);		\
+}
 
 #define HPP_PERCENT_FNS(_type, _field, _fmttype)			\
 __HPP_COLOR_PERCENT_FN(_type, _field, _fmttype)				\
@@ -478,6 +591,10 @@ __HPP_SORT_RAW_FN(_type, _field)
 __HPP_ENTRY_AVERAGE_FN(_type, _field)					\
 __HPP_SORT_AVERAGE_FN(_type, _field)
 
+#define HPP_MEM_STAT_FNS(_name, _type)					\
+__HPP_COLOR_MEM_STAT_FN(_name, _type)					\
+__HPP_ENTRY_MEM_STAT_FN(_name, _type)
+
 HPP_PERCENT_FNS(overhead, period, PERF_HPP_FMT_TYPE__PERCENT)
 HPP_PERCENT_FNS(latency, latency, PERF_HPP_FMT_TYPE__LATENCY)
 HPP_PERCENT_FNS(overhead_sys, period_sys, PERF_HPP_FMT_TYPE__PERCENT)
@@ -494,6 +611,8 @@ HPP_AVERAGE_FNS(weight1, weight1)
 HPP_AVERAGE_FNS(weight2, weight2)
 HPP_AVERAGE_FNS(weight3, weight3)
 
+HPP_MEM_STAT_FNS(unknown, UNKNOWN)  /* placeholder */
+
 static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 			    struct hist_entry *a __maybe_unused,
 			    struct hist_entry *b __maybe_unused)
@@ -503,8 +622,7 @@ static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 
 static bool perf_hpp__is_mem_stat_entry(struct perf_hpp_fmt *fmt)
 {
-	(void)fmt;
-	return false;
+	return fmt->sort == hpp__sort_mem_stat;
 }
 
 static bool perf_hpp__is_hpp_entry(struct perf_hpp_fmt *a)
@@ -518,6 +636,14 @@ static bool hpp__equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
 		return false;
 
 	return a->idx == b->idx;
+}
+
+static bool hpp__equal_mem_stat(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
+{
+	if (!perf_hpp__is_mem_stat_entry(a) || !perf_hpp__is_mem_stat_entry(b))
+		return false;
+
+	return a->entry == b->entry;
 }
 
 #define HPP__COLOR_PRINT_FNS(_name, _fn, _idx)		\
@@ -561,6 +687,20 @@ static bool hpp__equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
 		.equal	= hpp__equal,			\
 	}
 
+#define HPP__MEM_STAT_PRINT_FNS(_name, _fn, _type)	\
+	{						\
+		.name   = _name,			\
+		.header	= hpp__header_mem_stat_fn,	\
+		.width	= hpp__width_fn,		\
+		.color	= hpp__color_mem_stat_ ## _fn,	\
+		.entry	= hpp__entry_mem_stat_ ## _fn,	\
+		.cmp	= hpp__nop_cmp,			\
+		.collapse = hpp__nop_cmp,		\
+		.sort	= hpp__sort_mem_stat,		\
+		.idx	= PERF_HPP__MEM_STAT_ ## _type,	\
+		.equal	= hpp__equal_mem_stat,		\
+	}
+
 struct perf_hpp_fmt perf_hpp__format[] = {
 	HPP__COLOR_PRINT_FNS("Overhead", overhead, OVERHEAD),
 	HPP__COLOR_PRINT_FNS("Latency", latency, LATENCY),
@@ -575,6 +715,7 @@ struct perf_hpp_fmt perf_hpp__format[] = {
 	HPP__PRINT_FNS("Weight1", weight1, WEIGHT1),
 	HPP__PRINT_FNS("Weight2", weight2, WEIGHT2),
 	HPP__PRINT_FNS("Weight3", weight3, WEIGHT3),
+	HPP__MEM_STAT_PRINT_FNS("Unknown", unknown, UNKNOWN),  /* placeholder */
 };
 
 struct perf_hpp_list perf_hpp_list = {
@@ -586,11 +727,13 @@ struct perf_hpp_list perf_hpp_list = {
 #undef HPP__COLOR_PRINT_FNS
 #undef HPP__COLOR_ACC_PRINT_FNS
 #undef HPP__PRINT_FNS
+#undef HPP__MEM_STAT_PRINT_FNS
 
 #undef HPP_PERCENT_FNS
 #undef HPP_PERCENT_ACC_FNS
 #undef HPP_RAW_FNS
 #undef HPP_AVERAGE_FNS
+#undef HPP_MEM_STAT_FNS
 
 #undef __HPP_HEADER_FN
 #undef __HPP_WIDTH_FN
@@ -600,6 +743,9 @@ struct perf_hpp_list perf_hpp_list = {
 #undef __HPP_ENTRY_ACC_PERCENT_FN
 #undef __HPP_ENTRY_RAW_FN
 #undef __HPP_ENTRY_AVERAGE_FN
+#undef __HPP_COLOR_MEM_STAT_FN
+#undef __HPP_ENTRY_MEM_STAT_FN
+
 #undef __HPP_SORT_FN
 #undef __HPP_SORT_ACC_FN
 #undef __HPP_SORT_RAW_FN
@@ -924,6 +1070,10 @@ void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 		fmt->len = 8;
 		break;
 
+	case PERF_HPP__MEM_STAT_UNKNOWN:  /* placeholder */
+		fmt->len = MEM_STAT_LEN * MEM_STAT_PRINT_LEN;
+		break;
+
 	default:
 		break;
 	}
@@ -1042,11 +1192,13 @@ int perf_hpp__alloc_mem_stats(struct perf_hpp_list *list, struct evlist *evlist)
 			continue;
 
 		assert(nr_mem_stats < ARRAY_SIZE(mst));
-		mst[nr_mem_stats++] = PERF_MEM_STAT_UNKNOWN;
+		mst[nr_mem_stats++] = hpp__mem_stat_type(fmt);
 	}
 
 	if (nr_mem_stats == 0)
 		return 0;
+
+	list->nr_header_lines = 2;
 
 	evlist__for_each_entry(evlist, evsel) {
 		struct hists *hists = evsel__hists(evsel);

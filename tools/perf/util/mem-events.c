@@ -817,3 +817,15 @@ int mem_stat_index(const enum mem_stat_type mst, const u64 val)
 	(void)val;
 	return -1;
 }
+
+/* To align output, returned string should be shorter than MEM_STAT_PRINT_LEN */
+const char *mem_stat_name(const enum mem_stat_type mst, const int idx)
+{
+	switch (mst) {
+	case PERF_MEM_STAT_UNKNOWN:
+	default:
+		break;
+	}
+	(void)idx;
+	return "N/A";
+}

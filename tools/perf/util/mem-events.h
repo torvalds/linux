@@ -93,6 +93,9 @@ enum mem_stat_type {
 	PERF_MEM_STAT_UNKNOWN,  /* placeholder */
 };
 
+#define MEM_STAT_PRINT_LEN  7  /* 1 space + 5 digits + 1 percent sign */
+
 int mem_stat_index(const enum mem_stat_type mst, const u64 data_src);
+const char *mem_stat_name(const enum mem_stat_type mst, const int idx);
 
 #endif /* __PERF_MEM_EVENTS_H */
