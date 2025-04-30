@@ -434,7 +434,7 @@
 	single-master;
 	status = "okay";
 
-	som_gpio_expander: gpio-expander@21 {
+	som_gpio_expander: gpio@21 {
 		compatible = "nxp,pcal6408";
 		reg = <0x21>;
 		pinctrl-names = "default";
