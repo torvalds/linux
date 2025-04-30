@@ -3383,12 +3383,15 @@ static void __virtnet_rx_resume(struct virtnet_info *vi,
 				bool refill)
 {
 	bool running = netif_running(vi->dev);
+	bool schedule_refill = false;
 
 	if (refill && !try_fill_recv(vi, rq, GFP_KERNEL))
-		schedule_delayed_work(&vi->refill, 0);
-
+		schedule_refill = true;
 	if (running)
 		virtnet_napi_enable(rq);
+
+	if (schedule_refill)
+		schedule_delayed_work(&vi->refill, 0);
 }
 
 static void virtnet_rx_resume_all(struct virtnet_info *vi)
@@ -3728,8 +3731,10 @@ static int virtnet_set_queues(struct virtnet_info *vi, u16 queue_pairs)
 succ:
 	vi->curr_queue_pairs = queue_pairs;
 	/* virtnet_open() will refill when device is going to up. */
-	if (dev->flags & IFF_UP)
+	spin_lock_bh(&vi->refill_lock);
+	if (dev->flags & IFF_UP && vi->refill_enabled)
 		schedule_delayed_work(&vi->refill, 0);
+	spin_unlock_bh(&vi->refill_lock);
 
 	return 0;
 }
