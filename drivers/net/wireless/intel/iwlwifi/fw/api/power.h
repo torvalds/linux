@@ -7,6 +7,8 @@
 #ifndef __iwl_fw_api_power_h__
 #define __iwl_fw_api_power_h__
 
+#include "nvm-reg.h"
+
 /* Power Management Commands, Responses, Notifications */
 
 /**
@@ -629,28 +631,37 @@ enum iwl_ppag_flags {
 
 /**
  * union iwl_ppag_table_cmd - union for all versions of PPAG command
- * @v1: version 1
- * @v2: version 2
- * version 3, 4, 5 and 6 are the same structure as v2,
+ * @v1: command version 1 structure.
+ * @v2: command version from 2 to 6 are same structure as v2.
  *	but has a different format of the flags bitmap
+ * @v3: command version 7 structure.
  * @v1.flags: values from &enum iwl_ppag_flags
  * @v1.gain: table of antenna gain values per chain and sub-band
  * @v1.reserved: reserved
  * @v2.flags: values from &enum iwl_ppag_flags
  * @v2.gain: table of antenna gain values per chain and sub-band
- * @v2.reserved: reserved
+ * @v3.ppag_config_info: see @struct bios_value_u32
+ * @v3.gain: table of antenna gain values per chain and sub-band
+ * @v3.reserved: reserved
  */
 union iwl_ppag_table_cmd {
 	struct {
 		__le32 flags;
 		s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V1];
 		s8 reserved[2];
-	} v1;
+	} __packed v1; /* PER_PLAT_ANTENNA_GAIN_CMD_API_S_VER_1 */
 	struct {
 		__le32 flags;
 		s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V2];
 		s8 reserved[2];
-	} v2;
+	} __packed v2; /* PER_PLAT_ANTENNA_GAIN_CMD_API_S_VER_2, VER3, VER4,
+			* VER5, VER6
+			*/
+	struct {
+		struct bios_value_u32 ppag_config_info;
+		s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V2];
+		s8 reserved[2];
+	} __packed v3; /* PER_PLAT_ANTENNA_GAIN_CMD_API_S_VER_7 */
 } __packed;
 
 #define IWL_PPAG_CMD_V4_MASK (IWL_PPAG_ETSI_MASK | IWL_PPAG_CHINA_MASK)

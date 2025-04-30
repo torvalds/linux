@@ -112,6 +112,7 @@ struct iwl_txf_iter_data {
  * @geo_profiles: geographic profiles as read from WGDS BIOS table
  * @phy_filters: specific phy filters as read from WPFC BIOS table
  * @ppag_bios_rev: PPAG BIOS revision
+ * @ppag_bios_source: see &enum bios_source
  */
 struct iwl_fw_runtime {
 	struct iwl_trans *trans;
@@ -181,6 +182,7 @@ struct iwl_fw_runtime {
 	struct iwl_ppag_chain ppag_chains[IWL_NUM_CHAIN_LIMITS];
 	u32 ppag_flags;
 	u8 ppag_bios_rev;
+	u8 ppag_bios_source;
 	struct iwl_sar_offset_mapping_cmd sgom_table;
 	bool sgom_enabled;
 	struct iwl_mcc_allowed_ap_type_cmd uats_table;
