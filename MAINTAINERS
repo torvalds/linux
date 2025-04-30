@@ -22921,6 +22921,7 @@ M:	Sylvain Petinot <sylvain.petinot@foss.st.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/i2c/st,vd55g1.yaml
+F:	drivers/media/i2c/vd55g1.c
 
 ST VD56G3 IMAGE SENSOR DRIVER
 M:	Benjamin Mugnier <benjamin.mugnier@foss.st.com>
@@ -25325,6 +25326,7 @@ F:	drivers/media/i2c/mt*
 F:	drivers/media/i2c/og*
 F:	drivers/media/i2c/ov*
 F:	drivers/media/i2c/s5*
+F:	drivers/media/i2c/vd55g1.c
 F:	drivers/media/i2c/vd56g3.c
 F:	drivers/media/i2c/vgxy61.c
 
