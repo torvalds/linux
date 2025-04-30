@@ -44,6 +44,4 @@ struct amdgpu_hdp {
 };
 
 int amdgpu_hdp_ras_sw_init(struct amdgpu_device *adev);
-void amdgpu_hdp_generic_flush(struct amdgpu_device *adev,
-			      struct amdgpu_ring *ring);
 #endif /* __AMDGPU_HDP_H__ */
