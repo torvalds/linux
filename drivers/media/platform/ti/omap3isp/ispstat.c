@@ -1037,6 +1037,7 @@ static int isp_stat_init_entities(struct ispstat *stat, const char *name,
 
 	stat->pad.flags = MEDIA_PAD_FL_SINK | MEDIA_PAD_FL_MUST_CONNECT;
 	me->ops = NULL;
+	me->function = MEDIA_ENT_F_PROC_VIDEO_STATISTICS;
 
 	return media_entity_pads_init(me, 1, &stat->pad);
 }
