@@ -698,6 +698,7 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 	case PCI_DEVICE_ID_INTEL_QAT_401XX:
 	case PCI_DEVICE_ID_INTEL_QAT_402XX:
 	case PCI_DEVICE_ID_INTEL_QAT_420XX:
+	case PCI_DEVICE_ID_INTEL_QAT_6XXX:
 		handle->chip_info->mmp_sram_size = 0;
 		handle->chip_info->nn = false;
 		handle->chip_info->lm2lm3 = true;
@@ -712,6 +713,8 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->wakeup_event_val = 0x80000000;
 		handle->chip_info->fw_auth = true;
 		handle->chip_info->css_3k = true;
+		if (handle->pci_dev->device == PCI_DEVICE_ID_INTEL_QAT_6XXX)
+			handle->chip_info->dual_sign = true;
 		handle->chip_info->tgroup_share_ustore = true;
 		handle->chip_info->fcu_ctl_csr = FCU_CONTROL_4XXX;
 		handle->chip_info->fcu_sts_csr = FCU_STATUS_4XXX;
