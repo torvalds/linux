@@ -1706,26 +1706,6 @@ static const struct ctl_table kern_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 #endif
-#ifdef CONFIG_TREE_RCU
-	{
-		.procname	= "panic_on_rcu_stall",
-		.data		= &sysctl_panic_on_rcu_stall,
-		.maxlen		= sizeof(sysctl_panic_on_rcu_stall),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-	},
-	{
-		.procname	= "max_rcu_stall_to_panic",
-		.data		= &sysctl_max_rcu_stall_to_panic,
-		.maxlen		= sizeof(sysctl_max_rcu_stall_to_panic),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ONE,
-		.extra2		= SYSCTL_INT_MAX,
-	},
-#endif
 };
 
 int __init sysctl_init_bases(void)
