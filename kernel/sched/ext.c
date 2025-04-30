@@ -5212,12 +5212,19 @@ static void scx_error_irq_workfn(struct irq_work *irq_work)
 static __printf(3, 4) void __scx_exit(enum scx_exit_kind kind, s64 exit_code,
 				      const char *fmt, ...)
 {
-	struct scx_exit_info *ei = scx_root->exit_info;
+	struct scx_sched *sch;
+	struct scx_exit_info *ei;
 	int none = SCX_EXIT_NONE;
 	va_list args;
 
-	if (!atomic_try_cmpxchg(&scx_root->exit_kind, &none, kind))
-		return;
+	rcu_read_lock();
+	sch = rcu_dereference(scx_root);
+	if (!sch)
+		goto out_unlock;
+	ei = sch->exit_info;
+
+	if (!atomic_try_cmpxchg(&sch->exit_kind, &none, kind))
+		goto out_unlock;
 
 	ei->exit_code = exit_code;
 #ifdef CONFIG_STACKTRACE
@@ -5235,7 +5242,9 @@ static __printf(3, 4) void __scx_exit(enum scx_exit_kind kind, s64 exit_code,
 	ei->kind = kind;
 	ei->reason = scx_exit_reason(ei->kind);
 
-	irq_work_queue(&scx_root->error_irq_work);
+	irq_work_queue(&sch->error_irq_work);
+out_unlock:
+	rcu_read_unlock();
 }
 
 static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
