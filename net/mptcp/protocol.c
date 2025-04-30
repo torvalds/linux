@@ -3142,9 +3142,9 @@ static int mptcp_disconnect(struct sock *sk, int flags)
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 static struct ipv6_pinfo *mptcp_inet6_sk(const struct sock *sk)
 {
-	unsigned int offset = sizeof(struct mptcp6_sock) - sizeof(struct ipv6_pinfo);
+	struct mptcp6_sock *msk6 = container_of(mptcp_sk(sk), struct mptcp6_sock, msk);
 
-	return (struct ipv6_pinfo *)(((u8 *)sk) + offset);
+	return &msk6->np;
 }
 
 static void mptcp_copy_ip6_options(struct sock *newsk, const struct sock *sk)
