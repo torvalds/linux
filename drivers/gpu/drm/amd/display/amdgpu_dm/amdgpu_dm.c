@@ -12701,7 +12701,7 @@ int amdgpu_dm_process_dmub_aux_transfer_sync(
 					payload->address, payload->length,
 					p_notify->result);
 		}
-		*operation_result = AUX_RET_ERROR_INVALID_REPLY;
+		*operation_result = p_notify->result;
 		goto out;
 	}
 
