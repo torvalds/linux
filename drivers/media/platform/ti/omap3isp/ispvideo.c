@@ -329,6 +329,13 @@ static int isp_video_queue_setup(struct vb2_queue *queue,
 	struct isp_video_fh *vfh = vb2_get_drv_priv(queue);
 	struct isp_video *video = vfh->video;
 
+	if (*num_planes) {
+		if (*num_planes != 1)
+			return -EINVAL;
+		if (sizes[0] < vfh->format.fmt.pix.sizeimage)
+			return -EINVAL;
+		return 0;
+	}
 	*num_planes = 1;
 
 	sizes[0] = vfh->format.fmt.pix.sizeimage;
@@ -344,6 +351,7 @@ static int isp_video_buffer_prepare(struct vb2_buffer *buf)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(buf);
 	struct isp_video_fh *vfh = vb2_get_drv_priv(buf->vb2_queue);
+	unsigned int size = vfh->format.fmt.pix.sizeimage;
 	struct isp_buffer *buffer = to_isp_buffer(vbuf);
 	struct isp_video *video = vfh->video;
 	dma_addr_t addr;
@@ -364,8 +372,13 @@ static int isp_video_buffer_prepare(struct vb2_buffer *buf)
 		return -EINVAL;
 	}
 
-	vb2_set_plane_payload(&buffer->vb.vb2_buf, 0,
-			      vfh->format.fmt.pix.sizeimage);
+	if (vb2_plane_size(&buffer->vb.vb2_buf, 0) < size) {
+		dev_dbg(video->isp->dev,
+			"data will not fit into plane (%lu < %u)\n",
+			vb2_plane_size(&buffer->vb.vb2_buf, 0), size);
+		return -EINVAL;
+	}
+	vb2_set_plane_payload(&buffer->vb.vb2_buf, 0, size);
 	buffer->dma = addr;
 
 	return 0;
@@ -936,6 +949,20 @@ isp_video_reqbufs(struct file *file, void *fh, struct v4l2_requestbuffers *rb)
 }
 
 static int
+isp_video_create_bufs(struct file *file, void *fh, struct v4l2_create_buffers *p)
+{
+	struct isp_video_fh *vfh = file_to_isp_video_fh(file);
+	struct isp_video *video = video_drvdata(file);
+	int ret;
+
+	mutex_lock(&video->queue_lock);
+	ret = vb2_create_bufs(&vfh->queue, p);
+	mutex_unlock(&video->queue_lock);
+
+	return ret;
+}
+
+static int
 isp_video_querybuf(struct file *file, void *fh, struct v4l2_buffer *b)
 {
 	struct isp_video_fh *vfh = file_to_isp_video_fh(file);
@@ -944,6 +971,20 @@ isp_video_querybuf(struct file *file, void *fh, struct v4l2_buffer *b)
 
 	mutex_lock(&video->queue_lock);
 	ret = vb2_querybuf(&vfh->queue, b);
+	mutex_unlock(&video->queue_lock);
+
+	return ret;
+}
+
+static int
+isp_video_prepare_buf(struct file *file, void *fh, struct v4l2_buffer *b)
+{
+	struct isp_video_fh *vfh = file_to_isp_video_fh(file);
+	struct isp_video *video = video_drvdata(file);
+	int ret;
+
+	mutex_lock(&video->queue_lock);
+	ret = vb2_prepare_buf(&vfh->queue, video->video.v4l2_dev->mdev, b);
 	mutex_unlock(&video->queue_lock);
 
 	return ret;
@@ -1303,7 +1344,9 @@ static const struct v4l2_ioctl_ops isp_video_ioctl_ops = {
 	.vidioc_g_parm			= isp_video_get_param,
 	.vidioc_s_parm			= isp_video_set_param,
 	.vidioc_reqbufs			= isp_video_reqbufs,
+	.vidioc_create_bufs		= isp_video_create_bufs,
 	.vidioc_querybuf		= isp_video_querybuf,
+	.vidioc_prepare_buf		= isp_video_prepare_buf,
 	.vidioc_qbuf			= isp_video_qbuf,
 	.vidioc_dqbuf			= isp_video_dqbuf,
 	.vidioc_streamon		= isp_video_streamon,
