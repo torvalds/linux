@@ -887,9 +887,8 @@ void iwl_mld_change_chanctx(struct ieee80211_hw *hw,
 			return;
 	}
 update:
-	phy->chandef = *chandef;
 
-	iwl_mld_phy_fw_action(mld, ctx, FW_CTXT_ACTION_MODIFY);
+	iwl_mld_update_phy_chandef(mld, ctx);
 }
 
 static u8

@@ -182,3 +182,14 @@ int iwl_mld_send_phy_cfg_cmd(struct iwl_mld *mld)
 
 	return iwl_mld_send_cmd_pdu(mld, PHY_CONFIGURATION_CMD, &cmd);
 }
+
+void iwl_mld_update_phy_chandef(struct iwl_mld *mld,
+				struct ieee80211_chanctx_conf *ctx)
+{
+	struct iwl_mld_phy *phy = iwl_mld_phy_from_mac80211(ctx);
+	struct cfg80211_chan_def *chandef =
+		iwl_mld_get_chandef_from_chanctx(mld, ctx);
+
+	phy->chandef = *chandef;
+	iwl_mld_phy_fw_action(mld, ctx, FW_CTXT_ACTION_MODIFY);
+}
