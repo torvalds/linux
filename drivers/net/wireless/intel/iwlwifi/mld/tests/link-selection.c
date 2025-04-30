@@ -287,6 +287,7 @@ static void test_iwl_mld_link_pair_allows_emlsr(struct kunit *test)
 	const struct link_pair_case *params = test->param_value;
 	struct iwl_mld *mld = test->priv;
 	struct ieee80211_vif *vif;
+	struct ieee80211_bss_conf *link;
 	/* link A is the primary and link B is the secondary */
 	struct iwl_mld_link_sel_data a = {
 		.chandef = params->chandef_a,
@@ -309,6 +310,11 @@ static void test_iwl_mld_link_pair_allows_emlsr(struct kunit *test)
 		iwl_mld_vif_from_mac80211(vif)->low_latency_causes = 1;
 
 	wiphy_lock(mld->wiphy);
+
+	link = wiphy_dereference(mld->wiphy, vif->link_conf[a.link_id]);
+	KUNIT_ALLOC_AND_ASSERT(test, link->bss);
+	link = wiphy_dereference(mld->wiphy, vif->link_conf[b.link_id]);
+	KUNIT_ALLOC_AND_ASSERT(test, link->bss);
 
 	/* Simulate channel load */
 	if (params->primary_link_active) {
