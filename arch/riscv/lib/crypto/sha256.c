@@ -50,7 +50,7 @@ static int __init riscv64_sha256_mod_init(void)
 		static_branch_enable(&have_extensions);
 	return 0;
 }
-arch_initcall(riscv64_sha256_mod_init);
+subsys_initcall(riscv64_sha256_mod_init);
 
 static void __exit riscv64_sha256_mod_exit(void)
 {

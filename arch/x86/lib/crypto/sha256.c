@@ -63,7 +63,7 @@ static int __init sha256_x86_mod_init(void)
 	static_branch_enable(&have_sha256_x86);
 	return 0;
 }
-arch_initcall(sha256_x86_mod_init);
+subsys_initcall(sha256_x86_mod_init);
 
 static void __exit sha256_x86_mod_exit(void)
 {

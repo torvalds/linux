@@ -122,7 +122,7 @@ static int __init chacha_arm_mod_init(void)
 	}
 	return 0;
 }
-arch_initcall(chacha_arm_mod_init);
+subsys_initcall(chacha_arm_mod_init);
 
 static void __exit chacha_arm_mod_exit(void)
 {

@@ -91,7 +91,7 @@ static void __exit lzo_mod_fini(void)
 	crypto_unregister_scomp(&scomp);
 }
 
-subsys_initcall(lzo_mod_init);
+module_init(lzo_mod_init);
 module_exit(lzo_mod_fini);
 
 MODULE_LICENSE("GPL");

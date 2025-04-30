@@ -69,7 +69,7 @@ static int __init arm_poly1305_mod_init(void)
 		static_branch_enable(&have_neon);
 	return 0;
 }
-arch_initcall(arm_poly1305_mod_init);
+subsys_initcall(arm_poly1305_mod_init);
 
 static void __exit arm_poly1305_mod_exit(void)
 {

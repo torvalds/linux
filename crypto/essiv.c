@@ -641,7 +641,7 @@ static void __exit essiv_module_exit(void)
 	crypto_unregister_template(&essiv_tmpl);
 }
 
-subsys_initcall(essiv_module_init);
+module_init(essiv_module_init);
 module_exit(essiv_module_exit);
 
 MODULE_DESCRIPTION("ESSIV skcipher/aead wrapper for block encryption");

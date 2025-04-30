@@ -87,7 +87,7 @@ static int __init chacha_p10_init(void)
 		static_branch_enable(&have_p10);
 	return 0;
 }
-arch_initcall(chacha_p10_init);
+subsys_initcall(chacha_p10_init);
 
 static void __exit chacha_p10_exit(void)
 {

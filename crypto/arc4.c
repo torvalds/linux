@@ -73,7 +73,7 @@ static void __exit arc4_exit(void)
 	crypto_unregister_lskcipher(&arc4_alg);
 }
 
-subsys_initcall(arc4_init);
+module_init(arc4_init);
 module_exit(arc4_exit);
 
 MODULE_LICENSE("GPL");

@@ -117,7 +117,7 @@ static int __init poly1305_simd_mod_init(void)
 		static_branch_enable(&poly1305_use_avx512);
 	return 0;
 }
-arch_initcall(poly1305_simd_mod_init);
+subsys_initcall(poly1305_simd_mod_init);
 
 static void __exit poly1305_simd_mod_exit(void)
 {

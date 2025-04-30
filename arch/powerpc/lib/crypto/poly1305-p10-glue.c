@@ -76,7 +76,7 @@ static int __init poly1305_p10_init(void)
 		static_branch_enable(&have_p10);
 	return 0;
 }
-arch_initcall(poly1305_p10_init);
+subsys_initcall(poly1305_p10_init);
 
 static void __exit poly1305_p10_exit(void)
 {

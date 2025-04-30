@@ -176,7 +176,7 @@ static void __exit blake2b_mod_fini(void)
 	crypto_unregister_shashes(blake2b_algs, ARRAY_SIZE(blake2b_algs));
 }
 
-subsys_initcall(blake2b_mod_init);
+module_init(blake2b_mod_init);
 module_exit(blake2b_mod_fini);
 
 MODULE_AUTHOR("David Sterba <kdave@kernel.org>");

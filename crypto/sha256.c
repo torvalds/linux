@@ -224,7 +224,7 @@ static int __init crypto_sha256_mod_init(void)
 		num_algs /= 2;
 	return crypto_register_shashes(algs, ARRAY_SIZE(algs));
 }
-subsys_initcall(crypto_sha256_mod_init);
+module_init(crypto_sha256_mod_init);
 
 static void __exit crypto_sha256_mod_exit(void)
 {

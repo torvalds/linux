@@ -407,5 +407,5 @@ static int __init aes_init(void)
 	return crypto_register_skciphers(aes_algs, ARRAY_SIZE(aes_algs));
 }
 
-late_initcall(aes_init);
+module_init(aes_init);
 module_exit(aes_exit);

@@ -199,7 +199,7 @@ static void __exit crypto_xcbc_module_exit(void)
 	crypto_unregister_template(&crypto_xcbc_tmpl);
 }
 
-subsys_initcall(crypto_xcbc_module_init);
+module_init(crypto_xcbc_module_init);
 module_exit(crypto_xcbc_module_exit);
 
 MODULE_LICENSE("GPL");

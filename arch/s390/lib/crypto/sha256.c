@@ -36,7 +36,7 @@ static int __init sha256_s390_mod_init(void)
 		static_branch_enable(&have_cpacf_sha256);
 	return 0;
 }
-arch_initcall(sha256_s390_mod_init);
+subsys_initcall(sha256_s390_mod_init);
 
 static void __exit sha256_s390_mod_exit(void)
 {

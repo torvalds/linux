@@ -243,7 +243,7 @@ static void __exit crypto_chacha_mod_fini(void)
 	crypto_unregister_skciphers(algs, num_algs);
 }
 
-subsys_initcall(crypto_chacha_mod_init);
+module_init(crypto_chacha_mod_init);
 module_exit(crypto_chacha_mod_fini);
 
 MODULE_LICENSE("GPL");

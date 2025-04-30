@@ -91,7 +91,7 @@ static void __exit lzorle_mod_fini(void)
 	crypto_unregister_scomp(&scomp);
 }
 
-subsys_initcall(lzorle_mod_init);
+module_init(lzorle_mod_init);
 module_exit(lzorle_mod_fini);
 
 MODULE_LICENSE("GPL");

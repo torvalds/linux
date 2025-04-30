@@ -53,7 +53,7 @@ static int __init sha256_sparc64_mod_init(void)
 	pr_info("Using sparc64 sha256 opcode optimized SHA-256/SHA-224 implementation\n");
 	return 0;
 }
-arch_initcall(sha256_sparc64_mod_init);
+subsys_initcall(sha256_sparc64_mod_init);
 
 static void __exit sha256_sparc64_mod_exit(void)
 {

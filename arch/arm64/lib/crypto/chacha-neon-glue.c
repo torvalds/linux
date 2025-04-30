@@ -104,7 +104,7 @@ static int __init chacha_simd_mod_init(void)
 		static_branch_enable(&have_neon);
 	return 0;
 }
-arch_initcall(chacha_simd_mod_init);
+subsys_initcall(chacha_simd_mod_init);
 
 static void __exit chacha_simd_mod_exit(void)
 {

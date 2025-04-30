@@ -64,7 +64,7 @@ static int __init sha256_arm64_mod_init(void)
 	}
 	return 0;
 }
-arch_initcall(sha256_arm64_mod_init);
+subsys_initcall(sha256_arm64_mod_init);
 
 static void __exit sha256_arm64_mod_exit(void)
 {
