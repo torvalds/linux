@@ -2188,7 +2188,14 @@ void fib_select_multipath(struct fib_result *res, int hash,
 	saddr = fl4 ? fl4->saddr : 0;
 
 	change_nexthops(fi) {
-		if (use_neigh && !fib_good_nh(nexthop_nh))
+		int nh_upper_bound;
+
+		/* Nexthops without a carrier are assigned an upper bound of
+		 * minus one when "ignore_routes_with_linkdown" is set.
+		 */
+		nh_upper_bound = atomic_read(&nexthop_nh->fib_nh_upper_bound);
+		if (nh_upper_bound == -1 ||
+		    (use_neigh && !fib_good_nh(nexthop_nh)))
 			continue;
 
 		if (!found) {
@@ -2197,7 +2204,7 @@ void fib_select_multipath(struct fib_result *res, int hash,
 			found = !saddr || nexthop_nh->nh_saddr == saddr;
 		}
 
-		if (hash > atomic_read(&nexthop_nh->fib_nh_upper_bound))
+		if (hash > nh_upper_bound)
 			continue;
 
 		if (!saddr || nexthop_nh->nh_saddr == saddr) {
