@@ -1405,7 +1405,7 @@ static void resizer_try_format(struct isp_res_device *res,
 		break;
 	}
 
-	fmt->colorspace = V4L2_COLORSPACE_JPEG;
+	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 	fmt->field = V4L2_FIELD_NONE;
 }
 
