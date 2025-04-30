@@ -3,7 +3,7 @@
  * intel_tpebs.c: Intel TPEBS support
  */
 
-
+#include <api/fs/fs.h>
 #include <sys/param.h>
 #include <subcmd/run-command.h>
 #include <thread.h>
@@ -121,6 +121,59 @@ static int evsel__tpebs_start_perf_record(struct evsel *evsel)
 	return ret;
 }
 
+static bool is_child_pid(pid_t parent, pid_t child)
+{
+	if (parent < 0 || child < 0)
+		return false;
+
+	while (true) {
+		char path[PATH_MAX];
+		char line[256];
+		FILE *fp;
+
+new_child:
+		if (parent == child)
+			return true;
+
+		if (child <= 0)
+			return false;
+
+		scnprintf(path, sizeof(path), "%s/%d/status", procfs__mountpoint(), child);
+		fp = fopen(path, "r");
+		if (!fp) {
+			/* Presumably the process went away. Assume not a child. */
+			return false;
+		}
+		while (fgets(line, sizeof(line), fp) != NULL) {
+			if (strncmp(line, "PPid:", 5) == 0) {
+				fclose(fp);
+				if (sscanf(line + 5, "%d", &child) != 1) {
+					/* Unexpected error parsing. */
+					return false;
+				}
+				goto new_child;
+			}
+		}
+		/* Unexpected EOF. */
+		fclose(fp);
+		return false;
+	}
+}
+
+static bool should_ignore_sample(const struct perf_sample *sample, const struct tpebs_retire_lat *t)
+{
+	pid_t workload_pid = t->evsel->evlist->workload.pid;
+	pid_t sample_pid = sample->pid;
+
+	if (workload_pid < 0 || workload_pid == sample_pid)
+		return false;
+
+	if (!t->evsel->core.attr.inherit)
+		return true;
+
+	return !is_child_pid(workload_pid, sample_pid);
+}
+
 static int process_sample_event(const struct perf_tool *tool __maybe_unused,
 				union perf_event *event __maybe_unused,
 				struct perf_sample *sample,
@@ -139,6 +192,10 @@ static int process_sample_event(const struct perf_tool *tool __maybe_unused,
 	if (!t) {
 		mutex_unlock(tpebs_mtx_get());
 		return -EINVAL;
+	}
+	if (should_ignore_sample(sample, t)) {
+		mutex_unlock(tpebs_mtx_get());
+		return 0;
 	}
 	/*
 	 * Need to handle per core results? We are assuming average retire
