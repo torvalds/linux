@@ -121,6 +121,7 @@ enum amd_pstate_mode {
 	AMD_PSTATE_MAX,
 };
 const char *amd_pstate_get_mode_string(enum amd_pstate_mode mode);
+int amd_pstate_get_status(void);
 int amd_pstate_update_status(const char *buf, size_t size);
 
 #endif /* _LINUX_AMD_PSTATE_H */
