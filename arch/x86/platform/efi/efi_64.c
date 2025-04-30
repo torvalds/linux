@@ -89,6 +89,7 @@ int __init efi_alloc_page_tables(void)
 	efi_mm.pgd = efi_pgd;
 	mm_init_cpumask(&efi_mm);
 	init_new_context(NULL, &efi_mm);
+	set_notrack_mm(&efi_mm);
 
 	return 0;
 

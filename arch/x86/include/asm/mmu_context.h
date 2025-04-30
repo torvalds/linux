@@ -247,6 +247,16 @@ static inline bool is_64bit_mm(struct mm_struct *mm)
 }
 #endif
 
+static inline bool is_notrack_mm(struct mm_struct *mm)
+{
+	return test_bit(MM_CONTEXT_NOTRACK, &mm->context.flags);
+}
+
+static inline void set_notrack_mm(struct mm_struct *mm)
+{
+	set_bit(MM_CONTEXT_NOTRACK, &mm->context.flags);
+}
+
 /*
  * We only want to enforce protection keys on the current process
  * because we effectively have no access to PKRU for other

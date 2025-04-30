@@ -28,6 +28,7 @@
 #include <asm/text-patching.h>
 #include <asm/memtype.h>
 #include <asm/paravirt.h>
+#include <asm/mmu_context.h>
 
 /*
  * We need to define the tracepoints somewhere, and tlb.c
@@ -829,6 +830,8 @@ void __init poking_init(void)
 
 	/* Xen PV guests need the PGD to be pinned. */
 	paravirt_enter_mmap(text_poke_mm);
+
+	set_notrack_mm(text_poke_mm);
 
 	/*
 	 * Randomize the poking address, but make sure that the following page
