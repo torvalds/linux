@@ -142,7 +142,12 @@ struct ublk_io {
 	unsigned int flags;
 	int res;
 
-	struct io_uring_cmd *cmd;
+	union {
+		/* valid if UBLK_IO_FLAG_ACTIVE is set */
+		struct io_uring_cmd *cmd;
+		/* valid if UBLK_IO_FLAG_OWNED_BY_SRV is set */
+		struct request *req;
+	};
 };
 
 struct ublk_queue {
@@ -1124,9 +1129,12 @@ static void ublk_complete_rq(struct kref *ref)
 	__ublk_complete_rq(req);
 }
 
-static void ublk_complete_io_cmd(struct ublk_io *io, int res,
-				 unsigned issue_flags)
+static void ublk_complete_io_cmd(struct ublk_io *io, struct request *req,
+				 int res, unsigned issue_flags)
 {
+	/* read cmd first because req will overwrite it */
+	struct io_uring_cmd *cmd = io->cmd;
+
 	/* mark this cmd owned by ublksrv */
 	io->flags |= UBLK_IO_FLAG_OWNED_BY_SRV;
 
@@ -1136,8 +1144,10 @@ static void ublk_complete_io_cmd(struct ublk_io *io, int res,
 	 */
 	io->flags &= ~UBLK_IO_FLAG_ACTIVE;
 
+	io->req = req;
+
 	/* tell ublksrv one io request is coming */
-	io_uring_cmd_done(io->cmd, res, 0, issue_flags);
+	io_uring_cmd_done(cmd, res, 0, issue_flags);
 }
 
 #define UBLK_REQUEUE_DELAY_MS	3
@@ -1215,7 +1225,7 @@ static void ublk_dispatch_req(struct ublk_queue *ubq,
 		io->flags |= UBLK_IO_FLAG_NEED_GET_DATA;
 		pr_devel("%s: need get data. qid %d tag %d io_flags %x\n",
 				__func__, ubq->q_id, req->tag, io->flags);
-		ublk_complete_io_cmd(io, UBLK_IO_RES_NEED_GET_DATA,
+		ublk_complete_io_cmd(io, req, UBLK_IO_RES_NEED_GET_DATA,
 				     issue_flags);
 		return;
 	}
@@ -1223,7 +1233,7 @@ static void ublk_dispatch_req(struct ublk_queue *ubq,
 	if (!ublk_start_io(ubq, req, io))
 		return;
 
-	ublk_complete_io_cmd(io, UBLK_IO_RES_OK, issue_flags);
+	ublk_complete_io_cmd(io, req, UBLK_IO_RES_OK, issue_flags);
 }
 
 static void ublk_cmd_tw_cb(struct io_uring_cmd *cmd,
@@ -1611,12 +1621,8 @@ static void ublk_abort_queue(struct ublk_device *ub, struct ublk_queue *ubq)
 	for (i = 0; i < ubq->q_depth; i++) {
 		struct ublk_io *io = &ubq->ios[i];
 
-		if (io->flags & UBLK_IO_FLAG_OWNED_BY_SRV) {
-			struct request *rq;
-
-			rq = blk_mq_tag_to_rq(ub->tag_set.tags[ubq->q_id], i);
-			__ublk_fail_req(ubq, io, rq);
-		}
+		if (io->flags & UBLK_IO_FLAG_OWNED_BY_SRV)
+			__ublk_fail_req(ubq, io, io->req);
 	}
 }
 
@@ -1990,12 +1996,12 @@ static int ublk_commit_and_fetch(const struct ublk_queue *ubq,
 				 struct ublk_io *io, struct io_uring_cmd *cmd,
 				 const struct ublksrv_io_cmd *ub_cmd)
 {
-	struct blk_mq_tags *tags = ubq->dev->tag_set.tags[ub_cmd->q_id];
-	struct request *req = blk_mq_tag_to_rq(tags, ub_cmd->tag);
+	struct request *req;
 
 	if (!(io->flags & UBLK_IO_FLAG_OWNED_BY_SRV))
 		return -EINVAL;
 
+	req = io->req;
 	if (ublk_need_map_io(ubq)) {
 		/*
 		 * COMMIT_AND_FETCH_REQ has to provide IO buffer if
@@ -2027,9 +2033,10 @@ static int ublk_commit_and_fetch(const struct ublk_queue *ubq,
 	return 0;
 }
 
-static bool ublk_get_data(const struct ublk_queue *ubq, struct ublk_io *io,
-			  struct request *req)
+static bool ublk_get_data(const struct ublk_queue *ubq, struct ublk_io *io)
 {
+	struct request *req = io->req;
+
 	/*
 	 * We have handled UBLK_IO_NEED_GET_DATA command,
 	 * so clear UBLK_IO_FLAG_NEED_GET_DATA now and just
@@ -2055,7 +2062,6 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 	u32 cmd_op = cmd->cmd_op;
 	unsigned tag = ub_cmd->tag;
 	int ret = -EINVAL;
-	struct request *req;
 
 	pr_devel("%s: received: cmd op %d queue %d tag %d result %d\n",
 			__func__, cmd->cmd_op, ub_cmd->q_id, tag,
@@ -2111,8 +2117,7 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		if (!(io->flags & UBLK_IO_FLAG_OWNED_BY_SRV))
 			goto out;
 		io->addr = ub_cmd->addr;
-		req = blk_mq_tag_to_rq(ub->tag_set.tags[ub_cmd->q_id], tag);
-		if (!ublk_get_data(ubq, io, req))
+		if (!ublk_get_data(ubq, io))
 			return -EIOCBQUEUED;
 
 		return UBLK_IO_RES_OK;
