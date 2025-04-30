@@ -2550,7 +2550,6 @@ static void reselect(struct AdapterCtlBlk *acb)
 		}
 	}
 	/* Read Reselected Target Id and LUN */
-	if (!(rsel_tar_lun_id & (IDENTIFY_BASE << 8)))
 	id = rsel_tar_lun_id & 0xff;
 	lun = (rsel_tar_lun_id >> 8) & 7;
 	dcb = find_dcb(acb, id, lun);
