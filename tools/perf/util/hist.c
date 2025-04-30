@@ -354,6 +354,7 @@ static int hists__update_mem_stat(struct hists *hists, struct hist_entry *he,
 
 		assert(0 <= idx && idx < MEM_STAT_LEN);
 		he->mem_stat[i].entries[idx] += period;
+		hists->mem_stat_total[i].entries[idx] += period;
 	}
 	return 0;
 }
@@ -3054,6 +3055,7 @@ static void hists_evsel__exit(struct evsel *evsel)
 
 	hists__delete_all_entries(hists);
 	zfree(&hists->mem_stat_types);
+	zfree(&hists->mem_stat_total);
 
 	list_for_each_entry_safe(node, tmp, &hists->hpp_formats, list) {
 		perf_hpp_list__for_each_format_safe(&node->hpp, fmt, pos) {

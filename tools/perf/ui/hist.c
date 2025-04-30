@@ -178,6 +178,9 @@ int hpp__fmt_mem_stat(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *
 	for (int i = 0; i < MEM_STAT_LEN; i++) {
 		u64 val = he->mem_stat[mem_stat_idx].entries[i];
 
+		if (hists->mem_stat_total[mem_stat_idx].entries[i] == 0)
+			continue;
+
 		ret += hpp__call_print_fn(hpp, print_fn, fmtstr, 100.0 * val / total);
 	}
 
@@ -405,12 +408,31 @@ static int hpp__header_mem_stat_fn(struct perf_hpp_fmt *fmt, struct perf_hpp *hp
 	int ret = 0;
 	int len;
 	enum mem_stat_type mst = hpp__mem_stat_type(fmt);
+	int mem_stat_idx = -1;
 
-	(void)hists;
+	for (int i = 0; i < hists->nr_mem_stats; i++) {
+		if (hists->mem_stat_types[i] == mst) {
+			mem_stat_idx = i;
+			break;
+		}
+	}
+	assert(mem_stat_idx != -1);
+
 	if (line == 0) {
 		int left, right;
 
-		len = fmt->len;
+		len = 0;
+		/* update fmt->len for acutally used columns only */
+		for (int i = 0; i < MEM_STAT_LEN; i++) {
+			if (hists->mem_stat_total[mem_stat_idx].entries[i])
+				len += MEM_STAT_PRINT_LEN;
+		}
+		fmt->len = len;
+
+		/* print header directly if single column only */
+		if (len == MEM_STAT_PRINT_LEN)
+			return scnprintf(hpp->buf, hpp->size, "%*s", len, fmt->name);
+
 		left = (len - strlen(fmt->name)) / 2 - 1;
 		right = len - left - strlen(fmt->name) - 2;
 
@@ -423,9 +445,13 @@ static int hpp__header_mem_stat_fn(struct perf_hpp_fmt *fmt, struct perf_hpp *hp
 				 left, graph_dotted_line, fmt->name, right, graph_dotted_line);
 	}
 
+
 	len = hpp->size;
 	for (int i = 0; i < MEM_STAT_LEN; i++) {
 		int printed;
+
+		if (hists->mem_stat_total[mem_stat_idx].entries[i] == 0)
+			continue;
 
 		printed = scnprintf(buf, len, "%*s", MEM_STAT_PRINT_LEN,
 				    mem_stat_name(mst, i));
@@ -1212,6 +1238,11 @@ int perf_hpp__alloc_mem_stats(struct perf_hpp_list *list, struct evlist *evlist)
 		hists->mem_stat_types = calloc(nr_mem_stats,
 					       sizeof(*hists->mem_stat_types));
 		if (hists->mem_stat_types == NULL)
+			return -ENOMEM;
+
+		hists->mem_stat_total = calloc(nr_mem_stats,
+					       sizeof(*hists->mem_stat_total));
+		if (hists->mem_stat_total == NULL)
 			return -ENOMEM;
 
 		memcpy(hists->mem_stat_types, mst, nr_mem_stats * sizeof(*mst));

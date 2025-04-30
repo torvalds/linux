@@ -135,6 +135,7 @@ struct hists {
 	int			nr_hpp_node;
 	int			nr_mem_stats;
 	enum mem_stat_type	*mem_stat_types;
+	struct he_mem_stat	*mem_stat_total;
 };
 
 #define hists__has(__h, __f) (__h)->hpp_list->__f
