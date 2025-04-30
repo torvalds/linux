@@ -9,6 +9,9 @@
 
 #include <sound/asound.h>
 
+#define TASDEVICE_CALIBRATION_DATA_NAME	L"CALI_DATA"
+#define TASDEV_CALIB_N			5
+
 /*
  * No standard control callbacks for SNDRV_CTL_ELEM_IFACE_CARD
  * Define two controls, one is Volume control callbacks, the other is

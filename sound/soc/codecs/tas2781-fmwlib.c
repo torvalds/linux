@@ -803,8 +803,13 @@ static int tasdevice_process_block(void *context, unsigned char *data,
 		chn = idx - 1;
 		chnend = idx;
 	} else {
-		chn = 0;
-		chnend = tas_priv->ndev;
+		if (tas_priv->isspi) {
+			chn = tas_priv->index;
+			chnend = chn + 1;
+		} else {
+			chn = 0;
+			chnend = tas_priv->ndev;
+		}
 	}
 
 	for (; chn < chnend; chn++) {
@@ -896,7 +901,7 @@ static int tasdevice_process_block(void *context, unsigned char *data,
 				is_err = true;
 				break;
 			}
-			rc = tasdevice_dev_update_bits(tas_priv, chn,
+			rc = tas_priv->update_bits(tas_priv, chn,
 				TASDEVICE_REG(data[subblk_offset + 2],
 				data[subblk_offset + 3],
 				data[subblk_offset + 4]),
@@ -1461,7 +1466,7 @@ static int tasdev_multibytes_chksum(struct tasdevice_priv *tasdevice,
 		goto end;
 	}
 
-	ret = tasdevice_dev_bulk_read(tasdevice, chn,
+	ret = tasdevice->dev_bulk_read(tasdevice, chn,
 		TASDEVICE_REG(book, page, crc_data.offset),
 		nBuf1, crc_data.len);
 	if (ret < 0)
@@ -1511,7 +1516,7 @@ static int do_singlereg_checksum(struct tasdevice_priv *tasdevice,
 	in = check_yram(&crc_data, book, page, reg, 1);
 	if (!in)
 		goto end;
-	ret = tasdevice_dev_read(tasdevice, chl,
+	ret = tasdevice->dev_read(tasdevice, chl,
 		TASDEVICE_REG(book, page, reg), &nData1);
 	if (ret < 0)
 		goto end;
@@ -1615,7 +1620,7 @@ static int tasdev_block_chksum(struct tasdevice_priv *tas_priv,
 	unsigned int nr_value;
 	int ret;
 
-	ret = tasdevice_dev_read(tas_priv, chn, TASDEVICE_CHECKSUM_REG,
+	ret = tas_priv->dev_read(tas_priv, chn, TASDEVICE_CHECKSUM_REG,
 		&nr_value);
 	if (ret < 0) {
 		dev_err(tas_priv->dev, "%s: Chn %d\n", __func__, chn);

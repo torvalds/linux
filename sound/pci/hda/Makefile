@@ -39,7 +39,7 @@ snd-hda-scodec-cs35l56-i2c-y :=	cs35l56_hda_i2c.o
 snd-hda-scodec-cs35l56-spi-y :=	cs35l56_hda_spi.o
 snd-hda-scodec-component-y :=	hda_component.o
 snd-hda-scodec-tas2781-i2c-y :=	tas2781_hda_i2c.o
-snd-hda-scodec-tas2781-spi-y :=	tas2781_hda_spi.o tas2781_spi_fwlib.o
+snd-hda-scodec-tas2781-spi-y :=	tas2781_hda_spi.o
 
 # common driver
 obj-$(CONFIG_SND_HDA) := snd-hda-codec.o
