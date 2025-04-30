@@ -86,13 +86,16 @@ Domain statistics
 -----------------
 One of these is produced per domain for each cpu described. (Note that if
 CONFIG_SMP is not defined, *no* domains are utilized and these lines
-will not appear in the output. <name> is an extension to the domain field
-that prints the name of the corresponding sched domain. It can appear in
-schedstat version 17 and above.
+will not appear in the output.)
 
 domain<N> <name> <cpumask> 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45
 
-The first field is a bit mask indicating what cpus this domain operates over.
+The <name> field prints the name of the sched domain and is only supported
+with schedstat version >= 17. On previous versions, <cpumask> is the first
+field.
+
+The <cpumask> field is a bit mask indicating what cpus this domain operates
+over.
 
 The next 33 are a variety of sched_balance_rq() statistics in grouped into types
 of idleness (busy, idle and newly idle):
@@ -103,12 +106,13 @@ of idleness (busy, idle and newly idle):
         load did not require balancing when busy
     3)  # of times in this domain sched_balance_rq() tried to move one or
         more tasks and failed, when the cpu was busy
-    4)  Total imbalance in load when the cpu was busy
-    5)  Total imbalance in utilization when the cpu was busy
-    6)  Total imbalance in number of tasks when the cpu was busy
-    7)  Total imbalance due to misfit tasks when the cpu was busy
-    8)  # of times in this domain pull_task() was called when busy
-    9)  # of times in this domain pull_task() was called even though the
+    4)  Total imbalance in load in this domain when the cpu was busy
+    5)  Total imbalance in utilization in this domain when the cpu was busy
+    6)  Total imbalance in number of tasks in this domain when the cpu was busy
+    7)  Total imbalance due to misfit tasks in this domain when the cpu was
+        busy
+    8)  # of times in this domain detach_task() was called when busy
+    9)  # of times in this domain detach_task() was called even though the
         target task was cache-hot when busy
     10) # of times in this domain sched_balance_rq() was called but did not
         find a busier queue while the cpu was busy
@@ -121,13 +125,14 @@ of idleness (busy, idle and newly idle):
         the load did not require balancing when the cpu was idle
     14) # of times in this domain sched_balance_rq() tried to move one or
         more tasks and failed, when the cpu was idle
-    15) Total imbalance in load when the cpu was idle
-    16) Total imbalance in utilization when the cpu was idle
-    17) Total imbalance in number of tasks when the cpu was idle
-    18) Total imbalance due to misfit tasks when the cpu was idle
-    19) # of times in this domain pull_task() was called when the cpu
+    15) Total imbalance in load in this domain when the cpu was idle
+    16) Total imbalance in utilization in this domain when the cpu was idle
+    17) Total imbalance in number of tasks in this domain when the cpu was idle
+    18) Total imbalance due to misfit tasks in this domain when the cpu was
+        idle
+    19) # of times in this domain detach_task() was called when the cpu
         was idle
-    20) # of times in this domain pull_task() was called even though
+    20) # of times in this domain detach_task() was called even though
         the target task was cache-hot when idle
     21) # of times in this domain sched_balance_rq() was called but did
         not find a busier queue while the cpu was idle
@@ -140,12 +145,16 @@ of idleness (busy, idle and newly idle):
         load did not require balancing when the cpu was just becoming idle
     25) # of times in this domain sched_balance_rq() tried to move one or more
         tasks and failed, when the cpu was just becoming idle
-    26) Total imbalance in load when the cpu was just becoming idle
-    27) Total imbalance in utilization when the cpu was just becoming idle
-    28) Total imbalance in number of tasks when the cpu was just becoming idle
-    29) Total imbalance due to misfit tasks when the cpu was just becoming idle
-    30) # of times in this domain pull_task() was called when newly idle
-    31) # of times in this domain pull_task() was called even though the
+    26) Total imbalance in load in this domain when the cpu was just becoming
+        idle
+    27) Total imbalance in utilization in this domain when the cpu was just
+        becoming idle
+    28) Total imbalance in number of tasks in this domain when the cpu was just
+        becoming idle
+    29) Total imbalance due to misfit tasks in this domain when the cpu was
+        just becoming idle
+    30) # of times in this domain detach_task() was called when newly idle
+    31) # of times in this domain detach_task() was called even though the
         target task was cache-hot when just becoming idle
     32) # of times in this domain sched_balance_rq() was called but did not
         find a busier queue while the cpu was just becoming idle
