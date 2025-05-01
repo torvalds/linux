@@ -26,8 +26,6 @@ static void led_test_class_register(struct kunit *test)
 
 	ret = devm_led_classdev_register(dev, cdev);
 	KUNIT_ASSERT_EQ(test, ret, 0);
-	if (ret)
-		return;
 }
 
 static struct kunit_case led_test_cases[] = {
