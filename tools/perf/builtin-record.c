@@ -2569,6 +2569,13 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		evlist__enable(rec->evlist);
 
 	/*
+	 * offcpu-time does not call execve, so enable_on_exe wouldn't work
+	 * when recording a workload, do it manually
+	 */
+	if (rec->off_cpu)
+		evlist__enable_evsel(rec->evlist, (char *)OFFCPU_EVENT);
+
+	/*
 	 * Let the child rip
 	 */
 	if (forks) {
