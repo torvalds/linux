@@ -47,10 +47,6 @@ int bch2_create_trans(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	/* Inherit casefold state from parent. */
-	if (S_ISDIR(mode))
-		new_inode->bi_flags |= dir_u->bi_flags & BCH_INODE_casefolded;
-
 	if (!(flags & BCH_CREATE_SNAPSHOT)) {
 		/* Normal create path - allocate a new inode: */
 		bch2_inode_init_late(new_inode, now, uid, gid, mode, rdev, dir_u);

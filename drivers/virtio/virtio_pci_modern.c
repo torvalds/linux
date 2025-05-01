@@ -247,7 +247,7 @@ virtio_pci_admin_cmd_dev_parts_objects_enable(struct virtio_device *virtio_dev)
 	sg_init_one(&data_sg, get_data, sizeof(*get_data));
 	sg_init_one(&result_sg, result, sizeof(*result));
 	cmd.opcode = cpu_to_le16(VIRTIO_ADMIN_CMD_DEVICE_CAP_GET);
-	cmd.group_type = cpu_to_le16(VIRTIO_ADMIN_GROUP_TYPE_SRIOV);
+	cmd.group_type = cpu_to_le16(VIRTIO_ADMIN_GROUP_TYPE_SELF);
 	cmd.data_sg = &data_sg;
 	cmd.result_sg = &result_sg;
 	ret = vp_modern_admin_cmd_exec(virtio_dev, &cmd);
@@ -305,7 +305,7 @@ static void virtio_pci_admin_cmd_cap_init(struct virtio_device *virtio_dev)
 
 	sg_init_one(&result_sg, data, sizeof(*data));
 	cmd.opcode = cpu_to_le16(VIRTIO_ADMIN_CMD_CAP_ID_LIST_QUERY);
-	cmd.group_type = cpu_to_le16(VIRTIO_ADMIN_GROUP_TYPE_SRIOV);
+	cmd.group_type = cpu_to_le16(VIRTIO_ADMIN_GROUP_TYPE_SELF);
 	cmd.result_sg = &result_sg;
 
 	ret = vp_modern_admin_cmd_exec(virtio_dev, &cmd);

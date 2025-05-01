@@ -95,7 +95,7 @@ void  __init kvm_arm_target_impl_cpu_init(void)
 
 	for (i = 0; i < max_cpus; i++) {
 		arm_smccc_1_1_invoke(ARM_SMCCC_VENDOR_HYP_KVM_DISCOVER_IMPL_CPUS_FUNC_ID,
-				     i, &res);
+				     i, 0, 0, &res);
 		if (res.a0 != SMCCC_RET_SUCCESS) {
 			pr_warn("Discovering target implementation CPUs failed\n");
 			goto mem_free;
@@ -103,7 +103,7 @@ void  __init kvm_arm_target_impl_cpu_init(void)
 		target[i].midr = res.a1;
 		target[i].revidr = res.a2;
 		target[i].aidr = res.a3;
-	};
+	}
 
 	if (!cpu_errata_set_target_impl(max_cpus, target)) {
 		pr_warn("Failed to set target implementation CPUs\n");

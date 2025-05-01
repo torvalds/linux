@@ -229,7 +229,6 @@ int get_umc_info_mi300(void)
  * Additionally, the PC and Bank bits may be hashed. This must be accounted for before
  * reconstructing the normalized address.
  */
-#define MI300_UMC_MCA_COL	GENMASK(5, 1)
 #define MI300_UMC_MCA_BANK	GENMASK(9, 6)
 #define MI300_UMC_MCA_ROW	GENMASK(24, 10)
 #define MI300_UMC_MCA_PC	BIT(25)
@@ -320,7 +319,7 @@ static unsigned long convert_dram_to_norm_addr_mi300(unsigned long addr)
  * See amd_atl::convert_dram_to_norm_addr_mi300() for MI300 address formats.
  */
 #define MI300_NUM_COL		BIT(HWEIGHT(MI300_UMC_MCA_COL))
-static void retire_row_mi300(struct atl_err *a_err)
+static void _retire_row_mi300(struct atl_err *a_err)
 {
 	unsigned long addr;
 	struct page *p;
@@ -349,6 +348,22 @@ static void retire_row_mi300(struct atl_err *a_err)
 
 		memory_failure(addr, 0);
 	}
+}
+
+/*
+ * In addition to the column bits, the row[13] bit should also be included when
+ * calculating addresses affected by a physical row.
+ *
+ * Instead of running through another loop over a single bit, just run through
+ * the column bits twice and flip the row[13] bit in-between.
+ *
+ * See MI300_UMC_MCA_ROW for the row bits in MCA_ADDR_UMC value.
+ */
+static void retire_row_mi300(struct atl_err *a_err)
+{
+	_retire_row_mi300(a_err);
+	a_err->addr ^= MI300_UMC_MCA_ROW13;
+	_retire_row_mi300(a_err);
 }
 
 void amd_retire_dram_row(struct atl_err *a_err)

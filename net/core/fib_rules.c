@@ -257,6 +257,24 @@ static int nla_put_port_range(struct sk_buff *skb, int attrtype,
 	return nla_put(skb, attrtype, sizeof(*range), range);
 }
 
+static bool fib_rule_iif_match(const struct fib_rule *rule, int iifindex,
+			       const struct flowi *fl)
+{
+	u8 iif_is_l3_master = READ_ONCE(rule->iif_is_l3_master);
+
+	return iif_is_l3_master ? l3mdev_fib_rule_iif_match(fl, iifindex) :
+				  fl->flowi_iif == iifindex;
+}
+
+static bool fib_rule_oif_match(const struct fib_rule *rule, int oifindex,
+			       const struct flowi *fl)
+{
+	u8 oif_is_l3_master = READ_ONCE(rule->oif_is_l3_master);
+
+	return oif_is_l3_master ? l3mdev_fib_rule_oif_match(fl, oifindex) :
+				  fl->flowi_oif == oifindex;
+}
+
 static int fib_rule_match(struct fib_rule *rule, struct fib_rules_ops *ops,
 			  struct flowi *fl, int flags,
 			  struct fib_lookup_arg *arg)
@@ -264,11 +282,11 @@ static int fib_rule_match(struct fib_rule *rule, struct fib_rules_ops *ops,
 	int iifindex, oifindex, ret = 0;
 
 	iifindex = READ_ONCE(rule->iifindex);
-	if (iifindex && (iifindex != fl->flowi_iif))
+	if (iifindex && !fib_rule_iif_match(rule, iifindex, fl))
 		goto out;
 
 	oifindex = READ_ONCE(rule->oifindex);
-	if (oifindex && (oifindex != fl->flowi_oif))
+	if (oifindex && !fib_rule_oif_match(rule, oifindex, fl))
 		goto out;
 
 	if ((rule->mark ^ fl->flowi_mark) & rule->mark_mask)
@@ -736,16 +754,20 @@ static int fib_nl2rule_rtnl(struct fib_rule *nlrule,
 		struct net_device *dev;
 
 		dev = __dev_get_by_name(nlrule->fr_net, nlrule->iifname);
-		if (dev)
+		if (dev) {
 			nlrule->iifindex = dev->ifindex;
+			nlrule->iif_is_l3_master = netif_is_l3_master(dev);
+		}
 	}
 
 	if (tb[FRA_OIFNAME]) {
 		struct net_device *dev;
 
 		dev = __dev_get_by_name(nlrule->fr_net, nlrule->oifname);
-		if (dev)
+		if (dev) {
 			nlrule->oifindex = dev->ifindex;
+			nlrule->oif_is_l3_master = netif_is_l3_master(dev);
+		}
 	}
 
 	return 0;
@@ -1336,11 +1358,17 @@ static void attach_rules(struct list_head *rules, struct net_device *dev)
 
 	list_for_each_entry(rule, rules, list) {
 		if (rule->iifindex == -1 &&
-		    strcmp(dev->name, rule->iifname) == 0)
+		    strcmp(dev->name, rule->iifname) == 0) {
 			WRITE_ONCE(rule->iifindex, dev->ifindex);
+			WRITE_ONCE(rule->iif_is_l3_master,
+				   netif_is_l3_master(dev));
+		}
 		if (rule->oifindex == -1 &&
-		    strcmp(dev->name, rule->oifname) == 0)
+		    strcmp(dev->name, rule->oifname) == 0) {
 			WRITE_ONCE(rule->oifindex, dev->ifindex);
+			WRITE_ONCE(rule->oif_is_l3_master,
+				   netif_is_l3_master(dev));
+		}
 	}
 }
 
@@ -1349,10 +1377,14 @@ static void detach_rules(struct list_head *rules, struct net_device *dev)
 	struct fib_rule *rule;
 
 	list_for_each_entry(rule, rules, list) {
-		if (rule->iifindex == dev->ifindex)
+		if (rule->iifindex == dev->ifindex) {
 			WRITE_ONCE(rule->iifindex, -1);
-		if (rule->oifindex == dev->ifindex)
+			WRITE_ONCE(rule->iif_is_l3_master, false);
+		}
+		if (rule->oifindex == dev->ifindex) {
 			WRITE_ONCE(rule->oifindex, -1);
+			WRITE_ONCE(rule->oif_is_l3_master, false);
+		}
 	}
 }
 

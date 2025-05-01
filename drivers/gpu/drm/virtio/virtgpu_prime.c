@@ -321,6 +321,7 @@ struct drm_gem_object *virtgpu_gem_prime_import(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	obj = &bo->base.base;
+	obj->resv = buf->resv;
 	obj->funcs = &virtgpu_gem_dma_buf_funcs;
 	drm_gem_private_object_init(dev, obj, buf->size);
 
