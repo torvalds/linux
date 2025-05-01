@@ -90,15 +90,6 @@ examples:
             };
     };
 
-    pwmleds {
-            compatible = "pwm-leds";
-
-            led-1 {
-                    pwms = <&iqs620a_pwm 0 1000000>;
-                    max-brightness = <255>;
-            };
-    };
-
   - |
     /* Single inductive button with bipolar dock/tablet-mode switch. */
     #include <dt-bindings/input/input.h>
