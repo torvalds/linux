@@ -5,6 +5,7 @@
 #include <linux/types.h>
 
 #include <asm/hardirq.h>
+#include <asm/msr.h>
 
 #include "../perf_event.h"
 

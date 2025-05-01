@@ -28,6 +28,7 @@
 #include <asm/hypervisor.h>
 #include <asm/mshyperv.h>
 #include <asm/apic.h>
+#include <asm/msr.h>
 
 #include <asm/trace/hyperv.h>
 

@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
+#include <asm/msr.h>
 #include <uapi/linux/isst_if.h>
 
 #include "isst_tpmi_core.h"

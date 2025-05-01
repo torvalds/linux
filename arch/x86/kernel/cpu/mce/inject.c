@@ -28,6 +28,7 @@
 #include <asm/apic.h>
 #include <asm/irq_vectors.h>
 #include <asm/mce.h>
+#include <asm/msr.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
 

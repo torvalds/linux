@@ -56,6 +56,7 @@
 #include <asm/intel-family.h>
 #include <asm/mwait.h>
 #include <asm/spec-ctrl.h>
+#include <asm/msr.h>
 #include <asm/tsc.h>
 #include <asm/fpu/api.h>
 #include <asm/smp.h>

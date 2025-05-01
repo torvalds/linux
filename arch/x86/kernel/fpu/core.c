@@ -11,6 +11,7 @@
 #include <asm/fpu/sched.h>
 #include <asm/fpu/signal.h>
 #include <asm/fpu/types.h>
+#include <asm/msr.h>
 #include <asm/traps.h>
 #include <asm/irq_regs.h>
 

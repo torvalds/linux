@@ -59,6 +59,7 @@
 #include <asm/time.h>
 #include <asm/smp.h>
 #include <asm/mce.h>
+#include <asm/msr.h>
 #include <asm/tsc.h>
 #include <asm/hypervisor.h>
 #include <asm/cpu_device_id.h>

@@ -3,6 +3,7 @@
 #include <linux/types.h>
 
 #include <asm/cpu_device_id.h>
+#include <asm/msr.h>
 
 #include "../perf_event.h"
 

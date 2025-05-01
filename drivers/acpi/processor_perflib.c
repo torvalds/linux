@@ -20,6 +20,7 @@
 #include <acpi/processor.h>
 #ifdef CONFIG_X86
 #include <asm/cpufeature.h>
+#include <asm/msr.h>
 #endif
 
 #define ACPI_PROCESSOR_FILE_PERFORMANCE	"performance"

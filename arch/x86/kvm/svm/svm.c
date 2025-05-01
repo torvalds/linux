@@ -31,6 +31,7 @@
 #include <linux/string_choices.h>
 
 #include <asm/apic.h>
+#include <asm/msr.h>
 #include <asm/perf_event.h>
 #include <asm/tlbflush.h>
 #include <asm/desc.h>

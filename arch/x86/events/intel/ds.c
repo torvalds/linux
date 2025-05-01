@@ -10,6 +10,7 @@
 #include <asm/tlbflush.h>
 #include <asm/insn.h>
 #include <asm/io.h>
+#include <asm/msr.h>
 #include <asm/timer.h>
 
 #include "../perf_event.h"

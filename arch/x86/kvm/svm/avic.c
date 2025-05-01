@@ -20,6 +20,7 @@
 #include <linux/kvm_host.h>
 
 #include <asm/irq_remapping.h>
+#include <asm/msr.h>
 
 #include "trace.h"
 #include "lapic.h"

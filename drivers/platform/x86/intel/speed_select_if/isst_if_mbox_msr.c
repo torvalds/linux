@@ -18,6 +18,7 @@
 #include <uapi/linux/isst_if.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
+#include <asm/msr.h>
 
 #include "isst_if_common.h"
 

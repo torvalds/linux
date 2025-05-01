@@ -32,6 +32,7 @@
 
 #include <asm/apic.h>
 #include <asm/stacktrace.h>
+#include <asm/msr.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
 #include <asm/alternative.h>

@@ -31,6 +31,8 @@
 
 #include <acpi/cppc_acpi.h>
 
+#include <asm/msr.h>
+
 #include "amd-pstate.h"
 
 

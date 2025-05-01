@@ -13,6 +13,7 @@
 #include <asm/cpu_device_id.h>
 #include <asm/hardirq.h>
 #include <asm/apic.h>
+#include <asm/msr.h>
 
 #include "../perf_event.h"
 

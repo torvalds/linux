@@ -11,6 +11,7 @@
 #include <linux/page-flags.h>
 #include <linux/mm.h>
 #include <linux/jiffies.h>
+#include <asm/msr.h>
 #include "agp.h"
 
 /* NVIDIA registers */

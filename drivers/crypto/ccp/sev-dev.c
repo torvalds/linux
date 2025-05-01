@@ -33,6 +33,7 @@
 #include <asm/cacheflush.h>
 #include <asm/e820/types.h>
 #include <asm/sev.h>
+#include <asm/msr.h>
 
 #include "psp-dev.h"
 #include "sev-dev.h"

@@ -3,6 +3,7 @@
 
 #include <asm/apic.h>
 #include <asm/memtype.h>
+#include <asm/msr.h>
 #include <asm/processor.h>
 
 #include "cpu.h"

@@ -52,6 +52,7 @@
 #include <asm/unwind.h>
 #include <asm/tdx.h>
 #include <asm/mmu_context.h>
+#include <asm/msr.h>
 #include <asm/shstk.h>
 
 #include "process.h"

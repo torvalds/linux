@@ -30,6 +30,7 @@
 #include <asm/cpuid.h>
 #include <asm/cmdline.h>
 #include <asm/iommu.h>
+#include <asm/msr.h>
 
 /*
  * The RMP entry information as returned by the RMPREAD instruction.

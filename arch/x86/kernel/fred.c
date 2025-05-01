@@ -3,6 +3,7 @@
 
 #include <asm/desc.h>
 #include <asm/fred.h>
+#include <asm/msr.h>
 #include <asm/tlbflush.h>
 #include <asm/traps.h>
 

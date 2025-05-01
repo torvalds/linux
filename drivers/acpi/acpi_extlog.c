@@ -15,6 +15,7 @@
 #include <acpi/ghes.h>
 #include <asm/cpu.h>
 #include <asm/mce.h>
+#include <asm/msr.h>
 
 #include "apei/apei-internal.h"
 #include <ras/ras_event.h>

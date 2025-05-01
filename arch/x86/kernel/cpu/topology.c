@@ -30,6 +30,7 @@
 #include <asm/hypervisor.h>
 #include <asm/io_apic.h>
 #include <asm/mpspec.h>
+#include <asm/msr.h>
 #include <asm/smp.h>
 
 #include "cpu.h"

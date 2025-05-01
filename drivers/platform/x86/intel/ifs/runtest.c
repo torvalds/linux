@@ -7,6 +7,7 @@
 #include <linux/nmi.h>
 #include <linux/slab.h>
 #include <linux/stop_machine.h>
+#include <asm/msr.h>
 
 #include "ifs.h"
 

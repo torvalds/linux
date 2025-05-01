@@ -30,6 +30,7 @@
 #include <asm/reboot.h>
 #include <asm/nmi.h>
 #include <clocksource/hyperv_timer.h>
+#include <asm/msr.h>
 #include <asm/numa.h>
 #include <asm/svm.h>
 

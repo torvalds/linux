@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/thermal.h>
 #include <asm/cpu_device_id.h>
+#include <asm/msr.h>
 
 #define TCC_PROGRAMMABLE	BIT(30)
 #define TCC_LOCKED		BIT(31)

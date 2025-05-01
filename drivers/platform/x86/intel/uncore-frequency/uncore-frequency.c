@@ -21,6 +21,7 @@
 #include <linux/suspend.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
+#include <asm/msr.h>
 
 #include "uncore-frequency-common.h"
 

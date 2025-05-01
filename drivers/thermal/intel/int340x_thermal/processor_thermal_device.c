@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/thermal.h>
+#include <asm/msr.h>
 #include "int340x_thermal_zone.h"
 #include "processor_thermal_device.h"
 #include "../intel_soc_dts_iosf.h"

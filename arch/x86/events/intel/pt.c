@@ -24,6 +24,7 @@
 #include <asm/io.h>
 #include <asm/intel_pt.h>
 #include <asm/cpu_device_id.h>
+#include <asm/msr.h>
 
 #include "../perf_event.h"
 #include "pt.h"

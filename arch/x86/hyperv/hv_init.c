@@ -21,6 +21,7 @@
 #include <asm/hypervisor.h>
 #include <hyperv/hvhdk.h>
 #include <asm/mshyperv.h>
+#include <asm/msr.h>
 #include <asm/idtentry.h>
 #include <asm/set_memory.h>
 #include <linux/kexec.h>

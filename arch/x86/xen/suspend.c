@@ -13,6 +13,7 @@
 #include <asm/xen/hypercall.h>
 #include <asm/xen/page.h>
 #include <asm/fixmap.h>
+#include <asm/msr.h>
 
 #include "xen-ops.h"
 

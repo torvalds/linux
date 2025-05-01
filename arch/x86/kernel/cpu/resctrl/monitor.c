@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 
 #include <asm/cpu_device_id.h>
+#include <asm/msr.h>
 #include <asm/resctrl.h>
 
 #include "internal.h"

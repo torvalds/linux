@@ -68,6 +68,7 @@
 #include <asm/vdso.h>
 #include <asm/tdx.h>
 #include <asm/cfi.h>
+#include <asm/msr.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/x86_init.h>

@@ -2,6 +2,7 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 
+#include <asm/msr.h>
 #include <asm/xen/hypercall.h>
 #include <xen/xen.h>
 #include <xen/page.h>

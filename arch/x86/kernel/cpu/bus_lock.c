@@ -10,6 +10,7 @@
 #include <asm/cmdline.h>
 #include <asm/traps.h>
 #include <asm/cpu.h>
+#include <asm/msr.h>
 
 enum split_lock_detect_state {
 	sld_off = 0,

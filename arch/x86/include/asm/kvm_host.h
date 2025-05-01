@@ -34,6 +34,7 @@
 #include <asm/desc.h>
 #include <asm/mtrr.h>
 #include <asm/msr-index.h>
+#include <asm/msr.h>
 #include <asm/asm.h>
 #include <asm/irq_remapping.h>
 #include <asm/kvm_page_track.h>

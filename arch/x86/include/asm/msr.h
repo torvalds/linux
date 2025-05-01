@@ -12,6 +12,7 @@
 #include <uapi/asm/msr.h>
 #include <asm/shared/msr.h>
 
+#include <linux/types.h>
 #include <linux/percpu.h>
 
 struct msr_info {

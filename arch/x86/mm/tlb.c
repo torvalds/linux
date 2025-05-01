@@ -19,6 +19,7 @@
 #include <asm/cache.h>
 #include <asm/cacheflush.h>
 #include <asm/apic.h>
+#include <asm/msr.h>
 #include <asm/perf_event.h>
 #include <asm/tlb.h>
 

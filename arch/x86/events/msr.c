@@ -3,6 +3,8 @@
 #include <linux/sysfs.h>
 #include <linux/nospec.h>
 #include <asm/cpu_device_id.h>
+#include <asm/msr.h>
+
 #include "probe.h"
 
 enum perf_msr_id {

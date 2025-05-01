@@ -16,6 +16,8 @@
 #include <linux/slab.h>
 #include <linux/amd-iommu.h>
 
+#include <asm/msr.h>
+
 #include "../perf_event.h"
 #include "iommu.h"
 

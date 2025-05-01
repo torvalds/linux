@@ -15,6 +15,7 @@
 #include <asm/cpufeature.h>
 #include <asm/hardirq.h>
 #include <asm/apic.h>
+#include <asm/msr.h>
 
 #include "../perf_event.h"
 

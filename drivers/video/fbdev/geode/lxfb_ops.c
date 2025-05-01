@@ -11,6 +11,7 @@
 #include <linux/delay.h>
 #include <linux/cs5535.h>
 
+#include <asm/msr.h>
 #include "lxfb.h"
 
 /* TODO

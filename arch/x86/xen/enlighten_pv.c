@@ -61,6 +61,7 @@
 #include <asm/processor.h>
 #include <asm/proto.h>
 #include <asm/msr-index.h>
+#include <asm/msr.h>
 #include <asm/traps.h>
 #include <asm/setup.h>
 #include <asm/desc.h>

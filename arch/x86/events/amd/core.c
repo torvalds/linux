@@ -9,6 +9,7 @@
 #include <linux/jiffies.h>
 #include <asm/apicdef.h>
 #include <asm/apic.h>
+#include <asm/msr.h>
 #include <asm/nmi.h>
 
 #include "../perf_event.h"

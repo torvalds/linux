@@ -27,6 +27,7 @@
 #include <asm/mmu_context.h>
 #include <asm/cpu_device_id.h>
 #include <asm/microcode.h>
+#include <asm/msr.h>
 #include <asm/fred.h>
 
 #ifdef CONFIG_X86_32
