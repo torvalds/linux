@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "bbpos.h"
 #include "bkey_buf.h"
 #include "btree_cache.h"
 #include "btree_key_cache.h"
@@ -1346,12 +1347,6 @@ int bch2_snapshot_node_create(struct btree_trans *trans, u32 parent,
  * that key to snapshot leaf nodes, where we can mutate it
  */
 
-struct snapshot_interior_delete {
-	u32	id;
-	u32	live_child;
-};
-typedef DARRAY(struct snapshot_interior_delete) interior_delete_list;
-
 static inline u32 interior_delete_has_id(interior_delete_list *l, u32 id)
 {
 	darray_for_each(*l, i)
@@ -1385,28 +1380,28 @@ static unsigned __live_child(struct snapshot_table *t, u32 id,
 	return 0;
 }
 
-static unsigned live_child(struct bch_fs *c, u32 id,
-			   snapshot_id_list *delete_leaves,
-			   interior_delete_list *delete_interior)
+static unsigned live_child(struct bch_fs *c, u32 id)
 {
+	struct snapshot_delete *d = &c->snapshot_delete;
+
 	rcu_read_lock();
 	u32 ret = __live_child(rcu_dereference(c->snapshots), id,
-			       delete_leaves, delete_interior);
+			       &d->delete_leaves, &d->delete_interior);
 	rcu_read_unlock();
 	return ret;
 }
 
 static int delete_dead_snapshots_process_key(struct btree_trans *trans,
 					     struct btree_iter *iter,
-					     struct bkey_s_c k,
-					     snapshot_id_list *delete_leaves,
-					     interior_delete_list *delete_interior)
+					     struct bkey_s_c k)
 {
-	if (snapshot_list_has_id(delete_leaves, k.k->p.snapshot))
+	struct snapshot_delete *d = &trans->c->snapshot_delete;
+
+	if (snapshot_list_has_id(&d->delete_leaves, k.k->p.snapshot))
 		return bch2_btree_delete_at(trans, iter,
 					    BTREE_UPDATE_internal_snapshot_node);
 
-	u32 live_child = interior_delete_has_id(delete_interior, k.k->p.snapshot);
+	u32 live_child = interior_delete_has_id(&d->delete_interior, k.k->p.snapshot);
 	if (live_child) {
 		struct bkey_i *new = bch2_bkey_make_mut_noupdate(trans, k);
 		int ret = PTR_ERR_OR_ZERO(new);
@@ -1442,44 +1437,46 @@ static int delete_dead_snapshots_process_key(struct btree_trans *trans,
  * it doesn't have child snapshot nodes - it's now redundant and we can mark it
  * as deleted.
  */
-static int check_should_delete_snapshot(struct btree_trans *trans, struct bkey_s_c k,
-					snapshot_id_list *delete_leaves,
-					interior_delete_list *delete_interior)
+static int check_should_delete_snapshot(struct btree_trans *trans, struct bkey_s_c k)
 {
 	if (k.k->type != KEY_TYPE_snapshot)
 		return 0;
 
 	struct bch_fs *c = trans->c;
+	struct snapshot_delete *d = &c->snapshot_delete;
 	struct bkey_s_c_snapshot s = bkey_s_c_to_snapshot(k);
 	unsigned live_children = 0;
+	int ret = 0;
 
 	if (BCH_SNAPSHOT_SUBVOL(s.v))
 		return 0;
 
+	mutex_lock(&d->progress_lock);
 	for (unsigned i = 0; i < 2; i++) {
 		u32 child = le32_to_cpu(s.v->children[i]);
 
 		live_children += child &&
-			!snapshot_list_has_id(delete_leaves, child);
+			!snapshot_list_has_id(&d->delete_leaves, child);
 	}
 
 	if (live_children == 0) {
-		return snapshot_list_add(c, delete_leaves, s.k->p.offset);
+		ret = snapshot_list_add(c, &d->delete_leaves, s.k->p.offset);
 	} else if (live_children == 1) {
-		struct snapshot_interior_delete d = {
+		struct snapshot_interior_delete n = {
 			.id		= s.k->p.offset,
-			.live_child	= live_child(c, s.k->p.offset, delete_leaves, delete_interior),
+			.live_child	= live_child(c, s.k->p.offset),
 		};
 
-		if (!d.live_child) {
-			bch_err(c, "error finding live child of snapshot %u", d.id);
-			return -EINVAL;
+		if (!n.live_child) {
+			bch_err(c, "error finding live child of snapshot %u", n.id);
+			ret = -EINVAL;
+		} else {
+			ret = darray_push(&d->delete_interior, n);
 		}
-
-		return darray_push(delete_interior, d);
-	} else {
-		return 0;
 	}
+	mutex_unlock(&d->progress_lock);
+
+	return ret;
 }
 
 static inline u32 bch2_snapshot_nth_parent_skip(struct bch_fs *c, u32 id, u32 n,
@@ -1555,39 +1552,48 @@ static int bch2_fix_child_of_deleted_snapshot(struct btree_trans *trans,
 	return bch2_trans_update(trans, iter, &s->k_i, 0);
 }
 
+static void bch2_snapshot_delete_nodes_to_text(struct printbuf *out, struct snapshot_delete *d)
+{
+	prt_printf(out, "deleting leaves");
+	darray_for_each(d->delete_leaves, i)
+		prt_printf(out, " %u", *i);
+	prt_newline(out);
+
+	prt_printf(out, "interior");
+	darray_for_each(d->delete_interior, i)
+		prt_printf(out, " %u->%u", i->id, i->live_child);
+	prt_newline(out);
+}
+
 int bch2_delete_dead_snapshots(struct bch_fs *c)
 {
 	if (!test_and_clear_bit(BCH_FS_need_delete_dead_snapshots, &c->flags))
 		return 0;
 
 	struct btree_trans *trans = bch2_trans_get(c);
-	snapshot_id_list delete_leaves = {};
-	interior_delete_list delete_interior = {};
+	struct snapshot_delete *d = &c->snapshot_delete;
 	int ret = 0;
 
 	/*
 	 * For every snapshot node: If we have no live children and it's not
 	 * pointed to by a subvolume, delete it:
 	 */
+	d->running = true;
+	d->pos = BBPOS_MIN;
+
 	ret = for_each_btree_key(trans, iter, BTREE_ID_snapshots, POS_MIN, 0, k,
-		check_should_delete_snapshot(trans, k, &delete_leaves, &delete_interior));
+		check_should_delete_snapshot(trans, k));
 	if (!bch2_err_matches(ret, EROFS))
 		bch_err_msg(c, ret, "walking snapshots");
 	if (ret)
 		goto err;
 
-	if (!delete_leaves.nr && !delete_interior.nr)
+	if (!d->delete_leaves.nr && !d->delete_interior.nr)
 		goto err;
 
 	{
 		struct printbuf buf = PRINTBUF;
-		prt_printf(&buf, "deleting leaves");
-		darray_for_each(delete_leaves, i)
-			prt_printf(&buf, " %u", *i);
-
-		prt_printf(&buf, " interior");
-		darray_for_each(delete_interior, i)
-			prt_printf(&buf, " %u->%u", i->id, i->live_child);
+		bch2_snapshot_delete_nodes_to_text(&buf, d);
 
 		ret = commit_do(trans, NULL, NULL, 0, bch2_trans_log_msg(trans, &buf));
 		printbuf_exit(&buf);
@@ -1595,19 +1601,21 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 			goto err;
 	}
 
-	for (unsigned btree = 0; btree < BTREE_ID_NR; btree++) {
+	for (d->pos.btree = 0; d->pos.btree < BTREE_ID_NR; d->pos.btree++) {
 		struct disk_reservation res = { 0 };
 
-		if (!btree_type_has_snapshots(btree))
+		d->pos.pos = POS_MIN;
+
+		if (!btree_type_has_snapshots(d->pos.btree))
 			continue;
 
 		ret = for_each_btree_key_commit(trans, iter,
-				btree, POS_MIN,
+				d->pos.btree, POS_MIN,
 				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
-				&res, NULL, BCH_TRANS_COMMIT_no_enospc,
-			delete_dead_snapshots_process_key(trans, &iter, k,
-							  &delete_leaves,
-							  &delete_interior));
+				&res, NULL, BCH_TRANS_COMMIT_no_enospc, ({
+			d->pos.pos = iter.pos;
+			delete_dead_snapshots_process_key(trans, &iter, k);
+		}));
 
 		bch2_disk_reservation_put(c, &res);
 
@@ -1617,7 +1625,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 			goto err;
 	}
 
-	darray_for_each(delete_leaves, i) {
+	darray_for_each(d->delete_leaves, i) {
 		ret = commit_do(trans, NULL, NULL, 0,
 			bch2_snapshot_node_delete(trans, *i));
 		if (!bch2_err_matches(ret, EROFS))
@@ -1634,11 +1642,11 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_snapshots, POS_MIN,
 				  BTREE_ITER_intent, k,
 				  NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-		bch2_fix_child_of_deleted_snapshot(trans, &iter, k, &delete_interior));
+		bch2_fix_child_of_deleted_snapshot(trans, &iter, k, &d->delete_interior));
 	if (ret)
 		goto err;
 
-	darray_for_each(delete_interior, i) {
+	darray_for_each(d->delete_interior, i) {
 		ret = commit_do(trans, NULL, NULL, 0,
 			bch2_snapshot_node_delete(trans, i->id));
 		if (!bch2_err_matches(ret, EROFS))
@@ -1647,8 +1655,11 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 			goto err;
 	}
 err:
-	darray_exit(&delete_interior);
-	darray_exit(&delete_leaves);
+	mutex_lock(&d->progress_lock);
+	darray_exit(&d->delete_interior);
+	darray_exit(&d->delete_leaves);
+	d->running = false;
+	mutex_unlock(&d->progress_lock);
 	bch2_trans_put(trans);
 	if (!bch2_err_matches(ret, EROFS))
 		bch_err_fn(c, ret);
@@ -1657,7 +1668,7 @@ err:
 
 void bch2_delete_dead_snapshots_work(struct work_struct *work)
 {
-	struct bch_fs *c = container_of(work, struct bch_fs, snapshot_delete_work);
+	struct bch_fs *c = container_of(work, struct bch_fs, snapshot_delete.work);
 
 	set_worker_desc("bcachefs-delete-dead-snapshots/%s", c->name);
 
@@ -1672,8 +1683,24 @@ void bch2_delete_dead_snapshots_async(struct bch_fs *c)
 
 	BUG_ON(!test_bit(BCH_FS_may_go_rw, &c->flags));
 
-	if (!queue_work(c->write_ref_wq, &c->snapshot_delete_work))
+	if (!queue_work(c->write_ref_wq, &c->snapshot_delete.work))
 		enumerated_ref_put(&c->writes, BCH_WRITE_REF_delete_dead_snapshots);
+}
+
+void bch2_snapshot_delete_status_to_text(struct printbuf *out, struct bch_fs *c)
+{
+	struct snapshot_delete *d = &c->snapshot_delete;
+
+	if (!d->running) {
+		prt_str(out, "(not running)");
+		return;
+	}
+
+	mutex_lock(&d->progress_lock);
+	bch2_snapshot_delete_nodes_to_text(out, d);
+
+	bch2_bbpos_to_text(out, d->pos);
+	mutex_unlock(&d->progress_lock);
 }
 
 int __bch2_key_has_snapshot_overwrites(struct btree_trans *trans,
@@ -1749,4 +1776,11 @@ int bch2_snapshots_read(struct bch_fs *c)
 void bch2_fs_snapshots_exit(struct bch_fs *c)
 {
 	kvfree(rcu_dereference_protected(c->snapshots, true));
+}
+
+void bch2_fs_snapshots_init_early(struct bch_fs *c)
+{
+	INIT_WORK(&c->snapshot_delete.work, bch2_delete_dead_snapshots_work);
+	mutex_init(&c->snapshot_delete.progress_lock);
+	mutex_init(&c->snapshots_unlinked_lock);
 }

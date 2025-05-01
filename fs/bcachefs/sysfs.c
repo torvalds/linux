@@ -198,6 +198,7 @@ read_attribute(copy_gc_wait);
 
 sysfs_pd_controller_attribute(rebalance);
 read_attribute(rebalance_status);
+read_attribute(snapshot_delete_status);
 
 read_attribute(new_stripes);
 
@@ -319,6 +320,9 @@ SHOW(bch2_fs)
 
 	if (attr == &sysfs_rebalance_status)
 		bch2_rebalance_status_to_text(out, c);
+
+	if (attr == &sysfs_snapshot_delete_status)
+		bch2_snapshot_delete_status_to_text(out, c);
 
 	/* Debugging: */
 
@@ -466,6 +470,7 @@ struct attribute *bch2_fs_files[] = {
 	&sysfs_btree_write_stats,
 
 	&sysfs_rebalance_status,
+	&sysfs_snapshot_delete_status,
 
 	&sysfs_compression_stats,
 

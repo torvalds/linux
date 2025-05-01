@@ -244,7 +244,6 @@ int bch2_reconstruct_snapshots(struct bch_fs *);
 int bch2_check_key_has_snapshot(struct btree_trans *, struct btree_iter *, struct bkey_s_c);
 
 int bch2_snapshot_node_set_deleted(struct btree_trans *, u32);
-void bch2_delete_dead_snapshots_work(struct work_struct *);
 
 int __bch2_key_has_snapshot_overwrites(struct btree_trans *, enum btree_id, struct bpos);
 
@@ -259,7 +258,13 @@ static inline int bch2_key_has_snapshot_overwrites(struct btree_trans *trans,
 	return __bch2_key_has_snapshot_overwrites(trans, id, pos);
 }
 
+int bch2_delete_dead_snapshots(struct bch_fs *);
+void bch2_delete_dead_snapshots_work(struct work_struct *);
+void bch2_delete_dead_snapshots_async(struct bch_fs *);
+void bch2_snapshot_delete_status_to_text(struct printbuf *, struct bch_fs *);
+
 int bch2_snapshots_read(struct bch_fs *);
 void bch2_fs_snapshots_exit(struct bch_fs *);
+void bch2_fs_snapshots_init_early(struct bch_fs *);
 
 #endif /* _BCACHEFS_SNAPSHOT_H */

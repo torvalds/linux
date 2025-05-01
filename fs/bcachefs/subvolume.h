@@ -77,9 +77,6 @@ bch2_btree_iter_peek_in_subvolume_max_type(struct btree_trans *trans, struct btr
 					_end, _subvolid, _flags, _k, _do);	\
 })
 
-int bch2_delete_dead_snapshots(struct bch_fs *);
-void bch2_delete_dead_snapshots_async(struct bch_fs *);
-
 int bch2_subvolume_unlink(struct btree_trans *, u32);
 int bch2_subvolume_create(struct btree_trans *, u64, u32, u32, u32 *, u32 *, bool);
 
