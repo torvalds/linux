@@ -2512,7 +2512,7 @@ config TEST_IDA
 	tristate "Perform selftest on IDA functions"
 
 config TEST_MISC_MINOR
-	bool "miscdevice KUnit test" if !KUNIT_ALL_TESTS
+	tristate "miscdevice KUnit test" if !KUNIT_ALL_TESTS
 	depends on KUNIT
 	default KUNIT_ALL_TESTS
 	help
