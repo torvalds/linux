@@ -1583,7 +1583,7 @@ struct bpf_map *bpf_map_get(u32 ufd)
 
 	return map;
 }
-EXPORT_SYMBOL(bpf_map_get);
+EXPORT_SYMBOL_NS(bpf_map_get, "BPF_INTERNAL");
 
 struct bpf_map *bpf_map_get_with_uref(u32 ufd)
 {
@@ -3364,7 +3364,7 @@ struct bpf_link *bpf_link_get_from_fd(u32 ufd)
 	bpf_link_inc(link);
 	return link;
 }
-EXPORT_SYMBOL(bpf_link_get_from_fd);
+EXPORT_SYMBOL_NS(bpf_link_get_from_fd, "BPF_INTERNAL");
 
 static void bpf_tracing_link_release(struct bpf_link *link)
 {
@@ -6020,7 +6020,7 @@ int kern_sys_bpf(int cmd, union bpf_attr *attr, unsigned int size)
 		return ____bpf_sys_bpf(cmd, attr, size);
 	}
 }
-EXPORT_SYMBOL(kern_sys_bpf);
+EXPORT_SYMBOL_NS(kern_sys_bpf, "BPF_INTERNAL");
 
 static const struct bpf_func_proto bpf_sys_bpf_proto = {
 	.func		= bpf_sys_bpf,

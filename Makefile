@@ -2,7 +2,7 @@
 VERSION = 6
 PATCHLEVEL = 15
 SUBLEVEL = 0
-EXTRAVERSION = -rc3
+EXTRAVERSION = -rc4
 NAME = Baby Opossum Posse
 
 # *DOCUMENTATION*
@@ -1051,13 +1051,6 @@ NOSTDINC_FLAGS += -nostdinc
 # arrays. Enforce this for everything that may examine structure sizes and
 # perform bounds checking.
 KBUILD_CFLAGS += $(call cc-option, -fstrict-flex-arrays=3)
-
-#Currently, disable -Wstringop-overflow for GCC 11, globally.
-KBUILD_CFLAGS-$(CONFIG_CC_NO_STRINGOP_OVERFLOW) += $(call cc-disable-warning, stringop-overflow)
-KBUILD_CFLAGS-$(CONFIG_CC_STRINGOP_OVERFLOW) += $(call cc-option, -Wstringop-overflow)
-
-#Currently, disable -Wunterminated-string-initialization as broken
-KBUILD_CFLAGS += $(call cc-disable-warning, unterminated-string-initialization)
 
 # disable invalid "can't wrap" optimizations for signed / pointers
 KBUILD_CFLAGS	+= -fno-strict-overflow

@@ -7,10 +7,10 @@ target architecture, specifically, is the 32-bit OpenRISC 1000 family (or1k).
 
 For information about OpenRISC processors and ongoing development:
 
-	=======		=============================
+	=======		==============================
 	website		https://openrisc.io
-	email		openrisc@lists.librecores.org
-	=======		=============================
+	email		linux-openrisc@vger.kernel.org
+	=======		==============================
 
 ---------------------------------------------------------------------
 
@@ -27,11 +27,11 @@ Toolchain binaries can be obtained from openrisc.io or our github releases page.
 Instructions for building the different toolchains can be found on openrisc.io
 or Stafford's toolchain build and release scripts.
 
-	==========	=================================================
-	binaries	https://github.com/openrisc/or1k-gcc/releases
+	==========	==========================================================
+	binaries	https://github.com/stffrdhrn/or1k-toolchain-build/releases
 	toolchains	https://openrisc.io/software
 	building	https://github.com/stffrdhrn/or1k-toolchain-build
-	==========	=================================================
+	==========	==========================================================
 
 2) Building
 

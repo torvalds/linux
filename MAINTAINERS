@@ -3873,8 +3873,9 @@ AUXILIARY BUS DRIVER
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 R:	Dave Ertman <david.m.ertman@intel.com>
 R:	Ira Weiny <ira.weiny@intel.com>
+R:	Leon Romanovsky <leon@kernel.org>
 S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/driver-core.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/driver-core/driver-core.git
 F:	Documentation/driver-api/auxiliary_bus.rst
 F:	drivers/base/auxiliary.c
 F:	include/linux/auxiliary_bus.h
@@ -7224,7 +7225,7 @@ M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
 M:	Danilo Krummrich <dakr@kernel.org>
 S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/driver-core.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/driver-core/driver-core.git
 F:	Documentation/core-api/kobject.rst
 F:	drivers/base/
 F:	fs/debugfs/
@@ -10454,14 +10455,20 @@ S:	Supported
 F:	drivers/infiniband/hw/hfi1
 
 HFS FILESYSTEM
+M:	Viacheslav Dubeyko <slava@dubeyko.com>
+M:	John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
+M:	Yangtao Li <frank.li@vivo.com>
 L:	linux-fsdevel@vger.kernel.org
-S:	Orphan
+S:	Maintained
 F:	Documentation/filesystems/hfs.rst
 F:	fs/hfs/
 
 HFSPLUS FILESYSTEM
+M:	Viacheslav Dubeyko <slava@dubeyko.com>
+M:	John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
+M:	Yangtao Li <frank.li@vivo.com>
 L:	linux-fsdevel@vger.kernel.org
-S:	Orphan
+S:	Maintained
 F:	Documentation/filesystems/hfsplus.rst
 F:	fs/hfsplus/
 
@@ -13109,7 +13116,7 @@ KERNFS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 M:	Tejun Heo <tj@kernel.org>
 S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/driver-core.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/driver-core/driver-core.git
 F:	fs/kernfs/
 F:	include/linux/kernfs.h
 
@@ -18699,7 +18706,7 @@ F:	drivers/pci/controller/pci-xgene-msi.c
 PCI NATIVE HOST BRIDGE AND ENDPOINT DRIVERS
 M:	Lorenzo Pieralisi <lpieralisi@kernel.org>
 M:	Krzysztof Wilczyński <kw@linux.com>
-R:	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+M:	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
 R:	Rob Herring <robh@kernel.org>
 L:	linux-pci@vger.kernel.org
 S:	Supported
@@ -18752,6 +18759,16 @@ F:	include/asm-generic/pci*
 F:	include/linux/of_pci.h
 F:	include/linux/pci*
 F:	include/uapi/linux/pci*
+
+PCI SUBSYSTEM [RUST]
+M:	Danilo Krummrich <dakr@kernel.org>
+R:	Bjorn Helgaas <bhelgaas@google.com>
+R:	Krzysztof Wilczyński <kwilczynski@kernel.org>
+L:	linux-pci@vger.kernel.org
+S:	Maintained
+C:	irc://irc.oftc.net/linux-pci
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pci/pci.git
+F:	rust/helpers/pci.c
 F:	rust/kernel/pci.rs
 F:	samples/rust/rust_driver_pci.rs
 
@@ -25203,9 +25220,13 @@ S:	Maintained
 F:	drivers/usb/typec/mux/pi3usb30532.c
 
 USB TYPEC PORT CONTROLLER DRIVERS
+M:	Badhri Jagan Sridharan <badhri@google.com>
 L:	linux-usb@vger.kernel.org
-S:	Orphan
-F:	drivers/usb/typec/tcpm/
+S:	Maintained
+F:	drivers/usb/typec/tcpm/tcpci.c
+F:	drivers/usb/typec/tcpm/tcpm.c
+F:	include/linux/usb/tcpci.h
+F:	include/linux/usb/tcpm.h
 
 USB TYPEC TUSB1046 MUX DRIVER
 M:	Romain Gantois <romain.gantois@bootlin.com>

@@ -26,7 +26,7 @@
 
 #include "internal.h"
 
-bool __file_ref_put_badval(file_ref_t *ref, unsigned long cnt)
+static noinline bool __file_ref_put_badval(file_ref_t *ref, unsigned long cnt)
 {
 	/*
 	 * If the reference count was already in the dead zone, then this

@@ -418,32 +418,6 @@ bool bch2_fs_emergency_read_only_locked(struct bch_fs *c)
 	return ret;
 }
 
-static int bch2_fs_read_write_late(struct bch_fs *c)
-{
-	int ret;
-
-	/*
-	 * Data move operations can't run until after check_snapshots has
-	 * completed, and bch2_snapshot_is_ancestor() is available.
-	 *
-	 * Ideally we'd start copygc/rebalance earlier instead of waiting for
-	 * all of recovery/fsck to complete:
-	 */
-	ret = bch2_copygc_start(c);
-	if (ret) {
-		bch_err(c, "error starting copygc thread");
-		return ret;
-	}
-
-	ret = bch2_rebalance_start(c);
-	if (ret) {
-		bch_err(c, "error starting rebalance thread");
-		return ret;
-	}
-
-	return 0;
-}
-
 static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 {
 	int ret;
@@ -466,28 +440,27 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 
 	clear_bit(BCH_FS_clean_shutdown, &c->flags);
 
-	/*
-	 * First journal write must be a flush write: after a clean shutdown we
-	 * don't read the journal, so the first journal write may end up
-	 * overwriting whatever was there previously, and there must always be
-	 * at least one non-flush write in the journal or recovery will fail:
-	 */
-	set_bit(JOURNAL_need_flush_write, &c->journal.flags);
-	set_bit(JOURNAL_running, &c->journal.flags);
-
 	__for_each_online_member(c, ca, BIT(BCH_MEMBER_STATE_rw), READ) {
 		bch2_dev_allocator_add(c, ca);
 		percpu_ref_reinit(&ca->io_ref[WRITE]);
 	}
 	bch2_recalc_capacity(c);
 
+	/*
+	 * First journal write must be a flush write: after a clean shutdown we
+	 * don't read the journal, so the first journal write may end up
+	 * overwriting whatever was there previously, and there must always be
+	 * at least one non-flush write in the journal or recovery will fail:
+	 */
+	spin_lock(&c->journal.lock);
+	set_bit(JOURNAL_need_flush_write, &c->journal.flags);
+	set_bit(JOURNAL_running, &c->journal.flags);
+	bch2_journal_space_available(&c->journal);
+	spin_unlock(&c->journal.lock);
+
 	ret = bch2_fs_mark_dirty(c);
 	if (ret)
 		goto err;
-
-	spin_lock(&c->journal.lock);
-	bch2_journal_space_available(&c->journal);
-	spin_unlock(&c->journal.lock);
 
 	ret = bch2_journal_reclaim_start(&c->journal);
 	if (ret)
@@ -504,10 +477,17 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 		atomic_long_inc(&c->writes[i]);
 	}
 #endif
-	if (!early) {
-		ret = bch2_fs_read_write_late(c);
-		if (ret)
-			goto err;
+
+	ret = bch2_copygc_start(c);
+	if (ret) {
+		bch_err_msg(c, ret, "error starting copygc thread");
+		goto err;
+	}
+
+	ret = bch2_rebalance_start(c);
+	if (ret) {
+		bch_err_msg(c, ret, "error starting rebalance thread");
+		goto err;
 	}
 
 	bch2_do_discards(c);
@@ -553,6 +533,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 
 	bch2_find_btree_nodes_exit(&c->found_btree_nodes);
 	bch2_free_pending_node_rewrites(c);
+	bch2_free_fsck_errs(c);
 	bch2_fs_accounting_exit(c);
 	bch2_fs_sb_errors_exit(c);
 	bch2_fs_counters_exit(c);
@@ -1023,12 +1004,49 @@ static void print_mount_opts(struct bch_fs *c)
 	printbuf_exit(&p);
 }
 
+static bool bch2_fs_may_start(struct bch_fs *c)
+{
+	struct bch_dev *ca;
+	unsigned i, flags = 0;
+
+	if (c->opts.very_degraded)
+		flags |= BCH_FORCE_IF_DEGRADED|BCH_FORCE_IF_LOST;
+
+	if (c->opts.degraded)
+		flags |= BCH_FORCE_IF_DEGRADED;
+
+	if (!c->opts.degraded &&
+	    !c->opts.very_degraded) {
+		mutex_lock(&c->sb_lock);
+
+		for (i = 0; i < c->disk_sb.sb->nr_devices; i++) {
+			if (!bch2_member_exists(c->disk_sb.sb, i))
+				continue;
+
+			ca = bch2_dev_locked(c, i);
+
+			if (!bch2_dev_is_online(ca) &&
+			    (ca->mi.state == BCH_MEMBER_STATE_rw ||
+			     ca->mi.state == BCH_MEMBER_STATE_ro)) {
+				mutex_unlock(&c->sb_lock);
+				return false;
+			}
+		}
+		mutex_unlock(&c->sb_lock);
+	}
+
+	return bch2_have_enough_devs(c, bch2_online_devs(c), flags, true);
+}
+
 int bch2_fs_start(struct bch_fs *c)
 {
 	time64_t now = ktime_get_real_seconds();
 	int ret = 0;
 
 	print_mount_opts(c);
+
+	if (!bch2_fs_may_start(c))
+		return -BCH_ERR_insufficient_devices_to_start;
 
 	down_write(&c->state_lock);
 	mutex_lock(&c->sb_lock);
@@ -1082,13 +1100,10 @@ int bch2_fs_start(struct bch_fs *c)
 	wake_up(&c->ro_ref_wait);
 
 	down_write(&c->state_lock);
-	if (c->opts.read_only) {
+	if (c->opts.read_only)
 		bch2_fs_read_only(c);
-	} else {
-		ret = !test_bit(BCH_FS_rw, &c->flags)
-			? bch2_fs_read_write(c)
-			: bch2_fs_read_write_late(c);
-	}
+	else if (!test_bit(BCH_FS_rw, &c->flags))
+		ret = bch2_fs_read_write(c);
 	up_write(&c->state_lock);
 
 err:
@@ -1500,7 +1515,7 @@ static int bch2_dev_attach_bdev(struct bch_fs *c, struct bch_sb_handle *sb)
 
 	printbuf_exit(&name);
 
-	rebalance_wakeup(c);
+	bch2_rebalance_wakeup(c);
 	return 0;
 }
 
@@ -1559,40 +1574,6 @@ bool bch2_dev_state_allowed(struct bch_fs *c, struct bch_dev *ca,
 	}
 }
 
-static bool bch2_fs_may_start(struct bch_fs *c)
-{
-	struct bch_dev *ca;
-	unsigned i, flags = 0;
-
-	if (c->opts.very_degraded)
-		flags |= BCH_FORCE_IF_DEGRADED|BCH_FORCE_IF_LOST;
-
-	if (c->opts.degraded)
-		flags |= BCH_FORCE_IF_DEGRADED;
-
-	if (!c->opts.degraded &&
-	    !c->opts.very_degraded) {
-		mutex_lock(&c->sb_lock);
-
-		for (i = 0; i < c->disk_sb.sb->nr_devices; i++) {
-			if (!bch2_member_exists(c->disk_sb.sb, i))
-				continue;
-
-			ca = bch2_dev_locked(c, i);
-
-			if (!bch2_dev_is_online(ca) &&
-			    (ca->mi.state == BCH_MEMBER_STATE_rw ||
-			     ca->mi.state == BCH_MEMBER_STATE_ro)) {
-				mutex_unlock(&c->sb_lock);
-				return false;
-			}
-		}
-		mutex_unlock(&c->sb_lock);
-	}
-
-	return bch2_have_enough_devs(c, bch2_online_devs(c), flags, true);
-}
-
 static void __bch2_dev_read_only(struct bch_fs *c, struct bch_dev *ca)
 {
 	bch2_dev_io_ref_stop(ca, WRITE);
@@ -1646,7 +1627,7 @@ int __bch2_dev_set_state(struct bch_fs *c, struct bch_dev *ca,
 	if (new_state == BCH_MEMBER_STATE_rw)
 		__bch2_dev_read_write(c, ca);
 
-	rebalance_wakeup(c);
+	bch2_rebalance_wakeup(c);
 
 	return ret;
 }
@@ -2227,11 +2208,6 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 		}
 	}
 	up_write(&c->state_lock);
-
-	if (!bch2_fs_may_start(c)) {
-		ret = -BCH_ERR_insufficient_devices_to_start;
-		goto err_print;
-	}
 
 	if (!c->opts.nostart) {
 		ret = bch2_fs_start(c);
