@@ -2271,14 +2271,13 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	wake_up(&fs_info->transaction_blocked_wait);
 	btrfs_trans_state_lockdep_release(fs_info, BTRFS_LOCKDEP_TRANS_COMMIT_PREP);
 
-	if (cur_trans->list.prev != &fs_info->trans_list) {
+	if (!list_is_first(&cur_trans->list, &fs_info->trans_list)) {
 		enum btrfs_trans_state want_state = TRANS_STATE_COMPLETED;
 
 		if (trans->in_fsync)
 			want_state = TRANS_STATE_SUPER_COMMITTED;
 
-		prev_trans = list_entry(cur_trans->list.prev,
-					struct btrfs_transaction, list);
+		prev_trans = list_prev_entry(cur_trans, list);
 		if (prev_trans->state < want_state) {
 			refcount_inc(&prev_trans->use_count);
 			spin_unlock(&fs_info->trans_lock);
