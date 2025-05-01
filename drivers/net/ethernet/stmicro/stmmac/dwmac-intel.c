@@ -929,6 +929,7 @@ static int tgl_common_data(struct pci_dev *pdev,
 	plat->rx_queues_to_use = 6;
 	plat->tx_queues_to_use = 4;
 	plat->clk_ptp_rate = 204800000;
+	plat->phy_interface = PHY_INTERFACE_MODE_SGMII;
 	plat->speed_mode_2500 = intel_speed_mode_2500;
 
 	plat->safety_feat_cfg->tsoee = 1;
@@ -948,7 +949,6 @@ static int tgl_sgmii_phy0_data(struct pci_dev *pdev,
 			       struct plat_stmmacenet_data *plat)
 {
 	plat->bus_id = 1;
-	plat->phy_interface = PHY_INTERFACE_MODE_SGMII;
 	plat->serdes_powerup = intel_serdes_powerup;
 	plat->serdes_powerdown = intel_serdes_powerdown;
 	return tgl_common_data(pdev, plat);
@@ -962,7 +962,6 @@ static int tgl_sgmii_phy1_data(struct pci_dev *pdev,
 			       struct plat_stmmacenet_data *plat)
 {
 	plat->bus_id = 2;
-	plat->phy_interface = PHY_INTERFACE_MODE_SGMII;
 	plat->serdes_powerup = intel_serdes_powerup;
 	plat->serdes_powerdown = intel_serdes_powerdown;
 	return tgl_common_data(pdev, plat);
@@ -976,7 +975,6 @@ static int adls_sgmii_phy0_data(struct pci_dev *pdev,
 				struct plat_stmmacenet_data *plat)
 {
 	plat->bus_id = 1;
-	plat->phy_interface = PHY_INTERFACE_MODE_SGMII;
 
 	/* SerDes power up and power down are done in BIOS for ADL */
 
@@ -991,7 +989,6 @@ static int adls_sgmii_phy1_data(struct pci_dev *pdev,
 				struct plat_stmmacenet_data *plat)
 {
 	plat->bus_id = 2;
-	plat->phy_interface = PHY_INTERFACE_MODE_SGMII;
 
 	/* SerDes power up and power down are done in BIOS for ADL */
 
