@@ -243,11 +243,11 @@ static struct net_device *__ip_tunnel_create(struct net *net,
 	if (parms->name[0]) {
 		if (!dev_valid_name(parms->name))
 			goto failed;
-		strscpy(name, parms->name, IFNAMSIZ);
+		strscpy(name, parms->name);
 	} else {
 		if (strlen(ops->kind) > (IFNAMSIZ - 3))
 			goto failed;
-		strcpy(name, ops->kind);
+		strscpy(name, ops->kind);
 		strcat(name, "%d");
 	}
 
