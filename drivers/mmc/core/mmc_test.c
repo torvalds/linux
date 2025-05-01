@@ -191,7 +191,7 @@ static void mmc_test_prepare_sbc(struct mmc_test_card *test,
 {
 	struct mmc_card *card = test->card;
 
-	if (!mrq->sbc || !mmc_host_cmd23(card->host) ||
+	if (!mrq->sbc || !mmc_host_can_cmd23(card->host) ||
 	    !mmc_test_card_cmd23(card) || !mmc_op_multi(mrq->cmd->opcode) ||
 	    (card->quirks & MMC_QUIRK_BLK_NO_CMD23)) {
 		mrq->sbc = NULL;
@@ -2390,7 +2390,7 @@ static int mmc_test_ongoing_transfer(struct mmc_test_card *test,
 			     512, write);
 
 	if (use_sbc && t->blocks > 1 && !mrq->sbc) {
-		ret =  mmc_host_cmd23(host) ?
+		ret =  mmc_host_can_cmd23(host) ?
 		       RESULT_UNSUP_CARD :
 		       RESULT_UNSUP_HOST;
 		goto out_free;

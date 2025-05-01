@@ -39,7 +39,7 @@ static inline void mmc_retune_recheck(struct mmc_host *host)
 		host->retune_now = 1;
 }
 
-static inline int mmc_host_cmd23(struct mmc_host *host)
+static inline int mmc_host_can_cmd23(struct mmc_host *host)
 {
 	return host->caps & MMC_CAP_CMD23;
 }
