@@ -455,7 +455,7 @@ static void sd_update_bus_speed_mode(struct mmc_card *card)
 	 * If the host doesn't support any of the UHS-I modes, fallback on
 	 * default speed.
 	 */
-	if (!mmc_host_uhs(card->host)) {
+	if (!mmc_host_can_uhs(card->host)) {
 		card->sd_bus_speed = 0;
 		return;
 	}
@@ -867,7 +867,7 @@ try_again:
 	 * to switch to 1.8V signaling level. If the card has failed
 	 * repeatedly to switch however, skip this.
 	 */
-	if (retries && mmc_host_uhs(host))
+	if (retries && mmc_host_can_uhs(host))
 		ocr |= SD_OCR_S18R;
 
 	/*
@@ -1509,7 +1509,7 @@ retry:
 	 * signaling. Detect that situation and try to initialize a UHS-I (1.8V)
 	 * transfer mode.
 	 */
-	if (!v18_fixup_failed && !mmc_host_is_spi(host) && mmc_host_uhs(host) &&
+	if (!v18_fixup_failed && !mmc_host_is_spi(host) && mmc_host_can_uhs(host) &&
 	    mmc_sd_card_using_v18(card) &&
 	    host->ios.signal_voltage != MMC_SIGNAL_VOLTAGE_180) {
 		if (mmc_host_set_uhs_voltage(host) ||
@@ -1524,7 +1524,7 @@ retry:
 	}
 
 	/* Initialization sequence for UHS-I cards */
-	if (rocr & SD_ROCR_S18A && mmc_host_uhs(host)) {
+	if (rocr & SD_ROCR_S18A && mmc_host_can_uhs(host)) {
 		err = mmc_sd_init_uhs_card(card);
 		if (err)
 			goto free_card;
