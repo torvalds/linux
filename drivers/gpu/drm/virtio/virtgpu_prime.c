@@ -206,7 +206,7 @@ static void virtgpu_dma_buf_free_obj(struct drm_gem_object *obj)
 	struct virtio_gpu_device *vgdev = obj->dev->dev_private;
 
 	if (drm_gem_is_imported(obj)) {
-		struct dma_buf *dmabuf = obj->dma_buf;
+		struct dma_buf *dmabuf = bo->dma_buf;
 
 		dma_resv_lock(dmabuf->resv, NULL);
 		virtgpu_dma_buf_unmap(bo);
@@ -332,6 +332,7 @@ struct drm_gem_object *virtgpu_gem_prime_import(struct drm_device *dev,
 
 	obj->import_attach = attach;
 	get_dma_buf(buf);
+	bo->dma_buf = buf;
 
 	ret = virtgpu_dma_buf_init_obj(dev, bo, attach);
 	if (ret < 0)
