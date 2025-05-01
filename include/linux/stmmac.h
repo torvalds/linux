@@ -241,7 +241,6 @@ struct plat_stmmacenet_data {
 	int (*fix_soc_reset)(void *priv, void __iomem *ioaddr);
 	int (*serdes_powerup)(struct net_device *ndev, void *priv);
 	void (*serdes_powerdown)(struct net_device *ndev, void *priv);
-	void (*speed_mode_2500)(struct net_device *ndev, void *priv);
 	int (*mac_finish)(struct net_device *ndev,
 			  void *priv,
 			  unsigned int mode,
