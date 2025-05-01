@@ -1327,7 +1327,6 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans)
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct list_head *dirty_bgs = &trans->transaction->dirty_bgs;
 	struct list_head *io_bgs = &trans->transaction->io_bgs;
-	struct list_head *next;
 	struct extent_buffer *eb;
 	int ret;
 
@@ -1363,13 +1362,13 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans)
 again:
 	while (!list_empty(&fs_info->dirty_cowonly_roots)) {
 		struct btrfs_root *root;
-		next = fs_info->dirty_cowonly_roots.next;
-		list_del_init(next);
-		root = list_entry(next, struct btrfs_root, dirty_list);
-		clear_bit(BTRFS_ROOT_DIRTY, &root->state);
 
-		list_add_tail(&root->dirty_list,
-			      &trans->transaction->switch_commits);
+		root = list_first_entry(&fs_info->dirty_cowonly_roots,
+					struct btrfs_root, dirty_list);
+		clear_bit(BTRFS_ROOT_DIRTY, &root->state);
+		list_move_tail(&root->dirty_list,
+			       &trans->transaction->switch_commits);
+
 		ret = update_cowonly_root(trans, root);
 		if (ret)
 			return ret;
