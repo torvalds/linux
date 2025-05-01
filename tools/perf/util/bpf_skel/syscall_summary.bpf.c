@@ -8,6 +8,7 @@
 
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+#include <bpf/bpf_core_read.h>
 
 /* This is to calculate a delta between sys-enter and sys-exit for each thread */
 struct syscall_trace {
@@ -35,10 +36,41 @@ struct syscall_stats_map {
 int enabled; /* controlled from userspace */
 
 const volatile enum syscall_aggr_mode aggr_mode;
+const volatile int use_cgroup_v2;
 
-static void update_stats(int cpu_or_tid, int nr, s64 duration, long ret)
+int perf_subsys_id = -1;
+
+static inline __u64 get_current_cgroup_id(void)
 {
-	struct syscall_key key = { .cpu_or_tid = cpu_or_tid, .nr = nr, };
+	struct task_struct *task;
+	struct cgroup *cgrp;
+
+	if (use_cgroup_v2)
+		return bpf_get_current_cgroup_id();
+
+	task = bpf_get_current_task_btf();
+
+	if (perf_subsys_id == -1) {
+#if __has_builtin(__builtin_preserve_enum_value)
+		perf_subsys_id = bpf_core_enum_value(enum cgroup_subsys_id,
+						     perf_event_cgrp_id);
+#else
+		perf_subsys_id = perf_event_cgrp_id;
+#endif
+	}
+
+	cgrp = BPF_CORE_READ(task, cgroups, subsys[perf_subsys_id], cgroup);
+	return BPF_CORE_READ(cgrp, kn, id);
+}
+
+static void update_stats(int cpu_or_tid, u64 cgroup_id, int nr, s64 duration,
+			 long ret)
+{
+	struct syscall_key key = {
+		.cpu_or_tid = cpu_or_tid,
+		.cgroup = cgroup_id,
+		.nr = nr,
+	};
 	struct syscall_stats *stats;
 
 	stats = bpf_map_lookup_elem(&syscall_stats_map, &key);
@@ -90,7 +122,8 @@ SEC("tp_btf/sys_exit")
 int sys_exit(u64 *ctx)
 {
 	int tid;
-	int key;
+	int key = 0;
+	u64 cgroup = 0;
 	long ret = ctx[1]; /* return value of the syscall */
 	struct syscall_trace *st;
 	s64 delta;
@@ -105,11 +138,13 @@ int sys_exit(u64 *ctx)
 
 	if (aggr_mode == SYSCALL_AGGR_THREAD)
 		key = tid;
+	else if (aggr_mode == SYSCALL_AGGR_CGROUP)
+		cgroup = get_current_cgroup_id();
 	else
 		key = bpf_get_smp_processor_id();
 
 	delta = bpf_ktime_get_ns() - st->timestamp;
-	update_stats(key, st->nr, delta, ret);
+	update_stats(key, cgroup, st->nr, delta, ret);
 
 	bpf_map_delete_elem(&syscall_trace_map, &tid);
 	return 0;

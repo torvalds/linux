@@ -152,7 +152,8 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
 --summary-mode=mode::
 	To be used with -s or -S, to select how to show summary.  By default it'll
-	show the syscall summary by thread.  Possible values are: thread, total.
+	show the syscall summary by thread.  Possible values are: thread, total,
+	cgroup.
 
 --tool_stats::
 	Show tool stats such as number of times fd->pathname was discovered thru

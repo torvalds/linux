@@ -6,9 +6,11 @@
 enum syscall_aggr_mode {
 	SYSCALL_AGGR_THREAD,
 	SYSCALL_AGGR_CPU,
+	SYSCALL_AGGR_CGROUP,
 };
 
 struct syscall_key {
+	u64 cgroup;
 	int cpu_or_tid;
 	int nr;
 };

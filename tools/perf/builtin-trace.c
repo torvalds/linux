@@ -5302,6 +5302,8 @@ static int trace__parse_summary_mode(const struct option *opt, const char *str,
 		trace->summary_mode = SUMMARY__BY_THREAD;
 	} else if (!strcmp(str, "total")) {
 		trace->summary_mode = SUMMARY__BY_TOTAL;
+	} else if (!strcmp(str, "cgroup")) {
+		trace->summary_mode = SUMMARY__BY_CGROUP;
 	} else {
 		pr_err("Unknown summary mode: %s\n", str);
 		return -1;
@@ -5461,7 +5463,7 @@ int cmd_trace(int argc, const char **argv)
 	OPT_BOOLEAN(0, "errno-summary", &trace.errno_summary,
 		    "Show errno stats per syscall, use with -s or -S"),
 	OPT_CALLBACK(0, "summary-mode", &trace, "mode",
-		     "How to show summary: select thread (default) or total",
+		     "How to show summary: select thread (default), total or cgroup",
 		     trace__parse_summary_mode),
 	OPT_CALLBACK_DEFAULT('F', "pf", &trace.trace_pgfaults, "all|maj|min",
 		     "Trace pagefaults", parse_pagefaults, "maj"),
@@ -5775,6 +5777,12 @@ init_augmented_syscall_tp:
 		symbol_conf.keep_exited_threads = true;
 		if (trace.summary_mode == SUMMARY__NONE)
 			trace.summary_mode = SUMMARY__BY_THREAD;
+
+		if (!trace.summary_bpf && trace.summary_mode == SUMMARY__BY_CGROUP) {
+			pr_err("Error: --summary-mode=cgroup only works with --bpf-summary\n");
+			err = -EINVAL;
+			goto out;
+		}
 	}
 
 	if (output_name != NULL) {

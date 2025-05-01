@@ -8,6 +8,7 @@ enum trace_summary_mode {
 	SUMMARY__NONE = 0,
 	SUMMARY__BY_TOTAL,
 	SUMMARY__BY_THREAD,
+	SUMMARY__BY_CGROUP,
 };
 
 #ifdef HAVE_BPF_SKEL
