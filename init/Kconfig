@@ -1555,6 +1555,16 @@ config SYSCTL_ARCH_UNALIGN_ALLOW
 	  the unaligned access emulation.
 	  see arch/parisc/kernel/unaligned.c for reference
 
+config SYSFS_SYSCALL
+	bool "Sysfs syscall support"
+	default n
+	help
+	  sys_sysfs is an obsolete system call no longer supported in libc.
+	  Note that disabling this option is more secure but might break
+	  compatibility with some systems.
+
+	  If unsure say N here.
+
 config HAVE_PCSPKR_PLATFORM
 	bool
 
@@ -1598,16 +1608,6 @@ config SGETMASK_SYSCALL
 	  architectures.
 
 	  If unsure, leave the default option here.
-
-config SYSFS_SYSCALL
-	bool "Sysfs syscall support" if EXPERT
-	default y
-	help
-	  sys_sysfs is an obsolete system call no longer supported in libc.
-	  Note that disabling this option is more secure but might break
-	  compatibility with some systems.
-
-	  If unsure say Y here.
 
 config FHANDLE
 	bool "open by fhandle syscalls" if EXPERT

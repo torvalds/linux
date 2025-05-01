@@ -105,6 +105,7 @@ xfs_buf_free(
 {
 	unsigned int		size = BBTOB(bp->b_length);
 
+	might_sleep();
 	trace_xfs_buf_free(bp, _RET_IP_);
 
 	ASSERT(list_empty(&bp->b_lru));

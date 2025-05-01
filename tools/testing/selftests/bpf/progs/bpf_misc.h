@@ -221,7 +221,7 @@
 #define CAN_USE_GOTOL
 #endif
 
-#if _clang_major__ >= 18
+#if __clang_major__ >= 18
 #define CAN_USE_BPF_ST
 #endif
 

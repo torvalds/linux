@@ -281,7 +281,7 @@ static int ublk_stripe_tgt_init(const struct dev_ctx *ctx, struct ublk_dev *dev)
 			.max_sectors = dev->dev_info.max_io_buf_bytes >> 9,
 		},
 	};
-	unsigned chunk_size = ctx->chunk_size;
+	unsigned chunk_size = ctx->stripe.chunk_size;
 	struct stripe_conf *conf;
 	unsigned chunk_shift;
 	loff_t bytes = 0;
@@ -344,10 +344,36 @@ static void ublk_stripe_tgt_deinit(struct ublk_dev *dev)
 	backing_file_tgt_deinit(dev);
 }
 
+static void ublk_stripe_cmd_line(struct dev_ctx *ctx, int argc, char *argv[])
+{
+	static const struct option longopts[] = {
+		{ "chunk_size", 	1,	NULL,  0  },
+		{ 0, 0, 0, 0 }
+	};
+	int option_idx, opt;
+
+	ctx->stripe.chunk_size = 65536;
+	while ((opt = getopt_long(argc, argv, "",
+				  longopts, &option_idx)) != -1) {
+		switch (opt) {
+		case 0:
+			if (!strcmp(longopts[option_idx].name, "chunk_size"))
+				ctx->stripe.chunk_size = strtol(optarg, NULL, 10);
+		}
+	}
+}
+
+static void ublk_stripe_usage(const struct ublk_tgt_ops *ops)
+{
+	printf("\tstripe: [--chunk_size chunk_size (default 65536)]\n");
+}
+
 const struct ublk_tgt_ops stripe_tgt_ops = {
 	.name = "stripe",
 	.init_tgt = ublk_stripe_tgt_init,
 	.deinit_tgt = ublk_stripe_tgt_deinit,
 	.queue_io = ublk_stripe_queue_io,
 	.tgt_io_done = ublk_stripe_io_done,
+	.parse_cmd_line = ublk_stripe_cmd_line,
+	.usage = ublk_stripe_usage,
 };
