@@ -669,7 +669,7 @@ static void ifi_canfd_set_bittiming(struct net_device *ndev)
 {
 	struct ifi_canfd_priv *priv = netdev_priv(ndev);
 	const struct can_bittiming *bt = &priv->can.bittiming;
-	const struct can_bittiming *dbt = &priv->can.data_bittiming;
+	const struct can_bittiming *dbt = &priv->can.fd.data_bittiming;
 	u16 brp, sjw, tseg1, tseg2, tdc;
 
 	/* Configure bit timing */
@@ -1000,10 +1000,10 @@ static int ifi_canfd_plat_probe(struct platform_device *pdev)
 
 	priv->can.clock.freq = readl(addr + IFI_CANFD_CANCLOCK);
 
-	priv->can.bittiming_const	= &ifi_canfd_bittiming_const;
-	priv->can.data_bittiming_const	= &ifi_canfd_bittiming_const;
-	priv->can.do_set_mode		= ifi_canfd_set_mode;
-	priv->can.do_get_berr_counter	= ifi_canfd_get_berr_counter;
+	priv->can.bittiming_const = &ifi_canfd_bittiming_const;
+	priv->can.fd.data_bittiming_const = &ifi_canfd_bittiming_const;
+	priv->can.do_set_mode = ifi_canfd_set_mode;
+	priv->can.do_get_berr_counter = ifi_canfd_get_berr_counter;
 
 	/* IFI CANFD can do both Bosch FD and ISO FD */
 	priv->can.ctrlmode = CAN_CTRLMODE_FD;
