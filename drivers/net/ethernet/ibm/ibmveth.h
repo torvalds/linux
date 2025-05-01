@@ -137,6 +137,7 @@ struct ibmveth_adapter {
 	struct vio_dev *vdev;
 	struct net_device *netdev;
 	struct napi_struct napi;
+	struct work_struct work;
 	unsigned int mcastFilterSize;
 	void *buffer_list_addr;
 	void *filter_list_addr;
