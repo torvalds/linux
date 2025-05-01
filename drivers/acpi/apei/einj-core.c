@@ -755,11 +755,6 @@ static int __init einj_probe(struct faux_device *fdev)
 	acpi_status status;
 	struct apei_exec_context ctx;
 
-	if (acpi_disabled) {
-		pr_debug("ACPI disabled.\n");
-		return -ENODEV;
-	}
-
 	status = acpi_get_table(ACPI_SIG_EINJ, 0,
 				(struct acpi_table_header **)&einj_tab);
 	if (status == AE_NOT_FOUND) {
@@ -886,6 +881,11 @@ static struct faux_device_ops einj_device_ops __refdata = {
 
 static int __init einj_init(void)
 {
+	if (acpi_disabled) {
+		pr_debug("ACPI disabled.\n");
+		return -ENODEV;
+	}
+
 	einj_dev = faux_device_create("acpi-einj", NULL, &einj_device_ops);
 	if (!einj_dev)
 		return -ENODEV;
