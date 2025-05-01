@@ -147,18 +147,19 @@ int filename__read_build_id(const char *filename, struct build_id *bid)
 			if (phdr->p_type != PT_NOTE)
 				continue;
 
-			buf_size = phdr->p_filesz;
 			offset = phdr->p_offset;
-			tmp = realloc(buf, buf_size);
-			if (tmp == NULL)
-				goto out_free;
-
-			buf = tmp;
+			if (phdr->p_filesz > buf_size) {
+				buf_size = phdr->p_filesz;
+				tmp = realloc(buf, buf_size);
+				if (tmp == NULL)
+					goto out_free;
+				buf = tmp;
+			}
 			fseek(fp, offset, SEEK_SET);
-			if (fread(buf, buf_size, 1, fp) != 1)
+			if (fread(buf, phdr->p_filesz, 1, fp) != 1)
 				goto out_free;
 
-			ret = read_build_id(buf, buf_size, bid, need_swap);
+			ret = read_build_id(buf, phdr->p_filesz, bid, need_swap);
 			if (ret == 0) {
 				ret = bid->size;
 				break;
@@ -199,18 +200,19 @@ int filename__read_build_id(const char *filename, struct build_id *bid)
 			if (phdr->p_type != PT_NOTE)
 				continue;
 
-			buf_size = phdr->p_filesz;
 			offset = phdr->p_offset;
-			tmp = realloc(buf, buf_size);
-			if (tmp == NULL)
-				goto out_free;
-
-			buf = tmp;
+			if (phdr->p_filesz > buf_size) {
+				buf_size = phdr->p_filesz;
+				tmp = realloc(buf, buf_size);
+				if (tmp == NULL)
+					goto out_free;
+				buf = tmp;
+			}
 			fseek(fp, offset, SEEK_SET);
-			if (fread(buf, buf_size, 1, fp) != 1)
+			if (fread(buf, phdr->p_filesz, 1, fp) != 1)
 				goto out_free;
 
-			ret = read_build_id(buf, buf_size, bid, need_swap);
+			ret = read_build_id(buf, phdr->p_filesz, bid, need_swap);
 			if (ret == 0) {
 				ret = bid->size;
 				break;
