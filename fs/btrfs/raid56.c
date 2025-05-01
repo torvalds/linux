@@ -577,9 +577,9 @@ static void cache_rbio(struct btrfs_raid_bio *rbio)
 	if (table->cache_size > RBIO_CACHE_SIZE) {
 		struct btrfs_raid_bio *found;
 
-		found = list_entry(table->stripe_cache.prev,
-				  struct btrfs_raid_bio,
-				  stripe_cache);
+		found = list_last_entry(&table->stripe_cache,
+					struct btrfs_raid_bio,
+					stripe_cache);
 
 		if (found != rbio)
 			__remove_rbio_from_cache(found);
