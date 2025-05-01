@@ -74,7 +74,7 @@ union ice_cgu_r16 {
 };
 
 #define ICE_CGU_R19 0x4c
-union ice_cgu_r19 {
+union ice_cgu_r19_e82x {
 	struct {
 		u32 fbdiv_intgr : 8;
 		u32 fdpll_ulck_thr : 5;
@@ -84,6 +84,21 @@ union ice_cgu_r19 {
 		u32 misc19 : 1;
 		u32 japll_ndivratio : 4;
 		u32 japll_iref_ndivratio : 3;
+		u32 misc27 : 1;
+	};
+	u32 val;
+};
+
+union ice_cgu_r19_e825 {
+	struct {
+		u32 tspll_fbdiv_intgr : 10;
+		u32 fdpll_ulck_thr : 5;
+		u32 misc15 : 1;
+		u32 tspll_ndivratio : 4;
+		u32 tspll_iref_ndivratio : 3;
+		u32 misc19 : 1;
+		u32 japll_ndivratio : 4;
+		u32 japll_postdiv_pdivratio : 3;
 		u32 misc27 : 1;
 	};
 	u32 val;
