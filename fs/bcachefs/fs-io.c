@@ -517,11 +517,22 @@ int bchfs_truncate(struct mnt_idmap *idmap,
 		goto err;
 	}
 
-	bch2_fs_inconsistent_on(!inode->v.i_size && inode->v.i_blocks &&
-				!bch2_journal_error(&c->journal), c,
-				"inode %lu truncated to 0 but i_blocks %llu (ondisk %lli)",
-				inode->v.i_ino, (u64) inode->v.i_blocks,
-				inode->ei_inode.bi_sectors);
+	if (unlikely(!inode->v.i_size && inode->v.i_blocks &&
+		     !bch2_journal_error(&c->journal))) {
+		struct printbuf buf = PRINTBUF;
+		bch2_log_msg_start(c, &buf);
+		prt_printf(&buf,
+			   "inode %lu truncated to 0 but i_blocks %llu (ondisk %lli)",
+			   inode->v.i_ino, (u64) inode->v.i_blocks,
+			   inode->ei_inode.bi_sectors);
+
+		bool repeat = false, print = false, suppress = false;
+		bch2_count_fsck_err(c, vfs_inode_i_blocks_not_zero_at_truncate, buf.buf,
+				    &repeat, &print, &suppress);
+		if (print)
+			bch2_print_str(c, buf.buf);
+		printbuf_exit(&buf);
+	}
 
 	ret = bch2_setattr_nonsize(idmap, inode, iattr);
 err:
