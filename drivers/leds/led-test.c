@@ -57,8 +57,37 @@ static void led_test_class_register(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, ret, -EEXIST);
 }
 
+static void led_test_class_add_lookup_and_get(struct kunit *test)
+{
+	struct led_test_ddata *ddata = test->priv;
+	struct led_classdev *cdev = &ddata->cdev, *cdev_get;
+	struct device *dev = ddata->dev;
+	struct led_lookup_data lookup;
+	int ret;
+
+	/* First, register a LED class device */
+	cdev->name = "led-test";
+	ret = devm_led_classdev_register(dev, cdev);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	/* Then make the LED available for lookup */
+	lookup.provider = cdev->name;
+	lookup.dev_id = dev_name(dev);
+	lookup.con_id = "led-test-1";
+	led_add_lookup(&lookup);
+
+	/* Finally, attempt to look it up via the API - imagine this was an orthogonal driver */
+	cdev_get = devm_led_get(dev, "led-test-1");
+	KUNIT_ASSERT_FALSE(test, IS_ERR(cdev_get));
+
+	KUNIT_EXPECT_STREQ(test, cdev_get->name, cdev->name);
+
+	led_remove_lookup(&lookup);
+}
+
 static struct kunit_case led_test_cases[] = {
 	KUNIT_CASE(led_test_class_register),
+	KUNIT_CASE(led_test_class_add_lookup_and_get),
 	{ }
 };
 
