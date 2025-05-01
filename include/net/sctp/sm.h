@@ -161,7 +161,6 @@ const struct sctp_sm_table_entry *sctp_sm_lookup_event(
 					enum sctp_event_type event_type,
 					enum sctp_state state,
 					union sctp_subtype event_subtype);
-int sctp_chunk_iif(const struct sctp_chunk *);
 struct sctp_association *sctp_make_temp_asoc(const struct sctp_endpoint *,
 					     struct sctp_chunk *,
 					     gfp_t gfp);

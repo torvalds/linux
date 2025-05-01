@@ -2152,8 +2152,6 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *,
 				     const union sctp_addr *address,
 				     const gfp_t gfp,
 				     const int peer_state);
-void sctp_assoc_del_peer(struct sctp_association *asoc,
-			 const union sctp_addr *addr);
 void sctp_assoc_rm_peer(struct sctp_association *asoc,
 			 struct sctp_transport *peer);
 void sctp_assoc_control_transport(struct sctp_association *asoc,
