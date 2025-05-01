@@ -551,11 +551,7 @@ static inline struct acomp_req *acomp_request_on_stack_init(
 	return req;
 }
 
-static inline struct acomp_req *acomp_request_clone(struct acomp_req *req,
-						    size_t total, gfp_t gfp)
-{
-	return container_of(crypto_request_clone(&req->base, total, gfp),
-			    struct acomp_req, base);
-}
+struct acomp_req *acomp_request_clone(struct acomp_req *req,
+				      size_t total, gfp_t gfp);
 
 #endif

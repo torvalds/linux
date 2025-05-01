@@ -566,5 +566,23 @@ int acomp_walk_virt(struct acomp_walk *__restrict walk,
 }
 EXPORT_SYMBOL_GPL(acomp_walk_virt);
 
+struct acomp_req *acomp_request_clone(struct acomp_req *req,
+				      size_t total, gfp_t gfp)
+{
+	struct acomp_req *nreq;
+
+	nreq = container_of(crypto_request_clone(&req->base, total, gfp),
+			    struct acomp_req, base);
+	if (nreq == req)
+		return req;
+
+	if (req->src == &req->chain.ssg)
+		nreq->src = &nreq->chain.ssg;
+	if (req->dst == &req->chain.dsg)
+		nreq->dst = &nreq->chain.dsg;
+	return nreq;
+}
+EXPORT_SYMBOL_GPL(acomp_request_clone);
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Asynchronous compression type");
