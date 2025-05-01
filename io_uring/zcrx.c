@@ -47,8 +47,135 @@ static inline struct page *io_zcrx_iov_page(const struct net_iov *niov)
 	return area->mem.pages[net_iov_idx(niov)];
 }
 
+static void io_release_dmabuf(struct io_zcrx_mem *mem)
+{
+	if (!IS_ENABLED(CONFIG_DMA_SHARED_BUFFER))
+		return;
+
+	if (mem->sgt)
+		dma_buf_unmap_attachment_unlocked(mem->attach, mem->sgt,
+						  DMA_FROM_DEVICE);
+	if (mem->attach)
+		dma_buf_detach(mem->dmabuf, mem->attach);
+	if (mem->dmabuf)
+		dma_buf_put(mem->dmabuf);
+
+	mem->sgt = NULL;
+	mem->attach = NULL;
+	mem->dmabuf = NULL;
+}
+
+static int io_import_dmabuf(struct io_zcrx_ifq *ifq,
+			    struct io_zcrx_mem *mem,
+			    struct io_uring_zcrx_area_reg *area_reg)
+{
+	unsigned long off = (unsigned long)area_reg->addr;
+	unsigned long len = (unsigned long)area_reg->len;
+	unsigned long total_size = 0;
+	struct scatterlist *sg;
+	int dmabuf_fd = area_reg->dmabuf_fd;
+	int i, ret;
+
+	if (WARN_ON_ONCE(!ifq->dev))
+		return -EFAULT;
+	if (!IS_ENABLED(CONFIG_DMA_SHARED_BUFFER))
+		return -EINVAL;
+
+	mem->is_dmabuf = true;
+	mem->dmabuf = dma_buf_get(dmabuf_fd);
+	if (IS_ERR(mem->dmabuf)) {
+		ret = PTR_ERR(mem->dmabuf);
+		mem->dmabuf = NULL;
+		goto err;
+	}
+
+	mem->attach = dma_buf_attach(mem->dmabuf, ifq->dev);
+	if (IS_ERR(mem->attach)) {
+		ret = PTR_ERR(mem->attach);
+		mem->attach = NULL;
+		goto err;
+	}
+
+	mem->sgt = dma_buf_map_attachment_unlocked(mem->attach, DMA_FROM_DEVICE);
+	if (IS_ERR(mem->sgt)) {
+		ret = PTR_ERR(mem->sgt);
+		mem->sgt = NULL;
+		goto err;
+	}
+
+	for_each_sgtable_dma_sg(mem->sgt, sg, i)
+		total_size += sg_dma_len(sg);
+
+	if (total_size < off + len)
+		return -EINVAL;
+
+	mem->dmabuf_offset = off;
+	mem->size = len;
+	return 0;
+err:
+	io_release_dmabuf(mem);
+	return ret;
+}
+
+static int io_zcrx_map_area_dmabuf(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
+{
+	unsigned long off = area->mem.dmabuf_offset;
+	struct scatterlist *sg;
+	unsigned i, niov_idx = 0;
+
+	if (!IS_ENABLED(CONFIG_DMA_SHARED_BUFFER))
+		return -EINVAL;
+
+	for_each_sgtable_dma_sg(area->mem.sgt, sg, i) {
+		dma_addr_t dma = sg_dma_address(sg);
+		unsigned long sg_len = sg_dma_len(sg);
+		unsigned long sg_off = min(sg_len, off);
+
+		off -= sg_off;
+		sg_len -= sg_off;
+		dma += sg_off;
+
+		while (sg_len && niov_idx < area->nia.num_niovs) {
+			struct net_iov *niov = &area->nia.niovs[niov_idx];
+
+			if (net_mp_niov_set_dma_addr(niov, dma))
+				return 0;
+			sg_len -= PAGE_SIZE;
+			dma += PAGE_SIZE;
+			niov_idx++;
+		}
+	}
+	return niov_idx;
+}
+
+static int io_import_umem(struct io_zcrx_ifq *ifq,
+			  struct io_zcrx_mem *mem,
+			  struct io_uring_zcrx_area_reg *area_reg)
+{
+	struct page **pages;
+	int nr_pages;
+
+	if (area_reg->dmabuf_fd)
+		return -EINVAL;
+	if (!area_reg->addr)
+		return -EFAULT;
+	pages = io_pin_pages((unsigned long)area_reg->addr, area_reg->len,
+				   &nr_pages);
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
+
+	mem->pages = pages;
+	mem->nr_folios = nr_pages;
+	mem->size = area_reg->len;
+	return 0;
+}
+
 static void io_release_area_mem(struct io_zcrx_mem *mem)
 {
+	if (mem->is_dmabuf) {
+		io_release_dmabuf(mem);
+		return;
+	}
 	if (mem->pages) {
 		unpin_user_pages(mem->pages, mem->nr_folios);
 		kvfree(mem->pages);
@@ -59,27 +186,17 @@ static int io_import_area(struct io_zcrx_ifq *ifq,
 			  struct io_zcrx_mem *mem,
 			  struct io_uring_zcrx_area_reg *area_reg)
 {
-	struct page **pages;
-	int nr_pages;
 	int ret;
 
 	ret = io_validate_user_buf_range(area_reg->addr, area_reg->len);
 	if (ret)
 		return ret;
-	if (!area_reg->addr)
-		return -EFAULT;
 	if (area_reg->addr & ~PAGE_MASK || area_reg->len & ~PAGE_MASK)
 		return -EINVAL;
 
-	pages = io_pin_pages((unsigned long)area_reg->addr, area_reg->len,
-				   &nr_pages);
-	if (IS_ERR(pages))
-		return PTR_ERR(pages);
-
-	mem->pages = pages;
-	mem->nr_folios = nr_pages;
-	mem->size = area_reg->len;
-	return 0;
+	if (area_reg->flags & IORING_ZCRX_AREA_DMABUF)
+		return io_import_dmabuf(ifq, mem, area_reg);
+	return io_import_umem(ifq, mem, area_reg);
 }
 
 static void io_zcrx_unmap_umem(struct io_zcrx_ifq *ifq,
@@ -101,7 +218,10 @@ static void __io_zcrx_unmap_area(struct io_zcrx_ifq *ifq,
 {
 	int i;
 
-	io_zcrx_unmap_umem(ifq, area, nr_mapped);
+	if (area->mem.is_dmabuf)
+		io_release_dmabuf(&area->mem);
+	else
+		io_zcrx_unmap_umem(ifq, area, nr_mapped);
 
 	for (i = 0; i < area->nia.num_niovs; i++)
 		net_mp_niov_set_dma_addr(&area->nia.niovs[i], 0);
@@ -145,7 +265,11 @@ static int io_zcrx_map_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
 	if (area->is_mapped)
 		return 0;
 
-	nr = io_zcrx_map_area_umem(ifq, area);
+	if (area->mem.is_dmabuf)
+		nr = io_zcrx_map_area_dmabuf(ifq, area);
+	else
+		nr = io_zcrx_map_area_umem(ifq, area);
+
 	if (nr != area->nia.num_niovs) {
 		__io_zcrx_unmap_area(ifq, area, nr);
 		return -EINVAL;
@@ -251,6 +375,8 @@ static void io_zcrx_free_area(struct io_zcrx_area *area)
 	kfree(area);
 }
 
+#define IO_ZCRX_AREA_SUPPORTED_FLAGS	(IORING_ZCRX_AREA_DMABUF)
+
 static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 			       struct io_zcrx_area **res,
 			       struct io_uring_zcrx_area_reg *area_reg)
@@ -259,9 +385,11 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 	unsigned nr_iovs;
 	int i, ret;
 
-	if (area_reg->flags || area_reg->rq_area_token)
+	if (area_reg->flags & ~IO_ZCRX_AREA_SUPPORTED_FLAGS)
 		return -EINVAL;
-	if (area_reg->__resv1 || area_reg->__resv2[0] || area_reg->__resv2[1])
+	if (area_reg->rq_area_token)
+		return -EINVAL;
+	if (area_reg->__resv2[0] || area_reg->__resv2[1])
 		return -EINVAL;
 
 	ret = -ENOMEM;
@@ -818,6 +946,9 @@ static ssize_t io_zcrx_copy_chunk(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 	struct io_zcrx_area *area = ifq->area;
 	size_t copied = 0;
 	int ret = 0;
+
+	if (area->mem.is_dmabuf)
+		return -EFAULT;
 
 	while (len) {
 		size_t copy_size = min_t(size_t, PAGE_SIZE, len);

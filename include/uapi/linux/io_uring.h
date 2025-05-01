@@ -990,12 +990,16 @@ struct io_uring_zcrx_offsets {
 	__u64	__resv[2];
 };
 
+enum io_uring_zcrx_area_flags {
+	IORING_ZCRX_AREA_DMABUF		= 1,
+};
+
 struct io_uring_zcrx_area_reg {
 	__u64	addr;
 	__u64	len;
 	__u64	rq_area_token;
 	__u32	flags;
-	__u32	__resv1;
+	__u32	dmabuf_fd;
 	__u64	__resv2[2];
 };
 

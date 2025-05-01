@@ -3,15 +3,22 @@
 #define IOU_ZC_RX_H
 
 #include <linux/io_uring_types.h>
+#include <linux/dma-buf.h>
 #include <linux/socket.h>
 #include <net/page_pool/types.h>
 #include <net/net_trackers.h>
 
 struct io_zcrx_mem {
 	unsigned long			size;
+	bool				is_dmabuf;
 
 	struct page			**pages;
 	unsigned long			nr_folios;
+
+	struct dma_buf_attachment	*attach;
+	struct dma_buf			*dmabuf;
+	struct sg_table			*sgt;
+	unsigned long			dmabuf_offset;
 };
 
 struct io_zcrx_area {
