@@ -313,5 +313,44 @@
             "$TC qdisc del dev $DUMMY handle 1: root",
             "$IP addr del 10.10.10.10/24 dev $DUMMY || true"
         ]
+    },
+    {
+        "id": "a4c3",
+        "name": "Test HFSC with netem/blackhole - queue emptying during peek operation",
+        "category": [
+            "qdisc",
+            "hfsc",
+            "netem",
+            "blackhole"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.10.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY handle 1:0 root drr",
+            "$TC class add dev $DUMMY parent 1:0 classid 1:1 drr",
+            "$TC class add dev $DUMMY parent 1:0 classid 1:2 drr",
+            "$TC qdisc add dev $DUMMY parent 1:1 handle 2:0 plug limit 1024",
+            "$TC qdisc add dev $DUMMY parent 1:2 handle 3:0 hfsc default 1",
+            "$TC class add dev $DUMMY parent 3:0 classid 3:1 hfsc rt m1 5Mbit d 10ms m2 10Mbit",
+            "$TC qdisc add dev $DUMMY parent 3:1 handle 4:0 netem delay 1ms",
+            "$TC qdisc add dev $DUMMY parent 4:1 handle 5:0 blackhole",
+            "ping -c 3 -W 0.01 -i 0.001 -s 1 10.10.10.10 -I $DUMMY > /dev/null 2>&1 || true",
+            "$TC class change dev $DUMMY parent 3:0 classid 3:1 hfsc sc m1 5Mbit d 10ms m2 10Mbit",
+            "$TC class del dev $DUMMY parent 3:0 classid 3:1",
+            "$TC class add dev $DUMMY parent 3:0 classid 3:1 hfsc rt m1 5Mbit d 10ms m2 10Mbit",
+            "ping -c 3 -W 0.01 -i 0.001 -s 1 10.10.10.10 -I $DUMMY > /dev/null 2>&1 || true"
+        ],
+        "cmdUnderTest": "$TC class change dev $DUMMY parent 3:0 classid 3:1 hfsc sc m1 5Mbit d 10ms m2 10Mbit",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -s qdisc show dev $DUMMY",
+        "matchPattern": "qdisc hfsc 3:.*parent 1:2.*default 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1:0 root",
+            "$IP addr del 10.10.10.10/24 dev $DUMMY || true"
+        ]
     }
 ]
