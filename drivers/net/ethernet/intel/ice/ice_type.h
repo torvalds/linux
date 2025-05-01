@@ -326,17 +326,17 @@ struct ice_hw_common_caps {
 #define ICE_TS_TMR_IDX_ASSOC_M		BIT(24)
 
 /* TIME_REF clock rate specification */
-enum ice_time_ref_freq {
-	ICE_TIME_REF_FREQ_25_000	= 0,
-	ICE_TIME_REF_FREQ_122_880	= 1,
-	ICE_TIME_REF_FREQ_125_000	= 2,
-	ICE_TIME_REF_FREQ_153_600	= 3,
-	ICE_TIME_REF_FREQ_156_250	= 4,
-	ICE_TIME_REF_FREQ_245_760	= 5,
+enum ice_tspll_freq {
+	ICE_TSPLL_FREQ_25_000	= 0,
+	ICE_TSPLL_FREQ_122_880	= 1,
+	ICE_TSPLL_FREQ_125_000	= 2,
+	ICE_TSPLL_FREQ_153_600	= 3,
+	ICE_TSPLL_FREQ_156_250	= 4,
+	ICE_TSPLL_FREQ_245_760	= 5,
 
-	NUM_ICE_TIME_REF_FREQ,
+	NUM_ICE_TSPLL_FREQ,
 
-	ICE_TIME_REF_FREQ_INVALID	= -1,
+	ICE_TSPLL_FREQ_INVALID	= -1,
 };
 
 /* Clock source specification */
@@ -349,7 +349,7 @@ enum ice_clk_src {
 
 struct ice_ts_func_info {
 	/* Function specific info */
-	enum ice_time_ref_freq time_ref;
+	enum ice_tspll_freq time_ref;
 	u8 clk_freq;
 	u8 clk_src;
 	u8 tmr_index_assoc;

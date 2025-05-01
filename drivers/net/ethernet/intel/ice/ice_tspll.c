@@ -6,8 +6,8 @@
 #include "ice_ptp_hw.h"
 
 static const struct
-ice_cgu_pll_params_e82x e822_cgu_params[NUM_ICE_TIME_REF_FREQ] = {
-	/* ICE_TIME_REF_FREQ_25_000 -> 25 MHz */
+ice_tspll_params_e82x e82x_tspll_params[NUM_ICE_TSPLL_FREQ] = {
+	/* ICE_TSPLL_FREQ_25_000 -> 25 MHz */
 	{
 		/* refclk_pre_div */
 		1,
@@ -19,7 +19,7 @@ ice_cgu_pll_params_e82x e822_cgu_params[NUM_ICE_TIME_REF_FREQ] = {
 		6,
 	},
 
-	/* ICE_TIME_REF_FREQ_122_880 -> 122.88 MHz */
+	/* ICE_TSPLL_FREQ_122_880 -> 122.88 MHz */
 	{
 		/* refclk_pre_div */
 		5,
@@ -31,7 +31,7 @@ ice_cgu_pll_params_e82x e822_cgu_params[NUM_ICE_TIME_REF_FREQ] = {
 		7,
 	},
 
-	/* ICE_TIME_REF_FREQ_125_000 -> 125 MHz */
+	/* ICE_TSPLL_FREQ_125_000 -> 125 MHz */
 	{
 		/* refclk_pre_div */
 		5,
@@ -43,7 +43,7 @@ ice_cgu_pll_params_e82x e822_cgu_params[NUM_ICE_TIME_REF_FREQ] = {
 		7,
 	},
 
-	/* ICE_TIME_REF_FREQ_153_600 -> 153.6 MHz */
+	/* ICE_TSPLL_FREQ_153_600 -> 153.6 MHz */
 	{
 		/* refclk_pre_div */
 		5,
@@ -55,7 +55,7 @@ ice_cgu_pll_params_e82x e822_cgu_params[NUM_ICE_TIME_REF_FREQ] = {
 		6,
 	},
 
-	/* ICE_TIME_REF_FREQ_156_250 -> 156.25 MHz */
+	/* ICE_TSPLL_FREQ_156_250 -> 156.25 MHz */
 	{
 		/* refclk_pre_div */
 		5,
@@ -67,7 +67,7 @@ ice_cgu_pll_params_e82x e822_cgu_params[NUM_ICE_TIME_REF_FREQ] = {
 		6,
 	},
 
-	/* ICE_TIME_REF_FREQ_245_760 -> 245.76 MHz */
+	/* ICE_TSPLL_FREQ_245_760 -> 245.76 MHz */
 	{
 		/* refclk_pre_div */
 		10,
@@ -81,86 +81,86 @@ ice_cgu_pll_params_e82x e822_cgu_params[NUM_ICE_TIME_REF_FREQ] = {
 };
 
 static const struct
-ice_cgu_pll_params_e825c e825c_cgu_params[NUM_ICE_TIME_REF_FREQ] = {
-	/* ICE_TIME_REF_FREQ_25_000 -> 25 MHz */
+ice_tspll_params_e825c e825c_tspll_params[NUM_ICE_TSPLL_FREQ] = {
+	/* ICE_TSPLL_FREQ_25_000 -> 25 MHz */
 	{
-		/* tspll_ck_refclkfreq */
+		/* ck_refclkfreq */
 		0x19,
-		/* tspll_ndivratio */
+		/* ndivratio */
 		1,
-		/* tspll_fbdiv_intgr */
+		/* fbdiv_intgr */
 		320,
-		/* tspll_fbdiv_frac */
+		/* fbdiv_frac */
 		0,
 		/* ref1588_ck_div */
 		0,
 	},
 
-	/* ICE_TIME_REF_FREQ_122_880 -> 122.88 MHz */
+	/* ICE_TSPLL_FREQ_122_880 -> 122.88 MHz */
 	{
-		/* tspll_ck_refclkfreq */
+		/* ck_refclkfreq */
 		0x29,
-		/* tspll_ndivratio */
+		/* ndivratio */
 		3,
-		/* tspll_fbdiv_intgr */
+		/* fbdiv_intgr */
 		195,
-		/* tspll_fbdiv_frac */
+		/* fbdiv_frac */
 		1342177280UL,
 		/* ref1588_ck_div */
 		0,
 	},
 
-	/* ICE_TIME_REF_FREQ_125_000 -> 125 MHz */
+	/* ICE_TSPLL_FREQ_125_000 -> 125 MHz */
 	{
-		/* tspll_ck_refclkfreq */
+		/* ck_refclkfreq */
 		0x3E,
-		/* tspll_ndivratio */
+		/* ndivratio */
 		2,
-		/* tspll_fbdiv_intgr */
+		/* fbdiv_intgr */
 		128,
-		/* tspll_fbdiv_frac */
+		/* fbdiv_frac */
 		0,
 		/* ref1588_ck_div */
 		0,
 	},
 
-	/* ICE_TIME_REF_FREQ_153_600 -> 153.6 MHz */
+	/* ICE_TSPLL_FREQ_153_600 -> 153.6 MHz */
 	{
-		/* tspll_ck_refclkfreq */
+		/* ck_refclkfreq */
 		0x33,
-		/* tspll_ndivratio */
+		/* ndivratio */
 		3,
-		/* tspll_fbdiv_intgr */
+		/* fbdiv_intgr */
 		156,
-		/* tspll_fbdiv_frac */
+		/* fbdiv_frac */
 		1073741824UL,
 		/* ref1588_ck_div */
 		0,
 	},
 
-	/* ICE_TIME_REF_FREQ_156_250 -> 156.25 MHz */
+	/* ICE_TSPLL_FREQ_156_250 -> 156.25 MHz */
 	{
-		/* tspll_ck_refclkfreq */
+		/* ck_refclkfreq */
 		0x1F,
-		/* tspll_ndivratio */
+		/* ndivratio */
 		5,
-		/* tspll_fbdiv_intgr */
+		/* fbdiv_intgr */
 		256,
-		/* tspll_fbdiv_frac */
+		/* fbdiv_frac */
 		0,
 		/* ref1588_ck_div */
 		0,
 	},
 
-	/* ICE_TIME_REF_FREQ_245_760 -> 245.76 MHz */
+	/* ICE_TSPLL_FREQ_245_760 -> 245.76 MHz */
 	{
-		/* tspll_ck_refclkfreq */
+		/* ck_refclkfreq */
 		0x52,
-		/* tspll_ndivratio */
+		/* ndivratio */
 		3,
-		/* tspll_fbdiv_intgr */
+		/* fbdiv_intgr */
 		97,
-		/* tspll_fbdiv_frac */
+		/* fbdiv_frac */
 		2818572288UL,
 		/* ref1588_ck_div */
 		0,
@@ -168,25 +168,25 @@ ice_cgu_pll_params_e825c e825c_cgu_params[NUM_ICE_TIME_REF_FREQ] = {
 };
 
 /**
- * ice_clk_freq_str - Convert time_ref_freq to string
+ * ice_tspll_clk_freq_str - Convert time_ref_freq to string
  * @clk_freq: Clock frequency
  *
- * Return: specified TIME_REF clock frequency converted to a string
+ * Return: specified TIME_REF clock frequency converted to a string.
  */
-static const char *ice_clk_freq_str(enum ice_time_ref_freq clk_freq)
+static const char *ice_tspll_clk_freq_str(enum ice_tspll_freq clk_freq)
 {
 	switch (clk_freq) {
-	case ICE_TIME_REF_FREQ_25_000:
+	case ICE_TSPLL_FREQ_25_000:
 		return "25 MHz";
-	case ICE_TIME_REF_FREQ_122_880:
+	case ICE_TSPLL_FREQ_122_880:
 		return "122.88 MHz";
-	case ICE_TIME_REF_FREQ_125_000:
+	case ICE_TSPLL_FREQ_125_000:
 		return "125 MHz";
-	case ICE_TIME_REF_FREQ_153_600:
+	case ICE_TSPLL_FREQ_153_600:
 		return "153.6 MHz";
-	case ICE_TIME_REF_FREQ_156_250:
+	case ICE_TSPLL_FREQ_156_250:
 		return "156.25 MHz";
-	case ICE_TIME_REF_FREQ_245_760:
+	case ICE_TSPLL_FREQ_245_760:
 		return "245.76 MHz";
 	default:
 		return "Unknown";
@@ -194,12 +194,12 @@ static const char *ice_clk_freq_str(enum ice_time_ref_freq clk_freq)
 }
 
 /**
- * ice_clk_src_str - Convert time_ref_src to string
+ * ice_tspll_clk_src_str - Convert time_ref_src to string
  * @clk_src: Clock source
  *
  * Return: specified clock source converted to its string name
  */
-static const char *ice_clk_src_str(enum ice_clk_src clk_src)
+static const char *ice_tspll_clk_src_str(enum ice_clk_src clk_src)
 {
 	switch (clk_src) {
 	case ICE_CLK_SRC_TCXO:
@@ -212,8 +212,8 @@ static const char *ice_clk_src_str(enum ice_clk_src clk_src)
 }
 
 /**
- * ice_cfg_cgu_pll_e82x - Configure the Clock Generation Unit
- * @hw: pointer to the HW struct
+ * ice_tspll_cfg_e82x - Configure the Clock Generation Unit TSPLL
+ * @hw: Pointer to the HW struct
  * @clk_freq: Clock frequency to program
  * @clk_src: Clock source to select (TIME_REF, or TCXO)
  *
@@ -223,21 +223,20 @@ static const char *ice_clk_src_str(enum ice_clk_src clk_src)
  * Return:
  * * %0       - success
  * * %-EINVAL - input parameters are incorrect
- * * %-EBUSY  - failed to lock TS PLL
+ * * %-EBUSY  - failed to lock TSPLL
  * * %other   - CGU read/write failure
  */
-static int ice_cfg_cgu_pll_e82x(struct ice_hw *hw,
-				enum ice_time_ref_freq clk_freq,
-				enum ice_clk_src clk_src)
+static int ice_tspll_cfg_e82x(struct ice_hw *hw, enum ice_tspll_freq clk_freq,
+			      enum ice_clk_src clk_src)
 {
 	union tspll_ro_bwm_lf bwm_lf;
-	union nac_cgu_dword19 dw19;
-	union nac_cgu_dword22 dw22;
-	union nac_cgu_dword24 dw24;
-	union nac_cgu_dword9 dw9;
+	union ice_cgu_r19 dw19;
+	union ice_cgu_r22 dw22;
+	union ice_cgu_r24 dw24;
+	union ice_cgu_r9 dw9;
 	int err;
 
-	if (clk_freq >= NUM_ICE_TIME_REF_FREQ) {
+	if (clk_freq >= NUM_ICE_TSPLL_FREQ) {
 		dev_warn(ice_hw_to_dev(hw), "Invalid TIME_REF frequency %u\n",
 			 clk_freq);
 		return -EINVAL;
@@ -249,129 +248,127 @@ static int ice_cfg_cgu_pll_e82x(struct ice_hw *hw,
 		return -EINVAL;
 	}
 
-	if (clk_src == ICE_CLK_SRC_TCXO &&
-	    clk_freq != ICE_TIME_REF_FREQ_25_000) {
+	if (clk_src == ICE_CLK_SRC_TCXO && clk_freq != ICE_TSPLL_FREQ_25_000) {
 		dev_warn(ice_hw_to_dev(hw),
 			 "TCXO only supports 25 MHz frequency\n");
 		return -EINVAL;
 	}
 
-	err = ice_read_cgu_reg_e82x(hw, NAC_CGU_DWORD9, &dw9.val);
+	err = ice_read_cgu_reg(hw, ICE_CGU_R9, &dw9.val);
 	if (err)
 		return err;
 
-	err = ice_read_cgu_reg_e82x(hw, NAC_CGU_DWORD24, &dw24.val);
+	err = ice_read_cgu_reg(hw, ICE_CGU_R24, &dw24.val);
 	if (err)
 		return err;
 
-	err = ice_read_cgu_reg_e82x(hw, TSPLL_RO_BWM_LF, &bwm_lf.val);
+	err = ice_read_cgu_reg(hw, TSPLL_RO_BWM_LF, &bwm_lf.val);
 	if (err)
 		return err;
 
 	/* Log the current clock configuration */
-	ice_debug(hw, ICE_DBG_PTP, "Current CGU configuration -- %s, clk_src %s, clk_freq %s, PLL %s\n",
+	ice_debug(hw, ICE_DBG_PTP, "Current TSPLL configuration -- %s, clk_src %s, clk_freq %s, PLL %s\n",
 		  str_enabled_disabled(dw24.ts_pll_enable),
-		  ice_clk_src_str(dw24.time_ref_sel),
-		  ice_clk_freq_str(dw9.time_ref_freq_sel),
+		  ice_tspll_clk_src_str(dw24.time_ref_sel),
+		  ice_tspll_clk_freq_str(dw9.time_ref_freq_sel),
 		  bwm_lf.plllock_true_lock_cri ? "locked" : "unlocked");
 
 	/* Disable the PLL before changing the clock source or frequency */
 	if (dw24.ts_pll_enable) {
 		dw24.ts_pll_enable = 0;
 
-		err = ice_write_cgu_reg_e82x(hw, NAC_CGU_DWORD24, dw24.val);
+		err = ice_write_cgu_reg(hw, ICE_CGU_R24, dw24.val);
 		if (err)
 			return err;
 	}
 
 	/* Set the frequency */
 	dw9.time_ref_freq_sel = clk_freq;
-	err = ice_write_cgu_reg_e82x(hw, NAC_CGU_DWORD9, dw9.val);
+	err = ice_write_cgu_reg(hw, ICE_CGU_R9, dw9.val);
 	if (err)
 		return err;
 
-	/* Configure the TS PLL feedback divisor */
-	err = ice_read_cgu_reg_e82x(hw, NAC_CGU_DWORD19, &dw19.val);
+	/* Configure the TSPLL feedback divisor */
+	err = ice_read_cgu_reg(hw, ICE_CGU_R19, &dw19.val);
 	if (err)
 		return err;
 
-	dw19.tspll_fbdiv_intgr = e822_cgu_params[clk_freq].feedback_div;
-	dw19.tspll_ndivratio = 1;
+	dw19.fbdiv_intgr = e82x_tspll_params[clk_freq].feedback_div;
+	dw19.ndivratio = 1;
 
-	err = ice_write_cgu_reg_e82x(hw, NAC_CGU_DWORD19, dw19.val);
+	err = ice_write_cgu_reg(hw, ICE_CGU_R19, dw19.val);
 	if (err)
 		return err;
 
-	/* Configure the TS PLL post divisor */
-	err = ice_read_cgu_reg_e82x(hw, NAC_CGU_DWORD22, &dw22.val);
+	/* Configure the TSPLL post divisor */
+	err = ice_read_cgu_reg(hw, ICE_CGU_R22, &dw22.val);
 	if (err)
 		return err;
 
-	dw22.time1588clk_div = e822_cgu_params[clk_freq].post_pll_div;
+	dw22.time1588clk_div = e82x_tspll_params[clk_freq].post_pll_div;
 	dw22.time1588clk_sel_div2 = 0;
 
-	err = ice_write_cgu_reg_e82x(hw, NAC_CGU_DWORD22, dw22.val);
+	err = ice_write_cgu_reg(hw, ICE_CGU_R22, dw22.val);
 	if (err)
 		return err;
 
-	/* Configure the TS PLL pre divisor and clock source */
-	err = ice_read_cgu_reg_e82x(hw, NAC_CGU_DWORD24, &dw24.val);
+	/* Configure the TSPLL pre divisor and clock source */
+	err = ice_read_cgu_reg(hw, ICE_CGU_R24, &dw24.val);
 	if (err)
 		return err;
 
-	dw24.ref1588_ck_div = e822_cgu_params[clk_freq].refclk_pre_div;
-	dw24.tspll_fbdiv_frac = e822_cgu_params[clk_freq].frac_n_div;
+	dw24.ref1588_ck_div = e82x_tspll_params[clk_freq].refclk_pre_div;
+	dw24.fbdiv_frac = e82x_tspll_params[clk_freq].frac_n_div;
 	dw24.time_ref_sel = clk_src;
 
-	err = ice_write_cgu_reg_e82x(hw, NAC_CGU_DWORD24, dw24.val);
+	err = ice_write_cgu_reg(hw, ICE_CGU_R24, dw24.val);
 	if (err)
 		return err;
 
 	/* Finally, enable the PLL */
 	dw24.ts_pll_enable = 1;
 
-	err = ice_write_cgu_reg_e82x(hw, NAC_CGU_DWORD24, dw24.val);
+	err = ice_write_cgu_reg(hw, ICE_CGU_R24, dw24.val);
 	if (err)
 		return err;
 
 	/* Wait to verify if the PLL locks */
 	usleep_range(1000, 5000);
 
-	err = ice_read_cgu_reg_e82x(hw, TSPLL_RO_BWM_LF, &bwm_lf.val);
+	err = ice_read_cgu_reg(hw, TSPLL_RO_BWM_LF, &bwm_lf.val);
 	if (err)
 		return err;
 
 	if (!bwm_lf.plllock_true_lock_cri) {
-		dev_warn(ice_hw_to_dev(hw), "CGU PLL failed to lock\n");
+		dev_warn(ice_hw_to_dev(hw), "TSPLL failed to lock\n");
 		return -EBUSY;
 	}
 
 	/* Log the current clock configuration */
-	ice_debug(hw, ICE_DBG_PTP, "New CGU configuration -- %s, clk_src %s, clk_freq %s, PLL %s\n",
+	ice_debug(hw, ICE_DBG_PTP, "New TSPLL configuration -- %s, clk_src %s, clk_freq %s, PLL %s\n",
 		  str_enabled_disabled(dw24.ts_pll_enable),
-		  ice_clk_src_str(dw24.time_ref_sel),
-		  ice_clk_freq_str(dw9.time_ref_freq_sel),
+		  ice_tspll_clk_src_str(dw24.time_ref_sel),
+		  ice_tspll_clk_freq_str(dw9.time_ref_freq_sel),
 		  bwm_lf.plllock_true_lock_cri ? "locked" : "unlocked");
 
 	return 0;
 }
 
 /**
- * ice_cfg_cgu_pll_dis_sticky_bits_e82x - disable TS PLL sticky bits
- * @hw: pointer to the HW struct
+ * ice_tspll_dis_sticky_bits_e82x - disable TSPLL sticky bits
+ * @hw: Pointer to the HW struct
  *
- * Configure the Clock Generation Unit TS PLL sticky bits so they don't latch on
- * losing TS PLL lock, but always show current state.
+ * Configure the Clock Generation Unit TSPLL sticky bits so they don't latch on
+ * losing TSPLL lock, but always show current state.
  *
- * Return: 0 on success, other error codes when failed to read/write CGU
+ * Return: 0 on success, other error codes when failed to read/write CGU.
  */
-static int ice_cfg_cgu_pll_dis_sticky_bits_e82x(struct ice_hw *hw)
+static int ice_tspll_dis_sticky_bits_e82x(struct ice_hw *hw)
 {
 	union tspll_cntr_bist_settings cntr_bist;
 	int err;
 
-	err = ice_read_cgu_reg_e82x(hw, TSPLL_CNTR_BIST_SETTINGS,
-				    &cntr_bist.val);
+	err = ice_read_cgu_reg(hw, TSPLL_CNTR_BIST_SETTINGS, &cntr_bist.val);
 	if (err)
 		return err;
 
@@ -379,13 +376,12 @@ static int ice_cfg_cgu_pll_dis_sticky_bits_e82x(struct ice_hw *hw)
 	cntr_bist.i_plllock_sel_0 = 0;
 	cntr_bist.i_plllock_sel_1 = 0;
 
-	return ice_write_cgu_reg_e82x(hw, TSPLL_CNTR_BIST_SETTINGS,
-				      cntr_bist.val);
+	return ice_write_cgu_reg(hw, TSPLL_CNTR_BIST_SETTINGS, cntr_bist.val);
 }
 
 /**
- * ice_cfg_cgu_pll_e825c - Configure the Clock Generation Unit for E825-C
- * @hw: pointer to the HW struct
+ * ice_tspll_cfg_e825c - Configure the TSPLL for E825-C
+ * @hw: Pointer to the HW struct
  * @clk_freq: Clock frequency to program
  * @clk_src: Clock source to select (TIME_REF, or TCXO)
  *
@@ -395,23 +391,22 @@ static int ice_cfg_cgu_pll_dis_sticky_bits_e82x(struct ice_hw *hw)
  * Return:
  * * %0       - success
  * * %-EINVAL - input parameters are incorrect
- * * %-EBUSY  - failed to lock TS PLL
+ * * %-EBUSY  - failed to lock TSPLL
  * * %other   - CGU read/write failure
  */
-static int ice_cfg_cgu_pll_e825c(struct ice_hw *hw,
-				 enum ice_time_ref_freq clk_freq,
-				 enum ice_clk_src clk_src)
+static int ice_tspll_cfg_e825c(struct ice_hw *hw, enum ice_tspll_freq clk_freq,
+			       enum ice_clk_src clk_src)
 {
 	union tspll_ro_lock_e825c ro_lock;
-	union nac_cgu_dword16_e825c dw16;
-	union nac_cgu_dword23_e825c dw23;
-	union nac_cgu_dword19 dw19;
-	union nac_cgu_dword22 dw22;
-	union nac_cgu_dword24 dw24;
-	union nac_cgu_dword9 dw9;
+	union ice_cgu_r16 dw16;
+	union ice_cgu_r23 dw23;
+	union ice_cgu_r19 dw19;
+	union ice_cgu_r22 dw22;
+	union ice_cgu_r24 dw24;
+	union ice_cgu_r9 dw9;
 	int err;
 
-	if (clk_freq >= NUM_ICE_TIME_REF_FREQ) {
+	if (clk_freq >= NUM_ICE_TSPLL_FREQ) {
 		dev_warn(ice_hw_to_dev(hw), "Invalid TIME_REF frequency %u\n",
 			 clk_freq);
 		return -EINVAL;
@@ -423,46 +418,44 @@ static int ice_cfg_cgu_pll_e825c(struct ice_hw *hw,
 		return -EINVAL;
 	}
 
-	if (clk_src == ICE_CLK_SRC_TCXO &&
-	    clk_freq != ICE_TIME_REF_FREQ_156_250) {
+	if (clk_src == ICE_CLK_SRC_TCXO && clk_freq != ICE_TSPLL_FREQ_156_250) {
 		dev_warn(ice_hw_to_dev(hw),
 			 "TCXO only supports 156.25 MHz frequency\n");
 		return -EINVAL;
 	}
 
-	err = ice_read_cgu_reg_e82x(hw, NAC_CGU_DWORD9, &dw9.val);
+	err = ice_read_cgu_reg(hw, ICE_CGU_R9, &dw9.val);
 	if (err)
 		return err;
 
-	err = ice_read_cgu_reg_e82x(hw, NAC_CGU_DWORD24, &dw24.val);
+	err = ice_read_cgu_reg(hw, ICE_CGU_R24, &dw24.val);
 	if (err)
 		return err;
 
-	err = ice_read_cgu_reg_e82x(hw, NAC_CGU_DWORD16_E825C, &dw16.val);
+	err = ice_read_cgu_reg(hw, ICE_CGU_R16, &dw16.val);
 	if (err)
 		return err;
 
-	err = ice_read_cgu_reg_e82x(hw, NAC_CGU_DWORD23_E825C, &dw23.val);
+	err = ice_read_cgu_reg(hw, ICE_CGU_R23, &dw23.val);
 	if (err)
 		return err;
 
-	err = ice_read_cgu_reg_e82x(hw, TSPLL_RO_LOCK_E825C, &ro_lock.val);
+	err = ice_read_cgu_reg(hw, TSPLL_RO_LOCK_E825C, &ro_lock.val);
 	if (err)
 		return err;
 
 	/* Log the current clock configuration */
-	ice_debug(hw, ICE_DBG_PTP, "Current CGU configuration -- %s, clk_src %s, clk_freq %s, PLL %s\n",
+	ice_debug(hw, ICE_DBG_PTP, "Current TSPLL configuration -- %s, clk_src %s, clk_freq %s, PLL %s\n",
 		  str_enabled_disabled(dw24.ts_pll_enable),
-		  ice_clk_src_str(dw23.time_ref_sel),
-		  ice_clk_freq_str(dw9.time_ref_freq_sel),
+		  ice_tspll_clk_src_str(dw23.time_ref_sel),
+		  ice_tspll_clk_freq_str(dw9.time_ref_freq_sel),
 		  ro_lock.plllock_true_lock_cri ? "locked" : "unlocked");
 
 	/* Disable the PLL before changing the clock source or frequency */
 	if (dw23.ts_pll_enable) {
 		dw23.ts_pll_enable = 0;
 
-		err = ice_write_cgu_reg_e82x(hw, NAC_CGU_DWORD23_E825C,
-					     dw23.val);
+		err = ice_write_cgu_reg(hw, ICE_CGU_R23, dw23.val);
 		if (err)
 			return err;
 	}
@@ -478,33 +471,30 @@ static int ice_cfg_cgu_pll_e825c(struct ice_hw *hw,
 		dw9.time_ref_en = 1;
 		dw9.clk_eref0_en = 0;
 	}
-	err = ice_write_cgu_reg_e82x(hw, NAC_CGU_DWORD9, dw9.val);
+	err = ice_write_cgu_reg(hw, ICE_CGU_R9, dw9.val);
 	if (err)
 		return err;
 
 	/* Choose the referenced frequency */
-	dw16.tspll_ck_refclkfreq =
-	e825c_cgu_params[clk_freq].tspll_ck_refclkfreq;
-	err = ice_write_cgu_reg_e82x(hw, NAC_CGU_DWORD16_E825C, dw16.val);
+	dw16.ck_refclkfreq = e825c_tspll_params[clk_freq].ck_refclkfreq;
+	err = ice_write_cgu_reg(hw, ICE_CGU_R16, dw16.val);
 	if (err)
 		return err;
 
-	/* Configure the TS PLL feedback divisor */
-	err = ice_read_cgu_reg_e82x(hw, NAC_CGU_DWORD19, &dw19.val);
+	/* Configure the TSPLL feedback divisor */
+	err = ice_read_cgu_reg(hw, ICE_CGU_R19, &dw19.val);
 	if (err)
 		return err;
 
-	dw19.tspll_fbdiv_intgr =
-		e825c_cgu_params[clk_freq].tspll_fbdiv_intgr;
-	dw19.tspll_ndivratio =
-		e825c_cgu_params[clk_freq].tspll_ndivratio;
+	dw19.fbdiv_intgr = e825c_tspll_params[clk_freq].fbdiv_intgr;
+	dw19.ndivratio = e825c_tspll_params[clk_freq].ndivratio;
 
-	err = ice_write_cgu_reg_e82x(hw, NAC_CGU_DWORD19, dw19.val);
+	err = ice_write_cgu_reg(hw, ICE_CGU_R19, dw19.val);
 	if (err)
 		return err;
 
-	/* Configure the TS PLL post divisor */
-	err = ice_read_cgu_reg_e82x(hw, NAC_CGU_DWORD22, &dw22.val);
+	/* Configure the TSPLL post divisor */
+	err = ice_read_cgu_reg(hw, ICE_CGU_R22, &dw22.val);
 	if (err)
 		return err;
 
@@ -512,135 +502,133 @@ static int ice_cfg_cgu_pll_e825c(struct ice_hw *hw,
 	dw22.time1588clk_div = 5;
 	dw22.time1588clk_sel_div2 = 0;
 
-	err = ice_write_cgu_reg_e82x(hw, NAC_CGU_DWORD22, dw22.val);
+	err = ice_write_cgu_reg(hw, ICE_CGU_R22, dw22.val);
 	if (err)
 		return err;
 
-	/* Configure the TS PLL pre divisor and clock source */
-	err = ice_read_cgu_reg_e82x(hw, NAC_CGU_DWORD23_E825C, &dw23.val);
+	/* Configure the TSPLL pre divisor and clock source */
+	err = ice_read_cgu_reg(hw, ICE_CGU_R23, &dw23.val);
 	if (err)
 		return err;
 
-	dw23.ref1588_ck_div =
-		e825c_cgu_params[clk_freq].ref1588_ck_div;
+	dw23.ref1588_ck_div = e825c_tspll_params[clk_freq].ref1588_ck_div;
 	dw23.time_ref_sel = clk_src;
 
-	err = ice_write_cgu_reg_e82x(hw, NAC_CGU_DWORD23_E825C, dw23.val);
+	err = ice_write_cgu_reg(hw, ICE_CGU_R23, dw23.val);
 	if (err)
 		return err;
 
-	dw24.tspll_fbdiv_frac =
-		e825c_cgu_params[clk_freq].tspll_fbdiv_frac;
+	dw24.fbdiv_frac = e825c_tspll_params[clk_freq].fbdiv_frac;
 
-	err = ice_write_cgu_reg_e82x(hw, NAC_CGU_DWORD24, dw24.val);
+	err = ice_write_cgu_reg(hw, ICE_CGU_R24, dw24.val);
 	if (err)
 		return err;
 
 	/* Finally, enable the PLL */
 	dw23.ts_pll_enable = 1;
 
-	err = ice_write_cgu_reg_e82x(hw, NAC_CGU_DWORD23_E825C, dw23.val);
+	err = ice_write_cgu_reg(hw, ICE_CGU_R23, dw23.val);
 	if (err)
 		return err;
 
 	/* Wait to verify if the PLL locks */
 	usleep_range(1000, 5000);
 
-	err = ice_read_cgu_reg_e82x(hw, TSPLL_RO_LOCK_E825C, &ro_lock.val);
+	err = ice_read_cgu_reg(hw, TSPLL_RO_LOCK_E825C, &ro_lock.val);
 	if (err)
 		return err;
 
 	if (!ro_lock.plllock_true_lock_cri) {
-		dev_warn(ice_hw_to_dev(hw), "CGU PLL failed to lock\n");
+		dev_warn(ice_hw_to_dev(hw), "TSPLL failed to lock\n");
 		return -EBUSY;
 	}
 
 	/* Log the current clock configuration */
-	ice_debug(hw, ICE_DBG_PTP, "New CGU configuration -- %s, clk_src %s, clk_freq %s, PLL %s\n",
+	ice_debug(hw, ICE_DBG_PTP, "New TSPLL configuration -- %s, clk_src %s, clk_freq %s, PLL %s\n",
 		  str_enabled_disabled(dw24.ts_pll_enable),
-		  ice_clk_src_str(dw23.time_ref_sel),
-		  ice_clk_freq_str(dw9.time_ref_freq_sel),
+		  ice_tspll_clk_src_str(dw23.time_ref_sel),
+		  ice_tspll_clk_freq_str(dw9.time_ref_freq_sel),
 		  ro_lock.plllock_true_lock_cri ? "locked" : "unlocked");
 
 	return 0;
 }
 
 /**
- * ice_cfg_cgu_pll_dis_sticky_bits_e825c - disable TS PLL sticky bits for E825-C
- * @hw: pointer to the HW struct
+ * ice_tspll_dis_sticky_bits_e825c - disable TSPLL sticky bits for E825-C
+ * @hw: Pointer to the HW struct
  *
- * Configure the Clock Generation Unit TS PLL sticky bits so they don't latch on
- * losing TS PLL lock, but always show current state.
+ * Configure the Clock Generation Unit TSPLL sticky bits so they don't latch on
+ * losing TSPLL lock, but always show current state.
  *
- * Return: 0 on success, other error codes when failed to read/write CGU
+ * Return: 0 on success, other error codes when failed to read/write CGU.
  */
-static int ice_cfg_cgu_pll_dis_sticky_bits_e825c(struct ice_hw *hw)
+static int ice_tspll_dis_sticky_bits_e825c(struct ice_hw *hw)
 {
 	union tspll_bw_tdc_e825c bw_tdc;
 	int err;
 
-	err = ice_read_cgu_reg_e82x(hw, TSPLL_BW_TDC_E825C, &bw_tdc.val);
+	err = ice_read_cgu_reg(hw, TSPLL_BW_TDC_E825C, &bw_tdc.val);
 	if (err)
 		return err;
 
 	bw_tdc.i_plllock_sel_1_0 = 0;
 
-	return ice_write_cgu_reg_e82x(hw, TSPLL_BW_TDC_E825C, bw_tdc.val);
+	return ice_write_cgu_reg(hw, TSPLL_BW_TDC_E825C, bw_tdc.val);
 }
 
 #define ICE_ONE_PPS_OUT_AMP_MAX 3
 
 /**
- * ice_cgu_cfg_pps_out - Configure 1PPS output from CGU
+ * ice_tspll_cfg_pps_out_e825c - Enable/disable 1PPS output and set amplitude
  * @hw: pointer to the HW struct
  * @enable: true to enable 1PPS output, false to disable it
  *
  * Return: 0 on success, other negative error code when CGU read/write failed.
  */
-int ice_cgu_cfg_pps_out(struct ice_hw *hw, bool enable)
+int ice_tspll_cfg_pps_out_e825c(struct ice_hw *hw, bool enable)
 {
-	union nac_cgu_dword9 dw9;
+	union ice_cgu_r9 r9;
 	int err;
 
-	err = ice_read_cgu_reg_e82x(hw, NAC_CGU_DWORD9, &dw9.val);
+	err = ice_read_cgu_reg(hw, ICE_CGU_R9, &r9.val);
 	if (err)
 		return err;
 
-	dw9.one_pps_out_en = enable;
-	dw9.one_pps_out_amp = enable * ICE_ONE_PPS_OUT_AMP_MAX;
-	return ice_write_cgu_reg_e82x(hw, NAC_CGU_DWORD9, dw9.val);
+	r9.one_pps_out_en = enable;
+	r9.one_pps_out_amp = enable * ICE_ONE_PPS_OUT_AMP_MAX;
+	return ice_write_cgu_reg(hw, ICE_CGU_R9, r9.val);
 }
 
 /**
- * ice_init_cgu_e82x - Initialize CGU with settings from firmware
- * @hw: pointer to the HW structure
+ * ice_tspll_init - Initialize TSPLL with settings from firmware
+ * @hw: Pointer to the HW structure
  *
- * Initialize the Clock Generation Unit of the E822 device.
+ * Initialize the Clock Generation Unit of the E82X/E825 device.
  *
- * Return: 0 on success, other error codes when failed to read/write/cfg CGU
+ * Return: 0 on success, other error codes when failed to read/write/cfg CGU.
  */
-int ice_init_cgu_e82x(struct ice_hw *hw)
+int ice_tspll_init(struct ice_hw *hw)
 {
 	struct ice_ts_func_info *ts_info = &hw->func_caps.ts_func_info;
 	int err;
 
-	/* Disable sticky lock detection so lock err reported is accurate */
+	/* Disable sticky lock detection so lock err reported is accurate. */
 	if (hw->mac_type == ICE_MAC_GENERIC_3K_E825)
-		err = ice_cfg_cgu_pll_dis_sticky_bits_e825c(hw);
+		err = ice_tspll_dis_sticky_bits_e825c(hw);
 	else
-		err = ice_cfg_cgu_pll_dis_sticky_bits_e82x(hw);
+		err = ice_tspll_dis_sticky_bits_e82x(hw);
 	if (err)
 		return err;
 
-	/* Configure the CGU PLL using the parameters from the function
+	/* Configure the TSPLL using the parameters from the function
 	 * capabilities.
 	 */
 	if (hw->mac_type == ICE_MAC_GENERIC_3K_E825)
-		err = ice_cfg_cgu_pll_e825c(hw, ts_info->time_ref,
-					    (enum ice_clk_src)ts_info->clk_src);
+		err = ice_tspll_cfg_e825c(hw, ts_info->time_ref,
+					  (enum ice_clk_src)ts_info->clk_src);
 	else
-		err = ice_cfg_cgu_pll_e82x(hw, ts_info->time_ref,
-					   (enum ice_clk_src)ts_info->clk_src);
+		err = ice_tspll_cfg_e82x(hw, ts_info->time_ref,
+					 (enum ice_clk_src)ts_info->clk_src);
 
 	return err;
 }

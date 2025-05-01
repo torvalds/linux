@@ -1636,7 +1636,7 @@ static int ice_ptp_write_perout(struct ice_hw *hw, unsigned int chan,
 		int err;
 
 		/* Enable/disable CGU 1PPS output for E825C */
-		err = ice_cgu_cfg_pps_out(hw, !!period);
+		err = ice_tspll_cfg_pps_out_e825c(hw, !!period);
 		if (err)
 			return err;
 	}

@@ -39,8 +39,8 @@
 #define FEC_RECEIVER_ID_PCS0 (0x33 << FEC_RECV_ID_SHIFT)
 #define FEC_RECEIVER_ID_PCS1 (0x34 << FEC_RECV_ID_SHIFT)
 
-#define NAC_CGU_DWORD9 0x24
-union nac_cgu_dword9 {
+#define ICE_CGU_R9 0x24
+union ice_cgu_r9 {
 	struct {
 		u32 time_ref_freq_sel : 3;
 		u32 clk_eref1_en : 1;
@@ -62,24 +62,24 @@ union nac_cgu_dword9 {
 	u32 val;
 };
 
-#define NAC_CGU_DWORD16_E825C 0x40
-union nac_cgu_dword16_e825c {
+#define ICE_CGU_R16 0x40
+union ice_cgu_r16 {
 	struct {
 		u32 synce_remndr : 6;
 		u32 synce_phlmt_en : 1;
 		u32 misc13 : 17;
-		u32 tspll_ck_refclkfreq : 8;
+		u32 ck_refclkfreq : 8;
 	};
 	u32 val;
 };
 
-#define NAC_CGU_DWORD19 0x4c
-union nac_cgu_dword19 {
+#define ICE_CGU_R19 0x4c
+union ice_cgu_r19 {
 	struct {
-		u32 tspll_fbdiv_intgr : 8;
+		u32 fbdiv_intgr : 8;
 		u32 fdpll_ulck_thr : 5;
 		u32 misc15 : 3;
-		u32 tspll_ndivratio : 4;
+		u32 ndivratio : 4;
 		u32 tspll_iref_ndivratio : 3;
 		u32 misc19 : 1;
 		u32 japll_ndivratio : 4;
@@ -89,8 +89,8 @@ union nac_cgu_dword19 {
 	u32 val;
 };
 
-#define NAC_CGU_DWORD22 0x58
-union nac_cgu_dword22 {
+#define ICE_CGU_R22 0x58
+union ice_cgu_r22 {
 	struct {
 		u32 fdpll_frac_div_out_nc : 2;
 		u32 fdpll_lock_int_for : 1;
@@ -113,8 +113,8 @@ union nac_cgu_dword22 {
 	u32 val;
 };
 
-#define NAC_CGU_DWORD23_E825C 0x5C
-union nac_cgu_dword23_e825c {
+#define ICE_CGU_R23 0x5C
+union ice_cgu_r23 {
 	struct {
 		u32 cgupll_fbdiv_intgr : 10;
 		u32 ux56pll_fbdiv_intgr : 10;
@@ -129,10 +129,10 @@ union nac_cgu_dword23_e825c {
 	u32 val;
 };
 
-#define NAC_CGU_DWORD24 0x60
-union nac_cgu_dword24 {
+#define ICE_CGU_R24 0x60
+union ice_cgu_r24 {
 	struct {
-		u32 tspll_fbdiv_frac : 22;
+		u32 fbdiv_frac : 22;
 		u32 misc20 : 2;
 		u32 ts_pll_enable : 1;
 		u32 time_sync_tspll_align_sel : 1;
@@ -480,6 +480,6 @@ ice_aq_write_i2c(struct ice_hw *hw, struct ice_aqc_link_topo_addr topo_addr,
 int ice_get_pca9575_handle(struct ice_hw *hw, u16 *pca9575_handle);
 int ice_read_pca9575_reg(struct ice_hw *hw, u8 offset, u8 *data);
 bool ice_fw_supports_report_dflt_cfg(struct ice_hw *hw);
-int ice_read_cgu_reg_e82x(struct ice_hw *hw, u32 addr, u32 *val);
-int ice_write_cgu_reg_e82x(struct ice_hw *hw, u32 addr, u32 val);
+int ice_read_cgu_reg(struct ice_hw *hw, u32 addr, u32 *val);
+int ice_write_cgu_reg(struct ice_hw *hw, u32 addr, u32 val);
 #endif /* _ICE_COMMON_H_ */
