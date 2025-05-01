@@ -452,13 +452,16 @@ static int tpmi_get_pbf_info(struct isst_id *id, int level,
 	return _pbf_get_coremask_info(id, level, pbf_info);
 }
 
+#define FEATURE_ENABLE_WAIT_US	1000
+#define FEATURE_ENABLE_RETRIES	5
+
 static int tpmi_set_pbf_fact_status(struct isst_id *id, int pbf, int enable)
 {
 	struct isst_pkg_ctdp pkg_dev;
 	struct isst_pkg_ctdp_level_info ctdp_level;
 	int current_level;
 	struct isst_perf_feature_control info;
-	int ret;
+	int ret, i;
 
 	ret = isst_get_ctdp_levels(id, &pkg_dev);
 	if (ret)
@@ -502,6 +505,30 @@ static int tpmi_set_pbf_fact_status(struct isst_id *id, int pbf, int enable)
 	ret = tpmi_process_ioctl(ISST_IF_PERF_SET_FEATURE, &info);
 	if (ret == -1)
 		return ret;
+
+	for (i = 0; i < FEATURE_ENABLE_RETRIES; ++i) {
+
+		usleep(FEATURE_ENABLE_WAIT_US);
+
+		/* Check status */
+		ret = isst_get_ctdp_control(id, current_level, &ctdp_level);
+		if (ret)
+			return ret;
+
+		debug_printf("pbf_enabled:%d fact_enabled:%d\n",
+			     ctdp_level.pbf_enabled, ctdp_level.fact_enabled);
+
+		if (pbf) {
+			if (ctdp_level.pbf_enabled == enable)
+				break;
+		} else {
+			if (ctdp_level.fact_enabled == enable)
+				break;
+		}
+	}
+
+	if (i == FEATURE_ENABLE_RETRIES)
+		return -1;
 
 	return 0;
 }
@@ -659,7 +686,8 @@ static int tpmi_pm_qos_config(struct isst_id *id, int enable_clos,
 			      int priority_type)
 {
 	struct isst_core_power info;
-	int i, ret, saved_punit;
+	int cp_state = 0, cp_cap = 0;
+	int i, j, ret, saved_punit;
 
 	info.get_set = 1;
 	info.socket_id = id->pkg;
@@ -678,6 +706,19 @@ static int tpmi_pm_qos_config(struct isst_id *id, int enable_clos,
 			if (ret == -1) {
 				id->punit = saved_punit;
 				return ret;
+			}
+			/* Get status */
+			for (j = 0; j < FEATURE_ENABLE_RETRIES; ++j) {
+				usleep(FEATURE_ENABLE_WAIT_US);
+				ret = tpmi_read_pm_config(id, &cp_state, &cp_cap);
+				debug_printf("ret:%d cp_state:%d enable_clos:%d\n", ret,
+					     cp_state, enable_clos);
+				if (ret || cp_state == enable_clos)
+					break;
+			}
+			if (j == FEATURE_ENABLE_RETRIES) {
+				id->punit = saved_punit;
+				return -1;
 			}
 		}
 	}
