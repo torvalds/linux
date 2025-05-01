@@ -395,6 +395,7 @@ int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 	ifq = io_zcrx_ifq_alloc(ctx);
 	if (!ifq)
 		return -ENOMEM;
+	ifq->rq_entries = reg.rq_entries;
 
 	scoped_guard(mutex, &ctx->mmap_lock) {
 		/* preallocate id */
@@ -407,23 +408,23 @@ int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 	if (ret)
 		goto err;
 
+	ifq->netdev = netdev_get_by_index(current->nsproxy->net_ns, reg.if_idx,
+					  &ifq->netdev_tracker, GFP_KERNEL);
+	if (!ifq->netdev) {
+		ret = -ENODEV;
+		goto err;
+	}
+
+	ifq->dev = ifq->netdev->dev.parent;
+	if (!ifq->dev) {
+		ret = -EOPNOTSUPP;
+		goto err;
+	}
+	get_device(ifq->dev);
+
 	ret = io_zcrx_create_area(ifq, &ifq->area, &area);
 	if (ret)
 		goto err;
-
-	ifq->rq_entries = reg.rq_entries;
-
-	ret = -ENODEV;
-	ifq->netdev = netdev_get_by_index(current->nsproxy->net_ns, reg.if_idx,
-					  &ifq->netdev_tracker, GFP_KERNEL);
-	if (!ifq->netdev)
-		goto err;
-
-	ifq->dev = ifq->netdev->dev.parent;
-	ret = -EOPNOTSUPP;
-	if (!ifq->dev)
-		goto err;
-	get_device(ifq->dev);
 
 	mp_param.mp_ops = &io_uring_pp_zc_ops;
 	mp_param.mp_priv = ifq;
