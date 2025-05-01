@@ -80,10 +80,21 @@ static int io_account_mem(struct io_ring_ctx *ctx, unsigned long nr_pages)
 	return 0;
 }
 
-int io_buffer_validate(struct iovec *iov)
+int io_validate_user_buf_range(u64 uaddr, u64 ulen)
 {
-	unsigned long tmp, acct_len = iov->iov_len + (PAGE_SIZE - 1);
+	unsigned long tmp, base = (unsigned long)uaddr;
+	unsigned long acct_len = (unsigned long)PAGE_ALIGN(ulen);
 
+	/* arbitrary limit, but we need something */
+	if (ulen > SZ_1G || !ulen)
+		return -EFAULT;
+	if (check_add_overflow(base, acct_len, &tmp))
+		return -EOVERFLOW;
+	return 0;
+}
+
+static int io_buffer_validate(struct iovec *iov)
+{
 	/*
 	 * Don't impose further limits on the size and buffer
 	 * constraints here, we'll -EINVAL later when IO is
@@ -91,17 +102,9 @@ int io_buffer_validate(struct iovec *iov)
 	 */
 	if (!iov->iov_base)
 		return iov->iov_len ? -EFAULT : 0;
-	if (!iov->iov_len)
-		return -EFAULT;
 
-	/* arbitrary limit, but we need something */
-	if (iov->iov_len > SZ_1G)
-		return -EFAULT;
-
-	if (check_add_overflow((unsigned long)iov->iov_base, acct_len, &tmp))
-		return -EOVERFLOW;
-
-	return 0;
+	return io_validate_user_buf_range((unsigned long)iov->iov_base,
+					  iov->iov_len);
 }
 
 static void io_release_ubuf(void *priv)

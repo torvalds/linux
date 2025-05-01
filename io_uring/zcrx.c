@@ -209,7 +209,6 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 {
 	struct io_zcrx_area *area;
 	int i, ret, nr_pages, nr_iovs;
-	struct iovec iov;
 
 	if (area_reg->flags || area_reg->rq_area_token)
 		return -EINVAL;
@@ -218,11 +217,11 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 	if (area_reg->addr & ~PAGE_MASK || area_reg->len & ~PAGE_MASK)
 		return -EINVAL;
 
-	iov.iov_base = u64_to_user_ptr(area_reg->addr);
-	iov.iov_len = area_reg->len;
-	ret = io_buffer_validate(&iov);
+	ret = io_validate_user_buf_range(area_reg->addr, area_reg->len);
 	if (ret)
 		return ret;
+	if (!area_reg->addr)
+		return -EFAULT;
 
 	ret = -ENOMEM;
 	area = kzalloc(sizeof(*area), GFP_KERNEL);
