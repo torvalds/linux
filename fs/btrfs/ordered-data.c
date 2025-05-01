@@ -607,23 +607,19 @@ out:
  */
 void btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry)
 {
-	struct list_head *cur;
-	struct btrfs_ordered_sum *sum;
-
 	trace_btrfs_ordered_extent_put(entry->inode, entry);
 
 	if (refcount_dec_and_test(&entry->refs)) {
+		struct btrfs_ordered_sum *sum;
+		struct btrfs_ordered_sum *tmp;
+
 		ASSERT(list_empty(&entry->root_extent_list));
 		ASSERT(list_empty(&entry->log_list));
 		ASSERT(RB_EMPTY_NODE(&entry->rb_node));
 		if (entry->inode)
 			btrfs_add_delayed_iput(entry->inode);
-		while (!list_empty(&entry->list)) {
-			cur = entry->list.next;
-			sum = list_entry(cur, struct btrfs_ordered_sum, list);
-			list_del(&sum->list);
+		list_for_each_entry_safe(sum, tmp, &entry->list, list)
 			kvfree(sum);
-		}
 		kmem_cache_free(btrfs_ordered_extent_cache, entry);
 	}
 }
