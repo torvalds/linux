@@ -16657,7 +16657,7 @@ F:	include/uapi/linux/mmc/
 
 MULTIPLEXER SUBSYSTEM
 M:	Peter Rosin <peda@axentia.se>
-S:	Maintained
+S:	Odd Fixes
 F:	Documentation/ABI/testing/sysfs-class-mux*
 F:	Documentation/devicetree/bindings/mux/
 F:	drivers/mux/
