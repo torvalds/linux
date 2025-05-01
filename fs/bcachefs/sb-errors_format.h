@@ -236,6 +236,7 @@ enum bch_fsck_flags {
 	x(inode_has_child_snapshots_wrong,			287,	0)		\
 	x(inode_unreachable,					210,	FSCK_AUTOFIX)	\
 	x(inode_journal_seq_in_future,				299,	FSCK_AUTOFIX)	\
+	x(vfs_inode_i_blocks_underflow,				311,	FSCK_AUTOFIX)	\
 	x(deleted_inode_but_clean,				211,	FSCK_AUTOFIX)	\
 	x(deleted_inode_missing,				212,	FSCK_AUTOFIX)	\
 	x(deleted_inode_is_dir,					213,	FSCK_AUTOFIX)	\
@@ -317,7 +318,9 @@ enum bch_fsck_flags {
 	x(directory_size_mismatch,				303,	FSCK_AUTOFIX)	\
 	x(dirent_cf_name_too_big,				304,	0)		\
 	x(dirent_stray_data_after_cf_name,			305,	0)		\
-	x(MAX,							308,	0)
+	x(rebalance_work_incorrectly_set,			309,	FSCK_AUTOFIX)	\
+	x(rebalance_work_incorrectly_unset,			310,	FSCK_AUTOFIX)	\
+	x(MAX,							312,	0)
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,
