@@ -267,9 +267,9 @@ static inline bool ahash_request_isvirt(struct ahash_request *req)
 	return req->base.flags & CRYPTO_AHASH_REQ_VIRT;
 }
 
-static inline bool crypto_ahash_req_chain(struct crypto_ahash *tfm)
+static inline bool crypto_ahash_req_virt(struct crypto_ahash *tfm)
 {
-	return crypto_tfm_req_chain(&tfm->base);
+	return crypto_tfm_req_virt(&tfm->base);
 }
 
 static inline struct crypto_ahash *crypto_ahash_fb(struct crypto_ahash *tfm)

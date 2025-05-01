@@ -133,8 +133,8 @@
  */
 #define CRYPTO_ALG_FIPS_INTERNAL	0x00020000
 
-/* Set if the algorithm supports request chains and virtual addresses. */
-#define CRYPTO_ALG_REQ_CHAIN		0x00040000
+/* Set if the algorithm supports virtual addresses. */
+#define CRYPTO_ALG_REQ_VIRT		0x00040000
 
 /* The high bits 0xff000000 are reserved for type-specific flags. */
 

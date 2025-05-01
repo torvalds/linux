@@ -255,9 +255,9 @@ static inline u32 crypto_tfm_alg_type(struct crypto_tfm *tfm)
 	return tfm->__crt_alg->cra_flags & CRYPTO_ALG_TYPE_MASK;
 }
 
-static inline bool crypto_tfm_req_chain(struct crypto_tfm *tfm)
+static inline bool crypto_tfm_req_virt(struct crypto_tfm *tfm)
 {
-	return tfm->__crt_alg->cra_flags & CRYPTO_ALG_REQ_CHAIN;
+	return tfm->__crt_alg->cra_flags & CRYPTO_ALG_REQ_VIRT;
 }
 
 static inline u32 crypto_request_flags(struct crypto_async_request *req)

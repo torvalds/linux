@@ -407,7 +407,7 @@ static int ahash_do_req_chain(struct ahash_request *req,
 	u8 *page = NULL;
 	int err;
 
-	if (crypto_ahash_req_chain(tfm) ||
+	if (crypto_ahash_req_virt(tfm) ||
 	    !update || !ahash_request_isvirt(req))
 		return op(req);
 
@@ -550,7 +550,7 @@ int crypto_ahash_finup(struct ahash_request *req)
 	if (ahash_req_on_stack(req) && ahash_is_async(tfm))
 		return -EAGAIN;
 	if (!crypto_ahash_alg(tfm)->finup ||
-	    (!crypto_ahash_req_chain(tfm) && ahash_request_isvirt(req)))
+	    (!crypto_ahash_req_virt(tfm) && ahash_request_isvirt(req)))
 		return ahash_def_finup(req);
 	return ahash_do_req_chain(req, crypto_ahash_alg(tfm)->finup);
 }
@@ -622,7 +622,7 @@ int crypto_ahash_digest(struct ahash_request *req)
 		return shash_ahash_digest(req, prepare_shash_desc(req, tfm));
 	if (ahash_req_on_stack(req) && ahash_is_async(tfm))
 		return -EAGAIN;
-	if (!crypto_ahash_req_chain(tfm) && ahash_request_isvirt(req))
+	if (!crypto_ahash_req_virt(tfm) && ahash_request_isvirt(req))
 		return ahash_def_digest(req);
 	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		return -ENOKEY;

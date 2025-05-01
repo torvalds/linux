@@ -228,7 +228,7 @@ static struct acomp_alg acomp = {
 	.init			= deflate_init,
 	.base.cra_name		= "deflate",
 	.base.cra_driver_name	= "deflate-generic",
-	.base.cra_flags		= CRYPTO_ALG_REQ_CHAIN,
+	.base.cra_flags		= CRYPTO_ALG_REQ_VIRT,
 	.base.cra_module	= THIS_MODULE,
 };
 

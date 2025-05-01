@@ -186,9 +186,9 @@ static inline bool acomp_request_isnondma(struct acomp_req *req)
 				  CRYPTO_ACOMP_REQ_DST_NONDMA);
 }
 
-static inline bool crypto_acomp_req_chain(struct crypto_acomp *tfm)
+static inline bool crypto_acomp_req_virt(struct crypto_acomp *tfm)
 {
-	return crypto_tfm_req_chain(&tfm->base);
+	return crypto_tfm_req_virt(&tfm->base);
 }
 
 void crypto_acomp_free_streams(struct crypto_acomp_streams *s);

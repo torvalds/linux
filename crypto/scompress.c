@@ -355,7 +355,7 @@ static void scomp_prepare_alg(struct scomp_alg *alg)
 
 	comp_prepare_alg(&alg->calg);
 
-	base->cra_flags |= CRYPTO_ALG_REQ_CHAIN;
+	base->cra_flags |= CRYPTO_ALG_REQ_VIRT;
 }
 
 int crypto_register_scomp(struct scomp_alg *alg)
