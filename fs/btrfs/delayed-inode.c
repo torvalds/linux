@@ -216,17 +216,13 @@ static void btrfs_dequeue_delayed_node(struct btrfs_delayed_root *root,
 static struct btrfs_delayed_node *btrfs_first_delayed_node(
 			struct btrfs_delayed_root *delayed_root)
 {
-	struct list_head *p;
-	struct btrfs_delayed_node *node = NULL;
+	struct btrfs_delayed_node *node;
 
 	spin_lock(&delayed_root->lock);
-	if (list_empty(&delayed_root->node_list))
-		goto out;
-
-	p = delayed_root->node_list.next;
-	node = list_entry(p, struct btrfs_delayed_node, n_list);
-	refcount_inc(&node->refs);
-out:
+	node = list_first_entry_or_null(&delayed_root->node_list,
+					struct btrfs_delayed_node, n_list);
+	if (node)
+		refcount_inc(&node->refs);
 	spin_unlock(&delayed_root->lock);
 
 	return node;
