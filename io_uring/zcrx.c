@@ -82,20 +82,29 @@ static int io_import_area(struct io_zcrx_ifq *ifq,
 	return 0;
 }
 
+static void io_zcrx_unmap_umem(struct io_zcrx_ifq *ifq,
+				struct io_zcrx_area *area, int nr_mapped)
+{
+	int i;
+
+	for (i = 0; i < nr_mapped; i++) {
+		netmem_ref netmem = net_iov_to_netmem(&area->nia.niovs[i]);
+		dma_addr_t dma = page_pool_get_dma_addr_netmem(netmem);
+
+		dma_unmap_page_attrs(ifq->dev, dma, PAGE_SIZE,
+				     DMA_FROM_DEVICE, IO_DMA_ATTR);
+	}
+}
+
 static void __io_zcrx_unmap_area(struct io_zcrx_ifq *ifq,
 				 struct io_zcrx_area *area, int nr_mapped)
 {
 	int i;
 
-	for (i = 0; i < nr_mapped; i++) {
-		struct net_iov *niov = &area->nia.niovs[i];
-		dma_addr_t dma;
+	io_zcrx_unmap_umem(ifq, area, nr_mapped);
 
-		dma = page_pool_get_dma_addr_netmem(net_iov_to_netmem(niov));
-		dma_unmap_page_attrs(ifq->dev, dma, PAGE_SIZE,
-				     DMA_FROM_DEVICE, IO_DMA_ATTR);
-		net_mp_niov_set_dma_addr(niov, 0);
-	}
+	for (i = 0; i < area->nia.num_niovs; i++)
+		net_mp_niov_set_dma_addr(&area->nia.niovs[i], 0);
 }
 
 static void io_zcrx_unmap_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
@@ -107,13 +116,9 @@ static void io_zcrx_unmap_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *are
 	area->is_mapped = false;
 }
 
-static int io_zcrx_map_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
+static int io_zcrx_map_area_umem(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
 {
 	int i;
-
-	guard(mutex)(&ifq->dma_lock);
-	if (area->is_mapped)
-		return 0;
 
 	for (i = 0; i < area->nia.num_niovs; i++) {
 		struct net_iov *niov = &area->nia.niovs[i];
@@ -129,9 +134,20 @@ static int io_zcrx_map_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
 			break;
 		}
 	}
+	return i;
+}
 
-	if (i != area->nia.num_niovs) {
-		__io_zcrx_unmap_area(ifq, area, i);
+static int io_zcrx_map_area(struct io_zcrx_ifq *ifq, struct io_zcrx_area *area)
+{
+	unsigned nr;
+
+	guard(mutex)(&ifq->dma_lock);
+	if (area->is_mapped)
+		return 0;
+
+	nr = io_zcrx_map_area_umem(ifq, area);
+	if (nr != area->nia.num_niovs) {
+		__io_zcrx_unmap_area(ifq, area, nr);
 		return -EINVAL;
 	}
 
