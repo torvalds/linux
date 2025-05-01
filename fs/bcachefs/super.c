@@ -1488,7 +1488,9 @@ static void bch2_dev_attach(struct bch_fs *c, struct bch_dev *ca,
 {
 	ca->dev_idx = dev_idx;
 	__set_bit(ca->dev_idx, ca->self.d);
-	scnprintf(ca->name, sizeof(ca->name), "dev-%u", dev_idx);
+
+	if (!ca->name[0])
+		scnprintf(ca->name, sizeof(ca->name), "dev-%u", dev_idx);
 
 	ca->fs = c;
 	rcu_assign_pointer(c->devs[ca->dev_idx], ca);
@@ -1540,6 +1542,11 @@ static int __bch2_dev_attach_bdev(struct bch_dev *ca, struct bch_sb_handle *sb)
 	if (ret)
 		return ret;
 
+	struct printbuf name = PRINTBUF;
+	prt_bdevname(&name, sb->bdev);
+	strscpy(ca->name, name.buf, sizeof(ca->name));
+	printbuf_exit(&name);
+
 	/* Commit: */
 	ca->disk_sb = *sb;
 	memset(sb, 0, sizeof(*sb));
@@ -1580,11 +1587,6 @@ static int bch2_dev_attach_bdev(struct bch_fs *c, struct bch_sb_handle *sb)
 	set_bit(ca->dev_idx, c->online_devs.d);
 
 	bch2_dev_sysfs_online(c, ca);
-
-	struct printbuf name = PRINTBUF;
-	prt_bdevname(&name, ca->disk_sb.bdev);
-	strscpy(ca->name, name.buf, sizeof(ca->name));
-	printbuf_exit(&name);
 
 	bch2_rebalance_wakeup(c);
 	return 0;
