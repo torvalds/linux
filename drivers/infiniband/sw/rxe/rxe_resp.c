@@ -650,7 +650,7 @@ static enum resp_states process_flush(struct rxe_qp *qp,
 	struct resp_res *res = qp->resp.res;
 
 	/* ODP is not supported right now. WIP. */
-	if (mr->umem->is_odp)
+	if (is_odp_mr(mr))
 		return RESPST_ERR_UNSUPPORTED_OPCODE;
 
 	/* oA19-14, oA19-15 */
@@ -706,7 +706,7 @@ static enum resp_states atomic_reply(struct rxe_qp *qp,
 	if (!res->replay) {
 		u64 iova = qp->resp.va + qp->resp.offset;
 
-		if (mr->umem->is_odp)
+		if (is_odp_mr(mr))
 			err = rxe_odp_atomic_op(mr, iova, pkt->opcode,
 						atmeth_comp(pkt),
 						atmeth_swap_add(pkt),

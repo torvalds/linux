@@ -559,7 +559,8 @@ static int z_erofs_map_blocks_ext(struct inode *inode,
 			pos += sizeof(__le64);
 			lstart = 0;
 		} else {
-			lstart = map->m_la >> vi->z_lclusterbits;
+			lstart = round_down(map->m_la, 1 << vi->z_lclusterbits);
+			pos += (lstart >> vi->z_lclusterbits) * recsz;
 			pa = EROFS_NULL_ADDR;
 		}
 
@@ -614,7 +615,7 @@ static int z_erofs_map_blocks_ext(struct inode *inode,
 		if (last && (vi->z_advise & Z_EROFS_ADVISE_FRAGMENT_PCLUSTER)) {
 			map->m_flags |= EROFS_MAP_MAPPED | EROFS_MAP_FRAGMENT;
 			vi->z_fragmentoff = map->m_plen;
-			if (recsz >= offsetof(struct z_erofs_extent, pstart_lo))
+			if (recsz > offsetof(struct z_erofs_extent, pstart_lo))
 				vi->z_fragmentoff |= map->m_pa << 32;
 		} else if (map->m_plen) {
 			map->m_flags |= EROFS_MAP_MAPPED |
