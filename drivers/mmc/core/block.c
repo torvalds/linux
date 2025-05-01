@@ -2278,7 +2278,7 @@ void mmc_blk_mq_recovery(struct mmc_queue *mq)
 static void mmc_blk_mq_complete_prev_req(struct mmc_queue *mq,
 					 struct request **prev_req)
 {
-	if (mmc_host_done_complete(mq->card->host))
+	if (mmc_host_can_done_complete(mq->card->host))
 		return;
 
 	mutex_lock(&mq->complete_lock);
@@ -2317,7 +2317,7 @@ static void mmc_blk_mq_req_done(struct mmc_request *mrq)
 	struct mmc_host *host = mq->card->host;
 	unsigned long flags;
 
-	if (!mmc_host_done_complete(host)) {
+	if (!mmc_host_can_done_complete(host)) {
 		bool waiting;
 
 		/*
@@ -2430,7 +2430,7 @@ static int mmc_blk_mq_issue_rw_rq(struct mmc_queue *mq,
 		mq->rw_wait = false;
 
 	/* Release re-tuning here where there is no synchronization required */
-	if (err || mmc_host_done_complete(host))
+	if (err || mmc_host_can_done_complete(host))
 		mmc_retune_release(host);
 
 out_post_req:

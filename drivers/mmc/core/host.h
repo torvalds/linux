@@ -44,7 +44,7 @@ static inline int mmc_host_can_cmd23(struct mmc_host *host)
 	return host->caps & MMC_CAP_CMD23;
 }
 
-static inline bool mmc_host_done_complete(struct mmc_host *host)
+static inline bool mmc_host_can_done_complete(struct mmc_host *host)
 {
 	return host->caps & MMC_CAP_DONE_COMPLETE;
 }
