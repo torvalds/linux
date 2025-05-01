@@ -2684,6 +2684,9 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 	if (moving) {
 		umount_mnt(source_mnt);
 		mnt_notify_add(source_mnt);
+		/* if the mount is moved, it should no longer be expired
+		 * automatically */
+		list_del_init(&source_mnt->mnt_expire);
 	} else {
 		if (source_mnt->mnt_ns) {
 			LIST_HEAD(head);
@@ -3674,12 +3677,6 @@ static int do_move_mount(struct path *old_path,
 		goto out;
 
 	err = attach_recursive_mnt(old, p, mp);
-	if (err)
-		goto out;
-
-	/* if the mount is moved, it should no longer be expire
-	 * automatically */
-	list_del_init(&old->mnt_expire);
 out:
 	unlock_mount(mp);
 	if (!err) {
