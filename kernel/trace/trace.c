@@ -6043,8 +6043,10 @@ unsigned long trace_adjust_address(struct trace_array *tr, unsigned long addr)
 	tscratch = tr->scratch;
 	/* if there is no tscrach, module_delta must be NULL. */
 	module_delta = READ_ONCE(tr->module_delta);
-	if (!module_delta || tscratch->entries[0].mod_addr > addr)
+	if (!module_delta || !tscratch->nr_entries ||
+	    tscratch->entries[0].mod_addr > addr) {
 		return addr + tr->text_delta;
+	}
 
 	/* Note that entries must be sorted. */
 	nr_entries = tscratch->nr_entries;
