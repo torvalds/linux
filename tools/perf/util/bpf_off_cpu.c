@@ -14,6 +14,7 @@
 #include "util/strlist.h"
 #include <bpf/bpf.h>
 #include <internal/xyarray.h>
+#include <linux/time64.h>
 
 #include "bpf_skel/off_cpu.skel.h"
 
@@ -291,6 +292,8 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 			bpf_map_update_elem(fd, &cgrp->id, &val, BPF_ANY);
 		}
 	}
+
+	skel->bss->offcpu_thresh_ns = opts->off_cpu_thresh_ns;
 
 	err = off_cpu_bpf__attach(skel);
 	if (err) {
