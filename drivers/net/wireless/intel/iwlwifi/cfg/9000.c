@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2021, 2023 Intel Corporation
+ * Copyright (C) 2018-2021, 2023, 2025 Intel Corporation
  */
 #include <linux/module.h>
 #include <linux/stringify.h>
@@ -183,9 +183,21 @@ const struct iwl_cfg iwl9260_2ac_cfg = {
 	IWL_DEVICE_9000,
 };
 
+const struct iwl_cfg iwl9260_2ac_cfg_80mhz = {
+	.fw_name_pre = IWL9260_FW_PRE,
+	IWL_DEVICE_9000,
+	.bw_limit = 80,
+};
+
 const struct iwl_cfg iwl9560_2ac_cfg_soc = {
 	.fw_name_pre = IWL9000_FW_PRE,
 	IWL_DEVICE_9000,
+};
+
+const struct iwl_cfg iwl9560_2ac_cfg_soc_80mhz = {
+	.fw_name_pre = IWL9000_FW_PRE,
+	IWL_DEVICE_9000,
+	.bw_limit = 80,
 };
 
 MODULE_FIRMWARE(IWL9000_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));

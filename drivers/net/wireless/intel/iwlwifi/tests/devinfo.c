@@ -31,7 +31,7 @@ static void devinfo_table_order(struct kunit *test)
 					    di->mac_type, di->mac_step,
 					    di->rf_type, di->cdb,
 					    di->jacket, di->rf_id,
-					    di->bw_limit != IWL_CFG_BW_NO_LIM,
+					    di->bw_limit,
 					    di->cores, di->rf_step);
 		if (!ret) {
 			iwl_pci_print_dev_info("No entry found for: ", di);
@@ -101,6 +101,37 @@ static void devinfo_no_cfg_dups(struct kunit *test)
 					    "identical configs: %ps and %ps\n",
 					    cfgs[i], cfgs[j]);
 		}
+	}
+}
+
+static void devinfo_check_subdev_match(struct kunit *test)
+{
+	for (int i = 0; i < iwl_dev_info_table_size; i++) {
+		const struct iwl_dev_info *di = &iwl_dev_info_table[i];
+
+		/* if BW limit bit is matched then must have a limit */
+		if (di->bw_limit == 1)
+			KUNIT_EXPECT_NE(test, di->cfg->bw_limit, 0);
+
+		if (di->subdevice == (u16)IWL_CFG_ANY)
+			continue;
+
+		KUNIT_EXPECT_EQ(test, di->rf_id, (u8)IWL_CFG_ANY);
+		KUNIT_EXPECT_EQ(test, di->bw_limit, (u8)IWL_CFG_ANY);
+		KUNIT_EXPECT_EQ(test, di->cores, (u8)IWL_CFG_ANY);
+	}
+}
+
+static void devinfo_check_killer_subdev(struct kunit *test)
+{
+	for (int i = 0; i < iwl_dev_info_table_size; i++) {
+		const struct iwl_dev_info *di = &iwl_dev_info_table[i];
+		const char *name = di->name ?: di->cfg->name;
+
+		if (!strstr(name, "Killer"))
+			continue;
+
+		KUNIT_EXPECT_NE(test, di->subdevice, (u16)IWL_CFG_ANY);
 	}
 }
 
@@ -177,6 +208,8 @@ static struct kunit_case devinfo_test_cases[] = {
 	KUNIT_CASE(devinfo_table_order),
 	KUNIT_CASE(devinfo_names),
 	KUNIT_CASE(devinfo_no_cfg_dups),
+	KUNIT_CASE(devinfo_check_subdev_match),
+	KUNIT_CASE(devinfo_check_killer_subdev),
 	KUNIT_CASE(devinfo_pci_ids),
 	KUNIT_CASE(devinfo_no_trans_cfg_dups),
 	{}

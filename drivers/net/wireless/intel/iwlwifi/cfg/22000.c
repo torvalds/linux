@@ -175,10 +175,23 @@ const struct iwl_cfg iwl9560_qu_jf_cfg = {
 	.num_rbds = IWL_NUM_RBDS_NON_HE,
 };
 
+const struct iwl_cfg iwl9560_qu_jf_cfg_80mhz = {
+	IWL_DEVICE_22500,
+	.num_rbds = IWL_NUM_RBDS_NON_HE,
+	.bw_limit = 80,
+};
+
 const struct iwl_cfg iwl9560_quz_a0_jf_b0_cfg = {
 	.fw_name_pre = IWL_QUZ_A_JF_B_FW_PRE,
 	IWL_DEVICE_22500,
 	.num_rbds = IWL_NUM_RBDS_NON_HE,
+};
+
+const struct iwl_cfg iwl9560_quz_a0_jf_b0_cfg_80mhz = {
+	.fw_name_pre = IWL_QUZ_A_JF_B_FW_PRE,
+	IWL_DEVICE_22500,
+	.num_rbds = IWL_NUM_RBDS_NON_HE,
+	.bw_limit = 80,
 };
 
 const struct iwl_cfg_trans_params iwl_ax200_trans_cfg = {
@@ -213,6 +226,12 @@ const struct iwl_cfg iwl_qu_hr1 = {
 const struct iwl_cfg iwl_qu_hr = {
 	IWL_DEVICE_22500,
 	.num_rbds = IWL_NUM_RBDS_22000_HE,
+};
+
+const struct iwl_cfg iwl_qu_hr_80mhz = {
+	IWL_DEVICE_22500,
+	.num_rbds = IWL_NUM_RBDS_22000_HE,
+	.bw_limit = 80,
 };
 
 const struct iwl_cfg iwl_ax200_cfg_cc = {

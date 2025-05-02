@@ -169,6 +169,14 @@ const struct iwl_cfg iwl_cfg_bz = {
 	.num_rbds = IWL_NUM_RBDS_BZ_EHT,
 };
 
+const struct iwl_cfg iwl_cfg_bz_160mhz = {
+	.uhb_supported = true,
+	IWL_DEVICE_BZ,
+	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,
+	.num_rbds = IWL_NUM_RBDS_BZ_EHT,
+	.bw_limit = 160,
+};
+
 MODULE_FIRMWARE(IWL_BZ_A_HR_B_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
 IWL_FW_AND_PNVM(IWL_BZ_A_GF_A_FW_PRE, IWL_BZ_UCODE_API_MAX);
 IWL_FW_AND_PNVM(IWL_BZ_A_GF4_A_FW_PRE, IWL_BZ_UCODE_API_MAX);

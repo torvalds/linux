@@ -203,6 +203,13 @@ const struct iwl_cfg iwlax210_2ax_cfg_so_jf_b0 = {
 	.num_rbds = IWL_NUM_RBDS_NON_HE,
 };
 
+const struct iwl_cfg iwlax210_2ax_cfg_so_jf_b0_80mhz = {
+	.fw_name_pre = IWL_SO_A_JF_B_FW_PRE,
+	IWL_DEVICE_AX210,
+	.num_rbds = IWL_NUM_RBDS_NON_HE,
+	.bw_limit = 80,
+};
+
 const struct iwl_cfg iwlax211_2ax_cfg_so_gf_a0 = {
 	.name = iwl_ax211_name,
 	.fw_name_pre = IWL_SO_A_GF_A_FW_PRE,
@@ -257,6 +264,13 @@ const struct iwl_cfg iwl_cfg_so_a0_hr_a0 = {
 	.fw_name_pre = IWL_SO_A_HR_B_FW_PRE,
 	IWL_DEVICE_AX210,
 	.num_rbds = IWL_NUM_RBDS_AX210_HE,
+};
+
+const struct iwl_cfg iwl_cfg_so_a0_hr_a0_80mhz = {
+	.fw_name_pre = IWL_SO_A_HR_B_FW_PRE,
+	IWL_DEVICE_AX210,
+	.num_rbds = IWL_NUM_RBDS_AX210_HE,
+	.bw_limit = 80,
 };
 
 MODULE_FIRMWARE(IWL_SO_A_JF_B_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));

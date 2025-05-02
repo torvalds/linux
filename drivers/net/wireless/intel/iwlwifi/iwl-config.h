@@ -324,6 +324,7 @@ struct iwl_fw_mon_regs {
  * @non_shared_ant: the antenna that is for WiFi only
  * @nvm_ver: NVM version
  * @nvm_calib_ver: NVM calibration version
+ * @bw_limit: bandwidth limit for this device, if non-zero
  * @ht_params: point to ht parameters
  * @led_mode: 0=blinking, 1=On(RF On)/Off(RF Off)
  * @rx_with_siso_diversity: 1x1 device with rx antenna diversity
@@ -382,6 +383,7 @@ struct iwl_cfg {
 	u32 smem_len;
 	u16 nvm_ver;
 	u16 nvm_calib_ver;
+	u16 bw_limit;
 	u32 rx_with_siso_diversity:1,
 	    tx_with_siso_diversity:1,
 	    internal_wimax_coex:1,
@@ -447,9 +449,6 @@ struct iwl_cfg {
 #define IWL_CFG_RF_ID_HR		0x7
 #define IWL_CFG_RF_ID_HR1		0x4
 
-#define IWL_CFG_BW_NO_LIM		(U16_MAX - 1)
-#define IWL_CFG_BW_ANY			U16_MAX
-
 #define IWL_CFG_CORES_BT		0x0
 #define IWL_CFG_CORES_BT_GNSS		0x5
 
@@ -468,7 +467,7 @@ struct iwl_dev_info {
 	u16 subdevice;
 	u16 mac_type;
 	u16 rf_type;
-	u16 bw_limit;
+	u8 bw_limit;
 	u8 mac_step;
 	u8 rf_step;
 	u8 rf_id;
@@ -619,13 +618,19 @@ extern const struct iwl_cfg iwl8265_2ac_cfg;
 extern const struct iwl_cfg iwl8275_2ac_cfg;
 extern const struct iwl_cfg iwl4165_2ac_cfg;
 extern const struct iwl_cfg iwl9260_2ac_cfg;
+extern const struct iwl_cfg iwl9260_2ac_cfg_80mhz;
 extern const struct iwl_cfg iwl9560_qu_jf_cfg;
+extern const struct iwl_cfg iwl9560_qu_jf_cfg_80mhz;
 extern const struct iwl_cfg iwl9560_quz_a0_jf_b0_cfg;
+extern const struct iwl_cfg iwl9560_quz_a0_jf_b0_cfg_80mhz;
 extern const struct iwl_cfg iwl9560_2ac_cfg_soc;
+extern const struct iwl_cfg iwl9560_2ac_cfg_soc_80mhz;
 extern const struct iwl_cfg iwl_qu_hr1;
 extern const struct iwl_cfg iwl_qu_hr;
+extern const struct iwl_cfg iwl_qu_hr_80mhz;
 extern const struct iwl_cfg iwl_ax200_cfg_cc;
 extern const struct iwl_cfg iwlax210_2ax_cfg_so_jf_b0;
+extern const struct iwl_cfg iwlax210_2ax_cfg_so_jf_b0_80mhz;
 extern const struct iwl_cfg iwlax211_2ax_cfg_so_gf_a0;
 extern const struct iwl_cfg iwlax211_2ax_cfg_so_gf_a0_long;
 extern const struct iwl_cfg iwlax210_2ax_cfg_ty_gf_a0;
@@ -635,14 +640,17 @@ extern const struct iwl_cfg iwlax411_2ax_cfg_so_gf4_a0_long;
 extern const struct iwl_cfg iwl_cfg_ma;
 
 extern const struct iwl_cfg iwl_cfg_so_a0_hr_a0;
+extern const struct iwl_cfg iwl_cfg_so_a0_hr_a0_80mhz;
 #endif /* CONFIG_IWLMVM */
 
 #if IS_ENABLED(CONFIG_IWLMLD)
 extern const struct iwl_ht_params iwl_bz_ht_params;
 
 extern const struct iwl_cfg iwl_cfg_bz;
+extern const struct iwl_cfg iwl_cfg_bz_160mhz;
 
 extern const struct iwl_cfg iwl_cfg_sc;
+extern const struct iwl_cfg iwl_cfg_sc_160mhz;
 extern const struct iwl_cfg iwl_cfg_dr;
 #endif /* CONFIG_IWLMLD */
 
