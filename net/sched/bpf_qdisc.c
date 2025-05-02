@@ -234,18 +234,20 @@ __bpf_kfunc int bpf_qdisc_init_prologue(struct Qdisc *sch,
 	struct net_device *dev = qdisc_dev(sch);
 	struct Qdisc *p;
 
-	if (sch->parent != TC_H_ROOT) {
-		p = qdisc_lookup(dev, TC_H_MAJ(sch->parent));
-		if (!p)
-			return -ENOENT;
+	qdisc_watchdog_init(&q->watchdog, sch);
 
-		if (!(p->flags & TCQ_F_MQROOT)) {
+	if (sch->parent != TC_H_ROOT) {
+		/* If qdisc_lookup() returns NULL, it means .init is called by
+		 * qdisc_create_dflt() in mq/mqprio_init and the parent qdisc
+		 * has not been added to qdisc_hash yet.
+		 */
+		p = qdisc_lookup(dev, TC_H_MAJ(sch->parent));
+		if (p && !(p->flags & TCQ_F_MQROOT)) {
 			NL_SET_ERR_MSG(extack, "BPF qdisc only supported on root or mq");
 			return -EINVAL;
 		}
 	}
 
-	qdisc_watchdog_init(&q->watchdog, sch);
 	return 0;
 }
 
