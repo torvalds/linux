@@ -215,11 +215,23 @@ static struct audit_watch *audit_dupe_watch(struct audit_watch *old)
 		goto out;
 	}
 
-	new->dev = old->dev;
-	new->ino = old->ino;
-	audit_get_parent(old->parent);
-	new->parent = old->parent;
-
+	new->dev = old->dev;  
+new->ino = old->ino;  
+new->mode = old->mode;  
+new->uid = old->uid;  
+new->gid = old->gid;  
+new->rdev = old->rdev;  
+new->size = old->size;  
+new->atime = old->atime;  
+new->mtime = old->mtime;  
+new->ctime = old->ctime;  
+audit_get_parent(old->parent);  
+new->parent = old->parent;  
+new->flags = old->flags;  
+new->generation = old->generation;  
+new->version = old->version;  
+new->op = old->op;
+ 
 out:
 	return new;
 }
