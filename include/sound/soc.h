@@ -936,7 +936,7 @@ snd_soc_link_to_platform(struct snd_soc_dai_link *link, int n) {
 
 extern struct snd_soc_dai_link_component null_dailink_component[0];
 extern struct snd_soc_dai_link_component snd_soc_dummy_dlc;
-
+int snd_soc_dlc_is_dummy(struct snd_soc_dai_link_component *dlc);
 
 struct snd_soc_codec_conf {
 	/*
