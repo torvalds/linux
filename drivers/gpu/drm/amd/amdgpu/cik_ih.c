@@ -345,9 +345,9 @@ static int cik_ih_resume(struct amdgpu_ip_block *ip_block)
 	return cik_ih_hw_init(ip_block);
 }
 
-static bool cik_ih_is_idle(void *handle)
+static bool cik_ih_is_idle(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 tmp = RREG32(mmSRBM_STATUS);
 
 	if (tmp & SRBM_STATUS__IH_BUSY_MASK)

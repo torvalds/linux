@@ -2,12 +2,12 @@
 
 #include <linux/net.h>
 #include <linux/uio.h>
+#include <linux/io_uring_types.h>
 
 struct io_async_msghdr {
 #if defined(CONFIG_NET)
-	struct iovec			*free_iov;
-	/* points to an allocated iov, if NULL we use fast_iov instead */
-	int				free_iov_nr;
+	struct iou_vec				vec;
+
 	struct_group(clear,
 		int				namelen;
 		struct iovec			fast_iov;

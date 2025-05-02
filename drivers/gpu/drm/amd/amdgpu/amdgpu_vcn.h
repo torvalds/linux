@@ -238,6 +238,12 @@
 
 #define AMDGPU_DRM_KEY_INJECT_WORKAROUND_VCNFW_ASD_HANDSHAKING 2
 
+enum amdgpu_vcn_caps {
+	AMDGPU_VCN_RRMT_ENABLED,
+};
+
+#define AMDGPU_VCN_CAPS(caps) BIT(AMDGPU_VCN_##caps)
+
 enum fw_queue_mode {
 	FW_QUEUE_RING_RESET = 1,
 	FW_QUEUE_DPG_HOLD_OFF = 2,
@@ -289,6 +295,8 @@ struct amdgpu_vcn_fw_shared {
 };
 
 struct amdgpu_vcn_inst {
+	struct amdgpu_device	*adev;
+	int			inst;
 	struct amdgpu_bo	*vcpu_bo;
 	void			*cpu_addr;
 	uint64_t		gpu_addr;
@@ -310,6 +318,20 @@ struct amdgpu_vcn_inst {
 	const struct firmware	*fw; /* VCN firmware */
 	uint8_t			vcn_config;
 	uint32_t		vcn_codec_disable_mask;
+	atomic_t		total_submission_cnt;
+	struct mutex		vcn_pg_lock;
+	enum amd_powergating_state cur_state;
+	struct delayed_work	idle_work;
+	unsigned		fw_version;
+	unsigned		num_enc_rings;
+	bool			indirect_sram;
+	struct amdgpu_vcn_reg	 internal;
+	struct mutex		vcn1_jpeg1_workaround;
+	int (*pause_dpg_mode)(struct amdgpu_vcn_inst *vinst,
+			      struct dpg_pause_state *new_state);
+	int (*set_pg_state)(struct amdgpu_vcn_inst *vinst,
+			    enum amd_powergating_state state);
+	bool using_unified_queue;
 };
 
 struct amdgpu_vcn_ras {
@@ -317,34 +339,28 @@ struct amdgpu_vcn_ras {
 };
 
 struct amdgpu_vcn {
-	unsigned		fw_version;
-	struct delayed_work	idle_work;
-	unsigned		num_enc_rings;
-	enum amd_powergating_state cur_state;
-	bool			indirect_sram;
-
 	uint8_t	num_vcn_inst;
 	struct amdgpu_vcn_inst	 inst[AMDGPU_MAX_VCN_INSTANCES];
-	struct amdgpu_vcn_reg	 internal;
-	struct mutex		 vcn_pg_lock;
-	struct mutex		vcn1_jpeg1_workaround;
-	atomic_t		 total_submission_cnt;
 
 	unsigned	harvest_config;
-	int (*pause_dpg_mode)(struct amdgpu_device *adev,
-		int inst_idx, struct dpg_pause_state *new_state);
 
 	struct ras_common_if    *ras_if;
 	struct amdgpu_vcn_ras   *ras;
 
 	uint16_t inst_mask;
 	uint8_t	num_inst_per_aid;
-	bool using_unified_queue;
 
 	/* IP reg dump */
 	uint32_t		*ip_dump;
 
 	uint32_t		supported_reset;
+	uint32_t		caps;
+
+	bool			per_inst_fw;
+	unsigned		fw_version;
+
+	bool			workload_profile_active;
+	struct mutex            workload_profile_mutex;
 };
 
 struct amdgpu_fw_shared_rb_ptrs_struct {
@@ -493,11 +509,11 @@ enum vcn_ring_type {
 	VCN_UNIFIED_RING,
 };
 
-int amdgpu_vcn_early_init(struct amdgpu_device *adev);
-int amdgpu_vcn_sw_init(struct amdgpu_device *adev);
-int amdgpu_vcn_sw_fini(struct amdgpu_device *adev);
-int amdgpu_vcn_suspend(struct amdgpu_device *adev);
-int amdgpu_vcn_resume(struct amdgpu_device *adev);
+int amdgpu_vcn_early_init(struct amdgpu_device *adev, int i);
+int amdgpu_vcn_sw_init(struct amdgpu_device *adev, int i);
+int amdgpu_vcn_sw_fini(struct amdgpu_device *adev, int i);
+int amdgpu_vcn_suspend(struct amdgpu_device *adev, int i);
+int amdgpu_vcn_resume(struct amdgpu_device *adev, int i);
 void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring);
 void amdgpu_vcn_ring_end_use(struct amdgpu_ring *ring);
 
@@ -515,7 +531,7 @@ int amdgpu_vcn_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout);
 
 enum amdgpu_ring_priority_level amdgpu_vcn_get_enc_ring_prio(int ring);
 
-void amdgpu_vcn_setup_ucode(struct amdgpu_device *adev);
+void amdgpu_vcn_setup_ucode(struct amdgpu_device *adev, int i);
 
 void amdgpu_vcn_fwlog_init(struct amdgpu_vcn_inst *vcn);
 void amdgpu_debugfs_vcn_fwlog_init(struct amdgpu_device *adev,
@@ -534,5 +550,8 @@ int amdgpu_vcn_save_vcpu_bo(struct amdgpu_device *adev);
 int amdgpu_vcn_sysfs_reset_mask_init(struct amdgpu_device *adev);
 void amdgpu_vcn_sysfs_reset_mask_fini(struct amdgpu_device *adev);
 void amdgpu_debugfs_vcn_sched_mask_init(struct amdgpu_device *adev);
+
+int vcn_set_powergating_state(struct amdgpu_ip_block *ip_block,
+			      enum amd_powergating_state state);
 
 #endif

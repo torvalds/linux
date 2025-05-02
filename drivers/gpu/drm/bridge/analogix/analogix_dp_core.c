@@ -1197,11 +1197,9 @@ struct drm_crtc *analogix_dp_get_new_crtc(struct analogix_dp_device *dp,
 	return conn_state->crtc;
 }
 
-static void
-analogix_dp_bridge_atomic_pre_enable(struct drm_bridge *bridge,
-				     struct drm_bridge_state *old_bridge_state)
+static void analogix_dp_bridge_atomic_pre_enable(struct drm_bridge *bridge,
+						 struct drm_atomic_state *old_state)
 {
-	struct drm_atomic_state *old_state = old_bridge_state->base.state;
 	struct analogix_dp_device *dp = bridge->driver_private;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
@@ -1257,11 +1255,9 @@ out_dp_init:
 	return ret;
 }
 
-static void
-analogix_dp_bridge_atomic_enable(struct drm_bridge *bridge,
-				 struct drm_bridge_state *old_bridge_state)
+static void analogix_dp_bridge_atomic_enable(struct drm_bridge *bridge,
+					     struct drm_atomic_state *old_state)
 {
-	struct drm_atomic_state *old_state = old_bridge_state->base.state;
 	struct analogix_dp_device *dp = bridge->driver_private;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
@@ -1327,11 +1323,9 @@ static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
 	dp->dpms_mode = DRM_MODE_DPMS_OFF;
 }
 
-static void
-analogix_dp_bridge_atomic_disable(struct drm_bridge *bridge,
-				  struct drm_bridge_state *old_bridge_state)
+static void analogix_dp_bridge_atomic_disable(struct drm_bridge *bridge,
+					      struct drm_atomic_state *old_state)
 {
-	struct drm_atomic_state *old_state = old_bridge_state->base.state;
 	struct analogix_dp_device *dp = bridge->driver_private;
 	struct drm_crtc *old_crtc, *new_crtc;
 	struct drm_crtc_state *old_crtc_state = NULL;
@@ -1367,11 +1361,9 @@ out:
 	analogix_dp_bridge_disable(bridge);
 }
 
-static void
-analogix_dp_bridge_atomic_post_disable(struct drm_bridge *bridge,
-				struct drm_bridge_state *old_bridge_state)
+static void analogix_dp_bridge_atomic_post_disable(struct drm_bridge *bridge,
+						   struct drm_atomic_state *old_state)
 {
-	struct drm_atomic_state *old_state = old_bridge_state->base.state;
 	struct analogix_dp_device *dp = bridge->driver_private;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *new_crtc_state;
@@ -1553,7 +1545,6 @@ analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct analogix_dp_device *dp;
-	struct resource *res;
 	unsigned int irq_flags;
 	int ret;
 
@@ -1605,9 +1596,7 @@ analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 		return ERR_CAST(dp->clock);
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	dp->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	dp->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dp->reg_base)) {
 		ret = PTR_ERR(dp->reg_base);
 		goto err_disable_clk;

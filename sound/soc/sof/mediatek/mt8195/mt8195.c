@@ -22,7 +22,6 @@
 #include <sound/sof/xtensa.h>
 #include "../../ops.h"
 #include "../../sof-of-dev.h"
-#include "../../sof-audio.h"
 #include "../adsp_helper.h"
 #include "../mtk-adsp-common.h"
 #include "mt8195.h"
@@ -38,53 +37,9 @@ static int mt8195_get_window_offset(struct snd_sof_dev *sdev, u32 id)
 	return MBOX_OFFSET;
 }
 
-static int mt8195_send_msg(struct snd_sof_dev *sdev,
-			   struct snd_sof_ipc_msg *msg)
-{
-	struct adsp_priv *priv = sdev->pdata->hw_pdata;
-
-	sof_mailbox_write(sdev, sdev->host_box.offset, msg->msg_data,
-			  msg->msg_size);
-
-	return mtk_adsp_ipc_send(priv->dsp_ipc, MTK_ADSP_IPC_REQ, MTK_ADSP_IPC_OP_REQ);
-}
-
-static void mt8195_dsp_handle_reply(struct mtk_adsp_ipc *ipc)
-{
-	struct adsp_priv *priv = mtk_adsp_ipc_get_data(ipc);
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->sdev->ipc_lock, flags);
-	snd_sof_ipc_process_reply(priv->sdev, 0);
-	spin_unlock_irqrestore(&priv->sdev->ipc_lock, flags);
-}
-
-static void mt8195_dsp_handle_request(struct mtk_adsp_ipc *ipc)
-{
-	struct adsp_priv *priv = mtk_adsp_ipc_get_data(ipc);
-	u32 p; /* panic code */
-	int ret;
-
-	/* Read the message from the debug box. */
-	sof_mailbox_read(priv->sdev, priv->sdev->debug_box.offset + 4,
-			 &p, sizeof(p));
-
-	/* Check to see if the message is a panic code 0x0dead*** */
-	if ((p & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
-		snd_sof_dsp_panic(priv->sdev, p, true);
-	} else {
-		snd_sof_ipc_msgs_rx(priv->sdev);
-
-		/* tell DSP cmd is done */
-		ret = mtk_adsp_ipc_send(priv->dsp_ipc, MTK_ADSP_IPC_RSP, MTK_ADSP_IPC_OP_RSP);
-		if (ret)
-			dev_err(priv->dev, "request send ipc failed");
-	}
-}
-
 static const struct mtk_adsp_ipc_ops dsp_ops = {
-	.handle_reply		= mt8195_dsp_handle_reply,
-	.handle_request		= mt8195_dsp_handle_request,
+	.handle_reply		= mtk_adsp_handle_reply,
+	.handle_request		= mtk_adsp_handle_request,
 };
 
 static int platform_parse_resource(struct platform_device *pdev, void *data)
@@ -400,54 +355,6 @@ static int mt8195_dsp_resume(struct snd_sof_dev *sdev)
 	return ret;
 }
 
-/* on mt8195 there is 1 to 1 match between type and BAR idx */
-static int mt8195_get_bar_index(struct snd_sof_dev *sdev, u32 type)
-{
-	return type;
-}
-
-static int mt8195_pcm_hw_params(struct snd_sof_dev *sdev,
-				struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params,
-				struct snd_sof_platform_stream_params *platform_params)
-{
-	platform_params->cont_update_posn = 1;
-
-	return 0;
-}
-
-static snd_pcm_uframes_t mt8195_pcm_pointer(struct snd_sof_dev *sdev,
-					    struct snd_pcm_substream *substream)
-{
-	int ret;
-	snd_pcm_uframes_t pos;
-	struct snd_sof_pcm *spcm;
-	struct sof_ipc_stream_posn posn;
-	struct snd_sof_pcm_stream *stream;
-	struct snd_soc_component *scomp = sdev->component;
-	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
-
-	spcm = snd_sof_find_spcm_dai(scomp, rtd);
-	if (!spcm) {
-		dev_warn_ratelimited(sdev->dev, "warn: can't find PCM with DAI ID %d\n",
-				     rtd->dai_link->id);
-		return 0;
-	}
-
-	stream = &spcm->stream[substream->stream];
-	ret = snd_sof_ipc_msg_data(sdev, stream, &posn, sizeof(posn));
-	if (ret < 0) {
-		dev_warn(sdev->dev, "failed to read stream position: %d\n", ret);
-		return 0;
-	}
-
-	memcpy(&stream->posn, &posn, sizeof(posn));
-	pos = spcm->stream[substream->stream].posn.host_posn;
-	pos = bytes_to_frames(substream->runtime, pos);
-
-	return pos;
-}
-
 static void mt8195_adsp_dump(struct snd_sof_dev *sdev, u32 flags)
 {
 	u32 dbg_pc, dbg_data, dbg_bus0, dbg_bus1, dbg_inst;
@@ -529,19 +436,19 @@ static const struct snd_sof_dsp_ops sof_mt8195_ops = {
 	.read64		= sof_io_read64,
 
 	/* ipc */
-	.send_msg		= mt8195_send_msg,
+	.send_msg		= mtk_adsp_send_msg,
 	.get_mailbox_offset	= mt8195_get_mailbox_offset,
 	.get_window_offset	= mt8195_get_window_offset,
 	.ipc_msg_data		= sof_ipc_msg_data,
 	.set_stream_data_offset = sof_set_stream_data_offset,
 
 	/* misc */
-	.get_bar_index	= mt8195_get_bar_index,
+	.get_bar_index	= mtk_adsp_get_bar_index,
 
 	/* stream callbacks */
 	.pcm_open	= sof_stream_pcm_open,
-	.pcm_hw_params	= mt8195_pcm_hw_params,
-	.pcm_pointer	= mt8195_pcm_pointer,
+	.pcm_hw_params	= mtk_adsp_stream_pcm_hw_params,
+	.pcm_pointer	= mtk_adsp_stream_pcm_pointer,
 	.pcm_close	= sof_stream_pcm_close,
 
 	/* firmware loading */
@@ -616,7 +523,7 @@ static struct platform_driver snd_sof_of_mt8195_driver = {
 	.shutdown = sof_of_shutdown,
 	.driver = {
 	.name = "sof-audio-of-mt8195",
-		.pm = &sof_of_pm,
+		.pm = pm_ptr(&sof_of_pm),
 		.of_match_table = sof_of_mt8195_ids,
 	},
 };

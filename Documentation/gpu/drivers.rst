@@ -10,6 +10,7 @@ GPU Driver Documentation
    imagination/index
    mcde
    meson
+   nouveau
    pl111
    tegra
    tve200
@@ -24,6 +25,7 @@ GPU Driver Documentation
    panfrost
    panthor
    zynqmp
+   nova/index
 
 .. only::  subproject and html
 

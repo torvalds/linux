@@ -108,6 +108,12 @@ void intel_wm_get_hw_state(struct drm_i915_private *i915)
 		return i915->display.funcs.wm->get_hw_state(i915);
 }
 
+void intel_wm_sanitize(struct drm_i915_private *i915)
+{
+	if (i915->display.funcs.wm->sanitize)
+		return i915->display.funcs.wm->sanitize(i915);
+}
+
 bool intel_wm_plane_visible(const struct intel_crtc_state *crtc_state,
 			    const struct intel_plane_state *plane_state)
 {

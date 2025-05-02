@@ -50,7 +50,7 @@ static struct spi_driver pcm3168a_spi_driver = {
 	.driver = {
 		.name	= "pcm3168a",
 		.of_match_table = pcm3168a_of_match,
-		.pm		= &pcm3168a_pm_ops,
+		.pm		= pm_ptr(&pcm3168a_pm_ops),
 	},
 };
 module_spi_driver(pcm3168a_spi_driver);

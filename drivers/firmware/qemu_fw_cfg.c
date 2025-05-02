@@ -460,7 +460,7 @@ static const struct kobj_type fw_cfg_sysfs_entry_ktype = {
 
 /* raw-read method and attribute */
 static ssize_t fw_cfg_sysfs_read_raw(struct file *filp, struct kobject *kobj,
-				     struct bin_attribute *bin_attr,
+				     const struct bin_attribute *bin_attr,
 				     char *buf, loff_t pos, size_t count)
 {
 	struct fw_cfg_sysfs_entry *entry = to_entry(kobj);
@@ -474,9 +474,9 @@ static ssize_t fw_cfg_sysfs_read_raw(struct file *filp, struct kobject *kobj,
 	return fw_cfg_read_blob(entry->select, buf, pos, count);
 }
 
-static struct bin_attribute fw_cfg_sysfs_attr_raw = {
+static const struct bin_attribute fw_cfg_sysfs_attr_raw = {
 	.attr = { .name = "raw", .mode = S_IRUSR },
-	.read = fw_cfg_sysfs_read_raw,
+	.read_new = fw_cfg_sysfs_read_raw,
 };
 
 /*

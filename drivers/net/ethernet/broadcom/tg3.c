@@ -11252,7 +11252,7 @@ static void tg3_timer_start(struct tg3 *tp)
 
 static void tg3_timer_stop(struct tg3 *tp)
 {
-	del_timer_sync(&tp->timer);
+	timer_delete_sync(&tp->timer);
 }
 
 /* Restart hardware after configuration changes, self-test, etc.

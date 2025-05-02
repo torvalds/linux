@@ -25,15 +25,15 @@ operations.
 The ``power_save`` option is exported as writable.  This means you can
 adjust the value via sysfs on the fly.  For example, to turn on the
 automatic power-save mode with 10 seconds, write to
-``/sys/modules/snd_ac97_codec/parameters/power_save`` (usually as root):
+``/sys/module/snd_ac97_codec/parameters/power_save`` (usually as root):
 ::
 
-	# echo 10 > /sys/modules/snd_ac97_codec/parameters/power_save
+	# echo 10 > /sys/module/snd_ac97_codec/parameters/power_save
 
 
 Note that you might hear click noise/pop when changing the power
 state.  Also, it often takes certain time to wake up from the
-power-down to the active state.  These are often hardly to fix, so
+power-down to the active state.  These are often hard to fix, so
 don't report extra bug reports unless you have a fix patch ;-)
 
 For HD-audio interface, there is another module option,

@@ -78,12 +78,6 @@ static void __exit crc_t10dif_powerpc_exit(void)
 }
 module_exit(crc_t10dif_powerpc_exit);
 
-bool crc_t10dif_is_optimized(void)
-{
-	return static_key_enabled(&have_vec_crypto);
-}
-EXPORT_SYMBOL(crc_t10dif_is_optimized);
-
 MODULE_AUTHOR("Daniel Axtens <dja@axtens.net>");
 MODULE_DESCRIPTION("CRCT10DIF using vector polynomial multiply-sum instructions");
 MODULE_LICENSE("GPL");

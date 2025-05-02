@@ -170,7 +170,7 @@ static int ast_detect_chip(struct pci_dev *pdev,
 
 			/* Patch AST2500/AST2510 */
 			if ((pdev->revision & 0xf0) == 0x40) {
-				if (!(vgacrd0 & AST_VRAM_INIT_STATUS_MASK))
+				if (!(vgacrd0 & AST_IO_VGACRD0_VRAM_INIT_STATUS_MASK))
 					ast_patch_ahb_2500(regs);
 			}
 
@@ -393,11 +393,15 @@ static int ast_drm_freeze(struct drm_device *dev)
 static int ast_drm_thaw(struct drm_device *dev)
 {
 	struct ast_device *ast = to_ast_device(dev);
+	int ret;
 
 	ast_enable_vga(ast->ioregs);
 	ast_open_key(ast->ioregs);
 	ast_enable_mmio(dev->dev, ast->ioregs);
-	ast_post_gpu(ast);
+
+	ret = ast_post_gpu(ast);
+	if (ret)
+		return ret;
 
 	return drm_mode_config_helper_resume(dev);
 }

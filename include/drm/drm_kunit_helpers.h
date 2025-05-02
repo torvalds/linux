@@ -95,8 +95,6 @@ __drm_kunit_helper_alloc_drm_device(struct kunit *test,
 						      sizeof(_type),		\
 						      offsetof(_type, _member),	\
 						      _feat))
-struct drm_modeset_acquire_ctx *
-drm_kunit_helper_acquire_ctx_alloc(struct kunit *test);
 
 struct drm_atomic_state *
 drm_kunit_helper_atomic_state_alloc(struct kunit *test,
@@ -119,6 +117,9 @@ drm_kunit_helper_create_crtc(struct kunit *test,
 			     struct drm_plane *cursor,
 			     const struct drm_crtc_funcs *funcs,
 			     const struct drm_crtc_helper_funcs *helper_funcs);
+
+int drm_kunit_add_mode_destroy_action(struct kunit *test,
+				      struct drm_display_mode *mode);
 
 struct drm_display_mode *
 drm_kunit_display_mode_from_cea_vic(struct kunit *test, struct drm_device *dev,

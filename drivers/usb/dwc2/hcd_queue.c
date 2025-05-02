@@ -1302,7 +1302,7 @@ static int dwc2_schedule_periodic(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	}
 
 	/* Cancel pending unreserve; if canceled OK, unreserve was pending */
-	if (del_timer(&qh->unreserve_timer))
+	if (timer_delete(&qh->unreserve_timer))
 		WARN_ON(!qh->unreserve_pending);
 
 	/*
@@ -1459,8 +1459,7 @@ static void dwc2_qh_init(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 	/* Initialize QH */
 	qh->hsotg = hsotg;
 	timer_setup(&qh->unreserve_timer, dwc2_unreserve_timer_fn, 0);
-	hrtimer_init(&qh->wait_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	qh->wait_timer.function = &dwc2_wait_timer_fn;
+	hrtimer_setup(&qh->wait_timer, &dwc2_wait_timer_fn, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	qh->ep_type = ep_type;
 	qh->ep_is_in = ep_is_in;
 
@@ -1615,7 +1614,7 @@ struct dwc2_qh *dwc2_hcd_qh_create(struct dwc2_hsotg *hsotg,
 void dwc2_hcd_qh_free(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
 	/* Make sure any unreserve work is finished. */
-	if (del_timer_sync(&qh->unreserve_timer)) {
+	if (timer_delete_sync(&qh->unreserve_timer)) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&hsotg->lock, flags);

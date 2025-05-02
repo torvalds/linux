@@ -303,9 +303,9 @@ if SCSI_LOWLEVEL && SCSI
 config ISCSI_TCP
 	tristate "iSCSI Initiator over TCP/IP"
 	depends on SCSI && INET
+	select CRC32
 	select CRYPTO
 	select CRYPTO_MD5
-	select CRYPTO_CRC32C
 	select SCSI_ISCSI_ATTRS
 	help
 	 The iSCSI Driver provides a host with the ability to access storage
@@ -336,7 +336,6 @@ source "drivers/scsi/cxgbi/Kconfig"
 source "drivers/scsi/bnx2i/Kconfig"
 source "drivers/scsi/bnx2fc/Kconfig"
 source "drivers/scsi/be2iscsi/Kconfig"
-source "drivers/scsi/cxlflash/Kconfig"
 
 config SGIWD93_SCSI
 	tristate "SGI WD93C93 SCSI Driver"

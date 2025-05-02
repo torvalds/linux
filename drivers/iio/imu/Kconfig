@@ -52,6 +52,19 @@ config ADIS16480
 	  Say yes here to build support for Analog Devices ADIS16375, ADIS16480,
 	  ADIS16485, ADIS16488 inertial sensors.
 
+config ADIS16550
+	tristate "Analog Devices ADIS16550 and similar IMU driver"
+	depends on SPI
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
+	select CRC32
+	help
+	  Say yes here to build support for Analog Devices ADIS16550 inertial
+	  sensor containing triaxis gyroscope and triaxis accelerometer.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called adis16550.
+
 source "drivers/iio/imu/bmi160/Kconfig"
 source "drivers/iio/imu/bmi270/Kconfig"
 source "drivers/iio/imu/bmi323/Kconfig"

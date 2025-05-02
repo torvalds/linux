@@ -232,16 +232,15 @@ static int ad7298_read_raw(struct iio_dev *indio_dev,
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		if (chan->address == AD7298_CH_TEMP)
 			ret = ad7298_scan_temp(st, val);
 		else
 			ret = ad7298_scan_direct(st, chan->address);
 
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 
 		if (ret < 0)
 			return ret;

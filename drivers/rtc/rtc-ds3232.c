@@ -339,29 +339,9 @@ static int ds3232_hwmon_read(struct device *dev,
 	return err;
 }
 
-static u32 ds3232_hwmon_chip_config[] = {
-	HWMON_C_REGISTER_TZ,
-	0
-};
-
-static const struct hwmon_channel_info ds3232_hwmon_chip = {
-	.type = hwmon_chip,
-	.config = ds3232_hwmon_chip_config,
-};
-
-static u32 ds3232_hwmon_temp_config[] = {
-	HWMON_T_INPUT,
-	0
-};
-
-static const struct hwmon_channel_info ds3232_hwmon_temp = {
-	.type = hwmon_temp,
-	.config = ds3232_hwmon_temp_config,
-};
-
 static const struct hwmon_channel_info * const ds3232_hwmon_info[] = {
-	&ds3232_hwmon_chip,
-	&ds3232_hwmon_temp,
+	HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ),
+	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT),
 	NULL
 };
 

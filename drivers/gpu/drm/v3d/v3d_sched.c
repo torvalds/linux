@@ -226,8 +226,12 @@ static struct dma_fence *v3d_bin_job_run(struct drm_sched_job *sched_job)
 	struct dma_fence *fence;
 	unsigned long irqflags;
 
-	if (unlikely(job->base.base.s_fence->finished.error))
+	if (unlikely(job->base.base.s_fence->finished.error)) {
+		spin_lock_irqsave(&v3d->job_lock, irqflags);
+		v3d->bin_job = NULL;
+		spin_unlock_irqrestore(&v3d->job_lock, irqflags);
 		return NULL;
+	}
 
 	/* Lock required around bin_job update vs
 	 * v3d_overflow_mem_work().
@@ -281,8 +285,10 @@ static struct dma_fence *v3d_render_job_run(struct drm_sched_job *sched_job)
 	struct drm_device *dev = &v3d->drm;
 	struct dma_fence *fence;
 
-	if (unlikely(job->base.base.s_fence->finished.error))
+	if (unlikely(job->base.base.s_fence->finished.error)) {
+		v3d->render_job = NULL;
 		return NULL;
+	}
 
 	v3d->render_job = job;
 
@@ -327,11 +333,17 @@ v3d_tfu_job_run(struct drm_sched_job *sched_job)
 	struct drm_device *dev = &v3d->drm;
 	struct dma_fence *fence;
 
+	if (unlikely(job->base.base.s_fence->finished.error)) {
+		v3d->tfu_job = NULL;
+		return NULL;
+	}
+
+	v3d->tfu_job = job;
+
 	fence = v3d_fence_create(v3d, V3D_TFU);
 	if (IS_ERR(fence))
 		return NULL;
 
-	v3d->tfu_job = job;
 	if (job->base.irq_fence)
 		dma_fence_put(job->base.irq_fence);
 	job->base.irq_fence = dma_fence_get(fence);
@@ -368,6 +380,11 @@ v3d_csd_job_run(struct drm_sched_job *sched_job)
 	struct drm_device *dev = &v3d->drm;
 	struct dma_fence *fence;
 	int i, csd_cfg0_reg;
+
+	if (unlikely(job->base.base.s_fence->finished.error)) {
+		v3d->csd_job = NULL;
+		return NULL;
+	}
 
 	v3d->csd_job = job;
 
@@ -411,7 +428,8 @@ v3d_rewrite_csd_job_wg_counts_from_indirect(struct v3d_cpu_job *job)
 	struct v3d_bo *bo = to_v3d_bo(job->base.bo[0]);
 	struct v3d_bo *indirect = to_v3d_bo(indirect_csd->indirect);
 	struct drm_v3d_submit_csd *args = &indirect_csd->job->args;
-	u32 *wg_counts;
+	struct v3d_dev *v3d = job->base.v3d;
+	u32 num_batches, *wg_counts;
 
 	v3d_get_bo_vaddr(bo);
 	v3d_get_bo_vaddr(indirect);
@@ -424,8 +442,17 @@ v3d_rewrite_csd_job_wg_counts_from_indirect(struct v3d_cpu_job *job)
 	args->cfg[0] = wg_counts[0] << V3D_CSD_CFG012_WG_COUNT_SHIFT;
 	args->cfg[1] = wg_counts[1] << V3D_CSD_CFG012_WG_COUNT_SHIFT;
 	args->cfg[2] = wg_counts[2] << V3D_CSD_CFG012_WG_COUNT_SHIFT;
-	args->cfg[4] = DIV_ROUND_UP(indirect_csd->wg_size, 16) *
-		       (wg_counts[0] * wg_counts[1] * wg_counts[2]) - 1;
+
+	num_batches = DIV_ROUND_UP(indirect_csd->wg_size, 16) *
+		      (wg_counts[0] * wg_counts[1] * wg_counts[2]);
+
+	/* V3D 7.1.6 and later don't subtract 1 from the number of batches */
+	if (v3d->ver < 71 || (v3d->ver == 71 && v3d->rev < 6))
+		args->cfg[4] = num_batches - 1;
+	else
+		args->cfg[4] = num_batches;
+
+	WARN_ON(args->cfg[4] == ~0);
 
 	for (int i = 0; i < 3; i++) {
 		/* 0xffffffff indicates that the uniform rewrite is not needed */
@@ -656,8 +683,6 @@ v3d_cpu_job_run(struct drm_sched_job *sched_job)
 	struct v3d_cpu_job *job = to_cpu_job(sched_job);
 	struct v3d_dev *v3d = job->base.v3d;
 
-	v3d->cpu_job = job;
-
 	if (job->job_type >= ARRAY_SIZE(cpu_job_function)) {
 		DRM_DEBUG_DRIVER("Unknown CPU job: %d\n", job->job_type);
 		return NULL;
@@ -822,67 +847,54 @@ static const struct drm_sched_backend_ops v3d_cpu_sched_ops = {
 	.free_job = v3d_cpu_job_free
 };
 
+static int
+v3d_queue_sched_init(struct v3d_dev *v3d, const struct drm_sched_backend_ops *ops,
+		     enum v3d_queue queue, const char *name)
+{
+	struct drm_sched_init_args args = {
+		.num_rqs = DRM_SCHED_PRIORITY_COUNT,
+		.credit_limit = 1,
+		.timeout = msecs_to_jiffies(500),
+		.dev = v3d->drm.dev,
+	};
+
+	args.ops = ops;
+	args.name = name;
+
+	return drm_sched_init(&v3d->queue[queue].sched, &args);
+}
+
 int
 v3d_sched_init(struct v3d_dev *v3d)
 {
-	int hw_jobs_limit = 1;
-	int job_hang_limit = 0;
-	int hang_limit_ms = 500;
 	int ret;
 
-	ret = drm_sched_init(&v3d->queue[V3D_BIN].sched,
-			     &v3d_bin_sched_ops, NULL,
-			     DRM_SCHED_PRIORITY_COUNT,
-			     hw_jobs_limit, job_hang_limit,
-			     msecs_to_jiffies(hang_limit_ms), NULL,
-			     NULL, "v3d_bin", v3d->drm.dev);
+	ret = v3d_queue_sched_init(v3d, &v3d_bin_sched_ops, V3D_BIN, "v3d_bin");
 	if (ret)
 		return ret;
 
-	ret = drm_sched_init(&v3d->queue[V3D_RENDER].sched,
-			     &v3d_render_sched_ops, NULL,
-			     DRM_SCHED_PRIORITY_COUNT,
-			     hw_jobs_limit, job_hang_limit,
-			     msecs_to_jiffies(hang_limit_ms), NULL,
-			     NULL, "v3d_render", v3d->drm.dev);
+	ret = v3d_queue_sched_init(v3d, &v3d_render_sched_ops, V3D_RENDER,
+				   "v3d_render");
 	if (ret)
 		goto fail;
 
-	ret = drm_sched_init(&v3d->queue[V3D_TFU].sched,
-			     &v3d_tfu_sched_ops, NULL,
-			     DRM_SCHED_PRIORITY_COUNT,
-			     hw_jobs_limit, job_hang_limit,
-			     msecs_to_jiffies(hang_limit_ms), NULL,
-			     NULL, "v3d_tfu", v3d->drm.dev);
+	ret = v3d_queue_sched_init(v3d, &v3d_tfu_sched_ops, V3D_TFU, "v3d_tfu");
 	if (ret)
 		goto fail;
 
 	if (v3d_has_csd(v3d)) {
-		ret = drm_sched_init(&v3d->queue[V3D_CSD].sched,
-				     &v3d_csd_sched_ops, NULL,
-				     DRM_SCHED_PRIORITY_COUNT,
-				     hw_jobs_limit, job_hang_limit,
-				     msecs_to_jiffies(hang_limit_ms), NULL,
-				     NULL, "v3d_csd", v3d->drm.dev);
+		ret = v3d_queue_sched_init(v3d, &v3d_csd_sched_ops, V3D_CSD,
+					   "v3d_csd");
 		if (ret)
 			goto fail;
 
-		ret = drm_sched_init(&v3d->queue[V3D_CACHE_CLEAN].sched,
-				     &v3d_cache_clean_sched_ops, NULL,
-				     DRM_SCHED_PRIORITY_COUNT,
-				     hw_jobs_limit, job_hang_limit,
-				     msecs_to_jiffies(hang_limit_ms), NULL,
-				     NULL, "v3d_cache_clean", v3d->drm.dev);
+		ret = v3d_queue_sched_init(v3d, &v3d_cache_clean_sched_ops,
+					   V3D_CACHE_CLEAN, "v3d_cache_clean");
 		if (ret)
 			goto fail;
 	}
 
-	ret = drm_sched_init(&v3d->queue[V3D_CPU].sched,
-			     &v3d_cpu_sched_ops, NULL,
-			     DRM_SCHED_PRIORITY_COUNT,
-			     1, job_hang_limit,
-			     msecs_to_jiffies(hang_limit_ms), NULL,
-			     NULL, "v3d_cpu", v3d->drm.dev);
+	ret = v3d_queue_sched_init(v3d, &v3d_cpu_sched_ops, V3D_CPU, "v3d_cpu");
 	if (ret)
 		goto fail;
 

@@ -167,8 +167,8 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 	bch2_trans_begin(trans);
 
 	ret = for_each_btree_key_max(trans, iter, BTREE_ID_lru,
-				  lru_pos(BCH_LRU_FRAGMENTATION_START, 0, 0),
-				  lru_pos(BCH_LRU_FRAGMENTATION_START, U64_MAX, LRU_TIME_MAX),
+				  lru_pos(BCH_LRU_BUCKET_FRAGMENTATION, 0, 0),
+				  lru_pos(BCH_LRU_BUCKET_FRAGMENTATION, U64_MAX, LRU_TIME_MAX),
 				  0, k, ({
 		struct move_bucket b = { .k.bucket = u64_to_bucket(k.k->p.offset) };
 		int ret2 = 0;
@@ -280,7 +280,11 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 	s64 wait = S64_MAX, fragmented_allowed, fragmented;
 
 	for_each_rw_member(c, ca) {
-		struct bch_dev_usage usage = bch2_dev_usage_read(ca);
+		struct bch_dev_usage_full usage_full = bch2_dev_usage_full_read(ca);
+		struct bch_dev_usage usage;
+
+		for (unsigned i = 0; i < BCH_DATA_NR; i++)
+			usage.buckets[i] = usage_full.d[i].buckets;
 
 		fragmented_allowed = ((__dev_buckets_available(ca, usage, BCH_WATERMARK_stripe) *
 				       ca->mi.bucket_size) >> 1);
@@ -288,7 +292,7 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 
 		for (unsigned i = 0; i < BCH_DATA_NR; i++)
 			if (data_type_movable(i))
-				fragmented += usage.d[i].fragmented;
+				fragmented += usage_full.d[i].fragmented;
 
 		wait = min(wait, max(0LL, fragmented_allowed - fragmented));
 	}
@@ -317,6 +321,17 @@ void bch2_copygc_wait_to_text(struct printbuf *out, struct bch_fs *c)
 	prt_printf(out, "Currently calculated wait:\t");
 	prt_human_readable_u64(out, bch2_copygc_wait_amount(c));
 	prt_newline(out);
+
+	rcu_read_lock();
+	struct task_struct *t = rcu_dereference(c->copygc_thread);
+	if (t)
+		get_task_struct(t);
+	rcu_read_unlock();
+
+	if (t) {
+		bch2_prt_task_backtrace(out, t, 0, GFP_KERNEL);
+		put_task_struct(t);
+	}
 }
 
 static int bch2_copygc_thread(void *arg)
@@ -340,6 +355,13 @@ static int bch2_copygc_thread(void *arg)
 	}
 
 	set_freezable();
+
+	/*
+	 * Data move operations can't run until after check_snapshots has
+	 * completed, and bch2_snapshot_is_ancestor() is available.
+	 */
+	kthread_wait_freezable(c->recovery_pass_done > BCH_RECOVERY_PASS_check_snapshots ||
+			       kthread_should_stop());
 
 	bch2_move_stats_init(&move_stats, "copygc");
 	bch2_moving_ctxt_init(&ctxt, c, NULL, &move_stats,

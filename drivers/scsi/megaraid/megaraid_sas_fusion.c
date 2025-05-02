@@ -2043,7 +2043,10 @@ map_cmd_status(struct fusion_context *fusion,
 
 	case MFI_STAT_SCSI_IO_FAILED:
 	case MFI_STAT_LD_INIT_IN_PROGRESS:
-		scmd->result = (DID_ERROR << 16) | ext_status;
+		if (ext_status == 0xf0)
+			scmd->result = (DID_ERROR << 16) | SAM_STAT_CHECK_CONDITION;
+		else
+			scmd->result = (DID_ERROR << 16) | ext_status;
 		break;
 
 	case MFI_STAT_SCSI_DONE_WITH_ERROR:
@@ -4969,7 +4972,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 	}
 
 	if (instance->requestorId && !instance->skip_heartbeat_timer_del)
-		del_timer_sync(&instance->sriov_heartbeat_timer);
+		timer_delete_sync(&instance->sriov_heartbeat_timer);
 	set_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags);
 	set_bit(MEGASAS_FUSION_OCR_NOT_POSSIBLE, &instance->reset_flags);
 	atomic_set(&instance->adprecovery, MEGASAS_ADPRESET_SM_POLLING);

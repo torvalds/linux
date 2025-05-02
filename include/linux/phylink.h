@@ -361,23 +361,29 @@ int mac_finish(struct phylink_config *config, unsigned int mode,
 		phy_interface_t iface);
 
 /**
- * mac_link_down() - take the link down
+ * mac_link_down() - notification that the link has gone down
  * @config: a pointer to a &struct phylink_config.
  * @mode: link autonegotiation mode
  * @interface: link &typedef phy_interface_t mode
  *
- * If @mode is not an in-band negotiation mode (as defined by
- * phylink_autoneg_inband()), force the link down and disable any
- * Energy Efficient Ethernet MAC configuration. Interface type
- * selection must be done in mac_config().
+ * Notifies the MAC that the link has gone down. This will not be called
+ * unless mac_link_up() has been previously called.
+ *
+ * The MAC should stop processing packets for transmission and reception.
+ * phylink will have called netif_carrier_off() to notify the networking
+ * stack that the link has gone down, so MAC drivers should not make this
+ * call.
+ *
+ * If @mode is %MLO_AN_INBAND, then this function must not prevent the
+ * link coming up.
  */
 void mac_link_down(struct phylink_config *config, unsigned int mode,
 		   phy_interface_t interface);
 
 /**
- * mac_link_up() - allow the link to come up
+ * mac_link_up() - notification that the link has come up
  * @config: a pointer to a &struct phylink_config.
- * @phy: any attached phy
+ * @phy: any attached phy (deprecated - please use LPI interfaces)
  * @mode: link autonegotiation mode
  * @interface: link &typedef phy_interface_t mode
  * @speed: link speed
@@ -385,7 +391,10 @@ void mac_link_down(struct phylink_config *config, unsigned int mode,
  * @tx_pause: link transmit pause enablement status
  * @rx_pause: link receive pause enablement status
  *
- * Configure the MAC for an established link.
+ * Notifies the MAC that the link has come up, and the parameters of the
+ * link as seen from the MACs point of view. If mac_link_up() has been
+ * called previously, there will be an intervening call to mac_link_down()
+ * before this method will be subsequently called.
  *
  * @speed, @duplex, @tx_pause and @rx_pause indicate the finalised link
  * settings, and should be used to configure the MAC block appropriately
@@ -397,9 +406,9 @@ void mac_link_down(struct phylink_config *config, unsigned int mode,
  * that the user wishes to override the pause settings, and this should
  * be allowed when considering the implementation of this method.
  *
- * If in-band negotiation mode is disabled, allow the link to come up. If
- * @phy is non-%NULL, configure Energy Efficient Ethernet by calling
- * phy_init_eee() and perform appropriate MAC configuration for EEE.
+ * Once configured, the MAC may begin to process packets for transmission
+ * and reception.
+ *
  * Interface type selection must be done in mac_config().
  */
 void mac_link_up(struct phylink_config *config, struct phy_device *phy,
@@ -442,7 +451,6 @@ struct phylink_pcs_ops;
  *                        are supported by this PCS.
  * @ops: a pointer to the &struct phylink_pcs_ops structure
  * @phylink: pointer to &struct phylink_config
- * @neg_mode: provide PCS neg mode via "mode" argument
  * @poll: poll the PCS for link changes
  * @rxc_always_on: The MAC driver requires the reference clock
  *                 to always be on. Standalone PCS drivers which
@@ -459,7 +467,6 @@ struct phylink_pcs {
 	DECLARE_PHY_INTERFACE_MASK(supported_interfaces);
 	const struct phylink_pcs_ops *ops;
 	struct phylink *phylink;
-	bool neg_mode;
 	bool poll;
 	bool rxc_always_on;
 };
@@ -477,6 +484,10 @@ struct phylink_pcs {
  * @pcs_an_restart: restart 802.3z BaseX autonegotiation.
  * @pcs_link_up: program the PCS for the resolved link configuration
  *               (where necessary).
+ * @pcs_disable_eee: optional notification to PCS that EEE has been disabled
+ *		     at the MAC.
+ * @pcs_enable_eee: optional notification to PCS that EEE will be enabled at
+ *		    the MAC.
  * @pcs_pre_init: configure PCS components necessary for MAC hardware
  *                initialization e.g. RX clock for stmmac.
  */
@@ -500,6 +511,8 @@ struct phylink_pcs_ops {
 	void (*pcs_an_restart)(struct phylink_pcs *pcs);
 	void (*pcs_link_up)(struct phylink_pcs *pcs, unsigned int neg_mode,
 			    phy_interface_t interface, int speed, int duplex);
+	void (*pcs_disable_eee)(struct phylink_pcs *pcs);
+	void (*pcs_enable_eee)(struct phylink_pcs *pcs);
 	int (*pcs_pre_init)(struct phylink_pcs *pcs);
 };
 
@@ -591,6 +604,14 @@ void pcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
  * The %neg_mode argument should be tested via the phylink_mode_*() family of
  * functions, or for PCS that set pcs->neg_mode true, should be tested
  * against the PHYLINK_PCS_NEG_* definitions.
+ *
+ * pcs_config() will be called when configuration of the PCS is required
+ * or when the advertisement is possibly updated. It must not unnecessarily
+ * disrupt an established link.
+ *
+ * When an autonegotiation restart is required for 802.3z modes, .pcs_config()
+ * should return a positive non-zero integer (e.g. 1) to indicate to phylink
+ * to call the pcs_an_restart() method.
  */
 int pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 	       phy_interface_t interface, const unsigned long *advertising,
@@ -624,6 +645,22 @@ void pcs_an_restart(struct phylink_pcs *pcs);
  */
 void pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 		 phy_interface_t interface, int speed, int duplex);
+
+/**
+ * pcs_disable_eee() - Disable EEE at the PCS
+ * @pcs: a pointer to a &struct phylink_pcs
+ *
+ * Optional method informing the PCS that EEE has been disabled at the MAC.
+ */
+void pcs_disable_eee(struct phylink_pcs *pcs);
+
+/**
+ * pcs_enable_eee() - Enable EEE at the PCS
+ * @pcs: a pointer to a &struct phylink_pcs
+ *
+ * Optional method informing the PCS that EEE is about to be enabled at the MAC.
+ */
+void pcs_enable_eee(struct phylink_pcs *pcs);
 
 /**
  * pcs_pre_init() - Configure PCS components necessary for MAC initialization
@@ -678,7 +715,11 @@ int phylink_pcs_pre_init(struct phylink *pl, struct phylink_pcs *pcs);
 void phylink_start(struct phylink *);
 void phylink_stop(struct phylink *);
 
+void phylink_rx_clk_stop_block(struct phylink *);
+void phylink_rx_clk_stop_unblock(struct phylink *);
+
 void phylink_suspend(struct phylink *pl, bool mac_wol);
+void phylink_prepare_resume(struct phylink *pl);
 void phylink_resume(struct phylink *pl);
 
 void phylink_ethtool_get_wol(struct phylink *, struct ethtool_wolinfo *);
@@ -694,7 +735,6 @@ void phylink_ethtool_get_pauseparam(struct phylink *,
 int phylink_ethtool_set_pauseparam(struct phylink *,
 				   struct ethtool_pauseparam *);
 int phylink_get_eee_err(struct phylink *);
-int phylink_init_eee(struct phylink *, bool);
 int phylink_ethtool_get_eee(struct phylink *link, struct ethtool_keee *eee);
 int phylink_ethtool_set_eee(struct phylink *link, struct ethtool_keee *eee);
 int phylink_mii_ioctl(struct phylink *, struct ifreq *, int);
@@ -735,6 +775,18 @@ static inline int phylink_get_link_timer_ns(phy_interface_t interface)
 	default:
 		return -EINVAL;
 	}
+}
+
+/**
+ * phylink_mac_implements_lpi() - determine if MAC implements LPI ops
+ * @ops: phylink_mac_ops structure
+ *
+ * Returns true if the phylink MAC operations structure indicates that the
+ * LPI operations have been implemented, false otherwise.
+ */
+static inline bool phylink_mac_implements_lpi(const struct phylink_mac_ops *ops)
+{
+	return ops && ops->mac_disable_tx_lpi && ops->mac_enable_tx_lpi;
 }
 
 void phylink_mii_c22_pcs_decode_state(struct phylink_link_state *state,

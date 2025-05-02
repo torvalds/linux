@@ -744,7 +744,7 @@ static bool timer_fixup_init(void *addr, enum debug_obj_state state)
 
 	switch (state) {
 	case ODEBUG_STATE_ACTIVE:
-		del_timer_sync(timer);
+		timer_delete_sync(timer);
 		debug_object_init(timer, &timer_debug_descr);
 		return true;
 	default:
@@ -790,7 +790,7 @@ static bool timer_fixup_free(void *addr, enum debug_obj_state state)
 
 	switch (state) {
 	case ODEBUG_STATE_ACTIVE:
-		del_timer_sync(timer);
+		timer_delete_sync(timer);
 		debug_object_free(timer, &timer_debug_descr);
 		return true;
 	default:
@@ -1212,10 +1212,10 @@ EXPORT_SYMBOL(mod_timer_pending);
  *
  * mod_timer(timer, expires) is equivalent to:
  *
- *     del_timer(timer); timer->expires = expires; add_timer(timer);
+ *     timer_delete(timer); timer->expires = expires; add_timer(timer);
  *
  * mod_timer() is more efficient than the above open coded sequence. In
- * case that the timer is inactive, the del_timer() part is a NOP. The
+ * case that the timer is inactive, the timer_delete() part is a NOP. The
  * timer is in any case activated with the new expiry time @expires.
  *
  * Note that if there are multiple unserialized concurrent users of the

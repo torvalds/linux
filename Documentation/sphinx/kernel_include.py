@@ -2,7 +2,7 @@
 # -*- coding: utf-8; mode: python -*-
 # pylint: disable=R0903, C0330, R0914, R0912, E0401
 
-u"""
+"""
     kernel-include
     ~~~~~~~~~~~~~~
 
@@ -56,7 +56,7 @@ def setup(app):
 class KernelInclude(Include):
 # ==============================================================================
 
-    u"""KernelInclude (``kernel-include``) directive"""
+    """KernelInclude (``kernel-include``) directive"""
 
     def run(self):
         env = self.state.document.settings.env

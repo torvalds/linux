@@ -15,6 +15,7 @@
 #include <linux/random.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/vdso_datastore.h>
 
 #include <asm/abi.h>
 #include <asm/mips-cps.h>
@@ -23,20 +24,7 @@
 #include <vdso/helpers.h>
 #include <vdso/vsyscall.h>
 
-/* Kernel-provided data used by the VDSO. */
-static union vdso_data_store mips_vdso_data __page_aligned_data;
-struct vdso_data *vdso_data = mips_vdso_data.data;
-
-/*
- * Mapping for the VDSO data/GIC pages. The real pages are mapped manually, as
- * what we map and where within the area they are mapped is determined at
- * runtime.
- */
-static struct page *no_pages[] = { NULL };
-static struct vm_special_mapping vdso_vvar_mapping = {
-	.name = "[vvar]",
-	.pages = no_pages,
-};
+static_assert(VDSO_NR_PAGES == __VDSO_PAGES);
 
 static void __init init_vdso_image(struct mips_vdso_image *image)
 {
@@ -90,7 +78,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mips_vdso_image *image = current->thread.abi->vdso;
 	struct mm_struct *mm = current->mm;
-	unsigned long gic_size, vvar_size, size, base, data_addr, vdso_addr, gic_pfn, gic_base;
+	unsigned long gic_size, size, base, data_addr, vdso_addr, gic_pfn, gic_base;
 	struct vm_area_struct *vma;
 	int ret;
 
@@ -119,8 +107,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 * the counter registers at the start.
 	 */
 	gic_size = mips_gic_present() ? PAGE_SIZE : 0;
-	vvar_size = gic_size + PAGE_SIZE;
-	size = vvar_size + image->size;
+	size = gic_size + VDSO_NR_PAGES * PAGE_SIZE + image->size;
 
 	/*
 	 * Find a region that's large enough for us to perform the
@@ -143,15 +130,13 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 */
 	if (cpu_has_dc_aliases) {
 		base = __ALIGN_MASK(base, shm_align_mask);
-		base += ((unsigned long)vdso_data - gic_size) & shm_align_mask;
+		base += ((unsigned long)vdso_k_time_data - gic_size) & shm_align_mask;
 	}
 
 	data_addr = base + gic_size;
-	vdso_addr = data_addr + PAGE_SIZE;
+	vdso_addr = data_addr + VDSO_NR_PAGES * PAGE_SIZE;
 
-	vma = _install_special_mapping(mm, base, vvar_size,
-				       VM_READ | VM_MAYREAD,
-				       &vdso_vvar_mapping);
+	vma = vdso_install_vvar_mapping(mm, data_addr);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto out;
@@ -161,19 +146,23 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	if (gic_size) {
 		gic_base = (unsigned long)mips_gic_base + MIPS_GIC_USER_OFS;
 		gic_pfn = PFN_DOWN(__pa(gic_base));
+		static const struct vm_special_mapping gic_mapping = {
+			.name	= "[gic]",
+			.pages	= (struct page **) { NULL },
+		};
+
+		vma = _install_special_mapping(mm, base, gic_size, VM_READ | VM_MAYREAD,
+					       &gic_mapping);
+		if (IS_ERR(vma)) {
+			ret = PTR_ERR(vma);
+			goto out;
+		}
 
 		ret = io_remap_pfn_range(vma, base, gic_pfn, gic_size,
 					 pgprot_noncached(vma->vm_page_prot));
 		if (ret)
 			goto out;
 	}
-
-	/* Map data page. */
-	ret = remap_pfn_range(vma, data_addr,
-			      virt_to_phys(vdso_data) >> PAGE_SHIFT,
-			      PAGE_SIZE, vma->vm_page_prot);
-	if (ret)
-		goto out;
 
 	/* Map VDSO image. */
 	vma = _install_special_mapping(mm, vdso_addr, image->size,

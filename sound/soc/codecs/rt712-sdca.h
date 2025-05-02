@@ -42,6 +42,9 @@ struct  rt712_sdca_priv {
 	bool fu0f_mixer_r_mute;
 	bool fu1e_dapm_mute;
 	bool fu1e_mixer_mute[4];
+	bool fu05_dapm_mute;
+	bool fu05_mixer_l_mute;
+	bool fu05_mixer_r_mute;
 };
 
 struct rt712_dmic_kctrl_priv {

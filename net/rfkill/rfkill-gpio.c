@@ -162,6 +162,9 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 	if (!rfkill->rfkill_dev)
 		return -ENOMEM;
 
+	if (device_property_present(&pdev->dev, "default-blocked"))
+		rfkill_init_sw_state(rfkill->rfkill_dev, true);
+
 	ret = rfkill_register(rfkill->rfkill_dev);
 	if (ret < 0)
 		goto err_destroy;

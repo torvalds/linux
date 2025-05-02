@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <linux/securebits.h>
 #include <sys/capability.h>
+#include <sys/prctl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/wait.h>
@@ -30,6 +31,7 @@
 
 static const char bin_sandbox_and_launch[] = "./sandbox-and-launch";
 static const char bin_wait_pipe[] = "./wait-pipe";
+static const char bin_wait_pipe_sandbox[] = "./wait-pipe-sandbox";
 
 static void _init_caps(struct __test_metadata *const _metadata, bool drop_all)
 {
@@ -37,10 +39,12 @@ static void _init_caps(struct __test_metadata *const _metadata, bool drop_all)
 	/* Only these three capabilities are useful for the tests. */
 	const cap_value_t caps[] = {
 		/* clang-format off */
+		CAP_AUDIT_CONTROL,
 		CAP_DAC_OVERRIDE,
 		CAP_MKNOD,
 		CAP_NET_ADMIN,
 		CAP_NET_BIND_SERVICE,
+		CAP_SETUID,
 		CAP_SYS_ADMIN,
 		CAP_SYS_CHROOT,
 		/* clang-format on */
@@ -202,6 +206,22 @@ enforce_ruleset(struct __test_metadata *const _metadata, const int ruleset_fd)
 	{
 		TH_LOG("Failed to enforce ruleset: %s", strerror(errno));
 	}
+}
+
+static void __maybe_unused
+drop_access_rights(struct __test_metadata *const _metadata,
+		   const struct landlock_ruleset_attr *const ruleset_attr)
+{
+	int ruleset_fd;
+
+	ruleset_fd =
+		landlock_create_ruleset(ruleset_attr, sizeof(*ruleset_attr), 0);
+	EXPECT_LE(0, ruleset_fd)
+	{
+		TH_LOG("Failed to create a ruleset: %s", strerror(errno));
+	}
+	enforce_ruleset(_metadata, ruleset_fd);
+	EXPECT_EQ(0, close(ruleset_fd));
 }
 
 struct protocol_variant {

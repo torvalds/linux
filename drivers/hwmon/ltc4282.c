@@ -1674,47 +1674,19 @@ static int ltc4282_show_power1_bad_fault_log(void *arg, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(ltc4282_power1_bad_fault_log,
 			 ltc4282_show_power1_bad_fault_log, NULL, "%llu\n");
 
-static void ltc4282_debugfs_remove(void *dir)
+static void ltc4282_debugfs_init(struct ltc4282_state *st, struct i2c_client *i2c)
 {
-	debugfs_remove_recursive(dir);
-}
-
-static void ltc4282_debugfs_init(struct ltc4282_state *st,
-				 struct i2c_client *i2c,
-				 const struct device *hwmon)
-{
-	const char *debugfs_name;
-	struct dentry *dentry;
-	int ret;
-
-	if (!IS_ENABLED(CONFIG_DEBUG_FS))
-		return;
-
-	debugfs_name = devm_kasprintf(&i2c->dev, GFP_KERNEL, "ltc4282-%s",
-				      dev_name(hwmon));
-	if (!debugfs_name)
-		return;
-
-	dentry = debugfs_create_dir(debugfs_name, NULL);
-	if (IS_ERR(dentry))
-		return;
-
-	ret = devm_add_action_or_reset(&i2c->dev, ltc4282_debugfs_remove,
-				       dentry);
-	if (ret)
-		return;
-
-	debugfs_create_file_unsafe("power1_bad_fault_log", 0400, dentry, st,
+	debugfs_create_file_unsafe("power1_bad_fault_log", 0400, i2c->debugfs, st,
 				   &ltc4282_power1_bad_fault_log);
-	debugfs_create_file_unsafe("in0_fet_short_fault_log", 0400, dentry, st,
+	debugfs_create_file_unsafe("in0_fet_short_fault_log", 0400, i2c->debugfs, st,
 				   &ltc4282_fet_short_fault_log);
-	debugfs_create_file_unsafe("in0_fet_bad_fault_log", 0400, dentry, st,
+	debugfs_create_file_unsafe("in0_fet_bad_fault_log", 0400, i2c->debugfs, st,
 				   &ltc4282_fet_bad_fault_log);
-	debugfs_create_file_unsafe("in1_crit_fault_log", 0400, dentry, st,
+	debugfs_create_file_unsafe("in1_crit_fault_log", 0400, i2c->debugfs, st,
 				   &ltc4282_in1_crit_fault_log);
-	debugfs_create_file_unsafe("in1_lcrit_fault_log", 0400, dentry, st,
+	debugfs_create_file_unsafe("in1_lcrit_fault_log", 0400, i2c->debugfs, st,
 				   &ltc4282_in1_lcrit_fault_log);
-	debugfs_create_file_unsafe("curr1_crit_fault_log", 0400, dentry, st,
+	debugfs_create_file_unsafe("curr1_crit_fault_log", 0400, i2c->debugfs, st,
 				   &ltc4282_curr1_crit_fault_log);
 }
 
@@ -1757,7 +1729,7 @@ static int ltc4282_probe(struct i2c_client *i2c)
 	if (IS_ERR(hwmon))
 		return PTR_ERR(hwmon);
 
-	ltc4282_debugfs_init(st, i2c, hwmon);
+	ltc4282_debugfs_init(st, i2c);
 
 	return 0;
 }

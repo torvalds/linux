@@ -245,7 +245,8 @@ static const struct class platform_profile_class = {
 /**
  * _aggregate_choices - Aggregate the available profile choices
  * @dev: The device
- * @arg: struct aggregate_choices_data
+ * @arg: struct aggregate_choices_data, with it's aggregate member bitmap
+ *	 initially filled with ones
  *
  * Return: 0 on success, -errno on failure
  */
@@ -256,12 +257,10 @@ static int _aggregate_choices(struct device *dev, void *arg)
 	struct platform_profile_handler *handler;
 
 	lockdep_assert_held(&profile_lock);
+
 	handler = to_pprof_handler(dev);
 	bitmap_or(tmp, handler->choices, handler->hidden_choices, PLATFORM_PROFILE_LAST);
-	if (test_bit(PLATFORM_PROFILE_LAST, data->aggregate))
-		bitmap_copy(data->aggregate, tmp, PLATFORM_PROFILE_LAST);
-	else
-		bitmap_and(data->aggregate, tmp, data->aggregate, PLATFORM_PROFILE_LAST);
+	bitmap_and(data->aggregate, tmp, data->aggregate, PLATFORM_PROFILE_LAST);
 	data->count++;
 
 	return 0;
@@ -289,14 +288,14 @@ static int _remove_hidden_choices(struct device *dev, void *arg)
 
 /**
  * platform_profile_choices_show - Show the available profile choices for legacy sysfs interface
- * @dev: The device
+ * @kobj: The kobject
  * @attr: The attribute
  * @buf: The buffer to write to
  *
  * Return: The number of bytes written
  */
-static ssize_t platform_profile_choices_show(struct device *dev,
-					     struct device_attribute *attr,
+static ssize_t platform_profile_choices_show(struct kobject *kobj,
+					     struct kobj_attribute *attr,
 					     char *buf)
 {
 	struct aggregate_choices_data data = {
@@ -305,7 +304,6 @@ static ssize_t platform_profile_choices_show(struct device *dev,
 	};
 	int err;
 
-	set_bit(PLATFORM_PROFILE_LAST, data.aggregate);
 	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &profile_lock) {
 		err = class_for_each_device(&platform_profile_class, NULL,
 					    &data, _aggregate_choices);
@@ -371,14 +369,14 @@ static int _store_and_notify(struct device *dev, void *data)
 
 /**
  * platform_profile_show - Show the current profile for legacy sysfs interface
- * @dev: The device
+ * @kobj: The kobject
  * @attr: The attribute
  * @buf: The buffer to write to
  *
  * Return: The number of bytes written
  */
-static ssize_t platform_profile_show(struct device *dev,
-				     struct device_attribute *attr,
+static ssize_t platform_profile_show(struct kobject *kobj,
+				     struct kobj_attribute *attr,
 				     char *buf)
 {
 	enum platform_profile_option profile = PLATFORM_PROFILE_LAST;
@@ -400,15 +398,15 @@ static ssize_t platform_profile_show(struct device *dev,
 
 /**
  * platform_profile_store - Set the profile for legacy sysfs interface
- * @dev: The device
+ * @kobj: The kobject
  * @attr: The attribute
  * @buf: The buffer to read from
  * @count: The number of bytes to read
  *
  * Return: The number of bytes read
  */
-static ssize_t platform_profile_store(struct device *dev,
-				      struct device_attribute *attr,
+static ssize_t platform_profile_store(struct kobject *kobj,
+				      struct kobj_attribute *attr,
 				      const char *buf, size_t count)
 {
 	struct aggregate_choices_data data = {
@@ -422,7 +420,7 @@ static ssize_t platform_profile_store(struct device *dev,
 	i = sysfs_match_string(profile_names, buf);
 	if (i < 0 || i == PLATFORM_PROFILE_CUSTOM)
 		return -EINVAL;
-	set_bit(PLATFORM_PROFILE_LAST, data.aggregate);
+
 	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &profile_lock) {
 		ret = class_for_each_device(&platform_profile_class, NULL,
 					    &data, _aggregate_choices);
@@ -442,12 +440,12 @@ static ssize_t platform_profile_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR_RO(platform_profile_choices);
-static DEVICE_ATTR_RW(platform_profile);
+static struct kobj_attribute attr_platform_profile_choices = __ATTR_RO(platform_profile_choices);
+static struct kobj_attribute attr_platform_profile = __ATTR_RW(platform_profile);
 
 static struct attribute *platform_profile_attrs[] = {
-	&dev_attr_platform_profile_choices.attr,
-	&dev_attr_platform_profile.attr,
+	&attr_platform_profile_choices.attr,
+	&attr_platform_profile.attr,
 	NULL
 };
 
@@ -502,7 +500,6 @@ int platform_profile_cycle(void)
 	enum platform_profile_option profile = PLATFORM_PROFILE_LAST;
 	int err;
 
-	set_bit(PLATFORM_PROFILE_LAST, data.aggregate);
 	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &profile_lock) {
 		err = class_for_each_device(&platform_profile_class, NULL,
 					    &profile, _aggregate_profiles);
@@ -627,24 +624,23 @@ EXPORT_SYMBOL_GPL(platform_profile_register);
 /**
  * platform_profile_remove - Unregisters a platform profile class device
  * @dev: Class device
- *
- * Return: 0
  */
-int platform_profile_remove(struct device *dev)
+void platform_profile_remove(struct device *dev)
 {
-	struct platform_profile_handler *pprof = to_pprof_handler(dev);
-	int id;
+	struct platform_profile_handler *pprof;
+
+	if (IS_ERR_OR_NULL(dev))
+		return;
+
+	pprof = to_pprof_handler(dev);
+
 	guard(mutex)(&profile_lock);
 
-	id = pprof->minor;
+	ida_free(&platform_profile_ida, pprof->minor);
 	device_unregister(&pprof->dev);
-	ida_free(&platform_profile_ida, id);
 
 	sysfs_notify(acpi_kobj, NULL, "platform_profile");
-
 	sysfs_update_group(acpi_kobj, &platform_profile_group);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(platform_profile_remove);
 

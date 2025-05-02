@@ -537,7 +537,7 @@ static int ext4_orphan_file_block_csum_verify(struct super_block *sb,
 	struct ext4_orphan_block_tail *ot;
 	__le64 dsk_block_nr = cpu_to_le64(bh->b_blocknr);
 
-	if (!ext4_has_metadata_csum(sb))
+	if (!ext4_has_feature_metadata_csum(sb))
 		return 1;
 
 	ot = ext4_orphan_block_tail(sb, bh);

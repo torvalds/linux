@@ -118,7 +118,6 @@ Documentation for filesystem implementations.
    spufs/index
    squashfs
    sysfs
-   sysv-fs
    tmpfs
    ubifs
    ubifs-authentication

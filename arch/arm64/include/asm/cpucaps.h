@@ -71,6 +71,8 @@ cpucap_is_possible(const unsigned int cap)
 		 * KVM MPAM support doesn't rely on the host kernel supporting MPAM.
 		*/
 		return true;
+	case ARM64_HAS_PMUV3:
+		return IS_ENABLED(CONFIG_HW_PERF_EVENTS);
 	}
 
 	return true;

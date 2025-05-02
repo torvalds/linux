@@ -766,7 +766,7 @@ EXPORT_SYMBOL(soc_pcmcia_init_one);
 
 void soc_pcmcia_remove_one(struct soc_pcmcia_socket *skt)
 {
-	del_timer_sync(&skt->poll_timer);
+	timer_delete_sync(&skt->poll_timer);
 
 	pcmcia_unregister_socket(&skt->socket);
 
@@ -865,7 +865,7 @@ int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 	return ret;
 
  out_err_8:
-	del_timer_sync(&skt->poll_timer);
+	timer_delete_sync(&skt->poll_timer);
 	pcmcia_unregister_socket(&skt->socket);
 
  out_err_7:

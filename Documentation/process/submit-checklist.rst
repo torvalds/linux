@@ -52,7 +52,8 @@ Provide documentation
 4) All new module parameters are documented with ``MODULE_PARM_DESC()``
 
 5) All new userspace interfaces are documented in ``Documentation/ABI/``.
-   See ``Documentation/ABI/README`` for more information.
+   See Documentation/admin-guide/abi.rst (or ``Documentation/ABI/README``)
+   for more information.
    Patches that change userspace interfaces should be CCed to
    linux-api@vger.kernel.org.
 
@@ -91,9 +92,12 @@ Build your code
      fix any issues.
 
 2) Builds on multiple CPU architectures by using local cross-compile tools
-   or some other build farm. Note that ppc64 is a good architecture for
-   cross-compilation checking because it tends to use ``unsigned long`` for
-   64-bit quantities.
+   or some other build farm.
+   Note that testing against architectures of different word sizes
+   (32- and 64-bit) and different endianness (big- and little-) is effective
+   in catching various portability issues due to false assumptions on
+   representable quantity range, data alignment, or endianness, among
+   others.
 
 3) Newly-added code has been compiled with ``gcc -W`` (use
    ``make KCFLAGS=-W``).  This will generate lots of noise, but is good

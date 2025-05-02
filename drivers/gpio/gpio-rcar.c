@@ -336,9 +336,6 @@ static int gpio_rcar_get_multiple(struct gpio_chip *chip, unsigned long *mask,
 	unsigned long flags;
 
 	bankmask = mask[0] & GENMASK(chip->ngpio - 1, 0);
-	if (chip->valid_mask)
-		bankmask &= chip->valid_mask[0];
-
 	if (!bankmask)
 		return 0;
 
@@ -380,9 +377,6 @@ static void gpio_rcar_set_multiple(struct gpio_chip *chip, unsigned long *mask,
 	u32 val, bankmask;
 
 	bankmask = mask[0] & GENMASK(chip->ngpio - 1, 0);
-	if (chip->valid_mask)
-		bankmask &= chip->valid_mask[0];
-
 	if (!bankmask)
 		return;
 
@@ -487,10 +481,13 @@ static int gpio_rcar_parse_dt(struct gpio_rcar_priv *p, unsigned int *npins)
 static void gpio_rcar_enable_inputs(struct gpio_rcar_priv *p)
 {
 	u32 mask = GENMASK(p->gpio_chip.ngpio - 1, 0);
+	const unsigned long *valid_mask;
+
+	valid_mask = gpiochip_query_valid_mask(&p->gpio_chip);
 
 	/* Select "Input Enable" in INEN */
-	if (p->gpio_chip.valid_mask)
-		mask &= p->gpio_chip.valid_mask[0];
+	if (valid_mask)
+		mask &= valid_mask[0];
 	if (mask)
 		gpio_rcar_write(p, INEN, gpio_rcar_read(p, INEN) | mask);
 }

@@ -1329,7 +1329,7 @@ static int fc_lun_reset(struct fc_lport *lport, struct fc_fcp_pkt *fsp,
 	fsp->state |= FC_SRB_COMPL;
 	spin_unlock_bh(&fsp->scsi_pkt_lock);
 
-	del_timer_sync(&fsp->timer);
+	timer_delete_sync(&fsp->timer);
 
 	spin_lock_bh(&fsp->scsi_pkt_lock);
 	if (fsp->seq_ptr) {
@@ -1961,7 +1961,7 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 	fsp->state |= FC_SRB_COMPL;
 	if (!(fsp->state & FC_SRB_FCP_PROCESSING_TMO)) {
 		spin_unlock_bh(&fsp->scsi_pkt_lock);
-		del_timer_sync(&fsp->timer);
+		timer_delete_sync(&fsp->timer);
 		spin_lock_bh(&fsp->scsi_pkt_lock);
 	}
 

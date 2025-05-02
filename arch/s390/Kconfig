@@ -41,9 +41,6 @@ config AUDIT_ARCH
 config NO_IOPORT_MAP
 	def_bool y
 
-config PCI_QUIRKS
-	def_bool n
-
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
 
@@ -73,7 +70,6 @@ config S390
 	imply IMA_SECURE_AND_OR_TRUSTED_BOOT
 	select ALTERNATE_USER_ADDRESS_SPACE
 	select ARCH_32BIT_USTAT_F_TINODE
-	select ARCH_BINFMT_ELF_STATE
 	select ARCH_CORRECT_STACKTRACE_ON_KRETPROBE
 	select ARCH_ENABLE_MEMORY_HOTPLUG if SPARSEMEM
 	select ARCH_ENABLE_MEMORY_HOTREMOVE
@@ -96,6 +92,7 @@ config S390
 	select ARCH_HAS_MEM_ENCRYPT
 	select ARCH_HAS_NMI_SAFE_THIS_CPU_OPS
 	select ARCH_HAS_PREEMPT_LAZY
+	select ARCH_HAS_PTDUMP
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_SCALED_CPUTIME
 	select ARCH_HAS_SET_DIRECT_MAP
@@ -140,6 +137,7 @@ config S390
 	select ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	select ARCH_SUPPORTS_HUGETLBFS
 	select ARCH_SUPPORTS_INT128 if CC_HAS_INT128 && CC_IS_CLANG
+	select ARCH_SUPPORTS_MSEAL_SYSTEM_MAPPINGS
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select ARCH_SUPPORTS_PER_VMA_LOCK
 	select ARCH_USE_BUILTIN_BSWAP
@@ -163,9 +161,9 @@ config S390
 	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_ENTRY
 	select GENERIC_GETTIMEOFDAY
-	select GENERIC_PTDUMP
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL
+	select GENERIC_VDSO_DATA_STORE
 	select GENERIC_VDSO_TIME_NS
 	select GENERIC_IOREMAP if PCI
 	select HAVE_ALIGNED_STRUCT_PAGE
@@ -185,6 +183,7 @@ config S390
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select HAVE_ARCH_VMAP_STACK
 	select HAVE_ASM_MODVERSIONS
+	select HAVE_BUILDTIME_MCOUNT_SORT
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
 	select HAVE_DEBUG_KMEMLEAK
@@ -241,6 +240,7 @@ config S390
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING
 	select HAVE_VIRT_CPU_ACCOUNTING_IDLE
+	select HOTPLUG_SMT
 	select IOMMU_HELPER		if PCI
 	select IOMMU_SUPPORT		if PCI
 	select KASAN_VMALLOC if KASAN
@@ -258,6 +258,7 @@ config S390
 	select PCI_DOMAINS		if PCI
 	select PCI_MSI			if PCI
 	select PCI_MSI_ARCH_FALLBACKS	if PCI_MSI
+	select PCI_QUIRKS		if PCI
 	select SPARSE_IRQ
 	select SWIOTLB
 	select SYSCTL_EXCEPTION_TRACE
@@ -331,6 +332,10 @@ config HAVE_MARCH_Z16_FEATURES
 	def_bool n
 	select HAVE_MARCH_Z15_FEATURES
 
+config HAVE_MARCH_Z17_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z16_FEATURES
+
 choice
 	prompt "Processor type"
 	default MARCH_Z196
@@ -396,6 +401,14 @@ config MARCH_Z16
 	  Select this to enable optimizations for IBM z16 (3931 and
 	  3932 series).
 
+config MARCH_Z17
+	bool "IBM z17"
+	select HAVE_MARCH_Z17_FEATURES
+	depends on $(cc-option,-march=z17)
+	help
+	  Select this to enable optimizations for IBM z17 (9175 and
+	  9176 series).
+
 endchoice
 
 config MARCH_Z10_TUNE
@@ -418,6 +431,9 @@ config MARCH_Z15_TUNE
 
 config MARCH_Z16_TUNE
 	def_bool TUNE_Z16 || MARCH_Z16 && TUNE_DEFAULT
+
+config MARCH_Z17_TUNE
+	def_bool TUNE_Z17 || MARCH_Z17 && TUNE_DEFAULT
 
 choice
 	prompt "Tune code generation"
@@ -462,6 +478,10 @@ config TUNE_Z15
 config TUNE_Z16
 	bool "IBM z16"
 	depends on $(cc-option,-mtune=z16)
+
+config TUNE_Z17
+	bool "IBM z17"
+	depends on $(cc-option,-mtune=z17)
 
 endchoice
 
@@ -630,6 +650,7 @@ endchoice
 
 config RELOCATABLE
 	def_bool y
+	select ARCH_VMLINUX_NEEDS_RELOCS
 	help
 	  This builds a kernel image that retains relocation information
 	  so it can be loaded at an arbitrary address.

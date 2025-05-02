@@ -709,7 +709,7 @@ static const struct sdw_device_id rt5682_id[] = {
 };
 MODULE_DEVICE_TABLE(sdw, rt5682_id);
 
-static int __maybe_unused rt5682_dev_suspend(struct device *dev)
+static int rt5682_dev_suspend(struct device *dev)
 {
 	struct rt5682_priv *rt5682 = dev_get_drvdata(dev);
 
@@ -725,7 +725,7 @@ static int __maybe_unused rt5682_dev_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused rt5682_dev_system_suspend(struct device *dev)
+static int rt5682_dev_system_suspend(struct device *dev)
 {
 	struct rt5682_priv *rt5682 = dev_get_drvdata(dev);
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
@@ -753,7 +753,7 @@ static int __maybe_unused rt5682_dev_system_suspend(struct device *dev)
 	return rt5682_dev_suspend(dev);
 }
 
-static int __maybe_unused rt5682_dev_resume(struct device *dev)
+static int rt5682_dev_resume(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct rt5682_priv *rt5682 = dev_get_drvdata(dev);
@@ -791,14 +791,14 @@ regmap_sync:
 }
 
 static const struct dev_pm_ops rt5682_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(rt5682_dev_system_suspend, rt5682_dev_resume)
-	SET_RUNTIME_PM_OPS(rt5682_dev_suspend, rt5682_dev_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(rt5682_dev_system_suspend, rt5682_dev_resume)
+	RUNTIME_PM_OPS(rt5682_dev_suspend, rt5682_dev_resume, NULL)
 };
 
 static struct sdw_driver rt5682_sdw_driver = {
 	.driver = {
 		.name = "rt5682",
-		.pm = &rt5682_pm,
+		.pm = pm_ptr(&rt5682_pm),
 	},
 	.probe = rt5682_sdw_probe,
 	.remove = rt5682_sdw_remove,

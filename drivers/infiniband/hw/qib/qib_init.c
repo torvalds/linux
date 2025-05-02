@@ -796,19 +796,19 @@ static void qib_stop_timers(struct qib_devdata *dd)
 	int pidx;
 
 	if (dd->stats_timer.function)
-		del_timer_sync(&dd->stats_timer);
+		timer_delete_sync(&dd->stats_timer);
 	if (dd->intrchk_timer.function)
-		del_timer_sync(&dd->intrchk_timer);
+		timer_delete_sync(&dd->intrchk_timer);
 	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
 		ppd = dd->pport + pidx;
 		if (ppd->hol_timer.function)
-			del_timer_sync(&ppd->hol_timer);
+			timer_delete_sync(&ppd->hol_timer);
 		if (ppd->led_override_timer.function) {
-			del_timer_sync(&ppd->led_override_timer);
+			timer_delete_sync(&ppd->led_override_timer);
 			atomic_set(&ppd->led_override_timer_active, 0);
 		}
 		if (ppd->symerr_clear_timer.function)
-			del_timer_sync(&ppd->symerr_clear_timer);
+			timer_delete_sync(&ppd->symerr_clear_timer);
 	}
 }
 

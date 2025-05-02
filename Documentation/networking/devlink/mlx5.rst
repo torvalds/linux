@@ -280,6 +280,10 @@ Description of the vnic counters:
 	number of packets handled by the VNIC experiencing unexpected steering
 	failure (at any point in steering flow owned by the VNIC, including the FDB
 	for the eswitch owner).
+- icm_consumption
+        amount of Interconnect Host Memory (ICM) consumed by the vnic in
+        granularity of 4KB. ICM is host memory allocated by SW upon HCA request
+        and is used for storing data structures that control HCA operation.
 
 User commands examples:
 

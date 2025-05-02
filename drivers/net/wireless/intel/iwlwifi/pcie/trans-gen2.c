@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 #include "iwl-trans.h"
 #include "iwl-prph.h"
@@ -95,7 +95,7 @@ static void iwl_pcie_gen2_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 			      CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 }
 
-static void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
+void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
@@ -147,8 +147,14 @@ static void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 		return;
 
 	if (trans->state >= IWL_TRANS_FW_STARTED &&
-	    trans_pcie->fw_reset_handshake)
+	    trans_pcie->fw_reset_handshake) {
+		/*
+		 * Reset handshake can dump firmware on timeout, but that
+		 * should assume that the firmware is already dead.
+		 */
+		trans->state = IWL_TRANS_NO_FW;
 		iwl_trans_pcie_fw_reset_handshake(trans);
+	}
 
 	trans_pcie->is_down = true;
 

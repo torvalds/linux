@@ -96,7 +96,6 @@ static struct cpufreq_driver kirkwood_cpufreq_driver = {
 	.target_index = kirkwood_cpufreq_target,
 	.init	= kirkwood_cpufreq_cpu_init,
 	.name	= "kirkwood-cpufreq",
-	.attr	= cpufreq_generic_attr,
 };
 
 static int kirkwood_cpufreq_probe(struct platform_device *pdev)

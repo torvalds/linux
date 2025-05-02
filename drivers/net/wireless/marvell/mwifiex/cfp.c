@@ -150,7 +150,7 @@ static const u16 ac_mcs_rate_nss2[8][10] = {
 
 struct region_code_mapping {
 	u8 code;
-	u8 region[IEEE80211_COUNTRY_STRING_LEN];
+	u8 region[IEEE80211_COUNTRY_STRING_LEN] __nonstring;
 };
 
 static struct region_code_mapping region_code_mapping_t[] = {

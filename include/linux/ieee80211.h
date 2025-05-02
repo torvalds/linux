@@ -1543,6 +1543,10 @@ struct ieee80211_mgmt {
 					u8 count;
 					u8 variable[];
 				} __packed ml_reconf_resp;
+				struct {
+					u8 action_code;
+					u8 variable[];
+				} __packed epcs;
 			} u;
 		} __packed action;
 		DECLARE_FLEX_ARRAY(u8, body); /* Generic frame body */
@@ -3109,6 +3113,11 @@ ieee80211_he_spr_size(const u8 *he_spr_ie)
 #define	IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_11454	        2
 
 #define IEEE80211_EHT_MAC_CAP1_MAX_AMPDU_LEN_MASK		0x01
+#define IEEE80211_EHT_MAC_CAP1_EHT_TRS				0x02
+#define IEEE80211_EHT_MAC_CAP1_TXOP_RET				0x04
+#define IEEE80211_EHT_MAC_CAP1_TWO_BQRS				0x08
+#define IEEE80211_EHT_MAC_CAP1_EHT_LINK_ADAPT_MASK		0x30
+#define IEEE80211_EHT_MAC_CAP1_UNSOL_EPCS_PRIO_ACCESS		0x40
 
 /* EHT PHY capabilities as defined in P802.11be_D2.0 section 9.4.2.313.3 */
 #define IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ			0x02
@@ -5569,6 +5578,9 @@ static inline bool ieee80211_mle_reconf_sta_prof_size_ok(const u8 *data,
 	return prof->sta_info_len >= info_len &&
 	       fixed + prof->sta_info_len - 1 <= len;
 }
+
+#define IEEE80211_MLE_STA_EPCS_CONTROL_LINK_ID			0x000f
+#define IEEE80211_EPCS_ENA_RESP_BODY_LEN                        3
 
 static inline bool ieee80211_tid_to_link_map_size_ok(const u8 *data, size_t len)
 {

@@ -61,6 +61,10 @@ alternative_else_nop_endif
 9999:	x;					\
 	_asm_extable_uaccess	9999b, l
 
+#define USER_CPY(l, uaccess_is_write, x...)	\
+9999:	x;					\
+	_asm_extable_uaccess_cpy 9999b, l, uaccess_is_write
+
 /*
  * Generate the assembly for LDTR/STTR with exception table entries.
  * This is complicated as there is no post-increment or pair versions of the

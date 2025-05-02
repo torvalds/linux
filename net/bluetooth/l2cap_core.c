@@ -282,7 +282,7 @@ static void __set_retrans_timer(struct l2cap_chan *chan)
 	if (!delayed_work_pending(&chan->monitor_timer) &&
 	    chan->retrans_timeout) {
 		l2cap_set_timer(chan, &chan->retrans_timer,
-				msecs_to_jiffies(chan->retrans_timeout));
+				secs_to_jiffies(chan->retrans_timeout));
 	}
 }
 
@@ -291,7 +291,7 @@ static void __set_monitor_timer(struct l2cap_chan *chan)
 	__clear_retrans_timer(chan);
 	if (chan->monitor_timeout) {
 		l2cap_set_timer(chan, &chan->monitor_timer,
-				msecs_to_jiffies(chan->monitor_timeout));
+				secs_to_jiffies(chan->monitor_timeout));
 	}
 }
 
@@ -2515,7 +2515,33 @@ static void l2cap_le_flowctl_send(struct l2cap_chan *chan)
 	       skb_queue_len(&chan->tx_q));
 }
 
-int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
+static void l2cap_tx_timestamp(struct sk_buff *skb,
+			       const struct sockcm_cookie *sockc,
+			       size_t len)
+{
+	struct sock *sk = skb ? skb->sk : NULL;
+
+	if (sk && sk->sk_type == SOCK_STREAM)
+		hci_setup_tx_timestamp(skb, len, sockc);
+	else
+		hci_setup_tx_timestamp(skb, 1, sockc);
+}
+
+static void l2cap_tx_timestamp_seg(struct sk_buff_head *queue,
+				   const struct sockcm_cookie *sockc,
+				   size_t len)
+{
+	struct sk_buff *skb = skb_peek(queue);
+	struct sock *sk = skb ? skb->sk : NULL;
+
+	if (sk && sk->sk_type == SOCK_STREAM)
+		l2cap_tx_timestamp(skb_peek_tail(queue), sockc, len);
+	else
+		l2cap_tx_timestamp(skb, sockc, len);
+}
+
+int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
+		    const struct sockcm_cookie *sockc)
 {
 	struct sk_buff *skb;
 	int err;
@@ -2529,6 +2555,8 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
 		skb = l2cap_create_connless_pdu(chan, msg, len);
 		if (IS_ERR(skb))
 			return PTR_ERR(skb);
+
+		l2cap_tx_timestamp(skb, sockc, len);
 
 		l2cap_do_send(chan, skb);
 		return len;
@@ -2553,6 +2581,8 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
 		if (err)
 			return err;
 
+		l2cap_tx_timestamp_seg(&seg_queue, sockc, len);
+
 		skb_queue_splice_tail_init(&seg_queue, &chan->tx_q);
 
 		l2cap_le_flowctl_send(chan);
@@ -2573,6 +2603,8 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
 		skb = l2cap_create_basic_pdu(chan, msg, len);
 		if (IS_ERR(skb))
 			return PTR_ERR(skb);
+
+		l2cap_tx_timestamp(skb, sockc, len);
 
 		l2cap_do_send(chan, skb);
 		err = len;
@@ -2597,10 +2629,13 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
 		if (err)
 			break;
 
-		if (chan->mode == L2CAP_MODE_ERTM)
+		if (chan->mode == L2CAP_MODE_ERTM) {
+			/* TODO: ERTM mode timestamping */
 			l2cap_tx(chan, NULL, &seg_queue, L2CAP_EV_DATA_REQUEST);
-		else
+		} else {
+			l2cap_tx_timestamp_seg(&seg_queue, sockc, len);
 			l2cap_streaming_send(chan, &seg_queue);
+		}
 
 		err = len;
 
@@ -3956,7 +3991,8 @@ static void l2cap_connect(struct l2cap_conn *conn, struct l2cap_cmd_hdr *cmd,
 
 	/* Check if the ACL is secure enough (if not SDP) */
 	if (psm != cpu_to_le16(L2CAP_PSM_SDP) &&
-	    !hci_conn_check_link_mode(conn->hcon)) {
+	    (!hci_conn_check_link_mode(conn->hcon) ||
+	    !l2cap_check_enc_key_size(conn->hcon))) {
 		conn->disc_reason = HCI_ERROR_AUTH_FAILURE;
 		result = L2CAP_CR_SEC_BLOCK;
 		goto response;
@@ -7379,6 +7415,9 @@ static int l2cap_recv_frag(struct l2cap_conn *conn, struct sk_buff *skb,
 			return -ENOMEM;
 		/* Init rx_len */
 		conn->rx_len = len;
+
+		skb_set_delivery_time(conn->rx_skb, skb->tstamp,
+				      skb->tstamp_type);
 	}
 
 	/* Copy as much as the rx_skb can hold */
@@ -7503,8 +7542,24 @@ void l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 		if (skb->len > len) {
 			BT_ERR("Frame is too long (len %u, expected len %d)",
 			       skb->len, len);
+			/* PTS test cases L2CAP/COS/CED/BI-14-C and BI-15-C
+			 * (Multiple Signaling Command in one PDU, Data
+			 * Truncated, BR/EDR) send a C-frame to the IUT with
+			 * PDU Length set to 8 and Channel ID set to the
+			 * correct signaling channel for the logical link.
+			 * The Information payload contains one L2CAP_ECHO_REQ
+			 * packet with Data Length set to 0 with 0 octets of
+			 * echo data and one invalid command packet due to
+			 * data truncated in PDU but present in HCI packet.
+			 *
+			 * Shorter the socket buffer to the PDU length to
+			 * allow to process valid commands from the PDU before
+			 * setting the socket unreliable.
+			 */
+			skb->len = len;
+			l2cap_recv_frame(conn, skb);
 			l2cap_conn_unreliable(conn, ECOMM);
-			goto drop;
+			goto unlock;
 		}
 
 		/* Append fragment into frame (with header) */

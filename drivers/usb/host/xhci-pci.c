@@ -807,8 +807,10 @@ static int xhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 
 static int xhci_pci_resume(struct usb_hcd *hcd, pm_message_t msg)
 {
-	struct xhci_hcd		*xhci = hcd_to_xhci(hcd);
-	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
+	bool power_lost = msg.event == PM_EVENT_RESTORE;
+	bool is_auto_resume = msg.event == PM_EVENT_AUTO_RESUME;
 
 	reset_control_reset(xhci->reset);
 
@@ -839,7 +841,7 @@ static int xhci_pci_resume(struct usb_hcd *hcd, pm_message_t msg)
 	if (xhci->quirks & XHCI_PME_STUCK_QUIRK)
 		xhci_pme_quirk(hcd);
 
-	return xhci_resume(xhci, msg);
+	return xhci_resume(xhci, power_lost, is_auto_resume);
 }
 
 static int xhci_pci_poweroff_late(struct usb_hcd *hcd, bool do_wakeup)

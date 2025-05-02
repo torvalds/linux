@@ -36,7 +36,7 @@
  */
 #define ioremap_wc(addr, size) \
 	ioremap_prot((addr), (size), \
-		(_PAGE_IOREMAP & ~_CACHE_MASK) | _CACHE_UNCACHED)
+		__pgprot((_PAGE_IOREMAP & ~_CACHE_MASK) | _CACHE_UNCACHED))
 
 #include <asm-generic/io.h>
 

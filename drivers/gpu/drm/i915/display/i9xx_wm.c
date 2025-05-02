@@ -446,7 +446,7 @@ static const struct intel_watermark_params i845_wm_info = {
  * @latency: Memory wakeup latency in 0.1us units
  *
  * Compute the watermark using the method 1 or "small buffer"
- * formula. The caller may additonally add extra cachelines
+ * formula. The caller may additionally add extra cachelines
  * to account for TLB misses and clock crossings.
  *
  * This method is concerned with the short term drain rate
@@ -493,7 +493,7 @@ static unsigned int intel_wm_method1(unsigned int pixel_rate,
  * @latency: Memory wakeup latency in 0.1us units
  *
  * Compute the watermark using the method 2 or "large buffer"
- * formula. The caller may additonally add extra cachelines
+ * formula. The caller may additionally add extra cachelines
  * to account for TLB misses and clock crossings.
  *
  * This method is concerned with the long term drain rate
@@ -1562,7 +1562,7 @@ static int vlv_compute_fifo(struct intel_crtc_state *crtc_state)
 	/*
 	 * When enabling sprite0 after sprite1 has already been enabled
 	 * we tend to get an underrun unless sprite0 already has some
-	 * FIFO space allcoated. Hence we always allocate at least one
+	 * FIFO space allocated. Hence we always allocate at least one
 	 * cacheline for sprite0 whenever sprite1 is enabled.
 	 *
 	 * All other plane enable sequences appear immune to this problem.
@@ -3902,12 +3902,6 @@ static void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->display.wm.wm_mutex);
 }
 
-static void g4x_wm_get_hw_state_and_sanitize(struct drm_i915_private *i915)
-{
-	g4x_wm_get_hw_state(i915);
-	g4x_wm_sanitize(i915);
-}
-
 static void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
 {
 	struct vlv_wm_values *wm = &dev_priv->display.wm.vlv;
@@ -4055,12 +4049,6 @@ static void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->display.wm.wm_mutex);
 }
 
-static void vlv_wm_get_hw_state_and_sanitize(struct drm_i915_private *i915)
-{
-	vlv_wm_get_hw_state(i915);
-	vlv_wm_sanitize(i915);
-}
-
 /*
  * FIXME should probably kill this and improve
  * the real watermark readout/sanitation instead
@@ -4122,14 +4110,16 @@ static const struct intel_wm_funcs vlv_wm_funcs = {
 	.initial_watermarks = vlv_initial_watermarks,
 	.optimize_watermarks = vlv_optimize_watermarks,
 	.atomic_update_watermarks = vlv_atomic_update_fifo,
-	.get_hw_state = vlv_wm_get_hw_state_and_sanitize,
+	.get_hw_state = vlv_wm_get_hw_state,
+	.sanitize = vlv_wm_sanitize,
 };
 
 static const struct intel_wm_funcs g4x_wm_funcs = {
 	.compute_watermarks = g4x_compute_watermarks,
 	.initial_watermarks = g4x_initial_watermarks,
 	.optimize_watermarks = g4x_optimize_watermarks,
-	.get_hw_state = g4x_wm_get_hw_state_and_sanitize,
+	.get_hw_state = g4x_wm_get_hw_state,
+	.sanitize = g4x_wm_sanitize,
 };
 
 static const struct intel_wm_funcs pnv_wm_funcs = {

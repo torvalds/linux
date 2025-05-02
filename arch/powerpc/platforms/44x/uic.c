@@ -37,7 +37,7 @@
 #define UIC_VR		0x7
 #define UIC_VCR		0x8
 
-struct uic *primary_uic;
+static struct uic *primary_uic;
 
 struct uic {
 	int index;
@@ -291,7 +291,7 @@ void __init uic_init_tree(void)
 	if (!primary_uic)
 		panic("Unable to initialize primary UIC %pOF\n", np);
 
-	irq_set_default_host(primary_uic->irqhost);
+	irq_set_default_domain(primary_uic->irqhost);
 	of_node_put(np);
 
 	/* The scan again for cascaded UICs */

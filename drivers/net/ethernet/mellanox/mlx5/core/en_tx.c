@@ -525,9 +525,9 @@ static void mlx5e_tx_mpwqe_session_start(struct mlx5e_txqsq *sq,
 {
 	struct mlx5e_tx_mpwqe *session = &sq->mpwqe;
 	struct mlx5e_tx_wqe *wqe;
-	u16 pi;
+	u16 pi, num_wqebbs;
 
-	pi = mlx5e_txqsq_get_next_pi(sq, sq->max_sq_mpw_wqebbs);
+	pi = mlx5e_txqsq_get_next_pi_anysize(sq, &num_wqebbs);
 	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
 	net_prefetchw(wqe->data);
 
@@ -535,6 +535,7 @@ static void mlx5e_tx_mpwqe_session_start(struct mlx5e_txqsq *sq,
 		.wqe = wqe,
 		.bytes_count = 0,
 		.ds_count = MLX5E_TX_WQE_EMPTY_DS_COUNT,
+		.ds_count_max = num_wqebbs * MLX5_SEND_WQEBB_NUM_DS,
 		.pkt_count = 0,
 		.inline_on = 0,
 	};
@@ -626,7 +627,7 @@ mlx5e_sq_xmit_mpwqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	mlx5e_tx_mpwqe_add_dseg(sq, &txd);
 	mlx5e_tx_skb_update_hwts_flags(skb);
 
-	if (unlikely(mlx5e_tx_mpwqe_is_full(&sq->mpwqe, sq->max_sq_mpw_wqebbs))) {
+	if (unlikely(mlx5e_tx_mpwqe_is_full(&sq->mpwqe))) {
 		/* Might stop the queue and affect the retval of __netdev_tx_sent_queue. */
 		cseg = mlx5e_tx_mpwqe_session_complete(sq);
 

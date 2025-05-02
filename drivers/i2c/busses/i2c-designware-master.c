@@ -907,7 +907,7 @@ done_nolock:
 }
 
 static const struct i2c_algorithm i2c_dw_algo = {
-	.master_xfer = i2c_dw_xfer,
+	.xfer = i2c_dw_xfer,
 	.functionality = i2c_dw_func,
 };
 

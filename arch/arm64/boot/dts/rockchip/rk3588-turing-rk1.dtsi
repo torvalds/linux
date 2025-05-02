@@ -287,6 +287,10 @@
 	status = "okay";
 };
 
+&pd_gpu {
+	domain-supply = <&vdd_gpu_s0>;
+};
+
 &pinctrl {
 	fan {
 		fan_int: fan-int {

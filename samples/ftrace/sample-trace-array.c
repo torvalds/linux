@@ -82,7 +82,7 @@ static int simple_thread(void *arg)
 	while (!kthread_should_stop())
 		simple_thread_func(count++);
 
-	del_timer(&mytimer);
+	timer_delete(&mytimer);
 	cancel_work_sync(&trace_work);
 
 	/*

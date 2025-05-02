@@ -733,6 +733,7 @@ static void make_histogram(struct perf_ftrace *ftrace, int buckets[],
 {
 	int min_latency = ftrace->min_latency;
 	int max_latency = ftrace->max_latency;
+	unsigned int bucket_num = ftrace->bucket_num;
 	char *p, *q;
 	char *unit;
 	double num;
@@ -797,10 +798,10 @@ static void make_histogram(struct perf_ftrace *ftrace, int buckets[],
 			if (num > 0) // 1st entry: [ 1 unit .. bucket_range units ]
 				i = num / ftrace->bucket_range + 1;
 			if (num >= max_latency - min_latency)
-				i = NUM_BUCKET -1;
+				i = bucket_num -1;
 		}
-		if (i >= NUM_BUCKET)
-			i = NUM_BUCKET - 1;
+		if ((unsigned)i >= bucket_num)
+			i = bucket_num - 1;
 
 		num += min_latency;
 do_inc:
@@ -820,13 +821,14 @@ static void display_histogram(struct perf_ftrace *ftrace, int buckets[])
 {
 	int min_latency = ftrace->min_latency;
 	bool use_nsec = ftrace->use_nsec;
-	int i;
+	unsigned int bucket_num = ftrace->bucket_num;
+	unsigned int i;
 	int total = 0;
 	int bar_total = 46;  /* to fit in 80 column */
 	char bar[] = "###############################################";
 	int bar_len;
 
-	for (i = 0; i < NUM_BUCKET; i++)
+	for (i = 0; i < bucket_num; i++)
 		total += buckets[i];
 
 	if (total == 0) {
@@ -839,14 +841,17 @@ static void display_histogram(struct perf_ftrace *ftrace, int buckets[])
 
 	bar_len = buckets[0] * bar_total / total;
 
-	printf("  %4d - %4d %s | %10d | %.*s%*s |\n",
-	       0, min_latency ?: 1, use_nsec ? "ns" : "us",
-	       buckets[0], bar_len, bar, bar_total - bar_len, "");
+	if (!ftrace->hide_empty || buckets[0])
+		printf("  %4d - %4d %s | %10d | %.*s%*s |\n",
+		       0, min_latency ?: 1, use_nsec ? "ns" : "us",
+		       buckets[0], bar_len, bar, bar_total - bar_len, "");
 
-	for (i = 1; i < NUM_BUCKET - 1; i++) {
+	for (i = 1; i < bucket_num - 1; i++) {
 		unsigned int start, stop;
 		const char *unit = use_nsec ? "ns" : "us";
 
+		if (ftrace->hide_empty && !buckets[i])
+			continue;
 		if (!ftrace->bucket_range) {
 			start = (1 << (i - 1));
 			stop  = 1 << i;
@@ -881,11 +886,13 @@ print_bucket_info:
 		       bar_total - bar_len, "");
 	}
 
-	bar_len = buckets[NUM_BUCKET - 1] * bar_total / total;
+	bar_len = buckets[bucket_num - 1] * bar_total / total;
+	if (ftrace->hide_empty && !buckets[bucket_num - 1])
+		goto print_stats;
 	if (!ftrace->bucket_range) {
 		printf("  %4d - %-4s %s", 1, "...", use_nsec ? "ms" : "s ");
 	} else {
-		unsigned int upper_outlier = (NUM_BUCKET - 2) * ftrace->bucket_range + min_latency;
+		unsigned int upper_outlier = (bucket_num - 2) * ftrace->bucket_range + min_latency;
 		if (upper_outlier > ftrace->max_latency)
 			upper_outlier = ftrace->max_latency;
 
@@ -897,9 +904,10 @@ print_bucket_info:
 			printf("  %4d - %4s %s", upper_outlier, "...", use_nsec ? "ns" : "us");
 		}
 	}
-	printf(" | %10d | %.*s%*s |\n", buckets[NUM_BUCKET - 1],
+	printf(" | %10d | %.*s%*s |\n", buckets[bucket_num - 1],
 	       bar_len, bar, bar_total - bar_len, "");
 
+print_stats:
 	printf("\n# statistics  (in %s)\n", ftrace->use_nsec ? "nsec" : "usec");
 	printf("  total time: %20.0f\n", latency_stats.mean * latency_stats.n);
 	printf("    avg time: %20.0f\n", latency_stats.mean);
@@ -997,7 +1005,7 @@ static int __cmd_latency(struct perf_ftrace *ftrace)
 	struct pollfd pollfd = {
 		.events = POLLIN,
 	};
-	int buckets[NUM_BUCKET] = { };
+	int *buckets;
 
 	trace_fd = prepare_func_latency(ftrace);
 	if (trace_fd < 0)
@@ -1010,6 +1018,12 @@ static int __cmd_latency(struct perf_ftrace *ftrace)
 		goto out;
 
 	evlist__start_workload(ftrace->evlist);
+
+	buckets = calloc(ftrace->bucket_num, sizeof(*buckets));
+	if (buckets == NULL) {
+		pr_err("failed to allocate memory for the buckets\n");
+		goto out;
+	}
 
 	line[0] = '\0';
 	while (!done) {
@@ -1030,7 +1044,7 @@ static int __cmd_latency(struct perf_ftrace *ftrace)
 	if (workload_exec_errno) {
 		const char *emsg = str_error_r(workload_exec_errno, buf, sizeof(buf));
 		pr_err("workload failed: %s\n", emsg);
-		goto out;
+		goto out_free_buckets;
 	}
 
 	/* read remaining buffer contents */
@@ -1045,6 +1059,8 @@ static int __cmd_latency(struct perf_ftrace *ftrace)
 
 	display_histogram(ftrace, buckets);
 
+out_free_buckets:
+	free(buckets);
 out:
 	close(trace_fd);
 	cleanup_func_latency(ftrace);
@@ -1634,7 +1650,9 @@ int cmd_ftrace(int argc, const char **argv)
 	OPT_UINTEGER(0, "min-latency", &ftrace.min_latency,
 		    "Minimum latency (1st bucket). Works only with --bucket-range."),
 	OPT_UINTEGER(0, "max-latency", &ftrace.max_latency,
-		    "Maximum latency (last bucket). Works only with --bucket-range and total buckets less than 22."),
+		    "Maximum latency (last bucket). Works only with --bucket-range."),
+	OPT_BOOLEAN(0, "hide-empty", &ftrace.hide_empty,
+		    "Hide empty buckets in the histogram"),
 	OPT_PARENT(common_options),
 	};
 	const struct option profile_options[] = {
@@ -1751,10 +1769,25 @@ int cmd_ftrace(int argc, const char **argv)
 			ret = -EINVAL;
 			goto out_delete_filters;
 		}
-		if (ftrace.bucket_range && !ftrace.max_latency) {
-			/* default max latency should depend on bucket range and num_buckets */
-			ftrace.max_latency = (NUM_BUCKET - 2) * ftrace.bucket_range +
-						ftrace.min_latency;
+		if (ftrace.bucket_range && ftrace.max_latency &&
+		    ftrace.max_latency < ftrace.min_latency + ftrace.bucket_range) {
+			/* we need at least 1 bucket excluding min and max buckets */
+			pr_err("--max-latency must be larger than min-latency + bucket-range\n");
+			parse_options_usage(ftrace_usage, options,
+					    "max-latency", /*short_opt=*/false);
+			ret = -EINVAL;
+			goto out_delete_filters;
+		}
+		/* set default unless max_latency is set and valid */
+		ftrace.bucket_num = NUM_BUCKET;
+		if (ftrace.bucket_range) {
+			if (ftrace.max_latency)
+				ftrace.bucket_num = (ftrace.max_latency - ftrace.min_latency) /
+							ftrace.bucket_range + 2;
+			else
+				/* default max latency should depend on bucket range and num_buckets */
+				ftrace.max_latency = (NUM_BUCKET - 2) * ftrace.bucket_range +
+							ftrace.min_latency;
 		}
 		cmd_func = __cmd_latency;
 		break;

@@ -146,12 +146,14 @@ SYM_FUNC_END(ftrace_stub_graph)
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 SYM_FUNC_START(__fentry__)
+	ANNOTATE_NOENDBR
 	CALL_DEPTH_ACCOUNT
 	RET
 SYM_FUNC_END(__fentry__)
 EXPORT_SYMBOL(__fentry__)
 
 SYM_FUNC_START(ftrace_caller)
+	ANNOTATE_NOENDBR
 	/* save_mcount_regs fills in first two parameters */
 	save_mcount_regs
 
@@ -197,6 +199,7 @@ SYM_FUNC_END(ftrace_caller);
 STACK_FRAME_NON_STANDARD_FP(ftrace_caller)
 
 SYM_FUNC_START(ftrace_regs_caller)
+	ANNOTATE_NOENDBR
 	/* Save the current flags before any operations that can change them */
 	pushfq
 
@@ -310,6 +313,7 @@ SYM_FUNC_END(ftrace_regs_caller)
 STACK_FRAME_NON_STANDARD_FP(ftrace_regs_caller)
 
 SYM_FUNC_START(ftrace_stub_direct_tramp)
+	ANNOTATE_NOENDBR
 	CALL_DEPTH_ACCOUNT
 	RET
 SYM_FUNC_END(ftrace_stub_direct_tramp)
@@ -317,6 +321,7 @@ SYM_FUNC_END(ftrace_stub_direct_tramp)
 #else /* ! CONFIG_DYNAMIC_FTRACE */
 
 SYM_FUNC_START(__fentry__)
+	ANNOTATE_NOENDBR
 	CALL_DEPTH_ACCOUNT
 
 	cmpq $ftrace_stub, ftrace_trace_function

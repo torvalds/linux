@@ -9,7 +9,6 @@
 #include <linux/page-flags.h>
 #include <asm/bug.h>
 #include <trace/events/btrfs.h>
-#include "misc.h"
 #include "ctree.h"
 #include "extent_io.h"
 #include "locking.h"

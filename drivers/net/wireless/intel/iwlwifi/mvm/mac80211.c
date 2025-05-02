@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -70,7 +70,7 @@ static const struct ieee80211_iface_combination iwl_mvm_iface_combinations[] = {
 };
 
 static const struct cfg80211_pmsr_capabilities iwl_mvm_pmsr_capa = {
-	.max_peers = IWL_MVM_TOF_MAX_APS,
+	.max_peers = IWL_TOF_MAX_APS,
 	.report_ap_tsf = 1,
 	.randomize_mac_addr = 1,
 
@@ -272,9 +272,10 @@ static const u8 tm_if_types_ext_capa_sta[] = {
 					__bf_shf(IEEE80211_EML_CAP_EMLSR_PADDING_DELAY) | \
 				 IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_64US << \
 					__bf_shf(IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY))
-#define IWL_MVM_MLD_CAPA_OPS FIELD_PREP_CONST( \
+#define IWL_MVM_MLD_CAPA_OPS (FIELD_PREP_CONST( \
 			IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP, \
-			IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP_SAME)
+			IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP_SAME) | \
+			IEEE80211_MLD_CAP_OP_LINK_RECONF_SUPPORT)
 
 static const struct wiphy_iftype_ext_capab add_iftypes_ext_capa[] = {
 	{
@@ -4099,6 +4100,20 @@ iwl_mvm_sta_state_authorized_to_assoc(struct iwl_mvm *mvm,
 	return 0;
 }
 
+void iwl_mvm_smps_workaround(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			     bool update)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (!iwl_mvm_has_rlc_offload(mvm))
+		return;
+
+	mvmvif->ps_disabled = !vif->cfg.ps;
+
+	if (update)
+		iwl_mvm_power_update_mac(mvm);
+}
+
 /* Common part for MLD and non-MLD modes */
 int iwl_mvm_mac_sta_state_common(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
@@ -4191,6 +4206,7 @@ int iwl_mvm_mac_sta_state_common(struct ieee80211_hw *hw,
 		   new_state == IEEE80211_STA_AUTHORIZED) {
 		ret = iwl_mvm_sta_state_assoc_to_authorized(mvm, vif, sta,
 							    callbacks);
+		iwl_mvm_smps_workaround(mvm, vif, true);
 	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
 		   new_state == IEEE80211_STA_ASSOC) {
 		ret = iwl_mvm_sta_state_authorized_to_assoc(mvm, vif, sta,

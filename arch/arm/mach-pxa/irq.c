@@ -152,7 +152,7 @@ pxa_init_irq_common(struct device_node *node, int irq_nr,
 					       &pxa_irq_ops, NULL);
 	if (!pxa_irq_domain)
 		panic("Unable to add PXA IRQ domain\n");
-	irq_set_default_host(pxa_irq_domain);
+	irq_set_default_domain(pxa_irq_domain);
 
 	for (n = 0; n < irq_nr; n += 32) {
 		void __iomem *base = irq_base(n >> 5);

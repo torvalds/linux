@@ -243,7 +243,6 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *encoder = &dig_port->base;
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	i915_reg_t ch_ctl, ch_data[5];
 	u32 aux_clock_divider;
 	enum intel_display_power_domain aux_domain;
@@ -272,7 +271,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 
 	aux_domain = intel_aux_power_domain(dig_port);
 
-	aux_wakeref = intel_display_power_get(i915, aux_domain);
+	aux_wakeref = intel_display_power_get(display, aux_domain);
 	pps_wakeref = intel_pps_lock(intel_dp);
 
 	/*
@@ -432,7 +431,7 @@ out:
 		intel_pps_vdd_off_unlocked(intel_dp, false);
 
 	intel_pps_unlock(intel_dp, pps_wakeref);
-	intel_display_power_put_async(i915, aux_domain, aux_wakeref);
+	intel_display_power_put_async(display, aux_domain, aux_wakeref);
 out_unlock:
 	intel_digital_port_unlock(encoder);
 

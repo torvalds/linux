@@ -57,11 +57,11 @@ enum rc_filter_type {
  * struct lirc_fh - represents an open lirc file
  * @list: list of open file handles
  * @rc: rcdev for this lirc chardev
- * @carrier_low: when setting the carrier range, first the low end must be
- *	set with an ioctl and then the high end with another ioctl
  * @rawir: queue for incoming raw IR
  * @scancodes: queue for incoming decoded scancodes
  * @wait_poll: poll struct for lirc device
+ * @carrier_low: when setting the carrier range, first the low end must be
+ *	set with an ioctl and then the high end with another ioctl
  * @send_mode: lirc mode for sending, either LIRC_MODE_SCANCODE or
  *	LIRC_MODE_PULSE
  * @rec_mode: lirc mode for receiving, either LIRC_MODE_SCANCODE or
@@ -70,10 +70,10 @@ enum rc_filter_type {
 struct lirc_fh {
 	struct list_head list;
 	struct rc_dev *rc;
-	int				carrier_low;
 	DECLARE_KFIFO_PTR(rawir, unsigned int);
 	DECLARE_KFIFO_PTR(scancodes, struct lirc_scancode);
 	wait_queue_head_t		wait_poll;
+	u32				carrier_low;
 	u8				send_mode;
 	u8				rec_mode;
 };
@@ -82,6 +82,12 @@ struct lirc_fh {
  * struct rc_dev - represents a remote control device
  * @dev: driver model's view of this device
  * @managed_alloc: devm_rc_allocate_device was used to create rc_dev
+ * @registered: set to true by rc_register_device(), false by
+ *	rc_unregister_device
+ * @idle: used to keep track of RX state
+ * @encode_wakeup: wakeup filtering uses IR encode API, therefore the allowed
+ *	wakeup protocols is the set of all raw encoders
+ * @minor: unique minor remote control device number
  * @sysfs_groups: sysfs attribute groups
  * @device_name: name of the rc child device
  * @input_phys: physical path to the input child device
@@ -91,13 +97,10 @@ struct lirc_fh {
  * @rc_map: current scan/key table
  * @lock: used to ensure we've filled in all protocol details before
  *	anyone can call show_protocols or store_protocols
- * @minor: unique minor remote control device number
  * @raw: additional data for raw pulse/space devices
  * @input_dev: the input child device used to communicate events to userspace
  * @driver_type: specifies if protocol decoding is done in hardware or software
- * @idle: used to keep track of RX state
- * @encode_wakeup: wakeup filtering uses IR encode API, therefore the allowed
- *	wakeup protocols is the set of all raw encoders
+ * @users: number of current users of the device
  * @allowed_protocols: bitmask with the supported RC_PROTO_BIT_* protocols
  * @enabled_protocols: bitmask with the enabled RC_PROTO_BIT_* protocols
  * @allowed_wakeup_protocols: bitmask with the supported RC_PROTO_BIT_* wakeup
@@ -111,18 +114,17 @@ struct lirc_fh {
  *	anything with it. Yet, as the same keycode table can be used with other
  *	devices, a mask is provided to allow its usage. Drivers should generally
  *	leave this field in blank
- * @users: number of current users of the device
  * @priv: driver-specific data
  * @keylock: protects the remaining members of the struct
  * @keypressed: whether a key is currently pressed
+ * @last_toggle: toggle value of last command
+ * @last_keycode: keycode of last keypress
+ * @last_protocol: protocol of last keypress
+ * @last_scancode: scancode of last keypress
  * @keyup_jiffies: time (in jiffies) when the current keypress should be released
  * @timer_keyup: timer for releasing a keypress
  * @timer_repeat: timer for autorepeat events. This is needed for CEC, which
  *	has non-standard repeats.
- * @last_keycode: keycode of last keypress
- * @last_protocol: protocol of last keypress
- * @last_scancode: scancode of last keypress
- * @last_toggle: toggle value of last command
  * @timeout: optional time after which device stops sending data
  * @min_timeout: minimum timeout supported by device
  * @max_timeout: maximum timeout supported by device
@@ -132,8 +134,6 @@ struct lirc_fh {
  * @gap_start: start time for gap after timeout if non-zero
  * @lirc_fh_lock: protects lirc_fh list
  * @lirc_fh: list of open files
- * @registered: set to true by rc_register_device(), false by
- *	rc_unregister_device
  * @change_protocol: allow changing the protocol used on hardware decoders
  * @open: callback to allow drivers to enable polling/irq when IR input device
  *	is opened.
@@ -157,6 +157,10 @@ struct lirc_fh {
 struct rc_dev {
 	struct device			dev;
 	bool				managed_alloc;
+	bool				registered;
+	bool				idle;
+	bool				encode_wakeup;
+	unsigned int			minor;
 	const struct attribute_group	*sysfs_groups[5];
 	const char			*device_name;
 	const char			*input_phys;
@@ -165,12 +169,10 @@ struct rc_dev {
 	const char			*map_name;
 	struct rc_map			rc_map;
 	struct mutex			lock;
-	unsigned int			minor;
 	struct ir_raw_event_ctrl	*raw;
 	struct input_dev		*input_dev;
 	enum rc_driver_type		driver_type;
-	bool				idle;
-	bool				encode_wakeup;
+	u32				users;
 	u64				allowed_protocols;
 	u64				enabled_protocols;
 	u64				allowed_wakeup_protocols;
@@ -178,17 +180,16 @@ struct rc_dev {
 	struct rc_scancode_filter	scancode_filter;
 	struct rc_scancode_filter	scancode_wakeup_filter;
 	u32				scancode_mask;
-	u32				users;
 	void				*priv;
 	spinlock_t			keylock;
 	bool				keypressed;
-	unsigned long			keyup_jiffies;
-	struct timer_list		timer_keyup;
-	struct timer_list		timer_repeat;
+	u8				last_toggle;
 	u32				last_keycode;
 	enum rc_proto			last_protocol;
 	u64				last_scancode;
-	u8				last_toggle;
+	unsigned long			keyup_jiffies;
+	struct timer_list		timer_keyup;
+	struct timer_list		timer_repeat;
 	u32				timeout;
 	u32				min_timeout;
 	u32				max_timeout;
@@ -200,7 +201,6 @@ struct rc_dev {
 	spinlock_t			lirc_fh_lock;
 	struct list_head		lirc_fh;
 #endif
-	bool				registered;
 	int				(*change_protocol)(struct rc_dev *dev, u64 *rc_proto);
 	int				(*open)(struct rc_dev *dev);
 	void				(*close)(struct rc_dev *dev);

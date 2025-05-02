@@ -100,34 +100,6 @@ __check_eq_pbl(const char *srcfile, unsigned int line,
 	return true;
 }
 
-static bool __init
-__check_eq_u32_array(const char *srcfile, unsigned int line,
-		     const u32 *exp_arr, unsigned int exp_len,
-		     const u32 *arr, unsigned int len) __used;
-static bool __init
-__check_eq_u32_array(const char *srcfile, unsigned int line,
-		     const u32 *exp_arr, unsigned int exp_len,
-		     const u32 *arr, unsigned int len)
-{
-	if (exp_len != len) {
-		pr_warn("[%s:%u] array length differ: expected %u, got %u\n",
-			srcfile, line,
-			exp_len, len);
-		return false;
-	}
-
-	if (memcmp(exp_arr, arr, len*sizeof(*arr))) {
-		pr_warn("[%s:%u] array contents differ\n", srcfile, line);
-		print_hex_dump(KERN_WARNING, "  exp:  ", DUMP_PREFIX_OFFSET,
-			       32, 4, exp_arr, exp_len*sizeof(*exp_arr), false);
-		print_hex_dump(KERN_WARNING, "  got:  ", DUMP_PREFIX_OFFSET,
-			       32, 4, arr, len*sizeof(*arr), false);
-		return false;
-	}
-
-	return true;
-}
-
 static bool __init __check_eq_clump8(const char *srcfile, unsigned int line,
 				    const unsigned int offset,
 				    const unsigned int size,

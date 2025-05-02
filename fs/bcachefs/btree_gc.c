@@ -27,6 +27,7 @@
 #include "journal.h"
 #include "keylist.h"
 #include "move.h"
+#include "progress.h"
 #include "recovery_passes.h"
 #include "reflink.h"
 #include "recovery.h"
@@ -212,15 +213,15 @@ static int btree_check_node_boundaries(struct btree_trans *trans, struct btree *
 
 	prt_printf(&buf, "  at ");
 	bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
-	prt_printf(&buf, ":\n  parent: ");
+	prt_printf(&buf, ":\nparent: ");
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
 
 	if (prev) {
-		prt_printf(&buf, "\n  prev: ");
+		prt_printf(&buf, "\nprev: ");
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&prev->key));
 	}
 
-	prt_str(&buf, "\n  next: ");
+	prt_str(&buf, "\nnext: ");
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&cur->key));
 
 	if (bpos_lt(expected_start, cur->data->min_key)) {				/* gap */
@@ -279,12 +280,12 @@ static int btree_repair_node_end(struct btree_trans *trans, struct btree *b,
 	if (bpos_eq(child->key.k.p, b->key.k.p))
 		return 0;
 
-	prt_printf(&buf, "  at ");
+	prt_printf(&buf, "\nat: ");
 	bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
-	prt_printf(&buf, ":\n  parent: ");
+	prt_printf(&buf, "\nparent: ");
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
 
-	prt_str(&buf, "\n  child: ");
+	prt_str(&buf, "\nchild: ");
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&child->key));
 
 	if (mustfix_fsck_err(trans, btree_node_topology_bad_max_key,
@@ -350,8 +351,7 @@ again:
 
 		if (mustfix_fsck_err_on(bch2_err_matches(ret, EIO),
 				trans, btree_node_read_error,
-				"Topology repair: unreadable btree node at\n"
-				"  %s",
+				"Topology repair: unreadable btree node at\n%s",
 				buf.buf)) {
 			bch2_btree_node_evict(trans, cur_k.k);
 			cur = NULL;
@@ -611,7 +611,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 		if (fsck_err_on(btree_id != BTREE_ID_accounting &&
 				k.k->bversion.lo > atomic64_read(&c->key_version),
 				trans, bkey_version_in_future,
-				"key version number higher than recorded %llu\n  %s",
+				"key version number higher than recorded %llu\n%s",
 				atomic64_read(&c->key_version),
 				(bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
 			atomic64_set(&c->key_version, k.k->bversion.lo);
@@ -619,7 +619,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 
 	if (mustfix_fsck_err_on(level && !bch2_dev_btree_bitmap_marked(c, k),
 				trans, btree_bitmap_not_marked,
-				"btree ptr not marked in member info btree allocated bitmap\n  %s",
+				"btree ptr not marked in member info btree allocated bitmap\n%s",
 				(printbuf_reset(&buf),
 				 bch2_bkey_val_to_text(&buf, c, k),
 				 buf.buf))) {
@@ -656,7 +656,9 @@ fsck_err:
 	return ret;
 }
 
-static int bch2_gc_btree(struct btree_trans *trans, enum btree_id btree, bool initial)
+static int bch2_gc_btree(struct btree_trans *trans,
+			 struct progress_indicator_state *progress,
+			 enum btree_id btree, bool initial)
 {
 	struct bch_fs *c = trans->c;
 	unsigned target_depth = btree_node_type_has_triggers(__btree_node_type(0, btree)) ? 0 : 1;
@@ -673,6 +675,7 @@ static int bch2_gc_btree(struct btree_trans *trans, enum btree_id btree, bool in
 					  BTREE_ITER_prefetch);
 
 		ret = for_each_btree_key_continue(trans, iter, 0, k, ({
+			bch2_progress_update_iter(trans, progress, &iter, "check_allocations");
 			gc_pos_set(c, gc_pos_btree(btree, level, k.k->p));
 			bch2_gc_mark_key(trans, btree, level, &prev, &iter, k, initial);
 		}));
@@ -688,7 +691,7 @@ retry_root:
 		struct btree_iter iter;
 		bch2_trans_node_iter_init(trans, &iter, btree, POS_MIN,
 					  0, bch2_btree_id_root(c, btree)->b->c.level, 0);
-		struct btree *b = bch2_btree_iter_peek_node(&iter);
+		struct btree *b = bch2_btree_iter_peek_node(trans, &iter);
 		ret = PTR_ERR_OR_ZERO(b);
 		if (ret)
 			goto err_root;
@@ -717,22 +720,24 @@ static inline int btree_id_gc_phase_cmp(enum btree_id l, enum btree_id r)
 static int bch2_gc_btrees(struct bch_fs *c)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
-	enum btree_id ids[BTREE_ID_NR];
 	struct printbuf buf = PRINTBUF;
-	unsigned i;
 	int ret = 0;
 
-	for (i = 0; i < BTREE_ID_NR; i++)
+	struct progress_indicator_state progress;
+	bch2_progress_init(&progress, c, ~0ULL);
+
+	enum btree_id ids[BTREE_ID_NR];
+	for (unsigned i = 0; i < BTREE_ID_NR; i++)
 		ids[i] = i;
 	bubble_sort(ids, BTREE_ID_NR, btree_id_gc_phase_cmp);
 
-	for (i = 0; i < btree_id_nr_alive(c) && !ret; i++) {
+	for (unsigned i = 0; i < btree_id_nr_alive(c) && !ret; i++) {
 		unsigned btree = i < BTREE_ID_NR ? ids[i] : i;
 
 		if (IS_ERR_OR_NULL(bch2_btree_id_root(c, btree)->b))
 			continue;
 
-		ret = bch2_gc_btree(trans, btree, true);
+		ret = bch2_gc_btree(trans, &progress, btree, true);
 	}
 
 	printbuf_exit(&buf);
@@ -1015,8 +1020,7 @@ int bch2_check_allocations(struct bch_fs *c)
 {
 	int ret;
 
-	lockdep_assert_held(&c->state_lock);
-
+	down_read(&c->state_lock);
 	down_write(&c->gc_lock);
 
 	bch2_btree_interior_updates_flush(c);
@@ -1054,6 +1058,7 @@ out:
 	percpu_up_write(&c->mark_lock);
 
 	up_write(&c->gc_lock);
+	up_read(&c->state_lock);
 
 	/*
 	 * At startup, allocations can happen directly instead of via the
@@ -1194,7 +1199,7 @@ int bch2_gc_gens(struct bch_fs *c)
 				BCH_TRANS_COMMIT_no_enospc, ({
 			ca = bch2_dev_iterate(c, ca, k.k->p.inode);
 			if (!ca) {
-				bch2_btree_iter_set_pos(&iter, POS(k.k->p.inode + 1, 0));
+				bch2_btree_iter_set_pos(trans, &iter, POS(k.k->p.inode + 1, 0));
 				continue;
 			}
 			bch2_alloc_write_oldest_gen(trans, ca, &iter, k);

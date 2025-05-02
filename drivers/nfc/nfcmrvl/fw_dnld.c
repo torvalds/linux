@@ -102,10 +102,10 @@ static void fw_dnld_over(struct nfcmrvl_private *priv, u32 error)
 	atomic_set(&priv->ndev->cmd_cnt, 0);
 
 	if (timer_pending(&priv->ndev->cmd_timer))
-		del_timer_sync(&priv->ndev->cmd_timer);
+		timer_delete_sync(&priv->ndev->cmd_timer);
 
 	if (timer_pending(&priv->fw_dnld.timer))
-		del_timer_sync(&priv->fw_dnld.timer);
+		timer_delete_sync(&priv->fw_dnld.timer);
 
 	nfc_info(priv->dev, "FW loading over (%d)]\n", error);
 
@@ -464,7 +464,7 @@ void nfcmrvl_fw_dnld_recv_frame(struct nfcmrvl_private *priv,
 {
 	/* Discard command timer */
 	if (timer_pending(&priv->ndev->cmd_timer))
-		del_timer_sync(&priv->ndev->cmd_timer);
+		timer_delete_sync(&priv->ndev->cmd_timer);
 
 	/* Allow next command */
 	atomic_set(&priv->ndev->cmd_cnt, 1);

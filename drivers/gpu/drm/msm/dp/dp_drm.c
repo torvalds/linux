@@ -3,6 +3,7 @@
  * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/string_choices.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_bridge.h>
@@ -25,7 +26,7 @@ static enum drm_connector_status msm_dp_bridge_detect(struct drm_bridge *bridge)
 	dp = to_dp_bridge(bridge)->msm_dp_display;
 
 	drm_dbg_dp(dp->drm_dev, "link_ready = %s\n",
-		(dp->link_ready) ? "true" : "false");
+		str_true_false(dp->link_ready));
 
 	return (dp->link_ready) ? connector_status_connected :
 					connector_status_disconnected;
@@ -41,7 +42,7 @@ static int msm_dp_bridge_atomic_check(struct drm_bridge *bridge,
 	dp = to_dp_bridge(bridge)->msm_dp_display;
 
 	drm_dbg_dp(dp->drm_dev, "link_ready = %s\n",
-		(dp->link_ready) ? "true" : "false");
+		str_true_false(dp->link_ready));
 
 	/*
 	 * There is no protection in the DRM framework to check if the display
@@ -137,9 +138,8 @@ static int msm_edp_bridge_atomic_check(struct drm_bridge *drm_bridge,
 }
 
 static void msm_edp_bridge_atomic_enable(struct drm_bridge *drm_bridge,
-				     struct drm_bridge_state *old_bridge_state)
+					 struct drm_atomic_state *state)
 {
-	struct drm_atomic_state *atomic_state = old_bridge_state->base.state;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
 	struct msm_dp_bridge *msm_dp_bridge = to_dp_bridge(drm_bridge);
@@ -151,25 +151,24 @@ static void msm_edp_bridge_atomic_enable(struct drm_bridge *drm_bridge,
 	 * If the panel is in psr, just exit psr state and skip the full
 	 * bridge enable sequence.
 	 */
-	crtc = drm_atomic_get_new_crtc_for_encoder(atomic_state,
+	crtc = drm_atomic_get_new_crtc_for_encoder(state,
 						   drm_bridge->encoder);
 	if (!crtc)
 		return;
 
-	old_crtc_state = drm_atomic_get_old_crtc_state(atomic_state, crtc);
+	old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
 
 	if (old_crtc_state && old_crtc_state->self_refresh_active) {
 		msm_dp_display_set_psr(dp, false);
 		return;
 	}
 
-	msm_dp_bridge_atomic_enable(drm_bridge, old_bridge_state);
+	msm_dp_bridge_atomic_enable(drm_bridge, state);
 }
 
 static void msm_edp_bridge_atomic_disable(struct drm_bridge *drm_bridge,
-				      struct drm_bridge_state *old_bridge_state)
+					  struct drm_atomic_state *atomic_state)
 {
-	struct drm_atomic_state *atomic_state = old_bridge_state->base.state;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *new_crtc_state = NULL, *old_crtc_state = NULL;
 	struct msm_dp_bridge *msm_dp_bridge = to_dp_bridge(drm_bridge);
@@ -208,13 +207,12 @@ static void msm_edp_bridge_atomic_disable(struct drm_bridge *drm_bridge,
 	}
 
 out:
-	msm_dp_bridge_atomic_disable(drm_bridge, old_bridge_state);
+	msm_dp_bridge_atomic_disable(drm_bridge, atomic_state);
 }
 
 static void msm_edp_bridge_atomic_post_disable(struct drm_bridge *drm_bridge,
-				struct drm_bridge_state *old_bridge_state)
+					       struct drm_atomic_state *atomic_state)
 {
-	struct drm_atomic_state *atomic_state = old_bridge_state->base.state;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *new_crtc_state = NULL;
 
@@ -233,7 +231,7 @@ static void msm_edp_bridge_atomic_post_disable(struct drm_bridge *drm_bridge,
 	if (new_crtc_state->self_refresh_active)
 		return;
 
-	msm_dp_bridge_atomic_post_disable(drm_bridge, old_bridge_state);
+	msm_dp_bridge_atomic_post_disable(drm_bridge, atomic_state);
 }
 
 /**

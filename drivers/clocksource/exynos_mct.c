@@ -238,7 +238,7 @@ static cycles_t exynos4_read_current_timer(void)
 static int __init exynos4_clocksource_init(bool frc_shared)
 {
 	/*
-	 * When the frc is shared, the main processer should have already
+	 * When the frc is shared, the main processor should have already
 	 * turned it on and we shouldn't be writing to TCON.
 	 */
 	if (frc_shared)

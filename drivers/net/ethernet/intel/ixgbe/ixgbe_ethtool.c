@@ -3185,6 +3185,7 @@ static int ixgbe_get_ts_info(struct net_device *dev,
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
 	case ixgbe_mac_x550em_a:
+	case ixgbe_mac_e610:
 		info->rx_filters |= BIT(HWTSTAMP_FILTER_ALL);
 		break;
 	case ixgbe_mac_X540:

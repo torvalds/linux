@@ -3039,8 +3039,7 @@ const struct dev_pm_ops hda_codec_driver_pm = {
 	.thaw = pm_sleep_ptr(hda_codec_pm_thaw),
 	.poweroff = pm_sleep_ptr(hda_codec_pm_suspend),
 	.restore = pm_sleep_ptr(hda_codec_pm_restore),
-	.runtime_suspend = pm_ptr(hda_codec_runtime_suspend),
-	.runtime_resume = pm_ptr(hda_codec_runtime_resume),
+	RUNTIME_PM_OPS(hda_codec_runtime_suspend, hda_codec_runtime_resume, NULL)
 };
 
 /* suspend the codec at shutdown; called from driver's shutdown callback */

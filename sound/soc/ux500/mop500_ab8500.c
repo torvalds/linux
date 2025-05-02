@@ -275,12 +275,12 @@ static int mop500_ab8500_hw_params(struct snd_pcm_substream *substream,
 
 	if (driver_mode == DRIVERMODE_NORMAL) {
 		fmt = SND_SOC_DAIFMT_DSP_A |
-			SND_SOC_DAIFMT_CBM_CFM |
+			SND_SOC_DAIFMT_CBP_CFP |
 			SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CONT;
 	} else {
 		fmt = SND_SOC_DAIFMT_DSP_A |
-			SND_SOC_DAIFMT_CBM_CFM |
+			SND_SOC_DAIFMT_CBP_CFP |
 			SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_GATED;
 	}

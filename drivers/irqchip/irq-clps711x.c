@@ -191,7 +191,7 @@ static int __init _clps711x_intc_init(struct device_node *np,
 		goto out_irqfree;
 	}
 
-	irq_set_default_host(clps711x_intc->domain);
+	irq_set_default_domain(clps711x_intc->domain);
 	set_handle_irq(clps711x_irqh);
 
 #ifdef CONFIG_FIQ

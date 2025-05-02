@@ -84,7 +84,6 @@ enum serdev_parity {
 struct serdev_controller_ops {
 	ssize_t (*write_buf)(struct serdev_controller *, const u8 *, size_t);
 	void (*write_flush)(struct serdev_controller *);
-	int (*write_room)(struct serdev_controller *);
 	int (*open)(struct serdev_controller *);
 	void (*close)(struct serdev_controller *);
 	void (*set_flow_control)(struct serdev_controller *, bool);
@@ -212,7 +211,6 @@ int serdev_device_break_ctl(struct serdev_device *serdev, int break_state);
 void serdev_device_write_wakeup(struct serdev_device *);
 ssize_t serdev_device_write(struct serdev_device *, const u8 *, size_t, long);
 void serdev_device_write_flush(struct serdev_device *);
-int serdev_device_write_room(struct serdev_device *);
 
 /*
  * serdev device driver functions
@@ -273,10 +271,6 @@ static inline ssize_t serdev_device_write(struct serdev_device *sdev,
 	return -ENODEV;
 }
 static inline void serdev_device_write_flush(struct serdev_device *sdev) {}
-static inline int serdev_device_write_room(struct serdev_device *sdev)
-{
-	return 0;
-}
 
 #define serdev_device_driver_register(x)
 #define serdev_device_driver_unregister(x)

@@ -308,7 +308,7 @@ static int nv17_tv_get_modes(struct drm_encoder *encoder,
 }
 
 static int nv17_tv_mode_valid(struct drm_encoder *encoder,
-			      struct drm_display_mode *mode)
+			      const struct drm_display_mode *mode)
 {
 	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
 
@@ -779,7 +779,7 @@ static const struct drm_encoder_helper_funcs nv17_tv_helper_funcs = {
 	.detect = nv17_tv_detect,
 };
 
-static const struct drm_encoder_slave_funcs nv17_tv_slave_funcs = {
+static const struct nouveau_i2c_encoder_funcs nv17_tv_encoder_i2c_funcs = {
 	.get_modes = nv17_tv_get_modes,
 	.mode_valid = nv17_tv_mode_valid,
 	.create_resources = nv17_tv_create_resources,
@@ -818,7 +818,7 @@ nv17_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 	drm_encoder_init(dev, encoder, &nv17_tv_funcs, DRM_MODE_ENCODER_TVDAC,
 			 NULL);
 	drm_encoder_helper_add(encoder, &nv17_tv_helper_funcs);
-	to_encoder_slave(encoder)->slave_funcs = &nv17_tv_slave_funcs;
+	to_encoder_i2c(encoder)->encoder_i2c_funcs = &nv17_tv_encoder_i2c_funcs;
 
 	tv_enc->base.enc_save = nv17_tv_save;
 	tv_enc->base.enc_restore = nv17_tv_restore;

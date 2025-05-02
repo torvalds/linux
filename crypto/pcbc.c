@@ -22,8 +22,8 @@ static int crypto_pcbc_encrypt_segment(struct skcipher_request *req,
 				       struct crypto_cipher *tfm)
 {
 	int bsize = crypto_cipher_blocksize(tfm);
+	const u8 *src = walk->src.virt.addr;
 	unsigned int nbytes = walk->nbytes;
-	u8 *src = walk->src.virt.addr;
 	u8 *dst = walk->dst.virt.addr;
 	u8 * const iv = walk->iv;
 
@@ -45,17 +45,17 @@ static int crypto_pcbc_encrypt_inplace(struct skcipher_request *req,
 {
 	int bsize = crypto_cipher_blocksize(tfm);
 	unsigned int nbytes = walk->nbytes;
-	u8 *src = walk->src.virt.addr;
+	u8 *dst = walk->dst.virt.addr;
 	u8 * const iv = walk->iv;
 	u8 tmpbuf[MAX_CIPHER_BLOCKSIZE];
 
 	do {
-		memcpy(tmpbuf, src, bsize);
-		crypto_xor(iv, src, bsize);
-		crypto_cipher_encrypt_one(tfm, src, iv);
-		crypto_xor_cpy(iv, tmpbuf, src, bsize);
+		memcpy(tmpbuf, dst, bsize);
+		crypto_xor(iv, dst, bsize);
+		crypto_cipher_encrypt_one(tfm, dst, iv);
+		crypto_xor_cpy(iv, tmpbuf, dst, bsize);
 
-		src += bsize;
+		dst += bsize;
 	} while ((nbytes -= bsize) >= bsize);
 
 	return nbytes;
@@ -89,8 +89,8 @@ static int crypto_pcbc_decrypt_segment(struct skcipher_request *req,
 				       struct crypto_cipher *tfm)
 {
 	int bsize = crypto_cipher_blocksize(tfm);
+	const u8 *src = walk->src.virt.addr;
 	unsigned int nbytes = walk->nbytes;
-	u8 *src = walk->src.virt.addr;
 	u8 *dst = walk->dst.virt.addr;
 	u8 * const iv = walk->iv;
 
@@ -112,17 +112,17 @@ static int crypto_pcbc_decrypt_inplace(struct skcipher_request *req,
 {
 	int bsize = crypto_cipher_blocksize(tfm);
 	unsigned int nbytes = walk->nbytes;
-	u8 *src = walk->src.virt.addr;
+	u8 *dst = walk->dst.virt.addr;
 	u8 * const iv = walk->iv;
 	u8 tmpbuf[MAX_CIPHER_BLOCKSIZE] __aligned(__alignof__(u32));
 
 	do {
-		memcpy(tmpbuf, src, bsize);
-		crypto_cipher_decrypt_one(tfm, src, src);
-		crypto_xor(src, iv, bsize);
-		crypto_xor_cpy(iv, src, tmpbuf, bsize);
+		memcpy(tmpbuf, dst, bsize);
+		crypto_cipher_decrypt_one(tfm, dst, dst);
+		crypto_xor(dst, iv, bsize);
+		crypto_xor_cpy(iv, dst, tmpbuf, bsize);
 
-		src += bsize;
+		dst += bsize;
 	} while ((nbytes -= bsize) >= bsize);
 
 	return nbytes;

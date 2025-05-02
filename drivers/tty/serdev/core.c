@@ -316,17 +316,6 @@ void serdev_device_write_flush(struct serdev_device *serdev)
 }
 EXPORT_SYMBOL_GPL(serdev_device_write_flush);
 
-int serdev_device_write_room(struct serdev_device *serdev)
-{
-	struct serdev_controller *ctrl = serdev->ctrl;
-
-	if (!ctrl || !ctrl->ops->write_room)
-		return 0;
-
-	return serdev->ctrl->ops->write_room(ctrl);
-}
-EXPORT_SYMBOL_GPL(serdev_device_write_room);
-
 unsigned int serdev_device_set_baudrate(struct serdev_device *serdev, unsigned int speed)
 {
 	struct serdev_controller *ctrl = serdev->ctrl;

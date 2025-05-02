@@ -2,7 +2,7 @@
 /*
  * radio-aztech.c - Aztech radio card driver
  *
- * Converted to the radio-isa framework by Hans Verkuil <hans.verkuil@xs4all.nl>
+ * Converted to the radio-isa framework by Hans Verkuil <hverkuil@xs4all.nl>
  * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@kernel.org>
  * Adapted to support the Video for Linux API by
  * Russell Kroll <rkroll@exploits.org>.  Based on original tuner code by:

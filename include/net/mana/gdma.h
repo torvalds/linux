@@ -152,6 +152,7 @@ struct gdma_general_req {
 #define GDMA_MESSAGE_V1 1
 #define GDMA_MESSAGE_V2 2
 #define GDMA_MESSAGE_V3 3
+#define GDMA_MESSAGE_V4 4
 
 struct gdma_general_resp {
 	struct gdma_resp_hdr hdr;
@@ -408,8 +409,6 @@ struct gdma_context {
 	struct gdma_dev		mana_ib;
 };
 
-#define MAX_NUM_GDMA_DEVICES	4
-
 static inline bool mana_gd_is_mana(struct gdma_dev *gd)
 {
 	return gd->dev_id.type == GDMA_DEVICE_MANA;
@@ -556,11 +555,15 @@ enum {
 #define GDMA_DRV_CAP_FLAG_1_HWC_TIMEOUT_RECONFIG BIT(3)
 #define GDMA_DRV_CAP_FLAG_1_VARIABLE_INDIRECTION_TABLE_SUPPORT BIT(5)
 
+/* Driver can handle holes (zeros) in the device list */
+#define GDMA_DRV_CAP_FLAG_1_DEV_LIST_HOLES_SUP BIT(11)
+
 #define GDMA_DRV_CAP_FLAGS1 \
 	(GDMA_DRV_CAP_FLAG_1_EQ_SHARING_MULTI_VPORT | \
 	 GDMA_DRV_CAP_FLAG_1_NAPI_WKDONE_FIX | \
 	 GDMA_DRV_CAP_FLAG_1_HWC_TIMEOUT_RECONFIG | \
-	 GDMA_DRV_CAP_FLAG_1_VARIABLE_INDIRECTION_TABLE_SUPPORT)
+	 GDMA_DRV_CAP_FLAG_1_VARIABLE_INDIRECTION_TABLE_SUPPORT | \
+	 GDMA_DRV_CAP_FLAG_1_DEV_LIST_HOLES_SUP)
 
 #define GDMA_DRV_CAP_FLAGS2 0
 
@@ -621,11 +624,12 @@ struct gdma_query_max_resources_resp {
 }; /* HW DATA */
 
 /* GDMA_LIST_DEVICES */
+#define GDMA_DEV_LIST_SIZE 64
 struct gdma_list_devices_resp {
 	struct gdma_resp_hdr hdr;
 	u32 num_of_devs;
 	u32 reserved;
-	struct gdma_dev_id devs[64];
+	struct gdma_dev_id devs[GDMA_DEV_LIST_SIZE];
 }; /* HW DATA */
 
 /* GDMA_REGISTER_DEVICE */
@@ -775,6 +779,7 @@ struct gdma_destroy_dma_region_req {
 
 enum gdma_pd_flags {
 	GDMA_PD_FLAG_INVALID = 0,
+	GDMA_PD_FLAG_ALLOW_GPA_MR = 1,
 };
 
 struct gdma_create_pd_req {
@@ -800,6 +805,11 @@ struct gdma_destory_pd_resp {
 };/* HW DATA */
 
 enum gdma_mr_type {
+	/*
+	 * Guest Physical Address - MRs of this type allow access
+	 * to any DMA-mapped memory using bus-logical address
+	 */
+	GDMA_MR_TYPE_GPA = 1,
 	/* Guest Virtual Address - MRs of this type allow access
 	 * to memory mapped by PTEs associated with this MR using a virtual
 	 * address that is set up in the MST

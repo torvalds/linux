@@ -10,8 +10,6 @@
 
 int orangefs_bufmap_size_query(void);
 
-int orangefs_bufmap_shift_query(void);
-
 int orangefs_bufmap_initialize(struct ORANGEFS_dev_map_desc *user_desc);
 
 void orangefs_bufmap_finalize(void);
@@ -34,6 +32,5 @@ int orangefs_bufmap_copy_to_iovec(struct iov_iter *iter,
 			      int buffer_index,
 			      size_t size);
 
-void orangefs_bufmap_page_fill(void *kaddr, int buffer_index, int slot_index);
 
 #endif /* __ORANGEFS_BUFMAP_H */

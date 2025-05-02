@@ -352,7 +352,7 @@ parse_eeprom (struct net_device *dev)
 	eth_hw_addr_set(dev, psrom->mac_addr);
 
 	if (np->chip_id == CHIP_IP1000A) {
-		np->led_mode = psrom->led_mode;
+		np->led_mode = le16_to_cpu(psrom->led_mode);
 		return 0;
 	}
 
@@ -1778,7 +1778,7 @@ rio_close (struct net_device *dev)
 	rio_hw_stop(dev);
 
 	free_irq(pdev->irq, dev);
-	del_timer_sync (&np->timer);
+	timer_delete_sync(&np->timer);
 
 	free_list(dev);
 
@@ -1818,7 +1818,7 @@ static int rio_suspend(struct device *device)
 		return 0;
 
 	netif_device_detach(dev);
-	del_timer_sync(&np->timer);
+	timer_delete_sync(&np->timer);
 	rio_hw_stop(dev);
 
 	return 0;

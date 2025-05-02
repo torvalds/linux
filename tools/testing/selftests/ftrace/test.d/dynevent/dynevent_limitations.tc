@@ -1,0 +1,63 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: Checking dynamic events limitations
+# requires: dynamic_events "imm-value":README
+
+# Max arguments limitation
+MAX_ARGS=128
+EXCEED_ARGS=$((MAX_ARGS + 1))
+
+# bash and dash evaluate variables differently.
+# dash will evaluate '\\' every time it is read whereas bash does not.
+#
+#   TEST_STRING="$TEST_STRING \\$i"
+#   echo $TEST_STRING
+#
+# With i=123
+# On bash, that will print "\123"
+# but on dash, that will print the escape sequence of \123 as the \ will
+# be interpreted again in the echo.
+#
+# Set a variable "bs" to save a double backslash, then echo that
+# to "ts" to see if $ts changed or not. If it changed, it's dash,
+# if not, it's bash, and then bs can equal a single backslash.
+bs='\\'
+ts=`echo $bs`
+if [ "$ts" = '\\' ]; then
+  # this is bash
+  bs='\'
+fi
+
+check_max_args() { # event_header
+  TEST_STRING=$1
+  # Acceptable
+  for i in `seq 1 $MAX_ARGS`; do
+    TEST_STRING="$TEST_STRING $bs$i"
+  done
+  echo "$TEST_STRING" >> dynamic_events
+  echo > dynamic_events
+  # Error
+  TEST_STRING="$TEST_STRING \\$EXCEED_ARGS"
+  ! echo "$TEST_STRING" >> dynamic_events
+  return 0
+}
+
+# Kprobe max args limitation
+if grep -q "kprobe_events" README; then
+  check_max_args "p vfs_read"
+fi
+
+# Fprobe max args limitation
+if grep -q "f[:[<group>/][<event>]] <func-name>[%return] [<args>]" README; then
+  check_max_args "f vfs_read"
+fi
+
+# Tprobe max args limitation
+if grep -q "t[:[<group>/][<event>]] <tracepoint> [<args>]" README; then
+  check_max_args "t kfree"
+fi
+
+# Uprobe max args limitation
+if grep -q "uprobe_events" README; then
+  check_max_args "p /bin/sh:10"
+fi

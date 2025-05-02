@@ -1013,7 +1013,7 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 	fc_lport_destroy(lport);
 
 	/* Stop the transmit retry timer */
-	del_timer_sync(&port->timer);
+	timer_delete_sync(&port->timer);
 
 	/* Free existing transmit skbs */
 	fcoe_clean_pending_queue(lport);

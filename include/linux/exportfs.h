@@ -279,9 +279,21 @@ struct export_operations {
 						  atomic attribute updates
 						*/
 #define EXPORT_OP_FLUSH_ON_CLOSE	(0x20) /* fs flushes file data on close */
-#define EXPORT_OP_ASYNC_LOCK		(0x40) /* fs can do async lock request */
+#define EXPORT_OP_NOLOCKS		(0x40) /* no file locking support */
 	unsigned long	flags;
 };
+
+/**
+ * exportfs_cannot_lock() - check if export implements file locking
+ * @export_ops:	the nfs export operations to check
+ *
+ * Returns true if the export does not support file locking.
+ */
+static inline bool
+exportfs_cannot_lock(const struct export_operations *export_ops)
+{
+	return export_ops->flags & EXPORT_OP_NOLOCKS;
+}
 
 extern int exportfs_encode_inode_fh(struct inode *inode, struct fid *fid,
 				    int *max_len, struct inode *parent,

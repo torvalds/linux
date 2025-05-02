@@ -555,15 +555,6 @@ void xe_gsc_wait_for_worker_completion(struct xe_gsc *gsc)
 		flush_work(&gsc->work);
 }
 
-/**
- * xe_gsc_remove() - Clean up the GSC structures before driver removal
- * @gsc: the GSC uC
- */
-void xe_gsc_remove(struct xe_gsc *gsc)
-{
-	xe_gsc_proxy_remove(gsc);
-}
-
 /*
  * wa_14015076503: if the GSC FW is loaded, we need to alert it before doing a
  * GSC engine reset by writing a notification bit in the GS1 register and then

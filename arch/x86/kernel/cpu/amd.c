@@ -29,6 +29,8 @@
 
 #include "cpu.h"
 
+u16 invlpgb_count_max __ro_after_init;
+
 static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
 {
 	u32 gprs[8] = { 0 };
@@ -632,7 +634,7 @@ static void init_amd_k8(struct cpuinfo_x86 *c)
 	 * (model = 0x14) and later actually support it.
 	 * (AMD Erratum #110, docId: 25759).
 	 */
-	if (c->x86_model < 0x14 && cpu_has(c, X86_FEATURE_LAHF_LM)) {
+	if (c->x86_model < 0x14 && cpu_has(c, X86_FEATURE_LAHF_LM) && !cpu_has(c, X86_FEATURE_HYPERVISOR)) {
 		clear_cpu_cap(c, X86_FEATURE_LAHF_LM);
 		if (!rdmsrl_amd_safe(0xc001100d, &value)) {
 			value &= ~BIT_64(32);
@@ -803,6 +805,7 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
 static const struct x86_cpu_id erratum_1386_microcode[] = {
 	X86_MATCH_VFM_STEPS(VFM_MAKE(X86_VENDOR_AMD, 0x17, 0x01), 0x2, 0x2, 0x0800126e),
 	X86_MATCH_VFM_STEPS(VFM_MAKE(X86_VENDOR_AMD, 0x17, 0x31), 0x0, 0x0, 0x08301052),
+	{}
 };
 
 static void fix_erratum_1386(struct cpuinfo_x86 *c)
@@ -866,6 +869,16 @@ static void init_amd_zen1(struct cpuinfo_x86 *c)
 
 	pr_notice_once("AMD Zen1 DIV0 bug detected. Disable SMT for full protection.\n");
 	setup_force_cpu_bug(X86_BUG_DIV0);
+
+	/*
+	 * Turn off the Instructions Retired free counter on machines that are
+	 * susceptible to erratum #1054 "Instructions Retired Performance
+	 * Counter May Be Inaccurate".
+	 */
+	if (c->x86_model < 0x30) {
+		msr_clear_bit(MSR_K7_HWCR, MSR_K7_HWCR_IRPERF_EN_BIT);
+		clear_cpu_cap(c, X86_FEATURE_IRPERF);
+	}
 }
 
 static bool cpu_has_zenbleed_microcode(void)
@@ -1049,13 +1062,8 @@ static void init_amd(struct cpuinfo_x86 *c)
 	if (!cpu_feature_enabled(X86_FEATURE_XENPV))
 		set_cpu_bug(c, X86_BUG_SYSRET_SS_ATTRS);
 
-	/*
-	 * Turn on the Instructions Retired free counter on machines not
-	 * susceptible to erratum #1054 "Instructions Retired Performance
-	 * Counter May Be Inaccurate".
-	 */
-	if (cpu_has(c, X86_FEATURE_IRPERF) &&
-	    (boot_cpu_has(X86_FEATURE_ZEN1) && c->x86_model > 0x2f))
+	/* Enable the Instructions Retired free counter */
+	if (cpu_has(c, X86_FEATURE_IRPERF))
 		msr_set_bit(MSR_K7_HWCR, MSR_K7_HWCR_IRPERF_EN_BIT);
 
 	check_null_seg_clears_base(c);
@@ -1073,6 +1081,10 @@ static void init_amd(struct cpuinfo_x86 *c)
 
 	/* AMD CPUs don't need fencing after x2APIC/TSC_DEADLINE MSR writes. */
 	clear_cpu_cap(c, X86_FEATURE_APIC_MSRS_FENCE);
+
+	/* Enable Translation Cache Extension */
+	if (cpu_has(c, X86_FEATURE_TCE))
+		msr_set_bit(MSR_EFER, _EFER_TCE);
 }
 
 #ifdef CONFIG_X86_32
@@ -1105,8 +1117,8 @@ static void cpu_detect_tlb_amd(struct cpuinfo_x86 *c)
 
 	cpuid(0x80000006, &eax, &ebx, &ecx, &edx);
 
-	tlb_lld_4k[ENTRIES] = (ebx >> 16) & mask;
-	tlb_lli_4k[ENTRIES] = ebx & mask;
+	tlb_lld_4k = (ebx >> 16) & mask;
+	tlb_lli_4k = ebx & mask;
 
 	/*
 	 * K8 doesn't have 2M/4M entries in the L2 TLB so read out the L1 TLB
@@ -1119,26 +1131,30 @@ static void cpu_detect_tlb_amd(struct cpuinfo_x86 *c)
 
 	/* Handle DTLB 2M and 4M sizes, fall back to L1 if L2 is disabled */
 	if (!((eax >> 16) & mask))
-		tlb_lld_2m[ENTRIES] = (cpuid_eax(0x80000005) >> 16) & 0xff;
+		tlb_lld_2m = (cpuid_eax(0x80000005) >> 16) & 0xff;
 	else
-		tlb_lld_2m[ENTRIES] = (eax >> 16) & mask;
+		tlb_lld_2m = (eax >> 16) & mask;
 
 	/* a 4M entry uses two 2M entries */
-	tlb_lld_4m[ENTRIES] = tlb_lld_2m[ENTRIES] >> 1;
+	tlb_lld_4m = tlb_lld_2m >> 1;
 
 	/* Handle ITLB 2M and 4M sizes, fall back to L1 if L2 is disabled */
 	if (!(eax & mask)) {
 		/* Erratum 658 */
 		if (c->x86 == 0x15 && c->x86_model <= 0x1f) {
-			tlb_lli_2m[ENTRIES] = 1024;
+			tlb_lli_2m = 1024;
 		} else {
 			cpuid(0x80000005, &eax, &ebx, &ecx, &edx);
-			tlb_lli_2m[ENTRIES] = eax & 0xff;
+			tlb_lli_2m = eax & 0xff;
 		}
 	} else
-		tlb_lli_2m[ENTRIES] = eax & mask;
+		tlb_lli_2m = eax & mask;
 
-	tlb_lli_4m[ENTRIES] = tlb_lli_2m[ENTRIES] >> 1;
+	tlb_lli_4m = tlb_lli_2m >> 1;
+
+	/* Max number of pages INVLPGB can invalidate in one shot */
+	if (cpu_has(c, X86_FEATURE_INVLPGB))
+		invlpgb_count_max = (cpuid_edx(0x80000008) & 0xffff) + 1;
 }
 
 static const struct cpu_dev amd_cpu_dev = {

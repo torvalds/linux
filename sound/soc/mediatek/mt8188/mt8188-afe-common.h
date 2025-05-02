@@ -137,6 +137,7 @@ struct mt8188_afe_private {
 int mt8188_afe_fs_timing(unsigned int rate);
 /* dai register */
 int mt8188_dai_adda_register(struct mtk_base_afe *afe);
+int mt8188_dai_dmic_register(struct mtk_base_afe *afe);
 int mt8188_dai_etdm_register(struct mtk_base_afe *afe);
 int mt8188_dai_pcm_register(struct mtk_base_afe *afe);
 

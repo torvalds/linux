@@ -20,6 +20,7 @@
 #include <stdarg.h>
 #include <linux/mount.h>
 
+#include "../filesystems/overlayfs/wrappers.h"
 #include "../kselftest_harness.h"
 
 #ifndef CLONE_NEWNS
@@ -123,6 +124,26 @@
 		#define __NR_open_tree (428 + 1024)
 	#else
 		#define __NR_open_tree 428
+	#endif
+#endif
+
+#ifndef __NR_move_mount
+	#if defined __alpha__
+		#define __NR_move_mount 539
+	#elif defined _MIPS_SIM
+		#if _MIPS_SIM == _MIPS_SIM_ABI32	/* o32 */
+			#define __NR_move_mount 4429
+		#endif
+		#if _MIPS_SIM == _MIPS_SIM_NABI32	/* n32 */
+			#define __NR_move_mount 6429
+		#endif
+		#if _MIPS_SIM == _MIPS_SIM_ABI64	/* n64 */
+			#define __NR_move_mount 5429
+		#endif
+	#elif defined __ia64__
+		#define __NR_move_mount (428 + 1024)
+	#else
+		#define __NR_move_mount 429
 	#endif
 #endif
 
@@ -396,6 +417,10 @@ FIXTURE_SETUP(mount_setattr)
 			"size=100000,mode=700"), 0);
 
 	ASSERT_EQ(mkdir("/tmp/B/BB", 0777), 0);
+
+	ASSERT_EQ(mkdir("/tmp/target1", 0777), 0);
+
+	ASSERT_EQ(mkdir("/tmp/target2", 0777), 0);
 
 	ASSERT_EQ(mount("testing", "/tmp/B/BB", "tmpfs", MS_NOATIME | MS_NODEV,
 			"size=100000,mode=700"), 0);
@@ -1504,6 +1529,633 @@ TEST_F(mount_setattr, mount_attr_nosymfollow)
 	fd = open(NOSYMFOLLOW_SYMLINK, O_RDWR | O_CLOEXEC);
 	ASSERT_GT(fd, 0);
 	ASSERT_EQ(close(fd), 0);
+}
+
+TEST_F(mount_setattr, open_tree_detached)
+{
+	int fd_tree_base = -EBADF, fd_tree_subdir = -EBADF;
+	struct statx stx;
+
+	fd_tree_base = sys_open_tree(-EBADF, "/mnt",
+				     AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				     AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				     OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree_base, 0);
+	/*
+	 * /mnt                   testing tmpfs
+	 * |-/mnt/A               testing tmpfs
+	 * | `-/mnt/A/AA          testing tmpfs
+	 * |   `-/mnt/A/AA/B      testing tmpfs
+	 * |     `-/mnt/A/AA/B/BB testing tmpfs
+	 * `-/mnt/B               testing ramfs
+	 */
+	ASSERT_EQ(statx(fd_tree_base, "A", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(fd_tree_base, "A/AA", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(fd_tree_base, "A/AA/B", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(fd_tree_base, "A/AA/B/BB", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	fd_tree_subdir = sys_open_tree(fd_tree_base, "A/AA",
+				       AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				       AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				       OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree_subdir, 0);
+	/*
+	 * /AA          testing tmpfs
+	 * `-/AA/B      testing tmpfs
+	 *   `-/AA/B/BB testing tmpfs
+	 */
+	ASSERT_EQ(statx(fd_tree_subdir, "B", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(fd_tree_subdir, "B/BB", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	ASSERT_EQ(move_mount(fd_tree_subdir, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
+	/*
+	 * /tmp/target1          testing tmpfs
+	 * `-/tmp/target1/B      testing tmpfs
+	 *   `-/tmp/target1/B/BB testing tmpfs
+	 */
+	ASSERT_EQ(statx(-EBADF, "/tmp/target1", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(-EBADF, "/tmp/target1/B", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(-EBADF, "/tmp/target1/B/BB", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	ASSERT_EQ(move_mount(fd_tree_base, "", -EBADF, "/tmp/target2", MOVE_MOUNT_F_EMPTY_PATH), 0);
+	/*
+	 * /tmp/target2                   testing tmpfs
+	 * |-/tmp/target2/A               testing tmpfs
+	 * | `-/tmp/target2/A/AA          testing tmpfs
+	 * |   `-/tmp/target2/A/AA/B      testing tmpfs
+	 * |     `-/tmp/target2/A/AA/B/BB testing tmpfs
+	 * `-/tmp/target2/B               testing ramfs
+	 */
+	ASSERT_EQ(statx(-EBADF, "/tmp/target2", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(-EBADF, "/tmp/target2/A", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(-EBADF, "/tmp/target2/A/AA", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(-EBADF, "/tmp/target2/A/AA/B", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(-EBADF, "/tmp/target2/A/AA/B/BB", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(-EBADF, "/tmp/target2/B", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	EXPECT_EQ(close(fd_tree_base), 0);
+	EXPECT_EQ(close(fd_tree_subdir), 0);
+}
+
+TEST_F(mount_setattr, open_tree_detached_fail)
+{
+	int fd_tree_base = -EBADF, fd_tree_subdir = -EBADF;
+	struct statx stx;
+
+	fd_tree_base = sys_open_tree(-EBADF, "/mnt",
+				     AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				     AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				     OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree_base, 0);
+	/*
+	 * /mnt                   testing tmpfs
+	 * |-/mnt/A               testing tmpfs
+	 * | `-/mnt/A/AA          testing tmpfs
+	 * |   `-/mnt/A/AA/B      testing tmpfs
+	 * |     `-/mnt/A/AA/B/BB testing tmpfs
+	 * `-/mnt/B               testing ramfs
+	 */
+	ASSERT_EQ(statx(fd_tree_base, "A", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(fd_tree_base, "A/AA", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(fd_tree_base, "A/AA/B", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(fd_tree_base, "A/AA/B/BB", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	ASSERT_EQ(unshare(CLONE_NEWNS), 0);
+
+	/*
+	 * The origin mount namespace of the anonymous mount namespace
+	 * of @fd_tree_base doesn't match the caller's mount namespace
+	 * anymore so creation of another detached mounts must fail.
+	 */
+	fd_tree_subdir = sys_open_tree(fd_tree_base, "A/AA",
+				       AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				       AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				       OPEN_TREE_CLONE);
+	ASSERT_LT(fd_tree_subdir, 0);
+	ASSERT_EQ(errno, EINVAL);
+}
+
+TEST_F(mount_setattr, open_tree_detached_fail2)
+{
+	int fd_tree_base = -EBADF, fd_tree_subdir = -EBADF;
+	struct statx stx;
+
+	fd_tree_base = sys_open_tree(-EBADF, "/mnt",
+				     AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				     AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				     OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree_base, 0);
+	/*
+	 * /mnt                   testing tmpfs
+	 * |-/mnt/A               testing tmpfs
+	 * | `-/mnt/A/AA          testing tmpfs
+	 * |   `-/mnt/A/AA/B      testing tmpfs
+	 * |     `-/mnt/A/AA/B/BB testing tmpfs
+	 * `-/mnt/B               testing ramfs
+	 */
+	ASSERT_EQ(statx(fd_tree_base, "A", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(fd_tree_base, "A/AA", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(fd_tree_base, "A/AA/B", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(fd_tree_base, "A/AA/B/BB", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	EXPECT_EQ(create_and_enter_userns(), 0);
+
+	/*
+	 * The caller entered a new user namespace. They will have
+	 * CAP_SYS_ADMIN in this user namespace. However, they're still
+	 * located in a mount namespace that is owned by an ancestor
+	 * user namespace in which they hold no privilege. Creating a
+	 * detached mount must thus fail.
+	 */
+	fd_tree_subdir = sys_open_tree(fd_tree_base, "A/AA",
+				       AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				       AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				       OPEN_TREE_CLONE);
+	ASSERT_LT(fd_tree_subdir, 0);
+	ASSERT_EQ(errno, EPERM);
+}
+
+TEST_F(mount_setattr, open_tree_detached_fail3)
+{
+	int fd_tree_base = -EBADF, fd_tree_subdir = -EBADF;
+	struct statx stx;
+
+	fd_tree_base = sys_open_tree(-EBADF, "/mnt",
+				     AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				     AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				     OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree_base, 0);
+	/*
+        * /mnt                   testing tmpfs
+        * |-/mnt/A               testing tmpfs
+        * | `-/mnt/A/AA          testing tmpfs
+        * |   `-/mnt/A/AA/B      testing tmpfs
+        * |     `-/mnt/A/AA/B/BB testing tmpfs
+        * `-/mnt/B               testing ramfs
+        */
+	ASSERT_EQ(statx(fd_tree_base, "A", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(fd_tree_base, "A/AA", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(fd_tree_base, "A/AA/B", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_EQ(statx(fd_tree_base, "A/AA/B/BB", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	EXPECT_EQ(prepare_unpriv_mountns(), 0);
+
+	/*
+        * The caller entered a new mount namespace. They will have
+        * CAP_SYS_ADMIN in the owning user namespace of their mount
+        * namespace.
+        *
+        * However, the origin mount namespace of the anonymous mount
+        * namespace of @fd_tree_base doesn't match the caller's mount
+        * namespace anymore so creation of another detached mounts must
+        * fail.
+        */
+	fd_tree_subdir = sys_open_tree(fd_tree_base, "A/AA",
+			               AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				       AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				       OPEN_TREE_CLONE);
+	ASSERT_LT(fd_tree_subdir, 0);
+	ASSERT_EQ(errno, EINVAL);
+}
+
+TEST_F(mount_setattr, open_tree_subfolder)
+{
+	int fd_context, fd_tmpfs, fd_tree;
+
+	fd_context = sys_fsopen("tmpfs", 0);
+	ASSERT_GE(fd_context, 0);
+
+	ASSERT_EQ(sys_fsconfig(fd_context, FSCONFIG_CMD_CREATE, NULL, NULL, 0), 0);
+
+	fd_tmpfs = sys_fsmount(fd_context, 0, 0);
+	ASSERT_GE(fd_tmpfs, 0);
+
+	EXPECT_EQ(close(fd_context), 0);
+
+	ASSERT_EQ(mkdirat(fd_tmpfs, "subdir", 0755), 0);
+
+	fd_tree = sys_open_tree(fd_tmpfs, "subdir",
+				AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree, 0);
+
+	EXPECT_EQ(close(fd_tmpfs), 0);
+
+	ASSERT_EQ(mkdirat(-EBADF, "/mnt/open_tree_subfolder", 0755), 0);
+
+	ASSERT_EQ(sys_move_mount(fd_tree, "", -EBADF, "/mnt/open_tree_subfolder", MOVE_MOUNT_F_EMPTY_PATH), 0);
+
+	EXPECT_EQ(close(fd_tree), 0);
+
+	ASSERT_EQ(umount2("/mnt/open_tree_subfolder", 0), 0);
+
+	EXPECT_EQ(rmdir("/mnt/open_tree_subfolder"), 0);
+}
+
+TEST_F(mount_setattr, mount_detached_mount_on_detached_mount_then_close)
+{
+	int fd_tree_base = -EBADF, fd_tree_subdir = -EBADF;
+	struct statx stx;
+
+	fd_tree_base = sys_open_tree(-EBADF, "/mnt",
+				     AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				     OPEN_TREE_CLOEXEC | OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree_base, 0);
+	/*
+	 * /mnt testing tmpfs
+	 */
+	ASSERT_EQ(statx(fd_tree_base, "A", 0, 0, &stx), 0);
+	ASSERT_FALSE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	fd_tree_subdir = sys_open_tree(fd_tree_base, "",
+				       AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				       AT_EMPTY_PATH | OPEN_TREE_CLOEXEC |
+				       OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree_subdir, 0);
+	/*
+	 * /mnt testing tmpfs
+	 */
+	ASSERT_EQ(statx(fd_tree_subdir, "A", 0, 0, &stx), 0);
+	ASSERT_FALSE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	/*
+	 * /mnt   testing tmpfs
+	 * `-/mnt testing tmpfs
+	 */
+	ASSERT_EQ(move_mount(fd_tree_subdir, "", fd_tree_base, "", MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH), 0);
+	ASSERT_EQ(statx(fd_tree_subdir, "", AT_EMPTY_PATH, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	ASSERT_NE(move_mount(fd_tree_subdir, "", fd_tree_base, "", MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH), 0);
+
+	EXPECT_EQ(close(fd_tree_base), 0);
+	EXPECT_EQ(close(fd_tree_subdir), 0);
+}
+
+TEST_F(mount_setattr, mount_detached_mount_on_detached_mount_and_attach)
+{
+	int fd_tree_base = -EBADF, fd_tree_subdir = -EBADF;
+	struct statx stx;
+	__u64 mnt_id = 0;
+
+	fd_tree_base = sys_open_tree(-EBADF, "/mnt",
+				     AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				     OPEN_TREE_CLOEXEC | OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree_base, 0);
+	/*
+	 * /mnt testing tmpfs
+	 */
+	ASSERT_EQ(statx(fd_tree_base, "A", 0, 0, &stx), 0);
+	ASSERT_FALSE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	fd_tree_subdir = sys_open_tree(fd_tree_base, "",
+				       AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				       AT_EMPTY_PATH | OPEN_TREE_CLOEXEC |
+				       OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree_subdir, 0);
+	/*
+	 * /mnt testing tmpfs
+	 */
+	ASSERT_EQ(statx(fd_tree_subdir, "A", 0, 0, &stx), 0);
+	ASSERT_FALSE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	/*
+	 * /mnt   testing tmpfs
+	 * `-/mnt testing tmpfs
+	 */
+	ASSERT_EQ(move_mount(fd_tree_subdir, "", fd_tree_base, "", MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH), 0);
+	ASSERT_EQ(statx(fd_tree_subdir, "", AT_EMPTY_PATH, STATX_MNT_ID_UNIQUE, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_TRUE(stx.stx_mask & STATX_MNT_ID_UNIQUE);
+	mnt_id = stx.stx_mnt_id;
+
+	ASSERT_NE(move_mount(fd_tree_subdir, "", fd_tree_base, "", MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH), 0);
+
+	ASSERT_EQ(move_mount(fd_tree_base, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
+	ASSERT_EQ(statx(-EBADF, "/tmp/target1", 0, STATX_MNT_ID_UNIQUE, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+	ASSERT_TRUE(stx.stx_mask & STATX_MNT_ID_UNIQUE);
+	ASSERT_EQ(stx.stx_mnt_id, mnt_id);
+
+	EXPECT_EQ(close(fd_tree_base), 0);
+	EXPECT_EQ(close(fd_tree_subdir), 0);
+}
+
+TEST_F(mount_setattr, move_mount_detached_fail)
+{
+	int fd_tree_base = -EBADF, fd_tree_subdir = -EBADF;
+	struct statx stx;
+
+	fd_tree_base = sys_open_tree(-EBADF, "/mnt",
+				     AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				     OPEN_TREE_CLOEXEC | OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree_base, 0);
+
+	/* Attach the mount to the caller's mount namespace. */
+	ASSERT_EQ(move_mount(fd_tree_base, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
+
+	ASSERT_EQ(statx(fd_tree_base, "A", 0, 0, &stx), 0);
+	ASSERT_FALSE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	fd_tree_subdir = sys_open_tree(-EBADF, "/tmp/B",
+				       AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				       OPEN_TREE_CLOEXEC | OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree_subdir, 0);
+	ASSERT_EQ(statx(fd_tree_subdir, "BB", 0, 0, &stx), 0);
+	ASSERT_FALSE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	/* Not allowed to move an attached mount to a detached mount. */
+	ASSERT_NE(move_mount(fd_tree_base, "", fd_tree_subdir, "", MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH), 0);
+	ASSERT_EQ(errno, EINVAL);
+
+	EXPECT_EQ(close(fd_tree_base), 0);
+	EXPECT_EQ(close(fd_tree_subdir), 0);
+}
+
+TEST_F(mount_setattr, attach_detached_mount_then_umount_then_close)
+{
+	int fd_tree = -EBADF;
+	struct statx stx;
+
+	fd_tree = sys_open_tree(-EBADF, "/mnt",
+				AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree, 0);
+
+	ASSERT_EQ(statx(fd_tree, "A", 0, 0, &stx), 0);
+	/* We copied with AT_RECURSIVE so /mnt/A must be a mountpoint. */
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	/* Attach the mount to the caller's mount namespace. */
+	ASSERT_EQ(move_mount(fd_tree, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
+
+	ASSERT_EQ(statx(-EBADF, "/tmp/target1", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	ASSERT_EQ(umount2("/tmp/target1", MNT_DETACH), 0);
+
+	/*
+	 * This tests whether dissolve_on_fput() handles a NULL mount
+	 * namespace correctly, i.e., that it doesn't splat.
+	 */
+	EXPECT_EQ(close(fd_tree), 0);
+}
+
+TEST_F(mount_setattr, mount_detached1_onto_detached2_then_close_detached1_then_mount_detached2_onto_attached)
+{
+	int fd_tree1 = -EBADF, fd_tree2 = -EBADF;
+
+	/*
+	 * |-/mnt/A               testing tmpfs
+	 *   `-/mnt/A/AA          testing tmpfs
+	 *     `-/mnt/A/AA/B      testing tmpfs
+	 *       `-/mnt/A/AA/B/BB testing tmpfs
+	 */
+	fd_tree1 = sys_open_tree(-EBADF, "/mnt/A",
+				 AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				 AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				 OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree1, 0);
+
+	/*
+	 * `-/mnt/B testing ramfs
+	 */
+	fd_tree2 = sys_open_tree(-EBADF, "/mnt/B",
+				 AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				 AT_EMPTY_PATH | OPEN_TREE_CLOEXEC |
+				 OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree2, 0);
+
+	/*
+	 * Move the source detached mount tree to the target detached
+	 * mount tree. This will move all the mounts in the source mount
+	 * tree from the source anonymous mount namespace to the target
+	 * anonymous mount namespace.
+	 *
+	 * The source detached mount tree and the target detached mount
+	 * tree now both refer to the same anonymous mount namespace.
+	 *
+	 * |-""                 testing ramfs
+	 *   `-""               testing tmpfs
+	 *     `-""/AA          testing tmpfs
+	 *       `-""/AA/B      testing tmpfs
+	 *         `-""/AA/B/BB testing tmpfs
+	 */
+	ASSERT_EQ(move_mount(fd_tree1, "", fd_tree2, "", MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH), 0);
+
+	/*
+	 * The source detached mount tree @fd_tree1 is now an attached
+	 * mount, i.e., it has a parent. Specifically, it now has the
+	 * root mount of the mount tree of @fd_tree2 as its parent.
+	 *
+	 * That means we are no longer allowed to attach it as we only
+	 * allow attaching the root of an anonymous mount tree, not
+	 * random bits and pieces. Verify that the kernel enforces this.
+	 */
+	ASSERT_NE(move_mount(fd_tree1, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
+
+	/*
+	 * Closing the source detached mount tree must not unmount and
+	 * free the shared anonymous mount namespace. The kernel will
+	 * quickly yell at us because the anonymous mount namespace
+	 * won't be empty when it's freed.
+	 */
+	EXPECT_EQ(close(fd_tree1), 0);
+
+	/*
+	 * Attach the mount tree to a non-anonymous mount namespace.
+	 * This can only succeed if closing fd_tree1 had proper
+	 * semantics and didn't cause the anonymous mount namespace to
+	 * be freed. If it did this will trigger a UAF which will be
+	 * visible on any KASAN enabled kernel.
+	 *
+	 * |-/tmp/target1                 testing ramfs
+	 *   `-/tmp/target1               testing tmpfs
+	 *     `-/tmp/target1/AA          testing tmpfs
+	 *       `-/tmp/target1/AA/B      testing tmpfs
+	 *         `-/tmp/target1/AA/B/BB testing tmpfs
+	 */
+	ASSERT_EQ(move_mount(fd_tree2, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
+	EXPECT_EQ(close(fd_tree2), 0);
+}
+
+TEST_F(mount_setattr, two_detached_mounts_referring_to_same_anonymous_mount_namespace)
+{
+	int fd_tree1 = -EBADF, fd_tree2 = -EBADF;
+
+	/*
+	 * Copy the following mount tree:
+	 *
+	 * |-/mnt/A               testing tmpfs
+	 *   `-/mnt/A/AA          testing tmpfs
+	 *     `-/mnt/A/AA/B      testing tmpfs
+	 *       `-/mnt/A/AA/B/BB testing tmpfs
+	 */
+	fd_tree1 = sys_open_tree(-EBADF, "/mnt/A",
+				 AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				 AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				 OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree1, 0);
+
+	/*
+	 * Create an O_PATH file descriptors with a separate struct file
+	 * that refers to the same detached mount tree as @fd_tree1
+	 */
+	fd_tree2 = sys_open_tree(fd_tree1, "",
+				 AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				 AT_EMPTY_PATH | OPEN_TREE_CLOEXEC);
+	ASSERT_GE(fd_tree2, 0);
+
+	/*
+	 * Copy the following mount tree:
+	 *
+	 * |-/tmp/target1               testing tmpfs
+	 *   `-/tmp/target1/AA          testing tmpfs
+	 *     `-/tmp/target1/AA/B      testing tmpfs
+	 *       `-/tmp/target1/AA/B/BB testing tmpfs
+	 */
+	ASSERT_EQ(move_mount(fd_tree2, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
+
+	/*
+	 * This must fail as this would mean adding the same mount tree
+	 * into the same mount tree.
+	 */
+	ASSERT_NE(move_mount(fd_tree1, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
+}
+
+TEST_F(mount_setattr, two_detached_subtrees_of_same_anonymous_mount_namespace)
+{
+	int fd_tree1 = -EBADF, fd_tree2 = -EBADF;
+
+	/*
+	 * Copy the following mount tree:
+	 *
+	 * |-/mnt/A               testing tmpfs
+	 *   `-/mnt/A/AA          testing tmpfs
+	 *     `-/mnt/A/AA/B      testing tmpfs
+	 *       `-/mnt/A/AA/B/BB testing tmpfs
+	 */
+	fd_tree1 = sys_open_tree(-EBADF, "/mnt/A",
+				 AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				 AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				 OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree1, 0);
+
+	/*
+	 * Create an O_PATH file descriptors with a separate struct file that
+	 * refers to a subtree of the same detached mount tree as @fd_tree1
+	 */
+	fd_tree2 = sys_open_tree(fd_tree1, "AA",
+				 AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				 AT_EMPTY_PATH | OPEN_TREE_CLOEXEC);
+	ASSERT_GE(fd_tree2, 0);
+
+	/*
+	 * This must fail as it is only possible to attach the root of a
+	 * detached mount tree.
+	 */
+	ASSERT_NE(move_mount(fd_tree2, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
+
+	ASSERT_EQ(move_mount(fd_tree1, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
+}
+
+TEST_F(mount_setattr, detached_tree_propagation)
+{
+	int fd_tree = -EBADF;
+	struct statx stx1, stx2, stx3, stx4;
+
+	ASSERT_EQ(unshare(CLONE_NEWNS), 0);
+	ASSERT_EQ(mount(NULL, "/mnt", NULL, MS_REC | MS_SHARED, NULL), 0);
+
+	/*
+	 * Copy the following mount tree:
+	 *
+         * /mnt                   testing tmpfs
+         * |-/mnt/A               testing tmpfs
+         * | `-/mnt/A/AA          testing tmpfs
+         * |   `-/mnt/A/AA/B      testing tmpfs
+         * |     `-/mnt/A/AA/B/BB testing tmpfs
+         * `-/mnt/B               testing ramfs
+	 */
+	fd_tree = sys_open_tree(-EBADF, "/mnt",
+				 AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				 AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				 OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree, 0);
+
+	ASSERT_EQ(statx(-EBADF, "/mnt/A", 0, 0, &stx1), 0);
+	ASSERT_EQ(statx(fd_tree, "A", 0, 0, &stx2), 0);
+
+	/*
+	 * Copying the mount namespace like done above doesn't alter the
+	 * mounts in any way so the filesystem mounted on /mnt must be
+	 * identical even though the mounts will differ. Use the device
+	 * information to verify that. Note that tmpfs will have a 0
+	 * major number so comparing the major number is misleading.
+	 */
+	ASSERT_EQ(stx1.stx_dev_minor, stx2.stx_dev_minor);
+
+	/* Mount a tmpfs filesystem over /mnt/A. */
+	ASSERT_EQ(mount(NULL, "/mnt/A", "tmpfs", 0, NULL), 0);
+
+
+	ASSERT_EQ(statx(-EBADF, "/mnt/A", 0, 0, &stx3), 0);
+	ASSERT_EQ(statx(fd_tree, "A", 0, 0, &stx4), 0);
+
+	/*
+	 * A new filesystem has been mounted on top of /mnt/A which
+	 * means that the device information will be different for any
+	 * statx() that was taken from /mnt/A before the mount compared
+	 * to one after the mount.
+	 *
+	 * Since we already now that the device information between the
+	 * stx1 and stx2 samples are identical we also now that stx2 and
+	 * stx3 device information will necessarily differ.
+	 */
+	ASSERT_NE(stx1.stx_dev_minor, stx3.stx_dev_minor);
+
+	/*
+	 * If mount propagation worked correctly then the tmpfs mount
+	 * that was created after the mount namespace was unshared will
+	 * have propagated onto /mnt/A in the detached mount tree.
+	 *
+	 * Verify that the device information for stx3 and stx4 are
+	 * identical. It is already established that stx3 is different
+	 * from both stx1 and stx2 sampled before the tmpfs mount was
+	 * done so if stx3 and stx4 are identical the proof is done.
+	 */
+	ASSERT_EQ(stx3.stx_dev_minor, stx4.stx_dev_minor);
+
+	EXPECT_EQ(close(fd_tree), 0);
 }
 
 TEST_HARNESS_MAIN

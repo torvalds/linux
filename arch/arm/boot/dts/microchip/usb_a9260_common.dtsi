@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * usb_a926x.dts - Device Tree file for Caloa USB A926x board
+ * usb_a926x.dts - Device Tree file for Calao USB A926x board
  *
  *  Copyright (C) 2011-2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
  */
@@ -111,7 +111,7 @@
 			};
 		};
 
-		usb0: ohci@500000 {
+		usb0: usb@500000 {
 			num-ports = <2>;
 			status = "okay";
 		};
@@ -122,17 +122,14 @@
 
 		user_led {
 			label = "user_led";
-			gpios = <&pioB 21 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "heartbeat";
+			gpios = <&pioB 21 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		user_pb {
+		button-user-pb {
 			label = "user_pb";
 			gpios = <&pioB 10 GPIO_ACTIVE_LOW>;
 			linux,code = <28>;

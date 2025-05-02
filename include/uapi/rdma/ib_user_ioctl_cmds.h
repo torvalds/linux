@@ -88,6 +88,7 @@ enum uverbs_attrs_query_port_cmd_attr_ids {
 enum uverbs_attrs_get_context_attr_ids {
 	UVERBS_ATTR_GET_CONTEXT_NUM_COMP_VECTORS,
 	UVERBS_ATTR_GET_CONTEXT_CORE_SUPPORT,
+	UVERBS_ATTR_GET_CONTEXT_FD_ARR,
 };
 
 enum uverbs_attrs_query_context_attr_ids {

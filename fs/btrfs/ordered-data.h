@@ -17,6 +17,7 @@
 struct inode;
 struct page;
 struct extent_state;
+struct btrfs_block_group;
 struct btrfs_inode;
 struct btrfs_root;
 struct btrfs_fs_info;
@@ -191,7 +192,13 @@ void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
 			   struct btrfs_ordered_sum *sum);
 struct btrfs_ordered_extent *btrfs_lookup_ordered_extent(struct btrfs_inode *inode,
 							 u64 file_offset);
-void btrfs_start_ordered_extent(struct btrfs_ordered_extent *entry);
+void btrfs_start_ordered_extent_nowriteback(struct btrfs_ordered_extent *entry,
+				u64 nowriteback_start, u32 nowriteback_len);
+static inline void btrfs_start_ordered_extent(struct btrfs_ordered_extent *entry)
+{
+	return btrfs_start_ordered_extent_nowriteback(entry, 0, 0);
+}
+
 int btrfs_wait_ordered_range(struct btrfs_inode *inode, u64 start, u64 len);
 struct btrfs_ordered_extent *
 btrfs_lookup_first_ordered_extent(struct btrfs_inode *inode, u64 file_offset);

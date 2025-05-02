@@ -22,6 +22,7 @@
 #include <linux/hash.h>
 #include <linux/hashtable.h>
 #include <net/switchdev.h>
+#include <asm/machine.h>
 #include <asm/chsc.h>
 #include <asm/css_chars.h>
 #include <asm/setup.h>
@@ -299,7 +300,7 @@ static int qeth_l2_request_initial_mac(struct qeth_card *card)
 
 	QETH_CARD_TEXT(card, 2, "l2reqmac");
 
-	if (MACHINE_IS_VM) {
+	if (machine_is_vm()) {
 		rc = qeth_vm_request_mac(card);
 		if (!rc)
 			goto out;

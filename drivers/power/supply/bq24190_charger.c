@@ -2117,7 +2117,7 @@ static int bq24190_probe(struct i2c_client *client)
 #endif
 
 	charger_cfg.drv_data = bdi;
-	charger_cfg.of_node = dev->of_node;
+	charger_cfg.fwnode = dev_fwnode(dev);
 	charger_cfg.supplied_to = bq24190_charger_supplied_to;
 	charger_cfg.num_supplicants = ARRAY_SIZE(bq24190_charger_supplied_to);
 	bdi->charger = power_supply_register(dev, &bq24190_charger_desc,

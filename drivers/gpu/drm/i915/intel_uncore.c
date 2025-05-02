@@ -2103,8 +2103,7 @@ static int __fw_domain_init(struct intel_uncore *uncore,
 
 	d->mask = BIT(domain_id);
 
-	hrtimer_init(&d->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	d->timer.function = intel_uncore_fw_release_timer;
+	hrtimer_setup(&d->timer, intel_uncore_fw_release_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	uncore->fw_domains |= BIT(domain_id);
 
@@ -2477,7 +2476,7 @@ static int sanity_check_mmio_access(struct intel_uncore *uncore)
 
 	/*
 	 * Sanitycheck that MMIO access to the device is working properly.  If
-	 * the CPU is unable to communcate with a PCI device, BAR reads will
+	 * the CPU is unable to communicate with a PCI device, BAR reads will
 	 * return 0xFFFFFFFF.  Let's make sure the device isn't in this state
 	 * before we start trying to access registers.
 	 *

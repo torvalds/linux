@@ -147,7 +147,6 @@ struct v3d_dev {
 	struct v3d_render_job *render_job;
 	struct v3d_tfu_job *tfu_job;
 	struct v3d_csd_job *csd_job;
-	struct v3d_cpu_job *cpu_job;
 
 	struct v3d_queue_state queue[V3D_MAX_QUEUES];
 

@@ -416,3 +416,8 @@ void mlx5_hwmon_dev_unregister(struct mlx5_core_dev *mdev)
 	mlx5_hwmon_free(hwmon);
 	mdev->hwmon = NULL;
 }
+
+const char *hwmon_get_sensor_name(struct mlx5_hwmon *hwmon, int channel)
+{
+	return hwmon->temp_channel_desc[channel].sensor_name;
+}

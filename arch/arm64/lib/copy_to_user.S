@@ -51,6 +51,13 @@
 	user_stp 9997f, \reg1, \reg2, \ptr, \val
 	.endm
 
+	.macro cpy1 dst, src, count
+	.arch_extension mops
+	USER_CPY(9997f, 1, cpyfpwt [\dst]!, [\src]!, \count!)
+	USER_CPY(9996f, 1, cpyfmwt [\dst]!, [\src]!, \count!)
+	USER_CPY(9996f, 1, cpyfewt [\dst]!, [\src]!, \count!)
+	.endm
+
 end	.req	x5
 srcin	.req	x15
 SYM_FUNC_START(__arch_copy_to_user)
@@ -61,6 +68,9 @@ SYM_FUNC_START(__arch_copy_to_user)
 	ret
 
 	// Exception fixups
+9996:	b.cs	9997f
+	// Registers are in Option A format
+	add	dst, dst, count
 9997:	cmp	dst, dstin
 	b.ne	9998f
 	// Before being absolutely sure we couldn't copy anything, try harder

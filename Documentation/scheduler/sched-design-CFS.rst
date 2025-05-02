@@ -96,7 +96,7 @@ picked and the current task is preempted.
 CFS uses nanosecond granularity accounting and does not rely on any jiffies or
 other HZ detail.  Thus the CFS scheduler has no notion of "timeslices" in the
 way the previous scheduler had, and has no heuristics whatsoever.  There is
-only one central tunable (you have to switch on CONFIG_SCHED_DEBUG):
+only one central tunable:
 
    /sys/kernel/debug/sched/base_slice_ns
 

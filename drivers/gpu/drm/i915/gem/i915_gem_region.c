@@ -82,7 +82,7 @@ __i915_gem_object_create_region(struct intel_memory_region *mem,
 
 	/*
 	 * Anything smaller than the min_page_size can't be freely inserted into
-	 * the GTT, due to alignemnt restrictions. For such special objects,
+	 * the GTT, due to alignment restrictions. For such special objects,
 	 * make sure we force memcpy based suspend-resume. In the future we can
 	 * revisit this, either by allowing special mis-aligned objects in the
 	 * migration path, or by mapping all of LMEM upfront using cheap 1G

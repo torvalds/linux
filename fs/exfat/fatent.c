@@ -144,6 +144,20 @@ int exfat_chain_cont_cluster(struct super_block *sb, unsigned int chain,
 	return 0;
 }
 
+static inline void exfat_discard_cluster(struct super_block *sb,
+		unsigned int clu, unsigned int num_clusters)
+{
+	int ret;
+	struct exfat_sb_info *sbi = EXFAT_SB(sb);
+
+	ret = sb_issue_discard(sb, exfat_cluster_to_sector(sbi, clu),
+			sbi->sect_per_clus * num_clusters, GFP_NOFS, 0);
+	if (ret == -EOPNOTSUPP) {
+		exfat_err(sb, "discard not supported by device, disabling");
+		sbi->options.discard = 0;
+	}
+}
+
 /* This function must be called with bitmap_lock held */
 static int __exfat_free_cluster(struct inode *inode, struct exfat_chain *p_chain)
 {
@@ -196,7 +210,12 @@ static int __exfat_free_cluster(struct inode *inode, struct exfat_chain *p_chain
 			clu++;
 			num_clusters++;
 		} while (num_clusters < p_chain->size);
+
+		if (sbi->options.discard)
+			exfat_discard_cluster(sb, p_chain->dir, p_chain->size);
 	} else {
+		unsigned int nr_clu = 1;
+
 		do {
 			bool sync = false;
 			unsigned int n_clu = clu;
@@ -215,6 +234,16 @@ static int __exfat_free_cluster(struct inode *inode, struct exfat_chain *p_chain
 
 			if (exfat_clear_bitmap(inode, clu, (sync && IS_DIRSYNC(inode))))
 				break;
+
+			if (sbi->options.discard) {
+				if (n_clu == clu + 1)
+					nr_clu++;
+				else {
+					exfat_discard_cluster(sb, clu - nr_clu + 1, nr_clu);
+					nr_clu = 1;
+				}
+			}
+
 			clu = n_clu;
 			num_clusters++;
 
@@ -265,7 +294,7 @@ int exfat_find_last_cluster(struct super_block *sb, struct exfat_chain *p_chain,
 		clu = next;
 		if (exfat_ent_get(sb, clu, &next))
 			return -EIO;
-	} while (next != EXFAT_EOF_CLUSTER);
+	} while (next != EXFAT_EOF_CLUSTER && count <= p_chain->size);
 
 	if (p_chain->size != count) {
 		exfat_fs_error(sb,

@@ -1,0 +1,90 @@
+[
+    {
+        "ArchStdEvent": "BR_MIS_PRED",
+        "PublicDescription": "Counts branches which are speculatively executed and mispredicted."
+    },
+    {
+        "ArchStdEvent": "BR_PRED",
+        "PublicDescription": "Counts all speculatively executed branches."
+    },
+    {
+        "ArchStdEvent": "INST_SPEC",
+        "PublicDescription": "Counts operations that have been speculatively executed."
+    },
+    {
+        "ArchStdEvent": "OP_SPEC",
+        "PublicDescription": "Counts micro-operations speculatively executed. This is the count of the number of micro-operations dispatched in a cycle."
+    },
+    {
+        "ArchStdEvent": "STREX_FAIL_SPEC",
+        "PublicDescription": "Counts store-exclusive operations that have been speculatively executed and have not successfully completed the store operation."
+    },
+    {
+        "ArchStdEvent": "STREX_SPEC",
+        "PublicDescription": "Counts store-exclusive operations that have been speculatively executed."
+    },
+    {
+        "ArchStdEvent": "LD_SPEC",
+        "PublicDescription": "Counts speculatively executed load operations including Single Instruction Multiple Data (SIMD) load operations."
+    },
+    {
+        "ArchStdEvent": "ST_SPEC",
+        "PublicDescription": "Counts speculatively executed store operations including Single Instruction Multiple Data (SIMD) store operations."
+    },
+    {
+        "ArchStdEvent": "DP_SPEC",
+        "PublicDescription": "Counts speculatively executed logical or arithmetic instructions such as MOV/MVN operations."
+    },
+    {
+        "ArchStdEvent": "ASE_SPEC",
+        "PublicDescription": "Counts speculatively executed Advanced SIMD operations excluding load, store and move micro-operations that move data to or from SIMD (vector) registers."
+    },
+    {
+        "ArchStdEvent": "VFP_SPEC",
+        "PublicDescription": "Counts speculatively executed floating point operations. This event does not count operations that move data to or from floating point (vector) registers."
+    },
+    {
+        "ArchStdEvent": "PC_WRITE_SPEC",
+        "PublicDescription": "Counts speculatively executed operations which cause software changes of the PC. Those operations include all taken branch operations."
+    },
+    {
+        "ArchStdEvent": "CRYPTO_SPEC",
+        "PublicDescription": "Counts speculatively executed cryptographic operations except for PMULL and VMULL operations."
+    },
+    {
+        "ArchStdEvent": "ISB_SPEC",
+        "PublicDescription": "Counts ISB operations that are executed."
+    },
+    {
+        "ArchStdEvent": "DSB_SPEC",
+        "PublicDescription": "Counts DSB operations that are speculatively issued to Load/Store unit in the CPU."
+    },
+    {
+        "ArchStdEvent": "DMB_SPEC",
+        "PublicDescription": "Counts DMB operations that are speculatively issued to the Load/Store unit in the CPU. This event does not count implied barriers from load acquire/store release operations."
+    },
+    {
+        "ArchStdEvent": "RC_LD_SPEC",
+        "PublicDescription": "Counts any load acquire operations that are speculatively executed. For example: LDAR, LDARH, LDARB"
+    },
+    {
+        "ArchStdEvent": "RC_ST_SPEC",
+        "PublicDescription": "Counts any store release operations that are speculatively executed. For example: STLR, STLRH, STLRB"
+    },
+    {
+        "ArchStdEvent": "ASE_INST_SPEC",
+        "PublicDescription": "Counts speculatively executed Advanced SIMD operations."
+    },
+    {
+        "ArchStdEvent": "CAS_NEAR_PASS",
+        "PublicDescription": "Counts compare and swap instructions that executed locally to the PE and updated the location accessed."
+    },
+    {
+        "ArchStdEvent": "CAS_NEAR_SPEC",
+        "PublicDescription": "Counts compare and swap instructions that executed locally to the PE."
+    },
+    {
+        "ArchStdEvent": "CAS_FAR_SPEC",
+        "PublicDescription": "Counts compare and swap instructions that did not execute locally to the PE."
+    }
+]

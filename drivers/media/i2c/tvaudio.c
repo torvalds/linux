@@ -1787,7 +1787,7 @@ static int tvaudio_s_radio(struct v4l2_subdev *sd)
 	struct CHIPSTATE *chip = to_state(sd);
 
 	chip->radio = 1;
-	/* del_timer(&chip->wt); */
+	/* timer_delete(&chip->wt); */
 	return 0;
 }
 
@@ -2071,7 +2071,7 @@ static void tvaudio_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct CHIPSTATE *chip = to_state(sd);
 
-	del_timer_sync(&chip->wt);
+	timer_delete_sync(&chip->wt);
 	if (chip->thread) {
 		/* shutdown async thread */
 		kthread_stop(chip->thread);

@@ -1511,8 +1511,8 @@ static void update_eld(struct hda_codec *codec,
 
 	if (eld->eld_valid) {
 		if (eld->eld_size <= 0 ||
-		    snd_hdmi_parse_eld(codec, &eld->info, eld->eld_buffer,
-				       eld->eld_size) < 0) {
+		    snd_parse_eld(hda_codec_dev(codec), &eld->info,
+				  eld->eld_buffer, eld->eld_size) < 0) {
 			eld->eld_valid = false;
 			if (repoll) {
 				schedule_delayed_work(&per_pin->work,
@@ -1555,7 +1555,7 @@ static void update_eld(struct hda_codec *codec,
 		pcm_jack = pin_idx_to_pcm_jack(codec, per_pin);
 
 	if (eld->eld_valid)
-		snd_hdmi_show_eld(codec, &eld->info);
+		snd_show_eld(hda_codec_dev(codec), &eld->info);
 
 	eld_changed = (pin_eld->eld_valid != eld->eld_valid);
 	eld_changed |= (pin_eld->monitor_present != eld->monitor_present);

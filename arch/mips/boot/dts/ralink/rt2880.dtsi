@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <dt-bindings/clock/mediatek,mtmips-sysc.h>
+
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -25,9 +27,11 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		sysc@0 {
-			compatible = "ralink,rt2880-sysc";
+		sysc: syscon@0 {
+			compatible = "ralink,rt2880-sysc", "syscon";
 			reg = <0x0 0x100>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
 		};
 
 		intc: intc@200 {
@@ -49,6 +53,8 @@
 		uartlite@c00 {
 			compatible = "ralink,rt2880-uart", "ns16550a";
 			reg = <0xc00 0x100>;
+
+			clocks = <&sysc RT2880_CLK_UARTLITE>;
 
 			interrupt-parent = <&intc>;
 			interrupts = <8>;

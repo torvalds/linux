@@ -1,8 +1,5 @@
-fbdev@eof,Fail
-fbdev@read,Fail
 kms_3d,Fail
 kms_bw@connected-linear-tiling-1-displays-1920x1080p,Fail
-kms_bw@connected-linear-tiling-1-displays-2160x1440p,Fail
 kms_bw@connected-linear-tiling-1-displays-2560x1440p,Fail
 kms_bw@connected-linear-tiling-1-displays-3840x2160p,Fail
 kms_bw@connected-linear-tiling-2-displays-1920x1080p,Fail
@@ -22,6 +19,6 @@ kms_cursor_legacy@cursor-vs-flip-atomic,Fail
 kms_cursor_legacy@cursor-vs-flip-legacy,Fail
 kms_flip@flip-vs-modeset-vs-hang,Fail
 kms_flip@flip-vs-panning-vs-hang,Fail
-kms_lease@lease-uevent,Fail
-kms_rmfb@close-fd,Fail
+kms_flip@flip-vs-suspend,Fail
 kms_flip@flip-vs-suspend-interruptible,Fail
+kms_lease@lease-uevent,Fail

@@ -609,6 +609,7 @@ struct amdgpu_i2c_adapter {
 	struct i2c_adapter base;
 
 	struct ddc_service *ddc_service;
+	bool oem;
 };
 
 #define TO_DM_AUX(x) container_of((x), struct amdgpu_dm_dp_aux, aux)

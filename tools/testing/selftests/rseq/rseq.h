@@ -160,6 +160,11 @@ int32_t rseq_fallback_current_cpu(void);
 int32_t rseq_fallback_current_node(void);
 
 /*
+ * Returns true if rseq is supported.
+ */
+bool rseq_available(void);
+
+/*
  * Values returned can be either the current CPU number, -1 (rseq is
  * uninitialized), or -2 (rseq initialization has failed).
  */

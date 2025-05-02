@@ -1064,8 +1064,8 @@ static int cn10k_ddr_perf_probe(struct platform_device *pdev)
 	if (!name)
 		return -ENOMEM;
 
-	hrtimer_init(&ddr_pmu->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	ddr_pmu->hrtimer.function = cn10k_ddr_pmu_timer_handler;
+	hrtimer_setup(&ddr_pmu->hrtimer, cn10k_ddr_pmu_timer_handler, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 
 	cpuhp_state_add_instance_nocalls(
 				CPUHP_AP_PERF_ARM_MARVELL_CN10K_DDR_ONLINE,

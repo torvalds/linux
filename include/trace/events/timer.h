@@ -185,12 +185,12 @@ TRACE_EVENT(timer_base_idle,
 		{ HRTIMER_MODE_REL_PINNED_HARD,	"REL|PINNED|HARD" })
 
 /**
- * hrtimer_init - called when the hrtimer is initialized
+ * hrtimer_setup - called when the hrtimer is initialized
  * @hrtimer:	pointer to struct hrtimer
  * @clockid:	the hrtimers clock
  * @mode:	the hrtimers mode
  */
-TRACE_EVENT(hrtimer_init,
+TRACE_EVENT(hrtimer_setup,
 
 	TP_PROTO(struct hrtimer *hrtimer, clockid_t clockid,
 		 enum hrtimer_mode mode),
@@ -235,7 +235,7 @@ TRACE_EVENT(hrtimer_start,
 
 	TP_fast_assign(
 		__entry->hrtimer	= hrtimer;
-		__entry->function	= hrtimer->function;
+		__entry->function	= ACCESS_PRIVATE(hrtimer, function);
 		__entry->expires	= hrtimer_get_expires(hrtimer);
 		__entry->softexpires	= hrtimer_get_softexpires(hrtimer);
 		__entry->mode		= mode;
@@ -271,7 +271,7 @@ TRACE_EVENT(hrtimer_expire_entry,
 	TP_fast_assign(
 		__entry->hrtimer	= hrtimer;
 		__entry->now		= *now;
-		__entry->function	= hrtimer->function;
+		__entry->function	= ACCESS_PRIVATE(hrtimer, function);
 	),
 
 	TP_printk("hrtimer=%p function=%ps now=%llu",

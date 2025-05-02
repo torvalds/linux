@@ -9,7 +9,7 @@ from sphinx.util.osutil import fs_encoding
 def loadConfig(namespace):
 # ------------------------------------------------------------------------------
 
-    u"""Load an additional configuration file into *namespace*.
+    """Load an additional configuration file into *namespace*.
 
     The name of the configuration file is taken from the environment
     ``SPHINX_CONF``. The external configuration file extends (or overwrites) the

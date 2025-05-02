@@ -215,8 +215,6 @@ spu_disable_spu (struct spu_context *ctx)
  * and only intended to be used by the platform setup code.
  */
 
-extern const struct spu_priv1_ops spu_priv1_mmio_ops;
-
 extern const struct spu_management_ops spu_management_of_ops;
 
 #endif /* __KERNEL__ */

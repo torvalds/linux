@@ -18,7 +18,7 @@
 
 void perf_pmu__arch_init(struct perf_pmu *pmu)
 {
-	struct perf_cpu_map *intersect;
+	struct perf_cpu_map *intersect, *online = cpu_map__online();
 
 #ifdef HAVE_AUXTRACE_SUPPORT
 	if (!strcmp(pmu->name, CORESIGHT_ETM_PMU_NAME)) {
@@ -41,7 +41,8 @@ void perf_pmu__arch_init(struct perf_pmu *pmu)
 	}
 #endif
 	/* Workaround some ARM PMU's failing to correctly set CPU maps for online processors. */
-	intersect = perf_cpu_map__intersect(cpu_map__online(), pmu->cpus);
+	intersect = perf_cpu_map__intersect(online, pmu->cpus);
+	perf_cpu_map__put(online);
 	perf_cpu_map__put(pmu->cpus);
 	pmu->cpus = intersect;
 }

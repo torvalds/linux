@@ -1575,7 +1575,7 @@ void sdma_exit(struct hfi1_devdata *dd)
 				   sde->this_idx);
 		sdma_process_event(sde, sdma_event_e00_go_hw_down);
 
-		del_timer_sync(&sde->err_progress_check_timer);
+		timer_delete_sync(&sde->err_progress_check_timer);
 
 		/*
 		 * This waits for the state machine to exit so it is not

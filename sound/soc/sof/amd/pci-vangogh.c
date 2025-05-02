@@ -25,7 +25,6 @@
 
 static const struct sof_amd_acp_desc vangogh_chip_info = {
 	.name		= "vangogh",
-	.host_bridge_id = HOST_BRIDGE_VGH,
 	.pgfsm_base	= ACP5X_PGFSM_BASE,
 	.ext_intr_stat	= ACP5X_EXT_INTR_STAT,
 	.dsp_intr_base	= ACP5X_DSP_SW_INTR_BASE,
@@ -91,7 +90,7 @@ static struct pci_driver snd_sof_pci_amd_vgh_driver = {
 	.probe = acp_pci_vgh_probe,
 	.remove = acp_pci_vgh_remove,
 	.driver = {
-		.pm = &sof_pci_pm,
+		.pm = pm_ptr(&sof_pci_pm),
 	},
 };
 module_pci_driver(snd_sof_pci_amd_vgh_driver);

@@ -122,14 +122,15 @@ static int afs_proc_cells_write(struct file *file, char *buf, size_t size)
 	if (strcmp(buf, "add") == 0) {
 		struct afs_cell *cell;
 
-		cell = afs_lookup_cell(net, name, strlen(name), args, true);
+		cell = afs_lookup_cell(net, name, strlen(name), args, true,
+				       afs_cell_trace_use_lookup_add);
 		if (IS_ERR(cell)) {
 			ret = PTR_ERR(cell);
 			goto done;
 		}
 
 		if (test_and_set_bit(AFS_CELL_FL_NO_GC, &cell->flags))
-			afs_unuse_cell(net, cell, afs_cell_trace_unuse_no_pin);
+			afs_unuse_cell(cell, afs_cell_trace_unuse_no_pin);
 	} else {
 		goto inval;
 	}
@@ -443,8 +444,6 @@ static int afs_proc_servers_show(struct seq_file *m, void *v)
 	}
 
 	server = list_entry(v, struct afs_server, proc_link);
-	estate = rcu_dereference(server->endpoint_state);
-	alist = estate->addresses;
 	seq_printf(m, "%pU %3d %3d %s\n",
 		   &server->uuid,
 		   refcount_read(&server->ref),
@@ -454,10 +453,16 @@ static int afs_proc_servers_show(struct seq_file *m, void *v)
 		   server->flags, server->rtt);
 	seq_printf(m, "  - probe: last=%d\n",
 		   (int)(jiffies - server->probed_at) / HZ);
+
+	estate = rcu_dereference(server->endpoint_state);
+	if (!estate)
+		goto out;
 	failed = estate->failed_set;
 	seq_printf(m, "  - ESTATE pq=%x np=%u rsp=%lx f=%lx\n",
 		   estate->probe_seq, atomic_read(&estate->nr_probing),
 		   estate->responsive_set, estate->failed_set);
+
+	alist = estate->addresses;
 	seq_printf(m, "  - ALIST v=%u ap=%u\n",
 		   alist->version, alist->addr_pref_version);
 	for (i = 0; i < alist->nr_addrs; i++) {
@@ -470,6 +475,8 @@ static int afs_proc_servers_show(struct seq_file *m, void *v)
 			   rxrpc_kernel_get_srtt(addr->peer),
 			   addr->last_error, addr->prio);
 	}
+
+out:
 	return 0;
 }
 

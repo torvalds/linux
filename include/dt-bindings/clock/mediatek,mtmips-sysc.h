@@ -1,0 +1,130 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
+/*
+ * Author: Sergio Paracuellos <sergio.paracuellos@gmail.com>
+ */
+
+#ifndef _DT_BINDINGS_CLK_MTMIPS_H
+#define _DT_BINDINGS_CLK_MTMIPS_H
+
+/* Ralink RT-2880 clocks */
+
+#define RT2880_CLK_XTAL		0
+#define RT2880_CLK_CPU		1
+#define RT2880_CLK_BUS		2
+#define RT2880_CLK_TIMER	3
+#define RT2880_CLK_WATCHDOG	4
+#define RT2880_CLK_UART		5
+#define RT2880_CLK_I2C		6
+#define RT2880_CLK_UARTLITE	7
+#define RT2880_CLK_ETHERNET	8
+#define RT2880_CLK_WMAC		9
+
+/* Ralink RT-305X clocks */
+
+#define RT305X_CLK_XTAL		0
+#define RT305X_CLK_CPU		1
+#define RT305X_CLK_BUS		2
+#define RT305X_CLK_TIMER	3
+#define RT305X_CLK_WATCHDOG	4
+#define RT305X_CLK_UART		5
+#define RT305X_CLK_I2C		6
+#define RT305X_CLK_I2S		7
+#define RT305X_CLK_SPI1		8
+#define RT305X_CLK_SPI2		9
+#define RT305X_CLK_UARTLITE	10
+#define RT305X_CLK_ETHERNET	11
+#define RT305X_CLK_WMAC		12
+
+/* Ralink RT-3352 clocks */
+
+#define RT3352_CLK_XTAL		0
+#define RT3352_CLK_CPU		1
+#define RT3352_CLK_PERIPH	2
+#define RT3352_CLK_BUS		3
+#define RT3352_CLK_TIMER	4
+#define RT3352_CLK_WATCHDOG	5
+#define RT3352_CLK_UART		6
+#define RT3352_CLK_I2C		7
+#define RT3352_CLK_I2S		8
+#define RT3352_CLK_SPI1		9
+#define RT3352_CLK_SPI2		10
+#define RT3352_CLK_UARTLITE	11
+#define RT3352_CLK_ETHERNET	12
+#define RT3352_CLK_WMAC		13
+
+/* Ralink RT-3883 clocks */
+
+#define RT3883_CLK_XTAL		0
+#define RT3883_CLK_CPU		1
+#define RT3883_CLK_BUS		2
+#define RT3883_CLK_PERIPH	3
+#define RT3883_CLK_TIMER	4
+#define RT3883_CLK_WATCHDOG	5
+#define RT3883_CLK_UART		6
+#define RT3883_CLK_I2C		7
+#define RT3883_CLK_I2S		8
+#define RT3883_CLK_SPI1		9
+#define RT3883_CLK_SPI2		10
+#define RT3883_CLK_UARTLITE	11
+#define RT3883_CLK_ETHERNET	12
+#define RT3883_CLK_WMAC		13
+
+/* Ralink RT-5350 clocks */
+
+#define RT5350_CLK_XTAL		0
+#define RT5350_CLK_CPU		1
+#define RT5350_CLK_BUS		2
+#define RT5350_CLK_PERIPH	3
+#define RT5350_CLK_TIMER	4
+#define RT5350_CLK_WATCHDOG	5
+#define RT5350_CLK_UART		6
+#define RT5350_CLK_I2C		7
+#define RT5350_CLK_I2S		8
+#define RT5350_CLK_SPI1		9
+#define RT5350_CLK_SPI2		10
+#define RT5350_CLK_UARTLITE	11
+#define RT5350_CLK_ETHERNET	12
+#define RT5350_CLK_WMAC		13
+
+/* Ralink MT-7620 clocks */
+
+#define MT7620_CLK_XTAL		0
+#define MT7620_CLK_PLL		1
+#define MT7620_CLK_CPU		2
+#define MT7620_CLK_PERIPH	3
+#define MT7620_CLK_BUS		4
+#define MT7620_CLK_BBPPLL	5
+#define MT7620_CLK_SDHC		6
+#define MT7620_CLK_TIMER	7
+#define MT7620_CLK_WATCHDOG	8
+#define MT7620_CLK_UART		9
+#define MT7620_CLK_I2C		10
+#define MT7620_CLK_I2S		11
+#define MT7620_CLK_SPI1		12
+#define MT7620_CLK_SPI2		13
+#define MT7620_CLK_UARTLITE	14
+#define MT7620_CLK_MMC		15
+#define MT7620_CLK_WMAC		16
+
+/* Ralink MT-76X8 clocks */
+
+#define MT76X8_CLK_XTAL		0
+#define MT76X8_CLK_CPU		1
+#define MT76X8_CLK_BBPPLL	2
+#define MT76X8_CLK_PCMI2S	3
+#define MT76X8_CLK_PERIPH	4
+#define MT76X8_CLK_BUS		5
+#define MT76X8_CLK_SDHC		6
+#define MT76X8_CLK_TIMER	7
+#define MT76X8_CLK_WATCHDOG	8
+#define MT76X8_CLK_I2C		9
+#define MT76X8_CLK_I2S		10
+#define MT76X8_CLK_SPI1		11
+#define MT76X8_CLK_SPI2		12
+#define MT76X8_CLK_UART0	13
+#define MT76X8_CLK_UART1	14
+#define MT76X8_CLK_UART2	15
+#define MT76X8_CLK_MMC		16
+#define MT76X8_CLK_WMAC		17
+
+#endif /* _DT_BINDINGS_CLK_MTMIPS_H */

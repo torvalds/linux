@@ -70,4 +70,10 @@
 #define __counted_by_be(m)
 #endif
 
+#ifdef __KERNEL__
+#define __kernel_nonstring	__nonstring
+#else
+#define __kernel_nonstring
+#endif
+
 #endif /* _UAPI_LINUX_STDDEF_H */

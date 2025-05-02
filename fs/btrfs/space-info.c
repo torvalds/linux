@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include "linux/spinlock.h"
+#include <linux/spinlock.h>
 #include <linux/minmax.h>
 #include "misc.h"
 #include "ctree.h"

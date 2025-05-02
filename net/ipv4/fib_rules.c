@@ -37,6 +37,7 @@ struct fib4_rule {
 	u8			dst_len;
 	u8			src_len;
 	dscp_t			dscp;
+	dscp_t			dscp_mask;
 	u8			dscp_full:1;	/* DSCP or TOS selector */
 	__be32			src;
 	__be32			srcmask;
@@ -192,7 +193,8 @@ INDIRECT_CALLABLE_SCOPE int fib4_rule_match(struct fib_rule *rule,
 	 * to mask the upper three DSCP bits prior to matching to maintain
 	 * legacy behavior.
 	 */
-	if (r->dscp_full && r->dscp != inet_dsfield_to_dscp(fl4->flowi4_tos))
+	if (r->dscp_full &&
+	    (r->dscp ^ inet_dsfield_to_dscp(fl4->flowi4_tos)) & r->dscp_mask)
 		return 0;
 	else if (!r->dscp_full && r->dscp &&
 		 !fib_dscp_masked_match(r->dscp, fl4))
@@ -201,12 +203,12 @@ INDIRECT_CALLABLE_SCOPE int fib4_rule_match(struct fib_rule *rule,
 	if (rule->ip_proto && (rule->ip_proto != fl4->flowi4_proto))
 		return 0;
 
-	if (fib_rule_port_range_set(&rule->sport_range) &&
-	    !fib_rule_port_inrange(&rule->sport_range, fl4->fl4_sport))
+	if (!fib_rule_port_match(&rule->sport_range, rule->sport_mask,
+				 fl4->fl4_sport))
 		return 0;
 
-	if (fib_rule_port_range_set(&rule->dport_range) &&
-	    !fib_rule_port_inrange(&rule->dport_range, fl4->fl4_dport))
+	if (!fib_rule_port_match(&rule->dport_range, rule->dport_mask,
+				 fl4->fl4_dport))
 		return 0;
 
 	return 1;
@@ -235,7 +237,31 @@ static int fib4_nl2rule_dscp(const struct nlattr *nla, struct fib4_rule *rule4,
 	}
 
 	rule4->dscp = inet_dsfield_to_dscp(nla_get_u8(nla) << 2);
+	rule4->dscp_mask = inet_dsfield_to_dscp(INET_DSCP_MASK);
 	rule4->dscp_full = true;
+
+	return 0;
+}
+
+static int fib4_nl2rule_dscp_mask(const struct nlattr *nla,
+				  struct fib4_rule *rule4,
+				  struct netlink_ext_ack *extack)
+{
+	dscp_t dscp_mask;
+
+	if (!rule4->dscp_full) {
+		NL_SET_ERR_MSG_ATTR(extack, nla,
+				    "Cannot specify DSCP mask without DSCP value");
+		return -EINVAL;
+	}
+
+	dscp_mask = inet_dsfield_to_dscp(nla_get_u8(nla) << 2);
+	if (rule4->dscp & ~dscp_mask) {
+		NL_SET_ERR_MSG_ATTR(extack, nla, "Invalid DSCP mask");
+		return -EINVAL;
+	}
+
+	rule4->dscp_mask = dscp_mask;
 
 	return 0;
 }
@@ -245,9 +271,9 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 			       struct nlattr **tb,
 			       struct netlink_ext_ack *extack)
 {
-	struct net *net = sock_net(skb->sk);
+	struct fib4_rule *rule4 = (struct fib4_rule *)rule;
+	struct net *net = rule->fr_net;
 	int err = -EINVAL;
-	struct fib4_rule *rule4 = (struct fib4_rule *) rule;
 
 	if (tb[FRA_FLOWLABEL] || tb[FRA_FLOWLABEL_MASK]) {
 		NL_SET_ERR_MSG(extack,
@@ -269,6 +295,10 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 
 	if (tb[FRA_DSCP] &&
 	    fib4_nl2rule_dscp(tb[FRA_DSCP], rule4, extack) < 0)
+		goto errout;
+
+	if (tb[FRA_DSCP_MASK] &&
+	    fib4_nl2rule_dscp_mask(tb[FRA_DSCP_MASK], rule4, extack) < 0)
 		goto errout;
 
 	/* split local/main if they are not already split */
@@ -366,6 +396,14 @@ static int fib4_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 			return 0;
 	}
 
+	if (tb[FRA_DSCP_MASK]) {
+		dscp_t dscp_mask;
+
+		dscp_mask = inet_dsfield_to_dscp(nla_get_u8(tb[FRA_DSCP_MASK]) << 2);
+		if (!rule4->dscp_full || rule4->dscp_mask != dscp_mask)
+			return 0;
+	}
+
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	if (tb[FRA_FLOW] && (rule4->tclassid != nla_get_u32(tb[FRA_FLOW])))
 		return 0;
@@ -391,7 +429,9 @@ static int fib4_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 	if (rule4->dscp_full) {
 		frh->tos = 0;
 		if (nla_put_u8(skb, FRA_DSCP,
-			       inet_dscp_to_dsfield(rule4->dscp) >> 2))
+			       inet_dscp_to_dsfield(rule4->dscp) >> 2) ||
+		    nla_put_u8(skb, FRA_DSCP_MASK,
+			       inet_dscp_to_dsfield(rule4->dscp_mask) >> 2))
 			goto nla_put_failure;
 	} else {
 		frh->tos = inet_dscp_to_dsfield(rule4->dscp);
@@ -418,7 +458,8 @@ static size_t fib4_rule_nlmsg_payload(struct fib_rule *rule)
 	return nla_total_size(4) /* dst */
 	       + nla_total_size(4) /* src */
 	       + nla_total_size(4) /* flow */
-	       + nla_total_size(1); /* dscp */
+	       + nla_total_size(1) /* dscp */
+	       + nla_total_size(1); /* dscp mask */
 }
 
 static void fib4_rule_flush_cache(struct fib_rules_ops *ops)

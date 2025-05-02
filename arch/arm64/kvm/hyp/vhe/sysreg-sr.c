@@ -87,11 +87,12 @@ static void __sysreg_restore_vel2_state(struct kvm_vcpu *vcpu)
 	write_sysreg(__vcpu_sys_reg(vcpu, PAR_EL1),	par_el1);
 	write_sysreg(__vcpu_sys_reg(vcpu, TPIDR_EL1),	tpidr_el1);
 
-	write_sysreg(__vcpu_sys_reg(vcpu, MPIDR_EL1),		vmpidr_el2);
-	write_sysreg_el1(__vcpu_sys_reg(vcpu, MAIR_EL2),	SYS_MAIR);
-	write_sysreg_el1(__vcpu_sys_reg(vcpu, VBAR_EL2),	SYS_VBAR);
-	write_sysreg_el1(__vcpu_sys_reg(vcpu, CONTEXTIDR_EL2),	SYS_CONTEXTIDR);
-	write_sysreg_el1(__vcpu_sys_reg(vcpu, AMAIR_EL2),	SYS_AMAIR);
+	write_sysreg(ctxt_midr_el1(&vcpu->arch.ctxt),			vpidr_el2);
+	write_sysreg(__vcpu_sys_reg(vcpu, MPIDR_EL1),			vmpidr_el2);
+	write_sysreg_el1(__vcpu_sys_reg(vcpu, MAIR_EL2),		SYS_MAIR);
+	write_sysreg_el1(__vcpu_sys_reg(vcpu, VBAR_EL2),		SYS_VBAR);
+	write_sysreg_el1(__vcpu_sys_reg(vcpu, CONTEXTIDR_EL2),		SYS_CONTEXTIDR);
+	write_sysreg_el1(__vcpu_sys_reg(vcpu, AMAIR_EL2),		SYS_AMAIR);
 
 	if (vcpu_el2_e2h_is_set(vcpu)) {
 		/*
@@ -191,7 +192,7 @@ void __vcpu_load_switch_sysregs(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpu_context *guest_ctxt = &vcpu->arch.ctxt;
 	struct kvm_cpu_context *host_ctxt;
-	u64 mpidr;
+	u64 midr, mpidr;
 
 	host_ctxt = host_data_ptr(host_ctxt);
 	__sysreg_save_user_state(host_ctxt);
@@ -221,22 +222,17 @@ void __vcpu_load_switch_sysregs(struct kvm_vcpu *vcpu)
 	} else {
 		if (vcpu_has_nv(vcpu)) {
 			/*
-			 * Use the guest hypervisor's VPIDR_EL2 when in a
-			 * nested state. The hardware value of MIDR_EL1 gets
-			 * restored on put.
-			 */
-			write_sysreg(ctxt_sys_reg(guest_ctxt, VPIDR_EL2), vpidr_el2);
-
-			/*
 			 * As we're restoring a nested guest, set the value
 			 * provided by the guest hypervisor.
 			 */
+			midr = ctxt_sys_reg(guest_ctxt, VPIDR_EL2);
 			mpidr = ctxt_sys_reg(guest_ctxt, VMPIDR_EL2);
 		} else {
+			midr = ctxt_midr_el1(guest_ctxt);
 			mpidr = ctxt_sys_reg(guest_ctxt, MPIDR_EL1);
 		}
 
-		__sysreg_restore_el1_state(guest_ctxt, mpidr);
+		__sysreg_restore_el1_state(guest_ctxt, midr, mpidr);
 	}
 
 	vcpu_set_flag(vcpu, SYSREGS_ON_CPU);
@@ -270,10 +266,6 @@ void __vcpu_put_switch_sysregs(struct kvm_vcpu *vcpu)
 
 	/* Restore host user state */
 	__sysreg_restore_user_state(host_ctxt);
-
-	/* If leaving a nesting guest, restore MIDR_EL1 default view */
-	if (vcpu_has_nv(vcpu))
-		write_sysreg(read_cpuid_id(),	vpidr_el2);
 
 	vcpu_clear_flag(vcpu, SYSREGS_ON_CPU);
 }

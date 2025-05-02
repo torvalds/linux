@@ -11,6 +11,8 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	/include/ "amd-seattle-clks.dtsi"
+
 	gic0: interrupt-controller@e1101000 {
 		compatible = "arm,gic-400", "arm,cortex-a15-gic";
 		interrupt-controller;
@@ -38,7 +40,7 @@
 			     <1 10 0xff04>;
 	};
 
-	smb0: smb {
+	smb0: bus {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -50,8 +52,6 @@
 		 * - DRAM range [0x8000000000 to 0xffffffffff]
 		 */
 		dma-ranges = <0x0 0x0 0x0 0x0 0x100 0x0>;
-
-		/include/ "amd-seattle-clks.dtsi"
 
 		sata0: sata@e0300000 {
 			compatible = "snps,dwc-ahci";
@@ -121,7 +121,6 @@
 			status = "disabled";
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0 0xe1020000 0 0x1000>;
-			spi-controller;
 			interrupts = <0 330 4>;
 			clocks = <&uartspiclk_100mhz>, <&uartspiclk_100mhz>;
 			clock-names = "sspclk", "apb_pclk";
@@ -131,7 +130,6 @@
 			status = "disabled";
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0 0xe1030000 0 0x1000>;
-			spi-controller;
 			interrupts = <0 329 4>;
 			clocks = <&uartspiclk_100mhz>, <&uartspiclk_100mhz>;
 			clock-names = "sspclk", "apb_pclk";

@@ -273,6 +273,13 @@ xchk_inode_cowextsize(
 	xfs_failaddr_t		fa;
 	uint32_t		value = be32_to_cpu(dip->di_cowextsize);
 
+	/*
+	 * The used block counter for rtrmap is checked and repaired elsewhere.
+	 */
+	if (xfs_has_zoned(sc->mp) &&
+	    dip->di_metatype == cpu_to_be16(XFS_METAFILE_RTRMAP))
+		return;
+
 	fa = xfs_inode_validate_cowextsize(sc->mp, value, mode, flags, flags2);
 	if (fa)
 		xchk_ino_set_corrupt(sc, ino);

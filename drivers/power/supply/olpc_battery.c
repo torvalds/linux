@@ -674,7 +674,7 @@ static int olpc_battery_probe(struct platform_device *pdev)
 
 	/* Ignore the status. It doesn't actually matter */
 
-	ac_psy_cfg.of_node = pdev->dev.of_node;
+	ac_psy_cfg.fwnode = dev_fwnode(&pdev->dev);
 	ac_psy_cfg.drv_data = data;
 
 	data->olpc_ac = devm_power_supply_register(&pdev->dev, &olpc_ac_desc,
@@ -692,7 +692,7 @@ static int olpc_battery_probe(struct platform_device *pdev)
 		olpc_bat_desc.num_properties = ARRAY_SIZE(olpc_xo1_bat_props);
 	}
 
-	bat_psy_cfg.of_node = pdev->dev.of_node;
+	bat_psy_cfg.fwnode = dev_fwnode(&pdev->dev);
 	bat_psy_cfg.drv_data = data;
 	bat_psy_cfg.attr_grp = olpc_bat_sysfs_groups;
 

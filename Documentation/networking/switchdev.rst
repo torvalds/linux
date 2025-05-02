@@ -137,7 +137,7 @@ would be sub-port 0 on port 1 on switch 1.
 Port Features
 ^^^^^^^^^^^^^
 
-dev->netns_local
+dev->netns_immutable
 
 If the switchdev driver (and device) only supports offloading of the default
 network namespace (netns), the driver should set this private flag to prevent

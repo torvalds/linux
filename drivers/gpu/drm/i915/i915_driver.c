@@ -41,12 +41,13 @@
 #include <linux/vt.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_client.h>
+#include <drm/drm_client_event.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_probe_helper.h>
 
 #include "display/i9xx_display_sr.h"
-#include "display/intel_acpi.h"
 #include "display/intel_bw.h"
 #include "display/intel_cdclk.h"
 #include "display/intel_crtc.h"
@@ -201,7 +202,7 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
 
 static void sanitize_gpu(struct drm_i915_private *i915)
 {
-	if (!INTEL_INFO(i915)->gpu_reset_clobbers_display) {
+	if (!intel_gt_gpu_reset_clobbers_display(to_gt(i915))) {
 		struct intel_gt *gt;
 		unsigned int i;
 
@@ -657,8 +658,6 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	intel_power_domains_enable(display);
 	intel_runtime_pm_enable(&dev_priv->runtime_pm);
 
-	intel_register_dsm_handler();
-
 	if (i915_switcheroo_register(dev_priv))
 		drm_err(&dev_priv->drm, "Failed to register vga switcheroo!\n");
 }
@@ -674,8 +673,6 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 	unsigned int i;
 
 	i915_switcheroo_unregister(dev_priv);
-
-	intel_unregister_dsm_handler();
 
 	intel_runtime_pm_disable(&dev_priv->runtime_pm);
 	intel_power_domains_disable(display);
@@ -973,7 +970,7 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 	intel_runtime_pm_disable(&i915->runtime_pm);
 	intel_power_domains_disable(display);
 
-	intel_fbdev_set_suspend(&i915->drm, FBINFO_STATE_SUSPENDED, true);
+	drm_client_dev_suspend(&i915->drm, false);
 	if (HAS_DISPLAY(i915)) {
 		drm_kms_helper_poll_disable(&i915->drm);
 		intel_display_driver_disable_user_access(display);
@@ -1056,7 +1053,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	/* We do a lot of poking in a lot of registers, make sure they work
 	 * properly. */
 	intel_power_domains_disable(display);
-	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED, true);
+	drm_client_dev_suspend(dev, false);
 	if (HAS_DISPLAY(dev_priv)) {
 		drm_kms_helper_poll_disable(dev);
 		intel_display_driver_disable_user_access(display);
@@ -1075,7 +1072,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	intel_encoder_suspend_all(&dev_priv->display);
 
 	/* Must be called before GGTT is suspended. */
-	intel_dpt_suspend(dev_priv);
+	intel_dpt_suspend(display);
 	i915_ggtt_suspend(to_gt(dev_priv)->ggtt);
 
 	i9xx_display_sr_save(display);
@@ -1130,7 +1127,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 	 * leave the device in D0 on those platforms and hope the BIOS will
 	 * power down the device properly. The issue was seen on multiple old
 	 * GENs with different BIOS vendors, so having an explicit blacklist
-	 * is inpractical; apply the workaround on everything pre GEN6. The
+	 * is impractical; apply the workaround on everything pre GEN6. The
 	 * platforms where the issue was seen:
 	 * Lenovo Thinkpad X301, X61s, X60, T60, X41
 	 * Fujitsu FSC S7110
@@ -1192,7 +1189,7 @@ static int i915_drm_resume(struct drm_device *dev)
 			setup_private_pat(gt);
 
 	/* Must be called after GGTT is resumed. */
-	intel_dpt_resume(dev_priv);
+	intel_dpt_resume(display);
 
 	intel_dmc_resume(display);
 
@@ -1242,7 +1239,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	intel_opregion_resume(display);
 
-	intel_fbdev_set_suspend(dev, FBINFO_STATE_RUNNING, false);
+	drm_client_dev_resume(dev, false);
 
 	intel_power_domains_enable(display);
 
@@ -1811,6 +1808,8 @@ static const struct drm_driver i915_drm_driver = {
 
 	.dumb_create = i915_gem_dumb_create,
 	.dumb_map_offset = i915_gem_dumb_mmap_offset,
+
+	INTEL_FBDEV_DRIVER_OPS,
 
 	.ioctls = i915_ioctls,
 	.num_ioctls = ARRAY_SIZE(i915_ioctls),

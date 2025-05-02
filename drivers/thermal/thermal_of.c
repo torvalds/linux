@@ -107,7 +107,7 @@ static struct thermal_trip *thermal_of_trips_init(struct device_node *np, int *n
 	if (!count)
 		return NULL;
 
-	struct thermal_trip *tt __free(kfree) = kzalloc(sizeof(*tt) * count, GFP_KERNEL);
+	struct thermal_trip *tt __free(kfree) = kcalloc(count, sizeof(*tt), GFP_KERNEL);
 	if (!tt)
 		return ERR_PTR(-ENOMEM);
 
@@ -405,9 +405,12 @@ static struct thermal_zone_device *thermal_of_zone_register(struct device_node *
 	of_ops.should_bind = thermal_of_should_bind;
 
 	ret = of_property_read_string(np, "critical-action", &action);
-	if (!ret)
-		if (!of_ops.critical && !strcasecmp(action, "reboot"))
+	if (!ret && !of_ops.critical) {
+		if (!strcasecmp(action, "reboot"))
 			of_ops.critical = thermal_zone_device_critical_reboot;
+		else if (!strcasecmp(action, "shutdown"))
+			of_ops.critical = thermal_zone_device_critical_shutdown;
+	}
 
 	tz = thermal_zone_device_register_with_trips(np->name, trips, ntrips,
 						     data, &of_ops, &tzp,

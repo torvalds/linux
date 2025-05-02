@@ -40,6 +40,7 @@ SECTIONS
 		*(.rodata.*)
 		_erodata = . ;
 	}
+	EXCEPTION_TABLE(16)
 	.got : {
 		*(.got)
 	}
@@ -165,7 +166,6 @@ SECTIONS
 	/DISCARD/ : {
 		COMMON_DISCARDS
 		*(.eh_frame)
-		*(__ex_table)
 		*(*__ksymtab*)
 		*(___kcrctab*)
 	}

@@ -55,4 +55,5 @@ Date:		May 2024
 Contact:	linuxppc-dev@lists.ozlabs.org
 Description:	read/write
 		This is a special sysfs file available to setup additional
-		parameters to be passed to capture kernel.
+		parameters to be passed to capture kernel. For HASH MMU it
+		is exported only if RMA size higher than 768MB.

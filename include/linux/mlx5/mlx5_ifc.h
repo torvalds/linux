@@ -1570,6 +1570,8 @@ enum {
 enum {
 	MLX5_UCTX_CAP_RAW_TX = 1UL << 0,
 	MLX5_UCTX_CAP_INTERNAL_DEV_RES = 1UL << 1,
+	MLX5_UCTX_CAP_RDMA_CTRL = 1UL << 3,
+	MLX5_UCTX_CAP_RDMA_CTRL_OTHER_VHCA = 1UL << 4,
 };
 
 #define MLX5_FC_BULK_SIZE_FACTOR 128
@@ -1991,7 +1993,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         max_geneve_tlv_options[0x8];
 	u8         reserved_at_568[0x3];
 	u8         max_geneve_tlv_option_data_len[0x5];
-	u8         reserved_at_570[0x9];
+	u8         reserved_at_570[0x1];
+	u8         adv_rdma[0x1];
+	u8         reserved_at_572[0x7];
 	u8         adv_virtualization[0x1];
 	u8         reserved_at_57a[0x6];
 
@@ -2140,7 +2144,8 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 	u8	   log_min_mkey_entity_size[0x5];
 	u8	   reserved_at_1b0[0x10];
 
-	u8	   reserved_at_1c0[0x60];
+	u8	   general_obj_types_127_64[0x40];
+	u8	   reserved_at_200[0x20];
 
 	u8	   reserved_at_220[0x1];
 	u8	   sw_vhca_id_valid[0x1];
@@ -2638,6 +2643,12 @@ enum {
 
 struct mlx5_ifc_field_select_802_1qau_rp_bits {
 	u8         field_select_8021qaurp[0x20];
+};
+
+struct mlx5_ifc_phys_layer_recovery_cntrs_bits {
+	u8         total_successful_recovery_events[0x20];
+
+	u8         reserved_at_20[0x7a0];
 };
 
 struct mlx5_ifc_phys_layer_cntrs_bits {
@@ -4841,6 +4852,7 @@ union mlx5_ifc_eth_cntrs_grp_data_layout_auto_bits {
 	struct mlx5_ifc_ib_ext_port_cntrs_grp_data_layout_bits ib_ext_port_cntrs_grp_data_layout;
 	struct mlx5_ifc_phys_layer_cntrs_bits phys_layer_cntrs;
 	struct mlx5_ifc_phys_layer_statistical_cntrs_bits phys_layer_statistical_cntrs;
+	struct mlx5_ifc_phys_layer_recovery_cntrs_bits phys_layer_recovery_cntrs;
 	u8         reserved_at_0[0x7c0];
 };
 
@@ -10579,7 +10591,9 @@ struct mlx5_ifc_mtutc_reg_bits {
 };
 
 struct mlx5_ifc_pcam_enhanced_features_bits {
-	u8         reserved_at_0[0x1d];
+	u8         reserved_at_0[0x10];
+	u8         ppcnt_recovery_counters[0x1];
+	u8         reserved_at_11[0xc];
 	u8         fec_200G_per_lane_in_pplm[0x1];
 	u8         reserved_at_1e[0x2a];
 	u8         fec_100G_per_lane_in_pplm[0x1];
@@ -11119,6 +11133,7 @@ enum {
 	MLX5_INITIAL_SEG_HEALTH_SYNDROME_FFSER_ERR                    = 0xf,
 	MLX5_INITIAL_SEG_HEALTH_SYNDROME_HIGH_TEMP_ERR                = 0x10,
 	MLX5_INITIAL_SEG_HEALTH_SYNDROME_ICM_PCI_POISONED_ERR         = 0x12,
+	MLX5_INITIAL_SEG_HEALTH_SYNDROME_TRUST_LOCKDOWN_ERR           = 0x13,
 };
 
 struct mlx5_ifc_initial_seg_bits {
@@ -12494,12 +12509,17 @@ enum {
 };
 
 enum {
+	MLX5_HCA_CAP_2_GENERAL_OBJECT_TYPES_RDMA_CTRL = BIT_ULL(0x13),
+};
+
+enum {
 	MLX5_GENERAL_OBJECT_TYPES_ENCRYPTION_KEY = 0xc,
 	MLX5_GENERAL_OBJECT_TYPES_IPSEC = 0x13,
 	MLX5_GENERAL_OBJECT_TYPES_SAMPLER = 0x20,
 	MLX5_GENERAL_OBJECT_TYPES_FLOW_METER_ASO = 0x24,
 	MLX5_GENERAL_OBJECT_TYPES_MACSEC = 0x27,
 	MLX5_GENERAL_OBJECT_TYPES_INT_KEK = 0x47,
+	MLX5_GENERAL_OBJECT_TYPES_RDMA_CTRL = 0x53,
 	MLX5_GENERAL_OBJECT_TYPES_FLOW_TABLE_ALIAS = 0xff15,
 };
 
@@ -13065,6 +13085,44 @@ struct mlx5_ifc_load_vhca_state_out_bits {
 	u8         syndrome[0x20];
 
 	u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_adv_rdma_cap_bits {
+	u8         rdma_transport_manager[0x1];
+	u8         rdma_transport_manager_other_eswitch[0x1];
+	u8         reserved_at_2[0x1e];
+
+	u8         rcx_type[0x8];
+	u8         reserved_at_28[0x2];
+	u8         ps_entry_log_max_value[0x6];
+	u8         reserved_at_30[0x6];
+	u8         qp_max_ps_num_entry[0xa];
+
+	u8         mp_max_num_queues[0x8];
+	u8         ps_user_context_max_log_size[0x8];
+	u8         message_based_qp_and_striding_wq[0x8];
+	u8         reserved_at_58[0x8];
+
+	u8         max_receive_send_message_size_stride[0x10];
+	u8         reserved_at_70[0x10];
+
+	u8         max_receive_send_message_size_byte[0x20];
+
+	u8         reserved_at_a0[0x160];
+
+	struct mlx5_ifc_flow_table_prop_layout_bits rdma_transport_rx_flow_table_properties;
+
+	struct mlx5_ifc_flow_table_prop_layout_bits rdma_transport_tx_flow_table_properties;
+
+	struct mlx5_ifc_flow_table_fields_supported_2_bits rdma_transport_rx_ft_field_support_2;
+
+	struct mlx5_ifc_flow_table_fields_supported_2_bits rdma_transport_tx_ft_field_support_2;
+
+	struct mlx5_ifc_flow_table_fields_supported_2_bits rdma_transport_rx_ft_field_bitmask_support_2;
+
+	struct mlx5_ifc_flow_table_fields_supported_2_bits rdma_transport_tx_ft_field_bitmask_support_2;
+
+	u8         reserved_at_800[0x3800];
 };
 
 struct mlx5_ifc_adv_virtualization_cap_bits {

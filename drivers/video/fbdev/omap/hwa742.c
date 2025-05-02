@@ -597,7 +597,7 @@ static int hwa742_set_update_mode(enum omapfb_update_mode mode)
 		break;
 	case OMAPFB_AUTO_UPDATE:
 		hwa742.stop_auto_update = 1;
-		del_timer_sync(&hwa742.auto_update_timer);
+		timer_delete_sync(&hwa742.auto_update_timer);
 		break;
 	case OMAPFB_UPDATE_DISABLED:
 		break;

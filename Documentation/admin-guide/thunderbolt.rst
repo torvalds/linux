@@ -28,7 +28,7 @@ should be a userspace tool that handles all the low-level details, keeps
 a database of the authorized devices and prompts users for new connections.
 
 More details about the sysfs interface for Thunderbolt devices can be
-found in ``Documentation/ABI/testing/sysfs-bus-thunderbolt``.
+found in Documentation/ABI/testing/sysfs-bus-thunderbolt.
 
 Those users who just want to connect any device without any sort of
 manual work can add following line to

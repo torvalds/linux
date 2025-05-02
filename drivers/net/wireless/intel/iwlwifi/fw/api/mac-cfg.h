@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2019, 2021-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2019, 2021-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -46,7 +46,7 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	STA_CONFIG_CMD = 0xA,
 	/**
-	 * @AUX_STA_CMD: &struct iwl_mvm_aux_sta_cmd
+	 * @AUX_STA_CMD: &struct iwl_aux_sta_cmd
 	 */
 	AUX_STA_CMD = 0xB,
 	/**
@@ -61,6 +61,10 @@ enum iwl_mac_conf_subcmd_ids {
 	 * @ROC_CMD: &struct iwl_roc_req
 	 */
 	ROC_CMD = 0xE,
+	/**
+	 * @TWT_OPERATION_CMD: &struct iwl_twt_operation_cmd
+	 */
+	TWT_OPERATION_CMD = 0x10,
 	/**
 	 * @MISSED_BEACONS_NOTIF: &struct iwl_missed_beacons_notif
 	 */
@@ -641,7 +645,7 @@ struct iwl_sta_cfg_cmd {
 } __packed; /* STA_CMD_API_S_VER_1 */
 
 /**
- * struct iwl_mvm_aux_sta_cmd - command for AUX STA configuration
+ * struct iwl_aux_sta_cmd - command for AUX STA configuration
  * ( AUX_STA_CMD = 0xB )
  *
  * @sta_id: index of aux sta to configure
@@ -649,7 +653,7 @@ struct iwl_sta_cfg_cmd {
  * @mac_addr: mac addr of the auxilary sta
  * @reserved_for_mac_addr: reserved
  */
-struct iwl_mvm_aux_sta_cmd {
+struct iwl_aux_sta_cmd {
 	__le32 sta_id;
 	__le32 lmac_id;
 	u8 mac_addr[ETH_ALEN];
@@ -693,11 +697,11 @@ enum iwl_mvm_fw_esr_recommendation {
 }; /* ESR_MODE_RECOMMENDATION_CODE_API_E_VER_1 */
 
 /**
- * struct iwl_mvm_esr_mode_notif - FWs recommendation/force for esr mode
+ * struct iwl_esr_mode_notif - FWs recommendation/force for esr mode
  *
  * @action: the action to apply on esr state. See &iwl_mvm_fw_esr_recommendation
  */
-struct iwl_mvm_esr_mode_notif {
+struct iwl_esr_mode_notif {
 	__le32 action;
 } __packed; /* ESR_MODE_RECOMMENDATION_NTFY_API_S_VER_1 */
 
@@ -747,5 +751,84 @@ struct iwl_esr_trans_fail_notif {
 	__le32 activation;
 	__le32 err_code;
 } __packed; /* ESR_TRANSITION_FAILED_NTFY_API_S_VER_1 */
+
+/*
+ * enum iwl_twt_operation_type: TWT operation in a TWT action frame
+ *
+ * @TWT_OPERATION_REQUEST: TWT Request
+ * @TWT_OPERATION_SUGGEST: TWT Suggest
+ * @TWT_OPERATION_DEMAND: TWT Demand
+ * @TWT_OPERATION_GROUPING: TWT Grouping
+ * @TWT_OPERATION_ACCEPT: TWT Accept
+ * @TWT_OPERATION_ALTERNATE: TWT Alternate
+ * @TWT_OPERATION_DICTATE: TWT Dictate
+ * @TWT_OPERATION_REJECT: TWT Reject
+ * @TWT_OPERATION_TEARDOWN: TWT Teardown
+ * @TWT_OPERATION_UNAVAILABILITY: TWT Unavailability
+ */
+enum iwl_twt_operation_type {
+	TWT_OPERATION_REQUEST,
+	TWT_OPERATION_SUGGEST,
+	TWT_OPERATION_DEMAND,
+	TWT_OPERATION_GROUPING,
+	TWT_OPERATION_ACCEPT,
+	TWT_OPERATION_ALTERNATE,
+	TWT_OPERATION_DICTATE,
+	TWT_OPERATION_REJECT,
+	TWT_OPERATION_TEARDOWN,
+	TWT_OPERATION_UNAVAILABILITY,
+	TWT_OPERATION_MAX,
+}; /* TWT_OPERATION_TYPE_E_VER_1 */
+
+/**
+ * struct iwl_twt_operation_cmd - initiate a TWT session from driver
+ *
+ * @link_id: FW link id to initiate the TWT
+ * @twt_operation: &enum iwl_twt_operation_type
+ * @target_wake_time: TSF time to start the TWT
+ * @interval_exponent: the exponent for the interval
+ * @interval_mantissa: the mantissa for the interval
+ * @minimum_wake_duration: the minimum duration for the wake period
+ * @trigger: is the TWT triggered or not
+ * @flow_type: is the TWT announced (0) or not (1)
+ * @flow_id: the TWT flow identifier 0 - 7
+ * @twt_protection: is the TWT protected
+ * @ndp_paging_indicator: is ndp paging indicator set
+ * @responder_pm_mode: is responder pm mode set
+ * @negotiation_type: if the responder wants to doze outside the TWT SP
+ * @twt_request: 1 for TWT request (STA), 0 for TWT response (AP)
+ * @implicit: is TWT implicit
+ * @twt_group_assignment: the TWT group assignment
+ * @twt_channel: the TWT channel
+ * @restricted_info_present: is this a restricted TWT
+ * @dl_bitmap_valid: is DL (download) bitmap valid (restricted TWT)
+ * @ul_bitmap_valid: is UL (upload) bitmap valid (restricted TWT)
+ * @dl_tid_bitmap: DL TID bitmap (restricted TWT)
+ * @ul_tid_bitmap: UL TID bitmap (restricted TWT)
+ */
+struct iwl_twt_operation_cmd {
+	__le32 link_id;
+	__le32 twt_operation;
+	__le64 target_wake_time;
+	__le32 interval_exponent;
+	__le32 interval_mantissa;
+	__le32 minimum_wake_duration;
+	u8 trigger;
+	u8 flow_type;
+	u8 flow_id;
+	u8 twt_protection;
+	u8 ndp_paging_indicator;
+	u8 responder_pm_mode;
+	u8 negotiation_type;
+	u8 twt_request;
+	u8 implicit;
+	u8 twt_group_assignment;
+	u8 twt_channel;
+	u8 restricted_info_present;
+	u8 dl_bitmap_valid;
+	u8 ul_bitmap_valid;
+	u8 dl_tid_bitmap;
+	u8 ul_tid_bitmap;
+} __packed; /* TWT_OPERATION_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_mac_cfg_h__ */

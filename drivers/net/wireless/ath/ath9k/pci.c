@@ -1029,7 +1029,7 @@ static int ath_pci_suspend(struct device *device)
 	 */
 	ath9k_stop_btcoex(sc);
 	ath9k_hw_disable(sc->sc_ah);
-	del_timer_sync(&sc->sleep_timer);
+	timer_delete_sync(&sc->sleep_timer);
 	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_FULL_SLEEP);
 
 	return 0;

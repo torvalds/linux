@@ -132,15 +132,8 @@ static void il4965_rs_fill_link_cmd(struct il_priv *il,
 static void il4965_rs_stay_in_table(struct il_lq_sta *lq_sta,
 				    bool force_search);
 
-#ifdef CONFIG_MAC80211_DEBUGFS
 static void il4965_rs_dbgfs_set_mcs(struct il_lq_sta *lq_sta,
 				    u32 *rate_n_flags, int idx);
-#else
-static void
-il4965_rs_dbgfs_set_mcs(struct il_lq_sta *lq_sta, u32 * rate_n_flags, int idx)
-{
-}
-#endif
 
 /*
  * The following tables contain the expected throughput metrics for all rates
@@ -2495,14 +2488,15 @@ il4965_rs_free_sta(void *il_r, struct ieee80211_sta *sta, void *il_sta)
 	D_RATE("leave\n");
 }
 
-#ifdef CONFIG_MAC80211_DEBUGFS
-
 static void
 il4965_rs_dbgfs_set_mcs(struct il_lq_sta *lq_sta, u32 * rate_n_flags, int idx)
 {
 	struct il_priv *il;
 	u8 valid_tx_ant;
 	u8 ant_sel_tx;
+
+	if (!IS_ENABLED(CONFIG_MAC80211_DEBUGFS))
+		return;
 
 	il = lq_sta->drv;
 	valid_tx_ant = il->hw_params.valid_tx_ant;
@@ -2758,7 +2752,6 @@ il4965_rs_add_debugfs(void *il, void *il_sta, struct dentry *dir)
 	debugfs_create_u8("tx_agg_tid_enable", 0600, dir,
 			  &lq_sta->tx_agg_tid_en);
 }
-#endif
 
 /*
  * Initialization of rate scaling information is done by driver after
@@ -2781,9 +2774,8 @@ static const struct rate_control_ops rs_4965_ops = {
 	.free = il4965_rs_free,
 	.alloc_sta = il4965_rs_alloc_sta,
 	.free_sta = il4965_rs_free_sta,
-#ifdef CONFIG_MAC80211_DEBUGFS
-	.add_sta_debugfs = il4965_rs_add_debugfs,
-#endif
+	.add_sta_debugfs = PTR_IF(IS_ENABLED(CONFIG_MAC80211_DEBUGFS),
+				  il4965_rs_add_debugfs),
 };
 
 int

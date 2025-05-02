@@ -350,6 +350,104 @@ int printf(const char *fmt, ...)
 }
 
 static __attribute__((unused))
+int vsscanf(const char *str, const char *format, va_list args)
+{
+	uintmax_t uval;
+	intmax_t ival;
+	int base;
+	char *endptr;
+	int matches;
+	int lpref;
+
+	matches = 0;
+
+	while (1) {
+		if (*format == '%') {
+			/* start of pattern */
+			lpref = 0;
+			format++;
+
+			if (*format == 'l') {
+				/* same as in printf() */
+				lpref = 1;
+				format++;
+				if (*format == 'l') {
+					lpref = 2;
+					format++;
+				}
+			}
+
+			if (*format == '%') {
+				/* literal % */
+				if ('%' != *str)
+					goto done;
+				str++;
+				format++;
+				continue;
+			} else if (*format == 'd') {
+				ival = strtoll(str, &endptr, 10);
+				if (lpref == 0)
+					*va_arg(args, int *) = ival;
+				else if (lpref == 1)
+					*va_arg(args, long *) = ival;
+				else if (lpref == 2)
+					*va_arg(args, long long *) = ival;
+			} else if (*format == 'u' || *format == 'x' || *format == 'X') {
+				base = *format == 'u' ? 10 : 16;
+				uval = strtoull(str, &endptr, base);
+				if (lpref == 0)
+					*va_arg(args, unsigned int *) = uval;
+				else if (lpref == 1)
+					*va_arg(args, unsigned long *) = uval;
+				else if (lpref == 2)
+					*va_arg(args, unsigned long long *) = uval;
+			} else if (*format == 'p') {
+				*va_arg(args, void **) = (void *)strtoul(str, &endptr, 16);
+			} else {
+				SET_ERRNO(EILSEQ);
+				goto done;
+			}
+
+			format++;
+			str = endptr;
+			matches++;
+
+		} else if (*format == '\0') {
+			goto done;
+		} else if (isspace(*format)) {
+			/* skip spaces in format and str */
+			while (isspace(*format))
+				format++;
+			while (isspace(*str))
+				str++;
+		} else if (*format == *str) {
+			/* literal match */
+			format++;
+			str++;
+		} else {
+			if (!matches)
+				matches = EOF;
+			goto done;
+		}
+	}
+
+done:
+	return matches;
+}
+
+static __attribute__((unused, format(scanf, 2, 3)))
+int sscanf(const char *str, const char *format, ...)
+{
+	va_list args;
+	int ret;
+
+	va_start(args, format);
+	ret = vsscanf(str, format, args);
+	va_end(args);
+	return ret;
+}
+
+static __attribute__((unused))
 void perror(const char *msg)
 {
 	fprintf(stderr, "%s%serrno=%d\n", (msg && *msg) ? msg : "", (msg && *msg) ? ": " : "", errno);

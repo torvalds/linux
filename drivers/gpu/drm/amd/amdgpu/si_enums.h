@@ -121,15 +121,7 @@
 #define CURSOR_UPDATE_LOCK             (1 << 16)
 #define CURSOR_DISABLE_MULTIPLE_UPDATE (1 << 24)
 
-#define SI_CRTC0_REGISTER_OFFSET                0
-#define SI_CRTC1_REGISTER_OFFSET                0x300
-#define SI_CRTC2_REGISTER_OFFSET                0x2600
-#define SI_CRTC3_REGISTER_OFFSET                0x2900
-#define SI_CRTC4_REGISTER_OFFSET                0x2c00
-#define SI_CRTC5_REGISTER_OFFSET                0x2f00
 
-#define DMA0_REGISTER_OFFSET 0x000
-#define DMA1_REGISTER_OFFSET 0x200
 #define ES_AND_GS_AUTO       3
 #define RADEON_PACKET_TYPE3  3
 #define CE_PARTITION_BASE    3
@@ -160,10 +152,6 @@
 #define GFX6_NUM_COMPUTE_RINGS 2
 #define RLC_SAVE_AND_RESTORE_STARTING_OFFSET 0x90
 #define RLC_CLEAR_STATE_DESCRIPTOR_OFFSET    0x3D
-
-#define TAHITI_GB_ADDR_CONFIG_GOLDEN        0x12011003
-#define VERDE_GB_ADDR_CONFIG_GOLDEN         0x02010002
-#define HAINAN_GB_ADDR_CONFIG_GOLDEN        0x02011003
 
 #define PACKET3(op, n)  ((RADEON_PACKET_TYPE3 << 30) |                  \
                          (((op) & 0xFF) << 8) |                         \

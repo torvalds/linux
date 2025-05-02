@@ -160,7 +160,7 @@ static inline int ____pcilg(u64 *data, u64 req, u64 offset, u8 *status)
 	u64 __data;
 
 	exception = 1;
-	asm volatile (
+	asm_inline volatile (
 		"	.insn	rre,0xb9d20000,%[data],%[req_off]\n"
 		"0:	lhi	%[exc],0\n"
 		"1:\n"
@@ -229,7 +229,7 @@ static inline int __pcilg_mio(u64 *data, u64 ioaddr, u64 len, u8 *status)
 	u64 __data;
 
 	exception = 1;
-	asm volatile (
+	asm_inline volatile (
 		"       .insn   rre,0xb9d60000,%[data],%[ioaddr_len]\n"
 		"0:	lhi	%[exc],0\n"
 		"1:\n"
@@ -267,7 +267,7 @@ static inline int __pcistg(u64 data, u64 req, u64 offset, u8 *status)
 	int cc, exception;
 
 	exception = 1;
-	asm volatile (
+	asm_inline volatile (
 		"	.insn	rre,0xb9d00000,%[data],%[req_off]\n"
 		"0:	lhi	%[exc],0\n"
 		"1:\n"
@@ -321,7 +321,7 @@ static inline int __pcistg_mio(u64 data, u64 ioaddr, u64 len, u8 *status)
 	int cc, exception;
 
 	exception = 1;
-	asm volatile (
+	asm_inline volatile (
 		"       .insn   rre,0xb9d40000,%[data],%[ioaddr_len]\n"
 		"0:	lhi	%[exc],0\n"
 		"1:\n"
@@ -356,7 +356,7 @@ static inline int __pcistb(const u64 *data, u64 req, u64 offset, u8 *status)
 	int cc, exception;
 
 	exception = 1;
-	asm volatile (
+	asm_inline volatile (
 		"	.insn	rsy,0xeb00000000d0,%[req],%[offset],%[data]\n"
 		"0:	lhi	%[exc],0\n"
 		"1:\n"
@@ -410,7 +410,7 @@ static inline int __pcistb_mio(const u64 *data, u64 ioaddr, u64 len, u8 *status)
 	int cc, exception;
 
 	exception = 1;
-	asm volatile (
+	asm_inline volatile (
 		"       .insn   rsy,0xeb00000000d4,%[len],%[ioaddr],%[data]\n"
 		"0:	lhi	%[exc],0\n"
 		"1:\n"

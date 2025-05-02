@@ -6181,7 +6181,7 @@ ahd_shutdown(void *arg)
 	/*
 	 * Stop periodic timer callbacks.
 	 */
-	del_timer_sync(&ahd->stat_timer);
+	timer_delete_sync(&ahd->stat_timer);
 
 	/* This will reset most registers to 0, but not all */
 	ahd_reset(ahd, /*reinit*/FALSE);
@@ -6975,7 +6975,7 @@ static const char *termstat_strings[] = {
 static void
 ahd_timer_reset(struct timer_list *timer, int usec)
 {
-	del_timer(timer);
+	timer_delete(timer);
 	timer->expires = jiffies + (usec * HZ)/1000000;
 	add_timer(timer);
 }

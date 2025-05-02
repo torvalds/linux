@@ -824,6 +824,33 @@ struct device_node *of_get_child_by_name(const struct device_node *node,
 }
 EXPORT_SYMBOL(of_get_child_by_name);
 
+/**
+ * of_get_available_child_by_name - Find the available child node by name for a given parent
+ * @node:	parent node
+ * @name:	child name to look for.
+ *
+ * This function looks for child node for given matching name and checks the
+ * device's availability for use.
+ *
+ * Return: A node pointer if found, with refcount incremented, use
+ * of_node_put() on it when done.
+ * Returns NULL if node is not found.
+ */
+struct device_node *of_get_available_child_by_name(const struct device_node *node,
+						   const char *name)
+{
+	struct device_node *child;
+
+	child = of_get_child_by_name(node, name);
+	if (child && !of_device_is_available(child)) {
+		of_node_put(child);
+		return NULL;
+	}
+
+	return child;
+}
+EXPORT_SYMBOL(of_get_available_child_by_name);
+
 struct device_node *__of_find_node_by_path(const struct device_node *parent,
 						const char *path)
 {
@@ -1651,7 +1678,7 @@ int __of_add_property(struct device_node *np, struct property *prop)
 	prop->next = NULL;
 	next = &np->properties;
 	while (*next) {
-		if (strcmp(prop->name, (*next)->name) == 0) {
+		if (of_prop_cmp(prop->name, (*next)->name) == 0) {
 			/* duplicate ! don't insert it */
 			rc = -EEXIST;
 			goto out_unlock;
@@ -1855,9 +1882,7 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 		int id, len;
 
 		/* Skip those we do not want to proceed */
-		if (!strcmp(pp->name, "name") ||
-		    !strcmp(pp->name, "phandle") ||
-		    !strcmp(pp->name, "linux,phandle"))
+		if (is_pseudo_property(pp->name))
 			continue;
 
 		np = of_find_node_by_path(pp->value);

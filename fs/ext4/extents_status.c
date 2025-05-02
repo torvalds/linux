@@ -1551,7 +1551,6 @@ retry:
 
 	ext4_es_print_tree(inode);
 	ext4_da_release_space(inode, reserved);
-	return;
 }
 
 static int __es_shrink(struct ext4_sb_info *sbi, int nr_to_scan,

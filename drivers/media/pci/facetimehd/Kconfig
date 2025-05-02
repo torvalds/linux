@@ -1,0 +1,13 @@
+
+config VIDEO_FACETIMEHD
+    tristate "Apple FaceTime HD (Broadcom 1570) camera support"
+    depends on PCI && VIDEO_DEV && MEDIA_PCI_SUPPORT
+    select VIDEOBUF2_DMA_SG
+    select V4L2_FWNODE
+    help
+      This driver adds support for the Broadcom BCM15700A0 PCIe camera found
+      in newer Apple MacBook laptops. You must install firmware manually in:
+
+        /lib/firmware/facetimehd/firmware.bin
+
+      Without the firmware, the camera will not function.

@@ -250,6 +250,7 @@ static int multi_cpu_stop(void *data)
 			 * be detected and reported on their side.
 			 */
 			touch_nmi_watchdog();
+			/* Also suppress RCU CPU stall warnings. */
 			rcu_momentary_eqs();
 		}
 	} while (curstate != MULTI_STOP_EXIT);

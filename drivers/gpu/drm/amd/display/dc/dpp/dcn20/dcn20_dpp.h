@@ -26,7 +26,6 @@
 #define __DCN20_DPP_H__
 
 #include "dcn10/dcn10_dpp.h"
-#include "spl/dc_spl_types.h"
 #define TO_DCN20_DPP(dpp)\
 	container_of(dpp, struct dcn20_dpp, base)
 

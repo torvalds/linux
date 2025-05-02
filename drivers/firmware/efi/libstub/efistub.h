@@ -1234,4 +1234,7 @@ void process_unaccepted_memory(u64 start, u64 end);
 void accept_memory(phys_addr_t start, unsigned long size);
 void arch_accept_memory(phys_addr_t start, phys_addr_t end);
 
+efi_status_t efi_zboot_decompress_init(unsigned long *alloc_size);
+efi_status_t efi_zboot_decompress(u8 *out, unsigned long outlen);
+
 #endif

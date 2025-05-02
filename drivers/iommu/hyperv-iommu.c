@@ -130,7 +130,7 @@ static int __init hyperv_prepare_irq_remapping(void)
 	    x86_init.hyper.msi_ext_dest_id())
 		return -ENODEV;
 
-	if (hv_root_partition) {
+	if (hv_root_partition()) {
 		name = "HYPERV-ROOT-IR";
 		ops = &hyperv_root_ir_domain_ops;
 	} else {
@@ -151,7 +151,7 @@ static int __init hyperv_prepare_irq_remapping(void)
 		return -ENOMEM;
 	}
 
-	if (hv_root_partition)
+	if (hv_root_partition())
 		return 0; /* The rest is only relevant to guests */
 
 	/*
@@ -217,7 +217,7 @@ hyperv_root_ir_compose_msi_msg(struct irq_data *irq_data, struct msi_msg *msg)
 		status = hv_unmap_ioapic_interrupt(ioapic_id, &entry);
 
 		if (status != HV_STATUS_SUCCESS)
-			pr_debug("%s: unexpected unmap status %lld\n", __func__, status);
+			hv_status_debug(status, "failed to unmap\n");
 
 		data->entry.ioapic_rte.as_uint64 = 0;
 		data->entry.source = 0; /* Invalid source */
@@ -228,7 +228,7 @@ hyperv_root_ir_compose_msi_msg(struct irq_data *irq_data, struct msi_msg *msg)
 					vector, &entry);
 
 	if (status != HV_STATUS_SUCCESS) {
-		pr_err("%s: map hypercall failed, status %lld\n", __func__, status);
+		hv_status_err(status, "map failed\n");
 		return;
 	}
 

@@ -2670,7 +2670,7 @@ out_unref:
  * Returns MODE_OK on success, or a drm_mode_status error code.
  */
 enum drm_mode_status vmw_connector_mode_valid(struct drm_connector *connector,
-					      struct drm_display_mode *mode)
+					      const struct drm_display_mode *mode)
 {
 	enum drm_mode_status ret;
 	struct drm_device *dev = connector->dev;

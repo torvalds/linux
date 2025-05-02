@@ -866,6 +866,10 @@ static void pvr_queue_free_job(struct drm_sched_job *sched_job)
 	struct pvr_job *job = container_of(sched_job, struct pvr_job, base);
 
 	drm_sched_job_cleanup(sched_job);
+
+	if (job->type == DRM_PVR_JOB_TYPE_FRAGMENT && job->paired_job)
+		pvr_job_put(job->paired_job);
+
 	job->paired_job = NULL;
 	pvr_job_put(job);
 }
@@ -1220,6 +1224,17 @@ struct pvr_queue *pvr_queue_create(struct pvr_context *ctx,
 		},
 	};
 	struct pvr_device *pvr_dev = ctx->pvr_dev;
+	const struct drm_sched_init_args sched_args = {
+		.ops = &pvr_queue_sched_ops,
+		.submit_wq = pvr_dev->sched_wq,
+		.num_rqs = 1,
+		.credit_limit = 64 * 1024,
+		.hang_limit = 1,
+		.timeout = msecs_to_jiffies(500),
+		.timeout_wq = pvr_dev->sched_wq,
+		.name = "pvr-queue",
+		.dev = pvr_dev->base.dev,
+	};
 	struct drm_gpu_scheduler *sched;
 	struct pvr_queue *queue;
 	int ctx_state_size, err;
@@ -1292,12 +1307,7 @@ struct pvr_queue *pvr_queue_create(struct pvr_context *ctx,
 
 	queue->timeline_ufo.value = cpu_map;
 
-	err = drm_sched_init(&queue->scheduler,
-			     &pvr_queue_sched_ops,
-			     pvr_dev->sched_wq, 1, 64 * 1024, 1,
-			     msecs_to_jiffies(500),
-			     pvr_dev->sched_wq, NULL, "pvr-queue",
-			     pvr_dev->base.dev);
+	err = drm_sched_init(&queue->scheduler, &sched_args);
 	if (err)
 		goto err_release_ufo;
 

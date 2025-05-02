@@ -421,7 +421,7 @@ static bool efivarfs_actor(struct dir_context *ctx, const char *name, int len,
 	if (err)
 		size = 0;
 
-	inode_lock(inode);
+	inode_lock_nested(inode, I_MUTEX_CHILD);
 	i_size_write(inode, size);
 	inode_unlock(inode);
 
@@ -474,12 +474,25 @@ static int efivarfs_check_missing(efi_char16_t *name16, efi_guid_t vendor,
 	return err;
 }
 
+static void efivarfs_deactivate_super_work(struct work_struct *work)
+{
+	struct super_block *s = container_of(work, struct super_block,
+					     destroy_work);
+	/*
+	 * note: here s->destroy_work is free for reuse (which
+	 * will happen in deactivate_super)
+	 */
+	deactivate_super(s);
+}
+
+static struct file_system_type efivarfs_type;
+
 static int efivarfs_pm_notify(struct notifier_block *nb, unsigned long action,
 			      void *ptr)
 {
 	struct efivarfs_fs_info *sfi = container_of(nb, struct efivarfs_fs_info,
 						    pm_nb);
-	struct path path = { .mnt = NULL, .dentry = sfi->sb->s_root, };
+	struct path path;
 	struct efivarfs_ctx ectx = {
 		.ctx = {
 			.actor	= efivarfs_actor,
@@ -487,6 +500,7 @@ static int efivarfs_pm_notify(struct notifier_block *nb, unsigned long action,
 		.sb = sfi->sb,
 	};
 	struct file *file;
+	struct super_block *s = sfi->sb;
 	static bool rescan_done = true;
 
 	if (action == PM_HIBERNATION_PREPARE) {
@@ -499,11 +513,43 @@ static int efivarfs_pm_notify(struct notifier_block *nb, unsigned long action,
 	if (rescan_done)
 		return NOTIFY_DONE;
 
+	/* ensure single superblock is alive and pin it */
+	if (!atomic_inc_not_zero(&s->s_active))
+		return NOTIFY_DONE;
+
 	pr_info("efivarfs: resyncing variable state\n");
 
-	/* O_NOATIME is required to prevent oops on NULL mnt */
+	path.dentry = sfi->sb->s_root;
+
+	/*
+	 * do not add SB_KERNMOUNT which a single superblock could
+	 * expose to userspace and which also causes MNT_INTERNAL, see
+	 * below
+	 */
+	path.mnt = vfs_kern_mount(&efivarfs_type, 0,
+				  efivarfs_type.name, NULL);
+	if (IS_ERR(path.mnt)) {
+		pr_err("efivarfs: internal mount failed\n");
+		/*
+		 * We may be the last pinner of the superblock but
+		 * calling efivarfs_kill_sb from within the notifier
+		 * here would deadlock trying to unregister it
+		 */
+		INIT_WORK(&s->destroy_work, efivarfs_deactivate_super_work);
+		schedule_work(&s->destroy_work);
+		return PTR_ERR(path.mnt);
+	}
+
+	/* path.mnt now has pin on superblock, so this must be above one */
+	atomic_dec(&s->s_active);
+
 	file = kernel_file_open(&path, O_RDONLY | O_DIRECTORY | O_NOATIME,
 				current_cred());
+	/*
+	 * safe even if last put because no MNT_INTERNAL means this
+	 * will do delayed deactivate_super and not deadlock
+	 */
+	mntput(path.mnt);
 	if (IS_ERR(file))
 		return NOTIFY_DONE;
 

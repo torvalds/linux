@@ -138,6 +138,7 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
 		regulator-boot-on;
+		bootph-all;
 	};
 
 	vcc_3v3_sw: regulator-vcc-3v3-sw {
@@ -233,6 +234,7 @@
 			AM62X_IOPAD(0x224, PIN_INPUT_PULLUP, 0) /* (D22) MMC1_DAT3 */
 			AM62X_IOPAD(0x240, PIN_INPUT_PULLUP, 0) /* (D17) MMC1_SDCD */
 		>;
+		bootph-all;
 	};
 
 	main_rgmii2_pins_default: main-rgmii2-default-pins {
@@ -257,6 +259,7 @@
 			AM62X_IOPAD(0x1c8, PIN_INPUT, 0) /* (D14) UART0_RXD */
 			AM62X_IOPAD(0x1cc, PIN_OUTPUT, 0) /* (E14) UART0_TXD */
 		>;
+		bootph-all;
 	};
 
 	main_uart1_pins_default: main-uart1-default-pins {
@@ -266,6 +269,7 @@
 			AM62X_IOPAD(0x1ac, PIN_INPUT, 2) /* (E19) MCASP0_AFSR.UART1_RXD */
 			AM62X_IOPAD(0x1b0, PIN_OUTPUT, 2) /* (A20) MCASP0_ACLKR.UART1_TXD */
 		>;
+		bootph-pre-ram;
 	};
 
 	main_usb1_pins_default: main-usb1-default-pins {
@@ -430,12 +434,14 @@
 &main_uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart0_pins_default>;
+	bootph-all;
 	status = "okay";
 };
 
 &main_uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart1_pins_default>;
+	bootph-pre-ram;
 	/* Main UART1 may be used by TIFS firmware */
 	status = "okay";
 };
@@ -467,11 +473,13 @@
 	pinctrl-0 = <&main_mmc1_pins_default>;
 	disable-wp;
 	no-1-8-v;
+	bootph-all;
 	status = "okay";
 };
 
 &usbss0 {
 	ti,vbus-divider;
+	bootph-all;
 	status = "okay";
 };
 
@@ -482,6 +490,7 @@
 
 &usb0 {
 	usb-role-switch;
+	bootph-all;
 
 	port {
 		typec_hs: endpoint {

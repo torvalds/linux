@@ -174,7 +174,5 @@ int otx_cpt_try_create_default_eng_grps(struct pci_dev *pdev,
 void otx_cpt_set_eng_grps_is_rdonly(struct otx_cpt_eng_grps *eng_grps,
 				    bool is_rdonly);
 int otx_cpt_uc_supports_eng_type(struct otx_cpt_ucode *ucode, int eng_type);
-int otx_cpt_eng_grp_has_eng_type(struct otx_cpt_eng_grp_info *eng_grp,
-				 int eng_type);
 
 #endif /* __OTX_CPTPF_UCODE_H */

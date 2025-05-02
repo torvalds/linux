@@ -279,7 +279,7 @@ static int dummy_systimer_stop(struct snd_pcm_substream *substream)
 {
 	struct dummy_systimer_pcm *dpcm = substream->runtime->private_data;
 	spin_lock(&dpcm->lock);
-	del_timer(&dpcm->timer);
+	timer_delete(&dpcm->timer);
 	spin_unlock(&dpcm->lock);
 	return 0;
 }

@@ -52,12 +52,12 @@ static __always_inline void
 arch_set_bit(long nr, volatile unsigned long *addr)
 {
 	if (__builtin_constant_p(nr)) {
-		asm volatile(LOCK_PREFIX "orb %b1,%0"
+		asm_inline volatile(LOCK_PREFIX "orb %b1,%0"
 			: CONST_MASK_ADDR(nr, addr)
 			: "iq" (CONST_MASK(nr))
 			: "memory");
 	} else {
-		asm volatile(LOCK_PREFIX __ASM_SIZE(bts) " %1,%0"
+		asm_inline volatile(LOCK_PREFIX __ASM_SIZE(bts) " %1,%0"
 			: : RLONG_ADDR(addr), "Ir" (nr) : "memory");
 	}
 }
@@ -72,11 +72,11 @@ static __always_inline void
 arch_clear_bit(long nr, volatile unsigned long *addr)
 {
 	if (__builtin_constant_p(nr)) {
-		asm volatile(LOCK_PREFIX "andb %b1,%0"
+		asm_inline volatile(LOCK_PREFIX "andb %b1,%0"
 			: CONST_MASK_ADDR(nr, addr)
 			: "iq" (~CONST_MASK(nr)));
 	} else {
-		asm volatile(LOCK_PREFIX __ASM_SIZE(btr) " %1,%0"
+		asm_inline volatile(LOCK_PREFIX __ASM_SIZE(btr) " %1,%0"
 			: : RLONG_ADDR(addr), "Ir" (nr) : "memory");
 	}
 }
@@ -98,7 +98,7 @@ static __always_inline bool arch_xor_unlock_is_negative_byte(unsigned long mask,
 		volatile unsigned long *addr)
 {
 	bool negative;
-	asm volatile(LOCK_PREFIX "xorb %2,%1"
+	asm_inline volatile(LOCK_PREFIX "xorb %2,%1"
 		CC_SET(s)
 		: CC_OUT(s) (negative), WBYTE_ADDR(addr)
 		: "iq" ((char)mask) : "memory");
@@ -122,11 +122,11 @@ static __always_inline void
 arch_change_bit(long nr, volatile unsigned long *addr)
 {
 	if (__builtin_constant_p(nr)) {
-		asm volatile(LOCK_PREFIX "xorb %b1,%0"
+		asm_inline volatile(LOCK_PREFIX "xorb %b1,%0"
 			: CONST_MASK_ADDR(nr, addr)
 			: "iq" (CONST_MASK(nr)));
 	} else {
-		asm volatile(LOCK_PREFIX __ASM_SIZE(btc) " %1,%0"
+		asm_inline volatile(LOCK_PREFIX __ASM_SIZE(btc) " %1,%0"
 			: : RLONG_ADDR(addr), "Ir" (nr) : "memory");
 	}
 }

@@ -796,8 +796,10 @@ nouveau_connector_set_property(struct drm_connector *connector,
 						    property, value);
 	if (ret) {
 		if (nv_encoder && nv_encoder->dcb->type == DCB_OUTPUT_TV)
-			return get_slave_funcs(encoder)->set_property(
-				encoder, connector, property, value);
+			return get_encoder_i2c_funcs(encoder)->set_property(encoder,
+									    connector,
+									    property,
+									    value);
 		return ret;
 	}
 
@@ -1014,7 +1016,7 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 		nouveau_connector_detect_depth(connector);
 
 	if (nv_encoder->dcb->type == DCB_OUTPUT_TV)
-		ret = get_slave_funcs(encoder)->get_modes(encoder, connector);
+		ret = get_encoder_i2c_funcs(encoder)->get_modes(encoder, connector);
 
 	if (nv_connector->type == DCB_CONNECTOR_LVDS ||
 	    nv_connector->type == DCB_CONNECTOR_LVDS_SPWG ||
@@ -1073,7 +1075,7 @@ get_tmds_link_bandwidth(struct drm_connector *connector)
 
 static enum drm_mode_status
 nouveau_connector_mode_valid(struct drm_connector *connector,
-			     struct drm_display_mode *mode)
+			     const struct drm_display_mode *mode)
 {
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
@@ -1099,7 +1101,7 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 			max_clock = 350000;
 		break;
 	case DCB_OUTPUT_TV:
-		return get_slave_funcs(encoder)->mode_valid(encoder, mode);
+		return get_encoder_i2c_funcs(encoder)->mode_valid(encoder, mode);
 	case DCB_OUTPUT_DP:
 		return nv50_dp_mode_valid(nv_encoder, mode, NULL);
 	default:

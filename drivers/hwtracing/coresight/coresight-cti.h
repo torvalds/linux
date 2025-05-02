@@ -175,7 +175,7 @@ struct cti_drvdata {
 	void __iomem *base;
 	struct coresight_device	*csdev;
 	struct cti_device ctidev;
-	spinlock_t spinlock;
+	raw_spinlock_t spinlock;
 	struct cti_config config;
 	struct list_head node;
 	void (*csdev_release)(struct device *dev);

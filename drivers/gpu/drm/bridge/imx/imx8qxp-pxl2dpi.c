@@ -122,9 +122,8 @@ imx8qxp_pxl2dpi_bridge_mode_set(struct drm_bridge *bridge,
 	}
 }
 
-static void
-imx8qxp_pxl2dpi_bridge_atomic_disable(struct drm_bridge *bridge,
-				      struct drm_bridge_state *old_bridge_state)
+static void imx8qxp_pxl2dpi_bridge_atomic_disable(struct drm_bridge *bridge,
+						  struct drm_atomic_state *state)
 {
 	struct imx8qxp_pxl2dpi *p2d = bridge->driver_private;
 	int ret;
@@ -134,8 +133,7 @@ imx8qxp_pxl2dpi_bridge_atomic_disable(struct drm_bridge *bridge,
 		DRM_DEV_ERROR(p2d->dev, "failed to put runtime PM: %d\n", ret);
 
 	if (p2d->companion)
-		p2d->companion->funcs->atomic_disable(p2d->companion,
-							old_bridge_state);
+		p2d->companion->funcs->atomic_disable(p2d->companion, state);
 }
 
 static const u32 imx8qxp_pxl2dpi_bus_output_fmts[] = {

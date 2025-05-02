@@ -3323,7 +3323,7 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
 	if (ret)
 		return ret;
 
-	txpower = mt7915_get_power_bound(phy, txpower);
+	txpower = mt76_get_power_bound(mphy, txpower);
 	if (txpower > mphy->txpower_cur || txpower < 0)
 		return -EINVAL;
 
@@ -3373,7 +3373,7 @@ int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy)
 	int i, idx;
 	int tx_power;
 
-	tx_power = mt7915_get_power_bound(phy, hw->conf.power_level);
+	tx_power = mt76_get_power_bound(mphy, hw->conf.power_level);
 	tx_power = mt76_get_rate_power_limits(mphy, mphy->chandef.chan,
 					      &limits_array, tx_power);
 	mphy->txpower_cur = tx_power;

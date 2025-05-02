@@ -1371,8 +1371,6 @@ void __init apic_intr_mode_init(void)
 
 	x86_64_probe_apic();
 
-	x86_32_install_bigsmp();
-
 	if (x86_platform.apic_post_init)
 		x86_platform.apic_post_init();
 
@@ -1674,7 +1672,6 @@ static __init void apic_read_boot_cpu_id(bool x2apic)
 		boot_cpu_apic_version = GET_APIC_VERSION(apic_read(APIC_LVR));
 	}
 	topology_register_boot_apic(boot_cpu_physical_apicid);
-	x86_32_probe_bigsmp_early();
 }
 
 #ifdef CONFIG_X86_X2APIC
@@ -2014,8 +2011,8 @@ static bool __init detect_init_APIC(void)
 	case X86_VENDOR_HYGON:
 		break;
 	case X86_VENDOR_INTEL:
-		if (boot_cpu_data.x86 == 6 || boot_cpu_data.x86 == 15 ||
-		    (boot_cpu_data.x86 == 5 && boot_cpu_has(X86_FEATURE_APIC)))
+		if ((boot_cpu_data.x86 == 5 && boot_cpu_has(X86_FEATURE_APIC)) ||
+		    boot_cpu_data.x86_vfm >= INTEL_PENTIUM_PRO)
 			break;
 		goto no_apic;
 	default:

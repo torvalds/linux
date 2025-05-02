@@ -1051,8 +1051,8 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 	}
 
 	kthread_init_work(&wd_data->work, watchdog_ping_work);
-	hrtimer_init(&wd_data->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
-	wd_data->timer.function = watchdog_timer_expired;
+	hrtimer_setup(&wd_data->timer, watchdog_timer_expired, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL_HARD);
 	watchdog_hrtimer_pretimeout_init(wdd);
 
 	if (wdd->id == 0) {

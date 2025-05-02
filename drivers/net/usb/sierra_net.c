@@ -522,7 +522,7 @@ static void sierra_net_kevent(struct work_struct *work)
 						" stopping sync timer",
 						hh.msgspecific.byte);
 				/* Got sync resp - stop timer & clear mask */
-				del_timer_sync(&priv->sync_timer);
+				timer_delete_sync(&priv->sync_timer);
 				clear_bit(SIERRA_NET_TIMER_EXPIRY,
 					  &priv->kevent_flags);
 				break;

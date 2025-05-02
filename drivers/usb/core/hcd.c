@@ -842,7 +842,7 @@ static int usb_rh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 	} else {				/* Status URB */
 		if (!hcd->uses_new_polling)
-			del_timer (&hcd->rh_timer);
+			timer_delete(&hcd->rh_timer);
 		if (urb == hcd->status_urb) {
 			hcd->status_urb = NULL;
 			usb_hcd_unlink_urb_from_ep(hcd, urb);
@@ -1609,7 +1609,7 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
 		if (retval == 0)
 			retval = -EINPROGRESS;
 		else if (retval != -EIDRM && retval != -EBUSY)
-			dev_dbg(&udev->dev, "hcd_unlink_urb %pK fail %d\n",
+			dev_dbg(&udev->dev, "hcd_unlink_urb %p fail %d\n",
 					urb, retval);
 		usb_put_dev(udev);
 	}
@@ -1786,7 +1786,7 @@ rescan:
 		/* kick hcd */
 		unlink1(hcd, urb, -ESHUTDOWN);
 		dev_dbg (hcd->self.controller,
-			"shutdown urb %pK ep%d%s-%s\n",
+			"shutdown urb %p ep%d%s-%s\n",
 			urb, usb_endpoint_num(&ep->desc),
 			is_in ? "in" : "out",
 			usb_ep_type_string(usb_endpoint_type(&ep->desc)));
@@ -2768,14 +2768,14 @@ static void usb_stop_hcd(struct usb_hcd *hcd)
 {
 	hcd->rh_pollable = 0;
 	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
-	del_timer_sync(&hcd->rh_timer);
+	timer_delete_sync(&hcd->rh_timer);
 
 	hcd->driver->stop(hcd);
 	hcd->state = HC_STATE_HALT;
 
 	/* In case the HCD restarted the timer, stop it again. */
 	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
-	del_timer_sync(&hcd->rh_timer);
+	timer_delete_sync(&hcd->rh_timer);
 }
 
 /**

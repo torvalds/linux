@@ -19,12 +19,16 @@ struct rtw89_sar_handler {
 extern const struct cfg80211_sar_capa rtw89_sar_capa;
 
 s8 rtw89_query_sar(struct rtw89_dev *rtwdev, u32 center_freq);
-void rtw89_print_sar(struct seq_file *m, struct rtw89_dev *rtwdev, u32 center_freq);
-void rtw89_print_tas(struct seq_file *m, struct rtw89_dev *rtwdev);
+int rtw89_print_sar(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
+		    u32 center_freq);
+int rtw89_print_tas(struct rtw89_dev *rtwdev, char *buf, size_t bufsz);
 int rtw89_ops_set_sar_specs(struct ieee80211_hw *hw,
 			    const struct cfg80211_sar_specs *sar);
 void rtw89_tas_init(struct rtw89_dev *rtwdev);
-void rtw89_tas_reset(struct rtw89_dev *rtwdev);
+void rtw89_tas_reset(struct rtw89_dev *rtwdev, bool force);
 void rtw89_tas_track(struct rtw89_dev *rtwdev);
+void rtw89_tas_scan(struct rtw89_dev *rtwdev, bool start);
+void rtw89_tas_chanctx_cb(struct rtw89_dev *rtwdev,
+			  enum rtw89_chanctx_state state);
 
 #endif

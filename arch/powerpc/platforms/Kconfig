@@ -70,10 +70,6 @@ config PPC_DT_CPU_FTRS
 	  firmware provides this binding.
 	  If you're not sure say Y.
 
-config UDBG_RTAS_CONSOLE
-	bool "RTAS based debug console"
-	depends on PPC_RTAS
-
 config PPC_SMP_MUXED_IPI
 	bool
 	help
@@ -185,12 +181,6 @@ config PPC_BOOK3S_IDLE
 config PPC_INDIRECT_PIO
 	bool
 	select GENERIC_IOMAP
-
-config PPC_INDIRECT_MMIO
-	bool
-
-config PPC_IO_WORKAROUNDS
-	bool
 
 source "drivers/cpufreq/Kconfig"
 

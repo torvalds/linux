@@ -30,8 +30,15 @@
 
 void bch2_dev_usage_read_fast(struct bch_dev *ca, struct bch_dev_usage *usage)
 {
+	for (unsigned i = 0; i < BCH_DATA_NR; i++)
+		usage->buckets[i] = percpu_u64_get(&ca->usage->d[i].buckets);
+}
+
+void bch2_dev_usage_full_read_fast(struct bch_dev *ca, struct bch_dev_usage_full *usage)
+{
 	memset(usage, 0, sizeof(*usage));
-	acc_u64s_percpu((u64 *) usage, (u64 __percpu *) ca->usage, dev_usage_u64s());
+	acc_u64s_percpu((u64 *) usage, (u64 __percpu *) ca->usage,
+			sizeof(struct bch_dev_usage_full) / sizeof(u64));
 }
 
 static u64 reserve_factor(u64 r)
@@ -75,7 +82,7 @@ bch2_fs_usage_read_short(struct bch_fs *c)
 
 void bch2_dev_usage_to_text(struct printbuf *out,
 			    struct bch_dev *ca,
-			    struct bch_dev_usage *usage)
+			    struct bch_dev_usage_full *usage)
 {
 	if (out->nr_tabstops < 5) {
 		printbuf_tabstops_reset(out);
@@ -365,7 +372,7 @@ found:
 		struct btree_iter iter;
 		bch2_trans_node_iter_init(trans, &iter, btree, new->k.p, 0, level,
 					  BTREE_ITER_intent|BTREE_ITER_all_snapshots);
-		ret =   bch2_btree_iter_traverse(&iter) ?:
+		ret =   bch2_btree_iter_traverse(trans, &iter) ?:
 			bch2_trans_update(trans, &iter, new,
 					  BTREE_UPDATE_internal_snapshot_node|
 					  BTREE_TRIGGER_norun);
@@ -378,6 +385,36 @@ found:
 	}
 err:
 	printbuf_exit(&buf);
+	return ret;
+}
+
+static int bucket_ref_update_err(struct btree_trans *trans, struct printbuf *buf,
+				 struct bkey_s_c k, bool insert, enum bch_sb_error_id id)
+{
+	struct bch_fs *c = trans->c;
+	bool repeat = false, print = true, suppress = false;
+
+	prt_printf(buf, "\nwhile marking ");
+	bch2_bkey_val_to_text(buf, c, k);
+	prt_newline(buf);
+
+	__bch2_count_fsck_err(c, id, buf->buf, &repeat, &print, &suppress);
+
+	int ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
+
+	if (insert) {
+		print = true;
+		suppress = false;
+
+		bch2_trans_updates_to_text(buf, trans);
+		__bch2_inconsistent_error(c, buf);
+		ret = -BCH_ERR_bucket_ref_update;
+	}
+
+	if (suppress)
+		prt_printf(buf, "Ratelimiting new instances of previous error\n");
+	if (print)
+		bch2_print_string_as_lines(KERN_ERR, buf->buf);
 	return ret;
 }
 
@@ -396,32 +433,29 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 
 	BUG_ON(!sectors);
 
-	if (gen_after(ptr->gen, b_gen)) {
-		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
-		log_fsck_err(trans, ptr_gen_newer_than_bucket_gen,
-			"bucket %u:%zu gen %u data type %s: ptr gen %u newer than bucket gen\n"
-			"while marking %s",
+	if (unlikely(gen_after(ptr->gen, b_gen))) {
+		bch2_log_msg_start(c, &buf);
+		prt_printf(&buf,
+			"bucket %u:%zu gen %u data type %s: ptr gen %u newer than bucket gen",
 			ptr->dev, bucket_nr, b_gen,
 			bch2_data_type_str(bucket_data_type ?: ptr_data_type),
-			ptr->gen,
-			(bch2_bkey_val_to_text(&buf, c, k), buf.buf));
-		if (inserting)
-			goto err;
+			ptr->gen);
+
+		ret = bucket_ref_update_err(trans, &buf, k, inserting,
+					    BCH_FSCK_ERR_ptr_gen_newer_than_bucket_gen);
 		goto out;
 	}
 
-	if (gen_cmp(b_gen, ptr->gen) > BUCKET_GC_GEN_MAX) {
-		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
-		log_fsck_err(trans, ptr_too_stale,
-			"bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
-			"while marking %s",
+	if (unlikely(gen_cmp(b_gen, ptr->gen) > BUCKET_GC_GEN_MAX)) {
+		bch2_log_msg_start(c, &buf);
+		prt_printf(&buf,
+			"bucket %u:%zu gen %u data type %s: ptr gen %u too stale",
 			ptr->dev, bucket_nr, b_gen,
 			bch2_data_type_str(bucket_data_type ?: ptr_data_type),
-			ptr->gen,
-			(printbuf_reset(&buf),
-			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
-		if (inserting)
-			goto err;
+			ptr->gen);
+
+		ret = bucket_ref_update_err(trans, &buf, k, inserting,
+					    BCH_FSCK_ERR_ptr_too_stale);
 		goto out;
 	}
 
@@ -430,62 +464,50 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 		goto out;
 	}
 
-	if (b_gen != ptr->gen) {
-		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
-		log_fsck_err(trans, stale_dirty_ptr,
-			"bucket %u:%zu gen %u (mem gen %u) data type %s: stale dirty ptr (gen %u)\n"
-			"while marking %s",
+	if (unlikely(b_gen != ptr->gen)) {
+		bch2_log_msg_start(c, &buf);
+		prt_printf(&buf,
+			"bucket %u:%zu gen %u (mem gen %u) data type %s: stale dirty ptr (gen %u)",
 			ptr->dev, bucket_nr, b_gen,
 			bucket_gen_get(ca, bucket_nr),
 			bch2_data_type_str(bucket_data_type ?: ptr_data_type),
-			ptr->gen,
-			(printbuf_reset(&buf),
-			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
-		if (inserting)
-			goto err;
+			ptr->gen);
+
+		ret = bucket_ref_update_err(trans, &buf, k, inserting,
+					    BCH_FSCK_ERR_stale_dirty_ptr);
 		goto out;
 	}
 
-	if (bucket_data_type_mismatch(bucket_data_type, ptr_data_type)) {
-		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
-		log_fsck_err(trans, ptr_bucket_data_type_mismatch,
-			"bucket %u:%zu gen %u different types of data in same bucket: %s, %s\n"
-			"while marking %s",
-			ptr->dev, bucket_nr, b_gen,
-			bch2_data_type_str(bucket_data_type),
-			bch2_data_type_str(ptr_data_type),
-			(printbuf_reset(&buf),
-			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
-		if (inserting)
-			goto err;
+	if (unlikely(bucket_data_type_mismatch(bucket_data_type, ptr_data_type))) {
+		bch2_log_msg_start(c, &buf);
+		prt_printf(&buf, "bucket %u:%zu gen %u different types of data in same bucket: %s, %s",
+			   ptr->dev, bucket_nr, b_gen,
+			   bch2_data_type_str(bucket_data_type),
+			   bch2_data_type_str(ptr_data_type));
+
+		ret = bucket_ref_update_err(trans, &buf, k, inserting,
+					    BCH_FSCK_ERR_ptr_bucket_data_type_mismatch);
 		goto out;
 	}
 
-	if ((u64) *bucket_sectors + sectors > U32_MAX) {
-		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
-		log_fsck_err(trans, bucket_sector_count_overflow,
-			"bucket %u:%zu gen %u data type %s sector count overflow: %u + %lli > U32_MAX\n"
-			"while marking %s",
+	if (unlikely((u64) *bucket_sectors + sectors > U32_MAX)) {
+		bch2_log_msg_start(c, &buf);
+		prt_printf(&buf,
+			"bucket %u:%zu gen %u data type %s sector count overflow: %u + %lli > U32_MAX",
 			ptr->dev, bucket_nr, b_gen,
 			bch2_data_type_str(bucket_data_type ?: ptr_data_type),
-			*bucket_sectors, sectors,
-			(printbuf_reset(&buf),
-			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
-		if (inserting)
-			goto err;
+			*bucket_sectors, sectors);
+
+		ret = bucket_ref_update_err(trans, &buf, k, inserting,
+					    BCH_FSCK_ERR_bucket_sector_count_overflow);
 		sectors = -*bucket_sectors;
+		goto out;
 	}
 
 	*bucket_sectors += sectors;
 out:
 	printbuf_exit(&buf);
 	return ret;
-err:
-fsck_err:
-	bch2_dump_trans_updates(trans);
-	bch2_inconsistent_error(c);
-	ret = -BCH_ERR_bucket_ref_update;
-	goto out;
 }
 
 void bch2_trans_account_disk_usage_change(struct btree_trans *trans)
@@ -590,11 +612,9 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		if (!p.ptr.cached) {
-			ret = bch2_bucket_backpointer_mod(trans, k, &bp, insert);
-			if (ret)
-				goto err;
-		}
+		ret = bch2_bucket_backpointer_mod(trans, k, &bp, insert);
+		if (ret)
+			goto err;
 	}
 
 	if (flags & BTREE_TRIGGER_gc) {
@@ -653,9 +673,9 @@ static int bch2_trigger_stripe_ptr(struct btree_trans *trans,
 			stripe_blockcount_get(&s->v, p.ec.block) +
 			sectors);
 
-		struct disk_accounting_pos acc = {
-			.type = BCH_DISK_ACCOUNTING_replicas,
-		};
+		struct disk_accounting_pos acc;
+		memset(&acc, 0, sizeof(acc));
+		acc.type = BCH_DISK_ACCOUNTING_replicas;
 		bch2_bkey_to_replicas(&acc.replicas, bkey_i_to_s_c(&s->k_i));
 		acc.replicas.data_type = data_type;
 		ret = bch2_disk_accounting_mod(trans, &acc, &sectors, 1, false);
@@ -674,26 +694,28 @@ err:
 			return -BCH_ERR_ENOMEM_mark_stripe_ptr;
 		}
 
-		mutex_lock(&c->ec_stripes_heap_lock);
+		gc_stripe_lock(m);
 
 		if (!m || !m->alive) {
-			mutex_unlock(&c->ec_stripes_heap_lock);
+			gc_stripe_unlock(m);
 			struct printbuf buf = PRINTBUF;
+			bch2_log_msg_start(c, &buf);
+			prt_printf(&buf, "pointer to nonexistent stripe %llu\n  while marking ",
+				   (u64) p.ec.idx);
 			bch2_bkey_val_to_text(&buf, c, k);
-			bch_err_ratelimited(c, "pointer to nonexistent stripe %llu\n  while marking %s",
-					    (u64) p.ec.idx, buf.buf);
+			__bch2_inconsistent_error(c, &buf);
+			bch2_print_string_as_lines(KERN_ERR, buf.buf);
 			printbuf_exit(&buf);
-			bch2_inconsistent_error(c);
 			return -BCH_ERR_trigger_stripe_pointer;
 		}
 
 		m->block_sectors[p.ec.block] += sectors;
 
-		struct disk_accounting_pos acc = {
-			.type = BCH_DISK_ACCOUNTING_replicas,
-		};
-		memcpy(&acc.replicas, &m->r.e, replicas_entry_bytes(&m->r.e));
-		mutex_unlock(&c->ec_stripes_heap_lock);
+		struct disk_accounting_pos acc;
+		memset(&acc, 0, sizeof(acc));
+		acc.type = BCH_DISK_ACCOUNTING_replicas;
+		unsafe_memcpy(&acc.replicas, &m->r.e, replicas_entry_bytes(&m->r.e), "VLA");
+		gc_stripe_unlock(m);
 
 		acc.replicas.data_type = data_type;
 		int ret = bch2_disk_accounting_mod(trans, &acc, &sectors, 1, true);
@@ -719,16 +741,14 @@ static int __trigger_extent(struct btree_trans *trans,
 		: BCH_DATA_user;
 	int ret = 0;
 
-	struct disk_accounting_pos acc_replicas_key = {
-		.type			= BCH_DISK_ACCOUNTING_replicas,
-		.replicas.data_type	= data_type,
-		.replicas.nr_devs	= 0,
-		.replicas.nr_required	= 1,
-	};
+	struct disk_accounting_pos acc_replicas_key;
+	memset(&acc_replicas_key, 0, sizeof(acc_replicas_key));
+	acc_replicas_key.type = BCH_DISK_ACCOUNTING_replicas;
+	acc_replicas_key.replicas.data_type	= data_type;
+	acc_replicas_key.replicas.nr_devs	= 0;
+	acc_replicas_key.replicas.nr_required	= 1;
 
-	struct disk_accounting_pos acct_compression_key = {
-		.type			= BCH_DISK_ACCOUNTING_compression,
-	};
+	unsigned cur_compression_type = 0;
 	u64 compression_acct[3] = { 1, 0, 0 };
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
@@ -762,13 +782,13 @@ static int __trigger_extent(struct btree_trans *trans,
 			acc_replicas_key.replicas.nr_required = 0;
 		}
 
-		if (acct_compression_key.compression.type &&
-		    acct_compression_key.compression.type != p.crc.compression_type) {
+		if (cur_compression_type &&
+		    cur_compression_type != p.crc.compression_type) {
 			if (flags & BTREE_TRIGGER_overwrite)
 				bch2_u64s_neg(compression_acct, ARRAY_SIZE(compression_acct));
 
-			ret = bch2_disk_accounting_mod(trans, &acct_compression_key, compression_acct,
-						       ARRAY_SIZE(compression_acct), gc);
+			ret = bch2_disk_accounting_mod2(trans, gc, compression_acct,
+							compression, cur_compression_type);
 			if (ret)
 				return ret;
 
@@ -777,7 +797,7 @@ static int __trigger_extent(struct btree_trans *trans,
 			compression_acct[2] = 0;
 		}
 
-		acct_compression_key.compression.type = p.crc.compression_type;
+		cur_compression_type = p.crc.compression_type;
 		if (p.crc.compression_type) {
 			compression_acct[1] += p.crc.uncompressed_size;
 			compression_acct[2] += p.crc.compressed_size;
@@ -791,45 +811,34 @@ static int __trigger_extent(struct btree_trans *trans,
 	}
 
 	if (acc_replicas_key.replicas.nr_devs && !level && k.k->p.snapshot) {
-		struct disk_accounting_pos acc_snapshot_key = {
-			.type			= BCH_DISK_ACCOUNTING_snapshot,
-			.snapshot.id		= k.k->p.snapshot,
-		};
-		ret = bch2_disk_accounting_mod(trans, &acc_snapshot_key, replicas_sectors, 1, gc);
+		ret = bch2_disk_accounting_mod2_nr(trans, gc, replicas_sectors, 1, snapshot, k.k->p.snapshot);
 		if (ret)
 			return ret;
 	}
 
-	if (acct_compression_key.compression.type) {
+	if (cur_compression_type) {
 		if (flags & BTREE_TRIGGER_overwrite)
 			bch2_u64s_neg(compression_acct, ARRAY_SIZE(compression_acct));
 
-		ret = bch2_disk_accounting_mod(trans, &acct_compression_key, compression_acct,
-					       ARRAY_SIZE(compression_acct), gc);
+		ret = bch2_disk_accounting_mod2(trans, gc, compression_acct,
+						compression, cur_compression_type);
 		if (ret)
 			return ret;
 	}
 
 	if (level) {
-		struct disk_accounting_pos acc_btree_key = {
-			.type		= BCH_DISK_ACCOUNTING_btree,
-			.btree.id	= btree_id,
-		};
-		ret = bch2_disk_accounting_mod(trans, &acc_btree_key, replicas_sectors, 1, gc);
+		ret = bch2_disk_accounting_mod2_nr(trans, gc, replicas_sectors, 1, btree, btree_id);
 		if (ret)
 			return ret;
 	} else {
 		bool insert = !(flags & BTREE_TRIGGER_overwrite);
-		struct disk_accounting_pos acc_inum_key = {
-			.type		= BCH_DISK_ACCOUNTING_inum,
-			.inum.inum	= k.k->p.inode,
-		};
+
 		s64 v[3] = {
 			insert ? 1 : -1,
 			insert ? k.k->size : -((s64) k.k->size),
 			*replicas_sectors,
 		};
-		ret = bch2_disk_accounting_mod(trans, &acc_inum_key, v, ARRAY_SIZE(v), gc);
+		ret = bch2_disk_accounting_mod2(trans, gc, v, inum, k.k->p.inode);
 		if (ret)
 			return ret;
 	}
@@ -878,15 +887,15 @@ int bch2_trigger_extent(struct btree_trans *trans,
 		}
 
 		int need_rebalance_delta = 0;
-		s64 need_rebalance_sectors_delta = 0;
+		s64 need_rebalance_sectors_delta[1] = { 0 };
 
 		s64 s = bch2_bkey_sectors_need_rebalance(c, old);
 		need_rebalance_delta -= s != 0;
-		need_rebalance_sectors_delta -= s;
+		need_rebalance_sectors_delta[0] -= s;
 
 		s = bch2_bkey_sectors_need_rebalance(c, new.s_c);
 		need_rebalance_delta += s != 0;
-		need_rebalance_sectors_delta += s;
+		need_rebalance_sectors_delta[0] += s;
 
 		if ((flags & BTREE_TRIGGER_transactional) && need_rebalance_delta) {
 			int ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_rebalance_work,
@@ -895,12 +904,9 @@ int bch2_trigger_extent(struct btree_trans *trans,
 				return ret;
 		}
 
-		if (need_rebalance_sectors_delta) {
-			struct disk_accounting_pos acc = {
-				.type		= BCH_DISK_ACCOUNTING_rebalance_work,
-			};
-			int ret = bch2_disk_accounting_mod(trans, &acc, &need_rebalance_sectors_delta, 1,
-							   flags & BTREE_TRIGGER_gc);
+		if (need_rebalance_sectors_delta[0]) {
+			int ret = bch2_disk_accounting_mod2(trans, flags & BTREE_TRIGGER_gc,
+							    need_rebalance_sectors_delta, rebalance_work);
 			if (ret)
 				return ret;
 		}
@@ -916,17 +922,13 @@ static int __trigger_reservation(struct btree_trans *trans,
 			enum btree_iter_update_trigger_flags flags)
 {
 	if (flags & (BTREE_TRIGGER_transactional|BTREE_TRIGGER_gc)) {
-		s64 sectors = k.k->size;
+		s64 sectors[1] = { k.k->size };
 
 		if (flags & BTREE_TRIGGER_overwrite)
-			sectors = -sectors;
+			sectors[0] = -sectors[0];
 
-		struct disk_accounting_pos acc = {
-			.type = BCH_DISK_ACCOUNTING_persistent_reserved,
-			.persistent_reserved.nr_replicas = bkey_s_c_to_reservation(k).v->nr_replicas,
-		};
-
-		return bch2_disk_accounting_mod(trans, &acc, &sectors, 1, flags & BTREE_TRIGGER_gc);
+		return bch2_disk_accounting_mod2(trans, flags & BTREE_TRIGGER_gc, sectors,
+				persistent_reserved, bkey_s_c_to_reservation(k).v->nr_replicas);
 	}
 
 	return 0;
@@ -1137,7 +1139,7 @@ int bch2_trans_mark_dev_sbs_flags(struct bch_fs *c,
 	for_each_online_member(c, ca) {
 		int ret = bch2_trans_mark_dev_sb(c, ca, flags);
 		if (ret) {
-			percpu_ref_put(&ca->io_ref);
+			percpu_ref_put(&ca->io_ref[READ]);
 			return ret;
 		}
 	}
@@ -1336,7 +1338,7 @@ void bch2_dev_buckets_free(struct bch_dev *ca)
 
 int bch2_dev_buckets_alloc(struct bch_fs *c, struct bch_dev *ca)
 {
-	ca->usage = alloc_percpu(struct bch_dev_usage);
+	ca->usage = alloc_percpu(struct bch_dev_usage_full);
 	if (!ca->usage)
 		return -BCH_ERR_ENOMEM_usage_init;
 

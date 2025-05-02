@@ -79,7 +79,7 @@ static struct i2c_driver pcm512x_i2c_driver = {
 		.name	= "pcm512x",
 		.of_match_table = of_match_ptr(pcm512x_of_match),
 		.acpi_match_table = ACPI_PTR(pcm512x_acpi_match),
-		.pm     = &pcm512x_pm_ops,
+		.pm     = pm_ptr(&pcm512x_pm_ops),
 	},
 };
 

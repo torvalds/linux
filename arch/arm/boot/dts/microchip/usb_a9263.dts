@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * usb_a9263.dts - Device Tree file for Caloa USB A9293 board
+ * usb_a9263.dts - Device Tree file for Calao USB A9293 board
  *
  *  Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
  */
@@ -9,7 +9,7 @@
 
 / {
 	model = "Calao USB A9263";
-	compatible = "atmel,usb-a9263", "atmel,at91sam9263", "atmel,at91sam9";
+	compatible = "calao,usb-a9263", "atmel,at91sam9263", "atmel,at91sam9";
 
 	chosen {
 		bootargs = "mem=64M console=ttyS0,115200 root=/dev/mtdblock5 rw rootfstype=ubifs";
@@ -139,7 +139,7 @@
 			};
 		};
 
-		usb0: ohci@a00000 {
+		usb0: usb@a00000 {
 			num-ports = <2>;
 			status = "okay";
 		};
@@ -151,16 +151,13 @@
 		user_led {
 			label = "user_led";
 			gpios = <&pioB 21 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
 		};
 	};
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		user_pb {
+		button-user-pb {
 			label = "user_pb";
 			gpios = <&pioB 10 GPIO_ACTIVE_LOW>;
 			linux,code = <28>;

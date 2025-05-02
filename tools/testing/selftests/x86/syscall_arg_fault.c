@@ -17,18 +17,6 @@
 
 #include "helpers.h"
 
-static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
-		       int flags)
-{
-	struct sigaction sa;
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_sigaction = handler;
-	sa.sa_flags = SA_SIGINFO | flags;
-	sigemptyset(&sa.sa_mask);
-	if (sigaction(sig, &sa, 0))
-		err(1, "sigaction");
-}
-
 static sigjmp_buf jmpbuf;
 
 static volatile sig_atomic_t n_errs;

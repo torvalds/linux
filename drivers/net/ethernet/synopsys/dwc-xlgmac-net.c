@@ -405,7 +405,7 @@ static void xlgmac_stop_timers(struct xlgmac_pdata *pdata)
 		if (!channel->tx_ring)
 			break;
 
-		del_timer_sync(&channel->tx_timer);
+		timer_delete_sync(&channel->tx_timer);
 	}
 }
 

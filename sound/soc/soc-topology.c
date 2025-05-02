@@ -131,8 +131,8 @@ static const struct snd_soc_tplg_kcontrol_ops io_ops[] = {
 		snd_soc_put_enum_double, NULL},
 	{SND_SOC_TPLG_CTL_BYTES, snd_soc_bytes_get,
 		snd_soc_bytes_put, snd_soc_bytes_info},
-	{SND_SOC_TPLG_CTL_RANGE, snd_soc_get_volsw_range,
-		snd_soc_put_volsw_range, snd_soc_info_volsw_range},
+	{SND_SOC_TPLG_CTL_RANGE, snd_soc_get_volsw,
+		snd_soc_put_volsw, snd_soc_info_volsw},
 	{SND_SOC_TPLG_CTL_VOLSW_XR_SX, snd_soc_get_xr_sx,
 		snd_soc_put_xr_sx, snd_soc_info_xr_sx},
 	{SND_SOC_TPLG_CTL_STROBE, snd_soc_get_strobe,
@@ -218,15 +218,6 @@ static int get_widget_id(int tplg_type)
 	}
 
 	return -EINVAL;
-}
-
-static inline void soc_bind_err(struct soc_tplg *tplg,
-	struct snd_soc_tplg_ctl_hdr *hdr, int index)
-{
-	dev_err(tplg->dev,
-		"ASoC: invalid control type (g,p,i) %d:%d:%d index %d at 0x%lx\n",
-		hdr->ops.get, hdr->ops.put, hdr->ops.info, index,
-		soc_tplg_get_offset(tplg));
 }
 
 static inline void soc_control_err(struct soc_tplg *tplg,
@@ -678,6 +669,7 @@ static int soc_tplg_control_dmixer_create(struct soc_tplg *tplg, struct snd_kcon
 	sm->min = le32_to_cpu(mc->min);
 	sm->invert = le32_to_cpu(mc->invert);
 	sm->platform_max = le32_to_cpu(mc->platform_max);
+	sm->num_channels = le32_to_cpu(mc->num_channels);
 
 	/* map io handlers */
 	err = soc_tplg_kcontrol_bind_io(&mc->hdr, kc, tplg);
@@ -992,35 +984,26 @@ static int soc_tplg_kcontrol_elems_load(struct soc_tplg *tplg,
 			return -EINVAL;
 		}
 
-		switch (le32_to_cpu(control_hdr->ops.info)) {
-		case SND_SOC_TPLG_CTL_VOLSW:
-		case SND_SOC_TPLG_CTL_STROBE:
-		case SND_SOC_TPLG_CTL_VOLSW_SX:
-		case SND_SOC_TPLG_CTL_VOLSW_XR_SX:
-		case SND_SOC_TPLG_CTL_RANGE:
-		case SND_SOC_TPLG_DAPM_CTL_VOLSW:
-		case SND_SOC_TPLG_DAPM_CTL_PIN:
+		switch (le32_to_cpu(control_hdr->type)) {
+		case SND_SOC_TPLG_TYPE_MIXER:
 			ret = soc_tplg_dmixer_create(tplg, le32_to_cpu(hdr->payload_size));
 			break;
-		case SND_SOC_TPLG_CTL_ENUM:
-		case SND_SOC_TPLG_CTL_ENUM_VALUE:
-		case SND_SOC_TPLG_DAPM_CTL_ENUM_DOUBLE:
-		case SND_SOC_TPLG_DAPM_CTL_ENUM_VIRT:
-		case SND_SOC_TPLG_DAPM_CTL_ENUM_VALUE:
+		case SND_SOC_TPLG_TYPE_ENUM:
 			ret = soc_tplg_denum_create(tplg, le32_to_cpu(hdr->payload_size));
 			break;
-		case SND_SOC_TPLG_CTL_BYTES:
+		case SND_SOC_TPLG_TYPE_BYTES:
 			ret = soc_tplg_dbytes_create(tplg, le32_to_cpu(hdr->payload_size));
 			break;
 		default:
-			soc_bind_err(tplg, control_hdr, i);
-			return -EINVAL;
-		}
-		if (ret < 0) {
-			dev_err(tplg->dev, "ASoC: invalid control\n");
-			return ret;
+			ret = -EINVAL;
+			break;
 		}
 
+		if (ret < 0) {
+			dev_err(tplg->dev, "ASoC: invalid control type: %d, index: %d at 0x%lx\n",
+				control_hdr->type, i, soc_tplg_get_offset(tplg));
+			return ret;
+		}
 	}
 
 	return 0;
@@ -1184,13 +1167,9 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 
 	for (i = 0; i < le32_to_cpu(w->num_kcontrols); i++) {
 		control_hdr = (struct snd_soc_tplg_ctl_hdr *)tplg->pos;
-		switch (le32_to_cpu(control_hdr->ops.info)) {
-		case SND_SOC_TPLG_CTL_VOLSW:
-		case SND_SOC_TPLG_CTL_STROBE:
-		case SND_SOC_TPLG_CTL_VOLSW_SX:
-		case SND_SOC_TPLG_CTL_VOLSW_XR_SX:
-		case SND_SOC_TPLG_CTL_RANGE:
-		case SND_SOC_TPLG_DAPM_CTL_VOLSW:
+
+		switch (le32_to_cpu(control_hdr->type)) {
+		case SND_SOC_TPLG_TYPE_MIXER:
 			/* volume mixer */
 			kc[i].index = mixer_count;
 			kcontrol_type[i] = SND_SOC_TPLG_TYPE_MIXER;
@@ -1199,11 +1178,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 			if (ret < 0)
 				goto hdr_err;
 			break;
-		case SND_SOC_TPLG_CTL_ENUM:
-		case SND_SOC_TPLG_CTL_ENUM_VALUE:
-		case SND_SOC_TPLG_DAPM_CTL_ENUM_DOUBLE:
-		case SND_SOC_TPLG_DAPM_CTL_ENUM_VIRT:
-		case SND_SOC_TPLG_DAPM_CTL_ENUM_VALUE:
+		case SND_SOC_TPLG_TYPE_ENUM:
 			/* enumerated mixer */
 			kc[i].index = enum_count;
 			kcontrol_type[i] = SND_SOC_TPLG_TYPE_ENUM;
@@ -1212,7 +1187,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 			if (ret < 0)
 				goto hdr_err;
 			break;
-		case SND_SOC_TPLG_CTL_BYTES:
+		case SND_SOC_TPLG_TYPE_BYTES:
 			/* bytes control */
 			kc[i].index = bytes_count;
 			kcontrol_type[i] = SND_SOC_TPLG_TYPE_BYTES;

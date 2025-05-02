@@ -619,7 +619,7 @@ static inline void clocksource_stop_watchdog(void)
 {
 	if (!watchdog_running || (watchdog && !list_empty(&watchdog_list)))
 		return;
-	del_timer(&watchdog_timer);
+	timer_delete(&watchdog_timer);
 	watchdog_running = 0;
 }
 
@@ -1510,7 +1510,7 @@ static int __init boot_override_clocksource(char* str)
 {
 	mutex_lock(&clocksource_mutex);
 	if (str)
-		strscpy(override_name, str, sizeof(override_name));
+		strscpy(override_name, str);
 	mutex_unlock(&clocksource_mutex);
 	return 1;
 }

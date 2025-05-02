@@ -876,21 +876,58 @@ xfs_getfsmap_rtdev_rmapbt(
 	const struct xfs_fsmap		*keys,
 	struct xfs_getfsmap_info	*info)
 {
+	struct xfs_fsmap		key0 = *keys; /* struct copy */
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_rtgroup		*rtg = NULL;
 	struct xfs_btree_cur		*bt_cur = NULL;
+	xfs_daddr_t			rtstart_daddr;
 	xfs_rtblock_t			start_rtb;
 	xfs_rtblock_t			end_rtb;
 	xfs_rgnumber_t			start_rg, end_rg;
 	uint64_t			eofs;
 	int				error = 0;
 
-	eofs = XFS_FSB_TO_BB(mp, mp->m_sb.sb_rblocks);
-	if (keys[0].fmr_physical >= eofs)
+	eofs = XFS_FSB_TO_BB(mp, mp->m_sb.sb_rtstart + mp->m_sb.sb_rblocks);
+	if (key0.fmr_physical >= eofs)
 		return 0;
-	start_rtb = xfs_daddr_to_rtb(mp, keys[0].fmr_physical);
-	end_rtb = xfs_daddr_to_rtb(mp, min(eofs - 1, keys[1].fmr_physical));
 
+	/*
+	 * On zoned filesystems with an internal rt volume, the volume comes
+	 * immediately after the end of the data volume.  However, the
+	 * xfs_rtblock_t address space is relative to the start of the data
+	 * device, which means that the first @rtstart fsblocks do not actually
+	 * point anywhere.  If a fsmap query comes in with the low key starting
+	 * below @rtstart, report it as "owned by filesystem".
+	 */
+	rtstart_daddr = XFS_FSB_TO_BB(mp, mp->m_sb.sb_rtstart);
+	if (xfs_has_zoned(mp) && key0.fmr_physical < rtstart_daddr) {
+		struct xfs_fsmap_irec		frec = {
+			.owner			= XFS_RMAP_OWN_FS,
+			.len_daddr		= rtstart_daddr,
+		};
+
+		/*
+		 * Adjust the start of the query range if we're picking up from
+		 * a previous round, and only emit the record if we haven't
+		 * already gone past.
+		 */
+		key0.fmr_physical += key0.fmr_length;
+		if (key0.fmr_physical < rtstart_daddr) {
+			error = xfs_getfsmap_helper(tp, info, &frec);
+			if (error)
+				return error;
+
+			key0.fmr_physical = rtstart_daddr;
+		}
+
+		/* Zero the other fields to avoid further adjustments. */
+		key0.fmr_owner = 0;
+		key0.fmr_offset = 0;
+		key0.fmr_length = 0;
+	}
+
+	start_rtb = xfs_daddr_to_rtb(mp, key0.fmr_physical);
+	end_rtb = xfs_daddr_to_rtb(mp, min(eofs - 1, keys[1].fmr_physical));
 	info->missing_owner = XFS_FMR_OWN_FREE;
 
 	/*
@@ -898,12 +935,12 @@ xfs_getfsmap_rtdev_rmapbt(
 	 * low to the fsmap low key and max out the high key to the end
 	 * of the rtgroup.
 	 */
-	info->low.rm_offset = XFS_BB_TO_FSBT(mp, keys[0].fmr_offset);
-	error = xfs_fsmap_owner_to_rmap(&info->low, &keys[0]);
+	info->low.rm_offset = XFS_BB_TO_FSBT(mp, key0.fmr_offset);
+	error = xfs_fsmap_owner_to_rmap(&info->low, &key0);
 	if (error)
 		return error;
-	info->low.rm_blockcount = XFS_BB_TO_FSBT(mp, keys[0].fmr_length);
-	xfs_getfsmap_set_irec_flags(&info->low, &keys[0]);
+	info->low.rm_blockcount = XFS_BB_TO_FSBT(mp, key0.fmr_length);
+	xfs_getfsmap_set_irec_flags(&info->low, &key0);
 
 	/* Adjust the low key if we are continuing from where we left off. */
 	if (info->low.rm_blockcount == 0) {
@@ -1004,22 +1041,40 @@ xfs_getfsmap_rtdev_rmapbt(
 }
 #endif /* CONFIG_XFS_RT */
 
+static uint32_t
+xfs_getfsmap_device(
+	struct xfs_mount	*mp,
+	enum xfs_device		dev)
+{
+	if (mp->m_sb.sb_rtstart)
+		return dev;
+
+	switch (dev) {
+	case XFS_DEV_DATA:
+		return new_encode_dev(mp->m_ddev_targp->bt_dev);
+	case XFS_DEV_LOG:
+		return new_encode_dev(mp->m_logdev_targp->bt_dev);
+	case XFS_DEV_RT:
+		if (!mp->m_rtdev_targp)
+			break;
+		return new_encode_dev(mp->m_rtdev_targp->bt_dev);
+	}
+
+	return -1;
+}
+
 /* Do we recognize the device? */
 STATIC bool
 xfs_getfsmap_is_valid_device(
 	struct xfs_mount	*mp,
 	struct xfs_fsmap	*fm)
 {
-	if (fm->fmr_device == 0 || fm->fmr_device == UINT_MAX ||
-	    fm->fmr_device == new_encode_dev(mp->m_ddev_targp->bt_dev))
-		return true;
-	if (mp->m_logdev_targp &&
-	    fm->fmr_device == new_encode_dev(mp->m_logdev_targp->bt_dev))
-		return true;
-	if (mp->m_rtdev_targp &&
-	    fm->fmr_device == new_encode_dev(mp->m_rtdev_targp->bt_dev))
-		return true;
-	return false;
+	return fm->fmr_device == 0 ||
+		fm->fmr_device == UINT_MAX ||
+		fm->fmr_device == xfs_getfsmap_device(mp, XFS_DEV_DATA) ||
+		fm->fmr_device == xfs_getfsmap_device(mp, XFS_DEV_LOG) ||
+		(mp->m_rtdev_targp &&
+		 fm->fmr_device == xfs_getfsmap_device(mp, XFS_DEV_RT));
 }
 
 /* Ensure that the low key is less than the high key. */
@@ -1126,7 +1181,7 @@ xfs_getfsmap(
 	/* Set up our device handlers. */
 	memset(handlers, 0, sizeof(handlers));
 	handlers[0].nr_sectors = XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks);
-	handlers[0].dev = new_encode_dev(mp->m_ddev_targp->bt_dev);
+	handlers[0].dev = xfs_getfsmap_device(mp, XFS_DEV_DATA);
 	if (use_rmap)
 		handlers[0].fn = xfs_getfsmap_datadev_rmapbt;
 	else
@@ -1134,13 +1189,17 @@ xfs_getfsmap(
 	if (mp->m_logdev_targp != mp->m_ddev_targp) {
 		handlers[1].nr_sectors = XFS_FSB_TO_BB(mp,
 						       mp->m_sb.sb_logblocks);
-		handlers[1].dev = new_encode_dev(mp->m_logdev_targp->bt_dev);
+		handlers[1].dev = xfs_getfsmap_device(mp, XFS_DEV_LOG);
 		handlers[1].fn = xfs_getfsmap_logdev;
 	}
 #ifdef CONFIG_XFS_RT
-	if (mp->m_rtdev_targp) {
+	/*
+	 * For zoned file systems there is no rtbitmap, so only support fsmap
+	 * if the callers is privileged enough to use the full rmap version.
+	 */
+	if (mp->m_rtdev_targp && (use_rmap || !xfs_has_zoned(mp))) {
 		handlers[2].nr_sectors = XFS_FSB_TO_BB(mp, mp->m_sb.sb_rblocks);
-		handlers[2].dev = new_encode_dev(mp->m_rtdev_targp->bt_dev);
+		handlers[2].dev = xfs_getfsmap_device(mp, XFS_DEV_RT);
 		if (use_rmap)
 			handlers[2].fn = xfs_getfsmap_rtdev_rmapbt;
 		else
@@ -1230,7 +1289,13 @@ xfs_getfsmap(
 
 	if (tp)
 		xfs_trans_cancel(tp);
-	head->fmh_oflags = FMH_OF_DEV_T;
+
+	/*
+	 * For internal RT device we need to report different synthetic devices
+	 * for a single physical device, and thus can't report the actual dev_t.
+	 */
+	if (!mp->m_sb.sb_rtstart)
+		head->fmh_oflags = FMH_OF_DEV_T;
 	return error;
 }
 

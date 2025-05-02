@@ -304,12 +304,12 @@ static void bttv_ir_start(struct bttv_ir *ir)
 static void bttv_ir_stop(struct bttv *btv)
 {
 	if (btv->remote->polling)
-		del_timer_sync(&btv->remote->timer);
+		timer_delete_sync(&btv->remote->timer);
 
 	if (btv->remote->rc5_gpio) {
 		u32 gpio;
 
-		del_timer_sync(&btv->remote->timer);
+		timer_delete_sync(&btv->remote->timer);
 
 		gpio = bttv_gpio_read(&btv->c);
 		bttv_gpio_write(&btv->c, gpio & ~(1 << 4));

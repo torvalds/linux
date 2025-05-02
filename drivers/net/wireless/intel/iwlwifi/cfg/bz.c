@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 #include <linux/module.h>
 #include <linux/stringify.h>
@@ -10,10 +10,10 @@
 #include "fw/api/txq.h"
 
 /* Highest firmware API version supported */
-#define IWL_BZ_UCODE_API_MAX	96
+#define IWL_BZ_UCODE_API_MAX	98
 
 /* Lowest firmware API version supported */
-#define IWL_BZ_UCODE_API_MIN	92
+#define IWL_BZ_UCODE_API_MIN	93
 
 /* NVM versions */
 #define IWL_BZ_NVM_VERSION		0x0a1d
@@ -38,6 +38,11 @@
 #define IWL_BZ_A_HR_B_MODULE_FIRMWARE(api) \
 	IWL_BZ_A_HR_B_FW_PRE "-" __stringify(api) ".ucode"
 
+#if !IS_ENABLED(CONFIG_IWLMVM)
+const char iwl_ax211_name[] = "Intel(R) Wi-Fi 6E AX211 160MHz";
+const char iwl_ax201_name[] = "Intel(R) Wi-Fi 6 AX201 160MHz";
+#endif
+
 static const struct iwl_base_params iwl_bz_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
 	.num_of_queues = 512,
@@ -48,6 +53,13 @@ static const struct iwl_base_params iwl_bz_base_params = {
 	.max_event_log_size = 512,
 	.shadow_reg_enable = true,
 	.pcie_l1_allowed = true,
+};
+
+const struct iwl_ht_params iwl_bz_ht_params = {
+	.stbc = true,
+	.ldpc = true,
+	.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ) |
+		      BIT(NL80211_BAND_6GHZ),
 };
 
 #define IWL_DEVICE_BZ_COMMON						\
@@ -113,7 +125,7 @@ static const struct iwl_base_params iwl_bz_base_params = {
 
 #define IWL_DEVICE_BZ							\
 	IWL_DEVICE_BZ_COMMON,						\
-	.ht_params = &iwl_22000_ht_params
+	.ht_params = &iwl_bz_ht_params
 
 /*
  * This size was picked according to 8 MSDUs inside 512 A-MSDUs in an
@@ -145,7 +157,6 @@ const struct iwl_cfg_trans_params iwl_gl_trans_cfg = {
 	.low_latency_xtal = true,
 };
 
-const char iwl_bz_name[] = "Intel(R) TBD Bz device";
 const char iwl_fm_name[] = "Intel(R) Wi-Fi 7 BE201 320MHz";
 const char iwl_wh_name[] = "Intel(R) Wi-Fi 7 BE211 320MHz";
 const char iwl_gl_name[] = "Intel(R) Wi-Fi 7 BE200 320MHz";

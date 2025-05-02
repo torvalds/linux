@@ -6,6 +6,7 @@ Kernel driver asus_ec_sensors
 Supported boards:
  * PRIME X470-PRO
  * PRIME X570-PRO
+ * PRIME X670E-PRO WIFI
  * Pro WS X570-ACE
  * ProArt X570-CREATOR WIFI
  * ProArt X670E-CREATOR WIFI

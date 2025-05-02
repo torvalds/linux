@@ -151,9 +151,6 @@ static const config configuration_table[10] = {
  * meaning.
  */
 
-#define EQUAL 0
-/* result of memcmp for equal strings */
-
 /* ===========================================================================
  * Update a hash value with the given input byte
  * IN  assertion: all calls to UPDATE_HASH are made with consecutive
@@ -713,8 +710,7 @@ static void check_match(
 )
 {
     /* check that the match is indeed a match */
-    if (memcmp((char *)s->window + match,
-                (char *)s->window + start, length) != EQUAL) {
+    if (memcmp((char *)s->window + match, (char *)s->window + start, length)) {
         fprintf(stderr, " start %u, match %u, length %d\n",
 		start, match, length);
         do {

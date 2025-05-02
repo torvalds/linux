@@ -79,7 +79,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adf_init_hw_data_420xx(accel_dev->hw_device, ent->device);
 
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &accel_pci_dev->revid);
-	pci_read_config_dword(pdev, ADF_GEN4_FUSECTL4_OFFSET, &hw_data->fuses);
+	pci_read_config_dword(pdev, ADF_GEN4_FUSECTL4_OFFSET, &hw_data->fuses[ADF_FUSECTL4]);
 
 	/* Get Accelerators and Accelerators Engines masks */
 	hw_data->accel_mask = hw_data->get_accel_mask(hw_data);

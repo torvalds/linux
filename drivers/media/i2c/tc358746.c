@@ -161,10 +161,6 @@ struct tc358746 {
 	u16				pll_pre_div;
 	u16				pll_mul;
 
-#define TC358746_VB_MAX_SIZE		(511 * 32)
-#define TC358746_VB_DEFAULT_SIZE	  (1 * 32)
-	unsigned int			vb_size; /* Video buffer size in bits */
-
 	struct phy_configure_opts_mipi_dphy dphy_cfg;
 };
 
@@ -202,6 +198,15 @@ enum {
 	PDFORMAT_YUV444,
 };
 
+#define TC358746_FORMAT_RAW(_bpp, _code)		\
+{							\
+	.code = _code,					\
+	.bus_width = _bpp,				\
+	.bpp = _bpp,					\
+	.pdformat = PDFORMAT_RAW##_bpp,			\
+	.pdataf = PDATAF_MODE0, /* don't care */	\
+}
+
 /* Check tc358746_src_mbus_code() if you add new formats */
 static const struct tc358746_format tc358746_formats[] = {
 	{
@@ -230,7 +235,23 @@ static const struct tc358746_format tc358746_formats[] = {
 		.bpp = 20,
 		.pdformat = PDFORMAT_YUV422_10BIT,
 		.pdataf = PDATAF_MODE0, /* don't care */
-	}
+	},
+	TC358746_FORMAT_RAW(8, MEDIA_BUS_FMT_SBGGR8_1X8),
+	TC358746_FORMAT_RAW(8, MEDIA_BUS_FMT_SGBRG8_1X8),
+	TC358746_FORMAT_RAW(8, MEDIA_BUS_FMT_SGRBG8_1X8),
+	TC358746_FORMAT_RAW(8, MEDIA_BUS_FMT_SRGGB8_1X8),
+	TC358746_FORMAT_RAW(10, MEDIA_BUS_FMT_SBGGR10_1X10),
+	TC358746_FORMAT_RAW(10, MEDIA_BUS_FMT_SGBRG10_1X10),
+	TC358746_FORMAT_RAW(10, MEDIA_BUS_FMT_SGRBG10_1X10),
+	TC358746_FORMAT_RAW(10, MEDIA_BUS_FMT_SRGGB10_1X10),
+	TC358746_FORMAT_RAW(12, MEDIA_BUS_FMT_SBGGR12_1X12),
+	TC358746_FORMAT_RAW(12, MEDIA_BUS_FMT_SGBRG12_1X12),
+	TC358746_FORMAT_RAW(12, MEDIA_BUS_FMT_SGRBG12_1X12),
+	TC358746_FORMAT_RAW(12, MEDIA_BUS_FMT_SRGGB12_1X12),
+	TC358746_FORMAT_RAW(14, MEDIA_BUS_FMT_SBGGR14_1X14),
+	TC358746_FORMAT_RAW(14, MEDIA_BUS_FMT_SGBRG14_1X14),
+	TC358746_FORMAT_RAW(14, MEDIA_BUS_FMT_SGRBG14_1X14),
+	TC358746_FORMAT_RAW(14, MEDIA_BUS_FMT_SRGGB14_1X14),
 };
 
 /* Get n-th format for pad */
@@ -415,6 +436,70 @@ tc358746_apply_pll_config(struct tc358746 *tc358746)
 	return tc358746_set_bits(tc358746, PLLCTL1_REG, CKEN);
 }
 
+#define TC358746_VB_PRECISION		10
+#define TC358746_VB_MAX_SIZE		(511 * 32)
+#define TC358746_VB_DEFAULT_SIZE	(1 * 32)
+
+static int tc358746_calc_vb_size(struct tc358746 *tc358746,
+				 s64 source_link_freq,
+				 const struct v4l2_mbus_framefmt *mbusfmt,
+				 const struct tc358746_format *fmt)
+{
+	unsigned long csi_bitrate, source_bitrate;
+	unsigned int fifo_sz, tmp, n;
+	int vb_size; /* Video buffer size in bits */
+
+	source_bitrate = source_link_freq * fmt->bus_width;
+
+	csi_bitrate = tc358746->dphy_cfg.lanes * tc358746->pll_rate;
+
+	dev_dbg(tc358746->sd.dev,
+		"Fifo settings params: source-bitrate:%lu csi-bitrate:%lu",
+		source_bitrate, csi_bitrate);
+
+	/* Avoid possible FIFO overflows */
+	if (csi_bitrate < source_bitrate)
+		return -EINVAL;
+
+	/* Best case */
+	if (csi_bitrate == source_bitrate) {
+		fifo_sz = TC358746_VB_DEFAULT_SIZE;
+		vb_size = TC358746_VB_DEFAULT_SIZE;
+	} else {
+		/*
+		 * Avoid possible FIFO underflow in case of
+		 * csi_bitrate > source_bitrate. For such case the chip has a internal
+		 * fifo which can be used to delay the line output.
+		 *
+		 * Fifo size calculation (excluding precision):
+		 *
+		 * fifo-sz, image-width - in bits
+		 * sbr                  - source_bitrate in bits/s
+		 * csir                 - csi_bitrate in bits/s
+		 *
+		 * image-width / csir >= (image-width - fifo-sz) / sbr
+		 * image-width * sbr / csir >= image-width - fifo-sz
+		 * fifo-sz >= image-width - image-width * sbr / csir; with n = csir/sbr
+		 * fifo-sz >= image-width - image-width / n
+		 */
+		source_bitrate /= TC358746_VB_PRECISION;
+		n = csi_bitrate / source_bitrate;
+		tmp = (mbusfmt->width * TC358746_VB_PRECISION) / n;
+		fifo_sz = mbusfmt->width - tmp;
+		fifo_sz *= fmt->bpp;
+		vb_size = round_up(fifo_sz, 32);
+	}
+
+	dev_dbg(tc358746->sd.dev,
+		"Found FIFO size[bits]:%u -> aligned to size[bits]:%u\n",
+		fifo_sz, vb_size);
+
+	if (vb_size > TC358746_VB_MAX_SIZE)
+		return -EINVAL;
+
+	return vb_size;
+}
+
 static int tc358746_apply_misc_config(struct tc358746 *tc358746)
 {
 	const struct v4l2_mbus_framefmt *mbusfmt;
@@ -422,6 +507,9 @@ static int tc358746_apply_misc_config(struct tc358746 *tc358746)
 	struct v4l2_subdev_state *sink_state;
 	const struct tc358746_format *fmt;
 	struct device *dev = sd->dev;
+	struct media_pad *source_pad;
+	s64 source_link_freq;
+	int vb_size;
 	u32 val;
 	int err;
 
@@ -429,6 +517,21 @@ static int tc358746_apply_misc_config(struct tc358746 *tc358746)
 
 	mbusfmt = v4l2_subdev_state_get_format(sink_state, TC358746_SINK);
 	fmt = tc358746_get_format_by_code(TC358746_SINK, mbusfmt->code);
+
+	source_pad = media_entity_remote_source_pad_unique(&sd->entity);
+	if (IS_ERR(source_pad)) {
+		dev_err(dev, "Failed to get source pad of %s\n", sd->name);
+		err = PTR_ERR(source_pad);
+		goto out;
+	}
+	source_link_freq = v4l2_get_link_freq(source_pad, 0, 0);
+	if (source_link_freq <= 0) {
+		dev_err(dev,
+			"Failed to query or invalid source link frequency\n");
+		/* Return -EINVAL in case of source_link_freq is 0 */
+		err = source_link_freq ?: -EINVAL;
+		goto out;
+	}
 
 	/* Self defined CSI user data type id's are not supported yet */
 	val = PDFMT(fmt->pdformat);
@@ -443,7 +546,13 @@ static int tc358746_apply_misc_config(struct tc358746 *tc358746)
 	if (err)
 		goto out;
 
-	val = tc358746->vb_size / 32;
+	vb_size = tc358746_calc_vb_size(tc358746, source_link_freq, mbusfmt, fmt);
+	if (vb_size < 0) {
+		err = vb_size;
+		goto out;
+	}
+
+	val = vb_size / 32;
 	dev_dbg(dev, "FIFOCTL: %u (0x%x)\n", val, val);
 	err = tc358746_write(tc358746, FIFOCTL_REG, val);
 	if (err)
@@ -460,24 +569,20 @@ out:
 	return err;
 }
 
-/* Use MHz as base so the div needs no u64 */
-static u32 tc358746_cfg_to_cnt(unsigned int cfg_val,
-			       unsigned int clk_mhz,
-			       unsigned int time_base)
+static u32 tc358746_cfg_to_cnt(unsigned long cfg_val, unsigned long clk_hz,
+			       unsigned long long time_base)
 {
-	return DIV_ROUND_UP(cfg_val * clk_mhz, time_base);
+	return div64_u64((u64)cfg_val * clk_hz + time_base - 1, time_base);
 }
 
-static u32 tc358746_ps_to_cnt(unsigned int cfg_val,
-			      unsigned int clk_mhz)
+static u32 tc358746_ps_to_cnt(unsigned long cfg_val, unsigned long clk_hz)
 {
-	return tc358746_cfg_to_cnt(cfg_val, clk_mhz, USEC_PER_SEC);
+	return tc358746_cfg_to_cnt(cfg_val, clk_hz, PSEC_PER_SEC);
 }
 
-static u32 tc358746_us_to_cnt(unsigned int cfg_val,
-			      unsigned int clk_mhz)
+static u32 tc358746_us_to_cnt(unsigned long cfg_val, unsigned long clk_hz)
 {
-	return tc358746_cfg_to_cnt(cfg_val, clk_mhz, 1);
+	return tc358746_cfg_to_cnt(cfg_val, clk_hz, USEC_PER_SEC);
 }
 
 static int tc358746_apply_dphy_config(struct tc358746 *tc358746)
@@ -492,7 +597,6 @@ static int tc358746_apply_dphy_config(struct tc358746 *tc358746)
 
 	/* The hs_byte_clk is also called SYSCLK in the excel sheet */
 	hs_byte_clk = cfg->hs_clk_rate / 8;
-	hs_byte_clk /= HZ_PER_MHZ;
 	hf_clk = hs_byte_clk / 2;
 
 	val = tc358746_us_to_cnt(cfg->init, hf_clk) - 1;
@@ -882,97 +986,6 @@ static unsigned long tc358746_find_pll_settings(struct tc358746 *tc358746,
 	return best_freq;
 }
 
-#define TC358746_PRECISION 10
-
-static int
-tc358746_link_validate(struct v4l2_subdev *sd, struct media_link *link,
-		       struct v4l2_subdev_format *source_fmt,
-		       struct v4l2_subdev_format *sink_fmt)
-{
-	struct tc358746 *tc358746 = to_tc358746(sd);
-	unsigned long csi_bitrate, source_bitrate;
-	struct v4l2_subdev_state *sink_state;
-	struct v4l2_mbus_framefmt *mbusfmt;
-	const struct tc358746_format *fmt;
-	unsigned int fifo_sz, tmp, n;
-	struct v4l2_subdev *source;
-	s64 source_link_freq;
-	int err;
-
-	err = v4l2_subdev_link_validate_default(sd, link, source_fmt, sink_fmt);
-	if (err)
-		return err;
-
-	sink_state = v4l2_subdev_lock_and_get_active_state(sd);
-	mbusfmt = v4l2_subdev_state_get_format(sink_state, TC358746_SINK);
-
-	/* Check the FIFO settings */
-	fmt = tc358746_get_format_by_code(TC358746_SINK, mbusfmt->code);
-
-	source = media_entity_to_v4l2_subdev(link->source->entity);
-	source_link_freq = v4l2_get_link_freq(source->ctrl_handler, 0, 0);
-	if (source_link_freq <= 0) {
-		dev_err(tc358746->sd.dev,
-			"Failed to query or invalid source link frequency\n");
-		v4l2_subdev_unlock_state(sink_state);
-		/* Return -EINVAL in case of source_link_freq is 0 */
-		return source_link_freq ? : -EINVAL;
-	}
-	source_bitrate = source_link_freq * fmt->bus_width;
-
-	csi_bitrate = tc358746->dphy_cfg.lanes * tc358746->pll_rate;
-
-	dev_dbg(tc358746->sd.dev,
-		"Fifo settings params: source-bitrate:%lu csi-bitrate:%lu",
-		source_bitrate, csi_bitrate);
-
-	/* Avoid possible FIFO overflows */
-	if (csi_bitrate < source_bitrate) {
-		v4l2_subdev_unlock_state(sink_state);
-		return -EINVAL;
-	}
-
-	/* Best case */
-	if (csi_bitrate == source_bitrate) {
-		fifo_sz = TC358746_VB_DEFAULT_SIZE;
-		tc358746->vb_size = TC358746_VB_DEFAULT_SIZE;
-		goto out;
-	}
-
-	/*
-	 * Avoid possible FIFO underflow in case of
-	 * csi_bitrate > source_bitrate. For such case the chip has a internal
-	 * fifo which can be used to delay the line output.
-	 *
-	 * Fifo size calculation (excluding precision):
-	 *
-	 * fifo-sz, image-width - in bits
-	 * sbr                  - source_bitrate in bits/s
-	 * csir                 - csi_bitrate in bits/s
-	 *
-	 * image-width / csir >= (image-width - fifo-sz) / sbr
-	 * image-width * sbr / csir >= image-width - fifo-sz
-	 * fifo-sz >= image-width - image-width * sbr / csir; with n = csir/sbr
-	 * fifo-sz >= image-width - image-width / n
-	 */
-
-	source_bitrate /= TC358746_PRECISION;
-	n = csi_bitrate / source_bitrate;
-	tmp = (mbusfmt->width * TC358746_PRECISION) / n;
-	fifo_sz = mbusfmt->width - tmp;
-	fifo_sz *= fmt->bpp;
-	tc358746->vb_size = round_up(fifo_sz, 32);
-
-out:
-	dev_dbg(tc358746->sd.dev,
-		"Found FIFO size[bits]:%u -> aligned to size[bits]:%u\n",
-		fifo_sz, tc358746->vb_size);
-
-	v4l2_subdev_unlock_state(sink_state);
-
-	return tc358746->vb_size > TC358746_VB_MAX_SIZE ? -EINVAL : 0;
-}
-
 static int tc358746_get_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 				    struct v4l2_mbus_config *config)
 {
@@ -1040,7 +1053,7 @@ static const struct v4l2_subdev_pad_ops tc358746_pad_ops = {
 	.enum_mbus_code = tc358746_enum_mbus_code,
 	.set_fmt = tc358746_set_fmt,
 	.get_fmt = v4l2_subdev_get_fmt,
-	.link_validate = tc358746_link_validate,
+	.link_validate = v4l2_subdev_link_validate_default,
 	.get_mbus_config = tc358746_get_mbus_config,
 };
 
@@ -1351,8 +1364,6 @@ tc358746_init_output_port(struct tc358746 *tc358746, unsigned long refclk)
 						csi_lanes, &tc358746->dphy_cfg);
 	if (err)
 		goto err;
-
-	tc358746->vb_size = TC358746_VB_DEFAULT_SIZE;
 
 	return 0;
 

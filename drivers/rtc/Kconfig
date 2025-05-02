@@ -1321,13 +1321,6 @@ config RTC_DRV_SPEAR
 	 If you say Y here you will get support for the RTC found on
 	 spear
 
-config RTC_DRV_PCF50633
-	depends on MFD_PCF50633
-	tristate "NXP PCF50633 RTC"
-	help
-	  If you say yes here you get support for the RTC subsystem of the
-	  NXP PCF50633 used in embedded systems.
-
 config RTC_DRV_AB8500
 	tristate "ST-Ericsson AB8500 RTC"
 	depends on AB8500_CORE

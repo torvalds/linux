@@ -193,11 +193,48 @@
 void dccg401_init(struct dccg *dccg);
 
 void dccg401_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk);
-
+void dccg401_get_dccg_ref_freq(struct dccg *dccg,
+		unsigned int xtalin_freq_inKhz,
+		unsigned int *dccg_ref_freq_inKhz);
+void dccg401_set_dpstreamclk(
+		struct dccg *dccg,
+		enum streamclk_source src,
+		int otg_inst,
+		int dp_hpo_inst);
+void dccg401_enable_symclk32_le(
+		struct dccg *dccg,
+		int hpo_le_inst,
+		enum phyd32clk_clock_source phyd32clk);
+void dccg401_disable_symclk32_le(
+		struct dccg *dccg,
+		int hpo_le_inst);
+void dccg401_disable_dpstreamclk(struct dccg *dccg, int dp_hpo_inst);
+void dccg401_set_dto_dscclk(struct dccg *dccg, uint32_t inst);
+void dccg401_set_ref_dscclk(struct dccg *dccg,
+				uint32_t dsc_inst);
 void dccg401_set_src_sel(
 	struct dccg *dccg,
 	const struct dtbclk_dto_params *params);
-
+void dccg401_set_pixel_rate_div(
+		struct dccg *dccg,
+		uint32_t otg_inst,
+		enum pixel_rate_div tmds_div,
+		enum pixel_rate_div unused);
+void dccg401_get_pixel_rate_div(
+		struct dccg *dccg,
+		uint32_t otg_inst,
+		uint32_t *tmds_div,
+		uint32_t *dp_dto_int);
+void dccg401_set_dp_dto(
+		struct dccg *dccg,
+		const struct dp_dto_params *params);
+void dccg401_enable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst);
+void dccg401_disable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst);
+void dccg401_set_dto_dscclk(struct dccg *dccg, uint32_t inst);
+void dccg401_set_dtbclk_p_src(
+		struct dccg *dccg,
+		enum streamclk_source src,
+		uint32_t otg_inst);
 struct dccg *dccg401_create(
 	struct dc_context *ctx,
 	const struct dccg_registers *regs,

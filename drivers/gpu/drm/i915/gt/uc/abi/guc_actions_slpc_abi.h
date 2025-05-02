@@ -228,6 +228,11 @@ struct slpc_optimized_strategies {
 
 #define SLPC_OPTIMIZED_STRATEGY_COMPUTE		REG_BIT(0)
 
+enum slpc_power_profiles {
+	SLPC_POWER_PROFILES_BASE = 0x0,
+	SLPC_POWER_PROFILES_POWER_SAVING = 0x1
+};
+
 /**
  * DOC: SLPC H2G MESSAGE FORMAT
  *

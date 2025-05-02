@@ -486,7 +486,7 @@ static void __init chrp_find_8259(void)
 	i8259_init(pic, chrp_int_ack);
 	if (ppc_md.get_irq == NULL) {
 		ppc_md.get_irq = i8259_irq;
-		irq_set_default_host(i8259_get_host());
+		irq_set_default_domain(i8259_get_host());
 	}
 	if (chrp_mpic != NULL) {
 		cascade_irq = irq_of_parse_and_map(pic, 0);

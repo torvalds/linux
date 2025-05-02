@@ -620,7 +620,7 @@ static int bridge_probe(struct platform_device *pdev)
 	if (bridge_get_partnum(virt_to_phys((void *)bd->bridge_addr), partnum))
 		return -EPROBE_DEFER; /* not available yet */
 
-	parent = irq_get_default_host();
+	parent = irq_get_default_domain();
 	if (!parent)
 		return -ENODEV;
 	fn = irq_domain_alloc_named_fwnode("BRIDGE");

@@ -510,7 +510,7 @@ int memcg_list_lru_alloc(struct mem_cgroup *memcg, struct list_lru *lru,
 			 gfp_t gfp)
 {
 	unsigned long flags;
-	struct list_lru_memcg *mlru;
+	struct list_lru_memcg *mlru = NULL;
 	struct mem_cgroup *pos, *parent;
 	XA_STATE(xas, &lru->xa, 0);
 
@@ -535,9 +535,11 @@ int memcg_list_lru_alloc(struct mem_cgroup *memcg, struct list_lru *lru,
 			parent = parent_mem_cgroup(pos);
 		}
 
-		mlru = memcg_init_list_lru_one(lru, gfp);
-		if (!mlru)
-			return -ENOMEM;
+		if (!mlru) {
+			mlru = memcg_init_list_lru_one(lru, gfp);
+			if (!mlru)
+				return -ENOMEM;
+		}
 		xas_set(&xas, pos->kmemcg_id);
 		do {
 			xas_lock_irqsave(&xas, flags);
@@ -548,9 +550,10 @@ int memcg_list_lru_alloc(struct mem_cgroup *memcg, struct list_lru *lru,
 			}
 			xas_unlock_irqrestore(&xas, flags);
 		} while (xas_nomem(&xas, gfp));
-		if (mlru)
-			kfree(mlru);
 	} while (pos != memcg && !css_is_dying(&pos->css));
+
+	if (unlikely(mlru))
+		kfree(mlru);
 
 	return xas_error(&xas);
 }

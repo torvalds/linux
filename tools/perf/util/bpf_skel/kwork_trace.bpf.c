@@ -80,7 +80,7 @@ static __always_inline int local_strncmp(const char *s1,
 
 	for (i = 0; i < sz; i++) {
 		ret = (unsigned char)s1[i] - (unsigned char)s2[i];
-		if (ret || !s1[i] || !s2[i])
+		if (ret || !s1[i])
 			break;
 	}
 

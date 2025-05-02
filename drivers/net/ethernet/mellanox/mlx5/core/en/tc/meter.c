@@ -593,3 +593,8 @@ mlx5e_tc_meter_get_stats(struct mlx5e_flow_meter_handle *meter,
 	*drops = packets2;
 	*lastuse = max_t(u64, lastuse1, lastuse2);
 }
+
+int mlx5e_flow_meter_get_base_id(struct mlx5e_flow_meter_handle *meter)
+{
+	return meter->meters_obj->base_id;
+}

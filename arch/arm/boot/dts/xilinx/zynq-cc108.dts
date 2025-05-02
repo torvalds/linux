@@ -18,6 +18,7 @@
 	aliases {
 		ethernet0 = &gem0;
 		serial0 = &uart0;
+		spi0 = &qspi;
 	};
 
 	chosen {
@@ -48,7 +49,44 @@
 
 	ethernet_phy: ethernet-phy@1 {
 		reg = <1>;
-		device_type = "ethernet-phy";
+	};
+};
+
+&qspi {
+	status = "okay";
+	num-cs = <1>;
+	flash@0 { /* 16 MB */
+		compatible = "jedec,spi-nor";
+		reg = <0x0>;
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		partition@0 {
+			label = "qspi-fsbl-uboot-bs";
+			reg = <0x0 0x400000>; /* 4MB */
+		};
+		partition@400000 {
+			label = "qspi-linux";
+			reg = <0x400000 0x400000>; /* 4MB */
+		};
+		partition@800000 {
+			label = "qspi-rootfs";
+			reg = <0x800000 0x400000>; /* 4MB */
+		};
+		partition@c00000 {
+			label = "qspi-devicetree";
+			reg = <0xc00000 0x100000>; /* 1MB */
+		};
+		partition@d00000 {
+			label = "qspi-scratch";
+			reg = <0xd00000 0x200000>; /* 2MB */
+		};
+		partition@f00000 {
+			label = "qspi-uboot-env";
+			reg = <0xf00000 0x100000>; /* 1MB */
+		};
 	};
 };
 
@@ -59,6 +97,7 @@
 };
 
 &uart0 {
+	bootph-all;
 	status = "okay";
 };
 

@@ -21,7 +21,6 @@
  *
  */
 #include "amdgpu.h"
-#include "amdgpu_atombios.h"
 #include "hdp_v5_2.h"
 
 #include "hdp/hdp_5_2_1_offset.h"

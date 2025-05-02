@@ -1130,7 +1130,7 @@ static int cpcap_battery_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.fwnode = dev_fwnode(&pdev->dev);
 	psy_cfg.drv_data = ddata;
 
 	ddata->psy = devm_power_supply_register(ddata->dev,

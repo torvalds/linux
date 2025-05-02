@@ -142,38 +142,38 @@ unevaluatedProperties: false
 examples:
   - |
     thermal-sensor@1f04000 {
-         compatible = "allwinner,sun8i-a83t-ths";
-         reg = <0x01f04000 0x100>;
-         interrupts = <0 31 0>;
-         nvmem-cells = <&ths_calibration>;
-         nvmem-cell-names = "calibration";
-         #thermal-sensor-cells = <1>;
+        compatible = "allwinner,sun8i-a83t-ths";
+        reg = <0x01f04000 0x100>;
+        interrupts = <0 31 0>;
+        nvmem-cells = <&ths_calibration>;
+        nvmem-cell-names = "calibration";
+        #thermal-sensor-cells = <1>;
     };
 
   - |
     thermal-sensor@1c25000 {
-         compatible = "allwinner,sun8i-h3-ths";
-         reg = <0x01c25000 0x400>;
-         clocks = <&ccu 0>, <&ccu 1>;
-         clock-names = "bus", "mod";
-         resets = <&ccu 2>;
-         interrupts = <0 31 0>;
-         nvmem-cells = <&ths_calibration>;
-         nvmem-cell-names = "calibration";
-         #thermal-sensor-cells = <0>;
+        compatible = "allwinner,sun8i-h3-ths";
+        reg = <0x01c25000 0x400>;
+        clocks = <&ccu 0>, <&ccu 1>;
+        clock-names = "bus", "mod";
+        resets = <&ccu 2>;
+        interrupts = <0 31 0>;
+        nvmem-cells = <&ths_calibration>;
+        nvmem-cell-names = "calibration";
+        #thermal-sensor-cells = <0>;
     };
 
   - |
     thermal-sensor@5070400 {
-         compatible = "allwinner,sun50i-h6-ths";
-         reg = <0x05070400 0x100>;
-         clocks = <&ccu 0>;
-         clock-names = "bus";
-         resets = <&ccu 2>;
-         interrupts = <0 15 0>;
-         nvmem-cells = <&ths_calibration>;
-         nvmem-cell-names = "calibration";
-         #thermal-sensor-cells = <1>;
+        compatible = "allwinner,sun50i-h6-ths";
+        reg = <0x05070400 0x100>;
+        clocks = <&ccu 0>;
+        clock-names = "bus";
+        resets = <&ccu 2>;
+        interrupts = <0 15 0>;
+        nvmem-cells = <&ths_calibration>;
+        nvmem-cell-names = "calibration";
+        #thermal-sensor-cells = <1>;
     };
 
 ...

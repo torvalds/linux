@@ -937,7 +937,7 @@ static void floppy_off(unsigned int drive)
 	if (!(fdc_state[fdc].dor & (0x10 << UNIT(drive))))
 		return;
 
-	del_timer(motor_off_timer + drive);
+	timer_delete(motor_off_timer + drive);
 
 	/* make spindle stop in a position which minimizes spinup time
 	 * next time */
@@ -1918,7 +1918,7 @@ static int start_motor(void (*function)(void))
 		mask &= ~(0x10 << UNIT(current_drive));
 
 	/* starts motor and selects floppy */
-	del_timer(motor_off_timer + current_drive);
+	timer_delete(motor_off_timer + current_drive);
 	set_dor(current_fdc, mask, data);
 
 	/* wait_for_completion also schedules reset if needed. */
@@ -4762,7 +4762,7 @@ out_put_disk:
 	for (drive = 0; drive < N_DRIVE; drive++) {
 		if (!disks[drive][0])
 			break;
-		del_timer_sync(&motor_off_timer[drive]);
+		timer_delete_sync(&motor_off_timer[drive]);
 		put_disk(disks[drive][0]);
 		blk_mq_free_tag_set(&tag_sets[drive]);
 	}
@@ -4983,7 +4983,7 @@ static void __exit floppy_module_exit(void)
 	destroy_workqueue(floppy_wq);
 
 	for (drive = 0; drive < N_DRIVE; drive++) {
-		del_timer_sync(&motor_off_timer[drive]);
+		timer_delete_sync(&motor_off_timer[drive]);
 
 		if (floppy_available(drive)) {
 			for (i = 0; i < ARRAY_SIZE(floppy_type); i++) {

@@ -67,15 +67,6 @@ static int exfat_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	unsigned long long id = huge_encode_dev(sb->s_bdev->bd_dev);
 
-	if (sbi->used_clusters == EXFAT_CLUSTERS_UNTRACKED) {
-		mutex_lock(&sbi->s_lock);
-		if (exfat_count_used_clusters(sb, &sbi->used_clusters)) {
-			mutex_unlock(&sbi->s_lock);
-			return -EIO;
-		}
-		mutex_unlock(&sbi->s_lock);
-	}
-
 	buf->f_type = sb->s_magic;
 	buf->f_bsize = sbi->cluster_size;
 	buf->f_blocks = sbi->num_clusters - 2; /* clu 0 & 1 */
@@ -531,7 +522,6 @@ static int exfat_read_boot_sector(struct super_block *sb)
 	sbi->vol_flags = le16_to_cpu(p_boot->vol_flags);
 	sbi->vol_flags_persistent = sbi->vol_flags & (VOLUME_DIRTY | MEDIA_FAILURE);
 	sbi->clu_srch_ptr = EXFAT_FIRST_CLUSTER;
-	sbi->used_clusters = EXFAT_CLUSTERS_UNTRACKED;
 
 	/* check consistencies */
 	if ((u64)sbi->num_FAT_sectors << p_boot->sect_size_bits <

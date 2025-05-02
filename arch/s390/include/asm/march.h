@@ -33,6 +33,10 @@
 #define MARCH_HAS_Z16_FEATURES 1
 #endif
 
+#ifdef CONFIG_HAVE_MARCH_Z17_FEATURES
+#define MARCH_HAS_Z17_FEATURES 1
+#endif
+
 #endif /* __DECOMPRESSOR */
 
 #endif /* __ASM_S390_MARCH_H */

@@ -2641,7 +2641,7 @@ static void atl1_down(struct atl1_adapter *adapter)
 
 	napi_disable(&adapter->napi);
 	netif_stop_queue(netdev);
-	del_timer_sync(&adapter->phy_config_timer);
+	timer_delete_sync(&adapter->phy_config_timer);
 	adapter->phy_timer_pending = false;
 
 	atlx_irq_disable(adapter);

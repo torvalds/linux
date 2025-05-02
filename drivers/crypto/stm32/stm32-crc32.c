@@ -162,7 +162,7 @@ static int burst_update(struct shash_desc *desc, const u8 *d8,
 		if (mctx->poly == CRC32_POLY_LE)
 			ctx->partial = crc32_le(ctx->partial, d8, length);
 		else
-			ctx->partial = __crc32c_le(ctx->partial, d8, length);
+			ctx->partial = crc32c(ctx->partial, d8, length);
 
 		goto pm_out;
 	}

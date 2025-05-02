@@ -12,6 +12,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <asm/machine.h>
 #include <asm/ccwdev.h>
 #include <asm/setup.h>
 #include <asm/cio.h>
@@ -175,7 +176,7 @@ static void snsid_callback(struct ccw_device *cdev, void *data, int rc)
 	struct senseid *senseid = &cdev->private->dma_area->senseid;
 	int vm = 0;
 
-	if (rc && MACHINE_IS_VM) {
+	if (rc && machine_is_vm()) {
 		/* Try diag 0x210 fallback on z/VM. */
 		snsid_init(cdev);
 		if (diag210_get_dev_info(cdev) == 0) {

@@ -2,6 +2,7 @@ Atmel system registers
 
 Chipid required properties:
 - compatible: Should be "atmel,sama5d2-chipid" or "microchip,sama7g5-chipid"
+			"microchip,sama7d65-chipid"
 - reg : Should contain registers location and length
 
 PIT Timer required properties:

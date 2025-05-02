@@ -8,7 +8,7 @@
 
 #include "pdr_internal.h"
 
-const struct qmi_elem_info servreg_location_entry_ei[] = {
+static const struct qmi_elem_info servreg_location_entry_ei[] = {
 	{
 		.data_type      = QMI_STRING,
 		.elem_len       = SERVREG_NAME_LENGTH + 1,
@@ -47,7 +47,6 @@ const struct qmi_elem_info servreg_location_entry_ei[] = {
 	},
 	{}
 };
-EXPORT_SYMBOL_GPL(servreg_location_entry_ei);
 
 const struct qmi_elem_info servreg_get_domain_list_req_ei[] = {
 	{

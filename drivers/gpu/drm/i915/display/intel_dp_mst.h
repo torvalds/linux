@@ -33,8 +33,7 @@ bool intel_dp_mst_verify_dpcd_state(struct intel_dp *intel_dp);
 
 int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 				   struct intel_crtc_state *crtc_state,
-				   int max_bpp, int min_bpp,
 				   struct drm_connector_state *conn_state,
-				   int step, bool dsc);
+				   int min_bpp_x16, int max_bpp_x16, int bpp_step_x16, bool dsc);
 
 #endif /* __INTEL_DP_MST_H__ */

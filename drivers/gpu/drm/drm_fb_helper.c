@@ -245,6 +245,9 @@ __drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper,
 	if (do_delayed)
 		drm_fb_helper_hotplug_event(fb_helper);
 
+	if (fb_helper->funcs->fb_restore)
+		fb_helper->funcs->fb_restore(fb_helper);
+
 	return ret;
 }
 
@@ -754,7 +757,12 @@ EXPORT_SYMBOL(drm_fb_helper_deferred_io);
  */
 void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper, bool suspend)
 {
-	if (fb_helper && fb_helper->info)
+	if (!fb_helper || !fb_helper->info)
+		return;
+
+	if (fb_helper->funcs->fb_set_suspend)
+		fb_helper->funcs->fb_set_suspend(fb_helper, suspend);
+	else
 		fb_set_suspend(fb_helper->info, suspend);
 }
 EXPORT_SYMBOL(drm_fb_helper_set_suspend);
@@ -800,7 +808,7 @@ void drm_fb_helper_set_suspend_unlocked(struct drm_fb_helper *fb_helper,
 		}
 	}
 
-	fb_set_suspend(fb_helper->info, suspend);
+	drm_fb_helper_set_suspend(fb_helper, suspend);
 	console_unlock();
 }
 EXPORT_SYMBOL(drm_fb_helper_set_suspend_unlocked);
@@ -1626,6 +1634,9 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper)
 	struct fb_info *info;
 	int ret;
 
+	if (drm_WARN_ON(dev, !dev->driver->fbdev_probe))
+		return -EINVAL;
+
 	ret = drm_fb_helper_find_sizes(fb_helper, &sizes);
 	if (ret) {
 		/* First time: disable all crtc's.. */
@@ -1635,10 +1646,7 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper)
 	}
 
 	/* push down into drivers */
-	if (dev->driver->fbdev_probe)
-		ret = dev->driver->fbdev_probe(fb_helper, &sizes);
-	else if (fb_helper->funcs)
-		ret = fb_helper->funcs->fb_probe(fb_helper, &sizes);
+	ret = dev->driver->fbdev_probe(fb_helper, &sizes);
 	if (ret < 0)
 		return ret;
 

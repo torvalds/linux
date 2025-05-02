@@ -781,7 +781,7 @@ static void prp_stop(struct prp_priv *priv)
 	imx_media_free_dma_buf(ic_priv->ipu_dev, &priv->underrun_buf);
 
 	/* cancel the EOF timeout timer */
-	del_timer_sync(&priv->eof_timeout_timer);
+	timer_delete_sync(&priv->eof_timeout_timer);
 
 	prp_put_ipu_resources(priv);
 }

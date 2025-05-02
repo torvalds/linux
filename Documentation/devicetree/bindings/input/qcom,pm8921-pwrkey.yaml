@@ -52,24 +52,24 @@ unevaluatedProperties: false
 
 examples:
   - |
-   #include <dt-bindings/interrupt-controller/irq.h>
-   ssbi {
-     #address-cells = <1>;
-     #size-cells = <0>;
+    #include <dt-bindings/interrupt-controller/irq.h>
+    ssbi {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-     pmic@0 {
-       reg = <0x0>;
-       #address-cells = <1>;
-       #size-cells = <0>;
+        pmic@0 {
+            reg = <0x0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-       pwrkey@1c {
-         compatible = "qcom,pm8921-pwrkey";
-         reg = <0x1c>;
-         interrupt-parent = <&pmicint>;
-         interrupts = <50 IRQ_TYPE_EDGE_RISING>, <51 IRQ_TYPE_EDGE_RISING>;
-         debounce = <15625>;
-         pull-up;
-       };
-     };
-   };
+            pwrkey@1c {
+                compatible = "qcom,pm8921-pwrkey";
+                reg = <0x1c>;
+                interrupt-parent = <&pmicint>;
+                interrupts = <50 IRQ_TYPE_EDGE_RISING>, <51 IRQ_TYPE_EDGE_RISING>;
+                debounce = <15625>;
+                pull-up;
+            };
+        };
+    };
 ...

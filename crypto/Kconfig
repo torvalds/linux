@@ -141,6 +141,12 @@ config CRYPTO_ACOMP
 	select CRYPTO_ALGAPI
 	select CRYPTO_ACOMP2
 
+config CRYPTO_HKDF
+	tristate
+	select CRYPTO_SHA256 if !CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
+	select CRYPTO_SHA512 if !CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
+	select CRYPTO_HASH2
+
 config CRYPTO_MANAGER
 	tristate "Cryptographic algorithm manager"
 	select CRYPTO_MANAGER2
@@ -227,6 +233,18 @@ config CRYPTO_AUTHENC
 	  Authenc: Combined mode wrapper for IPsec.
 
 	  This is required for IPSec ESP (XFRM_ESP).
+
+config CRYPTO_KRB5ENC
+	tristate "Kerberos 5 combined hash+cipher support"
+	select CRYPTO_AEAD
+	select CRYPTO_SKCIPHER
+	select CRYPTO_MANAGER
+	select CRYPTO_HASH
+	select CRYPTO_NULL
+	help
+	  Combined hash and cipher support for Kerberos 5 RFC3961 simplified
+	  profile.  This is required for Kerberos 5-style encryption, used by
+	  sunrpc/NFS and rxrpc/AFS.
 
 config CRYPTO_TEST
 	tristate "Testing module"
@@ -318,6 +336,7 @@ config CRYPTO_CURVE25519
 	tristate "Curve25519"
 	select CRYPTO_KPP
 	select CRYPTO_LIB_CURVE25519_GENERIC
+	select CRYPTO_LIB_CURVE25519_INTERNAL
 	help
 	  Curve25519 elliptic curve (RFC7748)
 
@@ -616,6 +635,7 @@ config CRYPTO_ARC4
 config CRYPTO_CHACHA20
 	tristate "ChaCha"
 	select CRYPTO_LIB_CHACHA_GENERIC
+	select CRYPTO_LIB_CHACHA_INTERNAL
 	select CRYPTO_SKCIPHER
 	help
 	  The ChaCha20, XChaCha20, and XChaCha12 stream cipher algorithms
@@ -937,6 +957,7 @@ config CRYPTO_POLY1305
 	tristate "Poly1305"
 	select CRYPTO_HASH
 	select CRYPTO_LIB_POLY1305_GENERIC
+	select CRYPTO_LIB_POLY1305_INTERNAL
 	help
 	  Poly1305 authenticator algorithm (RFC7539)
 
@@ -1080,26 +1101,6 @@ config CRYPTO_CRC32
 	  CRC32 CRC algorithm (IEEE 802.3)
 
 	  Used by RoCEv2 and f2fs.
-
-config CRYPTO_CRCT10DIF
-	tristate "CRCT10DIF"
-	select CRYPTO_HASH
-	select CRC_T10DIF
-	help
-	  CRC16 CRC algorithm used for the T10 (SCSI) Data Integrity Field (DIF)
-
-	  CRC algorithm used by the SCSI Block Commands standard.
-
-config CRYPTO_CRC64_ROCKSOFT
-	tristate "CRC64 based on Rocksoft Model algorithm"
-	depends on CRC64
-	select CRYPTO_HASH
-	help
-	  CRC64 CRC algorithm based on the Rocksoft Model CRC Algorithm
-
-	  Used by the NVMe implementation of T10 DIF (BLK_DEV_INTEGRITY)
-
-	  See https://zlib.net/crc_v3.txt
 
 endmenu
 
@@ -1460,5 +1461,6 @@ endif
 source "drivers/crypto/Kconfig"
 source "crypto/asymmetric_keys/Kconfig"
 source "certs/Kconfig"
+source "crypto/krb5/Kconfig"
 
 endif	# if CRYPTO

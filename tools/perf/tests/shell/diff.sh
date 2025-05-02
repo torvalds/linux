@@ -39,13 +39,13 @@ make_data() {
   file="$1"
   if ! perf record -o "${file}" ${testprog} 2> /dev/null
   then
-    echo "Workload record [Failed record]"
+    echo "Workload record [Failed record]" >&2
     echo 1
     return
   fi
   if ! perf report -i "${file}" -q | grep -q "${testsym}"
   then
-    echo "Workload record [Failed missing output]"
+    echo "Workload record [Failed missing output]" >&2
     echo 1
     return
   fi
@@ -55,12 +55,12 @@ make_data() {
 test_two_files() {
   echo "Basic two file diff test"
   err=$(make_data "${perfdata1}")
-  if [ $err != 0 ]
+  if [ "$err" != 0 ]
   then
     return
   fi
   err=$(make_data "${perfdata2}")
-  if [ $err != 0 ]
+  if [ "$err" != 0 ]
   then
     return
   fi
@@ -77,12 +77,12 @@ test_two_files() {
 test_three_files() {
   echo "Basic three file diff test"
   err=$(make_data "${perfdata1}")
-  if [ $err != 0 ]
+  if [ "$err" != 0 ]
   then
     return
   fi
   err=$(make_data "${perfdata2}")
-  if [ $err != 0 ]
+  if [ "$err" != 0 ]
   then
     return
   fi

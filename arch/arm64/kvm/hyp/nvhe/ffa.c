@@ -730,10 +730,10 @@ static void do_ffa_version(struct arm_smccc_res *res,
 		hyp_ffa_version = ffa_req_version;
 	}
 
-	if (hyp_ffa_post_init())
+	if (hyp_ffa_post_init()) {
 		res->a0 = FFA_RET_NOT_SUPPORTED;
-	else {
-		has_version_negotiated = true;
+	} else {
+		smp_store_release(&has_version_negotiated, true);
 		res->a0 = hyp_ffa_version;
 	}
 unlock:
@@ -809,7 +809,8 @@ bool kvm_host_ffa_handler(struct kvm_cpu_context *host_ctxt, u32 func_id)
 	if (!is_ffa_call(func_id))
 		return false;
 
-	if (!has_version_negotiated && func_id != FFA_VERSION) {
+	if (func_id != FFA_VERSION &&
+	    !smp_load_acquire(&has_version_negotiated)) {
 		ffa_to_smccc_error(&res, FFA_RET_INVALID_PARAMETERS);
 		goto out_handled;
 	}

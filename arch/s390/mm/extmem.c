@@ -21,6 +21,7 @@
 #include <linux/ioport.h>
 #include <linux/refcount.h>
 #include <linux/pgtable.h>
+#include <asm/machine.h>
 #include <asm/diag.h>
 #include <asm/page.h>
 #include <asm/ebcdic.h>
@@ -255,7 +256,7 @@ segment_type (char* name)
 	int rc;
 	struct dcss_segment seg;
 
-	if (!MACHINE_IS_VM)
+	if (!machine_is_vm())
 		return -ENOSYS;
 
 	dcss_mkname(name, seg.dcss_name);
@@ -418,7 +419,7 @@ segment_load (char *name, int do_nonshared, unsigned long *addr,
 	struct dcss_segment *seg;
 	int rc;
 
-	if (!MACHINE_IS_VM)
+	if (!machine_is_vm())
 		return -ENOSYS;
 
 	mutex_lock(&dcss_lock);
@@ -540,7 +541,7 @@ segment_unload(char *name)
 	unsigned long dummy;
 	struct dcss_segment *seg;
 
-	if (!MACHINE_IS_VM)
+	if (!machine_is_vm())
 		return;
 
 	mutex_lock(&dcss_lock);
@@ -572,7 +573,7 @@ segment_save(char *name)
 	char cmd2[80];
 	int i, response;
 
-	if (!MACHINE_IS_VM)
+	if (!machine_is_vm())
 		return;
 
 	mutex_lock(&dcss_lock);

@@ -437,7 +437,7 @@ static const struct sdw_device_id rt721_sdca_id[] = {
 };
 MODULE_DEVICE_TABLE(sdw, rt721_sdca_id);
 
-static int __maybe_unused rt721_sdca_dev_suspend(struct device *dev)
+static int rt721_sdca_dev_suspend(struct device *dev)
 {
 	struct rt721_sdca_priv *rt721 = dev_get_drvdata(dev);
 
@@ -453,7 +453,7 @@ static int __maybe_unused rt721_sdca_dev_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused rt721_sdca_dev_system_suspend(struct device *dev)
+static int rt721_sdca_dev_system_suspend(struct device *dev)
 {
 	struct rt721_sdca_priv *rt721_sdca = dev_get_drvdata(dev);
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
@@ -485,7 +485,7 @@ static int __maybe_unused rt721_sdca_dev_system_suspend(struct device *dev)
 
 #define RT721_PROBE_TIMEOUT 5000
 
-static int __maybe_unused rt721_sdca_dev_resume(struct device *dev)
+static int rt721_sdca_dev_resume(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct rt721_sdca_priv *rt721 = dev_get_drvdata(dev);
@@ -524,15 +524,15 @@ regmap_sync:
 }
 
 static const struct dev_pm_ops rt721_sdca_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(rt721_sdca_dev_system_suspend, rt721_sdca_dev_resume)
-	SET_RUNTIME_PM_OPS(rt721_sdca_dev_suspend, rt721_sdca_dev_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(rt721_sdca_dev_system_suspend, rt721_sdca_dev_resume)
+	RUNTIME_PM_OPS(rt721_sdca_dev_suspend, rt721_sdca_dev_resume, NULL)
 };
 
 static struct sdw_driver rt721_sdca_sdw_driver = {
 	.driver = {
 		.name = "rt721-sdca",
 		.owner = THIS_MODULE,
-		.pm = &rt721_sdca_pm,
+		.pm = pm_ptr(&rt721_sdca_pm),
 	},
 	.probe = rt721_sdca_sdw_probe,
 	.remove = rt721_sdca_sdw_remove,

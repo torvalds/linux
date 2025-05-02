@@ -10,7 +10,6 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_de.h"
-#include "intel_dmc.h"
 #include "intel_dmc_regs.h"
 #include "intel_dmc_wl.h"
 
@@ -50,12 +49,24 @@
 #define DMC_WAKELOCK_CTL_TIMEOUT_US 5000
 #define DMC_WAKELOCK_HOLD_TIME 50
 
+/*
+ * Possible non-negative values for the enable_dmc_wl param.
+ */
+enum {
+	ENABLE_DMC_WL_DISABLED,
+	ENABLE_DMC_WL_ENABLED,
+	ENABLE_DMC_WL_ANY_REGISTER,
+	ENABLE_DMC_WL_ALWAYS_LOCKED,
+	ENABLE_DMC_WL_MAX,
+};
+
 struct intel_dmc_wl_range {
 	u32 start;
 	u32 end;
 };
 
 static const struct intel_dmc_wl_range powered_off_ranges[] = {
+	{ .start = 0x44400, .end = 0x4447f }, /* PIPE interrupt registers */
 	{ .start = 0x60000, .end = 0x7ffff },
 	{},
 };
@@ -90,6 +101,7 @@ static const struct intel_dmc_wl_range xe3lpd_dc5_dc6_dmc_ranges[] = {
 	{ .start = 0x42088 }, /* CHICKEN_MISC_3 */
 	{ .start = 0x46160 }, /* CMTG_CLK_SEL */
 	{ .start = 0x8f000, .end = 0x8ffff }, /* Main DMC registers */
+	{ .start = 0x45230 }, /* INITIATE_PM_DMD_REQ */
 
 	{},
 };
@@ -230,9 +242,14 @@ static bool intel_dmc_wl_reg_in_range(i915_reg_t reg,
 	return false;
 }
 
-static bool intel_dmc_wl_check_range(i915_reg_t reg, u32 dc_state)
+static bool intel_dmc_wl_check_range(struct intel_display *display,
+				     i915_reg_t reg,
+				     u32 dc_state)
 {
 	const struct intel_dmc_wl_range *ranges;
+
+	if (display->params.enable_dmc_wl == ENABLE_DMC_WL_ANY_REGISTER)
+		return true;
 
 	/*
 	 * Check that the offset is in one of the ranges for which
@@ -265,20 +282,48 @@ static bool intel_dmc_wl_check_range(i915_reg_t reg, u32 dc_state)
 
 static bool __intel_dmc_wl_supported(struct intel_display *display)
 {
-	return display->params.enable_dmc_wl && intel_dmc_has_payload(display);
+	return display->params.enable_dmc_wl;
 }
 
 static void intel_dmc_wl_sanitize_param(struct intel_display *display)
 {
-	if (!HAS_DMC_WAKELOCK(display))
-		display->params.enable_dmc_wl = 0;
-	else if (display->params.enable_dmc_wl >= 0)
-		display->params.enable_dmc_wl = !!display->params.enable_dmc_wl;
-	else
-		display->params.enable_dmc_wl = DISPLAY_VER(display) >= 30;
+	const char *desc;
 
-	drm_dbg_kms(display->drm, "Sanitized enable_dmc_wl value: %d\n",
-		    display->params.enable_dmc_wl);
+	if (!HAS_DMC_WAKELOCK(display)) {
+		display->params.enable_dmc_wl = ENABLE_DMC_WL_DISABLED;
+	} else if (display->params.enable_dmc_wl < 0) {
+		if (DISPLAY_VER(display) >= 30)
+			display->params.enable_dmc_wl = ENABLE_DMC_WL_ENABLED;
+		else
+			display->params.enable_dmc_wl = ENABLE_DMC_WL_DISABLED;
+	} else if (display->params.enable_dmc_wl >= ENABLE_DMC_WL_MAX) {
+		display->params.enable_dmc_wl = ENABLE_DMC_WL_ENABLED;
+	}
+
+	drm_WARN_ON(display->drm,
+		    display->params.enable_dmc_wl < 0 ||
+		    display->params.enable_dmc_wl >= ENABLE_DMC_WL_MAX);
+
+	switch (display->params.enable_dmc_wl) {
+	case ENABLE_DMC_WL_DISABLED:
+		desc = "disabled";
+		break;
+	case ENABLE_DMC_WL_ENABLED:
+		desc = "enabled";
+		break;
+	case ENABLE_DMC_WL_ANY_REGISTER:
+		desc = "match any register";
+		break;
+	case ENABLE_DMC_WL_ALWAYS_LOCKED:
+		desc = "always locked";
+		break;
+	default:
+		desc = "unknown";
+		break;
+	}
+
+	drm_dbg_kms(display->drm, "Sanitized enable_dmc_wl value: %d (%s)\n",
+		    display->params.enable_dmc_wl, desc);
 }
 
 void intel_dmc_wl_init(struct intel_display *display)
@@ -292,7 +337,8 @@ void intel_dmc_wl_init(struct intel_display *display)
 
 	INIT_DELAYED_WORK(&wl->work, intel_dmc_wl_work);
 	spin_lock_init(&wl->lock);
-	refcount_set(&wl->refcount, 0);
+	refcount_set(&wl->refcount,
+		     display->params.enable_dmc_wl == ENABLE_DMC_WL_ALWAYS_LOCKED ? 1 : 0);
 }
 
 /* Must only be called as part of enabling dynamic DC states. */
@@ -398,7 +444,8 @@ void intel_dmc_wl_get(struct intel_display *display, i915_reg_t reg)
 
 	spin_lock_irqsave(&wl->lock, flags);
 
-	if (i915_mmio_reg_valid(reg) && !intel_dmc_wl_check_range(reg, wl->dc_state))
+	if (i915_mmio_reg_valid(reg) &&
+	    !intel_dmc_wl_check_range(display, reg, wl->dc_state))
 		goto out_unlock;
 
 	if (!wl->enabled) {
@@ -430,7 +477,8 @@ void intel_dmc_wl_put(struct intel_display *display, i915_reg_t reg)
 
 	spin_lock_irqsave(&wl->lock, flags);
 
-	if (i915_mmio_reg_valid(reg) && !intel_dmc_wl_check_range(reg, wl->dc_state))
+	if (i915_mmio_reg_valid(reg) &&
+	    !intel_dmc_wl_check_range(display, reg, wl->dc_state))
 		goto out_unlock;
 
 	if (WARN_RATELIMIT(!refcount_read(&wl->refcount),

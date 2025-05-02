@@ -270,25 +270,6 @@ int pnp_add_card(struct pnp_card *card)
 }
 
 /**
- * pnp_remove_card - removes a PnP card from the PnP Layer
- * @card: pointer to the card to remove
- */
-void pnp_remove_card(struct pnp_card *card)
-{
-	struct list_head *pos, *temp;
-
-	device_unregister(&card->dev);
-	mutex_lock(&pnp_lock);
-	list_del(&card->global_list);
-	list_del(&card->protocol_list);
-	mutex_unlock(&pnp_lock);
-	list_for_each_safe(pos, temp, &card->devices) {
-		struct pnp_dev *dev = card_to_pnp_dev(pos);
-		pnp_remove_card_device(dev);
-	}
-}
-
-/**
  * pnp_add_card_device - adds a device to the specified card
  * @card: pointer to the card to add to
  * @dev: pointer to the device to add
@@ -304,19 +285,6 @@ int pnp_add_card_device(struct pnp_card *card, struct pnp_dev *dev)
 	list_add_tail(&dev->card_list, &card->devices);
 	mutex_unlock(&pnp_lock);
 	return 0;
-}
-
-/**
- * pnp_remove_card_device- removes a device from the specified card
- * @dev: pointer to the device to remove
- */
-void pnp_remove_card_device(struct pnp_dev *dev)
-{
-	mutex_lock(&pnp_lock);
-	dev->card = NULL;
-	list_del(&dev->card_list);
-	mutex_unlock(&pnp_lock);
-	__pnp_remove_device(dev);
 }
 
 /**

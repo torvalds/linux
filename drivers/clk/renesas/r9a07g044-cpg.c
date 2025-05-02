@@ -94,6 +94,41 @@ static const struct clk_div_table dtable_1_32[] = {
 	{0, 0},
 };
 
+#ifdef CONFIG_CLK_R9A07G054
+static const struct clk_div_table dtable_4_32[] = {
+	{3, 4},
+	{4, 5},
+	{5, 6},
+	{6, 7},
+	{7, 8},
+	{8, 9},
+	{9, 10},
+	{10, 11},
+	{11, 12},
+	{12, 13},
+	{13, 14},
+	{14, 15},
+	{15, 16},
+	{16, 17},
+	{17, 18},
+	{18, 19},
+	{19, 20},
+	{20, 21},
+	{21, 22},
+	{22, 23},
+	{23, 24},
+	{24, 25},
+	{25, 26},
+	{26, 27},
+	{27, 28},
+	{28, 29},
+	{29, 30},
+	{30, 31},
+	{31, 32},
+	{0, 0},
+};
+#endif
+
 static const struct clk_div_table dtable_16_128[] = {
 	{0, 16},
 	{1, 32},
@@ -114,7 +149,7 @@ static const u32 mtable_sdhi[] = { 1, 2, 3 };
 static const struct {
 	struct cpg_core_clk common[56];
 #ifdef CONFIG_CLK_R9A07G054
-	struct cpg_core_clk drp[0];
+	struct cpg_core_clk drp[3];
 #endif
 } core_clks __initconst = {
 	.common = {
@@ -192,6 +227,9 @@ static const struct {
 	},
 #ifdef CONFIG_CLK_R9A07G054
 	.drp = {
+		DEF_FIXED("DRP_M", R9A07G054_CLK_DRP_M, CLK_PLL3, 1, 5),
+		DEF_FIXED("DRP_D", R9A07G054_CLK_DRP_D, CLK_PLL3, 1, 2),
+		DEF_DIV("DRP_A", R9A07G054_CLK_DRP_A, CLK_PLL3, DIVPL3E, dtable_4_32),
 	},
 #endif
 };
@@ -199,7 +237,7 @@ static const struct {
 static const struct {
 	struct rzg2l_mod_clk common[79];
 #ifdef CONFIG_CLK_R9A07G054
-	struct rzg2l_mod_clk drp[0];
+	struct rzg2l_mod_clk drp[5];
 #endif
 } mod_clks = {
 	.common = {
@@ -364,6 +402,16 @@ static const struct {
 	},
 #ifdef CONFIG_CLK_R9A07G054
 	.drp = {
+		DEF_MOD("stpai_initclk", R9A07G054_STPAI_INITCLK, R9A07G044_OSCCLK,
+					0x5e8, 0),
+		DEF_MOD("stpai_aclk",	R9A07G054_STPAI_ACLK, R9A07G044_CLK_P1,
+					0x5e8, 1),
+		DEF_MOD("stpai_mclk",	R9A07G054_STPAI_MCLK, R9A07G054_CLK_DRP_M,
+					0x5e8, 2),
+		DEF_MOD("stpai_dclkin",	R9A07G054_STPAI_DCLKIN, R9A07G054_CLK_DRP_D,
+					0x5e8, 3),
+		DEF_MOD("stpai_aclk_drp", R9A07G054_STPAI_ACLK_DRP, R9A07G054_CLK_DRP_A,
+					0x5e8, 4),
 	},
 #endif
 };
@@ -430,6 +478,9 @@ static const struct rzg2l_reset r9a07g044_resets[] = {
 	DEF_RST(R9A07G044_ADC_PRESETN, 0x8a8, 0),
 	DEF_RST(R9A07G044_ADC_ADRST_N, 0x8a8, 1),
 	DEF_RST(R9A07G044_TSU_PRESETN, 0x8ac, 0),
+#ifdef CONFIG_CLK_R9A07G054
+	DEF_RST(R9A07G054_STPAI_ARESETN, 0x8e8, 0),
+#endif
 };
 
 static const unsigned int r9a07g044_crit_mod_clks[] __initconst = {

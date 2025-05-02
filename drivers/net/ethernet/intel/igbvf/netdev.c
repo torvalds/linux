@@ -1592,7 +1592,7 @@ void igbvf_down(struct igbvf_adapter *adapter)
 
 	igbvf_irq_disable(adapter);
 
-	del_timer_sync(&adapter->watchdog_timer);
+	timer_delete_sync(&adapter->watchdog_timer);
 
 	/* record the stats before reset*/
 	igbvf_update_stats(adapter);
@@ -2912,7 +2912,7 @@ static void igbvf_remove(struct pci_dev *pdev)
 	 * disable it from being rescheduled.
 	 */
 	set_bit(__IGBVF_DOWN, &adapter->state);
-	del_timer_sync(&adapter->watchdog_timer);
+	timer_delete_sync(&adapter->watchdog_timer);
 
 	cancel_work_sync(&adapter->reset_task);
 	cancel_work_sync(&adapter->watchdog_task);

@@ -31,6 +31,10 @@ properties:
               - rockchip,rk3288-spdif
               - rockchip,rk3308-spdif
           - const: rockchip,rk3066-spdif
+      - items:
+          - enum:
+              - rockchip,rk3588-spdif
+          - const: rockchip,rk3568-spdif
 
   reg:
     maxItems: 1

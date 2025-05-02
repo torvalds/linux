@@ -175,7 +175,6 @@ static void construct_link_service_dp_phy_or_dpia(struct link_service *link_srv)
 {
 	link_srv->dpia_handle_usb4_bandwidth_allocation_for_link =
 			dpia_handle_usb4_bandwidth_allocation_for_link;
-	link_srv->dpia_handle_bw_alloc_response = dpia_handle_bw_alloc_response;
 	link_srv->dp_set_drive_settings = dp_set_drive_settings;
 	link_srv->dpcd_write_rx_power_ctrl = dpcd_write_rx_power_ctrl;
 }

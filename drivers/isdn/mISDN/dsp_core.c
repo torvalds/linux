@@ -928,7 +928,7 @@ dsp_function(struct mISDNchannel *ch,  struct sk_buff *skb)
 		dsp->tone.hardware = 0;
 		dsp->tone.software = 0;
 		if (timer_pending(&dsp->tone.tl))
-			del_timer(&dsp->tone.tl);
+			timer_delete(&dsp->tone.tl);
 		if (dsp->conf)
 			dsp_cmx_conf(dsp, 0); /* dsp_cmx_hardware will also be
 						 called here */
@@ -975,7 +975,7 @@ dsp_ctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 		cancel_work_sync(&dsp->workq);
 		spin_lock_irqsave(&dsp_lock, flags);
 		if (timer_pending(&dsp->tone.tl))
-			del_timer(&dsp->tone.tl);
+			timer_delete(&dsp->tone.tl);
 		skb_queue_purge(&dsp->sendq);
 		if (dsp_debug & DEBUG_DSP_CTRL)
 			printk(KERN_DEBUG "%s: releasing member %s\n",
@@ -1209,7 +1209,7 @@ static void __exit dsp_cleanup(void)
 {
 	mISDN_unregister_Bprotocol(&DSP);
 
-	del_timer_sync(&dsp_spl_tl);
+	timer_delete_sync(&dsp_spl_tl);
 
 	if (!list_empty(&dsp_ilist)) {
 		printk(KERN_ERR "mISDN_dsp: Audio DSP object inst list not "

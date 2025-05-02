@@ -8,6 +8,7 @@
 #include "gem/i915_gem_object.h"
 
 #include "i915_drv.h"
+#include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_fb_bo.h"
 
@@ -16,12 +17,12 @@ void intel_fb_bo_framebuffer_fini(struct drm_gem_object *obj)
 	/* Nothing to do for i915 */
 }
 
-int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
+int intel_fb_bo_framebuffer_init(struct drm_framebuffer *fb,
 				 struct drm_gem_object *_obj,
 				 struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_i915_gem_object *obj = to_intel_bo(_obj);
-	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	struct intel_display *display = to_intel_display(obj->base.dev);
 	unsigned int tiling, stride;
 
 	i915_gem_object_lock(obj, NULL);
@@ -36,7 +37,7 @@ int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
 		 */
 		if (tiling != I915_TILING_NONE &&
 		    tiling != intel_fb_modifier_to_tiling(mode_cmd->modifier[0])) {
-			drm_dbg_kms(&i915->drm,
+			drm_dbg_kms(display->drm,
 				    "tiling_mode doesn't match fb modifier\n");
 			return -EINVAL;
 		}
@@ -44,7 +45,7 @@ int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
 		if (tiling == I915_TILING_X) {
 			mode_cmd->modifier[0] = I915_FORMAT_MOD_X_TILED;
 		} else if (tiling == I915_TILING_Y) {
-			drm_dbg_kms(&i915->drm,
+			drm_dbg_kms(display->drm,
 				    "No Y tiling for legacy addfb\n");
 			return -EINVAL;
 		}
@@ -54,9 +55,9 @@ int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
 	 * gen2/3 display engine uses the fence if present,
 	 * so the tiling mode must match the fb modifier exactly.
 	 */
-	if (DISPLAY_VER(i915) < 4 &&
+	if (DISPLAY_VER(display) < 4 &&
 	    tiling != intel_fb_modifier_to_tiling(mode_cmd->modifier[0])) {
-		drm_dbg_kms(&i915->drm,
+		drm_dbg_kms(display->drm,
 			    "tiling_mode must match fb modifier exactly on gen2/3\n");
 		return -EINVAL;
 	}
@@ -66,7 +67,7 @@ int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
 	 * the fb pitch and fence stride match.
 	 */
 	if (tiling != I915_TILING_NONE && mode_cmd->pitches[0] != stride) {
-		drm_dbg_kms(&i915->drm,
+		drm_dbg_kms(display->drm,
 			    "pitch (%d) must match tiling stride (%d)\n",
 			    mode_cmd->pitches[0], stride);
 		return -EINVAL;
@@ -76,10 +77,11 @@ int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
 }
 
 struct drm_gem_object *
-intel_fb_bo_lookup_valid_bo(struct drm_i915_private *i915,
+intel_fb_bo_lookup_valid_bo(struct drm_device *drm,
 			    struct drm_file *filp,
 			    const struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	struct drm_i915_private *i915 = to_i915(drm);
 	struct drm_i915_gem_object *obj;
 
 	obj = i915_gem_object_lookup(filp, mode_cmd->handles[0]);

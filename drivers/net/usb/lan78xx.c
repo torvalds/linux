@@ -1661,7 +1661,7 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 		if (ret < 0)
 			return ret;
 
-		del_timer(&dev->stat_monitor);
+		timer_delete(&dev->stat_monitor);
 	} else if (link && !dev->link_on) {
 		dev->link_on = true;
 
@@ -3304,7 +3304,7 @@ static int lan78xx_stop(struct net_device *net)
 	mutex_lock(&dev->dev_mutex);
 
 	if (timer_pending(&dev->stat_monitor))
-		del_timer_sync(&dev->stat_monitor);
+		timer_delete_sync(&dev->stat_monitor);
 
 	clear_bit(EVENT_DEV_OPEN, &dev->flags);
 	netif_stop_queue(net);
@@ -4938,7 +4938,7 @@ static int lan78xx_suspend(struct usb_interface *intf, pm_message_t message)
 		/* reattach */
 		netif_device_attach(dev->net);
 
-		del_timer(&dev->stat_monitor);
+		timer_delete(&dev->stat_monitor);
 
 		if (PMSG_IS_AUTO(message)) {
 			ret = lan78xx_set_auto_suspend(dev);

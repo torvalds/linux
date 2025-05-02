@@ -180,7 +180,7 @@ static struct snd_soc_dai_link odroid_card_dais[] = {
 		.no_pcm = 1,
 		.playback_only = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-				SND_SOC_DAIFMT_CBS_CFS,
+				SND_SOC_DAIFMT_CBC_CFC,
 		SND_SOC_DAILINK_REG(mixer),
 	}, {
 		/* Secondary FE <-> BE link */

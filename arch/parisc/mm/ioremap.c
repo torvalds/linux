@@ -14,7 +14,7 @@
 #include <linux/mm.h>
 
 void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size,
-			   unsigned long prot)
+			   pgprot_t prot)
 {
 #ifdef CONFIG_EISA
 	unsigned long end = phys_addr + size - 1;
@@ -41,6 +41,6 @@ void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size,
 		}
 	}
 
-	return generic_ioremap_prot(phys_addr, size, __pgprot(prot));
+	return generic_ioremap_prot(phys_addr, size, prot);
 }
 EXPORT_SYMBOL(ioremap_prot);

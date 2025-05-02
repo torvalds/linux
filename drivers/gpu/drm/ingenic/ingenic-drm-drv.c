@@ -229,7 +229,7 @@ static int ingenic_drm_update_pixclk(struct notifier_block *nb,
 }
 
 static void ingenic_drm_bridge_atomic_enable(struct drm_bridge *bridge,
-					     struct drm_bridge_state *old_bridge_state)
+					     struct drm_atomic_state *state)
 {
 	struct ingenic_drm *priv = drm_device_get_priv(bridge->dev);
 
@@ -260,7 +260,7 @@ static void ingenic_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void ingenic_drm_bridge_atomic_disable(struct drm_bridge *bridge,
-					      struct drm_bridge_state *old_bridge_state)
+					      struct drm_atomic_state *state)
 {
 	struct ingenic_drm *priv = drm_device_get_priv(bridge->dev);
 	unsigned int var;

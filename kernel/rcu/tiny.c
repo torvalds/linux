@@ -85,15 +85,8 @@ void rcu_sched_clock_irq(int user)
 static inline bool rcu_reclaim_tiny(struct rcu_head *head)
 {
 	rcu_callback_t f;
-	unsigned long offset = (unsigned long)head->func;
 
 	rcu_lock_acquire(&rcu_callback_map);
-	if (__is_kvfree_rcu_offset(offset)) {
-		trace_rcu_invoke_kvfree_callback("", head, offset);
-		kvfree((void *)head - offset);
-		rcu_lock_release(&rcu_callback_map);
-		return true;
-	}
 
 	trace_rcu_invoke_callback("", head);
 	f = head->func;
@@ -159,10 +152,6 @@ void synchronize_rcu(void)
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu);
 
-static void tiny_rcu_leak_callback(struct rcu_head *rhp)
-{
-}
-
 /*
  * Post an RCU callback to be invoked after the end of an RCU grace
  * period.  But since we have but one CPU, that would be after any
@@ -178,9 +167,6 @@ void call_rcu(struct rcu_head *head, rcu_callback_t func)
 			pr_err("%s(): Double-freed CB %p->%pS()!!!  ", __func__, head, head->func);
 			mem_dump_obj(head);
 		}
-
-		if (!__is_kvfree_rcu_offset((unsigned long)head->func))
-			WRITE_ONCE(head->func, tiny_rcu_leak_callback);
 		return;
 	}
 
@@ -246,15 +232,18 @@ bool poll_state_synchronize_rcu(unsigned long oldstate)
 }
 EXPORT_SYMBOL_GPL(poll_state_synchronize_rcu);
 
-#ifdef CONFIG_KASAN_GENERIC
-void kvfree_call_rcu(struct rcu_head *head, void *ptr)
+#if IS_ENABLED(CONFIG_RCU_TORTURE_TEST)
+unsigned long long rcutorture_gather_gp_seqs(void)
 {
-	if (head)
-		kasan_record_aux_stack(ptr);
-
-	__kvfree_call_rcu(head, ptr);
+	return READ_ONCE(rcu_ctrlblk.gp_seq) & 0xffffULL;
 }
-EXPORT_SYMBOL_GPL(kvfree_call_rcu);
+EXPORT_SYMBOL_GPL(rcutorture_gather_gp_seqs);
+
+void rcutorture_format_gp_seqs(unsigned long long seqs, char *cp, size_t len)
+{
+	snprintf(cp, len, "g%04llx", seqs & 0xffffULL);
+}
+EXPORT_SYMBOL_GPL(rcutorture_format_gp_seqs);
 #endif
 
 void __init rcu_init(void)

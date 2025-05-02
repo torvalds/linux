@@ -994,7 +994,7 @@ __acpi_find_gpio(struct fwnode_handle *fwnode, const char *con_id, unsigned int 
 			desc = acpi_get_gpiod_from_data(fwnode,
 							propname, idx, info);
 		if (PTR_ERR(desc) == -EPROBE_DEFER)
-			return ERR_CAST(desc);
+			return desc;
 
 		if (!IS_ERR(desc))
 			return desc;

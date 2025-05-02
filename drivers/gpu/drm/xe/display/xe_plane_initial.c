@@ -8,7 +8,9 @@
 
 #include "regs/xe_gtt_defs.h"
 #include "xe_ggtt.h"
+#include "xe_mmio.h"
 
+#include "i915_reg.h"
 #include "intel_atomic_plane.h"
 #include "intel_crtc.h"
 #include "intel_display.h"
@@ -21,6 +23,21 @@
 #include "xe_wa.h"
 
 #include <generated/xe_wa_oob.h>
+
+void intel_plane_initial_vblank_wait(struct intel_crtc *crtc)
+{
+	/* Early xe has no irq */
+	struct xe_device *xe = to_xe_device(crtc->base.dev);
+	struct xe_reg pipe_frmtmstmp = XE_REG(i915_mmio_reg_offset(PIPE_FRMTMSTMP(crtc->pipe)));
+	u32 timestamp;
+	int ret;
+
+	timestamp = xe_mmio_read32(xe_root_tile_mmio(xe), pipe_frmtmstmp);
+
+	ret = xe_mmio_wait32_not(xe_root_tile_mmio(xe), pipe_frmtmstmp, ~0U, timestamp, 40000U, &timestamp, false);
+	if (ret < 0)
+		drm_warn(&xe->drm, "waiting for early vblank failed with %i\n", ret);
+}
 
 static bool
 intel_reuse_initial_plane_obj(struct intel_crtc *this,
@@ -215,7 +232,7 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 			   plane_state->uapi.rotation, &plane_state->view);
 
 	vma = intel_fb_pin_to_ggtt(fb, &plane_state->view.gtt,
-				   0, 0, false, &plane_state->flags);
+				   0, 0, 0, false, &plane_state->flags);
 	if (IS_ERR(vma))
 		goto nofb;
 
@@ -293,7 +310,7 @@ void intel_initial_plane_config(struct intel_display *display)
 		intel_find_initial_plane_obj(crtc, plane_configs);
 
 		if (display->funcs.display->fixup_initial_plane_config(crtc, plane_config))
-			intel_crtc_wait_for_next_vblank(crtc);
+			intel_plane_initial_vblank_wait(crtc);
 
 		plane_config_fini(plane_config);
 	}

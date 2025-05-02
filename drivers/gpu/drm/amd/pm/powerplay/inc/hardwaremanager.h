@@ -396,7 +396,6 @@ struct phm_odn_clock_levels {
 };
 
 extern int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr);
-extern int phm_powerdown_uvd(struct pp_hwmgr *hwmgr);
 extern int phm_setup_asic(struct pp_hwmgr *hwmgr);
 extern int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr);
 extern int phm_disable_dynamic_state_management(struct pp_hwmgr *hwmgr);

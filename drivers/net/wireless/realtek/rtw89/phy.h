@@ -835,8 +835,8 @@ s8 rtw89_phy_read_txpwr_byrate(struct rtw89_dev *rtwdev, u8 band, u8 bw,
 void rtw89_phy_ant_gain_init(struct rtw89_dev *rtwdev);
 s16 rtw89_phy_ant_gain_pwr_offset(struct rtw89_dev *rtwdev,
 				  const struct rtw89_chan *chan);
-void rtw89_print_ant_gain(struct seq_file *m, struct rtw89_dev *rtwdev,
-			  const struct rtw89_chan *chan);
+int rtw89_print_ant_gain(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
+			 const struct rtw89_chan *chan);
 void rtw89_phy_load_txpwr_byrate(struct rtw89_dev *rtwdev,
 				 const struct rtw89_txpwr_table *tbl);
 s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
@@ -914,6 +914,13 @@ static inline s8 rtw89_phy_txpwr_rf_to_bb(struct rtw89_dev *rtwdev, s8 txpwr_rf)
 	return txpwr_rf << (chip->txpwr_factor_bb - chip->txpwr_factor_rf);
 }
 
+static inline s8 rtw89_phy_txpwr_bb_to_rf(struct rtw89_dev *rtwdev, s8 txpwr_bb)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	return txpwr_bb >> (chip->txpwr_factor_bb - chip->txpwr_factor_rf);
+}
+
 static inline s8 rtw89_phy_txpwr_rf_to_mac(struct rtw89_dev *rtwdev, s8 txpwr_rf)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
@@ -978,20 +985,20 @@ void rtw89_phy_rfk_tssi_fill_fwcmd_tmeter_tbl(struct rtw89_dev *rtwdev,
 					      const struct rtw89_chan *chan,
 					      struct rtw89_h2c_rf_tssi *h2c);
 void rtw89_phy_cfo_track(struct rtw89_dev *rtwdev);
-void rtw89_phy_cfo_track_work(struct work_struct *work);
+void rtw89_phy_cfo_track_work(struct wiphy *wiphy, struct wiphy_work *work);
 void rtw89_phy_cfo_parse(struct rtw89_dev *rtwdev, s16 cfo_val,
 			 struct rtw89_rx_phy_ppdu *phy_ppdu);
 void rtw89_phy_stat_track(struct rtw89_dev *rtwdev);
 void rtw89_phy_env_monitor_track(struct rtw89_dev *rtwdev);
 void rtw89_phy_set_phy_regs(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
 			    u32 val);
-void rtw89_phy_dig_reset(struct rtw89_dev *rtwdev);
+void rtw89_phy_dig_reset(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *bb);
 void rtw89_phy_dig(struct rtw89_dev *rtwdev);
 void rtw89_phy_tx_path_div_track(struct rtw89_dev *rtwdev);
 void rtw89_phy_antdiv_parse(struct rtw89_dev *rtwdev,
 			    struct rtw89_rx_phy_ppdu *phy_ppdu);
 void rtw89_phy_antdiv_track(struct rtw89_dev *rtwdev);
-void rtw89_phy_antdiv_work(struct work_struct *work);
+void rtw89_phy_antdiv_work(struct wiphy *wiphy, struct wiphy_work *work);
 void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev,
 			     struct rtw89_vif_link *rtwvif_link);
 void rtw89_phy_tssi_ctrl_set_bandedge_cfg(struct rtw89_dev *rtwdev,
@@ -1002,9 +1009,10 @@ void rtw89_phy_ul_tb_ctrl_track(struct rtw89_dev *rtwdev);
 u8 rtw89_encode_chan_idx(struct rtw89_dev *rtwdev, u8 central_ch, u8 band);
 void rtw89_decode_chan_idx(struct rtw89_dev *rtwdev, u8 chan_idx,
 			   u8 *ch, enum nl80211_band *band);
-void rtw89_phy_config_edcca(struct rtw89_dev *rtwdev, bool scan);
+void rtw89_phy_config_edcca(struct rtw89_dev *rtwdev,
+			    struct rtw89_bb_ctx *bb, bool scan);
 void rtw89_phy_edcca_track(struct rtw89_dev *rtwdev);
-void rtw89_phy_edcca_thre_calc(struct rtw89_dev *rtwdev);
+void rtw89_phy_edcca_thre_calc(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *bb);
 enum rtw89_rf_path_bit rtw89_phy_get_kpath(struct rtw89_dev *rtwdev,
 					   enum rtw89_phy_idx phy_idx);
 enum rtw89_rf_path rtw89_phy_get_syn_sel(struct rtw89_dev *rtwdev,

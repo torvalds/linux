@@ -57,7 +57,7 @@ static int exynos_mbox_send_data(struct mbox_chan *chan, void *data)
 	if (msg->chan_type != EXYNOS_MBOX_CHAN_TYPE_DOORBELL) {
 		dev_err(dev, "Unsupported channel type [%d]\n", msg->chan_type);
 		return -EINVAL;
-	};
+	}
 
 	writel(BIT(msg->chan_id), exynos_mbox->regs + EXYNOS_MBOX_INTGR1);
 

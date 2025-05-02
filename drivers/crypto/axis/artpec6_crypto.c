@@ -2067,7 +2067,7 @@ static void artpec6_crypto_process_queue(struct artpec6_crypto *ac,
 	if (ac->pending_count)
 		mod_timer(&ac->timer, jiffies + msecs_to_jiffies(100));
 	else
-		del_timer(&ac->timer);
+		timer_delete(&ac->timer);
 }
 
 static void artpec6_crypto_timeout(struct timer_list *t)
@@ -2897,13 +2897,13 @@ static int artpec6_crypto_probe(struct platform_device *pdev)
 	tasklet_init(&ac->task, artpec6_crypto_task,
 		     (unsigned long)ac);
 
-	ac->pad_buffer = devm_kzalloc(&pdev->dev, 2 * ARTPEC_CACHE_LINE_MAX,
+	ac->pad_buffer = devm_kcalloc(&pdev->dev, 2, ARTPEC_CACHE_LINE_MAX,
 				      GFP_KERNEL);
 	if (!ac->pad_buffer)
 		return -ENOMEM;
 	ac->pad_buffer = PTR_ALIGN(ac->pad_buffer, ARTPEC_CACHE_LINE_MAX);
 
-	ac->zero_buffer = devm_kzalloc(&pdev->dev, 2 * ARTPEC_CACHE_LINE_MAX,
+	ac->zero_buffer = devm_kcalloc(&pdev->dev, 2, ARTPEC_CACHE_LINE_MAX,
 				      GFP_KERNEL);
 	if (!ac->zero_buffer)
 		return -ENOMEM;
@@ -2963,7 +2963,7 @@ static void artpec6_crypto_remove(struct platform_device *pdev)
 	tasklet_disable(&ac->task);
 	devm_free_irq(&pdev->dev, irq, ac);
 	tasklet_kill(&ac->task);
-	del_timer_sync(&ac->timer);
+	timer_delete_sync(&ac->timer);
 
 	artpec6_crypto_disable_hw(ac);
 

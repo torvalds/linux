@@ -1195,7 +1195,7 @@ static int phy_type_syscon_get(struct mtk_phy_instance *instance,
 	int ret;
 
 	/* type switch function is optional */
-	if (!of_property_read_bool(dn, "mediatek,syscon-type"))
+	if (!of_property_present(dn, "mediatek,syscon-type"))
 		return 0;
 
 	ret = of_parse_phandle_with_fixed_args(dn, "mediatek,syscon-type",
@@ -1258,7 +1258,7 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
 	}
 
 	/* software efuse is optional */
-	instance->efuse_sw_en = device_property_read_bool(dev, "nvmem-cells");
+	instance->efuse_sw_en = device_property_present(dev, "nvmem-cells");
 	if (!instance->efuse_sw_en)
 		return 0;
 

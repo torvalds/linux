@@ -1160,12 +1160,12 @@ static int da9055_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	u8 aif_clk_mode, aif_ctrl, mode;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		/* DA9055 in I2S Master Mode */
 		mode = 1;
 		aif_clk_mode = DA9055_AIF_CLK_EN_MASTER_MODE;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		/* DA9055 in I2S Slave Mode */
 		mode = 0;
 		aif_clk_mode = DA9055_AIF_CLK_EN_SLAVE_MODE;

@@ -62,7 +62,7 @@ struct vnic_wq_buf {
 	(VNIC_WQ_BUF_BLK_ENTRIES(entries) * sizeof(struct vnic_wq_buf))
 #define VNIC_WQ_BUF_BLKS_NEEDED(entries) \
 	DIV_ROUND_UP(entries, VNIC_WQ_BUF_BLK_ENTRIES(entries))
-#define VNIC_WQ_BUF_BLKS_MAX VNIC_WQ_BUF_BLKS_NEEDED(4096)
+#define VNIC_WQ_BUF_BLKS_MAX VNIC_WQ_BUF_BLKS_NEEDED(16384)
 
 struct vnic_wq {
 	unsigned int index;

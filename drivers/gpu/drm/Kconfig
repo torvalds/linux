@@ -278,6 +278,15 @@ config DRM_GPUVM
 	  GPU-VM representation providing helpers to manage a GPUs virtual
 	  address space
 
+config DRM_GPUSVM
+	tristate
+	depends on DRM && DEVICE_PRIVATE
+	select HMM_MIRROR
+	select MMU_NOTIFIER
+	help
+	  GPU-SVM representation providing helpers to manage a GPUs shared
+	  virtual memory
+
 config DRM_BUDDY
 	tristate
 	depends on DRM
@@ -325,8 +334,6 @@ config DRM_SUBALLOC_HELPER
 config DRM_SCHED
 	tristate
 	depends on DRM
-
-source "drivers/gpu/drm/i2c/Kconfig"
 
 source "drivers/gpu/drm/arm/Kconfig"
 
@@ -441,6 +448,8 @@ source "drivers/gpu/drm/mcde/Kconfig"
 
 source "drivers/gpu/drm/tidss/Kconfig"
 
+source "drivers/gpu/drm/adp/Kconfig"
+
 source "drivers/gpu/drm/xlnx/Kconfig"
 
 source "drivers/gpu/drm/gud/Kconfig"
@@ -491,6 +500,17 @@ config DRM_WERROR
 
 	  The drm subsystem enables more warnings than the kernel default, so
 	  this config option is disabled by default.
+
+	  If in doubt, say N.
+
+config DRM_HEADER_TEST
+	bool "Ensure DRM headers are self-contained and pass kernel-doc"
+	depends on DRM && EXPERT && BROKEN
+	default n
+	help
+	  Ensure the DRM subsystem headers both under drivers/gpu/drm and
+	  include/drm compile, are self-contained, have header guards, and have
+	  no kernel-doc warnings.
 
 	  If in doubt, say N.
 

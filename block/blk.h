@@ -94,6 +94,9 @@ static inline void blk_wait_io(struct completion *done)
 		wait_for_completion_io(done);
 }
 
+struct block_device *blkdev_get_no_open(dev_t dev, bool autoload);
+void blkdev_put_no_open(struct block_device *bdev);
+
 #define BIO_INLINE_VECS 4
 struct bio_vec *bvec_alloc(mempool_t *pool, unsigned short *nr_vecs,
 		gfp_t gfp_mask);
@@ -715,7 +718,7 @@ int bdev_open(struct block_device *bdev, blk_mode_t mode, void *holder,
 int bdev_permission(dev_t dev, blk_mode_t mode, void *holder);
 
 void blk_integrity_generate(struct bio *bio);
-void blk_integrity_verify(struct bio *bio);
+void blk_integrity_verify_iter(struct bio *bio, struct bvec_iter *saved_iter);
 void blk_integrity_prepare(struct request *rq);
 void blk_integrity_complete(struct request *rq, unsigned int nr_bytes);
 

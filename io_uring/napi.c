@@ -44,7 +44,7 @@ int __io_napi_add_id(struct io_ring_ctx *ctx, unsigned int napi_id)
 	struct io_napi_entry *e;
 
 	/* Non-NAPI IDs can be rejected. */
-	if (napi_id < MIN_NAPI_ID)
+	if (!napi_id_valid(napi_id))
 		return -EINVAL;
 
 	hash_list = &ctx->napi_ht[hash_min(napi_id, HASH_BITS(ctx->napi_ht))];
@@ -87,7 +87,7 @@ static int __io_napi_del_id(struct io_ring_ctx *ctx, unsigned int napi_id)
 	struct io_napi_entry *e;
 
 	/* Non-NAPI IDs can be rejected. */
-	if (napi_id < MIN_NAPI_ID)
+	if (!napi_id_valid(napi_id))
 		return -EINVAL;
 
 	hash_list = &ctx->napi_ht[hash_min(napi_id, HASH_BITS(ctx->napi_ht))];

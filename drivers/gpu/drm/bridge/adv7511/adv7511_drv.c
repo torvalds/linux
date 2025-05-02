@@ -847,7 +847,7 @@ static int adv7511_connector_get_modes(struct drm_connector *connector)
 
 static enum drm_mode_status
 adv7511_connector_mode_valid(struct drm_connector *connector,
-			     struct drm_display_mode *mode)
+			     const struct drm_display_mode *mode)
 {
 	struct adv7511 *adv = connector_to_adv7511(connector);
 
@@ -910,14 +910,16 @@ static struct adv7511 *bridge_to_adv7511(struct drm_bridge *bridge)
 	return container_of(bridge, struct adv7511, bridge);
 }
 
-static void adv7511_bridge_enable(struct drm_bridge *bridge)
+static void adv7511_bridge_atomic_enable(struct drm_bridge *bridge,
+					 struct drm_atomic_state *state)
 {
 	struct adv7511 *adv = bridge_to_adv7511(bridge);
 
 	adv7511_power_on(adv);
 }
 
-static void adv7511_bridge_disable(struct drm_bridge *bridge)
+static void adv7511_bridge_atomic_disable(struct drm_bridge *bridge,
+					  struct drm_atomic_state *state)
 {
 	struct adv7511 *adv = bridge_to_adv7511(bridge);
 
@@ -996,14 +998,18 @@ static void adv7511_bridge_hpd_notify(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs adv7511_bridge_funcs = {
-	.enable = adv7511_bridge_enable,
-	.disable = adv7511_bridge_disable,
 	.mode_set = adv7511_bridge_mode_set,
 	.mode_valid = adv7511_bridge_mode_valid,
 	.attach = adv7511_bridge_attach,
 	.detect = adv7511_bridge_detect,
 	.edid_read = adv7511_bridge_edid_read,
 	.hpd_notify = adv7511_bridge_hpd_notify,
+
+	.atomic_enable = adv7511_bridge_atomic_enable,
+	.atomic_disable = adv7511_bridge_atomic_disable,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_reset = drm_atomic_helper_bridge_reset,
 };
 
 /* -----------------------------------------------------------------------------

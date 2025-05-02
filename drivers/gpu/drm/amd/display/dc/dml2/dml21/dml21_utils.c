@@ -232,7 +232,6 @@ void dml21_program_dc_pipe(struct dml2_context *dml_ctx, struct dc_state *contex
 		context->bw_ctx.bw.dcn.clk.dppclk_khz = pipe_ctx->plane_res.bw.dppclk_khz;
 
 	dml21_populate_mall_allocation_size(context, dml_ctx, pln_prog, pipe_ctx);
-	memcpy(&context->bw_ctx.bw.dcn.mcache_allocations[pipe_ctx->pipe_idx], &pln_prog->mcache_allocation, sizeof(struct dml2_mcache_surface_allocation));
 
 	bool sub_vp_enabled = is_sub_vp_enabled(pipe_ctx->stream->ctx->dc, context);
 

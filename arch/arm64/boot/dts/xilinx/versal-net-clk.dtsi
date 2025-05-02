@@ -1,0 +1,231 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * dts file for Xilinx Versal NET fixed clock
+ *
+ * (C) Copyright 2022, Xilinx, Inc.
+ * (C) Copyright 2022 - 2025, Advanced Micro Devices, Inc.
+ *
+ * Michal Simek <michal.simek@amd.com>
+ */
+
+/ {
+	clk60: clk60 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <60000000>;
+	};
+
+	clk100: clk100 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
+	};
+
+	clk125: clk125 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <125000000>;
+	};
+
+	clk150: clk150 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <150000000>;
+	};
+
+	clk160: clk160 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <160000000>;
+	};
+
+	clk200: clk200 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <200000000>;
+	};
+
+	clk250: clk250 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <250000000>;
+	};
+
+	clk300: clk300 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <300000000>;
+	};
+
+	clk450: clk450 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <450000000>;
+	};
+
+	clk1200: clk1200 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <1200000000>;
+	};
+
+	firmware {
+		versal_net_firmware: versal-net-firmware {
+			compatible = "xlnx,versal-net-firmware", "xlnx,versal-firmware";
+			bootph-all;
+			method = "smc";
+		};
+	};
+};
+
+&adma0 {
+	clocks = <&clk450>, <&clk450>;
+};
+
+&adma1 {
+	clocks = <&clk450>, <&clk450>;
+};
+
+&adma2 {
+	clocks = <&clk450>, <&clk450>;
+};
+
+&adma3 {
+	clocks = <&clk450>, <&clk450>;
+};
+
+&adma4 {
+	clocks = <&clk450>, <&clk450>;
+};
+
+&adma5 {
+	clocks = <&clk450>, <&clk450>;
+};
+
+&adma6 {
+	clocks = <&clk450>, <&clk450>;
+};
+
+&adma7 {
+	clocks = <&clk450>, <&clk450>;
+};
+
+&can0 {
+	clocks = <&clk160>, <&clk160>;
+};
+
+&can1 {
+	clocks = <&clk160>, <&clk160>;
+};
+
+&gem0 {
+	clocks = <&clk125>, <&clk125>, <&clk125>, <&clk125>, <&clk250>;
+};
+
+&gem1 {
+	clocks = <&clk125>, <&clk125>, <&clk125>, <&clk125>, <&clk250>;
+};
+
+&gpio0 {
+	clocks = <&clk100>;
+};
+
+&gpio1 {
+	clocks = <&clk100>;
+};
+
+&i2c0 {
+	clocks = <&clk100>;
+};
+
+&i2c1 {
+	clocks = <&clk100>;
+};
+
+&i3c0 {
+	clocks = <&clk100>;
+};
+
+&i3c1 {
+	clocks = <&clk100>;
+};
+
+&ospi {
+	clocks = <&clk200>;
+};
+
+&qspi {
+	clocks = <&clk300>, <&clk300>;
+};
+
+&rtc {
+	/* Nothing */
+};
+
+&sdhci0 {
+	clocks = <&clk200>, <&clk200>, <&clk1200>;
+};
+
+&sdhci1 {
+	clocks = <&clk200>, <&clk200>, <&clk1200>;
+};
+
+&serial0 {
+	clocks = <&clk100>, <&clk100>;
+};
+
+&serial1 {
+	clocks = <&clk100>, <&clk100>;
+};
+
+&spi0 {
+	clocks = <&clk200>, <&clk200>;
+};
+
+&spi1 {
+	clocks = <&clk200>, <&clk200>;
+};
+
+&ttc0 {
+	clocks = <&clk150>;
+};
+
+&usb0 {
+	clocks = <&clk60>, <&clk60>;
+};
+
+&dwc3_0 {
+	clocks = <&clk60>;
+};
+
+&usb1 {
+	clocks = <&clk60>, <&clk60>;
+};
+
+&dwc3_1 {
+	clocks = <&clk60>;
+};
+
+&wwdt0 {
+	clocks = <&clk150>;
+};
+
+&wwdt1 {
+	clocks = <&clk150>;
+};
+
+&wwdt2 {
+	clocks = <&clk150>;
+};
+
+&wwdt3 {
+	clocks = <&clk150>;
+};
+
+&lpd_wwdt0 {
+	clocks = <&clk150>;
+};
+
+&lpd_wwdt1 {
+	clocks = <&clk150>;
+};

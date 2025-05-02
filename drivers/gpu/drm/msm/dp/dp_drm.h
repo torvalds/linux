@@ -26,11 +26,11 @@ int msm_dp_bridge_init(struct msm_dp *msm_dp_display, struct drm_device *dev,
 		   bool yuv_supported);
 
 void msm_dp_bridge_atomic_enable(struct drm_bridge *drm_bridge,
-			     struct drm_bridge_state *old_bridge_state);
+				 struct drm_atomic_state *state);
 void msm_dp_bridge_atomic_disable(struct drm_bridge *drm_bridge,
-			      struct drm_bridge_state *old_bridge_state);
+				  struct drm_atomic_state *state);
 void msm_dp_bridge_atomic_post_disable(struct drm_bridge *drm_bridge,
-				   struct drm_bridge_state *old_bridge_state);
+				       struct drm_atomic_state *state);
 enum drm_mode_status msm_dp_bridge_mode_valid(struct drm_bridge *bridge,
 					  const struct drm_display_info *info,
 					  const struct drm_display_mode *mode);

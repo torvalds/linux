@@ -1119,7 +1119,7 @@ static const struct regmap_config ltc4162l_regmap_config = {
 	.writeable_reg	= ltc4162l_is_writeable_reg,
 	.volatile_reg	= ltc4162l_is_volatile_reg,
 	.max_register	= LTC4162L_INPUT_UNDERVOLTAGE_DAC,
-	.cache_type	= REGCACHE_RBTREE,
+	.cache_type	= REGCACHE_MAPLE,
 };
 
 static void ltc4162l_clear_interrupts(struct ltc4162l_info *info)
@@ -1185,7 +1185,7 @@ static int ltc4162l_probe(struct i2c_client *client)
 	if (!device_property_read_u32(dev, "lltc,cell-count", &value))
 		info->cell_count = value;
 
-	ltc4162l_config.of_node = dev->of_node;
+	ltc4162l_config.fwnode = dev_fwnode(dev);
 	ltc4162l_config.drv_data = info;
 	ltc4162l_config.attr_grp = ltc4162l_attr_groups;
 

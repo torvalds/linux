@@ -76,7 +76,7 @@ properties:
       - const: murata,ncp03wf104
       - const: murata,ncp15xh103
       - const: samsung,1404-001221
-      # Deprecated "ntp," compatible strings
+      # Deprecated "ntc," compatible strings
       - const: ntc,ncp15wb473
         deprecated: true
       - const: ntc,ncp18wb473

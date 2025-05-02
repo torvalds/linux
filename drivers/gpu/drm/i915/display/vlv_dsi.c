@@ -59,7 +59,7 @@ static u16 txbyteclkhs(u16 pixels, int bpp, int lane_count,
 					 8 * 100), lane_count);
 }
 
-/* return pixels equvalent to txbyteclkhs */
+/* return pixels equivalent to txbyteclkhs */
 static u16 pixels_from_txbyteclkhs(u16 clk_hs, int bpp, int lane_count,
 			u16 burst_mode_ratio)
 {
@@ -283,7 +283,7 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 	if (ret)
 		return ret;
 
-	ret = intel_panel_fitting(pipe_config, conn_state);
+	ret = intel_pfit_compute_config(pipe_config, conn_state);
 	if (ret)
 		return ret;
 
@@ -739,7 +739,7 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 
 	intel_dsi_wait_panel_power_cycle(intel_dsi);
 
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
+	intel_set_cpu_fifo_underrun_reporting(display, pipe, true);
 
 	/*
 	 * The BIOS may leave the PLL in a wonky state where it doesn't
@@ -947,7 +947,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 
 	drm_dbg_kms(display->drm, "\n");
 
-	wakeref = intel_display_power_get_if_enabled(dev_priv,
+	wakeref = intel_display_power_get_if_enabled(display,
 						     encoder->power_domain);
 	if (!wakeref)
 		return false;
@@ -1007,7 +1007,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	}
 
 out_put_power:
-	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
+	intel_display_power_put(display, encoder->power_domain, wakeref);
 
 	return active;
 }
@@ -1541,14 +1541,14 @@ static const struct drm_encoder_funcs intel_dsi_funcs = {
 };
 
 static enum drm_mode_status vlv_dsi_mode_valid(struct drm_connector *connector,
-					       struct drm_display_mode *mode)
+					       const struct drm_display_mode *mode)
 {
-	struct drm_i915_private *i915 = to_i915(connector->dev);
+	struct intel_display *display = to_intel_display(connector->dev);
 
-	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
+	if (display->platform.valleyview || display->platform.cherryview) {
 		enum drm_mode_status status;
 
-		status = intel_cpu_transcoder_mode_valid(i915, mode);
+		status = intel_cpu_transcoder_mode_valid(display, mode);
 		if (status != MODE_OK)
 			return status;
 	}

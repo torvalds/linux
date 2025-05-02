@@ -413,7 +413,7 @@ il3945_rs_free_sta(void *il_priv, struct ieee80211_sta *sta, void *il_sta)
 	 * to use il_priv to print out debugging) since it may not be fully
 	 * initialized at this point.
 	 */
-	del_timer_sync(&rs_sta->rate_scale_flush);
+	timer_delete_sync(&rs_sta->rate_scale_flush);
 }
 
 /*

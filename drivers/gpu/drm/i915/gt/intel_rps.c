@@ -161,7 +161,7 @@ static void rps_start_timer(struct intel_rps *rps)
 
 static void rps_stop_timer(struct intel_rps *rps)
 {
-	del_timer_sync(&rps->timer);
+	timer_delete_sync(&rps->timer);
 	rps->pm_timestamp = ktime_sub(ktime_get(), rps->pm_timestamp);
 	cancel_work_sync(&rps->work);
 }
@@ -1024,6 +1024,10 @@ void intel_rps_boost(struct i915_request *rq)
 
 		if (rps_uses_slpc(rps)) {
 			slpc = rps_to_slpc(rps);
+
+			/* Waitboost should not be done with power saving profile */
+			if (slpc->power_profile == SLPC_POWER_PROFILES_POWER_SAVING)
+				return;
 
 			if (slpc->min_freq_softlimit >= slpc->boost_freq)
 				return;

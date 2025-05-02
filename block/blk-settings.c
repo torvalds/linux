@@ -21,7 +21,7 @@
 
 void blk_queue_rq_timeout(struct request_queue *q, unsigned int timeout)
 {
-	q->rq_timeout = timeout;
+	WRITE_ONCE(q->rq_timeout, timeout);
 }
 EXPORT_SYMBOL_GPL(blk_queue_rq_timeout);
 
@@ -61,8 +61,14 @@ void blk_apply_bdi_limits(struct backing_dev_info *bdi,
 	/*
 	 * For read-ahead of large files to be effective, we need to read ahead
 	 * at least twice the optimal I/O size.
+	 *
+	 * There is no hardware limitation for the read-ahead size and the user
+	 * might have increased the read-ahead size through sysfs, so don't ever
+	 * decrease it.
 	 */
-	bdi->ra_pages = max(lim->io_opt * 2 / PAGE_SIZE, VM_READAHEAD_PAGES);
+	bdi->ra_pages = max3(bdi->ra_pages,
+				lim->io_opt * 2 / PAGE_SIZE,
+				VM_READAHEAD_PAGES);
 	bdi->io_pages = lim->max_sectors >> PAGE_SECTORS_SHIFT;
 }
 
@@ -114,7 +120,13 @@ static int blk_validate_integrity_limits(struct queue_limits *lim)
 			pr_warn("invalid PI settings.\n");
 			return -EINVAL;
 		}
+		bi->flags |= BLK_INTEGRITY_NOGENERATE | BLK_INTEGRITY_NOVERIFY;
 		return 0;
+	}
+
+	if (lim->features & BLK_FEAT_BOUNCE_HIGH) {
+		pr_warn("no bounce buffer support for integrity metadata\n");
+		return -EINVAL;
 	}
 
 	if (!IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY)) {
@@ -867,36 +879,28 @@ bool queue_limits_stack_integrity(struct queue_limits *t,
 	if (!IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY))
 		return true;
 
-	if (!ti->tuple_size) {
-		/* inherit the settings from the first underlying device */
-		if (!(ti->flags & BLK_INTEGRITY_STACKED)) {
-			ti->flags = BLK_INTEGRITY_DEVICE_CAPABLE |
-				(bi->flags & BLK_INTEGRITY_REF_TAG);
-			ti->csum_type = bi->csum_type;
-			ti->tuple_size = bi->tuple_size;
-			ti->pi_offset = bi->pi_offset;
-			ti->interval_exp = bi->interval_exp;
-			ti->tag_size = bi->tag_size;
-			goto done;
-		}
-		if (!bi->tuple_size)
-			goto done;
+	if (ti->flags & BLK_INTEGRITY_STACKED) {
+		if (ti->tuple_size != bi->tuple_size)
+			goto incompatible;
+		if (ti->interval_exp != bi->interval_exp)
+			goto incompatible;
+		if (ti->tag_size != bi->tag_size)
+			goto incompatible;
+		if (ti->csum_type != bi->csum_type)
+			goto incompatible;
+		if ((ti->flags & BLK_INTEGRITY_REF_TAG) !=
+		    (bi->flags & BLK_INTEGRITY_REF_TAG))
+			goto incompatible;
+	} else {
+		ti->flags = BLK_INTEGRITY_STACKED;
+		ti->flags |= (bi->flags & BLK_INTEGRITY_DEVICE_CAPABLE) |
+			     (bi->flags & BLK_INTEGRITY_REF_TAG);
+		ti->csum_type = bi->csum_type;
+		ti->tuple_size = bi->tuple_size;
+		ti->pi_offset = bi->pi_offset;
+		ti->interval_exp = bi->interval_exp;
+		ti->tag_size = bi->tag_size;
 	}
-
-	if (ti->tuple_size != bi->tuple_size)
-		goto incompatible;
-	if (ti->interval_exp != bi->interval_exp)
-		goto incompatible;
-	if (ti->tag_size != bi->tag_size)
-		goto incompatible;
-	if (ti->csum_type != bi->csum_type)
-		goto incompatible;
-	if ((ti->flags & BLK_INTEGRITY_REF_TAG) !=
-	    (bi->flags & BLK_INTEGRITY_REF_TAG))
-		goto incompatible;
-
-done:
-	ti->flags |= BLK_INTEGRITY_STACKED;
 	return true;
 
 incompatible:

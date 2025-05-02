@@ -226,7 +226,7 @@ static int virtblk_map_data(struct blk_mq_hw_ctx *hctx, struct request *req,
 	if (unlikely(err))
 		return -ENOMEM;
 
-	return blk_rq_map_sg(hctx->queue, req, vbr->sg_table.sgl);
+	return blk_rq_map_sg(req, vbr->sg_table.sgl);
 }
 
 static void virtblk_cleanup_cmd(struct request *req)

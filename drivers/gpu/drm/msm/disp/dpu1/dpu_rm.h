@@ -51,14 +51,17 @@ struct dpu_rm_sspp_requirements {
  * @num_intf:     number of interfaces the panel is mounted on
  * @num_dspp:     number of dspp blocks used
  * @num_dsc:      number of Display Stream Compression (DSC) blocks used
- * @needs_cdm:    indicates whether cdm block is needed for this display topology
+ * @num_cdm:      indicates how many outputs are requesting cdm block for
+ *                    this display topology
+ * @cwb_enabled:  indicates whether CWB is enabled for this display topology
  */
 struct msm_display_topology {
 	u32 num_lm;
 	u32 num_intf;
 	u32 num_dspp;
 	u32 num_dsc;
-	bool needs_cdm;
+	int num_cdm;
+	bool cwb_enabled;
 };
 
 int dpu_rm_init(struct drm_device *dev,
@@ -69,12 +72,11 @@ int dpu_rm_init(struct drm_device *dev,
 
 int dpu_rm_reserve(struct dpu_rm *rm,
 		struct dpu_global_state *global_state,
-		struct drm_encoder *drm_enc,
-		struct drm_crtc_state *crtc_state,
+		struct drm_crtc *crtc,
 		struct msm_display_topology *topology);
 
 void dpu_rm_release(struct dpu_global_state *global_state,
-		struct drm_encoder *enc);
+		struct drm_crtc *crtc);
 
 struct dpu_hw_sspp *dpu_rm_reserve_sspp(struct dpu_rm *rm,
 					struct dpu_global_state *global_state,
@@ -85,7 +87,7 @@ void dpu_rm_release_all_sspp(struct dpu_global_state *global_state,
 			     struct drm_crtc *crtc);
 
 int dpu_rm_get_assigned_resources(struct dpu_rm *rm,
-	struct dpu_global_state *global_state, uint32_t enc_id,
+	struct dpu_global_state *global_state, struct drm_crtc *crtc,
 	enum dpu_hw_blk_type type, struct dpu_hw_blk **blks, int blks_size);
 
 void dpu_rm_print_state(struct drm_printer *p,

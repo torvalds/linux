@@ -55,7 +55,7 @@ sysfs
 
 The subset of CPUs capable of running 32-bit tasks is described in
 ``/sys/devices/system/cpu/aarch32_el0`` and is documented further in
-``Documentation/ABI/testing/sysfs-devices-system-cpu``.
+Documentation/ABI/testing/sysfs-devices-system-cpu.
 
 **Note:** CPUs are advertised by this file as they are detected and so
 late-onlining of 32-bit-capable CPUs can result in the file contents

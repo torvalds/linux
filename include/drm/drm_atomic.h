@@ -357,6 +357,37 @@ struct __drm_private_objs_state {
  * States are added to an atomic update by calling drm_atomic_get_crtc_state(),
  * drm_atomic_get_plane_state(), drm_atomic_get_connector_state(), or for
  * private state structures, drm_atomic_get_private_obj_state().
+ *
+ * NOTE: struct drm_atomic_state first started as a single collection of
+ * entities state pointers (drm_plane_state, drm_crtc_state, etc.).
+ *
+ * At atomic_check time, you could get the state about to be committed
+ * from drm_atomic_state, and the one currently running from the
+ * entities state pointer (drm_crtc.state, for example). After the call
+ * to drm_atomic_helper_swap_state(), the entities state pointer would
+ * contain the state previously checked, and the drm_atomic_state
+ * structure the old state.
+ *
+ * Over time, and in order to avoid confusion, drm_atomic_state has
+ * grown to have both the old state (ie, the state we replace) and the
+ * new state (ie, the state we want to apply). Those names are stable
+ * during the commit process, which makes it easier to reason about.
+ *
+ * You can still find some traces of that evolution through some hooks
+ * or callbacks taking a drm_atomic_state parameter called names like
+ * "old_state". This doesn't necessarily mean that the previous
+ * drm_atomic_state is passed, but rather that this used to be the state
+ * collection we were replacing after drm_atomic_helper_swap_state(),
+ * but the variable name was never updated.
+ *
+ * Some atomic operations implementations followed a similar process. We
+ * first started to pass the entity state only. However, it was pretty
+ * cumbersome for drivers, and especially CRTCs, to retrieve the states
+ * of other components. Thus, we switched to passing the whole
+ * drm_atomic_state as a parameter to those operations. Similarly, the
+ * transition isn't complete yet, and one might still find atomic
+ * operations taking a drm_atomic_state pointer, or a component state
+ * pointer. The former is the preferred form.
  */
 struct drm_atomic_state {
 	/**
@@ -376,8 +407,27 @@ struct drm_atomic_state {
 	 *
 	 * Allow full modeset. This is used by the ATOMIC IOCTL handler to
 	 * implement the DRM_MODE_ATOMIC_ALLOW_MODESET flag. Drivers should
-	 * never consult this flag, instead looking at the output of
-	 * drm_atomic_crtc_needs_modeset().
+	 * generally not consult this flag, but instead look at the output of
+	 * drm_atomic_crtc_needs_modeset(). The detailed rules are:
+	 *
+	 * - Drivers must not consult @allow_modeset in the atomic commit path.
+	 *   Use drm_atomic_crtc_needs_modeset() instead.
+	 *
+	 * - Drivers must consult @allow_modeset before adding unrelated struct
+	 *   drm_crtc_state to this commit by calling
+	 *   drm_atomic_get_crtc_state(). See also the warning in the
+	 *   documentation for that function.
+	 *
+	 * - Drivers must never change this flag, it is under the exclusive
+	 *   control of userspace.
+	 *
+	 * - Drivers may consult @allow_modeset in the atomic check path, if
+	 *   they have the choice between an optimal hardware configuration
+	 *   which requires a modeset, and a less optimal configuration which
+	 *   can be committed without a modeset. An example would be suboptimal
+	 *   scanout FIFO allocation resulting in increased idle power
+	 *   consumption. This allows userspace to avoid flickering and delays
+	 *   for the normal composition loop at reasonable cost.
 	 */
 	bool allow_modeset : 1;
 	/**

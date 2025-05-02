@@ -21,7 +21,7 @@
 
 struct zd_reg_alpha2_map {
 	u32 reg;
-	char alpha2[2];
+	char alpha2[2] __nonstring;
 };
 
 static struct zd_reg_alpha2_map reg_alpha2_map[] = {

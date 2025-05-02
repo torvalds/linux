@@ -2,15 +2,6 @@
 menu "S/390 network device drivers"
 	depends on NETDEVICES && S390
 
-config LCS
-	def_tristate m
-	prompt "Lan Channel Station Interface"
-	depends on CCW && NETDEVICES && ETHERNET
-	help
-	  Select this option if you want to use LCS networking on IBM System z.
-	  To compile as a module, choose M. The module name is lcs.
-	  If you do not use LCS, choose N.
-
 config CTCM
 	def_tristate m
 	prompt "CTC and MPC SNA device support"
@@ -98,7 +89,7 @@ config QETH_OSX
 
 config CCWGROUP
 	tristate
-	default (LCS || CTCM || QETH || SMC)
+	default (CTCM || QETH || SMC)
 
 config ISM
 	tristate "Support for ISM vPCI Adapter"

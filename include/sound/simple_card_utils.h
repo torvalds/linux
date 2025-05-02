@@ -142,14 +142,14 @@ int simple_util_parse_daifmt(struct device *dev,
 			     struct device_node *codec,
 			     char *prefix,
 			     unsigned int *retfmt);
-int simple_util_parse_tdm_width_map(struct device *dev, struct device_node *np,
+int simple_util_parse_tdm_width_map(struct simple_util_priv *priv, struct device_node *np,
 				    struct simple_util_dai *dai);
 
 __printf(3, 4)
-int simple_util_set_dailink_name(struct device *dev,
+int simple_util_set_dailink_name(struct simple_util_priv *priv,
 				 struct snd_soc_dai_link *dai_link,
 				 const char *fmt, ...);
-int simple_util_parse_card_name(struct snd_soc_card *card,
+int simple_util_parse_card_name(struct simple_util_priv *priv,
 				char *prefix);
 
 int simple_util_parse_clk(struct device *dev,
@@ -201,7 +201,7 @@ void simple_util_remove(struct platform_device *pdev);
 
 int graph_util_card_probe(struct snd_soc_card *card);
 int graph_util_is_ports0(struct device_node *port);
-int graph_util_parse_dai(struct device *dev, struct device_node *ep,
+int graph_util_parse_dai(struct simple_util_priv *priv, struct device_node *ep,
 			 struct snd_soc_dai_link_component *dlc, int *is_single_link);
 
 void graph_util_parse_link_direction(struct device_node *np,

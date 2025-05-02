@@ -131,7 +131,7 @@ Description:
 		CAUTION: Using it will cause your machine's real-time (CMOS)
 		clock to be set to a random invalid time after a resume.
 
-What;		/sys/power/pm_trace_dev_match
+What:		/sys/power/pm_trace_dev_match
 Date:		October 2010
 Contact:	James Hogan <jhogan@kernel.org>
 Description:

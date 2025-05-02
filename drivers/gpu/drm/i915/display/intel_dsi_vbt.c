@@ -582,7 +582,7 @@ static const fn_mipi_elem_exec exec_elem[] = {
 
 /*
  * MIPI Sequence from VBT #53 parsing logic
- * We have already separated each seqence during bios parsing
+ * We have already separated each sequence during bios parsing
  * Following is generic execution function for any sequence
  */
 

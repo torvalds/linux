@@ -193,10 +193,10 @@
 			compatible = "intel,ixp4xx-ethernet";
 			reg = <0xc800c000 0x1000>;
 			status = "disabled";
-			intel,npe = <0>;
 			/* Dummy values that depend on firmware */
 			queue-rx = <&qmgr 0>;
 			queue-txready = <&qmgr 0>;
+			intel,npe-handle = <&npe 0>;
 		};
 	};
 };

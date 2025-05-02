@@ -75,12 +75,16 @@ int save_trace_to_file(struct tracefs_instance *inst, const char *filename)
 	int out_fd, in_fd;
 	int retval = -1;
 
+	if (!inst || !filename)
+		return 0;
+
 	in_fd = tracefs_instance_file_open(inst, file, O_RDONLY);
 	if (in_fd < 0) {
 		err_msg("Failed to open trace file\n");
 		return -1;
 	}
 
+	printf("  Saving trace to %s\n", filename);
 	out_fd = creat(filename, mode);
 	if (out_fd < 0) {
 		err_msg("Failed to create output file %s\n", filename);

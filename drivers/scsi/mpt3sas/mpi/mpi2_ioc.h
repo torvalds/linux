@@ -179,6 +179,7 @@
  *                     Added MPI26_IOCFACTS_CAPABILITY_COREDUMP_ENABLED
  *                     Added MPI2_FW_DOWNLOAD_ITYPE_COREDUMP
  *                     Added MPI2_FW_UPLOAD_ITYPE_COREDUMP
+ * 9-13-24    02.00.39 Added MPI26_MCTP_PASSTHROUGH messages
  * --------------------------------------------------------------------------
  */
 
@@ -382,6 +383,7 @@ typedef struct _MPI2_IOC_FACTS_REPLY {
 /*ProductID field uses MPI2_FW_HEADER_PID_ */
 
 /*IOCCapabilities */
+#define MPI26_IOCFACTS_CAPABILITY_MCTP_PASSTHRU         (0x00800000)
 #define MPI26_IOCFACTS_CAPABILITY_COREDUMP_ENABLED      (0x00200000)
 #define MPI26_IOCFACTS_CAPABILITY_PCIE_SRIOV            (0x00100000)
 #define MPI26_IOCFACTS_CAPABILITY_ATOMIC_REQ            (0x00080000)
@@ -1798,5 +1800,57 @@ typedef struct _MPI26_IOUNIT_CONTROL_REPLY {
 	Mpi26IoUnitControlReply_t,
 	*pMpi26IoUnitControlReply_t;
 
+/****************************************************************************
+ *  MCTP Passthrough messages (MPI v2.6 and later only.)
+ ****************************************************************************/
+
+/* MCTP Passthrough Request Message */
+typedef struct _MPI26_MCTP_PASSTHROUGH_REQUEST {
+	U8                      MsgContext;         /* 0x00 */
+	U8                      Reserved1[2];       /* 0x01 */
+	U8                      Function;           /* 0x03 */
+	U8                      Reserved2[3];       /* 0x04 */
+	U8                      MsgFlags;           /* 0x07 */
+	U8                      VP_ID;              /* 0x08 */
+	U8                      VF_ID;              /* 0x09 */
+	U16                     Reserved3;          /* 0x0A */
+	U32                     Reserved4;          /* 0x0C */
+	U8                      Flags;              /* 0x10 */
+	U8                      Reserved5[3];       /* 0x11 */
+	U32                     Reserved6;          /* 0x14 */
+	U32                     H2DLength;          /* 0x18 */
+	U32                     D2HLength;          /* 0x1C */
+	MPI25_SGE_IO_UNION      H2DSGL;             /* 0x20 */
+	MPI25_SGE_IO_UNION      D2HSGL;             /* 0x30 */
+} MPI26_MCTP_PASSTHROUGH_REQUEST,
+	*PTR_MPI26_MCTP_PASSTHROUGH_REQUEST,
+	Mpi26MctpPassthroughRequest_t,
+	*pMpi26MctpPassthroughRequest_t;
+
+/* values for the MsgContext field */
+#define MPI26_MCTP_MSG_CONEXT_UNUSED            (0x00)
+
+/* values for the Flags field */
+#define MPI26_MCTP_FLAGS_MSG_FORMAT_MPT         (0x01)
+
+/* MCTP Passthrough Reply Message */
+typedef struct _MPI26_MCTP_PASSTHROUGH_REPLY {
+	U8                      MsgContext;         /* 0x00 */
+	U8                      Reserved1;          /* 0x01 */
+	U8                      MsgLength;          /* 0x02 */
+	U8                      Function;           /* 0x03 */
+	U8                      Reserved2[3];       /* 0x04 */
+	U8                      MsgFlags;           /* 0x07 */
+	U8                      VP_ID;              /* 0x08 */
+	U8                      VF_ID;              /* 0x09 */
+	U16                     Reserved3;          /* 0x0A */
+	U16                     Reserved4;          /* 0x0C */
+	U16                     IOCStatus;          /* 0x0E */
+	U32                     IOCLogInfo;         /* 0x10 */
+	U32                     ResponseDataLength; /* 0x14 */
+} MPI26_MCTP_PASSTHROUGH_REPLY,
+	*PTR_MPI26_MCTP_PASSTHROUGH_REPLY,
+	Mpi26MctpPassthroughReply_t,
+	*pMpi26MctpPassthroughReply_t;
 
 #endif

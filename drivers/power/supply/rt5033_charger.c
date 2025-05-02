@@ -16,6 +16,7 @@
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
 #include <linux/mfd/rt5033-private.h>
+#include <linux/property.h>
 
 struct rt5033_charger_data {
 	unsigned int pre_uamp;
@@ -675,7 +676,7 @@ static int rt5033_charger_probe(struct platform_device *pdev)
 	charger->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	mutex_init(&charger->lock);
 
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.fwnode = dev_fwnode(&pdev->dev);
 	psy_cfg.drv_data = charger;
 
 	charger->psy = devm_power_supply_register(charger->dev,

@@ -50,7 +50,7 @@ extern int linux_main(int argc, char **argv, char **envp);
 extern void uml_finishsetup(void);
 
 struct siginfo;
-extern void (*sig_info[])(int, struct siginfo *si, struct uml_pt_regs *);
+extern void (*sig_info[])(int, struct siginfo *si, struct uml_pt_regs *, void *);
 
 #endif
 

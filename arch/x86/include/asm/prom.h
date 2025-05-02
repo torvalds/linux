@@ -8,7 +8,7 @@
 
 #ifndef _ASM_X86_PROM_H
 #define _ASM_X86_PROM_H
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/of.h>
 #include <linux/types.h>
@@ -33,5 +33,5 @@ static inline void x86_flattree_get_config(void) { }
 
 extern char cmd_line[COMMAND_LINE_SIZE];
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif

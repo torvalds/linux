@@ -1,0 +1,396 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * audio-graph-card2-custom-sample1.dtsi
+ *
+ * Copyright (C) 2020 Renesas Electronics Corp.
+ * Copyright (C) 2020 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ *
+ * This sample indicates how to use audio-graph-card2 and its
+ * custom driver. "audio-graph-card2-custom-sample" is the custome driver
+ * which is using audio-graph-card2.
+ *
+ * You can easily use this sample by adding below line on your DT file,
+ * and add new CONFIG to your .config.
+ *
+ *	#include "../../../../../sound/soc/generic/audio-graph-card2-custom-sample1.dtsi"
+ *
+ *	CONFIG_SND_AUDIO_GRAPH_CARD2
+ *	CONFIG_SND_AUDIO_GRAPH_CARD2_CUSTOM_SAMPLE
+ *	CONFIG_SND_TEST_COMPONENT
+ *
+ *
+ * You can indicate more detail each device behavior as debug if you modify
+ * "compatible" on each test-component. see below
+ *
+ *	test_cpu {
+ *	-	compatible = "test-cpu";
+ *	+	compatible = "test-cpu-verbose";
+ *		...
+ *	};
+ *
+ *	test_codec {
+ *	-	compatible = "test-codec";
+ *	+	compatible = "test-codec-verbose";
+ *		...
+ *	};
+ *
+ *
+ * Below sample doesn't use "format" property,
+ * because test-component driver (test-cpu/test-codec) is supporting
+ * snd_soc_dai_ops :: .auto_selectable_formats.
+ * see
+ *	snd_soc_runtime_get_dai_fmt()
+ *	linux/sound/soc/generic/test-component.c :: test_dai_formats
+ */
+/ {
+	audio-graph-card2-custom-sample-1 {
+		/*
+		 * You can use audio-graph-card2 directly by using
+		 *
+		 * compatible = "audio-graph-card2";
+		 */
+		compatible = "audio-graph-card2-custom-sample";
+		label = "card2-custom-sample-1";
+
+		/*
+		 * @ : used at links
+		 */
+		links = <
+			/*
+			 *
+			 * [Normal]
+			 *
+			 *	     <cpu1_0>
+			 *	cpu1_0 <-@-----> codec1_0
+			 */
+			 &cpu1_0 /* CPU side only */
+
+			/*
+			 * [Semi-Multi]
+			 *
+			 * CPU:Codec = 1:N
+			 *
+			 *		<sm>	+-+
+			 *	cpu1_1 <--@---->| |-> codec1_1
+			 *			| |-> codec1_2
+			 *			+-+
+			 */
+			&sm /* CPU side only */
+
+			/*
+			 * [Multi-CPU/Codec-A]
+			 *
+			 *		 +-+ <mcpuA>	+-+
+			 *	cpu1_2 <-| |<---@------>| |-> codec1_3
+			 *	cpu1_3 <-| |		| |-> codec1_4
+			 *		 +-+		+-+
+			 */
+			&mcpuA /* CPU side only */
+
+			/*
+			 * [Multi-CPU/Codec-B]
+			 *
+			 *		 +-+ <mcpuB>	+-+
+			 *		 | |<---@------>| |
+			 *		 | |		| |
+			 *	cpu1_4 <-| |<---------->| |-> codec1_5
+			 *	cpu1_5 <-| |<---+------>| |-> codec1_6
+			 *		 +-+	 \----->| |-> codec1_7
+			 *				+-+
+			 */
+			&mcpuB /* CPU side only */
+
+			/*
+			 * [Multi-CPU/Codec-C]
+			 *
+			 *		 +-+ <mcpuC>	+-+
+			 *		 | |<---@------>| |
+			 *		 | |		| |
+			 *	cpu1_6 <-| |<---------->| |-> codec1_8
+			 *	cpu1_7 <-| |<-----+---->| |-> codec1_9
+			 *	cpu1_8 <-| |<----/	+-+
+			 *		 +-+
+			 */
+			&mcpuC /* CPU side only */
+		>;
+
+		multi {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/*
+			 * [Semi-Multi]
+			 *
+			 *		<sm>	+---+
+			 *	cpu1_1 <---@--->|X A|-> codec1_1
+			 *			|  B|-> codec1_2
+			 *			+---+
+			 */
+			ports@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 { reg = <0>; smcodec_ep:   endpoint { remote-endpoint = <&cpu1_1_ep>;   };};/* (X) to pair */
+				port@1 { reg = <1>; smcodec_A_ep: endpoint { remote-endpoint = <&codec1_1_ep>; };};/* (A) Multi Element */
+				port@2 { reg = <2>; smcodec_B_ep: endpoint { remote-endpoint = <&codec1_2_ep>; };};/* (B) Multi Element */
+			};
+
+			/*
+			 * [Multi-CPU-A]
+			 *
+			 *		 +---+ <mcpuA>	+---+
+			 *	cpu1_2 <-|A X|<---@---->|x a|-> codec1_3
+			 *	cpu1_3 <-|B  |		|  b|-> codec1_4
+			 *		 +---+		+---+
+			 */
+			ports@1 {
+				reg = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			mcpuA:	port@0 { reg = <0>; mcpu_A_ep:  endpoint { remote-endpoint = <&mcodec_A_ep>; };}; /* (X) to pair */
+				port@1 { reg = <1>; mcpu_AA_ep: endpoint { remote-endpoint = <&cpu1_2_ep>;   };}; /* (A) Multi Element */
+				port@2 { reg = <2>; mcpu_AB_ep: endpoint { remote-endpoint = <&cpu1_3_ep>;   };}; /* (B) Multi Element */
+			};
+
+			/*
+			 * [Multi-Codec-A]
+			 *
+			 *		 +---+ <mcpuA>	+---+
+			 *	cpu1_2 <-|A X|<-@------>|x a|-> codec1_3
+			 *	cpu1_3 <-|B  |		|  b|-> codec1_4
+			 *		 +---+		+---+
+			 */
+			ports@2 {
+				reg = <2>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 { reg = <0>; mcodec_A_ep:  endpoint { remote-endpoint = <&mcpu_A_ep>;   };}; /* (x) to pair */
+				port@1 { reg = <1>; mcodec_Aa_ep: endpoint { remote-endpoint = <&codec1_3_ep>; };}; /* (a) Multi Element */
+				port@2 { reg = <2>; mcodec_Ab_ep: endpoint { remote-endpoint = <&codec1_4_ep>; };}; /* (b) Multi Element */
+			};
+
+			/*
+			 * [Multi-CPU-B]
+			 *
+			 *		 +---+ <mcpuB>	+---+
+			 *		 |  X|<---@---->|x  |
+			 *		 |   |		|   |
+			 *	cpu1_4 <-|A 1|<-------->|3 a|-> codec1_5
+			 *	cpu1_5 <-|B 2|<---+---->|4 b|-> codec1_6
+			 *		 +---+	   \--->|5 c|-> codec1_7
+			 *				+---+
+			 */
+			ports@3 {
+				reg = <3>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			mcpuB:	port@0 {
+					reg = <0>;
+					mcpu_BX_ep:     endpoint { remote-endpoint = <&mcodec_Bx_ep>; }; /* (X) to pair */
+				};
+				port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+					mcpu_BA_ep:   endpoint@0 { reg = <0>; remote-endpoint = <&cpu1_4_ep>;    }; /* (A) Multi Element */
+					mcpu_B1_ep:   endpoint@1 { reg = <1>; remote-endpoint = <&mcodec_B3_ep>; }; /* (1) connected Codec */
+				};
+				port@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <2>;
+					mcpu_BB_ep:   endpoint@0 { reg = <0>; remote-endpoint = <&cpu1_5_ep>;    }; /* (B) Multi Element */
+					mcpu_B2_0_ep: endpoint@1 { reg = <1>; remote-endpoint = <&mcodec_B4_ep>; }; /* (2) connected Codec */
+					mcpu_B2_1_ep: endpoint@2 { reg = <2>; remote-endpoint = <&mcodec_B5_ep>; }; /* (2) connected Codec */
+				};
+			};
+
+			/*
+			 * [Multi-Codec-B]
+			 *
+			 *		 +---+ <mcpuB>	+---+
+			 *		 |  X|<-@------>|x  |
+			 *		 |   |		|   |
+			 *	cpu1_4 <-|A 1|<-------->|3 a|-> codec1_5
+			 *	cpu1_5 <-|B 2|<---+---->|4 b|-> codec1_6
+			 *		 +---+	   \--->|5 c|-> codec1_7
+			 *				+---+
+			 */
+			ports@4 {
+				reg = <4>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 {
+					reg = <0>;
+					mcodec_Bx_ep:   endpoint { remote-endpoint = <&mcpu_BX_ep>;  }; /* (x) to pair */
+				};
+				port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+					mcodec_Ba_ep: endpoint@0 { reg = <0>; remote-endpoint = <&codec1_5_ep>;}; /* (a) Multi Element */
+					mcodec_B3_ep: endpoint@1 { reg = <1>; remote-endpoint = <&mcpu_B1_ep>; }; /* (3) connected CPU */
+				};
+				port@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <2>;
+					mcodec_Bb_ep: endpoint@0 { reg = <0>; remote-endpoint = <&codec1_6_ep>; }; /* (b) Multi Element */
+					mcodec_B4_ep: endpoint@1 { reg = <1>; remote-endpoint = <&mcpu_B2_0_ep>;}; /* (4) connected CPU */
+				};
+				port@3 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <3>;
+					mcodec_Bc_ep: endpoint@0 { reg = <0>; remote-endpoint = <&codec1_7_ep>; }; /* (c) Multi Element */
+					mcodec_B5_ep: endpoint@1 { reg = <1>; remote-endpoint = <&mcpu_B2_1_ep>;}; /* (5) connected CPU */
+				};
+			};
+
+			/*
+			 * [Multi-CPU-C]
+			 *
+			 *		 +---+ <mcpuC>	+---+
+			 *		 |  X|<-@------>|x  |
+			 *		 |   |		|   |
+			 *	cpu1_6 <-|A 1|<-------->|4 a|-> codec1_8
+			 *	cpu1_7 <-|B 2|<-----+-->|5 b|-> codec1_9
+			 *	cpu1_8 <-|C 3|<----/	+---+
+			 *		 +---+
+			 */
+			ports@5 {
+				reg = <5>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			mcpuC:	port@0 {
+					reg = <0>;
+					mcpu_CX_ep:   endpoint { remote-endpoint = <&mcodec_Cx_ep>; }; /* (X) to pair */
+				};
+				port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+					mcpu_CA_ep: endpoint@0 { reg = <0>; remote-endpoint = <&cpu1_6_ep>;    }; /* (A) Multi Element */
+					mcpu_C1_ep: endpoint@1 { reg = <1>; remote-endpoint = <&mcodec_C4_ep>; }; /* (1) connected Codec */
+				};
+				port@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <2>;
+					mcpu_CB_ep: endpoint@0 { reg = <0>; remote-endpoint = <&cpu1_7_ep>;      }; /* (B) Multi Element */
+					mcpu_C2_ep: endpoint@1 { reg = <1>; remote-endpoint = <&mcodec_C5_0_ep>; }; /* (2) connected Codec */
+				};
+				port@3 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <3>;
+					mcpu_CC_ep: endpoint@0 { reg = <0>; remote-endpoint = <&cpu1_8_ep>;      }; /* (C) Multi Element */
+					mcpu_C3_ep: endpoint@1 { reg = <1>; remote-endpoint = <&mcodec_C5_1_ep>; }; /* (3) connected Codec */
+				};
+			};
+
+			/*
+			 * [Multi-Codec-C]
+			 *
+			 *		 +---+ <mcpuC>	+---+
+			 *		 |  X|<-@------>|x  |
+			 *		 |   |		|   |
+			 *	cpu1_6 <-|A 1|<-------->|4 a|-> codec1_8
+			 *	cpu1_7 <-|B 2|<-----+-->|5 b|-> codec1_9
+			 *	cpu1_8 <-|C 3|<----/	+---+
+			 *		 +---+
+			 */
+			ports@6 {
+				reg = <6>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 {
+					reg = <0>;
+					mcodec_Cx_ep: endpoint { remote-endpoint = <&mcpu_CX_ep>;  }; /* (x) to pair */
+				};
+				port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+					mcodec_Ca_ep: endpoint@0 { reg = <0>; remote-endpoint = <&codec1_8_ep>;}; /* (a) Multi Element */
+					mcodec_C4_ep: endpoint@1 { reg = <1>; remote-endpoint = <&mcpu_C1_ep>; }; /* (4) connected CPU */
+				};
+				port@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <2>;
+					mcodec_Cb_ep:   endpoint@0 { reg = <0>; remote-endpoint = <&codec1_9_ep>;}; /* (b) Multi Element */
+					mcodec_C5_0_ep: endpoint@1 { reg = <1>; remote-endpoint = <&mcpu_C2_ep>; }; /* (5) connected CPU */
+					mcodec_C5_1_ep: endpoint@2 { reg = <2>; remote-endpoint = <&mcpu_C3_ep>; }; /* (5) connected CPU */
+				};
+			};
+		};
+	};
+
+	test_cpu_1 {
+		/*
+		 * update compatible to indicate more detail behaviour
+		 * if you want. see test-compatible for more detail.
+		 *
+		 * ex)
+		 *	- compatible = "test-cpu";
+		 *	+ compatible = "test-cpu-verbose";
+		 */
+		compatible = "test-cpu";
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			bitclock-master;
+			frame-master;
+
+				/* [Normal] */
+			cpu1_0:	port@0 { reg = <0>; cpu1_0_ep: endpoint { remote-endpoint = <&codec1_0_ep>;}; };
+				/* [Semi-Multi] */
+			sm:	port@1 { reg = <1>; cpu1_1_ep: endpoint { remote-endpoint = <&smcodec_ep>; }; };
+				/* [Multi-CPU-A] */
+				port@2 { reg = <2>; cpu1_2_ep: endpoint { remote-endpoint = <&mcpu_AA_ep>; }; };
+				port@3 { reg = <3>; cpu1_3_ep: endpoint { remote-endpoint = <&mcpu_AB_ep>; }; };
+				/* [Multi-CPU-B] */
+				port@4 { reg = <4>; cpu1_4_ep: endpoint { remote-endpoint = <&mcpu_BA_ep>; }; };
+				port@5 { reg = <5>; cpu1_5_ep: endpoint { remote-endpoint = <&mcpu_BB_ep>; }; };
+				/* [Multi-CPU-C] */
+				port@6 { reg = <6>; cpu1_6_ep: endpoint { remote-endpoint = <&mcpu_CA_ep>; }; };
+				port@7 { reg = <7>; cpu1_7_ep: endpoint { remote-endpoint = <&mcpu_CB_ep>; }; };
+				port@8 { reg = <8>; cpu1_8_ep: endpoint { remote-endpoint = <&mcpu_CC_ep>; }; };
+		};
+	};
+
+	test_codec_1 {
+		/*
+		 * update compatible to indicate more detail behaviour
+		 * if you want. see test-compatible for more detail.
+		 *
+		 * ex)
+		 *	- compatible = "test-codec";
+		 *	+ compatible = "test-codec-verbose";
+		 */
+		compatible = "test-codec";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* [Normal] */
+			port@0 { reg = <0>; codec1_0_ep: endpoint { remote-endpoint = <&cpu1_0_ep>;    }; };
+			/* [Semi-Multi] */
+			port@1 { reg = <1>; codec1_1_ep: endpoint { remote-endpoint = <&smcodec_A_ep>; }; };
+			port@2 { reg = <2>; codec1_2_ep: endpoint { remote-endpoint = <&smcodec_B_ep>; }; };
+			/* [Multi-Codec-0] */
+			port@3 { reg = <3>; codec1_3_ep: endpoint { remote-endpoint = <&mcodec_Aa_ep>; }; };
+			port@4 { reg = <4>; codec1_4_ep: endpoint { remote-endpoint = <&mcodec_Ab_ep>; }; };
+			/* [Multi-Codec-1] */
+			port@5 { reg = <5>; codec1_5_ep: endpoint { remote-endpoint = <&mcodec_Ba_ep>; }; };
+			port@6 { reg = <6>; codec1_6_ep: endpoint { remote-endpoint = <&mcodec_Bb_ep>; }; };
+			port@7 { reg = <7>; codec1_7_ep: endpoint { remote-endpoint = <&mcodec_Bc_ep>; }; };
+			/* [Multi-Codec-2] */
+			port@8 { reg = <8>; codec1_8_ep: endpoint { remote-endpoint = <&mcodec_Ca_ep>; }; };
+			port@9 { reg = <9>; codec1_9_ep: endpoint { remote-endpoint = <&mcodec_Cb_ep>; }; };
+		};
+	};
+};

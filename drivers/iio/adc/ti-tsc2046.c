@@ -812,9 +812,7 @@ static int tsc2046_adc_probe(struct spi_device *spi)
 
 	spin_lock_init(&priv->state_lock);
 	priv->state = TSC2046_STATE_SHUTDOWN;
-	hrtimer_init(&priv->trig_timer, CLOCK_MONOTONIC,
-		     HRTIMER_MODE_REL_SOFT);
-	priv->trig_timer.function = tsc2046_adc_timer;
+	hrtimer_setup(&priv->trig_timer, tsc2046_adc_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_SOFT);
 
 	ret = devm_iio_trigger_register(dev, trig);
 	if (ret) {

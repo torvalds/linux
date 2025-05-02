@@ -265,8 +265,12 @@
 };
 
 &gmac1 {
-	assigned-clocks = <&cru SCLK_GMAC1_RX_TX>, <&cru SCLK_GMAC1_RGMII_SPEED>, <&cru SCLK_GMAC1>;
-	assigned-clock-parents = <&cru SCLK_GMAC1_RGMII_SPEED>, <&cru SCLK_GMAC1>, <&gmac1_clkin>;
+	assigned-clocks = <&cru SCLK_GMAC1_RX_TX>,
+			  <&cru SCLK_GMAC1_RGMII_SPEED>,
+			  <&cru SCLK_GMAC1>;
+	assigned-clock-parents = <&cru SCLK_GMAC1_RGMII_SPEED>,
+				 <&cru SCLK_GMAC1>,
+				 <&gmac1_clkin>;
 	clock_in_out = "input";
 	phy-supply = <&vcc_3v3>;
 	phy-mode = "rgmii";

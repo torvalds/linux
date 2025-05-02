@@ -4,6 +4,7 @@
 #define _THINK_LMI_H_
 
 #include <linux/types.h>
+#include <linux/wmi.h>
 
 #define TLMI_SETTINGS_COUNT  256
 #define TLMI_SETTINGS_MAXLEN 512
@@ -87,6 +88,7 @@ struct tlmi_pwd_setting {
 /* Attribute setting details */
 struct tlmi_attr_setting {
 	struct kobject kobj;
+	struct wmi_device *wdev;
 	int index;
 	char display_name[TLMI_SETTINGS_MAXLEN];
 	char *possible_values;

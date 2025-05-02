@@ -27,6 +27,7 @@
 #include <linux/kfifo.h>
 #include <linux/sched/vhost_task.h>
 #include <linux/call_once.h>
+#include <linux/atomic.h>
 
 #include <asm/apic.h>
 #include <asm/pvclock-abi.h>
@@ -34,6 +35,7 @@
 #include <asm/mtrr.h>
 #include <asm/msr-index.h>
 #include <asm/asm.h>
+#include <asm/irq_remapping.h>
 #include <asm/kvm_page_track.h>
 #include <asm/kvm_vcpu_regs.h>
 #include <asm/reboot.h>
@@ -405,7 +407,7 @@ union kvm_cpu_role {
 };
 
 struct kvm_rmap_head {
-	unsigned long val;
+	atomic_long_t val;
 };
 
 struct kvm_pio_request {
@@ -880,6 +882,7 @@ struct kvm_vcpu_arch {
 
 	int cpuid_nent;
 	struct kvm_cpuid_entry2 *cpuid_entries;
+	bool cpuid_dynamic_bits_dirty;
 	bool is_amd_compatible;
 
 	/*
@@ -909,7 +912,8 @@ struct kvm_vcpu_arch {
 	int (*complete_userspace_io)(struct kvm_vcpu *vcpu);
 
 	gpa_t time;
-	struct pvclock_vcpu_time_info hv_clock;
+	s8  pvclock_tsc_shift;
+	u32 pvclock_tsc_mul;
 	unsigned int hw_tsc_khz;
 	struct gfn_to_pfn_cache pv_time;
 	/* set guest stopped flag in pvclock flags field */
@@ -997,8 +1001,8 @@ struct kvm_vcpu_arch {
 		u64 msr_int_val; /* MSR_KVM_ASYNC_PF_INT */
 		u16 vec;
 		u32 id;
-		bool send_user_only;
 		u32 host_apf_flags;
+		bool send_always;
 		bool delivery_as_pf_vmexit;
 		bool pageready_pending;
 	} apf;
@@ -1053,6 +1057,7 @@ struct kvm_vcpu_arch {
 
 	/* Protected Guests */
 	bool guest_state_protected;
+	bool guest_tsc_protected;
 
 	/*
 	 * Set when PDPTS were loaded directly by the userspace without
@@ -1189,6 +1194,8 @@ struct kvm_xen {
 	struct gfn_to_pfn_cache shinfo_cache;
 	struct idr evtchn_ports;
 	unsigned long poll_mask[BITS_TO_LONGS(KVM_MAX_VCPUS)];
+
+	struct kvm_xen_hvm_config hvm_config;
 };
 #endif
 
@@ -1354,8 +1361,6 @@ struct kvm_arch {
 
 	u64 shadow_mmio_value;
 
-	struct iommu_domain *iommu_domain;
-	bool iommu_noncoherent;
 #define __KVM_HAVE_ARCH_NONCOHERENT_DMA
 	atomic_t noncoherent_dma_count;
 #define __KVM_HAVE_ARCH_ASSIGNED_DEVICE
@@ -1410,8 +1415,6 @@ struct kvm_arch {
 	u64 master_cycle_now;
 	struct delayed_work kvmclock_update_work;
 	struct delayed_work kvmclock_sync_work;
-
-	struct kvm_xen_hvm_config xen_hvm_config;
 
 	/* reads protected by irq_srcu, writes by irq_lock */
 	struct hlist_head mask_notifier_list;
@@ -1470,8 +1473,13 @@ struct kvm_arch {
 	struct once nx_once;
 
 #ifdef CONFIG_X86_64
-	/* The number of TDP MMU pages across all roots. */
+#ifdef CONFIG_KVM_PROVE_MMU
+	/*
+	 * The number of TDP MMU pages across all roots.  Used only to sanity
+	 * check that KVM isn't leaking TDP MMU pages.
+	 */
 	atomic64_t tdp_mmu_pages;
+#endif
 
 	/*
 	 * List of struct kvm_mmu_pages being used as roots.
@@ -1479,6 +1487,7 @@ struct kvm_arch {
 	 * tdp_mmu_page set.
 	 *
 	 * For reads, this list is protected by:
+	 *	RCU alone or
 	 *	the MMU lock in read mode + RCU or
 	 *	the MMU lock in write mode
 	 *
@@ -2164,8 +2173,8 @@ int kvm_emulate_rdpmc(struct kvm_vcpu *vcpu);
 void kvm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr);
 void kvm_queue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code);
 void kvm_queue_exception_p(struct kvm_vcpu *vcpu, unsigned nr, unsigned long payload);
-void kvm_requeue_exception(struct kvm_vcpu *vcpu, unsigned nr);
-void kvm_requeue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code);
+void kvm_requeue_exception(struct kvm_vcpu *vcpu, unsigned int nr,
+			   bool has_error_code, u32 error_code);
 void kvm_inject_page_fault(struct kvm_vcpu *vcpu, struct x86_exception *fault);
 void kvm_inject_emulated_page_fault(struct kvm_vcpu *vcpu,
 				    struct x86_exception *fault);
@@ -2414,5 +2423,10 @@ int memslot_rmap_alloc(struct kvm_memory_slot *slot, unsigned long npages);
  * remaining 31 lower bits must be 0 to preserve ABI.
  */
 #define KVM_EXIT_HYPERCALL_MBZ		GENMASK_ULL(31, 1)
+
+static inline bool kvm_arch_has_irq_bypass(void)
+{
+	return enable_apicv && irq_remapping_cap(IRQ_POSTING_CAP);
+}
 
 #endif /* _ASM_X86_KVM_HOST_H */

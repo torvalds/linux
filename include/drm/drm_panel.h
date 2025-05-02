@@ -33,7 +33,6 @@ struct backlight_device;
 struct dentry;
 struct device_node;
 struct drm_connector;
-struct drm_device;
 struct drm_panel_follower;
 struct drm_panel;
 struct display_timing;

@@ -2338,7 +2338,7 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 }
 
 static int vc4_plane_atomic_async_check(struct drm_plane *plane,
-					struct drm_atomic_state *state)
+					struct drm_atomic_state *state, bool flip)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(plane->dev);
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,

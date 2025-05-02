@@ -24,6 +24,7 @@
 #include <linux/tty.h>
 #include <linux/wait.h>
 #include <net/iucv/iucv.h>
+#include <asm/machine.h>
 
 #include "hvc_console.h"
 
@@ -1240,7 +1241,7 @@ static int param_set_vmidfilter(const char *val, const struct kernel_param *kp)
 {
 	int rc;
 
-	if (!MACHINE_IS_VM || !hvc_iucv_devices)
+	if (!machine_is_vm() || !hvc_iucv_devices)
 		return -ENODEV;
 
 	if (!val)
@@ -1269,7 +1270,7 @@ static int param_get_vmidfilter(char *buffer, const struct kernel_param *kp)
 	size_t index, len;
 	void *start, *end;
 
-	if (!MACHINE_IS_VM || !hvc_iucv_devices)
+	if (!machine_is_vm() || !hvc_iucv_devices)
 		return -ENODEV;
 
 	rc = 0;
@@ -1306,7 +1307,7 @@ static int __init hvc_iucv_init(void)
 	if (!hvc_iucv_devices)
 		return -ENODEV;
 
-	if (!MACHINE_IS_VM) {
+	if (!machine_is_vm()) {
 		pr_notice("The z/VM IUCV HVC device driver cannot "
 			   "be used without z/VM\n");
 		rc = -ENODEV;

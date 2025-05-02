@@ -37,6 +37,8 @@
 #define AE4_DMA_VERSION			4
 #define CMD_AE4_DESC_DW0_VAL		2
 
+#define AE4_TIME_OUT			5000
+
 struct ae4_msix {
 	int msix_count;
 	struct msix_entry msix_entry[MAX_AE4_HW_QUEUES];

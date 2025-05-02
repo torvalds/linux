@@ -22,6 +22,7 @@
 #include <linux/debug_locks.h>
 #include <linux/vmalloc.h>
 #include <asm/asm-extable.h>
+#include <asm/machine.h>
 #include <asm/diag.h>
 #include <asm/ipl.h>
 #include <asm/smp.h>
@@ -185,7 +186,7 @@ static inline int __diag308(unsigned long subcode, unsigned long addr)
 
 	r1.even = addr;
 	r1.odd	= 0;
-	asm volatile(
+	asm_inline volatile(
 		"	diag	%[r1],%[subcode],0x308\n"
 		"0:	nopr	%%r7\n"
 		EX_TABLE(0b,0b)
@@ -685,7 +686,7 @@ static int __init ipl_init(void)
 		goto out;
 	switch (ipl_info.type) {
 	case IPL_TYPE_CCW:
-		if (MACHINE_IS_VM)
+		if (machine_is_vm())
 			rc = sysfs_create_group(&ipl_kset->kobj,
 						&ipl_ccw_attr_group_vm);
 		else
@@ -1272,7 +1273,7 @@ static void reipl_block_ccw_fill_parms(struct ipl_parameter_block *ipb)
 	ipb->ccw.flags = IPL_PB0_FLAG_LOADPARM;
 
 	/* VM PARM */
-	if (MACHINE_IS_VM && ipl_block_valid &&
+	if (machine_is_vm() && ipl_block_valid &&
 	    (ipl_block.ccw.vm_flags & IPL_PB0_CCW_VM_FLAG_VP)) {
 
 		ipb->ccw.vm_flags |= IPL_PB0_CCW_VM_FLAG_VP;
@@ -1286,7 +1287,7 @@ static int __init reipl_nss_init(void)
 {
 	int rc;
 
-	if (!MACHINE_IS_VM)
+	if (!machine_is_vm())
 		return 0;
 
 	reipl_block_nss = (void *) get_zeroed_page(GFP_KERNEL);
@@ -1311,8 +1312,8 @@ static int __init reipl_ccw_init(void)
 		return -ENOMEM;
 
 	rc = sysfs_create_group(&reipl_kset->kobj,
-				MACHINE_IS_VM ? &reipl_ccw_attr_group_vm
-					      : &reipl_ccw_attr_group_lpar);
+				machine_is_vm() ? &reipl_ccw_attr_group_vm
+						: &reipl_ccw_attr_group_lpar);
 	if (rc)
 		return rc;
 
@@ -1987,7 +1988,7 @@ static void vmcmd_run(struct shutdown_trigger *trigger)
 
 static int vmcmd_init(void)
 {
-	if (!MACHINE_IS_VM)
+	if (!machine_is_vm())
 		return -EOPNOTSUPP;
 	vmcmd_kset = kset_create_and_add("vmcmd", NULL, firmware_kobj);
 	if (!vmcmd_kset)
@@ -2264,7 +2265,7 @@ static void __init strncpy_skip_quote(char *dst, char *src, int n)
 
 static int __init vmcmd_on_reboot_setup(char *str)
 {
-	if (!MACHINE_IS_VM)
+	if (!machine_is_vm())
 		return 1;
 	strncpy_skip_quote(vmcmd_on_reboot, str, VMCMD_MAX_SIZE);
 	vmcmd_on_reboot[VMCMD_MAX_SIZE] = 0;
@@ -2275,7 +2276,7 @@ __setup("vmreboot=", vmcmd_on_reboot_setup);
 
 static int __init vmcmd_on_panic_setup(char *str)
 {
-	if (!MACHINE_IS_VM)
+	if (!machine_is_vm())
 		return 1;
 	strncpy_skip_quote(vmcmd_on_panic, str, VMCMD_MAX_SIZE);
 	vmcmd_on_panic[VMCMD_MAX_SIZE] = 0;
@@ -2286,7 +2287,7 @@ __setup("vmpanic=", vmcmd_on_panic_setup);
 
 static int __init vmcmd_on_halt_setup(char *str)
 {
-	if (!MACHINE_IS_VM)
+	if (!machine_is_vm())
 		return 1;
 	strncpy_skip_quote(vmcmd_on_halt, str, VMCMD_MAX_SIZE);
 	vmcmd_on_halt[VMCMD_MAX_SIZE] = 0;
@@ -2297,7 +2298,7 @@ __setup("vmhalt=", vmcmd_on_halt_setup);
 
 static int __init vmcmd_on_poff_setup(char *str)
 {
-	if (!MACHINE_IS_VM)
+	if (!machine_is_vm())
 		return 1;
 	strncpy_skip_quote(vmcmd_on_poff, str, VMCMD_MAX_SIZE);
 	vmcmd_on_poff[VMCMD_MAX_SIZE] = 0;

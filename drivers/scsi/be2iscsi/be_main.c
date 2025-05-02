@@ -5448,7 +5448,7 @@ static pci_ers_result_t beiscsi_eeh_err_detected(struct pci_dev *pdev,
 		    "BM_%d : EEH error detected\n");
 
 	/* first stop UE detection when PCI error detected */
-	del_timer_sync(&phba->hw_check);
+	timer_delete_sync(&phba->hw_check);
 	cancel_delayed_work_sync(&phba->recover_port);
 
 	/* sessions are no longer valid, so first fail the sessions */
@@ -5746,7 +5746,7 @@ static void beiscsi_remove(struct pci_dev *pcidev)
 	}
 
 	/* first stop UE detection before unloading */
-	del_timer_sync(&phba->hw_check);
+	timer_delete_sync(&phba->hw_check);
 	cancel_delayed_work_sync(&phba->recover_port);
 	cancel_work_sync(&phba->sess_work);
 
@@ -5776,7 +5776,7 @@ static void beiscsi_remove(struct pci_dev *pcidev)
 }
 
 
-static struct pci_error_handlers beiscsi_eeh_handlers = {
+static const struct pci_error_handlers beiscsi_eeh_handlers = {
 	.error_detected = beiscsi_eeh_err_detected,
 	.slot_reset = beiscsi_eeh_reset,
 	.resume = beiscsi_eeh_resume,

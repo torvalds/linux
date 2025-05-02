@@ -164,20 +164,20 @@ examples:
         #size-cells = <0>;
 
         touchscreen@0 {
-           compatible = "ti,tsc2046";
-           reg = <0>;	/* CS0 */
-           interrupt-parent = <&gpio1>;
-           interrupts = <8 0>;	/* BOOT6 / GPIO 8 */
-           pendown-gpio = <&gpio1 8 0>;
-           spi-max-frequency = <1000000>;
-           vcc-supply = <&reg_vcc3>;
-           wakeup-source;
+            compatible = "ti,tsc2046";
+            reg = <0>;	/* CS0 */
+            interrupt-parent = <&gpio1>;
+            interrupts = <8 0>;	/* BOOT6 / GPIO 8 */
+            pendown-gpio = <&gpio1 8 0>;
+            spi-max-frequency = <1000000>;
+            vcc-supply = <&reg_vcc3>;
+            wakeup-source;
 
-           ti,pressure-max = /bits/ 16 <255>;
-           ti,x-max = /bits/ 16 <8000>;
-           ti,x-min = /bits/ 16 <0>;
-           ti,x-plate-ohms = /bits/ 16 <40>;
-           ti,y-max = /bits/ 16 <4800>;
-           ti,y-min = /bits/ 16 <0>;
-       };
+            ti,pressure-max = /bits/ 16 <255>;
+            ti,x-max = /bits/ 16 <8000>;
+            ti,x-min = /bits/ 16 <0>;
+            ti,x-plate-ohms = /bits/ 16 <40>;
+            ti,y-max = /bits/ 16 <4800>;
+            ti,y-min = /bits/ 16 <0>;
+        };
     };

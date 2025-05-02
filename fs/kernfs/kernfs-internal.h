@@ -19,6 +19,8 @@
 #include <linux/kernfs.h>
 #include <linux/fs_context.h>
 
+extern rwlock_t kernfs_rename_lock;
+
 struct kernfs_iattrs {
 	kuid_t			ia_uid;
 	kgid_t			ia_gid;
@@ -64,11 +66,14 @@ struct kernfs_root {
  *
  * Return: the kernfs_root @kn belongs to.
  */
-static inline struct kernfs_root *kernfs_root(struct kernfs_node *kn)
+static inline struct kernfs_root *kernfs_root(const struct kernfs_node *kn)
 {
+	const struct kernfs_node *knp;
 	/* if parent exists, it's always a dir; otherwise, @sd is a dir */
-	if (kn->parent)
-		kn = kn->parent;
+	guard(rcu)();
+	knp = rcu_dereference(kn->__parent);
+	if (knp)
+		kn = knp;
 	return kn->dir.root;
 }
 
@@ -96,6 +101,32 @@ struct kernfs_super_info {
 	struct list_head	node;
 };
 #define kernfs_info(SB) ((struct kernfs_super_info *)(SB->s_fs_info))
+
+static inline bool kernfs_root_is_locked(const struct kernfs_node *kn)
+{
+	return lockdep_is_held(&kernfs_root(kn)->kernfs_rwsem);
+}
+
+static inline const char *kernfs_rcu_name(const struct kernfs_node *kn)
+{
+	return rcu_dereference_check(kn->name, kernfs_root_is_locked(kn));
+}
+
+static inline struct kernfs_node *kernfs_parent(const struct kernfs_node *kn)
+{
+	/*
+	 * The kernfs_node::__parent remains valid within a RCU section. The kn
+	 * can be reparented (and renamed) which changes the entry. This can be
+	 * avoided by locking kernfs_root::kernfs_rwsem or kernfs_rename_lock.
+	 * Both locks can be used to obtain a reference on __parent. Once the
+	 * reference count reaches 0 then the node is about to be freed
+	 * and can not be renamed (or become a different parent) anymore.
+	 */
+	return rcu_dereference_check(kn->__parent,
+				     kernfs_root_is_locked(kn) ||
+				     lockdep_is_held(&kernfs_rename_lock) ||
+				     !atomic_read(&kn->count));
+}
 
 static inline struct kernfs_node *kernfs_dentry_node(struct dentry *dentry)
 {

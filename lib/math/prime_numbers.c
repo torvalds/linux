@@ -1,16 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#define pr_fmt(fmt) "prime numbers: " fmt
 
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/prime_numbers.h>
 #include <linux/slab.h>
 
-struct primes {
-	struct rcu_head rcu;
-	unsigned long last, sz;
-	unsigned long primes[];
-};
+#include "prime_numbers_private.h"
 
 #if BITS_PER_LONG == 64
 static const struct primes small_primes = {
@@ -62,9 +57,25 @@ static const struct primes small_primes = {
 static DEFINE_MUTEX(lock);
 static const struct primes __rcu *primes = RCU_INITIALIZER(&small_primes);
 
-static unsigned long selftest_max;
+#if IS_ENABLED(CONFIG_PRIME_NUMBERS_KUNIT_TEST)
+/*
+ * Calls the callback under RCU lock. The callback must not retain
+ * the primes pointer.
+ */
+void with_primes(void *ctx, primes_fn fn)
+{
+	rcu_read_lock();
+	fn(ctx, rcu_dereference(primes));
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(with_primes);
 
-static bool slow_is_prime_number(unsigned long x)
+EXPORT_SYMBOL(slow_is_prime_number);
+
+#else
+static
+#endif
+bool slow_is_prime_number(unsigned long x)
 {
 	unsigned long y = int_sqrt(x);
 
@@ -239,76 +250,12 @@ bool is_prime_number(unsigned long x)
 }
 EXPORT_SYMBOL(is_prime_number);
 
-static void dump_primes(void)
-{
-	const struct primes *p;
-	char *buf;
-
-	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-
-	rcu_read_lock();
-	p = rcu_dereference(primes);
-
-	if (buf)
-		bitmap_print_to_pagebuf(true, buf, p->primes, p->sz);
-	pr_info("primes.{last=%lu, .sz=%lu, .primes[]=...x%lx} = %s\n",
-		p->last, p->sz, p->primes[BITS_TO_LONGS(p->sz) - 1], buf);
-
-	rcu_read_unlock();
-
-	kfree(buf);
-}
-
-static int selftest(unsigned long max)
-{
-	unsigned long x, last;
-
-	if (!max)
-		return 0;
-
-	for (last = 0, x = 2; x < max; x++) {
-		bool slow = slow_is_prime_number(x);
-		bool fast = is_prime_number(x);
-
-		if (slow != fast) {
-			pr_err("inconsistent result for is-prime(%lu): slow=%s, fast=%s!\n",
-			       x, slow ? "yes" : "no", fast ? "yes" : "no");
-			goto err;
-		}
-
-		if (!slow)
-			continue;
-
-		if (next_prime_number(last) != x) {
-			pr_err("incorrect result for next-prime(%lu): expected %lu, got %lu\n",
-			       last, x, next_prime_number(last));
-			goto err;
-		}
-		last = x;
-	}
-
-	pr_info("%s(%lu) passed, last prime was %lu\n", __func__, x, last);
-	return 0;
-
-err:
-	dump_primes();
-	return -EINVAL;
-}
-
-static int __init primes_init(void)
-{
-	return selftest(selftest_max);
-}
-
 static void __exit primes_exit(void)
 {
 	free_primes();
 }
 
-module_init(primes_init);
 module_exit(primes_exit);
-
-module_param_named(selftest, selftest_max, ulong, 0400);
 
 MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION("Prime number library");

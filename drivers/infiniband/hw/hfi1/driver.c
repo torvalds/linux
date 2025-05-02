@@ -968,7 +968,7 @@ static bool __set_armed_to_active(struct hfi1_packet *packet)
 		if (hwstate != IB_PORT_ACTIVE) {
 			dd_dev_info(packet->rcd->dd,
 				    "Unexpected link state %s\n",
-				    opa_lstate_name(hwstate));
+				    ib_port_state_to_str(hwstate));
 			return false;
 		}
 
@@ -1303,7 +1303,7 @@ void shutdown_led_override(struct hfi1_pportdata *ppd)
 	 */
 	smp_rmb();
 	if (atomic_read(&ppd->led_override_timer_active)) {
-		del_timer_sync(&ppd->led_override_timer);
+		timer_delete_sync(&ppd->led_override_timer);
 		atomic_set(&ppd->led_override_timer_active, 0);
 		/* Ensure the atomic_set is visible to all CPUs */
 		smp_wmb();

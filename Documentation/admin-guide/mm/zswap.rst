@@ -60,15 +60,13 @@ accessed.  The compressed memory pool grows on demand and shrinks as compressed
 pages are freed.  The pool is not preallocated.  By default, a zpool
 of type selected in ``CONFIG_ZSWAP_ZPOOL_DEFAULT`` Kconfig option is created,
 but it can be overridden at boot time by setting the ``zpool`` attribute,
-e.g. ``zswap.zpool=zbud``. It can also be changed at runtime using the sysfs
+e.g. ``zswap.zpool=zsmalloc``. It can also be changed at runtime using the sysfs
 ``zpool`` attribute, e.g.::
 
-	echo zbud > /sys/module/zswap/parameters/zpool
+	echo zsmalloc > /sys/module/zswap/parameters/zpool
 
-The zbud type zpool allocates exactly 1 page to store 2 compressed pages, which
-means the compression ratio will always be 2:1 or worse (because of half-full
-zbud pages).  The zsmalloc type zpool has a more complex compressed page
-storage method, and it can achieve greater storage densities.
+The zsmalloc type zpool has a complex compressed page storage method, and it
+can achieve great storage densities.
 
 When a swap page is passed from swapout to zswap, zswap maintains a mapping
 of the swap entry, a combination of the swap type and swap offset, to the zpool

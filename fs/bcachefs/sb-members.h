@@ -20,10 +20,22 @@ struct bch_member bch2_sb_member_get(struct bch_sb *sb, int i);
 
 static inline bool bch2_dev_is_online(struct bch_dev *ca)
 {
-	return !percpu_ref_is_zero(&ca->io_ref);
+	return !percpu_ref_is_zero(&ca->io_ref[READ]);
 }
 
-static inline bool bch2_dev_is_readable(struct bch_dev *ca)
+static inline struct bch_dev *bch2_dev_rcu(struct bch_fs *, unsigned);
+
+static inline bool bch2_dev_idx_is_online(struct bch_fs *c, unsigned dev)
+{
+	rcu_read_lock();
+	struct bch_dev *ca = bch2_dev_rcu(c, dev);
+	bool ret = ca && bch2_dev_is_online(ca);
+	rcu_read_unlock();
+
+	return ret;
+}
+
+static inline bool bch2_dev_is_healthy(struct bch_dev *ca)
 {
 	return bch2_dev_is_online(ca) &&
 		ca->mi.state != BCH_MEMBER_STATE_failed;
@@ -144,33 +156,34 @@ static inline struct bch_dev *bch2_get_next_dev(struct bch_fs *c, struct bch_dev
 
 static inline struct bch_dev *bch2_get_next_online_dev(struct bch_fs *c,
 						       struct bch_dev *ca,
-						       unsigned state_mask)
+						       unsigned state_mask,
+						       int rw)
 {
 	rcu_read_lock();
 	if (ca)
-		percpu_ref_put(&ca->io_ref);
+		percpu_ref_put(&ca->io_ref[rw]);
 
 	while ((ca = __bch2_next_dev(c, ca, NULL)) &&
 	       (!((1 << ca->mi.state) & state_mask) ||
-		!percpu_ref_tryget(&ca->io_ref)))
+		!percpu_ref_tryget(&ca->io_ref[rw])))
 		;
 	rcu_read_unlock();
 
 	return ca;
 }
 
-#define __for_each_online_member(_c, _ca, state_mask)			\
+#define __for_each_online_member(_c, _ca, state_mask, rw)		\
 	for (struct bch_dev *_ca = NULL;				\
-	     (_ca = bch2_get_next_online_dev(_c, _ca, state_mask));)
+	     (_ca = bch2_get_next_online_dev(_c, _ca, state_mask, rw));)
 
 #define for_each_online_member(c, ca)					\
-	__for_each_online_member(c, ca, ~0)
+	__for_each_online_member(c, ca, ~0, READ)
 
 #define for_each_rw_member(c, ca)					\
-	__for_each_online_member(c, ca, BIT(BCH_MEMBER_STATE_rw))
+	__for_each_online_member(c, ca, BIT(BCH_MEMBER_STATE_rw), WRITE)
 
 #define for_each_readable_member(c, ca)				\
-	__for_each_online_member(c, ca,	BIT( BCH_MEMBER_STATE_rw)|BIT(BCH_MEMBER_STATE_ro))
+	__for_each_online_member(c, ca,	BIT( BCH_MEMBER_STATE_rw)|BIT(BCH_MEMBER_STATE_ro), READ)
 
 static inline bool bch2_dev_exists(const struct bch_fs *c, unsigned dev)
 {
@@ -271,9 +284,11 @@ static inline struct bch_dev *bch2_dev_iterate(struct bch_fs *c, struct bch_dev 
 
 static inline struct bch_dev *bch2_dev_get_ioref(struct bch_fs *c, unsigned dev, int rw)
 {
+	might_sleep();
+
 	rcu_read_lock();
 	struct bch_dev *ca = bch2_dev_rcu(c, dev);
-	if (ca && !percpu_ref_tryget(&ca->io_ref))
+	if (ca && !percpu_ref_tryget(&ca->io_ref[rw]))
 		ca = NULL;
 	rcu_read_unlock();
 
@@ -283,7 +298,7 @@ static inline struct bch_dev *bch2_dev_get_ioref(struct bch_fs *c, unsigned dev,
 		return ca;
 
 	if (ca)
-		percpu_ref_put(&ca->io_ref);
+		percpu_ref_put(&ca->io_ref[rw]);
 	return NULL;
 }
 

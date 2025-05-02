@@ -162,7 +162,7 @@
 	};
 
 	expander: pca9554@20 {
-		compatible = "pca9554";
+		compatible = "nxp,pca9554";
 		reg = <0x20>;
 		interrupts = <109>;
 		#gpio-cells = <2>;

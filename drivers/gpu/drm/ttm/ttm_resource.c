@@ -83,6 +83,23 @@ static void ttm_bulk_move_drop_cursors(struct ttm_lru_bulk_move *bulk)
 }
 
 /**
+ * ttm_resource_cursor_init() - Initialize a struct ttm_resource_cursor
+ * @cursor: The cursor to initialize.
+ * @man: The resource manager.
+ *
+ * Initialize the cursor before using it for iteration.
+ */
+void ttm_resource_cursor_init(struct ttm_resource_cursor *cursor,
+			      struct ttm_resource_manager *man)
+{
+	cursor->priority = 0;
+	cursor->man = man;
+	ttm_lru_item_init(&cursor->hitch, TTM_LRU_HITCH);
+	INIT_LIST_HEAD(&cursor->bulk_link);
+	INIT_LIST_HEAD(&cursor->hitch.link);
+}
+
+/**
  * ttm_resource_cursor_fini() - Finalize the LRU list cursor usage
  * @cursor: The struct ttm_resource_cursor to finalize.
  *
@@ -252,11 +269,16 @@ static bool ttm_resource_is_swapped(struct ttm_resource *res, struct ttm_buffer_
 	return ttm_tt_is_swapped(bo->ttm);
 }
 
+static bool ttm_resource_unevictable(struct ttm_resource *res, struct ttm_buffer_object *bo)
+{
+	return bo->pin_count || ttm_resource_is_swapped(res, bo);
+}
+
 /* Add the resource to a bulk move if the BO is configured for it */
 void ttm_resource_add_bulk_move(struct ttm_resource *res,
 				struct ttm_buffer_object *bo)
 {
-	if (bo->bulk_move && !bo->pin_count && !ttm_resource_is_swapped(res, bo))
+	if (bo->bulk_move && !ttm_resource_unevictable(res, bo))
 		ttm_lru_bulk_move_add(bo->bulk_move, res);
 }
 
@@ -264,7 +286,7 @@ void ttm_resource_add_bulk_move(struct ttm_resource *res,
 void ttm_resource_del_bulk_move(struct ttm_resource *res,
 				struct ttm_buffer_object *bo)
 {
-	if (bo->bulk_move && !bo->pin_count && !ttm_resource_is_swapped(res, bo))
+	if (bo->bulk_move && !ttm_resource_unevictable(res, bo))
 		ttm_lru_bulk_move_del(bo->bulk_move, res);
 }
 
@@ -276,10 +298,10 @@ void ttm_resource_move_to_lru_tail(struct ttm_resource *res)
 
 	lockdep_assert_held(&bo->bdev->lru_lock);
 
-	if (bo->pin_count || ttm_resource_is_swapped(res, bo)) {
+	if (ttm_resource_unevictable(res, bo)) {
 		list_move_tail(&res->lru.link, &bdev->unevictable);
 
-	} else	if (bo->bulk_move) {
+	} else if (bo->bulk_move) {
 		struct ttm_lru_bulk_move_pos *pos =
 			ttm_lru_bulk_move_pos(bo->bulk_move, res);
 
@@ -318,7 +340,7 @@ void ttm_resource_init(struct ttm_buffer_object *bo,
 
 	man = ttm_manager_type(bo->bdev, place->mem_type);
 	spin_lock(&bo->bdev->lru_lock);
-	if (bo->pin_count || ttm_resource_is_swapped(res, bo))
+	if (ttm_resource_unevictable(res, bo))
 		list_add_tail(&res->lru.link, &bo->bdev->unevictable);
 	else
 		list_add_tail(&res->lru.link, &man->lru[bo->priority]);
@@ -612,7 +634,6 @@ ttm_resource_cursor_check_bulk(struct ttm_resource_cursor *cursor,
 /**
  * ttm_resource_manager_first() - Start iterating over the resources
  * of a resource manager
- * @man: resource manager to iterate over
  * @cursor: cursor to record the position
  *
  * Initializes the cursor and starts iterating. When done iterating,
@@ -621,17 +642,16 @@ ttm_resource_cursor_check_bulk(struct ttm_resource_cursor *cursor,
  * Return: The first resource from the resource manager.
  */
 struct ttm_resource *
-ttm_resource_manager_first(struct ttm_resource_manager *man,
-			   struct ttm_resource_cursor *cursor)
+ttm_resource_manager_first(struct ttm_resource_cursor *cursor)
 {
+	struct ttm_resource_manager *man = cursor->man;
+
+	if (WARN_ON_ONCE(!man))
+		return NULL;
+
 	lockdep_assert_held(&man->bdev->lru_lock);
 
-	cursor->priority = 0;
-	cursor->man = man;
-	ttm_lru_item_init(&cursor->hitch, TTM_LRU_HITCH);
-	INIT_LIST_HEAD(&cursor->bulk_link);
-	list_add(&cursor->hitch.link, &man->lru[cursor->priority]);
-
+	list_move(&cursor->hitch.link, &man->lru[cursor->priority]);
 	return ttm_resource_manager_next(cursor);
 }
 
@@ -666,8 +686,6 @@ ttm_resource_manager_next(struct ttm_resource_cursor *cursor)
 		list_move(&cursor->hitch.link, &man->lru[cursor->priority]);
 		ttm_resource_cursor_clear_bulk(cursor);
 	}
-
-	ttm_resource_cursor_fini(cursor);
 
 	return NULL;
 }

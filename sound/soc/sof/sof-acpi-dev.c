@@ -36,12 +36,11 @@ MODULE_PARM_DESC(sof_acpi_debug, "SOF ACPI debug options (0x0 all off)");
 
 #define SOF_ACPI_DISABLE_PM_RUNTIME BIT(0)
 
-const struct dev_pm_ops sof_acpi_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(snd_sof_suspend, snd_sof_resume)
-	SET_RUNTIME_PM_OPS(snd_sof_runtime_suspend, snd_sof_runtime_resume,
-			   snd_sof_runtime_idle)
+EXPORT_NS_DEV_PM_OPS(sof_acpi_pm, SND_SOC_SOF_ACPI_DEV) = {
+	SYSTEM_SLEEP_PM_OPS(snd_sof_suspend, snd_sof_resume)
+	RUNTIME_PM_OPS(snd_sof_runtime_suspend, snd_sof_runtime_resume,
+		       snd_sof_runtime_idle)
 };
-EXPORT_SYMBOL_NS(sof_acpi_pm, "SND_SOC_SOF_ACPI_DEV");
 
 static void sof_acpi_probe_complete(struct device *dev)
 {

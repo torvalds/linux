@@ -194,15 +194,21 @@ test_remote_ip()
 
 send_mcast_torture4()
 {
-	ip netns exec "${SOURCE}" bash -c \
-		'cat /dev/urandom | head -c 1G | nc -w 1 -u 239.0.0.1 4001'
+	for i in `seq 10`; do
+		ip netns exec "${SOURCE}" bash -c \
+		   'cat /dev/urandom | head -c 100M | nc -w 1 -u 239.0.0.1 4001'
+		echo -n "."
+	done
 }
 
 
 send_mcast_torture6()
 {
-	ip netns exec "${SOURCE}" bash -c \
-		'cat /dev/urandom | head -c 1G | nc -w 1 -u ff0e::5:6 6001'
+	for i in `seq 10`; do
+		ip netns exec "${SOURCE}" bash -c \
+		   'cat /dev/urandom | head -c 100M | nc -w 1 -u ff0e::5:6 6001'
+		echo -n "."
+	done
 }
 
 check_features()
@@ -278,10 +284,12 @@ wait $pid || err=$?
 if [ $err -eq 1 ]; then
 	ERR=1
 fi
+printf "TEST: %-50s" "IPv4 amt traffic forwarding torture"
 send_mcast_torture4
-printf "TEST: %-60s  [ OK ]\n" "IPv4 amt traffic forwarding torture"
+printf "  [ OK ]\n"
+printf "TEST: %-50s" "IPv6 amt traffic forwarding torture"
 send_mcast_torture6
-printf "TEST: %-60s  [ OK ]\n" "IPv6 amt traffic forwarding torture"
+printf "  [ OK ]\n"
 sleep 5
 if [ "${ERR}" -eq 1 ]; then
         echo "Some tests failed." >&2

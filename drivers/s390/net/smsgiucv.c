@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <net/iucv/iucv.h>
+#include <asm/machine.h>
 #include <asm/cpcmd.h>
 #include <asm/ebcdic.h>
 #include "smsgiucv.h"
@@ -138,7 +139,7 @@ static int __init smsg_init(void)
 {
 	int rc;
 
-	if (!MACHINE_IS_VM) {
+	if (!machine_is_vm()) {
 		rc = -EPROTONOSUPPORT;
 		goto out;
 	}

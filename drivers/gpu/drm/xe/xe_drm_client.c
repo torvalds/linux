@@ -325,6 +325,14 @@ static void show_run_ticks(struct drm_printer *p, struct drm_file *file)
 	unsigned int fw_ref;
 
 	/*
+	 * RING_TIMESTAMP registers are inaccessible in VF mode.
+	 * Without drm-total-cycles-*, other keys provide little value.
+	 * Show all or none of the optional "run_ticks" keys in this case.
+	 */
+	if (IS_SRIOV_VF(xe))
+		return;
+
+	/*
 	 * Wait for any exec queue going away: their cycles will get updated on
 	 * context switch out, so wait for that to happen
 	 */

@@ -1349,6 +1349,32 @@ mlx5_tc_ct_block_flow_offload_stats(struct mlx5_ct_ft *ft,
 	return 0;
 }
 
+static bool
+mlx5_tc_ct_filter_legacy_non_nic_flows(struct mlx5_ct_ft *ft,
+				       struct flow_cls_offload *flow)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
+	struct mlx5_tc_ct_priv *ct_priv = ft->ct_priv;
+	struct flow_match_meta match;
+	struct net_device *netdev;
+	bool same_dev = false;
+
+	if (!is_mdev_legacy_mode(ct_priv->dev) ||
+	    !flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_META))
+		return true;
+
+	flow_rule_match_meta(rule, &match);
+
+	if (!(match.key->ingress_ifindex & match.mask->ingress_ifindex))
+		return true;
+
+	netdev = dev_get_by_index(&init_net, match.key->ingress_ifindex);
+	same_dev = ct_priv->netdev == netdev;
+	dev_put(netdev);
+
+	return same_dev;
+}
+
 static int
 mlx5_tc_ct_block_flow_offload(enum tc_setup_type type, void *type_data,
 			      void *cb_priv)
@@ -1361,6 +1387,9 @@ mlx5_tc_ct_block_flow_offload(enum tc_setup_type type, void *type_data,
 
 	switch (f->command) {
 	case FLOW_CLS_REPLACE:
+		if (!mlx5_tc_ct_filter_legacy_non_nic_flows(ft, f))
+			return -EOPNOTSUPP;
+
 		return mlx5_tc_ct_block_flow_offload_add(ft, f);
 	case FLOW_CLS_DESTROY:
 		return mlx5_tc_ct_block_flow_offload_del(ft, f);

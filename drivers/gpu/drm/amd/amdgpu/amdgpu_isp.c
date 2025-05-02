@@ -124,7 +124,7 @@ static int isp_early_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static bool isp_is_idle(void *handle)
+static bool isp_is_idle(struct amdgpu_ip_block *ip_block)
 {
 	return true;
 }

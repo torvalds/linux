@@ -31,6 +31,10 @@ node must be named "audio-codec".
 Required properties for the audio-codec subnode:
 
 - #sound-dai-cells = <1>;
+- interrupts		: should contain jack detection interrupts, with headset
+			  detect interrupt matching "hs" and microphone bias 2
+			  detect interrupt matching "mb2" in interrupt-names.
+- interrupt-names	: Contains "hs", "mb2"
 
 The audio-codec provides two DAIs. The first one is connected to the
 Stereo HiFi DAC and the second one is connected to the Voice DAC.
@@ -52,6 +56,8 @@ Example:
 
 		audio-codec {
 			#sound-dai-cells = <1>;
+			interrupts-extended = <&cpcap 9 0>, <&cpcap 10 0>;
+			interrupt-names = "hs", "mb2";
 
 			/* HiFi */
 			port@0 {

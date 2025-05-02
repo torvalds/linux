@@ -166,7 +166,7 @@ static inline void snd_uart16550_add_timer(struct snd_uart16550 *uart)
 static inline void snd_uart16550_del_timer(struct snd_uart16550 *uart)
 {
 	if (uart->timer_running) {
-		del_timer(&uart->buffer_timer);
+		timer_delete(&uart->buffer_timer);
 		uart->timer_running = 0;
 	}
 }

@@ -48,7 +48,7 @@ static void cs42l42_i2c_remove(struct i2c_client *i2c_client)
 	cs42l42_common_remove(cs42l42);
 }
 
-static int __maybe_unused cs42l42_i2c_resume(struct device *dev)
+static int cs42l42_i2c_resume(struct device *dev)
 {
 	int ret;
 
@@ -62,7 +62,7 @@ static int __maybe_unused cs42l42_i2c_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops cs42l42_i2c_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(cs42l42_suspend, cs42l42_i2c_resume)
+	SYSTEM_SLEEP_PM_OPS(cs42l42_suspend, cs42l42_i2c_resume)
 };
 
 static const struct of_device_id __maybe_unused cs42l42_of_match[] = {
@@ -87,7 +87,7 @@ MODULE_DEVICE_TABLE(i2c, cs42l42_id);
 static struct i2c_driver cs42l42_i2c_driver = {
 	.driver = {
 		.name = "cs42l42",
-		.pm = &cs42l42_i2c_pm_ops,
+		.pm = pm_ptr(&cs42l42_i2c_pm_ops),
 		.of_match_table = of_match_ptr(cs42l42_of_match),
 		.acpi_match_table = ACPI_PTR(cs42l42_acpi_match),
 		},

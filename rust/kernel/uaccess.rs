@@ -285,8 +285,7 @@ impl UserSliceReader {
         let len = self.length;
         buf.reserve(len, flags)?;
 
-        // The call to `try_reserve` was successful, so the spare capacity is at least `len` bytes
-        // long.
+        // The call to `reserve` was successful, so the spare capacity is at least `len` bytes long.
         self.read_raw(&mut buf.spare_capacity_mut()[..len])?;
 
         // SAFETY: Since the call to `read_raw` was successful, so the next `len` bytes of the

@@ -168,6 +168,10 @@ include::itrace.txt[]
 --skip-empty::
 	Do not display empty (or dummy) events.
 
+--code-with-type::
+	Show data type info in code annotation (for memory instructions only).
+	Currently it only works with --stdio option.
+
 
 SEE ALSO
 --------

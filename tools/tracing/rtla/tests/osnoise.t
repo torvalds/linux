@@ -16,4 +16,10 @@ check "verify the  --trace param" \
 check "verify the --entries/-E param" \
 	"osnoise hist -P F:1 -c 0 -r 900000 -d 1M -b 10 -E 25"
 
+# Test setting default period by putting an absurdly high period
+# and stopping on threshold.
+# If default period is not set, this will time out.
+check_with_osnoise_options "apply default period" \
+	"osnoise hist -s 1" period_us=600000000
+
 test_end

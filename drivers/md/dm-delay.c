@@ -369,6 +369,21 @@ static int delay_map(struct dm_target *ti, struct bio *bio)
 	return delay_bio(dc, c, bio);
 }
 
+#ifdef CONFIG_BLK_DEV_ZONED
+static int delay_report_zones(struct dm_target *ti,
+		struct dm_report_zones_args *args, unsigned int nr_zones)
+{
+	struct delay_c *dc = ti->private;
+	struct delay_class *c = &dc->read;
+
+	return dm_report_zones(c->dev->bdev, c->start,
+			c->start + dm_target_offset(ti, args->next_sector),
+			args, nr_zones);
+}
+#else
+#define delay_report_zones	NULL
+#endif
+
 #define DMEMIT_DELAY_CLASS(c) \
 	DMEMIT("%s %llu %u", (c)->dev->name, (unsigned long long)(c)->start, (c)->delay)
 
@@ -424,11 +439,12 @@ out:
 static struct target_type delay_target = {
 	.name	     = "delay",
 	.version     = {1, 4, 0},
-	.features    = DM_TARGET_PASSES_INTEGRITY,
+	.features    = DM_TARGET_PASSES_INTEGRITY | DM_TARGET_ZONED_HM,
 	.module      = THIS_MODULE,
 	.ctr	     = delay_ctr,
 	.dtr	     = delay_dtr,
 	.map	     = delay_map,
+	.report_zones = delay_report_zones,
 	.presuspend  = delay_presuspend,
 	.resume	     = delay_resume,
 	.status	     = delay_status,

@@ -43,7 +43,4 @@ int ipu6_dma_map_sgtable(struct ipu6_bus_device *sys, struct sg_table *sgt,
 			 enum dma_data_direction dir, unsigned long attrs);
 void ipu6_dma_unmap_sgtable(struct ipu6_bus_device *sys, struct sg_table *sgt,
 			    enum dma_data_direction dir, unsigned long attrs);
-int ipu6_dma_get_sgtable(struct ipu6_bus_device *sys, struct sg_table *sgt,
-			 void *cpu_addr, dma_addr_t handle, size_t size,
-			 unsigned long attrs);
 #endif /* IPU6_DMA_H */

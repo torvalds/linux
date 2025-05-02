@@ -26,9 +26,32 @@
  */
 #define __sme_set(x)		((x) | sme_me_mask)
 #define __sme_clr(x)		((x) & ~sme_me_mask)
+
+#define dma_addr_encrypted(x)	__sme_set(x)
+#define dma_addr_canonical(x)	__sme_clr(x)
+
 #else
 #define __sme_set(x)		(x)
 #define __sme_clr(x)		(x)
+#endif
+
+/*
+ * dma_addr_encrypted() and dma_addr_unencrypted() are for converting a given DMA
+ * address to the respective type of addressing.
+ *
+ * dma_addr_canonical() is used to reverse any conversions for encrypted/decrypted
+ * back to the canonical address.
+ */
+#ifndef dma_addr_encrypted
+#define dma_addr_encrypted(x)		(x)
+#endif
+
+#ifndef dma_addr_unencrypted
+#define dma_addr_unencrypted(x)		(x)
+#endif
+
+#ifndef dma_addr_canonical
+#define dma_addr_canonical(x)		(x)
 #endif
 
 #endif	/* __ASSEMBLY__ */

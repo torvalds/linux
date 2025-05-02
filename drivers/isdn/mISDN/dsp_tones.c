@@ -505,7 +505,7 @@ dsp_tone(struct dsp *dsp, int tone)
 	/* we turn off the tone */
 	if (!tone) {
 		if (dsp->features.hfc_loops && timer_pending(&tonet->tl))
-			del_timer(&tonet->tl);
+			timer_delete(&tonet->tl);
 		if (dsp->features.hfc_loops)
 			dsp_tone_hw_message(dsp, NULL, 0);
 		tonet->tone = 0;
@@ -539,7 +539,7 @@ dsp_tone(struct dsp *dsp, int tone)
 		dsp_tone_hw_message(dsp, pat->data[0], *(pat->siz[0]));
 		/* set timer */
 		if (timer_pending(&tonet->tl))
-			del_timer(&tonet->tl);
+			timer_delete(&tonet->tl);
 		tonet->tl.expires = jiffies + (pat->seq[0] * HZ) / 8000;
 		add_timer(&tonet->tl);
 	} else {

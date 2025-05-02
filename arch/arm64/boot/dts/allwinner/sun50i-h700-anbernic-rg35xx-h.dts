@@ -71,6 +71,25 @@
 			    <&pio 8 2 GPIO_ACTIVE_LOW>;
 		#mux-control-cells = <0>;
 	};
+
+	reg_vcc3v8_usb: regulator-vcc3v8-usb {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&pio 4 5 GPIO_ACTIVE_HIGH>; /* PE5 */
+		regulator-min-microvolt = <3800000>;
+		regulator-max-microvolt = <3800000>;
+		regulator-name = "vcc3v8-usb";
+	};
+
+	reg_vcc5v0_usb: regulator-vcc5v0-usb {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&pio 8 7 GPIO_ACTIVE_HIGH>; /* PI7 */
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-name = "vcc5v0-usb";
+		vin-supply = <&reg_vcc3v8_usb>;
+	};
 };
 
 &gpadc {
@@ -112,4 +131,8 @@
 		pins = "PI0";
 		function = "gpio_out";
 	};
+};
+
+&usbphy {
+	usb1_vbus-supply = <&reg_vcc5v0_usb>;
 };

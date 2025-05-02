@@ -117,5 +117,5 @@ const char *drm_dp_get_dual_mode_type_name(enum drm_dp_dual_mode_type type);
 int drm_lspcon_get_mode(const struct drm_device *dev, struct i2c_adapter *adapter,
 			enum drm_lspcon_mode *current_mode);
 int drm_lspcon_set_mode(const struct drm_device *dev, struct i2c_adapter *adapter,
-			enum drm_lspcon_mode reqd_mode);
+			enum drm_lspcon_mode reqd_mode, int time_out);
 #endif

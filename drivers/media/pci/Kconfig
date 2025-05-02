@@ -78,3 +78,6 @@ source "drivers/media/pci/intel/Kconfig"
 
 endif #MEDIA_PCI_SUPPORT
 endif #PCI
+
+
+source "drivers/media/pci/facetimehd/Kconfig"

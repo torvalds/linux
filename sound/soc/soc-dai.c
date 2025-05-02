@@ -14,22 +14,8 @@
 static inline int _soc_dai_ret(const struct snd_soc_dai *dai,
 			       const char *func, int ret)
 {
-	/* Positive, Zero values are not errors */
-	if (ret >= 0)
-		return ret;
-
-	/* Negative values might be errors */
-	switch (ret) {
-	case -EPROBE_DEFER:
-	case -ENOTSUPP:
-		break;
-	default:
-		dev_err(dai->dev,
-			"ASoC: error at %s on %s: %d\n",
-			func, dai->name, ret);
-	}
-
-	return ret;
+	return snd_soc_ret(dai->dev, ret,
+			   "at %s() on %s\n", func, dai->name);
 }
 
 /*
@@ -275,10 +261,11 @@ int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
 
 	if (dai->driver->ops &&
 	    dai->driver->ops->xlate_tdm_slot_mask)
-		dai->driver->ops->xlate_tdm_slot_mask(slots,
-						      &tx_mask, &rx_mask);
+		ret = dai->driver->ops->xlate_tdm_slot_mask(slots, &tx_mask, &rx_mask);
 	else
-		snd_soc_xlate_tdm_slot_mask(slots, &tx_mask, &rx_mask);
+		ret = snd_soc_xlate_tdm_slot_mask(slots, &tx_mask, &rx_mask);
+	if (ret)
+		goto err;
 
 	for_each_pcm_streams(stream)
 		snd_soc_dai_tdm_mask_set(dai, stream, *tdm_mask[stream]);
@@ -287,6 +274,7 @@ int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
 	    dai->driver->ops->set_tdm_slot)
 		ret = dai->driver->ops->set_tdm_slot(dai, tx_mask, rx_mask,
 						      slots, slot_width);
+err:
 	return soc_dai_ret(dai, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_tdm_slot);
@@ -375,6 +363,14 @@ int snd_soc_dai_prepare(struct snd_soc_dai *dai,
 	return soc_dai_ret(dai, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_prepare);
+
+int snd_soc_dai_mute_is_ctrled_at_trigger(struct snd_soc_dai *dai)
+{
+	if (dai->driver->ops)
+		return dai->driver->ops->mute_unmute_on_trigger;
+
+	return 0;
+}
 
 /**
  * snd_soc_dai_digital_mute - configure DAI system or master clock.
@@ -632,7 +628,7 @@ int snd_soc_pcm_dai_trigger(struct snd_pcm_substream *substream,
 			if (ret < 0)
 				break;
 
-			if (dai->driver->ops && dai->driver->ops->mute_unmute_on_trigger)
+			if (snd_soc_dai_mute_is_ctrled_at_trigger(dai))
 				snd_soc_dai_digital_mute(dai, 0, substream->stream);
 
 			soc_dai_mark_push(dai, substream, trigger);
@@ -645,7 +641,7 @@ int snd_soc_pcm_dai_trigger(struct snd_pcm_substream *substream,
 			if (rollback && !soc_dai_mark_match(dai, substream, trigger))
 				continue;
 
-			if (dai->driver->ops && dai->driver->ops->mute_unmute_on_trigger)
+			if (snd_soc_dai_mute_is_ctrled_at_trigger(dai))
 				snd_soc_dai_digital_mute(dai, 1, substream->stream);
 
 			r = soc_dai_trigger(dai, substream, cmd);

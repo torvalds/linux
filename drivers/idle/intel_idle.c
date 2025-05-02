@@ -58,6 +58,7 @@
 #include <asm/spec-ctrl.h>
 #include <asm/tsc.h>
 #include <asm/fpu/api.h>
+#include <asm/smp.h>
 
 #define INTEL_IDLE_VERSION "0.5.1"
 
@@ -90,7 +91,6 @@ struct idle_cpu {
 	 * Indicate which enable bits to clear here.
 	 */
 	unsigned long auto_demotion_disable_flags;
-	bool byt_auto_demotion_disable_flag;
 	bool disable_promotion_to_c1e;
 	bool use_acpi;
 };
@@ -227,6 +227,15 @@ static __cpuidle int intel_idle_s2idle(struct cpuidle_device *dev,
 	mwait_idle_with_hints(eax, ecx);
 
 	return 0;
+}
+
+static void intel_idle_enter_dead(struct cpuidle_device *dev, int index)
+{
+	struct cpuidle_driver *drv = cpuidle_get_cpu_driver(dev);
+	struct cpuidle_state *state = &drv->states[index];
+	unsigned long eax = flg2MWAIT(state->flags);
+
+	mwait_play_dead(eax);
 }
 
 /*
@@ -1464,13 +1473,11 @@ static const struct idle_cpu idle_cpu_snx __initconst = {
 static const struct idle_cpu idle_cpu_byt __initconst = {
 	.state_table = byt_cstates,
 	.disable_promotion_to_c1e = true,
-	.byt_auto_demotion_disable_flag = true,
 };
 
 static const struct idle_cpu idle_cpu_cht __initconst = {
 	.state_table = cht_cstates,
 	.disable_promotion_to_c1e = true,
-	.byt_auto_demotion_disable_flag = true,
 };
 
 static const struct idle_cpu idle_cpu_ivb __initconst = {
@@ -1696,6 +1703,10 @@ static bool force_use_acpi __read_mostly; /* No effect if no_acpi is set. */
 module_param_named(use_acpi, force_use_acpi, bool, 0444);
 MODULE_PARM_DESC(use_acpi, "Use ACPI _CST for building the idle states list");
 
+static bool no_native __read_mostly; /* No effect if no_acpi is set. */
+module_param_named(no_native, no_native, bool, 0444);
+MODULE_PARM_DESC(no_native, "Ignore cpu specific (native) idle states in lieu of ACPI idle states");
+
 static struct acpi_processor_power acpi_state_table __initdata;
 
 /**
@@ -1804,6 +1815,7 @@ static void __init intel_idle_init_cstates_acpi(struct cpuidle_driver *drv)
 			mark_tsc_unstable("TSC halts in idle");
 
 		state->enter = intel_idle;
+		state->enter_dead = intel_idle_enter_dead;
 		state->enter_s2idle = intel_idle_s2idle;
 	}
 }
@@ -1838,6 +1850,11 @@ static bool __init intel_idle_off_by_default(unsigned int flags, u32 mwait_hint)
 	}
 	return true;
 }
+
+static inline bool ignore_native(void)
+{
+	return no_native && !no_acpi;
+}
 #else /* !CONFIG_ACPI_PROCESSOR_CSTATE */
 #define force_use_acpi	(false)
 
@@ -1847,6 +1864,7 @@ static inline bool intel_idle_off_by_default(unsigned int flags, u32 mwait_hint)
 {
 	return false;
 }
+static inline bool ignore_native(void) { return false; }
 #endif /* !CONFIG_ACPI_PROCESSOR_CSTATE */
 
 /**
@@ -2059,6 +2077,15 @@ static void __init spr_idle_state_table_update(void)
 	}
 }
 
+/**
+ * byt_cht_auto_demotion_disable - Disable Bay/Cherry Trail auto-demotion.
+ */
+static void __init byt_cht_auto_demotion_disable(void)
+{
+	wrmsrl(MSR_CC6_DEMOTION_POLICY_CONFIG, 0);
+	wrmsrl(MSR_MC6_DEMOTION_POLICY_CONFIG, 0);
+}
+
 static bool __init intel_idle_verify_cstate(unsigned int mwait_hint)
 {
 	unsigned int mwait_cstate = (MWAIT_HINT2CSTATE(mwait_hint) + 1) &
@@ -2140,6 +2167,10 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 	case INTEL_ATOM_GRACEMONT:
 		adl_idle_state_table_update();
 		break;
+	case INTEL_ATOM_SILVERMONT:
+	case INTEL_ATOM_AIRMONT:
+		byt_cht_auto_demotion_disable();
+		break;
 	}
 
 	for (cstate = 0; cstate < CPUIDLE_STATE_MAX; ++cstate) {
@@ -2152,6 +2183,9 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 		if (!cpuidle_state_table[cstate].enter &&
 		    !cpuidle_state_table[cstate].enter_s2idle)
 			break;
+
+		if (!cpuidle_state_table[cstate].enter_dead)
+			cpuidle_state_table[cstate].enter_dead = intel_idle_enter_dead;
 
 		/* If marked as unusable, skip this state. */
 		if (cpuidle_state_table[cstate].flags & CPUIDLE_FLAG_UNUSABLE) {
@@ -2181,11 +2215,6 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 			state->flags |= CPUIDLE_FLAG_TIMER_STOP;
 
 		drv->state_count++;
-	}
-
-	if (icpu->byt_auto_demotion_disable_flag) {
-		wrmsrl(MSR_CC6_DEMOTION_POLICY_CONFIG, 0);
-		wrmsrl(MSR_MC6_DEMOTION_POLICY_CONFIG, 0);
 	}
 }
 
@@ -2332,6 +2361,10 @@ static int __init intel_idle_init(void)
 	pr_debug("MWAIT substates: 0x%x\n", mwait_substates);
 
 	icpu = (const struct idle_cpu *)id->driver_data;
+	if (icpu && ignore_native()) {
+		pr_debug("ignoring native CPU idle states\n");
+		icpu = NULL;
+	}
 	if (icpu) {
 		if (icpu->state_table)
 			cpuidle_state_table = icpu->state_table;

@@ -2,6 +2,11 @@
 /*
  * fwnode.h - Firmware device node object handle type definition.
  *
+ * This header file provides low-level data types and definitions for firmware
+ * and device property providers. The respective API header files supplied by
+ * them should contain all of the requisite data types and definitions for end
+ * users, so including it directly should not be necessary.
+ *
  * Copyright (C) 2015, Intel Corporation
  * Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
  */
@@ -91,7 +96,7 @@ struct fwnode_endpoint {
 #define SWNODE_GRAPH_PORT_NAME_FMT		"port@%u"
 #define SWNODE_GRAPH_ENDPOINT_NAME_FMT		"endpoint@%u"
 
-#define NR_FWNODE_REFERENCE_ARGS	8
+#define NR_FWNODE_REFERENCE_ARGS	16
 
 /**
  * struct fwnode_reference_args - Fwnode reference with additional arguments

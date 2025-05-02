@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/xlnx,audio-formatter.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xilinx PL audio formatter
+
+description:
+  The IP core supports DMA, data formatting(AES<->PCM conversion)
+  of audio samples.
+
+maintainers:
+  - Vincenzo Frascino <vincenzo.frascino@arm.com>
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    enum:
+      - xlnx,audio-formatter-1.0
+
+  reg:
+    maxItems: 1
+
+  interrupt-names:
+    minItems: 1
+    items:
+      - const: irq_mm2s
+      - const: irq_s2mm
+
+  interrupts:
+    minItems: 1
+    items:
+      - description: interrupt from MM2S block
+      - description: interrupt from S2MM block
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: s_axi_lite_aclk
+      - const: aud_mclk
+
+  clocks:
+    minItems: 1
+    items:
+      - description: clock for the axi data stream
+      - description: clock for the MEMS microphone data stream
+
+required:
+  - compatible
+  - reg
+  - interrupt-names
+  - interrupts
+  - clock-names
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    audio_formatter@80010000 {
+      compatible = "xlnx,audio-formatter-1.0";
+      reg = <0x80010000 0x1000>;
+      interrupt-names = "irq_mm2s", "irq_s2mm";
+      interrupt-parent = <&gic>;
+      interrupts = <0 104 4>, <0 105 4>;
+      clock-names = "s_axi_lite_aclk", "aud_mclk";
+      clocks = <&clk 71>, <&clk_wiz_1 0>;
+    };
+...

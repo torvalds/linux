@@ -87,8 +87,8 @@ fn find_real_path<'a>(srctree: &Path, valid_paths: &'a mut Vec<PathBuf>, file: &
 
     assert!(
         valid_paths.len() > 0,
-        "No path candidates found. This is likely a bug in the build system, or some files went \
-        away while compiling."
+        "No path candidates found for `{file}`. This is likely a bug in the build system, or some \
+        files went away while compiling."
     );
 
     if valid_paths.len() > 1 {
@@ -97,8 +97,8 @@ fn find_real_path<'a>(srctree: &Path, valid_paths: &'a mut Vec<PathBuf>, file: &
             eprintln!("    {path:?}");
         }
         panic!(
-            "Several path candidates found, please resolve the ambiguity by renaming a file or \
-            folder."
+            "Several path candidates found for `{file}`, please resolve the ambiguity by renaming \
+            a file or folder."
         );
     }
 

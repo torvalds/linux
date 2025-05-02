@@ -10,11 +10,16 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/soc/samsung,exynos-usi.h>
 
 / {
 	model = "Samsung Galaxy S8 (SM-G950F)";
 	compatible = "samsung,dreamlte", "samsung,exynos8895";
 	chassis-type = "handset";
+
+	aliases {
+		mmc0 = &mmc;
+	};
 
 	chosen {
 		#address-cells = <2>;
@@ -89,10 +94,58 @@
 			wakeup-source;
 		};
 	};
+
+	/* TODO: Remove once PMIC is implemented  */
+	reg_placeholder: regulator-0 {
+		compatible = "regulator-fixed";
+		regulator-name = "reg-placeholder";
+	};
+};
+
+&hsi2c_23 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	touchscreen@48 {
+		compatible = "samsung,s6sy761";
+		reg = <0x48>;
+
+		/* TODO: Update once PMIC is implemented */
+		avdd-supply = <&reg_placeholder>;
+		vdd-supply = <&reg_placeholder>;
+
+		interrupt-parent = <&gpa1>;
+		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+
+		pinctrl-0 = <&ts_int>;
+		pinctrl-names = "default";
+	};
 };
 
 &oscclk {
 	clock-frequency = <26000000>;
+};
+
+&mmc {
+	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus1 &sd2_bus4 &sd2_cd>;
+	pinctrl-names = "default";
+
+	bus-width = <4>;
+	card-detect-delay = <200>;
+	cd-gpios = <&gpa1 5 GPIO_ACTIVE_LOW>;
+	clock-frequency = <800000000>;
+	disable-wp;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+
+	/* TODO: Add regulators once PMIC is implemented */
+
+	samsung,dw-mshc-ciu-div = <3>;
+	samsung,dw-mshc-ddr-timing = <1 2>;
+	samsung,dw-mshc-sdr-timing = <0 3>;
+
+	status = "okay";
 };
 
 &pinctrl_alive {
@@ -123,4 +176,23 @@
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS7_PIN_DRV_LV1>;
 	};
+
+	sd2_cd: sd2-cd-pins {
+		samsung,pins = "gpa1-5";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <EXYNOS7_PIN_DRV_LV4>;
+	};
+
+	ts_int: ts-int-pins {
+		samsung,pins = "gpa1-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS7_PIN_DRV_LV1>;
+	};
+};
+
+&usi9 {
+	samsung,mode = <USI_MODE_I2C0_1>;
+	status = "okay";
 };

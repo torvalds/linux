@@ -786,7 +786,7 @@ static void gc_close(struct input_dev *dev)
 	guard(mutex)(&gc->mutex);
 
 	if (!--gc->used) {
-		del_timer_sync(&gc->timer);
+		timer_delete_sync(&gc->timer);
 		parport_write_control(gc->pd->port, 0x00);
 		parport_release(gc->pd);
 	}

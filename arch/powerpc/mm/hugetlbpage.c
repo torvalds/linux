@@ -113,6 +113,7 @@ static int __init pseries_alloc_bootmem_huge_page(struct hstate *hstate)
 	gpage_freearray[nr_gpages] = 0;
 	list_add(&m->list, &huge_boot_pages[0]);
 	m->hstate = hstate;
+	m->flags = 0;
 	return 1;
 }
 

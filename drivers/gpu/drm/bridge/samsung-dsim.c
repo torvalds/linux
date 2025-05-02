@@ -1457,7 +1457,7 @@ static int samsung_dsim_init(struct samsung_dsim *dsi)
 }
 
 static void samsung_dsim_atomic_pre_enable(struct drm_bridge *bridge,
-					   struct drm_bridge_state *old_bridge_state)
+					   struct drm_atomic_state *state)
 {
 	struct samsung_dsim *dsi = bridge_to_dsi(bridge);
 	int ret;
@@ -1485,7 +1485,7 @@ static void samsung_dsim_atomic_pre_enable(struct drm_bridge *bridge,
 }
 
 static void samsung_dsim_atomic_enable(struct drm_bridge *bridge,
-				       struct drm_bridge_state *old_bridge_state)
+				       struct drm_atomic_state *state)
 {
 	struct samsung_dsim *dsi = bridge_to_dsi(bridge);
 
@@ -1496,7 +1496,7 @@ static void samsung_dsim_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void samsung_dsim_atomic_disable(struct drm_bridge *bridge,
-					struct drm_bridge_state *old_bridge_state)
+					struct drm_atomic_state *state)
 {
 	struct samsung_dsim *dsi = bridge_to_dsi(bridge);
 
@@ -1508,7 +1508,7 @@ static void samsung_dsim_atomic_disable(struct drm_bridge *bridge,
 }
 
 static void samsung_dsim_atomic_post_disable(struct drm_bridge *bridge,
-					     struct drm_bridge_state *old_bridge_state)
+					     struct drm_atomic_state *state)
 {
 	struct samsung_dsim *dsi = bridge_to_dsi(bridge);
 

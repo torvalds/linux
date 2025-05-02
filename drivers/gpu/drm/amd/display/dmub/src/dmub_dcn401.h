@@ -169,7 +169,8 @@ struct dmub_srv;
 	DMUB_SF(HOST_INTERRUPT_CSR, HOST_REG_INBOX0_RSP_INT_EN) \
 	DMUB_SF(HOST_INTERRUPT_CSR, HOST_REG_OUTBOX0_RDY_INT_ACK) \
 	DMUB_SF(HOST_INTERRUPT_CSR, HOST_REG_OUTBOX0_RDY_INT_STAT) \
-	DMUB_SF(HOST_INTERRUPT_CSR, HOST_REG_OUTBOX0_RDY_INT_EN)
+	DMUB_SF(HOST_INTERRUPT_CSR, HOST_REG_OUTBOX0_RDY_INT_EN) \
+	DMUB_SF(DMCUB_CNTL, DMCUB_PWAIT_MODE_STATUS)
 
 struct dmub_srv_dcn401_reg_offset {
 #define DMUB_SR(reg) uint32_t reg;
@@ -263,7 +264,7 @@ void dmub_dcn401_set_outbox0_rptr(struct dmub_srv *dmub, uint32_t rptr_offset);
 
 uint32_t dmub_dcn401_get_current_time(struct dmub_srv *dmub);
 
-void dmub_dcn401_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_data *diag_data);
+void dmub_dcn401_get_diagnostic_data(struct dmub_srv *dmub);
 
 void dmub_dcn401_configure_dmub_in_system_memory(struct dmub_srv *dmub);
 void dmub_dcn401_send_inbox0_cmd(struct dmub_srv *dmub, union dmub_inbox0_data_register data);

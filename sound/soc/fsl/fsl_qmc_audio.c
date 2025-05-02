@@ -250,6 +250,9 @@ static int qmc_audio_pcm_trigger(struct snd_soc_component *component,
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		bitmap_zero(prtd->chans_pending, 64);
+		prtd->buffer_ended = 0;
+		prtd->ch_dma_addr_current = prtd->ch_dma_addr_start;
+
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			for (i = 0; i < prtd->channels; i++)
 				prtd->qmc_dai->chans[i].prtd_tx = prtd;
@@ -892,7 +895,7 @@ static int qmc_audio_dai_parse(struct qmc_audio *qmc_audio, struct device_node *
 		qmc_soc_dai_driver->playback.channels_max = count > 1 ? count : nb_tx_ts;
 	}
 	qmc_soc_dai_driver->playback.formats = qmc_audio_formats(nb_tx_ts,
-								 count > 1 ? true : false);
+								 count > 1);
 
 	qmc_soc_dai_driver->capture.channels_min = 0;
 	qmc_soc_dai_driver->capture.channels_max = 0;
@@ -901,7 +904,7 @@ static int qmc_audio_dai_parse(struct qmc_audio *qmc_audio, struct device_node *
 		qmc_soc_dai_driver->capture.channels_max = count > 1 ? count : nb_rx_ts;
 	}
 	qmc_soc_dai_driver->capture.formats = qmc_audio_formats(nb_rx_ts,
-								count > 1 ? true : false);
+								count > 1);
 
 	qmc_soc_dai_driver->playback.rates = snd_pcm_rate_to_rate_bit(tx_fs_rate);
 	qmc_soc_dai_driver->playback.rate_min = tx_fs_rate;

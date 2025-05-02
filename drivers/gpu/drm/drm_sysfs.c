@@ -261,7 +261,7 @@ static ssize_t enabled_show(struct device *device,
 }
 
 static ssize_t edid_show(struct file *filp, struct kobject *kobj,
-			 struct bin_attribute *attr, char *buf, loff_t off,
+			 const struct bin_attribute *attr, char *buf, loff_t off,
 			 size_t count)
 {
 	struct device *connector_dev = kobj_to_dev(kobj);
@@ -315,21 +315,21 @@ static struct attribute *connector_dev_attrs[] = {
 	NULL
 };
 
-static struct bin_attribute edid_attr = {
+static const struct bin_attribute edid_attr = {
 	.attr.name = "edid",
 	.attr.mode = 0444,
 	.size = 0,
-	.read = edid_show,
+	.read_new = edid_show,
 };
 
-static struct bin_attribute *connector_bin_attrs[] = {
+static const struct bin_attribute *const connector_bin_attrs[] = {
 	&edid_attr,
 	NULL
 };
 
 static const struct attribute_group connector_dev_group = {
 	.attrs = connector_dev_attrs,
-	.bin_attrs = connector_bin_attrs,
+	.bin_attrs_new = connector_bin_attrs,
 };
 
 static const struct attribute_group *connector_dev_groups[] = {

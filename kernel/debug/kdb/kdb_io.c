@@ -334,7 +334,7 @@ poll_again:
 		*cp = '\0';
 		p_tmp = strrchr(buffer, ' ');
 		p_tmp = (p_tmp ? p_tmp + 1 : buffer);
-		strscpy(tmpbuffer, p_tmp, sizeof(tmpbuffer));
+		strscpy(tmpbuffer, p_tmp);
 		*cp = tmp;
 
 		len = strlen(tmpbuffer);
@@ -452,7 +452,7 @@ poll_again:
 char *kdb_getstr(char *buffer, size_t bufsize, const char *prompt)
 {
 	if (prompt && kdb_prompt_str != prompt)
-		strscpy(kdb_prompt_str, prompt, CMD_BUFLEN);
+		strscpy(kdb_prompt_str, prompt);
 	kdb_printf("%s", kdb_prompt_str);
 	kdb_nextline = 1;	/* Prompt and input resets line number */
 	return kdb_read(buffer, bufsize);

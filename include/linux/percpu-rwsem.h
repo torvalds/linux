@@ -8,6 +8,7 @@
 #include <linux/wait.h>
 #include <linux/rcu_sync.h>
 #include <linux/lockdep.h>
+#include <linux/cleanup.h>
 
 struct percpu_rw_semaphore {
 	struct rcu_sync		rss;
@@ -124,6 +125,13 @@ static inline void percpu_up_read(struct percpu_rw_semaphore *sem)
 extern bool percpu_is_read_locked(struct percpu_rw_semaphore *);
 extern void percpu_down_write(struct percpu_rw_semaphore *);
 extern void percpu_up_write(struct percpu_rw_semaphore *);
+
+DEFINE_GUARD(percpu_read, struct percpu_rw_semaphore *,
+	     percpu_down_read(_T), percpu_up_read(_T))
+DEFINE_GUARD_COND(percpu_read, _try, percpu_down_read_trylock(_T))
+
+DEFINE_GUARD(percpu_write, struct percpu_rw_semaphore *,
+	     percpu_down_write(_T), percpu_up_write(_T))
 
 static inline bool percpu_is_write_locked(struct percpu_rw_semaphore *sem)
 {

@@ -11,6 +11,13 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kvm
 
+#ifdef CREATE_TRACE_POINTS
+#define tracing_kvm_rip_read(vcpu) ({					\
+	typeof(vcpu) __vcpu = vcpu;					\
+	__vcpu->arch.guest_state_protected ? 0 : kvm_rip_read(__vcpu);	\
+	})
+#endif
+
 /*
  * Tracepoint for guest mode entry.
  */
@@ -28,7 +35,7 @@ TRACE_EVENT(kvm_entry,
 
 	TP_fast_assign(
 		__entry->vcpu_id        = vcpu->vcpu_id;
-		__entry->rip		= kvm_rip_read(vcpu);
+		__entry->rip		= tracing_kvm_rip_read(vcpu);
 		__entry->immediate_exit	= force_immediate_exit;
 
 		kvm_x86_call(get_entry_info)(vcpu, &__entry->intr_info,
@@ -319,7 +326,7 @@ TRACE_EVENT(name,							     \
 	),								     \
 									     \
 	TP_fast_assign(							     \
-		__entry->guest_rip	= kvm_rip_read(vcpu);		     \
+		__entry->guest_rip	= tracing_kvm_rip_read(vcpu);		     \
 		__entry->isa            = isa;				     \
 		__entry->vcpu_id        = vcpu->vcpu_id;		     \
 		__entry->requests       = READ_ONCE(vcpu->requests);	     \
@@ -423,7 +430,7 @@ TRACE_EVENT(kvm_page_fault,
 
 	TP_fast_assign(
 		__entry->vcpu_id	= vcpu->vcpu_id;
-		__entry->guest_rip	= kvm_rip_read(vcpu);
+		__entry->guest_rip	= tracing_kvm_rip_read(vcpu);
 		__entry->fault_address	= fault_address;
 		__entry->error_code	= error_code;
 	),
@@ -830,12 +837,12 @@ TRACE_EVENT(kvm_emulate_insn,
 	TP_ARGS(vcpu, failed),
 
 	TP_STRUCT__entry(
-		__field(    __u64, rip                       )
-		__field(    __u32, csbase                    )
-		__field(    __u8,  len                       )
-		__array(    __u8,  insn,    15	             )
-		__field(    __u8,  flags       	   	     )
-		__field(    __u8,  failed                    )
+		__field(    __u64, rip                              )
+		__field(    __u32, csbase                           )
+		__field(    __u8,  len                              )
+		__array(    __u8,  insn, X86_MAX_INSTRUCTION_LENGTH )
+		__field(    __u8,  flags       	   	            )
+		__field(    __u8,  failed                           )
 		),
 
 	TP_fast_assign(
@@ -846,7 +853,7 @@ TRACE_EVENT(kvm_emulate_insn,
 		__entry->rip = vcpu->arch.emulate_ctxt->_eip - __entry->len;
 		memcpy(__entry->insn,
 		       vcpu->arch.emulate_ctxt->fetch.data,
-		       15);
+		       X86_MAX_INSTRUCTION_LENGTH);
 		__entry->flags = kei_decode_mode(vcpu->arch.emulate_ctxt->mode);
 		__entry->failed = failed;
 		),

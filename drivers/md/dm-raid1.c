@@ -1182,7 +1182,7 @@ static void mirror_dtr(struct dm_target *ti)
 {
 	struct mirror_set *ms = ti->private;
 
-	del_timer_sync(&ms->timer);
+	timer_delete_sync(&ms->timer);
 	flush_workqueue(ms->kmirrord_wq);
 	flush_work(&ms->trigger_event);
 	dm_kcopyd_client_destroy(ms->kcopyd_client);

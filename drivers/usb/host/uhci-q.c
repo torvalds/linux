@@ -84,7 +84,7 @@ static void uhci_urbp_wants_fsbr(struct uhci_hcd *uhci, struct urb_priv *urbp)
 			uhci_fsbr_on(uhci);
 		else if (uhci->fsbr_expiring) {
 			uhci->fsbr_expiring = 0;
-			del_timer(&uhci->fsbr_timer);
+			timer_delete(&uhci->fsbr_timer);
 		}
 	}
 }

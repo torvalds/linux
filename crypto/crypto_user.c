@@ -84,17 +84,6 @@ static int crypto_report_cipher(struct sk_buff *skb, struct crypto_alg *alg)
 		       sizeof(rcipher), &rcipher);
 }
 
-static int crypto_report_comp(struct sk_buff *skb, struct crypto_alg *alg)
-{
-	struct crypto_report_comp rcomp;
-
-	memset(&rcomp, 0, sizeof(rcomp));
-
-	strscpy(rcomp.type, "compression", sizeof(rcomp.type));
-
-	return nla_put(skb, CRYPTOCFGA_REPORT_COMPRESS, sizeof(rcomp), &rcomp);
-}
-
 static int crypto_report_one(struct crypto_alg *alg,
 			     struct crypto_user_alg *ualg, struct sk_buff *skb)
 {
@@ -133,11 +122,6 @@ static int crypto_report_one(struct crypto_alg *alg,
 	switch (alg->cra_flags & (CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_LARVAL)) {
 	case CRYPTO_ALG_TYPE_CIPHER:
 		if (crypto_report_cipher(skb, alg))
-			goto nla_put_failure;
-
-		break;
-	case CRYPTO_ALG_TYPE_COMPRESS:
-		if (crypto_report_comp(skb, alg))
 			goto nla_put_failure;
 
 		break;

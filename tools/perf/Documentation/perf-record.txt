@@ -227,6 +227,10 @@ OPTIONS
 	'--filter' exists, the new filter expression will be combined with
 	them by '&&'.
 
+--latency::
+	Enable data collection for latency profiling.
+	Use perf report --latency for latency-centric profile.
+
 -a::
 --all-cpus::
         System-wide collection from all CPUs (default if no target is specified).

@@ -276,7 +276,7 @@ static enum drm_connector_status ch7xxx_detect(struct intel_dvo_device *dvo)
 }
 
 static enum drm_mode_status ch7xxx_mode_valid(struct intel_dvo_device *dvo,
-					      struct drm_display_mode *mode)
+					      const struct drm_display_mode *mode)
 {
 	if (mode->clock > 165000)
 		return MODE_CLOCK_HIGH;

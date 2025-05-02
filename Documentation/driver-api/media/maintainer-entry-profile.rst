@@ -116,7 +116,7 @@ CEC drivers		``cec-compliance``
 .. [3] The ``v4l2-compliance`` also covers the media controller usage inside
        V4L2 drivers.
 
-Other compilance tools are under development to check other parts of the
+Other compliance tools are under development to check other parts of the
 subsystem.
 
 Those tests need to pass before the patches go upstream.

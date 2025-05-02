@@ -44,6 +44,7 @@
 #ifndef _ASM_S390_FPU_H
 #define _ASM_S390_FPU_H
 
+#include <linux/cpufeature.h>
 #include <linux/processor.h>
 #include <linux/preempt.h>
 #include <linux/string.h>
@@ -51,12 +52,6 @@
 #include <asm/sigcontext.h>
 #include <asm/fpu-types.h>
 #include <asm/fpu-insn.h>
-#include <asm/facility.h>
-
-static inline bool cpu_has_vx(void)
-{
-	return likely(test_facility(129));
-}
 
 enum {
 	KERNEL_FPC_BIT = 0,

@@ -966,11 +966,11 @@ static const struct pci_epc_features ks_pcie_am654_epc_features = {
 	.msix_capable = true,
 	.bar[BAR_0] = { .type = BAR_RESERVED, },
 	.bar[BAR_1] = { .type = BAR_RESERVED, },
-	.bar[BAR_2] = { .type = BAR_FIXED, .fixed_size = SZ_1M, },
+	.bar[BAR_2] = { .type = BAR_RESIZABLE, },
 	.bar[BAR_3] = { .type = BAR_FIXED, .fixed_size = SZ_64K, },
 	.bar[BAR_4] = { .type = BAR_FIXED, .fixed_size = 256, },
-	.bar[BAR_5] = { .type = BAR_FIXED, .fixed_size = SZ_1M, },
-	.align = SZ_1M,
+	.bar[BAR_5] = { .type = BAR_RESIZABLE, },
+	.align = SZ_64K,
 };
 
 static const struct pci_epc_features*

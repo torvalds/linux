@@ -14,6 +14,7 @@
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
+#include <linux/string_choices.h>
 #include <sound/soc.h>
 #include "bus.h"
 
@@ -87,11 +88,14 @@ static int _sdw_program_slave_port_params(struct sdw_bus *bus,
 		return ret;
 	}
 
-	/* Program DPN_BlockCtrl3 register */
-	ret = sdw_write_no_pm(slave, addr2, t_params->blk_pkg_mode);
-	if (ret < 0) {
-		dev_err(bus->dev, "DPN_BlockCtrl3 register write failed\n");
-		return ret;
+	/* DP0 does not implement BlockCtrl3 */
+	if (t_params->port_num) {
+		/* Program DPN_BlockCtrl3 register */
+		ret = sdw_write_no_pm(slave, addr2, t_params->blk_pkg_mode);
+		if (ret < 0) {
+			dev_err(bus->dev, "DPN_BlockCtrl3 register write failed\n");
+			return ret;
+		}
 	}
 
 	/*
@@ -130,18 +134,28 @@ static int sdw_program_slave_port_params(struct sdw_bus *bus,
 	struct sdw_port_params *p_params = &p_rt->port_params;
 	struct sdw_slave_prop *slave_prop = &s_rt->slave->prop;
 	u32 addr1, addr2, addr3, addr4, addr5, addr6;
-	struct sdw_dpn_prop *dpn_prop;
+	enum sdw_dpn_type port_type;
+	bool read_only_wordlength;
 	int ret;
 	u8 wbuf;
 
 	if (s_rt->slave->is_mockup_device)
 		return 0;
 
-	dpn_prop = sdw_get_slave_dpn_prop(s_rt->slave,
-					  s_rt->direction,
-					  t_params->port_num);
-	if (!dpn_prop)
-		return -EINVAL;
+	if (t_params->port_num) {
+		struct sdw_dpn_prop *dpn_prop;
+
+		dpn_prop = sdw_get_slave_dpn_prop(s_rt->slave, s_rt->direction,
+						  t_params->port_num);
+		if (!dpn_prop)
+			return -EINVAL;
+
+		read_only_wordlength = dpn_prop->read_only_wordlength;
+		port_type = dpn_prop->type;
+	} else {
+		read_only_wordlength = false;
+		port_type = SDW_DPN_FULL;
+	}
 
 	addr1 = SDW_DPN_PORTCTRL(t_params->port_num);
 	addr2 = SDW_DPN_BLOCKCTRL1(t_params->port_num);
@@ -171,7 +185,7 @@ static int sdw_program_slave_port_params(struct sdw_bus *bus,
 		return ret;
 	}
 
-	if (!dpn_prop->read_only_wordlength) {
+	if (!read_only_wordlength) {
 		/* Program DPN_BlockCtrl1 register */
 		ret = sdw_write_no_pm(s_rt->slave, addr2, (p_params->bps - 1));
 		if (ret < 0) {
@@ -223,9 +237,9 @@ static int sdw_program_slave_port_params(struct sdw_bus *bus,
 		}
 	}
 
-	if (dpn_prop->type != SDW_DPN_SIMPLE) {
+	if (port_type != SDW_DPN_SIMPLE) {
 		ret = _sdw_program_slave_port_params(bus, s_rt->slave,
-						     t_params, dpn_prop->type);
+						     t_params, port_type);
 		if (ret < 0)
 			dev_err(&s_rt->slave->dev,
 				"Transport reg write failed for port: %d\n",
@@ -358,7 +372,7 @@ static int sdw_enable_disable_master_ports(struct sdw_master_runtime *m_rt,
 	} else {
 		dev_err(bus->dev,
 			"dpn_port_enable_ch not supported, %s failed\n",
-			en ? "enable" : "disable");
+			str_enable_disable(en));
 		return -EINVAL;
 	}
 
@@ -432,6 +446,9 @@ static int sdw_prep_deprep_slave_ports(struct sdw_bus *bus,
 	struct completion *port_ready;
 	struct sdw_dpn_prop *dpn_prop;
 	struct sdw_prepare_ch prep_ch;
+	u32 imp_def_interrupts;
+	bool simple_ch_prep_sm;
+	u32 ch_prep_timeout;
 	bool intr = false;
 	int ret = 0, val;
 	u32 addr;
@@ -439,20 +456,35 @@ static int sdw_prep_deprep_slave_ports(struct sdw_bus *bus,
 	prep_ch.num = p_rt->num;
 	prep_ch.ch_mask = p_rt->ch_mask;
 
-	dpn_prop = sdw_get_slave_dpn_prop(s_rt->slave,
-					  s_rt->direction,
-					  prep_ch.num);
-	if (!dpn_prop) {
-		dev_err(bus->dev,
-			"Slave Port:%d properties not found\n", prep_ch.num);
-		return -EINVAL;
+	if (p_rt->num) {
+		dpn_prop = sdw_get_slave_dpn_prop(s_rt->slave, s_rt->direction, prep_ch.num);
+		if (!dpn_prop) {
+			dev_err(bus->dev,
+				"Slave Port:%d properties not found\n", prep_ch.num);
+			return -EINVAL;
+		}
+
+		imp_def_interrupts = dpn_prop->imp_def_interrupts;
+		simple_ch_prep_sm = dpn_prop->simple_ch_prep_sm;
+		ch_prep_timeout = dpn_prop->ch_prep_timeout;
+	} else {
+		struct sdw_dp0_prop *dp0_prop = s_rt->slave->prop.dp0_prop;
+
+		if (!dp0_prop) {
+			dev_err(bus->dev,
+				"Slave DP0 properties not found\n");
+			return -EINVAL;
+		}
+		imp_def_interrupts = dp0_prop->imp_def_interrupts;
+		simple_ch_prep_sm =  dp0_prop->simple_ch_prep_sm;
+		ch_prep_timeout = dp0_prop->ch_prep_timeout;
 	}
 
 	prep_ch.prepare = prep;
 
 	prep_ch.bank = bus->params.next_bank;
 
-	if (dpn_prop->imp_def_interrupts || !dpn_prop->simple_ch_prep_sm ||
+	if (imp_def_interrupts || !simple_ch_prep_sm ||
 	    bus->params.s_data_mode != SDW_PORT_DATA_MODE_NORMAL)
 		intr = true;
 
@@ -463,7 +495,7 @@ static int sdw_prep_deprep_slave_ports(struct sdw_bus *bus,
 	 */
 	if (prep && intr) {
 		ret = sdw_configure_dpn_intr(s_rt->slave, p_rt->num, prep,
-					     dpn_prop->imp_def_interrupts);
+					     imp_def_interrupts);
 		if (ret < 0)
 			return ret;
 	}
@@ -472,7 +504,7 @@ static int sdw_prep_deprep_slave_ports(struct sdw_bus *bus,
 	sdw_do_port_prep(s_rt, prep_ch, prep ? SDW_OPS_PORT_PRE_PREP : SDW_OPS_PORT_PRE_DEPREP);
 
 	/* Prepare Slave port implementing CP_SM */
-	if (!dpn_prop->simple_ch_prep_sm) {
+	if (!simple_ch_prep_sm) {
 		addr = SDW_DPN_PREPARECTRL(p_rt->num);
 
 		if (prep)
@@ -489,7 +521,7 @@ static int sdw_prep_deprep_slave_ports(struct sdw_bus *bus,
 		/* Wait for completion on port ready */
 		port_ready = &s_rt->slave->port_ready[prep_ch.num];
 		wait_for_completion_timeout(port_ready,
-			msecs_to_jiffies(dpn_prop->ch_prep_timeout));
+			msecs_to_jiffies(ch_prep_timeout));
 
 		val = sdw_read_no_pm(s_rt->slave, SDW_DPN_PREPARESTATUS(p_rt->num));
 		if ((val < 0) || (val & p_rt->ch_mask)) {
@@ -506,7 +538,7 @@ static int sdw_prep_deprep_slave_ports(struct sdw_bus *bus,
 	/* Disable interrupt after Port de-prepare */
 	if (!prep && intr)
 		ret = sdw_configure_dpn_intr(s_rt->slave, p_rt->num, prep,
-					     dpn_prop->imp_def_interrupts);
+					     imp_def_interrupts);
 
 	return ret;
 }
@@ -1007,7 +1039,8 @@ static int sdw_slave_port_is_valid_range(struct device *dev, int num)
 
 static int sdw_slave_port_config(struct sdw_slave *slave,
 				 struct sdw_slave_runtime *s_rt,
-				 const struct sdw_port_config *port_config)
+				 const struct sdw_port_config *port_config,
+				 bool is_bpt_stream)
 {
 	struct sdw_port_runtime *p_rt;
 	int ret;
@@ -1019,9 +1052,13 @@ static int sdw_slave_port_config(struct sdw_slave *slave,
 		 * TODO: Check valid port range as defined by DisCo/
 		 * slave
 		 */
-		ret = sdw_slave_port_is_valid_range(&slave->dev, port_config[i].num);
-		if (ret < 0)
-			return ret;
+		if (!is_bpt_stream) {
+			ret = sdw_slave_port_is_valid_range(&slave->dev, port_config[i].num);
+			if (ret < 0)
+				return ret;
+		} else if (port_config[i].num) {
+			return -EINVAL;
+		}
 
 		ret = sdw_port_config(p_rt, port_config, i);
 		if (ret < 0)
@@ -1190,6 +1227,20 @@ static struct sdw_master_runtime
 	struct sdw_master_runtime *m_rt, *walk_m_rt;
 	struct list_head *insert_after;
 
+	if (stream->type == SDW_STREAM_BPT) {
+		if (bus->stream_refcount > 0 || bus->bpt_stream_refcount > 0) {
+			dev_err(bus->dev, "%s: %d/%d audio/BPT stream already allocated\n",
+				__func__, bus->stream_refcount, bus->bpt_stream_refcount);
+			return ERR_PTR(-EBUSY);
+		}
+	} else {
+		if (bus->bpt_stream_refcount > 0) {
+			dev_err(bus->dev, "%s: BPT stream already allocated\n",
+				__func__);
+			return ERR_PTR(-EAGAIN);
+		}
+	}
+
 	m_rt = kzalloc(sizeof(*m_rt), GFP_KERNEL);
 	if (!m_rt)
 		return NULL;
@@ -1218,6 +1269,8 @@ static struct sdw_master_runtime
 	m_rt->stream = stream;
 
 	bus->stream_refcount++;
+	if (stream->type == SDW_STREAM_BPT)
+		bus->bpt_stream_refcount++;
 
 	return m_rt;
 }
@@ -1266,6 +1319,8 @@ static void sdw_master_rt_free(struct sdw_master_runtime *m_rt,
 	list_del(&m_rt->bus_node);
 	kfree(m_rt);
 
+	if (stream->type == SDW_STREAM_BPT)
+		bus->bpt_stream_refcount--;
 	bus->stream_refcount--;
 }
 
@@ -1329,6 +1384,11 @@ struct sdw_dpn_prop *sdw_get_slave_dpn_prop(struct sdw_slave *slave,
 	struct sdw_dpn_prop *dpn_prop;
 	u8 num_ports;
 	int i;
+
+	if (!port_num) {
+		dev_err(&slave->dev, "%s: port_num is zero\n", __func__);
+		return NULL;
+	}
 
 	if (direction == SDW_DATA_DIR_TX) {
 		num_ports = hweight32(slave->prop.source_ports);
@@ -1805,12 +1865,13 @@ static int set_stream(struct snd_pcm_substream *substream,
  * sdw_alloc_stream() - Allocate and return stream runtime
  *
  * @stream_name: SoundWire stream name
+ * @type: stream type (could be PCM ,PDM or BPT)
  *
  * Allocates a SoundWire stream runtime instance.
  * sdw_alloc_stream should be called only once per stream. Typically
  * invoked from ALSA/ASoC machine/platform driver.
  */
-struct sdw_stream_runtime *sdw_alloc_stream(const char *stream_name)
+struct sdw_stream_runtime *sdw_alloc_stream(const char *stream_name, enum sdw_stream_type type)
 {
 	struct sdw_stream_runtime *stream;
 
@@ -1822,6 +1883,7 @@ struct sdw_stream_runtime *sdw_alloc_stream(const char *stream_name)
 	INIT_LIST_HEAD(&stream->master_list);
 	stream->state = SDW_STREAM_ALLOCATED;
 	stream->m_rt_count = 0;
+	stream->type = type;
 
 	return stream;
 }
@@ -1850,7 +1912,7 @@ int sdw_startup_stream(void *sdw_substream)
 	if (!name)
 		return -ENOMEM;
 
-	sdw_stream = sdw_alloc_stream(name);
+	sdw_stream = sdw_alloc_stream(name, SDW_STREAM_PCM);
 	if (!sdw_stream) {
 		dev_err(rtd->dev, "alloc stream failed for substream DAI %s\n", substream->name);
 		ret = -ENOMEM;
@@ -1957,6 +2019,12 @@ int sdw_stream_add_master(struct sdw_bus *bus,
 	m_rt = sdw_master_rt_find(bus, stream);
 	if (!m_rt) {
 		m_rt = sdw_master_rt_alloc(bus, stream);
+		if (IS_ERR(m_rt)) {
+			ret = PTR_ERR(m_rt);
+			dev_err(bus->dev, "%s: Master runtime alloc failed for stream:%s: %d\n",
+				__func__, stream->name, ret);
+			goto unlock;
+		}
 		if (!m_rt) {
 			dev_err(bus->dev, "%s: Master runtime alloc failed for stream:%s\n",
 				__func__, stream->name);
@@ -2072,6 +2140,12 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 		 * So, allocate m_rt and add Slave to it.
 		 */
 		m_rt = sdw_master_rt_alloc(slave->bus, stream);
+		if (IS_ERR(m_rt)) {
+			ret = PTR_ERR(m_rt);
+			dev_err(&slave->dev, "%s: Master runtime alloc failed for stream:%s: %d\n",
+				__func__, stream->name, ret);
+			goto unlock;
+		}
 		if (!m_rt) {
 			dev_err(&slave->dev, "%s: Master runtime alloc failed for stream:%s\n",
 				__func__, stream->name);
@@ -2113,7 +2187,8 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 	if (ret)
 		goto unlock;
 
-	ret = sdw_slave_port_config(slave, s_rt, port_config);
+	ret = sdw_slave_port_config(slave, s_rt, port_config,
+				    stream->type == SDW_STREAM_BPT);
 	if (ret)
 		goto unlock;
 

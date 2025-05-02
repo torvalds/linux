@@ -462,43 +462,34 @@ queried by the perf command line tool:
 
 		cs_etm//                                    [Kernel PMU event]
 
-	linaro@linaro-nano:~$
-
 Regardless of the number of tracers available in a system (usually equal to the
 amount of processor cores), the "cs_etm" PMU will be listed only once.
 
 A Coresight PMU works the same way as any other PMU, i.e the name of the PMU is
-listed along with configuration options within forward slashes '/'.  Since a
-Coresight system will typically have more than one sink, the name of the sink to
-work with needs to be specified as an event option.
-On newer kernels the available sinks are listed in sysFS under
+provided along with configuration options within forward slashes '/' (see
+`Config option formats`_).
+
+Advanced Perf framework usage
+-----------------------------
+
+Sink selection
+~~~~~~~~~~~~~~
+
+An appropriate sink will be selected automatically for use with Perf, but since
+there will typically be more than one sink, the name of the sink to use may be
+specified as a special config option prefixed with '@'.
+
+The available sinks are listed in sysFS under
 ($SYSFS)/bus/event_source/devices/cs_etm/sinks/::
 
 	root@localhost:/sys/bus/event_source/devices/cs_etm/sinks# ls
 	tmc_etf0  tmc_etr0  tpiu0
 
-On older kernels, this may need to be found from the list of coresight devices,
-available under ($SYSFS)/bus/coresight/devices/::
-
-	root:~# ls /sys/bus/coresight/devices/
-	 etm0     etm1     etm2         etm3  etm4      etm5      funnel0
-	 funnel1  funnel2  replicator0  stm0  tmc_etf0  tmc_etr0  tpiu0
 	root@linaro-nano:~# perf record -e cs_etm/@tmc_etr0/u --per-thread program
-
-As mentioned above in section "Device Naming scheme", the names of the devices could
-look different from what is used in the example above. One must use the device names
-as it appears under the sysFS.
-
-The syntax within the forward slashes '/' is important.  The '@' character
-tells the parser that a sink is about to be specified and that this is the sink
-to use for the trace session.
 
 More information on the above and other example on how to use Coresight with
 the perf tools can be found in the "HOWTO.md" file of the openCSD gitHub
 repository [#third]_.
-
-Advanced perf framework usage
------------------------------
 
 AutoFDO analysis using the perf tools
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -508,7 +499,7 @@ perf can be used to record and analyze trace of programs.
 Execution can be recorded using 'perf record' with the cs_etm event,
 specifying the name of the sink to record to, e.g::
 
-    perf record -e cs_etm/@tmc_etr0/u --per-thread
+    perf record -e cs_etm//u --per-thread
 
 The 'perf report' and 'perf script' commands can be used to analyze execution,
 synthesizing instruction and branch events from the instruction trace.
@@ -572,7 +563,7 @@ sort example is from the AutoFDO tutorial (https://gcc.gnu.org/wiki/AutoFDO/Tuto
 	Bubble sorting array of 30000 elements
 	5910 ms
 
-	$ perf record -e cs_etm/@tmc_etr0/u --per-thread taskset -c 2 ./sort
+	$ perf record -e cs_etm//u --per-thread taskset -c 2 ./sort
 	Bubble sorting array of 30000 elements
 	12543 ms
 	[ perf record: Woken up 35 times to write data ]

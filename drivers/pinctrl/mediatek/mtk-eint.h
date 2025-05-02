@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2014-2018 MediaTek Inc.
+ * Copyright (C) 2014-2025 MediaTek Inc.
  *
  * Author: Maoguang Meng <maoguang.meng@mediatek.com>
  *	   Sean Wang <sean.wang@mediatek.com>
- *
+ *	   Hao Chang <ot_chhao.chang@mediatek.com>
+ *	   Qingliang Li <qingliang.li@mediatek.com>
  */
 #ifndef __MTK_EINT_H
 #define __MTK_EINT_H
@@ -40,6 +41,14 @@ struct mtk_eint_hw {
 	const unsigned int *db_time;
 };
 
+struct mtk_eint_pin {
+	u16 number;
+	u8 instance;
+	u8 index;
+	bool debounce;
+	bool dual_edge;
+};
+
 extern const unsigned int debounce_time_mt2701[];
 extern const unsigned int debounce_time_mt6765[];
 extern const unsigned int debounce_time_mt6795[];
@@ -56,17 +65,21 @@ struct mtk_eint_xt {
 
 struct mtk_eint {
 	struct device *dev;
-	void __iomem *base;
+	void __iomem **base;
+	u8 nbase;
+	u16 *base_pin_num;
 	struct irq_domain *domain;
 	int irq;
 
 	int *dual_edge;
-	u32 *wake_mask;
-	u32 *cur_mask;
+	u16 **pin_list;
+	u32 **wake_mask;
+	u32 **cur_mask;
 
 	/* Used to fit into various EINT device */
 	const struct mtk_eint_hw *hw;
 	const struct mtk_eint_regs *regs;
+	struct mtk_eint_pin *pins;
 	u16 num_db_time;
 
 	/* Used to fit into various pinctrl device */

@@ -873,6 +873,30 @@ bool i915_gem_object_needs_ccs_pages(struct drm_i915_gem_object *obj)
 	return lmem_placement;
 }
 
+static int i915_gem_vmap_object(struct drm_gem_object *gem_obj,
+				struct iosys_map *map)
+{
+	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
+	void *vaddr;
+
+	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	if (IS_ERR(vaddr))
+		return PTR_ERR(vaddr);
+
+	iosys_map_set_vaddr(map, vaddr);
+
+	return 0;
+}
+
+static void i915_gem_vunmap_object(struct drm_gem_object *gem_obj,
+				   struct iosys_map *map)
+{
+	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
+
+	i915_gem_object_flush_map(obj);
+	i915_gem_object_unpin_map(obj);
+}
+
 void i915_gem_init__objects(struct drm_i915_private *i915)
 {
 	INIT_WORK(&i915->mm.free_work, __i915_gem_free_work);
@@ -896,6 +920,8 @@ static const struct drm_gem_object_funcs i915_gem_object_funcs = {
 	.free = i915_gem_free_object,
 	.close = i915_gem_close_object,
 	.export = i915_gem_prime_export,
+	.vmap = i915_gem_vmap_object,
+	.vunmap = i915_gem_vunmap_object,
 };
 
 /**

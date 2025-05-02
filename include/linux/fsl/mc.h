@@ -417,8 +417,6 @@ int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 
 void fsl_mc_portal_free(struct fsl_mc_io *mc_io);
 
-int fsl_mc_portal_reset(struct fsl_mc_io *mc_io);
-
 int __must_check fsl_mc_object_allocate(struct fsl_mc_device *mc_dev,
 					enum fsl_mc_pool_type pool_type,
 					struct fsl_mc_device **new_mc_adev);

@@ -64,7 +64,6 @@ allOf:
               - qcom,sc8280xp-camcc
               - qcom,sm8450-camcc
               - qcom,sm8550-camcc
-              - qcom,x1e80100-camcc
     then:
       required:
         - required-opps

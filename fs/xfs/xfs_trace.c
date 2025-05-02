@@ -49,6 +49,8 @@
 #include "xfs_metafile.h"
 #include "xfs_metadir.h"
 #include "xfs_rtgroup.h"
+#include "xfs_zone_alloc.h"
+#include "xfs_zone_priv.h"
 
 /*
  * We include this last to have the helpers above available for the trace

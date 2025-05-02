@@ -38,7 +38,8 @@ int perf_pmu__mem_events_num_mem_pmus(struct perf_pmu *pmu);
 bool is_mem_loads_aux_event(struct evsel *leader);
 
 void perf_pmu__mem_events_list(struct perf_pmu *pmu);
-int perf_mem_events__record_args(const char **rec_argv, int *argv_nr);
+int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
+				 char **event_name_storage_out);
 
 int perf_mem__tlb_scnprintf(char *out, size_t sz, const struct mem_info *mem_info);
 int perf_mem__lvl_scnprintf(char *out, size_t sz, const struct mem_info *mem_info);

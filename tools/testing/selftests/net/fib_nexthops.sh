@@ -76,11 +76,13 @@ log_test()
 		printf "TEST: %-60s  [ OK ]\n" "${msg}"
 		nsuccess=$((nsuccess+1))
 	else
-		ret=1
-		nfail=$((nfail+1))
 		if [[ $rc -eq $ksft_skip ]]; then
+			[[ $ret -eq 0 ]] && ret=$ksft_skip
+			nskip=$((nskip+1))
 			printf "TEST: %-60s  [SKIP]\n" "${msg}"
 		else
+			ret=1
+			nfail=$((nfail+1))
 			printf "TEST: %-60s  [FAIL]\n" "${msg}"
 		fi
 
@@ -741,7 +743,7 @@ ipv6_fcnal()
 	run_cmd "$IP nexthop add id 52 via 2001:db8:92::3"
 	log_test $? 2 "Create nexthop - gw only"
 
-	# gw is not reachable throught given dev
+	# gw is not reachable through given dev
 	run_cmd "$IP nexthop add id 53 via 2001:db8:3::3 dev veth1"
 	log_test $? 2 "Create nexthop - invalid gw+dev combination"
 
@@ -2528,6 +2530,7 @@ done
 if [ "$TESTS" != "none" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}
 	printf "Tests failed: %3d\n"   ${nfail}
+	printf "Tests skipped: %2d\n"  ${nskip}
 fi
 
 exit $ret

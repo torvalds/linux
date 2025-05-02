@@ -48,32 +48,41 @@ enum {
 	SUNXI_SRC_TYPE_EDGE_RISING,
 };
 
-struct sunxi_sc_nmi_reg_offs {
-	u32 ctrl;
-	u32 pend;
-	u32 enable;
+struct sunxi_sc_nmi_data {
+	struct {
+		u32	ctrl;
+		u32	pend;
+		u32	enable;
+	} reg_offs;
+	u32		enable_val;
 };
 
-static const struct sunxi_sc_nmi_reg_offs sun6i_reg_offs __initconst = {
-	.ctrl	= SUN6I_NMI_CTRL,
-	.pend	= SUN6I_NMI_PENDING,
-	.enable	= SUN6I_NMI_ENABLE,
+static const struct sunxi_sc_nmi_data sun6i_data __initconst = {
+	.reg_offs.ctrl		= SUN6I_NMI_CTRL,
+	.reg_offs.pend		= SUN6I_NMI_PENDING,
+	.reg_offs.enable	= SUN6I_NMI_ENABLE,
 };
 
-static const struct sunxi_sc_nmi_reg_offs sun7i_reg_offs __initconst = {
-	.ctrl	= SUN7I_NMI_CTRL,
-	.pend	= SUN7I_NMI_PENDING,
-	.enable	= SUN7I_NMI_ENABLE,
+static const struct sunxi_sc_nmi_data sun7i_data __initconst = {
+	.reg_offs.ctrl		= SUN7I_NMI_CTRL,
+	.reg_offs.pend		= SUN7I_NMI_PENDING,
+	.reg_offs.enable	= SUN7I_NMI_ENABLE,
 };
 
-static const struct sunxi_sc_nmi_reg_offs sun9i_reg_offs __initconst = {
-	.ctrl	= SUN9I_NMI_CTRL,
-	.pend	= SUN9I_NMI_PENDING,
-	.enable	= SUN9I_NMI_ENABLE,
+static const struct sunxi_sc_nmi_data sun9i_data __initconst = {
+	.reg_offs.ctrl		= SUN9I_NMI_CTRL,
+	.reg_offs.pend		= SUN9I_NMI_PENDING,
+	.reg_offs.enable	= SUN9I_NMI_ENABLE,
 };
 
-static inline void sunxi_sc_nmi_write(struct irq_chip_generic *gc, u32 off,
-				      u32 val)
+static const struct sunxi_sc_nmi_data sun55i_a523_data __initconst = {
+	.reg_offs.ctrl		= SUN9I_NMI_CTRL,
+	.reg_offs.pend		= SUN9I_NMI_PENDING,
+	.reg_offs.enable	= SUN9I_NMI_ENABLE,
+	.enable_val		= BIT(31),
+};
+
+static inline void sunxi_sc_nmi_write(struct irq_chip_generic *gc, u32 off, u32 val)
 {
 	irq_reg_writel(gc, val, off);
 }
@@ -143,14 +152,12 @@ static int sunxi_sc_nmi_set_type(struct irq_data *data, unsigned int flow_type)
 }
 
 static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
-					const struct sunxi_sc_nmi_reg_offs *reg_offs)
+					const struct sunxi_sc_nmi_data *data)
 {
-	struct irq_domain *domain;
+	unsigned int irq, clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 	struct irq_chip_generic *gc;
-	unsigned int irq;
-	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
+	struct irq_domain *domain;
 	int ret;
-
 
 	domain = irq_domain_add_linear(node, 1, &irq_generic_chip_ops, NULL);
 	if (!domain) {
@@ -186,27 +193,28 @@ static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
 	gc->chip_types[0].chip.irq_unmask	= irq_gc_mask_set_bit;
 	gc->chip_types[0].chip.irq_eoi		= irq_gc_ack_set_bit;
 	gc->chip_types[0].chip.irq_set_type	= sunxi_sc_nmi_set_type;
-	gc->chip_types[0].chip.flags		= IRQCHIP_EOI_THREADED | IRQCHIP_EOI_IF_HANDLED |
+	gc->chip_types[0].chip.flags		= IRQCHIP_EOI_THREADED |
+						  IRQCHIP_EOI_IF_HANDLED |
 						  IRQCHIP_SKIP_SET_WAKE;
-	gc->chip_types[0].regs.ack		= reg_offs->pend;
-	gc->chip_types[0].regs.mask		= reg_offs->enable;
-	gc->chip_types[0].regs.type		= reg_offs->ctrl;
+	gc->chip_types[0].regs.ack		= data->reg_offs.pend;
+	gc->chip_types[0].regs.mask		= data->reg_offs.enable;
+	gc->chip_types[0].regs.type		= data->reg_offs.ctrl;
 
 	gc->chip_types[1].type			= IRQ_TYPE_EDGE_BOTH;
 	gc->chip_types[1].chip.irq_ack		= irq_gc_ack_set_bit;
 	gc->chip_types[1].chip.irq_mask		= irq_gc_mask_clr_bit;
 	gc->chip_types[1].chip.irq_unmask	= irq_gc_mask_set_bit;
 	gc->chip_types[1].chip.irq_set_type	= sunxi_sc_nmi_set_type;
-	gc->chip_types[1].regs.ack		= reg_offs->pend;
-	gc->chip_types[1].regs.mask		= reg_offs->enable;
-	gc->chip_types[1].regs.type		= reg_offs->ctrl;
+	gc->chip_types[1].regs.ack		= data->reg_offs.pend;
+	gc->chip_types[1].regs.mask		= data->reg_offs.enable;
+	gc->chip_types[1].regs.type		= data->reg_offs.ctrl;
 	gc->chip_types[1].handler		= handle_edge_irq;
 
 	/* Disable any active interrupts */
-	sunxi_sc_nmi_write(gc, reg_offs->enable, 0);
+	sunxi_sc_nmi_write(gc, data->reg_offs.enable, data->enable_val);
 
 	/* Clear any pending NMI interrupts */
-	sunxi_sc_nmi_write(gc, reg_offs->pend, SUNXI_NMI_IRQ_BIT);
+	sunxi_sc_nmi_write(gc, data->reg_offs.pend, SUNXI_NMI_IRQ_BIT);
 
 	irq_set_chained_handler_and_data(irq, sunxi_sc_nmi_handle_irq, domain);
 
@@ -221,20 +229,27 @@ fail_irqd_remove:
 static int __init sun6i_sc_nmi_irq_init(struct device_node *node,
 					struct device_node *parent)
 {
-	return sunxi_sc_nmi_irq_init(node, &sun6i_reg_offs);
+	return sunxi_sc_nmi_irq_init(node, &sun6i_data);
 }
 IRQCHIP_DECLARE(sun6i_sc_nmi, "allwinner,sun6i-a31-sc-nmi", sun6i_sc_nmi_irq_init);
 
 static int __init sun7i_sc_nmi_irq_init(struct device_node *node,
 					struct device_node *parent)
 {
-	return sunxi_sc_nmi_irq_init(node, &sun7i_reg_offs);
+	return sunxi_sc_nmi_irq_init(node, &sun7i_data);
 }
 IRQCHIP_DECLARE(sun7i_sc_nmi, "allwinner,sun7i-a20-sc-nmi", sun7i_sc_nmi_irq_init);
 
 static int __init sun9i_nmi_irq_init(struct device_node *node,
 				     struct device_node *parent)
 {
-	return sunxi_sc_nmi_irq_init(node, &sun9i_reg_offs);
+	return sunxi_sc_nmi_irq_init(node, &sun9i_data);
 }
 IRQCHIP_DECLARE(sun9i_nmi, "allwinner,sun9i-a80-nmi", sun9i_nmi_irq_init);
+
+static int __init sun55i_nmi_irq_init(struct device_node *node,
+				      struct device_node *parent)
+{
+	return sunxi_sc_nmi_irq_init(node, &sun55i_a523_data);
+}
+IRQCHIP_DECLARE(sun55i_nmi, "allwinner,sun55i-a523-nmi", sun55i_nmi_irq_init);

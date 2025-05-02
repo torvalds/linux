@@ -240,7 +240,7 @@ static void cpwd_brokentimer(struct timer_list *unused)
 	 * were called directly instead of by kernel timer
 	 */
 	if (timer_pending(&cpwd_timer))
-		del_timer(&cpwd_timer);
+		timer_delete(&cpwd_timer);
 
 	for (id = 0; id < WD_NUMDEVS; id++) {
 		if (p->devs[id].runstatus & WD_STAT_BSTOP) {
@@ -629,7 +629,7 @@ static void cpwd_remove(struct platform_device *op)
 	}
 
 	if (p->broken)
-		del_timer_sync(&cpwd_timer);
+		timer_delete_sync(&cpwd_timer);
 
 	if (p->initialized)
 		free_irq(p->irq, p);

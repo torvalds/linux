@@ -1477,7 +1477,8 @@ void vmx_vcpu_load_vmcs(struct kvm_vcpu *vcpu, int cpu,
 		 * performs IBPB on nested VM-Exit (a single nested transition
 		 * may switch the active VMCS multiple times).
 		 */
-		if (!buddy || WARN_ON_ONCE(buddy->vmcs != prev))
+		if (static_branch_likely(&switch_vcpu_ibpb) &&
+		    (!buddy || WARN_ON_ONCE(buddy->vmcs != prev)))
 			indirect_branch_prediction_barrier();
 	}
 
@@ -2578,6 +2579,34 @@ static u64 adjust_vmx_controls64(u64 ctl_opt, u32 msr)
 	return  ctl_opt & allowed;
 }
 
+#define vmx_check_entry_exit_pairs(pairs, entry_controls, exit_controls)	\
+({										\
+	int i, r = 0;								\
+										\
+	BUILD_BUG_ON(sizeof(pairs[0].entry_control) != sizeof(entry_controls));	\
+	BUILD_BUG_ON(sizeof(pairs[0].exit_control)  != sizeof(exit_controls));	\
+										\
+	for (i = 0; i < ARRAY_SIZE(pairs); i++) {				\
+		typeof(entry_controls) n_ctrl = pairs[i].entry_control;		\
+		typeof(exit_controls) x_ctrl = pairs[i].exit_control;		\
+										\
+		if (!(entry_controls & n_ctrl) == !(exit_controls & x_ctrl))	\
+			continue;						\
+										\
+		pr_warn_once("Inconsistent VM-Entry/VM-Exit pair, "		\
+			     "entry = %llx (%llx), exit = %llx (%llx)\n",	\
+			     (u64)(entry_controls & n_ctrl), (u64)n_ctrl,	\
+			     (u64)(exit_controls & x_ctrl), (u64)x_ctrl);	\
+										\
+		if (error_on_inconsistent_vmcs_config)				\
+			r = -EIO;						\
+										\
+		entry_controls &= ~n_ctrl;					\
+		exit_controls &= ~x_ctrl;					\
+	}									\
+	r;									\
+})
+
 static int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 			     struct vmx_capability *vmx_cap)
 {
@@ -2589,7 +2618,6 @@ static int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 	u32 _vmentry_control = 0;
 	u64 basic_msr;
 	u64 misc_msr;
-	int i;
 
 	/*
 	 * LOAD/SAVE_DEBUG_CONTROLS are absent because both are mandatory.
@@ -2693,22 +2721,9 @@ static int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 				&_vmentry_control))
 		return -EIO;
 
-	for (i = 0; i < ARRAY_SIZE(vmcs_entry_exit_pairs); i++) {
-		u32 n_ctrl = vmcs_entry_exit_pairs[i].entry_control;
-		u32 x_ctrl = vmcs_entry_exit_pairs[i].exit_control;
-
-		if (!(_vmentry_control & n_ctrl) == !(_vmexit_control & x_ctrl))
-			continue;
-
-		pr_warn_once("Inconsistent VM-Entry/VM-Exit pair, entry = %x, exit = %x\n",
-			     _vmentry_control & n_ctrl, _vmexit_control & x_ctrl);
-
-		if (error_on_inconsistent_vmcs_config)
-			return -EIO;
-
-		_vmentry_control &= ~n_ctrl;
-		_vmexit_control &= ~x_ctrl;
-	}
+	if (vmx_check_entry_exit_pairs(vmcs_entry_exit_pairs,
+				       _vmentry_control, _vmexit_control))
+		return -EIO;
 
 	/*
 	 * Some cpus support VM_{ENTRY,EXIT}_IA32_PERF_GLOBAL_CTRL but they
@@ -3519,7 +3534,7 @@ void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 	vmcs_writel(GUEST_CR4, hw_cr4);
 
 	if ((cr4 ^ old_cr4) & (X86_CR4_OSXSAVE | X86_CR4_PKE))
-		kvm_update_cpuid_runtime(vcpu);
+		vcpu->arch.cpuid_dynamic_bits_dirty = true;
 }
 
 void vmx_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg)
@@ -5211,6 +5226,12 @@ bool vmx_guest_inject_ac(struct kvm_vcpu *vcpu)
 	       (kvm_get_rflags(vcpu) & X86_EFLAGS_AC);
 }
 
+static bool is_xfd_nm_fault(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.guest_fpu.fpstate->xfd &&
+	       !kvm_is_cr0_bit_set(vcpu, X86_CR0_TS);
+}
+
 static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -5237,7 +5258,8 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 	 * point.
 	 */
 	if (is_nm_fault(intr_info)) {
-		kvm_queue_exception(vcpu, NM_VECTOR);
+		kvm_queue_exception_p(vcpu, NM_VECTOR,
+				      is_xfd_nm_fault(vcpu) ? vcpu->arch.guest_fpu.xfd_err : 0);
 		return 1;
 	}
 
@@ -5817,7 +5839,7 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	error_code |= (exit_qualification & EPT_VIOLATION_ACC_INSTR)
 		      ? PFERR_FETCH_MASK : 0;
 	/* ept page table entry is present? */
-	error_code |= (exit_qualification & EPT_VIOLATION_RWX_MASK)
+	error_code |= (exit_qualification & EPT_VIOLATION_PROT_MASK)
 		      ? PFERR_PRESENT_MASK : 0;
 
 	if (error_code & EPT_VIOLATION_GVA_IS_VALID)
@@ -5871,11 +5893,35 @@ static int handle_nmi_window(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
-static bool vmx_emulation_required_with_pending_exception(struct kvm_vcpu *vcpu)
+/*
+ * Returns true if emulation is required (due to the vCPU having invalid state
+ * with unsrestricted guest mode disabled) and KVM can't faithfully emulate the
+ * current vCPU state.
+ */
+static bool vmx_unhandleable_emulation_required(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	return vmx->emulation_required && !vmx->rmode.vm86_active &&
+	if (!vmx->emulation_required)
+		return false;
+
+	/*
+	 * It is architecturally impossible for emulation to be required when a
+	 * nested VM-Enter is pending completion, as VM-Enter will VM-Fail if
+	 * guest state is invalid and unrestricted guest is disabled, i.e. KVM
+	 * should synthesize VM-Fail instead emulation L2 code.  This path is
+	 * only reachable if userspace modifies L2 guest state after KVM has
+	 * performed the nested VM-Enter consistency checks.
+	 */
+	if (vmx->nested.nested_run_pending)
+		return true;
+
+	/*
+	 * KVM only supports emulating exceptions if the vCPU is in Real Mode.
+	 * If emulation is required, KVM can't perform a successful VM-Enter to
+	 * inject the exception.
+	 */
+	return !vmx->rmode.vm86_active &&
 	       (kvm_is_exception_pending(vcpu) || vcpu->arch.exception.injected);
 }
 
@@ -5898,7 +5944,7 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 		if (!kvm_emulate_instruction(vcpu, 0))
 			return 0;
 
-		if (vmx_emulation_required_with_pending_exception(vcpu)) {
+		if (vmx_unhandleable_emulation_required(vcpu)) {
 			kvm_prepare_emulation_failure_exit(vcpu);
 			return 0;
 		}
@@ -5922,7 +5968,7 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 
 int vmx_vcpu_pre_run(struct kvm_vcpu *vcpu)
 {
-	if (vmx_emulation_required_with_pending_exception(vcpu)) {
+	if (vmx_unhandleable_emulation_required(vcpu)) {
 		kvm_prepare_emulation_failure_exit(vcpu);
 		return 0;
 	}
@@ -6997,16 +7043,15 @@ static void handle_nm_fault_irqoff(struct kvm_vcpu *vcpu)
 	 * MSR value is not clobbered by the host activity before the guest
 	 * has chance to consume it.
 	 *
-	 * Do not blindly read xfd_err here, since this exception might
-	 * be caused by L1 interception on a platform which doesn't
-	 * support xfd at all.
+	 * Update the guest's XFD_ERR if and only if XFD is enabled, as the #NM
+	 * interception may have been caused by L1 interception.  Per the SDM,
+	 * XFD_ERR is not modified for non-XFD #NM, i.e. if CR0.TS=1.
 	 *
-	 * Do it conditionally upon guest_fpu::xfd. xfd_err matters
-	 * only when xfd contains a non-zero value.
-	 *
-	 * Queuing exception is done in vmx_handle_exit. See comment there.
+	 * Note, XFD_ERR is updated _before_ the #NM interception check, i.e.
+	 * unlike CR2 and DR6, the value is not a payload that is attached to
+	 * the #NM exception.
 	 */
-	if (vcpu->arch.guest_fpu.fpstate->xfd)
+	if (is_xfd_nm_fault(vcpu))
 		rdmsrl(MSR_IA32_XFD_ERR, vcpu->arch.guest_fpu.xfd_err);
 }
 
@@ -7157,13 +7202,17 @@ static void __vmx_complete_interrupts(struct kvm_vcpu *vcpu,
 	case INTR_TYPE_SOFT_EXCEPTION:
 		vcpu->arch.event_exit_inst_len = vmcs_read32(instr_len_field);
 		fallthrough;
-	case INTR_TYPE_HARD_EXCEPTION:
-		if (idt_vectoring_info & VECTORING_INFO_DELIVER_CODE_MASK) {
-			u32 err = vmcs_read32(error_code_field);
-			kvm_requeue_exception_e(vcpu, vector, err);
-		} else
-			kvm_requeue_exception(vcpu, vector);
+	case INTR_TYPE_HARD_EXCEPTION: {
+		u32 error_code = 0;
+
+		if (idt_vectoring_info & VECTORING_INFO_DELIVER_CODE_MASK)
+			error_code = vmcs_read32(error_code_field);
+
+		kvm_requeue_exception(vcpu, vector,
+				      idt_vectoring_info & VECTORING_INFO_DELIVER_CODE_MASK,
+				      error_code);
 		break;
+	}
 	case INTR_TYPE_SOFT_INTR:
 		vcpu->arch.event_exit_inst_len = vmcs_read32(instr_len_field);
 		fallthrough;
@@ -8005,22 +8054,14 @@ static __init void vmx_set_cpu_caps(void)
 		kvm_cpu_cap_check_and_set(X86_FEATURE_WAITPKG);
 }
 
-static int vmx_check_intercept_io(struct kvm_vcpu *vcpu,
-				  struct x86_instruction_info *info)
+static bool vmx_is_io_intercepted(struct kvm_vcpu *vcpu,
+				  struct x86_instruction_info *info,
+				  unsigned long *exit_qualification)
 {
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 	unsigned short port;
-	bool intercept;
 	int size;
-
-	if (info->intercept == x86_intercept_in ||
-	    info->intercept == x86_intercept_ins) {
-		port = info->src_val;
-		size = info->dst_bytes;
-	} else {
-		port = info->dst_val;
-		size = info->src_bytes;
-	}
+	bool imm;
 
 	/*
 	 * If the 'use IO bitmaps' VM-execution control is 0, IO instruction
@@ -8030,13 +8071,33 @@ static int vmx_check_intercept_io(struct kvm_vcpu *vcpu,
 	 * Otherwise, IO instruction VM-exits are controlled by the IO bitmaps.
 	 */
 	if (!nested_cpu_has(vmcs12, CPU_BASED_USE_IO_BITMAPS))
-		intercept = nested_cpu_has(vmcs12,
-					   CPU_BASED_UNCOND_IO_EXITING);
-	else
-		intercept = nested_vmx_check_io_bitmaps(vcpu, port, size);
+		return nested_cpu_has(vmcs12, CPU_BASED_UNCOND_IO_EXITING);
 
-	/* FIXME: produce nested vmexit and return X86EMUL_INTERCEPTED.  */
-	return intercept ? X86EMUL_UNHANDLEABLE : X86EMUL_CONTINUE;
+	if (info->intercept == x86_intercept_in ||
+	    info->intercept == x86_intercept_ins) {
+		port = info->src_val;
+		size = info->dst_bytes;
+		imm  = info->src_type == OP_IMM;
+	} else {
+		port = info->dst_val;
+		size = info->src_bytes;
+		imm  = info->dst_type == OP_IMM;
+	}
+
+
+	*exit_qualification = ((unsigned long)port << 16) | (size - 1);
+
+	if (info->intercept == x86_intercept_ins ||
+	    info->intercept == x86_intercept_outs)
+		*exit_qualification |= BIT(4);
+
+	if (info->rep_prefix)
+		*exit_qualification |= BIT(5);
+
+	if (imm)
+		*exit_qualification |= BIT(6);
+
+	return nested_vmx_check_io_bitmaps(vcpu, port, size);
 }
 
 int vmx_check_intercept(struct kvm_vcpu *vcpu,
@@ -8045,26 +8106,34 @@ int vmx_check_intercept(struct kvm_vcpu *vcpu,
 			struct x86_exception *exception)
 {
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+	unsigned long exit_qualification = 0;
+	u32 vm_exit_reason;
+	u64 exit_insn_len;
 
 	switch (info->intercept) {
-	/*
-	 * RDPID causes #UD if disabled through secondary execution controls.
-	 * Because it is marked as EmulateOnUD, we need to intercept it here.
-	 * Note, RDPID is hidden behind ENABLE_RDTSCP.
-	 */
 	case x86_intercept_rdpid:
+		/*
+		 * RDPID causes #UD if not enabled through secondary execution
+		 * controls (ENABLE_RDTSCP).  Note, the implicit MSR access to
+		 * TSC_AUX is NOT subject to interception, i.e. checking only
+		 * the dedicated execution control is architecturally correct.
+		 */
 		if (!nested_cpu_has2(vmcs12, SECONDARY_EXEC_ENABLE_RDTSCP)) {
 			exception->vector = UD_VECTOR;
 			exception->error_code_valid = false;
 			return X86EMUL_PROPAGATE_FAULT;
 		}
-		break;
+		return X86EMUL_CONTINUE;
 
 	case x86_intercept_in:
 	case x86_intercept_ins:
 	case x86_intercept_out:
 	case x86_intercept_outs:
-		return vmx_check_intercept_io(vcpu, info);
+		if (!vmx_is_io_intercepted(vcpu, info, &exit_qualification))
+			return X86EMUL_CONTINUE;
+
+		vm_exit_reason = EXIT_REASON_IO_INSTRUCTION;
+		break;
 
 	case x86_intercept_lgdt:
 	case x86_intercept_lidt:
@@ -8077,7 +8146,24 @@ int vmx_check_intercept(struct kvm_vcpu *vcpu,
 		if (!nested_cpu_has2(vmcs12, SECONDARY_EXEC_DESC))
 			return X86EMUL_CONTINUE;
 
-		/* FIXME: produce nested vmexit and return X86EMUL_INTERCEPTED.  */
+		if (info->intercept == x86_intercept_lldt ||
+		    info->intercept == x86_intercept_ltr ||
+		    info->intercept == x86_intercept_sldt ||
+		    info->intercept == x86_intercept_str)
+			vm_exit_reason = EXIT_REASON_LDTR_TR;
+		else
+			vm_exit_reason = EXIT_REASON_GDTR_IDTR;
+		/*
+		 * FIXME: Decode the ModR/M to generate the correct exit
+		 *        qualification for memory operands.
+		 */
+		break;
+
+	case x86_intercept_hlt:
+		if (!nested_cpu_has(vmcs12, CPU_BASED_HLT_EXITING))
+			return X86EMUL_CONTINUE;
+
+		vm_exit_reason = EXIT_REASON_HLT;
 		break;
 
 	case x86_intercept_pause:
@@ -8090,17 +8176,24 @@ int vmx_check_intercept(struct kvm_vcpu *vcpu,
 		 * the PAUSE.
 		 */
 		if ((info->rep_prefix != REPE_PREFIX) ||
-		    !nested_cpu_has2(vmcs12, CPU_BASED_PAUSE_EXITING))
+		    !nested_cpu_has(vmcs12, CPU_BASED_PAUSE_EXITING))
 			return X86EMUL_CONTINUE;
 
+		vm_exit_reason = EXIT_REASON_PAUSE_INSTRUCTION;
 		break;
 
 	/* TODO: check more intercepts... */
 	default:
-		break;
+		return X86EMUL_UNHANDLEABLE;
 	}
 
-	return X86EMUL_UNHANDLEABLE;
+	exit_insn_len = abs_diff((s64)info->next_rip, (s64)info->rip);
+	if (!exit_insn_len || exit_insn_len > X86_MAX_INSTRUCTION_LENGTH)
+		return X86EMUL_UNHANDLEABLE;
+
+	__nested_vmx_vmexit(vcpu, vm_exit_reason, 0, exit_qualification,
+			    exit_insn_len);
+	return X86EMUL_INTERCEPTED;
 }
 
 #ifdef CONFIG_X86_64

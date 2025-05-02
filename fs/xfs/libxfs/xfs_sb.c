@@ -185,6 +185,8 @@ xfs_sb_version_to_features(
 		features |= XFS_FEAT_PARENT;
 	if (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_METADIR)
 		features |= XFS_FEAT_METADIR;
+	if (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_ZONED)
+		features |= XFS_FEAT_ZONED;
 
 	return features;
 }
@@ -266,6 +268,9 @@ static uint64_t
 xfs_expected_rbmblocks(
 	struct xfs_sb		*sbp)
 {
+	if (xfs_sb_is_v5(sbp) &&
+	    (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_ZONED))
+		return 0;
 	return howmany_64(xfs_extents_per_rbm(sbp),
 			  NBBY * xfs_rtbmblock_size(sbp));
 }
@@ -275,9 +280,15 @@ bool
 xfs_validate_rt_geometry(
 	struct xfs_sb		*sbp)
 {
-	if (sbp->sb_rextsize * sbp->sb_blocksize > XFS_MAX_RTEXTSIZE ||
-	    sbp->sb_rextsize * sbp->sb_blocksize < XFS_MIN_RTEXTSIZE)
-		return false;
+	if (xfs_sb_is_v5(sbp) &&
+	    (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_ZONED)) {
+		if (sbp->sb_rextsize != 1)
+			return false;
+	} else {
+		if (sbp->sb_rextsize * sbp->sb_blocksize > XFS_MAX_RTEXTSIZE ||
+		    sbp->sb_rextsize * sbp->sb_blocksize < XFS_MIN_RTEXTSIZE)
+			return false;
+	}
 
 	if (sbp->sb_rblocks == 0) {
 		if (sbp->sb_rextents != 0 || sbp->sb_rbmblocks != 0 ||
@@ -435,6 +446,34 @@ xfs_validate_sb_rtgroups(
 	return 0;
 }
 
+static int
+xfs_validate_sb_zoned(
+	struct xfs_mount	*mp,
+	struct xfs_sb		*sbp)
+{
+	if (sbp->sb_frextents != 0) {
+		xfs_warn(mp,
+"sb_frextents must be zero for zoned file systems.");
+		return -EINVAL;
+	}
+
+	if (sbp->sb_rtstart && sbp->sb_rtstart < sbp->sb_dblocks) {
+		xfs_warn(mp,
+"sb_rtstart (%lld) overlaps sb_dblocks (%lld).",
+			sbp->sb_rtstart, sbp->sb_dblocks);
+		return -EINVAL;
+	}
+
+	if (sbp->sb_rtreserved && sbp->sb_rtreserved >= sbp->sb_rblocks) {
+		xfs_warn(mp,
+"sb_rtreserved (%lld) larger than sb_rblocks (%lld).",
+			sbp->sb_rtreserved, sbp->sb_rblocks);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* Check the validity of the SB. */
 STATIC int
 xfs_validate_sb_common(
@@ -520,6 +559,11 @@ xfs_validate_sb_common(
 			}
 
 			error = xfs_validate_sb_rtgroups(mp, sbp);
+			if (error)
+				return error;
+		}
+		if (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_ZONED) {
+			error = xfs_validate_sb_zoned(mp, sbp);
 			if (error)
 				return error;
 		}
@@ -835,6 +879,14 @@ __xfs_sb_from_disk(
 		to->sb_rgcount = 1;
 		to->sb_rgextents = 0;
 	}
+
+	if (to->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_ZONED) {
+		to->sb_rtstart = be64_to_cpu(from->sb_rtstart);
+		to->sb_rtreserved = be64_to_cpu(from->sb_rtreserved);
+	} else {
+		to->sb_rtstart = 0;
+		to->sb_rtreserved = 0;
+	}
 }
 
 void
@@ -1001,6 +1053,11 @@ xfs_sb_to_disk(
 		to->sb_rbmino = cpu_to_be64(0);
 		to->sb_rsumino = cpu_to_be64(0);
 	}
+
+	if (from->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_ZONED) {
+		to->sb_rtstart = cpu_to_be64(from->sb_rtstart);
+		to->sb_rtreserved = cpu_to_be64(from->sb_rtreserved);
+	}
 }
 
 /*
@@ -1146,6 +1203,10 @@ xfs_sb_mount_rextsize(
 		rgs->blocks = sbp->sb_rgextents * sbp->sb_rextsize;
 		rgs->blklog = mp->m_sb.sb_rgblklog;
 		rgs->blkmask = xfs_mask32lo(mp->m_sb.sb_rgblklog);
+		rgs->start_fsb = mp->m_sb.sb_rtstart;
+		if (xfs_sb_has_incompat_feature(sbp,
+				XFS_SB_FEAT_INCOMPAT_ZONE_GAPS))
+			rgs->has_daddr_gaps = true;
 	} else {
 		rgs->blocks = 0;
 		rgs->blklog = 0;
@@ -1265,8 +1326,7 @@ xfs_log_sb(
 		mp->m_sb.sb_ifree = min_t(uint64_t,
 				percpu_counter_sum_positive(&mp->m_ifree),
 				mp->m_sb.sb_icount);
-		mp->m_sb.sb_fdblocks =
-				percpu_counter_sum_positive(&mp->m_fdblocks);
+		mp->m_sb.sb_fdblocks = xfs_sum_freecounter(mp, XC_FREE_BLOCKS);
 	}
 
 	/*
@@ -1275,9 +1335,10 @@ xfs_log_sb(
 	 * we handle nearly-lockless reservations, so we must use the _positive
 	 * variant here to avoid writing out nonsense frextents.
 	 */
-	if (xfs_has_rtgroups(mp))
+	if (xfs_has_rtgroups(mp) && !xfs_has_zoned(mp)) {
 		mp->m_sb.sb_frextents =
-				percpu_counter_sum_positive(&mp->m_frextents);
+				xfs_sum_freecounter(mp, XC_FREE_RTEXTENTS);
+	}
 
 	xfs_sb_to_disk(bp->b_addr, &mp->m_sb);
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_SB_BUF);
@@ -1510,6 +1571,8 @@ xfs_fs_geometry(
 		geo->flags |= XFS_FSOP_GEOM_FLAGS_EXCHANGE_RANGE;
 	if (xfs_has_metadir(mp))
 		geo->flags |= XFS_FSOP_GEOM_FLAGS_METADIR;
+	if (xfs_has_zoned(mp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_ZONED;
 	geo->rtsectsize = sbp->sb_blocksize;
 	geo->dirblocksize = xfs_dir2_dirblock_bytes(sbp);
 
@@ -1529,6 +1592,10 @@ xfs_fs_geometry(
 	if (xfs_has_rtgroups(mp)) {
 		geo->rgcount = sbp->sb_rgcount;
 		geo->rgextents = sbp->sb_rgextents;
+	}
+	if (xfs_has_zoned(mp)) {
+		geo->rtstart = sbp->sb_rtstart;
+		geo->rtreserved = sbp->sb_rtreserved;
 	}
 }
 

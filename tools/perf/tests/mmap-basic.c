@@ -130,14 +130,17 @@ static int test__basic_mmap(struct test_suite *test __maybe_unused, int subtest 
 			goto out_delete_evlist;
 		}
 
+		perf_sample__init(&sample, /*all=*/false);
 		err = evlist__parse_sample(evlist, event, &sample);
 		if (err) {
 			pr_err("Can't parse sample, err = %d\n", err);
+			perf_sample__exit(&sample);
 			goto out_delete_evlist;
 		}
 
 		err = -1;
 		evsel = evlist__id2evsel(evlist, sample.id);
+		perf_sample__exit(&sample);
 		if (evsel == NULL) {
 			pr_debug("event with id %" PRIu64
 				 " doesn't map to an evsel\n", sample.id);

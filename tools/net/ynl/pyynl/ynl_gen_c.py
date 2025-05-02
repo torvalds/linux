@@ -74,6 +74,8 @@ class Type(SpecAttr):
         self.c_name = c_lower(self.name)
         if self.c_name in _C_KW:
             self.c_name += '_'
+        if self.c_name[0].isdigit():
+            self.c_name = '_' + self.c_name
 
         # Added by resolve():
         self.enum_name = None
@@ -100,7 +102,7 @@ class Type(SpecAttr):
         if isinstance(value, int):
             return value
         if value in self.family.consts:
-            raise Exception("Resolving family constants not implemented, yet")
+            return self.family.consts[value]["value"]
         return limit_to_number(value)
 
     def get_limit_str(self, limit, default=None, suffix=''):
@@ -110,6 +112,9 @@ class Type(SpecAttr):
         if isinstance(value, int):
             return str(value) + suffix
         if value in self.family.consts:
+            const = self.family.consts[value]
+            if const.get('header'):
+                return c_upper(value)
             return c_upper(f"{self.family['name']}-{value}")
         return c_upper(value)
 
@@ -157,9 +162,15 @@ class Type(SpecAttr):
     def free_needs_iter(self):
         return False
 
-    def free(self, ri, var, ref):
+    def _free_lines(self, ri, var, ref):
         if self.is_multi_val() or self.presence_type() == 'len':
-            ri.cw.p(f'free({var}->{ref}{self.c_name});')
+            return [f'free({var}->{ref}{self.c_name});']
+        return []
+
+    def free(self, ri, var, ref):
+        lines = self._free_lines(ri, var, ref)
+        for line in lines:
+            ri.cw.p(line)
 
     def arg_member(self, ri):
         member = self._complex_member_type(ri)
@@ -258,6 +269,10 @@ class Type(SpecAttr):
         var = "req"
         member = f"{var}->{'.'.join(ref)}"
 
+        local_vars = []
+        if self.free_needs_iter():
+            local_vars += ['unsigned int i;']
+
         code = []
         presence = ''
         for i in range(0, len(ref)):
@@ -267,6 +282,10 @@ class Type(SpecAttr):
             if i == len(ref) - 1 and self.presence_type() != 'bit':
                 continue
             code.append(presence + ' = 1;')
+        ref_path = '.'.join(ref[:-1])
+        if ref_path:
+            ref_path += '.'
+        code += self._free_lines(ri, var, ref_path)
         code += self._setter_lines(ri, member, presence)
 
         func_name = f"{op_prefix(ri, direction, deref=deref)}_set_{'_'.join(ref)}"
@@ -274,7 +293,8 @@ class Type(SpecAttr):
         alloc = bool([x for x in code if 'alloc(' in x])
         if free and not alloc:
             func_name = '__' + func_name
-        ri.cw.write_func('static inline void', func_name, body=code,
+        ri.cw.write_func('static inline void', func_name, local_vars=local_vars,
+                         body=code,
                          args=[f'{type_name(ri, direction, deref=deref)} *{var}'] + self.arg_member(ri))
 
 
@@ -477,8 +497,7 @@ class TypeString(Type):
                ['unsigned int len;']
 
     def _setter_lines(self, ri, member, presence):
-        return [f"free({member});",
-                f"{presence}_len = strlen({self.c_name});",
+        return [f"{presence}_len = strlen({self.c_name});",
                 f"{member} = malloc({presence}_len + 1);",
                 f'memcpy({member}, {self.c_name}, {presence}_len);',
                 f'{member}[{presence}_len] = 0;']
@@ -531,8 +550,7 @@ class TypeBinary(Type):
                ['unsigned int len;']
 
     def _setter_lines(self, ri, member, presence):
-        return [f"free({member});",
-                f"{presence}_len = len;",
+        return [f"{presence}_len = len;",
                 f"{member} = malloc({presence}_len);",
                 f'memcpy({member}, {self.c_name}, {presence}_len);']
 
@@ -569,12 +587,14 @@ class TypeNest(Type):
     def _complex_member_type(self, ri):
         return self.nested_struct_type
 
-    def free(self, ri, var, ref):
+    def _free_lines(self, ri, var, ref):
+        lines = []
         at = '&'
         if self.is_recursive_for_op(ri):
             at = ''
-            ri.cw.p(f'if ({var}->{ref}{self.c_name})')
-        ri.cw.p(f'{self.nested_render_name}_free({at}{var}->{ref}{self.c_name});')
+            lines += [f'if ({var}->{ref}{self.c_name})']
+        lines += [f'{self.nested_render_name}_free({at}{var}->{ref}{self.c_name});']
+        return lines
 
     def _attr_typol(self):
         return f'.type = YNL_PT_NEST, .nest = &{self.nested_render_name}_nest, '
@@ -627,15 +647,19 @@ class TypeMultiAttr(Type):
     def free_needs_iter(self):
         return 'type' not in self.attr or self.attr['type'] == 'nest'
 
-    def free(self, ri, var, ref):
+    def _free_lines(self, ri, var, ref):
+        lines = []
         if self.attr['type'] in scalars:
-            ri.cw.p(f"free({var}->{ref}{self.c_name});")
+            lines += [f"free({var}->{ref}{self.c_name});"]
         elif 'type' not in self.attr or self.attr['type'] == 'nest':
-            ri.cw.p(f"for (i = 0; i < {var}->{ref}n_{self.c_name}; i++)")
-            ri.cw.p(f'{self.nested_render_name}_free(&{var}->{ref}{self.c_name}[i]);')
-            ri.cw.p(f"free({var}->{ref}{self.c_name});")
+            lines += [
+                f"for (i = 0; i < {var}->{ref}n_{self.c_name}; i++)",
+                f'{self.nested_render_name}_free(&{var}->{ref}{self.c_name}[i]);',
+                f"free({var}->{ref}{self.c_name});",
+            ]
         else:
             raise Exception(f"Free of MultiAttr sub-type {self.attr['type']} not supported yet")
+        return lines
 
     def _attr_policy(self, policy):
         return self.base_type._attr_policy(policy)
@@ -649,10 +673,10 @@ class TypeMultiAttr(Type):
     def attr_put(self, ri, var):
         if self.attr['type'] in scalars:
             put_type = self.type
-            ri.cw.p(f"for (unsigned int i = 0; i < {var}->n_{self.c_name}; i++)")
+            ri.cw.p(f"for (i = 0; i < {var}->n_{self.c_name}; i++)")
             ri.cw.p(f"ynl_attr_put_{put_type}(nlh, {self.enum_name}, {var}->{self.c_name}[i]);")
         elif 'type' not in self.attr or self.attr['type'] == 'nest':
-            ri.cw.p(f"for (unsigned int i = 0; i < {var}->n_{self.c_name}; i++)")
+            ri.cw.p(f"for (i = 0; i < {var}->n_{self.c_name}; i++)")
             self._attr_put_line(ri, var, f"{self.nested_render_name}_put(nlh, " +
                                 f"{self.enum_name}, &{var}->{self.c_name}[i])")
         else:
@@ -661,8 +685,7 @@ class TypeMultiAttr(Type):
     def _setter_lines(self, ri, member, presence):
         # For multi-attr we have a count, not presence, hack up the presence
         presence = presence[:-(len('_present.') + len(self.c_name))] + "n_" + self.c_name
-        return [f"free({member});",
-                f"{member} = {self.c_name};",
+        return [f"{member} = {self.c_name};",
                 f"{presence} = n_{self.c_name};"]
 
 
@@ -683,13 +706,19 @@ class TypeArrayNest(Type):
             raise Exception(f"Sub-type {self.attr['sub-type']} not supported yet")
 
     def _attr_typol(self):
-        return f'.type = YNL_PT_NEST, .nest = &{self.nested_render_name}_nest, '
+        if self.attr['sub-type'] in scalars:
+            return f'.type = YNL_PT_U{c_upper(self.sub_type[1:])}, '
+        else:
+            return f'.type = YNL_PT_NEST, .nest = &{self.nested_render_name}_nest, '
 
     def _attr_get(self, ri, var):
         local_vars = ['const struct nlattr *attr2;']
         get_lines = [f'attr_{self.c_name} = attr;',
-                     'ynl_attr_for_each_nested(attr2, attr)',
-                     f'\t{var}->n_{self.c_name}++;']
+                     'ynl_attr_for_each_nested(attr2, attr) {',
+                     '\tif (ynl_attr_validate(yarg, attr2))',
+                     '\t\treturn YNL_PARSE_CB_ERROR;',
+                     f'\t{var}->n_{self.c_name}++;',
+                     '}']
         return get_lines, None, local_vars
 
 
@@ -747,6 +776,7 @@ class Struct:
         self.request = False
         self.reply = False
         self.recursive = False
+        self.in_multi_val = False  # used by a MultiAttr or and legacy arrays
 
         self.attr_list = []
         self.attrs = dict()
@@ -885,7 +915,7 @@ class AttrSet(SpecAttrSet):
         elif elem['type'] == 'nest':
             t = TypeNest(self.family, self, elem, value)
         elif elem['type'] == 'indexed-array' and 'sub-type' in elem:
-            if elem["sub-type"] == 'nest':
+            if elem["sub-type"] in ['nest', 'u32']:
                 t = TypeArrayNest(self.family, self, elem, value)
             else:
                 raise Exception(f'new_attr: unsupported sub-type {elem["sub-type"]}')
@@ -1114,6 +1144,10 @@ class Family(SpecFamily):
                     if attr in rs_members['reply']:
                         self.pure_nested_structs[nested].reply = True
 
+                if spec.is_multi_val():
+                    child = self.pure_nested_structs.get(nested)
+                    child.in_multi_val = True
+
         self._sort_pure_types()
 
         # Propagate the request / reply / recursive
@@ -1128,6 +1162,8 @@ class Family(SpecFamily):
                             struct.child_nests.update(child.child_nests)
                         child.request |= struct.request
                         child.reply |= struct.reply
+                        if spec.is_multi_val():
+                            child.in_multi_val = True
                 if attr_set in struct.child_nests:
                     struct.recursive = True
 
@@ -1391,9 +1427,9 @@ class CodeWriter:
 
     def write_func(self, qual_ret, name, body, args=None, local_vars=None):
         self.write_func_prot(qual_ret=qual_ret, name=name, args=args)
+        self.block_start()
         self.write_func_lvar(local_vars=local_vars)
 
-        self.block_start()
         for line in body:
             self.p(line)
         self.block_end()
@@ -1437,7 +1473,7 @@ class CodeWriter:
         self._ifdef_block = config_option
 
 
-scalars = {'u8', 'u16', 'u32', 'u64', 's32', 's64', 'uint', 'sint'}
+scalars = {'u8', 'u16', 'u32', 'u64', 's8', 's16', 's32', 's64', 'uint', 'sint'}
 
 direction_to_suffix = {
     'reply': '_rsp',
@@ -1636,11 +1672,23 @@ def put_req_nested_prototype(ri, struct, suffix=';'):
 
 
 def put_req_nested(ri, struct):
+    local_vars = []
+    init_lines = []
+
+    local_vars.append('struct nlattr *nest;')
+    init_lines.append("nest = ynl_attr_nest_start(nlh, attr_type);")
+
+    for _, arg in struct.member_list():
+        if arg.presence_type() == 'count':
+            local_vars.append('unsigned int i;')
+            break
+
     put_req_nested_prototype(ri, struct, suffix='')
     ri.cw.block_start()
-    ri.cw.write_func_lvar('struct nlattr *nest;')
+    ri.cw.write_func_lvar(local_vars)
 
-    ri.cw.p("nest = ynl_attr_nest_start(nlh, attr_type);")
+    for line in init_lines:
+        ri.cw.p(line)
 
     for _, arg in struct.member_list():
         arg.attr_put(ri, "obj")
@@ -1667,6 +1715,9 @@ def _multi_parse(ri, struct, init_lines, local_vars):
     for arg, aspec in struct.member_list():
         if aspec['type'] == 'indexed-array' and 'sub-type' in aspec:
             if aspec["sub-type"] == 'nest':
+                local_vars.append(f'const struct nlattr *attr_{aspec.c_name};')
+                array_nests.add(arg)
+            elif aspec['sub-type'] in scalars:
                 local_vars.append(f'const struct nlattr *attr_{aspec.c_name};')
                 array_nests.add(arg)
             else:
@@ -1724,11 +1775,17 @@ def _multi_parse(ri, struct, init_lines, local_vars):
         ri.cw.p(f"dst->{aspec.c_name} = calloc(n_{aspec.c_name}, sizeof(*dst->{aspec.c_name}));")
         ri.cw.p(f"dst->n_{aspec.c_name} = n_{aspec.c_name};")
         ri.cw.p('i = 0;')
-        ri.cw.p(f"parg.rsp_policy = &{aspec.nested_render_name}_nest;")
+        if 'nested-attributes' in aspec:
+            ri.cw.p(f"parg.rsp_policy = &{aspec.nested_render_name}_nest;")
         ri.cw.block_start(line=f"ynl_attr_for_each_nested(attr, attr_{aspec.c_name})")
-        ri.cw.p(f"parg.data = &dst->{aspec.c_name}[i];")
-        ri.cw.p(f"if ({aspec.nested_render_name}_parse(&parg, attr, ynl_attr_type(attr)))")
-        ri.cw.p('return YNL_PARSE_CB_ERROR;')
+        if 'nested-attributes' in aspec:
+            ri.cw.p(f"parg.data = &dst->{aspec.c_name}[i];")
+            ri.cw.p(f"if ({aspec.nested_render_name}_parse(&parg, attr, ynl_attr_type(attr)))")
+            ri.cw.p('return YNL_PARSE_CB_ERROR;')
+        elif aspec.sub_type in scalars:
+            ri.cw.p(f"dst->{aspec.c_name}[i] = ynl_attr_get_{aspec.sub_type}(attr);")
+        else:
+            raise Exception(f"Nest parsing type not supported in {aspec['name']}")
         ri.cw.p('i++;')
         ri.cw.block_end()
         ri.cw.block_end()
@@ -1832,6 +1889,11 @@ def print_req(ri):
     if ri.fixed_hdr:
         local_vars += ['size_t hdr_len;',
                        'void *hdr;']
+
+    for _, attr in ri.struct["request"].member_list():
+        if attr.presence_type() == 'count':
+            local_vars += ['unsigned int i;']
+            break
 
     print_prototype(ri, direction, terminate=False)
     ri.cw.block_start()
@@ -2549,6 +2611,9 @@ def render_uapi(family, cw):
 
     defines = []
     for const in family['definitions']:
+        if const.get('header'):
+            continue
+
         if const['type'] != 'const':
             cw.writes_defines(defines)
             defines = []
@@ -2921,6 +2986,9 @@ def main():
             for attr_set, struct in parsed.pure_nested_structs.items():
                 ri = RenderInfo(cw, parsed, args.mode, "", "", attr_set)
                 print_type_full(ri, struct)
+                if struct.request and struct.in_multi_val:
+                    free_rsp_nested_prototype(ri)
+                    cw.nl()
 
             for op_name, op in parsed.ops.items():
                 cw.p(f"/* ============== {op.enum_name} ============== */")

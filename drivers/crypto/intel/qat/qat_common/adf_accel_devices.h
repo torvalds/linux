@@ -10,6 +10,7 @@
 #include <linux/ratelimit.h>
 #include <linux/types.h>
 #include <linux/qat/qat_mig_dev.h>
+#include <linux/wordpart.h>
 #include "adf_cfg_common.h"
 #include "adf_rl.h"
 #include "adf_telemetry.h"
@@ -50,6 +51,16 @@ enum adf_accel_capabilities {
 	ADF_ACCEL_CAPABILITIES_COMPRESSION = 32,
 	ADF_ACCEL_CAPABILITIES_LZS_COMPRESSION = 64,
 	ADF_ACCEL_CAPABILITIES_RANDOM_NUMBER = 128
+};
+
+enum adf_fuses {
+	ADF_FUSECTL0,
+	ADF_FUSECTL1,
+	ADF_FUSECTL2,
+	ADF_FUSECTL3,
+	ADF_FUSECTL4,
+	ADF_FUSECTL5,
+	ADF_MAX_FUSES
 };
 
 struct adf_bar {
@@ -333,6 +344,7 @@ struct adf_hw_device_data {
 	int (*get_rp_group)(struct adf_accel_dev *accel_dev, u32 ae_mask);
 	u32 (*get_ena_thd_mask)(struct adf_accel_dev *accel_dev, u32 obj_num);
 	int (*dev_config)(struct adf_accel_dev *accel_dev);
+	bool (*services_supported)(unsigned long mask);
 	struct adf_pfvf_ops pfvf_ops;
 	struct adf_hw_csr_ops csr_ops;
 	struct adf_dc_ops dc_ops;
@@ -343,7 +355,7 @@ struct adf_hw_device_data {
 	struct qat_migdev_ops vfmig_ops;
 	const char *fw_name;
 	const char *fw_mmp_name;
-	u32 fuses;
+	u32 fuses[ADF_MAX_FUSES];
 	u32 straps;
 	u32 accel_capabilities_mask;
 	u32 extended_dc_capabilities;
@@ -370,6 +382,15 @@ struct adf_hw_device_data {
 /* CSR write macro */
 #define ADF_CSR_WR(csr_base, csr_offset, val) \
 	__raw_writel(val, csr_base + csr_offset)
+/*
+ * CSR write macro to handle cases where the high and low
+ * offsets are sparsely located.
+ */
+#define ADF_CSR_WR64_LO_HI(csr_base, csr_low_offset, csr_high_offset, val)	\
+do {										\
+	ADF_CSR_WR(csr_base, csr_low_offset, lower_32_bits(val));		\
+	ADF_CSR_WR(csr_base, csr_high_offset, upper_32_bits(val));		\
+} while (0)
 
 /* CSR read macro */
 #define ADF_CSR_RD(csr_base, csr_offset) __raw_readl(csr_base + csr_offset)

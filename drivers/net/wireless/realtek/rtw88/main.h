@@ -61,7 +61,7 @@ enum rtw_hci_type {
 };
 
 struct rtw_hci {
-	struct rtw_hci_ops *ops;
+	const struct rtw_hci_ops *ops;
 	enum rtw_hci_type type;
 
 	u32 rpwm_addr;
@@ -166,9 +166,14 @@ enum rtw_rate_section {
 	RTW_RATE_SECTION_HT_2S,
 	RTW_RATE_SECTION_VHT_1S,
 	RTW_RATE_SECTION_VHT_2S,
+	__RTW_RATE_SECTION_2SS_MAX = RTW_RATE_SECTION_VHT_2S,
+	RTW_RATE_SECTION_HT_3S,
+	RTW_RATE_SECTION_HT_4S,
+	RTW_RATE_SECTION_VHT_3S,
+	RTW_RATE_SECTION_VHT_4S,
 
 	/* keep last */
-	RTW_RATE_SECTION_MAX,
+	RTW_RATE_SECTION_NUM,
 };
 
 enum rtw_wireless_set {
@@ -191,6 +196,7 @@ enum rtw_chip_type {
 	RTW_CHIP_TYPE_8703B,
 	RTW_CHIP_TYPE_8821A,
 	RTW_CHIP_TYPE_8812A,
+	RTW_CHIP_TYPE_8814A,
 };
 
 enum rtw_tx_queue_type {
@@ -380,6 +386,9 @@ enum rtw_evm {
 	RTW_EVM_1SS,
 	RTW_EVM_2SS_A,
 	RTW_EVM_2SS_B,
+	RTW_EVM_3SS_A,
+	RTW_EVM_3SS_B,
+	RTW_EVM_3SS_C,
 	/* keep it last */
 	RTW_EVM_NUM
 };
@@ -397,6 +406,10 @@ enum rtw_snr {
 	RTW_SNR_2SS_B,
 	RTW_SNR_2SS_C,
 	RTW_SNR_2SS_D,
+	RTW_SNR_3SS_A,
+	RTW_SNR_3SS_B,
+	RTW_SNR_3SS_C,
+	RTW_SNR_3SS_D,
 	/* keep it last */
 	RTW_SNR_NUM
 };
@@ -822,7 +835,7 @@ struct rtw_vif {
 };
 
 struct rtw_regulatory {
-	char alpha2[2];
+	char alpha2[2] __nonstring;
 	u8 txpwr_regd_2g;
 	u8 txpwr_regd_5g;
 };
@@ -1130,14 +1143,26 @@ struct rtw_rfe_def {
  * For 2G there are cck rate and ofdm rate with different settings.
  */
 struct rtw_pwr_track_tbl {
+	const u8 *pwrtrk_5gd_n[RTW_PWR_TRK_5G_NUM];
+	const u8 *pwrtrk_5gd_p[RTW_PWR_TRK_5G_NUM];
+	const u8 *pwrtrk_5gc_n[RTW_PWR_TRK_5G_NUM];
+	const u8 *pwrtrk_5gc_p[RTW_PWR_TRK_5G_NUM];
 	const u8 *pwrtrk_5gb_n[RTW_PWR_TRK_5G_NUM];
 	const u8 *pwrtrk_5gb_p[RTW_PWR_TRK_5G_NUM];
 	const u8 *pwrtrk_5ga_n[RTW_PWR_TRK_5G_NUM];
 	const u8 *pwrtrk_5ga_p[RTW_PWR_TRK_5G_NUM];
+	const u8 *pwrtrk_2gd_n;
+	const u8 *pwrtrk_2gd_p;
+	const u8 *pwrtrk_2gc_n;
+	const u8 *pwrtrk_2gc_p;
 	const u8 *pwrtrk_2gb_n;
 	const u8 *pwrtrk_2gb_p;
 	const u8 *pwrtrk_2ga_n;
 	const u8 *pwrtrk_2ga_p;
+	const u8 *pwrtrk_2g_cckd_n;
+	const u8 *pwrtrk_2g_cckd_p;
+	const u8 *pwrtrk_2g_cckc_n;
+	const u8 *pwrtrk_2g_cckc_p;
 	const u8 *pwrtrk_2g_cckb_n;
 	const u8 *pwrtrk_2g_cckb_p;
 	const u8 *pwrtrk_2g_ccka_n;
@@ -1227,8 +1252,8 @@ struct rtw_chip_info {
 
 	const struct rtw_hw_reg *dig;
 	const struct rtw_hw_reg *dig_cck;
-	u32 rf_base_addr[2];
-	u32 rf_sipi_addr[2];
+	u32 rf_base_addr[RTW_RF_PATH_MAX];
+	u32 rf_sipi_addr[RTW_RF_PATH_MAX];
 	const struct rtw_rf_sipi_addr *rf_sipi_read_addr;
 	u8 fix_rf_phy_num;
 	const struct rtw_ltecoex_addr *ltecoex_addr;
@@ -1924,7 +1949,7 @@ union rtw_sar_cfg {
 
 struct rtw_sar {
 	enum rtw_sar_sources src;
-	union rtw_sar_cfg cfg[RTW_RF_PATH_MAX][RTW_RATE_SECTION_MAX];
+	union rtw_sar_cfg cfg[RTW_RF_PATH_MAX][RTW_RATE_SECTION_NUM];
 };
 
 struct rtw_hal {
@@ -1968,16 +1993,16 @@ struct rtw_hal {
 	s8 tx_pwr_by_rate_offset_5g[RTW_RF_PATH_MAX]
 				   [DESC_RATE_MAX];
 	s8 tx_pwr_by_rate_base_2g[RTW_RF_PATH_MAX]
-				 [RTW_RATE_SECTION_MAX];
+				 [RTW_RATE_SECTION_NUM];
 	s8 tx_pwr_by_rate_base_5g[RTW_RF_PATH_MAX]
-				 [RTW_RATE_SECTION_MAX];
+				 [RTW_RATE_SECTION_NUM];
 	s8 tx_pwr_limit_2g[RTW_REGD_MAX]
 			  [RTW_CHANNEL_WIDTH_MAX]
-			  [RTW_RATE_SECTION_MAX]
+			  [RTW_RATE_SECTION_NUM]
 			  [RTW_MAX_CHANNEL_NUM_2G];
 	s8 tx_pwr_limit_5g[RTW_REGD_MAX]
 			  [RTW_CHANNEL_WIDTH_MAX]
-			  [RTW_RATE_SECTION_MAX]
+			  [RTW_RATE_SECTION_NUM]
 			  [RTW_MAX_CHANNEL_NUM_5G];
 	s8 tx_pwr_tbl[RTW_RF_PATH_MAX]
 		     [DESC_RATE_MAX];

@@ -71,6 +71,11 @@ def ksft_in(a, b, comment=""):
         _fail("Check failed", a, "not in", b, comment)
 
 
+def ksft_not_in(a, b, comment=""):
+    if a in b:
+        _fail("Check failed", a, "in", b, comment)
+
+
 def ksft_is(a, b, comment=""):
     if a is not b:
         _fail("Check failed", a, "is not", b, comment)
@@ -202,7 +207,7 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
 
     totals = {"pass": 0, "fail": 0, "skip": 0, "xfail": 0}
 
-    print("KTAP version 1")
+    print("TAP version 13")
     print("1.." + str(len(cases)))
 
     global KSFT_RESULT

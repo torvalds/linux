@@ -560,9 +560,9 @@ void bitmap_replace(unsigned long *dst,
  *	      ...0..11...0..10
  *	dst:  0000001100000010
  *
- * A relationship exists between bitmap_scatter() and bitmap_gather().
+ * A relationship exists between bitmap_scatter() and bitmap_gather(). See
+ * bitmap_gather() for the bitmap gather detailed operations. TL;DR:
  * bitmap_gather() can be seen as the 'reverse' bitmap_scatter() operation.
- * See bitmap_scatter() for details related to this relationship.
  */
 static __always_inline
 void bitmap_scatter(unsigned long *dst, const unsigned long *src,
@@ -608,7 +608,9 @@ void bitmap_scatter(unsigned long *dst, const unsigned long *src,
  *	dst:  0000000000011010
  *
  * A relationship exists between bitmap_gather() and bitmap_scatter(). See
- * bitmap_scatter() for the bitmap scatter detailed operations.
+ * bitmap_scatter() for the bitmap scatter detailed operations. TL;DR:
+ * bitmap_scatter() can be seen as the 'reverse' bitmap_gather() operation.
+ *
  * Suppose scattered computed using bitmap_scatter(scattered, src, mask, n).
  * The operation bitmap_gather(result, scattered, mask, n) leads to a result
  * equal or equivalent to src.

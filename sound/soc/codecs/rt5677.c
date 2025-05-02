@@ -4377,10 +4377,10 @@ static int rt5677_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	unsigned int reg_val = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		rt5677->master[dai->id] = 1;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		reg_val |= RT5677_I2S_MS_S;
 		rt5677->master[dai->id] = 0;
 		break;
@@ -5201,6 +5201,7 @@ static const struct of_device_id rt5677_of_match[] = {
 MODULE_DEVICE_TABLE(of, rt5677_of_match);
 
 static const struct acpi_device_id rt5677_acpi_match[] = {
+	{ "10EC5677", RT5677 },
 	{ "RT5677CE", RT5677 },
 	{ }
 };

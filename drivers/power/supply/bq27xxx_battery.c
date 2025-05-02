@@ -124,6 +124,7 @@ enum bq27xxx_reg_index {
 	BQ27XXX_DM_DATA,	/* Block Data */
 	BQ27XXX_DM_CKSUM,	/* Block Data Checksum */
 	BQ27XXX_REG_SEDVF,	/* End-of-discharge Voltage */
+	BQ27XXX_REG_PKCFG,	/* Pack Configuration */
 	BQ27XXX_REG_MAX,	/* sentinel */
 };
 
@@ -161,6 +162,7 @@ static u8
 		[BQ27XXX_DM_DATA] = INVALID_REG_ADDR,
 		[BQ27XXX_DM_CKSUM] = INVALID_REG_ADDR,
 		[BQ27XXX_REG_SEDVF] = 0x77,
+		[BQ27XXX_REG_PKCFG] = 0x7C,
 	},
 	bq27010_regs[BQ27XXX_REG_MAX] = {
 		[BQ27XXX_REG_CTRL] = 0x00,
@@ -187,6 +189,7 @@ static u8
 		[BQ27XXX_DM_DATA] = INVALID_REG_ADDR,
 		[BQ27XXX_DM_CKSUM] = INVALID_REG_ADDR,
 		[BQ27XXX_REG_SEDVF] = 0x77,
+		[BQ27XXX_REG_PKCFG] = 0x7C,
 	},
 	bq2750x_regs[BQ27XXX_REG_MAX] = {
 		[BQ27XXX_REG_CTRL] = 0x00,
@@ -583,6 +586,7 @@ static enum power_supply_property bq27000_props[] = {
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
+	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
 };
 
 static enum power_supply_property bq27010_props[] = {
@@ -604,6 +608,7 @@ static enum power_supply_property bq27010_props[] = {
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
+	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
 };
 
 #define bq2750x_props bq27510g3_props
@@ -1918,7 +1923,6 @@ static void bq27xxx_battery_update_unlocked(struct bq27xxx_device_info *di)
 		cache.flags = -1; /* read error */
 	if (cache.flags >= 0) {
 		cache.capacity = bq27xxx_battery_read_soc(di);
-		di->cache.flags = cache.flags;
 
 		/*
 		 * On gauges with signed current reporting the current must be
@@ -2045,6 +2049,35 @@ static int bq27xxx_battery_voltage(struct bq27xxx_device_info *di,
 }
 
 /*
+ * Return the design maximum battery Voltage in microvolts, or < 0 if something
+ * fails. The programmed value of the maximum battery voltage is determined by
+ * QV0 and QV1 (bits 5 and 6) in the Pack Configuration register.
+ */
+static int bq27xxx_battery_read_dmax_volt(struct bq27xxx_device_info *di,
+					  union power_supply_propval *val)
+{
+	int reg_val, qv;
+
+	if (di->voltage_max_design > 0) {
+		val->intval = di->voltage_max_design;
+		return 0;
+	}
+
+	reg_val = bq27xxx_read(di, BQ27XXX_REG_PKCFG, true);
+	if (reg_val < 0) {
+		dev_err(di->dev, "error reading design max voltage\n");
+		return reg_val;
+	}
+
+	qv = (reg_val >> 5) & 0x3;
+	val->intval = 3968000 + 48000 * qv;
+
+	di->voltage_max_design = val->intval;
+
+	return 0;
+}
+
+/*
  * Return the design minimum battery Voltage in microvolts
  * Or < 0 if something fails.
  */
@@ -2158,6 +2191,9 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
 		ret = bq27xxx_battery_read_dmin_volt(di, val);
 		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
+		ret = bq27xxx_battery_read_dmax_volt(di, val);
+		break;
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
 		ret = bq27xxx_battery_read_cyct(di, val);
 		break;
@@ -2199,7 +2235,7 @@ int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
 {
 	struct power_supply_desc *psy_desc;
 	struct power_supply_config psy_cfg = {
-		.of_node = di->dev->of_node,
+		.fwnode = dev_fwnode(di->dev),
 		.drv_data = di,
 		.no_wakeup_source = true,
 	};

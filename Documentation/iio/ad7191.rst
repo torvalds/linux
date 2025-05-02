@@ -1,0 +1,119 @@
+.. SPDX-License-Identifier: GPL-2.0-only
+
+=============
+AD7191 driver
+=============
+
+Device driver for Analog Devices AD7191 ADC.
+
+Supported devices
+=================
+
+* `AD7191 <https://www.analog.com/AD7191>`_
+
+The AD7191 is a high precision, low noise, 24-bit Σ-Δ ADC with integrated PGA.
+It features two differential input channels, an internal temperature sensor, and
+configurable sampling rates.
+
+Devicetree
+==========
+
+Pin Configuration
+-----------------
+
+The driver supports both pin-strapped and GPIO-controlled configurations for ODR
+(Output Data Rate) and PGA (Programmable Gain Amplifier) settings. These
+configurations are mutually exclusive - you must use either pin-strapped or GPIO
+control for each setting, not both.
+
+ODR Configuration
+^^^^^^^^^^^^^^^^^
+
+The ODR can be configured either through GPIO control or pin-strapping:
+
+- When using GPIO control, specify the "odr-gpios" property in the device tree
+- For pin-strapped configuration, specify the "adi,odr-value" property in the
+  device tree
+
+Available ODR settings:
+
+  - 120 Hz (ODR1=0, ODR2=0)
+  - 60 Hz (ODR1=0, ODR2=1)
+  - 50 Hz (ODR1=1, ODR2=0)
+  - 10 Hz (ODR1=1, ODR2=1)
+
+PGA Configuration
+^^^^^^^^^^^^^^^^^
+
+The PGA can be configured either through GPIO control or pin-strapping:
+
+- When using GPIO control, specify the "pga-gpios" property in the device tree
+- For pin-strapped configuration, specify the "adi,pga-value" property in the
+  device tree
+
+Available PGA gain settings:
+
+  - 1x (PGA1=0, PGA2=0)
+  - 8x (PGA1=0, PGA2=1)
+  - 64x (PGA1=1, PGA2=0)
+  - 128x (PGA1=1, PGA2=1)
+
+Clock Configuration
+-------------------
+
+The AD7191 supports both internal and external clock sources:
+
+- When CLKSEL pin is tied LOW: Uses internal 4.92MHz clock (no clock property
+  needed)
+- When CLKSEL pin is tied HIGH: Requires external clock source
+  - Can be a crystal between MCLK1 and MCLK2 pins
+  - Or a CMOS-compatible clock driving MCLK2 pin
+  - Must specify the "clocks" property in device tree when using external clock
+
+SPI Interface Requirements
+--------------------------
+
+The AD7191 has specific SPI interface requirements:
+
+- The DOUT/RDY output is dual-purpose and requires SPI bus locking
+- DOUT/RDY must be connected to an interrupt-capable GPIO
+- The SPI controller's chip select must be connected to the PDOWN pin of the ADC
+- When CS (PDOWN) is high, the device powers down and resets internal circuitry
+- SPI mode 3 operation (CPOL=1, CPHA=1) is required
+
+Power Supply Requirements
+-------------------------
+
+The device requires the following power supplies:
+
+- AVdd: Analog power supply
+- DVdd: Digital power supply
+- Vref: Reference voltage supply (external)
+
+All power supplies must be specified in the device tree.
+
+Channel Configuration
+=====================
+
+The device provides three channels:
+
+1. Temperature Sensor
+   - 24-bit unsigned
+   - Internal temperature measurement
+   - Temperature in millidegrees Celsius
+
+2. Differential Input (AIN1-AIN2)
+   - 24-bit unsigned
+   - Differential voltage measurement
+   - Configurable gain via PGA
+
+3. Differential Input (AIN3-AIN4)
+   - 24-bit unsigned
+   - Differential voltage measurement
+   - Configurable gain via PGA
+
+Buffer Support
+==============
+
+This driver supports IIO triggered buffers. See Documentation/iio/iio_devbuf.rst
+for more information about IIO triggered buffers.

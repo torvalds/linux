@@ -812,7 +812,7 @@ static const struct drm_connector_funcs tegra_dsi_connector_funcs = {
 
 static enum drm_mode_status
 tegra_dsi_connector_mode_valid(struct drm_connector *connector,
-			       struct drm_display_mode *mode)
+			       const struct drm_display_mode *mode)
 {
 	return MODE_OK;
 }

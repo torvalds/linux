@@ -1320,7 +1320,7 @@ static void mlxbf_tmfifo_cleanup(struct mlxbf_tmfifo *fifo)
 	int i;
 
 	fifo->is_ready = false;
-	del_timer_sync(&fifo->timer);
+	timer_delete_sync(&fifo->timer);
 	mlxbf_tmfifo_disable_irqs(fifo);
 	cancel_work_sync(&fifo->work);
 	for (i = 0; i < MLXBF_TMFIFO_VDEV_MAX; i++)

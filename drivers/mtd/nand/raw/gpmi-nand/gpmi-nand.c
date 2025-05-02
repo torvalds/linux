@@ -17,6 +17,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/dma/mxs-dma.h>
+#include <linux/string_choices.h>
 #include "gpmi-nand.h"
 #include "gpmi-regs.h"
 #include "bch-regs.h"
@@ -2319,8 +2320,8 @@ static int gpmi_nand_attach_chip(struct nand_chip *chip)
 					  "fsl,no-blockmark-swap"))
 			this->swap_block_mark = false;
 	}
-	dev_dbg(this->dev, "Blockmark swapping %sabled\n",
-		this->swap_block_mark ? "en" : "dis");
+	dev_dbg(this->dev, "Blockmark swapping %s\n",
+		str_enabled_disabled(this->swap_block_mark));
 
 	ret = gpmi_init_last(this);
 	if (ret)

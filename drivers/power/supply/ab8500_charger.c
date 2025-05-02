@@ -3494,11 +3494,11 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->invalid_charger_detect_state = 0;
 
 	/* AC and USB supply config */
-	ac_psy_cfg.of_node = np;
+	ac_psy_cfg.fwnode = dev_fwnode(dev);
 	ac_psy_cfg.supplied_to = supply_interface;
 	ac_psy_cfg.num_supplicants = ARRAY_SIZE(supply_interface);
 	ac_psy_cfg.drv_data = &di->ac_chg;
-	usb_psy_cfg.of_node = np;
+	usb_psy_cfg.fwnode = dev_fwnode(dev);
 	usb_psy_cfg.supplied_to = supply_interface;
 	usb_psy_cfg.num_supplicants = ARRAY_SIZE(supply_interface);
 	usb_psy_cfg.drv_data = &di->usb_chg;

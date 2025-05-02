@@ -28,19 +28,30 @@
 #include "amdgpu_gfx.h"
 #include "amdgpu_ucode.h"
 #include "clearstate_si.h"
+#include "si.h"
+#include "sid.h"
+
 #include "bif/bif_3_0_d.h"
 #include "bif/bif_3_0_sh_mask.h"
+
 #include "oss/oss_1_0_d.h"
 #include "oss/oss_1_0_sh_mask.h"
+
 #include "gca/gfx_6_0_d.h"
 #include "gca/gfx_6_0_sh_mask.h"
+#include "gca/gfx_7_2_enum.h"
+
 #include "gmc/gmc_6_0_d.h"
 #include "gmc/gmc_6_0_sh_mask.h"
+
 #include "dce/dce_6_0_d.h"
 #include "dce/dce_6_0_sh_mask.h"
-#include "gca/gfx_7_2_enum.h"
+
 #include "si_enums.h"
-#include "si.h"
+
+#define TAHITI_GB_ADDR_CONFIG_GOLDEN        0x12011003
+#define VERDE_GB_ADDR_CONFIG_GOLDEN         0x12010002
+#define HAINAN_GB_ADDR_CONFIG_GOLDEN        0x02010001
 
 static void gfx_v6_0_set_ring_funcs(struct amdgpu_device *adev);
 static void gfx_v6_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -3167,9 +3178,9 @@ static int gfx_v6_0_resume(struct amdgpu_ip_block *ip_block)
 	return gfx_v6_0_hw_init(ip_block);
 }
 
-static bool gfx_v6_0_is_idle(void *handle)
+static bool gfx_v6_0_is_idle(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (RREG32(mmGRBM_STATUS) & GRBM_STATUS__GUI_ACTIVE_MASK)
 		return false;
@@ -3183,7 +3194,7 @@ static int gfx_v6_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (gfx_v6_0_is_idle(adev))
+		if (gfx_v6_0_is_idle(ip_block))
 			return 0;
 		udelay(1);
 	}

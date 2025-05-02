@@ -4521,8 +4521,8 @@ Both online and offline repair can use this strategy.
 | For this second effort, the ondisk parent pointer format as originally   |
 | proposed was ``(parent_inum, parent_gen, dirent_pos) → (dirent_name)``.  |
 | The format was changed during development to eliminate the requirement   |
-| of repair tools needing to to ensure that the ``dirent_pos`` field       |
-| always matched when reconstructing a directory.                          |
+| of repair tools needing to ensure that the ``dirent_pos`` field always   |
+| matched when reconstructing a directory.                                 |
 |                                                                          |
 | There were a few other ways to have solved that problem:                 |
 |                                                                          |

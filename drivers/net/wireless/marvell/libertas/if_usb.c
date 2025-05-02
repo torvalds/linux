@@ -897,7 +897,7 @@ restart:
 	/* ... and wait for the process to complete */
 	wait_event_interruptible(cardp->fw_wq, cardp->surprise_removed || cardp->fwdnldover);
 
-	del_timer_sync(&cardp->fw_timeout);
+	timer_delete_sync(&cardp->fw_timeout);
 	usb_kill_urb(cardp->rx_urb);
 
 	if (!cardp->fwdnldover) {

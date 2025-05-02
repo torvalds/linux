@@ -56,7 +56,6 @@
 #endif
 #include <linux/vmalloc.h>
 #include <asm/io.h>
-#include <linux/kernel.h>		/* simple_strtol() */
 
 #include "pwc.h"
 #include "pwc-kiara.h"

@@ -46,6 +46,7 @@ struct dce_hwseq;
 struct link_resource;
 struct dc_dmub_cmd;
 struct pg_block_update;
+struct drr_params;
 
 struct subvp_pipe_control_lock_fast_params {
 	struct dc *dc;
@@ -240,6 +241,7 @@ struct hw_sequencer_funcs {
 		struct pipe_ctx *pipe_ctx, bool enableTripleBuffer);
 	void (*update_pending_status)(struct pipe_ctx *pipe_ctx);
 	void (*update_dsc_pg)(struct dc *dc, struct dc_state *context, bool safe_to_disable);
+	void (*clear_surface_dcc_and_tiling)(struct pipe_ctx *pipe_ctx, struct dc_plane_state *plane_state, bool clear_tiling);
 
 	/* Pipe Lock Related */
 	void (*pipe_control_lock)(struct dc *dc,
@@ -516,10 +518,20 @@ void get_cursor_visual_confirm_color(
 		struct pipe_ctx *pipe_ctx,
 		struct tg_color *color);
 
+void get_dcc_visual_confirm_color(
+	struct dc *dc,
+	struct pipe_ctx *pipe_ctx,
+	struct tg_color *color);
+
 void set_p_state_switch_method(
 		struct dc *dc,
 		struct dc_state *context,
 		struct pipe_ctx *pipe_ctx);
+
+void set_drr_and_clear_adjust_pending(
+		struct pipe_ctx *pipe_ctx,
+		struct dc_stream_state *stream,
+		struct drr_params *params);
 
 void hwss_execute_sequence(struct dc *dc,
 		struct block_sequence block_sequence[],

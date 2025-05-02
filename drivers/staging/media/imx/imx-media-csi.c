@@ -695,7 +695,7 @@ static void csi_idmac_stop(struct csi_priv *priv)
 	imx_media_free_dma_buf(priv->dev, &priv->underrun_buf);
 
 	/* cancel the EOF timeout timer */
-	del_timer_sync(&priv->eof_timeout_timer);
+	timer_delete_sync(&priv->eof_timeout_timer);
 
 	csi_idmac_put_ipu_resources(priv);
 }

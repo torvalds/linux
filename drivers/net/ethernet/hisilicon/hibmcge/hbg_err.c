@@ -26,12 +26,15 @@ static void hbg_restore_mac_table(struct hbg_priv *priv)
 
 static void hbg_restore_user_def_settings(struct hbg_priv *priv)
 {
+	/* The index of host mac is always 0. */
+	u64 rx_pause_addr = ether_addr_to_u64(priv->filter.mac_table[0].addr);
 	struct ethtool_pauseparam *pause_param = &priv->user_def.pause_param;
 
 	hbg_restore_mac_table(priv);
 	hbg_hw_set_mtu(priv, priv->netdev->mtu);
 	hbg_hw_set_pause_enable(priv, pause_param->tx_pause,
 				pause_param->rx_pause);
+	hbg_hw_set_rx_pause_mac_addr(priv, rx_pause_addr);
 }
 
 int hbg_rebuild(struct hbg_priv *priv)
@@ -105,6 +108,62 @@ int hbg_reset(struct hbg_priv *priv)
 	return hbg_reset_done(priv, HBG_RESET_TYPE_FUNCTION);
 }
 
+void hbg_err_reset(struct hbg_priv *priv)
+{
+	bool running;
+
+	rtnl_lock();
+	running = netif_running(priv->netdev);
+	if (running)
+		dev_close(priv->netdev);
+
+	hbg_reset(priv);
+
+	/* in hbg_pci_err_detected(), we will detach first,
+	 * so we need to attach before open
+	 */
+	if (!netif_device_present(priv->netdev))
+		netif_device_attach(priv->netdev);
+
+	if (running)
+		dev_open(priv->netdev, NULL);
+	rtnl_unlock();
+}
+
+static pci_ers_result_t hbg_pci_err_detected(struct pci_dev *pdev,
+					     pci_channel_state_t state)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+
+	netif_device_detach(netdev);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	pci_disable_device(pdev);
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t hbg_pci_err_slot_reset(struct pci_dev *pdev)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct hbg_priv *priv = netdev_priv(netdev);
+
+	if (pci_enable_device(pdev)) {
+		dev_err(&pdev->dev,
+			"failed to re-enable PCI device after reset\n");
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	pci_set_master(pdev);
+	pci_restore_state(pdev);
+	pci_save_state(pdev);
+
+	hbg_err_reset(priv);
+	netif_device_attach(netdev);
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
 static void hbg_pci_err_reset_prepare(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -124,6 +183,8 @@ static void hbg_pci_err_reset_done(struct pci_dev *pdev)
 }
 
 static const struct pci_error_handlers hbg_pci_err_handler = {
+	.error_detected = hbg_pci_err_detected,
+	.slot_reset = hbg_pci_err_slot_reset,
 	.reset_prepare = hbg_pci_err_reset_prepare,
 	.reset_done = hbg_pci_err_reset_done,
 };

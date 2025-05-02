@@ -1,0 +1,13 @@
+What:		/sys/bus/pci/drivers/pcie_mp2_amd/*/hpd
+Date:		April 2025
+Contact:	mario.limonciello@amd.com
+Description:
+		Human presence detection (HPD) enable/disable.
+		When HPD is enabled, the device will be able to detect the
+		presence of a human and will send an interrupt that can be
+		used to wake the system from a low power state.
+		When HPD is disabled, the device will not be able to detect
+		the presence of a human.
+
+		Access: Read/Write
+		Valid values: enabled/disabled

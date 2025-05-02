@@ -52,8 +52,8 @@ static const struct ptdump_prot_bits stage2_pte_bits[] = {
 		.set	= "AF",
 		.clear	= "  ",
 	}, {
-		.mask	= PTE_TABLE_BIT | PTE_VALID,
-		.val	= PTE_VALID,
+		.mask	= PMD_TYPE_MASK,
+		.val	= PMD_TYPE_SECT,
 		.set	= "BLK",
 		.clear	= "   ",
 	},

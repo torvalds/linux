@@ -148,5 +148,5 @@ applied), however there are corner cases in which the buffered data may be found
 in a processed form. Please note that these corner cases are not addressed by
 this documentation.
 
-Please see ``Documentation/ABI/testing/sysfs-bus-iio`` for a complete
+Please see Documentation/ABI/testing/sysfs-bus-iio for a complete
 description of the attributes.

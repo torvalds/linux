@@ -808,7 +808,7 @@ static int rcar_mipi_dsi_attach(struct drm_bridge *bridge,
 }
 
 static void rcar_mipi_dsi_atomic_enable(struct drm_bridge *bridge,
-					struct drm_bridge_state *old_bridge_state)
+					struct drm_atomic_state *state)
 {
 	struct rcar_mipi_dsi *dsi = bridge_to_rcar_mipi_dsi(bridge);
 
@@ -816,7 +816,7 @@ static void rcar_mipi_dsi_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void rcar_mipi_dsi_atomic_disable(struct drm_bridge *bridge,
-					 struct drm_bridge_state *old_bridge_state)
+					 struct drm_atomic_state *state)
 {
 	struct rcar_mipi_dsi *dsi = bridge_to_rcar_mipi_dsi(bridge);
 

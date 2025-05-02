@@ -158,7 +158,7 @@ do_survey:
 	if (chanctx_conf)
 		channel = chanctx_conf->def.chan;
 	else if (local->open_count > 0 &&
-		 local->open_count == local->monitors &&
+		 local->open_count == local->virt_monitors &&
 		 sdata->vif.type == NL80211_IFTYPE_MONITOR)
 		channel = local->monitor_chanreq.oper.chan;
 	else

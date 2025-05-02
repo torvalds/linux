@@ -1505,7 +1505,7 @@ static int __init octeon_irq_init_ciu(
 
 	ciu_domain = irq_domain_add_tree(
 		ciu_node, &octeon_irq_domain_ciu_ops, dd);
-	irq_set_default_host(ciu_domain);
+	irq_set_default_domain(ciu_domain);
 
 	/* CIU_0 */
 	for (i = 0; i < 16; i++) {
@@ -2076,7 +2076,7 @@ static int __init octeon_irq_init_ciu2(
 
 	ciu_domain = irq_domain_add_tree(
 		ciu_node, &octeon_irq_domain_ciu2_ops, NULL);
-	irq_set_default_host(ciu_domain);
+	irq_set_default_domain(ciu_domain);
 
 	/* CUI2 */
 	for (i = 0; i < 64; i++) {
@@ -2929,7 +2929,7 @@ static int __init octeon_irq_init_ciu3(struct device_node *ciu_node,
 		/* Only do per CPU things if it is the CIU of the boot node. */
 		octeon_irq_ciu3_alloc_resources(ciu3_info);
 		if (node == 0)
-			irq_set_default_host(domain);
+			irq_set_default_domain(domain);
 
 		octeon_irq_use_ip4 = false;
 		/* Enable the CIU lines */

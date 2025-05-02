@@ -11,7 +11,6 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/irqchip/irq-davinci-cp-intc.h>
 
 #include <clocksource/timer-davinci.h>
 

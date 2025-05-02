@@ -888,6 +888,7 @@ struct iwl_txq {
  * @trans_specific: data for the specific transport this is allocated for/with
  * @dsbr_urm_fw_dependent: switch to URM based on fw settings
  * @dsbr_urm_permanent: switch to URM permanently
+ * @ext_32khz_clock_valid: if true, the external 32 KHz clock can be used
  */
 struct iwl_trans {
 	bool csme_own;
@@ -914,6 +915,8 @@ struct iwl_trans {
 
 	u8 dsbr_urm_fw_dependent:1,
 	   dsbr_urm_permanent:1;
+
+	bool ext_32khz_clock_valid;
 
 	u8 rx_mpdu_cmd, rx_mpdu_cmd_hdr_size;
 
@@ -958,7 +961,7 @@ struct iwl_trans {
 	struct iwl_dma_ptr invalid_tx_cmd;
 
 	struct {
-		struct work_struct wk;
+		struct delayed_work wk;
 		struct iwl_fw_error_dump_mode mode;
 		bool during_reset;
 	} restart;
@@ -1159,7 +1162,7 @@ static inline void iwl_trans_schedule_reset(struct iwl_trans *trans,
 	 */
 	trans->restart.during_reset = test_bit(STATUS_IN_SW_RESET,
 					       &trans->status);
-	queue_work(system_unbound_wq, &trans->restart.wk);
+	queue_delayed_work(system_unbound_wq, &trans->restart.wk, 0);
 }
 
 static inline void iwl_trans_fw_error(struct iwl_trans *trans,
@@ -1258,9 +1261,13 @@ enum iwl_reset_mode {
 	IWL_RESET_MODE_RESCAN,
 	IWL_RESET_MODE_FUNC_RESET,
 	IWL_RESET_MODE_PROD_RESET,
+
+	/* keep last - special backoff value */
+	IWL_RESET_MODE_BACKOFF,
 };
 
 void iwl_trans_pcie_reset(struct iwl_trans *trans, enum iwl_reset_mode mode);
+void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans);
 
 int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans,
 			     struct iwl_host_cmd *cmd);

@@ -43,6 +43,7 @@
 #endif
 #include "cached_dir.h"
 #include "compress.h"
+#include "fs_context.h"
 
 /*
  *  The following table defines the expected "StructureSize" of SMB2 requests
@@ -300,32 +301,23 @@ again:
 
 	mutex_lock(&ses->session_mutex);
 	/*
-	 * if this is called by delayed work, and the channel has been disabled
-	 * in parallel, the delayed work can continue to execute in parallel
-	 * there's a chance that this channel may not exist anymore
+	 * Handle the case where a concurrent thread failed to negotiate or
+	 * killed a channel.
 	 */
 	spin_lock(&server->srv_lock);
-	if (server->tcpStatus == CifsExiting) {
+	switch (server->tcpStatus) {
+	case CifsExiting:
 		spin_unlock(&server->srv_lock);
 		mutex_unlock(&ses->session_mutex);
-		rc = -EHOSTDOWN;
-		goto out;
-	}
-
-	/*
-	 * Recheck after acquire mutex. If another thread is negotiating
-	 * and the server never sends an answer the socket will be closed
-	 * and tcpStatus set to reconnect.
-	 */
-	if (server->tcpStatus == CifsNeedReconnect) {
+		return -EHOSTDOWN;
+	case CifsNeedReconnect:
 		spin_unlock(&server->srv_lock);
 		mutex_unlock(&ses->session_mutex);
-
-		if (tcon->retry)
-			goto again;
-
-		rc = -EHOSTDOWN;
-		goto out;
+		if (!tcon->retry)
+			return -EHOSTDOWN;
+		goto again;
+	default:
+		break;
 	}
 	spin_unlock(&server->srv_lock);
 
@@ -350,43 +342,41 @@ again:
 	spin_unlock(&ses->ses_lock);
 
 	rc = cifs_negotiate_protocol(0, ses, server);
-	if (!rc) {
-		/*
-		 * if server stopped supporting multichannel
-		 * and the first channel reconnected, disable all the others.
-		 */
-		if (ses->chan_count > 1 &&
-		    !(server->capabilities & SMB2_GLOBAL_CAP_MULTI_CHANNEL)) {
-			rc = cifs_chan_skip_or_disable(ses, server,
-						       from_reconnect);
-			if (rc) {
-				mutex_unlock(&ses->session_mutex);
-				goto out;
-			}
-		}
-
-		rc = cifs_setup_session(0, ses, server, ses->local_nls);
-		if ((rc == -EACCES) || (rc == -EKEYEXPIRED) || (rc == -EKEYREVOKED)) {
-			/*
-			 * Try alternate password for next reconnect (key rotation
-			 * could be enabled on the server e.g.) if an alternate
-			 * password is available and the current password is expired,
-			 * but do not swap on non pwd related errors like host down
-			 */
-			if (ses->password2)
-				swap(ses->password2, ses->password);
-		}
-
-		if ((rc == -EACCES) && !tcon->retry) {
-			mutex_unlock(&ses->session_mutex);
-			rc = -EHOSTDOWN;
-			goto failed;
-		} else if (rc) {
+	if (rc) {
+		mutex_unlock(&ses->session_mutex);
+		if (!tcon->retry)
+			return -EHOSTDOWN;
+		goto again;
+	}
+	/*
+	 * if server stopped supporting multichannel
+	 * and the first channel reconnected, disable all the others.
+	 */
+	if (ses->chan_count > 1 &&
+	    !(server->capabilities & SMB2_GLOBAL_CAP_MULTI_CHANNEL)) {
+		rc = cifs_chan_skip_or_disable(ses, server,
+					       from_reconnect);
+		if (rc) {
 			mutex_unlock(&ses->session_mutex);
 			goto out;
 		}
-	} else {
+	}
+
+	rc = cifs_setup_session(0, ses, server, ses->local_nls);
+	if ((rc == -EACCES) || (rc == -EKEYEXPIRED) || (rc == -EKEYREVOKED)) {
+		/*
+		 * Try alternate password for next reconnect (key rotation
+		 * could be enabled on the server e.g.) if an alternate
+		 * password is available and the current password is expired,
+		 * but do not swap on non pwd related errors like host down
+		 */
+		if (ses->password2)
+			swap(ses->password2, ses->password);
+	}
+	if (rc) {
 		mutex_unlock(&ses->session_mutex);
+		if (rc == -EACCES && !tcon->retry)
+			return -EHOSTDOWN;
 		goto out;
 	}
 
@@ -490,7 +480,6 @@ out:
 	case SMB2_IOCTL:
 		rc = -EAGAIN;
 	}
-failed:
 	return rc;
 }
 
@@ -1263,15 +1252,8 @@ SMB2_negotiate(const unsigned int xid,
 			cifs_server_dbg(VFS, "Missing expected negotiate contexts\n");
 	}
 
-	if (server->cipher_type && !rc) {
-		if (!SERVER_IS_CHAN(server)) {
-			rc = smb3_crypto_aead_allocate(server);
-		} else {
-			/* For channels, just reuse the primary server crypto secmech. */
-			server->secmech.enc = server->primary_server->secmech.enc;
-			server->secmech.dec = server->primary_server->secmech.dec;
-		}
-	}
+	if (server->cipher_type && !rc)
+		rc = smb3_crypto_aead_allocate(server);
 neg_exit:
 	free_rsp_buf(resp_buftype, rsp);
 	return rc;
@@ -3928,12 +3910,10 @@ SMB2_query_acl(const unsigned int xid, struct cifs_tcon *tcon,
 	       u64 persistent_fid, u64 volatile_fid,
 	       void **data, u32 *plen, u32 extra_info)
 {
-	__u32 additional_info = OWNER_SECINFO | GROUP_SECINFO | DACL_SECINFO |
-				extra_info;
 	*plen = 0;
 
 	return query_info(xid, tcon, persistent_fid, volatile_fid,
-			  0, SMB2_O_INFO_SECURITY, additional_info,
+			  0, SMB2_O_INFO_SECURITY, extra_info,
 			  SMB2_MAX_BUFFER_SIZE, MIN_SEC_DESC_LEN, data, plen);
 }
 
@@ -4103,6 +4083,24 @@ smb2_echo_callback(struct mid_q_entry *mid)
 	add_credits(server, &credits, CIFS_ECHO_OP);
 }
 
+static void cifs_renegotiate_iosize(struct TCP_Server_Info *server,
+				    struct cifs_tcon *tcon)
+{
+	struct cifs_sb_info *cifs_sb;
+
+	if (server == NULL || tcon == NULL)
+		return;
+
+	spin_lock(&tcon->sb_list_lock);
+	list_for_each_entry(cifs_sb, &tcon->cifs_sb_list, tcon_sb_link) {
+		cifs_sb->ctx->rsize =
+			server->ops->negotiate_rsize(tcon, cifs_sb->ctx);
+		cifs_sb->ctx->wsize =
+			server->ops->negotiate_wsize(tcon, cifs_sb->ctx);
+	}
+	spin_unlock(&tcon->sb_list_lock);
+}
+
 void smb2_reconnect_server(struct work_struct *work)
 {
 	struct TCP_Server_Info *server = container_of(work,
@@ -4188,9 +4186,10 @@ void smb2_reconnect_server(struct work_struct *work)
 
 	list_for_each_entry_safe(tcon, tcon2, &tmp_list, rlist) {
 		rc = smb2_reconnect(SMB2_INTERNAL_CMD, tcon, server, true);
-		if (!rc)
+		if (!rc) {
+			cifs_renegotiate_iosize(server, tcon);
 			cifs_reopen_persistent_handles(tcon);
-		else
+		} else
 			resched = true;
 		list_del_init(&tcon->rlist);
 		if (tcon->ipc)

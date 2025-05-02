@@ -355,20 +355,6 @@ static void dump_format(struct ipu_image_convert_ctx *ctx,
 		(ic_image->fmt->fourcc >> 24) & 0xff);
 }
 
-int ipu_image_convert_enum_format(int index, u32 *fourcc)
-{
-	const struct ipu_image_pixfmt *fmt;
-
-	if (index >= (int)ARRAY_SIZE(image_convert_formats))
-		return -EINVAL;
-
-	/* Format found */
-	fmt = &image_convert_formats[index];
-	*fourcc = fmt->fourcc;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ipu_image_convert_enum_format);
-
 static void free_dma_buf(struct ipu_image_convert_priv *priv,
 			 struct ipu_image_convert_dma_buf *buf)
 {
@@ -2436,40 +2422,6 @@ ipu_image_convert(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 	return run;
 }
 EXPORT_SYMBOL_GPL(ipu_image_convert);
-
-/* "Canned" synchronous single image conversion */
-static void image_convert_sync_complete(struct ipu_image_convert_run *run,
-					void *data)
-{
-	struct completion *comp = data;
-
-	complete(comp);
-}
-
-int ipu_image_convert_sync(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
-			   struct ipu_image *in, struct ipu_image *out,
-			   enum ipu_rotate_mode rot_mode)
-{
-	struct ipu_image_convert_run *run;
-	struct completion comp;
-	int ret;
-
-	init_completion(&comp);
-
-	run = ipu_image_convert(ipu, ic_task, in, out, rot_mode,
-				image_convert_sync_complete, &comp);
-	if (IS_ERR(run))
-		return PTR_ERR(run);
-
-	ret = wait_for_completion_timeout(&comp, msecs_to_jiffies(10000));
-	ret = (ret == 0) ? -ETIMEDOUT : 0;
-
-	ipu_image_convert_unprepare(run->ctx);
-	kfree(run);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(ipu_image_convert_sync);
 
 int ipu_image_convert_init(struct ipu_soc *ipu, struct device *dev)
 {

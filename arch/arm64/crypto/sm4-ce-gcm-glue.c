@@ -82,20 +82,15 @@ static void gcm_calculate_auth_mac(struct aead_request *req, u8 ghash[])
 	scatterwalk_start(&walk, req->src);
 
 	do {
-		u32 n = scatterwalk_clamp(&walk, assoclen);
-		u8 *p, *ptr;
+		unsigned int n, orig_n;
+		const u8 *p;
 
-		if (!n) {
-			scatterwalk_start(&walk, sg_next(walk.sg));
-			n = scatterwalk_clamp(&walk, assoclen);
-		}
-
-		p = ptr = scatterwalk_map(&walk);
-		assoclen -= n;
-		scatterwalk_advance(&walk, n);
+		orig_n = scatterwalk_next(&walk, assoclen);
+		p = walk.addr;
+		n = orig_n;
 
 		if (n + buflen < GHASH_BLOCK_SIZE) {
-			memcpy(&buffer[buflen], ptr, n);
+			memcpy(&buffer[buflen], p, n);
 			buflen += n;
 		} else {
 			unsigned int nblocks;
@@ -103,8 +98,8 @@ static void gcm_calculate_auth_mac(struct aead_request *req, u8 ghash[])
 			if (buflen) {
 				unsigned int l = GHASH_BLOCK_SIZE - buflen;
 
-				memcpy(&buffer[buflen], ptr, l);
-				ptr += l;
+				memcpy(&buffer[buflen], p, l);
+				p += l;
 				n -= l;
 
 				pmull_ghash_update(ctx->ghash_table, ghash,
@@ -114,17 +109,17 @@ static void gcm_calculate_auth_mac(struct aead_request *req, u8 ghash[])
 			nblocks = n / GHASH_BLOCK_SIZE;
 			if (nblocks) {
 				pmull_ghash_update(ctx->ghash_table, ghash,
-						   ptr, nblocks);
-				ptr += nblocks * GHASH_BLOCK_SIZE;
+						   p, nblocks);
+				p += nblocks * GHASH_BLOCK_SIZE;
 			}
 
 			buflen = n % GHASH_BLOCK_SIZE;
 			if (buflen)
-				memcpy(&buffer[0], ptr, buflen);
+				memcpy(&buffer[0], p, buflen);
 		}
 
-		scatterwalk_unmap(p);
-		scatterwalk_done(&walk, 0, assoclen);
+		scatterwalk_done_src(&walk, orig_n);
+		assoclen -= orig_n;
 	} while (assoclen);
 
 	/* padding with '0' */

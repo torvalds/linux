@@ -515,16 +515,4 @@ enum {
 					 sizeof(struct bss_info_bmc_rate) +\
 					 sizeof(struct bss_info_ext_bss))
 
-static inline s8
-mt7915_get_power_bound(struct mt7915_phy *phy, s8 txpower)
-{
-	struct mt76_phy *mphy = phy->mt76;
-	int n_chains = hweight16(mphy->chainmask);
-
-	txpower = mt76_get_sar_power(mphy, mphy->chandef.chan, txpower * 2);
-	txpower -= mt76_tx_power_nss_delta(n_chains);
-
-	return txpower;
-}
-
 #endif

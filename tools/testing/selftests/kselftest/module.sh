@@ -11,7 +11,7 @@
 #   SPDX-License-Identifier: GPL-2.0+
 #   $(dirname $0)/../kselftest/module.sh "description" module_name
 #
-# Example: tools/testing/selftests/lib/printf.sh
+# Example: tools/testing/selftests/lib/bitmap.sh
 
 desc=""				# Output prefix.
 module=""			# Filename (without the .ko).

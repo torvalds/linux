@@ -445,7 +445,7 @@ static u32 af9005_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm af9005_i2c_algo = {
+static const struct i2c_algorithm af9005_i2c_algo = {
 	.master_xfer = af9005_i2c_xfer,
 	.functionality = af9005_i2c_func,
 };
@@ -1005,7 +1005,7 @@ enum {
 	ANSONIC_DVBT_USB,
 };
 
-static struct usb_device_id af9005_usb_table[] = {
+static const struct usb_device_id af9005_usb_table[] = {
 	DVB_USB_DEV(AFATECH, AFATECH_AF9005),
 	DVB_USB_DEV(TERRATEC, TERRATEC_CINERGY_T_USB_XE),
 	DVB_USB_DEV(ANSONIC, ANSONIC_DVBT_USB),

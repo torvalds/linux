@@ -816,7 +816,10 @@ static bool should_verify_link_capability_destructively(struct dc_link *link,
 {
 	bool destrictive = false;
 	struct dc_link_settings max_link_cap;
-	bool is_link_enc_unavailable = link->link_enc &&
+	bool is_link_enc_unavailable = false;
+
+	if (!link->dc->config.unify_link_enc_assignment)
+		is_link_enc_unavailable = link->link_enc &&
 			link->dc->res_pool->funcs->link_encs_assign &&
 			!link_enc_cfg_is_link_enc_avail(
 					link->ctx->dc,

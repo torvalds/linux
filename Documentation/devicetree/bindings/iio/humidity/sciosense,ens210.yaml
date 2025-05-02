@@ -43,13 +43,13 @@ additionalProperties: false
 examples:
   - |
     i2c {
-       #address-cells = <1>;
-       #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-       temperature-sensor@43 {
-           compatible = "sciosense,ens210";
-           reg = <0x43>;
-       };
+        temperature-sensor@43 {
+            compatible = "sciosense,ens210";
+            reg = <0x43>;
+        };
     };
 ...
 

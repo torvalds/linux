@@ -214,4 +214,27 @@ void enc401_stream_encoder_dp_set_stream_attribute(
 	enum dc_color_space output_color_space,
 	bool use_vsc_sdp_for_colorimetry,
 	uint32_t enable_sdp_splitting);
+void enc401_stream_encoder_dvi_set_stream_attribute(
+	struct stream_encoder *enc,
+	struct dc_crtc_timing *crtc_timing,
+	bool is_dual_link);
+void enc401_stream_encoder_dp_unblank(
+		struct dc_link *link,
+		struct stream_encoder *enc,
+		const struct encoder_unblank_param *param);
+void enc401_stream_encoder_enable(
+	struct stream_encoder *enc,
+	enum signal_type signal,
+	bool enable);
+void enc401_set_dig_input_mode(struct stream_encoder *enc, unsigned int pix_per_container);
+void enc401_stream_encoder_map_to_link(
+		struct stream_encoder *enc,
+		uint32_t stream_enc_inst,
+		uint32_t link_enc_inst);
+void enc401_read_state(struct stream_encoder *enc, struct enc_state *s);
+void enc401_stream_encoder_hdmi_set_stream_attribute(
+	struct stream_encoder *enc,
+	struct dc_crtc_timing *crtc_timing,
+	int actual_pix_clk_khz,
+	bool enable_audio);
 #endif /* __DC_DIO_STREAM_ENCODER_DCN401_H__ */

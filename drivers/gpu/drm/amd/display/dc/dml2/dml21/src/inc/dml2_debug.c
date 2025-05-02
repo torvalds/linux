@@ -29,8 +29,3 @@ int dml2_printf(const char *format, ...)
 	return 0;
 #endif
 }
-
-void dml2_assert(int condition)
-{
-	//ASSERT(condition);
-}

@@ -48,29 +48,9 @@
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ip6_checksum.h>
 #endif
+#include <net/page_pool/helpers.h>
 
 #include "mlx4_en.h"
-
-static int mlx4_alloc_page(struct mlx4_en_priv *priv,
-			   struct mlx4_en_rx_alloc *frag,
-			   gfp_t gfp)
-{
-	struct page *page;
-	dma_addr_t dma;
-
-	page = alloc_page(gfp);
-	if (unlikely(!page))
-		return -ENOMEM;
-	dma = dma_map_page(priv->ddev, page, 0, PAGE_SIZE, priv->dma_dir);
-	if (unlikely(dma_mapping_error(priv->ddev, dma))) {
-		__free_page(page);
-		return -ENOMEM;
-	}
-	frag->page = page;
-	frag->dma = dma;
-	frag->page_offset = priv->rx_headroom;
-	return 0;
-}
 
 static int mlx4_en_alloc_frags(struct mlx4_en_priv *priv,
 			       struct mlx4_en_rx_ring *ring,
@@ -78,30 +58,33 @@ static int mlx4_en_alloc_frags(struct mlx4_en_priv *priv,
 			       struct mlx4_en_rx_alloc *frags,
 			       gfp_t gfp)
 {
+	dma_addr_t dma;
 	int i;
 
 	for (i = 0; i < priv->num_frags; i++, frags++) {
 		if (!frags->page) {
-			if (mlx4_alloc_page(priv, frags, gfp)) {
+			frags->page = page_pool_alloc_pages(ring->pp, gfp);
+			if (!frags->page) {
 				ring->alloc_fail++;
 				return -ENOMEM;
 			}
+			page_pool_fragment_page(frags->page, 1);
+			frags->page_offset = priv->rx_headroom;
+
 			ring->rx_alloc_pages++;
 		}
-		rx_desc->data[i].addr = cpu_to_be64(frags->dma +
-						    frags->page_offset);
+		dma = page_pool_get_dma_addr(frags->page);
+		rx_desc->data[i].addr = cpu_to_be64(dma + frags->page_offset);
 	}
 	return 0;
 }
 
 static void mlx4_en_free_frag(const struct mlx4_en_priv *priv,
+			      struct mlx4_en_rx_ring *ring,
 			      struct mlx4_en_rx_alloc *frag)
 {
-	if (frag->page) {
-		dma_unmap_page(priv->ddev, frag->dma,
-			       PAGE_SIZE, priv->dma_dir);
-		__free_page(frag->page);
-	}
+	if (frag->page)
+		page_pool_put_full_page(ring->pp, frag->page, false);
 	/* We need to clear all fields, otherwise a change of priv->log_rx_info
 	 * could lead to see garbage later in frag->page.
 	 */
@@ -141,18 +124,6 @@ static int mlx4_en_prepare_rx_desc(struct mlx4_en_priv *priv,
 		(index << ring->log_stride);
 	struct mlx4_en_rx_alloc *frags = ring->rx_info +
 					(index << priv->log_rx_info);
-	if (likely(ring->page_cache.index > 0)) {
-		/* XDP uses a single page per frame */
-		if (!frags->page) {
-			ring->page_cache.index--;
-			frags->page = ring->page_cache.buf[ring->page_cache.index].page;
-			frags->dma  = ring->page_cache.buf[ring->page_cache.index].dma;
-		}
-		frags->page_offset = XDP_PACKET_HEADROOM;
-		rx_desc->data[0].addr = cpu_to_be64(frags->dma +
-						    XDP_PACKET_HEADROOM);
-		return 0;
-	}
 
 	return mlx4_en_alloc_frags(priv, ring, rx_desc, frags, gfp);
 }
@@ -178,7 +149,7 @@ static void mlx4_en_free_rx_desc(const struct mlx4_en_priv *priv,
 	frags = ring->rx_info + (index << priv->log_rx_info);
 	for (nr = 0; nr < priv->num_frags; nr++) {
 		en_dbg(DRV, priv, "Freeing fragment:%d\n", nr);
-		mlx4_en_free_frag(priv, frags + nr);
+		mlx4_en_free_frag(priv, ring, frags + nr);
 	}
 }
 
@@ -268,6 +239,7 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 			   u32 size, u16 stride, int node, int queue_index)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
+	struct page_pool_params pp = {};
 	struct mlx4_en_rx_ring *ring;
 	int err = -ENOMEM;
 	int tmp;
@@ -286,8 +258,25 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 	ring->log_stride = ffs(ring->stride) - 1;
 	ring->buf_size = ring->size * ring->stride + TXBB_SIZE;
 
-	if (xdp_rxq_info_reg(&ring->xdp_rxq, priv->dev, queue_index, 0) < 0)
+	pp.flags = PP_FLAG_DMA_MAP;
+	pp.pool_size = size * DIV_ROUND_UP(priv->rx_skb_size, PAGE_SIZE);
+	pp.nid = node;
+	pp.napi = &priv->rx_cq[queue_index]->napi;
+	pp.netdev = priv->dev;
+	pp.dev = &mdev->dev->persist->pdev->dev;
+	pp.dma_dir = priv->dma_dir;
+
+	ring->pp = page_pool_create(&pp);
+	if (!ring->pp)
 		goto err_ring;
+
+	if (xdp_rxq_info_reg(&ring->xdp_rxq, priv->dev, queue_index, 0) < 0)
+		goto err_pp;
+
+	err = xdp_rxq_info_reg_mem_model(&ring->xdp_rxq, MEM_TYPE_PAGE_POOL,
+					 ring->pp);
+	if (err)
+		goto err_xdp_info;
 
 	tmp = size * roundup_pow_of_two(MLX4_EN_MAX_RX_FRAGS *
 					sizeof(struct mlx4_en_rx_alloc));
@@ -319,6 +308,8 @@ err_info:
 	ring->rx_info = NULL;
 err_xdp_info:
 	xdp_rxq_info_unreg(&ring->xdp_rxq);
+err_pp:
+	page_pool_destroy(ring->pp);
 err_ring:
 	kfree(ring);
 	*pring = NULL;
@@ -409,26 +400,6 @@ void mlx4_en_recover_from_oom(struct mlx4_en_priv *priv)
 	}
 }
 
-/* When the rx ring is running in page-per-packet mode, a released frame can go
- * directly into a small cache, to avoid unmapping or touching the page
- * allocator. In bpf prog performance scenarios, buffers are either forwarded
- * or dropped, never converted to skbs, so every page can come directly from
- * this cache when it is sized to be a multiple of the napi budget.
- */
-bool mlx4_en_rx_recycle(struct mlx4_en_rx_ring *ring,
-			struct mlx4_en_rx_alloc *frame)
-{
-	struct mlx4_en_page_cache *cache = &ring->page_cache;
-
-	if (cache->index >= MLX4_EN_CACHE_SIZE)
-		return false;
-
-	cache->buf[cache->index].page = frame->page;
-	cache->buf[cache->index].dma = frame->dma;
-	cache->index++;
-	return true;
-}
-
 void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_rx_ring **pring,
 			     u32 size, u16 stride)
@@ -445,6 +416,7 @@ void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 	xdp_rxq_info_unreg(&ring->xdp_rxq);
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, size * stride + TXBB_SIZE);
 	kvfree(ring->rx_info);
+	page_pool_destroy(ring->pp);
 	ring->rx_info = NULL;
 	kfree(ring);
 	*pring = NULL;
@@ -453,14 +425,6 @@ void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 void mlx4_en_deactivate_rx_ring(struct mlx4_en_priv *priv,
 				struct mlx4_en_rx_ring *ring)
 {
-	int i;
-
-	for (i = 0; i < ring->page_cache.index; i++) {
-		dma_unmap_page(priv->ddev, ring->page_cache.buf[i].dma,
-			       PAGE_SIZE, priv->dma_dir);
-		put_page(ring->page_cache.buf[i].page);
-	}
-	ring->page_cache.index = 0;
 	mlx4_en_free_rx_buf(priv, ring);
 	if (ring->stride <= TXBB_SIZE)
 		ring->buf -= TXBB_SIZE;
@@ -487,7 +451,7 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 		if (unlikely(!page))
 			goto fail;
 
-		dma = frags->dma;
+		dma = page_pool_get_dma_addr(page);
 		dma_sync_single_range_for_cpu(priv->ddev, dma, frags->page_offset,
 					      frag_size, priv->dma_dir);
 
@@ -498,6 +462,7 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 		if (frag_info->frag_stride == PAGE_SIZE / 2) {
 			frags->page_offset ^= PAGE_SIZE / 2;
 			release = page_count(page) != 1 ||
+				  atomic_long_read(&page->pp_ref_count) != 1 ||
 				  page_is_pfmemalloc(page) ||
 				  page_to_nid(page) != numa_mem_id();
 		} else if (!priv->rx_headroom) {
@@ -511,10 +476,9 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 			release = frags->page_offset + frag_info->frag_size > PAGE_SIZE;
 		}
 		if (release) {
-			dma_unmap_page(priv->ddev, dma, PAGE_SIZE, priv->dma_dir);
 			frags->page = NULL;
 		} else {
-			page_ref_inc(page);
+			page_pool_ref_page(page);
 		}
 
 		nr++;
@@ -784,7 +748,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			/* Get pointer to first fragment since we haven't
 			 * skb yet and cast it to ethhdr struct
 			 */
-			dma = frags[0].dma + frags[0].page_offset;
+			dma = page_pool_get_dma_addr(frags[0].page);
+			dma += frags[0].page_offset;
 			dma_sync_single_for_cpu(priv->ddev, dma, sizeof(*ethh),
 						DMA_FROM_DEVICE);
 
@@ -823,7 +788,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			void *orig_data;
 			u32 act;
 
-			dma = frags[0].dma + frags[0].page_offset;
+			dma = page_pool_get_dma_addr(frags[0].page);
+			dma += frags[0].page_offset;
 			dma_sync_single_for_cpu(priv->ddev, dma,
 						priv->frag_info[0].frag_size,
 						DMA_FROM_DEVICE);
@@ -886,6 +852,7 @@ xdp_drop_no_cnt:
 		skb = napi_get_frags(&cq->napi);
 		if (unlikely(!skb))
 			goto next;
+		skb_mark_for_recycle(skb);
 
 		if (unlikely(ring->hwtstamp_rx_filter == HWTSTAMP_FILTER_ALL)) {
 			u64 timestamp = mlx4_en_get_cqe_ts(cqe);

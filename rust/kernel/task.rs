@@ -23,6 +23,8 @@ pub const MAX_SCHEDULE_TIMEOUT: c_long = c_long::MAX;
 pub const TASK_INTERRUPTIBLE: c_int = bindings::TASK_INTERRUPTIBLE as c_int;
 /// Bitmask for tasks that are sleeping in an uninterruptible state.
 pub const TASK_UNINTERRUPTIBLE: c_int = bindings::TASK_UNINTERRUPTIBLE as c_int;
+/// Bitmask for tasks that are sleeping in a freezable state.
+pub const TASK_FREEZABLE: c_int = bindings::TASK_FREEZABLE as c_int;
 /// Convenience constant for waking up tasks regardless of whether they are in interruptible or
 /// uninterruptible sleep.
 pub const TASK_NORMAL: c_uint = bindings::TASK_NORMAL as c_uint;
@@ -106,7 +108,7 @@ unsafe impl Send for Task {}
 unsafe impl Sync for Task {}
 
 /// The type of process identifiers (PIDs).
-type Pid = bindings::pid_t;
+pub type Pid = bindings::pid_t;
 
 /// The type of user identifiers (UIDs).
 #[derive(Copy, Clone)]

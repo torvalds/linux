@@ -26,13 +26,12 @@ static const char *const known_fs[] = {
 	"hfsplus", "hostfs", "hpfs", "hugetlbfs", "ibmasmfs", "iomem",
 	"ipathfs", "iso9660", "jffs2", "jfs", "minix", "mqueue", "msdos",
 	"nfs", "nfs4", "nfsd", "nilfs2", "nsfs", "ntfs", "ntfs3", "ocfs2",
-	"ocfs2_dlmfs", "ocxlflash", "omfs", "openpromfs", "overlay", "pipefs",
-	"proc", "pstore", "pvfs2", "qnx4", "qnx6", "ramfs",
-	"resctrl", "romfs", "rootfs", "rpc_pipefs", "s390_hypfs", "secretmem",
-	"securityfs", "selinuxfs", "smackfs", "smb3", "sockfs", "spufs",
-	"squashfs", "sysfs", "sysv", "tmpfs", "tracefs", "ubifs", "udf",
-	"ufs", "v7", "vboxsf", "vfat", "virtiofs", "vxfs", "xenfs", "xfs",
-	"zonefs", NULL };
+	"ocfs2_dlmfs", "omfs", "openpromfs", "overlay", "pipefs", "proc",
+	"pstore", "pvfs2", "qnx4", "qnx6", "ramfs", "resctrl", "romfs",
+	"rootfs", "rpc_pipefs", "s390_hypfs", "secretmem", "securityfs",
+	"selinuxfs", "smackfs", "smb3", "sockfs", "spufs", "squashfs", "sysfs",
+	"sysv", "tmpfs", "tracefs", "ubifs", "udf", "ufs", "v7", "vboxsf",
+	"vfat", "virtiofs", "vxfs", "xenfs", "xfs", "zonefs", NULL };
 
 static struct statmount *statmount_alloc(uint64_t mnt_id, uint64_t mask, unsigned int flags)
 {

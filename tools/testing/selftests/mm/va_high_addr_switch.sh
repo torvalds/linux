@@ -41,6 +41,31 @@ check_supported_x86_64()
 	fi
 }
 
+check_supported_ppc64()
+{
+	local config="/proc/config.gz"
+	[[ -f "${config}" ]] || config="/boot/config-$(uname -r)"
+	[[ -f "${config}" ]] || fail "Cannot find kernel config in /proc or /boot"
+
+	local pg_table_levels=$(gzip -dcfq "${config}" | grep PGTABLE_LEVELS | cut -d'=' -f 2)
+	if [[ "${pg_table_levels}" -lt 5 ]]; then
+		echo "$0: PGTABLE_LEVELS=${pg_table_levels}, must be >= 5 to run this test"
+		exit $ksft_skip
+	fi
+
+	local mmu_support=$(grep -m1 "mmu" /proc/cpuinfo | awk '{print $3}')
+	if [[ "$mmu_support" != "radix" ]]; then
+		echo "$0: System does not use Radix MMU, required for 5-level paging"
+		exit $ksft_skip
+	fi
+
+	local hugepages_total=$(awk '/HugePages_Total/ {print $2}' /proc/meminfo)
+	if [[ "${hugepages_total}" -eq 0 ]]; then
+		echo "$0: HugePages are not enabled, required for some tests"
+		exit $ksft_skip
+	fi
+}
+
 check_test_requirements()
 {
 	# The test supports x86_64 and powerpc64. We currently have no useful
@@ -49,6 +74,9 @@ check_test_requirements()
 	case `uname -m` in
 		"x86_64")
 			check_supported_x86_64
+		;;
+		"ppc64le"|"ppc64")
+			check_supported_ppc64
 		;;
 		*)
 			return 0

@@ -45,9 +45,7 @@ u16 crc_t10dif_arch(u16 crc, const u8 *data, size_t length)
 			crc_t10dif_pmull_p8(crc, data, length, buf);
 			kernel_neon_end();
 
-			crc = 0;
-			data = buf;
-			length = sizeof(buf);
+			return crc_t10dif_generic(0, buf, sizeof(buf));
 		}
 	}
 	return crc_t10dif_generic(crc, data, length);
@@ -69,12 +67,6 @@ static void __exit crc_t10dif_arm64_exit(void)
 {
 }
 module_exit(crc_t10dif_arm64_exit);
-
-bool crc_t10dif_is_optimized(void)
-{
-	return static_key_enabled(&have_asimd);
-}
-EXPORT_SYMBOL(crc_t10dif_is_optimized);
 
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
 MODULE_DESCRIPTION("CRC-T10DIF using arm64 NEON and Crypto Extensions");

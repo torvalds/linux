@@ -691,7 +691,8 @@ static int recently_deleted(struct super_block *sb, ext4_group_t group, int ino)
 	if (!bh || !buffer_uptodate(bh))
 		/*
 		 * If the block is not in the buffer cache, then it
-		 * must have been written out.
+		 * must have been written out, or, most unlikely, is
+		 * being migrated - false failure should be OK here.
 		 */
 		goto out;
 
@@ -951,8 +952,9 @@ struct inode *__ext4_new_inode(struct mnt_idmap *idmap,
 	sb = dir->i_sb;
 	sbi = EXT4_SB(sb);
 
-	if (unlikely(ext4_forced_shutdown(sb)))
-		return ERR_PTR(-EIO);
+	ret2 = ext4_emergency_state(sb);
+	if (unlikely(ret2))
+		return ERR_PTR(ret2);
 
 	ngroups = ext4_get_groups_count(sb);
 	trace_ext4_request_inode(dir, mode);
@@ -1282,7 +1284,7 @@ got:
 	inode->i_generation = get_random_u32();
 
 	/* Precompute checksum seed for inode metadata */
-	if (ext4_has_metadata_csum(sb)) {
+	if (ext4_has_feature_metadata_csum(sb)) {
 		__u32 csum;
 		__le32 inum = cpu_to_le32(inode->i_ino);
 		__le32 gen = cpu_to_le32(inode->i_generation);
@@ -1298,7 +1300,7 @@ got:
 	ei->i_extra_isize = sbi->s_want_extra_isize;
 	ei->i_inline_off = 0;
 	if (ext4_has_feature_inline_data(sb) &&
-	    (!(ei->i_flags & EXT4_DAX_FL) || S_ISDIR(mode)))
+	    (!(ei->i_flags & (EXT4_DAX_FL|EXT4_EA_INODE_FL)) || S_ISDIR(mode)))
 		ext4_set_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
 	ret = inode;
 	err = dquot_alloc_inode(inode);

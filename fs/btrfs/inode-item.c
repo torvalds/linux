@@ -191,8 +191,8 @@ int btrfs_del_inode_ref(struct btrfs_trans_handle *trans,
 	int del_len = name->len + sizeof(*ref);
 
 	key.objectid = inode_objectid;
-	key.offset = ref_objectid;
 	key.type = BTRFS_INODE_REF_KEY;
+	key.offset = ref_objectid;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -317,8 +317,8 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 	int ins_len = name->len + sizeof(*ref);
 
 	key.objectid = inode_objectid;
-	key.offset = ref_objectid;
 	key.type = BTRFS_INODE_REF_KEY;
+	key.offset = ref_objectid;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -493,8 +493,8 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	path->reada = READA_BACK;
 
 	key.objectid = control->ino;
-	key.offset = (u64)-1;
 	key.type = (u8)-1;
+	key.offset = (u64)-1;
 
 search_again:
 	/*

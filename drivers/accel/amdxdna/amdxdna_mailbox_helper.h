@@ -35,7 +35,7 @@ struct xdna_notify {
 		.notify_cb = xdna_msg_cb,				\
 	}
 
-int xdna_msg_cb(void *handle, const u32 *data, size_t size);
+int xdna_msg_cb(void *handle, void __iomem *data, size_t size);
 int xdna_send_msg_wait(struct amdxdna_dev *xdna, struct mailbox_channel *chann,
 		       struct xdna_mailbox_msg *msg);
 

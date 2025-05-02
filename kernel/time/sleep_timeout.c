@@ -97,7 +97,7 @@ signed long __sched schedule_timeout(signed long timeout)
 	timer.timer.expires = expire;
 	add_timer(&timer.timer);
 	schedule();
-	del_timer_sync(&timer.timer);
+	timer_delete_sync(&timer.timer);
 
 	/* Remove the timer from the object tracker */
 	destroy_timer_on_stack(&timer.timer);

@@ -205,7 +205,7 @@
 
 /* T2_GPIO_2 low to route GPIO_61 to on-board devices */
 &twl_gpio {
-	en_on_board_gpio_61 {
+	en-on-board-gpio-61-hog {
 		gpio-hog;
 		gpios = <2 GPIO_ACTIVE_HIGH>;
 		output-low;

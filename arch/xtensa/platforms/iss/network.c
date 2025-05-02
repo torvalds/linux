@@ -375,7 +375,7 @@ static int iss_net_close(struct net_device *dev)
 	struct iss_net_private *lp = netdev_priv(dev);
 
 	netif_stop_queue(dev);
-	del_timer_sync(&lp->timer);
+	timer_delete_sync(&lp->timer);
 	lp->tp.net_ops->close(lp);
 
 	return 0;
