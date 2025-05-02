@@ -211,9 +211,14 @@ void bch2_snapshot_to_text(struct printbuf *out, struct bch_fs *c,
 {
 	struct bkey_s_c_snapshot s = bkey_s_c_to_snapshot(k);
 
-	prt_printf(out, "is_subvol %llu deleted %llu parent %10u children %10u %10u subvol %u tree %u",
-	       BCH_SNAPSHOT_SUBVOL(s.v),
-	       BCH_SNAPSHOT_WILL_DELETE(s.v),
+	if (BCH_SNAPSHOT_SUBVOL(s.v))
+		prt_str(out, "subvol ");
+	if (BCH_SNAPSHOT_WILL_DELETE(s.v))
+		prt_str(out, "will_delete ");
+	if (BCH_SNAPSHOT_DELETED(s.v))
+		prt_str(out, "deleted ");
+
+	prt_printf(out, "parent %10u children %10u %10u subvol %u tree %u",
 	       le32_to_cpu(s.v->parent),
 	       le32_to_cpu(s.v->children[0]),
 	       le32_to_cpu(s.v->children[1]),
@@ -314,7 +319,9 @@ static int __bch2_mark_snapshot(struct btree_trans *trans,
 	if (new.k->type == KEY_TYPE_snapshot) {
 		struct bkey_s_c_snapshot s = bkey_s_c_to_snapshot(new);
 
-		t->live		= true;
+		t->state	= !BCH_SNAPSHOT_DELETED(s.v)
+			? SNAPSHOT_ID_live
+			: SNAPSHOT_ID_deleted;
 		t->parent	= le32_to_cpu(s.v->parent);
 		t->children[0]	= le32_to_cpu(s.v->children[0]);
 		t->children[1]	= le32_to_cpu(s.v->children[1]);
@@ -711,6 +718,9 @@ static int check_snapshot(struct btree_trans *trans,
 	memset(&s, 0, sizeof(s));
 	memcpy(&s, k.v, min(sizeof(s), bkey_val_bytes(k.k)));
 
+	if (BCH_SNAPSHOT_DELETED(&s))
+		return 0;
+
 	id = le32_to_cpu(s.parent);
 	if (id) {
 		ret = bch2_snapshot_lookup(trans, id, &v);
@@ -998,7 +1008,7 @@ int bch2_reconstruct_snapshots(struct bch_fs *c)
 		snapshot_id_list_to_text(&buf, t);
 
 		darray_for_each(*t, id) {
-			if (fsck_err_on(!bch2_snapshot_exists(c, *id),
+			if (fsck_err_on(bch2_snapshot_id_state(c, *id) == SNAPSHOT_ID_empty,
 					trans, snapshot_node_missing,
 					"snapshot node %u from tree %s missing, recreate?", *id, buf.buf)) {
 				if (t->nr > 1) {
@@ -1023,22 +1033,38 @@ err:
 	return ret;
 }
 
-int bch2_check_key_has_snapshot(struct btree_trans *trans,
-				struct btree_iter *iter,
-				struct bkey_s_c k)
+int __bch2_check_key_has_snapshot(struct btree_trans *trans,
+				  struct btree_iter *iter,
+				  struct bkey_s_c k)
 {
 	struct bch_fs *c = trans->c;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
+	enum snapshot_id_state state = bch2_snapshot_id_state(c, k.k->p.snapshot);
 
-	if (fsck_err_on(!bch2_snapshot_exists(c, k.k->p.snapshot),
+	/* Snapshot was definitively deleted, this error is marked autofix */
+	if (fsck_err_on(state == SNAPSHOT_ID_deleted,
+			trans, bkey_in_deleted_snapshot,
+			"key in deleted snapshot %s, delete?",
+			(bch2_btree_id_to_text(&buf, iter->btree_id),
+			 prt_char(&buf, ' '),
+			 bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
+		ret = bch2_btree_delete_at(trans, iter,
+					   BTREE_UPDATE_internal_snapshot_node) ?: 1;
+
+	/*
+	 * Snapshot missing: we should have caught this with btree_lost_data and
+	 * kicked off reconstruct_snapshots, so if we end up here we have no
+	 * idea what happened:
+	 */
+	if (fsck_err_on(state == SNAPSHOT_ID_empty,
 			trans, bkey_in_missing_snapshot,
 			"key in missing snapshot %s, delete?",
 			(bch2_btree_id_to_text(&buf, iter->btree_id),
 			 prt_char(&buf, ' '),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
 		ret = bch2_btree_delete_at(trans, iter,
-					    BTREE_UPDATE_internal_snapshot_node) ?: 1;
+					   BTREE_UPDATE_internal_snapshot_node) ?: 1;
 fsck_err:
 	printbuf_exit(&buf);
 	return ret;
@@ -1085,24 +1111,25 @@ static int bch2_snapshot_node_delete(struct btree_trans *trans, u32 id)
 	struct btree_iter iter, p_iter = {};
 	struct btree_iter c_iter = {};
 	struct btree_iter tree_iter = {};
-	struct bkey_s_c_snapshot s;
 	u32 parent_id, child_id;
 	unsigned i;
 	int ret = 0;
 
-	s = bch2_bkey_get_iter_typed(trans, &iter, BTREE_ID_snapshots, POS(0, id),
-				     BTREE_ITER_intent, snapshot);
-	ret = bkey_err(s);
+	struct bkey_i_snapshot *s =
+		bch2_bkey_get_mut_typed(trans, &iter, BTREE_ID_snapshots, POS(0, id),
+					BTREE_ITER_intent, snapshot);
+	ret = PTR_ERR_OR_ZERO(s);
 	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), c,
 				"missing snapshot %u", id);
 
 	if (ret)
 		goto err;
 
-	BUG_ON(s.v->children[1]);
+	BUG_ON(BCH_SNAPSHOT_DELETED(&s->v));
+	BUG_ON(s->v.children[1]);
 
-	parent_id = le32_to_cpu(s.v->parent);
-	child_id = le32_to_cpu(s.v->children[0]);
+	parent_id = le32_to_cpu(s->v.parent);
+	child_id = le32_to_cpu(s->v.children[0]);
 
 	if (parent_id) {
 		struct bkey_i_snapshot *parent;
@@ -1160,24 +1187,38 @@ static int bch2_snapshot_node_delete(struct btree_trans *trans, u32 id)
 		 */
 		struct bkey_i_snapshot_tree *s_t;
 
-		BUG_ON(s.v->children[1]);
+		BUG_ON(s->v.children[1]);
 
 		s_t = bch2_bkey_get_mut_typed(trans, &tree_iter,
-				BTREE_ID_snapshot_trees, POS(0, le32_to_cpu(s.v->tree)),
+				BTREE_ID_snapshot_trees, POS(0, le32_to_cpu(s->v.tree)),
 				0, snapshot_tree);
 		ret = PTR_ERR_OR_ZERO(s_t);
 		if (ret)
 			goto err;
 
-		if (s.v->children[0]) {
-			s_t->v.root_snapshot = s.v->children[0];
+		if (s->v.children[0]) {
+			s_t->v.root_snapshot = s->v.children[0];
 		} else {
 			s_t->k.type = KEY_TYPE_deleted;
 			set_bkey_val_u64s(&s_t->k, 0);
 		}
 	}
 
-	ret = bch2_btree_delete_at(trans, &iter, 0);
+	if (!bch2_request_incompat_feature(c, bcachefs_metadata_version_snapshot_deletion_v2)) {
+		SET_BCH_SNAPSHOT_DELETED(&s->v, true);
+		s->v.parent		= 0;
+		s->v.children[0]	= 0;
+		s->v.children[1]	= 0;
+		s->v.subvol		= 0;
+		s->v.tree		= 0;
+		s->v.depth		= 0;
+		s->v.skip[0]		= 0;
+		s->v.skip[1]		= 0;
+		s->v.skip[2]		= 0;
+	} else {
+		s->k.type = KEY_TYPE_deleted;
+		set_bkey_val_u64s(&s->k, 0);
+	}
 err:
 	bch2_trans_iter_exit(trans, &tree_iter);
 	bch2_trans_iter_exit(trans, &p_iter);
@@ -1478,6 +1519,9 @@ static int check_should_delete_snapshot(struct btree_trans *trans, struct bkey_s
 	if (BCH_SNAPSHOT_SUBVOL(s.v))
 		return 0;
 
+	if (BCH_SNAPSHOT_DELETED(s.v))
+		return 0;
+
 	mutex_lock(&d->progress_lock);
 	for (unsigned i = 0; i < 2; i++) {
 		u32 child = le32_to_cpu(s.v->children[i]);
@@ -1535,6 +1579,9 @@ static int bch2_fix_child_of_deleted_snapshot(struct btree_trans *trans,
 	u32 nr_deleted_ancestors = 0;
 	struct bkey_i_snapshot *s;
 	int ret;
+
+	if (!bch2_snapshot_exists(c, k.k->p.offset))
+		return 0;
 
 	if (k.k->type != KEY_TYPE_snapshot)
 		return 0;
