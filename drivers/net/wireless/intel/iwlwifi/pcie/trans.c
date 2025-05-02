@@ -3551,8 +3551,8 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 				       trans->dbg.dest_tlv->base_shift;
 			}
 
-			iwl_trans_read_mem(trans, base, fw_mon_data->data,
-					   monitor_len / sizeof(u32));
+			iwl_trans_pcie_read_mem(trans, base, fw_mon_data->data,
+						monitor_len / sizeof(u32));
 		} else if (trans->dbg.dest_tlv->monitor_mode == MARBH_MODE) {
 			monitor_len =
 				iwl_trans_pci_dump_marbh_monitor(trans,
