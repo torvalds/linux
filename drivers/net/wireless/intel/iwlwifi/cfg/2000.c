@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2018 - 2020, 2023 Intel Corporation
+ * Copyright(c) 2018 - 2020, 2023, 2025 Intel Corporation
  *****************************************************************************/
 
 #include <linux/module.h>
@@ -86,96 +86,102 @@ static const struct iwl_eeprom_params iwl20x0_eeprom_params = {
 	.enhanced_txpower = true,
 };
 
+const struct iwl_cfg_trans_params iwl2000_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_2000,
+	.base_params = &iwl2000_base_params,
+};
+
 #define IWL_DEVICE_2000						\
 	.fw_name_pre = IWL2000_FW_PRE,				\
 	.ucode_api_max = IWL2000_UCODE_API_MAX,			\
 	.ucode_api_min = IWL2000_UCODE_API_MIN,			\
-	.trans.device_family = IWL_DEVICE_FAMILY_2000,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.nvm_ver = EEPROM_2000_EEPROM_VERSION,			\
 	.nvm_calib_ver = EEPROM_2000_TX_POWER_VERSION,		\
-	.trans.base_params = &iwl2000_base_params,		\
 	.eeprom_params = &iwl20x0_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE
 
 
 const struct iwl_cfg iwl2000_2bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 2200 BGN",
 	IWL_DEVICE_2000,
 	.ht_params = &iwl2000_ht_params,
 };
 
-const struct iwl_cfg iwl2000_2bgn_d_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 2200D BGN",
-	IWL_DEVICE_2000,
-	.ht_params = &iwl2000_ht_params,
+const char iwl2000_2bgn_name[] = "Intel(R) Centrino(R) Wireless-N 2200 BGN";
+const char iwl2000_2bgn_d_name[] = "Intel(R) Centrino(R) Wireless-N 2200D BGN";
+
+const struct iwl_cfg_trans_params iwl2030_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_2030,
+	.base_params = &iwl2030_base_params,
 };
 
 #define IWL_DEVICE_2030						\
 	.fw_name_pre = IWL2030_FW_PRE,				\
 	.ucode_api_max = IWL2030_UCODE_API_MAX,			\
 	.ucode_api_min = IWL2030_UCODE_API_MIN,			\
-	.trans.device_family = IWL_DEVICE_FAMILY_2030,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.nvm_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.nvm_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
-	.trans.base_params = &iwl2030_base_params,		\
 	.eeprom_params = &iwl20x0_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE
 
 const struct iwl_cfg iwl2030_2bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 2230 BGN",
 	IWL_DEVICE_2030,
 	.ht_params = &iwl2000_ht_params,
+};
+
+const char iwl2030_2bgn_name[] = "Intel(R) Centrino(R) Wireless-N 2230 BGN";
+
+const struct iwl_cfg_trans_params iwl105_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_105,
+	.base_params = &iwl2000_base_params,
 };
 
 #define IWL_DEVICE_105						\
 	.fw_name_pre = IWL105_FW_PRE,				\
 	.ucode_api_max = IWL105_UCODE_API_MAX,			\
 	.ucode_api_min = IWL105_UCODE_API_MIN,			\
-	.trans.device_family = IWL_DEVICE_FAMILY_105,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.nvm_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.nvm_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
-	.trans.base_params = &iwl2000_base_params,		\
 	.eeprom_params = &iwl20x0_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.rx_with_siso_diversity = true
 
 const struct iwl_cfg iwl105_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 105 BGN",
 	IWL_DEVICE_105,
 	.ht_params = &iwl2000_ht_params,
 };
 
-const struct iwl_cfg iwl105_bgn_d_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 105D BGN",
-	IWL_DEVICE_105,
-	.ht_params = &iwl2000_ht_params,
+const char iwl105_bgn_name[] = "Intel(R) Centrino(R) Wireless-N 105 BGN";
+const char iwl105_bgn_d_name[] = "Intel(R) Centrino(R) Wireless-N 105D BGN";
+
+const struct iwl_cfg_trans_params iwl135_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_135,
+	.base_params = &iwl2030_base_params,
 };
 
 #define IWL_DEVICE_135						\
 	.fw_name_pre = IWL135_FW_PRE,				\
 	.ucode_api_max = IWL135_UCODE_API_MAX,			\
 	.ucode_api_min = IWL135_UCODE_API_MIN,			\
-	.trans.device_family = IWL_DEVICE_FAMILY_135,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.nvm_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.nvm_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
-	.trans.base_params = &iwl2030_base_params,		\
 	.eeprom_params = &iwl20x0_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.rx_with_siso_diversity = true
 
 const struct iwl_cfg iwl135_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 135 BGN",
 	IWL_DEVICE_135,
 	.ht_params = &iwl2000_ht_params,
 };
+
+const char iwl135_bgn_name[] = "Intel(R) Centrino(R) Wireless-N 135 BGN";
 
 MODULE_FIRMWARE(IWL2000_MODULE_FIRMWARE(IWL2000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL2030_MODULE_FIRMWARE(IWL2030_UCODE_API_MAX));

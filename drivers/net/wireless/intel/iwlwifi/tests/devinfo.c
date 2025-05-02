@@ -175,11 +175,7 @@ static void devinfo_no_trans_cfg_dups(struct kunit *test)
 		struct iwl_cfg_trans_params *cfg;
 		bool found = false;
 
-		if (!(iwl_hw_card_ids[i].driver_data & TRANS_CFG_MARKER))
-			continue;
-
-		cfg = (void *)(iwl_hw_card_ids[i].driver_data &
-			       ~TRANS_CFG_MARKER);
+		cfg = (void *)iwl_hw_card_ids[i].driver_data;
 
 		for (int j = 0; j < p; j++) {
 			if (cfgs[j] == cfg) {

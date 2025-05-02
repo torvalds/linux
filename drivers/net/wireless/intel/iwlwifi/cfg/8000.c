@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2014, 2018-2020, 2023 Intel Corporation
+ * Copyright (C) 2014, 2018-2020, 2023, 2025 Intel Corporation
  * Copyright (C) 2014-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016 Intel Deutschland GmbH
  */
@@ -76,9 +76,12 @@ static const struct iwl_tt_params iwl8000_tt_params = {
 	.support_tx_backoff = true,
 };
 
+const struct iwl_cfg_trans_params iwl8000_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_8000,
+	.base_params = &iwl8000_base_params,
+};
+
 #define IWL_DEVICE_8000_COMMON						\
-	.trans.device_family = IWL_DEVICE_FAMILY_8000,			\
-	.trans.base_params = &iwl8000_base_params,			\
 	.led_mode = IWL_LED_RF_STATE,					\
 	.nvm_hw_section_num = 10,					\
 	.features = NETIF_F_RXCSUM,					\
@@ -96,11 +99,6 @@ static const struct iwl_tt_params iwl8000_tt_params = {
 	.dbgc_supported = true,						\
 	.min_umac_error_event_table = 0x800000
 
-#define IWL_DEVICE_8000							\
-	IWL_DEVICE_8000_COMMON,						\
-	.ucode_api_max = IWL8000_UCODE_API_MAX,				\
-	.ucode_api_min = IWL8000_UCODE_API_MIN				\
-
 #define IWL_DEVICE_8260							\
 	IWL_DEVICE_8000_COMMON,						\
 	.ucode_api_max = IWL8000_UCODE_API_MAX,				\
@@ -111,46 +109,26 @@ static const struct iwl_tt_params iwl8000_tt_params = {
 	.ucode_api_max = IWL8265_UCODE_API_MAX,				\
 	.ucode_api_min = IWL8265_UCODE_API_MIN				\
 
-const struct iwl_cfg iwl8260_2n_cfg = {
-	.name = "Intel(R) Dual Band Wireless N 8260",
+const char iwl8260_2n_name[] = "Intel(R) Dual Band Wireless N 8260";
+const char iwl8260_2ac_name[] = "Intel(R) Dual Band Wireless AC 8260";
+const char iwl8265_2ac_name[] = "Intel(R) Dual Band Wireless AC 8265";
+const char iwl8275_2ac_name[] = "Intel(R) Dual Band Wireless AC 8275";
+const char iwl4165_2ac_name[] = "Intel(R) Dual Band Wireless AC 4165";
+
+const struct iwl_cfg iwl8260_cfg = {
 	.fw_name_pre = IWL8000_FW_PRE,
 	IWL_DEVICE_8260,
 	.ht_params = &iwl8000_ht_params,
 	.nvm_ver = IWL8000_NVM_VERSION,
 };
 
-const struct iwl_cfg iwl8260_2ac_cfg = {
-	.name = "Intel(R) Dual Band Wireless AC 8260",
-	.fw_name_pre = IWL8000_FW_PRE,
-	IWL_DEVICE_8260,
-	.ht_params = &iwl8000_ht_params,
-	.nvm_ver = IWL8000_NVM_VERSION,
-};
-
-const struct iwl_cfg iwl8265_2ac_cfg = {
+const struct iwl_cfg iwl8265_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 8265",
 	.fw_name_pre = IWL8265_FW_PRE,
 	IWL_DEVICE_8265,
 	.ht_params = &iwl8000_ht_params,
 	.nvm_ver = IWL8000_NVM_VERSION,
 	.vht_mu_mimo_supported = true,
-};
-
-const struct iwl_cfg iwl8275_2ac_cfg = {
-	.name = "Intel(R) Dual Band Wireless AC 8275",
-	.fw_name_pre = IWL8265_FW_PRE,
-	IWL_DEVICE_8265,
-	.ht_params = &iwl8000_ht_params,
-	.nvm_ver = IWL8000_NVM_VERSION,
-	.vht_mu_mimo_supported = true,
-};
-
-const struct iwl_cfg iwl4165_2ac_cfg = {
-	.name = "Intel(R) Dual Band Wireless AC 4165",
-	.fw_name_pre = IWL8000_FW_PRE,
-	IWL_DEVICE_8000,
-	.ht_params = &iwl8000_ht_params,
-	.nvm_ver = IWL8000_NVM_VERSION,
 };
 
 MODULE_FIRMWARE(IWL8000_MODULE_FIRMWARE(IWL8000_UCODE_API_MAX));

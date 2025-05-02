@@ -61,12 +61,9 @@ static const struct iwl_base_params iwl_dr_base_params = {
 	.smem_offset = IWL_DR_SMEM_OFFSET,				\
 	.smem_len = IWL_DR_SMEM_LEN,					\
 	.apmg_not_supported = true,					\
-	.trans.mq_rx_supported = true,					\
 	.vht_mu_mimo_supported = true,					\
 	.mac_addr_from_csr = 0x30,					\
 	.nvm_ver = IWL_DR_NVM_VERSION,				\
-	.trans.rf_id = true,						\
-	.trans.gen2 = true,						\
 	.nvm_type = IWL_NVM_EXT,					\
 	.dbgc_supported = true,						\
 	.min_umac_error_event_table = 0xD0000,				\
@@ -82,9 +79,6 @@ static const struct iwl_base_params iwl_dr_base_params = {
 			.mask = LDBG_M2S_BUF_WRAP_CNT_VAL_MSK,		\
 		},							\
 	},								\
-	.trans.umac_prph_offset = 0x300000,				\
-	.trans.device_family = IWL_DEVICE_FAMILY_DR,			\
-	.trans.base_params = &iwl_dr_base_params,			\
 	.min_txq_size = 128,						\
 	.gp2_reg_addr = 0xd02c68,					\
 	.min_ba_txq_size = IWL_DEFAULT_QUEUE_SIZE_EHT,			\

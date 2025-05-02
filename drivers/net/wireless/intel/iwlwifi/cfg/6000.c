@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2018 - 2020, 2023 Intel Corporation
+ * Copyright(c) 2018 - 2020, 2023, 2025 Intel Corporation
  *****************************************************************************/
 
 #include <linux/module.h>
@@ -107,141 +107,110 @@ static const struct iwl_eeprom_params iwl6000_eeprom_params = {
 	.enhanced_txpower = true,
 };
 
+const struct iwl_cfg_trans_params iwl6005_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_6005,
+	.base_params = &iwl6000_g2_base_params,
+};
+
 #define IWL_DEVICE_6005						\
 	.fw_name_pre = IWL6005_FW_PRE,				\
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,		\
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,		\
-	.trans.device_family = IWL_DEVICE_FAMILY_6005,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.nvm_ver = EEPROM_6005_EEPROM_VERSION,		\
 	.nvm_calib_ver = EEPROM_6005_TX_POWER_VERSION,	\
-	.trans.base_params = &iwl6000_g2_base_params,		\
 	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE
 
-const struct iwl_cfg iwl6005_2agn_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6205 AGN",
+const struct iwl_cfg iwl6005_n_cfg = {
 	IWL_DEVICE_6005,
 	.ht_params = &iwl6000_ht_params,
 };
 
-const struct iwl_cfg iwl6005_2abg_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6205 ABG",
+const char iwl6005_2agn_name[] = "Intel(R) Centrino(R) Advanced-N 6205 AGN";
+const char iwl6005_2agn_sff_name[] = "Intel(R) Centrino(R) Advanced-N 6205S AGN";
+const char iwl6005_2agn_d_name[] = "Intel(R) Centrino(R) Advanced-N 6205D AGN";
+const char iwl6005_2agn_mow1_name[] = "Intel(R) Centrino(R) Advanced-N 6206 AGN";
+const char iwl6005_2agn_mow2_name[] = "Intel(R) Centrino(R) Advanced-N 6207 AGN";
+
+const struct iwl_cfg iwl6005_non_n_cfg = {
 	IWL_DEVICE_6005,
 };
 
-const struct iwl_cfg iwl6005_2bg_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6205 BG",
-	IWL_DEVICE_6005,
-};
+const char iwl6005_2abg_name[] = "Intel(R) Centrino(R) Advanced-N 6205 ABG";
+const char iwl6005_2bg_name[] = "Intel(R) Centrino(R) Advanced-N 6205 BG";
 
-const struct iwl_cfg iwl6005_2agn_sff_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6205S AGN",
-	IWL_DEVICE_6005,
-	.ht_params = &iwl6000_ht_params,
-};
-
-const struct iwl_cfg iwl6005_2agn_d_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6205D AGN",
-	IWL_DEVICE_6005,
-	.ht_params = &iwl6000_ht_params,
-};
-
-const struct iwl_cfg iwl6005_2agn_mow1_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6206 AGN",
-	IWL_DEVICE_6005,
-	.ht_params = &iwl6000_ht_params,
-};
-
-const struct iwl_cfg iwl6005_2agn_mow2_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6207 AGN",
-	IWL_DEVICE_6005,
-	.ht_params = &iwl6000_ht_params,
+const struct iwl_cfg_trans_params iwl6030_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_6030,
+	.base_params = &iwl6000_g2_base_params,
 };
 
 #define IWL_DEVICE_6030						\
 	.fw_name_pre = IWL6030_FW_PRE,				\
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,		\
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,		\
-	.trans.device_family = IWL_DEVICE_FAMILY_6030,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.nvm_ver = EEPROM_6030_EEPROM_VERSION,		\
 	.nvm_calib_ver = EEPROM_6030_TX_POWER_VERSION,	\
-	.trans.base_params = &iwl6000_g2_base_params,		\
 	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE
 
-const struct iwl_cfg iwl6030_2agn_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6230 AGN",
+const struct iwl_cfg iwl6030_n_cfg = {
 	IWL_DEVICE_6030,
 	.ht_params = &iwl6000_ht_params,
 };
 
-const struct iwl_cfg iwl6030_2abg_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6230 ABG",
+const char iwl6030_2agn_name[] = "Intel(R) Centrino(R) Advanced-N 6230 AGN";
+const char iwl6030_2bgn_name[] = "Intel(R) Centrino(R) Advanced-N 6230 BGN";
+const char iwl1030_bgn_name[] = "Intel(R) Centrino(R) Wireless-N 1030 BGN";
+const char iwl1030_bg_name[] = "Intel(R) Centrino(R) Wireless-N 1030 BG";
+
+const struct iwl_cfg iwl6030_non_n_cfg = {
 	IWL_DEVICE_6030,
 };
 
-const struct iwl_cfg iwl6030_2bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6230 BGN",
-	IWL_DEVICE_6030,
-	.ht_params = &iwl6000_ht_params,
-};
-
-const struct iwl_cfg iwl6030_2bg_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6230 BG",
-	IWL_DEVICE_6030,
-};
+const char iwl6030_2abg_name[] = "Intel(R) Centrino(R) Advanced-N 6230 ABG";
+const char iwl6030_2bg_name[] = "Intel(R) Centrino(R) Advanced-N 6230 BG";
 
 #define IWL_DEVICE_6035						\
 	.fw_name_pre = IWL6030_FW_PRE,				\
 	.ucode_api_max = IWL6035_UCODE_API_MAX,			\
 	.ucode_api_min = IWL6035_UCODE_API_MIN,			\
-	.trans.device_family = IWL_DEVICE_FAMILY_6030,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.nvm_ver = EEPROM_6030_EEPROM_VERSION,		\
 	.nvm_calib_ver = EEPROM_6030_TX_POWER_VERSION,	\
-	.trans.base_params = &iwl6000_g2_base_params,		\
 	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE
 
 const struct iwl_cfg iwl6035_2agn_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6235 AGN",
 	IWL_DEVICE_6035,
 	.ht_params = &iwl6000_ht_params,
 };
 
-const struct iwl_cfg iwl6035_2agn_sff_cfg = {
-	.name = "Intel(R) Centrino(R) Ultimate-N 6235 AGN",
-	IWL_DEVICE_6035,
-	.ht_params = &iwl6000_ht_params,
-};
-
-const struct iwl_cfg iwl1030_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 1030 BGN",
-	IWL_DEVICE_6030,
-	.ht_params = &iwl6000_ht_params,
-};
-
-const struct iwl_cfg iwl1030_bg_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 1030 BG",
-	IWL_DEVICE_6030,
-};
+const char iwl6035_2agn_name[] = "Intel(R) Centrino(R) Advanced-N 6235 AGN";
+const char iwl6035_2agn_sff_name[] = "Intel(R) Centrino(R) Ultimate-N 6235 AGN";
 
 const struct iwl_cfg iwl130_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 130 BGN",
 	IWL_DEVICE_6030,
 	.ht_params = &iwl6000_ht_params,
 	.rx_with_siso_diversity = true,
 };
 
+const char iwl130_bgn_name[] = "Intel(R) Centrino(R) Wireless-N 130 BGN";
+
 const struct iwl_cfg iwl130_bg_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N 130 BG",
 	IWL_DEVICE_6030,
 	.rx_with_siso_diversity = true,
+};
+
+const char iwl130_bg_name[] = "Intel(R) Centrino(R) Wireless-N 130 BG";
+
+const struct iwl_cfg_trans_params iwl6000i_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_6000i,
+	.base_params = &iwl6000_base_params,
 };
 
 /*
@@ -251,100 +220,110 @@ const struct iwl_cfg iwl130_bg_cfg = {
 	.fw_name_pre = IWL6000_FW_PRE,				\
 	.ucode_api_max = IWL6000_UCODE_API_MAX,			\
 	.ucode_api_min = IWL6000_UCODE_API_MIN,			\
-	.trans.device_family = IWL_DEVICE_FAMILY_6000i,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.valid_tx_ant = ANT_BC,		/* .cfg overwrite */	\
 	.valid_rx_ant = ANT_BC,		/* .cfg overwrite */	\
 	.nvm_ver = EEPROM_6000_EEPROM_VERSION,		\
 	.nvm_calib_ver = EEPROM_6000_TX_POWER_VERSION,	\
-	.trans.base_params = &iwl6000_base_params,		\
 	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_BLINK
 
 const struct iwl_cfg iwl6000i_2agn_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6200 AGN",
 	IWL_DEVICE_6000i,
 	.ht_params = &iwl6000_ht_params,
 };
 
-const struct iwl_cfg iwl6000i_2abg_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6200 ABG",
+const char iwl6000i_2agn_name[] = "Intel(R) Centrino(R) Advanced-N 6200 AGN";
+
+const struct iwl_cfg iwl6000i_non_n_cfg = {
 	IWL_DEVICE_6000i,
 };
 
-const struct iwl_cfg iwl6000i_2bg_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N 6200 BG",
-	IWL_DEVICE_6000i,
+const char iwl6000i_2abg_name[] = "Intel(R) Centrino(R) Advanced-N 6200 ABG";
+const char iwl6000i_2bg_name[] = "Intel(R) Centrino(R) Advanced-N 6200 BG";
+
+const struct iwl_cfg_trans_params iwl6050_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_6050,
+	.base_params = &iwl6050_base_params,
 };
 
 #define IWL_DEVICE_6050						\
 	.fw_name_pre = IWL6050_FW_PRE,				\
 	.ucode_api_max = IWL6050_UCODE_API_MAX,			\
 	.ucode_api_min = IWL6050_UCODE_API_MIN,			\
-	.trans.device_family = IWL_DEVICE_FAMILY_6050,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.valid_tx_ant = ANT_AB,		/* .cfg overwrite */	\
 	.valid_rx_ant = ANT_AB,		/* .cfg overwrite */	\
 	.nvm_ver = EEPROM_6050_EEPROM_VERSION,		\
 	.nvm_calib_ver = EEPROM_6050_TX_POWER_VERSION,	\
-	.trans.base_params = &iwl6050_base_params,		\
 	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_BLINK,				\
 	.internal_wimax_coex = true
 
 const struct iwl_cfg iwl6050_2agn_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 AGN",
 	IWL_DEVICE_6050,
 	.ht_params = &iwl6000_ht_params,
 };
 
+const char iwl6050_2agn_name[] = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 AGN";
+
 const struct iwl_cfg iwl6050_2abg_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 ABG",
 	IWL_DEVICE_6050,
+};
+
+const char iwl6050_2abg_name[] = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 ABG";
+
+const struct iwl_cfg_trans_params iwl6150_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_6150,
+	.base_params = &iwl6050_base_params,
 };
 
 #define IWL_DEVICE_6150						\
 	.fw_name_pre = IWL6050_FW_PRE,				\
 	.ucode_api_max = IWL6050_UCODE_API_MAX,			\
 	.ucode_api_min = IWL6050_UCODE_API_MIN,			\
-	.trans.device_family = IWL_DEVICE_FAMILY_6150,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.nvm_ver = EEPROM_6150_EEPROM_VERSION,		\
 	.nvm_calib_ver = EEPROM_6150_TX_POWER_VERSION,	\
-	.trans.base_params = &iwl6050_base_params,		\
 	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_BLINK,				\
 	.internal_wimax_coex = true
 
 const struct iwl_cfg iwl6150_bgn_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N + WiMAX 6150 BGN",
 	IWL_DEVICE_6150,
 	.ht_params = &iwl6000_ht_params,
 };
 
+const char iwl6150_bgn_name[] = "Intel(R) Centrino(R) Wireless-N + WiMAX 6150 BGN";
+
 const struct iwl_cfg iwl6150_bg_cfg = {
-	.name = "Intel(R) Centrino(R) Wireless-N + WiMAX 6150 BG",
 	IWL_DEVICE_6150,
 };
 
+const char iwl6150_bg_name[] = "Intel(R) Centrino(R) Wireless-N + WiMAX 6150 BG";
+
+const struct iwl_cfg_trans_params iwl6000_trans_cfg = {
+	.device_family = IWL_DEVICE_FAMILY_6000,
+	.base_params = &iwl6000_base_params,
+};
+
 const struct iwl_cfg iwl6000_3agn_cfg = {
-	.name = "Intel(R) Centrino(R) Ultimate-N 6300 AGN",
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
-	.trans.device_family = IWL_DEVICE_FAMILY_6000,
 	.max_inst_size = IWL60_RTC_INST_SIZE,
 	.max_data_size = IWL60_RTC_DATA_SIZE,
 	.nvm_ver = EEPROM_6000_EEPROM_VERSION,
 	.nvm_calib_ver = EEPROM_6000_TX_POWER_VERSION,
-	.trans.base_params = &iwl6000_base_params,
 	.eeprom_params = &iwl6000_eeprom_params,
 	.ht_params = &iwl6000_ht_params,
 	.led_mode = IWL_LED_BLINK,
 };
+
+const char iwl6000_3agn_name[] = "Intel(R) Centrino(R) Ultimate-N 6300 AGN";
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL6050_MODULE_FIRMWARE(IWL6050_UCODE_API_MAX));

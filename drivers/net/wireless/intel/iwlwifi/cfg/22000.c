@@ -81,13 +81,10 @@ const struct iwl_ht_params iwl_22000_ht_params = {
 	.smem_len = IWL_22000_SMEM_LEN,					\
 	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,		\
 	.apmg_not_supported = true,					\
-	.trans.mq_rx_supported = true,					\
 	.vht_mu_mimo_supported = true,					\
 	.mac_addr_from_csr = 0x380,					\
 	.ht_params = &iwl_22000_ht_params,				\
 	.nvm_ver = IWL_22000_NVM_VERSION,				\
-	.trans.rf_id = true,						\
-	.trans.gen2 = true,						\
 	.nvm_type = IWL_NVM_EXT,					\
 	.dbgc_supported = true,						\
 	.min_umac_error_event_table = 0x400000,				\
@@ -107,8 +104,6 @@ const struct iwl_ht_params iwl_22000_ht_params = {
 #define IWL_DEVICE_22500						\
 	IWL_DEVICE_22000_COMMON,					\
 	.ucode_api_max = IWL_22000_UCODE_API_MAX,			\
-	.trans.device_family = IWL_DEVICE_FAMILY_22000,			\
-	.trans.base_params = &iwl_22000_base_params,			\
 	.gp2_reg_addr = 0xa02c68,					\
 	.mon_dram_regs = {						\
 		.write_ptr = {						\
