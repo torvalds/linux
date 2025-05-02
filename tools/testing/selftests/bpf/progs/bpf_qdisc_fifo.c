@@ -109,12 +109,18 @@ void BPF_PROG(bpf_fifo_reset, struct Qdisc *sch)
 	sch->q.qlen = 0;
 }
 
+SEC("struct_ops")
+void BPF_PROG(bpf_fifo_destroy, struct Qdisc *sch)
+{
+}
+
 SEC(".struct_ops")
 struct Qdisc_ops fifo = {
 	.enqueue   = (void *)bpf_fifo_enqueue,
 	.dequeue   = (void *)bpf_fifo_dequeue,
 	.init      = (void *)bpf_fifo_init,
 	.reset     = (void *)bpf_fifo_reset,
+	.destroy   = (void *)bpf_fifo_destroy,
 	.id        = "bpf_fifo",
 };
 

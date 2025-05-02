@@ -7,6 +7,7 @@
 #include "network_helpers.h"
 #include "bpf_qdisc_fifo.skel.h"
 #include "bpf_qdisc_fq.skel.h"
+#include "bpf_qdisc_fail__incompl_ops.skel.h"
 
 #define LO_IFINDEX 1
 
@@ -159,6 +160,22 @@ out:
 	bpf_qdisc_fifo__destroy(fifo_skel);
 }
 
+static void test_incompl_ops(void)
+{
+	struct bpf_qdisc_fail__incompl_ops *skel;
+	struct bpf_link *link;
+
+	skel = bpf_qdisc_fail__incompl_ops__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "bpf_qdisc_fifo__open_and_load"))
+		return;
+
+	link = bpf_map__attach_struct_ops(skel->maps.test);
+	if (!ASSERT_ERR_PTR(link, "bpf_map__attach_struct_ops"))
+		bpf_link__destroy(link);
+
+	bpf_qdisc_fail__incompl_ops__destroy(skel);
+}
+
 static int get_default_qdisc(char *qdisc_name)
 {
 	FILE *f;
@@ -230,6 +247,8 @@ void test_bpf_qdisc(void)
 		test_qdisc_attach_to_mq();
 	if (test__start_subtest("attach to non root"))
 		test_qdisc_attach_to_non_root();
+	if (test__start_subtest("incompl_ops"))
+		test_incompl_ops();
 
 	netns_free(netns);
 }
