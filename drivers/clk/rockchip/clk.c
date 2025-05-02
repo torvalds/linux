@@ -382,6 +382,8 @@ static struct rockchip_clk_provider *rockchip_clk_init_base(
 	ctx->cru_node = np;
 	spin_lock_init(&ctx->lock);
 
+	hash_init(ctx->aux_grf_table);
+
 	ctx->grf = syscon_regmap_lookup_by_phandle(ctx->cru_node,
 						   "rockchip,grf");
 
@@ -496,6 +498,8 @@ void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 				    struct rockchip_clk_branch *list,
 				    unsigned int nr_clk)
 {
+	struct regmap *grf = ctx->grf;
+	struct rockchip_aux_grf *agrf;
 	struct clk *clk;
 	unsigned int idx;
 	unsigned long flags;
@@ -503,6 +507,17 @@ void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 	for (idx = 0; idx < nr_clk; idx++, list++) {
 		flags = list->flags;
 		clk = NULL;
+
+		/* for GRF-dependent branches, choose the right grf first */
+		if (list->branch_type == branch_muxgrf &&
+				list->grf_type != grf_type_sys) {
+			hash_for_each_possible(ctx->aux_grf_table, agrf, node, list->grf_type) {
+				if (agrf->type == list->grf_type) {
+					grf = agrf->grf;
+					break;
+				}
+			}
+		}
 
 		/* catch simple muxes */
 		switch (list->branch_type) {
@@ -526,7 +541,7 @@ void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 		case branch_muxgrf:
 			clk = rockchip_clk_register_muxgrf(list->name,
 				list->parent_names, list->num_parents,
-				flags, ctx->grf, list->muxdiv_offset,
+				flags, grf, list->muxdiv_offset,
 				list->mux_shift, list->mux_width,
 				list->mux_flags);
 			break;
