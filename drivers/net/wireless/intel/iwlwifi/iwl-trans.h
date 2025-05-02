@@ -985,7 +985,6 @@ struct iwl_trans {
 };
 
 const char *iwl_get_cmd_string(struct iwl_trans *trans, u32 id);
-int iwl_cmd_groups_verify_sorted(const struct iwl_trans_config *trans);
 
 void iwl_trans_configure(struct iwl_trans *trans,
 			 const struct iwl_trans_config *trans_cfg);

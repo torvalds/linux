@@ -409,30 +409,12 @@ const char *iwl_get_cmd_string(struct iwl_trans *trans, u32 id)
 }
 IWL_EXPORT_SYMBOL(iwl_get_cmd_string);
 
-int iwl_cmd_groups_verify_sorted(const struct iwl_trans_config *trans)
-{
-	int i, j;
-	const struct iwl_hcmd_arr *arr;
-
-	for (i = 0; i < trans->command_groups_size; i++) {
-		arr = &trans->command_groups[i];
-		if (!arr->arr)
-			continue;
-		for (j = 0; j < arr->size - 1; j++)
-			if (arr->arr[j].cmd_id > arr->arr[j + 1].cmd_id)
-				return -1;
-	}
-	return 0;
-}
-IWL_EXPORT_SYMBOL(iwl_cmd_groups_verify_sorted);
-
 void iwl_trans_configure(struct iwl_trans *trans,
 			 const struct iwl_trans_config *trans_cfg)
 {
 	trans->op_mode = trans_cfg->op_mode;
 
 	iwl_trans_pcie_configure(trans, trans_cfg);
-	WARN_ON(iwl_cmd_groups_verify_sorted(trans_cfg));
 }
 IWL_EXPORT_SYMBOL(iwl_trans_configure);
 
