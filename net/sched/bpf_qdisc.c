@@ -395,6 +395,17 @@ static void bpf_qdisc_unreg(void *kdata, struct bpf_link *link)
 	return unregister_qdisc(kdata);
 }
 
+static int bpf_qdisc_validate(void *kdata)
+{
+	struct Qdisc_ops *ops = (struct Qdisc_ops *)kdata;
+
+	if (!ops->enqueue || !ops->dequeue || !ops->init ||
+	    !ops->reset || !ops->destroy)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int Qdisc_ops__enqueue(struct sk_buff *skb__ref, struct Qdisc *sch,
 			      struct sk_buff **to_free)
 {
@@ -432,6 +443,7 @@ static struct bpf_struct_ops bpf_Qdisc_ops = {
 	.verifier_ops = &bpf_qdisc_verifier_ops,
 	.reg = bpf_qdisc_reg,
 	.unreg = bpf_qdisc_unreg,
+	.validate = bpf_qdisc_validate,
 	.init_member = bpf_qdisc_init_member,
 	.init = bpf_qdisc_init,
 	.name = "Qdisc_ops",
