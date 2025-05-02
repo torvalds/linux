@@ -610,6 +610,29 @@ where
             elements: elems.iter_mut(),
         }
     }
+
+    /// Removes all elements that don't match the provided closure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut v = kernel::kvec![1, 2, 3, 4]?;
+    /// v.retain(|i| *i % 2 == 0);
+    /// assert_eq!(v, [2, 4]);
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn retain(&mut self, mut f: impl FnMut(&mut T) -> bool) {
+        let mut num_kept = 0;
+        let mut next_to_check = 0;
+        while let Some(to_check) = self.get_mut(next_to_check) {
+            if f(to_check) {
+                self.swap(num_kept, next_to_check);
+                num_kept += 1;
+            }
+            next_to_check += 1;
+        }
+        self.truncate(num_kept);
+    }
 }
 
 impl<T: Clone, A: Allocator> Vec<T, A> {
@@ -1129,6 +1152,55 @@ impl<'vec, T> Drop for DrainAll<'vec, T> {
             let ptr: *mut [T] = iter.into_slice();
             // SAFETY: By the type invariants, we own these values so we may destroy them.
             unsafe { ptr::drop_in_place(ptr) };
+        }
+    }
+}
+
+#[macros::kunit_tests(rust_kvec_kunit)]
+mod tests {
+    use super::*;
+    use crate::prelude::*;
+
+    #[test]
+    fn test_kvec_retain() {
+        /// Verify correctness for one specific function.
+        #[expect(clippy::needless_range_loop)]
+        fn verify(c: &[bool]) {
+            let mut vec1: KVec<usize> = KVec::with_capacity(c.len(), GFP_KERNEL).unwrap();
+            let mut vec2: KVec<usize> = KVec::with_capacity(c.len(), GFP_KERNEL).unwrap();
+
+            for i in 0..c.len() {
+                vec1.push_within_capacity(i).unwrap();
+                if c[i] {
+                    vec2.push_within_capacity(i).unwrap();
+                }
+            }
+
+            vec1.retain(|i| c[*i]);
+
+            assert_eq!(vec1, vec2);
+        }
+
+        /// Add one to a binary integer represented as a boolean array.
+        fn add(value: &mut [bool]) {
+            let mut carry = true;
+            for v in value {
+                let new_v = carry != *v;
+                carry = carry && *v;
+                *v = new_v;
+            }
+        }
+
+        // This boolean array represents a function from index to boolean. We check that `retain`
+        // behaves correctly for all possible boolean arrays of every possible length less than
+        // ten.
+        let mut func = KVec::with_capacity(10, GFP_KERNEL).unwrap();
+        for len in 0..10 {
+            for _ in 0u32..1u32 << len {
+                verify(&func);
+                add(&mut func);
+            }
+            func.push_within_capacity(false).unwrap();
         }
     }
 }
