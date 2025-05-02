@@ -241,7 +241,7 @@ static void ipu6_isys_try_fmt_cap(struct ipu6_isys_video *av, u32 type,
 	else
 		*bytesperline = DIV_ROUND_UP(*width * pfmt->bpp, BITS_PER_BYTE);
 
-	*bytesperline = ALIGN(*bytesperline, av->isys->line_align);
+	*bytesperline = ALIGN(*bytesperline, 64);
 
 	/*
 	 * (height + 1) * bytesperline due to a hardware issue: the DMA unit
