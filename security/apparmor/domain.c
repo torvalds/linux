@@ -29,6 +29,10 @@
 #include "include/policy_ns.h"
 
 static const char * const CONFLICTING_ATTACH_STR = "conflicting profile attachments";
+static const char * const CONFLICTING_ATTACH_STR_IX =
+	"conflicting profile attachments - ix fallback";
+static const char * const CONFLICTING_ATTACH_STR_UX =
+	"conflicting profile attachments - ux fallback";
 
 /**
  * may_change_ptraced_domain - check if can change profile on ptraced task
@@ -577,6 +581,8 @@ static struct aa_label *x_to_label(struct aa_profile *profile,
 	struct aa_label *stack = NULL;
 	struct aa_ns *ns = profile->ns;
 	u32 xtype = xindex & AA_X_TYPE_MASK;
+	/* Used for info checks during fallback handling */
+	const char *old_info = NULL;
 
 	switch (xtype) {
 	case AA_X_NONE:
@@ -613,12 +619,32 @@ static struct aa_label *x_to_label(struct aa_profile *profile,
 			/* (p|c|n)ix - don't change profile but do
 			 * use the newest version
 			 */
-			*info = "ix fallback";
+			if (*info == CONFLICTING_ATTACH_STR) {
+				*info = CONFLICTING_ATTACH_STR_IX;
+			} else {
+				old_info = *info;
+				*info = "ix fallback";
+			}
 			/* no profile && no error */
 			new = aa_get_newest_label(&profile->label);
 		} else if (xindex & AA_X_UNCONFINED) {
 			new = aa_get_newest_label(ns_unconfined(profile->ns));
-			*info = "ux fallback";
+			if (*info == CONFLICTING_ATTACH_STR) {
+				*info = CONFLICTING_ATTACH_STR_UX;
+			} else {
+				old_info = *info;
+				*info = "ux fallback";
+			}
+		}
+		/* We set old_info on the code paths above where overwriting
+		 * could have happened, so now check if info was set by
+		 * find_attach as well (i.e. whether we actually overwrote)
+		 * and warn accordingly.
+		 */
+		if (old_info && old_info != CONFLICTING_ATTACH_STR) {
+			pr_warn_ratelimited(
+				"AppArmor: find_attach (from profile %s) audit info \"%s\" dropped",
+				profile->base.hname, old_info);
 		}
 	}
 
@@ -706,6 +732,11 @@ static struct aa_label *profile_transition(const struct cred *subj_cred,
 			/* hack ix fallback - improve how this is detected */
 			goto audit;
 		} else if (!new) {
+			if (info) {
+				pr_warn_ratelimited(
+					"AppArmor: %s (from profile %s) audit info \"%s\" dropped on missing transition",
+					__func__, profile->base.hname, info);
+			}
 			info = "profile transition not found";
 			/* remove MAY_EXEC to audit as failure or complaint */
 			perms.allow &= ~MAY_EXEC;
