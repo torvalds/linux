@@ -204,18 +204,18 @@ K256:
 .word	0				@ terminator
 #if __ARM_MAX_ARCH__>=7 && !defined(__KERNEL__)
 .LOPENSSL_armcap:
-.word	OPENSSL_armcap_P-sha256_block_data_order
+.word	OPENSSL_armcap_P-sha256_blocks_arch
 #endif
 .align	5
 
-.global	sha256_block_data_order
-.type	sha256_block_data_order,%function
-sha256_block_data_order:
-.Lsha256_block_data_order:
+.global	sha256_blocks_arch
+.type	sha256_blocks_arch,%function
+sha256_blocks_arch:
+.Lsha256_blocks_arch:
 #if __ARM_ARCH__<7
-	sub	r3,pc,#8		@ sha256_block_data_order
+	sub	r3,pc,#8		@ sha256_blocks_arch
 #else
-	adr	r3,.Lsha256_block_data_order
+	adr	r3,.Lsha256_blocks_arch
 #endif
 #if __ARM_MAX_ARCH__>=7 && !defined(__KERNEL__)
 	ldr	r12,.LOPENSSL_armcap
@@ -282,7 +282,7 @@ $code.=<<___;
 	moveq	pc,lr			@ be binary compatible with V4, yet
 	bx	lr			@ interoperable with Thumb ISA:-)
 #endif
-.size	sha256_block_data_order,.-sha256_block_data_order
+.size	sha256_blocks_arch,.-sha256_blocks_arch
 ___
 ######################################################################
 # NEON stuff
@@ -470,8 +470,8 @@ sha256_block_data_order_neon:
 	stmdb	sp!,{r4-r12,lr}
 
 	sub	$H,sp,#16*4+16
-	adr	$Ktbl,.Lsha256_block_data_order
-	sub	$Ktbl,$Ktbl,#.Lsha256_block_data_order-K256
+	adr	$Ktbl,.Lsha256_blocks_arch
+	sub	$Ktbl,$Ktbl,#.Lsha256_blocks_arch-K256
 	bic	$H,$H,#15		@ align for 128-bit stores
 	mov	$t2,sp
 	mov	sp,$H			@ alloca
