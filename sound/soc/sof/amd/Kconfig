@@ -98,6 +98,7 @@ config SND_SOC_SOF_AMD_ACP70
 	depends on SND_SOC_SOF_PCI
 	depends on AMD_NODE
 	select SND_SOC_SOF_AMD_COMMON
+	select SND_SOC_SOF_AMD_SOUNDWIRE_LINK_BASELINE
 	help
 	  Select this option for SOF support on
 	  AMD ACP7.0/ACP7.1 version based platforms.
