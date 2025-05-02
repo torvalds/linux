@@ -1120,9 +1120,9 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 	IWL_DEV_INFO(iwl_cfg_bz, iwl_wh_name, MAC_TYPE(BZ_W), RF_TYPE(WH)),
 
 /* Ga (Gl) */
-	IWL_DEV_INFO(iwl_cfg_gl, iwl_gl_name, MAC_TYPE(GL), RF_TYPE(FM),
+	IWL_DEV_INFO(iwl_cfg_bz, iwl_gl_name, MAC_TYPE(GL), RF_TYPE(FM),
 		     BW_NO_LIMIT, NO_CDB),
-	IWL_DEV_INFO(iwl_cfg_gl, iwl_mtp_name, MAC_TYPE(GL), RF_TYPE(FM),
+	IWL_DEV_INFO(iwl_cfg_bz, iwl_mtp_name, MAC_TYPE(GL), RF_TYPE(FM),
 		     BW_LIMIT(160), NO_CDB),
 
 /* Sc */

@@ -639,7 +639,6 @@ extern const struct iwl_cfg iwl_cfg_so_a0_hr_a0;
 extern const struct iwl_ht_params iwl_bz_ht_params;
 
 extern const struct iwl_cfg iwl_cfg_bz;
-extern const struct iwl_cfg iwl_cfg_gl;
 
 extern const struct iwl_cfg iwl_cfg_sc;
 extern const struct iwl_cfg iwl_cfg_sc2;
