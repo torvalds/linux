@@ -1120,6 +1120,47 @@ int sysrq_toggle_support(int enable_mask)
 }
 EXPORT_SYMBOL_GPL(sysrq_toggle_support);
 
+static int sysrq_sysctl_handler(const struct ctl_table *table, int write,
+				void *buffer, size_t *lenp, loff_t *ppos)
+{
+	int tmp, ret;
+	struct ctl_table t = *table;
+
+	tmp = sysrq_mask();
+	t.data = &tmp;
+
+	/*
+	 * Behaves like do_proc_dointvec as t does not have min nor max.
+	 */
+	ret = proc_dointvec_minmax(&t, write, buffer, lenp, ppos);
+
+	if (ret || !write)
+		return ret;
+
+	if (write)
+		sysrq_toggle_support(tmp);
+
+	return 0;
+}
+
+static const struct ctl_table sysrq_sysctl_table[] = {
+	{
+		.procname	= "sysrq",
+		.data		= NULL,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= sysrq_sysctl_handler,
+	},
+};
+
+static int __init init_sysrq_sysctl(void)
+{
+	register_sysctl_init("kernel", sysrq_sysctl_table);
+	return 0;
+}
+
+subsys_initcall(init_sysrq_sysctl);
+
 static int __sysrq_swap_key_ops(u8 key, const struct sysrq_key_op *insert_op_p,
 				const struct sysrq_key_op *remove_op_p)
 {

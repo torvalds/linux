@@ -31,7 +31,6 @@
 #include <linux/kernel.h>
 #include <linux/kobject.h>
 #include <linux/net.h>
-#include <linux/sysrq.h>
 #include <linux/highuid.h>
 #include <linux/writeback.h>
 #include <linux/ratelimit.h>
@@ -964,26 +963,6 @@ int proc_dou8vec_minmax(const struct ctl_table *table, int write,
 }
 EXPORT_SYMBOL_GPL(proc_dou8vec_minmax);
 
-#ifdef CONFIG_MAGIC_SYSRQ
-static int sysrq_sysctl_handler(const struct ctl_table *table, int write,
-				void *buffer, size_t *lenp, loff_t *ppos)
-{
-	int tmp, ret;
-
-	tmp = sysrq_mask();
-
-	ret = __do_proc_dointvec(&tmp, table, write, buffer,
-			       lenp, ppos, NULL, NULL);
-	if (ret || !write)
-		return ret;
-
-	if (write)
-		sysrq_toggle_support(tmp);
-
-	return 0;
-}
-#endif
-
 static int __do_proc_doulongvec_minmax(void *data,
 		const struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos,
@@ -1610,15 +1589,6 @@ static const struct ctl_table kern_table[] = {
 		.maxlen		= UEVENT_HELPER_PATH_LEN,
 		.mode		= 0644,
 		.proc_handler	= proc_dostring,
-	},
-#endif
-#ifdef CONFIG_MAGIC_SYSRQ
-	{
-		.procname	= "sysrq",
-		.data		= NULL,
-		.maxlen		= sizeof (int),
-		.mode		= 0644,
-		.proc_handler	= sysrq_sysctl_handler,
 	},
 #endif
 #ifdef CONFIG_PROC_SYSCTL
