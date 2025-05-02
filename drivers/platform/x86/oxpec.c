@@ -582,7 +582,7 @@ static int oxp_psy_ext_set_prop(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD:
-		if (val->intval > 100)
+		if (val->intval < 0 || val->intval > 100)
 			return -EINVAL;
 		return write_to_ec(OXP_X1_CHARGE_LIMIT_REG, val->intval);
 	case POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR:
