@@ -563,6 +563,7 @@ static int acp_init(struct snd_sof_dev *sdev)
 {
 	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	struct acp_dev_data *acp_data;
+	unsigned int sdw0_wake_en, sdw1_wake_en;
 	int ret;
 
 	/* power on */
@@ -591,6 +592,12 @@ static int acp_init(struct snd_sof_dev *sdev)
 	switch (acp_data->pci_rev) {
 	case ACP70_PCI_ID:
 	case ACP71_PCI_ID:
+		sdw0_wake_en = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP70_SW0_WAKE_EN);
+		sdw1_wake_en = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP70_SW1_WAKE_EN);
+		if (sdw0_wake_en || sdw1_wake_en)
+			snd_sof_dsp_update_bits(sdev, ACP_DSP_BAR, ACP70_EXTERNAL_INTR_CNTL1,
+						ACP70_SDW_HOST_WAKE_MASK, ACP70_SDW_HOST_WAKE_MASK);
+
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP70_PME_EN, 1);
 		break;
 	}
