@@ -94,13 +94,13 @@ config SND_SOC_SOF_AMD_ACP63
 	  If unsure select "N".
 
 config SND_SOC_SOF_AMD_ACP70
-	tristate "SOF support for ACP7.0 platform"
+	tristate "SOF support for ACP7.0/ACP7.1 platforms"
 	depends on SND_SOC_SOF_PCI
 	depends on AMD_NODE
 	select SND_SOC_SOF_AMD_COMMON
 	help
 	  Select this option for SOF support on
-	  AMD ACP7.0 version based platforms.
-	  Say Y if you want to enable SOF on ACP7.0 based platform.
+	  AMD ACP7.0/ACP7.1 version based platforms.
+	  Say Y if you want to enable SOF on ACP7.0/ACP7.1 based platforms.
 
 endif

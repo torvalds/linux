@@ -74,6 +74,7 @@
 #define ACP_RMB_PCI_ID				0x6F
 #define ACP63_PCI_ID				0x63
 #define ACP70_PCI_ID				0x70
+#define ACP71_PCI_ID				0x71
 
 #define HOST_BRIDGE_CZN				0x1630
 #define HOST_BRIDGE_VGH				0x1645
