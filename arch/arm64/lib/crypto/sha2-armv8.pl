@@ -95,7 +95,7 @@ if ($output =~ /512/) {
 	$reg_t="w";
 }
 
-$func="sha${BITS}_block_data_order";
+$func="sha${BITS}_blocks_arch";
 
 ($ctx,$inp,$num,$Ktbl)=map("x$_",(0..2,30));
 

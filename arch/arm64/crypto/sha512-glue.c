@@ -18,13 +18,13 @@ MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_CRYPTO("sha384");
 MODULE_ALIAS_CRYPTO("sha512");
 
-asmlinkage void sha512_block_data_order(u64 *digest, const void *data,
-					unsigned int num_blks);
+asmlinkage void sha512_blocks_arch(u64 *digest, const void *data,
+				   unsigned int num_blks);
 
 static void sha512_arm64_transform(struct sha512_state *sst, u8 const *src,
 				   int blocks)
 {
-	sha512_block_data_order(sst->state, src, blocks);
+	sha512_blocks_arch(sst->state, src, blocks);
 }
 
 static int sha512_update(struct shash_desc *desc, const u8 *data,
