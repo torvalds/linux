@@ -729,6 +729,15 @@ static struct aa_label *profile_transition(const struct cred *subj_cred,
 		new = x_to_label(profile, bprm, name, perms.xindex, &target,
 				 &info);
 		if (new && new->proxy == profile->label.proxy && info) {
+			/* Force audit on conflicting attachment fallback
+			 * Because perms is never used again after this audit
+			 * we don't need to care about clobbering it
+			 */
+			if (info == CONFLICTING_ATTACH_STR_IX
+			    || info == CONFLICTING_ATTACH_STR_UX) {
+				perms.audit |= MAY_EXEC;
+				perms.allow |= MAY_EXEC;
+			}
 			/* hack ix fallback - improve how this is detected */
 			goto audit;
 		} else if (!new) {
