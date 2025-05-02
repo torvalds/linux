@@ -133,7 +133,7 @@ properties:
       CSI input ports.
 
     patternProperties:
-      "^port@[0-3]+$":
+      "^port@[0-3]$":
         $ref: /schemas/graph.yaml#/$defs/port-base
         unevaluatedProperties: false
 
