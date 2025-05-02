@@ -199,17 +199,17 @@ static const struct reg_field mt6372_reg_fields[F_MAX_FIELDS] = {
 
 /* Current unit: microamp, time unit: millisecond */
 static const struct linear_range common_led_ranges[R_MAX_RANGES] = {
-	[R_LED123_CURR]	= { 4000, 1, 6, 4000 },
-	[R_LED4_CURR]	= { 2000, 1, 3, 2000 },
-	[R_LED_TRFON]	= { 125, 0, 15, 200 },
-	[R_LED_TOFF]	= { 250, 0, 15, 400 },
+	[R_LED123_CURR]	= LINEAR_RANGE(4000, 1, 6, 4000),
+	[R_LED4_CURR]	= LINEAR_RANGE(2000, 1, 3, 2000),
+	[R_LED_TRFON]	= LINEAR_RANGE(125, 0, 15, 200),
+	[R_LED_TOFF]	= LINEAR_RANGE(250, 0, 15, 400),
 };
 
 static const struct linear_range mt6372_led_ranges[R_MAX_RANGES] = {
-	[R_LED123_CURR]	= { 2000, 1, 14, 2000 },
-	[R_LED4_CURR]	= { 2000, 1, 14, 2000 },
-	[R_LED_TRFON]	= { 125, 0, 15, 250 },
-	[R_LED_TOFF]	= { 250, 0, 15, 500 },
+	[R_LED123_CURR]	= LINEAR_RANGE(2000, 1, 14, 2000),
+	[R_LED4_CURR]	= LINEAR_RANGE(2000, 1, 14, 2000),
+	[R_LED_TRFON]	= LINEAR_RANGE(125, 0, 15, 250),
+	[R_LED_TOFF]	= LINEAR_RANGE(250, 0, 15, 500),
 };
 
 static const unsigned int common_tfreqs[] = {
