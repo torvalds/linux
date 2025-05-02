@@ -170,6 +170,30 @@ static inline void add_taint_module(struct module *mod, unsigned flag,
 }
 
 /*
+ * Like strncmp(), except s/-/_/g as per scripts/Makefile.lib:name-fix-token rule.
+ */
+static int mod_strncmp(const char *str_a, const char *str_b, size_t n)
+{
+	for (int i = 0; i < n; i++) {
+		char a = str_a[i];
+		char b = str_b[i];
+		int d;
+
+		if (a == '-') a = '_';
+		if (b == '-') b = '_';
+
+		d = a - b;
+		if (d)
+			return d;
+
+		if (!a)
+			break;
+	}
+
+	return 0;
+}
+
+/*
  * A thread that wants to hold a reference to a module only while it
  * is running can call this to safely exit.
  */
@@ -1116,7 +1140,7 @@ static bool verify_module_namespace(const char *namespace, const char *modname)
 		if (*sep)
 			sep++;
 
-		if (strncmp(namespace, modname, len) == 0 && (glob || len == modlen))
+		if (mod_strncmp(namespace, modname, len) == 0 && (glob || len == modlen))
 			return true;
 	}
 
