@@ -228,13 +228,31 @@ impl Delta {
     /// Return the smallest number of microseconds greater than or equal
     /// to the value in the [`Delta`].
     #[inline]
-    pub const fn as_micros_ceil(self) -> i64 {
-        self.as_nanos().saturating_add(NSEC_PER_USEC - 1) / NSEC_PER_USEC
+    pub fn as_micros_ceil(self) -> i64 {
+        #[cfg(CONFIG_64BIT)]
+        {
+            self.as_nanos().saturating_add(NSEC_PER_USEC - 1) / NSEC_PER_USEC
+        }
+
+        #[cfg(not(CONFIG_64BIT))]
+        // SAFETY: It is always safe to call `ktime_to_us()` with any value.
+        unsafe {
+            bindings::ktime_to_us(self.as_nanos().saturating_add(NSEC_PER_USEC - 1))
+        }
     }
 
     /// Return the number of milliseconds in the [`Delta`].
     #[inline]
-    pub const fn as_millis(self) -> i64 {
-        self.as_nanos() / NSEC_PER_MSEC
+    pub fn as_millis(self) -> i64 {
+        #[cfg(CONFIG_64BIT)]
+        {
+            self.as_nanos() / NSEC_PER_MSEC
+        }
+
+        #[cfg(not(CONFIG_64BIT))]
+        // SAFETY: It is always safe to call `ktime_to_ms()` with any value.
+        unsafe {
+            bindings::ktime_to_ms(self.as_nanos())
+        }
     }
 }
