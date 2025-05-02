@@ -1682,6 +1682,14 @@ void buf_write(struct buffer *buf, const char *s, int len)
 	buf->pos += len;
 }
 
+static bool verify_module_namespace(const char *namespace, const char *modname)
+{
+	const char *prefix = "module:";
+
+	return strstarts(namespace, prefix) &&
+	       !strcmp(namespace + strlen(prefix), modname);
+}
+
 static void check_exports(struct module *mod)
 {
 	struct symbol *s, *exp;
@@ -1709,7 +1717,8 @@ static void check_exports(struct module *mod)
 
 		basename = get_basename(mod->name);
 
-		if (!contains_namespace(&mod->imported_namespaces, exp->namespace)) {
+		if (!verify_module_namespace(exp->namespace, basename) &&
+		    !contains_namespace(&mod->imported_namespaces, exp->namespace)) {
 			modpost_log(!allow_missing_ns_imports,
 				    "module %s uses symbol %s from namespace %s, but does not import it.\n",
 				    basename, exp->name, exp->namespace);
