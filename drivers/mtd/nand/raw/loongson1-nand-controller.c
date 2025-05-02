@@ -371,7 +371,7 @@ static int ls1x_nand_dma_transfer(struct ls1x_nand_host *host, struct ls1x_nand_
 	desc = dmaengine_prep_slave_single(chan, dma_addr, op->len, xfer_dir, DMA_PREP_INTERRUPT);
 	if (!desc) {
 		dev_err(dev, "failed to prepare DMA descriptor\n");
-		ret = PTR_ERR(desc);
+		ret = -ENOMEM;
 		goto err;
 	}
 	desc->callback = ls1x_nand_dma_callback;
