@@ -28,6 +28,8 @@
 #include "include/policy.h"
 #include "include/policy_ns.h"
 
+static const char * const CONFLICTING_ATTACH_STR = "conflicting profile attachments";
+
 /**
  * may_change_ptraced_domain - check if can change profile on ptraced task
  * @to_cred: cred of task changing domain
@@ -485,7 +487,7 @@ restart:
 
 	if (!candidate || conflict) {
 		if (conflict)
-			*info = "conflicting profile attachments";
+			*info = CONFLICTING_ATTACH_STR;
 		rcu_read_unlock();
 		return NULL;
 	}
