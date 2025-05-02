@@ -432,8 +432,6 @@ struct iwl_cfg {
 #define IWL_CFG_MAC_TYPE_BR		0x4C
 #define IWL_CFG_MAC_TYPE_DR		0x4D
 
-#define IWL_CFG_RF_TYPE_TH		0x105
-#define IWL_CFG_RF_TYPE_TH1		0x108
 #define IWL_CFG_RF_TYPE_JF2		0x105
 #define IWL_CFG_RF_TYPE_JF1		0x108
 #define IWL_CFG_RF_TYPE_HR2		0x10A

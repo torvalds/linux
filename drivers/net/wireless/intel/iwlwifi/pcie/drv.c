@@ -903,24 +903,24 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     BW_LIMIT(80), CORES(BT), NO_CDB),
 
 	IWL_DEV_INFO(iwl9260_2ac_cfg, iwl9270_160_name, DEVICE(0x2526),
-		     MAC_TYPE(TH), RF_TYPE(TH),
+		     MAC_TYPE(TH), RF_TYPE(JF2),
 		     BW_NO_LIMIT, CORES(BT_GNSS), NO_CDB),
 	IWL_DEV_INFO(iwl9260_2ac_cfg, iwl9270_name, DEVICE(0x2526),
-		     MAC_TYPE(TH), RF_TYPE(TH),
+		     MAC_TYPE(TH), RF_TYPE(JF2),
 		     BW_LIMIT(80), CORES(BT_GNSS), NO_CDB),
 
 	IWL_DEV_INFO(iwl9260_2ac_cfg, iwl9162_160_name, DEVICE(0x271B),
-		     MAC_TYPE(TH), RF_TYPE(TH1),
+		     MAC_TYPE(TH), RF_TYPE(JF1),
 		     BW_NO_LIMIT, CORES(BT), NO_CDB),
 	IWL_DEV_INFO(iwl9260_2ac_cfg, iwl9162_name, DEVICE(0x271B),
-		     MAC_TYPE(TH), RF_TYPE(TH1),
+		     MAC_TYPE(TH), RF_TYPE(JF1),
 		     BW_LIMIT(80), CORES(BT), NO_CDB),
 
 	IWL_DEV_INFO(iwl9260_2ac_cfg, iwl9260_160_name, DEVICE(0x2526),
-		     MAC_TYPE(TH), RF_TYPE(TH),
+		     MAC_TYPE(TH), RF_TYPE(JF2),
 		     BW_NO_LIMIT, CORES(BT), NO_CDB),
 	IWL_DEV_INFO(iwl9260_2ac_cfg, iwl9260_name, DEVICE(0x2526),
-		     MAC_TYPE(TH), RF_TYPE(TH),
+		     MAC_TYPE(TH), RF_TYPE(JF2),
 		     BW_LIMIT(80), CORES(BT), NO_CDB),
 
 /* Qu with Jf */
