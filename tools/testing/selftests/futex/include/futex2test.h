@@ -8,6 +8,24 @@
 
 #define u64_to_ptr(x) ((void *)(uintptr_t)(x))
 
+#ifndef __NR_futex_waitv
+#define __NR_futex_waitv 449
+struct futex_waitv {
+	__u64 val;
+	__u64 uaddr;
+	__u32 flags;
+	__u32 __reserved;
+};
+#endif
+
+#ifndef FUTEX2_SIZE_U32
+#define FUTEX2_SIZE_U32 0x02
+#endif
+
+#ifndef FUTEX_32
+#define FUTEX_32 FUTEX2_SIZE_U32
+#endif
+
 /**
  * futex_waitv - Wait at multiple futexes, wake on any
  * @waiters:    Array of waiters
