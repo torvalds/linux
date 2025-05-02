@@ -138,7 +138,6 @@ const struct iwl_cfg_trans_params iwl_dr_trans_cfg = {
 const char iwl_dr_name[] = "Intel(R) TBD Dr device";
 
 const struct iwl_cfg iwl_cfg_dr = {
-	.fw_name_mac = "dr",
 	IWL_DEVICE_DR,
 };
 
@@ -156,7 +155,6 @@ const struct iwl_cfg_trans_params iwl_br_trans_cfg = {
 const char iwl_br_name[] = "Intel(R) TBD Br device";
 
 const struct iwl_cfg iwl_cfg_br = {
-	.fw_name_mac = "br",
 	IWL_DEVICE_DR,
 };
 

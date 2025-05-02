@@ -182,15 +182,58 @@ static bool iwl_drv_is_wifi7_supported(struct iwl_trans *trans)
 const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 {
 	char mac_step, rf_step;
-	const char *rf, *cdb;
+	const char *mac, *rf, *cdb;
 
 	if (trans->cfg->fw_name_pre)
 		return trans->cfg->fw_name_pre;
 
-	if (WARN_ON(!trans->cfg->fw_name_mac))
-		return "unconfigured";
-
 	mac_step = iwl_drv_get_step(trans->hw_rev_step);
+
+	switch (CSR_HW_REV_TYPE(trans->hw_rev)) {
+	case IWL_CFG_MAC_TYPE_PU:
+		mac = "pu";
+		break;
+	case IWL_CFG_MAC_TYPE_TH:
+		mac = "th";
+		break;
+	case IWL_CFG_MAC_TYPE_QU:
+		mac = "Qu";
+		break;
+	case IWL_CFG_MAC_TYPE_QUZ:
+		mac = "QuZ";
+		break;
+	case IWL_CFG_MAC_TYPE_SO:
+	case IWL_CFG_MAC_TYPE_SOF:
+		mac = "so";
+		break;
+	case IWL_CFG_MAC_TYPE_MA:
+		mac = "ma";
+		break;
+	case IWL_CFG_MAC_TYPE_BZ:
+	case IWL_CFG_MAC_TYPE_BZ_W:
+		mac = "bz";
+		break;
+	case IWL_CFG_MAC_TYPE_GL:
+		mac = "gl";
+		break;
+	case IWL_CFG_MAC_TYPE_SC:
+		mac = "sc";
+		break;
+	case IWL_CFG_MAC_TYPE_SC2:
+		mac = "sc2";
+		break;
+	case IWL_CFG_MAC_TYPE_SC2F:
+		mac = "sc2f";
+		break;
+	case IWL_CFG_MAC_TYPE_BR:
+		mac = "br";
+		break;
+	case IWL_CFG_MAC_TYPE_DR:
+		mac = "dr";
+		break;
+	default:
+		return "unknown-mac";
+	}
 
 	rf_step = iwl_drv_get_step(CSR_HW_RFID_STEP(trans->hw_rf_id));
 
@@ -223,8 +266,7 @@ const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 
 	scnprintf(buf, FW_NAME_PRE_BUFSIZE,
 		  "iwlwifi-%s-%c0-%s%s-%c0",
-		  trans->cfg->fw_name_mac, mac_step,
-		  rf, cdb, rf_step);
+		  mac, mac_step, rf, cdb, rf_step);
 
 	return buf;
 }
