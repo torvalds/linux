@@ -95,6 +95,9 @@ static void drm_test_pick_cmdline_res_1920_1080_60(struct kunit *test)
 	expected_mode = drm_mode_find_dmt(priv->drm, 1920, 1080, 60, false);
 	KUNIT_ASSERT_NOT_NULL(test, expected_mode);
 
+	ret = drm_kunit_add_mode_destroy_action(test, expected_mode);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
 	KUNIT_ASSERT_TRUE(test,
 			  drm_mode_parse_command_line_for_connector(cmdline,
 								    connector,
@@ -129,7 +132,8 @@ static void drm_test_pick_cmdline_named(struct kunit *test)
 	struct drm_device *drm = priv->drm;
 	struct drm_connector *connector = &priv->connector;
 	struct drm_cmdline_mode *cmdline_mode = &connector->cmdline_mode;
-	const struct drm_display_mode *expected_mode, *mode;
+	const struct drm_display_mode *mode;
+	struct drm_display_mode *expected_mode;
 	const char *cmdline = params->cmdline;
 	int ret;
 
@@ -148,6 +152,9 @@ static void drm_test_pick_cmdline_named(struct kunit *test)
 
 	expected_mode = params->func(drm);
 	KUNIT_ASSERT_NOT_NULL(test, expected_mode);
+
+	ret = drm_kunit_add_mode_destroy_action(test, expected_mode);
+	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	KUNIT_EXPECT_TRUE(test, drm_mode_equal(expected_mode, mode));
 }

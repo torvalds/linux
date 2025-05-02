@@ -1441,6 +1441,15 @@ chk_join_nr()
 		fi
 	fi
 
+	count=$(mptcp_lib_get_counter ${ns2} "MPTcpExtMPJoinSynAckHMacFailure")
+	if [ -z "$count" ]; then
+		rc=${KSFT_SKIP}
+	elif [ "$count" != "0" ]; then
+		rc=${KSFT_FAIL}
+		print_check "synack HMAC"
+		fail_test "got $count JOIN[s] synack HMAC failure expected 0"
+	fi
+
 	count=$(mptcp_lib_get_counter ${ns1} "MPTcpExtMPJoinAckRx")
 	if [ -z "$count" ]; then
 		rc=${KSFT_SKIP}
@@ -1448,6 +1457,15 @@ chk_join_nr()
 		rc=${KSFT_FAIL}
 		print_check "ack rx"
 		fail_test "got $count JOIN[s] ack rx expected $ack_nr"
+	fi
+
+	count=$(mptcp_lib_get_counter ${ns1} "MPTcpExtMPJoinAckHMacFailure")
+	if [ -z "$count" ]; then
+		rc=${KSFT_SKIP}
+	elif [ "$count" != "0" ]; then
+		rc=${KSFT_FAIL}
+		print_check "ack HMAC"
+		fail_test "got $count JOIN[s] ack HMAC failure expected 0"
 	fi
 
 	print_results "join Rx" ${rc}

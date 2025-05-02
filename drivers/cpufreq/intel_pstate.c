@@ -2209,7 +2209,7 @@ static int knl_get_turbo_pstate(int cpu)
 static int hwp_get_cpu_scaling(int cpu)
 {
 	if (hybrid_scaling_factor) {
-		struct cpuinfo_x86 *c = &cpu_data(smp_processor_id());
+		struct cpuinfo_x86 *c = &cpu_data(cpu);
 		u8 cpu_type = c->topo.intel_type;
 
 		/*

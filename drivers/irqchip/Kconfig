@@ -114,8 +114,8 @@ config I8259
 
 config BCM2712_MIP
 	tristate "Broadcom BCM2712 MSI-X Interrupt Peripheral support"
-	depends on ARCH_BRCMSTB || COMPILE_TEST
-	default m if ARCH_BRCMSTB
+	depends on ARCH_BRCMSTB || ARCH_BCM2835 || COMPILE_TEST
+	default m if ARCH_BRCMSTB || ARCH_BCM2835
 	depends on ARM_GIC
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN_HIERARCHY

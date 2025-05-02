@@ -281,7 +281,24 @@ static void __journal_entry_close(struct journal *j, unsigned closed_val, bool t
 
 	sectors = vstruct_blocks_plus(buf->data, c->block_bits,
 				      buf->u64s_reserved) << c->block_bits;
-	BUG_ON(sectors > buf->sectors);
+	if (unlikely(sectors > buf->sectors)) {
+		struct printbuf err = PRINTBUF;
+		err.atomic++;
+
+		prt_printf(&err, "journal entry overran reserved space: %u > %u\n",
+			   sectors, buf->sectors);
+		prt_printf(&err, "buf u64s %u u64s reserved %u cur_entry_u64s %u block_bits %u\n",
+			   le32_to_cpu(buf->data->u64s), buf->u64s_reserved,
+			   j->cur_entry_u64s,
+			   c->block_bits);
+		prt_printf(&err, "fatal error - emergency read only");
+		bch2_journal_halt_locked(j);
+
+		bch_err(c, "%s", err.buf);
+		printbuf_exit(&err);
+		return;
+	}
+
 	buf->sectors = sectors;
 
 	/*
@@ -1462,8 +1479,6 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 		j->last_empty_seq = cur_seq - 1; /* to match j->seq */
 
 	spin_lock(&j->lock);
-
-	set_bit(JOURNAL_running, &j->flags);
 	j->last_flush_write = jiffies;
 
 	j->reservations.idx = journal_cur_seq(j);
@@ -1472,6 +1487,21 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 	spin_unlock(&j->lock);
 
 	return 0;
+}
+
+void bch2_journal_set_replay_done(struct journal *j)
+{
+	/*
+	 * journal_space_available must happen before setting JOURNAL_running
+	 * JOURNAL_running must happen before JOURNAL_replay_done
+	 */
+	spin_lock(&j->lock);
+	bch2_journal_space_available(j);
+
+	set_bit(JOURNAL_need_flush_write, &j->flags);
+	set_bit(JOURNAL_running, &j->flags);
+	set_bit(JOURNAL_replay_done, &j->flags);
+	spin_unlock(&j->lock);
 }
 
 /* init/exit: */

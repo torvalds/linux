@@ -27,7 +27,7 @@ TYPES="net_port port_net net6_port port_proto net6_port_mac net6_port_mac_proto
        net6_port_net6_port net_port_mac_proto_net"
 
 # Reported bugs, also described by TYPE_ variables below
-BUGS="flush_remove_add reload net_port_proto_match"
+BUGS="flush_remove_add reload net_port_proto_match avx2_mismatch"
 
 # List of possible paths to pktgen script from kernel tree for performance tests
 PKTGEN_SCRIPT_PATHS="
@@ -387,6 +387,25 @@ race_repeat	0
 
 perf_duration	0
 "
+
+TYPE_avx2_mismatch="
+display		avx2 false match
+type_spec	inet_proto . ipv6_addr
+chain_spec	meta l4proto . ip6 daddr
+dst		proto addr6
+src
+start		1
+count		1
+src_delta	1
+tools		ping
+proto		icmp6
+
+race_repeat	0
+
+perf_duration	0
+"
+
+
 # Set template for all tests, types and rules are filled in depending on test
 set_template='
 flush ruleset
@@ -1627,6 +1646,24 @@ test_bug_net_port_proto_match() {
 	done
 
 	nft flush ruleset
+}
+
+test_bug_avx2_mismatch()
+{
+	setup veth send_"${proto}" set || return ${ksft_skip}
+
+	local a1="fe80:dead:01ff:0a02:0b03:6007:8009:a001"
+	local a2="fe80:dead:01fe:0a02:0b03:6007:8009:a001"
+
+	nft "add element inet filter test { icmpv6 . $a1 }"
+
+	dst_addr6="$a2"
+	send_icmp6
+
+	if [ "$(count_packets)" -gt "0" ]; then
+		err "False match for $a2"
+		return 1
+	fi
 }
 
 test_reported_issues() {
