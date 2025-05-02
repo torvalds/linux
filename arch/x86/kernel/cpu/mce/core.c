@@ -390,7 +390,7 @@ void ex_handler_msr_mce(struct pt_regs *regs, bool wrmsr)
 /* MSR access wrappers used for error injection */
 noinstr u64 mce_rdmsrq(u32 msr)
 {
-	DECLARE_ARGS(val, low, high);
+	EAX_EDX_DECLARE_ARGS(val, low, high);
 
 	if (__this_cpu_read(injectm.finished)) {
 		int offset;

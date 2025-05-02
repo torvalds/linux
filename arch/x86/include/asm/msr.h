@@ -46,11 +46,11 @@ struct saved_msrs {
  * clearing the high half of 'low':
  */
 #ifdef CONFIG_X86_64
-# define DECLARE_ARGS(val, low, high)	unsigned long low, high
+# define EAX_EDX_DECLARE_ARGS(val, low, high)	unsigned long low, high
 # define EAX_EDX_VAL(val, low, high)		((low) | (high) << 32)
 # define EAX_EDX_RET(val, low, high)		"=a" (low), "=d" (high)
 #else
-# define DECLARE_ARGS(val, low, high)	u64 val
+# define EAX_EDX_DECLARE_ARGS(val, low, high)	u64 val
 # define EAX_EDX_VAL(val, low, high)		(val)
 # define EAX_EDX_RET(val, low, high)		"=A" (val)
 #endif
@@ -83,7 +83,7 @@ static inline void do_trace_rdpmc(u32 msr, u64 val, int failed) {}
  */
 static __always_inline u64 __rdmsr(u32 msr)
 {
-	DECLARE_ARGS(val, low, high);
+	EAX_EDX_DECLARE_ARGS(val, low, high);
 
 	asm volatile("1: rdmsr\n"
 		     "2:\n"
@@ -129,7 +129,7 @@ static inline u64 native_read_msr(u32 msr)
 
 static inline u64 native_read_msr_safe(u32 msr, int *err)
 {
-	DECLARE_ARGS(val, low, high);
+	EAX_EDX_DECLARE_ARGS(val, low, high);
 
 	asm volatile("1: rdmsr ; xor %[err],%[err]\n"
 		     "2:\n\t"
@@ -182,7 +182,7 @@ extern int wrmsr_safe_regs(u32 regs[8]);
  */
 static __always_inline u64 rdtsc(void)
 {
-	DECLARE_ARGS(val, low, high);
+	EAX_EDX_DECLARE_ARGS(val, low, high);
 
 	asm volatile("rdtsc" : EAX_EDX_RET(val, low, high));
 
@@ -199,7 +199,7 @@ static __always_inline u64 rdtsc(void)
  */
 static __always_inline u64 rdtsc_ordered(void)
 {
-	DECLARE_ARGS(val, low, high);
+	EAX_EDX_DECLARE_ARGS(val, low, high);
 
 	/*
 	 * The RDTSC instruction is not ordered relative to memory
@@ -227,7 +227,7 @@ static __always_inline u64 rdtsc_ordered(void)
 
 static inline u64 native_read_pmc(int counter)
 {
-	DECLARE_ARGS(val, low, high);
+	EAX_EDX_DECLARE_ARGS(val, low, high);
 
 	asm volatile("rdpmc" : EAX_EDX_RET(val, low, high) : "c" (counter));
 	if (tracepoint_enabled(rdpmc))
