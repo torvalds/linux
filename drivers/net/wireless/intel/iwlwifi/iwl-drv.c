@@ -201,6 +201,8 @@ const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 		break;
 	case IWL_CFG_MAC_TYPE_QUZ:
 		mac = "QuZ";
+		/* all QuZ use A0 firmware */
+		mac_step = 'a';
 		break;
 	case IWL_CFG_MAC_TYPE_SO:
 	case IWL_CFG_MAC_TYPE_SOF:
