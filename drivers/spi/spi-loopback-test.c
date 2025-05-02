@@ -635,8 +635,8 @@ static int spi_test_check_loopback_result(struct spi_device *spi,
 		} else {
 			/* first byte received */
 			txb = ((u8 *)xfer->rx_buf)[0];
-			/* first byte may be 0 or xff */
-			if (!((txb == 0) || (txb == 0xff))) {
+			/* first byte may be 0 or 0xff */
+			if (txb != 0 && txb != 0xff) {
 				dev_err(&spi->dev,
 					"loopback strangeness - we expect 0x00 or 0xff, but not 0x%02x\n",
 					txb);
