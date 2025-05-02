@@ -22,7 +22,7 @@ static int tclock_gettime(clock_t clockid, struct timespec *now)
 	return clock_gettime(clockid, now);
 }
 
-int run_test(int clockid, struct timespec now)
+static int run_test(int clockid, struct timespec now)
 {
 	struct itimerspec new_value;
 	long long elapsed;

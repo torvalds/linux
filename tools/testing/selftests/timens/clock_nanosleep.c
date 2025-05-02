@@ -38,7 +38,7 @@ void *call_nanosleep(void *_args)
 	return NULL;
 }
 
-int run_test(int clockid, int abs)
+static int run_test(int clockid, int abs)
 {
 	struct timespec now = {}, rem;
 	struct thread_args args = { .now = &now, .rem = &rem, .clockid = clockid};

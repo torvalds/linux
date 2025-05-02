@@ -15,7 +15,7 @@
 #include "log.h"
 #include "timens.h"
 
-int run_test(int clockid, struct timespec now)
+static int run_test(int clockid, struct timespec now)
 {
 	struct itimerspec new_value;
 	long long elapsed;
