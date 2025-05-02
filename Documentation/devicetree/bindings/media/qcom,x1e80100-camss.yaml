@@ -146,9 +146,6 @@ properties:
             unevaluatedProperties: false
 
             properties:
-              clock-lanes:
-                maxItems: 1
-
               data-lanes:
                 minItems: 1
                 maxItems: 4
@@ -159,7 +156,6 @@ properties:
                   - 4 # MEDIA_BUS_TYPE_CSI2_DPHY
 
             required:
-              - clock-lanes
               - data-lanes
 
 required:
@@ -362,7 +358,6 @@ examples:
                 port@0 {
                     reg = <0>;
                     csiphy_ep0: endpoint {
-                        clock-lanes = <7>;
                         data-lanes = <0 1>;
                         remote-endpoint = <&sensor_ep>;
                     };
