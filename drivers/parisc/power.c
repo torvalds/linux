@@ -83,7 +83,25 @@ static struct task_struct *power_task;
 #define SYSCTL_FILENAME	"sys/kernel/power"
 
 /* soft power switch enabled/disabled */
-int pwrsw_enabled __read_mostly = 1;
+static int pwrsw_enabled __read_mostly = 1;
+
+static const struct ctl_table power_sysctl_table[] = {
+	{
+		.procname	= "soft-power",
+		.data		= &pwrsw_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+};
+
+static int __init init_power_sysctl(void)
+{
+	register_sysctl_init("kernel", power_sysctl_table);
+	return 0;
+}
+
+arch_initcall(init_power_sysctl);
 
 /* main kernel thread worker. It polls the button state */
 static int kpowerswd(void *param)
