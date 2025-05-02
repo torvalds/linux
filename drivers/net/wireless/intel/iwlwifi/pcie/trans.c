@@ -3796,9 +3796,9 @@ void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 	iwl_trans_sync_nmi_with_addr(trans, inta_addr, sw_err_bit);
 }
 
-struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
-			       const struct pci_device_id *ent,
-			       const struct iwl_cfg_trans_params *cfg_trans)
+struct iwl_trans *
+iwl_trans_pcie_alloc(struct pci_dev *pdev,
+		     const struct iwl_cfg_trans_params *cfg_trans)
 {
 	struct iwl_trans_pcie *trans_pcie, **priv;
 	struct iwl_trans *trans;

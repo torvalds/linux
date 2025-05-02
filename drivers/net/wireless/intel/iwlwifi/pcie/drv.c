@@ -1422,7 +1422,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* make sure trans is the first element in iwl_cfg */
 	BUILD_BUG_ON(offsetof(struct iwl_cfg, trans));
 
-	iwl_trans = iwl_trans_pcie_alloc(pdev, ent, trans);
+	iwl_trans = iwl_trans_pcie_alloc(pdev, trans);
 	if (IS_ERR(iwl_trans))
 		return PTR_ERR(iwl_trans);
 
