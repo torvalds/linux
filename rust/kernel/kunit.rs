@@ -6,6 +6,7 @@
 //!
 //! Reference: <https://docs.kernel.org/dev-tools/kunit/index.html>
 
+use crate::prelude::*;
 use core::{ffi::c_void, fmt};
 
 /// Prints a KUnit error-level message.
@@ -39,8 +40,6 @@ pub fn info(args: fmt::Arguments<'_>) {
         );
     }
 }
-
-use macros::kunit_tests;
 
 /// Asserts that a boolean expression is `true` at runtime.
 ///

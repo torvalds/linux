@@ -407,7 +407,7 @@ pub fn paste(input: TokenStream) -> TokenStream {
 /// # Examples
 ///
 /// ```ignore
-/// # use macros::kunit_tests;
+/// # use kernel::prelude::*;
 /// #[kunit_tests(kunit_test_suit_name)]
 /// mod tests {
 ///     #[test]
