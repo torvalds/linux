@@ -738,7 +738,7 @@ static void
 ipu6_stream_buf_ready(struct ipu6_isys_stream *stream, u8 pin_id, u32 pin_addr,
 		      u64 time, bool error_check)
 {
-	struct ipu6_isys_queue *aq = stream->output_pins[pin_id].aq;
+	struct ipu6_isys_queue *aq = stream->output_pins_queue[pin_id];
 	struct ipu6_isys *isys = stream->isys;
 	struct device *dev = &isys->adev->auxdev.dev;
 	struct ipu6_isys_buffer *ib;

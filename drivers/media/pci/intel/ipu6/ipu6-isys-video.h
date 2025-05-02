@@ -37,12 +37,6 @@ struct sequence_info {
 	u64 timestamp;
 };
 
-struct output_pin_data {
-	void (*pin_ready)(struct ipu6_isys_stream *stream,
-			  struct ipu6_fw_isys_resp_info_abi *info);
-	struct ipu6_isys_queue *aq;
-};
-
 /*
  * Align with firmware stream. Each stream represents a CSI virtual channel.
  * May map to multiple video devices
@@ -68,7 +62,7 @@ struct ipu6_isys_stream {
 	struct completion stream_stop_completion;
 	struct ipu6_isys *isys;
 
-	struct output_pin_data output_pins[IPU6_ISYS_OUTPUT_PINS];
+	struct ipu6_isys_queue *output_pins_queue[IPU6_ISYS_OUTPUT_PINS];
 	int error;
 	u8 vc;
 };
