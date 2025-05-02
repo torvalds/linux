@@ -21,13 +21,13 @@ void sha256_blocks_arch(u32 state[SHA256_STATE_WORDS],
 	else
 		sha256_blocks_generic(state, data, nblocks);
 }
-EXPORT_SYMBOL(sha256_blocks_arch);
+EXPORT_SYMBOL_GPL(sha256_blocks_arch);
 
 bool sha256_is_arch_optimized(void)
 {
 	return static_key_enabled(&have_cpacf_sha256);
 }
-EXPORT_SYMBOL(sha256_is_arch_optimized);
+EXPORT_SYMBOL_GPL(sha256_is_arch_optimized);
 
 static int __init sha256_s390_mod_init(void)
 {
