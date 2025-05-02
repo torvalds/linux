@@ -52,14 +52,20 @@ static int crypto_sha256_update_generic(struct shash_desc *desc, const u8 *data,
 	return crypto_sha256_update(desc, data, len, true);
 }
 
-static int crypto_sha256_update_arch(struct shash_desc *desc, const u8 *data,
-				     unsigned int len)
+static int crypto_sha256_update_lib(struct shash_desc *desc, const u8 *data,
+				    unsigned int len)
 {
 	sha256_update(shash_desc_ctx(desc), data, len);
 	return 0;
 }
 
-static int crypto_sha256_final_arch(struct shash_desc *desc, u8 *out)
+static int crypto_sha256_update_arch(struct shash_desc *desc, const u8 *data,
+				     unsigned int len)
+{
+	return crypto_sha256_update(desc, data, len, false);
+}
+
+static int crypto_sha256_final_lib(struct shash_desc *desc, u8 *out)
 {
 	sha256_final(shash_desc_ctx(desc), out);
 	return 0;
@@ -93,11 +99,7 @@ static int crypto_sha256_finup_generic(struct shash_desc *desc, const u8 *data,
 static int crypto_sha256_finup_arch(struct shash_desc *desc, const u8 *data,
 				    unsigned int len, u8 *out)
 {
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-
-	sha256_update(sctx, data, len);
-	sha256_final(sctx, out);
-	return 0;
+	return crypto_sha256_finup(desc, data, len, out, false);
 }
 
 static int crypto_sha256_digest_generic(struct shash_desc *desc, const u8 *data,
@@ -107,11 +109,18 @@ static int crypto_sha256_digest_generic(struct shash_desc *desc, const u8 *data,
 	return crypto_sha256_finup_generic(desc, data, len, out);
 }
 
-static int crypto_sha256_digest_arch(struct shash_desc *desc, const u8 *data,
-				     unsigned int len, u8 *out)
+static int crypto_sha256_digest_lib(struct shash_desc *desc, const u8 *data,
+				    unsigned int len, u8 *out)
 {
 	sha256(data, len, out);
 	return 0;
+}
+
+static int crypto_sha256_digest_arch(struct shash_desc *desc, const u8 *data,
+				     unsigned int len, u8 *out)
+{
+	crypto_sha256_init(desc);
+	return crypto_sha256_finup_arch(desc, data, len, out);
 }
 
 static int crypto_sha224_init(struct shash_desc *desc)
@@ -120,7 +129,7 @@ static int crypto_sha224_init(struct shash_desc *desc)
 	return 0;
 }
 
-static int crypto_sha224_final_arch(struct shash_desc *desc, u8 *out)
+static int crypto_sha224_final_lib(struct shash_desc *desc, u8 *out)
 {
 	sha224_final(shash_desc_ctx(desc), out);
 	return 0;
@@ -184,16 +193,14 @@ static struct shash_alg algs[] = {
 	},
 	{
 		.base.cra_name		= "sha256",
-		.base.cra_driver_name	= "sha256-" __stringify(ARCH),
-		.base.cra_priority	= 300,
+		.base.cra_driver_name	= "sha256-lib",
 		.base.cra_blocksize	= SHA256_BLOCK_SIZE,
 		.base.cra_module	= THIS_MODULE,
 		.digestsize		= SHA256_DIGEST_SIZE,
 		.init			= crypto_sha256_init,
-		.update			= crypto_sha256_update_arch,
-		.final			= crypto_sha256_final_arch,
-		.finup			= crypto_sha256_finup_arch,
-		.digest			= crypto_sha256_digest_arch,
+		.update			= crypto_sha256_update_lib,
+		.final			= crypto_sha256_final_lib,
+		.digest			= crypto_sha256_digest_lib,
 		.descsize		= sizeof(struct sha256_state),
 		.statesize		= sizeof(struct crypto_sha256_state) +
 					  SHA256_BLOCK_SIZE + 1,
@@ -202,19 +209,47 @@ static struct shash_alg algs[] = {
 	},
 	{
 		.base.cra_name		= "sha224",
-		.base.cra_driver_name	= "sha224-" __stringify(ARCH),
-		.base.cra_priority	= 300,
+		.base.cra_driver_name	= "sha224-lib",
 		.base.cra_blocksize	= SHA224_BLOCK_SIZE,
 		.base.cra_module	= THIS_MODULE,
 		.digestsize		= SHA224_DIGEST_SIZE,
 		.init			= crypto_sha224_init,
-		.update			= crypto_sha256_update_arch,
-		.final			= crypto_sha224_final_arch,
+		.update			= crypto_sha256_update_lib,
+		.final			= crypto_sha224_final_lib,
 		.descsize		= sizeof(struct sha256_state),
 		.statesize		= sizeof(struct crypto_sha256_state) +
 					  SHA256_BLOCK_SIZE + 1,
 		.import			= crypto_sha256_import_lib,
 		.export			= crypto_sha256_export_lib,
+	},
+	{
+		.base.cra_name		= "sha256",
+		.base.cra_driver_name	= "sha256-" __stringify(ARCH),
+		.base.cra_priority	= 300,
+		.base.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY |
+					  CRYPTO_AHASH_ALG_FINUP_MAX,
+		.base.cra_blocksize	= SHA256_BLOCK_SIZE,
+		.base.cra_module	= THIS_MODULE,
+		.digestsize		= SHA256_DIGEST_SIZE,
+		.init			= crypto_sha256_init,
+		.update			= crypto_sha256_update_arch,
+		.finup			= crypto_sha256_finup_arch,
+		.digest			= crypto_sha256_digest_arch,
+		.descsize		= sizeof(struct crypto_sha256_state),
+	},
+	{
+		.base.cra_name		= "sha224",
+		.base.cra_driver_name	= "sha224-" __stringify(ARCH),
+		.base.cra_priority	= 300,
+		.base.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY |
+					  CRYPTO_AHASH_ALG_FINUP_MAX,
+		.base.cra_blocksize	= SHA224_BLOCK_SIZE,
+		.base.cra_module	= THIS_MODULE,
+		.digestsize		= SHA224_DIGEST_SIZE,
+		.init			= crypto_sha224_init,
+		.update			= crypto_sha256_update_arch,
+		.finup			= crypto_sha256_finup_arch,
+		.descsize		= sizeof(struct crypto_sha256_state),
 	},
 };
 
@@ -224,9 +259,9 @@ static int __init crypto_sha256_mod_init(void)
 {
 	/* register the arch flavours only if they differ from generic */
 	num_algs = ARRAY_SIZE(algs);
-	BUILD_BUG_ON(ARRAY_SIZE(algs) % 2 != 0);
+	BUILD_BUG_ON(ARRAY_SIZE(algs) <= 2);
 	if (!sha256_is_arch_optimized())
-		num_algs /= 2;
+		num_algs -= 2;
 	return crypto_register_shashes(algs, ARRAY_SIZE(algs));
 }
 module_init(crypto_sha256_mod_init);
