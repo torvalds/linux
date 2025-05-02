@@ -1333,8 +1333,18 @@
 };
 
 &ssusb2 {
+	/*
+	 * the ssusb2 controller is one but we got two ports : one is routed
+	 * to the M.2 slot, the other is on the RPi header who does support
+	 * full OTG.
+	 * As the controller is shared between them, the role switch default
+	 * mode is set to host to make any peripheral inserted in the M.2
+	 * slot (i.e BT/WIFI module) be detected when the other port is
+	 * unused.
+	 */
 	dr_mode = "otg";
 	maximum-speed = "high-speed";
+	role-switch-default-mode = "host";
 	usb-role-switch;
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
 	wakeup-source;
@@ -1345,7 +1355,7 @@
 	connector {
 		compatible = "gpio-usb-b-connector", "usb-b-connector";
 		type = "micro";
-		id-gpios = <&pio 89 GPIO_ACTIVE_HIGH>;
+		id-gpios = <&pio 89 GPIO_ACTIVE_LOW>;
 		vbus-supply = <&usb_p2_vbus>;
 	};
 };
