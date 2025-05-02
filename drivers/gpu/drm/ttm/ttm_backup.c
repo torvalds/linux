@@ -55,7 +55,7 @@ void ttm_backup_drop(struct ttm_backup *backup, pgoff_t handle)
  * @backup: The struct backup pointer used to back up the page.
  * @dst: The struct page to copy into.
  * @handle: The handle returned when the page was backed up.
- * @intr: Try to perform waits interruptable or at least killable.
+ * @intr: Try to perform waits interruptible or at least killable.
  *
  * Return: 0 on success, Negative error code on failure, notably
  * -EINTR if @intr was set to true and a signal is pending.
