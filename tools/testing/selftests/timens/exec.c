@@ -36,6 +36,8 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
+	ksft_print_header();
+
 	nscheck();
 
 	ksft_set_plan(1);

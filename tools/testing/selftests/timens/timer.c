@@ -75,6 +75,8 @@ int main(int argc, char *argv[])
 	pid_t pid;
 	struct timespec btime_now, mtime_now;
 
+	ksft_print_header();
+
 	nscheck();
 
 	check_supported_timers();

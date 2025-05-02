@@ -115,6 +115,8 @@ int main(int argc, char *argv[])
 {
 	int ret, nsfd;
 
+	ksft_print_header();
+
 	nscheck();
 
 	ksft_set_plan(4);
