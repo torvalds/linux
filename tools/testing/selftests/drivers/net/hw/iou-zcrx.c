@@ -260,7 +260,7 @@ static void process_recvzc(struct io_uring *ring, struct io_uring_cqe *cqe)
 
 	for (i = 0; i < n; i++) {
 		if (*(data + i) != payload[(received + i)])
-			error(1, 0, "payload mismatch at ", i);
+			error(1, 0, "payload mismatch at %d", i);
 	}
 	received += n;
 
@@ -354,7 +354,7 @@ static void run_client(void)
 		chunk = min_t(ssize_t, cfg_payload_len, to_send);
 		res = send(fd, src, chunk, 0);
 		if (res < 0)
-			error(1, 0, "send(): %d", sent);
+			error(1, 0, "send(): %zd", sent);
 		sent += res;
 		to_send -= res;
 	}
