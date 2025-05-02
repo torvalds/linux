@@ -205,7 +205,6 @@ static int xlnx_cdx_probe(struct platform_device *pdev)
 		goto cdx_rpmsg_fail;
 	}
 
-	dev_info(&pdev->dev, "Successfully registered CDX controller with RPMsg as transport\n");
 	return 0;
 
 cdx_rpmsg_fail:
