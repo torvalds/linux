@@ -305,6 +305,8 @@ struct iwl_fw_mon_regs {
 	struct iwl_fw_mon_reg cur_frag;
 };
 
+#define TRANS_CFG_MARKER BIT(0)
+
 /**
  * struct iwl_cfg
  * @trans: the trans-specific configuration part

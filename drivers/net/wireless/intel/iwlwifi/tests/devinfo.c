@@ -126,11 +126,59 @@ static void devinfo_pci_ids(struct kunit *test)
 	}
 }
 
+static void devinfo_no_trans_cfg_dups(struct kunit *test)
+{
+	/* allocate iwl_dev_info_table_size as upper bound */
+	const struct iwl_cfg_trans_params **cfgs;
+	int count = 0;
+	int p = 0;
+
+	for (int i = 0; iwl_hw_card_ids[i].vendor; i++)
+		count++;
+
+	cfgs = kunit_kcalloc(test, count, sizeof(*cfgs), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, cfgs);
+
+	/* build a list of unique (by pointer) configs first */
+	for (int i = 0; iwl_hw_card_ids[i].vendor; i++) {
+		struct iwl_cfg_trans_params *cfg;
+		bool found = false;
+
+		if (!(iwl_hw_card_ids[i].driver_data & TRANS_CFG_MARKER))
+			continue;
+
+		cfg = (void *)(iwl_hw_card_ids[i].driver_data &
+			       ~TRANS_CFG_MARKER);
+
+		for (int j = 0; j < p; j++) {
+			if (cfgs[j] == cfg) {
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			cfgs[p] = cfg;
+			p++;
+		}
+	}
+
+	/* check that they're really all different */
+	for (int i = 0; i < p; i++) {
+		for (int j = 0; j < i; j++) {
+			KUNIT_EXPECT_NE_MSG(test, memcmp(cfgs[i], cfgs[j],
+							 sizeof(*cfgs[i])), 0,
+					    "identical configs: %ps and %ps\n",
+					    cfgs[i], cfgs[j]);
+		}
+	}
+}
+
 static struct kunit_case devinfo_test_cases[] = {
 	KUNIT_CASE(devinfo_table_order),
 	KUNIT_CASE(devinfo_names),
 	KUNIT_CASE(devinfo_no_cfg_dups),
 	KUNIT_CASE(devinfo_pci_ids),
+	KUNIT_CASE(devinfo_no_trans_cfg_dups),
 	{}
 };
 

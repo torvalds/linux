@@ -17,7 +17,6 @@
 #include "iwl-prph.h"
 #include "internal.h"
 
-#define TRANS_CFG_MARKER BIT(0)
 #define _IS_A(cfg, _struct) __builtin_types_compatible_p(typeof(cfg),	\
 							 struct _struct)
 extern int _invalid_type;
