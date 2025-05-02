@@ -15,6 +15,7 @@ struct snapshot_delete {
 	struct work_struct	work;
 
 	struct mutex		progress_lock;
+	snapshot_id_list	deleting_from_trees;
 	snapshot_id_list	delete_leaves;
 	interior_delete_list	delete_interior;
 
