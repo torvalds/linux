@@ -658,8 +658,6 @@ extern const struct iwl_cfg iwl_cfg_quz_a0_hr_b0;
 #if IS_ENABLED(CONFIG_IWLMLD)
 extern const struct iwl_ht_params iwl_bz_ht_params;
 
-extern const struct iwl_ht_params iwl_bz_ht_params;
-
 extern const struct iwl_cfg iwl_cfg_bz;
 extern const struct iwl_cfg iwl_cfg_gl;
 
