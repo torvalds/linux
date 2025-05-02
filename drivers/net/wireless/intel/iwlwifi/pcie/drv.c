@@ -1046,6 +1046,9 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     RF_TYPE(HR1), BW_LIMIT(80), NO_CDB),
 	IWL_DEV_INFO(iwl_cfg_so_a0_hr_a0, iwl_ax201_name, MAC_TYPE(SO),
 		     RF_TYPE(HR2), BW_NO_LIMIT, NO_CDB),
+	IWL_DEV_INFO(iwl_cfg_so_a0_hr_a0, iwl_ax201_killer_1650i_name,
+		     DEVICE(0x51f0), SUBDEV(0x1652),
+		     MAC_TYPE(SO), RF_TYPE(HR2)),
 
 /* So-F with Hr */
 	IWL_DEV_INFO(iwl_cfg_so_a0_hr_a0, iwl_ax203_name, MAC_TYPE(SOF),
