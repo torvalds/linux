@@ -1432,6 +1432,12 @@ static unsigned live_child(struct bch_fs *c, u32 id)
 	return ret;
 }
 
+static bool snapshot_id_dying(struct snapshot_delete *d, unsigned id)
+{
+	return snapshot_list_has_id(&d->delete_leaves, id) ||
+		interior_delete_has_id(&d->delete_interior, id) != 0;
+}
+
 static int delete_dead_snapshots_process_key(struct btree_trans *trans,
 					     struct btree_iter *iter,
 					     struct bkey_s_c k)
@@ -1497,6 +1503,129 @@ static bool skip_unrelated_snapshot_tree(struct btree_trans *trans, struct btree
 		bch2_btree_iter_set_pos(trans, iter, bpos_nosnap_successor(pos));
 	}
 
+	return ret;
+}
+
+static int delete_dead_snapshot_keys_v1(struct btree_trans *trans)
+{
+	struct bch_fs *c = trans->c;
+	struct snapshot_delete *d = &c->snapshot_delete;
+
+	for (d->pos.btree = 0; d->pos.btree < BTREE_ID_NR; d->pos.btree++) {
+		struct disk_reservation res = { 0 };
+		u64 prev_inum = 0;
+
+		d->pos.pos = POS_MIN;
+
+		if (!btree_type_has_snapshots(d->pos.btree))
+			continue;
+
+		int ret = for_each_btree_key_commit(trans, iter,
+				d->pos.btree, POS_MIN,
+				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
+				&res, NULL, BCH_TRANS_COMMIT_no_enospc, ({
+			d->pos.pos = iter.pos;
+
+			if (skip_unrelated_snapshot_tree(trans, &iter, &prev_inum))
+				continue;
+
+			delete_dead_snapshots_process_key(trans, &iter, k);
+		}));
+
+		bch2_disk_reservation_put(c, &res);
+
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int delete_dead_snapshot_keys_range(struct btree_trans *trans, enum btree_id btree,
+					   struct bpos start, struct bpos end)
+{
+	struct bch_fs *c = trans->c;
+	struct snapshot_delete *d = &c->snapshot_delete;
+	struct disk_reservation res = { 0 };
+
+	d->pos.btree	= btree;
+	d->pos.pos	= POS_MIN;
+
+	int ret = for_each_btree_key_max_commit(trans, iter,
+			btree, start, end,
+			BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
+			&res, NULL, BCH_TRANS_COMMIT_no_enospc, ({
+		d->pos.pos = iter.pos;
+		delete_dead_snapshots_process_key(trans, &iter, k);
+	}));
+
+	bch2_disk_reservation_put(c, &res);
+	return ret;
+}
+
+static int delete_dead_snapshot_keys_v2(struct btree_trans *trans)
+{
+	struct bch_fs *c = trans->c;
+	struct snapshot_delete *d = &c->snapshot_delete;
+	struct disk_reservation res = { 0 };
+	u64 prev_inum = 0;
+	int ret = 0;
+
+	struct btree_iter iter;
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_inodes, POS_MIN,
+			     BTREE_ITER_prefetch|BTREE_ITER_all_snapshots);
+
+	while (1) {
+		struct bkey_s_c k;
+		ret = lockrestart_do(trans,
+				bkey_err(k = bch2_btree_iter_peek(trans, &iter)));
+		if (ret)
+			break;
+
+		if (!k.k)
+			break;
+
+		d->pos.btree	= iter.btree_id;
+		d->pos.pos	= iter.pos;
+
+		if (skip_unrelated_snapshot_tree(trans, &iter, &prev_inum))
+			continue;
+
+		if (snapshot_id_dying(d, k.k->p.snapshot)) {
+			struct bpos start	= POS(k.k->p.offset, 0);
+			struct bpos end		= POS(k.k->p.offset, U64_MAX);
+
+			ret   = delete_dead_snapshot_keys_range(trans, BTREE_ID_extents, start, end) ?:
+				delete_dead_snapshot_keys_range(trans, BTREE_ID_dirents, start, end) ?:
+				delete_dead_snapshot_keys_range(trans, BTREE_ID_xattrs, start, end);
+			if (ret)
+				break;
+
+			bch2_btree_iter_set_pos(trans, &iter, POS(0, k.k->p.offset + 1));
+		} else {
+			bch2_btree_iter_advance(trans, &iter);
+		}
+	}
+	bch2_trans_iter_exit(trans, &iter);
+
+	if (ret)
+		goto err;
+
+	prev_inum = 0;
+	ret = for_each_btree_key_commit(trans, iter,
+			BTREE_ID_inodes, POS_MIN,
+			BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
+			&res, NULL, BCH_TRANS_COMMIT_no_enospc, ({
+		d->pos.btree	= iter.btree_id;
+		d->pos.pos	= iter.pos;
+
+		if (skip_unrelated_snapshot_tree(trans, &iter, &prev_inum))
+			continue;
+
+		delete_dead_snapshots_process_key(trans, &iter, k);
+	}));
+err:
+	bch2_disk_reservation_put(c, &res);
 	return ret;
 }
 
@@ -1683,34 +1812,13 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 			goto err;
 	}
 
-	for (d->pos.btree = 0; d->pos.btree < BTREE_ID_NR; d->pos.btree++) {
-		struct disk_reservation res = { 0 };
-		u64 prev_inum = 0;
-
-		d->pos.pos = POS_MIN;
-
-		if (!btree_type_has_snapshots(d->pos.btree))
-			continue;
-
-		ret = for_each_btree_key_commit(trans, iter,
-				d->pos.btree, POS_MIN,
-				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
-				&res, NULL, BCH_TRANS_COMMIT_no_enospc, ({
-			d->pos.pos = iter.pos;
-
-			if (skip_unrelated_snapshot_tree(trans, &iter, &prev_inum))
-				continue;
-
-			delete_dead_snapshots_process_key(trans, &iter, k);
-		}));
-
-		bch2_disk_reservation_put(c, &res);
-
-		if (!bch2_err_matches(ret, EROFS))
-			bch_err_msg(c, ret, "deleting keys from dying snapshots");
-		if (ret)
-			goto err;
-	}
+	ret = !bch2_request_incompat_feature(c, bcachefs_metadata_version_snapshot_deletion_v2)
+		? delete_dead_snapshot_keys_v2(trans)
+		: delete_dead_snapshot_keys_v1(trans);
+	if (!bch2_err_matches(ret, EROFS))
+		bch_err_msg(c, ret, "deleting keys from dying snapshots");
+	if (ret)
+		goto err;
 
 	darray_for_each(d->delete_leaves, i) {
 		ret = commit_do(trans, NULL, NULL, 0,
