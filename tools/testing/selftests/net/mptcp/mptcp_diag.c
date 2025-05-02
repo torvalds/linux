@@ -19,6 +19,10 @@
 #define IPPROTO_MPTCP 262
 #endif
 
+struct params {
+	__u32 target_token;
+};
+
 struct mptcp_info {
 	__u8	mptcpi_subflows;
 	__u8	mptcpi_add_addr_signal;
@@ -237,7 +241,7 @@ static void get_mptcpinfo(__u32 token)
 	close(fd);
 }
 
-static void parse_opts(int argc, char **argv, __u32 *target_token)
+static void parse_opts(int argc, char **argv, struct params *p)
 {
 	int c;
 
@@ -250,7 +254,7 @@ static void parse_opts(int argc, char **argv, __u32 *target_token)
 			die_usage(0);
 			break;
 		case 't':
-			sscanf(optarg, "%x", target_token);
+			sscanf(optarg, "%x", &p->target_token);
 			break;
 		default:
 			die_usage(1);
@@ -261,10 +265,12 @@ static void parse_opts(int argc, char **argv, __u32 *target_token)
 
 int main(int argc, char *argv[])
 {
-	__u32 target_token;
+	struct params p = { 0 };
 
-	parse_opts(argc, argv, &target_token);
-	get_mptcpinfo(target_token);
+	parse_opts(argc, argv, &p);
+
+	if (p.target_token)
+		get_mptcpinfo(p.target_token);
 
 	return 0;
 }
