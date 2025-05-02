@@ -712,33 +712,11 @@ static inline bool blk_queue_is_zoned(struct request_queue *q)
 		(q->limits.features & BLK_FEAT_ZONED);
 }
 
-#ifdef CONFIG_BLK_DEV_ZONED
-static inline unsigned int disk_nr_zones(struct gendisk *disk)
-{
-	return disk->nr_zones;
-}
-bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs);
-#else /* CONFIG_BLK_DEV_ZONED */
-static inline unsigned int disk_nr_zones(struct gendisk *disk)
-{
-	return 0;
-}
-static inline bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs)
-{
-	return false;
-}
-#endif /* CONFIG_BLK_DEV_ZONED */
-
 static inline unsigned int disk_zone_no(struct gendisk *disk, sector_t sector)
 {
 	if (!blk_queue_is_zoned(disk->queue))
 		return 0;
 	return sector >> ilog2(disk->queue->limits.chunk_sectors);
-}
-
-static inline unsigned int bdev_nr_zones(struct block_device *bdev)
-{
-	return disk_nr_zones(bdev->bd_disk);
 }
 
 static inline unsigned int bdev_max_open_zones(struct block_device *bdev)
@@ -845,6 +823,51 @@ static inline u64 sb_bdev_nr_blocks(struct super_block *sb)
 {
 	return bdev_nr_sectors(sb->s_bdev) >>
 		(sb->s_blocksize_bits - SECTOR_SHIFT);
+}
+
+#ifdef CONFIG_BLK_DEV_ZONED
+static inline unsigned int disk_nr_zones(struct gendisk *disk)
+{
+	return disk->nr_zones;
+}
+bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs);
+
+/**
+ * disk_zone_capacity - returns the zone capacity of zone containing @sector
+ * @disk:	disk to work with
+ * @sector:	sector number within the querying zone
+ *
+ * Returns the zone capacity of a zone containing @sector. @sector can be any
+ * sector in the zone.
+ */
+static inline unsigned int disk_zone_capacity(struct gendisk *disk,
+					      sector_t sector)
+{
+	sector_t zone_sectors = disk->queue->limits.chunk_sectors;
+
+	if (sector + zone_sectors >= get_capacity(disk))
+		return disk->last_zone_capacity;
+	return disk->zone_capacity;
+}
+static inline unsigned int bdev_zone_capacity(struct block_device *bdev,
+					      sector_t pos)
+{
+	return disk_zone_capacity(bdev->bd_disk, pos);
+}
+#else /* CONFIG_BLK_DEV_ZONED */
+static inline unsigned int disk_nr_zones(struct gendisk *disk)
+{
+	return 0;
+}
+static inline bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs)
+{
+	return false;
+}
+#endif /* CONFIG_BLK_DEV_ZONED */
+
+static inline unsigned int bdev_nr_zones(struct block_device *bdev)
+{
+	return disk_nr_zones(bdev->bd_disk);
 }
 
 int bdev_disk_changed(struct gendisk *disk, bool invalidate);
@@ -1614,6 +1637,7 @@ static inline void bio_end_io_acct(struct bio *bio, unsigned long start_time)
 	return bio_end_io_acct_remapped(bio, start_time, bio->bi_bdev);
 }
 
+int bdev_validate_blocksize(struct block_device *bdev, int block_size);
 int set_blocksize(struct file *file, int size);
 
 int lookup_bdev(const char *pathname, dev_t *dev);
@@ -1669,10 +1693,6 @@ struct file *bdev_file_open_by_path(const char *path, blk_mode_t mode,
 int bd_prepare_to_claim(struct block_device *bdev, void *holder,
 		const struct blk_holder_ops *hops);
 void bd_abort_claiming(struct block_device *bdev, void *holder);
-
-/* just for blk-cgroup, don't use elsewhere */
-struct block_device *blkdev_get_no_open(dev_t dev);
-void blkdev_put_no_open(struct block_device *bdev);
 
 struct block_device *I_BDEV(struct inode *inode);
 struct block_device *file_bdev(struct file *bdev_file);

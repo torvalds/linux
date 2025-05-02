@@ -102,11 +102,11 @@ do {								\
 		l = (local_lock_t *)this_cpu_ptr(lock);			\
 		tl = (local_trylock_t *)l;				\
 		_Generic((lock),					\
-			local_trylock_t *: ({				\
+			__percpu local_trylock_t *: ({			\
 				lockdep_assert(tl->acquired == 0);	\
 				WRITE_ONCE(tl->acquired, 1);		\
 			}),						\
-			default:(void)0);				\
+			__percpu local_lock_t *: (void)0);		\
 		local_lock_acquire(l);					\
 	} while (0)
 
@@ -171,11 +171,11 @@ do {								\
 		tl = (local_trylock_t *)l;				\
 		local_lock_release(l);					\
 		_Generic((lock),					\
-			local_trylock_t *: ({				\
+			__percpu local_trylock_t *: ({			\
 				lockdep_assert(tl->acquired == 1);	\
 				WRITE_ONCE(tl->acquired, 0);		\
 			}),						\
-			default:(void)0);				\
+			__percpu local_lock_t *: (void)0);		\
 	} while (0)
 
 #define __local_unlock(lock)					\
