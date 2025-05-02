@@ -1152,71 +1152,62 @@ void intel_irq_fini(struct drm_i915_private *i915)
 
 static irq_handler_t intel_irq_handler(struct drm_i915_private *dev_priv)
 {
-	if (HAS_GMCH(dev_priv)) {
-		if (IS_CHERRYVIEW(dev_priv))
-			return cherryview_irq_handler;
-		else if (IS_VALLEYVIEW(dev_priv))
-			return valleyview_irq_handler;
-		else if (GRAPHICS_VER(dev_priv) == 4)
-			return i965_irq_handler;
-		else
-			return i915_irq_handler;
-	} else {
-		if (GRAPHICS_VER_FULL(dev_priv) >= IP_VER(12, 10))
-			return dg1_irq_handler;
-		else if (GRAPHICS_VER(dev_priv) >= 11)
-			return gen11_irq_handler;
-		else if (GRAPHICS_VER(dev_priv) >= 8)
-			return gen8_irq_handler;
-		else
-			return ilk_irq_handler;
-	}
+	if (GRAPHICS_VER_FULL(dev_priv) >= IP_VER(12, 10))
+		return dg1_irq_handler;
+	else if (GRAPHICS_VER(dev_priv) >= 11)
+		return gen11_irq_handler;
+	else if (IS_CHERRYVIEW(dev_priv))
+		return cherryview_irq_handler;
+	else if (GRAPHICS_VER(dev_priv) >= 8)
+		return gen8_irq_handler;
+	else if (IS_VALLEYVIEW(dev_priv))
+		return valleyview_irq_handler;
+	else if (GRAPHICS_VER(dev_priv) >= 5)
+		return ilk_irq_handler;
+	else if (GRAPHICS_VER(dev_priv) == 4)
+		return i965_irq_handler;
+	else
+		return i915_irq_handler;
 }
 
 static void intel_irq_reset(struct drm_i915_private *dev_priv)
 {
-	if (HAS_GMCH(dev_priv)) {
-		if (IS_CHERRYVIEW(dev_priv))
-			cherryview_irq_reset(dev_priv);
-		else if (IS_VALLEYVIEW(dev_priv))
-			valleyview_irq_reset(dev_priv);
-		else if (GRAPHICS_VER(dev_priv) == 4)
-			i965_irq_reset(dev_priv);
-		else
-			i915_irq_reset(dev_priv);
-	} else {
-		if (GRAPHICS_VER_FULL(dev_priv) >= IP_VER(12, 10))
-			dg1_irq_reset(dev_priv);
-		else if (GRAPHICS_VER(dev_priv) >= 11)
-			gen11_irq_reset(dev_priv);
-		else if (GRAPHICS_VER(dev_priv) >= 8)
-			gen8_irq_reset(dev_priv);
-		else
-			ilk_irq_reset(dev_priv);
-	}
+	if (GRAPHICS_VER_FULL(dev_priv) >= IP_VER(12, 10))
+		dg1_irq_reset(dev_priv);
+	else if (GRAPHICS_VER(dev_priv) >= 11)
+		gen11_irq_reset(dev_priv);
+	else if (IS_CHERRYVIEW(dev_priv))
+		cherryview_irq_reset(dev_priv);
+	else if (GRAPHICS_VER(dev_priv) >= 8)
+		gen8_irq_reset(dev_priv);
+	else if (IS_VALLEYVIEW(dev_priv))
+		valleyview_irq_reset(dev_priv);
+	else if (GRAPHICS_VER(dev_priv) >= 5)
+		ilk_irq_reset(dev_priv);
+	else if (GRAPHICS_VER(dev_priv) == 4)
+		i965_irq_reset(dev_priv);
+	else
+		i915_irq_reset(dev_priv);
 }
 
 static void intel_irq_postinstall(struct drm_i915_private *dev_priv)
 {
-	if (HAS_GMCH(dev_priv)) {
-		if (IS_CHERRYVIEW(dev_priv))
-			cherryview_irq_postinstall(dev_priv);
-		else if (IS_VALLEYVIEW(dev_priv))
-			valleyview_irq_postinstall(dev_priv);
-		else if (GRAPHICS_VER(dev_priv) == 4)
-			i965_irq_postinstall(dev_priv);
-		else
-			i915_irq_postinstall(dev_priv);
-	} else {
-		if (GRAPHICS_VER_FULL(dev_priv) >= IP_VER(12, 10))
-			dg1_irq_postinstall(dev_priv);
-		else if (GRAPHICS_VER(dev_priv) >= 11)
-			gen11_irq_postinstall(dev_priv);
-		else if (GRAPHICS_VER(dev_priv) >= 8)
-			gen8_irq_postinstall(dev_priv);
-		else
-			ilk_irq_postinstall(dev_priv);
-	}
+	if (GRAPHICS_VER_FULL(dev_priv) >= IP_VER(12, 10))
+		dg1_irq_postinstall(dev_priv);
+	else if (GRAPHICS_VER(dev_priv) >= 11)
+		gen11_irq_postinstall(dev_priv);
+	else if (IS_CHERRYVIEW(dev_priv))
+		cherryview_irq_postinstall(dev_priv);
+	else if (GRAPHICS_VER(dev_priv) >= 8)
+		gen8_irq_postinstall(dev_priv);
+	else if (IS_VALLEYVIEW(dev_priv))
+		valleyview_irq_postinstall(dev_priv);
+	else if (GRAPHICS_VER(dev_priv) >= 5)
+		ilk_irq_postinstall(dev_priv);
+	else if (GRAPHICS_VER(dev_priv) == 4)
+		i965_irq_postinstall(dev_priv);
+	else
+		i915_irq_postinstall(dev_priv);
 }
 
 /**
