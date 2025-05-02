@@ -1083,12 +1083,44 @@ static char *get_modinfo(const struct load_info *info, const char *tag)
 	return get_next_modinfo(info, tag, NULL);
 }
 
+/**
+ * verify_module_namespace() - does @modname have access to this symbol's @namespace
+ * @namespace: export symbol namespace
+ * @modname: module name
+ *
+ * If @namespace is prefixed with "module:" to indicate it is a module namespace
+ * then test if @modname matches any of the comma separated patterns.
+ *
+ * The patterns only support tail-glob.
+ */
 static bool verify_module_namespace(const char *namespace, const char *modname)
 {
+	size_t len, modlen = strlen(modname);
 	const char *prefix = "module:";
+	const char *sep;
+	bool glob;
 
-	return strstarts(namespace, prefix) &&
-	       !strcmp(namespace + strlen(prefix), modname);
+	if (!strstarts(namespace, prefix))
+		return false;
+
+	for (namespace += strlen(prefix); *namespace; namespace = sep) {
+		sep = strchrnul(namespace, ',');
+		len = sep - namespace;
+
+		glob = false;
+		if (sep[-1] == '*') {
+			len--;
+			glob = true;
+		}
+
+		if (*sep)
+			sep++;
+
+		if (strncmp(namespace, modname, len) == 0 && (glob || len == modlen))
+			return true;
+	}
+
+	return false;
 }
 
 static int verify_namespace_is_imported(const struct load_info *info,
