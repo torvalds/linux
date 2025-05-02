@@ -37,20 +37,22 @@ struct saved_msrs {
 };
 
 /*
- * both i386 and x86_64 returns 64-bit value in edx:eax, but gcc's "A"
- * constraint has different meanings. For i386, "A" means exactly
- * edx:eax, while for x86_64 it doesn't mean rdx:rax or edx:eax. Instead,
- * it means rax *or* rdx.
+ * Both i386 and x86_64 returns 64-bit values in edx:eax for certain
+ * instructions, but GCC's "A" constraint has different meanings.
+ * For i386, "A" means exactly edx:eax, while for x86_64 it
+ * means rax *or* rdx.
+ *
+ * These helpers wrapping these semantic differences save one instruction
+ * clearing the high half of 'low':
  */
 #ifdef CONFIG_X86_64
-/* Using 64-bit values saves one instruction clearing the high half of low */
-#define DECLARE_ARGS(val, low, high)	unsigned long low, high
-#define EAX_EDX_VAL(val, low, high)	((low) | (high) << 32)
-#define EAX_EDX_RET(val, low, high)	"=a" (low), "=d" (high)
+# define DECLARE_ARGS(val, low, high)	unsigned long low, high
+# define EAX_EDX_VAL(val, low, high)		((low) | (high) << 32)
+# define EAX_EDX_RET(val, low, high)		"=a" (low), "=d" (high)
 #else
-#define DECLARE_ARGS(val, low, high)	u64 val
-#define EAX_EDX_VAL(val, low, high)	(val)
-#define EAX_EDX_RET(val, low, high)	"=A" (val)
+# define DECLARE_ARGS(val, low, high)	u64 val
+# define EAX_EDX_VAL(val, low, high)		(val)
+# define EAX_EDX_RET(val, low, high)		"=A" (val)
 #endif
 
 /*
