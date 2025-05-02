@@ -21,3 +21,18 @@ impl<T> From<PushError<T>> for Error {
         EINVAL
     }
 }
+
+/// Error type for [`Vec::remove`].
+pub struct RemoveError;
+
+impl Debug for RemoveError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "Index out of bounds")
+    }
+}
+
+impl From<RemoveError> for Error {
+    fn from(_: RemoveError) -> Error {
+        EINVAL
+    }
+}

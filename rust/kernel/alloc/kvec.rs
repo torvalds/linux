@@ -22,7 +22,7 @@ use core::{
 };
 
 mod errors;
-pub use self::errors::PushError;
+pub use self::errors::{PushError, RemoveError};
 
 /// Create a [`KVec`] containing the arguments.
 ///
@@ -387,6 +387,42 @@ where
 
         // SAFETY: The guarantees of `dec_len` allow us to take ownership of this value.
         Some(unsafe { removed.read() })
+    }
+
+    /// Removes the element at the given index.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut v = kernel::kvec![1, 2, 3]?;
+    /// assert_eq!(v.remove(1)?, 2);
+    /// assert_eq!(v, [1, 3]);
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn remove(&mut self, i: usize) -> Result<T, RemoveError> {
+        let value = {
+            let value_ref = self.get(i).ok_or(RemoveError)?;
+            // INVARIANT: This breaks the invariants by invalidating the value at index `i`, but we
+            // restore the invariants below.
+            // SAFETY: The value at index `i` is valid, because otherwise we would have already
+            // failed with `RemoveError`.
+            unsafe { ptr::read(value_ref) }
+        };
+
+        // SAFETY: We checked that `i` is in-bounds.
+        let p = unsafe { self.as_mut_ptr().add(i) };
+
+        // INVARIANT: After this call, the invalid value is at the last slot, so the Vec invariants
+        // are restored after the below call to `dec_len(1)`.
+        // SAFETY: `p.add(1).add(self.len - i - 1)` is `i+1+len-i-1 == len` elements after the
+        // beginning of the vector, so this is in-bounds of the vector's allocation.
+        unsafe { ptr::copy(p.add(1), p, self.len - i - 1) };
+
+        // SAFETY: Since the check at the beginning of this call did not fail with `RemoveError`,
+        // the length is at least one.
+        unsafe { self.dec_len(1) };
+
+        Ok(value)
     }
 
     /// Creates a new [`Vec`] instance with at least the given capacity.
