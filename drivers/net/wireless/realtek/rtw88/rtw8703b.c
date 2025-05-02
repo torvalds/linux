@@ -519,15 +519,6 @@ static const struct rtw_rqpn rqpn_table_8703b[] = {
 	 RTW_DMA_MAPPING_EXTRA, RTW_DMA_MAPPING_HIGH},
 };
 
-/* Default power index table for RTL8703B, used if EFUSE does not
- * contain valid data. Replaces EFUSE data from offset 0x10 (start of
- * txpwr_idx_table).
- */
-static const u8 rtw8703b_txpwr_idx_table[] = {
-	0x2D, 0x2D, 0x2D, 0x2D, 0x2D, 0x2D,
-	0x2D, 0x2D, 0x2D, 0x2D, 0x2D, 0x02
-};
-
 static void try_mac_from_devicetree(struct rtw_dev *rtwdev)
 {
 	struct device_node *node = rtwdev->dev->of_node;
@@ -544,15 +535,9 @@ static void try_mac_from_devicetree(struct rtw_dev *rtwdev)
 	}
 }
 
-#define DBG_EFUSE_FIX(rtwdev, name)					\
-	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "Fixed invalid EFUSE value: "	\
-		# name "=0x%x\n", rtwdev->efuse.name)
-
 static int rtw8703b_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 {
 	struct rtw_efuse *efuse = &rtwdev->efuse;
-	u8 *pwr = (u8 *)efuse->txpwr_idx_table;
-	bool valid = false;
 	int ret;
 
 	ret = rtw8723x_read_efuse(rtwdev, log_map);
@@ -561,51 +546,6 @@ static int rtw8703b_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 
 	if (!is_valid_ether_addr(efuse->addr))
 		try_mac_from_devicetree(rtwdev);
-
-	/* If TX power index table in EFUSE is invalid, fall back to
-	 * built-in table.
-	 */
-	for (int i = 0; i < ARRAY_SIZE(rtw8703b_txpwr_idx_table); i++)
-		if (pwr[i] != 0xff) {
-			valid = true;
-			break;
-		}
-	if (!valid) {
-		for (int i = 0; i < ARRAY_SIZE(rtw8703b_txpwr_idx_table); i++)
-			pwr[i] = rtw8703b_txpwr_idx_table[i];
-		rtw_dbg(rtwdev, RTW_DBG_EFUSE,
-			"Replaced invalid EFUSE TX power index table.");
-		rtw8723x_debug_txpwr_limit(rtwdev,
-					   efuse->txpwr_idx_table, 2);
-	}
-
-	/* Override invalid antenna settings. */
-	if (efuse->bt_setting == 0xff) {
-		/* shared antenna */
-		efuse->bt_setting |= BIT(0);
-		/* RF path A */
-		efuse->bt_setting &= ~BIT(6);
-		DBG_EFUSE_FIX(rtwdev, bt_setting);
-	}
-
-	/* Override invalid board options: The coex code incorrectly
-	 * assumes that if bits 6 & 7 are set the board doesn't
-	 * support coex. Regd is also derived from rf_board_option and
-	 * should be 0 if there's no valid data.
-	 */
-	if (efuse->rf_board_option == 0xff) {
-		efuse->regd = 0;
-		efuse->rf_board_option &= GENMASK(5, 0);
-		DBG_EFUSE_FIX(rtwdev, rf_board_option);
-	}
-
-	/* Override invalid crystal cap setting, default comes from
-	 * vendor driver. Chip specific.
-	 */
-	if (efuse->crystal_cap == 0xff) {
-		efuse->crystal_cap = 0x20;
-		DBG_EFUSE_FIX(rtwdev, crystal_cap);
-	}
 
 	return 0;
 }
