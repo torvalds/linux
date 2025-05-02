@@ -2176,3 +2176,20 @@ bool dmub_lsdma_send_poll_reg_write_command(struct dc_dmub_srv *dc_dmub_srv, uin
 	return result;
 }
 
+void dc_dmub_srv_release_hw(const struct dc *dc)
+{
+	struct dc_dmub_srv *dc_dmub_srv = dc->ctx->dmub_srv;
+	union dmub_rb_cmd cmd = {0};
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.idle_opt_notify_idle.header.type = DMUB_CMD__IDLE_OPT;
+	cmd.idle_opt_notify_idle.header.sub_type = DMUB_CMD__IDLE_OPT_RELEASE_HW;
+	cmd.idle_opt_notify_idle.header.payload_bytes =
+		sizeof(cmd.idle_opt_notify_idle) -
+		sizeof(cmd.idle_opt_notify_idle.header);
+
+	dm_execute_dmub_cmd(dc->ctx, &cmd,  DM_DMUB_WAIT_TYPE_WAIT);
+}
