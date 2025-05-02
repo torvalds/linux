@@ -1068,8 +1068,8 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 			/* Empty target list, no way to merge with last entry */
 			if (list_empty(target_list))
 				goto next;
-			last = list_entry(target_list->prev,
-					  struct defrag_target_range, list);
+			last = list_last_entry(target_list,
+					       struct defrag_target_range, list);
 			/* Not mergeable with last entry */
 			if (last->start + last->len != cur)
 				goto next;
@@ -1087,8 +1087,8 @@ add:
 		if (!list_empty(target_list)) {
 			struct defrag_target_range *last;
 
-			last = list_entry(target_list->prev,
-					  struct defrag_target_range, list);
+			last = list_last_entry(target_list,
+					       struct defrag_target_range, list);
 			ASSERT(last->start + last->len <= cur);
 			if (last->start + last->len == cur) {
 				/* Mergeable, enlarge the last entry */
