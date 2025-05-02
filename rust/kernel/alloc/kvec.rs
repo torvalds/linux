@@ -320,6 +320,37 @@ where
         Ok(())
     }
 
+    /// Removes the last element from a vector and returns it, or `None` if it is empty.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut v = KVec::new();
+    /// v.push(1, GFP_KERNEL)?;
+    /// v.push(2, GFP_KERNEL)?;
+    /// assert_eq!(&v, &[1, 2]);
+    ///
+    /// assert_eq!(v.pop(), Some(2));
+    /// assert_eq!(v.pop(), Some(1));
+    /// assert_eq!(v.pop(), None);
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn pop(&mut self) -> Option<T> {
+        if self.is_empty() {
+            return None;
+        }
+
+        let removed: *mut T = {
+            // SAFETY: We just checked that the length is at least one.
+            let slice = unsafe { self.dec_len(1) };
+            // SAFETY: The argument to `dec_len` was 1 so this returns a slice of length 1.
+            unsafe { slice.get_unchecked_mut(0) }
+        };
+
+        // SAFETY: The guarantees of `dec_len` allow us to take ownership of this value.
+        Some(unsafe { removed.read() })
+    }
+
     /// Creates a new [`Vec`] instance with at least the given capacity.
     ///
     /// # Examples
