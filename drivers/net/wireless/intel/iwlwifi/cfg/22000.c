@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 #include <linux/module.h>
 #include <linux/stringify.h>
@@ -170,14 +170,8 @@ const struct iwl_cfg_trans_params iwl_qu_long_latency_trans_cfg = {
  * looks more like 22000.  That's why this device is here, but called
  * 9560 nevertheless.
  */
-const struct iwl_cfg iwl9560_qu_b0_jf_b0_cfg = {
-	.fw_name_pre = IWL_QU_B_JF_B_FW_PRE,
-	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-};
-
-const struct iwl_cfg iwl9560_qu_c0_jf_b0_cfg = {
-	.fw_name_pre = IWL_QU_C_JF_B_FW_PRE,
+const struct iwl_cfg iwl9560_qu_jf_cfg = {
+	.fw_name_mac = "Qu",
 	IWL_DEVICE_22500,
 	.num_rbds = IWL_NUM_RBDS_NON_HE,
 };
@@ -217,8 +211,8 @@ const char iwl_ax201_killer_1650s_name[] =
 const char iwl_ax201_killer_1650i_name[] =
 	"Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201NGW)";
 
-const struct iwl_cfg iwl_qu_b0_hr1_b0 = {
-	.fw_name_pre = IWL_QU_B_HR_B_FW_PRE,
+const struct iwl_cfg iwl_qu_hr1 = {
+	.fw_name_mac = "Qu",
 	IWL_DEVICE_22500,
 	/*
 	 * This device doesn't support receiving BlockAck with a large bitmap
@@ -230,8 +224,8 @@ const struct iwl_cfg iwl_qu_b0_hr1_b0 = {
 	.num_rbds = IWL_NUM_RBDS_22000_HE,
 };
 
-const struct iwl_cfg iwl_qu_b0_hr_b0 = {
-	.fw_name_pre = IWL_QU_B_HR_B_FW_PRE,
+const struct iwl_cfg iwl_qu_hr = {
+	.fw_name_mac = "Qu",
 	IWL_DEVICE_22500,
 	/*
 	 * This device doesn't support receiving BlockAck with a large bitmap
@@ -244,7 +238,7 @@ const struct iwl_cfg iwl_qu_b0_hr_b0 = {
 
 const struct iwl_cfg iwl_ax201_cfg_qu_hr = {
 	.name = "Intel(R) Wi-Fi 6 AX201 160MHz",
-	.fw_name_pre = IWL_QU_B_HR_B_FW_PRE,
+	.fw_name_mac = "Qu",
 	IWL_DEVICE_22500,
 	/*
 	 * This device doesn't support receiving BlockAck with a large bitmap
@@ -255,46 +249,8 @@ const struct iwl_cfg iwl_ax201_cfg_qu_hr = {
 	.num_rbds = IWL_NUM_RBDS_22000_HE,
 };
 
-const struct iwl_cfg iwl_qu_c0_hr1_b0 = {
-	.fw_name_pre = IWL_QU_C_HR_B_FW_PRE,
-	IWL_DEVICE_22500,
-	/*
-	 * This device doesn't support receiving BlockAck with a large bitmap
-	 * so we need to restrict the size of transmitted aggregation to the
-	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
-	 */
-	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
-	.tx_with_siso_diversity = true,
-	.num_rbds = IWL_NUM_RBDS_22000_HE,
-};
-
-const struct iwl_cfg iwl_qu_c0_hr_b0 = {
-	.fw_name_pre = IWL_QU_C_HR_B_FW_PRE,
-	IWL_DEVICE_22500,
-	/*
-	 * This device doesn't support receiving BlockAck with a large bitmap
-	 * so we need to restrict the size of transmitted aggregation to the
-	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
-	 */
-	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
-	.num_rbds = IWL_NUM_RBDS_22000_HE,
-};
-
-const struct iwl_cfg iwl_ax201_cfg_qu_c0_hr_b0 = {
-	.name = "Intel(R) Wi-Fi 6 AX201 160MHz",
-	.fw_name_pre = IWL_QU_C_HR_B_FW_PRE,
-	IWL_DEVICE_22500,
-	/*
-	 * This device doesn't support receiving BlockAck with a large bitmap
-	 * so we need to restrict the size of transmitted aggregation to the
-	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
-	 */
-	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
-	.num_rbds = IWL_NUM_RBDS_22000_HE,
-};
-
-const struct iwl_cfg iwl_quz_a0_hr1_b0 = {
-	.fw_name_pre = IWL_QUZ_A_HR_B_FW_PRE,
+const struct iwl_cfg iwl_quz_hr1 = {
+	.fw_name_mac = "QuZ",
 	IWL_DEVICE_22500,
 	/*
 	 * This device doesn't support receiving BlockAck with a large bitmap
@@ -308,7 +264,7 @@ const struct iwl_cfg iwl_quz_a0_hr1_b0 = {
 
 const struct iwl_cfg iwl_ax201_cfg_quz_hr = {
 	.name = "Intel(R) Wi-Fi 6 AX201 160MHz",
-	.fw_name_pre = IWL_QUZ_A_HR_B_FW_PRE,
+	.fw_name_mac = "QuZ",
 	IWL_DEVICE_22500,
 	/*
          * This device doesn't support receiving BlockAck with a large bitmap
@@ -321,7 +277,7 @@ const struct iwl_cfg iwl_ax201_cfg_quz_hr = {
 
 const struct iwl_cfg iwl_ax1650s_cfg_quz_hr = {
 	.name = "Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201D2W)",
-	.fw_name_pre = IWL_QUZ_A_HR_B_FW_PRE,
+	.fw_name_mac = "QuZ",
 	IWL_DEVICE_22500,
 	/*
          * This device doesn't support receiving BlockAck with a large bitmap
@@ -334,7 +290,7 @@ const struct iwl_cfg iwl_ax1650s_cfg_quz_hr = {
 
 const struct iwl_cfg iwl_ax1650i_cfg_quz_hr = {
 	.name = "Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201NGW)",
-	.fw_name_pre = IWL_QUZ_A_HR_B_FW_PRE,
+	.fw_name_mac = "QuZ",
 	IWL_DEVICE_22500,
 	/*
          * This device doesn't support receiving BlockAck with a large bitmap
@@ -357,9 +313,9 @@ const struct iwl_cfg iwl_ax200_cfg_cc = {
 	.num_rbds = IWL_NUM_RBDS_22000_HE,
 };
 
-const struct iwl_cfg killer1650s_2ax_cfg_qu_b0_hr_b0 = {
+const struct iwl_cfg killer1650s_2ax_cfg_qu_hr = {
 	.name = "Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201NGW)",
-	.fw_name_pre = IWL_QU_B_HR_B_FW_PRE,
+	.fw_name_mac = "Qu",
 	IWL_DEVICE_22500,
 	/*
 	 * This device doesn't support receiving BlockAck with a large bitmap
@@ -370,9 +326,9 @@ const struct iwl_cfg killer1650s_2ax_cfg_qu_b0_hr_b0 = {
 	.num_rbds = IWL_NUM_RBDS_22000_HE,
 };
 
-const struct iwl_cfg killer1650i_2ax_cfg_qu_b0_hr_b0 = {
+const struct iwl_cfg killer1650i_2ax_cfg_qu_hr = {
 	.name = "Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201D2W)",
-	.fw_name_pre = IWL_QU_B_HR_B_FW_PRE,
+	.fw_name_mac = "Qu",
 	IWL_DEVICE_22500,
 	/*
 	 * This device doesn't support receiving BlockAck with a large bitmap
@@ -383,34 +339,8 @@ const struct iwl_cfg killer1650i_2ax_cfg_qu_b0_hr_b0 = {
 	.num_rbds = IWL_NUM_RBDS_22000_HE,
 };
 
-const struct iwl_cfg killer1650s_2ax_cfg_qu_c0_hr_b0 = {
-	.name = "Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201NGW)",
-	.fw_name_pre = IWL_QU_C_HR_B_FW_PRE,
-	IWL_DEVICE_22500,
-	/*
-	 * This device doesn't support receiving BlockAck with a large bitmap
-	 * so we need to restrict the size of transmitted aggregation to the
-	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
-	 */
-	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
-	.num_rbds = IWL_NUM_RBDS_22000_HE,
-};
-
-const struct iwl_cfg killer1650i_2ax_cfg_qu_c0_hr_b0 = {
-	.name = "Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201D2W)",
-	.fw_name_pre = IWL_QU_C_HR_B_FW_PRE,
-	IWL_DEVICE_22500,
-	/*
-	 * This device doesn't support receiving BlockAck with a large bitmap
-	 * so we need to restrict the size of transmitted aggregation to the
-	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
-	 */
-	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
-	.num_rbds = IWL_NUM_RBDS_22000_HE,
-};
-
-const struct iwl_cfg iwl_cfg_quz_a0_hr_b0 = {
-	.fw_name_pre = IWL_QUZ_A_HR_B_FW_PRE,
+const struct iwl_cfg iwl_cfg_quz_hr = {
+	.fw_name_mac = "QuZ",
 	IWL_DEVICE_22500,
 	/*
 	 * This device doesn't support receiving BlockAck with a large bitmap

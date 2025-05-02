@@ -655,10 +655,10 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     DEVICE(0x43F0), SUBDEV(0x0078), BW_NO_LIMIT),
 	IWL_DEV_INFO(iwl_ax201_cfg_qu_hr, NULL,
 		     DEVICE(0x43F0), SUBDEV(0x007C), BW_NO_LIMIT),
-	IWL_DEV_INFO(killer1650s_2ax_cfg_qu_b0_hr_b0,
+	IWL_DEV_INFO(killer1650s_2ax_cfg_qu_hr,
 		     iwl_ax201_killer_1650s_name,
 		     DEVICE(0x43F0), SUBDEV(0x1651), BW_NO_LIMIT),
-	IWL_DEV_INFO(killer1650i_2ax_cfg_qu_b0_hr_b0,
+	IWL_DEV_INFO(killer1650i_2ax_cfg_qu_hr,
 		     iwl_ax201_killer_1650i_name,
 		     DEVICE(0x43F0), SUBDEV(0x1652), BW_NO_LIMIT),
 	IWL_DEV_INFO(iwl_ax201_cfg_qu_hr, NULL,
@@ -675,9 +675,9 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     DEVICE(0xA0F0), SUBDEV(0x007C), BW_NO_LIMIT),
 	IWL_DEV_INFO(iwl_ax201_cfg_qu_hr, NULL,
 		     DEVICE(0xA0F0), SUBDEV(0x0A10), BW_NO_LIMIT),
-	IWL_DEV_INFO(killer1650s_2ax_cfg_qu_b0_hr_b0, NULL,
+	IWL_DEV_INFO(killer1650s_2ax_cfg_qu_hr, NULL,
 		     DEVICE(0xA0F0), SUBDEV(0x1651), BW_NO_LIMIT),
-	IWL_DEV_INFO(killer1650i_2ax_cfg_qu_b0_hr_b0, NULL,
+	IWL_DEV_INFO(killer1650i_2ax_cfg_qu_hr, NULL,
 		     DEVICE(0xA0F0), SUBDEV(0x1652), BW_NO_LIMIT),
 	IWL_DEV_INFO(iwl_ax201_cfg_qu_hr, NULL,
 		     DEVICE(0xA0F0), SUBDEV(0x2074), BW_NO_LIMIT),
@@ -733,9 +733,9 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     DEVICE(0x34F0), SUBDEV(0x007C), BW_NO_LIMIT),
 	IWL_DEV_INFO(iwl_ax201_cfg_qu_hr, NULL,
 		     DEVICE(0x34F0), SUBDEV(0x0310), BW_NO_LIMIT),
-	IWL_DEV_INFO(killer1650s_2ax_cfg_qu_b0_hr_b0, NULL,
+	IWL_DEV_INFO(killer1650s_2ax_cfg_qu_hr, NULL,
 		     DEVICE(0x34F0), SUBDEV(0x1651), BW_NO_LIMIT),
-	IWL_DEV_INFO(killer1650i_2ax_cfg_qu_b0_hr_b0, NULL,
+	IWL_DEV_INFO(killer1650i_2ax_cfg_qu_hr, NULL,
 		     DEVICE(0x34F0), SUBDEV(0x1652), BW_NO_LIMIT),
 	IWL_DEV_INFO(iwl_ax201_cfg_qu_hr, NULL,
 		     DEVICE(0x34F0), SUBDEV(0x2074), BW_NO_LIMIT),
@@ -752,9 +752,9 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     DEVICE(0x3DF0), SUBDEV(0x007C), BW_NO_LIMIT),
 	IWL_DEV_INFO(iwl_ax201_cfg_qu_hr, NULL,
 		     DEVICE(0x3DF0), SUBDEV(0x0310), BW_NO_LIMIT),
-	IWL_DEV_INFO(killer1650s_2ax_cfg_qu_b0_hr_b0, NULL,
+	IWL_DEV_INFO(killer1650s_2ax_cfg_qu_hr, NULL,
 		     DEVICE(0x3DF0), SUBDEV(0x1651), BW_NO_LIMIT),
-	IWL_DEV_INFO(killer1650i_2ax_cfg_qu_b0_hr_b0, NULL,
+	IWL_DEV_INFO(killer1650i_2ax_cfg_qu_hr, NULL,
 		     DEVICE(0x3DF0), SUBDEV(0x1652), BW_NO_LIMIT),
 	IWL_DEV_INFO(iwl_ax201_cfg_qu_hr, NULL,
 		     DEVICE(0x3DF0), SUBDEV(0x2074), BW_NO_LIMIT),
@@ -771,9 +771,9 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     DEVICE(0x4DF0), SUBDEV(0x007C), BW_NO_LIMIT),
 	IWL_DEV_INFO(iwl_ax201_cfg_qu_hr, NULL,
 		     DEVICE(0x4DF0), SUBDEV(0x0310), BW_NO_LIMIT),
-	IWL_DEV_INFO(killer1650s_2ax_cfg_qu_b0_hr_b0, NULL,
+	IWL_DEV_INFO(killer1650s_2ax_cfg_qu_hr, NULL,
 		     DEVICE(0x4DF0), SUBDEV(0x1651), BW_NO_LIMIT),
-	IWL_DEV_INFO(killer1650i_2ax_cfg_qu_b0_hr_b0, NULL,
+	IWL_DEV_INFO(killer1650i_2ax_cfg_qu_hr, NULL,
 		     DEVICE(0x4DF0), SUBDEV(0x1652), BW_NO_LIMIT),
 	IWL_DEV_INFO(iwl_ax201_cfg_qu_hr, NULL,
 		     DEVICE(0x4DF0), SUBDEV(0x2074), BW_NO_LIMIT),
@@ -925,65 +925,65 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 
 /* Qu with Jf */
 	/* Qu B step */
-	IWL_DEV_INFO(iwl9560_qu_b0_jf_b0_cfg, iwl9461_160_name,
+	IWL_DEV_INFO(iwl9560_qu_jf_cfg, iwl9461_160_name,
 		     MAC_TYPE(QU), MAC_STEP(B), RF_TYPE(JF1), RF_ID(JF1),
 		     BW_NO_LIMIT, CORES(BT), NO_CDB),
-	IWL_DEV_INFO(iwl9560_qu_b0_jf_b0_cfg, iwl9461_name,
+	IWL_DEV_INFO(iwl9560_qu_jf_cfg, iwl9461_name,
 		     MAC_TYPE(QU), MAC_STEP(B), RF_TYPE(JF1), RF_ID(JF1),
 		     BW_LIMIT(80), CORES(BT), NO_CDB),
-	IWL_DEV_INFO(iwl9560_qu_b0_jf_b0_cfg, iwl9462_160_name,
+	IWL_DEV_INFO(iwl9560_qu_jf_cfg, iwl9462_160_name,
 		     MAC_TYPE(QU), MAC_STEP(B),
 		     RF_TYPE(JF1), RF_ID(JF1_DIV),
 		     BW_NO_LIMIT, CORES(BT), NO_CDB),
-	IWL_DEV_INFO(iwl9560_qu_b0_jf_b0_cfg, iwl9462_name,
+	IWL_DEV_INFO(iwl9560_qu_jf_cfg, iwl9462_name,
 		     MAC_TYPE(QU), MAC_STEP(B),
 		     RF_TYPE(JF1), RF_ID(JF1_DIV),
 		     BW_LIMIT(80), CORES(BT), NO_CDB),
 
-	IWL_DEV_INFO(iwl9560_qu_b0_jf_b0_cfg, iwl9560_160_name,
+	IWL_DEV_INFO(iwl9560_qu_jf_cfg, iwl9560_160_name,
 		     MAC_TYPE(QU), MAC_STEP(B),
 		     RF_TYPE(JF2), RF_ID(JF),
 		     BW_NO_LIMIT, CORES(BT), NO_CDB),
-	IWL_DEV_INFO(iwl9560_qu_b0_jf_b0_cfg, iwl9560_name,
+	IWL_DEV_INFO(iwl9560_qu_jf_cfg, iwl9560_name,
 		     MAC_TYPE(QU), MAC_STEP(B),
 		     RF_TYPE(JF2), RF_ID(JF),
 		     BW_LIMIT(80), CORES(BT), NO_CDB),
 
-	IWL_DEV_INFO(iwl9560_qu_b0_jf_b0_cfg, iwl9560_killer_1550s_name,
+	IWL_DEV_INFO(iwl9560_qu_jf_cfg, iwl9560_killer_1550s_name,
 		     SUBDEV(0x1551), MAC_TYPE(QU), MAC_STEP(B), RF_TYPE(JF2),
 		     RF_ID(JF), BW_LIMIT(80), CORES(BT), NO_CDB),
-	IWL_DEV_INFO(iwl9560_qu_b0_jf_b0_cfg, iwl9560_killer_1550i_name,
+	IWL_DEV_INFO(iwl9560_qu_jf_cfg, iwl9560_killer_1550i_name,
 		     SUBDEV(0x1552), MAC_TYPE(QU), MAC_STEP(B), RF_TYPE(JF2),
 		     RF_ID(JF), BW_LIMIT(80), CORES(BT), NO_CDB),
 
 	/* Qu C step */
-	IWL_DEV_INFO(iwl9560_qu_c0_jf_b0_cfg, iwl9461_160_name,
+	IWL_DEV_INFO(iwl9560_qu_jf_cfg, iwl9461_160_name,
 		     MAC_TYPE(QU), MAC_STEP(C),
 		     RF_TYPE(JF1), RF_ID(JF1),
 		     BW_NO_LIMIT, CORES(BT), NO_CDB),
-	IWL_DEV_INFO(iwl9560_qu_c0_jf_b0_cfg, iwl9461_name,
+	IWL_DEV_INFO(iwl9560_qu_jf_cfg, iwl9461_name,
 		     MAC_TYPE(QU), MAC_STEP(C),
 		     RF_TYPE(JF1), RF_ID(JF1),
 		     BW_LIMIT(80), CORES(BT), NO_CDB),
-	IWL_DEV_INFO(iwl9560_qu_c0_jf_b0_cfg, iwl9462_160_name,
+	IWL_DEV_INFO(iwl9560_qu_jf_cfg, iwl9462_160_name,
 		     MAC_TYPE(QU), MAC_STEP(C),
 		     RF_TYPE(JF1), RF_ID(JF1_DIV),
 		     BW_NO_LIMIT, CORES(BT), NO_CDB),
-	IWL_DEV_INFO(iwl9560_qu_c0_jf_b0_cfg, iwl9462_name,
+	IWL_DEV_INFO(iwl9560_qu_jf_cfg, iwl9462_name,
 		     MAC_TYPE(QU), MAC_STEP(C),
 		     RF_TYPE(JF1), RF_ID(JF1_DIV),
 		     BW_LIMIT(80), CORES(BT), NO_CDB),
 
-	IWL_DEV_INFO(iwl9560_qu_c0_jf_b0_cfg, iwl9560_160_name, MAC_TYPE(QU),
+	IWL_DEV_INFO(iwl9560_qu_jf_cfg, iwl9560_160_name, MAC_TYPE(QU),
 		     MAC_STEP(C), RF_TYPE(JF2), RF_ID(JF), BW_NO_LIMIT, CORES(BT), NO_CDB),
-	IWL_DEV_INFO(iwl9560_qu_c0_jf_b0_cfg, iwl9560_name, MAC_TYPE(QU),
+	IWL_DEV_INFO(iwl9560_qu_jf_cfg, iwl9560_name, MAC_TYPE(QU),
 		     MAC_STEP(C), RF_TYPE(JF2), RF_ID(JF), BW_LIMIT(80), CORES(BT),
 		     NO_CDB),
 
-	IWL_DEV_INFO(iwl9560_qu_c0_jf_b0_cfg, iwl9560_killer_1550s_name,
+	IWL_DEV_INFO(iwl9560_qu_jf_cfg, iwl9560_killer_1550s_name,
 		     SUBDEV(0x1551), MAC_TYPE(QU), MAC_STEP(C), RF_TYPE(JF2),
 		     RF_ID(JF), BW_NO_LIMIT, CORES(BT), NO_CDB),
-	IWL_DEV_INFO(iwl9560_qu_c0_jf_b0_cfg, iwl9560_killer_1550i_name,
+	IWL_DEV_INFO(iwl9560_qu_jf_cfg, iwl9560_killer_1550i_name,
 		     SUBDEV(0x1552), MAC_TYPE(QU), MAC_STEP(C), RF_TYPE(JF2),
 		     RF_ID(JF), BW_LIMIT(80), CORES(BT), NO_CDB),
 
@@ -1011,25 +1011,25 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 
 /* Qu with Hr */
 	/* Qu B step */
-	IWL_DEV_INFO(iwl_qu_b0_hr1_b0, iwl_ax101_name, MAC_TYPE(QU),
+	IWL_DEV_INFO(iwl_qu_hr1, iwl_ax101_name, MAC_TYPE(QU),
 		     MAC_STEP(B), RF_TYPE(HR1), NO_CDB),
-	IWL_DEV_INFO(iwl_qu_b0_hr_b0, iwl_ax203_name, MAC_TYPE(QU), MAC_STEP(B),
+	IWL_DEV_INFO(iwl_qu_hr, iwl_ax203_name, MAC_TYPE(QU), MAC_STEP(B),
 		     RF_TYPE(HR2), BW_LIMIT(80), NO_CDB),
 
 	/* Qu C step */
-	IWL_DEV_INFO(iwl_qu_c0_hr1_b0, iwl_ax101_name, MAC_TYPE(QU),
+	IWL_DEV_INFO(iwl_qu_hr1, iwl_ax101_name, MAC_TYPE(QU),
 		     MAC_STEP(C), RF_TYPE(HR1), NO_CDB),
-	IWL_DEV_INFO(iwl_qu_c0_hr_b0, iwl_ax203_name, MAC_TYPE(QU), MAC_STEP(C),
+	IWL_DEV_INFO(iwl_qu_hr, iwl_ax203_name, MAC_TYPE(QU), MAC_STEP(C),
 		     RF_TYPE(HR2), BW_LIMIT(80), NO_CDB),
-	IWL_DEV_INFO(iwl_qu_c0_hr_b0, iwl_ax201_name, MAC_TYPE(QU), MAC_STEP(C),
+	IWL_DEV_INFO(iwl_qu_hr, iwl_ax201_name, MAC_TYPE(QU), MAC_STEP(C),
 		     RF_TYPE(HR2), BW_NO_LIMIT, NO_CDB),
 
 	/* QuZ */
-	IWL_DEV_INFO(iwl_quz_a0_hr1_b0, iwl_ax101_name, MAC_TYPE(QUZ),
+	IWL_DEV_INFO(iwl_quz_hr1, iwl_ax101_name, MAC_TYPE(QUZ),
 		     RF_TYPE(HR1), NO_CDB),
-	IWL_DEV_INFO(iwl_cfg_quz_a0_hr_b0, iwl_ax203_name, MAC_TYPE(QUZ),
+	IWL_DEV_INFO(iwl_cfg_quz_hr, iwl_ax203_name, MAC_TYPE(QUZ),
 		     MAC_STEP(B), RF_TYPE(HR2), BW_LIMIT(80), NO_CDB),
-	IWL_DEV_INFO(iwl_cfg_quz_a0_hr_b0, iwl_ax201_name, MAC_TYPE(QUZ),
+	IWL_DEV_INFO(iwl_cfg_quz_hr, iwl_ax201_name, MAC_TYPE(QUZ),
 		     MAC_STEP(B), RF_TYPE(HR2), BW_NO_LIMIT, NO_CDB),
 
 /* Ma */
@@ -1519,27 +1519,17 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		iwl_trans->cfg = cfg_7265d;
 
 	/*
-	 * This is a hack to switch from Qu B0 to Qu C0.  We need to
-	 * do this for all cfgs that use Qu B0, except for those using
+	 * This is a hack to switch from QuZ to Qu C0.  We need to
+	 * do this for all cfgs that use QuZ, except for those using
 	 * Jf, which have already been moved to the new table.  The
 	 * rest must be removed once we convert Qu with Hr as well.
 	 */
-	if (iwl_trans->hw_rev == CSR_HW_REV_TYPE_QU_C0) {
-		if (iwl_trans->cfg == &iwl_ax201_cfg_qu_hr)
-			iwl_trans->cfg = &iwl_ax201_cfg_qu_c0_hr_b0;
-		else if (iwl_trans->cfg == &killer1650s_2ax_cfg_qu_b0_hr_b0)
-			iwl_trans->cfg = &killer1650s_2ax_cfg_qu_c0_hr_b0;
-		else if (iwl_trans->cfg == &killer1650i_2ax_cfg_qu_b0_hr_b0)
-			iwl_trans->cfg = &killer1650i_2ax_cfg_qu_c0_hr_b0;
-	}
-
-	/* same thing for QuZ... */
 	if (iwl_trans->hw_rev == CSR_HW_REV_TYPE_QUZ) {
 		if (iwl_trans->cfg == &iwl_ax201_cfg_qu_hr)
 			iwl_trans->cfg = &iwl_ax201_cfg_quz_hr;
-		else if (iwl_trans->cfg == &killer1650s_2ax_cfg_qu_b0_hr_b0)
+		else if (iwl_trans->cfg == &killer1650s_2ax_cfg_qu_hr)
 			iwl_trans->cfg = &iwl_ax1650s_cfg_quz_hr;
-		else if (iwl_trans->cfg == &killer1650i_2ax_cfg_qu_b0_hr_b0)
+		else if (iwl_trans->cfg == &killer1650i_2ax_cfg_qu_hr)
 			iwl_trans->cfg = &iwl_ax1650i_cfg_quz_hr;
 	}
 
