@@ -6,6 +6,11 @@
 // and thus add a dependency on `include/config/RUSTC_VERSION_TEXT`, which is
 // touched by Kconfig when the version string from the compiler changes.
 
+// Stable since Rust 1.88.0 under a different name, `proc_macro_span_file`,
+// which was added in Rust 1.88.0. This is why `cfg_attr` is used here, i.e.
+// to avoid depending on the full `proc_macro_span` on Rust >= 1.88.0.
+#![cfg_attr(not(CONFIG_RUSTC_HAS_SPAN_FILE), feature(proc_macro_span))]
+
 #[macro_use]
 mod quote;
 mod concat_idents;

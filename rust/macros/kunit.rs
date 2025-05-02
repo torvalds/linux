@@ -57,8 +57,8 @@ pub(crate) fn kunit_tests(attr: TokenStream, ts: TokenStream) -> TokenStream {
         }
     }
 
-    // Add `#[cfg(CONFIG_KUNIT)]` before the module declaration.
-    let config_kunit = "#[cfg(CONFIG_KUNIT)]".to_owned().parse().unwrap();
+    // Add `#[cfg(CONFIG_KUNIT="y")]` before the module declaration.
+    let config_kunit = "#[cfg(CONFIG_KUNIT=\"y\")]".to_owned().parse().unwrap();
     tokens.insert(
         0,
         TokenTree::Group(Group::new(Delimiter::None, config_kunit)),
@@ -98,6 +98,8 @@ pub(crate) fn kunit_tests(attr: TokenStream, ts: TokenStream) -> TokenStream {
     // ```
     let mut kunit_macros = "".to_owned();
     let mut test_cases = "".to_owned();
+    let mut assert_macros = "".to_owned();
+    let path = crate::helpers::file();
     for test in &tests {
         let kunit_wrapper_fn_name = format!("kunit_rust_wrapper_{test}");
         let kunit_wrapper = format!(
@@ -107,6 +109,27 @@ pub(crate) fn kunit_tests(attr: TokenStream, ts: TokenStream) -> TokenStream {
         writeln!(
             test_cases,
             "    ::kernel::kunit::kunit_case(::kernel::c_str!(\"{test}\"), {kunit_wrapper_fn_name}),"
+        )
+        .unwrap();
+        writeln!(
+            assert_macros,
+            r#"
+/// Overrides the usual [`assert!`] macro with one that calls KUnit instead.
+#[allow(unused)]
+macro_rules! assert {{
+    ($cond:expr $(,)?) => {{{{
+        kernel::kunit_assert!("{test}", "{path}", 0, $cond);
+    }}}}
+}}
+
+/// Overrides the usual [`assert_eq!`] macro with one that calls KUnit instead.
+#[allow(unused)]
+macro_rules! assert_eq {{
+    ($left:expr, $right:expr $(,)?) => {{{{
+        kernel::kunit_assert_eq!("{test}", "{path}", 0, $left, $right);
+    }}}}
+}}
+        "#
         )
         .unwrap();
     }
@@ -147,10 +170,12 @@ pub(crate) fn kunit_tests(attr: TokenStream, ts: TokenStream) -> TokenStream {
         }
     }
 
-    let mut new_body = TokenStream::from_iter(new_body);
-    new_body.extend::<TokenStream>(kunit_macros.parse().unwrap());
+    let mut final_body = TokenStream::new();
+    final_body.extend::<TokenStream>(assert_macros.parse().unwrap());
+    final_body.extend(new_body);
+    final_body.extend::<TokenStream>(kunit_macros.parse().unwrap());
 
-    tokens.push(TokenTree::Group(Group::new(Delimiter::Brace, new_body)));
+    tokens.push(TokenTree::Group(Group::new(Delimiter::Brace, final_body)));
 
     tokens.into_iter().collect()
 }

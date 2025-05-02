@@ -323,7 +323,6 @@ mod tests {
 
     #[test]
     fn rust_test_kunit_example_test() {
-        #![expect(clippy::eq_op)]
         assert_eq!(1 + 1, 2);
     }
 
