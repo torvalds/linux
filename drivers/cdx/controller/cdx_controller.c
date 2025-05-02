@@ -250,24 +250,7 @@ static struct platform_driver cdx_pdriver = {
 	.remove = xlnx_cdx_remove,
 };
 
-static int __init cdx_controller_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&cdx_pdriver);
-	if (ret)
-		pr_err("platform_driver_register() failed: %d\n", ret);
-
-	return ret;
-}
-
-static void __exit cdx_controller_exit(void)
-{
-	platform_driver_unregister(&cdx_pdriver);
-}
-
-module_init(cdx_controller_init);
-module_exit(cdx_controller_exit);
+module_platform_driver(cdx_pdriver);
 
 MODULE_AUTHOR("AMD Inc.");
 MODULE_DESCRIPTION("CDX controller for AMD devices");
