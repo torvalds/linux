@@ -22,7 +22,7 @@ use core::{
 };
 
 mod errors;
-pub use self::errors::{PushError, RemoveError};
+pub use self::errors::{InsertError, PushError, RemoveError};
 
 /// Create a [`KVec`] containing the arguments.
 ///
@@ -356,6 +356,55 @@ where
         // by 1. We also know that the new length is <= capacity because the caller guarantees that
         // the length is less than the capacity at the beginning of this function.
         unsafe { self.inc_len(1) };
+    }
+
+    /// Inserts an element at the given index in the [`Vec`] instance.
+    ///
+    /// Fails if the vector does not have capacity for the new element. Panics if the index is out
+    /// of bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::alloc::kvec::InsertError;
+    ///
+    /// let mut v = KVec::with_capacity(5, GFP_KERNEL)?;
+    /// for i in 0..5 {
+    ///     v.insert_within_capacity(0, i)?;
+    /// }
+    ///
+    /// assert!(matches!(v.insert_within_capacity(0, 5), Err(InsertError::OutOfCapacity(_))));
+    /// assert!(matches!(v.insert_within_capacity(1000, 5), Err(InsertError::IndexOutOfBounds(_))));
+    /// assert_eq!(v, [4, 3, 2, 1, 0]);
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn insert_within_capacity(
+        &mut self,
+        index: usize,
+        element: T,
+    ) -> Result<(), InsertError<T>> {
+        let len = self.len();
+        if index > len {
+            return Err(InsertError::IndexOutOfBounds(element));
+        }
+
+        if len >= self.capacity() {
+            return Err(InsertError::OutOfCapacity(element));
+        }
+
+        // SAFETY: This is in bounds since `index <= len < capacity`.
+        let p = unsafe { self.as_mut_ptr().add(index) };
+        // INVARIANT: This breaks the Vec invariants by making `index` contain an invalid element,
+        // but we restore the invariants below.
+        // SAFETY: Both the src and dst ranges end no later than one element after the length.
+        // Since the length is less than the capacity, both ranges are in bounds of the allocation.
+        unsafe { ptr::copy(p, p.add(1), len - index) };
+        // INVARIANT: This restores the Vec invariants.
+        // SAFETY: The pointer is in-bounds of the allocation.
+        unsafe { ptr::write(p, element) };
+        // SAFETY: Index `len` contains a valid element due to the above copy and write.
+        unsafe { self.inc_len(1) };
+        Ok(())
     }
 
     /// Removes the last element from a vector and returns it, or `None` if it is empty.

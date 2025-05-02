@@ -36,3 +36,26 @@ impl From<RemoveError> for Error {
         EINVAL
     }
 }
+
+/// Error type for [`Vec::insert_within_capacity`].
+pub enum InsertError<T> {
+    /// The value could not be inserted because the index is out of bounds.
+    IndexOutOfBounds(T),
+    /// The value could not be inserted because the vector is out of capacity.
+    OutOfCapacity(T),
+}
+
+impl<T> Debug for InsertError<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            InsertError::IndexOutOfBounds(_) => write!(f, "Index out of bounds"),
+            InsertError::OutOfCapacity(_) => write!(f, "Not enough capacity"),
+        }
+    }
+}
+
+impl<T> From<InsertError<T>> for Error {
+    fn from(_: InsertError<T>) -> Error {
+        EINVAL
+    }
+}
