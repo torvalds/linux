@@ -386,6 +386,69 @@ static int acp_memory_init(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+static void amd_sof_handle_acp70_sdw_wake_event(struct acp_dev_data *adata)
+{
+	struct amd_sdw_manager *amd_manager;
+
+	if (adata->acp70_sdw0_wake_event) {
+		amd_manager = dev_get_drvdata(&adata->sdw->pdev[0]->dev);
+		if (amd_manager)
+			pm_request_resume(amd_manager->dev);
+		adata->acp70_sdw0_wake_event = 0;
+	}
+
+	if (adata->acp70_sdw1_wake_event) {
+		amd_manager = dev_get_drvdata(&adata->sdw->pdev[1]->dev);
+		if (amd_manager)
+			pm_request_resume(amd_manager->dev);
+		adata->acp70_sdw1_wake_event = 0;
+	}
+}
+
+static int amd_sof_check_and_handle_acp70_sdw_wake_irq(struct snd_sof_dev *sdev)
+{
+	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
+	struct acp_dev_data *adata = sdev->pdata->hw_pdata;
+	u32 ext_intr_stat1;
+	int irq_flag = 0;
+	bool sdw_wake_irq = false;
+
+	ext_intr_stat1 = snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->ext_intr_stat1);
+	if (ext_intr_stat1 & ACP70_SDW0_HOST_WAKE_STAT) {
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->ext_intr_stat1,
+				  ACP70_SDW0_HOST_WAKE_STAT);
+		adata->acp70_sdw0_wake_event = true;
+		sdw_wake_irq = true;
+	}
+
+	if (ext_intr_stat1 & ACP70_SDW1_HOST_WAKE_STAT) {
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->ext_intr_stat1,
+				  ACP70_SDW1_HOST_WAKE_STAT);
+		adata->acp70_sdw1_wake_event = true;
+		sdw_wake_irq = true;
+	}
+
+	if (ext_intr_stat1 & ACP70_SDW0_PME_STAT) {
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP70_SW0_WAKE_EN, 0);
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->ext_intr_stat1, ACP70_SDW0_PME_STAT);
+		adata->acp70_sdw0_wake_event = true;
+		sdw_wake_irq = true;
+	}
+
+	if (ext_intr_stat1 & ACP70_SDW1_PME_STAT) {
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP70_SW1_WAKE_EN, 0);
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->ext_intr_stat1, ACP70_SDW1_PME_STAT);
+		adata->acp70_sdw1_wake_event = true;
+		sdw_wake_irq = true;
+	}
+
+	if (sdw_wake_irq) {
+		amd_sof_handle_acp70_sdw_wake_event(adata);
+		irq_flag = 1;
+	}
+	return irq_flag;
+}
+
 static irqreturn_t acp_irq_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
@@ -418,7 +481,7 @@ static irqreturn_t acp_irq_handler(int irq, void *dev_id)
 	struct acp_dev_data *adata = sdev->pdata->hw_pdata;
 	unsigned int base = desc->dsp_intr_base;
 	unsigned int val;
-	int irq_flag = 0;
+	int irq_flag = 0, wake_irq_flag = 0;
 
 	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, base + DSP_SW_INTR_STAT_OFFSET);
 	if (val & ACP_DSP_TO_HOST_IRQ) {
@@ -456,8 +519,14 @@ static irqreturn_t acp_irq_handler(int irq, void *dev_id)
 				schedule_work(&amd_manager->amd_sdw_irq_thread);
 			irq_flag = 1;
 		}
+		switch (adata->pci_rev) {
+		case ACP70_PCI_ID:
+		case ACP71_PCI_ID:
+			wake_irq_flag = amd_sof_check_and_handle_acp70_sdw_wake_irq(sdev);
+			break;
+		}
 	}
-	if (irq_flag)
+	if (irq_flag || wake_irq_flag)
 		return IRQ_HANDLED;
 	else
 		return IRQ_NONE;

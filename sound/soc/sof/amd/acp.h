@@ -263,6 +263,10 @@ struct acp_dev_data {
 	bool is_dram_in_use;
 	bool is_sram_in_use;
 	bool sdw_en_stat;
+	/* acp70_sdw0_wake_event flag set to true when wake irq asserted for SW0 instance */
+	bool acp70_sdw0_wake_event;
+	/* acp70_sdw1_wake_event flag set to true when wake irq asserted for SW1 instance */
+	bool acp70_sdw1_wake_event;
 	unsigned int pci_rev;
 };
 
