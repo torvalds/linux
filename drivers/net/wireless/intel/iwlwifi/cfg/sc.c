@@ -13,7 +13,7 @@
 #define IWL_SC_UCODE_API_MAX	98
 
 /* Lowest firmware API version supported */
-#define IWL_SC_UCODE_API_MIN	93
+#define IWL_SC_UCODE_API_MIN	98
 
 /* NVM versions */
 #define IWL_SC_NVM_VERSION		0x0a1d
@@ -55,23 +55,23 @@ static const struct iwl_base_params iwl_sc_base_params = {
 	.pcie_l1_allowed = true,
 };
 
-#define IWL_DEVICE_BZ_COMMON						\
-	.ucode_api_max = IWL_SC_UCODE_API_MAX,			\
-	.ucode_api_min = IWL_SC_UCODE_API_MIN,			\
+#define IWL_DEVICE_SC							\
+	.ucode_api_max = IWL_SC_UCODE_API_MAX,				\
+	.ucode_api_min = IWL_SC_UCODE_API_MIN,				\
 	.led_mode = IWL_LED_RF_STATE,					\
 	.nvm_hw_section_num = 10,					\
 	.non_shared_ant = ANT_B,					\
 	.dccm_offset = IWL_SC_DCCM_OFFSET,				\
 	.dccm_len = IWL_SC_DCCM_LEN,					\
 	.dccm2_offset = IWL_SC_DCCM2_OFFSET,				\
-	.dccm2_len = IWL_SC_DCCM2_LEN,				\
+	.dccm2_len = IWL_SC_DCCM2_LEN,					\
 	.smem_offset = IWL_SC_SMEM_OFFSET,				\
 	.smem_len = IWL_SC_SMEM_LEN,					\
 	.apmg_not_supported = true,					\
 	.trans.mq_rx_supported = true,					\
 	.vht_mu_mimo_supported = true,					\
 	.mac_addr_from_csr = 0x30,					\
-	.nvm_ver = IWL_SC_NVM_VERSION,				\
+	.nvm_ver = IWL_SC_NVM_VERSION,					\
 	.trans.rf_id = true,						\
 	.trans.gen2 = true,						\
 	.nvm_type = IWL_NVM_EXT,					\
@@ -114,10 +114,7 @@ static const struct iwl_base_params iwl_sc_base_params = {
 			.addr = DBGI_SRAM_FIFO_POINTERS,		\
 			.mask = DBGI_SRAM_FIFO_POINTERS_WR_PTR_MSK,	\
 		},							\
-	}
-
-#define IWL_DEVICE_SC							\
-	IWL_DEVICE_BZ_COMMON,						\
+	},								\
 	.uhb_supported = true,						\
 	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,		\
 	.num_rbds = IWL_NUM_RBDS_SC_EHT,				\
