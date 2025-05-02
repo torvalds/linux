@@ -99,6 +99,24 @@ static void devinfo_no_cfg_dups(struct kunit *test)
 	}
 }
 
+static void devinfo_no_name_dups(struct kunit *test)
+{
+	for (int i = 0; i < iwl_dev_info_table_size; i++) {
+		for (int j = 0; j < i; j++) {
+			if (iwl_dev_info_table[i].name == iwl_dev_info_table[j].name)
+				continue;
+
+			KUNIT_EXPECT_NE_MSG(test,
+					    strcmp(iwl_dev_info_table[i].name,
+						   iwl_dev_info_table[j].name),
+					    0,
+					    "name dup: %ps/%ps",
+					    iwl_dev_info_table[i].name,
+					    iwl_dev_info_table[j].name);
+		}
+	}
+}
+
 static void devinfo_check_subdev_match(struct kunit *test)
 {
 	for (int i = 0; i < iwl_dev_info_table_size; i++) {
@@ -198,6 +216,7 @@ static struct kunit_case devinfo_test_cases[] = {
 	KUNIT_CASE(devinfo_table_order),
 	KUNIT_CASE(devinfo_names),
 	KUNIT_CASE(devinfo_no_cfg_dups),
+	KUNIT_CASE(devinfo_no_name_dups),
 	KUNIT_CASE(devinfo_check_subdev_match),
 	KUNIT_CASE(devinfo_check_killer_subdev),
 	KUNIT_CASE(devinfo_pci_ids),
