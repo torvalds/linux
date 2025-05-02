@@ -307,7 +307,6 @@ struct iwl_fw_mon_regs {
 
 /**
  * struct iwl_cfg
- * @name: Official name of the device
  * @fw_name_pre: Firmware filename prefix. The api version and extension
  *	(.ucode) will be added to filename before loading from disk. The
  *	filename is constructed as <fw_name_pre>-<api>.ucode.
@@ -358,7 +357,6 @@ struct iwl_fw_mon_regs {
  */
 struct iwl_cfg {
 	/* params specific to an individual device within a device family */
-	const char *name;
 	const char *fw_name_pre;
 	/* params likely to change within a device family */
 	const struct iwl_ht_params *ht_params;
@@ -613,6 +611,7 @@ extern const char iwl_ax211_killer_1675s_name[];
 extern const char iwl_ax211_killer_1675i_name[];
 extern const char iwl_ax411_killer_1690s_name[];
 extern const char iwl_ax411_killer_1690i_name[];
+extern const char iwl_ax210_name[];
 extern const char iwl_ax211_name[];
 extern const char iwl_ax231_name[];
 extern const char iwl_ax411_name[];

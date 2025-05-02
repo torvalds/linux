@@ -54,7 +54,7 @@ static void devinfo_names(struct kunit *test)
 	for (idx = 0; idx < iwl_dev_info_table_size; idx++) {
 		const struct iwl_dev_info *di = &iwl_dev_info_table[idx];
 
-		KUNIT_ASSERT_TRUE(test, di->name || di->cfg->name);
+		KUNIT_ASSERT_TRUE(test, di->name);
 	}
 }
 
@@ -88,13 +88,8 @@ static void devinfo_no_cfg_dups(struct kunit *test)
 	for (int i = 0; i < p; i++) {
 		struct iwl_cfg cfg_i = *cfgs[i];
 
-		/* null out the names since we can handle them differently */
-		cfg_i.name = NULL;
-
 		for (int j = 0; j < i; j++) {
 			struct iwl_cfg cfg_j = *cfgs[j];
-
-			cfg_j.name = NULL;
 
 			KUNIT_EXPECT_NE_MSG(test, memcmp(&cfg_i, &cfg_j,
 							 sizeof(cfg_i)), 0,
@@ -126,9 +121,8 @@ static void devinfo_check_killer_subdev(struct kunit *test)
 {
 	for (int i = 0; i < iwl_dev_info_table_size; i++) {
 		const struct iwl_dev_info *di = &iwl_dev_info_table[i];
-		const char *name = di->name ?: di->cfg->name;
 
-		if (!strstr(name, "Killer"))
+		if (!strstr(di->name, "Killer"))
 			continue;
 
 		KUNIT_EXPECT_NE(test, di->subdevice, (u16)IWL_CFG_ANY);

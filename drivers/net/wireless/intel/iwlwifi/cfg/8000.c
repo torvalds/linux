@@ -123,7 +123,6 @@ const struct iwl_cfg iwl8260_cfg = {
 };
 
 const struct iwl_cfg iwl8265_cfg = {
-	.name = "Intel(R) Dual Band Wireless AC 8265",
 	.fw_name_pre = IWL8265_FW_PRE,
 	IWL_DEVICE_8265,
 	.ht_params = &iwl8000_ht_params,
