@@ -670,6 +670,22 @@ static struct aa_label *profile_transition(const struct cred *subj_cred,
 	if (profile_unconfined(profile)) {
 		new = find_attach(bprm, profile->ns,
 				  &profile->ns->base.profiles, name, &info);
+		/* info set -> something unusual that we should report
+		 * Currently this is only conflicting attachments, but other
+		 * infos added in the future should also be logged by default
+		 * and only excluded on a case-by-case basis
+		 */
+		if (info) {
+			/* Because perms is never used again after this audit
+			 * we don't need to care about clobbering it
+			 */
+			perms.audit |= MAY_EXEC;
+			perms.allow |= MAY_EXEC;
+			/* Don't cause error if auditing fails */
+			(void) aa_audit_file(subj_cred, profile, &perms,
+				OP_EXEC, MAY_EXEC, name, target, new, cond->uid,
+				info, error);
+		}
 		if (new) {
 			AA_DEBUG(DEBUG_DOMAIN, "unconfined attached to new label");
 			return new;
