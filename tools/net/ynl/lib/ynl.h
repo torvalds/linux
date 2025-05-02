@@ -80,9 +80,23 @@ struct ynl_sock {
 
 	struct nlmsghdr *nlh;
 	const struct ynl_policy_nest *req_policy;
+	size_t req_hdr_len;
 	unsigned char *tx_buf;
 	unsigned char *rx_buf;
 	unsigned char raw_buf[];
+};
+
+/**
+ * struct ynl_string - parsed individual string
+ * @len: length of the string (excluding terminating character)
+ * @str: value of the string
+ *
+ * Parsed and nul-terminated string. This struct is only used for arrays of
+ * strings. Non-array string members are placed directly in respective types.
+ */
+struct ynl_string {
+	unsigned int len;
+	char str[];
 };
 
 struct ynl_sock *

@@ -94,7 +94,7 @@ struct ynl_ntf_base_type {
 	unsigned char data[] __attribute__((aligned(8)));
 };
 
-struct nlmsghdr *ynl_msg_start_req(struct ynl_sock *ys, __u32 id);
+struct nlmsghdr *ynl_msg_start_req(struct ynl_sock *ys, __u32 id, __u16 flags);
 struct nlmsghdr *ynl_msg_start_dump(struct ynl_sock *ys, __u32 id);
 
 struct nlmsghdr *
