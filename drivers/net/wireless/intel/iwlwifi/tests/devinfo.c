@@ -58,6 +58,52 @@ static void devinfo_names(struct kunit *test)
 	}
 }
 
+static void devinfo_no_cfg_dups(struct kunit *test)
+{
+	/* allocate iwl_dev_info_table_size as upper bound */
+	const struct iwl_cfg **cfgs = kunit_kcalloc(test,
+						    iwl_dev_info_table_size,
+						    sizeof(*cfgs), GFP_KERNEL);
+	int p = 0;
+
+	KUNIT_ASSERT_NOT_NULL(test, cfgs);
+
+	/* build a list of unique (by pointer) configs first */
+	for (int i = 0; i < iwl_dev_info_table_size; i++) {
+		bool found = false;
+
+		for (int j = 0; j < p; j++) {
+			if (cfgs[j] == iwl_dev_info_table[i].cfg) {
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			cfgs[p] = iwl_dev_info_table[i].cfg;
+			p++;
+		}
+	}
+
+	/* check that they're really all different */
+	for (int i = 0; i < p; i++) {
+		struct iwl_cfg cfg_i = *cfgs[i];
+
+		/* null out the names since we can handle them differently */
+		cfg_i.name = NULL;
+
+		for (int j = 0; j < i; j++) {
+			struct iwl_cfg cfg_j = *cfgs[j];
+
+			cfg_j.name = NULL;
+
+			KUNIT_EXPECT_NE_MSG(test, memcmp(&cfg_i, &cfg_j,
+							 sizeof(cfg_i)), 0,
+					    "identical configs: %ps and %ps\n",
+					    cfgs[i], cfgs[j]);
+		}
+	}
+}
+
 static void devinfo_pci_ids(struct kunit *test)
 {
 	struct pci_dev *dev;
@@ -83,6 +129,7 @@ static void devinfo_pci_ids(struct kunit *test)
 static struct kunit_case devinfo_test_cases[] = {
 	KUNIT_CASE(devinfo_table_order),
 	KUNIT_CASE(devinfo_names),
+	KUNIT_CASE(devinfo_no_cfg_dups),
 	KUNIT_CASE(devinfo_pci_ids),
 	{}
 };
