@@ -20,10 +20,7 @@ struct ipu6_isys_stream;
 struct ipu6_isys_queue {
 	struct vb2_queue vbq;
 	struct list_head node;
-	/*
-	 * @lock: serialise access to queued and pre_streamon_queued
-	 */
-	spinlock_t lock;
+	spinlock_t lock; /* Protects active and incoming lists */
 	struct list_head active;
 	struct list_head incoming;
 	unsigned int fw_output;
