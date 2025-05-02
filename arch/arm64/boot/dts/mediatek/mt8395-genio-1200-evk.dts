@@ -106,6 +106,7 @@
 		brightness-levels = <0 1023>;
 		num-interpolated-steps = <1023>;
 		default-brightness-level = <576>;
+		status = "disabled";
 	};
 
 	can_clk: can-clk {
