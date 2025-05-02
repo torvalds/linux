@@ -130,16 +130,17 @@ please see:
 
 	https://rust.docs.kernel.org/kernel/error/type.Result.html#error-codes-in-c-and-rust
 
-The ``#[test]`` tests
----------------------
+The ``rusttest`` host tests
+---------------------------
 
-Additionally, there are the ``#[test]`` tests. These can be run using the
-``rusttest`` Make target::
+These are userspace tests that can be built and run in the host (i.e. the one
+that performs the kernel build) using the ``rusttest`` Make target::
 
 	make LLVM=1 rusttest
 
-This requires the kernel ``.config``. It runs the ``#[test]`` tests on the host
-(currently) and thus is fairly limited in what these tests can test.
+This requires the kernel ``.config``.
+
+Currently, they are mostly used for testing the ``macros`` crate's examples.
 
 The Kselftests
 --------------
