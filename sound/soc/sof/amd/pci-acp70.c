@@ -40,6 +40,8 @@ static const struct sof_amd_acp_desc acp70_chip_info = {
 	.hw_semaphore_offset = ACP70_AXI2DAGB_SEM_0,
 	.fusion_dsp_offset = ACP70_DSP_FUSION_RUNSTALL,
 	.probe_reg_offset = ACP70_FUTURE_REG_ACLK_0,
+	.sdw_max_link_count = ACP70_SDW_MAX_MANAGER_COUNT,
+	.sdw_acpi_dev_addr = SDW_ACPI_ADDR_ACP70,
 	.reg_start_addr = ACP70_REG_START,
 	.reg_end_addr = ACP70_REG_END,
 };
