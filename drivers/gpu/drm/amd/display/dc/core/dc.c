@@ -4246,12 +4246,6 @@ static void commit_planes_for_stream(struct dc *dc,
 			if (update_type == UPDATE_TYPE_FAST)
 				continue;
 
-			ASSERT(!pipe_ctx->plane_state->triplebuffer_flips);
-			if (dc->hwss.program_triplebuffer != NULL && dc->debug.enable_tri_buf) {
-				/*turn off triple buffer for full update*/
-				dc->hwss.program_triplebuffer(
-					dc, pipe_ctx, pipe_ctx->plane_state->triplebuffer_flips);
-			}
 			stream_status =
 				stream_get_status(context, pipe_ctx->stream);
 
@@ -4260,6 +4254,25 @@ static void commit_planes_for_stream(struct dc *dc,
 					dc, pipe_ctx->stream, stream_status->plane_count, context);
 		}
 	}
+
+	for (j = 0; j < dc->res_pool->pipe_count; j++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+
+		if (!pipe_ctx->plane_state)
+			continue;
+
+		/* Full fe update*/
+		if (update_type == UPDATE_TYPE_FAST)
+			continue;
+
+		ASSERT(!pipe_ctx->plane_state->triplebuffer_flips);
+		if (dc->hwss.program_triplebuffer != NULL && dc->debug.enable_tri_buf) {
+			/*turn off triple buffer for full update*/
+			dc->hwss.program_triplebuffer(
+				dc, pipe_ctx, pipe_ctx->plane_state->triplebuffer_flips);
+		}
+	}
+
 	if (dc->hwss.program_front_end_for_ctx && update_type != UPDATE_TYPE_FAST) {
 		dc->hwss.program_front_end_for_ctx(dc, context);
 
