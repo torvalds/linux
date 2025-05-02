@@ -6,7 +6,7 @@ use crate::alloc::{flags::*, AllocError, KVec};
 use core::fmt::{self, Write};
 use core::ops::{self, Deref, DerefMut, Index};
 
-use crate::error::{code::*, Error};
+use crate::prelude::*;
 
 /// Byte string without UTF-8 validity guarantee.
 #[repr(transparent)]
@@ -572,8 +572,7 @@ macro_rules! c_str {
     }};
 }
 
-#[cfg(test)]
-#[expect(clippy::items_after_test_module)]
+#[kunit_tests(rust_kernel_str)]
 mod tests {
     use super::*;
 
@@ -622,11 +621,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    fn test_cstr_to_str_panic() {
+    fn test_cstr_to_str_invalid_utf8() {
         let bad_bytes = b"\xc3\x28\0";
         let checked_cstr = CStr::from_bytes_with_nul(bad_bytes).unwrap();
-        checked_cstr.to_str().unwrap();
+        assert!(checked_cstr.to_str().is_err());
     }
 
     #[test]
