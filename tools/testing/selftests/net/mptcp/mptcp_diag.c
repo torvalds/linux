@@ -62,7 +62,7 @@ static void die_usage(int r)
 	exit(r);
 }
 
-static void send_query(int fd, __u32 token)
+static void send_query(int fd, struct inet_diag_req_v2 *r)
 {
 	struct sockaddr_nl nladdr = {
 		.nl_family = AF_NETLINK
@@ -76,19 +76,13 @@ static void send_query(int fd, __u32 token)
 			.nlmsg_type = SOCK_DIAG_BY_FAMILY,
 			.nlmsg_flags = NLM_F_REQUEST
 		},
-		.r = {
-			.sdiag_family = AF_INET,
-			/* Real proto is set via INET_DIAG_REQ_PROTOCOL */
-			.sdiag_protocol = IPPROTO_TCP,
-			.id.idiag_cookie[0] = token,
-		}
+		.r = *r
 	};
 	struct rtattr rta_proto;
 	struct iovec iov[6];
 	int iovlen = 1;
 	__u32 proto;
 
-	req.r.idiag_ext |= (1 << (INET_DIAG_INFO - 1));
 	proto = IPPROTO_MPTCP;
 	rta_proto.rta_type = INET_DIAG_REQ_PROTOCOL;
 	rta_proto.rta_len = RTA_LENGTH(sizeof(proto));
@@ -229,13 +223,20 @@ static void recv_nlmsg(int fd)
 
 static void get_mptcpinfo(__u32 token)
 {
+	struct inet_diag_req_v2 r = {
+		.sdiag_family           = AF_INET,
+		/* Real proto is set via INET_DIAG_REQ_PROTOCOL */
+		.sdiag_protocol         = IPPROTO_TCP,
+		.idiag_ext              = 1 << (INET_DIAG_INFO - 1),
+		.id.idiag_cookie[0]     = token,
+	};
 	int fd;
 
 	fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_SOCK_DIAG);
 	if (fd < 0)
 		die_perror("Netlink socket");
 
-	send_query(fd, token);
+	send_query(fd, &r);
 	recv_nlmsg(fd);
 
 	close(fd);
