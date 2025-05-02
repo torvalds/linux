@@ -15,7 +15,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
-#include <linux/unaligned.h>
 
 /*
  * If __DISABLE_EXPORTS is defined, then this file is being compiled for a
@@ -26,14 +25,16 @@
 #include "sha256-generic.c"
 #endif
 
+static inline bool sha256_purgatory(void)
+{
+	return __is_defined(__DISABLE_EXPORTS);
+}
+
 static inline void sha256_blocks(u32 state[SHA256_STATE_WORDS], const u8 *data,
 				 size_t nblocks, bool force_generic)
 {
-#if IS_ENABLED(CONFIG_CRYPTO_ARCH_HAVE_LIB_SHA256) && !defined(__DISABLE_EXPORTS)
-	if (!force_generic)
-		return sha256_blocks_arch(state, data, nblocks);
-#endif
-	sha256_blocks_generic(state, data, nblocks);
+	sha256_choose_blocks(state, data, nblocks,
+			     force_generic || sha256_purgatory(), false);
 }
 
 static inline void __sha256_update(struct sha256_state *sctx, const u8 *data,
@@ -79,25 +80,10 @@ EXPORT_SYMBOL(sha256_update);
 static inline void __sha256_final(struct sha256_state *sctx, u8 *out,
 				  size_t digest_size, bool force_generic)
 {
-	const size_t bit_offset = SHA256_BLOCK_SIZE - sizeof(__be64);
-	__be64 *bits = (__be64 *)&sctx->buf[bit_offset];
 	size_t partial = sctx->count % SHA256_BLOCK_SIZE;
-	size_t i;
 
-	sctx->buf[partial++] = 0x80;
-	if (partial > bit_offset) {
-		memset(&sctx->buf[partial], 0, SHA256_BLOCK_SIZE - partial);
-		sha256_blocks(sctx->state, sctx->buf, 1, force_generic);
-		partial = 0;
-	}
-
-	memset(&sctx->buf[partial], 0, bit_offset - partial);
-	*bits = cpu_to_be64(sctx->count << 3);
-	sha256_blocks(sctx->state, sctx->buf, 1, force_generic);
-
-	for (i = 0; i < digest_size; i += 4)
-		put_unaligned_be32(sctx->state[i / 4], out + i);
-
+	sha256_finup(&sctx->ctx, sctx->buf, partial, out, digest_size,
+		     force_generic || sha256_purgatory(), false);
 	memzero_explicit(sctx, sizeof(*sctx));
 }
 
