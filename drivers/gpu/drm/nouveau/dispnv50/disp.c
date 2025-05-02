@@ -776,7 +776,7 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
 	const u8 rekey = 56; /* binary driver, and tegra, constant */
 	u32 max_ac_packet;
 	DEFINE_RAW_FLEX(struct nvif_outp_infoframe_v0, args, data, 17);
-	const u8 data_len = __struct_size(args) - sizeof(*args);
+	const u8 data_len = __member_size(args->data);
 	int ret, size;
 
 	max_ac_packet  = mode->htotal - mode->hdisplay;

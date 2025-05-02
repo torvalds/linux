@@ -73,12 +73,6 @@ properties:
   port:
     $ref: /schemas/graph.yaml#/properties/port
 
-  assigned-clocks:
-    maxItems: 2
-
-  assigned-clock-rates:
-    maxItems: 2
-
   iommus:
     maxItems: 1
 

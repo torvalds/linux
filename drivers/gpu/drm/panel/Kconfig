@@ -154,6 +154,17 @@ config DRM_PANEL_LVDS
 	  handling of power supplies or control signals. It implements automatic
 	  backlight handling if the panel is attached to a backlight controller.
 
+config DRM_PANEL_HIMAX_HX8279
+	tristate "Himax HX8279-based panels"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y if you want to enable support for panels based on the
+	  Himax HX8279 controller, such as the Startek KD070FHFID078
+	  7.0" 1200x1920 IPS LCD panel that uses a MIPI-DSI interface
+	  and others.
+
 config DRM_PANEL_HIMAX_HX83102
 	tristate "Himax HX83102-based panels"
 	depends on OF
@@ -995,6 +1006,15 @@ config DRM_PANEL_TRULY_NT35597_WQXGA
 	help
 	  Say Y here if you want to enable support for Truly NT35597 WQXGA Dual DSI
 	  Video Mode panel
+
+config DRM_PANEL_VISIONOX_G2647FB105
+	tristate "Visionox G2647FB105"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the Visionox
+	  G2647FB105 (2340x1080@60Hz) AMOLED DSI cmd mode panel.
 
 config DRM_PANEL_VISIONOX_R66451
 	tristate "Visionox R66451"

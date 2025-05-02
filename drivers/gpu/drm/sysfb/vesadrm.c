@@ -36,126 +36,18 @@
 
 #define VESADRM_GAMMA_LUT_SIZE 256
 
-static int vesadrm_get_validated_int(struct drm_device *dev, const char *name,
-				     u64 value, u32 max)
-{
-	if (max > INT_MAX)
-		max = INT_MAX;
-	if (value > max) {
-		drm_err(dev, "%s of %llu exceeds maximum of %u\n", name, value, max);
-		return -EINVAL;
-	}
-	return value;
-}
-
-static int vesadrm_get_validated_int0(struct drm_device *dev, const char *name,
-				      u64 value, u32 max)
-{
-	if (!value) {
-		drm_err(dev, "%s of 0 not allowed\n", name);
-		return -EINVAL;
-	}
-	return vesadrm_get_validated_int(dev, name, value, max);
-}
-
-static s64 vesadrm_get_validated_size0(struct drm_device *dev, const char *name,
-				       u64 value, u64 max)
-{
-	if (!value) {
-		drm_err(dev, "vesadrm: %s of 0 not allowed\n", name);
-		return -EINVAL;
-	} else if (value > max) {
-		drm_err(dev, "vesadrm: %s of %llu exceeds maximum of %llu\n", name, value, max);
-		return -EINVAL;
-	}
-	return value;
-}
-
-static int vesadrm_get_width_si(struct drm_device *dev, const struct screen_info *si)
-{
-	return vesadrm_get_validated_int0(dev, "width", si->lfb_width, U16_MAX);
-}
-
-static int vesadrm_get_height_si(struct drm_device *dev, const struct screen_info *si)
-{
-	return vesadrm_get_validated_int0(dev, "height", si->lfb_height, U16_MAX);
-}
-
-static struct resource *vesadrm_get_memory_si(struct drm_device *dev,
-					      const struct screen_info *si,
-					      struct resource *res)
-{
-	ssize_t	num;
-
-	num = screen_info_resources(si, res, 1);
-	if (!num) {
-		drm_err(dev, "vesadrm: memory resource not found\n");
-		return NULL;
-	}
-
-	return res;
-}
-
-static int vesadrm_get_stride_si(struct drm_device *dev, const struct screen_info *si,
-				 const struct drm_format_info *format,
-				 unsigned int width, unsigned int height, u64 size)
-{
-	u64 lfb_linelength = si->lfb_linelength;
-
-	if (!lfb_linelength)
-		lfb_linelength = drm_format_info_min_pitch(format, 0, width);
-
-	return vesadrm_get_validated_int0(dev, "stride", lfb_linelength, div64_u64(size, height));
-}
-
-static u64 vesadrm_get_visible_size_si(struct drm_device *dev, const struct screen_info *si,
-				       unsigned int height, unsigned int stride, u64 size)
-{
-	u64 vsize = PAGE_ALIGN(height * stride);
-
-	return vesadrm_get_validated_size0(dev, "visible size", vsize, size);
-}
-
 static const struct drm_format_info *vesadrm_get_format_si(struct drm_device *dev,
 							   const struct screen_info *si)
 {
-	static const struct {
-		struct pixel_format pixel;
-		u32 fourcc;
-	} vesa_formats[] = {
+	static const struct drm_sysfb_format formats[] = {
 		{ PIXEL_FORMAT_XRGB1555, DRM_FORMAT_XRGB1555, },
 		{ PIXEL_FORMAT_RGB565, DRM_FORMAT_RGB565, },
 		{ PIXEL_FORMAT_RGB888, DRM_FORMAT_RGB888, },
 		{ PIXEL_FORMAT_XRGB8888, DRM_FORMAT_XRGB8888, },
 		{ PIXEL_FORMAT_XBGR8888, DRM_FORMAT_XBGR8888, },
 	};
-	const struct drm_format_info *format = NULL;
-	u32 bits_per_pixel;
-	size_t i;
 
-	bits_per_pixel = __screen_info_lfb_bits_per_pixel(si);
-
-	for (i = 0; i < ARRAY_SIZE(vesa_formats); ++i) {
-		const struct pixel_format *f = &vesa_formats[i].pixel;
-
-		if (bits_per_pixel == f->bits_per_pixel &&
-		    si->red_size == f->red.length &&
-		    si->red_pos == f->red.offset &&
-		    si->green_size == f->green.length &&
-		    si->green_pos == f->green.offset &&
-		    si->blue_size == f->blue.length &&
-		    si->blue_pos == f->blue.offset) {
-			format = drm_format_info(vesa_formats[i].fourcc);
-			break;
-		}
-	}
-
-	if (!format)
-		return ERR_PTR(-EINVAL);
-	if (format->is_color_indexed)
-		return ERR_PTR(-EINVAL);
-
-	return format;
+	return drm_sysfb_get_format_si(dev, formats, ARRAY_SIZE(formats), si);
 }
 
 /*
@@ -447,21 +339,21 @@ static struct vesadrm_device *vesadrm_device_create(struct drm_driver *drv,
 	 */
 
 	format = vesadrm_get_format_si(dev, si);
-	if (IS_ERR(format))
-		return ERR_CAST(format);
-	width = vesadrm_get_width_si(dev, si);
+	if (!format)
+		return ERR_PTR(-EINVAL);
+	width = drm_sysfb_get_width_si(dev, si);
 	if (width < 0)
 		return ERR_PTR(width);
-	height = vesadrm_get_height_si(dev, si);
+	height = drm_sysfb_get_height_si(dev, si);
 	if (height < 0)
 		return ERR_PTR(height);
-	res = vesadrm_get_memory_si(dev, si, &resbuf);
+	res = drm_sysfb_get_memory_si(dev, si, &resbuf);
 	if (!res)
 		return ERR_PTR(-EINVAL);
-	stride = vesadrm_get_stride_si(dev, si, format, width, height, resource_size(res));
+	stride = drm_sysfb_get_stride_si(dev, si, format, width, height, resource_size(res));
 	if (stride < 0)
 		return ERR_PTR(stride);
-	vsize = vesadrm_get_visible_size_si(dev, si, height, stride, resource_size(res));
+	vsize = drm_sysfb_get_visible_size_si(dev, si, height, stride, resource_size(res));
 	if (!vsize)
 		return ERR_PTR(-EINVAL);
 

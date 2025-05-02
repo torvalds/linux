@@ -6,11 +6,59 @@
 #include <linux/container_of.h>
 #include <linux/iosys-map.h>
 
+#include <video/pixel_format.h>
+
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
 #include <drm/drm_modes.h>
 
 struct drm_format_info;
+struct drm_scanout_buffer;
+struct screen_info;
+
+/*
+ * Input parsing
+ */
+
+struct drm_sysfb_format {
+	struct pixel_format pixel;
+	u32 fourcc;
+};
+
+int drm_sysfb_get_validated_int(struct drm_device *dev, const char *name,
+				u64 value, u32 max);
+int drm_sysfb_get_validated_int0(struct drm_device *dev, const char *name,
+				 u64 value, u32 max);
+
+#if defined(CONFIG_SCREEN_INFO)
+int drm_sysfb_get_width_si(struct drm_device *dev, const struct screen_info *si);
+int drm_sysfb_get_height_si(struct drm_device *dev, const struct screen_info *si);
+struct resource *drm_sysfb_get_memory_si(struct drm_device *dev,
+					 const struct screen_info *si,
+					 struct resource *res);
+int drm_sysfb_get_stride_si(struct drm_device *dev, const struct screen_info *si,
+			    const struct drm_format_info *format,
+			    unsigned int width, unsigned int height, u64 size);
+u64 drm_sysfb_get_visible_size_si(struct drm_device *dev, const struct screen_info *si,
+				  unsigned int height, unsigned int stride, u64 size);
+const struct drm_format_info *drm_sysfb_get_format_si(struct drm_device *dev,
+						      const struct drm_sysfb_format *formats,
+						      size_t nformats,
+						      const struct screen_info *si);
+#endif
+
+/*
+ * Input parsing
+ */
+
+int drm_sysfb_get_validated_int(struct drm_device *dev, const char *name,
+				u64 value, u32 max);
+int drm_sysfb_get_validated_int0(struct drm_device *dev, const char *name,
+				 u64 value, u32 max);
+
+/*
+ * Display modes
+ */
 
 struct drm_display_mode drm_sysfb_mode(unsigned int width,
 				       unsigned int height,

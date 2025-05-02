@@ -316,11 +316,11 @@ void drm_panel_put(struct drm_panel *panel);
 void drm_panel_add(struct drm_panel *panel);
 void drm_panel_remove(struct drm_panel *panel);
 
-int drm_panel_prepare(struct drm_panel *panel);
-int drm_panel_unprepare(struct drm_panel *panel);
+void drm_panel_prepare(struct drm_panel *panel);
+void drm_panel_unprepare(struct drm_panel *panel);
 
-int drm_panel_enable(struct drm_panel *panel);
-int drm_panel_disable(struct drm_panel *panel);
+void drm_panel_enable(struct drm_panel *panel);
+void drm_panel_disable(struct drm_panel *panel);
 
 int drm_panel_get_modes(struct drm_panel *panel, struct drm_connector *connector);
 

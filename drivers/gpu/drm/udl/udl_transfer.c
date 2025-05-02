@@ -170,7 +170,7 @@ static void udl_compress_hline16(
  * (that we can only write to, slowly, and can never read), and (optionally)
  * our shadow copy that tracks what's been sent to that hardware buffer.
  */
-int udl_render_hline(struct drm_device *dev, int log_bpp, struct urb **urb_ptr,
+int udl_render_hline(struct udl_device *udl, int log_bpp, struct urb **urb_ptr,
 		     const char *front, char **urb_buf_ptr,
 		     u32 byte_offset, u32 device_byte_offset,
 		     u32 byte_width)
@@ -199,10 +199,10 @@ int udl_render_hline(struct drm_device *dev, int log_bpp, struct urb **urb_ptr,
 
 		if (cmd >= cmd_end) {
 			int len = cmd - (u8 *) urb->transfer_buffer;
-			int ret = udl_submit_urb(dev, urb, len);
+			int ret = udl_submit_urb(udl, urb, len);
 			if (ret)
 				return ret;
-			urb = udl_get_urb(dev);
+			urb = udl_get_urb(udl);
 			if (!urb)
 				return -EAGAIN;
 			*urb_ptr = urb;

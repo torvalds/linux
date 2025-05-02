@@ -1793,27 +1793,50 @@ char *fourcc_string(char *buf, char *end, const u32 *fourcc,
 	char output[sizeof("0123 little-endian (0x01234567)")];
 	char *p = output;
 	unsigned int i;
+	bool pixel_fmt = false;
 	u32 orig, val;
 
-	if (fmt[1] != 'c' || fmt[2] != 'c')
+	if (fmt[1] != 'c')
 		return error_string(buf, end, "(%p4?)", spec);
 
 	if (check_pointer(&buf, end, fourcc, spec))
 		return buf;
 
 	orig = get_unaligned(fourcc);
-	val = orig & ~BIT(31);
+	switch (fmt[2]) {
+	case 'h':
+		break;
+	case 'n':
+		orig = swab32(orig);
+		break;
+	case 'l':
+		orig = (__force u32)cpu_to_le32(orig);
+		break;
+	case 'b':
+		orig = (__force u32)cpu_to_be32(orig);
+		break;
+	case 'c':
+		/* Pixel formats are printed LSB-first */
+		pixel_fmt = true;
+		break;
+	default:
+		return error_string(buf, end, "(%p4?)", spec);
+	}
+
+	val = pixel_fmt ? swab32(orig & ~BIT(31)) : orig;
 
 	for (i = 0; i < sizeof(u32); i++) {
-		unsigned char c = val >> (i * 8);
+		unsigned char c = val >> ((3 - i) * 8);
 
 		/* Print non-control ASCII characters as-is, dot otherwise */
 		*p++ = isascii(c) && isprint(c) ? c : '.';
 	}
 
-	*p++ = ' ';
-	strcpy(p, orig & BIT(31) ? "big-endian" : "little-endian");
-	p += strlen(p);
+	if (pixel_fmt) {
+		*p++ = ' ';
+		strcpy(p, orig & BIT(31) ? "big-endian" : "little-endian");
+		p += strlen(p);
+	}
 
 	*p++ = ' ';
 	*p++ = '(';

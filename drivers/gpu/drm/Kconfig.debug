@@ -27,7 +27,7 @@ config DRM_WERROR
 
 config DRM_HEADER_TEST
 	bool "Ensure DRM headers are self-contained and pass kernel-doc"
-	depends on DRM && EXPERT
+	depends on DRM && EXPERT && BROKEN
 	default n
 	help
 	  Ensure the DRM subsystem headers both under drivers/gpu/drm and

@@ -2569,12 +2569,6 @@ static const struct dev_pm_ops anx7625_pm_ops = {
 			   anx7625_runtime_pm_resume, NULL)
 };
 
-static void anx7625_runtime_disable(void *data)
-{
-	pm_runtime_dont_use_autosuspend(data);
-	pm_runtime_disable(data);
-}
-
 static int anx7625_link_bridge(struct drm_dp_aux *aux)
 {
 	struct anx7625_data *platform = container_of(aux, struct anx7625_data, aux);
@@ -2708,11 +2702,10 @@ static int anx7625_i2c_probe(struct i2c_client *client)
 		goto free_wq;
 	}
 
-	pm_runtime_enable(dev);
 	pm_runtime_set_autosuspend_delay(dev, 1000);
 	pm_runtime_use_autosuspend(dev);
 	pm_suspend_ignore_children(dev, true);
-	ret = devm_add_action_or_reset(dev, anx7625_runtime_disable, dev);
+	ret = devm_pm_runtime_enable(dev);
 	if (ret)
 		goto free_wq;
 

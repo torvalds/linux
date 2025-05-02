@@ -133,8 +133,8 @@
 #define GPU_COHERENCY_PROT_BIT(name)			BIT(GPU_COHERENCY_  ## name)
 
 #define GPU_COHERENCY_PROTOCOL				0x304
-#define   GPU_COHERENCY_ACE				0
-#define   GPU_COHERENCY_ACE_LITE			1
+#define   GPU_COHERENCY_ACE_LITE			0
+#define   GPU_COHERENCY_ACE				1
 #define   GPU_COHERENCY_NONE				31
 
 #define MCU_CONTROL					0x700

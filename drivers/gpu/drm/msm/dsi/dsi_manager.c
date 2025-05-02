@@ -462,15 +462,14 @@ int msm_dsi_manager_connector_init(struct msm_dsi *msm_dsi,
 	struct drm_connector *connector;
 	int ret;
 
-	dsi_bridge = devm_kzalloc(msm_dsi->dev->dev,
-				sizeof(*dsi_bridge), GFP_KERNEL);
-	if (!dsi_bridge)
-		return -ENOMEM;
+	dsi_bridge = devm_drm_bridge_alloc(msm_dsi->dev->dev, struct dsi_bridge, base,
+					   &dsi_mgr_bridge_funcs);
+	if (IS_ERR(dsi_bridge))
+		return PTR_ERR(dsi_bridge);
 
 	dsi_bridge->id = msm_dsi->id;
 
 	bridge = &dsi_bridge->base;
-	bridge->funcs = &dsi_mgr_bridge_funcs;
 
 	ret = devm_drm_bridge_add(msm_dsi->dev->dev, bridge);
 	if (ret)

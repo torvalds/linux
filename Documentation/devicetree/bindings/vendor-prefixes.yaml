@@ -129,6 +129,8 @@ patternProperties:
     description: Andes Technology Corporation
   "^anvo,.*":
     description: Anvo-Systems Dresden GmbH
+  "^aoly,.*":
+    description: Shenzhen Aoly Technology Co., Ltd.
   "^aosong,.*":
     description: Guangzhou Aosong Electronic Co., Ltd.
   "^apm,.*":
