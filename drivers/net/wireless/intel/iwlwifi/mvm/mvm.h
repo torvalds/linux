@@ -2129,6 +2129,10 @@ bool iwl_mvm_mld_valid_link_pair(struct ieee80211_vif *vif,
 				 const struct iwl_mvm_link_sel_data *b);
 
 s8 iwl_mvm_average_dbm_values(const struct iwl_umac_scan_channel_survey_notif *notif);
+
+
+extern const struct iwl_hcmd_arr iwl_mvm_groups[];
+extern const unsigned int iwl_mvm_groups_size;
 #endif
 
 /* AP and IBSS */
