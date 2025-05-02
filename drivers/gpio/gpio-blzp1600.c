@@ -269,7 +269,7 @@ MODULE_DEVICE_TABLE(of, blzp1600_gpio_of_match);
 static struct platform_driver blzp1600_gpio_driver = {
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.of_match_table = of_match_ptr(blzp1600_gpio_of_match),
+		.of_match_table = blzp1600_gpio_of_match,
 	},
 	.probe		= blzp1600_gpio_probe,
 };
