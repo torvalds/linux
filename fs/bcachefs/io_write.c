@@ -279,6 +279,12 @@ static inline int bch2_extent_update_i_size_sectors(struct btree_trans *trans,
 		inode_update_flags = 0;
 	}
 
+	/*
+	 * extents, dirents and xattrs updates require that an inode update also
+	 * happens - to ensure that if a key exists in one of those btrees with
+	 * a given snapshot ID an inode is also present - so we may have to skip
+	 * the nojournal optimization:
+	 */
 	if (inode->k.p.snapshot != iter.snapshot) {
 		inode->k.p.snapshot = iter.snapshot;
 		inode_update_flags = 0;

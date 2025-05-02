@@ -176,6 +176,11 @@ int bch2_xattr_set(struct btree_trans *trans, subvol_inum inum,
 	if (ret)
 		return ret;
 
+	/*
+	 * Besides the ctime update, extents, dirents and xattrs updates require
+	 * that an inode update also happens - to ensure that if a key exists in
+	 * one of those btrees with a given snapshot ID an inode is also present
+	 */
 	inode_u->bi_ctime = bch2_current_time(c);
 
 	ret = bch2_inode_write(trans, &inode_iter, inode_u);
