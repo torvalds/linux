@@ -102,8 +102,9 @@ pub(crate) fn kunit_tests(attr: TokenStream, ts: TokenStream) -> TokenStream {
     let path = crate::helpers::file();
     for test in &tests {
         let kunit_wrapper_fn_name = format!("kunit_rust_wrapper_{test}");
+        // An extra `use` is used here to reduce the length of the message.
         let kunit_wrapper = format!(
-            "unsafe extern \"C\" fn {kunit_wrapper_fn_name}(_test: *mut ::kernel::bindings::kunit) {{ {test}(); }}"
+            "unsafe extern \"C\" fn {kunit_wrapper_fn_name}(_test: *mut ::kernel::bindings::kunit) {{ use ::kernel::kunit::is_test_result_ok; assert!(is_test_result_ok({test}())); }}",
         );
         writeln!(kunit_macros, "{kunit_wrapper}").unwrap();
         writeln!(

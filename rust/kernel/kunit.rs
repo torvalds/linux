@@ -164,6 +164,31 @@ macro_rules! kunit_assert_eq {
     }};
 }
 
+trait TestResult {
+    fn is_test_result_ok(&self) -> bool;
+}
+
+impl TestResult for () {
+    fn is_test_result_ok(&self) -> bool {
+        true
+    }
+}
+
+impl<T, E> TestResult for Result<T, E> {
+    fn is_test_result_ok(&self) -> bool {
+        self.is_ok()
+    }
+}
+
+/// Returns whether a test result is to be considered OK.
+///
+/// This will be `assert!`ed from the generated tests.
+#[doc(hidden)]
+#[expect(private_bounds)]
+pub fn is_test_result_ok(t: impl TestResult) -> bool {
+    t.is_test_result_ok()
+}
+
 /// Represents an individual test case.
 ///
 /// The [`kunit_unsafe_test_suite!`] macro expects a NULL-terminated list of valid test cases.
