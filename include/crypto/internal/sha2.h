@@ -10,13 +10,6 @@
 #include <linux/types.h>
 #include <linux/unaligned.h>
 
-void sha256_update_generic(struct sha256_state *sctx,
-			   const u8 *data, size_t len);
-void sha256_final_generic(struct sha256_state *sctx,
-			  u8 out[SHA256_DIGEST_SIZE]);
-void sha224_final_generic(struct sha256_state *sctx,
-			  u8 out[SHA224_DIGEST_SIZE]);
-
 #if IS_ENABLED(CONFIG_CRYPTO_ARCH_HAVE_LIB_SHA256)
 bool sha256_is_arch_optimized(void);
 #else
