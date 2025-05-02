@@ -143,6 +143,7 @@ const struct iwl_cfg_trans_params iwl_sc_trans_cfg = {
 };
 
 const char iwl_sp_name[] = "Intel(R) Wi-Fi 7 BE213 160MHz";
+const char iwl_pe_name[] = "Intel(R) Wi-Fi 8 BN201";
 
 const struct iwl_cfg iwl_cfg_sc = {
 	.fw_name_mac = "sc",
