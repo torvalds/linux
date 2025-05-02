@@ -570,9 +570,11 @@ static int acp_dsp_reset(struct snd_sof_dev *sdev)
 
 static int acp_init(struct snd_sof_dev *sdev)
 {
+	struct acp_dev_data *acp_data;
 	int ret;
 
 	/* power on */
+	acp_data = sdev->pdata->hw_pdata;
 	ret = acp_power_on(sdev);
 	if (ret) {
 		dev_err(sdev->dev, "ACP power on failed\n");
@@ -581,7 +583,16 @@ static int acp_init(struct snd_sof_dev *sdev)
 
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_CONTROL, 0x01);
 	/* Reset */
-	return acp_reset(sdev);
+	ret = acp_reset(sdev);
+	if (ret)
+		return ret;
+	switch (acp_data->pci_rev) {
+	case ACP70_PCI_ID:
+	case ACP71_PCI_ID:
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP70_PME_EN, 1);
+		break;
+	}
+	return 0;
 }
 
 static bool check_acp_sdw_enable_status(struct snd_sof_dev *sdev)
@@ -645,6 +656,12 @@ int amd_sof_acp_resume(struct snd_sof_dev *sdev)
 			return ret;
 		}
 		return acp_memory_init(sdev);
+	}
+	switch (acp_data->pci_rev) {
+	case ACP70_PCI_ID:
+	case ACP71_PCI_ID:
+		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP70_PME_EN, 1);
+		break;
 	}
 
 	return acp_dsp_reset(sdev);

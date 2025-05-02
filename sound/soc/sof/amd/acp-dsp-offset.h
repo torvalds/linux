@@ -130,4 +130,5 @@
 
 #define ACP_SW0_EN				0x3000
 #define ACP_SW1_EN				0x3C00
+#define ACP70_PME_EN				0x1400
 #endif
