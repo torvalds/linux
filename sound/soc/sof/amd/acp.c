@@ -637,9 +637,9 @@ int amd_sof_acp_resume(struct snd_sof_dev *sdev)
 			return ret;
 		}
 		return acp_memory_init(sdev);
-	} else {
-		return acp_dsp_reset(sdev);
 	}
+
+	return acp_dsp_reset(sdev);
 }
 EXPORT_SYMBOL_NS(amd_sof_acp_resume, "SND_SOC_SOF_AMD_COMMON");
 
