@@ -195,15 +195,13 @@ static int xlnx_cdx_probe(struct platform_device *pdev)
 	/* Create MSI domain */
 	cdx->msi_domain = cdx_msi_domain_init(&pdev->dev);
 	if (!cdx->msi_domain) {
-		dev_err(&pdev->dev, "cdx_msi_domain_init() failed");
-		ret = -ENODEV;
+		ret = dev_err_probe(&pdev->dev, -ENODEV, "cdx_msi_domain_init() failed");
 		goto cdx_msi_fail;
 	}
 
 	ret = cdx_setup_rpmsg(pdev);
 	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to register CDX RPMsg transport\n");
+		dev_err_probe(&pdev->dev, ret, "Failed to register CDX RPMsg transport\n");
 		goto cdx_rpmsg_fail;
 	}
 
