@@ -96,6 +96,8 @@ static inline bool xe_svm_range_has_dma_mapping(struct xe_svm_range *range)
 #define xe_svm_notifier_unlock(vm__)	\
 	drm_gpusvm_notifier_unlock(&(vm__)->svm.gpusvm)
 
+void xe_svm_flush(struct xe_vm *vm);
+
 #else
 #include <linux/interval_tree.h>
 
@@ -178,6 +180,10 @@ static inline void xe_svm_notifier_lock(struct xe_vm *vm)
 }
 
 static inline void xe_svm_notifier_unlock(struct xe_vm *vm)
+{
+}
+
+static inline void xe_svm_flush(struct xe_vm *vm)
 {
 }
 #endif
