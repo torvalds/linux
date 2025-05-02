@@ -15,7 +15,7 @@
 #include "log.h"
 #include "timens.h"
 
-static int tclock_gettime(clock_t clockid, struct timespec *now)
+static int tclock_gettime(clockid_t clockid, struct timespec *now)
 {
 	if (clockid == CLOCK_BOOTTIME_ALARM)
 		clockid = CLOCK_BOOTTIME;
