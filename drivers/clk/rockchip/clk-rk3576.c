@@ -15,6 +15,7 @@
 
 #define RK3576_GRF_SOC_STATUS0		0x600
 #define RK3576_PMU0_GRF_OSC_CON6	0x18
+#define RK3576_VCCIO_IOC_MISC_CON0	0x6400
 
 enum rk3576_plls {
 	bpll, lpll, vpll, aupll, cpll, gpll, ppll,
@@ -1479,6 +1480,14 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 			RK3576_CLKGATE_CON(10), 0, GFLAGS),
 	GATE(CLK_SAI0_MCLKOUT, "clk_sai0_mclkout", "mclk_sai0_8ch", 0,
 			RK3576_CLKGATE_CON(10), 1, GFLAGS),
+	GATE_GRF(CLK_SAI0_MCLKOUT_TO_IO, "mclk_sai0_to_io", "clk_sai0_mclkout",
+			0, RK3576_VCCIO_IOC_MISC_CON0, 0, GFLAGS, grf_type_ioc),
+	GATE_GRF(CLK_SAI1_MCLKOUT_TO_IO, "mclk_sai1_to_io", "clk_sai1_mclkout",
+			0, RK3576_VCCIO_IOC_MISC_CON0, 1, GFLAGS, grf_type_ioc),
+	GATE_GRF(CLK_SAI2_MCLKOUT_TO_IO, "mclk_sai2_to_io", "clk_sai2_mclkout",
+			0, RK3576_VCCIO_IOC_MISC_CON0, 2, GFLAGS, grf_type_ioc),
+	GATE_GRF(CLK_SAI3_MCLKOUT_TO_IO, "mclk_sai3_to_io", "clk_sai3_mclkout",
+			0, RK3576_VCCIO_IOC_MISC_CON0, 3, GFLAGS, grf_type_ioc),
 
 	/* sdgmac */
 	COMPOSITE_NODIV(HCLK_SDGMAC_ROOT, "hclk_sdgmac_root", mux_200m_100m_50m_24m_p, 0,
@@ -1725,7 +1734,9 @@ static void __init rk3576_clk_init(struct device_node *np)
 	struct rockchip_clk_provider *ctx;
 	unsigned long clk_nr_clks;
 	void __iomem *reg_base;
+	struct rockchip_aux_grf *ioc_grf_e;
 	struct rockchip_aux_grf *pmu0_grf_e;
+	struct regmap *ioc_grf;
 	struct regmap *pmu0_grf;
 
 	clk_nr_clks = rockchip_clk_find_max_clk_id(rk3576_clk_branches,
@@ -1734,6 +1745,12 @@ static void __init rk3576_clk_init(struct device_node *np)
 	pmu0_grf = syscon_regmap_lookup_by_compatible("rockchip,rk3576-pmu0-grf");
 	if (IS_ERR(pmu0_grf)) {
 		pr_err("%s: could not get PMU0 GRF syscon\n", __func__);
+		return;
+	}
+
+	ioc_grf = syscon_regmap_lookup_by_compatible("rockchip,rk3576-ioc-grf");
+	if (IS_ERR(ioc_grf)) {
+		pr_err("%s: could not get IOC GRF syscon\n", __func__);
 		return;
 	}
 
@@ -1756,6 +1773,14 @@ static void __init rk3576_clk_init(struct device_node *np)
 	pmu0_grf_e->grf = pmu0_grf;
 	pmu0_grf_e->type = grf_type_pmu0;
 	hash_add(ctx->aux_grf_table, &pmu0_grf_e->node, grf_type_pmu0);
+
+	ioc_grf_e = kzalloc(sizeof(*ioc_grf_e), GFP_KERNEL);
+	if (!ioc_grf_e)
+		goto err_free_pmu0;
+
+	ioc_grf_e->grf = ioc_grf;
+	ioc_grf_e->type = grf_type_ioc;
+	hash_add(ctx->aux_grf_table, &ioc_grf_e->node, grf_type_ioc);
 
 	rockchip_clk_register_plls(ctx, rk3576_pll_clks,
 				   ARRAY_SIZE(rk3576_pll_clks),
@@ -1781,6 +1806,8 @@ static void __init rk3576_clk_init(struct device_node *np)
 
 	return;
 
+err_free_pmu0:
+	kfree(pmu0_grf_e);
 err_unmap:
 	iounmap(reg_base);
 	return;
