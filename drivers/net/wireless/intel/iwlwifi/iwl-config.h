@@ -641,8 +641,6 @@ extern const struct iwl_ht_params iwl_bz_ht_params;
 extern const struct iwl_cfg iwl_cfg_bz;
 
 extern const struct iwl_cfg iwl_cfg_sc;
-extern const struct iwl_cfg iwl_cfg_sc2;
-extern const struct iwl_cfg iwl_cfg_sc2f;
 extern const struct iwl_cfg iwl_cfg_dr;
 extern const struct iwl_cfg iwl_cfg_br;
 #endif /* CONFIG_IWLMLD */

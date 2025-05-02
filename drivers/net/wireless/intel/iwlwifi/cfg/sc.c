@@ -149,14 +149,6 @@ const struct iwl_cfg iwl_cfg_sc = {
 	IWL_DEVICE_SC,
 };
 
-const struct iwl_cfg iwl_cfg_sc2 = {
-	IWL_DEVICE_SC,
-};
-
-const struct iwl_cfg iwl_cfg_sc2f = {
-	IWL_DEVICE_SC,
-};
-
 IWL_FW_AND_PNVM(IWL_SC_A_FM_B_FW_PRE, IWL_SC_UCODE_API_MAX);
 IWL_FW_AND_PNVM(IWL_SC_A_FM_C_FW_PRE, IWL_SC_UCODE_API_MAX);
 MODULE_FIRMWARE(IWL_SC_A_HR_A_FW_MODULE_FIRMWARE(IWL_SC_UCODE_API_MAX));
