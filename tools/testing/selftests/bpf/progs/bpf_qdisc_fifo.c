@@ -14,6 +14,8 @@ struct skb_node {
 private(A) struct bpf_spin_lock q_fifo_lock;
 private(A) struct bpf_list_head q_fifo __contains(skb_node, node);
 
+bool init_called;
+
 SEC("struct_ops/bpf_fifo_enqueue")
 int BPF_PROG(bpf_fifo_enqueue, struct sk_buff *skb, struct Qdisc *sch,
 	     struct bpf_sk_buff_ptr *to_free)
@@ -77,6 +79,7 @@ int BPF_PROG(bpf_fifo_init, struct Qdisc *sch, struct nlattr *opt,
 	     struct netlink_ext_ack *extack)
 {
 	sch->limit = 1000;
+	init_called = true;
 	return 0;
 }
 

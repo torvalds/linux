@@ -159,6 +159,61 @@ out:
 	bpf_qdisc_fifo__destroy(fifo_skel);
 }
 
+static int get_default_qdisc(char *qdisc_name)
+{
+	FILE *f;
+	int num;
+
+	f = fopen("/proc/sys/net/core/default_qdisc", "r");
+	if (!f)
+		return -errno;
+
+	num = fscanf(f, "%s", qdisc_name);
+	fclose(f);
+
+	return num == 1 ? 0 : -EFAULT;
+}
+
+static void test_default_qdisc_attach_to_mq(void)
+{
+	char default_qdisc[IFNAMSIZ] = {};
+	struct bpf_qdisc_fifo *fifo_skel;
+	struct netns_obj *netns = NULL;
+	int err;
+
+	fifo_skel = bpf_qdisc_fifo__open_and_load();
+	if (!ASSERT_OK_PTR(fifo_skel, "bpf_qdisc_fifo__open_and_load"))
+		return;
+
+	if (!ASSERT_OK(bpf_qdisc_fifo__attach(fifo_skel), "bpf_qdisc_fifo__attach"))
+		goto out;
+
+	err = get_default_qdisc(default_qdisc);
+	if (!ASSERT_OK(err, "read sysctl net.core.default_qdisc"))
+		goto out;
+
+	err = write_sysctl("/proc/sys/net/core/default_qdisc", "bpf_fifo");
+	if (!ASSERT_OK(err, "write sysctl net.core.default_qdisc"))
+		goto out;
+
+	netns = netns_new("bpf_qdisc_ns", true);
+	if (!ASSERT_OK_PTR(netns, "netns_new"))
+		goto out;
+
+	SYS(out, "ip link add veth0 type veth peer veth1");
+	SYS(out, "tc qdisc add dev veth0 root handle 1: mq");
+
+	ASSERT_EQ(fifo_skel->bss->init_called, true, "init_called");
+
+	SYS(out, "tc qdisc delete dev veth0 root mq");
+out:
+	netns_free(netns);
+	if (default_qdisc[0])
+		write_sysctl("/proc/sys/net/core/default_qdisc", default_qdisc);
+
+	bpf_qdisc_fifo__destroy(fifo_skel);
+}
+
 void test_bpf_qdisc(void)
 {
 	struct netns_obj *netns;
@@ -177,4 +232,9 @@ void test_bpf_qdisc(void)
 		test_qdisc_attach_to_non_root();
 
 	netns_free(netns);
+}
+
+void serial_test_bpf_qdisc_default(void)
+{
+	test_default_qdisc_attach_to_mq();
 }
