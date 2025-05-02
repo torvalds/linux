@@ -1313,11 +1313,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	hw->max_rx_aggregation_subframes = max_agg;
 
-	if (cfg->max_tx_agg_size)
-		hw->max_tx_aggregation_subframes = cfg->max_tx_agg_size;
-	else
-		hw->max_tx_aggregation_subframes = max_agg;
-
 	op_mode = hw->priv;
 
 	mvm = IWL_OP_MODE_GET_MVM(op_mode);
