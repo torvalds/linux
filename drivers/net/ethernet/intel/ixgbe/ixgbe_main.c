@@ -11317,6 +11317,7 @@ static int ixgbe_recovery_probe(struct ixgbe_adapter *adapter)
 	ixgbe_devlink_register_port(adapter);
 	SET_NETDEV_DEVLINK_PORT(adapter->netdev,
 				&adapter->devlink_port);
+	ixgbe_devlink_init_regions(adapter);
 	devl_register(adapter->devlink);
 	devl_unlock(adapter->devlink);
 
@@ -11433,11 +11434,6 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_ioremap;
 	}
 
-	netdev->netdev_ops = &ixgbe_netdev_ops;
-	ixgbe_set_ethtool_ops(netdev);
-	netdev->watchdog_timeo = 5 * HZ;
-	strscpy(netdev->name, pci_name(pdev), sizeof(netdev->name));
-
 	/* Setup hw api */
 	hw->mac.ops   = *ii->mac_ops;
 	hw->mac.type  = ii->mac;
@@ -11466,6 +11462,11 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->phy.mdio.dev = netdev;
 	hw->phy.mdio.mdio_read = ixgbe_mdio_read;
 	hw->phy.mdio.mdio_write = ixgbe_mdio_write;
+
+	netdev->netdev_ops = &ixgbe_netdev_ops;
+	ixgbe_set_ethtool_ops(netdev);
+	netdev->watchdog_timeo = 5 * HZ;
+	strscpy(netdev->name, pci_name(pdev), sizeof(netdev->name));
 
 	/* setup the private structure */
 	err = ixgbe_sw_init(adapter, ii);
@@ -11824,6 +11825,7 @@ skip_sriov:
 	if (err)
 		goto err_netdev;
 
+	ixgbe_devlink_init_regions(adapter);
 	devl_register(adapter->devlink);
 	devl_unlock(adapter->devlink);
 	return 0;
@@ -11882,6 +11884,7 @@ static void ixgbe_remove(struct pci_dev *pdev)
 	netdev  = adapter->netdev;
 	devl_lock(adapter->devlink);
 	devl_unregister(adapter->devlink);
+	ixgbe_devlink_destroy_regions(adapter);
 	ixgbe_dbg_adapter_exit(adapter);
 
 	set_bit(__IXGBE_REMOVING, &adapter->state);

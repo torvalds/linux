@@ -120,3 +120,52 @@ EMP firmware image.
 
 The driver does not currently support reloading the driver via
 ``DEVLINK_RELOAD_ACTION_DRIVER_REINIT``.
+
+Regions
+=======
+
+The ``ixgbe`` driver implements the following regions for accessing internal
+device data.
+
+.. list-table:: regions implemented
+    :widths: 15 85
+
+    * - Name
+      - Description
+    * - ``nvm-flash``
+      - The contents of the entire flash chip, sometimes referred to as
+        the device's Non Volatile Memory.
+    * - ``shadow-ram``
+      - The contents of the Shadow RAM, which is loaded from the beginning
+        of the flash. Although the contents are primarily from the flash,
+        this area also contains data generated during device boot which is
+        not stored in flash.
+    * - ``device-caps``
+      - The contents of the device firmware's capabilities buffer. Useful to
+        determine the current state and configuration of the device.
+
+Both the ``nvm-flash`` and ``shadow-ram`` regions can be accessed without a
+snapshot. The ``device-caps`` region requires a snapshot as the contents are
+sent by firmware and can't be split into separate reads.
+
+Users can request an immediate capture of a snapshot for all three regions
+via the ``DEVLINK_CMD_REGION_NEW`` command.
+
+.. code:: shell
+
+    $ devlink region show
+    pci/0000:01:00.0/nvm-flash: size 10485760 snapshot [] max 1
+    pci/0000:01:00.0/device-caps: size 4096 snapshot [] max 10
+
+    $ devlink region new pci/0000:01:00.0/nvm-flash snapshot 1
+
+    $ devlink region dump pci/0000:01:00.0/nvm-flash snapshot 1
+    0000000000000000 0014 95dc 0014 9514 0035 1670 0034 db30
+    0000000000000010 0000 0000 ffff ff04 0029 8c00 0028 8cc8
+    0000000000000020 0016 0bb8 0016 1720 0000 0000 c00f 3ffc
+    0000000000000030 bada cce5 bada cce5 bada cce5 bada cce5
+
+    $ devlink region read pci/0000:01:00.0/nvm-flash snapshot 1 address 0 length 16
+    0000000000000000 0014 95dc 0014 9514 0035 1670 0034 db30
+
+    $ devlink region delete pci/0000:01:00.0/device-caps snapshot 1

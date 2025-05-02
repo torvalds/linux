@@ -616,6 +616,9 @@ struct ixgbe_adapter {
 	struct mii_bus *mii_bus;
 	struct devlink *devlink;
 	struct devlink_port devlink_port;
+	struct devlink_region *nvm_region;
+	struct devlink_region *sram_region;
+	struct devlink_region *devcaps_region;
 
 	unsigned long state;
 
