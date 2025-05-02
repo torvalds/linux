@@ -56,7 +56,6 @@ struct randstruct_funcs_untouched {
 struct randstruct_funcs_shuffled {
 	DO_MANY_MEMBERS(func_member)
 };
-#undef func_member
 
 #define func_body(x, ignored)					\
 static noinline size_t func_##x(int arg)			\
@@ -103,9 +102,16 @@ struct contains_randstruct_shuffled {
 	int after;
 };
 
-static void randstruct_layout(struct kunit *test)
-{
-	int mismatches;
+struct contains_func_untouched {
+	struct randstruct_funcs_shuffled inner;
+	DO_MANY_MEMBERS(func_member)
+} __no_randomize_layout;
+
+struct contains_func_shuffled {
+	struct randstruct_funcs_shuffled inner;
+	DO_MANY_MEMBERS(func_member)
+};
+#undef func_member
 
 #define check_mismatch(x, untouched, shuffled)	\
 	if (offsetof(untouched, x) != offsetof(shuffled, x))	\
@@ -114,23 +120,65 @@ static void randstruct_layout(struct kunit *test)
 		   offsetof(shuffled, x),			\
 		   offsetof(untouched, x));			\
 
-#define check_pair(outcome, untouched, shuffled)		\
+#define check_pair(outcome, untouched, shuffled, checker...)	\
 	mismatches = 0;						\
-	DO_MANY_MEMBERS(check_mismatch, untouched, shuffled)	\
+	DO_MANY_MEMBERS(checker, untouched, shuffled)	\
 	kunit_info(test, "Differing " #untouched " vs " #shuffled " member positions: %d\n", \
 		   mismatches);					\
 	KUNIT_##outcome##_MSG(test, mismatches, 0,		\
 			      #untouched " vs " #shuffled " layouts: unlucky or broken?\n");
 
-	check_pair(EXPECT_EQ, struct randstruct_untouched, struct randstruct_untouched)
-	check_pair(EXPECT_GT, struct randstruct_untouched, struct randstruct_shuffled)
-	check_pair(EXPECT_GT, struct randstruct_untouched, struct randstruct_funcs_shuffled)
-	check_pair(EXPECT_GT, struct randstruct_funcs_untouched, struct randstruct_funcs_shuffled)
-	check_pair(EXPECT_GT, struct randstruct_mixed_untouched, struct randstruct_mixed_shuffled)
-#undef check_pair
+static void randstruct_layout_same(struct kunit *test)
+{
+	int mismatches;
 
-#undef check_mismatch
+	check_pair(EXPECT_EQ, struct randstruct_untouched, struct randstruct_untouched,
+		   check_mismatch)
+	check_pair(EXPECT_GT, struct randstruct_untouched, struct randstruct_shuffled,
+		   check_mismatch)
 }
+
+static void randstruct_layout_mixed(struct kunit *test)
+{
+	int mismatches;
+
+	check_pair(EXPECT_EQ, struct randstruct_mixed_untouched, struct randstruct_mixed_untouched,
+		   check_mismatch)
+	check_pair(EXPECT_GT, struct randstruct_mixed_untouched, struct randstruct_mixed_shuffled,
+		   check_mismatch)
+}
+
+static void randstruct_layout_fptr(struct kunit *test)
+{
+	int mismatches;
+
+	check_pair(EXPECT_EQ, struct randstruct_untouched, struct randstruct_untouched,
+		   check_mismatch)
+	check_pair(EXPECT_GT, struct randstruct_untouched, struct randstruct_funcs_shuffled,
+		   check_mismatch)
+	check_pair(EXPECT_GT, struct randstruct_funcs_untouched, struct randstruct_funcs_shuffled,
+		   check_mismatch)
+}
+
+#define check_mismatch_prefixed(x, prefix, untouched, shuffled)	\
+	check_mismatch(prefix.x, untouched, shuffled)
+
+static void randstruct_layout_fptr_deep(struct kunit *test)
+{
+	int mismatches;
+
+	if (IS_ENABLED(CONFIG_CC_IS_CLANG))
+		kunit_skip(test, "Clang randstruct misses inner functions: https://github.com/llvm/llvm-project/issues/138355");
+
+	check_pair(EXPECT_EQ, struct contains_func_untouched, struct contains_func_untouched,
+			check_mismatch_prefixed, inner)
+
+	check_pair(EXPECT_GT, struct contains_func_untouched, struct contains_func_shuffled,
+			check_mismatch_prefixed, inner)
+}
+
+#undef check_pair
+#undef check_mismatch
 
 #define check_mismatch(x, ignore)				\
 	KUNIT_EXPECT_EQ_MSG(test, untouched->x, shuffled->x,	\
@@ -266,7 +314,10 @@ static int randstruct_test_init(struct kunit *test)
 }
 
 static struct kunit_case randstruct_test_cases[] = {
-	KUNIT_CASE(randstruct_layout),
+	KUNIT_CASE(randstruct_layout_same),
+	KUNIT_CASE(randstruct_layout_mixed),
+	KUNIT_CASE(randstruct_layout_fptr),
+	KUNIT_CASE(randstruct_layout_fptr_deep),
 	KUNIT_CASE(randstruct_initializers),
 	{}
 };
