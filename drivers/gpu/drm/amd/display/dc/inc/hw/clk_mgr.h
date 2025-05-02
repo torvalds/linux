@@ -337,6 +337,8 @@ struct clk_mgr_funcs {
 
 	bool (*is_dc_mode_present)(struct clk_mgr *clk_mgr);
 
+	uint32_t (*set_smartmux_switch)(struct clk_mgr *clk_mgr, uint32_t pins_to_set);
+
 	unsigned int (*get_max_clock_khz)(struct clk_mgr *clk_mgr_base, enum clk_type clk_type);
 };
 

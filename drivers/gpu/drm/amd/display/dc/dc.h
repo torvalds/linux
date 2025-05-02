@@ -505,6 +505,7 @@ struct dc_config {
 	bool use_spl;
 	bool prefer_easf;
 	bool use_pipe_ctx_sync_logic;
+	int smart_mux_version;
 	bool ignore_dpref_ss;
 	bool enable_mipi_converter_optimization;
 	bool use_default_clock_table;
@@ -541,6 +542,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_SWAPCHAIN = 6,
 	VISUAL_CONFIRM_FAMS = 7,
 	VISUAL_CONFIRM_SWIZZLE = 9,
+	VISUAL_CONFIRM_SMARTMUX_DGPU = 10,
 	VISUAL_CONFIRM_REPLAY = 12,
 	VISUAL_CONFIRM_SUBVP = 14,
 	VISUAL_CONFIRM_MCLK_SWITCH = 16,
@@ -1639,6 +1641,8 @@ struct dc_scratch_space {
 
 	struct gpio *hpd_gpio;
 	enum dc_link_fec_state fec_state;
+	bool is_dds;
+	bool is_display_mux_present;
 	bool link_powered_externally;	// Used to bypass hardware sequencing delays when panel is powered down forcibly
 
 	struct dc_panel_config panel_config;
@@ -1692,6 +1696,10 @@ struct dc {
 	bool enable_c20_dtm_b0;
 
 	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
+
+	/* For eDP to know the switching state of SmartMux */
+	bool is_switch_in_progress_orig;
+	bool is_switch_in_progress_dest;
 
 	/* FBC compressor */
 	struct compressor *fbc_compressor;

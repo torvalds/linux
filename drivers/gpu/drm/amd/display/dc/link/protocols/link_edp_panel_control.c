@@ -161,6 +161,9 @@ bool edp_set_backlight_level_nits(struct dc_link *link,
 			link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT))
 		return false;
 
+	if (link->is_dds && !link->dpcd_caps.panel_luminance_control)
+		return true;
+
 	// use internal backlight control if dmub capabilities are not present
 	if (link->backlight_control_type == BACKLIGHT_CONTROL_VESA_AUX &&
 		!link->dc->caps.dmub_caps.aux_backlight_support) {
@@ -243,6 +246,8 @@ bool edp_get_backlight_level_nits(struct dc_link *link,
 			link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT))
 		return false;
 
+	if (link->is_dds)
+		return false;
 	if (!core_link_read_dpcd(link, DP_SOURCE_BACKLIGHT_CURRENT_PEAK,
 			dpcd_backlight_get.raw,
 			sizeof(union dpcd_source_backlight_get)))
@@ -269,6 +274,8 @@ bool edp_backlight_enable_aux(struct dc_link *link, bool enable)
 		link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT))
 		return false;
 
+	if (link->is_dds)
+		return true;
 	if (core_link_write_dpcd(link, DP_SOURCE_BACKLIGHT_ENABLE,
 		&backlight_enable, 1) != DC_OK)
 		return false;
@@ -1192,6 +1199,16 @@ int edp_get_target_backlight_pwm(const struct dc_link *link)
 		return DC_ERROR_UNEXPECTED;
 
 	return (int) abm->funcs->get_target_backlight(abm);
+}
+
+bool is_smartmux_suported(struct dc_link *link)
+{
+	if (link->dc->caps.is_apu)
+		return false;
+	if (!link->dc->config.smart_mux_version)
+		return false;
+
+	return true;
 }
 
 static void edp_set_assr_enable(const struct dc *pDC, struct dc_link *link,
