@@ -677,12 +677,22 @@ static void rtw_sdio_enable_rx_aggregation(struct rtw_dev *rtwdev)
 {
 	u8 size, timeout;
 
-	if (rtw_chip_wcpu_11n(rtwdev)) {
+	switch (rtwdev->chip->id) {
+	case RTW_CHIP_TYPE_8703B:
+	case RTW_CHIP_TYPE_8821A:
+	case RTW_CHIP_TYPE_8812A:
 		size = 0x6;
 		timeout = 0x6;
-	} else {
+		break;
+	case RTW_CHIP_TYPE_8723D:
+		size = 0xa;
+		timeout = 0x3;
+		rtw_write8_set(rtwdev, REG_RXDMA_AGG_PG_TH + 3, BIT(7));
+		break;
+	default:
 		size = 0xff;
 		timeout = 0x1;
+		break;
 	}
 
 	/* Make the firmware honor the size limit configured below */
