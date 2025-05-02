@@ -142,20 +142,6 @@ struct scrub_stripe {
 	unsigned long extent_sector_bitmap;
 
 	/*
-	 * The errors hit during the initial read of the stripe.
-	 *
-	 * Would be utilized for error reporting and repair.
-	 *
-	 * The remaining init_nr_* records the number of errors hit, only used
-	 * by error reporting.
-	 */
-	unsigned long init_error_bitmap;
-	unsigned int init_nr_io_errors;
-	unsigned int init_nr_csum_errors;
-	unsigned int init_nr_meta_errors;
-	unsigned int init_nr_meta_gen_errors;
-
-	/*
 	 * The following error bitmaps are all for the current status.
 	 * Every time we submit a new read, these bitmaps may be updated.
 	 *
@@ -229,6 +215,19 @@ struct scrub_warning {
 	u64			physical;
 	u64			logical;
 	struct btrfs_device	*dev;
+};
+
+struct scrub_error_records {
+	/*
+	 * Bitmap recording which blocks hit errors (IO/csum/...) during the
+	 * initial read.
+	 */
+	unsigned long init_error_bitmap;
+
+	unsigned int nr_io_errors;
+	unsigned int nr_csum_errors;
+	unsigned int nr_meta_errors;
+	unsigned int nr_meta_gen_errors;
 };
 
 static void release_scrub_stripe(struct scrub_stripe *stripe)
@@ -867,7 +866,8 @@ static void scrub_stripe_submit_repair_read(struct scrub_stripe *stripe,
 }
 
 static void scrub_stripe_report_errors(struct scrub_ctx *sctx,
-				       struct scrub_stripe *stripe)
+				       struct scrub_stripe *stripe,
+				       const struct scrub_error_records *errors)
 {
 	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
 				      DEFAULT_RATELIMIT_BURST);
@@ -889,7 +889,7 @@ static void scrub_stripe_report_errors(struct scrub_ctx *sctx,
 	 * Although our scrub_stripe infrastructure is mostly based on btrfs_submit_bio()
 	 * thus no need for dev/physical, error reporting still needs dev and physical.
 	 */
-	if (!bitmap_empty(&stripe->init_error_bitmap, stripe->nr_sectors)) {
+	if (!bitmap_empty(&errors->init_error_bitmap, stripe->nr_sectors)) {
 		u64 mapped_len = fs_info->sectorsize;
 		struct btrfs_io_context *bioc = NULL;
 		int stripe_index = stripe->mirror_num - 1;
@@ -923,14 +923,14 @@ skip:
 				nr_nodatacsum_sectors++;
 		}
 
-		if (test_bit(sector_nr, &stripe->init_error_bitmap) &&
+		if (test_bit(sector_nr, &errors->init_error_bitmap) &&
 		    !test_bit(sector_nr, &stripe->error_bitmap)) {
 			nr_repaired_sectors++;
 			repaired = true;
 		}
 
 		/* Good sector from the beginning, nothing need to be done. */
-		if (!test_bit(sector_nr, &stripe->init_error_bitmap))
+		if (!test_bit(sector_nr, &errors->init_error_bitmap))
 			continue;
 
 		/*
@@ -982,12 +982,12 @@ skip:
 	}
 
 	/* Update the device stats. */
-	for (int i = 0; i < stripe->init_nr_io_errors; i++)
+	for (int i = 0; i < errors->nr_io_errors; i++)
 		btrfs_dev_stat_inc_and_print(stripe->dev, BTRFS_DEV_STAT_READ_ERRS);
-	for (int i = 0; i < stripe->init_nr_csum_errors; i++)
+	for (int i = 0; i < errors->nr_csum_errors; i++)
 		btrfs_dev_stat_inc_and_print(stripe->dev, BTRFS_DEV_STAT_CORRUPTION_ERRS);
 	/* Generation mismatch error is based on each metadata, not each block. */
-	for (int i = 0; i < stripe->init_nr_meta_gen_errors;
+	for (int i = 0; i < errors->nr_meta_gen_errors;
 	     i += (fs_info->nodesize >> fs_info->sectorsize_bits))
 		btrfs_dev_stat_inc_and_print(stripe->dev, BTRFS_DEV_STAT_GENERATION_ERRS);
 
@@ -997,10 +997,10 @@ skip:
 	sctx->stat.data_bytes_scrubbed += nr_data_sectors << fs_info->sectorsize_bits;
 	sctx->stat.tree_bytes_scrubbed += nr_meta_sectors << fs_info->sectorsize_bits;
 	sctx->stat.no_csum += nr_nodatacsum_sectors;
-	sctx->stat.read_errors += stripe->init_nr_io_errors;
-	sctx->stat.csum_errors += stripe->init_nr_csum_errors;
-	sctx->stat.verify_errors += stripe->init_nr_meta_errors +
-				    stripe->init_nr_meta_gen_errors;
+	sctx->stat.read_errors += errors->nr_io_errors;
+	sctx->stat.csum_errors += errors->nr_csum_errors;
+	sctx->stat.verify_errors += errors->nr_meta_errors +
+				    errors->nr_meta_gen_errors;
 	sctx->stat.uncorrectable_errors +=
 		bitmap_weight(&stripe->error_bitmap, stripe->nr_sectors);
 	sctx->stat.corrected_errors += nr_repaired_sectors;
@@ -1028,6 +1028,7 @@ static void scrub_stripe_read_repair_worker(struct work_struct *work)
 	struct scrub_stripe *stripe = container_of(work, struct scrub_stripe, work);
 	struct scrub_ctx *sctx = stripe->sctx;
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
+	struct scrub_error_records errors = { 0 };
 	int num_copies = btrfs_num_copies(fs_info, stripe->bg->start,
 					  stripe->bg->length);
 	unsigned long repaired;
@@ -1039,17 +1040,17 @@ static void scrub_stripe_read_repair_worker(struct work_struct *work)
 	wait_scrub_stripe_io(stripe);
 	scrub_verify_one_stripe(stripe, stripe->extent_sector_bitmap);
 	/* Save the initial failed bitmap for later repair and report usage. */
-	stripe->init_error_bitmap = stripe->error_bitmap;
-	stripe->init_nr_io_errors = bitmap_weight(&stripe->io_error_bitmap,
+	errors.init_error_bitmap = stripe->error_bitmap;
+	errors.nr_io_errors = bitmap_weight(&stripe->io_error_bitmap,
+					    stripe->nr_sectors);
+	errors.nr_csum_errors = bitmap_weight(&stripe->csum_error_bitmap,
+					      stripe->nr_sectors);
+	errors.nr_meta_errors = bitmap_weight(&stripe->meta_error_bitmap,
+					      stripe->nr_sectors);
+	errors.nr_meta_gen_errors = bitmap_weight(&stripe->meta_gen_error_bitmap,
 						  stripe->nr_sectors);
-	stripe->init_nr_csum_errors = bitmap_weight(&stripe->csum_error_bitmap,
-						    stripe->nr_sectors);
-	stripe->init_nr_meta_errors = bitmap_weight(&stripe->meta_error_bitmap,
-						    stripe->nr_sectors);
-	stripe->init_nr_meta_gen_errors = bitmap_weight(&stripe->meta_gen_error_bitmap,
-							stripe->nr_sectors);
 
-	if (bitmap_empty(&stripe->init_error_bitmap, stripe->nr_sectors))
+	if (bitmap_empty(&errors.init_error_bitmap, stripe->nr_sectors))
 		goto out;
 
 	/*
@@ -1099,7 +1100,7 @@ out:
 	 * Submit the repaired sectors.  For zoned case, we cannot do repair
 	 * in-place, but queue the bg to be relocated.
 	 */
-	bitmap_andnot(&repaired, &stripe->init_error_bitmap, &stripe->error_bitmap,
+	bitmap_andnot(&repaired, &errors.init_error_bitmap, &stripe->error_bitmap,
 		      stripe->nr_sectors);
 	if (!sctx->readonly && !bitmap_empty(&repaired, stripe->nr_sectors)) {
 		if (btrfs_is_zoned(fs_info)) {
@@ -1110,7 +1111,7 @@ out:
 		}
 	}
 
-	scrub_stripe_report_errors(sctx, stripe);
+	scrub_stripe_report_errors(sctx, stripe, &errors);
 	set_bit(SCRUB_STRIPE_FLAG_REPAIR_DONE, &stripe->state);
 	wake_up(&stripe->repair_wait);
 }
@@ -1522,11 +1523,6 @@ static void fill_one_extent_info(struct btrfs_fs_info *fs_info,
 static void scrub_stripe_reset_bitmaps(struct scrub_stripe *stripe)
 {
 	stripe->extent_sector_bitmap = 0;
-	stripe->init_error_bitmap = 0;
-	stripe->init_nr_io_errors = 0;
-	stripe->init_nr_csum_errors = 0;
-	stripe->init_nr_meta_errors = 0;
-	stripe->init_nr_meta_gen_errors = 0;
 	stripe->error_bitmap = 0;
 	stripe->io_error_bitmap = 0;
 	stripe->csum_error_bitmap = 0;
