@@ -47,6 +47,17 @@ static void devinfo_table_order(struct kunit *test)
 	}
 }
 
+static void devinfo_names(struct kunit *test)
+{
+	int idx;
+
+	for (idx = 0; idx < iwl_dev_info_table_size; idx++) {
+		const struct iwl_dev_info *di = &iwl_dev_info_table[idx];
+
+		KUNIT_ASSERT_TRUE(test, di->name || di->cfg->name);
+	}
+}
+
 static void devinfo_pci_ids(struct kunit *test)
 {
 	struct pci_dev *dev;
@@ -71,6 +82,7 @@ static void devinfo_pci_ids(struct kunit *test)
 
 static struct kunit_case devinfo_test_cases[] = {
 	KUNIT_CASE(devinfo_table_order),
+	KUNIT_CASE(devinfo_names),
 	KUNIT_CASE(devinfo_pci_ids),
 	{}
 };
