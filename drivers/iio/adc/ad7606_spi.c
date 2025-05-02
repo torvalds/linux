@@ -5,6 +5,7 @@
  * Copyright 2011 Analog Devices Inc.
  */
 
+#include <linux/bitmap.h>
 #include <linux/err.h>
 #include <linux/math.h>
 #include <linux/module.h>
@@ -329,19 +330,44 @@ static int ad7606_spi_offload_probe(struct device *dev,
 	return 0;
 }
 
+static int ad7606_spi_update_scan_mode(struct iio_dev *indio_dev,
+				       const unsigned long *scan_mask)
+{
+	struct ad7606_state *st = iio_priv(indio_dev);
+
+	if (st->offload_en) {
+		unsigned int num_adc_ch = st->chip_info->num_adc_channels;
+
+		/*
+		 * SPI offload requires that all channels are enabled since
+		 * there isn't a way to selectively disable channels that get
+		 * read (this is simultaneous sampling ADC) and the DMA buffer
+		 * has no way of demuxing the data to filter out unwanted
+		 * channels.
+		 */
+		if (bitmap_weight(scan_mask, num_adc_ch) != num_adc_ch)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct ad7606_bus_ops ad7606_spi_bops = {
 	.offload_config = ad7606_spi_offload_probe,
 	.read_block = ad7606_spi_read_block,
+	.update_scan_mode = ad7606_spi_update_scan_mode,
 };
 
 static const struct ad7606_bus_ops ad7607_spi_bops = {
 	.offload_config = ad7606_spi_offload_probe,
 	.read_block = ad7606_spi_read_block14to16,
+	.update_scan_mode = ad7606_spi_update_scan_mode,
 };
 
 static const struct ad7606_bus_ops ad7608_spi_bops = {
 	.offload_config = ad7606_spi_offload_probe,
 	.read_block = ad7606_spi_read_block18to32,
+	.update_scan_mode = ad7606_spi_update_scan_mode,
 };
 
 static const struct ad7606_bus_ops ad7616_spi_bops = {
@@ -350,6 +376,7 @@ static const struct ad7606_bus_ops ad7616_spi_bops = {
 	.reg_read = ad7606_spi_reg_read,
 	.reg_write = ad7606_spi_reg_write,
 	.rd_wr_cmd = ad7616_spi_rd_wr_cmd,
+	.update_scan_mode = ad7606_spi_update_scan_mode,
 };
 
 static const struct ad7606_bus_ops ad7606b_spi_bops = {
@@ -359,6 +386,7 @@ static const struct ad7606_bus_ops ad7606b_spi_bops = {
 	.reg_write = ad7606_spi_reg_write,
 	.rd_wr_cmd = ad7606b_spi_rd_wr_cmd,
 	.sw_mode_config = ad7606b_sw_mode_config,
+	.update_scan_mode = ad7606_spi_update_scan_mode,
 };
 
 static const struct ad7606_bus_ops ad7606c_18_spi_bops = {
@@ -368,6 +396,7 @@ static const struct ad7606_bus_ops ad7606c_18_spi_bops = {
 	.reg_write = ad7606_spi_reg_write,
 	.rd_wr_cmd = ad7606b_spi_rd_wr_cmd,
 	.sw_mode_config = ad7606b_sw_mode_config,
+	.update_scan_mode = ad7606_spi_update_scan_mode,
 };
 
 static const struct ad7606_bus_info ad7605_4_bus_info = {
