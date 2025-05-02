@@ -243,5 +243,24 @@ register unsigned long current_stack_pointer asm(_ASM_SP);
 #define _ASM_EXTABLE_FAULT(from, to)				\
 	_ASM_EXTABLE_TYPE(from, to, EX_TYPE_FAULT)
 
+/*
+ * Both i386 and x86_64 returns 64-bit values in edx:eax for certain
+ * instructions, but GCC's "A" constraint has different meanings.
+ * For i386, "A" means exactly edx:eax, while for x86_64 it
+ * means rax *or* rdx.
+ *
+ * These helpers wrapping these semantic differences save one instruction
+ * clearing the high half of 'low':
+ */
+#ifdef CONFIG_X86_64
+# define EAX_EDX_DECLARE_ARGS(val, low, high)	unsigned long low, high
+# define EAX_EDX_VAL(val, low, high)		((low) | (high) << 32)
+# define EAX_EDX_RET(val, low, high)		"=a" (low), "=d" (high)
+#else
+# define EAX_EDX_DECLARE_ARGS(val, low, high)	u64 val
+# define EAX_EDX_VAL(val, low, high)		(val)
+# define EAX_EDX_RET(val, low, high)		"=A" (val)
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* _ASM_X86_ASM_H */
