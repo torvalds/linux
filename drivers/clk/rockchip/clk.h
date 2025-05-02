@@ -647,6 +647,11 @@ struct clk *rockchip_clk_register_muxgrf(const char *name,
 				int flags, struct regmap *grf, int reg,
 				int shift, int width, int mux_flags);
 
+struct clk *rockchip_clk_register_gate_grf(const char *name,
+				const char *parent_name, unsigned long flags,
+				struct regmap *regmap, unsigned int reg,
+				unsigned int shift, u8 gate_flags);
+
 #define PNAME(x) static const char *const x[] __initconst
 
 enum rockchip_clk_branch_type {
@@ -656,6 +661,7 @@ enum rockchip_clk_branch_type {
 	branch_divider,
 	branch_fraction_divider,
 	branch_gate,
+	branch_grf_gate,
 	branch_linked_gate,
 	branch_mmc,
 	branch_inverter,
@@ -983,6 +989,20 @@ struct rockchip_clk_branch {
 		.gate_offset	= o,				\
 		.gate_shift	= b,				\
 		.gate_flags	= gf,				\
+	}
+
+#define GATE_GRF(_id, cname, pname, f, o, b, gf, gt)		\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_grf_gate,		\
+		.name		= cname,			\
+		.parent_names	= (const char *[]){ pname },	\
+		.num_parents	= 1,				\
+		.flags		= f,				\
+		.gate_offset	= o,				\
+		.gate_shift	= b,				\
+		.gate_flags	= gf,				\
+		.grf_type	= gt,				\
 	}
 
 #define GATE_LINK(_id, cname, pname, linkedclk, f, o, b, gf)	\

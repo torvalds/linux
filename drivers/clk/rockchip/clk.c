@@ -509,7 +509,7 @@ void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 		clk = NULL;
 
 		/* for GRF-dependent branches, choose the right grf first */
-		if (list->branch_type == branch_muxgrf &&
+		if ((list->branch_type == branch_muxgrf || list->branch_type == branch_grf_gate) &&
 				list->grf_type != grf_type_sys) {
 			hash_for_each_possible(ctx->aux_grf_table, agrf, node, list->grf_type) {
 				if (agrf->type == list->grf_type) {
@@ -587,6 +587,13 @@ void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 				list->parent_names[0], flags,
 				ctx->reg_base + list->gate_offset,
 				list->gate_shift, list->gate_flags, &ctx->lock);
+			break;
+		case branch_grf_gate:
+			flags |= CLK_SET_RATE_PARENT;
+			clk = rockchip_clk_register_gate_grf(list->name,
+				list->parent_names[0], flags, grf,
+				list->gate_offset, list->gate_shift,
+				list->gate_flags);
 			break;
 		case branch_composite:
 			clk = rockchip_clk_register_branch(list->name,
