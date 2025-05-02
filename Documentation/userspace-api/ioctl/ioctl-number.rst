@@ -28,10 +28,10 @@ or number from the table below.  Because of the large number of drivers,
 many drivers share a partial letter with other drivers.
 
 If you are writing a driver for a new device and need a letter, pick an
-unused block with enough room for expansion: 32 to 256 ioctl commands.
-You can register the block by patching this file and submitting the
-patch to Linus Torvalds.  Or you can e-mail me at <mec@shout.net> and
-I'll register one for you.
+unused block with enough room for expansion: 32 to 256 ioctl commands
+should suffice. You can register the block by patching this file and
+submitting the patch through :doc:`usual patch submission process
+</process/submitting-patches>`.
 
 The second argument to _IO, _IOW, _IOR, or _IOWR is a sequence number
 to distinguish ioctls from each other.  The third argument to _IOW,
