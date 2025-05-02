@@ -1124,12 +1124,14 @@ static bool syscall_arg__strtoul_btf_type(char *bf __maybe_unused, size_t size _
 #define STRARRAY(name, array) \
 	  { .scnprintf	= SCA_STRARRAY, \
 	    .strtoul	= STUL_STRARRAY, \
-	    .parm	= &strarray__##array, }
+	    .parm	= &strarray__##array, \
+	    .show_zero	= true, }
 
 #define STRARRAY_FLAGS(name, array) \
 	  { .scnprintf	= SCA_STRARRAY_FLAGS, \
 	    .strtoul	= STUL_STRARRAY_FLAGS, \
-	    .parm	= &strarray__##array, }
+	    .parm	= &strarray__##array, \
+	    .show_zero	= true, }
 
 #include "trace/beauty/eventfd.c"
 #include "trace/beauty/futex_op.c"
