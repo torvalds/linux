@@ -947,3 +947,15 @@ int xe_devm_add(struct xe_tile *tile, struct xe_vram_region *vr)
 	return 0;
 }
 #endif
+
+/**
+ * xe_svm_flush() - SVM flush
+ * @vm: The VM.
+ *
+ * Flush all SVM actions.
+ */
+void xe_svm_flush(struct xe_vm *vm)
+{
+	if (xe_vm_in_fault_mode(vm))
+		flush_work(&vm->svm.garbage_collector.work);
+}
