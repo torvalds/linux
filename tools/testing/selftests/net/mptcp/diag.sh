@@ -225,6 +225,37 @@ chk_dump_one()
 	fi
 }
 
+chk_dump_subflow()
+{
+	local inet_diag_token
+	local subflow_line
+	local ss_output
+	local ss_token
+	local msg
+
+	ss_output=$(ss -tniN $ns)
+
+	subflow_line=$(echo "$ss_output" | \
+		       grep -m1 -Eo '[0-9.]+:[0-9].+ +[0-9.]+:[0-9.]+')
+
+	ss_token=$(echo "$ss_output" | grep -m1 -Eo 'token:[^ ]+')
+
+	inet_diag_token=$(ip netns exec $ns ./mptcp_diag -s "$subflow_line" | \
+			  grep -Eo 'token:[^ ]+')
+
+	msg="....chk dump_subflow"
+
+	mptcp_lib_print_title "$msg"
+	if [ -n "$ss_token" ] && [ "$ss_token" = "$inet_diag_token" ]; then
+		mptcp_lib_pr_ok
+		mptcp_lib_result_pass "${msg}"
+	else
+		mptcp_lib_pr_fail "expected $ss_token found $inet_diag_token"
+		mptcp_lib_result_fail "${msg}"
+		ret=${KSFT_FAIL}
+	fi
+}
+
 msk_info_get_value()
 {
 	local port="${1}"
@@ -316,6 +347,7 @@ chk_msk_fallback_nr 0 "....chk no fallback"
 chk_msk_inuse 2
 chk_msk_cestab 2
 chk_dump_one
+chk_dump_subflow
 flush_pids
 
 chk_msk_inuse 0 "2->0"
