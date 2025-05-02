@@ -234,18 +234,20 @@ __bpf_kfunc int bpf_qdisc_init_prologue(struct Qdisc *sch,
 	struct net_device *dev = qdisc_dev(sch);
 	struct Qdisc *p;
 
-	if (sch->parent != TC_H_ROOT) {
-		p = qdisc_lookup(dev, TC_H_MAJ(sch->parent));
-		if (!p)
-			return -ENOENT;
+	qdisc_watchdog_init(&q->watchdog, sch);
 
-		if (!(p->flags & TCQ_F_MQROOT)) {
+	if (sch->parent != TC_H_ROOT) {
+		/* If qdisc_lookup() returns NULL, it means .init is called by
+		 * qdisc_create_dflt() in mq/mqprio_init and the parent qdisc
+		 * has not been added to qdisc_hash yet.
+		 */
+		p = qdisc_lookup(dev, TC_H_MAJ(sch->parent));
+		if (p && !(p->flags & TCQ_F_MQROOT)) {
 			NL_SET_ERR_MSG(extack, "BPF qdisc only supported on root or mq");
 			return -EINVAL;
 		}
 	}
 
-	qdisc_watchdog_init(&q->watchdog, sch);
 	return 0;
 }
 
@@ -393,6 +395,17 @@ static void bpf_qdisc_unreg(void *kdata, struct bpf_link *link)
 	return unregister_qdisc(kdata);
 }
 
+static int bpf_qdisc_validate(void *kdata)
+{
+	struct Qdisc_ops *ops = (struct Qdisc_ops *)kdata;
+
+	if (!ops->enqueue || !ops->dequeue || !ops->init ||
+	    !ops->reset || !ops->destroy)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int Qdisc_ops__enqueue(struct sk_buff *skb__ref, struct Qdisc *sch,
 			      struct sk_buff **to_free)
 {
@@ -430,6 +443,7 @@ static struct bpf_struct_ops bpf_Qdisc_ops = {
 	.verifier_ops = &bpf_qdisc_verifier_ops,
 	.reg = bpf_qdisc_reg,
 	.unreg = bpf_qdisc_unreg,
+	.validate = bpf_qdisc_validate,
 	.init_member = bpf_qdisc_init_member,
 	.init = bpf_qdisc_init,
 	.name = "Qdisc_ops",

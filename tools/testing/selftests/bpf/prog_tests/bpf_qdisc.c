@@ -7,6 +7,7 @@
 #include "network_helpers.h"
 #include "bpf_qdisc_fifo.skel.h"
 #include "bpf_qdisc_fq.skel.h"
+#include "bpf_qdisc_fail__incompl_ops.skel.h"
 
 #define LO_IFINDEX 1
 
@@ -49,42 +50,32 @@ done:
 static void test_fifo(void)
 {
 	struct bpf_qdisc_fifo *fifo_skel;
-	struct bpf_link *link;
 
 	fifo_skel = bpf_qdisc_fifo__open_and_load();
 	if (!ASSERT_OK_PTR(fifo_skel, "bpf_qdisc_fifo__open_and_load"))
 		return;
 
-	link = bpf_map__attach_struct_ops(fifo_skel->maps.fifo);
-	if (!ASSERT_OK_PTR(link, "bpf_map__attach_struct_ops")) {
-		bpf_qdisc_fifo__destroy(fifo_skel);
-		return;
-	}
+	if (!ASSERT_OK(bpf_qdisc_fifo__attach(fifo_skel), "bpf_qdisc_fifo__attach"))
+		goto out;
 
 	do_test("bpf_fifo");
-
-	bpf_link__destroy(link);
+out:
 	bpf_qdisc_fifo__destroy(fifo_skel);
 }
 
 static void test_fq(void)
 {
 	struct bpf_qdisc_fq *fq_skel;
-	struct bpf_link *link;
 
 	fq_skel = bpf_qdisc_fq__open_and_load();
 	if (!ASSERT_OK_PTR(fq_skel, "bpf_qdisc_fq__open_and_load"))
 		return;
 
-	link = bpf_map__attach_struct_ops(fq_skel->maps.fq);
-	if (!ASSERT_OK_PTR(link, "bpf_map__attach_struct_ops")) {
-		bpf_qdisc_fq__destroy(fq_skel);
-		return;
-	}
+	if (!ASSERT_OK(bpf_qdisc_fq__attach(fq_skel), "bpf_qdisc_fq__attach"))
+		goto out;
 
 	do_test("bpf_fq");
-
-	bpf_link__destroy(link);
+out:
 	bpf_qdisc_fq__destroy(fq_skel);
 }
 
@@ -96,18 +87,14 @@ static void test_qdisc_attach_to_mq(void)
 			    .handle = 0x11 << 16,
 			    .qdisc = "bpf_fifo");
 	struct bpf_qdisc_fifo *fifo_skel;
-	struct bpf_link *link;
 	int err;
 
 	fifo_skel = bpf_qdisc_fifo__open_and_load();
 	if (!ASSERT_OK_PTR(fifo_skel, "bpf_qdisc_fifo__open_and_load"))
 		return;
 
-	link = bpf_map__attach_struct_ops(fifo_skel->maps.fifo);
-	if (!ASSERT_OK_PTR(link, "bpf_map__attach_struct_ops")) {
-		bpf_qdisc_fifo__destroy(fifo_skel);
-		return;
-	}
+	if (!ASSERT_OK(bpf_qdisc_fifo__attach(fifo_skel), "bpf_qdisc_fifo__attach"))
+		goto out;
 
 	SYS(out, "ip link add veth0 type veth peer veth1");
 	hook.ifindex = if_nametoindex("veth0");
@@ -120,7 +107,6 @@ static void test_qdisc_attach_to_mq(void)
 
 	SYS(out, "tc qdisc delete dev veth0 root mq");
 out:
-	bpf_link__destroy(link);
 	bpf_qdisc_fifo__destroy(fifo_skel);
 }
 
@@ -132,18 +118,14 @@ static void test_qdisc_attach_to_non_root(void)
 			    .handle = 0x11 << 16,
 			    .qdisc = "bpf_fifo");
 	struct bpf_qdisc_fifo *fifo_skel;
-	struct bpf_link *link;
 	int err;
 
 	fifo_skel = bpf_qdisc_fifo__open_and_load();
 	if (!ASSERT_OK_PTR(fifo_skel, "bpf_qdisc_fifo__open_and_load"))
 		return;
 
-	link = bpf_map__attach_struct_ops(fifo_skel->maps.fifo);
-	if (!ASSERT_OK_PTR(link, "bpf_map__attach_struct_ops")) {
-		bpf_qdisc_fifo__destroy(fifo_skel);
-		return;
-	}
+	if (!ASSERT_OK(bpf_qdisc_fifo__attach(fifo_skel), "bpf_qdisc_fifo__attach"))
+		goto out;
 
 	SYS(out, "tc qdisc add dev lo root handle 1: htb");
 	SYS(out_del_htb, "tc class add dev lo parent 1: classid 1:1 htb rate 75Kbit");
@@ -155,18 +137,82 @@ static void test_qdisc_attach_to_non_root(void)
 out_del_htb:
 	SYS(out, "tc qdisc delete dev lo root htb");
 out:
-	bpf_link__destroy(link);
 	bpf_qdisc_fifo__destroy(fifo_skel);
 }
 
-void test_bpf_qdisc(void)
+static void test_incompl_ops(void)
 {
-	struct netns_obj *netns;
+	struct bpf_qdisc_fail__incompl_ops *skel;
+	struct bpf_link *link;
+
+	skel = bpf_qdisc_fail__incompl_ops__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "bpf_qdisc_fifo__open_and_load"))
+		return;
+
+	link = bpf_map__attach_struct_ops(skel->maps.test);
+	if (!ASSERT_ERR_PTR(link, "bpf_map__attach_struct_ops"))
+		bpf_link__destroy(link);
+
+	bpf_qdisc_fail__incompl_ops__destroy(skel);
+}
+
+static int get_default_qdisc(char *qdisc_name)
+{
+	FILE *f;
+	int num;
+
+	f = fopen("/proc/sys/net/core/default_qdisc", "r");
+	if (!f)
+		return -errno;
+
+	num = fscanf(f, "%s", qdisc_name);
+	fclose(f);
+
+	return num == 1 ? 0 : -EFAULT;
+}
+
+static void test_default_qdisc_attach_to_mq(void)
+{
+	char default_qdisc[IFNAMSIZ] = {};
+	struct bpf_qdisc_fifo *fifo_skel;
+	struct netns_obj *netns = NULL;
+	int err;
+
+	fifo_skel = bpf_qdisc_fifo__open_and_load();
+	if (!ASSERT_OK_PTR(fifo_skel, "bpf_qdisc_fifo__open_and_load"))
+		return;
+
+	if (!ASSERT_OK(bpf_qdisc_fifo__attach(fifo_skel), "bpf_qdisc_fifo__attach"))
+		goto out;
+
+	err = get_default_qdisc(default_qdisc);
+	if (!ASSERT_OK(err, "read sysctl net.core.default_qdisc"))
+		goto out;
+
+	err = write_sysctl("/proc/sys/net/core/default_qdisc", "bpf_fifo");
+	if (!ASSERT_OK(err, "write sysctl net.core.default_qdisc"))
+		goto out;
 
 	netns = netns_new("bpf_qdisc_ns", true);
 	if (!ASSERT_OK_PTR(netns, "netns_new"))
-		return;
+		goto out;
 
+	SYS(out, "ip link add veth0 type veth peer veth1");
+	SYS(out, "tc qdisc add dev veth0 root handle 1: mq");
+
+	ASSERT_EQ(fifo_skel->bss->init_called, true, "init_called");
+
+	SYS(out, "tc qdisc delete dev veth0 root mq");
+out:
+	netns_free(netns);
+	if (default_qdisc[0])
+		write_sysctl("/proc/sys/net/core/default_qdisc", default_qdisc);
+
+	bpf_qdisc_fifo__destroy(fifo_skel);
+}
+
+void test_ns_bpf_qdisc(void)
+{
 	if (test__start_subtest("fifo"))
 		test_fifo();
 	if (test__start_subtest("fq"))
@@ -175,6 +221,11 @@ void test_bpf_qdisc(void)
 		test_qdisc_attach_to_mq();
 	if (test__start_subtest("attach to non root"))
 		test_qdisc_attach_to_non_root();
+	if (test__start_subtest("incompl_ops"))
+		test_incompl_ops();
+}
 
-	netns_free(netns);
+void serial_test_bpf_qdisc_default(void)
+{
+	test_default_qdisc_attach_to_mq();
 }
