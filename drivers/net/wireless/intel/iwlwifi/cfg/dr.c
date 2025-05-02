@@ -154,10 +154,6 @@ const struct iwl_cfg_trans_params iwl_br_trans_cfg = {
 
 const char iwl_br_name[] = "Intel(R) TBD Br device";
 
-const struct iwl_cfg iwl_cfg_br = {
-	IWL_DEVICE_DR,
-};
-
 MODULE_FIRMWARE(IWL_DR_A_PE_A_FW_MODULE_FIRMWARE(IWL_DR_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_BR_A_PET_A_FW_MODULE_FIRMWARE(IWL_DR_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_BR_A_PE_A_FW_MODULE_FIRMWARE(IWL_DR_UCODE_API_MAX));
