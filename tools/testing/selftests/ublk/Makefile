@@ -9,6 +9,7 @@ TEST_PROGS += test_generic_03.sh
 TEST_PROGS += test_generic_04.sh
 TEST_PROGS += test_generic_05.sh
 TEST_PROGS += test_generic_06.sh
+TEST_PROGS += test_generic_07.sh
 
 TEST_PROGS += test_null_01.sh
 TEST_PROGS += test_null_02.sh

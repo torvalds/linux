@@ -47,15 +47,15 @@ _create_backfile 0 256M
 _create_backfile 1 256M
 
 for reissue in $(seq 0 1); do
-	ublk_io_and_remove 8G -t null -q 4 -g 1 -r 1 -i "$reissue" &
-	ublk_io_and_remove 256M -t loop -q 4 -g 1 -r 1 -i "$reissue" "${UBLK_BACKFILES[0]}" &
+	ublk_io_and_remove 8G -t null -q 4 -g -r 1 -i "$reissue" &
+	ublk_io_and_remove 256M -t loop -q 4 -g -r 1 -i "$reissue" "${UBLK_BACKFILES[0]}" &
 	wait
 done
 
 if _have_feature "ZERO_COPY"; then
 	for reissue in $(seq 0 1); do
-		ublk_io_and_remove 8G -t null -q 4 -g 1 -z -r 1 -i "$reissue" &
-		ublk_io_and_remove 256M -t loop -q 4 -g 1 -z -r 1 -i "$reissue" "${UBLK_BACKFILES[1]}" &
+		ublk_io_and_remove 8G -t null -q 4 -g -z -r 1 -i "$reissue" &
+		ublk_io_and_remove 256M -t loop -q 4 -g -z -r 1 -i "$reissue" "${UBLK_BACKFILES[1]}" &
 		wait
 	done
 fi
