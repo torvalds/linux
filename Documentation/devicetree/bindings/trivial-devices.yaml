@@ -173,6 +173,8 @@ properties:
           - maxim,ds3502
             # Temperature Sensor, I2C interface
           - maxim,max1619
+            # Digital temperature sensor with 0.1°C accuracy
+          - maxim,max30208
             # 3-Channel Remote Temperature Sensor
           - maxim,max31730
             # 10-bit 10 kOhm linear programmable voltage divider
