@@ -519,10 +519,6 @@ nfsd_proc_symlink(struct svc_rqst *rqstp)
 		goto out;
 	}
 
-	dprintk("nfsd: SYMLINK  %s %.*s -> %.*s\n",
-		SVCFH_fmt(&argp->ffh), argp->flen, argp->fname,
-		argp->tlen, argp->tname);
-
 	fh_init(&newfh, NFS_FHSIZE);
 	resp->status = nfsd_symlink(rqstp, &argp->ffh, argp->fname, argp->flen,
 				    argp->tname, &attrs, &newfh);
