@@ -295,9 +295,6 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 	int		hosterr;
 	dev_t		rdev = 0, wanted = new_decode_dev(attr->ia_size);
 
-	dprintk("nfsd: CREATE   %s %.*s\n",
-		SVCFH_fmt(dirfhp), argp->len, argp->name);
-
 	/* First verify the parent file handle */
 	resp->status = fh_verify(rqstp, dirfhp, S_IFDIR, NFSD_MAY_EXEC);
 	if (resp->status != nfs_ok)
@@ -550,8 +547,6 @@ nfsd_proc_mkdir(struct svc_rqst *rqstp)
 	struct nfsd_attrs attrs = {
 		.na_iattr	= &argp->attrs,
 	};
-
-	dprintk("nfsd: MKDIR    %s %.*s\n", SVCFH_fmt(&argp->fh), argp->len, argp->name);
 
 	if (resp->fh.fh_dentry) {
 		printk(KERN_WARNING
