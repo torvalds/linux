@@ -2348,6 +2348,7 @@ out:
 
 void iwl_trans_pcie_reset(struct iwl_trans *trans, enum iwl_reset_mode mode)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_trans_pcie_removal *removal;
 	char _msg = 0, *msg = &_msg;
 
@@ -2357,9 +2358,9 @@ void iwl_trans_pcie_reset(struct iwl_trans *trans, enum iwl_reset_mode mode)
 	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
 		return;
 
-	if (trans->me_present && mode == IWL_RESET_MODE_PROD_RESET) {
+	if (trans_pcie->me_present && mode == IWL_RESET_MODE_PROD_RESET) {
 		mode = IWL_RESET_MODE_FUNC_RESET;
-		if (trans->me_present < 0)
+		if (trans_pcie->me_present < 0)
 			msg = " instead of product reset as ME may be present";
 		else
 			msg = " instead of product reset as ME is present";

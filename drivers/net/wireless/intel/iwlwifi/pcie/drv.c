@@ -1719,21 +1719,23 @@ EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_pci_find_dev_info);
 
 static void iwl_pcie_recheck_me_status(struct work_struct *wk)
 {
-	struct iwl_trans *trans = container_of(wk, typeof(*trans),
-					       me_recheck_wk.work);
+	struct iwl_trans_pcie *trans_pcie = container_of(wk,
+							 typeof(*trans_pcie),
+							 me_recheck_wk.work);
 	u32 val;
 
-	val = iwl_read32(trans, CSR_HW_IF_CONFIG_REG);
-	trans->me_present = !!(val & CSR_HW_IF_CONFIG_REG_IAMT_UP);
+	val = iwl_read32(trans_pcie->trans, CSR_HW_IF_CONFIG_REG);
+	trans_pcie->me_present = !!(val & CSR_HW_IF_CONFIG_REG_IAMT_UP);
 }
 
 static void iwl_pcie_check_me_status(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 val;
 
-	trans->me_present = -1;
+	trans_pcie->me_present = -1;
 
-	INIT_DELAYED_WORK(&trans->me_recheck_wk,
+	INIT_DELAYED_WORK(&trans_pcie->me_recheck_wk,
 			  iwl_pcie_recheck_me_status);
 
 	/* we don't have a good way of determining this until BZ */
@@ -1742,7 +1744,7 @@ static void iwl_pcie_check_me_status(struct iwl_trans *trans)
 
 	val = iwl_read_prph(trans, CNVI_SCU_REG_FOR_ECO_1);
 	if (val & CNVI_SCU_REG_FOR_ECO_1_WIAMT_KNOWN) {
-		trans->me_present =
+		trans_pcie->me_present =
 			!!(val & CNVI_SCU_REG_FOR_ECO_1_WIAMT_PRESENT);
 		return;
 	}
@@ -1750,12 +1752,12 @@ static void iwl_pcie_check_me_status(struct iwl_trans *trans)
 	val = iwl_read32(trans, CSR_HW_IF_CONFIG_REG);
 	if (val & (CSR_HW_IF_CONFIG_REG_ME_OWN |
 		   CSR_HW_IF_CONFIG_REG_IAMT_UP)) {
-		trans->me_present = 1;
+		trans_pcie->me_present = 1;
 		return;
 	}
 
 	/* recheck again later, ME might still be initializing */
-	schedule_delayed_work(&trans->me_recheck_wk, HZ);
+	schedule_delayed_work(&trans_pcie->me_recheck_wk, HZ);
 }
 
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -1904,11 +1906,12 @@ out_free_trans:
 static void iwl_pci_remove(struct pci_dev *pdev)
 {
 	struct iwl_trans *trans = pci_get_drvdata(pdev);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	if (!trans)
 		return;
 
-	cancel_delayed_work_sync(&trans->me_recheck_wk);
+	cancel_delayed_work_sync(&trans_pcie->me_recheck_wk);
 
 	iwl_drv_stop(trans->drv);
 

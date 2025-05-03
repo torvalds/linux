@@ -420,6 +420,9 @@ struct iwl_pcie_txqs {
  * @isr_stats: interrupt statistics
  * @napi_dev: (fake) netdev for NAPI registration
  * @txqs: transport tx queues data.
+ * @me_present: WiAMT/CSME is detected as present (1), not present (0)
+ *	or unknown (-1, so can still use it as a boolean safely)
+ * @me_recheck_wk: worker to recheck WiAMT/CSME presence
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq *rxq;
@@ -519,6 +522,9 @@ struct iwl_trans_pcie {
 	char rf_name[32];
 
 	struct iwl_pcie_txqs txqs;
+
+	s8 me_present;
+	struct delayed_work me_recheck_wk;
 };
 
 static inline struct iwl_trans_pcie *
