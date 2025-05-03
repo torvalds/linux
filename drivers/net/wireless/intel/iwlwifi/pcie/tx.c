@@ -2688,4 +2688,3 @@ int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans,
 
 	return iwl_trans_pcie_send_hcmd_sync(trans, cmd);
 }
-IWL_EXPORT_SYMBOL(iwl_trans_pcie_send_hcmd);
