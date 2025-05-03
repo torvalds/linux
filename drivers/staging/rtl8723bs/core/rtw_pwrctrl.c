@@ -8,7 +8,6 @@
 #include <hal_data.h>
 #include <linux/jiffies.h>
 
-
 void _ips_enter(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
@@ -993,7 +992,6 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 	pwrctrlpriv->wowlan_mode = false;
 	pwrctrlpriv->wowlan_ap_mode = false;
 }
-
 
 void rtw_free_pwrctrl_priv(struct adapter *adapter)
 {
