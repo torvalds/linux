@@ -27,7 +27,6 @@
 #include <init.h>
 #include <irq_kern.h>
 #include <irq_user.h>
-#include <net_kern.h>
 #include <os.h>
 #include "mconsole_kern.h"
 #include "vector_user.h"
@@ -1539,7 +1538,56 @@ static void vector_timer_expire(struct timer_list *t)
 	napi_schedule(&vp->napi);
 }
 
+static void vector_setup_etheraddr(struct net_device *dev, char *str)
+{
+	u8 addr[ETH_ALEN];
+	char *end;
+	int i;
 
+	if (str == NULL)
+		goto random;
+
+	for (i = 0; i < 6; i++) {
+		addr[i] = simple_strtoul(str, &end, 16);
+		if ((end == str) ||
+		   ((*end != ':') && (*end != ',') && (*end != '\0'))) {
+			printk(KERN_ERR
+			       "setup_etheraddr: failed to parse '%s' "
+			       "as an ethernet address\n", str);
+			goto random;
+		}
+		str = end + 1;
+	}
+	if (is_multicast_ether_addr(addr)) {
+		printk(KERN_ERR
+		       "Attempt to assign a multicast ethernet address to a "
+		       "device disallowed\n");
+		goto random;
+	}
+	if (!is_valid_ether_addr(addr)) {
+		printk(KERN_ERR
+		       "Attempt to assign an invalid ethernet address to a "
+		       "device disallowed\n");
+		goto random;
+	}
+	if (!is_local_ether_addr(addr)) {
+		printk(KERN_WARNING
+		       "Warning: Assigning a globally valid ethernet "
+		       "address to a device\n");
+		printk(KERN_WARNING "You should set the 2nd rightmost bit in "
+		       "the first byte of the MAC,\n");
+		printk(KERN_WARNING "i.e. %02x:%02x:%02x:%02x:%02x:%02x\n",
+		       addr[0] | 0x02, addr[1], addr[2], addr[3], addr[4],
+		       addr[5]);
+	}
+	eth_hw_addr_set(dev, addr);
+	return;
+
+random:
+	printk(KERN_INFO
+	       "Choosing a random ethernet address for device %s\n", dev->name);
+	eth_hw_addr_random(dev);
+}
 
 static void vector_eth_configure(
 		int n,
@@ -1574,7 +1622,7 @@ static void vector_eth_configure(
 	 * and fail.
 	 */
 	snprintf(dev->name, sizeof(dev->name), "vec%d", n);
-	uml_net_setup_etheraddr(dev, uml_vector_fetch_arg(def, "mac"));
+	vector_setup_etheraddr(dev, uml_vector_fetch_arg(def, "mac"));
 	vp = netdev_priv(dev);
 
 	/* sysfs register */

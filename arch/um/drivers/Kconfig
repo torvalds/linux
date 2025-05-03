@@ -145,7 +145,6 @@ config UML_NET
 
 config UML_NET_VECTOR
 	bool "Vector I/O high performance network devices"
-	depends on UML_NET
 	select MAY_HAVE_RUNTIME_DEPS
 	help
 	  This User-Mode Linux network driver uses multi-message send
