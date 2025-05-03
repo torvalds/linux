@@ -514,7 +514,7 @@ void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 
 	iwl_trans_ac_txq_enable(trans, trans_pcie->txqs.cmd.q_id,
 				trans_pcie->txqs.cmd.fifo,
-				trans_pcie->txqs.cmd.wdg_timeout);
+				IWL_DEF_WD_TIMEOUT);
 
 	/* Activate all Tx DMA/FIFO channels */
 	iwl_scd_activate_fifos(trans);

@@ -304,7 +304,6 @@ enum iwl_pcie_imr_status {
  * @cmd: command queue data
  * @cmd.fifo: FIFO number
  * @cmd.q_id: queue ID
- * @cmd.wdg_timeout: watchdog timeout
  * @tfd: TFD data
  * @tfd.max_tbs: max number of buffers per TFD
  * @tfd.size: TFD size
@@ -324,7 +323,6 @@ struct iwl_pcie_txqs {
 	struct {
 		u8 fifo;
 		u8 q_id;
-		unsigned int wdg_timeout;
 	} cmd;
 
 	struct {
