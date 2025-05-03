@@ -147,18 +147,12 @@ The image hostname will be set to the same as the host on which you
 are creating its image. It is a good idea to change that to avoid
 "Oh, bummer, I rebooted the wrong machine".
 
-UML supports two classes of network devices - the older uml_net ones
-which are scheduled for obsoletion. These are called ethX. It also
-supports the newer vector IO devices which are significantly faster
-and have support for some standard virtual network encapsulations like
-Ethernet over GRE and Ethernet over L2TPv3. These are called vec0.
+UML supports vector I/O high performance network devices which have
+support for some standard virtual network encapsulations like
+Ethernet over GRE and Ethernet over L2TPv3. These are called vecX.
 
-Depending on which one is in use, ``/etc/network/interfaces`` will
-need entries like::
-
-   # legacy UML network devices
-   auto eth0
-   iface eth0 inet dhcp
+When vector network devices are in use, ``/etc/network/interfaces``
+will need entries like::
 
    # vector UML network devices
    auto vec0

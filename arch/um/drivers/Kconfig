@@ -124,25 +124,6 @@ endmenu
 menu "UML Network Devices"
 	depends on NET
 
-# UML virtual driver
-config UML_NET
-	bool "Virtual network device"
-	help
-	  While the User-Mode port cannot directly talk to any physical
-	  hardware devices, this choice and the following transport options
-	  provide one or more virtual network devices through which the UML
-	  kernels can talk to each other, the host, and with the host's help,
-	  machines on the outside world.
-
-	  For more information, including explanations of the networking and
-	  sample configurations, see
-	  <http://user-mode-linux.sourceforge.net/old/networking.html>.
-
-	  If you'd like to be able to enable networking in the User-Mode
-	  linux environment, say Y; otherwise say N.  Note that you must
-	  enable at least one of the following transport options to actually
-	  make use of UML networking.
-
 config UML_NET_VECTOR
 	bool "Vector I/O high performance network devices"
 	select MAY_HAVE_RUNTIME_DEPS
@@ -150,9 +131,11 @@ config UML_NET_VECTOR
 	  This User-Mode Linux network driver uses multi-message send
 	  and receive functions. The host running the UML guest must have
 	  a linux kernel version above 3.0 and a libc version > 2.13.
-	  This driver provides tap, raw, gre and l2tpv3 network transports
-	  with up to 4 times higher network throughput than the UML network
-	  drivers.
+	  This driver provides tap, raw, gre and l2tpv3 network transports.
+
+	  For more information, including explanations of the networking
+	  and sample configurations, see
+	  <file:Documentation/virt/uml/user_mode_linux_howto_v2.rst>.
 
 endmenu
 
