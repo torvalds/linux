@@ -24,6 +24,9 @@ we have a dedicated glossary for Display Core at
     CIK
       Sea Islands
 
+    CB
+      Color Buffer
+
     CP
       Command Processor
 
@@ -38,6 +41,9 @@ we have a dedicated glossary for Display Core at
 
     CU
       Compute Unit
+
+    DB
+      Depth Buffer
 
     DFS
       Digital Frequency Synthesizer
@@ -62,6 +68,12 @@ we have a dedicated glossary for Display Core at
 
     GC
       Graphics and Compute
+
+    GDS
+      Global Data Share
+
+    GE
+      Geometry Engine
 
     GMC
       Graphic Memory Controller
@@ -128,6 +140,9 @@ we have a dedicated glossary for Display Core at
     MQD
       Memory Queue Descriptor
 
+    PA
+      Primitive Assembler / Physical Address
+
     PFP
       Pre-Fetch Parser (Graphics)
 
@@ -145,6 +160,9 @@ we have a dedicated glossary for Display Core at
       much meaning today. It's a group of general-purpose helper engines for
       the GFX block. It's involved in GFX power management and SR-IOV, among
       other things.
+
+    SC
+      Scan Converter
 
     SDMA
       System DMA
@@ -164,6 +182,9 @@ we have a dedicated glossary for Display Core at
     SMU/SMC
       System Management Unit / System Management Controller
 
+    SPI
+      Shader Processor Input
+
     SRLC
       Save/Restore List Control
 
@@ -176,6 +197,9 @@ we have a dedicated glossary for Display Core at
     SS
       Spread Spectrum
 
+    SX
+      Shader Export
+
     TA
       Trusted Application
 
@@ -184,6 +208,9 @@ we have a dedicated glossary for Display Core at
 
     TOC
       Table of Contents
+
+    UMSCH
+      User Mode Scheduler
 
     UVD
       Unified Video Decoder
@@ -202,3 +229,9 @@ we have a dedicated glossary for Display Core at
 
     VPE
       Video Processing Engine
+
+    XCC
+      Accelerator Core Complex
+
+    XCP
+      Accelerator Core Partition
