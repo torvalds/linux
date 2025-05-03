@@ -501,6 +501,8 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	bool		size_change = (iap->ia_valid & ATTR_SIZE);
 	int		retries;
 
+	trace_nfsd_vfs_setattr(rqstp, fhp, iap, guardtime);
+
 	if (iap->ia_valid & ATTR_SIZE) {
 		accmode |= NFSD_MAY_WRITE|NFSD_MAY_OWNER_OVERRIDE;
 		ftype = S_IFREG;

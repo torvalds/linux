@@ -11,6 +11,7 @@
 #include <linux/tracepoint.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/xprt.h>
+#include <trace/misc/fs.h>
 #include <trace/misc/nfs.h>
 #include <trace/misc/sunrpc.h>
 
@@ -2354,6 +2355,44 @@ DEFINE_EVENT(nfsd_copy_async_done_class,		\
 
 DEFINE_COPY_ASYNC_DONE_EVENT(done);
 DEFINE_COPY_ASYNC_DONE_EVENT(cancel);
+
+TRACE_EVENT(nfsd_vfs_setattr,
+	TP_PROTO(
+		const struct svc_rqst *rqstp,
+		const struct svc_fh *fhp,
+		const struct iattr *iap,
+		const struct timespec64 *guardtime
+	),
+	TP_ARGS(rqstp, fhp, iap, guardtime),
+	TP_STRUCT__entry(
+		NFSD_TRACE_PROC_CALL_FIELDS(rqstp)
+		__field(u32, fh_hash)
+		__field(s64, gtime_tv_sec)
+		__field(u32, gtime_tv_nsec)
+		__field(unsigned int, ia_valid)
+		__field(loff_t, ia_size)
+		__field(uid_t, ia_uid)
+		__field(gid_t, ia_gid)
+		__field(umode_t, ia_mode)
+	),
+	TP_fast_assign(
+		NFSD_TRACE_PROC_CALL_ASSIGNMENTS(rqstp);
+		__entry->fh_hash = knfsd_fh_hash(&fhp->fh_handle);
+		__entry->gtime_tv_sec = guardtime ? guardtime->tv_sec : 0;
+		__entry->gtime_tv_nsec = guardtime ? guardtime->tv_nsec : 0;
+		__entry->ia_valid = iap->ia_valid;
+		__entry->ia_size = iap->ia_size;
+		__entry->ia_uid = __kuid_val(iap->ia_uid);
+		__entry->ia_gid = __kgid_val(iap->ia_gid);
+		__entry->ia_mode = iap->ia_mode;
+	),
+	TP_printk(
+		"xid=0x%08x fh_hash=0x%08x ia_valid=%s ia_size=%llu ia_mode=0%o ia_uid=%u ia_gid=%u guard_time=%lld.%u",
+		__entry->xid, __entry->fh_hash, show_ia_valid_flags(__entry->ia_valid),
+		__entry->ia_size, __entry->ia_mode, __entry->ia_uid, __entry->ia_gid,
+		__entry->gtime_tv_sec, __entry->gtime_tv_nsec
+	)
+)
 
 #endif /* _NFSD_TRACE_H */
 
