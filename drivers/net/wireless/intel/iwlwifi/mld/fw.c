@@ -227,8 +227,6 @@ static void iwl_mld_print_alive_notif_timeout(struct iwl_mld *mld)
 
 static int iwl_mld_load_fw_wait_alive(struct iwl_mld *mld)
 {
-	const struct fw_img *fw =
-		iwl_get_ucode_image(mld->fw, IWL_UCODE_REGULAR);
 	static const u16 alive_cmd[] = { UCODE_ALIVE_NTFY };
 	struct iwl_notification_wait alive_wait;
 	bool alive_valid = false;
@@ -242,7 +240,7 @@ static int iwl_mld_load_fw_wait_alive(struct iwl_mld *mld)
 
 	iwl_dbg_tlv_time_point(&mld->fwrt, IWL_FW_INI_TIME_POINT_EARLY, NULL);
 
-	ret = iwl_trans_start_fw(mld->trans, fw, true);
+	ret = iwl_trans_start_fw(mld->trans, mld->fw, IWL_UCODE_REGULAR, true);
 	if (ret) {
 		iwl_remove_notification(&mld->notif_wait, &alive_wait);
 		return ret;

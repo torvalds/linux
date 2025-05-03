@@ -181,7 +181,7 @@ struct iwl_context_info {
 	__le32 reserved3[16];
 } __packed;
 
-int iwl_pcie_ctxt_info_init(struct iwl_trans *trans, const struct fw_img *fw);
+int iwl_pcie_ctxt_info_init(struct iwl_trans *trans, const struct fw_img *img);
 void iwl_pcie_ctxt_info_free(struct iwl_trans *trans);
 void iwl_pcie_ctxt_info_free_paging(struct iwl_trans *trans);
 int iwl_pcie_init_fw_sec(struct iwl_trans *trans,

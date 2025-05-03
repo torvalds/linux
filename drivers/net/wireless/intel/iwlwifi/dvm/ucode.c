@@ -3,6 +3,7 @@
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright (C) 2025 Intel Corporation
  *****************************************************************************/
 
 #include <linux/kernel.h>
@@ -293,14 +294,9 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 {
 	struct iwl_notification_wait alive_wait;
 	struct iwl_alive_data alive_data;
-	const struct fw_img *fw;
 	int ret;
 	enum iwl_ucode_type old_type;
 	static const u16 alive_cmd[] = { REPLY_ALIVE };
-
-	fw = iwl_get_ucode_image(priv->fw, ucode_type);
-	if (WARN_ON(!fw))
-		return -EINVAL;
 
 	old_type = priv->cur_ucode;
 	priv->cur_ucode = ucode_type;
@@ -310,7 +306,7 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 				   alive_cmd, ARRAY_SIZE(alive_cmd),
 				   iwl_alive_fn, &alive_data);
 
-	ret = iwl_trans_start_fw(priv->trans, fw, false);
+	ret = iwl_trans_start_fw(priv->trans, priv->fw, ucode_type, false);
 	if (ret) {
 		priv->cur_ucode = old_type;
 		iwl_remove_notification(&priv->notif_wait, &alive_wait);

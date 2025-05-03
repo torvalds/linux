@@ -353,6 +353,7 @@ struct iwl_pcie_txqs {
  * @prph_scratch_dma_addr: dma addr of prph scratch
  * @ctxt_info_dma_addr: dma addr of context information
  * @iml: image loader image virtual address
+ * @iml_len: image loader image size
  * @iml_dma_addr: image loader image DMA address
  * @trans: pointer to the generic transport area
  * @scd_base_addr: scheduler sram base address in SRAM
@@ -438,6 +439,7 @@ struct iwl_trans_pcie {
 	struct iwl_prph_info *prph_info;
 	struct iwl_prph_scratch *prph_scratch;
 	void *iml;
+	size_t iml_len;
 	dma_addr_t ctxt_info_dma_addr;
 	dma_addr_t prph_info_dma_addr;
 	dma_addr_t prph_scratch_dma_addr;
@@ -1135,7 +1137,9 @@ void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans);
 /* transport gen 1 exported functions */
 void iwl_trans_pcie_fw_alive(struct iwl_trans *trans, u32 scd_addr);
 int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
-			    const struct fw_img *fw, bool run_in_rfkill);
+			    const struct iwl_fw *fw,
+			    const struct fw_img *img,
+			    bool run_in_rfkill);
 void iwl_trans_pcie_stop_device(struct iwl_trans *trans);
 
 /* common functions that are used by gen2 transport */
@@ -1158,7 +1162,9 @@ void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans, u8 max_power);
 
 /* transport gen 2 exported functions */
 int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
-				 const struct fw_img *fw, bool run_in_rfkill);
+				 const struct iwl_fw *fw,
+				 const struct fw_img *img,
+				 bool run_in_rfkill);
 void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans);
 int iwl_trans_pcie_gen2_send_hcmd(struct iwl_trans *trans,
 				  struct iwl_host_cmd *cmd);

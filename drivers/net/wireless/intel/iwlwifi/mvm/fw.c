@@ -315,7 +315,6 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 {
 	struct iwl_notification_wait alive_wait;
 	struct iwl_mvm_alive_data alive_data = {};
-	const struct fw_img *fw;
 	int ret;
 	enum iwl_ucode_type old_type = mvm->fwrt.cur_fw_img;
 	static const u16 alive_cmd[] = { UCODE_ALIVE_NTFY };
@@ -328,11 +327,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	    iwl_fw_dbg_conf_usniffer(mvm->fw, FW_DBG_START_FROM_ALIVE) &&
 	    !(fw_has_capa(&mvm->fw->ucode_capa,
 			  IWL_UCODE_TLV_CAPA_USNIFFER_UNIFIED)))
-		fw = iwl_get_ucode_image(mvm->fw, IWL_UCODE_REGULAR_USNIFFER);
-	else
-		fw = iwl_get_ucode_image(mvm->fw, ucode_type);
-	if (WARN_ON(!fw))
-		return -EINVAL;
+		ucode_type = IWL_UCODE_REGULAR_USNIFFER;
 	iwl_fw_set_current_image(&mvm->fwrt, ucode_type);
 	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
 
@@ -345,7 +340,8 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	 * For the unified firmware case, the ucode_type is not
 	 * INIT, but we still need to run it.
 	 */
-	ret = iwl_trans_start_fw(mvm->trans, fw, run_in_rfkill);
+	ret = iwl_trans_start_fw(mvm->trans, mvm->fw, ucode_type,
+				 run_in_rfkill);
 	if (ret) {
 		iwl_fw_set_current_image(&mvm->fwrt, old_type);
 		iwl_remove_notification(&mvm->notif_wait, &alive_wait);

@@ -161,7 +161,7 @@ int iwl_pcie_init_fw_sec(struct iwl_trans *trans,
 }
 
 int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
-			    const struct fw_img *fw)
+			    const struct fw_img *img)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_context_info *ctxt_info;
@@ -223,7 +223,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 		TFD_QUEUE_CB_SIZE(IWL_CMD_QUEUE_SIZE);
 
 	/* allocate ucode sections in dram and set addresses */
-	ret = iwl_pcie_init_fw_sec(trans, fw, &ctxt_info->dram);
+	ret = iwl_pcie_init_fw_sec(trans, img, &ctxt_info->dram);
 	if (ret) {
 		dma_free_coherent(trans->dev, sizeof(*trans_pcie->ctxt_info),
 				  ctxt_info, trans_pcie->ctxt_info_dma_addr);

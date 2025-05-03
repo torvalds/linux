@@ -484,7 +484,9 @@ static void iwl_pcie_spin_for_iml(struct iwl_trans *trans)
 }
 
 int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
-				 const struct fw_img *fw, bool run_in_rfkill)
+				 const struct iwl_fw *fw,
+				 const struct fw_img *img,
+				 bool run_in_rfkill)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	bool hw_rfkill, keep_ram_busy;
@@ -553,14 +555,14 @@ again:
 
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		if (!top_reset_done) {
-			ret = iwl_pcie_ctxt_info_gen3_alloc(trans, fw);
+			ret = iwl_pcie_ctxt_info_gen3_alloc(trans, fw, img);
 			if (ret)
 				goto out;
 		}
 
 		iwl_pcie_ctxt_info_gen3_kick(trans);
 	} else {
-		ret = iwl_pcie_ctxt_info_init(trans, fw);
+		ret = iwl_pcie_ctxt_info_init(trans, img);
 		if (ret)
 			goto out;
 	}

@@ -98,7 +98,8 @@ out:
 }
 
 int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
-				  const struct fw_img *fw)
+				  const struct iwl_fw *fw,
+				  const struct fw_img *img)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_context_info_gen3 *ctxt_info_gen3;
@@ -187,7 +188,7 @@ int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
 	prph_sc_ctrl->step_cfg.mbx_addr_1 = cpu_to_le32(trans->mbx_addr_1_step);
 
 	/* allocate ucode sections in dram and set addresses */
-	ret = iwl_pcie_init_fw_sec(trans, fw, &prph_scratch->dram.common);
+	ret = iwl_pcie_init_fw_sec(trans, img, &prph_scratch->dram.common);
 	if (ret)
 		goto err_free_prph_scratch;
 
@@ -261,7 +262,8 @@ int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
 	trans_pcie->prph_scratch = prph_scratch;
 
 	/* Allocate IML */
-	trans_pcie->iml = dma_alloc_coherent(trans->dev, trans->iml_len,
+	trans_pcie->iml_len = fw->iml_len;
+	trans_pcie->iml = dma_alloc_coherent(trans->dev, fw->iml_len,
 					     &trans_pcie->iml_dma_addr,
 					     GFP_KERNEL);
 	if (!trans_pcie->iml) {
@@ -269,7 +271,7 @@ int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
 		goto err_free_ctxt_info;
 	}
 
-	memcpy(trans_pcie->iml, trans->iml, trans->iml_len);
+	memcpy(trans_pcie->iml, fw->iml, fw->iml_len);
 
 	return 0;
 
@@ -298,11 +300,9 @@ void iwl_pcie_ctxt_info_gen3_kick(struct iwl_trans *trans)
 	iwl_enable_fw_load_int_ctx_info(trans, trans->do_top_reset);
 
 	/* kick FW self load */
-	iwl_write64(trans, CSR_CTXT_INFO_ADDR,
-		    trans_pcie->ctxt_info_dma_addr);
-	iwl_write64(trans, CSR_IML_DATA_ADDR,
-		    trans_pcie->iml_dma_addr);
-	iwl_write32(trans, CSR_IML_SIZE_ADDR, trans->iml_len);
+	iwl_write64(trans, CSR_CTXT_INFO_ADDR, trans_pcie->ctxt_info_dma_addr);
+	iwl_write64(trans, CSR_IML_DATA_ADDR, trans_pcie->iml_dma_addr);
+	iwl_write32(trans, CSR_IML_SIZE_ADDR, trans_pcie->iml_len);
 
 	iwl_set_bit(trans, CSR_CTXT_INFO_BOOT_CTRL,
 		    CSR_AUTO_FUNC_BOOT_ENA);
@@ -313,9 +313,11 @@ void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans, bool alive)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	if (trans_pcie->iml) {
-		dma_free_coherent(trans->dev, trans->iml_len, trans_pcie->iml,
+		dma_free_coherent(trans->dev, trans_pcie->iml_len,
+				  trans_pcie->iml,
 				  trans_pcie->iml_dma_addr);
 		trans_pcie->iml_dma_addr = 0;
+		trans_pcie->iml_len = 0;
 		trans_pcie->iml = NULL;
 	}
 

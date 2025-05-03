@@ -348,8 +348,6 @@ iwl_mld_configure_trans(struct iwl_op_mode *op_mode)
 
 	trans->rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
 	trans->rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_res_start);
-	trans->iml = mld->fw->iml;
-	trans->iml_len = mld->fw->iml_len;
 	trans->wide_cmd_header = true;
 
 	iwl_trans_configure(trans, &trans_cfg);

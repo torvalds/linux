@@ -324,7 +324,8 @@ struct iwl_context_info_gen3 {
 } __packed; /* IPC_CONTEXT_INFO_S */
 
 int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
-				  const struct fw_img *fw);
+				  const struct iwl_fw *fw,
+				  const struct fw_img *img);
 void iwl_pcie_ctxt_info_gen3_kick(struct iwl_trans *trans);
 void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans, bool alive);
 

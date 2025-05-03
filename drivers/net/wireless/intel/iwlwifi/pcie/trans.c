@@ -1337,7 +1337,9 @@ void iwl_pcie_synchronize_irqs(struct iwl_trans *trans)
 }
 
 int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
-			    const struct fw_img *fw, bool run_in_rfkill)
+			    const struct iwl_fw *fw,
+			    const struct fw_img *img,
+			    bool run_in_rfkill)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	bool hw_rfkill;
@@ -1409,9 +1411,9 @@ int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 
 	/* Load the given image to the HW */
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_8000)
-		ret = iwl_pcie_load_given_ucode_8000(trans, fw);
+		ret = iwl_pcie_load_given_ucode_8000(trans, img);
 	else
-		ret = iwl_pcie_load_given_ucode(trans, fw);
+		ret = iwl_pcie_load_given_ucode(trans, img);
 
 	/* re-check RF-Kill state since we may have missed the interrupt */
 	hw_rfkill = iwl_pcie_check_hw_rf_kill(trans);
