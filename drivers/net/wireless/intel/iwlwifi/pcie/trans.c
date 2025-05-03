@@ -3979,8 +3979,6 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	iwl_pcie_set_interrupt_capa(pdev, trans, cfg_trans);
 	trans->hw_id = (pdev->device << 16) + pdev->subsystem_device;
-	snprintf(trans->hw_id_str, sizeof(trans->hw_id_str),
-		 "PCI ID: 0x%04X:0x%04X", pdev->device, pdev->subsystem_device);
 
 	init_waitqueue_head(&trans_pcie->sx_waitq);
 

@@ -823,7 +823,6 @@ struct iwl_txq {
  * @hw_wfpm_id: a u32 with the device wfpm ID
  * @hw_id: a u32 with the ID of the device / sub-device.
  *	Set during transport allocation.
- * @hw_id_str: a string with info about HW ID. Set during transport allocation.
  * @sku_id: the SKU identifier (for PNVM matching)
  * @pnvm_loaded: indicates PNVM was loaded
  * @hw_rev: the revision data of the HW
@@ -887,7 +886,6 @@ struct iwl_trans {
 	u32 hw_cnv_id;
 	u32 hw_wfpm_id;
 	u32 hw_id;
-	char hw_id_str[52];
 	u32 sku_id[3];
 	bool reduced_cap_sku;
 	bool step_urm;
