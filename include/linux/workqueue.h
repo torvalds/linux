@@ -480,7 +480,7 @@ void workqueue_softirq_dead(unsigned int cpu);
  * executing at most one work item for the workqueue.
  *
  * For unbound workqueues, @max_active limits the number of in-flight work items
- * for the whole system. e.g. @max_active of 16 indicates that that there can be
+ * for the whole system. e.g. @max_active of 16 indicates that there can be
  * at most 16 work items executing for the workqueue in the whole system.
  *
  * As sharing the same active counter for an unbound workqueue across multiple
