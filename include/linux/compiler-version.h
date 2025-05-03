@@ -23,3 +23,12 @@
 #ifdef GCC_PLUGINS
 #include <generated/gcc-plugins.h>
 #endif
+
+/*
+ * If the randstruct seed itself changes (whether for GCC plugins or
+ * Clang), the entire tree needs to be rebuilt since the randomization of
+ * structures may change between compilation units if not.
+ */
+#ifdef RANDSTRUCT
+#include <generated/randstruct_hash.h>
+#endif
