@@ -1721,6 +1721,8 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 	__be32		err;
 	int		host_err;
 
+	trace_nfsd_vfs_link(rqstp, ffhp, tfhp, name, len);
+
 	err = fh_verify(rqstp, ffhp, S_IFDIR, NFSD_MAY_CREATE);
 	if (err)
 		goto out;
