@@ -459,11 +459,6 @@ nfsd_proc_rename(struct svc_rqst *rqstp)
 	struct nfsd_renameargs *argp = rqstp->rq_argp;
 	struct nfsd_stat *resp = rqstp->rq_resp;
 
-	dprintk("nfsd: RENAME   %s %.*s -> \n",
-		SVCFH_fmt(&argp->ffh), argp->flen, argp->fname);
-	dprintk("nfsd:        ->  %s %.*s\n",
-		SVCFH_fmt(&argp->tfh), argp->tlen, argp->tname);
-
 	resp->status = nfsd_rename(rqstp, &argp->ffh, argp->fname, argp->flen,
 				   &argp->tfh, argp->tname, argp->tlen);
 	fh_put(&argp->ffh);
