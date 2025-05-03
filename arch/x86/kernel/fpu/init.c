@@ -71,13 +71,9 @@ static bool __init fpu__probe_without_cpuid(void)
 	return fsw == 0 && (fcw & 0x103f) == 0x003f;
 }
 
-static struct fpu x86_init_fpu __attribute__ ((aligned (64))) __read_mostly;
-
 static void __init fpu__init_system_early_generic(void)
 {
-	fpstate_reset(&x86_init_fpu);
 	set_thread_flag(TIF_NEED_FPU_LOAD);
-	x86_init_fpu.last_cpu = -1;
 
 	if (!boot_cpu_has(X86_FEATURE_CPUID) &&
 	    !test_bit(X86_FEATURE_FPU, (unsigned long *)cpu_caps_cleared)) {
