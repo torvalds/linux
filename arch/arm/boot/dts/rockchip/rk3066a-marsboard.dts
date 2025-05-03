@@ -69,6 +69,10 @@
 	cpu-supply = <&vdd_arm>;
 };
 
+&gpu {
+	status = "okay";
+};
+
 &hdmi {
 	status = "okay";
 };
