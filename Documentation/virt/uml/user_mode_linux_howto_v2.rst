@@ -219,16 +219,6 @@ remote UML and other VM instances.
 +-----------+--------+------------------------------------+------------+
 | vde       | vector | dep. on VDE VPN: Virt.Net Locator  | varies     |
 +-----------+--------+------------------------------------+------------+
-| tuntap    | legacy | none                               | ~ 500Mbit  |
-+-----------+--------+------------------------------------+------------+
-| daemon    | legacy | none                               | ~ 450Mbit  |
-+-----------+--------+------------------------------------+------------+
-| socket    | legacy | none                               | ~ 450Mbit  |
-+-----------+--------+------------------------------------+------------+
-| ethertap  | legacy | obsolete                           | ~ 500Mbit  |
-+-----------+--------+------------------------------------+------------+
-| vde       | legacy | obsolete                           | ~ 500Mbit  |
-+-----------+--------+------------------------------------+------------+
 
 * All transports which have tso and checksum offloads can deliver speeds
   approaching 10G on TCP streams.
@@ -236,27 +226,16 @@ remote UML and other VM instances.
 * All transports which have multi-packet rx and/or tx can deliver pps
   rates of up to 1Mps or more.
 
-* All legacy transports are generally limited to ~600-700MBit and 0.05Mps.
-
 * GRE and L2TPv3 allow connections to all of: local machine, remote
   machines, remote network devices and remote UML instances.
-
-* Socket allows connections only between UML instances.
-
-* Daemon and bess require running a local switch. This switch may be
-  connected to the host as well.
 
 
 Network configuration privileges
 ================================
 
 The majority of the supported networking modes need ``root`` privileges.
-For example, in the legacy tuntap networking mode, users were required
-to be part of the group associated with the tunnel device.
-
-For newer network drivers like the vector transports, ``root`` privilege
-is required to fire an ioctl to setup the tun interface and/or use
-raw sockets where needed.
+For example, for vector transports, ``root`` privilege is required to fire
+an ioctl to setup the tun interface and/or use raw sockets where needed.
 
 This can be achieved by granting the user a particular capability instead
 of running UML as root.  In case of vector transport, a user can add the
@@ -609,12 +588,6 @@ https://github.com/virtualsquare/sshlirp
 connect to a local area cloud (all the UML nodes using the same
 multicast address running on hosts in the same multicast domain (LAN)
 will be automagically connected together to a virtual LAN.
-
-Configuring Legacy transports
-=============================
-
-Legacy transports are now considered obsolete. Please use the vector
-versions.
 
 ***********
 Running UML
