@@ -620,6 +620,7 @@ config CHARGER_MAX77976
 config CHARGER_MAX8971
 	tristate "Maxim MAX8971 battery charger driver"
 	depends on I2C
+	depends on EXTCON || !EXTCON
 	select REGMAP_I2C
 	help
 	  The MAX8971 is a compact, high-frequency, high-efficiency switch-mode
