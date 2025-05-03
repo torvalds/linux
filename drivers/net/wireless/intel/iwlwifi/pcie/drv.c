@@ -1520,6 +1520,7 @@ EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_dev_info_table_size);
 static void get_crf_id(struct iwl_trans *iwl_trans)
 {
 	u32 sd_reg_ver_addr;
+	u32 hw_wfpm_id;
 	u32 val = 0;
 	u8 step;
 
@@ -1562,11 +1563,10 @@ static void get_crf_id(struct iwl_trans *iwl_trans)
 	}
 
 	/* Read cdb info (also contains the jacket info if needed in the future */
-	iwl_trans->hw_wfpm_id =
-		iwl_read_umac_prph_no_grab(iwl_trans, WFPM_OTP_CFG1_ADDR);
+	hw_wfpm_id = iwl_read_umac_prph_no_grab(iwl_trans, WFPM_OTP_CFG1_ADDR);
 	IWL_INFO(iwl_trans, "Detected crf-id 0x%x, cnv-id 0x%x wfpm id 0x%x\n",
 		 iwl_trans->hw_crf_id, iwl_trans->hw_cnv_id,
-		 iwl_trans->hw_wfpm_id);
+		 hw_wfpm_id);
 }
 
 /*
@@ -1579,9 +1579,11 @@ static int map_crf_id(struct iwl_trans *iwl_trans)
 	u32 val = iwl_trans->hw_crf_id;
 	u32 step_id = REG_CRF_ID_STEP(val);
 	u32 slave_id = REG_CRF_ID_SLAVE(val);
-	u32 jacket_id_cnv  = REG_CRF_ID_SLAVE(iwl_trans->hw_cnv_id);
-	u32 jacket_id_wfpm  = WFPM_OTP_CFG1_IS_JACKET(iwl_trans->hw_wfpm_id);
-	u32 cdb_id_wfpm  = WFPM_OTP_CFG1_IS_CDB(iwl_trans->hw_wfpm_id);
+	u32 jacket_id_cnv = REG_CRF_ID_SLAVE(iwl_trans->hw_cnv_id);
+	u32 hw_wfpm_id = iwl_read_umac_prph_no_grab(iwl_trans,
+						    WFPM_OTP_CFG1_ADDR);
+	u32 jacket_id_wfpm = WFPM_OTP_CFG1_IS_JACKET(hw_wfpm_id);
+	u32 cdb_id_wfpm = WFPM_OTP_CFG1_IS_CDB(hw_wfpm_id);
 
 	/* Map between crf id to rf id */
 	switch (REG_CRF_ID_TYPE(val)) {
@@ -1641,7 +1643,7 @@ static int map_crf_id(struct iwl_trans *iwl_trans)
 		 REG_CRF_ID_TYPE(val), step_id, slave_id, iwl_trans->hw_rf_id);
 	IWL_INFO(iwl_trans,
 		 "Detected cdb-id 0x%x jacket-id 0x%x from wfpm id 0x%x\n",
-		 cdb_id_wfpm, jacket_id_wfpm, iwl_trans->hw_wfpm_id);
+		 cdb_id_wfpm, jacket_id_wfpm, hw_wfpm_id);
 	IWL_INFO(iwl_trans, "Detected jacket-id 0x%x from cnvi id 0x%x\n",
 		 jacket_id_cnv, iwl_trans->hw_cnv_id);
 

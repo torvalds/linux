@@ -820,7 +820,6 @@ struct iwl_txq {
  * @hw_rf_id: a u32 with the device RF ID
  * @hw_cnv_id: a u32 with the device CNV ID
  * @hw_crf_id: a u32 with the device CRF ID
- * @hw_wfpm_id: a u32 with the device wfpm ID
  * @hw_id: a u32 with the ID of the device / sub-device.
  *	Set during transport allocation.
  * @sku_id: the SKU identifier (for PNVM matching)
@@ -884,7 +883,6 @@ struct iwl_trans {
 	u32 hw_rf_id;
 	u32 hw_crf_id;
 	u32 hw_cnv_id;
-	u32 hw_wfpm_id;
 	u32 hw_id;
 	u32 sku_id[3];
 	bool reduced_cap_sku;
