@@ -1255,15 +1255,15 @@ int bch2_alloc_sectors_start_trans(struct btree_trans *trans,
 	if (unlikely(ret))
 		return ret;
 
+	if (!IS_ENABLED(CONFIG_BCACHEFS_ERASURE_CODING))
+		erasure_code = false;
+
 	req->nr_replicas	= nr_replicas;
 	req->target		= target;
 	req->ec			= erasure_code;
 	req->watermark		= watermark;
 	req->flags		= flags;
 	req->devs_have		= devs_have;
-
-	if (!IS_ENABLED(CONFIG_BCACHEFS_ERASURE_CODING))
-		erasure_code = false;
 
 	BUG_ON(!nr_replicas || !nr_replicas_required);
 retry:
