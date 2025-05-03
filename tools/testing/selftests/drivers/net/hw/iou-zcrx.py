@@ -19,8 +19,8 @@ def _get_combined_channels(cfg):
     return int(values[1])
 
 
-def _create_rss_ctx(cfg, chans):
-    output = ethtool(f"-X {cfg.ifname} context new start {chans - 1} equal 1", host=cfg.remote).stdout
+def _create_rss_ctx(cfg, chan):
+    output = ethtool(f"-X {cfg.ifname} context new start {chan} equal 1", host=cfg.remote).stdout
     values = re.search(r'New RSS context is (\d+)', output).group(1)
     ctx_id = int(values)
     return (ctx_id, defer(ethtool, f"-X {cfg.ifname} delete context {ctx_id}", host=cfg.remote))
@@ -32,8 +32,8 @@ def _set_flow_rule(cfg, port, chan):
     return int(values)
 
 
-def _set_flow_rule_rss(cfg, port, chan):
-    output = ethtool(f"-N {cfg.ifname} flow-type tcp6 dst-port {port} action {chan}", host=cfg.remote).stdout
+def _set_flow_rule_rss(cfg, port, ctx_id):
+    output = ethtool(f"-N {cfg.ifname} flow-type tcp6 dst-port {port} context {ctx_id}", host=cfg.remote).stdout
     values = re.search(r'ID (\d+)', output).group(1)
     return int(values)
 
@@ -121,7 +121,7 @@ def test_zcrx_rss(cfg) -> None:
     ethtool(f"-X {cfg.ifname} equal {combined_chans - 1}", host=cfg.remote)
     defer(ethtool, f"-X {cfg.ifname} default", host=cfg.remote)
 
-    (ctx_id, delete_ctx) = _create_rss_ctx(cfg, combined_chans)
+    (ctx_id, delete_ctx) = _create_rss_ctx(cfg, combined_chans - 1)
     flow_rule_id = _set_flow_rule_rss(cfg, port, ctx_id)
     defer(ethtool, f"-N {cfg.ifname} delete {flow_rule_id}", host=cfg.remote)
 
