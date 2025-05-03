@@ -8163,7 +8163,7 @@
 			};
 		};
 
-		watchdog@1c840000 {
+		sbsa_watchdog: watchdog@1c840000 {
 			compatible = "arm,sbsa-gwdt";
 			reg = <0 0x1c840000 0 0x1000>,
 			      <0 0x1c850000 0 0x1000>;
