@@ -32,3 +32,13 @@
 #ifdef RANDSTRUCT
 #include <generated/randstruct_hash.h>
 #endif
+
+/*
+ * If any external changes affect Clang's integer wrapping sanitizer
+ * behavior, a full rebuild is needed as the coverage for wrapping types
+ * may have changed, which may impact the expected behaviors that should
+ * not differ between compilation units.
+ */
+#ifdef INTEGER_WRAP
+#include <generated/integer-wrap.h>
+#endif
