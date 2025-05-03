@@ -58,6 +58,7 @@ properties:
               - asus,tf201
               - asus,tf300t
               - asus,tf300tg
+              - asus,tf300tl
               - asus,tf700t
           - const: nvidia,tegra30
       - description: LG Optimus 4X P880
