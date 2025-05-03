@@ -445,9 +445,6 @@ nfsd_proc_remove(struct svc_rqst *rqstp)
 	struct nfsd_diropargs *argp = rqstp->rq_argp;
 	struct nfsd_stat *resp = rqstp->rq_resp;
 
-	dprintk("nfsd: REMOVE   %s %.*s\n", SVCFH_fmt(&argp->fh),
-		argp->len, argp->name);
-
 	/* Unlink. -SIFDIR means file must not be a directory */
 	resp->status = nfsd_unlink(rqstp, &argp->fh, -S_IFDIR,
 				   argp->name, argp->len);
@@ -564,8 +561,6 @@ nfsd_proc_rmdir(struct svc_rqst *rqstp)
 {
 	struct nfsd_diropargs *argp = rqstp->rq_argp;
 	struct nfsd_stat *resp = rqstp->rq_resp;
-
-	dprintk("nfsd: RMDIR    %s %.*s\n", SVCFH_fmt(&argp->fh), argp->len, argp->name);
 
 	resp->status = nfsd_unlink(rqstp, &argp->fh, S_IFDIR,
 				   argp->name, argp->len);
