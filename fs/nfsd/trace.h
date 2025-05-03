@@ -2553,6 +2553,32 @@ TRACE_EVENT(nfsd_vfs_rename,
 	)
 );
 
+TRACE_EVENT(nfsd_vfs_readdir,
+	TP_PROTO(
+		const struct svc_rqst *rqstp,
+		const struct svc_fh *fhp,
+		u32 count,
+		u64 offset
+	),
+	TP_ARGS(rqstp, fhp, count, offset),
+	TP_STRUCT__entry(
+		NFSD_TRACE_PROC_CALL_FIELDS(rqstp)
+		__field(u32, fh_hash)
+		__field(u32, count)
+		__field(u64, offset)
+	),
+	TP_fast_assign(
+		NFSD_TRACE_PROC_CALL_ASSIGNMENTS(rqstp);
+		__entry->fh_hash = knfsd_fh_hash(&fhp->fh_handle);
+		__entry->count = count;
+		__entry->offset = offset;
+	),
+	TP_printk("xid=0x%08x fh_hash=0x%08x offset=%llu count=%u",
+		__entry->xid, __entry->fh_hash,
+		__entry->offset, __entry->count
+	)
+);
+
 #endif /* _NFSD_TRACE_H */
 
 #undef TRACE_INCLUDE_PATH

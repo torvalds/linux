@@ -998,6 +998,9 @@ nfsd4_readdir(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	u64 cookie = readdir->rd_cookie;
 	static const nfs4_verifier zeroverf;
 
+	trace_nfsd_vfs_readdir(rqstp, &cstate->current_fh,
+			       readdir->rd_maxcount, readdir->rd_cookie);
+
 	/* no need to check permission - this will be done in nfsd_readdir() */
 
 	if (readdir->rd_bmval[1] & NFSD_WRITEONLY_ATTRS_WORD1)

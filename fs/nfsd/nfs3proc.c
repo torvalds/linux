@@ -625,6 +625,7 @@ nfsd3_proc_readdir(struct svc_rqst *rqstp)
 	dprintk("nfsd: READDIR(3)  %s %d bytes at %d\n",
 				SVCFH_fmt(&argp->fh),
 				argp->count, (u32) argp->cookie);
+	trace_nfsd_vfs_readdir(rqstp, &argp->fh, argp->count, argp->cookie);
 
 	nfsd3_init_dirlist_pages(rqstp, resp, argp->count);
 
@@ -659,6 +660,7 @@ nfsd3_proc_readdirplus(struct svc_rqst *rqstp)
 	dprintk("nfsd: READDIR+(3) %s %d bytes at %d\n",
 				SVCFH_fmt(&argp->fh),
 				argp->count, (u32) argp->cookie);
+	trace_nfsd_vfs_readdir(rqstp, &argp->fh, argp->count, argp->cookie);
 
 	nfsd3_init_dirlist_pages(rqstp, resp, argp->count);
 
