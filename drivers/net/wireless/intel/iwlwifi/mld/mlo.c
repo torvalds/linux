@@ -326,23 +326,44 @@ static void
 iwl_mld_vif_iter_emlsr_mode_notif(void *data, u8 *mac,
 				  struct ieee80211_vif *vif)
 {
-	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
-	struct iwl_esr_mode_notif *notif = (void *)data;
+	const struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	enum iwl_mvm_fw_esr_recommendation action;
+	const struct iwl_esr_mode_notif *notif = NULL;
+
+	if (iwl_fw_lookup_notif_ver(mld_vif->mld->fw, DATA_PATH_GROUP,
+				    ESR_MODE_NOTIF, 0) > 1) {
+		notif = (void *)data;
+		action = le32_to_cpu(notif->action);
+	} else {
+		const struct iwl_esr_mode_notif_v1 *notif_v1 = (void *)data;
+
+		action = le32_to_cpu(notif_v1->action);
+	}
 
 	if (!iwl_mld_vif_has_emlsr_cap(vif))
 		return;
 
-	switch (le32_to_cpu(notif->action)) {
+	switch (action) {
 	case ESR_RECOMMEND_LEAVE:
+		if (notif)
+			IWL_DEBUG_INFO(mld_vif->mld,
+				       "FW recommend leave reason = 0x%x\n",
+				       le32_to_cpu(notif->leave_reason_mask));
+
 		iwl_mld_exit_emlsr(mld_vif->mld, vif,
 				   IWL_MLD_EMLSR_EXIT_FW_REQUEST,
 				   iwl_mld_get_primary_link(vif));
 		break;
-	case ESR_RECOMMEND_ENTER:
 	case ESR_FORCE_LEAVE:
+		if (notif)
+			IWL_DEBUG_INFO(mld_vif->mld,
+				       "FW force leave reason = 0x%x\n",
+				       le32_to_cpu(notif->leave_reason_mask));
+		fallthrough;
+	case ESR_RECOMMEND_ENTER:
 	default:
 		IWL_WARN(mld_vif->mld, "Unexpected EMLSR notification: %d\n",
-			 le32_to_cpu(notif->action));
+			 action);
 	}
 }
 

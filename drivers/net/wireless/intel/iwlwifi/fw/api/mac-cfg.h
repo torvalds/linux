@@ -686,9 +686,9 @@ struct iwl_mvm_sta_disable_tx_cmd {
 
 /**
  * enum iwl_mvm_fw_esr_recommendation - FW recommendation code
- * @ESR_RECOMMEND_LEAVE: recommendation to leave esr
- * @ESR_FORCE_LEAVE: force exiting esr
- * @ESR_RECOMMEND_ENTER: recommendation to enter esr
+ * @ESR_RECOMMEND_LEAVE: recommendation to leave EMLSR
+ * @ESR_FORCE_LEAVE: force exiting EMLSR
+ * @ESR_RECOMMEND_ENTER: recommendation to enter EMLSR
  */
 enum iwl_mvm_fw_esr_recommendation {
 	ESR_RECOMMEND_LEAVE,
@@ -697,13 +697,44 @@ enum iwl_mvm_fw_esr_recommendation {
 }; /* ESR_MODE_RECOMMENDATION_CODE_API_E_VER_1 */
 
 /**
- * struct iwl_esr_mode_notif - FWs recommendation/force for esr mode
+ * struct iwl_esr_mode_notif_v1 - FW recommendation/force for EMLSR mode
  *
- * @action: the action to apply on esr state. See &iwl_mvm_fw_esr_recommendation
+ * @action: the action to apply on EMLSR state.
+ *	See &iwl_mvm_fw_esr_recommendation
+ */
+struct iwl_esr_mode_notif_v1 {
+	__le32 action;
+} __packed; /* ESR_MODE_RECOMMENDATION_NTFY_API_S_VER_1 */
+
+/**
+ * enum iwl_esr_leave_reason - reasons for leaving EMLSR mode
+ *
+ * @ESR_LEAVE_REASON_OMI_MU_UL_DISALLOWED: OMI MU UL disallowed
+ * @ESR_LEAVE_REASON_NO_TRIG_FOR_ESR_STA: No trigger for EMLSR station
+ * @ESR_LEAVE_REASON_NO_ESR_STA_IN_MU_DL: No EMLSR station in MU DL
+ * @ESR_LEAVE_REASON_BAD_ACTIV_FRAME_TH: Bad activation frame threshold
+ * @ESR_LEAVE_REASON_RTS_IN_DUAL_LISTEN: RTS in dual listen
+ */
+enum iwl_esr_leave_reason {
+	ESR_LEAVE_REASON_OMI_MU_UL_DISALLOWED	= BIT(0),
+	ESR_LEAVE_REASON_NO_TRIG_FOR_ESR_STA	= BIT(1),
+	ESR_LEAVE_REASON_NO_ESR_STA_IN_MU_DL	= BIT(2),
+	ESR_LEAVE_REASON_BAD_ACTIV_FRAME_TH	= BIT(3),
+	ESR_LEAVE_REASON_RTS_IN_DUAL_LISTEN	= BIT(4),
+};
+
+/**
+ * struct iwl_esr_mode_notif - FW recommendation/force for EMLSR mode
+ *
+ * @action: the action to apply on EMLSR state.
+ *	See &iwl_mvm_fw_esr_recommendation
+ * @leave_reason_mask: mask for various reasons to leave EMLSR mode.
+ *	See &iwl_esr_leave_reason
  */
 struct iwl_esr_mode_notif {
 	__le32 action;
-} __packed; /* ESR_MODE_RECOMMENDATION_NTFY_API_S_VER_1 */
+	__le32 leave_reason_mask;
+} __packed; /* ESR_MODE_RECOMMENDATION_NTFY_API_S_VER_2 */
 
 /**
  * struct iwl_missed_beacons_notif - sent when by the firmware upon beacon loss
