@@ -1686,7 +1686,7 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
 			       iwl_get_cmd_string(trans, cmd_id));
-		wake_up(&trans->wait_command_queue);
+		wake_up(&trans_pcie->wait_command_queue);
 	}
 
 	meta->flags = 0;
@@ -2581,7 +2581,7 @@ static int iwl_trans_pcie_send_hcmd_sync(struct iwl_trans *trans,
 		return ret;
 	}
 
-	ret = wait_event_timeout(trans->wait_command_queue,
+	ret = wait_event_timeout(trans_pcie->wait_command_queue,
 				 !test_bit(STATUS_SYNC_HCMD_ACTIVE,
 					   &trans->status),
 				 HOST_COMPLETE_TIMEOUT);

@@ -310,9 +310,6 @@ int iwl_trans_init(struct iwl_trans *trans)
 	if (!trans->dev_cmd_pool)
 		return -ENOMEM;
 
-	/* Initialize the wait queue for commands */
-	init_waitqueue_head(&trans->wait_command_queue);
-
 	return 0;
 }
 

@@ -424,6 +424,7 @@ struct iwl_pcie_txqs {
  *	or unknown (-1, so can still use it as a boolean safely)
  * @me_recheck_wk: worker to recheck WiAMT/CSME presence
  * @invalid_tx_cmd: invalid TX command buffer
+ * @wait_command_queue: wait queue for sync commands
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq *rxq;
@@ -528,6 +529,8 @@ struct iwl_trans_pcie {
 	struct delayed_work me_recheck_wk;
 
 	struct iwl_dma_ptr invalid_tx_cmd;
+
+	wait_queue_head_t wait_command_queue;
 };
 
 static inline struct iwl_trans_pcie *

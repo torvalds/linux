@@ -3828,6 +3828,9 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
+	/* Initialize the wait queue for commands */
+	init_waitqueue_head(&trans_pcie->wait_command_queue);
+
 	if (trans->trans_cfg->gen2) {
 		trans_pcie->txqs.tfd.addr_size = 64;
 		trans_pcie->txqs.tfd.max_tbs = IWL_TFH_NUM_TBS;
