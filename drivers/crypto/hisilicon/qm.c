@@ -862,7 +862,7 @@ int hisi_qm_set_algs(struct hisi_qm *qm, u64 alg_msk, const struct qm_dev_alg *d
 		return -EINVAL;
 	}
 
-	algs = devm_kzalloc(dev, QM_DEV_ALG_MAX_LEN * sizeof(char), GFP_KERNEL);
+	algs = devm_kzalloc(dev, QM_DEV_ALG_MAX_LEN, GFP_KERNEL);
 	if (!algs)
 		return -ENOMEM;
 
