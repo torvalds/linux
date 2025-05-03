@@ -4,6 +4,7 @@ Kernel driver asus_ec_sensors
 =================================
 
 Supported boards:
+ * MAXIMUS VI HERO
  * PRIME X470-PRO
  * PRIME X570-PRO
  * PRIME X670E-PRO WIFI
