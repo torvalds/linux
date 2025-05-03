@@ -109,16 +109,12 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
  *	the response. The caller needs to call iwl_free_resp when done.
  * @CMD_SEND_IN_RFKILL: Send the command even if the NIC is in RF-kill.
  * @CMD_BLOCK_TXQS: Block TXQs while the comment is executing.
- * @CMD_SEND_IN_D3: Allow the command to be sent in D3 mode, relevant to
- *	SUSPEND and RESUME commands. We are in D3 mode when we set
- *	trans->system_pm_mode to IWL_PLAT_PM_MODE_D3.
  */
 enum CMD_MODE {
 	CMD_ASYNC		= BIT(0),
 	CMD_WANT_SKB		= BIT(1),
 	CMD_SEND_IN_RFKILL	= BIT(2),
 	CMD_BLOCK_TXQS		= BIT(3),
-	CMD_SEND_IN_D3          = BIT(4),
 };
 #define CMD_MODE_BITS 5
 
@@ -306,6 +302,8 @@ enum iwl_d3_status {
  *	the firmware state yet
  * @STATUS_TRANS_RESET_IN_PROGRESS: reset is still in progress, don't
  *	attempt another reset yet
+ * @STATUS_SUSPENDED: device is suspended, don't send commands that
+ *	aren't marked accordingly
  */
 enum iwl_trans_status {
 	STATUS_SYNC_HCMD_ACTIVE,
@@ -320,6 +318,7 @@ enum iwl_trans_status {
 	STATUS_IN_SW_RESET,
 	STATUS_RESET_PENDING,
 	STATUS_TRANS_RESET_IN_PROGRESS,
+	STATUS_SUSPENDED,
 };
 
 static inline int
@@ -515,23 +514,6 @@ enum iwl_trans_state {
  * These terms reflect the power modes in the firmware and are not to
  * be confused with the physical device power state.
  */
-
-/**
- * enum iwl_plat_pm_mode - platform power management mode
- *
- * This enumeration describes the device's platform power management
- * behavior when in system-wide suspend (i.e WoWLAN).
- *
- * @IWL_PLAT_PM_MODE_DISABLED: power management is disabled for this
- *	device.  In system-wide suspend mode, it means that the all
- *	connections will be closed automatically by mac80211 before
- *	the platform is suspended.
- * @IWL_PLAT_PM_MODE_D3: the device goes into D3 mode (i.e. WoWLAN).
- */
-enum iwl_plat_pm_mode {
-	IWL_PLAT_PM_MODE_DISABLED,
-	IWL_PLAT_PM_MODE_D3,
-};
 
 /**
  * enum iwl_ini_cfg_state
@@ -869,9 +851,6 @@ struct iwl_txq {
  *	start of the 802.11 header in the @rx_mpdu_cmd
  * @dbg: additional debug data, see &struct iwl_trans_debug
  * @init_dram: FW initialization DMA data
- * @system_pm_mode: the system-wide power management mode in use.
- *	This mode is set dynamically, depending on the WoWLAN values
- *	configured from the userspace at runtime.
  * @name: the device name
  * @mbx_addr_0_step: step address data 0
  * @mbx_addr_1_step: step address data 1
@@ -950,8 +929,6 @@ struct iwl_trans {
 
 	struct iwl_trans_debug dbg;
 	struct iwl_self_init_dram init_dram;
-
-	enum iwl_plat_pm_mode system_pm_mode;
 
 	const char *name;
 	u32 mbx_addr_0_step;

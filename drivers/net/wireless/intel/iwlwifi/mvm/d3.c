@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -1266,7 +1266,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	};
 	struct iwl_host_cmd d3_cfg_cmd = {
 		.id = D3_CONFIG_CMD,
-		.flags = CMD_WANT_SKB | CMD_SEND_IN_D3,
+		.flags = CMD_WANT_SKB,
 		.data[0] = &d3_cfg_cmd_data,
 		.len[0] = sizeof(d3_cfg_cmd_data),
 	};
@@ -1372,8 +1372,6 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	 */
 	if (mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_9000)
 		iwl_fw_dbg_stop_restart_recording(&mvm->fwrt, NULL, true);
-
-	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_D3;
 
 	/* must be last -- this switches firmware state */
 	ret = iwl_mvm_send_cmd(mvm, &d3_cfg_cmd);
@@ -3407,9 +3405,9 @@ static int iwl_mvm_resume_firmware(struct iwl_mvm *mvm, bool test)
 	int ret;
 	enum iwl_d3_status d3_status;
 	struct iwl_host_cmd cmd = {
-			.id = D0I3_END_CMD,
-			.flags = CMD_WANT_SKB | CMD_SEND_IN_D3,
-		};
+		.id = D0I3_END_CMD,
+		.flags = CMD_WANT_SKB,
+	};
 	bool reset = fw_has_capa(&mvm->fw->ucode_capa,
 				 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
 
@@ -3564,9 +3562,6 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 
 	iwl_mvm_unblock_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_WOWLAN);
 
-	/* after the successful handshake, we're out of D3 */
-	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
-
 	/* when reset is required we can't send these following commands */
 	if (d3_data.d3_end_flags & IWL_D0I3_RESET_REQUIRE)
 		goto query_wakeup_reasons;
@@ -3639,9 +3634,6 @@ out:
 	 */
 	set_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status);
 
-	/* regardless of what happened, we're now out of D3 */
-	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
-
 	return 1;
 }
 
@@ -3679,8 +3671,7 @@ void iwl_mvm_fast_suspend(struct iwl_mvm *mvm)
 	set_bit(IWL_MVM_STATUS_IN_D3, &mvm->status);
 
 	WARN_ON(iwl_mvm_power_update_device(mvm));
-	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_D3;
-	ret = iwl_mvm_send_cmd_pdu(mvm, D3_CONFIG_CMD, CMD_SEND_IN_D3,
+	ret = iwl_mvm_send_cmd_pdu(mvm, D3_CONFIG_CMD, 0,
 				   sizeof(d3_cfg_cmd_data), &d3_cfg_cmd_data);
 	if (ret)
 		IWL_ERR(mvm,
@@ -3735,7 +3726,6 @@ int iwl_mvm_fast_resume(struct iwl_mvm *mvm)
 
 out:
 	clear_bit(IWL_MVM_STATUS_IN_D3, &mvm->status);
-	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
 	mvm->fast_resume = false;
 
 	return ret;

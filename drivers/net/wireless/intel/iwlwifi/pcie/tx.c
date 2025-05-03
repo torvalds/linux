@@ -2659,12 +2659,6 @@ int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans,
 		return -ERFKILL;
 	}
 
-	if (unlikely(trans->system_pm_mode == IWL_PLAT_PM_MODE_D3 &&
-		     !(cmd->flags & CMD_SEND_IN_D3))) {
-		IWL_DEBUG_WOWLAN(trans, "Dropping CMD 0x%x: D3\n", cmd->id);
-		return -EHOSTDOWN;
-	}
-
 	if (cmd->flags & CMD_ASYNC) {
 		int ret;
 

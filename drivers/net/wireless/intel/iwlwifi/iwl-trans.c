@@ -327,17 +327,7 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		     test_bit(STATUS_RFKILL_OPMODE, &trans->status)))
 		return -ERFKILL;
 
-	/*
-	 * We can't test IWL_MVM_STATUS_IN_D3 in mvm->status because this
-	 * bit is set early in the D3 flow, before we send all the commands
-	 * that configure the firmware for D3 operation (power, patterns, ...)
-	 * and we don't want to flag all those with CMD_SEND_IN_D3.
-	 * So use the system_pm_mode instead. The only command sent after
-	 * we set system_pm_mode is D3_CONFIG_CMD, which we now flag with
-	 * CMD_SEND_IN_D3.
-	 */
-	if (unlikely(trans->system_pm_mode == IWL_PLAT_PM_MODE_D3 &&
-		     !(cmd->flags & CMD_SEND_IN_D3)))
+	if (unlikely(test_bit(STATUS_SUSPENDED, &trans->status)))
 		return -EHOSTDOWN;
 
 	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
@@ -420,6 +410,8 @@ int iwl_trans_start_hw(struct iwl_trans *trans)
 	might_sleep();
 
 	clear_bit(STATUS_TRANS_RESET_IN_PROGRESS, &trans->status);
+	/* opmode may not resume if it detects errors */
+	clear_bit(STATUS_SUSPENDED, &trans->status);
 
 	return iwl_trans_pcie_start_hw(trans);
 }
@@ -510,18 +502,31 @@ IWL_EXPORT_SYMBOL(iwl_trans_dump_data);
 
 int iwl_trans_d3_suspend(struct iwl_trans *trans, bool test, bool reset)
 {
+	int err;
+
 	might_sleep();
 
-	return iwl_trans_pcie_d3_suspend(trans, test, reset);
+	err = iwl_trans_pcie_d3_suspend(trans, test, reset);
+
+	if (!err)
+		set_bit(STATUS_SUSPENDED, &trans->status);
+
+	return err;
 }
 IWL_EXPORT_SYMBOL(iwl_trans_d3_suspend);
 
 int iwl_trans_d3_resume(struct iwl_trans *trans, enum iwl_d3_status *status,
 			bool test, bool reset)
 {
+	int err;
+
 	might_sleep();
 
-	return iwl_trans_pcie_d3_resume(trans, status, test, reset);
+	err = iwl_trans_pcie_d3_resume(trans, status, test, reset);
+
+	clear_bit(STATUS_SUSPENDED, &trans->status);
+
+	return err;
 }
 IWL_EXPORT_SYMBOL(iwl_trans_d3_resume);
 

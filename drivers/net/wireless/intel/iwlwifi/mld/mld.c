@@ -710,7 +710,6 @@ static void iwl_mld_device_powered_off(struct iwl_op_mode *op_mode)
 	struct iwl_mld *mld = IWL_OP_MODE_GET_MLD(op_mode);
 
 	wiphy_lock(mld->wiphy);
-	mld->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
 	iwl_mld_stop_fw(mld);
 	mld->fw_status.in_d3 = false;
 	wiphy_unlock(mld->wiphy);
