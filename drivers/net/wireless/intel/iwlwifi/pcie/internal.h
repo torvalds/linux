@@ -423,6 +423,7 @@ struct iwl_pcie_txqs {
  * @me_present: WiAMT/CSME is detected as present (1), not present (0)
  *	or unknown (-1, so can still use it as a boolean safely)
  * @me_recheck_wk: worker to recheck WiAMT/CSME presence
+ * @invalid_tx_cmd: invalid TX command buffer
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq *rxq;
@@ -525,6 +526,8 @@ struct iwl_trans_pcie {
 
 	s8 me_present;
 	struct delayed_work me_recheck_wk;
+
+	struct iwl_dma_ptr invalid_tx_cmd;
 };
 
 static inline struct iwl_trans_pcie *
@@ -758,10 +761,12 @@ int iwl_txq_gen2_set_tb(struct iwl_trans *trans,
 static inline void iwl_txq_set_tfd_invalid_gen2(struct iwl_trans *trans,
 						struct iwl_tfh_tfd *tfd)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
 	tfd->num_tbs = 0;
 
-	iwl_txq_gen2_set_tb(trans, tfd, trans->invalid_tx_cmd.dma,
-			    trans->invalid_tx_cmd.size);
+	iwl_txq_gen2_set_tb(trans, tfd, trans_pcie->invalid_tx_cmd.dma,
+			    trans_pcie->invalid_tx_cmd.size);
 }
 
 void iwl_txq_gen2_tfd_unmap(struct iwl_trans *trans,

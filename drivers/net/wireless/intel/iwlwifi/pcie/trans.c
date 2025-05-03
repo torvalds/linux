@@ -2026,11 +2026,14 @@ void iwl_trans_pcie_free_pnvm_dram_regions(struct iwl_dram_regions *dram_regions
 
 static void iwl_pcie_free_invalid_tx_cmd(struct iwl_trans *trans)
 {
-	iwl_pcie_free_dma_ptr(trans, &trans->invalid_tx_cmd);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	iwl_pcie_free_dma_ptr(trans, &trans_pcie->invalid_tx_cmd);
 }
 
 static int iwl_pcie_alloc_invalid_tx_cmd(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_cmd_header_wide bad_cmd = {
 		.cmd = INVALID_WR_PTR_CMD,
 		.group_id = DEBUG_GROUP,
@@ -2040,11 +2043,11 @@ static int iwl_pcie_alloc_invalid_tx_cmd(struct iwl_trans *trans)
 	};
 	int ret;
 
-	ret = iwl_pcie_alloc_dma_ptr(trans, &trans->invalid_tx_cmd,
+	ret = iwl_pcie_alloc_dma_ptr(trans, &trans_pcie->invalid_tx_cmd,
 				     sizeof(bad_cmd));
 	if (ret)
 		return ret;
-	memcpy(trans->invalid_tx_cmd.addr, &bad_cmd, sizeof(bad_cmd));
+	memcpy(trans_pcie->invalid_tx_cmd.addr, &bad_cmd, sizeof(bad_cmd));
 	return 0;
 }
 

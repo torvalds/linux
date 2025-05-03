@@ -280,10 +280,12 @@ iwl_txq_gen1_tfd_tb_get_addr(struct iwl_tfd *tfd, u8 idx)
 static void iwl_txq_set_tfd_invalid_gen1(struct iwl_trans *trans,
 					 struct iwl_tfd *tfd)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
 	tfd->num_tbs = 0;
 
-	iwl_pcie_gen1_tfd_set_tb(tfd, 0, trans->invalid_tx_cmd.dma,
-				 trans->invalid_tx_cmd.size);
+	iwl_pcie_gen1_tfd_set_tb(tfd, 0, trans_pcie->invalid_tx_cmd.dma,
+				 trans_pcie->invalid_tx_cmd.size);
 }
 
 static void iwl_txq_gen1_tfd_unmap(struct iwl_trans *trans,
