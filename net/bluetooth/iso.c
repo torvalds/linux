@@ -2219,7 +2219,7 @@ done:
 
 static void iso_connect_cfm(struct hci_conn *hcon, __u8 status)
 {
-	if (hcon->type != ISO_LINK) {
+	if (hcon->type != CIS_LINK && hcon->type != BIS_LINK) {
 		if (hcon->type != LE_LINK)
 			return;
 
@@ -2260,7 +2260,7 @@ static void iso_connect_cfm(struct hci_conn *hcon, __u8 status)
 
 static void iso_disconn_cfm(struct hci_conn *hcon, __u8 reason)
 {
-	if (hcon->type != ISO_LINK)
+	if (hcon->type != CIS_LINK && hcon->type != BIS_LINK)
 		return;
 
 	BT_DBG("hcon %p reason %d", hcon, reason);
