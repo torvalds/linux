@@ -57,8 +57,6 @@ nfsd_proc_getattr(struct svc_rqst *rqstp)
 
 	trace_nfsd_vfs_getattr(rqstp, &argp->fh);
 
-	dprintk("nfsd: GETATTR  %s\n", SVCFH_fmt(&argp->fh));
-
 	fh_copy(&resp->fh, &argp->fh);
 	resp->status = fh_verify(rqstp, &resp->fh, 0,
 				 NFSD_MAY_NOP | NFSD_MAY_BYPASS_GSS_ON_ROOT);
@@ -616,8 +614,6 @@ nfsd_proc_statfs(struct svc_rqst *rqstp)
 {
 	struct nfsd_fhandle *argp = rqstp->rq_argp;
 	struct nfsd_statfsres *resp = rqstp->rq_resp;
-
-	dprintk("nfsd: STATFS   %s\n", SVCFH_fmt(&argp->fh));
 
 	resp->status = nfsd_statfs(rqstp, &argp->fh, &resp->stats,
 				   NFSD_MAY_BYPASS_GSS_ON_ROOT);
