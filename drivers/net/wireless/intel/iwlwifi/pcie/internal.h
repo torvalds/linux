@@ -633,7 +633,7 @@ struct iwl_tso_page_info {
 				      IWL_TSO_PAGE_DATA_SIZE))
 
 int iwl_pcie_tx_init(struct iwl_trans *trans);
-void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr);
+void iwl_pcie_tx_start(struct iwl_trans *trans);
 int iwl_pcie_tx_stop(struct iwl_trans *trans);
 void iwl_pcie_tx_free(struct iwl_trans *trans);
 bool iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int queue, u16 ssn,
@@ -1131,7 +1131,7 @@ bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans);
 void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans);
 
 /* transport gen 1 exported functions */
-void iwl_trans_pcie_fw_alive(struct iwl_trans *trans, u32 scd_addr);
+void iwl_trans_pcie_fw_alive(struct iwl_trans *trans);
 int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 			    const struct iwl_fw *fw,
 			    const struct fw_img *img,

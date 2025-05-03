@@ -477,7 +477,7 @@ static void iwl_pcie_txq_free(struct iwl_trans *trans, int txq_id)
 	memset(txq, 0, sizeof(*txq));
 }
 
-void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
+void iwl_pcie_tx_start(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int nq = trans->trans_cfg->base_params->num_of_queues;
@@ -494,9 +494,6 @@ void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 
 	trans_pcie->scd_base_addr =
 		iwl_read_prph(trans, SCD_SRAM_BASE_ADDR);
-
-	WARN_ON(scd_base_addr != 0 &&
-		scd_base_addr != trans_pcie->scd_base_addr);
 
 	/* reset context data, TX status and translation data */
 	iwl_trans_pcie_write_mem(trans, trans_pcie->scd_base_addr +
@@ -573,7 +570,7 @@ void iwl_trans_pcie_tx_reset(struct iwl_trans *trans)
 	 * while we were in WoWLAN in which case SCD_SRAM_BASE_ADDR will
 	 * contain garbage.
 	 */
-	iwl_pcie_tx_start(trans, 0);
+	iwl_pcie_tx_start(trans);
 }
 
 static void iwl_pcie_tx_stop_fh(struct iwl_trans *trans)

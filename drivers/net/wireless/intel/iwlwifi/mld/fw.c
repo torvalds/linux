@@ -262,7 +262,7 @@ static int iwl_mld_load_fw_wait_alive(struct iwl_mld *mld)
 		return -EIO;
 	}
 
-	iwl_trans_fw_alive(mld->trans, 0);
+	iwl_trans_fw_alive(mld->trans);
 
 	return 0;
 }

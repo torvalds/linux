@@ -947,7 +947,7 @@ int iwl_trans_start_hw(struct iwl_trans *trans);
 
 void iwl_trans_op_mode_leave(struct iwl_trans *trans);
 
-void iwl_trans_fw_alive(struct iwl_trans *trans, u32 scd_addr);
+void iwl_trans_fw_alive(struct iwl_trans *trans);
 
 int iwl_trans_start_fw(struct iwl_trans *trans, const struct iwl_fw *fw,
 		       enum iwl_ucode_type ucode_type, bool run_in_rfkill);

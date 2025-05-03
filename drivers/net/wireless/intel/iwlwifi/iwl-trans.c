@@ -577,7 +577,7 @@ iwl_trans_release_nic_access(struct iwl_trans *trans)
 }
 IWL_EXPORT_SYMBOL(iwl_trans_release_nic_access);
 
-void iwl_trans_fw_alive(struct iwl_trans *trans, u32 scd_addr)
+void iwl_trans_fw_alive(struct iwl_trans *trans)
 {
 	might_sleep();
 
@@ -586,7 +586,7 @@ void iwl_trans_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 	if (trans->trans_cfg->gen2)
 		iwl_trans_pcie_gen2_fw_alive(trans);
 	else
-		iwl_trans_pcie_fw_alive(trans, scd_addr);
+		iwl_trans_pcie_fw_alive(trans);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_fw_alive);
 

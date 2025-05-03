@@ -30,7 +30,6 @@
 
 struct iwl_mvm_alive_data {
 	bool valid;
-	u32 scd_base_addr;
 };
 
 static int iwl_send_tx_ant_cfg(struct iwl_mvm *mvm, u8 valid_tx_ant)
@@ -244,7 +243,6 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 		}
 	}
 
-	alive_data->scd_base_addr = le32_to_cpu(lmac1->dbg_ptrs.scd_base_ptr);
 	alive_data->valid = status == IWL_ALIVE_STATUS_OK;
 
 	IWL_DEBUG_FW(mvm,
@@ -429,7 +427,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	/* if reached this point, Alive notification was received */
 	iwl_mei_alive_notif(true);
 
-	iwl_trans_fw_alive(mvm->trans, alive_data.scd_base_addr);
+	iwl_trans_fw_alive(mvm->trans);
 
 	ret = iwl_pnvm_load(mvm->trans, &mvm->notif_wait,
 			    &mvm->fw->ucode_capa);

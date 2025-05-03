@@ -1425,10 +1425,10 @@ out:
 	return ret;
 }
 
-void iwl_trans_pcie_fw_alive(struct iwl_trans *trans, u32 scd_addr)
+void iwl_trans_pcie_fw_alive(struct iwl_trans *trans)
 {
 	iwl_pcie_reset_ict(trans);
-	iwl_pcie_tx_start(trans, scd_addr);
+	iwl_pcie_tx_start(trans);
 }
 
 void iwl_trans_pcie_handle_stop_rfkill(struct iwl_trans *trans,

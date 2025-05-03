@@ -223,7 +223,7 @@ static int iwl_alive_notify(struct iwl_priv *priv)
 	int ret;
 	int i;
 
-	iwl_trans_fw_alive(priv->trans, 0);
+	iwl_trans_fw_alive(priv->trans);
 
 	if (priv->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN &&
 	    priv->nvm_data->sku_cap_ipan_enable) {
