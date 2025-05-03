@@ -2290,6 +2290,8 @@ nfsd_statfs(struct svc_rqst *rqstp, struct svc_fh *fhp, struct kstatfs *stat, in
 {
 	__be32 err;
 
+	trace_nfsd_vfs_statfs(rqstp, fhp);
+
 	err = fh_verify(rqstp, fhp, 0, NFSD_MAY_NOP | access);
 	if (!err) {
 		struct path path = {
