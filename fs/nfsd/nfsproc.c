@@ -481,13 +481,6 @@ nfsd_proc_link(struct svc_rqst *rqstp)
 	struct nfsd_linkargs *argp = rqstp->rq_argp;
 	struct nfsd_stat *resp = rqstp->rq_resp;
 
-	dprintk("nfsd: LINK     %s ->\n",
-		SVCFH_fmt(&argp->ffh));
-	dprintk("nfsd:    %s %.*s\n",
-		SVCFH_fmt(&argp->tfh),
-		argp->tlen,
-		argp->tname);
-
 	resp->status = nfsd_link(rqstp, &argp->tfh, argp->tname, argp->tlen,
 				 &argp->ffh);
 	fh_put(&argp->ffh);
