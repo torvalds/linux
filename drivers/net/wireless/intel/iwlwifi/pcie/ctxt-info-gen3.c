@@ -347,9 +347,9 @@ void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans, bool alive)
 	trans_pcie->prph_info = NULL;
 }
 
-static int iwl_pcie_load_payloads_continuously(struct iwl_trans *trans,
-					       const struct iwl_pnvm_image *pnvm_data,
-					       struct iwl_dram_data *dram)
+static int iwl_pcie_load_payloads_contig(struct iwl_trans *trans,
+					 const struct iwl_pnvm_image *pnvm_data,
+					 struct iwl_dram_data *dram)
 {
 	u32 len, len0, len1;
 
@@ -470,10 +470,8 @@ int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
 			trans->pnvm_loaded = true;
 	} else {
 		/* save only in one DRAM section */
-		ret = iwl_pcie_load_payloads_continuously
-						(trans,
-						 pnvm_payloads,
-						 &dram_regions->drams[0]);
+		ret = iwl_pcie_load_payloads_contig(trans, pnvm_payloads,
+						    &dram_regions->drams[0]);
 		if (!ret) {
 			dram_regions->n_regions = 1;
 			trans->pnvm_loaded = true;
@@ -508,7 +506,7 @@ static void iwl_pcie_set_pnvm_segments(struct iwl_trans *trans)
 		cpu_to_le32(iwl_dram_regions_size(dram_regions));
 }
 
-static void iwl_pcie_set_continuous_pnvm(struct iwl_trans *trans)
+static void iwl_pcie_set_contig_pnvm(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_prph_scratch_ctrl_cfg *prph_sc_ctrl =
@@ -529,7 +527,7 @@ void iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
 	if (fw_has_capa(capa, IWL_UCODE_TLV_CAPA_FRAGMENTED_PNVM_IMG))
 		iwl_pcie_set_pnvm_segments(trans);
 	else
-		iwl_pcie_set_continuous_pnvm(trans);
+		iwl_pcie_set_contig_pnvm(trans);
 }
 
 int iwl_trans_pcie_ctx_info_gen3_load_reduce_power(struct iwl_trans *trans,
@@ -566,10 +564,8 @@ int iwl_trans_pcie_ctx_info_gen3_load_reduce_power(struct iwl_trans *trans,
 			trans->reduce_power_loaded = true;
 	} else {
 		/* save only in one DRAM section */
-		ret = iwl_pcie_load_payloads_continuously
-						(trans,
-						 payloads,
-						 &dram_regions->drams[0]);
+		ret = iwl_pcie_load_payloads_contig(trans, payloads,
+						    &dram_regions->drams[0]);
 		if (!ret) {
 			dram_regions->n_regions = 1;
 			trans->reduce_power_loaded = true;
@@ -592,7 +588,7 @@ static void iwl_pcie_set_reduce_power_segments(struct iwl_trans *trans)
 		cpu_to_le32(iwl_dram_regions_size(dram_regions));
 }
 
-static void iwl_pcie_set_continuous_reduce_power(struct iwl_trans *trans)
+static void iwl_pcie_set_contig_reduce_power(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_prph_scratch_ctrl_cfg *prph_sc_ctrl =
@@ -614,6 +610,6 @@ iwl_trans_pcie_ctx_info_gen3_set_reduce_power(struct iwl_trans *trans,
 	if (fw_has_capa(capa, IWL_UCODE_TLV_CAPA_FRAGMENTED_PNVM_IMG))
 		iwl_pcie_set_reduce_power_segments(trans);
 	else
-		iwl_pcie_set_continuous_reduce_power(trans);
+		iwl_pcie_set_contig_reduce_power(trans);
 }
 
