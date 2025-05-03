@@ -136,13 +136,23 @@ def set_interface_init(cfg) -> None:
     cmd(f"ip link set dev {cfg.ifname} xdpoffload off", shell=True)
     cmd(f"ip link set dev {cfg.remote_ifname} mtu 1500", shell=True, host=cfg.remote)
 
-def test_default(cfg, netnl) -> None:
+def test_default_v4(cfg, netnl) -> None:
+    cfg.require_ipver("4")
+
     _set_offload_checksum(cfg, netnl, "off")
     _test_v4(cfg)
-    _test_v6(cfg)
     _test_tcp(cfg)
     _set_offload_checksum(cfg, netnl, "on")
     _test_v4(cfg)
+    _test_tcp(cfg)
+
+def test_default_v6(cfg, netnl) -> None:
+    cfg.require_ipver("6")
+
+    _set_offload_checksum(cfg, netnl, "off")
+    _test_v6(cfg)
+    _test_tcp(cfg)
+    _set_offload_checksum(cfg, netnl, "on")
     _test_v6(cfg)
     _test_tcp(cfg)
 
@@ -200,7 +210,8 @@ def main() -> None:
     with NetDrvEpEnv(__file__) as cfg:
         get_interface_info(cfg)
         set_interface_init(cfg)
-        ksft_run([test_default,
+        ksft_run([test_default_v4,
+                  test_default_v6,
                   test_xdp_generic_sb,
                   test_xdp_generic_mb,
                   test_xdp_native_sb,
