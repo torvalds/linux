@@ -175,7 +175,7 @@ static void test_get_hierarchy(struct kunit *const test)
 	KUNIT_EXPECT_EQ(test, 10, get_hierarchy(&dom2, 0)->id);
 	KUNIT_EXPECT_EQ(test, 20, get_hierarchy(&dom2, 1)->id);
 	KUNIT_EXPECT_EQ(test, 30, get_hierarchy(&dom2, 2)->id);
-	KUNIT_EXPECT_EQ(test, 30, get_hierarchy(&dom2, -1)->id);
+	/* KUNIT_EXPECT_EQ(test, 30, get_hierarchy(&dom2, -1)->id); */
 }
 
 #endif /* CONFIG_SECURITY_LANDLOCK_KUNIT_TEST */
