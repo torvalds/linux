@@ -1998,6 +1998,8 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 	__be32		err;
 	int		host_err;
 
+	trace_nfsd_vfs_unlink(rqstp, fhp, fname, flen);
+
 	err = nfserr_acces;
 	if (!flen || isdotent(fname, flen))
 		goto out;
