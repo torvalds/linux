@@ -802,6 +802,36 @@ struct iwl_txq {
 };
 
 /**
+ * struct iwl_trans_info - transport info for outside use
+ * @name: the device name
+ * @max_skb_frags: maximum number of fragments an SKB can have when transmitted.
+ *	0 indicates that frag SKBs (NETIF_F_SG) aren't supported.
+ * @hw_rev: the revision data of the HW
+ * @hw_rev_step: The mac step of the HW
+ * @hw_rf_id: the device RF ID
+ * @hw_cnv_id: the device CNV ID
+ * @hw_crf_id: the device CRF ID
+ * @hw_wfpm_id: the device wfpm ID
+ * @hw_id: the ID of the device / sub-device
+ * @pcie_link_speed: current PCIe link speed (%PCI_EXP_LNKSTA_CLS_*),
+ *	only valid for discrete (not integrated) NICs
+ * @num_rxqs: number of RX queues allocated by the transport
+ */
+struct iwl_trans_info {
+	const char *name;
+	u32 max_skb_frags;
+	u32 hw_rev;
+	u32 hw_rev_step;
+	u32 hw_rf_id;
+	u32 hw_crf_id;
+	u32 hw_cnv_id;
+	u32 hw_wfpm_id;
+	u32 hw_id;
+	u8 pcie_link_speed;
+	u8 num_rxqs;
+};
+
+/**
  * struct iwl_trans - transport common data
  *
  * @csme_own: true if we couldn't get ownership on the device
@@ -812,17 +842,9 @@ struct iwl_txq {
  * @state: current device state
  * @status: a bit-mask of transport status flags
  * @dev: pointer to struct device * that represents the device
- * @max_skb_frags: maximum number of fragments an SKB can have when transmitted.
- *	0 indicates that frag SKBs (NETIF_F_SG) aren't supported.
- * @hw_rf_id: a u32 with the device RF ID
- * @hw_cnv_id: a u32 with the device CNV ID
- * @hw_crf_id: a u32 with the device CRF ID
- * @hw_id: a u32 with the ID of the device / sub-device.
- *	Set during transport allocation.
+ * @info: device information for use by other layers
  * @sku_id: the SKU identifier (for PNVM matching)
  * @pnvm_loaded: indicates PNVM was loaded
- * @hw_rev: the revision data of the HW
- * @hw_rev_step: The mac step of the HW
  * @pm_support: set to true in start_hw if link pm is supported
  * @ltr_enabled: set to true if the LTR is enabled
  * @fail_to_parse_pnvm_image: set to true if pnvm parsing failed
@@ -831,8 +853,6 @@ struct iwl_txq {
  * @command_groups: pointer to command group name list array
  * @command_groups_size: array size of @command_groups
  * @wide_cmd_header: true when ucode supports wide command header format
- * @num_rx_queues: number of RX queues allocated by the transport;
- *	the transport must set this before calling iwl_drv_start()
  * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
  *	The user should use iwl_trans_{alloc,free}_tx_cmd.
  * @dev_cmd_pool_name: name for the TX command allocation pool
@@ -844,11 +864,8 @@ struct iwl_txq {
  *	start of the 802.11 header in the @rx_mpdu_cmd
  * @dbg: additional debug data, see &struct iwl_trans_debug
  * @init_dram: FW initialization DMA data
- * @name: the device name
  * @mbx_addr_0_step: step address data 0
  * @mbx_addr_1_step: step address data 1
- * @pcie_link_speed: current PCIe link speed (%PCI_EXP_LNKSTA_CLS_*),
- *	only valid for discrete (not integrated) NICs
  * @reduced_cap_sku: reduced capability supported SKU
  * @step_urm: STEP is in URM, no support for MCS>9 in 320 MHz
  * @restart: restart worker data
@@ -874,13 +891,8 @@ struct iwl_trans {
 	unsigned long status;
 
 	struct device *dev;
-	u32 max_skb_frags;
-	u32 hw_rev;
-	u32 hw_rev_step;
-	u32 hw_rf_id;
-	u32 hw_crf_id;
-	u32 hw_cnv_id;
-	u32 hw_id;
+
+	const struct iwl_trans_info info;
 	u32 sku_id[3];
 	bool reduced_cap_sku;
 	bool step_urm;
@@ -903,8 +915,6 @@ struct iwl_trans {
 	int command_groups_size;
 	bool wide_cmd_header;
 
-	u8 num_rx_queues;
-
 	/* The following fields are internal only */
 	struct kmem_cache *dev_cmd_pool;
 	char dev_cmd_pool_name[50];
@@ -918,11 +928,8 @@ struct iwl_trans {
 	struct iwl_trans_debug dbg;
 	struct iwl_self_init_dram init_dram;
 
-	const char *name;
 	u32 mbx_addr_0_step;
 	u32 mbx_addr_1_step;
-
-	u8 pcie_link_speed;
 
 	struct {
 		struct work_struct wk;
@@ -1239,5 +1246,15 @@ void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans);
 
 int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans,
 			     struct iwl_host_cmd *cmd);
+
+/* Internal helper */
+static inline void iwl_trans_set_info(struct iwl_trans *trans,
+				      struct iwl_trans_info *info)
+{
+	struct iwl_trans_info *write;
+
+	write = (void *)(uintptr_t)&trans->info;
+	*write = *info;
+}
 
 #endif /* __iwl_trans_h__ */

@@ -305,7 +305,7 @@ static void iwl_mac_hw_set_wiphy(struct iwl_mld *mld)
 
 	wiphy->max_remain_on_channel_duration = 10000;
 
-	wiphy->hw_version = mld->trans->hw_id;
+	wiphy->hw_version = mld->trans->info.hw_id;
 
 	wiphy->hw_timestamp_max_peers = 1;
 
@@ -353,7 +353,7 @@ static void iwl_mac_hw_set_misc(struct iwl_mld *mld)
 	hw->netdev_features = NETIF_F_HIGHDMA | NETIF_F_SG;
 	hw->netdev_features |= mld->cfg->features;
 
-	hw->max_tx_fragments = mld->trans->max_skb_frags;
+	hw->max_tx_fragments = mld->trans->info.max_skb_frags;
 	hw->max_listen_interval = IWL_MLD_CONN_LISTEN_INTERVAL;
 
 	hw->uapsd_max_sp_len = IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL;
@@ -2006,7 +2006,7 @@ static int iwl_mld_alloc_ptk_pn(struct iwl_mld *mld,
 				struct ieee80211_key_conf *key,
 				struct iwl_mld_ptk_pn **ptk_pn)
 {
-	u8 num_rx_queues = mld->trans->num_rx_queues;
+	u8 num_rx_queues = mld->trans->info.num_rxqs;
 	int keyidx = key->keyidx;
 	struct ieee80211_key_seq seq;
 

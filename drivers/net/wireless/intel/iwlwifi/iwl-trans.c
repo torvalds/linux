@@ -272,7 +272,6 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 #endif
 
 	trans->dev = dev;
-	trans->num_rx_queues = 1;
 
 	INIT_WORK(&trans->restart.wk, iwl_trans_restart_wk);
 
@@ -282,6 +281,10 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 int iwl_trans_init(struct iwl_trans *trans)
 {
 	int txcmd_size, txcmd_align;
+
+	/* check if name/num_rx_queues were set as a proxy for info being set */
+	if (WARN_ON(!trans->info.name || !trans->info.num_rxqs))
+		return -EINVAL;
 
 	if (!trans->trans_cfg->gen2) {
 		txcmd_size = sizeof(struct iwl_tx_cmd);

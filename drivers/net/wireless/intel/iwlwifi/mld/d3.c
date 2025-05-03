@@ -774,7 +774,7 @@ iwl_mld_update_ptk_rx_seq(struct iwl_mld *mld,
 		return;
 
 	for (int tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
-		for (int i = 1; i < mld->trans->num_rx_queues; i++)
+		for (int i = 1; i < mld->trans->info.num_rxqs; i++)
 			memcpy(mld_ptk_pn->q[i].pn[tid],
 			       wowlan_status->ptk.aes_seq[tid].ccmp.pn,
 			       IEEE80211_CCMP_PN_LEN);
@@ -1434,7 +1434,7 @@ iwl_mld_suspend_set_ucast_pn(struct iwl_mld *mld, struct ieee80211_sta *sta,
 		ieee80211_get_key_rx_seq(key, tid, &seq);
 
 		/* and use the internal data for all queues */
-		for (int que = 1; que < mld->trans->num_rx_queues; que++) {
+		for (int que = 1; que < mld->trans->info.num_rxqs; que++) {
 			u8 *cur_pn = mld_ptk_pn->q[que].pn[tid];
 
 			if (memcmp(max_pn, cur_pn, IEEE80211_CCMP_PN_LEN) < 0)

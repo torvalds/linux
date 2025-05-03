@@ -180,7 +180,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 
 	ctxt_info->version.version = 0;
 	ctxt_info->version.mac_id =
-		cpu_to_le16((u16)trans->hw_rev);
+		cpu_to_le16((u16)trans->info.hw_rev);
 	/* size is in DWs */
 	ctxt_info->version.size = cpu_to_le16(sizeof(*ctxt_info) / 4);
 

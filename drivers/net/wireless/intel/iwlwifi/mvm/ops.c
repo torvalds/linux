@@ -96,7 +96,7 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 		return;
 
 	/* SKU control */
-	reg_val = CSR_HW_REV_STEP_DASH(mvm->trans->hw_rev);
+	reg_val = CSR_HW_REV_STEP_DASH(mvm->trans->info.hw_rev);
 
 	/* radio configuration */
 	reg_val |= radio_cfg_type << CSR_HW_IF_CONFIG_REG_POS_PHY_TYPE;
@@ -1350,7 +1350,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		trans->rx_mpdu_cmd_hdr_size =
 			sizeof(struct iwl_rx_mpdu_res_start);
 
-		if (WARN_ON(trans->num_rx_queues > 1)) {
+		if (WARN_ON(trans->info.num_rxqs > 1)) {
 			err = -EINVAL;
 			goto out_free;
 		}
@@ -2160,7 +2160,7 @@ static void iwl_mvm_rx_mq_rss(struct iwl_op_mode *op_mode,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u16 cmd = WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd);
 
-	if (unlikely(queue >= mvm->trans->num_rx_queues))
+	if (unlikely(queue >= mvm->trans->info.num_rxqs))
 		return;
 
 	if (unlikely(cmd == WIDE_ID(LEGACY_GROUP, FRAME_RELEASE)))

@@ -444,7 +444,7 @@ static void iwl_mld_init_reorder_buffer(struct iwl_mld *mld,
 					struct iwl_mld_baid_data *data,
 					u16 ssn)
 {
-	for (int i = 0; i < mld->trans->num_rx_queues; i++) {
+	for (int i = 0; i < mld->trans->info.num_rxqs; i++) {
 		struct iwl_mld_reorder_buffer *reorder_buf =
 			&data->reorder_buf[i];
 		struct iwl_mld_reorder_buf_entry *entries =
@@ -468,7 +468,7 @@ static void iwl_mld_free_reorder_buffer(struct iwl_mld *mld,
 	iwl_mld_sync_rx_queues(mld, IWL_MLD_RXQ_NOTIF_DEL_BA,
 			       &delba_data, sizeof(delba_data));
 
-	for (int i = 0; i < mld->trans->num_rx_queues; i++) {
+	for (int i = 0; i < mld->trans->info.num_rxqs; i++) {
 		struct iwl_mld_reorder_buffer *reorder_buf =
 			&data->reorder_buf[i];
 		struct iwl_mld_reorder_buf_entry *entries =
@@ -530,7 +530,7 @@ int iwl_mld_ampdu_rx_start(struct iwl_mld *mld, struct ieee80211_sta *sta,
 	 * before starting the BA session in the firmware
 	 */
 	baid_data = kzalloc(sizeof(*baid_data) +
-			    mld->trans->num_rx_queues * reorder_buf_size,
+			    mld->trans->info.num_rxqs * reorder_buf_size,
 			    GFP_KERNEL);
 	if (!baid_data)
 		return -ENOMEM;

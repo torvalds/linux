@@ -96,7 +96,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
 	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
 
-	if (priv->trans->max_skb_frags)
+	if (priv->trans->info.max_skb_frags)
 		hw->netdev_features = NETIF_F_HIGHDMA | NETIF_F_SG;
 
 	hw->offchannel_tx_hw_queue = IWL_AUX_QUEUE;
@@ -188,7 +188,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 		priv->hw->wiphy->bands[NL80211_BAND_5GHZ] =
 			&priv->nvm_data->bands[NL80211_BAND_5GHZ];
 
-	hw->wiphy->hw_version = priv->trans->hw_id;
+	hw->wiphy->hw_version = priv->trans->info.hw_id;
 
 	iwl_leds_init(priv);
 

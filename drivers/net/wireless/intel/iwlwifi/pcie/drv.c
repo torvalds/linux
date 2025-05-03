@@ -1517,7 +1517,8 @@ EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_dev_info_table_size);
 /*
  * Read rf id and cdb info from prph register and store it
  */
-static void get_crf_id(struct iwl_trans *iwl_trans)
+static void get_crf_id(struct iwl_trans *iwl_trans,
+		       struct iwl_trans_info *info)
 {
 	u32 sd_reg_ver_addr;
 	u32 hw_wfpm_id;
@@ -1535,51 +1536,50 @@ static void get_crf_id(struct iwl_trans *iwl_trans)
 	iwl_write_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG, val);
 
 	/* Read crf info */
-	iwl_trans->hw_crf_id = iwl_read_prph_no_grab(iwl_trans, sd_reg_ver_addr);
+	info->hw_crf_id = iwl_read_prph_no_grab(iwl_trans, sd_reg_ver_addr);
 
 	/* Read cnv info */
-	iwl_trans->hw_cnv_id =
-		iwl_read_prph_no_grab(iwl_trans, CNVI_AUX_MISC_CHIP);
+	info->hw_cnv_id = iwl_read_prph_no_grab(iwl_trans, CNVI_AUX_MISC_CHIP);
 
 	/* For BZ-W, take B step also when A step is indicated */
-	if (CSR_HW_REV_TYPE(iwl_trans->hw_rev) == IWL_CFG_MAC_TYPE_BZ_W)
+	if (CSR_HW_REV_TYPE(info->hw_rev) == IWL_CFG_MAC_TYPE_BZ_W)
 		step = SILICON_B_STEP;
 
 	/* In BZ, the MAC step must be read from the CNVI aux register */
-	if (CSR_HW_REV_TYPE(iwl_trans->hw_rev) == IWL_CFG_MAC_TYPE_BZ) {
-		step = CNVI_AUX_MISC_CHIP_MAC_STEP(iwl_trans->hw_cnv_id);
+	if (CSR_HW_REV_TYPE(info->hw_rev) == IWL_CFG_MAC_TYPE_BZ) {
+		step = CNVI_AUX_MISC_CHIP_MAC_STEP(info->hw_cnv_id);
 
 		/* For BZ-U, take B step also when A step is indicated */
-		if ((CNVI_AUX_MISC_CHIP_PROD_TYPE(iwl_trans->hw_cnv_id) ==
+		if ((CNVI_AUX_MISC_CHIP_PROD_TYPE(info->hw_cnv_id) ==
 		    CNVI_AUX_MISC_CHIP_PROD_TYPE_BZ_U) &&
 		    step == SILICON_A_STEP)
 			step = SILICON_B_STEP;
 	}
 
-	if (CSR_HW_REV_TYPE(iwl_trans->hw_rev) == IWL_CFG_MAC_TYPE_BZ ||
-	    CSR_HW_REV_TYPE(iwl_trans->hw_rev) == IWL_CFG_MAC_TYPE_BZ_W) {
-		iwl_trans->hw_rev_step = step;
-		iwl_trans->hw_rev |= step;
+	if (CSR_HW_REV_TYPE(info->hw_rev) == IWL_CFG_MAC_TYPE_BZ ||
+	    CSR_HW_REV_TYPE(info->hw_rev) == IWL_CFG_MAC_TYPE_BZ_W) {
+		info->hw_rev_step = step;
+		info->hw_rev |= step;
 	}
 
 	/* Read cdb info (also contains the jacket info if needed in the future */
 	hw_wfpm_id = iwl_read_umac_prph_no_grab(iwl_trans, WFPM_OTP_CFG1_ADDR);
 	IWL_INFO(iwl_trans, "Detected crf-id 0x%x, cnv-id 0x%x wfpm id 0x%x\n",
-		 iwl_trans->hw_crf_id, iwl_trans->hw_cnv_id,
-		 hw_wfpm_id);
+		 info->hw_crf_id, info->hw_cnv_id, hw_wfpm_id);
 }
 
 /*
  * In case that there is no OTP on the NIC, map the rf id and cdb info
  * from the prph registers.
  */
-static int map_crf_id(struct iwl_trans *iwl_trans)
+static int map_crf_id(struct iwl_trans *iwl_trans,
+		      struct iwl_trans_info *info)
 {
 	int ret = 0;
-	u32 val = iwl_trans->hw_crf_id;
+	u32 val = info->hw_crf_id;
 	u32 step_id = REG_CRF_ID_STEP(val);
 	u32 slave_id = REG_CRF_ID_SLAVE(val);
-	u32 jacket_id_cnv = REG_CRF_ID_SLAVE(iwl_trans->hw_cnv_id);
+	u32 jacket_id_cnv = REG_CRF_ID_SLAVE(info->hw_cnv_id);
 	u32 hw_wfpm_id = iwl_read_umac_prph_no_grab(iwl_trans,
 						    WFPM_OTP_CFG1_ADDR);
 	u32 jacket_id_wfpm = WFPM_OTP_CFG1_IS_JACKET(hw_wfpm_id);
@@ -1588,31 +1588,31 @@ static int map_crf_id(struct iwl_trans *iwl_trans)
 	/* Map between crf id to rf id */
 	switch (REG_CRF_ID_TYPE(val)) {
 	case REG_CRF_ID_TYPE_JF_1:
-		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_JF1 << 12);
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_JF1 << 12);
 		break;
 	case REG_CRF_ID_TYPE_JF_2:
-		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_JF2 << 12);
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_JF2 << 12);
 		break;
 	case REG_CRF_ID_TYPE_HR_NONE_CDB_1X1:
-		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_HR1 << 12);
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_HR1 << 12);
 		break;
 	case REG_CRF_ID_TYPE_HR_NONE_CDB:
-		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_HR2 << 12);
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_HR2 << 12);
 		break;
 	case REG_CRF_ID_TYPE_HR_CDB:
-		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_HR2 << 12);
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_HR2 << 12);
 		break;
 	case REG_CRF_ID_TYPE_GF:
-		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_GF << 12);
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_GF << 12);
 		break;
 	case REG_CRF_ID_TYPE_FM:
-		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_FM << 12);
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_FM << 12);
 		break;
 	case REG_CRF_ID_TYPE_WHP:
-		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_WH << 12);
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_WH << 12);
 		break;
 	case REG_CRF_ID_TYPE_PE:
-		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_PE << 12);
+		info->hw_rf_id = (IWL_CFG_RF_TYPE_PE << 12);
 		break;
 	default:
 		ret = -EIO;
@@ -1624,28 +1624,28 @@ static int map_crf_id(struct iwl_trans *iwl_trans)
 	}
 
 	/* Set Step-id */
-	iwl_trans->hw_rf_id |= (step_id << 8);
+	info->hw_rf_id |= (step_id << 8);
 
 	/* Set CDB capabilities */
 	if (cdb_id_wfpm || slave_id) {
-		iwl_trans->hw_rf_id += BIT(28);
+		info->hw_rf_id += BIT(28);
 		IWL_INFO(iwl_trans, "Adding cdb to rf id\n");
 	}
 
 	/* Set Jacket capabilities */
 	if (jacket_id_wfpm || jacket_id_cnv) {
-		iwl_trans->hw_rf_id += BIT(29);
+		info->hw_rf_id += BIT(29);
 		IWL_INFO(iwl_trans, "Adding jacket to rf id\n");
 	}
 
 	IWL_INFO(iwl_trans,
 		 "Detected rf-type 0x%x step-id 0x%x slave-id 0x%x from crf id 0x%x\n",
-		 REG_CRF_ID_TYPE(val), step_id, slave_id, iwl_trans->hw_rf_id);
+		 REG_CRF_ID_TYPE(val), step_id, slave_id, info->hw_rf_id);
 	IWL_INFO(iwl_trans,
 		 "Detected cdb-id 0x%x jacket-id 0x%x from wfpm id 0x%x\n",
 		 cdb_id_wfpm, jacket_id_wfpm, hw_wfpm_id);
 	IWL_INFO(iwl_trans, "Detected jacket-id 0x%x from cnvi id 0x%x\n",
-		 jacket_id_cnv, iwl_trans->hw_cnv_id);
+		 jacket_id_cnv, info->hw_cnv_id);
 
 out:
 	return ret;
@@ -1766,13 +1766,16 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct iwl_cfg_trans_params *trans;
 	const struct iwl_dev_info *dev_info;
+	struct iwl_trans_info info = {
+		.hw_id = (pdev->device << 16) + pdev->subsystem_device,
+	};
 	struct iwl_trans *iwl_trans;
 	struct iwl_trans_pcie *trans_pcie;
 	int ret;
 
 	trans = (void *)ent->driver_data;
 
-	iwl_trans = iwl_trans_pcie_alloc(pdev, trans);
+	iwl_trans = iwl_trans_pcie_alloc(pdev, trans, &info);
 	if (IS_ERR(iwl_trans))
 		return PTR_ERR(iwl_trans);
 
@@ -1780,6 +1783,9 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	iwl_trans_pcie_check_product_reset_status(pdev);
 	iwl_trans_pcie_check_product_reset_mode(pdev);
+
+	/* set the things we know so far for the grab NIC access */
+	iwl_trans_set_info(iwl_trans, &info);
 
 	/*
 	 * Let's try to grab NIC access early here. Sometimes, NICs may
@@ -1794,7 +1800,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (ret)
 			goto out_free_trans;
 		if (iwl_trans_grab_nic_access(iwl_trans)) {
-			get_crf_id(iwl_trans);
+			get_crf_id(iwl_trans, &info);
 			/* all good */
 			iwl_trans_release_nic_access(iwl_trans);
 		} else {
@@ -1803,7 +1809,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
-	iwl_trans->hw_rf_id = iwl_read32(iwl_trans, CSR_HW_RF_ID);
+	info.hw_rf_id = iwl_read32(iwl_trans, CSR_HW_RF_ID);
 
 	/*
 	 * The RF_ID is set to zero in blank OTP so read version to
@@ -1812,28 +1818,28 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	if (iwl_trans->trans_cfg->rf_id &&
 	    iwl_trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_9000 &&
-	    !CSR_HW_RFID_TYPE(iwl_trans->hw_rf_id) && map_crf_id(iwl_trans)) {
+	    !CSR_HW_RFID_TYPE(info.hw_rf_id) && map_crf_id(iwl_trans, &info)) {
 		ret = -EINVAL;
 		goto out_free_trans;
 	}
 
 	IWL_INFO(iwl_trans, "PCI dev %04x/%04x, rev=0x%x, rfid=0x%x\n",
 		 pdev->device, pdev->subsystem_device,
-		 iwl_trans->hw_rev, iwl_trans->hw_rf_id);
+		 info.hw_rev, info.hw_rf_id);
 
 	dev_info = iwl_pci_find_dev_info(pdev->device, pdev->subsystem_device,
-					 CSR_HW_REV_TYPE(iwl_trans->hw_rev),
-					 iwl_trans->hw_rev_step,
-					 CSR_HW_RFID_TYPE(iwl_trans->hw_rf_id),
-					 CSR_HW_RFID_IS_CDB(iwl_trans->hw_rf_id),
-					 CSR_HW_RFID_IS_JACKET(iwl_trans->hw_rf_id),
+					 CSR_HW_REV_TYPE(info.hw_rev),
+					 info.hw_rev_step,
+					 CSR_HW_RFID_TYPE(info.hw_rf_id),
+					 CSR_HW_RFID_IS_CDB(info.hw_rf_id),
+					 CSR_HW_RFID_IS_JACKET(info.hw_rf_id),
 					 IWL_SUBDEVICE_RF_ID(pdev->subsystem_device),
 					 IWL_SUBDEVICE_BW_LIM(pdev->subsystem_device),
 					 IWL_SUBDEVICE_CORES(pdev->subsystem_device),
-					 CSR_HW_RFID_STEP(iwl_trans->hw_rf_id));
+					 CSR_HW_RFID_STEP(info.hw_rf_id));
 	if (dev_info) {
 		iwl_trans->cfg = dev_info->cfg;
-		iwl_trans->name = dev_info->name;
+		info.name = dev_info->name;
 	}
 
 #if IS_ENABLED(CONFIG_IWLMVM)
@@ -1845,18 +1851,18 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * changed, be identical to the ones in the 7265D configuration.
 	 */
 	if (iwl_trans->cfg == &iwl7265_cfg &&
-	    (iwl_trans->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_7265D)
+	    (info.hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_7265D)
 		iwl_trans->cfg = &iwl7265d_cfg;
 #endif
 	if (!iwl_trans->cfg) {
 		pr_err("No config found for PCI dev %04x/%04x, rev=0x%x, rfid=0x%x\n",
 		       pdev->device, pdev->subsystem_device,
-		       iwl_trans->hw_rev, iwl_trans->hw_rf_id);
+		       info.hw_rev, info.hw_rf_id);
 		ret = -EINVAL;
 		goto out_free_trans;
 	}
 
-	IWL_INFO(iwl_trans, "Detected %s\n", iwl_trans->name);
+	IWL_INFO(iwl_trans, "Detected %s\n", info.name);
 
 	if (iwl_trans->trans_cfg->mq_rx_supported) {
 		if (WARN_ON(!iwl_trans->cfg->num_rbds)) {
@@ -1873,9 +1879,11 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &link_status);
 
-		iwl_trans->pcie_link_speed =
+		info.pcie_link_speed =
 			u16_get_bits(link_status, PCI_EXP_LNKSTA_CLS);
 	}
+
+	iwl_trans_set_info(iwl_trans, &info);
 
 	ret = iwl_trans_init(iwl_trans);
 	if (ret)

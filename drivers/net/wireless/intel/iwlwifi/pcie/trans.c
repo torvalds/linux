@@ -1175,7 +1175,7 @@ static void iwl_pcie_map_rx_causes(struct iwl_trans *trans)
 	 * the other (N - 2) interrupt vectors.
 	 */
 	val = BIT(MSIX_FH_INT_CAUSES_Q(0));
-	for (idx = 1; idx < trans->num_rx_queues; idx++) {
+	for (idx = 1; idx < trans->info.num_rxqs; idx++) {
 		iwl_write8(trans, CSR_MSIX_RX_IVAR(idx),
 			   MSIX_FH_INT_CAUSES_Q(idx - offset));
 		val |= BIT(MSIX_FH_INT_CAUSES_Q(idx));
@@ -1655,7 +1655,8 @@ out:
 static void
 iwl_pcie_set_interrupt_capa(struct pci_dev *pdev,
 			    struct iwl_trans *trans,
-			    const struct iwl_cfg_trans_params *cfg_trans)
+			    const struct iwl_cfg_trans_params *cfg_trans,
+			    struct iwl_trans_info *info)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int max_irqs, num_irqs, i, ret;
@@ -1695,27 +1696,28 @@ iwl_pcie_set_interrupt_capa(struct pci_dev *pdev,
 	 * More than two interrupts: we will use fewer RSS queues.
 	 */
 	if (num_irqs <= max_irqs - 2) {
-		trans_pcie->trans->num_rx_queues = num_irqs + 1;
+		info->num_rxqs = num_irqs + 1;
 		trans_pcie->shared_vec_mask = IWL_SHARED_IRQ_NON_RX |
 			IWL_SHARED_IRQ_FIRST_RSS;
 	} else if (num_irqs == max_irqs - 1) {
-		trans_pcie->trans->num_rx_queues = num_irqs;
+		info->num_rxqs = num_irqs;
 		trans_pcie->shared_vec_mask = IWL_SHARED_IRQ_NON_RX;
 	} else {
-		trans_pcie->trans->num_rx_queues = num_irqs - 1;
+		info->num_rxqs = num_irqs - 1;
 	}
 
 	IWL_DEBUG_INFO(trans,
 		       "MSI-X enabled with rx queues %d, vec mask 0x%x\n",
-		       trans_pcie->trans->num_rx_queues, trans_pcie->shared_vec_mask);
+		       info->num_rxqs, trans_pcie->shared_vec_mask);
 
-	WARN_ON(trans_pcie->trans->num_rx_queues > IWL_MAX_RX_HW_QUEUES);
+	WARN_ON(info->num_rxqs > IWL_MAX_RX_HW_QUEUES);
 
 	trans_pcie->alloc_vecs = num_irqs;
 	trans_pcie->msix_enabled = true;
 	return;
 
 enable_msi:
+	info->num_rxqs = 1;
 	ret = pci_enable_msi(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "pci_enable_msi failed - %d\n", ret);
@@ -1728,14 +1730,15 @@ enable_msi:
 	}
 }
 
-static void iwl_pcie_irq_set_affinity(struct iwl_trans *trans)
+static void iwl_pcie_irq_set_affinity(struct iwl_trans *trans,
+				      struct iwl_trans_info *info)
 {
 #if defined(CONFIG_SMP)
 	int iter_rx_q, i, ret, cpu, offset;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	i = trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_FIRST_RSS ? 0 : 1;
-	iter_rx_q = trans_pcie->trans->num_rx_queues - 1 + i;
+	iter_rx_q = info->num_rxqs - 1 + i;
 	offset = 1 + i;
 	for (; i < iter_rx_q ; i++) {
 		/*
@@ -1755,7 +1758,8 @@ static void iwl_pcie_irq_set_affinity(struct iwl_trans *trans)
 }
 
 static int iwl_pcie_init_msix_handler(struct pci_dev *pdev,
-				      struct iwl_trans_pcie *trans_pcie)
+				      struct iwl_trans_pcie *trans_pcie,
+				      struct iwl_trans_info *info)
 {
 	int i;
 
@@ -1784,7 +1788,7 @@ static int iwl_pcie_init_msix_handler(struct pci_dev *pdev,
 			return ret;
 		}
 	}
-	iwl_pcie_irq_set_affinity(trans_pcie->trans);
+	iwl_pcie_irq_set_affinity(trans_pcie->trans, info);
 
 	return 0;
 }
@@ -2614,7 +2618,7 @@ int iwl_trans_pcie_rxq_dma_data(struct iwl_trans *trans, int queue,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (queue >= trans->num_rx_queues || !trans_pcie->rxq)
+	if (queue >= trans->info.num_rxqs || !trans_pcie->rxq)
 		return -EINVAL;
 
 	data->fr_bd_cb = trans_pcie->rxq[queue].bd_dma;
@@ -2927,7 +2931,7 @@ static ssize_t iwl_dbgfs_rx_queue_read(struct file *file,
 	int pos = 0, i, ret;
 	size_t bufsz;
 
-	bufsz = sizeof(char) * 121 * trans->num_rx_queues;
+	bufsz = sizeof(char) * 121 * trans->info.num_rxqs;
 
 	if (!trans_pcie->rxq)
 		return -EAGAIN;
@@ -2936,7 +2940,7 @@ static ssize_t iwl_dbgfs_rx_queue_read(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
-	for (i = 0; i < trans->num_rx_queues && pos < bufsz; i++) {
+	for (i = 0; i < trans->info.num_rxqs && pos < bufsz; i++) {
 		struct iwl_rxq *rxq = &trans_pcie->rxq[i];
 
 		spin_lock_bh(&rxq->lock);
@@ -3803,7 +3807,8 @@ void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 
 struct iwl_trans *
 iwl_trans_pcie_alloc(struct pci_dev *pdev,
-		     const struct iwl_cfg_trans_params *cfg_trans)
+		     const struct iwl_cfg_trans_params *cfg_trans,
+		     struct iwl_trans_info *info)
 {
 	struct iwl_trans_pcie *trans_pcie, **priv;
 	struct iwl_trans *trans;
@@ -3841,7 +3846,8 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		trans_pcie->txqs.tfd.max_tbs = IWL_NUM_OF_TBS;
 		trans_pcie->txqs.tfd.size = sizeof(struct iwl_tfd);
 	}
-	trans->max_skb_frags = IWL_TRANS_PCIE_MAX_FRAGS(trans_pcie);
+
+	info->max_skb_frags = IWL_TRANS_PCIE_MAX_FRAGS(trans_pcie);
 
 	trans_pcie->txqs.tso_hdr_page = alloc_percpu(struct iwl_tso_hdr_page);
 	if (!trans_pcie->txqs.tso_hdr_page) {
@@ -3953,8 +3959,8 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	trans_pcie->pci_dev = pdev;
 	iwl_disable_interrupts(trans);
 
-	trans->hw_rev = iwl_read32(trans, CSR_HW_REV);
-	if (trans->hw_rev == 0xffffffff) {
+	info->hw_rev = iwl_read32(trans, CSR_HW_REV);
+	if (info->hw_rev == 0xffffffff) {
 		dev_err(&pdev->dev, "HW_REV=0xFFFFFFFF, PCI issues?\n");
 		ret = -EIO;
 		goto out_no_pci;
@@ -3967,14 +3973,13 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	 * in the old format.
 	 */
 	if (cfg_trans->device_family >= IWL_DEVICE_FAMILY_8000)
-		trans->hw_rev_step = trans->hw_rev & 0xF;
+		info->hw_rev_step = info->hw_rev & 0xF;
 	else
-		trans->hw_rev_step = (trans->hw_rev & 0xC) >> 2;
+		info->hw_rev_step = (info->hw_rev & 0xC) >> 2;
 
-	IWL_DEBUG_INFO(trans, "HW REV: 0x%0x\n", trans->hw_rev);
+	IWL_DEBUG_INFO(trans, "HW REV: 0x%0x\n", info->hw_rev);
 
-	iwl_pcie_set_interrupt_capa(pdev, trans, cfg_trans);
-	trans->hw_id = (pdev->device << 16) + pdev->subsystem_device;
+	iwl_pcie_set_interrupt_capa(pdev, trans, cfg_trans, info);
 
 	init_waitqueue_head(&trans_pcie->sx_waitq);
 
@@ -3983,7 +3988,7 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		goto out_no_pci;
 
 	if (trans_pcie->msix_enabled) {
-		ret = iwl_pcie_init_msix_handler(pdev, trans_pcie);
+		ret = iwl_pcie_init_msix_handler(pdev, trans_pcie, info);
 		if (ret)
 			goto out_no_pci;
 	 } else {

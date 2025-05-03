@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2019-2021, 2024 Intel Corporation
+ * Copyright (C) 2019-2021, 2024-2025 Intel Corporation
  */
 #include "iwl-drv.h"
 #include "runtime.h"
@@ -116,14 +116,14 @@ int iwl_configure_rxq(struct iwl_fw_runtime *fwrt)
 	 * The default queue is configured via context info, so if we
 	 * have a single queue, there's nothing to do here.
 	 */
-	if (fwrt->trans->num_rx_queues == 1)
+	if (fwrt->trans->info.num_rxqs == 1)
 		return 0;
 
 	if (fwrt->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_22000)
 		return 0;
 
 	/* skip the default queue */
-	num_queues = fwrt->trans->num_rx_queues - 1;
+	num_queues = fwrt->trans->info.num_rxqs - 1;
 
 	size = struct_size(cmd, data, num_queues);
 

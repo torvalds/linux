@@ -545,7 +545,7 @@ void iwl_mld_emlsr_check_tpt(struct wiphy *wiphy, struct wiphy_work *wk)
 	}
 
 	/* Sum up RX and TX MPDUs from the different queues/links */
-	for (int q = 0; q < mld->trans->num_rx_queues; q++) {
+	for (int q = 0; q < mld->trans->info.num_rxqs; q++) {
 		struct iwl_mld_per_q_mpdu_counter *queue_counter =
 			&mld_sta->mpdu_counters[q];
 

@@ -921,7 +921,7 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 	bool is_ap = iftype_data->types_mask & (BIT(NL80211_IFTYPE_AP) |
 						BIT(NL80211_IFTYPE_P2P_GO));
 	bool slow_pcie = (!trans->trans_cfg->integrated &&
-			  trans->pcie_link_speed < PCI_EXP_LNKSTA_CLS_8_0GB);
+			  trans->info.pcie_link_speed < PCI_EXP_LNKSTA_CLS_8_0GB);
 
 	if (!data->sku_cap_11be_enable || iwlwifi_mod_params.disable_11be)
 		iftype_data->eht_cap.has_eht = false;
@@ -1040,7 +1040,7 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 		iftype_data->he_cap.he_cap_elem.phy_cap_info[2] |=
 			IEEE80211_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO;
 
-	switch (CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
+	switch (CSR_HW_RFID_TYPE(trans->info.hw_rf_id)) {
 	case IWL_CFG_RF_TYPE_GF:
 	case IWL_CFG_RF_TYPE_FM:
 	case IWL_CFG_RF_TYPE_WH:
@@ -1052,7 +1052,7 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 		break;
 	}
 
-	if (CSR_HW_REV_TYPE(trans->hw_rev) == IWL_CFG_MAC_TYPE_GL &&
+	if (CSR_HW_REV_TYPE(trans->info.hw_rev) == IWL_CFG_MAC_TYPE_GL &&
 	    iftype_data->eht_cap.has_eht) {
 		iftype_data->eht_cap.eht_cap_elem.mac_cap_info[0] &=
 			~(IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE1 |
@@ -2003,7 +2003,7 @@ int iwl_read_external_nvm(struct iwl_trans *trans,
 
 		/* nvm file validation, dword_buff[2] holds the file version */
 		if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
-		    trans->hw_rev_step == SILICON_C_STEP &&
+		    trans->info.hw_rev_step == SILICON_C_STEP &&
 		    le32_to_cpu(dword_buff[2]) < 0xE4A) {
 			ret = -EFAULT;
 			goto out;
@@ -2070,7 +2070,7 @@ int iwl_read_external_nvm(struct iwl_trans *trans,
 			break;
 		}
 
-		iwl_nvm_fixups(trans->hw_id, section_id, temp, section_size);
+		iwl_nvm_fixups(trans->info.hw_id, section_id, temp, section_size);
 
 		kfree(nvm_sections[section_id].data);
 		nvm_sections[section_id].data = temp;
@@ -2173,7 +2173,7 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 		!!(mac_flags & NVM_MAC_SKU_FLAGS_BAND_5_2_ENABLED);
 	nvm->sku_cap_mimo_disabled =
 		!!(mac_flags & NVM_MAC_SKU_FLAGS_MIMO_DISABLED);
-	if (CSR_HW_RFID_TYPE(trans->hw_rf_id) >= IWL_CFG_RF_TYPE_FM)
+	if (CSR_HW_RFID_TYPE(trans->info.hw_rf_id) >= IWL_CFG_RF_TYPE_FM)
 		nvm->sku_cap_11be_enable = true;
 
 	/* Initialize PHY sku data */

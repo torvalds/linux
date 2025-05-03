@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2015, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2015, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -1798,7 +1798,7 @@ int iwl_mvm_sta_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (iwl_mvm_has_new_rx_api(mvm)) {
 		int q;
 
-		dup_data = kcalloc(mvm->trans->num_rx_queues,
+		dup_data = kcalloc(mvm->trans->info.num_rxqs,
 				   sizeof(*dup_data), GFP_KERNEL);
 		if (!dup_data)
 			return -ENOMEM;
@@ -1811,7 +1811,7 @@ int iwl_mvm_sta_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		 * This thus allows receiving a packet with seqno 0 and the
 		 * retry bit set as the very first packet on a new TID.
 		 */
-		for (q = 0; q < mvm->trans->num_rx_queues; q++)
+		for (q = 0; q < mvm->trans->info.num_rxqs; q++)
 			memset(dup_data[q].last_seq, 0xff,
 			       sizeof(dup_data[q].last_seq));
 		mvm_sta->dup_data = dup_data;
@@ -1839,11 +1839,11 @@ int iwl_mvm_sta_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
 	    !sta->tdls && ieee80211_vif_is_mld(vif)) {
 		mvm_sta->mpdu_counters =
-			kcalloc(mvm->trans->num_rx_queues,
+			kcalloc(mvm->trans->info.num_rxqs,
 				sizeof(*mvm_sta->mpdu_counters),
 				GFP_KERNEL);
 		if (mvm_sta->mpdu_counters)
-			for (int q = 0; q < mvm->trans->num_rx_queues; q++)
+			for (int q = 0; q < mvm->trans->info.num_rxqs; q++)
 				spin_lock_init(&mvm_sta->mpdu_counters[q].lock);
 	}
 
@@ -2717,7 +2717,7 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 
 	iwl_mvm_sync_rxq_del_ba(mvm, data->baid);
 
-	for (i = 0; i < mvm->trans->num_rx_queues; i++) {
+	for (i = 0; i < mvm->trans->info.num_rxqs; i++) {
 		int j;
 		struct iwl_mvm_reorder_buffer *reorder_buf =
 			&data->reorder_buf[i];
@@ -2750,7 +2750,7 @@ static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 {
 	int i;
 
-	for (i = 0; i < mvm->trans->num_rx_queues; i++) {
+	for (i = 0; i < mvm->trans->info.num_rxqs; i++) {
 		struct iwl_mvm_reorder_buffer *reorder_buf =
 			&data->reorder_buf[i];
 		struct iwl_mvm_reorder_buf_entry *entries =
@@ -2925,7 +2925,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		 * before starting the BA session in the firmware
 		 */
 		baid_data = kzalloc(sizeof(*baid_data) +
-				    mvm->trans->num_rx_queues *
+				    mvm->trans->info.num_rxqs *
 				    reorder_buf_size,
 				    GFP_KERNEL);
 		if (!baid_data)

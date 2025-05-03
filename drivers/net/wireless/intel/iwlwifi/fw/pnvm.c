@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright(c) 2020-2024 Intel Corporation
+ * Copyright(c) 2020-2025 Intel Corporation
  */
 
 #include "iwl-drv.h"
@@ -96,8 +96,8 @@ static int iwl_pnvm_handle_section(struct iwl_trans *trans, const u8 *data,
 				     "Got IWL_UCODE_TLV_HW_TYPE mac_type 0x%0x rf_id 0x%0x\n",
 				     mac_type, rf_id);
 
-			if (mac_type == CSR_HW_REV_TYPE(trans->hw_rev) &&
-			    rf_id == CSR_HW_RFID_TYPE(trans->hw_rf_id))
+			if (mac_type == CSR_HW_REV_TYPE(trans->info.hw_rev) &&
+			    rf_id == CSR_HW_RFID_TYPE(trans->info.hw_rf_id))
 				hw_match = true;
 			break;
 		case IWL_UCODE_TLV_SEC_RT: {
@@ -152,8 +152,8 @@ done:
 	if (!hw_match) {
 		IWL_DEBUG_FW(trans,
 			     "HW mismatch, skipping PNVM section (need mac_type 0x%x rf_id 0x%x)\n",
-			     CSR_HW_REV_TYPE(trans->hw_rev),
-			     CSR_HW_RFID_TYPE(trans->hw_rf_id));
+			     CSR_HW_REV_TYPE(trans->info.hw_rev),
+			     CSR_HW_RFID_TYPE(trans->info.hw_rf_id));
 		return -ENOENT;
 	}
 
@@ -205,7 +205,7 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 			len -= ALIGN(tlv_len, 4);
 
 			trans->reduced_cap_sku = false;
-			rf_type = CSR_HW_RFID_TYPE(trans->hw_rf_id);
+			rf_type = CSR_HW_RFID_TYPE(trans->info.hw_rf_id);
 			if ((trans->sku_id[0] & IWL_PNVM_REDUCED_CAP_BIT) &&
 			    rf_type == IWL_CFG_RF_TYPE_FM)
 				trans->reduced_cap_sku = true;

@@ -37,7 +37,7 @@ static inline bool iwl_mld_vif_has_emlsr_cap(struct ieee80211_vif *vif)
 	return ieee80211_vif_type_p2p(vif) == NL80211_IFTYPE_STATION &&
 	       ieee80211_vif_is_mld(vif) &&
 	       vif->cfg.eml_cap & IEEE80211_EML_CAP_EMLSR_SUPP &&
-	       !CSR_HW_RFID_IS_CDB(mld_vif->mld->trans->hw_rf_id);
+	       !CSR_HW_RFID_IS_CDB(mld_vif->mld->trans->info.hw_rf_id);
 }
 
 static inline int

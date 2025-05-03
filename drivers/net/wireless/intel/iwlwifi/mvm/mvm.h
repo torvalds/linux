@@ -1723,13 +1723,13 @@ static inline bool iwl_mvm_is_ctdp_supported(struct iwl_mvm *mvm)
 
 static inline bool iwl_mvm_is_esr_supported(struct iwl_trans *trans)
 {
-	if (CSR_HW_RFID_IS_CDB(trans->hw_rf_id))
+	if (CSR_HW_RFID_IS_CDB(trans->info.hw_rf_id))
 		return false;
 
-	switch (CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
+	switch (CSR_HW_RFID_TYPE(trans->info.hw_rf_id)) {
 	case IWL_CFG_RF_TYPE_FM:
 		/* Step A doesn't support eSR */
-		return CSR_HW_RFID_STEP(trans->hw_rf_id);
+		return CSR_HW_RFID_STEP(trans->info.hw_rf_id);
 	case IWL_CFG_RF_TYPE_WH:
 	case IWL_CFG_RF_TYPE_PE:
 		return true;
@@ -1748,8 +1748,8 @@ static inline int iwl_mvm_max_active_links(struct iwl_mvm *mvm,
 
 	/* Check if HW supports eSR or STR */
 	if (iwl_mvm_is_esr_supported(trans) ||
-	    (CSR_HW_RFID_TYPE(trans->hw_rf_id) == IWL_CFG_RF_TYPE_FM &&
-	     CSR_HW_RFID_IS_CDB(trans->hw_rf_id)))
+	    (CSR_HW_RFID_TYPE(trans->info.hw_rf_id) == IWL_CFG_RF_TYPE_FM &&
+	     CSR_HW_RFID_IS_CDB(trans->info.hw_rf_id)))
 		return IWL_FW_MAX_ACTIVE_LINKS_NUM;
 
 	return 1;

@@ -833,7 +833,7 @@ static int iwl_mld_tx_tso_segment(struct iwl_mld *mld, struct sk_buff *skb,
 	 *	1 more for the potential data in the header
 	 */
 	if ((num_subframes * 2 + skb_shinfo(skb)->nr_frags + 1) >
-	    mld->trans->max_skb_frags)
+	    mld->trans->info.max_skb_frags)
 		num_subframes = 1;
 
 	if (num_subframes > 1)

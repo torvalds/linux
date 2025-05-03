@@ -1850,7 +1850,7 @@ void iwl_mld_sync_rx_queues(struct iwl_mld *mld,
 			    enum iwl_mld_internal_rxq_notif_type type,
 			    const void *notif_payload, u32 notif_payload_size)
 {
-	u8 num_rx_queues = mld->trans->num_rx_queues;
+	u8 num_rx_queues = mld->trans->info.num_rxqs;
 	struct {
 		struct iwl_rxq_sync_cmd sync_cmd;
 		struct iwl_mld_internal_rxq_notif notif;

@@ -417,10 +417,10 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		return -EINVAL;
 	}
 
-	if (mvm->trans->num_rx_queues > 1)
+	if (mvm->trans->info.num_rxqs > 1)
 		ieee80211_hw_set(hw, USES_RSS);
 
-	if (mvm->trans->max_skb_frags)
+	if (mvm->trans->info.max_skb_frags)
 		hw->netdev_features = NETIF_F_HIGHDMA | NETIF_F_SG;
 
 	hw->queues = IEEE80211_NUM_ACS;
@@ -441,7 +441,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	hw->uapsd_queues = IWL_MVM_UAPSD_QUEUES;
 	hw->uapsd_max_sp_len = IWL_UAPSD_MAX_SP;
-	hw->max_tx_fragments = mvm->trans->max_skb_frags;
+	hw->max_tx_fragments = mvm->trans->info.max_skb_frags;
 
 	BUILD_BUG_ON(ARRAY_SIZE(mvm->ciphers) < ARRAY_SIZE(mvm_ciphers) + 6);
 	memcpy(mvm->ciphers, mvm_ciphers, sizeof(mvm_ciphers));
@@ -610,7 +610,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->wiphy->bands[NL80211_BAND_6GHZ] =
 			&mvm->nvm_data->bands[NL80211_BAND_6GHZ];
 
-	hw->wiphy->hw_version = mvm->trans->hw_id;
+	hw->wiphy->hw_version = mvm->trans->info.hw_id;
 
 	if (iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_CAM)
 		hw->wiphy->flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT;
@@ -4506,7 +4506,7 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 
 			WARN_ON(rcu_access_pointer(mvmsta->ptk_pn[keyidx]));
 			ptk_pn = kzalloc(struct_size(ptk_pn, q,
-						     mvm->trans->num_rx_queues),
+						     mvm->trans->info.num_rxqs),
 					 GFP_KERNEL);
 			if (!ptk_pn) {
 				ret = -ENOMEM;
@@ -4515,7 +4515,7 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 
 			for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
 				ieee80211_get_key_rx_seq(key, tid, &seq);
-				for (q = 0; q < mvm->trans->num_rx_queues; q++)
+				for (q = 0; q < mvm->trans->info.num_rxqs; q++)
 					memcpy(ptk_pn->q[q].pn[tid],
 					       seq.ccmp.pn,
 					       IEEE80211_CCMP_PN_LEN);
@@ -6370,7 +6370,7 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 	};
 	int ret;
 
-	cmd->rxq_mask = cpu_to_le32(BIT(mvm->trans->num_rx_queues) - 1);
+	cmd->rxq_mask = cpu_to_le32(BIT(mvm->trans->info.num_rxqs) - 1);
 	cmd->count = cpu_to_le32(sizeof(struct iwl_mvm_internal_rxq_notif) +
 				 size);
 	notif->type = type;
@@ -6385,7 +6385,7 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 
 	if (sync) {
 		notif->cookie = mvm->queue_sync_cookie;
-		mvm->queue_sync_state = (1 << mvm->trans->num_rx_queues) - 1;
+		mvm->queue_sync_state = (1 << mvm->trans->info.num_rxqs) - 1;
 	}
 
 	ret = iwl_mvm_send_cmd(mvm, &hcmd);

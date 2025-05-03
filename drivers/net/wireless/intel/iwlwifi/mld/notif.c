@@ -603,7 +603,7 @@ void iwl_mld_rx_rss(struct iwl_op_mode *op_mode, struct napi_struct *napi,
 	struct iwl_mld *mld = IWL_OP_MODE_GET_MLD(op_mode);
 	u16 cmd_id = WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd);
 
-	if (unlikely(queue >= mld->trans->num_rx_queues))
+	if (unlikely(queue >= mld->trans->info.num_rxqs))
 		return;
 
 	if (likely(cmd_id == WIDE_ID(LEGACY_GROUP, REPLY_RX_MPDU_CMD)))

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2003-2014, 2018-2022, 2024 Intel Corporation
+ * Copyright (C) 2003-2014, 2018-2022, 2024-2025 Intel Corporation
  * Copyright (C) 2015-2016 Intel Deutschland GmbH
  */
 #include <linux/delay.h>
@@ -260,7 +260,7 @@ struct reg {
 static int iwl_dump_rfh(struct iwl_trans *trans, char **buf)
 {
 	int i, q;
-	int num_q = trans->num_rx_queues;
+	int num_q = trans->info.num_rxqs;
 	static const u32 rfh_tbl[] = {
 		RFH_RXF_DMA_CFG,
 		RFH_GEN_CFG,

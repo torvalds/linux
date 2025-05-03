@@ -291,7 +291,7 @@ static void iwl_pcie_get_rf_name(struct iwl_trans *trans)
 	if (buf[0])
 		return;
 
-	switch (CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
+	switch (CSR_HW_RFID_TYPE(trans->info.hw_rf_id)) {
 	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_JF):
 		pos = scnprintf(buf, buflen, "JF");
 		break;
@@ -315,7 +315,7 @@ static void iwl_pcie_get_rf_name(struct iwl_trans *trans)
 		break;
 	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_WP):
 		if (SILICON_Z_STEP ==
-		    CSR_HW_RFID_STEP(trans->hw_rf_id))
+		    CSR_HW_RFID_STEP(trans->info.hw_rf_id))
 			pos = scnprintf(buf, buflen, "WHTC");
 		else
 			pos = scnprintf(buf, buflen, "WH");
@@ -324,7 +324,7 @@ static void iwl_pcie_get_rf_name(struct iwl_trans *trans)
 		return;
 	}
 
-	switch (CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
+	switch (CSR_HW_RFID_TYPE(trans->info.hw_rf_id)) {
 	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_HR):
 	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_HR1):
 	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_HRCDB):
@@ -347,7 +347,7 @@ static void iwl_pcie_get_rf_name(struct iwl_trans *trans)
 	}
 
 	pos += scnprintf(buf + pos, buflen - pos, ", rfid=0x%x",
-			 trans->hw_rf_id);
+			 trans->info.hw_rf_id);
 
 	IWL_INFO(trans, "Detected RF %s\n", buf);
 

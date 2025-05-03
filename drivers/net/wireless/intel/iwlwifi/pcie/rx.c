@@ -206,7 +206,7 @@ static void iwl_pcie_rxq_check_wrptr(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int i;
 
-	for (i = 0; i < trans->num_rx_queues; i++) {
+	for (i = 0; i < trans->info.num_rxqs; i++) {
 		struct iwl_rxq *rxq = &trans_pcie->rxq[i];
 
 		if (!rxq->need_update)
@@ -754,7 +754,7 @@ static int iwl_pcie_alloc_rxq_dma(struct iwl_trans *trans,
 	return 0;
 
 err:
-	for (i = 0; i < trans->num_rx_queues; i++) {
+	for (i = 0; i < trans->info.num_rxqs; i++) {
 		struct iwl_rxq *rxq = &trans_pcie->rxq[i];
 
 		iwl_pcie_free_rxq_dma(trans, rxq);
@@ -773,7 +773,7 @@ static int iwl_pcie_rx_alloc(struct iwl_trans *trans)
 	if (WARN_ON(trans_pcie->rxq))
 		return -EINVAL;
 
-	trans_pcie->rxq = kcalloc(trans->num_rx_queues, sizeof(struct iwl_rxq),
+	trans_pcie->rxq = kcalloc(trans->info.num_rxqs, sizeof(struct iwl_rxq),
 				  GFP_KERNEL);
 	trans_pcie->rx_pool = kcalloc(RX_POOL_SIZE(trans_pcie->num_rx_bufs),
 				      sizeof(trans_pcie->rx_pool[0]),
@@ -796,7 +796,7 @@ static int iwl_pcie_rx_alloc(struct iwl_trans *trans)
 	 */
 	trans_pcie->base_rb_stts =
 			dma_alloc_coherent(trans->dev,
-					   rb_stts_size * trans->num_rx_queues,
+					   rb_stts_size * trans->info.num_rxqs,
 					   &trans_pcie->base_rb_stts_dma,
 					   GFP_KERNEL);
 	if (!trans_pcie->base_rb_stts) {
@@ -804,7 +804,7 @@ static int iwl_pcie_rx_alloc(struct iwl_trans *trans)
 		goto err;
 	}
 
-	for (i = 0; i < trans->num_rx_queues; i++) {
+	for (i = 0; i < trans->info.num_rxqs; i++) {
 		struct iwl_rxq *rxq = &trans_pcie->rxq[i];
 
 		rxq->id = i;
@@ -817,7 +817,7 @@ static int iwl_pcie_rx_alloc(struct iwl_trans *trans)
 err:
 	if (trans_pcie->base_rb_stts) {
 		dma_free_coherent(trans->dev,
-				  rb_stts_size * trans->num_rx_queues,
+				  rb_stts_size * trans->info.num_rxqs,
 				  trans_pcie->base_rb_stts,
 				  trans_pcie->base_rb_stts_dma);
 		trans_pcie->base_rb_stts = NULL;
@@ -933,7 +933,7 @@ static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 	/* disable free amd used rx queue operation */
 	iwl_write_prph_no_grab(trans, RFH_RXF_RXQ_ACTIVE, 0);
 
-	for (i = 0; i < trans->num_rx_queues; i++) {
+	for (i = 0; i < trans->info.num_rxqs; i++) {
 		/* Tell device where to find RBD free table in DRAM */
 		iwl_write_prph64_no_grab(trans,
 					 RFH_Q_FRBDCB_BA_LSB(i),
@@ -1073,7 +1073,7 @@ void iwl_pcie_rx_napi_sync(struct iwl_trans *trans)
 	if (unlikely(!trans_pcie->rxq))
 		return;
 
-	for (i = 0; i < trans->num_rx_queues; i++) {
+	for (i = 0; i < trans->info.num_rxqs; i++) {
 		struct iwl_rxq *rxq = &trans_pcie->rxq[i];
 
 		if (rxq && rxq->napi.poll)
@@ -1110,7 +1110,7 @@ static int _iwl_pcie_rx_init(struct iwl_trans *trans)
 	for (i = 0; i < RX_QUEUE_SIZE; i++)
 		def_rxq->queue[i] = NULL;
 
-	for (i = 0; i < trans->num_rx_queues; i++) {
+	for (i = 0; i < trans->info.num_rxqs; i++) {
 		struct iwl_rxq *rxq = &trans_pcie->rxq[i];
 
 		spin_lock_bh(&rxq->lock);
@@ -1147,7 +1147,7 @@ static int _iwl_pcie_rx_init(struct iwl_trans *trans)
 	/* move the pool to the default queue and allocator ownerships */
 	queue_size = trans->trans_cfg->mq_rx_supported ?
 			trans_pcie->num_rx_bufs - 1 : RX_QUEUE_SIZE;
-	allocator_pool_size = trans->num_rx_queues *
+	allocator_pool_size = trans->info.num_rxqs *
 		(RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC);
 	num_alloc = queue_size + allocator_pool_size;
 
@@ -1224,14 +1224,14 @@ void iwl_pcie_rx_free(struct iwl_trans *trans)
 
 	if (trans_pcie->base_rb_stts) {
 		dma_free_coherent(trans->dev,
-				  rb_stts_size * trans->num_rx_queues,
+				  rb_stts_size * trans->info.num_rxqs,
 				  trans_pcie->base_rb_stts,
 				  trans_pcie->base_rb_stts_dma);
 		trans_pcie->base_rb_stts = NULL;
 		trans_pcie->base_rb_stts_dma = 0;
 	}
 
-	for (i = 0; i < trans->num_rx_queues; i++) {
+	for (i = 0; i < trans->info.num_rxqs; i++) {
 		struct iwl_rxq *rxq = &trans_pcie->rxq[i];
 
 		iwl_pcie_free_rxq_dma(trans, rxq);
@@ -1649,7 +1649,7 @@ irqreturn_t iwl_pcie_irq_rx_msix_handler(int irq, void *dev_id)
 
 	trace_iwlwifi_dev_irq_msix(trans->dev, entry, false, 0, 0);
 
-	if (WARN_ON(entry->entry >= trans->num_rx_queues))
+	if (WARN_ON(entry->entry >= trans->info.num_rxqs))
 		return IRQ_NONE;
 
 	if (!trans_pcie->rxq) {

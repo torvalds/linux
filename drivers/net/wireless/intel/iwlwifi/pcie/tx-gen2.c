@@ -1039,7 +1039,7 @@ int iwl_txq_dyn_alloc(struct iwl_trans *trans, u32 flags, u32 sta_mask,
 	size = rounddown_pow_of_two(size);
 
 	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_BZ &&
-	    trans->hw_rev_step == SILICON_A_STEP) {
+	    trans->info.hw_rev_step == SILICON_A_STEP) {
 		size = 4096;
 		txq = iwl_txq_dyn_alloc_dma(trans, size, timeout);
 	} else {

@@ -152,7 +152,7 @@ int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
 
 	prph_sc_ctrl->version.version = 0;
 	prph_sc_ctrl->version.mac_id =
-		cpu_to_le16((u16)trans->hw_rev);
+		cpu_to_le16((u16)trans->info.hw_rev);
 	prph_sc_ctrl->version.size = cpu_to_le16(sizeof(*prph_scratch) / 4);
 
 	control_flags |= IWL_PRPH_SCRATCH_MTR_MODE;
@@ -161,7 +161,7 @@ int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
 	if (trans->trans_cfg->imr_enabled)
 		control_flags |= IWL_PRPH_SCRATCH_IMR_DEBUG_EN;
 
-	if (CSR_HW_REV_TYPE(trans->hw_rev) == IWL_CFG_MAC_TYPE_GL &&
+	if (CSR_HW_REV_TYPE(trans->info.hw_rev) == IWL_CFG_MAC_TYPE_GL &&
 	    iwl_is_force_scu_active_approved()) {
 		control_flags |= IWL_PRPH_SCRATCH_SCU_FORCE_ACTIVE;
 		IWL_DEBUG_FW(trans,

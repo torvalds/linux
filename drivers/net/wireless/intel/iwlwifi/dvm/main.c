@@ -1248,7 +1248,8 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 ************************/
 	hw = iwl_alloc_all();
 	if (!hw) {
-		pr_err("%s: Cannot allocate network device\n", trans->name);
+		pr_err("%s: Cannot allocate network device\n",
+		       trans->info.name);
 		err = -ENOMEM;
 		goto out;
 	}
@@ -1378,7 +1379,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 * 2. Read REV register
 	 ***********************/
 	IWL_INFO(priv, "Detected %s, REV=0x%X\n",
-		priv->trans->name, priv->trans->hw_rev);
+		priv->trans->info.name, priv->trans->info.hw_rev);
 
 	err = iwl_trans_start_hw(priv->trans);
 	if (err)
@@ -1992,7 +1993,7 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 	/* SKU Control */
 	iwl_trans_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
 				CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP_DASH,
-				CSR_HW_REV_STEP_DASH(priv->trans->hw_rev));
+				CSR_HW_REV_STEP_DASH(priv->trans->info.hw_rev));
 
 	/* write radio config values to register */
 	if (priv->nvm_data->radio_cfg_type <= EEPROM_RF_CONFIG_TYPE_MAX) {

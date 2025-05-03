@@ -746,7 +746,7 @@ static int iwl_nvm_is_otp(struct iwl_trans *trans)
 	u32 otpgp;
 
 	/* OTP only valid for CP/PP and after */
-	switch (trans->hw_rev & CSR_HW_REV_TYPE_MSK) {
+	switch (trans->info.hw_rev & CSR_HW_REV_TYPE_MSK) {
 	case CSR_HW_REV_TYPE_NONE:
 		IWL_ERR(trans, "Unknown hardware type\n");
 		return -EIO;

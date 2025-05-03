@@ -56,13 +56,13 @@ static int iwl_send_rss_cfg_cmd(struct iwl_mvm *mvm)
 			     BIT(IWL_RSS_HASH_TYPE_IPV6_PAYLOAD),
 	};
 
-	if (mvm->trans->num_rx_queues == 1)
+	if (mvm->trans->info.num_rxqs == 1)
 		return 0;
 
 	/* Do not direct RSS traffic to Q 0 which is our fallback queue */
 	for (i = 0; i < ARRAY_SIZE(cmd.indirection_table); i++)
 		cmd.indirection_table[i] =
-			1 + (i % (mvm->trans->num_rx_queues - 1));
+			1 + (i % (mvm->trans->info.num_rxqs - 1));
 	netdev_rss_key_fill(cmd.secret_key, sizeof(cmd.secret_key));
 
 	return iwl_mvm_send_cmd_pdu(mvm, RSS_CONFIG_CMD, 0, sizeof(cmd), &cmd);

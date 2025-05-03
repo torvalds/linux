@@ -181,9 +181,9 @@ bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 	 */
 	return IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) >= 38 ||
 		(IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) == 17 &&
-		 fwrt->trans->hw_rev != CSR_HW_REV_TYPE_3160) ||
+		 fwrt->trans->info.hw_rev != CSR_HW_REV_TYPE_3160) ||
 		(IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) == 29 &&
-		 ((fwrt->trans->hw_rev & CSR_HW_REV_TYPE_MSK) ==
+		 ((fwrt->trans->info.hw_rev & CSR_HW_REV_TYPE_MSK) ==
 		  CSR_HW_REV_TYPE_7265D));
 }
 IWL_EXPORT_SYMBOL(iwl_sar_geo_support);
@@ -314,7 +314,7 @@ int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 	bool send_ppag_always;
 
 	/* many firmware images for JF lie about this */
-	if (CSR_HW_RFID_TYPE(fwrt->trans->hw_rf_id) ==
+	if (CSR_HW_RFID_TYPE(fwrt->trans->info.hw_rf_id) ==
 	    CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_JF))
 		return -EOPNOTSUPP;
 
@@ -491,7 +491,7 @@ __le32 iwl_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 	u32 val;
 	__le32 config_bitmap = 0;
 
-	switch (CSR_HW_RFID_TYPE(fwrt->trans->hw_rf_id)) {
+	switch (CSR_HW_RFID_TYPE(fwrt->trans->info.hw_rf_id)) {
 	case IWL_CFG_RF_TYPE_HR1:
 	case IWL_CFG_RF_TYPE_HR2:
 	case IWL_CFG_RF_TYPE_JF1:

@@ -660,7 +660,7 @@ iwl_mld_alloc_dup_data(struct iwl_mld *mld, struct iwl_mld_sta *mld_sta)
 	if (mld->fw_status.in_hw_restart)
 		return 0;
 
-	dup_data = kcalloc(mld->trans->num_rx_queues, sizeof(*dup_data),
+	dup_data = kcalloc(mld->trans->info.num_rxqs, sizeof(*dup_data),
 			   GFP_KERNEL);
 	if (!dup_data)
 		return -ENOMEM;
@@ -673,7 +673,7 @@ iwl_mld_alloc_dup_data(struct iwl_mld *mld, struct iwl_mld_sta *mld_sta)
 	 * This thus allows receiving a packet with seqno 0 and the
 	 * retry bit set as the very first packet on a new TID.
 	 */
-	for (int q = 0; q < mld->trans->num_rx_queues; q++)
+	for (int q = 0; q < mld->trans->info.num_rxqs; q++)
 		memset(dup_data[q].last_seq, 0xff,
 		       sizeof(dup_data[q].last_seq));
 	mld_sta->dup_data = dup_data;
@@ -695,13 +695,13 @@ static void iwl_mld_alloc_mpdu_counters(struct iwl_mld *mld,
 	    sta->tdls || !ieee80211_vif_is_mld(vif))
 		return;
 
-	mld_sta->mpdu_counters = kcalloc(mld->trans->num_rx_queues,
+	mld_sta->mpdu_counters = kcalloc(mld->trans->info.num_rxqs,
 					 sizeof(*mld_sta->mpdu_counters),
 					 GFP_KERNEL);
 	if (!mld_sta->mpdu_counters)
 		return;
 
-	for (int q = 0; q < mld->trans->num_rx_queues; q++)
+	for (int q = 0; q < mld->trans->info.num_rxqs; q++)
 		spin_lock_init(&mld_sta->mpdu_counters[q].lock);
 }
 

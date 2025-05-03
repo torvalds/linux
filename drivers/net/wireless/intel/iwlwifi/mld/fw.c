@@ -49,7 +49,7 @@ static int iwl_mld_send_rss_cfg_cmd(struct iwl_mld *mld)
 	/* Do not direct RSS traffic to Q 0 which is our fallback queue */
 	for (int i = 0; i < ARRAY_SIZE(cmd.indirection_table); i++)
 		cmd.indirection_table[i] =
-			1 + (i % (mld->trans->num_rx_queues - 1));
+			1 + (i % (mld->trans->info.num_rxqs - 1));
 	netdev_rss_key_fill(cmd.secret_key, sizeof(cmd.secret_key));
 
 	return iwl_mld_send_cmd_pdu(mld, RSS_CONFIG_CMD, &cmd);

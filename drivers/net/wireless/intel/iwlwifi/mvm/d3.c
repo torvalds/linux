@@ -300,7 +300,7 @@ static void iwl_mvm_wowlan_get_rsc_tsc_data(struct ieee80211_hw *hw,
 
 			for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
 				pn = iwl_mvm_find_max_pn(key, ptk_pn, &seq, i,
-						mvm->trans->num_rx_queues);
+						mvm->trans->info.num_rxqs);
 				aes_sc[i].pn = cpu_to_le64((u64)pn[5] |
 							   ((u64)pn[4] << 8) |
 							   ((u64)pn[3] << 16) |
@@ -421,7 +421,7 @@ static void iwl_mvm_wowlan_get_rsc_v5_data(struct ieee80211_hw *hw,
 
 			for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
 				pn = iwl_mvm_find_max_pn(key, ptk_pn, &seq, i,
-						mvm->trans->num_rx_queues);
+						mvm->trans->info.num_rxqs);
 				rsc[i] = cpu_to_le64((u64)pn[5] |
 						     ((u64)pn[4] << 8) |
 						     ((u64)pn[3] << 16) |
@@ -1684,7 +1684,7 @@ static void iwl_mvm_set_aes_ptk_rx_seq(struct iwl_mvm *mvm,
 	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
 		int i;
 
-		for (i = 1; i < mvm->trans->num_rx_queues; i++)
+		for (i = 1; i < mvm->trans->info.num_rxqs; i++)
 			memcpy(ptk_pn->q[i].pn[tid],
 			       status->ptk.aes.seq[tid].ccmp.pn,
 			       IEEE80211_CCMP_PN_LEN);

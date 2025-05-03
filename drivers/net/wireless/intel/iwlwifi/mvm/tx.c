@@ -1023,7 +1023,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	 *	1 more for the potential data in the header
 	 */
 	if ((num_subframes * 2 + skb_shinfo(skb)->nr_frags + 1) >
-	    mvm->trans->max_skb_frags)
+	    mvm->trans->info.max_skb_frags)
 		num_subframes = 1;
 
 	if (num_subframes > 1)

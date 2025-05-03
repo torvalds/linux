@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2019, 2021-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2019, 2021-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -120,7 +120,7 @@ static int iwl_nvm_read_chunk(struct iwl_mvm *mvm, u16 section,
 		} else {
 			IWL_DEBUG_EEPROM(mvm->trans->dev,
 					 "NVM access command failed with status %d (device: %s)\n",
-					 ret, mvm->trans->name);
+					 ret, mvm->trans->info.name);
 			ret = -ENODATA;
 		}
 		goto exit;
@@ -206,7 +206,7 @@ static int iwl_nvm_read_section(struct iwl_mvm *mvm, u16 section,
 		offset += ret;
 	}
 
-	iwl_nvm_fixups(mvm->trans->hw_id, section, data, offset);
+	iwl_nvm_fixups(mvm->trans->info.hw_id, section, data, offset);
 
 	IWL_DEBUG_EEPROM(mvm->trans->dev,
 			 "NVM section %d read completed\n", section);
@@ -338,7 +338,7 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 			break;
 		}
 
-		iwl_nvm_fixups(mvm->trans->hw_id, section, temp, ret);
+		iwl_nvm_fixups(mvm->trans->info.hw_id, section, temp, ret);
 
 		mvm->nvm_sections[section].data = temp;
 		mvm->nvm_sections[section].length = ret;
