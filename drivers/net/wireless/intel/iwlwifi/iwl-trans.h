@@ -401,8 +401,6 @@ struct iwl_dump_sanitize_ops {
  * @n_no_reclaim_cmds: # of commands in list
  * @rx_buf_size: RX buffer size needed for A-MSDUs
  *	if unset 4k will be the RX buffer size
- * @bc_table_dword: set to true if the BC table expects the byte count to be
- *	in DWORD (as opposed to bytes)
  * @scd_set_active: should the transport configure the SCD for HCMD queue
  * @command_groups: array of command groups, each member is an array of the
  *	commands in the group; for debugging only
@@ -423,7 +421,6 @@ struct iwl_trans_config {
 	unsigned int n_no_reclaim_cmds;
 
 	enum iwl_amsdu_size rx_buf_size;
-	bool bc_table_dword;
 	bool scd_set_active;
 	const struct iwl_hcmd_arr *command_groups;
 	int command_groups_size;

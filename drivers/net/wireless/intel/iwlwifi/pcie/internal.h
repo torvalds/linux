@@ -289,7 +289,6 @@ enum iwl_pcie_imr_status {
 /**
  * struct iwl_pcie_txqs - TX queues data
  *
- * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @page_offs: offset from skb->cb to mac header page pointer
  * @dev_cmd_offs: offset from skb->cb to iwl_device_tx_cmd pointer
  * @queue_used: bit mask of used queues
@@ -315,7 +314,6 @@ struct iwl_pcie_txqs {
 	struct iwl_txq *txq[IWL_MAX_TVQM_QUEUES];
 	struct dma_pool *bc_pool;
 	size_t bc_tbl_size;
-	bool bc_table_dword;
 	u8 page_offs;
 	u8 dev_cmd_offs;
 	struct iwl_tso_hdr_page __percpu *tso_hdr_page;
