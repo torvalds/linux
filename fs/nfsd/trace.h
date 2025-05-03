@@ -2522,6 +2522,37 @@ TRACE_EVENT(nfsd_vfs_unlink,
 	)
 );
 
+TRACE_EVENT(nfsd_vfs_rename,
+	TP_PROTO(
+		const struct svc_rqst *rqstp,
+		const struct svc_fh *sfhp,
+		const struct svc_fh *tfhp,
+		const char *source,
+		unsigned int sourcelen,
+		const char *target,
+		unsigned int targetlen
+	),
+	TP_ARGS(rqstp, sfhp, tfhp, source, sourcelen, target, targetlen),
+	TP_STRUCT__entry(
+		NFSD_TRACE_PROC_CALL_FIELDS(rqstp)
+		__field(u32, sfh_hash)
+		__field(u32, tfh_hash)
+		__string_len(source, source, sourcelen)
+		__string_len(target, target, targetlen)
+	),
+	TP_fast_assign(
+		NFSD_TRACE_PROC_CALL_ASSIGNMENTS(rqstp);
+		__entry->sfh_hash = knfsd_fh_hash(&sfhp->fh_handle);
+		__entry->tfh_hash = knfsd_fh_hash(&tfhp->fh_handle);
+		__assign_str(source);
+		__assign_str(target);
+	),
+	TP_printk("xid=0x%08x sfh_hash=0x%08x tfh_hash=0x%08x source=%s target=%s",
+		__entry->xid, __entry->sfh_hash, __entry->tfh_hash,
+		__get_str(source), __get_str(target)
+	)
+);
+
 #endif /* _NFSD_TRACE_H */
 
 #undef TRACE_INCLUDE_PATH
