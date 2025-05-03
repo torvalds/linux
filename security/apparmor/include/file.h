@@ -104,7 +104,7 @@ void aa_inherit_files(const struct cred *cred, struct files_struct *files);
 
 
 /**
- * aa_map_file_perms - map file flags to AppArmor permissions
+ * aa_map_file_to_perms - map file flags to AppArmor permissions
  * @file: open file to map flags to AppArmor permissions
  *
  * Returns: apparmor permission set for the file

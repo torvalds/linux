@@ -101,8 +101,8 @@ extern struct aa_perms allperms;
 
 /**
  * aa_perms_accum_raw - accumulate perms with out masking off overlapping perms
- * @accum - perms struct to accumulate into
- * @addend - perms struct to add to @accum
+ * @accum: perms struct to accumulate into
+ * @addend: perms struct to add to @accum
  */
 static inline void aa_perms_accum_raw(struct aa_perms *accum,
 				      struct aa_perms *addend)
@@ -128,8 +128,8 @@ static inline void aa_perms_accum_raw(struct aa_perms *accum,
 
 /**
  * aa_perms_accum - accumulate perms, masking off overlapping perms
- * @accum - perms struct to accumulate into
- * @addend - perms struct to add to @accum
+ * @accum: perms struct to accumulate into
+ * @addend: perms struct to add to @accum
  */
 static inline void aa_perms_accum(struct aa_perms *accum,
 				  struct aa_perms *addend)

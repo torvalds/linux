@@ -170,7 +170,7 @@ struct aa_policy {
 
 /**
  * basename - find the last component of an hname
- * @name: hname to find the base profile name component of  (NOT NULL)
+ * @hname: hname to find the base profile name component of  (NOT NULL)
  *
  * Returns: the tail (base profile name) name component of an hname
  */

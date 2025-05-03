@@ -117,7 +117,7 @@ static inline struct aa_label *aa_get_current_label(void)
 #define __end_current_label_crit_section(X) end_current_label_crit_section(X)
 
 /**
- * end_label_crit_section - put a reference found with begin_current_label..
+ * end_current_label_crit_section - put a reference found with begin_current_label..
  * @label: label reference to put
  *
  * Should only be used with a reference obtained with
