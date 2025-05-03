@@ -56,7 +56,7 @@ int main(int argc, char **argv)
 	}
 
 	if (write(fd, "1\n", 2) < 0) {
-		perror("Can' enable power floor notifications\n");
+		perror("Can't enable power floor notifications\n");
 		exit(1);
 	}
 

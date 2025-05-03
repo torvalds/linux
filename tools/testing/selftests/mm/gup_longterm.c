@@ -158,7 +158,7 @@ static void do_test(int fd, size_t size, enum test_type type, bool shared)
 		/*
 		 * R/O pinning or pinning in a private mapping is always
 		 * expected to work. Otherwise, we expect long-term R/W pinning
-		 * to only succeed for special fielesystems.
+		 * to only succeed for special filesystems.
 		 */
 		should_work = !shared || !rw ||
 			      fs_supports_writable_longterm_pinning(fs_type);
