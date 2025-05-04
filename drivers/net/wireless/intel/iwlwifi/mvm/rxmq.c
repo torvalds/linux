@@ -1944,7 +1944,7 @@ static void iwl_mvm_rx_fill_status(struct iwl_mvm *mvm,
 	}
 
 	/* must be before L-SIG data */
-	if (format == RATE_MCS_HE_MSK)
+	if (format == RATE_MCS_MOD_TYPE_HE)
 		iwl_mvm_rx_he(mvm, skb, phy_data, queue);
 
 	iwl_mvm_decode_lsig(skb, phy_data);
@@ -1966,45 +1966,45 @@ static void iwl_mvm_rx_fill_status(struct iwl_mvm *mvm,
 				    phy_data->energy_a, phy_data->energy_b);
 
 	/* using TLV format and must be after all fixed len fields */
-	if (format == RATE_MCS_EHT_MSK)
+	if (format == RATE_MCS_MOD_TYPE_EHT)
 		iwl_mvm_rx_eht(mvm, skb, phy_data, queue);
 
 	if (unlikely(mvm->monitor_on))
 		iwl_mvm_add_rtap_sniffer_config(mvm, skb);
 
-	is_sgi = format == RATE_MCS_HE_MSK ?
+	is_sgi = format == RATE_MCS_MOD_TYPE_HE ?
 		iwl_he_is_sgi(rate_n_flags) :
 		rate_n_flags & RATE_MCS_SGI_MSK;
 
-	if (!(format == RATE_MCS_CCK_MSK) && is_sgi)
+	if (!(format == RATE_MCS_MOD_TYPE_CCK) && is_sgi)
 		rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 
 	if (rate_n_flags & RATE_MCS_LDPC_MSK)
 		rx_status->enc_flags |= RX_ENC_FLAG_LDPC;
 
 	switch (format) {
-	case RATE_MCS_VHT_MSK:
+	case RATE_MCS_MOD_TYPE_VHT:
 		rx_status->encoding = RX_ENC_VHT;
 		break;
-	case RATE_MCS_HE_MSK:
+	case RATE_MCS_MOD_TYPE_HE:
 		rx_status->encoding = RX_ENC_HE;
 		rx_status->he_dcm =
 			!!(rate_n_flags & RATE_HE_DUAL_CARRIER_MODE_MSK);
 		break;
-	case RATE_MCS_EHT_MSK:
+	case RATE_MCS_MOD_TYPE_EHT:
 		rx_status->encoding = RX_ENC_EHT;
 		break;
 	}
 
 	switch (format) {
-	case RATE_MCS_HT_MSK:
+	case RATE_MCS_MOD_TYPE_HT:
 		rx_status->encoding = RX_ENC_HT;
 		rx_status->rate_idx = RATE_HT_MCS_INDEX(rate_n_flags);
 		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
 		break;
-	case RATE_MCS_VHT_MSK:
-	case RATE_MCS_HE_MSK:
-	case RATE_MCS_EHT_MSK:
+	case RATE_MCS_MOD_TYPE_VHT:
+	case RATE_MCS_MOD_TYPE_HE:
+	case RATE_MCS_MOD_TYPE_EHT:
 		rx_status->nss =
 			u32_get_bits(rate_n_flags, RATE_MCS_NSS_MSK) + 1;
 		rx_status->rate_idx = rate_n_flags & RATE_MCS_CODE_MSK;
@@ -2138,7 +2138,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	}
 
 	/* set the preamble flag if appropriate */
-	if (format == RATE_MCS_CCK_MSK &&
+	if (format == RATE_MCS_MOD_TYPE_CCK &&
 	    phy_data.phy_info & IWL_RX_MPDU_PHY_SHORT_PREAMBLE)
 		rx_status->enc_flags |= RX_ENC_FLAG_SHORTPRE;
 
@@ -2412,7 +2412,7 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 		phy_data.rx_vec[2] = desc->rx_vec[2];
 		phy_data.rx_vec[3] = desc->rx_vec[3];
 	} else {
-		if (format == RATE_MCS_EHT_MSK)
+		if (format == RATE_MCS_MOD_TYPE_EHT)
 			/* no support for EHT before version 3 API */
 			return;
 	}
@@ -2473,17 +2473,17 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 	 * may be up to 8 spatial streams.
 	 */
 	switch (format) {
-	case RATE_MCS_VHT_MSK:
+	case RATE_MCS_MOD_TYPE_VHT:
 		rx_status->nss =
 			le32_get_bits(desc->rx_vec[0],
 				      RX_NO_DATA_RX_VEC0_VHT_NSTS_MSK) + 1;
 		break;
-	case RATE_MCS_HE_MSK:
+	case RATE_MCS_MOD_TYPE_HE:
 		rx_status->nss =
 			le32_get_bits(desc->rx_vec[0],
 				      RX_NO_DATA_RX_VEC0_HE_NSTS_MSK) + 1;
 		break;
-	case RATE_MCS_EHT_MSK:
+	case RATE_MCS_MOD_TYPE_EHT:
 		rx_status->nss =
 			le32_get_bits(desc->rx_vec[2],
 				      RX_NO_DATA_RX_VEC2_EHT_NSTS_MSK) + 1;

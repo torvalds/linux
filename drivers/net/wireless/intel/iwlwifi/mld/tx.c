@@ -391,9 +391,9 @@ static u32 iwl_mld_mac80211_rate_idx_to_fw(struct iwl_mld *mld,
 
 	/* Set CCK or OFDM flag */
 	if (rate_idx <= IWL_LAST_CCK_RATE)
-		rate_flags |= RATE_MCS_CCK_MSK;
+		rate_flags |= RATE_MCS_MOD_TYPE_CCK;
 	else
-		rate_flags |= RATE_MCS_LEGACY_OFDM_MSK;
+		rate_flags |= RATE_MCS_MOD_TYPE_LEGACY_OFDM;
 
 	/* Legacy rates are indexed:
 	 * 0 - 3 for CCK and 0 - 7 for OFDM
@@ -1008,18 +1008,18 @@ static void iwl_mld_hwrate_to_tx_rate(u32 rate_n_flags,
 	}
 
 	switch (format) {
-	case RATE_MCS_HT_MSK:
+	case RATE_MCS_MOD_TYPE_HT:
 		tx_rate->flags |= IEEE80211_TX_RC_MCS;
 		tx_rate->idx = RATE_HT_MCS_INDEX(rate_n_flags);
 		break;
-	case RATE_MCS_VHT_MSK:
+	case RATE_MCS_MOD_TYPE_VHT:
 		ieee80211_rate_set_vht(tx_rate,
 				       rate_n_flags & RATE_MCS_CODE_MSK,
 				       FIELD_GET(RATE_MCS_NSS_MSK,
 						 rate_n_flags) + 1);
 		tx_rate->flags |= IEEE80211_TX_RC_VHT_MCS;
 		break;
-	case RATE_MCS_HE_MSK:
+	case RATE_MCS_MOD_TYPE_HE:
 		/* mac80211 cannot do this without ieee80211_tx_status_ext()
 		 * but it only matters for radiotap
 		 */

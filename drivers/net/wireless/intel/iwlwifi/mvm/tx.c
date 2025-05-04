@@ -285,9 +285,9 @@ static u32 iwl_mvm_convert_rate_idx(struct iwl_mvm *mvm,
 	/* Set CCK or OFDM flag */
 	if (iwl_fw_lookup_cmd_ver(mvm->fw, TX_CMD, 0) > 8) {
 		if (!is_cck)
-			rate_flags |= RATE_MCS_LEGACY_OFDM_MSK;
+			rate_flags |= RATE_MCS_MOD_TYPE_LEGACY_OFDM;
 		else
-			rate_flags |= RATE_MCS_CCK_MSK;
+			rate_flags |= RATE_MCS_MOD_TYPE_CCK;
 	} else if (is_cck) {
 		rate_flags |= RATE_MCS_CCK_MSK_V1;
 	}
@@ -1467,7 +1467,7 @@ void iwl_mvm_hwrate_to_tx_rate(u32 rate_n_flags,
 			       struct ieee80211_tx_rate *r)
 {
 	u32 format = rate_n_flags & RATE_MCS_MOD_TYPE_MSK;
-	u32 rate = format == RATE_MCS_HT_MSK ?
+	u32 rate = format == RATE_MCS_MOD_TYPE_HT ?
 		RATE_HT_MCS_INDEX(rate_n_flags) :
 		rate_n_flags & RATE_MCS_CODE_MSK;
 
@@ -1477,19 +1477,23 @@ void iwl_mvm_hwrate_to_tx_rate(u32 rate_n_flags,
 
 	if (rate_n_flags & RATE_MCS_SGI_MSK)
 		r->flags |= IEEE80211_TX_RC_SHORT_GI;
-	if (format ==  RATE_MCS_HT_MSK) {
+	switch (format) {
+	case RATE_MCS_MOD_TYPE_HT:
 		r->flags |= IEEE80211_TX_RC_MCS;
 		r->idx = rate;
-	} else if (format ==  RATE_MCS_VHT_MSK) {
+		break;
+	case RATE_MCS_MOD_TYPE_VHT:
 		ieee80211_rate_set_vht(r, rate,
 				       FIELD_GET(RATE_MCS_NSS_MSK,
 						 rate_n_flags) + 1);
 		r->flags |= IEEE80211_TX_RC_VHT_MCS;
-	} else if (format == RATE_MCS_HE_MSK) {
+		break;
+	case RATE_MCS_MOD_TYPE_HE:
 		/* mac80211 cannot do this without ieee80211_tx_status_ext()
 		 * but it only matters for radiotap */
 		r->idx = 0;
-	} else {
+		break;
+	default:
 		r->idx = iwl_mvm_legacy_hw_idx_to_mac80211_idx(rate_n_flags,
 							       band);
 	}

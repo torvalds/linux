@@ -116,7 +116,7 @@ u32 iwl_new_rate_from_v1(u32 rate_v1)
 	if (rate_v1 & RATE_MCS_HT_MSK_V1) {
 		u32 nss = 0;
 
-		rate_v2 |= RATE_MCS_HT_MSK;
+		rate_v2 |= RATE_MCS_MOD_TYPE_HT;
 		rate_v2 |=
 			rate_v1 & RATE_HT_MCS_RATE_CODE_MSK_V1;
 		nss = (rate_v1 & RATE_HT_MCS_MIMO2_MSK) >>
@@ -150,9 +150,9 @@ u32 iwl_new_rate_from_v1(u32 rate_v1)
 			rate_v2 |= he_type << RATE_MCS_HE_TYPE_POS;
 			rate_v2 |= he_106t << RATE_MCS_HE_106T_POS;
 			rate_v2 |= rate_v1 & RATE_HE_DUAL_CARRIER_MODE_MSK;
-			rate_v2 |= RATE_MCS_HE_MSK;
+			rate_v2 |= RATE_MCS_MOD_TYPE_HE;
 		} else {
-			rate_v2 |= RATE_MCS_VHT_MSK;
+			rate_v2 |= RATE_MCS_MOD_TYPE_VHT;
 		}
 	/* if legacy format */
 	} else {
@@ -164,7 +164,7 @@ u32 iwl_new_rate_from_v1(u32 rate_v1)
 
 		rate_v2 |= legacy_rate;
 		if (!(rate_v1 & RATE_MCS_CCK_MSK_V1))
-			rate_v2 |= RATE_MCS_LEGACY_OFDM_MSK;
+			rate_v2 |= RATE_MCS_MOD_TYPE_LEGACY_OFDM;
 	}
 
 	/* convert flags */
@@ -197,36 +197,40 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 	u32 bw = (rate & RATE_MCS_CHAN_WIDTH_MSK) >>
 		RATE_MCS_CHAN_WIDTH_POS;
 	u32 format = rate & RATE_MCS_MOD_TYPE_MSK;
+	int index = 0;
 	bool sgi;
 
-	if (format == RATE_MCS_CCK_MSK ||
-	    format == RATE_MCS_LEGACY_OFDM_MSK) {
-		int legacy_rate = rate & RATE_LEGACY_RATE_MSK;
-		int index = format == RATE_MCS_CCK_MSK ?
-			legacy_rate :
-			legacy_rate + IWL_FIRST_OFDM_RATE;
+	switch (format) {
+	case RATE_MCS_MOD_TYPE_LEGACY_OFDM:
+		index = IWL_FIRST_OFDM_RATE;
+		fallthrough;
+	case RATE_MCS_MOD_TYPE_CCK:
+		index += rate & RATE_LEGACY_RATE_MSK;
 
 		return scnprintf(buf, bufsz, "Legacy | ANT: %s Rate: %s Mbps",
 				 iwl_rs_pretty_ant(ant),
 				 iwl_rate_mcs(index)->mbps);
+	case RATE_MCS_MOD_TYPE_VHT:
+		type = "VHT";
+		break;
+	case RATE_MCS_MOD_TYPE_HT:
+		type = "HT";
+		break;
+	case RATE_MCS_MOD_TYPE_HE:
+		type = "HE";
+		break;
+	case RATE_MCS_MOD_TYPE_EHT:
+		type = "EHT";
+		break;
+	default:
+		type = "Unknown"; /* shouldn't happen */
 	}
 
-	if (format ==  RATE_MCS_VHT_MSK)
-		type = "VHT";
-	else if (format ==  RATE_MCS_HT_MSK)
-		type = "HT";
-	else if (format == RATE_MCS_HE_MSK)
-		type = "HE";
-	else if (format == RATE_MCS_EHT_MSK)
-		type = "EHT";
-	else
-		type = "Unknown"; /* shouldn't happen */
-
-	mcs = format == RATE_MCS_HT_MSK ?
+	mcs = format == RATE_MCS_MOD_TYPE_HT ?
 		RATE_HT_MCS_INDEX(rate) :
 		rate & RATE_MCS_CODE_MSK;
 	nss = u32_get_bits(rate, RATE_MCS_NSS_MSK);
-	sgi = format == RATE_MCS_HE_MSK ?
+	sgi = format == RATE_MCS_MOD_TYPE_HE ?
 		iwl_he_is_sgi(rate) :
 		rate & RATE_MCS_SGI_MSK;
 

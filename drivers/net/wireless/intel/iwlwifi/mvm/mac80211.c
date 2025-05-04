@@ -6070,12 +6070,12 @@ static void iwl_mvm_set_sta_rate(u32 rate_n_flags, struct rate_info *rinfo)
 		break;
 	}
 
-	if (format == RATE_MCS_CCK_MSK ||
-	    format == RATE_MCS_LEGACY_OFDM_MSK) {
+	if (format == RATE_MCS_MOD_TYPE_CCK ||
+	    format == RATE_MCS_MOD_TYPE_LEGACY_OFDM) {
 		int rate = u32_get_bits(rate_n_flags, RATE_LEGACY_RATE_MSK);
 
 		/* add the offset needed to get to the legacy ofdm indices */
-		if (format == RATE_MCS_LEGACY_OFDM_MSK)
+		if (format == RATE_MCS_MOD_TYPE_LEGACY_OFDM)
 			rate += IWL_FIRST_OFDM_RATE;
 
 		switch (rate) {
@@ -6120,7 +6120,7 @@ static void iwl_mvm_set_sta_rate(u32 rate_n_flags, struct rate_info *rinfo)
 
 	rinfo->nss = u32_get_bits(rate_n_flags,
 				  RATE_MCS_NSS_MSK) + 1;
-	rinfo->mcs = format == RATE_MCS_HT_MSK ?
+	rinfo->mcs = format == RATE_MCS_MOD_TYPE_HT ?
 		RATE_HT_MCS_INDEX(rate_n_flags) :
 		u32_get_bits(rate_n_flags, RATE_MCS_CODE_MSK);
 
@@ -6128,11 +6128,11 @@ static void iwl_mvm_set_sta_rate(u32 rate_n_flags, struct rate_info *rinfo)
 		rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
 
 	switch (format) {
-	case RATE_MCS_EHT_MSK:
+	case RATE_MCS_MOD_TYPE_EHT:
 		/* TODO: GI/LTF/RU. How does the firmware encode them? */
 		rinfo->flags |= RATE_INFO_FLAGS_EHT_MCS;
 		break;
-	case RATE_MCS_HE_MSK:
+	case RATE_MCS_MOD_TYPE_HE:
 		gi_ltf = u32_get_bits(rate_n_flags, RATE_MCS_HE_GI_LTF_MSK);
 
 		rinfo->flags |= RATE_INFO_FLAGS_HE_MCS;
@@ -6173,10 +6173,10 @@ static void iwl_mvm_set_sta_rate(u32 rate_n_flags, struct rate_info *rinfo)
 		if (rate_n_flags & RATE_HE_DUAL_CARRIER_MODE_MSK)
 			rinfo->he_dcm = 1;
 		break;
-	case RATE_MCS_HT_MSK:
+	case RATE_MCS_MOD_TYPE_HT:
 		rinfo->flags |= RATE_INFO_FLAGS_MCS;
 		break;
-	case RATE_MCS_VHT_MSK:
+	case RATE_MCS_MOD_TYPE_VHT:
 		rinfo->flags |= RATE_INFO_FLAGS_VHT_MCS;
 		break;
 	}
