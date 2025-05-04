@@ -301,5 +301,9 @@ static inline unsigned int crypto_shash_coresize(struct crypto_shash *tfm)
 	return crypto_shash_statesize(tfm) - crypto_shash_blocksize(tfm) - 1;
 }
 
+/* This can only be used if the request was never cloned. */
+#define HASH_REQUEST_ZERO(name) \
+	memzero_explicit(__##name##_req, sizeof(__##name##_req))
+
 #endif	/* _CRYPTO_INTERNAL_HASH_H */
 
