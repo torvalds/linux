@@ -138,7 +138,7 @@ int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
 	if (trans->conf.dsbr_urm_permanent)
 		control_flags_ext |= IWL_PRPH_SCRATCH_EXT_URM_PERM;
 
-	if (trans->ext_32khz_clock_valid)
+	if (trans->conf.ext_32khz_clock_valid)
 		control_flags_ext |= IWL_PRPH_SCRATCH_EXT_32KHZ_CLK_VALID;
 
 	/* Allocate prph scratch */

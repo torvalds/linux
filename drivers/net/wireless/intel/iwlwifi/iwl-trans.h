@@ -421,6 +421,7 @@ struct iwl_dump_sanitize_ops {
  * @dsbr_urm_permanent: switch to URM permanently
  * @mbx_addr_0_step: step address data 0
  * @mbx_addr_1_step: step address data 1
+ * @ext_32khz_clock_valid: if true, the external 32 KHz clock can be used
  */
 struct iwl_trans_config {
 	u8 cmd_queue;
@@ -441,7 +442,8 @@ struct iwl_trans_config {
 	u8 rx_mpdu_cmd, rx_mpdu_cmd_hdr_size;
 
 	u8 dsbr_urm_fw_dependent:1,
-	   dsbr_urm_permanent:1;
+	   dsbr_urm_permanent:1,
+	   ext_32khz_clock_valid:1;
 
 	u32 mbx_addr_0_step;
 	u32 mbx_addr_1_step;
@@ -882,7 +884,6 @@ struct iwl_trans_info {
  * @restart.mode: reset/restart error mode information
  * @restart.during_reset: error occurred during previous software reset
  * @trans_specific: data for the specific transport this is allocated for/with
- * @ext_32khz_clock_valid: if true, the external 32 KHz clock can be used
  * @request_top_reset: TOP reset was requested, used by the reset
  *	worker that should be scheduled (with appropriate reason)
  * @do_top_reset: indication to the (PCIe) transport/context-info
@@ -904,8 +905,6 @@ struct iwl_trans {
 	u32 sku_id[3];
 	bool reduced_cap_sku;
 	bool step_urm;
-
-	bool ext_32khz_clock_valid;
 
 	bool pm_support;
 	bool ltr_enabled;

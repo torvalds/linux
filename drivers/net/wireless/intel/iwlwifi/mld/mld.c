@@ -328,9 +328,15 @@ iwl_mld_configure_trans(struct iwl_op_mode *op_mode)
 	struct iwl_mld *mld = IWL_OP_MODE_GET_MLD(op_mode);
 	static const u8 no_reclaim_cmds[] = {TX_CMD};
 	struct iwl_trans *trans = mld->trans;
+	u32 eckv_value;
 
 	iwl_bios_setup_step(trans, &mld->fwrt);
 	iwl_uefi_get_step_table(trans);
+
+	if (iwl_bios_get_eckv(&mld->fwrt, &eckv_value))
+		IWL_DEBUG_RADIO(mld, "ECKV table doesn't exist in BIOS\n");
+	else
+		trans->conf.ext_32khz_clock_valid = !!eckv_value;
 
 	trans->conf.rx_buf_size = iwl_amsdu_size_to_rxb_size();
 	trans->conf.command_groups = iwl_mld_groups;
@@ -369,7 +375,6 @@ iwl_op_mode_mld_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	struct ieee80211_hw *hw;
 	struct iwl_op_mode *op_mode;
 	struct iwl_mld *mld;
-	u32 eckv_value;
 	int ret;
 
 	/* Allocate and initialize a new hardware device */
@@ -391,10 +396,6 @@ iwl_op_mode_mld_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	iwl_mld_get_bios_tables(mld);
 	iwl_uefi_get_sgom_table(trans, &mld->fwrt);
-	if (iwl_bios_get_eckv(&mld->fwrt, &eckv_value))
-		IWL_DEBUG_RADIO(mld, "ECKV table doesn't exist in BIOS\n");
-	else
-		trans->ext_32khz_clock_valid = !!eckv_value;
 	mld->bios_enable_puncturing = iwl_uefi_get_puncturing(&mld->fwrt);
 
 	iwl_mld_hw_set_regulatory(mld);
