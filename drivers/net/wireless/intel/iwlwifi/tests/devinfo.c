@@ -60,41 +60,27 @@ static void devinfo_names(struct kunit *test)
 
 static void devinfo_no_cfg_dups(struct kunit *test)
 {
-	/* allocate iwl_dev_info_table_size as upper bound */
-	const struct iwl_cfg **cfgs = kunit_kcalloc(test,
-						    iwl_dev_info_table_size,
-						    sizeof(*cfgs), GFP_KERNEL);
-	int p = 0;
-
-	KUNIT_ASSERT_NOT_NULL(test, cfgs);
-
-	/* build a list of unique (by pointer) configs first */
 	for (int i = 0; i < iwl_dev_info_table_size; i++) {
-		bool found = false;
-
-		for (int j = 0; j < p; j++) {
-			if (cfgs[j] == iwl_dev_info_table[i].cfg) {
-				found = true;
-				break;
-			}
-		}
-		if (!found) {
-			cfgs[p] = iwl_dev_info_table[i].cfg;
-			p++;
-		}
-	}
-
-	/* check that they're really all different */
-	for (int i = 0; i < p; i++) {
-		struct iwl_cfg cfg_i = *cfgs[i];
+		const struct iwl_cfg *cfg_i = iwl_dev_info_table[i].cfg;
 
 		for (int j = 0; j < i; j++) {
-			struct iwl_cfg cfg_j = *cfgs[j];
+			const struct iwl_cfg *cfg_j = iwl_dev_info_table[j].cfg;
 
-			KUNIT_EXPECT_NE_MSG(test, memcmp(&cfg_i, &cfg_j,
-							 sizeof(cfg_i)), 0,
+			if (cfg_i == cfg_j)
+				continue;
+
+			/*
+			 * allow different MAC type to have the same config
+			 * for better maintenance / file split
+			 */
+			if (iwl_dev_info_table[i].mac_type !=
+			    iwl_dev_info_table[j].mac_type)
+				continue;
+
+			KUNIT_EXPECT_NE_MSG(test, memcmp(cfg_i, cfg_j,
+							 sizeof(*cfg_i)), 0,
 					    "identical configs: %ps and %ps\n",
-					    cfgs[i], cfgs[j]);
+					    cfg_i, cfg_j);
 		}
 	}
 }
