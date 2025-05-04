@@ -164,7 +164,7 @@ int svsm_perform_call_protocol(struct svsm_call *call)
 	return ret;
 }
 
-bool sev_snp_enabled(void)
+static bool sev_snp_enabled(void)
 {
 	return sev_status & MSR_AMD64_SEV_SNP_ENABLED;
 }
