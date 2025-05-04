@@ -2235,7 +2235,7 @@ int btrfs_verify_level_key(struct extent_buffer *eb,
 		btrfs_err(fs_info,
 "tree level mismatch detected, bytenr=%llu level expected=%u has=%u",
 			  eb->start, check->level, found_level);
-		return -EIO;
+		return -EUCLEAN;
 	}
 
 	if (!check->has_first_key)
