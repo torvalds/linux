@@ -1726,6 +1726,8 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 {
 	struct bch_member *m;
 	unsigned dev_idx = ca->dev_idx, data;
+	bool fast_device_removal = !bch2_request_incompat_feature(c,
+					bcachefs_metadata_version_fast_device_removal);
 	int ret;
 
 	down_write(&c->state_lock);
@@ -1744,11 +1746,24 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 
 	__bch2_dev_read_only(c, ca);
 
-	ret = bch2_dev_data_drop(c, ca->dev_idx, flags) ?:
-		bch2_dev_remove_stripes(c, ca->dev_idx, flags);
-	bch_err_msg(ca, ret, "bch2_dev_data_drop()");
+	ret = fast_device_removal
+		? bch2_dev_data_drop_by_backpointers(c, ca->dev_idx, flags)
+		: (bch2_dev_data_drop(c, ca->dev_idx, flags) ?:
+		   bch2_dev_remove_stripes(c, ca->dev_idx, flags));
 	if (ret)
 		goto err;
+
+	/* Check if device still has data before blowing away alloc info */
+	struct bch_dev_usage usage = bch2_dev_usage_read(ca);
+	for (unsigned i = 0; i < BCH_DATA_NR; i++)
+		if (!data_type_is_empty(i) &&
+		    !data_type_is_hidden(i) &&
+		    usage.buckets[i]) {
+			bch_err(ca, "Remove failed: still has data (%s, %llu buckets)",
+				__bch2_data_types[i], usage.buckets[i]);
+			ret = -EBUSY;
+			goto err;
+		}
 
 	ret = bch2_dev_remove_alloc(c, ca);
 	bch_err_msg(ca, ret, "bch2_dev_remove_alloc()");
@@ -1813,7 +1828,11 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	 */
 	mutex_lock(&c->sb_lock);
 	m = bch2_members_v2_get_mut(c->disk_sb.sb, dev_idx);
-	memset(&m->uuid, 0, sizeof(m->uuid));
+
+	if (fast_device_removal)
+		m->uuid = BCH_SB_MEMBER_DELETED_UUID;
+	else
+		memset(&m->uuid, 0, sizeof(m->uuid));
 
 	bch2_write_super(c);
 

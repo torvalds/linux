@@ -2197,13 +2197,15 @@ static int bch2_invalidate_stripe_to_dev_from_alloc(struct btree_trans *trans, s
 
 int bch2_dev_remove_stripes(struct bch_fs *c, unsigned dev_idx, unsigned flags)
 {
-	return bch2_trans_run(c,
+	int ret = bch2_trans_run(c,
 		for_each_btree_key_max_commit(trans, iter,
 				  BTREE_ID_alloc, POS(dev_idx, 0), POS(dev_idx, U64_MAX),
 				  BTREE_ITER_intent, k,
 				  NULL, NULL, 0, ({
 			bch2_invalidate_stripe_to_dev_from_alloc(trans, k, flags);
 	})));
+	bch_err_fn(c, ret);
+	return ret;
 }
 
 /* startup/shutdown */
