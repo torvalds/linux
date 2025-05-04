@@ -510,7 +510,14 @@ static const struct phy_config *fsl_samsung_hdmi_phy_lookup_rate(unsigned long r
 		if (phy_pll_cfg[i].pixclk <= rate)
 			break;
 
-	return &phy_pll_cfg[i];
+	/* If there is an exact match, or the array has been searched, return the value*/
+	if (phy_pll_cfg[i].pixclk == rate || i + 1 > ARRAY_SIZE(phy_pll_cfg) - 1)
+		return &phy_pll_cfg[i];
+
+	/* See if the next entry is closer to nominal than this one */
+	return (abs((long) rate - (long) phy_pll_cfg[i].pixclk) <
+		abs((long) rate - (long) phy_pll_cfg[i+1].pixclk) ?
+		&phy_pll_cfg[i] : &phy_pll_cfg[i+1]);
 }
 
 static void fsl_samsung_hdmi_calculate_phy(struct phy_config *cal_phy, unsigned long rate,
