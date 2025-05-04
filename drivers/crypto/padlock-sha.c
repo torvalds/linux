@@ -42,27 +42,33 @@ static int padlock_sha1_init(struct shash_desc *desc)
 
 static int padlock_sha256_init(struct shash_desc *desc)
 {
-	struct sha256_state *sctx = padlock_shash_desc_ctx(desc);
+	struct crypto_sha256_state *sctx = padlock_shash_desc_ctx(desc);
 
-	sha256_init(sctx);
+	sha256_block_init(sctx);
 	return 0;
 }
 
 static int padlock_sha_update(struct shash_desc *desc,
 			      const u8 *data, unsigned int length)
 {
-	struct padlock_sha_ctx *ctx = crypto_shash_ctx(desc->tfm);
 	u8 *state = padlock_shash_desc_ctx(desc);
-	HASH_REQUEST_ON_STACK(req, ctx->fallback);
-	int remain;
+	struct crypto_shash *tfm = desc->tfm;
+	int err, remain;
 
-	ahash_request_set_callback(req, 0, NULL, NULL);
-	ahash_request_set_virt(req, data, NULL, length);
-	remain = crypto_ahash_import(req, state) ?:
-		 crypto_ahash_update(req);
-	if (remain < 0)
-		return remain;
-	return crypto_ahash_export(req, state) ?: remain;
+	remain = length - round_down(length, crypto_shash_blocksize(tfm));
+	{
+		struct padlock_sha_ctx *ctx = crypto_shash_ctx(tfm);
+		HASH_REQUEST_ON_STACK(req, ctx->fallback);
+
+		ahash_request_set_callback(req, 0, NULL, NULL);
+		ahash_request_set_virt(req, data, NULL, length - remain);
+		err = crypto_ahash_import_core(req, state) ?:
+		      crypto_ahash_update(req) ?:
+		      crypto_ahash_export_core(req, state);
+		HASH_REQUEST_ZERO(req);
+	}
+
+	return err ?: remain;
 }
 
 static int padlock_sha_export(struct shash_desc *desc, void *out)
@@ -101,7 +107,7 @@ static int padlock_sha_finup(struct shash_desc *desc, const u8 *in,
 
 	ahash_request_set_callback(req, 0, NULL, NULL);
 	ahash_request_set_virt(req, in, out, count);
-	return crypto_ahash_import(req, padlock_shash_desc_ctx(desc)) ?:
+	return crypto_ahash_import_core(req, padlock_shash_desc_ctx(desc)) ?:
 	       crypto_ahash_finup(req);
 }
 
@@ -165,7 +171,7 @@ static int padlock_init_tfm(struct crypto_shash *hash)
 		return PTR_ERR(fallback_tfm);
 	}
 
-	if (crypto_shash_statesize(hash) <
+	if (crypto_shash_statesize(hash) !=
 	    crypto_ahash_statesize(fallback_tfm)) {
 		crypto_free_ahash(fallback_tfm);
 		return -EINVAL;
