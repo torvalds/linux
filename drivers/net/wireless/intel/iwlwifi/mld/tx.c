@@ -1013,6 +1013,7 @@ static void iwl_mld_hwrate_to_tx_rate(u32 rate_n_flags,
 		tx_rate->flags |= IEEE80211_TX_RC_VHT_MCS;
 		break;
 	case RATE_MCS_MOD_TYPE_HE:
+	case RATE_MCS_MOD_TYPE_EHT:
 		/* mac80211 cannot do this without ieee80211_tx_status_ext()
 		 * but it only matters for radiotap
 		 */
