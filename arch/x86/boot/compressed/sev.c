@@ -30,25 +30,6 @@ static struct ghcb boot_ghcb_page __aligned(PAGE_SIZE);
 struct ghcb *boot_ghcb;
 
 /*
- * Copy a version of this function here - insn-eval.c can't be used in
- * pre-decompression code.
- */
-static bool insn_has_rep_prefix(struct insn *insn)
-{
-	insn_byte_t p;
-	int i;
-
-	insn_get_prefixes(insn);
-
-	for_each_insn_prefix(insn, i, p) {
-		if (p == 0xf2 || p == 0xf3)
-			return true;
-	}
-
-	return false;
-}
-
-/*
  * Only a dummy for insn_get_seg_base() - Early boot-code is 64bit only and
  * doesn't use segments.
  */
@@ -72,20 +53,6 @@ static inline void sev_es_wr_ghcb_msr(u64 val)
 
 	m.q = val;
 	boot_wrmsr(MSR_AMD64_SEV_ES_GHCB, &m);
-}
-
-static enum es_result vc_decode_insn(struct es_em_ctxt *ctxt)
-{
-	char buffer[MAX_INSN_SIZE];
-	int ret;
-
-	memcpy(buffer, (unsigned char *)ctxt->regs->ip, MAX_INSN_SIZE);
-
-	ret = insn_decode(&ctxt->insn, buffer, MAX_INSN_SIZE, INSN_MODE_64);
-	if (ret < 0)
-		return ES_DECODE_FAILED;
-
-	return ES_OK;
 }
 
 static enum es_result vc_write_mem(struct es_em_ctxt *ctxt,
@@ -121,10 +88,6 @@ static bool fault_in_kernel_space(unsigned long address)
 #define __head
 
 #define __BOOT_COMPRESSED
-
-/* Basic instruction decoding support needed */
-#include "../../lib/inat.c"
-#include "../../lib/insn.c"
 
 extern struct svsm_ca *boot_svsm_caa;
 extern u64 boot_svsm_caa_pa;
@@ -230,7 +193,7 @@ static bool early_setup_ghcb(void)
 	boot_ghcb = &boot_ghcb_page;
 
 	/* Initialize lookup tables for the instruction decoder */
-	inat_init_tables();
+	sev_insn_decode_init();
 
 	/* SNP guest requires the GHCB GPA must be registered */
 	if (sev_snp_enabled())
