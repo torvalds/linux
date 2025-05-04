@@ -59,7 +59,7 @@ static int zynqmp_sha_init_tfm(struct crypto_shash *hash)
 		return PTR_ERR(fallback_tfm);
 
 	if (crypto_shash_descsize(hash) <
-	    crypto_shash_descsize(tfm_ctx->fbk_tfm)) {
+	    crypto_shash_statesize(tfm_ctx->fbk_tfm)) {
 		crypto_free_shash(fallback_tfm);
 		return -EINVAL;
 	}
@@ -76,15 +76,24 @@ static void zynqmp_sha_exit_tfm(struct crypto_shash *hash)
 	crypto_free_shash(tfm_ctx->fbk_tfm);
 }
 
+static int zynqmp_sha_continue(struct shash_desc *desc,
+			       struct shash_desc *fbdesc, int err)
+{
+	err = err ?: crypto_shash_export(fbdesc, shash_desc_ctx(desc));
+	shash_desc_zero(fbdesc);
+	return err;
+}
+
 static int zynqmp_sha_init(struct shash_desc *desc)
 {
 	struct zynqmp_sha_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
 	struct crypto_shash *fbtfm = tctx->fbk_tfm;
 	SHASH_DESC_ON_STACK(fbdesc, fbtfm);
+	int err;
 
 	fbdesc->tfm = fbtfm;
-	return crypto_shash_init(fbdesc) ?:
-	       crypto_shash_export_core(fbdesc, shash_desc_ctx(desc));
+	err = crypto_shash_init(fbdesc);
+	return zynqmp_sha_continue(desc, fbdesc, err);
 }
 
 static int zynqmp_sha_update(struct shash_desc *desc, const u8 *data, unsigned int length)
@@ -92,11 +101,12 @@ static int zynqmp_sha_update(struct shash_desc *desc, const u8 *data, unsigned i
 	struct zynqmp_sha_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
 	struct crypto_shash *fbtfm = tctx->fbk_tfm;
 	SHASH_DESC_ON_STACK(fbdesc, fbtfm);
+	int err;
 
 	fbdesc->tfm = fbtfm;
-	return crypto_shash_import_core(fbdesc, shash_desc_ctx(desc)) ?:
-	       crypto_shash_update(fbdesc, data, length) ?:
-	       crypto_shash_export_core(fbdesc, shash_desc_ctx(desc));
+	err = crypto_shash_import(fbdesc, shash_desc_ctx(desc)) ?:
+	      crypto_shash_update(fbdesc, data, length);
+	return zynqmp_sha_continue(desc, fbdesc, err);
 }
 
 static int zynqmp_sha_finup(struct shash_desc *desc, const u8 *data, unsigned int length, u8 *out)
@@ -106,7 +116,7 @@ static int zynqmp_sha_finup(struct shash_desc *desc, const u8 *data, unsigned in
 	SHASH_DESC_ON_STACK(fbdesc, fbtfm);
 
 	fbdesc->tfm = fbtfm;
-	return crypto_shash_import_core(fbdesc, shash_desc_ctx(desc)) ?:
+	return crypto_shash_import(fbdesc, shash_desc_ctx(desc)) ?:
 	       crypto_shash_finup(fbdesc, data, length, out);
 }
 
@@ -160,16 +170,14 @@ static struct zynqmp_sha_drv_ctx sha3_drv_ctx = {
 		.digest = zynqmp_sha_digest,
 		.init_tfm = zynqmp_sha_init_tfm,
 		.exit_tfm = zynqmp_sha_exit_tfm,
-		.descsize = sizeof(struct sha3_state),
+		.descsize = SHA3_384_EXPORT_SIZE,
 		.digestsize = SHA3_384_DIGEST_SIZE,
 		.base = {
 			.cra_name = "sha3-384",
 			.cra_driver_name = "zynqmp-sha3-384",
 			.cra_priority = 300,
 			.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY |
-				     CRYPTO_ALG_NEED_FALLBACK |
-				     CRYPTO_AHASH_ALG_BLOCK_ONLY |
-				     CRYPTO_AHASH_ALG_FINUP_MAX,
+				     CRYPTO_ALG_NEED_FALLBACK,
 			.cra_blocksize = SHA3_384_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct zynqmp_sha_tfm_ctx),
 			.cra_module = THIS_MODULE,
