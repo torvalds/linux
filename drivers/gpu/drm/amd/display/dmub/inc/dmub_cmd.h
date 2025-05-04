@@ -550,6 +550,11 @@ union replay_hw_flags {
 		 * @is_alpm_initialized: Indicates whether ALPM is initialized
 		 */
 		uint32_t is_alpm_initialized : 1;
+
+		/**
+		 * @alpm_mode: Indicates ALPM mode selected
+		 */
+		uint32_t alpm_mode : 2;
 	} bitfields;
 
 	uint32_t u32All;
@@ -742,6 +747,14 @@ enum dmub_ips_disable_type {
 	DMUB_IPS_DISABLE_IPS2_Z10 = 4,
 	DMUB_IPS_DISABLE_DYNAMIC = 5,
 	DMUB_IPS_RCG_IN_ACTIVE_IPS2_IN_OFF = 6,
+	DMUB_IPS_DISABLE_Z8_RETENTION = 7,
+};
+
+enum dmub_ips_rcg_disable_type {
+	DMUB_IPS_RCG_ENABLE = 0,
+	DMUB_IPS0_RCG_DISABLE = 1,
+	DMUB_IPS1_RCG_DISABLE = 2,
+	DMUB_IPS_RCG_DISABLE = 3
 };
 
 #define DMUB_IPS1_ALLOW_MASK 0x00000001
@@ -820,11 +833,12 @@ enum dmub_shared_state_feature_id {
  */
 union dmub_shared_state_ips_fw_signals {
 	struct {
-		uint32_t ips1_commit : 1;  /**< 1 if in IPS1 */
+		uint32_t ips1_commit : 1;  /**< 1 if in IPS1 or IPS0 RCG */
 		uint32_t ips2_commit : 1; /**< 1 if in IPS2 */
 		uint32_t in_idle : 1; /**< 1 if DMCUB is in idle */
 		uint32_t detection_required : 1; /**< 1 if detection is required */
-		uint32_t reserved_bits : 28; /**< Reversed */
+		uint32_t ips1z8_commit: 1; /**< 1 if in IPS1 Z8 Retention */
+		uint32_t reserved_bits : 27; /**< Reversed */
 	} bits;
 	uint32_t all;
 };
@@ -839,7 +853,10 @@ union dmub_shared_state_ips_driver_signals {
 		uint32_t allow_ips2 : 1; /**< 1 is IPS1 is allowed */
 		uint32_t allow_z10 : 1; /**< 1 if Z10 is allowed */
 		uint32_t allow_idle: 1; /**< 1 if driver is allowing idle */
-		uint32_t reserved_bits : 27; /**< Reversed bits */
+		uint32_t allow_ips0_rcg : 1; /**< 1 is IPS0 RCG is allowed */
+		uint32_t allow_ips1_rcg : 1; /**< 1 is IPS1 RCG is allowed */
+		uint32_t allow_ips1z8 : 1; /**< 1 is IPS1 Z8 Retention is allowed */
+		uint32_t reserved_bits : 24; /**< Reversed bits */
 	} bits;
 	uint32_t all;
 };
@@ -868,7 +885,9 @@ struct dmub_shared_state_ips_fw {
 	uint32_t ips1_exit_count; /**< Exit counter for IPS1 */
 	uint32_t ips2_entry_count; /**< Entry counter for IPS2 */
 	uint32_t ips2_exit_count; /**< Exit counter for IPS2 */
-	uint32_t reserved[55]; /**< Reversed, to be updated when adding new fields. */
+	uint32_t ips1_z8ret_entry_count; /**< Entry counter for IPS1 Z8 Retention */
+	uint32_t ips1_z8ret_exit_count; /**< Exit counter for IPS1 Z8 Retention */
+	uint32_t reserved[53]; /**< Reversed, to be updated when adding new fields. */
 }; /* 248-bytes, fixed */
 
 /**
@@ -1256,6 +1275,10 @@ enum dmub_gpint_command {
 	 * DESC: Setup debug configs.
 	 */
 	DMUB_GPINT__SETUP_DEBUG_MODE = 136,
+	/**
+	 * DESC: Initiates IPS wake sequence.
+	 */
+	DMUB_GPINT__IPS_DEBUG_WAKE = 137,
 };
 
 /**
@@ -3616,6 +3639,12 @@ struct dmub_rb_cmd_psr_set_power_opt {
 	struct dmub_cmd_psr_set_power_opt_data psr_set_power_opt_data;
 };
 
+enum dmub_alpm_mode {
+	ALPM_AUXWAKE = 0,
+	ALPM_AUXLESS = 1,
+	ALPM_UNSUPPORTED = 2,
+};
+
 /**
  * Definition of Replay Residency GPINT command.
  * Bit[0] - Residency mode for Revision 0
@@ -3749,6 +3778,15 @@ enum dmub_cmd_replay_general_subtype {
 	REPLAY_GENERAL_CMD_SET_LOW_RR_ACTIVATE,
 };
 
+struct dmub_alpm_auxless_data {
+	uint16_t lfps_setup_ns;
+	uint16_t lfps_period_ns;
+	uint16_t lfps_silence_ns;
+	uint16_t lfps_t1_t2_override_us;
+	short lfps_t1_t2_offset_us;
+	uint8_t lttpr_count;
+};
+
 /**
  * Data passed from driver to FW in a DMUB_CMD__REPLAY_COPY_SETTINGS command.
  */
@@ -3819,6 +3857,10 @@ struct dmub_cmd_replay_copy_settings_data {
 	 * Use FSM state for Replay power up/down
 	 */
 	uint8_t use_phy_fsm;
+	/**
+	 * Use for AUX-less ALPM LFPS wake operation
+	 */
+	struct dmub_alpm_auxless_data auxless_alpm_data;
 };
 
 /**
