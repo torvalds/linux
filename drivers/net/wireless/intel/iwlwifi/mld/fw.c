@@ -99,6 +99,11 @@ static void iwl_mld_alive_imr_data(struct iwl_trans *trans,
 	}
 }
 
+struct iwl_mld_alive_data {
+	__le32 sku_id[3];
+	bool valid;
+};
+
 static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 			 struct iwl_rx_packet *pkt, void *data)
 {
@@ -109,8 +114,8 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	struct iwl_trans *trans = mld->trans;
 	u32 version = iwl_fw_lookup_notif_ver(mld->fw, LEGACY_GROUP,
 					      UCODE_ALIVE_NTFY, 0);
+	struct iwl_mld_alive_data *alive_data = data;
 	struct iwl_alive_ntf *palive;
-	bool *alive_valid = data;
 	struct iwl_umac_alive *umac;
 	struct iwl_lmac_alive *lmac1;
 	struct iwl_lmac_alive *lmac2 = NULL;
@@ -142,12 +147,15 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	lmac2 = &palive->lmac_data[1];
 	status = le16_to_cpu(palive->status);
 
-	trans->sku_id[0] = le32_to_cpu(palive->sku_id.data[0]);
-	trans->sku_id[1] = le32_to_cpu(palive->sku_id.data[1]);
-	trans->sku_id[2] = le32_to_cpu(palive->sku_id.data[2]);
+	BUILD_BUG_ON(sizeof(alive_data->sku_id) !=
+		     sizeof(palive->sku_id.data));
+	memcpy(alive_data->sku_id, palive->sku_id.data,
+	       sizeof(palive->sku_id.data));
 
 	IWL_DEBUG_FW(mld, "Got sku_id: 0x0%x 0x0%x 0x0%x\n",
-		     trans->sku_id[0], trans->sku_id[1], trans->sku_id[2]);
+		     le32_to_cpu(alive_data->sku_id[0]),
+		     le32_to_cpu(alive_data->sku_id[1]),
+		     le32_to_cpu(alive_data->sku_id[2]));
 
 	lmac_error_event_table =
 		le32_to_cpu(lmac1->dbg_ptrs.error_event_table_ptr);
@@ -166,7 +174,7 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 		IWL_ERR(mld, "Not valid error log pointer 0x%08X\n",
 			umac_error_table);
 
-	*alive_valid = status == IWL_ALIVE_STATUS_OK;
+	alive_data->valid = status == IWL_ALIVE_STATUS_OK;
 
 	IWL_DEBUG_FW(mld,
 		     "Alive ucode status 0x%04x revision 0x%01X 0x%01X\n",
@@ -225,18 +233,18 @@ static void iwl_mld_print_alive_notif_timeout(struct iwl_mld *mld)
 			pc_data->pc_address);
 }
 
-static int iwl_mld_load_fw_wait_alive(struct iwl_mld *mld)
+static int iwl_mld_load_fw_wait_alive(struct iwl_mld *mld,
+				      struct iwl_mld_alive_data *alive_data)
 {
 	static const u16 alive_cmd[] = { UCODE_ALIVE_NTFY };
 	struct iwl_notification_wait alive_wait;
-	bool alive_valid = false;
 	int ret;
 
 	lockdep_assert_wiphy(mld->wiphy);
 
 	iwl_init_notification_wait(&mld->notif_wait, &alive_wait,
 				   alive_cmd, ARRAY_SIZE(alive_cmd),
-				   iwl_alive_fn, &alive_valid);
+				   iwl_alive_fn, alive_data);
 
 	iwl_dbg_tlv_time_point(&mld->fwrt, IWL_FW_INI_TIME_POINT_EARLY, NULL);
 
@@ -257,7 +265,7 @@ static int iwl_mld_load_fw_wait_alive(struct iwl_mld *mld)
 		return ret;
 	}
 
-	if (!alive_valid) {
+	if (!alive_data->valid) {
 		IWL_ERR(mld, "Loaded firmware is not valid!\n");
 		return -EIO;
 	}
@@ -273,6 +281,7 @@ static int iwl_mld_run_fw_init_sequence(struct iwl_mld *mld)
 	struct iwl_init_extended_cfg_cmd init_cfg = {
 		.init_flags = cpu_to_le32(BIT(IWL_INIT_PHY)),
 	};
+	struct iwl_mld_alive_data alive_data = {};
 	static const u16 init_complete[] = {
 		INIT_COMPLETE_NOTIF,
 	};
@@ -280,12 +289,12 @@ static int iwl_mld_run_fw_init_sequence(struct iwl_mld *mld)
 
 	lockdep_assert_wiphy(mld->wiphy);
 
-	ret = iwl_mld_load_fw_wait_alive(mld);
+	ret = iwl_mld_load_fw_wait_alive(mld, &alive_data);
 	if (ret)
 		return ret;
 
 	ret = iwl_pnvm_load(mld->trans, &mld->notif_wait,
-			    &mld->fw->ucode_capa);
+			    &mld->fw->ucode_capa, alive_data.sku_id);
 	if (ret) {
 		IWL_ERR(mld, "Timeout waiting for PNVM load %d\n", ret);
 		return ret;

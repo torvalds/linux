@@ -863,7 +863,6 @@ struct iwl_trans_info {
  * @status: a bit-mask of transport status flags
  * @dev: pointer to struct device * that represents the device
  * @info: device information for use by other layers
- * @sku_id: the SKU identifier (for PNVM matching)
  * @pnvm_loaded: indicates PNVM was loaded
  * @pm_support: set to true in start_hw if link pm is supported
  * @ltr_enabled: set to true if the LTR is enabled
@@ -902,7 +901,6 @@ struct iwl_trans {
 	struct device *dev;
 
 	const struct iwl_trans_info info;
-	u32 sku_id[3];
 	bool reduced_cap_sku;
 	bool step_urm;
 

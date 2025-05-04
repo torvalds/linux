@@ -219,7 +219,8 @@ done:
 
 int iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
 				const u8 *data, size_t len,
-				struct iwl_pnvm_image *pnvm_data)
+				struct iwl_pnvm_image *pnvm_data,
+				__le32 sku_id[3])
 {
 	const struct iwl_ucode_tlv *tlv;
 
@@ -241,23 +242,23 @@ int iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
 		}
 
 		if (tlv_type == IWL_UCODE_TLV_PNVM_SKU) {
-			const struct iwl_sku_id *sku_id =
+			const struct iwl_sku_id *tlv_sku_id =
 				(const void *)(data + sizeof(*tlv));
 
 			IWL_DEBUG_FW(trans,
 				     "Got IWL_UCODE_TLV_PNVM_SKU len %d\n",
 				     tlv_len);
 			IWL_DEBUG_FW(trans, "sku_id 0x%0x 0x%0x 0x%0x\n",
-				     le32_to_cpu(sku_id->data[0]),
-				     le32_to_cpu(sku_id->data[1]),
-				     le32_to_cpu(sku_id->data[2]));
+				     le32_to_cpu(tlv_sku_id->data[0]),
+				     le32_to_cpu(tlv_sku_id->data[1]),
+				     le32_to_cpu(tlv_sku_id->data[2]));
 
 			data += sizeof(*tlv) + ALIGN(tlv_len, 4);
 			len -= ALIGN(tlv_len, 4);
 
-			if (trans->sku_id[0] == le32_to_cpu(sku_id->data[0]) &&
-			    trans->sku_id[1] == le32_to_cpu(sku_id->data[1]) &&
-			    trans->sku_id[2] == le32_to_cpu(sku_id->data[2])) {
+			if (sku_id[0] == tlv_sku_id->data[0] &&
+			    sku_id[1] == tlv_sku_id->data[1] &&
+			    sku_id[2] == tlv_sku_id->data[2]) {
 				int ret = iwl_uefi_reduce_power_section(trans,
 								    data, len,
 								    pnvm_data);
