@@ -1388,20 +1388,6 @@ err:
 	return ret;
 }
 
-struct bch_extent_ptr bch2_ob_ptr(struct bch_fs *c, struct open_bucket *ob)
-{
-	struct bch_dev *ca = ob_dev(c, ob);
-
-	return (struct bch_extent_ptr) {
-		.type	= 1 << BCH_EXTENT_ENTRY_ptr,
-		.gen	= ob->gen,
-		.dev	= ob->dev,
-		.offset	= bucket_to_sector(ca, ob->bucket) +
-			ca->mi.bucket_size -
-			ob->sectors_free,
-	};
-}
-
 void bch2_alloc_sectors_append_ptrs(struct bch_fs *c, struct write_point *wp,
 				    struct bkey_i *k, unsigned sectors,
 				    bool cached)

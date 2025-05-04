@@ -3,6 +3,7 @@
 #define _BCACHEFS_ALLOC_FOREGROUND_H
 
 #include "bcachefs.h"
+#include "buckets.h"
 #include "alloc_types.h"
 #include "extents.h"
 #include "io_write_types.h"
@@ -233,7 +234,19 @@ int bch2_alloc_sectors_start_trans(struct btree_trans *,
 				   struct closure *,
 				   struct write_point **);
 
-struct bch_extent_ptr bch2_ob_ptr(struct bch_fs *, struct open_bucket *);
+static inline struct bch_extent_ptr bch2_ob_ptr(struct bch_fs *c, struct open_bucket *ob)
+{
+	struct bch_dev *ca = ob_dev(c, ob);
+
+	return (struct bch_extent_ptr) {
+		.type	= 1 << BCH_EXTENT_ENTRY_ptr,
+		.gen	= ob->gen,
+		.dev	= ob->dev,
+		.offset	= bucket_to_sector(ca, ob->bucket) +
+			ca->mi.bucket_size -
+			ob->sectors_free,
+	};
+}
 
 /*
  * Append pointers to the space we just allocated to @k, and mark @sectors space
