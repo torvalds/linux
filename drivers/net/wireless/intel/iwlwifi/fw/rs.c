@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2022, 2025 Intel Corporation
  */
 
 #include <net/mac80211.h>
@@ -121,7 +121,7 @@ u32 iwl_new_rate_from_v1(u32 rate_v1)
 			rate_v1 & RATE_HT_MCS_RATE_CODE_MSK_V1;
 		nss = (rate_v1 & RATE_HT_MCS_MIMO2_MSK) >>
 			RATE_HT_MCS_NSS_POS_V1;
-		rate_v2 |= nss << RATE_MCS_NSS_POS;
+		rate_v2 |= u32_encode_bits(nss, RATE_MCS_NSS_MSK);
 	} else if (rate_v1 & RATE_MCS_VHT_MSK_V1 ||
 		   rate_v1 & RATE_MCS_HE_MSK_V1) {
 		rate_v2 |= rate_v1 & RATE_VHT_MCS_RATE_CODE_MSK;
@@ -225,8 +225,7 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 	mcs = format == RATE_MCS_HT_MSK ?
 		RATE_HT_MCS_INDEX(rate) :
 		rate & RATE_MCS_CODE_MSK;
-	nss = ((rate & RATE_MCS_NSS_MSK)
-	       >> RATE_MCS_NSS_POS) + 1;
+	nss = u32_get_bits(rate, RATE_MCS_NSS_MSK);
 	sgi = format == RATE_MCS_HE_MSK ?
 		iwl_he_is_sgi(rate) :
 		rate & RATE_MCS_SGI_MSK;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2022, 2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022, 2024-2025 Intel Corporation
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fw_api_rs_h__
@@ -588,11 +588,11 @@ enum {
 /*
  * HT, VHT, HE, EHT rate format for bits 3:0
  * 3-0: MCS
+ * 4: NSS==2 indicator
  *
  */
 #define RATE_HT_MCS_CODE_MSK		0x7
-#define RATE_MCS_NSS_POS		4
-#define RATE_MCS_NSS_MSK		(1 << RATE_MCS_NSS_POS)
+#define RATE_MCS_NSS_MSK		0x10
 #define RATE_MCS_CODE_MSK		0xf
 #define RATE_HT_MCS_INDEX(r)		((((r) & RATE_MCS_NSS_MSK) >> 1) | \
 					 ((r) & RATE_HT_MCS_CODE_MSK))
