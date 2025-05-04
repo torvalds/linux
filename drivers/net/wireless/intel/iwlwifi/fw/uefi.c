@@ -310,11 +310,12 @@ static int iwl_uefi_step_parse(struct uefi_cnv_common_step_data *common_step_dat
 	if (common_step_data->revision != 1)
 		return -EINVAL;
 
-	trans->mbx_addr_0_step = (u32)common_step_data->revision |
+	trans->conf.mbx_addr_0_step =
+		(u32)common_step_data->revision |
 		(u32)common_step_data->cnvi_eq_channel << 8 |
 		(u32)common_step_data->cnvr_eq_channel << 16 |
 		(u32)common_step_data->radio1 << 24;
-	trans->mbx_addr_1_step = (u32)common_step_data->radio2;
+	trans->conf.mbx_addr_1_step = (u32)common_step_data->radio2;
 	return 0;
 }
 

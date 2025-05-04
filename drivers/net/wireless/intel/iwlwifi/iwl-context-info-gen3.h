@@ -341,6 +341,4 @@ iwl_trans_pcie_ctx_info_gen3_load_reduce_power(struct iwl_trans *trans,
 void
 iwl_trans_pcie_ctx_info_gen3_set_reduce_power(struct iwl_trans *trans,
 					      const struct iwl_ucode_capabilities *capa);
-int iwl_trans_pcie_ctx_info_gen3_set_step(struct iwl_trans *trans,
-					  u32 mbx_addr_0_step, u32 mbx_addr_1_step);
 #endif /* __iwl_context_info_file_gen3_h__ */

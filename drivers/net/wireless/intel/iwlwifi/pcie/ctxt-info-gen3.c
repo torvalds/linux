@@ -132,10 +132,10 @@ int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
 		break;
 	}
 
-	if (trans->dsbr_urm_fw_dependent)
+	if (trans->conf.dsbr_urm_fw_dependent)
 		control_flags_ext |= IWL_PRPH_SCRATCH_EXT_URM_FW;
 
-	if (trans->dsbr_urm_permanent)
+	if (trans->conf.dsbr_urm_permanent)
 		control_flags_ext |= IWL_PRPH_SCRATCH_EXT_URM_PERM;
 
 	if (trans->ext_32khz_clock_valid)
@@ -184,8 +184,10 @@ int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
 	prph_sc_ctrl->control.control_flags_ext = cpu_to_le32(control_flags_ext);
 
 	/* initialize the Step equalizer data */
-	prph_sc_ctrl->step_cfg.mbx_addr_0 = cpu_to_le32(trans->mbx_addr_0_step);
-	prph_sc_ctrl->step_cfg.mbx_addr_1 = cpu_to_le32(trans->mbx_addr_1_step);
+	prph_sc_ctrl->step_cfg.mbx_addr_0 =
+		cpu_to_le32(trans->conf.mbx_addr_0_step);
+	prph_sc_ctrl->step_cfg.mbx_addr_1 =
+		cpu_to_le32(trans->conf.mbx_addr_1_step);
 
 	/* allocate ucode sections in dram and set addresses */
 	ret = iwl_pcie_init_fw_sec(trans, img, &prph_scratch->dram.common);

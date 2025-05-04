@@ -256,7 +256,9 @@ static inline void iwl_bios_setup_step(struct iwl_trans *trans,
 	if (iwl_bios_get_dsbr(fwrt, &dsbr))
 		dsbr = 0;
 
-	trans->dsbr_urm_fw_dependent = !!(dsbr & IWL_DSBR_FW_MODIFIED_URM_MASK);
-	trans->dsbr_urm_permanent = !!(dsbr & IWL_DSBR_PERMANENT_URM_MASK);
+	trans->conf.dsbr_urm_fw_dependent =
+		!!(dsbr & IWL_DSBR_FW_MODIFIED_URM_MASK);
+	trans->conf.dsbr_urm_permanent =
+		!!(dsbr & IWL_DSBR_PERMANENT_URM_MASK);
 }
 #endif /* __fw_regulatory_h__ */
