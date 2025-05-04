@@ -681,6 +681,20 @@ int fpu_clone(struct task_struct *dst, unsigned long clone_flags, bool minimal,
 }
 
 /*
+ * While struct fpu is no longer part of struct thread_struct, it is still
+ * allocated after struct task_struct in the "task_struct" kmem cache. But
+ * since FPU is expected to be part of struct thread_struct, we have to
+ * adjust for it here.
+ */
+void fpu_thread_struct_whitelist(unsigned long *offset, unsigned long *size)
+{
+	/* The allocation follows struct task_struct. */
+	*offset = sizeof(struct task_struct) - offsetof(struct task_struct, thread);
+	*offset += offsetof(struct fpu, __fpstate.regs);
+	*size = fpu_kernel_cfg.default_size;
+}
+
+/*
  * Drops current FPU state: deactivates the fpregs and
  * the fpstate. NOTE: it still leaves previous contents
  * in the fpregs in the eager-FPU case.
