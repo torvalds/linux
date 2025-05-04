@@ -3,7 +3,6 @@
 #define DR7_RESET_VALUE        0x400
 
 extern struct ghcb boot_ghcb_page;
-extern struct ghcb *boot_ghcb;
 extern u64 sev_hv_features;
 extern u64 sev_secrets_pa;
 
@@ -59,8 +58,6 @@ DECLARE_PER_CPU(struct sev_es_save_area *, sev_vmsa);
 void early_set_pages_state(unsigned long vaddr, unsigned long paddr,
 			   unsigned long npages, enum psc_op op);
 
-void __noreturn sev_es_terminate(unsigned int set, unsigned int reason);
-
 DECLARE_PER_CPU(struct svsm_ca *, svsm_caa);
 DECLARE_PER_CPU(u64, svsm_caa_pa);
 
@@ -99,11 +96,6 @@ static __always_inline void sev_es_wr_ghcb_msr(u64 val)
 
 	native_wrmsr(MSR_AMD64_SEV_ES_GHCB, low, high);
 }
-
-enum es_result sev_es_ghcb_hv_call(struct ghcb *ghcb,
-				   struct es_em_ctxt *ctxt,
-				   u64 exit_code, u64 exit_info_1,
-				   u64 exit_info_2);
 
 void snp_register_ghcb_early(unsigned long paddr);
 bool sev_es_negotiate_protocol(void);

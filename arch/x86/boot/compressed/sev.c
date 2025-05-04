@@ -24,62 +24,10 @@
 #include <asm/cpuid.h>
 
 #include "error.h"
-#include "../msr.h"
+#include "sev.h"
 
 static struct ghcb boot_ghcb_page __aligned(PAGE_SIZE);
 struct ghcb *boot_ghcb;
-
-/*
- * Only a dummy for insn_get_seg_base() - Early boot-code is 64bit only and
- * doesn't use segments.
- */
-static unsigned long insn_get_seg_base(struct pt_regs *regs, int seg_reg_idx)
-{
-	return 0UL;
-}
-
-static inline u64 sev_es_rd_ghcb_msr(void)
-{
-	struct msr m;
-
-	boot_rdmsr(MSR_AMD64_SEV_ES_GHCB, &m);
-
-	return m.q;
-}
-
-static inline void sev_es_wr_ghcb_msr(u64 val)
-{
-	struct msr m;
-
-	m.q = val;
-	boot_wrmsr(MSR_AMD64_SEV_ES_GHCB, &m);
-}
-
-static enum es_result vc_write_mem(struct es_em_ctxt *ctxt,
-				   void *dst, char *buf, size_t size)
-{
-	memcpy(dst, buf, size);
-
-	return ES_OK;
-}
-
-static enum es_result vc_read_mem(struct es_em_ctxt *ctxt,
-				  void *src, char *buf, size_t size)
-{
-	memcpy(buf, src, size);
-
-	return ES_OK;
-}
-
-static enum es_result vc_ioio_check(struct es_em_ctxt *ctxt, u16 port, size_t size)
-{
-	return ES_OK;
-}
-
-static bool fault_in_kernel_space(unsigned long address)
-{
-	return false;
-}
 
 #undef __init
 #define __init
@@ -182,7 +130,7 @@ void snp_set_page_shared(unsigned long paddr)
 	__page_state_change(paddr, SNP_PAGE_STATE_SHARED);
 }
 
-static bool early_setup_ghcb(void)
+bool early_setup_ghcb(void)
 {
 	if (set_page_decrypted((unsigned long)&boot_ghcb_page))
 		return false;
@@ -264,46 +212,6 @@ bool sev_es_check_ghcb_fault(unsigned long address)
 {
 	/* Check whether the fault was on the GHCB page */
 	return ((address & PAGE_MASK) == (unsigned long)&boot_ghcb_page);
-}
-
-void do_boot_stage2_vc(struct pt_regs *regs, unsigned long exit_code)
-{
-	struct es_em_ctxt ctxt;
-	enum es_result result;
-
-	if (!boot_ghcb && !early_setup_ghcb())
-		sev_es_terminate(SEV_TERM_SET_GEN, GHCB_SEV_ES_GEN_REQ);
-
-	vc_ghcb_invalidate(boot_ghcb);
-	result = vc_init_em_ctxt(&ctxt, regs, exit_code);
-	if (result != ES_OK)
-		goto finish;
-
-	result = vc_check_opcode_bytes(&ctxt, exit_code);
-	if (result != ES_OK)
-		goto finish;
-
-	switch (exit_code) {
-	case SVM_EXIT_RDTSC:
-	case SVM_EXIT_RDTSCP:
-		result = vc_handle_rdtsc(boot_ghcb, &ctxt, exit_code);
-		break;
-	case SVM_EXIT_IOIO:
-		result = vc_handle_ioio(boot_ghcb, &ctxt);
-		break;
-	case SVM_EXIT_CPUID:
-		result = vc_handle_cpuid(boot_ghcb, &ctxt);
-		break;
-	default:
-		result = ES_UNSUPPORTED;
-		break;
-	}
-
-finish:
-	if (result == ES_OK)
-		vc_finish_insn(&ctxt);
-	else if (result != ES_RETRY)
-		sev_es_terminate(SEV_TERM_SET_GEN, GHCB_SEV_ES_GEN_REQ);
 }
 
 /*

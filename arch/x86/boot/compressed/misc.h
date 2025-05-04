@@ -150,6 +150,7 @@ void sev_prep_identity_maps(unsigned long top_level_pgt);
 enum es_result vc_decode_insn(struct es_em_ctxt *ctxt);
 bool insn_has_rep_prefix(struct insn *insn);
 void sev_insn_decode_init(void);
+bool early_setup_ghcb(void);
 #else
 static inline void sev_enable(struct boot_params *bp)
 {
