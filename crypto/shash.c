@@ -479,6 +479,8 @@ static int shash_prepare_alg(struct shash_alg *alg)
 
 	if (alg->descsize > HASH_MAX_DESCSIZE)
 		return -EINVAL;
+	if (alg->statesize > HASH_MAX_STATESIZE)
+		return -EINVAL;
 
 	return 0;
 }
