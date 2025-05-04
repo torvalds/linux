@@ -112,7 +112,7 @@ int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
 	int cmdq_size = max_t(u32, IWL_CMD_QUEUE_SIZE,
 			      trans->cfg->min_txq_size);
 
-	switch (trans_pcie->rx_buf_size) {
+	switch (trans->conf.rx_buf_size) {
 	case IWL_AMSDU_DEF:
 		return -EINVAL;
 	case IWL_AMSDU_2K:
@@ -192,7 +192,6 @@ int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
 	if (ret)
 		goto err_free_prph_scratch;
 
-
 	/* Allocate prph information
 	 * currently we don't assign to the prph info anything, but it would get
 	 * assigned later
@@ -249,7 +248,7 @@ int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
 	ctxt_info_gen3->cr_tail_idx_arr_base_addr =
 		cpu_to_le64(trans_pcie->prph_info_dma_addr + 3 * PAGE_SIZE / 4);
 	ctxt_info_gen3->mtr_base_addr =
-		cpu_to_le64(trans_pcie->txqs.txq[trans_pcie->txqs.cmd.q_id]->dma_addr);
+		cpu_to_le64(trans_pcie->txqs.txq[trans->conf.cmd_queue]->dma_addr);
 	ctxt_info_gen3->mcr_base_addr =
 		cpu_to_le64(trans_pcie->rxq->used_bd_dma);
 	ctxt_info_gen3->mtr_size =

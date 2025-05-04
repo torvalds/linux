@@ -289,20 +289,14 @@ enum iwl_pcie_imr_status {
 /**
  * struct iwl_pcie_txqs - TX queues data
  *
- * @page_offs: offset from skb->cb to mac header page pointer
- * @dev_cmd_offs: offset from skb->cb to iwl_device_tx_cmd pointer
  * @queue_used: bit mask of used queues
  * @queue_stopped: bit mask of stopped queues
  * @txq: array of TXQ data structures representing the TXQs
  * @scd_bc_tbls: gen1 pointer to the byte count table of the scheduler
- * @queue_alloc_cmd_ver: queue allocation command version
  * @bc_pool: bytecount DMA allocations pool
  * @bc_tbl_size: bytecount table size
  * @tso_hdr_page: page allocated (per CPU) for A-MSDU headers when doing TSO
  *	(and similar usage)
- * @cmd: command queue data
- * @cmd.fifo: FIFO number
- * @cmd.q_id: queue ID
  * @tfd: TFD data
  * @tfd.max_tbs: max number of buffers per TFD
  * @tfd.size: TFD size
@@ -314,14 +308,7 @@ struct iwl_pcie_txqs {
 	struct iwl_txq *txq[IWL_MAX_TVQM_QUEUES];
 	struct dma_pool *bc_pool;
 	size_t bc_tbl_size;
-	u8 page_offs;
-	u8 dev_cmd_offs;
 	struct iwl_tso_hdr_page __percpu *tso_hdr_page;
-
-	struct {
-		u8 fifo;
-		u8 q_id;
-	} cmd;
 
 	struct {
 		u8 max_tbs;
@@ -330,8 +317,6 @@ struct iwl_pcie_txqs {
 	} tfd;
 
 	struct iwl_dma_ptr scd_bc_tbls;
-
-	u8 queue_alloc_cmd_ver;
 };
 
 /**
@@ -361,9 +346,6 @@ struct iwl_pcie_txqs {
  * @hw_base: pci hardware address support
  * @ucode_write_complete: indicates that the ucode has been copied.
  * @ucode_write_waitq: wait queue for uCode load
- * @cmd_queue - command queue number
- * @rx_buf_size: Rx buffer size
- * @scd_set_active: should the transport configure the SCD for HCMD queue
  * @rx_page_order: page order for receive buffer size
  * @rx_buf_bytes: RX buffer (RB) size in bytes
  * @reg_lock: protect hw register access
@@ -404,13 +386,9 @@ struct iwl_pcie_txqs {
  * @pcie_dbg_dumped_once: indicates PCIe regs were dumped already
  * @opmode_down: indicates opmode went away
  * @num_rx_bufs: number of RX buffers to allocate/use
- * @no_reclaim_cmds: special commands not using reclaim flow
- *	(firmware workaround)
- * @n_no_reclaim_cmds: number of special commands not using reclaim flow
  * @affinity_mask: IRQ affinity mask for each RX queue
  * @debug_rfkill: RF-kill debugging state, -1 for unset, 0/1 for radio
  *	enable/disable
- * @fw_reset_handshake: indicates FW reset handshake is needed
  * @fw_reset_state: state of FW reset handshake
  * @fw_reset_waitq: waitqueue for FW reset handshake
  * @is_down: indicates the NIC is down
@@ -474,12 +452,8 @@ struct iwl_trans_pcie {
 	wait_queue_head_t ucode_write_waitq;
 	wait_queue_head_t sx_waitq;
 
-	u8 n_no_reclaim_cmds;
-	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
 	u16 num_rx_bufs;
 
-	enum iwl_amsdu_size rx_buf_size;
-	bool scd_set_active;
 	bool pcie_dbg_dumped_once;
 	u32 rx_page_order;
 	u32 rx_buf_bytes;
@@ -514,7 +488,6 @@ struct iwl_trans_pcie {
 	void *base_rb_stts;
 	dma_addr_t base_rb_stts_dma;
 
-	bool fw_reset_handshake;
 	enum iwl_pcie_fw_reset_state fw_reset_state;
 	wait_queue_head_t fw_reset_waitq;
 	enum iwl_pcie_imr_status imr_status;
@@ -1100,8 +1073,7 @@ static inline void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans) { }
 void iwl_pcie_rx_allocator_work(struct work_struct *data);
 
 /* common trans ops for all generations transports */
-void iwl_trans_pcie_configure(struct iwl_trans *trans,
-			      const struct iwl_trans_config *trans_cfg);
+void iwl_trans_pcie_op_mode_enter(struct iwl_trans *trans);
 int iwl_trans_pcie_start_hw(struct iwl_trans *trans);
 void iwl_trans_pcie_op_mode_leave(struct iwl_trans *trans);
 void iwl_trans_pcie_write8(struct iwl_trans *trans, u32 ofs, u8 val);

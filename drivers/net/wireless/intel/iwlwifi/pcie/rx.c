@@ -363,8 +363,8 @@ static struct page *iwl_pcie_rx_alloc_page(struct iwl_trans *trans,
 					   u32 *offset, gfp_t priority)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	unsigned int rbsize = iwl_trans_get_rb_size(trans_pcie->rx_buf_size);
 	unsigned int allocsize = PAGE_SIZE << trans_pcie->rx_page_order;
+	unsigned int rbsize = trans_pcie->rx_buf_bytes;
 	struct page *page;
 	gfp_t gfp_mask = priority;
 
@@ -835,11 +835,10 @@ err:
 
 static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 rb_size;
 	const u32 rfdnlog = RX_QUEUE_SIZE_LOG; /* 256 RBDs */
 
-	switch (trans_pcie->rx_buf_size) {
+	switch (trans->conf.rx_buf_size) {
 	case IWL_AMSDU_4K:
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K;
 		break;
@@ -907,7 +906,7 @@ static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 	u32 rb_size, enabled = 0;
 	int i;
 
-	switch (trans_pcie->rx_buf_size) {
+	switch (trans->conf.rx_buf_size) {
 	case IWL_AMSDU_2K:
 		rb_size = RFH_RXF_DMA_RB_SIZE_2K;
 		break;
@@ -1302,7 +1301,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 				int i)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_txq *txq = trans_pcie->txqs.txq[trans_pcie->txqs.cmd.q_id];
+	struct iwl_txq *txq = trans_pcie->txqs.txq[trans->conf.cmd_queue];
 	bool page_stolen = false;
 	int max_len = trans_pcie->rx_buf_bytes;
 	u32 offset = 0;
@@ -1369,8 +1368,8 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		if (reclaim && !pkt->hdr.group_id) {
 			int i;
 
-			for (i = 0; i < trans_pcie->n_no_reclaim_cmds; i++) {
-				if (trans_pcie->no_reclaim_cmds[i] ==
+			for (i = 0; i < trans->conf.n_no_reclaim_cmds; i++) {
+				if (trans->conf.no_reclaim_cmds[i] ==
 							pkt->hdr.cmd) {
 					reclaim = false;
 					break;

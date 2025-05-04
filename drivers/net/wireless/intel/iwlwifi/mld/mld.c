@@ -327,30 +327,29 @@ iwl_mld_configure_trans(struct iwl_op_mode *op_mode)
 {
 	const struct iwl_mld *mld = IWL_OP_MODE_GET_MLD(op_mode);
 	static const u8 no_reclaim_cmds[] = {TX_CMD};
-	struct iwl_trans_config trans_cfg = {
-		.op_mode = op_mode,
-		/* Rx is not supported yet, but add it to avoid warnings */
-		.rx_buf_size = iwl_amsdu_size_to_rxb_size(),
-		.command_groups = iwl_mld_groups,
-		.command_groups_size = ARRAY_SIZE(iwl_mld_groups),
-		.fw_reset_handshake = true,
-		.queue_alloc_cmd_ver =
-			iwl_fw_lookup_cmd_ver(mld->fw,
-					      WIDE_ID(DATA_PATH_GROUP,
-						      SCD_QUEUE_CONFIG_CMD),
-					      0),
-		.no_reclaim_cmds = no_reclaim_cmds,
-		.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds),
-		.cb_data_offs = offsetof(struct ieee80211_tx_info,
-					 driver_data[2]),
-	};
 	struct iwl_trans *trans = mld->trans;
 
-	trans->rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
-	trans->rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_res_start);
-	trans->wide_cmd_header = true;
+	trans->conf.rx_buf_size = iwl_amsdu_size_to_rxb_size();
+	trans->conf.command_groups = iwl_mld_groups;
+	trans->conf.command_groups_size = ARRAY_SIZE(iwl_mld_groups);
+	trans->conf.fw_reset_handshake = true;
+	trans->conf.queue_alloc_cmd_ver =
+		iwl_fw_lookup_cmd_ver(mld->fw, WIDE_ID(DATA_PATH_GROUP,
+						       SCD_QUEUE_CONFIG_CMD),
+				      0);
+	trans->conf.cb_data_offs = offsetof(struct ieee80211_tx_info,
+					    driver_data[2]);
+	BUILD_BUG_ON(sizeof(no_reclaim_cmds) >
+		     sizeof(trans->conf.no_reclaim_cmds));
+	memcpy(trans->conf.no_reclaim_cmds, no_reclaim_cmds,
+	       sizeof(no_reclaim_cmds));
+	trans->conf.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
 
-	iwl_trans_configure(trans, &trans_cfg);
+	trans->conf.rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
+	trans->conf.rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_res_start);
+	trans->conf.wide_cmd_header = true;
+
+	iwl_trans_op_mode_enter(trans, op_mode);
 }
 
 /*

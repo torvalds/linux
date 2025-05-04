@@ -157,7 +157,7 @@ static void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 		return;
 
 	if (trans->state >= IWL_TRANS_FW_STARTED &&
-	    trans_pcie->fw_reset_handshake) {
+	    trans->conf.fw_reset_handshake) {
 		/*
 		 * Reset handshake can dump firmware on timeout, but that
 		 * should assume that the firmware is already dead.
@@ -270,7 +270,7 @@ static int iwl_pcie_gen2_nic_init(struct iwl_trans *trans)
 		return -ENOMEM;
 
 	/* Allocate or reset and init all Tx and Command queues */
-	if (iwl_txq_gen2_init(trans, trans_pcie->txqs.cmd.q_id, queue_size))
+	if (iwl_txq_gen2_init(trans, trans->conf.cmd_queue, queue_size))
 		return -ENOMEM;
 
 	/* enable shadow regs in HW */

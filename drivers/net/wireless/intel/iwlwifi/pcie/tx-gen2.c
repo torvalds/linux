@@ -18,13 +18,12 @@
 static struct page *get_workaround_page(struct iwl_trans *trans,
 					struct sk_buff *skb)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tso_page_info *info;
 	struct page **page_ptr;
 	struct page *ret;
 	dma_addr_t phys;
 
-	page_ptr = (void *)((u8 *)skb->cb + trans_pcie->txqs.page_offs);
+	page_ptr = (void *)((u8 *)skb->cb + trans->conf.cb_data_offs);
 
 	ret = alloc_page(GFP_ATOMIC);
 	if (!ret)
@@ -751,7 +750,8 @@ int iwl_txq_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			struct iwl_device_tx_cmd **dev_cmd_ptr;
 
 			dev_cmd_ptr = (void *)((u8 *)skb->cb +
-					       trans_pcie->txqs.dev_cmd_offs);
+					       trans->conf.cb_data_offs +
+					       sizeof(void *));
 
 			*dev_cmd_ptr = dev_cmd;
 			__skb_queue_tail(&txq->overflow_q, skb);
@@ -827,7 +827,7 @@ static void iwl_txq_gen2_unmap(struct iwl_trans *trans, int txq_id)
 		IWL_DEBUG_TX_REPLY(trans, "Q %d Free %d\n",
 				   txq_id, txq->read_ptr);
 
-		if (txq_id != trans_pcie->txqs.cmd.q_id) {
+		if (txq_id != trans->conf.cmd_queue) {
 			int idx = iwl_txq_get_cmd_index(txq, txq->read_ptr);
 			struct iwl_cmd_meta *cmd_meta = &txq->entries[idx].meta;
 			struct sk_buff *skb = txq->entries[idx].skb;
@@ -901,7 +901,7 @@ static void iwl_txq_gen2_free(struct iwl_trans *trans, int txq_id)
 	iwl_txq_gen2_unmap(trans, txq_id);
 
 	/* De-alloc array of command/tx buffers */
-	if (txq_id == trans_pcie->txqs.cmd.q_id)
+	if (txq_id == trans->conf.cmd_queue)
 		for (i = 0; i < txq->n_window; i++) {
 			kfree_sensitive(txq->entries[i].cmd);
 			kfree_sensitive(txq->entries[i].free_buf);
@@ -1059,7 +1059,7 @@ int iwl_txq_dyn_alloc(struct iwl_trans *trans, u32 flags, u32 sta_mask,
 	if (IS_ERR(txq))
 		return PTR_ERR(txq);
 
-	if (trans_pcie->txqs.queue_alloc_cmd_ver == 0) {
+	if (trans->conf.queue_alloc_cmd_ver == 0) {
 		memset(&cmd.old, 0, sizeof(cmd.old));
 		cmd.old.tfdq_addr = cpu_to_le64(txq->dma_addr);
 		cmd.old.byte_cnt_addr = cpu_to_le64(txq->bc_tbl.dma);
@@ -1076,7 +1076,7 @@ int iwl_txq_dyn_alloc(struct iwl_trans *trans, u32 flags, u32 sta_mask,
 		hcmd.id = SCD_QUEUE_CFG;
 		hcmd.len[0] = sizeof(cmd.old);
 		hcmd.data[0] = &cmd.old;
-	} else if (trans_pcie->txqs.queue_alloc_cmd_ver == 3) {
+	} else if (trans->conf.queue_alloc_cmd_ver == 3) {
 		memset(&cmd.new, 0, sizeof(cmd.new));
 		cmd.new.operation = cpu_to_le32(IWL_SCD_QUEUE_ADD);
 		cmd.new.u.add.tfdq_dram_addr = cpu_to_le64(txq->dma_addr);
@@ -1171,7 +1171,7 @@ int iwl_txq_gen2_init(struct iwl_trans *trans, int txq_id, int queue_size)
 	}
 
 	ret = iwl_txq_init(trans, queue, queue_size,
-			   (txq_id == trans_pcie->txqs.cmd.q_id));
+			   (txq_id == trans->conf.cmd_queue));
 	if (ret) {
 		IWL_ERR(trans, "Tx %d queue alloc failed\n", txq_id);
 		goto error;
@@ -1201,7 +1201,7 @@ int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 			       struct iwl_host_cmd *cmd)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_txq *txq = trans_pcie->txqs.txq[trans_pcie->txqs.cmd.q_id];
+	struct iwl_txq *txq = trans_pcie->txqs.txq[trans->conf.cmd_queue];
 	struct iwl_device_cmd *out_cmd;
 	struct iwl_cmd_meta *out_meta;
 	void *dup_buf = NULL;
@@ -1318,7 +1318,7 @@ int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 		cpu_to_le16(cmd_size - sizeof(struct iwl_cmd_header_wide));
 	out_cmd->hdr_wide.reserved = 0;
 	out_cmd->hdr_wide.sequence =
-		cpu_to_le16(QUEUE_TO_SEQ(trans_pcie->txqs.cmd.q_id) |
+		cpu_to_le16(QUEUE_TO_SEQ(trans->conf.cmd_queue) |
 					 INDEX_TO_SEQ(txq->write_ptr));
 
 	cmd_pos = sizeof(struct iwl_cmd_header_wide);
@@ -1366,7 +1366,7 @@ int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 		     "Sending command %s (%.2x.%.2x), seq: 0x%04X, %d bytes at %d[%d]:%d\n",
 		     iwl_get_cmd_string(trans, cmd->id), group_id,
 		     out_cmd->hdr.cmd, le16_to_cpu(out_cmd->hdr.sequence),
-		     cmd_size, txq->write_ptr, idx, trans_pcie->txqs.cmd.q_id);
+		     cmd_size, txq->write_ptr, idx, trans->conf.cmd_queue);
 
 	/* start the TFD with the minimum copy bytes */
 	tb0_size = min_t(int, copy_size, IWL_FIRST_TB_SIZE);

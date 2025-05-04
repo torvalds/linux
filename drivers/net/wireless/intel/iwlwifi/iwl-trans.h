@@ -390,7 +390,8 @@ struct iwl_dump_sanitize_ops {
 /**
  * struct iwl_trans_config - transport configuration
  *
- * @op_mode: pointer to the upper layer.
+ * These values should be set before iwl_trans_op_mode_enter().
+ *
  * @cmd_queue: the index of the command queue.
  *	Must be set before start_fw.
  * @cmd_fifo: the fifo for host commands
@@ -411,14 +412,17 @@ struct iwl_dump_sanitize_ops {
  * @queue_alloc_cmd_ver: queue allocation command version, set to 0
  *	for using the older SCD_QUEUE_CFG, set to the version of
  *	SCD_QUEUE_CONFIG_CMD otherwise.
+ * @wide_cmd_header: true when ucode supports wide command header format
+ * @rx_mpdu_cmd: MPDU RX command ID, must be assigned by opmode before
+ *	starting the firmware, used for tracing
+ * @rx_mpdu_cmd_hdr_size: used for tracing, amount of data before the
+ *	start of the 802.11 header in the @rx_mpdu_cmd
  */
 struct iwl_trans_config {
-	struct iwl_op_mode *op_mode;
-
 	u8 cmd_queue;
 	u8 cmd_fifo;
-	const u8 *no_reclaim_cmds;
-	unsigned int n_no_reclaim_cmds;
+	u8 n_no_reclaim_cmds;
+	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
 
 	enum iwl_amsdu_size rx_buf_size;
 	bool scd_set_active;
@@ -428,6 +432,9 @@ struct iwl_trans_config {
 	u8 cb_data_offs;
 	bool fw_reset_handshake;
 	u8 queue_alloc_cmd_ver;
+
+	bool wide_cmd_header;
+	u8 rx_mpdu_cmd, rx_mpdu_cmd_hdr_size;
 };
 
 struct iwl_trans_dump_data {
@@ -839,6 +846,7 @@ struct iwl_trans_info {
  * @trans_cfg: the trans-specific configuration part
  * @cfg: pointer to the configuration
  * @drv: pointer to iwl_drv
+ * @conf: configuration set by the opmode before enter
  * @state: current device state
  * @status: a bit-mask of transport status flags
  * @dev: pointer to struct device * that represents the device
@@ -850,18 +858,11 @@ struct iwl_trans_info {
  * @fail_to_parse_pnvm_image: set to true if pnvm parsing failed
  * @reduce_power_loaded: indicates reduced power section was loaded
  * @failed_to_load_reduce_power_image: set to true if pnvm loading failed
- * @command_groups: pointer to command group name list array
- * @command_groups_size: array size of @command_groups
- * @wide_cmd_header: true when ucode supports wide command header format
  * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
  *	The user should use iwl_trans_{alloc,free}_tx_cmd.
  * @dev_cmd_pool_name: name for the TX command allocation pool
  * @dbgfs_dir: iwlwifi debugfs base dir for this device
  * @sync_cmd_lockdep_map: lockdep map for checking sync commands
- * @rx_mpdu_cmd: MPDU RX command ID, must be assigned by opmode before
- *	starting the firmware, used for tracing
- * @rx_mpdu_cmd_hdr_size: used for tracing, amount of data before the
- *	start of the 802.11 header in the @rx_mpdu_cmd
  * @dbg: additional debug data, see &struct iwl_trans_debug
  * @init_dram: FW initialization DMA data
  * @mbx_addr_0_step: step address data 0
@@ -887,6 +888,7 @@ struct iwl_trans {
 	const struct iwl_cfg_trans_params *trans_cfg;
 	const struct iwl_cfg *cfg;
 	struct iwl_drv *drv;
+	struct iwl_trans_config conf;
 	enum iwl_trans_state state;
 	unsigned long status;
 
@@ -902,18 +904,12 @@ struct iwl_trans {
 
 	bool ext_32khz_clock_valid;
 
-	u8 rx_mpdu_cmd, rx_mpdu_cmd_hdr_size;
-
 	bool pm_support;
 	bool ltr_enabled;
 	u8 pnvm_loaded:1;
 	u8 fail_to_parse_pnvm_image:1;
 	u8 reduce_power_loaded:1;
 	u8 failed_to_load_reduce_power_image:1;
-
-	const struct iwl_hcmd_arr *command_groups;
-	int command_groups_size;
-	bool wide_cmd_header;
 
 	/* The following fields are internal only */
 	struct kmem_cache *dev_cmd_pool;
@@ -947,8 +943,8 @@ struct iwl_trans {
 
 const char *iwl_get_cmd_string(struct iwl_trans *trans, u32 id);
 
-void iwl_trans_configure(struct iwl_trans *trans,
-			 const struct iwl_trans_config *trans_cfg);
+void iwl_trans_op_mode_enter(struct iwl_trans *trans,
+			     struct iwl_op_mode *op_mode);
 
 int iwl_trans_start_hw(struct iwl_trans *trans);
 

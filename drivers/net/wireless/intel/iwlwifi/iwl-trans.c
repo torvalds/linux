@@ -343,7 +343,7 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	if (!(cmd->flags & CMD_ASYNC))
 		lock_map_acquire_read(&trans->sync_cmd_lockdep_map);
 
-	if (trans->wide_cmd_header && !iwl_cmd_groupid(cmd->id)) {
+	if (trans->conf.wide_cmd_header && !iwl_cmd_groupid(cmd->id)) {
 		if (cmd->id != REPLY_ERROR)
 			cmd->id = DEF_ID(cmd->id);
 	}
@@ -387,11 +387,12 @@ const char *iwl_get_cmd_string(struct iwl_trans *trans, u32 id)
 	grp = iwl_cmd_groupid(id);
 	cmd = iwl_cmd_opcode(id);
 
-	if (!trans->command_groups || grp >= trans->command_groups_size ||
-	    !trans->command_groups[grp].arr)
+	if (!trans->conf.command_groups ||
+	    grp >= trans->conf.command_groups_size ||
+	    !trans->conf.command_groups[grp].arr)
 		return "UNKNOWN";
 
-	arr = &trans->command_groups[grp];
+	arr = &trans->conf.command_groups[grp];
 	ret = bsearch(&cmd, arr->arr, arr->size, size, iwl_hcmd_names_cmp);
 	if (!ret)
 		return "UNKNOWN";
@@ -399,14 +400,20 @@ const char *iwl_get_cmd_string(struct iwl_trans *trans, u32 id)
 }
 IWL_EXPORT_SYMBOL(iwl_get_cmd_string);
 
-void iwl_trans_configure(struct iwl_trans *trans,
-			 const struct iwl_trans_config *trans_cfg)
+void iwl_trans_op_mode_enter(struct iwl_trans *trans,
+			     struct iwl_op_mode *op_mode)
 {
-	trans->op_mode = trans_cfg->op_mode;
+	trans->op_mode = op_mode;
 
-	iwl_trans_pcie_configure(trans, trans_cfg);
+	if (WARN_ON(trans->conf.n_no_reclaim_cmds > MAX_NO_RECLAIM_CMDS))
+		trans->conf.n_no_reclaim_cmds =
+			ARRAY_SIZE(trans->conf.no_reclaim_cmds);
+
+	WARN_ON_ONCE(!trans->conf.rx_mpdu_cmd);
+
+	iwl_trans_pcie_op_mode_enter(trans);
 }
-IWL_EXPORT_SYMBOL(iwl_trans_configure);
+IWL_EXPORT_SYMBOL(iwl_trans_op_mode_enter);
 
 int iwl_trans_start_hw(struct iwl_trans *trans)
 {
@@ -429,6 +436,7 @@ void iwl_trans_op_mode_leave(struct iwl_trans *trans)
 	cancel_work_sync(&trans->restart.wk);
 
 	trans->op_mode = NULL;
+	memset(&trans->conf, 0, sizeof(trans->conf));
 
 	trans->state = IWL_TRANS_NO_FW;
 }
@@ -600,8 +608,6 @@ int iwl_trans_start_fw(struct iwl_trans *trans, const struct iwl_fw *fw,
 	int ret;
 
 	might_sleep();
-
-	WARN_ON_ONCE(!trans->rx_mpdu_cmd);
 
 	img = iwl_get_ucode_image(fw, ucode_type);
 	if (!img)

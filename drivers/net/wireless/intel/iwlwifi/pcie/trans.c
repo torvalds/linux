@@ -1966,44 +1966,17 @@ void iwl_trans_pcie_write_prph(struct iwl_trans *trans, u32 addr, u32 val)
 	iwl_trans_pcie_write32(trans, HBUS_TARG_PRPH_WDAT, val);
 }
 
-void iwl_trans_pcie_configure(struct iwl_trans *trans,
-			      const struct iwl_trans_config *trans_cfg)
+void iwl_trans_pcie_op_mode_enter(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	/* free all first - we might be reconfigured for a different size */
 	iwl_pcie_free_rbs_pool(trans);
 
-	trans_pcie->txqs.cmd.q_id = trans_cfg->cmd_queue;
-	trans_pcie->txqs.cmd.fifo = trans_cfg->cmd_fifo;
-	trans_pcie->txqs.page_offs = trans_cfg->cb_data_offs;
-	trans_pcie->txqs.dev_cmd_offs = trans_cfg->cb_data_offs + sizeof(void *);
-	trans_pcie->txqs.queue_alloc_cmd_ver = trans_cfg->queue_alloc_cmd_ver;
-
-	if (WARN_ON(trans_cfg->n_no_reclaim_cmds > MAX_NO_RECLAIM_CMDS))
-		trans_pcie->n_no_reclaim_cmds = 0;
-	else
-		trans_pcie->n_no_reclaim_cmds = trans_cfg->n_no_reclaim_cmds;
-	if (trans_pcie->n_no_reclaim_cmds)
-		memcpy(trans_pcie->no_reclaim_cmds, trans_cfg->no_reclaim_cmds,
-		       trans_pcie->n_no_reclaim_cmds * sizeof(u8));
-
-	trans_pcie->rx_buf_size = trans_cfg->rx_buf_size;
 	trans_pcie->rx_page_order =
-		iwl_trans_get_rb_size_order(trans_pcie->rx_buf_size);
+		iwl_trans_get_rb_size_order(trans->conf.rx_buf_size);
 	trans_pcie->rx_buf_bytes =
-		iwl_trans_get_rb_size(trans_pcie->rx_buf_size);
-	trans_pcie->supported_dma_mask = DMA_BIT_MASK(12);
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
-		trans_pcie->supported_dma_mask = DMA_BIT_MASK(11);
-
-	trans_pcie->scd_set_active = trans_cfg->scd_set_active;
-
-	trans->command_groups = trans_cfg->command_groups;
-	trans->command_groups_size = trans_cfg->command_groups_size;
-
-
-	trans_pcie->fw_reset_handshake = trans_cfg->fw_reset_handshake;
+		iwl_trans_get_rb_size(trans->conf.rx_buf_size);
 }
 
 void iwl_trans_pcie_free_pnvm_dram_regions(struct iwl_dram_regions *dram_regions,
@@ -2702,7 +2675,7 @@ int iwl_trans_pcie_wait_txqs_empty(struct iwl_trans *trans, u32 txq_bm)
 	     cnt < trans->trans_cfg->base_params->num_of_queues;
 	     cnt++) {
 
-		if (cnt == trans_pcie->txqs.cmd.q_id)
+		if (cnt == trans->conf.cmd_queue)
 			continue;
 		if (!test_bit(cnt, trans_pcie->txqs.queue_used))
 			continue;
@@ -2893,7 +2866,7 @@ static int iwl_dbgfs_tx_queue_seq_show(struct seq_file *seq, void *v)
 	else
 		seq_puts(seq, "(unallocated)");
 
-	if (state->pos == trans_pcie->txqs.cmd.q_id)
+	if (state->pos == trans->conf.cmd_queue)
 		seq_puts(seq, " (HCMD)");
 	seq_puts(seq, "\n");
 
@@ -3632,7 +3605,7 @@ iwl_trans_pcie_dump_data(struct iwl_trans *trans, u32 dump_mask,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_fw_error_dump_data *data;
-	struct iwl_txq *cmdq = trans_pcie->txqs.txq[trans_pcie->txqs.cmd.q_id];
+	struct iwl_txq *cmdq = trans_pcie->txqs.txq[trans->conf.cmd_queue];
 	struct iwl_fw_error_dump_txcmd *txcmd;
 	struct iwl_trans_dump_data *dump_data;
 	u32 len, num_rbs = 0, monitor_len = 0;
@@ -3846,6 +3819,10 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		trans_pcie->txqs.tfd.max_tbs = IWL_NUM_OF_TBS;
 		trans_pcie->txqs.tfd.size = sizeof(struct iwl_tfd);
 	}
+
+	trans_pcie->supported_dma_mask = (u32)DMA_BIT_MASK(12);
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+		trans_pcie->supported_dma_mask = (u32)DMA_BIT_MASK(11);
 
 	info->max_skb_frags = IWL_TRANS_PCIE_MAX_FRAGS(trans_pcie);
 

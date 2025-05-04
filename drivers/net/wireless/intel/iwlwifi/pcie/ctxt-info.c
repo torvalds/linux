@@ -184,7 +184,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 	/* size is in DWs */
 	ctxt_info->version.size = cpu_to_le16(sizeof(*ctxt_info) / 4);
 
-	switch (trans_pcie->rx_buf_size) {
+	switch (trans->conf.rx_buf_size) {
 	case IWL_AMSDU_2K:
 		rb_size = IWL_CTXT_INFO_RB_SIZE_2K;
 		break;
@@ -218,7 +218,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 
 	/* initialize TX command queue */
 	ctxt_info->hcmd_cfg.cmd_queue_addr =
-		cpu_to_le64(trans_pcie->txqs.txq[trans_pcie->txqs.cmd.q_id]->dma_addr);
+		cpu_to_le64(trans_pcie->txqs.txq[trans->conf.cmd_queue]->dma_addr);
 	ctxt_info->hcmd_cfg.cmd_queue_size =
 		TFD_QUEUE_CB_SIZE(IWL_CMD_QUEUE_SIZE);
 

@@ -1233,7 +1233,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	struct iwl_op_mode *op_mode;
 	u16 num_mac;
 	u32 ucode_flags;
-	struct iwl_trans_config trans_cfg = {};
 	static const u8 no_reclaim_cmds[] = {
 		REPLY_RX_PHY_CMD,
 		REPLY_RX_MPDU_CMD,
@@ -1310,31 +1309,32 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 * Populate the state variables that the transport layer needs
 	 * to know about.
 	 */
-	trans_cfg.op_mode = op_mode;
-	trans_cfg.no_reclaim_cmds = no_reclaim_cmds;
-	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
+	BUILD_BUG_ON(sizeof(no_reclaim_cmds) >
+		     sizeof(trans->conf.no_reclaim_cmds));
+	memcpy(trans->conf.no_reclaim_cmds, no_reclaim_cmds,
+	       sizeof(no_reclaim_cmds));
 
 	switch (iwlwifi_mod_params.amsdu_size) {
 	case IWL_AMSDU_DEF:
 	case IWL_AMSDU_4K:
-		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
+		trans->conf.rx_buf_size = IWL_AMSDU_4K;
 		break;
 	case IWL_AMSDU_8K:
-		trans_cfg.rx_buf_size = IWL_AMSDU_8K;
+		trans->conf.rx_buf_size = IWL_AMSDU_8K;
 		break;
 	case IWL_AMSDU_12K:
 	default:
-		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
+		trans->conf.rx_buf_size = IWL_AMSDU_4K;
 		pr_err("Unsupported amsdu_size: %d\n",
 		       iwlwifi_mod_params.amsdu_size);
 	}
 
-	trans_cfg.command_groups = iwl_dvm_groups;
-	trans_cfg.command_groups_size = ARRAY_SIZE(iwl_dvm_groups);
+	trans->conf.command_groups = iwl_dvm_groups;
+	trans->conf.command_groups_size = ARRAY_SIZE(iwl_dvm_groups);
 
-	trans_cfg.cmd_fifo = IWLAGN_CMD_FIFO_NUM;
-	trans_cfg.cb_data_offs = offsetof(struct ieee80211_tx_info,
-					  driver_data[2]);
+	trans->conf.cmd_fifo = IWLAGN_CMD_FIFO_NUM;
+	trans->conf.cb_data_offs = offsetof(struct ieee80211_tx_info,
+					    driver_data[2]);
 
 	WARN_ON(sizeof(priv->transport_queue_stop) * BITS_PER_BYTE <
 		priv->trans->trans_cfg->base_params->num_of_queues);
@@ -1343,19 +1343,16 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 
 	if (ucode_flags & IWL_UCODE_TLV_FLAGS_PAN) {
 		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
-		trans_cfg.cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
+		trans->conf.cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
 	} else {
 		priv->sta_key_max_num = STA_KEY_MAX_NUM;
-		trans_cfg.cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
+		trans->conf.cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
 	}
 
-	/* Configure transport layer */
-	iwl_trans_configure(priv->trans, &trans_cfg);
+	trans->conf.rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
+	trans->conf.rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_res_start);
 
-	trans->rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
-	trans->rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_res_start);
-	trans->command_groups = trans_cfg.command_groups;
-	trans->command_groups_size = trans_cfg.command_groups_size;
+	iwl_trans_op_mode_enter(priv->trans, op_mode);
 
 	/* At this point both hw and priv are allocated. */
 
@@ -1438,10 +1435,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		 * packaging bug or due to the eeprom check above
 		 */
 		priv->sta_key_max_num = STA_KEY_MAX_NUM;
-		trans_cfg.cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
-
-		/* Configure transport layer again*/
-		iwl_trans_configure(priv->trans, &trans_cfg);
+		trans->conf.cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
 	}
 
 	/*******************
