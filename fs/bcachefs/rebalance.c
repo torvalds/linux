@@ -80,11 +80,13 @@ static inline unsigned bch2_bkey_ptrs_need_move(struct bch_fs *c,
 	unsigned ptr_bit = 1;
 	unsigned rewrite_ptrs = 0;
 
+	rcu_read_lock();
 	bkey_for_each_ptr(ptrs, ptr) {
 		if (!ptr->cached && !bch2_dev_in_target(c, ptr->dev, opts->background_target))
 			rewrite_ptrs |= ptr_bit;
 		ptr_bit <<= 1;
 	}
+	rcu_read_unlock();
 
 	return rewrite_ptrs;
 }
@@ -132,10 +134,14 @@ u64 bch2_bkey_sectors_need_rebalance(struct bch_fs *c, struct bkey_s_c k)
 		}
 	}
 incompressible:
-	if (opts->background_target)
+	if (opts->background_target) {
+		rcu_read_lock();
 		bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
-			if (!p.ptr.cached && !bch2_dev_in_target(c, p.ptr.dev, opts->background_target))
+			if (!p.ptr.cached &&
+			    !bch2_dev_in_target(c, p.ptr.dev, opts->background_target))
 				sectors += p.crc.compressed_size;
+		rcu_read_unlock();
+	}
 
 	return sectors;
 }

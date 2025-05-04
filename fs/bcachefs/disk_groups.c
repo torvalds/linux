@@ -212,17 +212,13 @@ bool bch2_dev_in_target(struct bch_fs *c, unsigned dev, unsigned target)
 	case TARGET_DEV:
 		return dev == t.dev;
 	case TARGET_GROUP: {
-		rcu_read_lock();
 		struct bch_disk_groups_cpu *g = rcu_dereference(c->disk_groups);
 		const struct bch_devs_mask *m =
 			g && t.group < g->nr && !g->entries[t.group].deleted
 			? &g->entries[t.group].devs
 			: NULL;
 
-		bool ret = m ? test_bit(dev, m->d) : false;
-		rcu_read_unlock();
-
-		return ret;
+		return m ? test_bit(dev, m->d) : false;
 	}
 	default:
 		BUG();
