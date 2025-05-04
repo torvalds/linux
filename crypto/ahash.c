@@ -698,6 +698,16 @@ static int ahash_def_finup(struct ahash_request *req)
 	return ahash_def_finup_finish1(req, err);
 }
 
+int crypto_ahash_export_core(struct ahash_request *req, void *out)
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+
+	if (likely(tfm->using_shash))
+		return crypto_shash_export_core(ahash_request_ctx(req), out);
+	return crypto_ahash_alg(tfm)->export(req, out);
+}
+EXPORT_SYMBOL_GPL(crypto_ahash_export_core);
+
 int crypto_ahash_export(struct ahash_request *req, void *out)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
@@ -708,6 +718,19 @@ int crypto_ahash_export(struct ahash_request *req, void *out)
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_export);
 
+int crypto_ahash_import_core(struct ahash_request *req, const void *in)
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+
+	if (likely(tfm->using_shash))
+		return crypto_shash_import_core(prepare_shash_desc(req, tfm),
+						in);
+	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
+		return -ENOKEY;
+	return crypto_ahash_alg(tfm)->import(req, in);
+}
+EXPORT_SYMBOL_GPL(crypto_ahash_import_core);
+
 int crypto_ahash_import(struct ahash_request *req, const void *in)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
@@ -716,7 +739,7 @@ int crypto_ahash_import(struct ahash_request *req, const void *in)
 		return crypto_shash_import(prepare_shash_desc(req, tfm), in);
 	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		return -ENOKEY;
-	return crypto_ahash_alg(tfm)->import(req, in);
+	return crypto_ahash_import_core(req, in);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_import);
 

@@ -507,6 +507,18 @@ int crypto_ahash_digest(struct ahash_request *req);
 int crypto_ahash_export(struct ahash_request *req, void *out);
 
 /**
+ * crypto_ahash_export_core() - extract core state for message digest
+ * @req: reference to the ahash_request handle whose state is exported
+ * @out: output buffer of sufficient size that can hold the hash state
+ *
+ * Export the hash state without the partial block buffer.
+ *
+ * Context: Softirq or process context.
+ * Return: 0 if the export creation was successful; < 0 if an error occurred
+ */
+int crypto_ahash_export_core(struct ahash_request *req, void *out);
+
+/**
  * crypto_ahash_import() - import message digest state
  * @req: reference to ahash_request handle the state is imported into
  * @in: buffer holding the state
@@ -518,6 +530,18 @@ int crypto_ahash_export(struct ahash_request *req, void *out);
  * Return: 0 if the import was successful; < 0 if an error occurred
  */
 int crypto_ahash_import(struct ahash_request *req, const void *in);
+
+/**
+ * crypto_ahash_import_core() - import core state
+ * @req: reference to ahash_request handle the state is imported into
+ * @in: buffer holding the state
+ *
+ * Import the hash state without the partial block buffer.
+ *
+ * Context: Softirq or process context.
+ * Return: 0 if the import was successful; < 0 if an error occurred
+ */
+int crypto_ahash_import_core(struct ahash_request *req, const void *in);
 
 /**
  * crypto_ahash_init() - (re)initialize message digest handle
