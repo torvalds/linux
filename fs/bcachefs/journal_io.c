@@ -19,6 +19,7 @@
 
 #include <linux/ioprio.h>
 #include <linux/string_choices.h>
+#include <linux/sched/sysctl.h>
 
 void bch2_journal_pos_from_member_info_set(struct bch_fs *c)
 {
@@ -1262,7 +1263,8 @@ int bch2_journal_read(struct bch_fs *c,
 			degraded = true;
 	}
 
-	closure_sync(&jlist.cl);
+	while (closure_sync_timeout(&jlist.cl, sysctl_hung_task_timeout_secs * HZ / 2))
+		;
 
 	if (jlist.ret)
 		return jlist.ret;
