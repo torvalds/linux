@@ -18,10 +18,6 @@
 
 #include "realtek.h"
 
-#define RTL821x_PHYSR				0x11
-#define RTL821x_PHYSR_DUPLEX			BIT(13)
-#define RTL821x_PHYSR_SPEED			GENMASK(15, 14)
-
 #define RTL821x_INER				0x12
 #define RTL8211B_INER_INIT			0x6400
 #define RTL8211E_INER_LINK_STATUS		BIT(10)
