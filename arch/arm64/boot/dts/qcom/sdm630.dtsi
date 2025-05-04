@@ -509,6 +509,12 @@
 			reg = <0x0 0xfed00000 0x0 0xa00000>;
 			no-map;
 		};
+
+		mdata_mem: mpss-metadata {
+			alloc-ranges = <0x0 0xa0000000 0x0 0x20000000>;
+			size = <0x0 0x4000>;
+			no-map;
+		};
 	};
 
 	smem: smem {
@@ -1056,7 +1062,7 @@
 					<&rpmpd SDM660_VDDMX>;
 			power-domain-names = "cx", "mx";
 
-			memory-region = <&mba_region>, <&mpss_region>;
+			memory-region = <&mba_region>, <&mpss_region>, <&mdata_mem>;
 
 			status = "disabled";
 
