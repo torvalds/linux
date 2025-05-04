@@ -12,7 +12,7 @@
 #define IWL_DR_UCODE_API_MAX	99
 
 /* Lowest firmware API version supported */
-#define IWL_DR_UCODE_API_MIN	96
+#define IWL_DR_UCODE_API_MIN	97
 
 /* NVM versions */
 #define IWL_DR_NVM_VERSION		0x0a1d
