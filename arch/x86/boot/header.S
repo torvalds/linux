@@ -43,7 +43,7 @@ SYSSEG		= 0x1000		/* historical load address >> 4 */
 	.section ".bstext", "ax"
 #ifdef CONFIG_EFI_STUB
 	# "MZ", MS-DOS header
-	.word	MZ_MAGIC
+	.word	IMAGE_DOS_SIGNATURE
 	.org	0x38
 	#
 	# Offset to the PE header.
@@ -51,16 +51,16 @@ SYSSEG		= 0x1000		/* historical load address >> 4 */
 	.long	LINUX_PE_MAGIC
 	.long	pe_header
 pe_header:
-	.long	PE_MAGIC
+	.long	IMAGE_NT_SIGNATURE
 
 coff_header:
 #ifdef CONFIG_X86_32
 	.set	image_file_add_flags, IMAGE_FILE_32BIT_MACHINE
-	.set	pe_opt_magic, PE_OPT_MAGIC_PE32
+	.set	pe_opt_magic, IMAGE_NT_OPTIONAL_HDR32_MAGIC
 	.word	IMAGE_FILE_MACHINE_I386
 #else
 	.set	image_file_add_flags, 0
-	.set	pe_opt_magic, PE_OPT_MAGIC_PE32PLUS
+	.set	pe_opt_magic, IMAGE_NT_OPTIONAL_HDR64_MAGIC
 	.word	IMAGE_FILE_MACHINE_AMD64
 #endif
 	.word	section_count			# nr_sections
@@ -111,7 +111,7 @@ extra_header_fields:
 	.long	salign				# SizeOfHeaders
 	.long	0				# CheckSum
 	.word	IMAGE_SUBSYSTEM_EFI_APPLICATION	# Subsystem (EFI application)
-	.word	IMAGE_DLL_CHARACTERISTICS_NX_COMPAT	# DllCharacteristics
+	.word	IMAGE_DLLCHARACTERISTICS_NX_COMPAT	# DllCharacteristics
 #ifdef CONFIG_X86_32
 	.long	0				# SizeOfStackReserve
 	.long	0				# SizeOfStackCommit

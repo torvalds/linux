@@ -9,7 +9,7 @@
 #include <asm/set_memory.h>
 
 	.macro	__EFI_PE_HEADER
-	.long	PE_MAGIC
+	.long	IMAGE_NT_SIGNATURE
 coff_header:
 #ifdef CONFIG_64BIT
 	.short	IMAGE_FILE_MACHINE_RISCV64		// Machine
@@ -27,9 +27,9 @@ coff_header:
 
 optional_header:
 #ifdef CONFIG_64BIT
-	.short	PE_OPT_MAGIC_PE32PLUS			// PE32+ format
+	.short	IMAGE_NT_OPTIONAL_HDR64_MAGIC		// PE32+ format
 #else
-	.short	PE_OPT_MAGIC_PE32			// PE32 format
+	.short	IMAGE_NT_OPTIONAL_HDR32_MAGIC		// PE32 format
 #endif
 	.byte	0x02					// MajorLinkerVersion
 	.byte	0x14					// MinorLinkerVersion
@@ -64,7 +64,7 @@ extra_header_fields:
 	.long	efi_header_end - _start			// SizeOfHeaders
 	.long	0					// CheckSum
 	.short	IMAGE_SUBSYSTEM_EFI_APPLICATION		// Subsystem
-	.short	IMAGE_DLL_CHARACTERISTICS_NX_COMPAT	// DllCharacteristics
+	.short	IMAGE_DLLCHARACTERISTICS_NX_COMPAT	// DllCharacteristics
 	.quad	0					// SizeOfStackReserve
 	.quad	0					// SizeOfStackCommit
 	.quad	0					// SizeOfHeapReserve
