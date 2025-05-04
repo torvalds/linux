@@ -450,6 +450,7 @@ static int shash_prepare_alg(struct shash_alg *alg)
 
 	base->cra_type = &crypto_shash_type;
 	base->cra_flags |= CRYPTO_ALG_TYPE_SHASH;
+	base->cra_flags |= CRYPTO_ALG_REQ_VIRT;
 
 	/*
 	 * Handle missing optional functions.  For each one we can either
