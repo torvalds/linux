@@ -425,47 +425,40 @@ static u32 iwl_mld_get_inject_tx_rate(struct iwl_mld *mld,
 	struct ieee80211_tx_rate *rate = &info->control.rates[0];
 	u32 result;
 
-	/* we only care about legacy/HT/VHT so far, so we can
-	 * build in v1 and use iwl_new_rate_from_v1()
-	 * FIXME: in newer devices we only support the new rates, build
-	 * the rate_n_flags in the new format here instead of using v1 and
-	 * converting it.
-	 */
-
 	if (rate->flags & IEEE80211_TX_RC_VHT_MCS) {
 		u8 mcs = ieee80211_rate_get_vht_mcs(rate);
 		u8 nss = ieee80211_rate_get_vht_nss(rate);
 
-		result = RATE_MCS_VHT_MSK_V1;
-		result |= u32_encode_bits(mcs, RATE_VHT_MCS_RATE_CODE_MSK);
+		result = RATE_MCS_MOD_TYPE_VHT;
+		result |= u32_encode_bits(mcs, RATE_MCS_CODE_MSK);
 		result |= u32_encode_bits(nss, RATE_MCS_NSS_MSK);
 
 		if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
-			result |= RATE_MCS_SGI_MSK_V1;
+			result |= RATE_MCS_SGI_MSK;
 
 		if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-			result |= u32_encode_bits(1, RATE_MCS_CHAN_WIDTH_MSK_V1);
+			result |= RATE_MCS_CHAN_WIDTH_40;
 		else if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
-			result |= u32_encode_bits(2, RATE_MCS_CHAN_WIDTH_MSK_V1);
+			result |= RATE_MCS_CHAN_WIDTH_80;
 		else if (rate->flags & IEEE80211_TX_RC_160_MHZ_WIDTH)
-			result |= u32_encode_bits(3, RATE_MCS_CHAN_WIDTH_MSK_V1);
-
-		result = iwl_new_rate_from_v1(result);
+			result |= RATE_MCS_CHAN_WIDTH_160;
 	} else if (rate->flags & IEEE80211_TX_RC_MCS) {
-		result = RATE_MCS_HT_MSK_V1;
-		result |= u32_encode_bits(rate->idx,
-					  RATE_HT_MCS_RATE_CODE_MSK_V1 |
-					  RATE_HT_MCS_NSS_MSK_V1);
+		/* only MCS 0-15 are supported */
+		u8 mcs = rate->idx & 7;
+		u8 nss = rate->idx > 7;
+
+		result = RATE_MCS_MOD_TYPE_HT;
+		result |= u32_encode_bits(mcs, RATE_MCS_CODE_MSK);
+		result |= u32_encode_bits(nss, RATE_MCS_NSS_MSK);
+
 		if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
-			result |= RATE_MCS_SGI_MSK_V1;
+			result |= RATE_MCS_SGI_MSK;
 		if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-			result |= u32_encode_bits(1, RATE_MCS_CHAN_WIDTH_MSK_V1);
+			result |= RATE_MCS_CHAN_WIDTH_40;
 		if (info->flags & IEEE80211_TX_CTL_LDPC)
-			result |= RATE_MCS_LDPC_MSK_V1;
+			result |= RATE_MCS_LDPC_MSK;
 		if (u32_get_bits(info->flags, IEEE80211_TX_CTL_STBC))
 			result |= RATE_MCS_STBC_MSK;
-
-		result = iwl_new_rate_from_v1(result);
 	} else {
 		result = iwl_mld_mac80211_rate_idx_to_fw(mld, info, rate->idx);
 	}
