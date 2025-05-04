@@ -2697,8 +2697,8 @@ static void rs_drv_get_rate(void *mvm_r, struct ieee80211_sta *sta,
 	lq_sta = mvm_sta;
 
 	spin_lock_bh(&lq_sta->pers.lock);
-	iwl_mvm_hwrate_to_tx_rate_v1(lq_sta->last_rate_n_flags,
-				     info->band, &info->control.rates[0]);
+	iwl_mvm_hwrate_to_tx_rate(iwl_new_rate_from_v1(lq_sta->last_rate_n_flags),
+				  info->band, &info->control.rates[0]);
 	info->control.rates[0].count = 1;
 
 	/* Report the optimal rate based on rssi and STA caps if we haven't
@@ -2708,8 +2708,9 @@ static void rs_drv_get_rate(void *mvm_r, struct ieee80211_sta *sta,
 		optimal_rate = rs_get_optimal_rate(mvm, lq_sta);
 		last_ucode_rate = ucode_rate_from_rs_rate(mvm,
 							  optimal_rate);
-		iwl_mvm_hwrate_to_tx_rate_v1(last_ucode_rate, info->band,
-					     &txrc->reported_rate);
+		last_ucode_rate = iwl_new_rate_from_v1(last_ucode_rate);
+		iwl_mvm_hwrate_to_tx_rate(last_ucode_rate, info->band,
+					  &txrc->reported_rate);
 		txrc->reported_rate.count = 1;
 	}
 	spin_unlock_bh(&lq_sta->pers.lock);

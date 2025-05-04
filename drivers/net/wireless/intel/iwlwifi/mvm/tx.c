@@ -1500,33 +1500,6 @@ void iwl_mvm_hwrate_to_tx_rate(u32 rate_n_flags,
 	}
 }
 
-void iwl_mvm_hwrate_to_tx_rate_v1(u32 rate_n_flags,
-				  enum nl80211_band band,
-				  struct ieee80211_tx_rate *r)
-{
-	if (rate_n_flags & RATE_HT_MCS_GF_MSK)
-		r->flags |= IEEE80211_TX_RC_GREEN_FIELD;
-
-	r->flags |=
-		iwl_mvm_get_hwrate_chan_width(rate_n_flags &
-					      RATE_MCS_CHAN_WIDTH_MSK_V1);
-
-	if (rate_n_flags & RATE_MCS_SGI_MSK_V1)
-		r->flags |= IEEE80211_TX_RC_SHORT_GI;
-	if (rate_n_flags & RATE_MCS_HT_MSK_V1) {
-		r->flags |= IEEE80211_TX_RC_MCS;
-		r->idx = rate_n_flags & RATE_HT_MCS_INDEX_MSK_V1;
-	} else if (rate_n_flags & RATE_MCS_VHT_MSK_V1) {
-		ieee80211_rate_set_vht(
-			r, rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK,
-			FIELD_GET(RATE_MCS_NSS_MSK, rate_n_flags) + 1);
-		r->flags |= IEEE80211_TX_RC_VHT_MCS;
-	} else {
-		r->idx = iwl_mvm_legacy_rate_to_mac80211_idx(rate_n_flags,
-							     band);
-	}
-}
-
 /*
  * translate ucode response to mac80211 tx status control values
  */
