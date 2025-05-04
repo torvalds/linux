@@ -531,8 +531,8 @@ static u32 fsl_samsung_hdmi_phy_get_closest_rate(unsigned long rate,
 	return frac_div_clk;
 }
 
-static long phy_clk_round_rate(struct clk_hw *hw,
-			       unsigned long rate, unsigned long *parent_rate)
+static long fsl_samsung_hdmi_phy_clk_round_rate(struct clk_hw *hw,
+						unsigned long rate, unsigned long *parent_rate)
 {
 	const struct phy_config *fract_div_phy;
 	u32 int_div_clk;
@@ -616,7 +616,7 @@ static int phy_clk_set_rate(struct clk_hw *hw,
 
 static const struct clk_ops phy_clk_ops = {
 	.recalc_rate = phy_clk_recalc_rate,
-	.round_rate = phy_clk_round_rate,
+	.round_rate = fsl_samsung_hdmi_phy_clk_round_rate,
 	.set_rate = phy_clk_set_rate,
 };
 
