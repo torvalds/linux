@@ -320,7 +320,8 @@ extern const struct bch_sb_field_ops bch_sb_field_ops_members_v2;
 
 static inline bool bch2_member_alive(struct bch_member *m)
 {
-	return !bch2_is_zero(&m->uuid, sizeof(m->uuid));
+	return  !bch2_is_zero(&m->uuid, sizeof(m->uuid)) &&
+		!uuid_equal(&m->uuid, &BCH_SB_MEMBER_DELETED_UUID);
 }
 
 static inline bool bch2_member_exists(struct bch_sb *sb, unsigned dev)
@@ -381,5 +382,6 @@ bool bch2_dev_btree_bitmap_marked(struct bch_fs *, struct bkey_s_c);
 void bch2_dev_btree_bitmap_mark(struct bch_fs *, struct bkey_s_c);
 
 int bch2_sb_member_alloc(struct bch_fs *);
+void bch2_sb_members_clean_deleted(struct bch_fs *);
 
 #endif /* _BCACHEFS_SB_MEMBERS_H */

@@ -525,6 +525,7 @@ int bch2_sb_member_alloc(struct bch_fs *c)
 	unsigned u64s;
 	int best = -1;
 	u64 best_last_mount = 0;
+	unsigned nr_deleted = 0;
 
 	if (dev_idx < BCH_SB_MEMBERS_MAX)
 		goto have_slot;
@@ -535,7 +536,10 @@ int bch2_sb_member_alloc(struct bch_fs *c)
 			continue;
 
 		struct bch_member m = bch2_sb_member_get(c->disk_sb.sb, dev_idx);
-		if (bch2_member_alive(&m))
+
+		nr_deleted += uuid_equal(&m.uuid, &BCH_SB_MEMBER_DELETED_UUID);
+
+		if (!bch2_is_zero(&m.uuid, sizeof(m.uuid)))
 			continue;
 
 		u64 last_mount = le64_to_cpu(m.last_mount);
@@ -548,6 +552,10 @@ int bch2_sb_member_alloc(struct bch_fs *c)
 		dev_idx = best;
 		goto have_slot;
 	}
+
+	if (nr_deleted)
+		bch_err(c, "unable to allocate new member, but have %u deleted: run fsck",
+			nr_deleted);
 
 	return -BCH_ERR_ENOSPC_sb_members;
 have_slot:
@@ -563,4 +571,23 @@ have_slot:
 
 	c->disk_sb.sb->nr_devices = nr_devices;
 	return dev_idx;
+}
+
+void bch2_sb_members_clean_deleted(struct bch_fs *c)
+{
+	mutex_lock(&c->sb_lock);
+	bool write_sb = false;
+
+	for (unsigned i = 0; i < c->sb.nr_devices; i++) {
+		struct bch_member *m = bch2_members_v2_get_mut(c->disk_sb.sb, i);
+
+		if (uuid_equal(&m->uuid, &BCH_SB_MEMBER_DELETED_UUID)) {
+			memset(&m->uuid, 0, sizeof(m->uuid));
+			write_sb = true;
+		}
+	}
+
+	if (write_sb)
+		bch2_write_super(c);
+	mutex_unlock(&c->sb_lock);
 }

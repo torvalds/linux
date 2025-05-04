@@ -13,6 +13,10 @@
  */
 #define BCH_SB_MEMBER_INVALID		255
 
+#define BCH_SB_MEMBER_DELETED_UUID					\
+	UUID_INIT(0xffffffff, 0xffff, 0xffff,				\
+		  0xd9, 0x6a, 0x60, 0xcf, 0x80, 0x3d, 0xf7, 0xef)
+
 #define BCH_MIN_NR_NBUCKETS	(1 << 6)
 
 #define BCH_IOPS_MEASUREMENTS()			\
