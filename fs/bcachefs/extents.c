@@ -1136,33 +1136,50 @@ void bch2_extent_ptr_set_cached(struct bch_fs *c,
 				struct bkey_s k,
 				struct bch_extent_ptr *ptr)
 {
-	struct bkey_ptrs ptrs = bch2_bkey_ptrs(k);
+	struct bkey_ptrs ptrs;
 	union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
+	bool have_cached_ptr;
+	unsigned drop_dev = ptr->dev;
 
 	rcu_read_lock();
-	if (!want_cached_ptr(c, opts, ptr)) {
-		bch2_bkey_drop_ptr_noerror(k, ptr);
-		goto out;
+restart_drop_ptrs:
+	ptrs = bch2_bkey_ptrs(k);
+	have_cached_ptr = false;
+
+	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
+		/*
+		 * Check if it's erasure coded - stripes can't contain cached
+		 * data. Possibly something we can fix in the future?
+		 */
+		if (&entry->ptr == ptr && p.has_ec)
+			goto drop;
+
+		if (p.ptr.cached) {
+			if (have_cached_ptr || !want_cached_ptr(c, opts, &p.ptr)) {
+				bch2_bkey_drop_ptr_noerror(k, &entry->ptr);
+				ptr = NULL;
+				goto restart_drop_ptrs;
+			}
+
+			have_cached_ptr = true;
+		}
 	}
 
-	/*
-	 * Stripes can't contain cached data, for - reasons.
-	 *
-	 * Possibly something we can fix in the future?
-	 */
-	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
-		if (&entry->ptr == ptr) {
-			if (p.has_ec)
-				bch2_bkey_drop_ptr_noerror(k, ptr);
-			else
-				ptr->cached = true;
-			goto out;
-		}
+	if (!ptr)
+		bkey_for_each_ptr(ptrs, ptr2)
+			if (ptr2->dev == drop_dev)
+				ptr = ptr2;
 
-	BUG();
-out:
+	if (have_cached_ptr || !want_cached_ptr(c, opts, ptr))
+		goto drop;
+
+	ptr->cached = true;
 	rcu_read_unlock();
+	return;
+drop:
+	rcu_read_unlock();
+	bch2_bkey_drop_ptr_noerror(k, ptr);
 }
 
 /*
