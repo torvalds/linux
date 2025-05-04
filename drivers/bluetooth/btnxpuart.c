@@ -1286,7 +1286,9 @@ static void nxp_coredump(struct hci_dev *hdev)
 	u8 pcmd = 2;
 
 	skb = nxp_drv_send_cmd(hdev, HCI_NXP_TRIGGER_DUMP, 1, &pcmd);
-	if (!IS_ERR(skb))
+	if (IS_ERR(skb))
+		bt_dev_err(hdev, "Failed to trigger FW Dump. (%ld)", PTR_ERR(skb));
+	else
 		kfree_skb(skb);
 }
 
@@ -1445,9 +1447,6 @@ static int nxp_shutdown(struct hci_dev *hdev)
 		/* HCI_NXP_IND_RESET command may not returns any response */
 		if (!IS_ERR(skb))
 			kfree_skb(skb);
-	} else if (nxpdev->current_baudrate != nxpdev->fw_init_baudrate) {
-		nxpdev->new_baudrate = nxpdev->fw_init_baudrate;
-		nxp_set_baudrate_cmd(hdev, NULL);
 	}
 
 	return 0;
@@ -1799,13 +1798,15 @@ static void nxp_serdev_remove(struct serdev_device *serdev)
 		clear_bit(BTNXPUART_FW_DOWNLOADING, &nxpdev->tx_state);
 		wake_up_interruptible(&nxpdev->check_boot_sign_wait_q);
 		wake_up_interruptible(&nxpdev->fw_dnld_done_wait_q);
-	}
-
-	if (test_bit(HCI_RUNNING, &hdev->flags)) {
-		/* Ensure shutdown callback is executed before unregistering, so
-		 * that baudrate is reset to initial value.
+	} else {
+		/* Restore FW baudrate to fw_init_baudrate if changed.
+		 * This will ensure FW baudrate is in sync with
+		 * driver baudrate in case this driver is re-inserted.
 		 */
-		nxp_shutdown(hdev);
+		if (nxpdev->current_baudrate != nxpdev->fw_init_baudrate) {
+			nxpdev->new_baudrate = nxpdev->fw_init_baudrate;
+			nxp_set_baudrate_cmd(hdev, NULL);
+		}
 	}
 
 	ps_cleanup(nxpdev);

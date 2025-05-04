@@ -1003,8 +1003,7 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 	 */
 
 out:
-	if (fmw)
-		release_firmware(fmw);
+	release_firmware(fmw);
 	pm_runtime_mark_last_busy(tas_hda->priv->dev);
 	pm_runtime_put_autosuspend(tas_hda->priv->dev);
 }

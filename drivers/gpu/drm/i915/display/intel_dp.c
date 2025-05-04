@@ -1050,10 +1050,11 @@ u8 intel_dp_dsc_get_slice_count(const struct intel_connector *connector,
 		u8 test_slice_count = valid_dsc_slicecount[i] * num_joined_pipes;
 
 		/*
-		 * 3 DSC Slices per pipe need 3 DSC engines,
-		 * which is supported only with Ultrajoiner.
+		 * 3 DSC Slices per pipe need 3 DSC engines, which is supported only
+		 * with Ultrajoiner only for some platforms.
 		 */
-		if (valid_dsc_slicecount[i] == 3 && num_joined_pipes != 4)
+		if (valid_dsc_slicecount[i] == 3 &&
+		    (!HAS_DSC_3ENGINES(display) || num_joined_pipes != 4))
 			continue;
 
 		if (test_slice_count >

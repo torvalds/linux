@@ -66,16 +66,12 @@ struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
 }
 EXPORT_SYMBOL(bio_integrity_alloc);
 
-static void bio_integrity_unpin_bvec(struct bio_vec *bv, int nr_vecs,
-				     bool dirty)
+static void bio_integrity_unpin_bvec(struct bio_vec *bv, int nr_vecs)
 {
 	int i;
 
-	for (i = 0; i < nr_vecs; i++) {
-		if (dirty && !PageCompound(bv[i].bv_page))
-			set_page_dirty_lock(bv[i].bv_page);
+	for (i = 0; i < nr_vecs; i++)
 		unpin_user_page(bv[i].bv_page);
-	}
 }
 
 static void bio_integrity_uncopy_user(struct bio_integrity_payload *bip)
@@ -91,7 +87,7 @@ static void bio_integrity_uncopy_user(struct bio_integrity_payload *bip)
 	ret = copy_to_iter(bvec_virt(bounce_bvec), bytes, &orig_iter);
 	WARN_ON_ONCE(ret != bytes);
 
-	bio_integrity_unpin_bvec(orig_bvecs, orig_nr_vecs, true);
+	bio_integrity_unpin_bvec(orig_bvecs, orig_nr_vecs);
 }
 
 /**
@@ -111,8 +107,7 @@ void bio_integrity_unmap_user(struct bio *bio)
 		return;
 	}
 
-	bio_integrity_unpin_bvec(bip->bip_vec, bip->bip_max_vcnt,
-			bio_data_dir(bio) == READ);
+	bio_integrity_unpin_bvec(bip->bip_vec, bip->bip_max_vcnt);
 }
 
 /**
@@ -198,7 +193,7 @@ static int bio_integrity_copy_user(struct bio *bio, struct bio_vec *bvec,
 	}
 
 	if (write)
-		bio_integrity_unpin_bvec(bvec, nr_vecs, false);
+		bio_integrity_unpin_bvec(bvec, nr_vecs);
 	else
 		memcpy(&bip->bip_vec[1], bvec, nr_vecs * sizeof(*bvec));
 
@@ -319,7 +314,7 @@ int bio_integrity_map_user(struct bio *bio, struct iov_iter *iter)
 	return 0;
 
 release_pages:
-	bio_integrity_unpin_bvec(bvec, nr_bvecs, false);
+	bio_integrity_unpin_bvec(bvec, nr_bvecs);
 free_bvec:
 	if (bvec != stack_vec)
 		kfree(bvec);

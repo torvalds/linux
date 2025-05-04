@@ -850,8 +850,9 @@ static int bond_check_dev_link(struct bonding *bond,
 			       struct net_device *slave_dev, int reporting)
 {
 	const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
-	struct ifreq ifr;
 	struct mii_ioctl_data *mii;
+	struct ifreq ifr;
+	int ret;
 
 	if (!reporting && !netif_running(slave_dev))
 		return 0;
@@ -860,9 +861,13 @@ static int bond_check_dev_link(struct bonding *bond,
 		return netif_carrier_ok(slave_dev) ? BMSR_LSTATUS : 0;
 
 	/* Try to get link status using Ethtool first. */
-	if (slave_dev->ethtool_ops->get_link)
-		return slave_dev->ethtool_ops->get_link(slave_dev) ?
-			BMSR_LSTATUS : 0;
+	if (slave_dev->ethtool_ops->get_link) {
+		netdev_lock_ops(slave_dev);
+		ret = slave_dev->ethtool_ops->get_link(slave_dev);
+		netdev_unlock_ops(slave_dev);
+
+		return ret ? BMSR_LSTATUS : 0;
+	}
 
 	/* Ethtool can't be used, fallback to MII ioctls. */
 	if (slave_ops->ndo_eth_ioctl) {
