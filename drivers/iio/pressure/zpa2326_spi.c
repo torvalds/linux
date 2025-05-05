@@ -47,7 +47,6 @@ static int zpa2326_probe_spi(struct spi_device *spi)
 	 */
 	spi->mode = SPI_MODE_3;
 	spi->max_speed_hz = min(spi->max_speed_hz, 1000000U);
-	spi->bits_per_word = 8;
 	err = spi_setup(spi);
 	if (err < 0)
 		return err;
