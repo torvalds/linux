@@ -132,15 +132,15 @@
 	vror.vi		\b3, \b3, 32 - 7
 .endm
 
-// void chacha_zvkb(u32 state[16], const u8 *in, u8 *out, size_t nblocks,
-//		    int nrounds);
+// void chacha_zvkb(struct chacha_state *state, const u8 *in, u8 *out,
+//		    size_t nblocks, int nrounds);
 //
 // |nblocks| is the number of 64-byte blocks to process, and must be nonzero.
 //
 // |state| gives the ChaCha state matrix, including the 32-bit counter in
-// state[12] following the RFC7539 convention; note that this differs from the
-// original Salsa20 paper which uses a 64-bit counter in state[12..13].  The
-// updated 32-bit counter is written back to state[12] before returning.
+// state->x[12] following the RFC7539 convention; note that this differs from
+// the original Salsa20 paper which uses a 64-bit counter in state->x[12..13].
+// The updated 32-bit counter is written back to state->x[12] before returning.
 SYM_FUNC_START(chacha_zvkb)
 	addi		sp, sp, -96
 	sd		s0, 0(sp)

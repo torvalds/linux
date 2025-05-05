@@ -14,8 +14,8 @@
 #include <asm/simd.h>
 #include <asm/switch_to.h>
 
-asmlinkage void chacha_p10le_8x(u32 *state, u8 *dst, const u8 *src,
-				unsigned int len, int nrounds);
+asmlinkage void chacha_p10le_8x(const struct chacha_state *state, u8 *dst,
+				const u8 *src, unsigned int len, int nrounds);
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_p10);
 
@@ -31,7 +31,7 @@ static void vsx_end(void)
 	preempt_enable();
 }
 
-static void chacha_p10_do_8x(u32 *state, u8 *dst, const u8 *src,
+static void chacha_p10_do_8x(struct chacha_state *state, u8 *dst, const u8 *src,
 			     unsigned int bytes, int nrounds)
 {
 	unsigned int l = bytes & ~0x0FF;
@@ -41,21 +41,22 @@ static void chacha_p10_do_8x(u32 *state, u8 *dst, const u8 *src,
 		bytes -= l;
 		src += l;
 		dst += l;
-		state[12] += l / CHACHA_BLOCK_SIZE;
+		state->x[12] += l / CHACHA_BLOCK_SIZE;
 	}
 
 	if (bytes > 0)
 		chacha_crypt_generic(state, dst, src, bytes, nrounds);
 }
 
-void hchacha_block_arch(const u32 *state, u32 *stream, int nrounds)
+void hchacha_block_arch(const struct chacha_state *state,
+			u32 *stream, int nrounds)
 {
 	hchacha_block_generic(state, stream, nrounds);
 }
 EXPORT_SYMBOL(hchacha_block_arch);
 
-void chacha_crypt_arch(u32 *state, u8 *dst, const u8 *src, unsigned int bytes,
-		       int nrounds)
+void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
+		       unsigned int bytes, int nrounds)
 {
 	if (!static_branch_likely(&have_p10) || bytes <= CHACHA_BLOCK_SIZE ||
 	    !crypto_simd_usable())

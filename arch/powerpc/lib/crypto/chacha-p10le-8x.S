@@ -7,9 +7,6 @@
 #===================================================================================
 # Written by Danny Tsen <dtsen@us.ibm.com>
 #
-# chacha_p10le_8x(u32 *state, byte *dst, const byte *src,
-#				 size_t len, int nrounds);
-#
 # do rounds,  8 quarter rounds
 # 1.  a += b; d ^= a; d <<<= 16;
 # 2.  c += d; b ^= c; b <<<= 12;
@@ -575,7 +572,8 @@
 .endm
 
 #
-# chacha20_p10le_8x(u32 *state, byte *dst, const byte *src, size_t len, int nrounds);
+# void chacha_p10le_8x(const struct chacha_state *state, u8 *dst, const u8 *src,
+#		       unsigned int len, int nrounds);
 #
 SYM_FUNC_START(chacha_p10le_8x)
 .align 5

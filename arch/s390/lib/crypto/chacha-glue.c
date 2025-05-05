@@ -16,14 +16,15 @@
 #include <asm/fpu.h>
 #include "chacha-s390.h"
 
-void hchacha_block_arch(const u32 *state, u32 *stream, int nrounds)
+void hchacha_block_arch(const struct chacha_state *state,
+			u32 *stream, int nrounds)
 {
 	/* TODO: implement hchacha_block_arch() in assembly */
 	hchacha_block_generic(state, stream, nrounds);
 }
 EXPORT_SYMBOL(hchacha_block_arch);
 
-void chacha_crypt_arch(u32 *state, u8 *dst, const u8 *src,
+void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
 		       unsigned int bytes, int nrounds)
 {
 	/* s390 chacha20 implementation has 20 rounds hard-coded,
@@ -36,11 +37,11 @@ void chacha_crypt_arch(u32 *state, u8 *dst, const u8 *src,
 		DECLARE_KERNEL_FPU_ONSTACK32(vxstate);
 
 		kernel_fpu_begin(&vxstate, KERNEL_VXR);
-		chacha20_vx(dst, src, bytes, &state[4], &state[12]);
+		chacha20_vx(dst, src, bytes, &state->x[4], &state->x[12]);
 		kernel_fpu_end(&vxstate, KERNEL_VXR);
 
-		state[12] += round_up(bytes, CHACHA_BLOCK_SIZE) /
-			     CHACHA_BLOCK_SIZE;
+		state->x[12] += round_up(bytes, CHACHA_BLOCK_SIZE) /
+				CHACHA_BLOCK_SIZE;
 	}
 }
 EXPORT_SYMBOL(chacha_crypt_arch);

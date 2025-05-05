@@ -367,7 +367,7 @@
 
 /*
  * void chacha_doarm(u8 *dst, const u8 *src, unsigned int bytes,
- *		     const u32 *state, int nrounds);
+ *		     const struct chacha_state *state, int nrounds);
  */
 ENTRY(chacha_doarm)
 	cmp		r2, #0			// len == 0?
@@ -407,7 +407,8 @@ ENTRY(chacha_doarm)
 ENDPROC(chacha_doarm)
 
 /*
- * void hchacha_block_arm(const u32 state[16], u32 out[8], int nrounds);
+ * void hchacha_block_arm(const struct chacha_state *state,
+ *			  u32 out[8], int nrounds);
  */
 ENTRY(hchacha_block_arm)
 	push		{r1,r4-r11,lr}

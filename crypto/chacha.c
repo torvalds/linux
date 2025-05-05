@@ -50,12 +50,12 @@ static int chacha_stream_xor(struct skcipher_request *req,
 			     bool arch)
 {
 	struct skcipher_walk walk;
-	u32 state[16];
+	struct chacha_state state;
 	int err;
 
 	err = skcipher_walk_virt(&walk, req, false);
 
-	chacha_init(state, ctx->key, iv);
+	chacha_init(&state, ctx->key, iv);
 
 	while (walk.nbytes > 0) {
 		unsigned int nbytes = walk.nbytes;
@@ -64,10 +64,10 @@ static int chacha_stream_xor(struct skcipher_request *req,
 			nbytes = round_down(nbytes, CHACHA_BLOCK_SIZE);
 
 		if (arch)
-			chacha_crypt(state, walk.dst.virt.addr,
+			chacha_crypt(&state, walk.dst.virt.addr,
 				     walk.src.virt.addr, nbytes, ctx->nrounds);
 		else
-			chacha_crypt_generic(state, walk.dst.virt.addr,
+			chacha_crypt_generic(&state, walk.dst.virt.addr,
 					     walk.src.virt.addr, nbytes,
 					     ctx->nrounds);
 		err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
@@ -97,15 +97,15 @@ static int crypto_xchacha_crypt(struct skcipher_request *req, bool arch)
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	const struct chacha_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct chacha_ctx subctx;
-	u32 state[16];
+	struct chacha_state state;
 	u8 real_iv[16];
 
 	/* Compute the subkey given the original key and first 128 nonce bits */
-	chacha_init(state, ctx->key, req->iv);
+	chacha_init(&state, ctx->key, req->iv);
 	if (arch)
-		hchacha_block(state, subctx.key, ctx->nrounds);
+		hchacha_block(&state, subctx.key, ctx->nrounds);
 	else
-		hchacha_block_generic(state, subctx.key, ctx->nrounds);
+		hchacha_block_generic(&state, subctx.key, ctx->nrounds);
 	subctx.nrounds = ctx->nrounds;
 
 	/* Build the real IV */

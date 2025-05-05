@@ -9,11 +9,13 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-asmlinkage void chacha_crypt_arch(u32 *state, u8 *dst, const u8 *src,
+asmlinkage void chacha_crypt_arch(struct chacha_state *state,
+				  u8 *dst, const u8 *src,
 				  unsigned int bytes, int nrounds);
 EXPORT_SYMBOL(chacha_crypt_arch);
 
-asmlinkage void hchacha_block_arch(const u32 *state, u32 *stream, int nrounds);
+asmlinkage void hchacha_block_arch(const struct chacha_state *state,
+				   u32 *stream, int nrounds);
 EXPORT_SYMBOL(hchacha_block_arch);
 
 bool chacha_is_arch_optimized(void)

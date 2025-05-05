@@ -28,15 +28,17 @@
 #include <asm/neon.h>
 #include <asm/simd.h>
 
-asmlinkage void chacha_block_xor_neon(u32 *state, u8 *dst, const u8 *src,
-				      int nrounds);
-asmlinkage void chacha_4block_xor_neon(u32 *state, u8 *dst, const u8 *src,
+asmlinkage void chacha_block_xor_neon(const struct chacha_state *state,
+				      u8 *dst, const u8 *src, int nrounds);
+asmlinkage void chacha_4block_xor_neon(const struct chacha_state *state,
+				       u8 *dst, const u8 *src,
 				       int nrounds, int bytes);
-asmlinkage void hchacha_block_neon(const u32 *state, u32 *out, int nrounds);
+asmlinkage void hchacha_block_neon(const struct chacha_state *state,
+				   u32 *out, int nrounds);
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_neon);
 
-static void chacha_doneon(u32 *state, u8 *dst, const u8 *src,
+static void chacha_doneon(struct chacha_state *state, u8 *dst, const u8 *src,
 			  int bytes, int nrounds)
 {
 	while (bytes > 0) {
@@ -48,18 +50,19 @@ static void chacha_doneon(u32 *state, u8 *dst, const u8 *src,
 			memcpy(buf, src, l);
 			chacha_block_xor_neon(state, buf, buf, nrounds);
 			memcpy(dst, buf, l);
-			state[12] += 1;
+			state->x[12] += 1;
 			break;
 		}
 		chacha_4block_xor_neon(state, dst, src, nrounds, l);
 		bytes -= l;
 		src += l;
 		dst += l;
-		state[12] += DIV_ROUND_UP(l, CHACHA_BLOCK_SIZE);
+		state->x[12] += DIV_ROUND_UP(l, CHACHA_BLOCK_SIZE);
 	}
 }
 
-void hchacha_block_arch(const u32 *state, u32 *stream, int nrounds)
+void hchacha_block_arch(const struct chacha_state *state, u32 *stream,
+			int nrounds)
 {
 	if (!static_branch_likely(&have_neon) || !crypto_simd_usable()) {
 		hchacha_block_generic(state, stream, nrounds);
@@ -71,8 +74,8 @@ void hchacha_block_arch(const u32 *state, u32 *stream, int nrounds)
 }
 EXPORT_SYMBOL(hchacha_block_arch);
 
-void chacha_crypt_arch(u32 *state, u8 *dst, const u8 *src, unsigned int bytes,
-		       int nrounds)
+void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
+		       unsigned int bytes, int nrounds)
 {
 	if (!static_branch_likely(&have_neon) || bytes <= CHACHA_BLOCK_SIZE ||
 	    !crypto_simd_usable())

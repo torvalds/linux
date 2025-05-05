@@ -15,17 +15,17 @@
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(use_zvkb);
 
-asmlinkage void chacha_zvkb(u32 state[16], const u8 *in, u8 *out,
+asmlinkage void chacha_zvkb(struct chacha_state *state, const u8 *in, u8 *out,
 			    size_t nblocks, int nrounds);
 
-void hchacha_block_arch(const u32 *state, u32 *out, int nrounds)
+void hchacha_block_arch(const struct chacha_state *state, u32 *out, int nrounds)
 {
 	hchacha_block_generic(state, out, nrounds);
 }
 EXPORT_SYMBOL(hchacha_block_arch);
 
-void chacha_crypt_arch(u32 *state, u8 *dst, const u8 *src, unsigned int bytes,
-		       int nrounds)
+void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
+		       unsigned int bytes, int nrounds)
 {
 	u8 block_buffer[CHACHA_BLOCK_SIZE];
 	unsigned int full_blocks = bytes / CHACHA_BLOCK_SIZE;

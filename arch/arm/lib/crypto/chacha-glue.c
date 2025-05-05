@@ -17,15 +17,18 @@
 #include <asm/neon.h>
 #include <asm/simd.h>
 
-asmlinkage void chacha_block_xor_neon(const u32 *state, u8 *dst, const u8 *src,
-				      int nrounds);
-asmlinkage void chacha_4block_xor_neon(const u32 *state, u8 *dst, const u8 *src,
+asmlinkage void chacha_block_xor_neon(const struct chacha_state *state,
+				      u8 *dst, const u8 *src, int nrounds);
+asmlinkage void chacha_4block_xor_neon(const struct chacha_state *state,
+				       u8 *dst, const u8 *src,
 				       int nrounds, unsigned int nbytes);
-asmlinkage void hchacha_block_arm(const u32 *state, u32 *out, int nrounds);
-asmlinkage void hchacha_block_neon(const u32 *state, u32 *out, int nrounds);
+asmlinkage void hchacha_block_arm(const struct chacha_state *state,
+				  u32 *out, int nrounds);
+asmlinkage void hchacha_block_neon(const struct chacha_state *state,
+				   u32 *out, int nrounds);
 
 asmlinkage void chacha_doarm(u8 *dst, const u8 *src, unsigned int bytes,
-			     const u32 *state, int nrounds);
+			     const struct chacha_state *state, int nrounds);
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(use_neon);
 
@@ -34,7 +37,7 @@ static inline bool neon_usable(void)
 	return static_branch_likely(&use_neon) && crypto_simd_usable();
 }
 
-static void chacha_doneon(u32 *state, u8 *dst, const u8 *src,
+static void chacha_doneon(struct chacha_state *state, u8 *dst, const u8 *src,
 			  unsigned int bytes, int nrounds)
 {
 	u8 buf[CHACHA_BLOCK_SIZE];
@@ -46,7 +49,7 @@ static void chacha_doneon(u32 *state, u8 *dst, const u8 *src,
 		bytes -= l;
 		src += l;
 		dst += l;
-		state[12] += DIV_ROUND_UP(l, CHACHA_BLOCK_SIZE);
+		state->x[12] += DIV_ROUND_UP(l, CHACHA_BLOCK_SIZE);
 	}
 	if (bytes) {
 		const u8 *s = src;
@@ -57,11 +60,12 @@ static void chacha_doneon(u32 *state, u8 *dst, const u8 *src,
 		chacha_block_xor_neon(state, d, s, nrounds);
 		if (d != dst)
 			memcpy(dst, buf, bytes);
-		state[12]++;
+		state->x[12]++;
 	}
 }
 
-void hchacha_block_arch(const u32 *state, u32 *stream, int nrounds)
+void hchacha_block_arch(const struct chacha_state *state, u32 *stream,
+			int nrounds)
 {
 	if (!IS_ENABLED(CONFIG_KERNEL_MODE_NEON) || !neon_usable()) {
 		hchacha_block_arm(state, stream, nrounds);
@@ -73,13 +77,13 @@ void hchacha_block_arch(const u32 *state, u32 *stream, int nrounds)
 }
 EXPORT_SYMBOL(hchacha_block_arch);
 
-void chacha_crypt_arch(u32 *state, u8 *dst, const u8 *src, unsigned int bytes,
-		       int nrounds)
+void chacha_crypt_arch(struct chacha_state *state, u8 *dst, const u8 *src,
+		       unsigned int bytes, int nrounds)
 {
 	if (!IS_ENABLED(CONFIG_KERNEL_MODE_NEON) || !neon_usable() ||
 	    bytes <= CHACHA_BLOCK_SIZE) {
 		chacha_doarm(dst, src, bytes, state, nrounds);
-		state[12] += DIV_ROUND_UP(bytes, CHACHA_BLOCK_SIZE);
+		state->x[12] += DIV_ROUND_UP(bytes, CHACHA_BLOCK_SIZE);
 		return;
 	}
 
