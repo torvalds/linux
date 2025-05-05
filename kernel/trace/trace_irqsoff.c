@@ -397,6 +397,7 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 	int cpu;
 	struct trace_array *tr = irqsoff_trace;
 	struct trace_array_cpu *data;
+	long disabled;
 
 	if (!tracer_enabled || !tracing_is_enabled())
 		return;
@@ -411,15 +412,17 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 	if (unlikely(!data) || local_read(&data->disabled))
 		return;
 
-	local_inc(&data->disabled);
+	disabled = local_inc_return(&data->disabled);
 
-	data->critical_sequence = max_sequence;
-	data->preempt_timestamp = ftrace_now(cpu);
-	data->critical_start = parent_ip ? : ip;
+	if (disabled == 1) {
+		data->critical_sequence = max_sequence;
+		data->preempt_timestamp = ftrace_now(cpu);
+		data->critical_start = parent_ip ? : ip;
 
-	__trace_function(tr, ip, parent_ip, tracing_gen_ctx());
+		__trace_function(tr, ip, parent_ip, tracing_gen_ctx());
 
-	per_cpu(tracing_cpu, cpu) = 1;
+		per_cpu(tracing_cpu, cpu) = 1;
+	}
 
 	local_dec(&data->disabled);
 }
@@ -431,6 +434,7 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip)
 	struct trace_array *tr = irqsoff_trace;
 	struct trace_array_cpu *data;
 	unsigned int trace_ctx;
+	long disabled;
 
 	cpu = raw_smp_processor_id();
 	/* Always clear the tracing cpu on stopping the trace */
@@ -448,12 +452,15 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip)
 	    !data->critical_start || local_read(&data->disabled))
 		return;
 
-	local_inc(&data->disabled);
+	disabled = local_inc_return(&data->disabled);
 
-	trace_ctx = tracing_gen_ctx();
-	__trace_function(tr, ip, parent_ip, trace_ctx);
-	check_critical_timing(tr, data, parent_ip ? : ip, cpu);
-	data->critical_start = 0;
+	if (disabled == 1) {
+		trace_ctx = tracing_gen_ctx();
+		__trace_function(tr, ip, parent_ip, trace_ctx);
+		check_critical_timing(tr, data, parent_ip ? : ip, cpu);
+		data->critical_start = 0;
+	}
+
 	local_dec(&data->disabled);
 }
 
