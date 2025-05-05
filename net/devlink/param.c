@@ -167,25 +167,6 @@ static int devlink_param_set(struct devlink *devlink,
 }
 
 static int
-devlink_param_type_to_var_attr_type(enum devlink_param_type param_type)
-{
-	switch (param_type) {
-	case DEVLINK_PARAM_TYPE_U8:
-		return DEVLINK_VAR_ATTR_TYPE_U8;
-	case DEVLINK_PARAM_TYPE_U16:
-		return DEVLINK_VAR_ATTR_TYPE_U16;
-	case DEVLINK_PARAM_TYPE_U32:
-		return DEVLINK_VAR_ATTR_TYPE_U32;
-	case DEVLINK_PARAM_TYPE_STRING:
-		return DEVLINK_VAR_ATTR_TYPE_STRING;
-	case DEVLINK_PARAM_TYPE_BOOL:
-		return DEVLINK_VAR_ATTR_TYPE_FLAG;
-	default:
-		return -EINVAL;
-	}
-}
-
-static int
 devlink_nl_param_value_fill_one(struct sk_buff *msg,
 				enum devlink_param_type type,
 				enum devlink_param_cmode cmode,
@@ -247,7 +228,6 @@ static int devlink_nl_param_fill(struct sk_buff *msg, struct devlink *devlink,
 	struct devlink_param_gset_ctx ctx;
 	struct nlattr *param_values_list;
 	struct nlattr *param_attr;
-	int var_attr_type;
 	void *hdr;
 	int err;
 	int i;
@@ -293,11 +273,7 @@ static int devlink_nl_param_fill(struct sk_buff *msg, struct devlink *devlink,
 		goto param_nest_cancel;
 	if (param->generic && nla_put_flag(msg, DEVLINK_ATTR_PARAM_GENERIC))
 		goto param_nest_cancel;
-
-	var_attr_type = devlink_param_type_to_var_attr_type(param->type);
-	if (var_attr_type < 0)
-		goto param_nest_cancel;
-	if (nla_put_u8(msg, DEVLINK_ATTR_PARAM_TYPE, var_attr_type))
+	if (nla_put_u8(msg, DEVLINK_ATTR_PARAM_TYPE, param->type))
 		goto param_nest_cancel;
 
 	param_values_list = nla_nest_start_noflag(msg,
@@ -419,25 +395,7 @@ devlink_param_type_get_from_info(struct genl_info *info,
 	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_PARAM_TYPE))
 		return -EINVAL;
 
-	switch (nla_get_u8(info->attrs[DEVLINK_ATTR_PARAM_TYPE])) {
-	case DEVLINK_VAR_ATTR_TYPE_U8:
-		*param_type = DEVLINK_PARAM_TYPE_U8;
-		break;
-	case DEVLINK_VAR_ATTR_TYPE_U16:
-		*param_type = DEVLINK_PARAM_TYPE_U16;
-		break;
-	case DEVLINK_VAR_ATTR_TYPE_U32:
-		*param_type = DEVLINK_PARAM_TYPE_U32;
-		break;
-	case DEVLINK_VAR_ATTR_TYPE_STRING:
-		*param_type = DEVLINK_PARAM_TYPE_STRING;
-		break;
-	case DEVLINK_VAR_ATTR_TYPE_FLAG:
-		*param_type = DEVLINK_PARAM_TYPE_BOOL;
-		break;
-	default:
-		return -EINVAL;
-	}
+	*param_type = nla_get_u8(info->attrs[DEVLINK_ATTR_PARAM_TYPE]);
 
 	return 0;
 }
