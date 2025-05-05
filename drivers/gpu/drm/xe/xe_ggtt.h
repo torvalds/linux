@@ -9,7 +9,9 @@
 #include "xe_ggtt_types.h"
 
 struct drm_printer;
+struct xe_tile;
 
+struct xe_ggtt *xe_ggtt_alloc(struct xe_tile *tile);
 int xe_ggtt_init_early(struct xe_ggtt *ggtt);
 int xe_ggtt_init(struct xe_ggtt *ggtt);
 
