@@ -753,6 +753,10 @@ int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
 	}
 
 	*value = data->functions[func];
+
+	IWL_DEBUG_RADIO(fwrt,
+			"UEFI: DSM func=%d: value=%d\n", func, *value);
+
 	ret = 0;
 out:
 	kfree(data);
