@@ -116,6 +116,7 @@
  * @monitor.ampdu_toggle: the state of the previous packet to track A-MPDU
  * @monitor.cur_aid: current association id tracked by the sniffer
  * @monitor.cur_bssid: current bssid tracked by the sniffer
+ * @monitor.ptp_time: set the Rx mactime using the device's PTP clock time
  * @monitor.p80: primary channel position relative to he whole bandwidth, in
  * steps of 80 MHz
  * @fw_id_to_link_sta: maps a fw id of a sta to the corresponding
@@ -201,6 +202,7 @@ struct iwl_mld {
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 			__le16 cur_aid;
 			u8 cur_bssid[ETH_ALEN];
+			bool ptp_time;
 #endif
 		} monitor;
 #ifdef CONFIG_PM_SLEEP

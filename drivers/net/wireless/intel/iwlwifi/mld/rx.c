@@ -1213,8 +1213,20 @@ static void iwl_mld_rx_fill_status(struct iwl_mld *mld, struct sk_buff *skb,
 		iwl_mld_rx_eht(mld, skb, phy_data, queue);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	if (unlikely(mld->monitor.on))
+	if (unlikely(mld->monitor.on)) {
 		iwl_mld_add_rtap_sniffer_config(mld, skb);
+
+		if (mld->monitor.ptp_time) {
+			u64 adj_time =
+			    iwl_mld_ptp_get_adj_time(mld,
+						     phy_data->gp2_on_air_rise *
+						     NSEC_PER_USEC);
+
+			rx_status->mactime = div64_u64(adj_time, NSEC_PER_USEC);
+			rx_status->flag |= RX_FLAG_MACTIME_IS_RTAP_TS64;
+			rx_status->flag &= ~RX_FLAG_MACTIME;
+		}
+	}
 #endif
 
 	if (format != RATE_MCS_MOD_TYPE_CCK && is_sgi)

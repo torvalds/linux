@@ -546,6 +546,9 @@ iwl_mld_add_debugfs_files(struct iwl_mld *mld, struct dentry *debugfs_dir)
 #endif
 	MLD_DEBUGFS_ADD_FILE(inject_packet, debugfs_dir, 0200);
 
+	debugfs_create_bool("rx_ts_ptp", 0600, debugfs_dir,
+			    &mld->monitor.ptp_time);
+
 	/* Create a symlink with mac80211. It will be removed when mac80211
 	 * exits (before the opmode exits which removes the target.)
 	 */
