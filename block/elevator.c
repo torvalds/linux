@@ -418,14 +418,15 @@ elv_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 {
 	const struct elv_fs_entry *entry = to_elv(attr);
 	struct elevator_queue *e;
-	ssize_t error;
+	ssize_t error = -ENODEV;
 
 	if (!entry->show)
 		return -EIO;
 
 	e = container_of(kobj, struct elevator_queue, kobj);
 	mutex_lock(&e->sysfs_lock);
-	error = entry->show(e, page);
+	if (!test_bit(ELEVATOR_FLAG_DYING, &e->flags))
+		error = entry->show(e, page);
 	mutex_unlock(&e->sysfs_lock);
 	return error;
 }
@@ -436,14 +437,15 @@ elv_attr_store(struct kobject *kobj, struct attribute *attr,
 {
 	const struct elv_fs_entry *entry = to_elv(attr);
 	struct elevator_queue *e;
-	ssize_t error;
+	ssize_t error = -ENODEV;
 
 	if (!entry->store)
 		return -EIO;
 
 	e = container_of(kobj, struct elevator_queue, kobj);
 	mutex_lock(&e->sysfs_lock);
-	error = entry->store(e, page, length);
+	if (!test_bit(ELEVATOR_FLAG_DYING, &e->flags))
+		error = entry->store(e, page, length);
 	mutex_unlock(&e->sysfs_lock);
 	return error;
 }
