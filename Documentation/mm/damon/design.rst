@@ -54,7 +54,7 @@ monitoring are address-space dependent.
 DAMON consolidates these implementations in a layer called DAMON Operations
 Set, and defines the interface between it and the upper layer.  The upper layer
 is dedicated for DAMON's core logics including the mechanism for control of the
-monitoring accruracy and the overhead.
+monitoring accuracy and the overhead.
 
 Hence, DAMON can easily be extended for any address space and/or available
 hardware features by configuring the core logic to use the appropriate
