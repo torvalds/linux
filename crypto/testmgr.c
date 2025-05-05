@@ -45,7 +45,6 @@ static bool notests;
 module_param(notests, bool, 0644);
 MODULE_PARM_DESC(notests, "disable crypto self-tests");
 
-#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
 static bool noextratests;
 module_param(noextratests, bool, 0644);
 MODULE_PARM_DESC(noextratests, "disable expensive crypto self-tests");
@@ -53,7 +52,6 @@ MODULE_PARM_DESC(noextratests, "disable expensive crypto self-tests");
 static unsigned int fuzz_iterations = 100;
 module_param(fuzz_iterations, uint, 0644);
 MODULE_PARM_DESC(fuzz_iterations, "number of fuzz test iterations");
-#endif
 
 #ifndef CONFIG_CRYPTO_SELFTESTS
 
@@ -321,10 +319,9 @@ struct testvec_config {
 
 /*
  * The following are the lists of testvec_configs to test for each algorithm
- * type when the basic crypto self-tests are enabled.  They aim to provide good
- * test coverage, while keeping the test time much shorter than the full fuzz
- * tests so that the basic tests can be enabled in a wider range of
- * circumstances.
+ * type when the fast crypto self-tests are enabled.  They aim to provide good
+ * test coverage, while keeping the test time much shorter than the full tests
+ * so that the fast tests can be used to fulfill FIPS 140 testing requirements.
  */
 
 /* Configs for skciphers and aeads */
@@ -873,8 +870,6 @@ static int prepare_keybuf(const u8 *key, unsigned int ksize,
 	err;								\
 })
 
-#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
-
 /*
  * The fuzz tests use prandom instead of the normal Linux RNG since they don't
  * need cryptographically secure random numbers.  This greatly improves the
@@ -1239,15 +1234,6 @@ too_long:
 	       algname);
 	return -ENAMETOOLONG;
 }
-#else /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
-static void crypto_disable_simd_for_test(void)
-{
-}
-
-static void crypto_reenable_simd_for_test(void)
-{
-}
-#endif /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
 
 static int build_hash_sglist(struct test_sglist *tsgl,
 			     const struct hash_testvec *vec,
@@ -1688,7 +1674,6 @@ static int test_hash_vec(const struct hash_testvec *vec, unsigned int vec_num,
 			return err;
 	}
 
-#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
 	if (!noextratests) {
 		struct rnd_state rng;
 		struct testvec_config cfg;
@@ -1706,11 +1691,9 @@ static int test_hash_vec(const struct hash_testvec *vec, unsigned int vec_num,
 			cond_resched();
 		}
 	}
-#endif
 	return 0;
 }
 
-#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
 /*
  * Generate a hash test vector from the given implementation.
  * Assumes the buffers in 'vec' were already allocated.
@@ -1876,17 +1859,6 @@ out:
 	kfree_sensitive(generic_desc);
 	return err;
 }
-#else /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
-static int test_hash_vs_generic_impl(const char *generic_driver,
-				     unsigned int maxkeysize,
-				     struct ahash_request *req,
-				     struct shash_desc *desc,
-				     struct test_sglist *tsgl,
-				     u8 *hashstate)
-{
-	return 0;
-}
-#endif /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
 
 static int alloc_shash(const char *driver, u32 type, u32 mask,
 		       struct crypto_shash **tfm_ret,
@@ -2260,7 +2232,6 @@ static int test_aead_vec(int enc, const struct aead_testvec *vec,
 			return err;
 	}
 
-#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
 	if (!noextratests) {
 		struct rnd_state rng;
 		struct testvec_config cfg;
@@ -2278,11 +2249,8 @@ static int test_aead_vec(int enc, const struct aead_testvec *vec,
 			cond_resched();
 		}
 	}
-#endif
 	return 0;
 }
-
-#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
 
 struct aead_extra_tests_ctx {
 	struct rnd_state rng;
@@ -2668,14 +2636,6 @@ out:
 	kfree(ctx);
 	return err;
 }
-#else /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
-static int test_aead_extra(const struct alg_test_desc *test_desc,
-			   struct aead_request *req,
-			   struct cipher_test_sglists *tsgls)
-{
-	return 0;
-}
-#endif /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
 
 static int test_aead(int enc, const struct aead_test_suite *suite,
 		     struct aead_request *req,
@@ -3015,7 +2975,6 @@ static int test_skcipher_vec(int enc, const struct cipher_testvec *vec,
 			return err;
 	}
 
-#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
 	if (!noextratests) {
 		struct rnd_state rng;
 		struct testvec_config cfg;
@@ -3033,11 +2992,9 @@ static int test_skcipher_vec(int enc, const struct cipher_testvec *vec,
 			cond_resched();
 		}
 	}
-#endif
 	return 0;
 }
 
-#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
 /*
  * Generate a symmetric cipher test vector from the given implementation.
  * Assumes the buffers in 'vec' were already allocated.
@@ -3236,14 +3193,6 @@ out:
 	skcipher_request_free(generic_req);
 	return err;
 }
-#else /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
-static int test_skcipher_vs_generic_impl(const char *generic_driver,
-					 struct skcipher_request *req,
-					 struct cipher_test_sglists *tsgls)
-{
-	return 0;
-}
-#endif /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
 
 static int test_skcipher(int enc, const struct cipher_test_suite *suite,
 			 struct skcipher_request *req,
@@ -5760,9 +5709,8 @@ static void testmgr_onetime_init(void)
 	alg_check_test_descs_order();
 	alg_check_testvec_configs();
 
-#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
-	pr_warn("alg: extra crypto tests enabled.  This is intended for developer use only.\n");
-#endif
+	if (!noextratests)
+		pr_warn("alg: full crypto tests enabled.  This is intended for developer use only.\n");
 }
 
 static int alg_find_test(const char *alg)

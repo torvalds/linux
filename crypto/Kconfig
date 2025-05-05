@@ -186,16 +186,6 @@ config CRYPTO_SELFTESTS
 	  enabled in production kernels, unless you are trying to use these
 	  tests to fulfill a FIPS testing requirement.
 
-config CRYPTO_MANAGER_EXTRA_TESTS
-	bool "Enable extra run-time crypto self tests"
-	depends on DEBUG_KERNEL && CRYPTO_SELFTESTS && CRYPTO_MANAGER
-	help
-	  Enable extra run-time self tests of registered crypto algorithms,
-	  including randomized fuzz tests.
-
-	  This is intended for developer use only, as these tests take much
-	  longer to run than the normal self tests.
-
 config CRYPTO_NULL
 	tristate "Null algorithms"
 	select CRYPTO_ALGAPI
