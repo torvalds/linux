@@ -361,21 +361,6 @@ DECLARE_EVENT_CLASS(block_bio,
 );
 
 /**
- * block_bio_bounce - used bounce buffer when processing block operation
- * @bio: block operation
- *
- * A bounce buffer was used to handle the block operation @bio in @q.
- * This occurs when hardware limitations prevent a direct transfer of
- * data between the @bio data memory area and the IO device.  Use of a
- * bounce buffer requires extra copying of data and decreases
- * performance.
- */
-DEFINE_EVENT(block_bio, block_bio_bounce,
-	TP_PROTO(struct bio *bio),
-	TP_ARGS(bio)
-);
-
-/**
  * block_bio_backmerge - merging block operation to the end of an existing operation
  * @bio: new block operation to merge
  *

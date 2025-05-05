@@ -49,7 +49,7 @@ enum blktrace_act {
 	__BLK_TA_UNPLUG_TIMER,		/* queue was unplugged by timer */
 	__BLK_TA_INSERT,		/* insert request */
 	__BLK_TA_SPLIT,			/* bio was split */
-	__BLK_TA_BOUNCE,		/* bio was bounced */
+	__BLK_TA_BOUNCE,		/* unused, was: bio was bounced */
 	__BLK_TA_REMAP,			/* bio was remapped */
 	__BLK_TA_ABORT,			/* request aborted */
 	__BLK_TA_DRV_DATA,		/* driver-specific binary data */
