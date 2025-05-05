@@ -994,8 +994,7 @@ static int create_ssp_dailinks(struct snd_soc_card *card,
 
 		ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, name,
 						    playback, capture, cpu_dai_name,
-						    platform_component->name,
-						    ARRAY_SIZE(platform_component), codec_name,
+						    platform_component->name, codec_name,
 						    ssp_info->dais[0].dai_name, 1, NULL,
 						    ssp_info->ops);
 		if (ret)
@@ -1020,7 +1019,6 @@ static int create_dmic_dailinks(struct snd_soc_card *card,
 	ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, "dmic01",
 					    0, 1, // DMIC only supports capture
 					    "DMIC01 Pin", platform_component->name,
-					    ARRAY_SIZE(platform_component),
 					    "dmic-codec", "dmic-hifi", 1,
 					    asoc_sdw_dmic_init, NULL);
 	if (ret)
@@ -1031,7 +1029,6 @@ static int create_dmic_dailinks(struct snd_soc_card *card,
 	ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, "dmic16k",
 					    0, 1, // DMIC only supports capture
 					    "DMIC16k Pin", platform_component->name,
-					    ARRAY_SIZE(platform_component),
 					    "dmic-codec", "dmic-hifi", 1,
 					    /* don't call asoc_sdw_dmic_init() twice */
 					    NULL, NULL);
@@ -1075,7 +1072,6 @@ static int create_hdmi_dailinks(struct snd_soc_card *card,
 		ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, name,
 						    1, 0, // HDMI only supports playback
 						    cpu_dai_name, platform_component->name,
-						    ARRAY_SIZE(platform_component),
 						    codec_name, codec_dai_name, 1,
 						    i == 0 ? sof_sdw_hdmi_init : NULL, NULL);
 		if (ret)
@@ -1102,7 +1098,6 @@ static int create_bt_dailinks(struct snd_soc_card *card,
 
 	ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, name,
 					    1, 1, cpu_dai_name, platform_component->name,
-					    ARRAY_SIZE(platform_component),
 					    snd_soc_dummy_dlc.name, snd_soc_dummy_dlc.dai_name,
 					    1, NULL, NULL);
 	if (ret)
