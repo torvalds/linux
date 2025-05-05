@@ -805,7 +805,6 @@ config CRYPTO_GCM
 	select CRYPTO_CTR
 	select CRYPTO_AEAD
 	select CRYPTO_GHASH
-	select CRYPTO_NULL
 	select CRYPTO_MANAGER
 	help
 	  GCM (Galois/Counter Mode) authenticated encryption mode and GMAC
