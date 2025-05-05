@@ -184,7 +184,6 @@ struct trace_array;
  */
 struct trace_array_cpu {
 	local_t			disabled;
-	void			*buffer_page;	/* ring buffer spare */
 
 	unsigned long		entries;
 	unsigned long		saved_latency;
