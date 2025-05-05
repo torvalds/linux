@@ -410,8 +410,8 @@ static int iwl_uefi_uats_parse(struct uefi_cnv_wlan_uats_data *uats_data,
 	return 0;
 }
 
-int iwl_uefi_get_uats_table(struct iwl_trans *trans,
-			    struct iwl_fw_runtime *fwrt)
+void iwl_uefi_get_uats_table(struct iwl_trans *trans,
+			     struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_wlan_uats_data *data;
 	int ret;
@@ -419,17 +419,12 @@ int iwl_uefi_get_uats_table(struct iwl_trans *trans,
 	data = iwl_uefi_get_verified_variable(trans, IWL_UEFI_UATS_NAME,
 					      "UATS", sizeof(*data), NULL);
 	if (IS_ERR(data))
-		return -EINVAL;
+		return;
 
 	ret = iwl_uefi_uats_parse(data, fwrt);
-	if (ret < 0) {
+	if (ret < 0)
 		IWL_DEBUG_FW(trans, "Cannot read UATS table. rev is invalid\n");
-		kfree(data);
-		return ret;
-	}
-
 	kfree(data);
-	return 0;
 }
 IWL_EXPORT_SYMBOL(iwl_uefi_get_uats_table);
 

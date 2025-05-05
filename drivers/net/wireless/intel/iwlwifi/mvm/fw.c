@@ -511,11 +511,10 @@ static void iwl_mvm_uats_init(struct iwl_mvm *mvm)
 		return;
 	}
 
-	ret = iwl_uefi_get_uats_table(mvm->trans, &mvm->fwrt);
-	if (ret < 0) {
-		IWL_DEBUG_FW(mvm, "failed to read UATS table (%d)\n", ret);
+	iwl_uefi_get_uats_table(mvm->trans, &mvm->fwrt);
+
+	if (!mvm->fwrt.uats_valid)
 		return;
-	}
 
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
 	if (ret < 0)

@@ -63,9 +63,7 @@ void iwl_mld_get_bios_tables(struct iwl_mld *mld)
 		/* we don't fail if the table is not available */
 	}
 
-	ret = iwl_uefi_get_uats_table(mld->trans, &mld->fwrt);
-	if (ret)
-		IWL_DEBUG_RADIO(mld, "failed to read UATS table (%d)\n", ret);
+	iwl_uefi_get_uats_table(mld->trans, &mld->fwrt);
 
 	iwl_bios_get_phy_filters(&mld->fwrt);
 }
