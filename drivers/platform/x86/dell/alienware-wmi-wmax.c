@@ -38,6 +38,9 @@
 #define AWCC_METHOD_GET_FAN_SENSORS		0x13
 #define AWCC_METHOD_THERMAL_INFORMATION		0x14
 #define AWCC_METHOD_THERMAL_CONTROL		0x15
+#define AWCC_METHOD_FWUP_GPIO_CONTROL		0x20
+#define AWCC_METHOD_READ_TOTAL_GPIOS		0x21
+#define AWCC_METHOD_READ_GPIO_STATUS		0x22
 #define AWCC_METHOD_GAME_SHIFT_STATUS		0x25
 
 #define AWCC_FAILURE_CODE			0xFFFFFFFF
@@ -281,6 +284,8 @@ struct awcc_priv {
 	struct device *hwdev;
 	struct awcc_fan_data **fan_data;
 	unsigned long temp_sensors[AWCC_ID_BITMAP_LONGS];
+
+	u32 gpio_count;
 };
 
 static const enum platform_profile_option awcc_mode_to_platform_profile[AWCC_PROFILE_LAST] = {
@@ -569,6 +574,38 @@ static int awcc_thermal_information(struct wmi_device *wdev, u8 operation, u8 ar
 	};
 
 	return awcc_wmi_command(wdev, AWCC_METHOD_THERMAL_INFORMATION, &args, out);
+}
+
+static int awcc_fwup_gpio_control(struct wmi_device *wdev, u8 pin, u8 status)
+{
+	struct wmax_u32_args args = {
+		.operation = pin,
+		.arg1 = status,
+		.arg2 = 0,
+		.arg3 = 0,
+	};
+	u32 out;
+
+	return awcc_wmi_command(wdev, AWCC_METHOD_FWUP_GPIO_CONTROL, &args, &out);
+}
+
+static int awcc_read_total_gpios(struct wmi_device *wdev, u32 *count)
+{
+	struct wmax_u32_args args = {};
+
+	return awcc_wmi_command(wdev, AWCC_METHOD_READ_TOTAL_GPIOS, &args, count);
+}
+
+static int awcc_read_gpio_status(struct wmi_device *wdev, u8 pin, u32 *status)
+{
+	struct wmax_u32_args args = {
+		.operation = pin,
+		.arg1 = 0,
+		.arg2 = 0,
+		.arg3 = 0,
+	};
+
+	return awcc_wmi_command(wdev, AWCC_METHOD_READ_GPIO_STATUS, &args, status);
 }
 
 static int awcc_game_shift_status(struct wmi_device *wdev, u8 operation,
@@ -1317,6 +1354,47 @@ static int awcc_debugfs_pprof_data_read(struct seq_file *seq, void *data)
 	return 0;
 }
 
+static int awcc_gpio_pin_show(struct seq_file *seq, void *data)
+{
+	unsigned long pin = debugfs_get_aux_num(seq->file);
+	struct wmi_device *wdev = seq->private;
+	u32 status;
+	int ret;
+
+	ret = awcc_read_gpio_status(wdev, pin, &status);
+	if (ret)
+		return ret;
+
+	seq_printf(seq, "%u\n", status);
+
+	return 0;
+}
+
+static ssize_t awcc_gpio_pin_write(struct file *file, const char __user *buf,
+				   size_t count, loff_t *ppos)
+{
+	unsigned long pin = debugfs_get_aux_num(file);
+	struct seq_file *seq = file->private_data;
+	struct wmi_device *wdev = seq->private;
+	bool status;
+	int ret;
+
+	if (!ppos || *ppos)
+		return -EINVAL;
+
+	ret = kstrtobool_from_user(buf, count, &status);
+	if (ret)
+		return ret;
+
+	ret = awcc_fwup_gpio_control(wdev, pin, status);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+DEFINE_SHOW_STORE_ATTRIBUTE(awcc_gpio_pin);
+
 static void awcc_debugfs_remove(void *data)
 {
 	struct dentry *root = data;
@@ -1326,8 +1404,11 @@ static void awcc_debugfs_remove(void *data)
 
 static void awcc_debugfs_init(struct wmi_device *wdev)
 {
-	struct dentry *root;
+	struct awcc_priv *priv = dev_get_drvdata(&wdev->dev);
+	struct dentry *root, *gpio_ctl;
+	u32 gpio_count;
 	char name[64];
+	int ret;
 
 	scnprintf(name, sizeof(name), "%s-%s", "alienware-wmi", dev_name(&wdev->dev));
 	root = debugfs_create_dir(name, NULL);
@@ -1343,6 +1424,27 @@ static void awcc_debugfs_init(struct wmi_device *wdev)
 		debugfs_create_devm_seqfile(&wdev->dev, "pprof_data", root,
 					    awcc_debugfs_pprof_data_read);
 
+	ret = awcc_read_total_gpios(wdev, &gpio_count);
+	if (ret) {
+		dev_dbg(&wdev->dev, "Failed to get total GPIO Pin count\n");
+		goto out_add_action;
+	} else if (gpio_count > AWCC_MAX_RES_COUNT) {
+		dev_dbg(&wdev->dev, "Reported GPIO Pin count may be incorrect: %u\n", gpio_count);
+		goto out_add_action;
+	}
+
+	gpio_ctl = debugfs_create_dir("gpio_ctl", root);
+
+	priv->gpio_count = gpio_count;
+	debugfs_create_u32("total_gpios", 0444, gpio_ctl, &priv->gpio_count);
+
+	for (unsigned int i = 0; i < gpio_count; i++) {
+		scnprintf(name, sizeof(name), "pin%u", i);
+		debugfs_create_file_aux_num(name, 0644, gpio_ctl, wdev, i,
+					    &awcc_gpio_pin_fops);
+	}
+
+out_add_action:
 	devm_add_action_or_reset(&wdev->dev, awcc_debugfs_remove, root);
 }
 
