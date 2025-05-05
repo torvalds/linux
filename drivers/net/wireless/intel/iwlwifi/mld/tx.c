@@ -472,15 +472,19 @@ static u32 iwl_mld_get_inject_tx_rate(struct iwl_mld *mld,
 	return result;
 }
 
-static u32 iwl_mld_get_tx_rate_n_flags(struct iwl_mld *mld,
-				       struct ieee80211_tx_info *info,
-				       struct ieee80211_sta *sta, __le16 fc)
+static __le32 iwl_mld_get_tx_rate_n_flags(struct iwl_mld *mld,
+					  struct ieee80211_tx_info *info,
+					  struct ieee80211_sta *sta, __le16 fc)
 {
-	if (unlikely(info->control.flags & IEEE80211_TX_CTRL_RATE_INJECT))
-		return iwl_mld_get_inject_tx_rate(mld, info, sta, fc);
+	u32 rate;
 
-	return iwl_mld_mac80211_rate_idx_to_fw(mld, info, -1) |
-		iwl_mld_get_tx_ant(mld, info, sta, fc);
+	if (unlikely(info->control.flags & IEEE80211_TX_CTRL_RATE_INJECT))
+		rate = iwl_mld_get_inject_tx_rate(mld, info, sta, fc);
+	else
+		rate = iwl_mld_mac80211_rate_idx_to_fw(mld, info, -1) |
+		       iwl_mld_get_tx_ant(mld, info, sta, fc);
+
+	return iwl_v3_rate_to_v2_v3(rate, mld->fw_rates_ver_3);
 }
 
 static void
@@ -534,7 +538,7 @@ iwl_mld_fill_tx_cmd(struct iwl_mld *mld, struct sk_buff *skb,
 	bool amsdu = ieee80211_is_data_qos(hdr->frame_control) &&
 		     (*ieee80211_get_qos_ctl(hdr) &
 		      IEEE80211_QOS_CTL_A_MSDU_PRESENT);
-	u32 rate_n_flags = 0;
+	__le32 rate_n_flags = 0;
 	u16 flags = 0;
 
 	dev_tx_cmd->hdr.cmd = TX_CMD;
@@ -569,7 +573,7 @@ iwl_mld_fill_tx_cmd(struct iwl_mld *mld, struct sk_buff *skb,
 
 	tx_cmd->flags = cpu_to_le16(flags);
 
-	tx_cmd->rate_n_flags = cpu_to_le32(rate_n_flags);
+	tx_cmd->rate_n_flags = rate_n_flags;
 }
 
 /* Caller of this need to check that info->control.vif is not NULL */
@@ -972,11 +976,14 @@ void iwl_mld_tx_from_txq(struct iwl_mld *mld, struct ieee80211_txq *txq)
 	rcu_read_unlock();
 }
 
-static void iwl_mld_hwrate_to_tx_rate(u32 rate_n_flags,
+static void iwl_mld_hwrate_to_tx_rate(struct iwl_mld *mld,
+				      __le32 rate_n_flags_fw,
 				      struct ieee80211_tx_info *info)
 {
 	enum nl80211_band band = info->band;
 	struct ieee80211_tx_rate *tx_rate = &info->status.rates[0];
+	u32 rate_n_flags = iwl_v3_rate_from_v2_v3(rate_n_flags_fw,
+						  mld->fw_rates_ver_3);
 	u32 sgi = rate_n_flags & RATE_MCS_SGI_MSK;
 	u32 chan_width = rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK;
 	u32 format = rate_n_flags & RATE_MCS_MOD_TYPE_MSK;
@@ -1008,8 +1015,8 @@ static void iwl_mld_hwrate_to_tx_rate(u32 rate_n_flags,
 	case RATE_MCS_MOD_TYPE_VHT:
 		ieee80211_rate_set_vht(tx_rate,
 				       rate_n_flags & RATE_MCS_CODE_MSK,
-				       FIELD_GET(RATE_MCS_NSS_MSK,
-						 rate_n_flags) + 1);
+				       u32_get_bits(rate_n_flags,
+						    RATE_MCS_NSS_MSK) + 1);
 		tx_rate->flags |= IEEE80211_TX_RC_VHT_MCS;
 		break;
 	case RATE_MCS_MOD_TYPE_HE:
@@ -1107,8 +1114,7 @@ void iwl_mld_handle_tx_resp_notif(struct iwl_mld *mld,
 			iwl_dbg_tlv_time_point(&mld->fwrt, tp, NULL);
 		}
 
-		iwl_mld_hwrate_to_tx_rate(le32_to_cpu(tx_resp->initial_rate),
-					  info);
+		iwl_mld_hwrate_to_tx_rate(mld, tx_resp->initial_rate, info);
 
 		if (likely(!iwl_mld_time_sync_frame(mld, skb, hdr->addr1)))
 			ieee80211_tx_status_skb(mld->hw, skb);

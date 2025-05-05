@@ -283,14 +283,10 @@ static u32 iwl_mvm_convert_rate_idx(struct iwl_mvm *mvm,
 		 (rate_idx <= IWL_LAST_CCK_RATE);
 
 	/* Set CCK or OFDM flag */
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, TX_CMD, 0) > 8) {
-		if (!is_cck)
-			rate_flags |= RATE_MCS_MOD_TYPE_LEGACY_OFDM;
-		else
-			rate_flags |= RATE_MCS_MOD_TYPE_CCK;
-	} else if (is_cck) {
-		rate_flags |= RATE_MCS_CCK_MSK_V1;
-	}
+	if (!is_cck)
+		rate_flags |= RATE_MCS_MOD_TYPE_LEGACY_OFDM;
+	else
+		rate_flags |= RATE_MCS_MOD_TYPE_CCK;
 
 	return (u32)rate_plcp | rate_flags;
 }
@@ -303,45 +299,35 @@ static u32 iwl_mvm_get_inject_tx_rate(struct iwl_mvm *mvm,
 	struct ieee80211_tx_rate *rate = &info->control.rates[0];
 	u32 result;
 
-	/*
-	 * we only care about legacy/HT/VHT so far, so we can
-	 * build in v1 and use iwl_new_rate_from_v1()
-	 */
-
 	if (rate->flags & IEEE80211_TX_RC_VHT_MCS) {
 		u8 mcs = ieee80211_rate_get_vht_mcs(rate);
 		u8 nss = ieee80211_rate_get_vht_nss(rate);
 
-		result = RATE_MCS_VHT_MSK_V1;
+		result = RATE_MCS_MOD_TYPE_VHT;
 		result |= u32_encode_bits(mcs, RATE_VHT_MCS_RATE_CODE_MSK);
 		result |= u32_encode_bits(nss, RATE_MCS_NSS_MSK);
 		if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
-			result |= RATE_MCS_SGI_MSK_V1;
+			result |= RATE_MCS_SGI_MSK;
 		if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-			result |= u32_encode_bits(1, RATE_MCS_CHAN_WIDTH_MSK_V1);
+			result |= RATE_MCS_CHAN_WIDTH_40;
 		else if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
-			result |= u32_encode_bits(2, RATE_MCS_CHAN_WIDTH_MSK_V1);
+			result |= RATE_MCS_CHAN_WIDTH_80;
 		else if (rate->flags & IEEE80211_TX_RC_160_MHZ_WIDTH)
-			result |= u32_encode_bits(3, RATE_MCS_CHAN_WIDTH_MSK_V1);
-
-		if (iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP, TX_CMD, 0) > 6)
-			result = iwl_new_rate_from_v1(result);
+			result |= RATE_MCS_CHAN_WIDTH_160;
 	} else if (rate->flags & IEEE80211_TX_RC_MCS) {
-		result = RATE_MCS_HT_MSK_V1;
-		result |= u32_encode_bits(rate->idx,
-					  RATE_HT_MCS_RATE_CODE_MSK_V1 |
-					  RATE_HT_MCS_NSS_MSK_V1);
+		result = RATE_MCS_MOD_TYPE_HT;
+		result |= u32_encode_bits(rate->idx & 0x7,
+					  RATE_HT_MCS_CODE_MSK);
+		result |= u32_encode_bits(rate->idx >> 3,
+					  RATE_MCS_NSS_MSK);
 		if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
-			result |= RATE_MCS_SGI_MSK_V1;
+			result |= RATE_MCS_SGI_MSK;
 		if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-			result |= u32_encode_bits(1, RATE_MCS_CHAN_WIDTH_MSK_V1);
+			result |= RATE_MCS_CHAN_WIDTH_40;
 		if (info->flags & IEEE80211_TX_CTL_LDPC)
-			result |= RATE_MCS_LDPC_MSK_V1;
+			result |= RATE_MCS_LDPC_MSK;
 		if (u32_get_bits(info->flags, IEEE80211_TX_CTL_STBC))
 			result |= RATE_MCS_STBC_MSK;
-
-		if (iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP, TX_CMD, 0) > 6)
-			result = iwl_new_rate_from_v1(result);
 	} else {
 		int rate_idx = info->control.rates[0].idx;
 
@@ -391,15 +377,19 @@ static u32 iwl_mvm_get_tx_rate(struct iwl_mvm *mvm,
 	return iwl_mvm_convert_rate_idx(mvm, info, rate_idx);
 }
 
-static u32 iwl_mvm_get_tx_rate_n_flags(struct iwl_mvm *mvm,
-				       struct ieee80211_tx_info *info,
-				       struct ieee80211_sta *sta, __le16 fc)
+static __le32 iwl_mvm_get_tx_rate_n_flags(struct iwl_mvm *mvm,
+					  struct ieee80211_tx_info *info,
+					  struct ieee80211_sta *sta, __le16 fc)
 {
-	if (unlikely(info->control.flags & IEEE80211_TX_CTRL_RATE_INJECT))
-		return iwl_mvm_get_inject_tx_rate(mvm, info, sta, fc);
+	u32 rate;
 
-	return iwl_mvm_get_tx_rate(mvm, info, sta, fc) |
-		iwl_mvm_get_tx_ant(mvm, info, sta, fc);
+	if (unlikely(info->control.flags & IEEE80211_TX_CTRL_RATE_INJECT))
+		rate = iwl_mvm_get_inject_tx_rate(mvm, info, sta, fc);
+	else
+		rate = iwl_mvm_get_tx_rate(mvm, info, sta, fc) |
+		       iwl_mvm_get_tx_ant(mvm, info, sta, fc);
+
+	return iwl_mvm_v3_rate_to_fw(rate, mvm->fw_rates_ver);
 }
 
 /*
@@ -443,8 +433,7 @@ void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd *tx_cmd,
 	}
 
 	/* Set the rate in the TX cmd */
-	tx_cmd->rate_n_flags =
-		cpu_to_le32(iwl_mvm_get_tx_rate_n_flags(mvm, info, sta, fc));
+	tx_cmd->rate_n_flags = iwl_mvm_get_tx_rate_n_flags(mvm, info, sta, fc);
 }
 
 static inline void iwl_mvm_set_tx_cmd_pn(struct ieee80211_tx_info *info,
@@ -577,7 +566,7 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 	dev_cmd->hdr.cmd = TX_CMD;
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
-		u32 rate_n_flags = 0;
+		__le32 rate_n_flags = 0;
 		u16 flags = 0;
 		struct iwl_mvm_sta *mvmsta = sta ?
 			iwl_mvm_sta_from_mac80211(sta) : NULL;
@@ -624,7 +613,7 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 			iwl_mvm_copy_hdr(cmd->hdr, hdr, hdrlen, addr3_override);
 
 			cmd->flags = cpu_to_le16(flags);
-			cmd->rate_n_flags = cpu_to_le32(rate_n_flags);
+			cmd->rate_n_flags = rate_n_flags;
 		} else {
 			struct iwl_tx_cmd_gen2 *cmd = (void *)dev_cmd->payload;
 			u16 offload_assist = iwl_mvm_tx_csum(mvm, skb,
@@ -639,7 +628,7 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 			iwl_mvm_copy_hdr(cmd->hdr, hdr, hdrlen, addr3_override);
 
 			cmd->flags = cpu_to_le32(flags);
-			cmd->rate_n_flags = cpu_to_le32(rate_n_flags);
+			cmd->rate_n_flags = rate_n_flags;
 		}
 		goto out;
 	}
@@ -1503,20 +1492,25 @@ void iwl_mvm_hwrate_to_tx_rate(u32 rate_n_flags,
 /*
  * translate ucode response to mac80211 tx status control values
  */
-static void iwl_mvm_hwrate_to_tx_status(const struct iwl_fw *fw,
-					u32 rate_n_flags,
+static void iwl_mvm_hwrate_to_tx_status(struct iwl_mvm *mvm,
+					__le32 rate_n_flags,
 					struct ieee80211_tx_info *info)
 {
 	struct ieee80211_tx_rate *r = &info->status.rates[0];
+	u32 rate;
 
-	if (iwl_fw_lookup_notif_ver(fw, LONG_GROUP,
-				    TX_CMD, 0) <= 6)
-		rate_n_flags = iwl_new_rate_from_v1(rate_n_flags);
+	/*
+	 * Technically this conversion is incorrect for BA status, however:
+	 *  - we only use the BA notif data for older firmware that have
+	 *    host rate scaling and don't use newer rate formats
+	 *  - the firmware API changed together for BA notif and TX CMD
+	 *    as well
+	 */
+	rate = iwl_mvm_v3_rate_from_fw(rate_n_flags, mvm->fw_rates_ver);
 
 	info->status.antenna =
-		((rate_n_flags & RATE_MCS_ANT_AB_MSK) >> RATE_MCS_ANT_POS);
-	iwl_mvm_hwrate_to_tx_rate(rate_n_flags,
-				  info->band, r);
+		((rate & RATE_MCS_ANT_AB_MSK) >> RATE_MCS_ANT_POS);
+	iwl_mvm_hwrate_to_tx_rate(rate, info->band, r);
 }
 
 static void iwl_mvm_tx_status_check_trigger(struct iwl_mvm *mvm,
@@ -1668,9 +1662,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 
-		iwl_mvm_hwrate_to_tx_status(mvm->fw,
-					    le32_to_cpu(tx_resp->initial_rate),
-					    info);
+		iwl_mvm_hwrate_to_tx_status(mvm, tx_resp->initial_rate, info);
 
 		/* Don't assign the converted initial_rate, because driver
 		 * TLC uses this and doesn't support the new FW rate
@@ -1912,7 +1904,7 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 
 	if (!WARN_ON_ONCE(!mvmsta)) {
 		mvmsta->tid_data[tid].rate_n_flags =
-			le32_to_cpu(tx_resp->initial_rate);
+			tx_resp->initial_rate;
 		mvmsta->tid_data[tid].tx_time =
 			le16_to_cpu(tx_resp->wireless_media_time);
 		mvmsta->tid_data[tid].lq_color =
@@ -1937,7 +1929,7 @@ void iwl_mvm_rx_tx_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 
 static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 			       int txq, int index,
-			       struct ieee80211_tx_info *tx_info, u32 rate,
+			       struct ieee80211_tx_info *tx_info, __le32 rate,
 			       bool is_flush)
 {
 	struct sk_buff_head reclaimed_skbs;
@@ -2021,7 +2013,9 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 	tx_info->status.status_driver_data[0] =
 		RS_DRV_DATA_PACK(tid_data->lq_color,
 				 tx_info->status.status_driver_data[0]);
-	tx_info->status.status_driver_data[1] = (void *)(uintptr_t)rate;
+	/* the value is only consumed for old FW that has v1 rates anyway */
+	tx_info->status.status_driver_data[1] =
+		(void *)(uintptr_t)le32_to_cpu(rate);
 
 	skb_queue_walk(&reclaimed_skbs, skb) {
 		struct ieee80211_hdr *hdr = (void *)skb->data;
@@ -2040,7 +2034,7 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 			info->flags |= IEEE80211_TX_STAT_AMPDU;
 			memcpy(&info->status, &tx_info->status,
 			       sizeof(tx_info->status));
-			iwl_mvm_hwrate_to_tx_status(mvm->fw, rate, info);
+			iwl_mvm_hwrate_to_tx_status(mvm, rate, info);
 		}
 	}
 
@@ -2063,7 +2057,7 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 			goto out;
 
 		tx_info->band = chanctx_conf->def.chan->band;
-		iwl_mvm_hwrate_to_tx_status(mvm->fw, rate, tx_info);
+		iwl_mvm_hwrate_to_tx_status(mvm, rate, tx_info);
 
 		IWL_DEBUG_TX_REPLY(mvm, "No reclaim. Update rs directly\n");
 		iwl_mvm_rs_tx_status(mvm, sta, tid, tx_info, false);
@@ -2152,7 +2146,7 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 					   (int)(le16_to_cpu(ba_tfd->q_num)),
 					   le16_to_cpu(ba_tfd->tfd_index),
 					   &ba_info,
-					   le32_to_cpu(ba_res->tx_rate), false);
+					   ba_res->tx_rate, false);
 		}
 
 		if (mvmsta) {

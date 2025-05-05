@@ -36,11 +36,13 @@ struct iwl_mld_rx_phy_data {
 };
 
 static void
-iwl_mld_fill_phy_data(struct iwl_rx_mpdu_desc *desc,
+iwl_mld_fill_phy_data(struct iwl_mld *mld,
+		      struct iwl_rx_mpdu_desc *desc,
 		      struct iwl_mld_rx_phy_data *phy_data)
 {
 	phy_data->phy_info = le16_to_cpu(desc->phy_info);
-	phy_data->rate_n_flags = le32_to_cpu(desc->v3.rate_n_flags);
+	phy_data->rate_n_flags = iwl_v3_rate_from_v2_v3(desc->v3.rate_n_flags,
+							mld->fw_rates_ver_3);
 	phy_data->gp2_on_air_rise = le32_to_cpu(desc->v3.gp2_on_air_rise);
 	phy_data->energy_a = desc->v3.energy_a;
 	phy_data->energy_b = desc->v3.energy_b;
@@ -1254,7 +1256,8 @@ static void iwl_mld_rx_fill_status(struct iwl_mld *mld, struct sk_buff *skb,
 			rx_status->encoding = RX_ENC_EHT;
 		}
 
-		rx_status->nss = u32_get_bits(rate_n_flags, RATE_MCS_NSS_MSK) + 1;
+		rx_status->nss = u32_get_bits(rate_n_flags,
+					      RATE_MCS_NSS_MSK) + 1;
 		rx_status->rate_idx = rate_n_flags & RATE_MCS_CODE_MSK;
 		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
 		break;
@@ -1760,7 +1763,7 @@ void iwl_mld_rx_mpdu(struct iwl_mld *mld, struct napi_struct *napi,
 
 	hdr = (void *)(pkt->data + mpdu_desc_size);
 
-	iwl_mld_fill_phy_data(mpdu_desc, &phy_data);
+	iwl_mld_fill_phy_data(mld, mpdu_desc, &phy_data);
 
 	if (mpdu_desc->mac_flags2 & IWL_RX_MPDU_MFLG2_PAD) {
 		/* If the device inserted padding it means that (it thought)
@@ -1982,7 +1985,8 @@ void iwl_mld_rx_monitor_no_data(struct iwl_mld *mld, struct napi_struct *napi,
 	phy_data.data1 = desc->phy_info[1];
 	phy_data.phy_info = IWL_RX_MPDU_PHY_TSF_OVERLOAD;
 	phy_data.gp2_on_air_rise = le32_to_cpu(desc->on_air_rise_time);
-	phy_data.rate_n_flags = le32_to_cpu(desc->rate);
+	phy_data.rate_n_flags = iwl_v3_rate_from_v2_v3(desc->rate,
+						       mld->fw_rates_ver_3);
 	phy_data.with_data = false;
 
 	BUILD_BUG_ON(sizeof(phy_data.rx_vec) != sizeof(desc->rx_vec));

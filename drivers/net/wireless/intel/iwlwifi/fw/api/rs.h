@@ -213,7 +213,8 @@ enum iwl_tlc_update_flags {
  * @sta_id: station id
  * @reserved: reserved
  * @flags: bitmap of notifications reported
- * @rate: current initial rate
+ * @rate: current initial rate, format depends on the notification
+ *	version
  * @amsdu_size: Max AMSDU size, in bytes
  * @amsdu_enabled: bitmap for per-TID AMSDU enablement
  */
@@ -224,7 +225,7 @@ struct iwl_tlc_update_notif {
 	__le32 rate;
 	__le32 amsdu_size;
 	__le32 amsdu_enabled;
-} __packed; /* TLC_MNG_UPDATE_NTFY_API_S_VER_2 */
+} __packed; /* TLC_MNG_UPDATE_NTFY_API_S_VER_2, _VER_3, _VER_4 */
 
 /**
  * enum iwl_tlc_debug_types - debug options
@@ -427,6 +428,7 @@ enum {
 
 /* Bit 4-5: (0) SISO, (1) MIMO2 (2) MIMO3 */
 #define RATE_VHT_MCS_RATE_CODE_MSK	0xf
+#define RATE_VHT_MCS_NSS_MSK		0x30
 
 /*
  * Legacy OFDM rate format for bits 7:0
@@ -541,7 +543,7 @@ enum {
 #define RATE_MCS_CTS_REQUIRED_POS  (31)
 #define RATE_MCS_CTS_REQUIRED_MSK  (0x1 << RATE_MCS_CTS_REQUIRED_POS)
 
-/* rate_n_flags bit field version 2
+/* rate_n_flags bit field version 2 and 3
  *
  * The 32-bit value has different layouts in the low 8 bits depending on the
  * format. There are three formats, HT, VHT and legacy (11abg, with subformats
@@ -553,6 +555,7 @@ enum {
  * (0) Legacy CCK (1) Legacy OFDM (2) High-throughput (HT)
  * (3) Very High-throughput (VHT) (4) High-efficiency (HE)
  * (5) Extremely High-throughput (EHT)
+ * (6) Ultra High Reliability (UHR) (v3 rate format only)
  */
 #define RATE_MCS_MOD_TYPE_POS		8
 #define RATE_MCS_MOD_TYPE_MSK		(0x7 << RATE_MCS_MOD_TYPE_POS)
@@ -562,14 +565,15 @@ enum {
 #define RATE_MCS_MOD_TYPE_VHT		(3 << RATE_MCS_MOD_TYPE_POS)
 #define RATE_MCS_MOD_TYPE_HE		(4 << RATE_MCS_MOD_TYPE_POS)
 #define RATE_MCS_MOD_TYPE_EHT		(5 << RATE_MCS_MOD_TYPE_POS)
+#define RATE_MCS_MOD_TYPE_UHR		(6 << RATE_MCS_MOD_TYPE_POS)
 
 /*
  * Legacy CCK rate format for bits 0:3:
  *
- * (0) 0xa - 1 Mbps
- * (1) 0x14 - 2 Mbps
- * (2) 0x37 - 5.5 Mbps
- * (3) 0x6e - 11 nbps
+ * (0) 1 Mbps
+ * (1) 2 Mbps
+ * (2) 5.5 Mbps
+ * (3) 11 Mbps
  *
  * Legacy OFDM rate format for bis 3:0:
  *
@@ -586,15 +590,19 @@ enum {
 #define RATE_LEGACY_RATE_MSK		0x7
 
 /*
- * HT, VHT, HE, EHT rate format for bits 3:0
- * 3-0: MCS
- * 4: NSS==2 indicator
- *
+ * HT, VHT, HE, EHT, UHR rate format
+ * Version 2: (not applicable for UHR)
+ *   3-0: MCS
+ *   4: NSS==2 indicator
+ * Version 3:
+ *   4-0: MCS
+ *   5: NSS==2 indicator
  */
 #define RATE_HT_MCS_CODE_MSK		0x7
-#define RATE_MCS_NSS_MSK		0x10
-#define RATE_MCS_CODE_MSK		0xf
-#define RATE_HT_MCS_INDEX(r)		((((r) & RATE_MCS_NSS_MSK) >> 1) | \
+#define RATE_MCS_NSS_MSK_V2		0x10
+#define RATE_MCS_NSS_MSK		0x20
+#define RATE_MCS_CODE_MSK		0x1f
+#define RATE_HT_MCS_INDEX(r)		((((r) & RATE_MCS_NSS_MSK) >> 2) | \
 					 ((r) & RATE_HT_MCS_CODE_MSK))
 
 /* Bits 7-5: reserved */
@@ -810,11 +818,38 @@ struct iwl_lq_cmd {
 }; /* LINK_QUALITY_CMD_API_S_VER_1 */
 
 u8 iwl_fw_rate_idx_to_plcp(int idx);
-u32 iwl_new_rate_from_v1(u32 rate_v1);
 const struct iwl_rate_mcs_info *iwl_rate_mcs(int idx);
 const char *iwl_rs_pretty_ant(u8 ant);
 const char *iwl_rs_pretty_bw(int bw);
 int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate);
 bool iwl_he_is_sgi(u32 rate_n_flags);
+
+static inline u32 iwl_v3_rate_from_v2_v3(__le32 rate, bool fw_v3)
+{
+	u32 val;
+
+	if (fw_v3)
+		return le32_to_cpu(rate);
+
+	val = le32_to_cpu(rate) & ~RATE_MCS_NSS_MSK_V2;
+	val |= u32_encode_bits(le32_get_bits(rate, RATE_MCS_NSS_MSK_V2),
+			       RATE_MCS_NSS_MSK);
+
+	return val;
+}
+
+static inline __le32 iwl_v3_rate_to_v2_v3(u32 rate, bool fw_v3)
+{
+	__le32 val;
+
+	if (fw_v3)
+		return cpu_to_le32(rate);
+
+	val = cpu_to_le32(rate & ~RATE_MCS_NSS_MSK);
+	val |= le32_encode_bits(u32_get_bits(rate, RATE_MCS_NSS_MSK),
+				RATE_MCS_NSS_MSK_V2);
+
+	return val;
+}
 
 #endif /* __iwl_fw_api_rs_h__ */

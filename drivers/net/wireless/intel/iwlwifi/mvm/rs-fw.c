@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 #include "rs.h"
 #include "fw-api.h"
@@ -454,22 +454,11 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 	if (flags & IWL_TLC_NOTIF_FLAG_RATE) {
 		char pretty_rate[100];
 
-		if (iwl_fw_lookup_notif_ver(mvm->fw, DATA_PATH_GROUP,
-					    TLC_MNG_UPDATE_NOTIF, 0) < 3) {
-			rs_pretty_print_rate_v1(pretty_rate,
-						sizeof(pretty_rate),
-						le32_to_cpu(notif->rate));
-			IWL_DEBUG_RATE(mvm,
-				       "Got rate in old format. Rate: %s. Converting.\n",
-				       pretty_rate);
-			lq_sta->last_rate_n_flags =
-				iwl_new_rate_from_v1(le32_to_cpu(notif->rate));
-		} else {
-			lq_sta->last_rate_n_flags = le32_to_cpu(notif->rate);
-		}
+		lq_sta->last_rate_n_flags =
+			iwl_mvm_v3_rate_from_fw(notif->rate, mvm->fw_rates_ver);
 		rs_pretty_print_rate(pretty_rate, sizeof(pretty_rate),
 				     lq_sta->last_rate_n_flags);
-		IWL_DEBUG_RATE(mvm, "new rate: %s\n", pretty_rate);
+		IWL_DEBUG_RATE(mvm, "rate: %s\n", pretty_rate);
 	}
 
 	if (flags & IWL_TLC_NOTIF_FLAG_AMSDU && !mvm_link_sta->orig_amsdu_len) {

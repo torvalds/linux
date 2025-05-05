@@ -259,7 +259,7 @@ struct iwl_mvm_tid_data {
 	u16 seq_number;
 	u16 next_reclaimed;
 	/* The rest is Tx AGG related */
-	u32 rate_n_flags;
+	__le32 rate_n_flags;
 	u8 lq_color;
 	bool amsdu_in_ampdu_allowed;
 	enum iwl_mvm_agg_state state;

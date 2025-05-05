@@ -174,6 +174,7 @@
  * @mcast_filter_cmd: pointer to the multicast filter command.
  * @mgmt_tx_ant: stores the last TX antenna index; used for setting
  *	TX rate_n_flags for non-STA mgmt frames (toggles on every TX failure).
+ * @fw_rates_ver_3: FW rates are in version 3
  * @low_latency: low-latency manager.
  * @tzone: thermal zone device's data
  * @cooling_dev: cooling device's related data
@@ -267,6 +268,8 @@ struct iwl_mld {
 	struct iwl_mcast_filter_cmd *mcast_filter_cmd;
 
 	u8 mgmt_tx_ant;
+
+	bool fw_rates_ver_3;
 
 	struct iwl_mld_low_latency low_latency;
 

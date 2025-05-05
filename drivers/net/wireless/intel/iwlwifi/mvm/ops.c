@@ -1291,6 +1291,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	size_t scan_size;
 	u32 min_backoff;
 	struct iwl_mvm_csme_conn_info *csme_conn_info __maybe_unused;
+	int ratecheck;
 	int err;
 
 	/*
@@ -1336,6 +1337,43 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	iwl_bios_setup_step(trans, &mvm->fwrt);
 
 	mvm->init_status = 0;
+
+	/* start with v1 rates */
+	mvm->fw_rates_ver = 1;
+
+	/* check for rates version 2 */
+	ratecheck =
+		(iwl_fw_lookup_cmd_ver(mvm->fw, TX_CMD, 0) >= 8) +
+		(iwl_fw_lookup_notif_ver(mvm->fw, DATA_PATH_GROUP,
+					 TLC_MNG_UPDATE_NOTIF, 0) >= 3) +
+		(iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
+					 REPLY_RX_MPDU_CMD, 0) >= 4) +
+		(iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP, TX_CMD, 0) >= 6);
+	if (ratecheck != 0 && ratecheck != 4) {
+		IWL_ERR(mvm, "Firmware has inconsistent rates\n");
+		err = -EINVAL;
+		goto out_free;
+	}
+	if (ratecheck == 4)
+		mvm->fw_rates_ver = 2;
+
+	/* check for rates version 3 */
+	ratecheck =
+		(iwl_fw_lookup_cmd_ver(mvm->fw, TX_CMD, 0) >= 11) +
+		(iwl_fw_lookup_notif_ver(mvm->fw, DATA_PATH_GROUP,
+					 TLC_MNG_UPDATE_NOTIF, 0) >= 4) +
+		(iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
+					 REPLY_RX_MPDU_CMD, 0) >= 6) +
+		(iwl_fw_lookup_notif_ver(mvm->fw, DATA_PATH_GROUP,
+					 RX_NO_DATA_NOTIF, 0) >= 4) +
+		(iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP, TX_CMD, 0) >= 9);
+	if (ratecheck != 0 && ratecheck != 5) {
+		IWL_ERR(mvm, "Firmware has inconsistent rates\n");
+		err = -EINVAL;
+		goto out_free;
+	}
+	if (ratecheck == 5)
+		mvm->fw_rates_ver = 3;
 
 	trans->conf.rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
 

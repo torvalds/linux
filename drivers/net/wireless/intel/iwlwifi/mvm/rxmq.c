@@ -2059,7 +2059,9 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	}
 
 	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
-		phy_data.rate_n_flags = le32_to_cpu(desc->v3.rate_n_flags);
+		phy_data.rate_n_flags =
+			iwl_mvm_v3_rate_from_fw(desc->v3.rate_n_flags,
+						mvm->fw_rates_ver);
 		phy_data.channel = desc->v3.channel;
 		phy_data.gp2_on_air_rise = le32_to_cpu(desc->v3.gp2_on_air_rise);
 		phy_data.energy_a = desc->v3.energy_a;
@@ -2072,7 +2074,9 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		phy_data.eht_d4 = desc->phy_eht_data4;
 		phy_data.d5 = desc->v3.phy_data5;
 	} else {
-		phy_data.rate_n_flags = le32_to_cpu(desc->v1.rate_n_flags);
+		phy_data.rate_n_flags =
+			iwl_mvm_v3_rate_from_fw(desc->v1.rate_n_flags,
+						mvm->fw_rates_ver);
 		phy_data.channel = desc->v1.channel;
 		phy_data.gp2_on_air_rise = le32_to_cpu(desc->v1.gp2_on_air_rise);
 		phy_data.energy_a = desc->v1.energy_a;
@@ -2082,13 +2086,6 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		phy_data.d1 = desc->v1.phy_data1;
 		phy_data.d2 = desc->v1.phy_data2;
 		phy_data.d3 = desc->v1.phy_data3;
-	}
-
-	if (iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
-				    REPLY_RX_MPDU_CMD, 0) < 4) {
-		phy_data.rate_n_flags = iwl_new_rate_from_v1(phy_data.rate_n_flags);
-		IWL_DEBUG_DROP(mvm, "Got old format rate, converting. New rate: 0x%x\n",
-			       phy_data.rate_n_flags);
 	}
 
 	format = phy_data.rate_n_flags & RATE_MCS_MOD_TYPE_MSK;
@@ -2384,7 +2381,6 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 	phy_data.d1 = desc->phy_info[1];
 	phy_data.phy_info = IWL_RX_MPDU_PHY_TSF_OVERLOAD;
 	phy_data.gp2_on_air_rise = le32_to_cpu(desc->on_air_rise_time);
-	phy_data.rate_n_flags = le32_to_cpu(desc->rate);
 	phy_data.energy_a = u32_get_bits(rssi, RX_NO_DATA_CHAIN_A_MSK);
 	phy_data.energy_b = u32_get_bits(rssi, RX_NO_DATA_CHAIN_B_MSK);
 	phy_data.channel = u32_get_bits(rssi, RX_NO_DATA_CHANNEL_MSK);
@@ -2392,14 +2388,8 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 	phy_data.rx_vec[0] = desc->rx_vec[0];
 	phy_data.rx_vec[1] = desc->rx_vec[1];
 
-	if (iwl_fw_lookup_notif_ver(mvm->fw, DATA_PATH_GROUP,
-				    RX_NO_DATA_NOTIF, 0) < 2) {
-		IWL_DEBUG_DROP(mvm, "Got an old rate format. Old rate: 0x%x\n",
-			       phy_data.rate_n_flags);
-		phy_data.rate_n_flags = iwl_new_rate_from_v1(phy_data.rate_n_flags);
-		IWL_DEBUG_DROP(mvm, " Rate after conversion to the new format: 0x%x\n",
-			       phy_data.rate_n_flags);
-	}
+	phy_data.rate_n_flags = iwl_mvm_v3_rate_from_fw(desc->rate,
+							mvm->fw_rates_ver);
 
 	format = phy_data.rate_n_flags & RATE_MCS_MOD_TYPE_MSK;
 

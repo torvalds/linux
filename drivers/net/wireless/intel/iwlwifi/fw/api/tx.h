@@ -286,7 +286,7 @@ struct iwl_tx_cmd_gen2 {
  * @offload_assist: TX offload configuration
  * @dram_info: FW internal DRAM storage
  * @rate_n_flags: rate for *all* Tx attempts, if TX_CMD_FLG_STA_RATE_MSK is
- *	cleared. Combination of RATE_MCS_*
+ *	cleared. Combination of RATE_MCS_*; format depends on version
  * @reserved: reserved
  * @hdr: 802.11 header
  */
@@ -298,7 +298,10 @@ struct iwl_tx_cmd_gen3 {
 	__le32 rate_n_flags;
 	u8 reserved[8];
 	struct ieee80211_hdr hdr[];
-} __packed; /* TX_CMD_API_S_VER_8, TX_CMD_API_S_VER_10 */
+} __packed; /* TX_CMD_API_S_VER_8,
+	     * TX_CMD_API_S_VER_10,
+	     * TX_CMD_API_S_VER_11
+	     */
 
 /*
  * TX response related data
@@ -549,7 +552,7 @@ struct iwl_tx_resp_v3 {
  * @failure_rts: num of failures due to unsuccessful RTS
  * @failure_frame: num failures due to no ACK (unused for agg)
  * @initial_rate: for non-agg: rate of the successful Tx. For agg: rate of the
- *	Tx of all the batch. RATE_MCS_*
+ *	Tx of all the batch. RATE_MCS_*; format depends on command version
  * @wireless_media_time: for non-agg: RTS + CTS + frame tx attempts time + ACK.
  *	for agg: RTS + CTS + aggregation tx time + block-ack time.
  *	in usec.
@@ -600,8 +603,10 @@ struct iwl_tx_resp {
 	__le16 reserved2;
 	struct agg_tx_status status;
 } __packed; /* TX_RSP_API_S_VER_6,
-	       TX_RSP_API_S_VER_7,
-	       TX_RSP_API_S_VER_8 */
+	     * TX_RSP_API_S_VER_7,
+	     * TX_RSP_API_S_VER_8,
+	     * TX_RSP_API_S_VER_9
+	     */
 
 /**
  * struct iwl_mvm_ba_notif - notifies about reception of BA

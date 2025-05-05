@@ -376,6 +376,24 @@ static void iwl_mac_hw_set_misc(struct iwl_mld *mld)
 
 static int iwl_mld_hw_verify_preconditions(struct iwl_mld *mld)
 {
+	int ratecheck;
+
+	/* check for rates version 3 */
+	ratecheck =
+		(iwl_fw_lookup_cmd_ver(mld->fw, TX_CMD, 0) >= 11) +
+		(iwl_fw_lookup_notif_ver(mld->fw, DATA_PATH_GROUP,
+					 TLC_MNG_UPDATE_NOTIF, 0) >= 4) +
+		(iwl_fw_lookup_notif_ver(mld->fw, LEGACY_GROUP,
+					 REPLY_RX_MPDU_CMD, 0) >= 6) +
+		(iwl_fw_lookup_notif_ver(mld->fw, DATA_PATH_GROUP,
+					 RX_NO_DATA_NOTIF, 0) >= 4) +
+		(iwl_fw_lookup_notif_ver(mld->fw, LONG_GROUP, TX_CMD, 0) >= 9);
+
+	if (ratecheck != 0 && ratecheck != 5) {
+		IWL_ERR(mld, "Firmware has inconsistent rates\n");
+		return -EINVAL;
+	}
+
 	/* 11ax is expected to be enabled for all supported devices */
 	if (WARN_ON(!mld->nvm_data->sku_cap_11ax_enable))
 		return -EINVAL;
