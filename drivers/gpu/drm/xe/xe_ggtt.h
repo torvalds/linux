@@ -39,4 +39,11 @@ u64 xe_ggtt_print_holes(struct xe_ggtt *ggtt, u64 alignment, struct drm_printer 
 void xe_ggtt_assign(const struct xe_ggtt_node *node, u16 vfid);
 #endif
 
+#ifndef CONFIG_LOCKDEP
+static inline void xe_ggtt_might_lock(struct xe_ggtt *ggtt)
+{ }
+#else
+void xe_ggtt_might_lock(struct xe_ggtt *ggtt);
+#endif
+
 #endif

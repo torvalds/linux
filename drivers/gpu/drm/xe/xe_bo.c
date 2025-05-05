@@ -3076,7 +3076,7 @@ void xe_bo_put(struct xe_bo *bo)
 #endif
 		for_each_tile(tile, xe_bo_device(bo), id)
 			if (bo->ggtt_node[id] && bo->ggtt_node[id]->ggtt)
-				might_lock(&bo->ggtt_node[id]->ggtt->lock);
+				xe_ggtt_might_lock(bo->ggtt_node[id]->ggtt);
 		drm_gem_object_put(&bo->ttm.base);
 	}
 }

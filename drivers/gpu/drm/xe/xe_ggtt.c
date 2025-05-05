@@ -176,6 +176,13 @@ static void ggtt_fini(void *arg)
 	ggtt->scratch = NULL;
 }
 
+#ifdef CONFIG_LOCKDEP
+void xe_ggtt_might_lock(struct xe_ggtt *ggtt)
+{
+	might_lock(&ggtt->lock);
+}
+#endif
+
 static void primelockdep(struct xe_ggtt *ggtt)
 {
 	if (!IS_ENABLED(CONFIG_LOCKDEP))
