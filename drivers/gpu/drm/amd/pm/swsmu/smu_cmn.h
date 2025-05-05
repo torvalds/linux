@@ -52,6 +52,18 @@
 		header->structure_size = sizeof(*(ptr));       \
 	} while (0)
 
+#define smu_cmn_init_partition_metrics(ptr, frev, crev)                     \
+	do {                                                                \
+		typecheck(struct amdgpu_partition_metrics_v##frev##_##crev, \
+			  typeof(*(ptr)));                                  \
+		struct metrics_table_header *header =                       \
+			(struct metrics_table_header *)(ptr);               \
+		memset(header, 0xFF, sizeof(*(ptr)));                       \
+		header->format_revision = frev;                             \
+		header->content_revision = crev;                            \
+		header->structure_size = sizeof(*(ptr));                    \
+	} while (0)
+
 extern const int link_speed[];
 
 /* Helper to Convert from PCIE Gen 1/2/3/4/5/6 to 0.1 GT/s speed units */

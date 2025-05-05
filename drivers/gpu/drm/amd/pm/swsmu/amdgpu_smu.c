@@ -3758,6 +3758,19 @@ int smu_set_pm_policy(struct smu_context *smu, enum pp_pm_policy p_type,
 	return ret;
 }
 
+static ssize_t smu_sys_get_xcp_metrics(void *handle, int xcp_id, void *table)
+{
+	struct smu_context *smu = handle;
+
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+		return -EOPNOTSUPP;
+
+	if (!smu->adev->xcp_mgr || !smu->ppt_funcs->get_xcp_metrics)
+		return -EOPNOTSUPP;
+
+	return smu->ppt_funcs->get_xcp_metrics(smu, xcp_id, table);
+}
+
 static const struct amd_pm_funcs swsmu_pm_funcs = {
 	/* export for sysfs */
 	.set_fan_control_mode    = smu_set_fan_control_mode,
@@ -3816,6 +3829,7 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.get_uclk_dpm_states              = smu_get_uclk_dpm_states,
 	.get_dpm_clock_table              = smu_get_dpm_clock_table,
 	.get_smu_prv_buf_details = smu_get_prv_buffer_details,
+	.get_xcp_metrics                  = smu_sys_get_xcp_metrics,
 };
 
 int smu_wait_for_event(struct smu_context *smu, enum smu_event_type event,

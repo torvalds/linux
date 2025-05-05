@@ -494,6 +494,7 @@ struct amd_pm_funcs {
 	int (*set_df_cstate)(void *handle, enum pp_df_cstate state);
 	int (*set_xgmi_pstate)(void *handle, uint32_t pstate);
 	ssize_t (*get_gpu_metrics)(void *handle, void **table);
+	ssize_t (*get_xcp_metrics)(void *handle, int xcp_id, void *table);
 	ssize_t (*get_pm_metrics)(void *handle, void *pmmetrics, size_t size);
 	int (*set_watermarks_for_clock_ranges)(void *handle,
 					       struct pp_smu_wm_range_sets *ranges);
@@ -1590,6 +1591,29 @@ struct amdgpu_pm_metrics {
 	struct amdgpu_pmmetrics_header common_header;
 
 	uint8_t data[];
+};
+
+struct amdgpu_partition_metrics_v1_0 {
+	struct metrics_table_header common_header;
+	/* Current clocks (Mhz) */
+	uint16_t current_gfxclk[MAX_XCC];
+	uint16_t current_socclk[MAX_CLKS];
+	uint16_t current_vclk0[MAX_CLKS];
+	uint16_t current_dclk0[MAX_CLKS];
+	uint16_t current_uclk;
+	uint16_t padding;
+
+	/* Utilization Instantaneous (%) */
+	uint32_t gfx_busy_inst[MAX_XCC];
+	uint16_t jpeg_busy[NUM_JPEG_ENG_V1];
+	uint16_t vcn_busy[NUM_VCN];
+	/* Utilization Accumulated (%) */
+	uint64_t gfx_busy_acc[MAX_XCC];
+	/* Total App Clock Counter Accumulated */
+	uint64_t gfx_below_host_limit_ppt_acc[MAX_XCC];
+	uint64_t gfx_below_host_limit_thm_acc[MAX_XCC];
+	uint64_t gfx_low_utilization_acc[MAX_XCC];
+	uint64_t gfx_below_host_limit_total_acc[MAX_XCC];
 };
 
 #endif
