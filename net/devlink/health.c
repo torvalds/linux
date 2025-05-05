@@ -930,18 +930,31 @@ EXPORT_SYMBOL_GPL(devlink_fmsg_binary_pair_put);
 static int
 devlink_fmsg_item_fill_type(struct devlink_fmsg_item *msg, struct sk_buff *skb)
 {
+	enum devlink_var_attr_type var_attr_type;
+
 	switch (msg->nla_type) {
 	case NLA_FLAG:
+		var_attr_type = DEVLINK_VAR_ATTR_TYPE_FLAG;
+		break;
 	case NLA_U8:
+		var_attr_type = DEVLINK_VAR_ATTR_TYPE_U8;
+		break;
 	case NLA_U32:
+		var_attr_type = DEVLINK_VAR_ATTR_TYPE_U32;
+		break;
 	case NLA_U64:
+		var_attr_type = DEVLINK_VAR_ATTR_TYPE_U64;
+		break;
 	case NLA_NUL_STRING:
+		var_attr_type = DEVLINK_VAR_ATTR_TYPE_NUL_STRING;
+		break;
 	case NLA_BINARY:
-		return nla_put_u8(skb, DEVLINK_ATTR_FMSG_OBJ_VALUE_TYPE,
-				  msg->nla_type);
+		var_attr_type = DEVLINK_VAR_ATTR_TYPE_BINARY;
+		break;
 	default:
 		return -EINVAL;
 	}
+	return nla_put_u8(skb, DEVLINK_ATTR_FMSG_OBJ_VALUE_TYPE, var_attr_type);
 }
 
 static int
