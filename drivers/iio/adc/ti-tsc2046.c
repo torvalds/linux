@@ -761,7 +761,6 @@ static int tsc2046_adc_probe(struct spi_device *spi)
 	if (!dcfg)
 		return -EINVAL;
 
-	spi->bits_per_word = 8;
 	spi->mode &= ~SPI_MODE_X_MASK;
 	spi->mode |= SPI_MODE_0;
 	ret = spi_setup(spi);
