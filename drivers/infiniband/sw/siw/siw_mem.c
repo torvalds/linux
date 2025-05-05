@@ -18,30 +18,6 @@
 #define SIW_STAG_MAX_INDEX	0x00ffffff
 
 /*
- * The code avoids special Stag of zero and tries to randomize
- * STag values between 1 and SIW_STAG_MAX_INDEX.
- */
-int siw_mem_add(struct siw_device *sdev, struct siw_mem *m)
-{
-	struct xa_limit limit = XA_LIMIT(1, SIW_STAG_MAX_INDEX);
-	u32 id, next;
-
-	get_random_bytes(&next, 4);
-	next &= SIW_STAG_MAX_INDEX;
-
-	if (xa_alloc_cyclic(&sdev->mem_xa, &id, m, limit, &next,
-	    GFP_KERNEL) < 0)
-		return -ENOMEM;
-
-	/* Set the STag index part */
-	m->stag = id << 8;
-
-	siw_dbg_mem(m, "new MEM object\n");
-
-	return 0;
-}
-
-/*
  * siw_mem_id2obj()
  *
  * resolves memory from stag given by id. might be called from:
