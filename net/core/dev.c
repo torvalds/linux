@@ -11966,9 +11966,9 @@ void unregister_netdevice_many_notify(struct list_head *head,
 		struct sk_buff *skb = NULL;
 
 		/* Shutdown queueing discipline. */
+		netdev_lock_ops(dev);
 		dev_shutdown(dev);
 		dev_tcx_uninstall(dev);
-		netdev_lock_ops(dev);
 		dev_xdp_uninstall(dev);
 		dev_memory_provider_uninstall(dev);
 		netdev_unlock_ops(dev);
@@ -12161,7 +12161,9 @@ int __dev_change_net_namespace(struct net_device *dev, struct net *net,
 	synchronize_net();
 
 	/* Shutdown queueing discipline. */
+	netdev_lock_ops(dev);
 	dev_shutdown(dev);
+	netdev_unlock_ops(dev);
 
 	/* Notify protocols, that we are about to destroy
 	 * this device. They should clean all the things.
