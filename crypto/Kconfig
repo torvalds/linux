@@ -240,12 +240,16 @@ config CRYPTO_KRB5ENC
 	  profile.  This is required for Kerberos 5-style encryption, used by
 	  sunrpc/NFS and rxrpc/AFS.
 
-config CRYPTO_TEST
-	tristate "Testing module"
+config CRYPTO_BENCHMARK
+	tristate "Crypto benchmarking module"
 	depends on m || EXPERT
 	select CRYPTO_MANAGER
 	help
-	  Quick & dirty crypto test module.
+	  Quick & dirty crypto benchmarking module.
+
+	  This is mainly intended for use by people developing cryptographic
+	  algorithms in the kernel.  It should not be enabled in production
+	  kernels.
 
 config CRYPTO_SIMD
 	tristate
