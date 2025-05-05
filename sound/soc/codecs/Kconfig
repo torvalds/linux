@@ -2001,6 +2001,7 @@ config SND_SOC_TAS2781_COMLIB_I2C
 
 config SND_SOC_TAS2781_FMWLIB
 	select SND_SOC_TAS2781_COMLIB
+	select CRC8
 	tristate
 	default n
 

@@ -575,25 +575,6 @@ EXPORT_SYMBOL(snd_jack_new);
 
 #ifdef CONFIG_SND_JACK_INPUT_DEV
 /**
- * snd_jack_set_parent - Set the parent device for a jack
- *
- * @jack:   The jack to configure
- * @parent: The device to set as parent for the jack.
- *
- * Set the parent for the jack devices in the device tree.  This
- * function is only valid prior to registration of the jack.  If no
- * parent is configured then the parent device will be the sound card.
- */
-void snd_jack_set_parent(struct snd_jack *jack, struct device *parent)
-{
-	WARN_ON(jack->registered);
-	guard(mutex)(&jack->input_dev_lock);
-	if (jack->input_dev)
-		jack->input_dev->dev.parent = parent;
-}
-EXPORT_SYMBOL(snd_jack_set_parent);
-
-/**
  * snd_jack_set_key - Set a key mapping on a jack
  *
  * @jack:    The jack to configure
