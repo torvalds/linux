@@ -432,12 +432,6 @@ static int __add_disk(struct device *parent, struct gendisk *disk,
 		 */
 		if (disk->fops->submit_bio || disk->fops->poll_bio)
 			return -EINVAL;
-
-		/*
-		 * Initialize the I/O scheduler code and pick a default one if
-		 * needed.
-		 */
-		elevator_init_mq(disk->queue);
 	} else {
 		if (!disk->fops->submit_bio)
 			return -EINVAL;
@@ -454,7 +448,7 @@ static int __add_disk(struct device *parent, struct gendisk *disk,
 	ret = -EINVAL;
 	if (disk->major) {
 		if (WARN_ON(!disk->minors))
-			goto out_exit_elevator;
+			goto out;
 
 		if (disk->minors > DISK_MAX_PARTS) {
 			pr_err("block: can't allocate more than %d partitions\n",
@@ -464,14 +458,14 @@ static int __add_disk(struct device *parent, struct gendisk *disk,
 		if (disk->first_minor > MINORMASK ||
 		    disk->minors > MINORMASK + 1 ||
 		    disk->first_minor + disk->minors > MINORMASK + 1)
-			goto out_exit_elevator;
+			goto out;
 	} else {
 		if (WARN_ON(disk->minors))
-			goto out_exit_elevator;
+			goto out;
 
 		ret = blk_alloc_ext_minor();
 		if (ret < 0)
-			goto out_exit_elevator;
+			goto out;
 		disk->major = BLOCK_EXT_MAJOR;
 		disk->first_minor = ret;
 	}
@@ -561,12 +555,7 @@ out_device_del:
 out_free_ext_minor:
 	if (disk->major == BLOCK_EXT_MAJOR)
 		blk_free_ext_minor(disk->first_minor);
-out_exit_elevator:
-	if (disk->queue->elevator) {
-		mutex_lock(&disk->queue->elevator_lock);
-		elevator_exit(disk->queue);
-		mutex_unlock(&disk->queue->elevator_lock);
-	}
+out:
 	return ret;
 }
 
@@ -760,14 +749,7 @@ static void __del_gendisk(struct gendisk *disk)
 	if (queue_is_mq(q))
 		blk_mq_cancel_work_sync(q);
 
-	blk_mq_quiesce_queue(q);
-	if (q->elevator) {
-		mutex_lock(&q->elevator_lock);
-		elevator_exit(q);
-		mutex_unlock(&q->elevator_lock);
-	}
 	rq_qos_exit(q);
-	blk_mq_unquiesce_queue(q);
 
 	/*
 	 * If the disk does not own the queue, allow using passthrough requests
