@@ -815,7 +815,6 @@ config CRYPTO_GCM
 config CRYPTO_GENIV
 	tristate
 	select CRYPTO_AEAD
-	select CRYPTO_NULL
 	select CRYPTO_MANAGER
 	select CRYPTO_RNG_DEFAULT
 
