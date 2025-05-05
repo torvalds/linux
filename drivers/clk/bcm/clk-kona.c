@@ -53,24 +53,6 @@ static inline u64 scaled_div_value(struct bcm_clk_div *div, u32 reg_div)
 	return (u64)reg_div + ((u64)1 << div->u.s.frac_width);
 }
 
-/*
- * Build a scaled divider value as close as possible to the
- * given whole part (div_value) and fractional part (expressed
- * in billionths).
- */
-u64 scaled_div_build(struct bcm_clk_div *div, u32 div_value, u32 billionths)
-{
-	u64 combined;
-
-	BUG_ON(!div_value);
-	BUG_ON(billionths >= BILLION);
-
-	combined = (u64)div_value * BILLION + billionths;
-	combined <<= div->u.s.frac_width;
-
-	return DIV_ROUND_CLOSEST_ULL(combined, BILLION);
-}
-
 /* The scaled minimum divisor representable by a divider */
 static inline u64
 scaled_div_min(struct bcm_clk_div *div)
