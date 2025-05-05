@@ -434,7 +434,7 @@ static int blk_mq_init_sched_shared_tags(struct request_queue *queue)
 	return 0;
 }
 
-static void blk_mq_sched_reg_debugfs(struct request_queue *q)
+void blk_mq_sched_reg_debugfs(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
 	unsigned long i;
@@ -446,7 +446,7 @@ static void blk_mq_sched_reg_debugfs(struct request_queue *q)
 	mutex_unlock(&q->debugfs_mutex);
 }
 
-static void blk_mq_sched_unreg_debugfs(struct request_queue *q)
+void blk_mq_sched_unreg_debugfs(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
 	unsigned long i;
@@ -503,10 +503,6 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 			}
 		}
 	}
-
-	/* sched is initialized, it is ready to export it via debugfs */
-	blk_mq_sched_reg_debugfs(q);
-
 	return 0;
 
 err_free_map_and_rqs:
@@ -543,9 +539,6 @@ void blk_mq_exit_sched(struct request_queue *q, struct elevator_queue *e)
 	struct blk_mq_hw_ctx *hctx;
 	unsigned long i;
 	unsigned int flags = 0;
-
-	/* unexport via debugfs before exiting sched */
-	blk_mq_sched_unreg_debugfs(q);
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (e->type->ops.exit_hctx && hctx->sched_data) {
