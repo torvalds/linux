@@ -51,6 +51,7 @@
 #include <linux/workqueue.h>
 #include <linux/sort.h>
 #include <linux/io.h> /* vmap_page_range() */
+#include <linux/fs_context.h>
 
 #include <asm/setup.h> /* COMMAND_LINE_SIZE */
 
@@ -10075,6 +10076,8 @@ static struct vfsmount *trace_automount(struct dentry *mntpt, void *ingore)
 {
 	struct vfsmount *mnt;
 	struct file_system_type *type;
+	struct fs_context *fc;
+	int ret;
 
 	/*
 	 * To maintain backward compatibility for tools that mount
@@ -10084,10 +10087,20 @@ static struct vfsmount *trace_automount(struct dentry *mntpt, void *ingore)
 	type = get_fs_type("tracefs");
 	if (!type)
 		return NULL;
-	mnt = vfs_submount(mntpt, type, "tracefs", NULL);
+
+	fc = fs_context_for_submount(type, mntpt);
 	put_filesystem(type);
-	if (IS_ERR(mnt))
-		return NULL;
+	if (IS_ERR(fc))
+		return ERR_CAST(fc);
+
+	ret = vfs_parse_fs_string(fc, "source",
+				  "tracefs", strlen("tracefs"));
+	if (!ret)
+		mnt = fc_mount(fc);
+	else
+		mnt = ERR_PTR(ret);
+
+	put_fs_context(fc);
 	return mnt;
 }
 
