@@ -3335,8 +3335,10 @@ static int rtw89_core_send_nullfunc(struct rtw89_dev *rtwdev,
 {
 	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
 	int link_id = ieee80211_vif_is_mld(vif) ? rtwvif_link->link_id : -1;
+	struct rtw89_sta_link *rtwsta_link;
 	struct ieee80211_sta *sta;
 	struct ieee80211_hdr *hdr;
+	struct rtw89_sta *rtwsta;
 	struct sk_buff *skb;
 	int ret, qsel;
 
@@ -3349,6 +3351,7 @@ static int rtw89_core_send_nullfunc(struct rtw89_dev *rtwdev,
 		ret = -EINVAL;
 		goto out;
 	}
+	rtwsta = sta_to_rtwsta(sta);
 
 	skb = ieee80211_nullfunc_get(rtwdev->hw, vif, link_id, qos);
 	if (!skb) {
@@ -3360,7 +3363,13 @@ static int rtw89_core_send_nullfunc(struct rtw89_dev *rtwdev,
 	if (ps)
 		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
 
-	ret = rtw89_core_tx_write(rtwdev, vif, sta, skb, &qsel);
+	rtwsta_link = rtwsta->links[rtwvif_link->link_id];
+	if (unlikely(!rtwsta_link)) {
+		ret = -ENOLINK;
+		goto out;
+	}
+
+	ret = rtw89_core_tx_write_link(rtwdev, rtwvif_link, rtwsta_link, skb, &qsel, true);
 	if (ret) {
 		rtw89_warn(rtwdev, "nullfunc transmit failed: %d\n", ret);
 		dev_kfree_skb_any(skb);
