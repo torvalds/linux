@@ -154,7 +154,7 @@ class Type(SpecAttr):
 
         if self.presence_type() == 'len':
             pfx = '__' if space == 'user' else ''
-            return f"{pfx}u32 {self.c_name}_len;"
+            return f"{pfx}u32 {self.c_name};"
 
     def _complex_member_type(self, ri):
         return None
@@ -217,10 +217,9 @@ class Type(SpecAttr):
         cw.p(f'[{self.enum_name}] = {"{"} .name = "{self.name}", {typol}{"}"},')
 
     def _attr_put_line(self, ri, var, line):
-        if self.presence_type() == 'present':
-            ri.cw.p(f"if ({var}->_present.{self.c_name})")
-        elif self.presence_type() == 'len':
-            ri.cw.p(f"if ({var}->_present.{self.c_name}_len)")
+        presence = self.presence_type()
+        if presence in {'present', 'len'}:
+            ri.cw.p(f"if ({var}->_{presence}.{self.c_name})")
         ri.cw.p(f"{line};")
 
     def _attr_put_simple(self, ri, var, put_type):
@@ -282,6 +281,7 @@ class Type(SpecAttr):
             # Every layer below last is a nest, so we know it uses bit presence
             # last layer is "self" and may be a complex type
             if i == len(ref) - 1 and self.presence_type() != 'present':
+                presence = f"{var}->{'.'.join(ref[:i] + [''])}_{self.presence_type()}.{ref[i]}"
                 continue
             code.append(presence + ' = 1;')
         ref_path = '.'.join(ref[:-1])
@@ -501,7 +501,7 @@ class TypeString(Type):
         self._attr_put_simple(ri, var, 'str')
 
     def _attr_get(self, ri, var):
-        len_mem = var + '->_present.' + self.c_name + '_len'
+        len_mem = var + '->_len.' + self.c_name
         return [f"{len_mem} = len;",
                 f"{var}->{self.c_name} = malloc(len + 1);",
                 f"memcpy({var}->{self.c_name}, ynl_attr_get_str(attr), len);",
@@ -510,10 +510,10 @@ class TypeString(Type):
                ['unsigned int len;']
 
     def _setter_lines(self, ri, member, presence):
-        return [f"{presence}_len = strlen({self.c_name});",
-                f"{member} = malloc({presence}_len + 1);",
-                f'memcpy({member}, {self.c_name}, {presence}_len);',
-                f'{member}[{presence}_len] = 0;']
+        return [f"{presence} = strlen({self.c_name});",
+                f"{member} = malloc({presence} + 1);",
+                f'memcpy({member}, {self.c_name}, {presence});',
+                f'{member}[{presence}] = 0;']
 
 
 class TypeBinary(Type):
@@ -552,10 +552,10 @@ class TypeBinary(Type):
 
     def attr_put(self, ri, var):
         self._attr_put_line(ri, var, f"ynl_attr_put(nlh, {self.enum_name}, " +
-                            f"{var}->{self.c_name}, {var}->_present.{self.c_name}_len)")
+                            f"{var}->{self.c_name}, {var}->_len.{self.c_name})")
 
     def _attr_get(self, ri, var):
-        len_mem = var + '->_present.' + self.c_name + '_len'
+        len_mem = var + '->_len.' + self.c_name
         return [f"{len_mem} = len;",
                 f"{var}->{self.c_name} = malloc(len);",
                 f"memcpy({var}->{self.c_name}, ynl_attr_data(attr), len);"], \
@@ -563,9 +563,9 @@ class TypeBinary(Type):
                ['unsigned int len;']
 
     def _setter_lines(self, ri, member, presence):
-        return [f"{presence}_len = len;",
-                f"{member} = malloc({presence}_len);",
-                f'memcpy({member}, {self.c_name}, {presence}_len);']
+        return [f"{presence} = len;",
+                f"{member} = malloc({presence});",
+                f'memcpy({member}, {self.c_name}, {presence});']
 
 
 class TypeBitfield32(Type):
@@ -721,7 +721,7 @@ class TypeMultiAttr(Type):
 
     def _setter_lines(self, ri, member, presence):
         # For multi-attr we have a count, not presence, hack up the presence
-        presence = presence[:-(len('_present.') + len(self.c_name))] + "n_" + self.c_name
+        presence = presence[:-(len('_count.') + len(self.c_name))] + "n_" + self.c_name
         return [f"{member} = {self.c_name};",
                 f"{presence} = n_{self.c_name};"]
 
@@ -784,7 +784,7 @@ class TypeArrayNest(Type):
 
     def _setter_lines(self, ri, member, presence):
         # For multi-attr we have a count, not presence, hack up the presence
-        presence = presence[:-(len('_present.') + len(self.c_name))] + "n_" + self.c_name
+        presence = presence[:-(len('_count.') + len(self.c_name))] + "n_" + self.c_name
         return [f"{member} = {self.c_name};",
                 f"{presence} = n_{self.c_name};"]
 
@@ -2186,18 +2186,18 @@ def _print_type(ri, direction, struct):
         ri.cw.p(ri.fixed_hdr + ' _hdr;')
         ri.cw.nl()
 
-    meta_started = False
-    for _, attr in struct.member_list():
-        for type_filter in ['len', 'present']:
+    for type_filter in ['present', 'len']:
+        meta_started = False
+        for _, attr in struct.member_list():
             line = attr.presence_member(ri.ku_space, type_filter)
             if line:
                 if not meta_started:
                     ri.cw.block_start(line=f"struct")
                     meta_started = True
                 ri.cw.p(line)
-    if meta_started:
-        ri.cw.block_end(line='_present;')
-        ri.cw.nl()
+        if meta_started:
+            ri.cw.block_end(line=f'_{type_filter};')
+    ri.cw.nl()
 
     for arg in struct.inherited:
         ri.cw.p(f"__u32 {arg};")

@@ -20,7 +20,7 @@ static void rt_addr_print(struct rt_addr_getaddr_rsp *a)
 	if (name)
 		printf("%16s: ", name);
 
-	switch (a->_present.address_len) {
+	switch (a->_len.address) {
 	case 4:
 		addr = inet_ntop(AF_INET, a->address,
 				 addr_str, sizeof(addr_str));
@@ -36,7 +36,7 @@ static void rt_addr_print(struct rt_addr_getaddr_rsp *a)
 	if (addr)
 		printf("%s", addr);
 	else
-		printf("[%d]", a->_present.address_len);
+		printf("[%d]", a->_len.address);
 
 	printf("\n");
 }

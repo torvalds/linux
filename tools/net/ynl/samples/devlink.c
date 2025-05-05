@@ -34,7 +34,7 @@ int main(int argc, char **argv)
 		if (!info_rsp)
 			goto err_free_devs;
 
-		if (info_rsp->_present.info_driver_name_len)
+		if (info_rsp->_len.info_driver_name)
 			printf("    driver: %s\n", info_rsp->info_driver_name);
 		if (info_rsp->n_info_version_running)
 			printf("    running fw:\n");
