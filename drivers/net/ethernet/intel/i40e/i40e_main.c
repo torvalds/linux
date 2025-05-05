@@ -3,6 +3,7 @@
 
 #include <generated/utsrelease.h>
 #include <linux/crash_dump.h>
+#include <linux/net/intel/libie/pctype.h>
 #include <linux/if_bridge.h>
 #include <linux/if_macvlan.h>
 #include <linux/module.h>
@@ -9188,47 +9189,47 @@ static void i40e_fdir_filter_exit(struct i40e_pf *pf)
 	i40e_reset_fdir_filter_cnt(pf);
 
 	/* Reprogram the default input set for TCP/IPv4 */
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV4_TCP,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV4_TCP,
 				I40E_L3_SRC_MASK | I40E_L3_DST_MASK |
 				I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
 
 	/* Reprogram the default input set for TCP/IPv6 */
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV6_TCP,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV6_TCP,
 				I40E_L3_V6_SRC_MASK | I40E_L3_V6_DST_MASK |
 				I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
 
 	/* Reprogram the default input set for UDP/IPv4 */
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV4_UDP,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV4_UDP,
 				I40E_L3_SRC_MASK | I40E_L3_DST_MASK |
 				I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
 
 	/* Reprogram the default input set for UDP/IPv6 */
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV6_UDP,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV6_UDP,
 				I40E_L3_V6_SRC_MASK | I40E_L3_V6_DST_MASK |
 				I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
 
 	/* Reprogram the default input set for SCTP/IPv4 */
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV4_SCTP,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV4_SCTP,
 				I40E_L3_SRC_MASK | I40E_L3_DST_MASK |
 				I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
 
 	/* Reprogram the default input set for SCTP/IPv6 */
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV6_SCTP,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV6_SCTP,
 				I40E_L3_V6_SRC_MASK | I40E_L3_V6_DST_MASK |
 				I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
 
 	/* Reprogram the default input set for Other/IPv4 */
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV4_OTHER,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV4_OTHER,
 				I40E_L3_SRC_MASK | I40E_L3_DST_MASK);
 
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_FRAG_IPV4,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_FRAG_IPV4,
 				I40E_L3_SRC_MASK | I40E_L3_DST_MASK);
 
 	/* Reprogram the default input set for Other/IPv6 */
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV6_OTHER,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV6_OTHER,
 				I40E_L3_SRC_MASK | I40E_L3_DST_MASK);
 
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_FRAG_IPV6,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_FRAG_IPV6,
 				I40E_L3_SRC_MASK | I40E_L3_DST_MASK);
 }
 
@@ -9656,7 +9657,7 @@ static void i40e_reenable_fdir_atr(struct i40e_pf *pf)
 		 * settings. It is safe to restore the default input set
 		 * because there are no active TCPv4 filter rules.
 		 */
-		i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV4_TCP,
+		i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV4_TCP,
 					I40E_L3_SRC_MASK | I40E_L3_DST_MASK |
 					I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
 

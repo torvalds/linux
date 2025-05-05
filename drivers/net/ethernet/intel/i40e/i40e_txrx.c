@@ -2,6 +2,7 @@
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include <linux/bpf_trace.h>
+#include <linux/net/intel/libie/pctype.h>
 #include <linux/net/intel/libie/rx.h>
 #include <linux/prefetch.h>
 #include <linux/sctp.h>
@@ -397,12 +398,12 @@ static int i40e_add_del_fdir_udp(struct i40e_vsi *vsi,
 		ret = i40e_prepare_fdir_filter
 			(pf, fd_data, add, raw_packet,
 			 I40E_UDPIP_DUMMY_PACKET_LEN,
-			 I40E_FILTER_PCTYPE_NONF_IPV4_UDP);
+			 LIBIE_FILTER_PCTYPE_NONF_IPV4_UDP);
 	else
 		ret = i40e_prepare_fdir_filter
 			(pf, fd_data, add, raw_packet,
 			 I40E_UDPIP6_DUMMY_PACKET_LEN,
-			 I40E_FILTER_PCTYPE_NONF_IPV6_UDP);
+			 LIBIE_FILTER_PCTYPE_NONF_IPV6_UDP);
 
 	if (ret) {
 		kfree(raw_packet);
@@ -444,12 +445,12 @@ static int i40e_add_del_fdir_tcp(struct i40e_vsi *vsi,
 		ret = i40e_prepare_fdir_filter
 			(pf, fd_data, add, raw_packet,
 			 I40E_TCPIP_DUMMY_PACKET_LEN,
-			 I40E_FILTER_PCTYPE_NONF_IPV4_TCP);
+			 LIBIE_FILTER_PCTYPE_NONF_IPV4_TCP);
 	else
 		ret = i40e_prepare_fdir_filter
 			(pf, fd_data, add, raw_packet,
 			 I40E_TCPIP6_DUMMY_PACKET_LEN,
-			 I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
+			 LIBIE_FILTER_PCTYPE_NONF_IPV6_TCP);
 
 	if (ret) {
 		kfree(raw_packet);
@@ -499,12 +500,12 @@ static int i40e_add_del_fdir_sctp(struct i40e_vsi *vsi,
 		ret = i40e_prepare_fdir_filter
 			(pf, fd_data, add, raw_packet,
 			 I40E_SCTPIP_DUMMY_PACKET_LEN,
-			 I40E_FILTER_PCTYPE_NONF_IPV4_SCTP);
+			 LIBIE_FILTER_PCTYPE_NONF_IPV4_SCTP);
 	else
 		ret = i40e_prepare_fdir_filter
 			(pf, fd_data, add, raw_packet,
 			 I40E_SCTPIP6_DUMMY_PACKET_LEN,
-			 I40E_FILTER_PCTYPE_NONF_IPV6_SCTP);
+			 LIBIE_FILTER_PCTYPE_NONF_IPV6_SCTP);
 
 	if (ret) {
 		kfree(raw_packet);
@@ -543,11 +544,11 @@ static int i40e_add_del_fdir_ip(struct i40e_vsi *vsi,
 	int i;
 
 	if (ipv4) {
-		iter_start = I40E_FILTER_PCTYPE_NONF_IPV4_OTHER;
-		iter_end = I40E_FILTER_PCTYPE_FRAG_IPV4;
+		iter_start = LIBIE_FILTER_PCTYPE_NONF_IPV4_OTHER;
+		iter_end = LIBIE_FILTER_PCTYPE_FRAG_IPV4;
 	} else {
-		iter_start = I40E_FILTER_PCTYPE_NONF_IPV6_OTHER;
-		iter_end = I40E_FILTER_PCTYPE_FRAG_IPV6;
+		iter_start = LIBIE_FILTER_PCTYPE_NONF_IPV6_OTHER;
+		iter_end = LIBIE_FILTER_PCTYPE_FRAG_IPV6;
 	}
 
 	for (i = iter_start; i <= iter_end; i++) {
@@ -2948,9 +2949,9 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	flex_ptype = FIELD_PREP(I40E_TXD_FLTR_QW0_QINDEX_MASK,
 				tx_ring->queue_index);
 	flex_ptype |= (tx_flags & I40E_TX_FLAGS_IPV4) ?
-		      (I40E_FILTER_PCTYPE_NONF_IPV4_TCP <<
+		      (LIBIE_FILTER_PCTYPE_NONF_IPV4_TCP <<
 		       I40E_TXD_FLTR_QW0_PCTYPE_SHIFT) :
-		      (I40E_FILTER_PCTYPE_NONF_IPV6_TCP <<
+		      (LIBIE_FILTER_PCTYPE_NONF_IPV6_TCP <<
 		       I40E_TXD_FLTR_QW0_PCTYPE_SHIFT);
 
 	flex_ptype |= tx_ring->vsi->id << I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT;

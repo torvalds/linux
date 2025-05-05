@@ -982,6 +982,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(4, virtchnl_rss_lut);
  * traffic types that are hashed by the hardware.
  */
 struct virtchnl_rss_hashcfg {
+	/* Bits defined by enum libie_filter_pctype */
 	u64 hashcfg;
 };
 
