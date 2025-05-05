@@ -940,7 +940,7 @@ F:	include/linux/altera_uart.h
 AMAZON ANNAPURNA LABS FIC DRIVER
 M:	Talel Shenhar <talel@amazon.com>
 S:	Maintained
-F:	Documentation/devicetree/bindings/interrupt-controller/amazon,al-fic.txt
+F:	Documentation/devicetree/bindings/interrupt-controller/amazon,al-fic.yaml
 F:	drivers/irqchip/irq-al-fic.c
 
 AMAZON ANNAPURNA LABS MEMORY CONTROLLER EDAC
