@@ -5,43 +5,23 @@
 
 #include <linux/sysctl.h>
 #include <linux/bitmap.h>
-#include <linux/printk.h>
 #include <linux/proc_fs.h>
-#include <linux/security.h>
 #include <linux/ctype.h>
-#include <linux/filter.h>
-#include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/kobject.h>
-#include <linux/net.h>
 #include <linux/highuid.h>
 #include <linux/writeback.h>
-#include <linux/ratelimit.h>
 #include <linux/initrd.h>
-#include <linux/key.h>
 #include <linux/times.h>
 #include <linux/limits.h>
 #include <linux/syscalls.h>
-#include <linux/nfs_fs.h>
-#include <linux/acpi.h>
-#include <linux/reboot.h>
-#include <linux/kmod.h>
 #include <linux/capability.h>
-#include <linux/binfmts.h>
-#include <linux/sched/sysctl.h>
-#include <linux/mount.h>
-#include <linux/pid.h>
 
 #include "../lib/kstrtox.h"
 
 #include <linux/uaccess.h>
 #include <asm/processor.h>
-
-#ifdef CONFIG_X86
-#include <asm/nmi.h>
-#include <asm/io.h>
-#endif
 
 /* shared constants to be used in various sysctls */
 const int sysctl_vals[] = { 0, 1, 2, 3, 4, 100, 200, 1000, 3000, INT_MAX, 65535, -1 };
