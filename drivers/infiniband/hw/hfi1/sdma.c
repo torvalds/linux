@@ -1521,24 +1521,6 @@ void sdma_all_running(struct hfi1_devdata *dd)
 }
 
 /**
- * sdma_all_idle() - called when the link goes down
- * @dd: hfi1_devdata
- *
- * This routine moves all engines to the idle state.
- */
-void sdma_all_idle(struct hfi1_devdata *dd)
-{
-	struct sdma_engine *sde;
-	unsigned int i;
-
-	/* idle all engines */
-	for (i = 0; i < dd->num_sdma; ++i) {
-		sde = &dd->per_sdma[i];
-		sdma_process_event(sde, sdma_event_e70_go_idle);
-	}
-}
-
-/**
  * sdma_start() - called to kick off state processing for all engines
  * @dd: hfi1_devdata
  *
