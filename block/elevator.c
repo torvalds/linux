@@ -621,7 +621,7 @@ void elevator_init_mq(struct request_queue *q)
  * If switching fails, we are most likely running out of memory and not able
  * to restore the old io scheduler, so leaving the io scheduler being none.
  */
-int elevator_switch(struct request_queue *q, const char *name)
+static int elevator_switch(struct request_queue *q, const char *name)
 {
 	struct elevator_type *new_e = NULL;
 	int ret = 0;
@@ -680,6 +680,24 @@ static int elevator_change(struct request_queue *q, const char *elevator_name)
 		return 0;
 
 	return elevator_switch(q, elevator_name);
+}
+
+/*
+ * The I/O scheduler depends on the number of hardware queues, this forces a
+ * reattachment when nr_hw_queues changes.
+ */
+void elv_update_nr_hw_queues(struct request_queue *q)
+{
+	WARN_ON_ONCE(q->mq_freeze_depth == 0);
+
+	mutex_lock(&q->elevator_lock);
+	if (q->elevator && !blk_queue_dying(q) && !blk_queue_registered(q)) {
+		const char *name = q->elevator->type->elevator_name;
+
+		/* force to reattach elevator after nr_hw_queue is updated */
+		elevator_switch(q, name);
+	}
+	mutex_unlock(&q->elevator_lock);
 }
 
 static void elv_iosched_load_module(char *elevator_name)
