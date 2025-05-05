@@ -983,7 +983,7 @@ static void __timeout_handler(int sig, siginfo_t *info, void *ucontext)
 	}
 
 	t->timed_out = true;
-	// signal process group
+	/* signal process group */
 	kill(-(t->pid), SIGKILL);
 }
 
