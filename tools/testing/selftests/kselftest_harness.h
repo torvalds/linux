@@ -178,7 +178,6 @@
 		struct __test_metadata *_metadata, \
 		struct __fixture_variant_metadata __attribute__((unused)) *variant) \
 	{ \
-		_metadata->setup_completed = true; \
 		if (setjmp(_metadata->env) == 0) \
 			test_name(_metadata); \
 		__test_check_assert(_metadata); \
