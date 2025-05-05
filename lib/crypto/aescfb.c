@@ -99,7 +99,7 @@ MODULE_DESCRIPTION("Generic AES-CFB library");
 MODULE_AUTHOR("Ard Biesheuvel <ardb@kernel.org>");
 MODULE_LICENSE("GPL");
 
-#ifndef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
+#ifdef CONFIG_CRYPTO_SELFTESTS
 
 /*
  * Test code below. Vectors taken from crypto/testmgr.h

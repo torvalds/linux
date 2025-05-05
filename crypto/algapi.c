@@ -275,7 +275,7 @@ static struct crypto_larval *crypto_alloc_test_larval(struct crypto_alg *alg)
 	struct crypto_larval *larval;
 
 	if (!IS_ENABLED(CONFIG_CRYPTO_MANAGER) ||
-	    IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS) ||
+	    !IS_ENABLED(CONFIG_CRYPTO_SELFTESTS) ||
 	    (alg->cra_flags & CRYPTO_ALG_INTERNAL))
 		return NULL; /* No self-test needed */
 
@@ -1059,7 +1059,7 @@ static void __init crypto_start_tests(void)
 	if (!IS_BUILTIN(CONFIG_CRYPTO_ALGAPI))
 		return;
 
-	if (IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS))
+	if (!IS_ENABLED(CONFIG_CRYPTO_SELFTESTS))
 		return;
 
 	set_crypto_boot_test_finished();

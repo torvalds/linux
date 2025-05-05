@@ -55,7 +55,7 @@ module_param(fuzz_iterations, uint, 0644);
 MODULE_PARM_DESC(fuzz_iterations, "number of fuzz test iterations");
 #endif
 
-#ifdef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
+#ifndef CONFIG_CRYPTO_SELFTESTS
 
 /* a perfect nop */
 int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
@@ -321,10 +321,10 @@ struct testvec_config {
 
 /*
  * The following are the lists of testvec_configs to test for each algorithm
- * type when the basic crypto self-tests are enabled, i.e. when
- * CONFIG_CRYPTO_MANAGER_DISABLE_TESTS is unset.  They aim to provide good test
- * coverage, while keeping the test time much shorter than the full fuzz tests
- * so that the basic tests can be enabled in a wider range of circumstances.
+ * type when the basic crypto self-tests are enabled.  They aim to provide good
+ * test coverage, while keeping the test time much shorter than the full fuzz
+ * tests so that the basic tests can be enabled in a wider range of
+ * circumstances.
  */
 
 /* Configs for skciphers and aeads */
@@ -5899,6 +5899,6 @@ non_fips_alg:
 	return alg_fips_disabled(driver, alg);
 }
 
-#endif /* CONFIG_CRYPTO_MANAGER_DISABLE_TESTS */
+#endif /* CONFIG_CRYPTO_SELFTESTS */
 
 EXPORT_SYMBOL_GPL(alg_test);

@@ -358,7 +358,7 @@ EXPORT_SYMBOL(chacha20poly1305_decrypt_sg_inplace);
 
 static int __init chacha20poly1305_init(void)
 {
-	if (!IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS) &&
+	if (IS_ENABLED(CONFIG_CRYPTO_SELFTESTS) &&
 	    WARN_ON(!chacha20poly1305_selftest()))
 		return -ENODEV;
 	return 0;

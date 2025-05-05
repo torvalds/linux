@@ -189,7 +189,7 @@ static int cryptomgr_schedule_test(struct crypto_alg *alg)
 	struct task_struct *thread;
 	struct crypto_test_param *param;
 
-	if (IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS))
+	if (!IS_ENABLED(CONFIG_CRYPTO_SELFTESTS))
 		return NOTIFY_DONE;
 
 	if (!try_module_get(THIS_MODULE))
