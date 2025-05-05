@@ -76,10 +76,8 @@ static void chacha_permute(struct chacha_state *state, int nrounds)
  */
 void chacha_block_generic(struct chacha_state *state, u8 *stream, int nrounds)
 {
-	struct chacha_state permuted_state;
+	struct chacha_state permuted_state = *state;
 	int i;
-
-	memcpy(permuted_state.x, state->x, 64);
 
 	chacha_permute(&permuted_state, nrounds);
 
@@ -105,9 +103,7 @@ EXPORT_SYMBOL(chacha_block_generic);
 void hchacha_block_generic(const struct chacha_state *state,
 			   u32 *stream, int nrounds)
 {
-	struct chacha_state permuted_state;
-
-	memcpy(permuted_state.x, state->x, 64);
+	struct chacha_state permuted_state = *state;
 
 	chacha_permute(&permuted_state, nrounds);
 
