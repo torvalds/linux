@@ -148,7 +148,7 @@ config CRYPTO_HKDF
 	select CRYPTO_HASH2
 
 config CRYPTO_MANAGER
-	tristate "Cryptographic algorithm manager"
+	tristate
 	select CRYPTO_MANAGER2
 	help
 	  Create default cryptographic template instantiations such as
