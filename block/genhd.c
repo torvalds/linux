@@ -389,6 +389,32 @@ int disk_scan_partitions(struct gendisk *disk, blk_mode_t mode)
 	return ret;
 }
 
+static void add_disk_final(struct gendisk *disk)
+{
+	struct device *ddev = disk_to_dev(disk);
+
+	if (!(disk->flags & GENHD_FL_HIDDEN)) {
+		/* Make sure the first partition scan will be proceed */
+		if (get_capacity(disk) && disk_has_partscan(disk))
+			set_bit(GD_NEED_PART_SCAN, &disk->state);
+
+		bdev_add(disk->part0, ddev->devt);
+		if (get_capacity(disk))
+			disk_scan_partitions(disk, BLK_OPEN_READ);
+
+		/*
+		 * Announce the disk and partitions after all partitions are
+		 * created. (for hidden disks uevents remain suppressed forever)
+		 */
+		dev_set_uevent_suppress(ddev, 0);
+		disk_uevent(disk, KOBJ_ADD);
+	}
+
+	blk_apply_bdi_limits(disk->bdi, &disk->queue->limits);
+	disk_add_events(disk);
+	set_bit(GD_ADDED, &disk->state);
+}
+
 /**
  * add_disk_fwnode - add disk information to kernel list with fwnode
  * @parent: parent device for the disk
@@ -516,21 +542,6 @@ int __must_check add_disk_fwnode(struct device *parent, struct gendisk *disk,
 					&disk->bdi->dev->kobj, "bdi");
 		if (ret)
 			goto out_unregister_bdi;
-
-		/* Make sure the first partition scan will be proceed */
-		if (get_capacity(disk) && disk_has_partscan(disk))
-			set_bit(GD_NEED_PART_SCAN, &disk->state);
-
-		bdev_add(disk->part0, ddev->devt);
-		if (get_capacity(disk))
-			disk_scan_partitions(disk, BLK_OPEN_READ);
-
-		/*
-		 * Announce the disk and partitions after all partitions are
-		 * created. (for hidden disks uevents remain suppressed forever)
-		 */
-		dev_set_uevent_suppress(ddev, 0);
-		disk_uevent(disk, KOBJ_ADD);
 	} else {
 		/*
 		 * Even if the block_device for a hidden gendisk is not
@@ -539,10 +550,7 @@ int __must_check add_disk_fwnode(struct device *parent, struct gendisk *disk,
 		 */
 		disk->part0->bd_dev = MKDEV(disk->major, disk->first_minor);
 	}
-
-	blk_apply_bdi_limits(disk->bdi, &disk->queue->limits);
-	disk_add_events(disk);
-	set_bit(GD_ADDED, &disk->state);
+	add_disk_final(disk);
 	return 0;
 
 out_unregister_bdi:
