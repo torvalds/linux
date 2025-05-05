@@ -676,10 +676,6 @@ out_unfreeze:
  */
 static int elevator_change(struct request_queue *q, const char *elevator_name)
 {
-	/* Make sure queue is not in the middle of being removed */
-	if (!blk_queue_registered(q))
-		return -ENOENT;
-
 	if (q->elevator && elevator_match(q->elevator->type, elevator_name))
 		return 0;
 
@@ -707,6 +703,10 @@ ssize_t elv_iosched_store(struct gendisk *disk, const char *buf,
 	unsigned int memflags;
 	struct request_queue *q = disk->queue;
 	struct blk_mq_tag_set *set = q->tag_set;
+
+	/* Make sure queue is not in the middle of being removed */
+	if (!blk_queue_registered(q))
+		return -ENOENT;
 
 	/*
 	 * If the attribute needs to load a module, do it before freezing the
