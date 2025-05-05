@@ -3383,6 +3383,14 @@ int mt7925_mcu_fill_message(struct mt76_dev *mdev, struct sk_buff *skb,
 		    cmd == MCU_UNI_CMD(CHIP_CONFIG))
 			uni_txd->option &= ~MCU_CMD_ACK;
 
+		if (mcu_cmd == MCU_UNI_CMD_TESTMODE_CTRL ||
+		    mcu_cmd == MCU_UNI_CMD_TESTMODE_RX_STAT) {
+			if (cmd & __MCU_CMD_FIELD_QUERY)
+				uni_txd->option = 0x2;
+			else
+				uni_txd->option = 0x6;
+		}
+
 		goto exit;
 	}
 

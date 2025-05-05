@@ -104,13 +104,6 @@ enum {
 	MT7925_TM_WIFISPECTRUM,
 };
 
-struct mt7925_rftest_cmd {
-	u8 action;
-	u8 rsv[3];
-	__le32 param0;
-	__le32 param1;
-} __packed;
-
 struct mt7925_rftest_evt {
 	__le32 param0;
 	__le32 param1;
@@ -603,6 +596,47 @@ struct roc_acquire_tlv {
 	__le32 maxinterval;
 	u8 dbdcband;
 	u8 rsv[3];
+} __packed;
+
+enum ENUM_CMD_TEST_CTRL_ACT {
+	CMD_TEST_CTRL_ACT_SWITCH_MODE = 0,
+	CMD_TEST_CTRL_ACT_SET_AT = 1,
+	CMD_TEST_CTRL_ACT_GET_AT = 2,
+	CMD_TEST_CTRL_ACT_SET_AT_ENG = 3,
+	CMD_TEST_CTRL_ACT_GET_AT_ENG = 4,
+	CMD_TEST_CTRL_ACT_NUM
+};
+
+enum ENUM_CMD_TEST_CTRL_ACT_SWITCH_MODE_OP {
+	CMD_TEST_CTRL_ACT_SWITCH_MODE_NORMAL = 0,
+	CMD_TEST_CTRL_ACT_SWITCH_MODE_RF_TEST = 1,
+	CMD_TEST_CTRL_ACT_SWITCH_MODE_ICAP = 2,
+	CMD_TEST_CTRL_ACT_SWITCH_MODE_NUM
+};
+
+union testmode_data {
+	__le32 op_mode;
+	__le32 channel_freq;
+	u8 rf_at_info[84];
+};
+
+union testmode_evt {
+	__le32 op_mode;
+	__le32 channel_freq;
+	u8 rf_at_info[1024];
+};
+
+struct uni_cmd_testmode_ctrl {
+	u16 tag;
+	u16 length;
+	u8 action;
+	u8 reserved[3];
+	union testmode_data data;
+} __packed;
+
+struct mt7925_rftest_cmd {
+	u8 padding[4];
+	struct uni_cmd_testmode_ctrl ctrl;
 } __packed;
 
 static inline enum connac3_mcu_cipher_type
