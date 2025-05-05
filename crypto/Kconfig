@@ -239,7 +239,6 @@ config CRYPTO_KRB5ENC
 	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	select CRYPTO_HASH
-	select CRYPTO_NULL
 	help
 	  Combined hash and cipher support for Kerberos 5 RFC3961 simplified
 	  profile.  This is required for Kerberos 5-style encryption, used by
