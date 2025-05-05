@@ -764,6 +764,16 @@ static void __del_gendisk(struct gendisk *disk)
 		blk_unfreeze_release_lock(q);
 }
 
+static void disable_elv_switch(struct request_queue *q)
+{
+	struct blk_mq_tag_set *set = q->tag_set;
+	WARN_ON_ONCE(!queue_is_mq(q));
+
+	down_write(&set->update_nr_hwq_lock);
+	blk_queue_flag_set(QUEUE_FLAG_NO_ELV_SWITCH, q);
+	up_write(&set->update_nr_hwq_lock);
+}
+
 /**
  * del_gendisk - remove the gendisk
  * @disk: the struct gendisk to remove
@@ -792,6 +802,9 @@ void del_gendisk(struct gendisk *disk)
 		__del_gendisk(disk);
 	} else {
 		set = disk->queue->tag_set;
+
+		disable_elv_switch(disk->queue);
+
 		memflags = memalloc_noio_save();
 		down_read(&set->update_nr_hwq_lock);
 		__del_gendisk(disk);

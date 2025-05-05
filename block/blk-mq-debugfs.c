@@ -94,6 +94,7 @@ static const char *const blk_queue_flag_name[] = {
 	QUEUE_FLAG_NAME(HCTX_ACTIVE),
 	QUEUE_FLAG_NAME(SQ_SCHED),
 	QUEUE_FLAG_NAME(DISABLE_WBT_DEF),
+	QUEUE_FLAG_NAME(NO_ELV_SWITCH),
 };
 #undef QUEUE_FLAG_NAME
 

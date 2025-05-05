@@ -680,6 +680,9 @@ void elevator_set_default(struct request_queue *q)
 	};
 	int err = 0;
 
+	/* now we allow to switch elevator */
+	blk_queue_flag_clear(QUEUE_FLAG_NO_ELV_SWITCH, q);
+
 	if (q->tag_set->flags & BLK_MQ_F_NO_SCHED_BY_DEFAULT)
 		return;
 
@@ -744,9 +747,13 @@ ssize_t elv_iosched_store(struct gendisk *disk, const char *buf,
 	elv_iosched_load_module(ctx.name);
 
 	down_read(&set->update_nr_hwq_lock);
-	ret = elevator_change(q, &ctx);
-	if (!ret)
-		ret = count;
+	if (!blk_queue_no_elv_switch(q)) {
+		ret = elevator_change(q, &ctx);
+		if (!ret)
+			ret = count;
+	} else {
+		ret = -ENOENT;
+	}
 	up_read(&set->update_nr_hwq_lock);
 	return ret;
 }
