@@ -410,7 +410,9 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	device_init_wakeup(dev, true);
+	ret = devm_device_init_wakeup(dev);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to init wakeup\n");
 
 	return 0;
 err:

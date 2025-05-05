@@ -170,7 +170,7 @@ int ib_create_ucap(enum rdma_user_cap type)
 	ucap->dev.class = &ucaps_class;
 	ucap->dev.devt = MKDEV(MAJOR(ucaps_base_dev), type);
 	ucap->dev.release = ucap_dev_release;
-	ret = dev_set_name(&ucap->dev, ucap_names[type]);
+	ret = dev_set_name(&ucap->dev, "%s", ucap_names[type]);
 	if (ret)
 		goto err_device;
 

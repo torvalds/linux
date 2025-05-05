@@ -20,6 +20,21 @@
 		cifs_dbg(VFS, fmt, ## __VA_ARGS__);	\
 	} while (0)
 
+static inline size_t cifs_io_align(struct fs_context *fc,
+				   const char *name, size_t size)
+{
+	if (!size || !IS_ALIGNED(size, PAGE_SIZE)) {
+		cifs_errorf(fc, "unaligned %s, making it a multiple of %lu bytes\n",
+			    name, PAGE_SIZE);
+		size = umax(round_down(size, PAGE_SIZE), PAGE_SIZE);
+	}
+	return size;
+}
+
+#define CIFS_ALIGN_WSIZE(_fc, _size) cifs_io_align(_fc, "wsize", _size)
+#define CIFS_ALIGN_RSIZE(_fc, _size) cifs_io_align(_fc, "rsize", _size)
+#define CIFS_ALIGN_BSIZE(_fc, _size) cifs_io_align(_fc, "bsize", _size)
+
 enum smb_version {
 	Smb_1 = 1,
 	Smb_20,
@@ -359,6 +374,38 @@ static inline void cifs_mount_lock(void)
 static inline void cifs_mount_unlock(void)
 {
 	mutex_unlock(&cifs_mount_mutex);
+}
+
+static inline void cifs_negotiate_rsize(struct TCP_Server_Info *server,
+					struct smb3_fs_context *ctx,
+					struct cifs_tcon *tcon)
+{
+	unsigned int size;
+
+	size = umax(server->ops->negotiate_rsize(tcon, ctx), PAGE_SIZE);
+	if (ctx->rsize)
+		size = umax(umin(ctx->rsize, size), PAGE_SIZE);
+	ctx->rsize = round_down(size, PAGE_SIZE);
+}
+
+static inline void cifs_negotiate_wsize(struct TCP_Server_Info *server,
+					struct smb3_fs_context *ctx,
+					struct cifs_tcon *tcon)
+{
+	unsigned int size;
+
+	size = umax(server->ops->negotiate_wsize(tcon, ctx), PAGE_SIZE);
+	if (ctx->wsize)
+		size = umax(umin(ctx->wsize, size), PAGE_SIZE);
+	ctx->wsize = round_down(size, PAGE_SIZE);
+}
+
+static inline void cifs_negotiate_iosize(struct TCP_Server_Info *server,
+					 struct smb3_fs_context *ctx,
+					 struct cifs_tcon *tcon)
+{
+	cifs_negotiate_rsize(server, ctx, tcon);
+	cifs_negotiate_wsize(server, ctx, tcon);
 }
 
 #endif

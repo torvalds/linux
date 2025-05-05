@@ -396,6 +396,7 @@ static inline unsigned long dax_folio_put(struct folio *folio)
 	order = folio_order(folio);
 	if (!order)
 		return 0;
+	folio_reset_order(folio);
 
 	for (i = 0; i < (1UL << order); i++) {
 		struct dev_pagemap *pgmap = page_pgmap(&folio->page);

@@ -730,7 +730,7 @@ static int dp83822_phy_reset(struct phy_device *phydev)
 	return phydev->drv->config_init(phydev);
 }
 
-#ifdef CONFIG_OF_MDIO
+#if IS_ENABLED(CONFIG_OF_MDIO)
 static const u32 tx_amplitude_100base_tx_gain[] = {
 	80, 82, 83, 85, 87, 88, 90, 92,
 	93, 95, 97, 98, 100, 102, 103, 105,

@@ -1754,7 +1754,7 @@ static size_t cookie_msi_granule(const struct iommu_domain *domain)
 		return PAGE_SIZE;
 	default:
 		BUG();
-	};
+	}
 }
 
 static struct list_head *cookie_msi_pages(const struct iommu_domain *domain)
@@ -1766,7 +1766,7 @@ static struct list_head *cookie_msi_pages(const struct iommu_domain *domain)
 		return &domain->msi_cookie->msi_page_list;
 	default:
 		BUG();
-	};
+	}
 }
 
 static struct iommu_dma_msi_page *iommu_dma_get_msi_page(struct device *dev,

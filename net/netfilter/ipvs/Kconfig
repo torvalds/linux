@@ -105,7 +105,7 @@ config	IP_VS_PROTO_AH
 
 config  IP_VS_PROTO_SCTP
 	bool "SCTP load balancing support"
-	select LIBCRC32C
+	select CRC32
 	help
 	  This option enables support for load balancing SCTP transport
 	  protocol. Say Y if unsure.
