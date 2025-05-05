@@ -1149,7 +1149,7 @@ xfs_init_percpu_counters(
 	return 0;
 
 free_freecounters:
-	while (--i > 0)
+	while (--i >= 0)
 		percpu_counter_destroy(&mp->m_free[i].count);
 	percpu_counter_destroy(&mp->m_delalloc_rtextents);
 free_delalloc:
