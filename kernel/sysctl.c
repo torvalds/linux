@@ -731,49 +731,6 @@ int proc_douintvec(const struct ctl_table *table, int write, void *buffer,
 				 do_proc_douintvec_conv, NULL);
 }
 
-/*
- * Taint values can only be increased
- * This means we can safely use a temporary.
- */
-static int proc_taint(const struct ctl_table *table, int write,
-			       void *buffer, size_t *lenp, loff_t *ppos)
-{
-	struct ctl_table t;
-	unsigned long tmptaint = get_taint();
-	int err;
-
-	if (write && !capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
-	t = *table;
-	t.data = &tmptaint;
-	err = proc_doulongvec_minmax(&t, write, buffer, lenp, ppos);
-	if (err < 0)
-		return err;
-
-	if (write) {
-		int i;
-
-		/*
-		 * If we are relying on panic_on_taint not producing
-		 * false positives due to userspace input, bail out
-		 * before setting the requested taint flags.
-		 */
-		if (panic_on_taint_nousertaint && (tmptaint & panic_on_taint))
-			return -EINVAL;
-
-		/*
-		 * Poor man's atomic or. Not worth adding a primitive
-		 * to everyone's atomic.h for this
-		 */
-		for (i = 0; i < TAINT_FLAGS_COUNT; i++)
-			if ((1UL << i) & tmptaint)
-				add_taint(i, LOCKDEP_STILL_OK);
-	}
-
-	return err;
-}
-
 /**
  * struct do_proc_dointvec_minmax_conv_param - proc_dointvec_minmax() range checking structure
  * @min: pointer to minimum allowable value
@@ -1557,12 +1514,6 @@ int proc_do_static_key(const struct ctl_table *table, int write,
 
 static const struct ctl_table kern_table[] = {
 #ifdef CONFIG_PROC_SYSCTL
-	{
-		.procname	= "tainted",
-		.maxlen 	= sizeof(long),
-		.mode		= 0644,
-		.proc_handler	= proc_taint,
-	},
 	{
 		.procname	= "sysctl_writes_strict",
 		.data		= &sysctl_writes_strict,
