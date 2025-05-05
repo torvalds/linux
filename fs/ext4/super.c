@@ -508,21 +508,9 @@ static void ext4_journal_commit_callback(journal_t *journal, transaction_t *txn)
 	ext4_maybe_update_superblock(sb);
 }
 
-/*
- * This writepage callback for write_cache_pages()
- * takes care of a few cases after page cleaning.
- *
- * write_cache_pages() already checks for dirty pages
- * and calls clear_page_dirty_for_io(), which we want,
- * to write protect the pages.
- *
- * However, we may have to redirty a page (see below.)
- */
-static int ext4_journalled_writepage_callback(struct folio *folio,
-					      struct writeback_control *wbc,
-					      void *data)
+static bool ext4_journalled_writepage_needs_redirty(struct jbd2_inode *jinode,
+		struct folio *folio)
 {
-	transaction_t *transaction = (transaction_t *) data;
 	struct buffer_head *bh, *head;
 	struct journal_head *jh;
 
@@ -543,15 +531,12 @@ static int ext4_journalled_writepage_callback(struct folio *folio,
 		 */
 		jh = bh2jh(bh);
 		if (buffer_dirty(bh) ||
-		    (jh && (jh->b_transaction != transaction ||
-			    jh->b_next_transaction))) {
-			folio_redirty_for_writepage(wbc, folio);
-			goto out;
-		}
+		    (jh && (jh->b_transaction != jinode->i_transaction ||
+			    jh->b_next_transaction)))
+			return true;
 	} while ((bh = bh->b_this_page) != head);
 
-out:
-	return AOP_WRITEPAGE_ACTIVATE;
+	return false;
 }
 
 static int ext4_journalled_submit_inode_data_buffers(struct jbd2_inode *jinode)
@@ -563,10 +548,23 @@ static int ext4_journalled_submit_inode_data_buffers(struct jbd2_inode *jinode)
 		.range_start = jinode->i_dirty_start,
 		.range_end = jinode->i_dirty_end,
         };
+	struct folio *folio = NULL;
+	int error;
 
-	return write_cache_pages(mapping, &wbc,
-				 ext4_journalled_writepage_callback,
-				 jinode->i_transaction);
+	/*
+	 * writeback_iter() already checks for dirty pages and calls
+	 * folio_clear_dirty_for_io(), which we want to write protect the
+	 * folios.
+	 *
+	 * However, we may have to redirty a folio sometimes.
+	 */
+	while ((folio = writeback_iter(mapping, &wbc, folio, &error))) {
+		if (ext4_journalled_writepage_needs_redirty(jinode, folio))
+			folio_redirty_for_writepage(&wbc, folio);
+		folio_unlock(folio);
+	}
+
+	return error;
 }
 
 static int ext4_journal_submit_inode_data_buffers(struct jbd2_inode *jinode)
