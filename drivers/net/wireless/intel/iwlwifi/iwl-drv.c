@@ -260,6 +260,9 @@ const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 			rf = "wh";
 		}
 		break;
+	case IWL_CFG_RF_TYPE_PE:
+		rf = "pe";
+		break;
 	default:
 		return "unknown-rf";
 	}
