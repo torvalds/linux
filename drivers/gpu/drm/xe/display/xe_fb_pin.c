@@ -171,15 +171,15 @@ write_ggtt_rotated(struct xe_bo *bo, struct xe_ggtt *ggtt, u32 *ggtt_ofs, u32 bo
 {
 	struct xe_device *xe = xe_bo_device(bo);
 	u32 column, row;
+	u64 pte = ggtt->pt_ops->pte_encode_flags(bo, xe->pat.idx[XE_CACHE_NONE]);
 
 	for (column = 0; column < width; column++) {
 		u32 src_idx = src_stride * (height - 1) + column + bo_ofs;
 
 		for (row = 0; row < height; row++) {
-			u64 pte = ggtt->pt_ops->pte_encode_bo(bo, src_idx * XE_PAGE_SIZE,
-							      xe->pat.idx[XE_CACHE_NONE]);
+			u64 addr = xe_bo_addr(bo, src_idx * XE_PAGE_SIZE, XE_PAGE_SIZE);
 
-			ggtt->pt_ops->ggtt_set_pte(ggtt, *ggtt_ofs, pte);
+			ggtt->pt_ops->ggtt_set_pte(ggtt, *ggtt_ofs, pte | addr);
 			*ggtt_ofs += XE_PAGE_SIZE;
 			src_idx -= src_stride;
 		}
@@ -217,26 +217,19 @@ static int __xe_pin_fb_vma_ggtt(const struct intel_framebuffer *fb,
 	if (bo->ggtt_node[tile0->id] && view->type == I915_GTT_VIEW_NORMAL) {
 		vma->node = bo->ggtt_node[tile0->id];
 	} else if (view->type == I915_GTT_VIEW_NORMAL) {
-		u32 x, size = bo->ttm.base.size;
-
 		vma->node = xe_ggtt_node_init(ggtt);
 		if (IS_ERR(vma->node)) {
 			ret = PTR_ERR(vma->node);
 			goto out_unlock;
 		}
 
-		ret = xe_ggtt_node_insert_locked(vma->node, size, align, 0);
+		ret = xe_ggtt_node_insert_locked(vma->node, bo->size, align, 0);
 		if (ret) {
 			xe_ggtt_node_fini(vma->node);
 			goto out_unlock;
 		}
 
-		for (x = 0; x < size; x += XE_PAGE_SIZE) {
-			u64 pte = ggtt->pt_ops->pte_encode_bo(bo, x,
-							      xe->pat.idx[XE_CACHE_NONE]);
-
-			ggtt->pt_ops->ggtt_set_pte(ggtt, vma->node->base.start + x, pte);
-		}
+		xe_ggtt_map_bo(ggtt, vma->node, bo, xe->pat.idx[XE_CACHE_NONE]);
 	} else {
 		u32 i, ggtt_ofs;
 		const struct intel_rotation_info *rot_info = &view->rotated;
