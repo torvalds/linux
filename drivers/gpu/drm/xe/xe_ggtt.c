@@ -957,3 +957,15 @@ u64 xe_ggtt_encode_pte_flags(struct xe_ggtt *ggtt,
 {
 	return ggtt->pt_ops->pte_encode_flags(bo, pat_index);
 }
+
+/**
+ * xe_ggtt_read_pte - Read a PTE from the GGTT
+ * @ggtt: &xe_ggtt
+ * @offset: the offset for which the mapping should be read.
+ *
+ * Used by testcases, and by display reading out an inherited bios FB.
+ */
+u64 xe_ggtt_read_pte(struct xe_ggtt *ggtt, u64 offset)
+{
+	return ioread64(ggtt->gsm + (offset / XE_PAGE_SIZE));
+}
