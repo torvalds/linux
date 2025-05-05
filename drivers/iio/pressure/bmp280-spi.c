@@ -81,14 +81,6 @@ static int bmp280_spi_probe(struct spi_device *spi)
 	const struct bmp280_chip_info *chip_info;
 	struct regmap_bus const *bmp_regmap_bus;
 	struct regmap *regmap;
-	int ret;
-
-	spi->bits_per_word = 8;
-	ret = spi_setup(spi);
-	if (ret < 0) {
-		dev_err(&spi->dev, "spi_setup failed!\n");
-		return ret;
-	}
 
 	chip_info = spi_get_device_match_data(spi);
 
