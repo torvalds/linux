@@ -346,10 +346,9 @@ static_assert(sizeof(struct scsi_stream_status) == 8);
 
 /* GET STREAM STATUS parameter data */
 struct scsi_stream_status_header {
-	__be32 len;	/* length in bytes of stream_status[] array. */
+	__be32 len;	/* length in bytes of following payload */
 	u16 reserved;
 	__be16 number_of_open_streams;
-	DECLARE_FLEX_ARRAY(struct scsi_stream_status, stream_status);
 };
 
 static_assert(sizeof(struct scsi_stream_status_header) == 8);
