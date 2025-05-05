@@ -1175,6 +1175,7 @@ struct rtw89_tx_desc_info {
 	bool ldpc;
 	bool upd_wlan_hdr;
 	bool mlo;
+	bool sw_mld;
 };
 
 struct rtw89_core_tx_request {
