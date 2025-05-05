@@ -1694,7 +1694,7 @@ F:	drivers/android/
 ANDROID GOLDFISH PIC DRIVER
 M:	Miodrag Dinic <miodrag.dinic@mips.com>
 S:	Supported
-F:	Documentation/devicetree/bindings/interrupt-controller/google,goldfish-pic.txt
+F:	Documentation/devicetree/bindings/interrupt-controller/google,goldfish-pic.yaml
 F:	drivers/irqchip/irq-goldfish-pic.c
 
 ANDROID GOLDFISH RTC DRIVER
