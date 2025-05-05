@@ -202,12 +202,9 @@ static int graph_entry(struct ftrace_graph_ent *trace,
 {
 	unsigned long *task_var = fgraph_get_task_var(gops);
 	struct trace_array *tr = gops->private;
-	struct trace_array_cpu *data;
 	struct fgraph_times *ftimes;
 	unsigned int trace_ctx;
-	long disabled;
 	int ret = 0;
-	int cpu;
 
 	if (*task_var & TRACE_GRAPH_NOTRACE)
 		return 0;
@@ -257,21 +254,14 @@ static int graph_entry(struct ftrace_graph_ent *trace,
 	if (tracing_thresh)
 		return 1;
 
-	preempt_disable_notrace();
-	cpu = raw_smp_processor_id();
-	data = per_cpu_ptr(tr->array_buffer.data, cpu);
-	disabled = atomic_read(&data->disabled);
-	if (likely(!disabled)) {
-		trace_ctx = tracing_gen_ctx();
-		if (IS_ENABLED(CONFIG_FUNCTION_GRAPH_RETADDR) &&
-		    tracer_flags_is_set(TRACE_GRAPH_PRINT_RETADDR)) {
-			unsigned long retaddr = ftrace_graph_top_ret_addr(current);
-			ret = __trace_graph_retaddr_entry(tr, trace, trace_ctx, retaddr);
-		} else {
-			ret = __graph_entry(tr, trace, trace_ctx, fregs);
-		}
+	trace_ctx = tracing_gen_ctx();
+	if (IS_ENABLED(CONFIG_FUNCTION_GRAPH_RETADDR) &&
+	    tracer_flags_is_set(TRACE_GRAPH_PRINT_RETADDR)) {
+		unsigned long retaddr = ftrace_graph_top_ret_addr(current);
+		ret = __trace_graph_retaddr_entry(tr, trace, trace_ctx, retaddr);
+	} else {
+		ret = __graph_entry(tr, trace, trace_ctx, fregs);
 	}
-	preempt_enable_notrace();
 
 	return ret;
 }
@@ -351,13 +341,10 @@ void trace_graph_return(struct ftrace_graph_ret *trace,
 {
 	unsigned long *task_var = fgraph_get_task_var(gops);
 	struct trace_array *tr = gops->private;
-	struct trace_array_cpu *data;
 	struct fgraph_times *ftimes;
 	unsigned int trace_ctx;
 	u64 calltime, rettime;
-	long disabled;
 	int size;
-	int cpu;
 
 	rettime = trace_clock_local();
 
@@ -376,15 +363,8 @@ void trace_graph_return(struct ftrace_graph_ret *trace,
 
 	calltime = ftimes->calltime;
 
-	preempt_disable_notrace();
-	cpu = raw_smp_processor_id();
-	data = per_cpu_ptr(tr->array_buffer.data, cpu);
-	disabled = atomic_read(&data->disabled);
-	if (likely(!disabled)) {
-		trace_ctx = tracing_gen_ctx();
-		__trace_graph_return(tr, trace, trace_ctx, calltime, rettime);
-	}
-	preempt_enable_notrace();
+	trace_ctx = tracing_gen_ctx();
+	__trace_graph_return(tr, trace, trace_ctx, calltime, rettime);
 }
 
 static void trace_graph_thresh_return(struct ftrace_graph_ret *trace,
