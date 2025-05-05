@@ -2939,6 +2939,7 @@ static void ath12k_peer_assoc_h_eht(struct ath12k *ar,
 	const struct ieee80211_sta_eht_cap *eht_cap;
 	const struct ieee80211_sta_he_cap *he_cap;
 	struct ieee80211_link_sta *link_sta;
+	struct ieee80211_bss_conf *link_conf;
 	u32 *rx_mcs, *tx_mcs;
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
@@ -2947,6 +2948,12 @@ static void ath12k_peer_assoc_h_eht(struct ath12k *ar,
 	if (!link_sta) {
 		ath12k_warn(ar->ab, "unable to access link sta in peer assoc eht for sta %pM link %u\n",
 			    sta->addr, arsta->link_id);
+		return;
+	}
+
+	link_conf = ath12k_mac_get_link_bss_conf(arvif);
+	if (!link_conf) {
+		ath12k_warn(ar->ab, "unable to access link_conf in peer assoc eht set\n");
 		return;
 	}
 
@@ -3021,6 +3028,7 @@ static void ath12k_peer_assoc_h_eht(struct ath12k *ar,
 	}
 
 	arg->punct_bitmap = ~arvif->punct_bitmap;
+	arg->eht_disable_mcs15 = link_conf->eht_disable_mcs15;
 }
 
 static void ath12k_peer_assoc_h_mlo(struct ath12k_link_sta *arsta,
