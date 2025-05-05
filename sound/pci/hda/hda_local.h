@@ -571,8 +571,6 @@ struct hda_nid_item {
 
 int snd_hda_ctl_add(struct hda_codec *codec, hda_nid_t nid,
 		    struct snd_kcontrol *kctl);
-int snd_hda_add_nid(struct hda_codec *codec, struct snd_kcontrol *kctl,
-		    unsigned int index, hda_nid_t nid);
 void snd_hda_ctls_clear(struct hda_codec *codec);
 
 /*
