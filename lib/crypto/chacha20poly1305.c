@@ -84,7 +84,7 @@ __chacha20poly1305_encrypt(u8 *dst, const u8 *src, const size_t src_len,
 
 	poly1305_final(&poly1305_state, dst + src_len);
 
-	memzero_explicit(chacha_state, sizeof(*chacha_state));
+	chacha_zeroize_state(chacha_state);
 	memzero_explicit(&b, sizeof(b));
 }
 
@@ -188,7 +188,7 @@ bool chacha20poly1305_decrypt(u8 *dst, const u8 *src, const size_t src_len,
 	ret = __chacha20poly1305_decrypt(dst, src, src_len, ad, ad_len,
 					 &chacha_state);
 
-	memzero_explicit(&chacha_state, sizeof(chacha_state));
+	chacha_zeroize_state(&chacha_state);
 	memzero_explicit(iv, sizeof(iv));
 	memzero_explicit(k, sizeof(k));
 	return ret;
@@ -328,7 +328,7 @@ bool chacha20poly1305_crypt_sg_inplace(struct scatterlist *src,
 		      !crypto_memneq(b.mac[0], b.mac[1], POLY1305_DIGEST_SIZE);
 	}
 
-	memzero_explicit(&chacha_state, sizeof(chacha_state));
+	chacha_zeroize_state(&chacha_state);
 	memzero_explicit(&b, sizeof(b));
 
 	return ret;

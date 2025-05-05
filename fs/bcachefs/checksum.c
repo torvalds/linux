@@ -113,7 +113,7 @@ static void bch2_chacha20(const struct bch_key *key, struct nonce nonce,
 
 	bch2_chacha20_init(&state, key, nonce);
 	chacha20_crypt(&state, data, data, len);
-	memzero_explicit(&state, sizeof(state));
+	chacha_zeroize_state(&state);
 }
 
 static void bch2_poly1305_init(struct poly1305_desc_ctx *desc,
@@ -283,7 +283,7 @@ int __bch2_encrypt_bio(struct bch_fs *c, unsigned type,
 		chacha20_crypt(&chacha_state, p, p, bv.bv_len);
 		kunmap_local(p);
 	}
-	memzero_explicit(&chacha_state, sizeof(chacha_state));
+	chacha_zeroize_state(&chacha_state);
 	return ret;
 }
 

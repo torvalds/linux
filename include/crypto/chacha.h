@@ -16,6 +16,7 @@
 #define _CRYPTO_CHACHA_H
 
 #include <linux/unaligned.h>
+#include <linux/string.h>
 #include <linux/types.h>
 
 /* 32-bit stream position, then 96-bit nonce (RFC7539 convention) */
@@ -106,6 +107,11 @@ static inline void chacha20_crypt(struct chacha_state *state,
 				  u8 *dst, const u8 *src, unsigned int bytes)
 {
 	chacha_crypt(state, dst, src, bytes, 20);
+}
+
+static inline void chacha_zeroize_state(struct chacha_state *state)
+{
+	memzero_explicit(state, sizeof(*state));
 }
 
 #if IS_ENABLED(CONFIG_CRYPTO_ARCH_HAVE_LIB_CHACHA)

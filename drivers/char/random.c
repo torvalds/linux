@@ -422,7 +422,7 @@ static void _get_random_bytes(void *buf, size_t len)
 		buf += CHACHA_BLOCK_SIZE;
 	}
 
-	memzero_explicit(&chacha_state, sizeof(chacha_state));
+	chacha_zeroize_state(&chacha_state);
 }
 
 /*
@@ -485,7 +485,7 @@ static ssize_t get_random_bytes_user(struct iov_iter *iter)
 
 	memzero_explicit(block, sizeof(block));
 out_zero_chacha:
-	memzero_explicit(&chacha_state, sizeof(chacha_state));
+	chacha_zeroize_state(&chacha_state);
 	return ret ? ret : -EFAULT;
 }
 
