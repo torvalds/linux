@@ -374,13 +374,13 @@ asmlinkage void start_secondary(void)
 	calibrate_delay();
 	cpu_data[cpu].udelay_val = loops_per_jiffy;
 
+#ifdef CONFIG_HOTPLUG_PARALLEL
+	cpuhp_ap_sync_alive();
+#endif
 	set_cpu_sibling_map(cpu);
 	set_cpu_core_map(cpu);
 
 	cpumask_set_cpu(cpu, &cpu_coherent_mask);
-#ifdef CONFIG_HOTPLUG_PARALLEL
-	cpuhp_ap_sync_alive();
-#endif
 	notify_cpu_starting(cpu);
 
 #ifndef CONFIG_HOTPLUG_PARALLEL
