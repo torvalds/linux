@@ -423,6 +423,8 @@
 				self = &self_private; \
 			} \
 		} \
+		_metadata->variant = variant->data; \
+		_metadata->self = self; \
 		if (setjmp(_metadata->env) == 0) { \
 			/* _metadata and potentially self are shared with all forks. */ \
 			child = fork(); \
@@ -926,6 +928,8 @@ struct __test_metadata {
 	bool aborted;	/* stopped test due to failed ASSERT */
 	bool *no_teardown; /* fixture needs teardown */
 	jmp_buf env;	/* for exiting out of test early */
+	void *self;
+	const void *variant;
 	struct __test_results *results;
 	struct __test_metadata *prev, *next;
 };
