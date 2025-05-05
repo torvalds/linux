@@ -3708,8 +3708,12 @@ select:
 
 static void rtw89_core_mlo_track(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_hal *hal = &rtwdev->hal;
 	struct ieee80211_vif *vif;
 	struct rtw89_vif *rtwvif;
+
+	if (hal->disabled_dm_bitmap & BIT(RTW89_DM_MLO))
+		return;
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
 		vif = rtwvif_to_vif(rtwvif);
