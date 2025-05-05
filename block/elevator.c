@@ -49,6 +49,11 @@
 struct elv_change_ctx {
 	const char *name;
 	bool no_uevent;
+
+	/* for unregistering old elevator */
+	struct elevator_queue *old;
+	/* for registering new elevator */
+	struct elevator_queue *new;
 };
 
 static DEFINE_SPINLOCK(elv_list_lock);
@@ -158,14 +163,14 @@ static void elevator_exit(struct request_queue *q)
 {
 	struct elevator_queue *e = q->elevator;
 
+	lockdep_assert_held(&q->elevator_lock);
+
 	ioc_clear_queue(q);
 	blk_mq_sched_free_rqs(q);
 
 	mutex_lock(&e->sysfs_lock);
 	blk_mq_exit_sched(q, e);
 	mutex_unlock(&e->sysfs_lock);
-
-	kobject_put(&e->kobj);
 }
 
 static inline void __elv_rqhash_del(struct request *rq)
@@ -466,8 +471,6 @@ static int elv_register_queue(struct request_queue *q,
 {
 	int error;
 
-	lockdep_assert_held(&q->elevator_lock);
-
 	error = kobject_add(&e->kobj, &q->disk->queue_kobj, "iosched");
 	if (!error) {
 		const struct elv_fs_entry *attr = e->type->elevator_attrs;
@@ -494,8 +497,6 @@ static int elv_register_queue(struct request_queue *q,
 static void elv_unregister_queue(struct request_queue *q,
 				 struct elevator_queue *e)
 {
-	lockdep_assert_held(&q->elevator_lock);
-
 	if (e && test_and_clear_bit(ELEVATOR_FLAG_REGISTERED, &e->flags)) {
 		kobject_uevent(&e->kobj, KOBJ_REMOVE);
 		kobject_del(&e->kobj);
@@ -586,7 +587,7 @@ static int elevator_switch(struct request_queue *q, struct elv_change_ctx *ctx)
 	blk_mq_quiesce_queue(q);
 
 	if (q->elevator) {
-		elv_unregister_queue(q, q->elevator);
+		ctx->old = q->elevator;
 		elevator_exit(q);
 	}
 
@@ -594,11 +595,7 @@ static int elevator_switch(struct request_queue *q, struct elv_change_ctx *ctx)
 		ret = blk_mq_init_sched(q, new_e);
 		if (ret)
 			goto out_unfreeze;
-		ret = elv_register_queue(q, q->elevator, !ctx->no_uevent);
-		if (ret) {
-			elevator_exit(q);
-			goto out_unfreeze;
-		}
+		ctx->new = q->elevator;
 	} else {
 		blk_queue_flag_clear(QUEUE_FLAG_SQ_SCHED, q);
 		q->elevator = NULL;
@@ -616,6 +613,38 @@ out_unfreeze:
 
 	if (new_e)
 		elevator_put(new_e);
+	return ret;
+}
+
+static void elv_exit_and_release(struct request_queue *q)
+{
+	struct elevator_queue *e;
+	unsigned memflags;
+
+	memflags = blk_mq_freeze_queue(q);
+	mutex_lock(&q->elevator_lock);
+	e = q->elevator;
+	elevator_exit(q);
+	mutex_unlock(&q->elevator_lock);
+	blk_mq_unfreeze_queue(q, memflags);
+	if (e)
+		kobject_put(&e->kobj);
+}
+
+static int elevator_change_done(struct request_queue *q,
+				struct elv_change_ctx *ctx)
+{
+	int ret = 0;
+
+	if (ctx->old) {
+		elv_unregister_queue(q, ctx->old);
+		kobject_put(&ctx->old->kobj);
+	}
+	if (ctx->new) {
+		ret = elv_register_queue(q, ctx->new, !ctx->no_uevent);
+		if (ret)
+			elv_exit_and_release(q);
+	}
 	return ret;
 }
 
@@ -645,6 +674,9 @@ static int elevator_change(struct request_queue *q, struct elv_change_ctx *ctx)
 		ret = elevator_switch(q, ctx);
 	mutex_unlock(&q->elevator_lock);
 	blk_mq_unfreeze_queue(q, memflags);
+	if (!ret)
+		ret = elevator_change_done(q, ctx);
+
 	return ret;
 }
 
@@ -654,18 +686,22 @@ static int elevator_change(struct request_queue *q, struct elv_change_ctx *ctx)
  */
 void elv_update_nr_hw_queues(struct request_queue *q)
 {
+	struct elv_change_ctx ctx = {};
+	int ret = -ENODEV;
+
 	WARN_ON_ONCE(q->mq_freeze_depth == 0);
 
 	mutex_lock(&q->elevator_lock);
 	if (q->elevator && !blk_queue_dying(q) && !blk_queue_registered(q)) {
-		struct elv_change_ctx ctx = {
-			.name = q->elevator->type->elevator_name,
-		};
+		ctx.name = q->elevator->type->elevator_name;
 
 		/* force to reattach elevator after nr_hw_queue is updated */
-		elevator_switch(q, &ctx);
+		ret = elevator_switch(q, &ctx);
 	}
 	mutex_unlock(&q->elevator_lock);
+	blk_mq_unfreeze_queue_nomemrestore(q);
+	if (!ret)
+		WARN_ON_ONCE(elevator_change_done(q, &ctx));
 }
 
 /*
