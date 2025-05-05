@@ -3638,6 +3638,94 @@ void rtw89_traffic_stats_init(struct rtw89_dev *rtwdev,
 	ewma_tp_init(&stats->rx_ewma_tp);
 }
 
+#define RTW89_MLSR_GOTO_2GHZ_THRESHOLD -53
+#define RTW89_MLSR_EXIT_2GHZ_THRESHOLD -38
+static void rtw89_core_mlsr_link_decision(struct rtw89_dev *rtwdev,
+					  struct rtw89_vif *rtwvif)
+{
+	unsigned int sel_link_id = IEEE80211_MLD_MAX_NUM_LINKS;
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+	struct rtw89_vif_link *rtwvif_link;
+	const struct rtw89_chan *chan;
+	unsigned long usable_links;
+	unsigned int link_id;
+	u8 decided_bands;
+	u8 rssi;
+
+	rssi = ewma_rssi_read(&rtwdev->phystat.bcn_rssi);
+	if (unlikely(!rssi))
+		return;
+
+	if (RTW89_RSSI_RAW_TO_DBM(rssi) >= RTW89_MLSR_EXIT_2GHZ_THRESHOLD)
+		decided_bands = BIT(RTW89_BAND_5G) | BIT(RTW89_BAND_6G);
+	else if (RTW89_RSSI_RAW_TO_DBM(rssi) <= RTW89_MLSR_GOTO_2GHZ_THRESHOLD)
+		decided_bands = BIT(RTW89_BAND_2G);
+	else
+		return;
+
+	usable_links = ieee80211_vif_usable_links(vif);
+
+	rtwvif_link = rtw89_get_designated_link(rtwvif);
+	if (unlikely(!rtwvif_link))
+		goto select;
+
+	chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
+	if (decided_bands & BIT(chan->band_type))
+		return;
+
+	usable_links &= ~BIT(rtwvif_link->link_id);
+
+select:
+	rcu_read_lock();
+
+	for_each_set_bit(link_id, &usable_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct ieee80211_bss_conf *link_conf;
+		struct ieee80211_channel *channel;
+		enum rtw89_band band;
+
+		link_conf = rcu_dereference(vif->link_conf[link_id]);
+		if (unlikely(!link_conf))
+			continue;
+
+		channel = link_conf->chanreq.oper.chan;
+		if (unlikely(!channel))
+			continue;
+
+		band = rtw89_nl80211_to_hw_band(channel->band);
+		if (decided_bands & BIT(band)) {
+			sel_link_id = link_id;
+			break;
+		}
+	}
+
+	rcu_read_unlock();
+
+	if (sel_link_id == IEEE80211_MLD_MAX_NUM_LINKS)
+		return;
+
+	rtw89_core_mlsr_switch(rtwdev, rtwvif, sel_link_id);
+}
+
+static void rtw89_core_mlo_track(struct rtw89_dev *rtwdev)
+{
+	struct ieee80211_vif *vif;
+	struct rtw89_vif *rtwvif;
+
+	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
+		vif = rtwvif_to_vif(rtwvif);
+		if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif))
+			continue;
+
+		switch (rtwvif->mlo_mode) {
+		case RTW89_MLO_MODE_MLSR:
+			rtw89_core_mlsr_link_decision(rtwdev, rtwvif);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 static void rtw89_track_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
@@ -3679,6 +3767,7 @@ static void rtw89_track_work(struct wiphy *wiphy, struct wiphy_work *work)
 	rtw89_sar_track(rtwdev);
 	rtw89_chanctx_track(rtwdev);
 	rtw89_core_rfkill_poll(rtwdev, false);
+	rtw89_core_mlo_track(rtwdev);
 
 	if (rtwdev->lps_enabled && !rtwdev->btc.lps)
 		rtw89_enter_lps_track(rtwdev);
@@ -5123,6 +5212,76 @@ static void rtw89_core_setup_rfe_parms(struct rtw89_dev *rtwdev)
 out:
 	rtwdev->rfe_parms = rtw89_load_rfe_data_from_fw(rtwdev, sel);
 	rtw89_load_txpwr_table(rtwdev, rtwdev->rfe_parms->byr_tbl);
+}
+
+int rtw89_core_mlsr_switch(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			   unsigned int link_id)
+{
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+	u16 usable_links = ieee80211_vif_usable_links(vif);
+	u16 active_links = vif->active_links;
+	struct rtw89_vif_link *target, *cur;
+	int ret;
+
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
+	if (unlikely(!ieee80211_vif_is_mld(vif)))
+		return -EOPNOTSUPP;
+
+	if (unlikely(!(usable_links & BIT(link_id)))) {
+		rtw89_warn(rtwdev, "%s: link id %u is not usable\n", __func__,
+			   link_id);
+		return -ENOLINK;
+	}
+
+	if (active_links == BIT(link_id))
+		return 0;
+
+	rtw89_debug(rtwdev, RTW89_DBG_STATE, "%s: switch to link id %u MLSR\n",
+		    __func__, link_id);
+
+	rtw89_leave_lps(rtwdev);
+
+	ieee80211_stop_queues(rtwdev->hw);
+	flush_work(&rtwdev->txq_work);
+
+	cur = rtw89_get_designated_link(rtwvif);
+
+	ret = ieee80211_set_active_links(vif, active_links | BIT(link_id));
+	if (ret) {
+		rtw89_err(rtwdev, "%s: failed to activate link id %u\n",
+			  __func__, link_id);
+		goto wake_queue;
+	}
+
+	target = rtwvif->links[link_id];
+	if (unlikely(!target)) {
+		rtw89_err(rtwdev, "%s: failed to confirm link id %u\n",
+			  __func__, link_id);
+
+		ieee80211_set_active_links(vif, active_links);
+		ret = -EFAULT;
+		goto wake_queue;
+	}
+
+	if (likely(cur))
+		rtw89_fw_h2c_mlo_link_cfg(rtwdev, cur, false);
+
+	rtw89_fw_h2c_mlo_link_cfg(rtwdev, target, true);
+
+	ret = ieee80211_set_active_links(vif, BIT(link_id));
+	if (ret)
+		rtw89_err(rtwdev, "%s: failed to inactivate links 0x%x\n",
+			  __func__, active_links);
+
+	rtw89_chip_rfk_channel(rtwdev, target);
+
+	rtwvif->mlo_mode = RTW89_MLO_MODE_MLSR;
+
+wake_queue:
+	ieee80211_wake_queues(rtwdev->hw);
+
+	return ret;
 }
 
 static int rtw89_chip_efuse_info_setup(struct rtw89_dev *rtwdev)

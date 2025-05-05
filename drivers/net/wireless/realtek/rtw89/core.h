@@ -5738,6 +5738,12 @@ struct rtw89_mcc_info {
 	struct rtw89_mcc_config config;
 };
 
+enum rtw89_mlo_mode {
+	RTW89_MLO_MODE_MLSR = 0,
+
+	NUM_OF_RTW89_MLO_MODE,
+};
+
 struct rtw89_mlo_info {
 	struct rtw89_wait_info wait;
 };
@@ -5893,6 +5899,8 @@ struct rtw89_vif {
 
 	struct rtw89_roc roc;
 	bool offchan;
+
+	enum rtw89_mlo_mode mlo_mode;
 
 	struct list_head dlink_pool;
 	u8 links_inst_valid_num;
@@ -7312,5 +7320,7 @@ void rtw89_core_update_p2p_ps(struct rtw89_dev *rtwdev,
 			      struct rtw89_vif_link *rtwvif_link,
 			      struct ieee80211_bss_conf *bss_conf);
 void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev, enum rtw89_btc_hmsg event);
+int rtw89_core_mlsr_switch(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			   unsigned int link_id);
 
 #endif

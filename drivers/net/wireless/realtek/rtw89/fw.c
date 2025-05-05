@@ -4043,6 +4043,7 @@ int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwv
 	bool format_v1 = false;
 	struct sk_buff *skb;
 	u8 main_mac_id;
+	bool init_ps;
 	int ret;
 
 	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE) {
@@ -4084,6 +4085,7 @@ int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwv
 	h2c_v1 = (struct rtw89_h2c_join_v1 *)skb->data;
 
 	sta_type = rtw89_fw_get_sta_type(rtwdev, rtwvif_link, rtwsta_link);
+	init_ps = rtwvif_link != rtw89_get_designated_link(rtwvif_link->rtwvif);
 
 	if (rtwsta_link)
 		main_mac_id = rtw89_sta_get_main_macid(rtwsta_link->rtwsta);
@@ -4097,7 +4099,7 @@ int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwv
 				      RTW89_H2C_JOININFO_W1_MLO_MODE) |
 		     le32_encode_bits(0, RTW89_H2C_JOININFO_W1_EMLSR_CAB) |
 		     le32_encode_bits(0, RTW89_H2C_JOININFO_W1_NSTR_EN) |
-		     le32_encode_bits(0, RTW89_H2C_JOININFO_W1_INIT_PWR_STATE) |
+		     le32_encode_bits(init_ps, RTW89_H2C_JOININFO_W1_INIT_PWR_STATE) |
 		     le32_encode_bits(IEEE80211_EML_CAP_EMLSR_PADDING_DELAY_256US,
 				      RTW89_H2C_JOININFO_W1_EMLSR_PADDING) |
 		     le32_encode_bits(IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_256US,
