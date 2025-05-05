@@ -295,10 +295,10 @@ enum ice_flow_avf_hdr_field {
 };
 
 /* Supported RSS offloads  This macro is defined to support
- * VIRTCHNL_OP_GET_RSS_HENA_CAPS ops. PF driver sends the RSS hardware
+ * VIRTCHNL_OP_GET_RSS_HASHCFG_CAPS ops. PF driver sends the RSS hardware
  * capabilities to the caller of this ops.
  */
-#define ICE_DEFAULT_RSS_HENA ( \
+#define ICE_DEFAULT_RSS_HASHCFG ( \
 	BIT_ULL(ICE_AVF_FLOW_FIELD_IPV4_UDP) | \
 	BIT_ULL(ICE_AVF_FLOW_FIELD_IPV4_SCTP) | \
 	BIT_ULL(ICE_AVF_FLOW_FIELD_IPV4_TCP) | \

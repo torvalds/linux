@@ -12507,7 +12507,7 @@ static int i40e_pf_config_rss(struct i40e_pf *pf)
 	/* By default we enable TCP/UDP with IPv4/IPv6 ptypes */
 	hena = (u64)i40e_read_rx_ctl(hw, I40E_PFQF_HENA(0)) |
 		((u64)i40e_read_rx_ctl(hw, I40E_PFQF_HENA(1)) << 32);
-	hena |= i40e_pf_get_default_rss_hena(pf);
+	hena |= i40e_pf_get_default_rss_hashcfg(pf);
 
 	i40e_write_rx_ctl(hw, I40E_PFQF_HENA(0), (u32)hena);
 	i40e_write_rx_ctl(hw, I40E_PFQF_HENA(1), (u32)(hena >> 32));

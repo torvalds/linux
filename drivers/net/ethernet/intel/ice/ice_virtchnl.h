@@ -57,8 +57,8 @@ struct ice_virtchnl_ops {
 	int (*add_vlan_msg)(struct ice_vf *vf, u8 *msg);
 	int (*remove_vlan_msg)(struct ice_vf *vf, u8 *msg);
 	int (*query_rxdid)(struct ice_vf *vf);
-	int (*get_rss_hena)(struct ice_vf *vf);
-	int (*set_rss_hena_msg)(struct ice_vf *vf, u8 *msg);
+	int (*get_rss_hashcfg)(struct ice_vf *vf);
+	int (*set_rss_hashcfg)(struct ice_vf *vf, u8 *msg);
 	int (*ena_vlan_stripping)(struct ice_vf *vf);
 	int (*dis_vlan_stripping)(struct ice_vf *vf);
 	int (*handle_rss_cfg_msg)(struct ice_vf *vf, u8 *msg, bool add);
