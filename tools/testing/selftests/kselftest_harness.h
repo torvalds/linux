@@ -56,6 +56,8 @@
 #include <asm/types.h>
 #include <ctype.h>
 #include <errno.h>
+#include <linux/unistd.h>
+#include <poll.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -914,7 +916,6 @@ struct __test_metadata {
 	int exit_code;
 	int trigger; /* extra handler after the evaluation */
 	int timeout;	/* seconds to wait for test timeout */
-	bool timed_out;	/* did this test timeout instead of exiting? */
 	bool aborted;	/* stopped test due to failed ASSERT */
 	bool setup_completed; /* did setup finish? */
 	jmp_buf env;	/* for exiting out of test early */
@@ -964,56 +965,43 @@ static inline void __test_check_assert(struct __test_metadata *t)
 		abort();
 }
 
-struct __test_metadata *__active_test;
-static void __timeout_handler(int sig, siginfo_t *info, void *ucontext)
-{
-	struct __test_metadata *t = __active_test;
-
-	/* Sanity check handler execution environment. */
-	if (!t) {
-		fprintf(TH_LOG_STREAM,
-			"# no active test in SIGALRM handler!?\n");
-		abort();
-	}
-	if (sig != SIGALRM || sig != info->si_signo) {
-		fprintf(TH_LOG_STREAM,
-			"# %s: SIGALRM handler caught signal %d!?\n",
-			t->name, sig != SIGALRM ? sig : info->si_signo);
-		abort();
-	}
-
-	t->timed_out = true;
-	/* signal process group */
-	kill(-(t->pid), SIGKILL);
-}
-
 static void __wait_for_test(struct __test_metadata *t)
 {
-	struct sigaction action = {
-		.sa_sigaction = __timeout_handler,
-		.sa_flags = SA_SIGINFO,
-	};
-	struct sigaction saved_action;
 	/*
 	 * Sets status so that WIFEXITED(status) returns true and
 	 * WEXITSTATUS(status) returns KSFT_FAIL.  This safe default value
 	 * should never be evaluated because of the waitpid(2) check and
-	 * SIGALRM handling.
+	 * timeout handling.
 	 */
 	int status = KSFT_FAIL << 8;
-	int child;
+	struct pollfd poll_child;
+	int ret, child, childfd;
+	bool timed_out = false;
 
-	if (sigaction(SIGALRM, &action, &saved_action)) {
+	childfd = syscall(__NR_pidfd_open, t->pid, 0);
+	if (childfd == -1) {
 		t->exit_code = KSFT_FAIL;
 		fprintf(TH_LOG_STREAM,
-			"# %s: unable to install SIGALRM handler\n",
+			"# %s: unable to open pidfd\n",
 			t->name);
 		return;
 	}
-	__active_test = t;
-	t->timed_out = false;
-	alarm(t->timeout);
-	child = waitpid(t->pid, &status, 0);
+
+	poll_child.fd = childfd;
+	poll_child.events = POLLIN;
+	ret = poll(&poll_child, 1, t->timeout * 1000);
+	if (ret == -1) {
+		t->exit_code = KSFT_FAIL;
+		fprintf(TH_LOG_STREAM,
+			"# %s: unable to wait on child pidfd\n",
+			t->name);
+		return;
+	} else if (ret == 0) {
+		timed_out = true;
+		/* signal process group */
+		kill(-(t->pid), SIGKILL);
+	}
+	child = waitpid(t->pid, &status, WNOHANG);
 	if (child == -1 && errno != EINTR) {
 		t->exit_code = KSFT_FAIL;
 		fprintf(TH_LOG_STREAM,
@@ -1022,17 +1010,7 @@ static void __wait_for_test(struct __test_metadata *t)
 		return;
 	}
 
-	alarm(0);
-	if (sigaction(SIGALRM, &saved_action, NULL)) {
-		t->exit_code = KSFT_FAIL;
-		fprintf(TH_LOG_STREAM,
-			"# %s: unable to uninstall SIGALRM handler\n",
-			t->name);
-		return;
-	}
-	__active_test = NULL;
-
-	if (t->timed_out) {
+	if (timed_out) {
 		t->exit_code = KSFT_FAIL;
 		fprintf(TH_LOG_STREAM,
 			"# %s: Test terminated by timeout\n", t->name);
