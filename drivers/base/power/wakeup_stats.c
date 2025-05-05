@@ -34,6 +34,7 @@ wakeup_attr(active_count);
 wakeup_attr(event_count);
 wakeup_attr(wakeup_count);
 wakeup_attr(expire_count);
+wakeup_attr(relax_count);
 
 static ssize_t active_time_ms_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
@@ -119,6 +120,7 @@ static struct attribute *wakeup_source_attrs[] = {
 	&dev_attr_event_count.attr,
 	&dev_attr_wakeup_count.attr,
 	&dev_attr_expire_count.attr,
+	&dev_attr_relax_count.attr,
 	&dev_attr_active_time_ms.attr,
 	&dev_attr_total_time_ms.attr,
 	&dev_attr_max_time_ms.attr,
