@@ -623,15 +623,17 @@ void elevator_init_mq(struct request_queue *q)
  */
 int elevator_switch(struct request_queue *q, const char *name)
 {
-	struct elevator_type *new_e;
-	int ret;
+	struct elevator_type *new_e = NULL;
+	int ret = 0;
 
 	WARN_ON_ONCE(q->mq_freeze_depth == 0);
 	lockdep_assert_held(&q->elevator_lock);
 
-	new_e = elevator_find_get(name);
-	if (!new_e)
-		return -EINVAL;
+	if (strncmp(name, "none", 4)) {
+		new_e = elevator_find_get(name);
+		if (!new_e)
+			return -EINVAL;
+	}
 
 	blk_mq_quiesce_queue(q);
 
@@ -640,16 +642,21 @@ int elevator_switch(struct request_queue *q, const char *name)
 		elevator_exit(q);
 	}
 
-	ret = blk_mq_init_sched(q, new_e);
-	if (ret)
-		goto out_unfreeze;
-
-	ret = elv_register_queue(q, true);
-	if (ret) {
-		elevator_exit(q);
-		goto out_unfreeze;
+	if (new_e) {
+		ret = blk_mq_init_sched(q, new_e);
+		if (ret)
+			goto out_unfreeze;
+		ret = elv_register_queue(q, true);
+		if (ret) {
+			elevator_exit(q);
+			goto out_unfreeze;
+		}
+	} else {
+		blk_queue_flag_clear(QUEUE_FLAG_SQ_SCHED, q);
+		q->elevator = NULL;
+		q->nr_requests = q->tag_set->queue_depth;
 	}
-	blk_add_trace_msg(q, "elv switch: %s", new_e->elevator_name);
+	blk_add_trace_msg(q, "elv switch: %s", name);
 
 out_unfreeze:
 	blk_mq_unquiesce_queue(q);
@@ -659,25 +666,9 @@ out_unfreeze:
 			new_e->elevator_name);
 	}
 
-	elevator_put(new_e);
+	if (new_e)
+		elevator_put(new_e);
 	return ret;
-}
-
-void elevator_disable(struct request_queue *q)
-{
-	WARN_ON_ONCE(q->mq_freeze_depth == 0);
-	lockdep_assert_held(&q->elevator_lock);
-
-	blk_mq_quiesce_queue(q);
-
-	elv_unregister_queue(q);
-	elevator_exit(q);
-	blk_queue_flag_clear(QUEUE_FLAG_SQ_SCHED, q);
-	q->elevator = NULL;
-	q->nr_requests = q->tag_set->queue_depth;
-	blk_add_trace_msg(q, "elv switch: none");
-
-	blk_mq_unquiesce_queue(q);
 }
 
 /*
@@ -688,12 +679,6 @@ static int elevator_change(struct request_queue *q, const char *elevator_name)
 	/* Make sure queue is not in the middle of being removed */
 	if (!blk_queue_registered(q))
 		return -ENOENT;
-
-	if (!strncmp(elevator_name, "none", 4)) {
-		if (q->elevator)
-			elevator_disable(q);
-		return 0;
-	}
 
 	if (q->elevator && elevator_match(q->elevator->type, elevator_name))
 		return 0;
