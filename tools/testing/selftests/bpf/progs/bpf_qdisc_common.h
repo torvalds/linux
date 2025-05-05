@@ -12,11 +12,7 @@
 
 #define private(name) SEC(".data." #name) __hidden __attribute__((aligned(8)))
 
-u32 bpf_skb_get_hash(struct sk_buff *p) __ksym;
-void bpf_kfree_skb(struct sk_buff *p) __ksym;
-void bpf_qdisc_skb_drop(struct sk_buff *p, struct bpf_sk_buff_ptr *to_free) __ksym;
-void bpf_qdisc_watchdog_schedule(struct Qdisc *sch, u64 expire, u64 delta_ns) __ksym;
-void bpf_qdisc_bstats_update(struct Qdisc *sch, const struct sk_buff *skb) __ksym;
+struct bpf_sk_buff_ptr;
 
 static struct qdisc_skb_cb *qdisc_skb_cb(const struct sk_buff *skb)
 {

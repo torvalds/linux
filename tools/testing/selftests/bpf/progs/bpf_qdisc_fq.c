@@ -740,11 +740,17 @@ int BPF_PROG(bpf_fq_init, struct Qdisc *sch, struct nlattr *opt,
 	return 0;
 }
 
+SEC("struct_ops")
+void BPF_PROG(bpf_fq_destroy, struct Qdisc *sch)
+{
+}
+
 SEC(".struct_ops")
 struct Qdisc_ops fq = {
 	.enqueue   = (void *)bpf_fq_enqueue,
 	.dequeue   = (void *)bpf_fq_dequeue,
 	.reset     = (void *)bpf_fq_reset,
 	.init      = (void *)bpf_fq_init,
+	.destroy   = (void *)bpf_fq_destroy,
 	.id        = "bpf_fq",
 };
