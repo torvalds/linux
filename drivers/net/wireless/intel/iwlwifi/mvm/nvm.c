@@ -308,7 +308,6 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 	int ret, section;
 	u32 size_read = 0;
 	u8 *nvm_buffer, *temp;
-	const char *nvm_file_C = mvm->cfg->default_nvm_file_C_step;
 
 	if (WARN_ON_ONCE(mvm->cfg->nvm_hw_section_num >= NVM_MAX_NUM_SECTIONS))
 		return -EINVAL;
@@ -384,21 +383,8 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 		/* read External NVM file from the mod param */
 		ret = iwl_read_external_nvm(mvm->trans, mvm->nvm_file_name,
 					    mvm->nvm_sections);
-		if (ret) {
-			mvm->nvm_file_name = nvm_file_C;
-
-			if ((ret == -EFAULT || ret == -ENOENT) &&
-			    mvm->nvm_file_name) {
-				/* in case nvm file was failed try again */
-				ret = iwl_read_external_nvm(mvm->trans,
-							    mvm->nvm_file_name,
-							    mvm->nvm_sections);
-				if (ret)
-					return ret;
-			} else {
-				return ret;
-			}
-		}
+		if (ret)
+			return ret;
 	}
 
 	/* parse the relevant nvm sections */

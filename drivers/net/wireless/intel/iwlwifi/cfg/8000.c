@@ -35,8 +35,6 @@
 #define IWL8265_MODULE_FIRMWARE(api) \
 	IWL8265_FW_PRE "-" __stringify(api) ".ucode"
 
-#define DEFAULT_NVM_FILE_FAMILY_8000C		"nvmData-8000C"
-
 static const struct iwl_base_params iwl8000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
 	.num_of_queues = 31,
@@ -92,7 +90,6 @@ const struct iwl_cfg_trans_params iwl8000_trans_cfg = {
 	.dccm2_len = IWL8260_DCCM2_LEN,					\
 	.smem_offset = IWL8260_SMEM_OFFSET,				\
 	.smem_len = IWL8260_SMEM_LEN,					\
-	.default_nvm_file_C_step = DEFAULT_NVM_FILE_FAMILY_8000C,	\
 	.thermal_params = &iwl8000_tt_params,				\
 	.apmg_not_supported = true,					\
 	.nvm_type = IWL_NVM_EXT,					\

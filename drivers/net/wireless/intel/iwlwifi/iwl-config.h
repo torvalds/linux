@@ -362,7 +362,6 @@ struct iwl_cfg {
 	const struct iwl_ht_params *ht_params;
 	const struct iwl_eeprom_params *eeprom_params;
 	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
-	const char *default_nvm_file_C_step;
 	const struct iwl_tt_params *thermal_params;
 	enum iwl_led_mode led_mode;
 	enum iwl_nvm_type nvm_type;
