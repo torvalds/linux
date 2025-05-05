@@ -152,7 +152,7 @@ class Type(SpecAttr):
             pfx = '__' if space == 'user' else ''
             return f"{pfx}u32 {self.c_name}:1;"
 
-        if self.presence_type() == 'len':
+        if self.presence_type() in {'len', 'count'}:
             pfx = '__' if space == 'user' else ''
             return f"{pfx}u32 {self.c_name};"
 
@@ -185,8 +185,6 @@ class Type(SpecAttr):
     def struct_member(self, ri):
         member = self._complex_member_type(ri)
         if member:
-            if self.is_multi_val():
-                ri.cw.p(f"unsigned int n_{self.c_name};")
             ptr = '*' if self.is_multi_val() else ''
             if self.is_recursive_for_op(ri):
                 ptr = '*'
@@ -678,13 +676,13 @@ class TypeMultiAttr(Type):
             lines += [f"free({var}->{ref}{self.c_name});"]
         elif self.attr['type'] == 'string':
             lines += [
-                f"for (i = 0; i < {var}->{ref}n_{self.c_name}; i++)",
+                f"for (i = 0; i < {var}->{ref}_count.{self.c_name}; i++)",
                 f"free({var}->{ref}{self.c_name}[i]);",
                 f"free({var}->{ref}{self.c_name});",
             ]
         elif 'type' not in self.attr or self.attr['type'] == 'nest':
             lines += [
-                f"for (i = 0; i < {var}->{ref}n_{self.c_name}; i++)",
+                f"for (i = 0; i < {var}->{ref}_count.{self.c_name}; i++)",
                 f'{self.nested_render_name}_free(&{var}->{ref}{self.c_name}[i]);',
                 f"free({var}->{ref}{self.c_name});",
             ]
@@ -704,24 +702,22 @@ class TypeMultiAttr(Type):
     def attr_put(self, ri, var):
         if self.attr['type'] in scalars:
             put_type = self.type
-            ri.cw.p(f"for (i = 0; i < {var}->n_{self.c_name}; i++)")
+            ri.cw.p(f"for (i = 0; i < {var}->_count.{self.c_name}; i++)")
             ri.cw.p(f"ynl_attr_put_{put_type}(nlh, {self.enum_name}, {var}->{self.c_name}[i]);")
         elif self.attr['type'] == 'binary' and 'struct' in self.attr:
-            ri.cw.p(f"for (i = 0; i < {var}->n_{self.c_name}; i++)")
+            ri.cw.p(f"for (i = 0; i < {var}->_count.{self.c_name}; i++)")
             ri.cw.p(f"ynl_attr_put(nlh, {self.enum_name}, &{var}->{self.c_name}[i], sizeof(struct {c_lower(self.attr['struct'])}));")
         elif self.attr['type'] == 'string':
-            ri.cw.p(f"for (i = 0; i < {var}->n_{self.c_name}; i++)")
+            ri.cw.p(f"for (i = 0; i < {var}->_count.{self.c_name}; i++)")
             ri.cw.p(f"ynl_attr_put_str(nlh, {self.enum_name}, {var}->{self.c_name}[i]->str);")
         elif 'type' not in self.attr or self.attr['type'] == 'nest':
-            ri.cw.p(f"for (i = 0; i < {var}->n_{self.c_name}; i++)")
+            ri.cw.p(f"for (i = 0; i < {var}->_count.{self.c_name}; i++)")
             self._attr_put_line(ri, var, f"{self.nested_render_name}_put(nlh, " +
                                 f"{self.enum_name}, &{var}->{self.c_name}[i])")
         else:
             raise Exception(f"Put of MultiAttr sub-type {self.attr['type']} not supported yet")
 
     def _setter_lines(self, ri, member, presence):
-        # For multi-attr we have a count, not presence, hack up the presence
-        presence = presence[:-(len('_count.') + len(self.c_name))] + "n_" + self.c_name
         return [f"{member} = {self.c_name};",
                 f"{presence} = n_{self.c_name};"]
 
@@ -764,7 +760,7 @@ class TypeArrayNest(Type):
                      'ynl_attr_for_each_nested(attr2, attr) {',
                      '\tif (ynl_attr_validate(yarg, attr2))',
                      '\t\treturn YNL_PARSE_CB_ERROR;',
-                     f'\t{var}->n_{self.c_name}++;',
+                     f'\t{var}->_count.{self.c_name}++;',
                      '}']
         return get_lines, None, local_vars
 
@@ -772,19 +768,17 @@ class TypeArrayNest(Type):
         ri.cw.p(f'array = ynl_attr_nest_start(nlh, {self.enum_name});')
         if self.sub_type in scalars:
             put_type = self.sub_type
-            ri.cw.block_start(line=f'for (i = 0; i < {var}->n_{self.c_name}; i++)')
+            ri.cw.block_start(line=f'for (i = 0; i < {var}->_count.{self.c_name}; i++)')
             ri.cw.p(f"ynl_attr_put_{put_type}(nlh, i, {var}->{self.c_name}[i]);")
             ri.cw.block_end()
         elif self.sub_type == 'binary' and 'exact-len' in self.checks:
-            ri.cw.p(f'for (i = 0; i < {var}->n_{self.c_name}; i++)')
+            ri.cw.p(f'for (i = 0; i < {var}->_count.{self.c_name}; i++)')
             ri.cw.p(f"ynl_attr_put(nlh, i, {var}->{self.c_name}[i], {self.checks['exact-len']});")
         else:
             raise Exception(f"Put for ArrayNest sub-type {self.attr['sub-type']} not supported, yet")
         ri.cw.p('ynl_attr_nest_end(nlh, array);')
 
     def _setter_lines(self, ri, member, presence):
-        # For multi-attr we have a count, not presence, hack up the presence
-        presence = presence[:-(len('_count.') + len(self.c_name))] + "n_" + self.c_name
         return [f"{member} = {self.c_name};",
                 f"{presence} = n_{self.c_name};"]
 
@@ -1884,7 +1878,7 @@ def _multi_parse(ri, struct, init_lines, local_vars):
 
         ri.cw.block_start(line=f"if (n_{aspec.c_name})")
         ri.cw.p(f"dst->{aspec.c_name} = calloc(n_{aspec.c_name}, sizeof(*dst->{aspec.c_name}));")
-        ri.cw.p(f"dst->n_{aspec.c_name} = n_{aspec.c_name};")
+        ri.cw.p(f"dst->_count.{aspec.c_name} = n_{aspec.c_name};")
         ri.cw.p('i = 0;')
         if 'nested-attributes' in aspec:
             ri.cw.p(f"parg.rsp_policy = &{aspec.nested_render_name}_nest;")
@@ -1909,7 +1903,7 @@ def _multi_parse(ri, struct, init_lines, local_vars):
         aspec = struct[anest]
         ri.cw.block_start(line=f"if (n_{aspec.c_name})")
         ri.cw.p(f"dst->{aspec.c_name} = calloc(n_{aspec.c_name}, sizeof(*dst->{aspec.c_name}));")
-        ri.cw.p(f"dst->n_{aspec.c_name} = n_{aspec.c_name};")
+        ri.cw.p(f"dst->_count.{aspec.c_name} = n_{aspec.c_name};")
         ri.cw.p('i = 0;')
         if 'nested-attributes' in aspec:
             ri.cw.p(f"parg.rsp_policy = &{aspec.nested_render_name}_nest;")
@@ -2186,7 +2180,7 @@ def _print_type(ri, direction, struct):
         ri.cw.p(ri.fixed_hdr + ' _hdr;')
         ri.cw.nl()
 
-    for type_filter in ['present', 'len']:
+    for type_filter in ['present', 'len', 'count']:
         meta_started = False
         for _, attr in struct.member_list():
             line = attr.presence_member(ri.ku_space, type_filter)
