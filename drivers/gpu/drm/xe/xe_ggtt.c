@@ -26,6 +26,7 @@
 #include "xe_map.h"
 #include "xe_mmio.h"
 #include "xe_pm.h"
+#include "xe_res_cursor.h"
 #include "xe_sriov.h"
 #include "xe_tile_sriov_vf.h"
 #include "xe_wa.h"
@@ -64,13 +65,9 @@
  * give us the correct placement for free.
  */
 
-static u64 xelp_ggtt_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
-				   u16 pat_index)
+static u64 xelp_ggtt_pte_flags(struct xe_bo *bo, u16 pat_index)
 {
-	u64 pte;
-
-	pte = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE);
-	pte |= XE_PAGE_PRESENT;
+	u64 pte = XE_PAGE_PRESENT;
 
 	if (xe_bo_is_vram(bo) || xe_bo_is_stolen_devmem(bo))
 		pte |= XE_GGTT_PTE_DM;
@@ -78,13 +75,17 @@ static u64 xelp_ggtt_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
 	return pte;
 }
 
-static u64 xelpg_ggtt_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
-				    u16 pat_index)
+static u64 xelp_ggtt_encode_bo(struct xe_bo *bo, u64 bo_offset, u16 pat_index)
+{
+	return xelp_ggtt_pte_flags(bo, pat_index) | xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE);
+}
+
+static u64 xelpg_ggtt_pte_flags(struct xe_bo *bo, u16 pat_index)
 {
 	struct xe_device *xe = xe_bo_device(bo);
 	u64 pte;
 
-	pte = xelp_ggtt_pte_encode_bo(bo, bo_offset, pat_index);
+	pte = xelp_ggtt_pte_flags(bo, pat_index);
 
 	xe_assert(xe, pat_index <= 3);
 
@@ -95,6 +96,12 @@ static u64 xelpg_ggtt_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
 		pte |= XELPG_GGTT_PTE_PAT1;
 
 	return pte;
+}
+
+static u64 xelpg_ggtt_encode_bo(struct xe_bo *bo, u64 bo_offset,
+				u16 pat_index)
+{
+	return xelpg_ggtt_pte_flags(bo, pat_index) | xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE);
 }
 
 static unsigned int probe_gsm_size(struct pci_dev *pdev)
@@ -149,8 +156,9 @@ static void xe_ggtt_clear(struct xe_ggtt *ggtt, u64 start, u64 size)
 	xe_tile_assert(ggtt->tile, start < end);
 
 	if (ggtt->scratch)
-		scratch_pte = ggtt->pt_ops->pte_encode_bo(ggtt->scratch, 0,
-							  pat_index);
+		scratch_pte = xe_bo_addr(ggtt->scratch, 0, XE_PAGE_SIZE) |
+			      ggtt->pt_ops->pte_encode_flags(ggtt->scratch,
+							     pat_index);
 	else
 		scratch_pte = 0;
 
@@ -210,17 +218,20 @@ static void primelockdep(struct xe_ggtt *ggtt)
 }
 
 static const struct xe_ggtt_pt_ops xelp_pt_ops = {
-	.pte_encode_bo = xelp_ggtt_pte_encode_bo,
+	.pte_encode_bo = xelp_ggtt_encode_bo,
+	.pte_encode_flags = xelp_ggtt_pte_flags,
 	.ggtt_set_pte = xe_ggtt_set_pte,
 };
 
 static const struct xe_ggtt_pt_ops xelpg_pt_ops = {
-	.pte_encode_bo = xelpg_ggtt_pte_encode_bo,
+	.pte_encode_bo = xelpg_ggtt_encode_bo,
+	.pte_encode_flags = xelpg_ggtt_pte_flags,
 	.ggtt_set_pte = xe_ggtt_set_pte,
 };
 
 static const struct xe_ggtt_pt_ops xelpg_pt_wa_ops = {
-	.pte_encode_bo = xelpg_ggtt_pte_encode_bo,
+	.pte_encode_bo = xelpg_ggtt_encode_bo,
+	.pte_encode_flags = xelpg_ggtt_pte_flags,
 	.ggtt_set_pte = xe_ggtt_set_pte_and_flush,
 };
 
@@ -657,23 +668,39 @@ bool xe_ggtt_node_allocated(const struct xe_ggtt_node *node)
 /**
  * xe_ggtt_map_bo - Map the BO into GGTT
  * @ggtt: the &xe_ggtt where node will be mapped
+ * @node: the &xe_ggtt_node where this BO is mapped
  * @bo: the &xe_bo to be mapped
+ * @pat_index: Which pat_index to use.
  */
-static void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
+void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_ggtt_node *node,
+		    struct xe_bo *bo, u16 pat_index)
 {
-	u16 cache_mode = bo->flags & XE_BO_FLAG_NEEDS_UC ? XE_CACHE_NONE : XE_CACHE_WB;
-	u16 pat_index = tile_to_xe(ggtt->tile)->pat.idx[cache_mode];
-	u64 start;
-	u64 offset, pte;
 
-	if (XE_WARN_ON(!bo->ggtt_node[ggtt->tile->id]))
+	u64 start, pte, end;
+	struct xe_res_cursor cur;
+
+	if (XE_WARN_ON(!node))
 		return;
 
-	start = bo->ggtt_node[ggtt->tile->id]->base.start;
+	start = node->base.start;
+	end = start + bo->size;
 
-	for (offset = 0; offset < bo->size; offset += XE_PAGE_SIZE) {
-		pte = ggtt->pt_ops->pte_encode_bo(bo, offset, pat_index);
-		ggtt->pt_ops->ggtt_set_pte(ggtt, start + offset, pte);
+	pte = ggtt->pt_ops->pte_encode_flags(bo, pat_index);
+	if (!xe_bo_is_vram(bo) && !xe_bo_is_stolen(bo)) {
+		xe_assert(xe_bo_device(bo), bo->ttm.ttm);
+
+		for (xe_res_first_sg(xe_bo_sg(bo), 0, bo->size, &cur);
+		     cur.remaining; xe_res_next(&cur, XE_PAGE_SIZE))
+			ggtt->pt_ops->ggtt_set_pte(ggtt, end - cur.remaining,
+						   pte | xe_res_dma(&cur));
+	} else {
+		/* Prepend GPU offset */
+		pte |= vram_region_gpu_offset(bo->ttm.resource);
+
+		for (xe_res_first(bo->ttm.resource, 0, bo->size, &cur);
+		     cur.remaining; xe_res_next(&cur, XE_PAGE_SIZE))
+			ggtt->pt_ops->ggtt_set_pte(ggtt, end - cur.remaining,
+						   pte + cur.start);
 	}
 }
 
@@ -686,8 +713,11 @@ static void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
  */
 void xe_ggtt_map_bo_unlocked(struct xe_ggtt *ggtt, struct xe_bo *bo)
 {
+	u16 cache_mode = bo->flags & XE_BO_FLAG_NEEDS_UC ? XE_CACHE_NONE : XE_CACHE_WB;
+	u16 pat_index = tile_to_xe(ggtt->tile)->pat.idx[cache_mode];
+
 	mutex_lock(&ggtt->lock);
-	xe_ggtt_map_bo(ggtt, bo);
+	xe_ggtt_map_bo(ggtt, bo->ggtt_node[ggtt->tile->id], bo, pat_index);
 	mutex_unlock(&ggtt->lock);
 }
 
@@ -727,7 +757,10 @@ static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 		xe_ggtt_node_fini(bo->ggtt_node[tile_id]);
 		bo->ggtt_node[tile_id] = NULL;
 	} else {
-		xe_ggtt_map_bo(ggtt, bo);
+		u16 cache_mode = bo->flags & XE_BO_FLAG_NEEDS_UC ? XE_CACHE_NONE : XE_CACHE_WB;
+		u16 pat_index = tile_to_xe(ggtt->tile)->pat.idx[cache_mode];
+
+		xe_ggtt_map_bo(ggtt, bo->ggtt_node[tile_id], bo, pat_index);
 	}
 	mutex_unlock(&ggtt->lock);
 
