@@ -956,3 +956,18 @@ u64 xe_ggtt_print_holes(struct xe_ggtt *ggtt, u64 alignment, struct drm_printer 
 
 	return total;
 }
+
+/**
+ * xe_ggtt_encode_pte_flags - Get PTE encoding flags for BO
+ * @ggtt: &xe_ggtt
+ * @bo: &xe_bo
+ * @pat_index: The pat_index for the PTE.
+ *
+ * This function returns the pte_flags for a given BO, without  address.
+ * It's used for DPT to fill a GGTT mapped BO with a linear lookup table.
+ */
+u64 xe_ggtt_encode_pte_flags(struct xe_ggtt *ggtt,
+			     struct xe_bo *bo, u16 pat_index)
+{
+	return ggtt->pt_ops->pte_encode_flags(bo, pat_index);
+}
