@@ -263,8 +263,6 @@ static inline int lvts_debugfs_init(struct device *dev,
 	return 0;
 }
 
-static void lvts_debugfs_exit(struct lvts_domain *lvts_td) { }
-
 #endif
 
 static int lvts_raw_to_temp(u32 raw_temp, int temp_factor)
