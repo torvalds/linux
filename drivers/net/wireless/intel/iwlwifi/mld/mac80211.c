@@ -1322,13 +1322,22 @@ iwl_mld_mac80211_hw_scan(struct ieee80211_hw *hw,
 			 struct ieee80211_scan_request *hw_req)
 {
 	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
+	int ret;
 
 	if (WARN_ON(!hw_req->req.n_channels ||
 		    hw_req->req.n_channels >
 		    mld->fw->ucode_capa.n_scan_channels))
 		return -EINVAL;
 
-	return iwl_mld_regular_scan_start(mld, vif, &hw_req->req, &hw_req->ies);
+	ret = iwl_mld_regular_scan_start(mld, vif, &hw_req->req, &hw_req->ies);
+	if (!ret) {
+		/* We will be busy with scanning, so the counters may not reflect the
+		 * reality. Stop checking the counters until the scan ends
+		 */
+		iwl_mld_start_ignoring_tpt_updates(mld);
+	}
+
+	return ret;
 }
 
 static void
@@ -1344,8 +1353,11 @@ iwl_mld_mac80211_cancel_hw_scan(struct ieee80211_hw *hw,
 	 * cancel scan before ieee80211_scan_work() could run.
 	 * To handle that, simply return if the scan is not running.
 	 */
-	if (mld->scan.status & IWL_MLD_SCAN_REGULAR)
+	if (mld->scan.status & IWL_MLD_SCAN_REGULAR) {
 		iwl_mld_scan_stop(mld, IWL_MLD_SCAN_REGULAR, true);
+		/* Scan is over, we can check again the tpt counters */
+		iwl_mld_stop_ignoring_tpt_updates(mld);
+	}
 }
 
 static int

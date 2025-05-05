@@ -1170,3 +1170,69 @@ void iwl_mld_retry_emlsr(struct iwl_mld *mld, struct ieee80211_vif *vif)
 
 	iwl_mld_int_mlo_scan(mld, vif);
 }
+
+static void iwl_mld_ignore_tpt_iter(void *data, u8 *mac,
+				    struct ieee80211_vif *vif)
+{
+	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	struct iwl_mld *mld = mld_vif->mld;
+	struct iwl_mld_sta *mld_sta;
+	bool *start = (void *)data;
+
+	/* check_tpt_wk is only used when TPT block isn't set */
+	if (mld_vif->emlsr.blocked_reasons & IWL_MLD_EMLSR_BLOCKED_TPT ||
+	    !IWL_MLD_AUTO_EML_ENABLE || !mld_vif->ap_sta)
+		return;
+
+	mld_sta = iwl_mld_sta_from_mac80211(mld_vif->ap_sta);
+
+	/* We only count for the AP sta in a MLO connection */
+	if (!mld_sta->mpdu_counters)
+		return;
+
+	if (*start) {
+		wiphy_delayed_work_cancel(mld_vif->mld->wiphy,
+					  &mld_vif->emlsr.check_tpt_wk);
+		IWL_DEBUG_EHT(mld, "TPT check disabled\n");
+		return;
+	}
+
+	/* Clear the counters so we start from the beginning */
+	for (int q = 0; q < mld->trans->info.num_rxqs; q++) {
+		struct iwl_mld_per_q_mpdu_counter *queue_counter =
+			&mld_sta->mpdu_counters[q];
+
+		spin_lock_bh(&queue_counter->lock);
+
+		memset(queue_counter->per_link, 0,
+		       sizeof(queue_counter->per_link));
+
+		spin_unlock_bh(&queue_counter->lock);
+	}
+
+	/* Schedule the check in 5 seconds */
+	wiphy_delayed_work_queue(mld_vif->mld->wiphy,
+				 &mld_vif->emlsr.check_tpt_wk,
+				 round_jiffies_relative(IWL_MLD_TPT_COUNT_WINDOW));
+	IWL_DEBUG_EHT(mld, "TPT check enabled\n");
+}
+
+void iwl_mld_start_ignoring_tpt_updates(struct iwl_mld *mld)
+{
+	bool start = true;
+
+	ieee80211_iterate_active_interfaces_mtx(mld->hw,
+						IEEE80211_IFACE_ITER_NORMAL,
+						iwl_mld_ignore_tpt_iter,
+						&start);
+}
+
+void iwl_mld_stop_ignoring_tpt_updates(struct iwl_mld *mld)
+{
+	bool start = false;
+
+	ieee80211_iterate_active_interfaces_mtx(mld->hw,
+						IEEE80211_IFACE_ITER_NORMAL,
+						iwl_mld_ignore_tpt_iter,
+						&start);
+}

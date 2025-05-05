@@ -167,4 +167,7 @@ bool iwl_mld_bt_allows_emlsr(struct iwl_mld *mld,
 			     bool entry_criteria);
 #endif
 
+void iwl_mld_start_ignoring_tpt_updates(struct iwl_mld *mld);
+void iwl_mld_stop_ignoring_tpt_updates(struct iwl_mld *mld);
+
 #endif /* __iwl_mld_mlo_h__ */
