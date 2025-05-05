@@ -1123,31 +1123,16 @@ int rtw89_h2c_tx(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
-int rtw89_core_tx_write(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
-			struct ieee80211_sta *sta, struct sk_buff *skb, int *qsel)
+static int rtw89_core_tx_write_link(struct rtw89_dev *rtwdev,
+				    struct rtw89_vif_link *rtwvif_link,
+				    struct rtw89_sta_link *rtwsta_link,
+				    struct sk_buff *skb, int *qsel)
 {
-	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
-	struct rtw89_vif *rtwvif = vif_to_rtwvif(vif);
-	struct rtw89_core_tx_request tx_req = {0};
-	struct rtw89_sta_link *rtwsta_link = NULL;
-	struct rtw89_vif_link *rtwvif_link;
+	struct ieee80211_sta *sta = rtwsta_link_to_sta_safe(rtwsta_link);
+	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
+	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
+	struct rtw89_core_tx_request tx_req = {};
 	int ret;
-
-	if (rtwsta) {
-		rtwsta_link = rtw89_get_designated_link(rtwsta);
-		if (unlikely(!rtwsta_link)) {
-			rtw89_err(rtwdev, "tx: find no sta designated link\n");
-			return -ENOLINK;
-		}
-
-		rtwvif_link = rtwsta_link->rtwvif_link;
-	} else {
-		rtwvif_link = rtw89_get_designated_link(rtwvif);
-		if (unlikely(!rtwvif_link)) {
-			rtw89_err(rtwdev, "tx: find no vif designated link\n");
-			return -ENOLINK;
-		}
-	}
 
 	tx_req.skb = skb;
 	tx_req.vif = vif;
@@ -1170,6 +1155,33 @@ int rtw89_core_tx_write(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 		*qsel = tx_req.desc_info.qsel;
 
 	return 0;
+}
+
+int rtw89_core_tx_write(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta, struct sk_buff *skb, int *qsel)
+{
+	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
+	struct rtw89_vif *rtwvif = vif_to_rtwvif(vif);
+	struct rtw89_sta_link *rtwsta_link = NULL;
+	struct rtw89_vif_link *rtwvif_link;
+
+	if (rtwsta) {
+		rtwsta_link = rtw89_get_designated_link(rtwsta);
+		if (unlikely(!rtwsta_link)) {
+			rtw89_err(rtwdev, "tx: find no sta designated link\n");
+			return -ENOLINK;
+		}
+
+		rtwvif_link = rtwsta_link->rtwvif_link;
+	} else {
+		rtwvif_link = rtw89_get_designated_link(rtwvif);
+		if (unlikely(!rtwvif_link)) {
+			rtw89_err(rtwdev, "tx: find no vif designated link\n");
+			return -ENOLINK;
+		}
+	}
+
+	return rtw89_core_tx_write_link(rtwdev, rtwvif_link, rtwsta_link, skb, qsel);
 }
 
 static __le32 rtw89_build_txwd_body0(struct rtw89_tx_desc_info *desc_info)
