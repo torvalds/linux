@@ -341,11 +341,6 @@ void nop_func(void);
 	__ALTERNATIVE(\oldinstr, \newinstr, \ft_flags)
 .endm
 
-#define old_len			141b-140b
-#define new_len1		144f-143f
-#define new_len2		145f-144f
-#define new_len3		146f-145f
-
 /*
  * Same as ALTERNATIVE macro above but for two alternatives. If CPU
  * has @feature1, it replaces @oldinstr with @newinstr1. If CPU has
