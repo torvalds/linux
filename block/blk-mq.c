@@ -5058,7 +5058,7 @@ static void blk_mq_elv_switch_back(struct list_head *head,
 	kfree(qe);
 
 	mutex_lock(&q->elevator_lock);
-	elevator_switch(q, t);
+	elevator_switch(q, t->elevator_name);
 	/* drop the reference acquired in blk_mq_elv_switch_none */
 	elevator_put(t);
 	mutex_unlock(&q->elevator_lock);

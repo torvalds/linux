@@ -621,12 +621,17 @@ void elevator_init_mq(struct request_queue *q)
  * If switching fails, we are most likely running out of memory and not able
  * to restore the old io scheduler, so leaving the io scheduler being none.
  */
-int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
+int elevator_switch(struct request_queue *q, const char *name)
 {
+	struct elevator_type *new_e;
 	int ret;
 
 	WARN_ON_ONCE(q->mq_freeze_depth == 0);
 	lockdep_assert_held(&q->elevator_lock);
+
+	new_e = elevator_find_get(name);
+	if (!new_e)
+		return -EINVAL;
 
 	blk_mq_quiesce_queue(q);
 
@@ -654,6 +659,7 @@ out_unfreeze:
 			new_e->elevator_name);
 	}
 
+	elevator_put(new_e);
 	return ret;
 }
 
@@ -679,9 +685,6 @@ void elevator_disable(struct request_queue *q)
  */
 static int elevator_change(struct request_queue *q, const char *elevator_name)
 {
-	struct elevator_type *e;
-	int ret;
-
 	/* Make sure queue is not in the middle of being removed */
 	if (!blk_queue_registered(q))
 		return -ENOENT;
@@ -695,12 +698,7 @@ static int elevator_change(struct request_queue *q, const char *elevator_name)
 	if (q->elevator && elevator_match(q->elevator->type, elevator_name))
 		return 0;
 
-	e = elevator_find_get(elevator_name);
-	if (!e)
-		return -EINVAL;
-	ret = elevator_switch(q, e);
-	elevator_put(e);
-	return ret;
+	return elevator_switch(q, elevator_name);
 }
 
 static void elv_iosched_load_module(char *elevator_name)
