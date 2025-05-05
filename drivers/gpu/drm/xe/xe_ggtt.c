@@ -5,6 +5,7 @@
 
 #include "xe_ggtt.h"
 
+#include <kunit/visibility.h>
 #include <linux/fault-inject.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/sizes.h>
@@ -221,6 +222,22 @@ static const struct xe_ggtt_pt_ops xelpg_pt_wa_ops = {
 	.ggtt_set_pte = xe_ggtt_set_pte_and_flush,
 };
 
+static void __xe_ggtt_init_early(struct xe_ggtt *ggtt, u32 reserved)
+{
+	drm_mm_init(&ggtt->mm, reserved,
+		    ggtt->size - reserved);
+	mutex_init(&ggtt->lock);
+	primelockdep(ggtt);
+}
+
+int xe_ggtt_init_kunit(struct xe_ggtt *ggtt, u32 reserved, u32 size)
+{
+	ggtt->size = size;
+	__xe_ggtt_init_early(ggtt, reserved);
+	return 0;
+}
+EXPORT_SYMBOL_IF_KUNIT(xe_ggtt_init_kunit);
+
 /**
  * xe_ggtt_init_early - Early GGTT initialization
  * @ggtt: the &xe_ggtt to be initialized
@@ -267,11 +284,7 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 		ggtt->pt_ops = &xelp_pt_ops;
 
 	ggtt->wq = alloc_workqueue("xe-ggtt-wq", 0, WQ_MEM_RECLAIM);
-
-	drm_mm_init(&ggtt->mm, xe_wopcm_size(xe),
-		    ggtt->size - xe_wopcm_size(xe));
-	mutex_init(&ggtt->lock);
-	primelockdep(ggtt);
+	__xe_ggtt_init_early(ggtt, xe_wopcm_size(xe));
 
 	err = drmm_add_action_or_reset(&xe->drm, ggtt_fini_early, ggtt);
 	if (err)
