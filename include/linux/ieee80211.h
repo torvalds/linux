@@ -2325,6 +2325,7 @@ struct ieee80211_eht_cap_elem {
 #define IEEE80211_EHT_OPER_EHT_DEF_PE_DURATION	                0x04
 #define IEEE80211_EHT_OPER_GROUP_ADDRESSED_BU_IND_LIMIT         0x08
 #define IEEE80211_EHT_OPER_GROUP_ADDRESSED_BU_IND_EXP_MASK      0x30
+#define IEEE80211_EHT_OPER_MCS15_DISABLE                        0x40
 
 /**
  * struct ieee80211_eht_operation - eht operation element
