@@ -3971,14 +3971,16 @@ static int rtw89_dump_pkt_offload(char *buf, size_t bufsz, struct list_head *pkt
 
 static int rtw89_vif_link_ids_get(struct rtw89_dev *rtwdev,
 				  char *buf, size_t bufsz, u8 *mac,
-				  struct rtw89_vif_link *rtwvif_link)
+				  struct rtw89_vif_link *rtwvif_link,
+				  bool designated)
 {
 	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif_link->bssid_cam;
 	char *p = buf, *end = buf + bufsz;
 
 	p += scnprintf(p, end - p, "    [%u] %pM\n", rtwvif_link->mac_id,
 		       rtwvif_link->mac_addr);
-	p += scnprintf(p, end - p, "\tlink_id=%u\n", rtwvif_link->link_id);
+	p += scnprintf(p, end - p, "\tlink_id=%u%s\n", rtwvif_link->link_id,
+		       designated ? " (*)" : "");
 	p += scnprintf(p, end - p, "\tbssid_cam_idx=%u\n",
 		       bssid_cam->bssid_cam_idx);
 	p += rtw89_dump_addr_cam(rtwdev, p, end - p, &rtwvif_link->addr_cam);
@@ -3995,15 +3997,19 @@ void rtw89_vif_ids_get_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 		(struct rtw89_debugfs_iter_data *)data;
 	struct rtw89_vif *rtwvif = vif_to_rtwvif(vif);
 	struct rtw89_dev *rtwdev = rtwvif->rtwdev;
+	struct rtw89_vif_link *designated_link;
 	struct rtw89_vif_link *rtwvif_link;
 	size_t bufsz = iter_data->bufsz;
 	char *buf = iter_data->buf;
 	char *p = buf, *end = buf + bufsz;
 	unsigned int link_id;
 
+	designated_link = rtw89_get_designated_link(rtwvif);
+
 	p += scnprintf(p, end - p, "VIF %pM\n", rtwvif->mac_addr);
 	rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id)
-		p += rtw89_vif_link_ids_get(rtwdev, p, end - p, mac, rtwvif_link);
+		p += rtw89_vif_link_ids_get(rtwdev, p, end - p, mac, rtwvif_link,
+					    rtwvif_link == designated_link);
 
 	rtw89_debugfs_iter_data_next(iter_data, p, end - p, p - buf);
 }
@@ -4033,7 +4039,8 @@ static int rtw89_dump_ba_cam(struct rtw89_dev *rtwdev,
 
 static int rtw89_sta_link_ids_get(struct rtw89_dev *rtwdev,
 				  char *buf, size_t bufsz,
-				  struct rtw89_sta_link *rtwsta_link)
+				  struct rtw89_sta_link *rtwsta_link,
+				  bool designated)
 {
 	struct ieee80211_link_sta *link_sta;
 	char *p = buf, *end = buf + bufsz;
@@ -4047,7 +4054,8 @@ static int rtw89_sta_link_ids_get(struct rtw89_dev *rtwdev,
 
 	rcu_read_unlock();
 
-	p += scnprintf(p, end - p, "\tlink_id=%u\n", rtwsta_link->link_id);
+	p += scnprintf(p, end - p, "\tlink_id=%u%s\n", rtwsta_link->link_id,
+		       designated ? " (*)" : "");
 	p += rtw89_dump_addr_cam(rtwdev, p, end - p, &rtwsta_link->addr_cam);
 	p += rtw89_dump_ba_cam(rtwdev, p, end - p, rtwsta_link);
 
@@ -4060,16 +4068,20 @@ static void rtw89_sta_ids_get_iter(void *data, struct ieee80211_sta *sta)
 		(struct rtw89_debugfs_iter_data *)data;
 	struct rtw89_sta *rtwsta = sta_to_rtwsta(sta);
 	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
+	struct rtw89_sta_link *designated_link;
 	struct rtw89_sta_link *rtwsta_link;
 	size_t bufsz = iter_data->bufsz;
 	char *buf = iter_data->buf;
 	char *p = buf, *end = buf + bufsz;
 	unsigned int link_id;
 
+	designated_link = rtw89_get_designated_link(rtwsta);
+
 	p += scnprintf(p, end - p, "STA %pM %s\n", sta->addr,
 		       sta->tdls ? "(TDLS)" : "");
 	rtw89_sta_for_each_link(rtwsta, rtwsta_link, link_id)
-		p += rtw89_sta_link_ids_get(rtwdev, p, end - p, rtwsta_link);
+		p += rtw89_sta_link_ids_get(rtwdev, p, end - p, rtwsta_link,
+					    rtwsta_link == designated_link);
 
 	rtw89_debugfs_iter_data_next(iter_data, p, end - p, p - buf);
 }
