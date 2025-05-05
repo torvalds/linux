@@ -439,14 +439,10 @@
 			} \
 		} \
 		if (child == 0) { \
-			if (!fixture_name##_teardown_parent && \
-					!__atomic_test_and_set(_metadata->no_teardown, __ATOMIC_RELAXED)) \
-				fixture_name##_teardown(_metadata, self, variant->data); \
+			_metadata->teardown_fn(false, _metadata, self, variant->data); \
 			_exit(0); \
 		} \
-		if (fixture_name##_teardown_parent && \
-				!__atomic_test_and_set(_metadata->no_teardown, __ATOMIC_RELAXED)) \
-			fixture_name##_teardown(_metadata, self, variant->data); \
+		_metadata->teardown_fn(true, _metadata, self, variant->data); \
 		munmap(_metadata->no_teardown, sizeof(*_metadata->no_teardown)); \
 		_metadata->no_teardown = NULL; \
 		if (self && fixture_name##_teardown_parent) \
@@ -460,6 +456,14 @@
 		} \
 		__test_check_assert(_metadata); \
 	} \
+	static void wrapper_##fixture_name##_##test_name##_teardown( \
+		bool in_parent, struct __test_metadata *_metadata, \
+		void *self, const void *variant) \
+	{ \
+		if (fixture_name##_teardown_parent == in_parent && \
+				!__atomic_test_and_set(_metadata->no_teardown, __ATOMIC_RELAXED)) \
+			fixture_name##_teardown(_metadata, self, variant); \
+	} \
 	static struct __test_metadata *_##fixture_name##_##test_name##_object; \
 	static void __attribute__((constructor)) \
 			_register_##fixture_name##_##test_name(void) \
@@ -469,6 +473,7 @@
 		object->name = #test_name; \
 		object->fn = &wrapper_##fixture_name##_##test_name; \
 		object->fixture = &_##fixture_name##_fixture_object; \
+		object->teardown_fn = &wrapper_##fixture_name##_##test_name##_teardown; \
 		object->termsig = signal; \
 		object->timeout = tmout; \
 		_##fixture_name##_##test_name##_object = object; \
@@ -912,6 +917,8 @@ struct __test_metadata {
 		   struct __fixture_variant_metadata *);
 	pid_t pid;	/* pid of test when being run */
 	struct __fixture_metadata *fixture;
+	void (*teardown_fn)(bool in_parent, struct __test_metadata *_metadata,
+			    void *self, const void *variant);
 	int termsig;
 	int exit_code;
 	int trigger; /* extra handler after the evaluation */
