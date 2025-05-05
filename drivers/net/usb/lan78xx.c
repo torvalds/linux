@@ -2543,10 +2543,6 @@ static struct phy_device *lan7801_phy_init(struct lan78xx_net *dev)
 		if (ret < 0)
 			return ERR_PTR(ret);
 	} else {
-		if (!phydev->drv) {
-			netdev_err(dev->net, "no PHY driver found\n");
-			return ERR_PTR(-EINVAL);
-		}
 		dev->interface = PHY_INTERFACE_MODE_RGMII_ID;
 		/* The PHY driver is responsible to configure proper RGMII
 		 * interface delays. Disable RGMII delays on MAC side.
