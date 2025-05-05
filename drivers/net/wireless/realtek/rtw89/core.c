@@ -5666,13 +5666,13 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 	if (!hw)
 		goto err;
 
-	/* TODO: When driver MLO arch. is done, determine whether to support MLO
-	 * according to the following conditions.
-	 * 1. run with chanctx_ops
-	 * 2. chip->support_link_num != 0
-	 * 3. FW feature supports AP_LINK_PS
+	/* Currently, our AP_LINK_PS handling only works for non-MLD softap
+	 * or MLD-single-link softap. If RTW89_MLD_NON_STA_LINK_NUM enlarges,
+	 * please tweak entire AP_LINKS_PS handling before supporting MLO.
 	 */
-	support_mlo = false;
+	support_mlo = !no_chanctx && chip->support_link_num &&
+		      RTW89_CHK_FW_FEATURE(NOTIFY_AP_INFO, &early_fw) &&
+		      RTW89_MLD_NON_STA_LINK_NUM == 1;
 
 	hw->wiphy->iface_combinations = rtw89_iface_combs;
 
