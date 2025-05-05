@@ -104,13 +104,11 @@ static int ltc2688_spi_read(void *context, const void *reg, size_t reg_size,
 	struct spi_transfer xfers[] = {
 		{
 			.tx_buf = st->tx_data,
-			.bits_per_word = 8,
 			.len = reg_size + val_size,
 			.cs_change = 1,
 		}, {
 			.tx_buf = st->tx_data + 3,
 			.rx_buf = st->rx_data,
-			.bits_per_word = 8,
 			.len = reg_size + val_size,
 		},
 	};
