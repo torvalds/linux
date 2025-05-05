@@ -2244,6 +2244,8 @@ const struct ieee80211_ops mt7925_ops = {
 	.sta_statistics = mt792x_sta_statistics,
 	.sched_scan_start = mt7925_start_sched_scan,
 	.sched_scan_stop = mt7925_stop_sched_scan,
+	CFG80211_TESTMODE_CMD(mt7925_testmode_cmd)
+	CFG80211_TESTMODE_DUMP(mt7925_testmode_dump)
 #ifdef CONFIG_PM
 	.suspend = mt7925_suspend,
 	.resume = mt7925_resume,
