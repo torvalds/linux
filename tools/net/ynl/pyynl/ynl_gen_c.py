@@ -142,13 +142,13 @@ class Type(SpecAttr):
         return self.is_recursive() and not ri.op
 
     def presence_type(self):
-        return 'bit'
+        return 'present'
 
     def presence_member(self, space, type_filter):
         if self.presence_type() != type_filter:
             return
 
-        if self.presence_type() == 'bit':
+        if self.presence_type() == 'present':
             pfx = '__' if space == 'user' else ''
             return f"{pfx}u32 {self.c_name}:1;"
 
@@ -217,7 +217,7 @@ class Type(SpecAttr):
         cw.p(f'[{self.enum_name}] = {"{"} .name = "{self.name}", {typol}{"}"},')
 
     def _attr_put_line(self, ri, var, line):
-        if self.presence_type() == 'bit':
+        if self.presence_type() == 'present':
             ri.cw.p(f"if ({var}->_present.{self.c_name})")
         elif self.presence_type() == 'len':
             ri.cw.p(f"if ({var}->_present.{self.c_name}_len)")
@@ -250,7 +250,7 @@ class Type(SpecAttr):
         if not self.is_multi_val():
             ri.cw.p("if (ynl_attr_validate(yarg, attr))")
             ri.cw.p("return YNL_PARSE_CB_ERROR;")
-            if self.presence_type() == 'bit':
+            if self.presence_type() == 'present':
                 ri.cw.p(f"{var}->_present.{self.c_name} = 1;")
 
         if init_lines:
@@ -281,7 +281,7 @@ class Type(SpecAttr):
             presence = f"{var}->{'.'.join(ref[:i] + [''])}_present.{ref[i]}"
             # Every layer below last is a nest, so we know it uses bit presence
             # last layer is "self" and may be a complex type
-            if i == len(ref) - 1 and self.presence_type() != 'bit':
+            if i == len(ref) - 1 and self.presence_type() != 'present':
                 continue
             code.append(presence + ' = 1;')
         ref_path = '.'.join(ref[:-1])
@@ -2188,7 +2188,7 @@ def _print_type(ri, direction, struct):
 
     meta_started = False
     for _, attr in struct.member_list():
-        for type_filter in ['len', 'bit']:
+        for type_filter in ['len', 'present']:
             line = attr.presence_member(ri.ku_space, type_filter)
             if line:
                 if not meta_started:
