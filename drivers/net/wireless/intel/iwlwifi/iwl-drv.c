@@ -252,13 +252,7 @@ const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 		rf = "fm";
 		break;
 	case IWL_CFG_RF_TYPE_WH:
-		if (SILICON_Z_STEP ==
-		    CSR_HW_RFID_STEP(trans->info.hw_rf_id)) {
-			rf = "whtc";
-			rf_step = 'a';
-		} else {
-			rf = "wh";
-		}
+		rf = "wh";
 		break;
 	case IWL_CFG_RF_TYPE_PE:
 		rf = "pe";
