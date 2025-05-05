@@ -123,12 +123,12 @@ static int func_prolog_dec(struct trace_array *tr,
 		return 0;
 
 	*data = per_cpu_ptr(tr->array_buffer.data, cpu);
-	disabled = atomic_inc_return(&(*data)->disabled);
+	disabled = local_inc_return(&(*data)->disabled);
 
 	if (likely(disabled == 1))
 		return 1;
 
-	atomic_dec(&(*data)->disabled);
+	local_dec(&(*data)->disabled);
 
 	return 0;
 }
@@ -152,7 +152,7 @@ irqsoff_tracer_call(unsigned long ip, unsigned long parent_ip,
 
 	trace_function(tr, ip, parent_ip, trace_ctx, fregs);
 
-	atomic_dec(&data->disabled);
+	local_dec(&data->disabled);
 }
 #endif /* CONFIG_FUNCTION_TRACER */
 
@@ -209,7 +209,7 @@ static int irqsoff_graph_entry(struct ftrace_graph_ent *trace,
 
 	trace_ctx = tracing_gen_ctx_flags(flags);
 	ret = __trace_graph_entry(tr, trace, trace_ctx);
-	atomic_dec(&data->disabled);
+	local_dec(&data->disabled);
 
 	return ret;
 }
@@ -238,7 +238,7 @@ static void irqsoff_graph_return(struct ftrace_graph_ret *trace,
 
 	trace_ctx = tracing_gen_ctx_flags(flags);
 	__trace_graph_return(tr, trace, trace_ctx, *calltime, rettime);
-	atomic_dec(&data->disabled);
+	local_dec(&data->disabled);
 }
 
 static struct fgraph_ops fgraph_ops = {
@@ -408,10 +408,10 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 
 	data = per_cpu_ptr(tr->array_buffer.data, cpu);
 
-	if (unlikely(!data) || atomic_read(&data->disabled))
+	if (unlikely(!data) || local_read(&data->disabled))
 		return;
 
-	atomic_inc(&data->disabled);
+	local_inc(&data->disabled);
 
 	data->critical_sequence = max_sequence;
 	data->preempt_timestamp = ftrace_now(cpu);
@@ -421,7 +421,7 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 
 	per_cpu(tracing_cpu, cpu) = 1;
 
-	atomic_dec(&data->disabled);
+	local_dec(&data->disabled);
 }
 
 static nokprobe_inline void
@@ -445,16 +445,16 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip)
 	data = per_cpu_ptr(tr->array_buffer.data, cpu);
 
 	if (unlikely(!data) ||
-	    !data->critical_start || atomic_read(&data->disabled))
+	    !data->critical_start || local_read(&data->disabled))
 		return;
 
-	atomic_inc(&data->disabled);
+	local_inc(&data->disabled);
 
 	trace_ctx = tracing_gen_ctx();
 	__trace_function(tr, ip, parent_ip, trace_ctx);
 	check_critical_timing(tr, data, parent_ip ? : ip, cpu);
 	data->critical_start = 0;
-	atomic_dec(&data->disabled);
+	local_dec(&data->disabled);
 }
 
 /* start and stop critical timings used to for stoppage (in idle) */

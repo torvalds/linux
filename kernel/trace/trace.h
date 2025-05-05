@@ -183,7 +183,7 @@ struct trace_array;
  * the trace, etc.)
  */
 struct trace_array_cpu {
-	atomic_t		disabled;
+	local_t			disabled;
 	void			*buffer_page;	/* ring buffer spare */
 
 	unsigned long		entries;
