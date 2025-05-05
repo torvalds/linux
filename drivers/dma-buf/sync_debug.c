@@ -12,8 +12,6 @@ static struct dentry *dbgfs;
 
 static LIST_HEAD(sync_timeline_list_head);
 static DEFINE_SPINLOCK(sync_timeline_list_lock);
-static LIST_HEAD(sync_file_list_head);
-static DEFINE_SPINLOCK(sync_file_list_lock);
 
 void sync_timeline_debug_add(struct sync_timeline *obj)
 {
@@ -31,24 +29,6 @@ void sync_timeline_debug_remove(struct sync_timeline *obj)
 	spin_lock_irqsave(&sync_timeline_list_lock, flags);
 	list_del(&obj->sync_timeline_list);
 	spin_unlock_irqrestore(&sync_timeline_list_lock, flags);
-}
-
-void sync_file_debug_add(struct sync_file *sync_file)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&sync_file_list_lock, flags);
-	list_add_tail(&sync_file->sync_file_list, &sync_file_list_head);
-	spin_unlock_irqrestore(&sync_file_list_lock, flags);
-}
-
-void sync_file_debug_remove(struct sync_file *sync_file)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&sync_file_list_lock, flags);
-	list_del(&sync_file->sync_file_list);
-	spin_unlock_irqrestore(&sync_file_list_lock, flags);
 }
 
 static const char *sync_status_str(int status)
@@ -101,26 +81,6 @@ static void sync_print_obj(struct seq_file *s, struct sync_timeline *obj)
 	spin_unlock(&obj->lock);
 }
 
-static void sync_print_sync_file(struct seq_file *s,
-				  struct sync_file *sync_file)
-{
-	char buf[128];
-	int i;
-
-	seq_printf(s, "[%p] %s: %s\n", sync_file,
-		   sync_file_get_name(sync_file, buf, sizeof(buf)),
-		   sync_status_str(dma_fence_get_status(sync_file->fence)));
-
-	if (dma_fence_is_array(sync_file->fence)) {
-		struct dma_fence_array *array = to_dma_fence_array(sync_file->fence);
-
-		for (i = 0; i < array->num_fences; ++i)
-			sync_print_fence(s, array->fences[i], true);
-	} else {
-		sync_print_fence(s, sync_file->fence, true);
-	}
-}
-
 static int sync_info_debugfs_show(struct seq_file *s, void *unused)
 {
 	struct list_head *pos;
@@ -140,15 +100,6 @@ static int sync_info_debugfs_show(struct seq_file *s, void *unused)
 
 	seq_puts(s, "fences:\n--------------\n");
 
-	spin_lock_irq(&sync_file_list_lock);
-	list_for_each(pos, &sync_file_list_head) {
-		struct sync_file *sync_file =
-			container_of(pos, struct sync_file, sync_file_list);
-
-		sync_print_sync_file(s, sync_file);
-		seq_putc(s, '\n');
-	}
-	spin_unlock_irq(&sync_file_list_lock);
 	return 0;
 }
 
