@@ -244,7 +244,6 @@ static int ad4030_enter_config_mode(struct ad4030_state *st)
 
 	struct spi_transfer xfer = {
 		.tx_buf = st->tx_data,
-		.bits_per_word = 8,
 		.len = 1,
 		.speed_hz = AD4030_SPI_MAX_REG_XFER_SPEED,
 	};
@@ -260,7 +259,6 @@ static int ad4030_exit_config_mode(struct ad4030_state *st)
 
 	struct spi_transfer xfer = {
 		.tx_buf = st->tx_data,
-		.bits_per_word = 8,
 		.len = 3,
 		.speed_hz = AD4030_SPI_MAX_REG_XFER_SPEED,
 	};
@@ -276,7 +274,6 @@ static int ad4030_spi_read(void *context, const void *reg, size_t reg_size,
 	struct spi_transfer xfer = {
 		.tx_buf = st->tx_data,
 		.rx_buf = st->rx_data.raw,
-		.bits_per_word = 8,
 		.len = reg_size + val_size,
 		.speed_hz = AD4030_SPI_MAX_REG_XFER_SPEED,
 	};
@@ -311,7 +308,6 @@ static int ad4030_spi_write(void *context, const void *data, size_t count)
 			((u8 *)data)[2] == 0x81;
 	struct spi_transfer xfer = {
 		.tx_buf = st->tx_data,
-		.bits_per_word = 8,
 		.len = count,
 		.speed_hz = AD4030_SPI_MAX_REG_XFER_SPEED,
 	};
