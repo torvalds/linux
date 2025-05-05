@@ -16,7 +16,6 @@
 #include <linux/ratelimit.h>
 #include <linux/mutex.h>
 #include <linux/scatterlist.h>
-#include <crypto/internal/hash.h>
 #include <crypto/internal/aead.h>
 #include <crypto/internal/rng.h>
 #include <crypto/internal/skcipher.h>
@@ -135,7 +134,6 @@ struct crypto4xx_alg_common {
 	u32 type;
 	union {
 		struct skcipher_alg cipher;
-		struct ahash_alg hash;
 		struct aead_alg aead;
 		struct rng_alg rng;
 	} u;
@@ -183,11 +181,6 @@ int crypto4xx_encrypt_noiv_block(struct skcipher_request *req);
 int crypto4xx_decrypt_noiv_block(struct skcipher_request *req);
 int crypto4xx_rfc3686_encrypt(struct skcipher_request *req);
 int crypto4xx_rfc3686_decrypt(struct skcipher_request *req);
-int crypto4xx_sha1_alg_init(struct crypto_tfm *tfm);
-int crypto4xx_hash_digest(struct ahash_request *req);
-int crypto4xx_hash_final(struct ahash_request *req);
-int crypto4xx_hash_update(struct ahash_request *req);
-int crypto4xx_hash_init(struct ahash_request *req);
 
 /*
  * Note: Only use this function to copy items that is word aligned.
