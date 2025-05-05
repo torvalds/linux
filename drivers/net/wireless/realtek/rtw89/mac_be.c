@@ -29,6 +29,7 @@ static const u32 rtw89_mac_mem_base_addrs_be[RTW89_MAC_MEM_NUM] = {
 	[RTW89_MAC_MEM_CPU_LOCAL]	= CPU_LOCAL_BASE_ADDR_BE,
 	[RTW89_MAC_MEM_BSSID_CAM]	= BSSID_CAM_BASE_ADDR_BE,
 	[RTW89_MAC_MEM_WD_PAGE]		= WD_PAGE_BASE_ADDR_BE,
+	[RTW89_MAC_MEM_MLD_TBL]		= MLD_TBL_BASE_ADDR_BE,
 };
 
 static const struct rtw89_port_reg rtw89_port_base_be = {
