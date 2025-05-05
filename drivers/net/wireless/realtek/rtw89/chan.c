@@ -359,12 +359,41 @@ dflt:
 }
 EXPORT_SYMBOL(__rtw89_mgnt_chan_get);
 
+static enum rtw89_mlo_dbcc_mode
+rtw89_entity_sel_mlo_dbcc_mode(struct rtw89_dev *rtwdev, u8 active_hws)
+{
+	if (rtwdev->chip->chip_gen != RTW89_CHIP_BE)
+		return MLO_DBCC_NOT_SUPPORT;
+
+	switch (active_hws) {
+	case BIT(0):
+		return MLO_2_PLUS_0_1RF;
+	case BIT(1):
+		return MLO_0_PLUS_2_1RF;
+	case BIT(0) | BIT(1):
+	default:
+		return MLO_1_PLUS_1_1RF;
+	}
+}
+
+static
+void rtw89_entity_recalc_mlo_dbcc_mode(struct rtw89_dev *rtwdev, u8 active_hws)
+{
+	enum rtw89_mlo_dbcc_mode mode;
+
+	mode = rtw89_entity_sel_mlo_dbcc_mode(rtwdev, active_hws);
+	rtwdev->mlo_dbcc_mode = mode;
+
+	rtw89_debug(rtwdev, RTW89_DBG_STATE, "recalc mlo dbcc mode to %d\n", mode);
+}
+
 static void rtw89_entity_recalc_mgnt_roles(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_entity_mgnt *mgnt = &hal->entity_mgnt;
 	struct rtw89_vif_link *link;
 	struct rtw89_vif *role;
+	u8 active_hws = 0;
 	u8 pos = 0;
 	int i, j;
 
@@ -413,10 +442,13 @@ fill:
 				continue;
 
 			mgnt->chanctx_tbl[pos][i] = link->chanctx_idx;
+			active_hws |= BIT(i);
 		}
 
 		mgnt->active_roles[pos++] = role;
 	}
+
+	rtw89_entity_recalc_mlo_dbcc_mode(rtwdev, active_hws);
 }
 
 enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)

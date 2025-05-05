@@ -4966,7 +4966,7 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE) {
 		rtwdev->dbcc_en = true;
 		rtwdev->mac.qta_mode = RTW89_QTA_DBCC;
-		rtwdev->mlo_dbcc_mode = MLO_2_PLUS_0_1RF;
+		rtwdev->mlo_dbcc_mode = MLO_1_PLUS_1_1RF;
 	}
 
 	rtwdev->bbs[RTW89_PHY_0].phy_idx = RTW89_PHY_0;
