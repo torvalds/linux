@@ -2549,10 +2549,10 @@ next_queue:
 #define HOST_COMPLETE_TIMEOUT	(2 * HZ)
 
 static int iwl_trans_pcie_send_hcmd_sync(struct iwl_trans *trans,
-					 struct iwl_host_cmd *cmd)
+					 struct iwl_host_cmd *cmd,
+					 const char *cmd_str)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	const char *cmd_str = iwl_get_cmd_string(trans, cmd->id);
 	struct iwl_txq *txq = trans_pcie->txqs.txq[trans->conf.cmd_queue];
 	int cmd_idx;
 	int ret;
@@ -2646,6 +2646,8 @@ cancel:
 int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans,
 			     struct iwl_host_cmd *cmd)
 {
+	const char *cmd_str = iwl_get_cmd_string(trans, cmd->id);
+
 	/* Make sure the NIC is still alive in the bus */
 	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
 		return -ENODEV;
@@ -2659,6 +2661,8 @@ int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans,
 
 	if (cmd->flags & CMD_ASYNC) {
 		int ret;
+
+		IWL_DEBUG_INFO(trans, "Sending async command %s\n", cmd_str);
 
 		/* An asynchronous command can not expect an SKB to be set. */
 		if (WARN_ON(cmd->flags & CMD_WANT_SKB))
@@ -2678,5 +2682,5 @@ int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans,
 		return 0;
 	}
 
-	return iwl_trans_pcie_send_hcmd_sync(trans, cmd);
+	return iwl_trans_pcie_send_hcmd_sync(trans, cmd, cmd_str);
 }
