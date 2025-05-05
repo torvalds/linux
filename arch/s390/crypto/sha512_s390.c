@@ -86,15 +86,16 @@ static int sha384_init(struct shash_desc *desc)
 {
 	struct s390_sha_ctx *ctx = shash_desc_ctx(desc);
 
-	*(__u64 *)&ctx->state[0] = SHA384_H0;
-	*(__u64 *)&ctx->state[2] = SHA384_H1;
-	*(__u64 *)&ctx->state[4] = SHA384_H2;
-	*(__u64 *)&ctx->state[6] = SHA384_H3;
-	*(__u64 *)&ctx->state[8] = SHA384_H4;
-	*(__u64 *)&ctx->state[10] = SHA384_H5;
-	*(__u64 *)&ctx->state[12] = SHA384_H6;
-	*(__u64 *)&ctx->state[14] = SHA384_H7;
+	ctx->sha512.state[0] = SHA384_H0;
+	ctx->sha512.state[1] = SHA384_H1;
+	ctx->sha512.state[2] = SHA384_H2;
+	ctx->sha512.state[3] = SHA384_H3;
+	ctx->sha512.state[4] = SHA384_H4;
+	ctx->sha512.state[5] = SHA384_H5;
+	ctx->sha512.state[6] = SHA384_H6;
+	ctx->sha512.state[7] = SHA384_H7;
 	ctx->count = 0;
+	ctx->sha512.count_hi = 0;
 	ctx->func = CPACF_KIMD_SHA_512;
 
 	return 0;
