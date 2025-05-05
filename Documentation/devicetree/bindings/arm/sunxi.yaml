@@ -492,6 +492,11 @@ properties:
           - const: lamobo,lamobo-r1
           - const: allwinner,sun7i-a20
 
+      - description: Liontron H-A133L
+        items:
+          - const: liontron,h-a133l
+          - const: allwinner,sun50i-a100
+
       - description: HAOYU Electronics Marsboard A10
         items:
           - const: haoyu,a10-marsboard
