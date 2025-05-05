@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/qca,ar7100-cpu-intc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Atheros ath79 CPU interrupt controller
+
+maintainers:
+  - Alban Bedel <albeu@free.fr>
+
+description:
+  On most SoC the IRQ controller need to flush the DDR FIFO before running the
+  interrupt handler of some devices. This is configured using the
+  qca,ddr-wb-channels and qca,ddr-wb-channel-interrupts properties.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: qca,ar9132-cpu-intc
+          - const: qca,ar7100-cpu-intc
+      - items:
+          - const: qca,ar7100-cpu-intc
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 1
+
+  qca,ddr-wb-channel-interrupts:
+    description: List of interrupts needing a write buffer flush
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  qca,ddr-wb-channels:
+    description: List of write buffer channel phandles for each interrupt
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+
+required:
+  - compatible
+  - interrupt-controller
+  - '#interrupt-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+      interrupt-controller {
+          compatible = "qca,ar9132-cpu-intc", "qca,ar7100-cpu-intc";
+
+          interrupt-controller;
+          #interrupt-cells = <1>;
+
+          qca,ddr-wb-channel-interrupts = <2>, <3>, <4>, <5>;
+          qca,ddr-wb-channels = <&ddr_ctrl 3>, <&ddr_ctrl 2>,
+                                <&ddr_ctrl 0>, <&ddr_ctrl 1>;
+      };
+
+      ddr_ctrl: memory-controller {
+          #qca,ddr-wb-channel-cells = <1>;
+      };
