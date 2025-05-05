@@ -1554,10 +1554,12 @@ static void lan78xx_set_multicast(struct net_device *netdev)
 	schedule_work(&pdata->set_multicast);
 }
 
+static int lan78xx_configure_flowcontrol(struct lan78xx_net *dev,
+					 bool tx_pause, bool rx_pause);
+
 static int lan78xx_update_flowcontrol(struct lan78xx_net *dev, u8 duplex,
 				      u16 lcladv, u16 rmtadv)
 {
-	u32 flow = 0, fct_flow = 0;
 	u8 cap;
 
 	if (dev->fc_autoneg)
@@ -1565,27 +1567,13 @@ static int lan78xx_update_flowcontrol(struct lan78xx_net *dev, u8 duplex,
 	else
 		cap = dev->fc_request_control;
 
-	if (cap & FLOW_CTRL_TX)
-		flow |= (FLOW_CR_TX_FCEN_ | 0xFFFF);
-
-	if (cap & FLOW_CTRL_RX)
-		flow |= FLOW_CR_RX_FCEN_;
-
-	if (dev->udev->speed == USB_SPEED_SUPER)
-		fct_flow = FLOW_CTRL_THRESHOLD(FLOW_ON_SS, FLOW_OFF_SS);
-	else if (dev->udev->speed == USB_SPEED_HIGH)
-		fct_flow = FLOW_CTRL_THRESHOLD(FLOW_ON_HS, FLOW_OFF_HS);
-
 	netif_dbg(dev, link, dev->net, "rx pause %s, tx pause %s",
 		  (cap & FLOW_CTRL_RX ? "enabled" : "disabled"),
 		  (cap & FLOW_CTRL_TX ? "enabled" : "disabled"));
 
-	lan78xx_write_reg(dev, FCT_FLOW, fct_flow);
-
-	/* threshold value should be set before enabling flow */
-	lan78xx_write_reg(dev, FLOW, flow);
-
-	return 0;
+	return lan78xx_configure_flowcontrol(dev,
+					     cap & FLOW_CTRL_TX,
+					     cap & FLOW_CTRL_RX);
 }
 
 static void lan78xx_rx_urb_submit_all(struct lan78xx_net *dev);
@@ -2548,6 +2536,87 @@ static int lan78xx_configure_usb(struct lan78xx_net *dev, int speed)
 		netdev_warn(dev->net, "Unsupported link speed: %d\n", speed);
 		return -EINVAL;
 	}
+}
+
+/**
+ * lan78xx_configure_flowcontrol - Set MAC and FIFO flow control configuration
+ * @dev: pointer to the LAN78xx device structure
+ * @tx_pause: enable transmission of pause frames
+ * @rx_pause: enable reception of pause frames
+ *
+ * This function configures the LAN78xx flow control settings by writing
+ * to the FLOW and FCT_FLOW registers. The pause time is set to the
+ * maximum allowed value (65535 quanta). FIFO thresholds are selected
+ * based on USB speed.
+ *
+ * The Pause Time field is measured in units of 512-bit times (quanta):
+ *   - At 1 Gbps: 1 quanta = 512 ns → max ~33.6 ms pause
+ *   - At 100 Mbps: 1 quanta = 5.12 µs → max ~335 ms pause
+ *   - At 10 Mbps: 1 quanta = 51.2 µs → max ~3.3 s pause
+ *
+ * Flow control thresholds (FCT_FLOW) are used to trigger pause/resume:
+ *   - RXUSED is the number of bytes used in the RX FIFO
+ *   - Flow is turned ON when RXUSED ≥ FLOW_ON threshold
+ *   - Flow is turned OFF when RXUSED ≤ FLOW_OFF threshold
+ *   - Both thresholds are encoded in units of 512 bytes (rounded up)
+ *
+ * Thresholds differ by USB speed because available USB bandwidth
+ * affects how fast packets can be drained from the RX FIFO:
+ *   - USB 3.x (SuperSpeed):
+ *       FLOW_ON  = 9216 bytes → 18 units
+ *       FLOW_OFF = 4096 bytes →  8 units
+ *   - USB 2.0 (High-Speed):
+ *       FLOW_ON  = 8704 bytes → 17 units
+ *       FLOW_OFF = 1024 bytes →  2 units
+ *
+ * Note: The FCT_FLOW register must be configured before enabling TX pause
+ *       (i.e., before setting FLOW_CR_TX_FCEN_), as required by the hardware.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+static int lan78xx_configure_flowcontrol(struct lan78xx_net *dev,
+					 bool tx_pause, bool rx_pause)
+{
+	/* Use maximum pause time: 65535 quanta (512-bit times) */
+	const u32 pause_time_quanta = 65535;
+	u32 fct_flow = 0;
+	u32 flow = 0;
+	int ret;
+
+	/* Prepare MAC flow control bits */
+	if (tx_pause)
+		flow |= FLOW_CR_TX_FCEN_ | pause_time_quanta;
+
+	if (rx_pause)
+		flow |= FLOW_CR_RX_FCEN_;
+
+	/* Select RX FIFO thresholds based on USB speed
+	 *
+	 * FCT_FLOW layout:
+	 *   bits [6:0]   FLOW_ON threshold (RXUSED ≥ ON → assert pause)
+	 *   bits [14:8]  FLOW_OFF threshold (RXUSED ≤ OFF → deassert pause)
+	 *   thresholds are expressed in units of 512 bytes
+	 */
+	switch (dev->udev->speed) {
+	case USB_SPEED_SUPER:
+		fct_flow = FLOW_CTRL_THRESHOLD(FLOW_ON_SS, FLOW_OFF_SS);
+		break;
+	case USB_SPEED_HIGH:
+		fct_flow = FLOW_CTRL_THRESHOLD(FLOW_ON_HS, FLOW_OFF_HS);
+		break;
+	default:
+		netdev_warn(dev->net, "Unsupported USB speed: %d\n",
+			    dev->udev->speed);
+		return -EINVAL;
+	}
+
+	/* Step 1: Write FIFO thresholds before enabling pause frames */
+	ret = lan78xx_write_reg(dev, FCT_FLOW, fct_flow);
+	if (ret < 0)
+		return ret;
+
+	/* Step 2: Enable MAC pause functionality */
+	return lan78xx_write_reg(dev, FLOW, flow);
 }
 
 /**
