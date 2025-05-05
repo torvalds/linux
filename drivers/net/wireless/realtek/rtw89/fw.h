@@ -2865,6 +2865,13 @@ struct rtw89_h2c_fwips {
 #define RTW89_H2C_FW_IPS_W0_MACID GENMASK(7, 0)
 #define RTW89_H2C_FW_IPS_W0_ENABLE BIT(8)
 
+struct rtw89_h2c_mlo_link_cfg {
+	__le32 w0;
+};
+
+#define RTW89_H2C_MLO_LINK_CFG_W0_MACID GENMASK(15, 0)
+#define RTW89_H2C_MLO_LINK_CFG_W0_OPTION GENMASK(19, 16)
+
 static inline void RTW89_SET_FWCMD_P2P_MACID(void *cmd, u32 val)
 {
 	le32p_replace_bits((__le32 *)cmd, val, GENMASK(7, 0));
@@ -3733,6 +3740,25 @@ static_assert(sizeof(struct rtw89_mac_mcc_tsf_rpt) <= RTW89_COMPLETION_BUF_SIZE)
 #define RTW89_GET_MAC_C2H_MCC_STATUS_RPT_TSF_HIGH(c2h) \
 	le32_get_bits(*((const __le32 *)(c2h) + 4), GENMASK(31, 0))
 
+struct rtw89_c2h_mlo_link_cfg_rpt {
+	struct rtw89_c2h_hdr hdr;
+	__le32 w2;
+} __packed;
+
+#define RTW89_C2H_MLO_LINK_CFG_RPT_W2_MACID GENMASK(15, 0)
+#define RTW89_C2H_MLO_LINK_CFG_RPT_W2_STATUS GENMASK(19, 16)
+
+enum rtw89_c2h_mlo_link_status {
+	RTW89_C2H_MLO_LINK_CFG_IDLE = 0,
+	RTW89_C2H_MLO_LINK_CFG_DONE = 1,
+	RTW89_C2H_MLO_LINK_CFG_ISSUE_NULL_FAIL = 2,
+	RTW89_C2H_MLO_LINK_CFG_TX_NULL_FAIL = 3,
+	RTW89_C2H_MLO_LINK_CFG_ROLE_NOT_EXIST = 4,
+	RTW89_C2H_MLO_LINK_CFG_NULL_1_TIMEOUT = 5,
+	RTW89_C2H_MLO_LINK_CFG_NULL_0_TIMEOUT = 6,
+	RTW89_C2H_MLO_LINK_CFG_RUNNING = 0xff,
+};
+
 struct rtw89_mac_mrc_tsf_rpt {
 	unsigned int num;
 	u64 tsfs[RTW89_MAC_MRC_MAX_REQ_TSF_NUM];
@@ -4251,6 +4277,26 @@ enum rtw89_mcc_h2c_func {
 
 #define RTW89_MCC_WAIT_COND(group, func) \
 	((group) * NUM_OF_RTW89_MCC_H2C_FUNC + (func))
+
+/* CLASS 20 - MLO */
+#define H2C_CL_MLO                     0x14
+enum rtw89_mlo_h2c_func {
+	H2C_FUNC_MLO_TBL_CFG		= 0x0,
+	H2C_FUNC_MLO_STA_CFG		= 0x1,
+	H2C_FUNC_MLO_TTLM		= 0x2,
+	H2C_FUNC_MLO_DM_CFG		= 0x3,
+	H2C_FUNC_MLO_EMLSR_STA_CFG	= 0x4,
+	H2C_FUNC_MLO_MCMLO_RELINK_DROP	= 0x5,
+	H2C_FUNC_MLO_MCMLO_SN_SYNC	= 0x6,
+	H2C_FUNC_MLO_RELINK		= 0x7,
+	H2C_FUNC_MLO_LINK_CFG		= 0x8,
+	H2C_FUNC_MLO_DM_DBG		= 0x9,
+
+	NUM_OF_RTW89_MLO_H2C_FUNC,
+};
+
+#define RTW89_MLO_WAIT_COND(macid, func) \
+	((macid) * NUM_OF_RTW89_MLO_H2C_FUNC + (func))
 
 /* CLASS 24 - MRC */
 #define H2C_CL_MRC			0x18
@@ -4829,6 +4875,8 @@ int rtw89_fw_h2c_mrc_sync(struct rtw89_dev *rtwdev,
 int rtw89_fw_h2c_mrc_upd_duration(struct rtw89_dev *rtwdev,
 				  const struct rtw89_fw_mrc_upd_duration_arg *arg);
 int rtw89_fw_h2c_ap_info_refcount(struct rtw89_dev *rtwdev, bool en);
+int rtw89_fw_h2c_mlo_link_cfg(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
+			      bool enable);
 
 static inline void rtw89_fw_h2c_init_ba_cam(struct rtw89_dev *rtwdev)
 {

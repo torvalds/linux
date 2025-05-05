@@ -4945,6 +4945,7 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 	rtwdev->total_sta_assoc = 0;
 
 	rtw89_init_wait(&rtwdev->mcc.wait);
+	rtw89_init_wait(&rtwdev->mlo.wait);
 	rtw89_init_wait(&rtwdev->mac.fw_ofld_wait);
 	rtw89_init_wait(&rtwdev->wow.wait);
 	rtw89_init_wait(&rtwdev->mac.ps_wait);

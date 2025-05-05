@@ -8956,6 +8956,47 @@ int rtw89_fw_h2c_ap_info_refcount(struct rtw89_dev *rtwdev, bool en)
 	return 0;
 }
 
+int rtw89_fw_h2c_mlo_link_cfg(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
+			      bool enable)
+{
+	struct rtw89_wait_info *wait = &rtwdev->mlo.wait;
+	struct rtw89_h2c_mlo_link_cfg *h2c;
+	u8 mac_id = rtwvif_link->mac_id;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	unsigned int cond;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for mlo link cfg\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_mlo_link_cfg *)skb->data;
+
+	h2c->w0 = le32_encode_bits(mac_id, RTW89_H2C_MLO_LINK_CFG_W0_MACID) |
+		  le32_encode_bits(enable, RTW89_H2C_MLO_LINK_CFG_W0_OPTION);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MLO,
+			      H2C_FUNC_MLO_LINK_CFG, 0, 0,
+			      len);
+
+	cond = RTW89_MLO_WAIT_COND(mac_id, H2C_FUNC_MLO_LINK_CFG);
+
+	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
+	if (ret) {
+		rtw89_err(rtwdev, "mlo link cfg (%s link id %u) failed: %d\n",
+			  str_enable_disable(enable), rtwvif_link->link_id, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static bool __fw_txpwr_entry_zero_ext(const void *ext_ptr, u8 ext_len)
 {
 	static const u8 zeros[U8_MAX] = {};

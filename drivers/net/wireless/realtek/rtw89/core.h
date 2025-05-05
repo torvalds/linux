@@ -5738,6 +5738,10 @@ struct rtw89_mcc_info {
 	struct rtw89_mcc_config config;
 };
 
+struct rtw89_mlo_info {
+	struct rtw89_wait_info wait;
+};
+
 struct rtw89_dev {
 	struct ieee80211_hw *hw;
 	struct device *dev;
@@ -5753,6 +5757,7 @@ struct rtw89_dev {
 	const struct rtw89_rfe_parms *rfe_parms;
 	struct rtw89_hal hal;
 	struct rtw89_mcc_info mcc;
+	struct rtw89_mlo_info mlo;
 	struct rtw89_mac_info mac;
 	struct rtw89_fw_info fw;
 	struct rtw89_hci_info hci;

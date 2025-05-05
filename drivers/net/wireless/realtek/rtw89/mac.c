@@ -5409,6 +5409,27 @@ rtw89_mac_c2h_wow_aoac_rpt(struct rtw89_dev *rtwdev, struct sk_buff *skb, u32 le
 }
 
 static void
+rtw89_mac_c2h_mlo_link_cfg_stat(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+	const struct rtw89_c2h_mlo_link_cfg_rpt *c2h_rpt;
+	struct rtw89_wait_info *wait = &rtwdev->mlo.wait;
+	struct rtw89_completion_data data = {};
+	unsigned int cond;
+	u16 mac_id;
+	u8 status;
+
+	c2h_rpt = (const struct rtw89_c2h_mlo_link_cfg_rpt *)c2h->data;
+
+	mac_id = le32_get_bits(c2h_rpt->w2, RTW89_C2H_MLO_LINK_CFG_RPT_W2_MACID);
+	status = le32_get_bits(c2h_rpt->w2, RTW89_C2H_MLO_LINK_CFG_RPT_W2_STATUS);
+
+	data.err = status == RTW89_C2H_MLO_LINK_CFG_ROLE_NOT_EXIST ||
+		   status == RTW89_C2H_MLO_LINK_CFG_RUNNING;
+	cond = RTW89_MLO_WAIT_COND(mac_id, H2C_FUNC_MLO_LINK_CFG);
+	rtw89_complete_cond(wait, cond, &data);
+}
+
+static void
 rtw89_mac_c2h_mrc_status_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
 {
 	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
@@ -5563,6 +5584,18 @@ void (* const rtw89_mac_c2h_mcc_handler[])(struct rtw89_dev *rtwdev,
 };
 
 static
+void (* const rtw89_mac_c2h_mlo_handler[])(struct rtw89_dev *rtwdev,
+					   struct sk_buff *c2h, u32 len) = {
+	[RTW89_MAC_C2H_FUNC_MLO_GET_TBL] = NULL,
+	[RTW89_MAC_C2H_FUNC_MLO_EMLSR_TRANS_DONE] = NULL,
+	[RTW89_MAC_C2H_FUNC_MLO_EMLSR_STA_CFG_DONE] = NULL,
+	[RTW89_MAC_C2H_FUNC_MCMLO_RELINK_RPT] = NULL,
+	[RTW89_MAC_C2H_FUNC_MCMLO_SN_SYNC_RPT] = NULL,
+	[RTW89_MAC_C2H_FUNC_MLO_LINK_CFG_STAT] = rtw89_mac_c2h_mlo_link_cfg_stat,
+	[RTW89_MAC_C2H_FUNC_MLO_DM_DBG_DUMP] = NULL,
+};
+
+static
 void (* const rtw89_mac_c2h_mrc_handler[])(struct rtw89_dev *rtwdev,
 					   struct sk_buff *c2h, u32 len) = {
 	[RTW89_MAC_C2H_FUNC_MRC_TSF_RPT] = rtw89_mac_c2h_mrc_tsf_rpt,
@@ -5631,6 +5664,8 @@ bool rtw89_mac_c2h_chk_atomic(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 		}
 	case RTW89_MAC_C2H_CLASS_MCC:
 		return true;
+	case RTW89_MAC_C2H_CLASS_MLO:
+		return true;
 	case RTW89_MAC_C2H_CLASS_MRC:
 		return true;
 	case RTW89_MAC_C2H_CLASS_WOW:
@@ -5663,6 +5698,10 @@ void rtw89_mac_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	case RTW89_MAC_C2H_CLASS_MCC:
 		if (func < NUM_OF_RTW89_MAC_C2H_FUNC_MCC)
 			handler = rtw89_mac_c2h_mcc_handler[func];
+		break;
+	case RTW89_MAC_C2H_CLASS_MLO:
+		if (func < NUM_OF_RTW89_MAC_C2H_FUNC_MLO)
+			handler = rtw89_mac_c2h_mlo_handler[func];
 		break;
 	case RTW89_MAC_C2H_CLASS_MRC:
 		if (func < NUM_OF_RTW89_MAC_C2H_FUNC_MRC)
