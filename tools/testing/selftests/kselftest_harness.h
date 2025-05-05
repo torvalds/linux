@@ -67,7 +67,6 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <setjmp.h>
 
 #include "kselftest.h"
 
@@ -178,9 +177,7 @@
 		struct __test_metadata *_metadata, \
 		struct __fixture_variant_metadata __attribute__((unused)) *variant) \
 	{ \
-		if (setjmp(_metadata->env) == 0) \
-			test_name(_metadata); \
-		__test_check_assert(_metadata); \
+		test_name(_metadata); \
 	} \
 	static struct __test_metadata _##test_name##_object = \
 		{ .name = #test_name, \
@@ -425,24 +422,20 @@
 		} \
 		_metadata->variant = variant->data; \
 		_metadata->self = self; \
-		if (setjmp(_metadata->env) == 0) { \
-			/* _metadata and potentially self are shared with all forks. */ \
-			child = fork(); \
-			if (child == 0) { \
-				fixture_name##_setup(_metadata, self, variant->data); \
-				/* Let setup failure terminate early. */ \
-				if (_metadata->exit_code) \
-					_exit(0); \
-				*_metadata->no_teardown = false; \
-				fixture_name##_##test_name(_metadata, self, variant->data); \
-			} else if (child < 0 || child != waitpid(child, &status, 0)) { \
-				ksft_print_msg("ERROR SPAWNING TEST GRANDCHILD\n"); \
-				_metadata->exit_code = KSFT_FAIL; \
-			} \
-		} \
+		/* _metadata and potentially self are shared with all forks. */ \
+		child = fork(); \
 		if (child == 0) { \
+			fixture_name##_setup(_metadata, self, variant->data); \
+			/* Let setup failure terminate early. */ \
+			if (_metadata->exit_code) \
+				_exit(0); \
+			*_metadata->no_teardown = false; \
+			fixture_name##_##test_name(_metadata, self, variant->data); \
 			_metadata->teardown_fn(false, _metadata, self, variant->data); \
 			_exit(0); \
+		} else if (child < 0 || child != waitpid(child, &status, 0)) { \
+			ksft_print_msg("ERROR SPAWNING TEST GRANDCHILD\n"); \
+			_metadata->exit_code = KSFT_FAIL; \
 		} \
 		_metadata->teardown_fn(true, _metadata, self, variant->data); \
 		munmap(_metadata->no_teardown, sizeof(*_metadata->no_teardown)); \
@@ -456,7 +449,6 @@
 			/* Forward signal to __wait_for_test(). */ \
 			kill(getpid(), WTERMSIG(status)); \
 		} \
-		__test_check_assert(_metadata); \
 	} \
 	static void wrapper_##fixture_name##_##test_name##_teardown( \
 		bool in_parent, struct __test_metadata *_metadata, \
@@ -927,7 +919,6 @@ struct __test_metadata {
 	int timeout;	/* seconds to wait for test timeout */
 	bool aborted;	/* stopped test due to failed ASSERT */
 	bool *no_teardown; /* fixture needs teardown */
-	jmp_buf env;	/* for exiting out of test early */
 	void *self;
 	const void *variant;
 	struct __test_results *results;
@@ -963,17 +954,12 @@ static inline int __bail(int for_realz, struct __test_metadata *t)
 {
 	/* if this is ASSERT, return immediately. */
 	if (for_realz) {
-		t->aborted = true;
-		longjmp(t->env, 1);
+		if (t->teardown_fn)
+			t->teardown_fn(false, t, t->self, t->variant);
+		abort();
 	}
 	/* otherwise, end the for loop and continue. */
 	return 0;
-}
-
-static inline void __test_check_assert(struct __test_metadata *t)
-{
-	if (t->aborted)
-		abort();
 }
 
 static void __wait_for_test(struct __test_metadata *t)
@@ -1208,7 +1194,6 @@ static void __run_test(struct __fixture_metadata *f,
 	t->trigger = 0;
 	t->aborted = false;
 	t->no_teardown = NULL;
-	memset(t->env, 0, sizeof(t->env));
 	memset(t->results->reason, 0, sizeof(t->results->reason));
 
 	snprintf(test_name, sizeof(test_name), "%s%s%s.%s",
