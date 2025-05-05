@@ -352,5 +352,191 @@
             "$TC qdisc del dev $DUMMY handle 1:0 root",
             "$IP addr del 10.10.10.10/24 dev $DUMMY || true"
         ]
+    },
+    {
+        "id": "90ec",
+        "name": "Test DRR's enqueue reentrant behaviour with netem",
+        "category": [
+            "qdisc",
+            "drr"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.10.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY handle 1:0 root drr",
+            "$TC class replace dev $DUMMY parent 1:0 classid 1:1 drr",
+            "$TC qdisc add dev $DUMMY parent 1:1 handle 2:0 netem duplicate 100%",
+            "$TC filter add dev $DUMMY parent 1:0 protocol ip prio 1 u32 match ip protocol 1 0xff flowid 1:1"
+        ],
+        "cmdUnderTest": "ping -c 1 -I $DUMMY 10.10.10.1 > /dev/null || true",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j -s qdisc ls dev $DUMMY handle 1:0",
+        "matchJSON": [
+            {
+                "kind": "drr",
+                "handle": "1:",
+                "bytes": 196,
+                "packets": 2
+            }
+        ],
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1:0 root",
+            "$IP addr del 10.10.10.10/24 dev $DUMMY || true"
+        ]
+    },
+    {
+        "id": "1f1f",
+        "name": "Test ETS's enqueue reentrant behaviour with netem",
+        "category": [
+            "qdisc",
+            "ets"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.10.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY handle 1:0 root ets bands 2",
+            "$TC class replace dev $DUMMY parent 1:0 classid 1:1 ets quantum 1500",
+            "$TC qdisc add dev $DUMMY parent 1:1 handle 2:0 netem duplicate 100%",
+            "$TC filter add dev $DUMMY parent 1:0 protocol ip prio 1 u32 match ip protocol 1 0xff flowid 1:1"
+        ],
+        "cmdUnderTest": "ping -c 1 -I $DUMMY 10.10.10.1 > /dev/null || true",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j -s class show dev $DUMMY",
+        "matchJSON": [
+            {
+                "class": "ets",
+                "handle": "1:1",
+                "stats": {
+                    "bytes": 196,
+                    "packets": 2
+                }
+            }
+        ],
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1:0 root",
+            "$IP addr del 10.10.10.10/24 dev $DUMMY || true"
+        ]
+    },
+    {
+        "id": "5e6d",
+        "name": "Test QFQ's enqueue reentrant behaviour with netem",
+        "category": [
+            "qdisc",
+            "qfq"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.10.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY handle 1:0 root qfq",
+            "$TC class replace dev $DUMMY parent 1:0 classid 1:1 qfq weight 100 maxpkt 1500",
+            "$TC qdisc add dev $DUMMY parent 1:1 handle 2:0 netem duplicate 100%",
+            "$TC filter add dev $DUMMY parent 1:0 protocol ip prio 1 u32 match ip protocol 1 0xff flowid 1:1"
+        ],
+        "cmdUnderTest": "ping -c 1 -I $DUMMY 10.10.10.1 > /dev/null || true",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j -s qdisc ls dev $DUMMY handle 1:0",
+        "matchJSON": [
+            {
+                "kind": "qfq",
+                "handle": "1:",
+                "bytes": 196,
+                "packets": 2
+            }
+        ],
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1:0 root",
+            "$IP addr del 10.10.10.10/24 dev $DUMMY || true"
+        ]
+    },
+    {
+        "id": "bf1d",
+        "name": "Test HFSC's enqueue reentrant behaviour with netem",
+        "category": [
+            "qdisc",
+            "hfsc"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.10.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY handle 1:0 root hfsc",
+            "$TC class add dev $DUMMY parent 1:0 classid 1:1 hfsc ls m2 10Mbit",
+            "$TC qdisc add dev $DUMMY parent 1:1 handle 2:0 netem duplicate 100%",
+            "$TC filter add dev $DUMMY parent 1:0 protocol ip prio 1 u32 match ip dst 10.10.10.1/32 flowid 1:1",
+            "$TC class add dev $DUMMY parent 1:0 classid 1:2 hfsc ls m2 10Mbit",
+            "$TC qdisc add dev $DUMMY parent 1:2 handle 3:0 netem duplicate 100%",
+            "$TC filter add dev $DUMMY parent 1:0 protocol ip prio 2 u32 match ip dst 10.10.10.2/32 flowid 1:2",
+            "ping -c 1 10.10.10.1 -I$DUMMY > /dev/null || true",
+            "$TC filter del dev $DUMMY parent 1:0 protocol ip prio 1",
+            "$TC class del dev $DUMMY classid 1:1"
+        ],
+        "cmdUnderTest": "ping -c 1 10.10.10.2 -I$DUMMY > /dev/null || true",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j -s qdisc ls dev $DUMMY handle 1:0",
+        "matchJSON": [
+            {
+                "kind": "hfsc",
+                "handle": "1:",
+                "bytes": 392,
+                "packets": 4
+            }
+        ],
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1:0 root",
+            "$IP addr del 10.10.10.10/24 dev $DUMMY || true"
+        ]
+    },
+    {
+        "id": "7c3b",
+        "name": "Test nested DRR's enqueue reentrant behaviour with netem",
+        "category": [
+            "qdisc",
+            "drr"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.10.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY handle 1:0 root drr",
+            "$TC class add dev $DUMMY parent 1:0 classid 1:1 drr",
+            "$TC filter add dev $DUMMY parent 1:0 protocol ip prio 1 u32 match ip protocol 1 0xff flowid 1:1",
+            "$TC qdisc add dev $DUMMY handle 2:0 parent 1:1 drr",
+            "$TC class add dev $DUMMY classid 2:1 parent 2:0 drr",
+            "$TC filter add dev $DUMMY parent 2:0 protocol ip prio 1 u32 match ip protocol 1 0xff flowid 2:1",
+            "$TC qdisc add dev $DUMMY parent 2:1 handle 3:0 netem duplicate 100%"
+        ],
+        "cmdUnderTest": "ping -c 1 -I $DUMMY 10.10.10.1 > /dev/null || true",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j -s qdisc ls dev $DUMMY handle 1:0",
+        "matchJSON": [
+            {
+                "kind": "drr",
+                "handle": "1:",
+                "bytes": 196,
+                "packets": 2
+            }
+        ],
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1:0 root",
+            "$IP addr del 10.10.10.10/24 dev $DUMMY || true"
+        ]
     }
 ]

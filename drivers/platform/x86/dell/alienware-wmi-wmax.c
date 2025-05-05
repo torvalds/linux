@@ -70,6 +70,14 @@ static const struct dmi_system_id awcc_dmi_table[] __initconst = {
 		.driver_data = &generic_quirks,
 	},
 	{
+		.ident = "Alienware m15 R7",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Alienware m15 R7"),
+		},
+		.driver_data = &generic_quirks,
+	},
+	{
 		.ident = "Alienware m16 R1",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
@@ -655,12 +663,10 @@ static int thermal_profile_probe(void *drvdata, unsigned long *choices)
 	for (u32 i = 0; i < sys_desc[3]; i++) {
 		ret = wmax_thermal_information(priv->wdev, WMAX_OPERATION_LIST_IDS,
 					       i + first_mode, &out_data);
-
-		if (ret == -EIO)
-			return ret;
-
 		if (ret == -EBADRQC)
 			break;
+		if (ret)
+			return ret;
 
 		if (!is_wmax_thermal_code(out_data))
 			continue;

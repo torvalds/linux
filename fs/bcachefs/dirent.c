@@ -685,7 +685,7 @@ static int bch2_dir_emit(struct dir_context *ctx, struct bkey_s_c_dirent d, subv
 		      vfs_d_type(d.v->d_type));
 	if (ret)
 		ctx->pos = d.k->p.offset + 1;
-	return ret;
+	return !ret;
 }
 
 int bch2_readdir(struct bch_fs *c, subvol_inum inum, struct dir_context *ctx)
@@ -710,7 +710,7 @@ int bch2_readdir(struct bch_fs *c, subvol_inum inum, struct dir_context *ctx)
 			if (ret2 > 0)
 				continue;
 
-			ret2 ?: drop_locks_do(trans, bch2_dir_emit(ctx, dirent, target));
+			ret2 ?: (bch2_trans_unlock(trans), bch2_dir_emit(ctx, dirent, target));
 		})));
 
 	bch2_bkey_buf_exit(&sk, c);
