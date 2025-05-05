@@ -15,6 +15,7 @@
 #include <crypto/null.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
+#include <crypto/scatterwalk.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/string.h>
@@ -60,19 +61,9 @@ static void null_crypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 
 static int null_skcipher_crypt(struct skcipher_request *req)
 {
-	struct skcipher_walk walk;
-	int err;
-
-	err = skcipher_walk_virt(&walk, req, false);
-
-	while (walk.nbytes) {
-		if (walk.src.virt.addr != walk.dst.virt.addr)
-			memcpy(walk.dst.virt.addr, walk.src.virt.addr,
-			       walk.nbytes);
-		err = skcipher_walk_done(&walk, 0);
-	}
-
-	return err;
+	if (req->src != req->dst)
+		memcpy_sglist(req->dst, req->src, req->cryptlen);
+	return 0;
 }
 
 static struct shash_alg digest_null = {
