@@ -137,13 +137,11 @@ static int _ad5761_spi_read(struct ad5761_state *st, u8 addr, u16 *val)
 	struct spi_transfer xfers[] = {
 		{
 			.tx_buf = &st->data[0].d8[1],
-			.bits_per_word = 8,
 			.len = 3,
 			.cs_change = true,
 		}, {
 			.tx_buf = &st->data[1].d8[1],
 			.rx_buf = &st->data[2].d8[1],
-			.bits_per_word = 8,
 			.len = 3,
 		},
 	};
