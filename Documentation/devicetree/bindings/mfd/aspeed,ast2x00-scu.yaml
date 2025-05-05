@@ -66,8 +66,15 @@ patternProperties:
       - compatible
 
   '^interrupt-controller@[0-9a-f]+$':
-    description: See Documentation/devicetree/bindings/interrupt-controller/aspeed,ast2xxx-scu-ic.txt
     type: object
+    additionalProperties: true
+    properties:
+      compatible:
+        contains:
+          enum:
+            - aspeed,ast2500-scu-ic
+            - aspeed,ast2600-scu-ic0
+            - aspeed,ast2600-scu-ic1
 
   '^silicon-id@[0-9a-f]+$':
     description: Unique hardware silicon identifiers within the SoC
