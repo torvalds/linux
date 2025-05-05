@@ -26,7 +26,9 @@
 #define CHACHA_BLOCK_SIZE	64
 #define CHACHAPOLY_IV_SIZE	12
 
-#define CHACHA_STATE_WORDS	(CHACHA_BLOCK_SIZE / sizeof(u32))
+#define CHACHA_KEY_WORDS	8
+#define CHACHA_STATE_WORDS	16
+#define HCHACHA_OUT_WORDS	8
 
 /* 192-bit nonce, then 64-bit stream position */
 #define XCHACHA_IV_SIZE		32
@@ -35,19 +37,21 @@ struct chacha_state {
 	u32 x[CHACHA_STATE_WORDS];
 };
 
-void chacha_block_generic(struct chacha_state *state, u8 *stream, int nrounds);
-static inline void chacha20_block(struct chacha_state *state, u8 *stream)
+void chacha_block_generic(struct chacha_state *state,
+			  u8 out[CHACHA_BLOCK_SIZE], int nrounds);
+static inline void chacha20_block(struct chacha_state *state,
+				  u8 out[CHACHA_BLOCK_SIZE])
 {
-	chacha_block_generic(state, stream, 20);
+	chacha_block_generic(state, out, 20);
 }
 
-void hchacha_block_arch(const struct chacha_state *state, u32 *out,
-			int nrounds);
-void hchacha_block_generic(const struct chacha_state *state, u32 *out,
-			   int nrounds);
+void hchacha_block_arch(const struct chacha_state *state,
+			u32 out[HCHACHA_OUT_WORDS], int nrounds);
+void hchacha_block_generic(const struct chacha_state *state,
+			   u32 out[HCHACHA_OUT_WORDS], int nrounds);
 
-static inline void hchacha_block(const struct chacha_state *state, u32 *out,
-				 int nrounds)
+static inline void hchacha_block(const struct chacha_state *state,
+				 u32 out[HCHACHA_OUT_WORDS], int nrounds)
 {
 	if (IS_ENABLED(CONFIG_CRYPTO_ARCH_HAVE_LIB_CHACHA))
 		hchacha_block_arch(state, out, nrounds);
@@ -71,7 +75,8 @@ static inline void chacha_init_consts(struct chacha_state *state)
 }
 
 static inline void chacha_init(struct chacha_state *state,
-			       const u32 *key, const u8 *iv)
+			       const u32 key[CHACHA_KEY_WORDS],
+			       const u8 iv[CHACHA_IV_SIZE])
 {
 	chacha_init_consts(state);
 	state->x[4]  = key[0];

@@ -408,7 +408,7 @@ ENDPROC(chacha_doarm)
 
 /*
  * void hchacha_block_arm(const struct chacha_state *state,
- *			  u32 out[8], int nrounds);
+ *			  u32 out[HCHACHA_OUT_WORDS], int nrounds);
  */
 ENTRY(hchacha_block_arm)
 	push		{r1,r4-r11,lr}

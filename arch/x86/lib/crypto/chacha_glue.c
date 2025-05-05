@@ -19,7 +19,7 @@ asmlinkage void chacha_4block_xor_ssse3(const struct chacha_state *state,
 					u8 *dst, const u8 *src,
 					unsigned int len, int nrounds);
 asmlinkage void hchacha_block_ssse3(const struct chacha_state *state,
-				    u32 *out, int nrounds);
+				    u32 out[HCHACHA_OUT_WORDS], int nrounds);
 
 asmlinkage void chacha_2block_xor_avx2(const struct chacha_state *state,
 				       u8 *dst, const u8 *src,
@@ -127,13 +127,13 @@ static void chacha_dosimd(struct chacha_state *state, u8 *dst, const u8 *src,
 }
 
 void hchacha_block_arch(const struct chacha_state *state,
-			u32 *stream, int nrounds)
+			u32 out[HCHACHA_OUT_WORDS], int nrounds)
 {
 	if (!static_branch_likely(&chacha_use_simd)) {
-		hchacha_block_generic(state, stream, nrounds);
+		hchacha_block_generic(state, out, nrounds);
 	} else {
 		kernel_fpu_begin();
-		hchacha_block_ssse3(state, stream, nrounds);
+		hchacha_block_ssse3(state, out, nrounds);
 		kernel_fpu_end();
 	}
 }

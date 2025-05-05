@@ -17,10 +17,10 @@
 #include "chacha-s390.h"
 
 void hchacha_block_arch(const struct chacha_state *state,
-			u32 *stream, int nrounds)
+			u32 out[HCHACHA_OUT_WORDS], int nrounds)
 {
 	/* TODO: implement hchacha_block_arch() in assembly */
-	hchacha_block_generic(state, stream, nrounds);
+	hchacha_block_generic(state, out, nrounds);
 }
 EXPORT_SYMBOL(hchacha_block_arch);
 

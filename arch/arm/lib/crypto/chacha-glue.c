@@ -23,9 +23,9 @@ asmlinkage void chacha_4block_xor_neon(const struct chacha_state *state,
 				       u8 *dst, const u8 *src,
 				       int nrounds, unsigned int nbytes);
 asmlinkage void hchacha_block_arm(const struct chacha_state *state,
-				  u32 *out, int nrounds);
+				  u32 out[HCHACHA_OUT_WORDS], int nrounds);
 asmlinkage void hchacha_block_neon(const struct chacha_state *state,
-				   u32 *out, int nrounds);
+				   u32 out[HCHACHA_OUT_WORDS], int nrounds);
 
 asmlinkage void chacha_doarm(u8 *dst, const u8 *src, unsigned int bytes,
 			     const struct chacha_state *state, int nrounds);
@@ -64,14 +64,14 @@ static void chacha_doneon(struct chacha_state *state, u8 *dst, const u8 *src,
 	}
 }
 
-void hchacha_block_arch(const struct chacha_state *state, u32 *stream,
-			int nrounds)
+void hchacha_block_arch(const struct chacha_state *state,
+			u32 out[HCHACHA_OUT_WORDS], int nrounds)
 {
 	if (!IS_ENABLED(CONFIG_KERNEL_MODE_NEON) || !neon_usable()) {
-		hchacha_block_arm(state, stream, nrounds);
+		hchacha_block_arm(state, out, nrounds);
 	} else {
 		kernel_neon_begin();
-		hchacha_block_neon(state, stream, nrounds);
+		hchacha_block_neon(state, out, nrounds);
 		kernel_neon_end();
 	}
 }

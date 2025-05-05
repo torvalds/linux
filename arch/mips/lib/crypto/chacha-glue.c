@@ -15,7 +15,7 @@ asmlinkage void chacha_crypt_arch(struct chacha_state *state,
 EXPORT_SYMBOL(chacha_crypt_arch);
 
 asmlinkage void hchacha_block_arch(const struct chacha_state *state,
-				   u32 *stream, int nrounds);
+				   u32 out[HCHACHA_OUT_WORDS], int nrounds);
 EXPORT_SYMBOL(hchacha_block_arch);
 
 bool chacha_is_arch_optimized(void)

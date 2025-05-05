@@ -46,8 +46,8 @@ static int chacha12_setkey(struct crypto_skcipher *tfm,
 }
 
 static int chacha_stream_xor(struct skcipher_request *req,
-			     const struct chacha_ctx *ctx, const u8 *iv,
-			     bool arch)
+			     const struct chacha_ctx *ctx,
+			     const u8 iv[CHACHA_IV_SIZE], bool arch)
 {
 	struct skcipher_walk walk;
 	struct chacha_state state;

@@ -18,7 +18,8 @@ static __ro_after_init DEFINE_STATIC_KEY_FALSE(use_zvkb);
 asmlinkage void chacha_zvkb(struct chacha_state *state, const u8 *in, u8 *out,
 			    size_t nblocks, int nrounds);
 
-void hchacha_block_arch(const struct chacha_state *state, u32 *out, int nrounds)
+void hchacha_block_arch(const struct chacha_state *state,
+			u32 out[HCHACHA_OUT_WORDS], int nrounds)
 {
 	hchacha_block_generic(state, out, nrounds);
 }
