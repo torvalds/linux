@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/ti,omap-intc-irq.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI OMAP Interrupt Controller
+
+maintainers:
+  - Tony Lindgren <tony@atomide.com>
+
+description:
+  On TI omap2 and 3 the intc interrupt controller can provide 96 or 128 IRQ
+  signals to the ARM host depending on the SoC.
+
+properties:
+  compatible:
+    enum:
+      - ti,omap2-intc
+      - ti,omap3-intc
+      - ti,dm814-intc
+      - ti,dm816-intc
+      - ti,am33xx-intc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - interrupt-controller
+  - '#interrupt-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    interrupt-controller@48200000 {
+        compatible = "ti,omap3-intc";
+        reg = <0x48200000 0x1000>;
+        interrupts = <32>;
+        interrupt-controller;
+        #interrupt-cells = <1>;
+    };
