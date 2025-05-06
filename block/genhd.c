@@ -125,21 +125,6 @@ static void part_stat_read_all(struct block_device *part,
 	}
 }
 
-unsigned int part_in_flight(struct block_device *part)
-{
-	unsigned int inflight = 0;
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		inflight += part_stat_local_read_cpu(part, in_flight[0], cpu) +
-			    part_stat_local_read_cpu(part, in_flight[1], cpu);
-	}
-	if ((int)inflight < 0)
-		inflight = 0;
-
-	return inflight;
-}
-
 static void part_in_flight_rw(struct block_device *part,
 		unsigned int inflight[2])
 {
@@ -155,6 +140,15 @@ static void part_in_flight_rw(struct block_device *part,
 		inflight[0] = 0;
 	if ((int)inflight[1] < 0)
 		inflight[1] = 0;
+}
+
+unsigned int part_in_flight(struct block_device *part)
+{
+	unsigned int inflight[2];
+
+	part_in_flight_rw(part, inflight);
+
+	return inflight[READ] + inflight[WRITE];
 }
 
 /*
