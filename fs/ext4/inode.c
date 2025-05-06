@@ -4061,7 +4061,7 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
 	WARN_ON_ONCE(!inode_is_locked(inode));
 
 	/* No need to punch hole beyond i_size */
-	if (offset >= inode->i_size)
+	if (offset >= inode->i_size || offset >= max_end)
 		return 0;
 
 	/*
