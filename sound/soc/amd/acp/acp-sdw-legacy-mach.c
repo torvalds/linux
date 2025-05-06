@@ -272,7 +272,7 @@ static int create_sdw_dailinks(struct snd_soc_card *card,
 
 	/* generate DAI links by each sdw link */
 	while (soc_dais->initialised) {
-		int current_be_id;
+		int current_be_id = 0;
 
 		ret = create_sdw_dailink(card, soc_dais, dai_links,
 					 &current_be_id, codec_conf, sdw_platform_component);
