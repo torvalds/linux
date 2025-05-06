@@ -498,6 +498,7 @@ struct nvme_ns_head {
 	struct gendisk		*disk;
 
 	u16			nr_plids;
+	u16			*plids;
 #ifdef CONFIG_NVME_MULTIPATH
 	struct bio_list		requeue_list;
 	spinlock_t		requeue_lock;
