@@ -1085,23 +1085,23 @@ __be32 nfsd_iter_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	unsigned long v, total;
 	struct iov_iter iter;
 	loff_t ppos = offset;
-	struct page *page;
 	ssize_t host_err;
+	size_t len;
 
 	v = 0;
 	total = *count;
 	while (total) {
-		page = *(rqstp->rq_next_page++);
-		rqstp->rq_vec[v].iov_base = page_address(page) + base;
-		rqstp->rq_vec[v].iov_len = min_t(size_t, total, PAGE_SIZE - base);
-		total -= rqstp->rq_vec[v].iov_len;
+		len = min_t(size_t, total, PAGE_SIZE - base);
+		bvec_set_page(&rqstp->rq_bvec[v], *(rqstp->rq_next_page++),
+			      len, base);
+		total -= len;
 		++v;
 		base = 0;
 	}
-	WARN_ON_ONCE(v > ARRAY_SIZE(rqstp->rq_vec));
+	WARN_ON_ONCE(v > rqstp->rq_maxpages);
 
 	trace_nfsd_read_vector(rqstp, fhp, offset, *count);
-	iov_iter_kvec(&iter, ITER_DEST, rqstp->rq_vec, v, *count);
+	iov_iter_bvec(&iter, ITER_DEST, rqstp->rq_bvec, v, *count);
 	host_err = vfs_iter_read(file, &iter, &ppos, 0);
 	return nfsd_finish_read(rqstp, fhp, file, offset, count, eof, host_err);
 }
