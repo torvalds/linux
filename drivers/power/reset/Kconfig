@@ -218,6 +218,7 @@ config POWER_RESET_ST
 
 config POWER_RESET_TORADEX_EC
 	tristate "Toradex Embedded Controller power-off and reset driver"
+	depends on ARCH_MXC || COMPILE_TEST
 	depends on I2C
 	select REGMAP_I2C
 	help
