@@ -1543,21 +1543,14 @@ static void vector_timer_expire(struct timer_list *t)
 static void vector_setup_etheraddr(struct net_device *dev, char *str)
 {
 	u8 addr[ETH_ALEN];
-	char *end;
-	int i;
 
 	if (str == NULL)
 		goto random;
 
-	for (i = 0; i < 6; i++) {
-		addr[i] = simple_strtoul(str, &end, 16);
-		if ((end == str) ||
-		   ((*end != ':') && (*end != ',') && (*end != '\0'))) {
-			netdev_err(dev,
-				"Failed to parse '%s' as an ethernet address\n", str);
-			goto random;
-		}
-		str = end + 1;
+	if (!mac_pton(str, addr)) {
+		netdev_err(dev,
+			"Failed to parse '%s' as an ethernet address\n", str);
+		goto random;
 	}
 	if (is_multicast_ether_addr(addr)) {
 		netdev_err(dev,
