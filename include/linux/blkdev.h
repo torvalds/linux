@@ -405,6 +405,7 @@ struct queue_limits {
 	unsigned short		max_discard_segments;
 
 	unsigned short		max_write_streams;
+	unsigned int		write_stream_granularity;
 
 	unsigned int		max_open_zones;
 	unsigned int		max_active_zones;
