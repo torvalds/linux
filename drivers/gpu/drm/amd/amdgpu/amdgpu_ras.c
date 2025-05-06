@@ -4498,8 +4498,11 @@ void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev)
 		enum ras_event_type type = RAS_EVENT_TYPE_FATAL;
 		u64 event_id;
 
-		if (amdgpu_ras_mark_ras_event(adev, type))
+		if (amdgpu_ras_mark_ras_event(adev, type)) {
+			dev_err(adev->dev,
+				"uncorrectable hardware error (ERREVENT_ATHUB_INTERRUPT) detected!\n");
 			return;
+		}
 
 		event_id = amdgpu_ras_acquire_event_id(adev, type);
 
