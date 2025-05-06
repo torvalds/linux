@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: CC0-1.0
-# Generator: x86-cpuid-db v2.3
+# Generator: x86-cpuid-db v2.4
 
 #
 # Auto-generated file.
@@ -689,7 +689,7 @@
 0x80000001,         0,  edx,      19,    mp                     , Out-of-spec AMD Multiprocessing bit
 0x80000001,         0,  edx,      20,    nx                     , No-execute page protection
 0x80000001,         0,  edx,      22,    mmxext                 , AMD MMX extensions
-0x80000001,         0,  edx,      23,    e_mmx                  , MMX instructions (Transmeta)
+0x80000001,         0,  edx,      23,    e_mmx                  , MMX instructions
 0x80000001,         0,  edx,      24,    e_fxsr                 , FXSAVE and FXRSTOR instructions
 0x80000001,         0,  edx,      25,    fxsr_opt               , FXSAVE and FXRSTOR optimizations
 0x80000001,         0,  edx,      26,    pdpe1gb                , 1-GB large page support
