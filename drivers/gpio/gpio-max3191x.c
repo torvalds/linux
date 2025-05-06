@@ -103,19 +103,6 @@ static int max3191x_direction_input(struct gpio_chip *gpio, unsigned int offset)
 	return 0;
 }
 
-static int max3191x_direction_output(struct gpio_chip *gpio,
-				     unsigned int offset, int value)
-{
-	return -EINVAL;
-}
-
-static void max3191x_set(struct gpio_chip *gpio, unsigned int offset, int value)
-{ }
-
-static void max3191x_set_multiple(struct gpio_chip *gpio, unsigned long *mask,
-				  unsigned long *bits)
-{ }
-
 static unsigned int max3191x_wordlen(struct max3191x_chip *max3191x)
 {
 	return max3191x->mode == STATUS_BYTE_ENABLED ? 2 : 1;
@@ -421,9 +408,6 @@ static int max3191x_probe(struct spi_device *spi)
 
 	max3191x->gpio.get_direction = max3191x_get_direction;
 	max3191x->gpio.direction_input = max3191x_direction_input;
-	max3191x->gpio.direction_output = max3191x_direction_output;
-	max3191x->gpio.set = max3191x_set;
-	max3191x->gpio.set_multiple = max3191x_set_multiple;
 	max3191x->gpio.get = max3191x_get;
 	max3191x->gpio.get_multiple = max3191x_get_multiple;
 	max3191x->gpio.set_config = max3191x_set_config;
