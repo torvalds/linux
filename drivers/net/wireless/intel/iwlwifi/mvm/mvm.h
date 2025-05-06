@@ -664,6 +664,8 @@ enum iwl_mvm_sched_scan_pass_all_states {
  * @min_backoff: The minimal tx backoff due to power restrictions
  * @params: Parameters to configure the thermal throttling algorithm.
  * @throttle: Is thermal throttling is active?
+ * @power_budget_mw: maximum cTDP power budget as defined for this system and
+ *	device
  */
 struct iwl_mvm_tt_mgmt {
 	struct delayed_work ct_kill_exit;
@@ -672,6 +674,8 @@ struct iwl_mvm_tt_mgmt {
 	u32 min_backoff;
 	struct iwl_tt_params params;
 	bool throttle;
+
+	u32 power_budget_mw;
 };
 
 #ifdef CONFIG_THERMAL
