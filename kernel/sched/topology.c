@@ -213,7 +213,7 @@ static bool sched_is_eas_possible(const struct cpumask *cpu_mask)
 {
 	bool any_asym_capacity = false;
 	struct cpufreq_policy *policy;
-	struct cpufreq_governor *gov;
+	bool policy_is_ready;
 	int i;
 
 	/* EAS is enabled for asymmetric CPU capacity topologies. */
@@ -258,9 +258,9 @@ static bool sched_is_eas_possible(const struct cpumask *cpu_mask)
 			}
 			return false;
 		}
-		gov = policy->governor;
+		policy_is_ready = sugov_is_governor(policy);
 		cpufreq_cpu_put(policy);
-		if (gov != &schedutil_gov) {
+		if (!policy_is_ready) {
 			if (sched_debug()) {
 				pr_info("rd %*pbl: Checking EAS, schedutil is mandatory\n",
 					cpumask_pr_args(cpu_mask));
