@@ -269,7 +269,7 @@
 	x(BCH_ERR_invalid_sb,		invalid_sb_downgrade)			\
 	x(BCH_ERR_invalid,		invalid_bkey)				\
 	x(BCH_ERR_operation_blocked,    nocow_lock_blocked)			\
-	x(EIO,				journal_shutdown)			\
+	x(EROFS,			journal_shutdown)			\
 	x(EIO,				journal_flush_err)			\
 	x(EIO,				journal_write_err)			\
 	x(EIO,				btree_node_read_err)			\
