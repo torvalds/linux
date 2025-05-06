@@ -64,9 +64,10 @@ properties:
 
   compatible:
     oneOf:
-      - const: nvidia,tegra186-hsp
-      - const: nvidia,tegra194-hsp
-      - const: nvidia,tegra264-hsp
+      - enum:
+          - nvidia,tegra186-hsp
+          - nvidia,tegra194-hsp
+          - nvidia,tegra264-hsp
       - items:
           - const: nvidia,tegra234-hsp
           - const: nvidia,tegra194-hsp
