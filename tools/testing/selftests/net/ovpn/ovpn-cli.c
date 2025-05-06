@@ -1934,7 +1934,8 @@ static void ovpn_waitbg(void)
 
 static int ovpn_run_cmd(struct ovpn_ctx *ovpn)
 {
-	char peer_id[10], vpnip[INET6_ADDRSTRLEN], raddr[128], rport[10];
+	char peer_id[10], vpnip[INET6_ADDRSTRLEN], laddr[128], lport[10];
+	char raddr[128], rport[10];
 	int n, ret;
 	FILE *fp;
 
@@ -2050,8 +2051,8 @@ static int ovpn_run_cmd(struct ovpn_ctx *ovpn)
 			return -1;
 		}
 
-		while ((n = fscanf(fp, "%s %s %s %s\n", peer_id, raddr, rport,
-				   vpnip)) == 4) {
+		while ((n = fscanf(fp, "%s %s %s %s %s %s\n", peer_id, laddr,
+				   lport, raddr, rport, vpnip)) == 6) {
 			struct ovpn_ctx peer_ctx = { 0 };
 
 			peer_ctx.ifindex = ovpn->ifindex;
@@ -2355,7 +2356,7 @@ int main(int argc, char *argv[])
 	}
 
 	memset(&ovpn, 0, sizeof(ovpn));
-	ovpn.sa_family = AF_INET;
+	ovpn.sa_family = AF_UNSPEC;
 	ovpn.cipher = OVPN_CIPHER_ALG_NONE;
 
 	ovpn.cmd = ovpn_parse_cmd(argv[1]);
