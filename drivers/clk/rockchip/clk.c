@@ -509,8 +509,10 @@ void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 		clk = NULL;
 
 		/* for GRF-dependent branches, choose the right grf first */
-		if ((list->branch_type == branch_muxgrf || list->branch_type == branch_grf_gate) &&
-				list->grf_type != grf_type_sys) {
+		if ((list->branch_type == branch_muxgrf ||
+		     list->branch_type == branch_grf_gate ||
+		     list->branch_type == branch_grf_mmc) &&
+		    list->grf_type != grf_type_sys) {
 			hash_for_each_possible(ctx->aux_grf_table, agrf, node, list->grf_type) {
 				if (agrf->type == list->grf_type) {
 					grf = agrf->grf;
@@ -612,6 +614,16 @@ void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 				list->name,
 				list->parent_names, list->num_parents,
 				ctx->reg_base + list->muxdiv_offset,
+				NULL, 0,
+				list->div_shift
+			);
+			break;
+		case branch_grf_mmc:
+			clk = rockchip_clk_register_mmc(
+				list->name,
+				list->parent_names, list->num_parents,
+				0,
+				grf, list->muxdiv_offset,
 				list->div_shift
 			);
 			break;
