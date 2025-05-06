@@ -1908,15 +1908,12 @@ static u32 vlv_error_mask(void)
 	return VLV_ERROR_PAGE_TABLE;
 }
 
-void vlv_display_irq_postinstall(struct intel_display *display)
+static void _vlv_display_irq_postinstall(struct intel_display *display)
 {
 	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 pipestat_mask;
 	u32 enable_mask;
 	enum pipe pipe;
-
-	if (!display->irq.vlv_display_irqs_enabled)
-		return;
 
 	if (display->platform.cherryview)
 		intel_de_write(display, DPINVGTT,
@@ -1952,6 +1949,16 @@ void vlv_display_irq_postinstall(struct intel_display *display)
 	dev_priv->irq_mask = ~enable_mask;
 
 	intel_display_irq_regs_init(display, VLV_IRQ_REGS, dev_priv->irq_mask, enable_mask);
+}
+
+void vlv_display_irq_postinstall(struct intel_display *display)
+{
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
+
+	spin_lock_irq(&dev_priv->irq_lock);
+	if (display->irq.vlv_display_irqs_enabled)
+		_vlv_display_irq_postinstall(display);
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 void ibx_display_irq_reset(struct intel_display *display)
@@ -2126,7 +2133,7 @@ void valleyview_enable_display_irqs(struct intel_display *display)
 
 	if (intel_irqs_enabled(dev_priv)) {
 		_vlv_display_irq_reset(display);
-		vlv_display_irq_postinstall(display);
+		_vlv_display_irq_postinstall(display);
 	}
 
 out:

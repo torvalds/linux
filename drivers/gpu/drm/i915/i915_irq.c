@@ -768,9 +768,7 @@ static void valleyview_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	gen5_gt_irq_postinstall(to_gt(dev_priv));
 
-	spin_lock_irq(&dev_priv->irq_lock);
 	vlv_display_irq_postinstall(display);
-	spin_unlock_irq(&dev_priv->irq_lock);
 
 	intel_uncore_write(&dev_priv->uncore, VLV_MASTER_IER, MASTER_INTERRUPT_ENABLE);
 	intel_uncore_posting_read(&dev_priv->uncore, VLV_MASTER_IER);
@@ -827,9 +825,7 @@ static void cherryview_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	gen8_gt_irq_postinstall(to_gt(dev_priv));
 
-	spin_lock_irq(&dev_priv->irq_lock);
 	vlv_display_irq_postinstall(display);
-	spin_unlock_irq(&dev_priv->irq_lock);
 
 	intel_uncore_write(&dev_priv->uncore, GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
 	intel_uncore_posting_read(&dev_priv->uncore, GEN8_MASTER_IRQ);
