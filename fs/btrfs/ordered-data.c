@@ -172,11 +172,8 @@ static struct btrfs_ordered_extent *alloc_ordered_extent(
 	}
 	entry = kmem_cache_zalloc(btrfs_ordered_extent_cache, GFP_NOFS);
 	if (!entry) {
-		if (!is_nocow)
-			btrfs_qgroup_free_refroot(inode->root->fs_info,
-						  btrfs_root_id(inode->root),
-						  qgroup_rsv, BTRFS_QGROUP_RSV_DATA);
-		return ERR_PTR(-ENOMEM);
+		entry = ERR_PTR(-ENOMEM);
+		goto out;
 	}
 
 	entry->file_offset = file_offset;
@@ -186,7 +183,12 @@ static struct btrfs_ordered_extent *alloc_ordered_extent(
 	entry->disk_num_bytes = disk_num_bytes;
 	entry->offset = offset;
 	entry->bytes_left = num_bytes;
-	entry->inode = BTRFS_I(igrab(&inode->vfs_inode));
+	if (WARN_ON_ONCE(!igrab(&inode->vfs_inode))) {
+		kmem_cache_free(btrfs_ordered_extent_cache, entry);
+		entry = ERR_PTR(-ESTALE);
+		goto out;
+	}
+	entry->inode = inode;
 	entry->compress_type = compress_type;
 	entry->truncated_len = (u64)-1;
 	entry->qgroup_rsv = qgroup_rsv;
@@ -208,6 +210,12 @@ static struct btrfs_ordered_extent *alloc_ordered_extent(
 	spin_lock(&inode->lock);
 	btrfs_mod_outstanding_extents(inode, 1);
 	spin_unlock(&inode->lock);
+
+out:
+	if (IS_ERR(entry) && !is_nocow)
+		btrfs_qgroup_free_refroot(inode->root->fs_info,
+					  btrfs_root_id(inode->root),
+					  qgroup_rsv, BTRFS_QGROUP_RSV_DATA);
 
 	return entry;
 }
@@ -622,8 +630,7 @@ void btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry)
 		ASSERT(list_empty(&entry->root_extent_list));
 		ASSERT(list_empty(&entry->log_list));
 		ASSERT(RB_EMPTY_NODE(&entry->rb_node));
-		if (entry->inode)
-			btrfs_add_delayed_iput(entry->inode);
+		btrfs_add_delayed_iput(entry->inode);
 		list_for_each_entry_safe(sum, tmp, &entry->list, list)
 			kvfree(sum);
 		kmem_cache_free(btrfs_ordered_extent_cache, entry);
