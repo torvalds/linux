@@ -518,6 +518,13 @@ static void rebalance_wait(struct bch_fs *c)
 	bch2_kthread_io_clock_wait(clock, r->wait_iotime_end, MAX_SCHEDULE_TIMEOUT);
 }
 
+static bool bch2_rebalance_enabled(struct bch_fs *c)
+{
+	return c->opts.rebalance_enabled &&
+		!(c->opts.rebalance_on_ac_only &&
+		  c->rebalance.on_battery);
+}
+
 static int do_rebalance(struct moving_context *ctxt)
 {
 	struct btree_trans *trans = ctxt->trans;
@@ -537,9 +544,9 @@ static int do_rebalance(struct moving_context *ctxt)
 			     BTREE_ITER_all_snapshots);
 
 	while (!bch2_move_ratelimit(ctxt)) {
-		if (!c->opts.rebalance_enabled) {
+		if (!bch2_rebalance_enabled(c)) {
 			bch2_moving_ctxt_flush_all(ctxt);
-			kthread_wait_freezable(c->opts.rebalance_enabled ||
+			kthread_wait_freezable(bch2_rebalance_enabled(c) ||
 					       kthread_should_stop());
 		}
 
@@ -714,9 +721,42 @@ int bch2_rebalance_start(struct bch_fs *c)
 	return 0;
 }
 
-void bch2_fs_rebalance_init(struct bch_fs *c)
+#ifdef CONFIG_POWER_SUPPLY
+#include <linux/power_supply.h>
+
+static int bch2_rebalance_power_notifier(struct notifier_block *nb,
+					 unsigned long event, void *data)
 {
-	bch2_pd_controller_init(&c->rebalance.pd);
+	struct bch_fs *c = container_of(nb, struct bch_fs, rebalance.power_notifier);
+
+	c->rebalance.on_battery = !power_supply_is_system_supplied();
+	bch2_rebalance_wakeup(c);
+	return NOTIFY_OK;
+}
+#endif
+
+void bch2_fs_rebalance_exit(struct bch_fs *c)
+{
+#ifdef CONFIG_POWER_SUPPLY
+	power_supply_unreg_notifier(&c->rebalance.power_notifier);
+#endif
+}
+
+int bch2_fs_rebalance_init(struct bch_fs *c)
+{
+	struct bch_fs_rebalance *r = &c->rebalance;
+
+	bch2_pd_controller_init(&r->pd);
+
+#ifdef CONFIG_POWER_SUPPLY
+	r->power_notifier.notifier_call = bch2_rebalance_power_notifier;
+	int ret = power_supply_reg_notifier(&r->power_notifier);
+	if (ret)
+		return ret;
+
+	r->on_battery = !power_supply_is_system_supplied();
+#endif
+	return 0;
 }
 
 static int check_rebalance_work_one(struct btree_trans *trans,
