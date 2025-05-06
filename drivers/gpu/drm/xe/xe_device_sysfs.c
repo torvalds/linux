@@ -67,7 +67,8 @@ static void xe_device_sysfs_fini(void *arg)
 {
 	struct xe_device *xe = arg;
 
-	sysfs_remove_file(&xe->drm.dev->kobj, &dev_attr_vram_d3cold_threshold.attr);
+	if (xe->d3cold.capable)
+		sysfs_remove_file(&xe->drm.dev->kobj, &dev_attr_vram_d3cold_threshold.attr);
 }
 
 int xe_device_sysfs_init(struct xe_device *xe)
@@ -75,9 +76,11 @@ int xe_device_sysfs_init(struct xe_device *xe)
 	struct device *dev = xe->drm.dev;
 	int ret;
 
-	ret = sysfs_create_file(&dev->kobj, &dev_attr_vram_d3cold_threshold.attr);
-	if (ret)
-		return ret;
+	if (xe->d3cold.capable) {
+		ret = sysfs_create_file(&dev->kobj, &dev_attr_vram_d3cold_threshold.attr);
+		if (ret)
+			return ret;
+	}
 
 	return devm_add_action_or_reset(dev, xe_device_sysfs_fini, xe);
 }
