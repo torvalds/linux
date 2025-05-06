@@ -69,4 +69,5 @@ int hsmp_create_sensor(struct device *dev, u16 sock_ind);
 #else
 static inline int hsmp_create_sensor(struct device *dev, u16 sock_ind) { return 0; }
 #endif
+int hsmp_msg_get_nargs(u16 sock_ind, u32 msg_id, u32 *data, u8 num_args);
 #endif /* HSMP_H */

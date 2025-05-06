@@ -228,6 +228,29 @@ int hsmp_send_message(struct hsmp_message *msg)
 }
 EXPORT_SYMBOL_NS_GPL(hsmp_send_message, "AMD_HSMP");
 
+int hsmp_msg_get_nargs(u16 sock_ind, u32 msg_id, u32 *data, u8 num_args)
+{
+	struct hsmp_message msg = {};
+	unsigned int i;
+	int ret;
+
+	if (!data)
+		return -EINVAL;
+	msg.msg_id = msg_id;
+	msg.sock_ind = sock_ind;
+	msg.response_sz = num_args;
+
+	ret = hsmp_send_message(&msg);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < num_args; i++)
+		data[i] = msg.args[i];
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(hsmp_msg_get_nargs, "AMD_HSMP");
+
 int hsmp_test(u16 sock_ind, u32 value)
 {
 	struct hsmp_message msg = { 0 };
