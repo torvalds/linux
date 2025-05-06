@@ -2069,7 +2069,9 @@ Field	0	M
 EndSysreg
 
 Sysreg	CPACR_EL1	3	0	1	0	2
-Res0	63:30
+Res0	63:32
+Field	31	TCPAC
+Field	30	TAM
 Field	29	E0POE
 Field	28	TTA
 Res0	27:26
