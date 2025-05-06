@@ -19216,6 +19216,12 @@ S:	Maintained
 F:	drivers/pnp/
 F:	include/linux/pnp.h
 
+PORTWELL EC DRIVER
+M:	Yen-Chi Huang <jesse.huang@portwell.com.tw>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/portwell-ec.c
+
 POSIX CLOCKS and TIMERS
 M:	Anna-Maria Behnsen <anna-maria@linutronix.de>
 M:	Frederic Weisbecker <frederic@kernel.org>
