@@ -11987,6 +11987,11 @@ static bool is_kfunc_arg_res_spin_lock(const struct btf *btf, const struct btf_p
 	return __is_kfunc_ptr_arg_type(btf, arg, KF_ARG_RES_SPIN_LOCK_ID);
 }
 
+static bool is_rbtree_node_type(const struct btf_type *t)
+{
+	return t == btf_type_by_id(btf_vmlinux, kf_arg_btf_ids[KF_ARG_RB_NODE_ID]);
+}
+
 static bool is_kfunc_arg_callback(struct bpf_verifier_env *env, const struct btf *btf,
 				  const struct btf_param *arg)
 {
@@ -13750,8 +13755,7 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 				struct btf_field *field = meta.arg_list_head.field;
 
 				mark_reg_graph_node(regs, BPF_REG_0, &field->graph_root);
-			} else if (meta.func_id == special_kfunc_list[KF_bpf_rbtree_remove] ||
-				   meta.func_id == special_kfunc_list[KF_bpf_rbtree_first]) {
+			} else if (is_rbtree_node_type(ptr_type)) {
 				struct btf_field *field = meta.arg_rbtree_root.field;
 
 				mark_reg_graph_node(regs, BPF_REG_0, &field->graph_root);
@@ -13881,7 +13885,7 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 			if (is_kfunc_ret_null(&meta))
 				regs[BPF_REG_0].id = id;
 			regs[BPF_REG_0].ref_obj_id = id;
-		} else if (meta.func_id == special_kfunc_list[KF_bpf_rbtree_first]) {
+		} else if (is_rbtree_node_type(ptr_type)) {
 			ref_set_non_owning(env, &regs[BPF_REG_0]);
 		}
 
