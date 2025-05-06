@@ -92,9 +92,9 @@ static void amdgpu_mes_doorbell_free(struct amdgpu_device *adev)
 int amdgpu_mes_init(struct amdgpu_device *adev)
 {
 	int i, r, num_pipes;
-	int num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	u32 total_vmid_mask, reserved_vmid_mask;
 	u32 queue_mask, reserved_queue_mask;
+	int num_xcc = adev->gfx.xcc_mask ? NUM_XCC(adev->gfx.xcc_mask) : 1;
 
 	adev->mes.adev = adev;
 
@@ -245,7 +245,8 @@ error:
 
 void amdgpu_mes_fini(struct amdgpu_device *adev)
 {
-	int i, num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	int i;
+	int num_xcc = adev->gfx.xcc_mask ? NUM_XCC(adev->gfx.xcc_mask) : 1;
 
 	amdgpu_bo_free_kernel(&adev->mes.event_log_gpu_obj,
 			      &adev->mes.event_log_gpu_addr,
