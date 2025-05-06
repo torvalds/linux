@@ -671,7 +671,7 @@ static const struct pci_epc_ops epc_ops = {
  * @ep: DWC EP device
  * @func_no: Function number of the endpoint
  *
- * Return: 0 if success, errono otherwise.
+ * Return: 0 if success, errno otherwise.
  */
 int dw_pcie_ep_raise_intx_irq(struct dw_pcie_ep *ep, u8 func_no)
 {
@@ -690,7 +690,7 @@ EXPORT_SYMBOL_GPL(dw_pcie_ep_raise_intx_irq);
  * @func_no: Function number of the endpoint
  * @interrupt_num: Interrupt number to be raised
  *
- * Return: 0 if success, errono otherwise.
+ * Return: 0 if success, errno otherwise.
  */
 int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_no,
 			     u8 interrupt_num)
