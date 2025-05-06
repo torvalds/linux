@@ -928,6 +928,20 @@ int fbnic_mbx_poll_tx_ready(struct fbnic_dev *fbd)
 	return attempts ? 0 : -ETIMEDOUT;
 }
 
+static void __fbnic_fw_evict_cmpl(struct fbnic_fw_completion *cmpl_data)
+{
+	cmpl_data->result = -EPIPE;
+	complete(&cmpl_data->done);
+}
+
+static void fbnic_mbx_evict_all_cmpl(struct fbnic_dev *fbd)
+{
+	if (fbd->cmpl_data) {
+		__fbnic_fw_evict_cmpl(fbd->cmpl_data);
+		fbd->cmpl_data = NULL;
+	}
+}
+
 void fbnic_mbx_flush_tx(struct fbnic_dev *fbd)
 {
 	unsigned long timeout = jiffies + 10 * HZ + 1;
@@ -944,6 +958,9 @@ void fbnic_mbx_flush_tx(struct fbnic_dev *fbd)
 
 	/* Read tail to determine the last tail state for the ring */
 	tail = tx_mbx->tail;
+
+	/* Flush any completions as we are no longer processing Rx */
+	fbnic_mbx_evict_all_cmpl(fbd);
 
 	spin_unlock_irq(&fbd->fw_tx_lock);
 
