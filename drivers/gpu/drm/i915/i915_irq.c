@@ -688,9 +688,7 @@ static void valleyview_irq_reset(struct drm_i915_private *dev_priv)
 
 	gen5_gt_irq_reset(to_gt(dev_priv));
 
-	spin_lock_irq(&dev_priv->irq_lock);
 	vlv_display_irq_reset(display);
-	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 static void gen8_irq_reset(struct drm_i915_private *dev_priv)
@@ -752,9 +750,7 @@ static void cherryview_irq_reset(struct drm_i915_private *dev_priv)
 
 	gen2_irq_reset(uncore, GEN8_PCU_IRQ_REGS);
 
-	spin_lock_irq(&dev_priv->irq_lock);
 	vlv_display_irq_reset(display);
-	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 static void ilk_irq_postinstall(struct drm_i915_private *dev_priv)

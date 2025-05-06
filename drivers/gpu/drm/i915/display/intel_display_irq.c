@@ -1884,8 +1884,12 @@ static void _vlv_display_irq_reset(struct intel_display *display)
 
 void vlv_display_irq_reset(struct intel_display *display)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
+
+	spin_lock_irq(&dev_priv->irq_lock);
 	if (display->irq.vlv_display_irqs_enabled)
 		_vlv_display_irq_reset(display);
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 void i9xx_display_irq_reset(struct intel_display *display)
