@@ -3105,17 +3105,26 @@ static bool rtw89_pci_is_dac_compatible_bridge(struct rtw89_dev *rtwdev)
 	return false;
 }
 
-static void rtw89_pci_cfg_dac(struct rtw89_dev *rtwdev)
+static int rtw89_pci_cfg_dac(struct rtw89_dev *rtwdev, bool force)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	struct pci_dev *pdev = rtwpci->pdev;
+	int ret;
+	u8 val;
 
-	if (!rtwpci->enable_dac)
-		return;
+	if (!rtwpci->enable_dac && !force)
+		return 0;
 
 	if (!rtw89_pci_chip_is_manual_dac(rtwdev))
-		return;
+		return 0;
 
-	rtw89_pci_config_byte_set(rtwdev, RTW89_PCIE_L1_CTRL, RTW89_PCIE_BIT_EN_64BITS);
+	/* Configure DAC only via PCI config API, not DBI interfaces */
+	ret = pci_read_config_byte(pdev, RTW89_PCIE_L1_CTRL, &val);
+	if (ret)
+		return ret;
+
+	val |= RTW89_PCIE_BIT_EN_64BITS;
+	return pci_write_config_byte(pdev, RTW89_PCIE_L1_CTRL, val);
 }
 
 static int rtw89_pci_setup_mapping(struct rtw89_dev *rtwdev,
@@ -3133,13 +3142,16 @@ static int rtw89_pci_setup_mapping(struct rtw89_dev *rtwdev,
 	}
 
 	if (!rtw89_pci_is_dac_compatible_bridge(rtwdev))
-		goto no_dac;
+		goto try_dac_done;
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(36));
 	if (!ret) {
-		rtwpci->enable_dac = true;
-		rtw89_pci_cfg_dac(rtwdev);
-	} else {
+		ret = rtw89_pci_cfg_dac(rtwdev, true);
+		if (!ret) {
+			rtwpci->enable_dac = true;
+			goto try_dac_done;
+		}
+
 		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret) {
 			rtw89_err(rtwdev,
@@ -3147,7 +3159,7 @@ static int rtw89_pci_setup_mapping(struct rtw89_dev *rtwdev,
 			goto err_release_regions;
 		}
 	}
-no_dac:
+try_dac_done:
 
 	resource_len = pci_resource_len(pdev, bar_id);
 	rtwpci->mmap = pci_iomap(pdev, bar_id, resource_len);
@@ -4302,7 +4314,7 @@ static void rtw89_pci_l2_hci_ldo(struct rtw89_dev *rtwdev)
 void rtw89_pci_basic_cfg(struct rtw89_dev *rtwdev, bool resume)
 {
 	if (resume)
-		rtw89_pci_cfg_dac(rtwdev);
+		rtw89_pci_cfg_dac(rtwdev, false);
 
 	rtw89_pci_disable_eq(rtwdev);
 	rtw89_pci_filter_out(rtwdev);
