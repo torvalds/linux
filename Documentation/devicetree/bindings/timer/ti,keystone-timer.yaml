@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ti,keystone-timer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI Keystone timer
+
+maintainers:
+  - Alexander A. Klimov <grandmaster@al2klimov.de>
+  - Ivan Khoronzhuk <ivan.khoronzhuk@ti.com>
+
+description: >
+  A 64-bit timer in the KeyStone architecture devices. The timer can be
+  configured as a general-purpose 64-bit timer, dual general-purpose 32-bit
+  timers. When configured as dual 32-bit timers, each half can operate in
+  conjunction (chain mode) or independently (unchained mode) of each other.
+
+  It is global timer is a free running up-counter and can generate interrupt
+  when the counter reaches preset counter values.
+
+  Documentation:
+  https://www.ti.com/lit/ug/sprugv5a/sprugv5a.pdf
+
+properties:
+  compatible:
+    const: ti,keystone-timer
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-names:
+    items:
+      - const: irq
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: timer
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    timer@22f0000 {
+        compatible = "ti,keystone-timer";
+        reg = <0x022f0000 0x80>;
+        interrupts = <110 IRQ_TYPE_EDGE_RISING>;
+        clocks = <&clktimer15>;
+    };
