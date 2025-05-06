@@ -298,6 +298,7 @@ static int amdgpu_gem_object_open(struct drm_gem_object *obj,
 	r = amdgpu_eviction_fence_attach(&fpriv->evf_mgr, abo);
 	if (r) {
 		DRM_DEBUG_DRIVER("Failed to attach eviction fence to BO\n");
+		amdgpu_bo_unreserve(abo);
 		return r;
 	}
 
