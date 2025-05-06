@@ -1465,9 +1465,9 @@ map_pages:
 		}
 		i += 1 << order;
 		num_dma_mapped = i;
+		range->flags.has_dma_mapping = true;
 	}
 
-	range->flags.has_dma_mapping = true;
 	if (zdd) {
 		range->flags.has_devmem_pages = true;
 		range->dpagemap = dpagemap;

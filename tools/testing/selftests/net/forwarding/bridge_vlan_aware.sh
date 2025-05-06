@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-ALL_TESTS="ping_ipv4 ping_ipv6 learning flooding vlan_deletion extern_learn other_tpid"
+ALL_TESTS="ping_ipv4 ping_ipv6 learning flooding vlan_deletion extern_learn other_tpid 8021p drop_untagged"
 NUM_NETIFS=4
 CHECK_TC="yes"
 source lib.sh
@@ -190,6 +190,100 @@ other_tpid()
 	log_test "Reception of VLAN with other TPID as untagged (no PVID)"
 
 	bridge vlan add dev $swp1 vid 1 pvid untagged
+	ip link set $h2 promisc off
+	tc qdisc del dev $h2 clsact
+}
+
+8021p_do()
+{
+	local should_fail=$1; shift
+	local mac=de:ad:be:ef:13:37
+
+	tc filter add dev $h2 ingress protocol all pref 1 handle 101 \
+		flower dst_mac $mac action drop
+
+	$MZ -q $h1 -c 1 -b $mac -a own "81:00 00:00 08:00 aa-aa-aa-aa-aa-aa-aa-aa-aa"
+	sleep 1
+
+	tc -j -s filter show dev $h2 ingress \
+		| jq -e ".[] | select(.options.handle == 101) \
+		| select(.options.actions[0].stats.packets == 1)" &> /dev/null
+	check_err_fail $should_fail $? "802.1p-tagged reception"
+
+	tc filter del dev $h2 ingress pref 1
+}
+
+8021p()
+{
+	RET=0
+
+	tc qdisc add dev $h2 clsact
+	ip link set $h2 promisc on
+
+	# Test that with the default_pvid, 1, packets tagged with VID 0 are
+	# accepted.
+	8021p_do 0
+
+	# Test that packets tagged with VID 0 are still accepted after changing
+	# the default_pvid.
+	ip link set br0 type bridge vlan_default_pvid 10
+	8021p_do 0
+
+	log_test "Reception of 802.1p-tagged traffic"
+
+	ip link set $h2 promisc off
+	tc qdisc del dev $h2 clsact
+}
+
+send_untagged_and_8021p()
+{
+	ping_do $h1 192.0.2.2
+	check_fail $?
+
+	8021p_do 1
+}
+
+drop_untagged()
+{
+	RET=0
+
+	tc qdisc add dev $h2 clsact
+	ip link set $h2 promisc on
+
+	# Test that with no PVID, untagged and 802.1p-tagged traffic is
+	# dropped.
+	ip link set br0 type bridge vlan_default_pvid 1
+
+	# First we reconfigure the default_pvid, 1, as a non-PVID VLAN.
+	bridge vlan add dev $swp1 vid 1 untagged
+	send_untagged_and_8021p
+	bridge vlan add dev $swp1 vid 1 pvid untagged
+
+	# Next we try to delete VID 1 altogether
+	bridge vlan del dev $swp1 vid 1
+	send_untagged_and_8021p
+	bridge vlan add dev $swp1 vid 1 pvid untagged
+
+	# Set up the bridge without a default_pvid, then check that the 8021q
+	# module, when the bridge port goes down and then up again, does not
+	# accidentally re-enable untagged packet reception.
+	ip link set br0 type bridge vlan_default_pvid 0
+	ip link set $swp1 down
+	ip link set $swp1 up
+	setup_wait
+	send_untagged_and_8021p
+
+	# Remove swp1 as a bridge port and let it rejoin the bridge while it
+	# has no default_pvid.
+	ip link set $swp1 nomaster
+	ip link set $swp1 master br0
+	send_untagged_and_8021p
+
+	# Restore settings
+	ip link set br0 type bridge vlan_default_pvid 1
+
+	log_test "Dropping of untagged and 802.1p-tagged traffic with no PVID"
+
 	ip link set $h2 promisc off
 	tc qdisc del dev $h2 clsact
 }

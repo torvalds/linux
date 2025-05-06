@@ -122,7 +122,6 @@ struct pci_endpoint_test {
 struct pci_endpoint_test_data {
 	enum pci_barno test_reg_bar;
 	size_t alignment;
-	int irq_type;
 };
 
 static inline u32 pci_endpoint_test_readl(struct pci_endpoint_test *test,
@@ -948,7 +947,6 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 		test_reg_bar = data->test_reg_bar;
 		test->test_reg_bar = test_reg_bar;
 		test->alignment = data->alignment;
-		test->irq_type = data->irq_type;
 	}
 
 	init_completion(&test->irq_raised);
@@ -969,10 +967,6 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	}
 
 	pci_set_master(pdev);
-
-	ret = pci_endpoint_test_alloc_irq_vectors(test, test->irq_type);
-	if (ret)
-		goto err_disable_irq;
 
 	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++) {
 		if (pci_resource_flags(pdev, bar) & IORESOURCE_MEM) {
@@ -1009,10 +1003,6 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 		goto err_ida_remove;
 	}
 
-	ret = pci_endpoint_test_request_irq(test);
-	if (ret)
-		goto err_kfree_test_name;
-
 	pci_endpoint_test_get_capabilities(test);
 
 	misc_device = &test->miscdev;
@@ -1020,7 +1010,7 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	misc_device->name = kstrdup(name, GFP_KERNEL);
 	if (!misc_device->name) {
 		ret = -ENOMEM;
-		goto err_release_irq;
+		goto err_kfree_test_name;
 	}
 	misc_device->parent = &pdev->dev;
 	misc_device->fops = &pci_endpoint_test_fops;
@@ -1036,9 +1026,6 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 err_kfree_name:
 	kfree(misc_device->name);
 
-err_release_irq:
-	pci_endpoint_test_release_irq(test);
-
 err_kfree_test_name:
 	kfree(test->name);
 
@@ -1051,8 +1038,6 @@ err_iounmap:
 			pci_iounmap(pdev, test->bar[bar]);
 	}
 
-err_disable_irq:
-	pci_endpoint_test_free_irq_vectors(test);
 	pci_release_regions(pdev);
 
 err_disable_pdev:
@@ -1092,23 +1077,19 @@ static void pci_endpoint_test_remove(struct pci_dev *pdev)
 static const struct pci_endpoint_test_data default_data = {
 	.test_reg_bar = BAR_0,
 	.alignment = SZ_4K,
-	.irq_type = PCITEST_IRQ_TYPE_MSI,
 };
 
 static const struct pci_endpoint_test_data am654_data = {
 	.test_reg_bar = BAR_2,
 	.alignment = SZ_64K,
-	.irq_type = PCITEST_IRQ_TYPE_MSI,
 };
 
 static const struct pci_endpoint_test_data j721e_data = {
 	.alignment = 256,
-	.irq_type = PCITEST_IRQ_TYPE_MSI,
 };
 
 static const struct pci_endpoint_test_data rk3588_data = {
 	.alignment = SZ_64K,
-	.irq_type = PCITEST_IRQ_TYPE_MSI,
 };
 
 /*

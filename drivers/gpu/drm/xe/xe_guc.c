@@ -483,7 +483,8 @@ static int guc_g2g_alloc(struct xe_guc *guc)
 					  XE_BO_FLAG_VRAM_IF_DGFX(tile) |
 					  XE_BO_FLAG_GGTT |
 					  XE_BO_FLAG_GGTT_ALL |
-					  XE_BO_FLAG_GGTT_INVALIDATE);
+					  XE_BO_FLAG_GGTT_INVALIDATE |
+					  XE_BO_FLAG_PINNED_NORESTORE);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
@@ -1393,6 +1394,7 @@ proto:
 	/* Use data from the GuC response as our return value */
 	return FIELD_GET(GUC_HXG_RESPONSE_MSG_0_DATA0, header);
 }
+ALLOW_ERROR_INJECTION(xe_guc_mmio_send_recv, ERRNO);
 
 int xe_guc_mmio_send(struct xe_guc *guc, const u32 *request, u32 len)
 {

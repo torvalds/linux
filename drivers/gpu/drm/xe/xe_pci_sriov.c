@@ -7,6 +7,8 @@
 #include "xe_device.h"
 #include "xe_gt_sriov_pf_config.h"
 #include "xe_gt_sriov_pf_control.h"
+#include "xe_gt_sriov_printk.h"
+#include "xe_guc_engine_activity.h"
 #include "xe_pci_sriov.h"
 #include "xe_pm.h"
 #include "xe_sriov.h"
@@ -111,6 +113,20 @@ static void pf_link_vfs(struct xe_device *xe, int num_vfs)
 	}
 }
 
+static void pf_engine_activity_stats(struct xe_device *xe, unsigned int num_vfs, bool enable)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int ret = 0;
+
+	for_each_gt(gt, xe, id) {
+		ret = xe_guc_engine_activity_function_stats(&gt->uc.guc, num_vfs, enable);
+		if (ret)
+			xe_gt_sriov_info(gt, "Failed to %s engine activity function stats (%pe)\n",
+					 str_enable_disable(enable), ERR_PTR(ret));
+	}
+}
+
 static int pf_enable_vfs(struct xe_device *xe, int num_vfs)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
@@ -145,6 +161,9 @@ static int pf_enable_vfs(struct xe_device *xe, int num_vfs)
 
 	xe_sriov_info(xe, "Enabled %u of %u VF%s\n",
 		      num_vfs, total_vfs, str_plural(total_vfs));
+
+	pf_engine_activity_stats(xe, num_vfs, true);
+
 	return num_vfs;
 
 failed:
@@ -167,6 +186,8 @@ static int pf_disable_vfs(struct xe_device *xe)
 
 	if (!num_vfs)
 		return 0;
+
+	pf_engine_activity_stats(xe, num_vfs, false);
 
 	pci_disable_sriov(pdev);
 

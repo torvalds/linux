@@ -451,7 +451,7 @@ static int cs_dsp_bin_err_test_common_init(struct kunit *test, struct cs_dsp *ds
 
 	local->bin_builder =
 		cs_dsp_mock_bin_init(priv, 1,
-				     cs_dsp_mock_xm_header_get_fw_version_from_regmap(priv));
+				     cs_dsp_mock_xm_header_get_fw_version(local->xm_header));
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, local->bin_builder);
 
 	/* Init cs_dsp */

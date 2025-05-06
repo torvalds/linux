@@ -39,7 +39,6 @@ config DRM_XE
 	select DRM_TTM_HELPER
 	select DRM_EXEC
 	select DRM_GPUVM
-	select DRM_GPUSVM if !UML && DEVICE_PRIVATE
 	select DRM_SCHED
 	select MMU_NOTIFIER
 	select WANT_DEV_COREDUMP
@@ -74,9 +73,22 @@ config DRM_XE_DP_TUNNEL
 
 	  If in doubt say "Y".
 
+config DRM_XE_GPUSVM
+	bool "Enable CPU to GPU address mirroring"
+	depends on DRM_XE
+	depends on !UML
+	depends on DEVICE_PRIVATE
+	default y
+	select DRM_GPUSVM
+	help
+	  Enable this option if you want support for CPU to GPU address
+	  mirroring.
+
+	  If in doubut say "Y".
+
 config DRM_XE_DEVMEM_MIRROR
 	bool "Enable device memory mirror"
-	depends on DRM_XE
+	depends on DRM_XE_GPUSVM
 	select GET_FREE_REGION
 	default y
 	help

@@ -49,6 +49,9 @@
 /* Domain IDs (param2) */
 #define     PCODE_MBOX_DOMAIN_HBM		0x2
 
+#define   FAN_SPEED_CONTROL			0x7D
+#define     FSC_READ_NUM_FANS			0x4
+
 #define PCODE_SCRATCH(x)		XE_REG(0x138320 + ((x) * 4))
 /* PCODE_SCRATCH0 */
 #define   AUXINFO_REG_OFFSET		REG_GENMASK(17, 15)

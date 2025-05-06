@@ -2271,7 +2271,7 @@ static struct folio *alloc_surplus_hugetlb_folio(struct hstate *h,
 	 * as surplus_pages, otherwise it might confuse
 	 * persistent_huge_pages() momentarily.
 	 */
-	__prep_account_new_huge_page(h, nid);
+	__prep_account_new_huge_page(h, folio_nid(folio));
 
 	/*
 	 * We could have raced with the pool size change.
@@ -3825,6 +3825,7 @@ found:
 static int set_max_huge_pages(struct hstate *h, unsigned long count, int nid,
 			      nodemask_t *nodes_allowed)
 {
+	unsigned long persistent_free_count;
 	unsigned long min_count;
 	unsigned long allocated;
 	struct folio *folio;
@@ -3959,8 +3960,24 @@ static int set_max_huge_pages(struct hstate *h, unsigned long count, int nid,
 	 * though, we'll note that we're not allowed to exceed surplus
 	 * and won't grow the pool anywhere else. Not until one of the
 	 * sysctls are changed, or the surplus pages go out of use.
+	 *
+	 * min_count is the expected number of persistent pages, we
+	 * shouldn't calculate min_count by using
+	 * resv_huge_pages + persistent_huge_pages() - free_huge_pages,
+	 * because there may exist free surplus huge pages, and this will
+	 * lead to subtracting twice. Free surplus huge pages come from HVO
+	 * failing to restore vmemmap, see comments in the callers of
+	 * hugetlb_vmemmap_restore_folio(). Thus, we should calculate
+	 * persistent free count first.
 	 */
-	min_count = h->resv_huge_pages + h->nr_huge_pages - h->free_huge_pages;
+	persistent_free_count = h->free_huge_pages;
+	if (h->free_huge_pages > persistent_huge_pages(h)) {
+		if (h->free_huge_pages > h->surplus_huge_pages)
+			persistent_free_count -= h->surplus_huge_pages;
+		else
+			persistent_free_count = 0;
+	}
+	min_count = h->resv_huge_pages + persistent_huge_pages(h) - persistent_free_count;
 	min_count = max(count, min_count);
 	try_to_free_low(h, min_count, nodes_allowed);
 
@@ -4630,7 +4647,7 @@ static void __init hugetlb_sysfs_init(void)
 		err = hugetlb_sysfs_add_hstate(h, hugepages_kobj,
 					 hstate_kobjs, &hstate_attr_group);
 		if (err)
-			pr_err("HugeTLB: Unable to add hstate %s", h->name);
+			pr_err("HugeTLB: Unable to add hstate %s\n", h->name);
 	}
 
 #ifdef CONFIG_NUMA
