@@ -286,7 +286,8 @@ static int __init econet_intc_of_init(struct device_node *node, struct device_no
 
 	econet_mask_all();
 
-	domain = irq_domain_add_linear(node, IRQ_COUNT, &econet_domain_ops, NULL);
+	domain = irq_domain_create_linear(of_node_to_fwnode(node), IRQ_COUNT,
+					  &econet_domain_ops, NULL);
 	if (!domain) {
 		pr_err("%pOF: Failed to add irqdomain\n", node);
 		ret = -ENOMEM;
