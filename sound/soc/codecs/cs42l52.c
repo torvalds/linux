@@ -9,13 +9,13 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/of_gpio.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -50,7 +50,7 @@ struct cs42l52_platform_data {
 	unsigned int chgfreq;
 
 	/* Reset GPIO */
-	unsigned int reset_gpio;
+	struct gpio_desc *reset_gpio;
 };
 
 struct  cs42l52_private {
@@ -1146,25 +1146,21 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client)
 			"cirrus,chgfreq-divisor", &val32) >= 0)
 			pdata->chgfreq = val32;
 
-		pdata->reset_gpio =
-			of_get_named_gpio(i2c_client->dev.of_node,
-					"cirrus,reset-gpio", 0);
+		pdata->reset_gpio = devm_gpiod_get_optional(&i2c_client->dev,
+							    "cirrus,reset",
+							    GPIOD_OUT_LOW);
+
+		if (IS_ERR(pdata->reset_gpio))
+			return PTR_ERR(pdata->reset_gpio);
+
+		gpiod_set_consumer_name(pdata->reset_gpio, "CS42L52 /RST");
 	}
 
 	cs42l52->pdata = *pdata;
 
 	if (cs42l52->pdata.reset_gpio) {
-		ret = devm_gpio_request_one(&i2c_client->dev,
-					    cs42l52->pdata.reset_gpio,
-					    GPIOF_OUT_INIT_HIGH,
-					    "CS42L52 /RST");
-		if (ret < 0) {
-			dev_err(&i2c_client->dev, "Failed to request /RST %d: %d\n",
-				cs42l52->pdata.reset_gpio, ret);
-			return ret;
-		}
-		gpio_set_value_cansleep(cs42l52->pdata.reset_gpio, 0);
-		gpio_set_value_cansleep(cs42l52->pdata.reset_gpio, 1);
+		gpiod_set_value_cansleep(cs42l52->pdata.reset_gpio, 1);
+		gpiod_set_value_cansleep(cs42l52->pdata.reset_gpio, 0);
 	}
 
 	i2c_set_clientdata(i2c_client, cs42l52);
