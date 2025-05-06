@@ -22,7 +22,6 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <sound/core.h>
-#include <sound/cs42l52.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -34,6 +33,24 @@
 struct sp_config {
 	u8 spc, format, spfs;
 	u32 srate;
+};
+
+struct cs42l52_platform_data {
+
+	/* MICBIAS Level. Check datasheet Pg48 */
+	unsigned int micbias_lvl;
+
+	/* MICA mode selection Differential or Single-ended */
+	bool mica_diff_cfg;
+
+	/* MICB mode selection Differential or Single-ended */
+	bool micb_diff_cfg;
+
+	/* Charge Pump Freq. Check datasheet Pg73 */
+	unsigned int chgfreq;
+
+	/* Reset GPIO */
+	unsigned int reset_gpio;
 };
 
 struct  cs42l52_private {
@@ -1090,7 +1107,7 @@ static const struct regmap_config cs42l52_regmap = {
 static int cs42l52_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct cs42l52_private *cs42l52;
-	struct cs42l52_platform_data *pdata = dev_get_platdata(&i2c_client->dev);
+	struct cs42l52_platform_data *pdata;
 	int ret;
 	unsigned int devid;
 	unsigned int reg;
@@ -1107,37 +1124,34 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client)
 		dev_err(&i2c_client->dev, "regmap_init() failed: %d\n", ret);
 		return ret;
 	}
-	if (pdata) {
-		cs42l52->pdata = *pdata;
-	} else {
-		pdata = devm_kzalloc(&i2c_client->dev, sizeof(*pdata),
-				     GFP_KERNEL);
-		if (!pdata)
-			return -ENOMEM;
 
-		if (i2c_client->dev.of_node) {
-			if (of_property_read_bool(i2c_client->dev.of_node,
-				"cirrus,mica-differential-cfg"))
-				pdata->mica_diff_cfg = true;
+	pdata = devm_kzalloc(&i2c_client->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
 
-			if (of_property_read_bool(i2c_client->dev.of_node,
-				"cirrus,micb-differential-cfg"))
-				pdata->micb_diff_cfg = true;
+	if (i2c_client->dev.of_node) {
+		if (of_property_read_bool(i2c_client->dev.of_node,
+			"cirrus,mica-differential-cfg"))
+			pdata->mica_diff_cfg = true;
 
-			if (of_property_read_u32(i2c_client->dev.of_node,
-				"cirrus,micbias-lvl", &val32) >= 0)
-				pdata->micbias_lvl = val32;
+		if (of_property_read_bool(i2c_client->dev.of_node,
+			"cirrus,micb-differential-cfg"))
+			pdata->micb_diff_cfg = true;
 
-			if (of_property_read_u32(i2c_client->dev.of_node,
-				"cirrus,chgfreq-divisor", &val32) >= 0)
-				pdata->chgfreq = val32;
+		if (of_property_read_u32(i2c_client->dev.of_node,
+			"cirrus,micbias-lvl", &val32) >= 0)
+			pdata->micbias_lvl = val32;
 
-			pdata->reset_gpio =
-				of_get_named_gpio(i2c_client->dev.of_node,
-						"cirrus,reset-gpio", 0);
-		}
-		cs42l52->pdata = *pdata;
+		if (of_property_read_u32(i2c_client->dev.of_node,
+			"cirrus,chgfreq-divisor", &val32) >= 0)
+			pdata->chgfreq = val32;
+
+		pdata->reset_gpio =
+			of_get_named_gpio(i2c_client->dev.of_node,
+					"cirrus,reset-gpio", 0);
 	}
+
+	cs42l52->pdata = *pdata;
 
 	if (cs42l52->pdata.reset_gpio) {
 		ret = devm_gpio_request_one(&i2c_client->dev,
