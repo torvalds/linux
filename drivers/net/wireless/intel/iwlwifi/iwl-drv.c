@@ -240,6 +240,11 @@ const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 	rf_step = iwl_drv_get_step(CSR_HW_RFID_STEP(trans->info.hw_rf_id));
 
 	switch (CSR_HW_RFID_TYPE(trans->info.hw_rf_id)) {
+	case IWL_CFG_RF_TYPE_JF1:
+	case IWL_CFG_RF_TYPE_JF2:
+		rf = "jf";
+		rf_step = 'b';
+		break;
 	case IWL_CFG_RF_TYPE_HR1:
 	case IWL_CFG_RF_TYPE_HR2:
 		rf = "hr";
