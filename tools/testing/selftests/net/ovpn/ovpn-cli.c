@@ -1753,8 +1753,11 @@ static int ovpn_parse_remote(struct ovpn_ctx *ovpn, const char *host,
 
 	if (host) {
 		ret = getaddrinfo(host, service, &hints, &result);
-		if (ret == EAI_NONAME || ret == EAI_FAIL)
+		if (ret) {
+			fprintf(stderr, "getaddrinfo on remote error: %s\n",
+				gai_strerror(ret));
 			return -1;
+		}
 
 		if (!(result->ai_family == AF_INET &&
 		      result->ai_addrlen == sizeof(struct sockaddr_in)) &&
@@ -1769,8 +1772,11 @@ static int ovpn_parse_remote(struct ovpn_ctx *ovpn, const char *host,
 
 	if (vpnip) {
 		ret = getaddrinfo(vpnip, NULL, &hints, &result);
-		if (ret == EAI_NONAME || ret == EAI_FAIL)
+		if (ret) {
+			fprintf(stderr, "getaddrinfo on vpnip error: %s\n",
+				gai_strerror(ret));
 			return -1;
+		}
 
 		if (!(result->ai_family == AF_INET &&
 		      result->ai_addrlen == sizeof(struct sockaddr_in)) &&
