@@ -124,10 +124,12 @@ void iwl_mld_handle_bar_frame_release_notif(struct iwl_mld *mld,
 
 	rcu_read_lock();
 	baid_data = rcu_dereference(mld->fw_id_to_ba[baid]);
-	if (!IWL_FW_CHECK(mld, !baid_data,
-			  "Got valid BAID %d but not allocated, invalid BAR release!\n",
-			  baid))
+	if (!baid_data) {
+		IWL_DEBUG_HT(mld,
+			     "Got valid BAID %d but not allocated\n",
+			     baid);
 		goto out_unlock;
+	}
 
 	if (IWL_FW_CHECK(mld, tid != baid_data->tid ||
 			 sta_id > mld->fw->ucode_capa.num_stations ||
