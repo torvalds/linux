@@ -163,7 +163,12 @@ static void throtl_qnode_add_bio(struct bio *bio, struct throtl_qnode *qn,
 {
 	bool rw = bio_data_dir(bio);
 
-	if (bio_flagged(bio, BIO_TG_BPS_THROTTLED)) {
+	/*
+	 * Split bios have already been throttled by bps, so they are
+	 * directly queued into the iops path.
+	 */
+	if (bio_flagged(bio, BIO_TG_BPS_THROTTLED) ||
+	    bio_flagged(bio, BIO_BPS_THROTTLED)) {
 		bio_list_add(&qn->bios_iops, bio);
 		sq->nr_queued_iops[rw]++;
 	} else {
@@ -946,6 +951,15 @@ static void throtl_add_bio_tg(struct bio *bio, struct throtl_qnode *qn,
 
 	throtl_qnode_add_bio(bio, qn, sq);
 
+	/*
+	 * Since we have split the queues, when the iops queue is
+	 * previously empty and a new @bio is added into the first @qn,
+	 * we also need to update the @tg->disptime.
+	 */
+	if (bio_flagged(bio, BIO_BPS_THROTTLED) &&
+	    bio == throtl_peek_queued(&sq->queued[rw]))
+		tg->flags |= THROTL_TG_IOPS_WAS_EMPTY;
+
 	throtl_enqueue_tg(tg);
 }
 
@@ -973,6 +987,7 @@ static void tg_update_disptime(struct throtl_grp *tg)
 
 	/* see throtl_add_bio_tg() */
 	tg->flags &= ~THROTL_TG_WAS_EMPTY;
+	tg->flags &= ~THROTL_TG_IOPS_WAS_EMPTY;
 }
 
 static void start_parent_slice_with_credit(struct throtl_grp *child_tg,
@@ -1160,7 +1175,8 @@ again:
 
 	if (parent_sq) {
 		/* @parent_sq is another throl_grp, propagate dispatch */
-		if (tg->flags & THROTL_TG_WAS_EMPTY) {
+		if (tg->flags & THROTL_TG_WAS_EMPTY ||
+		    tg->flags & THROTL_TG_IOPS_WAS_EMPTY) {
 			tg_update_disptime(tg);
 			if (!throtl_schedule_next_dispatch(parent_sq, false)) {
 				/* window is already open, repeat dispatching */
@@ -1705,9 +1721,28 @@ void blk_throtl_cancel_bios(struct gendisk *disk)
 
 static bool tg_within_limit(struct throtl_grp *tg, struct bio *bio, bool rw)
 {
-	/* throtl is FIFO - if bios are already queued, should queue */
-	if (sq_queued(&tg->service_queue, rw))
+	struct throtl_service_queue *sq = &tg->service_queue;
+
+	/*
+	 * For a split bio, we need to specifically distinguish whether the
+	 * iops queue is empty.
+	 */
+	if (bio_flagged(bio, BIO_BPS_THROTTLED))
+		return sq->nr_queued_iops[rw] == 0 &&
+				tg_dispatch_iops_time(tg, bio) == 0;
+
+	/*
+	 * Throtl is FIFO - if bios are already queued, should queue.
+	 * If the bps queue is empty and @bio is within the bps limit, charge
+	 * bps here for direct placement into the iops queue.
+	 */
+	if (sq_queued(&tg->service_queue, rw)) {
+		if (sq->nr_queued_bps[rw] == 0 &&
+		    tg_dispatch_bps_time(tg, bio) == 0)
+			throtl_charge_bps_bio(tg, bio);
+
 		return false;
+	}
 
 	return tg_dispatch_time(tg, bio) == 0;
 }
@@ -1788,11 +1823,13 @@ bool __blk_throtl_bio(struct bio *bio)
 
 	/*
 	 * Update @tg's dispatch time and force schedule dispatch if @tg
-	 * was empty before @bio.  The forced scheduling isn't likely to
-	 * cause undue delay as @bio is likely to be dispatched directly if
-	 * its @tg's disptime is not in the future.
+	 * was empty before @bio, or the iops queue is empty and @bio will
+	 * add to.  The forced scheduling isn't likely to cause undue
+	 * delay as @bio is likely to be dispatched directly if its @tg's
+	 * disptime is not in the future.
 	 */
-	if (tg->flags & THROTL_TG_WAS_EMPTY) {
+	if (tg->flags & THROTL_TG_WAS_EMPTY ||
+	    tg->flags & THROTL_TG_IOPS_WAS_EMPTY) {
 		tg_update_disptime(tg);
 		throtl_schedule_next_dispatch(tg->service_queue.parent_sq, true);
 	}

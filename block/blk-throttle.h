@@ -56,9 +56,14 @@ struct throtl_service_queue {
 };
 
 enum tg_state_flags {
-	THROTL_TG_PENDING	= 1 << 0,	/* on parent's pending tree */
-	THROTL_TG_WAS_EMPTY	= 1 << 1,	/* bio_lists[] became non-empty */
-	THROTL_TG_CANCELING	= 1 << 2,	/* starts to cancel bio */
+	THROTL_TG_PENDING		= 1 << 0,	/* on parent's pending tree */
+	THROTL_TG_WAS_EMPTY		= 1 << 1,	/* bio_lists[] became non-empty */
+	/*
+	 * The sq's iops queue is empty, and a bio is about to be enqueued
+	 * to the first qnode's bios_iops list.
+	 */
+	THROTL_TG_IOPS_WAS_EMPTY	= 1 << 2,
+	THROTL_TG_CANCELING		= 1 << 3,	/* starts to cancel bio */
 };
 
 struct throtl_grp {
