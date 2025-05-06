@@ -11987,6 +11987,16 @@ static bool is_kfunc_arg_res_spin_lock(const struct btf *btf, const struct btf_p
 	return __is_kfunc_ptr_arg_type(btf, arg, KF_ARG_RES_SPIN_LOCK_ID);
 }
 
+static bool is_rbtree_node_type(const struct btf_type *t)
+{
+	return t == btf_type_by_id(btf_vmlinux, kf_arg_btf_ids[KF_ARG_RB_NODE_ID]);
+}
+
+static bool is_list_node_type(const struct btf_type *t)
+{
+	return t == btf_type_by_id(btf_vmlinux, kf_arg_btf_ids[KF_ARG_LIST_NODE_ID]);
+}
+
 static bool is_kfunc_arg_callback(struct bpf_verifier_env *env, const struct btf *btf,
 				  const struct btf_param *arg)
 {
@@ -12069,6 +12079,8 @@ enum special_kfunc_type {
 	KF_bpf_list_push_back_impl,
 	KF_bpf_list_pop_front,
 	KF_bpf_list_pop_back,
+	KF_bpf_list_front,
+	KF_bpf_list_back,
 	KF_bpf_cast_to_kern_ctx,
 	KF_bpf_rdonly_cast,
 	KF_bpf_rcu_read_lock,
@@ -12076,6 +12088,9 @@ enum special_kfunc_type {
 	KF_bpf_rbtree_remove,
 	KF_bpf_rbtree_add_impl,
 	KF_bpf_rbtree_first,
+	KF_bpf_rbtree_root,
+	KF_bpf_rbtree_left,
+	KF_bpf_rbtree_right,
 	KF_bpf_dynptr_from_skb,
 	KF_bpf_dynptr_from_xdp,
 	KF_bpf_dynptr_slice,
@@ -12111,11 +12126,16 @@ BTF_ID(func, bpf_list_push_front_impl)
 BTF_ID(func, bpf_list_push_back_impl)
 BTF_ID(func, bpf_list_pop_front)
 BTF_ID(func, bpf_list_pop_back)
+BTF_ID(func, bpf_list_front)
+BTF_ID(func, bpf_list_back)
 BTF_ID(func, bpf_cast_to_kern_ctx)
 BTF_ID(func, bpf_rdonly_cast)
 BTF_ID(func, bpf_rbtree_remove)
 BTF_ID(func, bpf_rbtree_add_impl)
 BTF_ID(func, bpf_rbtree_first)
+BTF_ID(func, bpf_rbtree_root)
+BTF_ID(func, bpf_rbtree_left)
+BTF_ID(func, bpf_rbtree_right)
 #ifdef CONFIG_NET
 BTF_ID(func, bpf_dynptr_from_skb)
 BTF_ID(func, bpf_dynptr_from_xdp)
@@ -12144,6 +12164,8 @@ BTF_ID(func, bpf_list_push_front_impl)
 BTF_ID(func, bpf_list_push_back_impl)
 BTF_ID(func, bpf_list_pop_front)
 BTF_ID(func, bpf_list_pop_back)
+BTF_ID(func, bpf_list_front)
+BTF_ID(func, bpf_list_back)
 BTF_ID(func, bpf_cast_to_kern_ctx)
 BTF_ID(func, bpf_rdonly_cast)
 BTF_ID(func, bpf_rcu_read_lock)
@@ -12151,6 +12173,9 @@ BTF_ID(func, bpf_rcu_read_unlock)
 BTF_ID(func, bpf_rbtree_remove)
 BTF_ID(func, bpf_rbtree_add_impl)
 BTF_ID(func, bpf_rbtree_first)
+BTF_ID(func, bpf_rbtree_root)
+BTF_ID(func, bpf_rbtree_left)
+BTF_ID(func, bpf_rbtree_right)
 #ifdef CONFIG_NET
 BTF_ID(func, bpf_dynptr_from_skb)
 BTF_ID(func, bpf_dynptr_from_xdp)
@@ -12579,14 +12604,19 @@ static bool is_bpf_list_api_kfunc(u32 btf_id)
 	return btf_id == special_kfunc_list[KF_bpf_list_push_front_impl] ||
 	       btf_id == special_kfunc_list[KF_bpf_list_push_back_impl] ||
 	       btf_id == special_kfunc_list[KF_bpf_list_pop_front] ||
-	       btf_id == special_kfunc_list[KF_bpf_list_pop_back];
+	       btf_id == special_kfunc_list[KF_bpf_list_pop_back] ||
+	       btf_id == special_kfunc_list[KF_bpf_list_front] ||
+	       btf_id == special_kfunc_list[KF_bpf_list_back];
 }
 
 static bool is_bpf_rbtree_api_kfunc(u32 btf_id)
 {
 	return btf_id == special_kfunc_list[KF_bpf_rbtree_add_impl] ||
 	       btf_id == special_kfunc_list[KF_bpf_rbtree_remove] ||
-	       btf_id == special_kfunc_list[KF_bpf_rbtree_first];
+	       btf_id == special_kfunc_list[KF_bpf_rbtree_first] ||
+	       btf_id == special_kfunc_list[KF_bpf_rbtree_root] ||
+	       btf_id == special_kfunc_list[KF_bpf_rbtree_left] ||
+	       btf_id == special_kfunc_list[KF_bpf_rbtree_right];
 }
 
 static bool is_bpf_iter_num_api_kfunc(u32 btf_id)
@@ -12686,7 +12716,9 @@ static bool check_kfunc_is_graph_node_api(struct bpf_verifier_env *env,
 		break;
 	case BPF_RB_NODE:
 		ret = (kfunc_btf_id == special_kfunc_list[KF_bpf_rbtree_remove] ||
-		       kfunc_btf_id == special_kfunc_list[KF_bpf_rbtree_add_impl]);
+		       kfunc_btf_id == special_kfunc_list[KF_bpf_rbtree_add_impl] ||
+		       kfunc_btf_id == special_kfunc_list[KF_bpf_rbtree_left] ||
+		       kfunc_btf_id == special_kfunc_list[KF_bpf_rbtree_right]);
 		break;
 	default:
 		verbose(env, "verifier internal error: unexpected graph node argument type %s\n",
@@ -13200,22 +13232,22 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 				return ret;
 			break;
 		case KF_ARG_PTR_TO_RB_NODE:
-			if (meta->func_id == special_kfunc_list[KF_bpf_rbtree_remove]) {
-				if (!type_is_non_owning_ref(reg->type) || reg->ref_obj_id) {
-					verbose(env, "rbtree_remove node input must be non-owning ref\n");
-					return -EINVAL;
-				}
-				if (in_rbtree_lock_required_cb(env)) {
-					verbose(env, "rbtree_remove not allowed in rbtree cb\n");
-					return -EINVAL;
-				}
-			} else {
+			if (meta->func_id == special_kfunc_list[KF_bpf_rbtree_add_impl]) {
 				if (reg->type != (PTR_TO_BTF_ID | MEM_ALLOC)) {
 					verbose(env, "arg#%d expected pointer to allocated object\n", i);
 					return -EINVAL;
 				}
 				if (!reg->ref_obj_id) {
 					verbose(env, "allocated object must be referenced\n");
+					return -EINVAL;
+				}
+			} else {
+				if (!type_is_non_owning_ref(reg->type) && !reg->ref_obj_id) {
+					verbose(env, "%s can only take non-owning or refcounted bpf_rb_node pointer\n", func_name);
+					return -EINVAL;
+				}
+				if (in_rbtree_lock_required_cb(env)) {
+					verbose(env, "%s not allowed in rbtree cb\n", func_name);
 					return -EINVAL;
 				}
 			}
@@ -13745,13 +13777,11 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 				insn_aux->kptr_struct_meta =
 					btf_find_struct_meta(meta.arg_btf,
 							     meta.arg_btf_id);
-			} else if (meta.func_id == special_kfunc_list[KF_bpf_list_pop_front] ||
-				   meta.func_id == special_kfunc_list[KF_bpf_list_pop_back]) {
+			} else if (is_list_node_type(ptr_type)) {
 				struct btf_field *field = meta.arg_list_head.field;
 
 				mark_reg_graph_node(regs, BPF_REG_0, &field->graph_root);
-			} else if (meta.func_id == special_kfunc_list[KF_bpf_rbtree_remove] ||
-				   meta.func_id == special_kfunc_list[KF_bpf_rbtree_first]) {
+			} else if (is_rbtree_node_type(ptr_type)) {
 				struct btf_field *field = meta.arg_rbtree_root.field;
 
 				mark_reg_graph_node(regs, BPF_REG_0, &field->graph_root);
@@ -13881,7 +13911,7 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 			if (is_kfunc_ret_null(&meta))
 				regs[BPF_REG_0].id = id;
 			regs[BPF_REG_0].ref_obj_id = id;
-		} else if (meta.func_id == special_kfunc_list[KF_bpf_rbtree_first]) {
+		} else if (is_rbtree_node_type(ptr_type) || is_list_node_type(ptr_type)) {
 			ref_set_non_owning(env, &regs[BPF_REG_0]);
 		}
 
