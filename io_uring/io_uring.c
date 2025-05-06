@@ -928,22 +928,6 @@ void io_req_defer_failed(struct io_kiocb *req, s32 res)
 }
 
 /*
- * Don't initialise the fields below on every allocation, but do that in
- * advance and keep them valid across allocations.
- */
-static void io_preinit_req(struct io_kiocb *req, struct io_ring_ctx *ctx)
-{
-	req->ctx = ctx;
-	req->buf_node = NULL;
-	req->file_node = NULL;
-	req->link = NULL;
-	req->async_data = NULL;
-	/* not necessary, but safer to zero */
-	memset(&req->cqe, 0, sizeof(req->cqe));
-	memset(&req->big_cqe, 0, sizeof(req->big_cqe));
-}
-
-/*
  * A request might get retired back into the request caches even before opcode
  * handlers and io_issue_sqe() are done with it, e.g. inline completion path.
  * Because of that, io_alloc_req() should be called only under ->uring_lock
@@ -952,7 +936,7 @@ static void io_preinit_req(struct io_kiocb *req, struct io_ring_ctx *ctx)
 __cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 	__must_hold(&ctx->uring_lock)
 {
-	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
+	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO;
 	void *reqs[IO_REQ_ALLOC_BATCH];
 	int ret;
 
@@ -973,7 +957,6 @@ __cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 	while (ret--) {
 		struct io_kiocb *req = reqs[ret];
 
-		io_preinit_req(req, ctx);
 		io_req_add_to_cache(req, ctx);
 	}
 	return true;
@@ -2049,7 +2032,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	int personality;
 	u8 opcode;
 
-	/* req is partially pre-initialised, see io_preinit_req() */
+	req->ctx = ctx;
 	req->opcode = opcode = READ_ONCE(sqe->opcode);
 	/* same numerical values with corresponding REQ_F_*, safe to copy */
 	sqe_flags = READ_ONCE(sqe->flags);
