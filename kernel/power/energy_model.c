@@ -702,10 +702,12 @@ static int em_recalc_and_update(struct device *dev, struct em_perf_domain *pd,
 {
 	int ret;
 
-	ret = em_compute_costs(dev, em_table->state, NULL, pd->nr_perf_states,
-			       pd->flags);
-	if (ret)
-		goto free_em_table;
+	if (!em_is_artificial(pd)) {
+		ret = em_compute_costs(dev, em_table->state, NULL,
+				       pd->nr_perf_states, pd->flags);
+		if (ret)
+			goto free_em_table;
+	}
 
 	ret = em_dev_update_perf_domain(dev, em_table);
 	if (ret)
@@ -753,6 +755,24 @@ static void em_adjust_new_capacity(unsigned int cpu, struct device *dev,
 	em_init_performance(dev, pd, em_table->state, pd->nr_perf_states);
 
 	em_recalc_and_update(dev, pd, em_table);
+}
+
+/**
+ * em_adjust_cpu_capacity() - Adjust the EM for a CPU after a capacity update.
+ * @cpu: Target CPU.
+ *
+ * Adjust the existing EM for @cpu after a capacity update under the assumption
+ * that the capacity has been updated in the same way for all of the CPUs in
+ * the same perf domain.
+ */
+void em_adjust_cpu_capacity(unsigned int cpu)
+{
+	struct device *dev = get_cpu_device(cpu);
+	struct em_perf_domain *pd;
+
+	pd = em_pd_get(dev);
+	if (pd)
+		em_adjust_new_capacity(cpu, dev, pd);
 }
 
 static void em_check_capacity_update(void)
