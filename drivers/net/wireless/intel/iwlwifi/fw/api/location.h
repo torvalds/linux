@@ -1609,7 +1609,7 @@ struct iwl_tof_range_rsp_ap_entry_ntfy_v5 {
 } __packed; /* LOCATION_RANGE_RSP_AP_ETRY_NTFY_API_S_VER_5 */
 
 /**
- * struct iwl_tof_range_rsp_ap_entry_ntfy - AP parameters (response)
+ * struct iwl_tof_range_rsp_ap_entry_ntfy_v7 - AP parameters (response)
  * @bssid: BSSID of the AP
  * @measure_status: current APs measurement status, one of
  *	&enum iwl_tof_entry_status.
@@ -1645,7 +1645,7 @@ struct iwl_tof_range_rsp_ap_entry_ntfy_v5 {
  * @tx_pn: the last PN used for this responder Tx in case PMF is configured in
  *	LE byte order.
  */
-struct iwl_tof_range_rsp_ap_entry_ntfy {
+struct iwl_tof_range_rsp_ap_entry_ntfy_v7 {
 	u8 bssid[ETH_ALEN];
 	u8 measure_status;
 	u8 measure_bw;
@@ -1672,6 +1672,65 @@ struct iwl_tof_range_rsp_ap_entry_ntfy {
 } __packed; /* LOCATION_RANGE_RSP_AP_ETRY_NTFY_API_S_VER_6,
 	       LOCATION_RANGE_RSP_AP_ETRY_NTFY_API_S_VER_7 */
 
+/**
+ * struct iwl_tof_range_rsp_ap_entry_ntfy - AP parameters (response)
+ * @bssid: BSSID of the AP
+ * @measure_status: current APs measurement status, one of
+ *	&enum iwl_tof_entry_status.
+ * @measure_bw: Current AP Bandwidth: 0  20MHz, 1  40MHz, 2  80MHz
+ * @rtt: The Round Trip Time that took for the last measurement for
+ *	current AP [pSec]
+ * @rtt_variance: The Variance of the RTT values measured for current AP
+ * @rtt_spread: The Difference between the maximum and the minimum RTT
+ *	values measured for current AP in the current session [pSec]
+ * @rssi: RSSI as uploaded in the Channel Estimation notification
+ * @rssi_spread: The Difference between the maximum and the minimum RSSI values
+ *	measured for current AP in the current session
+ * @last_burst: 1 if no more FTM sessions are scheduled for this responder
+ * @refusal_period: refusal period in case of
+ *	@IWL_TOF_ENTRY_RESPONDER_CANNOT_COLABORATE [sec]
+ * @timestamp: The GP2 Clock [usec] where Channel Estimation notification was
+ *	uploaded by the LMAC
+ * @start_tsf: measurement start time in TSF of the mac specified in the range
+ *	request
+ * @reserved1: reserved, for backwards compatibility
+ * @t2t3_initiator: as calculated from the algo in the initiator
+ * @t1t4_responder: as calculated from the algo in the responder
+ * @common_calib: Calib val that was used in for this AP measurement
+ * @specific_calib: val that was used in for this AP measurement
+ * @papd_calib_output: The result of the tof papd calibration that was injected
+ *	into the algorithm.
+ * @rttConfidence: a value between 0 - 31 that represents the rtt accuracy.
+ * @reserved: for alignment
+ * @rx_pn: the last PN used for this responder Rx in case PMF is configured in
+ *	LE byte order.
+ * @tx_pn: the last PN used for this responder Tx in case PMF is configured in
+ *	LE byte order.
+ */
+struct iwl_tof_range_rsp_ap_entry_ntfy {
+	u8 bssid[ETH_ALEN];
+	u8 measure_status;
+	u8 measure_bw;
+	__le32 rtt;
+	__le32 rtt_variance;
+	__le32 rtt_spread;
+	s8 rssi;
+	u8 rssi_spread;
+	u8 last_burst;
+	u8 refusal_period;
+	__le32 timestamp;
+	__le32 start_tsf;
+	__le32 reserved1[2];
+	__le32 t2t3_initiator;
+	__le32 t1t4_responder;
+	__le16 common_calib;
+	__le16 specific_calib;
+	__le32 papd_calib_output;
+	u8 rttConfidence;
+	u8 reserved[3];
+	u8 rx_pn[IEEE80211_CCMP_PN_LEN];
+	u8 tx_pn[IEEE80211_CCMP_PN_LEN];
+} __packed; /* LOCATION_RANGE_RSP_AP_ETRY_NTFY_API_S_VER_8 */
 
 /**
  * enum iwl_tof_response_status - tof response status
@@ -1739,6 +1798,24 @@ struct iwl_tof_range_rsp_ntfy_v7 {
 } __packed; /* LOCATION_RANGE_RSP_NTFY_API_S_VER_7 */
 
 /**
+ * struct iwl_tof_range_rsp_ntfy_v9 - ranging response notification
+ * @request_id: A Token ID of the corresponding Range request
+ * @num_of_aps: Number of APs results
+ * @last_report: 1 if no more FTM sessions are scheduled, 0 otherwise.
+ * @reserved: reserved
+ * @ap: per-AP data
+ */
+struct iwl_tof_range_rsp_ntfy_v9 {
+	u8 request_id;
+	u8 num_of_aps;
+	u8 last_report;
+	u8 reserved;
+	struct iwl_tof_range_rsp_ap_entry_ntfy_v7 ap[IWL_TOF_MAX_APS];
+} __packed; /* LOCATION_RANGE_RSP_NTFY_API_S_VER_8,
+	     * LOCATION_RANGE_RSP_NTFY_API_S_VER_9
+	     */
+
+/**
  * struct iwl_tof_range_rsp_ntfy - ranging response notification
  * @request_id: A Token ID of the corresponding Range request
  * @num_of_aps: Number of APs results
@@ -1752,8 +1829,7 @@ struct iwl_tof_range_rsp_ntfy {
 	u8 last_report;
 	u8 reserved;
 	struct iwl_tof_range_rsp_ap_entry_ntfy ap[IWL_TOF_MAX_APS];
-} __packed; /* LOCATION_RANGE_RSP_NTFY_API_S_VER_8,
-	       LOCATION_RANGE_RSP_NTFY_API_S_VER_9 */
+} __packed; /* LOCATION_RANGE_RSP_NTFY_API_S_VER_10 */
 
 #define IWL_MVM_TOF_MCSI_BUF_SIZE  (245)
 /**
