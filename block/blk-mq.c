@@ -89,7 +89,7 @@ struct mq_inflight {
 	unsigned int inflight[2];
 };
 
-static bool blk_mq_check_inflight(struct request *rq, void *priv)
+static bool blk_mq_check_in_driver(struct request *rq, void *priv)
 {
 	struct mq_inflight *mi = priv;
 
@@ -101,14 +101,14 @@ static bool blk_mq_check_inflight(struct request *rq, void *priv)
 	return true;
 }
 
-void blk_mq_in_flight_rw(struct request_queue *q, struct block_device *part,
-		unsigned int inflight[2])
+void blk_mq_in_driver_rw(struct block_device *part, unsigned int inflight[2])
 {
 	struct mq_inflight mi = { .part = part };
 
-	blk_mq_queue_tag_busy_iter(q, blk_mq_check_inflight, &mi);
-	inflight[0] = mi.inflight[0];
-	inflight[1] = mi.inflight[1];
+	blk_mq_queue_tag_busy_iter(bdev_get_queue(part), blk_mq_check_in_driver,
+				   &mi);
+	inflight[READ] = mi.inflight[READ];
+	inflight[WRITE] = mi.inflight[WRITE];
 }
 
 #ifdef CONFIG_LOCKDEP

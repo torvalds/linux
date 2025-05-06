@@ -126,27 +126,32 @@ static void part_stat_read_all(struct block_device *part,
 }
 
 static void part_in_flight_rw(struct block_device *part,
-		unsigned int inflight[2])
+		unsigned int inflight[2], bool mq_driver)
 {
 	int cpu;
 
-	inflight[0] = 0;
-	inflight[1] = 0;
-	for_each_possible_cpu(cpu) {
-		inflight[0] += part_stat_local_read_cpu(part, in_flight[0], cpu);
-		inflight[1] += part_stat_local_read_cpu(part, in_flight[1], cpu);
+	if (mq_driver) {
+		blk_mq_in_driver_rw(part, inflight);
+	} else {
+		for_each_possible_cpu(cpu) {
+			inflight[READ] += part_stat_local_read_cpu(
+						part, in_flight[READ], cpu);
+			inflight[WRITE] += part_stat_local_read_cpu(
+						part, in_flight[WRITE], cpu);
+		}
 	}
-	if (WARN_ON_ONCE((int)inflight[0] < 0))
-		inflight[0] = 0;
-	if (WARN_ON_ONCE((int)inflight[1] < 0))
-		inflight[1] = 0;
+
+	if (WARN_ON_ONCE((int)inflight[READ] < 0))
+		inflight[READ] = 0;
+	if (WARN_ON_ONCE((int)inflight[WRITE] < 0))
+		inflight[WRITE] = 0;
 }
 
 unsigned int part_in_flight(struct block_device *part)
 {
-	unsigned int inflight[2];
+	unsigned int inflight[2] = {0};
 
-	part_in_flight_rw(part, inflight);
+	part_in_flight_rw(part, inflight, false);
 
 	return inflight[READ] + inflight[WRITE];
 }
@@ -1084,19 +1089,21 @@ ssize_t part_stat_show(struct device *dev,
 		(unsigned int)div_u64(stat.nsecs[STAT_FLUSH], NSEC_PER_MSEC));
 }
 
+/*
+ * Show the number of IOs issued to driver.
+ * For bio-based device, started from bdev_start_io_acct();
+ * For rq-based device, started from blk_mq_start_request();
+ */
 ssize_t part_inflight_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	struct block_device *bdev = dev_to_bdev(dev);
 	struct request_queue *q = bdev_get_queue(bdev);
-	unsigned int inflight[2];
+	unsigned int inflight[2] = {0};
 
-	if (queue_is_mq(q))
-		blk_mq_in_flight_rw(q, bdev, inflight);
-	else
-		part_in_flight_rw(bdev, inflight);
+	part_in_flight_rw(bdev, inflight, queue_is_mq(q));
 
-	return sysfs_emit(buf, "%8u %8u\n", inflight[0], inflight[1]);
+	return sysfs_emit(buf, "%8u %8u\n", inflight[READ], inflight[WRITE]);
 }
 
 static ssize_t disk_capability_show(struct device *dev,
