@@ -132,12 +132,18 @@ static bool brd_rw_bvec(struct brd_device *brd, struct bio *bio)
 		}
 	}
 
+	rcu_read_lock();
 	page = brd_lookup_page(brd, sector);
 
 	kaddr = bvec_kmap_local(&bv);
 	if (op_is_write(opf)) {
-		BUG_ON(!page);
-		memcpy_to_page(page, offset, kaddr, bv.bv_len);
+		/*
+		 * Page can be removed by concurrent discard, it's fine to skip
+		 * the write and user will read zero data if page does not
+		 * exist.
+		 */
+		if (page)
+			memcpy_to_page(page, offset, kaddr, bv.bv_len);
 	} else {
 		if (page)
 			memcpy_from_page(kaddr, page, offset, bv.bv_len);
@@ -145,9 +151,17 @@ static bool brd_rw_bvec(struct brd_device *brd, struct bio *bio)
 			memset(kaddr, 0, bv.bv_len);
 	}
 	kunmap_local(kaddr);
+	rcu_read_unlock();
 
 	bio_advance_iter_single(bio, &bio->bi_iter, bv.bv_len);
 	return true;
+}
+
+static void brd_free_one_page(struct rcu_head *head)
+{
+	struct page *page = container_of(head, struct page, rcu_head);
+
+	__free_page(page);
 }
 
 static void brd_do_discard(struct brd_device *brd, sector_t sector, u32 size)
@@ -160,7 +174,7 @@ static void brd_do_discard(struct brd_device *brd, sector_t sector, u32 size)
 	while (size >= PAGE_SIZE && aligned_sector < rd_size * 2) {
 		page = __xa_erase(&brd->brd_pages, aligned_sector >> PAGE_SECTORS_SHIFT);
 		if (page) {
-			__free_page(page);
+			call_rcu(&page->rcu_head, brd_free_one_page);
 			brd->brd_nr_pages--;
 		}
 		aligned_sector += PAGE_SECTORS;
