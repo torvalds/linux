@@ -186,3 +186,37 @@ their hardware offsets within the chip.
 
 Encourage users to switch to using them and eventually remove the existing
 global export/unexport attribues.
+
+-------------------------------------------------------------------------------
+
+Remove GPIOD_FLAGS_BIT_NONEXCLUSIVE
+
+GPIOs in the linux kernel are meant to be an exclusive resource. This means
+that the GPIO descriptors (the software representation of the hardware concept)
+are not reference counted and - in general - only one user at a time can
+request a GPIO line and control its settings. The consumer API is designed
+around full control of the line's state as evidenced by the fact that, for
+instance, gpiod_set_value() does indeed drive the line as requested, instead
+of bumping an enable counter of some sort.
+
+A problematic use-case for GPIOs is when two consumers want to use the same
+descriptor independently. An example of such a user is the regulator subsystem
+which may instantiate several struct regulator_dev instances containing
+a struct device but using the same enable GPIO line.
+
+A workaround was introduced in the form of the GPIOD_FLAGS_BIT_NONEXCLUSIVE
+flag but its implementation is problematic: it does not provide any
+synchronization of usage nor did it introduce any enable count meaning the
+non-exclusive users of the same descriptor will in fact "fight" for the
+control over it. This flag should be removed and replaced with a better
+solution, possibly based on the new power sequencing subsystem.
+
+-------------------------------------------------------------------------------
+
+Remove devm_gpiod_unhinge()
+
+devm_gpiod_unhinge() is provided as a way to transfer the ownership of managed
+enable GPIOs to the regulator core. Rather than doing that however, we should
+make it possible for the regulator subsystem to deal with GPIO resources the
+lifetime of which it doesn't control as logically, a GPIO obtained by a caller
+should also be freed by it.

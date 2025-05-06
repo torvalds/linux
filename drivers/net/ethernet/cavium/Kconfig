@@ -70,8 +70,8 @@ config LIQUIDIO
 	depends on 64BIT && PCI
 	depends on PCI
 	depends on PTP_1588_CLOCK_OPTIONAL
+	select CRC32
 	select FW_LOADER
-	select LIBCRC32C
 	select LIQUIDIO_CORE
 	select NET_DEVLINK
 	help

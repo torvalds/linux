@@ -37,7 +37,7 @@ int bch2_set_rebalance_needs_scan_trans(struct btree_trans *, u64);
 int bch2_set_rebalance_needs_scan(struct bch_fs *, u64 inum);
 int bch2_set_fs_needs_rebalance(struct bch_fs *);
 
-static inline void rebalance_wakeup(struct bch_fs *c)
+static inline void bch2_rebalance_wakeup(struct bch_fs *c)
 {
 	struct task_struct *p;
 
