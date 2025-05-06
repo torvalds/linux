@@ -154,6 +154,8 @@
  * @radio_kill: bitmap of radio kill status
  * @radio_kill.hw: radio is killed by hw switch
  * @radio_kill.ct: radio is killed because the device it too hot
+ * @power_budget_mw: maximum cTDP power budget as defined for this system and
+ *	device
  * @addresses: device MAC addresses.
  * @scan: instance of the scan object
  * @wowlan: WoWLAN support data.
@@ -243,6 +245,8 @@ struct iwl_mld {
 		u32 hw:1,
 		    ct:1;
 	} radio_kill;
+
+	u32 power_budget_mw;
 
 	struct mac_address addresses[IWL_MLD_MAX_ADDRESSES];
 	struct iwl_mld_scan scan;

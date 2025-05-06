@@ -13,6 +13,9 @@
 #include "mld.h"
 #include "hcmd.h"
 
+#define IWL_MLD_NUM_CTDP_STEPS		20
+#define IWL_MLD_MIN_CTDP_BUDGET_MW	150
+
 #define IWL_MLD_CT_KILL_DURATION (5 * HZ)
 
 void iwl_mld_handle_ct_kill_notif(struct iwl_mld *mld,
@@ -272,42 +275,26 @@ static void iwl_mld_thermal_zone_register(struct iwl_mld *mld)
 	}
 }
 
-/* budget in mWatt */
-static const u32 iwl_mld_cdev_budgets[] = {
-	2400,	/* cooling state 0 */
-	2000,	/* cooling state 1 */
-	1800,	/* cooling state 2 */
-	1600,	/* cooling state 3 */
-	1400,	/* cooling state 4 */
-	1200,	/* cooling state 5 */
-	1000,	/* cooling state 6 */
-	900,	/* cooling state 7 */
-	800,	/* cooling state 8 */
-	700,	/* cooling state 9 */
-	650,	/* cooling state 10 */
-	600,	/* cooling state 11 */
-	550,	/* cooling state 12 */
-	500,	/* cooling state 13 */
-	450,	/* cooling state 14 */
-	400,	/* cooling state 15 */
-	350,	/* cooling state 16 */
-	300,	/* cooling state 17 */
-	250,	/* cooling state 18 */
-	200,	/* cooling state 19 */
-	150,	/* cooling state 20 */
-};
-
 int iwl_mld_config_ctdp(struct iwl_mld *mld, u32 state,
 			enum iwl_ctdp_cmd_operation op)
 {
 	struct iwl_ctdp_cmd cmd = {
 		.operation = cpu_to_le32(op),
-		.budget = cpu_to_le32(iwl_mld_cdev_budgets[state]),
 		.window_size = 0,
 	};
+	u32 budget;
 	int ret;
 
 	lockdep_assert_wiphy(mld->wiphy);
+
+	/* Do a linear scale from IWL_MLD_MIN_CTDP_BUDGET_MW to the configured
+	 * maximum in the predefined number of steps.
+	 */
+	budget = ((mld->power_budget_mw - IWL_MLD_MIN_CTDP_BUDGET_MW) *
+		  (IWL_MLD_NUM_CTDP_STEPS - 1 - state)) /
+		 (IWL_MLD_NUM_CTDP_STEPS - 1) +
+		 IWL_MLD_MIN_CTDP_BUDGET_MW;
+	cmd.budget = cpu_to_le32(budget);
 
 	ret = iwl_mld_send_cmd_pdu(mld, WIDE_ID(PHY_OPS_GROUP, CTDP_CONFIG_CMD),
 				   &cmd);
@@ -326,7 +313,7 @@ int iwl_mld_config_ctdp(struct iwl_mld *mld, u32 state,
 static int iwl_mld_tcool_get_max_state(struct thermal_cooling_device *cdev,
 				       unsigned long *state)
 {
-	*state = ARRAY_SIZE(iwl_mld_cdev_budgets) - 1;
+	*state = IWL_MLD_NUM_CTDP_STEPS - 1;
 
 	return 0;
 }
@@ -354,7 +341,7 @@ static int iwl_mld_tcool_set_cur_state(struct thermal_cooling_device *cdev,
 		goto unlock;
 	}
 
-	if (new_state >= ARRAY_SIZE(iwl_mld_cdev_budgets)) {
+	if (new_state >= IWL_MLD_NUM_CTDP_STEPS) {
 		ret = -EINVAL;
 		goto unlock;
 	}
@@ -417,9 +404,47 @@ static void iwl_mld_cooling_device_unregister(struct iwl_mld *mld)
 }
 #endif /* CONFIG_THERMAL */
 
+static u32 iwl_mld_ctdp_get_max_budget(struct iwl_mld *mld)
+{
+	u64 bios_power_budget = 0;
+	u32 default_power_budget;
+
+	switch (CSR_HW_RFID_TYPE(mld->trans->info.hw_rf_id)) {
+	case IWL_CFG_RF_TYPE_GF:
+		/* dual-radio devices have a higher budget */
+		if (CSR_HW_RFID_IS_CDB(mld->trans->info.hw_rf_id))
+			default_power_budget = 5200;
+		else
+			default_power_budget = 2880;
+		break;
+	case IWL_CFG_RF_TYPE_FM:
+		default_power_budget = 3450;
+		break;
+	case IWL_CFG_RF_TYPE_WH:
+	case IWL_CFG_RF_TYPE_PE:
+	default:
+		default_power_budget = 5550;
+		break;
+	}
+
+	iwl_bios_get_pwr_limit(&mld->fwrt, &bios_power_budget);
+
+	/* 32bit in UEFI, 16bit in ACPI; use BIOS value if it is in range */
+	if (bios_power_budget &&
+	    bios_power_budget != 0xffff && bios_power_budget != 0xffffffff &&
+	    bios_power_budget >= IWL_MLD_MIN_CTDP_BUDGET_MW &&
+	    bios_power_budget <= default_power_budget)
+		return (u32)bios_power_budget;
+
+	return default_power_budget;
+}
+
 void iwl_mld_thermal_initialize(struct iwl_mld *mld)
 {
 	wiphy_delayed_work_init(&mld->ct_kill_exit_wk, iwl_mld_exit_ctkill);
+
+	mld->power_budget_mw = iwl_mld_ctdp_get_max_budget(mld);
+	IWL_DEBUG_TEMP(mld, "cTDP power budget: %d mW\n", mld->power_budget_mw);
 
 #ifdef CONFIG_THERMAL
 	iwl_mld_cooling_device_register(mld);
