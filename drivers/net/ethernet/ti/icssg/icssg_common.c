@@ -650,6 +650,8 @@ static u32 emac_run_xdp(struct prueth_emac *emac, struct xdp_buff *xdp,
 			struct page *page, u32 *len)
 {
 	struct net_device *ndev = emac->ndev;
+	struct netdev_queue *netif_txq;
+	int cpu = smp_processor_id();
 	struct bpf_prog *xdp_prog;
 	struct xdp_frame *xdpf;
 	u32 pkt_len = *len;
@@ -669,8 +671,11 @@ static u32 emac_run_xdp(struct prueth_emac *emac, struct xdp_buff *xdp,
 			goto drop;
 		}
 
-		q_idx = smp_processor_id() % emac->tx_ch_num;
+		q_idx = cpu % emac->tx_ch_num;
+		netif_txq = netdev_get_tx_queue(ndev, q_idx);
+		__netif_tx_lock(netif_txq, cpu);
 		result = emac_xmit_xdp_frame(emac, xdpf, page, q_idx);
+		__netif_tx_unlock(netif_txq);
 		if (result == ICSSG_XDP_CONSUMED) {
 			ndev->stats.tx_dropped++;
 			goto drop;
