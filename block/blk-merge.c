@@ -832,6 +832,8 @@ static struct request *attempt_merge(struct request_queue *q,
 
 	if (req->bio->bi_write_hint != next->bio->bi_write_hint)
 		return NULL;
+	if (req->bio->bi_write_stream != next->bio->bi_write_stream)
+		return NULL;
 	if (req->bio->bi_ioprio != next->bio->bi_ioprio)
 		return NULL;
 	if (!blk_atomic_write_mergeable_rqs(req, next))
@@ -952,6 +954,8 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 	if (!bio_crypt_rq_ctx_compatible(rq, bio))
 		return false;
 	if (rq->bio->bi_write_hint != bio->bi_write_hint)
+		return false;
+	if (rq->bio->bi_write_stream != bio->bi_write_stream)
 		return false;
 	if (rq->bio->bi_ioprio != bio->bi_ioprio)
 		return false;
