@@ -489,8 +489,9 @@ iwl_op_mode_mld_stop(struct iwl_op_mode *op_mode)
 	iwl_mld_ptp_remove(mld);
 	iwl_mld_leds_exit(mld);
 
-	wiphy_lock(mld->wiphy);
 	iwl_mld_thermal_exit(mld);
+
+	wiphy_lock(mld->wiphy);
 	iwl_mld_low_latency_stop(mld);
 	iwl_mld_deinit_time_sync(mld);
 	wiphy_unlock(mld->wiphy);

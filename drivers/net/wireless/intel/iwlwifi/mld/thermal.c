@@ -441,6 +441,8 @@ static u32 iwl_mld_ctdp_get_max_budget(struct iwl_mld *mld)
 
 void iwl_mld_thermal_initialize(struct iwl_mld *mld)
 {
+	lockdep_assert_not_held(&mld->wiphy->mtx);
+
 	wiphy_delayed_work_init(&mld->ct_kill_exit_wk, iwl_mld_exit_ctkill);
 
 	mld->power_budget_mw = iwl_mld_ctdp_get_max_budget(mld);
@@ -454,7 +456,9 @@ void iwl_mld_thermal_initialize(struct iwl_mld *mld)
 
 void iwl_mld_thermal_exit(struct iwl_mld *mld)
 {
+	wiphy_lock(mld->wiphy);
 	wiphy_delayed_work_cancel(mld->wiphy, &mld->ct_kill_exit_wk);
+	wiphy_unlock(mld->wiphy);
 
 #ifdef CONFIG_THERMAL
 	iwl_mld_cooling_device_unregister(mld);
