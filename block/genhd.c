@@ -136,9 +136,9 @@ static void part_in_flight_rw(struct block_device *part,
 		inflight[0] += part_stat_local_read_cpu(part, in_flight[0], cpu);
 		inflight[1] += part_stat_local_read_cpu(part, in_flight[1], cpu);
 	}
-	if ((int)inflight[0] < 0)
+	if (WARN_ON_ONCE((int)inflight[0] < 0))
 		inflight[0] = 0;
-	if ((int)inflight[1] < 0)
+	if (WARN_ON_ONCE((int)inflight[1] < 0))
 		inflight[1] = 0;
 }
 
