@@ -1871,6 +1871,26 @@ static ssize_t veth_pool_show(struct kobject *kobj,
 	return 0;
 }
 
+/**
+ * veth_pool_store - sysfs store handler for pool attributes
+ * @kobj: kobject embedded in pool
+ * @attr: attribute being changed
+ * @buf: value being stored
+ * @count: length of @buf in bytes
+ *
+ * Stores new value in pool attribute. Verifies the range of the new value for
+ * size and buff_size. Verifies that at least one pool remains available to
+ * receive MTU-sized packets.
+ *
+ * Context: Process context.
+ *          Takes and releases rtnl_mutex to ensure correct ordering of close
+ *	    and open calls.
+ * Return:
+ * * %-EPERM  - Not allowed to disabled all MTU-sized buffer pools
+ * * %-EINVAL - New pool size or buffer size is out of range
+ * * count    - Return count for success
+ * * other    - Return value from a failed ibmveth_open call
+ */
 static ssize_t veth_pool_store(struct kobject *kobj, struct attribute *attr,
 			       const char *buf, size_t count)
 {
@@ -1880,28 +1900,30 @@ static ssize_t veth_pool_store(struct kobject *kobj, struct attribute *attr,
 	struct net_device *netdev = dev_get_drvdata(kobj_to_dev(kobj->parent));
 	struct ibmveth_adapter *adapter = netdev_priv(netdev);
 	long value = simple_strtol(buf, NULL, 10);
+	bool change = false;
+	u32 newbuff_size;
+	u32 oldbuff_size;
+	int newactive;
+	int oldactive;
+	u32 newsize;
+	u32 oldsize;
 	long rc;
 
 	rtnl_lock();
 
+	oldbuff_size = pool->buff_size;
+	oldactive = pool->active;
+	oldsize = pool->size;
+
+	newbuff_size = oldbuff_size;
+	newactive = oldactive;
+	newsize = oldsize;
+
 	if (attr == &veth_active_attr) {
-		if (value && !pool->active) {
-			if (netif_running(netdev)) {
-				if (ibmveth_alloc_buffer_pool(pool)) {
-					netdev_err(netdev,
-						   "unable to alloc pool\n");
-					rc = -ENOMEM;
-					goto unlock_err;
-				}
-				pool->active = 1;
-				ibmveth_close(netdev);
-				rc = ibmveth_open(netdev);
-				if (rc)
-					goto unlock_err;
-			} else {
-				pool->active = 1;
-			}
-		} else if (!value && pool->active) {
+		if (value && !oldactive) {
+			newactive = 1;
+			change = true;
+		} else if (!value && oldactive) {
 			int mtu = netdev->mtu + IBMVETH_BUFF_OH;
 			int i;
 			/* Make sure there is a buffer pool with buffers that
@@ -1921,43 +1943,44 @@ static ssize_t veth_pool_store(struct kobject *kobj, struct attribute *attr,
 				goto unlock_err;
 			}
 
-			if (netif_running(netdev)) {
-				ibmveth_close(netdev);
-				pool->active = 0;
-				rc = ibmveth_open(netdev);
-				if (rc)
-					goto unlock_err;
-			}
-			pool->active = 0;
+			newactive = 0;
+			change = true;
 		}
 	} else if (attr == &veth_num_attr) {
 		if (value <= 0 || value > IBMVETH_MAX_POOL_COUNT) {
 			rc = -EINVAL;
 			goto unlock_err;
-		} else {
-			if (netif_running(netdev)) {
-				ibmveth_close(netdev);
-				pool->size = value;
-				rc = ibmveth_open(netdev);
-				if (rc)
-					goto unlock_err;
-			} else {
-				pool->size = value;
-			}
+		}
+		if (value != oldsize) {
+			newsize = value;
+			change = true;
 		}
 	} else if (attr == &veth_size_attr) {
 		if (value <= IBMVETH_BUFF_OH || value > IBMVETH_MAX_BUF_SIZE) {
 			rc = -EINVAL;
 			goto unlock_err;
-		} else {
-			if (netif_running(netdev)) {
-				ibmveth_close(netdev);
-				pool->buff_size = value;
-				rc = ibmveth_open(netdev);
-				if (rc)
-					goto unlock_err;
-			} else {
-				pool->buff_size = value;
+		}
+		if (value != oldbuff_size) {
+			newbuff_size = value;
+			change = true;
+		}
+	}
+
+	if (change) {
+		if (netif_running(netdev))
+			ibmveth_close(netdev);
+
+		pool->active = newactive;
+		pool->buff_size = newbuff_size;
+		pool->size = newsize;
+
+		if (netif_running(netdev)) {
+			rc = ibmveth_open(netdev);
+			if (rc) {
+				pool->active = oldactive;
+				pool->buff_size = oldbuff_size;
+				pool->size = oldsize;
+				goto unlock_err;
 			}
 		}
 	}
