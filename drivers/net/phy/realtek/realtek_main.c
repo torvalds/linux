@@ -18,9 +18,15 @@
 
 #include "realtek.h"
 
-#define RTL821x_PHYSR				0x11
-#define RTL821x_PHYSR_DUPLEX			BIT(13)
-#define RTL821x_PHYSR_SPEED			GENMASK(15, 14)
+#define RTL8201F_IER				0x13
+
+#define RTL8201F_ISR				0x1e
+#define RTL8201F_ISR_ANERR			BIT(15)
+#define RTL8201F_ISR_DUPLEX			BIT(13)
+#define RTL8201F_ISR_LINK			BIT(11)
+#define RTL8201F_ISR_MASK			(RTL8201F_ISR_ANERR | \
+						 RTL8201F_ISR_DUPLEX | \
+						 RTL8201F_ISR_LINK)
 
 #define RTL821x_INER				0x12
 #define RTL8211B_INER_INIT			0x6400
@@ -30,14 +36,65 @@
 #define RTL821x_INSR				0x13
 
 #define RTL821x_EXT_PAGE_SELECT			0x1e
-#define RTL821x_PAGE_SELECT			0x1f
 
+#define RTL821x_PAGE_SELECT			0x1f
+#define RTL821x_SET_EXT_PAGE			0x07
+
+/* RTL8211E extension page 44/0x2c */
+#define RTL8211E_LEDCR_EXT_PAGE			0x2c
+#define RTL8211E_LEDCR1				0x1a
+#define RTL8211E_LEDCR1_ACT_TXRX		BIT(4)
+#define RTL8211E_LEDCR1_MASK			BIT(4)
+#define RTL8211E_LEDCR1_SHIFT			1
+
+#define RTL8211E_LEDCR2				0x1c
+#define RTL8211E_LEDCR2_LINK_1000		BIT(2)
+#define RTL8211E_LEDCR2_LINK_100		BIT(1)
+#define RTL8211E_LEDCR2_LINK_10			BIT(0)
+#define RTL8211E_LEDCR2_MASK			GENMASK(2, 0)
+#define RTL8211E_LEDCR2_SHIFT			4
+
+/* RTL8211E extension page 164/0xa4 */
+#define RTL8211E_RGMII_EXT_PAGE			0xa4
+#define RTL8211E_RGMII_DELAY			0x1c
+#define RTL8211E_CTRL_DELAY			BIT(13)
+#define RTL8211E_TX_DELAY			BIT(12)
+#define RTL8211E_RX_DELAY			BIT(11)
+#define RTL8211E_DELAY_MASK			GENMASK(13, 11)
+
+/* RTL8211F PHY configuration */
+#define RTL8211F_PHYCR_PAGE			0xa43
 #define RTL8211F_PHYCR1				0x18
+#define RTL8211F_ALDPS_PLL_OFF			BIT(1)
+#define RTL8211F_ALDPS_ENABLE			BIT(2)
+#define RTL8211F_ALDPS_XTAL_OFF			BIT(12)
+
 #define RTL8211F_PHYCR2				0x19
 #define RTL8211F_CLKOUT_EN			BIT(0)
 #define RTL8211F_PHYCR2_PHY_EEE_ENABLE		BIT(5)
 
+#define RTL8211F_INSR_PAGE			0xa43
 #define RTL8211F_INSR				0x1d
+
+/* RTL8211F LED configuration */
+#define RTL8211F_LEDCR_PAGE			0xd04
+#define RTL8211F_LEDCR				0x10
+#define RTL8211F_LEDCR_MODE			BIT(15)
+#define RTL8211F_LEDCR_ACT_TXRX			BIT(4)
+#define RTL8211F_LEDCR_LINK_1000		BIT(3)
+#define RTL8211F_LEDCR_LINK_100			BIT(1)
+#define RTL8211F_LEDCR_LINK_10			BIT(0)
+#define RTL8211F_LEDCR_MASK			GENMASK(4, 0)
+#define RTL8211F_LEDCR_SHIFT			5
+
+/* RTL8211F RGMII configuration */
+#define RTL8211F_RGMII_PAGE			0xd08
+
+#define RTL8211F_TXCR				0x11
+#define RTL8211F_TX_DELAY			BIT(8)
+
+#define RTL8211F_RXCR				0x15
+#define RTL8211F_RX_DELAY			BIT(3)
 
 /* RTL8211F WOL interrupt configuration */
 #define RTL8211F_INTBCR_PAGE			0xd40
@@ -56,35 +113,6 @@
 #define RTL8211F_PHYSICAL_ADDR_WORD0		16
 #define RTL8211F_PHYSICAL_ADDR_WORD1		17
 #define RTL8211F_PHYSICAL_ADDR_WORD2		18
-
-#define RTL8211F_LEDCR				0x10
-#define RTL8211F_LEDCR_MODE			BIT(15)
-#define RTL8211F_LEDCR_ACT_TXRX			BIT(4)
-#define RTL8211F_LEDCR_LINK_1000		BIT(3)
-#define RTL8211F_LEDCR_LINK_100			BIT(1)
-#define RTL8211F_LEDCR_LINK_10			BIT(0)
-#define RTL8211F_LEDCR_MASK			GENMASK(4, 0)
-#define RTL8211F_LEDCR_SHIFT			5
-
-#define RTL8211F_TX_DELAY			BIT(8)
-#define RTL8211F_RX_DELAY			BIT(3)
-
-#define RTL8211F_ALDPS_PLL_OFF			BIT(1)
-#define RTL8211F_ALDPS_ENABLE			BIT(2)
-#define RTL8211F_ALDPS_XTAL_OFF			BIT(12)
-
-#define RTL8211E_CTRL_DELAY			BIT(13)
-#define RTL8211E_TX_DELAY			BIT(12)
-#define RTL8211E_RX_DELAY			BIT(11)
-
-#define RTL8201F_ISR				0x1e
-#define RTL8201F_ISR_ANERR			BIT(15)
-#define RTL8201F_ISR_DUPLEX			BIT(13)
-#define RTL8201F_ISR_LINK			BIT(11)
-#define RTL8201F_ISR_MASK			(RTL8201F_ISR_ANERR | \
-						 RTL8201F_ISR_DUPLEX | \
-						 RTL8201F_ISR_LINK)
-#define RTL8201F_IER				0x13
 
 #define RTL822X_VND1_SERDES_OPTION			0x697a
 #define RTL822X_VND1_SERDES_OPTION_MODE_MASK		GENMASK(5, 0)
@@ -131,7 +159,8 @@
 #define RTL_8221B_VN_CG				0x001cc84a
 #define RTL_8251B				0x001cc862
 
-#define RTL8211F_LED_COUNT			3
+/* RTL8211E and RTL8211F support up to three LEDs */
+#define RTL8211x_LED_COUNT			3
 
 MODULE_DESCRIPTION("Realtek PHY driver");
 MODULE_AUTHOR("Johnson Leung");
@@ -155,6 +184,36 @@ static int rtl821x_write_page(struct phy_device *phydev, int page)
 	return __phy_write(phydev, RTL821x_PAGE_SELECT, page);
 }
 
+static int rtl821x_read_ext_page(struct phy_device *phydev, u16 ext_page,
+				 u32 regnum)
+{
+	int oldpage, ret = 0;
+
+	oldpage = phy_select_page(phydev, RTL821x_SET_EXT_PAGE);
+	if (oldpage >= 0) {
+		ret = __phy_write(phydev, RTL821x_EXT_PAGE_SELECT, ext_page);
+		if (ret == 0)
+			ret = __phy_read(phydev, regnum);
+	}
+
+	return phy_restore_page(phydev, oldpage, ret);
+}
+
+static int rtl821x_modify_ext_page(struct phy_device *phydev, u16 ext_page,
+				   u32 regnum, u16 mask, u16 set)
+{
+	int oldpage, ret = 0;
+
+	oldpage = phy_select_page(phydev, RTL821x_SET_EXT_PAGE);
+	if (oldpage >= 0) {
+		ret = __phy_write(phydev, RTL821x_EXT_PAGE_SELECT, ext_page);
+		if (ret == 0)
+			ret = __phy_modify(phydev, regnum, mask, set);
+	}
+
+	return phy_restore_page(phydev, oldpage, ret);
+}
+
 static int rtl821x_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
@@ -171,7 +230,7 @@ static int rtl821x_probe(struct phy_device *phydev)
 		return dev_err_probe(dev, PTR_ERR(priv->clk),
 				     "failed to get phy clock\n");
 
-	ret = phy_read_paged(phydev, 0xa43, RTL8211F_PHYCR1);
+	ret = phy_read_paged(phydev, RTL8211F_PHYCR_PAGE, RTL8211F_PHYCR1);
 	if (ret < 0)
 		return ret;
 
@@ -181,7 +240,7 @@ static int rtl821x_probe(struct phy_device *phydev)
 
 	priv->has_phycr2 = !(phy_id == RTL_8211FVD_PHYID);
 	if (priv->has_phycr2) {
-		ret = phy_read_paged(phydev, 0xa43, RTL8211F_PHYCR2);
+		ret = phy_read_paged(phydev, RTL8211F_PHYCR_PAGE, RTL8211F_PHYCR2);
 		if (ret < 0)
 			return ret;
 
@@ -217,7 +276,7 @@ static int rtl8211f_ack_interrupt(struct phy_device *phydev)
 {
 	int err;
 
-	err = phy_read_paged(phydev, 0xa43, RTL8211F_INSR);
+	err = phy_read_paged(phydev, RTL8211F_INSR_PAGE, RTL8211F_INSR);
 
 	return (err < 0) ? err : 0;
 }
@@ -360,7 +419,7 @@ static irqreturn_t rtl8211f_handle_interrupt(struct phy_device *phydev)
 {
 	int irq_status;
 
-	irq_status = phy_read_paged(phydev, 0xa43, RTL8211F_INSR);
+	irq_status = phy_read_paged(phydev, RTL8211F_INSR_PAGE, RTL8211F_INSR);
 	if (irq_status < 0) {
 		phy_error(phydev);
 		return IRQ_NONE;
@@ -457,7 +516,7 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	u16 val_txdly, val_rxdly;
 	int ret;
 
-	ret = phy_modify_paged_changed(phydev, 0xa43, RTL8211F_PHYCR1,
+	ret = phy_modify_paged_changed(phydev, RTL8211F_PHYCR_PAGE, RTL8211F_PHYCR1,
 				       RTL8211F_ALDPS_PLL_OFF | RTL8211F_ALDPS_ENABLE | RTL8211F_ALDPS_XTAL_OFF,
 				       priv->phycr1);
 	if (ret < 0) {
@@ -491,7 +550,8 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 		return 0;
 	}
 
-	ret = phy_modify_paged_changed(phydev, 0xd08, 0x11, RTL8211F_TX_DELAY,
+	ret = phy_modify_paged_changed(phydev, RTL8211F_RGMII_PAGE,
+				       RTL8211F_TXCR, RTL8211F_TX_DELAY,
 				       val_txdly);
 	if (ret < 0) {
 		dev_err(dev, "Failed to update the TX delay register\n");
@@ -506,7 +566,8 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 			str_enabled_disabled(val_txdly));
 	}
 
-	ret = phy_modify_paged_changed(phydev, 0xd08, 0x15, RTL8211F_RX_DELAY,
+	ret = phy_modify_paged_changed(phydev, RTL8211F_RGMII_PAGE,
+				       RTL8211F_RXCR, RTL8211F_RX_DELAY,
 				       val_rxdly);
 	if (ret < 0) {
 		dev_err(dev, "Failed to update the RX delay register\n");
@@ -522,14 +583,15 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	}
 
 	/* Disable PHY-mode EEE so LPI is passed to the MAC */
-	ret = phy_modify_paged(phydev, 0xa43, RTL8211F_PHYCR2,
+	ret = phy_modify_paged(phydev, RTL8211F_PHYCR_PAGE, RTL8211F_PHYCR2,
 			       RTL8211F_PHYCR2_PHY_EEE_ENABLE, 0);
 	if (ret)
 		return ret;
 
 	if (priv->has_phycr2) {
-		ret = phy_modify_paged(phydev, 0xa43, RTL8211F_PHYCR2,
-				       RTL8211F_CLKOUT_EN, priv->phycr2);
+		ret = phy_modify_paged(phydev, RTL8211F_PHYCR_PAGE,
+				       RTL8211F_PHYCR2, RTL8211F_CLKOUT_EN,
+				       priv->phycr2);
 		if (ret < 0) {
 			dev_err(dev, "clkout configuration failed: %pe\n",
 				ERR_PTR(ret));
@@ -576,7 +638,7 @@ static int rtl821x_resume(struct phy_device *phydev)
 	return 0;
 }
 
-static int rtl8211f_led_hw_is_supported(struct phy_device *phydev, u8 index,
+static int rtl8211x_led_hw_is_supported(struct phy_device *phydev, u8 index,
 					unsigned long rules)
 {
 	const unsigned long mask = BIT(TRIGGER_NETDEV_LINK_10) |
@@ -595,9 +657,11 @@ static int rtl8211f_led_hw_is_supported(struct phy_device *phydev, u8 index,
 	 *      rates and Active indication always at all three 10+100+1000
 	 *      link rates.
 	 * This code currently uses mode B only.
+	 *
+	 * RTL8211E PHY LED has one mode, which works like RTL8211F mode B.
 	 */
 
-	if (index >= RTL8211F_LED_COUNT)
+	if (index >= RTL8211x_LED_COUNT)
 		return -EINVAL;
 
 	/* Filter out any other unsupported triggers. */
@@ -616,7 +680,7 @@ static int rtl8211f_led_hw_control_get(struct phy_device *phydev, u8 index,
 {
 	int val;
 
-	if (index >= RTL8211F_LED_COUNT)
+	if (index >= RTL8211x_LED_COUNT)
 		return -EINVAL;
 
 	val = phy_read_paged(phydev, 0xd04, RTL8211F_LEDCR);
@@ -627,17 +691,17 @@ static int rtl8211f_led_hw_control_get(struct phy_device *phydev, u8 index,
 	val &= RTL8211F_LEDCR_MASK;
 
 	if (val & RTL8211F_LEDCR_LINK_10)
-		set_bit(TRIGGER_NETDEV_LINK_10, rules);
+		__set_bit(TRIGGER_NETDEV_LINK_10, rules);
 
 	if (val & RTL8211F_LEDCR_LINK_100)
-		set_bit(TRIGGER_NETDEV_LINK_100, rules);
+		__set_bit(TRIGGER_NETDEV_LINK_100, rules);
 
 	if (val & RTL8211F_LEDCR_LINK_1000)
-		set_bit(TRIGGER_NETDEV_LINK_1000, rules);
+		__set_bit(TRIGGER_NETDEV_LINK_1000, rules);
 
 	if (val & RTL8211F_LEDCR_ACT_TXRX) {
-		set_bit(TRIGGER_NETDEV_RX, rules);
-		set_bit(TRIGGER_NETDEV_TX, rules);
+		__set_bit(TRIGGER_NETDEV_RX, rules);
+		__set_bit(TRIGGER_NETDEV_TX, rules);
 	}
 
 	return 0;
@@ -649,7 +713,7 @@ static int rtl8211f_led_hw_control_set(struct phy_device *phydev, u8 index,
 	const u16 mask = RTL8211F_LEDCR_MASK << (RTL8211F_LEDCR_SHIFT * index);
 	u16 reg = 0;
 
-	if (index >= RTL8211F_LED_COUNT)
+	if (index >= RTL8211x_LED_COUNT)
 		return -EINVAL;
 
 	if (test_bit(TRIGGER_NETDEV_LINK_10, &rules))
@@ -672,9 +736,86 @@ static int rtl8211f_led_hw_control_set(struct phy_device *phydev, u8 index,
 	return phy_modify_paged(phydev, 0xd04, RTL8211F_LEDCR, mask, reg);
 }
 
+static int rtl8211e_led_hw_control_get(struct phy_device *phydev, u8 index,
+				       unsigned long *rules)
+{
+	int ret;
+	u16 cr1, cr2;
+
+	if (index >= RTL8211x_LED_COUNT)
+		return -EINVAL;
+
+	ret = rtl821x_read_ext_page(phydev, RTL8211E_LEDCR_EXT_PAGE,
+				    RTL8211E_LEDCR1);
+	if (ret < 0)
+		return ret;
+
+	cr1 = ret >> RTL8211E_LEDCR1_SHIFT * index;
+	if (cr1 & RTL8211E_LEDCR1_ACT_TXRX) {
+		__set_bit(TRIGGER_NETDEV_RX, rules);
+		__set_bit(TRIGGER_NETDEV_TX, rules);
+	}
+
+	ret = rtl821x_read_ext_page(phydev, RTL8211E_LEDCR_EXT_PAGE,
+				    RTL8211E_LEDCR2);
+	if (ret < 0)
+		return ret;
+
+	cr2 = ret >> RTL8211E_LEDCR2_SHIFT * index;
+	if (cr2 & RTL8211E_LEDCR2_LINK_10)
+		__set_bit(TRIGGER_NETDEV_LINK_10, rules);
+
+	if (cr2 & RTL8211E_LEDCR2_LINK_100)
+		__set_bit(TRIGGER_NETDEV_LINK_100, rules);
+
+	if (cr2 & RTL8211E_LEDCR2_LINK_1000)
+		__set_bit(TRIGGER_NETDEV_LINK_1000, rules);
+
+	return ret;
+}
+
+static int rtl8211e_led_hw_control_set(struct phy_device *phydev, u8 index,
+				       unsigned long rules)
+{
+	const u16 cr1mask =
+		RTL8211E_LEDCR1_MASK << (RTL8211E_LEDCR1_SHIFT * index);
+	const u16 cr2mask =
+		RTL8211E_LEDCR2_MASK << (RTL8211E_LEDCR2_SHIFT * index);
+	u16 cr1 = 0, cr2 = 0;
+	int ret;
+
+	if (index >= RTL8211x_LED_COUNT)
+		return -EINVAL;
+
+	if (test_bit(TRIGGER_NETDEV_RX, &rules) ||
+	    test_bit(TRIGGER_NETDEV_TX, &rules)) {
+		cr1 |= RTL8211E_LEDCR1_ACT_TXRX;
+	}
+
+	cr1 <<= RTL8211E_LEDCR1_SHIFT * index;
+	ret = rtl821x_modify_ext_page(phydev, RTL8211E_LEDCR_EXT_PAGE,
+				      RTL8211E_LEDCR1, cr1mask, cr1);
+	if (ret < 0)
+		return ret;
+
+	if (test_bit(TRIGGER_NETDEV_LINK_10, &rules))
+		cr2 |= RTL8211E_LEDCR2_LINK_10;
+
+	if (test_bit(TRIGGER_NETDEV_LINK_100, &rules))
+		cr2 |= RTL8211E_LEDCR2_LINK_100;
+
+	if (test_bit(TRIGGER_NETDEV_LINK_1000, &rules))
+		cr2 |= RTL8211E_LEDCR2_LINK_1000;
+
+	cr2 <<= RTL8211E_LEDCR2_SHIFT * index;
+	ret = rtl821x_modify_ext_page(phydev, RTL8211E_LEDCR_EXT_PAGE,
+				      RTL8211E_LEDCR2, cr2mask, cr2);
+
+	return ret;
+}
+
 static int rtl8211e_config_init(struct phy_device *phydev)
 {
-	int ret = 0, oldpage;
 	u16 val;
 
 	/* enable TX/RX delay for rgmii-* modes, and disable them for rgmii. */
@@ -704,20 +845,9 @@ static int rtl8211e_config_init(struct phy_device *phydev)
 	 * 12 = RX Delay, 11 = TX Delay
 	 * 10:0 = Test && debug settings reserved by realtek
 	 */
-	oldpage = phy_select_page(phydev, 0x7);
-	if (oldpage < 0)
-		goto err_restore_page;
-
-	ret = __phy_write(phydev, RTL821x_EXT_PAGE_SELECT, 0xa4);
-	if (ret)
-		goto err_restore_page;
-
-	ret = __phy_modify(phydev, 0x1c, RTL8211E_CTRL_DELAY
-			   | RTL8211E_TX_DELAY | RTL8211E_RX_DELAY,
-			   val);
-
-err_restore_page:
-	return phy_restore_page(phydev, oldpage, ret);
+	return rtl821x_modify_ext_page(phydev, RTL8211E_RGMII_EXT_PAGE,
+				       RTL8211E_RGMII_DELAY,
+				       RTL8211E_DELAY_MASK, val);
 }
 
 static int rtl8211b_suspend(struct phy_device *phydev)
@@ -1459,6 +1589,9 @@ static struct phy_driver realtek_drvs[] = {
 		.resume		= genphy_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
+		.led_hw_is_supported = rtl8211x_led_hw_is_supported,
+		.led_hw_control_get = rtl8211e_led_hw_control_get,
+		.led_hw_control_set = rtl8211e_led_hw_control_set,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc916),
 		.name		= "RTL8211F Gigabit Ethernet",
@@ -1474,7 +1607,7 @@ static struct phy_driver realtek_drvs[] = {
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
 		.flags		= PHY_ALWAYS_CALL_SUSPEND,
-		.led_hw_is_supported = rtl8211f_led_hw_is_supported,
+		.led_hw_is_supported = rtl8211x_led_hw_is_supported,
 		.led_hw_control_get = rtl8211f_led_hw_control_get,
 		.led_hw_control_set = rtl8211f_led_hw_control_set,
 	}, {
