@@ -157,6 +157,8 @@ static noinline int check_inode_hash_info_matches_root(struct btree_trans *trans
 		if (bkey_is_inode(k.k))
 			goto found;
 	}
+
+	/* This would've been caught by check_key_has_inode() */
 	bch_err(c, "%s(): inum %llu not found", __func__, inum);
 	ret = -BCH_ERR_fsck_repair_unimplemented;
 	goto err;
@@ -166,20 +168,25 @@ found:;
 	if (ret)
 		goto err;
 
-	struct bch_hash_info hash2 = bch2_hash_info_init(c, &inode);
-	if (hash_info->type != hash2.type ||
-	    memcmp(&hash_info->siphash_key, &hash2.siphash_key, sizeof(hash2.siphash_key))) {
+	struct bch_hash_info hash_root = bch2_hash_info_init(c, &inode);
+	if (hash_info->type != hash_root.type ||
+	    memcmp(&hash_info->siphash_key,
+		   &hash_root.siphash_key,
+		   sizeof(hash_root.siphash_key))) {
 		ret = repair_inode_hash_info(trans, &inode);
 		if (!ret) {
-			bch_err(c, "inode hash info mismatch with root, but mismatch not found\n"
-				"%u %llx %llx\n"
-				"%u %llx %llx",
-				hash_info->type,
-				hash_info->siphash_key.k0,
-				hash_info->siphash_key.k1,
-				hash2.type,
-				hash2.siphash_key.k0,
-				hash2.siphash_key.k1);
+			struct printbuf buf = PRINTBUF;
+			prt_printf(&buf, "inode %llu hash info mismatch with root, but mismatch not found\n", inum);
+
+			prt_printf(&buf, "root snapshot %u ", hash_root.inum_snapshot);
+			bch2_prt_str_hash_type(&buf, hash_root.type);
+			prt_printf(&buf, " %llx %llx\n", hash_root.siphash_key.k0, hash_root.siphash_key.k1);
+
+			prt_printf(&buf, "vs   snapshot %u ", hash_info->inum_snapshot);
+			bch2_prt_str_hash_type(&buf, hash_info->type);
+			prt_printf(&buf, " %llx %llx", hash_info->siphash_key.k0, hash_info->siphash_key.k1);
+			bch_err(c, "%s", buf.buf);
+			printbuf_exit(&buf);
 			ret = -BCH_ERR_fsck_repair_unimplemented;
 		}
 	}
