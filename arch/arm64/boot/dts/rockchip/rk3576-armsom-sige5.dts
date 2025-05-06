@@ -275,6 +275,10 @@
 	};
 };
 
+&hdmi_sound {
+	status = "okay";
+};
+
 &hdptxphy {
 	status = "okay";
 };
@@ -733,6 +737,10 @@
 		     &sai1m0_sclk
 		     &sai1m0_sdi0
 		     &sai1m0_sdo0>;
+	status = "okay";
+};
+
+&sai6 {
 	status = "okay";
 };
 
