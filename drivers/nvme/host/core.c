@@ -2392,7 +2392,7 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 
 	lim.max_write_streams = ns->head->nr_plids;
 	if (lim.max_write_streams)
-		lim.write_stream_granularity = max(info->runs, U32_MAX);
+		lim.write_stream_granularity = min(info->runs, U32_MAX);
 	else
 		lim.write_stream_granularity = 0;
 
