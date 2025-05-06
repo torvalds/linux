@@ -34,7 +34,7 @@
 
 /* Supported SST hardware version by this driver */
 #define ISST_MAJOR_VERSION	0
-#define ISST_MINOR_VERSION	1
+#define ISST_MINOR_VERSION	2
 
 /*
  * Used to indicate if value read from MMIO needs to get multiplied
@@ -380,7 +380,7 @@ static int sst_main(struct auxiliary_device *auxdev, struct tpmi_per_power_domai
 		return -ENODEV;
 	}
 
-	if (TPMI_MINOR_VERSION(pd_info->sst_header.interface_version) != ISST_MINOR_VERSION)
+	if (TPMI_MINOR_VERSION(pd_info->sst_header.interface_version) > ISST_MINOR_VERSION)
 		dev_info(dev, "SST: Ignore: Unsupported minor version:%lx\n",
 			 TPMI_MINOR_VERSION(pd_info->sst_header.interface_version));
 
