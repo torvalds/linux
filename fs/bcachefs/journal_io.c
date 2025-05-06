@@ -1782,7 +1782,7 @@ static CLOSURE_CALLBACK(journal_write_submit)
 		struct bch_dev *ca = bch2_dev_get_ioref(c, ptr->dev, WRITE);
 		if (!ca) {
 			/* XXX: fix this */
-			bch_err(c, "missing device for journal write\n");
+			bch_err(c, "missing device %u for journal write", ptr->dev);
 			continue;
 		}
 

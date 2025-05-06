@@ -12,7 +12,6 @@ description:
   PS_MODE). Every pin can be configured as input/output.
 
 maintainers:
-  - Mubin Sayyed <mubin.sayyed@amd.com>
   - Radhey Shyam Pandey <radhey.shyam.pandey@amd.com>
 
 properties:

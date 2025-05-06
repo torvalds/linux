@@ -2204,10 +2204,10 @@ void bch2_fs_ec_stop(struct bch_fs *c)
 
 static bool bch2_fs_ec_flush_done(struct bch_fs *c)
 {
-	bool ret;
+	sched_annotate_sleep();
 
 	mutex_lock(&c->ec_stripe_new_lock);
-	ret = list_empty(&c->ec_stripe_new_list);
+	bool ret = list_empty(&c->ec_stripe_new_list);
 	mutex_unlock(&c->ec_stripe_new_lock);
 
 	return ret;

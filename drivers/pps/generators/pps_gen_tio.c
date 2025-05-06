@@ -230,7 +230,7 @@ static int pps_gen_tio_probe(struct platform_device *pdev)
 	hrtimer_setup(&tio->timer, hrtimer_callback, CLOCK_REALTIME,
 		      HRTIMER_MODE_ABS);
 	spin_lock_init(&tio->lock);
-	platform_set_drvdata(pdev, &tio);
+	platform_set_drvdata(pdev, tio);
 
 	return 0;
 }
