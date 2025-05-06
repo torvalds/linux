@@ -1147,6 +1147,22 @@
 #define regUVD_DPG_LMA_CTL2_BASE_IDX                                                                    1
 
 
+// addressBlock: uvd_mmsch_dec
+// base address: 0x20d2c
+#define regMMSCH_VF_VMID                                                                                0x054b
+#define regMMSCH_VF_VMID_BASE_IDX                                                                       1
+#define regMMSCH_VF_CTX_ADDR_LO                                                                         0x054c
+#define regMMSCH_VF_CTX_ADDR_LO_BASE_IDX                                                                1
+#define regMMSCH_VF_CTX_ADDR_HI                                                                         0x054d
+#define regMMSCH_VF_CTX_ADDR_HI_BASE_IDX                                                                1
+#define regMMSCH_VF_CTX_SIZE                                                                            0x054e
+#define regMMSCH_VF_CTX_SIZE_BASE_IDX                                                                   1
+#define regMMSCH_VF_MAILBOX_HOST                                                                        0x0552
+#define regMMSCH_VF_MAILBOX_HOST_BASE_IDX                                                               1
+#define regMMSCH_VF_MAILBOX_RESP                                                                        0x0553
+#define regMMSCH_VF_MAILBOX_RESP_BASE_IDX                                                               1
+
+
 // addressBlock: uvd_vcn_umsch_dec
 // base address: 0x21500
 #define regVCN_UMSCH_MES_CNTL                                                                           0x0740
