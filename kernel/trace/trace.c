@@ -6032,6 +6032,7 @@ unsigned long trace_adjust_address(struct trace_array *tr, unsigned long addr)
 	struct trace_module_delta *module_delta;
 	struct trace_scratch *tscratch;
 	struct trace_mod_entry *entry;
+	unsigned long raddr;
 	int idx = 0, nr_entries;
 
 	/* If we don't have last boot delta, return the address */
@@ -6045,7 +6046,9 @@ unsigned long trace_adjust_address(struct trace_array *tr, unsigned long addr)
 	module_delta = READ_ONCE(tr->module_delta);
 	if (!module_delta || !tscratch->nr_entries ||
 	    tscratch->entries[0].mod_addr > addr) {
-		return addr + tr->text_delta;
+		raddr = addr + tr->text_delta;
+		return __is_kernel(raddr) || is_kernel_core_data(raddr) ||
+			is_kernel_rodata(raddr) ? raddr : addr;
 	}
 
 	/* Note that entries must be sorted. */
