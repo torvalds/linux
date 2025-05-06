@@ -489,6 +489,24 @@ enum iwl_link_modify_bandwidth {
 };
 
 /**
+ * struct iwl_npca_params - NPCA parameters (non-primary channel access)
+ *
+ * @switch_delay: after switch, delay TX according to destination AP
+ * @switch_back_delay: switch back to control channel before OBSS frame end
+ * @min_dur_threshold: minimum PPDU time to switch to the non-primary
+ *	NPCA channel
+ * @flags: NPCA flags - bit 0: puncturing allowed, bit 1: new TX allowed
+ * @reserved: reserved for alignment purposes
+ */
+struct iwl_npca_params {
+	u8 switch_delay;
+	u8 switch_back_delay;
+	__le16 min_dur_threshold;
+	__le16 flags;
+	__le16 reserved;
+} __packed; /* NPCA_PARAM_API_S_VER_1 */
+
+/**
  * struct iwl_link_config_cmd - command structure to configure the LINK context
  *	in MLD API
  * ( LINK_CONFIG_CMD =0x9 )
@@ -545,6 +563,8 @@ enum iwl_link_modify_bandwidth {
  *	IEEE802.11REVme-D5.0
  * @ibss_bssid_addr: bssid for ibss
  * @reserved_for_ibss_bssid_addr: reserved
+ * @npca_params: NPCA parameters
+ * @prio_edca_params: priority EDCA parameters for enhanced QoS
  * @reserved3: reserved for future use
  */
 struct iwl_link_config_cmd {
@@ -592,8 +612,10 @@ struct iwl_link_config_cmd {
 	u8 ul_mu_data_disable;
 	u8 ibss_bssid_addr[6];
 	__le16 reserved_for_ibss_bssid_addr;
-	__le32 reserved3[8];
-} __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1, _VER_2, _VER_3, _VER_4, _VER_5, _VER_6 */
+	struct iwl_npca_params npca_params; /* since _VER_7 */
+	struct iwl_ac_qos prio_edca_params; /* since _VER_7 */
+	__le32 reserved3[4];
+} __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1, _VER_2, _VER_3, _VER_4, _VER_5, _VER_6, _VER_7 */
 
 /* Currently FW supports link ids in the range 0-3 and can have
  * at most two active links for each vif.
