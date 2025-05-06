@@ -377,11 +377,8 @@ static bool i915_has_legacy_blc_interrupt(struct intel_display *display)
 	return IS_DISPLAY_VER(display, 3, 4) && display->platform.mobile;
 }
 
-/**
- * i915_enable_asle_pipestat - enable ASLE pipestat for OpRegion
- * @display: display device
- */
-void i915_enable_asle_pipestat(struct intel_display *display)
+/* enable ASLE pipestat for OpRegion */
+static void i915_enable_asle_pipestat(struct intel_display *display)
 {
 	struct drm_i915_private *dev_priv = to_i915(display->drm);
 
