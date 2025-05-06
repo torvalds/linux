@@ -116,6 +116,14 @@ for socket with ID00 is given below::
 			})
 		}
 
+HSMP HWMON interface
+====================
+HSMP power sensors are registered with the hwmon interface. A separate hwmon
+directory is created for each socket and the following files are generated
+within the hwmon directory.
+- power1_input (read only)
+- power1_cap_max (read only)
+- power1_cap (read, write)
 
 An example
 ==========

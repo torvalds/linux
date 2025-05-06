@@ -281,6 +281,10 @@ static int init_acpi(struct device *dev)
 			dev_err(dev, "Failed to init metric table\n");
 	}
 
+	ret = hsmp_create_sensor(dev, sock_ind);
+	if (ret)
+		dev_err(dev, "Failed to register HSMP sensors with hwmon\n");
+
 	return ret;
 }
 
