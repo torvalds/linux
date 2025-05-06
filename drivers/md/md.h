@@ -404,7 +404,8 @@ struct mddev {
 						       * are happening, so run/
 						       * takeover/stop are not safe
 						       */
-	struct gendisk			*gendisk;
+	struct gendisk			*gendisk;    /* mdraid gendisk */
+	struct gendisk			*dm_gendisk; /* dm-raid gendisk */
 
 	struct kobject			kobj;
 	int				hold_active;
