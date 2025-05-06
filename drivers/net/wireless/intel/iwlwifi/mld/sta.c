@@ -401,9 +401,11 @@ static u32 iwl_mld_get_htc_flags(struct ieee80211_link_sta *link_sta)
 static int iwl_mld_send_sta_cmd(struct iwl_mld *mld,
 				const struct iwl_sta_cfg_cmd *cmd)
 {
-	int ret = iwl_mld_send_cmd_pdu(mld,
-				       WIDE_ID(MAC_CONF_GROUP, STA_CONFIG_CMD),
-				       cmd);
+	u32 cmd_id = WIDE_ID(MAC_CONF_GROUP, STA_CONFIG_CMD);
+	int cmd_len = iwl_fw_lookup_cmd_ver(mld->fw, cmd_id, 0) > 1 ?
+		      sizeof(*cmd) :
+		      sizeof(struct iwl_sta_cfg_cmd_v1);
+	int ret = iwl_mld_send_cmd_pdu(mld, cmd_id, cmd, cmd_len);
 	if (ret)
 		IWL_ERR(mld, "STA_CONFIG_CMD send failed, ret=0x%x\n", ret);
 	return ret;
