@@ -14,14 +14,6 @@
 #include <linux/string.h>
 #include <linux/unaligned.h>
 
-void poly1305_block_init_generic(struct poly1305_block_state *desc,
-				 const u8 raw_key[POLY1305_BLOCK_SIZE])
-{
-	poly1305_core_init(&desc->h);
-	poly1305_core_setkey(&desc->core_r, raw_key);
-}
-EXPORT_SYMBOL_GPL(poly1305_block_init_generic);
-
 void poly1305_init(struct poly1305_desc_ctx *desc,
 		   const u8 key[POLY1305_KEY_SIZE])
 {
