@@ -230,7 +230,7 @@ Drivers must provide a pointer to the allocated and initialized new EM
 and will be visible to other sub-systems in the kernel (thermal, powercap).
 The main design goal for this API is to be fast and avoid extra calculations
 or memory allocations at runtime. When pre-computed EMs are available in the
-device driver, than it should be possible to simply re-use them with low
+device driver, then it should be possible to simply reuse them with low
 performance overhead.
 
 In order to free the EM, provided earlier by the driver (e.g. when the module
