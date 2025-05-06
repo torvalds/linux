@@ -1460,7 +1460,7 @@ fsck_err:
 
 static void journal_advance_devs_to_next_bucket(struct journal *j,
 						struct dev_alloc_list *devs,
-						unsigned sectors, u64 seq)
+						unsigned sectors, __le64 seq)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 
@@ -1782,7 +1782,7 @@ static CLOSURE_CALLBACK(journal_write_submit)
 		struct bch_dev *ca = bch2_dev_get_ioref(c, ptr->dev, WRITE);
 		if (!ca) {
 			/* XXX: fix this */
-			bch_err(c, "missing device for journal write\n");
+			bch_err(c, "missing device %u for journal write", ptr->dev);
 			continue;
 		}
 

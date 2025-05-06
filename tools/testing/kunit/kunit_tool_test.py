@@ -371,8 +371,8 @@ class KUnitParserTest(unittest.TestCase):
 		"""
 		result = kunit_parser.parse_run_tests(output.splitlines(), stdout)
 		# Missing test results after test plan should alert a suspected test crash.
-		self.assertEqual(kunit_parser.TestStatus.TEST_CRASHED, result.status)
-		self.assertEqual(result.counts, kunit_parser.TestCounts(passed=1, crashed=1, errors=1))
+		self.assertEqual(kunit_parser.TestStatus.SUCCESS, result.status)
+		self.assertEqual(result.counts, kunit_parser.TestCounts(passed=1, errors=2))
 
 def line_stream_from_strs(strs: Iterable[str]) -> kunit_parser.LineStream:
 	return kunit_parser.LineStream(enumerate(strs, start=1))

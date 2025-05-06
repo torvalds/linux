@@ -59,6 +59,20 @@ int l3mdev_ifindex_lookup_by_table_id(enum l3mdev_type l3type, struct net *net,
 int l3mdev_fib_rule_match(struct net *net, struct flowi *fl,
 			  struct fib_lookup_arg *arg);
 
+static inline
+bool l3mdev_fib_rule_iif_match(const struct flowi *fl, int iifindex)
+{
+	return !(fl->flowi_flags & FLOWI_FLAG_L3MDEV_OIF) &&
+	       fl->flowi_l3mdev == iifindex;
+}
+
+static inline
+bool l3mdev_fib_rule_oif_match(const struct flowi *fl, int oifindex)
+{
+	return fl->flowi_flags & FLOWI_FLAG_L3MDEV_OIF &&
+	       fl->flowi_l3mdev == oifindex;
+}
+
 void l3mdev_update_flow(struct net *net, struct flowi *fl);
 
 int l3mdev_master_ifindex_rcu(const struct net_device *dev);
@@ -327,6 +341,19 @@ int l3mdev_fib_rule_match(struct net *net, struct flowi *fl,
 {
 	return 1;
 }
+
+static inline
+bool l3mdev_fib_rule_iif_match(const struct flowi *fl, int iifindex)
+{
+	return false;
+}
+
+static inline
+bool l3mdev_fib_rule_oif_match(const struct flowi *fl, int oifindex)
+{
+	return false;
+}
+
 static inline
 void l3mdev_update_flow(struct net *net, struct flowi *fl)
 {

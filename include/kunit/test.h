@@ -67,7 +67,7 @@ enum kunit_status {
 
 /*
  * Speed Attribute is stored as an enum and separated into categories of
- * speed: very_slowm, slow, and normal. These speeds are relative to
+ * speed: very_slow, slow, and normal. These speeds are relative to
  * other KUnit tests.
  *
  * Note: unset speed attribute acts as default of KUNIT_SPEED_NORMAL.

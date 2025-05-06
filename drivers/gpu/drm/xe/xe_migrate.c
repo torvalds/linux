@@ -1177,7 +1177,7 @@ err:
 err_sync:
 		/* Sync partial copies if any. FIXME: job_mutex? */
 		if (fence) {
-			dma_fence_wait(m->fence, false);
+			dma_fence_wait(fence, false);
 			dma_fence_put(fence);
 		}
 
@@ -1547,7 +1547,7 @@ void xe_migrate_wait(struct xe_migrate *m)
 static u32 pte_update_cmd_size(u64 size)
 {
 	u32 num_dword;
-	u64 entries = DIV_ROUND_UP(size, XE_PAGE_SIZE);
+	u64 entries = DIV_U64_ROUND_UP(size, XE_PAGE_SIZE);
 
 	XE_WARN_ON(size > MAX_PREEMPTDISABLE_TRANSFER);
 	/*
@@ -1558,7 +1558,7 @@ static u32 pte_update_cmd_size(u64 size)
 	 * 2 dword for the page table's physical location
 	 * 2*n dword for value of pte to fill (each pte entry is 2 dwords)
 	 */
-	num_dword = (1 + 2) * DIV_ROUND_UP(entries, 0x1ff);
+	num_dword = (1 + 2) * DIV_U64_ROUND_UP(entries, 0x1ff);
 	num_dword += entries * 2;
 
 	return num_dword;

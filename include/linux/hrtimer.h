@@ -345,7 +345,7 @@ static inline void hrtimer_update_function(struct hrtimer *timer,
 	if (WARN_ON_ONCE(!function))
 		return;
 #endif
-	timer->function = function;
+	ACCESS_PRIVATE(timer, function) = function;
 }
 
 /* Forward a hrtimer so it expires after now: */

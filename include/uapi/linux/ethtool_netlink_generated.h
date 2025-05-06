@@ -31,11 +31,6 @@ enum ethtool_header_flags {
 	ETHTOOL_FLAG_STATS = 4,
 };
 
-enum {
-	ETHTOOL_PHY_UPSTREAM_TYPE_MAC,
-	ETHTOOL_PHY_UPSTREAM_TYPE_PHY,
-};
-
 enum ethtool_tcp_data_split {
 	ETHTOOL_TCP_DATA_SPLIT_UNKNOWN,
 	ETHTOOL_TCP_DATA_SPLIT_DISABLED,

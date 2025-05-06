@@ -240,7 +240,7 @@ void nvmet_auth_sq_free(struct nvmet_sq *sq)
 {
 	cancel_delayed_work(&sq->auth_expired_work);
 #ifdef CONFIG_NVME_TARGET_TCP_TLS
-	sq->tls_key = 0;
+	sq->tls_key = NULL;
 #endif
 	kfree(sq->dhchap_c1);
 	sq->dhchap_c1 = NULL;
@@ -600,13 +600,12 @@ void nvmet_auth_insert_psk(struct nvmet_sq *sq)
 		pr_warn("%s: ctrl %d qid %d failed to refresh key, error %ld\n",
 			__func__, sq->ctrl->cntlid, sq->qid, PTR_ERR(tls_key));
 		tls_key = NULL;
-		kfree_sensitive(tls_psk);
 	}
 	if (sq->ctrl->tls_key)
 		key_put(sq->ctrl->tls_key);
 	sq->ctrl->tls_key = tls_key;
 #endif
-
+	kfree_sensitive(tls_psk);
 out_free_digest:
 	kfree_sensitive(digest);
 out_free_psk:

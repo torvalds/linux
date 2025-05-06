@@ -142,7 +142,7 @@ static void qcom_spi_set_read_loc_first(struct qcom_nand_controller *snandc,
 	else if (reg == NAND_READ_LOCATION_1)
 		snandc->regs->read_location1 = locreg_val;
 	else if (reg == NAND_READ_LOCATION_2)
-		snandc->regs->read_location1 = locreg_val;
+		snandc->regs->read_location2 = locreg_val;
 	else if (reg == NAND_READ_LOCATION_3)
 		snandc->regs->read_location3 = locreg_val;
 }
@@ -1307,8 +1307,7 @@ static int qcom_spi_send_cmdaddr(struct qcom_nand_controller *snandc,
 		snandc->qspi->addr1 = cpu_to_le32(s_op.addr1_reg << 16);
 		snandc->qspi->addr2 = cpu_to_le32(s_op.addr2_reg);
 		snandc->qspi->cmd = cpu_to_le32(cmd);
-		qcom_spi_block_erase(snandc);
-		return 0;
+		return qcom_spi_block_erase(snandc);
 	default:
 		break;
 	}

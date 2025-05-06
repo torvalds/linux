@@ -880,8 +880,6 @@ static void print_graph_retval(struct trace_seq *s, struct ftrace_graph_ent_entr
 
 		if (print_retval || print_retaddr)
 			trace_seq_puts(s, " /*");
-		else
-			trace_seq_putc(s, '\n');
 	} else {
 		print_retaddr = false;
 		trace_seq_printf(s, "} /* %ps", func);
@@ -899,7 +897,7 @@ static void print_graph_retval(struct trace_seq *s, struct ftrace_graph_ent_entr
 	}
 
 	if (!entry || print_retval || print_retaddr)
-		trace_seq_puts(s, " */\n");
+		trace_seq_puts(s, " */");
 }
 
 #else
@@ -975,7 +973,7 @@ print_graph_entry_leaf(struct trace_iterator *iter,
 		} else
 			trace_seq_puts(s, "();");
 	}
-	trace_seq_printf(s, "\n");
+	trace_seq_putc(s, '\n');
 
 	print_graph_irq(iter, graph_ret->func, TRACE_GRAPH_RET,
 			cpu, iter->ent->pid, flags);
@@ -1313,10 +1311,11 @@ print_graph_return(struct ftrace_graph_ret_entry *retentry, struct trace_seq *s,
 		 * that if the funcgraph-tail option is enabled.
 		 */
 		if (func_match && !(flags & TRACE_GRAPH_PRINT_TAIL))
-			trace_seq_puts(s, "}\n");
+			trace_seq_puts(s, "}");
 		else
-			trace_seq_printf(s, "} /* %ps */\n", (void *)func);
+			trace_seq_printf(s, "} /* %ps */", (void *)func);
 	}
+	trace_seq_putc(s, '\n');
 
 	/* Overrun */
 	if (flags & TRACE_GRAPH_PRINT_OVERRUN)
