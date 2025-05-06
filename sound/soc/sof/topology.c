@@ -19,6 +19,10 @@
 #include "sof-audio.h"
 #include "ops.h"
 
+static bool disable_function_topology;
+module_param(disable_function_topology, bool, 0444);
+MODULE_PARM_DESC(disable_function_topology, "Disable function topology loading");
+
 #define COMP_ID_UNASSIGNED		0xffffffff
 /*
  * Constants used in the computation of linear volume gain
@@ -2481,8 +2485,8 @@ int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 	if (!tplg_files)
 		return -ENOMEM;
 
-	if (!sof_pdata->disable_function_topology && sof_pdata->machine &&
-	    sof_pdata->machine->get_function_tplg_files) {
+	if (!sof_pdata->disable_function_topology && !disable_function_topology &&
+	    sof_pdata->machine && sof_pdata->machine->get_function_tplg_files) {
 		tplg_cnt = sof_pdata->machine->get_function_tplg_files(scomp->card,
 								       sof_pdata->machine,
 								       tplg_filename_prefix,
