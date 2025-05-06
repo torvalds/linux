@@ -8,6 +8,8 @@
  * Copyright (C) 2001 by various other people who didn't put their name here.
  */
 
+#define pr_fmt(fmt) "uml-vector: " fmt
+
 #include <linux/memblock.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -1551,41 +1553,33 @@ static void vector_setup_etheraddr(struct net_device *dev, char *str)
 		addr[i] = simple_strtoul(str, &end, 16);
 		if ((end == str) ||
 		   ((*end != ':') && (*end != ',') && (*end != '\0'))) {
-			printk(KERN_ERR
-			       "setup_etheraddr: failed to parse '%s' "
-			       "as an ethernet address\n", str);
+			netdev_err(dev,
+				"Failed to parse '%s' as an ethernet address\n", str);
 			goto random;
 		}
 		str = end + 1;
 	}
 	if (is_multicast_ether_addr(addr)) {
-		printk(KERN_ERR
-		       "Attempt to assign a multicast ethernet address to a "
-		       "device disallowed\n");
+		netdev_err(dev,
+			"Attempt to assign a multicast ethernet address to a device disallowed\n");
 		goto random;
 	}
 	if (!is_valid_ether_addr(addr)) {
-		printk(KERN_ERR
-		       "Attempt to assign an invalid ethernet address to a "
-		       "device disallowed\n");
+		netdev_err(dev,
+			"Attempt to assign an invalid ethernet address to a device disallowed\n");
 		goto random;
 	}
 	if (!is_local_ether_addr(addr)) {
-		printk(KERN_WARNING
-		       "Warning: Assigning a globally valid ethernet "
-		       "address to a device\n");
-		printk(KERN_WARNING "You should set the 2nd rightmost bit in "
-		       "the first byte of the MAC,\n");
-		printk(KERN_WARNING "i.e. %02x:%02x:%02x:%02x:%02x:%02x\n",
-		       addr[0] | 0x02, addr[1], addr[2], addr[3], addr[4],
-		       addr[5]);
+		netdev_warn(dev, "Warning: Assigning a globally valid ethernet address to a device\n");
+		netdev_warn(dev, "You should set the 2nd rightmost bit in the first byte of the MAC,\n");
+		netdev_warn(dev, "i.e. %02x:%02x:%02x:%02x:%02x:%02x\n",
+			addr[0] | 0x02, addr[1], addr[2], addr[3], addr[4], addr[5]);
 	}
 	eth_hw_addr_set(dev, addr);
 	return;
 
 random:
-	printk(KERN_INFO
-	       "Choosing a random ethernet address for device %s\n", dev->name);
+	netdev_info(dev, "Choosing a random ethernet address\n");
 	eth_hw_addr_random(dev);
 }
 
@@ -1601,14 +1595,12 @@ static void vector_eth_configure(
 
 	device = kzalloc(sizeof(*device), GFP_KERNEL);
 	if (device == NULL) {
-		printk(KERN_ERR "eth_configure failed to allocate struct "
-				 "vector_device\n");
+		pr_err("Failed to allocate struct vector_device for vec%d\n", n);
 		return;
 	}
 	dev = alloc_etherdev(sizeof(struct vector_private));
 	if (dev == NULL) {
-		printk(KERN_ERR "eth_configure: failed to allocate struct "
-				 "net_device for vec%d\n", n);
+		pr_err("Failed to allocate struct net_device for vec%d\n", n);
 		goto out_free_device;
 	}
 
@@ -1738,8 +1730,7 @@ static int __init vector_setup(char *str)
 
 	err = vector_parse(str, &n, &str, &error);
 	if (err) {
-		printk(KERN_ERR "vector_setup - Couldn't parse '%s' : %s\n",
-				 str, error);
+		pr_err("Couldn't parse '%s': %s\n", str, error);
 		return 1;
 	}
 	new = memblock_alloc_or_panic(sizeof(*new), SMP_CACHE_BYTES);
