@@ -746,6 +746,9 @@ static struct folio *__iomap_get_folio(struct iomap_iter *iter, size_t len)
 	const struct iomap_folio_ops *folio_ops = iter->iomap.folio_ops;
 	loff_t pos = iter->pos;
 
+	if (!mapping_large_folio_support(iter->inode->i_mapping))
+		len = min_t(size_t, len, PAGE_SIZE - offset_in_page(pos));
+
 	if (folio_ops && folio_ops->get_folio)
 		return folio_ops->get_folio(iter, pos, len);
 	else
@@ -806,9 +809,6 @@ static int iomap_write_begin(struct iomap_iter *iter, size_t len,
 
 	if (fatal_signal_pending(current))
 		return -EINTR;
-
-	if (!mapping_large_folio_support(iter->inode->i_mapping))
-		len = min_t(size_t, len, PAGE_SIZE - offset_in_page(pos));
 
 	folio = __iomap_get_folio(iter, len);
 	if (IS_ERR(folio))
