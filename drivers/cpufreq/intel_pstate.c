@@ -982,6 +982,7 @@ static int hybrid_get_cost(struct device *dev, unsigned long freq,
 			   unsigned long *cost)
 {
 	struct pstate_data *pstate = &all_cpu_data[dev->id]->pstate;
+	struct cpu_cacheinfo *cacheinfo = get_cpu_cacheinfo(dev->id);
 
 	/*
 	 * The smaller the perf-to-frequency scaling factor, the larger the IPC
@@ -994,6 +995,22 @@ static int hybrid_get_cost(struct device *dev, unsigned long freq,
 	 * of the same type in different "utilization bins" is different.
 	 */
 	*cost = div_u64(100ULL * INTEL_PSTATE_CORE_SCALING, pstate->scaling) + freq;
+	/*
+	 * Increase the cost slightly for CPUs able to access L3 to avoid
+	 * touching it in case some other CPUs of the same type can do the work
+	 * without it.
+	 */
+	if (cacheinfo) {
+		unsigned int i;
+
+		/* Check if L3 cache is there. */
+		for (i = 0; i < cacheinfo->num_leaves; i++) {
+			if (cacheinfo->info_list[i].level == 3) {
+				*cost += 2;
+				break;
+			}
+		}
+	}
 
 	return 0;
 }
