@@ -116,8 +116,8 @@ free_resp:
 
 static int compare_temps(const void *a, const void *b)
 {
-	return ((s16)le16_to_cpu(*(__le16 *)a) -
-		(s16)le16_to_cpu(*(__le16 *)b));
+	return ((s16)le16_to_cpu(*(const __le16 *)a) -
+		(s16)le16_to_cpu(*(const __le16 *)b));
 }
 
 struct iwl_trip_walk_data {
