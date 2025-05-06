@@ -89,7 +89,14 @@ config BTRFS_EXPERIMENTAL
 
 	  Current list:
 
-	  - extent map shrinker - performance problems with too frequent shrinks
+	  - COW fixup worker warning - last warning before removing the
+				       functionality catching out-of-band page
+				       dirtying, not necessary since 5.8
+
+	  - RAID mirror read policy - additional read policies for balancing
+				      reading from redundant block group
+				      profiles (currently: pid, round-robin,
+				      fixed devid)
 
 	  - send stream protocol v3 - fs-verity support
 
