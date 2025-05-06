@@ -594,6 +594,7 @@ config I2C_DESIGNWARE_PLATFORM
 
 config I2C_DESIGNWARE_AMDISP
 	tristate "Synopsys DesignWare Platform for AMDISP"
+	depends on DRM_AMD_ISP || COMPILE_TEST
 	depends on I2C_DESIGNWARE_CORE
 	help
 	  If you say yes to this option, support will be included for the
