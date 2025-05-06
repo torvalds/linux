@@ -1237,6 +1237,8 @@ void cpufreq_generic_init(struct cpufreq_policy *policy,
 		struct cpufreq_frequency_table *table,
 		unsigned int transition_latency);
 
+bool cpufreq_ready_for_eas(const struct cpumask *cpu_mask);
+
 static inline void cpufreq_register_em_with_opp(struct cpufreq_policy *policy)
 {
 	dev_pm_opp_of_register_em(get_cpu_device(policy->cpu),
