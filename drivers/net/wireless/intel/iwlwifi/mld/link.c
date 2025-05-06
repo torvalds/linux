@@ -785,8 +785,9 @@ iwl_mld_init_link(struct iwl_mld *mld, struct ieee80211_bss_conf *link,
 	iwl_mld_init_internal_sta(&mld_link->aux_sta);
 	iwl_mld_init_internal_sta(&mld_link->mon_sta);
 
-	wiphy_delayed_work_init(&mld_link->rx_omi.finished_work,
-				iwl_mld_omi_bw_finished_work);
+	if (!mld->fw_status.in_hw_restart)
+		wiphy_delayed_work_init(&mld_link->rx_omi.finished_work,
+					iwl_mld_omi_bw_finished_work);
 
 	return iwl_mld_allocate_link_fw_id(mld, &mld_link->fw_id, link);
 }
