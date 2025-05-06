@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/cirrus,ep7209-uart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Cirrus Logic CLPS711X Universal Asynchronous Receiver/Transmitter (UART)
+
+maintainers:
+  - Alexander Shiyan <shc_work@mail.ru>
+
+allOf:
+  - $ref: /schemas/serial/serial.yaml#
+
+properties:
+  compatible:
+    const: cirrus,ep7209-uart
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: UART TX interrupt
+      - description: UART RX interrupt
+
+  clocks:
+    maxItems: 1
+
+  syscon:
+    description: Phandle to SYSCON node, which contains UART control bits.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - syscon
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    serial@80000480 {
+        compatible = "cirrus,ep7209-uart";
+        reg = <0x80000480 0x80>;
+        interrupts = <12>, <13>;
+        clocks = <&clks 11>;
+        syscon = <&syscon1>;
+        cts-gpios = <&sysgpio 0 GPIO_ACTIVE_LOW>;
+        dsr-gpios = <&sysgpio 1 GPIO_ACTIVE_LOW>;
+        dcd-gpios = <&sysgpio 2 GPIO_ACTIVE_LOW>;
+    };
