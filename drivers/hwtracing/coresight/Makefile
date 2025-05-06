@@ -22,6 +22,8 @@ condflags := \
 	$(call cc-option, -Wstringop-truncation)
 subdir-ccflags-y += $(condflags)
 
+CFLAGS_coresight-stm.o := -D__DISABLE_TRACE_MMIO__
+
 obj-$(CONFIG_CORESIGHT) += coresight.o
 coresight-y := coresight-core.o  coresight-etm-perf.o coresight-platform.o \
 		coresight-sysfs.o coresight-syscfg.o coresight-config.o \
