@@ -86,20 +86,16 @@ void intel_display_rps_mark_interactive(struct intel_display *display,
 
 void ilk_display_rps_enable(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	spin_lock(&i915->irq_lock);
+	spin_lock(&display->irq.lock);
 	ilk_enable_display_irq(display, DE_PCU_EVENT);
-	spin_unlock(&i915->irq_lock);
+	spin_unlock(&display->irq.lock);
 }
 
 void ilk_display_rps_disable(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	spin_lock(&i915->irq_lock);
+	spin_lock(&display->irq.lock);
 	ilk_disable_display_irq(display, DE_PCU_EVENT);
-	spin_unlock(&i915->irq_lock);
+	spin_unlock(&display->irq.lock);
 }
 
 void ilk_display_rps_irq_handler(struct intel_display *display)

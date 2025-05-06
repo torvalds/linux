@@ -1388,7 +1388,7 @@ struct intel_crtc {
 	/* armed event for DSB based updates */
 	struct drm_pending_vblank_event *dsb_event;
 
-	/* Access to these should be protected by dev_priv->irq_lock. */
+	/* Access to these should be protected by display->irq.lock. */
 	bool cpu_fifo_underrun_disabled;
 	bool pch_fifo_underrun_disabled;
 

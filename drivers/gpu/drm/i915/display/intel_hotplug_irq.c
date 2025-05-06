@@ -3,8 +3,10 @@
  * Copyright © 2023 Intel Corporation
  */
 
-#include "i915_drv.h"
+#include <drm/drm_print.h>
+
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
 #include "intel_display_types.h"
@@ -183,9 +185,7 @@ static void intel_hpd_init_pins(struct intel_display *display)
 void i915_hotplug_interrupt_update_locked(struct intel_display *display,
 					  u32 mask, u32 bits)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
-	lockdep_assert_held(&dev_priv->irq_lock);
+	lockdep_assert_held(&display->irq.lock);
 	drm_WARN_ON(display->drm, bits & ~mask);
 
 	intel_de_rmw(display, PORT_HOTPLUG_EN(display), mask, bits);
@@ -207,11 +207,9 @@ void i915_hotplug_interrupt_update(struct intel_display *display,
 				   u32 mask,
 				   u32 bits)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
-	spin_lock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 	i915_hotplug_interrupt_update_locked(display, mask, bits);
-	spin_unlock_irq(&dev_priv->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 }
 
 static bool gen11_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
@@ -556,7 +554,6 @@ void xelpdp_pica_irq_handler(struct intel_display *display, u32 iir)
 
 void icp_irq_handler(struct intel_display *display, u32 pch_iir)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 ddi_hotplug_trigger = pch_iir & SDE_DDI_HOTPLUG_MASK_ICP;
 	u32 tc_hotplug_trigger = pch_iir & SDE_TC_HOTPLUG_MASK_ICP;
 	u32 pin_mask = 0, long_mask = 0;
@@ -565,9 +562,9 @@ void icp_irq_handler(struct intel_display *display, u32 pch_iir)
 		u32 dig_hotplug_reg;
 
 		/* Locking due to DSI native GPIO sequences */
-		spin_lock(&dev_priv->irq_lock);
+		spin_lock(&display->irq.lock);
 		dig_hotplug_reg = intel_de_rmw(display, SHOTPLUG_CTL_DDI, 0, 0);
-		spin_unlock(&dev_priv->irq_lock);
+		spin_unlock(&display->irq.lock);
 
 		intel_get_hpd_pins(display, &pin_mask, &long_mask,
 				   ddi_hotplug_trigger, dig_hotplug_reg,
@@ -1395,10 +1392,9 @@ static void i915_hpd_enable_detection(struct intel_encoder *encoder)
 
 static void i915_hpd_irq_setup(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 hotplug_en;
 
-	lockdep_assert_held(&dev_priv->irq_lock);
+	lockdep_assert_held(&display->irq.lock);
 
 	/*
 	 * Note HDMI and DP share hotplug bits. Enable bits are the same for all

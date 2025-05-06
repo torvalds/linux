@@ -222,8 +222,6 @@ struct drm_i915_private {
 	};
 	unsigned int engine_uabi_class_count[I915_LAST_UABI_ENGINE_CLASS + 1];
 
-	/* protects the irq masks */
-	spinlock_t irq_lock;
 	bool irqs_enabled;
 
 	/* LPT/WPT IOSF sideband protection */

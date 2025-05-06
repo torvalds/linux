@@ -25,7 +25,8 @@
  *
  */
 
-#include "i915_drv.h"
+#include <drm/drm_print.h>
+
 #include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
@@ -57,11 +58,10 @@
 
 static bool ivb_can_enable_err_int(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_crtc *crtc;
 	enum pipe pipe;
 
-	lockdep_assert_held(&dev_priv->irq_lock);
+	lockdep_assert_held(&display->irq.lock);
 
 	for_each_pipe(display, pipe) {
 		crtc = intel_crtc_for_pipe(display, pipe);
@@ -75,11 +75,10 @@ static bool ivb_can_enable_err_int(struct intel_display *display)
 
 static bool cpt_can_enable_serr_int(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum pipe pipe;
 	struct intel_crtc *crtc;
 
-	lockdep_assert_held(&dev_priv->irq_lock);
+	lockdep_assert_held(&display->irq.lock);
 
 	for_each_pipe(display, pipe) {
 		crtc = intel_crtc_for_pipe(display, pipe);
@@ -94,11 +93,10 @@ static bool cpt_can_enable_serr_int(struct intel_display *display)
 static void i9xx_check_fifo_underruns(struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	i915_reg_t reg = PIPESTAT(display, crtc->pipe);
 	u32 enable_mask;
 
-	lockdep_assert_held(&dev_priv->irq_lock);
+	lockdep_assert_held(&display->irq.lock);
 
 	if ((intel_de_read(display, reg) & PIPE_FIFO_UNDERRUN_STATUS) == 0)
 		return;
@@ -115,10 +113,9 @@ static void i9xx_set_fifo_underrun_reporting(struct intel_display *display,
 					     enum pipe pipe,
 					     bool enable, bool old)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	i915_reg_t reg = PIPESTAT(display, pipe);
 
-	lockdep_assert_held(&dev_priv->irq_lock);
+	lockdep_assert_held(&display->irq.lock);
 
 	if (enable) {
 		u32 enable_mask = i915_pipestat_enable_mask(display, pipe);
@@ -148,11 +145,10 @@ static void ilk_set_fifo_underrun_reporting(struct intel_display *display,
 static void ivb_check_fifo_underruns(struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	u32 err_int = intel_de_read(display, GEN7_ERR_INT);
 
-	lockdep_assert_held(&dev_priv->irq_lock);
+	lockdep_assert_held(&display->irq.lock);
 
 	if ((err_int & ERR_INT_FIFO_UNDERRUN(pipe)) == 0)
 		return;
@@ -213,11 +209,10 @@ static void ibx_set_fifo_underrun_reporting(struct intel_display *display,
 static void cpt_check_pch_fifo_underruns(struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pch_transcoder = crtc->pipe;
 	u32 serr_int = intel_de_read(display, SERR_INT);
 
-	lockdep_assert_held(&dev_priv->irq_lock);
+	lockdep_assert_held(&display->irq.lock);
 
 	if ((serr_int & SERR_INT_TRANS_FIFO_UNDERRUN(pch_transcoder)) == 0)
 		return;
@@ -258,11 +253,10 @@ static void cpt_set_fifo_underrun_reporting(struct intel_display *display,
 static bool __intel_set_cpu_fifo_underrun_reporting(struct intel_display *display,
 						    enum pipe pipe, bool enable)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_crtc *crtc = intel_crtc_for_pipe(display, pipe);
 	bool old;
 
-	lockdep_assert_held(&dev_priv->irq_lock);
+	lockdep_assert_held(&display->irq.lock);
 
 	old = !crtc->cpu_fifo_underrun_disabled;
 	crtc->cpu_fifo_underrun_disabled = !enable;
@@ -298,13 +292,12 @@ static bool __intel_set_cpu_fifo_underrun_reporting(struct intel_display *displa
 bool intel_set_cpu_fifo_underrun_reporting(struct intel_display *display,
 					   enum pipe pipe, bool enable)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	unsigned long flags;
 	bool ret;
 
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+	spin_lock_irqsave(&display->irq.lock, flags);
 	ret = __intel_set_cpu_fifo_underrun_reporting(display, pipe, enable);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+	spin_unlock_irqrestore(&display->irq.lock, flags);
 
 	return ret;
 }
@@ -327,7 +320,6 @@ bool intel_set_pch_fifo_underrun_reporting(struct intel_display *display,
 					   enum pipe pch_transcoder,
 					   bool enable)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_crtc *crtc = intel_crtc_for_pipe(display, pch_transcoder);
 	unsigned long flags;
 	bool old;
@@ -341,7 +333,7 @@ bool intel_set_pch_fifo_underrun_reporting(struct intel_display *display,
 	 * crtc on LPT won't cause issues.
 	 */
 
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+	spin_lock_irqsave(&display->irq.lock, flags);
 
 	old = !crtc->pch_fifo_underrun_disabled;
 	crtc->pch_fifo_underrun_disabled = !enable;
@@ -355,7 +347,7 @@ bool intel_set_pch_fifo_underrun_reporting(struct intel_display *display,
 						pch_transcoder,
 						enable, old);
 
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+	spin_unlock_irqrestore(&display->irq.lock, flags);
 	return old;
 }
 
@@ -422,10 +414,9 @@ void intel_pch_fifo_underrun_irq_handler(struct intel_display *display,
  */
 void intel_check_cpu_fifo_underruns(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_crtc *crtc;
 
-	spin_lock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 
 	for_each_intel_crtc(display->drm, crtc) {
 		if (crtc->cpu_fifo_underrun_disabled)
@@ -437,7 +428,7 @@ void intel_check_cpu_fifo_underruns(struct intel_display *display)
 			ivb_check_fifo_underruns(crtc);
 	}
 
-	spin_unlock_irq(&dev_priv->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 }
 
 /**
@@ -450,10 +441,9 @@ void intel_check_cpu_fifo_underruns(struct intel_display *display)
  */
 void intel_check_pch_fifo_underruns(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_crtc *crtc;
 
-	spin_lock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 
 	for_each_intel_crtc(display->drm, crtc) {
 		if (crtc->pch_fifo_underrun_disabled)
@@ -463,7 +453,7 @@ void intel_check_pch_fifo_underruns(struct intel_display *display)
 			cpt_check_pch_fifo_underruns(crtc);
 	}
 
-	spin_unlock_irq(&dev_priv->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 }
 
 void intel_init_fifo_underrun_reporting(struct intel_display *display,

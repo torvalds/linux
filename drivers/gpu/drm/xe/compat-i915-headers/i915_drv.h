@@ -60,15 +60,4 @@ static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 #define HAS_FLAT_CCS(xe) (xe_device_has_flat_ccs(xe))
 #define HAS_128_BYTE_Y_TILING(xe) (xe || 1)
 
-#ifdef CONFIG_ARM64
-/*
- * arm64 indirectly includes linux/rtc.h,
- * which defines a irq_lock, so include it
- * here before #define-ing it
- */
-#include <linux/rtc.h>
-#endif
-
-#define irq_lock irq.lock
-
 #endif

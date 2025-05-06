@@ -45,12 +45,13 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fixed.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
 #include "g4x_dp.h"
-#include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_alpm.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
@@ -58,6 +59,7 @@
 #include "intel_combo_phy_regs.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
+#include "intel_crtc_state_dump.h"
 #include "intel_cx0_phy.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
@@ -92,7 +94,6 @@
 #include "intel_tc.h"
 #include "intel_vdsc.h"
 #include "intel_vrr.h"
-#include "intel_crtc_state_dump.h"
 
 /* DP DSC throughput values used for slice count calculations KPixels/s */
 #define DP_DSC_PEAK_PIXEL_RATE			2720000
@@ -6219,12 +6220,11 @@ static void intel_dp_oob_hotplug_event(struct drm_connector *_connector,
 	struct intel_connector *connector = to_intel_connector(_connector);
 	struct intel_display *display = to_intel_display(connector);
 	struct intel_encoder *encoder = intel_attached_encoder(connector);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	bool hpd_high = hpd_state == connector_status_connected;
 	unsigned int hpd_pin = encoder->hpd_pin;
 	bool need_work = false;
 
-	spin_lock_irq(&i915->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 	if (hpd_high != test_bit(hpd_pin, &display->hotplug.oob_hotplug_last_state)) {
 		display->hotplug.event_bits |= BIT(hpd_pin);
 
@@ -6233,7 +6233,7 @@ static void intel_dp_oob_hotplug_event(struct drm_connector *_connector,
 			     hpd_high);
 		need_work = true;
 	}
-	spin_unlock_irq(&i915->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 
 	if (need_work)
 		intel_hpd_schedule_detection(display);

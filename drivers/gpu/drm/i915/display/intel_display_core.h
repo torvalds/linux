@@ -179,7 +179,7 @@ struct intel_hotplug {
 
 	/*
 	 * Queuing of hotplug_work, reenable_work and poll_init_work is
-	 * enabled. Protected by drm_i915_private::irq_lock.
+	 * enabled. Protected by intel_display::irq::lock.
 	 */
 	bool detection_work_enabled;
 
@@ -456,6 +456,9 @@ struct intel_display {
 	} ips;
 
 	struct {
+		/* protects the irq masks */
+		spinlock_t lock;
+
 		/*
 		 * Most platforms treat the display irq block as an always-on
 		 * power domain. vlv/chv can disable it at runtime and need
