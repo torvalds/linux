@@ -1996,17 +1996,13 @@ error:
  * btrfs or not, setting the whole super block RO.  To make per-subvolume mounting
  * work with different options work we need to keep backward compatibility.
  */
-static int btrfs_reconfigure_for_mount(struct fs_context *fc, struct vfsmount *mnt)
+static int btrfs_reconfigure_for_mount(struct fs_context *fc)
 {
 	int ret = 0;
 
-	if (fc->sb_flags & SB_RDONLY)
-		return ret;
-
-	down_write(&mnt->mnt_sb->s_umount);
-	if (!(fc->sb_flags & SB_RDONLY) && (mnt->mnt_sb->s_flags & SB_RDONLY))
+	if (!(fc->sb_flags & SB_RDONLY) && (fc->root->d_sb->s_flags & SB_RDONLY))
 		ret = btrfs_reconfigure(fc);
-	up_write(&mnt->mnt_sb->s_umount);
+
 	return ret;
 }
 
@@ -2059,17 +2055,18 @@ static int btrfs_get_tree_subvol(struct fs_context *fc)
 	security_free_mnt_opts(&fc->security);
 	fc->security = NULL;
 
-	mnt = fc_mount(dup_fc);
-	if (IS_ERR(mnt)) {
-		put_fs_context(dup_fc);
-		return PTR_ERR(mnt);
-	}
-	ret = btrfs_reconfigure_for_mount(dup_fc, mnt);
+	ret = vfs_get_tree(dup_fc);
+	if (ret)
+		goto error;
+
+	ret = btrfs_reconfigure_for_mount(dup_fc);
+	up_write(&dup_fc->root->d_sb->s_umount);
+	if (ret)
+		goto error;
+	mnt = vfs_create_mount(dup_fc);
 	put_fs_context(dup_fc);
-	if (ret) {
-		mntput(mnt);
-		return ret;
-	}
+	if (IS_ERR(mnt))
+		return PTR_ERR(mnt);
 
 	/*
 	 * This free's ->subvol_name, because if it isn't set we have to
@@ -2083,6 +2080,9 @@ static int btrfs_get_tree_subvol(struct fs_context *fc)
 
 	fc->root = dentry;
 	return 0;
+error:
+	put_fs_context(dup_fc);
+	return ret;
 }
 
 static int btrfs_get_tree(struct fs_context *fc)
