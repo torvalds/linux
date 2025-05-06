@@ -263,10 +263,14 @@ free_ic:
 	return ret;
 }
 
-static void lpc18xx_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static int lpc18xx_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			    int value)
 {
 	struct lpc18xx_gpio_chip *gc = gpiochip_get_data(chip);
+
 	writeb(value ? 1 : 0, gc->base + offset);
+
+	return 0;
 }
 
 static int lpc18xx_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -316,7 +320,7 @@ static const struct gpio_chip lpc18xx_chip = {
 	.free			= gpiochip_generic_free,
 	.direction_input	= lpc18xx_gpio_direction_input,
 	.direction_output	= lpc18xx_gpio_direction_output,
-	.set			= lpc18xx_gpio_set,
+	.set_rv			= lpc18xx_gpio_set,
 	.get			= lpc18xx_gpio_get,
 	.ngpio			= LPC18XX_MAX_PORTS * LPC18XX_PINS_PER_PORT,
 	.owner			= THIS_MODULE,
