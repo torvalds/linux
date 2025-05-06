@@ -67,25 +67,25 @@ struct vt8500_irq_data {
 static struct vt8500_irq_data intc[VT8500_INTC_MAX];
 static u32 active_cnt = 0;
 
-static void vt8500_irq_mask(struct irq_data *d)
+static void vt8500_irq_ack(struct irq_data *d)
 {
 	struct vt8500_irq_data *priv = d->domain->host_data;
 	void __iomem *base = priv->base;
 	void __iomem *stat_reg = base + VT8500_ICIS + (d->hwirq < 32 ? 0 : 4);
-	u8 edge, dctr;
-	u32 status;
+	u32 status = (1 << (d->hwirq & 0x1f));
 
-	edge = readb(base + VT8500_ICDC + d->hwirq) & VT8500_EDGE;
-	if (edge) {
-		status = readl(stat_reg);
+	writel(status, stat_reg);
+}
 
-		status |= (1 << (d->hwirq & 0x1f));
-		writel(status, stat_reg);
-	} else {
-		dctr = readb(base + VT8500_ICDC + d->hwirq);
-		dctr &= ~VT8500_INT_ENABLE;
-		writeb(dctr, base + VT8500_ICDC + d->hwirq);
-	}
+static void vt8500_irq_mask(struct irq_data *d)
+{
+	struct vt8500_irq_data *priv = d->domain->host_data;
+	void __iomem *base = priv->base;
+	u8 dctr;
+
+	dctr = readb(base + VT8500_ICDC + d->hwirq);
+	dctr &= ~VT8500_INT_ENABLE;
+	writeb(dctr, base + VT8500_ICDC + d->hwirq);
 }
 
 static void vt8500_irq_unmask(struct irq_data *d)
@@ -130,11 +130,11 @@ static int vt8500_irq_set_type(struct irq_data *d, unsigned int flow_type)
 }
 
 static struct irq_chip vt8500_irq_chip = {
-	.name = "vt8500",
-	.irq_ack = vt8500_irq_mask,
-	.irq_mask = vt8500_irq_mask,
-	.irq_unmask = vt8500_irq_unmask,
-	.irq_set_type = vt8500_irq_set_type,
+	.name		= "vt8500",
+	.irq_ack	= vt8500_irq_ack,
+	.irq_mask	= vt8500_irq_mask,
+	.irq_unmask	= vt8500_irq_unmask,
+	.irq_set_type	= vt8500_irq_set_type,
 };
 
 static void __init vt8500_init_irq_hw(void __iomem *base)
