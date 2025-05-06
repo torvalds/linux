@@ -1758,10 +1758,11 @@ dm_dmub_send_vbios_gpint_command(struct amdgpu_device *adev,
 	return DMUB_STATUS_TIMEOUT;
 }
 
-static struct dml2_soc_bb *dm_dmub_get_vbios_bounding_box(struct amdgpu_device *adev)
+static void *dm_dmub_get_vbios_bounding_box(struct amdgpu_device *adev)
 {
-	struct dml2_soc_bb *bb;
+	void *bb;
 	long long addr;
+	unsigned int bb_size;
 	int i = 0;
 	uint16_t chunk;
 	enum dmub_gpint_command send_addrs[] = {
@@ -1774,6 +1775,7 @@ static struct dml2_soc_bb *dm_dmub_get_vbios_bounding_box(struct amdgpu_device *
 
 	switch (amdgpu_ip_version(adev, DCE_HWIP, 0)) {
 	case IP_VERSION(4, 0, 1):
+		bb_size = sizeof(struct dml2_soc_bb);
 		break;
 	default:
 		return NULL;
@@ -1781,7 +1783,7 @@ static struct dml2_soc_bb *dm_dmub_get_vbios_bounding_box(struct amdgpu_device *
 
 	bb =  dm_allocate_gpu_mem(adev,
 				  DC_MEM_ALLOC_TYPE_GART,
-				  sizeof(struct dml2_soc_bb),
+				  bb_size,
 				  &addr);
 	if (!bb)
 		return NULL;

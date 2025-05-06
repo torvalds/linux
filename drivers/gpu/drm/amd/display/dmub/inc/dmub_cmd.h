@@ -299,6 +299,29 @@ union dmub_addr {
 	} u; /*<< Low/high bit access */
 	uint64_t quad_part; /*<< 64 bit address */
 };
+
+/* Flattened structure containing SOC BB parameters stored in the VBIOS
+ * It is not practical to store the entire bounding box in VBIOS since the bounding box struct can gain new parameters.
+ * This also prevents alighment issues when new parameters are added to the SoC BB.
+ */
+struct dmub_soc_bb_params {
+	/* dml2_soc_power_management_parameters */
+	uint32_t dram_clk_change_blackout_ns;
+	uint32_t dram_clk_change_read_only_ns;
+	uint32_t dram_clk_change_write_only_ns;
+	uint32_t fclk_change_blackout_ns;
+	uint32_t g7_ppt_blackout_ns;
+	uint32_t stutter_enter_plus_exit_latency_ns;
+	uint32_t stutter_exit_latency_ns;
+	uint32_t z8_stutter_enter_plus_exit_latency_ns;
+	uint32_t z8_stutter_exit_latency_ns;
+	uint32_t z8_min_idle_time_ns;
+	uint32_t type_b_dram_clk_change_blackout_ns;
+	uint32_t type_b_ppt_blackout_ns;
+	/* dml2_soc_vmin_clock_limits */
+	uint32_t vmin_limit_dispclk_khz;
+	uint32_t vmin_limit_dcfclk_khz;
+};
 #pragma pack(pop)
 
 /**

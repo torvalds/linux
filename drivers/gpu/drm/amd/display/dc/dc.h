@@ -1188,7 +1188,7 @@ struct dc_init_data {
 	uint32_t *dcn_reg_offsets;
 	uint32_t *nbio_reg_offsets;
 	uint32_t *clk_reg_offsets;
-	struct dml2_soc_bb *bb_from_dmub;
+	void *bb_from_dmub;
 };
 
 struct dc_callback_init {
