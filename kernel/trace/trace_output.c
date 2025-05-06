@@ -1019,6 +1019,17 @@ static void print_fields(struct trace_iterator *iter, struct trace_event_call *c
 				}
 
 				addr = *(unsigned int *)pos;
+
+				/* Some fields reference offset from _stext. */
+				if (!strcmp(field->name, "caller_offs") ||
+				    !strcmp(field->name, "parent_offs")) {
+					unsigned long ip;
+
+					ip = addr + (unsigned long)_stext;
+					ip = trace_adjust_address(tr, ip);
+					trace_seq_printf(&iter->seq, "%pS ", (void *)ip);
+				}
+
 				if (sizeof(long) == 4) {
 					addr = trace_adjust_address(tr, addr);
 					trace_seq_printf(&iter->seq, "%pS (%d)",
