@@ -145,6 +145,8 @@ struct amdgpu_umc {
 	unsigned long active_mask;
 
 	struct amdgpu_umc_flip_bits flip_bits;
+
+	unsigned long err_addr_cnt;
 };
 
 int amdgpu_umc_ras_sw_init(struct amdgpu_device *adev);

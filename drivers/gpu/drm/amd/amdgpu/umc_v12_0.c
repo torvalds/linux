@@ -482,8 +482,12 @@ static int umc_v12_0_aca_bank_parser(struct aca_handle *handle, struct aca_bank 
 		bank->regs[ACA_REG_IDX_ADDR]);
 
 	ext_error_code = ACA_REG__STATUS__ERRORCODEEXT(status);
-	count = ext_error_code == 0 ?
-		ACA_REG__MISC0__ERRCNT(bank->regs[ACA_REG_IDX_MISC0]) : 1ULL;
+	if (umc_v12_0_is_deferred_error(adev, status))
+		count = ext_error_code == 0 ?
+			adev->umc.err_addr_cnt / adev->umc.retire_unit : 1ULL;
+	else
+		count = ext_error_code == 0 ?
+			ACA_REG__MISC0__ERRCNT(bank->regs[ACA_REG_IDX_MISC0]) : 1ULL;
 
 	return aca_error_cache_log_bank_error(handle, &info, err_type, count);
 }
