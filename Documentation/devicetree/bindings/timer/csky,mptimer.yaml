@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/csky,mptimer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: C-SKY Multi-processors Timer
+
+maintainers:
+  - Flavio Suligoi <f.suligoi@asem.it>
+  - Guo Ren <guoren@kernel.org>
+
+description: |
+  C-SKY multi-processors timer is designed for C-SKY SMP system and the regs are
+  accessed by cpu co-processor 4 registers with mtcr/mfcr.
+
+   - PTIM_CTLR "cr<0, 14>" Control reg to start reset timer.
+   - PTIM_TSR  "cr<1, 14>" Interrupt cleanup status reg.
+   - PTIM_CCVR "cr<3, 14>" Current counter value reg.
+   - PTIM_LVR  "cr<6, 14>" Window value reg to trigger next event.
+
+properties:
+  compatible:
+    items:
+      - const: csky,mptimer
+
+  clocks:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - clocks
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    timer {
+        compatible = "csky,mptimer";
+        clocks = <&dummy_apb_clk>;
+        interrupts = <16>;
+    };
