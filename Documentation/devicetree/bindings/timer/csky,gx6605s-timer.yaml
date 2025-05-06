@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/csky,gx6605s-timer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: gx6605s SOC Timer
+
+maintainers:
+  - Guo Ren <guoren@kernel.org>
+
+properties:
+  compatible:
+    const: csky,gx6605s-timer
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    timer@20a000 {
+        compatible = "csky,gx6605s-timer";
+        reg = <0x0020a000 0x400>;
+        clocks = <&dummy_apb_clk>;
+        interrupts = <10>;
+    };
