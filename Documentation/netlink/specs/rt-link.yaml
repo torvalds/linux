@@ -304,285 +304,196 @@ definitions:
         type: u8
   -
     name: ipv4-devconf
-    type: struct
-    members:
+    enum-name:
+    type: enum
+    entries:
       -
         name: forwarding
-        type: u32
       -
         name: mc-forwarding
-        type: u32
       -
         name: proxy-arp
-        type: u32
       -
         name: accept-redirects
-        type: u32
       -
         name: secure-redirects
-        type: u32
       -
         name: send-redirects
-        type: u32
       -
         name: shared-media
-        type: u32
       -
         name: rp-filter
-        type: u32
       -
         name: accept-source-route
-        type: u32
       -
         name: bootp-relay
-        type: u32
       -
         name: log-martians
-        type: u32
       -
         name: tag
-        type: u32
       -
         name: arpfilter
-        type: u32
       -
         name: medium-id
-        type: u32
       -
         name: noxfrm
-        type: u32
       -
         name: nopolicy
-        type: u32
       -
         name: force-igmp-version
-        type: u32
       -
         name: arp-announce
-        type: u32
       -
         name: arp-ignore
-        type: u32
       -
         name: promote-secondaries
-        type: u32
       -
         name: arp-accept
-        type: u32
       -
         name: arp-notify
-        type: u32
       -
         name: accept-local
-        type: u32
       -
         name: src-vmark
-        type: u32
       -
         name: proxy-arp-pvlan
-        type: u32
       -
         name: route-localnet
-        type: u32
       -
         name: igmpv2-unsolicited-report-interval
-        type: u32
       -
         name: igmpv3-unsolicited-report-interval
-        type: u32
       -
         name: ignore-routes-with-linkdown
-        type: u32
       -
         name: drop-unicast-in-l2-multicast
-        type: u32
       -
         name: drop-gratuitous-arp
-        type: u32
       -
         name: bc-forwarding
-        type: u32
       -
         name: arp-evict-nocarrier
-        type: u32
   -
     name: ipv6-devconf
-    type: struct
-    members:
+    enum-name:
+    type: enum
+    entries:
       -
         name: forwarding
-        type: u32
       -
         name: hoplimit
-        type: u32
       -
         name: mtu6
-        type: u32
       -
         name: accept-ra
-        type: u32
       -
         name: accept-redirects
-        type: u32
       -
         name: autoconf
-        type: u32
       -
         name: dad-transmits
-        type: u32
       -
         name: rtr-solicits
-        type: u32
       -
         name: rtr-solicit-interval
-        type: u32
       -
         name: rtr-solicit-delay
-        type: u32
       -
         name: use-tempaddr
-        type: u32
       -
         name: temp-valid-lft
-        type: u32
       -
         name: temp-prefered-lft
-        type: u32
       -
         name: regen-max-retry
-        type: u32
       -
         name: max-desync-factor
-        type: u32
       -
         name: max-addresses
-        type: u32
       -
         name: force-mld-version
-        type: u32
       -
         name: accept-ra-defrtr
-        type: u32
       -
         name: accept-ra-pinfo
-        type: u32
       -
         name: accept-ra-rtr-pref
-        type: u32
       -
         name: rtr-probe-interval
-        type: u32
       -
         name: accept-ra-rt-info-max-plen
-        type: u32
       -
         name: proxy-ndp
-        type: u32
       -
         name: optimistic-dad
-        type: u32
       -
         name: accept-source-route
-        type: u32
       -
         name: mc-forwarding
-        type: u32
       -
         name: disable-ipv6
-        type: u32
       -
         name: accept-dad
-        type: u32
       -
         name: force-tllao
-        type: u32
       -
         name: ndisc-notify
-        type: u32
       -
         name: mldv1-unsolicited-report-interval
-        type: u32
       -
         name: mldv2-unsolicited-report-interval
-        type: u32
       -
         name: suppress-frag-ndisc
-        type: u32
       -
         name: accept-ra-from-local
-        type: u32
       -
         name: use-optimistic
-        type: u32
       -
         name: accept-ra-mtu
-        type: u32
       -
         name: stable-secret
-        type: u32
       -
         name: use-oif-addrs-only
-        type: u32
       -
         name: accept-ra-min-hop-limit
-        type: u32
       -
         name: ignore-routes-with-linkdown
-        type: u32
       -
         name: drop-unicast-in-l2-multicast
-        type: u32
       -
         name: drop-unsolicited-na
-        type: u32
       -
         name: keep-addr-on-down
-        type: u32
       -
         name: rtr-solicit-max-interval
-        type: u32
       -
         name: seg6-enabled
-        type: u32
       -
         name: seg6-require-hmac
-        type: u32
       -
         name: enhanced-dad
-        type: u32
       -
         name: addr-gen-mode
-        type: u8
       -
         name: disable-policy
-        type: u32
       -
         name: accept-ra-rt-info-min-plen
-        type: u32
       -
         name: ndisc-tclass
-        type: u32
       -
         name: rpl-seg-enabled
-        type: u32
       -
         name: ra-defrtr-metric
-        type: u32
       -
         name: ioam6-enabled
-        type: u32
       -
         name: ioam6-id
-        type: u32
       -
         name: ioam6-id-wide
-        type: u32
       -
         name: ndisc-evict-nocarrier
-        type: u32
       -
         name: accept-untracked-na
-        type: u32
   -
     name: ifla-icmp6-stats
     enum-name:
@@ -2144,7 +2055,8 @@ attribute-sets:
       -
         name: conf
         type: binary
-        struct: ipv4-devconf
+        sub-type: u32
+        doc: u32 indexed by ipv4-devconf - 1 on output, on input it's a nest
   -
     name: ifla6-attrs
     name-prefix: ifla-inet6-
@@ -2155,7 +2067,8 @@ attribute-sets:
       -
         name: conf
         type: binary
-        struct: ipv6-devconf
+        sub-type: u32
+        doc: u32 indexed by ipv6-devconf - 1 on output, on input it's a nest
       -
         name: stats
         type: binary
