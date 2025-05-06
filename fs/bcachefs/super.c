@@ -1744,7 +1744,8 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 
 	__bch2_dev_read_only(c, ca);
 
-	ret = bch2_dev_data_drop(c, ca->dev_idx, flags);
+	ret = bch2_dev_data_drop(c, ca->dev_idx, flags) ?:
+		bch2_dev_remove_stripes(c, ca->dev_idx, flags);
 	bch_err_msg(ca, ret, "bch2_dev_data_drop()");
 	if (ret)
 		goto err;

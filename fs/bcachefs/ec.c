@@ -2106,23 +2106,17 @@ err:
 
 /* device removal */
 
-static int bch2_invalidate_stripe_to_dev(struct btree_trans *trans, struct bkey_s_c k_a)
+int bch2_invalidate_stripe_to_dev(struct btree_trans *trans,
+				  struct btree_iter *iter,
+				  struct bkey_s_c k,
+				  unsigned dev_idx,
+				  unsigned flags)
 {
-	struct bch_alloc_v4 a_convert;
-	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k_a, &a_convert);
-
-	if (!a->stripe)
+	if (k.k->type != KEY_TYPE_stripe)
 		return 0;
 
-	if (a->stripe_sectors) {
-		bch_err(trans->c, "trying to invalidate device in stripe when bucket has stripe data");
-		return -BCH_ERR_invalidate_stripe_to_dev;
-	}
-
-	struct btree_iter iter;
 	struct bkey_i_stripe *s =
-		bch2_bkey_get_mut_typed(trans, &iter, BTREE_ID_stripes, POS(0, a->stripe),
-					BTREE_ITER_slots, stripe);
+		bch2_bkey_make_mut_typed(trans, iter, &k, 0, stripe);
 	int ret = PTR_ERR_OR_ZERO(s);
 	if (ret)
 		return ret;
@@ -2139,12 +2133,31 @@ static int bch2_invalidate_stripe_to_dev(struct btree_trans *trans, struct bkey_
 	acc.replicas.data_type = BCH_DATA_user;
 	ret = bch2_disk_accounting_mod(trans, &acc, &sectors, 1, false);
 	if (ret)
-		goto err;
+		return ret;
 
 	struct bkey_ptrs ptrs = bch2_bkey_ptrs(bkey_i_to_s(&s->k_i));
-	bkey_for_each_ptr(ptrs, ptr)
-		if (ptr->dev == k_a.k->p.inode)
+
+	/* XXX: how much redundancy do we still have? check degraded flags */
+
+	unsigned nr_good = 0;
+
+	rcu_read_lock();
+	bkey_for_each_ptr(ptrs, ptr) {
+		if (ptr->dev == dev_idx)
 			ptr->dev = BCH_SB_MEMBER_INVALID;
+
+		struct bch_dev *ca = bch2_dev_rcu(trans->c, ptr->dev);
+		nr_good += ca && ca->mi.state != BCH_MEMBER_STATE_failed;
+	}
+	rcu_read_unlock();
+
+	if (nr_good < s->v.nr_blocks && !(flags & BCH_FORCE_IF_DATA_DEGRADED))
+		return -BCH_ERR_remove_would_lose_data;
+
+	unsigned nr_data = s->v.nr_blocks - s->v.nr_redundant;
+
+	if (nr_good < nr_data && !(flags & BCH_FORCE_IF_DATA_LOST))
+		return -BCH_ERR_remove_would_lose_data;
 
 	sectors = -sectors;
 
@@ -2152,22 +2165,44 @@ static int bch2_invalidate_stripe_to_dev(struct btree_trans *trans, struct bkey_
 	acc.type = BCH_DISK_ACCOUNTING_replicas;
 	bch2_bkey_to_replicas(&acc.replicas, bkey_i_to_s_c(&s->k_i));
 	acc.replicas.data_type = BCH_DATA_user;
-	ret = bch2_disk_accounting_mod(trans, &acc, &sectors, 1, false);
+	return bch2_disk_accounting_mod(trans, &acc, &sectors, 1, false);
+}
+
+static int bch2_invalidate_stripe_to_dev_from_alloc(struct btree_trans *trans, struct bkey_s_c k_a,
+						    unsigned flags)
+{
+	struct bch_alloc_v4 a_convert;
+	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k_a, &a_convert);
+
+	if (!a->stripe)
+		return 0;
+
+	if (a->stripe_sectors) {
+		bch_err(trans->c, "trying to invalidate device in stripe when bucket has stripe data");
+		return -BCH_ERR_invalidate_stripe_to_dev;
+	}
+
+	struct btree_iter iter;
+	struct bkey_s_c_stripe s =
+		bch2_bkey_get_iter_typed(trans, &iter, BTREE_ID_stripes, POS(0, a->stripe),
+					BTREE_ITER_slots, stripe);
+	int ret = bkey_err(s);
 	if (ret)
-		goto err;
-err:
+		return ret;
+
+	ret = bch2_invalidate_stripe_to_dev(trans, &iter, s.s_c, k_a.k->p.inode, flags);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
-int bch2_dev_remove_stripes(struct bch_fs *c, unsigned dev_idx)
+int bch2_dev_remove_stripes(struct bch_fs *c, unsigned dev_idx, unsigned flags)
 {
 	return bch2_trans_run(c,
 		for_each_btree_key_max_commit(trans, iter,
 				  BTREE_ID_alloc, POS(dev_idx, 0), POS(dev_idx, U64_MAX),
 				  BTREE_ITER_intent, k,
 				  NULL, NULL, 0, ({
-			bch2_invalidate_stripe_to_dev(trans, k);
+			bch2_invalidate_stripe_to_dev_from_alloc(trans, k, flags);
 	})));
 }
 
