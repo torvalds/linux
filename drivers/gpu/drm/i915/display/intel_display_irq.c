@@ -2117,10 +2117,10 @@ void valleyview_enable_display_irqs(struct intel_display *display)
 {
 	struct drm_i915_private *dev_priv = to_i915(display->drm);
 
-	lockdep_assert_held(&dev_priv->irq_lock);
+	spin_lock_irq(&dev_priv->irq_lock);
 
 	if (display->irq.vlv_display_irqs_enabled)
-		return;
+		goto out;
 
 	display->irq.vlv_display_irqs_enabled = true;
 
@@ -2128,21 +2128,26 @@ void valleyview_enable_display_irqs(struct intel_display *display)
 		_vlv_display_irq_reset(display);
 		vlv_display_irq_postinstall(display);
 	}
+
+out:
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 void valleyview_disable_display_irqs(struct intel_display *display)
 {
 	struct drm_i915_private *dev_priv = to_i915(display->drm);
 
-	lockdep_assert_held(&dev_priv->irq_lock);
+	spin_lock_irq(&dev_priv->irq_lock);
 
 	if (!display->irq.vlv_display_irqs_enabled)
-		return;
+		goto out;
 
 	display->irq.vlv_display_irqs_enabled = false;
 
 	if (intel_irqs_enabled(dev_priv))
 		_vlv_display_irq_reset(display);
+out:
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 void ilk_de_irq_postinstall(struct intel_display *display)

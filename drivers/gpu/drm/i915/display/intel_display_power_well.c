@@ -1212,7 +1212,6 @@ static void vlv_init_display_clock_gating(struct intel_display *display)
 
 static void vlv_display_power_well_init(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_encoder *encoder;
 	enum pipe pipe;
 
@@ -1236,9 +1235,7 @@ static void vlv_display_power_well_init(struct intel_display *display)
 
 	vlv_init_display_clock_gating(display);
 
-	spin_lock_irq(&dev_priv->irq_lock);
 	valleyview_enable_display_irqs(display);
-	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/*
 	 * During driver initialization/resume we can avoid restoring the
@@ -1265,9 +1262,7 @@ static void vlv_display_power_well_deinit(struct intel_display *display)
 {
 	struct drm_i915_private *dev_priv = to_i915(display->drm);
 
-	spin_lock_irq(&dev_priv->irq_lock);
 	valleyview_disable_display_irqs(display);
-	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/* make sure we're done processing display irqs */
 	intel_synchronize_irq(dev_priv);
