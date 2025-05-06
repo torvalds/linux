@@ -11992,6 +11992,11 @@ static bool is_rbtree_node_type(const struct btf_type *t)
 	return t == btf_type_by_id(btf_vmlinux, kf_arg_btf_ids[KF_ARG_RB_NODE_ID]);
 }
 
+static bool is_list_node_type(const struct btf_type *t)
+{
+	return t == btf_type_by_id(btf_vmlinux, kf_arg_btf_ids[KF_ARG_LIST_NODE_ID]);
+}
+
 static bool is_kfunc_arg_callback(struct bpf_verifier_env *env, const struct btf *btf,
 				  const struct btf_param *arg)
 {
@@ -13764,8 +13769,7 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 				insn_aux->kptr_struct_meta =
 					btf_find_struct_meta(meta.arg_btf,
 							     meta.arg_btf_id);
-			} else if (meta.func_id == special_kfunc_list[KF_bpf_list_pop_front] ||
-				   meta.func_id == special_kfunc_list[KF_bpf_list_pop_back]) {
+			} else if (is_list_node_type(ptr_type)) {
 				struct btf_field *field = meta.arg_list_head.field;
 
 				mark_reg_graph_node(regs, BPF_REG_0, &field->graph_root);
