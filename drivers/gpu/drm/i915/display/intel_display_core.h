@@ -30,9 +30,6 @@
 #include "intel_pch.h"
 #include "intel_wm_types.h"
 
-struct task_struct;
-
-struct drm_i915_private;
 struct drm_property;
 struct drm_property_blob;
 struct i915_audio_component;
@@ -53,6 +50,7 @@ struct intel_hotplug_funcs;
 struct intel_initial_plane_config;
 struct intel_opregion;
 struct intel_overlay;
+struct task_struct;
 
 /* Amount of SAGV/QGV points, BSpec precisely defines this */
 #define I915_NUM_QGV_POINTS 8
