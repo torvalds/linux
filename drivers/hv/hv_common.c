@@ -272,7 +272,7 @@ static void hv_kmsg_dump_unregister(void)
 	atomic_notifier_chain_unregister(&panic_notifier_list,
 					 &hyperv_panic_report_block);
 
-	hv_free_hyperv_page(hv_panic_page);
+	kfree(hv_panic_page);
 	hv_panic_page = NULL;
 }
 
@@ -280,7 +280,7 @@ static void hv_kmsg_dump_register(void)
 {
 	int ret;
 
-	hv_panic_page = hv_alloc_hyperv_zeroed_page();
+	hv_panic_page = kzalloc(HV_HYP_PAGE_SIZE, GFP_KERNEL);
 	if (!hv_panic_page) {
 		pr_err("Hyper-V: panic message page memory allocation failed\n");
 		return;
@@ -289,7 +289,7 @@ static void hv_kmsg_dump_register(void)
 	ret = kmsg_dump_register(&hv_kmsg_dumper);
 	if (ret) {
 		pr_err("Hyper-V: kmsg dump register error 0x%x\n", ret);
-		hv_free_hyperv_page(hv_panic_page);
+		kfree(hv_panic_page);
 		hv_panic_page = NULL;
 	}
 }
