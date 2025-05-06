@@ -1902,6 +1902,22 @@ void i9xx_display_irq_reset(struct intel_display *display)
 	i9xx_pipestat_irq_reset(display);
 }
 
+void i915_display_irq_postinstall(struct intel_display *display)
+{
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
+
+	/*
+	 * Interrupt setup is already guaranteed to be single-threaded, this is
+	 * just to make the assert_spin_locked check happy.
+	 */
+	spin_lock_irq(&dev_priv->irq_lock);
+	i915_enable_pipestat(display, PIPE_A, PIPE_CRC_DONE_INTERRUPT_STATUS);
+	i915_enable_pipestat(display, PIPE_B, PIPE_CRC_DONE_INTERRUPT_STATUS);
+	spin_unlock_irq(&dev_priv->irq_lock);
+
+	i915_enable_asle_pipestat(display);
+}
+
 static u32 vlv_error_mask(void)
 {
 	/* TODO enable other errors too? */
