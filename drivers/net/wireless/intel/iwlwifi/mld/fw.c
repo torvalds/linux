@@ -333,19 +333,22 @@ int iwl_mld_load_fw(struct iwl_mld *mld)
 
 	ret = iwl_trans_start_hw(mld->trans);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = iwl_mld_run_fw_init_sequence(mld);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = iwl_mld_init_mcc(mld);
 	if (ret)
-		return ret;
+		goto err;
 
 	mld->fw_status.running = true;
 
 	return 0;
+err:
+	iwl_mld_stop_fw(mld);
+	return ret;
 }
 
 void iwl_mld_stop_fw(struct iwl_mld *mld)
@@ -357,6 +360,10 @@ void iwl_mld_stop_fw(struct iwl_mld *mld)
 	iwl_fw_dbg_stop_sync(&mld->fwrt);
 
 	iwl_trans_stop_device(mld->trans);
+
+	wiphy_work_cancel(mld->wiphy, &mld->async_handlers_wk);
+
+	iwl_mld_purge_async_handlers_list(mld);
 
 	mld->fw_status.running = false;
 }

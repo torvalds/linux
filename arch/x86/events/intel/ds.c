@@ -2380,8 +2380,25 @@ __intel_pmu_pebs_last_event(struct perf_event *event,
 			 */
 			intel_pmu_save_and_restart_reload(event, count);
 		}
-	} else
-		intel_pmu_save_and_restart(event);
+	} else {
+		/*
+		 * For a non-precise event, it's possible the
+		 * counters-snapshotting records a positive value for the
+		 * overflowed event. Then the HW auto-reload mechanism
+		 * reset the counter to 0 immediately, because the
+		 * pebs_event_reset is cleared if the PERF_X86_EVENT_AUTO_RELOAD
+		 * is not set. The counter backwards may be observed in a
+		 * PMI handler.
+		 *
+		 * Since the event value has been updated when processing the
+		 * counters-snapshotting record, only needs to set the new
+		 * period for the counter.
+		 */
+		if (is_pebs_counter_event_group(event))
+			static_call(x86_pmu_set_period)(event);
+		else
+			intel_pmu_save_and_restart(event);
+	}
 }
 
 static __always_inline void

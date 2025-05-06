@@ -199,6 +199,11 @@ static struct sg_table *amdgpu_dma_buf_map(struct dma_buf_attachment *attach,
 		break;
 
 	case TTM_PL_VRAM:
+		/* XGMI-accessible memory should never be DMA-mapped */
+		if (WARN_ON(amdgpu_dmabuf_is_xgmi_accessible(
+				dma_buf_attach_adev(attach), bo)))
+			return ERR_PTR(-EINVAL);
+
 		r = amdgpu_vram_mgr_alloc_sgt(adev, bo->tbo.resource, 0,
 					      bo->tbo.base.size, attach->dev,
 					      dir, &sgt);
