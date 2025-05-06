@@ -5,7 +5,6 @@
 
 #include <drm/drm_vblank.h>
 
-#include "gt/intel_rps.h"
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
@@ -15,6 +14,7 @@
 #include "intel_de.h"
 #include "intel_display_irq.h"
 #include "intel_display_rpm.h"
+#include "intel_display_rps.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
 #include "intel_dmc_wl.h"
@@ -876,7 +876,6 @@ static void ilk_gtt_fault_irq_handler(struct intel_display *display)
 
 void ilk_display_irq_handler(struct intel_display *display, u32 de_iir)
 {
-	struct drm_i915_private __maybe_unused *dev_priv = to_i915(display->drm);
 	enum pipe pipe;
 	u32 hotplug_trigger = de_iir & DE_DP_A_HOTPLUG;
 
@@ -923,7 +922,7 @@ void ilk_display_irq_handler(struct intel_display *display, u32 de_iir)
 	}
 
 	if (DISPLAY_VER(display) == 5 && de_iir & DE_PCU_EVENT)
-		gen5_rps_irq_handler(&to_gt(dev_priv)->rps);
+		ilk_display_rps_irq_handler(display);
 }
 
 void ivb_display_irq_handler(struct intel_display *display, u32 de_iir)

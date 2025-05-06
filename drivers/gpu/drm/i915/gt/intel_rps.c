@@ -8,7 +8,7 @@
 #include <drm/intel/i915_drm.h>
 
 #include "display/intel_display.h"
-#include "display/intel_display_irq.h"
+#include "display/intel_display_rps.h"
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
@@ -608,9 +608,7 @@ static bool gen5_rps_enable(struct intel_rps *rps)
 	rps->ips.last_count2 = intel_uncore_read(uncore, GFXEC);
 	rps->ips.last_time2 = ktime_get_raw_ns();
 
-	spin_lock(&i915->irq_lock);
-	ilk_enable_display_irq(display, DE_PCU_EVENT);
-	spin_unlock(&i915->irq_lock);
+	ilk_display_rps_enable(display);
 
 	spin_unlock_irq(&mchdev_lock);
 
@@ -628,9 +626,7 @@ static void gen5_rps_disable(struct intel_rps *rps)
 
 	spin_lock_irq(&mchdev_lock);
 
-	spin_lock(&i915->irq_lock);
-	ilk_disable_display_irq(display, DE_PCU_EVENT);
-	spin_unlock(&i915->irq_lock);
+	ilk_display_rps_disable(display);
 
 	rgvswctl = intel_uncore_read16(uncore, MEMSWCTL);
 
