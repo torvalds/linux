@@ -10,6 +10,7 @@
 #include <asm/io.h>
 #include <asm/machdep.h>
 #include <asm/plpar_wrappers.h>
+#include <asm/kvm_guest.h>
 
 static void *htm_buf;
 static void *htm_status_buf;
