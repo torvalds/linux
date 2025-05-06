@@ -305,7 +305,6 @@ static const struct drm_crtc_funcs i8xx_crtc_funcs = {
 
 int intel_crtc_init(struct intel_display *display, enum pipe pipe)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_plane *primary, *cursor;
 	const struct drm_crtc_funcs *funcs;
 	struct intel_crtc *crtc;
@@ -333,7 +332,7 @@ int intel_crtc_init(struct intel_display *display, enum pipe pipe)
 	for_each_sprite(display, pipe, sprite) {
 		struct intel_plane *plane;
 
-		if (DISPLAY_VER(dev_priv) >= 9)
+		if (DISPLAY_VER(display) >= 9)
 			plane = skl_universal_plane_create(display, pipe, PLANE_2 + sprite);
 		else
 			plane = intel_sprite_plane_create(display, pipe, sprite);
