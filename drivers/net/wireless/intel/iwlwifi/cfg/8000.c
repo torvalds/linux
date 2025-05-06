@@ -47,12 +47,6 @@ static const struct iwl_base_params iwl8000_base_params = {
 	.pcie_l1_allowed = true,
 };
 
-static const struct iwl_ht_params iwl8000_ht_params = {
-	.stbc = true,
-	.ldpc = true,
-	.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
-};
-
 static const struct iwl_tt_params iwl8000_tt_params = {
 	.ct_kill_entry = 115,
 	.ct_kill_exit = 93,
@@ -115,14 +109,22 @@ const char iwl4165_2ac_name[] = "Intel(R) Dual Band Wireless AC 4165";
 const struct iwl_cfg iwl8260_cfg = {
 	.fw_name_pre = IWL8000_FW_PRE,
 	IWL_DEVICE_8260,
-	.ht_params = &iwl8000_ht_params,
+	.ht_params = {
+		.stbc = true,
+		.ldpc = true,
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 	.nvm_ver = IWL8000_NVM_VERSION,
 };
 
 const struct iwl_cfg iwl8265_cfg = {
 	.fw_name_pre = IWL8265_FW_PRE,
 	IWL_DEVICE_8265,
-	.ht_params = &iwl8000_ht_params,
+	.ht_params = {
+		.stbc = true,
+		.ldpc = true,
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 	.nvm_ver = IWL8000_NVM_VERSION,
 	.vht_mu_mimo_supported = true,
 };

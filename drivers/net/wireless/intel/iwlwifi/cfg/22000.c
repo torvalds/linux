@@ -61,12 +61,6 @@ static const struct iwl_base_params iwl_22000_base_params = {
 	.pcie_l1_allowed = true,
 };
 
-const struct iwl_ht_params iwl_22000_ht_params = {
-	.stbc = true,
-	.ldpc = true,
-	.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
-};
-
 #define IWL_DEVICE_22000_COMMON						\
 	.ucode_api_min = IWL_22000_UCODE_API_MIN,			\
 	.led_mode = IWL_LED_RF_STATE,					\
@@ -82,7 +76,12 @@ const struct iwl_ht_params iwl_22000_ht_params = {
 	.apmg_not_supported = true,					\
 	.vht_mu_mimo_supported = true,					\
 	.mac_addr_from_csr = 0x380,					\
-	.ht_params = &iwl_22000_ht_params,				\
+	.ht_params = {							\
+		.stbc = true,						\
+		.ldpc = true,						\
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) |			\
+			      BIT(NL80211_BAND_5GHZ),			\
+	},								\
 	.nvm_ver = IWL_22000_NVM_VERSION,				\
 	.nvm_type = IWL_NVM_EXT,					\
 	.dbgc_supported = true,						\

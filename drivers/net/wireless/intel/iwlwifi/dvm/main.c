@@ -1137,9 +1137,10 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 
 static void iwl_set_hw_params(struct iwl_priv *priv)
 {
-	if (priv->cfg->ht_params)
+	/* there are no devices with HT but without HT40 on all bands */
+	if (priv->cfg->ht_params.ht40_bands)
 		priv->hw_params.use_rts_for_aggregation =
-			priv->cfg->ht_params->use_rts_for_aggregation;
+			priv->cfg->ht_params.use_rts_for_aggregation;
 
 	/* Device-specific setup */
 	priv->lib->set_hw_params(priv);
@@ -1173,8 +1174,9 @@ static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 {
 	struct iwl_nvm_data *data = priv->nvm_data;
 
+	/* all HT devices also have HT40 on at least one band */
 	if (data->sku_cap_11n_enable &&
-	    !priv->cfg->ht_params) {
+	    !priv->cfg->ht_params.ht40_bands) {
 		IWL_ERR(priv, "Invalid 11n configuration\n");
 		return -EINVAL;
 	}

@@ -55,12 +55,6 @@ static const struct iwl_base_params iwl_bz_base_params = {
 	.pcie_l1_allowed = true,
 };
 
-const struct iwl_ht_params iwl_bz_ht_params = {
-	.stbc = true,
-	.ldpc = true,
-	.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
-};
-
 #define IWL_DEVICE_BZ_COMMON						\
 	.ucode_api_max = IWL_BZ_UCODE_API_MAX,			\
 	.ucode_api_min = IWL_BZ_UCODE_API_MIN,			\
@@ -118,7 +112,12 @@ const struct iwl_ht_params iwl_bz_ht_params = {
 
 #define IWL_DEVICE_BZ							\
 	IWL_DEVICE_BZ_COMMON,						\
-	.ht_params = &iwl_bz_ht_params
+	.ht_params = {							\
+		.stbc = true,						\
+		.ldpc = true,						\
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) |			\
+			      BIT(NL80211_BAND_5GHZ),			\
+	}
 
 /*
  * This size was picked according to 8 MSDUs inside 512 A-MSDUs in an

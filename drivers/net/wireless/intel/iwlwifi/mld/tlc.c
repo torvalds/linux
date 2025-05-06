@@ -44,7 +44,7 @@ iwl_mld_get_tlc_cmd_flags(struct iwl_mld *mld,
 	u16 flags = 0;
 
 	/* STBC flags */
-	if (mld->cfg->ht_params->stbc &&
+	if (mld->cfg->ht_params.stbc &&
 	    (hweight8(iwl_mld_get_valid_tx_ant(mld)) > 1)) {
 		if (he_cap->has_he && he_cap->he_cap_elem.phy_cap_info[2] &
 				      IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ)
@@ -56,7 +56,7 @@ iwl_mld_get_tlc_cmd_flags(struct iwl_mld *mld,
 	}
 
 	/* LDPC */
-	if (mld->cfg->ht_params->ldpc &&
+	if (mld->cfg->ht_params.ldpc &&
 	    ((ht_cap->cap & IEEE80211_HT_CAP_LDPC_CODING) ||
 	     (has_vht && (vht_cap->cap & IEEE80211_VHT_CAP_RXLDPC))))
 		flags |= IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;

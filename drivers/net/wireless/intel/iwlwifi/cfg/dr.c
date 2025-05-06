@@ -108,7 +108,12 @@ static const struct iwl_base_params iwl_dr_base_params = {
 	.uhb_supported = true,						\
 	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,		\
 	.num_rbds = IWL_NUM_RBDS_DR_EHT,				\
-	.ht_params = &iwl_bz_ht_params
+	.ht_params = {							\
+		.stbc = true,						\
+		.ldpc = true,						\
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) |			\
+			      BIT(NL80211_BAND_5GHZ),			\
+	}
 
 /*
  * This size was picked according to 8 MSDUs inside 512 A-MSDUs in an

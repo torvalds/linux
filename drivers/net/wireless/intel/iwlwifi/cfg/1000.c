@@ -42,12 +42,6 @@ static const struct iwl_base_params iwl1000_base_params = {
 	.scd_chain_ext_wa = true,
 };
 
-static const struct iwl_ht_params iwl1000_ht_params = {
-	.ht_greenfield_support = true,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.ht40_bands = BIT(NL80211_BAND_2GHZ),
-};
-
 static const struct iwl_eeprom_params iwl1000_eeprom_params = {
 	.regulatory_bands = {
 		EEPROM_REG_BAND_1_CHANNELS,
@@ -78,7 +72,11 @@ const struct iwl_cfg_trans_params iwl1000_trans_cfg = {
 
 const struct iwl_cfg iwl1000_bgn_cfg = {
 	IWL_DEVICE_1000,
-	.ht_params = &iwl1000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ),
+	},
 };
 
 const char iwl1000_bgn_name[] = "Intel(R) Centrino(R) Wireless-N 1000 BGN";
@@ -103,7 +101,11 @@ const char iwl1000_bg_name[] = "Intel(R) Centrino(R) Wireless-N 1000 BG";
 
 const struct iwl_cfg iwl100_bgn_cfg = {
 	IWL_DEVICE_100,
-	.ht_params = &iwl1000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ),
+	},
 };
 
 const char iwl100_bgn_name[] = "Intel(R) Centrino(R) Wireless-N 100 BGN";

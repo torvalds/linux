@@ -67,12 +67,6 @@ static const struct iwl_base_params iwl2030_base_params = {
 	.scd_chain_ext_wa = true,
 };
 
-static const struct iwl_ht_params iwl2000_ht_params = {
-	.ht_greenfield_support = true,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.ht40_bands = BIT(NL80211_BAND_2GHZ),
-};
-
 static const struct iwl_eeprom_params iwl20x0_eeprom_params = {
 	.regulatory_bands = {
 		EEPROM_REG_BAND_1_CHANNELS,
@@ -105,7 +99,11 @@ const struct iwl_cfg_trans_params iwl2000_trans_cfg = {
 
 const struct iwl_cfg iwl2000_2bgn_cfg = {
 	IWL_DEVICE_2000,
-	.ht_params = &iwl2000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ),
+	},
 };
 
 const char iwl2000_2bgn_name[] = "Intel(R) Centrino(R) Wireless-N 2200 BGN";
@@ -129,7 +127,11 @@ const struct iwl_cfg_trans_params iwl2030_trans_cfg = {
 
 const struct iwl_cfg iwl2030_2bgn_cfg = {
 	IWL_DEVICE_2030,
-	.ht_params = &iwl2000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ),
+	},
 };
 
 const char iwl2030_2bgn_name[] = "Intel(R) Centrino(R) Wireless-N 2230 BGN";
@@ -153,7 +155,11 @@ const struct iwl_cfg_trans_params iwl105_trans_cfg = {
 
 const struct iwl_cfg iwl105_bgn_cfg = {
 	IWL_DEVICE_105,
-	.ht_params = &iwl2000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ),
+	},
 };
 
 const char iwl105_bgn_name[] = "Intel(R) Centrino(R) Wireless-N 105 BGN";
@@ -178,7 +184,11 @@ const struct iwl_cfg_trans_params iwl135_trans_cfg = {
 
 const struct iwl_cfg iwl135_bgn_cfg = {
 	IWL_DEVICE_135,
-	.ht_params = &iwl2000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ),
+	},
 };
 
 const char iwl135_bgn_name[] = "Intel(R) Centrino(R) Wireless-N 135 BGN";

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2021, 2023 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2021, 2023, 2025 Intel Corporation
  * Copyright (C) 2015 Intel Mobile Communications GmbH
  */
 #include <linux/types.h>
@@ -53,7 +53,8 @@ void iwl_init_ht_hw_capab(struct iwl_trans *trans,
 
 	if (!(data->sku_cap_11n_enable) ||
 	    (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_ALL) ||
-	    !cfg->ht_params) {
+	    /* there are no devices with HT but without HT40 entirely */
+	    !cfg->ht_params.ht40_bands) {
 		ht_info->ht_supported = false;
 		return;
 	}
@@ -64,14 +65,14 @@ void iwl_init_ht_hw_capab(struct iwl_trans *trans,
 	ht_info->ht_supported = true;
 	ht_info->cap = IEEE80211_HT_CAP_DSSSCCK40;
 
-	if (cfg->ht_params->stbc) {
+	if (cfg->ht_params.stbc) {
 		ht_info->cap |= (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
 
 		if (tx_chains > 1)
 			ht_info->cap |= IEEE80211_HT_CAP_TX_STBC;
 	}
 
-	if (cfg->ht_params->ldpc)
+	if (cfg->ht_params.ldpc)
 		ht_info->cap |= IEEE80211_HT_CAP_LDPC_CODING;
 
 	if (trans->trans_cfg->mq_rx_supported ||
@@ -90,13 +91,13 @@ void iwl_init_ht_hw_capab(struct iwl_trans *trans,
 	if (rx_chains >= 3)
 		ht_info->mcs.rx_mask[2] = 0xFF;
 
-	if (cfg->ht_params->ht_greenfield_support)
+	if (cfg->ht_params.ht_greenfield_support)
 		ht_info->cap |= IEEE80211_HT_CAP_GRN_FLD;
 	ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
 
 	max_bit_rate = MAX_BIT_RATE_20_MHZ;
 
-	if (cfg->ht_params->ht40_bands & BIT(band)) {
+	if (cfg->ht_params.ht40_bands & BIT(band)) {
 		ht_info->cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 		ht_info->cap |= IEEE80211_HT_CAP_SGI_40;
 		max_bit_rate = MAX_BIT_RATE_40_MHZ;

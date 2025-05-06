@@ -359,7 +359,7 @@ struct iwl_cfg {
 	/* params specific to an individual device within a device family */
 	const char *fw_name_pre;
 	/* params likely to change within a device family */
-	const struct iwl_ht_params *ht_params;
+	const struct iwl_ht_params ht_params;
 	const struct iwl_eeprom_params *eeprom_params;
 	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
 	const struct iwl_tt_params *thermal_params;
@@ -655,7 +655,6 @@ extern const struct iwl_cfg iwl105_bgn_cfg;
 extern const struct iwl_cfg iwl135_bgn_cfg;
 #endif /* CONFIG_IWLDVM */
 #if IS_ENABLED(CONFIG_IWLMVM)
-extern const struct iwl_ht_params iwl_22000_ht_params;
 
 extern const struct iwl_cfg iwl7260_cfg;
 extern const struct iwl_cfg iwl7260_high_temp_cfg;
@@ -691,8 +690,6 @@ extern const struct iwl_cfg iwl_cfg_so_a0_hr_a0_80mhz;
 #endif /* CONFIG_IWLMVM */
 
 #if IS_ENABLED(CONFIG_IWLMLD)
-extern const struct iwl_ht_params iwl_bz_ht_params;
-
 extern const struct iwl_cfg iwl_cfg_bz;
 extern const struct iwl_cfg iwl_cfg_bz_160mhz;
 

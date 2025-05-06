@@ -74,7 +74,12 @@ static const struct iwl_base_params iwl_ax210_base_params = {
 	.apmg_not_supported = true,					\
 	.vht_mu_mimo_supported = true,					\
 	.mac_addr_from_csr = 0x380,					\
-	.ht_params = &iwl_22000_ht_params,				\
+	.ht_params = {							\
+		.stbc = true,						\
+		.ldpc = true,						\
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) |			\
+			      BIT(NL80211_BAND_5GHZ),			\
+	},								\
 	.nvm_ver = IWL_AX210_NVM_VERSION,				\
 	.nvm_type = IWL_NVM_EXT,					\
 	.dbgc_supported = true,						\

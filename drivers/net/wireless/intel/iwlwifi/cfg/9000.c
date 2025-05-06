@@ -45,12 +45,6 @@ static const struct iwl_base_params iwl9000_base_params = {
 	.pcie_l1_allowed = true,
 };
 
-static const struct iwl_ht_params iwl9000_ht_params = {
-	.stbc = true,
-	.ldpc = true,
-	.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
-};
-
 static const struct iwl_tt_params iwl9000_tt_params = {
 	.ct_kill_entry = 115,
 	.ct_kill_exit = 93,
@@ -95,7 +89,12 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 	.min_umac_error_event_table = 0x800000,				\
 	.d3_debug_data_base_addr = 0x401000,				\
 	.d3_debug_data_length = 92 * 1024,				\
-	.ht_params = &iwl9000_ht_params,				\
+	.ht_params = {							\
+		.stbc = true,						\
+		.ldpc = true,						\
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) |			\
+			      BIT(NL80211_BAND_5GHZ),			\
+	},								\
 	.nvm_ver = IWL9000_NVM_VERSION,					\
 	.mon_smem_regs = {						\
 		.write_ptr = {						\

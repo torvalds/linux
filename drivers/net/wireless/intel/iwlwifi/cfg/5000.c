@@ -41,11 +41,6 @@ static const struct iwl_base_params iwl5000_base_params = {
 	.scd_chain_ext_wa = true,
 };
 
-static const struct iwl_ht_params iwl5000_ht_params = {
-	.ht_greenfield_support = true,
-	.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
-};
-
 static const struct iwl_eeprom_params iwl5000_eeprom_params = {
 	.regulatory_bands = {
 		EEPROM_REG_BAND_1_CHANNELS,
@@ -79,7 +74,10 @@ const struct iwl_cfg iwl5300_agn_cfg = {
 	/* at least EEPROM 0x11A has wrong info */
 	.valid_tx_ant = ANT_ABC,	/* .cfg overwrite */
 	.valid_rx_ant = ANT_ABC,	/* .cfg overwrite */
-	.ht_params = &iwl5000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 };
 
 const char iwl5300_agn_name[] = "Intel(R) Ultimate N WiFi Link 5300 AGN";
@@ -88,7 +86,10 @@ const struct iwl_cfg iwl5100_n_cfg = {
 	IWL_DEVICE_5000,
 	.valid_tx_ant = ANT_B,		/* .cfg overwrite */
 	.valid_rx_ant = ANT_AB,		/* .cfg overwrite */
-	.ht_params = &iwl5000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 };
 
 const char iwl5100_bgn_name[] = "Intel(R) WiFi Link 5100 BGN";
@@ -111,7 +112,10 @@ const struct iwl_cfg iwl5350_agn_cfg = {
 	.nvm_ver = EEPROM_5050_EEPROM_VERSION,
 	.nvm_calib_ver = EEPROM_5050_TX_POWER_VERSION,
 	.eeprom_params = &iwl5000_eeprom_params,
-	.ht_params = &iwl5000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 	.led_mode = IWL_LED_BLINK,
 	.internal_wimax_coex = true,
 };
@@ -137,8 +141,10 @@ const struct iwl_cfg_trans_params iwl5150_trans_cfg = {
 
 const struct iwl_cfg iwl5150_agn_cfg = {
 	IWL_DEVICE_5150,
-	.ht_params = &iwl5000_ht_params,
-
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 };
 
 const char iwl5150_agn_name[] = "Intel(R) WiMAX/WiFi Link 5150 AGN";

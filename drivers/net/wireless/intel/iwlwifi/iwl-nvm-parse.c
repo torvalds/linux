@@ -517,7 +517,7 @@ static void iwl_init_vht_hw_capab(struct iwl_trans *trans,
 		       IEEE80211_VHT_MAX_AMPDU_1024K <<
 		       IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT;
 
-	if (!trans->cfg->ht_params->stbc)
+	if (!trans->cfg->ht_params.stbc)
 		vht_cap->cap &= ~IEEE80211_VHT_CAP_RXSTBC_MASK;
 
 	if (data->vht160_supported)
@@ -527,7 +527,7 @@ static void iwl_init_vht_hw_capab(struct iwl_trans *trans,
 	if (cfg->vht_mu_mimo_supported)
 		vht_cap->cap |= IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE;
 
-	if (cfg->ht_params->ldpc)
+	if (cfg->ht_params.ldpc)
 		vht_cap->cap |= IEEE80211_VHT_CAP_RXLDPC;
 
 	if (data->sku_cap_mimo_disabled) {
@@ -535,7 +535,7 @@ static void iwl_init_vht_hw_capab(struct iwl_trans *trans,
 		num_tx_ants = 1;
 	}
 
-	if (trans->cfg->ht_params->stbc && num_tx_ants > 1)
+	if (trans->cfg->ht_params.stbc && num_tx_ants > 1)
 		vht_cap->cap |= IEEE80211_VHT_CAP_TXSTBC;
 	else
 		vht_cap->cap |= IEEE80211_VHT_CAP_TX_ANTENNA_PATTERN;
@@ -1087,7 +1087,7 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 		iftype_data->vendor_elems.len = ARRAY_SIZE(iwl_vendor_caps);
 	}
 
-	if (!trans->cfg->ht_params->stbc) {
+	if (!trans->cfg->ht_params.stbc) {
 		iftype_data->he_cap.he_cap_elem.phy_cap_info[2] &=
 			~IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ;
 		iftype_data->he_cap.he_cap_elem.phy_cap_info[7] &=

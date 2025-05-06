@@ -72,7 +72,7 @@ static u16 rs_fw_get_config_flags(struct iwl_mvm *mvm,
 	u16 flags = 0;
 
 	/* get STBC flags */
-	if (mvm->cfg->ht_params->stbc &&
+	if (mvm->cfg->ht_params.stbc &&
 	    (num_of_ant(iwl_mvm_get_valid_tx_ant(mvm)) > 1)) {
 		if (he_cap->has_he && he_cap->he_cap_elem.phy_cap_info[2] &
 				      IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ)
@@ -83,7 +83,7 @@ static u16 rs_fw_get_config_flags(struct iwl_mvm *mvm,
 			flags |= IWL_TLC_MNG_CFG_FLAGS_STBC_MSK;
 	}
 
-	if (mvm->cfg->ht_params->ldpc &&
+	if (mvm->cfg->ht_params.ldpc &&
 	    ((ht_cap->cap & IEEE80211_HT_CAP_LDPC_CODING) ||
 	     (vht_ena && (vht_cap->cap & IEEE80211_VHT_CAP_RXLDPC))))
 		flags |= IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;

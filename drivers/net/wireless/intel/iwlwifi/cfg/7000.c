@@ -84,11 +84,6 @@ static const struct iwl_tt_params iwl7000_high_temp_tt_params = {
 	.support_tx_backoff = true,
 };
 
-static const struct iwl_ht_params iwl7000_ht_params = {
-	.stbc = true,
-	.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
-};
-
 const struct iwl_cfg_trans_params iwl7000_trans_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_7000,
 	.base_params = &iwl7000_base_params,
@@ -138,7 +133,10 @@ const char iwl7265d_n_name[] = "Intel(R) Wireless N 7265";
 const struct iwl_cfg iwl7260_cfg = {
 	.fw_name_pre = IWL7260_FW_PRE,
 	IWL_DEVICE_7000,
-	.ht_params = &iwl7000_ht_params,
+	.ht_params = {
+		.stbc = true,
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 	.nvm_ver = IWL7260_NVM_VERSION,
 	.host_interrupt_operation_mode = true,
 	.lp_xtal_workaround = true,
@@ -148,7 +146,10 @@ const struct iwl_cfg iwl7260_cfg = {
 const struct iwl_cfg iwl7260_high_temp_cfg = {
 	.fw_name_pre = IWL7260_FW_PRE,
 	IWL_DEVICE_7000,
-	.ht_params = &iwl7000_ht_params,
+	.ht_params = {
+		.stbc = true,
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 	.nvm_ver = IWL7260_NVM_VERSION,
 	.high_temp = true,
 	.host_interrupt_operation_mode = true,
@@ -160,7 +161,10 @@ const struct iwl_cfg iwl7260_high_temp_cfg = {
 const struct iwl_cfg iwl3160_cfg = {
 	.fw_name_pre = IWL3160_FW_PRE,
 	IWL_DEVICE_7000,
-	.ht_params = &iwl7000_ht_params,
+	.ht_params = {
+		.stbc = true,
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 	.nvm_ver = IWL3160_NVM_VERSION,
 	.host_interrupt_operation_mode = true,
 	.dccm_len = IWL3160_DCCM_LEN,
@@ -177,16 +181,13 @@ static const struct iwl_pwr_tx_backoff iwl7265_pwr_tx_backoffs[] = {
 	{0},
 };
 
-static const struct iwl_ht_params iwl7265_ht_params = {
-	.stbc = true,
-	.ldpc = true,
-	.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
-};
-
 const struct iwl_cfg iwl3165_2ac_cfg = {
 	.fw_name_pre = IWL7265D_FW_PRE,
 	IWL_DEVICE_7005D,
-	.ht_params = &iwl7000_ht_params,
+	.ht_params = {
+		.stbc = true,
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 	.nvm_ver = IWL3165_NVM_VERSION,
 	.pwr_tx_backoffs = iwl7265_pwr_tx_backoffs,
 	.dccm_len = IWL7265_DCCM_LEN,
@@ -195,7 +196,10 @@ const struct iwl_cfg iwl3165_2ac_cfg = {
 const struct iwl_cfg iwl3168_2ac_cfg = {
 	.fw_name_pre = IWL3168_FW_PRE,
 	IWL_DEVICE_3008,
-	.ht_params = &iwl7000_ht_params,
+	.ht_params = {
+		.stbc = true,
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 	.nvm_ver = IWL3168_NVM_VERSION,
 	.pwr_tx_backoffs = iwl7265_pwr_tx_backoffs,
 	.dccm_len = IWL7265_DCCM_LEN,
@@ -205,7 +209,11 @@ const struct iwl_cfg iwl3168_2ac_cfg = {
 const struct iwl_cfg iwl7265_cfg = {
 	.fw_name_pre = IWL7265_FW_PRE,
 	IWL_DEVICE_7005,
-	.ht_params = &iwl7265_ht_params,
+	.ht_params = {
+		.stbc = true,
+		.ldpc = true,
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 	.nvm_ver = IWL7265_NVM_VERSION,
 	.pwr_tx_backoffs = iwl7265_pwr_tx_backoffs,
 	.dccm_len = IWL7265_DCCM_LEN,
@@ -214,7 +222,11 @@ const struct iwl_cfg iwl7265_cfg = {
 const struct iwl_cfg iwl7265d_cfg = {
 	.fw_name_pre = IWL7265D_FW_PRE,
 	IWL_DEVICE_7005D,
-	.ht_params = &iwl7265_ht_params,
+	.ht_params = {
+		.stbc = true,
+		.ldpc = true,
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 	.nvm_ver = IWL7265D_NVM_VERSION,
 	.pwr_tx_backoffs = iwl7265_pwr_tx_backoffs,
 	.dccm_len = IWL7265_DCCM_LEN,

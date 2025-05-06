@@ -2820,11 +2820,11 @@ static void rs_ht_init(struct iwl_mvm *mvm,
 	lq_sta->active_mimo2_rate &= ~((u16)0x2);
 	lq_sta->active_mimo2_rate <<= IWL_FIRST_OFDM_RATE;
 
-	if (mvm->cfg->ht_params->ldpc &&
+	if (mvm->cfg->ht_params.ldpc &&
 	    (ht_cap->cap & IEEE80211_HT_CAP_LDPC_CODING))
 		lq_sta->ldpc = true;
 
-	if (mvm->cfg->ht_params->stbc &&
+	if (mvm->cfg->ht_params.stbc &&
 	    (num_of_ant(iwl_mvm_get_valid_tx_ant(mvm)) > 1) &&
 	    (ht_cap->cap & IEEE80211_HT_CAP_RX_STBC))
 		lq_sta->stbc_capable = true;
@@ -2839,11 +2839,11 @@ static void rs_vht_init(struct iwl_mvm *mvm,
 {
 	rs_vht_set_enabled_rates(sta, vht_cap, lq_sta);
 
-	if (mvm->cfg->ht_params->ldpc &&
+	if (mvm->cfg->ht_params.ldpc &&
 	    (vht_cap->cap & IEEE80211_VHT_CAP_RXLDPC))
 		lq_sta->ldpc = true;
 
-	if (mvm->cfg->ht_params->stbc &&
+	if (mvm->cfg->ht_params.stbc &&
 	    (num_of_ant(iwl_mvm_get_valid_tx_ant(mvm)) > 1) &&
 	    (vht_cap->cap & IEEE80211_VHT_CAP_RXSTBC_MASK))
 		lq_sta->stbc_capable = true;

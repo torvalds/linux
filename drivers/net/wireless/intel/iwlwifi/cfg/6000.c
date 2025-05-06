@@ -88,12 +88,6 @@ static const struct iwl_base_params iwl6000_g2_base_params = {
 	.scd_chain_ext_wa = true,
 };
 
-static const struct iwl_ht_params iwl6000_ht_params = {
-	.ht_greenfield_support = true,
-	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
-};
-
 static const struct iwl_eeprom_params iwl6000_eeprom_params = {
 	.regulatory_bands = {
 		EEPROM_REG_BAND_1_CHANNELS,
@@ -125,7 +119,11 @@ const struct iwl_cfg_trans_params iwl6005_trans_cfg = {
 
 const struct iwl_cfg iwl6005_n_cfg = {
 	IWL_DEVICE_6005,
-	.ht_params = &iwl6000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 };
 
 const char iwl6005_2agn_name[] = "Intel(R) Centrino(R) Advanced-N 6205 AGN";
@@ -159,7 +157,11 @@ const struct iwl_cfg_trans_params iwl6030_trans_cfg = {
 
 const struct iwl_cfg iwl6030_n_cfg = {
 	IWL_DEVICE_6030,
-	.ht_params = &iwl6000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 };
 
 const char iwl6030_2agn_name[] = "Intel(R) Centrino(R) Advanced-N 6230 AGN";
@@ -187,7 +189,11 @@ const char iwl6030_2bg_name[] = "Intel(R) Centrino(R) Advanced-N 6230 BG";
 
 const struct iwl_cfg iwl6035_2agn_cfg = {
 	IWL_DEVICE_6035,
-	.ht_params = &iwl6000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 };
 
 const char iwl6035_2agn_name[] = "Intel(R) Centrino(R) Advanced-N 6235 AGN";
@@ -195,7 +201,11 @@ const char iwl6035_2agn_sff_name[] = "Intel(R) Centrino(R) Ultimate-N 6235 AGN";
 
 const struct iwl_cfg iwl130_bgn_cfg = {
 	IWL_DEVICE_6030,
-	.ht_params = &iwl6000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 	.rx_with_siso_diversity = true,
 };
 
@@ -231,7 +241,11 @@ const struct iwl_cfg_trans_params iwl6000i_trans_cfg = {
 
 const struct iwl_cfg iwl6000i_2agn_cfg = {
 	IWL_DEVICE_6000i,
-	.ht_params = &iwl6000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 };
 
 const char iwl6000i_2agn_name[] = "Intel(R) Centrino(R) Advanced-N 6200 AGN";
@@ -264,7 +278,11 @@ const struct iwl_cfg_trans_params iwl6050_trans_cfg = {
 
 const struct iwl_cfg iwl6050_2agn_cfg = {
 	IWL_DEVICE_6050,
-	.ht_params = &iwl6000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 };
 
 const char iwl6050_2agn_name[] = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 AGN";
@@ -294,7 +312,11 @@ const struct iwl_cfg_trans_params iwl6150_trans_cfg = {
 
 const struct iwl_cfg iwl6150_bgn_cfg = {
 	IWL_DEVICE_6150,
-	.ht_params = &iwl6000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 };
 
 const char iwl6150_bgn_name[] = "Intel(R) Centrino(R) Wireless-N + WiMAX 6150 BGN";
@@ -319,7 +341,11 @@ const struct iwl_cfg iwl6000_3agn_cfg = {
 	.nvm_ver = EEPROM_6000_EEPROM_VERSION,
 	.nvm_calib_ver = EEPROM_6000_TX_POWER_VERSION,
 	.eeprom_params = &iwl6000_eeprom_params,
-	.ht_params = &iwl6000_ht_params,
+	.ht_params = {
+		.ht_greenfield_support = true,
+		.use_rts_for_aggregation = true, /* use rts/cts protection */
+		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
+	},
 	.led_mode = IWL_LED_BLINK,
 };
 
