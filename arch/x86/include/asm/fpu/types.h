@@ -536,13 +536,6 @@ struct fpu_guest {
 	u64				xfeatures;
 
 	/*
-	 * @perm:			xfeature bitmap of features which are
-	 *				permitted to be enabled for the guest
-	 *				vCPU.
-	 */
-	u64				perm;
-
-	/*
 	 * @xfd_err:			Save the guest value.
 	 */
 	u64				xfd_err;
