@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+---
+$id: http://devicetree.org/schemas/serial/arm,sbsa-uart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM SBSA UART
+
+maintainers:
+  - Andre Przywara <andre.przywara@arm.com>
+
+description:
+  This UART uses a subset of the PL011 registers and consequently lives in the
+  PL011 driver. It's baudrate and other communication parameters cannot be
+  adjusted at runtime, so it lacks a clock specifier here.
+
+allOf:
+  - $ref: /schemas/serial/serial.yaml#
+
+properties:
+  compatible:
+    const: arm,sbsa-uart
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  current-speed:
+    description: fixed baud rate set by the firmware
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - current-speed
+
+unevaluatedProperties: false
