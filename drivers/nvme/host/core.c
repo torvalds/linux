@@ -2296,7 +2296,7 @@ static int nvme_query_fdp_info(struct nvme_ns *ns, struct nvme_ns_info *info)
 	if (!head->nr_plids)
 		goto free;
 
-	head->plids = kcalloc(head->nr_plids, sizeof(head->plids),
+	head->plids = kcalloc(head->nr_plids, sizeof(*head->plids),
 			      GFP_KERNEL);
 	if (!head->plids) {
 		dev_warn(ctrl->device,
