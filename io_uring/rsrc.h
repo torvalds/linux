@@ -115,18 +115,6 @@ static inline bool io_reset_rsrc_node(struct io_ring_ctx *ctx,
 	return true;
 }
 
-static inline void io_req_put_rsrc_nodes(struct io_kiocb *req)
-{
-	if (req->file_node) {
-		io_put_rsrc_node(req->ctx, req->file_node);
-		req->file_node = NULL;
-	}
-	if (req->flags & REQ_F_BUF_NODE) {
-		io_put_rsrc_node(req->ctx, req->buf_node);
-		req->buf_node = NULL;
-	}
-}
-
 int io_files_update(struct io_kiocb *req, unsigned int issue_flags);
 int io_files_update_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 
