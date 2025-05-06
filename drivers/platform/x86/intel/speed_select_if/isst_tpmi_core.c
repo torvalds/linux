@@ -1016,6 +1016,7 @@ static int isst_if_set_perf_feature(void __user *argp)
 
 #define SST_PP_INFO_10_OFFSET	80
 #define SST_PP_INFO_11_OFFSET	88
+#define SST_PP_INFO_12_OFFSET	96
 
 #define SST_PP_P1_SSE_START	0
 #define SST_PP_P1_SSE_WIDTH	8
@@ -1067,6 +1068,15 @@ static int isst_if_set_perf_feature(void __user *argp)
 
 #define SST_PP_CORE_RATIO_PM_FABRIC_START	48
 #define SST_PP_CORE_RATIO_PM_FABRIC_WIDTH	8
+
+#define SST_PP_CORE_RATIO_P0_FABRIC_1_START	0
+#define SST_PP_CORE_RATIO_P0_FABRIC_1_WIDTH	8
+
+#define SST_PP_CORE_RATIO_P1_FABRIC_1_START	8
+#define SST_PP_CORE_RATIO_P1_FABRIC_1_WIDTH	8
+
+#define SST_PP_CORE_RATIO_PM_FABRIC_1_START	16
+#define SST_PP_CORE_RATIO_PM_FABRIC_1_WIDTH	8
 
 static int isst_if_get_perf_level_info(void __user *argp)
 {
@@ -1162,6 +1172,59 @@ static int isst_if_get_perf_level_info(void __user *argp)
 			    SST_PP_CORE_RATIO_PM_FABRIC_WIDTH, SST_MUL_FACTOR_FREQ)
 
 	if (copy_to_user(argp, &perf_level, sizeof(perf_level)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int isst_if_get_perf_level_fabric_info(void __user *argp)
+{
+	struct isst_perf_level_fabric_info perf_level_fabric;
+	struct tpmi_per_power_domain_info *power_domain_info;
+	int start = SST_PP_CORE_RATIO_P0_FABRIC_START;
+	int width = SST_PP_CORE_RATIO_P0_FABRIC_WIDTH;
+	int offset = SST_PP_INFO_11_OFFSET;
+	int i;
+
+	if (copy_from_user(&perf_level_fabric, argp, sizeof(perf_level_fabric)))
+		return -EFAULT;
+
+	power_domain_info = get_instance(perf_level_fabric.socket_id,
+					 perf_level_fabric.power_domain_id);
+	if (!power_domain_info)
+		return -EINVAL;
+
+	if (perf_level_fabric.level > power_domain_info->max_level)
+		return -EINVAL;
+
+	if (power_domain_info->pp_header.feature_rev < 2)
+		return -EINVAL;
+
+	if (!(power_domain_info->pp_header.level_en_mask & BIT(perf_level_fabric.level)))
+		return -EINVAL;
+
+	/* For revision 2, maximum number of fabrics is 2 */
+	perf_level_fabric.max_fabrics = 2;
+
+	for (i = 0; i < perf_level_fabric.max_fabrics; i++) {
+		_read_pp_level_info("p0_fabric_freq_mhz", perf_level_fabric.p0_fabric_freq_mhz[i],
+				    perf_level_fabric.level, offset, start, width,
+				    SST_MUL_FACTOR_FREQ)
+		start += width;
+
+		_read_pp_level_info("p1_fabric_freq_mhz", perf_level_fabric.p1_fabric_freq_mhz[i],
+				    perf_level_fabric.level, offset, start, width,
+				    SST_MUL_FACTOR_FREQ)
+		start += width;
+
+		_read_pp_level_info("pm_fabric_freq_mhz", perf_level_fabric.pm_fabric_freq_mhz[i],
+				    perf_level_fabric.level, offset, start, width,
+				    SST_MUL_FACTOR_FREQ)
+		offset = SST_PP_INFO_12_OFFSET;
+		start = SST_PP_CORE_RATIO_P0_FABRIC_1_START;
+	}
+
+	if (copy_to_user(argp, &perf_level_fabric, sizeof(perf_level_fabric)))
 		return -EFAULT;
 
 	return 0;
@@ -1452,6 +1515,9 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case ISST_IF_GET_PERF_LEVEL_INFO:
 		ret = isst_if_get_perf_level_info(argp);
+		break;
+	case ISST_IF_GET_PERF_LEVEL_FABRIC_INFO:
+		ret = isst_if_get_perf_level_fabric_info(argp);
 		break;
 	case ISST_IF_GET_PERF_LEVEL_CPU_MASK:
 		ret = isst_if_get_perf_level_mask(argp);
