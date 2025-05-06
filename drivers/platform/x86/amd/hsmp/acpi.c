@@ -28,7 +28,6 @@
 #include "hsmp.h"
 
 #define DRIVER_NAME		"hsmp_acpi"
-#define DRIVER_VERSION		"2.3"
 
 /* These are the strings specified in ACPI table */
 #define MSG_IDOFF_STR		"MsgIdOffset"

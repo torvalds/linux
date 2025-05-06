@@ -32,8 +32,6 @@
 #define HSMP_WR			true
 #define HSMP_RD			false
 
-#define DRIVER_VERSION		"2.4"
-
 /*
  * When same message numbers are used for both GET and SET operation,
  * bit:31 indicates whether its SET or GET operation.
