@@ -119,7 +119,7 @@ static int mb86s70_gpio_get(struct gpio_chip *gc, unsigned gpio)
 	return !!(readl(gchip->base + PDR(gpio)) & OFFSET(gpio));
 }
 
-static void mb86s70_gpio_set(struct gpio_chip *gc, unsigned gpio, int value)
+static int mb86s70_gpio_set(struct gpio_chip *gc, unsigned int gpio, int value)
 {
 	struct mb86s70_gpio_chip *gchip = gpiochip_get_data(gc);
 	unsigned long flags;
@@ -135,6 +135,8 @@ static void mb86s70_gpio_set(struct gpio_chip *gc, unsigned gpio, int value)
 	writel(val, gchip->base + PDR(gpio));
 
 	spin_unlock_irqrestore(&gchip->lock, flags);
+
+	return 0;
 }
 
 static int mb86s70_gpio_to_irq(struct gpio_chip *gc, unsigned int offset)
@@ -178,7 +180,7 @@ static int mb86s70_gpio_probe(struct platform_device *pdev)
 	gchip->gc.request = mb86s70_gpio_request;
 	gchip->gc.free = mb86s70_gpio_free;
 	gchip->gc.get = mb86s70_gpio_get;
-	gchip->gc.set = mb86s70_gpio_set;
+	gchip->gc.set_rv = mb86s70_gpio_set;
 	gchip->gc.to_irq = mb86s70_gpio_to_irq;
 	gchip->gc.label = dev_name(&pdev->dev);
 	gchip->gc.ngpio = 32;
