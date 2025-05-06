@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config CDNS_I3C_MASTER
 	tristate "Cadence I3C master driver"
-	depends on I3C
 	depends on HAS_IOMEM
 	depends on !(ALPHA || PARISC)
 	help
@@ -9,7 +8,6 @@ config CDNS_I3C_MASTER
 
 config DW_I3C_MASTER
 	tristate "Synospsys DesignWare I3C master driver"
-	depends on I3C
 	depends on HAS_IOMEM
 	depends on !(ALPHA || PARISC)
 	# ALPHA and PARISC needs {read,write}sl()
@@ -38,7 +36,6 @@ config AST2600_I3C_MASTER
 
 config SVC_I3C_MASTER
 	tristate "Silvaco I3C Dual-Role Master driver"
-	depends on I3C
 	depends on HAS_IOMEM
 	depends on !(ALPHA || PARISC)
 	help
@@ -46,7 +43,6 @@ config SVC_I3C_MASTER
 
 config MIPI_I3C_HCI
 	tristate "MIPI I3C Host Controller Interface driver (EXPERIMENTAL)"
-	depends on I3C
 	depends on HAS_IOMEM
 	help
 	  Support for hardware following the MIPI Aliance's I3C Host Controller
