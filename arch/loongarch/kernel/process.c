@@ -13,8 +13,8 @@
 #include <linux/cpu.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
 #include <linux/entry-common.h>
+#include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/task.h>
@@ -34,8 +34,8 @@
 #include <linux/prctl.h>
 #include <linux/nmi.h>
 
-#include <asm/asm-prototypes.h>
 #include <asm/asm.h>
+#include <asm/asm-prototypes.h>
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
 #include <asm/elf.h>
