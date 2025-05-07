@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020-2024 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  */
 
 #ifndef __IVPU_HW_H__
@@ -82,19 +82,19 @@ static inline u64 ivpu_hw_range_size(const struct ivpu_addr_range *range)
 	return range->end - range->start;
 }
 
-static inline u32 ivpu_hw_ratio_to_freq(struct ivpu_device *vdev, u32 ratio)
+static inline u32 ivpu_hw_dpu_max_freq_get(struct ivpu_device *vdev)
 {
-	return ivpu_hw_btrs_ratio_to_freq(vdev, ratio);
+	return ivpu_hw_btrs_dpu_max_freq_get(vdev);
+}
+
+static inline u32 ivpu_hw_dpu_freq_get(struct ivpu_device *vdev)
+{
+	return ivpu_hw_btrs_dpu_freq_get(vdev);
 }
 
 static inline void ivpu_hw_irq_clear(struct ivpu_device *vdev)
 {
 	ivpu_hw_ip_irq_clear(vdev);
-}
-
-static inline u32 ivpu_hw_pll_freq_get(struct ivpu_device *vdev)
-{
-	return ivpu_hw_btrs_pll_freq_get(vdev);
 }
 
 static inline u32 ivpu_hw_profiling_freq_get(struct ivpu_device *vdev)
