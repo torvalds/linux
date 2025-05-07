@@ -85,8 +85,3 @@ static const struct adreno_info a3xx_gpus[] = {
 	}
 };
 DECLARE_ADRENO_GPULIST(a3xx);
-
-MODULE_FIRMWARE("qcom/a300_pm4.fw");
-MODULE_FIRMWARE("qcom/a300_pfp.fw");
-MODULE_FIRMWARE("qcom/a330_pm4.fw");
-MODULE_FIRMWARE("qcom/a330_pfp.fw");
