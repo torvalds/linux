@@ -4733,8 +4733,8 @@ again:
 	return ret;
 }
 
-int btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
-			       u64 start, u64 len, int delalloc)
+int btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info, u64 start, u64 len,
+			       bool is_delalloc)
 {
 	struct btrfs_block_group *cache;
 
@@ -4746,7 +4746,7 @@ int btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
 	}
 
 	btrfs_add_free_space(cache, start, len);
-	btrfs_free_reserved_bytes(cache, len, delalloc);
+	btrfs_free_reserved_bytes(cache, len, is_delalloc);
 	trace_btrfs_reserved_extent_free(fs_info, start, len);
 
 	btrfs_put_block_group(cache);
@@ -5220,7 +5220,7 @@ out_free_buf:
 	btrfs_tree_unlock(buf);
 	free_extent_buffer(buf);
 out_free_reserved:
-	btrfs_free_reserved_extent(fs_info, ins.objectid, ins.offset, 0);
+	btrfs_free_reserved_extent(fs_info, ins.objectid, ins.offset, false);
 out_unuse:
 	btrfs_unuse_block_rsv(fs_info, block_rsv, blocksize);
 	return ERR_PTR(ret);

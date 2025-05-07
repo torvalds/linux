@@ -204,8 +204,7 @@ again:
 				     BTRFS_ORDERED_REGULAR);
 	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 	if (IS_ERR(em))
-		btrfs_free_reserved_extent(fs_info, ins.objectid, ins.offset,
-					   1);
+		btrfs_free_reserved_extent(fs_info, ins.objectid, ins.offset, true);
 
 	return em;
 }
