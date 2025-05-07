@@ -896,7 +896,7 @@ static unsigned int get_perf_event_max_sample_rate(void)
 
 	fp = fopen("/proc/sys/kernel/perf_event_max_sample_rate", "r");
 	if (!fp) {
-		pr_debug("Can't open perf_event_max_sample_rate. Asssuming %d\n",
+		pr_debug("Can't open perf_event_max_sample_rate. Assuming %d\n",
 			 max_sample_rate);
 		goto out;
 	}
