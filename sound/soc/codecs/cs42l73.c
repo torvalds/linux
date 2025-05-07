@@ -8,26 +8,33 @@
  *	    Brian Austin, Cirrus Logic Inc, <brian.austin@cirrus.com>
  */
 
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/delay.h>
-#include <linux/of_gpio.h>
 #include <linux/pm.h>
-#include <linux/i2c.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <sound/core.h>
+#include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
-#include <sound/initval.h>
 #include <sound/tlv.h>
-#include <sound/cs42l73.h>
-#include "cs42l73.h"
 #include "cirrus_legacy.h"
+#include "cs42l73.h"
+
+struct cs42l73_platform_data {
+	/* RST GPIO */
+	struct gpio_desc *reset_gpio;
+	unsigned int chgfreq;
+	int jack_detection;
+	unsigned int mclk_freq;
+};
 
 struct sp_config {
 	u8 spc, mmcc, spfs;
@@ -1276,7 +1283,7 @@ static const struct regmap_config cs42l73_regmap = {
 static int cs42l73_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct cs42l73_private *cs42l73;
-	struct cs42l73_platform_data *pdata = dev_get_platdata(&i2c_client->dev);
+	struct cs42l73_platform_data *pdata;
 	int ret, devid;
 	unsigned int reg;
 	u32 val32;
@@ -1292,38 +1299,27 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client)
 		return ret;
 	}
 
-	if (pdata) {
-		cs42l73->pdata = *pdata;
-	} else {
-		pdata = devm_kzalloc(&i2c_client->dev, sizeof(*pdata),
-				     GFP_KERNEL);
-		if (!pdata)
-			return -ENOMEM;
+	pdata = devm_kzalloc(&i2c_client->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
 
-		if (i2c_client->dev.of_node) {
-			if (of_property_read_u32(i2c_client->dev.of_node,
-				"chgfreq", &val32) >= 0)
-				pdata->chgfreq = val32;
-		}
-		pdata->reset_gpio = of_get_named_gpio(i2c_client->dev.of_node,
-						"reset-gpio", 0);
-		cs42l73->pdata = *pdata;
+	if (i2c_client->dev.of_node) {
+		if (of_property_read_u32(i2c_client->dev.of_node, "chgfreq", &val32) >= 0)
+			pdata->chgfreq = val32;
 	}
+	pdata->reset_gpio = devm_gpiod_get_optional(&i2c_client->dev, "reset", GPIOD_OUT_LOW);
+
+	if (IS_ERR(pdata->reset_gpio))
+		return PTR_ERR(pdata->reset_gpio);
+
+	gpiod_set_consumer_name(pdata->reset_gpio, "CS42L73 /RST");
+	cs42l73->pdata = *pdata;
 
 	i2c_set_clientdata(i2c_client, cs42l73);
 
 	if (cs42l73->pdata.reset_gpio) {
-		ret = devm_gpio_request_one(&i2c_client->dev,
-					    cs42l73->pdata.reset_gpio,
-					    GPIOF_OUT_INIT_HIGH,
-					    "CS42L73 /RST");
-		if (ret < 0) {
-			dev_err(&i2c_client->dev, "Failed to request /RST %d: %d\n",
-				cs42l73->pdata.reset_gpio, ret);
-			return ret;
-		}
-		gpio_set_value_cansleep(cs42l73->pdata.reset_gpio, 0);
-		gpio_set_value_cansleep(cs42l73->pdata.reset_gpio, 1);
+		gpiod_set_value_cansleep(cs42l73->pdata.reset_gpio, 1);
+		gpiod_set_value_cansleep(cs42l73->pdata.reset_gpio, 0);
 	}
 
 	/* initialize codec */
@@ -1360,7 +1356,7 @@ static int cs42l73_i2c_probe(struct i2c_client *i2c_client)
 	return 0;
 
 err_reset:
-	gpio_set_value_cansleep(cs42l73->pdata.reset_gpio, 0);
+	gpiod_set_value_cansleep(cs42l73->pdata.reset_gpio, 1);
 
 	return ret;
 }
