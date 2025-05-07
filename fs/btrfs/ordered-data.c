@@ -156,20 +156,22 @@ static struct btrfs_ordered_extent *alloc_ordered_extent(
 	const bool is_nocow = (flags &
 	       ((1U << BTRFS_ORDERED_NOCOW) | (1U << BTRFS_ORDERED_PREALLOC)));
 
-	if (is_nocow) {
-		/* For nocow write, we can release the qgroup rsv right now */
+	/*
+	 * For a NOCOW write we can free the qgroup reserve right now. For a COW
+	 * one we transfer the reserved space from the inode's iotree into the
+	 * ordered extent by calling btrfs_qgroup_release_data() and tracking
+	 * the qgroup reserved amount in the ordered extent, so that later after
+	 * completing the ordered extent, when running the data delayed ref it
+	 * creates, we free the reserved data with btrfs_qgroup_free_refroot().
+	 */
+	if (is_nocow)
 		ret = btrfs_qgroup_free_data(inode, NULL, file_offset, num_bytes, &qgroup_rsv);
-		if (ret < 0)
-			return ERR_PTR(ret);
-	} else {
-		/*
-		 * The ordered extent has reserved qgroup space, release now
-		 * and pass the reserved number for qgroup_record to free.
-		 */
+	else
 		ret = btrfs_qgroup_release_data(inode, file_offset, num_bytes, &qgroup_rsv);
-		if (ret < 0)
-			return ERR_PTR(ret);
-	}
+
+	if (ret < 0)
+		return ERR_PTR(ret);
+
 	entry = kmem_cache_zalloc(btrfs_ordered_extent_cache, GFP_NOFS);
 	if (!entry) {
 		entry = ERR_PTR(-ENOMEM);
