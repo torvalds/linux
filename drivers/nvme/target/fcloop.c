@@ -494,15 +494,24 @@ fcloop_t2h_xmt_ls_rsp(struct nvme_fc_local_port *localport,
 	struct nvmet_fc_target_port *targetport = rport->targetport;
 	struct fcloop_tport *tport;
 
+	if (!targetport) {
+		/*
+		 * The target port is gone. The target doesn't expect any
+		 * response anymore and the ->done call is not valid
+		 * because the resources have been freed by
+		 * nvmet_fc_free_pending_reqs.
+		 *
+		 * We end up here from delete association exchange:
+		 * nvmet_fc_xmt_disconnect_assoc sends an async request.
+		 */
+		kmem_cache_free(lsreq_cache, tls_req);
+		return 0;
+	}
+
 	memcpy(lsreq->rspaddr, lsrsp->rspbuf,
 		((lsreq->rsplen < lsrsp->rsplen) ?
 				lsreq->rsplen : lsrsp->rsplen));
 	lsrsp->done(lsrsp);
-
-	if (!targetport) {
-		kmem_cache_free(lsreq_cache, tls_req);
-		return 0;
-	}
 
 	tport = targetport->private;
 	spin_lock(&tport->lock);
