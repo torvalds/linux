@@ -512,12 +512,13 @@ void amdgpu_device_detect_runtime_pm_mode(struct amdgpu_device *adev)
 				break;
 			case CHIP_VEGA10:
 				/* enable BACO as runpm mode if noretry=0 */
-				if (!adev->gmc.noretry)
+				if (!adev->gmc.noretry && !amdgpu_passthrough(adev))
 					adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
 				break;
 			default:
 				/* enable BACO as runpm mode on CI+ */
-				adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
+				if (!amdgpu_passthrough(adev))
+					adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
 				break;
 			}
 
