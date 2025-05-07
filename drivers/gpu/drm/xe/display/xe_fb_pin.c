@@ -389,6 +389,7 @@ static bool reuse_vma(struct intel_plane_state *new_plane_state,
 {
 	struct intel_framebuffer *fb = to_intel_framebuffer(new_plane_state->hw.fb);
 	struct xe_device *xe = to_xe_device(fb->base.dev);
+	struct intel_display *display = &xe->display;
 	struct i915_vma *vma;
 
 	if (old_plane_state->hw.fb == new_plane_state->hw.fb &&
@@ -399,8 +400,8 @@ static bool reuse_vma(struct intel_plane_state *new_plane_state,
 		goto found;
 	}
 
-	if (fb == intel_fbdev_framebuffer(xe->display.fbdev.fbdev)) {
-		vma = intel_fbdev_vma_pointer(xe->display.fbdev.fbdev);
+	if (fb == intel_fbdev_framebuffer(display->fbdev.fbdev)) {
+		vma = intel_fbdev_vma_pointer(display->fbdev.fbdev);
 		if (vma)
 			goto found;
 	}
