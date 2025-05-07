@@ -601,7 +601,7 @@ static int sg_scsi_ioctl(struct request_queue *q, bool open_for_write,
 	}
 
 	if (bytes) {
-		err = blk_rq_map_kern(q, rq, buffer, bytes, GFP_NOIO);
+		err = blk_rq_map_kern(rq, buffer, bytes, GFP_NOIO);
 		if (err)
 			goto error;
 	}

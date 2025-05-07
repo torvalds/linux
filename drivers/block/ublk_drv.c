@@ -368,8 +368,7 @@ static int ublk_report_zones(struct gendisk *disk, sector_t sector,
 		if (ret)
 			goto free_req;
 
-		ret = blk_rq_map_kern(disk->queue, req, buffer, buffer_length,
-					GFP_KERNEL);
+		ret = blk_rq_map_kern(req, buffer, buffer_length, GFP_KERNEL);
 		if (ret)
 			goto erase_desc;
 

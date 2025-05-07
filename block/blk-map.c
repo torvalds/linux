@@ -319,7 +319,6 @@ static void bio_map_kern_endio(struct bio *bio)
 
 /**
  *	bio_map_kern	-	map kernel address into bio
- *	@q: the struct request_queue for the bio
  *	@data: pointer to buffer to map
  *	@len: length in bytes
  *	@gfp_mask: allocation flags for bio allocation
@@ -327,8 +326,7 @@ static void bio_map_kern_endio(struct bio *bio)
  *	Map the kernel address into a bio suitable for io to a block
  *	device. Returns an error pointer in case of error.
  */
-static struct bio *bio_map_kern(struct request_queue *q, void *data,
-		unsigned int len, gfp_t gfp_mask)
+static struct bio *bio_map_kern(void *data, unsigned int len, gfp_t gfp_mask)
 {
 	unsigned long kaddr = (unsigned long)data;
 	unsigned long end = (kaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -402,7 +400,6 @@ static void bio_copy_kern_endio_read(struct bio *bio)
 
 /**
  *	bio_copy_kern	-	copy kernel address into bio
- *	@q: the struct request_queue for the bio
  *	@data: pointer to buffer to copy
  *	@len: length in bytes
  *	@gfp_mask: allocation flags for bio and page allocation
@@ -411,8 +408,8 @@ static void bio_copy_kern_endio_read(struct bio *bio)
  *	copy the kernel address into a bio suitable for io to a block
  *	device. Returns an error pointer in case of error.
  */
-static struct bio *bio_copy_kern(struct request_queue *q, void *data,
-		unsigned int len, gfp_t gfp_mask, int reading)
+static struct bio *bio_copy_kern(void *data, unsigned int len, gfp_t gfp_mask,
+		int reading)
 {
 	unsigned long kaddr = (unsigned long)data;
 	unsigned long end = (kaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -687,7 +684,6 @@ EXPORT_SYMBOL(blk_rq_unmap_user);
 
 /**
  * blk_rq_map_kern - map kernel data to a request, for passthrough requests
- * @q:		request queue where request should be inserted
  * @rq:		request to fill
  * @kbuf:	the kernel buffer
  * @len:	length of user data
@@ -698,23 +694,23 @@ EXPORT_SYMBOL(blk_rq_unmap_user);
  *    buffer is used. Can be called multiple times to append multiple
  *    buffers.
  */
-int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
-		    unsigned int len, gfp_t gfp_mask)
+int blk_rq_map_kern(struct request *rq, void *kbuf, unsigned int len,
+		gfp_t gfp_mask)
 {
 	int reading = rq_data_dir(rq) == READ;
 	unsigned long addr = (unsigned long) kbuf;
 	struct bio *bio;
 	int ret;
 
-	if (len > (queue_max_hw_sectors(q) << 9))
+	if (len > (queue_max_hw_sectors(rq->q) << SECTOR_SHIFT))
 		return -EINVAL;
 	if (!len || !kbuf)
 		return -EINVAL;
 
-	if (!blk_rq_aligned(q, addr, len) || object_is_on_stack(kbuf))
-		bio = bio_copy_kern(q, kbuf, len, gfp_mask, reading);
+	if (!blk_rq_aligned(rq->q, addr, len) || object_is_on_stack(kbuf))
+		bio = bio_copy_kern(kbuf, len, gfp_mask, reading);
 	else
-		bio = bio_map_kern(q, kbuf, len, gfp_mask);
+		bio = bio_map_kern(kbuf, len, gfp_mask);
 
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);

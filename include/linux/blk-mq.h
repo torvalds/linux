@@ -1037,8 +1037,8 @@ int blk_rq_map_user_io(struct request *, struct rq_map_data *,
 int blk_rq_map_user_iov(struct request_queue *, struct request *,
 		struct rq_map_data *, const struct iov_iter *, gfp_t);
 int blk_rq_unmap_user(struct bio *);
-int blk_rq_map_kern(struct request_queue *, struct request *, void *,
-		unsigned int, gfp_t);
+int blk_rq_map_kern(struct request *rq, void *kbuf, unsigned int len,
+		gfp_t gfp);
 int blk_rq_append_bio(struct request *rq, struct bio *bio);
 void blk_execute_rq_nowait(struct request *rq, bool at_head);
 blk_status_t blk_execute_rq(struct request *rq, bool at_head);
