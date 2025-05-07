@@ -163,8 +163,6 @@ int smu_v13_0_notify_memory_pool_location(struct smu_context *smu);
 int smu_v13_0_system_features_control(struct smu_context *smu,
 				      bool en);
 
-int smu_v13_0_init_display_count(struct smu_context *smu, uint32_t count);
-
 int smu_v13_0_set_allowed_mask(struct smu_context *smu);
 
 int smu_v13_0_notify_display_change(struct smu_context *smu);

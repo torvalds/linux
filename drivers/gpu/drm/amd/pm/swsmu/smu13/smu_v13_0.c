@@ -749,18 +749,6 @@ int smu_v13_0_set_tool_table_location(struct smu_context *smu)
 	return ret;
 }
 
-int smu_v13_0_init_display_count(struct smu_context *smu, uint32_t count)
-{
-	int ret = 0;
-
-	if (!smu->pm_enabled)
-		return ret;
-
-	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, count, NULL);
-
-	return ret;
-}
-
 int smu_v13_0_set_allowed_mask(struct smu_context *smu)
 {
 	struct smu_feature *feature = &smu->smu_feature;
