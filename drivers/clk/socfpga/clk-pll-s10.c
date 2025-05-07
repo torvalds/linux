@@ -83,9 +83,9 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hwclk,
 					 unsigned long parent_rate)
 {
 	struct socfpga_pll *socfpgaclk = to_socfpga_clk(hwclk);
-	unsigned long mdiv;
-	unsigned long refdiv;
-	unsigned long reg;
+	u32 mdiv;
+	u32 refdiv;
+	u32 reg;
 	unsigned long long vco_freq;
 
 	/* read VCO1 reg for numerator and denominator */
