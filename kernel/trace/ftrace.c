@@ -3436,7 +3436,7 @@ static int add_next_hash(struct ftrace_hash **filter_hash, struct ftrace_hash **
 
 		/* Copy the subops hash */
 		*filter_hash = alloc_and_copy_ftrace_hash(size_bits, subops_hash->filter_hash);
-		if (!filter_hash)
+		if (!*filter_hash)
 			return -ENOMEM;
 		/* Remove any notrace functions from the copy */
 		remove_hash(*filter_hash, subops_hash->notrace_hash);
