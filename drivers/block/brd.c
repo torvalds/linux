@@ -54,32 +54,33 @@ static struct page *brd_lookup_page(struct brd_device *brd, sector_t sector)
 /*
  * Insert a new page for a given sector, if one does not already exist.
  */
-static int brd_insert_page(struct brd_device *brd, sector_t sector, gfp_t gfp)
+static struct page *brd_insert_page(struct brd_device *brd, sector_t sector,
+		blk_opf_t opf)
+	__releases(rcu)
+	__acquires(rcu)
 {
-	pgoff_t idx = sector >> PAGE_SECTORS_SHIFT;
-	struct page *page;
-	int ret = 0;
+	gfp_t gfp = (opf & REQ_NOWAIT) ? GFP_NOWAIT : GFP_NOIO;
+	struct page *page, *ret;
 
-	page = brd_lookup_page(brd, sector);
-	if (page)
-		return 0;
-
+	rcu_read_unlock();
 	page = alloc_page(gfp | __GFP_ZERO | __GFP_HIGHMEM);
+	rcu_read_lock();
 	if (!page)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	xa_lock(&brd->brd_pages);
-	ret = __xa_insert(&brd->brd_pages, idx, page, gfp);
-	if (!ret)
-		brd->brd_nr_pages++;
-	xa_unlock(&brd->brd_pages);
-
-	if (ret < 0) {
+	ret = __xa_cmpxchg(&brd->brd_pages, sector >> PAGE_SECTORS_SHIFT, NULL,
+			page, gfp);
+	if (ret) {
+		xa_unlock(&brd->brd_pages);
 		__free_page(page);
-		if (ret == -EBUSY)
-			ret = 0;
+		if (xa_is_err(ret))
+			return ERR_PTR(xa_err(ret));
+		return ret;
 	}
-	return ret;
+	brd->brd_nr_pages++;
+	xa_unlock(&brd->brd_pages);
+	return page;
 }
 
 /*
@@ -114,36 +115,17 @@ static bool brd_rw_bvec(struct brd_device *brd, struct bio *bio)
 
 	bv.bv_len = min_t(u32, bv.bv_len, PAGE_SIZE - offset);
 
-	if (op_is_write(opf)) {
-		int err;
-
-		/*
-		 * Must use NOIO because we don't want to recurse back into the
-		 * block or filesystem layers from page reclaim.
-		 */
-		err = brd_insert_page(brd, sector,
-				(opf & REQ_NOWAIT) ? GFP_NOWAIT : GFP_NOIO);
-		if (err) {
-			if (err == -ENOMEM && (opf & REQ_NOWAIT))
-				bio_wouldblock_error(bio);
-			else
-				bio_io_error(bio);
-			return false;
-		}
-	}
-
 	rcu_read_lock();
 	page = brd_lookup_page(brd, sector);
+	if (!page && op_is_write(opf)) {
+		page = brd_insert_page(brd, sector, opf);
+		if (IS_ERR(page))
+			goto out_error;
+	}
 
 	kaddr = bvec_kmap_local(&bv);
 	if (op_is_write(opf)) {
-		/*
-		 * Page can be removed by concurrent discard, it's fine to skip
-		 * the write and user will read zero data if page does not
-		 * exist.
-		 */
-		if (page)
-			memcpy_to_page(page, offset, kaddr, bv.bv_len);
+		memcpy_to_page(page, offset, kaddr, bv.bv_len);
 	} else {
 		if (page)
 			memcpy_from_page(kaddr, page, offset, bv.bv_len);
@@ -155,6 +137,14 @@ static bool brd_rw_bvec(struct brd_device *brd, struct bio *bio)
 
 	bio_advance_iter_single(bio, &bio->bi_iter, bv.bv_len);
 	return true;
+
+out_error:
+	rcu_read_unlock();
+	if (PTR_ERR(page) == -ENOMEM && (opf & REQ_NOWAIT))
+		bio_wouldblock_error(bio);
+	else
+		bio_io_error(bio);
+	return false;
 }
 
 static void brd_free_one_page(struct rcu_head *head)
