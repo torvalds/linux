@@ -252,7 +252,6 @@ static int create_dmic_dailinks(struct snd_soc_card *card,
 	ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, "acp-dmic-codec",
 					    0, 1, // DMIC only supports capture
 					    "acp-sof-dmic", platform_component->name,
-					    ARRAY_SIZE(platform_component),
 					    "dmic-codec", "dmic-hifi", no_pcm,
 					    asoc_sdw_dmic_init, NULL);
 	if (ret)
