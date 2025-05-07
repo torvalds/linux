@@ -1776,14 +1776,18 @@ static void bch2_snapshot_delete_nodes_to_text(struct printbuf *out, struct snap
 	prt_newline(out);
 }
 
-int bch2_delete_dead_snapshots(struct bch_fs *c)
+int __bch2_delete_dead_snapshots(struct bch_fs *c)
 {
-	if (!test_and_clear_bit(BCH_FS_need_delete_dead_snapshots, &c->flags))
-		return 0;
-
-	struct btree_trans *trans = bch2_trans_get(c);
 	struct snapshot_delete *d = &c->snapshot_delete;
 	int ret = 0;
+
+	if (!mutex_trylock(&d->lock))
+		return 0;
+
+	if (!test_and_clear_bit(BCH_FS_need_delete_dead_snapshots, &c->flags))
+		goto out_unlock;
+
+	struct btree_trans *trans = bch2_trans_get(c);
 
 	/*
 	 * For every snapshot node: If we have no live children and it's not
@@ -1857,9 +1861,19 @@ err:
 	d->running = false;
 	mutex_unlock(&d->progress_lock);
 	bch2_trans_put(trans);
+out_unlock:
+	mutex_unlock(&d->lock);
 	if (!bch2_err_matches(ret, EROFS))
 		bch_err_fn(c, ret);
 	return ret;
+}
+
+int bch2_delete_dead_snapshots(struct bch_fs *c)
+{
+	if (!c->opts.auto_snapshot_deletion)
+		return 0;
+
+	return __bch2_delete_dead_snapshots(c);
 }
 
 void bch2_delete_dead_snapshots_work(struct work_struct *work)
@@ -1874,6 +1888,9 @@ void bch2_delete_dead_snapshots_work(struct work_struct *work)
 
 void bch2_delete_dead_snapshots_async(struct bch_fs *c)
 {
+	if (!c->opts.auto_snapshot_deletion)
+		return;
+
 	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_delete_dead_snapshots))
 		return;
 
@@ -1977,6 +1994,7 @@ void bch2_fs_snapshots_exit(struct bch_fs *c)
 void bch2_fs_snapshots_init_early(struct bch_fs *c)
 {
 	INIT_WORK(&c->snapshot_delete.work, bch2_delete_dead_snapshots_work);
+	mutex_init(&c->snapshot_delete.lock);
 	mutex_init(&c->snapshot_delete.progress_lock);
 	mutex_init(&c->snapshots_unlinked_lock);
 }

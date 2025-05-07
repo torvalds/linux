@@ -149,6 +149,7 @@ write_attribute(trigger_btree_key_cache_shrink);
 write_attribute(trigger_btree_updates);
 write_attribute(trigger_freelist_wakeup);
 write_attribute(trigger_recalc_capacity);
+write_attribute(trigger_delete_dead_snapshots);
 read_attribute(gc_gens_pos);
 
 read_attribute(uuid);
@@ -439,6 +440,9 @@ STORE(bch2_fs)
 		up_read(&c->state_lock);
 	}
 
+	if (attr == &sysfs_trigger_delete_dead_snapshots)
+		__bch2_delete_dead_snapshots(c);
+
 #ifdef CONFIG_BCACHEFS_TESTS
 	if (attr == &sysfs_perf_test) {
 		char *tmp = kstrdup(buf, GFP_KERNEL), *p = tmp;
@@ -568,6 +572,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_trigger_btree_updates,
 	&sysfs_trigger_freelist_wakeup,
 	&sysfs_trigger_recalc_capacity,
+	&sysfs_trigger_delete_dead_snapshots,
 
 	&sysfs_gc_gens_pos,
 

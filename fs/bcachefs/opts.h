@@ -495,6 +495,12 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH_SB_REBALANCE_AC_ONLY,		false,			\
 	  NULL,		"Enable rebalance while on mains power only\n")	\
+	x(auto_snapshot_deletion,	u8,				\
+	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
+	  OPT_BOOL(),							\
+	  BCH2_NO_SB_OPT,			true,			\
+	  NULL,		"Enable automatic snapshot deletion: disable for debugging, or to\n"\
+			"quiet the system when doing performance testing\n")\
 	x(no_data_io,			u8,				\
 	  OPT_MOUNT,							\
 	  OPT_BOOL(),							\

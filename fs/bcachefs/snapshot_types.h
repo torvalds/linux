@@ -42,6 +42,7 @@ struct snapshot_interior_delete {
 typedef DARRAY(struct snapshot_interior_delete) interior_delete_list;
 
 struct snapshot_delete {
+	struct mutex		lock;
 	struct work_struct	work;
 
 	struct mutex		progress_lock;

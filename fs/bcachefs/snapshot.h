@@ -273,6 +273,7 @@ static inline int bch2_key_has_snapshot_overwrites(struct btree_trans *trans,
 	return __bch2_key_has_snapshot_overwrites(trans, id, pos);
 }
 
+int __bch2_delete_dead_snapshots(struct bch_fs *);
 int bch2_delete_dead_snapshots(struct bch_fs *);
 void bch2_delete_dead_snapshots_work(struct work_struct *);
 void bch2_delete_dead_snapshots_async(struct bch_fs *);
