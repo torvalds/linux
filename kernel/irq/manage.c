@@ -2564,8 +2564,8 @@ int request_percpu_nmi(unsigned int irq, irq_handler_t handler,
 	if (retval)
 		goto err_irq_setup;
 
-	guard(raw_spinlock_irqsave)(&desc->lock);
-	desc->istate |= IRQS_NMI;
+	scoped_guard(raw_spinlock_irqsave, &desc->lock)
+		desc->istate |= IRQS_NMI;
 	return 0;
 
 err_irq_setup:
