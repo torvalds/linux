@@ -287,8 +287,7 @@ static bool event_interrupt_isr_v11(struct kfd_node *dev,
 		data[0], data[1], data[2], data[3], data[4], data[5], data[6],
 		data[7]);
 
-	/* If there is no valid PASID, it's likely a bug */
-	if (WARN_ONCE(pasid == 0, "Bug: No PASID in KFD interrupt"))
+	if (pasid == 0)
 		return false;
 
 	/* Interrupt types we care about: various signals and faults.
