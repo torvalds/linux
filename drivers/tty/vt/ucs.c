@@ -46,7 +46,7 @@ static int interval32_cmp(const void *key, const void *element)
 
 static bool cp_in_range16(u16 cp, const struct ucs_interval16 *ranges, size_t size)
 {
-	if (!in_range(cp, ranges[0].first, ranges[size - 1].last))
+	if (cp < ranges[0].first || cp > ranges[size - 1].last)
 		return false;
 
 	return __inline_bsearch(&cp, ranges, size, sizeof(*ranges),
@@ -55,7 +55,7 @@ static bool cp_in_range16(u16 cp, const struct ucs_interval16 *ranges, size_t si
 
 static bool cp_in_range32(u32 cp, const struct ucs_interval32 *ranges, size_t size)
 {
-	if (!in_range(cp, ranges[0].first, ranges[size - 1].last))
+	if (cp < ranges[0].first || cp > ranges[size - 1].last)
 		return false;
 
 	return __inline_bsearch(&cp, ranges, size, sizeof(*ranges),
@@ -144,8 +144,8 @@ static int recomposition_cmp(const void *key, const void *element)
 u32 ucs_recompose(u32 base, u32 mark)
 {
 	/* Check if characters are within the range of our table */
-	if (!in_range(base, UCS_RECOMPOSE_MIN_BASE, UCS_RECOMPOSE_MAX_BASE) ||
-	    !in_range(mark, UCS_RECOMPOSE_MIN_MARK, UCS_RECOMPOSE_MAX_MARK))
+	if (base < UCS_RECOMPOSE_MIN_BASE || base > UCS_RECOMPOSE_MAX_BASE ||
+	    mark < UCS_RECOMPOSE_MIN_MARK || mark > UCS_RECOMPOSE_MAX_MARK)
 		return 0;
 
 	struct compare_key key = { base, mark };
