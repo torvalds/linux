@@ -275,8 +275,10 @@ void kmsan_copy_to_user(void __user *to, const void *from, size_t to_copy,
 		 * Don't check anything, just copy the shadow of the copied
 		 * bytes.
 		 */
+		kmsan_enter_runtime();
 		kmsan_internal_memmove_metadata((void *)to, (void *)from,
 						to_copy - left);
+		kmsan_leave_runtime();
 	}
 	user_access_restore(ua_flags);
 }
