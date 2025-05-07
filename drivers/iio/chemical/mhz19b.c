@@ -276,7 +276,7 @@ static int mhz19b_probe(struct serdev_device *serdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
-		return ret;
+		return -ENOMEM;
 	serdev_device_set_drvdata(serdev, indio_dev);
 
 	st = iio_priv(indio_dev);
