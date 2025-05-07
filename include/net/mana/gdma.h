@@ -60,6 +60,7 @@ enum gdma_eqe_type {
 	GDMA_EQE_HWC_INIT_DONE		= 131,
 	GDMA_EQE_HWC_SOC_RECONFIG	= 132,
 	GDMA_EQE_HWC_SOC_RECONFIG_DATA	= 133,
+	GDMA_EQE_HWC_SOC_SERVICE	= 134,
 	GDMA_EQE_RNIC_QP_FATAL		= 176,
 };
 
@@ -68,6 +69,18 @@ enum {
 	GDMA_DEVICE_HWC		= 1,
 	GDMA_DEVICE_MANA	= 2,
 	GDMA_DEVICE_MANA_IB	= 3,
+};
+
+enum gdma_service_type {
+	GDMA_SERVICE_TYPE_NONE		= 0,
+	GDMA_SERVICE_TYPE_RDMA_SUSPEND	= 1,
+	GDMA_SERVICE_TYPE_RDMA_RESUME	= 2,
+};
+
+struct mana_service_work {
+	struct work_struct work;
+	struct gdma_dev *gdma_dev;
+	enum gdma_service_type event;
 };
 
 struct gdma_resource {
@@ -224,6 +237,8 @@ struct gdma_dev {
 	void *driver_data;
 
 	struct auxiliary_device *adev;
+	bool is_suspended;
+	bool rdma_teardown;
 };
 
 /* MANA_PAGE_SIZE is the DMA unit */
@@ -409,6 +424,8 @@ struct gdma_context {
 	struct gdma_dev		mana_ib;
 
 	u64 pf_cap_flags1;
+
+	struct workqueue_struct *service_wq;
 };
 
 static inline bool mana_gd_is_mana(struct gdma_dev *gd)
@@ -890,5 +907,7 @@ int mana_gd_send_request(struct gdma_context *gc, u32 req_len, const void *req,
 int mana_gd_destroy_dma_region(struct gdma_context *gc, u64 dma_region_handle);
 void mana_register_debugfs(void);
 void mana_unregister_debugfs(void);
+
+int mana_rdma_service_event(struct gdma_context *gc, enum gdma_service_type event);
 
 #endif /* _GDMA_H */
