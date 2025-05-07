@@ -44,4 +44,35 @@
 	.private_value = xdata, \
 }
 
+struct tas2781_hda {
+	struct device *dev;
+	struct tasdevice_priv *priv;
+	struct snd_kcontrol *dsp_prog_ctl;
+	struct snd_kcontrol *dsp_conf_ctl;
+	struct snd_kcontrol *prof_ctl;
+	enum device_catlog_id catlog_id;
+	void *hda_priv;
+};
+
+void tas2781_hda_remove(struct device *dev,
+	const struct component_ops *ops);
+int tasdevice_info_profile(struct snd_kcontrol *kctl,
+	struct snd_ctl_elem_info *uctl);
+int tasdevice_info_programs(struct snd_kcontrol *kctl,
+	struct snd_ctl_elem_info *uctl);
+int tasdevice_info_config(struct snd_kcontrol *kctl,
+	struct snd_ctl_elem_info *uctl);
+int tasdevice_set_profile_id(struct snd_kcontrol *kctl,
+	struct snd_ctl_elem_value *uctl);
+int tasdevice_get_profile_id(struct snd_kcontrol *kctl,
+	struct snd_ctl_elem_value *uctl);
+int tasdevice_program_get(struct snd_kcontrol *kctl,
+	struct snd_ctl_elem_value *uctl);
+int tasdevice_program_put(struct snd_kcontrol *kctl,
+	struct snd_ctl_elem_value *uctl);
+int tasdevice_config_put(struct snd_kcontrol *kctl,
+	struct snd_ctl_elem_value *uctl);
+int tasdevice_config_get(struct snd_kcontrol *kctl,
+	struct snd_ctl_elem_value *uctl);
+
 #endif
