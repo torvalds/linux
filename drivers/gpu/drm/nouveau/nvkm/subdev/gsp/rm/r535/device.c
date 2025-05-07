@@ -111,8 +111,8 @@ r535_gsp_subdevice_ctor(struct nvkm_gsp_device *device)
 {
 	NV2080_ALLOC_PARAMETERS *args;
 
-	return nvkm_gsp_rm_alloc(&device->object, 0x5d1d0000, NV20_SUBDEVICE_0, sizeof(*args),
-				 &device->subdevice);
+	return nvkm_gsp_rm_alloc(&device->object, NVKM_RM_SUBDEVICE, NV20_SUBDEVICE_0,
+				 sizeof(*args), &device->subdevice);
 }
 
 static int
@@ -121,7 +121,7 @@ r535_gsp_device_ctor(struct nvkm_gsp_client *client, struct nvkm_gsp_device *dev
 	NV0080_ALLOC_PARAMETERS *args;
 	int ret;
 
-	args = nvkm_gsp_rm_alloc_get(&client->object, 0xde1d0000, NV01_DEVICE_0, sizeof(*args),
+	args = nvkm_gsp_rm_alloc_get(&client->object, NVKM_RM_DEVICE, NV01_DEVICE_0, sizeof(*args),
 				     &device->object);
 	if (IS_ERR(args))
 		return PTR_ERR(args);

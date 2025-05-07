@@ -53,7 +53,7 @@ r535_gsp_client_ctor(struct nvkm_gsp *gsp, struct nvkm_gsp_client *client)
 	client->object.client = client;
 	INIT_LIST_HEAD(&client->events);
 
-	args = nvkm_gsp_rm_alloc_get(&client->object, 0xc1d00000 | ret, NV01_ROOT, sizeof(*args),
+	args = nvkm_gsp_rm_alloc_get(&client->object, NVKM_RM_CLIENT(ret), NV01_ROOT, sizeof(*args),
 				     &client->object);
 	if (IS_ERR(args)) {
 		r535_gsp_client_dtor(client);

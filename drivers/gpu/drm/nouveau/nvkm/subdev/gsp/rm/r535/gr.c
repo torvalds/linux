@@ -205,7 +205,7 @@ r535_gr_oneinit(struct nvkm_gr *base)
 	{
 		NV_CHANNELGPFIFO_ALLOCATION_PARAMETERS *args;
 
-		args = nvkm_gsp_rm_alloc_get(&golden.vmm->rm.device.object, 0xf1f00000,
+		args = nvkm_gsp_rm_alloc_get(&golden.vmm->rm.device.object, NVKM_RM_CHAN(0),
 					     device->fifo->func->chan.user.oclass,
 					     sizeof(*args), &golden.chan);
 		if (IS_ERR(args)) {
@@ -358,7 +358,7 @@ r535_gr_oneinit(struct nvkm_gr *base)
 		goto done;
 
 	/* Allocate 3D class on channel to trigger golden context init in RM. */
-	ret = nvkm_gsp_rm_alloc(&golden.chan, 0x97000000, rm->gpu->gr.class.threed, 0, &threed);
+	ret = nvkm_gsp_rm_alloc(&golden.chan, NVKM_RM_THREED, rm->gpu->gr.class.threed, 0, &threed);
 	if (ret)
 		goto done;
 

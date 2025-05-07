@@ -5,6 +5,7 @@
 #include <subdev/gsp.h>
 #ifndef __NVKM_RM_H__
 #define __NVKM_RM_H__
+#include "handles.h"
 
 struct nvkm_rm_impl {
 	const struct nvkm_rm_api *api;

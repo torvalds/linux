@@ -34,7 +34,7 @@ r535_mmu_promote_vmm(struct nvkm_vmm *vmm)
 	if (ret)
 		return ret;
 
-	args = nvkm_gsp_rm_alloc_get(&vmm->rm.device.object, 0x90f10000, FERMI_VASPACE_A,
+	args = nvkm_gsp_rm_alloc_get(&vmm->rm.device.object, NVKM_RM_VASPACE, FERMI_VASPACE_A,
 				     sizeof(*args), &vmm->rm.object);
 	if (IS_ERR(args))
 		return PTR_ERR(args);
