@@ -636,16 +636,15 @@ static int nfs_do_writepage(struct folio *folio, struct writeback_control *wbc,
 		struct nfs_pageio_descriptor *pgio)
 {
 	struct nfs_page *req;
-	int ret = 0;
+	int ret;
 
 	nfs_pageio_cond_complete(pgio, folio->index);
 
 	req = nfs_lock_and_join_requests(folio);
 	if (!req)
-		goto out;
-	ret = PTR_ERR(req);
+		return 0;
 	if (IS_ERR(req))
-		goto out;
+		return PTR_ERR(req);
 
 	nfs_folio_set_writeback(folio);
 	WARN_ON_ONCE(test_bit(PG_CLEAN, &req->wb_flags));
@@ -655,7 +654,6 @@ static int nfs_do_writepage(struct folio *folio, struct writeback_control *wbc,
 	if (nfs_error_is_fatal_on_server(ret))
 		goto out_launder;
 
-	ret = 0;
 	if (!nfs_pageio_add_request(pgio, req)) {
 		ret = pgio->pg_error;
 		/*
@@ -666,11 +664,12 @@ static int nfs_do_writepage(struct folio *folio, struct writeback_control *wbc,
 		folio_redirty_for_writepage(wbc, folio);
 		nfs_redirty_request(req);
 		pgio->pg_error = 0;
-	} else
-		nfs_add_stats(folio->mapping->host,
-			      NFSIOS_WRITEPAGES, 1);
-out:
-	return ret;
+		return ret;
+	}
+
+	nfs_add_stats(folio->mapping->host, NFSIOS_WRITEPAGES, 1);
+	return 0;
+
 out_launder:
 	nfs_write_error(req, ret);
 	return 0;
