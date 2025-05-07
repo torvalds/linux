@@ -321,12 +321,14 @@ static void bio_map_kern_endio(struct bio *bio)
  *	bio_map_kern	-	map kernel address into bio
  *	@data: pointer to buffer to map
  *	@len: length in bytes
+ *	@op: bio/request operation
  *	@gfp_mask: allocation flags for bio allocation
  *
  *	Map the kernel address into a bio suitable for io to a block
  *	device. Returns an error pointer in case of error.
  */
-static struct bio *bio_map_kern(void *data, unsigned int len, gfp_t gfp_mask)
+static struct bio *bio_map_kern(void *data, unsigned int len,
+		enum req_op op, gfp_t gfp_mask)
 {
 	unsigned long kaddr = (unsigned long)data;
 	unsigned long end = (kaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -340,7 +342,7 @@ static struct bio *bio_map_kern(void *data, unsigned int len, gfp_t gfp_mask)
 	bio = bio_kmalloc(nr_pages, gfp_mask);
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
-	bio_init(bio, NULL, bio->bi_inline_vecs, nr_pages, 0);
+	bio_init(bio, NULL, bio->bi_inline_vecs, nr_pages, op);
 
 	if (is_vmalloc) {
 		flush_kernel_vmap_range(data, len);
@@ -402,14 +404,14 @@ static void bio_copy_kern_endio_read(struct bio *bio)
  *	bio_copy_kern	-	copy kernel address into bio
  *	@data: pointer to buffer to copy
  *	@len: length in bytes
+ *	@op: bio/request operation
  *	@gfp_mask: allocation flags for bio and page allocation
- *	@reading: data direction is READ
  *
  *	copy the kernel address into a bio suitable for io to a block
  *	device. Returns an error pointer in case of error.
  */
-static struct bio *bio_copy_kern(void *data, unsigned int len, gfp_t gfp_mask,
-		int reading)
+static struct bio *bio_copy_kern(void *data, unsigned int len, enum req_op op,
+		gfp_t gfp_mask)
 {
 	unsigned long kaddr = (unsigned long)data;
 	unsigned long end = (kaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -428,7 +430,7 @@ static struct bio *bio_copy_kern(void *data, unsigned int len, gfp_t gfp_mask,
 	bio = bio_kmalloc(nr_pages, gfp_mask);
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
-	bio_init(bio, NULL, bio->bi_inline_vecs, nr_pages, 0);
+	bio_init(bio, NULL, bio->bi_inline_vecs, nr_pages, op);
 
 	while (len) {
 		struct page *page;
@@ -441,7 +443,7 @@ static struct bio *bio_copy_kern(void *data, unsigned int len, gfp_t gfp_mask,
 		if (!page)
 			goto cleanup;
 
-		if (!reading)
+		if (op_is_write(op))
 			memcpy(page_address(page), p, bytes);
 
 		if (bio_add_page(bio, page, bytes, 0) < bytes)
@@ -451,11 +453,11 @@ static struct bio *bio_copy_kern(void *data, unsigned int len, gfp_t gfp_mask,
 		p += bytes;
 	}
 
-	if (reading) {
+	if (op_is_write(op)) {
+		bio->bi_end_io = bio_copy_kern_endio;
+	} else {
 		bio->bi_end_io = bio_copy_kern_endio_read;
 		bio->bi_private = data;
-	} else {
-		bio->bi_end_io = bio_copy_kern_endio;
 	}
 
 	return bio;
@@ -697,7 +699,6 @@ EXPORT_SYMBOL(blk_rq_unmap_user);
 int blk_rq_map_kern(struct request *rq, void *kbuf, unsigned int len,
 		gfp_t gfp_mask)
 {
-	int reading = rq_data_dir(rq) == READ;
 	unsigned long addr = (unsigned long) kbuf;
 	struct bio *bio;
 	int ret;
@@ -708,15 +709,12 @@ int blk_rq_map_kern(struct request *rq, void *kbuf, unsigned int len,
 		return -EINVAL;
 
 	if (!blk_rq_aligned(rq->q, addr, len) || object_is_on_stack(kbuf))
-		bio = bio_copy_kern(kbuf, len, gfp_mask, reading);
+		bio = bio_copy_kern(kbuf, len, req_op(rq), gfp_mask);
 	else
-		bio = bio_map_kern(kbuf, len, gfp_mask);
+		bio = bio_map_kern(kbuf, len, req_op(rq), gfp_mask);
 
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
-
-	bio->bi_opf &= ~REQ_OP_MASK;
-	bio->bi_opf |= req_op(rq);
 
 	ret = blk_rq_append_bio(rq, bio);
 	if (unlikely(ret)) {
