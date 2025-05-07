@@ -2,8 +2,8 @@
 DWARF module versioning
 =======================
 
-1. Introduction
-===============
+Introduction
+============
 
 When CONFIG_MODVERSIONS is enabled, symbol versions for modules
 are typically calculated from preprocessed source code using the
@@ -14,8 +14,8 @@ selected, **gendwarfksyms** is used instead to calculate symbol versions
 from the DWARF debugging information, which contains the necessary
 details about the final module ABI.
 
-1.1. Usage
-==========
+Usage
+-----
 
 gendwarfksyms accepts a list of object files on the command line, and a
 list of symbol names (one per line) in standard input::
@@ -33,8 +33,8 @@ list of symbol names (one per line) in standard input::
           -h, --help           Print this message
 
 
-2. Type information availability
-================================
+Type information availability
+=============================
 
 While symbols are typically exported in the same translation unit (TU)
 where they're defined, it's also perfectly fine for a TU to export
@@ -56,8 +56,8 @@ type for calculating symbol versions even if the symbol is defined
 elsewhere. The name of the symbol pointer is expected to start with
 `__gendwarfksyms_ptr_`, followed by the name of the exported symbol.
 
-3. Symtypes output format
-=========================
+Symtypes output format
+======================
 
 Similarly to genksyms, gendwarfksyms supports writing a symtypes
 file for each processed object that contain types for exported
@@ -85,8 +85,8 @@ produces C-style type strings, gendwarfksyms uses the same simple parsed
 DWARF format produced by **--dump-dies**, but with type references
 instead of fully expanded strings.
 
-4. Maintaining a stable kABI
-============================
+Maintaining a stable kABI
+=========================
 
 Distribution maintainers often need the ability to make ABI compatible
 changes to kernel data structures due to LTS updates or backports. Using
@@ -104,8 +104,8 @@ for source code annotation. Note that as these features are only used to
 transform the inputs for symbol versioning, the user is responsible for
 ensuring that their changes actually won't break the ABI.
 
-4.1. kABI rules
-===============
+kABI rules
+----------
 
 kABI rules allow distributions to fine-tune certain parts
 of gendwarfksyms output and thus control how symbol
@@ -139,8 +139,8 @@ Currently, only the rules discussed in this section are supported, but
 the format is extensible enough to allow further rules to be added as
 need arises.
 
-4.1.1. Managing definition visibility
-=====================================
+Managing definition visibility
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A declaration can change into a full definition when additional includes
 are pulled into the translation unit. This changes the versions of any
@@ -168,8 +168,8 @@ Example usage::
 
 	KABI_DECLONLY(s);
 
-4.1.2. Adding enumerators
-=========================
+Adding enumerators
+~~~~~~~~~~~~~~~~~~
 
 For enums, all enumerators and their values are included in calculating
 symbol versions, which becomes a problem if we later need to add more
@@ -223,8 +223,8 @@ Example usage::
 	KABI_ENUMERATOR_IGNORE(e, C);
 	KABI_ENUMERATOR_VALUE(e, LAST, 2);
 
-4.3. Adding structure members
-=============================
+Adding structure members
+------------------------
 
 Perhaps the most common ABI compatible change is adding a member to a
 kernel data structure. When changes to a structure are anticipated,
@@ -237,8 +237,8 @@ natural method. This section describes gendwarfksyms support for using
 reserved space in data structures and hiding members that don't change
 the ABI when calculating symbol versions.
 
-4.3.1. Reserving space and replacing members
-============================================
+Reserving space and replacing members
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Space is typically reserved for later use by appending integer types, or
 arrays, to the end of the data structure, but any type can be used. Each
@@ -276,8 +276,8 @@ The examples include `KABI_(RESERVE|USE|REPLACE)*` macros that help
 simplify the process and also ensure the replacement member is correctly
 aligned and its size won't exceed the reserved space.
 
-4.3.2. Hiding members
-=====================
+Hiding members
+~~~~~~~~~~~~~~
 
 Predicting which structures will require changes during the support
 timeframe isn't always possible, in which case one might have to resort
