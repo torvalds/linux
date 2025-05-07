@@ -66,8 +66,6 @@ struct scrub_ctx;
 
 /* Represent one sector and its needed info to verify the content. */
 struct scrub_sector_verification {
-	bool is_metadata;
-
 	union {
 		/*
 		 * Csum pointer for data csum verification.  Should point to a
@@ -114,6 +112,9 @@ enum scrub_stripe_flags {
 enum {
 	/* Which blocks are covered by extent items. */
 	scrub_bitmap_nr_has_extent = 0,
+
+	/* Which blocks are meteadata. */
+	scrub_bitmap_nr_is_metadata,
 
 	/*
 	 * Which blocks have errors, including IO, csum, and metadata
@@ -304,6 +305,7 @@ static inline unsigned int scrub_bitmap_weight_##name(struct scrub_stripe *strip
 	return bitmap_weight(&bitmap, stripe->nr_sectors);		\
 }
 IMPLEMENT_SCRUB_BITMAP_OPS(has_extent);
+IMPLEMENT_SCRUB_BITMAP_OPS(is_metadata);
 IMPLEMENT_SCRUB_BITMAP_OPS(error);
 IMPLEMENT_SCRUB_BITMAP_OPS(io_error);
 IMPLEMENT_SCRUB_BITMAP_OPS(csum_error);
@@ -801,7 +803,7 @@ static void scrub_verify_one_sector(struct scrub_stripe *stripe, int sector_nr)
 		return;
 
 	/* Metadata, verify the full tree block. */
-	if (sector->is_metadata) {
+	if (scrub_bitmap_test_bit_is_metadata(stripe, sector_nr)) {
 		/*
 		 * Check if the tree block crosses the stripe boundary.  If
 		 * crossed the boundary, we cannot verify it but only give a
@@ -850,7 +852,7 @@ static void scrub_verify_one_stripe(struct scrub_stripe *stripe, unsigned long b
 
 	for_each_set_bit(sector_nr, &bitmap, stripe->nr_sectors) {
 		scrub_verify_one_sector(stripe, sector_nr);
-		if (stripe->sectors[sector_nr].is_metadata)
+		if (scrub_bitmap_test_bit_is_metadata(stripe, sector_nr))
 			sector_nr += sectors_per_tree - 1;
 	}
 }
@@ -1019,7 +1021,7 @@ skip:
 	for_each_set_bit(sector_nr, &extent_bitmap, stripe->nr_sectors) {
 		bool repaired = false;
 
-		if (stripe->sectors[sector_nr].is_metadata) {
+		if (scrub_bitmap_test_bit_is_metadata(stripe, sector_nr)) {
 			nr_meta_sectors++;
 		} else {
 			nr_data_sectors++;
@@ -1616,7 +1618,7 @@ static void fill_one_extent_info(struct btrfs_fs_info *fs_info,
 
 		scrub_bitmap_set_bit_has_extent(stripe, nr_sector);
 		if (extent_flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
-			sector->is_metadata = true;
+			scrub_bitmap_set_bit_is_metadata(stripe, nr_sector);
 			sector->generation = extent_gen;
 		}
 	}
@@ -1760,7 +1762,6 @@ static void scrub_reset_stripe(struct scrub_stripe *stripe)
 	stripe->state = 0;
 
 	for (int i = 0; i < stripe->nr_sectors; i++) {
-		stripe->sectors[i].is_metadata = false;
 		stripe->sectors[i].csum = NULL;
 		stripe->sectors[i].generation = 0;
 	}
@@ -1902,7 +1903,7 @@ static bool stripe_has_metadata_error(struct scrub_stripe *stripe)
 	int i;
 
 	for_each_set_bit(i, &error, stripe->nr_sectors) {
-		if (stripe->sectors[i].is_metadata) {
+		if (scrub_bitmap_test_bit_is_metadata(stripe, i)) {
 			struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
 
 			btrfs_err(fs_info,
