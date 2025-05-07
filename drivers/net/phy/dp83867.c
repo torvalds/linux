@@ -92,11 +92,6 @@
 #define DP83867_STRAP_STS1_RESERVED		BIT(11)
 
 /* STRAP_STS2 bits */
-#define DP83867_STRAP_STS2_CLK_SKEW_TX_MASK	GENMASK(6, 4)
-#define DP83867_STRAP_STS2_CLK_SKEW_TX_SHIFT	4
-#define DP83867_STRAP_STS2_CLK_SKEW_RX_MASK	GENMASK(2, 0)
-#define DP83867_STRAP_STS2_CLK_SKEW_RX_SHIFT	0
-#define DP83867_STRAP_STS2_CLK_SKEW_NONE	BIT(2)
 #define DP83867_STRAP_STS2_STRAP_FLD		BIT(10)
 
 /* PHY CTRL bits */
@@ -510,25 +505,6 @@ static int dp83867_verify_rgmii_cfg(struct phy_device *phydev)
 {
 	struct dp83867_private *dp83867 = phydev->priv;
 
-	/* Existing behavior was to use default pin strapping delay in rgmii
-	 * mode, but rgmii should have meant no delay.  Warn existing users.
-	 */
-	if (phydev->interface == PHY_INTERFACE_MODE_RGMII) {
-		const u16 val = phy_read_mmd(phydev, DP83867_DEVADDR,
-					     DP83867_STRAP_STS2);
-		const u16 txskew = (val & DP83867_STRAP_STS2_CLK_SKEW_TX_MASK) >>
-				   DP83867_STRAP_STS2_CLK_SKEW_TX_SHIFT;
-		const u16 rxskew = (val & DP83867_STRAP_STS2_CLK_SKEW_RX_MASK) >>
-				   DP83867_STRAP_STS2_CLK_SKEW_RX_SHIFT;
-
-		if (txskew != DP83867_STRAP_STS2_CLK_SKEW_NONE ||
-		    rxskew != DP83867_STRAP_STS2_CLK_SKEW_NONE)
-			phydev_warn(phydev,
-				    "PHY has delays via pin strapping, but phy-mode = 'rgmii'\n"
-				    "Should be 'rgmii-id' to use internal delays txskew:%x rxskew:%x\n",
-				    txskew, rxskew);
-	}
-
 	/* RX delay *must* be specified if internal delay of RX is used. */
 	if ((phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
 	     phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID) &&
@@ -836,13 +812,7 @@ static int dp83867_config_init(struct phy_device *phydev)
 		if (ret)
 			return ret;
 
-		/* If rgmii mode with no internal delay is selected, we do NOT use
-		 * aligned mode as one might expect.  Instead we use the PHY's default
-		 * based on pin strapping.  And the "mode 0" default is to *use*
-		 * internal delay with a value of 7 (2.00 ns).
-		 *
-		 * Set up RGMII delays
-		 */
+		/* Set up RGMII delays */
 		val = phy_read_mmd(phydev, DP83867_DEVADDR, DP83867_RGMIICTL);
 
 		val &= ~(DP83867_RGMII_TX_CLK_DELAY_EN | DP83867_RGMII_RX_CLK_DELAY_EN);
