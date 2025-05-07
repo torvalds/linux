@@ -180,6 +180,9 @@ struct drm_i915_private *mock_gem_device(void)
 	/* Set up device info and initial runtime info. */
 	intel_device_info_driver_create(i915, pdev->device, &mock_info);
 
+	/* TODO: Allocate display dynamically. */
+	i915->display = &i915->__display;
+
 	intel_display_device_probe(pdev);
 
 	dev_pm_domain_set(&pdev->dev, &pm_domain);

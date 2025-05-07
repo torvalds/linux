@@ -328,7 +328,7 @@ static bool fence_is_active(const struct i915_fence_reg *fence)
 
 static struct i915_fence_reg *fence_find(struct i915_ggtt *ggtt)
 {
-	struct intel_display *display = &ggtt->vm.i915->display;
+	struct intel_display *display = ggtt->vm.i915->display;
 	struct i915_fence_reg *active = NULL;
 	struct i915_fence_reg *fence, *fn;
 

@@ -658,7 +658,7 @@ static u32 skl_vgpu_get_dp_bitrate(struct intel_vgpu *vgpu, enum port port)
 static void vgpu_update_refresh_rate(struct intel_vgpu *vgpu)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
-	struct intel_display *display = &dev_priv->display;
+	struct intel_display *display = dev_priv->display;
 	enum port port;
 	u32 dp_br, link_m, link_n, htotal, vtotal;
 
@@ -1022,7 +1022,7 @@ static int pri_surf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
-	struct intel_display *display = &dev_priv->display;
+	struct intel_display *display = dev_priv->display;
 	u32 pipe = DSPSURF_TO_PIPE(display, offset);
 	int event = SKL_FLIP_EVENT(pipe, PLANE_PRIMARY);
 
@@ -1064,7 +1064,7 @@ static int reg50080_mmio_write(struct intel_vgpu *vgpu,
 			       unsigned int bytes)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
-	struct intel_display *display = &dev_priv->display;
+	struct intel_display *display = dev_priv->display;
 	enum pipe pipe = REG_50080_TO_PIPE(offset);
 	enum plane_id plane = REG_50080_TO_PLANE(offset);
 	int event = SKL_FLIP_EVENT(pipe, plane);
@@ -2200,7 +2200,7 @@ static int csfe_chicken1_mmio_write(struct intel_vgpu *vgpu,
 static int init_generic_mmio_info(struct intel_gvt *gvt)
 {
 	struct drm_i915_private *dev_priv = gvt->gt->i915;
-	struct intel_display *display = &dev_priv->display;
+	struct intel_display *display = dev_priv->display;
 	int ret;
 
 	MMIO_RING_DFH(RING_IMR, D_ALL, 0, NULL,

@@ -587,7 +587,8 @@ struct xe_device {
 	 * drm_i915_private during build. After cleanup these should go away,
 	 * migrating to the right sub-structs
 	 */
-	struct intel_display display;
+	struct intel_display *display;
+	struct intel_display __display; /* Transitional. Do not use directly. */
 
 	struct dram_info {
 		bool wm_lv_0_adjust_needed;

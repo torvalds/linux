@@ -201,7 +201,7 @@ static void ilk_init_clock_gating(struct drm_i915_private *i915)
 
 static void cpt_init_clock_gating(struct drm_i915_private *i915)
 {
-	struct intel_display *display = &i915->display;
+	struct intel_display *display = i915->display;
 	enum pipe pipe;
 	u32 val;
 

@@ -550,7 +550,7 @@ static unsigned int init_emon(struct intel_uncore *uncore)
 static bool gen5_rps_enable(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
-	struct intel_display *display = &i915->display;
+	struct intel_display *display = i915->display;
 	struct intel_uncore *uncore = rps_to_uncore(rps);
 	u8 fstart, vstart;
 	u32 rgvmodectl;
@@ -620,7 +620,7 @@ static bool gen5_rps_enable(struct intel_rps *rps)
 static void gen5_rps_disable(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
-	struct intel_display *display = &i915->display;
+	struct intel_display *display = i915->display;
 	struct intel_uncore *uncore = rps_to_uncore(rps);
 	u16 rgvswctl;
 
