@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-kcov-flags-$(CONFIG_CC_HAS_SANCOV_TRACE_PC)	+= -fsanitize-coverage=trace-pc
+kcov-flags-y					+= -fsanitize-coverage=trace-pc
 kcov-flags-$(CONFIG_KCOV_ENABLE_COMPARISONS)	+= -fsanitize-coverage=trace-cmp
 
 export CFLAGS_KCOV := $(kcov-flags-y)
