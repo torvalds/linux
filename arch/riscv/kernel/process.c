@@ -333,6 +333,9 @@ long get_tagged_addr_ctrl(struct task_struct *task)
 	struct thread_info *ti = task_thread_info(task);
 	long ret = 0;
 
+	if (!riscv_has_extension_unlikely(RISCV_ISA_EXT_SUPM))
+		return -EINVAL;
+
 	if (is_compat_thread(ti))
 		return -EINVAL;
 
