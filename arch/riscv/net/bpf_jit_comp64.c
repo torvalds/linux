@@ -607,11 +607,65 @@ static void emit_store_64(u8 rd, s32 off, u8 rs, struct rv_jit_context *ctx)
 	emit_sd(RV_REG_T1, 0, rs, ctx);
 }
 
-static void emit_atomic(u8 rd, u8 rs, s16 off, s32 imm, bool is64,
-			struct rv_jit_context *ctx)
+static int emit_atomic_ld_st(u8 rd, u8 rs, s16 off, s32 imm, u8 code, struct rv_jit_context *ctx)
+{
+	switch (imm) {
+	/* dst_reg = load_acquire(src_reg + off16) */
+	case BPF_LOAD_ACQ:
+		switch (BPF_SIZE(code)) {
+		case BPF_B:
+			emit_load_8(false, rd, off, rs, ctx);
+			break;
+		case BPF_H:
+			emit_load_16(false, rd, off, rs, ctx);
+			break;
+		case BPF_W:
+			emit_load_32(false, rd, off, rs, ctx);
+			break;
+		case BPF_DW:
+			emit_load_64(false, rd, off, rs, ctx);
+			break;
+		}
+		emit_fence_r_rw(ctx);
+		break;
+	/* store_release(dst_reg + off16, src_reg) */
+	case BPF_STORE_REL:
+		emit_fence_rw_w(ctx);
+		switch (BPF_SIZE(code)) {
+		case BPF_B:
+			emit_store_8(rd, off, rs, ctx);
+			break;
+		case BPF_H:
+			emit_store_16(rd, off, rs, ctx);
+			break;
+		case BPF_W:
+			emit_store_32(rd, off, rs, ctx);
+			break;
+		case BPF_DW:
+			emit_store_64(rd, off, rs, ctx);
+			break;
+		}
+		break;
+	default:
+		pr_err_once("bpf-jit: invalid atomic load/store opcode %02x\n", imm);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int emit_atomic_rmw(u8 rd, u8 rs, s16 off, s32 imm, u8 code,
+			   struct rv_jit_context *ctx)
 {
 	u8 r0;
 	int jmp_offset;
+	bool is64;
+
+	if (BPF_SIZE(code) != BPF_W && BPF_SIZE(code) != BPF_DW) {
+		pr_err_once("bpf-jit: 1- and 2-byte RMW atomics are not supported\n");
+		return -EINVAL;
+	}
+	is64 = BPF_SIZE(code) == BPF_DW;
 
 	if (off) {
 		if (is_12b_int(off)) {
@@ -688,9 +742,14 @@ static void emit_atomic(u8 rd, u8 rs, s16 off, s32 imm, bool is64,
 		     rv_sc_w(RV_REG_T3, rs, rd, 0, 1), ctx);
 		jmp_offset = ninsns_rvoff(-6);
 		emit(rv_bne(RV_REG_T3, 0, jmp_offset >> 1), ctx);
-		emit(rv_fence(0x3, 0x3), ctx);
+		emit_fence_rw_rw(ctx);
 		break;
+	default:
+		pr_err_once("bpf-jit: invalid atomic RMW opcode %02x\n", imm);
+		return -EINVAL;
 	}
+
+	return 0;
 }
 
 #define BPF_FIXUP_OFFSET_MASK   GENMASK(26, 0)
@@ -1962,10 +2021,16 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 	case BPF_STX | BPF_MEM | BPF_DW:
 		emit_store_64(rd, off, rs, ctx);
 		break;
+	case BPF_STX | BPF_ATOMIC | BPF_B:
+	case BPF_STX | BPF_ATOMIC | BPF_H:
 	case BPF_STX | BPF_ATOMIC | BPF_W:
 	case BPF_STX | BPF_ATOMIC | BPF_DW:
-		emit_atomic(rd, rs, off, imm,
-			    BPF_SIZE(code) == BPF_DW, ctx);
+		if (bpf_atomic_is_load_store(insn))
+			ret = emit_atomic_ld_st(rd, rs, off, imm, code, ctx);
+		else
+			ret = emit_atomic_rmw(rd, rs, off, imm, code, ctx);
+		if (ret)
+			return ret;
 		break;
 
 	case BPF_STX | BPF_PROBE_MEM32 | BPF_B:
