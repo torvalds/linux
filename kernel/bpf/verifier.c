@@ -3649,16 +3649,16 @@ static int insn_def_regno(const struct bpf_insn *insn)
 	case BPF_ST:
 		return -1;
 	case BPF_STX:
-		if ((BPF_MODE(insn->code) == BPF_ATOMIC ||
-		     BPF_MODE(insn->code) == BPF_PROBE_ATOMIC) &&
-		    (insn->imm & BPF_FETCH)) {
+		if (BPF_MODE(insn->code) == BPF_ATOMIC ||
+		    BPF_MODE(insn->code) == BPF_PROBE_ATOMIC) {
 			if (insn->imm == BPF_CMPXCHG)
 				return BPF_REG_0;
-			else
+			else if (insn->imm == BPF_LOAD_ACQ)
+				return insn->dst_reg;
+			else if (insn->imm & BPF_FETCH)
 				return insn->src_reg;
-		} else {
-			return -1;
 		}
+		return -1;
 	default:
 		return insn->dst_reg;
 	}
