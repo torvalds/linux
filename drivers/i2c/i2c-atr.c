@@ -239,56 +239,40 @@ static void i2c_atr_release_alias(struct i2c_atr_alias_pool *alias_pool, u16 ali
 	spin_unlock(&alias_pool->lock);
 }
 
-/* Must be called with alias_pairs_lock held */
 static struct i2c_atr_alias_pair *
-i2c_atr_get_mapping_by_addr(struct i2c_atr_chan *chan, u16 addr)
+i2c_atr_find_mapping_by_addr(struct i2c_atr_chan *chan, u16 addr)
+{
+	struct i2c_atr_alias_pair *c2a;
+
+	lockdep_assert_held(&chan->alias_pairs_lock);
+
+	list_for_each_entry(c2a, &chan->alias_pairs, node) {
+		if (c2a->addr == addr)
+			return c2a;
+	}
+
+	return NULL;
+}
+
+static struct i2c_atr_alias_pair *
+i2c_atr_create_mapping_by_addr(struct i2c_atr_chan *chan, u16 addr)
 {
 	struct i2c_atr *atr = chan->atr;
 	struct i2c_atr_alias_pair *c2a;
-	struct list_head *alias_pairs;
-	bool found = false;
 	u16 alias;
 	int ret;
 
 	lockdep_assert_held(&chan->alias_pairs_lock);
 
-	alias_pairs = &chan->alias_pairs;
-
-	list_for_each_entry(c2a, alias_pairs, node) {
-		if (c2a->addr == addr)
-			return c2a;
-	}
-
 	ret = i2c_atr_reserve_alias(chan->alias_pool);
-	if (ret < 0) {
-		// If no free aliases are left, replace an existing one
-		if (unlikely(list_empty(alias_pairs)))
-			return NULL;
+	if (ret < 0)
+		return NULL;
 
-		list_for_each_entry_reverse(c2a, alias_pairs, node) {
-			if (!c2a->fixed) {
-				found = true;
-				break;
-			}
-		}
+	alias = ret;
 
-		if (!found)
-			return NULL;
-
-		atr->ops->detach_addr(atr, chan->chan_id, c2a->addr);
-		c2a->addr = addr;
-
-		// Move updated entry to beginning of list
-		list_move(&c2a->node, alias_pairs);
-
-		alias = c2a->alias;
-	} else {
-		alias = ret;
-
-		c2a = i2c_atr_create_c2a(chan, alias, addr);
-		if (!c2a)
-			goto err_release_alias;
-	}
+	c2a = i2c_atr_create_c2a(chan, alias, addr);
+	if (!c2a)
+		goto err_release_alias;
 
 	ret = atr->ops->attach_addr(atr, chan->chan_id, c2a->addr, c2a->alias);
 	if (ret) {
@@ -304,6 +288,68 @@ err_del_c2a:
 err_release_alias:
 	i2c_atr_release_alias(chan->alias_pool, alias);
 	return NULL;
+}
+
+static struct i2c_atr_alias_pair *
+i2c_atr_replace_mapping_by_addr(struct i2c_atr_chan *chan, u16 addr)
+{
+	struct i2c_atr *atr = chan->atr;
+	struct i2c_atr_alias_pair *c2a;
+	struct list_head *alias_pairs;
+	bool found = false;
+	u16 alias;
+	int ret;
+
+	lockdep_assert_held(&chan->alias_pairs_lock);
+
+	alias_pairs = &chan->alias_pairs;
+
+	if (unlikely(list_empty(alias_pairs)))
+		return NULL;
+
+	list_for_each_entry_reverse(c2a, alias_pairs, node) {
+		if (!c2a->fixed) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found)
+		return NULL;
+
+	atr->ops->detach_addr(atr, chan->chan_id, c2a->addr);
+	c2a->addr = addr;
+
+	list_move(&c2a->node, alias_pairs);
+
+	alias = c2a->alias;
+
+	ret = atr->ops->attach_addr(atr, chan->chan_id, c2a->addr, c2a->alias);
+	if (ret) {
+		dev_err(atr->dev, "failed to attach 0x%02x on channel %d: err %d\n",
+			addr, chan->chan_id, ret);
+		i2c_atr_destroy_c2a(&c2a);
+		i2c_atr_release_alias(chan->alias_pool, alias);
+		return NULL;
+	}
+
+	return c2a;
+}
+
+static struct i2c_atr_alias_pair *
+i2c_atr_get_mapping_by_addr(struct i2c_atr_chan *chan, u16 addr)
+{
+	struct i2c_atr_alias_pair *c2a;
+
+	c2a = i2c_atr_find_mapping_by_addr(chan, addr);
+	if (c2a)
+		return c2a;
+
+	c2a = i2c_atr_create_mapping_by_addr(chan, addr);
+	if (c2a)
+		return c2a;
+
+	return i2c_atr_replace_mapping_by_addr(chan, addr);
 }
 
 /*
