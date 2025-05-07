@@ -1063,7 +1063,7 @@ static void rpcif_remove(struct platform_device *pdev)
 	platform_device_unregister(rpc->vdev);
 }
 
-struct rpcif_impl rpcif_impl = {
+static const struct rpcif_impl rpcif_impl = {
 	.hw_init = rpcif_hw_init_impl,
 	.prepare = rpcif_prepare_impl,
 	.manual_xfer = rpcif_manual_xfer_impl,
@@ -1072,7 +1072,7 @@ struct rpcif_impl rpcif_impl = {
 	.status_mask = RPCIF_CMNSR_TEND,
 };
 
-struct rpcif_impl xspi_impl = {
+static const struct rpcif_impl xspi_impl = {
 	.hw_init = xspi_hw_init_impl,
 	.prepare = xspi_prepare_impl,
 	.manual_xfer = xspi_manual_xfer_impl,
