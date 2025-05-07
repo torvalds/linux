@@ -482,21 +482,29 @@ xfs_open_devices(
 	/*
 	 * Setup xfs_mount buffer target pointers
 	 */
-	error = -ENOMEM;
 	mp->m_ddev_targp = xfs_alloc_buftarg(mp, sb->s_bdev_file);
-	if (!mp->m_ddev_targp)
+	if (IS_ERR(mp->m_ddev_targp)) {
+		error = PTR_ERR(mp->m_ddev_targp);
+		mp->m_ddev_targp = NULL;
 		goto out_close_rtdev;
+	}
 
 	if (rtdev_file) {
 		mp->m_rtdev_targp = xfs_alloc_buftarg(mp, rtdev_file);
-		if (!mp->m_rtdev_targp)
+		if (IS_ERR(mp->m_rtdev_targp)) {
+			error = PTR_ERR(mp->m_rtdev_targp);
+			mp->m_rtdev_targp = NULL;
 			goto out_free_ddev_targ;
+		}
 	}
 
 	if (logdev_file && file_bdev(logdev_file) != ddev) {
 		mp->m_logdev_targp = xfs_alloc_buftarg(mp, logdev_file);
-		if (!mp->m_logdev_targp)
+		if (IS_ERR(mp->m_logdev_targp)) {
+			error = PTR_ERR(mp->m_logdev_targp);
+			mp->m_logdev_targp = NULL;
 			goto out_free_rtdev_targ;
+		}
 	} else {
 		mp->m_logdev_targp = mp->m_ddev_targp;
 		/* Handle won't be used, drop it */
