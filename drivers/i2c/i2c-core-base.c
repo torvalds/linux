@@ -520,7 +520,7 @@ static int i2c_device_probe(struct device *dev)
 				client->flags |= I2C_CLIENT_WAKE;
 		}
 		if (irq == -EPROBE_DEFER) {
-			status = irq;
+			status = dev_err_probe(dev, irq, "can't get irq\n");
 			goto put_sync_adapter;
 		}
 
@@ -548,7 +548,7 @@ static int i2c_device_probe(struct device *dev)
 
 		wakeirq = fwnode_irq_get_byname(fwnode, "wakeup");
 		if (wakeirq == -EPROBE_DEFER) {
-			status = wakeirq;
+			status = dev_err_probe(dev, wakeirq, "can't get wakeirq\n");
 			goto put_sync_adapter;
 		}
 
