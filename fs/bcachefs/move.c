@@ -784,7 +784,8 @@ static int __bch2_move_data_phys(struct moving_context *ctxt,
 		goto err;
 
 	ret = bch2_btree_write_buffer_tryflush(trans);
-	bch_err_msg(c, ret, "flushing btree write buffer");
+	if (!bch2_err_matches(ret, EROFS))
+		bch_err_msg(c, ret, "flushing btree write buffer");
 	if (ret)
 		goto err;
 
