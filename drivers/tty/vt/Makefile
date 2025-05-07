@@ -12,7 +12,7 @@ obj-$(CONFIG_CONSOLE_TRANSLATIONS)	+= consolemap.o consolemap_deftbl.o \
 
 # Files generated that shall be removed upon make clean
 clean-files :=	consolemap_deftbl.c defkeymap.c \
-		ucs_width_table.h ucs_recompose_table.h
+		ucs_width_table.h ucs_recompose_table.h ucs_fallback_table.h
 
 hostprogs += conmakehash
 
@@ -57,5 +57,8 @@ endif
 
 $(obj)/ucs_recompose_table.h: $(src)/gen_ucs_recompose_table.py
 	$(PYTHON3) $< -o $@ $(gen_recomp_arg)
+
+$(obj)/ucs_fallback_table.h: $(src)/gen_ucs_fallback_table.py
+	$(PYTHON3) $< -o $@
 
 endif
