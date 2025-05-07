@@ -106,10 +106,8 @@
 /* RGMIIDCTL bits */
 #define DP83867_RGMII_TX_CLK_DELAY_MAX		0xf
 #define DP83867_RGMII_TX_CLK_DELAY_SHIFT	4
-#define DP83867_RGMII_TX_CLK_DELAY_INV	(DP83867_RGMII_TX_CLK_DELAY_MAX + 1)
 #define DP83867_RGMII_RX_CLK_DELAY_MAX		0xf
 #define DP83867_RGMII_RX_CLK_DELAY_SHIFT	0
-#define DP83867_RGMII_RX_CLK_DELAY_INV	(DP83867_RGMII_RX_CLK_DELAY_MAX + 1)
 
 /* IO_MUX_CFG bits */
 #define DP83867_IO_MUX_CFG_IO_IMPEDANCE_MASK	0x1f
@@ -501,29 +499,6 @@ static int dp83867_config_port_mirroring(struct phy_device *phydev)
 	return 0;
 }
 
-static int dp83867_verify_rgmii_cfg(struct phy_device *phydev)
-{
-	struct dp83867_private *dp83867 = phydev->priv;
-
-	/* RX delay *must* be specified if internal delay of RX is used. */
-	if ((phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
-	     phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID) &&
-	     dp83867->rx_id_delay == DP83867_RGMII_RX_CLK_DELAY_INV) {
-		phydev_err(phydev, "ti,rx-internal-delay must be specified\n");
-		return -EINVAL;
-	}
-
-	/* TX delay *must* be specified if internal delay of TX is used. */
-	if ((phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
-	     phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID) &&
-	     dp83867->tx_id_delay == DP83867_RGMII_TX_CLK_DELAY_INV) {
-		phydev_err(phydev, "ti,tx-internal-delay must be specified\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 #if IS_ENABLED(CONFIG_OF_MDIO)
 static int dp83867_of_init_io_impedance(struct phy_device *phydev)
 {
@@ -607,7 +582,7 @@ static int dp83867_of_init(struct phy_device *phydev)
 	dp83867->sgmii_ref_clk_en = of_property_read_bool(of_node,
 							  "ti,sgmii-ref-clock-output-enable");
 
-	dp83867->rx_id_delay = DP83867_RGMII_RX_CLK_DELAY_INV;
+	dp83867->rx_id_delay = DP83867_RGMIIDCTL_2_00_NS;
 	ret = of_property_read_u32(of_node, "ti,rx-internal-delay",
 				   &dp83867->rx_id_delay);
 	if (!ret && dp83867->rx_id_delay > DP83867_RGMII_RX_CLK_DELAY_MAX) {
@@ -617,7 +592,7 @@ static int dp83867_of_init(struct phy_device *phydev)
 		return -EINVAL;
 	}
 
-	dp83867->tx_id_delay = DP83867_RGMII_TX_CLK_DELAY_INV;
+	dp83867->tx_id_delay = DP83867_RGMIIDCTL_2_00_NS;
 	ret = of_property_read_u32(of_node, "ti,tx-internal-delay",
 				   &dp83867->tx_id_delay);
 	if (!ret && dp83867->tx_id_delay > DP83867_RGMII_TX_CLK_DELAY_MAX) {
@@ -737,15 +712,10 @@ static int dp83867_config_init(struct phy_device *phydev)
 {
 	struct dp83867_private *dp83867 = phydev->priv;
 	int ret, val, bs;
-	u16 delay;
 
 	/* Force speed optimization for the PHY even if it strapped */
 	ret = phy_modify(phydev, DP83867_CFG2, DP83867_DOWNSHIFT_EN,
 			 DP83867_DOWNSHIFT_EN);
-	if (ret)
-		return ret;
-
-	ret = dp83867_verify_rgmii_cfg(phydev);
 	if (ret)
 		return ret;
 
@@ -827,15 +797,9 @@ static int dp83867_config_init(struct phy_device *phydev)
 
 		phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_RGMIICTL, val);
 
-		delay = 0;
-		if (dp83867->rx_id_delay != DP83867_RGMII_RX_CLK_DELAY_INV)
-			delay |= dp83867->rx_id_delay;
-		if (dp83867->tx_id_delay != DP83867_RGMII_TX_CLK_DELAY_INV)
-			delay |= dp83867->tx_id_delay <<
-				 DP83867_RGMII_TX_CLK_DELAY_SHIFT;
-
 		phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_RGMIIDCTL,
-			      delay);
+			      dp83867->rx_id_delay |
+			      (dp83867->tx_id_delay << DP83867_RGMII_TX_CLK_DELAY_SHIFT));
 	}
 
 	/* If specified, set io impedance */
