@@ -142,6 +142,9 @@ struct int3472_gpio_map {
 };
 
 static const struct int3472_gpio_map int3472_gpio_map[] = {
+	/* mt9m114 designs declare a powerdown pin which controls the regulators */
+	{ "INT33F0", INT3472_GPIO_TYPE_POWERDOWN, INT3472_GPIO_TYPE_POWER_ENABLE, false, "vdd" },
+	/* ov7251 driver / DT-bindings expect "enable" as con_id for reset */
 	{ "INT347E", INT3472_GPIO_TYPE_RESET, INT3472_GPIO_TYPE_RESET, false, "enable" },
 };
 
