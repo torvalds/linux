@@ -694,16 +694,6 @@ static int nfs_writepage_locked(struct folio *folio,
 	return err;
 }
 
-static int nfs_writepages_callback(struct folio *folio,
-				   struct writeback_control *wbc, void *data)
-{
-	int ret;
-
-	ret = nfs_do_writepage(folio, wbc, data);
-	folio_unlock(folio);
-	return ret;
-}
-
 static void nfs_io_completion_commit(void *inode)
 {
 	nfs_commit_inode(inode, 0);
@@ -739,11 +729,15 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	}
 
 	do {
+		struct folio *folio = NULL;
+
 		nfs_pageio_init_write(&pgio, inode, priority, false,
 				      &nfs_async_write_completion_ops);
 		pgio.pg_io_completion = ioc;
-		err = write_cache_pages(mapping, wbc, nfs_writepages_callback,
-					&pgio);
+		while ((folio = writeback_iter(mapping, wbc, folio, &err))) {
+			err = nfs_do_writepage(folio, wbc, &pgio);
+			folio_unlock(folio);
+		}
 		pgio.pg_error = 0;
 		nfs_pageio_complete(&pgio);
 		if (err == -EAGAIN && mntflags & NFS_MOUNT_SOFTERR)
