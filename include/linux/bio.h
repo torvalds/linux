@@ -418,6 +418,21 @@ void bio_add_folio_nofail(struct bio *bio, struct folio *folio, size_t len,
 			  size_t off);
 void bio_add_virt_nofail(struct bio *bio, void *vaddr, unsigned len);
 
+/**
+ * bio_add_max_vecs - number of bio_vecs needed to add data to a bio
+ * @kaddr: kernel virtual address to add
+ * @len: length in bytes to add
+ *
+ * Calculate how many bio_vecs need to be allocated to add the kernel virtual
+ * address range in [@kaddr:@len] in the worse case.
+ */
+static inline unsigned int bio_add_max_vecs(void *kaddr, unsigned int len)
+{
+	if (is_vmalloc_addr(kaddr))
+		return DIV_ROUND_UP(offset_in_page(kaddr) + len, PAGE_SIZE);
+	return 1;
+}
+
 int submit_bio_wait(struct bio *bio);
 int bdev_rw_virt(struct block_device *bdev, sector_t sector, void *data,
 		size_t len, enum req_op op);
