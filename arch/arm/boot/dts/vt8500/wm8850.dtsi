@@ -240,7 +240,7 @@
 		timer@d8130100 {
 			compatible = "via,vt8500-timer";
 			reg = <0xd8130100 0x28>;
-			interrupts = <36>;
+			interrupts = <36>, <37>, <38>, <39>;
 		};
 
 		ehci@d8007900 {
