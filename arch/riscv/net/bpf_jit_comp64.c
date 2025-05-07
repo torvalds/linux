@@ -607,8 +607,13 @@ static void emit_store_64(u8 rd, s32 off, u8 rs, struct rv_jit_context *ctx)
 	emit_sd(RV_REG_T1, 0, rs, ctx);
 }
 
-static int emit_atomic_ld_st(u8 rd, u8 rs, s16 off, s32 imm, u8 code, struct rv_jit_context *ctx)
+static int emit_atomic_ld_st(u8 rd, u8 rs, const struct bpf_insn *insn,
+			     struct rv_jit_context *ctx)
 {
+	u8 code = insn->code;
+	s32 imm = insn->imm;
+	s16 off = insn->off;
+
 	switch (imm) {
 	/* dst_reg = load_acquire(src_reg + off16) */
 	case BPF_LOAD_ACQ:
@@ -627,6 +632,12 @@ static int emit_atomic_ld_st(u8 rd, u8 rs, s16 off, s32 imm, u8 code, struct rv_
 			break;
 		}
 		emit_fence_r_rw(ctx);
+
+		/* If our next insn is a redundant zext, return 1 to tell
+		 * build_body() to skip it.
+		 */
+		if (BPF_SIZE(code) != BPF_DW && insn_is_zext(&insn[1]))
+			return 1;
 		break;
 	/* store_release(dst_reg + off16, src_reg) */
 	case BPF_STORE_REL:
@@ -654,10 +665,12 @@ static int emit_atomic_ld_st(u8 rd, u8 rs, s16 off, s32 imm, u8 code, struct rv_
 	return 0;
 }
 
-static int emit_atomic_rmw(u8 rd, u8 rs, s16 off, s32 imm, u8 code,
+static int emit_atomic_rmw(u8 rd, u8 rs, const struct bpf_insn *insn,
 			   struct rv_jit_context *ctx)
 {
-	u8 r0;
+	u8 r0, code = insn->code;
+	s16 off = insn->off;
+	s32 imm = insn->imm;
 	int jmp_offset;
 	bool is64;
 
@@ -2026,9 +2039,9 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 	case BPF_STX | BPF_ATOMIC | BPF_W:
 	case BPF_STX | BPF_ATOMIC | BPF_DW:
 		if (bpf_atomic_is_load_store(insn))
-			ret = emit_atomic_ld_st(rd, rs, off, imm, code, ctx);
+			ret = emit_atomic_ld_st(rd, rs, insn, ctx);
 		else
-			ret = emit_atomic_rmw(rd, rs, off, imm, code, ctx);
+			ret = emit_atomic_rmw(rd, rs, insn, ctx);
 		if (ret)
 			return ret;
 		break;
