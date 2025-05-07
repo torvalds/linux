@@ -1233,11 +1233,6 @@ struct pptable_funcs {
 	bool (*mode1_reset_is_support)(struct smu_context *smu);
 
 	/**
-	 * @mode2_reset_is_support: Check if GPU supports mode2 reset.
-	 */
-	bool (*mode2_reset_is_support)(struct smu_context *smu);
-
-	/**
 	 * @link_reset_is_support: Check if GPU supports link reset.
 	 */
 	bool (*link_reset_is_support)(struct smu_context *smu);
