@@ -413,7 +413,7 @@ static int test_wait_timeout(void *arg)
 	err = 0;
 err_free:
 	timer_delete_sync(&wt.timer);
-	destroy_timer_on_stack(&wt.timer);
+	timer_destroy_on_stack(&wt.timer);
 	dma_fence_signal(wt.f);
 	dma_fence_put(wt.f);
 	return err;

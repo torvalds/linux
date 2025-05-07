@@ -343,7 +343,7 @@ static int suspend_test_thread(void *arg)
 	 * later.
 	 */
 	timer_delete(&wakeup_timer);
-	destroy_timer_on_stack(&wakeup_timer);
+	timer_destroy_on_stack(&wakeup_timer);
 
 	if (atomic_dec_return_relaxed(&nb_active_threads) == 0)
 		complete(&suspend_threads_done);

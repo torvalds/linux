@@ -261,7 +261,7 @@ static int gud_usb_bulk(struct gud_device *gdrm, size_t len)
 	else if (ctx.sgr.bytes != len)
 		ret = -EIO;
 
-	destroy_timer_on_stack(&ctx.timer);
+	timer_destroy_on_stack(&ctx.timer);
 
 	return ret;
 }

@@ -3952,7 +3952,7 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
 
 
 	timer_delete_sync(&timeout.timer);
-	destroy_timer_on_stack(&timeout.timer);
+	timer_destroy_on_stack(&timeout.timer);
 
 	mutex_unlock(&raid_dev->sysfs_mtx);
 

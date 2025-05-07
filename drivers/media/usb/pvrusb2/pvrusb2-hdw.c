@@ -3806,7 +3806,7 @@ status);
 	if ((status < 0) && (!probe_fl)) {
 		pvr2_hdw_render_useless(hdw);
 	}
-	destroy_timer_on_stack(&timer.timer);
+	timer_destroy_on_stack(&timer.timer);
 
 	return status;
 }

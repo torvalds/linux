@@ -1501,7 +1501,7 @@ static int access_thread(void *arg)
 		}
 	} while (!torture_must_stop());
 	timer_delete_sync(&timer);
-	destroy_timer_on_stack(&timer);
+	timer_destroy_on_stack(&timer);
 
 	torture_kthread_stopping("access_thread");
 	return 0;

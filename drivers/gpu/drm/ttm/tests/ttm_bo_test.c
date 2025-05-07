@@ -201,7 +201,7 @@ static int threaded_ttm_bo_reserve(void *arg)
 	err = ttm_bo_reserve(bo, interruptible, no_wait, &ctx);
 
 	timer_delete_sync(&s_timer.timer);
-	destroy_timer_on_stack(&s_timer.timer);
+	timer_destroy_on_stack(&s_timer.timer);
 
 	ww_acquire_fini(&ctx);
 

@@ -115,7 +115,7 @@ static inline void timer_init_key_on_stack(struct timer_list *timer,
  *
  * Regular timer initialization should use either DEFINE_TIMER() above,
  * or timer_setup(). For timers on the stack, timer_setup_on_stack() must
- * be used and must be balanced with a call to destroy_timer_on_stack().
+ * be used and must be balanced with a call to timer_destroy_on_stack().
  */
 #define timer_setup(timer, callback, flags)			\
 	__timer_init((timer), (callback), (flags))
@@ -124,9 +124,9 @@ static inline void timer_init_key_on_stack(struct timer_list *timer,
 	__timer_init_on_stack((timer), (callback), (flags))
 
 #ifdef CONFIG_DEBUG_OBJECTS_TIMERS
-extern void destroy_timer_on_stack(struct timer_list *timer);
+extern void timer_destroy_on_stack(struct timer_list *timer);
 #else
-static inline void destroy_timer_on_stack(struct timer_list *timer) { }
+static inline void timer_destroy_on_stack(struct timer_list *timer) { }
 #endif
 
 #define from_timer(var, callback_timer, timer_fieldname) \
