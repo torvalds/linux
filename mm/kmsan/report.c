@@ -157,14 +157,14 @@ void kmsan_report(depot_stack_handle_t origin, void *address, int size,
 	unsigned long ua_flags;
 	bool is_uaf;
 
-	if (!kmsan_enabled)
+	if (!kmsan_enabled || kmsan_in_runtime())
 		return;
 	if (current->kmsan_ctx.depth)
 		return;
 	if (!origin)
 		return;
 
-	kmsan_disable_current();
+	kmsan_enter_runtime();
 	ua_flags = user_access_save();
 	raw_spin_lock(&kmsan_report_lock);
 	pr_err("=====================================================\n");
@@ -217,5 +217,5 @@ void kmsan_report(depot_stack_handle_t origin, void *address, int size,
 	if (panic_on_kmsan)
 		panic("kmsan.panic set ...\n");
 	user_access_restore(ua_flags);
-	kmsan_enable_current();
+	kmsan_leave_runtime();
 }

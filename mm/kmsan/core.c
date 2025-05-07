@@ -274,11 +274,9 @@ void kmsan_internal_check_memory(void *addr, size_t size,
 			 * bytes before, report them.
 			 */
 			if (cur_origin) {
-				kmsan_enter_runtime();
 				kmsan_report(cur_origin, addr, size,
 					     cur_off_start, pos - 1, user_addr,
 					     reason);
-				kmsan_leave_runtime();
 			}
 			cur_origin = 0;
 			cur_off_start = -1;
@@ -292,11 +290,9 @@ void kmsan_internal_check_memory(void *addr, size_t size,
 				 * poisoned bytes before, report them.
 				 */
 				if (cur_origin) {
-					kmsan_enter_runtime();
 					kmsan_report(cur_origin, addr, size,
 						     cur_off_start, pos + i - 1,
 						     user_addr, reason);
-					kmsan_leave_runtime();
 				}
 				cur_origin = 0;
 				cur_off_start = -1;
@@ -312,11 +308,9 @@ void kmsan_internal_check_memory(void *addr, size_t size,
 			 */
 			if (cur_origin != new_origin) {
 				if (cur_origin) {
-					kmsan_enter_runtime();
 					kmsan_report(cur_origin, addr, size,
 						     cur_off_start, pos + i - 1,
 						     user_addr, reason);
-					kmsan_leave_runtime();
 				}
 				cur_origin = new_origin;
 				cur_off_start = pos + i;
@@ -326,10 +320,8 @@ void kmsan_internal_check_memory(void *addr, size_t size,
 	}
 	KMSAN_WARN_ON(pos != size);
 	if (cur_origin) {
-		kmsan_enter_runtime();
 		kmsan_report(cur_origin, addr, size, cur_off_start, pos - 1,
 			     user_addr, reason);
-		kmsan_leave_runtime();
 	}
 }
 
