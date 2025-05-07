@@ -319,7 +319,7 @@ static ssize_t admv1013_write(struct iio_dev *indio_dev,
 		return -EINVAL;
 	}
 
-	return ret ? ret : len;
+	return len;
 }
 
 static int admv1013_update_quad_filters(struct admv1013_state *st)
