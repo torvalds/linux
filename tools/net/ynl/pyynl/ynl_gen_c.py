@@ -389,11 +389,14 @@ class TypeScalar(Type):
         if 'enum' in self.attr:
             enum = self.family.consts[self.attr['enum']]
             low, high = enum.value_range()
-            if 'min' not in self.checks:
-                if low != 0 or self.type[0] == 's':
-                    self.checks['min'] = low
-            if 'max' not in self.checks:
-                self.checks['max'] = high
+            if low == None and high == None:
+                self.checks['sparse'] = True
+            else:
+                if 'min' not in self.checks:
+                    if low != 0 or self.type[0] == 's':
+                        self.checks['min'] = low
+                if 'max' not in self.checks:
+                    self.checks['max'] = high
 
         if 'min' in self.checks and 'max' in self.checks:
             if self.get_limit('min') > self.get_limit('max'):
@@ -425,6 +428,8 @@ class TypeScalar(Type):
             return f"NLA_POLICY_MIN({policy}, {self.get_limit_str('min')})"
         elif 'max' in self.checks:
             return f"NLA_POLICY_MAX({policy}, {self.get_limit_str('max')})"
+        elif 'sparse' in self.checks:
+            return f"NLA_POLICY_VALIDATE_FN({policy}, &{c_lower(self.enum_name)}_validate)"
         return super()._attr_policy(policy)
 
     def _attr_typol(self):
@@ -930,7 +935,7 @@ class EnumSet(SpecEnumSet):
         high = max([x.value for x in self.entries.values()])
 
         if high - low + 1 != len(self.entries):
-            raise Exception("Can't get value range for a noncontiguous enum")
+            return None, None
 
         return low, high
 
@@ -2426,6 +2431,46 @@ def print_kernel_policy_ranges(family, cw):
             cw.nl()
 
 
+def print_kernel_policy_sparse_enum_validates(family, cw):
+    first = True
+    for _, attr_set in family.attr_sets.items():
+        if attr_set.subset_of:
+            continue
+
+        for _, attr in attr_set.items():
+            if not attr.request:
+                continue
+            if not attr.enum_name:
+                continue
+            if 'sparse' not in attr.checks:
+                continue
+
+            if first:
+                cw.p('/* Sparse enums validation callbacks */')
+                first = False
+
+            sign = '' if attr.type[0] == 'u' else '_signed'
+            suffix = 'ULL' if attr.type[0] == 'u' else 'LL'
+            cw.write_func_prot('static int', f'{c_lower(attr.enum_name)}_validate',
+                               ['const struct nlattr *attr', 'struct netlink_ext_ack *extack'])
+            cw.block_start()
+            cw.block_start(line=f'switch (nla_get_{attr["type"]}(attr))')
+            enum = family.consts[attr['enum']]
+            first_entry = True
+            for entry in enum.entries.values():
+                if first_entry:
+                    first_entry = False
+                else:
+                    cw.p('fallthrough;')
+                cw.p(f'case {entry.c_name}:')
+            cw.p('return 0;')
+            cw.block_end()
+            cw.p('NL_SET_ERR_MSG_ATTR(extack, attr, "invalid enum value");')
+            cw.p('return -EINVAL;')
+            cw.block_end()
+            cw.nl()
+
+
 def print_kernel_op_table_fwd(family, cw, terminate):
     exported = not kernel_can_gen_family_struct(family)
 
@@ -3097,6 +3142,7 @@ def main():
             print_kernel_family_struct_hdr(parsed, cw)
         else:
             print_kernel_policy_ranges(parsed, cw)
+            print_kernel_policy_sparse_enum_validates(parsed, cw)
 
             for _, struct in sorted(parsed.pure_nested_structs.items()):
                 if struct.request:

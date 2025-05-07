@@ -735,7 +735,7 @@ static void devlink_fmsg_put_name(struct devlink_fmsg *fmsg, const char *name)
 		return;
 	}
 
-	item->nla_type = NLA_NUL_STRING;
+	item->nla_type = DEVLINK_VAR_ATTR_TYPE_NUL_STRING;
 	item->len = strlen(name) + 1;
 	item->attrtype = DEVLINK_ATTR_FMSG_OBJ_NAME;
 	memcpy(&item->value, name, item->len);
@@ -822,32 +822,37 @@ static void devlink_fmsg_put_value(struct devlink_fmsg *fmsg,
 static void devlink_fmsg_bool_put(struct devlink_fmsg *fmsg, bool value)
 {
 	devlink_fmsg_err_if_binary(fmsg);
-	devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_FLAG);
+	devlink_fmsg_put_value(fmsg, &value, sizeof(value),
+			       DEVLINK_VAR_ATTR_TYPE_FLAG);
 }
 
 static void devlink_fmsg_u8_put(struct devlink_fmsg *fmsg, u8 value)
 {
 	devlink_fmsg_err_if_binary(fmsg);
-	devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_U8);
+	devlink_fmsg_put_value(fmsg, &value, sizeof(value),
+			       DEVLINK_VAR_ATTR_TYPE_U8);
 }
 
 void devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value)
 {
 	devlink_fmsg_err_if_binary(fmsg);
-	devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_U32);
+	devlink_fmsg_put_value(fmsg, &value, sizeof(value),
+			       DEVLINK_VAR_ATTR_TYPE_U32);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_u32_put);
 
 static void devlink_fmsg_u64_put(struct devlink_fmsg *fmsg, u64 value)
 {
 	devlink_fmsg_err_if_binary(fmsg);
-	devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_U64);
+	devlink_fmsg_put_value(fmsg, &value, sizeof(value),
+			       DEVLINK_VAR_ATTR_TYPE_U64);
 }
 
 void devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value)
 {
 	devlink_fmsg_err_if_binary(fmsg);
-	devlink_fmsg_put_value(fmsg, value, strlen(value) + 1, NLA_NUL_STRING);
+	devlink_fmsg_put_value(fmsg, value, strlen(value) + 1,
+			       DEVLINK_VAR_ATTR_TYPE_NUL_STRING);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_string_put);
 
@@ -857,7 +862,8 @@ void devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
 	if (!fmsg->err && !fmsg->putting_binary)
 		fmsg->err = -EINVAL;
 
-	devlink_fmsg_put_value(fmsg, value, value_len, NLA_BINARY);
+	devlink_fmsg_put_value(fmsg, value, value_len,
+			       DEVLINK_VAR_ATTR_TYPE_BINARY);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_binary_put);
 
@@ -928,43 +934,26 @@ void devlink_fmsg_binary_pair_put(struct devlink_fmsg *fmsg, const char *name,
 EXPORT_SYMBOL_GPL(devlink_fmsg_binary_pair_put);
 
 static int
-devlink_fmsg_item_fill_type(struct devlink_fmsg_item *msg, struct sk_buff *skb)
-{
-	switch (msg->nla_type) {
-	case NLA_FLAG:
-	case NLA_U8:
-	case NLA_U32:
-	case NLA_U64:
-	case NLA_NUL_STRING:
-	case NLA_BINARY:
-		return nla_put_u8(skb, DEVLINK_ATTR_FMSG_OBJ_VALUE_TYPE,
-				  msg->nla_type);
-	default:
-		return -EINVAL;
-	}
-}
-
-static int
 devlink_fmsg_item_fill_data(struct devlink_fmsg_item *msg, struct sk_buff *skb)
 {
 	int attrtype = DEVLINK_ATTR_FMSG_OBJ_VALUE_DATA;
 	u8 tmp;
 
 	switch (msg->nla_type) {
-	case NLA_FLAG:
+	case DEVLINK_VAR_ATTR_TYPE_FLAG:
 		/* Always provide flag data, regardless of its value */
 		tmp = *(bool *)msg->value;
 
 		return nla_put_u8(skb, attrtype, tmp);
-	case NLA_U8:
+	case DEVLINK_VAR_ATTR_TYPE_U8:
 		return nla_put_u8(skb, attrtype, *(u8 *)msg->value);
-	case NLA_U32:
+	case DEVLINK_VAR_ATTR_TYPE_U32:
 		return nla_put_u32(skb, attrtype, *(u32 *)msg->value);
-	case NLA_U64:
+	case DEVLINK_VAR_ATTR_TYPE_U64:
 		return devlink_nl_put_u64(skb, attrtype, *(u64 *)msg->value);
-	case NLA_NUL_STRING:
+	case DEVLINK_VAR_ATTR_TYPE_NUL_STRING:
 		return nla_put_string(skb, attrtype, (char *)&msg->value);
-	case NLA_BINARY:
+	case DEVLINK_VAR_ATTR_TYPE_BINARY:
 		return nla_put(skb, attrtype, msg->len, (void *)&msg->value);
 	default:
 		return -EINVAL;
@@ -998,7 +987,8 @@ devlink_fmsg_prepare_skb(struct devlink_fmsg *fmsg, struct sk_buff *skb,
 			err = nla_put_flag(skb, item->attrtype);
 			break;
 		case DEVLINK_ATTR_FMSG_OBJ_VALUE_DATA:
-			err = devlink_fmsg_item_fill_type(item, skb);
+			err = nla_put_u8(skb, DEVLINK_ATTR_FMSG_OBJ_VALUE_TYPE,
+					 item->nla_type);
 			if (err)
 				break;
 			err = devlink_fmsg_item_fill_data(item, skb);
