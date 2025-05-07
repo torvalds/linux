@@ -301,7 +301,7 @@ amdgpu_userq_destroy(struct drm_file *filp, int queue_id)
 	struct amdgpu_usermode_queue *queue;
 	int r = 0;
 
-	cancel_delayed_work(&uq_mgr->resume_work);
+	cancel_delayed_work_sync(&uq_mgr->resume_work);
 	mutex_lock(&uq_mgr->userq_mutex);
 
 	queue = amdgpu_userq_find(uq_mgr, queue_id);
@@ -746,7 +746,7 @@ amdgpu_userq_evict(struct amdgpu_userq_mgr *uq_mgr,
 	amdgpu_eviction_fence_signal(evf_mgr, ev_fence);
 
 	if (evf_mgr->fd_closing) {
-		cancel_delayed_work(&uq_mgr->resume_work);
+		cancel_delayed_work_sync(&uq_mgr->resume_work);
 		return;
 	}
 
@@ -777,7 +777,7 @@ void amdgpu_userq_mgr_fini(struct amdgpu_userq_mgr *userq_mgr)
 	struct amdgpu_userq_mgr *uqm, *tmp;
 	uint32_t queue_id;
 
-	cancel_delayed_work(&userq_mgr->resume_work);
+	cancel_delayed_work_sync(&userq_mgr->resume_work);
 
 	mutex_lock(&userq_mgr->userq_mutex);
 	idr_for_each_entry(&userq_mgr->userq_idr, queue, queue_id) {
