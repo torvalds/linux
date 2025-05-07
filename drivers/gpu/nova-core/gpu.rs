@@ -54,6 +54,7 @@ define_chipset!({
     TU117 = 0x167,
     TU116 = 0x168,
     // Ampere
+    GA100 = 0x170,
     GA102 = 0x172,
     GA103 = 0x173,
     GA104 = 0x174,
@@ -73,7 +74,7 @@ impl Chipset {
             Self::TU102 | Self::TU104 | Self::TU106 | Self::TU117 | Self::TU116 => {
                 Architecture::Turing
             }
-            Self::GA102 | Self::GA103 | Self::GA104 | Self::GA106 | Self::GA107 => {
+            Self::GA100 | Self::GA102 | Self::GA103 | Self::GA104 | Self::GA106 | Self::GA107 => {
                 Architecture::Ampere
             }
             Self::AD102 | Self::AD103 | Self::AD104 | Self::AD106 | Self::AD107 => {
