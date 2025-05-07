@@ -507,6 +507,9 @@ enum hctx_type {
  *		   request_queue.tag_set_list.
  * @srcu:	   Use as lock when type of the request queue is blocking
  *		   (BLK_MQ_F_BLOCKING).
+ * @update_nr_hwq_lock:
+ * 		   Synchronize updating nr_hw_queues with add/del disk &
+ * 		   switching elevator.
  */
 struct blk_mq_tag_set {
 	const struct blk_mq_ops	*ops;
