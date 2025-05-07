@@ -162,7 +162,7 @@ extern void add_timer(struct timer_list *timer);
 extern void add_timer_local(struct timer_list *timer);
 extern void add_timer_global(struct timer_list *timer);
 
-extern int try_to_del_timer_sync(struct timer_list *timer);
+extern int timer_delete_sync_try(struct timer_list *timer);
 extern int timer_delete_sync(struct timer_list *timer);
 extern int timer_delete(struct timer_list *timer);
 extern int timer_shutdown_sync(struct timer_list *timer);
