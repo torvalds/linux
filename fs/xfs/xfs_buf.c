@@ -1722,10 +1722,22 @@ static inline void
 xfs_configure_buftarg_atomic_writes(
 	struct xfs_buftarg	*btp)
 {
+	struct xfs_mount	*mp = btp->bt_mount;
 	unsigned int		min_bytes, max_bytes;
 
 	min_bytes = bdev_atomic_write_unit_min_bytes(btp->bt_bdev);
 	max_bytes = bdev_atomic_write_unit_max_bytes(btp->bt_bdev);
+
+	/*
+	 * Ignore atomic write geometry that is nonsense or doesn't even cover
+	 * a single fsblock.
+	 */
+	if (min_bytes > max_bytes ||
+	    min_bytes > mp->m_sb.sb_blocksize ||
+	    max_bytes < mp->m_sb.sb_blocksize) {
+		min_bytes = 0;
+		max_bytes = 0;
+	}
 
 	btp->bt_bdev_awu_min = min_bytes;
 	btp->bt_bdev_awu_max = max_bytes;
