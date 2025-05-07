@@ -3508,7 +3508,7 @@ int btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 	WARN_ON(test_bit(EXTENT_BUFFER_DIRTY, &buf->bflags));
 
 	btrfs_add_free_space(bg, buf->start, buf->len);
-	btrfs_free_reserved_bytes(bg, buf->len, 0);
+	btrfs_free_reserved_bytes(bg, buf->len, false);
 	btrfs_put_block_group(bg);
 	trace_btrfs_reserved_extent_free(fs_info, buf->start, buf->len);
 

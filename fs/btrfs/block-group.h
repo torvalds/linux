@@ -340,8 +340,8 @@ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 int btrfs_add_reserved_bytes(struct btrfs_block_group *cache,
 			     u64 ram_bytes, u64 num_bytes, int delalloc,
 			     bool force_wrong_size_class);
-void btrfs_free_reserved_bytes(struct btrfs_block_group *cache,
-			       u64 num_bytes, int delalloc);
+void btrfs_free_reserved_bytes(struct btrfs_block_group *cache, u64 num_bytes,
+			       bool is_delalloc);
 int btrfs_chunk_alloc(struct btrfs_trans_handle *trans,
 		      struct btrfs_space_info *space_info, u64 flags,
 		      enum btrfs_chunk_alloc_enum force);
