@@ -90,6 +90,13 @@
 	__KABI_RULE(enumerator_value, fqn field, value)
 
 /*
+ * KABI_BYTE_SIZE(fqn, value)
+ *   Set the byte_size attribute for the struct/union/enum fqn to
+ *   value bytes.
+ */
+#define KABI_BYTE_SIZE(fqn, value) __KABI_RULE(byte_size, fqn, value)
+
+/*
  * KABI_RESERVE
  *   Reserve some "padding" in a structure for use by LTS backports.
  *   This is normally placed at the end of a structure.

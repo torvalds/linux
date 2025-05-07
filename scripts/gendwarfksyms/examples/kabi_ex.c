@@ -28,3 +28,5 @@ struct ex2c ex2c;
 struct ex3a ex3a;
 struct ex3b ex3b;
 struct ex3c ex3c;
+
+struct ex4a ex4a;

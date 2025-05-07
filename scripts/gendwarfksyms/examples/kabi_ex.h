@@ -260,4 +260,26 @@ _Static_assert(sizeof(struct ex3a) == sizeof(struct ex3c), "ex3a size doesn't ma
  * STABLE-NEXT: } byte_size(16)
  */
 
+/*
+ * Example: An ignored field added to an end of a partially opaque struct,
+ * while keeping the byte_size attribute unchanged.
+ */
+
+struct ex4a {
+	unsigned long a;
+	KABI_IGNORE(0, unsigned long b);
+};
+
+/*
+ * This may be safe if the structure allocation is managed by the core kernel
+ * and the layout remains unchanged except for appended new members.
+ */
+KABI_BYTE_SIZE(ex4a, 8);
+
+/*
+ * STABLE:      variable structure_type ex4a {
+ * STABLE-NEXT:   member base_type [[ULONG]] byte_size(8) encoding(7) a data_member_location(0)
+ * STABLE-NEXT: } byte_size(8)
+ */
+
 #endif /* __KABI_EX_H__ */
