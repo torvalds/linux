@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -2157,7 +2157,8 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	}
 
 	if (iwl_mvm_is_band_in_rx_supported(mvm)) {
-		u8 band = BAND_IN_RX_STATUS(desc->mac_phy_idx);
+		u8 band = u8_get_bits(desc->mac_phy_band,
+				      IWL_RX_MPDU_MAC_PHY_BAND_BAND_MASK);
 
 		rx_status->band = iwl_mvm_nl80211_band_from_phy(band);
 	} else {

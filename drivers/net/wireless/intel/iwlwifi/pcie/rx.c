@@ -1947,6 +1947,13 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		handled |= CSR_INT_BIT_ALIVE;
 	}
 
+	if (inta & CSR_INT_BIT_RESET_DONE) {
+		IWL_DEBUG_ISR(trans, "Reset flow completed\n");
+		trans_pcie->fw_reset_state = FW_RESET_OK;
+		handled |= CSR_INT_BIT_RESET_DONE;
+		wake_up(&trans_pcie->fw_reset_waitq);
+	}
+
 	/* Safely ignore these bits for debug checks below */
 	inta &= ~(CSR_INT_BIT_SCD | CSR_INT_BIT_ALIVE);
 
@@ -1968,7 +1975,12 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		IWL_ERR(trans, "Microcode SW error detected. "
 			" Restarting 0x%X.\n", inta);
 		isr_stats->sw++;
-		iwl_pcie_irq_handle_error(trans);
+		if (trans_pcie->fw_reset_state == FW_RESET_REQUESTED) {
+			trans_pcie->fw_reset_state = FW_RESET_ERROR;
+			wake_up(&trans_pcie->fw_reset_waitq);
+		} else {
+			iwl_pcie_irq_handle_error(trans);
+		}
 		handled |= CSR_INT_BIT_SW_ERR;
 	}
 

@@ -481,9 +481,6 @@ enum {
 	/* generate software time stamp on packet tx completion */
 	SKBTX_COMPLETION_TSTAMP = 1 << 3,
 
-	/* generate wifi status information (where possible) */
-	SKBTX_WIFI_STATUS = 1 << 4,
-
 	/* determine hardware time stamp based on time or cycles */
 	SKBTX_HW_TSTAMP_NETDEV = 1 << 5,
 

@@ -473,7 +473,7 @@ static void iwl_mvm_phy_filter_init(struct iwl_mvm *mvm,
 				    struct iwl_phy_specific_cfg *phy_filters)
 {
 #ifdef CONFIG_ACPI
-	*phy_filters = mvm->phy_filters;
+	*phy_filters = mvm->fwrt.phy_filters;
 #endif /* CONFIG_ACPI */
 }
 
@@ -650,11 +650,6 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 	}
 	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_AFTER_ALIVE,
 			       NULL);
-
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
-		mvm->trans->step_urm = !!(iwl_read_umac_prph(mvm->trans,
-							     CNVI_PMU_STEP_FLOW) &
-						CNVI_PMU_STEP_FLOW_FORCE_URM);
 
 	/* Send init config command to mark that we are sending NVM access
 	 * commands
@@ -1270,7 +1265,7 @@ void iwl_mvm_get_bios_tables(struct iwl_mvm *mvm)
 		}
 	}
 
-	iwl_acpi_get_phy_filters(&mvm->fwrt, &mvm->phy_filters);
+	iwl_acpi_get_phy_filters(&mvm->fwrt, &mvm->fwrt.phy_filters);
 
 	if (iwl_bios_get_eckv(&mvm->fwrt, &mvm->ext_clock_valid))
 		IWL_DEBUG_RADIO(mvm, "ECKV table doesn't exist in BIOS\n");

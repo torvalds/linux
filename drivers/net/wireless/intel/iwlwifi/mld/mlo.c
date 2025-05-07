@@ -52,7 +52,8 @@ static void iwl_mld_print_emlsr_blocked(struct iwl_mld *mld, u32 mask)
 	HOW(BT_COEX)			\
 	HOW(CHAN_LOAD)			\
 	HOW(RFI)			\
-	HOW(FW_REQUEST)
+	HOW(FW_REQUEST)			\
+	HOW(INVALID)
 
 static const char *
 iwl_mld_get_emlsr_exit_string(enum iwl_mld_emlsr_exit exit)
@@ -643,11 +644,11 @@ iwl_mld_emlsr_disallowed_with_link(struct iwl_mld *mld,
 {
 	struct wiphy *wiphy = mld->wiphy;
 	struct ieee80211_bss_conf *conf;
-	enum iwl_mld_emlsr_exit ret = 0;
+	u32 ret = 0;
 
 	conf = wiphy_dereference(wiphy, vif->link_conf[link->link_id]);
 	if (WARN_ON_ONCE(!conf))
-		return false;
+		return IWL_MLD_EMLSR_EXIT_INVALID;
 
 	if (link->chandef->chan->band == NL80211_BAND_2GHZ && mld->bt_is_active)
 		ret |= IWL_MLD_EMLSR_EXIT_BT_COEX;
@@ -772,8 +773,8 @@ iwl_mld_channel_load_allows_emlsr(struct iwl_mld *mld,
 	if (a->chandef->width <= b->chandef->width)
 		return true;
 
-	bw_a = nl80211_chan_width_to_mhz(a->chandef->width);
-	bw_b = nl80211_chan_width_to_mhz(b->chandef->width);
+	bw_a = cfg80211_chandef_get_width(a->chandef);
+	bw_b = cfg80211_chandef_get_width(b->chandef);
 	ratio = bw_a / bw_b;
 
 	switch (ratio) {
@@ -804,8 +805,28 @@ iwl_mld_valid_emlsr_pair(struct ieee80211_vif *vif,
 	    iwl_mld_emlsr_disallowed_with_link(mld, vif, b, false))
 		return false;
 
-	if (a->chandef->chan->band == b->chandef->chan->band)
-		reason_mask |= IWL_MLD_EMLSR_EXIT_EQUAL_BAND;
+	if (a->chandef->chan->band == b->chandef->chan->band) {
+		const struct cfg80211_chan_def *c_low = a->chandef;
+		const struct cfg80211_chan_def *c_high = b->chandef;
+		u32 c_low_upper_edge, c_high_lower_edge;
+
+		if (c_low->chan->center_freq > c_high->chan->center_freq)
+			swap(c_low, c_high);
+
+		c_low_upper_edge = c_low->chan->center_freq +
+				   cfg80211_chandef_get_width(c_low) / 2;
+		c_high_lower_edge = c_high->chan->center_freq -
+				    cfg80211_chandef_get_width(c_high) / 2;
+
+		if (a->chandef->chan->band == NL80211_BAND_5GHZ &&
+		    c_low_upper_edge <= 5330 && c_high_lower_edge >= 5490) {
+			/* This case is fine - HW/FW can deal with it, there's
+			 * enough separation between the two channels.
+			 */
+		} else {
+			reason_mask |= IWL_MLD_EMLSR_EXIT_EQUAL_BAND;
+		}
+	}
 	if (!iwl_mld_channel_load_allows_emlsr(mld, vif, a, b))
 		reason_mask |= IWL_MLD_EMLSR_EXIT_CHAN_LOAD;
 

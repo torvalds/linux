@@ -921,7 +921,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 		 * The "fallback limit" is the number of tx attempts a given
 		 * MPDU is sent at the "primary" rate. Tx attempts beyond that
 		 * limit are sent at the "secondary" rate.
-		 * A 'short frame' does not exceed RTS treshold.
+		 * A 'short frame' does not exceed RTS threshold.
 		 */
 		u16 sfbl,	/* Short Frame Rate Fallback Limit */
 		    lfbl,	/* Long Frame Rate Fallback Limit */
@@ -6259,7 +6259,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 		}
 
 		/*
-		 * Currently only support same setting for primay and
+		 * Currently only support same setting for primary and
 		 * fallback rates. Unify flags for each rate into a
 		 * single value for the frame
 		 */

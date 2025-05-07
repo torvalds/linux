@@ -7,6 +7,7 @@
 #ifndef ATH12K_DP_H
 #define ATH12K_DP_H
 
+#include "hal_desc.h"
 #include "hal_rx.h"
 #include "hw.h"
 
@@ -106,6 +107,8 @@ struct dp_mon_mpdu {
 	struct list_head list;
 	struct sk_buff *head;
 	struct sk_buff *tail;
+	u32 err_bitmap;
+	u8 decap_format;
 };
 
 #define DP_MON_MAX_STATUS_BUF 32
@@ -293,9 +296,16 @@ struct ath12k_rx_desc_info {
 struct ath12k_tx_desc_info {
 	struct list_head list;
 	struct sk_buff *skb;
+	struct sk_buff *skb_ext_desc;
 	u32 desc_id; /* Cookie */
 	u8 mac_id;
 	u8 pool_id;
+};
+
+struct ath12k_tx_desc_params {
+	struct sk_buff *skb;
+	struct sk_buff *skb_ext_desc;
+	u8 mac_id;
 };
 
 struct ath12k_spt_info {
@@ -309,8 +319,21 @@ struct ath12k_reo_queue_ref {
 } __packed;
 
 struct ath12k_reo_q_addr_lut {
-	dma_addr_t paddr;
+	u32 *vaddr_unaligned;
 	u32 *vaddr;
+	dma_addr_t paddr_unaligned;
+	dma_addr_t paddr;
+	u32 size;
+};
+
+struct ath12k_link_stats {
+	u32 tx_enqueued;
+	u32 tx_completed;
+	u32 tx_bcast_mcast;
+	u32 tx_dropped;
+	u32 tx_encap_type[HAL_TCL_ENCAP_TYPE_MAX];
+	u32 tx_encrypt_type[HAL_ENCRYPT_TYPE_MAX];
+	u32 tx_desc_type[HAL_TCL_DESC_TYPE_MAX];
 };
 
 struct ath12k_dp {

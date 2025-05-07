@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 #include "iwl-trans.h"
 #include "iwl-fh.h"
@@ -83,7 +83,7 @@ void iwl_pcie_ctxt_info_free_paging(struct iwl_trans *trans)
 
 int iwl_pcie_init_fw_sec(struct iwl_trans *trans,
 			 const struct fw_img *fw,
-			 struct iwl_context_info_dram *ctxt_dram)
+			 struct iwl_context_info_dram_nonfseq *ctxt_dram)
 {
 	struct iwl_self_init_dram *dram = &trans->init_dram;
 	int i, ret, lmac_cnt, umac_cnt, paging_cnt;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -54,7 +54,7 @@ struct iwl_ltr_config_cmd_v1 {
  * @flags: See &enum iwl_ltr_config_flags
  * @static_long: static LTR Long register value.
  * @static_short: static LTR Short register value.
- * @ltr_cfg_values: LTR parameters table values (in usec) in folowing order:
+ * @ltr_cfg_values: LTR parameters table values (in usec) in following order:
  *	TX, RX, Short Idle, Long Idle. Used only if %LTR_CFG_FLAG_UPDATE_VALUES
  *	is set.
  * @ltr_short_idle_timeout: LTR Short Idle timeout (in usec). Used only if
@@ -89,6 +89,7 @@ struct iwl_ltr_config_cmd {
  * @POWER_FLAGS_LPRX_ENA_MSK: Low Power RX enable.
  * @POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK: AP/GO's uAPSD misbehaving
  *		detection enablement
+ * @POWER_FLAGS_ENABLE_SMPS_MSK: SMPS is allowed for this vif
 */
 enum iwl_power_flags {
 	POWER_FLAGS_POWER_SAVE_ENA_MSK		= BIT(0),
@@ -99,6 +100,7 @@ enum iwl_power_flags {
 	POWER_FLAGS_ADVANCE_PM_ENA_MSK		= BIT(9),
 	POWER_FLAGS_LPRX_ENA_MSK		= BIT(11),
 	POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK	= BIT(12),
+	POWER_FLAGS_ENABLE_SMPS_MSK		= BIT(14),
 };
 
 #define IWL_POWER_VEC_SIZE 5
@@ -216,7 +218,6 @@ struct iwl_mac_power_cmd {
 	/* CONTEXT_DESC_API_T_VER_1 */
 	__le32 id_and_color;
 
-	/* CLIENT_PM_POWER_TABLE_S_VER_1 */
 	__le16 flags;
 	__le16 keep_alive_seconds;
 	__le32 rx_data_timeout;
@@ -237,7 +238,7 @@ struct iwl_mac_power_cmd {
 	u8 heavy_rx_thld_percentage;
 	u8 limited_ps_threshold;
 	u8 reserved;
-} __packed;
+} __packed; /* CLIENT_PM_POWER_TABLE_S_VER_1, VER_2 */
 
 /*
  * struct iwl_uapsd_misbehaving_ap_notif - FW sends this notification when
@@ -690,7 +691,7 @@ struct iwl_sar_offset_mapping_cmd {
  *      Roaming Energy Delta Threshold, otherwise use normal Energy Delta
  *      Threshold. Typical energy threshold is -72dBm.
  * @bf_temp_threshold: This threshold determines the type of temperature
- *	filtering (Slow or Fast) that is selected (Units are in Celsuis):
+ *	filtering (Slow or Fast) that is selected (Units are in Celsius):
  *	If the current temperature is above this threshold - Fast filter
  *	will be used, If the current temperature is below this threshold -
  *	Slow filter will be used.
@@ -698,12 +699,12 @@ struct iwl_sar_offset_mapping_cmd {
  *      calculated for this and the last passed beacon is greater than this
  *      threshold. Zero value means that the temperature change is ignored for
  *      beacon filtering; beacons will not be  forced to be sent to driver
- *      regardless of whether its temerature has been changed.
+ *      regardless of whether its temperature has been changed.
  * @bf_temp_slow_filter: Send Beacon to driver if delta in temperature values
  *      calculated for this and the last passed beacon is greater than this
  *      threshold. Zero value means that the temperature change is ignored for
  *      beacon filtering; beacons will not be forced to be sent to driver
- *      regardless of whether its temerature has been changed.
+ *      regardless of whether its temperature has been changed.
  * @bf_enable_beacon_filter: 1, beacon filtering is enabled; 0, disabled.
  * @bf_debug_flag: beacon filtering debug configuration
  * @bf_escape_timer: Send beacons to to driver if no beacons were passed

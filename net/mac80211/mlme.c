@@ -1525,9 +1525,9 @@ static void ieee80211_assoc_add_rates(struct ieee80211_local *local,
 		rates = ~0;
 	}
 
-	ieee80211_put_srates_elem(skb, sband, 0, 0, ~rates,
+	ieee80211_put_srates_elem(skb, sband, 0, ~rates,
 				  WLAN_EID_SUPP_RATES);
-	ieee80211_put_srates_elem(skb, sband, 0, 0, ~rates,
+	ieee80211_put_srates_elem(skb, sband, 0, ~rates,
 				  WLAN_EID_EXT_SUPP_RATES);
 }
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -1372,8 +1372,7 @@ static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvmsta->lock);
 
-	if ((tid_data->state == IWL_AGG_ON ||
-	     tid_data->state == IWL_EMPTYING_HW_QUEUE_DELBA) &&
+	if (tid_data->state == IWL_AGG_ON &&
 	    iwl_mvm_tid_queued(mvm, tid_data) == 0) {
 		/*
 		 * Now that this aggregation or DQA queue is empty tell
@@ -1402,15 +1401,6 @@ static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 		tid_data->state = IWL_AGG_STARTING;
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
-
-	case IWL_EMPTYING_HW_QUEUE_DELBA:
-		IWL_DEBUG_TX_QUEUES(mvm,
-				    "Can continue DELBA flow ssn = next_recl = %d\n",
-				    tid_data->next_reclaimed);
-		tid_data->state = IWL_AGG_OFF;
-		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
-		break;
-
 	default:
 		break;
 	}

@@ -1347,6 +1347,8 @@ int iwl_mld_no_wowlan_suspend(struct iwl_mld *mld)
 	if (ret) {
 		IWL_ERR(mld, "d3 suspend: trans_d3_suspend failed %d\n", ret);
 	} else {
+		/* Async notification might send hcmds, which is not allowed in suspend */
+		iwl_mld_cancel_async_notifications(mld);
 		mld->trans->system_pm_mode = IWL_PLAT_PM_MODE_D3;
 		mld->fw_status.in_d3 = true;
 	}

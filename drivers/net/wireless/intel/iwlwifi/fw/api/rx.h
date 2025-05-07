@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -193,10 +193,11 @@ enum iwl_rx_mpdu_amsdu_info {
 	IWL_RX_MPDU_AMSDU_LAST_SUBFRAME		= 0x80,
 };
 
-#define RX_MPDU_BAND_POS 6
-#define RX_MPDU_BAND_MASK 0xC0
-#define BAND_IN_RX_STATUS(_val) \
-	(((_val) & RX_MPDU_BAND_MASK) >> RX_MPDU_BAND_POS)
+enum iwl_rx_mpdu_mac_phy_band {
+	IWL_RX_MPDU_MAC_PHY_BAND_MAC_MASK	= 0x0f,
+	IWL_RX_MPDU_MAC_PHY_BAND_PHY_MASK	= 0x30,
+	IWL_RX_MPDU_MAC_PHY_BAND_BAND_MASK	= 0xc0,
+};
 
 enum iwl_rx_l3_proto_values {
 	IWL_RX_L3_TYPE_NONE,
@@ -668,9 +669,10 @@ struct iwl_rx_mpdu_desc {
 	 */
 	__le16 phy_info;
 	/**
-	 * @mac_phy_idx: MAC/PHY index
+	 * @mac_phy_band: MAC ID, PHY ID, band;
+	 *	see &enum iwl_rx_mpdu_mac_phy_band
 	 */
-	u8 mac_phy_idx;
+	u8 mac_phy_band;
 	/* DW4 */
 	union {
 		struct {

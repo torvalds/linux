@@ -14,6 +14,7 @@
 #include <linux/dmi.h>
 #include <linux/ctype.h>
 #include <linux/firmware.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/panic_notifier.h>
 #include <linux/average.h>
 #include "qmi.h"
@@ -147,7 +148,8 @@ struct ath12k_skb_rxcb {
 enum ath12k_hw_rev {
 	ATH12K_HW_QCN9274_HW10,
 	ATH12K_HW_QCN9274_HW20,
-	ATH12K_HW_WCN7850_HW20
+	ATH12K_HW_WCN7850_HW20,
+	ATH12K_HW_IPQ5332_HW10,
 };
 
 enum ath12k_firmware_mode {
@@ -160,6 +162,7 @@ enum ath12k_firmware_mode {
 
 #define ATH12K_IRQ_NUM_MAX 57
 #define ATH12K_EXT_IRQ_NUM_MAX	16
+#define ATH12K_MAX_TCL_RING_NUM	3
 
 struct ath12k_ext_irq_grp {
 	struct ath12k_base *ab;
@@ -219,6 +222,12 @@ enum ath12k_scan_state {
 	ATH12K_SCAN_ABORTING,
 };
 
+enum ath12k_11d_state {
+	ATH12K_11D_IDLE,
+	ATH12K_11D_PREPARING,
+	ATH12K_11D_RUNNING,
+};
+
 enum ath12k_hw_group_flags {
 	ATH12K_GROUP_FLAG_REGISTERED,
 	ATH12K_GROUP_FLAG_UNREGISTER,
@@ -238,6 +247,7 @@ enum ath12k_dev_flags {
 	ATH12K_FLAG_EXT_IRQ_ENABLED,
 	ATH12K_FLAG_QMI_FW_READY_COMPLETE,
 	ATH12K_FLAG_FTM_SEGMENTED,
+	ATH12K_FLAG_FIXED_MEM_REGION,
 };
 
 struct ath12k_tx_conf {
@@ -295,14 +305,18 @@ struct ath12k_link_vif {
 	int txpower;
 	bool rsnie_present;
 	bool wpaie_present;
-	struct ieee80211_chanctx_conf chanctx;
 	u8 vdev_stats_id;
 	u32 punct_bitmap;
 	u8 link_id;
 	struct ath12k_vif *ahvif;
 	struct ath12k_rekey_data rekey_data;
+	struct ath12k_link_stats link_stats;
+	spinlock_t link_stats_lock; /* Protects updates to link_stats */
 
 	u8 current_cntdown_counter;
+
+	/* only used in station mode */
+	bool is_sta_assoc_link;
 };
 
 struct ath12k_vif {
@@ -363,6 +377,8 @@ struct ath12k_vif_iter {
 #define HAL_RX_MAX_MCS_BE	15
 #define HAL_RX_MAX_NSS		8
 #define HAL_RX_MAX_NUM_LEGACY_RATES 12
+
+#define ATH12K_SCAN_TIMEOUT_HZ (20 * HZ)
 
 struct ath12k_rx_peer_rate_stats {
 	u64 ht_mcs_count[HAL_RX_MAX_MCS_HT + 1];
@@ -519,6 +535,12 @@ struct ath12k_link_sta {
 	u8 link_idx;
 };
 
+struct ath12k_reoq_buf {
+	void *vaddr;
+	dma_addr_t paddr_aligned;
+	u32 size;
+};
+
 struct ath12k_sta {
 	struct ath12k_vif *ahvif;
 	enum hal_pn_type pn_type;
@@ -531,13 +553,25 @@ struct ath12k_sta {
 	u8 num_peer;
 
 	enum ieee80211_sta_state state;
+
+	struct ath12k_reoq_buf reoq_bufs[IEEE80211_NUM_TIDS + 1];
 };
 
-#define ATH12K_MIN_5G_FREQ 4150
-#define ATH12K_MIN_6G_FREQ 5925
-#define ATH12K_MAX_6G_FREQ 7115
+#define ATH12K_HALF_20MHZ_BW	10
+#define ATH12K_2GHZ_MIN_CENTER	2412
+#define ATH12K_2GHZ_MAX_CENTER	2484
+#define ATH12K_5GHZ_MIN_CENTER	4900
+#define ATH12K_5GHZ_MAX_CENTER	5920
+#define ATH12K_6GHZ_MIN_CENTER	5935
+#define ATH12K_6GHZ_MAX_CENTER	7115
+#define ATH12K_MIN_2GHZ_FREQ	(ATH12K_2GHZ_MIN_CENTER - ATH12K_HALF_20MHZ_BW - 1)
+#define ATH12K_MAX_2GHZ_FREQ	(ATH12K_2GHZ_MAX_CENTER + ATH12K_HALF_20MHZ_BW + 1)
+#define ATH12K_MIN_5GHZ_FREQ	(ATH12K_5GHZ_MIN_CENTER - ATH12K_HALF_20MHZ_BW)
+#define ATH12K_MAX_5GHZ_FREQ	(ATH12K_5GHZ_MAX_CENTER + ATH12K_HALF_20MHZ_BW)
+#define ATH12K_MIN_6GHZ_FREQ	(ATH12K_6GHZ_MIN_CENTER - ATH12K_HALF_20MHZ_BW)
+#define ATH12K_MAX_6GHZ_FREQ	(ATH12K_6GHZ_MAX_CENTER + ATH12K_HALF_20MHZ_BW)
 #define ATH12K_NUM_CHANS 101
-#define ATH12K_MAX_5G_CHAN 173
+#define ATH12K_MAX_5GHZ_CHAN 173
 
 enum ath12k_hw_state {
 	ATH12K_HW_STATE_OFF,
@@ -728,7 +762,6 @@ struct ath12k {
 #endif
 
 	bool dfs_block_radar_events;
-	bool monitor_conf_enabled;
 	bool monitor_vdev_created;
 	bool monitor_started;
 	int monitor_vdev_id;
@@ -737,12 +770,20 @@ struct ath12k {
 
 	bool nlo_enabled;
 
+	/* Protected by wiphy::mtx lock. */
+	u32 vdev_id_11d_scan;
+	struct completion completed_11d_scan;
+	enum ath12k_11d_state state_11d;
+	u8 alpha2[REG_ALPHA2_LEN];
+	bool regdom_set_by_user;
+
 	struct completion fw_stats_complete;
 
 	struct completion mlo_setup_done;
 	u32 mlo_setup_status;
 	u8 ftm_msgref;
 	struct ath12k_fw_stats fw_stats;
+	unsigned long last_tx_power_update;
 };
 
 struct ath12k_hw {
@@ -852,6 +893,11 @@ struct ath12k_soc_dp_stats {
 	struct ath12k_soc_dp_tx_err_stats tx_err;
 };
 
+struct ath12k_reg_freq {
+	u32 start_freq;
+	u32 end_freq;
+};
+
 struct ath12k_mlo_memory {
 	struct target_mem_chunk chunk[ATH12K_QMI_WLANFW_MAX_NUM_MEM_SEG_V01];
 	int mlo_mem_size;
@@ -922,6 +968,10 @@ struct ath12k_base {
 
 	void __iomem *mem;
 	unsigned long mem_len;
+
+	void __iomem *mem_ce;
+	u32 ce_remap_base_addr;
+	bool ce_remap;
 
 	struct {
 		enum ath12k_bus bus;
@@ -1011,6 +1061,8 @@ struct ath12k_base {
 	/* continuous recovery fail count */
 	atomic_t fail_cont_count;
 	unsigned long reset_fail_timeout;
+	struct work_struct update_11d_work;
+	u8 new_alpha2[2];
 	struct {
 		/* protected by data_lock */
 		u32 fw_crash_counter;
@@ -1051,6 +1103,7 @@ struct ath12k_base {
 		size_t m3_len;
 
 		DECLARE_BITMAP(fw_features, ATH12K_FW_FEATURE_COUNT);
+		bool fw_features_valid;
 	} fw;
 
 	const struct hal_rx_ops *hal_rx_ops;
@@ -1087,6 +1140,14 @@ struct ath12k_base {
 	struct ath12k_wsi_info wsi_info;
 	enum ath12k_firmware_mode fw_mode;
 	struct ath12k_ftm_event_obj ftm_event_obj;
+	bool hw_group_ref;
+
+	/* Denote whether MLO is possible within the device */
+	bool single_chip_mlo_support;
+
+	struct ath12k_reg_freq reg_freq_2ghz;
+	struct ath12k_reg_freq reg_freq_5ghz;
+	struct ath12k_reg_freq reg_freq_6ghz;
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
@@ -1215,6 +1276,12 @@ u32 ath12k_core_get_max_peers_per_radio(struct ath12k_base *ab);
 u32 ath12k_core_get_max_num_tids(struct ath12k_base *ab);
 
 void ath12k_core_hw_group_set_mlo_capable(struct ath12k_hw_group *ag);
+void ath12k_fw_stats_init(struct ath12k *ar);
+void ath12k_fw_stats_bcn_free(struct list_head *head);
+void ath12k_fw_stats_free(struct ath12k_fw_stats *stats);
+void ath12k_fw_stats_reset(struct ath12k *ar);
+struct reserved_mem *ath12k_core_get_reserved_mem(struct ath12k_base *ab,
+						  int index);
 
 static inline const char *ath12k_scan_state_str(enum ath12k_scan_state state)
 {
@@ -1284,6 +1351,8 @@ static inline const char *ath12k_bus_str(enum ath12k_bus bus)
 	switch (bus) {
 	case ATH12K_BUS_PCI:
 		return "pci";
+	case ATH12K_BUS_AHB:
+		return "ahb";
 	}
 
 	return "unknown";
@@ -1331,20 +1400,6 @@ static inline void ath12k_ag_set_ah(struct ath12k_hw_group *ag, int idx,
 static inline struct ath12k_hw_group *ath12k_ab_to_ag(struct ath12k_base *ab)
 {
 	return ab->ag;
-}
-
-static inline void ath12k_core_started(struct ath12k_base *ab)
-{
-	lockdep_assert_held(&ab->ag->mutex);
-
-	ab->ag->num_started++;
-}
-
-static inline void ath12k_core_stopped(struct ath12k_base *ab)
-{
-	lockdep_assert_held(&ab->ag->mutex);
-
-	ab->ag->num_started--;
 }
 
 static inline struct ath12k_base *ath12k_ag_to_ab(struct ath12k_hw_group *ag,

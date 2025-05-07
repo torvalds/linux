@@ -11,7 +11,6 @@
 #include "fw/dbg.h"
 #include "fw/pnvm.h"
 #include "hcmd.h"
-#include "iwl-nvm-parse.h"
 #include "power.h"
 #include "mcc.h"
 #include "led.h"
@@ -239,22 +238,17 @@ static int iwl_mld_load_fw_wait_alive(struct iwl_mld *mld)
 			iwl_fw_dbg_error_collect(&mld->fwrt,
 						 FW_DBG_TRIGGER_ALIVE_TIMEOUT);
 		iwl_mld_print_alive_notif_timeout(mld);
-		goto alive_failure;
+		return ret;
 	}
 
 	if (!alive_valid) {
 		IWL_ERR(mld, "Loaded firmware is not valid!\n");
-		ret = -EIO;
-		goto alive_failure;
+		return -EIO;
 	}
 
 	iwl_trans_fw_alive(mld->trans, 0);
 
 	return 0;
-
-alive_failure:
-	iwl_trans_stop_device(mld->trans);
-	return ret;
 }
 
 static int iwl_mld_run_fw_init_sequence(struct iwl_mld *mld)
@@ -272,15 +266,11 @@ static int iwl_mld_run_fw_init_sequence(struct iwl_mld *mld)
 	if (ret)
 		return ret;
 
-	mld->trans->step_urm =
-		!!(iwl_read_umac_prph(mld->trans, CNVI_PMU_STEP_FLOW) &
-		   CNVI_PMU_STEP_FLOW_FORCE_URM);
-
 	ret = iwl_pnvm_load(mld->trans, &mld->notif_wait,
 			    &mld->fw->ucode_capa);
 	if (ret) {
 		IWL_ERR(mld, "Timeout waiting for PNVM load %d\n", ret);
-		goto init_failure;
+		return ret;
 	}
 
 	iwl_dbg_tlv_time_point(&mld->fwrt, IWL_FW_INI_TIME_POINT_AFTER_ALIVE,
@@ -298,31 +288,17 @@ static int iwl_mld_run_fw_init_sequence(struct iwl_mld *mld)
 	if (ret) {
 		IWL_ERR(mld, "Failed to send init config command: %d\n", ret);
 		iwl_remove_notification(&mld->notif_wait, &init_wait);
-		goto init_failure;
+		return ret;
 	}
 
 	ret = iwl_wait_notification(&mld->notif_wait, &init_wait,
 				    MLD_INIT_COMPLETE_TIMEOUT);
 	if (ret) {
 		IWL_ERR(mld, "Failed to get INIT_COMPLETE %d\n", ret);
-		goto init_failure;
-	}
-
-	if (!mld->nvm_data) {
-		mld->nvm_data = iwl_get_nvm(mld->trans, mld->fw, 0, 0);
-		if (IS_ERR(mld->nvm_data)) {
-			ret = PTR_ERR(mld->nvm_data);
-			mld->nvm_data = NULL;
-			IWL_ERR(mld, "Failed to read NVM: %d\n", ret);
-			goto init_failure;
-		}
+		return ret;
 	}
 
 	return 0;
-
-init_failure:
-	iwl_trans_stop_device(mld->trans);
-	return ret;
 }
 
 int iwl_mld_load_fw(struct iwl_mld *mld)
@@ -333,7 +309,7 @@ int iwl_mld_load_fw(struct iwl_mld *mld)
 
 	ret = iwl_trans_start_hw(mld->trans);
 	if (ret)
-		goto err;
+		return ret;
 
 	ret = iwl_mld_run_fw_init_sequence(mld);
 	if (ret)
@@ -361,9 +337,10 @@ void iwl_mld_stop_fw(struct iwl_mld *mld)
 
 	iwl_trans_stop_device(mld->trans);
 
-	wiphy_work_cancel(mld->wiphy, &mld->async_handlers_wk);
-
-	iwl_mld_purge_async_handlers_list(mld);
+	/* HW is stopped, no more coming RX. Cancel all notifications in
+	 * case they were sent just before stopping the HW.
+	 */
+	iwl_mld_cancel_async_notifications(mld);
 
 	mld->fw_status.running = false;
 }
@@ -526,7 +503,7 @@ int iwl_mld_start_fw(struct iwl_mld *mld)
 	ret = iwl_mld_load_fw(mld);
 	if (IWL_FW_CHECK(mld, ret, "Failed to start firmware %d\n", ret)) {
 		iwl_fw_dbg_error_collect(&mld->fwrt, FW_DBG_TRIGGER_DRIVER);
-		goto error;
+		return ret;
 	}
 
 	IWL_DEBUG_INFO(mld, "uCode started.\n");

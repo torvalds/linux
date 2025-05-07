@@ -1348,10 +1348,6 @@ struct iwl_mvm {
 	__le16 cur_aid;
 	u8 cur_bssid[ETH_ALEN];
 
-#ifdef CONFIG_ACPI
-	struct iwl_phy_specific_cfg phy_filters;
-#endif
-
 	/* report rx timestamp in ptp clock time */
 	bool rx_ts_ptp;
 
