@@ -101,9 +101,22 @@ impl fmt::Display for Chipset {
 /// Enum representation of the GPU generation.
 #[derive(fmt::Debug)]
 pub(crate) enum Architecture {
-    Turing,
-    Ampere,
-    Ada,
+    Turing = 0x16,
+    Ampere = 0x17,
+    Ada = 0x19,
+}
+
+impl TryFrom<u8> for Architecture {
+    type Error = Error;
+
+    fn try_from(value: u8) -> Result<Self> {
+        match value {
+            0x16 => Ok(Self::Turing),
+            0x17 => Ok(Self::Ampere),
+            0x19 => Ok(Self::Ada),
+            _ => Err(ENODEV),
+        }
+    }
 }
 
 pub(crate) struct Revision {
