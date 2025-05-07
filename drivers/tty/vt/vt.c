@@ -3007,6 +3007,19 @@ static int vc_get_glyph(struct vc_data *vc, int tc)
 		return tc;
 	}
 
+	/*
+	 * The Unicode screen memory is allocated only when required.
+	 * This is one such case: we're about to "cheat" with the displayed
+	 * character meaning the simple screen buffer won't hold the original
+	 * information, whereas the Unicode screen buffer always does.
+	 */
+	vc_uniscr_check(vc);
+
+	/* Try getting a simpler fallback character. */
+	tc = ucs_get_fallback(tc);
+	if (tc)
+		return vc_get_glyph(vc, tc);
+
 	/* Display U+FFFD (Unicode Replacement Character). */
 	return conv_uni_to_pc(vc, UCS_REPLACEMENT);
 }
