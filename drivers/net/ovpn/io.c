@@ -410,7 +410,7 @@ drop:
 	dev_dstats_tx_dropped(ovpn->dev);
 	skb_tx_error(skb);
 	kfree_skb_list(skb);
-	return NET_XMIT_DROP;
+	return NETDEV_TX_OK;
 }
 
 /**
