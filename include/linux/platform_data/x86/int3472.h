@@ -110,8 +110,6 @@ struct int3472_discrete_device {
 	struct acpi_device *sensor;
 	const char *sensor_name;
 
-	const struct int3472_sensor_config *sensor_config;
-
 	struct int3472_gpio_regulator regulators[INT3472_MAX_REGULATORS];
 
 	struct int3472_clock {
