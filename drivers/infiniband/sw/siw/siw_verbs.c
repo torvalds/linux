@@ -1102,7 +1102,7 @@ int siw_post_receive(struct ib_qp *base_qp, const struct ib_recv_wr *wr,
 		siw_dbg_qp(qp, "error %d\n", rv);
 		*bad_wr = wr;
 	}
-	return rv > 0 ? 0 : rv;
+	return rv;
 }
 
 int siw_destroy_cq(struct ib_cq *base_cq, struct ib_udata *udata)
