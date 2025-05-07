@@ -226,28 +226,22 @@ static void gfs2_sb_in(struct gfs2_sbd *sdp, const struct gfs2_sb *str)
 
 static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector, int silent)
 {
-	struct super_block *sb = sdp->sd_vfs;
-	struct page *page;
-	struct bio_vec bvec;
-	struct bio bio;
+	struct gfs2_sb *sb;
 	int err;
 
-	page = alloc_page(GFP_KERNEL);
-	if (unlikely(!page))
+	sb = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (unlikely(!sb))
 		return -ENOMEM;
-
-	bio_init(&bio, sb->s_bdev, &bvec, 1, REQ_OP_READ | REQ_META);
-	bio.bi_iter.bi_sector = sector * (sb->s_blocksize >> 9);
-	__bio_add_page(&bio, page, PAGE_SIZE, 0);
-
-	err = submit_bio_wait(&bio);
+	err = bdev_rw_virt(sdp->sd_vfs->s_bdev,
+			sector * (sdp->sd_vfs->s_blocksize >> 9), sb, PAGE_SIZE,
+			REQ_OP_READ | REQ_META);
 	if (err) {
 		pr_warn("error %d reading superblock\n", err);
-		__free_page(page);
+		kfree(sb);
 		return err;
 	}
-	gfs2_sb_in(sdp, page_address(page));
-	__free_page(page);
+	gfs2_sb_in(sdp, sb);
+	kfree(sb);
 	return gfs2_check_sb(sdp, silent);
 }
 
