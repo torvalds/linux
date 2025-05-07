@@ -242,5 +242,10 @@ properties:
           - const: nvidia,p3768-0000+p3767-0005
           - const: nvidia,p3767-0005
           - const: nvidia,tegra234
+      - description: NVIDIA P3971-0089+P3834-0008 Engineering Reference Platform
+        items:
+          - const: nvidia,p3971-0089+p3834-0008
+          - const: nvidia,p3834-0008
+          - const: nvidia,tegra264
 
 additionalProperties: true
