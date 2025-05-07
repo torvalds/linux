@@ -112,10 +112,10 @@ pub(crate) struct Revision {
 }
 
 impl Revision {
-    fn from_boot0(boot0: regs::Boot0) -> Self {
+    fn from_boot0(boot0: regs::NV_PMC_BOOT_0) -> Self {
         Self {
-            major: boot0.major_rev(),
-            minor: boot0.minor_rev(),
+            major: boot0.major_revision(),
+            minor: boot0.minor_revision(),
         }
     }
 }
@@ -135,10 +135,10 @@ pub(crate) struct Spec {
 
 impl Spec {
     fn new(bar: &Bar0) -> Result<Spec> {
-        let boot0 = regs::Boot0::read(bar);
+        let boot0 = regs::NV_PMC_BOOT_0::read(bar);
 
         Ok(Self {
-            chipset: boot0.chipset().try_into()?,
+            chipset: boot0.chipset()?,
             revision: Revision::from_boot0(boot0),
         })
     }

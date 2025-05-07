@@ -102,7 +102,13 @@ Usage:
 	let boot0 = Boot0::read(&bar);
 	pr_info!("Revision: {}\n", boot0.revision());
 
+Note: a work-in-progress implementation currently resides in
+`drivers/gpu/nova-core/regs/macros.rs` and is used in nova-core. It would be
+nice to improve it (possibly using proc macros) and move it to the `kernel`
+crate so it can be used by other components as well.
+
 | Complexity: Advanced
+| Contact: Alexandre Courbot
 
 Delay / Sleep abstractions
 --------------------------
