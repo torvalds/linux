@@ -72,6 +72,7 @@ struct symbol {
 	u8 ignore	     : 1;
 	struct list_head pv_target;
 	struct reloc *relocs;
+	struct section *group_sec;
 };
 
 struct reloc {

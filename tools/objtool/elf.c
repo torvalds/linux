@@ -572,28 +572,32 @@ err:
 	return -1;
 }
 
-/*
- * @sym's idx has changed.  Update the sh_info in group sections.
- */
-static void elf_update_group_sh_info(struct elf *elf, Elf32_Word symtab_idx,
-				     Elf32_Word new_idx, Elf32_Word old_idx)
+static int mark_group_syms(struct elf *elf)
 {
-	struct section *sec;
+	struct section *symtab, *sec;
+	struct symbol *sym;
+
+	symtab = find_section_by_name(elf, ".symtab");
+	if (!symtab) {
+		ERROR("no .symtab");
+		return -1;
+	}
 
 	list_for_each_entry(sec, &elf->sections, list) {
-		if (sec->sh.sh_type != SHT_GROUP)
-			continue;
-		if (sec->sh.sh_link == symtab_idx &&
-		    sec->sh.sh_info == old_idx) {
-			sec->sh.sh_info = new_idx;
-			mark_sec_changed(elf, sec, true);
-			/*
-			 * Each ELF group should have a unique symbol key.
-			 * Return early on match.
-			 */
-			return;
+		if (sec->sh.sh_type == SHT_GROUP &&
+		    sec->sh.sh_link == symtab->idx) {
+			sym = find_symbol_by_index(elf, sec->sh.sh_info);
+			if (!sym) {
+				ERROR("%s: can't find SHT_GROUP signature symbol",
+				      sec->name);
+				return -1;
+			}
+
+			sym->group_sec = sec;
 		}
 	}
+
+	return 0;
 }
 
 /*
@@ -787,7 +791,11 @@ __elf_create_symbol(struct elf *elf, struct symbol *sym)
 		if (elf_update_sym_relocs(elf, old))
 			return NULL;
 
-		elf_update_group_sh_info(elf, symtab->idx, new_idx, first_non_local);
+		if (old->group_sec) {
+			old->group_sec->sh.sh_info = new_idx;
+			mark_sec_changed(elf, old->group_sec, true);
+		}
+
 		new_idx = first_non_local;
 	}
 
@@ -1058,6 +1066,9 @@ struct elf *elf_open_read(const char *name, int flags)
 		goto err;
 
 	if (read_symbols(elf))
+		goto err;
+
+	if (mark_group_syms(elf))
 		goto err;
 
 	if (read_relocs(elf))
