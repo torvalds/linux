@@ -134,9 +134,8 @@ pub(crate) struct Spec {
 }
 
 impl Spec {
-    fn new(bar: &Devres<Bar0>) -> Result<Spec> {
-        let bar = bar.try_access().ok_or(ENXIO)?;
-        let boot0 = regs::Boot0::read(&bar);
+    fn new(bar: &Bar0) -> Result<Spec> {
+        let boot0 = regs::Boot0::read(bar);
 
         Ok(Self {
             chipset: boot0.chipset().try_into()?,
@@ -183,8 +182,12 @@ pub(crate) struct Gpu {
 }
 
 impl Gpu {
-    pub(crate) fn new(pdev: &pci::Device, bar: Devres<Bar0>) -> Result<impl PinInit<Self>> {
-        let spec = Spec::new(&bar)?;
+    pub(crate) fn new(
+        pdev: &pci::Device<device::Bound>,
+        devres_bar: Devres<Bar0>,
+    ) -> Result<impl PinInit<Self>> {
+        let bar = devres_bar.access(pdev.as_ref())?;
+        let spec = Spec::new(bar)?;
         let fw = Firmware::new(pdev.as_ref(), &spec, "535.113.01")?;
 
         dev_info!(
@@ -195,6 +198,10 @@ impl Gpu {
             spec.revision
         );
 
-        Ok(pin_init!(Self { spec, bar, fw }))
+        Ok(pin_init!(Self {
+            spec,
+            bar: devres_bar,
+            fw
+        }))
     }
 }
