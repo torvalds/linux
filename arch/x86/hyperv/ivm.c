@@ -289,7 +289,7 @@ static void snp_cleanup_vmsa(struct sev_es_save_area *vmsa)
 		free_page((unsigned long)vmsa);
 }
 
-int hv_snp_boot_ap(u32 apic_id, unsigned long start_ip)
+int hv_snp_boot_ap(u32 apic_id, unsigned long start_ip, unsigned int cpu)
 {
 	struct sev_es_save_area *vmsa = (struct sev_es_save_area *)
 		__get_free_page(GFP_KERNEL | __GFP_ZERO);
@@ -298,7 +298,7 @@ int hv_snp_boot_ap(u32 apic_id, unsigned long start_ip)
 	u64 ret, retry = 5;
 	struct hv_enable_vp_vtl *start_vp_input;
 	unsigned long flags;
-	int cpu, vp_index;
+	int vp_index;
 
 	if (!vmsa)
 		return -ENOMEM;
@@ -306,17 +306,6 @@ int hv_snp_boot_ap(u32 apic_id, unsigned long start_ip)
 	/* Find the Hyper-V VP index which might be not the same as APIC ID */
 	vp_index = hv_apicid_to_vp_index(apic_id);
 	if (vp_index < 0 || vp_index > ms_hyperv.max_vp_index)
-		return -EINVAL;
-
-	/*
-	 * Find the Linux CPU number for addressing the per-CPU data, and it
-	 * might not be the same as APIC ID.
-	 */
-	for_each_present_cpu(cpu) {
-		if (arch_match_cpu_phys_id(cpu, apic_id))
-			break;
-	}
-	if (cpu >= nr_cpu_ids)
 		return -EINVAL;
 
 	native_store_gdt(&gdtr);

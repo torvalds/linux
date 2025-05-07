@@ -126,7 +126,7 @@ static int __init acpi_mp_setup_reset(u64 reset_vector)
 	return 0;
 }
 
-static int acpi_wakeup_cpu(u32 apicid, unsigned long start_ip)
+static int acpi_wakeup_cpu(u32 apicid, unsigned long start_ip, unsigned int cpu)
 {
 	if (!acpi_mp_wake_mailbox_paddr) {
 		pr_warn_once("No MADT mailbox: cannot bringup secondary CPUs. Booting with kexec?\n");

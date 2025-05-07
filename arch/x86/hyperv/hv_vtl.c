@@ -211,17 +211,9 @@ free_lock:
 	return ret;
 }
 
-static int hv_vtl_wakeup_secondary_cpu(u32 apicid, unsigned long start_eip)
+static int hv_vtl_wakeup_secondary_cpu(u32 apicid, unsigned long start_eip, unsigned int cpu)
 {
-	int vp_index, cpu;
-
-	/* Find the logical CPU for the APIC ID */
-	for_each_present_cpu(cpu) {
-		if (arch_match_cpu_phys_id(cpu, apicid))
-			break;
-	}
-	if (cpu >= nr_cpu_ids)
-		return -EINVAL;
+	int vp_index;
 
 	pr_debug("Bringing up CPU with APIC ID %d in VTL2...\n", apicid);
 	vp_index = hv_apicid_to_vp_index(apicid);

@@ -695,7 +695,7 @@ static void send_init_sequence(u32 phys_apicid)
 /*
  * Wake up AP by INIT, INIT, STARTUP sequence.
  */
-static int wakeup_secondary_cpu_via_init(u32 phys_apicid, unsigned long start_eip)
+static int wakeup_secondary_cpu_via_init(u32 phys_apicid, unsigned long start_eip, unsigned int cpu)
 {
 	unsigned long send_status = 0, accept_status = 0;
 	int num_starts, j, maxlvt;
@@ -842,7 +842,7 @@ int common_cpu_up(unsigned int cpu, struct task_struct *idle)
  * Returns zero if startup was successfully sent, else error code from
  * ->wakeup_secondary_cpu.
  */
-static int do_boot_cpu(u32 apicid, int cpu, struct task_struct *idle)
+static int do_boot_cpu(u32 apicid, unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long start_ip = real_mode_header->trampoline_start;
 	int ret;
@@ -896,11 +896,11 @@ static int do_boot_cpu(u32 apicid, int cpu, struct task_struct *idle)
 	 * - Use an INIT boot APIC message
 	 */
 	if (apic->wakeup_secondary_cpu_64)
-		ret = apic->wakeup_secondary_cpu_64(apicid, start_ip);
+		ret = apic->wakeup_secondary_cpu_64(apicid, start_ip, cpu);
 	else if (apic->wakeup_secondary_cpu)
-		ret = apic->wakeup_secondary_cpu(apicid, start_ip);
+		ret = apic->wakeup_secondary_cpu(apicid, start_ip, cpu);
 	else
-		ret = wakeup_secondary_cpu_via_init(apicid, start_ip);
+		ret = wakeup_secondary_cpu_via_init(apicid, start_ip, cpu);
 
 	/* If the wakeup mechanism failed, cleanup the warm reset vector */
 	if (ret)
