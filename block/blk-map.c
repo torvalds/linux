@@ -317,64 +317,26 @@ static void bio_map_kern_endio(struct bio *bio)
 	kfree(bio);
 }
 
-/**
- *	bio_map_kern	-	map kernel address into bio
- *	@data: pointer to buffer to map
- *	@len: length in bytes
- *	@op: bio/request operation
- *	@gfp_mask: allocation flags for bio allocation
- *
- *	Map the kernel address into a bio suitable for io to a block
- *	device. Returns an error pointer in case of error.
- */
-static struct bio *bio_map_kern(void *data, unsigned int len,
-		enum req_op op, gfp_t gfp_mask)
+static struct bio *bio_map_kern(void *data, unsigned int len, enum req_op op,
+		gfp_t gfp_mask)
 {
-	unsigned long kaddr = (unsigned long)data;
-	unsigned long end = (kaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	unsigned long start = kaddr >> PAGE_SHIFT;
-	const int nr_pages = end - start;
-	bool is_vmalloc = is_vmalloc_addr(data);
-	struct page *page;
-	int offset, i;
+	unsigned int nr_vecs = bio_add_max_vecs(data, len);
 	struct bio *bio;
 
-	bio = bio_kmalloc(nr_pages, gfp_mask);
+	bio = bio_kmalloc(nr_vecs, gfp_mask);
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
-	bio_init(bio, NULL, bio->bi_inline_vecs, nr_pages, op);
-
-	if (is_vmalloc) {
-		flush_kernel_vmap_range(data, len);
+	bio_init(bio, NULL, bio->bi_inline_vecs, nr_vecs, op);
+	if (is_vmalloc_addr(data)) {
 		bio->bi_private = data;
-	}
-
-	offset = offset_in_page(kaddr);
-	for (i = 0; i < nr_pages; i++) {
-		unsigned int bytes = PAGE_SIZE - offset;
-
-		if (len <= 0)
-			break;
-
-		if (bytes > len)
-			bytes = len;
-
-		if (!is_vmalloc)
-			page = virt_to_page(data);
-		else
-			page = vmalloc_to_page(data);
-		if (bio_add_page(bio, page, bytes, offset) < bytes) {
-			/* we don't support partial mappings */
+		if (!bio_add_vmalloc(bio, data, len)) {
 			bio_uninit(bio);
 			kfree(bio);
 			return ERR_PTR(-EINVAL);
 		}
-
-		data += bytes;
-		len -= bytes;
-		offset = 0;
+	} else {
+		bio_add_virt_nofail(bio, data, len);
 	}
-
 	bio->bi_end_io = bio_map_kern_endio;
 	return bio;
 }
