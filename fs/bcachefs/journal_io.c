@@ -1864,9 +1864,8 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 	struct jset_entry *start, *end;
 	struct jset *jset = w->data;
 	struct journal_keys_to_wb wb = { NULL };
-	unsigned sectors, bytes, u64s;
+	unsigned u64s;
 	unsigned long btree_roots_have = 0;
-	bool validate_before_checksum = false;
 	u64 seq = le64_to_cpu(jset->seq);
 	int ret;
 
@@ -1949,8 +1948,7 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 
 	le32_add_cpu(&jset->u64s, u64s);
 
-	sectors = vstruct_sectors(jset, c->block_bits);
-	bytes	= vstruct_bytes(jset);
+	unsigned sectors = vstruct_sectors(jset, c->block_bits);
 
 	if (sectors > w->sectors) {
 		bch2_fs_fatal_error(c, ": journal write overran available space, %zu > %u (extra %u reserved %u/%u)",
@@ -1958,6 +1956,17 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 				    u64s, w->u64s_reserved, j->entry_u64s_reserved);
 		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int bch2_journal_write_checksum(struct journal *j, struct journal_buf *w)
+{
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+	struct jset *jset = w->data;
+	u64 seq = le64_to_cpu(jset->seq);
+	bool validate_before_checksum = false;
+	int ret = 0;
 
 	jset->magic		= cpu_to_le64(jset_magic(c));
 	jset->version		= cpu_to_le32(c->sb.version);
@@ -1981,7 +1990,7 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 	ret = bch2_encrypt(c, JSET_CSUM_TYPE(jset), journal_nonce(jset),
 		    jset->encrypted_start,
 		    vstruct_end(jset) - (void *) jset->encrypted_start);
-	if (bch2_fs_fatal_err_on(ret, c, "decrypting journal entry: %s", bch2_err_str(ret)))
+	if (bch2_fs_fatal_err_on(ret, c, "encrypting journal entry: %s", bch2_err_str(ret)))
 		return ret;
 
 	jset->csum = csum_vstruct(c, JSET_CSUM_TYPE(jset),
@@ -1991,6 +2000,8 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 	    (ret = jset_validate(c, NULL, jset, 0, WRITE)))
 		return ret;
 
+	unsigned sectors = vstruct_sectors(jset, c->block_bits);
+	unsigned bytes	= vstruct_bytes(jset);
 	memset((void *) jset + bytes, 0, (sectors << 9) - bytes);
 	return 0;
 }
@@ -2087,6 +2098,10 @@ CLOSURE_CALLBACK(bch2_journal_write)
 
 	if (unlikely(ret))
 		goto err_allocate_write;
+
+	ret = bch2_journal_write_checksum(j, w);
+	if (unlikely(ret))
+		goto err;
 
 	spin_lock(&j->lock);
 	/*
