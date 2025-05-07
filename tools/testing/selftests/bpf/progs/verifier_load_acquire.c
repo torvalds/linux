@@ -15,7 +15,7 @@ __naked void load_acquire_8(void)
 {
 	asm volatile (
 	"r0 = 0;"
-	"w1 = 0x12;"
+	"w1 = 0xfe;"
 	"*(u8 *)(r10 - 1) = w1;"
 	".8byte %[load_acquire_insn];" // w2 = load_acquire((u8 *)(r10 - 1));
 	"if r2 == r1 goto 1f;"
@@ -35,7 +35,7 @@ __naked void load_acquire_16(void)
 {
 	asm volatile (
 	"r0 = 0;"
-	"w1 = 0x1234;"
+	"w1 = 0xfedc;"
 	"*(u16 *)(r10 - 2) = w1;"
 	".8byte %[load_acquire_insn];" // w2 = load_acquire((u16 *)(r10 - 2));
 	"if r2 == r1 goto 1f;"
@@ -55,7 +55,7 @@ __naked void load_acquire_32(void)
 {
 	asm volatile (
 	"r0 = 0;"
-	"w1 = 0x12345678;"
+	"w1 = 0xfedcba09;"
 	"*(u32 *)(r10 - 4) = w1;"
 	".8byte %[load_acquire_insn];" // w2 = load_acquire((u32 *)(r10 - 4));
 	"if r2 == r1 goto 1f;"
@@ -75,7 +75,7 @@ __naked void load_acquire_64(void)
 {
 	asm volatile (
 	"r0 = 0;"
-	"r1 = 0x1234567890abcdef ll;"
+	"r1 = 0xfedcba0987654321 ll;"
 	"*(u64 *)(r10 - 8) = r1;"
 	".8byte %[load_acquire_insn];" // r2 = load_acquire((u64 *)(r10 - 8));
 	"if r2 == r1 goto 1f;"
