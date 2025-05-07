@@ -888,10 +888,8 @@ static void populate_dml21_plane_config_from_plane_state(struct dml2_context *dm
 		case DC_CM2_GPU_MEM_SIZE_171717:
 			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_17_cube;
 			break;
-		case DC_CM2_GPU_MEM_SIZE_333333:
-			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_33_cube;
-			break;
 		case DC_CM2_GPU_MEM_SIZE_TRANSFORMED:
+		default:
 			//plane->tdlut.tdlut_width_mode = dml2_tdlut_width_flatten; // dml2_tdlut_width_flatten undefined
 			break;
 		}

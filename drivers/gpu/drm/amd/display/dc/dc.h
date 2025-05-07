@@ -67,6 +67,7 @@ struct dmub_notification;
 #define MIN_VIEWPORT_SIZE 12
 #define MAX_NUM_EDP 2
 #define MAX_HOST_ROUTERS_NUM 2
+#define MAX_SUPPORTED_FORMATS 7
 
 /* Display Core Interfaces */
 struct dc_versions {
@@ -192,6 +193,34 @@ struct dpp_color_caps {
 	struct rom_curve_caps ogam_rom_caps;
 };
 
+/* Below structure is to describe the HW support for mem layout, extend support
+	range to match what OS could handle in the roadmap */
+struct lut3d_caps {
+	uint32_t dma_3d_lut : 1; /*< DMA mode support for 3D LUT */
+	struct {
+		uint32_t swizzle_3d_rgb : 1;
+		uint32_t swizzle_3d_bgr : 1;
+		uint32_t linear_1d : 1;
+	} mem_layout_support;
+	struct {
+		uint32_t unorm_12msb : 1;
+		uint32_t unorm_12lsb : 1;
+		uint32_t float_fp1_5_10 : 1;
+	} mem_format_support;
+	struct {
+		uint32_t order_rgba : 1;
+		uint32_t order_bgra : 1;
+	} mem_pixel_order_support;
+	/*< size options are 9, 17, 33, 45, 65 */
+	struct {
+		uint32_t dim_9 : 1; /* 3D LUT support for 9x9x9 */
+		uint32_t dim_17 : 1; /* 3D LUT support for 17x17x17 */
+		uint32_t dim_33 : 1; /* 3D LUT support for 33x33x33 */
+		uint32_t dim_45 : 1; /* 3D LUT support for 45x45x45 */
+		uint32_t dim_65 : 1; /* 3D LUT support for 65x65x65 */
+	} lut_dim_caps;
+};
+
 /**
  * struct mpc_color_caps - color pipeline capabilities for multiple pipe and
  * plane combined blocks
@@ -211,6 +240,8 @@ struct mpc_color_caps {
 	uint16_t num_3dluts : 3;
 	uint16_t shared_3d_lut:1;
 	struct rom_curve_caps ogam_rom_caps;
+	struct lut3d_caps mcm_3d_lut_caps;
+	struct lut3d_caps rmcm_3d_lut_caps;
 };
 
 /**
