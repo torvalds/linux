@@ -4,7 +4,7 @@
 #include <linux/acpi.h>
 #include <linux/gpio/consumer.h>
 #include <linux/leds.h>
-#include "common.h"
+#include <linux/platform_data/x86/int3472.h>
 
 static int int3472_pled_set(struct led_classdev *led_cdev,
 				     enum led_brightness brightness)

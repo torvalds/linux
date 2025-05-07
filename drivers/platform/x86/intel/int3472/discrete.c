@@ -12,11 +12,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/overflow.h>
+#include <linux/platform_data/x86/int3472.h>
 #include <linux/platform_device.h>
 #include <linux/string_choices.h>
 #include <linux/uuid.h>
-
-#include "common.h"
 
 /*
  * 79234640-9e10-4fea-a5c1-b5aa8b19756f
@@ -479,3 +478,4 @@ module_platform_driver(int3472_discrete);
 MODULE_DESCRIPTION("Intel SkyLake INT3472 ACPI Discrete Device Driver");
 MODULE_AUTHOR("Daniel Scally <djrscally@gmail.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS("INTEL_INT3472");

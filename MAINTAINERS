@@ -12241,6 +12241,7 @@ INTEL SKYLAKE INT3472 ACPI DEVICE DRIVER
 M:	Daniel Scally <djrscally@gmail.com>
 S:	Maintained
 F:	drivers/platform/x86/intel/int3472/
+F:	include/linux/platform_data/x86/int3472.h
 
 INTEL SPEED SELECT TECHNOLOGY
 M:	Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>

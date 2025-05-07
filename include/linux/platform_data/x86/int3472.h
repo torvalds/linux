@@ -1,8 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Author: Dan Scally <djrscally@gmail.com> */
+/*
+ * Intel INT3472 ACPI camera sensor power-management support
+ *
+ * Author: Dan Scally <djrscally@gmail.com>
+ */
 
-#ifndef _INTEL_SKL_INT3472_H
-#define _INTEL_SKL_INT3472_H
+#ifndef __PLATFORM_DATA_X86_INT3472_H
+#define __PLATFORM_DATA_X86_INT3472_H
 
 #include <linux/clk-provider.h>
 #include <linux/gpio/machine.h>
