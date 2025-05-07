@@ -1333,45 +1333,18 @@ static void
 xfs_buf_submit_bio(
 	struct xfs_buf		*bp)
 {
+	unsigned int		len = BBTOB(bp->b_length);
+	unsigned int		nr_vecs = bio_add_max_vecs(bp->b_addr, len);
 	unsigned int		map = 0;
 	struct blk_plug		plug;
 	struct bio		*bio;
 
-	if (is_vmalloc_addr(bp->b_addr)) {
-		unsigned int	size = BBTOB(bp->b_length);
-		unsigned int	alloc_size = roundup(size, PAGE_SIZE);
-		void		*data = bp->b_addr;
-
-		bio = bio_alloc(bp->b_target->bt_bdev, alloc_size >> PAGE_SHIFT,
-				xfs_buf_bio_op(bp), GFP_NOIO);
-
-		do {
-			unsigned int	len = min(size, PAGE_SIZE);
-
-			ASSERT(offset_in_page(data) == 0);
-			__bio_add_page(bio, vmalloc_to_page(data), len, 0);
-			data += len;
-			size -= len;
-		} while (size);
-
-		flush_kernel_vmap_range(bp->b_addr, alloc_size);
-	} else {
-		/*
-		 * Single folio or slab allocation.  Must be contiguous and thus
-		 * only a single bvec is needed.
-		 *
-		 * This uses the page based bio add helper for now as that is
-		 * the lowest common denominator between folios and slab
-		 * allocations.  To be replaced with a better block layer
-		 * helper soon (hopefully).
-		 */
-		bio = bio_alloc(bp->b_target->bt_bdev, 1, xfs_buf_bio_op(bp),
-				GFP_NOIO);
-		__bio_add_page(bio, virt_to_page(bp->b_addr),
-				BBTOB(bp->b_length),
-				offset_in_page(bp->b_addr));
-	}
-
+	bio = bio_alloc(bp->b_target->bt_bdev, nr_vecs, xfs_buf_bio_op(bp),
+			GFP_NOIO);
+	if (is_vmalloc_addr(bp->b_addr))
+		bio_add_vmalloc(bio, bp->b_addr, len);
+	else
+		bio_add_virt_nofail(bio, bp->b_addr, len);
 	bio->bi_private = bp;
 	bio->bi_end_io = xfs_buf_bio_end_io;
 
