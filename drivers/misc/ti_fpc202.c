@@ -349,7 +349,7 @@ static int fpc202_probe(struct i2c_client *client)
 		goto disable_gpio;
 	}
 
-	priv->atr = i2c_atr_new(client->adapter, dev, &fpc202_atr_ops, 2);
+	priv->atr = i2c_atr_new(client->adapter, dev, &fpc202_atr_ops, 2, 0);
 	if (IS_ERR(priv->atr)) {
 		ret = PTR_ERR(priv->atr);
 		dev_err(dev, "failed to create i2c atr err %d\n", ret);
