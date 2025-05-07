@@ -17,6 +17,7 @@ asmlinkage void poly1305_64s(struct poly1305_block_state *state, const u8 *m, u3
 asmlinkage void poly1305_emit_arch(const struct poly1305_state *state,
 				   u8 digest[POLY1305_DIGEST_SIZE],
 				   const u32 nonce[4]);
+EXPORT_SYMBOL_GPL(poly1305_emit_arch);
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_p10);
 

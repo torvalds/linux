@@ -1030,7 +1030,7 @@ SYM_FUNC_END(poly1305_64s)
 # Input: r3 = h, r4 = s, r5 = mac
 # mac = h + s
 #
-SYM_FUNC_START(poly1305_emit_64)
+SYM_FUNC_START(poly1305_emit_arch)
 	ld	10, 0(3)
 	ld	11, 8(3)
 	ld	12, 16(3)
@@ -1060,7 +1060,7 @@ Skip_h64:
 	std	10, 0(5)
 	std	11, 8(5)
 	blr
-SYM_FUNC_END(poly1305_emit_64)
+SYM_FUNC_END(poly1305_emit_arch)
 
 SYM_DATA_START_LOCAL(RMASK)
 .align 5
