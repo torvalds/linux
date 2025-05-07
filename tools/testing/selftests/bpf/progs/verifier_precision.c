@@ -91,8 +91,7 @@ __naked int bpf_end_bswap(void)
 		::: __clobber_all);
 }
 
-#if defined(ENABLE_ATOMICS_TESTS) && \
-	(defined(__TARGET_ARCH_arm64) || defined(__TARGET_ARCH_x86))
+#ifdef CAN_USE_LOAD_ACQ_STORE_REL
 
 SEC("?raw_tp")
 __success __log_level(2)
@@ -138,7 +137,7 @@ __naked int bpf_store_release(void)
 	: __clobber_all);
 }
 
-#endif /* load-acquire, store-release */
+#endif /* CAN_USE_LOAD_ACQ_STORE_REL */
 #endif /* v4 instruction */
 
 SEC("?raw_tp")
