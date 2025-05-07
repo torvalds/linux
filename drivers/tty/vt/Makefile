@@ -36,7 +36,8 @@ $(obj)/defkeymap.c: $(obj)/%.c: $(src)/%.map
 
 endif
 
-$(obj)/ucs.o: $(src)/ucs.c $(obj)/ucs_width_table.h $(obj)/ucs_recompose_table.h
+$(obj)/ucs.o:	$(src)/ucs.c $(obj)/ucs_width_table.h \
+		$(obj)/ucs_recompose_table.h $(obj)/ucs_fallback_table.h
 
 # You may uncomment one of those to have the UCS tables be regenerated
 # during the build process. By default the _shipped versions are used.

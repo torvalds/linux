@@ -31,6 +31,7 @@ void console_map_init(void);
 bool ucs_is_double_width(uint32_t cp);
 bool ucs_is_zero_width(uint32_t cp);
 u32 ucs_recompose(u32 base, u32 mark);
+u32 ucs_get_fallback(u32 cp);
 #else
 static inline u16 inverse_translate(const struct vc_data *conp, u16 glyph,
 		bool use_unicode)
@@ -72,6 +73,11 @@ static inline bool ucs_is_zero_width(uint32_t cp)
 }
 
 static inline u32 ucs_recompose(u32 base, u32 mark)
+{
+	return 0;
+}
+
+static inline u32 ucs_get_fallback(u32 cp)
 {
 	return 0;
 }

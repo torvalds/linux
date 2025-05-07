@@ -157,3 +157,87 @@ u32 ucs_recompose(u32 base, u32 mark)
 
 	return result ? result->recomposed : 0;
 }
+
+/*
+ * The fallback table structures implement a 2-level lookup.
+ */
+
+struct ucs_page_desc {
+	u8 page;	/* Page index (high byte of code points) */
+	u8 count;	/* Number of entries in this page */
+	u16 start;	/* Start index in entries array */
+};
+
+struct ucs_page_entry {
+	u8 offset;	/* Offset within page (0-255) */
+	u8 fallback;	/* Fallback character or range start marker */
+};
+
+#include "ucs_fallback_table.h"
+
+static int ucs_page_desc_cmp(const void *key, const void *element)
+{
+	u8 page = *(u8 *)key;
+	const struct ucs_page_desc *entry = element;
+
+	if (page < entry->page)
+		return -1;
+	if (page > entry->page)
+		return 1;
+	return 0;
+}
+
+static int ucs_page_entry_cmp(const void *key, const void *element)
+{
+	u8 offset = *(u8 *)key;
+	const struct ucs_page_entry *entry = element;
+
+	if (offset < entry->offset)
+		return -1;
+	if (entry->fallback == UCS_PAGE_ENTRY_RANGE_MARKER) {
+		if (offset > entry[1].offset)
+			return 1;
+	} else {
+		if (offset > entry->offset)
+			return 1;
+	}
+	return 0;
+}
+
+/**
+ * ucs_get_fallback() - Get a substitution for the provided Unicode character
+ * @base: Base Unicode code point (UCS-4)
+ *
+ * Get a simpler fallback character for the provided Unicode character.
+ * This is used for terminal display when corresponding glyph is unavailable.
+ * The substitution may not be as good as the actual glyph for the original
+ * character but still way more helpful than a squared question mark.
+ *
+ * Return: Fallback Unicode code point, or 0 if none is available
+ */
+u32 ucs_get_fallback(u32 cp)
+{
+	const struct ucs_page_desc *page;
+	const struct ucs_page_entry *entry;
+	u8 page_idx = cp >> 8, offset = cp;
+
+	if (!UCS_IS_BMP(cp))
+		return 0;
+
+	page = __inline_bsearch(&page_idx, ucs_fallback_pages,
+				ARRAY_SIZE(ucs_fallback_pages),
+				sizeof(*ucs_fallback_pages),
+				ucs_page_desc_cmp);
+	if (!page)
+		return 0;
+
+	entry = __inline_bsearch(&offset, ucs_fallback_entries + page->start,
+				 page->count, sizeof(*ucs_fallback_entries),
+				 ucs_page_entry_cmp);
+	if (!entry)
+		return 0;
+
+	if (entry->fallback == UCS_PAGE_ENTRY_RANGE_MARKER)
+		entry++;
+	return entry->fallback;
+}
