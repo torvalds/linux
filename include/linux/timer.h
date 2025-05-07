@@ -72,12 +72,12 @@ void timer_init_key(struct timer_list *timer,
 		    const char *name, struct lock_class_key *key);
 
 #ifdef CONFIG_DEBUG_OBJECTS_TIMERS
-extern void init_timer_on_stack_key(struct timer_list *timer,
+extern void timer_init_key_on_stack(struct timer_list *timer,
 				    void (*func)(struct timer_list *),
 				    unsigned int flags, const char *name,
 				    struct lock_class_key *key);
 #else
-static inline void init_timer_on_stack_key(struct timer_list *timer,
+static inline void timer_init_key_on_stack(struct timer_list *timer,
 					   void (*func)(struct timer_list *),
 					   unsigned int flags,
 					   const char *name,
@@ -97,14 +97,14 @@ static inline void init_timer_on_stack_key(struct timer_list *timer,
 #define __init_timer_on_stack(_timer, _fn, _flags)			\
 	do {								\
 		static struct lock_class_key __key;			\
-		init_timer_on_stack_key((_timer), (_fn), (_flags),	\
+		timer_init_key_on_stack((_timer), (_fn), (_flags),	\
 					#_timer, &__key);		 \
 	} while (0)
 #else
 #define __init_timer(_timer, _fn, _flags)				\
 	timer_init_key((_timer), (_fn), (_flags), NULL, NULL)
 #define __init_timer_on_stack(_timer, _fn, _flags)			\
-	init_timer_on_stack_key((_timer), (_fn), (_flags), NULL, NULL)
+	timer_init_key_on_stack((_timer), (_fn), (_flags), NULL, NULL)
 #endif
 
 /**
