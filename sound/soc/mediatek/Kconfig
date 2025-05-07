@@ -228,8 +228,8 @@ config SND_SOC_MT8188
 config SND_SOC_MT8188_MT6359
 	tristate "ASoC Audio driver for MT8188 with MT6359 and I2S codecs"
 	depends on SND_SOC_MT8188 && MTK_PMIC_WRAP
+	depends on SND_SOC_MT6359_ACCDET || !SND_SOC_MT6359_ACCDET
 	depends on I2C
-	select SND_SOC_MT6359_ACCDET
 	select SND_SOC_MT6359
 	select SND_SOC_HDMI_CODEC
 	select SND_SOC_DMIC
