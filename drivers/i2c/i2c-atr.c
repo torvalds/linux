@@ -586,10 +586,8 @@ static void i2c_atr_detach_addr(struct i2c_adapter *adapter,
 
 	mutex_lock(&chan->alias_pairs_lock);
 
-	c2a = i2c_atr_get_mapping_by_addr(chan, addr);
+	c2a = i2c_atr_find_mapping_by_addr(chan, addr);
 	if (!c2a) {
-		 /* This should never happen */
-		dev_warn(atr->dev, "Unable to find address mapping\n");
 		mutex_unlock(&chan->alias_pairs_lock);
 		return;
 	}
