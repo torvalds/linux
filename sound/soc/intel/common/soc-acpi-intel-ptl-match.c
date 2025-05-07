@@ -138,7 +138,7 @@ static const struct snd_soc_acpi_endpoint jack_dmic_endpoints[] = {
 	},
 };
 
-static const struct snd_soc_acpi_endpoint jack_amp_g1_dmic_endpoints_endpoints[] = {
+static const struct snd_soc_acpi_endpoint jack_amp_g1_dmic_endpoints[] = {
 	/* Jack Endpoint */
 	{
 		.num = 0,
@@ -288,8 +288,8 @@ static const struct snd_soc_acpi_adr_device rt711_sdca_0_adr[] = {
 static const struct snd_soc_acpi_adr_device rt712_vb_2_group1_adr[] = {
 	{
 		.adr = 0x000230025D071201ull,
-		.num_endpoints = ARRAY_SIZE(jack_amp_g1_dmic_endpoints_endpoints),
-		.endpoints = jack_amp_g1_dmic_endpoints_endpoints,
+		.num_endpoints = ARRAY_SIZE(jack_amp_g1_dmic_endpoints),
+		.endpoints = jack_amp_g1_dmic_endpoints,
 		.name_prefix = "rt712"
 	}
 };
@@ -297,8 +297,8 @@ static const struct snd_soc_acpi_adr_device rt712_vb_2_group1_adr[] = {
 static const struct snd_soc_acpi_adr_device rt712_vb_3_group1_adr[] = {
 	{
 		.adr = 0x000330025D071201ull,
-		.num_endpoints = ARRAY_SIZE(jack_amp_g1_dmic_endpoints_endpoints),
-		.endpoints = jack_amp_g1_dmic_endpoints_endpoints,
+		.num_endpoints = ARRAY_SIZE(jack_amp_g1_dmic_endpoints),
+		.endpoints = jack_amp_g1_dmic_endpoints,
 		.name_prefix = "rt712"
 	}
 };
