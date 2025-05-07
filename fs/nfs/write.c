@@ -632,12 +632,13 @@ static void nfs_write_error(struct nfs_page *req, int error)
  * Find an associated nfs write request, and prepare to flush it out
  * May return an error if the user signalled nfs_wait_on_request().
  */
-static int nfs_page_async_flush(struct folio *folio,
-				struct writeback_control *wbc,
-				struct nfs_pageio_descriptor *pgio)
+static int nfs_do_writepage(struct folio *folio, struct writeback_control *wbc,
+		struct nfs_pageio_descriptor *pgio)
 {
 	struct nfs_page *req;
 	int ret = 0;
+
+	nfs_pageio_cond_complete(pgio, folio->index);
 
 	req = nfs_lock_and_join_requests(folio);
 	if (!req)
@@ -675,13 +676,6 @@ out:
 out_launder:
 	nfs_write_error(req, ret);
 	return 0;
-}
-
-static int nfs_do_writepage(struct folio *folio, struct writeback_control *wbc,
-			    struct nfs_pageio_descriptor *pgio)
-{
-	nfs_pageio_cond_complete(pgio, folio->index);
-	return nfs_page_async_flush(folio, wbc, pgio);
 }
 
 /*
