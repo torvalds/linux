@@ -14275,7 +14275,7 @@ MARVELL ARMADA 3700 SERIAL DRIVER
 M:	Pali Rohár <pali@kernel.org>
 S:	Maintained
 F:	Documentation/devicetree/bindings/clock/marvell,armada-3700-uart-clock.yaml
-F:	Documentation/devicetree/bindings/serial/mvebu-uart.txt
+F:	Documentation/devicetree/bindings/serial/marvell,armada-3700-uart.yaml
 F:	drivers/tty/serial/mvebu-uart.c
 
 MARVELL ARMADA DRM SUPPORT
