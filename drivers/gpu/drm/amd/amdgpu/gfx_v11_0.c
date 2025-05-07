@@ -7094,9 +7094,12 @@ static void gfx_v11_ip_dump(struct amdgpu_ip_block *ip_block)
 				/* ME0 is for GFX so start from 1 for CP */
 				soc21_grbm_select(adev, adev->gfx.me.num_me + i, j, k, 0);
 				for (reg = 0; reg < reg_count; reg++) {
-					if (i && gc_cp_reg_list_11[reg].reg_offset == regCP_MEC_ME1_HEADER_DUMP)
-					adev->gfx.ip_dump_compute_queues[index + reg] =
-						RREG32(SOC15_REG_OFFSET(GC, 0, regCP_MEC_ME2_HEADER_DUMP));
+					if (i &&
+					    gc_cp_reg_list_11[reg].reg_offset ==
+						    regCP_MEC_ME1_HEADER_DUMP)
+						adev->gfx.ip_dump_compute_queues[index + reg] =
+							RREG32(SOC15_REG_OFFSET(GC, 0,
+							       regCP_MEC_ME2_HEADER_DUMP));
 					else
 						adev->gfx.ip_dump_compute_queues[index + reg] =
 							RREG32(SOC15_REG_ENTRY_OFFSET(
