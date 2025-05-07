@@ -115,6 +115,8 @@ static const struct drm_driver i915_drm_driver;
 
 static int i915_workqueues_init(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
+
 	/*
 	 * The i915 workqueue is primarily used for batched retirement of
 	 * requests (and thus managing bo) once the task has been completed
@@ -133,8 +135,8 @@ static int i915_workqueues_init(struct drm_i915_private *dev_priv)
 	if (dev_priv->wq == NULL)
 		goto out_err;
 
-	dev_priv->display.hotplug.dp_wq = alloc_ordered_workqueue("i915-dp", 0);
-	if (dev_priv->display.hotplug.dp_wq == NULL)
+	display->hotplug.dp_wq = alloc_ordered_workqueue("i915-dp", 0);
+	if (!display->hotplug.dp_wq)
 		goto out_free_wq;
 
 	/*
@@ -150,7 +152,7 @@ static int i915_workqueues_init(struct drm_i915_private *dev_priv)
 	return 0;
 
 out_free_dp_wq:
-	destroy_workqueue(dev_priv->display.hotplug.dp_wq);
+	destroy_workqueue(display->hotplug.dp_wq);
 out_free_wq:
 	destroy_workqueue(dev_priv->wq);
 out_err:
@@ -161,8 +163,10 @@ out_err:
 
 static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
+
 	destroy_workqueue(dev_priv->unordered_wq);
-	destroy_workqueue(dev_priv->display.hotplug.dp_wq);
+	destroy_workqueue(display->hotplug.dp_wq);
 	destroy_workqueue(dev_priv->wq);
 }
 
@@ -991,10 +995,10 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 	if (HAS_DISPLAY(i915))
 		intel_display_driver_suspend_access(display);
 
-	intel_encoder_suspend_all(&i915->display);
-	intel_encoder_shutdown_all(&i915->display);
+	intel_encoder_suspend_all(display);
+	intel_encoder_shutdown_all(display);
 
-	intel_dmc_suspend(&i915->display);
+	intel_dmc_suspend(display);
 
 	i915_gem_suspend(i915);
 
@@ -1074,7 +1078,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	if (HAS_DISPLAY(dev_priv))
 		intel_display_driver_suspend_access(display);
 
-	intel_encoder_suspend_all(&dev_priv->display);
+	intel_encoder_suspend_all(display);
 
 	/* Must be called before GGTT is suspended. */
 	intel_dpt_suspend(display);
