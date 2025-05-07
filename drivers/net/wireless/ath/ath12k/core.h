@@ -380,7 +380,7 @@ struct ath12k_vif {
 	struct ath12k_link_vif __rcu *link[ATH12K_NUM_MAX_LINKS];
 	struct ath12k_vif_cache *cache[IEEE80211_MLD_MAX_NUM_LINKS];
 	/* indicates bitmap of link vif created in FW */
-	u16 links_map;
+	u32 links_map;
 	u8 last_scan_link;
 
 	/* Must be last - ends in a flexible-array member.
