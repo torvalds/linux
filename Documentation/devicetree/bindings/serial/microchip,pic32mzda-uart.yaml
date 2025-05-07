@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/microchip,pic32mzda-uart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip PIC32 UART
+
+maintainers:
+  - Andrei Pistirica <andrei.pistirica@microchip.com>
+  - Purna Chandra Mandal <purna.mandal@microchip.com>
+
+allOf:
+  - $ref: /schemas/serial/serial.yaml#
+
+properties:
+  compatible:
+    const: microchip,pic32mzda-uart
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: Fault
+      - description: RX
+      - description: TX
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/clock/microchip,pic32-clock.h>
+
+    serial@1f822000 {
+        compatible = "microchip,pic32mzda-uart";
+        reg = <0x1f822000 0x50>;
+        interrupts = <112 IRQ_TYPE_LEVEL_HIGH>,
+                    <113 IRQ_TYPE_LEVEL_HIGH>,
+                    <114 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&rootclk PB2CLK>;
+        cts-gpios = <&gpio1 15 0>;
+    };
