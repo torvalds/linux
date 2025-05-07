@@ -2930,8 +2930,15 @@ static int vc_process_ucs(struct vc_data *vc, int *c, int *tc)
 {
 	u32 prev_c, curr_c = *c;
 
-	if (ucs_is_double_width(curr_c))
+	if (ucs_is_double_width(curr_c)) {
+		/*
+		 * The Unicode screen memory is allocated only when
+		 * required. This is one such case as we need to remember
+		 * which displayed characters are double-width.
+		 */
+		vc_uniscr_check(vc);
 		return 2;
+	}
 
 	if (!ucs_is_zero_width(curr_c))
 		return 1;
