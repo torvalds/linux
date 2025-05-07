@@ -2925,6 +2925,7 @@ static void vc_con_rewind(struct vc_data *vc)
 
 #define UCS_ZWS		0x200b	/* Zero Width Space */
 #define UCS_VS16	0xfe0f	/* Variation Selector 16 */
+#define UCS_REPLACEMENT	0xfffd	/* Replacement Character */
 
 static int vc_process_ucs(struct vc_data *vc, int *c, int *tc)
 {
@@ -2984,12 +2985,38 @@ static int vc_process_ucs(struct vc_data *vc, int *c, int *tc)
 	return 0;
 }
 
+static int vc_get_glyph(struct vc_data *vc, int tc)
+{
+	int glyph = conv_uni_to_pc(vc, tc);
+	u16 charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
+
+	if (!(glyph & ~charmask))
+		return glyph;
+
+	if (glyph == -1)
+		return -1; /* nothing to display */
+
+	/* Glyph not found */
+	if ((!vc->vc_utf || vc->vc_disp_ctrl || tc < 128) && !(tc & ~charmask)) {
+		/*
+		 * In legacy mode use the glyph we get by a 1:1 mapping.
+		 * This would make absolutely no sense with Unicode in mind, but do this for
+		 * ASCII characters since a font may lack Unicode mapping info and we don't
+		 * want to end up with having question marks only.
+		 */
+		return tc;
+	}
+
+	/* Display U+FFFD (Unicode Replacement Character). */
+	return conv_uni_to_pc(vc, UCS_REPLACEMENT);
+}
+
 static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 		struct vc_draw_region *draw)
 {
 	int next_c;
 	unsigned char vc_attr = vc->vc_attr;
-	u16 himask = vc->vc_hi_font_mask, charmask = himask ? 0x1ff : 0xff;
+	u16 himask = vc->vc_hi_font_mask;
 	u8 width = 1;
 	bool inverse = false;
 
@@ -3000,39 +3027,17 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 	}
 
 	/* Now try to find out how to display it */
-	tc = conv_uni_to_pc(vc, tc);
-	if (tc & ~charmask) {
-		if (tc == -1)
-			return -1; /* nothing to display */
+	tc = vc_get_glyph(vc, tc);
+	if (tc == -1)
+		return -1; /* nothing to display */
+	if (tc < 0) {
+		inverse = true;
+		tc = conv_uni_to_pc(vc, '?');
+		if (tc < 0)
+			tc = '?';
 
-		/* Glyph not found */
-		if ((!vc->vc_utf || vc->vc_disp_ctrl || c < 128) &&
-				!(c & ~charmask)) {
-			/*
-			 * In legacy mode use the glyph we get by a 1:1
-			 * mapping.
-			 * This would make absolutely no sense with Unicode in
-			 * mind, but do this for ASCII characters since a font
-			 * may lack Unicode mapping info and we don't want to
-			 * end up with having question marks only.
-			 */
-			tc = c;
-		} else {
-			/*
-			 * Display U+FFFD. If it's not found, display an inverse
-			 * question mark.
-			 */
-			tc = conv_uni_to_pc(vc, 0xfffd);
-			if (tc < 0) {
-				inverse = true;
-				tc = conv_uni_to_pc(vc, '?');
-				if (tc < 0)
-					tc = '?';
-
-				vc_attr = vc_invert_attr(vc);
-				con_flush(vc, draw);
-			}
-		}
+		vc_attr = vc_invert_attr(vc);
+		con_flush(vc, draw);
 	}
 
 	next_c = c;
