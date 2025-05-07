@@ -1301,6 +1301,9 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 	if (!mnt)
 		return ERR_PTR(-ENOMEM);
 
+	mnt->mnt.mnt_flags = READ_ONCE(old->mnt.mnt_flags) &
+			     ~MNT_INTERNAL_FLAGS;
+
 	if (flag & (CL_SLAVE | CL_PRIVATE | CL_SHARED_TO_SLAVE))
 		mnt->mnt_group_id = 0; /* not a peer of original */
 	else
@@ -1312,8 +1315,8 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 			goto out_free;
 	}
 
-	mnt->mnt.mnt_flags = old->mnt.mnt_flags;
-	mnt->mnt.mnt_flags &= ~(MNT_WRITE_HOLD|MNT_MARKED|MNT_INTERNAL|MNT_LOCKED);
+	if (mnt->mnt_group_id)
+		set_mnt_shared(mnt);
 
 	atomic_inc(&sb->s_active);
 	mnt->mnt.mnt_idmap = mnt_idmap_get(mnt_idmap(&old->mnt));
@@ -1326,22 +1329,20 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 	list_add_tail(&mnt->mnt_instance, &sb->s_mounts);
 	unlock_mount_hash();
 
+	if (flag & CL_PRIVATE)	// we are done with it
+		return mnt;
+
+	if (peers(mnt, old))
+		list_add(&mnt->mnt_share, &old->mnt_share);
+
 	if ((flag & CL_SLAVE) ||
 	    ((flag & CL_SHARED_TO_SLAVE) && IS_MNT_SHARED(old))) {
 		list_add(&mnt->mnt_slave, &old->mnt_slave_list);
 		mnt->mnt_master = old;
-		CLEAR_MNT_SHARED(mnt);
-	} else if (!(flag & CL_PRIVATE)) {
-		if ((flag & CL_MAKE_SHARED) || IS_MNT_SHARED(old))
-			list_add(&mnt->mnt_share, &old->mnt_share);
-		if (IS_MNT_SLAVE(old))
-			list_add(&mnt->mnt_slave, &old->mnt_slave);
+	} else if (IS_MNT_SLAVE(old)) {
+		list_add(&mnt->mnt_slave, &old->mnt_slave);
 		mnt->mnt_master = old->mnt_master;
-	} else {
-		CLEAR_MNT_SHARED(mnt);
 	}
-	if (flag & CL_MAKE_SHARED)
-		set_mnt_shared(mnt);
 
 	/* stick the duplicate mount on the same expiry list
 	 * as the original if that was on one */
@@ -1349,7 +1350,6 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 		if (!list_empty(&old->mnt_expire))
 			list_add(&mnt->mnt_expire, &old->mnt_expire);
 	}
-
 	return mnt;
 
  out_free:
