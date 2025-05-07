@@ -1094,6 +1094,7 @@ static const struct ccu_reset_map sun50i_h616_ccu_resets[] = {
 	[RST_BUS_TCON_LCD1]	= { 0xb7c, BIT(17) },
 	[RST_BUS_TCON_TV0]	= { 0xb9c, BIT(16) },
 	[RST_BUS_TCON_TV1]	= { 0xb9c, BIT(17) },
+	[RST_BUS_LVDS]		= { 0xbac, BIT(16) },
 	[RST_BUS_TVE_TOP]	= { 0xbbc, BIT(16) },
 	[RST_BUS_TVE0]		= { 0xbbc, BIT(17) },
 	[RST_BUS_HDCP]		= { 0xc4c, BIT(16) },
