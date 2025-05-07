@@ -147,6 +147,9 @@ int skl_int3472_get_sensor_adev_and_name(struct device *dev,
 					 struct acpi_device **sensor_adev_ret,
 					 const char **name_ret);
 
+int int3472_discrete_parse_crs(struct int3472_discrete_device *int3472);
+void int3472_discrete_cleanup(struct int3472_discrete_device *int3472);
+
 int skl_int3472_register_gpio_clock(struct int3472_discrete_device *int3472,
 				    struct gpio_desc *gpio);
 int skl_int3472_register_dsm_clock(struct int3472_discrete_device *int3472);

@@ -363,7 +363,7 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 	return 1;
 }
 
-static int skl_int3472_parse_crs(struct int3472_discrete_device *int3472)
+int int3472_discrete_parse_crs(struct int3472_discrete_device *int3472)
 {
 	LIST_HEAD(resource_list);
 	int ret;
@@ -388,16 +388,21 @@ static int skl_int3472_parse_crs(struct int3472_discrete_device *int3472)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(int3472_discrete_parse_crs, "INTEL_INT3472_DISCRETE");
 
-static void skl_int3472_discrete_remove(struct platform_device *pdev)
+void int3472_discrete_cleanup(struct int3472_discrete_device *int3472)
 {
-	struct int3472_discrete_device *int3472 = platform_get_drvdata(pdev);
-
 	gpiod_remove_lookup_table(&int3472->gpios);
 
 	skl_int3472_unregister_clock(int3472);
 	skl_int3472_unregister_pled(int3472);
 	skl_int3472_unregister_regulator(int3472);
+}
+EXPORT_SYMBOL_NS_GPL(int3472_discrete_cleanup, "INTEL_INT3472_DISCRETE");
+
+static void skl_int3472_discrete_remove(struct platform_device *pdev)
+{
+	int3472_discrete_cleanup(platform_get_drvdata(pdev));
 }
 
 static int skl_int3472_discrete_probe(struct platform_device *pdev)
@@ -453,7 +458,7 @@ static int skl_int3472_discrete_probe(struct platform_device *pdev)
 	 */
 	INIT_LIST_HEAD(&int3472->gpios.list);
 
-	ret = skl_int3472_parse_crs(int3472);
+	ret = int3472_discrete_parse_crs(int3472);
 	if (ret) {
 		skl_int3472_discrete_remove(pdev);
 		return ret;
