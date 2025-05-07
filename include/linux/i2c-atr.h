@@ -26,9 +26,11 @@ struct i2c_atr;
  *                    devices being added or removed from a child bus.
  *                    The ATR pool will have to be big enough to accomodate all
  *                    devices expected to be added to the child buses.
+ * @I2C_ATR_F_PASSTHROUGH: Allow unmapped incoming addresses to pass through
  */
 enum i2c_atr_flags {
 	I2C_ATR_F_STATIC = BIT(0),
+	I2C_ATR_F_PASSTHROUGH = BIT(1),
 };
 
 /**
