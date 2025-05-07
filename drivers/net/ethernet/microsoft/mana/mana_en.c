@@ -2945,7 +2945,7 @@ static void remove_adev(struct gdma_dev *gd)
 	gd->adev = NULL;
 }
 
-static int add_adev(struct gdma_dev *gd)
+static int add_adev(struct gdma_dev *gd, const char *name)
 {
 	struct auxiliary_device *adev;
 	struct mana_adev *madev;
@@ -2961,7 +2961,7 @@ static int add_adev(struct gdma_dev *gd)
 		goto idx_fail;
 	adev->id = ret;
 
-	adev->name = "rdma";
+	adev->name = name;
 	adev->dev.parent = gd->gdma_context->dev;
 	adev->dev.release = adev_release;
 	madev->mdev = gd;
@@ -3077,7 +3077,7 @@ int mana_probe(struct gdma_dev *gd, bool resuming)
 		}
 	}
 
-	err = add_adev(gd);
+	err = add_adev(gd, "eth");
 out:
 	if (err) {
 		mana_remove(gd, false);
@@ -3149,6 +3149,39 @@ out:
 	gd->gdma_context = NULL;
 	kfree(ac);
 	dev_dbg(dev, "%s succeeded\n", __func__);
+}
+
+int mana_rdma_probe(struct gdma_dev *gd)
+{
+	int err = 0;
+
+	if (gd->dev_id.type != GDMA_DEVICE_MANA_IB) {
+		/* RDMA device is not detected on pci */
+		return err;
+	}
+
+	err = mana_gd_register_device(gd);
+	if (err)
+		return err;
+
+	err = add_adev(gd, "rdma");
+	if (err)
+		mana_gd_deregister_device(gd);
+
+	return err;
+}
+
+void mana_rdma_remove(struct gdma_dev *gd)
+{
+	if (gd->dev_id.type != GDMA_DEVICE_MANA_IB) {
+		/* RDMA device is not detected on pci */
+		return;
+	}
+
+	if (gd->adev)
+		remove_adev(gd);
+
+	mana_gd_deregister_device(gd);
 }
 
 struct net_device *mana_get_primary_netdev(struct mana_context *ac,
