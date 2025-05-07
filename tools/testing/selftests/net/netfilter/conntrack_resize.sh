@@ -9,7 +9,12 @@ checktool "nft --version" "run test without nft tool"
 init_net_max=0
 ct_buckets=0
 tmpfile=""
+tmpfile_proc=""
+tmpfile_uniq=""
 ret=0
+
+insert_count=2000
+[ "$KSFT_MACHINE_SLOW" = "yes" ] && insert_count=400
 
 modprobe -q nf_conntrack
 if ! sysctl -q net.netfilter.nf_conntrack_max >/dev/null;then
@@ -23,7 +28,7 @@ ct_buckets=$(sysctl -n net.netfilter.nf_conntrack_buckets) || exit 1
 cleanup() {
 	cleanup_all_ns
 
-	rm -f "$tmpfile"
+	rm -f "$tmpfile" "$tmpfile_proc" "$tmpfile_uniq"
 
 	# restore original sysctl setting
 	sysctl -q net.netfilter.nf_conntrack_max=$init_net_max
@@ -54,7 +59,7 @@ insert_ctnetlink() {
 		ip netns exec "$ns" bash -c "for i in \$(seq 1 $bulk); do \
 			if ! conntrack -I -s \$((\$RANDOM%256)).\$((\$RANDOM%256)).\$((\$RANDOM%256)).\$((\$RANDOM%255+1)) \
 					  -d \$((\$RANDOM%256)).\$((\$RANDOM%256)).\$((\$RANDOM%256)).\$((\$RANDOM%255+1)) \
-					  --protonum 17 --timeout 120 --status ASSURED,SEEN_REPLY --sport \$RANDOM --dport 53; then \
+					  --protonum 17 --timeout 3600 --status ASSURED,SEEN_REPLY --sport \$RANDOM --dport 53; then \
 					  return;\
 			fi & \
 		done ; wait" 2>/dev/null
@@ -191,7 +196,7 @@ insert_flood()
 	local n="$1"
 	local r=0
 
-	r=$((RANDOM%2000))
+	r=$((RANDOM%$insert_count))
 
 	ctflood "$n" "$timeout" "floodresize" &
 	insert_ctnetlink "$n" "$r" &
@@ -232,49 +237,61 @@ check_dump()
 	local proto=0
 	local proc=0
 	local unique=""
-
-	c=$(ip netns exec "$ns" conntrack -C)
+	local lret=0
 
 	# NOTE: assumes timeouts are large enough to not have
 	# expirations in all following tests.
-	l=$(ip netns exec "$ns" conntrack -L 2>/dev/null | tee "$tmpfile" | wc -l)
+	l=$(ip netns exec "$ns" conntrack -L 2>/dev/null | sort | tee "$tmpfile" | wc -l)
+	c=$(ip netns exec "$ns" conntrack -C)
+
+	if [ "$c" -eq 0 ]; then
+		echo "FAIL: conntrack count for $ns is 0"
+		lret=1
+	fi
 
 	if [ "$c" -ne "$l" ]; then
-		echo "FAIL: count inconsistency for $ns: $c != $l"
-		ret=1
+		echo "FAIL: conntrack count inconsistency for $ns -L: $c != $l"
+		lret=1
 	fi
 
 	# check the dump we retrieved is free of duplicated entries.
-	unique=$(sort "$tmpfile" | uniq | wc -l)
+	unique=$(uniq "$tmpfile" | tee "$tmpfile_uniq" | wc -l)
 	if [ "$l" -ne "$unique" ]; then
-		echo "FAIL: count identical but listing contained redundant entries: $l != $unique"
-		ret=1
+		echo "FAIL: listing contained redundant entries for $ns: $l != $unique"
+		diff -u "$tmpfile" "$tmpfile_uniq"
+		lret=1
 	fi
 
 	# we either inserted icmp or only udp, hence, --proto should return same entry count as without filter.
-	proto=$(ip netns exec "$ns" conntrack -L --proto $protoname 2>/dev/null | wc -l)
+	proto=$(ip netns exec "$ns" conntrack -L --proto $protoname 2>/dev/null | sort | uniq | tee "$tmpfile_uniq" | wc -l)
 	if [ "$l" -ne "$proto" ]; then
-		echo "FAIL: dump inconsistency for $ns: $l != $proto"
-		ret=1
+		echo "FAIL: dump inconsistency for $ns -L --proto $protoname: $l != $proto"
+		diff -u "$tmpfile" "$tmpfile_uniq"
+		lret=1
 	fi
 
 	if [ -r /proc/self/net/nf_conntrack ] ; then
-		proc=$(ip netns exec "$ns" bash -c "wc -l < /proc/self/net/nf_conntrack")
+		proc=$(ip netns exec "$ns" bash -c "sort < /proc/self/net/nf_conntrack | tee \"$tmpfile_proc\" | wc -l")
 
 		if [ "$l" -ne "$proc" ]; then
 			echo "FAIL: proc inconsistency for $ns: $l != $proc"
-			ret=1
+			lret=1
 		fi
 
-		proc=$(ip netns exec "$ns" bash -c "sort < /proc/self/net/nf_conntrack | uniq | wc -l")
-
+		proc=$(uniq "$tmpfile_proc" | tee "$tmpfile_uniq" | wc -l)
 		if [ "$l" -ne "$proc" ]; then
 			echo "FAIL: proc inconsistency after uniq filter for $ns: $l != $proc"
-			ret=1
+			diff -u "$tmpfile_proc" "$tmpfile_uniq"
+			lret=1
 		fi
 	fi
 
-	echo "PASS: dump in netns had same entry count (-C $c, -L $l, -p $proto, /proc $proc)"
+	if [ $lret -eq 0 ];then
+		echo "PASS: dump in netns $ns had same entry count (-C $c, -L $l, -p $proto, /proc $proc)"
+	else
+		echo "FAIL: dump in netns $ns had different entry count (-C $c, -L $l, -p $proto, /proc $proc)"
+		ret=1
+	fi
 }
 
 test_dump_all()
@@ -287,8 +304,10 @@ test_dump_all()
 	ct_flush_once "$nsclient1"
 	ct_flush_once "$nsclient2"
 
+	ip netns exec "$nsclient1" sysctl -q net.netfilter.nf_conntrack_icmp_timeout=3600
+
 	ctflood "$nsclient1" $timeout "dumpall" &
-	insert_ctnetlink "$nsclient2" 2000
+	insert_ctnetlink "$nsclient2" $insert_count
 
 	wait
 
@@ -398,6 +417,8 @@ EOF
 done
 
 tmpfile=$(mktemp)
+tmpfile_proc=$(mktemp)
+tmpfile_uniq=$(mktemp)
 test_conntrack_max_limit
 test_dump_all
 test_floodresize_all
