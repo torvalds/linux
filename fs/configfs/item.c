@@ -66,7 +66,7 @@ int config_item_set_name(struct config_item *item, const char *fmt, ...)
 		name = kvasprintf(GFP_KERNEL, fmt, args);
 		va_end(args);
 		if (!name)
-			return -EFAULT;
+			return -ENOMEM;
 	}
 
 	/* Free the old name, if necessary. */
