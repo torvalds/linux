@@ -224,6 +224,14 @@ u32 ucs_get_fallback(u32 cp)
 	if (!UCS_IS_BMP(cp))
 		return 0;
 
+	/*
+	 * Full-width to ASCII mapping (covering all printable ASCII 33-126)
+	 * 0xFF01 (！) to 0xFF5E (～) -> ASCII 33 (!) to 126 (~)
+	 * We process them programmatically to reduce the table size.
+	 */
+	if (cp >= 0xFF01 && cp <= 0xFF5E)
+		return cp - 0xFF01 + 33;
+
 	page = __inline_bsearch(&page_idx, ucs_fallback_pages,
 				ARRAY_SIZE(ucs_fallback_pages),
 				sizeof(*ucs_fallback_pages),

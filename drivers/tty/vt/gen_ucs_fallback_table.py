@@ -197,6 +197,14 @@ def get_special_overrides():
     # Exclude U+2028 (LINE SEPARATOR)
     overrides[0x2028] = 0  # LINE SEPARATOR (unidecode: '\n')
 
+    # Full-width to ASCII mapping (covering all printable ASCII 33-126)
+    # 0xFF01 (！) to 0xFF5E (～) -> ASCII 33 (!) to 126 (~)
+    # Those are excluded here to reduce the table size.
+    # It is more efficient to process them programmatically in
+    # ucs.c:ucs_get_fallback().
+    for cp in range(0xFF01, 0xFF5E + 1):
+        overrides[cp] = 0  # Double-width ASCII characters
+
     return overrides
 
 def organize_by_pages(fallback_map):

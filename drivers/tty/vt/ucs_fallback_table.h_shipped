@@ -60,7 +60,7 @@ static const struct ucs_page_desc ucs_fallback_pages[] = {
 	{ 0xC7, 1, 3105 },
 	{ 0xFB, 35, 3106 },
 	{ 0xFE, 37, 3141 },
-	{ 0xFF, 144, 3178 },
+	{ 0xFF, 50, 3178 },
 };
 
 /* Page entries array (referenced by page descriptors) */
@@ -3291,100 +3291,6 @@ static const struct ucs_page_entry ucs_fallback_entries[] = {
 	{ 0x6A, 0x25 }, /* SMALL PERCENT SIGN -> '%' */
 	{ 0x6B, 0x40 }, /* SMALL COMMERCIAL AT -> '@' */
 	/* Entries for page 0xFF */
-	{ 0x01, 0x21 }, /* FULLWIDTH EXCLAMATION MARK -> '!' */
-	{ 0x02, 0x22 }, /* FULLWIDTH QUOTATION MARK -> '"' */
-	{ 0x03, 0x23 }, /* FULLWIDTH NUMBER SIGN -> '#' */
-	{ 0x04, 0x24 }, /* FULLWIDTH DOLLAR SIGN -> '$' */
-	{ 0x05, 0x25 }, /* FULLWIDTH PERCENT SIGN -> '%' */
-	{ 0x06, 0x26 }, /* FULLWIDTH AMPERSAND -> '&' */
-	{ 0x07, 0x27 }, /* FULLWIDTH APOSTROPHE -> ''' */
-	{ 0x08, 0x28 }, /* FULLWIDTH LEFT PARENTHESIS -> '(' */
-	{ 0x09, 0x29 }, /* FULLWIDTH RIGHT PARENTHESIS -> ')' */
-	{ 0x0A, 0x2A }, /* FULLWIDTH ASTERISK -> '*' */
-	{ 0x0B, 0x2B }, /* FULLWIDTH PLUS SIGN -> '+' */
-	{ 0x0C, 0x2C }, /* FULLWIDTH COMMA -> ',' */
-	{ 0x0D, 0x2D }, /* FULLWIDTH HYPHEN-MINUS -> '-' */
-	{ 0x0E, 0x2E }, /* FULLWIDTH FULL STOP -> '.' */
-	{ 0x0F, 0x2F }, /* FULLWIDTH SOLIDUS -> '/' */
-	{ 0x10, 0x30 }, /* FULLWIDTH DIGIT ZERO -> '0' */
-	{ 0x11, 0x31 }, /* FULLWIDTH DIGIT ONE -> '1' */
-	{ 0x12, 0x32 }, /* FULLWIDTH DIGIT TWO -> '2' */
-	{ 0x13, 0x33 }, /* FULLWIDTH DIGIT THREE -> '3' */
-	{ 0x14, 0x34 }, /* FULLWIDTH DIGIT FOUR -> '4' */
-	{ 0x15, 0x35 }, /* FULLWIDTH DIGIT FIVE -> '5' */
-	{ 0x16, 0x36 }, /* FULLWIDTH DIGIT SIX -> '6' */
-	{ 0x17, 0x37 }, /* FULLWIDTH DIGIT SEVEN -> '7' */
-	{ 0x18, 0x38 }, /* FULLWIDTH DIGIT EIGHT -> '8' */
-	{ 0x19, 0x39 }, /* FULLWIDTH DIGIT NINE -> '9' */
-	{ 0x1A, 0x3A }, /* FULLWIDTH COLON -> ':' */
-	{ 0x1B, 0x3B }, /* FULLWIDTH SEMICOLON -> ';' */
-	{ 0x1C, 0x3C }, /* FULLWIDTH LESS-THAN SIGN -> '<' */
-	{ 0x1D, 0x3D }, /* FULLWIDTH EQUALS SIGN -> '=' */
-	{ 0x1E, 0x3E }, /* FULLWIDTH GREATER-THAN SIGN -> '>' */
-	{ 0x1F, 0x3F }, /* FULLWIDTH QUESTION MARK -> '?' */
-	{ 0x20, 0x40 }, /* FULLWIDTH COMMERCIAL AT -> '@' */
-	{ 0x21, 0x41 }, /* FULLWIDTH LATIN CAPITAL LETTER A -> 'A' */
-	{ 0x22, 0x42 }, /* FULLWIDTH LATIN CAPITAL LETTER B -> 'B' */
-	{ 0x23, 0x43 }, /* FULLWIDTH LATIN CAPITAL LETTER C -> 'C' */
-	{ 0x24, 0x44 }, /* FULLWIDTH LATIN CAPITAL LETTER D -> 'D' */
-	{ 0x25, 0x45 }, /* FULLWIDTH LATIN CAPITAL LETTER E -> 'E' */
-	{ 0x26, 0x46 }, /* FULLWIDTH LATIN CAPITAL LETTER F -> 'F' */
-	{ 0x27, 0x47 }, /* FULLWIDTH LATIN CAPITAL LETTER G -> 'G' */
-	{ 0x28, 0x48 }, /* FULLWIDTH LATIN CAPITAL LETTER H -> 'H' */
-	{ 0x29, 0x49 }, /* FULLWIDTH LATIN CAPITAL LETTER I -> 'I' */
-	{ 0x2A, 0x4A }, /* FULLWIDTH LATIN CAPITAL LETTER J -> 'J' */
-	{ 0x2B, 0x4B }, /* FULLWIDTH LATIN CAPITAL LETTER K -> 'K' */
-	{ 0x2C, 0x4C }, /* FULLWIDTH LATIN CAPITAL LETTER L -> 'L' */
-	{ 0x2D, 0x4D }, /* FULLWIDTH LATIN CAPITAL LETTER M -> 'M' */
-	{ 0x2E, 0x4E }, /* FULLWIDTH LATIN CAPITAL LETTER N -> 'N' */
-	{ 0x2F, 0x4F }, /* FULLWIDTH LATIN CAPITAL LETTER O -> 'O' */
-	{ 0x30, 0x50 }, /* FULLWIDTH LATIN CAPITAL LETTER P -> 'P' */
-	{ 0x31, 0x51 }, /* FULLWIDTH LATIN CAPITAL LETTER Q -> 'Q' */
-	{ 0x32, 0x52 }, /* FULLWIDTH LATIN CAPITAL LETTER R -> 'R' */
-	{ 0x33, 0x53 }, /* FULLWIDTH LATIN CAPITAL LETTER S -> 'S' */
-	{ 0x34, 0x54 }, /* FULLWIDTH LATIN CAPITAL LETTER T -> 'T' */
-	{ 0x35, 0x55 }, /* FULLWIDTH LATIN CAPITAL LETTER U -> 'U' */
-	{ 0x36, 0x56 }, /* FULLWIDTH LATIN CAPITAL LETTER V -> 'V' */
-	{ 0x37, 0x57 }, /* FULLWIDTH LATIN CAPITAL LETTER W -> 'W' */
-	{ 0x38, 0x58 }, /* FULLWIDTH LATIN CAPITAL LETTER X -> 'X' */
-	{ 0x39, 0x59 }, /* FULLWIDTH LATIN CAPITAL LETTER Y -> 'Y' */
-	{ 0x3A, 0x5A }, /* FULLWIDTH LATIN CAPITAL LETTER Z -> 'Z' */
-	{ 0x3B, 0x5B }, /* FULLWIDTH LEFT SQUARE BRACKET -> '[' */
-	{ 0x3C, 0x5C }, /* FULLWIDTH REVERSE SOLIDUS -> '\' */
-	{ 0x3D, 0x5D }, /* FULLWIDTH RIGHT SQUARE BRACKET -> ']' */
-	{ 0x3E, 0x5E }, /* FULLWIDTH CIRCUMFLEX ACCENT -> '^' */
-	{ 0x3F, 0x5F }, /* FULLWIDTH LOW LINE -> '_' */
-	{ 0x40, 0x60 }, /* FULLWIDTH GRAVE ACCENT -> '`' */
-	{ 0x41, 0x61 }, /* FULLWIDTH LATIN SMALL LETTER A -> 'a' */
-	{ 0x42, 0x62 }, /* FULLWIDTH LATIN SMALL LETTER B -> 'b' */
-	{ 0x43, 0x63 }, /* FULLWIDTH LATIN SMALL LETTER C -> 'c' */
-	{ 0x44, 0x64 }, /* FULLWIDTH LATIN SMALL LETTER D -> 'd' */
-	{ 0x45, 0x65 }, /* FULLWIDTH LATIN SMALL LETTER E -> 'e' */
-	{ 0x46, 0x66 }, /* FULLWIDTH LATIN SMALL LETTER F -> 'f' */
-	{ 0x47, 0x67 }, /* FULLWIDTH LATIN SMALL LETTER G -> 'g' */
-	{ 0x48, 0x68 }, /* FULLWIDTH LATIN SMALL LETTER H -> 'h' */
-	{ 0x49, 0x69 }, /* FULLWIDTH LATIN SMALL LETTER I -> 'i' */
-	{ 0x4A, 0x6A }, /* FULLWIDTH LATIN SMALL LETTER J -> 'j' */
-	{ 0x4B, 0x6B }, /* FULLWIDTH LATIN SMALL LETTER K -> 'k' */
-	{ 0x4C, 0x6C }, /* FULLWIDTH LATIN SMALL LETTER L -> 'l' */
-	{ 0x4D, 0x6D }, /* FULLWIDTH LATIN SMALL LETTER M -> 'm' */
-	{ 0x4E, 0x6E }, /* FULLWIDTH LATIN SMALL LETTER N -> 'n' */
-	{ 0x4F, 0x6F }, /* FULLWIDTH LATIN SMALL LETTER O -> 'o' */
-	{ 0x50, 0x70 }, /* FULLWIDTH LATIN SMALL LETTER P -> 'p' */
-	{ 0x51, 0x71 }, /* FULLWIDTH LATIN SMALL LETTER Q -> 'q' */
-	{ 0x52, 0x72 }, /* FULLWIDTH LATIN SMALL LETTER R -> 'r' */
-	{ 0x53, 0x73 }, /* FULLWIDTH LATIN SMALL LETTER S -> 's' */
-	{ 0x54, 0x74 }, /* FULLWIDTH LATIN SMALL LETTER T -> 't' */
-	{ 0x55, 0x75 }, /* FULLWIDTH LATIN SMALL LETTER U -> 'u' */
-	{ 0x56, 0x76 }, /* FULLWIDTH LATIN SMALL LETTER V -> 'v' */
-	{ 0x57, 0x77 }, /* FULLWIDTH LATIN SMALL LETTER W -> 'w' */
-	{ 0x58, 0x78 }, /* FULLWIDTH LATIN SMALL LETTER X -> 'x' */
-	{ 0x59, 0x79 }, /* FULLWIDTH LATIN SMALL LETTER Y -> 'y' */
-	{ 0x5A, 0x7A }, /* FULLWIDTH LATIN SMALL LETTER Z -> 'z' */
-	{ 0x5B, 0x7B }, /* FULLWIDTH LEFT CURLY BRACKET -> '{' */
-	{ 0x5C, 0x7C }, /* FULLWIDTH VERTICAL LINE -> '|' */
-	{ 0x5D, 0x7D }, /* FULLWIDTH RIGHT CURLY BRACKET -> '}' */
-	{ 0x5E, 0x7E }, /* FULLWIDTH TILDE -> '~' */
 	{ 0x61, 0x2E }, /* HALFWIDTH IDEOGRAPHIC FULL STOP -> '.' */
 	{ 0x62, 0x5B }, /* HALFWIDTH LEFT CORNER BRACKET -> '[' */
 	{ 0x63, 0x5D }, /* HALFWIDTH RIGHT CORNER BRACKET -> ']' */
