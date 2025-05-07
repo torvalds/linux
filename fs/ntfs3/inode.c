@@ -1350,7 +1350,7 @@ int ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 		fname->dup.a_time = std5->cr_time;
 	fname->dup.alloc_size = fname->dup.data_size = 0;
 	fname->dup.fa = std5->fa;
-	fname->dup.ea_size = fname->dup.reparse = 0;
+	fname->dup.extend_data = S_ISLNK(mode) ? IO_REPARSE_TAG_SYMLINK : 0;
 
 	dsize = le16_to_cpu(new_de->key_size);
 	asize = ALIGN(SIZEOF_RESIDENT + dsize, 8);
@@ -1590,27 +1590,29 @@ int ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 		inode->i_flags |= S_NOSEC;
 	}
 
-	/*
-	 * ntfs_init_acl and ntfs_save_wsl_perm update extended attribute.
-	 * The packed size of extended attribute is stored in direntry too.
-	 * 'fname' here points to inside new_de.
-	 */
-	err = ntfs_save_wsl_perm(inode, &fname->dup.ea_size);
-	if (err)
-		goto out6;
+	if (!S_ISLNK(mode)) {
+		/*
+		 * ntfs_init_acl and ntfs_save_wsl_perm update extended attribute.
+		 * The packed size of extended attribute is stored in direntry too.
+		 * 'fname' here points to inside new_de.
+		 */
+		err = ntfs_save_wsl_perm(inode, &fname->dup.extend_data);
+		if (err)
+			goto out6;
 
-	/*
-	 * update ea_size in file_name attribute too.
-	 * Use ni_find_attr cause layout of MFT record may be changed
-	 * in ntfs_init_acl and ntfs_save_wsl_perm.
-	 */
-	attr = ni_find_attr(ni, NULL, NULL, ATTR_NAME, NULL, 0, NULL, NULL);
-	if (attr) {
-		struct ATTR_FILE_NAME *fn;
+		/*
+		 * update ea_size in file_name attribute too.
+		 * Use ni_find_attr cause layout of MFT record may be changed
+		 * in ntfs_init_acl and ntfs_save_wsl_perm.
+		 */
+		attr = ni_find_attr(ni, NULL, NULL, ATTR_NAME, NULL, 0, NULL, NULL);
+		if (attr) {
+			struct ATTR_FILE_NAME *fn;
 
-		fn = resident_data_ex(attr, SIZEOF_ATTRIBUTE_FILENAME);
-		if (fn)
-			fn->dup.ea_size = fname->dup.ea_size;
+			fn = resident_data_ex(attr, SIZEOF_ATTRIBUTE_FILENAME);
+			if (fn)
+				fn->dup.extend_data = fname->dup.extend_data;
+		}
 	}
 
 	/* We do not need to update parent directory later */
