@@ -88,7 +88,7 @@ static inline void timer_init_key_on_stack(struct timer_list *timer,
 #endif
 
 #ifdef CONFIG_LOCKDEP
-#define __init_timer(_timer, _fn, _flags)				\
+#define __timer_init(_timer, _fn, _flags)				\
 	do {								\
 		static struct lock_class_key __key;			\
 		timer_init_key((_timer), (_fn), (_flags), #_timer, &__key);\
@@ -101,7 +101,7 @@ static inline void timer_init_key_on_stack(struct timer_list *timer,
 					#_timer, &__key);		 \
 	} while (0)
 #else
-#define __init_timer(_timer, _fn, _flags)				\
+#define __timer_init(_timer, _fn, _flags)				\
 	timer_init_key((_timer), (_fn), (_flags), NULL, NULL)
 #define __init_timer_on_stack(_timer, _fn, _flags)			\
 	timer_init_key_on_stack((_timer), (_fn), (_flags), NULL, NULL)
@@ -118,7 +118,7 @@ static inline void timer_init_key_on_stack(struct timer_list *timer,
  * be used and must be balanced with a call to destroy_timer_on_stack().
  */
 #define timer_setup(timer, callback, flags)			\
-	__init_timer((timer), (callback), (flags))
+	__timer_init((timer), (callback), (flags))
 
 #define timer_setup_on_stack(timer, callback, flags)		\
 	__init_timer_on_stack((timer), (callback), (flags))
