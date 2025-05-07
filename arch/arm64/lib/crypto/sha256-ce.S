@@ -123,10 +123,11 @@ CPU_LE(	rev32		v19.16b, v19.16b	)
 	add		dgav.4s, dgav.4s, dg0v.4s
 	add		dgbv.4s, dgbv.4s, dg1v.4s
 
+	/* return early if voluntary preemption is needed */
+	cond_yield	1f, x5, x6
+
 	/* handled all input blocks? */
-	cbz		x2, 1f
-	cond_yield	3f, x5, x6
-	b		0b
+	cbnz		x2, 0b
 
 	/* store new state */
 1:	st1		{dgav.4s, dgbv.4s}, [x0]
