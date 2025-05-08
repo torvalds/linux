@@ -412,6 +412,7 @@ struct iwl_cfg {
 #define IWL_CFG_MAC_TYPE_QU		0x33
 #define IWL_CFG_MAC_TYPE_QUZ		0x35
 #define IWL_CFG_MAC_TYPE_SO		0x37
+#define IWL_CFG_MAC_TYPE_TY		0x42
 #define IWL_CFG_MAC_TYPE_SOF		0x43
 #define IWL_CFG_MAC_TYPE_MA		0x44
 #define IWL_CFG_MAC_TYPE_BZ		0x46
@@ -673,9 +674,6 @@ extern const struct iwl_cfg iwl_qu_hr_80mhz;
 extern const struct iwl_cfg iwl_ax200_cfg_cc;
 extern const struct iwl_cfg iwlax210_2ax_cfg_so_jf_b0;
 extern const struct iwl_cfg iwlax210_2ax_cfg_so_jf_b0_80mhz;
-extern const struct iwl_cfg iwlax211_2ax_cfg_so_gf_a0;
-extern const struct iwl_cfg iwlax210_2ax_cfg_ty_gf_a0;
-extern const struct iwl_cfg iwlax411_2ax_cfg_so_gf4_a0;
 
 extern const struct iwl_cfg iwl_cfg_ma;
 

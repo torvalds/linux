@@ -196,40 +196,17 @@ const char iwl_ax411_killer_1690i_name[] =
 	"Killer(R) Wi-Fi 6E AX1690i 160MHz Wireless Network Adapter (411NGW)";
 
 const struct iwl_cfg iwlax210_2ax_cfg_so_jf_b0 = {
-	.fw_name_pre = IWL_SO_A_JF_B_FW_PRE,
 	IWL_DEVICE_AX210,
 	.num_rbds = IWL_NUM_RBDS_NON_HE,
 };
 
 const struct iwl_cfg iwlax210_2ax_cfg_so_jf_b0_80mhz = {
-	.fw_name_pre = IWL_SO_A_JF_B_FW_PRE,
 	IWL_DEVICE_AX210,
 	.num_rbds = IWL_NUM_RBDS_NON_HE,
 	.bw_limit = 80,
 };
 
-const struct iwl_cfg iwlax211_2ax_cfg_so_gf_a0 = {
-	.fw_name_pre = IWL_SO_A_GF_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_AX210_HE,
-};
-
 const char iwl_ax210_name[] = "Intel(R) Wi-Fi 6 AX210 160MHz";
-
-const struct iwl_cfg iwlax210_2ax_cfg_ty_gf_a0 = {
-	.fw_name_pre = IWL_TY_A_GF_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_AX210_HE,
-};
-
-const struct iwl_cfg iwlax411_2ax_cfg_so_gf4_a0 = {
-	.fw_name_pre = IWL_SO_A_GF4_A_FW_PRE,
-	.uhb_supported = true,
-	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_AX210_HE,
-};
 
 const struct iwl_cfg iwl_cfg_ma = {
 	.uhb_supported = true,
@@ -238,13 +215,11 @@ const struct iwl_cfg iwl_cfg_ma = {
 };
 
 const struct iwl_cfg iwl_cfg_so_a0_hr_a0 = {
-	.fw_name_pre = IWL_SO_A_HR_B_FW_PRE,
 	IWL_DEVICE_AX210,
 	.num_rbds = IWL_NUM_RBDS_AX210_HE,
 };
 
 const struct iwl_cfg iwl_cfg_so_a0_hr_a0_80mhz = {
-	.fw_name_pre = IWL_SO_A_HR_B_FW_PRE,
 	IWL_DEVICE_AX210,
 	.num_rbds = IWL_NUM_RBDS_AX210_HE,
 	.bw_limit = 80,
