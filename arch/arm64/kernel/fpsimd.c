@@ -760,21 +760,6 @@ void sve_alloc(struct task_struct *task, bool flush)
 }
 
 /*
- * Ensure that task->thread.sve_state is up to date with respect to
- * the user task, irrespective of when SVE is in use or not.
- *
- * This should only be called by ptrace.  task must be non-runnable.
- * task->thread.sve_state must point to at least sve_state_size(task)
- * bytes of allocated kernel memory.
- */
-void fpsimd_sync_to_sve(struct task_struct *task)
-{
-	if (!test_tsk_thread_flag(task, TIF_SVE) &&
-	    !thread_sm_enabled(&task->thread))
-		fpsimd_to_sve(task);
-}
-
-/*
  * Ensure that task->thread.uw.fpsimd_state is up to date with respect to
  * the user task, irrespective of whether SVE is in use or not.
  *
