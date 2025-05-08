@@ -3600,7 +3600,7 @@ static int do_move_mount(struct path *old_path,
 	struct mount *parent;
 	struct mountpoint *mp;
 	int err;
-	bool attached, beneath = flags & MNT_TREE_BENEATH;
+	bool beneath = flags & MNT_TREE_BENEATH;
 
 	mp = do_lock_mount(new_path, beneath);
 	if (IS_ERR(mp))
@@ -3609,7 +3609,6 @@ static int do_move_mount(struct path *old_path,
 	old = real_mount(old_path->mnt);
 	p = real_mount(new_path->mnt);
 	parent = old->mnt_parent;
-	attached = mnt_has_parent(old);
 	ns = old->mnt_ns;
 
 	err = -EINVAL;
@@ -3621,6 +3620,9 @@ static int do_move_mount(struct path *old_path,
 			goto out;
 		/* ... and the target should be in our namespace */
 		if (!check_mnt(p))
+			goto out;
+		/* parent of the source should not be shared */
+		if (IS_MNT_SHARED(parent))
 			goto out;
 	} else {
 		/*
@@ -3648,11 +3650,6 @@ static int do_move_mount(struct path *old_path,
 
 	if (d_is_dir(new_path->dentry) !=
 	    d_is_dir(old_path->dentry))
-		goto out;
-	/*
-	 * Don't move a mount residing in a shared parent.
-	 */
-	if (attached && IS_MNT_SHARED(parent))
 		goto out;
 
 	if (beneath) {
@@ -3686,7 +3683,7 @@ static int do_move_mount(struct path *old_path,
 out:
 	unlock_mount(mp);
 	if (!err) {
-		if (attached) {
+		if (!is_anon_ns(ns)) {
 			mntput_no_expire(parent);
 		} else {
 			/* Make sure we notice when we leak mounts. */
