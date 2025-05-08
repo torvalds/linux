@@ -114,7 +114,6 @@ static const struct iwl_base_params iwl_22000_base_params = {
 
 const struct iwl_mac_cfg iwl_qu_mac_cfg = {
 	.mq_rx_supported = true,
-	.rf_id = true,
 	.gen2 = true,
 	.device_family = IWL_DEVICE_FAMILY_22000,
 	.base_params = &iwl_22000_base_params,
@@ -125,7 +124,6 @@ const struct iwl_mac_cfg iwl_qu_mac_cfg = {
 
 const struct iwl_mac_cfg iwl_qu_medium_latency_mac_cfg = {
 	.mq_rx_supported = true,
-	.rf_id = true,
 	.gen2 = true,
 	.device_family = IWL_DEVICE_FAMILY_22000,
 	.base_params = &iwl_22000_base_params,
@@ -136,7 +134,6 @@ const struct iwl_mac_cfg iwl_qu_medium_latency_mac_cfg = {
 
 const struct iwl_mac_cfg iwl_qu_long_latency_mac_cfg = {
 	.mq_rx_supported = true,
-	.rf_id = true,
 	.gen2 = true,
 	.device_family = IWL_DEVICE_FAMILY_22000,
 	.base_params = &iwl_22000_base_params,
@@ -176,7 +173,6 @@ const struct iwl_mac_cfg iwl_ax200_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_22000,
 	.base_params = &iwl_22000_base_params,
 	.mq_rx_supported = true,
-	.rf_id = true,
 	.gen2 = true,
 	.bisr_workaround = 1,
 };

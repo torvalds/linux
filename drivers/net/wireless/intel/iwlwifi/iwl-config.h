@@ -258,7 +258,6 @@ enum iwl_mac_cfg_ltr_delay {
  * @umac_prph_offset: offset to add to UMAC periphery address
  * @xtal_latency: power up latency to get the xtal stabilized
  * @extra_phy_cfg_flags: extra configuration flags to pass to the PHY
- * @rf_id: need to read rf_id to determine the firmware image
  * @gen2: 22000 and on transport operation
  * @mq_rx_supported: multi-queue rx support
  * @integrated: discrete or integrated
@@ -273,8 +272,7 @@ struct iwl_mac_cfg {
 	u32 umac_prph_offset;
 	u32 xtal_latency;
 	u32 extra_phy_cfg_flags;
-	u32 rf_id:1,
-	    gen2:1,
+	u32 gen2:1,
 	    mq_rx_supported:1,
 	    integrated:1,
 	    low_latency_xtal:1,

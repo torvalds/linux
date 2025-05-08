@@ -127,7 +127,6 @@ const struct iwl_mac_cfg iwl_sc_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_SC,
 	.base_params = &iwl_sc_base_params,
 	.mq_rx_supported = true,
-	.rf_id = true,
 	.gen2 = true,
 	.integrated = true,
 	.umac_prph_offset = 0x300000,

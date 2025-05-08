@@ -118,7 +118,6 @@ static const struct iwl_base_params iwl_ax210_base_params = {
 
 const struct iwl_mac_cfg iwl_so_mac_cfg = {
 	.mq_rx_supported = true,
-	.rf_id = true,
 	.gen2 = true,
 	.device_family = IWL_DEVICE_FAMILY_AX210,
 	.base_params = &iwl_ax210_base_params,
@@ -131,7 +130,6 @@ const struct iwl_mac_cfg iwl_so_mac_cfg = {
 
 const struct iwl_mac_cfg iwl_so_long_latency_mac_cfg = {
 	.mq_rx_supported = true,
-	.rf_id = true,
 	.gen2 = true,
 	.device_family = IWL_DEVICE_FAMILY_AX210,
 	.base_params = &iwl_ax210_base_params,
@@ -144,7 +142,6 @@ const struct iwl_mac_cfg iwl_so_long_latency_mac_cfg = {
 
 const struct iwl_mac_cfg iwl_so_long_latency_imr_mac_cfg = {
 	.mq_rx_supported = true,
-	.rf_id = true,
 	.gen2 = true,
 	.device_family = IWL_DEVICE_FAMILY_AX210,
 	.base_params = &iwl_ax210_base_params,
@@ -170,7 +167,6 @@ const struct iwl_mac_cfg iwl_ma_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_AX210,
 	.base_params = &iwl_ax210_base_params,
 	.mq_rx_supported = true,
-	.rf_id = true,
 	.gen2 = true,
 	.integrated = true,
 	.umac_prph_offset = 0x300000

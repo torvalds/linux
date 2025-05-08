@@ -1812,8 +1812,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * extract the RF_ID.
 	 * This is relevant only for family 9000 and up.
 	 */
-	if (iwl_trans->mac_cfg->rf_id &&
-	    iwl_trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_9000 &&
+	if (iwl_trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_9000 &&
 	    !CSR_HW_RFID_TYPE(info.hw_rf_id) && map_crf_id(iwl_trans, &info)) {
 		ret = -EINVAL;
 		goto out_free_trans;
