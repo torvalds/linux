@@ -2502,10 +2502,9 @@ static int bch2_fs_get_tree(struct fs_context *fc)
 
 	bch2_opts_apply(&c->opts, opts);
 
-	/*
-	 * need to initialise sb and set c->vfs_sb _before_ starting fs,
-	 * for blk_holder_ops
-	 */
+	ret = bch2_fs_start(c);
+	if (ret)
+		goto err_stop_fs;
 
 	sb = sget(fc->fs_type, NULL, bch2_set_super, fc->sb_flags|SB_NOSEC, c);
 	ret = PTR_ERR_OR_ZERO(sb);
@@ -2566,10 +2565,6 @@ got_sb:
 #endif
 
 	sb->s_shrink->seeks = 0;
-
-	ret = bch2_fs_start(c);
-	if (ret)
-		goto err_put_super;
 
 #ifdef CONFIG_UNICODE
 	sb->s_encoding = c->cf_encoding;

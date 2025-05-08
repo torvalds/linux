@@ -377,6 +377,11 @@ void bch2_fs_read_only(struct bch_fs *c)
 		bch_verbose(c, "marking filesystem clean");
 		bch2_fs_mark_clean(c);
 	} else {
+		/* Make sure error counts/counters are persisted */
+		mutex_lock(&c->sb_lock);
+		bch2_write_super(c);
+		mutex_unlock(&c->sb_lock);
+
 		bch_verbose(c, "done going read-only, filesystem not clean");
 	}
 }
