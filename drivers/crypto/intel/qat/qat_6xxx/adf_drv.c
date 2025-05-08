@@ -156,8 +156,8 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		/* Map 64-bit PCIe BAR */
 		bar->virt_addr = pcim_iomap_region(pdev, bar_map[i], pci_name(pdev));
-		if (!bar->virt_addr) {
-			ret = -ENOMEM;
+		if (IS_ERR(bar->virt_addr)) {
+			ret = PTR_ERR(bar->virt_addr);
 			return dev_err_probe(dev, ret, "Failed to ioremap PCI region.\n");
 		}
 	}
