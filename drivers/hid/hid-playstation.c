@@ -337,7 +337,7 @@ struct dualsense_output_report {
  * 0x3F - disabled
  */
 #define DS4_OUTPUT_HWCTL_BT_POLL_MASK	0x3F
-/* Default to 4ms poll interval, which is same as USB (not adjustable). */
+/* Default to 4ms poll interval, which is same as USB (adjustable). */
 #define DS4_BT_DEFAULT_POLL_INTERVAL_MS	4
 #define DS4_OUTPUT_HWCTL_CRC32		0x40
 #define DS4_OUTPUT_HWCTL_HID		0x80
@@ -542,6 +542,7 @@ static inline void dualsense_schedule_work(struct dualsense *ds);
 static inline void dualshock4_schedule_work(struct dualshock4 *ds4);
 static void dualsense_set_lightbar(struct dualsense *ds, uint8_t red, uint8_t green, uint8_t blue);
 static void dualshock4_set_default_lightbar_colors(struct dualshock4 *ds4);
+static int dualshock4_set_bt_poll_interval(struct dualshock4 *ds4, uint8_t interval);
 
 /*
  * Add a new ps_device to ps_devices if it doesn't exist.
@@ -1738,6 +1739,43 @@ err:
 	return ERR_PTR(ret);
 }
 
+static ssize_t dualshock4_show_poll_interval(struct device *dev,
+				struct device_attribute
+				*attr, char *buf)
+{
+	struct hid_device *hdev = to_hid_device(dev);
+	struct ps_device *ps_dev = hid_get_drvdata(hdev);
+	struct dualshock4 *ds4 = container_of(ps_dev, struct dualshock4, base);
+
+	return sysfs_emit(buf, "%i\n", ds4->bt_poll_interval);
+}
+
+static ssize_t dualshock4_store_poll_interval(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct hid_device *hdev = to_hid_device(dev);
+	struct ps_device *ps_dev = hid_get_drvdata(hdev);
+	struct dualshock4 *ds4 = container_of(ps_dev, struct dualshock4, base);
+	int ret;
+	u8 interval;
+
+	if (kstrtou8(buf, 0, &interval))
+		return -EINVAL;
+
+	ret = dualshock4_set_bt_poll_interval(ds4, interval);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+struct device_attribute dev_attr_dualshock4_bt_poll_interval = {
+	.attr	= { .name = "bt_poll_interval", .mode = 0644 },
+	.show	= dualshock4_show_poll_interval,
+	.store	= dualshock4_store_poll_interval,
+};
+
 static void dualshock4_dongle_calibration_work(struct work_struct *work)
 {
 	struct dualshock4 *ds4 = container_of(work, struct dualshock4, dongle_hotplug_worker);
@@ -2493,6 +2531,9 @@ static void dualshock4_remove(struct ps_device *ps_dev)
 	struct dualshock4 *ds4 = container_of(ps_dev, struct dualshock4, base);
 	unsigned long flags;
 
+	if (ps_dev->hdev->bus == BUS_BLUETOOTH)
+		device_remove_file(&ps_dev->hdev->dev, &dev_attr_dualshock4_bt_poll_interval);
+
 	spin_lock_irqsave(&ds4->base.lock, flags);
 	ds4->output_worker_initialized = false;
 	spin_unlock_irqrestore(&ds4->base.lock, flags);
@@ -2513,11 +2554,16 @@ static inline void dualshock4_schedule_work(struct dualshock4 *ds4)
 	spin_unlock_irqrestore(&ds4->base.lock, flags);
 }
 
-static void dualshock4_set_bt_poll_interval(struct dualshock4 *ds4, uint8_t interval)
+static int dualshock4_set_bt_poll_interval(struct dualshock4 *ds4, uint8_t interval)
 {
+	if (interval >= DS4_OUTPUT_HWCTL_BT_POLL_MASK)
+		return -EINVAL;
+
 	ds4->bt_poll_interval = interval;
 	ds4->update_bt_poll_interval = true;
 	dualshock4_schedule_work(ds4);
+
+	return 0;
 }
 
 /* Set default lightbar color based on player. */
@@ -2659,7 +2705,17 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 			goto err;
 	}
 
-	dualshock4_set_bt_poll_interval(ds4, DS4_BT_DEFAULT_POLL_INTERVAL_MS);
+	if (hdev->bus == BUS_BLUETOOTH) {
+		ret = dualshock4_set_bt_poll_interval(ds4, DS4_BT_DEFAULT_POLL_INTERVAL_MS);
+		if (ret) {
+			hid_err(hdev, "Failed to set poll interval for DualShock4: %d\n", ret);
+			goto err;
+		}
+
+		ret = device_create_file(&hdev->dev, &dev_attr_dualshock4_bt_poll_interval);
+		if (ret)
+			hid_warn(hdev, "can't create sysfs bt_poll_interval attribute err: %d\n", ret);
+	}
 
 	ret = ps_device_set_player_id(ps_dev);
 	if (ret) {
@@ -2678,6 +2734,8 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 	return &ds4->base;
 
 err:
+	if (hdev->bus == BUS_BLUETOOTH)
+		device_remove_file(&hdev->dev, &dev_attr_dualshock4_bt_poll_interval);
 	ps_devices_list_remove(ps_dev);
 	return ERR_PTR(ret);
 }
