@@ -261,7 +261,6 @@ static int f2fs_do_sync_file(struct file *file, loff_t start, loff_t end,
 	struct writeback_control wbc = {
 		.sync_mode = WB_SYNC_ALL,
 		.nr_to_write = LONG_MAX,
-		.for_reclaim = 0,
 	};
 	unsigned int seq_id = 0;
 

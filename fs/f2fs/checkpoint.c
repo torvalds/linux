@@ -359,14 +359,9 @@ static bool __f2fs_write_meta_folio(struct folio *folio,
 	}
 	if (unlikely(is_sbi_flag_set(sbi, SBI_POR_DOING)))
 		goto redirty_out;
-	if (wbc->for_reclaim && folio->index < GET_SUM_BLOCK(sbi, 0))
-		goto redirty_out;
 
 	f2fs_do_write_meta_page(sbi, folio, io_type);
 	dec_page_count(sbi, F2FS_DIRTY_META);
-
-	if (wbc->for_reclaim)
-		f2fs_submit_merged_write_cond(sbi, NULL, &folio->page, 0, META);
 
 	folio_unlock(folio);
 
@@ -420,9 +415,7 @@ long f2fs_sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
 	struct folio_batch fbatch;
 	long nwritten = 0;
 	int nr_folios;
-	struct writeback_control wbc = {
-		.for_reclaim = 0,
-	};
+	struct writeback_control wbc = {};
 	struct blk_plug plug;
 
 	folio_batch_init(&fbatch);
@@ -1215,7 +1208,6 @@ static int block_operations(struct f2fs_sb_info *sbi)
 	struct writeback_control wbc = {
 		.sync_mode = WB_SYNC_ALL,
 		.nr_to_write = LONG_MAX,
-		.for_reclaim = 0,
 	};
 	int err = 0, cnt = 0;
 
@@ -1399,9 +1391,7 @@ static void update_ckpt_flags(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 static void commit_checkpoint(struct f2fs_sb_info *sbi,
 	void *src, block_t blk_addr)
 {
-	struct writeback_control wbc = {
-		.for_reclaim = 0,
-	};
+	struct writeback_control wbc = {};
 
 	/*
 	 * filemap_get_folios_tag and folio_lock again will take
