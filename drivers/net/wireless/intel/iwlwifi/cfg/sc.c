@@ -59,7 +59,6 @@ static const struct iwl_base_params iwl_sc_base_params = {
 	.ucode_api_max = IWL_SC_UCODE_API_MAX,				\
 	.ucode_api_min = IWL_SC_UCODE_API_MIN,				\
 	.led_mode = IWL_LED_RF_STATE,					\
-	.nvm_hw_section_num = 10,					\
 	.non_shared_ant = ANT_B,					\
 	.dccm_offset = IWL_SC_DCCM_OFFSET,				\
 	.dccm_len = IWL_SC_DCCM_LEN,					\

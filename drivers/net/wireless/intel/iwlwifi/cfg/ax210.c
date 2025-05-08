@@ -62,7 +62,6 @@ static const struct iwl_base_params iwl_ax210_base_params = {
 #define IWL_DEVICE_AX210_COMMON						\
 	.ucode_api_min = IWL_AX210_UCODE_API_MIN,			\
 	.led_mode = IWL_LED_RF_STATE,					\
-	.nvm_hw_section_num = 10,					\
 	.non_shared_ant = ANT_B,					\
 	.dccm_offset = IWL_AX210_DCCM_OFFSET,				\
 	.dccm_len = IWL_AX210_DCCM_LEN,					\
