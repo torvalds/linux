@@ -4246,11 +4246,6 @@ rcu_torture_init(void)
 	/* Start up the kthreads. */
 
 	rcu_torture_write_types();
-	firsterr = torture_create_kthread(rcu_torture_writer, NULL,
-					  writer_task);
-	if (torture_init_error(firsterr))
-		goto unwind;
-
 	if (nrealfakewriters > 0) {
 		fakewriter_tasks = kcalloc(nrealfakewriters,
 					   sizeof(fakewriter_tasks[0]),
@@ -4283,6 +4278,12 @@ rcu_torture_init(void)
 		if (torture_init_error(firsterr))
 			goto unwind;
 	}
+
+	firsterr = torture_create_kthread(rcu_torture_writer, NULL,
+					  writer_task);
+	if (torture_init_error(firsterr))
+		goto unwind;
+
 	nrealnocbers = nocbs_nthreads;
 	if (WARN_ON(nrealnocbers < 0))
 		nrealnocbers = 1;
