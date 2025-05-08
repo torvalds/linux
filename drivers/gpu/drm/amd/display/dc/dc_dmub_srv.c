@@ -39,6 +39,7 @@
 
 #define CTX dc_dmub_srv->ctx
 #define DC_LOGGER CTX->logger
+#define GPINT_RETRY_NUM 20
 
 static void dc_dmub_srv_construct(struct dc_dmub_srv *dc_srv, struct dc *dc,
 				  struct dmub_srv *dmub)
@@ -1888,11 +1889,14 @@ void dc_dmub_srv_ips_query_residency_info(struct dc_dmub_srv *dc_dmub_srv, struc
 	if (command_code == DMUB_GPINT__INVALID_COMMAND)
 		return;
 
-	// send gpint commands and wait for ack
-	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_PERCENT,
-				      (uint16_t)(output->ips_mode),
-				       &output->residency_percent, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-		output->residency_percent = 0;
+	for (i = 0; i < GPINT_RETRY_NUM; i++) {
+		// false could mean GPINT timeout, in which case we should retry
+		if (dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_PERCENT,
+					      (uint16_t)(output->ips_mode), &output->residency_percent,
+					      DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
+			break;
+		udelay(100);
+	}
 
 	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_ENTRY_COUNTER,
 				      (uint16_t)(output->ips_mode),
