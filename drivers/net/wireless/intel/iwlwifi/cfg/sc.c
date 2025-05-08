@@ -19,10 +19,6 @@
 #define IWL_SC_NVM_VERSION		0x0a1d
 
 /* Memory offsets and lengths */
-#define IWL_SC_DCCM_OFFSET		0x800000 /* LMAC1 */
-#define IWL_SC_DCCM_LEN			0x10000 /* LMAC1 */
-#define IWL_SC_DCCM2_OFFSET		0x880000
-#define IWL_SC_DCCM2_LEN		0x8000
 #define IWL_SC_SMEM_OFFSET		0x400000
 #define IWL_SC_SMEM_LEN			0xD0000
 
@@ -59,10 +55,6 @@ static const struct iwl_family_base_params iwl_sc_base = {
 	.ucode_api_min = IWL_SC_UCODE_API_MIN,				\
 	.led_mode = IWL_LED_RF_STATE,					\
 	.non_shared_ant = ANT_B,					\
-	.dccm_offset = IWL_SC_DCCM_OFFSET,				\
-	.dccm_len = IWL_SC_DCCM_LEN,					\
-	.dccm2_offset = IWL_SC_DCCM2_OFFSET,				\
-	.dccm2_len = IWL_SC_DCCM2_LEN,					\
 	.smem_offset = IWL_SC_SMEM_OFFSET,				\
 	.smem_len = IWL_SC_SMEM_LEN,					\
 	.apmg_not_supported = true,					\
