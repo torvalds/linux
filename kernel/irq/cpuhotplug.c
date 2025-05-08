@@ -243,7 +243,7 @@ int irq_affinity_online_cpu(unsigned int cpu)
 	irq_lock_sparse();
 	for_each_active_irq(irq) {
 		desc = irq_to_desc(irq);
-		scoped_guard(raw_spinlock, &desc->lock)
+		scoped_guard(raw_spinlock_irq, &desc->lock)
 			irq_restore_affinity_of_irq(desc, cpu);
 	}
 	irq_unlock_sparse();
