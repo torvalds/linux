@@ -544,7 +544,7 @@ EXPORT_SYMBOL(ttm_tt_pages_limit);
  */
 int ttm_tt_setup_backup(struct ttm_tt *tt)
 {
-	struct ttm_backup *backup =
+	struct file *backup =
 		ttm_backup_shmem_create(((loff_t)tt->num_pages) << PAGE_SHIFT);
 
 	if (WARN_ON_ONCE(!(tt->page_flags & TTM_TT_FLAG_EXTERNAL_MAPPABLE)))
