@@ -1476,22 +1476,8 @@ static int setup_return(struct pt_regs *regs, struct ksignal *ksig,
 
 	/* Signal handlers are invoked with ZA and streaming mode disabled */
 	if (system_supports_sme()) {
-		/*
-		 * If we were in streaming mode the saved register
-		 * state was SVE but we will exit SM and use the
-		 * FPSIMD register state.
-		 *
-		 * TODO: decide if this should behave as SMSTOP (e.g. reset
-		 * FPSR + FPMR), or whether this should only clear the scalable
-		 * registers + ZA state.
-		 */
-		if (current->thread.svcr & SVCR_SM_MASK) {
-			memset(&current->thread.uw.fpsimd_state, 0,
-			       sizeof(current->thread.uw.fpsimd_state));
-			current->thread.fp_type = FP_STATE_FPSIMD;
-		}
-
-		current->thread.svcr &= ~(SVCR_ZA_MASK | SVCR_SM_MASK);
+		task_smstop_sm(current);
+		current->thread.svcr &= ~SVCR_ZA_MASK;
 		write_sysreg_s(0, SYS_TPIDR2_EL0);
 	}
 
