@@ -775,6 +775,11 @@ static void sve_init_header_from_task(struct user_sve_header *header,
 		task_type = ARM64_VEC_SVE;
 	active = (task_type == type);
 
+	if (active && target->thread.fp_type == FP_STATE_SVE)
+		header->flags = SVE_PT_REGS_SVE;
+	else
+		header->flags = SVE_PT_REGS_FPSIMD;
+
 	switch (type) {
 	case ARM64_VEC_SVE:
 		if (test_tsk_thread_flag(target, TIF_SVE_VL_INHERIT))
@@ -789,19 +794,14 @@ static void sve_init_header_from_task(struct user_sve_header *header,
 		return;
 	}
 
-	if (active) {
-		if (target->thread.fp_type == FP_STATE_FPSIMD) {
-			header->flags |= SVE_PT_REGS_FPSIMD;
-		} else {
-			header->flags |= SVE_PT_REGS_SVE;
-		}
-	}
-
 	header->vl = task_get_vl(target, type);
 	vq = sve_vq_from_vl(header->vl);
 
 	header->max_vl = vec_max_vl(type);
-	header->size = SVE_PT_SIZE(vq, header->flags);
+	if (active)
+		header->size = SVE_PT_SIZE(vq, header->flags);
+	else
+		header->size = sizeof(header);
 	header->max_size = SVE_PT_SIZE(sve_vq_from_vl(header->max_vl),
 				      SVE_PT_REGS_SVE);
 }
@@ -832,6 +832,13 @@ static int sve_get_common(struct task_struct *target,
 	BUILD_BUG_ON(SVE_PT_FPSIMD_OFFSET != sizeof(header));
 	BUILD_BUG_ON(SVE_PT_SVE_OFFSET != sizeof(header));
 
+	/*
+	 * When the requested vector type is not active, do not present data
+	 * from the other mode to userspace.
+	 */
+	if (header.size == sizeof(header))
+		return 0;
+
 	switch ((header.flags & SVE_PT_REGS_MASK)) {
 	case SVE_PT_REGS_FPSIMD:
 		return __fpr_get(target, regset, to);
@@ -859,7 +866,7 @@ static int sve_get_common(struct task_struct *target,
 		return membuf_zero(&to, end - start);
 
 	default:
-		return 0;
+		BUILD_BUG();
 	}
 }
 
@@ -946,10 +953,7 @@ static int sve_set_common(struct task_struct *target,
 		goto out;
 	}
 
-	/*
-	 * Otherwise: no registers or full SVE case.  For backwards
-	 * compatibility reasons we treat empty flags as SVE registers.
-	 */
+	/* Otherwise: no registers or full SVE case. */
 
 	/*
 	 * If setting a different VL from the requested VL and there is
