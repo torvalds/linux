@@ -347,6 +347,25 @@ static int uncore_read_freq(struct uncore_data *data, unsigned int *freq)
 	return 0;
 }
 
+/*
+ * Agent types as per the TPMI UFS Specification for UFS_STATUS
+ * Agent Type - Core	Bit: 23
+ * Agent Type - Cache	Bit: 24
+ * Agent Type - Memory	Bit: 25
+ * Agent Type - IO	Bit: 26
+ */
+
+#define UNCORE_AGENT_TYPES	GENMASK_ULL(26, 23)
+
+/* Helper function to read agent type over MMIO and set the agent type mask */
+static void uncore_set_agent_type(struct tpmi_uncore_cluster_info *cluster_info)
+{
+	u64 status;
+
+	status = readq((u8 __iomem *)cluster_info->cluster_base + UNCORE_STATUS_INDEX);
+	cluster_info->uncore_data.agent_type_mask = FIELD_GET(UNCORE_AGENT_TYPES, status);
+}
+
 /* Callback for sysfs read for TPMI uncore values. Called under mutex locks. */
 static int uncore_read(struct uncore_data *data, unsigned int *value, enum uncore_index index)
 {
@@ -551,6 +570,8 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 			cluster_info = &pd_info->cluster_infos[j];
 
 			cluster_info->cluster_base = pd_info->uncore_base + mask;
+
+			uncore_set_agent_type(cluster_info);
 
 			cluster_info->uncore_data.package_id = pkg;
 			/* There are no dies like Cascade Lake */
