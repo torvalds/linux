@@ -1565,8 +1565,7 @@ continue_unlock:
 						NULL, NULL, wbc, io_type,
 						compr_blocks, false);
 		if (ret) {
-			if (ret == AOP_WRITEPAGE_ACTIVATE) {
-				folio_unlock(folio);
+			if (ret == 1) {
 				ret = 0;
 			} else if (ret == -EAGAIN) {
 				ret = 0;
