@@ -97,6 +97,11 @@ Attributes in each directory:
 ``package_id``
 	This attribute is used to get the package id of this instance.
 
+``agent_types``
+	This attribute displays all the hardware agents present within the
+	domain. Each agent has the capability to control one or more hardware
+	subsystems, which include: core, cache, memory, and I/O.
+
 The other attributes are same as presented at package_*_die_* level.
 
 In most of current use cases, the "max_freq_khz" and "min_freq_khz"
