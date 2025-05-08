@@ -49,13 +49,8 @@
 #define TAS2781_REG_CLK_CONFIG		TASDEVICE_REG(0x0, 0x0, 0x5c)
 #define TAS2781_REG_CLK_CONFIG_RESET	0x19
 
-struct tas2781_hda {
-	struct tasdevice_priv *priv;
-	struct acpi_device *dacpi;
-	struct snd_kcontrol *dsp_prog_ctl;
-	struct snd_kcontrol *dsp_conf_ctl;
+struct tas2781_hda_spi_priv {
 	struct snd_kcontrol *snd_ctls[3];
-	struct snd_kcontrol *prof_ctl;
 };
 
 static const struct regmap_range_cfg tasdevice_ranges[] = {
@@ -193,8 +188,10 @@ static void tas2781_spi_reset(struct tasdevice_priv *tas_dev)
 	} else {
 		ret = tasdevice_dev_write(tas_dev, tas_dev->index,
 			TASDEVICE_REG_SWRESET, TASDEVICE_REG_SWRESET_RESET);
-		if (ret < 0)
+		if (ret < 0) {
 			dev_err(tas_dev->dev, "dev sw-reset fail, %d\n", ret);
+			return;
+		}
 		fsleep(1000);
 	}
 }
@@ -323,8 +320,7 @@ static int tasdevice_spi_digital_getvol(struct tasdevice_priv *p,
 }
 
 static int tas2781_read_acpi(struct tas2781_hda *tas_hda,
-			     const char *hid,
-			     int id)
+	const char *hid, int id)
 {
 	struct tasdevice_priv *p = tas_hda->priv;
 	struct acpi_device *adev;
@@ -341,7 +337,6 @@ static int tas2781_read_acpi(struct tas2781_hda *tas_hda,
 	}
 
 	strscpy(p->dev_name, hid, sizeof(p->dev_name));
-	tas_hda->dacpi = adev;
 	physdev = get_device(acpi_get_first_physical_node(adev));
 	acpi_dev_put(adev);
 
@@ -408,126 +403,6 @@ static void tas2781_hda_playback_hook(struct device *dev, int action)
 		pm_runtime_mark_last_busy(dev);
 		pm_runtime_put_autosuspend(dev);
 	}
-}
-
-static int tasdevice_info_profile(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_info *uinfo)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = tas_priv->rcabin.ncfgs - 1;
-
-	return 0;
-}
-
-static int tasdevice_get_profile_id(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-
-	ucontrol->value.integer.value[0] = tas_priv->rcabin.profile_cfg_id;
-
-	return 0;
-}
-
-static int tasdevice_set_profile_id(struct snd_kcontrol *kcontrol,
-				    struct snd_ctl_elem_value *ucontrol)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-	int max = tas_priv->rcabin.ncfgs - 1;
-	int val;
-
-	val = clamp(ucontrol->value.integer.value[0], 0, max);
-	if (tas_priv->rcabin.profile_cfg_id != val) {
-		tas_priv->rcabin.profile_cfg_id = val;
-		return 1;
-	}
-
-	return 0;
-}
-
-static int tasdevice_info_programs(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_info *uinfo)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = tas_priv->fmw->nr_programs - 1;
-
-	return 0;
-}
-
-static int tasdevice_info_config(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_info *uinfo)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = tas_priv->fmw->nr_configurations - 1;
-
-	return 0;
-}
-
-static int tasdevice_program_get(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-
-	ucontrol->value.integer.value[0] = tas_priv->cur_prog;
-
-	return 0;
-}
-
-static int tasdevice_program_put(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-	int nr_program = ucontrol->value.integer.value[0];
-	int max = tas_priv->fmw->nr_programs - 1;
-	int val;
-
-	val = clamp(nr_program, 0, max);
-
-	if (tas_priv->cur_prog != val) {
-		tas_priv->cur_prog = val;
-		return 1;
-	}
-
-	return 0;
-}
-
-static int tasdevice_config_get(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-
-	ucontrol->value.integer.value[0] = tas_priv->cur_conf;
-
-	return 0;
-}
-
-static int tasdevice_config_put(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-	int max = tas_priv->fmw->nr_configurations - 1;
-	int val;
-
-	val = clamp(ucontrol->value.integer.value[0], 0, max);
-
-	if (tas_priv->cur_conf != val) {
-		tas_priv->cur_conf = val;
-		return 1;
-	}
-
-	return 0;
 }
 
 /*
@@ -618,73 +493,37 @@ static int tas2781_force_fwload_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static const struct snd_kcontrol_new tas2781_snd_controls[] = {
-	ACARD_SINGLE_RANGE_EXT_TLV("Speaker Analog Gain 0", TAS2781_AMP_LEVEL,
-		1, 0, 20, 0, tas2781_amp_getvol,
-		tas2781_amp_putvol, amp_vol_tlv),
-	ACARD_SINGLE_RANGE_EXT_TLV("Speaker Digital Gain 0", TAS2781_DVC_LVL,
-		0, 0, 200, 1, tas2781_digital_getvol,
-		tas2781_digital_putvol, dvc_tlv),
-	ACARD_SINGLE_BOOL_EXT("Speaker Force Firmware Load 0", 0,
-		tas2781_force_fwload_get, tas2781_force_fwload_put),
-	ACARD_SINGLE_RANGE_EXT_TLV("Speaker Analog Gain 1", TAS2781_AMP_LEVEL,
-		1, 0, 20, 0, tas2781_amp_getvol,
-		tas2781_amp_putvol, amp_vol_tlv),
-	ACARD_SINGLE_RANGE_EXT_TLV("Speaker Digital Gain 1", TAS2781_DVC_LVL,
-		0, 0, 200, 1, tas2781_digital_getvol,
-		tas2781_digital_putvol, dvc_tlv),
-	ACARD_SINGLE_BOOL_EXT("Speaker Force Firmware Load 1", 0,
-		tas2781_force_fwload_get, tas2781_force_fwload_put),
+struct snd_kcontrol_new tas2781_snd_ctls[] = {
+	ACARD_SINGLE_RANGE_EXT_TLV(NULL, TAS2781_AMP_LEVEL, 1, 0, 20, 0,
+		tas2781_amp_getvol, tas2781_amp_putvol, amp_vol_tlv),
+	ACARD_SINGLE_RANGE_EXT_TLV(NULL, TAS2781_DVC_LVL, 0, 0, 200, 1,
+		tas2781_digital_getvol, tas2781_digital_putvol, dvc_tlv),
+	ACARD_SINGLE_BOOL_EXT(NULL, 0, tas2781_force_fwload_get,
+		tas2781_force_fwload_put),
 };
 
-static const struct snd_kcontrol_new tas2781_prof_ctrl[] = {
-{
-	.name = "Speaker Profile Id - 0",
+struct snd_kcontrol_new tas2781_prof_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
 	.info = tasdevice_info_profile,
 	.get = tasdevice_get_profile_id,
 	.put = tasdevice_set_profile_id,
-},
-{
-	.name = "Speaker Profile Id - 1",
-	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
-	.info = tasdevice_info_profile,
-	.get = tasdevice_get_profile_id,
-	.put = tasdevice_set_profile_id,
-},
-};
-static const struct snd_kcontrol_new tas2781_dsp_prog_ctrl[] = {
-{
-	.name = "Speaker Program Id 0",
-	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
-	.info = tasdevice_info_programs,
-	.get = tasdevice_program_get,
-	.put = tasdevice_program_put,
-},
-{
-	.name = "Speaker Program Id 1",
-	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
-	.info = tasdevice_info_programs,
-	.get = tasdevice_program_get,
-	.put = tasdevice_program_put,
-},
 };
 
-static const struct snd_kcontrol_new tas2781_dsp_conf_ctrl[] = {
-{
-	.name = "Speaker Config Id 0",
-	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
-	.info = tasdevice_info_config,
-	.get = tasdevice_config_get,
-	.put = tasdevice_config_put,
-},
-{
-	.name = "Speaker Config Id 1",
-	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
-	.info = tasdevice_info_config,
-	.get = tasdevice_config_get,
-	.put = tasdevice_config_put,
-},
+struct snd_kcontrol_new tas2781_dsp_ctls[] = {
+	/* Speaker Program */
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_CARD,
+		.info = tasdevice_info_programs,
+		.get = tasdevice_program_get,
+		.put = tasdevice_program_put,
+	},
+	/* Speaker Config */
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_CARD,
+		.info = tasdevice_info_config,
+		.get = tasdevice_config_get,
+		.put = tasdevice_config_put,
+	},
 };
 
 static void tas2781_apply_calib(struct tasdevice_priv *tas_priv)
@@ -853,15 +692,103 @@ static int tas2781_save_calibration(struct tasdevice_priv *tas_priv)
 static void tas2781_hda_remove_controls(struct tas2781_hda *tas_hda)
 {
 	struct hda_codec *codec = tas_hda->priv->codec;
+	struct tas2781_hda_spi_priv *h_priv = tas_hda->hda_priv;
 
 	snd_ctl_remove(codec->card, tas_hda->dsp_prog_ctl);
 
 	snd_ctl_remove(codec->card, tas_hda->dsp_conf_ctl);
 
-	for (int i = ARRAY_SIZE(tas_hda->snd_ctls) - 1; i >= 0; i--)
-		snd_ctl_remove(codec->card, tas_hda->snd_ctls[i]);
+	for (int i = ARRAY_SIZE(h_priv->snd_ctls) - 1; i >= 0; i--)
+		snd_ctl_remove(codec->card, h_priv->snd_ctls[i]);
 
 	snd_ctl_remove(codec->card, tas_hda->prof_ctl);
+}
+
+static int tas2781_hda_spi_prf_ctl(struct tas2781_hda *h)
+{
+	struct tasdevice_priv *p = h->priv;
+	struct hda_codec *c = p->codec;
+	char name[64];
+	int rc;
+
+	snprintf(name, sizeof(name), "Speaker-%d Profile Id", p->index);
+	tas2781_prof_ctl.name = name;
+	h->prof_ctl = snd_ctl_new1(&tas2781_prof_ctl, p);
+	rc = snd_ctl_add(c->card, h->prof_ctl);
+	if (rc)
+		dev_err(p->dev, "Failed to add KControl: %s, rc = %d\n",
+			tas2781_prof_ctl.name, rc);
+	return rc;
+}
+
+static int tas2781_hda_spi_snd_ctls(struct tas2781_hda *h)
+{
+	struct tas2781_hda_spi_priv *h_priv = h->hda_priv;
+	struct tasdevice_priv *p = h->priv;
+	struct hda_codec *c = p->codec;
+	char name[64];
+	int i = 0;
+	int rc;
+
+	snprintf(name, sizeof(name), "Speaker-%d Analog Volume", p->index);
+	tas2781_snd_ctls[i].name = name;
+	h_priv->snd_ctls[i] = snd_ctl_new1(&tas2781_snd_ctls[i], p);
+	rc = snd_ctl_add(c->card, h_priv->snd_ctls[i]);
+	if (rc) {
+		dev_err(p->dev, "Failed to add KControl: %s, rc = %d\n",
+			tas2781_snd_ctls[i].name, rc);
+		return rc;
+	}
+	i++;
+	snprintf(name, sizeof(name), "Speaker-%d Digital Volume", p->index);
+	tas2781_snd_ctls[i].name = name;
+	h_priv->snd_ctls[i] = snd_ctl_new1(&tas2781_snd_ctls[i], p);
+	rc = snd_ctl_add(c->card, h_priv->snd_ctls[i]);
+	if (rc) {
+		dev_err(p->dev, "Failed to add KControl: %s, rc = %d\n",
+			tas2781_snd_ctls[i].name, rc);
+		return rc;
+	}
+	i++;
+	snprintf(name, sizeof(name), "Froce Speaker-%d FW Load", p->index);
+	tas2781_snd_ctls[i].name = name;
+	h_priv->snd_ctls[i] = snd_ctl_new1(&tas2781_snd_ctls[i], p);
+	rc = snd_ctl_add(c->card, h_priv->snd_ctls[i]);
+	if (rc) {
+		dev_err(p->dev, "Failed to add KControl: %s, rc = %d\n",
+			tas2781_snd_ctls[i].name, rc);
+	}
+	return rc;
+}
+
+static int tas2781_hda_spi_dsp_ctls(struct tas2781_hda *h)
+{
+	struct tasdevice_priv *p = h->priv;
+	struct hda_codec *c = p->codec;
+	char name[64];
+	int i = 0;
+	int rc;
+
+	snprintf(name, sizeof(name), "Speaker-%d Program Id", p->index);
+	tas2781_dsp_ctls[i].name = name;
+	h->dsp_prog_ctl = snd_ctl_new1(&tas2781_dsp_ctls[i], p);
+	rc = snd_ctl_add(c->card, h->dsp_prog_ctl);
+	if (rc) {
+		dev_err(p->dev, "Failed to add KControl: %s, rc = %d\n",
+			tas2781_dsp_ctls[i].name, rc);
+		return rc;
+	}
+	i++;
+	snprintf(name, sizeof(name), "Speaker-%d Config Id", p->index);
+	tas2781_dsp_ctls[i].name = name;
+	h->dsp_conf_ctl = snd_ctl_new1(&tas2781_dsp_ctls[i], p);
+	rc = snd_ctl_add(c->card, h->dsp_conf_ctl);
+	if (rc) {
+		dev_err(p->dev, "Failed to add KControl: %s, rc = %d\n",
+			tas2781_dsp_ctls[i].name, rc);
+	}
+
+	return rc;
 }
 
 static void tasdev_fw_ready(const struct firmware *fmw, void *context)
@@ -869,7 +796,7 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 	struct tasdevice_priv *tas_priv = context;
 	struct tas2781_hda *tas_hda = dev_get_drvdata(tas_priv->dev);
 	struct hda_codec *codec = tas_priv->codec;
-	int i, j, ret, val;
+	int ret, val;
 
 	pm_runtime_get_sync(tas_priv->dev);
 	guard(mutex)(&tas_priv->codec_lock);
@@ -879,33 +806,19 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 		goto out;
 
 	/* Add control one time only. */
-	tas_hda->prof_ctl = snd_ctl_new1(&tas2781_prof_ctrl[tas_priv->index],
-		tas_priv);
-	ret = snd_ctl_add(codec->card, tas_hda->prof_ctl);
-	if (ret) {
-		dev_err(tas_priv->dev, "Failed to add KControl %s = %d\n",
-			tas2781_prof_ctrl[tas_priv->index].name, ret);
+	ret = tas2781_hda_spi_prf_ctl(tas_hda);
+	if (ret)
 		goto out;
-	}
-	j = tas_priv->index * ARRAY_SIZE(tas2781_snd_controls) / 2;
-	for (i = 0; i < 3; i++) {
-		tas_hda->snd_ctls[i] = snd_ctl_new1(&tas2781_snd_controls[i+j],
-			tas_priv);
-		ret = snd_ctl_add(codec->card, tas_hda->snd_ctls[i]);
-		if (ret) {
-			dev_err(tas_priv->dev,
-				"Failed to add KControl %s = %d\n",
-				tas2781_snd_controls[i+tas_priv->index*3].name,
-				ret);
-			goto out;
-		}
-	}
+
+	ret = tas2781_hda_spi_snd_ctls(tas_hda);
+	if (ret)
+		goto out;
 
 	tasdevice_dsp_remove(tas_priv);
 
 	tas_priv->fw_state = TASDEVICE_DSP_FW_PENDING;
-	scnprintf(tas_priv->coef_binaryname, 64, "TAS2XXX%08X-%01d.bin",
-		codec->core.subsystem_id, tas_priv->index);
+	scnprintf(tas_priv->coef_binaryname, 64, "TAS2XXX%04X-%01d.bin",
+		lower_16_bits(codec->core.subsystem_id), tas_priv->index);
 	ret = tasdevice_dsp_parser(tas_priv);
 	if (ret) {
 		dev_err(tas_priv->dev, "dspfw load %s error\n",
@@ -914,33 +827,15 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 		goto out;
 	}
 
-	/* Add control one time only. */
-	tas_hda->dsp_prog_ctl =
-		snd_ctl_new1(&tas2781_dsp_prog_ctrl[tas_priv->index],
-			     tas_priv);
-	ret = snd_ctl_add(codec->card, tas_hda->dsp_prog_ctl);
-	if (ret) {
-		dev_err(tas_priv->dev,
-			"Failed to add KControl %s = %d\n",
-			tas2781_dsp_prog_ctrl[tas_priv->index].name, ret);
+	ret = tas2781_hda_spi_dsp_ctls(tas_hda);
+	if (ret)
 		goto out;
-	}
-
-	tas_hda->dsp_conf_ctl =
-		snd_ctl_new1(&tas2781_dsp_conf_ctrl[tas_priv->index],
-			     tas_priv);
-	ret = snd_ctl_add(codec->card, tas_hda->dsp_conf_ctl);
-	if (ret) {
-		dev_err(tas_priv->dev, "Failed to add KControl %s = %d\n",
-			tas2781_dsp_conf_ctrl[tas_priv->index].name, ret);
-		goto out;
-	}
-
+	/* Perform AMP reset before firmware download. */
 	tas2781_spi_reset(tas_priv);
 	tas_priv->rcabin.profile_cfg_id = 0;
 
 	tas_priv->fw_state = TASDEVICE_DSP_FW_ALL_OK;
-	ret = tas_priv->dev_read(tas_priv, tas_priv->index,
+	ret = tasdevice_spi_dev_read(tas_priv, tas_priv->index,
 		TAS2781_REG_CLK_CONFIG, &val);
 	if (ret < 0)
 		goto out;
@@ -952,6 +847,7 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 				ret);
 			goto out;
 		}
+		tas_priv->fw_state = TASDEVICE_DSP_FW_ALL_OK;
 	}
 	if (tas_priv->fmw->nr_programs > 0)
 		tas_priv->tasdevice[tas_priv->index].cur_prog = 0;
@@ -962,7 +858,7 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 	 * If calibrated data occurs error, dsp will still works with default
 	 * calibrated data inside algo.
 	 */
-
+	tas2781_save_calibration(tas_priv);
 out:
 	release_firmware(fmw);
 	pm_runtime_mark_last_busy(tas_hda->priv->dev);
@@ -1032,22 +928,9 @@ static const struct component_ops tas2781_hda_comp_ops = {
 	.unbind = tas2781_hda_unbind,
 };
 
-static void tas2781_hda_remove(struct device *dev)
-{
-	struct tas2781_hda *tas_hda = dev_get_drvdata(dev);
-
-	component_del(tas_hda->priv->dev, &tas2781_hda_comp_ops);
-
-	pm_runtime_get_sync(tas_hda->priv->dev);
-	pm_runtime_disable(tas_hda->priv->dev);
-
-	pm_runtime_put_noidle(tas_hda->priv->dev);
-
-	mutex_destroy(&tas_hda->priv->codec_lock);
-}
-
 static int tas2781_hda_spi_probe(struct spi_device *spi)
 {
+	struct tas2781_hda_spi_priv *hda_priv;
 	struct tasdevice_priv *tas_priv;
 	struct tas2781_hda *tas_hda;
 	const char *device_name;
@@ -1057,6 +940,11 @@ static int tas2781_hda_spi_probe(struct spi_device *spi)
 	if (!tas_hda)
 		return -ENOMEM;
 
+	hda_priv = devm_kzalloc(&spi->dev, sizeof(*hda_priv), GFP_KERNEL);
+	if (!hda_priv)
+		return -ENOMEM;
+
+	tas_hda->hda_priv = hda_priv;
 	spi->max_speed_hz = TAS2781_SPI_MAX_FREQ;
 
 	tas_priv = devm_kzalloc(&spi->dev, sizeof(*tas_priv), GFP_KERNEL);
@@ -1087,15 +975,9 @@ static int tas2781_hda_spi_probe(struct spi_device *spi)
 				spi_get_chipselect(spi, 0));
 	if (ret)
 		return dev_err_probe(tas_priv->dev, ret,
-				     "Platform not supported\n");
+				"Platform not supported\n");
 
 	tasdevice_spi_init(tas_priv);
-
-	ret = component_add(tas_priv->dev, &tas2781_hda_comp_ops);
-	if (ret) {
-		dev_err(tas_priv->dev, "Register component fail: %d\n", ret);
-		return ret;
-	}
 
 	pm_runtime_set_autosuspend_delay(tas_priv->dev, 3000);
 	pm_runtime_use_autosuspend(tas_priv->dev);
@@ -1106,12 +988,19 @@ static int tas2781_hda_spi_probe(struct spi_device *spi)
 
 	pm_runtime_put_autosuspend(tas_priv->dev);
 
-	return 0;
+	ret = component_add(tas_priv->dev, &tas2781_hda_comp_ops);
+	if (ret) {
+		dev_err(tas_priv->dev, "Register component fail: %d\n", ret);
+		pm_runtime_disable(tas_priv->dev);
+		tas2781_hda_remove(&spi->dev, &tas2781_hda_comp_ops);
+	}
+
+	return ret;
 }
 
 static void tas2781_hda_spi_remove(struct spi_device *spi)
 {
-	tas2781_hda_remove(&spi->dev);
+	tas2781_hda_remove(&spi->dev, &tas2781_hda_comp_ops);
 }
 
 static int tas2781_runtime_suspend(struct device *dev)
@@ -1231,3 +1120,4 @@ MODULE_DESCRIPTION("TAS2781 HDA SPI Driver");
 MODULE_AUTHOR("Baojun, Xu, <baojun.xug@ti.com>");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS("SND_SOC_TAS2781_FMWLIB");
+MODULE_IMPORT_NS("SND_HDA_SCODEC_TAS2781");

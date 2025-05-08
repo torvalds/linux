@@ -180,12 +180,17 @@ config SND_HDA_SCODEC_CS35L56_SPI
 	  Say Y or M here to include CS35L56 amplifier support with
 	  SPI control.
 
+config SND_HDA_SCODEC_TAS2781
+	tristate
+	select SND_HDA_GENERIC
+
 config SND_HDA_SCODEC_TAS2781_I2C
 	tristate "Build TAS2781 HD-audio side codec support for I2C Bus"
 	depends on I2C
 	depends on ACPI
 	depends on EFI
 	depends on SND_SOC
+	select SND_HDA_SCODEC_TAS2781
 	select SND_SOC_TAS2781_COMLIB_I2C
 	select SND_SOC_TAS2781_FMWLIB
 	select CRC32
@@ -202,6 +207,8 @@ config SND_HDA_SCODEC_TAS2781_SPI
 	depends on ACPI
 	depends on EFI
 	depends on SND_SOC
+	select SND_HDA_SCODEC_TAS2781
+	select SND_SOC_TAS2781_COMLIB
 	select SND_SOC_TAS2781_FMWLIB
 	select CRC8
 	select CRC32

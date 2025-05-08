@@ -754,7 +754,7 @@ snd_vortex_a3d_filter_info(struct snd_kcontrol *kcontrol,
 static int
 snd_vortex_a3d_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	//a3dsrc_t *a = kcontrol->private_data;
+	//a3dsrc_t *a = snd_kcontrol_chip(kcontrol);
 	/* No read yet. Would this be really useable/needed ? */
 
 	return 0;
@@ -764,7 +764,7 @@ static int
 snd_vortex_a3d_hrtf_put(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
-	a3dsrc_t *a = kcontrol->private_data;
+	a3dsrc_t *a = snd_kcontrol_chip(kcontrol);
 	int i;
 	int coord[6];
 	for (i = 0; i < 6; i++)
@@ -781,7 +781,7 @@ static int
 snd_vortex_a3d_itd_put(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol)
 {
-	a3dsrc_t *a = kcontrol->private_data;
+	a3dsrc_t *a = snd_kcontrol_chip(kcontrol);
 	int coord[6];
 	int i;
 	for (i = 0; i < 6; i++)
@@ -800,7 +800,7 @@ static int
 snd_vortex_a3d_ild_put(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol)
 {
-	a3dsrc_t *a = kcontrol->private_data;
+	a3dsrc_t *a = snd_kcontrol_chip(kcontrol);
 	int l, r;
 	/* There may be some scale tranlation needed here. */
 	l = ucontrol->value.integer.value[0];
@@ -816,7 +816,7 @@ static int
 snd_vortex_a3d_filter_put(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
-	a3dsrc_t *a = kcontrol->private_data;
+	a3dsrc_t *a = snd_kcontrol_chip(kcontrol);
 	int i;
 	int params[6];
 	for (i = 0; i < 6; i++)

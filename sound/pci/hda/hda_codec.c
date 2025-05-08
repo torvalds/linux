@@ -1732,37 +1732,6 @@ int snd_hda_ctl_add(struct hda_codec *codec, hda_nid_t nid,
 EXPORT_SYMBOL_GPL(snd_hda_ctl_add);
 
 /**
- * snd_hda_add_nid - Assign a NID to a control element
- * @codec: HD-audio codec
- * @kctl: the control element to assign
- * @index: index to kctl
- * @nid: corresponding NID (optional)
- *
- * Add the given control element to an array inside the codec instance.
- * This function is used when #snd_hda_ctl_add cannot be used for 1:1
- * NID:KCTL mapping - for example "Capture Source" selector.
- */
-int snd_hda_add_nid(struct hda_codec *codec, struct snd_kcontrol *kctl,
-		    unsigned int index, hda_nid_t nid)
-{
-	struct hda_nid_item *item;
-
-	if (nid > 0) {
-		item = snd_array_new(&codec->nids);
-		if (!item)
-			return -ENOMEM;
-		item->kctl = kctl;
-		item->index = index;
-		item->nid = nid;
-		return 0;
-	}
-	codec_err(codec, "no NID for mapping control %s:%d:%d\n",
-		  kctl->id.name, kctl->id.index, index);
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(snd_hda_add_nid);
-
-/**
  * snd_hda_ctls_clear - Clear all controls assigned to the given codec
  * @codec: HD-audio codec
  */

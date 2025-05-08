@@ -51,12 +51,7 @@ static unsigned int cal_regs[TASDEV_CALIB_N] = {
 	TAS2563_CAL_R0_LOW, TAS2563_CAL_TLIM,
 };
 
-struct tas2781_hda {
-	struct device *dev;
-	struct tasdevice_priv *priv;
-	struct snd_kcontrol *dsp_prog_ctl;
-	struct snd_kcontrol *dsp_conf_ctl;
-	struct snd_kcontrol *prof_ctl;
+struct tas2781_hda_i2c_priv {
 	struct snd_kcontrol *snd_ctls[2];
 };
 
@@ -173,176 +168,6 @@ static void tas2781_hda_playback_hook(struct device *dev, int action)
 	default:
 		break;
 	}
-}
-
-static int tasdevice_info_profile(struct snd_kcontrol *kcontrol,
-			struct snd_ctl_elem_info *uinfo)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = tas_priv->rcabin.ncfgs - 1;
-
-	return 0;
-}
-
-static int tasdevice_get_profile_id(struct snd_kcontrol *kcontrol,
-			struct snd_ctl_elem_value *ucontrol)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-
-	mutex_lock(&tas_priv->codec_lock);
-
-	ucontrol->value.integer.value[0] = tas_priv->rcabin.profile_cfg_id;
-
-	dev_dbg(tas_priv->dev, "%s: kcontrol %s: %d\n",
-		__func__, kcontrol->id.name, tas_priv->rcabin.profile_cfg_id);
-
-	mutex_unlock(&tas_priv->codec_lock);
-
-	return 0;
-}
-
-static int tasdevice_set_profile_id(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-	int nr_profile = ucontrol->value.integer.value[0];
-	int max = tas_priv->rcabin.ncfgs - 1;
-	int val, ret = 0;
-
-	val = clamp(nr_profile, 0, max);
-
-	mutex_lock(&tas_priv->codec_lock);
-
-	dev_dbg(tas_priv->dev, "%s: kcontrol %s: %d -> %d\n",
-		__func__, kcontrol->id.name,
-		tas_priv->rcabin.profile_cfg_id, val);
-
-	if (tas_priv->rcabin.profile_cfg_id != val) {
-		tas_priv->rcabin.profile_cfg_id = val;
-		ret = 1;
-	}
-
-	mutex_unlock(&tas_priv->codec_lock);
-
-	return ret;
-}
-
-static int tasdevice_info_programs(struct snd_kcontrol *kcontrol,
-			struct snd_ctl_elem_info *uinfo)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-	struct tasdevice_fw *tas_fw = tas_priv->fmw;
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = tas_fw->nr_programs - 1;
-
-	return 0;
-}
-
-static int tasdevice_info_config(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-	struct tasdevice_fw *tas_fw = tas_priv->fmw;
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = tas_fw->nr_configurations - 1;
-
-	return 0;
-}
-
-static int tasdevice_program_get(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-
-	mutex_lock(&tas_priv->codec_lock);
-
-	ucontrol->value.integer.value[0] = tas_priv->cur_prog;
-
-	dev_dbg(tas_priv->dev, "%s: kcontrol %s: %d\n",
-		__func__, kcontrol->id.name, tas_priv->cur_prog);
-
-	mutex_unlock(&tas_priv->codec_lock);
-
-	return 0;
-}
-
-static int tasdevice_program_put(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-	struct tasdevice_fw *tas_fw = tas_priv->fmw;
-	int nr_program = ucontrol->value.integer.value[0];
-	int max = tas_fw->nr_programs - 1;
-	int val, ret = 0;
-
-	val = clamp(nr_program, 0, max);
-
-	mutex_lock(&tas_priv->codec_lock);
-
-	dev_dbg(tas_priv->dev, "%s: kcontrol %s: %d -> %d\n",
-		__func__, kcontrol->id.name, tas_priv->cur_prog, val);
-
-	if (tas_priv->cur_prog != val) {
-		tas_priv->cur_prog = val;
-		ret = 1;
-	}
-
-	mutex_unlock(&tas_priv->codec_lock);
-
-	return ret;
-}
-
-static int tasdevice_config_get(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-
-	mutex_lock(&tas_priv->codec_lock);
-
-	ucontrol->value.integer.value[0] = tas_priv->cur_conf;
-
-	dev_dbg(tas_priv->dev, "%s: kcontrol %s: %d\n",
-		__func__, kcontrol->id.name, tas_priv->cur_conf);
-
-	mutex_unlock(&tas_priv->codec_lock);
-
-	return 0;
-}
-
-static int tasdevice_config_put(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	struct tasdevice_priv *tas_priv = snd_kcontrol_chip(kcontrol);
-	struct tasdevice_fw *tas_fw = tas_priv->fmw;
-	int nr_config = ucontrol->value.integer.value[0];
-	int max = tas_fw->nr_configurations - 1;
-	int val, ret = 0;
-
-	val = clamp(nr_config, 0, max);
-
-	mutex_lock(&tas_priv->codec_lock);
-
-	dev_dbg(tas_priv->dev, "%s: kcontrol %s: %d -> %d\n",
-		__func__, kcontrol->id.name, tas_priv->cur_conf, val);
-
-	if (tas_priv->cur_conf != val) {
-		tas_priv->cur_conf = val;
-		ret = 1;
-	}
-
-	mutex_unlock(&tas_priv->codec_lock);
-
-	return ret;
 }
 
 static int tas2781_amp_getvol(struct snd_kcontrol *kcontrol,
@@ -615,13 +440,14 @@ static int tas2781_save_calibration(struct tasdevice_priv *tas_priv)
 
 static void tas2781_hda_remove_controls(struct tas2781_hda *tas_hda)
 {
+	struct tas2781_hda_i2c_priv *hda_priv = tas_hda->hda_priv;
 	struct hda_codec *codec = tas_hda->priv->codec;
 
 	snd_ctl_remove(codec->card, tas_hda->dsp_prog_ctl);
 	snd_ctl_remove(codec->card, tas_hda->dsp_conf_ctl);
 
-	for (int i = ARRAY_SIZE(tas_hda->snd_ctls) - 1; i >= 0; i--)
-		snd_ctl_remove(codec->card, tas_hda->snd_ctls[i]);
+	for (int i = ARRAY_SIZE(hda_priv->snd_ctls) - 1; i >= 0; i--)
+		snd_ctl_remove(codec->card, hda_priv->snd_ctls[i]);
 
 	snd_ctl_remove(codec->card, tas_hda->prof_ctl);
 }
@@ -630,6 +456,7 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 {
 	struct tasdevice_priv *tas_priv = context;
 	struct tas2781_hda *tas_hda = dev_get_drvdata(tas_priv->dev);
+	struct tas2781_hda_i2c_priv *hda_priv = tas_hda->hda_priv;
 	struct hda_codec *codec = tas_priv->codec;
 	int i, ret, spk_id;
 
@@ -650,9 +477,9 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(tas2781_snd_controls); i++) {
-		tas_hda->snd_ctls[i] = snd_ctl_new1(&tas2781_snd_controls[i],
+		hda_priv->snd_ctls[i] = snd_ctl_new1(&tas2781_snd_controls[i],
 			tas_priv);
-		ret = snd_ctl_add(codec->card, tas_hda->snd_ctls[i]);
+		ret = snd_ctl_add(codec->card, hda_priv->snd_ctls[i]);
 		if (ret) {
 			dev_err(tas_priv->dev,
 				"Failed to add KControl %s = %d\n",
@@ -805,30 +632,22 @@ static const struct component_ops tas2781_hda_comp_ops = {
 	.unbind = tas2781_hda_unbind,
 };
 
-static void tas2781_hda_remove(struct device *dev)
-{
-	struct tas2781_hda *tas_hda = dev_get_drvdata(dev);
-
-	component_del(tas_hda->dev, &tas2781_hda_comp_ops);
-
-	pm_runtime_get_sync(tas_hda->dev);
-	pm_runtime_disable(tas_hda->dev);
-
-	pm_runtime_put_noidle(tas_hda->dev);
-
-	tasdevice_remove(tas_hda->priv);
-}
-
 static int tas2781_hda_i2c_probe(struct i2c_client *clt)
 {
+	struct tas2781_hda_i2c_priv *hda_priv;
 	struct tas2781_hda *tas_hda;
 	const char *device_name;
 	int ret;
 
-
 	tas_hda = devm_kzalloc(&clt->dev, sizeof(*tas_hda), GFP_KERNEL);
 	if (!tas_hda)
 		return -ENOMEM;
+
+	hda_priv = devm_kzalloc(&clt->dev, sizeof(*hda_priv), GFP_KERNEL);
+	if (!hda_priv)
+		return -ENOMEM;
+
+	tas_hda->hda_priv = hda_priv;
 
 	dev_set_drvdata(&clt->dev, tas_hda);
 	tas_hda->dev = &clt->dev;
@@ -876,13 +695,13 @@ static int tas2781_hda_i2c_probe(struct i2c_client *clt)
 
 err:
 	if (ret)
-		tas2781_hda_remove(&clt->dev);
+		tas2781_hda_remove(&clt->dev, &tas2781_hda_comp_ops);
 	return ret;
 }
 
 static void tas2781_hda_i2c_remove(struct i2c_client *clt)
 {
-	tas2781_hda_remove(&clt->dev);
+	tas2781_hda_remove(&clt->dev, &tas2781_hda_comp_ops);
 }
 
 static int tas2781_runtime_suspend(struct device *dev)
@@ -1010,3 +829,4 @@ MODULE_DESCRIPTION("TAS2781 HDA Driver");
 MODULE_AUTHOR("Shenghao Ding, TI, <shenghao-ding@ti.com>");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS("SND_SOC_TAS2781_FMWLIB");
+MODULE_IMPORT_NS("SND_HDA_SCODEC_TAS2781");

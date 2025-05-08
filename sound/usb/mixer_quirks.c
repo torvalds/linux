@@ -2000,7 +2000,7 @@ static int realtek_hda_get(struct snd_usb_audio *chip, u32 cmd, u32 *value)
 static int realtek_ctl_connector_get(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
-	struct usb_mixer_elem_info *cval = kcontrol->private_data;
+	struct usb_mixer_elem_info *cval = snd_kcontrol_chip(kcontrol);
 	struct snd_usb_audio *chip = cval->head.mixer->chip;
 	u32 pv = kcontrol->private_value;
 	u32 node_id = pv & 0xff;
