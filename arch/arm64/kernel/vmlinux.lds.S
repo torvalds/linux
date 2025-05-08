@@ -319,6 +319,7 @@ SECTIONS
 
 	/* start of zero-init region */
 	BSS_SECTION(SBSS_ALIGN, 0, 0)
+	__pi___bss_start = __bss_start;
 
 	. = ALIGN(PAGE_SIZE);
 	__pi_init_pg_dir = .;
@@ -332,6 +333,7 @@ SECTIONS
 	. = ALIGN(SEGMENT_ALIGN);
 	__pecoff_data_size = ABSOLUTE(. - __initdata_begin);
 	_end = .;
+	__pi__end = .;
 
 	STABS_DEBUG
 	DWARF_DEBUG
