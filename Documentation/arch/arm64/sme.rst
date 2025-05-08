@@ -69,8 +69,8 @@ model features for SME is included in Appendix A.
   vectors from 0 to VL/8-1 stored in the same endianness invariant format as is
   used for SVE vectors.
 
-* On thread creation TPIDR2_EL0 is preserved unless CLONE_SETTLS is specified,
-  in which case it is set to 0.
+* On thread creation PSTATE.ZA and TPIDR2_EL0 are preserved unless CLONE_VM
+  is specified, in which case PSTATE.ZA is set to 0 and TPIDR2_EL0 is set to 0.
 
 2.  Vector lengths
 ------------------
