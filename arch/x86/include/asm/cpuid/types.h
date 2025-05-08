@@ -31,8 +31,7 @@ enum cpuid_regs_idx {
 #define CPUID_LEAF_TILE		0x1d
 
 /*
- * Types for CPUID(0x2) parsing
- * Check <asm/cpuid/leaf_0x2_api.h>
+ * Types for CPUID(0x2) parsing:
  */
 
 struct leaf_0x2_reg {
