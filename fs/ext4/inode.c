@@ -5568,9 +5568,7 @@ int ext4_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 			down_write(&EXT4_I(inode)->i_data_sem);
 			old_disksize = EXT4_I(inode)->i_disksize;
 			EXT4_I(inode)->i_disksize = attr->ia_size;
-			rc = ext4_mark_inode_dirty(handle, inode);
-			if (!error)
-				error = rc;
+
 			/*
 			 * We have to update i_size under i_data_sem together
 			 * with i_disksize to avoid races with writeback code
@@ -5581,6 +5579,9 @@ int ext4_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 			else
 				EXT4_I(inode)->i_disksize = old_disksize;
 			up_write(&EXT4_I(inode)->i_data_sem);
+			rc = ext4_mark_inode_dirty(handle, inode);
+			if (!error)
+				error = rc;
 			ext4_journal_stop(handle);
 			if (error)
 				goto out_mmap_sem;
