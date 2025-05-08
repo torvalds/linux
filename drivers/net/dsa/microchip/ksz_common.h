@@ -142,7 +142,7 @@ struct ksz_port {
 	struct ksz_irq pirq;
 	u8 num;
 #if IS_ENABLED(CONFIG_NET_DSA_MICROCHIP_KSZ_PTP)
-	struct hwtstamp_config tstamp_config;
+	struct kernel_hwtstamp_config tstamp_config;
 	bool hwts_tx_en;
 	bool hwts_rx_en;
 	struct ksz_irq ptpirq;

@@ -578,20 +578,6 @@ dsa_user_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 static int dsa_user_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct dsa_user_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
-	int port = p->dp->index;
-
-	/* Pass through to switch driver if it supports timestamping */
-	switch (cmd) {
-	case SIOCGHWTSTAMP:
-		if (ds->ops->port_hwtstamp_get)
-			return ds->ops->port_hwtstamp_get(ds, port, ifr);
-		break;
-	case SIOCSHWTSTAMP:
-		if (ds->ops->port_hwtstamp_set)
-			return ds->ops->port_hwtstamp_set(ds, port, ifr);
-		break;
-	}
 
 	return phylink_mii_ioctl(p->dp->pl, ifr, cmd);
 }
@@ -2574,6 +2560,31 @@ static int dsa_user_fill_forward_path(struct net_device_path_ctx *ctx,
 	return 0;
 }
 
+static int dsa_user_hwtstamp_get(struct net_device *dev,
+				 struct kernel_hwtstamp_config *cfg)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->port_hwtstamp_get)
+		return -EOPNOTSUPP;
+
+	return ds->ops->port_hwtstamp_get(ds, dp->index, cfg);
+}
+
+static int dsa_user_hwtstamp_set(struct net_device *dev,
+				 struct kernel_hwtstamp_config *cfg,
+				 struct netlink_ext_ack *extack)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->port_hwtstamp_set)
+		return -EOPNOTSUPP;
+
+	return ds->ops->port_hwtstamp_set(ds, dp->index, cfg, extack);
+}
+
 static const struct net_device_ops dsa_user_netdev_ops = {
 	.ndo_open		= dsa_user_open,
 	.ndo_stop		= dsa_user_close,
@@ -2595,6 +2606,8 @@ static const struct net_device_ops dsa_user_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= dsa_user_vlan_rx_kill_vid,
 	.ndo_change_mtu		= dsa_user_change_mtu,
 	.ndo_fill_forward_path	= dsa_user_fill_forward_path,
+	.ndo_hwtstamp_get	= dsa_user_hwtstamp_get,
+	.ndo_hwtstamp_set	= dsa_user_hwtstamp_set,
 };
 
 static const struct device_type dsa_type = {

@@ -1131,9 +1131,10 @@ struct dsa_switch_ops {
 	 * PTP functionality
 	 */
 	int	(*port_hwtstamp_get)(struct dsa_switch *ds, int port,
-				     struct ifreq *ifr);
+				     struct kernel_hwtstamp_config *config);
 	int	(*port_hwtstamp_set)(struct dsa_switch *ds, int port,
-				     struct ifreq *ifr);
+				     struct kernel_hwtstamp_config *config,
+				     struct netlink_ext_ack *extack);
 	void	(*port_txtstamp)(struct dsa_switch *ds, int port,
 				 struct sk_buff *skb);
 	bool	(*port_rxtstamp)(struct dsa_switch *ds, int port,

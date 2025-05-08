@@ -1774,22 +1774,25 @@ static void felix_teardown(struct dsa_switch *ds)
 }
 
 static int felix_hwtstamp_get(struct dsa_switch *ds, int port,
-			      struct ifreq *ifr)
+			      struct kernel_hwtstamp_config *config)
 {
 	struct ocelot *ocelot = ds->priv;
 
-	return ocelot_hwstamp_get(ocelot, port, ifr);
+	ocelot_hwstamp_get(ocelot, port, config);
+
+	return 0;
 }
 
 static int felix_hwtstamp_set(struct dsa_switch *ds, int port,
-			      struct ifreq *ifr)
+			      struct kernel_hwtstamp_config *config,
+			      struct netlink_ext_ack *extack)
 {
 	struct ocelot *ocelot = ds->priv;
 	struct felix *felix = ocelot_to_felix(ocelot);
 	bool using_tag_8021q;
 	int err;
 
-	err = ocelot_hwstamp_set(ocelot, port, ifr);
+	err = ocelot_hwstamp_set(ocelot, port, config, extack);
 	if (err)
 		return err;
 

@@ -319,22 +319,21 @@ int ksz_get_ts_info(struct dsa_switch *ds, int port, struct kernel_ethtool_ts_in
 	return 0;
 }
 
-int ksz_hwtstamp_get(struct dsa_switch *ds, int port, struct ifreq *ifr)
+int ksz_hwtstamp_get(struct dsa_switch *ds, int port,
+		     struct kernel_hwtstamp_config *config)
 {
 	struct ksz_device *dev = ds->priv;
-	struct hwtstamp_config *config;
 	struct ksz_port *prt;
 
 	prt = &dev->ports[port];
-	config = &prt->tstamp_config;
+	*config = prt->tstamp_config;
 
-	return copy_to_user(ifr->ifr_data, config, sizeof(*config)) ?
-		-EFAULT : 0;
+	return 0;
 }
 
 static int ksz_set_hwtstamp_config(struct ksz_device *dev,
 				   struct ksz_port *prt,
-				   struct hwtstamp_config *config)
+				   struct kernel_hwtstamp_config *config)
 {
 	int ret;
 
@@ -404,26 +403,21 @@ static int ksz_set_hwtstamp_config(struct ksz_device *dev,
 	return ksz_ptp_enable_mode(dev);
 }
 
-int ksz_hwtstamp_set(struct dsa_switch *ds, int port, struct ifreq *ifr)
+int ksz_hwtstamp_set(struct dsa_switch *ds, int port,
+		     struct kernel_hwtstamp_config *config,
+		     struct netlink_ext_ack *extack)
 {
 	struct ksz_device *dev = ds->priv;
-	struct hwtstamp_config config;
 	struct ksz_port *prt;
 	int ret;
 
 	prt = &dev->ports[port];
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
-
-	ret = ksz_set_hwtstamp_config(dev, prt, &config);
+	ret = ksz_set_hwtstamp_config(dev, prt, config);
 	if (ret)
 		return ret;
 
-	memcpy(&prt->tstamp_config, &config, sizeof(config));
-
-	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
-		return -EFAULT;
+	prt->tstamp_config = *config;
 
 	return 0;
 }
