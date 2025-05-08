@@ -890,6 +890,7 @@ static int sve_set_common(struct task_struct *target,
 	struct user_sve_header header;
 	unsigned int vq;
 	unsigned long start, end;
+	bool fpsimd;
 
 	/* Header */
 	if (count < sizeof(header))
@@ -898,6 +899,15 @@ static int sve_set_common(struct task_struct *target,
 				 0, sizeof(header));
 	if (ret)
 		goto out;
+
+	/*
+	 * Streaming SVE data is always stored and presented in SVE format.
+	 * Require the user to provide SVE formatted data for consistency, and
+	 * to avoid the risk that we configure the task into an invalid state.
+	 */
+	fpsimd = (header.flags & SVE_PT_REGS_MASK) == SVE_PT_REGS_FPSIMD;
+	if (fpsimd && type == ARM64_VEC_SME)
+		return -EINVAL;
 
 	/*
 	 * Apart from SVE_PT_REGS_MASK, all SVE_PT_* flags are consumed by
@@ -945,7 +955,7 @@ static int sve_set_common(struct task_struct *target,
 	/* Registers: FPSIMD-only case */
 
 	BUILD_BUG_ON(SVE_PT_FPSIMD_OFFSET != sizeof(header));
-	if ((header.flags & SVE_PT_REGS_MASK) == SVE_PT_REGS_FPSIMD) {
+	if (fpsimd) {
 		clear_tsk_thread_flag(target, TIF_SVE);
 		target->thread.fp_type = FP_STATE_FPSIMD;
 		ret = __fpr_set(target, regset, pos, count, kbuf, ubuf,
