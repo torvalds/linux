@@ -455,7 +455,7 @@ priority_bands_fops_write(struct file *file, const char __user *user_buf, size_t
 	if (ret < 0)
 		return ret;
 
-	buf[size] = '\0';
+	buf[ret] = '\0';
 	ret = sscanf(buf, "%u %u %u %u", &band, &grace_period, &process_grace_period,
 		     &process_quantum);
 	if (ret != 4)
