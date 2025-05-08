@@ -1754,7 +1754,7 @@ struct ext4_sb_info {
 	 * following fields:
 	 * ei->i_fc_list, s_fc_dentry_q, s_fc_q, s_fc_bytes, s_fc_bh.
 	 */
-	spinlock_t s_fc_lock;
+	struct mutex s_fc_lock;
 	struct buffer_head *s_fc_bh;
 	struct ext4_fc_stats s_fc_stats;
 	tid_t s_fc_ineligible_tid;
