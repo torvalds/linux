@@ -62,8 +62,7 @@ static DEFINE_MUTEX(nvmet_pci_epf_ports_mutex);
 #define NVMET_PCI_EPF_CQ_RETRY_INTERVAL	msecs_to_jiffies(1)
 
 enum nvmet_pci_epf_queue_flags {
-	NVMET_PCI_EPF_Q_IS_SQ = 0,	/* The queue is a submission queue */
-	NVMET_PCI_EPF_Q_LIVE,		/* The queue is live */
+	NVMET_PCI_EPF_Q_LIVE = 0,	/* The queue is live */
 	NVMET_PCI_EPF_Q_IRQ_ENABLED,	/* IRQ is enabled for this queue */
 };
 
@@ -1542,7 +1541,6 @@ static void nvmet_pci_epf_init_queue(struct nvmet_pci_epf_ctrl *ctrl,
 
 	if (sq) {
 		queue = &ctrl->sq[qid];
-		set_bit(NVMET_PCI_EPF_Q_IS_SQ, &queue->flags);
 	} else {
 		queue = &ctrl->cq[qid];
 		INIT_DELAYED_WORK(&queue->work, nvmet_pci_epf_cq_work);
