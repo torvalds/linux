@@ -535,8 +535,10 @@ static int mlxreg_dpu_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 
 	mlxreg_dpu = devm_kzalloc(&pdev->dev, sizeof(*mlxreg_dpu), GFP_KERNEL);
-	if (!mlxreg_dpu)
-		return -ENOMEM;
+	if (!mlxreg_dpu) {
+		err = -ENOMEM;
+		goto alloc_fail;
+	}
 
 	/* Create device at the top of DPU I2C tree. */
 	data->hpdev.client = i2c_new_client_device(data->hpdev.adapter,
@@ -562,7 +564,6 @@ static int mlxreg_dpu_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "Failed to sync regmap for client %s at bus %d at addr 0x%02x\n",
 			data->hpdev.brdinfo->type, data->hpdev.nr, data->hpdev.brdinfo->addr);
-		err = PTR_ERR(regmap);
 		goto regcache_sync_fail;
 	}
 
@@ -581,6 +582,7 @@ regcache_sync_fail:
 devm_regmap_init_i2c_fail:
 	i2c_unregister_device(data->hpdev.client);
 i2c_new_device_fail:
+alloc_fail:
 	i2c_put_adapter(data->hpdev.adapter);
 	return err;
 }
