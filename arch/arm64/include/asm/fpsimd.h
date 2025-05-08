@@ -111,6 +111,8 @@ static inline bool thread_za_enabled(struct thread_struct *thread)
 	return system_supports_sme() && (thread->svcr & SVCR_ZA_MASK);
 }
 
+extern void task_smstop_sm(struct task_struct *task);
+
 /* Maximum VL that SVE/SME VL-agnostic software can transparently support */
 #define VL_ARCH_MAX 0x100
 

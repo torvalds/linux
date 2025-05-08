@@ -695,6 +695,28 @@ static inline void sve_to_fpsimd(struct task_struct *task)
 	}
 }
 
+static inline void __fpsimd_zero_vregs(struct user_fpsimd_state *fpsimd)
+{
+	memset(&fpsimd->vregs, 0, sizeof(fpsimd->vregs));
+}
+
+/*
+ * Simulate the effects of an SMSTOP SM instruction.
+ */
+void task_smstop_sm(struct task_struct *task)
+{
+	if (!thread_sm_enabled(&task->thread))
+		return;
+
+	__fpsimd_zero_vregs(&task->thread.uw.fpsimd_state);
+	task->thread.uw.fpsimd_state.fpsr = 0x0800009f;
+	if (system_supports_fpmr())
+		task->thread.uw.fpmr = 0;
+
+	task->thread.svcr &= ~SVCR_SM_MASK;
+	task->thread.fp_type = FP_STATE_FPSIMD;
+}
+
 void cpu_enable_fpmr(const struct arm64_cpu_capabilities *__always_unused p)
 {
 	write_sysreg_s(read_sysreg_s(SYS_SCTLR_EL1) | SCTLR_EL1_EnFPM_MASK,
