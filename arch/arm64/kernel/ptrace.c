@@ -820,14 +820,14 @@ static int sve_get_common(struct task_struct *target,
 	unsigned int vq;
 	unsigned long start, end;
 
+	if (target == current)
+		fpsimd_preserve_current_state();
+
 	/* Header */
 	sve_init_header_from_task(&header, target, type);
 	vq = sve_vq_from_vl(header.vl);
 
 	membuf_write(&to, &header, sizeof(header));
-
-	if (target == current)
-		fpsimd_preserve_current_state();
 
 	BUILD_BUG_ON(SVE_PT_FPSIMD_OFFSET != sizeof(header));
 	BUILD_BUG_ON(SVE_PT_SVE_OFFSET != sizeof(header));
