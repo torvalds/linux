@@ -74,6 +74,8 @@ static enum cpuhp_state tpmi_hp_state __read_mostly;
 
 static cpumask_t *tpmi_power_domain_mask;
 
+static u16 *domain_die_map;
+
 /* Lock to protect tpmi_power_domain_mask and tpmi_cpu_hash */
 static DEFINE_MUTEX(tpmi_lock);
 
@@ -152,6 +154,15 @@ cpumask_t *tpmi_get_power_domain_mask(int cpu_no)
 }
 EXPORT_SYMBOL_NS_GPL(tpmi_get_power_domain_mask, "INTEL_TPMI_POWER_DOMAIN");
 
+int tpmi_get_linux_die_id(int pkg_id, int domain_id)
+{
+	if (pkg_id >= topology_max_packages() || domain_id >= MAX_POWER_DOMAINS)
+		return -EINVAL;
+
+	return domain_die_map[pkg_id * MAX_POWER_DOMAINS + domain_id];
+}
+EXPORT_SYMBOL_NS_GPL(tpmi_get_linux_die_id, "INTEL_TPMI_POWER_DOMAIN");
+
 static int tpmi_get_logical_id(unsigned int cpu, struct tpmi_cpu_info *info)
 {
 	u64 data;
@@ -189,6 +200,9 @@ static int tpmi_cpu_online(unsigned int cpu)
 	cpumask_set_cpu(cpu, &tpmi_power_domain_mask[index]);
 	hash_add(tpmi_cpu_hash, &info->hnode, info->punit_core_id);
 
+	domain_die_map[info->pkg_id * MAX_POWER_DOMAINS + info->punit_domain_id] =
+			topology_die_id(cpu);
+
 	return 0;
 }
 
@@ -212,17 +226,28 @@ static int __init tpmi_init(void)
 	if (!tpmi_power_domain_mask)
 		return -ENOMEM;
 
+	domain_die_map = kcalloc(size_mul(topology_max_packages(), MAX_POWER_DOMAINS),
+				 sizeof(*domain_die_map), GFP_KERNEL);
+	if (!domain_die_map)
+		goto free_domain_mask;
+
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
 				"platform/x86/tpmi_power_domains:online",
 				tpmi_cpu_online, NULL);
-	if (ret < 0) {
-		kfree(tpmi_power_domain_mask);
-		return ret;
-	}
+	if (ret < 0)
+		goto free_domain_map;
 
 	tpmi_hp_state = ret;
 
 	return 0;
+
+free_domain_map:
+	kfree(domain_die_map);
+
+free_domain_mask:
+	kfree(tpmi_power_domain_mask);
+
+	return ret;
 }
 module_init(tpmi_init)
 
@@ -230,6 +255,7 @@ static void __exit tpmi_exit(void)
 {
 	cpuhp_remove_state(tpmi_hp_state);
 	kfree(tpmi_power_domain_mask);
+	kfree(domain_die_map);
 }
 module_exit(tpmi_exit)
 
