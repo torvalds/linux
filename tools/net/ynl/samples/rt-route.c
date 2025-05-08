@@ -26,13 +26,13 @@ static void rt_route_print(struct rt_route_getroute_rsp *r)
 			printf("oif: %-16s ", name);
 	}
 
-	if (r->_present.dst_len) {
+	if (r->_len.dst) {
 		route = inet_ntop(r->_hdr.rtm_family, r->dst,
 				  route_str, sizeof(route_str));
 		printf("dst: %s/%d", route, r->_hdr.rtm_dst_len);
 	}
 
-	if (r->_present.gateway_len) {
+	if (r->_len.gateway) {
 		route = inet_ntop(r->_hdr.rtm_family, r->gateway,
 				  route_str, sizeof(route_str));
 		printf("gateway: %s ", route);
