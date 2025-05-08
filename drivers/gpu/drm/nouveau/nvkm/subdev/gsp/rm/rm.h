@@ -147,7 +147,8 @@ extern const struct nvkm_rm_api_alloc r535_alloc;
 extern const struct nvkm_rm_api_client r535_client;
 void r535_gsp_client_dtor(struct nvkm_gsp_client *);
 extern const struct nvkm_rm_api_device r535_device;
-int r535_mmu_vaspace_new(struct nvkm_vmm *, u32 handle);
+int r535_mmu_vaspace_new(struct nvkm_vmm *, u32 handle, bool external);
+void r535_mmu_vaspace_del(struct nvkm_vmm *);
 extern const struct nvkm_rm_api_fbsr r535_fbsr;
 void r535_fbsr_resume(struct nvkm_gsp *);
 int r535_fbsr_memlist(struct nvkm_gsp_device *, u32 handle, enum nvkm_memory_target,

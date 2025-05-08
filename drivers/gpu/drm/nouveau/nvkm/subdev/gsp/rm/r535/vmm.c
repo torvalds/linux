@@ -21,10 +21,36 @@
  */
 #include <subdev/mmu/vmm.h>
 
+#include <nvhw/drf.h>
 #include "nvrm/vmm.h"
 
+void
+r535_mmu_vaspace_del(struct nvkm_vmm *vmm)
+{
+	if (vmm->rm.external) {
+		NV0080_CTRL_DMA_UNSET_PAGE_DIRECTORY_PARAMS *ctrl;
+
+		ctrl = nvkm_gsp_rm_ctrl_get(&vmm->rm.device.object,
+					    NV0080_CTRL_CMD_DMA_UNSET_PAGE_DIRECTORY,
+					    sizeof(*ctrl));
+		if (!IS_ERR(ctrl)) {
+			ctrl->hVASpace = vmm->rm.object.handle;
+
+			WARN_ON(nvkm_gsp_rm_ctrl_wr(&vmm->rm.device.object, ctrl));
+		}
+
+		vmm->rm.external = false;
+	}
+
+	nvkm_gsp_rm_free(&vmm->rm.object);
+	nvkm_gsp_device_dtor(&vmm->rm.device);
+	nvkm_gsp_client_dtor(&vmm->rm.client);
+
+	nvkm_vmm_put(vmm, &vmm->rm.rsvd);
+}
+
 int
-r535_mmu_vaspace_new(struct nvkm_vmm *vmm, u32 handle)
+r535_mmu_vaspace_new(struct nvkm_vmm *vmm, u32 handle, bool external)
 {
 	NV_VASPACE_ALLOCATION_PARAMETERS *args;
 	int ret;
@@ -40,12 +66,14 @@ r535_mmu_vaspace_new(struct nvkm_vmm *vmm, u32 handle)
 		return PTR_ERR(args);
 
 	args->index = NV_VASPACE_ALLOCATION_INDEX_GPU_NEW;
+	if (external)
+		args->flags = NV_VASPACE_ALLOCATION_FLAGS_IS_EXTERNALLY_OWNED;
 
 	ret = nvkm_gsp_rm_alloc_wr(&vmm->rm.object, args);
 	if (ret)
 		return ret;
 
-	{
+	if (!external) {
 		NV90F1_CTRL_VASPACE_COPY_SERVER_RESERVED_PDES_PARAMS *ctrl;
 
 		mutex_lock(&vmm->mutex.vmm);
@@ -54,6 +82,11 @@ r535_mmu_vaspace_new(struct nvkm_vmm *vmm, u32 handle)
 		mutex_unlock(&vmm->mutex.vmm);
 		if (ret)
 			return ret;
+
+		/* Some parts of RM expect the server-reserved area to be in a specific location. */
+		if (WARN_ON(vmm->rm.rsvd->addr != SPLIT_VAS_SERVER_RM_MANAGED_VA_START ||
+			    vmm->rm.rsvd->size != SPLIT_VAS_SERVER_RM_MANAGED_VA_SIZE))
+			return -EINVAL;
 
 		ctrl = nvkm_gsp_rm_ctrl_get(&vmm->rm.object,
 					    NV90F1_CTRL_CMD_VASPACE_COPY_SERVER_RESERVED_PDES,
@@ -73,14 +106,29 @@ r535_mmu_vaspace_new(struct nvkm_vmm *vmm, u32 handle)
 		ctrl->levels[1].size = 0x1000;
 		ctrl->levels[1].aperture = 1;
 		ctrl->levels[1].pageShift = 0x26;
-		if (vmm->pd->pde[0]->pde[0]) {
-			ctrl->levels[2].physAddress = vmm->pd->pde[0]->pde[0]->pt[0]->addr;
-			ctrl->levels[2].size = 0x1000;
-			ctrl->levels[2].aperture = 1;
-			ctrl->levels[2].pageShift = 0x1d;
-		}
+		ctrl->levels[2].physAddress = vmm->pd->pde[0]->pde[0]->pt[0]->addr;
+		ctrl->levels[2].size = 0x1000;
+		ctrl->levels[2].aperture = 1;
+		ctrl->levels[2].pageShift = 0x1d;
 
 		ret = nvkm_gsp_rm_ctrl_wr(&vmm->rm.object, ctrl);
+	} else {
+		NV0080_CTRL_DMA_SET_PAGE_DIRECTORY_PARAMS *ctrl;
+
+		ctrl = nvkm_gsp_rm_ctrl_get(&vmm->rm.device.object,
+					    NV0080_CTRL_CMD_DMA_SET_PAGE_DIRECTORY,
+					    sizeof(*ctrl));
+		if (IS_ERR(ctrl))
+			return PTR_ERR(ctrl);
+
+		ctrl->physAddress = vmm->pd->pt[0]->addr;
+		ctrl->numEntries = 1 << vmm->func->page[0].desc->bits;
+		ctrl->flags = NVDEF(NV0080_CTRL_DMA_SET_PAGE_DIRECTORY, FLAGS, APERTURE, VIDMEM);
+		ctrl->hVASpace = vmm->rm.object.handle;
+
+		ret = nvkm_gsp_rm_ctrl_wr(&vmm->rm.device.object, ctrl);
+		if (ret == 0)
+			vmm->rm.external = true;
 	}
 
 	return ret;
@@ -89,7 +137,7 @@ r535_mmu_vaspace_new(struct nvkm_vmm *vmm, u32 handle)
 static int
 r535_mmu_promote_vmm(struct nvkm_vmm *vmm)
 {
-	return r535_mmu_vaspace_new(vmm, NVKM_RM_VASPACE);
+	return r535_mmu_vaspace_new(vmm, NVKM_RM_VASPACE, true);
 }
 
 static void

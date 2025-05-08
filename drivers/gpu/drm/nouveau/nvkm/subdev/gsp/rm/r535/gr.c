@@ -276,7 +276,6 @@ r535_gr_oneinit(struct nvkm_gr *base)
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_gsp *gsp = device->gsp;
 	struct nvkm_rm *rm = gsp->rm;
-	struct nvkm_mmu *mmu = device->mmu;
 	struct {
 		struct nvkm_memory *inst;
 		struct nvkm_vmm *vmm;
@@ -295,7 +294,7 @@ r535_gr_oneinit(struct nvkm_gr *base)
 	if (ret)
 		goto done;
 
-	ret = mmu->func->promote_vmm(golden.vmm);
+	ret = r535_mmu_vaspace_new(golden.vmm, NVKM_RM_VASPACE, false);
 	if (ret)
 		goto done;
 

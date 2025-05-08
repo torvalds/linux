@@ -126,7 +126,7 @@ r570_gr_scrubber_init(struct r535_gr *gr)
 	if (ret)
 		goto done;
 
-	ret = r535_mmu_vaspace_new(gr->scrubber.vmm, KGRAPHICS_SCRUBBER_HANDLE_VAS);
+	ret = r535_mmu_vaspace_new(gr->scrubber.vmm, KGRAPHICS_SCRUBBER_HANDLE_VAS, false);
 	if (ret)
 		goto done;
 

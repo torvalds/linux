@@ -73,6 +73,7 @@ struct nvkm_vmm {
 		struct nvkm_gsp_object object;
 
 		struct nvkm_vma *rsvd;
+		bool external;
 	} rm;
 };
 
