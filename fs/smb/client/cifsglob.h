@@ -556,7 +556,7 @@ struct smb_version_operations {
 	void (*set_oplock_level)(struct cifsInodeInfo *cinode, __u32 oplock, __u16 epoch,
 				 bool *purge_cache);
 	/* create lease context buffer for CREATE request */
-	char * (*create_lease_buf)(u8 *lease_key, u8 oplock);
+	char * (*create_lease_buf)(u8 *lease_key, u8 oplock, u8 *parent_lease_key, __le32 le_flags);
 	/* parse lease context buffer and return oplock/epoch info */
 	__u8 (*parse_lease_buf)(void *buf, __u16 *epoch, char *lkey);
 	ssize_t (*copychunk_range)(const unsigned int,
@@ -1442,6 +1442,7 @@ struct cifs_open_parms {
 	bool reconnect:1;
 	bool replay:1; /* indicates that this open is for a replay */
 	struct kvec *ea_cctx;
+	__le32 lease_flags;
 };
 
 struct cifs_fid {
@@ -1449,6 +1450,7 @@ struct cifs_fid {
 	__u64 persistent_fid;	/* persist file id for smb2 */
 	__u64 volatile_fid;	/* volatile file id for smb2 */
 	__u8 lease_key[SMB2_LEASE_KEY_SIZE];	/* lease key for smb2 */
+	__u8 parent_lease_key[SMB2_LEASE_KEY_SIZE];
 	__u8 create_guid[16];
 	__u32 access;
 	struct cifs_pending_open *pending_open;

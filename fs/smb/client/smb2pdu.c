@@ -2392,11 +2392,16 @@ static int
 add_lease_context(struct TCP_Server_Info *server,
 		  struct smb2_create_req *req,
 		  struct kvec *iov,
-		  unsigned int *num_iovec, u8 *lease_key, __u8 *oplock)
+		  unsigned int *num_iovec,
+		  u8 *lease_key,
+		  __u8 *oplock,
+		  u8 *parent_lease_key,
+		  __le32 flags)
 {
 	unsigned int num = *num_iovec;
 
-	iov[num].iov_base = server->ops->create_lease_buf(lease_key, *oplock);
+	iov[num].iov_base = server->ops->create_lease_buf(lease_key, *oplock,
+							  parent_lease_key, flags);
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
 	iov[num].iov_len = server->vals->create_lease_size;
@@ -3069,7 +3074,9 @@ SMB2_open_init(struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 		req->RequestedOplockLevel = *oplock; /* no srv lease support */
 	else {
 		rc = add_lease_context(server, req, iov, &n_iov,
-				       oparms->fid->lease_key, oplock);
+				       oparms->fid->lease_key, oplock,
+				       oparms->fid->parent_lease_key,
+				       oparms->lease_flags);
 		if (rc)
 			return rc;
 	}
