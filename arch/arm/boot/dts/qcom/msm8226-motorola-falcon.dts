@@ -106,6 +106,7 @@
 };
 
 &blsp1_i2c2 {
+	clock-frequency = <100000>;
 	status = "okay";
 
 	magnetometer@c {
@@ -135,6 +136,7 @@
 };
 
 &blsp1_i2c3 {
+	clock-frequency = <400000>;
 	status = "okay";
 
 	regulator@3e {
