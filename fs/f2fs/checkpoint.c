@@ -340,7 +340,7 @@ void f2fs_ra_meta_pages_cond(struct f2fs_sb_info *sbi, pgoff_t index,
 		f2fs_ra_meta_pages(sbi, index, ra_blocks, META_POR, true);
 }
 
-static int __f2fs_write_meta_folio(struct folio *folio,
+static bool __f2fs_write_meta_folio(struct folio *folio,
 				struct writeback_control *wbc,
 				enum iostat_type io_type)
 {
@@ -353,7 +353,7 @@ static int __f2fs_write_meta_folio(struct folio *folio,
 			folio_clear_uptodate(folio);
 			dec_page_count(sbi, F2FS_DIRTY_META);
 			folio_unlock(folio);
-			return 0;
+			return true;
 		}
 		goto redirty_out;
 	}
@@ -373,11 +373,11 @@ static int __f2fs_write_meta_folio(struct folio *folio,
 	if (unlikely(f2fs_cp_error(sbi)))
 		f2fs_submit_merged_write(sbi, META);
 
-	return 0;
+	return true;
 
 redirty_out:
 	folio_redirty_for_writepage(wbc, folio);
-	return AOP_WRITEPAGE_ACTIVATE;
+	return false;
 }
 
 static int f2fs_write_meta_pages(struct address_space *mapping,
@@ -461,7 +461,7 @@ continue_unlock:
 			if (!folio_clear_dirty_for_io(folio))
 				goto continue_unlock;
 
-			if (__f2fs_write_meta_folio(folio, &wbc,
+			if (!__f2fs_write_meta_folio(folio, &wbc,
 						io_type)) {
 				folio_unlock(folio);
 				break;
@@ -1409,7 +1409,6 @@ static void commit_checkpoint(struct f2fs_sb_info *sbi,
 	 * f2fs_sync_meta_pages are combined in this function.
 	 */
 	struct folio *folio = f2fs_grab_meta_folio(sbi, blk_addr);
-	int err;
 
 	memcpy(folio_address(folio), src, PAGE_SIZE);
 
@@ -1418,13 +1417,14 @@ static void commit_checkpoint(struct f2fs_sb_info *sbi,
 		f2fs_bug_on(sbi, 1);
 
 	/* writeout cp pack 2 page */
-	err = __f2fs_write_meta_folio(folio, &wbc, FS_CP_META_IO);
-	if (unlikely(err && f2fs_cp_error(sbi))) {
-		f2fs_folio_put(folio, true);
-		return;
+	if (unlikely(!__f2fs_write_meta_folio(folio, &wbc, FS_CP_META_IO))) {
+		if (f2fs_cp_error(sbi)) {
+			f2fs_folio_put(folio, true);
+			return;
+		}
+		f2fs_bug_on(sbi, true);
 	}
 
-	f2fs_bug_on(sbi, err);
 	f2fs_folio_put(folio, false);
 
 	/* submit checkpoint (with barrier if NOBARRIER is not set) */
