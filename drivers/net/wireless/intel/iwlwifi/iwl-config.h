@@ -340,7 +340,6 @@ struct iwl_fw_mon_regs {
  * @smem_offset: offset from which the SMEM begins
  * @smem_len: the length of SMEM
  * @vht_mu_mimo_supported: VHT MU-MIMO support
- * @cdb: CDB support
  * @nvm_type: see &enum iwl_nvm_type
  * @d3_debug_data_base_addr: base address where D3 debug data is stored
  * @d3_debug_data_length: length of the D3 debug data
@@ -386,7 +385,6 @@ struct iwl_cfg {
 	    lp_xtal_workaround:1,
 	    apmg_not_supported:1,
 	    vht_mu_mimo_supported:1,
-	    cdb:1,
 	    dbgc_supported:1,
 	    uhb_supported:1;
 	u8 valid_tx_ant;
