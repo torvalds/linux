@@ -201,6 +201,10 @@ const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 	case IWL_CFG_MAC_TYPE_QU:
 		mac = "Qu";
 		break;
+	case IWL_CFG_MAC_TYPE_CC:
+		/* special case - no RF since it's fixed (discrete) */
+		scnprintf(buf, FW_NAME_PRE_BUFSIZE, "iwlwifi-cc-a0");
+		return buf;
 	case IWL_CFG_MAC_TYPE_QUZ:
 		mac = "QuZ";
 		/* all QuZ use A0 firmware */
