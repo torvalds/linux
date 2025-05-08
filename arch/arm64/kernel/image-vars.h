@@ -53,10 +53,6 @@ PROVIDE(__pi_is_midr_in_range_list	= is_midr_in_range_list);
 #endif
 PROVIDE(__pi__ctype			= _ctype);
 
-PROVIDE(__pi_init_idmap_pg_dir		= init_idmap_pg_dir);
-PROVIDE(__pi_init_idmap_pg_end		= init_idmap_pg_end);
-PROVIDE(__pi_init_pg_dir		= init_pg_dir);
-PROVIDE(__pi_init_pg_end		= init_pg_end);
 PROVIDE(__pi_swapper_pg_dir		= swapper_pg_dir);
 
 PROVIDE(__pi__text			= _text);

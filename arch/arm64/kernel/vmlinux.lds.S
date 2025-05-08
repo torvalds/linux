@@ -249,9 +249,9 @@ SECTIONS
 	__inittext_end = .;
 	__initdata_begin = .;
 
-	init_idmap_pg_dir = .;
+	__pi_init_idmap_pg_dir = .;
 	. += INIT_IDMAP_DIR_SIZE;
-	init_idmap_pg_end = .;
+	__pi_init_idmap_pg_end = .;
 
 	.init.data : {
 		INIT_DATA
@@ -321,9 +321,9 @@ SECTIONS
 	BSS_SECTION(SBSS_ALIGN, 0, 0)
 
 	. = ALIGN(PAGE_SIZE);
-	init_pg_dir = .;
+	__pi_init_pg_dir = .;
 	. += INIT_DIR_SIZE;
-	init_pg_end = .;
+	__pi_init_pg_end = .;
 	/* end of zero-init region */
 
 	. += SZ_4K;		/* stack for the early C runtime */
