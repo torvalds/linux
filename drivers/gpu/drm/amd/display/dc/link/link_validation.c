@@ -86,6 +86,10 @@ static bool dp_active_dongle_validate_timing(
 			if (!dongle_caps->is_dp_hdmi_ycbcr420_pass_through)
 				return false;
 			break;
+		case PIXEL_ENCODING_UNDEFINED:
+			/* These color depths are currently not supported */
+			ASSERT(false);
+			break;
 		default:
 			/* Invalid Pixel Encoding*/
 			return false;
@@ -103,6 +107,10 @@ static bool dp_active_dongle_validate_timing(
 		case COLOR_DEPTH_121212:
 			if (dongle_caps->dp_hdmi_max_bpc < 12)
 				return false;
+			break;
+		case COLOR_DEPTH_UNDEFINED:
+			/* These color depths are currently not supported */
+			ASSERT(false);
 			break;
 		case COLOR_DEPTH_141414:
 		case COLOR_DEPTH_161616:
