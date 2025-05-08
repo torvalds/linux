@@ -5,6 +5,7 @@
 
 #include <linux/shrinker.h>
 
+#include <drm/drm_managed.h>
 #include <drm/ttm/ttm_backup.h>
 #include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_tt.h>
@@ -213,24 +214,34 @@ static void xe_shrinker_pm(struct work_struct *work)
 	xe_pm_runtime_put(shrinker->xe);
 }
 
+static void xe_shrinker_fini(struct drm_device *drm, void *arg)
+{
+	struct xe_shrinker *shrinker = arg;
+
+	xe_assert(shrinker->xe, !shrinker->shrinkable_pages);
+	xe_assert(shrinker->xe, !shrinker->purgeable_pages);
+	shrinker_free(shrinker->shrink);
+	flush_work(&shrinker->pm_worker);
+	kfree(shrinker);
+}
+
 /**
  * xe_shrinker_create() - Create an xe per-device shrinker
  * @xe: Pointer to the xe device.
  *
- * Returns: A pointer to the created shrinker on success,
- * Negative error code on failure.
+ * Return: %0 on success. Negative error code on failure.
  */
-struct xe_shrinker *xe_shrinker_create(struct xe_device *xe)
+int xe_shrinker_create(struct xe_device *xe)
 {
 	struct xe_shrinker *shrinker = kzalloc(sizeof(*shrinker), GFP_KERNEL);
 
 	if (!shrinker)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	shrinker->shrink = shrinker_alloc(0, "drm-xe_gem:%s", xe->drm.unique);
 	if (!shrinker->shrink) {
 		kfree(shrinker);
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	INIT_WORK(&shrinker->pm_worker, xe_shrinker_pm);
@@ -240,19 +251,7 @@ struct xe_shrinker *xe_shrinker_create(struct xe_device *xe)
 	shrinker->shrink->scan_objects = xe_shrinker_scan;
 	shrinker->shrink->private_data = shrinker;
 	shrinker_register(shrinker->shrink);
+	xe->mem.shrinker = shrinker;
 
-	return shrinker;
-}
-
-/**
- * xe_shrinker_destroy() - Destroy an xe per-device shrinker
- * @shrinker: Pointer to the shrinker to destroy.
- */
-void xe_shrinker_destroy(struct xe_shrinker *shrinker)
-{
-	xe_assert(shrinker->xe, !shrinker->shrinkable_pages);
-	xe_assert(shrinker->xe, !shrinker->purgeable_pages);
-	shrinker_free(shrinker->shrink);
-	flush_work(&shrinker->pm_worker);
-	kfree(shrinker);
+	return drmm_add_action_or_reset(&xe->drm, xe_shrinker_fini, shrinker);
 }
