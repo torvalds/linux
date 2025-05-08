@@ -1183,18 +1183,8 @@ static void sve_write(pid_t child, struct test_config *config)
 
 static bool za_write_supported(struct test_config *config)
 {
-	if (config->sme_vl_in != config->sme_vl_expected) {
-		/* Changing the SME VL exits streaming mode. */
-		if (config->svcr_expected & SVCR_SM) {
-			return false;
-		}
-	} else {
-		/* Otherwise we can't change streaming mode */
-		if ((config->svcr_in & SVCR_SM) !=
-		    (config->svcr_expected & SVCR_SM)) {
-			return false;
-		}
-	}
+	if ((config->svcr_in & SVCR_SM) != (config->svcr_expected & SVCR_SM))
+		return false;
 
 	return true;
 }
@@ -1212,10 +1202,8 @@ static void za_write_expected(struct test_config *config)
 		memset(zt_expected, 0, sizeof(zt_expected));
 	}
 
-	/* Changing the SME VL flushes ZT, SVE state and exits SM */
+	/* Changing the SME VL flushes ZT, SVE state */
 	if (config->sme_vl_in != config->sme_vl_expected) {
-		svcr_expected &= ~SVCR_SM;
-
 		sve_vq = __sve_vq_from_vl(vl_expected(config));
 		memset(z_expected, 0, __SVE_ZREGS_SIZE(sve_vq));
 		memset(p_expected, 0, __SVE_PREGS_SIZE(sve_vq));
