@@ -8,13 +8,13 @@ obj-$(CONFIG_COMMON_CLK_ROCKCHIP) += clk-rockchip.o
 clk-rockchip-y += clk.o
 clk-rockchip-y += clk-pll.o
 clk-rockchip-y += clk-cpu.o
+clk-rockchip-y += clk-gate-grf.o
 clk-rockchip-y += clk-half-divider.o
 clk-rockchip-y += clk-inverter.o
 clk-rockchip-y += clk-mmc-phase.o
 clk-rockchip-y += clk-muxgrf.o
 clk-rockchip-y += clk-ddr.o
 clk-rockchip-y += gate-link.o
-clk-rockchip-y += gate-grf.o
 clk-rockchip-$(CONFIG_RESET_CONTROLLER) += softrst.o
 
 obj-$(CONFIG_CLK_PX30)          += clk-px30.o
