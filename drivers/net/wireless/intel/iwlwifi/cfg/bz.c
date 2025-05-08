@@ -71,7 +71,6 @@ static const struct iwl_base_params iwl_bz_base_params = {
 	.mac_addr_from_csr = 0x30,					\
 	.nvm_ver = IWL_BZ_NVM_VERSION,				\
 	.nvm_type = IWL_NVM_EXT,					\
-	.dbgc_supported = true,						\
 	.min_umac_error_event_table = 0xD0000,				\
 	.d3_debug_data_base_addr = 0x401000,				\
 	.d3_debug_data_length = 60 * 1024,				\

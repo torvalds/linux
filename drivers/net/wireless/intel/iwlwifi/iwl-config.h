@@ -385,7 +385,6 @@ struct iwl_cfg {
 	    lp_xtal_workaround:1,
 	    apmg_not_supported:1,
 	    vht_mu_mimo_supported:1,
-	    dbgc_supported:1,
 	    uhb_supported:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;

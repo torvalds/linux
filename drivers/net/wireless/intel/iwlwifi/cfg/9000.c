@@ -85,7 +85,6 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 	.vht_mu_mimo_supported = true,					\
 	.mac_addr_from_csr = 0x380,					\
 	.nvm_type = IWL_NVM_EXT,					\
-	.dbgc_supported = true,						\
 	.min_umac_error_event_table = 0x800000,				\
 	.d3_debug_data_base_addr = 0x401000,				\
 	.d3_debug_data_length = 92 * 1024,				\

@@ -87,7 +87,6 @@ const struct iwl_mac_cfg iwl8000_mac_cfg = {
 	.thermal_params = &iwl8000_tt_params,				\
 	.apmg_not_supported = true,					\
 	.nvm_type = IWL_NVM_EXT,					\
-	.dbgc_supported = true,						\
 	.min_umac_error_event_table = 0x800000
 
 #define IWL_DEVICE_8260							\

@@ -81,7 +81,6 @@ static const struct iwl_base_params iwl_ax210_base_params = {
 	},								\
 	.nvm_ver = IWL_AX210_NVM_VERSION,				\
 	.nvm_type = IWL_NVM_EXT,					\
-	.dbgc_supported = true,						\
 	.min_umac_error_event_table = 0x400000,				\
 	.d3_debug_data_base_addr = 0x401000,				\
 	.d3_debug_data_length = 60 * 1024,				\
