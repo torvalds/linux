@@ -274,7 +274,7 @@ then
 	configs_rcutorture=CFLIST
 fi
 duration_rcutorture=$((duration_base*duration_rcutorture_frac/10))
-if test "$duration_rcutorture" -eq 0
+if test "$duration_rcutorture" -eq 0 && test "$do_locktorture" = "yes"
 then
 	echo " --- Zero time for rcutorture, disabling" | tee -a $T/log
 	do_rcutorture=no
@@ -286,7 +286,7 @@ then
 	configs_locktorture=CFLIST
 fi
 duration_locktorture=$((duration_base*duration_locktorture_frac/10))
-if test "$duration_locktorture" -eq 0
+if test "$duration_locktorture" -eq 0 && test "$do_locktorture" = "yes"
 then
 	echo " --- Zero time for locktorture, disabling" | tee -a $T/log
 	do_locktorture=no
@@ -298,7 +298,7 @@ then
 	configs_scftorture=CFLIST
 fi
 duration_scftorture=$((duration_base*duration_scftorture_frac/10))
-if test "$duration_scftorture" -eq 0
+if test "$duration_scftorture" -eq 0 && test "$do_scftorture" = "yes"
 then
 	echo " --- Zero time for scftorture, disabling" | tee -a $T/log
 	do_scftorture=no
