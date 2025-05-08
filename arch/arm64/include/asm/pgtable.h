@@ -837,8 +837,7 @@ static inline int pmd_trans_huge(pmd_t pmd)
 	 * If pmd is present-invalid, pmd_table() won't detect it
 	 * as a table, so force the valid bit for the comparison.
 	 */
-	return pmd_val(pmd) && pmd_present(pmd) &&
-	       !pmd_table(__pmd(pmd_val(pmd) | PTE_VALID));
+	return pmd_present(pmd) && !pmd_table(__pmd(pmd_val(pmd) | PTE_VALID));
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
