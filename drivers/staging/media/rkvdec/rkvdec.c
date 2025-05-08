@@ -11,6 +11,7 @@
 
 #include <linux/clk.h>
 #include <linux/interrupt.h>
+#include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -1055,23 +1056,41 @@ static void rkvdec_v4l2_cleanup(struct rkvdec_dev *rkvdec)
 	v4l2_device_unregister(&rkvdec->v4l2_dev);
 }
 
+static void rkvdec_iommu_restore(struct rkvdec_dev *rkvdec)
+{
+	if (rkvdec->empty_domain) {
+		/*
+		 * To rewrite mapping into the attached IOMMU core, attach a new empty domain that
+		 * will program an empty table, then detach it to restore the default domain and
+		 * all cached mappings.
+		 * This is safely done in this interrupt handler to make sure no memory get mapped
+		 * through the IOMMU while the empty domain is attached.
+		 */
+		iommu_attach_device(rkvdec->empty_domain, rkvdec->dev);
+		iommu_detach_device(rkvdec->empty_domain, rkvdec->dev);
+	}
+}
+
 static irqreturn_t rkvdec_irq_handler(int irq, void *priv)
 {
 	struct rkvdec_dev *rkvdec = priv;
+	struct rkvdec_ctx *ctx = v4l2_m2m_get_curr_priv(rkvdec->m2m_dev);
 	enum vb2_buffer_state state;
 	u32 status;
 
 	status = readl(rkvdec->regs + RKVDEC_REG_INTERRUPT);
-	state = (status & RKVDEC_RDY_STA) ?
-		VB2_BUF_STATE_DONE : VB2_BUF_STATE_ERROR;
-
 	writel(0, rkvdec->regs + RKVDEC_REG_INTERRUPT);
-	if (cancel_delayed_work(&rkvdec->watchdog_work)) {
-		struct rkvdec_ctx *ctx;
 
-		ctx = v4l2_m2m_get_curr_priv(rkvdec->m2m_dev);
-		rkvdec_job_finish(ctx, state);
+	if (status & RKVDEC_RDY_STA) {
+		state = VB2_BUF_STATE_DONE;
+	} else {
+		state = VB2_BUF_STATE_ERROR;
+		if (status & RKVDEC_SOFTRESET_RDY)
+			rkvdec_iommu_restore(rkvdec);
 	}
+
+	if (cancel_delayed_work(&rkvdec->watchdog_work))
+		rkvdec_job_finish(ctx, state);
 
 	return IRQ_HANDLED;
 }
@@ -1140,6 +1159,13 @@ static int rkvdec_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	if (iommu_get_domain_for_dev(&pdev->dev)) {
+		rkvdec->empty_domain = iommu_paging_domain_alloc(rkvdec->dev);
+
+		if (!rkvdec->empty_domain)
+			dev_warn(rkvdec->dev, "cannot alloc new empty domain\n");
+	}
+
 	vb2_dma_contig_set_max_seg_size(&pdev->dev, DMA_BIT_MASK(32));
 
 	irq = platform_get_irq(pdev, 0);
@@ -1179,6 +1205,9 @@ static void rkvdec_remove(struct platform_device *pdev)
 	rkvdec_v4l2_cleanup(rkvdec);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
+
+	if (rkvdec->empty_domain)
+		iommu_domain_free(rkvdec->empty_domain);
 }
 
 #ifdef CONFIG_PM
