@@ -2232,6 +2232,7 @@ rcutorture_loop_extend(int *readstate, bool insoftirq, struct torture_random_sta
 	i = ((i | (i >> 3)) & RCUTORTURE_RDR_MAX_LOOPS) + 1;
 	for (j = 0; j < i; j++) {
 		mask = rcutorture_extend_mask(*readstate, trsp);
+		WARN_ON_ONCE(mask & RCUTORTURE_RDR_UPDOWN);
 		rcutorture_one_extend(readstate, mask, insoftirq, trsp, &rtrsp[j]);
 	}
 	return &rtrsp[j];
@@ -2368,6 +2369,7 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 	WARN_ON_ONCE(!rcu_is_watching());
 	init_rcu_torture_one_read_state(&rtors, trsp);
 	newstate = rcutorture_extend_mask(rtors.readstate, trsp);
+	WARN_ON_ONCE(newstate & RCUTORTURE_RDR_UPDOWN);
 	rcutorture_one_extend(&rtors.readstate, newstate, myid < 0, trsp, rtors.rtrsp++);
 	if (!rcu_torture_one_read_start(&rtors, trsp, myid)) {
 		rcutorture_one_extend(&rtors.readstate, 0, myid < 0, trsp, rtors.rtrsp);
