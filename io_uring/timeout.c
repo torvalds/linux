@@ -505,7 +505,7 @@ int io_timeout_remove(struct io_kiocb *req, unsigned int issue_flags)
 	if (ret < 0)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 static int __io_timeout_prep(struct io_kiocb *req,

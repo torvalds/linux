@@ -660,7 +660,7 @@ static int kiocb_done(struct io_kiocb *req, ssize_t ret,
 		io_req_io_end(req);
 		io_req_set_res(req, final_ret, io_put_kbuf(req, ret, issue_flags));
 		io_req_rw_cleanup(req, issue_flags);
-		return IOU_OK;
+		return IOU_COMPLETE;
 	} else {
 		io_rw_done(req, ret);
 	}

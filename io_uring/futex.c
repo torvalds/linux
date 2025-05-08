@@ -234,7 +234,7 @@ int io_futexv_wait(struct io_kiocb *req, unsigned int issue_flags)
 		kfree(futexv);
 		req->async_data = NULL;
 		req->flags &= ~REQ_F_ASYNC_DATA;
-		return IOU_OK;
+		return IOU_COMPLETE;
 	}
 
 	/*
@@ -311,7 +311,7 @@ done:
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
 	kfree(ifd);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 int io_futex_wake(struct io_kiocb *req, unsigned int issue_flags)
@@ -328,5 +328,5 @@ int io_futex_wake(struct io_kiocb *req, unsigned int issue_flags)
 	if (ret < 0)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }

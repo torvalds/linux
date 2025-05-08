@@ -893,7 +893,7 @@ int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
 	ret = __io_arm_poll_handler(req, poll, &ipt, poll->events, issue_flags);
 	if (ret > 0) {
 		io_req_set_res(req, ipt.result_mask, 0);
-		return IOU_OK;
+		return IOU_COMPLETE;
 	}
 	return ret ?: IOU_ISSUE_SKIP_COMPLETE;
 }
@@ -948,5 +948,5 @@ out:
 	}
 	/* complete update request, we're done with it */
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }

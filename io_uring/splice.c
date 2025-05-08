@@ -103,7 +103,7 @@ done:
 	if (ret != sp->len)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 int io_splice_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -144,5 +144,5 @@ done:
 	if (ret != sp->len)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }

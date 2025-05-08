@@ -19,7 +19,6 @@
 #endif
 
 enum {
-	IOU_OK			= 0, /* deprecated, use IOU_COMPLETE */
 	IOU_COMPLETE		= 0,
 
 	IOU_ISSUE_SKIP_COMPLETE	= -EIOCBQUEUED,
