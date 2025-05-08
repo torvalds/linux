@@ -2618,6 +2618,21 @@ static int dpaa2_eth_hwtstamp_set(struct net_device *dev,
 	return 0;
 }
 
+static int dpaa2_eth_hwtstamp_get(struct net_device *dev,
+				  struct kernel_hwtstamp_config *config)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(dev);
+
+	if (!dpaa2_ptp)
+		return -EINVAL;
+
+	config->tx_type = priv->tx_tstamp_type;
+	config->rx_filter = priv->rx_tstamp ? HWTSTAMP_FILTER_ALL :
+			    HWTSTAMP_FILTER_NONE;
+
+	return 0;
+}
+
 static int dpaa2_eth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(dev);
@@ -3029,6 +3044,7 @@ static const struct net_device_ops dpaa2_eth_ops = {
 	.ndo_setup_tc = dpaa2_eth_setup_tc,
 	.ndo_vlan_rx_add_vid = dpaa2_eth_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = dpaa2_eth_rx_kill_vid,
+	.ndo_hwtstamp_get = dpaa2_eth_hwtstamp_get,
 	.ndo_hwtstamp_set = dpaa2_eth_hwtstamp_set,
 };
 
