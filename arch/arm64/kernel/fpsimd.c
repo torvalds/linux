@@ -852,7 +852,7 @@ int vec_set_vector_length(struct task_struct *task, enum vec_type type,
 	fpsimd_flush_task_state(task);
 	if (test_and_clear_tsk_thread_flag(task, TIF_SVE) ||
 	    thread_sm_enabled(&task->thread)) {
-		sve_to_fpsimd(task);
+		fpsimd_sync_from_effective_state(task);
 		task->thread.fp_type = FP_STATE_FPSIMD;
 	}
 
