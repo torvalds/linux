@@ -62,9 +62,8 @@ Following this convention is good because:
 (5) When following the convention, the driver code can use generic
     code to copy the parameters between user and kernel space.
 
-This table lists ioctls visible from user land for Linux/x86.  It contains
-most drivers up to 2.6.31, but I know I am missing some.  There has been
-no attempt to list non-X86 architectures or ioctls from drivers/staging/.
+This table lists ioctls visible from userland, excluding ones from
+drivers/staging/.
 
 ====  =====  ======================================================= ================================================================
 Code  Seq#    Include File                                           Comments
