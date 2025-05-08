@@ -111,7 +111,7 @@ Description:	RO. Package current voltage in millivolt.
 
 What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/temp2_input
 Date:		March 2025
-KernelVersion:	6.14
+KernelVersion:	6.15
 Contact:	intel-xe@lists.freedesktop.org
 Description:	RO. Package temperature in millidegree Celsius.
 
@@ -119,7 +119,7 @@ Description:	RO. Package temperature in millidegree Celsius.
 
 What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/temp3_input
 Date:		March 2025
-KernelVersion:	6.14
+KernelVersion:	6.15
 Contact:	intel-xe@lists.freedesktop.org
 Description:	RO. VRAM temperature in millidegree Celsius.
 
