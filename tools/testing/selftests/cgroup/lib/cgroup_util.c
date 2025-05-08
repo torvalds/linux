@@ -217,7 +217,8 @@ int cg_write_numeric(const char *cgroup, const char *control, long value)
 	return cg_write(cgroup, control, buf);
 }
 
-int cg_find_unified_root(char *root, size_t len, bool *nsdelegate)
+static int cg_find_root(char *root, size_t len, const char *controller,
+			bool *nsdelegate)
 {
 	char buf[10 * PAGE_SIZE];
 	char *fs, *mount, *type, *options;
@@ -236,16 +237,35 @@ int cg_find_unified_root(char *root, size_t len, bool *nsdelegate)
 		options = strtok(NULL, delim);
 		strtok(NULL, delim);
 		strtok(NULL, delim);
-
-		if (strcmp(type, "cgroup2") == 0) {
-			strncpy(root, mount, len);
-			if (nsdelegate)
-				*nsdelegate = !!strstr(options, "nsdelegate");
-			return 0;
+		if (strcmp(type, "cgroup") == 0) {
+			if (!controller || !strstr(options, controller))
+				continue;
+		} else if (strcmp(type, "cgroup2") == 0) {
+			if (controller &&
+					cg_read_strstr(mount, "cgroup.controllers", controller))
+				continue;
+		} else {
+			continue;
 		}
+		strncpy(root, mount, len);
+
+		if (nsdelegate)
+			*nsdelegate = !!strstr(options, "nsdelegate");
+		return 0;
+
 	}
 
 	return -1;
+}
+
+int cg_find_controller_root(char *root, size_t len, const char *controller)
+{
+	return cg_find_root(root, len, controller, NULL);
+}
+
+int cg_find_unified_root(char *root, size_t len, bool *nsdelegate)
+{
+	return cg_find_root(root, len, NULL, nsdelegate);
 }
 
 int cg_create(const char *cgroup)
