@@ -439,10 +439,17 @@ static bool check_ptrace_values_sve(pid_t child, struct test_config *config)
 		pass = false;
 	}
 
-	if (sve->size != SVE_PT_SIZE(vq, sve->flags)) {
-		ksft_print_msg("Mismatch in SVE header size: %d != %lu\n",
-			       sve->size, SVE_PT_SIZE(vq, sve->flags));
-		pass = false;
+	if (svcr_in & SVCR_SM) {
+		if (sve->size != sizeof(sve)) {
+			ksft_print_msg("NT_ARM_SVE reports data with PSTATE.SM\n");
+			pass = false;
+		}
+	} else {
+		if (sve->size != SVE_PT_SIZE(vq, sve->flags)) {
+			ksft_print_msg("Mismatch in SVE header size: %d != %lu\n",
+				       sve->size, SVE_PT_SIZE(vq, sve->flags));
+			pass = false;
+		}
 	}
 
 	/* The registers might be in completely different formats! */
@@ -515,10 +522,17 @@ static bool check_ptrace_values_ssve(pid_t child, struct test_config *config)
 		pass = false;
 	}
 
-	if (sve->size != SVE_PT_SIZE(vq, sve->flags)) {
-		ksft_print_msg("Mismatch in SSVE header size: %d != %lu\n",
-			       sve->size, SVE_PT_SIZE(vq, sve->flags));
-		pass = false;
+	if (!(svcr_in & SVCR_SM)) {
+		if (sve->size != sizeof(sve)) {
+			ksft_print_msg("NT_ARM_SSVE reports data without PSTATE.SM\n");
+			pass = false;
+		}
+	} else {
+		if (sve->size != SVE_PT_SIZE(vq, sve->flags)) {
+			ksft_print_msg("Mismatch in SSVE header size: %d != %lu\n",
+				       sve->size, SVE_PT_SIZE(vq, sve->flags));
+			pass = false;
+		}
 	}
 
 	/* The registers might be in completely different formats! */
