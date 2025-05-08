@@ -7574,6 +7574,12 @@ T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	Documentation/devicetree/bindings/display/panel/novatek,nt36672a.yaml
 F:	drivers/gpu/drm/panel/panel-novatek-nt36672a.c
 
+DRM DRIVER FOR NOVATEK NT37801 PANELS
+M:	Krzysztof Kozlowski <krzk@kernel.org>
+S:	Maintained
+F:	Documentation/devicetree/bindings/display/panel/novatek,nt37801.yaml
+F:	drivers/gpu/drm/panel/panel-novatek-nt37801.c
+
 DRM DRIVER FOR NVIDIA GEFORCE/QUADRO GPUS
 M:	Lyude Paul <lyude@redhat.com>
 M:	Danilo Krummrich <dakr@kernel.org>
