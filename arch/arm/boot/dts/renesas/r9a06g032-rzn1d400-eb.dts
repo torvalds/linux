@@ -76,6 +76,10 @@
 	status = "okay";
 };
 
+&pci_usb {
+	status = "okay";
+};
+
 &pinctrl {
 	pins_eth0: pins-eth0 {
 		pinmux = <RZN1_PINMUX(0, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
