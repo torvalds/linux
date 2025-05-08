@@ -67,7 +67,7 @@ static void trace_io_move_read2(struct bch_fs *c, struct bkey_s_c k)
 struct moving_io {
 	struct list_head		read_list;
 	struct list_head		io_list;
-	struct move_bucket_in_flight	*b;
+	struct move_bucket		*b;
 	struct closure			cl;
 	bool				read_completed;
 
@@ -289,7 +289,7 @@ void bch2_move_stats_init(struct bch_move_stats *stats, const char *name)
 }
 
 int bch2_move_extent(struct moving_context *ctxt,
-		     struct move_bucket_in_flight *bucket_in_flight,
+		     struct move_bucket *bucket_in_flight,
 		     struct btree_iter *iter,
 		     struct bkey_s_c k,
 		     struct bch_io_opts io_opts,
@@ -810,7 +810,7 @@ int bch2_move_data(struct bch_fs *c,
 }
 
 static int __bch2_move_data_phys(struct moving_context *ctxt,
-			struct move_bucket_in_flight *bucket_in_flight,
+			struct move_bucket *bucket_in_flight,
 			unsigned dev,
 			u64 bucket_start,
 			u64 bucket_end,
@@ -1008,9 +1008,9 @@ static bool evacuate_bucket_pred(struct bch_fs *c, void *_arg,
 }
 
 int bch2_evacuate_bucket(struct moving_context *ctxt,
-			   struct move_bucket_in_flight *bucket_in_flight,
-			   struct bpos bucket, int gen,
-			   struct data_update_opts data_opts)
+			 struct move_bucket *bucket_in_flight,
+			 struct bpos bucket, int gen,
+			 struct data_update_opts data_opts)
 {
 	struct evacuate_bucket_arg arg = { bucket, gen, data_opts, };
 

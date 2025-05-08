@@ -27,47 +27,36 @@
 #include <linux/wait.h>
 
 struct buckets_in_flight {
-	struct rhashtable		table;
-	struct move_bucket_in_flight	*first;
-	struct move_bucket_in_flight	*last;
-	size_t				nr;
-	size_t				sectors;
+	struct rhashtable	table;
+	struct move_bucket	*first;
+	struct move_bucket	*last;
+	size_t			nr;
+	size_t			sectors;
 };
 
 static const struct rhashtable_params bch_move_bucket_params = {
-	.head_offset		= offsetof(struct move_bucket_in_flight, hash),
-	.key_offset		= offsetof(struct move_bucket_in_flight, bucket.k),
+	.head_offset		= offsetof(struct move_bucket, hash),
+	.key_offset		= offsetof(struct move_bucket, k),
 	.key_len		= sizeof(struct move_bucket_key),
 	.automatic_shrinking	= true,
 };
 
-static struct move_bucket_in_flight *
-move_bucket_in_flight_add(struct buckets_in_flight *list, struct move_bucket b)
+static int move_bucket_in_flight_add(struct buckets_in_flight *list, struct move_bucket *b)
 {
-	struct move_bucket_in_flight *new = kzalloc(sizeof(*new), GFP_KERNEL);
-	int ret;
-
-	if (!new)
-		return ERR_PTR(-ENOMEM);
-
-	new->bucket = b;
-
-	ret = rhashtable_lookup_insert_fast(&list->table, &new->hash,
-					    bch_move_bucket_params);
-	if (ret) {
-		kfree(new);
-		return ERR_PTR(ret);
-	}
+	int ret = rhashtable_lookup_insert_fast(&list->table, &b->hash,
+						bch_move_bucket_params);
+	if (ret)
+		return ret;
 
 	if (!list->first)
-		list->first = new;
+		list->first = b;
 	else
-		list->last->next = new;
+		list->last->next = b;
 
-	list->last = new;
+	list->last = b;
 	list->nr++;
-	list->sectors += b.sectors;
-	return new;
+	list->sectors += b->sectors;
+	return 0;
 }
 
 static int bch2_bucket_is_movable(struct btree_trans *trans,
@@ -111,7 +100,7 @@ static void move_buckets_wait(struct moving_context *ctxt,
 			      struct buckets_in_flight *list,
 			      bool flush)
 {
-	struct move_bucket_in_flight *i;
+	struct move_bucket *i;
 	int ret;
 
 	while ((i = list->first)) {
@@ -126,7 +115,7 @@ static void move_buckets_wait(struct moving_context *ctxt,
 			list->last = NULL;
 
 		list->nr--;
-		list->sectors -= i->bucket.sectors;
+		list->sectors -= i->sectors;
 
 		ret = rhashtable_remove_fast(&list->table, &i->hash,
 					     bch_move_bucket_params);
@@ -143,7 +132,7 @@ static bool bucket_in_flight(struct buckets_in_flight *list,
 	return rhashtable_lookup_fast(&list->table, &k, bch_move_bucket_params);
 }
 
-typedef DARRAY(struct move_bucket) move_buckets;
+typedef DARRAY(struct move_bucket *) move_buckets;
 
 static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 			struct buckets_in_flight *buckets_in_flight,
@@ -184,9 +173,18 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 		else if (bucket_in_flight(buckets_in_flight, b.k))
 			in_flight++;
 		else {
-			ret2 = darray_push(buckets, b);
+			struct move_bucket *b_i = kmalloc(sizeof(*b_i), GFP_KERNEL);
+			ret2 = b_i ? 0 : -ENOMEM;
 			if (ret2)
 				goto err;
+
+			*b_i = b;
+
+			ret2 = darray_push(buckets, b_i);
+			if (ret2) {
+				kfree(b_i);
+				goto err;
+			}
 			sectors += b.sectors;
 		}
 
@@ -213,7 +211,6 @@ static int bch2_copygc(struct moving_context *ctxt,
 		.btree_insert_flags = BCH_WATERMARK_copygc,
 	};
 	move_buckets buckets = { 0 };
-	struct move_bucket_in_flight *f;
 	u64 sectors_seen	= atomic64_read(&ctxt->stats->sectors_seen);
 	u64 sectors_moved	= atomic64_read(&ctxt->stats->sectors_moved);
 	int ret = 0;
@@ -226,26 +223,23 @@ static int bch2_copygc(struct moving_context *ctxt,
 		if (kthread_should_stop() || freezing(current))
 			break;
 
-		f = move_bucket_in_flight_add(buckets_in_flight, *i);
-		ret = PTR_ERR_OR_ZERO(f);
-		if (ret == -EEXIST) { /* rare race: copygc_get_buckets returned same bucket more than once */
+		struct move_bucket *b = *i;
+		*i = NULL;
+
+		ret = move_bucket_in_flight_add(buckets_in_flight, b);
+		if (ret) { /* rare race: copygc_get_buckets returned same bucket more than once */
+			kfree(b);
 			ret = 0;
 			continue;
 		}
-		if (ret == -ENOMEM) { /* flush IO, continue later */
-			ret = 0;
-			break;
-		}
 
-		ret = bch2_evacuate_bucket(ctxt, f, f->bucket.k.bucket,
-					     f->bucket.k.gen, data_opts);
+		ret = bch2_evacuate_bucket(ctxt, b, b->k.bucket, b->k.gen, data_opts);
 		if (ret)
 			goto err;
 
 		*did_work = true;
 	}
 err:
-
 	/* no entries in LRU btree found, or got to end: */
 	if (bch2_err_matches(ret, ENOENT))
 		ret = 0;
@@ -257,6 +251,8 @@ err:
 	sectors_moved	= atomic64_read(&ctxt->stats->sectors_moved) - sectors_moved;
 	trace_and_count(c, copygc, c, buckets.nr, sectors_seen, sectors_moved);
 
+	darray_for_each(buckets, i)
+		kfree(*i);
 	darray_exit(&buckets);
 	return ret;
 }

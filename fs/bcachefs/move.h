@@ -116,7 +116,7 @@ int bch2_move_get_io_opts_one(struct btree_trans *, struct bch_io_opts *,
 int bch2_scan_old_btree_nodes(struct bch_fs *, struct bch_move_stats *);
 
 int bch2_move_extent(struct moving_context *,
-		     struct move_bucket_in_flight *,
+		     struct move_bucket *,
 		     struct btree_iter *,
 		     struct bkey_s_c,
 		     struct bch_io_opts,
@@ -143,7 +143,7 @@ int bch2_move_data_phys(struct bch_fs *, unsigned, u64, u64, unsigned,
 			move_pred_fn, void *);
 
 int bch2_evacuate_bucket(struct moving_context *,
-			   struct move_bucket_in_flight *,
+			   struct move_bucket *,
 			   struct bpos, int,
 			   struct data_update_opts);
 int bch2_data_job(struct bch_fs *,
