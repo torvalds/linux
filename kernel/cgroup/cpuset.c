@@ -1402,14 +1402,12 @@ static int compute_effective_exclusive_cpumask(struct cpuset *cs,
 		if (sibling == cs)
 			continue;
 
-		if (!cpumask_empty(sibling->exclusive_cpus) &&
-		    cpumask_intersects(xcpus, sibling->exclusive_cpus)) {
+		if (cpumask_intersects(xcpus, sibling->exclusive_cpus)) {
 			cpumask_andnot(xcpus, xcpus, sibling->exclusive_cpus);
 			retval++;
 			continue;
 		}
-		if (!cpumask_empty(sibling->effective_xcpus) &&
-		    cpumask_intersects(xcpus, sibling->effective_xcpus)) {
+		if (cpumask_intersects(xcpus, sibling->effective_xcpus)) {
 			cpumask_andnot(xcpus, xcpus, sibling->effective_xcpus);
 			retval++;
 		}
