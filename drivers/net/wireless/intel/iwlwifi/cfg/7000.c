@@ -151,7 +151,6 @@ const struct iwl_cfg iwl7260_high_temp_cfg = {
 		.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
 	},
 	.nvm_ver = IWL7260_NVM_VERSION,
-	.high_temp = true,
 	.host_interrupt_operation_mode = true,
 	.lp_xtal_workaround = true,
 	.dccm_len = IWL7260_DCCM_LEN,

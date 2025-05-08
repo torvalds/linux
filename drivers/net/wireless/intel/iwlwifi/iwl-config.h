@@ -359,7 +359,6 @@ struct iwl_mac_cfg {
  * @rx_with_siso_diversity: 1x1 device with rx antenna diversity
  * @tx_with_siso_diversity: 1x1 device with tx antenna diversity
  * @internal_wimax_coex: internal wifi/wimax combo device
- * @high_temp: Is this NIC is designated to be in high temperature.
  * @host_interrupt_operation_mode: device needs host interrupt operation
  *	mode set
  * @pwr_tx_backoffs: translation table between power limits and backoffs
@@ -400,7 +399,6 @@ struct iwl_cfg {
 	    tx_with_siso_diversity:1,
 	    internal_wimax_coex:1,
 	    host_interrupt_operation_mode:1,
-	    high_temp:1,
 	    lp_xtal_workaround:1,
 	    vht_mu_mimo_supported:1,
 	    uhb_supported:1;
