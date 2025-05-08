@@ -399,17 +399,17 @@ static int rt9123_i2c_probe(struct i2c_client *i2c)
 		dev_dbg(dev, "No 'enable' GPIO specified, treat it as default on\n");
 
 	/* Check vendor id information */
-	ret = i2c_smbus_read_word_data(i2c, RT9123_REG_COMBOID);
+	ret = i2c_smbus_read_i2c_block_data(i2c, RT9123_REG_COMBOID, sizeof(value), (u8 *)&value);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Failed to read vendor-id\n");
 
-	venid = be16_to_cpu(ret);
+	venid = be16_to_cpu(value);
 	if ((venid & RT9123_MASK_VENID) != RT9123_FIXED_VENID)
 		return dev_err_probe(dev, -ENODEV, "Incorrect vendor-id 0x%04x\n", venid);
 
 	/* Trigger RG reset before regmap init cache */
 	value = cpu_to_be16(RT9123_MASK_SWRST);
-	ret = i2c_smbus_write_word_data(i2c, RT9123_REG_AMPCTRL, value);
+	ret = i2c_smbus_write_i2c_block_data(i2c, RT9123_REG_AMPCTRL, sizeof(value), (u8 *)&value);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to trigger RG reset\n");
 
