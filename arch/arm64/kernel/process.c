@@ -355,16 +355,13 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	*dst = *src;
 
 	/*
-	 * Detach src's sve_state (if any) from dst so that it does not
-	 * get erroneously used or freed prematurely.  dst's copies
-	 * will be allocated on demand later on if dst uses SVE.
-	 * For consistency, also clear TIF_SVE here: this could be done
-	 * later in copy_process(), but to avoid tripping up future
-	 * maintainers it is best not to leave TIF flags and buffers in
-	 * an inconsistent state, even temporarily.
+	 * Drop stale reference to src's sve_state and convert dst to
+	 * non-streaming FPSIMD mode.
 	 */
+	dst->thread.fp_type = FP_STATE_FPSIMD;
 	dst->thread.sve_state = NULL;
 	clear_tsk_thread_flag(dst, TIF_SVE);
+	task_smstop_sm(dst);
 
 	/*
 	 * In the unlikely event that we create a new thread with ZA
@@ -392,8 +389,6 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 		dst->thread.sme_state = NULL;
 		clear_tsk_thread_flag(dst, TIF_SME);
 	}
-
-	dst->thread.fp_type = FP_STATE_FPSIMD;
 
 	/* clear any pending asynchronous tag fault raised by the parent */
 	clear_tsk_thread_flag(dst, TIF_MTE_ASYNC_FAULT);
