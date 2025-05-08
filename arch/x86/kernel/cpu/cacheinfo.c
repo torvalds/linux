@@ -381,7 +381,7 @@ static void intel_cacheinfo_done(struct cpuinfo_x86 *c, unsigned int l3,
 static void intel_cacheinfo_0x2(struct cpuinfo_x86 *c)
 {
 	unsigned int l1i = 0, l1d = 0, l2 = 0, l3 = 0;
-	const struct leaf_0x2_table *entry;
+	const struct leaf_0x2_table *desc;
 	union leaf_0x2_regs regs;
 	u8 *ptr;
 
@@ -389,12 +389,12 @@ static void intel_cacheinfo_0x2(struct cpuinfo_x86 *c)
 		return;
 
 	cpuid_leaf_0x2(&regs);
-	for_each_cpuid_0x2_desc(regs, ptr, entry) {
-		switch (entry->c_type) {
-		case CACHE_L1_INST:	l1i += entry->c_size; break;
-		case CACHE_L1_DATA:	l1d += entry->c_size; break;
-		case CACHE_L2:		l2  += entry->c_size; break;
-		case CACHE_L3:		l3  += entry->c_size; break;
+	for_each_cpuid_0x2_desc(regs, ptr, desc) {
+		switch (desc->c_type) {
+		case CACHE_L1_INST:	l1i += desc->c_size; break;
+		case CACHE_L1_DATA:	l1d += desc->c_size; break;
+		case CACHE_L2:		l2  += desc->c_size; break;
+		case CACHE_L3:		l3  += desc->c_size; break;
 		}
 	}
 
