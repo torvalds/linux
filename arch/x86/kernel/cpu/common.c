@@ -29,7 +29,7 @@
 
 #include <asm/alternative.h>
 #include <asm/cmdline.h>
-#include <asm/cpuid.h>
+#include <asm/cpuid/api.h>
 #include <asm/perf_event.h>
 #include <asm/mmu_context.h>
 #include <asm/doublefault.h>

@@ -16,7 +16,7 @@
 #include <asm/amd/nb.h>
 #include <asm/cacheinfo.h>
 #include <asm/cpufeature.h>
-#include <asm/cpuid.h>
+#include <asm/cpuid/api.h>
 #include <asm/mtrr.h>
 #include <asm/smp.h>
 #include <asm/tlbflush.h>

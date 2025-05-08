@@ -21,7 +21,7 @@
 #include <asm/fpu/xcr.h>
 #include <asm/ptrace.h>
 #include <asm/svm.h>
-#include <asm/cpuid.h>
+#include <asm/cpuid/api.h>
 
 #include "error.h"
 #include "sev.h"

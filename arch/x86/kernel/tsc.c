@@ -16,7 +16,7 @@
 #include <linux/static_key.h>
 #include <linux/static_call.h>
 
-#include <asm/cpuid.h>
+#include <asm/cpuid/api.h>
 #include <asm/hpet.h>
 #include <asm/timer.h>
 #include <asm/vgtod.h>

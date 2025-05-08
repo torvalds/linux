@@ -49,7 +49,7 @@
 #include <xen/hvc-console.h>
 #include <xen/acpi.h>
 
-#include <asm/cpuid.h>
+#include <asm/cpuid/api.h>
 #include <asm/paravirt.h>
 #include <asm/apic.h>
 #include <asm/page.h>

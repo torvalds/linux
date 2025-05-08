@@ -15,7 +15,7 @@
 #include <linux/pci_ids.h>
 
 #include <asm/amd/nb.h>
-#include <asm/cpuid.h>
+#include <asm/cpuid/api.h>
 
 static u32 *flush_words;
 
