@@ -648,11 +648,11 @@ static unsigned int intel_size_cache(struct cpuinfo_x86 *c, unsigned int size)
 }
 #endif
 
-static void intel_tlb_lookup(const struct leaf_0x2_table *entry)
+static void intel_tlb_lookup(const struct leaf_0x2_table *desc)
 {
-	short entries = entry->entries;
+	short entries = desc->entries;
 
-	switch (entry->t_type) {
+	switch (desc->t_type) {
 	case STLB_4K:
 		tlb_lli_4k = max(tlb_lli_4k, entries);
 		tlb_lld_4k = max(tlb_lld_4k, entries);
@@ -709,7 +709,7 @@ static void intel_tlb_lookup(const struct leaf_0x2_table *entry)
 
 static void intel_detect_tlb(struct cpuinfo_x86 *c)
 {
-	const struct leaf_0x2_table *entry;
+	const struct leaf_0x2_table *desc;
 	union leaf_0x2_regs regs;
 	u8 *ptr;
 
@@ -717,8 +717,8 @@ static void intel_detect_tlb(struct cpuinfo_x86 *c)
 		return;
 
 	cpuid_leaf_0x2(&regs);
-	for_each_cpuid_0x2_desc(regs, ptr, entry)
-		intel_tlb_lookup(entry);
+	for_each_cpuid_0x2_desc(regs, ptr, desc)
+		intel_tlb_lookup(desc);
 }
 
 static const struct cpu_dev intel_cpu_dev = {
