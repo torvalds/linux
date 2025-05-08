@@ -859,8 +859,10 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 		num_fences = dma_fence_dedup_array(fences, num_fences);
 
 		waitq = idr_find(&userq_mgr->userq_idr, wait_info->waitq_id);
-		if (!waitq)
+		if (!waitq) {
+			r = -EINVAL;
 			goto free_fences;
+		}
 
 		for (i = 0, cnt = 0; i < num_fences; i++) {
 			struct amdgpu_userq_fence_driver *fence_drv;
