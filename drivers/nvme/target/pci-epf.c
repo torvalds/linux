@@ -1321,8 +1321,14 @@ static u16 nvmet_pci_epf_create_cq(struct nvmet_ctrl *tctrl,
 
 	set_bit(NVMET_PCI_EPF_Q_LIVE, &cq->flags);
 
-	dev_dbg(ctrl->dev, "CQ[%u]: %u entries of %zu B, IRQ vector %u\n",
-		cqid, qsize, cq->qes, cq->vector);
+	if (test_bit(NVMET_PCI_EPF_Q_IRQ_ENABLED, &cq->flags))
+		dev_dbg(ctrl->dev,
+			"CQ[%u]: %u entries of %zu B, IRQ vector %u\n",
+			cqid, qsize, cq->qes, cq->vector);
+	else
+		dev_dbg(ctrl->dev,
+			"CQ[%u]: %u entries of %zu B, IRQ disabled\n",
+			cqid, qsize, cq->qes);
 
 	return NVME_SC_SUCCESS;
 
