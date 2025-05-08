@@ -703,27 +703,25 @@ static int ls1x_nand_chip_init(struct ls1x_nand_host *host)
 	if (!chip_np)
 		return dev_err_probe(dev, -ENODEV, "failed to get child node for NAND chip\n");
 
-	chip->controller = &host->controller;
-	chip->options = NAND_NO_SUBPAGE_WRITE | NAND_USES_DMA | NAND_BROKEN_XD;
-	chip->buf_align = 16;
-	nand_set_controller_data(chip, host);
 	nand_set_flash_node(chip, chip_np);
+	of_node_put(chip_np);
 	if (!mtd->name)
 		return dev_err_probe(dev, -EINVAL, "Missing MTD label\n");
 
+	nand_set_controller_data(chip, host);
+	chip->controller = &host->controller;
+	chip->options = NAND_NO_SUBPAGE_WRITE | NAND_USES_DMA | NAND_BROKEN_XD;
+	chip->buf_align = 16;
 	mtd->dev.parent = dev;
 	mtd->owner = THIS_MODULE;
 
 	ret = nand_scan(chip, 1);
-	if (ret) {
-		of_node_put(chip_np);
+	if (ret)
 		return dev_err_probe(dev, ret, "failed to scan NAND chip\n");
-	}
 
 	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
 		nand_cleanup(chip);
-		of_node_put(chip_np);
 		return dev_err_probe(dev, ret, "failed to register MTD device\n");
 	}
 
