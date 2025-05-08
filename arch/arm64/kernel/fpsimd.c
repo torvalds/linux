@@ -720,22 +720,6 @@ static void sve_free(struct task_struct *task)
 }
 
 /*
- * Return how many bytes of memory are required to store the full SVE
- * state for task, given task's currently configured vector length.
- */
-size_t sve_state_size(struct task_struct const *task)
-{
-	unsigned int vl = 0;
-
-	if (system_supports_sve())
-		vl = task_get_sve_vl(task);
-	if (system_supports_sme())
-		vl = max(vl, task_get_sme_vl(task));
-
-	return SVE_SIG_REGS_SIZE(sve_vq_from_vl(vl));
-}
-
-/*
  * Ensure that task->thread.sve_state is allocated and sufficiently large.
  *
  * This function should be used only in preparation for replacing
