@@ -3139,16 +3139,9 @@ static int dpaa_hwtstamp_set(struct net_device *dev,
 
 static int dpaa_ioctl(struct net_device *net_dev, struct ifreq *rq, int cmd)
 {
-	int ret = -EINVAL;
 	struct dpaa_priv *priv = netdev_priv(net_dev);
 
-	if (cmd == SIOCGMIIREG) {
-		if (net_dev->phydev)
-			return phylink_mii_ioctl(priv->mac_dev->phylink, rq,
-						 cmd);
-	}
-
-	return ret;
+	return phylink_mii_ioctl(priv->mac_dev->phylink, rq, cmd);
 }
 
 static const struct net_device_ops dpaa_ops = {
