@@ -3557,7 +3557,8 @@ static int can_move_mount_beneath(const struct path *from,
 	 * @mnt_from itself. This defeats the whole purpose of mounting
 	 * @mnt_from beneath @mnt_to.
 	 */
-	if (propagation_would_overmount(parent_mnt_to, mnt_from, mp))
+	if (check_mnt(mnt_from) &&
+	    propagation_would_overmount(parent_mnt_to, mnt_from, mp))
 		return -EINVAL;
 
 	return 0;
