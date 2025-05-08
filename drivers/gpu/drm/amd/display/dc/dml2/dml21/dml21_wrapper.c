@@ -2,8 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-#include <linux/vmalloc.h>
-
 #include "dml2_internal_types.h"
 #include "dml_top.h"
 #include "dml2_core_dcn4_calcs.h"

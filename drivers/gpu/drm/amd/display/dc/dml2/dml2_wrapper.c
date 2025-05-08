@@ -24,8 +24,6 @@
  *
  */
 
-#include <linux/vmalloc.h>
-
 #include "display_mode_core.h"
 #include "dml2_internal_types.h"
 #include "dml2_utils.h"
