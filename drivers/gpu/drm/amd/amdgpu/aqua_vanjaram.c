@@ -481,6 +481,8 @@ static int __aqua_vanjaram_get_px_mode_info(struct amdgpu_xcp_mgr *xcp_mgr,
 		*num_xcp = NUM_XCC(adev->gfx.xcc_mask);
 		*nps_modes = BIT(AMDGPU_NPS1_PARTITION_MODE) |
 			     BIT(AMDGPU_NPS4_PARTITION_MODE);
+		if (amdgpu_sriov_vf(adev))
+			*nps_modes |= BIT(AMDGPU_NPS2_PARTITION_MODE);
 		break;
 	default:
 		return -EINVAL;
