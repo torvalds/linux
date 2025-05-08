@@ -261,6 +261,25 @@ err:
 	return ret;
 }
 
+static u64 bch2_copygc_dev_wait_amount(struct bch_dev *ca)
+{
+	struct bch_dev_usage_full usage_full = bch2_dev_usage_full_read(ca);
+	struct bch_dev_usage usage;
+
+	for (unsigned i = 0; i < BCH_DATA_NR; i++)
+		usage.buckets[i] = usage_full.d[i].buckets;
+
+	s64 fragmented_allowed = ((__dev_buckets_available(ca, usage, BCH_WATERMARK_stripe) *
+				   ca->mi.bucket_size) >> 1);
+	s64 fragmented = 0;
+
+	for (unsigned i = 0; i < BCH_DATA_NR; i++)
+		if (data_type_movable(i))
+			fragmented += usage_full.d[i].fragmented;
+
+	return max(0LL, fragmented_allowed - fragmented);
+}
+
 /*
  * Copygc runs when the amount of fragmented data is above some arbitrary
  * threshold:
@@ -275,28 +294,13 @@ err:
  * often and continually reduce the amount of fragmented space as the device
  * fills up. So, we increase the threshold by half the current free space.
  */
-unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
+u64 bch2_copygc_wait_amount(struct bch_fs *c)
 {
-	s64 wait = S64_MAX, fragmented_allowed, fragmented;
+	u64 wait = U64_MAX;
 
 	rcu_read_lock();
-	for_each_rw_member_rcu(c, ca) {
-		struct bch_dev_usage_full usage_full = bch2_dev_usage_full_read(ca);
-		struct bch_dev_usage usage;
-
-		for (unsigned i = 0; i < BCH_DATA_NR; i++)
-			usage.buckets[i] = usage_full.d[i].buckets;
-
-		fragmented_allowed = ((__dev_buckets_available(ca, usage, BCH_WATERMARK_stripe) *
-				       ca->mi.bucket_size) >> 1);
-		fragmented = 0;
-
-		for (unsigned i = 0; i < BCH_DATA_NR; i++)
-			if (data_type_movable(i))
-				fragmented += usage_full.d[i].fragmented;
-
-		wait = min(wait, max(0LL, fragmented_allowed - fragmented));
-	}
+	for_each_rw_member_rcu(c, ca)
+		wait = min(wait, bch2_copygc_dev_wait_amount(ca));
 	rcu_read_unlock();
 
 	return wait;
@@ -320,14 +324,22 @@ void bch2_copygc_wait_to_text(struct printbuf *out, struct bch_fs *c)
 					c->copygc_wait_at) << 9);
 	prt_newline(out);
 
-	prt_printf(out, "Currently calculated wait:\t");
-	prt_human_readable_u64(out, bch2_copygc_wait_amount(c));
-	prt_newline(out);
+	bch2_printbuf_make_room(out, 4096);
 
 	rcu_read_lock();
+	out->atomic++;
+
+	prt_printf(out, "Currently calculated wait:\n");
+	for_each_rw_member_rcu(c, ca) {
+		prt_printf(out, "  %s:\t", ca->name);
+		prt_human_readable_u64(out, bch2_copygc_dev_wait_amount(ca));
+		prt_newline(out);
+	}
+
 	struct task_struct *t = rcu_dereference(c->copygc_thread);
 	if (t)
 		get_task_struct(t);
+	--out->atomic;
 	rcu_read_unlock();
 
 	if (t) {

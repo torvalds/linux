@@ -465,7 +465,7 @@ static noinline void trace_bucket_alloc2(struct bch_fs *c,
 	prt_printf(&buf, "blocking\t%u\n",	cl != NULL);
 	prt_printf(&buf, "free\t%llu\n",	req->usage.buckets[BCH_DATA_free]);
 	prt_printf(&buf, "avail\t%llu\n",	dev_buckets_free(req->ca, req->usage, req->watermark));
-	prt_printf(&buf, "copygc_wait\t%lu/%lli\n",
+	prt_printf(&buf, "copygc_wait\t%llu/%lli\n",
 		   bch2_copygc_wait_amount(c),
 		   c->copygc_wait - atomic64_read(&c->io_clock[WRITE].now));
 	prt_printf(&buf, "seen\t%llu\n",	req->counters.buckets_seen);
