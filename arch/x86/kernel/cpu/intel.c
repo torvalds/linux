@@ -716,8 +716,8 @@ static void intel_detect_tlb(struct cpuinfo_x86 *c)
 	if (c->cpuid_level < 2)
 		return;
 
-	cpuid_get_leaf_0x2_regs(&regs);
-	for_each_leaf_0x2_entry(regs, ptr, entry)
+	cpuid_leaf_0x2(&regs);
+	for_each_cpuid_0x2_desc(regs, ptr, entry)
 		intel_tlb_lookup(entry);
 }
 
