@@ -594,7 +594,7 @@ static int __fpr_get(struct task_struct *target,
 {
 	struct user_fpsimd_state *uregs;
 
-	sve_sync_to_fpsimd(target);
+	fpsimd_sync_from_effective_state(target);
 
 	uregs = &target->thread.uw.fpsimd_state;
 
@@ -626,7 +626,7 @@ static int __fpr_set(struct task_struct *target,
 	 * Ensure target->thread.uw.fpsimd_state is up to date, so that a
 	 * short copyin can't resurrect stale data.
 	 */
-	sve_sync_to_fpsimd(target);
+	fpsimd_sync_from_effective_state(target);
 
 	newstate = target->thread.uw.fpsimd_state;
 
@@ -653,7 +653,7 @@ static int fpr_set(struct task_struct *target, const struct user_regset *regset,
 	if (ret)
 		return ret;
 
-	sve_sync_from_fpsimd_zeropad(target);
+	fpsimd_sync_to_effective_state_zeropad(target);
 	fpsimd_flush_task_state(target);
 
 	return ret;

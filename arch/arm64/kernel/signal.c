@@ -250,7 +250,7 @@ static int preserve_fpsimd_context(struct fpsimd_context __user *ctx)
 		&current->thread.uw.fpsimd_state;
 	int err;
 
-	sve_sync_to_fpsimd(current);
+	fpsimd_sync_from_effective_state(current);
 
 	/* copy the FP and status/control registers */
 	err = __copy_to_user(ctx->vregs, fpsimd->vregs, sizeof(fpsimd->vregs));

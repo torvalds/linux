@@ -198,8 +198,8 @@ struct vl_info {
 
 extern void sve_alloc(struct task_struct *task, bool flush);
 extern void fpsimd_release_task(struct task_struct *task);
-extern void sve_sync_to_fpsimd(struct task_struct *task);
-extern void sve_sync_from_fpsimd_zeropad(struct task_struct *task);
+extern void fpsimd_sync_from_effective_state(struct task_struct *task);
+extern void fpsimd_sync_to_effective_state_zeropad(struct task_struct *task);
 
 extern int vec_set_vector_length(struct task_struct *task, enum vec_type type,
 				 unsigned long vl, unsigned long flags);
@@ -299,8 +299,8 @@ size_t sve_state_size(struct task_struct const *task);
 
 static inline void sve_alloc(struct task_struct *task, bool flush) { }
 static inline void fpsimd_release_task(struct task_struct *task) { }
-static inline void sve_sync_to_fpsimd(struct task_struct *task) { }
-static inline void sve_sync_from_fpsimd_zeropad(struct task_struct *task) { }
+static inline void fpsimd_sync_from_effective_state(struct task_struct *task) { }
+static inline void fpsimd_sync_to_effective_state_zeropad(struct task_struct *task) { }
 
 static inline int sve_max_virtualisable_vl(void)
 {

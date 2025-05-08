@@ -760,39 +760,33 @@ void sve_alloc(struct task_struct *task, bool flush)
 }
 
 /*
- * Ensure that task->thread.uw.fpsimd_state is up to date with respect to
- * the user task, irrespective of whether SVE is in use or not.
+ * Ensure that task->thread.uw.fpsimd_state is up to date with respect to the
+ * task's currently effective FPSIMD/SVE state.
  *
- * This should only be called by ptrace.  task must be non-runnable.
- * task->thread.sve_state must point to at least sve_state_size(task)
- * bytes of allocated kernel memory.
+ * The task's FPSIMD/SVE/SME state must not be subject to concurrent
+ * manipulation.
  */
-void sve_sync_to_fpsimd(struct task_struct *task)
+void fpsimd_sync_from_effective_state(struct task_struct *task)
 {
 	if (task->thread.fp_type == FP_STATE_SVE)
 		sve_to_fpsimd(task);
 }
 
 /*
- * Ensure that task->thread.sve_state is up to date with respect to
- * the task->thread.uw.fpsimd_state.
+ * Ensure that the task's currently effective FPSIMD/SVE state is up to date
+ * with respect to task->thread.uw.fpsimd_state, zeroing any effective
+ * non-FPSIMD (S)SVE state.
  *
- * This should only be called by ptrace to merge new FPSIMD register
- * values into a task for which SVE is currently active.
- * task must be non-runnable.
- * task->thread.sve_state must point to at least sve_state_size(task)
- * bytes of allocated kernel memory.
- * task->thread.uw.fpsimd_state must already have been initialised with
- * the new FPSIMD register values to be merged in.
+ * The task's FPSIMD/SVE/SME state must not be subject to concurrent
+ * manipulation.
  */
-void sve_sync_from_fpsimd_zeropad(struct task_struct *task)
+void fpsimd_sync_to_effective_state_zeropad(struct task_struct *task)
 {
 	unsigned int vq;
 	void *sst = task->thread.sve_state;
 	struct user_fpsimd_state const *fst = &task->thread.uw.fpsimd_state;
 
-	if (!test_tsk_thread_flag(task, TIF_SVE) &&
-	    !thread_sm_enabled(&task->thread))
+	if (task->thread.fp_type != FP_STATE_SVE)
 		return;
 
 	vq = sve_vq_from_vl(thread_get_cur_vl(&task->thread));
