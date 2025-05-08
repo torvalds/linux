@@ -948,11 +948,8 @@ void blk_unregister_queue(struct gendisk *disk)
 		blk_mq_sysfs_unregister(disk);
 	blk_crypto_sysfs_unregister(disk);
 
-	if (queue_is_mq(q)) {
-		blk_mq_quiesce_queue(q);
+	if (queue_is_mq(q))
 		elevator_set_none(q);
-		blk_mq_unquiesce_queue(q);
-	}
 
 	mutex_lock(&q->sysfs_lock);
 	disk_unregister_independent_access_ranges(disk);
