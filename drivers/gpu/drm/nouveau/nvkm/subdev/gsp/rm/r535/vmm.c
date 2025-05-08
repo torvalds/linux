@@ -75,9 +75,22 @@ r535_mmu_vaspace_new(struct nvkm_vmm *vmm, u32 handle, bool external)
 
 	if (!external) {
 		NV90F1_CTRL_VASPACE_COPY_SERVER_RESERVED_PDES_PARAMS *ctrl;
+		u8 page_shift = 29; /* 512MiB */
+		const u64 page_size = BIT_ULL(page_shift);
+		const struct nvkm_vmm_page *page;
+		const struct nvkm_vmm_desc *desc;
+		struct nvkm_vmm_pt *pd = vmm->pd;
+
+		for (page = vmm->func->page; page->shift; page++) {
+			if (page->shift == page_shift)
+				break;
+		}
+
+		if (WARN_ON(!page->shift))
+			return -EINVAL;
 
 		mutex_lock(&vmm->mutex.vmm);
-		ret = nvkm_vmm_get_locked(vmm, true, false, false, 0x1d, 32, 0x20000000,
+		ret = nvkm_vmm_get_locked(vmm, true, false, false, page_shift, 32, page_size,
 					  &vmm->rm.rsvd);
 		mutex_unlock(&vmm->mutex.vmm);
 		if (ret)
@@ -94,22 +107,26 @@ r535_mmu_vaspace_new(struct nvkm_vmm *vmm, u32 handle, bool external)
 		if (IS_ERR(ctrl))
 			return PTR_ERR(ctrl);
 
-		ctrl->pageSize = 0x20000000;
+		ctrl->pageSize = page_size;
 		ctrl->virtAddrLo = vmm->rm.rsvd->addr;
 		ctrl->virtAddrHi = vmm->rm.rsvd->addr + vmm->rm.rsvd->size - 1;
-		ctrl->numLevelsToCopy = vmm->pd->pde[0]->pde[0] ? 3 : 2;
-		ctrl->levels[0].physAddress = vmm->pd->pt[0]->addr;
-		ctrl->levels[0].size = 0x20;
-		ctrl->levels[0].aperture = 1;
-		ctrl->levels[0].pageShift = 0x2f;
-		ctrl->levels[1].physAddress = vmm->pd->pde[0]->pt[0]->addr;
-		ctrl->levels[1].size = 0x1000;
-		ctrl->levels[1].aperture = 1;
-		ctrl->levels[1].pageShift = 0x26;
-		ctrl->levels[2].physAddress = vmm->pd->pde[0]->pde[0]->pt[0]->addr;
-		ctrl->levels[2].size = 0x1000;
-		ctrl->levels[2].aperture = 1;
-		ctrl->levels[2].pageShift = 0x1d;
+
+		for (desc = page->desc; desc->bits; desc++) {
+			ctrl->numLevelsToCopy++;
+			page_shift += desc->bits;
+		}
+		desc--;
+
+		for (int i = 0; i < ctrl->numLevelsToCopy; i++, desc--) {
+			page_shift -= desc->bits;
+
+			ctrl->levels[i].physAddress = pd->pt[0]->addr;
+			ctrl->levels[i].size = (1 << desc->bits) * desc->size;
+			ctrl->levels[i].aperture = 1;
+			ctrl->levels[i].pageShift = page_shift;
+
+			pd = pd->pde[0];
+		}
 
 		ret = nvkm_gsp_rm_ctrl_wr(&vmm->rm.object, ctrl);
 	} else {
