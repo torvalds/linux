@@ -80,7 +80,7 @@ static const struct iwl_eeprom_params iwl20x0_eeprom_params = {
 	.enhanced_txpower = true,
 };
 
-const struct iwl_cfg_trans_params iwl2000_trans_cfg = {
+const struct iwl_mac_cfg iwl2000_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_2000,
 	.base_params = &iwl2000_base_params,
 };
@@ -109,7 +109,7 @@ const struct iwl_cfg iwl2000_2bgn_cfg = {
 const char iwl2000_2bgn_name[] = "Intel(R) Centrino(R) Wireless-N 2200 BGN";
 const char iwl2000_2bgn_d_name[] = "Intel(R) Centrino(R) Wireless-N 2200D BGN";
 
-const struct iwl_cfg_trans_params iwl2030_trans_cfg = {
+const struct iwl_mac_cfg iwl2030_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_2030,
 	.base_params = &iwl2030_base_params,
 };
@@ -136,7 +136,7 @@ const struct iwl_cfg iwl2030_2bgn_cfg = {
 
 const char iwl2030_2bgn_name[] = "Intel(R) Centrino(R) Wireless-N 2230 BGN";
 
-const struct iwl_cfg_trans_params iwl105_trans_cfg = {
+const struct iwl_mac_cfg iwl105_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_105,
 	.base_params = &iwl2000_base_params,
 };
@@ -165,7 +165,7 @@ const struct iwl_cfg iwl105_bgn_cfg = {
 const char iwl105_bgn_name[] = "Intel(R) Centrino(R) Wireless-N 105 BGN";
 const char iwl105_bgn_d_name[] = "Intel(R) Centrino(R) Wireless-N 105D BGN";
 
-const struct iwl_cfg_trans_params iwl135_trans_cfg = {
+const struct iwl_mac_cfg iwl135_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_135,
 	.base_params = &iwl2030_base_params,
 };

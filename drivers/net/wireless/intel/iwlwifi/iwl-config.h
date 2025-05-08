@@ -238,7 +238,7 @@ struct iwl_pwr_tx_backoff {
 	u32 backoff;
 };
 
-enum iwl_cfg_trans_ltr_delay {
+enum iwl_mac_cfg_ltr_delay {
 	IWL_CFG_TRANS_LTR_DELAY_NONE	= 0,
 	IWL_CFG_TRANS_LTR_DELAY_200US	= 1,
 	IWL_CFG_TRANS_LTR_DELAY_2500US	= 2,
@@ -246,7 +246,7 @@ enum iwl_cfg_trans_ltr_delay {
 };
 
 /**
- * struct iwl_cfg_trans_params - information needed to start the trans
+ * struct iwl_mac_cfg - information about the MAC-specific device part
  *
  * These values are specific to the device ID and do not change when
  * multiple configs are used for a single device ID.  They values are
@@ -264,10 +264,10 @@ enum iwl_cfg_trans_ltr_delay {
  * @integrated: discrete or integrated
  * @low_latency_xtal: use the low latency xtal if supported
  * @bisr_workaround: BISR hardware workaround (for 22260 series devices)
- * @ltr_delay: LTR delay parameter, &enum iwl_cfg_trans_ltr_delay.
+ * @ltr_delay: LTR delay parameter, &enum iwl_mac_cfg_ltr_delay.
  * @imr_enabled: use the IMR if supported.
  */
-struct iwl_cfg_trans_params {
+struct iwl_mac_cfg {
 	const struct iwl_base_params *base_params;
 	enum iwl_device_family device_family;
 	u32 umac_prph_offset;
@@ -485,38 +485,38 @@ extern const struct pci_device_id iwl_hw_card_ids[];
 /*
  * This list declares the config structures for all devices.
  */
-extern const struct iwl_cfg_trans_params iwl1000_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl5000_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl2000_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl2030_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl105_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl135_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl5150_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl6005_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl6030_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl6000i_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl6050_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl6150_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl6000_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl7000_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl8000_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl9000_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl9560_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl9560_long_latency_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl9560_shared_clk_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl_qu_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl_qu_medium_latency_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl_qu_long_latency_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl_ax200_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl_so_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl_so_long_latency_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl_so_long_latency_imr_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl_ma_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl_bz_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl_gl_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl_sc_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl_dr_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl_br_trans_cfg;
+extern const struct iwl_mac_cfg iwl1000_mac_cfg;
+extern const struct iwl_mac_cfg iwl5000_mac_cfg;
+extern const struct iwl_mac_cfg iwl2000_mac_cfg;
+extern const struct iwl_mac_cfg iwl2030_mac_cfg;
+extern const struct iwl_mac_cfg iwl105_mac_cfg;
+extern const struct iwl_mac_cfg iwl135_mac_cfg;
+extern const struct iwl_mac_cfg iwl5150_mac_cfg;
+extern const struct iwl_mac_cfg iwl6005_mac_cfg;
+extern const struct iwl_mac_cfg iwl6030_mac_cfg;
+extern const struct iwl_mac_cfg iwl6000i_mac_cfg;
+extern const struct iwl_mac_cfg iwl6050_mac_cfg;
+extern const struct iwl_mac_cfg iwl6150_mac_cfg;
+extern const struct iwl_mac_cfg iwl6000_mac_cfg;
+extern const struct iwl_mac_cfg iwl7000_mac_cfg;
+extern const struct iwl_mac_cfg iwl8000_mac_cfg;
+extern const struct iwl_mac_cfg iwl9000_mac_cfg;
+extern const struct iwl_mac_cfg iwl9560_mac_cfg;
+extern const struct iwl_mac_cfg iwl9560_long_latency_mac_cfg;
+extern const struct iwl_mac_cfg iwl9560_shared_clk_mac_cfg;
+extern const struct iwl_mac_cfg iwl_qu_mac_cfg;
+extern const struct iwl_mac_cfg iwl_qu_medium_latency_mac_cfg;
+extern const struct iwl_mac_cfg iwl_qu_long_latency_mac_cfg;
+extern const struct iwl_mac_cfg iwl_ax200_mac_cfg;
+extern const struct iwl_mac_cfg iwl_so_mac_cfg;
+extern const struct iwl_mac_cfg iwl_so_long_latency_mac_cfg;
+extern const struct iwl_mac_cfg iwl_so_long_latency_imr_mac_cfg;
+extern const struct iwl_mac_cfg iwl_ma_mac_cfg;
+extern const struct iwl_mac_cfg iwl_bz_mac_cfg;
+extern const struct iwl_mac_cfg iwl_gl_mac_cfg;
+extern const struct iwl_mac_cfg iwl_sc_mac_cfg;
+extern const struct iwl_mac_cfg iwl_dr_mac_cfg;
+extern const struct iwl_mac_cfg iwl_br_mac_cfg;
 
 extern const char iwl1000_bgn_name[];
 extern const char iwl1000_bg_name[];

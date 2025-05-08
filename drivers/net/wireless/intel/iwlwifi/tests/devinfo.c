@@ -155,14 +155,14 @@ static void devinfo_pci_ids(struct kunit *test)
 	}
 }
 
-static void devinfo_no_trans_cfg_dups(struct kunit *test)
+static void devinfo_no_mac_cfg_dups(struct kunit *test)
 {
 	for (int i = 0; iwl_hw_card_ids[i].vendor; i++) {
-		const struct iwl_cfg_trans_params *cfg_i =
+		const struct iwl_mac_cfg *cfg_i =
 			(void *)iwl_hw_card_ids[i].driver_data;
 
 		for (int j = 0; j < i; j++) {
-			const struct iwl_cfg_trans_params *cfg_j =
+			const struct iwl_mac_cfg *cfg_j =
 				(void *)iwl_hw_card_ids[j].driver_data;
 
 			if (cfg_i == cfg_j)
@@ -184,7 +184,7 @@ static struct kunit_case devinfo_test_cases[] = {
 	KUNIT_CASE(devinfo_check_subdev_match),
 	KUNIT_CASE(devinfo_check_killer_subdev),
 	KUNIT_CASE(devinfo_pci_ids),
-	KUNIT_CASE(devinfo_no_trans_cfg_dups),
+	KUNIT_CASE(devinfo_no_mac_cfg_dups),
 	{}
 };
 

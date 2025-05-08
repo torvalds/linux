@@ -113,7 +113,7 @@ static const struct iwl_base_params iwl_22000_base_params = {
 		},							\
 	}
 
-const struct iwl_cfg_trans_params iwl_qu_trans_cfg = {
+const struct iwl_mac_cfg iwl_qu_mac_cfg = {
 	.mq_rx_supported = true,
 	.rf_id = true,
 	.gen2 = true,
@@ -124,7 +124,7 @@ const struct iwl_cfg_trans_params iwl_qu_trans_cfg = {
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_200US,
 };
 
-const struct iwl_cfg_trans_params iwl_qu_medium_latency_trans_cfg = {
+const struct iwl_mac_cfg iwl_qu_medium_latency_mac_cfg = {
 	.mq_rx_supported = true,
 	.rf_id = true,
 	.gen2 = true,
@@ -135,7 +135,7 @@ const struct iwl_cfg_trans_params iwl_qu_medium_latency_trans_cfg = {
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_1820US,
 };
 
-const struct iwl_cfg_trans_params iwl_qu_long_latency_trans_cfg = {
+const struct iwl_mac_cfg iwl_qu_long_latency_mac_cfg = {
 	.mq_rx_supported = true,
 	.rf_id = true,
 	.gen2 = true,
@@ -173,7 +173,7 @@ const struct iwl_cfg iwl9560_qu_jf_cfg_80mhz = {
 	.bw_limit = 80,
 };
 
-const struct iwl_cfg_trans_params iwl_ax200_trans_cfg = {
+const struct iwl_mac_cfg iwl_ax200_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_22000,
 	.base_params = &iwl_22000_base_params,
 	.mq_rx_supported = true,

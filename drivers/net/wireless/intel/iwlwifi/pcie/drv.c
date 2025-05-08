@@ -21,7 +21,7 @@
 							 struct _struct)
 extern int _invalid_type;
 #define _TRANS_CFG_CHECK(cfg)						\
-	(__builtin_choose_expr(_IS_A(cfg, iwl_cfg_trans_params),	\
+	(__builtin_choose_expr(_IS_A(cfg, iwl_mac_cfg),	\
 			       0, _invalid_type))
 #define _ASSIGN_CFG(cfg) (_TRANS_CFG_CHECK(cfg) + (kernel_ulong_t)&(cfg))
 
@@ -33,515 +33,515 @@ extern int _invalid_type;
 /* Hardware specific file defines the PCI IDs table for that hardware module */
 VISIBLE_IF_IWLWIFI_KUNIT const struct pci_device_id iwl_hw_card_ids[] = {
 #if IS_ENABLED(CONFIG_IWLDVM)
-	{IWL_PCI_DEVICE(0x4232, 0x1201, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4232, 0x1301, iwl5000_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x4232, 0x1204, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4232, 0x1304, iwl5000_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x4232, 0x1205, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4232, 0x1305, iwl5000_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x4232, 0x1206, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4232, 0x1306, iwl5000_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x4232, 0x1221, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4232, 0x1321, iwl5000_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x4232, 0x1224, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4232, 0x1324, iwl5000_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x4232, 0x1225, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4232, 0x1325, iwl5000_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x4232, 0x1226, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4232, 0x1326, iwl5000_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x4237, 0x1211, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4237, 0x1311, iwl5000_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x4237, 0x1214, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4237, 0x1314, iwl5000_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x4237, 0x1215, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4237, 0x1315, iwl5000_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x4237, 0x1216, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4237, 0x1316, iwl5000_trans_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1201, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1301, iwl5000_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1204, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1304, iwl5000_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1205, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1305, iwl5000_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1206, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1306, iwl5000_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1221, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1321, iwl5000_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1224, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1324, iwl5000_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1225, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1325, iwl5000_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1226, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4232, 0x1326, iwl5000_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4237, 0x1211, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4237, 0x1311, iwl5000_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4237, 0x1214, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4237, 0x1314, iwl5000_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4237, 0x1215, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4237, 0x1315, iwl5000_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4237, 0x1216, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4237, 0x1316, iwl5000_mac_cfg)}, /* Half Mini Card */
 
 /* 5300 Series WiFi */
-	{IWL_PCI_DEVICE(0x4235, 0x1021, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4235, 0x1121, iwl5000_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x4235, 0x1024, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4235, 0x1124, iwl5000_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x4235, 0x1001, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4235, 0x1101, iwl5000_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x4235, 0x1004, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4235, 0x1104, iwl5000_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x4236, 0x1011, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4236, 0x1111, iwl5000_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x4236, 0x1014, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x4236, 0x1114, iwl5000_trans_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4235, 0x1021, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4235, 0x1121, iwl5000_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4235, 0x1024, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4235, 0x1124, iwl5000_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4235, 0x1001, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4235, 0x1101, iwl5000_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4235, 0x1004, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4235, 0x1104, iwl5000_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4236, 0x1011, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4236, 0x1111, iwl5000_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x4236, 0x1014, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x4236, 0x1114, iwl5000_mac_cfg)}, /* Half Mini Card */
 
 /* 5350 Series WiFi/WiMax */
-	{IWL_PCI_DEVICE(0x423A, 0x1001, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x423A, 0x1021, iwl5000_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x423B, 0x1011, iwl5000_trans_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x423A, 0x1001, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x423A, 0x1021, iwl5000_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x423B, 0x1011, iwl5000_mac_cfg)}, /* Mini Card */
 
 /* 5150 Series Wifi/WiMax */
-	{IWL_PCI_DEVICE(0x423C, 0x1201, iwl5150_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x423C, 0x1301, iwl5150_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x423C, 0x1206, iwl5150_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x423C, 0x1306, iwl5150_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x423C, 0x1221, iwl5150_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x423C, 0x1321, iwl5150_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x423C, 0x1326, iwl5150_trans_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x423C, 0x1201, iwl5150_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x423C, 0x1301, iwl5150_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x423C, 0x1206, iwl5150_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x423C, 0x1306, iwl5150_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x423C, 0x1221, iwl5150_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x423C, 0x1321, iwl5150_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x423C, 0x1326, iwl5150_mac_cfg)}, /* Half Mini Card */
 
-	{IWL_PCI_DEVICE(0x423D, 0x1211, iwl5150_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x423D, 0x1311, iwl5150_trans_cfg)}, /* Half Mini Card */
-	{IWL_PCI_DEVICE(0x423D, 0x1216, iwl5150_trans_cfg)}, /* Mini Card */
-	{IWL_PCI_DEVICE(0x423D, 0x1316, iwl5150_trans_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x423D, 0x1211, iwl5150_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x423D, 0x1311, iwl5150_mac_cfg)}, /* Half Mini Card */
+	{IWL_PCI_DEVICE(0x423D, 0x1216, iwl5150_mac_cfg)}, /* Mini Card */
+	{IWL_PCI_DEVICE(0x423D, 0x1316, iwl5150_mac_cfg)}, /* Half Mini Card */
 
 /* 6x00 Series */
-	{IWL_PCI_DEVICE(0x422B, 0x1101, iwl6000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x422B, 0x1108, iwl6000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x422B, 0x1121, iwl6000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x422B, 0x1128, iwl6000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x422C, 0x1301, iwl6000i_trans_cfg)},
-	{IWL_PCI_DEVICE(0x422C, 0x1306, iwl6000i_trans_cfg)},
-	{IWL_PCI_DEVICE(0x422C, 0x1307, iwl6000i_trans_cfg)},
-	{IWL_PCI_DEVICE(0x422C, 0x1321, iwl6000i_trans_cfg)},
-	{IWL_PCI_DEVICE(0x422C, 0x1326, iwl6000i_trans_cfg)},
-	{IWL_PCI_DEVICE(0x4238, 0x1111, iwl6000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x4238, 0x1118, iwl6000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x4239, 0x1311, iwl6000i_trans_cfg)},
-	{IWL_PCI_DEVICE(0x4239, 0x1316, iwl6000i_trans_cfg)},
+	{IWL_PCI_DEVICE(0x422B, 0x1101, iwl6000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x422B, 0x1108, iwl6000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x422B, 0x1121, iwl6000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x422B, 0x1128, iwl6000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x422C, 0x1301, iwl6000i_mac_cfg)},
+	{IWL_PCI_DEVICE(0x422C, 0x1306, iwl6000i_mac_cfg)},
+	{IWL_PCI_DEVICE(0x422C, 0x1307, iwl6000i_mac_cfg)},
+	{IWL_PCI_DEVICE(0x422C, 0x1321, iwl6000i_mac_cfg)},
+	{IWL_PCI_DEVICE(0x422C, 0x1326, iwl6000i_mac_cfg)},
+	{IWL_PCI_DEVICE(0x4238, 0x1111, iwl6000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x4238, 0x1118, iwl6000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x4239, 0x1311, iwl6000i_mac_cfg)},
+	{IWL_PCI_DEVICE(0x4239, 0x1316, iwl6000i_mac_cfg)},
 
 /* 6x05 Series */
-	{IWL_PCI_DEVICE(0x0082, 0x1301, iwl6005_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0082, 0x1306, iwl6005_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0082, 0x1307, iwl6005_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0082, 0x1308, iwl6005_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0082, 0x1321, iwl6005_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0082, 0x1326, iwl6005_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0082, 0x1328, iwl6005_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0085, 0x1311, iwl6005_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0085, 0x1318, iwl6005_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0085, 0x1316, iwl6005_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0082, 0xC020, iwl6005_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0085, 0xC220, iwl6005_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0085, 0xC228, iwl6005_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0082, 0x4820, iwl6005_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0082, 0x1304, iwl6005_trans_cfg)},/* low 5GHz active */
-	{IWL_PCI_DEVICE(0x0082, 0x1305, iwl6005_trans_cfg)},/* high 5GHz active */
+	{IWL_PCI_DEVICE(0x0082, 0x1301, iwl6005_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0082, 0x1306, iwl6005_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0082, 0x1307, iwl6005_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0082, 0x1308, iwl6005_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0082, 0x1321, iwl6005_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0082, 0x1326, iwl6005_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0082, 0x1328, iwl6005_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0085, 0x1311, iwl6005_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0085, 0x1318, iwl6005_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0085, 0x1316, iwl6005_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0082, 0xC020, iwl6005_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0085, 0xC220, iwl6005_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0085, 0xC228, iwl6005_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0082, 0x4820, iwl6005_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0082, 0x1304, iwl6005_mac_cfg)},/* low 5GHz active */
+	{IWL_PCI_DEVICE(0x0082, 0x1305, iwl6005_mac_cfg)},/* high 5GHz active */
 
 /* 6x30 Series */
-	{IWL_PCI_DEVICE(0x008A, 0x5305, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x008A, 0x5307, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x008A, 0x5325, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x008A, 0x5327, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x008B, 0x5315, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x008B, 0x5317, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0090, 0x5211, iwl6030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0090, 0x5215, iwl6030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0090, 0x5216, iwl6030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0091, 0x5201, iwl6030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0091, 0x5205, iwl6030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0091, 0x5206, iwl6030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0091, 0x5207, iwl6030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0091, 0x5221, iwl6030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0091, 0x5225, iwl6030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0091, 0x5226, iwl6030_trans_cfg)},
+	{IWL_PCI_DEVICE(0x008A, 0x5305, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x008A, 0x5307, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x008A, 0x5325, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x008A, 0x5327, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x008B, 0x5315, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x008B, 0x5317, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0090, 0x5211, iwl6030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0090, 0x5215, iwl6030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0090, 0x5216, iwl6030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0091, 0x5201, iwl6030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0091, 0x5205, iwl6030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0091, 0x5206, iwl6030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0091, 0x5207, iwl6030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0091, 0x5221, iwl6030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0091, 0x5225, iwl6030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0091, 0x5226, iwl6030_mac_cfg)},
 
 /* 6x50 WiFi/WiMax Series */
-	{IWL_PCI_DEVICE(0x0087, 0x1301, iwl6050_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0087, 0x1306, iwl6050_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0087, 0x1321, iwl6050_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0087, 0x1326, iwl6050_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0089, 0x1311, iwl6050_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0089, 0x1316, iwl6050_trans_cfg)},
+	{IWL_PCI_DEVICE(0x0087, 0x1301, iwl6050_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0087, 0x1306, iwl6050_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0087, 0x1321, iwl6050_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0087, 0x1326, iwl6050_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0089, 0x1311, iwl6050_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0089, 0x1316, iwl6050_mac_cfg)},
 
 /* 6150 WiFi/WiMax Series */
-	{IWL_PCI_DEVICE(0x0885, 0x1305, iwl6150_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0885, 0x1307, iwl6150_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0885, 0x1325, iwl6150_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0885, 0x1327, iwl6150_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0886, 0x1315, iwl6150_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0886, 0x1317, iwl6150_trans_cfg)},
+	{IWL_PCI_DEVICE(0x0885, 0x1305, iwl6150_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0885, 0x1307, iwl6150_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0885, 0x1325, iwl6150_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0885, 0x1327, iwl6150_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0886, 0x1315, iwl6150_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0886, 0x1317, iwl6150_mac_cfg)},
 
 /* 1000 Series WiFi */
-	{IWL_PCI_DEVICE(0x0083, 0x1205, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0083, 0x1305, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0083, 0x1225, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0083, 0x1325, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0084, 0x1215, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0084, 0x1315, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0083, 0x1206, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0083, 0x1306, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0083, 0x1226, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0083, 0x1326, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0084, 0x1216, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0084, 0x1316, iwl1000_trans_cfg)},
+	{IWL_PCI_DEVICE(0x0083, 0x1205, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0083, 0x1305, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0083, 0x1225, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0083, 0x1325, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0084, 0x1215, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0084, 0x1315, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0083, 0x1206, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0083, 0x1306, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0083, 0x1226, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0083, 0x1326, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0084, 0x1216, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0084, 0x1316, iwl1000_mac_cfg)},
 
 /* 100 Series WiFi */
-	{IWL_PCI_DEVICE(0x08AE, 0x1005, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08AE, 0x1007, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08AF, 0x1015, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08AF, 0x1017, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08AE, 0x1025, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08AE, 0x1027, iwl1000_trans_cfg)},
+	{IWL_PCI_DEVICE(0x08AE, 0x1005, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08AE, 0x1007, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08AF, 0x1015, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08AF, 0x1017, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08AE, 0x1025, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08AE, 0x1027, iwl1000_mac_cfg)},
 
 /* 130 Series WiFi */
-	{IWL_PCI_DEVICE(0x0896, 0x5005, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0896, 0x5007, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0897, 0x5015, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0897, 0x5017, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0896, 0x5025, iwl1000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0896, 0x5027, iwl1000_trans_cfg)},
+	{IWL_PCI_DEVICE(0x0896, 0x5005, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0896, 0x5007, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0897, 0x5015, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0897, 0x5017, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0896, 0x5025, iwl1000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0896, 0x5027, iwl1000_mac_cfg)},
 
 /* 2x00 Series */
-	{IWL_PCI_DEVICE(0x0890, 0x4022, iwl2000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0891, 0x4222, iwl2000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0890, 0x4422, iwl2000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0890, 0x4822, iwl2000_trans_cfg)},
+	{IWL_PCI_DEVICE(0x0890, 0x4022, iwl2000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0891, 0x4222, iwl2000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0890, 0x4422, iwl2000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0890, 0x4822, iwl2000_mac_cfg)},
 
 /* 2x30 Series */
-	{IWL_PCI_DEVICE(0x0887, 0x4062, iwl2030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0888, 0x4262, iwl2030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0887, 0x4462, iwl2030_trans_cfg)},
+	{IWL_PCI_DEVICE(0x0887, 0x4062, iwl2030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0888, 0x4262, iwl2030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0887, 0x4462, iwl2030_mac_cfg)},
 
 /* 6x35 Series */
-	{IWL_PCI_DEVICE(0x088E, 0x4060, iwl6030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x088E, 0x406A, iwl6030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x088F, 0x4260, iwl6030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x088F, 0x426A, iwl6030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x088E, 0x4460, iwl6030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x088E, 0x446A, iwl6030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x088E, 0x4860, iwl6030_trans_cfg)},
-	{IWL_PCI_DEVICE(0x088F, 0x5260, iwl6030_trans_cfg)},
+	{IWL_PCI_DEVICE(0x088E, 0x4060, iwl6030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x088E, 0x406A, iwl6030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x088F, 0x4260, iwl6030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x088F, 0x426A, iwl6030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x088E, 0x4460, iwl6030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x088E, 0x446A, iwl6030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x088E, 0x4860, iwl6030_mac_cfg)},
+	{IWL_PCI_DEVICE(0x088F, 0x5260, iwl6030_mac_cfg)},
 
 /* 105 Series */
-	{IWL_PCI_DEVICE(0x0894, 0x0022, iwl105_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0895, 0x0222, iwl105_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0894, 0x0422, iwl105_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0894, 0x0822, iwl105_trans_cfg)},
+	{IWL_PCI_DEVICE(0x0894, 0x0022, iwl105_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0895, 0x0222, iwl105_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0894, 0x0422, iwl105_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0894, 0x0822, iwl105_mac_cfg)},
 
 /* 135 Series */
-	{IWL_PCI_DEVICE(0x0892, 0x0062, iwl135_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0893, 0x0262, iwl135_trans_cfg)},
-	{IWL_PCI_DEVICE(0x0892, 0x0462, iwl135_trans_cfg)},
+	{IWL_PCI_DEVICE(0x0892, 0x0062, iwl135_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0893, 0x0262, iwl135_mac_cfg)},
+	{IWL_PCI_DEVICE(0x0892, 0x0462, iwl135_mac_cfg)},
 #endif /* CONFIG_IWLDVM */
 
 #if IS_ENABLED(CONFIG_IWLMVM)
 /* 7260 Series */
-	{IWL_PCI_DEVICE(0x08B1, 0x4070, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4072, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4170, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4C60, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4C70, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4060, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x406A, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4160, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4062, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4162, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B2, 0x4270, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B2, 0x4272, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B2, 0x4260, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B2, 0x426A, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B2, 0x4262, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4470, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4472, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4460, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x446A, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4462, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4870, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x486E, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4A70, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4A6E, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4A6C, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4570, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4560, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B2, 0x4370, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B2, 0x4360, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x5070, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x5072, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x5170, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x5770, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4020, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x402A, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B2, 0x4220, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4420, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC070, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC072, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC170, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC060, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC06A, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC160, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC062, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC162, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC770, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC760, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B2, 0xC270, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xCC70, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xCC60, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B2, 0xC272, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B2, 0xC260, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B2, 0xC26A, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B2, 0xC262, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC470, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC472, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC460, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC462, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC570, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC560, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B2, 0xC370, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC360, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC020, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC02A, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B2, 0xC220, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0xC420, iwl7000_trans_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4070, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4072, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4170, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4C60, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4C70, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4060, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x406A, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4160, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4062, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4162, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0x4270, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0x4272, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0x4260, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0x426A, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0x4262, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4470, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4472, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4460, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x446A, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4462, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4870, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x486E, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4A70, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4A6E, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4A6C, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4570, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4560, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0x4370, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0x4360, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x5070, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x5072, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x5170, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x5770, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4020, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x402A, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0x4220, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4420, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC070, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC072, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC170, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC060, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC06A, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC160, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC062, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC162, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC770, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC760, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0xC270, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xCC70, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xCC60, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0xC272, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0xC260, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0xC26A, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0xC262, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC470, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC472, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC460, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC462, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC570, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC560, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0xC370, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC360, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC020, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC02A, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0xC220, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC420, iwl7000_mac_cfg)},
 
 /* 3160 Series */
-	{IWL_PCI_DEVICE(0x08B3, 0x0070, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x0072, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x0170, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x0172, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x0060, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x0062, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B4, 0x0270, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B4, 0x0272, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x0470, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x0472, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B4, 0x0370, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x8070, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x8072, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x8170, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x8172, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x8060, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x8062, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B4, 0x8270, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B4, 0x8370, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B4, 0x8272, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x8470, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x8570, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x1070, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x1170, iwl7000_trans_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x0070, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x0072, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x0170, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x0172, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x0060, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x0062, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B4, 0x0270, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B4, 0x0272, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x0470, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x0472, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B4, 0x0370, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x8070, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x8072, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x8170, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x8172, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x8060, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x8062, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B4, 0x8270, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B4, 0x8370, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B4, 0x8272, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x8470, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x8570, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x1070, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x1170, iwl7000_mac_cfg)},
 
 /* 3165 Series */
-	{IWL_PCI_DEVICE(0x3165, 0x4010, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x3165, 0x4012, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x3166, 0x4212, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x3165, 0x4410, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x3165, 0x4510, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x3165, 0x4110, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x3166, 0x4310, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x3166, 0x4210, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x3165, 0x8010, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x3165, 0x8110, iwl7000_trans_cfg)},
+	{IWL_PCI_DEVICE(0x3165, 0x4010, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x3165, 0x4012, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x3166, 0x4212, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x3165, 0x4410, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x3165, 0x4510, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x3165, 0x4110, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x3166, 0x4310, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x3166, 0x4210, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x3165, 0x8010, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x3165, 0x8110, iwl7000_mac_cfg)},
 
 /* 3168 Series */
-	{IWL_PCI_DEVICE(0x24FB, 0x2010, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FB, 0x2110, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FB, 0x2050, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FB, 0x2150, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FB, 0x0000, iwl7000_trans_cfg)},
+	{IWL_PCI_DEVICE(0x24FB, 0x2010, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FB, 0x2110, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FB, 0x2050, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FB, 0x2150, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FB, 0x0000, iwl7000_mac_cfg)},
 
 /* 7265 Series */
-	{IWL_PCI_DEVICE(0x095A, 0x5010, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5110, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5100, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095B, 0x5310, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095B, 0x5302, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095B, 0x5210, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5C10, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5012, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5412, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5410, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5510, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5400, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x1010, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5000, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x500A, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095B, 0x5200, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5002, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5102, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095B, 0x5202, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x9010, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x9012, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x900A, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x9110, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x9112, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095B, 0x9210, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095B, 0x9200, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x9510, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095B, 0x9310, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x9410, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5020, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x502A, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5420, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5090, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5190, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5590, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095B, 0x5290, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5490, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x5F10, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095B, 0x5212, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095B, 0x520A, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x9000, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x9400, iwl7000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x095A, 0x9E10, iwl7000_trans_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5010, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5110, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5100, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x5310, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x5302, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x5210, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5C10, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5012, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5412, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5410, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5510, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5400, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x1010, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5000, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x500A, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x5200, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5002, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5102, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x5202, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9010, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9012, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x900A, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9110, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9112, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x9210, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x9200, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9510, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x9310, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9410, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5020, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x502A, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5420, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5090, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5190, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5590, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x5290, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5490, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x5F10, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x5212, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095B, 0x520A, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9000, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9400, iwl7000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x095A, 0x9E10, iwl7000_mac_cfg)},
 
 /* 8000 Series */
-	{IWL_PCI_DEVICE(0x24F3, 0x0010, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x1010, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x10B0, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x0130, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x1130, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x0132, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x1132, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x0110, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x01F0, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x0012, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x1012, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x1110, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x0050, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x0250, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x1050, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x0150, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x1150, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F4, 0x0030, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F4, 0x1030, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0xC010, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0xC110, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0xD010, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0xC050, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0xD050, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0xD0B0, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0xB0B0, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x8010, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x8110, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x9010, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x9110, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F4, 0x8030, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F4, 0x9030, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F4, 0xC030, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F4, 0xD030, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x8130, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x9130, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x8132, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x9132, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x8050, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x8150, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x9050, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x9150, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x0004, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x0044, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F5, 0x0010, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F6, 0x0030, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x0810, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x0910, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x0850, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x0950, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x0930, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x0000, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24F3, 0x4010, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x0010, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x0110, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x1110, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x1130, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x0130, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x1010, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x10D0, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x0050, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x0150, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x9010, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x8110, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x8050, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x8010, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x0810, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x9110, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x8130, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x0910, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x0930, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x0950, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x0850, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x1014, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x3E02, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x3E01, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x1012, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x0012, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x0014, iwl8000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x24FD, 0x9074, iwl8000_trans_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0010, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x1010, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x10B0, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0130, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x1130, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0132, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x1132, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0110, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x01F0, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0012, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x1012, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x1110, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0050, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0250, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x1050, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0150, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x1150, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F4, 0x0030, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F4, 0x1030, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0xC010, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0xC110, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0xD010, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0xC050, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0xD050, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0xD0B0, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0xB0B0, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x8010, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x8110, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x9010, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x9110, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F4, 0x8030, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F4, 0x9030, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F4, 0xC030, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F4, 0xD030, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x8130, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x9130, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x8132, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x9132, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x8050, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x8150, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x9050, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x9150, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0004, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0044, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F5, 0x0010, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F6, 0x0030, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0810, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0910, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0850, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0950, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0930, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x0000, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24F3, 0x4010, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0010, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0110, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x1110, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x1130, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0130, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x1010, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x10D0, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0050, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0150, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x9010, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x8110, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x8050, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x8010, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0810, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x9110, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x8130, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0910, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0930, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0950, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0850, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x1014, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x3E02, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x3E01, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x1012, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0012, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x0014, iwl8000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x24FD, 0x9074, iwl8000_mac_cfg)},
 
 /* 9000 Series */
-	{IWL_PCI_DEVICE(0x2526, PCI_ANY_ID, iwl9000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x271B, PCI_ANY_ID, iwl9000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x271C, PCI_ANY_ID, iwl9000_trans_cfg)},
-	{IWL_PCI_DEVICE(0x30DC, PCI_ANY_ID, iwl9560_long_latency_trans_cfg)},
-	{IWL_PCI_DEVICE(0x31DC, PCI_ANY_ID, iwl9560_shared_clk_trans_cfg)},
-	{IWL_PCI_DEVICE(0x9DF0, PCI_ANY_ID, iwl9560_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA370, PCI_ANY_ID, iwl9560_trans_cfg)},
+	{IWL_PCI_DEVICE(0x2526, PCI_ANY_ID, iwl9000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x271B, PCI_ANY_ID, iwl9000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x271C, PCI_ANY_ID, iwl9000_mac_cfg)},
+	{IWL_PCI_DEVICE(0x30DC, PCI_ANY_ID, iwl9560_long_latency_mac_cfg)},
+	{IWL_PCI_DEVICE(0x31DC, PCI_ANY_ID, iwl9560_shared_clk_mac_cfg)},
+	{IWL_PCI_DEVICE(0x9DF0, PCI_ANY_ID, iwl9560_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA370, PCI_ANY_ID, iwl9560_mac_cfg)},
 
 /* Qu devices */
-	{IWL_PCI_DEVICE(0x02F0, PCI_ANY_ID, iwl_qu_trans_cfg)},
-	{IWL_PCI_DEVICE(0x06F0, PCI_ANY_ID, iwl_qu_trans_cfg)},
+	{IWL_PCI_DEVICE(0x02F0, PCI_ANY_ID, iwl_qu_mac_cfg)},
+	{IWL_PCI_DEVICE(0x06F0, PCI_ANY_ID, iwl_qu_mac_cfg)},
 
-	{IWL_PCI_DEVICE(0x34F0, PCI_ANY_ID, iwl_qu_medium_latency_trans_cfg)},
-	{IWL_PCI_DEVICE(0x3DF0, PCI_ANY_ID, iwl_qu_medium_latency_trans_cfg)},
-	{IWL_PCI_DEVICE(0x4DF0, PCI_ANY_ID, iwl_qu_medium_latency_trans_cfg)},
+	{IWL_PCI_DEVICE(0x34F0, PCI_ANY_ID, iwl_qu_medium_latency_mac_cfg)},
+	{IWL_PCI_DEVICE(0x3DF0, PCI_ANY_ID, iwl_qu_medium_latency_mac_cfg)},
+	{IWL_PCI_DEVICE(0x4DF0, PCI_ANY_ID, iwl_qu_medium_latency_mac_cfg)},
 
-	{IWL_PCI_DEVICE(0x43F0, PCI_ANY_ID, iwl_qu_long_latency_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA0F0, PCI_ANY_ID, iwl_qu_long_latency_trans_cfg)},
+	{IWL_PCI_DEVICE(0x43F0, PCI_ANY_ID, iwl_qu_long_latency_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA0F0, PCI_ANY_ID, iwl_qu_long_latency_mac_cfg)},
 
-	{IWL_PCI_DEVICE(0x2723, PCI_ANY_ID, iwl_ax200_trans_cfg)},
+	{IWL_PCI_DEVICE(0x2723, PCI_ANY_ID, iwl_ax200_mac_cfg)},
 
 /* So devices */
-	{IWL_PCI_DEVICE(0x2725, PCI_ANY_ID, iwl_so_trans_cfg)},
-	{IWL_PCI_DEVICE(0x7A70, PCI_ANY_ID, iwl_so_long_latency_imr_trans_cfg)},
-	{IWL_PCI_DEVICE(0x7AF0, PCI_ANY_ID, iwl_so_trans_cfg)},
-	{IWL_PCI_DEVICE(0x51F0, PCI_ANY_ID, iwl_so_long_latency_trans_cfg)},
-	{IWL_PCI_DEVICE(0x51F1, PCI_ANY_ID, iwl_so_long_latency_imr_trans_cfg)},
-	{IWL_PCI_DEVICE(0x54F0, PCI_ANY_ID, iwl_so_long_latency_trans_cfg)},
-	{IWL_PCI_DEVICE(0x7F70, PCI_ANY_ID, iwl_so_trans_cfg)},
+	{IWL_PCI_DEVICE(0x2725, PCI_ANY_ID, iwl_so_mac_cfg)},
+	{IWL_PCI_DEVICE(0x7A70, PCI_ANY_ID, iwl_so_long_latency_imr_mac_cfg)},
+	{IWL_PCI_DEVICE(0x7AF0, PCI_ANY_ID, iwl_so_mac_cfg)},
+	{IWL_PCI_DEVICE(0x51F0, PCI_ANY_ID, iwl_so_long_latency_mac_cfg)},
+	{IWL_PCI_DEVICE(0x51F1, PCI_ANY_ID, iwl_so_long_latency_imr_mac_cfg)},
+	{IWL_PCI_DEVICE(0x54F0, PCI_ANY_ID, iwl_so_long_latency_mac_cfg)},
+	{IWL_PCI_DEVICE(0x7F70, PCI_ANY_ID, iwl_so_mac_cfg)},
 
 /* Ma devices */
-	{IWL_PCI_DEVICE(0x2729, PCI_ANY_ID, iwl_ma_trans_cfg)},
-	{IWL_PCI_DEVICE(0x7E40, PCI_ANY_ID, iwl_ma_trans_cfg)},
+	{IWL_PCI_DEVICE(0x2729, PCI_ANY_ID, iwl_ma_mac_cfg)},
+	{IWL_PCI_DEVICE(0x7E40, PCI_ANY_ID, iwl_ma_mac_cfg)},
 #endif /* CONFIG_IWLMVM */
 #if IS_ENABLED(CONFIG_IWLMLD)
 /* Bz devices */
-	{IWL_PCI_DEVICE(0x272b, PCI_ANY_ID, iwl_gl_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x0000, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x0090, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x0094, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x0098, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x009C, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x00C0, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x00C4, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x00E0, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x00E4, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x00E8, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x00EC, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x0100, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x0110, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x0114, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x0118, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x011C, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x0310, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x0314, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x0510, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x0A10, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x1671, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x1672, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x1771, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x1772, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x1791, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x1792, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x4090, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x40C4, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x40E0, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x4110, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0xA840, 0x4314, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0x7740, PCI_ANY_ID, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0x4D40, PCI_ANY_ID, iwl_bz_trans_cfg)},
+	{IWL_PCI_DEVICE(0x272b, PCI_ANY_ID, iwl_gl_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x0000, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x0090, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x0094, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x0098, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x009C, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x00C0, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x00C4, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x00E0, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x00E4, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x00E8, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x00EC, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x0100, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x0110, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x0114, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x0118, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x011C, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x0310, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x0314, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x0510, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x0A10, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x1671, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x1672, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x1771, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x1772, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x1791, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x1792, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x4090, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x40C4, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x40E0, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x4110, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0xA840, 0x4314, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0x7740, PCI_ANY_ID, iwl_bz_mac_cfg)},
+	{IWL_PCI_DEVICE(0x4D40, PCI_ANY_ID, iwl_bz_mac_cfg)},
 
 /* Sc devices */
-	{IWL_PCI_DEVICE(0xE440, PCI_ANY_ID, iwl_sc_trans_cfg)},
-	{IWL_PCI_DEVICE(0xE340, PCI_ANY_ID, iwl_sc_trans_cfg)},
-	{IWL_PCI_DEVICE(0xD340, PCI_ANY_ID, iwl_sc_trans_cfg)},
-	{IWL_PCI_DEVICE(0x6E70, PCI_ANY_ID, iwl_sc_trans_cfg)},
+	{IWL_PCI_DEVICE(0xE440, PCI_ANY_ID, iwl_sc_mac_cfg)},
+	{IWL_PCI_DEVICE(0xE340, PCI_ANY_ID, iwl_sc_mac_cfg)},
+	{IWL_PCI_DEVICE(0xD340, PCI_ANY_ID, iwl_sc_mac_cfg)},
+	{IWL_PCI_DEVICE(0x6E70, PCI_ANY_ID, iwl_sc_mac_cfg)},
 
 /* Dr devices */
-	{IWL_PCI_DEVICE(0x272F, PCI_ANY_ID, iwl_dr_trans_cfg)},
+	{IWL_PCI_DEVICE(0x272F, PCI_ANY_ID, iwl_dr_mac_cfg)},
 #endif /* CONFIG_IWLMLD */
 
 	{0}
@@ -1521,7 +1521,7 @@ static void get_crf_id(struct iwl_trans *iwl_trans,
 	u32 val = 0;
 	u8 step;
 
-	if (iwl_trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+	if (iwl_trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		sd_reg_ver_addr = SD_REG_VER_GEN2;
 	else
 		sd_reg_ver_addr = SD_REG_VER;
@@ -1737,7 +1737,7 @@ static void iwl_pcie_check_me_status(struct iwl_trans *trans)
 			  iwl_pcie_recheck_me_status);
 
 	/* we don't have a good way of determining this until BZ */
-	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_BZ)
+	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_BZ)
 		return;
 
 	val = iwl_read_prph(trans, CNVI_SCU_REG_FOR_ECO_1);
@@ -1760,7 +1760,7 @@ static void iwl_pcie_check_me_status(struct iwl_trans *trans)
 
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	const struct iwl_cfg_trans_params *trans;
+	const struct iwl_mac_cfg *trans;
 	const struct iwl_dev_info *dev_info;
 	struct iwl_trans_info info = {
 		.hw_id = (pdev->device << 16) + pdev->subsystem_device,
@@ -1812,8 +1812,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * extract the RF_ID.
 	 * This is relevant only for family 9000 and up.
 	 */
-	if (iwl_trans->trans_cfg->rf_id &&
-	    iwl_trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_9000 &&
+	if (iwl_trans->mac_cfg->rf_id &&
+	    iwl_trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_9000 &&
 	    !CSR_HW_RFID_TYPE(info.hw_rf_id) && map_crf_id(iwl_trans, &info)) {
 		ret = -EINVAL;
 		goto out_free_trans;
@@ -1860,7 +1860,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	IWL_INFO(iwl_trans, "Detected %s\n", info.name);
 
-	if (iwl_trans->trans_cfg->mq_rx_supported) {
+	if (iwl_trans->mac_cfg->mq_rx_supported) {
 		if (WARN_ON(!iwl_trans->cfg->num_rbds)) {
 			ret = -EINVAL;
 			goto out_free_trans;
@@ -1870,7 +1870,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		trans_pcie->num_rx_bufs = RX_QUEUE_SIZE;
 	}
 
-	if (!iwl_trans->trans_cfg->integrated) {
+	if (!iwl_trans->mac_cfg->integrated) {
 		u16 link_status;
 
 		pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &link_status);
@@ -1963,7 +1963,7 @@ static int _iwl_pci_resume(struct device *device, bool restore)
 	 * Note: MAC (bits 0:7) will be cleared upon suspend even with wowlan,
 	 * so assume that any bits there mean that the device is usable.
 	 */
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ &&
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ &&
 	    !iwl_read32(trans, CSR_FUNC_SCRATCH))
 		device_was_powered_off = true;
 

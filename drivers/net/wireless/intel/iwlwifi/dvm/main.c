@@ -1263,7 +1263,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	priv->cfg = cfg;
 	priv->fw = fw;
 
-	switch (priv->trans->trans_cfg->device_family) {
+	switch (priv->trans->mac_cfg->device_family) {
 	case IWL_DEVICE_FAMILY_1000:
 	case IWL_DEVICE_FAMILY_100:
 		priv->lib = &iwl_dvm_1000_cfg;
@@ -1339,7 +1339,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 					    driver_data[2]);
 
 	WARN_ON(sizeof(priv->transport_queue_stop) * BITS_PER_BYTE <
-		priv->trans->trans_cfg->base_params->num_of_queues);
+		priv->trans->mac_cfg->base_params->num_of_queues);
 
 	ucode_flags = fw->ucode_capa.flags;
 

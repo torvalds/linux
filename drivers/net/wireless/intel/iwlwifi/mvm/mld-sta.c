@@ -148,7 +148,7 @@ int iwl_mvm_mld_add_int_sta_with_queue(struct iwl_mvm *mvm,
 {
 	int ret, txq;
 	unsigned int wdg_timeout = _wdg_timeout ? *_wdg_timeout :
-		mvm->trans->trans_cfg->base_params->wd_timeout;
+		mvm->trans->mac_cfg->base_params->wd_timeout;
 
 	if (WARN_ON_ONCE(sta->sta_id == IWL_INVALID_STA))
 		return -ENOSPC;

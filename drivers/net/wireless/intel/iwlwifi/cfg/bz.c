@@ -124,7 +124,7 @@ static const struct iwl_base_params iwl_bz_base_params = {
  */
 #define IWL_NUM_RBDS_BZ_EHT		(512 * 16)
 
-const struct iwl_cfg_trans_params iwl_bz_trans_cfg = {
+const struct iwl_mac_cfg iwl_bz_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_BZ,
 	.base_params = &iwl_bz_base_params,
 	.mq_rx_supported = true,
@@ -137,7 +137,7 @@ const struct iwl_cfg_trans_params iwl_bz_trans_cfg = {
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
 };
 
-const struct iwl_cfg_trans_params iwl_gl_trans_cfg = {
+const struct iwl_mac_cfg iwl_gl_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_BZ,
 	.base_params = &iwl_bz_base_params,
 	.mq_rx_supported = true,

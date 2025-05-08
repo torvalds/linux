@@ -158,7 +158,7 @@ int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
 	control_flags |= IWL_PRPH_SCRATCH_MTR_MODE;
 	control_flags |= IWL_PRPH_MTR_FORMAT_256B & IWL_PRPH_SCRATCH_MTR_FORMAT;
 
-	if (trans->trans_cfg->imr_enabled)
+	if (trans->mac_cfg->imr_enabled)
 		control_flags |= IWL_PRPH_SCRATCH_IMR_DEBUG_EN;
 
 	if (CSR_HW_REV_TYPE(trans->info.hw_rev) == IWL_CFG_MAC_TYPE_GL &&
@@ -170,7 +170,7 @@ int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
 	}
 
 	if (trans->do_top_reset) {
-		WARN_ON(trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_SC);
+		WARN_ON(trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_SC);
 		control_flags |= IWL_PRPH_SCRATCH_TOP_RESET;
 	}
 
@@ -456,7 +456,7 @@ int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
 	if (WARN_ON(prph_sc_ctrl->pnvm_cfg.pnvm_size))
 		return -EBUSY;
 
-	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		return 0;
 
 	if (!pnvm_payloads->n_chunks) {
@@ -524,7 +524,7 @@ static void iwl_pcie_set_contig_pnvm(struct iwl_trans *trans)
 void iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
 					   const struct iwl_ucode_capabilities *capa)
 {
-	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		return;
 
 	if (fw_has_capa(capa, IWL_UCODE_TLV_CAPA_FRAGMENTED_PNVM_IMG))
@@ -547,7 +547,7 @@ int iwl_trans_pcie_ctx_info_gen3_load_reduce_power(struct iwl_trans *trans,
 	if (trans->reduce_power_loaded)
 		return 0;
 
-	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		return 0;
 
 	if (WARN_ON(prph_sc_ctrl->reduce_power_cfg.size))
@@ -607,7 +607,7 @@ void
 iwl_trans_pcie_ctx_info_gen3_set_reduce_power(struct iwl_trans *trans,
 					      const struct iwl_ucode_capabilities *capa)
 {
-	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		return;
 
 	if (fw_has_capa(capa, IWL_UCODE_TLV_CAPA_FRAGMENTED_PNVM_IMG))

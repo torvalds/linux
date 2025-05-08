@@ -1370,7 +1370,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	 * recording before entering D3. In later devices the FW stops the
 	 * recording automatically.
 	 */
-	if (mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_9000)
+	if (mvm->trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_9000)
 		iwl_fw_dbg_stop_restart_recording(&mvm->fwrt, NULL, true);
 
 	/* must be last -- this switches firmware state */
@@ -2823,7 +2823,7 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 				status->qos_seq_ctr[i] + 0x10;
 	}
 
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
+	if (mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
 		i = mvm->offload_tid;
 		iwl_trans_set_q_ptrs(mvm->trans,
 				     mvm_ap_sta->tid_data[i].txq_id,
@@ -3425,7 +3425,7 @@ static int iwl_mvm_resume_firmware(struct iwl_mvm *mvm, bool test)
 	 * AX210 and above don't need the command since they have
 	 * the doorbell interrupt.
 	 */
-	if (mvm->trans->trans_cfg->device_family <= IWL_DEVICE_FAMILY_22000 &&
+	if (mvm->trans->mac_cfg->device_family <= IWL_DEVICE_FAMILY_22000 &&
 	    fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_D0I3_END_FIRST)) {
 		ret = iwl_mvm_send_cmd(mvm, &cmd);
 		if (ret < 0)

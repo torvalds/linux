@@ -87,7 +87,7 @@ static void iwl_pcie_gen2_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 	 * Clear "initialization complete" bit to move adapter from
 	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
 	 */
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
 		iwl_clear_bit(trans, CSR_GP_CNTRL,
 			      CSR_GP_CNTRL_REG_FLAG_MAC_INIT);
 	else
@@ -102,10 +102,10 @@ void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 
 	trans_pcie->fw_reset_state = FW_RESET_REQUESTED;
 
-	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		iwl_write_umac_prph(trans, UREG_NIC_SET_NMI_DRIVER,
 				    UREG_NIC_SET_NMI_DRIVER_RESET_HANDSHAKE);
-	else if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_AX210)
+	else if (trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_AX210)
 		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
 				    UREG_DOORBELL_TO_ISR6_RESET_HANDSHAKE);
 	else
@@ -191,7 +191,7 @@ static void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 	}
 
 	iwl_pcie_ctxt_info_free_paging(trans);
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		iwl_pcie_ctxt_info_gen3_free(trans, false);
 	else
 		iwl_pcie_ctxt_info_free(trans);
@@ -374,7 +374,7 @@ void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans)
 	/* now that we got alive we can free the fw image & the context info.
 	 * paging memory cannot be freed included since FW will still use it
 	 */
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		iwl_pcie_ctxt_info_gen3_free(trans, true);
 	else
 		iwl_pcie_ctxt_info_free(trans);
@@ -390,7 +390,7 @@ void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans)
 	iwl_pcie_get_rf_name(trans);
 	mutex_unlock(&trans_pcie->mutex);
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
 		trans->step_urm = !!(iwl_read_umac_prph(trans,
 							CNVI_PMU_STEP_FLOW) &
 					CNVI_PMU_STEP_FLOW_FORCE_URM);
@@ -413,21 +413,21 @@ static bool iwl_pcie_set_ltr(struct iwl_trans *trans)
 	 * initialize the LTR to ~250 usec (see ltr_val above).
 	 * The firmware initializes this again later (to a smaller value).
 	 */
-	if ((trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_AX210 ||
-	     trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_22000) &&
-	    !trans->trans_cfg->integrated) {
+	if ((trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_AX210 ||
+	     trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_22000) &&
+	    !trans->mac_cfg->integrated) {
 		iwl_write32(trans, CSR_LTR_LONG_VAL_AD, ltr_val);
 		return true;
 	}
 
-	if (trans->trans_cfg->integrated &&
-	    trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_22000) {
+	if (trans->mac_cfg->integrated &&
+	    trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_22000) {
 		iwl_write_prph(trans, HPM_MAC_LTR_CSR, HPM_MAC_LRT_ENABLE_ALL);
 		iwl_write_prph(trans, HPM_UMAC_LTR, ltr_val);
 		return true;
 	}
 
-	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_AX210) {
+	if (trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_AX210) {
 		/* First clear the interrupt, just in case */
 		iwl_write32(trans, CSR_MSIX_HW_INT_CAUSES_AD,
 			    MSIX_HW_INT_CAUSES_REG_IML);
@@ -546,14 +546,14 @@ again:
 	}
 
 	if (WARN_ON(trans->do_top_reset &&
-		    trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_SC))
+		    trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_SC))
 		return -EINVAL;
 
 	/* we need to wait later - set state */
 	if (trans->do_top_reset)
 		trans_pcie->fw_reset_state = FW_RESET_TOP_REQUESTED;
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		if (!top_reset_done) {
 			ret = iwl_pcie_ctxt_info_gen3_alloc(trans, fw, img);
 			if (ret)
@@ -569,13 +569,13 @@ again:
 
 	keep_ram_busy = !iwl_pcie_set_ltr(trans);
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
 		IWL_DEBUG_POWER(trans, "function scratch register value is 0x%08x\n",
 				iwl_read32(trans, CSR_FUNC_SCRATCH));
 		iwl_write32(trans, CSR_FUNC_SCRATCH, CSR_FUNC_SCRATCH_INIT_VALUE);
 		iwl_set_bit(trans, CSR_GP_CNTRL,
 			    CSR_GP_CNTRL_REG_FLAG_ROM_START);
-	} else if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+	} else if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		iwl_write_umac_prph(trans, UREG_CPU_INIT_RUN, 1);
 	} else {
 		iwl_write_prph(trans, UREG_CPU_INIT_RUN, 1);

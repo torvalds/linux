@@ -117,14 +117,14 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 		},							\
 	}
 
-const struct iwl_cfg_trans_params iwl9000_trans_cfg = {
+const struct iwl_mac_cfg iwl9000_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_9000,
 	.base_params = &iwl9000_base_params,
 	.mq_rx_supported = true,
 	.rf_id = true,
 };
 
-const struct iwl_cfg_trans_params iwl9560_trans_cfg = {
+const struct iwl_mac_cfg iwl9560_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_9000,
 	.base_params = &iwl9000_base_params,
 	.mq_rx_supported = true,
@@ -133,7 +133,7 @@ const struct iwl_cfg_trans_params iwl9560_trans_cfg = {
 	.xtal_latency = 650,
 };
 
-const struct iwl_cfg_trans_params iwl9560_long_latency_trans_cfg = {
+const struct iwl_mac_cfg iwl9560_long_latency_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_9000,
 	.base_params = &iwl9000_base_params,
 	.mq_rx_supported = true,
@@ -142,7 +142,7 @@ const struct iwl_cfg_trans_params iwl9560_long_latency_trans_cfg = {
 	.xtal_latency = 2820,
 };
 
-const struct iwl_cfg_trans_params iwl9560_shared_clk_trans_cfg = {
+const struct iwl_mac_cfg iwl9560_shared_clk_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_9000,
 	.base_params = &iwl9000_base_params,
 	.mq_rx_supported = true,

@@ -171,7 +171,7 @@ static int iwl_mvm_create_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 			      shdr->type != htons(ETH_P_PAE) &&
 			      shdr->type != htons(ETH_P_TDLS))))
 			skb->ip_summed = CHECKSUM_NONE;
-		else if (mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_BZ)
+		else if (mvm->trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_BZ)
 			/* mac80211 assumes full CSUM including SNAP header */
 			skb_postpush_rcsum(skb, shdr, sizeof(*shdr));
 	}
@@ -409,7 +409,7 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		    !(status & IWL_RX_MPDU_RES_STATUS_TTAK_OK))
 			return 0;
 
-		if (mvm->trans->trans_cfg->gen2 &&
+		if (mvm->trans->mac_cfg->gen2 &&
 		    !(status & RX_MPDU_RES_STATUS_MIC_OK))
 			stats->flag |= RX_FLAG_MMIC_ERROR;
 
@@ -426,7 +426,7 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 		if (pkt_flags & FH_RSCSR_RADA_EN) {
 			stats->flag |= RX_FLAG_ICV_STRIPPED;
-			if (mvm->trans->trans_cfg->gen2)
+			if (mvm->trans->mac_cfg->gen2)
 				stats->flag |= RX_FLAG_MMIC_STRIPPED;
 		}
 
@@ -462,7 +462,7 @@ static void iwl_mvm_rx_csum(struct iwl_mvm *mvm,
 {
 	struct iwl_rx_mpdu_desc *desc = (void *)pkt->data;
 
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+	if (mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		if (pkt->len_n_flags & cpu_to_le32(FH_RSCSR_RPA_EN)) {
 			u16 hwsum = be16_to_cpu(desc->v3.raw_xsum);
 
@@ -744,7 +744,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	baid = (reorder & IWL_RX_MPDU_REORDER_BAID_MASK) >>
 		IWL_RX_MPDU_REORDER_BAID_SHIFT;
 
-	if (mvm->trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_9000)
+	if (mvm->trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_9000)
 		return false;
 
 	/*
@@ -2048,7 +2048,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	if (unlikely(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)))
 		return;
 
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+	if (mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		desc_size = sizeof(*desc);
 	else
 		desc_size = IWL_RX_DESC_SIZE_V1;
@@ -2058,7 +2058,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		return;
 	}
 
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+	if (mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		phy_data.rate_n_flags =
 			iwl_mvm_v3_rate_from_fw(desc->v3.rate_n_flags,
 						mvm->fw_rates_ver);
@@ -2142,7 +2142,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	if (likely(!(phy_data.phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD))) {
 		u64 tsf_on_air_rise;
 
-		if (mvm->trans->trans_cfg->device_family >=
+		if (mvm->trans->mac_cfg->device_family >=
 		    IWL_DEVICE_FAMILY_AX210)
 			tsf_on_air_rise = le64_to_cpu(desc->v3.tsf_on_air_rise);
 		else
@@ -2301,7 +2301,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 			*qc &= ~IEEE80211_QOS_CTL_A_MSDU_PRESENT;
 
-			if (mvm->trans->trans_cfg->device_family ==
+			if (mvm->trans->mac_cfg->device_family ==
 			    IWL_DEVICE_FAMILY_9000) {
 				iwl_mvm_flip_address(hdr->addr3);
 
@@ -2347,7 +2347,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	if (!iwl_mvm_reorder(mvm, napi, queue, sta, skb, desc) &&
 	    likely(!iwl_mvm_time_sync_frame(mvm, skb, hdr->addr2)) &&
 	    likely(!iwl_mvm_mei_filter_scan(mvm, skb))) {
-		if (mvm->trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_9000 &&
+		if (mvm->trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_9000 &&
 		    (desc->mac_flags2 & IWL_RX_MPDU_MFLG2_AMSDU) &&
 		    !(desc->amsdu_info & IWL_RX_MPDU_AMSDU_LAST_SUBFRAME))
 			rx_status->flag |= RX_FLAG_AMSDU_MORE;

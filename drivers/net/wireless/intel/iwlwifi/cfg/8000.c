@@ -68,7 +68,7 @@ static const struct iwl_tt_params iwl8000_tt_params = {
 	.support_tx_backoff = true,
 };
 
-const struct iwl_cfg_trans_params iwl8000_trans_cfg = {
+const struct iwl_mac_cfg iwl8000_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_8000,
 	.base_params = &iwl8000_base_params,
 };

@@ -791,10 +791,10 @@ static int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 sta_id,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (WARN(maxq >= mvm->trans->trans_cfg->base_params->num_of_queues,
+	if (WARN(maxq >= mvm->trans->mac_cfg->base_params->num_of_queues,
 		 "max queue %d >= num_of_queues (%d)", maxq,
-		 mvm->trans->trans_cfg->base_params->num_of_queues))
-		maxq = mvm->trans->trans_cfg->base_params->num_of_queues - 1;
+		 mvm->trans->mac_cfg->base_params->num_of_queues))
+		maxq = mvm->trans->mac_cfg->base_params->num_of_queues - 1;
 
 	/* This should not be hit with new TX path */
 	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
@@ -1765,7 +1765,7 @@ int iwl_mvm_sta_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		mvm_sta->deflink.sta_id = sta_id;
 		rcu_assign_pointer(mvm_sta->link[0], &mvm_sta->deflink);
 
-		if (!mvm->trans->trans_cfg->gen2)
+		if (!mvm->trans->mac_cfg->gen2)
 			mvm_sta->deflink.lq_sta.rs_drv.pers.max_agg_bufsize =
 				LINK_QUAL_AGG_FRAME_LIMIT_DEF;
 		else
@@ -2189,7 +2189,7 @@ static void iwl_mvm_enable_aux_snif_queue(struct iwl_mvm *mvm, u16 queue,
 					  u8 sta_id, u8 fifo)
 {
 	unsigned int wdg_timeout =
-		mvm->trans->trans_cfg->base_params->wd_timeout;
+		mvm->trans->mac_cfg->base_params->wd_timeout;
 	struct iwl_trans_txq_scd_cfg cfg = {
 		.fifo = fifo,
 		.sta_id = sta_id,
@@ -2206,7 +2206,7 @@ static void iwl_mvm_enable_aux_snif_queue(struct iwl_mvm *mvm, u16 queue,
 static int iwl_mvm_enable_aux_snif_queue_tvqm(struct iwl_mvm *mvm, u8 sta_id)
 {
 	unsigned int wdg_timeout =
-		mvm->trans->trans_cfg->base_params->wd_timeout;
+		mvm->trans->mac_cfg->base_params->wd_timeout;
 
 	WARN_ON(!iwl_mvm_has_new_tx_api(mvm));
 
@@ -3177,7 +3177,7 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * to align the wrap around of ssn so we compare relevant values.
 	 */
 	normalized_ssn = tid_data->ssn;
-	if (mvm->trans->trans_cfg->gen2)
+	if (mvm->trans->mac_cfg->gen2)
 		normalized_ssn &= 0xff;
 
 	if (normalized_ssn == tid_data->next_reclaimed) {
@@ -4305,7 +4305,7 @@ u16 iwl_mvm_tid_queued(struct iwl_mvm *mvm, struct iwl_mvm_tid_data *tid_data)
 	 * In 22000 HW, the next_reclaimed index is only 8 bit, so we'll need
 	 * to align the wrap around of ssn so we compare relevant values.
 	 */
-	if (mvm->trans->trans_cfg->gen2)
+	if (mvm->trans->mac_cfg->gen2)
 		sn &= 0xff;
 
 	return ieee80211_sn_sub(sn, tid_data->next_reclaimed);

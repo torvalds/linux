@@ -211,13 +211,13 @@ IWL_EXPORT_SYMBOL(iwl_clear_bits_prph);
 
 void iwl_force_nmi(struct iwl_trans *trans)
 {
-	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_9000)
+	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_9000)
 		iwl_write_prph_delay(trans, DEVICE_SET_NMI_REG,
 				     DEVICE_SET_NMI_VAL_DRV, 1);
-	else if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+	else if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		iwl_write_umac_prph(trans, UREG_NIC_SET_NMI_DRIVER,
 				UREG_NIC_SET_NMI_DRIVER_NMI_FROM_DRIVER);
-	else if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_BZ)
+	else if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_BZ)
 		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
 				    UREG_DOORBELL_TO_ISR6_NMI_BIT);
 	else
@@ -368,7 +368,7 @@ int iwl_dump_fh(struct iwl_trans *trans, char **buf)
 		FH_TSSR_TX_ERROR_REG
 	};
 
-	if (trans->trans_cfg->mq_rx_supported)
+	if (trans->mac_cfg->mq_rx_supported)
 		return iwl_dump_rfh(trans, buf);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -423,7 +423,7 @@ static void iwl_dump_host_monitor_block(struct iwl_trans *trans,
 
 static void iwl_dump_host_monitor(struct iwl_trans *trans)
 {
-	switch (trans->trans_cfg->device_family) {
+	switch (trans->mac_cfg->device_family) {
 	case IWL_DEVICE_FAMILY_22000:
 	case IWL_DEVICE_FAMILY_AX210:
 		IWL_ERR(trans, "CSR_RESET = 0x%x\n",
@@ -445,11 +445,11 @@ static void iwl_dump_host_monitor(struct iwl_trans *trans)
 
 int iwl_finish_nic_init(struct iwl_trans *trans)
 {
-	const struct iwl_cfg_trans_params *cfg_trans = trans->trans_cfg;
+	const struct iwl_mac_cfg *mac_cfg = trans->mac_cfg;
 	u32 poll_ready;
 	int err;
 
-	if (cfg_trans->bisr_workaround) {
+	if (mac_cfg->bisr_workaround) {
 		/* ensure the TOP FSM isn't still in previous reset */
 		mdelay(2);
 	}
@@ -458,7 +458,7 @@ int iwl_finish_nic_init(struct iwl_trans *trans)
 	 * Set "initialization complete" bit to move adapter from
 	 * D0U* --> D0A* (powered-up active) state.
 	 */
-	if (cfg_trans->device_family >= IWL_DEVICE_FAMILY_BZ) {
+	if (mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
 		iwl_set_bit(trans, CSR_GP_CNTRL,
 			    CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ |
 			    CSR_GP_CNTRL_REG_FLAG_MAC_INIT);
@@ -469,7 +469,7 @@ int iwl_finish_nic_init(struct iwl_trans *trans)
 		poll_ready = CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY;
 	}
 
-	if (cfg_trans->device_family == IWL_DEVICE_FAMILY_8000)
+	if (mac_cfg->device_family == IWL_DEVICE_FAMILY_8000)
 		udelay(2);
 
 	/*
@@ -484,7 +484,7 @@ int iwl_finish_nic_init(struct iwl_trans *trans)
 		iwl_dump_host_monitor(trans);
 	}
 
-	if (cfg_trans->bisr_workaround) {
+	if (mac_cfg->bisr_workaround) {
 		/* ensure BISR shift has finished */
 		udelay(200);
 	}

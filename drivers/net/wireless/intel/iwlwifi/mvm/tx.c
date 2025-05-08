@@ -532,7 +532,7 @@ static bool iwl_mvm_use_host_rate(struct iwl_mvm *mvm,
 	 * (since we don't necesarily know the link), but FW rate
 	 * selection was fixed.
 	 */
-	return mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_BZ;
+	return mvm->trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_BZ;
 }
 
 static void iwl_mvm_copy_hdr(void *cmd, const void *hdr, int hdrlen,
@@ -598,7 +598,7 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 			flags |= IWL_TX_FLAGS_HIGH_PRI;
 		}
 
-		if (mvm->trans->trans_cfg->device_family >=
+		if (mvm->trans->mac_cfg->device_family >=
 		    IWL_DEVICE_FAMILY_AX210) {
 			struct iwl_tx_cmd_gen3 *cmd = (void *)dev_cmd->payload;
 			u32 offload_assist = iwl_mvm_tx_csum(mvm, skb,
@@ -1376,7 +1376,7 @@ static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 	 * to align the wrap around of ssn so we compare relevant values.
 	 */
 	normalized_ssn = tid_data->ssn;
-	if (mvm->trans->trans_cfg->gen2)
+	if (mvm->trans->mac_cfg->gen2)
 		normalized_ssn &= 0xff;
 
 	if (normalized_ssn != tid_data->next_reclaimed)
@@ -1575,7 +1575,7 @@ static inline u32 iwl_mvm_get_scd_ssn(struct iwl_mvm *mvm,
 	u32 val = le32_to_cpup((__le32 *)iwl_mvm_get_agg_status(mvm, tx_resp) +
 			       tx_resp->frame_count);
 
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+	if (mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		return val & 0xFFFF;
 	return val & 0xFFF;
 }

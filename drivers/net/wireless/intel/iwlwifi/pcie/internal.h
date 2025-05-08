@@ -194,7 +194,7 @@ struct iwl_rb_allocator {
 static inline u16 iwl_get_closed_rb_stts(struct iwl_trans *trans,
 					 struct iwl_rxq *rxq)
 {
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		__le16 *rb_stts = rxq->rb_stts;
 
 		return le16_to_cpu(READ_ONCE(*rb_stts));
@@ -536,7 +536,7 @@ iwl_trans_pcie_get_trans(struct iwl_trans_pcie *trans_pcie)
  */
 struct iwl_trans
 *iwl_trans_pcie_alloc(struct pci_dev *pdev,
-		      const struct iwl_cfg_trans_params *cfg_trans,
+		      const struct iwl_mac_cfg *mac_cfg,
 		      struct iwl_trans_info *info);
 void iwl_trans_pcie_free(struct iwl_trans *trans);
 void iwl_trans_pcie_free_pnvm_dram_regions(struct iwl_dram_regions *dram_regions,
@@ -663,7 +663,7 @@ static inline void *iwl_txq_get_tfd(struct iwl_trans *trans,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (trans->trans_cfg->gen2)
+	if (trans->mac_cfg->gen2)
 		idx = iwl_txq_get_cmd_index(txq, idx);
 
 	return (u8 *)txq->tfds + trans_pcie->txqs.tfd.size * idx;
@@ -702,7 +702,7 @@ static inline void iwl_txq_stop(struct iwl_trans *trans, struct iwl_txq *txq)
 static inline int iwl_txq_inc_wrap(struct iwl_trans *trans, int index)
 {
 	return ++index &
-		(trans->trans_cfg->base_params->max_tfd_queue_size - 1);
+		(trans->mac_cfg->base_params->max_tfd_queue_size - 1);
 }
 
 /**
@@ -713,7 +713,7 @@ static inline int iwl_txq_inc_wrap(struct iwl_trans *trans, int index)
 static inline int iwl_txq_dec_wrap(struct iwl_trans *trans, int index)
 {
 	return --index &
-		(trans->trans_cfg->base_params->max_tfd_queue_size - 1);
+		(trans->mac_cfg->base_params->max_tfd_queue_size - 1);
 }
 
 void iwl_txq_log_scd_error(struct iwl_trans *trans, struct iwl_txq *txq);
@@ -768,7 +768,7 @@ static inline u16 iwl_txq_gen1_tfd_tb_get_len(struct iwl_trans *trans,
 	struct iwl_tfd *tfd;
 	struct iwl_tfd_tb *tb;
 
-	if (trans->trans_cfg->gen2) {
+	if (trans->mac_cfg->gen2) {
 		struct iwl_tfh_tfd *tfh_tfd = _tfd;
 		struct iwl_tfh_tb *tfh_tb = &tfh_tfd->tbs[idx];
 
@@ -1002,7 +1002,7 @@ static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 					   MSIX_HW_INT_CAUSES_REG_RF_KILL);
 	}
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_9000) {
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_9000) {
 		/*
 		 * On 9000-series devices this bit isn't enabled by default, so
 		 * when we power down the device we need set the bit to allow it

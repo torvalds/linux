@@ -311,8 +311,8 @@ int iwl_mvm_op_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
 	/* This has been tested on those devices only */
-	if (mvm->trans->trans_cfg->device_family != IWL_DEVICE_FAMILY_9000 &&
-	    mvm->trans->trans_cfg->device_family != IWL_DEVICE_FAMILY_22000)
+	if (mvm->trans->mac_cfg->device_family != IWL_DEVICE_FAMILY_9000 &&
+	    mvm->trans->mac_cfg->device_family != IWL_DEVICE_FAMILY_22000)
 		return -EOPNOTSUPP;
 
 	if (!mvm->nvm_data)
@@ -391,7 +391,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	 * for older devices. We also don't see this issue on any newer
 	 * devices.
 	 */
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_9000)
+	if (mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_9000)
 		ieee80211_hw_set(hw, TX_AMSDU);
 	ieee80211_hw_set(hw, TX_FRAG_LIST);
 
@@ -402,7 +402,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	/* We want to use the mac80211's reorder buffer for 9000 */
 	if (iwl_mvm_has_new_rx_api(mvm) &&
-	    mvm->trans->trans_cfg->device_family > IWL_DEVICE_FAMILY_9000)
+	    mvm->trans->mac_cfg->device_family > IWL_DEVICE_FAMILY_9000)
 		ieee80211_hw_set(hw, SUPPORTS_REORDERING_BUFFER);
 
 	if (fw_has_capa(&mvm->fw->ucode_capa,
@@ -544,7 +544,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
 					       REGULATORY_DISABLE_BEACON_HINTS;
 
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+	if (mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		wiphy_ext_feature_set(hw->wiphy,
 				      NL80211_EXT_FEATURE_DFS_CONCURRENT);
 
@@ -1379,7 +1379,7 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm, bool suspend)
 		iwl_mvm_rm_aux_sta(mvm);
 
 	if (suspend &&
-	    mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
+	    mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
 		iwl_mvm_fast_suspend(mvm);
 		/* From this point on, we won't touch the device */
 		iwl_mvm_mei_device_state(mvm, false);
@@ -3052,7 +3052,7 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	 * context. For the newer, the beacon is a resource that belongs to a
 	 * MAC, so need to send beacon template after adding the mac.
 	 */
-	if (mvm->trans->trans_cfg->device_family > IWL_DEVICE_FAMILY_22000) {
+	if (mvm->trans->mac_cfg->device_family > IWL_DEVICE_FAMILY_22000) {
 		/* Add the mac context */
 		ret = iwl_mvm_mac_ctxt_add(mvm, vif);
 		if (ret)
@@ -4389,7 +4389,7 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
-		if (!mvm->trans->trans_cfg->gen2) {
+		if (!mvm->trans->mac_cfg->gen2) {
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
 			key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
 		} else if (vif->type == NL80211_IFTYPE_STATION) {

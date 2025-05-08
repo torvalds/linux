@@ -92,7 +92,7 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 	IWL_DEBUG_INFO(mvm, "Radio type=0x%x-0x%x-0x%x\n", radio_cfg_type,
 		       radio_cfg_step, radio_cfg_dash);
 
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+	if (mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		return;
 
 	/* SKU control */
@@ -114,7 +114,7 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 	 * unrelated errors. Need to further investigate this, but for now
 	 * we'll separate cases.
 	 */
-	if (mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_8000)
+	if (mvm->trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_8000)
 		reg_val |= CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI;
 
 	if (iwl_fw_dbg_is_d3_debug_enabled(&mvm->fwrt))
@@ -1312,7 +1312,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (!hw)
 		return ERR_PTR(-ENOMEM);
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
 		max_agg = 512;
 	else
 		max_agg = IEEE80211_MAX_AMPDU_BUF_HE;
@@ -1380,7 +1380,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (iwl_mvm_has_new_rx_api(mvm)) {
 		op_mode->ops = &iwl_mvm_ops_mq;
 		trans->conf.rx_mpdu_cmd_hdr_size =
-			(trans->trans_cfg->device_family >=
+			(trans->mac_cfg->device_family >=
 			 IWL_DEVICE_FAMILY_AX210) ?
 			sizeof(struct iwl_rx_mpdu_desc) :
 			IWL_RX_DESC_SIZE_V1;
@@ -2137,7 +2137,7 @@ static bool iwl_mvm_sw_reset(struct iwl_op_mode *op_mode,
 			mvm->fwrt.trans->dbg.restart_required = false;
 			ieee80211_restart_hw(mvm->hw);
 			return true;
-		} else if (mvm->trans->trans_cfg->device_family <= IWL_DEVICE_FAMILY_8000) {
+		} else if (mvm->trans->mac_cfg->device_family <= IWL_DEVICE_FAMILY_8000) {
 			ieee80211_restart_hw(mvm->hw);
 			return true;
 		}

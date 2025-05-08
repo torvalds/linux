@@ -144,12 +144,12 @@ static inline __le32 iwl_pcie_dma_addr2rbd_ptr(dma_addr_t dma_addr)
  */
 int iwl_pcie_rx_stop(struct iwl_trans *trans)
 {
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		/* TODO: remove this once fw does it */
 		iwl_write_umac_prph(trans, RFH_RXF_DMA_CFG_GEN3, 0);
 		return iwl_poll_umac_prph_bit(trans, RFH_GEN_STATUS_GEN3,
 					      RXF_DMA_IDLE, RXF_DMA_IDLE, 1000);
-	} else if (trans->trans_cfg->mq_rx_supported) {
+	} else if (trans->mac_cfg->mq_rx_supported) {
 		iwl_write_prph(trans, RFH_RXF_DMA_CFG, 0);
 		return iwl_poll_prph_bit(trans, RFH_GEN_STATUS,
 					   RXF_DMA_IDLE, RXF_DMA_IDLE, 1000);
@@ -176,7 +176,7 @@ static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans,
 	 * 1. shadow registers aren't enabled
 	 * 2. there is a chance that the NIC is asleep
 	 */
-	if (!trans->trans_cfg->base_params->shadow_reg_enable &&
+	if (!trans->mac_cfg->base_params->shadow_reg_enable &&
 	    test_bit(STATUS_TPOWER_PMI, &trans->status)) {
 		reg = iwl_read32(trans, CSR_UCODE_DRV_GP1);
 
@@ -191,9 +191,9 @@ static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans,
 	}
 
 	rxq->write_actual = round_down(rxq->write, 8);
-	if (!trans->trans_cfg->mq_rx_supported)
+	if (!trans->mac_cfg->mq_rx_supported)
 		iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, rxq->write_actual);
-	else if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+	else if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
 		iwl_write32(trans, HBUS_TARG_WRPTR, rxq->write_actual |
 			    HBUS_TARG_WRPTR_RX_Q(rxq->id));
 	else
@@ -222,7 +222,7 @@ static void iwl_pcie_restock_bd(struct iwl_trans *trans,
 				struct iwl_rxq *rxq,
 				struct iwl_rx_mem_buffer *rxb)
 {
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		struct iwl_rx_transfer_desc *bd = rxq->bd;
 
 		BUILD_BUG_ON(sizeof(*bd) != 2 * sizeof(u64));
@@ -349,7 +349,7 @@ static void iwl_pcie_rxsq_restock(struct iwl_trans *trans,
 static
 void iwl_pcie_rxq_restock(struct iwl_trans *trans, struct iwl_rxq *rxq)
 {
-	if (trans->trans_cfg->mq_rx_supported)
+	if (trans->mac_cfg->mq_rx_supported)
 		iwl_pcie_rxmq_restock(trans, rxq);
 	else
 		iwl_pcie_rxsq_restock(trans, rxq);
@@ -658,19 +658,19 @@ void iwl_pcie_rx_allocator_work(struct work_struct *data)
 
 static int iwl_pcie_free_bd_size(struct iwl_trans *trans)
 {
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		return sizeof(struct iwl_rx_transfer_desc);
 
-	return trans->trans_cfg->mq_rx_supported ?
+	return trans->mac_cfg->mq_rx_supported ?
 			sizeof(__le64) : sizeof(__le32);
 }
 
 static int iwl_pcie_used_bd_size(struct iwl_trans *trans)
 {
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
 		return sizeof(struct iwl_rx_completion_desc_bz);
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		return sizeof(struct iwl_rx_completion_desc);
 
 	return sizeof(__le32);
@@ -702,7 +702,7 @@ static void iwl_pcie_free_rxq_dma(struct iwl_trans *trans,
 
 static size_t iwl_pcie_rb_stts_size(struct iwl_trans *trans)
 {
-	bool use_rx_td = (trans->trans_cfg->device_family >=
+	bool use_rx_td = (trans->mac_cfg->device_family >=
 			  IWL_DEVICE_FAMILY_AX210);
 
 	if (use_rx_td)
@@ -721,7 +721,7 @@ static int iwl_pcie_alloc_rxq_dma(struct iwl_trans *trans,
 	int free_size;
 
 	spin_lock_init(&rxq->lock);
-	if (trans->trans_cfg->mq_rx_supported)
+	if (trans->mac_cfg->mq_rx_supported)
 		rxq->queue_size = trans->cfg->num_rbds;
 	else
 		rxq->queue_size = RX_QUEUE_SIZE;
@@ -737,7 +737,7 @@ static int iwl_pcie_alloc_rxq_dma(struct iwl_trans *trans,
 	if (!rxq->bd)
 		goto err;
 
-	if (trans->trans_cfg->mq_rx_supported) {
+	if (trans->mac_cfg->mq_rx_supported) {
 		rxq->used_bd = dma_alloc_coherent(dev,
 						  iwl_pcie_used_bd_size(trans) *
 							rxq->queue_size,
@@ -976,7 +976,7 @@ static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 			       RFH_GEN_CFG_VAL(DEFAULT_RXQ_NUM, 0) |
 			       RFH_GEN_CFG_SERVICE_DMA_SNOOP |
 			       RFH_GEN_CFG_VAL(RB_CHUNK_SIZE,
-					       trans->trans_cfg->integrated ?
+					       trans->mac_cfg->integrated ?
 					       RFH_GEN_CFG_RB_CHUNK_SIZE_64 :
 					       RFH_GEN_CFG_RB_CHUNK_SIZE_128));
 	/* Enable the relevant rx queues */
@@ -1122,7 +1122,7 @@ static int _iwl_pcie_rx_init(struct iwl_trans *trans)
 		rxq->write = 0;
 		rxq->write_actual = 0;
 		memset(rxq->rb_stts, 0,
-		       (trans->trans_cfg->device_family >=
+		       (trans->mac_cfg->device_family >=
 			IWL_DEVICE_FAMILY_AX210) ?
 		       sizeof(__le16) : sizeof(struct iwl_rb_status));
 
@@ -1144,7 +1144,7 @@ static int _iwl_pcie_rx_init(struct iwl_trans *trans)
 	}
 
 	/* move the pool to the default queue and allocator ownerships */
-	queue_size = trans->trans_cfg->mq_rx_supported ?
+	queue_size = trans->mac_cfg->mq_rx_supported ?
 			trans_pcie->num_rx_bufs - 1 : RX_QUEUE_SIZE;
 	allocator_pool_size = trans->info.num_rxqs *
 		(RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC);
@@ -1175,7 +1175,7 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 	if (ret)
 		return ret;
 
-	if (trans->trans_cfg->mq_rx_supported)
+	if (trans->mac_cfg->mq_rx_supported)
 		iwl_pcie_rx_mq_hw_init(trans);
 	else
 		iwl_pcie_rx_hw_init(trans, trans_pcie->rxq);
@@ -1408,7 +1408,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		}
 
 		page_stolen |= rxcb._page_stolen;
-		if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+		if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 			break;
 	}
 
@@ -1454,18 +1454,18 @@ static struct iwl_rx_mem_buffer *iwl_pcie_get_rxb(struct iwl_trans *trans,
 	BUILD_BUG_ON(sizeof(struct iwl_rx_completion_desc) != 32);
 	BUILD_BUG_ON(sizeof(struct iwl_rx_completion_desc_bz) != 4);
 
-	if (!trans->trans_cfg->mq_rx_supported) {
+	if (!trans->mac_cfg->mq_rx_supported) {
 		rxb = rxq->queue[i];
 		rxq->queue[i] = NULL;
 		return rxb;
 	}
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
 		struct iwl_rx_completion_desc_bz *cd = rxq->used_bd;
 
 		vid = le16_to_cpu(cd[i].rbid);
 		*join = cd[i].flags & IWL_RX_CD_FLAGS_FRAGMENTED;
-	} else if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+	} else if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		struct iwl_rx_completion_desc *cd = rxq->used_bd;
 
 		vid = le16_to_cpu(cd[i].rbid);
@@ -1694,7 +1694,7 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 		return;
 	}
 
-	for (i = 0; i < trans->trans_cfg->base_params->num_of_queues; i++) {
+	for (i = 0; i < trans->mac_cfg->base_params->num_of_queues; i++) {
 		if (!trans_pcie->txqs.txq[i])
 			continue;
 		timer_delete(&trans_pcie->txqs.txq[i]->stuck_timer);
@@ -1833,7 +1833,7 @@ static void iwl_trans_pcie_handle_reset_interrupt(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 state;
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_SC) {
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_SC) {
 		u32 val = iwl_read32(trans, CSR_IPC_STATE);
 
 		state = u32_get_bits(val, CSR_IPC_STATE_RESET);
@@ -1984,7 +1984,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 	if (inta & CSR_INT_BIT_ALIVE) {
 		IWL_DEBUG_ISR(trans, "Alive interrupt\n");
 		isr_stats->alive++;
-		if (trans->trans_cfg->gen2) {
+		if (trans->mac_cfg->gen2) {
 			/*
 			 * We can restock, since firmware configured
 			 * the RFH
@@ -2347,7 +2347,7 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 		}
 	}
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
 		sw_err = inta_hw & MSIX_HW_INT_CAUSES_REG_SW_ERR_BZ;
 	else
 		sw_err = inta_hw & MSIX_HW_INT_CAUSES_REG_SW_ERR;
@@ -2355,7 +2355,7 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	if (inta_hw & MSIX_HW_INT_CAUSES_REG_TOP_FATAL_ERR) {
 		IWL_ERR(trans, "TOP Fatal error detected, inta_hw=0x%x.\n",
 			inta_hw);
-		if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
+		if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
 			trans->request_top_reset = 1;
 			iwl_op_mode_nic_error(trans->op_mode,
 					      IWL_ERR_TYPE_TOP_FATAL_ERROR);
@@ -2400,7 +2400,7 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	if (inta_hw & MSIX_HW_INT_CAUSES_REG_ALIVE) {
 		IWL_DEBUG_ISR(trans, "Alive interrupt\n");
 		isr_stats->alive++;
-		if (trans->trans_cfg->gen2) {
+		if (trans->mac_cfg->gen2) {
 			/* We can restock, since firmware configured the RFH */
 			iwl_pcie_rxmq_restock(trans, trans_pcie->rxq);
 		}

@@ -75,7 +75,7 @@ void iwl_init_ht_hw_capab(struct iwl_trans *trans,
 	if (cfg->ht_params.ldpc)
 		ht_info->cap |= IEEE80211_HT_CAP_LDPC_CODING;
 
-	if (trans->trans_cfg->mq_rx_supported ||
+	if (trans->mac_cfg->mq_rx_supported ||
 	    iwlwifi_mod_params.amsdu_size >= IWL_AMSDU_8K)
 		ht_info->cap |= IEEE80211_HT_CAP_MAX_AMSDU;
 

@@ -742,7 +742,7 @@ unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif)
 {
 	unsigned int default_timeout =
-		mvm->trans->trans_cfg->base_params->wd_timeout;
+		mvm->trans->mac_cfg->base_params->wd_timeout;
 
 	/*
 	 * We can't know when the station is asleep or awake, so we
@@ -1181,7 +1181,7 @@ u32 iwl_mvm_get_systime(struct iwl_mvm *mvm)
 {
 	u32 reg_addr = DEVICE_SYSTEM_TIME_REG;
 
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000 &&
+	if (mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_22000 &&
 	    mvm->trans->cfg->gp2_reg_addr)
 		reg_addr = mvm->trans->cfg->gp2_reg_addr;
 

@@ -542,14 +542,14 @@ static void iwl_init_vht_hw_capab(struct iwl_trans *trans,
 
 	switch (iwlwifi_mod_params.amsdu_size) {
 	case IWL_AMSDU_DEF:
-		if (trans->trans_cfg->mq_rx_supported)
+		if (trans->mac_cfg->mq_rx_supported)
 			vht_cap->cap |=
 				IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454;
 		else
 			vht_cap->cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895;
 		break;
 	case IWL_AMSDU_2K:
-		if (trans->trans_cfg->mq_rx_supported)
+		if (trans->mac_cfg->mq_rx_supported)
 			vht_cap->cap |=
 				IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454;
 		else
@@ -920,7 +920,7 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 {
 	bool is_ap = iftype_data->types_mask & (BIT(NL80211_IFTYPE_AP) |
 						BIT(NL80211_IFTYPE_P2P_GO));
-	bool slow_pcie = (!trans->trans_cfg->integrated &&
+	bool slow_pcie = (!trans->mac_cfg->integrated &&
 			  trans->info.pcie_link_speed < PCI_EXP_LNKSTA_CLS_8_0GB);
 
 	if (!data->sku_cap_11be_enable || iwlwifi_mod_params.disable_11be)
@@ -1036,7 +1036,7 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 			cpu_to_le16(IEEE80211_HE_MCS_NOT_SUPPORTED << 2);
 	}
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210 && !is_ap)
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210 && !is_ap)
 		iftype_data->he_cap.he_cap_elem.phy_cap_info[2] |=
 			IEEE80211_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO;
 
@@ -1081,7 +1081,7 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 		iftype_data->he_cap.he_cap_elem.mac_cap_info[2] |=
 			IEEE80211_HE_MAC_CAP2_BCAST_TWT;
 
-	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_22000 &&
+	if (trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_22000 &&
 	    !is_ap) {
 		iftype_data->vendor_elems.data = iwl_vendor_caps;
 		iftype_data->vendor_elems.len = ARRAY_SIZE(iwl_vendor_caps);
@@ -1445,7 +1445,7 @@ iwl_nvm_no_wide_in_5ghz(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	 * in 5GHz otherwise the FW will throw a sysassert when we try
 	 * to use them.
 	 */
-	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+	if (trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		/*
 		 * Unlike the other sections in the NVM, the hw
 		 * section uses big-endian.
@@ -2004,7 +2004,7 @@ int iwl_read_external_nvm(struct iwl_trans *trans,
 			 le32_to_cpu(dword_buff[3]));
 
 		/* nvm file validation, dword_buff[2] holds the file version */
-		if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
+		if (trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
 		    trans->info.hw_rev_step == SILICON_C_STEP &&
 		    le32_to_cpu(dword_buff[2]) < 0xE4A) {
 			ret = -EFAULT;

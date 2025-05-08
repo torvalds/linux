@@ -76,7 +76,7 @@ static int iwl_mld_allocate_txq(struct iwl_mld *mld, struct ieee80211_txq *txq)
 	 */
 	unsigned int watchdog_timeout = txq->vif->type == NL80211_IFTYPE_AP ?
 				IWL_WATCHDOG_DISABLED :
-				mld->trans->trans_cfg->base_params->wd_timeout;
+				mld->trans->mac_cfg->base_params->wd_timeout;
 	int queue, size;
 
 	lockdep_assert_wiphy(mld->wiphy);

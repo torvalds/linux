@@ -325,7 +325,7 @@ void iwl_uefi_get_step_table(struct iwl_trans *trans)
 	struct uefi_cnv_common_step_data *data;
 	int ret;
 
-	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		return;
 
 	data = iwl_uefi_get_verified_variable_guid(trans, &IWL_EFI_WIFI_BT_GUID,

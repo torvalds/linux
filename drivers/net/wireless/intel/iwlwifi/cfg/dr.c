@@ -120,7 +120,7 @@ static const struct iwl_base_params iwl_dr_base_params = {
  */
 #define IWL_NUM_RBDS_DR_EHT		(512 * 16)
 
-const struct iwl_cfg_trans_params iwl_dr_trans_cfg = {
+const struct iwl_mac_cfg iwl_dr_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_DR,
 	.base_params = &iwl_dr_base_params,
 	.mq_rx_supported = true,
@@ -139,7 +139,7 @@ const struct iwl_cfg iwl_cfg_dr = {
 	IWL_DEVICE_DR,
 };
 
-const struct iwl_cfg_trans_params iwl_br_trans_cfg = {
+const struct iwl_mac_cfg iwl_br_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_DR,
 	.base_params = &iwl_dr_base_params,
 	.mq_rx_supported = true,

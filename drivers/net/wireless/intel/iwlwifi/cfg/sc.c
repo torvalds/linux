@@ -124,7 +124,7 @@ static const struct iwl_base_params iwl_sc_base_params = {
  */
 #define IWL_NUM_RBDS_SC_EHT		(512 * 16)
 
-const struct iwl_cfg_trans_params iwl_sc_trans_cfg = {
+const struct iwl_mac_cfg iwl_sc_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_SC,
 	.base_params = &iwl_sc_base_params,
 	.mq_rx_supported = true,

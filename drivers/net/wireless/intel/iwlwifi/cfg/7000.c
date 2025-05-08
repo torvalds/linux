@@ -84,7 +84,7 @@ static const struct iwl_tt_params iwl7000_high_temp_tt_params = {
 	.support_tx_backoff = true,
 };
 
-const struct iwl_cfg_trans_params iwl7000_trans_cfg = {
+const struct iwl_mac_cfg iwl7000_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_7000,
 	.base_params = &iwl7000_base_params,
 };

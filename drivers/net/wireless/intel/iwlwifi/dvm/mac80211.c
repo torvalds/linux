@@ -1091,7 +1091,7 @@ static void iwlagn_mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		goto done;
 	}
 
-	scd_queues = BIT(priv->trans->trans_cfg->base_params->num_of_queues) - 1;
+	scd_queues = BIT(priv->trans->mac_cfg->base_params->num_of_queues) - 1;
 	scd_queues &= ~(BIT(IWL_IPAN_CMD_QUEUE_NUM) |
 			BIT(IWL_DEFAULT_CMD_QUEUE_NUM));
 

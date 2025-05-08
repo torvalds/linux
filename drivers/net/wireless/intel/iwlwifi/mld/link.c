@@ -580,7 +580,7 @@ iwl_mld_get_omi_bw_reduction_pointers(struct iwl_mld *mld,
 
 	*link_sta = NULL;
 
-	if (mld->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_SC)
+	if (mld->trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_SC)
 		return NULL;
 
 	vif = iwl_mld_get_bss_vif(mld);

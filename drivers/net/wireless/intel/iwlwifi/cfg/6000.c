@@ -101,7 +101,7 @@ static const struct iwl_eeprom_params iwl6000_eeprom_params = {
 	.enhanced_txpower = true,
 };
 
-const struct iwl_cfg_trans_params iwl6005_trans_cfg = {
+const struct iwl_mac_cfg iwl6005_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_6005,
 	.base_params = &iwl6000_g2_base_params,
 };
@@ -139,7 +139,7 @@ const struct iwl_cfg iwl6005_non_n_cfg = {
 const char iwl6005_2abg_name[] = "Intel(R) Centrino(R) Advanced-N 6205 ABG";
 const char iwl6005_2bg_name[] = "Intel(R) Centrino(R) Advanced-N 6205 BG";
 
-const struct iwl_cfg_trans_params iwl6030_trans_cfg = {
+const struct iwl_mac_cfg iwl6030_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_6030,
 	.base_params = &iwl6000_g2_base_params,
 };
@@ -218,7 +218,7 @@ const struct iwl_cfg iwl130_bg_cfg = {
 
 const char iwl130_bg_name[] = "Intel(R) Centrino(R) Wireless-N 130 BG";
 
-const struct iwl_cfg_trans_params iwl6000i_trans_cfg = {
+const struct iwl_mac_cfg iwl6000i_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_6000i,
 	.base_params = &iwl6000_base_params,
 };
@@ -257,7 +257,7 @@ const struct iwl_cfg iwl6000i_non_n_cfg = {
 const char iwl6000i_2abg_name[] = "Intel(R) Centrino(R) Advanced-N 6200 ABG";
 const char iwl6000i_2bg_name[] = "Intel(R) Centrino(R) Advanced-N 6200 BG";
 
-const struct iwl_cfg_trans_params iwl6050_trans_cfg = {
+const struct iwl_mac_cfg iwl6050_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_6050,
 	.base_params = &iwl6050_base_params,
 };
@@ -293,7 +293,7 @@ const struct iwl_cfg iwl6050_2abg_cfg = {
 
 const char iwl6050_2abg_name[] = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 ABG";
 
-const struct iwl_cfg_trans_params iwl6150_trans_cfg = {
+const struct iwl_mac_cfg iwl6150_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_6150,
 	.base_params = &iwl6050_base_params,
 };
@@ -327,7 +327,7 @@ const struct iwl_cfg iwl6150_bg_cfg = {
 
 const char iwl6150_bg_name[] = "Intel(R) Centrino(R) Wireless-N + WiMAX 6150 BG";
 
-const struct iwl_cfg_trans_params iwl6000_trans_cfg = {
+const struct iwl_mac_cfg iwl6000_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_6000,
 	.base_params = &iwl6000_base_params,
 };

@@ -247,10 +247,10 @@ static inline void iwl_bios_setup_step(struct iwl_trans *trans,
 {
 	u32 dsbr;
 
-	if (!trans->trans_cfg->integrated)
+	if (!trans->mac_cfg->integrated)
 		return;
 
-	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_BZ)
+	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_BZ)
 		return;
 
 	if (iwl_bios_get_dsbr(fwrt, &dsbr))

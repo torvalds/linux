@@ -1623,13 +1623,13 @@ static inline bool iwl_mvm_has_new_station_api(const struct iwl_fw *fw)
 static inline bool iwl_mvm_has_new_tx_api(struct iwl_mvm *mvm)
 {
 	/* TODO - replace with TLV once defined */
-	return mvm->trans->trans_cfg->gen2;
+	return mvm->trans->mac_cfg->gen2;
 }
 
 static inline bool iwl_mvm_has_unified_ucode(struct iwl_mvm *mvm)
 {
 	/* TODO - better define this */
-	return mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000;
+	return mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_22000;
 }
 
 static inline bool iwl_mvm_is_cdb_supported(struct iwl_mvm *mvm)
@@ -1654,7 +1654,7 @@ static inline bool iwl_mvm_cdb_scan_api(struct iwl_mvm *mvm)
 	 * but then there's a little bit of code in scan that won't make
 	 * any sense...
 	 */
-	return mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000;
+	return mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_22000;
 }
 
 static inline bool iwl_mvm_is_scan_ext_chan_supported(struct iwl_mvm *mvm)
@@ -1768,7 +1768,7 @@ extern const u8 iwl_mvm_ac_to_bz_tx_fifo[];
 static inline u8 iwl_mvm_mac_ac_to_tx_fifo(struct iwl_mvm *mvm,
 					   enum ieee80211_ac_numbers ac)
 {
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+	if (mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
 		return iwl_mvm_ac_to_bz_tx_fifo[ac];
 	if (iwl_mvm_has_new_tx_api(mvm))
 		return iwl_mvm_ac_to_gen2_tx_fifo[ac];
@@ -2457,7 +2457,7 @@ void iwl_mvm_vif_set_low_latency(struct iwl_mvm_vif *mvmvif, bool set,
  */
 static inline u32 iwl_mvm_flushable_queues(struct iwl_mvm *mvm)
 {
-	return ((BIT(mvm->trans->trans_cfg->base_params->num_of_queues) - 1) &
+	return ((BIT(mvm->trans->mac_cfg->base_params->num_of_queues) - 1) &
 		~BIT(IWL_MVM_DQA_CMD_QUEUE));
 }
 

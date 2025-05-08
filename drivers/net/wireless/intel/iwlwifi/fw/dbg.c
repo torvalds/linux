@@ -187,7 +187,7 @@ static void iwl_fw_dump_rxf(struct iwl_fw_runtime *fwrt,
 		/* Pull RXF2 */
 		iwl_fwrt_dump_rxf(fwrt, dump_data, cfg->rxfifo2_size,
 				  RXF_DIFF_FROM_PREV +
-				  fwrt->trans->trans_cfg->umac_prph_offset, 1);
+				  fwrt->trans->mac_cfg->umac_prph_offset, 1);
 		/* Pull LMAC2 RXF1 */
 		if (fwrt->smem_cfg.num_lmacs > 1)
 			iwl_fwrt_dump_rxf(fwrt, dump_data,
@@ -654,10 +654,10 @@ static void iwl_fw_prph_handler(struct iwl_fw_runtime *fwrt, void *ptr,
 {
 	u32 range_len;
 
-	if (fwrt->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+	if (fwrt->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		range_len = ARRAY_SIZE(iwl_prph_dump_addr_ax210);
 		handler(fwrt, iwl_prph_dump_addr_ax210, range_len, ptr);
-	} else if (fwrt->trans->trans_cfg->device_family >=
+	} else if (fwrt->trans->mac_cfg->device_family >=
 		   IWL_DEVICE_FAMILY_22000) {
 		range_len = ARRAY_SIZE(iwl_prph_dump_addr_22000);
 		handler(fwrt, iwl_prph_dump_addr_22000, range_len, ptr);
@@ -665,7 +665,7 @@ static void iwl_fw_prph_handler(struct iwl_fw_runtime *fwrt, void *ptr,
 		range_len = ARRAY_SIZE(iwl_prph_dump_addr_comm);
 		handler(fwrt, iwl_prph_dump_addr_comm, range_len, ptr);
 
-		if (fwrt->trans->trans_cfg->mq_rx_supported) {
+		if (fwrt->trans->mac_cfg->mq_rx_supported) {
 			range_len = ARRAY_SIZE(iwl_prph_dump_addr_9000);
 			handler(fwrt, iwl_prph_dump_addr_9000, range_len, ptr);
 		}
@@ -838,7 +838,7 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 			iwl_fw_prph_handler(fwrt, &prph_len,
 					    iwl_fw_get_prph_len);
 
-		if (fwrt->trans->trans_cfg->device_family ==
+		if (fwrt->trans->mac_cfg->device_family ==
 		    IWL_DEVICE_FAMILY_7000 &&
 		    iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_RADIO_REG))
 			radio_len = sizeof(*dump_data) + RADIO_REG_MAX_READ;
@@ -1110,7 +1110,7 @@ static int iwl_dump_ini_prph_phy_iter_common(struct iwl_fw_runtime *fwrt,
 	range->internal_base_addr = cpu_to_le32(addr);
 	range->range_data_size = size;
 
-	if (fwrt->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+	if (fwrt->trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		indirect_wr_addr = WMAL_INDRCT_CMD1;
 
 	indirect_wr_addr += le32_to_cpu(offset);
@@ -1267,7 +1267,7 @@ static int iwl_dump_ini_paging_iter(struct iwl_fw_runtime *fwrt,
 	/* all paged index start from 1 to skip CSS section */
 	idx++;
 
-	if (!fwrt->trans->trans_cfg->gen2)
+	if (!fwrt->trans->mac_cfg->gen2)
 		return _iwl_dump_ini_paging_iter(fwrt, range_ptr, range_len, idx);
 
 	range = range_ptr;
@@ -1791,7 +1791,7 @@ iwl_dump_ini_mon_fill_header(struct iwl_fw_runtime *fwrt, u32 alloc_id,
 
 	data->write_ptr = iwl_get_mon_reg(fwrt, alloc_id,
 					  &addrs->write_ptr);
-	if (fwrt->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+	if (fwrt->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		u32 wrt_ptr = le32_to_cpu(data->write_ptr);
 
 		data->write_ptr = cpu_to_le32(wrt_ptr >> 2);
@@ -1910,7 +1910,7 @@ iwl_dump_ini_mem_block_ranges(struct iwl_fw_runtime *fwrt,
 static u32 iwl_dump_ini_paging_ranges(struct iwl_fw_runtime *fwrt,
 				      struct iwl_dump_ini_region_data *reg_data)
 {
-	if (fwrt->trans->trans_cfg->gen2) {
+	if (fwrt->trans->mac_cfg->gen2) {
 		if (fwrt->trans->init_dram.paging_cnt)
 			return fwrt->trans->init_dram.paging_cnt - 1;
 		else
@@ -2022,7 +2022,7 @@ iwl_dump_ini_paging_get_size(struct iwl_fw_runtime *fwrt,
 	/* start from 1 to skip CSS section */
 	for (i = 1; i <= iwl_dump_ini_paging_ranges(fwrt, reg_data); i++) {
 		size += range_header_len;
-		if (fwrt->trans->trans_cfg->gen2)
+		if (fwrt->trans->mac_cfg->gen2)
 			size += fwrt->trans->init_dram.paging[i].size;
 		else
 			size += fwrt->fw_paging_db[i].fw_paging_size;
@@ -3342,7 +3342,7 @@ static int iwl_fw_dbg_suspend_resume_hcmd(struct iwl_trans *trans, bool suspend)
 static void iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
 				      struct iwl_fw_dbg_params *params)
 {
-	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+	if (trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
 		return;
 	}
@@ -3366,7 +3366,7 @@ static int iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
 	if (!params)
 		return -EIO;
 
-	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+	if (trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
 		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
 		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
@@ -3468,7 +3468,7 @@ void iwl_fw_disable_dbg_asserts(struct iwl_fw_runtime *fwrt)
 				  GENMASK(31, IWL_FW_DBG_DOMAIN_POS + 1));
 
 	/* supported starting from 9000 devices */
-	if (fwrt->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_9000)
+	if (fwrt->trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_9000)
 		return;
 
 	if (fwrt->trans->dbg.yoyo_bin_loaded || (preset && preset != 1))

@@ -501,7 +501,7 @@ struct iwl_tfh_tfd *iwl_txq_gen2_build_tfd(struct iwl_trans *trans,
 
 	memset(tfd, 0, sizeof(*tfd));
 
-	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		len = sizeof(struct iwl_tx_cmd_gen2);
 	else
 		len = sizeof(struct iwl_tx_cmd_gen3);
@@ -535,17 +535,17 @@ int iwl_txq_space(struct iwl_trans *trans, const struct iwl_txq *q)
 	 * If q->n_window is smaller than max_tfd_queue_size, there is no need
 	 * to reserve any queue entries for this purpose.
 	 */
-	if (q->n_window < trans->trans_cfg->base_params->max_tfd_queue_size)
+	if (q->n_window < trans->mac_cfg->base_params->max_tfd_queue_size)
 		max = q->n_window;
 	else
-		max = trans->trans_cfg->base_params->max_tfd_queue_size - 1;
+		max = trans->mac_cfg->base_params->max_tfd_queue_size - 1;
 
 	/*
 	 * max_tfd_queue_size is a power of 2, so the following is equivalent to
 	 * modulo by max_tfd_queue_size and is well defined.
 	 */
 	used = (q->write_ptr - q->read_ptr) &
-		(trans->trans_cfg->base_params->max_tfd_queue_size - 1);
+		(trans->mac_cfg->base_params->max_tfd_queue_size - 1);
 
 	if (WARN_ON(used > max))
 		return 0;
@@ -580,7 +580,7 @@ static void iwl_pcie_gen2_update_byte_tbl(struct iwl_trans *trans,
 	 */
 	num_fetch_chunks = DIV_ROUND_UP(filled_tfd_size, 64) - 1;
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		struct iwl_gen3_bc_tbl_entry *scd_bc_tbl_gen3 = txq->bc_tbl.addr;
 
 		WARN_ON(len > 0x3FFF);
@@ -780,7 +780,7 @@ int iwl_txq_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		return -1;
 	}
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		struct iwl_tx_cmd_gen3 *tx_cmd_gen3 =
 			(void *)dev_cmd->payload;
 
@@ -1002,7 +1002,7 @@ static int iwl_pcie_txq_alloc_response(struct iwl_trans *trans,
 
 	txq->id = qid;
 	trans_pcie->txqs.txq[qid] = txq;
-	wr_ptr &= (trans->trans_cfg->base_params->max_tfd_queue_size - 1);
+	wr_ptr &= (trans->mac_cfg->base_params->max_tfd_queue_size - 1);
 
 	/* Place first TFD at index corresponding to start sequence number */
 	txq->read_ptr = wr_ptr;
@@ -1038,7 +1038,7 @@ int iwl_txq_dyn_alloc(struct iwl_trans *trans, u32 flags, u32 sta_mask,
 	/* but must be power of 2 values for calculating read/write pointers */
 	size = rounddown_pow_of_two(size);
 
-	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_BZ &&
+	if (trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_BZ &&
 	    trans->info.hw_rev_step == SILICON_A_STEP) {
 		size = 4096;
 		txq = iwl_txq_dyn_alloc_dma(trans, size, timeout);

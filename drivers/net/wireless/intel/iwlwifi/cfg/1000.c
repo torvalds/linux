@@ -54,7 +54,7 @@ static const struct iwl_eeprom_params iwl1000_eeprom_params = {
 	}
 };
 
-const struct iwl_cfg_trans_params iwl1000_trans_cfg = {
+const struct iwl_mac_cfg iwl1000_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_1000,
 	.base_params = &iwl1000_base_params,
 };

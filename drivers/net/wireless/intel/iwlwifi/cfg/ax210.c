@@ -117,7 +117,7 @@ static const struct iwl_base_params iwl_ax210_base_params = {
 		},							\
 	}
 
-const struct iwl_cfg_trans_params iwl_so_trans_cfg = {
+const struct iwl_mac_cfg iwl_so_mac_cfg = {
 	.mq_rx_supported = true,
 	.rf_id = true,
 	.gen2 = true,
@@ -130,7 +130,7 @@ const struct iwl_cfg_trans_params iwl_so_trans_cfg = {
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_200US,
 };
 
-const struct iwl_cfg_trans_params iwl_so_long_latency_trans_cfg = {
+const struct iwl_mac_cfg iwl_so_long_latency_mac_cfg = {
 	.mq_rx_supported = true,
 	.rf_id = true,
 	.gen2 = true,
@@ -143,7 +143,7 @@ const struct iwl_cfg_trans_params iwl_so_long_latency_trans_cfg = {
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
 };
 
-const struct iwl_cfg_trans_params iwl_so_long_latency_imr_trans_cfg = {
+const struct iwl_mac_cfg iwl_so_long_latency_imr_mac_cfg = {
 	.mq_rx_supported = true,
 	.rf_id = true,
 	.gen2 = true,
@@ -167,7 +167,7 @@ const struct iwl_cfg_trans_params iwl_so_long_latency_imr_trans_cfg = {
 #define IWL_NUM_RBDS_NON_HE		512
 #define IWL_NUM_RBDS_AX210_HE		4096
 
-const struct iwl_cfg_trans_params iwl_ma_trans_cfg = {
+const struct iwl_mac_cfg iwl_ma_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_AX210,
 	.base_params = &iwl_ax210_base_params,
 	.mq_rx_supported = true,

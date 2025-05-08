@@ -855,7 +855,7 @@ struct iwl_trans_info {
  *
  * @csme_own: true if we couldn't get ownership on the device
  * @op_mode: pointer to the op_mode
- * @trans_cfg: the trans-specific configuration part
+ * @mac_cfg: the trans-specific configuration part
  * @cfg: pointer to the configuration
  * @drv: pointer to iwl_drv
  * @conf: configuration set by the opmode before enter
@@ -891,7 +891,7 @@ struct iwl_trans_info {
 struct iwl_trans {
 	bool csme_own;
 	struct iwl_op_mode *op_mode;
-	const struct iwl_cfg_trans_params *trans_cfg;
+	const struct iwl_mac_cfg *mac_cfg;
 	const struct iwl_cfg *cfg;
 	struct iwl_drv *drv;
 	struct iwl_trans_config conf;
@@ -1203,7 +1203,7 @@ static inline void iwl_trans_finish_sw_reset(struct iwl_trans *trans)
  *****************************************************/
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 			  struct device *dev,
-			  const struct iwl_cfg_trans_params *cfg_trans);
+			  const struct iwl_mac_cfg *cfg_trans);
 int iwl_trans_init(struct iwl_trans *trans);
 void iwl_trans_free(struct iwl_trans *trans);
 
