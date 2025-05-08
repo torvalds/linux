@@ -89,7 +89,7 @@ static void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans,
 	 * 2. NIC is woken up for CMD regardless of shadow outside this function
 	 * 3. there is a chance that the NIC is asleep
 	 */
-	if (!trans->mac_cfg->base_params->shadow_reg_enable &&
+	if (!trans->mac_cfg->base->shadow_reg_enable &&
 	    txq_id != trans->conf.cmd_queue &&
 	    test_bit(STATUS_TPOWER_PMI, &trans->status)) {
 		/*
@@ -124,7 +124,7 @@ void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int i;
 
-	for (i = 0; i < trans->mac_cfg->base_params->num_of_queues; i++) {
+	for (i = 0; i < trans->mac_cfg->base->num_of_queues; i++) {
 		struct iwl_txq *txq = trans_pcie->txqs.txq[i];
 
 		if (!test_bit(i, trans_pcie->txqs.queue_used))
@@ -192,7 +192,7 @@ static void iwl_pcie_clear_cmd_in_flight(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (!trans->mac_cfg->base_params->apmg_wake_up_wa)
+	if (!trans->mac_cfg->base->apmg_wake_up_wa)
 		return;
 
 	spin_lock(&trans_pcie->reg_lock);
@@ -456,7 +456,7 @@ static void iwl_pcie_txq_free(struct iwl_trans *trans, int txq_id)
 	if (txq->tfds) {
 		dma_free_coherent(dev,
 				  trans_pcie->txqs.tfd.size *
-				  trans->mac_cfg->base_params->max_tfd_queue_size,
+				  trans->mac_cfg->base->max_tfd_queue_size,
 				  txq->tfds, txq->dma_addr);
 		txq->dma_addr = 0;
 		txq->tfds = NULL;
@@ -478,7 +478,7 @@ static void iwl_pcie_txq_free(struct iwl_trans *trans, int txq_id)
 void iwl_pcie_tx_start(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	int nq = trans->mac_cfg->base_params->num_of_queues;
+	int nq = trans->mac_cfg->base->num_of_queues;
 	int chan;
 	u32 reg_val;
 	int clear_dwords = (SCD_TRANS_TBL_OFFSET_QUEUE(nq) -
@@ -504,7 +504,7 @@ void iwl_pcie_tx_start(struct iwl_trans *trans)
 	/* The chain extension of the SCD doesn't work well. This feature is
 	 * enabled by default by the HW, so we need to disable it manually.
 	 */
-	if (trans->mac_cfg->base_params->scd_chain_ext_wa)
+	if (trans->mac_cfg->base->scd_chain_ext_wa)
 		iwl_write_prph(trans, SCD_CHAINEXT_EN, 0);
 
 	iwl_trans_ac_txq_enable(trans, trans->conf.cmd_queue,
@@ -543,7 +543,7 @@ void iwl_trans_pcie_tx_reset(struct iwl_trans *trans)
 	if (WARN_ON_ONCE(trans->mac_cfg->gen2))
 		return;
 
-	for (txq_id = 0; txq_id < trans->mac_cfg->base_params->num_of_queues;
+	for (txq_id = 0; txq_id < trans->mac_cfg->base->num_of_queues;
 	     txq_id++) {
 		struct iwl_txq *txq = trans_pcie->txqs.txq[txq_id];
 		if (trans->mac_cfg->gen2)
@@ -630,7 +630,7 @@ int iwl_pcie_tx_stop(struct iwl_trans *trans)
 		return 0;
 
 	/* Unmap DMA from host system and free skb's */
-	for (txq_id = 0; txq_id < trans->mac_cfg->base_params->num_of_queues;
+	for (txq_id = 0; txq_id < trans->mac_cfg->base->num_of_queues;
 	     txq_id++)
 		iwl_pcie_txq_unmap(trans, txq_id);
 
@@ -653,7 +653,7 @@ void iwl_pcie_tx_free(struct iwl_trans *trans)
 	/* Tx queues */
 	if (trans_pcie->txq_memory) {
 		for (txq_id = 0;
-		     txq_id < trans->mac_cfg->base_params->num_of_queues;
+		     txq_id < trans->mac_cfg->base->num_of_queues;
 		     txq_id++) {
 			iwl_pcie_txq_free(trans, txq_id);
 			trans_pcie->txqs.txq[txq_id] = NULL;
@@ -692,9 +692,9 @@ void iwl_txq_log_scd_error(struct iwl_trans *trans, struct iwl_txq *txq)
 		jiffies_to_msecs(txq->wd_timeout),
 		txq->read_ptr, txq->write_ptr,
 		iwl_read_prph(trans, SCD_QUEUE_RDPTR(txq_id)) &
-			(trans->mac_cfg->base_params->max_tfd_queue_size - 1),
+			(trans->mac_cfg->base->max_tfd_queue_size - 1),
 			iwl_read_prph(trans, SCD_QUEUE_WRPTR(txq_id)) &
-			(trans->mac_cfg->base_params->max_tfd_queue_size - 1),
+			(trans->mac_cfg->base->max_tfd_queue_size - 1),
 			iwl_read_direct32(trans, FH_TX_TRB_REG(fifo)));
 }
 
@@ -721,7 +721,7 @@ int iwl_pcie_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	size_t num_entries = trans->mac_cfg->gen2 ?
-		slots_num : trans->mac_cfg->base_params->max_tfd_queue_size;
+		slots_num : trans->mac_cfg->base->max_tfd_queue_size;
 	size_t tfd_sz;
 	size_t tb0_buf_sz;
 	int i;
@@ -805,7 +805,7 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 	int ret;
 	int txq_id, slots_num;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	u16 bc_tbls_size = trans->mac_cfg->base_params->num_of_queues;
+	u16 bc_tbls_size = trans->mac_cfg->base->num_of_queues;
 
 	if (WARN_ON(trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210))
 		return -EINVAL;
@@ -834,7 +834,7 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 	}
 
 	trans_pcie->txq_memory =
-		kcalloc(trans->mac_cfg->base_params->num_of_queues,
+		kcalloc(trans->mac_cfg->base->num_of_queues,
 			sizeof(struct iwl_txq), GFP_KERNEL);
 	if (!trans_pcie->txq_memory) {
 		IWL_ERR(trans, "Not enough memory for txq\n");
@@ -843,7 +843,7 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 	}
 
 	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
-	for (txq_id = 0; txq_id < trans->mac_cfg->base_params->num_of_queues;
+	for (txq_id = 0; txq_id < trans->mac_cfg->base->num_of_queues;
 	     txq_id++) {
 		bool cmd_queue = (txq_id == trans->conf.cmd_queue);
 
@@ -902,7 +902,7 @@ int iwl_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 		 int slots_num, bool cmd_queue)
 {
 	u32 tfd_queue_max_size =
-		trans->mac_cfg->base_params->max_tfd_queue_size;
+		trans->mac_cfg->base->max_tfd_queue_size;
 	int ret;
 
 	txq->need_update = false;
@@ -960,7 +960,7 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 	spin_unlock_bh(&trans_pcie->irq_lock);
 
 	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
-	for (txq_id = 0; txq_id < trans->mac_cfg->base_params->num_of_queues;
+	for (txq_id = 0; txq_id < trans->mac_cfg->base->num_of_queues;
 	     txq_id++) {
 		bool cmd_queue = (txq_id == trans->conf.cmd_queue);
 
@@ -988,7 +988,7 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 	}
 
 	iwl_set_bits_prph(trans, SCD_GP_CTRL, SCD_GP_CTRL_AUTO_ACTIVE_MODE);
-	if (trans->mac_cfg->base_params->num_of_queues > 20)
+	if (trans->mac_cfg->base->num_of_queues > 20)
 		iwl_set_bits_prph(trans, SCD_GP_CTRL,
 				  SCD_GP_CTRL_ENABLE_31_QUEUES);
 
@@ -1009,7 +1009,7 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
 		return -ENODEV;
 
-	if (!trans->mac_cfg->base_params->apmg_wake_up_wa)
+	if (!trans->mac_cfg->base->apmg_wake_up_wa)
 		return 0;
 
 	/*
@@ -1087,12 +1087,12 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 	idx = iwl_txq_get_cmd_index(txq, idx);
 	r = iwl_txq_get_cmd_index(txq, txq->read_ptr);
 
-	if (idx >= trans->mac_cfg->base_params->max_tfd_queue_size ||
+	if (idx >= trans->mac_cfg->base->max_tfd_queue_size ||
 	    (!iwl_txq_used(txq, idx, txq->read_ptr, txq->write_ptr))) {
 		WARN_ONCE(test_bit(txq_id, trans_pcie->txqs.queue_used),
 			  "%s: Read index for DMA queue txq id (%d), index %d is out of range [0-%d] %d %d.\n",
 			  __func__, txq_id, idx,
-			  trans->mac_cfg->base_params->max_tfd_queue_size,
+			  trans->mac_cfg->base->max_tfd_queue_size,
 			  txq->write_ptr, txq->read_ptr);
 		return;
 	}
@@ -1308,7 +1308,7 @@ static void iwl_trans_pcie_block_txq_ptrs(struct iwl_trans *trans, bool block)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int i;
 
-	for (i = 0; i < trans->mac_cfg->base_params->num_of_queues; i++) {
+	for (i = 0; i < trans->mac_cfg->base->num_of_queues; i++) {
 		struct iwl_txq *txq = trans_pcie->txqs.txq[i];
 
 		if (i == trans->conf.cmd_queue)
@@ -2385,7 +2385,7 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		IWL_ERR(trans,
 			"%s: Read index for txq id (%d), last_to_free %d is out of range [0-%d] %d %d.\n",
 			__func__, txq_id, last_to_free,
-			trans->mac_cfg->base_params->max_tfd_queue_size,
+			trans->mac_cfg->base->max_tfd_queue_size,
 			txq_write_ptr, txq_read_ptr);
 
 		iwl_op_mode_time_point(trans->op_mode,

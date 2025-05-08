@@ -49,7 +49,7 @@
 #define IWL7265D_FW_PRE "iwlwifi-7265D"
 #define IWL7265D_MODULE_FIRMWARE(api) IWL7265D_FW_PRE "-" __stringify(api) ".ucode"
 
-static const struct iwl_base_params iwl7000_base_params = {
+static const struct iwl_family_base_params iwl7000_base = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_16K,
 	.num_of_queues = 31,
 	.max_tfd_queue_size = 256,
@@ -86,7 +86,7 @@ static const struct iwl_tt_params iwl7000_high_temp_tt_params = {
 
 const struct iwl_mac_cfg iwl7000_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_7000,
-	.base_params = &iwl7000_base_params,
+	.base = &iwl7000_base,
 };
 
 #define IWL_DEVICE_7000_COMMON					\

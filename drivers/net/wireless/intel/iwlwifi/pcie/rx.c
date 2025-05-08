@@ -176,7 +176,7 @@ static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans,
 	 * 1. shadow registers aren't enabled
 	 * 2. there is a chance that the NIC is asleep
 	 */
-	if (!trans->mac_cfg->base_params->shadow_reg_enable &&
+	if (!trans->mac_cfg->base->shadow_reg_enable &&
 	    test_bit(STATUS_TPOWER_PMI, &trans->status)) {
 		reg = iwl_read32(trans, CSR_UCODE_DRV_GP1);
 
@@ -1694,7 +1694,7 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 		return;
 	}
 
-	for (i = 0; i < trans->mac_cfg->base_params->num_of_queues; i++) {
+	for (i = 0; i < trans->mac_cfg->base->num_of_queues; i++) {
 		if (!trans_pcie->txqs.txq[i])
 			continue;
 		timer_delete(&trans_pcie->txqs.txq[i]->stuck_timer);

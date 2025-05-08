@@ -535,17 +535,17 @@ int iwl_txq_space(struct iwl_trans *trans, const struct iwl_txq *q)
 	 * If q->n_window is smaller than max_tfd_queue_size, there is no need
 	 * to reserve any queue entries for this purpose.
 	 */
-	if (q->n_window < trans->mac_cfg->base_params->max_tfd_queue_size)
+	if (q->n_window < trans->mac_cfg->base->max_tfd_queue_size)
 		max = q->n_window;
 	else
-		max = trans->mac_cfg->base_params->max_tfd_queue_size - 1;
+		max = trans->mac_cfg->base->max_tfd_queue_size - 1;
 
 	/*
 	 * max_tfd_queue_size is a power of 2, so the following is equivalent to
 	 * modulo by max_tfd_queue_size and is well defined.
 	 */
 	used = (q->write_ptr - q->read_ptr) &
-		(trans->mac_cfg->base_params->max_tfd_queue_size - 1);
+		(trans->mac_cfg->base->max_tfd_queue_size - 1);
 
 	if (WARN_ON(used > max))
 		return 0;
@@ -1002,7 +1002,7 @@ static int iwl_pcie_txq_alloc_response(struct iwl_trans *trans,
 
 	txq->id = qid;
 	trans_pcie->txqs.txq[qid] = txq;
-	wr_ptr &= (trans->mac_cfg->base_params->max_tfd_queue_size - 1);
+	wr_ptr &= (trans->mac_cfg->base->max_tfd_queue_size - 1);
 
 	/* Place first TFD at index corresponding to start sequence number */
 	txq->read_ptr = wr_ptr;

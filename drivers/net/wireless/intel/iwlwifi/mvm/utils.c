@@ -742,7 +742,7 @@ unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif)
 {
 	unsigned int default_timeout =
-		mvm->trans->mac_cfg->base_params->wd_timeout;
+		mvm->trans->mac_cfg->base->wd_timeout;
 
 	/*
 	 * We can't know when the station is asleep or awake, so we

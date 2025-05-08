@@ -317,7 +317,7 @@ static int iwl_pcie_apm_init(struct iwl_trans *trans)
 	iwl_pcie_apm_config(trans);
 
 	/* Configure analog phase-lock-loop before activating to D0A */
-	if (trans->mac_cfg->base_params->pll_cfg)
+	if (trans->mac_cfg->base->pll_cfg)
 		iwl_set_bit(trans, CSR_ANA_PLL_CFG, CSR50_ANA_PLL_CFG_VAL);
 
 	ret = iwl_finish_nic_init(trans);
@@ -565,7 +565,7 @@ static int iwl_pcie_nic_init(struct iwl_trans *trans)
 		return -ENOMEM;
 	}
 
-	if (trans->mac_cfg->base_params->shadow_reg_enable) {
+	if (trans->mac_cfg->base->shadow_reg_enable) {
 		/* enable shadow regs in HW */
 		iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTRL, 0x800FFFFF);
 		IWL_DEBUG_INFO(trans, "Enabling shadow registers in device\n");
@@ -2672,7 +2672,7 @@ int iwl_trans_pcie_wait_txqs_empty(struct iwl_trans *trans, u32 txq_bm)
 
 	/* waiting for all the tx frames complete might take a while */
 	for (cnt = 0;
-	     cnt < trans->mac_cfg->base_params->num_of_queues;
+	     cnt < trans->mac_cfg->base->num_of_queues;
 	     cnt++) {
 
 		if (cnt == trans->conf.cmd_queue)
@@ -2816,7 +2816,7 @@ static void *iwl_dbgfs_tx_queue_seq_start(struct seq_file *seq, loff_t *pos)
 	struct iwl_dbgfs_tx_queue_priv *priv = seq->private;
 	struct iwl_dbgfs_tx_queue_state *state;
 
-	if (*pos >= priv->trans->mac_cfg->base_params->num_of_queues)
+	if (*pos >= priv->trans->mac_cfg->base->num_of_queues)
 		return NULL;
 
 	state = kmalloc(sizeof(*state), GFP_KERNEL);
@@ -2834,7 +2834,7 @@ static void *iwl_dbgfs_tx_queue_seq_next(struct seq_file *seq,
 
 	*pos = ++state->pos;
 
-	if (*pos >= priv->trans->mac_cfg->base_params->num_of_queues)
+	if (*pos >= priv->trans->mac_cfg->base->num_of_queues)
 		return NULL;
 
 	return state;
@@ -3892,7 +3892,7 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	trans_pcie->debug_rfkill = -1;
 
-	if (!mac_cfg->base_params->pcie_l1_allowed) {
+	if (!mac_cfg->base->pcie_l1_allowed) {
 		/*
 		 * W/A - seems to solve weird behavior. We need to remove this
 		 * if we don't want to stay in L1 all the time. This wastes a

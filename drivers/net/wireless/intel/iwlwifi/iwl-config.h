@@ -115,7 +115,7 @@ static inline u8 num_of_ant(u8 mask)
 }
 
 /**
- * struct iwl_base_params - params not likely to change within a device family
+ * struct iwl_family_base_params - base parameters for an entire family
  * @max_ll_items: max number of OTP blocks
  * @shadow_ram_support: shadow support for OTP memory
  * @led_compensation: compensate on the led on/off time per HW according
@@ -128,8 +128,12 @@ static inline u8 num_of_ant(u8 mask)
  *	is in flight. This is due to a HW bug in 7260, 3160 and 7265.
  * @scd_chain_ext_wa: should the chain extension feature in SCD be disabled.
  * @max_tfd_queue_size: max number of entries in tfd queue.
+ * @eeprom_size: EEPROM size
+ * @num_of_queues: number of HW TX queues supported
+ * @pcie_l1_allowed: PCIe L1 state is allowed
+ * @pll_cfg: PLL configuration needed
  */
-struct iwl_base_params {
+struct iwl_family_base_params {
 	unsigned int wd_timeout;
 
 	u16 eeprom_size;
@@ -253,7 +257,7 @@ enum iwl_mac_cfg_ltr_delay {
  * used, among other things, to boot the NIC so that the HW REV or
  * RFID can be read before deciding the remaining parameters to use.
  *
- * @base_params: pointer to basic parameters
+ * @base: pointer to basic parameters
  * @device_family: the device family
  * @umac_prph_offset: offset to add to UMAC periphery address
  * @xtal_latency: power up latency to get the xtal stabilized
@@ -267,7 +271,7 @@ enum iwl_mac_cfg_ltr_delay {
  * @imr_enabled: use the IMR if supported.
  */
 struct iwl_mac_cfg {
-	const struct iwl_base_params *base_params;
+	const struct iwl_family_base_params *base;
 	enum iwl_device_family device_family;
 	u32 umac_prph_offset;
 	u32 xtal_latency;

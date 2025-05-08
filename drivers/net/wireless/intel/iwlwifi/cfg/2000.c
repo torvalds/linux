@@ -40,7 +40,7 @@
 #define IWL135_FW_PRE "iwlwifi-135"
 #define IWL135_MODULE_FIRMWARE(api) IWL135_FW_PRE "-" __stringify(api) ".ucode"
 
-static const struct iwl_base_params iwl2000_base_params = {
+static const struct iwl_family_base_params iwl2000_base = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_2K,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.max_tfd_queue_size = 256,
@@ -54,7 +54,7 @@ static const struct iwl_base_params iwl2000_base_params = {
 };
 
 
-static const struct iwl_base_params iwl2030_base_params = {
+static const struct iwl_family_base_params iwl2030_base = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_2K,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.max_tfd_queue_size = 256,
@@ -82,7 +82,7 @@ static const struct iwl_eeprom_params iwl20x0_eeprom_params = {
 
 const struct iwl_mac_cfg iwl2000_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_2000,
-	.base_params = &iwl2000_base_params,
+	.base = &iwl2000_base,
 };
 
 #define IWL_DEVICE_2000						\
@@ -111,7 +111,7 @@ const char iwl2000_2bgn_d_name[] = "Intel(R) Centrino(R) Wireless-N 2200D BGN";
 
 const struct iwl_mac_cfg iwl2030_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_2030,
-	.base_params = &iwl2030_base_params,
+	.base = &iwl2030_base,
 };
 
 #define IWL_DEVICE_2030						\
@@ -138,7 +138,7 @@ const char iwl2030_2bgn_name[] = "Intel(R) Centrino(R) Wireless-N 2230 BGN";
 
 const struct iwl_mac_cfg iwl105_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_105,
-	.base_params = &iwl2000_base_params,
+	.base = &iwl2000_base,
 };
 
 #define IWL_DEVICE_105						\
@@ -167,7 +167,7 @@ const char iwl105_bgn_d_name[] = "Intel(R) Centrino(R) Wireless-N 105D BGN";
 
 const struct iwl_mac_cfg iwl135_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_135,
-	.base_params = &iwl2030_base_params,
+	.base = &iwl2030_base,
 };
 
 #define IWL_DEVICE_135						\

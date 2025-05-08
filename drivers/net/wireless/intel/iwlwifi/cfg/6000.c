@@ -49,7 +49,7 @@
 #define IWL6030_FW_PRE "iwlwifi-6000g2b"
 #define IWL6030_MODULE_FIRMWARE(api) IWL6030_FW_PRE "-" __stringify(api) ".ucode"
 
-static const struct iwl_base_params iwl6000_base_params = {
+static const struct iwl_family_base_params iwl6000_base = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_2K,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.max_tfd_queue_size = 256,
@@ -62,7 +62,7 @@ static const struct iwl_base_params iwl6000_base_params = {
 	.scd_chain_ext_wa = true,
 };
 
-static const struct iwl_base_params iwl6050_base_params = {
+static const struct iwl_family_base_params iwl6050_base = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_2K,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.max_tfd_queue_size = 256,
@@ -75,7 +75,7 @@ static const struct iwl_base_params iwl6050_base_params = {
 	.scd_chain_ext_wa = true,
 };
 
-static const struct iwl_base_params iwl6000_g2_base_params = {
+static const struct iwl_family_base_params iwl6000_g2_base = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_2K,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.max_tfd_queue_size = 256,
@@ -103,7 +103,7 @@ static const struct iwl_eeprom_params iwl6000_eeprom_params = {
 
 const struct iwl_mac_cfg iwl6005_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_6005,
-	.base_params = &iwl6000_g2_base_params,
+	.base = &iwl6000_g2_base,
 };
 
 #define IWL_DEVICE_6005						\
@@ -141,7 +141,7 @@ const char iwl6005_2bg_name[] = "Intel(R) Centrino(R) Advanced-N 6205 BG";
 
 const struct iwl_mac_cfg iwl6030_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_6030,
-	.base_params = &iwl6000_g2_base_params,
+	.base = &iwl6000_g2_base,
 };
 
 #define IWL_DEVICE_6030						\
@@ -220,7 +220,7 @@ const char iwl130_bg_name[] = "Intel(R) Centrino(R) Wireless-N 130 BG";
 
 const struct iwl_mac_cfg iwl6000i_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_6000i,
-	.base_params = &iwl6000_base_params,
+	.base = &iwl6000_base,
 };
 
 /*
@@ -259,7 +259,7 @@ const char iwl6000i_2bg_name[] = "Intel(R) Centrino(R) Advanced-N 6200 BG";
 
 const struct iwl_mac_cfg iwl6050_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_6050,
-	.base_params = &iwl6050_base_params,
+	.base = &iwl6050_base,
 };
 
 #define IWL_DEVICE_6050						\
@@ -295,7 +295,7 @@ const char iwl6050_2abg_name[] = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 A
 
 const struct iwl_mac_cfg iwl6150_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_6150,
-	.base_params = &iwl6050_base_params,
+	.base = &iwl6050_base,
 };
 
 #define IWL_DEVICE_6150						\
@@ -329,7 +329,7 @@ const char iwl6150_bg_name[] = "Intel(R) Centrino(R) Wireless-N + WiMAX 6150 BG"
 
 const struct iwl_mac_cfg iwl6000_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_6000,
-	.base_params = &iwl6000_base_params,
+	.base = &iwl6000_base,
 };
 
 const struct iwl_cfg iwl6000_3agn_cfg = {

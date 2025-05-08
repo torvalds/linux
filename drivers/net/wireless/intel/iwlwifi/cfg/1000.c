@@ -29,7 +29,7 @@
 #define IWL100_MODULE_FIRMWARE(api) IWL100_FW_PRE "-" __stringify(api) ".ucode"
 
 
-static const struct iwl_base_params iwl1000_base_params = {
+static const struct iwl_family_base_params iwl1000_base = {
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.max_tfd_queue_size = 256,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_2K,
@@ -56,7 +56,7 @@ static const struct iwl_eeprom_params iwl1000_eeprom_params = {
 
 const struct iwl_mac_cfg iwl1000_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_1000,
-	.base_params = &iwl1000_base_params,
+	.base = &iwl1000_base,
 };
 
 #define IWL_DEVICE_1000						\

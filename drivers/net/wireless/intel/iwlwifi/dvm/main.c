@@ -1339,7 +1339,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 					    driver_data[2]);
 
 	WARN_ON(sizeof(priv->transport_queue_stop) * BITS_PER_BYTE <
-		priv->trans->mac_cfg->base_params->num_of_queues);
+		priv->trans->mac_cfg->base->num_of_queues);
 
 	ucode_flags = fw->ucode_capa.flags;
 

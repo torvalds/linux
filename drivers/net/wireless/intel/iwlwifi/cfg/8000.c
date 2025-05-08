@@ -35,7 +35,7 @@
 #define IWL8265_MODULE_FIRMWARE(api) \
 	IWL8265_FW_PRE "-" __stringify(api) ".ucode"
 
-static const struct iwl_base_params iwl8000_base_params = {
+static const struct iwl_family_base_params iwl8000_base = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
 	.num_of_queues = 31,
 	.max_tfd_queue_size = 256,
@@ -70,7 +70,7 @@ static const struct iwl_tt_params iwl8000_tt_params = {
 
 const struct iwl_mac_cfg iwl8000_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_8000,
-	.base_params = &iwl8000_base_params,
+	.base = &iwl8000_base,
 };
 
 #define IWL_DEVICE_8000_COMMON						\

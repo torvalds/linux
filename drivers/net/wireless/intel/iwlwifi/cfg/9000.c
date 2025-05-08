@@ -33,7 +33,7 @@
 #define IWL9260_MODULE_FIRMWARE(api) \
 	IWL9260_FW_PRE "-" __stringify(api) ".ucode"
 
-static const struct iwl_base_params iwl9000_base_params = {
+static const struct iwl_family_base_params iwl9000_base = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
 	.num_of_queues = 31,
 	.max_tfd_queue_size = 256,
@@ -118,13 +118,13 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 
 const struct iwl_mac_cfg iwl9000_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_9000,
-	.base_params = &iwl9000_base_params,
+	.base = &iwl9000_base,
 	.mq_rx_supported = true,
 };
 
 const struct iwl_mac_cfg iwl9560_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_9000,
-	.base_params = &iwl9000_base_params,
+	.base = &iwl9000_base,
 	.mq_rx_supported = true,
 	.integrated = true,
 	.xtal_latency = 650,
@@ -132,7 +132,7 @@ const struct iwl_mac_cfg iwl9560_mac_cfg = {
 
 const struct iwl_mac_cfg iwl9560_long_latency_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_9000,
-	.base_params = &iwl9000_base_params,
+	.base = &iwl9000_base,
 	.mq_rx_supported = true,
 	.integrated = true,
 	.xtal_latency = 2820,
@@ -140,7 +140,7 @@ const struct iwl_mac_cfg iwl9560_long_latency_mac_cfg = {
 
 const struct iwl_mac_cfg iwl9560_shared_clk_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_9000,
-	.base_params = &iwl9000_base_params,
+	.base = &iwl9000_base,
 	.mq_rx_supported = true,
 	.integrated = true,
 	.xtal_latency = 670,

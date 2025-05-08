@@ -43,7 +43,7 @@
 #define IWL_SC_A_HR_B_FW_MODULE_FIRMWARE(api) \
 	IWL_SC_A_HR_B_FW_PRE "-" __stringify(api) ".ucode"
 
-static const struct iwl_base_params iwl_sc_base_params = {
+static const struct iwl_family_base_params iwl_sc_base = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
 	.num_of_queues = 512,
 	.max_tfd_queue_size = 65536,
@@ -125,7 +125,7 @@ static const struct iwl_base_params iwl_sc_base_params = {
 
 const struct iwl_mac_cfg iwl_sc_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_SC,
-	.base_params = &iwl_sc_base_params,
+	.base = &iwl_sc_base,
 	.mq_rx_supported = true,
 	.gen2 = true,
 	.integrated = true,

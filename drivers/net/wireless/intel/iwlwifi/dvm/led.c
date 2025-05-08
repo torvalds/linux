@@ -116,9 +116,9 @@ static int iwl_led_cmd(struct iwl_priv *priv,
 	}
 
 	led_cmd.on = iwl_blink_compensation(priv, on,
-				priv->trans->mac_cfg->base_params->led_compensation);
+				priv->trans->mac_cfg->base->led_compensation);
 	led_cmd.off = iwl_blink_compensation(priv, off,
-				priv->trans->mac_cfg->base_params->led_compensation);
+				priv->trans->mac_cfg->base->led_compensation);
 
 	ret = iwl_send_led_cmd(priv, &led_cmd);
 	if (!ret) {

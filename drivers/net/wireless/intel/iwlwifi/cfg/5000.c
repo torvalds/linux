@@ -30,7 +30,7 @@
 #define IWL5150_FW_PRE "iwlwifi-5150"
 #define IWL5150_MODULE_FIRMWARE(api) IWL5150_FW_PRE "-" __stringify(api) ".ucode"
 
-static const struct iwl_base_params iwl5000_base_params = {
+static const struct iwl_family_base_params iwl5000_base = {
 	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.max_tfd_queue_size = 256,
@@ -55,7 +55,7 @@ static const struct iwl_eeprom_params iwl5000_eeprom_params = {
 
 const struct iwl_mac_cfg iwl5000_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_5000,
-	.base_params = &iwl5000_base_params,
+	.base = &iwl5000_base,
 };
 
 #define IWL_DEVICE_5000						\
@@ -124,7 +124,7 @@ const char iwl5350_agn_name[] = "Intel(R) WiMAX/WiFi Link 5350 AGN";
 
 const struct iwl_mac_cfg iwl5150_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_5150,
-	.base_params = &iwl5000_base_params,
+	.base = &iwl5000_base,
 };
 
 #define IWL_DEVICE_5150						\

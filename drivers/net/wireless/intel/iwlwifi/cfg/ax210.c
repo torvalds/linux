@@ -47,7 +47,7 @@
 #define IWL_MA_B_HR_B_FW_MODULE_FIRMWARE(api)		\
 	IWL_MA_B_HR_B_FW_PRE "-" __stringify(api) ".ucode"
 
-static const struct iwl_base_params iwl_ax210_base_params = {
+static const struct iwl_family_base_params iwl_ax210_base = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
 	.num_of_queues = 512,
 	.max_tfd_queue_size = 65536,
@@ -120,7 +120,7 @@ const struct iwl_mac_cfg iwl_so_mac_cfg = {
 	.mq_rx_supported = true,
 	.gen2 = true,
 	.device_family = IWL_DEVICE_FAMILY_AX210,
-	.base_params = &iwl_ax210_base_params,
+	.base = &iwl_ax210_base,
 	.umac_prph_offset = 0x300000,
 	.integrated = true,
 	/* TODO: the following values need to be checked */
@@ -132,7 +132,7 @@ const struct iwl_mac_cfg iwl_so_long_latency_mac_cfg = {
 	.mq_rx_supported = true,
 	.gen2 = true,
 	.device_family = IWL_DEVICE_FAMILY_AX210,
-	.base_params = &iwl_ax210_base_params,
+	.base = &iwl_ax210_base,
 	.umac_prph_offset = 0x300000,
 	.integrated = true,
 	.low_latency_xtal = true,
@@ -144,7 +144,7 @@ const struct iwl_mac_cfg iwl_so_long_latency_imr_mac_cfg = {
 	.mq_rx_supported = true,
 	.gen2 = true,
 	.device_family = IWL_DEVICE_FAMILY_AX210,
-	.base_params = &iwl_ax210_base_params,
+	.base = &iwl_ax210_base,
 	.umac_prph_offset = 0x300000,
 	.integrated = true,
 	.low_latency_xtal = true,
@@ -165,7 +165,7 @@ const struct iwl_mac_cfg iwl_so_long_latency_imr_mac_cfg = {
 
 const struct iwl_mac_cfg iwl_ma_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_AX210,
-	.base_params = &iwl_ax210_base_params,
+	.base = &iwl_ax210_base,
 	.mq_rx_supported = true,
 	.gen2 = true,
 	.integrated = true,

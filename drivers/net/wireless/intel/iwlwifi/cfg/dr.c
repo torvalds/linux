@@ -36,7 +36,7 @@
 #define IWL_BR_A_PE_A_FW_MODULE_FIRMWARE(api) \
 	IWL_BR_A_PE_A_FW_PRE "-" __stringify(api) ".ucode"
 
-static const struct iwl_base_params iwl_dr_base_params = {
+static const struct iwl_family_base_params iwl_dr_base = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
 	.num_of_queues = 512,
 	.max_tfd_queue_size = 65536,
@@ -121,7 +121,7 @@ static const struct iwl_base_params iwl_dr_base_params = {
 
 const struct iwl_mac_cfg iwl_dr_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_DR,
-	.base_params = &iwl_dr_base_params,
+	.base = &iwl_dr_base,
 	.mq_rx_supported = true,
 	.gen2 = true,
 	.integrated = true,
@@ -139,7 +139,7 @@ const struct iwl_cfg iwl_cfg_dr = {
 
 const struct iwl_mac_cfg iwl_br_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_DR,
-	.base_params = &iwl_dr_base_params,
+	.base = &iwl_dr_base,
 	.mq_rx_supported = true,
 	.gen2 = true,
 	.umac_prph_offset = 0x300000,

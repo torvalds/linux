@@ -43,7 +43,7 @@ const char iwl_ax211_name[] = "Intel(R) Wi-Fi 6E AX211 160MHz";
 const char iwl_ax201_name[] = "Intel(R) Wi-Fi 6 AX201 160MHz";
 #endif
 
-static const struct iwl_base_params iwl_bz_base_params = {
+static const struct iwl_family_base_params iwl_bz_base = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
 	.num_of_queues = 512,
 	.max_tfd_queue_size = 65536,
@@ -125,7 +125,7 @@ static const struct iwl_base_params iwl_bz_base_params = {
 
 const struct iwl_mac_cfg iwl_bz_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_BZ,
-	.base_params = &iwl_bz_base_params,
+	.base = &iwl_bz_base,
 	.mq_rx_supported = true,
 	.gen2 = true,
 	.integrated = true,
@@ -137,7 +137,7 @@ const struct iwl_mac_cfg iwl_bz_mac_cfg = {
 
 const struct iwl_mac_cfg iwl_gl_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_BZ,
-	.base_params = &iwl_bz_base_params,
+	.base = &iwl_bz_base,
 	.mq_rx_supported = true,
 	.gen2 = true,
 	.umac_prph_offset = 0x300000,

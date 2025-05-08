@@ -702,7 +702,7 @@ static inline void iwl_txq_stop(struct iwl_trans *trans, struct iwl_txq *txq)
 static inline int iwl_txq_inc_wrap(struct iwl_trans *trans, int index)
 {
 	return ++index &
-		(trans->mac_cfg->base_params->max_tfd_queue_size - 1);
+		(trans->mac_cfg->base->max_tfd_queue_size - 1);
 }
 
 /**
@@ -713,7 +713,7 @@ static inline int iwl_txq_inc_wrap(struct iwl_trans *trans, int index)
 static inline int iwl_txq_dec_wrap(struct iwl_trans *trans, int index)
 {
 	return --index &
-		(trans->mac_cfg->base_params->max_tfd_queue_size - 1);
+		(trans->mac_cfg->base->max_tfd_queue_size - 1);
 }
 
 void iwl_txq_log_scd_error(struct iwl_trans *trans, struct iwl_txq *txq);
