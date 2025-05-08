@@ -1744,10 +1744,12 @@ static struct iwl_reg_capa iwl_get_reg_capa(u32 flags, u8 resp_ver)
 }
 
 struct ieee80211_regdomain *
-iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
+iwl_parse_nvm_mcc_info(struct iwl_trans *trans,
 		       int num_of_ch, __le32 *channels, u16 fw_mcc,
 		       u16 geo_info, u32 cap, u8 resp_ver)
 {
+	const struct iwl_cfg *cfg = trans->cfg;
+	struct device *dev = trans->dev;
 	int ch_idx;
 	u16 ch_flags;
 	u32 reg_rule_flags, prev_reg_rule_flags = 0;

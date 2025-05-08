@@ -146,7 +146,7 @@ struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
 					   MCC_UPDATE_CMD, 0);
 	IWL_DEBUG_LAR(mvm, "MCC update response version: %d\n", resp_ver);
 
-	regd = iwl_parse_nvm_mcc_info(mvm->trans->dev, mvm->cfg,
+	regd = iwl_parse_nvm_mcc_info(mvm->trans,
 				      __le32_to_cpu(resp->n_channels),
 				      resp->channels,
 				      __le16_to_cpu(resp->mcc),

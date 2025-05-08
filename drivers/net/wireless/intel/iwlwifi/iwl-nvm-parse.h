@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2015, 2018-2024 Intel Corporation
+ * Copyright (C) 2005-2015, 2018-2025 Intel Corporation
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_nvm_parse_h__
@@ -46,9 +46,17 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
  * accordingly. An ERR_PTR is returned on error.
  * If not given to the regulatory core, the user is responsible for freeing
  * the regdomain returned here with kfree.
+ *
+ * @trans: the transport
+ * @num_of_ch: the number of channels
+ * @channels: channel map
+ * @fw_mcc: firmware country code
+ * @geo_info: geo info value
+ * @cap: capability
+ * @resp_ver: FW response version
  */
 struct ieee80211_regdomain *
-iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
+iwl_parse_nvm_mcc_info(struct iwl_trans *trans,
 		       int num_of_ch, __le32 *channels, u16 fw_mcc,
 		       u16 geo_info, u32 cap, u8 resp_ver);
 

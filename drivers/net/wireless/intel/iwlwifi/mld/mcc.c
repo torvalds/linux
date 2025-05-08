@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024-2025 Intel Corporation
  */
 
 #include <net/cfg80211.h>
@@ -158,7 +158,7 @@ iwl_mld_get_regdomain(struct iwl_mld *mld,
 	}
 	IWL_DEBUG_LAR(mld, "MCC update response version: %d\n", resp_ver);
 
-	regd = iwl_parse_nvm_mcc_info(mld->trans->dev, mld->cfg,
+	regd = iwl_parse_nvm_mcc_info(mld->trans,
 				      __le32_to_cpu(resp->n_channels),
 				      resp->channels,
 				      __le16_to_cpu(resp->mcc),
