@@ -3089,6 +3089,18 @@ static int dpaa_xdp_xmit(struct net_device *net_dev, int n,
 	return nxmit;
 }
 
+static int dpaa_hwtstamp_get(struct net_device *dev,
+			     struct kernel_hwtstamp_config *config)
+{
+	struct dpaa_priv *priv = netdev_priv(dev);
+
+	config->tx_type = priv->tx_tstamp ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+	config->rx_filter = priv->rx_tstamp ? HWTSTAMP_FILTER_ALL :
+			    HWTSTAMP_FILTER_NONE;
+
+	return 0;
+}
+
 static int dpaa_hwtstamp_set(struct net_device *dev,
 			     struct kernel_hwtstamp_config *config,
 			     struct netlink_ext_ack *extack)
@@ -3154,6 +3166,7 @@ static const struct net_device_ops dpaa_ops = {
 	.ndo_change_mtu = dpaa_change_mtu,
 	.ndo_bpf = dpaa_xdp,
 	.ndo_xdp_xmit = dpaa_xdp_xmit,
+	.ndo_hwtstamp_get = dpaa_hwtstamp_get,
 	.ndo_hwtstamp_set = dpaa_hwtstamp_set,
 };
 
