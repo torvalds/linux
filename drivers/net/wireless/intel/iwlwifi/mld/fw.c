@@ -168,7 +168,7 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	umac_error_table = le32_to_cpu(umac->dbg_ptrs.error_info_addr) &
 		~FW_ADDR_CACHE_CONTROL;
 
-	if (umac_error_table >= trans->cfg->min_umac_error_event_table)
+	if (umac_error_table >= trans->mac_cfg->base->min_umac_error_event_table)
 		iwl_fw_umac_set_alive_err_table(trans, umac_error_table);
 	else
 		IWL_ERR(mld, "Not valid error log pointer 0x%08X\n",

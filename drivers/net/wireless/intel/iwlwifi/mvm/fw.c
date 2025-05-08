@@ -233,7 +233,7 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 
 	if (umac_error_table) {
 		if (umac_error_table >=
-		    mvm->trans->cfg->min_umac_error_event_table) {
+		    mvm->trans->mac_cfg->base->min_umac_error_event_table) {
 			iwl_fw_umac_set_alive_err_table(mvm->trans,
 							umac_error_table);
 		} else {

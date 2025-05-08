@@ -115,6 +115,28 @@ static inline u8 num_of_ant(u8 mask)
 }
 
 /**
+ * struct iwl_fw_mon_reg - FW monitor register info
+ * @addr: register address
+ * @mask: register mask
+ */
+struct iwl_fw_mon_reg {
+	u32 addr;
+	u32 mask;
+};
+
+/**
+ * struct iwl_fw_mon_regs - FW monitor registers
+ * @write_ptr: write pointer register
+ * @cycle_cnt: cycle count register
+ * @cur_frag: current fragment in use
+ */
+struct iwl_fw_mon_regs {
+	struct iwl_fw_mon_reg write_ptr;
+	struct iwl_fw_mon_reg cycle_cnt;
+	struct iwl_fw_mon_reg cur_frag;
+};
+
+/**
  * struct iwl_family_base_params - base parameters for an entire family
  * @max_ll_items: max number of OTP blocks
  * @shadow_ram_support: shadow support for OTP memory
@@ -124,6 +146,7 @@ static inline u8 num_of_ant(u8 mask)
  * @wd_timeout: TX queues watchdog timeout
  * @max_event_log_size: size of event log buffer size for ucode event logging
  * @shadow_reg_enable: HW shadow register support
+ * @apmg_not_supported: there's no APMG
  * @apmg_wake_up_wa: should the MAC access REQ be asserted when a command
  *	is in flight. This is due to a HW bug in 7260, 3160 and 7265.
  * @scd_chain_ext_wa: should the chain extension feature in SCD be disabled.
@@ -132,6 +155,21 @@ static inline u8 num_of_ant(u8 mask)
  * @num_of_queues: number of HW TX queues supported
  * @pcie_l1_allowed: PCIe L1 state is allowed
  * @pll_cfg: PLL configuration needed
+ * @nvm_hw_section_num: the ID of the HW NVM section
+ * @features: hw features, any combination of feature_passlist
+ * @smem_offset: offset from which the SMEM begins
+ * @smem_len: the length of SMEM
+ * @mac_addr_from_csr: read HW address from CSR registers at this offset
+ * @d3_debug_data_base_addr: base address where D3 debug data is stored
+ * @d3_debug_data_length: length of the D3 debug data
+ * @min_ba_txq_size: minimum number of slots required in a TX queue used
+ *	for aggregation
+ * @min_txq_size: minimum number of slots required in a TX queue
+ * @gp2_reg_addr: GP2 (timer) register address
+ * @min_umac_error_event_table: minimum SMEM location of UMAC error table
+ * @mon_dbgi_regs: monitor DBGI registers
+ * @mon_dram_regs: monitor DRAM registers
+ * @mon_smem_regs: monitor SMEM registers
  */
 struct iwl_family_base_params {
 	unsigned int wd_timeout;
@@ -144,6 +182,7 @@ struct iwl_family_base_params {
 	   shadow_reg_enable:1,
 	   pcie_l1_allowed:1,
 	   apmg_wake_up_wa:1,
+	   apmg_not_supported:1,
 	   scd_chain_ext_wa:1;
 
 	u16 num_of_queues;	/* def: HW dependent */
@@ -151,6 +190,20 @@ struct iwl_family_base_params {
 
 	u8 max_ll_items;
 	u8 led_compensation;
+	u32 mac_addr_from_csr:10;
+	u8 nvm_hw_section_num;
+	netdev_features_t features;
+	u32 smem_offset;
+	u32 smem_len;
+	u32 min_umac_error_event_table;
+	u32 d3_debug_data_base_addr;
+	u32 d3_debug_data_length;
+	u32 min_txq_size;
+	u32 gp2_reg_addr;
+	u32 min_ba_txq_size;
+	const struct iwl_fw_mon_regs mon_dram_regs;
+	const struct iwl_fw_mon_regs mon_smem_regs;
+	const struct iwl_fw_mon_regs mon_dbgi_regs;
 };
 
 /*
@@ -286,28 +339,6 @@ struct iwl_mac_cfg {
 };
 
 /**
- * struct iwl_fw_mon_reg - FW monitor register info
- * @addr: register address
- * @mask: register mask
- */
-struct iwl_fw_mon_reg {
-	u32 addr;
-	u32 mask;
-};
-
-/**
- * struct iwl_fw_mon_regs - FW monitor registers
- * @write_ptr: write pointer register
- * @cycle_cnt: cycle count register
- * @cur_frag: current fragment in use
- */
-struct iwl_fw_mon_regs {
-	struct iwl_fw_mon_reg write_ptr;
-	struct iwl_fw_mon_reg cycle_cnt;
-	struct iwl_fw_mon_reg cur_frag;
-};
-
-/**
  * struct iwl_cfg
  * @fw_name_pre: Firmware filename prefix. The api version and extension
  *	(.ucode) will be added to filename before loading from disk. The
@@ -331,24 +362,14 @@ struct iwl_fw_mon_regs {
  * @high_temp: Is this NIC is designated to be in high temperature.
  * @host_interrupt_operation_mode: device needs host interrupt operation
  *	mode set
- * @nvm_hw_section_num: the ID of the HW NVM section
- * @mac_addr_from_csr: read HW address from CSR registers at this offset
- * @features: hw features, any combination of feature_passlist
  * @pwr_tx_backoffs: translation table between power limits and backoffs
  * @dccm_offset: offset from which DCCM begins
  * @dccm_len: length of DCCM (including runtime stack CCM)
  * @dccm2_offset: offset from which the second DCCM begins
  * @dccm2_len: length of the second DCCM
- * @smem_offset: offset from which the SMEM begins
- * @smem_len: the length of SMEM
  * @vht_mu_mimo_supported: VHT MU-MIMO support
  * @nvm_type: see &enum iwl_nvm_type
- * @d3_debug_data_base_addr: base address where D3 debug data is stored
- * @d3_debug_data_length: length of the D3 debug data
- * @min_txq_size: minimum number of slots required in a TX queue
  * @uhb_supported: ultra high band channels supported
- * @min_ba_txq_size: minimum number of slots required in a TX queue which
- *	based on hardware support (HE - 256, EHT - 1K).
  * @num_rbds: number of receive buffer descriptors to use
  *	(only used for multi-queue capable devices)
  *
@@ -368,13 +389,10 @@ struct iwl_cfg {
 	enum iwl_nvm_type nvm_type;
 	u32 max_data_size;
 	u32 max_inst_size;
-	netdev_features_t features;
 	u32 dccm_offset;
 	u32 dccm_len;
 	u32 dccm2_offset;
 	u32 dccm2_len;
-	u32 smem_offset;
-	u32 smem_len;
 	u16 nvm_ver;
 	u16 nvm_calib_ver;
 	u16 bw_limit;
@@ -383,27 +401,15 @@ struct iwl_cfg {
 	    internal_wimax_coex:1,
 	    host_interrupt_operation_mode:1,
 	    high_temp:1,
-	    mac_addr_from_csr:10,
 	    lp_xtal_workaround:1,
-	    apmg_not_supported:1,
 	    vht_mu_mimo_supported:1,
 	    uhb_supported:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
 	u8 non_shared_ant;
-	u8 nvm_hw_section_num;
 	u8 ucode_api_max;
 	u8 ucode_api_min;
 	u16 num_rbds;
-	u32 min_umac_error_event_table;
-	u32 d3_debug_data_base_addr;
-	u32 d3_debug_data_length;
-	u32 min_txq_size;
-	u32 gp2_reg_addr;
-	u32 min_ba_txq_size;
-	const struct iwl_fw_mon_regs mon_dram_regs;
-	const struct iwl_fw_mon_regs mon_smem_regs;
-	const struct iwl_fw_mon_regs mon_dbgi_regs;
 };
 
 #define IWL_CFG_ANY (~0)

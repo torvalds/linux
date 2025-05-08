@@ -949,7 +949,7 @@ static int iwl_mld_allocate_internal_txq(struct iwl_mld *mld,
 	int queue, size;
 
 	size = max_t(u32, IWL_MGMT_QUEUE_SIZE,
-		     mld->trans->cfg->min_txq_size);
+		     mld->trans->mac_cfg->base->min_txq_size);
 
 	queue = iwl_trans_txq_alloc(mld->trans, 0, sta_mask, tid, size,
 				    IWL_WATCHDOG_DISABLED);

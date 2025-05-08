@@ -110,7 +110,7 @@ int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
 	u32 control_flags_ext = 0;
 	int ret;
 	int cmdq_size = max_t(u32, IWL_CMD_QUEUE_SIZE,
-			      trans->cfg->min_txq_size);
+			      trans->mac_cfg->base->min_txq_size);
 
 	switch (trans->conf.rx_buf_size) {
 	case IWL_AMSDU_DEF:

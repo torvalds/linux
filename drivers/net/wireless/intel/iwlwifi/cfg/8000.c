@@ -45,6 +45,12 @@ static const struct iwl_family_base_params iwl8000_base = {
 	.max_event_log_size = 512,
 	.shadow_reg_enable = true,
 	.pcie_l1_allowed = true,
+	.nvm_hw_section_num = 10,
+	.features = NETIF_F_RXCSUM,
+	.smem_offset = IWL8260_SMEM_OFFSET,
+	.smem_len = IWL8260_SMEM_LEN,
+	.apmg_not_supported = true,
+	.min_umac_error_event_table = 0x800000,
 };
 
 static const struct iwl_tt_params iwl8000_tt_params = {
@@ -75,19 +81,13 @@ const struct iwl_mac_cfg iwl8000_mac_cfg = {
 
 #define IWL_DEVICE_8000_COMMON						\
 	.led_mode = IWL_LED_RF_STATE,					\
-	.nvm_hw_section_num = 10,					\
-	.features = NETIF_F_RXCSUM,					\
 	.non_shared_ant = ANT_A,					\
 	.dccm_offset = IWL8260_DCCM_OFFSET,				\
 	.dccm_len = IWL8260_DCCM_LEN,					\
 	.dccm2_offset = IWL8260_DCCM2_OFFSET,				\
 	.dccm2_len = IWL8260_DCCM2_LEN,					\
-	.smem_offset = IWL8260_SMEM_OFFSET,				\
-	.smem_len = IWL8260_SMEM_LEN,					\
 	.thermal_params = &iwl8000_tt_params,				\
-	.apmg_not_supported = true,					\
-	.nvm_type = IWL_NVM_EXT,					\
-	.min_umac_error_event_table = 0x800000
+	.nvm_type = IWL_NVM_EXT
 
 #define IWL_DEVICE_8260							\
 	IWL_DEVICE_8000_COMMON,						\

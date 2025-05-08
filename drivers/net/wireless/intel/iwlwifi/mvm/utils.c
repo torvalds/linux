@@ -1182,8 +1182,8 @@ u32 iwl_mvm_get_systime(struct iwl_mvm *mvm)
 	u32 reg_addr = DEVICE_SYSTEM_TIME_REG;
 
 	if (mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_22000 &&
-	    mvm->trans->cfg->gp2_reg_addr)
-		reg_addr = mvm->trans->cfg->gp2_reg_addr;
+	    mvm->trans->mac_cfg->base->gp2_reg_addr)
+		reg_addr = mvm->trans->mac_cfg->base->gp2_reg_addr;
 
 	return iwl_read_prph(mvm->trans, reg_addr);
 }

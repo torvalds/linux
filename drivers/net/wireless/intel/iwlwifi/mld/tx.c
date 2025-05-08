@@ -83,7 +83,7 @@ static int iwl_mld_allocate_txq(struct iwl_mld *mld, struct ieee80211_txq *txq)
 
 	if (tid == IWL_MGMT_TID)
 		size = max_t(u32, IWL_MGMT_QUEUE_SIZE,
-			     mld->trans->cfg->min_txq_size);
+			     mld->trans->mac_cfg->base->min_txq_size);
 	else
 		size = iwl_mld_get_queue_size(mld, txq);
 

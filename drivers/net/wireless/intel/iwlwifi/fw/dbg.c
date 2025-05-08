@@ -809,13 +809,14 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 	const struct iwl_fw_dbg_mem_seg_tlv *fw_mem = fwrt->fw->dbg.mem_tlv;
 	struct iwl_fwrt_shared_mem_cfg *mem_cfg = &fwrt->smem_cfg;
 	u32 file_len, fifo_len = 0, prph_len = 0, radio_len = 0;
-	u32 smem_len = fwrt->fw->dbg.n_mem_tlv ? 0 : fwrt->trans->cfg->smem_len;
+	u32 smem_len = fwrt->fw->dbg.n_mem_tlv ? 0 : fwrt->trans->mac_cfg->base->smem_len;
 	u32 sram2_len = fwrt->fw->dbg.n_mem_tlv ?
 				0 : fwrt->trans->cfg->dccm2_len;
 	int i;
 
 	/* SRAM - include stack CCM if driver knows the values for it */
-	if (!fwrt->trans->cfg->dccm_offset || !fwrt->trans->cfg->dccm_len) {
+	if (!fwrt->trans->cfg->dccm_offset ||
+	    !fwrt->trans->cfg->dccm_len) {
 		const struct fw_img *img;
 
 		if (fwrt->cur_fw_img >= IWL_UCODE_TYPE_MAX)
@@ -876,7 +877,7 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 
 	if (iwl_fw_dbg_is_d3_debug_enabled(fwrt) && fwrt->dump.d3_debug_data) {
 		file_len += sizeof(*dump_data) +
-			fwrt->trans->cfg->d3_debug_data_length * 2;
+			fwrt->trans->mac_cfg->base->d3_debug_data_length * 2;
 	}
 
 	/* If we only want a monitor dump, reset the file length */
@@ -997,7 +998,7 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 		}
 
 		iwl_fw_dump_mem(fwrt, &dump_data, smem_len,
-				fwrt->trans->cfg->smem_offset,
+				fwrt->trans->mac_cfg->base->smem_offset,
 				IWL_FW_ERROR_DUMP_MEM_SMEM);
 
 		iwl_fw_dump_mem(fwrt, &dump_data, sram2_len,
@@ -1006,8 +1007,8 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 	}
 
 	if (iwl_fw_dbg_is_d3_debug_enabled(fwrt) && fwrt->dump.d3_debug_data) {
-		u32 addr = fwrt->trans->cfg->d3_debug_data_base_addr;
-		size_t data_size = fwrt->trans->cfg->d3_debug_data_length;
+		u32 addr = fwrt->trans->mac_cfg->base->d3_debug_data_base_addr;
+		size_t data_size = fwrt->trans->mac_cfg->base->d3_debug_data_length;
 
 		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_D3_DEBUG_DATA);
 		dump_data->len = cpu_to_le32(data_size * 2);
@@ -1818,7 +1819,7 @@ iwl_dump_ini_mon_dram_fill_header(struct iwl_fw_runtime *fwrt,
 	u32 alloc_id = le32_to_cpu(reg->dram_alloc_id);
 
 	return iwl_dump_ini_mon_fill_header(fwrt, alloc_id, mon_dump,
-					    &fwrt->trans->cfg->mon_dram_regs);
+					    &fwrt->trans->mac_cfg->base->mon_dram_regs);
 }
 
 static void *
@@ -1831,7 +1832,7 @@ iwl_dump_ini_mon_smem_fill_header(struct iwl_fw_runtime *fwrt,
 	u32 alloc_id = le32_to_cpu(reg->internal_buffer.alloc_id);
 
 	return iwl_dump_ini_mon_fill_header(fwrt, alloc_id, mon_dump,
-					    &fwrt->trans->cfg->mon_smem_regs);
+					    &fwrt->trans->mac_cfg->base->mon_smem_regs);
 }
 
 static void *
@@ -1845,7 +1846,7 @@ iwl_dump_ini_mon_dbgi_fill_header(struct iwl_fw_runtime *fwrt,
 					    /* no offset calculation later */
 					    IWL_FW_INI_ALLOCATION_ID_DBGC1,
 					    mon_dump,
-					    &fwrt->trans->cfg->mon_dbgi_regs);
+					    &fwrt->trans->mac_cfg->base->mon_dbgi_regs);
 }
 
 static void *
@@ -3283,13 +3284,13 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 
 void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt)
 {
-	const struct iwl_cfg *cfg = fwrt->trans->cfg;
+	const struct iwl_mac_cfg *mac_cfg = fwrt->trans->mac_cfg;
 
 	if (!iwl_fw_dbg_is_d3_debug_enabled(fwrt))
 		return;
 
 	if (!fwrt->dump.d3_debug_data) {
-		fwrt->dump.d3_debug_data = kmalloc(cfg->d3_debug_data_length,
+		fwrt->dump.d3_debug_data = kmalloc(mac_cfg->base->d3_debug_data_length,
 						   GFP_KERNEL);
 		if (!fwrt->dump.d3_debug_data) {
 			IWL_ERR(fwrt,
@@ -3299,15 +3300,15 @@ void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt)
 	}
 
 	/* if the buffer holds previous debug data it is overwritten */
-	iwl_trans_read_mem_bytes(fwrt->trans, cfg->d3_debug_data_base_addr,
+	iwl_trans_read_mem_bytes(fwrt->trans, mac_cfg->base->d3_debug_data_base_addr,
 				 fwrt->dump.d3_debug_data,
-				 cfg->d3_debug_data_length);
+				 mac_cfg->base->d3_debug_data_length);
 
 	if (fwrt->sanitize_ops && fwrt->sanitize_ops->frob_mem)
 		fwrt->sanitize_ops->frob_mem(fwrt->sanitize_ctx,
-					     cfg->d3_debug_data_base_addr,
+					     mac_cfg->base->d3_debug_data_base_addr,
 					     fwrt->dump.d3_debug_data,
-					     cfg->d3_debug_data_length);
+					     mac_cfg->base->d3_debug_data_length);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_read_d3_debug_data);
 

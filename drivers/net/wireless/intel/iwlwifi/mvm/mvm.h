@@ -1559,7 +1559,7 @@ static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)
 	 * Enable LAR only if it is supported by the FW (TLV) &&
 	 * enabled in the NVM
 	 */
-	if (mvm->cfg->nvm_type == IWL_NVM_EXT)
+	if (mvm->trans->cfg->nvm_type == IWL_NVM_EXT)
 		return nvm_lar && tlv_lar;
 	else
 		return tlv_lar;

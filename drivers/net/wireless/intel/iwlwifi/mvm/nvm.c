@@ -226,7 +226,7 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	/* Checking for required sections */
 	if (mvm->trans->cfg->nvm_type == IWL_NVM) {
 		if (!mvm->nvm_sections[NVM_SECTION_TYPE_SW].data ||
-		    !mvm->nvm_sections[mvm->cfg->nvm_hw_section_num].data) {
+		    !mvm->nvm_sections[mvm->trans->mac_cfg->base->nvm_hw_section_num].data) {
 			IWL_ERR(mvm, "Can't parse empty OTP/NVM sections\n");
 			return NULL;
 		}
@@ -244,7 +244,7 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 			return NULL;
 		}
 		/* MAC_OVERRIDE or at least HW section must exist */
-		if (!mvm->nvm_sections[mvm->cfg->nvm_hw_section_num].data &&
+		if (!mvm->nvm_sections[mvm->trans->mac_cfg->base->nvm_hw_section_num].data &&
 		    !mvm->nvm_sections[NVM_SECTION_TYPE_MAC_OVERRIDE].data) {
 			IWL_ERR(mvm,
 				"Can't parse mac_address, empty sections\n");
@@ -260,7 +260,7 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 		}
 	}
 
-	hw = (const __be16 *)sections[mvm->cfg->nvm_hw_section_num].data;
+	hw = (const __be16 *)sections[mvm->trans->mac_cfg->base->nvm_hw_section_num].data;
 	sw = (const __le16 *)sections[NVM_SECTION_TYPE_SW].data;
 	calib = (const __le16 *)sections[NVM_SECTION_TYPE_CALIBRATION].data;
 	mac_override =
@@ -309,7 +309,7 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 	u32 size_read = 0;
 	u8 *nvm_buffer, *temp;
 
-	if (WARN_ON_ONCE(mvm->cfg->nvm_hw_section_num >= NVM_MAX_NUM_SECTIONS))
+	if (WARN_ON_ONCE(mvm->trans->mac_cfg->base->nvm_hw_section_num >= NVM_MAX_NUM_SECTIONS))
 		return -EINVAL;
 
 	/* load NVM values from nic */
@@ -366,7 +366,7 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 			mvm->nvm_reg_blob.size  = ret;
 			break;
 		default:
-			if (section == mvm->cfg->nvm_hw_section_num) {
+			if (section == mvm->trans->mac_cfg->base->nvm_hw_section_num) {
 				mvm->nvm_hw_blob.data = temp;
 				mvm->nvm_hw_blob.size = ret;
 				break;
@@ -540,7 +540,7 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	struct ieee80211_regdomain *regd;
 	char mcc[3];
 
-	if (mvm->cfg->nvm_type == IWL_NVM_EXT) {
+	if (mvm->trans->cfg->nvm_type == IWL_NVM_EXT) {
 		tlv_lar = fw_has_capa(&mvm->fw->ucode_capa,
 				      IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 		nvm_lar = mvm->nvm_data->lar_enabled;

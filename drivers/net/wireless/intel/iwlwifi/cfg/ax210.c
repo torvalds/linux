@@ -52,18 +52,49 @@ static const struct iwl_family_base_params iwl_ax210_base = {
 	.max_event_log_size = 512,
 	.shadow_reg_enable = true,
 	.pcie_l1_allowed = true,
+	.smem_offset = IWL_AX210_SMEM_OFFSET,
+	.smem_len = IWL_AX210_SMEM_LEN,
+	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,
+	.apmg_not_supported = true,
+	.mac_addr_from_csr = 0x380,
+	.min_umac_error_event_table = 0x400000,
+	.d3_debug_data_base_addr = 0x401000,
+	.d3_debug_data_length = 60 * 1024,
+	.mon_smem_regs = {
+		.write_ptr = {
+			.addr = LDBG_M2S_BUF_WPTR,
+			.mask = LDBG_M2S_BUF_WPTR_VAL_MSK,
+		},
+		.cycle_cnt = {
+			.addr = LDBG_M2S_BUF_WRAP_CNT,
+			.mask = LDBG_M2S_BUF_WRAP_CNT_VAL_MSK,
+		},
+	},
+	.min_txq_size = 128,
+	.gp2_reg_addr = 0xd02c68,
+	.min_ba_txq_size = IWL_DEFAULT_QUEUE_SIZE_HE,
+	.mon_dram_regs = {
+		.write_ptr = {
+			.addr = DBGC_CUR_DBGBUF_STATUS,
+			.mask = DBGC_CUR_DBGBUF_STATUS_OFFSET_MSK,
+		},
+		.cycle_cnt = {
+			.addr = DBGC_DBGBUF_WRAP_AROUND,
+			.mask = 0xffffffff,
+		},
+		.cur_frag = {
+			.addr = DBGC_CUR_DBGBUF_STATUS,
+			.mask = DBGC_CUR_DBGBUF_STATUS_IDX_MSK,
+		},
+	},
 };
 
-#define IWL_DEVICE_AX210_COMMON						\
+#define IWL_DEVICE_AX210						\
 	.ucode_api_min = IWL_AX210_UCODE_API_MIN,			\
+	.ucode_api_max = IWL_AX210_UCODE_API_MAX,			\
 	.led_mode = IWL_LED_RF_STATE,					\
 	.non_shared_ant = ANT_B,					\
-	.smem_offset = IWL_AX210_SMEM_OFFSET,				\
-	.smem_len = IWL_AX210_SMEM_LEN,					\
-	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,		\
-	.apmg_not_supported = true,					\
 	.vht_mu_mimo_supported = true,					\
-	.mac_addr_from_csr = 0x380,					\
 	.ht_params = {							\
 		.stbc = true,						\
 		.ldpc = true,						\
@@ -71,41 +102,7 @@ static const struct iwl_family_base_params iwl_ax210_base = {
 			      BIT(NL80211_BAND_5GHZ),			\
 	},								\
 	.nvm_ver = IWL_AX210_NVM_VERSION,				\
-	.nvm_type = IWL_NVM_EXT,					\
-	.min_umac_error_event_table = 0x400000,				\
-	.d3_debug_data_base_addr = 0x401000,				\
-	.d3_debug_data_length = 60 * 1024,				\
-	.mon_smem_regs = {						\
-		.write_ptr = {						\
-			.addr = LDBG_M2S_BUF_WPTR,			\
-			.mask = LDBG_M2S_BUF_WPTR_VAL_MSK,		\
-	},								\
-		.cycle_cnt = {						\
-			.addr = LDBG_M2S_BUF_WRAP_CNT,			\
-			.mask = LDBG_M2S_BUF_WRAP_CNT_VAL_MSK,		\
-		},							\
-	}
-
-#define IWL_DEVICE_AX210						\
-	IWL_DEVICE_AX210_COMMON,					\
-	.ucode_api_max = IWL_AX210_UCODE_API_MAX,			\
-	.min_txq_size = 128,						\
-	.gp2_reg_addr = 0xd02c68,					\
-	.min_ba_txq_size = IWL_DEFAULT_QUEUE_SIZE_HE,		\
-	.mon_dram_regs = {						\
-		.write_ptr = {						\
-			.addr = DBGC_CUR_DBGBUF_STATUS,			\
-			.mask = DBGC_CUR_DBGBUF_STATUS_OFFSET_MSK,	\
-		},							\
-		.cycle_cnt = {						\
-			.addr = DBGC_DBGBUF_WRAP_AROUND,		\
-			.mask = 0xffffffff,				\
-		},							\
-		.cur_frag = {						\
-			.addr = DBGC_CUR_DBGBUF_STATUS,			\
-			.mask = DBGC_CUR_DBGBUF_STATUS_IDX_MSK,		\
-		},							\
-	}
+	.nvm_type = IWL_NVM_EXT
 
 const struct iwl_mac_cfg iwl_so_mac_cfg = {
 	.mq_rx_supported = true,

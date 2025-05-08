@@ -54,18 +54,43 @@ static const struct iwl_family_base_params iwl_22000_base = {
 	.max_event_log_size = 512,
 	.shadow_reg_enable = true,
 	.pcie_l1_allowed = true,
+	.smem_offset = IWL_22000_SMEM_OFFSET,
+	.smem_len = IWL_22000_SMEM_LEN,
+	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,
+	.apmg_not_supported = true,
+	.mac_addr_from_csr = 0x380,
+	.min_umac_error_event_table = 0x400000,
+	.d3_debug_data_base_addr = 0x401000,
+	.d3_debug_data_length = 60 * 1024,
+	.mon_smem_regs = {
+		.write_ptr = {
+			.addr = LDBG_M2S_BUF_WPTR,
+			.mask = LDBG_M2S_BUF_WPTR_VAL_MSK,
+	},
+		.cycle_cnt = {
+			.addr = LDBG_M2S_BUF_WRAP_CNT,
+			.mask = LDBG_M2S_BUF_WRAP_CNT_VAL_MSK,
+		},
+	},
+	.gp2_reg_addr = 0xa02c68,
+	.mon_dram_regs = {
+		.write_ptr = {
+			.addr = MON_BUFF_WRPTR_VER2,
+			.mask = 0xffffffff,
+		},
+		.cycle_cnt = {
+			.addr = MON_BUFF_CYCLE_CNT_VER2,
+			.mask = 0xffffffff,
+		},
+	},
 };
 
-#define IWL_DEVICE_22000_COMMON						\
+#define IWL_DEVICE_22500						\
 	.ucode_api_min = IWL_22000_UCODE_API_MIN,			\
+	.ucode_api_max = IWL_22000_UCODE_API_MAX,			\
 	.led_mode = IWL_LED_RF_STATE,					\
 	.non_shared_ant = ANT_B,					\
-	.smem_offset = IWL_22000_SMEM_OFFSET,				\
-	.smem_len = IWL_22000_SMEM_LEN,					\
-	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,		\
-	.apmg_not_supported = true,					\
 	.vht_mu_mimo_supported = true,					\
-	.mac_addr_from_csr = 0x380,					\
 	.ht_params = {							\
 		.stbc = true,						\
 		.ldpc = true,						\
@@ -73,35 +98,7 @@ static const struct iwl_family_base_params iwl_22000_base = {
 			      BIT(NL80211_BAND_5GHZ),			\
 	},								\
 	.nvm_ver = IWL_22000_NVM_VERSION,				\
-	.nvm_type = IWL_NVM_EXT,					\
-	.min_umac_error_event_table = 0x400000,				\
-	.d3_debug_data_base_addr = 0x401000,				\
-	.d3_debug_data_length = 60 * 1024,				\
-	.mon_smem_regs = {						\
-		.write_ptr = {						\
-			.addr = LDBG_M2S_BUF_WPTR,			\
-			.mask = LDBG_M2S_BUF_WPTR_VAL_MSK,		\
-	},								\
-		.cycle_cnt = {						\
-			.addr = LDBG_M2S_BUF_WRAP_CNT,			\
-			.mask = LDBG_M2S_BUF_WRAP_CNT_VAL_MSK,		\
-		},							\
-	}
-
-#define IWL_DEVICE_22500						\
-	IWL_DEVICE_22000_COMMON,					\
-	.ucode_api_max = IWL_22000_UCODE_API_MAX,			\
-	.gp2_reg_addr = 0xa02c68,					\
-	.mon_dram_regs = {						\
-		.write_ptr = {						\
-			.addr = MON_BUFF_WRPTR_VER2,			\
-			.mask = 0xffffffff,				\
-		},							\
-		.cycle_cnt = {						\
-			.addr = MON_BUFF_CYCLE_CNT_VER2,		\
-			.mask = 0xffffffff,				\
-		},							\
-	}
+	.nvm_type = IWL_NVM_EXT
 
 const struct iwl_mac_cfg iwl_qu_mac_cfg = {
 	.mq_rx_supported = true,

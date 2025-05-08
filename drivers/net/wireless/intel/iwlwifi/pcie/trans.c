@@ -237,7 +237,7 @@ static void iwl_trans_pcie_write_shr(struct iwl_trans *trans, u32 reg, u32 val)
 
 static void iwl_pcie_set_pwr(struct iwl_trans *trans, bool vaux)
 {
-	if (trans->cfg->apmg_not_supported)
+	if (trans->mac_cfg->base->apmg_not_supported)
 		return;
 
 	if (vaux && pci_pme_capable(to_pci_dev(trans->dev), PCI_D3cold))
@@ -353,7 +353,7 @@ static int iwl_pcie_apm_init(struct iwl_trans *trans)
 	 * bits do not disable clocks.  This preserves any hardware
 	 * bits already set by default in "CLK_CTRL_REG" after reset.
 	 */
-	if (!trans->cfg->apmg_not_supported) {
+	if (!trans->mac_cfg->base->apmg_not_supported) {
 		iwl_write_prph(trans, APMG_CLK_EN_REG,
 			       APMG_CLK_VAL_DMA_CLK_RQT);
 		udelay(20);
@@ -1271,7 +1271,7 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool from_irq)
 		iwl_pcie_rx_stop(trans);
 
 		/* Power-down device's busmaster DMA clocks */
-		if (!trans->cfg->apmg_not_supported) {
+		if (!trans->mac_cfg->base->apmg_not_supported) {
 			iwl_write_prph(trans, APMG_CLK_DIS_REG,
 				       APMG_CLK_VAL_DMA_CLK_RQT);
 			udelay(5);
@@ -3527,7 +3527,7 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 					IWL_LDBG_M2S_BUF_BA_MSK) <<
 				       trans->dbg.dest_tlv->base_shift;
 				base *= IWL_M2S_UNIT_SIZE;
-				base += trans->cfg->smem_offset;
+				base += trans->mac_cfg->base->smem_offset;
 			} else {
 				base = iwl_read_prph(trans, base) <<
 				       trans->dbg.dest_tlv->base_shift;
@@ -3568,7 +3568,7 @@ static int iwl_trans_get_fw_monitor_len(struct iwl_trans *trans, u32 *len)
 			base = (cfg_reg & IWL_LDBG_M2S_BUF_BA_MSK) <<
 				trans->dbg.dest_tlv->base_shift;
 			base *= IWL_M2S_UNIT_SIZE;
-			base += trans->cfg->smem_offset;
+			base += trans->mac_cfg->base->smem_offset;
 
 			monitor_len =
 				(cfg_reg & IWL_LDBG_M2S_BUF_SIZE_MSK) >>

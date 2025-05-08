@@ -852,7 +852,7 @@ int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 	if (tid == IWL_MAX_TID_COUNT) {
 		tid = IWL_MGMT_TID;
 		size = max_t(u32, IWL_MGMT_QUEUE_SIZE,
-			     mvm->trans->cfg->min_txq_size);
+			     mvm->trans->mac_cfg->base->min_txq_size);
 	} else {
 		size = iwl_mvm_get_queue_size(sta);
 	}

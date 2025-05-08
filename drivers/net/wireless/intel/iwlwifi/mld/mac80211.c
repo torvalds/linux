@@ -351,7 +351,7 @@ static void iwl_mac_hw_set_misc(struct iwl_mld *mld)
 	hw->queues = IEEE80211_NUM_ACS;
 
 	hw->netdev_features = NETIF_F_HIGHDMA | NETIF_F_SG;
-	hw->netdev_features |= mld->cfg->features;
+	hw->netdev_features |= mld->trans->mac_cfg->base->features;
 
 	hw->max_tx_fragments = mld->trans->info.max_skb_frags;
 	hw->max_listen_interval = IWL_MLD_CONN_LISTEN_INTERVAL;

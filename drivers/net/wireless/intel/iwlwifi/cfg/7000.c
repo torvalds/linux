@@ -60,6 +60,7 @@ static const struct iwl_family_base_params iwl7000_base = {
 	.shadow_reg_enable = true,
 	.pcie_l1_allowed = true,
 	.apmg_wake_up_wa = true,
+	.nvm_hw_section_num = 0,
 };
 
 static const struct iwl_tt_params iwl7000_high_temp_tt_params = {
@@ -91,7 +92,6 @@ const struct iwl_mac_cfg iwl7000_mac_cfg = {
 
 #define IWL_DEVICE_7000_COMMON					\
 	.led_mode = IWL_LED_RF_STATE,				\
-	.nvm_hw_section_num = 0,				\
 	.non_shared_ant = ANT_A,				\
 	.dccm_offset = IWL7000_DCCM_OFFSET
 

@@ -201,7 +201,7 @@ static inline bool iwl_fw_dbg_is_d3_debug_enabled(struct iwl_fw_runtime *fwrt)
 {
 	return fw_has_capa(&fwrt->fw->ucode_capa,
 			   IWL_UCODE_TLV_CAPA_D3_DEBUG) &&
-		fwrt->trans->cfg->d3_debug_data_length && fwrt->ops &&
+		fwrt->trans->mac_cfg->base->d3_debug_data_length && fwrt->ops &&
 		fwrt->ops->d3_debug_enable &&
 		fwrt->ops->d3_debug_enable(fwrt->ops_ctx) &&
 		iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_D3_DEBUG_DATA);
