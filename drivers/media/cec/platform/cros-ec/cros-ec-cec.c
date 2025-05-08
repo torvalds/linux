@@ -298,6 +298,7 @@ struct cec_dmi_match {
 static const char *const port_b_conns[] = { "Port B", NULL };
 static const char *const port_db_conns[] = { "Port D", "Port B", NULL };
 static const char *const port_ba_conns[] = { "Port B", "Port A", NULL };
+static const char *const port_ab_conns[] = { "Port A", "Port B", NULL };
 static const char *const port_d_conns[] = { "Port D", NULL };
 
 static const struct cec_dmi_match cec_dmi_match_table[] = {
@@ -330,7 +331,7 @@ static const struct cec_dmi_match cec_dmi_match_table[] = {
 	/* Google Dita */
 	{ "Google", "Dita", "0000:00:02.0", port_db_conns },
 	/* Google Dirks */
-	{ "Google", "Dirks", "0000:00:02.0", port_db_conns },
+	{ "Google", "Dirks", "0000:00:02.0", port_ab_conns },
 	/* Google Moxie */
 	{ "Google", "Moxie", "0000:00:02.0", port_b_conns },
 };
