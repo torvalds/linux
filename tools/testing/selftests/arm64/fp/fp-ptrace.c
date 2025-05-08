@@ -891,17 +891,10 @@ static void set_initial_values(struct test_config *config)
 {
 	int vq = __sve_vq_from_vl(vl_in(config));
 	int sme_vq = __sve_vq_from_vl(config->sme_vl_in);
-	bool sm_change;
 
 	svcr_in = config->svcr_in;
 	svcr_expected = config->svcr_expected;
 	svcr_out = 0;
-
-	if (sme_supported() &&
-	    (svcr_in & SVCR_SM) != (svcr_expected & SVCR_SM))
-		sm_change = true;
-	else
-		sm_change = false;
 
 	fill_random(&v_in, sizeof(v_in));
 	memcpy(v_expected, v_in, sizeof(v_in));
@@ -953,12 +946,7 @@ static void set_initial_values(struct test_config *config)
 	if (fpmr_supported()) {
 		fill_random(&fpmr_in, sizeof(fpmr_in));
 		fpmr_in &= FPMR_SAFE_BITS;
-
-		/* Entering or exiting streaming mode clears FPMR */
-		if (sm_change)
-			fpmr_expected = 0;
-		else
-			fpmr_expected = fpmr_in;
+		fpmr_expected = fpmr_in;
 	} else {
 		fpmr_in = 0;
 		fpmr_expected = 0;
