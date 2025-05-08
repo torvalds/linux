@@ -88,7 +88,8 @@ struct uncore_data {
 	struct kobj_attribute elc_high_threshold_enable_kobj_attr;
 	struct kobj_attribute elc_floor_freq_khz_kobj_attr;
 	struct kobj_attribute agent_types_kobj_attr;
-	struct attribute *uncore_attrs[14];
+	struct kobj_attribute die_id_kobj_attr;
+	struct attribute *uncore_attrs[15];
 };
 
 #define UNCORE_DOMAIN_ID_INVALID	-1
@@ -101,6 +102,7 @@ enum uncore_index {
 	UNCORE_INDEX_EFF_LAT_CTRL_HIGH_THRESHOLD,
 	UNCORE_INDEX_EFF_LAT_CTRL_HIGH_THRESHOLD_ENABLE,
 	UNCORE_INDEX_EFF_LAT_CTRL_FREQ,
+	UNCORE_INDEX_DIE_ID,
 };
 
 int uncore_freq_common_init(int (*read)(struct uncore_data *data, unsigned int *value,

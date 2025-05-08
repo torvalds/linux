@@ -143,6 +143,8 @@ show_uncore_attr(elc_high_threshold_enable,
 		 UNCORE_INDEX_EFF_LAT_CTRL_HIGH_THRESHOLD_ENABLE);
 show_uncore_attr(elc_floor_freq_khz, UNCORE_INDEX_EFF_LAT_CTRL_FREQ);
 
+show_uncore_attr(die_id, UNCORE_INDEX_DIE_ID);
+
 #define show_uncore_data(member_name)					\
 	static ssize_t show_##member_name(struct kobject *kobj,	\
 					   struct kobj_attribute *attr, char *buf)\
@@ -205,6 +207,11 @@ static int create_attr_group(struct uncore_data *data, char *name)
 		if (data->agent_type_mask) {
 			init_attribute_ro(agent_types);
 			data->uncore_attrs[index++] = &data->agent_types_kobj_attr.attr;
+		}
+		if (topology_max_dies_per_package() > 1 &&
+		    data->agent_type_mask & AGENT_TYPE_CORE) {
+			init_attribute_ro(die_id);
+			data->uncore_attrs[index++] = &data->die_id_kobj_attr.attr;
 		}
 	}
 
