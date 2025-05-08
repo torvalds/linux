@@ -191,10 +191,12 @@ const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 
 	switch (CSR_HW_REV_TYPE(trans->info.hw_rev)) {
 	case IWL_CFG_MAC_TYPE_PU:
-		mac = "pu";
+		mac = "9000-pu";
+		mac_step = 'b';
 		break;
 	case IWL_CFG_MAC_TYPE_TH:
-		mac = "th";
+		mac = "9260-th";
+		mac_step = 'b';
 		break;
 	case IWL_CFG_MAC_TYPE_QU:
 		mac = "Qu";

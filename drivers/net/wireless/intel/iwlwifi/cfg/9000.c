@@ -177,24 +177,11 @@ const char iwl9560_killer_1550s_name[] =
 const char iwl9560_killer_1550s_160_name[] =
 	"Killer(R) Wireless-AC 1550s Wireless Network Adapter (9560D2W) 160MHz";
 
-const struct iwl_cfg iwl9260_2ac_cfg = {
-	.fw_name_pre = IWL9260_FW_PRE,
+const struct iwl_cfg iwl9000_2ac_cfg = {
 	IWL_DEVICE_9000,
 };
 
-const struct iwl_cfg iwl9260_2ac_cfg_80mhz = {
-	.fw_name_pre = IWL9260_FW_PRE,
-	IWL_DEVICE_9000,
-	.bw_limit = 80,
-};
-
-const struct iwl_cfg iwl9560_2ac_cfg_soc = {
-	.fw_name_pre = IWL9000_FW_PRE,
-	IWL_DEVICE_9000,
-};
-
-const struct iwl_cfg iwl9560_2ac_cfg_soc_80mhz = {
-	.fw_name_pre = IWL9000_FW_PRE,
+const struct iwl_cfg iwl9000_2ac_cfg_80mhz = {
 	IWL_DEVICE_9000,
 	.bw_limit = 80,
 };
