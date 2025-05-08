@@ -6,6 +6,7 @@
 #define __ASM_FP_H
 
 #include <asm/errno.h>
+#include <asm/percpu.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
 #include <asm/sigcontext.h>
@@ -91,6 +92,8 @@ struct cpu_fp_state {
 	enum fp_type *fp_type;
 	enum fp_type to_save;
 };
+
+DECLARE_PER_CPU(struct cpu_fp_state, fpsimd_last_state);
 
 extern void fpsimd_bind_state_to_cpu(struct cpu_fp_state *fp_state);
 
