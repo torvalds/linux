@@ -43,13 +43,8 @@ static const struct rhashtable_params bch_move_bucket_params = {
 	.automatic_shrinking	= true,
 };
 
-static int move_bucket_in_flight_add(struct buckets_in_flight *list, struct move_bucket *b)
+static void move_bucket_in_flight_add(struct buckets_in_flight *list, struct move_bucket *b)
 {
-	int ret = rhashtable_lookup_insert_fast(&list->table, &b->hash,
-						bch_move_bucket_params);
-	if (ret)
-		return ret;
-
 	if (!list->first)
 		list->first = b;
 	else
@@ -58,7 +53,6 @@ static int move_bucket_in_flight_add(struct buckets_in_flight *list, struct move
 	list->last = b;
 	list->nr++;
 	list->sectors += b->sectors;
-	return 0;
 }
 
 static int bch2_bucket_is_movable(struct btree_trans *trans,
@@ -98,12 +92,20 @@ out:
 	return ret;
 }
 
+static void move_bucket_free(struct buckets_in_flight *list,
+			     struct move_bucket *b)
+{
+	int ret = rhashtable_remove_fast(&list->table, &b->hash,
+					 bch_move_bucket_params);
+	BUG_ON(ret);
+	kfree(b);
+}
+
 static void move_buckets_wait(struct moving_context *ctxt,
 			      struct buckets_in_flight *list,
 			      bool flush)
 {
 	struct move_bucket *i;
-	int ret;
 
 	while ((i = list->first)) {
 		if (flush)
@@ -119,10 +121,7 @@ static void move_buckets_wait(struct moving_context *ctxt,
 		list->nr--;
 		list->sectors -= i->sectors;
 
-		ret = rhashtable_remove_fast(&list->table, &i->hash,
-					     bch_move_bucket_params);
-		BUG_ON(ret);
-		kfree(i);
+		move_bucket_free(list, i);
 	}
 
 	bch2_trans_unlock_long(ctxt->trans);
@@ -184,6 +183,11 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 				kfree(b_i);
 				goto err;
 			}
+
+			ret2 = rhashtable_lookup_insert_fast(&buckets_in_flight->table, &b_i->hash,
+							     bch_move_bucket_params);
+			BUG_ON(ret2);
+
 			sectors += b.sectors;
 		}
 
@@ -224,12 +228,7 @@ static int bch2_copygc(struct moving_context *ctxt,
 		struct move_bucket *b = *i;
 		*i = NULL;
 
-		ret = move_bucket_in_flight_add(buckets_in_flight, b);
-		if (ret) { /* rare race: copygc_get_buckets returned same bucket more than once */
-			kfree(b);
-			ret = 0;
-			continue;
-		}
+		move_bucket_in_flight_add(buckets_in_flight, b);
 
 		ret = bch2_evacuate_bucket(ctxt, b, b->k.bucket, b->k.gen, data_opts);
 		if (ret)
@@ -250,7 +249,8 @@ err:
 	trace_and_count(c, copygc, c, buckets_in_flight->to_evacuate.nr, sectors_seen, sectors_moved);
 
 	darray_for_each(buckets_in_flight->to_evacuate, i)
-		kfree(*i);
+		if (*i)
+			move_bucket_free(buckets_in_flight, *i);
 	darray_exit(&buckets_in_flight->to_evacuate);
 	return ret;
 }
