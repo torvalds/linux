@@ -1722,6 +1722,7 @@ rcu_torture_writer(void *arg)
 						cur_ops->gp_kthread_dbg();
 					WARN(1, "%s: rtort_pipe_count: %d\n", __func__, rcu_tortures[i].rtort_pipe_count);
 					rcu_ftrace_dump(DUMP_ALL);
+					break;
 				}
 		if (stutter_waited)
 			sched_set_normal(current, oldnice);
