@@ -1651,7 +1651,7 @@ continue_unlock:
 	return last_folio;
 }
 
-static int __write_node_folio(struct folio *folio, bool atomic, bool *submitted,
+static bool __write_node_folio(struct folio *folio, bool atomic, bool *submitted,
 				struct writeback_control *wbc, bool do_balance,
 				enum iostat_type io_type, unsigned int *seq_id)
 {
@@ -1681,7 +1681,7 @@ static int __write_node_folio(struct folio *folio, bool atomic, bool *submitted,
 		folio_clear_uptodate(folio);
 		dec_page_count(sbi, F2FS_DIRTY_NODES);
 		folio_unlock(folio);
-		return 0;
+		return true;
 	}
 
 	if (unlikely(is_sbi_flag_set(sbi, SBI_POR_DOING)))
@@ -1707,7 +1707,7 @@ static int __write_node_folio(struct folio *folio, bool atomic, bool *submitted,
 		dec_page_count(sbi, F2FS_DIRTY_NODES);
 		f2fs_up_read(&sbi->node_write);
 		folio_unlock(folio);
-		return 0;
+		return true;
 	}
 
 	if (__is_valid_data_blkaddr(ni.blk_addr) &&
@@ -1746,11 +1746,12 @@ static int __write_node_folio(struct folio *folio, bool atomic, bool *submitted,
 
 	if (do_balance)
 		f2fs_balance_fs(sbi, false);
-	return 0;
+	return true;
 
 redirty_out:
 	folio_redirty_for_writepage(wbc, folio);
-	return AOP_WRITEPAGE_ACTIVATE;
+	folio_unlock(folio);
+	return false;
 }
 
 int f2fs_move_node_folio(struct folio *node_folio, int gc_type)
@@ -1772,11 +1773,9 @@ int f2fs_move_node_folio(struct folio *node_folio, int gc_type)
 			goto out_page;
 		}
 
-		if (__write_node_folio(node_folio, false, NULL,
-					&wbc, false, FS_GC_NODE_IO, NULL)) {
+		if (!__write_node_folio(node_folio, false, NULL,
+					&wbc, false, FS_GC_NODE_IO, NULL))
 			err = -EAGAIN;
-			folio_unlock(node_folio);
-		}
 		goto release_page;
 	} else {
 		/* set page dirty and write it */
@@ -1871,11 +1870,10 @@ continue_unlock:
 			if (!folio_clear_dirty_for_io(folio))
 				goto continue_unlock;
 
-			if (__write_node_folio(folio, atomic &&
+			if (!__write_node_folio(folio, atomic &&
 						folio == last_folio,
 						&submitted, wbc, true,
 						FS_NODE_IO, seq_id)) {
-				folio_unlock(folio);
 				f2fs_folio_put(last_folio, false);
 				folio_batch_release(&fbatch);
 				ret = -EIO;
@@ -2078,16 +2076,15 @@ write_node:
 			set_fsync_mark(&folio->page, 0);
 			set_dentry_mark(&folio->page, 0);
 
-			ret = __write_node_folio(folio, false, &submitted,
-						wbc, do_balance, io_type, NULL);
-			if (ret) {
+			if (!__write_node_folio(folio, false, &submitted,
+					wbc, do_balance, io_type, NULL)) {
 				folio_unlock(folio);
 				folio_batch_release(&fbatch);
 				ret = -EIO;
 				goto out;
-			} else if (submitted) {
-				nwritten++;
 			}
+			if (submitted)
+				nwritten++;
 
 			if (--wbc->nr_to_write == 0)
 				break;
