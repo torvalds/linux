@@ -14,9 +14,9 @@
  */
 
 #ifdef CONFIG_X86_32
-bool have_cpuid_p(void);
+bool cpuid_feature(void);
 #else
-static inline bool have_cpuid_p(void)
+static inline bool cpuid_feature(void)
 {
 	return true;
 }

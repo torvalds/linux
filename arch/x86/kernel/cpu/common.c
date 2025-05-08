@@ -322,7 +322,7 @@ static int __init cachesize_setup(char *str)
 __setup("cachesize=", cachesize_setup);
 
 /* Probe for the CPUID instruction */
-bool have_cpuid_p(void)
+bool cpuid_feature(void)
 {
 	return flag_is_changeable_p(X86_EFLAGS_ID);
 }
@@ -1711,11 +1711,11 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	memset(&c->x86_capability, 0, sizeof(c->x86_capability));
 	c->extended_cpuid_level = 0;
 
-	if (!have_cpuid_p())
+	if (!cpuid_feature())
 		identify_cpu_without_cpuid(c);
 
 	/* cyrix could have cpuid enabled via c_identify()*/
-	if (have_cpuid_p()) {
+	if (cpuid_feature()) {
 		cpu_detect(c);
 		get_cpu_vendor(c);
 		intel_unlock_cpuid_leafs(c);
@@ -1875,11 +1875,11 @@ static void generic_identify(struct cpuinfo_x86 *c)
 {
 	c->extended_cpuid_level = 0;
 
-	if (!have_cpuid_p())
+	if (!cpuid_feature())
 		identify_cpu_without_cpuid(c);
 
 	/* cyrix could have cpuid enabled via c_identify()*/
-	if (!have_cpuid_p())
+	if (!cpuid_feature())
 		return;
 
 	cpu_detect(c);
