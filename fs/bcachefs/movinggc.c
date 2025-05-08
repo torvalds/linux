@@ -32,6 +32,8 @@ struct buckets_in_flight {
 	struct move_bucket	*last;
 	size_t			nr;
 	size_t			sectors;
+
+	DARRAY(struct move_bucket *) to_evacuate;
 };
 
 static const struct rhashtable_params bch_move_bucket_params = {
@@ -132,11 +134,8 @@ static bool bucket_in_flight(struct buckets_in_flight *list,
 	return rhashtable_lookup_fast(&list->table, &k, bch_move_bucket_params);
 }
 
-typedef DARRAY(struct move_bucket *) move_buckets;
-
 static int bch2_copygc_get_buckets(struct moving_context *ctxt,
-			struct buckets_in_flight *buckets_in_flight,
-			move_buckets *buckets)
+			struct buckets_in_flight *buckets_in_flight)
 {
 	struct btree_trans *trans = ctxt->trans;
 	struct bch_fs *c = trans->c;
@@ -180,7 +179,7 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 
 			*b_i = b;
 
-			ret2 = darray_push(buckets, b_i);
+			ret2 = darray_push(&buckets_in_flight->to_evacuate, b_i);
 			if (ret2) {
 				kfree(b_i);
 				goto err;
@@ -188,14 +187,14 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 			sectors += b.sectors;
 		}
 
-		ret2 = buckets->nr >= nr_to_get;
+		ret2 = buckets_in_flight->to_evacuate.nr >= nr_to_get;
 err:
 		ret2;
 	}));
 
 	pr_debug("have: %zu (%zu) saw %zu in flight %zu not movable %zu got %zu (%zu)/%zu buckets ret %i",
 		 buckets_in_flight->nr, buckets_in_flight->sectors,
-		 saw, in_flight, not_movable, buckets->nr, sectors, nr_to_get, ret);
+		 saw, in_flight, not_movable, buckets_in_flight->to_evacuate.nr, sectors, nr_to_get, ret);
 
 	return ret < 0 ? ret : 0;
 }
@@ -210,16 +209,15 @@ static int bch2_copygc(struct moving_context *ctxt,
 	struct data_update_opts data_opts = {
 		.btree_insert_flags = BCH_WATERMARK_copygc,
 	};
-	move_buckets buckets = { 0 };
 	u64 sectors_seen	= atomic64_read(&ctxt->stats->sectors_seen);
 	u64 sectors_moved	= atomic64_read(&ctxt->stats->sectors_moved);
 	int ret = 0;
 
-	ret = bch2_copygc_get_buckets(ctxt, buckets_in_flight, &buckets);
+	ret = bch2_copygc_get_buckets(ctxt, buckets_in_flight);
 	if (ret)
 		goto err;
 
-	darray_for_each(buckets, i) {
+	darray_for_each(buckets_in_flight->to_evacuate, i) {
 		if (kthread_should_stop() || freezing(current))
 			break;
 
@@ -249,11 +247,11 @@ err:
 
 	sectors_seen	= atomic64_read(&ctxt->stats->sectors_seen) - sectors_seen;
 	sectors_moved	= atomic64_read(&ctxt->stats->sectors_moved) - sectors_moved;
-	trace_and_count(c, copygc, c, buckets.nr, sectors_seen, sectors_moved);
+	trace_and_count(c, copygc, c, buckets_in_flight->to_evacuate.nr, sectors_seen, sectors_moved);
 
-	darray_for_each(buckets, i)
+	darray_for_each(buckets_in_flight->to_evacuate, i)
 		kfree(*i);
-	darray_exit(&buckets);
+	darray_exit(&buckets_in_flight->to_evacuate);
 	return ret;
 }
 
