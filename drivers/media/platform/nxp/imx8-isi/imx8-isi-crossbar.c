@@ -352,9 +352,8 @@ static int mxc_isi_crossbar_enable_streams(struct v4l2_subdev *sd,
 						 sink_streams);
 		if (ret) {
 			dev_err(xbar->isi->dev,
-				"failed to %s streams 0x%llx on '%s':%u: %d\n",
-				"enable", sink_streams, remote_sd->name,
-				remote_pad, ret);
+				"failed to enable streams 0x%llx on '%s':%u: %d\n",
+				sink_streams, remote_sd->name, remote_pad, ret);
 			mxc_isi_crossbar_gasket_disable(xbar, sink_pad);
 			return ret;
 		}
@@ -392,9 +391,8 @@ static int mxc_isi_crossbar_disable_streams(struct v4l2_subdev *sd,
 						  sink_streams);
 		if (ret)
 			dev_err(xbar->isi->dev,
-				"failed to %s streams 0x%llx on '%s':%u: %d\n",
-				"disable", sink_streams, remote_sd->name,
-				remote_pad, ret);
+				"failed to disable streams 0x%llx on '%s':%u: %d\n",
+				sink_streams, remote_sd->name, remote_pad, ret);
 
 		mxc_isi_crossbar_gasket_disable(xbar, sink_pad);
 	}
