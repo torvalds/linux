@@ -24,11 +24,15 @@ struct kho_serialization;
 bool kho_is_enabled(void);
 
 int kho_add_subtree(struct kho_serialization *ser, const char *name, void *fdt);
+int kho_retrieve_subtree(const char *name, phys_addr_t *phys);
 
 int register_kho_notifier(struct notifier_block *nb);
 int unregister_kho_notifier(struct notifier_block *nb);
 
 void kho_memory_init(void);
+
+void kho_populate(phys_addr_t fdt_phys, u64 fdt_len, phys_addr_t scratch_phys,
+		  u64 scratch_len);
 #else
 static inline bool kho_is_enabled(void)
 {
@@ -37,6 +41,11 @@ static inline bool kho_is_enabled(void)
 
 static inline int kho_add_subtree(struct kho_serialization *ser,
 				  const char *name, void *fdt)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int kho_retrieve_subtree(const char *name, phys_addr_t *phys)
 {
 	return -EOPNOTSUPP;
 }
@@ -52,6 +61,11 @@ static inline int unregister_kho_notifier(struct notifier_block *nb)
 }
 
 static inline void kho_memory_init(void)
+{
+}
+
+static inline void kho_populate(phys_addr_t fdt_phys, u64 fdt_len,
+				phys_addr_t scratch_phys, u64 scratch_len)
 {
 }
 #endif /* CONFIG_KEXEC_HANDOVER */
