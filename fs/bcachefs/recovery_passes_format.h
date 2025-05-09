@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _BCACHEFS_RECOVERY_PASSES_TYPES_H
-#define _BCACHEFS_RECOVERY_PASSES_TYPES_H
+#ifndef _BCACHEFS_RECOVERY_PASSES_FORMAT_H
+#define _BCACHEFS_RECOVERY_PASSES_FORMAT_H
 
 #define PASS_SILENT		BIT(0)
 #define PASS_FSCK		BIT(1)
@@ -81,4 +81,4 @@ enum bch_recovery_pass_stable {
 #undef x
 };
 
-#endif /* _BCACHEFS_RECOVERY_PASSES_TYPES_H */
+#endif /* _BCACHEFS_RECOVERY_PASSES_FORMAT_H */

@@ -510,6 +510,7 @@ struct bch_sb_field {
 #include "logged_ops_format.h"
 #include "lru_format.h"
 #include "quota_format.h"
+#include "recovery_passes_format.h"
 #include "reflink_format.h"
 #include "replicas_format.h"
 #include "snapshot_format.h"
