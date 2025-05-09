@@ -416,7 +416,19 @@ static int iris_hfi_gen2_session_set_config_params(struct iris_inst *inst, u32 p
 static int iris_hfi_gen2_session_set_codec(struct iris_inst *inst)
 {
 	struct iris_inst_hfi_gen2 *inst_hfi_gen2 = to_iris_inst_hfi_gen2(inst);
-	u32 codec = HFI_CODEC_DECODE_AVC;
+	u32 codec = 0;
+
+	switch (inst->codec) {
+	case V4L2_PIX_FMT_H264:
+		codec = HFI_CODEC_DECODE_AVC;
+		break;
+	case V4L2_PIX_FMT_HEVC:
+		codec = HFI_CODEC_DECODE_HEVC;
+		break;
+	case V4L2_PIX_FMT_VP9:
+		codec = HFI_CODEC_DECODE_VP9;
+		break;
+	}
 
 	iris_hfi_gen2_packet_session_property(inst,
 					      HFI_PROP_CODEC,

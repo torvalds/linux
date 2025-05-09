@@ -278,9 +278,6 @@ static int iris_enum_fmt(struct file *filp, void *fh, struct v4l2_fmtdesc *f)
 {
 	struct iris_inst *inst = iris_get_inst(filp, NULL);
 
-	if (f->index)
-		return -EINVAL;
-
 	return iris_vdec_enum_fmt(inst, f);
 }
 

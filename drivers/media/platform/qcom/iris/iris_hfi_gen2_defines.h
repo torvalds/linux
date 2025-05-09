@@ -104,6 +104,9 @@ enum hfi_color_format {
 enum hfi_codec_type {
 	HFI_CODEC_DECODE_AVC			= 1,
 	HFI_CODEC_ENCODE_AVC			= 2,
+	HFI_CODEC_DECODE_HEVC			= 3,
+	HFI_CODEC_ENCODE_HEVC			= 4,
+	HFI_CODEC_DECODE_VP9			= 5,
 };
 
 enum hfi_picture_type {
