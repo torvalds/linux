@@ -211,12 +211,12 @@ EXPORT_SYMBOL_GPL(nfs_local_probe_async);
 
 static inline struct nfsd_file *nfs_local_file_get(struct nfsd_file *nf)
 {
-	return nfs_to->nfsd_file_get(nf);
+	return nfs_to->nfsd_file_get_local(nf);
 }
 
 static inline void nfs_local_file_put(struct nfsd_file *nf)
 {
-	nfs_to->nfsd_file_put(nf);
+	nfs_to_nfsd_file_put_local(nf);
 }
 
 /*

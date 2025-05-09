@@ -29,8 +29,7 @@ static const struct nfsd_localio_operations nfsd_localio_ops = {
 	.nfsd_net_put  = nfsd_net_put,
 	.nfsd_open_local_fh = nfsd_open_local_fh,
 	.nfsd_file_put_local = nfsd_file_put_local,
-	.nfsd_file_get = nfsd_file_get,
-	.nfsd_file_put = nfsd_file_put,
+	.nfsd_file_get_local = nfsd_file_get_local,
 	.nfsd_file_file = nfsd_file_file,
 };
 
@@ -71,6 +70,9 @@ nfsd_open_local_fh(struct net *net, struct auth_domain *dom,
 	if (nfs_fh->size > NFS4_FHSIZE)
 		return ERR_PTR(-EINVAL);
 
+	if (!nfsd_net_try_get(net))
+		return ERR_PTR(-ENXIO);
+
 	/* nfs_fh -> svc_fh */
 	fh_init(&fh, NFS4_FHSIZE);
 	fh.fh_handle.fh_size = nfs_fh->size;
@@ -91,6 +93,9 @@ nfsd_open_local_fh(struct net *net, struct auth_domain *dom,
 	fh_put(&fh);
 	if (rq_cred.cr_group_info)
 		put_group_info(rq_cred.cr_group_info);
+
+	if (IS_ERR(localio))
+		nfsd_net_put(net);
 
 	return localio;
 }

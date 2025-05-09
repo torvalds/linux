@@ -66,8 +66,7 @@ struct nfsd_localio_operations {
 						const struct nfs_fh *,
 						const fmode_t);
 	struct net *(*nfsd_file_put_local)(struct nfsd_file *);
-	struct nfsd_file *(*nfsd_file_get)(struct nfsd_file *);
-	void (*nfsd_file_put)(struct nfsd_file *);
+	struct nfsd_file *(*nfsd_file_get_local)(struct nfsd_file *);
 	struct file *(*nfsd_file_file)(struct nfsd_file *);
 } ____cacheline_aligned;
 
