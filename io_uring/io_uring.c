@@ -389,17 +389,6 @@ static void io_account_cq_overflow(struct io_ring_ctx *ctx)
 	ctx->cq_extra--;
 }
 
-static bool req_need_defer(struct io_kiocb *req, u32 seq)
-{
-	if (unlikely(req->flags & REQ_F_IO_DRAIN)) {
-		struct io_ring_ctx *ctx = req->ctx;
-
-		return seq + READ_ONCE(ctx->cq_extra) != ctx->cached_cq_tail;
-	}
-
-	return false;
-}
-
 static void io_clean_op(struct io_kiocb *req)
 {
 	if (unlikely(req->flags & REQ_F_BUFFER_SELECTED))
@@ -566,11 +555,10 @@ static bool io_drain_defer_seq(struct io_kiocb *req, u32 seq)
 	return seq + READ_ONCE(ctx->cq_extra) != ctx->cached_cq_tail;
 }
 
-static __cold noinline void io_queue_deferred(struct io_ring_ctx *ctx)
+static __cold noinline void __io_queue_deferred(struct io_ring_ctx *ctx)
 {
 	bool drain_seen = false, first = true;
 
-	spin_lock(&ctx->completion_lock);
 	while (!list_empty(&ctx->defer_list)) {
 		struct io_defer_entry *de = list_first_entry(&ctx->defer_list,
 						struct io_defer_entry, list);
@@ -584,7 +572,12 @@ static __cold noinline void io_queue_deferred(struct io_ring_ctx *ctx)
 		kfree(de);
 		first = false;
 	}
-	spin_unlock(&ctx->completion_lock);
+}
+
+static __cold noinline void io_queue_deferred(struct io_ring_ctx *ctx)
+{
+	guard(spinlock)(&ctx->completion_lock);
+	__io_queue_deferred(ctx);
 }
 
 void __io_commit_cqring_flush(struct io_ring_ctx *ctx)
@@ -1671,30 +1664,26 @@ static __cold void io_drain_req(struct io_kiocb *req)
 	__must_hold(&ctx->uring_lock)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	bool drain = req->flags & IOSQE_IO_DRAIN;
 	struct io_defer_entry *de;
-	u32 seq = io_get_sequence(req);
 
-	io_prep_async_link(req);
 	de = kmalloc(sizeof(*de), GFP_KERNEL_ACCOUNT);
 	if (!de) {
 		io_req_defer_failed(req, -ENOMEM);
 		return;
 	}
 
-	spin_lock(&ctx->completion_lock);
-	if (!req_need_defer(req, seq) && list_empty(&ctx->defer_list)) {
-		spin_unlock(&ctx->completion_lock);
-		kfree(de);
-		ctx->drain_active = false;
-		io_req_task_queue(req);
-		return;
-	}
-
+	io_prep_async_link(req);
 	trace_io_uring_defer(req);
 	de->req = req;
-	de->seq = seq;
-	list_add_tail(&de->list, &ctx->defer_list);
-	spin_unlock(&ctx->completion_lock);
+	de->seq = io_get_sequence(req);
+
+	scoped_guard(spinlock, &ctx->completion_lock) {
+		list_add_tail(&de->list, &ctx->defer_list);
+		__io_queue_deferred(ctx);
+		if (!drain && list_empty(&ctx->defer_list))
+			ctx->drain_active = false;
+	}
 }
 
 static bool io_assign_file(struct io_kiocb *req, const struct io_issue_def *def,
