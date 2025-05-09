@@ -1672,7 +1672,6 @@ static __cold void io_drain_req(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_defer_entry *de;
-	int ret;
 	u32 seq = io_get_sequence(req);
 
 	/* Still need defer if there is pending req in defer list. */
@@ -1689,8 +1688,7 @@ queue:
 	io_prep_async_link(req);
 	de = kmalloc(sizeof(*de), GFP_KERNEL_ACCOUNT);
 	if (!de) {
-		ret = -ENOMEM;
-		io_req_defer_failed(req, ret);
+		io_req_defer_failed(req, -ENOMEM);
 		return;
 	}
 
