@@ -487,6 +487,8 @@ static int iris_vdec_process_streamon_output(struct iris_inst *inst)
 	if (ret)
 		return ret;
 
+	inst->last_buffer_dequeued = false;
+
 	return iris_inst_change_sub_state(inst, clear_sub_state, 0);
 }
 

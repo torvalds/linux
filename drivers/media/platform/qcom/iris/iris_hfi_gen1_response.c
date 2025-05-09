@@ -457,7 +457,12 @@ static void iris_hfi_gen1_session_ftb_done(struct iris_inst *inst, void *packet)
 		timestamp_us = timestamp_hi;
 		timestamp_us = (timestamp_us << 32) | timestamp_lo;
 	} else {
-		flags |= V4L2_BUF_FLAG_LAST;
+		if (pkt->stream_id == 1 && !inst->last_buffer_dequeued) {
+			if (iris_drc_pending(inst)) {
+				flags |= V4L2_BUF_FLAG_LAST;
+				inst->last_buffer_dequeued = true;
+			}
+		}
 	}
 	buf->timestamp = timestamp_us;
 
