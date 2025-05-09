@@ -242,6 +242,8 @@ static int amd_pstate_set_mode(enum amd_pstate_mode mode)
 static int amd_pstate_ut_check_driver(u32 index)
 {
 	enum amd_pstate_mode mode1, mode2 = AMD_PSTATE_DISABLE;
+	enum amd_pstate_mode orig_mode = amd_pstate_get_status();
+	int ret;
 
 	for (mode1 = AMD_PSTATE_DISABLE; mode1 < AMD_PSTATE_MAX; mode1++) {
 		int ret = amd_pstate_set_mode(mode1);
@@ -251,16 +253,19 @@ static int amd_pstate_ut_check_driver(u32 index)
 			if (mode1 == mode2)
 				continue;
 			ret = amd_pstate_set_mode(mode2);
-			if (ret) {
-				pr_err("%s: failed to update status for %s->%s\n", __func__,
-					amd_pstate_get_mode_string(mode1),
-					amd_pstate_get_mode_string(mode2));
-				return ret;
-			}
+			if (ret)
+				goto out;
 		}
 	}
 
-	return 0;
+out:
+	if (ret)
+		pr_warn("%s: failed to update status for %s->%s: %d\n", __func__,
+			amd_pstate_get_mode_string(mode1),
+			amd_pstate_get_mode_string(mode2), ret);
+
+	amd_pstate_set_mode(orig_mode);
+	return ret;
 }
 
 static int __init amd_pstate_ut_init(void)
