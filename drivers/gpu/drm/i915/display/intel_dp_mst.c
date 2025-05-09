@@ -242,7 +242,7 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 		to_intel_connector(conn_state->connector);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
-	bool is_mst = intel_dp->is_mst;
+	bool is_mst = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST);
 	int bpp_x16, slots = -EINVAL;
 	int dsc_slice_count = 0;
 	int max_dpt_bpp_x16;
