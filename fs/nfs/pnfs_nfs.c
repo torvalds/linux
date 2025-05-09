@@ -830,10 +830,16 @@ static int _nfs4_pnfs_v3_ds_connect(struct nfs_server *mds_srv,
 				.servername = clp->cl_hostname,
 				.connect_timeout = connect_timeout,
 				.reconnect_timeout = connect_timeout,
+				.xprtsec = clp->cl_xprtsec,
 			};
 
-			if (da->da_transport != clp->cl_proto)
+			if (da->da_transport != clp->cl_proto &&
+			    clp->cl_proto != XPRT_TRANSPORT_TCP_TLS)
 				continue;
+			if (da->da_transport == XPRT_TRANSPORT_TCP &&
+			    mds_srv->nfs_client->cl_proto == XPRT_TRANSPORT_TCP_TLS)
+				xprt_args.ident = XPRT_TRANSPORT_TCP_TLS;
+
 			if (da->da_addr.ss_family != clp->cl_addr.ss_family)
 				continue;
 			/* Add this address as an alias */
@@ -841,6 +847,9 @@ static int _nfs4_pnfs_v3_ds_connect(struct nfs_server *mds_srv,
 					rpc_clnt_test_and_add_xprt, NULL);
 			continue;
 		}
+		if (da->da_transport == XPRT_TRANSPORT_TCP &&
+		    mds_srv->nfs_client->cl_proto == XPRT_TRANSPORT_TCP_TLS)
+			da->da_transport = XPRT_TRANSPORT_TCP_TLS;
 		clp = get_v3_ds_connect(mds_srv,
 				&da->da_addr,
 				da->da_addrlen, da->da_transport,
