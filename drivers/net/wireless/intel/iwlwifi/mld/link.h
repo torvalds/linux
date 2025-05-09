@@ -91,7 +91,7 @@ struct iwl_mld_link {
 	struct iwl_probe_resp_data __rcu *probe_resp_data;
 };
 
-/* Cleanup function for struct iwl_mld_phy, will be called in restart */
+/* Cleanup function for struct iwl_mld_link, will be called in restart */
 static inline void
 iwl_mld_cleanup_link(struct iwl_mld *mld, struct iwl_mld_link *link)
 {
