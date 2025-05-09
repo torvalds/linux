@@ -14,6 +14,9 @@
 /* for collect_zone_lock().  It should be more than the actual zones. */
 #define MAX_ZONES  10
 
+/* for do_lock_delay().  Arbitrarily set to 1 million. */
+#define MAX_LOOP  (1U << 20)
+
 /* lock contention flags from include/trace/events/lock.h */
 #define LCB_F_SPIN	(1U << 0)
 #define LCB_F_READ	(1U << 1)
@@ -149,6 +152,13 @@ struct {
 	__uint(max_entries, 1);
 } slab_caches SEC(".maps");
 
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(key_size, sizeof(__u64));
+	__uint(value_size, sizeof(__u64));
+	__uint(max_entries, 1);
+} lock_delays SEC(".maps");
+
 struct rw_semaphore___old {
 	struct task_struct *owner;
 } __attribute__((preserve_access_index));
@@ -179,6 +189,7 @@ const volatile int stack_skip;
 const volatile int lock_owner;
 const volatile int use_cgroup_v2;
 const volatile int max_stack;
+const volatile int lock_delay;
 
 /* determine the key of lock stat */
 const volatile int aggr_mode;
@@ -385,6 +396,35 @@ static inline __u32 check_lock_type(__u64 lock, __u32 flags)
 		break;
 	}
 	return 0;
+}
+
+static inline long delay_callback(__u64 idx, void *arg)
+{
+	__u64 target = *(__u64 *)arg;
+
+	if (target <= bpf_ktime_get_ns())
+		return 1;
+
+	/* just to kill time */
+	(void)bpf_get_prandom_u32();
+
+	return 0;
+}
+
+static inline void do_lock_delay(__u64 duration)
+{
+	__u64 target = bpf_ktime_get_ns() + duration;
+
+	bpf_loop(MAX_LOOP, delay_callback, &target, /*flags=*/0);
+}
+
+static inline void check_lock_delay(__u64 lock)
+{
+	__u64 *delay;
+
+	delay = bpf_map_lookup_elem(&lock_delays, &lock);
+	if (delay)
+		do_lock_delay(*delay);
 }
 
 static inline struct tstamp_data *get_tstamp_elem(__u32 flags)
@@ -796,6 +836,9 @@ found:
 	update_contention_data(data, duration, 1);
 
 out:
+	if (lock_delay)
+		check_lock_delay(pelem->lock);
+
 	pelem->lock = 0;
 	if (need_delete)
 		bpf_map_delete_elem(&tstamp, &pid);

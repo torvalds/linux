@@ -18,6 +18,12 @@ struct lock_filter {
 	char			**slabs;
 };
 
+struct lock_delay {
+	char			*sym;
+	unsigned long		addr;
+	unsigned long		time;
+};
+
 struct lock_stat {
 	struct hlist_node	hash_entry;
 	struct rb_node		rb;		/* used for sorting */
@@ -140,6 +146,7 @@ struct lock_contention {
 	struct machine *machine;
 	struct hlist_head *result;
 	struct lock_filter *filters;
+	struct lock_delay *delays;
 	struct lock_contention_fails fails;
 	struct rb_root cgroups;
 	void *btf;
@@ -149,6 +156,7 @@ struct lock_contention {
 	int aggr_mode;
 	int owner;
 	int nr_filtered;
+	int nr_delays;
 	bool save_callstack;
 };
 

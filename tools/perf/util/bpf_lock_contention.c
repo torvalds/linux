@@ -261,6 +261,27 @@ int lock_contention_prepare(struct lock_contention *con)
 		skel->rodata->has_addr = 1;
 	}
 
+	/* resolve lock name in delays */
+	if (con->nr_delays) {
+		struct symbol *sym;
+		struct map *kmap;
+
+		for (i = 0; i < con->nr_delays; i++) {
+			sym = machine__find_kernel_symbol_by_name(con->machine,
+								  con->delays[i].sym,
+								  &kmap);
+			if (sym == NULL) {
+				pr_warning("ignore unknown symbol: %s\n",
+					   con->delays[i].sym);
+				continue;
+			}
+
+			con->delays[i].addr = map__unmap_ip(kmap, sym->start);
+		}
+		skel->rodata->lock_delay = 1;
+		bpf_map__set_max_entries(skel->maps.lock_delays, con->nr_delays);
+	}
+
 	bpf_map__set_max_entries(skel->maps.cpu_filter, ncpus);
 	bpf_map__set_max_entries(skel->maps.task_filter, ntasks);
 	bpf_map__set_max_entries(skel->maps.type_filter, ntypes);
@@ -350,6 +371,13 @@ int lock_contention_prepare(struct lock_contention *con)
 
 		for (i = 0; i < con->filters->nr_cgrps; i++)
 			bpf_map_update_elem(fd, &con->filters->cgrps[i], &val, BPF_ANY);
+	}
+
+	if (con->nr_delays) {
+		fd = bpf_map__fd(skel->maps.lock_delays);
+
+		for (i = 0; i < con->nr_delays; i++)
+			bpf_map_update_elem(fd, &con->delays[i].addr, &con->delays[i].time, BPF_ANY);
 	}
 
 	if (con->aggr_mode == LOCK_AGGR_CGROUP)
