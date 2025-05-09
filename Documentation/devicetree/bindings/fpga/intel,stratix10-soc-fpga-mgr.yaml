@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/fpga/intel,stratix10-soc-fpga-mgr.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Intel Stratix10 SoC FPGA Manager
+
+maintainers:
+  - Mahesh Rao <mahesh.rao@altera.com>
+  - Adrian Ng Ho Yin <adrian.ho.yin.ng@altera.com>
+  - Niravkumar L Rabara <nirav.rabara@altera.com>
+
+description:
+  The Intel Stratix10 SoC consists of a 64-bit quad-core ARM Cortex A53 hard
+  processor system (HPS) and a Secure Device Manager (SDM). The Stratix10
+  SoC FPGA Manager driver is used to configure/reconfigure the FPGA fabric
+  on the die.The driver communicates with SDM/ATF via the stratix10-svc
+  platform driver for performing its operations.
+
+properties:
+  compatible:
+    enum:
+      - intel,stratix10-soc-fpga-mgr
+      - intel,agilex-soc-fpga-mgr
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    fpga-mgr {
+      compatible = "intel,stratix10-soc-fpga-mgr";
+    };
