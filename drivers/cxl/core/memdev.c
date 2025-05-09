@@ -153,8 +153,8 @@ static ssize_t security_state_show(struct device *dev,
 		return sysfs_emit(buf, "frozen\n");
 	if (state & CXL_PMEM_SEC_STATE_LOCKED)
 		return sysfs_emit(buf, "locked\n");
-	else
-		return sysfs_emit(buf, "unlocked\n");
+
+	return sysfs_emit(buf, "unlocked\n");
 }
 static struct device_attribute dev_attr_security_state =
 	__ATTR(state, 0444, security_state_show, NULL);
