@@ -22,6 +22,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
+#include <linux/string.h>
 #include <sound/core.h>
 #include <sound/asoundef.h>
 #include <sound/pcm.h>
@@ -1698,9 +1699,9 @@ static int __hdmi_lpe_audio_probe(struct platform_device *pdev)
 	card_ctx = card->private_data;
 	card_ctx->dev = &pdev->dev;
 	card_ctx->card = card;
-	strcpy(card->driver, INTEL_HAD);
-	strcpy(card->shortname, "Intel HDMI/DP LPE Audio");
-	strcpy(card->longname, "Intel HDMI/DP LPE Audio");
+	strscpy(card->driver, INTEL_HAD);
+	strscpy(card->shortname, "Intel HDMI/DP LPE Audio");
+	strscpy(card->longname, "Intel HDMI/DP LPE Audio");
 
 	card_ctx->irq = -1;
 
