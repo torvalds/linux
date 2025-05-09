@@ -9,6 +9,7 @@
 #define _ASM_THREAD_INFO_H
 
 #include <linux/bits.h>
+#include <vdso/page.h>
 
 /*
  * General size of kernel stacks
@@ -24,8 +25,6 @@
 #define STACK_INIT_OFFSET (THREAD_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE)
 
 #ifndef __ASSEMBLY__
-#include <asm/lowcore.h>
-#include <asm/page.h>
 
 /*
  * low level task data that entry.S needs immediate access to
