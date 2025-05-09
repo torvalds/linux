@@ -970,13 +970,13 @@ static void amd_rp_pme_suspend(struct pci_dev *dev)
 	struct pci_dev *rp;
 
 	/*
-	 * PM_SUSPEND_ON means we're doing runtime suspend, which means
+	 * If system suspend is not in progress, we're doing runtime suspend, so
 	 * amd-pmc will not be involved so PMEs during D3 work as advertised.
 	 *
 	 * The PMEs *do* work if amd-pmc doesn't put the SoC in the hardware
 	 * sleep state, but we assume amd-pmc is always present.
 	 */
-	if (pm_suspend_target_state == PM_SUSPEND_ON)
+	if (!pm_suspend_in_progress())
 		return;
 
 	rp = pcie_find_root_port(dev);
