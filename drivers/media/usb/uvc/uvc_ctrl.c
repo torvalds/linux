@@ -1851,48 +1851,48 @@ static void uvc_ctrl_send_slave_event(struct uvc_video_chain *chain,
 	uvc_ctrl_send_event(chain, handle, ctrl, mapping, val, changes);
 }
 
-static int uvc_ctrl_set_handle(struct uvc_fh *handle, struct uvc_control *ctrl,
-			       struct uvc_fh *new_handle)
+static int uvc_ctrl_set_handle(struct uvc_control *ctrl, struct uvc_fh *handle)
 {
+	int ret;
+
 	lockdep_assert_held(&handle->chain->ctrl_mutex);
 
-	if (new_handle) {
-		int ret;
+	if (ctrl->handle) {
+		dev_warn_ratelimited(&handle->stream->dev->udev->dev,
+				     "UVC non compliance: Setting an async control with a pending operation.");
 
-		if (ctrl->handle)
-			dev_warn_ratelimited(&handle->stream->dev->udev->dev,
-					     "UVC non compliance: Setting an async control with a pending operation.");
-
-		if (new_handle == ctrl->handle)
+		if (ctrl->handle == handle)
 			return 0;
 
-		if (ctrl->handle) {
-			WARN_ON(!ctrl->handle->pending_async_ctrls);
-			if (ctrl->handle->pending_async_ctrls)
-				ctrl->handle->pending_async_ctrls--;
-			ctrl->handle = new_handle;
-			handle->pending_async_ctrls++;
-			return 0;
-		}
-
-		ret = uvc_pm_get(handle->chain->dev);
-		if (ret)
-			return ret;
-
-		ctrl->handle = new_handle;
-		handle->pending_async_ctrls++;
+		WARN_ON(!ctrl->handle->pending_async_ctrls);
+		if (ctrl->handle->pending_async_ctrls)
+			ctrl->handle->pending_async_ctrls--;
+		ctrl->handle = handle;
+		ctrl->handle->pending_async_ctrls++;
 		return 0;
 	}
 
-	/* Cannot clear the handle for a control not owned by us.*/
-	if (WARN_ON(ctrl->handle != handle))
-		return -EINVAL;
+	ret = uvc_pm_get(handle->chain->dev);
+	if (ret)
+		return ret;
 
-	ctrl->handle = NULL;
-	if (WARN_ON(!handle->pending_async_ctrls))
+	ctrl->handle = handle;
+	ctrl->handle->pending_async_ctrls++;
+	return 0;
+}
+
+static int uvc_ctrl_clear_handle(struct uvc_control *ctrl)
+{
+	lockdep_assert_held(&ctrl->handle->chain->ctrl_mutex);
+
+	if (WARN_ON(!ctrl->handle->pending_async_ctrls)) {
+		ctrl->handle = NULL;
 		return -EINVAL;
-	handle->pending_async_ctrls--;
-	uvc_pm_put(handle->chain->dev);
+	}
+
+	ctrl->handle->pending_async_ctrls--;
+	uvc_pm_put(ctrl->handle->chain->dev);
+	ctrl->handle = NULL;
 	return 0;
 }
 
@@ -1910,7 +1910,7 @@ void uvc_ctrl_status_event(struct uvc_video_chain *chain,
 
 	handle = ctrl->handle;
 	if (handle)
-		uvc_ctrl_set_handle(handle, ctrl, NULL);
+		uvc_ctrl_clear_handle(ctrl);
 
 	list_for_each_entry(mapping, &ctrl->info.mappings, list) {
 		s32 value;
@@ -2200,7 +2200,7 @@ static int uvc_ctrl_commit_entity(struct uvc_device *dev,
 
 		if (!rollback && handle && !ret &&
 		    ctrl->info.flags & UVC_CTRL_FLAG_ASYNCHRONOUS)
-			ret = uvc_ctrl_set_handle(handle, ctrl, handle);
+			ret = uvc_ctrl_set_handle(ctrl, handle);
 
 		if (ret < 0 && !rollback) {
 			if (err_ctrl)
@@ -3310,7 +3310,7 @@ void uvc_ctrl_cleanup_fh(struct uvc_fh *handle)
 		for (unsigned int i = 0; i < entity->ncontrols; ++i) {
 			if (entity->controls[i].handle != handle)
 				continue;
-			uvc_ctrl_set_handle(handle, &entity->controls[i], NULL);
+			uvc_ctrl_clear_handle(&entity->controls[i]);
 		}
 	}
 
