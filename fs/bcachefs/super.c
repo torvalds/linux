@@ -11,6 +11,7 @@
 #include "alloc_background.h"
 #include "alloc_foreground.h"
 #include "async_objs.h"
+#include "backpointers.h"
 #include "bkey_sort.h"
 #include "btree_cache.h"
 #include "btree_gc.h"
@@ -1341,6 +1342,9 @@ static void bch2_dev_free(struct bch_dev *ca)
 	if (ca->kobj.state_in_sysfs)
 		kobject_del(&ca->kobj);
 
+	for (unsigned i = 0; i < ARRAY_SIZE(ca->bucket_backpointer_mismatches); i++)
+		bch2_bucket_bitmap_free(&ca->bucket_backpointer_mismatches[i]);
+
 	bch2_free_super(&ca->disk_sb);
 	bch2_dev_allocator_background_exit(ca);
 	bch2_dev_journal_exit(ca);
@@ -1470,6 +1474,9 @@ static struct bch_dev *__bch2_dev_alloc(struct bch_fs *c,
 #else
 	atomic_long_set(&ca->ref, 1);
 #endif
+
+	for (unsigned i = 0; i < ARRAY_SIZE(ca->bucket_backpointer_mismatches); i++)
+		mutex_init(&ca->bucket_backpointer_mismatches[i].lock);
 
 	bch2_dev_allocator_background_init(ca);
 

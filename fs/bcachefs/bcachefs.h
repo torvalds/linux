@@ -574,6 +574,12 @@ enum bch_dev_write_ref {
 	BCH_DEV_WRITE_REF_NR,
 };
 
+struct bucket_bitmap {
+	unsigned long		*buckets;
+	u64			nr;
+	struct mutex		lock;
+};
+
 struct bch_dev {
 	struct kobject		kobj;
 #ifdef CONFIG_BCACHEFS_DEBUG
@@ -618,8 +624,7 @@ struct bch_dev {
 	u8			*oldest_gen;
 	unsigned long		*buckets_nouse;
 
-	unsigned long		*bucket_backpointer_mismatches;
-	unsigned long		*bucket_backpointer_empty;
+	struct bucket_bitmap	bucket_backpointer_mismatches[2];
 
 	struct bch_dev_usage_full __percpu
 				*usage;
