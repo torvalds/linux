@@ -566,6 +566,23 @@ class TypeBinary(Type):
                 f'memcpy({member}, {self.c_name}, {presence});']
 
 
+class TypeBinaryStruct(TypeBinary):
+    def struct_member(self, ri):
+        ri.cw.p(f'struct {c_lower(self.get("struct"))} *{self.c_name};')
+
+    def _attr_get(self, ri, var):
+        struct_sz = 'sizeof(struct ' + c_lower(self.get("struct")) + ')'
+        len_mem = var + '->_' + self.presence_type() + '.' + self.c_name
+        return [f"{len_mem} = len;",
+                f"if (len < {struct_sz})",
+                f"{var}->{self.c_name} = calloc(1, {struct_sz});",
+                "else",
+                f"{var}->{self.c_name} = malloc(len);",
+                f"memcpy({var}->{self.c_name}, ynl_attr_data(attr), len);"], \
+               ['len = ynl_attr_data_len(attr);'], \
+               ['unsigned int len;']
+
+
 class TypeBinaryScalarArray(TypeBinary):
     def arg_member(self, ri):
         return [f'__{self.get("sub-type")} *{self.c_name}', 'size_t count']
@@ -1010,7 +1027,9 @@ class AttrSet(SpecAttrSet):
         elif elem['type'] == 'string':
             t = TypeString(self.family, self, elem, value)
         elif elem['type'] == 'binary':
-            if elem.get('sub-type') in scalars:
+            if 'struct' in elem:
+                t = TypeBinaryStruct(self.family, self, elem, value)
+            elif elem.get('sub-type') in scalars:
                 t = TypeBinaryScalarArray(self.family, self, elem, value)
             else:
                 t = TypeBinary(self.family, self, elem, value)
