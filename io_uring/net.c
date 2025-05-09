@@ -18,7 +18,6 @@
 #include "rsrc.h"
 #include "zcrx.h"
 
-#if defined(CONFIG_NET)
 struct io_shutdown {
 	struct file			*file;
 	int				how;
@@ -1836,4 +1835,3 @@ void io_netmsg_cache_free(const void *entry)
 	io_vec_free(&kmsg->vec);
 	kfree(kmsg);
 }
-#endif
