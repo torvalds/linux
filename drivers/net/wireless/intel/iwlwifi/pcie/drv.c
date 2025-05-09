@@ -1474,33 +1474,34 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     BW_LIMITED, NO_CDB),
 
 /* Sc */
-	IWL_DEV_INFO(iwl_cfg_sc, iwl_ax211_name, MAC_TYPE(SC), RF_TYPE(GF)),
-	IWL_DEV_INFO(iwl_cfg_sc, iwl_fm_name, MAC_TYPE(SC), RF_TYPE(FM)),
-	IWL_DEV_INFO(iwl_cfg_sc, iwl_wh_name, MAC_TYPE(SC), RF_TYPE(WH),
+	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_name, MAC_TYPE(SC), RF_TYPE(GF)),
+	IWL_DEV_INFO(iwl_rf_fm, iwl_fm_name, MAC_TYPE(SC), RF_TYPE(FM)),
+	IWL_DEV_INFO(iwl_rf_wh, iwl_wh_name, MAC_TYPE(SC), RF_TYPE(WH),
 		     BW_NOT_LIMITED),
-	IWL_DEV_INFO(iwl_cfg_sc_160mhz, iwl_sp_name, MAC_TYPE(SC), RF_TYPE(WH),
+	IWL_DEV_INFO(iwl_rf_wh_160mhz, iwl_sp_name, MAC_TYPE(SC), RF_TYPE(WH),
 		     BW_LIMITED),
-	IWL_DEV_INFO(iwl_cfg_sc, iwl_pe_name, MAC_TYPE(SC), RF_TYPE(PE)),
-	IWL_DEV_INFO(iwl_cfg_sc, iwl_ax211_name, MAC_TYPE(SC2), RF_TYPE(GF)),
-	IWL_DEV_INFO(iwl_cfg_sc, iwl_fm_name, MAC_TYPE(SC2), RF_TYPE(FM)),
-	IWL_DEV_INFO(iwl_cfg_sc, iwl_wh_name, MAC_TYPE(SC2), RF_TYPE(WH),
+	IWL_DEV_INFO(iwl_rf_pe, iwl_pe_name, MAC_TYPE(SC), RF_TYPE(PE)),
+	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_name, MAC_TYPE(SC2), RF_TYPE(GF)),
+	IWL_DEV_INFO(iwl_rf_fm, iwl_fm_name, MAC_TYPE(SC2), RF_TYPE(FM)),
+	IWL_DEV_INFO(iwl_rf_wh, iwl_wh_name, MAC_TYPE(SC2), RF_TYPE(WH),
 		     BW_NOT_LIMITED),
-	IWL_DEV_INFO(iwl_cfg_sc_160mhz, iwl_sp_name, MAC_TYPE(SC2), RF_TYPE(WH),
+	IWL_DEV_INFO(iwl_rf_wh_160mhz, iwl_sp_name, MAC_TYPE(SC2), RF_TYPE(WH),
 		     BW_LIMITED),
-	IWL_DEV_INFO(iwl_cfg_sc, iwl_pe_name, MAC_TYPE(SC2), RF_TYPE(PE)),
-	IWL_DEV_INFO(iwl_cfg_sc, iwl_ax211_name, MAC_TYPE(SC2F), RF_TYPE(GF)),
-	IWL_DEV_INFO(iwl_cfg_sc, iwl_fm_name, MAC_TYPE(SC2F), RF_TYPE(FM)),
-	IWL_DEV_INFO(iwl_cfg_sc, iwl_wh_name, MAC_TYPE(SC2F), RF_TYPE(WH),
+	IWL_DEV_INFO(iwl_rf_pe, iwl_pe_name, MAC_TYPE(SC2), RF_TYPE(PE)),
+	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_name, MAC_TYPE(SC2F), RF_TYPE(GF)),
+	IWL_DEV_INFO(iwl_rf_fm, iwl_fm_name, MAC_TYPE(SC2F), RF_TYPE(FM)),
+	IWL_DEV_INFO(iwl_rf_wh, iwl_wh_name, MAC_TYPE(SC2F), RF_TYPE(WH),
 		     BW_NOT_LIMITED),
-	IWL_DEV_INFO(iwl_cfg_sc_160mhz, iwl_sp_name, MAC_TYPE(SC2F), RF_TYPE(WH),
+	IWL_DEV_INFO(iwl_rf_wh_160mhz, iwl_sp_name, MAC_TYPE(SC2F), RF_TYPE(WH),
 		     BW_LIMITED),
-	IWL_DEV_INFO(iwl_cfg_sc, iwl_pe_name, MAC_TYPE(SC2F), RF_TYPE(PE)),
+	IWL_DEV_INFO(iwl_rf_pe, iwl_pe_name, MAC_TYPE(SC2F), RF_TYPE(PE)),
 
 /* Dr */
-	IWL_DEV_INFO(iwl_cfg_dr, iwl_dr_name, MAC_TYPE(DR)),
+	IWL_DEV_INFO(iwl_rf_pe, iwl_dr_name, MAC_TYPE(DR), RF_TYPE(PE)),
+	IWL_DEV_INFO(iwl_rf_wh, iwl_dr_name, MAC_TYPE(DR), RF_TYPE(WH)),
 
 /* Br */
-	IWL_DEV_INFO(iwl_cfg_dr, iwl_br_name, MAC_TYPE(BR)),
+	IWL_DEV_INFO(iwl_rf_pe, iwl_br_name, MAC_TYPE(BR), RF_TYPE(PE)),
 #endif /* CONFIG_IWLMLD */
 };
 EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_dev_info_table);

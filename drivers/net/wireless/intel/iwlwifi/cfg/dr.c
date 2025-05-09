@@ -14,9 +14,6 @@
 /* Lowest firmware API version supported */
 #define IWL_DR_UCODE_API_MIN	97
 
-/* NVM versions */
-#define IWL_DR_NVM_VERSION		0x0a1d
-
 /* Memory offsets and lengths */
 #define IWL_DR_SMEM_OFFSET		0x400000
 #define IWL_DR_SMEM_LEN			0xD0000
@@ -86,21 +83,6 @@ static const struct iwl_family_base_params iwl_dr_base = {
 	.ucode_api_min = IWL_DR_UCODE_API_MIN,
 };
 
-#define IWL_DEVICE_DR							\
-	.led_mode = IWL_LED_RF_STATE,					\
-	.non_shared_ant = ANT_B,					\
-	.vht_mu_mimo_supported = true,					\
-	.nvm_ver = IWL_DR_NVM_VERSION,					\
-	.nvm_type = IWL_NVM_EXT,					\
-	.uhb_supported = true,						\
-	.num_rbds = IWL_NUM_RBDS_EHT,				\
-	.ht_params = {							\
-		.stbc = true,						\
-		.ldpc = true,						\
-		.ht40_bands = BIT(NL80211_BAND_2GHZ) |			\
-			      BIT(NL80211_BAND_5GHZ),			\
-	}
-
 const struct iwl_mac_cfg iwl_dr_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_DR,
 	.base = &iwl_dr_base,
@@ -114,10 +96,6 @@ const struct iwl_mac_cfg iwl_dr_mac_cfg = {
 };
 
 const char iwl_dr_name[] = "Intel(R) TBD Dr device";
-
-const struct iwl_cfg iwl_cfg_dr = {
-	IWL_DEVICE_DR,
-};
 
 const struct iwl_mac_cfg iwl_br_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_DR,

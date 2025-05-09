@@ -69,14 +69,6 @@ static void devinfo_no_cfg_dups(struct kunit *test)
 			if (cfg_i == cfg_j)
 				continue;
 
-			/*
-			 * allow different MAC type to have the same config
-			 * for better maintenance / file split
-			 */
-			if (iwl_dev_info_table[i].mac_type !=
-			    iwl_dev_info_table[j].mac_type)
-				continue;
-
 			KUNIT_EXPECT_NE_MSG(test, memcmp(cfg_i, cfg_j,
 							 sizeof(*cfg_i)), 0,
 					    "identical configs: %ps and %ps\n",

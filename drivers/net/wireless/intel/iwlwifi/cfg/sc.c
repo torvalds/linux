@@ -93,21 +93,6 @@ static const struct iwl_family_base_params iwl_sc_base = {
 	.ucode_api_min = IWL_SC_UCODE_API_MIN,
 };
 
-#define IWL_DEVICE_SC							\
-	.led_mode = IWL_LED_RF_STATE,					\
-	.non_shared_ant = ANT_B,					\
-	.vht_mu_mimo_supported = true,					\
-	.nvm_ver = IWL_SC_NVM_VERSION,					\
-	.nvm_type = IWL_NVM_EXT,					\
-	.uhb_supported = true,						\
-	.num_rbds = IWL_NUM_RBDS_EHT,				\
-	.ht_params = {							\
-		.stbc = true,						\
-		.ldpc = true,						\
-		.ht40_bands = BIT(NL80211_BAND_2GHZ) |			\
-			      BIT(NL80211_BAND_5GHZ),			\
-	}
-
 const struct iwl_mac_cfg iwl_sc_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_SC,
 	.base = &iwl_sc_base,
@@ -122,15 +107,6 @@ const struct iwl_mac_cfg iwl_sc_mac_cfg = {
 
 const char iwl_sp_name[] = "Intel(R) Wi-Fi 7 BE213 160MHz";
 const char iwl_pe_name[] = "Intel(R) Wi-Fi 8 BN201";
-
-const struct iwl_cfg iwl_cfg_sc = {
-	IWL_DEVICE_SC,
-};
-
-const struct iwl_cfg iwl_cfg_sc_160mhz = {
-	IWL_DEVICE_SC,
-	.bw_limit = 160,
-};
 
 IWL_FW_AND_PNVM(IWL_SC_A_FM_B_FW_PRE, IWL_SC_UCODE_API_MAX);
 IWL_FW_AND_PNVM(IWL_SC_A_FM_C_FW_PRE, IWL_SC_UCODE_API_MAX);
