@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Normani | ./HoleToAnotherUniverse</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Normani" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://ricothaka.github.io/normani" />
+<meta property="og:url" content="https://ricothaka.github.io/normani" />
+<meta property="og:site_name" content="./HoleToAnotherUniverse" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Normani" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Normani","url":"https://ricothaka.github.io/normani"}</script>
+<!-- End Jekyll SEO tag -->
+
+  <link rel="stylesheet" href="htau.css"> 
+
+      <script src="https://code.jquery.com/jquery-3.3.0.min.js" integrity="sha256-RTQy8VOmNlT6b2PIRur37p6JEBZUE7o8wPgMvu18MC4=" crossorigin="anonymous"></script>
+    <script src="/assets/js/main.js"></script>
+    <!--[if lt IE 9]>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.min.js" integrity="sha256-3Jy/GbSLrg0o9y5Z5n1uw0qxZECH7C6OQpVBgNFYa0g=" crossorigin="anonymous"></script>
+    <![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <style>
+     @import url('https://fonts.googleapis.com/css2?family=Red+Hat+Mono:ital,wght@0,300..700;1,300..700&display=swap');
+@import "rouge-base16-dark";
+@font-face {
+  font-family: Cluster;
+  src: url(https://raw.githubusercontent.com/ThakaRashard/thakarashardOLD/master/assets/fonts/clusrg__.ttf);
+}
+
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed, 
+figure, figcaption, footer, header, hgroup, 
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 100%;
+  font: inherit;
+  vertical-align: baseline;
+}
+/* HTML5 display-role reset for older browsers */
+article, aside, details, figcaption, figure, 
+footer, header, hgroup, menu, nav, section {
+  display: block;
+}
+body {
+  line-height: 1;
+}
+ol, ul {
+  list-style: none;
+}
+blockquote, q {
+  quotes: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+  content: '';
+  content: none;
+}
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+/* ~~~~~~~~~~~~~~~~~~~~~ h1, h2, h3, h4, h5, h6 {
+  margin: 0 0 50px;
+  padding-left: 820px;
+} */
+
+html {
+font: normal 10px/18px "Red Hat Mono","Lucida Grande", "Lucida Sans Unicode", verdana, lucida, sans-serif;
+ font-size: 1rem;
+
+}
+
+
+body {
+  
+  background: linear-gradient(45deg, 
+              #fb3 25%, #58a 0, #58a 50%,
+              #fb3 0, #fb3 75%, #58a 0);
+background-size: 80.4px 80.4px;
+
+  background-attachment: fixed;
+  font-optical-sizing: auto;
+}
+/*
+body {
+  
+  background: linear-gradient(45deg, 
+              #fb3 25%, #58a 0, #58a 50%,
+              #fb3 0, #fb3 75%, #58a 0);
+background-size: 70.4px 70.4px;
+   font-family: "VT323", monospace;
+  background-attachment: fixed;
+  
+}
+  */
+
+#wrapper
+{
+
+  width: 50vw;
+  height: 100vh;
+  margin: auto;
+}
+#heading {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  background-color: black;
+  color:white;
+  top: 0;
+  padding: 0px;
+  position:fixed;
+  width:100%;
+  width:50vw;
+  
+}
+
+
+/*
+#heading {
+
+  flex-wrap:nowrap;
+    width:50vw;
+  text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #fff, 0 0 40px #0ff,
+    0 0 80px #0ff, 0 0 90px #0ff, 0 0 100px #0ff, 0 0 150px #0ff;
+   position:fixed;
+    display: grid;
+grid-template-rows: auto auto auto;
+    background-color: black;
+  color:white;
+  padding:5px;
+  position:fixed;
+
+} */
+
+.logo {
+  float: left;
+  background-color: black;
+  display: block;
+}
+
+ul {
+  padding: 0;
+  margin: 0;
+  color: white;
+}
+
+li {
+  display: inline;
+  position: relative;
+  color: white;
+}
+
+ul ul {
+  position: absolute;
+  display: none;
+}
+
+li:hover ul {
+  display: block;
+}
+
+.logo {
+  float: left;
+  background-color: black;
+  display: block;
+}
+
+ul {
+  padding: 0;
+  margin: 0;
+  color: white;
+}
+
+li {
+  display: inline;
+  position: relative;
+  color: white;
+}
+
+ul ul {
+  position: absolute;
+  display: none;
+}
+
+li:hover ul {
+  display: block;
+}
+
+#navcontainer {
+  display:block;
+  padding: 0;
+  top: 0;
+width: 55vw;
+  height: 20px;
+  display: flex;
+  background-color: black;
+  position: fixed;
+  color: white;
+  top: 0;
+}
+
+#navcontainer ul {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  list-style-type: none;
+  text-align: center;
+}
+
+#navcontainer ul li {
+  display: block;
+
+  float: right;
+  text-align: center;
+  padding: 0px;
+  margin: 0;
+}
+
+#navcontainer ul li a {
+  width: 100px;
+  height: max-content;
+  background: #262626;
+  border-left: 1px dashed #f5d7b4;
+  border-bottom: 1px solid #262626;
+  border-right: 1px solid #262626;
+  padding: 0;
+  margin: 0 0 0px 0;
+  color: #a6a6a6;
+  text-decoration: none;
+  display: block;
+  text-align: center;
+}
+
+#navcontainer ul li a:hover {
+  color: #f2f2f2;
+  background: #262626;
+  border-top: 1px solid magenta;
+}
+
+#navcontainer a:active {
+  background: #262626;
+  color: #fff;
+}
+
+#navcontainer li#active a {
+  background: #262626;
+  border-right: 4px solid #2e97f2;
+  color: #fff;
+}
+.css3badge {
+  display: inline;
+  float: right;
+  flex-wrap: nowrap;
+}
+
+
+#main {
+margin-top: 15px;
+}
+
+#footer {
+
+    bottom:0;
+  position:fixed;
+    display: grid;
+grid-template-rows: auto auto auto;
+    background-color: black;
+  color:white;
+  padding:5px;
+  position:fixed;
+  width:50vw;
+  
+}
+
+
+
+p {
+  display:inline;
+  text-align: center;
+  color:white;
+    background: transparent
+    url(https://raw.githubusercontent.com/ThakaRashard/bubblegumpop/gh-pages/img/halfscreen-black.gif)
+    center repeat;
+}
+::selection {
+color: #F2E205;
+background: #595302;
+}
+
+p::first-letter {
+  font-size: 2rem;
+  font-weight: bold;
+  color: cyan;
+}
+p:first-of-type {
+  animation-duration: 4s;
+  animation-name: slidein;
+}
+h1,
+h2,
+h3 {
+  color: white;
+  background: transparent
+    url(https://raw.githubusercontent.com/ThakaRashard/bubblegumpop/gh-pages/img/halfscreen-black.gif)
+    center repeat;
+  font-weight: 900;
+  margin: 5px;
+  padding: 5px;
+  text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #fff, 0 0 40px #0ff,
+    0 0 80px #0ff, 0 0 90px #0ff, 0 0 100px #0ff, 0 0 150px #0ff;
+}
+h2 {
+  word-spacing: -.2ch;
+  font-kerning: auto;
+  letter-spacing: 2pt;
+  background: transparent
+   url(https://photojournal.jpl.nasa.gov/jpeg/PIA20753.jpg) center repeat;
+  font-size: 30pt;
+  color: white;
+  font-family: Cluster;
+  word-break: break-all; 
+  width: 100%;
+}
+/*
+#content {
+
+  border-radius:12px;
+  padding: 10px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  margin-right: 20em;
+  margin-left: 20em;  
+  /* opera does not like 'margin:20px auto' astrxneeded/
+  border: 0px solid #ccc;
+  text-align:left; 
+  voice-family: "\"}\"";
+  voice-family:inherit;
+  
+  }
+*/
+  
+ img {  max-height: 100%;
+  max-width: 100%;
+display:block;}
+img[alt*="USGS"] {width: 100%;border-bottom:solid 10px  #BF785E;}
+
+img[alt^="L"] {
+  width: 100%;
+  border-top:solid 10px #f4bf75;
+  
+  }
+
+img[alt*="USGS"] {
+  width: 100%;
+  border-bottom:solid 10px #c9ff23;
+  
+  }
+img[src*="nasa.gov"] {
+width: 100%;
+border-bottom:solid 5px #c9ff23;
+
+}
+img[alt="kk"] {
+  width: 100%;
+  
+}
+img[alt="whiteslavery"] {
+  max-width: 15%;
+  float: right;
+}
+img[alt="whiteslavery40"] {
+  max-width: 40%;
+  transform: rotate(45deg);
+}
+
+iframe {
+  width: 100%;
+  display: block;
+  text-align: center;
+}
+
+
+
+blockquote {
+  padding-left: 10px;
+  border-left: 1px dotted 
+}
+
+pre {
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 10px;
+  font-size: 16px;
+  color: #b5e853;
+  border-radius: 12px;
+  word-wrap: normal;
+  overflow: auto;
+  overflow-y: hidden;
+}
+
+code.highlighter-rouge {
+  background: rgba(0,0,0,0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 0px 3px;
+  margin: 0px -3px;
+  color: #aa759f;
+  border-radius: 12px;
+}
+
+table {
+  width: 100%;
+  margin: 0 0 20px 0;
+}
+
+th {
+  text-align: left;
+  border-bottom: 1px dashed #b5e853;
+  padding: 5px 10px;
+}
+
+td {
+  padding: 5px 10px;
+}
+
+hr {
+  height: 0;
+  border: 0;
+  border-bottom: 1px dashed #b5e853;
+  color: #b5e853;
+}
+
+/* Buttons
+*/
+
+a,
+a:hover,
+a:visited a:hover {
+  color: #c9ff23;
+}
+
+a {
+  color: #63c0f5;
+  text-shadow: 0 0 5px rgba(104, 182, 255, 0.5);
+}
+
+video {
+  border-radius:12px;
+  display: block;
+  margin-block: 10px 10px;
+    background: linear-gradient(45deg, 
+              #fb3 25%, #58a 0, #58a 50%,
+              #fb3 0, #fb3 75%, #58a 0);
+background-size: 80.4px 80.4px;
+  
+border-radius:12px;
+  transition: 4s cubic-bezier(.25,.1,.2,3);
+}
+
+video:hover {
+  border-radius:12px;
+  display: block;
+  margin-block: 10px 10px;
+  background: rgb(217,4,121);
+  background: linear-gradient(45deg, 
+              #fb3 25%, #58a 0, #58a 50%,
+              #fb3 0, #fb3 75%, #58a 0);
+background-size: 80.4px 80.4px;
+  
+
+}
+
+
+/* Clearfix */
+
+.twoPanelSpread {
+  border-radius:12px;
+  background-color: #00db46; /* For browsers that do not support gradients */
+  background-image: linear-gradient(to right, #e66250, #ff80cc);
+}
+
+.row {
+  border-radius:12px;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  width: 100%;
+  
+}
+
+.panelColumn {
+  display: flex;
+  flex-direction: column;
+  flex-basis: 100%;
+  flex: 1;
+  overflow: hidden;
+}
+
+
+.leftColumn {
+  /* background-color: #2470FF; */
+  width: 100%;
+}
+
+.leftColumn img {
+  
+    flex-shrink: 0;
+    min-width: 100%;
+    min-height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden
+  
+}
+
+.rightColumn {
+  /* background-color: #c9ff23; */
+}
+.rightColumn img { 
+ 
+    flex-shrink: 0;
+    min-width: 100%;
+    min-height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden
+}
+
+
+
+
+/* 3_TO_6 panel spread ##LAUREN_IS_MY_WIFE_AS_WELL_as_LAURA */
+
+.flex-container {
+  align-items: stretch;
+/* flex-flow: row nowrap; */
+flex-direction: row;
+flex-wrap: nowrap;
+  padding: 0px;
+justify-content: center;
+align-content: stretch;
+height: 100%;
+display: grid;
+grid-template-columns: auto auto auto;
+}
+
+.flex-container > div {
+border: 1px solid #c9ff23;
+  border-radius:12px;
+}
+
+.flex-container > img {
+object-fit: contain;
+max-width: 100%;
+border: 1px solid #c9ff23;
+  border-radius:12px
+
+}
+
+:root {
+  --magnifier: 8;
+  --gap: 0vmax;
+  --transition: 0.5s;
+}
+  
+
+
+@keyframes createbox {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+  
+}
+
+@keyframes slidein {
+  from {
+    margin-left: 100%;
+    width: 300%;
+        opacity: 0;
+    display: none;
+  }
+
+
+
+  to {
+    margin-left: 0%;
+    width: 100%;
+    opacity: 1;
+    display: block;
+  }
+}
+
+
+
+   
+    .flex3BorderedPaddedROW {
+  
+      display: flex;
+       align-items: stretch; 
+      /* flex-flow: row nowrap; */ 
+      flex-direction: row; 
+      flex-wrap: nowrap; 
+      justify-content: center;
+      align-content: stretch;
+      height: 100%;
+      padding: 15px;
+      gap: 5px;
+      
+          width:100%;
+      height:100%;
+      object-fit: cover;
+      overflow: hidden;
+  
+    }
+  
+    .flex3BorderedPaddedROW > div{
+     
+      border: 1px solid #c9ff23;
+      border-radius: 0px;
+      padding: 8px;
+    }
+  
+  
+    .flex3BorderedPaddedROW > img{
+     
+      border: 3px dotted #c9ff23;
+      border-radius: 0px;
+      padding: 8px;
+    }
+  
+  
+figure {
+    transition: all 0.5s linear;
+    border: thin #c0c0c0 solid;
+    display: flex;
+    flex-flow: column;
+    padding: 5px;
+    max-width: 220px;
+    margin: auto;
+    background: linear-gradient(
+      45deg,
+      #262626 25%,
+      #595959 0,
+      #595959 50%,
+      #262626 0,
+      #262626 75%,
+      #595959 0
+    );
+    background-size: 80.4px 80.4px;
+    background-attachment: fixed;
+    border-radius: 0px;
+  }
+  
+  figure:hover,
+  figure:focus,
+  figure:active {
+    background: linear-gradient(
+      45deg,
+      #db362d 25%,
+      #e8f5fd 0,
+      #e8f5fd 50%,
+      #db362d 0,
+      #db362d 75%,
+      #e8f5fd 0
+    );
+    background-size: 480.4px 480.4px;
+    background-attachment: fixed;
+    border-radius: 0px;
+    transform: scale(1.05);
+  }
+  figure {
+  }
+  
+  img {
+    border-radius: 10px 10px 0px 0px;
+    max-width: 220px;
+    max-height: auto;
+    transition: all 0.5s linear;
+  }
+  
+  img:hover {
+    transform: scale(1.05);
+  }
+  
+  figcaption {
+    background-color: #222;
+    color: #fff;
+    padding: 3px;
+    text-align: center;
+    transition: all 0.5s linear;
+  }
+  
+  figcaption:hover {
+    transform: scale(1.05);
+  }
+  audio {
+    background: white;
+    border-radius: 0px 0px 10px 10px;
+  }
+  
+  #playlist {
+    display: flex;
+    flex-flow: row wrap;
+    flex-direction: row;
+  }
+  
+  .track figure figcaption {
+    margin: 1px;
+    overflow: hidden;
+    flex: 1 1 200px;
+    border-radius: 0.3em;
+    transition: all 0.5s linear;
+    box-shadow: 0 0 0 1px hsla(0, 9%, 1%, 0.3) outset 0 0.5em 1em
+      rgba(0, 0, 0, 0.1);
+    text-shadow: 0 1px 1px hsla(0, 0%, 100%, 0.3);
+  }
+  
+  .track:hover,
+  .track:focus,
+  .track:active {
+    -webkit-transform: scale(1.05);
+    -moz-transform: scale(1.05);
+    transform: scale(1.09);
+  }
+  
+  .track {
+  }
+  
+  .track > img {
+    width: 100%;
+  
+    transition: all 0.5s linear;
+  }
+  
+  audio {
+    max-width: 100%;
+    transition: all 0.5s linear;
+  }
+  
+  audio:hover,
+  audio:focus,
+  audio:active {
+    -webkit-transform: scale(1.05);
+    -moz-transform: scale(1.05);
+    transform: scale(1.05);
+  }
+  
+      
+    </style>
+  </head>
+  
+  
+  <body markdown="1">
+    <div id="wrapper">
+       <div id="heading">
+  
+      <div>./HoleToAnotherUniverse
+  
+      </div>      
+  
+    </div>
+  
+ <div id="main">
+    
+        <h1 id="งツว-normani--͜ʖ͡">(งツ)ว Normani (° ͜ʖ͡°)╭∩╮</h1>
+<h3 id="is-that-all-there-is---peggy-lee"><a href="https://www.youtube.com/watch?v=QPP6UgkmyM4">Is That All There Is? - Peggy Lee</a></h3>
+<h1 id="‿つ-normani">⊂(◉‿◉)つ Normani</h1>
+<p>im still your friend, i think u will like this <a href="https://youtu.be/KHDOj2QxAfQ?t=483">Hexstatic - Solid Steel Presents Hexstatic: Listen &amp; Learn (full mix-CD)</a>
+i wrote u a not on <a href="ricothaka.github.io">my page</a></p>
+<iframe width="960" height="540" src="https://www.youtube.com/embed/F6wnB3Aa8TI" title="Count Basie - Have A Nice Day" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen=""></iframe>
+<h3 id="learning-linux">learning Linux</h3>
+<p><a href="https://linuxjourney.com/">Linux Journey</a> <a href="https://distrosea.com/">DistroSea: Test Linux distros online</a></p>
+<a href="https://www.youtube.com/watch?v=Cg1j3kMD2a4">Must Be dues - Melba Moore - song</a></p>
+
+<p>JAY-Z - The Story of O.J. <a href="https://www.billboard.com/music/rb-hip-hop/jay-z-goes-thanks-influences-songwriters-hall-twitter-7833773/">Jay Z Goes on Twitter Spree Thanking Influences After Songwriters Hall of Fame Induction</a> 
+<a href="https://youtu.be/nUa32C6LuDE?si=E23brWEiJBr4xfuk">Sevyn Streeter On 76ers Stopping Her From Wearing “We Matter” Shirt</a> <a href="https://www.youtube.com/watch?v=Y2TbLohPKI0">The Breakfast Club Classic - Jay Z Interview 2013</a> <a href="https://www.youtube.com/watch?v=SM9oFokxCKw">Sevyn Streeter Perfoms in We Matter Jersey</a>  <a href="https://x.com/thakasartu/media">Media Upload ThakaSartu</a> <a href="https://thakasartu.github.io/">Thakasartu bulliten board of sorts on github [css archive]</a> <a href="https://youtu.be/yS_GWY6B_y8?si=OgN1CE7OerTzRYUZ">Kevin Hart Exposes Disturbing Party Footage Of Diddy.. (Exclusive)</a> <a href="https://www.youtube.com/watch?v=XRxItoK6wKc">Jay-Z - Things That U Do (Feat. Mariah Carey)</a> <a href="https://youtu.be/pPoFtP-65sM?si=A2jrbVpkfGIrovgy">Tru Playaz</a> 
+ #ivf <a href="https://x.com/thakasartu/likes">Likes on ThakaSartu</a> 
+<a href="https://x.com/MooNLOVER404/">ThakaRashard on Twitter</a> <a href="https://thakarashard.github.io/computer_dmz">Thakarashard.github.io/computer_dmz</a> <a href="https://thakarashard.github.io/civic01">HOLE_TO_ANOTHER_UNiVERSE watch Smokey and The Bandit</a> <a href="https://x.com/RicoThaka/with_replies">@RicoThaka Follows US GovernMent Often on Twitter</a> <a href="https://x.com/RicoThaka/media">RicoThaka uploaded twitter Media</a>
+<a href="https://thakarashard.github.io/civic01">LocalLosAngeles</a> <a href="https://thakarashard.github.io/computer_dmz">Computing Notes</a> <a href="https://thakarashard.github.io/news">NewBits+Notes</a> <a href="https://thakarashard.github.io/thefam_dmz">FamilyNotes</a><a href="https://www.youtube.com/watch?v=pmmnzusZZMU">Take It In Blood - SonG</a> <a href="https://www.osha.gov/workers/">Occupational Safety and Health Administration 200 Constitution Ave NW Washington, DC 20210</a> OSHA Worker Rights and Protections <a href="https://youtu.be/scSQc9iauuw?si=1ZyjOYql9RLrm8cX">Psychological impact of false accusations of sexual abuse</a> <a href="https://youtu.be/Zn3N9aWmtF4?si=6EzHCpyRh6fjID9a">Queens 5 (2024 Hottest Female Rappers - Cypher Like Mix)</a> <a href="https://youtu.be/wgHvxnTN4Nk?si=O4ByUUq2YLUFieB_">Magic Mountain - EriC Burton and WAR [delasoulpotholes]</a> <a href="https://www.youtube.com/watch?v=CJBAurWDcdY">Moneybagg Yo &amp; Glorilla - Hate Me ft. Sexyy Red &amp; 42 Dugg (Music Video) 2024</a></p>
+
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/6lYDGzCvbgw?si=7AuHPFGSrlyb1hdb" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen=""></iframe>
+
+<p><a href="https://www.youtube.com/watch?v=0dtGIjbe0r0&amp;t=91s">Magic Citys Mr Magic Reveals How He Created ATLs #1 Strip Club Sip N Smoke With Cam Newton</a></p>
+
+<p><img src="https://pbs.twimg.com/media/GI5yXXCbAAAQ2Gk?format=jpg&amp;name=large" alt="Bill cosby Playboy at night" /></p>
+<iframe loading="lazy" src="https://archive.org/embed/playboy-after-dark-s01e03-1968-08-08" width="640" height="480" frameborder="0" webkitallowfullscreen="true" mozallowfullscreen="true" allowfullscreen=""></iframe>
+
+<p><img src="https://pbs.twimg.com/media/GI5yWb7akAArdPh?format=jpg&amp;name=large" alt="Bill cosby Playboy at night" />
+<img src="https://pbs.twimg.com/media/GIlEzEebQAACahw?format=jpg&amp;name=large" alt="xml" /></p>
+
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/tMk_Y2p_oRY?si=gCGMLG4SS5GreSne" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen=""></iframe>
+
+<p><a href="https://www.loc.gov/item/ca1261/#:~:text=Los%20Angeles%20City%20Hall%2C%20200,County%2C%20CA%20%7C%20Library%20of%20Congress">Los Angeles City Hall, 200 North Spring Street, Los Angeles, Los Angeles County, CA</a></p>
+
+
+
+</div>
+      <div id="footer">
+  
+      <div>./HoleToAnotherUniverse</div>
+  
+    </div>
+      </div>
+      <script type="text/javascript" src="/js/lightbox.js"></script>
+      <link rel="stylesheet" href="/css/lightbox.css">
+  </body>
+
+  
+</html>
