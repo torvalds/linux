@@ -1727,10 +1727,10 @@ EXPORT_SYMBOL_GPL(svc_encode_result_payload);
  * Fills in rqstp::rq_vec, and returns the number of elements.
  */
 unsigned int svc_fill_write_vector(struct svc_rqst *rqstp,
-				   struct xdr_buf *payload)
+				   const struct xdr_buf *payload)
 {
+	const struct kvec *first = payload->head;
 	struct page **pages = payload->pages;
-	struct kvec *first = payload->head;
 	struct kvec *vec = rqstp->rq_vec;
 	size_t total = payload->len;
 	unsigned int i;
