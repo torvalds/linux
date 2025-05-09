@@ -439,8 +439,8 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 						  start, data_alloc_len, false);
 		if (!ret)
 			dio_data->data_space_reserved = true;
-		else if (ret && !(BTRFS_I(inode)->flags &
-				  (BTRFS_INODE_NODATACOW | BTRFS_INODE_PREALLOC)))
+		else if (!(BTRFS_I(inode)->flags &
+			   (BTRFS_INODE_NODATACOW | BTRFS_INODE_PREALLOC)))
 			goto err;
 	}
 
