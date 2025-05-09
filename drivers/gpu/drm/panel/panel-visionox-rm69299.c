@@ -72,30 +72,24 @@ static int visionox_rm69299_power_off(struct visionox_rm69299 *ctx)
 static int visionox_rm69299_unprepare(struct drm_panel *panel)
 {
 	struct visionox_rm69299 *ctx = panel_to_ctx(panel);
-	int ret;
+	struct mipi_dsi_multi_context dsi_ctx = { .dsi = ctx->dsi };
 
 	ctx->dsi->mode_flags = 0;
 
-	ret = mipi_dsi_dcs_write(ctx->dsi, MIPI_DCS_SET_DISPLAY_OFF, NULL, 0);
-	if (ret < 0)
-		dev_err(ctx->panel.dev, "set_display_off cmd failed ret = %d\n", ret);
+	mipi_dsi_dcs_set_display_off_multi(&dsi_ctx);
 
 	/* 120ms delay required here as per DCS spec */
-	msleep(120);
+	mipi_dsi_msleep(&dsi_ctx, 120);
 
-	ret = mipi_dsi_dcs_write(ctx->dsi, MIPI_DCS_ENTER_SLEEP_MODE, NULL, 0);
-	if (ret < 0) {
-		dev_err(ctx->panel.dev, "enter_sleep cmd failed ret = %d\n", ret);
-	}
+	mipi_dsi_dcs_enter_sleep_mode_multi(&dsi_ctx);
 
-	ret = visionox_rm69299_power_off(ctx);
-
-	return ret;
+	return visionox_rm69299_power_off(ctx);
 }
 
 static int visionox_rm69299_prepare(struct drm_panel *panel)
 {
 	struct visionox_rm69299 *ctx = panel_to_ctx(panel);
+	struct mipi_dsi_multi_context dsi_ctx = { .dsi = ctx->dsi };
 	int ret, i;
 
 	ret = visionox_rm69299_power_on(ctx);
@@ -104,36 +98,20 @@ static int visionox_rm69299_prepare(struct drm_panel *panel)
 
 	ctx->dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 
-	for (i = 0; i < ctx->desc->init_seq_len; i++) {
-		ret = mipi_dsi_dcs_write_buffer(ctx->dsi, &ctx->desc->init_seq[i * 2], 2);
-		if (ret < 0) {
-			dev_err(ctx->panel.dev,	"cmd tx failed, ret = %d\n", ret);
-			return ret;
-		}
-	}
+	for (i = 0; i < ctx->desc->init_seq_len; i++)
+		mipi_dsi_dcs_write_buffer_multi(&dsi_ctx, &ctx->desc->init_seq[i * 2], 2);
 
-	ret = mipi_dsi_dcs_write(ctx->dsi, MIPI_DCS_EXIT_SLEEP_MODE, NULL, 0);
-	if (ret < 0) {
-		dev_err(ctx->panel.dev, "exit_sleep_mode cmd failed ret = %d\n", ret);
-		goto power_off;
-	}
+	mipi_dsi_dcs_exit_sleep_mode_multi(&dsi_ctx);
 
 	/* Per DSI spec wait 120ms after sending exit sleep DCS command */
-	msleep(120);
+	mipi_dsi_msleep(&dsi_ctx, 120);
 
-	ret = mipi_dsi_dcs_write(ctx->dsi, MIPI_DCS_SET_DISPLAY_ON, NULL, 0);
-	if (ret < 0) {
-		dev_err(ctx->panel.dev, "set_display_on cmd failed ret = %d\n", ret);
-		goto power_off;
-	}
+	mipi_dsi_dcs_set_display_on_multi(&dsi_ctx);
 
 	/* Per DSI spec wait 120ms after sending set_display_on DCS command */
-	msleep(120);
+	mipi_dsi_msleep(&dsi_ctx, 120);
 
-	return 0;
-
-power_off:
-	return ret;
+	return dsi_ctx.accum_err;
 }
 
 static const struct drm_display_mode visionox_rm69299_1080x2248_60hz = {
