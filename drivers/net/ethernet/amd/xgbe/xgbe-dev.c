@@ -11,9 +11,11 @@
 #include <linux/bitrev.h>
 #include <linux/crc32.h>
 #include <linux/crc32poly.h>
+#include <linux/pci.h>
 
 #include "xgbe.h"
 #include "xgbe-common.h"
+#include "xgbe-smn.h"
 
 static inline unsigned int xgbe_get_max_frame(struct xgbe_prv_data *pdata)
 {
@@ -1080,6 +1082,84 @@ static void xgbe_get_pcs_index_and_offset(struct xgbe_prv_data *pdata,
 	*offset = pdata->xpcs_window + (mmd_address & pdata->xpcs_window_mask);
 }
 
+static int xgbe_read_mmd_regs_v3(struct xgbe_prv_data *pdata, int prtad,
+				 int mmd_reg)
+{
+	unsigned int mmd_address, index, offset;
+	u32 smn_address;
+	int mmd_data;
+	int ret;
+
+	mmd_address = xgbe_get_mmd_address(pdata, mmd_reg);
+
+	xgbe_get_pcs_index_and_offset(pdata, mmd_address, &index, &offset);
+
+	smn_address = pdata->smn_base + pdata->xpcs_window_sel_reg;
+	ret = amd_smn_write(0, smn_address, index);
+	if (ret)
+		return ret;
+
+	ret = amd_smn_read(0, pdata->smn_base + offset, &mmd_data);
+	if (ret)
+		return ret;
+
+	mmd_data = (offset % 4) ? FIELD_GET(XGBE_GEN_HI_MASK, mmd_data) :
+				  FIELD_GET(XGBE_GEN_LO_MASK, mmd_data);
+
+	return mmd_data;
+}
+
+static void xgbe_write_mmd_regs_v3(struct xgbe_prv_data *pdata, int prtad,
+				   int mmd_reg, int mmd_data)
+{
+	unsigned int pci_mmd_data, hi_mask, lo_mask;
+	unsigned int mmd_address, index, offset;
+	struct pci_dev *dev;
+	u32 smn_address;
+	int ret;
+
+	dev = pdata->pcidev;
+	mmd_address = xgbe_get_mmd_address(pdata, mmd_reg);
+
+	xgbe_get_pcs_index_and_offset(pdata, mmd_address, &index, &offset);
+
+	smn_address = pdata->smn_base + pdata->xpcs_window_sel_reg;
+	ret = amd_smn_write(0, smn_address, index);
+	if (ret) {
+		pci_err(dev, "Failed to write data 0x%x\n", index);
+		return;
+	}
+
+	ret = amd_smn_read(0, pdata->smn_base + offset, &pci_mmd_data);
+	if (ret) {
+		pci_err(dev, "Failed to read data\n");
+		return;
+	}
+
+	if (offset % 4) {
+		hi_mask = FIELD_PREP(XGBE_GEN_HI_MASK, mmd_data);
+		lo_mask = FIELD_GET(XGBE_GEN_LO_MASK, pci_mmd_data);
+	} else {
+		hi_mask = FIELD_PREP(XGBE_GEN_HI_MASK,
+				     FIELD_GET(XGBE_GEN_HI_MASK, pci_mmd_data));
+		lo_mask = FIELD_GET(XGBE_GEN_LO_MASK, mmd_data);
+	}
+
+	pci_mmd_data = hi_mask | lo_mask;
+
+	ret = amd_smn_write(0, smn_address, index);
+	if (ret) {
+		pci_err(dev, "Failed to write data 0x%x\n", index);
+		return;
+	}
+
+	ret = amd_smn_write(0, (pdata->smn_base + offset), pci_mmd_data);
+	if (ret) {
+		pci_err(dev, "Failed to write data 0x%x\n", pci_mmd_data);
+		return;
+	}
+}
+
 static int xgbe_read_mmd_regs_v2(struct xgbe_prv_data *pdata, int prtad,
 				 int mmd_reg)
 {
@@ -1174,6 +1254,9 @@ static int xgbe_read_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
 	case XGBE_XPCS_ACCESS_V2:
 	default:
 		return xgbe_read_mmd_regs_v2(pdata, prtad, mmd_reg);
+
+	case XGBE_XPCS_ACCESS_V3:
+		return xgbe_read_mmd_regs_v3(pdata, prtad, mmd_reg);
 	}
 }
 
@@ -1183,6 +1266,9 @@ static void xgbe_write_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
 	switch (pdata->vdata->xpcs_access) {
 	case XGBE_XPCS_ACCESS_V1:
 		return xgbe_write_mmd_regs_v1(pdata, prtad, mmd_reg, mmd_data);
+
+	case XGBE_XPCS_ACCESS_V3:
+		return xgbe_write_mmd_regs_v3(pdata, prtad, mmd_reg, mmd_data);
 
 	case XGBE_XPCS_ACCESS_V2:
 	default:
