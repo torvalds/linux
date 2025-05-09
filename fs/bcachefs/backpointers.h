@@ -182,7 +182,8 @@ struct bkey_s_c bch2_backpointer_get_key(struct btree_trans *, struct bkey_s_c_b
 struct btree *bch2_backpointer_get_node(struct btree_trans *, struct bkey_s_c_backpointer,
 					struct btree_iter *, struct bkey_buf *);
 
-int bch2_check_bucket_backpointer_mismatch(struct btree_trans *, struct bpos, struct bkey_buf *);
+int bch2_check_bucket_backpointer_mismatch(struct btree_trans *, struct bch_dev *, u64,
+					   bool, struct bkey_buf *);
 
 int bch2_check_btree_backpointers(struct bch_fs *);
 int bch2_check_extents_to_backpointers(struct bch_fs *);

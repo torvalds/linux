@@ -12,6 +12,7 @@
 #include "disk_accounting.h"
 #include "error.h"
 #include "progress.h"
+#include "recovery_passes.h"
 
 #include <linux/mm.h>
 
@@ -804,6 +805,13 @@ static int bch2_get_btree_in_memory_pos(struct btree_trans *trans,
 	return ret;
 }
 
+static inline int bch2_fs_going_ro(struct bch_fs *c)
+{
+	return test_bit(BCH_FS_going_ro, &c->flags)
+		? -EROFS
+		: 0;
+}
+
 static int bch2_check_extents_to_backpointers_pass(struct btree_trans *trans,
 						   struct extents_to_bp_state *s)
 {
@@ -831,6 +839,7 @@ static int bch2_check_extents_to_backpointers_pass(struct btree_trans *trans,
 
 			ret = for_each_btree_key_continue(trans, iter, 0, k, ({
 				bch2_progress_update_iter(trans, &progress, &iter, "extents_to_backpointers");
+				bch2_fs_going_ro(c) ?:
 				check_extent_to_backpointers(trans, s, btree_id, level, k) ?:
 				bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
 			}));
@@ -870,12 +879,15 @@ static int data_type_to_alloc_counter(enum bch_data_type t)
 static int check_bucket_backpointers_to_extents(struct btree_trans *, struct bch_dev *, struct bpos);
 
 static int check_bucket_backpointer_mismatch(struct btree_trans *trans, struct bkey_s_c alloc_k,
+					     bool *had_mismatch,
 					     struct bkey_buf *last_flushed)
 {
 	struct bch_fs *c = trans->c;
 	struct bch_alloc_v4 a_convert;
 	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(alloc_k, &a_convert);
 	bool need_commit = false;
+
+	*had_mismatch = false;
 
 	if (a->data_type == BCH_DATA_sb ||
 	    a->data_type == BCH_DATA_journal ||
@@ -957,6 +969,8 @@ static int check_bucket_backpointer_mismatch(struct btree_trans *trans, struct b
 			 ? bch2_bucket_bitmap_set(ca, &ca->bucket_backpointer_empty,
 						  alloc_k.k->p.offset)
 			 : 0);
+
+		*had_mismatch = true;
 	}
 err:
 	bch2_dev_put(ca);
@@ -1104,7 +1118,9 @@ int bch2_check_extents_to_backpointers(struct bch_fs *c)
 
 	ret = for_each_btree_key(trans, iter, BTREE_ID_alloc,
 				 POS_MIN, BTREE_ITER_prefetch, k, ({
-		check_bucket_backpointer_mismatch(trans, k, &s.last_flushed);
+		bool had_mismatch;
+		bch2_fs_going_ro(c) ?:
+		check_bucket_backpointer_mismatch(trans, k, &had_mismatch, &s.last_flushed);
 	}));
 	if (ret)
 		goto err;
@@ -1150,18 +1166,67 @@ int bch2_check_extents_to_backpointers(struct bch_fs *c)
 
 		s.bp_start = bpos_successor(s.bp_end);
 	}
-err:
-	bch2_trans_put(trans);
-	bch2_bkey_buf_exit(&s.last_flushed, c);
-	bch2_btree_cache_unpin(c);
 
 	for_each_member_device(c, ca) {
 		bch2_bucket_bitmap_free(&ca->bucket_backpointer_mismatch);
 		bch2_bucket_bitmap_free(&ca->bucket_backpointer_empty);
 	}
+err:
+	bch2_trans_put(trans);
+	bch2_bkey_buf_exit(&s.last_flushed, c);
+	bch2_btree_cache_unpin(c);
 
 	bch_err_fn(c, ret);
 	return ret;
+}
+
+static int check_bucket_backpointer_pos_mismatch(struct btree_trans *trans,
+						 struct bpos bucket,
+						 bool *had_mismatch,
+						 struct bkey_buf *last_flushed)
+{
+	struct btree_iter alloc_iter;
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, &alloc_iter,
+					       BTREE_ID_alloc, bucket,
+					       BTREE_ITER_cached);
+	int ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	ret = check_bucket_backpointer_mismatch(trans, k, had_mismatch, last_flushed);
+	bch2_trans_iter_exit(trans, &alloc_iter);
+	return ret;
+}
+
+int bch2_check_bucket_backpointer_mismatch(struct btree_trans *trans,
+					   struct bch_dev *ca, u64 bucket,
+					   bool copygc,
+					   struct bkey_buf *last_flushed)
+{
+	struct bch_fs *c = trans->c;
+	bool had_mismatch;
+	int ret = lockrestart_do(trans,
+		check_bucket_backpointer_pos_mismatch(trans, POS(ca->dev_idx, bucket),
+						      &had_mismatch, last_flushed));
+	if (ret || !had_mismatch)
+		return ret;
+
+	u64 nr = ca->bucket_backpointer_mismatch.nr;
+	u64 allowed = copygc ? ca->mi.nbuckets >> 7 : 0;
+
+	struct printbuf buf = PRINTBUF;
+	__bch2_log_msg_start(ca->name, &buf);
+
+	prt_printf(&buf, "Detected missing backpointers in bucket %llu, now have %llu/%llu with missing\n",
+		   bucket, nr, ca->mi.nbuckets);
+
+	bch2_run_explicit_recovery_pass(c, &buf,
+			BCH_RECOVERY_PASS_check_extents_to_backpointers,
+			nr < allowed ? RUN_RECOVERY_PASS_ratelimit : 0);
+
+	bch2_print_str(c, KERN_ERR, buf.buf);
+	printbuf_exit(&buf);
+	return 0;
 }
 
 /* backpointers -> extents */

@@ -815,6 +815,7 @@ static int __bch2_move_data_phys(struct moving_context *ctxt,
 			u64 bucket_start,
 			u64 bucket_end,
 			unsigned data_types,
+			bool copygc,
 			move_pred_fn pred, void *arg)
 {
 	struct btree_trans *trans = ctxt->trans;
@@ -825,6 +826,7 @@ static int __bch2_move_data_phys(struct moving_context *ctxt,
 	struct bkey_buf sk;
 	struct bkey_s_c k;
 	struct bkey_buf last_flushed;
+	u64 check_mismatch_done = bucket_start;
 	int ret = 0;
 
 	struct bch_dev *ca = bch2_dev_tryget(c, dev);
@@ -835,8 +837,6 @@ static int __bch2_move_data_phys(struct moving_context *ctxt,
 
 	struct bpos bp_start	= bucket_pos_to_bp_start(ca, POS(dev, bucket_start));
 	struct bpos bp_end	= bucket_pos_to_bp_end(ca, POS(dev, bucket_end));
-	bch2_dev_put(ca);
-	ca = NULL;
 
 	bch2_bkey_buf_init(&last_flushed);
 	bkey_init(&last_flushed.k->k);
@@ -870,6 +870,14 @@ static int __bch2_move_data_phys(struct moving_context *ctxt,
 
 		if (!k.k || bkey_gt(k.k->p, bp_end))
 			break;
+
+		if (check_mismatch_done < bp_pos_to_bucket(ca, k.k->p).offset) {
+			while (check_mismatch_done < bp_pos_to_bucket(ca, k.k->p).offset) {
+				bch2_check_bucket_backpointer_mismatch(trans, ca, check_mismatch_done++,
+								       copygc, &last_flushed);
+			}
+			continue;
+		}
 
 		if (k.k->type != KEY_TYPE_backpointer)
 			goto next;
@@ -946,10 +954,15 @@ static int __bch2_move_data_phys(struct moving_context *ctxt,
 next:
 		bch2_btree_iter_advance(trans, &bp_iter);
 	}
+
+	while (check_mismatch_done < bucket_end)
+		bch2_check_bucket_backpointer_mismatch(trans, ca, check_mismatch_done++,
+						       copygc, &last_flushed);
 err:
 	bch2_trans_iter_exit(trans, &bp_iter);
 	bch2_bkey_buf_exit(&sk, c);
 	bch2_bkey_buf_exit(&last_flushed, c);
+	bch2_dev_put(ca);
 	return ret;
 }
 
@@ -974,7 +987,8 @@ int bch2_move_data_phys(struct bch_fs *c,
 		ctxt.stats->data_type = (int) DATA_PROGRESS_DATA_TYPE_phys;
 	}
 
-	int ret = __bch2_move_data_phys(&ctxt, NULL, dev, start, end, data_types, pred, arg);
+	int ret = __bch2_move_data_phys(&ctxt, NULL, dev, start, end,
+					data_types, false, pred, arg);
 	bch2_moving_ctxt_exit(&ctxt);
 
 	return ret;
@@ -1019,6 +1033,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 				   bucket.offset,
 				   bucket.offset + 1,
 				   ~0,
+				   true,
 				   evacuate_bucket_pred, &arg);
 }
 

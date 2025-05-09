@@ -2175,8 +2175,11 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 	BUG_ON(a->data_type != BCH_DATA_cached);
 	BUG_ON(a->dirty_sectors);
 
-	if (!a->cached_sectors)
-		bch_err(c, "invalidating empty bucket, confused");
+	if (!a->cached_sectors) {
+		bch2_check_bucket_backpointer_mismatch(trans, ca, bucket.offset,
+						       true, last_flushed);
+		goto out;
+	}
 
 	unsigned cached_sectors = a->cached_sectors;
 	u8 gen = a->gen;
