@@ -151,8 +151,7 @@ EXPORT_SYMBOL_GPL(nfs_localio_enable_client);
  */
 static bool nfs_uuid_put(nfs_uuid_t *nfs_uuid)
 {
-	LIST_HEAD(local_files);
-	struct nfs_file_localio *nfl, *tmp;
+	struct nfs_file_localio *nfl;
 
 	spin_lock(&nfs_uuid->lock);
 	if (unlikely(!rcu_access_pointer(nfs_uuid->net))) {
@@ -166,36 +165,48 @@ static bool nfs_uuid_put(nfs_uuid_t *nfs_uuid)
 		nfs_uuid->dom = NULL;
 	}
 
-	list_splice_init(&nfs_uuid->files, &local_files);
-	spin_unlock(&nfs_uuid->lock);
-
 	/* Walk list of files and ensure their last references dropped */
-	list_for_each_entry_safe(nfl, tmp, &local_files, list) {
+
+	while ((nfl = list_first_entry_or_null(&nfs_uuid->files,
+					       struct nfs_file_localio,
+					       list)) != NULL) {
 		struct nfsd_file *ro_nf;
 		struct nfsd_file *rw_nf;
+
+		/* If nfs_uuid is already NULL, nfs_close_local_fh is
+		 * closing and we must wait, else we unlink and close.
+		 */
+		if (rcu_access_pointer(nfl->nfs_uuid) == NULL) {
+			/* nfs_close_local_fh() is doing the
+			 * close and we must wait. until it unlinks
+			 */
+			wait_var_event_spinlock(nfl,
+						list_first_entry_or_null(
+							&nfs_uuid->files,
+							struct nfs_file_localio,
+							list) != nfl,
+						&nfs_uuid->lock);
+			continue;
+		}
 
 		ro_nf = unrcu_pointer(xchg(&nfl->ro_file, NULL));
 		rw_nf = unrcu_pointer(xchg(&nfl->rw_file, NULL));
 
-		spin_lock(&nfs_uuid->lock);
 		/* Remove nfl from nfs_uuid->files list */
 		list_del_init(&nfl->list);
 		spin_unlock(&nfs_uuid->lock);
-		/* Now we can allow racing nfs_close_local_fh() to
-		 * skip the locking.
-		 */
-		RCU_INIT_POINTER(nfl->nfs_uuid, NULL);
-
 		if (ro_nf)
 			nfs_to_nfsd_file_put_local(ro_nf);
 		if (rw_nf)
 			nfs_to_nfsd_file_put_local(rw_nf);
-
 		cond_resched();
+		spin_lock(&nfs_uuid->lock);
+		/* Now we can allow racing nfs_close_local_fh() to
+		 * skip the locking.
+		 */
+		RCU_INIT_POINTER(nfl->nfs_uuid, NULL);
+		wake_up_var_locked(&nfl->nfs_uuid, &nfs_uuid->lock);
 	}
-
-	spin_lock(&nfs_uuid->lock);
-	BUG_ON(!list_empty(&nfs_uuid->files));
 
 	/* Remove client from nn->local_clients */
 	if (nfs_uuid->list_lock) {
@@ -304,23 +315,43 @@ void nfs_close_local_fh(struct nfs_file_localio *nfl)
 		return;
 	}
 
-	ro_nf = unrcu_pointer(xchg(&nfl->ro_file, NULL));
-	rw_nf = unrcu_pointer(xchg(&nfl->rw_file, NULL));
-
 	spin_lock(&nfs_uuid->lock);
-	/* Remove nfl from nfs_uuid->files list */
-	list_del_init(&nfl->list);
+	if (!rcu_access_pointer(nfl->nfs_uuid)) {
+		/* nfs_uuid_put has finished here */
+		spin_unlock(&nfs_uuid->lock);
+		rcu_read_unlock();
+		return;
+	}
+	if (list_empty(&nfs_uuid->files)) {
+		/* nfs_uuid_put() has started closing files, wait for it
+		 * to finished
+		 */
+		spin_unlock(&nfs_uuid->lock);
+		rcu_read_unlock();
+		wait_var_event(&nfl->nfs_uuid,
+			       rcu_access_pointer(nfl->nfs_uuid) == NULL);
+		return;
+	}
+	/* tell nfs_uuid_put() to wait for us */
+	RCU_INIT_POINTER(nfl->nfs_uuid, NULL);
 	spin_unlock(&nfs_uuid->lock);
 	rcu_read_unlock();
-	/* Now we can allow racing nfs_close_local_fh() to
-	 * skip the locking.
-	 */
-	RCU_INIT_POINTER(nfl->nfs_uuid, NULL);
 
+	ro_nf = unrcu_pointer(xchg(&nfl->ro_file, NULL));
+	rw_nf = unrcu_pointer(xchg(&nfl->rw_file, NULL));
 	if (ro_nf)
 		nfs_to_nfsd_file_put_local(ro_nf);
 	if (rw_nf)
 		nfs_to_nfsd_file_put_local(rw_nf);
+
+	/* Remove nfl from nfs_uuid->files list and signal nfs_uuid_put()
+	 * that we are done.  The moment we drop the spinlock the
+	 * nfs_uuid could be freed.
+	 */
+	spin_lock(&nfs_uuid->lock);
+	list_del_init(&nfl->list);
+	wake_up_var_locked(&nfl->nfs_uuid, &nfs_uuid->lock);
+	spin_unlock(&nfs_uuid->lock);
 }
 EXPORT_SYMBOL_GPL(nfs_close_local_fh);
 
