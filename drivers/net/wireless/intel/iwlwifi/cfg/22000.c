@@ -83,11 +83,11 @@ static const struct iwl_family_base_params iwl_22000_base = {
 			.mask = 0xffffffff,
 		},
 	},
+	.ucode_api_min = IWL_22000_UCODE_API_MIN,
+	.ucode_api_max = IWL_22000_UCODE_API_MAX,
 };
 
 #define IWL_DEVICE_22500						\
-	.ucode_api_min = IWL_22000_UCODE_API_MIN,			\
-	.ucode_api_max = IWL_22000_UCODE_API_MAX,			\
 	.led_mode = IWL_LED_RF_STATE,					\
 	.non_shared_ant = ANT_B,					\
 	.vht_mu_mimo_supported = true,					\

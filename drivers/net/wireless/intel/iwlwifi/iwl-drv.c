@@ -291,11 +291,36 @@ IWL_EXPORT_SYMBOL(iwl_drv_get_fwname_pre);
 static void iwl_req_fw_callback(const struct firmware *ucode_raw,
 				void *context);
 
+static void iwl_get_ucode_api_versions(struct iwl_trans *trans,
+				       unsigned int *api_min,
+				       unsigned int *api_max)
+{
+	const struct iwl_family_base_params *base = trans->mac_cfg->base;
+	const struct iwl_cfg *cfg = trans->cfg;
+
+	if (!base->ucode_api_max) {
+		*api_min = cfg->ucode_api_min;
+		*api_max = cfg->ucode_api_max;
+		return;
+	}
+
+	if (!cfg->ucode_api_max) {
+		*api_min = base->ucode_api_min;
+		*api_max = base->ucode_api_max;
+		return;
+	}
+
+	*api_min = max(cfg->ucode_api_min, base->ucode_api_min);
+	*api_max = min(cfg->ucode_api_max, base->ucode_api_max);
+}
+
 static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 {
-	const struct iwl_cfg *cfg = drv->trans->cfg;
 	char _fw_name_pre[FW_NAME_PRE_BUFSIZE];
+	unsigned int ucode_api_max, ucode_api_min;
 	const char *fw_name_pre;
+
+	iwl_get_ucode_api_versions(drv->trans, &ucode_api_min, &ucode_api_max);
 
 	if (drv->trans->mac_cfg->device_family == IWL_DEVICE_FAMILY_9000 &&
 	    (drv->trans->info.hw_rev_step != SILICON_B_STEP &&
@@ -309,21 +334,21 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	fw_name_pre = iwl_drv_get_fwname_pre(drv->trans, _fw_name_pre);
 
 	if (first)
-		drv->fw_index = cfg->ucode_api_max;
+		drv->fw_index = ucode_api_max;
 	else
 		drv->fw_index--;
 
-	if (drv->fw_index < cfg->ucode_api_min) {
+	if (drv->fw_index < ucode_api_min) {
 		IWL_ERR(drv, "no suitable firmware found!\n");
 
-		if (cfg->ucode_api_min == cfg->ucode_api_max) {
+		if (ucode_api_min == ucode_api_max) {
 			IWL_ERR(drv, "%s-%d is required\n", fw_name_pre,
-				cfg->ucode_api_max);
+				ucode_api_max);
 		} else {
 			IWL_ERR(drv, "minimum version required: %s-%d\n",
-				fw_name_pre, cfg->ucode_api_min);
+				fw_name_pre, ucode_api_min);
 			IWL_ERR(drv, "maximum version supported: %s-%d\n",
-				fw_name_pre, cfg->ucode_api_max);
+				fw_name_pre, ucode_api_max);
 		}
 
 		IWL_ERR(drv,
@@ -1554,13 +1579,14 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	struct iwlwifi_opmode_table *op;
 	int err;
 	struct iwl_firmware_pieces *pieces;
-	const unsigned int api_max = drv->trans->cfg->ucode_api_max;
-	const unsigned int api_min = drv->trans->cfg->ucode_api_min;
+	unsigned int api_min, api_max;
 	size_t trigger_tlv_sz[FW_DBG_TRIGGER_MAX];
 	u32 api_ver;
 	int i;
 	bool usniffer_images = false;
 	bool failure = true;
+
+	iwl_get_ucode_api_versions(drv->trans, &api_min, &api_max);
 
 	fw->ucode_capa.max_probe_length = IWL_DEFAULT_MAX_PROBE_LENGTH;
 	fw->ucode_capa.standard_phy_calibration_size =

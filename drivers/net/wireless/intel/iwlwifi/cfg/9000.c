@@ -72,6 +72,8 @@ static const struct iwl_family_base_params iwl9000_base = {
 			.mask = 0xffffffff,
 		},
 	},
+	.ucode_api_max = IWL9000_UCODE_API_MAX,
+	.ucode_api_min = IWL9000_UCODE_API_MIN,
 };
 
 static const struct iwl_tt_params iwl9000_tt_params = {
@@ -96,8 +98,6 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 };
 
 #define IWL_DEVICE_9000							\
-	.ucode_api_max = IWL9000_UCODE_API_MAX,				\
-	.ucode_api_min = IWL9000_UCODE_API_MIN,				\
 	.led_mode = IWL_LED_RF_STATE,					\
 	.non_shared_ant = ANT_B,					\
 	.dccm_offset = IWL9000_DCCM_OFFSET,				\

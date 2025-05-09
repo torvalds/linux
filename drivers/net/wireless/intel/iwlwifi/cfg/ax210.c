@@ -87,11 +87,11 @@ static const struct iwl_family_base_params iwl_ax210_base = {
 			.mask = DBGC_CUR_DBGBUF_STATUS_IDX_MSK,
 		},
 	},
+	.ucode_api_min = IWL_AX210_UCODE_API_MIN,
+	.ucode_api_max = IWL_AX210_UCODE_API_MAX,
 };
 
 #define IWL_DEVICE_AX210						\
-	.ucode_api_min = IWL_AX210_UCODE_API_MIN,			\
-	.ucode_api_max = IWL_AX210_UCODE_API_MAX,			\
 	.led_mode = IWL_LED_RF_STATE,					\
 	.non_shared_ant = ANT_B,					\
 	.vht_mu_mimo_supported = true,					\

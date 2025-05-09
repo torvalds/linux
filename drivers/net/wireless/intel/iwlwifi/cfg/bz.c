@@ -89,11 +89,11 @@ static const struct iwl_family_base_params iwl_bz_base = {
 		},
 	},
 	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,
+	.ucode_api_max = IWL_BZ_UCODE_API_MAX,
+	.ucode_api_min = IWL_BZ_UCODE_API_MIN,
 };
 
 #define IWL_DEVICE_BZ							\
-	.ucode_api_max = IWL_BZ_UCODE_API_MAX,				\
-	.ucode_api_min = IWL_BZ_UCODE_API_MIN,				\
 	.ht_params = {							\
 		.stbc = true,						\
 		.ldpc = true,						\

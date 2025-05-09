@@ -82,11 +82,11 @@ static const struct iwl_family_base_params iwl_dr_base = {
 		},
 	},
 	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,
+	.ucode_api_max = IWL_DR_UCODE_API_MAX,
+	.ucode_api_min = IWL_DR_UCODE_API_MIN,
 };
 
 #define IWL_DEVICE_DR							\
-	.ucode_api_max = IWL_DR_UCODE_API_MAX,				\
-	.ucode_api_min = IWL_DR_UCODE_API_MIN,				\
 	.led_mode = IWL_LED_RF_STATE,					\
 	.non_shared_ant = ANT_B,					\
 	.vht_mu_mimo_supported = true,					\

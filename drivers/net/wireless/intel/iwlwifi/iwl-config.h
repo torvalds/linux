@@ -170,6 +170,8 @@ struct iwl_fw_mon_regs {
  * @mon_dbgi_regs: monitor DBGI registers
  * @mon_dram_regs: monitor DRAM registers
  * @mon_smem_regs: monitor SMEM registers
+ * @ucode_api_max: Highest version of uCode API supported by driver.
+ * @ucode_api_min: Lowest version of uCode API supported by driver.
  */
 struct iwl_family_base_params {
 	unsigned int wd_timeout;
@@ -190,6 +192,8 @@ struct iwl_family_base_params {
 
 	u8 max_ll_items;
 	u8 led_compensation;
+	u8 ucode_api_max;
+	u8 ucode_api_min;
 	u32 mac_addr_from_csr:10;
 	u8 nvm_hw_section_num;
 	netdev_features_t features;
