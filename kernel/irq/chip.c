@@ -497,7 +497,7 @@ void handle_nested_irq(unsigned int irq)
 	might_sleep();
 
 	scoped_guard(raw_spinlock_irq, &desc->lock) {
-		if (irq_can_handle_actions(desc))
+		if (!irq_can_handle_actions(desc))
 			return;
 
 		action = desc->action;
