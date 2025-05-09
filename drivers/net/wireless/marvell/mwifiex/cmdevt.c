@@ -934,7 +934,8 @@ void mwifiex_process_assoc_resp(struct mwifiex_adapter *adapter)
 void
 mwifiex_cmd_timeout_func(struct timer_list *t)
 {
-	struct mwifiex_adapter *adapter = from_timer(adapter, t, cmd_timer);
+	struct mwifiex_adapter *adapter = timer_container_of(adapter, t,
+						             cmd_timer);
 	struct cmd_ctrl_node *cmd_node;
 
 	set_bit(MWIFIEX_IS_CMD_TIMEDOUT, &adapter->work_flags);

@@ -937,7 +937,8 @@ static int kvaser_pciefd_get_berr_counter(const struct net_device *ndev,
 
 static void kvaser_pciefd_bec_poll_timer(struct timer_list *data)
 {
-	struct kvaser_pciefd_can *can = from_timer(can, data, bec_poll_timer);
+	struct kvaser_pciefd_can *can = timer_container_of(can, data,
+							   bec_poll_timer);
 
 	kvaser_pciefd_enable_err_gen(can);
 	kvaser_pciefd_request_status(can);

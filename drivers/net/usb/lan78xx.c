@@ -4642,7 +4642,7 @@ static const struct net_device_ops lan78xx_netdev_ops = {
 
 static void lan78xx_stat_monitor(struct timer_list *t)
 {
-	struct lan78xx_net *dev = from_timer(dev, t, stat_monitor);
+	struct lan78xx_net *dev = timer_container_of(dev, t, stat_monitor);
 
 	lan78xx_defer_kevent(dev, EVENT_STAT_UPDATE);
 }

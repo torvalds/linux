@@ -182,7 +182,7 @@ static inline int emu8k_get_curpos(struct snd_emu8k_pcm *rec, int ch)
  */
 static void emu8k_pcm_timer_func(struct timer_list *t)
 {
-	struct snd_emu8k_pcm *rec = from_timer(rec, t, timer);
+	struct snd_emu8k_pcm *rec = timer_container_of(rec, t, timer);
 	int ptr, delta;
 
 	spin_lock(&rec->timer_lock);

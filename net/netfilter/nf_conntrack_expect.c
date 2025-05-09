@@ -71,7 +71,7 @@ EXPORT_SYMBOL_GPL(nf_ct_unlink_expect_report);
 
 static void nf_ct_expectation_timed_out(struct timer_list *t)
 {
-	struct nf_conntrack_expect *exp = from_timer(exp, t, timeout);
+	struct nf_conntrack_expect *exp = timer_container_of(exp, t, timeout);
 
 	spin_lock_bh(&nf_conntrack_expect_lock);
 	nf_ct_unlink_expect(exp);

@@ -3116,7 +3116,7 @@ EXPORT_SYMBOL(wx_service_event_complete);
 
 void wx_service_timer(struct timer_list *t)
 {
-	struct wx *wx = from_timer(wx, t, service_timer);
+	struct wx *wx = timer_container_of(wx, t, service_timer);
 	unsigned long next_event_offset = HZ * 2;
 
 	/* Reset the timer */

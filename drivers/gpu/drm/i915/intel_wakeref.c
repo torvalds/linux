@@ -135,7 +135,7 @@ int intel_wakeref_wait_for_idle(struct intel_wakeref *wf)
 
 static void wakeref_auto_timeout(struct timer_list *t)
 {
-	struct intel_wakeref_auto *wf = from_timer(wf, t, timer);
+	struct intel_wakeref_auto *wf = timer_container_of(wf, t, timer);
 	intel_wakeref_t wakeref;
 	unsigned long flags;
 

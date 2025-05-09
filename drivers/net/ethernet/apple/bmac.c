@@ -1410,7 +1410,7 @@ bmac_output(struct sk_buff *skb, struct net_device *dev)
 
 static void bmac_tx_timeout(struct timer_list *t)
 {
-	struct bmac_data *bp = from_timer(bp, t, tx_timeout);
+	struct bmac_data *bp = timer_container_of(bp, t, tx_timeout);
 	struct net_device *dev = macio_get_drvdata(bp->mdev);
 	volatile struct dbdma_regs __iomem *td = bp->tx_dma;
 	volatile struct dbdma_regs __iomem *rd = bp->rx_dma;

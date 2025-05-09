@@ -1450,7 +1450,8 @@ err_free_pkt:
  */
 static void ice_vf_fdir_timer(struct timer_list *t)
 {
-	struct ice_vf_fdir_ctx *ctx_irq = from_timer(ctx_irq, t, rx_tmr);
+	struct ice_vf_fdir_ctx *ctx_irq = timer_container_of(ctx_irq, t,
+							     rx_tmr);
 	struct ice_vf_fdir_ctx *ctx_done;
 	struct ice_vf_fdir *fdir;
 	unsigned long flags;

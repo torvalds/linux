@@ -91,7 +91,7 @@ out:
 
 static void user_reader_timeout(struct timer_list *t)
 {
-	struct file_priv *priv = from_timer(priv, t, user_read_timer);
+	struct file_priv *priv = timer_container_of(priv, t, user_read_timer);
 
 	pr_warn("TPM user space timeout is deprecated (pid=%d)\n",
 		task_tgid_nr(current));

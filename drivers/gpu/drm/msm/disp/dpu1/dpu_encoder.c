@@ -2693,8 +2693,8 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 
 static void dpu_encoder_frame_done_timeout(struct timer_list *t)
 {
-	struct dpu_encoder_virt *dpu_enc = from_timer(dpu_enc, t,
-			frame_done_timer);
+	struct dpu_encoder_virt *dpu_enc = timer_container_of(dpu_enc, t,
+							      frame_done_timer);
 	struct drm_encoder *drm_enc = &dpu_enc->base;
 	u32 event;
 

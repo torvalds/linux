@@ -1138,7 +1138,7 @@ static void ghes_add_timer(struct ghes *ghes)
 
 static void ghes_poll_func(struct timer_list *t)
 {
-	struct ghes *ghes = from_timer(ghes, t, timer);
+	struct ghes *ghes = timer_container_of(ghes, t, timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ghes_notify_lock_irq, flags);

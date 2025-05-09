@@ -2724,7 +2724,7 @@ out:
 static void megasas_sriov_heartbeat_handler(struct timer_list *t)
 {
 	struct megasas_instance *instance =
-		from_timer(instance, t, sriov_heartbeat_timer);
+		timer_container_of(instance, t, sriov_heartbeat_timer);
 
 	if (instance->hb_host_mem->HB.fwCounter !=
 	    instance->hb_host_mem->HB.driverCounter) {

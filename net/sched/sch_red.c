@@ -321,7 +321,7 @@ unlock_out:
 
 static inline void red_adaptative_timer(struct timer_list *t)
 {
-	struct red_sched_data *q = from_timer(q, t, adapt_timer);
+	struct red_sched_data *q = timer_container_of(q, t, adapt_timer);
 	struct Qdisc *sch = q->sch;
 	spinlock_t *root_lock;
 

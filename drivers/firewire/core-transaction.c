@@ -114,7 +114,7 @@ EXPORT_SYMBOL(fw_cancel_transaction);
 
 static void split_transaction_timeout_callback(struct timer_list *timer)
 {
-	struct fw_transaction *t = from_timer(t, timer, split_timeout_timer);
+	struct fw_transaction *t = timer_container_of(t, timer, split_timeout_timer);
 	struct fw_card *card = t->card;
 
 	scoped_guard(spinlock_irqsave, &card->lock) {

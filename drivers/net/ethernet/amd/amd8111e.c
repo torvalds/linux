@@ -1641,7 +1641,8 @@ static int __maybe_unused amd8111e_resume(struct device *dev_d)
 
 static void amd8111e_config_ipg(struct timer_list *t)
 {
-	struct amd8111e_priv *lp = from_timer(lp, t, ipg_data.ipg_timer);
+	struct amd8111e_priv *lp = timer_container_of(lp, t,
+						      ipg_data.ipg_timer);
 	struct ipg_info *ipg_data = &lp->ipg_data;
 	void __iomem *mmio = lp->mmio;
 	unsigned int prev_col_cnt = ipg_data->col_cnt;

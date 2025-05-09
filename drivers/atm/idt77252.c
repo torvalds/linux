@@ -1531,7 +1531,7 @@ idt77252_tx(struct idt77252_dev *card)
 static void
 tst_timer(struct timer_list *t)
 {
-	struct idt77252_dev *card = from_timer(card, t, tst_timer);
+	struct idt77252_dev *card = timer_container_of(card, t, tst_timer);
 	unsigned long base, idle, jump;
 	unsigned long flags;
 	u32 pc;
@@ -2070,7 +2070,7 @@ idt77252_rate_logindex(struct idt77252_dev *card, int pcr)
 static void
 idt77252_est_timer(struct timer_list *t)
 {
-	struct rate_estimator *est = from_timer(est, t, timer);
+	struct rate_estimator *est = timer_container_of(est, t, timer);
 	struct vc_map *vc = est->vc;
 	struct idt77252_dev *card = vc->card;
 	unsigned long flags;

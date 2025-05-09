@@ -93,7 +93,8 @@ static void ni_usb_bulk_complete(struct urb *urb)
 
 static void ni_usb_timeout_handler(struct timer_list *t)
 {
-	struct ni_usb_priv *ni_priv = from_timer(ni_priv, t, bulk_timer);
+	struct ni_usb_priv *ni_priv = timer_container_of(ni_priv, t,
+							 bulk_timer);
 	struct ni_usb_urb_ctx *context = &ni_priv->context;
 
 	context->timed_out = 1;

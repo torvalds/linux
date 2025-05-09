@@ -179,7 +179,8 @@ static void fq_flush_iotlb(struct iommu_dma_cookie *cookie)
 
 static void fq_flush_timeout(struct timer_list *t)
 {
-	struct iommu_dma_cookie *cookie = from_timer(cookie, t, fq_timer);
+	struct iommu_dma_cookie *cookie = timer_container_of(cookie, t,
+							     fq_timer);
 	int cpu;
 
 	atomic_set(&cookie->fq_timer_on, 0);

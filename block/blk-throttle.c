@@ -1125,7 +1125,8 @@ static int throtl_select_dispatch(struct throtl_service_queue *parent_sq)
  */
 static void throtl_pending_timer_fn(struct timer_list *t)
 {
-	struct throtl_service_queue *sq = from_timer(sq, t, pending_timer);
+	struct throtl_service_queue *sq = timer_container_of(sq, t,
+							     pending_timer);
 	struct throtl_grp *tg = sq_to_tg(sq);
 	struct throtl_data *td = sq_to_td(sq);
 	struct throtl_service_queue *parent_sq;

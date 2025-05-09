@@ -998,7 +998,7 @@ void nvme_mpath_update(struct nvme_ctrl *ctrl)
 
 static void nvme_anatt_timeout(struct timer_list *t)
 {
-	struct nvme_ctrl *ctrl = from_timer(ctrl, t, anatt_timer);
+	struct nvme_ctrl *ctrl = timer_container_of(ctrl, t, anatt_timer);
 
 	dev_info(ctrl->device, "ANATT timeout, resetting controller.\n");
 	nvme_reset_ctrl(ctrl);

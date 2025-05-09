@@ -1585,7 +1585,7 @@ void esas2r_kickoff_timer(struct esas2r_adapter *a)
 
 static void esas2r_timer_callback(struct timer_list *t)
 {
-	struct esas2r_adapter *a = from_timer(a, t, timer);
+	struct esas2r_adapter *a = timer_container_of(a, t, timer);
 
 	set_bit(AF2_TIMER_TICK, &a->flags2);
 

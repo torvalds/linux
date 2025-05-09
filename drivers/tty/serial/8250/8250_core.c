@@ -206,7 +206,7 @@ static void serial_unlink_irq_chain(struct uart_8250_port *up)
  */
 static void serial8250_timeout(struct timer_list *t)
 {
-	struct uart_8250_port *up = from_timer(up, t, timer);
+	struct uart_8250_port *up = timer_container_of(up, t, timer);
 
 	up->port.handle_irq(&up->port);
 	mod_timer(&up->timer, jiffies + uart_poll_timeout(&up->port));
@@ -214,7 +214,7 @@ static void serial8250_timeout(struct timer_list *t)
 
 static void serial8250_backup_timeout(struct timer_list *t)
 {
-	struct uart_8250_port *up = from_timer(up, t, timer);
+	struct uart_8250_port *up = timer_container_of(up, t, timer);
 	unsigned int iir, ier = 0, lsr;
 	unsigned long flags;
 

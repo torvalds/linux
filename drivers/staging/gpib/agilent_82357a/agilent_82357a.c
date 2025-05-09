@@ -39,7 +39,8 @@ static void agilent_82357a_bulk_complete(struct urb *urb)
 
 static void agilent_82357a_timeout_handler(struct timer_list *t)
 {
-	struct agilent_82357a_priv *a_priv = from_timer(a_priv, t, bulk_timer);
+	struct agilent_82357a_priv *a_priv = timer_container_of(a_priv, t,
+								bulk_timer);
 	struct agilent_82357a_urb_ctx *context = &a_priv->context;
 
 	context->timed_out = 1;

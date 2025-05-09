@@ -1023,7 +1023,7 @@ out_unlock:
 
 static void sis190_phy_timer(struct timer_list *t)
 {
-	struct sis190_private *tp = from_timer(tp, t, timer);
+	struct sis190_private *tp = timer_container_of(tp, t, timer);
 	struct net_device *dev = tp->dev;
 
 	if (likely(netif_running(dev)))

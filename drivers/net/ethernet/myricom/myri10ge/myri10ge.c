@@ -3478,7 +3478,7 @@ static void myri10ge_watchdog_timer(struct timer_list *t)
 	u32 rx_pause_cnt;
 	u16 cmd;
 
-	mgp = from_timer(mgp, t, watchdog_timer);
+	mgp = timer_container_of(mgp, t, watchdog_timer);
 
 	rx_pause_cnt = ntohl(mgp->ss[0].fw_stats->dropped_pause);
 	busy_slice_cnt = 0;

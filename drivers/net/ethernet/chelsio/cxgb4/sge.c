@@ -4234,7 +4234,7 @@ static void sge_rx_timer_cb(struct timer_list *t)
 {
 	unsigned long m;
 	unsigned int i;
-	struct adapter *adap = from_timer(adap, t, sge.rx_timer);
+	struct adapter *adap = timer_container_of(adap, t, sge.rx_timer);
 	struct sge *s = &adap->sge;
 
 	for (i = 0; i < BITS_TO_LONGS(s->egr_sz); i++)
@@ -4269,7 +4269,7 @@ done:
 
 static void sge_tx_timer_cb(struct timer_list *t)
 {
-	struct adapter *adap = from_timer(adap, t, sge.tx_timer);
+	struct adapter *adap = timer_container_of(adap, t, sge.tx_timer);
 	struct sge *s = &adap->sge;
 	unsigned long m, period;
 	unsigned int i, budget;

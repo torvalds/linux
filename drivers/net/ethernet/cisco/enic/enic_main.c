@@ -1510,7 +1510,7 @@ static int enic_poll_msix_rq(struct napi_struct *napi, int budget)
 
 static void enic_notify_timer(struct timer_list *t)
 {
-	struct enic *enic = from_timer(enic, t, notify_timer);
+	struct enic *enic = timer_container_of(enic, t, notify_timer);
 
 	enic_notify_check(enic);
 

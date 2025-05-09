@@ -98,7 +98,7 @@ static void pps_gpio_echo_timer_callback(struct timer_list *t)
 {
 	const struct pps_gpio_device_data *info;
 
-	info = from_timer(info, t, echo_timer);
+	info = timer_container_of(info, t, echo_timer);
 
 	gpiod_set_value(info->echo_pin, 0);
 }

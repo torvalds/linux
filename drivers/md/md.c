@@ -6048,7 +6048,7 @@ static int add_named_array(const char *val, const struct kernel_param *kp)
 
 static void md_safemode_timeout(struct timer_list *t)
 {
-	struct mddev *mddev = from_timer(mddev, t, safemode_timer);
+	struct mddev *mddev = timer_container_of(mddev, t, safemode_timer);
 
 	mddev->safemode = 1;
 	if (mddev->external)

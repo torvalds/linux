@@ -315,7 +315,7 @@ static void ethtool_mmsv_send_mpacket(struct ethtool_mmsv *mmsv,
  */
 static void ethtool_mmsv_verify_timer(struct timer_list *t)
 {
-	struct ethtool_mmsv *mmsv = from_timer(mmsv, t, verify_timer);
+	struct ethtool_mmsv *mmsv = timer_container_of(mmsv, t, verify_timer);
 	unsigned long flags;
 	bool rearm = false;
 
