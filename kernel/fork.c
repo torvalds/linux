@@ -280,6 +280,11 @@ static int alloc_thread_stack_node(struct task_struct *tsk, int node)
 		if (!vm_area)
 			continue;
 
+		if (memcg_charge_kernel_stack(vm_area)) {
+			vfree(vm_area->addr);
+			return -ENOMEM;
+		}
+
 		/* Reset stack metadata. */
 		kasan_unpoison_range(vm_area->addr, THREAD_SIZE);
 
@@ -287,11 +292,6 @@ static int alloc_thread_stack_node(struct task_struct *tsk, int node)
 
 		/* Clear stale pointers from reused stack. */
 		memset(stack, 0, THREAD_SIZE);
-
-		if (memcg_charge_kernel_stack(vm_area)) {
-			vfree(vm_area->addr);
-			return -ENOMEM;
-		}
 
 		tsk->stack_vm_area = vm_area;
 		tsk->stack = stack;
