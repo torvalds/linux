@@ -864,10 +864,23 @@ static int match_auto_decoder(struct device *dev, const void *data)
 	return 0;
 }
 
+/**
+ * cxl_port_pick_region_decoder() - assign or lookup a decoder for a region
+ * @port: a port in the ancestry of the endpoint implied by @cxled
+ * @cxled: endpoint decoder to be, or currently, mapped by @port
+ * @cxlr: region to establish, or validate, decode @port
+ *
+ * In the region creation path cxl_port_pick_region_decoder() is an
+ * allocator to find a free port. In the region assembly path, it is
+ * recalling the decoder that platform firmware picked for validation
+ * purposes.
+ *
+ * The result is recorded in a 'struct cxl_region_ref' in @port.
+ */
 static struct cxl_decoder *
-cxl_region_find_decoder(struct cxl_port *port,
-			struct cxl_endpoint_decoder *cxled,
-			struct cxl_region *cxlr)
+cxl_port_pick_region_decoder(struct cxl_port *port,
+			     struct cxl_endpoint_decoder *cxled,
+			     struct cxl_region *cxlr)
 {
 	struct device *dev;
 
@@ -931,7 +944,7 @@ alloc_region_ref(struct cxl_port *port, struct cxl_region *cxlr,
 		if (test_bit(CXL_REGION_F_AUTO, &cxlr->flags)) {
 			struct cxl_decoder *cxld;
 
-			cxld = cxl_region_find_decoder(port, cxled, cxlr);
+			cxld = cxl_port_pick_region_decoder(port, cxled, cxlr);
 			if (auto_order_ok(port, iter->region, cxld))
 				continue;
 		}
@@ -1019,7 +1032,7 @@ static int cxl_rr_alloc_decoder(struct cxl_port *port, struct cxl_region *cxlr,
 {
 	struct cxl_decoder *cxld;
 
-	cxld = cxl_region_find_decoder(port, cxled, cxlr);
+	cxld = cxl_port_pick_region_decoder(port, cxled, cxlr);
 	if (!cxld) {
 		dev_dbg(&cxlr->dev, "%s: no decoder available\n",
 			dev_name(&port->dev));
