@@ -782,7 +782,6 @@ iwl_mld_init_link(struct iwl_mld *mld, struct ieee80211_bss_conf *link,
 
 	iwl_mld_init_internal_sta(&mld_link->bcast_sta);
 	iwl_mld_init_internal_sta(&mld_link->mcast_sta);
-	iwl_mld_init_internal_sta(&mld_link->aux_sta);
 	iwl_mld_init_internal_sta(&mld_link->mon_sta);
 
 	if (!mld->fw_status.in_hw_restart)

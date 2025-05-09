@@ -39,7 +39,6 @@ struct iwl_probe_resp_data {
  * @vif: the vif this link belongs to
  * @bcast_sta: station used for broadcast packets. Used in AP, GO and IBSS.
  * @mcast_sta: station used for multicast packets. Used in AP, GO and IBSS.
- * @aux_sta: station used for remain on channel. Used in P2P device.
  * @mon_sta: station used for TX injection in monitor interface.
  * @link_id: over the air link ID
  * @ap_early_keys: The firmware cannot install keys before bcast/mcast STAs,
@@ -73,7 +72,6 @@ struct iwl_mld_link {
 	struct ieee80211_vif *vif;
 	struct iwl_mld_int_sta bcast_sta;
 	struct iwl_mld_int_sta mcast_sta;
-	struct iwl_mld_int_sta aux_sta;
 	struct iwl_mld_int_sta mon_sta;
 	u8 link_id;
 
@@ -107,8 +105,6 @@ iwl_mld_cleanup_link(struct iwl_mld *mld, struct iwl_mld_link *link)
 		iwl_mld_free_internal_sta(mld, &link->bcast_sta);
 	if (link->mcast_sta.sta_id != IWL_INVALID_STA)
 		iwl_mld_free_internal_sta(mld, &link->mcast_sta);
-	if (link->aux_sta.sta_id != IWL_INVALID_STA)
-		iwl_mld_free_internal_sta(mld, &link->aux_sta);
 	if (link->mon_sta.sta_id != IWL_INVALID_STA)
 		iwl_mld_free_internal_sta(mld, &link->mon_sta);
 }

@@ -22,6 +22,9 @@ void iwl_mld_cleanup_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
 	struct iwl_mld *mld = mld_vif->mld;
 	struct iwl_mld_link *link;
 
+	if (mld_vif->aux_sta.sta_id != IWL_INVALID_STA)
+		iwl_mld_free_internal_sta(mld, &mld_vif->aux_sta);
+
 	/* EMLSR is turned back on during recovery */
 	vif->driver_flags &= ~IEEE80211_VIF_EML_ACTIVE;
 
@@ -408,6 +411,7 @@ iwl_mld_init_vif(struct iwl_mld *mld, struct ieee80211_vif *vif)
 		wiphy_delayed_work_init(&mld_vif->emlsr.tmp_non_bss_done_wk,
 					iwl_mld_emlsr_tmp_non_bss_done_wk);
 	}
+	iwl_mld_init_internal_sta(&mld_vif->aux_sta);
 
 	return 0;
 }

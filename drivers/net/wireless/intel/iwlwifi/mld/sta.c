@@ -1160,19 +1160,15 @@ void iwl_mld_remove_mcast_sta(struct iwl_mld *mld,
 }
 
 void iwl_mld_remove_aux_sta(struct iwl_mld *mld,
-			    struct ieee80211_vif *vif,
-			    struct ieee80211_bss_conf *link)
+			    struct ieee80211_vif *vif)
 {
-	struct iwl_mld_link *mld_link = iwl_mld_link_from_mac80211(link);
-
-	if (WARN_ON(!mld_link))
-		return;
+	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
 
 	/* TODO: Hotspot 2.0 */
 	if (WARN_ON(vif->type != NL80211_IFTYPE_P2P_DEVICE))
 		return;
 
-	iwl_mld_remove_internal_sta(mld, &mld_link->aux_sta, false,
+	iwl_mld_remove_internal_sta(mld, &mld_vif->aux_sta, false,
 				    IWL_MAX_TID_COUNT);
 }
 

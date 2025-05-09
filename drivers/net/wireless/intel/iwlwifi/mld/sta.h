@@ -260,8 +260,7 @@ void iwl_mld_remove_mcast_sta(struct iwl_mld *mld,
 			      struct ieee80211_bss_conf *link);
 
 void iwl_mld_remove_aux_sta(struct iwl_mld *mld,
-			    struct ieee80211_vif *vif,
-			    struct ieee80211_bss_conf *link);
+			    struct ieee80211_vif *vif);
 
 void iwl_mld_remove_mon_sta(struct iwl_mld *mld,
 			    struct ieee80211_vif *vif,

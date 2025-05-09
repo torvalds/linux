@@ -37,7 +37,7 @@ int iwl_mld_start_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
 	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
-	struct iwl_mld_int_sta *aux_sta;
+	struct iwl_mld_int_sta *aux_sta = &mld_vif->aux_sta;
 	struct iwl_roc_req cmd = {
 		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),
 	};
@@ -78,9 +78,6 @@ int iwl_mld_start_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (WARN_ON(mld_vif->roc_activity != ROC_NUM_ACTIVITIES))
 		return -EBUSY;
-
-	/* No MLO on P2P device */
-	aux_sta = &mld_vif->deflink.aux_sta;
 
 	ret = iwl_mld_add_aux_sta(mld, aux_sta);
 	if (ret)
@@ -136,9 +133,9 @@ static void iwl_mld_destroy_roc(struct iwl_mld *mld,
 	 * we can flush the Tx on the queues
 	 */
 
-	iwl_mld_flush_link_sta_txqs(mld, mld_vif->deflink.aux_sta.sta_id);
+	iwl_mld_flush_link_sta_txqs(mld, mld_vif->aux_sta.sta_id);
 
-	iwl_mld_remove_aux_sta(mld, vif, &vif->bss_conf);
+	iwl_mld_remove_aux_sta(mld, vif);
 }
 
 int iwl_mld_cancel_roc(struct ieee80211_hw *hw,

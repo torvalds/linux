@@ -143,6 +143,7 @@ struct iwl_mld_emlsr {
  * @dbgfs_slink: debugfs symlink for this interface
  * @roc_activity: the id of the roc_activity running. Relevant for p2p device
  *	only. Set to %ROC_NUM_ACTIVITIES when not in use.
+ * @aux_sta: station used for remain on channel. Used in P2P device.
  */
 struct iwl_mld_vif {
 	/* Add here fields that need clean up on restart */
@@ -177,6 +178,7 @@ struct iwl_mld_vif {
 	struct dentry *dbgfs_slink;
 #endif
 	enum iwl_roc_activity roc_activity;
+	struct iwl_mld_int_sta aux_sta;
 };
 
 static inline struct iwl_mld_vif *
