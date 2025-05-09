@@ -79,66 +79,10 @@ static int get_mnt_ns_id(const char *mnt_ns, uint64_t *mnt_ns_id)
 	return NSID_PASS;
 }
 
-static int write_file(const char *path, const char *val)
-{
-	int fd = open(path, O_WRONLY);
-	size_t len = strlen(val);
-	int ret;
-
-	if (fd == -1) {
-		ksft_print_msg("opening %s for write: %s\n", path, strerror(errno));
-		return NSID_ERROR;
-	}
-
-	ret = write(fd, val, len);
-	if (ret == -1) {
-		ksft_print_msg("writing to %s: %s\n", path, strerror(errno));
-		return NSID_ERROR;
-	}
-	if (ret != len) {
-		ksft_print_msg("short write to %s\n", path);
-		return NSID_ERROR;
-	}
-
-	ret = close(fd);
-	if (ret == -1) {
-		ksft_print_msg("closing %s\n", path);
-		return NSID_ERROR;
-	}
-
-	return NSID_PASS;
-}
-
 static int setup_namespace(void)
 {
-	int ret;
-	char buf[32];
-	uid_t uid = getuid();
-	gid_t gid = getgid();
-
-	ret = unshare(CLONE_NEWNS|CLONE_NEWUSER|CLONE_NEWPID);
-	if (ret == -1)
-		ksft_exit_fail_msg("unsharing mountns and userns: %s\n",
-				   strerror(errno));
-
-	sprintf(buf, "0 %d 1", uid);
-	ret = write_file("/proc/self/uid_map", buf);
-	if (ret != NSID_PASS)
-		return ret;
-	ret = write_file("/proc/self/setgroups", "deny");
-	if (ret != NSID_PASS)
-		return ret;
-	sprintf(buf, "0 %d 1", gid);
-	ret = write_file("/proc/self/gid_map", buf);
-	if (ret != NSID_PASS)
-		return ret;
-
-	ret = mount("", "/", NULL, MS_REC|MS_PRIVATE, NULL);
-	if (ret == -1) {
-		ksft_print_msg("making mount tree private: %s\n",
-			       strerror(errno));
+	if (setup_userns() != 0)
 		return NSID_ERROR;
-	}
 
 	return NSID_PASS;
 }
