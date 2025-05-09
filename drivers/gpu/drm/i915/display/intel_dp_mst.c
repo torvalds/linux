@@ -390,6 +390,10 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 			slots = drm_dp_atomic_find_time_slots(state, &intel_dp->mst.mgr,
 							      connector->mst.port,
 							      dfixed_trunc(pbn));
+
+			/* TODO: Check this already in drm_dp_atomic_find_time_slots(). */
+			if (slots > mst_state->total_avail_slots)
+				slots = -EINVAL;
 		} else {
 			/* Same as above for remote_tu */
 			crtc_state->dp_m_n.tu = ALIGN(crtc_state->dp_m_n.tu,
