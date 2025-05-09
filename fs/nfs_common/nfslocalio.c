@@ -237,6 +237,7 @@ static void nfs_uuid_add_file(nfs_uuid_t *nfs_uuid, struct nfs_file_localio *nfl
 struct nfsd_file *nfs_open_local_fh(nfs_uuid_t *uuid,
 		   struct rpc_clnt *rpc_clnt, const struct cred *cred,
 		   const struct nfs_fh *nfs_fh, struct nfs_file_localio *nfl,
+		   struct nfsd_file __rcu **pnf,
 		   const fmode_t fmode)
 {
 	struct net *net;
@@ -261,7 +262,7 @@ struct nfsd_file *nfs_open_local_fh(nfs_uuid_t *uuid,
 	rcu_read_unlock();
 	/* We have an implied reference to net thanks to nfsd_net_try_get */
 	localio = nfs_to->nfsd_open_local_fh(net, uuid->dom, rpc_clnt,
-					     cred, nfs_fh, fmode);
+					     cred, nfs_fh, pnf, fmode);
 	nfs_to_nfsd_net_put(net);
 	if (!IS_ERR(localio))
 		nfs_uuid_add_file(uuid, nfl);

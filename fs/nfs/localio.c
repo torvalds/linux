@@ -209,11 +209,6 @@ void nfs_local_probe_async(struct nfs_client *clp)
 }
 EXPORT_SYMBOL_GPL(nfs_local_probe_async);
 
-static inline struct nfsd_file *nfs_local_file_get(struct nfsd_file *nf)
-{
-	return nfs_to->nfsd_file_get_local(nf);
-}
-
 static inline void nfs_local_file_put(struct nfsd_file *nf)
 {
 	nfs_to_nfsd_file_put_local(nf);
@@ -228,12 +223,13 @@ static inline void nfs_local_file_put(struct nfsd_file *nf)
 static struct nfsd_file *
 __nfs_local_open_fh(struct nfs_client *clp, const struct cred *cred,
 		    struct nfs_fh *fh, struct nfs_file_localio *nfl,
+		    struct nfsd_file __rcu **pnf,
 		    const fmode_t mode)
 {
 	struct nfsd_file *localio;
 
 	localio = nfs_open_local_fh(&clp->cl_uuid, clp->cl_rpcclient,
-				    cred, fh, nfl, mode);
+				    cred, fh, nfl, pnf, mode);
 	if (IS_ERR(localio)) {
 		int status = PTR_ERR(localio);
 		trace_nfs_local_open_fh(fh, mode, status);
@@ -260,7 +256,7 @@ nfs_local_open_fh(struct nfs_client *clp, const struct cred *cred,
 		  struct nfs_fh *fh, struct nfs_file_localio *nfl,
 		  const fmode_t mode)
 {
-	struct nfsd_file *nf, *new, __rcu **pnf;
+	struct nfsd_file *nf, __rcu **pnf;
 
 	if (!nfs_server_is_local(clp))
 		return NULL;
@@ -272,24 +268,9 @@ nfs_local_open_fh(struct nfs_client *clp, const struct cred *cred,
 	else
 		pnf = &nfl->ro_file;
 
-	new = NULL;
-	rcu_read_lock();
-	nf = rcu_dereference(*pnf);
-	if (!nf) {
-		rcu_read_unlock();
-		new = __nfs_local_open_fh(clp, cred, fh, nfl, mode);
-		if (IS_ERR(new))
-			return NULL;
-		rcu_read_lock();
-		/* try to swap in the pointer */
-		nf = unrcu_pointer(cmpxchg(pnf, NULL, RCU_INITIALIZER(new)));
-		if (!nf)
-			swap(nf, new);
-	}
-	nf = nfs_local_file_get(nf);
-	rcu_read_unlock();
-	if (new)
-		nfs_to_nfsd_file_put_local(new);
+	nf = __nfs_local_open_fh(clp, cred, fh, nfl, pnf, mode);
+	if (IS_ERR(nf))
+		return NULL;
 	return nf;
 }
 EXPORT_SYMBOL_GPL(nfs_local_open_fh);
