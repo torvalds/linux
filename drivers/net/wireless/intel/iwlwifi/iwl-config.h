@@ -342,6 +342,16 @@ struct iwl_mac_cfg {
 	    imr_enabled:1;
 };
 
+/*
+ * These sizes were picked according to 8 MSDUs inside 64/256/612 A-MSDUs
+ * in an A-MPDU, with additional overhead to account for processing time.
+ * They will be doubled for MACs starting from So/Ty that don't support
+ * putting multiple frames into a single buffer.
+ */
+#define IWL_NUM_RBDS_NON_HE		(64 * 8)
+#define IWL_NUM_RBDS_HE			(256 * 8)
+#define IWL_NUM_RBDS_EHT		(512 * 8)
+
 /**
  * struct iwl_cfg
  * @fw_name_pre: Firmware filename prefix. The api version and extension

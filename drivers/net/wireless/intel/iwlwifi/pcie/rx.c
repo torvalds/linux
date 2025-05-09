@@ -722,7 +722,7 @@ static int iwl_pcie_alloc_rxq_dma(struct iwl_trans *trans,
 
 	spin_lock_init(&rxq->lock);
 	if (trans->mac_cfg->mq_rx_supported)
-		rxq->queue_size = trans->cfg->num_rbds;
+		rxq->queue_size = iwl_trans_get_num_rbds(trans);
 	else
 		rxq->queue_size = RX_QUEUE_SIZE;
 

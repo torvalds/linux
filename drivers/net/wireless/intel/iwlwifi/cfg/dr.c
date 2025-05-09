@@ -93,19 +93,13 @@ static const struct iwl_family_base_params iwl_dr_base = {
 	.nvm_ver = IWL_DR_NVM_VERSION,					\
 	.nvm_type = IWL_NVM_EXT,					\
 	.uhb_supported = true,						\
-	.num_rbds = IWL_NUM_RBDS_DR_EHT,				\
+	.num_rbds = IWL_NUM_RBDS_EHT,				\
 	.ht_params = {							\
 		.stbc = true,						\
 		.ldpc = true,						\
 		.ht40_bands = BIT(NL80211_BAND_2GHZ) |			\
 			      BIT(NL80211_BAND_5GHZ),			\
 	}
-
-/*
- * This size was picked according to 8 MSDUs inside 512 A-MSDUs in an
- * A-MPDU, with additional overhead to account for processing time.
- */
-#define IWL_NUM_RBDS_DR_EHT		(512 * 16)
 
 const struct iwl_mac_cfg iwl_dr_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_DR,

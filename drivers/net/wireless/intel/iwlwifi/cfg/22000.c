@@ -132,16 +132,6 @@ const struct iwl_mac_cfg iwl_qu_long_latency_mac_cfg = {
 };
 
 /*
- * If the device doesn't support HE, no need to have that many buffers.
- * 22000 devices can split multiple frames into a single RB, so fewer are
- * needed; AX210 cannot (but use smaller RBs by default) - these sizes
- * were picked according to 8 MSDUs inside 256 A-MSDUs in an A-MPDU, with
- * additional overhead to account for processing time.
- */
-#define IWL_NUM_RBDS_NON_HE		512
-#define IWL_NUM_RBDS_22000_HE		2048
-
-/*
  * All JF radio modules are part of the 9000 series, but the MAC part
  * looks more like 22000.  That's why this device is here, but called
  * 9560 nevertheless.
@@ -182,17 +172,17 @@ const char iwl_ax201_killer_1650i_name[] =
 const struct iwl_cfg iwl_qu_hr1 = {
 	IWL_DEVICE_22500,
 	.tx_with_siso_diversity = true,
-	.num_rbds = IWL_NUM_RBDS_22000_HE,
+	.num_rbds = IWL_NUM_RBDS_HE,
 };
 
 const struct iwl_cfg iwl_qu_hr = {
 	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_22000_HE,
+	.num_rbds = IWL_NUM_RBDS_HE,
 };
 
 const struct iwl_cfg iwl_qu_hr_80mhz = {
 	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_22000_HE,
+	.num_rbds = IWL_NUM_RBDS_HE,
 	.bw_limit = 80,
 };
 

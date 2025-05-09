@@ -141,16 +141,6 @@ const struct iwl_mac_cfg iwl_so_long_latency_imr_mac_cfg = {
 	.imr_enabled = true,
 };
 
-/*
- * If the device doesn't support HE, no need to have that many buffers.
- * AX210 devices can split multiple frames into a single RB, so fewer are
- * needed; AX210 cannot (but use smaller RBs by default) - these sizes
- * were picked according to 8 MSDUs inside 256 A-MSDUs in an A-MPDU, with
- * additional overhead to account for processing time.
- */
-#define IWL_NUM_RBDS_NON_HE		512
-#define IWL_NUM_RBDS_AX210_HE		4096
-
 const struct iwl_mac_cfg iwl_ma_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_AX210,
 	.base = &iwl_ax210_base,
@@ -193,17 +183,17 @@ const char iwl_ax210_name[] = "Intel(R) Wi-Fi 6 AX210 160MHz";
 const struct iwl_cfg iwl_cfg_ma = {
 	.uhb_supported = true,
 	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_AX210_HE,
+	.num_rbds = IWL_NUM_RBDS_HE,
 };
 
 const struct iwl_cfg iwl_cfg_so_a0_hr_a0 = {
 	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_AX210_HE,
+	.num_rbds = IWL_NUM_RBDS_HE,
 };
 
 const struct iwl_cfg iwl_cfg_so_a0_hr_a0_80mhz = {
 	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_AX210_HE,
+	.num_rbds = IWL_NUM_RBDS_HE,
 	.bw_limit = 80,
 };
 

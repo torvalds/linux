@@ -1214,6 +1214,19 @@ static inline bool iwl_trans_is_hw_error_value(u32 val)
 
 void iwl_trans_free_restart_list(void);
 
+static inline u16 iwl_trans_get_num_rbds(struct iwl_trans *trans)
+{
+	u16 result = trans->cfg->num_rbds;
+
+	/*
+	 * Since AX210 family (So/Ty) the device cannot put mutliple
+	 * frames into the same buffer, so double the value for them.
+	 */
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+		return 2 * result;
+	return result;
+}
+
 /*****************************************************
  * PCIe handling
  *****************************************************/

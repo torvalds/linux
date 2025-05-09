@@ -106,12 +106,6 @@ static const struct iwl_family_base_params iwl_bz_base = {
 	.nvm_ver = IWL_BZ_NVM_VERSION,					\
 	.nvm_type = IWL_NVM_EXT
 
-/*
- * This size was picked according to 8 MSDUs inside 512 A-MSDUs in an
- * A-MPDU, with additional overhead to account for processing time.
- */
-#define IWL_NUM_RBDS_BZ_EHT		(512 * 16)
-
 const struct iwl_mac_cfg iwl_bz_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_BZ,
 	.base = &iwl_bz_base,
@@ -142,13 +136,13 @@ const char iwl_mtp_name[] = "Intel(R) Wi-Fi 7 BE202 160MHz";
 const struct iwl_cfg iwl_cfg_bz = {
 	.uhb_supported = true,
 	IWL_DEVICE_BZ,
-	.num_rbds = IWL_NUM_RBDS_BZ_EHT,
+	.num_rbds = IWL_NUM_RBDS_EHT,
 };
 
 const struct iwl_cfg iwl_cfg_bz_160mhz = {
 	.uhb_supported = true,
 	IWL_DEVICE_BZ,
-	.num_rbds = IWL_NUM_RBDS_BZ_EHT,
+	.num_rbds = IWL_NUM_RBDS_EHT,
 	.bw_limit = 160,
 };
 

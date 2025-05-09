@@ -202,10 +202,10 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 		rb_size = IWL_CTXT_INFO_RB_SIZE_4K;
 	}
 
-	WARN_ON(RX_QUEUE_CB_SIZE(trans->cfg->num_rbds) > 12);
+	WARN_ON(RX_QUEUE_CB_SIZE(iwl_trans_get_num_rbds(trans)) > 12);
 	control_flags = IWL_CTXT_INFO_TFD_FORMAT_LONG;
 	control_flags |=
-		u32_encode_bits(RX_QUEUE_CB_SIZE(trans->cfg->num_rbds),
+		u32_encode_bits(RX_QUEUE_CB_SIZE(iwl_trans_get_num_rbds(trans)),
 				IWL_CTXT_INFO_RB_CB_SIZE);
 	control_flags |= u32_encode_bits(rb_size, IWL_CTXT_INFO_RB_SIZE);
 	ctxt_info->control.control_flags = cpu_to_le32(control_flags);

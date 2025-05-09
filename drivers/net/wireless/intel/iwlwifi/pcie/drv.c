@@ -1864,7 +1864,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			ret = -EINVAL;
 			goto out_free_trans;
 		}
-		trans_pcie->num_rx_bufs = iwl_trans->cfg->num_rbds;
+		trans_pcie->num_rx_bufs = iwl_trans_get_num_rbds(iwl_trans);
 	} else {
 		trans_pcie->num_rx_bufs = RX_QUEUE_SIZE;
 	}
