@@ -731,8 +731,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 
-	ieee80211_hw_set(hw, DISALLOW_PUNCTURING_5GHZ);
-
 #ifdef CONFIG_PM_SLEEP
 	if ((unified || mvm->fw->img[IWL_UCODE_WOWLAN].num_sec) &&
 	    device_can_wakeup(mvm->trans->dev)) {
