@@ -849,10 +849,6 @@ static int __bch2_move_data_phys(struct moving_context *ctxt,
 
 	bch2_trans_iter_init(trans, &bp_iter, BTREE_ID_backpointers, bp_start, 0);
 
-	bch_err_msg(c, ret, "looking up alloc key");
-	if (ret)
-		goto err;
-
 	ret = bch2_btree_write_buffer_tryflush(trans);
 	if (!bch2_err_matches(ret, EROFS))
 		bch_err_msg(c, ret, "flushing btree write buffer");
