@@ -49,13 +49,6 @@ int iwl_mld_start_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	lockdep_assert_wiphy(mld->wiphy);
 
-	ieee80211_iterate_active_interfaces_mtx(mld->hw,
-						IEEE80211_IFACE_ITER_NORMAL,
-						iwl_mld_vif_iter_emlsr_block_roc,
-						&ret);
-	if (ret)
-		return ret;
-
 	/* TODO: task=Hotspot 2.0 */
 	if (vif->type != NL80211_IFTYPE_P2P_DEVICE) {
 		IWL_ERR(mld, "NOT SUPPORTED: ROC on vif->type %d\n",
@@ -78,6 +71,13 @@ int iwl_mld_start_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (WARN_ON(mld_vif->roc_activity != ROC_NUM_ACTIVITIES))
 		return -EBUSY;
+
+	ieee80211_iterate_active_interfaces_mtx(mld->hw,
+						IEEE80211_IFACE_ITER_NORMAL,
+						iwl_mld_vif_iter_emlsr_block_roc,
+						&ret);
+	if (ret)
+		return ret;
 
 	ret = iwl_mld_add_aux_sta(mld, aux_sta);
 	if (ret)

@@ -22,6 +22,8 @@ void iwl_mld_cleanup_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
 	struct iwl_mld *mld = mld_vif->mld;
 	struct iwl_mld_link *link;
 
+	mld_vif->emlsr.blocked_reasons &= ~IWL_MLD_EMLSR_BLOCKED_ROC;
+
 	if (mld_vif->aux_sta.sta_id != IWL_INVALID_STA)
 		iwl_mld_free_internal_sta(mld, &mld_vif->aux_sta);
 
