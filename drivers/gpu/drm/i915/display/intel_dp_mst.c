@@ -23,6 +23,9 @@
  *
  */
 
+#include <linux/log2.h>
+#include <linux/math.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
@@ -135,6 +138,7 @@ static bool intel_dp_mst_inc_active_streams(struct intel_dp *intel_dp)
 	return intel_dp->mst.active_streams++ == 0;
 }
 
+/* TODO: return a bpp_x16 value */
 static int intel_dp_mst_max_dpt_bpp(const struct intel_crtc_state *crtc_state,
 				    bool dsc)
 {
@@ -315,6 +319,8 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 		}
 	}
 
+	drm_WARN_ON(display->drm, min_bpp_x16 % bpp_step_x16 || max_bpp_x16 % bpp_step_x16);
+
 	for (bpp_x16 = max_bpp_x16; bpp_x16 >= min_bpp_x16; bpp_x16 -= bpp_step_x16) {
 		int local_bw_overhead;
 		int link_bpp_x16;
@@ -460,7 +466,8 @@ static int mst_stream_dsc_compute_link_config(struct intel_dp *intel_dp,
 	int num_bpc;
 	u8 dsc_bpc[3] = {};
 	int min_bpp, max_bpp, sink_min_bpp, sink_max_bpp;
-	int min_compressed_bpp, max_compressed_bpp;
+	int min_compressed_bpp_x16, max_compressed_bpp_x16;
+	int bpp_step_x16;
 
 	max_bpp = limits->pipe.max_bpp;
 	min_bpp = limits->pipe.min_bpp;
@@ -485,21 +492,28 @@ static int mst_stream_dsc_compute_link_config(struct intel_dp *intel_dp,
 
 	crtc_state->pipe_bpp = max_bpp;
 
-	max_compressed_bpp = fxp_q4_to_int(limits->link.max_bpp_x16);
-	min_compressed_bpp = fxp_q4_to_int_roundup(limits->link.min_bpp_x16);
+	min_compressed_bpp_x16 = limits->link.min_bpp_x16;
+	max_compressed_bpp_x16 = limits->link.max_bpp_x16;
 
-	drm_dbg_kms(display->drm, "DSC Sink supported compressed min bpp %d compressed max bpp %d\n",
-		    min_compressed_bpp, max_compressed_bpp);
+	drm_dbg_kms(display->drm,
+		    "DSC Sink supported compressed min bpp " FXP_Q4_FMT " compressed max bpp " FXP_Q4_FMT "\n",
+		    FXP_Q4_ARGS(min_compressed_bpp_x16), FXP_Q4_ARGS(max_compressed_bpp_x16));
 
-	max_compressed_bpp = min(max_compressed_bpp, crtc_state->pipe_bpp - 1);
+	bpp_step_x16 = fxp_q4_from_int(1);
+
+	max_compressed_bpp_x16 = min(max_compressed_bpp_x16, fxp_q4_from_int(crtc_state->pipe_bpp) - bpp_step_x16);
+
+	drm_WARN_ON(display->drm, !is_power_of_2(bpp_step_x16));
+	min_compressed_bpp_x16 = round_up(min_compressed_bpp_x16, bpp_step_x16);
+	max_compressed_bpp_x16 = round_down(max_compressed_bpp_x16, bpp_step_x16);
 
 	crtc_state->lane_count = limits->max_lane_count;
 	crtc_state->port_clock = limits->max_rate;
 
 	return intel_dp_mtp_tu_compute_config(intel_dp, crtc_state, conn_state,
-					      fxp_q4_from_int(min_compressed_bpp),
-					      fxp_q4_from_int(max_compressed_bpp),
-					      fxp_q4_from_int(1), true);
+					      min_compressed_bpp_x16,
+					      max_compressed_bpp_x16,
+					      bpp_step_x16, true);
 }
 
 static int mode_hblank_period_ns(const struct drm_display_mode *mode)
