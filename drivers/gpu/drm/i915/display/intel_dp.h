@@ -147,6 +147,7 @@ int intel_dp_dsc_sink_min_compressed_bpp(const struct intel_crtc_state *pipe_con
 int intel_dp_dsc_sink_max_compressed_bpp(const struct intel_connector *connector,
 					 const struct intel_crtc_state *pipe_config,
 					 int bpc);
+bool intel_dp_dsc_valid_compressed_bpp(struct intel_dp *intel_dp, int bpp_x16);
 u8 intel_dp_dsc_get_slice_count(const struct intel_connector *connector,
 				int mode_clock, int mode_hdisplay,
 				int num_joined_pipes);

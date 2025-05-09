@@ -2111,8 +2111,11 @@ static int intel_dp_dsc_bpp_step_x16(const struct intel_connector *connector)
 	return fxp_q4_from_int(1) / incr;
 }
 
-/* Note: This is not universally usable! */
-static bool intel_dp_dsc_valid_bpp(struct intel_dp *intel_dp, int bpp_x16)
+/*
+ * Note: for bpp_x16 to be valid it must be also within the source/sink's
+ * min..max bpp capability range.
+ */
+bool intel_dp_dsc_valid_compressed_bpp(struct intel_dp *intel_dp, int bpp_x16)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	int i;
@@ -2176,7 +2179,7 @@ static int dsc_compute_compressed_bpp(struct intel_dp *intel_dp,
 	max_bpp_x16 = min(max_bpp_x16, fxp_q4_from_int(output_bpp) - bpp_step_x16);
 
 	for (bpp_x16 = max_bpp_x16; bpp_x16 >= min_bpp_x16; bpp_x16 -= bpp_step_x16) {
-		if (!intel_dp_dsc_valid_bpp(intel_dp, bpp_x16))
+		if (!intel_dp_dsc_valid_compressed_bpp(intel_dp, bpp_x16))
 			continue;
 
 		ret = dsc_compute_link_config(intel_dp,

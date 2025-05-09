@@ -310,6 +310,12 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 
 		drm_dbg_kms(display->drm, "Trying bpp " FXP_Q4_FMT "\n", FXP_Q4_ARGS(bpp_x16));
 
+		if (dsc && !intel_dp_dsc_valid_compressed_bpp(intel_dp, bpp_x16)) {
+			/* SST must have validated the single bpp tried here already earlier. */
+			drm_WARN_ON(display->drm, !is_mst);
+			continue;
+		}
+
 		link_bpp_x16 = dsc ? bpp_x16 :
 			fxp_q4_from_int(intel_dp_output_bpp(crtc_state->output_format,
 							    fxp_q4_to_int(bpp_x16)));
