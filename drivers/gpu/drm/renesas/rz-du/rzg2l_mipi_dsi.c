@@ -701,9 +701,10 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 	u32 txsetr;
 	int ret;
 
-	dsi = devm_kzalloc(&pdev->dev, sizeof(*dsi), GFP_KERNEL);
-	if (!dsi)
-		return -ENOMEM;
+	dsi = devm_drm_bridge_alloc(&pdev->dev, struct rzg2l_mipi_dsi, bridge,
+				    &rzg2l_mipi_dsi_bridge_ops);
+	if (IS_ERR(dsi))
+		return PTR_ERR(dsi);
 
 	platform_set_drvdata(pdev, dsi);
 	dsi->dev = &pdev->dev;
@@ -761,7 +762,6 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 	pm_runtime_put(dsi->dev);
 
 	/* Initialize the DRM bridge. */
-	dsi->bridge.funcs = &rzg2l_mipi_dsi_bridge_ops;
 	dsi->bridge.of_node = dsi->dev->of_node;
 
 	/* Init host device */

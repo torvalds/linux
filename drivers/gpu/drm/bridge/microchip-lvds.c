@@ -157,9 +157,10 @@ static int mchp_lvds_probe(struct platform_device *pdev)
 	if (!dev->of_node)
 		return -ENODEV;
 
-	lvds = devm_kzalloc(&pdev->dev, sizeof(*lvds), GFP_KERNEL);
-	if (!lvds)
-		return -ENOMEM;
+	lvds = devm_drm_bridge_alloc(&pdev->dev, struct mchp_lvds, bridge,
+				     &mchp_lvds_bridge_funcs);
+	if (IS_ERR(lvds))
+		return PTR_ERR(lvds);
 
 	lvds->dev = dev;
 
@@ -192,7 +193,6 @@ static int mchp_lvds_probe(struct platform_device *pdev)
 
 	lvds->bridge.of_node = dev->of_node;
 	lvds->bridge.type = DRM_MODE_CONNECTOR_LVDS;
-	lvds->bridge.funcs = &mchp_lvds_bridge_funcs;
 
 	dev_set_drvdata(dev, lvds);
 	ret = devm_pm_runtime_enable(dev);

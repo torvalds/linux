@@ -1153,9 +1153,10 @@ static int adv7511_probe(struct i2c_client *i2c)
 	if (!dev->of_node)
 		return -EINVAL;
 
-	adv7511 = devm_kzalloc(dev, sizeof(*adv7511), GFP_KERNEL);
-	if (!adv7511)
-		return -ENOMEM;
+	adv7511 = devm_drm_bridge_alloc(dev, struct adv7511, bridge,
+					&adv7511_bridge_funcs);
+	if (IS_ERR(adv7511))
+		return PTR_ERR(adv7511);
 
 	adv7511->i2c_main = i2c;
 	adv7511->powered = false;
@@ -1255,7 +1256,6 @@ static int adv7511_probe(struct i2c_client *i2c)
 	regmap_write(adv7511->regmap, ADV7511_REG_CEC_CTRL,
 		     ADV7511_CEC_CTRL_POWER_DOWN);
 
-	adv7511->bridge.funcs = &adv7511_bridge_funcs;
 	adv7511->bridge.ops = DRM_BRIDGE_OP_DETECT |
 		DRM_BRIDGE_OP_EDID |
 		DRM_BRIDGE_OP_HDMI |

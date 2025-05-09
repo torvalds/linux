@@ -2291,9 +2291,10 @@ static int sii8620_probe(struct i2c_client *client)
 	struct sii8620 *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	ctx = devm_drm_bridge_alloc(dev, struct sii8620, bridge,
+				    &sii8620_bridge_funcs);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	ctx->dev = dev;
 	mutex_init(&ctx->lock);
@@ -2336,7 +2337,6 @@ static int sii8620_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, ctx);
 
-	ctx->bridge.funcs = &sii8620_bridge_funcs;
 	ctx->bridge.of_node = dev->of_node;
 	drm_bridge_add(&ctx->bridge);
 

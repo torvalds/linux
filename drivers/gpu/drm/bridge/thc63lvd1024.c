@@ -181,9 +181,10 @@ static int thc63_probe(struct platform_device *pdev)
 	struct thc63_dev *thc63;
 	int ret;
 
-	thc63 = devm_kzalloc(&pdev->dev, sizeof(*thc63), GFP_KERNEL);
-	if (!thc63)
-		return -ENOMEM;
+	thc63 = devm_drm_bridge_alloc(&pdev->dev, struct thc63_dev, bridge,
+				      &thc63_bridge_func);
+	if (IS_ERR(thc63))
+		return PTR_ERR(thc63);
 
 	thc63->dev = &pdev->dev;
 	platform_set_drvdata(pdev, thc63);
@@ -208,7 +209,6 @@ static int thc63_probe(struct platform_device *pdev)
 
 	thc63->bridge.driver_private = thc63;
 	thc63->bridge.of_node = pdev->dev.of_node;
-	thc63->bridge.funcs = &thc63_bridge_func;
 	thc63->bridge.timings = &thc63->timings;
 
 	drm_bridge_add(&thc63->bridge);

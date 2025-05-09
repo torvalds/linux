@@ -392,9 +392,10 @@ static int imx8qxp_pxl2dpi_bridge_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	int ret;
 
-	p2d = devm_kzalloc(dev, sizeof(*p2d), GFP_KERNEL);
-	if (!p2d)
-		return -ENOMEM;
+	p2d = devm_drm_bridge_alloc(dev, struct imx8qxp_pxl2dpi, bridge,
+				    &imx8qxp_pxl2dpi_bridge_funcs);
+	if (IS_ERR(p2d))
+		return PTR_ERR(p2d);
 
 	p2d->regmap = syscon_node_to_regmap(np->parent);
 	if (IS_ERR(p2d->regmap)) {
@@ -441,7 +442,6 @@ static int imx8qxp_pxl2dpi_bridge_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 
 	p2d->bridge.driver_private = p2d;
-	p2d->bridge.funcs = &imx8qxp_pxl2dpi_bridge_funcs;
 	p2d->bridge.of_node = np;
 
 	drm_bridge_add(&p2d->bridge);

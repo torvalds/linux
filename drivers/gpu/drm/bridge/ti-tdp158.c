@@ -68,9 +68,10 @@ static int tdp158_probe(struct i2c_client *client)
 	struct tdp158 *tdp158;
 	struct device *dev = &client->dev;
 
-	tdp158 = devm_kzalloc(dev, sizeof(*tdp158), GFP_KERNEL);
-	if (!tdp158)
-		return -ENOMEM;
+	tdp158 = devm_drm_bridge_alloc(dev, struct tdp158, bridge,
+				       &tdp158_bridge_funcs);
+	if (IS_ERR(tdp158))
+		return PTR_ERR(tdp158);
 
 	tdp158->next = devm_drm_of_get_bridge(dev, dev->of_node, 1, 0);
 	if (IS_ERR(tdp158->next))
@@ -89,7 +90,6 @@ static int tdp158_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(tdp158->enable), "enable");
 
 	tdp158->bridge.of_node = dev->of_node;
-	tdp158->bridge.funcs = &tdp158_bridge_funcs;
 	tdp158->bridge.driver_private = tdp158;
 	tdp158->dev = dev;
 

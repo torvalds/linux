@@ -2389,9 +2389,10 @@ static int cdns_mhdp_probe(struct platform_device *pdev)
 	int ret;
 	int irq;
 
-	mhdp = devm_kzalloc(dev, sizeof(*mhdp), GFP_KERNEL);
-	if (!mhdp)
-		return -ENOMEM;
+	mhdp = devm_drm_bridge_alloc(dev, struct cdns_mhdp_device, bridge,
+				     &cdns_mhdp_bridge_funcs);
+	if (IS_ERR(mhdp))
+		return PTR_ERR(mhdp);
 
 	clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(clk)) {
@@ -2481,7 +2482,6 @@ static int cdns_mhdp_probe(struct platform_device *pdev)
 	mhdp->display_fmt.bpc = 8;
 
 	mhdp->bridge.of_node = pdev->dev.of_node;
-	mhdp->bridge.funcs = &cdns_mhdp_bridge_funcs;
 	mhdp->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID |
 			   DRM_BRIDGE_OP_HPD;
 	mhdp->bridge.type = DRM_MODE_CONNECTOR_DisplayPort;

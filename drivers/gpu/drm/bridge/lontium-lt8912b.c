@@ -761,9 +761,10 @@ static int lt8912_probe(struct i2c_client *client)
 	int ret = 0;
 	struct device *dev = &client->dev;
 
-	lt = devm_kzalloc(dev, sizeof(struct lt8912), GFP_KERNEL);
-	if (!lt)
-		return -ENOMEM;
+	lt = devm_drm_bridge_alloc(dev, struct lt8912, bridge,
+				   &lt8912_bridge_funcs);
+	if (IS_ERR(lt))
+		return PTR_ERR(lt);
 
 	lt->dev = dev;
 	lt->i2c_client[0] = client;
@@ -778,7 +779,6 @@ static int lt8912_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, lt);
 
-	lt->bridge.funcs = &lt8912_bridge_funcs;
 	lt->bridge.of_node = dev->of_node;
 	lt->bridge.ops = (DRM_BRIDGE_OP_EDID |
 			  DRM_BRIDGE_OP_DETECT);

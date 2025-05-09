@@ -168,9 +168,10 @@ static int simple_bridge_probe(struct platform_device *pdev)
 	struct simple_bridge *sbridge;
 	struct device_node *remote;
 
-	sbridge = devm_kzalloc(&pdev->dev, sizeof(*sbridge), GFP_KERNEL);
-	if (!sbridge)
-		return -ENOMEM;
+	sbridge = devm_drm_bridge_alloc(&pdev->dev, struct simple_bridge,
+					bridge, &simple_bridge_bridge_funcs);
+	if (IS_ERR(sbridge))
+		return PTR_ERR(sbridge);
 
 	sbridge->info = of_device_get_match_data(&pdev->dev);
 
@@ -204,7 +205,6 @@ static int simple_bridge_probe(struct platform_device *pdev)
 				     "Unable to retrieve enable GPIO\n");
 
 	/* Register the bridge. */
-	sbridge->bridge.funcs = &simple_bridge_bridge_funcs;
 	sbridge->bridge.of_node = pdev->dev.of_node;
 	sbridge->bridge.timings = sbridge->info->timings;
 

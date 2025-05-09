@@ -1194,9 +1194,10 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 	struct dw_mipi_dsi *dsi;
 	int ret;
 
-	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
-	if (!dsi)
-		return ERR_PTR(-ENOMEM);
+	dsi = devm_drm_bridge_alloc(dev, struct dw_mipi_dsi, bridge,
+				    &dw_mipi_dsi_bridge_funcs);
+	if (IS_ERR(dsi))
+		return ERR_CAST(dsi);
 
 	dsi->dev = dev;
 	dsi->plat_data = plat_data;
@@ -1265,7 +1266,6 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 	}
 
 	dsi->bridge.driver_private = dsi;
-	dsi->bridge.funcs = &dw_mipi_dsi_bridge_funcs;
 	dsi->bridge.of_node = pdev->dev.of_node;
 
 	return dsi;
