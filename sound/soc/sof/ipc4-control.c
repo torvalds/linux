@@ -531,6 +531,14 @@ static int sof_ipc4_bytes_ext_put(struct snd_sof_control *scontrol,
 		return -EINVAL;
 	}
 
+	/* Check header id */
+	if (header.numid != SOF_CTRL_CMD_BINARY) {
+		dev_err_ratelimited(scomp->dev,
+				    "Incorrect numid for bytes put %d\n",
+				    header.numid);
+		return -EINVAL;
+	}
+
 	/* Verify the ABI header first */
 	if (copy_from_user(&abi_hdr, tlvd->tlv, sizeof(abi_hdr)))
 		return -EFAULT;
@@ -613,7 +621,8 @@ static int _sof_ipc4_bytes_ext_get(struct snd_sof_control *scontrol,
 	if (data_size > size)
 		return -ENOSPC;
 
-	header.numid = scontrol->comp_id;
+	/* Set header id and length */
+	header.numid = SOF_CTRL_CMD_BINARY;
 	header.length = data_size;
 
 	if (copy_to_user(tlvd, &header, sizeof(struct snd_ctl_tlv)))
