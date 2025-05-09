@@ -63,6 +63,8 @@ separated by spaces:
 	test soft dirty page bit semantics
 - pagemap
 	test pagemap_scan IOCTL
+- pfnmap
+	tests for VM_PFNMAP handling
 - cow
 	test copy-on-write semantics
 - thp
@@ -471,6 +473,8 @@ then
 fi
 
 CATEGORY="pagemap" run_test ./pagemap_ioctl
+
+CATEGORY="pfnmap" run_test ./pfnmap
 
 # COW tests
 CATEGORY="cow" run_test ./cow
