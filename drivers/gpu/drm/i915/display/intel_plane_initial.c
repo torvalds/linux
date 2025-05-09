@@ -53,9 +53,11 @@ intel_reuse_initial_plane_obj(struct intel_crtc *this,
 }
 
 static enum intel_memory_type
-initial_plane_memory_type(struct drm_i915_private *i915)
+initial_plane_memory_type(struct intel_display *display)
 {
-	if (IS_DGFX(i915))
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
+	if (display->platform.dgfx)
 		return INTEL_MEMORY_LOCAL;
 	else if (HAS_LMEMBAR_SMEM_STOLEN(i915))
 		return INTEL_MEMORY_STOLEN_LOCAL;
@@ -75,7 +77,7 @@ initial_plane_phys(struct intel_display *display,
 	dma_addr_t dma_addr;
 	u32 base;
 
-	mem_type = initial_plane_memory_type(i915);
+	mem_type = initial_plane_memory_type(display);
 	mem = intel_memory_region_by_type(i915, mem_type);
 	if (!mem) {
 		drm_dbg_kms(display->drm,

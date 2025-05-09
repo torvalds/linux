@@ -3,8 +3,10 @@
  * Copyright © 2023 Intel Corporation
  */
 
-#include "i915_drv.h"
+#include <drm/drm_print.h>
+
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
 #include "intel_display_types.h"
@@ -133,7 +135,6 @@ static const u32 hpd_mtp[HPD_NUM_PINS] = {
 
 static void intel_hpd_init_pins(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_hotplug *hpd = &display->hotplug;
 
 	if (HAS_GMCH(display)) {
@@ -160,33 +161,31 @@ static void intel_hpd_init_pins(struct intel_display *display)
 	else
 		hpd->hpd = hpd_ilk;
 
-	if ((INTEL_PCH_TYPE(dev_priv) < PCH_DG1) &&
-	    (!HAS_PCH_SPLIT(dev_priv) || HAS_PCH_NOP(dev_priv)))
+	if ((INTEL_PCH_TYPE(display) < PCH_DG1) &&
+	    (!HAS_PCH_SPLIT(display) || HAS_PCH_NOP(display)))
 		return;
 
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_MTL)
+	if (INTEL_PCH_TYPE(display) >= PCH_MTL)
 		hpd->pch_hpd = hpd_mtp;
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1)
+	else if (INTEL_PCH_TYPE(display) >= PCH_DG1)
 		hpd->pch_hpd = hpd_sde_dg1;
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+	else if (INTEL_PCH_TYPE(display) >= PCH_ICP)
 		hpd->pch_hpd = hpd_icp;
-	else if (HAS_PCH_CNP(dev_priv) || HAS_PCH_SPT(dev_priv))
+	else if (HAS_PCH_CNP(display) || HAS_PCH_SPT(display))
 		hpd->pch_hpd = hpd_spt;
-	else if (HAS_PCH_LPT(dev_priv) || HAS_PCH_CPT(dev_priv))
+	else if (HAS_PCH_LPT(display) || HAS_PCH_CPT(display))
 		hpd->pch_hpd = hpd_cpt;
-	else if (HAS_PCH_IBX(dev_priv))
+	else if (HAS_PCH_IBX(display))
 		hpd->pch_hpd = hpd_ibx;
 	else
-		MISSING_CASE(INTEL_PCH_TYPE(dev_priv));
+		MISSING_CASE(INTEL_PCH_TYPE(display));
 }
 
 /* For display hotplug interrupt */
 void i915_hotplug_interrupt_update_locked(struct intel_display *display,
 					  u32 mask, u32 bits)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
-	lockdep_assert_held(&dev_priv->irq_lock);
+	lockdep_assert_held(&display->irq.lock);
 	drm_WARN_ON(display->drm, bits & ~mask);
 
 	intel_de_rmw(display, PORT_HOTPLUG_EN(display), mask, bits);
@@ -208,11 +207,9 @@ void i915_hotplug_interrupt_update(struct intel_display *display,
 				   u32 mask,
 				   u32 bits)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
-	spin_lock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 	i915_hotplug_interrupt_update_locked(display, mask, bits);
-	spin_unlock_irq(&dev_priv->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 }
 
 static bool gen11_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
@@ -557,7 +554,6 @@ void xelpdp_pica_irq_handler(struct intel_display *display, u32 iir)
 
 void icp_irq_handler(struct intel_display *display, u32 pch_iir)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 ddi_hotplug_trigger = pch_iir & SDE_DDI_HOTPLUG_MASK_ICP;
 	u32 tc_hotplug_trigger = pch_iir & SDE_TC_HOTPLUG_MASK_ICP;
 	u32 pin_mask = 0, long_mask = 0;
@@ -566,9 +562,9 @@ void icp_irq_handler(struct intel_display *display, u32 pch_iir)
 		u32 dig_hotplug_reg;
 
 		/* Locking due to DSI native GPIO sequences */
-		spin_lock(&dev_priv->irq_lock);
+		spin_lock(&display->irq.lock);
 		dig_hotplug_reg = intel_de_rmw(display, SHOTPLUG_CTL_DDI, 0, 0);
-		spin_unlock(&dev_priv->irq_lock);
+		spin_unlock(&display->irq.lock);
 
 		intel_get_hpd_pins(display, &pin_mask, &long_mask,
 				   ddi_hotplug_trigger, dig_hotplug_reg,
@@ -711,7 +707,7 @@ static u32 ibx_hotplug_mask(enum hpd_pin hpd_pin)
 
 static u32 ibx_hotplug_enables(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 
 	switch (encoder->hpd_pin) {
 	case HPD_PORT_A:
@@ -719,7 +715,7 @@ static u32 ibx_hotplug_enables(struct intel_encoder *encoder)
 		 * When CPU and PCH are on the same package, port A
 		 * HPD must be enabled in both north and south.
 		 */
-		return HAS_PCH_LPT_LP(i915) ?
+		return HAS_PCH_LPT_LP(display) ?
 			PORTA_HOTPLUG_ENABLE : 0;
 	case HPD_PORT_B:
 		return PORTB_HOTPLUG_ENABLE |
@@ -940,18 +936,17 @@ static void gen11_tbt_hpd_enable_detection(struct intel_encoder *encoder)
 
 static void gen11_hpd_enable_detection(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 
 	gen11_tc_hpd_enable_detection(encoder);
 	gen11_tbt_hpd_enable_detection(encoder);
 
-	if (INTEL_PCH_TYPE(i915) >= PCH_ICP)
+	if (INTEL_PCH_TYPE(display) >= PCH_ICP)
 		icp_hpd_enable_detection(encoder);
 }
 
 static void gen11_hpd_irq_setup(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 hotplug_irqs, enabled_irqs;
 
 	enabled_irqs = intel_hpd_enabled_irqs(display, display->hotplug.hpd);
@@ -964,7 +959,7 @@ static void gen11_hpd_irq_setup(struct intel_display *display)
 	gen11_tc_hpd_detection_setup(display);
 	gen11_tbt_hpd_detection_setup(display);
 
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+	if (INTEL_PCH_TYPE(display) >= PCH_ICP)
 		icp_hpd_irq_setup(display);
 }
 
@@ -1138,7 +1133,6 @@ static void xelpdp_hpd_enable_detection(struct intel_encoder *encoder)
 
 static void xelpdp_hpd_irq_setup(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	u32 hotplug_irqs, enabled_irqs;
 
 	enabled_irqs = intel_hpd_enabled_irqs(display, display->hotplug.hpd);
@@ -1150,9 +1144,9 @@ static void xelpdp_hpd_irq_setup(struct intel_display *display)
 
 	xelpdp_pica_hpd_detection_setup(display);
 
-	if (INTEL_PCH_TYPE(i915) >= PCH_LNL)
+	if (INTEL_PCH_TYPE(display) >= PCH_LNL)
 		xe2lpd_sde_hpd_irq_setup(display);
-	else if (INTEL_PCH_TYPE(i915) >= PCH_MTL)
+	else if (INTEL_PCH_TYPE(display) >= PCH_MTL)
 		mtp_hpd_irq_setup(display);
 }
 
@@ -1194,10 +1188,8 @@ static u32 spt_hotplug2_enables(struct intel_encoder *encoder)
 
 static void spt_hpd_detection_setup(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
 	/* Display WA #1179 WaHardHangonHotPlug: cnp */
-	if (HAS_PCH_CNP(dev_priv)) {
+	if (HAS_PCH_CNP(display)) {
 		intel_de_rmw(display, SOUTH_CHICKEN1, CHASSIS_CLK_REQ_DURATION_MASK,
 			     CHASSIS_CLK_REQ_DURATION(0xf));
 	}
@@ -1215,10 +1207,9 @@ static void spt_hpd_detection_setup(struct intel_display *display)
 static void spt_hpd_enable_detection(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 
 	/* Display WA #1179 WaHardHangonHotPlug: cnp */
-	if (HAS_PCH_CNP(i915)) {
+	if (HAS_PCH_CNP(display)) {
 		intel_de_rmw(display, SOUTH_CHICKEN1,
 			     CHASSIS_CLK_REQ_DURATION_MASK,
 			     CHASSIS_CLK_REQ_DURATION(0xf));
@@ -1235,10 +1226,9 @@ static void spt_hpd_enable_detection(struct intel_encoder *encoder)
 
 static void spt_hpd_irq_setup(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 hotplug_irqs, enabled_irqs;
 
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_CNP)
+	if (INTEL_PCH_TYPE(display) >= PCH_CNP)
 		intel_de_write(display, SHPD_FILTER_CNT, SHPD_FILTER_CNT_500_ADJ);
 
 	enabled_irqs = intel_hpd_enabled_irqs(display, display->hotplug.pch_hpd);
@@ -1402,10 +1392,9 @@ static void i915_hpd_enable_detection(struct intel_encoder *encoder)
 
 static void i915_hpd_irq_setup(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 hotplug_en;
 
-	lockdep_assert_held(&dev_priv->irq_lock);
+	lockdep_assert_held(&display->irq.lock);
 
 	/*
 	 * Note HDMI and DP share hotplug bits. Enable bits are the same for all
@@ -1474,8 +1463,6 @@ void intel_hpd_irq_setup(struct intel_display *display)
 
 void intel_hotplug_irq_init(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	intel_hpd_init_pins(display);
 
 	intel_hpd_init_early(display);
@@ -1484,9 +1471,9 @@ void intel_hotplug_irq_init(struct intel_display *display)
 		if (HAS_HOTPLUG(display))
 			display->funcs.hotplug = &i915_hpd_funcs;
 	} else {
-		if (HAS_PCH_DG2(i915))
+		if (HAS_PCH_DG2(display))
 			display->funcs.hotplug = &icp_hpd_funcs;
-		else if (HAS_PCH_DG1(i915))
+		else if (HAS_PCH_DG1(display))
 			display->funcs.hotplug = &dg1_hpd_funcs;
 		else if (DISPLAY_VER(display) >= 14)
 			display->funcs.hotplug = &xelpdp_hpd_funcs;
@@ -1494,9 +1481,9 @@ void intel_hotplug_irq_init(struct intel_display *display)
 			display->funcs.hotplug = &gen11_hpd_funcs;
 		else if (display->platform.geminilake || display->platform.broxton)
 			display->funcs.hotplug = &bxt_hpd_funcs;
-		else if (INTEL_PCH_TYPE(i915) >= PCH_ICP)
+		else if (INTEL_PCH_TYPE(display) >= PCH_ICP)
 			display->funcs.hotplug = &icp_hpd_funcs;
-		else if (INTEL_PCH_TYPE(i915) >= PCH_SPT)
+		else if (INTEL_PCH_TYPE(display) >= PCH_SPT)
 			display->funcs.hotplug = &spt_hpd_funcs;
 		else
 			display->funcs.hotplug = &ilk_hpd_funcs;

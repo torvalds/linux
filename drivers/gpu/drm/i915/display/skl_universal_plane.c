@@ -2690,24 +2690,22 @@ static void
 skl_plane_enable_flip_done(struct intel_plane *plane)
 {
 	struct intel_display *display = to_intel_display(plane);
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
 
-	spin_lock_irq(&i915->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 	bdw_enable_pipe_irq(display, pipe, GEN9_PIPE_PLANE_FLIP_DONE(plane->id));
-	spin_unlock_irq(&i915->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 }
 
 static void
 skl_plane_disable_flip_done(struct intel_plane *plane)
 {
 	struct intel_display *display = to_intel_display(plane);
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
 
-	spin_lock_irq(&i915->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 	bdw_disable_pipe_irq(display, pipe, GEN9_PIPE_PLANE_FLIP_DONE(plane->id));
-	spin_unlock_irq(&i915->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 }
 
 static bool skl_plane_has_rc_ccs(struct intel_display *display,

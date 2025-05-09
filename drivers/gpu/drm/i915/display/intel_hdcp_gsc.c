@@ -11,27 +11,22 @@
 #include "i915_drv.h"
 #include "i915_utils.h"
 #include "intel_hdcp_gsc.h"
-#include "intel_hdcp_gsc_message.h"
 
-struct intel_hdcp_gsc_message {
+struct intel_hdcp_gsc_context {
+	struct drm_i915_private *i915;
 	struct i915_vma *vma;
 	void *hdcp_cmd_in;
 	void *hdcp_cmd_out;
 };
 
-bool intel_hdcp_gsc_cs_required(struct intel_display *display)
+bool intel_hdcp_gsc_check_status(struct drm_device *drm)
 {
-	return DISPLAY_VER(display) >= 14;
-}
-
-bool intel_hdcp_gsc_check_status(struct intel_display *display)
-{
-	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct drm_i915_private *i915 = to_i915(drm);
 	struct intel_gt *gt = i915->media_gt;
 	struct intel_gsc_uc *gsc = gt ? &gt->uc.gsc : NULL;
 
 	if (!gsc || !intel_uc_fw_is_running(&gsc->fw)) {
-		drm_dbg_kms(display->drm,
+		drm_dbg_kms(&i915->drm,
 			    "GSC components required for HDCP2.2 are not ready\n");
 		return false;
 	}
@@ -41,7 +36,7 @@ bool intel_hdcp_gsc_check_status(struct intel_display *display)
 
 /*This function helps allocate memory for the command that we will send to gsc cs */
 static int intel_hdcp_gsc_initialize_message(struct drm_i915_private *i915,
-					     struct intel_hdcp_gsc_message *hdcp_message)
+					     struct intel_hdcp_gsc_context *gsc_context)
 {
 	struct intel_gt *gt = i915->media_gt;
 	struct drm_i915_gem_object *obj = NULL;
@@ -78,9 +73,10 @@ static int intel_hdcp_gsc_initialize_message(struct drm_i915_private *i915,
 
 	memset(cmd_in, 0, obj->base.size);
 
-	hdcp_message->hdcp_cmd_in = cmd_in;
-	hdcp_message->hdcp_cmd_out = cmd_out;
-	hdcp_message->vma = vma;
+	gsc_context->hdcp_cmd_in = cmd_in;
+	gsc_context->hdcp_cmd_out = cmd_out;
+	gsc_context->vma = vma;
+	gsc_context->i915 = i915;
 
 	return 0;
 
@@ -91,80 +87,37 @@ out_unpin:
 	return err;
 }
 
-static const struct i915_hdcp_ops gsc_hdcp_ops = {
-	.initiate_hdcp2_session = intel_hdcp_gsc_initiate_session,
-	.verify_receiver_cert_prepare_km =
-				intel_hdcp_gsc_verify_receiver_cert_prepare_km,
-	.verify_hprime = intel_hdcp_gsc_verify_hprime,
-	.store_pairing_info = intel_hdcp_gsc_store_pairing_info,
-	.initiate_locality_check = intel_hdcp_gsc_initiate_locality_check,
-	.verify_lprime = intel_hdcp_gsc_verify_lprime,
-	.get_session_key = intel_hdcp_gsc_get_session_key,
-	.repeater_check_flow_prepare_ack =
-				intel_hdcp_gsc_repeater_check_flow_prepare_ack,
-	.verify_mprime = intel_hdcp_gsc_verify_mprime,
-	.enable_hdcp_authentication = intel_hdcp_gsc_enable_authentication,
-	.close_hdcp_session = intel_hdcp_gsc_close_session,
-};
-
-static int intel_hdcp_gsc_hdcp2_init(struct intel_display *display)
+struct intel_hdcp_gsc_context *intel_hdcp_gsc_context_alloc(struct drm_device *drm)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-	struct intel_hdcp_gsc_message *hdcp_message;
+	struct drm_i915_private *i915 = to_i915(drm);
+	struct intel_hdcp_gsc_context *gsc_context;
 	int ret;
 
-	hdcp_message = kzalloc(sizeof(*hdcp_message), GFP_KERNEL);
-
-	if (!hdcp_message)
-		return -ENOMEM;
+	gsc_context = kzalloc(sizeof(*gsc_context), GFP_KERNEL);
+	if (!gsc_context)
+		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * NOTE: No need to lock the comp mutex here as it is already
 	 * going to be taken before this function called
 	 */
-	display->hdcp.hdcp_message = hdcp_message;
-	ret = intel_hdcp_gsc_initialize_message(i915, hdcp_message);
+	ret = intel_hdcp_gsc_initialize_message(i915, gsc_context);
+	if (ret) {
+		drm_err(&i915->drm, "Could not initialize gsc_context\n");
+		kfree(gsc_context);
+		gsc_context = ERR_PTR(ret);
+	}
 
-	if (ret)
-		drm_err(display->drm, "Could not initialize hdcp_message\n");
-
-	return ret;
+	return gsc_context;
 }
 
-static void intel_hdcp_gsc_free_message(struct intel_display *display)
+void intel_hdcp_gsc_context_free(struct intel_hdcp_gsc_context *gsc_context)
 {
-	struct intel_hdcp_gsc_message *hdcp_message =
-					display->hdcp.hdcp_message;
+	if (!gsc_context)
+		return;
 
-	hdcp_message->hdcp_cmd_in = NULL;
-	hdcp_message->hdcp_cmd_out = NULL;
-	i915_vma_unpin_and_release(&hdcp_message->vma, I915_VMA_RELEASE_MAP);
-	kfree(hdcp_message);
-}
-
-int intel_hdcp_gsc_init(struct intel_display *display)
-{
-	struct i915_hdcp_arbiter *data;
-	int ret;
-
-	data = kzalloc(sizeof(struct i915_hdcp_arbiter), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	mutex_lock(&display->hdcp.hdcp_mutex);
-	display->hdcp.arbiter = data;
-	display->hdcp.arbiter->hdcp_dev = display->drm->dev;
-	display->hdcp.arbiter->ops = &gsc_hdcp_ops;
-	ret = intel_hdcp_gsc_hdcp2_init(display);
-	mutex_unlock(&display->hdcp.hdcp_mutex);
-
-	return ret;
-}
-
-void intel_hdcp_gsc_fini(struct intel_display *display)
-{
-	intel_hdcp_gsc_free_message(display);
-	kfree(display->hdcp.arbiter);
+	i915_vma_unpin_and_release(&gsc_context->vma, I915_VMA_RELEASE_MAP);
+	kfree(gsc_context);
 }
 
 static int intel_gsc_send_sync(struct drm_i915_private *i915,
@@ -211,18 +164,18 @@ static int intel_gsc_send_sync(struct drm_i915_private *i915,
 /*
  * This function can now be used for sending requests and will also handle
  * receipt of reply messages hence no different function of message retrieval
- * is required. We will initialize intel_hdcp_gsc_message structure then add
+ * is required. We will initialize intel_hdcp_gsc_context structure then add
  * gsc cs memory header as stated in specs after which the normal HDCP payload
  * will follow
  */
-ssize_t intel_hdcp_gsc_msg_send(struct drm_i915_private *i915, u8 *msg_in,
-				size_t msg_in_len, u8 *msg_out,
-				size_t msg_out_len)
+ssize_t intel_hdcp_gsc_msg_send(struct intel_hdcp_gsc_context *gsc_context,
+				void *msg_in, size_t msg_in_len,
+				void *msg_out, size_t msg_out_len)
 {
+	struct drm_i915_private *i915 = gsc_context->i915;
 	struct intel_gt *gt = i915->media_gt;
 	struct intel_gsc_mtl_header *header_in, *header_out;
 	const size_t max_msg_size = PAGE_SIZE - sizeof(*header_in);
-	struct intel_hdcp_gsc_message *hdcp_message;
 	u64 addr_in, addr_out, host_session_id;
 	u32 reply_size, msg_size_in, msg_size_out;
 	int ret, tries = 0;
@@ -235,10 +188,9 @@ ssize_t intel_hdcp_gsc_msg_send(struct drm_i915_private *i915, u8 *msg_in,
 
 	msg_size_in = msg_in_len + sizeof(*header_in);
 	msg_size_out = msg_out_len + sizeof(*header_out);
-	hdcp_message = i915->display.hdcp.hdcp_message;
-	header_in = hdcp_message->hdcp_cmd_in;
-	header_out = hdcp_message->hdcp_cmd_out;
-	addr_in = i915_ggtt_offset(hdcp_message->vma);
+	header_in = gsc_context->hdcp_cmd_in;
+	header_out = gsc_context->hdcp_cmd_out;
+	addr_in = i915_ggtt_offset(gsc_context->vma);
 	addr_out = addr_in + PAGE_SIZE;
 
 	memset(header_in, 0, msg_size_in);
@@ -246,7 +198,7 @@ ssize_t intel_hdcp_gsc_msg_send(struct drm_i915_private *i915, u8 *msg_in,
 	get_random_bytes(&host_session_id, sizeof(u64));
 	intel_gsc_uc_heci_cmd_emit_mtl_header(header_in, HECI_MEADDRESS_HDCP,
 					      msg_size_in, host_session_id);
-	memcpy(hdcp_message->hdcp_cmd_in + sizeof(*header_in), msg_in, msg_in_len);
+	memcpy(gsc_context->hdcp_cmd_in + sizeof(*header_in), msg_in, msg_in_len);
 
 	/*
 	 * Keep sending request in case the pending bit is set no need to add
@@ -280,7 +232,7 @@ ssize_t intel_hdcp_gsc_msg_send(struct drm_i915_private *i915, u8 *msg_in,
 			    reply_size, (u32)msg_out_len);
 	}
 
-	memcpy(msg_out, hdcp_message->hdcp_cmd_out + sizeof(*header_out), msg_out_len);
+	memcpy(msg_out, gsc_context->hdcp_cmd_out + sizeof(*header_out), msg_out_len);
 
 err:
 	return ret;

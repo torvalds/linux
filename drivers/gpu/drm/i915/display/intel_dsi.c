@@ -4,8 +4,9 @@
  */
 
 #include <drm/drm_mipi_dsi.h>
+#include <drm/drm_print.h>
 
-#include "i915_drv.h"
+#include "intel_display_core.h"
 #include "intel_dsi.h"
 #include "intel_panel.h"
 
@@ -116,14 +117,14 @@ struct intel_dsi_host *intel_dsi_host_init(struct intel_dsi *intel_dsi,
 enum drm_panel_orientation
 intel_dsi_get_panel_orientation(struct intel_connector *connector)
 {
-	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	enum drm_panel_orientation orientation;
 
 	orientation = connector->panel.vbt.dsi.orientation;
 	if (orientation != DRM_MODE_PANEL_ORIENTATION_UNKNOWN)
 		return orientation;
 
-	orientation = dev_priv->display.vbt.orientation;
+	orientation = display->vbt.orientation;
 	if (orientation != DRM_MODE_PANEL_ORIENTATION_UNKNOWN)
 		return orientation;
 

@@ -7,11 +7,12 @@
 #include <linux/string_helpers.h>
 
 #include <drm/drm_debugfs.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_file.h>
 #include <drm/drm_fourcc.h>
 
 #include "hsw_ips.h"
-#include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
 #include "i9xx_wm_regs.h"
@@ -53,10 +54,9 @@ static struct intel_display *node_to_intel_display(struct drm_info_node *node)
 static int intel_display_caps(struct seq_file *m, void *data)
 {
 	struct intel_display *display = node_to_intel_display(m->private);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	drm_printf(&p, "PCH type: %d\n", INTEL_PCH_TYPE(i915));
+	drm_printf(&p, "PCH type: %d\n", INTEL_PCH_TYPE(display));
 
 	intel_display_device_info_print(DISPLAY_INFO(display),
 					DISPLAY_RUNTIME_INFO(display), &p);
@@ -85,7 +85,6 @@ static int i915_frontbuffer_tracking(struct seq_file *m, void *unused)
 static int i915_sr_status(struct seq_file *m, void *unused)
 {
 	struct intel_display *display = node_to_intel_display(m->private);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	intel_wakeref_t wakeref;
 	bool sr_enabled = false;
 
@@ -93,7 +92,7 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 
 	if (DISPLAY_VER(display) >= 9)
 		/* no global SR status; inspect per-plane WM */;
-	else if (HAS_PCH_SPLIT(dev_priv))
+	else if (HAS_PCH_SPLIT(display))
 		sr_enabled = intel_de_read(display, WM1_LP_ILK) & WM_LP_ENABLE;
 	else if (display->platform.i965gm || display->platform.g4x ||
 		 display->platform.i945g || display->platform.i945gm)
@@ -558,6 +557,8 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 	seq_printf(m, "\tpipe src=" DRM_RECT_FMT ", dither=%s, bpp=%d\n",
 		   DRM_RECT_ARG(&crtc_state->pipe_src),
 		   str_yes_no(crtc_state->dither), crtc_state->pipe_bpp);
+	seq_printf(m, "\tport_clock=%d, lane_count=%d\n",
+		   crtc_state->port_clock, crtc_state->lane_count);
 
 	intel_scaler_info(m, crtc);
 

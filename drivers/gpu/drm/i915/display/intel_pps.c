@@ -350,21 +350,19 @@ vlv_initial_power_sequencer_setup(struct intel_dp *intel_dp)
 
 static int intel_num_pps(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	if (display->platform.valleyview || display->platform.cherryview)
 		return 2;
 
 	if (display->platform.geminilake || display->platform.broxton)
 		return 2;
 
-	if (INTEL_PCH_TYPE(i915) >= PCH_MTL)
+	if (INTEL_PCH_TYPE(display) >= PCH_MTL)
 		return 2;
 
-	if (INTEL_PCH_TYPE(i915) >= PCH_DG1)
+	if (INTEL_PCH_TYPE(display) >= PCH_DG1)
 		return 1;
 
-	if (INTEL_PCH_TYPE(i915) >= PCH_ICP)
+	if (INTEL_PCH_TYPE(display) >= PCH_ICP)
 		return 2;
 
 	return 1;
@@ -373,11 +371,10 @@ static int intel_num_pps(struct intel_display *display)
 static bool intel_pps_is_valid(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 
 	if (intel_dp->pps.pps_idx == 1 &&
-	    INTEL_PCH_TYPE(i915) >= PCH_ICP &&
-	    INTEL_PCH_TYPE(i915) <= PCH_ADP)
+	    INTEL_PCH_TYPE(display) >= PCH_ICP &&
+	    INTEL_PCH_TYPE(display) <= PCH_ADP)
 		return intel_de_read(display, SOUTH_CHICKEN1) & ICP_SECOND_PPS_IO_SELECT;
 
 	return true;
@@ -499,7 +496,6 @@ static void intel_pps_get_registers(struct intel_dp *intel_dp,
 				    struct pps_registers *regs)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	int pps_idx;
 
 	memset(regs, 0, sizeof(*regs));
@@ -518,7 +514,7 @@ static void intel_pps_get_registers(struct intel_dp *intel_dp,
 
 	/* Cycle delay moved from PP_DIVISOR to PP_CONTROL */
 	if (display->platform.geminilake || display->platform.broxton ||
-	    INTEL_PCH_TYPE(dev_priv) >= PCH_CNP)
+	    INTEL_PCH_TYPE(display) >= PCH_CNP)
 		regs->pp_div = INVALID_MMIO_REG;
 	else
 		regs->pp_div = PP_DIVISOR(display, pps_idx);
@@ -1591,7 +1587,6 @@ static void pps_init_delays(struct intel_dp *intel_dp)
 static void pps_init_registers(struct intel_dp *intel_dp, bool force_disable_vdd)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 pp_on, pp_off, port_sel = 0;
 	int div = DISPLAY_RUNTIME_INFO(display)->rawclk_freq / 1000;
 	struct pps_registers regs;
@@ -1638,7 +1633,7 @@ static void pps_init_registers(struct intel_dp *intel_dp, bool force_disable_vdd
 	 * power sequencer any more. */
 	if (display->platform.valleyview || display->platform.cherryview) {
 		port_sel = PANEL_PORT_SELECT_VLV(port);
-	} else if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv)) {
+	} else if (HAS_PCH_IBX(display) || HAS_PCH_CPT(display)) {
 		switch (port) {
 		case PORT_A:
 			port_sel = PANEL_PORT_SELECT_DPA;
@@ -1791,9 +1786,7 @@ void intel_pps_unlock_regs_wa(struct intel_display *display)
 
 void intel_pps_setup(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	if (HAS_PCH_SPLIT(i915) || display->platform.geminilake || display->platform.broxton)
+	if (HAS_PCH_SPLIT(display) || display->platform.geminilake || display->platform.broxton)
 		display->pps.mmio_base = PCH_PPS_BASE;
 	else if (display->platform.valleyview || display->platform.cherryview)
 		display->pps.mmio_base = VLV_PPS_BASE;
@@ -1836,7 +1829,6 @@ void intel_pps_connector_debugfs_add(struct intel_connector *connector)
 
 void assert_pps_unlocked(struct intel_display *display, enum pipe pipe)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	i915_reg_t pp_reg;
 	u32 val;
 	enum pipe panel_pipe = INVALID_PIPE;
@@ -1845,7 +1837,7 @@ void assert_pps_unlocked(struct intel_display *display, enum pipe pipe)
 	if (drm_WARN_ON(display->drm, HAS_DDI(display)))
 		return;
 
-	if (HAS_PCH_SPLIT(dev_priv)) {
+	if (HAS_PCH_SPLIT(display)) {
 		u32 port_sel;
 
 		pp_reg = PP_CONTROL(display, 0);

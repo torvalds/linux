@@ -59,7 +59,13 @@ void intel_psr2_program_trans_man_trk_ctl(struct intel_dsb *dsb,
 					  const struct intel_crtc_state *crtc_state);
 void intel_psr_pause(struct intel_dp *intel_dp);
 void intel_psr_resume(struct intel_dp *intel_dp);
-bool intel_psr_needs_block_dc_vblank(const struct intel_crtc_state *crtc_state);
+bool intel_psr_needs_vblank_notification(const struct intel_crtc_state *crtc_state);
+void intel_psr_notify_pipe_change(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc, bool enable);
+void intel_psr_notify_dc5_dc6(struct intel_display *display);
+void intel_psr_dc5_dc6_wa_init(struct intel_display *display);
+void intel_psr_notify_vblank_enable_disable(struct intel_display *display,
+					    bool enable);
 bool intel_psr_link_ok(struct intel_dp *intel_dp);
 
 void intel_psr_lock(const struct intel_crtc_state *crtc_state);
@@ -67,7 +73,9 @@ void intel_psr_unlock(const struct intel_crtc_state *crtc_state);
 void intel_psr_trigger_frame_change_event(struct intel_dsb *dsb,
 					  struct intel_atomic_state *state,
 					  struct intel_crtc *crtc);
+int intel_psr_min_vblank_delay(const struct intel_crtc_state *crtc_state);
 void intel_psr_connector_debugfs_add(struct intel_connector *connector);
 void intel_psr_debugfs_register(struct intel_display *display);
+bool intel_psr_needs_alpm(struct intel_dp *intel_dp, const struct intel_crtc_state *crtc_state);
 
 #endif /* __INTEL_PSR_H__ */

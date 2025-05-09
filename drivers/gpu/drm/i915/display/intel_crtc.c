@@ -124,7 +124,7 @@ void intel_crtc_vblank_on(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	crtc->block_dc_for_vblank = intel_psr_needs_block_dc_vblank(crtc_state);
+	crtc->vblank_psr_notify = intel_psr_needs_vblank_notification(crtc_state);
 
 	assert_vblank_disabled(&crtc->base);
 	drm_crtc_set_max_vblank_count(&crtc->base,
@@ -154,9 +154,9 @@ void intel_crtc_vblank_off(const struct intel_crtc_state *crtc_state)
 	drm_crtc_vblank_off(&crtc->base);
 	assert_vblank_disabled(&crtc->base);
 
-	crtc->block_dc_for_vblank = false;
+	crtc->vblank_psr_notify = false;
 
-	flush_work(&display->irq.vblank_dc_work);
+	flush_work(&display->irq.vblank_notify_work);
 }
 
 struct intel_crtc_state *intel_crtc_state_alloc(struct intel_crtc *crtc)
@@ -305,7 +305,6 @@ static const struct drm_crtc_funcs i8xx_crtc_funcs = {
 
 int intel_crtc_init(struct intel_display *display, enum pipe pipe)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_plane *primary, *cursor;
 	const struct drm_crtc_funcs *funcs;
 	struct intel_crtc *crtc;
@@ -333,7 +332,7 @@ int intel_crtc_init(struct intel_display *display, enum pipe pipe)
 	for_each_sprite(display, pipe, sprite) {
 		struct intel_plane *plane;
 
-		if (DISPLAY_VER(dev_priv) >= 9)
+		if (DISPLAY_VER(display) >= 9)
 			plane = skl_universal_plane_create(display, pipe, PLANE_2 + sprite);
 		else
 			plane = intel_sprite_plane_create(display, pipe, sprite);

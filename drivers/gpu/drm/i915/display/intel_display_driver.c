@@ -54,6 +54,7 @@
 #include "intel_plane_initial.h"
 #include "intel_pmdemand.h"
 #include "intel_pps.h"
+#include "intel_psr.h"
 #include "intel_quirks.h"
 #include "intel_vga.h"
 #include "intel_wm.h"
@@ -180,6 +181,9 @@ static void intel_plane_possible_crtcs_init(struct intel_display *display)
 
 void intel_display_driver_early_probe(struct intel_display *display)
 {
+	/* This must be called before any calls to HAS_PCH_* */
+	intel_pch_detect(display);
+
 	if (!HAS_DISPLAY(display))
 		return;
 
@@ -222,6 +226,8 @@ int intel_display_driver_probe_noirq(struct intel_display *display)
 	ret = intel_vga_register(display);
 	if (ret)
 		goto cleanup_bios;
+
+	intel_psr_dc5_dc6_wa_init(display);
 
 	/* FIXME: completely on the wrong abstraction layer */
 	ret = intel_power_domains_init(display);
@@ -415,7 +421,6 @@ bool intel_display_driver_check_access(struct intel_display *display)
 /* part #2: call after irq install, but before gem init */
 int intel_display_driver_probe_nogem(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	enum pipe pipe;
 	int ret;
 
@@ -453,8 +458,6 @@ int intel_display_driver_probe_nogem(struct intel_display *display)
 
 	intel_hti_init(display);
 
-	/* Just disable it once at startup */
-	intel_vga_disable(display);
 	intel_setup_outputs(display);
 
 	ret = intel_dp_tunnel_mgr_init(display);
@@ -464,7 +467,7 @@ int intel_display_driver_probe_nogem(struct intel_display *display)
 	intel_display_driver_disable_user_access(display);
 
 	drm_modeset_lock_all(display->drm);
-	intel_modeset_setup_hw_state(i915, display->drm->mode_config.acquire_ctx);
+	intel_modeset_setup_hw_state(display, display->drm->mode_config.acquire_ctx);
 	intel_acpi_assign_connector_fwnodes(display);
 	drm_modeset_unlock_all(display->drm);
 
@@ -525,7 +528,6 @@ int intel_display_driver_probe(struct intel_display *display)
 
 void intel_display_driver_register(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct drm_printer p = drm_dbg_printer(display->drm, DRM_UT_KMS,
 					       "i915 display info:");
 
@@ -552,7 +554,7 @@ void intel_display_driver_register(struct intel_display *display)
 	drm_kms_helper_poll_init(display->drm);
 	intel_hpd_poll_disable(display);
 
-	intel_fbdev_setup(i915);
+	intel_fbdev_setup(display);
 
 	intel_display_device_info_print(DISPLAY_INFO(display),
 					DISPLAY_RUNTIME_INFO(display), &p);
@@ -687,13 +689,11 @@ __intel_display_driver_resume(struct intel_display *display,
 			      struct drm_atomic_state *state,
 			      struct drm_modeset_acquire_ctx *ctx)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct drm_crtc_state *crtc_state;
 	struct drm_crtc *crtc;
 	int ret, i;
 
-	intel_modeset_setup_hw_state(i915, ctx);
-	intel_vga_redisable(display);
+	intel_modeset_setup_hw_state(display, ctx);
 
 	if (!state)
 		return 0;

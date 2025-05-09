@@ -152,32 +152,31 @@ static const struct gmbus_pin gmbus_pins_mtp[] = {
 static const struct gmbus_pin *get_gmbus_pin(struct intel_display *display,
 					     unsigned int pin)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	const struct gmbus_pin *pins;
 	size_t size;
 
-	if (INTEL_PCH_TYPE(i915) >= PCH_MTL) {
+	if (INTEL_PCH_TYPE(display) >= PCH_MTL) {
 		pins = gmbus_pins_mtp;
 		size = ARRAY_SIZE(gmbus_pins_mtp);
-	} else if (INTEL_PCH_TYPE(i915) >= PCH_DG2) {
+	} else if (INTEL_PCH_TYPE(display) >= PCH_DG2) {
 		pins = gmbus_pins_dg2;
 		size = ARRAY_SIZE(gmbus_pins_dg2);
-	} else if (INTEL_PCH_TYPE(i915) >= PCH_DG1) {
+	} else if (INTEL_PCH_TYPE(display) >= PCH_DG1) {
 		pins = gmbus_pins_dg1;
 		size = ARRAY_SIZE(gmbus_pins_dg1);
-	} else if (INTEL_PCH_TYPE(i915) >= PCH_ICP) {
+	} else if (INTEL_PCH_TYPE(display) >= PCH_ICP) {
 		pins = gmbus_pins_icp;
 		size = ARRAY_SIZE(gmbus_pins_icp);
-	} else if (HAS_PCH_CNP(i915)) {
+	} else if (HAS_PCH_CNP(display)) {
 		pins = gmbus_pins_cnp;
 		size = ARRAY_SIZE(gmbus_pins_cnp);
-	} else if (IS_GEMINILAKE(i915) || IS_BROXTON(i915)) {
+	} else if (display->platform.geminilake || display->platform.broxton) {
 		pins = gmbus_pins_bxt;
 		size = ARRAY_SIZE(gmbus_pins_bxt);
 	} else if (DISPLAY_VER(display) == 9) {
 		pins = gmbus_pins_skl;
 		size = ARRAY_SIZE(gmbus_pins_skl);
-	} else if (IS_BROADWELL(i915)) {
+	} else if (display->platform.broadwell) {
 		pins = gmbus_pins_bdw;
 		size = ARRAY_SIZE(gmbus_pins_bdw);
 	} else {
@@ -240,11 +239,10 @@ static void bxt_gmbus_clock_gating(struct intel_display *display,
 static u32 get_reserved(struct intel_gmbus *bus)
 {
 	struct intel_display *display = bus->display;
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	u32 reserved = 0;
 
 	/* On most chips, these bits must be preserved in software. */
-	if (!IS_I830(i915) && !IS_I845G(i915))
+	if (!display->platform.i830 && !display->platform.i845g)
 		reserved = intel_de_read_notrace(display, bus->gpio_reg) &
 			(GPIO_DATA_PULLUP_DISABLE | GPIO_CLOCK_PULLUP_DISABLE);
 
@@ -314,11 +312,10 @@ intel_gpio_pre_xfer(struct i2c_adapter *adapter)
 {
 	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 	struct intel_display *display = bus->display;
-	struct drm_i915_private *i915 = to_i915(display->drm);
 
 	intel_gmbus_reset(display);
 
-	if (IS_PINEVIEW(i915))
+	if (display->platform.pineview)
 		pnv_gmbus_clock_gating(display, false);
 
 	set_data(bus, 1);
@@ -332,12 +329,11 @@ intel_gpio_post_xfer(struct i2c_adapter *adapter)
 {
 	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 	struct intel_display *display = bus->display;
-	struct drm_i915_private *i915 = to_i915(display->drm);
 
 	set_data(bus, 1);
 	set_clock(bus, 1);
 
-	if (IS_PINEVIEW(i915))
+	if (display->platform.pineview)
 		pnv_gmbus_clock_gating(display, true);
 }
 
@@ -630,14 +626,13 @@ do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num,
 {
 	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 	struct intel_display *display = bus->display;
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	int i = 0, inc, try = 0;
 	int ret = 0;
 
 	/* Display WA #0868: skl,bxt,kbl,cfl,glk */
-	if (IS_GEMINILAKE(i915) || IS_BROXTON(i915))
+	if (display->platform.geminilake || display->platform.broxton)
 		bxt_gmbus_clock_gating(display, false);
-	else if (HAS_PCH_SPT(i915) || HAS_PCH_CNP(i915))
+	else if (HAS_PCH_SPT(display) || HAS_PCH_CNP(display))
 		pch_gmbus_clock_gating(display, false);
 
 retry:
@@ -748,9 +743,9 @@ timeout:
 
 out:
 	/* Display WA #0868: skl,bxt,kbl,cfl,glk */
-	if (IS_GEMINILAKE(i915) || IS_BROXTON(i915))
+	if (display->platform.geminilake || display->platform.broxton)
 		bxt_gmbus_clock_gating(display, true);
-	else if (HAS_PCH_SPT(i915) || HAS_PCH_CNP(i915))
+	else if (HAS_PCH_SPT(display) || HAS_PCH_CNP(display))
 		pch_gmbus_clock_gating(display, true);
 
 	return ret;
@@ -873,12 +868,11 @@ static const struct i2c_lock_operations gmbus_lock_ops = {
  */
 int intel_gmbus_setup(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct pci_dev *pdev = to_pci_dev(display->drm->dev);
 	unsigned int pin;
 	int ret;
 
-	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
+	if (display->platform.valleyview || display->platform.cherryview)
 		display->gmbus.mmio_base = VLV_DISPLAY_BASE;
 	else if (!HAS_GMCH(display))
 		/*
@@ -925,7 +919,7 @@ int intel_gmbus_setup(struct intel_display *display)
 		bus->reg0 = pin | GMBUS_RATE_100KHZ;
 
 		/* gmbus seems to be broken on i830 */
-		if (IS_I830(i915))
+		if (display->platform.i830)
 			bus->force_bit = 1;
 
 		intel_gpio_setup(bus, GPIO(display, gmbus_pin->gpio));

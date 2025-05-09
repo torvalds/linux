@@ -62,7 +62,6 @@
 #include "display/intel_pch_refclk.h"
 #include "display/intel_pps.h"
 #include "display/intel_sprite_uapi.h"
-#include "display/intel_vga.h"
 #include "display/skl_watermark.h"
 
 #include "gem/i915_gem_context.h"
@@ -235,7 +234,6 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 
 	intel_uncore_mmio_debug_init_early(dev_priv);
 
-	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
 
 	intel_sbi_init(dev_priv);
@@ -262,9 +260,6 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 		goto err_rootgt;
 
 	i915_gem_init_early(dev_priv);
-
-	/* This must be called before any calls to HAS_PCH_* */
-	intel_detect_pch(dev_priv);
 
 	intel_irq_init(dev_priv);
 	intel_display_driver_early_probe(display);
@@ -1204,8 +1199,6 @@ static int i915_drm_resume(struct drm_device *dev)
 	intel_dmc_resume(display);
 
 	i9xx_display_sr_restore(display);
-
-	intel_vga_redisable(display);
 
 	intel_gmbus_reset(display);
 

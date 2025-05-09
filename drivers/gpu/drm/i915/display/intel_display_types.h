@@ -1114,6 +1114,7 @@ struct intel_crtc_state {
 	bool wm_level_disabled;
 	u32 dc3co_exitline;
 	u16 su_y_granularity;
+	u8 active_non_psr_pipes;
 
 	/*
 	 * Frequency the dpll for the port should run at. Differs from the
@@ -1387,7 +1388,7 @@ struct intel_crtc {
 	/* armed event for DSB based updates */
 	struct drm_pending_vblank_event *dsb_event;
 
-	/* Access to these should be protected by dev_priv->irq_lock. */
+	/* Access to these should be protected by display->irq.lock. */
 	bool cpu_fifo_underrun_disabled;
 	bool pch_fifo_underrun_disabled;
 
@@ -1439,7 +1440,7 @@ struct intel_crtc {
 	struct intel_pipe_crc pipe_crc;
 #endif
 
-	bool block_dc_for_vblank;
+	bool vblank_psr_notify;
 };
 
 struct intel_plane_error {
@@ -1650,6 +1651,8 @@ struct intel_psr {
 	u8 entry_setup_frames;
 
 	bool link_ok;
+
+	u8 active_non_psr_pipes;
 };
 
 struct intel_dp {
@@ -1805,12 +1808,16 @@ struct intel_dp {
 	struct {
 		u8 io_wake_lines;
 		u8 fast_wake_lines;
+		enum transcoder transcoder;
+		struct mutex lock;
 
 		/* LNL and beyond */
 		u8 check_entry_lines;
 		u8 aux_less_wake_lines;
 		u8 silence_period_sym_clocks;
 		u8 lfps_half_cycle_num_of_syms;
+		bool lobf_disable_debug;
+		bool sink_alpm_error;
 	} alpm_parameters;
 
 	u8 alpm_dpcd;

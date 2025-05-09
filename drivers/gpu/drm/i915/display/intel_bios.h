@@ -24,7 +24,7 @@
 /*
  * Please use intel_vbt_defs.h for VBT private data, to hide and abstract away
  * the VBT from the rest of the driver. Add the parsed, clean data to struct
- * intel_vbt_data within struct drm_i915_private.
+ * intel_vbt_data within struct intel_display.
  */
 
 #ifndef _INTEL_BIOS_H_

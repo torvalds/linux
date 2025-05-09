@@ -726,13 +726,6 @@ static void err_print_gt_info(struct drm_i915_error_state_buf *m,
 	intel_sseu_print_topology(gt->_gt->i915, &gt->info.sseu, &p);
 }
 
-static void err_print_gt_display(struct drm_i915_error_state_buf *m,
-				 struct intel_gt_coredump *gt)
-{
-	err_printf(m, "IER: 0x%08x\n", gt->ier);
-	err_printf(m, "DERRMR: 0x%08x\n", gt->derrmr);
-}
-
 static void err_print_gt_global_nonguc(struct drm_i915_error_state_buf *m,
 				       struct intel_gt_coredump *gt)
 {
@@ -878,7 +871,6 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 		if (error->gt->uc && error->gt->uc->guc.is_guc_capture)
 			print_guc_capture = true;
 
-		err_print_gt_display(m, error->gt);
 		err_print_gt_global_nonguc(m, error->gt);
 		err_print_gt_fences(m, error->gt);
 
@@ -1767,27 +1759,6 @@ gt_record_uc(struct intel_gt_coredump *gt,
 	return error_uc;
 }
 
-/* Capture display registers. */
-static void gt_record_display_regs(struct intel_gt_coredump *gt)
-{
-	struct intel_uncore *uncore = gt->_gt->uncore;
-	struct drm_i915_private *i915 = uncore->i915;
-
-	if (DISPLAY_VER(i915) >= 6 && DISPLAY_VER(i915) < 20)
-		gt->derrmr = intel_uncore_read(uncore, DERRMR);
-
-	if (GRAPHICS_VER(i915) >= 8)
-		gt->ier = intel_uncore_read(uncore, GEN8_DE_MISC_IER);
-	else if (IS_VALLEYVIEW(i915))
-		gt->ier = intel_uncore_read(uncore, VLV_IER);
-	else if (HAS_PCH_SPLIT(i915))
-		gt->ier = intel_uncore_read(uncore, DEIER);
-	else if (GRAPHICS_VER(i915) == 2)
-		gt->ier = intel_uncore_read16(uncore, GEN2_IER);
-	else
-		gt->ier = intel_uncore_read(uncore, GEN2_IER);
-}
-
 /* Capture all other registers that GuC doesn't capture. */
 static void gt_record_global_nonguc_regs(struct intel_gt_coredump *gt)
 {
@@ -1821,8 +1792,11 @@ static void gt_record_global_nonguc_regs(struct intel_gt_coredump *gt)
 			gt->gtier[i] =
 				intel_uncore_read(uncore, GEN8_GT_IER(i));
 		gt->ngtier = 4;
-	} else if (HAS_PCH_SPLIT(i915)) {
+	} else if (GRAPHICS_VER(i915) >= 5) {
 		gt->gtier[0] = intel_uncore_read(uncore, GTIER);
+		gt->ngtier = 1;
+	} else {
+		gt->gtier[0] = intel_uncore_read(uncore, GEN2_IER);
 		gt->ngtier = 1;
 	}
 
@@ -2043,7 +2017,6 @@ intel_gt_coredump_alloc(struct intel_gt *gt, gfp_t gfp, u32 dump_flags)
 	gc->_gt = gt;
 	gc->awake = intel_gt_pm_is_awake(gt);
 
-	gt_record_display_regs(gc);
 	gt_record_global_nonguc_regs(gc);
 
 	/*
@@ -2160,7 +2133,6 @@ i915_gpu_coredump(struct intel_gt *gt, intel_engine_mask_t engine_mask, u32 dump
 void i915_error_state_store(struct i915_gpu_coredump *error)
 {
 	struct drm_i915_private *i915;
-	static bool warned;
 
 	if (IS_ERR_OR_NULL(error))
 		return;
@@ -2174,16 +2146,8 @@ void i915_error_state_store(struct i915_gpu_coredump *error)
 
 	i915_gpu_coredump_get(error);
 
-	if (!xchg(&warned, true) &&
-	    ktime_get_real_seconds() - DRIVER_TIMESTAMP < DAY_AS_SECONDS(180)) {
-		pr_info("GPU hangs can indicate a bug anywhere in the entire gfx stack, including userspace.\n");
-		pr_info("Please file a _new_ bug report at https://gitlab.freedesktop.org/drm/intel/issues/new.\n");
-		pr_info("Please see https://drm.pages.freedesktop.org/intel-docs/how-to-file-i915-bugs.html for details.\n");
-		pr_info("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
-		pr_info("The GPU crash dump is required to analyze GPU hangs, so please always attach it.\n");
-		pr_info("GPU crash dump saved to /sys/class/drm/card%d/error\n",
-			i915->drm.primary->index);
-	}
+	drm_info(&i915->drm, "GPU error state saved to /sys/class/drm/card%d/error\n",
+		 i915->drm.primary->index);
 }
 
 /**

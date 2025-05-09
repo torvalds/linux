@@ -31,16 +31,16 @@
 #include <linux/pinctrl/machine.h>
 #include <linux/slab.h>
 #include <linux/string_helpers.h>
-
 #include <linux/unaligned.h>
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_print.h>
 
 #include <video/mipi_display.h>
 
-#include "i915_drv.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dsi.h"
@@ -321,7 +321,6 @@ enum {
 static void icl_native_gpio_set_value(struct intel_display *display,
 				      int gpio, bool value)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	int index;
 
 	if (drm_WARN_ON(display->drm, DISPLAY_VER(display) == 11 && gpio >= MIPI_RESET_2))
@@ -341,12 +340,12 @@ static void icl_native_gpio_set_value(struct intel_display *display,
 		 * The locking protects against concurrent SHOTPLUG_CTL_DDI
 		 * modifications in irq setup and handling.
 		 */
-		spin_lock_irq(&dev_priv->irq_lock);
+		spin_lock_irq(&display->irq.lock);
 		intel_de_rmw(display, SHOTPLUG_CTL_DDI,
 			     SHOTPLUG_CTL_DDI_HPD_ENABLE(index) |
 			     SHOTPLUG_CTL_DDI_HPD_OUTPUT_DATA(index),
 			     value ? SHOTPLUG_CTL_DDI_HPD_OUTPUT_DATA(index) : 0);
-		spin_unlock_irq(&dev_priv->irq_lock);
+		spin_unlock_irq(&display->irq.lock);
 		break;
 	case MIPI_AVDD_EN_1:
 	case MIPI_AVDD_EN_2:

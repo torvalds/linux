@@ -27,9 +27,9 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_eld.h>
 #include <drm/drm_fixed.h>
+#include <drm/drm_print.h>
 #include <drm/intel/i915_component.h>
 
-#include "i915_drv.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
 #include "intel_audio_regs.h"
@@ -587,19 +587,17 @@ static void ibx_audio_regs_init(struct intel_display *display,
 				enum pipe pipe,
 				struct ibx_audio_regs *regs)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	if (display->platform.valleyview || display->platform.cherryview) {
 		regs->hdmiw_hdmiedid = VLV_HDMIW_HDMIEDID(pipe);
 		regs->aud_config = VLV_AUD_CFG(pipe);
 		regs->aud_cntl_st = VLV_AUD_CNTL_ST(pipe);
 		regs->aud_cntrl_st2 = VLV_AUD_CNTL_ST2;
-	} else if (HAS_PCH_CPT(i915)) {
+	} else if (HAS_PCH_CPT(display)) {
 		regs->hdmiw_hdmiedid = CPT_HDMIW_HDMIEDID(pipe);
 		regs->aud_config = CPT_AUD_CFG(pipe);
 		regs->aud_cntl_st = CPT_AUD_CNTL_ST(pipe);
 		regs->aud_cntrl_st2 = CPT_AUD_CNTRL_ST2;
-	} else if (HAS_PCH_IBX(i915)) {
+	} else if (HAS_PCH_IBX(display)) {
 		regs->hdmiw_hdmiedid = IBX_HDMIW_HDMIEDID(pipe);
 		regs->aud_config = IBX_AUD_CFG(pipe);
 		regs->aud_cntl_st = IBX_AUD_CNTL_ST(pipe);
@@ -889,12 +887,10 @@ static const struct intel_audio_funcs hsw_audio_funcs = {
  */
 void intel_audio_hooks_init(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	if (display->platform.g4x)
 		display->funcs.audio = &g4x_audio_funcs;
 	else if (display->platform.valleyview || display->platform.cherryview ||
-		 HAS_PCH_CPT(i915) || HAS_PCH_IBX(i915))
+		 HAS_PCH_CPT(display) || HAS_PCH_IBX(display))
 		display->funcs.audio = &ibx_audio_funcs;
 	else if (display->platform.haswell || DISPLAY_VER(display) >= 8)
 		display->funcs.audio = &hsw_audio_funcs;

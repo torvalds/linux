@@ -187,7 +187,6 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	display/xe_display.o \
 	display/xe_display_misc.o \
 	display/xe_display_rpm.o \
-	display/xe_display_rps.o \
 	display/xe_display_wa.o \
 	display/xe_dsb_buffer.o \
 	display/xe_fb_pin.o \
@@ -198,7 +197,6 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 # SOC code shared with i915
 xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-soc/intel_dram.o \
-	i915-soc/intel_pch.o \
 	i915-soc/intel_rom.o
 
 # Display code shared with i915
@@ -273,6 +271,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_panel.o \
 	i915-display/intel_pfit.o \
 	i915-display/intel_pmdemand.o \
+	i915-display/intel_pch.o \
 	i915-display/intel_pps.o \
 	i915-display/intel_psr.o \
 	i915-display/intel_qp_tables.o \
