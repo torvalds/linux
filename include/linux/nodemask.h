@@ -522,6 +522,7 @@ static __always_inline int node_random(const nodemask_t *maskp)
 
 #define for_each_node(node)	   for_each_node_state(node, N_POSSIBLE)
 #define for_each_online_node(node) for_each_node_state(node, N_ONLINE)
+#define for_each_node_with_cpus(node)	for_each_node_state(node, N_CPU)
 
 /*
  * For nodemask scratch area.
