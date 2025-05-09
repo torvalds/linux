@@ -10,3 +10,20 @@
 / {
 	compatible = "renesas,r8a779f4", "renesas,r8a779f0";
 };
+
+&fuse {
+	nvmem-layout {
+		compatible = "fixed-layout";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		ufs_tune: calib@144 {
+			reg = <0x144 0x08>;
+		};
+	};
+};
+
+&ufs {
+	nvmem-cells = <&ufs_tune>;
+	nvmem-cell-names = "calibration";
+};
