@@ -185,7 +185,13 @@ static inline void free_task_struct(struct task_struct *tsk)
 	kmem_cache_free(task_struct_cachep, tsk);
 }
 
-#ifdef CONFIG_VMAP_STACK
+/*
+ * Allocate pages if THREAD_SIZE is >= PAGE_SIZE, otherwise use a
+ * kmemcache based allocator.
+ */
+# if THREAD_SIZE >= PAGE_SIZE || defined(CONFIG_VMAP_STACK)
+
+#  ifdef CONFIG_VMAP_STACK
 /*
  * vmalloc() is a bit slow, and calling vfree() enough times will force a TLB
  * flush.  Try to minimize the number of calls by caching stacks.
@@ -198,14 +204,14 @@ struct vm_stack {
 	struct vm_struct *stack_vm_area;
 };
 
-static bool try_release_thread_stack_to_cache(struct vm_struct *vm_area)
+static bool try_release_thread_stack_to_cache(struct vm_struct *vm)
 {
 	unsigned int i;
 
 	for (i = 0; i < NR_CACHED_STACKS; i++) {
 		struct vm_struct *tmp = NULL;
 
-		if (this_cpu_try_cmpxchg(cached_stacks[i], &tmp, vm_area))
+		if (this_cpu_try_cmpxchg(cached_stacks[i], &tmp, vm))
 			return true;
 	}
 	return false;
@@ -214,12 +220,11 @@ static bool try_release_thread_stack_to_cache(struct vm_struct *vm_area)
 static void thread_stack_free_rcu(struct rcu_head *rh)
 {
 	struct vm_stack *vm_stack = container_of(rh, struct vm_stack, rcu);
-	struct vm_struct *vm_area = vm_stack->stack_vm_area;
 
 	if (try_release_thread_stack_to_cache(vm_stack->stack_vm_area))
 		return;
 
-	vfree(vm_area->addr);
+	vfree(vm_stack);
 }
 
 static void thread_stack_delayed_free(struct task_struct *tsk)
@@ -232,32 +237,32 @@ static void thread_stack_delayed_free(struct task_struct *tsk)
 
 static int free_vm_stack_cache(unsigned int cpu)
 {
-	struct vm_struct **cached_vm_stack_areas = per_cpu_ptr(cached_stacks, cpu);
+	struct vm_struct **cached_vm_stacks = per_cpu_ptr(cached_stacks, cpu);
 	int i;
 
 	for (i = 0; i < NR_CACHED_STACKS; i++) {
-		struct vm_struct *vm_area = cached_vm_stack_areas[i];
+		struct vm_struct *vm_stack = cached_vm_stacks[i];
 
-		if (!vm_area)
+		if (!vm_stack)
 			continue;
 
-		vfree(vm_area->addr);
-		cached_vm_stack_areas[i] = NULL;
+		vfree(vm_stack->addr);
+		cached_vm_stacks[i] = NULL;
 	}
 
 	return 0;
 }
 
-static int memcg_charge_kernel_stack(struct vm_struct *vm_area)
+static int memcg_charge_kernel_stack(struct vm_struct *vm)
 {
 	int i;
 	int ret;
 	int nr_charged = 0;
 
-	BUG_ON(vm_area->nr_pages != THREAD_SIZE / PAGE_SIZE);
+	BUG_ON(vm->nr_pages != THREAD_SIZE / PAGE_SIZE);
 
 	for (i = 0; i < THREAD_SIZE / PAGE_SIZE; i++) {
-		ret = memcg_kmem_charge_page(vm_area->pages[i], GFP_KERNEL, 0);
+		ret = memcg_kmem_charge_page(vm->pages[i], GFP_KERNEL, 0);
 		if (ret)
 			goto err;
 		nr_charged++;
@@ -265,35 +270,38 @@ static int memcg_charge_kernel_stack(struct vm_struct *vm_area)
 	return 0;
 err:
 	for (i = 0; i < nr_charged; i++)
-		memcg_kmem_uncharge_page(vm_area->pages[i], 0);
+		memcg_kmem_uncharge_page(vm->pages[i], 0);
 	return ret;
 }
 
 static int alloc_thread_stack_node(struct task_struct *tsk, int node)
 {
-	struct vm_struct *vm_area;
+	struct vm_struct *vm;
 	void *stack;
 	int i;
 
 	for (i = 0; i < NR_CACHED_STACKS; i++) {
-		vm_area = this_cpu_xchg(cached_stacks[i], NULL);
-		if (!vm_area)
+		struct vm_struct *s;
+
+		s = this_cpu_xchg(cached_stacks[i], NULL);
+
+		if (!s)
 			continue;
 
-		if (memcg_charge_kernel_stack(vm_area)) {
-			vfree(vm_area->addr);
-			return -ENOMEM;
-		}
-
 		/* Reset stack metadata. */
-		kasan_unpoison_range(vm_area->addr, THREAD_SIZE);
+		kasan_unpoison_range(s->addr, THREAD_SIZE);
 
-		stack = kasan_reset_tag(vm_area->addr);
+		stack = kasan_reset_tag(s->addr);
 
 		/* Clear stale pointers from reused stack. */
 		memset(stack, 0, THREAD_SIZE);
 
-		tsk->stack_vm_area = vm_area;
+		if (memcg_charge_kernel_stack(s)) {
+			vfree(s->addr);
+			return -ENOMEM;
+		}
+
+		tsk->stack_vm_area = s;
 		tsk->stack = stack;
 		return 0;
 	}
@@ -309,8 +317,8 @@ static int alloc_thread_stack_node(struct task_struct *tsk, int node)
 	if (!stack)
 		return -ENOMEM;
 
-	vm_area = find_vm_area(stack);
-	if (memcg_charge_kernel_stack(vm_area)) {
+	vm = find_vm_area(stack);
+	if (memcg_charge_kernel_stack(vm)) {
 		vfree(stack);
 		return -ENOMEM;
 	}
@@ -319,7 +327,7 @@ static int alloc_thread_stack_node(struct task_struct *tsk, int node)
 	 * free_thread_stack() can be called in interrupt context,
 	 * so cache the vm_struct.
 	 */
-	tsk->stack_vm_area = vm_area;
+	tsk->stack_vm_area = vm;
 	stack = kasan_reset_tag(stack);
 	tsk->stack = stack;
 	return 0;
@@ -334,13 +342,7 @@ static void free_thread_stack(struct task_struct *tsk)
 	tsk->stack_vm_area = NULL;
 }
 
-#else /* !CONFIG_VMAP_STACK */
-
-/*
- * Allocate pages if THREAD_SIZE is >= PAGE_SIZE, otherwise use a
- * kmemcache based allocator.
- */
-#if THREAD_SIZE >= PAGE_SIZE
+#  else /* !CONFIG_VMAP_STACK */
 
 static void thread_stack_free_rcu(struct rcu_head *rh)
 {
@@ -372,7 +374,8 @@ static void free_thread_stack(struct task_struct *tsk)
 	tsk->stack = NULL;
 }
 
-#else /* !(THREAD_SIZE >= PAGE_SIZE) */
+#  endif /* CONFIG_VMAP_STACK */
+# else /* !(THREAD_SIZE >= PAGE_SIZE || defined(CONFIG_VMAP_STACK)) */
 
 static struct kmem_cache *thread_stack_cache;
 
@@ -411,8 +414,7 @@ void thread_stack_cache_init(void)
 	BUG_ON(thread_stack_cache == NULL);
 }
 
-#endif /* THREAD_SIZE >= PAGE_SIZE */
-#endif /* CONFIG_VMAP_STACK */
+# endif /* THREAD_SIZE >= PAGE_SIZE || defined(CONFIG_VMAP_STACK) */
 
 /* SLAB cache for signal_struct structures (tsk->signal) */
 static struct kmem_cache *signal_cachep;
@@ -515,11 +517,11 @@ void vm_area_free(struct vm_area_struct *vma)
 static void account_kernel_stack(struct task_struct *tsk, int account)
 {
 	if (IS_ENABLED(CONFIG_VMAP_STACK)) {
-		struct vm_struct *vm_area = task_stack_vm_area(tsk);
+		struct vm_struct *vm = task_stack_vm_area(tsk);
 		int i;
 
 		for (i = 0; i < THREAD_SIZE / PAGE_SIZE; i++)
-			mod_lruvec_page_state(vm_area->pages[i], NR_KERNEL_STACK_KB,
+			mod_lruvec_page_state(vm->pages[i], NR_KERNEL_STACK_KB,
 					      account * (PAGE_SIZE / 1024));
 	} else {
 		void *stack = task_stack_page(tsk);
@@ -535,12 +537,12 @@ void exit_task_stack_account(struct task_struct *tsk)
 	account_kernel_stack(tsk, -1);
 
 	if (IS_ENABLED(CONFIG_VMAP_STACK)) {
-		struct vm_struct *vm_area;
+		struct vm_struct *vm;
 		int i;
 
-		vm_area = task_stack_vm_area(tsk);
+		vm = task_stack_vm_area(tsk);
 		for (i = 0; i < THREAD_SIZE / PAGE_SIZE; i++)
-			memcg_kmem_uncharge_page(vm_area->pages[i], 0);
+			memcg_kmem_uncharge_page(vm->pages[i], 0);
 	}
 }
 
