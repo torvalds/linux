@@ -263,6 +263,12 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 					   fxp_q4_to_frac(max_bpp_x16) ||
 					   fxp_q4_to_frac(bpp_step_x16)));
 
+	if (!bpp_step_x16) {
+		/* Allow using zero step only to indicate single try for a given bpp. */
+		drm_WARN_ON(display->drm, min_bpp_x16 != max_bpp_x16);
+		bpp_step_x16 = 1;
+	}
+
 	if (is_mst) {
 		mst_state = drm_atomic_get_mst_topology_state(state, &intel_dp->mst.mgr);
 		if (IS_ERR(mst_state))
@@ -386,10 +392,6 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 
 			break;
 		}
-
-		/* Allow using zero step to indicate one try */
-		if (!bpp_step_x16)
-			break;
 	}
 
 	if (slots < 0) {
