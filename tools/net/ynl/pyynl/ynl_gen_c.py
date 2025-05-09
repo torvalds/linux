@@ -1458,6 +1458,7 @@ class CodeWriter:
         if self._silent_block:
             ind += 1
         self._silent_block = line.endswith(')') and CodeWriter._is_cond(line)
+        self._silent_block |= line.strip() == 'else'
         if line[0] == '#':
             ind = 0
         if add_ind:
