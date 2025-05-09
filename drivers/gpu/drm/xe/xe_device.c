@@ -26,6 +26,7 @@
 #include "xe_bo_evict.h"
 #include "xe_debugfs.h"
 #include "xe_devcoredump.h"
+#include "xe_device_sysfs.h"
 #include "xe_dma_buf.h"
 #include "xe_drm_client.h"
 #include "xe_drv.h"
@@ -912,6 +913,10 @@ int xe_device_probe(struct xe_device *xe)
 		goto err_unregister_display;
 
 	err = xe_pmu_register(&xe->pmu);
+	if (err)
+		goto err_unregister_display;
+
+	err = xe_device_sysfs_init(xe);
 	if (err)
 		goto err_unregister_display;
 

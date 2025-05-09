@@ -16,7 +16,6 @@
 #include "xe_bo.h"
 #include "xe_bo_evict.h"
 #include "xe_device.h"
-#include "xe_device_sysfs.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
@@ -273,6 +272,7 @@ int xe_pm_init_early(struct xe_device *xe)
 	if (err)
 		return err;
 
+	xe->d3cold.capable = xe_pm_pci_d3cold_capable(xe);
 	return 0;
 }
 ALLOW_ERROR_INJECTION(xe_pm_init_early, ERRNO); /* See xe_pci_probe() */
@@ -344,13 +344,7 @@ int xe_pm_init(struct xe_device *xe)
 	if (!xe_device_uc_enabled(xe))
 		return 0;
 
-	xe->d3cold.capable = xe_pm_pci_d3cold_capable(xe);
-
 	if (xe->d3cold.capable) {
-		err = xe_device_sysfs_init(xe);
-		if (err)
-			goto err_unregister;
-
 		vram_threshold = vram_threshold_value(xe);
 		err = xe_pm_set_vram_threshold(xe, vram_threshold);
 		if (err)
