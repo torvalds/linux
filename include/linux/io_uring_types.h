@@ -435,6 +435,7 @@ struct io_ring_ctx {
 
 	/* protected by ->completion_lock */
 	unsigned			evfd_last_cq_tail;
+	unsigned			nr_req_allocated;
 
 	/*
 	 * Protection for resize vs mmap races - both the mmap and resize

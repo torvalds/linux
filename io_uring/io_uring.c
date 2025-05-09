@@ -957,6 +957,8 @@ __cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 	}
 
 	percpu_ref_get_many(&ctx->refs, ret);
+	ctx->nr_req_allocated += ret;
+
 	while (ret--) {
 		struct io_kiocb *req = reqs[ret];
 
@@ -2694,8 +2696,10 @@ static void io_req_caches_free(struct io_ring_ctx *ctx)
 		kmem_cache_free(req_cachep, req);
 		nr++;
 	}
-	if (nr)
+	if (nr) {
+		ctx->nr_req_allocated -= nr;
 		percpu_ref_put_many(&ctx->refs, nr);
+	}
 	mutex_unlock(&ctx->uring_lock);
 }
 
@@ -2732,6 +2736,9 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	percpu_ref_exit(&ctx->refs);
 	free_uid(ctx->user);
 	io_req_caches_free(ctx);
+
+	WARN_ON_ONCE(ctx->nr_req_allocated);
+
 	if (ctx->hash_map)
 		io_wq_put_hash(ctx->hash_map);
 	io_napi_free(ctx);
