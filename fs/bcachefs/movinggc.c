@@ -354,19 +354,13 @@ static int bch2_copygc_thread(void *arg)
 	struct moving_context ctxt;
 	struct bch_move_stats move_stats;
 	struct io_clock *clock = &c->io_clock[WRITE];
-	struct buckets_in_flight *buckets;
+	struct buckets_in_flight buckets = {};
 	u64 last, wait;
-	int ret = 0;
 
-	buckets = kzalloc(sizeof(struct buckets_in_flight), GFP_KERNEL);
-	if (!buckets)
-		return -ENOMEM;
-	ret = rhashtable_init(&buckets->table, &bch_move_bucket_params);
+	int ret = rhashtable_init(&buckets.table, &bch_move_bucket_params);
 	bch_err_msg(c, ret, "allocating copygc buckets in flight");
-	if (ret) {
-		kfree(buckets);
+	if (ret)
 		return ret;
-	}
 
 	set_freezable();
 
@@ -389,13 +383,13 @@ static int bch2_copygc_thread(void *arg)
 		cond_resched();
 
 		if (!c->opts.copygc_enabled) {
-			move_buckets_wait(&ctxt, buckets, true);
+			move_buckets_wait(&ctxt, &buckets, true);
 			kthread_wait_freezable(c->opts.copygc_enabled ||
 					       kthread_should_stop());
 		}
 
 		if (unlikely(freezing(current))) {
-			move_buckets_wait(&ctxt, buckets, true);
+			move_buckets_wait(&ctxt, &buckets, true);
 			__refrigerator(false);
 			continue;
 		}
@@ -406,7 +400,7 @@ static int bch2_copygc_thread(void *arg)
 		if (wait > clock->max_slop) {
 			c->copygc_wait_at = last;
 			c->copygc_wait = last + wait;
-			move_buckets_wait(&ctxt, buckets, true);
+			move_buckets_wait(&ctxt, &buckets, true);
 			trace_and_count(c, copygc_wait, c, wait, last + wait);
 			bch2_kthread_io_clock_wait(clock, last + wait,
 					MAX_SCHEDULE_TIMEOUT);
@@ -416,7 +410,7 @@ static int bch2_copygc_thread(void *arg)
 		c->copygc_wait = 0;
 
 		c->copygc_running = true;
-		ret = bch2_copygc(&ctxt, buckets, &did_work);
+		ret = bch2_copygc(&ctxt, &buckets, &did_work);
 		c->copygc_running = false;
 
 		wake_up(&c->copygc_running_wq);
@@ -427,16 +421,14 @@ static int bch2_copygc_thread(void *arg)
 			if (min_member_capacity == U64_MAX)
 				min_member_capacity = 128 * 2048;
 
-			move_buckets_wait(&ctxt, buckets, true);
+			move_buckets_wait(&ctxt, &buckets, true);
 			bch2_kthread_io_clock_wait(clock, last + (min_member_capacity >> 6),
 					MAX_SCHEDULE_TIMEOUT);
 		}
 	}
 
-	move_buckets_wait(&ctxt, buckets, true);
-
-	rhashtable_destroy(&buckets->table);
-	kfree(buckets);
+	move_buckets_wait(&ctxt, &buckets, true);
+	rhashtable_destroy(&buckets.table);
 	bch2_moving_ctxt_exit(&ctxt);
 	bch2_move_stats_exit(&move_stats, c);
 
