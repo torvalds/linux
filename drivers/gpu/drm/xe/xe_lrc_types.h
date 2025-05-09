@@ -52,7 +52,10 @@ struct xe_lrc {
 	struct xe_hw_fence_ctx fence_ctx;
 
 	/** @ctx_timestamp: readout value of CTX_TIMESTAMP on last update */
-	u32 ctx_timestamp;
+	u64 ctx_timestamp;
+
+	/** @bb_per_ctx_bo: buffer object for per context batch wa buffer */
+	struct xe_bo *bb_per_ctx_bo;
 };
 
 struct xe_lrc_snapshot;
