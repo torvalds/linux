@@ -10,6 +10,7 @@
 #include "link.h"
 #include "session-protect.h"
 #include "d3.h"
+#include "fw/api/time-event.h"
 
 enum iwl_mld_cca_40mhz_wa_status {
 	CCA_40_MHZ_WA_NONE,
@@ -125,8 +126,6 @@ struct iwl_mld_emlsr {
  *	Only valid for STA. (FIXME: needs to be per link)
  * @num_associated_stas: number of associated STAs. Relevant only for AP mode.
  * @ap_ibss_active: whether the AP/IBSS was started
- * @roc_activity: the id of the roc_activity running. Relevant for p2p device
- *	only. Set to %ROC_NUM_ACTIVITIES when not in use.
  * @cca_40mhz_workaround: When we are connected in 2.4 GHz and 40 MHz, and the
  *	environment is too loaded, we work around this by reconnecting to the
  *	same AP with 20 MHz. This manages the status of the workaround.
@@ -142,6 +141,8 @@ struct iwl_mld_emlsr {
  * @use_ps_poll: use ps_poll frames
  * @disable_bf: disable beacon filter
  * @dbgfs_slink: debugfs symlink for this interface
+ * @roc_activity: the id of the roc_activity running. Relevant for p2p device
+ *	only. Set to %ROC_NUM_ACTIVITIES when not in use.
  */
 struct iwl_mld_vif {
 	/* Add here fields that need clean up on restart */
@@ -153,7 +154,6 @@ struct iwl_mld_vif {
 		struct ieee80211_key_conf __rcu *bigtks[2];
 		u8 num_associated_stas;
 		bool ap_ibss_active;
-		u32 roc_activity;
 		enum iwl_mld_cca_40mhz_wa_status cca_40mhz_workaround;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		bool beacon_inject_active;
@@ -176,6 +176,7 @@ struct iwl_mld_vif {
 	bool disable_bf;
 	struct dentry *dbgfs_slink;
 #endif
+	enum iwl_roc_activity roc_activity;
 };
 
 static inline struct iwl_mld_vif *
