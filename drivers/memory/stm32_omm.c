@@ -320,8 +320,8 @@ static int stm32_omm_probe(struct platform_device *pdev)
 		return PTR_ERR(omm->io_base);
 
 	omm->mm_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "memory_map");
-	if (IS_ERR(omm->mm_res))
-		return PTR_ERR(omm->mm_res);
+	if (!omm->mm_res)
+		return -ENODEV;
 
 	/* check child's access */
 	for_each_child_of_node_scoped(dev->of_node, child) {
