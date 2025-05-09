@@ -319,31 +319,20 @@ static irqreturn_t mse102x_rx_pkt_spi(struct mse102x_net *mse)
 	__be16 rx = 0;
 	u16 cmd_resp;
 	u8 *rxpkt;
-	int ret;
 
 	mse102x_tx_cmd_spi(mse, CMD_CTR);
-	ret = mse102x_rx_cmd_spi(mse, (u8 *)&rx);
-	cmd_resp = be16_to_cpu(rx);
-
-	if (ret || ((cmd_resp & CMD_MASK) != CMD_RTS)) {
+	if (mse102x_rx_cmd_spi(mse, (u8 *)&rx)) {
 		usleep_range(50, 100);
+		return IRQ_NONE;
+	}
 
-		mse102x_tx_cmd_spi(mse, CMD_CTR);
-		ret = mse102x_rx_cmd_spi(mse, (u8 *)&rx);
-		if (ret)
-			return IRQ_NONE;
-
-		cmd_resp = be16_to_cpu(rx);
-		if ((cmd_resp & CMD_MASK) != CMD_RTS) {
-			net_dbg_ratelimited("%s: Unexpected response (0x%04x)\n",
-					    __func__, cmd_resp);
-			mse->stats.invalid_rts++;
-			drop = true;
-			goto drop;
-		}
-
-		net_dbg_ratelimited("%s: Unexpected response to first CMD\n",
-				    __func__);
+	cmd_resp = be16_to_cpu(rx);
+	if ((cmd_resp & CMD_MASK) != CMD_RTS) {
+		net_dbg_ratelimited("%s: Unexpected response (0x%04x)\n",
+				    __func__, cmd_resp);
+		mse->stats.invalid_rts++;
+		drop = true;
+		goto drop;
 	}
 
 	rxlen = cmd_resp & LEN_MASK;
@@ -565,7 +554,8 @@ static int mse102x_net_open(struct net_device *ndev)
 	 * So poll for possible packet(s) to re-arm the interrupt.
 	 */
 	mutex_lock(&mses->lock);
-	mse102x_rx_pkt_spi(mse);
+	if (mse102x_rx_pkt_spi(mse) == IRQ_NONE)
+		mse102x_rx_pkt_spi(mse);
 	mutex_unlock(&mses->lock);
 
 	netif_dbg(mse, ifup, ndev, "network device up\n");
