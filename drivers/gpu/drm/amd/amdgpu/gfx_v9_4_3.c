@@ -1153,6 +1153,12 @@ static int gfx_v9_4_3_sw_init(struct amdgpu_ip_block *ip_block)
 			adev->gfx.compute_supported_reset |= AMDGPU_RESET_TYPE_PER_PIPE;
 		}
 		break;
+	case IP_VERSION(9, 5, 0):
+		if (adev->gfx.mec_fw_version >= 21) {
+			adev->gfx.compute_supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
+			adev->gfx.compute_supported_reset |= AMDGPU_RESET_TYPE_PER_PIPE;
+		}
+		break;
 	default:
 		break;
 	}
@@ -3452,9 +3458,7 @@ static int gfx_v9_4_3_unmap_done(struct amdgpu_device *adev, uint32_t me,
 
 static bool gfx_v9_4_3_pipe_reset_support(struct amdgpu_device *adev)
 {
-	/*TODO: Need check gfx9.4.4 mec fw whether supports pipe reset as well.*/
-	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) &&
-			adev->gfx.mec_fw_version >= 0x0000009b)
+	if (!!(adev->gfx.compute_supported_reset & AMDGPU_RESET_TYPE_PER_PIPE))
 		return true;
 	else
 		dev_warn_once(adev->dev, "Please use the latest MEC version to see whether support pipe reset\n");
