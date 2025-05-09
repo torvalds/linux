@@ -684,15 +684,11 @@ extern const struct iwl_cfg iwl7265_cfg;
 extern const struct iwl_cfg iwl7265d_cfg;
 extern const struct iwl_cfg iwl8260_cfg;
 extern const struct iwl_cfg iwl8265_cfg;
-extern const struct iwl_cfg iwl9000_2ac_cfg;
-extern const struct iwl_cfg iwl9000_2ac_cfg_80mhz;
-extern const struct iwl_cfg iwl9560_qu_jf_cfg;
-extern const struct iwl_cfg iwl9560_qu_jf_cfg_80mhz;
+extern const struct iwl_cfg iwl_rf_jf;
+extern const struct iwl_cfg iwl_rf_jf_80mhz;
 extern const struct iwl_cfg iwl_qu_hr1;
 extern const struct iwl_cfg iwl_qu_hr;
 extern const struct iwl_cfg iwl_qu_hr_80mhz;
-extern const struct iwl_cfg iwlax210_2ax_cfg_so_jf_b0;
-extern const struct iwl_cfg iwlax210_2ax_cfg_so_jf_b0_80mhz;
 
 extern const struct iwl_cfg iwl_cfg_ma;
 

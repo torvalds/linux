@@ -131,22 +131,6 @@ const struct iwl_mac_cfg iwl_qu_long_latency_mac_cfg = {
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
 };
 
-/*
- * All JF radio modules are part of the 9000 series, but the MAC part
- * looks more like 22000.  That's why this device is here, but called
- * 9560 nevertheless.
- */
-const struct iwl_cfg iwl9560_qu_jf_cfg = {
-	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-};
-
-const struct iwl_cfg iwl9560_qu_jf_cfg_80mhz = {
-	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-	.bw_limit = 80,
-};
-
 const struct iwl_mac_cfg iwl_ax200_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_22000,
 	.base = &iwl_22000_base,

@@ -15,14 +15,7 @@
 /* Lowest firmware API version supported */
 #define IWL9000_UCODE_API_MIN	30
 
-/* NVM versions */
-#define IWL9000_NVM_VERSION		0x0a1d
-
 /* Memory offsets and lengths */
-#define IWL9000_DCCM_OFFSET		0x800000
-#define IWL9000_DCCM_LEN		0x18000
-#define IWL9000_DCCM2_OFFSET		0x880000
-#define IWL9000_DCCM2_LEN		0x8000
 #define IWL9000_SMEM_OFFSET		0x400000
 #define IWL9000_SMEM_LEN		0x68000
 
@@ -75,46 +68,6 @@ static const struct iwl_family_base_params iwl9000_base = {
 	.ucode_api_max = IWL9000_UCODE_API_MAX,
 	.ucode_api_min = IWL9000_UCODE_API_MIN,
 };
-
-static const struct iwl_tt_params iwl9000_tt_params = {
-	.ct_kill_entry = 115,
-	.ct_kill_exit = 93,
-	.ct_kill_duration = 5,
-	.dynamic_smps_entry = 111,
-	.dynamic_smps_exit = 107,
-	.tx_protection_entry = 112,
-	.tx_protection_exit = 105,
-	.tx_backoff = {
-		{.temperature = 110, .backoff = 200},
-		{.temperature = 111, .backoff = 600},
-		{.temperature = 112, .backoff = 1200},
-		{.temperature = 113, .backoff = 2000},
-		{.temperature = 114, .backoff = 4000},
-	},
-	.support_ct_kill = true,
-	.support_dynamic_smps = true,
-	.support_tx_protection = true,
-	.support_tx_backoff = true,
-};
-
-#define IWL_DEVICE_9000							\
-	.led_mode = IWL_LED_RF_STATE,					\
-	.non_shared_ant = ANT_B,					\
-	.dccm_offset = IWL9000_DCCM_OFFSET,				\
-	.dccm_len = IWL9000_DCCM_LEN,					\
-	.dccm2_offset = IWL9000_DCCM2_OFFSET,				\
-	.dccm2_len = IWL9000_DCCM2_LEN,					\
-	.thermal_params = &iwl9000_tt_params,				\
-	.num_rbds = IWL_NUM_RBDS_NON_HE,				\
-	.vht_mu_mimo_supported = true,					\
-	.nvm_type = IWL_NVM_EXT,					\
-	.ht_params = {							\
-		.stbc = true,						\
-		.ldpc = true,						\
-		.ht40_bands = BIT(NL80211_BAND_2GHZ) |			\
-			      BIT(NL80211_BAND_5GHZ),			\
-	},								\
-	.nvm_ver = IWL9000_NVM_VERSION
 
 const struct iwl_mac_cfg iwl9000_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_9000,
@@ -171,15 +124,6 @@ const char iwl9560_killer_1550s_name[] =
 	"Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW)";
 const char iwl9560_killer_1550s_160_name[] =
 	"Killer(R) Wireless-AC 1550s Wireless Network Adapter (9560D2W) 160MHz";
-
-const struct iwl_cfg iwl9000_2ac_cfg = {
-	IWL_DEVICE_9000,
-};
-
-const struct iwl_cfg iwl9000_2ac_cfg_80mhz = {
-	IWL_DEVICE_9000,
-	.bw_limit = 80,
-};
 
 MODULE_FIRMWARE(IWL9000_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL9260_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
