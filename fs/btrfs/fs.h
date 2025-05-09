@@ -420,6 +420,8 @@ struct btrfs_commit_stats {
 	u64 last_commit_dur;
 	/* The total commit duration in ns */
 	u64 total_commit_dur;
+	/* Start of the last critical section in ns. */
+	u64 critical_section_start_time;
 };
 
 struct btrfs_fs_info {

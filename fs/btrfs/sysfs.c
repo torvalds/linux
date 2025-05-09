@@ -1138,13 +1138,21 @@ static ssize_t btrfs_commit_stats_show(struct kobject *kobj,
 				       struct kobj_attribute *a, char *buf)
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+	u64 now = ktime_get_ns();
+	u64 start_time = fs_info->commit_stats.critical_section_start_time;
+	u64 pending = 0;
+
+	if (start_time)
+		pending = now - start_time;
 
 	return sysfs_emit(buf,
 		"commits %llu\n"
+		"cur_commit_ms %llu\n"
 		"last_commit_ms %llu\n"
 		"max_commit_ms %llu\n"
 		"total_commit_ms %llu\n",
 		fs_info->commit_stats.commit_count,
+		div_u64(pending, NSEC_PER_MSEC),
 		div_u64(fs_info->commit_stats.last_commit_dur, NSEC_PER_MSEC),
 		div_u64(fs_info->commit_stats.max_commit_dur, NSEC_PER_MSEC),
 		div_u64(fs_info->commit_stats.total_commit_dur, NSEC_PER_MSEC));
