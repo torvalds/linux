@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/nvidia,tegra20-ictlr.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra20 Legacy Interrupt Controller
+
+maintainers:
+  - Thierry Reding <treding@nvidia.com>
+  - Jonathan Hunter <jonathanh@nvidia.com>
+
+description: >
+  All Tegra SoCs contain a legacy interrupt controller that routes interrupts to
+  the GIC, and also serves as a wakeup source. It is also referred to as
+  "ictlr", hence the name of the binding.
+
+  The HW block exposes a number of interrupt controllers, each implementing a
+  set of 32 interrupts.
+
+  Notes:
+    - Because this HW ultimately routes interrupts to the GIC, the
+      interrupt specifier must be that of the GIC.
+    - Only SPIs can use the ictlr as an interrupt parent. SGIs and PPIs
+      are explicitly forbidden.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - nvidia,tegra114-ictlr
+              - nvidia,tegra124-ictlr
+          - const: nvidia,tegra30-ictlr
+      - enum:
+          - nvidia,tegra20-ictlr
+          - nvidia,tegra30-ictlr
+
+  reg:
+    description: Each entry is a block of 32 interrupts
+    minItems: 4
+    maxItems: 5
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 3
+
+required:
+  - compatible
+  - reg
+  - interrupt-controller
+  - '#interrupt-cells'
+
+additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra20-ictlr
+    then:
+      properties:
+        reg:
+          maxItems: 4
+    else:
+      properties:
+        reg:
+          minItems: 5
+
+examples:
+  - |
+    interrupt-controller@60004000 {
+        compatible = "nvidia,tegra20-ictlr";
+        reg = <0x60004000 64>,
+              <0x60004100 64>,
+              <0x60004200 64>,
+              <0x60004300 64>;
+        interrupt-controller;
+        #interrupt-cells = <3>;
+    };
