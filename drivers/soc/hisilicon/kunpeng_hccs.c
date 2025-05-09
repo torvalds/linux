@@ -167,10 +167,6 @@ static void hccs_pcc_rx_callback(struct mbox_client *cl, void *mssg)
 
 static void hccs_unregister_pcc_channel(struct hccs_dev *hdev)
 {
-	struct hccs_mbox_client_info *cl_info = &hdev->cl_info;
-
-	if (cl_info->pcc_comm_addr)
-		iounmap(cl_info->pcc_comm_addr);
 	pcc_mbox_free_channel(hdev->cl_info.pcc_chan);
 }
 
@@ -179,6 +175,7 @@ static int hccs_register_pcc_channel(struct hccs_dev *hdev)
 	struct hccs_mbox_client_info *cl_info = &hdev->cl_info;
 	struct mbox_client *cl = &cl_info->client;
 	struct pcc_mbox_chan *pcc_chan;
+	struct mbox_chan *mbox_chan;
 	struct device *dev = hdev->dev;
 	int rc;
 
@@ -196,7 +193,7 @@ static int hccs_register_pcc_channel(struct hccs_dev *hdev)
 		goto out;
 	}
 	cl_info->pcc_chan = pcc_chan;
-	cl_info->mbox_chan = pcc_chan->mchan;
+	mbox_chan = pcc_chan->mchan;
 
 	/*
 	 * pcc_chan->latency is just a nominal value. In reality the remote
@@ -206,31 +203,21 @@ static int hccs_register_pcc_channel(struct hccs_dev *hdev)
 	cl_info->deadline_us =
 			HCCS_PCC_CMD_WAIT_RETRIES_NUM * pcc_chan->latency;
 	if (!hdev->verspec_data->has_txdone_irq &&
-	    cl_info->mbox_chan->mbox->txdone_irq) {
+	    mbox_chan->mbox->txdone_irq) {
 		dev_err(dev, "PCC IRQ in PCCT is enabled.\n");
 		rc = -EINVAL;
 		goto err_mbx_channel_free;
 	} else if (hdev->verspec_data->has_txdone_irq &&
-		   !cl_info->mbox_chan->mbox->txdone_irq) {
+		   !mbox_chan->mbox->txdone_irq) {
 		dev_err(dev, "PCC IRQ in PCCT isn't supported.\n");
 		rc = -EINVAL;
 		goto err_mbx_channel_free;
 	}
 
-	if (!pcc_chan->shmem_base_addr ||
-	    pcc_chan->shmem_size != HCCS_PCC_SHARE_MEM_BYTES) {
-		dev_err(dev, "The base address or size (%llu) of PCC communication region is invalid.\n",
-			pcc_chan->shmem_size);
+	if (pcc_chan->shmem_size != HCCS_PCC_SHARE_MEM_BYTES) {
+		dev_err(dev, "Base size (%llu) of PCC communication region must be %d bytes.\n",
+			pcc_chan->shmem_size, HCCS_PCC_SHARE_MEM_BYTES);
 		rc = -EINVAL;
-		goto err_mbx_channel_free;
-	}
-
-	cl_info->pcc_comm_addr = ioremap(pcc_chan->shmem_base_addr,
-					 pcc_chan->shmem_size);
-	if (!cl_info->pcc_comm_addr) {
-		dev_err(dev, "Failed to ioremap PCC communication region for channel-%u.\n",
-			hdev->chan_id);
-		rc = -ENOMEM;
 		goto err_mbx_channel_free;
 	}
 
@@ -246,7 +233,7 @@ static int hccs_wait_cmd_complete_by_poll(struct hccs_dev *hdev)
 {
 	struct hccs_mbox_client_info *cl_info = &hdev->cl_info;
 	struct acpi_pcct_shared_memory __iomem *comm_base =
-							cl_info->pcc_comm_addr;
+							cl_info->pcc_chan->shmem;
 	u16 status;
 	int ret;
 
@@ -289,7 +276,7 @@ static inline void hccs_fill_pcc_shared_mem_region(struct hccs_dev *hdev,
 		.status = 0,
 	};
 
-	memcpy_toio(hdev->cl_info.pcc_comm_addr, (void *)&tmp,
+	memcpy_toio(hdev->cl_info.pcc_chan->shmem, (void *)&tmp,
 		    sizeof(struct acpi_pcct_shared_memory));
 
 	/* Copy the message to the PCC comm space */
@@ -309,7 +296,7 @@ static inline void hccs_fill_ext_pcc_shared_mem_region(struct hccs_dev *hdev,
 		.command = cmd,
 	};
 
-	memcpy_toio(hdev->cl_info.pcc_comm_addr, (void *)&tmp,
+	memcpy_toio(hdev->cl_info.pcc_chan->shmem, (void *)&tmp,
 		    sizeof(struct acpi_pcct_ext_pcc_shared_memory));
 
 	/* Copy the message to the PCC comm space */
@@ -321,12 +308,13 @@ static int hccs_pcc_cmd_send(struct hccs_dev *hdev, u8 cmd,
 {
 	const struct hccs_verspecific_data *verspec_data = hdev->verspec_data;
 	struct hccs_mbox_client_info *cl_info = &hdev->cl_info;
+	struct mbox_chan *mbox_chan = cl_info->pcc_chan->mchan;
 	struct hccs_fw_inner_head *fw_inner_head;
 	void __iomem *comm_space;
 	u16 space_size;
 	int ret;
 
-	comm_space = cl_info->pcc_comm_addr + verspec_data->shared_mem_size;
+	comm_space = cl_info->pcc_chan->shmem + verspec_data->shared_mem_size;
 	space_size = HCCS_PCC_SHARE_MEM_BYTES - verspec_data->shared_mem_size;
 	verspec_data->fill_pcc_shared_mem(hdev, cmd, desc,
 					  comm_space, space_size);
@@ -334,7 +322,7 @@ static int hccs_pcc_cmd_send(struct hccs_dev *hdev, u8 cmd,
 		reinit_completion(&cl_info->done);
 
 	/* Ring doorbell */
-	ret = mbox_send_message(cl_info->mbox_chan, &cmd);
+	ret = mbox_send_message(mbox_chan, &cmd);
 	if (ret < 0) {
 		dev_err(hdev->dev, "Send PCC mbox message failed, ret = %d.\n",
 			ret);
@@ -356,9 +344,9 @@ static int hccs_pcc_cmd_send(struct hccs_dev *hdev, u8 cmd,
 
 end:
 	if (verspec_data->has_txdone_irq)
-		mbox_chan_txdone(cl_info->mbox_chan, ret);
+		mbox_chan_txdone(mbox_chan, ret);
 	else
-		mbox_client_txdone(cl_info->mbox_chan, ret);
+		mbox_client_txdone(mbox_chan, ret);
 	return ret;
 }
 
