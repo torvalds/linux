@@ -222,6 +222,7 @@ static int stm32_omm_configure(struct device *dev)
 		clk_rate = clk_get_rate(omm->clk_bulk[i].clk);
 		if (!clk_rate) {
 			dev_err(dev, "Invalid clock rate\n");
+			ret = -EINVAL;
 			goto error;
 		}
 
@@ -230,8 +231,10 @@ static int stm32_omm_configure(struct device *dev)
 	}
 
 	rstc = devm_reset_control_get_exclusive(dev, "omm");
-	if (IS_ERR(rstc))
-		return dev_err_probe(dev, PTR_ERR(rstc), "reset get failed\n");
+	if (IS_ERR(rstc)) {
+		ret = dev_err_probe(dev, PTR_ERR(rstc), "reset get failed\n");
+		goto error;
+	}
 
 	reset_control_assert(rstc);
 	udelay(2);
