@@ -12,9 +12,6 @@ extern int sm501_unit_power(struct device *dev,
 extern unsigned long sm501_set_clock(struct device *dev,
 				     int clksrc, unsigned long freq);
 
-extern unsigned long sm501_find_clock(struct device *dev,
-				      int clksrc, unsigned long req_freq);
-
 /* sm501_misc_control
  *
  * Modify the SM501's MISC_CONTROL register

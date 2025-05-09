@@ -631,49 +631,6 @@ unsigned long sm501_set_clock(struct device *dev,
 
 EXPORT_SYMBOL_GPL(sm501_set_clock);
 
-/* sm501_find_clock
- *
- * finds the closest available frequency for a given clock
-*/
-
-unsigned long sm501_find_clock(struct device *dev,
-			       int clksrc,
-			       unsigned long req_freq)
-{
-	struct sm501_devdata *sm = dev_get_drvdata(dev);
-	unsigned long sm501_freq; /* the frequency achieveable by the 501 */
-	struct sm501_clock to;
-
-	switch (clksrc) {
-	case SM501_CLOCK_P2XCLK:
-		if (sm->rev >= 0xC0) {
-			/* SM502 -> use the programmable PLL */
-			sm501_freq = (sm501_calc_pll(2 * req_freq,
-						     &to, 5) / 2);
-		} else {
-			sm501_freq = (sm501_select_clock(2 * req_freq,
-							 &to, 5) / 2);
-		}
-		break;
-
-	case SM501_CLOCK_V2XCLK:
-		sm501_freq = (sm501_select_clock(2 * req_freq, &to, 3) / 2);
-		break;
-
-	case SM501_CLOCK_MCLK:
-	case SM501_CLOCK_M1XCLK:
-		sm501_freq = sm501_select_clock(req_freq, &to, 3);
-		break;
-
-	default:
-		sm501_freq = 0;		/* error */
-	}
-
-	return sm501_freq;
-}
-
-EXPORT_SYMBOL_GPL(sm501_find_clock);
-
 static struct sm501_device *to_sm_device(struct platform_device *pdev)
 {
 	return container_of(pdev, struct sm501_device, pdev);
