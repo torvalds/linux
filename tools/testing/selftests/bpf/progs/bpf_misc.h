@@ -225,8 +225,9 @@
 #define CAN_USE_BPF_ST
 #endif
 
-#if __clang_major__ >= 18 && defined(ENABLE_ATOMICS_TESTS) && \
-	(defined(__TARGET_ARCH_arm64) || defined(__TARGET_ARCH_x86))
+#if __clang_major__ >= 18 && defined(ENABLE_ATOMICS_TESTS) &&		\
+	(defined(__TARGET_ARCH_arm64) || defined(__TARGET_ARCH_x86) ||	\
+	 (defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64))
 #define CAN_USE_LOAD_ACQ_STORE_REL
 #endif
 
