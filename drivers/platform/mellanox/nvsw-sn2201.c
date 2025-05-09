@@ -551,7 +551,7 @@ static struct mlxreg_core_item nvsw_sn2201_busbar_items[] = {
 
 static
 struct mlxreg_core_hotplug_platform_data nvsw_sn2201_busbar_hotplug = {
-	.items = nvsw_sn2201_items,
+	.items = nvsw_sn2201_busbar_items,
 	.count = ARRAY_SIZE(nvsw_sn2201_busbar_items),
 	.cell = NVSW_SN2201_SYS_INT_STATUS_OFFSET,
 	.mask = NVSW_SN2201_CPLD_AGGR_BUSBAR_MASK_DEF,
