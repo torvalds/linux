@@ -61,12 +61,14 @@ enum rpcif_type {
 	RPCIF_RCAR_GEN3,
 	RPCIF_RCAR_GEN4,
 	RPCIF_RZ_G2L,
+	XSPI_RZ_G3E,
 };
 
 struct rpcif {
 	struct device *dev;
 	void __iomem *dirmap;
 	size_t size;
+	bool xspi;
 };
 
 int rpcif_sw_init(struct rpcif *rpc, struct device *dev);
@@ -75,5 +77,7 @@ void rpcif_prepare(struct device *dev, const struct rpcif_op *op, u64 *offs,
 		   size_t *len);
 int rpcif_manual_xfer(struct device *dev);
 ssize_t rpcif_dirmap_read(struct device *dev, u64 offs, size_t len, void *buf);
+ssize_t xspi_dirmap_write(struct device *dev, u64 offs, size_t len,
+			  const void *buf);
 
 #endif // __RENESAS_RPC_IF_H
