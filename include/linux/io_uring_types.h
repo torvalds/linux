@@ -341,7 +341,6 @@ struct io_ring_ctx {
 		unsigned		cached_cq_tail;
 		unsigned		cq_entries;
 		struct io_ev_fd	__rcu	*io_ev_fd;
-		unsigned		cq_extra;
 
 		void			*cq_wait_arg;
 		size_t			cq_wait_size;
@@ -417,6 +416,7 @@ struct io_ring_ctx {
 
 	struct callback_head		poll_wq_task_work;
 	struct list_head		defer_list;
+	unsigned			nr_drained;
 
 	struct io_alloc_cache		msg_cache;
 	spinlock_t			msg_lock;
