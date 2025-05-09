@@ -7,6 +7,7 @@
 
 #include "gem/i915_gem_internal.h"
 
+#include "i915_drv.h"
 #include "i915_selftest.h"
 #include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
@@ -857,6 +858,14 @@ static int live_lrc_timestamp(void *arg)
 		(u32)S32_MAX + 1,
 		U32_MAX,
 	};
+
+	/*
+	 * This test was designed to isolate a hardware bug.
+	 * The bug was found and fixed in future generations but
+	 * now the test pollutes our CI on previous generation.
+	 */
+	if (GRAPHICS_VER(gt->i915) == 12)
+		return 0;
 
 	/*
 	 * We want to verify that the timestamp is saved and restore across

@@ -143,7 +143,7 @@ pte_tlbinv(struct intel_context *ce,
 	if (ce->engine->class == OTHER_CLASS)
 		msleep(200);
 	else
-		msleep(10);
+		usleep_range(10000, 20000);
 
 	if (va == vb) {
 		if (!i915_request_completed(rq)) {
