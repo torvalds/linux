@@ -175,17 +175,6 @@ const struct iwl_cfg iwl_cfg_ma = {
 	.num_rbds = IWL_NUM_RBDS_HE,
 };
 
-const struct iwl_cfg iwl_cfg_so_a0_hr_a0 = {
-	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_HE,
-};
-
-const struct iwl_cfg iwl_cfg_so_a0_hr_a0_80mhz = {
-	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_HE,
-	.bw_limit = 80,
-};
-
 MODULE_FIRMWARE(IWL_SO_A_JF_B_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_SO_A_HR_B_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
 IWL_FW_AND_PNVM(IWL_SO_A_GF_A_FW_PRE, IWL_AX210_UCODE_API_MAX);

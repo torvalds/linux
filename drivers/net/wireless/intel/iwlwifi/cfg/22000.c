@@ -15,9 +15,6 @@
 /* Lowest firmware API version supported */
 #define IWL_22000_UCODE_API_MIN	77
 
-/* NVM versions */
-#define IWL_22000_NVM_VERSION		0x0a1d
-
 /* Memory offsets and lengths */
 #define IWL_22000_SMEM_OFFSET		0x400000
 #define IWL_22000_SMEM_LEN		0xD0000
@@ -87,19 +84,6 @@ static const struct iwl_family_base_params iwl_22000_base = {
 	.ucode_api_max = IWL_22000_UCODE_API_MAX,
 };
 
-#define IWL_DEVICE_22500						\
-	.led_mode = IWL_LED_RF_STATE,					\
-	.non_shared_ant = ANT_B,					\
-	.vht_mu_mimo_supported = true,					\
-	.ht_params = {							\
-		.stbc = true,						\
-		.ldpc = true,						\
-		.ht40_bands = BIT(NL80211_BAND_2GHZ) |			\
-			      BIT(NL80211_BAND_5GHZ),			\
-	},								\
-	.nvm_ver = IWL_22000_NVM_VERSION,				\
-	.nvm_type = IWL_NVM_EXT
-
 const struct iwl_mac_cfg iwl_qu_mac_cfg = {
 	.mq_rx_supported = true,
 	.gen2 = true,
@@ -152,23 +136,6 @@ const char iwl_ax201_killer_1650s_name[] =
 	"Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201D2W)";
 const char iwl_ax201_killer_1650i_name[] =
 	"Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201NGW)";
-
-const struct iwl_cfg iwl_qu_hr1 = {
-	IWL_DEVICE_22500,
-	.tx_with_siso_diversity = true,
-	.num_rbds = IWL_NUM_RBDS_HE,
-};
-
-const struct iwl_cfg iwl_qu_hr = {
-	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_HE,
-};
-
-const struct iwl_cfg iwl_qu_hr_80mhz = {
-	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_HE,
-	.bw_limit = 80,
-};
 
 MODULE_FIRMWARE(IWL_QU_B_HR_B_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_QU_C_HR_B_MODULE_FIRMWARE(IWL_22000_UCODE_API_MAX));

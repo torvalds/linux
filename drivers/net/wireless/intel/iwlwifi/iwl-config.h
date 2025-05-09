@@ -686,14 +686,11 @@ extern const struct iwl_cfg iwl8260_cfg;
 extern const struct iwl_cfg iwl8265_cfg;
 extern const struct iwl_cfg iwl_rf_jf;
 extern const struct iwl_cfg iwl_rf_jf_80mhz;
-extern const struct iwl_cfg iwl_qu_hr1;
-extern const struct iwl_cfg iwl_qu_hr;
-extern const struct iwl_cfg iwl_qu_hr_80mhz;
+extern const struct iwl_cfg iwl_rf_hr1;
+extern const struct iwl_cfg iwl_rf_hr;
+extern const struct iwl_cfg iwl_rf_hr_80mhz;
 
 extern const struct iwl_cfg iwl_cfg_ma;
-
-extern const struct iwl_cfg iwl_cfg_so_a0_hr_a0;
-extern const struct iwl_cfg iwl_cfg_so_a0_hr_a0_80mhz;
 #endif /* CONFIG_IWLMVM */
 
 #if IS_ENABLED(CONFIG_IWLMLD)
