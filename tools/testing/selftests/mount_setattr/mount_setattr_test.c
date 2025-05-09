@@ -20,7 +20,7 @@
 #include <stdarg.h>
 #include <linux/mount.h>
 
-#include "../filesystems/overlayfs/wrappers.h"
+#include "../filesystems/wrappers.h"
 #include "../kselftest_harness.h"
 
 #ifndef CLONE_NEWNS
