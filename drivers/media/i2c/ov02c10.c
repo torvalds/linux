@@ -497,8 +497,8 @@ static int ov02c10_init_controls(struct ov02c10 *ov02c10)
 		ov02c10->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	/* MIPI lanes are DDR -> use link-freq * 2 */
-	pixel_rate = link_freq_menu_items[ov02c10->link_freq_index] * 2 *
-		     ov02c10->mipi_lanes / OV02C10_RGB_DEPTH;
+	pixel_rate = div_u64(link_freq_menu_items[ov02c10->link_freq_index] *
+			     2 * ov02c10->mipi_lanes, OV02C10_RGB_DEPTH);
 
 	ov02c10->pixel_rate = v4l2_ctrl_new_std(ctrl_hdlr, &ov02c10_ctrl_ops,
 						V4L2_CID_PIXEL_RATE, 0,
