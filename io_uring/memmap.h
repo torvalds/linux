@@ -6,7 +6,7 @@
 
 #define IORING_OFF_ZCRX_SHIFT		16
 
-struct page **io_pin_pages(unsigned long ubuf, unsigned long len, int *npages);
+struct page **io_pin_pages(unsigned long uaddr, unsigned long len, int *npages);
 
 #ifndef CONFIG_MMU
 unsigned int io_uring_nommu_mmap_capabilities(struct file *file);
