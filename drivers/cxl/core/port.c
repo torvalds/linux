@@ -602,16 +602,18 @@ struct cxl_port *to_cxl_port(const struct device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(to_cxl_port, "CXL");
 
+struct cxl_port *parent_port_of(struct cxl_port *port)
+{
+	if (!port || !port->parent_dport)
+		return NULL;
+	return port->parent_dport->port;
+}
+
 static void unregister_port(void *_port)
 {
 	struct cxl_port *port = _port;
-	struct cxl_port *parent;
+	struct cxl_port *parent = parent_port_of(port);
 	struct device *lock_dev;
-
-	if (is_cxl_root(port))
-		parent = NULL;
-	else
-		parent = to_cxl_port(port->dev.parent);
 
 	/*
 	 * CXL root port's and the first level of ports are unregistered
@@ -1034,15 +1036,6 @@ struct cxl_root *find_cxl_root(struct cxl_port *port)
 	return to_cxl_root(iter);
 }
 EXPORT_SYMBOL_NS_GPL(find_cxl_root, "CXL");
-
-void put_cxl_root(struct cxl_root *cxl_root)
-{
-	if (!cxl_root)
-		return;
-
-	put_device(&cxl_root->port.dev);
-}
-EXPORT_SYMBOL_NS_GPL(put_cxl_root, "CXL");
 
 static struct cxl_dport *find_dport(struct cxl_port *port, int id)
 {
