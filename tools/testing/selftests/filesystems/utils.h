@@ -42,4 +42,6 @@ static inline bool switch_userns(int fd, uid_t uid, gid_t gid, bool drop_caps)
 	return true;
 }
 
+extern uint64_t get_unique_mnt_id(const char *path);
+
 #endif /* __IDMAP_UTILS_H */

@@ -19,6 +19,8 @@
 #include <sys/wait.h>
 #include <sys/xattr.h>
 
+#include "../kselftest.h"
+#include "wrappers.h"
 #include "utils.h"
 
 #define MAX_USERNS_LEVEL 32
@@ -498,4 +500,24 @@ int cap_down(cap_value_t down)
 out:
 	cap_free(caps);
 	return fret;
+}
+
+uint64_t get_unique_mnt_id(const char *path)
+{
+	struct statx sx;
+	int ret;
+
+	ret = statx(AT_FDCWD, path, 0, STATX_MNT_ID_UNIQUE, &sx);
+	if (ret == -1) {
+		ksft_print_msg("retrieving unique mount ID for %s: %s\n", path,
+			 strerror(errno));
+		return 0;
+	}
+
+	if (!(sx.stx_mask & STATX_MNT_ID_UNIQUE)) {
+		ksft_print_msg("no unique mount ID available for %s\n", path);
+		return 0;
+	}
+
+	return sx.stx_mnt_id;
 }

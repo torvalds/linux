@@ -14,6 +14,7 @@
 #include <linux/stat.h>
 
 #include "statmount.h"
+#include "../utils.h"
 #include "../../kselftest.h"
 
 #define NSID_PASS 0
@@ -75,27 +76,6 @@ static int get_mnt_ns_id(const char *mnt_ns, uint64_t *mnt_ns_id)
 		return NSID_ERROR;
 	}
 	close(fd);
-	return NSID_PASS;
-}
-
-static int get_mnt_id(const char *path, uint64_t *mnt_id)
-{
-	struct statx sx;
-	int ret;
-
-	ret = statx(AT_FDCWD, path, 0, STATX_MNT_ID_UNIQUE, &sx);
-	if (ret == -1) {
-		ksft_print_msg("retrieving unique mount ID for %s: %s\n", path,
-			       strerror(errno));
-		return NSID_ERROR;
-	}
-
-	if (!(sx.stx_mask & STATX_MNT_ID_UNIQUE)) {
-		ksft_print_msg("no unique mount ID available for %s\n", path);
-		return NSID_ERROR;
-	}
-
-	*mnt_id = sx.stx_mnt_id;
 	return NSID_PASS;
 }
 
@@ -174,9 +154,9 @@ static int _test_statmount_mnt_ns_id(void)
 	if (ret != NSID_PASS)
 		return ret;
 
-	ret = get_mnt_id("/", &root_id);
-	if (ret != NSID_PASS)
-		return ret;
+	root_id = get_unique_mnt_id("/");
+	if (!root_id)
+		return NSID_ERROR;
 
 	ret = statmount(root_id, 0, STATMOUNT_MNT_NS_ID, &sm, sizeof(sm), 0);
 	if (ret == -1) {
