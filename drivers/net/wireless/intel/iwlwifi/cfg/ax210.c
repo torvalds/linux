@@ -15,9 +15,6 @@
 /* Lowest firmware API version supported */
 #define IWL_AX210_UCODE_API_MIN	77
 
-/* NVM versions */
-#define IWL_AX210_NVM_VERSION		0x0a1d
-
 /* Memory offsets and lengths */
 #define IWL_AX210_SMEM_OFFSET		0x400000
 #define IWL_AX210_SMEM_LEN		0xD0000
@@ -91,19 +88,6 @@ static const struct iwl_family_base_params iwl_ax210_base = {
 	.ucode_api_max = IWL_AX210_UCODE_API_MAX,
 };
 
-#define IWL_DEVICE_AX210						\
-	.led_mode = IWL_LED_RF_STATE,					\
-	.non_shared_ant = ANT_B,					\
-	.vht_mu_mimo_supported = true,					\
-	.ht_params = {							\
-		.stbc = true,						\
-		.ldpc = true,						\
-		.ht40_bands = BIT(NL80211_BAND_2GHZ) |			\
-			      BIT(NL80211_BAND_5GHZ),			\
-	},								\
-	.nvm_ver = IWL_AX210_NVM_VERSION,				\
-	.nvm_type = IWL_NVM_EXT
-
 const struct iwl_mac_cfg iwl_so_mac_cfg = {
 	.mq_rx_supported = true,
 	.gen2 = true,
@@ -168,12 +152,6 @@ const char iwl_ax411_killer_1690i_name[] =
 	"Killer(R) Wi-Fi 6E AX1690i 160MHz Wireless Network Adapter (411NGW)";
 
 const char iwl_ax210_name[] = "Intel(R) Wi-Fi 6 AX210 160MHz";
-
-const struct iwl_cfg iwl_cfg_ma = {
-	.uhb_supported = true,
-	IWL_DEVICE_AX210,
-	.num_rbds = IWL_NUM_RBDS_HE,
-};
 
 MODULE_FIRMWARE(IWL_SO_A_JF_B_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_SO_A_HR_B_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
