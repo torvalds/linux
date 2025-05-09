@@ -170,9 +170,6 @@ static bool nfs_uuid_put(nfs_uuid_t *nfs_uuid)
 	while ((nfl = list_first_entry_or_null(&nfs_uuid->files,
 					       struct nfs_file_localio,
 					       list)) != NULL) {
-		struct nfsd_file *ro_nf;
-		struct nfsd_file *rw_nf;
-
 		/* If nfs_uuid is already NULL, nfs_close_local_fh is
 		 * closing and we must wait, else we unlink and close.
 		 */
@@ -189,17 +186,14 @@ static bool nfs_uuid_put(nfs_uuid_t *nfs_uuid)
 			continue;
 		}
 
-		ro_nf = unrcu_pointer(xchg(&nfl->ro_file, NULL));
-		rw_nf = unrcu_pointer(xchg(&nfl->rw_file, NULL));
-
 		/* Remove nfl from nfs_uuid->files list */
 		list_del_init(&nfl->list);
 		spin_unlock(&nfs_uuid->lock);
-		if (ro_nf)
-			nfs_to_nfsd_file_put_local(ro_nf);
-		if (rw_nf)
-			nfs_to_nfsd_file_put_local(rw_nf);
+
+		nfs_to_nfsd_file_put_local(&nfl->ro_file);
+		nfs_to_nfsd_file_put_local(&nfl->rw_file);
 		cond_resched();
+
 		spin_lock(&nfs_uuid->lock);
 		/* Now we can allow racing nfs_close_local_fh() to
 		 * skip the locking.
@@ -303,8 +297,6 @@ EXPORT_SYMBOL_GPL(nfs_open_local_fh);
 
 void nfs_close_local_fh(struct nfs_file_localio *nfl)
 {
-	struct nfsd_file *ro_nf;
-	struct nfsd_file *rw_nf;
 	nfs_uuid_t *nfs_uuid;
 
 	rcu_read_lock();
@@ -337,12 +329,8 @@ void nfs_close_local_fh(struct nfs_file_localio *nfl)
 	spin_unlock(&nfs_uuid->lock);
 	rcu_read_unlock();
 
-	ro_nf = unrcu_pointer(xchg(&nfl->ro_file, NULL));
-	rw_nf = unrcu_pointer(xchg(&nfl->rw_file, NULL));
-	if (ro_nf)
-		nfs_to_nfsd_file_put_local(ro_nf);
-	if (rw_nf)
-		nfs_to_nfsd_file_put_local(rw_nf);
+	nfs_to_nfsd_file_put_local(&nfl->ro_file);
+	nfs_to_nfsd_file_put_local(&nfl->rw_file);
 
 	/* Remove nfl from nfs_uuid->files list and signal nfs_uuid_put()
 	 * that we are done.  The moment we drop the spinlock the

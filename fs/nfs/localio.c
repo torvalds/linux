@@ -209,9 +209,16 @@ void nfs_local_probe_async(struct nfs_client *clp)
 }
 EXPORT_SYMBOL_GPL(nfs_local_probe_async);
 
-static inline void nfs_local_file_put(struct nfsd_file *nf)
+static inline void nfs_local_file_put(struct nfsd_file *localio)
 {
-	nfs_to_nfsd_file_put_local(nf);
+	/* nfs_to_nfsd_file_put_local() expects an __rcu pointer
+	 * but we have a __kernel pointer.  It is always safe
+	 * to cast a __kernel pointer to an __rcu pointer
+	 * because the cast only weakens what is known about the pointer.
+	 */
+	struct nfsd_file __rcu *nf = (struct nfsd_file __rcu*) localio;
+
+	nfs_to_nfsd_file_put_local(&nf);
 }
 
 /*

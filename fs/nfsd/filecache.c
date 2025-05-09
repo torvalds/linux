@@ -378,11 +378,16 @@ nfsd_file_put(struct nfsd_file *nf)
  * the reference of the nfsd_file.
  */
 struct net *
-nfsd_file_put_local(struct nfsd_file *nf)
+nfsd_file_put_local(struct nfsd_file __rcu **pnf)
 {
-	struct net *net = nf->nf_net;
+	struct nfsd_file *nf;
+	struct net *net = NULL;
 
-	nfsd_file_put(nf);
+	nf = unrcu_pointer(xchg(pnf, NULL));
+	if (nf) {
+		net = nf->nf_net;
+		nfsd_file_put(nf);
+	}
 	return net;
 }
 
