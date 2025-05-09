@@ -24,10 +24,15 @@ struct visionox_rm69299_panel_desc {
 
 struct visionox_rm69299 {
 	struct drm_panel panel;
-	struct regulator_bulk_data supplies[2];
+	struct regulator_bulk_data *supplies;
 	struct gpio_desc *reset_gpio;
 	struct mipi_dsi_device *dsi;
 	const struct visionox_rm69299_panel_desc *desc;
+};
+
+static const struct regulator_bulk_data visionox_rm69299_supplies[] = {
+	{ .supply = "vdda", .init_load_uA = 32000 },
+	{ .supply = "vdd3p3", .init_load_uA = 13200 },
 };
 
 static const u8 visionox_rm69299_1080x2248_60hz_init_seq[][2] = {
@@ -43,7 +48,8 @@ static int visionox_rm69299_power_on(struct visionox_rm69299 *ctx)
 {
 	int ret;
 
-	ret = regulator_bulk_enable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
+	ret = regulator_bulk_enable(ARRAY_SIZE(visionox_rm69299_supplies),
+				    ctx->supplies);
 	if (ret < 0)
 		return ret;
 
@@ -66,7 +72,8 @@ static int visionox_rm69299_power_off(struct visionox_rm69299 *ctx)
 {
 	gpiod_set_value(ctx->reset_gpio, 0);
 
-	return regulator_bulk_disable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
+	return regulator_bulk_disable(ARRAY_SIZE(visionox_rm69299_supplies),
+				      ctx->supplies);
 }
 
 static int visionox_rm69299_unprepare(struct drm_panel *panel)
@@ -174,12 +181,8 @@ static int visionox_rm69299_probe(struct mipi_dsi_device *dsi)
 
 	ctx->dsi = dsi;
 
-	ctx->supplies[0].supply = "vdda";
-	ctx->supplies[0].init_load_uA = 32000;
-	ctx->supplies[1].supply = "vdd3p3";
-	ctx->supplies[1].init_load_uA = 13200;
-
-	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(ctx->supplies), ctx->supplies);
+	ret = devm_regulator_bulk_get_const(dev, ARRAY_SIZE(visionox_rm69299_supplies),
+					    visionox_rm69299_supplies, &ctx->supplies);
 	if (ret < 0)
 		return ret;
 
