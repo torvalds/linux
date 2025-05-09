@@ -443,9 +443,6 @@ int sst_set_stream_param(int str_id, struct snd_sst_params *str_param);
 int sst_set_metadata(int str_id, char *params);
 int sst_get_stream(struct intel_sst_drv *ctx,
 		struct snd_sst_params *str_param);
-int sst_get_stream_allocated(struct intel_sst_drv *ctx,
-		struct snd_sst_params *str_param,
-		struct snd_sst_lib_download **lib_dnld);
 int sst_drain_stream(struct intel_sst_drv *sst_drv_ctx,
 		int str_id, bool partial_drain);
 int sst_post_message_mrfld(struct intel_sst_drv *sst_drv_ctx,
@@ -461,8 +458,6 @@ void sst_post_download_mrfld(struct intel_sst_drv *ctx);
 int sst_get_block_stream(struct intel_sst_drv *sst_drv_ctx);
 void sst_memcpy_free_resources(struct intel_sst_drv *sst_drv_ctx);
 
-int sst_wait_interruptible(struct intel_sst_drv *sst_drv_ctx,
-				struct sst_block *block);
 int sst_wait_timeout(struct intel_sst_drv *sst_drv_ctx,
 			struct sst_block *block);
 int sst_create_ipc_msg(struct ipc_post **arg, bool large);
@@ -470,7 +465,6 @@ int free_stream_context(struct intel_sst_drv *ctx, unsigned int str_id);
 void sst_clean_stream(struct stream_info *stream);
 int intel_sst_register_compress(struct intel_sst_drv *sst);
 int intel_sst_remove_compress(struct intel_sst_drv *sst);
-void sst_cdev_fragment_elapsed(struct intel_sst_drv *ctx, int str_id);
 int sst_send_sync_msg(int ipc, int str_id);
 int sst_get_num_channel(struct snd_sst_params *str_param);
 int sst_get_sfreq(struct snd_sst_params *str_param);
