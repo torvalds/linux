@@ -46,6 +46,8 @@
 
 #include "dmub/inc/dmub_cmd.h"
 
+#include "sspl/dc_spl_types.h"
+
 struct abm_save_restore;
 
 /* forward declaration */
@@ -512,6 +514,8 @@ struct dc_config {
 	bool set_pipe_unlock_order;
 	bool enable_dpia_pre_training;
 	bool unify_link_enc_assignment;
+	struct spl_sharpness_range dcn_sharpness_range;
+	struct spl_sharpness_range dcn_override_sharpness_range;
 };
 
 enum visual_confirm {
@@ -1420,6 +1424,8 @@ struct dc_plane_state {
 	int sharpness_level;
 	enum linear_light_scaling linear_light_scaling;
 	unsigned int sdr_white_level_nits;
+	struct spl_sharpness_range sharpness_range;
+	enum sharpness_range_source sharpness_source;
 };
 
 struct dc_plane_info {
