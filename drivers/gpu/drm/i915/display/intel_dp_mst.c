@@ -599,12 +599,13 @@ adjust_limits_for_dsc_hblank_expansion_quirk(struct intel_dp *intel_dp,
 
 static bool
 mst_stream_compute_config_limits(struct intel_dp *intel_dp,
-				 const struct intel_connector *connector,
+				 struct intel_connector *connector,
 				 struct intel_crtc_state *crtc_state,
 				 bool dsc,
 				 struct link_config_limits *limits)
 {
-	if (!intel_dp_compute_config_limits(intel_dp, crtc_state, false, dsc,
+	if (!intel_dp_compute_config_limits(intel_dp, connector,
+					    crtc_state, false, dsc,
 					    limits))
 		return false;
 
