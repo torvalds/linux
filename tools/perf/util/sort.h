@@ -73,6 +73,7 @@ enum sort_type {
 	SORT_SYM_OFFSET,
 	SORT_ANNOTATE_DATA_TYPE_CACHELINE,
 	SORT_PARALLELISM,
+	SORT_TGID,
 
 	/* branch stack specific sort keys */
 	__SORT_BRANCH_STACK,
