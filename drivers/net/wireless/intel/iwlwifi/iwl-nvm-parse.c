@@ -336,7 +336,7 @@ static inline void iwl_nvm_print_channel_flags(struct device *dev, u32 level,
 }
 
 static u32 iwl_get_channel_flags(u8 ch_num, int ch_idx, enum nl80211_band band,
-				 u32 nvm_flags, const struct iwl_cfg *cfg)
+				 u32 nvm_flags, const struct iwl_rf_cfg *cfg)
 {
 	u32 flags = IEEE80211_CHAN_NO_HT40;
 
@@ -403,7 +403,7 @@ static int iwl_init_channel_map(struct iwl_trans *trans,
 				const void * const nvm_ch_flags,
 				u32 sbands_flags, bool v4)
 {
-	const struct iwl_cfg *cfg = trans->cfg;
+	const struct iwl_rf_cfg *cfg = trans->cfg;
 	struct device *dev = trans->dev;
 	int ch_idx;
 	int n_channels = 0;
@@ -504,7 +504,7 @@ static void iwl_init_vht_hw_capab(struct iwl_trans *trans,
 				  struct ieee80211_sta_vht_cap *vht_cap,
 				  u8 tx_chains, u8 rx_chains)
 {
-	const struct iwl_cfg *cfg = trans->cfg;
+	const struct iwl_rf_cfg *cfg = trans->cfg;
 	int num_rx_ants = num_of_ant(rx_chains);
 	int num_tx_ants = num_of_ant(tx_chains);
 
@@ -1251,7 +1251,7 @@ static void iwl_init_sbands(struct iwl_trans *trans,
 			    n_used, n_channels);
 }
 
-static int iwl_get_sku(const struct iwl_cfg *cfg, const __le16 *nvm_sw,
+static int iwl_get_sku(const struct iwl_rf_cfg *cfg, const __le16 *nvm_sw,
 		       const __le16 *phy_sku)
 {
 	if (cfg->nvm_type != IWL_NVM_EXT)
@@ -1260,7 +1260,7 @@ static int iwl_get_sku(const struct iwl_cfg *cfg, const __le16 *nvm_sw,
 	return le32_to_cpup((const __le32 *)(phy_sku + SKU_FAMILY_8000));
 }
 
-static int iwl_get_nvm_version(const struct iwl_cfg *cfg, const __le16 *nvm_sw)
+static int iwl_get_nvm_version(const struct iwl_rf_cfg *cfg, const __le16 *nvm_sw)
 {
 	if (cfg->nvm_type != IWL_NVM_EXT)
 		return le16_to_cpup(nvm_sw + NVM_VERSION);
@@ -1269,7 +1269,7 @@ static int iwl_get_nvm_version(const struct iwl_cfg *cfg, const __le16 *nvm_sw)
 						     NVM_VERSION_EXT_NVM));
 }
 
-static int iwl_get_radio_cfg(const struct iwl_cfg *cfg, const __le16 *nvm_sw,
+static int iwl_get_radio_cfg(const struct iwl_rf_cfg *cfg, const __le16 *nvm_sw,
 			     const __le16 *phy_sku)
 {
 	if (cfg->nvm_type != IWL_NVM_EXT)
@@ -1279,7 +1279,7 @@ static int iwl_get_radio_cfg(const struct iwl_cfg *cfg, const __le16 *nvm_sw,
 
 }
 
-static int iwl_get_n_hw_addrs(const struct iwl_cfg *cfg, const __le16 *nvm_sw)
+static int iwl_get_n_hw_addrs(const struct iwl_rf_cfg *cfg, const __le16 *nvm_sw)
 {
 	int n_hw_addr;
 
@@ -1291,7 +1291,7 @@ static int iwl_get_n_hw_addrs(const struct iwl_cfg *cfg, const __le16 *nvm_sw)
 	return n_hw_addr & N_HW_ADDR_MASK;
 }
 
-static void iwl_set_radio_cfg(const struct iwl_cfg *cfg,
+static void iwl_set_radio_cfg(const struct iwl_rf_cfg *cfg,
 			      struct iwl_nvm_data *data,
 			      u32 radio_cfg)
 {
@@ -1350,7 +1350,7 @@ static void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
 }
 
 static void iwl_set_hw_address_family_8000(struct iwl_trans *trans,
-					   const struct iwl_cfg *cfg,
+					   const struct iwl_rf_cfg *cfg,
 					   struct iwl_nvm_data *data,
 					   const __le16 *mac_override,
 					   const __be16 *nvm_hw)
@@ -1399,7 +1399,7 @@ static void iwl_set_hw_address_family_8000(struct iwl_trans *trans,
 }
 
 static int iwl_set_hw_address(struct iwl_trans *trans,
-			      const struct iwl_cfg *cfg,
+			      const struct iwl_rf_cfg *cfg,
 			      struct iwl_nvm_data *data, const __be16 *nvm_hw,
 			      const __le16 *mac_override)
 {
@@ -1434,7 +1434,7 @@ static int iwl_set_hw_address(struct iwl_trans *trans,
 }
 
 static bool
-iwl_nvm_no_wide_in_5ghz(struct iwl_trans *trans, const struct iwl_cfg *cfg,
+iwl_nvm_no_wide_in_5ghz(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 			const __be16 *nvm_hw)
 {
 	/*
@@ -1466,7 +1466,7 @@ iwl_nvm_no_wide_in_5ghz(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 }
 
 struct iwl_nvm_data *
-iwl_parse_mei_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
+iwl_parse_mei_nvm_data(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 		       const struct iwl_mei_nvm *mei_nvm,
 		       const struct iwl_fw *fw, u8 tx_ant, u8 rx_ant)
 {
@@ -1530,7 +1530,7 @@ iwl_parse_mei_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 IWL_EXPORT_SYMBOL(iwl_parse_mei_nvm_data);
 
 struct iwl_nvm_data *
-iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
+iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 		   const struct iwl_fw *fw,
 		   const __be16 *nvm_hw, const __le16 *nvm_sw,
 		   const __le16 *nvm_calib, const __le16 *regulatory,
@@ -1630,7 +1630,7 @@ IWL_EXPORT_SYMBOL(iwl_parse_nvm_data);
 static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 				       int ch_idx, u16 nvm_flags,
 				       struct iwl_reg_capa reg_capa,
-				       const struct iwl_cfg *cfg)
+				       const struct iwl_rf_cfg *cfg)
 {
 	u32 flags = NL80211_RRF_NO_HT40;
 
@@ -1749,7 +1749,7 @@ iwl_parse_nvm_mcc_info(struct iwl_trans *trans,
 		       int num_of_ch, __le32 *channels, u16 fw_mcc,
 		       u16 geo_info, u32 cap, u8 resp_ver)
 {
-	const struct iwl_cfg *cfg = trans->cfg;
+	const struct iwl_rf_cfg *cfg = trans->cfg;
 	struct device *dev = trans->dev;
 	int ch_idx;
 	u16 ch_flags;

@@ -105,7 +105,7 @@ const char iwl8265_2ac_name[] = "Intel(R) Dual Band Wireless AC 8265";
 const char iwl8275_2ac_name[] = "Intel(R) Dual Band Wireless AC 8275";
 const char iwl4165_2ac_name[] = "Intel(R) Dual Band Wireless AC 4165";
 
-const struct iwl_cfg iwl8260_cfg = {
+const struct iwl_rf_cfg iwl8260_cfg = {
 	.fw_name_pre = IWL8000_FW_PRE,
 	IWL_DEVICE_8260,
 	.ht_params = {
@@ -116,7 +116,7 @@ const struct iwl_cfg iwl8260_cfg = {
 	.nvm_ver = IWL8000_NVM_VERSION,
 };
 
-const struct iwl_cfg iwl8265_cfg = {
+const struct iwl_rf_cfg iwl8265_cfg = {
 	.fw_name_pre = IWL8265_FW_PRE,
 	IWL_DEVICE_8265,
 	.ht_params = {

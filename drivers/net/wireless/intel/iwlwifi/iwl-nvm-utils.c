@@ -42,7 +42,7 @@ void iwl_init_ht_hw_capab(struct iwl_trans *trans,
 			  enum nl80211_band band,
 			  u8 tx_chains, u8 rx_chains)
 {
-	const struct iwl_cfg *cfg = trans->cfg;
+	const struct iwl_rf_cfg *cfg = trans->cfg;
 	int max_bit_rate = 0;
 
 	tx_chains = hweight8(tx_chains);

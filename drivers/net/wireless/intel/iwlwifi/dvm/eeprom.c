@@ -413,7 +413,7 @@ static void iwl_eeprom_enhanced_txpower(struct device *dev,
 	}
 }
 
-static void iwl_init_band_reference(const struct iwl_cfg *cfg,
+static void iwl_init_band_reference(const struct iwl_rf_cfg *cfg,
 				    const u8 *eeprom, size_t eeprom_size,
 				    int eeprom_band, int *eeprom_ch_count,
 				    const struct iwl_eeprom_channel **ch_info,
@@ -507,7 +507,7 @@ static void iwl_mod_ht40_chan_info(struct device *dev,
 #define CHECK_AND_PRINT_I(x)	\
 	((eeprom_ch_info[ch_idx].flags & EEPROM_CHANNEL_##x) ? # x " " : "")
 
-static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
+static int iwl_init_channel_map(struct device *dev, const struct iwl_rf_cfg *cfg,
 				struct iwl_nvm_data *data,
 				const u8 *eeprom, size_t eeprom_size)
 {
@@ -1024,7 +1024,7 @@ int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 	return ret;
 }
 
-static void iwl_init_sbands(struct iwl_trans *trans, const struct iwl_cfg *cfg,
+static void iwl_init_sbands(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 			    struct iwl_nvm_data *data,
 			    const u8 *eeprom, size_t eeprom_size)
 {
@@ -1059,7 +1059,7 @@ static void iwl_init_sbands(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 /* EEPROM data functions */
 struct iwl_nvm_data *
-iwl_parse_eeprom_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
+iwl_parse_eeprom_data(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 		      const u8 *eeprom, size_t eeprom_size)
 {
 	struct iwl_nvm_data *data;

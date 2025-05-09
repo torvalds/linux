@@ -8,7 +8,7 @@
 /* NVM versions */
 #define IWL_GF_NVM_VERSION		0x0a1d
 
-const struct iwl_cfg iwl_rf_gf = {
+const struct iwl_rf_cfg iwl_rf_gf = {
 	.uhb_supported = true,
 	.led_mode = IWL_LED_RF_STATE,
 	.non_shared_ant = ANT_B,

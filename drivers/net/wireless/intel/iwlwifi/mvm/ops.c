@@ -1278,7 +1278,7 @@ static void iwl_mvm_trig_link_selection(struct wiphy *wiphy,
 }
 
 static struct iwl_op_mode *
-iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
+iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 		      const struct iwl_fw *fw, struct dentry *dbgfs_dir)
 {
 	struct ieee80211_hw *hw;

@@ -22,16 +22,16 @@
 	.nvm_ver = IWL_HR_NVM_VERSION,					\
 	.nvm_type = IWL_NVM_EXT
 
-const struct iwl_cfg iwl_rf_hr1 = {
+const struct iwl_rf_cfg iwl_rf_hr1 = {
 	IWL_DEVICE_HR,
 	.tx_with_siso_diversity = true,
 };
 
-const struct iwl_cfg iwl_rf_hr = {
+const struct iwl_rf_cfg iwl_rf_hr = {
 	IWL_DEVICE_HR,
 };
 
-const struct iwl_cfg iwl_rf_hr_80mhz = {
+const struct iwl_rf_cfg iwl_rf_hr_80mhz = {
 	IWL_DEVICE_HR,
 	.bw_limit = 80,
 };

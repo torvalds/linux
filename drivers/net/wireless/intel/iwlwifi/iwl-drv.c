@@ -296,7 +296,7 @@ static void iwl_get_ucode_api_versions(struct iwl_trans *trans,
 				       unsigned int *api_max)
 {
 	const struct iwl_family_base_params *base = trans->mac_cfg->base;
-	const struct iwl_cfg *cfg = trans->cfg;
+	const struct iwl_rf_cfg *cfg = trans->cfg;
 
 	if (!base->ucode_api_max) {
 		*api_min = cfg->ucode_api_min;
@@ -1456,7 +1456,7 @@ static int iwl_alloc_ucode(struct iwl_drv *drv,
 
 static int validate_sec_sizes(struct iwl_drv *drv,
 			      struct iwl_firmware_pieces *pieces,
-			      const struct iwl_cfg *cfg)
+			      const struct iwl_rf_cfg *cfg)
 {
 	IWL_DEBUG_INFO(drv, "f/w package hdr runtime inst size = %zd\n",
 		get_sec_size(pieces, IWL_UCODE_REGULAR,

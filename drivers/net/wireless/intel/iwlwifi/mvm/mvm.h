@@ -1003,7 +1003,7 @@ struct iwl_mvm {
 
 	struct iwl_trans *trans;
 	const struct iwl_fw *fw;
-	const struct iwl_cfg *cfg;
+	const struct iwl_rf_cfg *cfg;
 	struct iwl_phy_db *phy_db;
 	struct ieee80211_hw *hw;
 

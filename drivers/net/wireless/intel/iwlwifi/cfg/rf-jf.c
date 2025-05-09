@@ -58,11 +58,11 @@ static const struct iwl_tt_params iwl_jf_tt_params = {
 	.nvm_ver = IWL_JF_NVM_VERSION,					\
 	.nvm_type = IWL_NVM_EXT
 
-const struct iwl_cfg iwl_rf_jf = {
+const struct iwl_rf_cfg iwl_rf_jf = {
 	IWL_DEVICE_JF,
 };
 
-const struct iwl_cfg iwl_rf_jf_80mhz = {
+const struct iwl_rf_cfg iwl_rf_jf_80mhz = {
 	IWL_DEVICE_JF,
 	.bw_limit = 80,
 };

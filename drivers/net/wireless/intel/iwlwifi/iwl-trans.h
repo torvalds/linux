@@ -892,7 +892,7 @@ struct iwl_trans {
 	bool csme_own;
 	struct iwl_op_mode *op_mode;
 	const struct iwl_mac_cfg *mac_cfg;
-	const struct iwl_cfg *cfg;
+	const struct iwl_rf_cfg *cfg;
 	struct iwl_drv *drv;
 	struct iwl_trans_config conf;
 	enum iwl_trans_state state;

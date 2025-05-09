@@ -62,7 +62,7 @@ static void iwl_mld_hw_set_regulatory(struct iwl_mld *mld)
 
 VISIBLE_IF_IWLWIFI_KUNIT
 void iwl_construct_mld(struct iwl_mld *mld, struct iwl_trans *trans,
-		       const struct iwl_cfg *cfg, const struct iwl_fw *fw,
+		       const struct iwl_rf_cfg *cfg, const struct iwl_fw *fw,
 		       struct ieee80211_hw *hw, struct dentry *dbgfs_dir)
 {
 	mld->dev = trans->dev;
@@ -370,7 +370,7 @@ iwl_mld_configure_trans(struct iwl_op_mode *op_mode)
 
 #define NUM_FW_LOAD_RETRIES	3
 static struct iwl_op_mode *
-iwl_op_mode_mld_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
+iwl_op_mode_mld_start(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 		      const struct iwl_fw *fw, struct dentry *dbgfs_dir)
 {
 	struct ieee80211_hw *hw;

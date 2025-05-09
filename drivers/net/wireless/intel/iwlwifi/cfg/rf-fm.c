@@ -23,11 +23,11 @@
 	.nvm_ver = IWL_FM_NVM_VERSION,					\
 	.nvm_type = IWL_NVM_EXT
 
-const struct iwl_cfg iwl_rf_fm = {
+const struct iwl_rf_cfg iwl_rf_fm = {
 	IWL_DEVICE_FM,
 };
 
-const struct iwl_cfg iwl_rf_fm_160mhz = {
+const struct iwl_rf_cfg iwl_rf_fm_160mhz = {
 	IWL_DEVICE_FM,
 	.bw_limit = 160,
 };

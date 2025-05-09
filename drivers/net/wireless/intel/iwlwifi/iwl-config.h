@@ -353,7 +353,7 @@ struct iwl_mac_cfg {
 #define IWL_NUM_RBDS_EHT		(512 * 8)
 
 /**
- * struct iwl_cfg
+ * struct iwl_rf_cfg
  * @fw_name_pre: Firmware filename prefix. The api version and extension
  *	(.ucode) will be added to filename before loading from disk. The
  *	filename is constructed as <fw_name_pre>-<api>.ucode.
@@ -369,6 +369,9 @@ struct iwl_mac_cfg {
  * @nvm_calib_ver: NVM calibration version
  * @bw_limit: bandwidth limit for this device, if non-zero
  * @ht_params: point to ht parameters
+ * @eeprom_params: EEPROM parameters (old devices)
+ * @thermal_params: Thermal throttling parameters
+ * @lp_xtal_workaround: low-power crystal workaround needed
  * @led_mode: 0=blinking, 1=On(RF On)/Off(RF Off)
  * @rx_with_siso_diversity: 1x1 device with rx antenna diversity
  * @tx_with_siso_diversity: 1x1 device with tx antenna diversity
@@ -390,7 +393,7 @@ struct iwl_mac_cfg {
  * API differences in uCode shouldn't be handled here but through TLVs
  * and/or the uCode API version instead.
  */
-struct iwl_cfg {
+struct iwl_rf_cfg {
 	/* params specific to an individual device within a device family */
 	const char *fw_name_pre;
 	/* params likely to change within a device family */
@@ -487,7 +490,7 @@ struct iwl_dev_info {
 	u8 cores;
 	u8 cdb;
 	u8 jacket;
-	const struct iwl_cfg *cfg;
+	const struct iwl_rf_cfg *cfg;
 	const char *name;
 };
 
@@ -643,59 +646,58 @@ extern const char iwl_mtp_name[];
 extern const char iwl_dr_name[];
 extern const char iwl_br_name[];
 #if IS_ENABLED(CONFIG_IWLDVM)
-extern const struct iwl_cfg iwl5300_agn_cfg;
-extern const struct iwl_cfg iwl5350_agn_cfg;
-extern const struct iwl_cfg iwl5100_n_cfg;
-extern const struct iwl_cfg iwl5100_abg_cfg;
-extern const struct iwl_cfg iwl5150_agn_cfg;
-extern const struct iwl_cfg iwl5150_abg_cfg;
-extern const struct iwl_cfg iwl6005_non_n_cfg;
-extern const struct iwl_cfg iwl6005_n_cfg;
-extern const struct iwl_cfg iwl6030_n_cfg;
-extern const struct iwl_cfg iwl6030_non_n_cfg;
-extern const struct iwl_cfg iwl6000i_2agn_cfg;
-extern const struct iwl_cfg iwl6000i_non_n_cfg;
-extern const struct iwl_cfg iwl6000i_non_n_cfg;
-extern const struct iwl_cfg iwl6000_3agn_cfg;
-extern const struct iwl_cfg iwl6050_2agn_cfg;
-extern const struct iwl_cfg iwl6050_2abg_cfg;
-extern const struct iwl_cfg iwl6150_bgn_cfg;
-extern const struct iwl_cfg iwl6150_bg_cfg;
-extern const struct iwl_cfg iwl1000_bgn_cfg;
-extern const struct iwl_cfg iwl1000_bg_cfg;
-extern const struct iwl_cfg iwl100_bgn_cfg;
-extern const struct iwl_cfg iwl100_bg_cfg;
-extern const struct iwl_cfg iwl130_bgn_cfg;
-extern const struct iwl_cfg iwl130_bg_cfg;
-extern const struct iwl_cfg iwl2000_2bgn_cfg;
-extern const struct iwl_cfg iwl2030_2bgn_cfg;
-extern const struct iwl_cfg iwl6035_2agn_cfg;
-extern const struct iwl_cfg iwl105_bgn_cfg;
-extern const struct iwl_cfg iwl135_bgn_cfg;
+extern const struct iwl_rf_cfg iwl5300_agn_cfg;
+extern const struct iwl_rf_cfg iwl5350_agn_cfg;
+extern const struct iwl_rf_cfg iwl5100_n_cfg;
+extern const struct iwl_rf_cfg iwl5100_abg_cfg;
+extern const struct iwl_rf_cfg iwl5150_agn_cfg;
+extern const struct iwl_rf_cfg iwl5150_abg_cfg;
+extern const struct iwl_rf_cfg iwl6005_non_n_cfg;
+extern const struct iwl_rf_cfg iwl6005_n_cfg;
+extern const struct iwl_rf_cfg iwl6030_n_cfg;
+extern const struct iwl_rf_cfg iwl6030_non_n_cfg;
+extern const struct iwl_rf_cfg iwl6000i_2agn_cfg;
+extern const struct iwl_rf_cfg iwl6000i_non_n_cfg;
+extern const struct iwl_rf_cfg iwl6000i_non_n_cfg;
+extern const struct iwl_rf_cfg iwl6000_3agn_cfg;
+extern const struct iwl_rf_cfg iwl6050_2agn_cfg;
+extern const struct iwl_rf_cfg iwl6050_2abg_cfg;
+extern const struct iwl_rf_cfg iwl6150_bgn_cfg;
+extern const struct iwl_rf_cfg iwl6150_bg_cfg;
+extern const struct iwl_rf_cfg iwl1000_bgn_cfg;
+extern const struct iwl_rf_cfg iwl1000_bg_cfg;
+extern const struct iwl_rf_cfg iwl100_bgn_cfg;
+extern const struct iwl_rf_cfg iwl100_bg_cfg;
+extern const struct iwl_rf_cfg iwl130_bgn_cfg;
+extern const struct iwl_rf_cfg iwl130_bg_cfg;
+extern const struct iwl_rf_cfg iwl2000_2bgn_cfg;
+extern const struct iwl_rf_cfg iwl2030_2bgn_cfg;
+extern const struct iwl_rf_cfg iwl6035_2agn_cfg;
+extern const struct iwl_rf_cfg iwl105_bgn_cfg;
+extern const struct iwl_rf_cfg iwl135_bgn_cfg;
 #endif /* CONFIG_IWLDVM */
 #if IS_ENABLED(CONFIG_IWLMVM)
+extern const struct iwl_rf_cfg iwl7260_cfg;
+extern const struct iwl_rf_cfg iwl7260_high_temp_cfg;
+extern const struct iwl_rf_cfg iwl3160_cfg;
+extern const struct iwl_rf_cfg iwl3165_2ac_cfg;
+extern const struct iwl_rf_cfg iwl3168_2ac_cfg;
+extern const struct iwl_rf_cfg iwl7265_cfg;
+extern const struct iwl_rf_cfg iwl7265d_cfg;
+extern const struct iwl_rf_cfg iwl8260_cfg;
+extern const struct iwl_rf_cfg iwl8265_cfg;
+extern const struct iwl_rf_cfg iwl_rf_jf;
+extern const struct iwl_rf_cfg iwl_rf_jf_80mhz;
+extern const struct iwl_rf_cfg iwl_rf_hr1;
+extern const struct iwl_rf_cfg iwl_rf_hr;
+extern const struct iwl_rf_cfg iwl_rf_hr_80mhz;
 
-extern const struct iwl_cfg iwl7260_cfg;
-extern const struct iwl_cfg iwl7260_high_temp_cfg;
-extern const struct iwl_cfg iwl3160_cfg;
-extern const struct iwl_cfg iwl3165_2ac_cfg;
-extern const struct iwl_cfg iwl3168_2ac_cfg;
-extern const struct iwl_cfg iwl7265_cfg;
-extern const struct iwl_cfg iwl7265d_cfg;
-extern const struct iwl_cfg iwl8260_cfg;
-extern const struct iwl_cfg iwl8265_cfg;
-extern const struct iwl_cfg iwl_rf_jf;
-extern const struct iwl_cfg iwl_rf_jf_80mhz;
-extern const struct iwl_cfg iwl_rf_hr1;
-extern const struct iwl_cfg iwl_rf_hr;
-extern const struct iwl_cfg iwl_rf_hr_80mhz;
-
-extern const struct iwl_cfg iwl_rf_gf;
+extern const struct iwl_rf_cfg iwl_rf_gf;
 #endif /* CONFIG_IWLMVM */
 
 #if IS_ENABLED(CONFIG_IWLMLD)
-extern const struct iwl_cfg iwl_rf_fm;
-extern const struct iwl_cfg iwl_rf_fm_160mhz;
+extern const struct iwl_rf_cfg iwl_rf_fm;
+extern const struct iwl_rf_cfg iwl_rf_fm_160mhz;
 #define iwl_rf_wh iwl_rf_fm
 #define iwl_rf_wh_160mhz iwl_rf_fm_160mhz
 #define iwl_rf_pe iwl_rf_fm

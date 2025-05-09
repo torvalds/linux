@@ -30,7 +30,7 @@ enum iwl_nvm_sbands_flags {
  * later with iwl_free_nvm_data().
  */
 struct iwl_nvm_data *
-iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
+iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 		   const struct iwl_fw *fw,
 		   const __be16 *nvm_hw, const __le16 *nvm_sw,
 		   const __le16 *nvm_calib, const __le16 *regulatory,
@@ -95,7 +95,7 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
  * iwl_parse_mei_nvm_data - parse the mei_nvm_data and get an iwl_nvm_data
  */
 struct iwl_nvm_data *
-iwl_parse_mei_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
+iwl_parse_mei_nvm_data(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 		       const struct iwl_mei_nvm *mei_nvm,
 		       const struct iwl_fw *fw, u8 set_tx_ant, u8 set_rx_ant);
 

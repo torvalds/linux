@@ -61,10 +61,10 @@ static void devinfo_names(struct kunit *test)
 static void devinfo_no_cfg_dups(struct kunit *test)
 {
 	for (int i = 0; i < iwl_dev_info_table_size; i++) {
-		const struct iwl_cfg *cfg_i = iwl_dev_info_table[i].cfg;
+		const struct iwl_rf_cfg *cfg_i = iwl_dev_info_table[i].cfg;
 
 		for (int j = 0; j < i; j++) {
-			const struct iwl_cfg *cfg_j = iwl_dev_info_table[j].cfg;
+			const struct iwl_rf_cfg *cfg_j = iwl_dev_info_table[j].cfg;
 
 			if (cfg_i == cfg_j)
 				continue;

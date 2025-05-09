@@ -97,7 +97,7 @@ const struct iwl_mac_cfg iwl2000_mac_cfg = {
 	.led_mode = IWL_LED_RF_STATE
 
 
-const struct iwl_cfg iwl2000_2bgn_cfg = {
+const struct iwl_rf_cfg iwl2000_2bgn_cfg = {
 	IWL_DEVICE_2000,
 	.ht_params = {
 		.ht_greenfield_support = true,
@@ -125,7 +125,7 @@ const struct iwl_mac_cfg iwl2030_mac_cfg = {
 	.eeprom_params = &iwl20x0_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE
 
-const struct iwl_cfg iwl2030_2bgn_cfg = {
+const struct iwl_rf_cfg iwl2030_2bgn_cfg = {
 	IWL_DEVICE_2030,
 	.ht_params = {
 		.ht_greenfield_support = true,
@@ -153,7 +153,7 @@ const struct iwl_mac_cfg iwl105_mac_cfg = {
 	.led_mode = IWL_LED_RF_STATE,				\
 	.rx_with_siso_diversity = true
 
-const struct iwl_cfg iwl105_bgn_cfg = {
+const struct iwl_rf_cfg iwl105_bgn_cfg = {
 	IWL_DEVICE_105,
 	.ht_params = {
 		.ht_greenfield_support = true,
@@ -182,7 +182,7 @@ const struct iwl_mac_cfg iwl135_mac_cfg = {
 	.led_mode = IWL_LED_RF_STATE,				\
 	.rx_with_siso_diversity = true
 
-const struct iwl_cfg iwl135_bgn_cfg = {
+const struct iwl_rf_cfg iwl135_bgn_cfg = {
 	IWL_DEVICE_135,
 	.ht_params = {
 		.ht_greenfield_support = true,

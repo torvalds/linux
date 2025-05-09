@@ -130,7 +130,7 @@ const char iwl7265d_2ac_name[] = "Intel(R) Dual Band Wireless AC 7265";
 const char iwl7265d_2n_name[] = "Intel(R) Dual Band Wireless N 7265";
 const char iwl7265d_n_name[] = "Intel(R) Wireless N 7265";
 
-const struct iwl_cfg iwl7260_cfg = {
+const struct iwl_rf_cfg iwl7260_cfg = {
 	.fw_name_pre = IWL7260_FW_PRE,
 	IWL_DEVICE_7000,
 	.ht_params = {
@@ -143,7 +143,7 @@ const struct iwl_cfg iwl7260_cfg = {
 	.dccm_len = IWL7260_DCCM_LEN,
 };
 
-const struct iwl_cfg iwl7260_high_temp_cfg = {
+const struct iwl_rf_cfg iwl7260_high_temp_cfg = {
 	.fw_name_pre = IWL7260_FW_PRE,
 	IWL_DEVICE_7000,
 	.ht_params = {
@@ -157,7 +157,7 @@ const struct iwl_cfg iwl7260_high_temp_cfg = {
 	.thermal_params = &iwl7000_high_temp_tt_params,
 };
 
-const struct iwl_cfg iwl3160_cfg = {
+const struct iwl_rf_cfg iwl3160_cfg = {
 	.fw_name_pre = IWL3160_FW_PRE,
 	IWL_DEVICE_7000,
 	.ht_params = {
@@ -180,7 +180,7 @@ static const struct iwl_pwr_tx_backoff iwl7265_pwr_tx_backoffs[] = {
 	{0},
 };
 
-const struct iwl_cfg iwl3165_2ac_cfg = {
+const struct iwl_rf_cfg iwl3165_2ac_cfg = {
 	.fw_name_pre = IWL7265D_FW_PRE,
 	IWL_DEVICE_7005D,
 	.ht_params = {
@@ -192,7 +192,7 @@ const struct iwl_cfg iwl3165_2ac_cfg = {
 	.dccm_len = IWL7265_DCCM_LEN,
 };
 
-const struct iwl_cfg iwl3168_2ac_cfg = {
+const struct iwl_rf_cfg iwl3168_2ac_cfg = {
 	.fw_name_pre = IWL3168_FW_PRE,
 	IWL_DEVICE_3008,
 	.ht_params = {
@@ -205,7 +205,7 @@ const struct iwl_cfg iwl3168_2ac_cfg = {
 	.nvm_type = IWL_NVM_SDP,
 };
 
-const struct iwl_cfg iwl7265_cfg = {
+const struct iwl_rf_cfg iwl7265_cfg = {
 	.fw_name_pre = IWL7265_FW_PRE,
 	IWL_DEVICE_7005,
 	.ht_params = {
@@ -218,7 +218,7 @@ const struct iwl_cfg iwl7265_cfg = {
 	.dccm_len = IWL7265_DCCM_LEN,
 };
 
-const struct iwl_cfg iwl7265d_cfg = {
+const struct iwl_rf_cfg iwl7265d_cfg = {
 	.fw_name_pre = IWL7265D_FW_PRE,
 	IWL_DEVICE_7005D,
 	.ht_params = {

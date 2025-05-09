@@ -24,7 +24,7 @@ int iwlmld_kunit_test_init(struct kunit *test)
 {
 	struct iwl_mld *mld;
 	struct iwl_trans *trans;
-	const struct iwl_cfg *cfg;
+	const struct iwl_rf_cfg *cfg;
 	struct iwl_fw *fw;
 	struct ieee80211_hw *hw;
 

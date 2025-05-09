@@ -117,7 +117,7 @@ const struct iwl_mac_cfg iwl6005_mac_cfg = {
 	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE
 
-const struct iwl_cfg iwl6005_n_cfg = {
+const struct iwl_rf_cfg iwl6005_n_cfg = {
 	IWL_DEVICE_6005,
 	.ht_params = {
 		.ht_greenfield_support = true,
@@ -132,7 +132,7 @@ const char iwl6005_2agn_d_name[] = "Intel(R) Centrino(R) Advanced-N 6205D AGN";
 const char iwl6005_2agn_mow1_name[] = "Intel(R) Centrino(R) Advanced-N 6206 AGN";
 const char iwl6005_2agn_mow2_name[] = "Intel(R) Centrino(R) Advanced-N 6207 AGN";
 
-const struct iwl_cfg iwl6005_non_n_cfg = {
+const struct iwl_rf_cfg iwl6005_non_n_cfg = {
 	IWL_DEVICE_6005,
 };
 
@@ -155,7 +155,7 @@ const struct iwl_mac_cfg iwl6030_mac_cfg = {
 	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE
 
-const struct iwl_cfg iwl6030_n_cfg = {
+const struct iwl_rf_cfg iwl6030_n_cfg = {
 	IWL_DEVICE_6030,
 	.ht_params = {
 		.ht_greenfield_support = true,
@@ -169,7 +169,7 @@ const char iwl6030_2bgn_name[] = "Intel(R) Centrino(R) Advanced-N 6230 BGN";
 const char iwl1030_bgn_name[] = "Intel(R) Centrino(R) Wireless-N 1030 BGN";
 const char iwl1030_bg_name[] = "Intel(R) Centrino(R) Wireless-N 1030 BG";
 
-const struct iwl_cfg iwl6030_non_n_cfg = {
+const struct iwl_rf_cfg iwl6030_non_n_cfg = {
 	IWL_DEVICE_6030,
 };
 
@@ -187,7 +187,7 @@ const char iwl6030_2bg_name[] = "Intel(R) Centrino(R) Advanced-N 6230 BG";
 	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE
 
-const struct iwl_cfg iwl6035_2agn_cfg = {
+const struct iwl_rf_cfg iwl6035_2agn_cfg = {
 	IWL_DEVICE_6035,
 	.ht_params = {
 		.ht_greenfield_support = true,
@@ -199,7 +199,7 @@ const struct iwl_cfg iwl6035_2agn_cfg = {
 const char iwl6035_2agn_name[] = "Intel(R) Centrino(R) Advanced-N 6235 AGN";
 const char iwl6035_2agn_sff_name[] = "Intel(R) Centrino(R) Ultimate-N 6235 AGN";
 
-const struct iwl_cfg iwl130_bgn_cfg = {
+const struct iwl_rf_cfg iwl130_bgn_cfg = {
 	IWL_DEVICE_6030,
 	.ht_params = {
 		.ht_greenfield_support = true,
@@ -211,7 +211,7 @@ const struct iwl_cfg iwl130_bgn_cfg = {
 
 const char iwl130_bgn_name[] = "Intel(R) Centrino(R) Wireless-N 130 BGN";
 
-const struct iwl_cfg iwl130_bg_cfg = {
+const struct iwl_rf_cfg iwl130_bg_cfg = {
 	IWL_DEVICE_6030,
 	.rx_with_siso_diversity = true,
 };
@@ -239,7 +239,7 @@ const struct iwl_mac_cfg iwl6000i_mac_cfg = {
 	.eeprom_params = &iwl6000_eeprom_params,		\
 	.led_mode = IWL_LED_BLINK
 
-const struct iwl_cfg iwl6000i_2agn_cfg = {
+const struct iwl_rf_cfg iwl6000i_2agn_cfg = {
 	IWL_DEVICE_6000i,
 	.ht_params = {
 		.ht_greenfield_support = true,
@@ -250,7 +250,7 @@ const struct iwl_cfg iwl6000i_2agn_cfg = {
 
 const char iwl6000i_2agn_name[] = "Intel(R) Centrino(R) Advanced-N 6200 AGN";
 
-const struct iwl_cfg iwl6000i_non_n_cfg = {
+const struct iwl_rf_cfg iwl6000i_non_n_cfg = {
 	IWL_DEVICE_6000i,
 };
 
@@ -276,7 +276,7 @@ const struct iwl_mac_cfg iwl6050_mac_cfg = {
 	.led_mode = IWL_LED_BLINK,				\
 	.internal_wimax_coex = true
 
-const struct iwl_cfg iwl6050_2agn_cfg = {
+const struct iwl_rf_cfg iwl6050_2agn_cfg = {
 	IWL_DEVICE_6050,
 	.ht_params = {
 		.ht_greenfield_support = true,
@@ -287,7 +287,7 @@ const struct iwl_cfg iwl6050_2agn_cfg = {
 
 const char iwl6050_2agn_name[] = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 AGN";
 
-const struct iwl_cfg iwl6050_2abg_cfg = {
+const struct iwl_rf_cfg iwl6050_2abg_cfg = {
 	IWL_DEVICE_6050,
 };
 
@@ -310,7 +310,7 @@ const struct iwl_mac_cfg iwl6150_mac_cfg = {
 	.led_mode = IWL_LED_BLINK,				\
 	.internal_wimax_coex = true
 
-const struct iwl_cfg iwl6150_bgn_cfg = {
+const struct iwl_rf_cfg iwl6150_bgn_cfg = {
 	IWL_DEVICE_6150,
 	.ht_params = {
 		.ht_greenfield_support = true,
@@ -321,7 +321,7 @@ const struct iwl_cfg iwl6150_bgn_cfg = {
 
 const char iwl6150_bgn_name[] = "Intel(R) Centrino(R) Wireless-N + WiMAX 6150 BGN";
 
-const struct iwl_cfg iwl6150_bg_cfg = {
+const struct iwl_rf_cfg iwl6150_bg_cfg = {
 	IWL_DEVICE_6150,
 };
 
@@ -332,7 +332,7 @@ const struct iwl_mac_cfg iwl6000_mac_cfg = {
 	.base = &iwl6000_base,
 };
 
-const struct iwl_cfg iwl6000_3agn_cfg = {
+const struct iwl_rf_cfg iwl6000_3agn_cfg = {
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,

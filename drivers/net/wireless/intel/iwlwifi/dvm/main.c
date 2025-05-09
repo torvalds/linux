@@ -1226,7 +1226,7 @@ static int iwl_nvm_check_version(struct iwl_nvm_data *data,
 }
 
 static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
-						 const struct iwl_cfg *cfg,
+						 const struct iwl_rf_cfg *cfg,
 						 const struct iwl_fw *fw,
 						 struct dentry *dbgfs_dir)
 {

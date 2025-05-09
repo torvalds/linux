@@ -218,7 +218,7 @@ struct iwl_mld {
 	/* And here fields that survive a fw restart */
 	struct device *dev;
 	struct iwl_trans *trans;
-	const struct iwl_cfg *cfg;
+	const struct iwl_rf_cfg *cfg;
 	const struct iwl_fw *fw;
 	struct ieee80211_hw *hw;
 	struct wiphy *wiphy;
@@ -491,7 +491,7 @@ iwl_mld_is_dup(struct iwl_mld *mld, struct ieee80211_sta *sta,
 	       struct ieee80211_rx_status *rx_status, int queue);
 
 void iwl_construct_mld(struct iwl_mld *mld, struct iwl_trans *trans,
-		       const struct iwl_cfg *cfg, const struct iwl_fw *fw,
+		       const struct iwl_rf_cfg *cfg, const struct iwl_fw *fw,
 		       struct ieee80211_hw *hw, struct dentry *dbgfs_dir);
 #endif
 

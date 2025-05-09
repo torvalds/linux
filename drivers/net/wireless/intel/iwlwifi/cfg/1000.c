@@ -70,7 +70,7 @@ const struct iwl_mac_cfg iwl1000_mac_cfg = {
 	.eeprom_params = &iwl1000_eeprom_params,		\
 	.led_mode = IWL_LED_BLINK
 
-const struct iwl_cfg iwl1000_bgn_cfg = {
+const struct iwl_rf_cfg iwl1000_bgn_cfg = {
 	IWL_DEVICE_1000,
 	.ht_params = {
 		.ht_greenfield_support = true,
@@ -81,7 +81,7 @@ const struct iwl_cfg iwl1000_bgn_cfg = {
 
 const char iwl1000_bgn_name[] = "Intel(R) Centrino(R) Wireless-N 1000 BGN";
 
-const struct iwl_cfg iwl1000_bg_cfg = {
+const struct iwl_rf_cfg iwl1000_bg_cfg = {
 	IWL_DEVICE_1000,
 };
 
@@ -99,7 +99,7 @@ const char iwl1000_bg_name[] = "Intel(R) Centrino(R) Wireless-N 1000 BG";
 	.led_mode = IWL_LED_RF_STATE,				\
 	.rx_with_siso_diversity = true
 
-const struct iwl_cfg iwl100_bgn_cfg = {
+const struct iwl_rf_cfg iwl100_bgn_cfg = {
 	IWL_DEVICE_100,
 	.ht_params = {
 		.ht_greenfield_support = true,
@@ -110,7 +110,7 @@ const struct iwl_cfg iwl100_bgn_cfg = {
 
 const char iwl100_bgn_name[] = "Intel(R) Centrino(R) Wireless-N 100 BGN";
 
-const struct iwl_cfg iwl100_bg_cfg = {
+const struct iwl_rf_cfg iwl100_bg_cfg = {
 	IWL_DEVICE_100,
 };
 

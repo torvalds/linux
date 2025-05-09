@@ -2,6 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014, 2020, 2023 Intel Corporation. All rights reserved.
+ * Copyright (C) 2025 Intel Corporation
  *****************************************************************************/
 /*
  * Please use this file (dev.h) for driver implementation definitions.
@@ -627,7 +628,7 @@ struct iwl_priv {
 
 	struct iwl_trans *trans;
 	struct device *dev;		/* for debug prints only */
-	const struct iwl_cfg *cfg;
+	const struct iwl_rf_cfg *cfg;
 	const struct iwl_fw *fw;
 	const struct iwl_dvm_cfg *lib;
 	unsigned long status;
