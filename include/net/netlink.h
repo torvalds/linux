@@ -321,7 +321,13 @@ enum nla_policy_validation {
  *    All other            Unused - but note that it's a union
  *
  * Meaning of `validate' field, use via NLA_POLICY_VALIDATE_FN:
+ *    NLA_U8, NLA_U16,
+ *    NLA_U32, NLA_U64,
+ *    NLA_S8, NLA_S16,
+ *    NLA_S32, NLA_S64,
+ *    NLA_MSECS,
  *    NLA_BINARY           Validation function called for the attribute.
+ *
  *    All other            Unused - but note that it's a union
  *
  * Example:
