@@ -173,7 +173,7 @@ static int stm32_omm_disable_child(struct device *dev)
 		ret = reset_control_acquire(reset);
 		if (ret) {
 			stm32_omm_toggle_child_clock(dev, false);
-			dev_err(dev, "Can not acquire resset %d\n", ret);
+			dev_err(dev, "Can not acquire reset %d\n", ret);
 			return ret;
 		}
 
