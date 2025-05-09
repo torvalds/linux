@@ -81,4 +81,24 @@ enum bch_recovery_pass_stable {
 #undef x
 };
 
+struct recovery_pass_entry {
+	__le64			last_run;
+	__le32			last_runtime;
+	__le32			flags;
+};
+
+struct bch_sb_field_recovery_passes {
+	struct bch_sb_field	field;
+	struct recovery_pass_entry start[];
+};
+
+static inline unsigned
+recovery_passes_nr_entries(struct bch_sb_field_recovery_passes *r)
+{
+	return r
+		? ((vstruct_end(&r->field) - (void *) &r->start[0]) /
+		   sizeof(struct recovery_pass_entry))
+		: 0;
+}
+
 #endif /* _BCACHEFS_RECOVERY_PASSES_FORMAT_H */

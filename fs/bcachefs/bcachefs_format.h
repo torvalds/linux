@@ -497,7 +497,8 @@ struct bch_sb_field {
 	x(members_v2,			11)	\
 	x(errors,			12)	\
 	x(ext,				13)	\
-	x(downgrade,			14)
+	x(downgrade,			14)	\
+	x(recovery_passes,		15)
 
 #include "alloc_background_format.h"
 #include "dirent_format.h"

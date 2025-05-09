@@ -3,6 +3,8 @@
 
 extern const char * const bch2_recovery_passes[];
 
+extern const struct bch_sb_field_ops bch_sb_field_ops_recovery_passes;
+
 u64 bch2_recovery_passes_to_stable(u64 v);
 u64 bch2_recovery_passes_from_stable(u64 v);
 
