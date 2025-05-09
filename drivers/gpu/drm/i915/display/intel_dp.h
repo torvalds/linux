@@ -212,4 +212,6 @@ int intel_dp_dsc_min_src_compressed_bpp(void);
 int intel_dp_compute_min_hblank(struct intel_crtc_state *crtc_state,
 				const struct drm_connector_state *conn_state);
 
+int intel_dp_dsc_bpp_step_x16(const struct intel_connector *connector);
+
 #endif /* __INTEL_DP_H__ */

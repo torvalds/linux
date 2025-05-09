@@ -2103,12 +2103,16 @@ static int dsc_src_max_compressed_bpp(struct intel_dp *intel_dp)
 /*
  * Note: for pre-13 display you still need to check the validity of each step.
  */
-static int intel_dp_dsc_bpp_step_x16(const struct intel_connector *connector)
+int intel_dp_dsc_bpp_step_x16(const struct intel_connector *connector)
 {
 	struct intel_display *display = to_intel_display(connector);
 	u8 incr = drm_dp_dsc_sink_bpp_incr(connector->dp.dsc_dpcd);
 
 	if (DISPLAY_VER(display) < 14 || !incr)
+		return fxp_q4_from_int(1);
+
+	if (connector->mst.dp &&
+	    !connector->link.force_bpp_x16 && !connector->mst.dp->force_dsc_fractional_bpp_en)
 		return fxp_q4_from_int(1);
 
 	/* fxp q4 */
