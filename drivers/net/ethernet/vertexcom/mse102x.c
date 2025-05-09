@@ -310,7 +310,7 @@ static void mse102x_dump_packet(const char *msg, int len, const char *data)
 		       data, len, true);
 }
 
-static void mse102x_rx_pkt_spi(struct mse102x_net *mse)
+static irqreturn_t mse102x_rx_pkt_spi(struct mse102x_net *mse)
 {
 	struct sk_buff *skb;
 	unsigned int rxalign;
@@ -331,7 +331,7 @@ static void mse102x_rx_pkt_spi(struct mse102x_net *mse)
 		mse102x_tx_cmd_spi(mse, CMD_CTR);
 		ret = mse102x_rx_cmd_spi(mse, (u8 *)&rx);
 		if (ret)
-			return;
+			return IRQ_NONE;
 
 		cmd_resp = be16_to_cpu(rx);
 		if ((cmd_resp & CMD_MASK) != CMD_RTS) {
@@ -364,7 +364,7 @@ drop:
 	rxalign = ALIGN(rxlen + DET_SOF_LEN + DET_DFT_LEN, 4);
 	skb = netdev_alloc_skb_ip_align(mse->ndev, rxalign);
 	if (!skb)
-		return;
+		return IRQ_NONE;
 
 	/* 2 bytes Start of frame (before ethernet header)
 	 * 2 bytes Data frame tail (after ethernet frame)
@@ -374,7 +374,7 @@ drop:
 	if (mse102x_rx_frame_spi(mse, rxpkt, rxlen, drop)) {
 		mse->ndev->stats.rx_errors++;
 		dev_kfree_skb(skb);
-		return;
+		return IRQ_HANDLED;
 	}
 
 	if (netif_msg_pktdata(mse))
@@ -385,6 +385,8 @@ drop:
 
 	mse->ndev->stats.rx_packets++;
 	mse->ndev->stats.rx_bytes += rxlen;
+
+	return IRQ_HANDLED;
 }
 
 static int mse102x_tx_pkt_spi(struct mse102x_net *mse, struct sk_buff *txb,
@@ -516,12 +518,13 @@ static irqreturn_t mse102x_irq(int irq, void *_mse)
 {
 	struct mse102x_net *mse = _mse;
 	struct mse102x_net_spi *mses = to_mse102x_spi(mse);
+	irqreturn_t ret;
 
 	mutex_lock(&mses->lock);
-	mse102x_rx_pkt_spi(mse);
+	ret = mse102x_rx_pkt_spi(mse);
 	mutex_unlock(&mses->lock);
 
-	return IRQ_HANDLED;
+	return ret;
 }
 
 static int mse102x_net_open(struct net_device *ndev)
