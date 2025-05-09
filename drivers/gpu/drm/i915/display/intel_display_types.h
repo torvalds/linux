@@ -550,6 +550,10 @@ struct intel_connector {
 		struct intel_dp *dp;
 	} mst;
 
+	struct {
+		int force_bpp_x16;
+	} link;
+
 	/* Work struct to schedule a uevent on link train failure */
 	struct work_struct modeset_retry_work;
 
