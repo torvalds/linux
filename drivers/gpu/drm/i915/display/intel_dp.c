@@ -2071,7 +2071,7 @@ int intel_dp_dsc_sink_max_compressed_bpp(const struct intel_connector *connector
 						       pipe_config, bpc) >> 4;
 }
 
-static int dsc_src_min_compressed_bpp(void)
+int intel_dp_dsc_min_src_compressed_bpp(void)
 {
 	/* Min Compressed bpp supported by source is 8 */
 	return 8;
@@ -2482,7 +2482,7 @@ intel_dp_compute_config_link_bpp_limits(struct intel_dp *intel_dp,
 		int dsc_src_min_bpp, dsc_sink_min_bpp, dsc_min_bpp;
 		int dsc_src_max_bpp, dsc_sink_max_bpp, dsc_max_bpp;
 
-		dsc_src_min_bpp = dsc_src_min_compressed_bpp();
+		dsc_src_min_bpp = intel_dp_dsc_min_src_compressed_bpp();
 		dsc_sink_min_bpp = intel_dp_dsc_sink_min_compressed_bpp(crtc_state);
 		dsc_min_bpp = max(dsc_src_min_bpp, dsc_sink_min_bpp);
 		limits->link.min_bpp_x16 = fxp_q4_from_int(dsc_min_bpp);
