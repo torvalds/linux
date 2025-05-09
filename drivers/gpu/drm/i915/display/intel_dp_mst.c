@@ -241,6 +241,15 @@ static int intel_dp_mst_dsc_get_slice_count(const struct intel_connector *connec
 					    num_joined_pipes);
 }
 
+static void mst_stream_update_slots(const struct intel_crtc_state *crtc_state,
+				    struct drm_dp_mst_topology_state *topology_state)
+{
+	u8 link_coding_cap = intel_dp_is_uhbr(crtc_state) ?
+		DP_CAP_ANSI_128B132B : DP_CAP_ANSI_8B10B;
+
+	drm_dp_mst_update_slots(topology_state, link_coding_cap);
+}
+
 int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 				   struct intel_crtc_state *crtc_state,
 				   struct drm_connector_state *conn_state,
@@ -276,6 +285,8 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 
 		mst_state->pbn_div = drm_dp_get_vc_payload_bw(crtc_state->port_clock,
 							      crtc_state->lane_count);
+
+		mst_stream_update_slots(crtc_state, mst_state);
 	}
 
 	if (dsc) {
@@ -491,27 +502,6 @@ static int mst_stream_dsc_compute_link_config(struct intel_dp *intel_dp,
 					      fxp_q4_from_int(1), true);
 }
 
-static int mst_stream_update_slots(struct intel_dp *intel_dp,
-				   struct intel_crtc_state *crtc_state,
-				   struct drm_connector_state *conn_state)
-{
-	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_dp_mst_topology_mgr *mgr = &intel_dp->mst.mgr;
-	struct drm_dp_mst_topology_state *topology_state;
-	u8 link_coding_cap = intel_dp_is_uhbr(crtc_state) ?
-		DP_CAP_ANSI_128B132B : DP_CAP_ANSI_8B10B;
-
-	topology_state = drm_atomic_get_mst_topology_state(conn_state->state, mgr);
-	if (IS_ERR(topology_state)) {
-		drm_dbg_kms(display->drm, "slot update failed\n");
-		return PTR_ERR(topology_state);
-	}
-
-	drm_dp_mst_update_slots(topology_state, link_coding_cap);
-
-	return 0;
-}
-
 static int mode_hblank_period_ns(const struct drm_display_mode *mode)
 {
 	return DIV_ROUND_CLOSEST_ULL(mul_u32_u32(mode->htotal - mode->hdisplay,
@@ -714,10 +704,6 @@ static int mst_stream_compute_config(struct intel_encoder *encoder,
 						  pipe_config->dp_m_n.tu);
 	}
 
-	if (ret)
-		return ret;
-
-	ret = mst_stream_update_slots(intel_dp, pipe_config, conn_state);
 	if (ret)
 		return ret;
 
