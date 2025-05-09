@@ -15,12 +15,55 @@
 		     "renesas,r9a06g032";
 };
 
+&gmac1 {
+	pinctrl-0 = <&pins_eth0>, <&pins_mdio0>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	phy-mode = "rgmii-id";
+	phy-handle = <&phy_mii0>;
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "snps,dwmac-mdio";
+
+		phy_mii0: ethernet-phy@8 {
+			reg = <8>;
+
+			leds {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				led@0 {
+					reg = <0>;
+					color = <LED_COLOR_ID_GREEN>;
+					function = LED_FUNCTION_LAN;
+					default-state = "keep";
+				};
+
+				led@1 {
+					reg = <1>;
+					color = <LED_COLOR_ID_ORANGE>;
+					function = LED_FUNCTION_ACTIVITY;
+					default-state = "keep";
+				};
+			};
+		};
+	};
+};
+
 &i2c2 {
 	/* Sensors are different across revisions. All are LM75B compatible */
 	sensor@49 {
 		compatible = "national,lm75b";
 		reg = <0x49>;
 	};
+};
+
+&mii_conv1 {
+	renesas,miic-input = <MIIC_GMAC1_PORT>;
+	status = "okay";
 };
 
 &mii_conv2 {
@@ -33,7 +76,28 @@
 	status = "okay";
 };
 
+&pci_usb {
+	status = "okay";
+};
+
 &pinctrl {
+	pins_eth0: pins-eth0 {
+		pinmux = <RZN1_PINMUX(0, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
+			 <RZN1_PINMUX(1, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
+			 <RZN1_PINMUX(2, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
+			 <RZN1_PINMUX(3, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
+			 <RZN1_PINMUX(4, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
+			 <RZN1_PINMUX(5, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
+			 <RZN1_PINMUX(6, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
+			 <RZN1_PINMUX(7, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
+			 <RZN1_PINMUX(8, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
+			 <RZN1_PINMUX(9, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
+			 <RZN1_PINMUX(10, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
+			 <RZN1_PINMUX(11, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>;
+		drive-strength = <6>;
+		bias-disable;
+	};
+
 	pins_eth1: pins-eth1 {
 		pinmux = <RZN1_PINMUX(12, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
 			 <RZN1_PINMUX(13, RZN1_FUNC_CLK_ETH_MII_RGMII_RMII)>,
@@ -68,6 +132,11 @@
 		bias-disable;
 	};
 
+	pins_mdio0: pins-mdio0 {
+		pinmux = <RZN1_PINMUX(150, RZN1_FUNC_MDIO0_GMAC0)>,
+			 <RZN1_PINMUX(151, RZN1_FUNC_MDIO0_GMAC0)>;
+	};
+
 	pins_sdio1: pins-sdio1 {
 		pinmux = <RZN1_PINMUX(95, RZN1_FUNC_SDIO)>,
 			 <RZN1_PINMUX(97, RZN1_FUNC_SDIO)>,
@@ -81,6 +150,14 @@
 	pins_sdio1_clk: pins-sdio1-clk {
 		pinmux = <RZN1_PINMUX(96, RZN1_FUNC_SDIO)>;
 		drive-strength = <12>;
+	};
+
+	pins_uart2: pins-uart2 {
+		pinmux = <RZN1_PINMUX(105, RZN1_FUNC_UART2)>,
+			 <RZN1_PINMUX(106, RZN1_FUNC_UART2)>,
+			 <RZN1_PINMUX(107, RZN1_FUNC_UART2)>,
+			 <RZN1_PINMUX(108, RZN1_FUNC_UART2)>;
+		bias-disable;
 	};
 };
 
@@ -157,4 +234,11 @@
 	phy-mode = "rgmii-id";
 	phy-handle = <&switch0phy1>;
 	status = "okay";
+};
+
+&uart2 {
+	pinctrl-0 = <&pins_uart2>;
+	pinctrl-names = "default";
+	status = "okay";
+	uart-has-rtscts;
 };
