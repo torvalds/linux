@@ -631,10 +631,6 @@ struct bch_dev {
 	unsigned		nr_partial_buckets;
 	unsigned		nr_btree_reserve;
 
-	size_t			inc_gen_needs_gc;
-	size_t			inc_gen_really_needs_gc;
-	size_t			buckets_waiting_on_journal;
-
 	struct work_struct	invalidate_work;
 	struct work_struct	discard_work;
 	struct mutex		discard_buckets_in_flight_lock;
