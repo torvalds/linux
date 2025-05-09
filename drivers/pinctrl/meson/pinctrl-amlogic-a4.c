@@ -596,20 +596,6 @@ static int aml_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static inline const struct aml_pctl_group *
-	aml_pctl_find_group_by_name(const struct aml_pinctrl *info,
-				    const char *name)
-{
-	int i;
-
-	for (i = 0; i < info->ngroups; i++) {
-		if (!strcmp(info->groups[i].name, name))
-			return &info->groups[i];
-	}
-
-	return NULL;
-}
-
 static void aml_pin_dbg_show(struct pinctrl_dev *pcdev, struct seq_file *s,
 			     unsigned int offset)
 {
