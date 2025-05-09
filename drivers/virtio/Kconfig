@@ -194,11 +194,33 @@ config VIRTIO_RTC
 	depends on PTP_1588_CLOCK_OPTIONAL
 	help
 	 This driver provides current time from a Virtio RTC device. The driver
-	 provides the time through one or more clocks.
+	 provides the time through one or more clocks. The Virtio RTC PTP
+	 clocks must be enabled to expose the clocks to userspace.
 
 	 To compile this code as a module, choose M here: the module will be
 	 called virtio_rtc.
 
 	 If unsure, say M.
+
+if VIRTIO_RTC
+
+comment "WARNING: Consider enabling VIRTIO_RTC_PTP."
+	depends on !VIRTIO_RTC_PTP
+
+comment "Enable PTP_1588_CLOCK in order to enable VIRTIO_RTC_PTP."
+	depends on PTP_1588_CLOCK=n
+
+config VIRTIO_RTC_PTP
+	bool "Virtio RTC PTP clocks"
+	default y
+	depends on PTP_1588_CLOCK
+	help
+	 This exposes any Virtio RTC clocks as PTP Hardware Clocks (PHCs) to
+	 userspace. The PHC sysfs attribute "clock_name" describes the clock
+	 type.
+
+	 If unsure, say Y.
+
+endif # VIRTIO_RTC
 
 endif # VIRTIO_MENU

@@ -38,11 +38,16 @@ struct viortc_vq {
  * struct viortc_dev - virtio_rtc device data
  * @vdev: virtio device
  * @vqs: virtqueues
+ * @clocks_to_unregister: Clock references, which are only used during device
+ *                        removal.
+ *			  For other uses, there would be a race between device
+ *			  creation and setting the pointers here.
  * @num_clocks: # of virtio_rtc clocks
  */
 struct viortc_dev {
 	struct virtio_device *vdev;
 	struct viortc_vq vqs[VIORTC_MAX_NR_QUEUES];
+	struct viortc_ptp_clock **clocks_to_unregister;
 	u16 num_clocks;
 };
 
@@ -639,6 +644,99 @@ out_release:
  */
 
 /**
+ * viortc_init_ptp_clock() - init and register PTP clock
+ * @viortc: device data
+ * @vio_clk_id: virtio_rtc clock id
+ * @clock_type: virtio_rtc clock type
+ * @leap_second_smearing: virtio_rtc leap second smearing
+ *
+ * Context: Process context.
+ * Return: Positive if registered, zero if not supported by configuration,
+ *         negative error code otherwise.
+ */
+static int viortc_init_ptp_clock(struct viortc_dev *viortc, u16 vio_clk_id,
+				 u8 clock_type, u8 leap_second_smearing)
+{
+	struct device *dev = &viortc->vdev->dev;
+	char ptp_clock_name[PTP_CLOCK_NAME_LEN];
+	struct viortc_ptp_clock *vio_ptp;
+
+	snprintf(ptp_clock_name, PTP_CLOCK_NAME_LEN,
+		 "Virtio PTP type %hhu/variant %hhu", clock_type,
+		 leap_second_smearing);
+
+	vio_ptp = viortc_ptp_register(viortc, dev, vio_clk_id, ptp_clock_name);
+	if (IS_ERR(vio_ptp)) {
+		dev_err(dev, "failed to register PTP clock '%s'\n",
+			ptp_clock_name);
+		return PTR_ERR(vio_ptp);
+	}
+
+	viortc->clocks_to_unregister[vio_clk_id] = vio_ptp;
+
+	return !!vio_ptp;
+}
+
+/**
+ * viortc_init_clock() - init local representation of virtio_rtc clock
+ * @viortc: device data
+ * @vio_clk_id: virtio_rtc clock id
+ *
+ * Initializes PHC to represent virtio_rtc clock.
+ *
+ * Context: Process context.
+ * Return: Zero on success, negative error code otherwise.
+ */
+static int viortc_init_clock(struct viortc_dev *viortc, u16 vio_clk_id)
+{
+	u8 clock_type, leap_second_smearing;
+	bool is_exposed = false;
+	int ret;
+
+	ret = viortc_clock_cap(viortc, vio_clk_id, &clock_type,
+			       &leap_second_smearing);
+	if (ret)
+		return ret;
+
+	if (IS_ENABLED(CONFIG_VIRTIO_RTC_PTP)) {
+		ret = viortc_init_ptp_clock(viortc, vio_clk_id, clock_type,
+					    leap_second_smearing);
+		if (ret < 0)
+			return ret;
+		if (ret > 0)
+			is_exposed = true;
+	}
+
+	if (!is_exposed)
+		dev_warn(&viortc->vdev->dev,
+			 "cannot expose clock %d (type %d, variant %d) to userspace\n",
+			 vio_clk_id, clock_type, leap_second_smearing);
+
+	return 0;
+}
+
+/**
+ * viortc_clocks_deinit() - unregister PHCs
+ * @viortc: device data
+ */
+static void viortc_clocks_deinit(struct viortc_dev *viortc)
+{
+	struct viortc_ptp_clock *vio_ptp;
+	unsigned int i;
+
+	for (i = 0; i < viortc->num_clocks; i++) {
+		vio_ptp = viortc->clocks_to_unregister[i];
+
+		if (!vio_ptp)
+			continue;
+
+		viortc->clocks_to_unregister[i] = NULL;
+
+		WARN_ON(viortc_ptp_unregister(vio_ptp, &viortc->vdev->dev));
+	}
+}
+
+/**
  * viortc_clocks_init() - init local representations of virtio_rtc clocks
  * @viortc: device data
  *
@@ -648,6 +746,7 @@ out_release:
 static int viortc_clocks_init(struct viortc_dev *viortc)
 {
 	u16 num_clocks;
+	unsigned int i;
 	int ret;
 
 	ret = viortc_cfg(viortc, &num_clocks);
@@ -661,8 +760,22 @@ static int viortc_clocks_init(struct viortc_dev *viortc)
 
 	viortc->num_clocks = num_clocks;
 
-	/* In the future, PTP clocks will be initialized here. */
-	(void)viortc_clock_cap;
+	viortc->clocks_to_unregister =
+		devm_kcalloc(&viortc->vdev->dev, num_clocks,
+			     sizeof(*viortc->clocks_to_unregister), GFP_KERNEL);
+	if (!viortc->clocks_to_unregister)
+		return -ENOMEM;
+
+	for (i = 0; i < num_clocks; i++) {
+		ret = viortc_init_clock(viortc, i);
+		if (ret)
+			goto err_deinit_clocks;
+	}
+
+	return 0;
+
+err_deinit_clocks:
+	viortc_clocks_deinit(viortc);
 
 	return ret;
 }
@@ -741,7 +854,9 @@ err_reset_vdev:
  */
 static void viortc_remove(struct virtio_device *vdev)
 {
-	/* In the future, PTP clocks will be deinitialized here. */
+	struct viortc_dev *viortc = vdev->priv;
+
+	viortc_clocks_deinit(viortc);
 
 	virtio_reset_device(vdev);
 	vdev->config->del_vqs(vdev);
