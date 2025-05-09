@@ -15,9 +15,6 @@
 /* Lowest firmware API version supported */
 #define IWL_BZ_UCODE_API_MIN	93
 
-/* NVM versions */
-#define IWL_BZ_NVM_VERSION		0x0a1d
-
 /* Memory offsets and lengths */
 #define IWL_BZ_SMEM_OFFSET		0x400000
 #define IWL_BZ_SMEM_LEN			0xD0000
@@ -93,19 +90,6 @@ static const struct iwl_family_base_params iwl_bz_base = {
 	.ucode_api_min = IWL_BZ_UCODE_API_MIN,
 };
 
-#define IWL_DEVICE_BZ							\
-	.ht_params = {							\
-		.stbc = true,						\
-		.ldpc = true,						\
-		.ht40_bands = BIT(NL80211_BAND_2GHZ) |			\
-			      BIT(NL80211_BAND_5GHZ),			\
-	},								\
-	.led_mode = IWL_LED_RF_STATE,					\
-	.non_shared_ant = ANT_B,					\
-	.vht_mu_mimo_supported = true,					\
-	.nvm_ver = IWL_BZ_NVM_VERSION,					\
-	.nvm_type = IWL_NVM_EXT
-
 const struct iwl_mac_cfg iwl_bz_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_BZ,
 	.base = &iwl_bz_base,
@@ -132,19 +116,6 @@ const char iwl_fm_name[] = "Intel(R) Wi-Fi 7 BE201 320MHz";
 const char iwl_wh_name[] = "Intel(R) Wi-Fi 7 BE211 320MHz";
 const char iwl_gl_name[] = "Intel(R) Wi-Fi 7 BE200 320MHz";
 const char iwl_mtp_name[] = "Intel(R) Wi-Fi 7 BE202 160MHz";
-
-const struct iwl_cfg iwl_cfg_bz = {
-	.uhb_supported = true,
-	IWL_DEVICE_BZ,
-	.num_rbds = IWL_NUM_RBDS_EHT,
-};
-
-const struct iwl_cfg iwl_cfg_bz_160mhz = {
-	.uhb_supported = true,
-	IWL_DEVICE_BZ,
-	.num_rbds = IWL_NUM_RBDS_EHT,
-	.bw_limit = 160,
-};
 
 MODULE_FIRMWARE(IWL_BZ_A_HR_B_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
 IWL_FW_AND_PNVM(IWL_BZ_A_GF_A_FW_PRE, IWL_BZ_UCODE_API_MAX);

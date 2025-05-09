@@ -1451,26 +1451,26 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 #endif /* CONFIG_IWLMVM */
 #if IS_ENABLED(CONFIG_IWLMLD)
 /* Bz */
-	IWL_DEV_INFO(iwl_cfg_bz, iwl_ax201_name, MAC_TYPE(BZ), RF_TYPE(HR2)),
+	IWL_DEV_INFO(iwl_rf_fm, iwl_ax201_name, MAC_TYPE(BZ), RF_TYPE(HR2)),
 
-	IWL_DEV_INFO(iwl_cfg_bz, iwl_ax211_name, MAC_TYPE(BZ), RF_TYPE(GF)),
+	IWL_DEV_INFO(iwl_rf_fm, iwl_ax211_name, MAC_TYPE(BZ), RF_TYPE(GF)),
 
-	IWL_DEV_INFO(iwl_cfg_bz, iwl_fm_name, MAC_TYPE(BZ), RF_TYPE(FM)),
+	IWL_DEV_INFO(iwl_rf_fm, iwl_fm_name, MAC_TYPE(BZ), RF_TYPE(FM)),
 
-	IWL_DEV_INFO(iwl_cfg_bz, iwl_wh_name, MAC_TYPE(BZ), RF_TYPE(WH)),
+	IWL_DEV_INFO(iwl_rf_fm, iwl_wh_name, MAC_TYPE(BZ), RF_TYPE(WH)),
 
-	IWL_DEV_INFO(iwl_cfg_bz, iwl_ax201_name, MAC_TYPE(BZ_W), RF_TYPE(HR2)),
+	IWL_DEV_INFO(iwl_rf_fm, iwl_ax201_name, MAC_TYPE(BZ_W), RF_TYPE(HR2)),
 
-	IWL_DEV_INFO(iwl_cfg_bz, iwl_ax211_name, MAC_TYPE(BZ_W), RF_TYPE(GF)),
+	IWL_DEV_INFO(iwl_rf_fm, iwl_ax211_name, MAC_TYPE(BZ_W), RF_TYPE(GF)),
 
-	IWL_DEV_INFO(iwl_cfg_bz, iwl_fm_name, MAC_TYPE(BZ_W), RF_TYPE(FM)),
+	IWL_DEV_INFO(iwl_rf_fm, iwl_fm_name, MAC_TYPE(BZ_W), RF_TYPE(FM)),
 
-	IWL_DEV_INFO(iwl_cfg_bz, iwl_wh_name, MAC_TYPE(BZ_W), RF_TYPE(WH)),
+	IWL_DEV_INFO(iwl_rf_fm, iwl_wh_name, MAC_TYPE(BZ_W), RF_TYPE(WH)),
 
 /* Ga (Gl) */
-	IWL_DEV_INFO(iwl_cfg_bz, iwl_gl_name, MAC_TYPE(GL), RF_TYPE(FM),
+	IWL_DEV_INFO(iwl_rf_fm, iwl_gl_name, MAC_TYPE(GL), RF_TYPE(FM),
 		     BW_NOT_LIMITED, NO_CDB),
-	IWL_DEV_INFO(iwl_cfg_bz_160mhz, iwl_mtp_name, MAC_TYPE(GL), RF_TYPE(FM),
+	IWL_DEV_INFO(iwl_rf_fm_160mhz, iwl_mtp_name, MAC_TYPE(GL), RF_TYPE(FM),
 		     BW_LIMITED, NO_CDB),
 
 /* Sc */
