@@ -394,26 +394,19 @@ struct platform_device;
 #define SOC_ENUM_SINGLE_VIRT_DECL(name, xtexts) \
 	const struct soc_enum name = SOC_ENUM_SINGLE_VIRT(ARRAY_SIZE(xtexts), xtexts)
 
-struct snd_jack;
 struct snd_soc_card;
-struct snd_soc_pcm_stream;
-struct snd_soc_ops;
 struct snd_soc_pcm_runtime;
 struct snd_soc_dai;
 struct snd_soc_dai_driver;
 struct snd_soc_dai_link;
 struct snd_soc_component;
 struct snd_soc_component_driver;
-struct soc_enum;
 struct snd_soc_jack;
-struct snd_soc_jack_zone;
 struct snd_soc_jack_pin;
 
 #include <sound/soc-dapm.h>
 #include <sound/soc-dpcm.h>
 #include <sound/soc-topology.h>
-
-struct snd_soc_jack_gpio;
 
 enum snd_soc_pcm_subclass {
 	SND_SOC_PCM_CLASS_PCM	= 0,
