@@ -201,6 +201,12 @@ static inline void free_task_struct(struct task_struct *tsk)
  */
 #define NR_CACHED_STACKS 2
 static DEFINE_PER_CPU(struct vm_struct *, cached_stacks[NR_CACHED_STACKS]);
+/*
+ * Allocated stacks are cached and later reused by new threads, so memcg
+ * accounting is performed by the code assigning/releasing stacks to tasks.
+ * We need a zeroed memory without __GFP_ACCOUNT.
+ */
+#define GFP_VMAP_STACK (GFP_KERNEL | __GFP_ZERO)
 
 struct vm_stack {
 	struct rcu_head rcu;
@@ -307,13 +313,8 @@ static int alloc_thread_stack_node(struct task_struct *tsk, int node)
 		return 0;
 	}
 
-	/*
-	 * Allocated stacks are cached and later reused by new threads,
-	 * so memcg accounting is performed manually on assigning/releasing
-	 * stacks to tasks. Drop __GFP_ACCOUNT.
-	 */
 	stack = __vmalloc_node(THREAD_SIZE, THREAD_ALIGN,
-				     THREADINFO_GFP & ~__GFP_ACCOUNT,
+				     GFP_VMAP_STACK,
 				     node, __builtin_return_address(0));
 	if (!stack)
 		return -ENOMEM;
