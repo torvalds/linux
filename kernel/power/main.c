@@ -557,6 +557,10 @@ static int __init pm_debugfs_init(void)
 late_initcall(pm_debugfs_init);
 #endif /* CONFIG_DEBUG_FS */
 
+bool pm_sleep_transition_in_progress(void)
+{
+	return pm_suspend_in_progress() || hibernation_in_progress();
+}
 #endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_PM_SLEEP_DEBUG
@@ -613,8 +617,7 @@ bool pm_debug_messages_on __read_mostly;
 
 bool pm_debug_messages_should_print(void)
 {
-	return pm_debug_messages_on && (pm_suspend_in_progress() ||
-		hibernation_in_progress());
+	return pm_debug_messages_on && pm_sleep_transition_in_progress();
 }
 EXPORT_SYMBOL_GPL(pm_debug_messages_should_print);
 
