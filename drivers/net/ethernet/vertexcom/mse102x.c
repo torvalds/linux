@@ -17,6 +17,7 @@
 #include <linux/cache.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/string_choices.h>
 
 #include <linux/spi/spi.h>
 #include <linux/of_net.h>
@@ -84,6 +85,8 @@ struct mse102x_net_spi {
 	struct spi_message	spi_msg;
 	struct spi_transfer	spi_xfer;
 
+	bool			valid_cmd_received;
+
 #ifdef CONFIG_DEBUG_FS
 	struct dentry		*device_root;
 #endif
@@ -97,16 +100,18 @@ static int mse102x_info_show(struct seq_file *s, void *what)
 {
 	struct mse102x_net_spi *mses = s->private;
 
-	seq_printf(s, "TX ring size        : %u\n",
+	seq_printf(s, "TX ring size            : %u\n",
 		   skb_queue_len(&mses->mse102x.txq));
 
-	seq_printf(s, "IRQ                 : %d\n",
+	seq_printf(s, "IRQ                     : %d\n",
 		   mses->spidev->irq);
 
-	seq_printf(s, "SPI effective speed : %lu\n",
+	seq_printf(s, "SPI effective speed     : %lu\n",
 		   (unsigned long)mses->spi_xfer.effective_speed_hz);
-	seq_printf(s, "SPI mode            : %x\n",
+	seq_printf(s, "SPI mode                : %x\n",
 		   mses->spidev->mode);
+	seq_printf(s, "Received valid CMD once : %s\n",
+		   str_yes_no(mses->valid_cmd_received));
 
 	return 0;
 }
@@ -196,6 +201,7 @@ static int mse102x_rx_cmd_spi(struct mse102x_net *mse, u8 *rxb)
 		ret = -EIO;
 	} else {
 		memcpy(rxb, trx + 2, 2);
+		mses->valid_cmd_received = true;
 	}
 
 	return ret;
