@@ -1957,6 +1957,7 @@ static int qc_usb_audio_probe(struct auxiliary_device *auxdev,
 	return 0;
 
 release_qmi:
+	qc_usb_audio_cleanup_qmi_dev();
 	qmi_handle_release(svc->uaudio_svc_hdl);
 free_svc:
 	kfree(svc);
