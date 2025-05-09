@@ -380,6 +380,7 @@ show_perf_event_uprobe_json(struct bpf_link_info *info, json_writer_t *wtr)
 			   u64_to_ptr(info->perf_event.uprobe.file_name));
 	jsonw_uint_field(wtr, "offset", info->perf_event.uprobe.offset);
 	jsonw_uint_field(wtr, "cookie", info->perf_event.uprobe.cookie);
+	jsonw_uint_field(wtr, "ref_ctr_offset", info->perf_event.uprobe.ref_ctr_offset);
 }
 
 static void
@@ -823,6 +824,8 @@ static void show_perf_event_uprobe_plain(struct bpf_link_info *info)
 	printf("%s+%#x  ", buf, info->perf_event.uprobe.offset);
 	if (info->perf_event.uprobe.cookie)
 		printf("cookie %llu  ", info->perf_event.uprobe.cookie);
+	if (info->perf_event.uprobe.ref_ctr_offset)
+		printf("ref_ctr_offset 0x%llx  ", info->perf_event.uprobe.ref_ctr_offset);
 }
 
 static void show_perf_event_tracepoint_plain(struct bpf_link_info *info)
