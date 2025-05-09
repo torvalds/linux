@@ -469,8 +469,6 @@ static inline int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd)
 }
 #endif
 
-void snd_soc_disconnect_sync(struct device *dev);
-
 struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
 				struct snd_soc_dai_link *dai_link);
 
