@@ -1714,12 +1714,44 @@ xfs_free_buftarg(
 	kfree(btp);
 }
 
+/*
+ * Configure this buffer target for hardware-assisted atomic writes if the
+ * underlying block device supports is congruent with the filesystem geometry.
+ */
+static inline void
+xfs_configure_buftarg_atomic_writes(
+	struct xfs_buftarg	*btp)
+{
+	struct xfs_mount	*mp = btp->bt_mount;
+	unsigned int		min_bytes, max_bytes;
+
+	min_bytes = bdev_atomic_write_unit_min_bytes(btp->bt_bdev);
+	max_bytes = bdev_atomic_write_unit_max_bytes(btp->bt_bdev);
+
+	/*
+	 * Ignore atomic write geometry that is nonsense or doesn't even cover
+	 * a single fsblock.
+	 */
+	if (min_bytes > max_bytes ||
+	    min_bytes > mp->m_sb.sb_blocksize ||
+	    max_bytes < mp->m_sb.sb_blocksize) {
+		min_bytes = 0;
+		max_bytes = 0;
+	}
+
+	btp->bt_bdev_awu_min = min_bytes;
+	btp->bt_bdev_awu_max = max_bytes;
+}
+
+/* Configure a buffer target that abstracts a block device. */
 int
-xfs_setsize_buftarg(
+xfs_configure_buftarg(
 	struct xfs_buftarg	*btp,
 	unsigned int		sectorsize)
 {
 	int			error;
+
+	ASSERT(btp->bt_bdev != NULL);
 
 	/* Set up metadata sector size info */
 	btp->bt_meta_sectorsize = sectorsize;
@@ -1733,11 +1765,10 @@ xfs_setsize_buftarg(
 		return -EINVAL;
 	}
 
-	/*
-	 * Flush the block device pagecache so our bios see anything dirtied
-	 * before mount.
-	 */
-	return sync_blockdev(btp->bt_bdev);
+	if (bdev_can_atomic_write(btp->bt_bdev))
+		xfs_configure_buftarg_atomic_writes(btp);
+
+	return 0;
 }
 
 int
@@ -1786,6 +1817,8 @@ xfs_alloc_buftarg(
 {
 	struct xfs_buftarg	*btp;
 	const struct dax_holder_operations *ops = NULL;
+	int			error;
+
 
 #if defined(CONFIG_FS_DAX) && defined(CONFIG_MEMORY_FAILURE)
 	ops = &xfs_dax_holder_operations;
@@ -1799,28 +1832,31 @@ xfs_alloc_buftarg(
 	btp->bt_daxdev = fs_dax_get_by_bdev(btp->bt_bdev, &btp->bt_dax_part_off,
 					    mp, ops);
 
-	if (bdev_can_atomic_write(btp->bt_bdev)) {
-		btp->bt_bdev_awu_min = bdev_atomic_write_unit_min_bytes(
-						btp->bt_bdev);
-		btp->bt_bdev_awu_max = bdev_atomic_write_unit_max_bytes(
-						btp->bt_bdev);
-	}
+	/*
+	 * Flush and invalidate all devices' pagecaches before reading any
+	 * metadata because XFS doesn't use the bdev pagecache.
+	 */
+	error = sync_blockdev(btp->bt_bdev);
+	if (error)
+		goto error_free;
 
 	/*
 	 * When allocating the buftargs we have not yet read the super block and
 	 * thus don't know the file system sector size yet.
 	 */
-	if (xfs_setsize_buftarg(btp, bdev_logical_block_size(btp->bt_bdev)))
-		goto error_free;
-	if (xfs_init_buftarg(btp, bdev_logical_block_size(btp->bt_bdev),
-			mp->m_super->s_id))
+	btp->bt_meta_sectorsize = bdev_logical_block_size(btp->bt_bdev);
+	btp->bt_meta_sectormask = btp->bt_meta_sectorsize - 1;
+
+	error = xfs_init_buftarg(btp, btp->bt_meta_sectorsize,
+				mp->m_super->s_id);
+	if (error)
 		goto error_free;
 
 	return btp;
 
 error_free:
 	kfree(btp);
-	return NULL;
+	return ERR_PTR(error);
 }
 
 static inline void
