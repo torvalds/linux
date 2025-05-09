@@ -587,6 +587,7 @@ static void iris_hfi_gen2_read_input_subcr_params(struct iris_inst *inst)
 	}
 
 	inst->fw_caps[POC].value = subsc_params.pic_order_cnt;
+	inst->fw_caps[TIER].value = subsc_params.tier;
 
 	if (subsc_params.bit_depth != BIT_DEPTH_8 ||
 	    !(subsc_params.coded_frames & HFI_BITMASK_FRAME_MBS_ONLY_FLAG)) {
@@ -668,6 +669,9 @@ static int iris_hfi_gen2_handle_session_property(struct iris_inst *inst,
 		inst_hfi_gen2->src_subcr_params.crop_offsets[0] = pkt->payload[0];
 		inst_hfi_gen2->src_subcr_params.crop_offsets[1] = pkt->payload[1];
 		break;
+	case HFI_PROP_LUMA_CHROMA_BIT_DEPTH:
+		inst_hfi_gen2->src_subcr_params.bit_depth = pkt->payload[0];
+		break;
 	case HFI_PROP_CODED_FRAMES:
 		inst_hfi_gen2->src_subcr_params.coded_frames = pkt->payload[0];
 		break;
@@ -685,6 +689,9 @@ static int iris_hfi_gen2_handle_session_property(struct iris_inst *inst,
 		break;
 	case HFI_PROP_LEVEL:
 		inst_hfi_gen2->src_subcr_params.level = pkt->payload[0];
+		break;
+	case HFI_PROP_TIER:
+		inst_hfi_gen2->src_subcr_params.tier = pkt->payload[0];
 		break;
 	case HFI_PROP_PICTURE_TYPE:
 		inst_hfi_gen2->hfi_frame_info.picture_type = pkt->payload[0];
