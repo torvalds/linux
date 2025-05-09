@@ -230,7 +230,7 @@ void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *desc)
 	if (!irq_dir || !desc || desc->debugfs_file)
 		return;
 
-	sprintf(name, "%d", irq);
+	sprintf(name, "%u", irq);
 	desc->debugfs_file = debugfs_create_file(name, 0644, irq_dir, desc,
 						 &dfs_irq_ops);
 }
