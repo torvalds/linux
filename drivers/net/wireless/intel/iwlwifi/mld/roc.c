@@ -49,27 +49,34 @@ int iwl_mld_start_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	lockdep_assert_wiphy(mld->wiphy);
 
-	/* TODO: task=Hotspot 2.0 */
-	if (vif->type != NL80211_IFTYPE_P2P_DEVICE) {
+	if (vif->type != NL80211_IFTYPE_P2P_DEVICE &&
+	    vif->type != NL80211_IFTYPE_STATION) {
 		IWL_ERR(mld, "NOT SUPPORTED: ROC on vif->type %d\n",
 			vif->type);
 
 		return -EOPNOTSUPP;
 	}
 
-	switch (type) {
-	case IEEE80211_ROC_TYPE_NORMAL:
-		activity = ROC_ACTIVITY_P2P_DISC;
-		break;
-	case IEEE80211_ROC_TYPE_MGMT_TX:
-		activity = ROC_ACTIVITY_P2P_NEG;
-		break;
-	default:
-		WARN_ONCE(1, "Got an invalid P2P ROC type\n");
-		return -EINVAL;
+	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
+		switch (type) {
+		case IEEE80211_ROC_TYPE_NORMAL:
+			activity = ROC_ACTIVITY_P2P_DISC;
+			break;
+		case IEEE80211_ROC_TYPE_MGMT_TX:
+			activity = ROC_ACTIVITY_P2P_NEG;
+			break;
+		default:
+			WARN_ONCE(1, "Got an invalid P2P ROC type\n");
+			return -EINVAL;
+		}
+	} else {
+		activity = ROC_ACTIVITY_HOTSPOT;
 	}
 
 	if (WARN_ON(mld_vif->roc_activity != ROC_NUM_ACTIVITIES))
+		return -EBUSY;
+
+	if (vif->type == NL80211_IFTYPE_STATION && mld->bss_roc_vif)
 		return -EBUSY;
 
 	ieee80211_iterate_active_interfaces_mtx(mld->hw,
@@ -88,9 +95,6 @@ int iwl_mld_start_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	cmd.channel_info.channel = cpu_to_le32(channel->hw_value);
 	cmd.channel_info.band = iwl_mld_nl80211_band_to_fw(channel->band);
 	cmd.channel_info.width = IWL_PHY_CHANNEL_MODE20;
-	/* TODO: task=Hotspot 2.0, revisit those parameters when we add an ROC
-	 * on the BSS vif
-	 */
 	cmd.max_delay = cpu_to_le32(AUX_ROC_MAX_DELAY);
 	cmd.duration = cpu_to_le32(MSEC_TO_TU(duration));
 
@@ -102,7 +106,11 @@ int iwl_mld_start_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		IWL_ERR(mld, "Couldn't send the ROC_CMD\n");
 		return ret;
 	}
+
 	mld_vif->roc_activity = activity;
+
+	if (vif->type == NL80211_IFTYPE_STATION)
+		mld->bss_roc_vif = vif;
 
 	return 0;
 }
@@ -121,6 +129,9 @@ static void iwl_mld_destroy_roc(struct iwl_mld *mld,
 				struct iwl_mld_vif *mld_vif)
 {
 	mld_vif->roc_activity = ROC_NUM_ACTIVITIES;
+
+	if (vif->type == NL80211_IFTYPE_STATION)
+		mld->bss_roc_vif = NULL;
 
 	ieee80211_iterate_active_interfaces_mtx(mld->hw,
 						IEEE80211_IFACE_ITER_NORMAL,
@@ -153,8 +164,8 @@ int iwl_mld_cancel_roc(struct ieee80211_hw *hw,
 
 	lockdep_assert_wiphy(mld->wiphy);
 
-	/* TODO: task=Hotspot 2.0 */
-	if (WARN_ON(vif->type != NL80211_IFTYPE_P2P_DEVICE))
+	if (WARN_ON(vif->type != NL80211_IFTYPE_P2P_DEVICE &&
+		    vif->type != NL80211_IFTYPE_STATION))
 		return -EOPNOTSUPP;
 
 	/* No roc activity running it's probably already done */
@@ -189,9 +200,13 @@ void iwl_mld_handle_roc_notif(struct iwl_mld *mld,
 {
 	const struct iwl_roc_notif *notif = (void *)pkt->data;
 	u32 activity = le32_to_cpu(notif->activity);
-	/* TODO: task=Hotspot 2.0 - roc can run on BSS */
-	struct ieee80211_vif *vif = mld->p2p_device_vif;
 	struct iwl_mld_vif *mld_vif;
+	struct ieee80211_vif *vif;
+
+	if (activity == ROC_ACTIVITY_HOTSPOT)
+		vif = mld->bss_roc_vif;
+	else
+		vif = mld->p2p_device_vif;
 
 	if (WARN_ON(!vif))
 		return;

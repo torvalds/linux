@@ -1164,8 +1164,8 @@ void iwl_mld_remove_aux_sta(struct iwl_mld *mld,
 {
 	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
 
-	/* TODO: Hotspot 2.0 */
-	if (WARN_ON(vif->type != NL80211_IFTYPE_P2P_DEVICE))
+	if (WARN_ON(vif->type != NL80211_IFTYPE_P2P_DEVICE &&
+		    vif->type != NL80211_IFTYPE_STATION))
 		return;
 
 	iwl_mld_remove_internal_sta(mld, &mld_vif->aux_sta, false,

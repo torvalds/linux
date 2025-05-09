@@ -638,8 +638,11 @@ iwl_mld_get_tx_queue_id(struct iwl_mld *mld, struct ieee80211_txq *txq,
 	case NL80211_IFTYPE_P2P_DEVICE:
 		mld_vif = iwl_mld_vif_from_mac80211(info->control.vif);
 
-		if (mld_vif->roc_activity == ROC_NUM_ACTIVITIES) {
-			IWL_DEBUG_DROP(mld, "Drop tx outside ROC\n");
+		if (mld_vif->roc_activity != ROC_ACTIVITY_P2P_DISC &&
+		    mld_vif->roc_activity != ROC_ACTIVITY_P2P_NEG) {
+			IWL_DEBUG_DROP(mld,
+				       "Drop tx outside ROC with activity %d\n",
+				       mld_vif->roc_activity);
 			return IWL_MLD_INVALID_DROP_TX;
 		}
 
@@ -649,6 +652,21 @@ iwl_mld_get_tx_queue_id(struct iwl_mld *mld, struct ieee80211_txq *txq,
 	case NL80211_IFTYPE_MONITOR:
 		mld_vif = iwl_mld_vif_from_mac80211(info->control.vif);
 		return mld_vif->deflink.mon_sta.queue_id;
+	case NL80211_IFTYPE_STATION:
+		mld_vif = iwl_mld_vif_from_mac80211(info->control.vif);
+
+		if (!(info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)) {
+			IWL_DEBUG_DROP(mld, "Drop tx not off-channel\n");
+			return IWL_MLD_INVALID_DROP_TX;
+		}
+
+		if (mld_vif->roc_activity != ROC_ACTIVITY_HOTSPOT) {
+			IWL_DEBUG_DROP(mld, "Drop tx outside ROC\n");
+			return IWL_MLD_INVALID_DROP_TX;
+		}
+
+		WARN_ON(!ieee80211_is_mgmt(fc));
+		return mld_vif->aux_sta.queue_id;
 	default:
 		WARN_ONCE(1, "Unsupported vif type\n");
 		break;

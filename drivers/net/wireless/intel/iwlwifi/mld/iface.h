@@ -141,8 +141,8 @@ struct iwl_mld_emlsr {
  * @use_ps_poll: use ps_poll frames
  * @disable_bf: disable beacon filter
  * @dbgfs_slink: debugfs symlink for this interface
- * @roc_activity: the id of the roc_activity running. Relevant for p2p device
- *	only. Set to %ROC_NUM_ACTIVITIES when not in use.
+ * @roc_activity: the id of the roc_activity running. Relevant for STA and
+ *	p2p device only. Set to %ROC_NUM_ACTIVITIES when not in use.
  * @aux_sta: station used for remain on channel. Used in P2P device.
  */
 struct iwl_mld_vif {
