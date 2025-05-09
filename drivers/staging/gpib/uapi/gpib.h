@@ -4,8 +4,8 @@
  *    copyright		   : (C) 2002 by Frank Mori Hess
  ***************************************************************************/
 
-#ifndef _GPIB_USER_H
-#define _GPIB_USER_H
+#ifndef _GPIB_H
+#define _GPIB_H
 
 #define GPIB_MAX_NUM_BOARDS 16
 #define GPIB_MAX_NUM_DESCRIPTORS 0x1000
@@ -298,6 +298,5 @@ enum gpib_stb {
 	IB_STB_MAV = 0x10	 /* IEEE 488.2 only */
 };
 
-#endif	/* _GPIB_USER_H */
+#endif	/* _GPIB_H */
 
-/* Check for errors */
