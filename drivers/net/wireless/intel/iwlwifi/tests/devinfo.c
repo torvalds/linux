@@ -13,8 +13,8 @@ MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 
 static void iwl_pci_print_dev_info(const char *pfx, const struct iwl_dev_info *di)
 {
-	printk(KERN_DEBUG "%sdev=%.4x,subdev=%.4x,mac_type=%.4x,mac_step=%.4x,rf_type=%.4x,cdb=%d,jacket=%d,rf_id=%.2x,bw_limit=%d,cores=%.2x\n",
-	       pfx, di->device, di->subdevice, di->mac_type, di->mac_step,
+	printk(KERN_DEBUG "%sdev=%.4x subdev=%.4x rf_type=%.4x cdb=%d jacket=%d rf_id=%.2x bw_limit=%d cores=%.2x\n",
+	       pfx, di->device, di->subdevice,
 	       di->rf_type, di->cdb, di->jacket, di->rf_id, di->bw_limit,
 	       di->cores);
 }
@@ -28,7 +28,6 @@ static void devinfo_table_order(struct kunit *test)
 		const struct iwl_dev_info *ret;
 
 		ret = iwl_pci_find_dev_info(di->device, di->subdevice,
-					    di->mac_type, di->mac_step,
 					    di->rf_type, di->cdb,
 					    di->jacket, di->rf_id,
 					    di->bw_limit,

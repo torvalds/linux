@@ -561,8 +561,6 @@ EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_hw_card_ids);
 	.device = IWL_CFG_ANY,			\
 	.subdevice = IWL_CFG_ANY,		\
 	.subdevice_mask = ~0,			\
-	.mac_type = IWL_CFG_ANY,		\
-	.mac_step = IWL_CFG_ANY,		\
 	.rf_type = IWL_CFG_ANY,			\
 	.rf_step = IWL_CFG_ANY,			\
 	.bw_limit = IWL_CFG_ANY,		\
@@ -580,8 +578,6 @@ EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_hw_card_ids);
 #define SUBDEV_MASKED(v, m)			\
 			.subdevice = (v),	\
 			.subdevice_mask = (m)
-#define MAC_TYPE(n)	.mac_type = IWL_CFG_MAC_TYPE_##n
-#define MAC_STEP(n)	.mac_step = SILICON_##n##_STEP
 #define RF_TYPE(n)	.rf_type = IWL_CFG_RF_TYPE_##n
 #define RF_STEP(n)	.rf_step = SILICON_##n##_STEP
 #define CORES(n)	.cores = IWL_CFG_CORES_##n
@@ -1220,8 +1216,7 @@ out:
 #define PCI_CFG_RETRY_TIMEOUT	0x041
 
 VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info *
-iwl_pci_find_dev_info(u16 device, u16 subsystem_device,
-		      u8 mac_type, u8 mac_step, u16 rf_type, u8 cdb,
+iwl_pci_find_dev_info(u16 device, u16 subsystem_device, u16 rf_type, u8 cdb,
 		      u8 jacket, u8 rf_id, u8 bw_limit, u8 cores, u8 rf_step)
 {
 	int num_devices = ARRAY_SIZE(iwl_dev_info_table);
@@ -1239,14 +1234,6 @@ iwl_pci_find_dev_info(u16 device, u16 subsystem_device,
 
 		if (dev_info->subdevice != (u16)IWL_CFG_ANY &&
 		    dev_info->subdevice != (subsystem_device & dev_info->subdevice_mask))
-			continue;
-
-		if (dev_info->mac_type != (u8)IWL_CFG_ANY &&
-		    dev_info->mac_type != mac_type)
-			continue;
-
-		if (dev_info->mac_step != (u8)IWL_CFG_ANY &&
-		    dev_info->mac_step != mac_step)
 			continue;
 
 		if (dev_info->rf_type != (u16)IWL_CFG_ANY &&
@@ -1392,8 +1379,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		 info.hw_rev, info.hw_rf_id);
 
 	dev_info = iwl_pci_find_dev_info(pdev->device, pdev->subsystem_device,
-					 CSR_HW_REV_TYPE(info.hw_rev),
-					 info.hw_rev_step,
 					 CSR_HW_RFID_TYPE(info.hw_rf_id),
 					 CSR_HW_RFID_IS_CDB(info.hw_rf_id),
 					 CSR_HW_RFID_IS_JACKET(info.hw_rf_id),

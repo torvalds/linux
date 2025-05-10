@@ -482,9 +482,7 @@ struct iwl_dev_info {
 	u16 subdevice;
 	u16 subdevice_mask;
 	u16 rf_type;
-	u8 mac_type;
 	u8 bw_limit;
-	u8 mac_step;
 	u8 rf_step;
 	u8 rf_id;
 	u8 cores;
@@ -498,8 +496,7 @@ struct iwl_dev_info {
 extern const struct iwl_dev_info iwl_dev_info_table[];
 extern const unsigned int iwl_dev_info_table_size;
 const struct iwl_dev_info *
-iwl_pci_find_dev_info(u16 device, u16 subsystem_device,
-		      u8 mac_type, u8 mac_step, u16 rf_type, u8 cdb,
+iwl_pci_find_dev_info(u16 device, u16 subsystem_device, u16 rf_type, u8 cdb,
 		      u8 jacket, u8 rf_id, u8 bw_limit, u8 cores, u8 rf_step);
 extern const struct pci_device_id iwl_hw_card_ids[];
 #endif
