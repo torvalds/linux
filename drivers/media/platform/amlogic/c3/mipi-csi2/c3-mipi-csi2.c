@@ -5,6 +5,7 @@
 
 #include <linux/clk.h>
 #include <linux/device.h>
+#include <linux/math.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
@@ -321,7 +322,7 @@ static void c3_mipi_csi_cfg_dphy(struct c3_csi_device *csi, s64 rate)
 	u32 settle;
 
 	/* Calculate the high speed settle */
-	val = DIV_ROUND_UP(1000000000, rate);
+	val = DIV_ROUND_UP_ULL(1000000000, rate);
 	settle = (16 * val + 230) / 10;
 
 	c3_mipi_csi_write(csi, MIPI_PHY_CLK_LANE_CTRL,
