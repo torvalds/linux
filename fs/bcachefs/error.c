@@ -100,7 +100,7 @@ int __bch2_topology_error(struct bch_fs *c, struct printbuf *out)
 	prt_printf(out, "btree topology error: ");
 
 	set_bit(BCH_FS_topology_error, &c->flags);
-	if (!test_bit(BCH_FS_recovery_running, &c->flags)) {
+	if (!test_bit(BCH_FS_in_recovery, &c->flags)) {
 		__bch2_inconsistent_error(c, out);
 		return -BCH_ERR_btree_need_topology_repair;
 	} else {
@@ -400,7 +400,7 @@ int bch2_fsck_err_opt(struct bch_fs *c,
 	if (!WARN_ON(err >= ARRAY_SIZE(fsck_flags_extra)))
 		flags |= fsck_flags_extra[err];
 
-	if (test_bit(BCH_FS_fsck_running, &c->flags)) {
+	if (test_bit(BCH_FS_in_fsck, &c->flags)) {
 		if (!(flags & (FSCK_CAN_FIX|FSCK_CAN_IGNORE)))
 			return -BCH_ERR_fsck_repair_unimplemented;
 
@@ -523,7 +523,7 @@ int __bch2_fsck_err(struct bch_fs *c,
 		}
 
 		goto print;
-	} else if (!test_bit(BCH_FS_fsck_running, &c->flags)) {
+	} else if (!test_bit(BCH_FS_in_fsck, &c->flags)) {
 		if (c->opts.errors != BCH_ON_ERROR_continue ||
 		    !(flags & (FSCK_CAN_FIX|FSCK_CAN_IGNORE))) {
 			prt_str_indented(out, ", shutting down\n"
@@ -582,7 +582,7 @@ int __bch2_fsck_err(struct bch_fs *c,
 	     !(flags & FSCK_CAN_IGNORE)))
 		ret = -BCH_ERR_fsck_errors_not_fixed;
 
-	if (test_bit(BCH_FS_fsck_running, &c->flags) &&
+	if (test_bit(BCH_FS_in_fsck, &c->flags) &&
 	    (ret != -BCH_ERR_fsck_fix &&
 	     ret != -BCH_ERR_fsck_ignore)) {
 		exiting = true;

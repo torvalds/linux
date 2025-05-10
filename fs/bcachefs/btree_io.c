@@ -580,7 +580,7 @@ static int __btree_err(int ret,
 
 	bool print_deferred = err_msg &&
 		rw == READ &&
-		!(test_bit(BCH_FS_fsck_running, &c->flags) &&
+		!(test_bit(BCH_FS_in_fsck, &c->flags) &&
 		  c->opts.fix_errors == FSCK_FIX_ask);
 
 	struct printbuf out = PRINTBUF;

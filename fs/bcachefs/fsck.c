@@ -3192,12 +3192,12 @@ static int bch2_fsck_online_thread_fn(struct thread_with_stdio *stdio)
 		c->opts.fix_errors = FSCK_FIX_ask;
 
 	c->opts.fsck = true;
-	set_bit(BCH_FS_fsck_running, &c->flags);
+	set_bit(BCH_FS_in_fsck, &c->flags);
 
 	c->curr_recovery_pass = BCH_RECOVERY_PASS_check_alloc_info;
 	int ret = bch2_run_online_recovery_passes(c);
 
-	clear_bit(BCH_FS_fsck_running, &c->flags);
+	clear_bit(BCH_FS_in_fsck, &c->flags);
 	bch_err_fn(c, ret);
 
 	c->stdio = NULL;
