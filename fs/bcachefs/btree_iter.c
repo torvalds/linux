@@ -1971,6 +1971,12 @@ struct btree *bch2_btree_iter_next_node(struct btree_trans *trans, struct btree_
 		return NULL;
 	}
 
+	/*
+	 * We don't correctly handle nodes with extra intent locks here:
+	 * downgrade so we don't violate locking invariants
+	 */
+	bch2_btree_path_downgrade(trans, path);
+
 	if (!bch2_btree_node_relock(trans, path, path->level + 1)) {
 		__bch2_btree_path_unlock(trans, path);
 		path->l[path->level].b		= ERR_PTR(-BCH_ERR_no_btree_node_relock);
