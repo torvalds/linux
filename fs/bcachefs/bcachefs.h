@@ -1128,7 +1128,7 @@ struct bch_fs {
 	/* never rewinds version of curr_recovery_pass */
 	enum bch_recovery_pass	recovery_pass_done;
 	spinlock_t		recovery_pass_lock;
-	struct semaphore	online_fsck_mutex;
+	struct semaphore	run_recovery_passes_lock;
 
 	/* DEBUG JUNK */
 	struct dentry		*fs_debug_dir;

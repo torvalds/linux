@@ -3204,7 +3204,7 @@ static int bch2_fsck_online_thread_fn(struct thread_with_stdio *stdio)
 	c->stdio_filter = NULL;
 	c->opts.fix_errors = old_fix_errors;
 
-	up(&c->online_fsck_mutex);
+	up(&c->run_recovery_passes_lock);
 	bch2_ro_ref_put(c);
 	return ret;
 }
@@ -3228,7 +3228,7 @@ long bch2_ioctl_fsck_online(struct bch_fs *c, struct bch_ioctl_fsck_online arg)
 	if (!bch2_ro_ref_tryget(c))
 		return -EROFS;
 
-	if (down_trylock(&c->online_fsck_mutex)) {
+	if (down_trylock(&c->run_recovery_passes_lock)) {
 		bch2_ro_ref_put(c);
 		return -EAGAIN;
 	}
@@ -3260,7 +3260,7 @@ err:
 		bch_err_fn(c, ret);
 		if (thr)
 			bch2_fsck_thread_exit(&thr->thr);
-		up(&c->online_fsck_mutex);
+		up(&c->run_recovery_passes_lock);
 		bch2_ro_ref_put(c);
 	}
 	return ret;

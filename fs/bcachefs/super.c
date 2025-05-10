@@ -51,6 +51,7 @@
 #include "quota.h"
 #include "rebalance.h"
 #include "recovery.h"
+#include "recovery_passes.h"
 #include "replicas.h"
 #include "sb-clean.h"
 #include "sb-counters.h"
@@ -848,8 +849,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts *opts,
 
 	refcount_set(&c->ro_ref, 1);
 	init_waitqueue_head(&c->ro_ref_wait);
-	spin_lock_init(&c->recovery_pass_lock);
-	sema_init(&c->online_fsck_mutex, 1);
 
 	for (i = 0; i < BCH_TIME_STAT_NR; i++)
 		bch2_time_stats_init(&c->times[i]);
@@ -869,6 +868,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts *opts,
 	bch2_fs_move_init(c);
 	bch2_fs_nocow_locking_init_early(c);
 	bch2_fs_quota_init(c);
+	bch2_fs_recovery_passes_init(c);
 	bch2_fs_sb_errors_init_early(c);
 	bch2_fs_snapshots_init_early(c);
 	bch2_fs_subvolumes_init_early(c);

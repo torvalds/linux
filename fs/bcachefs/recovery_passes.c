@@ -380,6 +380,7 @@ int bch2_run_recovery_passes(struct bch_fs *c)
 	 */
 	c->opts.recovery_passes_exclude &= ~BCH_RECOVERY_PASS_set_may_go_rw;
 
+	down(&c->run_recovery_passes_lock);
 	spin_lock_irq(&c->recovery_pass_lock);
 
 	while (c->curr_recovery_pass < ARRAY_SIZE(recovery_pass_fns) && !ret) {
@@ -423,6 +424,13 @@ int bch2_run_recovery_passes(struct bch_fs *c)
 	}
 
 	spin_unlock_irq(&c->recovery_pass_lock);
+	up(&c->run_recovery_passes_lock);
 
 	return ret;
+}
+
+void bch2_fs_recovery_passes_init(struct bch_fs *c)
+{
+	spin_lock_init(&c->recovery_pass_lock);
+	sema_init(&c->run_recovery_passes_lock, 1);
 }
