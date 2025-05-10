@@ -14,10 +14,7 @@
 
 asmlinkage void poly1305_p10le_4blocks(struct poly1305_block_state *state, const u8 *m, u32 mlen);
 asmlinkage void poly1305_64s(struct poly1305_block_state *state, const u8 *m, u32 mlen, int highbit);
-asmlinkage void poly1305_emit_arch(const struct poly1305_state *state,
-				   u8 digest[POLY1305_DIGEST_SIZE],
-				   const u32 nonce[4]);
-EXPORT_SYMBOL_GPL(poly1305_emit_arch);
+asmlinkage void poly1305_emit_64(const struct poly1305_state *state, const u32 nonce[4], u8 digest[POLY1305_DIGEST_SIZE]);
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_p10);
 
@@ -64,6 +61,16 @@ void poly1305_blocks_arch(struct poly1305_block_state *state, const u8 *src,
 	vsx_end();
 }
 EXPORT_SYMBOL_GPL(poly1305_blocks_arch);
+
+void poly1305_emit_arch(const struct poly1305_state *state,
+			u8 digest[POLY1305_DIGEST_SIZE],
+			const u32 nonce[4])
+{
+	if (!static_key_enabled(&have_p10))
+		return poly1305_emit_generic(state, digest, nonce);
+	poly1305_emit_64(state, nonce, digest);
+}
+EXPORT_SYMBOL_GPL(poly1305_emit_arch);
 
 bool poly1305_is_arch_optimized(void)
 {
