@@ -974,8 +974,11 @@ static void _iwl_mld_select_links(struct iwl_mld *mld,
 	n_data = iwl_mld_set_link_sel_data(mld, vif, data, usable_links,
 					   &best_idx);
 
-	if (WARN(!n_data, "Couldn't find a valid grade for any link!\n"))
+	if (!n_data) {
+		IWL_DEBUG_EHT(mld,
+			      "Couldn't find a valid grade for any link!\n");
 		return;
+	}
 
 	/* Default to selecting the single best link */
 	best_link = &data[best_idx];
