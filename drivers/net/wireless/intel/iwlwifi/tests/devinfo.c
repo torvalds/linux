@@ -104,9 +104,17 @@ static void devinfo_check_subdev_match(struct kunit *test)
 		if (di->bw_limit == 1)
 			KUNIT_EXPECT_NE(test, di->cfg->bw_limit, 0);
 
+		/* if subdevice is ANY we can have RF ID/BW limit/cores */
 		if (di->subdevice == (u16)IWL_CFG_ANY)
 			continue;
 
+		/* same if the subdevice mask doesn't overlap them */
+		if (IWL_SUBDEVICE_RF_ID(di->subdevice_mask) == 0 &&
+		    IWL_SUBDEVICE_BW_LIM(di->subdevice_mask) == 0 &&
+		    IWL_SUBDEVICE_CORES(di->subdevice_mask) == 0)
+			continue;
+
+		/* but otherwise they shouldn't be used */
 		KUNIT_EXPECT_EQ(test, di->rf_id, (u8)IWL_CFG_ANY);
 		KUNIT_EXPECT_EQ(test, di->bw_limit, (u8)IWL_CFG_ANY);
 		KUNIT_EXPECT_EQ(test, di->cores, (u8)IWL_CFG_ANY);
