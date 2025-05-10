@@ -233,7 +233,8 @@ static int __bch2_run_explicit_recovery_pass(struct printbuf *out,
 
 	c->opts.recovery_passes |= BIT_ULL(pass);
 
-	if (c->curr_recovery_pass > pass) {
+	if (test_bit(BCH_FS_in_recovery, &c->flags) &&
+	    c->curr_recovery_pass > pass) {
 		c->next_recovery_pass = pass;
 		c->recovery_passes_complete &= (1ULL << pass) >> 1;
 		return -BCH_ERR_restart_recovery;
