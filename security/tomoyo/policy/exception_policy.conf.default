@@ -1,2 +1,0 @@
-initialize_domain /sbin/modprobe from any
-initialize_domain /sbin/hotplug from any

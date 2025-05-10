@@ -1,2 +1,0 @@
-spidev_test-y += spidev_test.o
-spidev_fdx-y += spidev_fdx.o

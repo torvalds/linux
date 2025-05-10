@@ -1,4 +1,0 @@
-perf-test-$(CONFIG_DWARF_UNWIND) += regs_load.o
-perf-test-$(CONFIG_DWARF_UNWIND) += dwarf-unwind.o
-
-perf-test-y += arch-tests.o

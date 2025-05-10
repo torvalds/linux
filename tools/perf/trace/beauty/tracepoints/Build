@@ -1,2 +1,0 @@
-perf-y += x86_irq_vectors.o
-perf-y += x86_msr.o

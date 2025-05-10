@@ -1,7 +1,0 @@
-// SPDX-License-Identifier: GPL-2.0-only
-
-#include "msm8939.dtsi"
-
-&opp_table {
-	/delete-node/ opp-550000000;
-};

@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0
-kmsan-cflags := -fsanitize=kernel-memory
-
-ifdef CONFIG_KMSAN_CHECK_PARAM_RETVAL
-kmsan-cflags += -fsanitize-memory-param-retval
-endif
-
-export CFLAGS_KMSAN := $(kmsan-cflags)

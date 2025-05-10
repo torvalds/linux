@@ -1,5 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-iio_event_monitor
-iio_generic_buffer
-lsiio
-include/

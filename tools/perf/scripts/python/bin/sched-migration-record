@@ -1,2 +1,0 @@
-#!/bin/bash
-perf record -m 16384 -e sched:sched_wakeup -e sched:sched_wakeup_new -e sched:sched_switch -e sched:sched_migrate_task $@

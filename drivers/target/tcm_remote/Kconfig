@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-config REMOTE_TARGET
-	tristate "TCM Virtual Remote target"
-	depends on SCSI
-	help
-	  Say Y here to enable the TCM Virtual Remote fabric
-	  That fabric is a dummy fabric to tell TCM about configuration
-	  of TPG/ACL/LUN on peer nodes in a cluster.

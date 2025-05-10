@@ -1,4 +1,0 @@
-ToDo list (incomplete, unordered)
-	- move the driver to the new i2c slave framework
-	- finish suspend/resume support
-	- add atomic ops in order to fix shutoff/reboot problems

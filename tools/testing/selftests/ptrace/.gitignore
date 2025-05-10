@@ -1,5 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-get_syscall_info
-get_set_sud
-peeksiginfo
-vmaccess
