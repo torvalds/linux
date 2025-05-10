@@ -380,27 +380,18 @@ bool bch2_btree_path_upgrade_noupgrade_sibs(struct btree_trans *,
 			       struct btree_path *, unsigned,
 			       struct get_locks_fail *);
 
-bool __bch2_btree_path_upgrade(struct btree_trans *,
-			       struct btree_path *, unsigned,
-			       struct get_locks_fail *);
+int __bch2_btree_path_upgrade(struct btree_trans *,
+			      struct btree_path *, unsigned);
 
 static inline int bch2_btree_path_upgrade(struct btree_trans *trans,
 					  struct btree_path *path,
 					  unsigned new_locks_want)
 {
-	struct get_locks_fail f = {};
-	unsigned old_locks_want = path->locks_want;
-
 	new_locks_want = min(new_locks_want, BTREE_MAX_DEPTH);
 
-	if (path->locks_want < new_locks_want
-	    ? __bch2_btree_path_upgrade(trans, path, new_locks_want, &f)
-	    : path->nodes_locked)
-		return 0;
-
-	trace_and_count(trans->c, trans_restart_upgrade, trans, _THIS_IP_, path,
-			old_locks_want, new_locks_want, &f);
-	return btree_trans_restart(trans, BCH_ERR_transaction_restart_upgrade);
+	return likely(path->locks_want >= new_locks_want && path->nodes_locked)
+		? 0
+		: __bch2_btree_path_upgrade(trans, path, new_locks_want);
 }
 
 /* misc: */

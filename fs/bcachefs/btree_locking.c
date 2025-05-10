@@ -618,22 +618,22 @@ bool bch2_btree_path_upgrade_noupgrade_sibs(struct btree_trans *trans,
 			       unsigned new_locks_want,
 			       struct get_locks_fail *f)
 {
-	EBUG_ON(path->locks_want >= new_locks_want);
-
-	path->locks_want = new_locks_want;
+	path->locks_want = max_t(unsigned, path->locks_want, new_locks_want);
 
 	bool ret = btree_path_get_locks(trans, path, true, f);
 	bch2_trans_verify_locks(trans);
 	return ret;
 }
 
-bool __bch2_btree_path_upgrade(struct btree_trans *trans,
-			       struct btree_path *path,
-			       unsigned new_locks_want,
-			       struct get_locks_fail *f)
+int __bch2_btree_path_upgrade(struct btree_trans *trans,
+			      struct btree_path *path,
+			      unsigned new_locks_want)
 {
-	bool ret = bch2_btree_path_upgrade_noupgrade_sibs(trans, path, new_locks_want, f);
-	if (ret)
+	struct get_locks_fail f = {};
+	unsigned old_locks_want = path->locks_want;
+	int ret = 0;
+
+	if (bch2_btree_path_upgrade_noupgrade_sibs(trans, path, new_locks_want, &f))
 		goto out;
 
 	/*
@@ -668,6 +668,10 @@ bool __bch2_btree_path_upgrade(struct btree_trans *trans,
 				btree_path_get_locks(trans, linked, true, NULL);
 			}
 	}
+
+	trace_and_count(trans->c, trans_restart_upgrade, trans, _THIS_IP_, path,
+			old_locks_want, new_locks_want, &f);
+	ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_upgrade);
 out:
 	bch2_trans_verify_locks(trans);
 	return ret;
