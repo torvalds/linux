@@ -190,9 +190,10 @@ static int qm_set_regs(struct hisi_qm *qm, struct acc_vf_data *vf_data)
 	int ret;
 
 	/* Check VF state */
-	if (unlikely(hisi_qm_wait_mb_ready(qm))) {
+	ret = hisi_qm_wait_mb_ready(qm);
+	if (unlikely(ret)) {
 		dev_err(&qm->pdev->dev, "QM device is not ready to write\n");
-		return -EBUSY;
+		return ret;
 	}
 
 	ret = qm_write_regs(qm, QM_VF_AEQ_INT_MASK, &vf_data->aeq_int_mask, 1);
@@ -325,13 +326,15 @@ static void qm_dev_cmd_init(struct hisi_qm *qm)
 static int vf_qm_cache_wb(struct hisi_qm *qm)
 {
 	unsigned int val;
+	int ret;
 
 	writel(0x1, qm->io_base + QM_CACHE_WB_START);
-	if (readl_relaxed_poll_timeout(qm->io_base + QM_CACHE_WB_DONE,
+	ret = readl_relaxed_poll_timeout(qm->io_base + QM_CACHE_WB_DONE,
 				       val, val & BIT(0), MB_POLL_PERIOD_US,
-				       MB_POLL_TIMEOUT_US)) {
+				       MB_POLL_TIMEOUT_US);
+	if (ret) {
 		dev_err(&qm->pdev->dev, "vf QM writeback sqc cache fail\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	return 0;
@@ -392,7 +395,7 @@ static int vf_qm_check_match(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 	ret = vf_qm_version_check(vf_data, dev);
 	if (ret) {
 		dev_err(dev, "failed to match ACC_DEV_MAGIC\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	if (vf_data->dev_id != hisi_acc_vdev->vf_dev->device) {
@@ -404,7 +407,7 @@ static int vf_qm_check_match(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 	ret = qm_get_vft(vf_qm, &vf_qm->qp_base);
 	if (ret <= 0) {
 		dev_err(dev, "failed to get vft qp nums\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	if (ret != vf_data->qp_num) {
@@ -501,7 +504,7 @@ static int vf_qm_load_data(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 	ret = qm_write_regs(qm, QM_VF_STATE, &vf_data->vf_qm_state, 1);
 	if (ret) {
 		dev_err(dev, "failed to write QM_VF_STATE\n");
-		return -EINVAL;
+		return ret;
 	}
 	hisi_acc_vdev->vf_qm_state = vf_data->vf_qm_state;
 
@@ -542,7 +545,7 @@ static int vf_qm_read_data(struct hisi_qm *vf_qm, struct acc_vf_data *vf_data)
 
 	ret = qm_get_regs(vf_qm, vf_data);
 	if (ret)
-		return -EINVAL;
+		return ret;
 
 	/* Every reg is 32 bit, the dma address is 64 bit. */
 	vf_data->eqe_dma = vf_data->qm_eqc_dw[QM_XQC_ADDR_HIGH];
@@ -556,13 +559,13 @@ static int vf_qm_read_data(struct hisi_qm *vf_qm, struct acc_vf_data *vf_data)
 	ret = qm_get_sqc(vf_qm, &vf_data->sqc_dma);
 	if (ret) {
 		dev_err(dev, "failed to read SQC addr!\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	ret = qm_get_cqc(vf_qm, &vf_data->cqc_dma);
 	if (ret) {
 		dev_err(dev, "failed to read CQC addr!\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	return 0;
@@ -588,7 +591,7 @@ static int vf_qm_state_save(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 
 	ret = vf_qm_read_data(vf_qm, vf_data);
 	if (ret)
-		return -EINVAL;
+		return ret;
 
 	migf->total_length = sizeof(struct acc_vf_data);
 	/* Save eqc and aeqc interrupt information */
@@ -1379,7 +1382,7 @@ static int hisi_acc_vf_debug_check(struct seq_file *seq, struct vfio_device *vde
 	ret = qm_wait_dev_not_ready(vf_qm);
 	if (ret) {
 		seq_puts(seq, "VF device not ready!\n");
-		return -EBUSY;
+		return ret;
 	}
 
 	return 0;
