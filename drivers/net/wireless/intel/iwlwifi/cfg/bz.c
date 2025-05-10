@@ -33,7 +33,6 @@
 
 #if !IS_ENABLED(CONFIG_IWLMVM)
 const char iwl_ax211_name[] = "Intel(R) Wi-Fi 6E AX211 160MHz";
-const char iwl_ax201_name[] = "Intel(R) Wi-Fi 6 AX201 160MHz";
 #endif
 
 static const struct iwl_family_base_params iwl_bz_base = {

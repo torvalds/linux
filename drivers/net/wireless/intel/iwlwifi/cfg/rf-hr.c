@@ -35,3 +35,8 @@ const struct iwl_rf_cfg iwl_rf_hr_80mhz = {
 	IWL_DEVICE_HR,
 	.bw_limit = 80,
 };
+
+const char iwl_ax101_name[] = "Intel(R) Wi-Fi 6 AX101";
+const char iwl_ax200_name[] = "Intel(R) Wi-Fi 6 AX200 160MHz";
+const char iwl_ax201_name[] = "Intel(R) Wi-Fi 6 AX201 160MHz";
+const char iwl_ax203_name[] = "Intel(R) Wi-Fi 6 AX203";

@@ -123,11 +123,6 @@ const struct iwl_mac_cfg iwl_ax200_mac_cfg = {
 	.bisr_workaround = 1,
 };
 
-const char iwl_ax101_name[] = "Intel(R) Wi-Fi 6 AX101";
-const char iwl_ax200_name[] = "Intel(R) Wi-Fi 6 AX200 160MHz";
-const char iwl_ax201_name[] = "Intel(R) Wi-Fi 6 AX201 160MHz";
-const char iwl_ax203_name[] = "Intel(R) Wi-Fi 6 AX203";
-
 const char iwl_ax200_killer_1650w_name[] =
 	"Killer(R) Wi-Fi 6 AX1650w 160MHz Wireless Network Adapter (200D2W)";
 const char iwl_ax200_killer_1650x_name[] =
