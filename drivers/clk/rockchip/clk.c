@@ -622,7 +622,7 @@ void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 			clk = rockchip_clk_register_mmc(
 				list->name,
 				list->parent_names, list->num_parents,
-				0,
+				NULL,
 				grf, list->muxdiv_offset,
 				list->div_shift
 			);
