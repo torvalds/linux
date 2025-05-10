@@ -4937,7 +4937,7 @@ again:
 			btrfs_delalloc_release_space(inode, data_reserved,
 						     block_start, blocksize, true);
 		btrfs_delalloc_release_extents(inode, blocksize);
-		ret = -ENOMEM;
+		ret = PTR_ERR(folio);
 		goto out;
 	}
 

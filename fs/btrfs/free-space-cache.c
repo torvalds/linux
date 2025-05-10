@@ -457,7 +457,7 @@ static int io_ctl_prepare_pages(struct btrfs_io_ctl *io_ctl, bool uptodate)
 					    mask);
 		if (IS_ERR(folio)) {
 			io_ctl_drop_pages(io_ctl);
-			return -ENOMEM;
+			return PTR_ERR(folio);
 		}
 
 		ret = set_folio_extent_mapped(folio);

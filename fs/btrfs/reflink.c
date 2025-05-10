@@ -87,7 +87,7 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 					FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
 					btrfs_alloc_write_mask(mapping));
 	if (IS_ERR(folio)) {
-		ret = -ENOMEM;
+		ret = PTR_ERR(folio);
 		goto out_unlock;
 	}
 
