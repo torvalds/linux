@@ -1379,11 +1379,9 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     MAC_STEP(B), RF_TYPE(HR2), BW_NOT_LIMITED, NO_CDB),
 
 /* Ma */
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax201_name, MAC_TYPE(MA), RF_TYPE(HR2),
+	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name, MAC_TYPE(MA), RF_TYPE(HR2),
 		     NO_CDB),
 	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_name, MAC_TYPE(MA), RF_TYPE(GF)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax231_name, MAC_TYPE(MA), RF_TYPE(FM),
-		     NO_CDB),
 
 /* So with Hr */
 	IWL_DEV_INFO(iwl_rf_hr_80mhz, iwl_ax203_name, MAC_TYPE(SO),
@@ -1450,6 +1448,8 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 
 #endif /* CONFIG_IWLMVM */
 #if IS_ENABLED(CONFIG_IWLMLD)
+	IWL_DEV_INFO(iwl_rf_fm, iwl_ax231_name, MAC_TYPE(MA), RF_TYPE(FM),
+		     NO_CDB),
 /* Bz */
 	IWL_DEV_INFO(iwl_rf_fm, iwl_ax201_name, MAC_TYPE(BZ), RF_TYPE(HR2)),
 
