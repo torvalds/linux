@@ -839,9 +839,7 @@ int __bch2_trans_mutex_lock(struct btree_trans *trans,
 
 /* Debug */
 
-#ifdef CONFIG_BCACHEFS_DEBUG
-
-void bch2_btree_path_verify_locks(struct btree_path *path)
+void __bch2_btree_path_verify_locks(struct btree_path *path)
 {
 	/*
 	 * A path may be uptodate and yet have nothing locked if and only if
@@ -882,7 +880,7 @@ static bool bch2_trans_locked(struct btree_trans *trans)
 	return false;
 }
 
-void bch2_trans_verify_locks(struct btree_trans *trans)
+void __bch2_trans_verify_locks(struct btree_trans *trans)
 {
 	if (!trans->locked) {
 		BUG_ON(bch2_trans_locked(trans));
@@ -893,7 +891,5 @@ void bch2_trans_verify_locks(struct btree_trans *trans)
 	unsigned i;
 
 	trans_for_each_path(trans, path, i)
-		bch2_btree_path_verify_locks(path);
+		__bch2_btree_path_verify_locks(path);
 }
-
-#endif

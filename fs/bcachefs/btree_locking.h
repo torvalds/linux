@@ -429,12 +429,19 @@ struct six_lock_count bch2_btree_node_lock_counts(struct btree_trans *,
 
 int bch2_check_for_deadlock(struct btree_trans *, struct printbuf *);
 
-#ifdef CONFIG_BCACHEFS_DEBUG
-void bch2_btree_path_verify_locks(struct btree_path *);
-void bch2_trans_verify_locks(struct btree_trans *);
-#else
-static inline void bch2_btree_path_verify_locks(struct btree_path *path) {}
-static inline void bch2_trans_verify_locks(struct btree_trans *trans) {}
-#endif
+void __bch2_btree_path_verify_locks(struct btree_path *);
+void __bch2_trans_verify_locks(struct btree_trans *);
+
+static inline void bch2_btree_path_verify_locks(struct btree_path *path)
+{
+	if (static_branch_unlikely(&bch2_debug_check_btree_locking))
+		__bch2_btree_path_verify_locks(path);
+}
+
+static inline void bch2_trans_verify_locks(struct btree_trans *trans)
+{
+	if (static_branch_unlikely(&bch2_debug_check_btree_locking))
+		__bch2_trans_verify_locks(trans);
+}
 
 #endif /* _BCACHEFS_BTREE_LOCKING_H */

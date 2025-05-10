@@ -393,6 +393,8 @@ do {									\
 		"Disables rewriting of btree nodes during mark and sweep")\
 	BCH_DEBUG_PARAM(btree_shrinker_disabled,			\
 		"Disables the shrinker callback for the btree node cache")\
+	BCH_DEBUG_PARAM(verify_btree_locking,				\
+		"Enable additional asserts for btree locking")		\
 	BCH_DEBUG_PARAM(verify_btree_ondisk,				\
 		"Reread btree nodes at various points to verify the "	\
 		"mergesort in the read path against modifications "	\
