@@ -358,7 +358,9 @@ $(CROSS_BPFTOOL): $(wildcard $(BPFTOOLDIR)/*.[ch] $(BPFTOOLDIR)/Makefile)	\
 		    prefix= DESTDIR=$(SCRATCH_DIR)/ install-bin
 endif
 
+ifneq ($(SKIP_DOCS),1)
 all: docs
+endif
 
 docs:
 	$(Q)RST2MAN_OPTS="--exit-status=1" $(MAKE) $(submake_extras)	\
