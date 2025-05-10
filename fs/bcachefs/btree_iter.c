@@ -114,11 +114,9 @@ static inline bool btree_path_pos_in_node(struct btree_path *path,
 		!btree_path_pos_after_node(path, b);
 }
 
-/* Btree iterator: */
+/* Debug: */
 
-#ifdef CONFIG_BCACHEFS_DEBUG
-
-static void bch2_btree_path_verify_cached(struct btree_trans *trans,
+static void __bch2_btree_path_verify_cached(struct btree_trans *trans,
 					  struct btree_path *path)
 {
 	struct bkey_cached *ck;
@@ -135,7 +133,7 @@ static void bch2_btree_path_verify_cached(struct btree_trans *trans,
 		btree_node_unlock(trans, path, 0);
 }
 
-static void bch2_btree_path_verify_level(struct btree_trans *trans,
+static void __bch2_btree_path_verify_level(struct btree_trans *trans,
 				struct btree_path *path, unsigned level)
 {
 	struct btree_path_level *l;
@@ -147,16 +145,13 @@ static void bch2_btree_path_verify_level(struct btree_trans *trans,
 	struct printbuf buf3 = PRINTBUF;
 	const char *msg;
 
-	if (!static_branch_unlikely(&bch2_debug_check_iterators))
-		return;
-
 	l	= &path->l[level];
 	tmp	= l->iter;
 	locked	= btree_node_locked(path, level);
 
 	if (path->cached) {
 		if (!level)
-			bch2_btree_path_verify_cached(trans, path);
+			__bch2_btree_path_verify_cached(trans, path);
 		return;
 	}
 
@@ -217,7 +212,7 @@ err:
 	      msg, level, buf1.buf, buf2.buf, buf3.buf);
 }
 
-static void bch2_btree_path_verify(struct btree_trans *trans,
+static void __bch2_btree_path_verify(struct btree_trans *trans,
 				   struct btree_path *path)
 {
 	struct bch_fs *c = trans->c;
@@ -229,22 +224,22 @@ static void bch2_btree_path_verify(struct btree_trans *trans,
 			break;
 		}
 
-		bch2_btree_path_verify_level(trans, path, i);
+		__bch2_btree_path_verify_level(trans, path, i);
 	}
 
 	bch2_btree_path_verify_locks(path);
 }
 
-void bch2_trans_verify_paths(struct btree_trans *trans)
+void __bch2_trans_verify_paths(struct btree_trans *trans)
 {
 	struct btree_path *path;
 	unsigned iter;
 
 	trans_for_each_path(trans, path, iter)
-		bch2_btree_path_verify(trans, path);
+		__bch2_btree_path_verify(trans, path);
 }
 
-static void bch2_btree_iter_verify(struct btree_trans *trans, struct btree_iter *iter)
+static void __bch2_btree_iter_verify(struct btree_trans *trans, struct btree_iter *iter)
 {
 	BUG_ON(!!(iter->flags & BTREE_ITER_cached) != btree_iter_path(trans, iter)->cached);
 
@@ -256,11 +251,11 @@ static void bch2_btree_iter_verify(struct btree_trans *trans, struct btree_iter 
 	       !btree_type_has_snapshot_field(iter->btree_id));
 
 	if (iter->update_path)
-		bch2_btree_path_verify(trans, &trans->paths[iter->update_path]);
-	bch2_btree_path_verify(trans, btree_iter_path(trans, iter));
+		__bch2_btree_path_verify(trans, &trans->paths[iter->update_path]);
+	__bch2_btree_path_verify(trans, btree_iter_path(trans, iter));
 }
 
-static void bch2_btree_iter_verify_entry_exit(struct btree_iter *iter)
+static void __bch2_btree_iter_verify_entry_exit(struct btree_iter *iter)
 {
 	BUG_ON((iter->flags & BTREE_ITER_filter_snapshots) &&
 	       !iter->pos.snapshot);
@@ -274,15 +269,12 @@ static void bch2_btree_iter_verify_entry_exit(struct btree_iter *iter)
 		bkey_gt(iter->pos, iter->k.p)));
 }
 
-static int bch2_btree_iter_verify_ret(struct btree_trans *trans,
-				      struct btree_iter *iter, struct bkey_s_c k)
+static int __bch2_btree_iter_verify_ret(struct btree_trans *trans,
+					struct btree_iter *iter, struct bkey_s_c k)
 {
 	struct btree_iter copy;
 	struct bkey_s_c prev;
 	int ret = 0;
-
-	if (!static_branch_unlikely(&bch2_debug_check_iterators))
-		return 0;
 
 	if (!(iter->flags & BTREE_ITER_filter_snapshots))
 		return 0;
@@ -324,7 +316,7 @@ out:
 	return ret;
 }
 
-void bch2_assert_pos_locked(struct btree_trans *trans, enum btree_id id,
+void __bch2_assert_pos_locked(struct btree_trans *trans, enum btree_id id,
 			    struct bpos pos)
 {
 	bch2_trans_verify_not_unlocked_or_in_restart(trans);
@@ -357,19 +349,40 @@ void bch2_assert_pos_locked(struct btree_trans *trans, enum btree_id id,
 	panic("not locked: %s %s\n", bch2_btree_id_str(id), buf.buf);
 }
 
-#else
-
 static inline void bch2_btree_path_verify_level(struct btree_trans *trans,
-						struct btree_path *path, unsigned l) {}
-static inline void bch2_btree_path_verify(struct btree_trans *trans,
-					  struct btree_path *path) {}
-static inline void bch2_btree_iter_verify(struct btree_trans *trans,
-					  struct btree_iter *iter) {}
-static inline void bch2_btree_iter_verify_entry_exit(struct btree_iter *iter) {}
-static inline int bch2_btree_iter_verify_ret(struct btree_trans *trans, struct btree_iter *iter,
-					     struct bkey_s_c k) { return 0; }
+						struct btree_path *path, unsigned l)
+{
+	if (static_branch_unlikely(&bch2_debug_check_iterators))
+		__bch2_btree_path_verify_level(trans, path, l);
+}
 
-#endif
+static inline void bch2_btree_path_verify(struct btree_trans *trans,
+					  struct btree_path *path)
+{
+	if (static_branch_unlikely(&bch2_debug_check_iterators))
+		__bch2_btree_path_verify(trans, path);
+}
+
+static inline void bch2_btree_iter_verify(struct btree_trans *trans,
+					  struct btree_iter *iter)
+{
+	if (static_branch_unlikely(&bch2_debug_check_iterators))
+		__bch2_btree_iter_verify(trans, iter);
+}
+
+static inline void bch2_btree_iter_verify_entry_exit(struct btree_iter *iter)
+{
+	if (static_branch_unlikely(&bch2_debug_check_iterators))
+		__bch2_btree_iter_verify_entry_exit(iter);
+}
+
+static inline int bch2_btree_iter_verify_ret(struct btree_trans *trans, struct btree_iter *iter,
+					     struct bkey_s_c k)
+{
+	return static_branch_unlikely(&bch2_debug_check_iterators)
+		? __bch2_btree_iter_verify_ret(trans, iter, k)
+		: 0;
+}
 
 /* Btree path: fixups after btree updates */
 

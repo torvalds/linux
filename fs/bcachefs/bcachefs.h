@@ -393,8 +393,6 @@ do {									\
 		"Disables rewriting of btree nodes during mark and sweep")\
 	BCH_DEBUG_PARAM(btree_shrinker_disabled,			\
 		"Disables the shrinker callback for the btree node cache")\
-	BCH_DEBUG_PARAM(verify_btree_locking,				\
-		"Enable additional asserts for btree locking")		\
 	BCH_DEBUG_PARAM(verify_btree_ondisk,				\
 		"Reread btree nodes at various points to verify the "	\
 		"mergesort in the read path against modifications "	\
@@ -404,15 +402,17 @@ do {									\
 		"compare them")						\
 	BCH_DEBUG_PARAM(backpointers_no_use_write_buffer,		\
 		"Don't use the write buffer for backpointers, enabling "\
-		"extra runtime checks")
+		"extra runtime checks")					\
+	BCH_DEBUG_PARAM(debug_check_btree_locking,			\
+		"Enable additional asserts for btree locking")		\
+	BCH_DEBUG_PARAM(debug_check_iterators,				\
+		"Enables extra verification for btree iterators")
 
 /* Parameters that should only be compiled in debug mode: */
 #define BCH_DEBUG_PARAMS_DEBUG()					\
 	BCH_DEBUG_PARAM(expensive_debug_checks,				\
 		"Enables various runtime debugging checks that "	\
 		"significantly affect performance")			\
-	BCH_DEBUG_PARAM(debug_check_iterators,				\
-		"Enables extra verification for btree iterators")	\
 	BCH_DEBUG_PARAM(debug_check_btree_accounting,			\
 		"Verify btree accounting for keys within a node")	\
 	BCH_DEBUG_PARAM(journal_seq_verify,				\
