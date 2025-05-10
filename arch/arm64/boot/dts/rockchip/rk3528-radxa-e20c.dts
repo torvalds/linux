@@ -18,8 +18,10 @@
 
 	aliases {
 		ethernet0 = &gmac1;
+		i2c1 = &i2c1;
 		mmc0 = &sdhci;
 		mmc1 = &sdmmc;
+		serial0 = &uart0;
 	};
 
 	chosen {
