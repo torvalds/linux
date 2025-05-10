@@ -71,7 +71,7 @@ static int __init crc_t10dif_powerpc_init(void)
 		static_branch_enable(&have_vec_crypto);
 	return 0;
 }
-arch_initcall(crc_t10dif_powerpc_init);
+subsys_initcall(crc_t10dif_powerpc_init);
 
 static void __exit crc_t10dif_powerpc_exit(void)
 {

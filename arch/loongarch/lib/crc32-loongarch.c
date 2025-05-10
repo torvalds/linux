@@ -114,7 +114,7 @@ static int __init crc32_loongarch_init(void)
 		static_branch_enable(&have_crc32);
 	return 0;
 }
-arch_initcall(crc32_loongarch_init);
+subsys_initcall(crc32_loongarch_init);
 
 static void __exit crc32_loongarch_exit(void)
 {

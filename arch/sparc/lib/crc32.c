@@ -74,7 +74,7 @@ static int __init crc32_sparc_init(void)
 	pr_info("Using sparc64 crc32c opcode optimized CRC32C implementation\n");
 	return 0;
 }
-arch_initcall(crc32_sparc_init);
+subsys_initcall(crc32_sparc_init);
 
 static void __exit crc32_sparc_exit(void)
 {

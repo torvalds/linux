@@ -29,7 +29,7 @@ static int __init crc_t10dif_x86_init(void)
 	}
 	return 0;
 }
-arch_initcall(crc_t10dif_x86_init);
+subsys_initcall(crc_t10dif_x86_init);
 
 static void __exit crc_t10dif_x86_exit(void)
 {

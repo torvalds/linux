@@ -163,7 +163,7 @@ static int __init crc32_mips_init(void)
 		static_branch_enable(&have_crc32);
 	return 0;
 }
-arch_initcall(crc32_mips_init);
+subsys_initcall(crc32_mips_init);
 
 static void __exit crc32_mips_exit(void)
 {

@@ -61,7 +61,7 @@ static int __init crc_t10dif_arm64_init(void)
 	}
 	return 0;
 }
-arch_initcall(crc_t10dif_arm64_init);
+subsys_initcall(crc_t10dif_arm64_init);
 
 static void __exit crc_t10dif_arm64_exit(void)
 {

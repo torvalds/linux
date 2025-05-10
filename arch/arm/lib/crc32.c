@@ -103,7 +103,7 @@ static int __init crc32_arm_init(void)
 		static_branch_enable(&have_pmull);
 	return 0;
 }
-arch_initcall(crc32_arm_init);
+subsys_initcall(crc32_arm_init);
 
 static void __exit crc32_arm_exit(void)
 {

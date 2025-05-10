@@ -88,7 +88,7 @@ static int __init crc32_x86_init(void)
 	}
 	return 0;
 }
-arch_initcall(crc32_x86_init);
+subsys_initcall(crc32_x86_init);
 
 static void __exit crc32_x86_exit(void)
 {
