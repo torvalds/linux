@@ -866,13 +866,9 @@ static noinline int prepare_one_folio(struct inode *inode, struct folio **folio_
 
 again:
 	folio = __filemap_get_folio(inode->i_mapping, index, fgp_flags, mask);
-	if (IS_ERR(folio)) {
-		if (nowait)
-			ret = -EAGAIN;
-		else
-			ret = PTR_ERR(folio);
-		return ret;
-	}
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
+
 	ret = set_folio_extent_mapped(folio);
 	if (ret < 0) {
 		folio_unlock(folio);
