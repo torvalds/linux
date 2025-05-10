@@ -726,7 +726,7 @@ static void fourcc_pointer(struct kunit *kunittest)
 	static const struct fourcc_struct try_ch[] = {
 		{ 0x41424344, "ABCD (0x41424344)", },
 	};
-	static const struct fourcc_struct try_cn[] = {
+	static const struct fourcc_struct try_chR[] = {
 		{ 0x41424344, "DCBA (0x44434241)", },
 	};
 	static const struct fourcc_struct try_cl[] = {
@@ -738,7 +738,7 @@ static void fourcc_pointer(struct kunit *kunittest)
 
 	fourcc_pointer_test(kunittest, try_cc, ARRAY_SIZE(try_cc), "%p4cc");
 	fourcc_pointer_test(kunittest, try_ch, ARRAY_SIZE(try_ch), "%p4ch");
-	fourcc_pointer_test(kunittest, try_cn, ARRAY_SIZE(try_cn), "%p4cn");
+	fourcc_pointer_test(kunittest, try_chR, ARRAY_SIZE(try_chR), "%p4chR");
 	fourcc_pointer_test(kunittest, try_cl, ARRAY_SIZE(try_cl), "%p4cl");
 	fourcc_pointer_test(kunittest, try_cb, ARRAY_SIZE(try_cb), "%p4cb");
 }

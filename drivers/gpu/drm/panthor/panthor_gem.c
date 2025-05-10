@@ -42,11 +42,16 @@ static void panthor_gem_debugfs_bo_rm(struct panthor_gem_object *bo)
 	mutex_unlock(&ptdev->gems.lock);
 }
 
+static void panthor_gem_debugfs_set_usage_flags(struct panthor_gem_object *bo, u32 usage_flags)
+{
+	bo->debugfs.flags = usage_flags | PANTHOR_DEBUGFS_GEM_USAGE_FLAG_INITIALIZED;
+}
 #else
 static void panthor_gem_debugfs_bo_add(struct panthor_device *ptdev,
 				       struct panthor_gem_object *bo)
 {}
 static void panthor_gem_debugfs_bo_rm(struct panthor_gem_object *bo) {}
+static void panthor_gem_debugfs_set_usage_flags(struct panthor_gem_object *bo, u32 usage_flags) {}
 #endif
 
 static void panthor_gem_free_object(struct drm_gem_object *obj)
