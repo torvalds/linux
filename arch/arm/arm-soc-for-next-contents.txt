@@ -1,0 +1,79 @@
+soc/arm
+	arm/gpio-cleanup
+		https://git.kernel.org/pub/scm/linux/kernel/git/brgl/linux tags/arm-gpio-set-conversion-for-v6.16-rc1
+
+soc/dt
+	patch
+		ARM: dts: marvell: use correct ohci/ehci node names
+		ARM: dts: nxp: lpc: use correct ohci/ehci node names
+		ARM: dts: st: use correct ohci/ehci node names
+		ARM: dts: ti: omap: use correct ohci/ehci node names
+		ARM: dts: vt8500: use correct ohci/ehci node names
+	socfpga/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/dinguyen/linux tags/socfpga_dts_updates_for_v6.15
+	renesas/dt-bindings
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-dt-bindings-for-v6.16-tag1
+	renesas/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-dts-for-v6.16-tag1
+	renesas/dt-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-dts-for-v6.16-tag2
+	broadcom/dt
+		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.16/devicetree
+	broadcom/dt-64
+		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.16/devicetree-arm64
+	asahi/dt
+		https://github.com/AsahiLinux/linux tags/asahi-soc-dt-6.16
+	rockchip/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.16-rockchip-dts64-1
+	rockchip/dt32
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.16-rockchip-dts32-1
+	tegra/dt-bindings
+		https://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-6.16-dt-bindings
+	tegra/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-6.16-arm64-dt
+	tegra/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-6.16-arm-dt
+
+soc/drivers
+	renesas/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-drivers-for-v6.16-tag1
+	samsung/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-drivers-6.16
+	broadcom/drivers
+		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.16/drivers
+	mediatek/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/mediatek/linux tags/mtk-soc-for-v6.16
+	firmware/arm-scmi
+		https://git.kernel.org/pub/scm/linux/kernel/git/sudeep.holla/linux tags/scmi-updates-6.16
+	drivers/memory-renesas
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-mem-ctrl tags/memory-controller-drv-renesas-6.16
+	drivers/memory
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-mem-ctrl tags/memory-controller-drv-6.16
+	hisi/drivers
+		https://github.com/hisilicon/linux-hisi tags/hisi-drivers-for-6.16
+	drivers/tee-amd
+		https://git.kernel.org/pub/scm/linux/kernel/git/jenswi/linux-tee tags/amd-tee-for-v6.16
+	renesas/drivers-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-drivers-for-v6.16-tag2
+	drivers/tee
+		https://git.kernel.org/pub/scm/linux/kernel/git/jenswi/linux-tee tags/tee-for-v6.16
+
+soc/defconfig
+
+soc/late
+
+arm/fixes
+	<no branch> (4bf593be2e462623c4c34c7e3b604eb3f8f9de45)
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.15-rockchip-dtsfixes1
+	<no branch> (0f67578587bb9e5a8eecfcdf6b8a501b5bd90526)
+		https://git.kernel.org/pub/scm/linux/kernel/git/amlogic/linux tags/amlogic-fixes-for-v6.15
+	<no branch> (3e6244429ba38f8dee3336b8b805948276b281ab)
+		https://github.com/sophgo/linux tags/riscv-sophgo-dt-fixes-for-v6.15-rc1
+	<no branch> (dc5befecbe2683ac49fc8dc76aade35e62f4cf30)
+		https://github.com/AsahiLinux/linux tags/asahi-soc-fixes-6.15
+	patch
+		MAINTAINERS: delete email for Shiraz Hashim
+		arm64: dts: amazon: Fix simple-bus node name schema warnings
+	<no branch> (c6888983134e2ccc2db8ffd2720b0d4826d952e4)
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-fixes-6.15-2
+
