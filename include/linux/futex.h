@@ -88,7 +88,14 @@ void futex_hash_free(struct mm_struct *mm);
 
 static inline void futex_mm_init(struct mm_struct *mm)
 {
-	rcu_assign_pointer(mm->futex_phash, NULL);
+	/*
+	 * No need for rcu_assign_pointer() here, as we can rely on
+	 * tasklist_lock write-ordering in copy_process(), before
+	 * the task's MM becomes visible and the ->futex_phash
+	 * becomes externally observable:
+	 */
+	mm->futex_phash = NULL;
+
 	mutex_init(&mm->futex_hash_lock);
 }
 
