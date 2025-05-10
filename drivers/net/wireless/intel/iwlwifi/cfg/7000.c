@@ -121,11 +121,11 @@ const char iwl7260_n_name[] = "Intel(R) Wireless N 7260";
 const char iwl3160_2ac_name[] = "Intel(R) Dual Band Wireless AC 3160";
 const char iwl3160_2n_name[] = "Intel(R) Dual Band Wireless N 3160";
 const char iwl3160_n_name[] = "Intel(R) Wireless N 3160";
-const char iwl3165_2ac_name[] = "Intel(R) Dual Band Wireless AC 3165";
-const char iwl3168_2ac_name[] = "Intel(R) Dual Band Wireless AC 3168";
-const char iwl7265_2ac_name[] = "Intel(R) Dual Band Wireless AC 7265";
-const char iwl7265_2n_name[] = "Intel(R) Dual Band Wireless N 7265";
-const char iwl7265_n_name[] = "Intel(R) Wireless N 7265";
+const char iwl3165_2ac_name[] = "Intel(R) Dual Band Wireless-AC 3165";
+const char iwl3168_2ac_name[] = "Intel(R) Dual Band Wireless-AC 3168";
+const char iwl7265_2ac_name[] = "Intel(R) Dual Band Wireless-AC 7265";
+const char iwl7265_2n_name[] = "Intel(R) Dual Band Wireless-N 7265";
+const char iwl7265_n_name[] = "Intel(R) Wireless-N 7265";
 
 const struct iwl_rf_cfg iwl7260_cfg = {
 	.fw_name_pre = IWL7260_FW_PRE,

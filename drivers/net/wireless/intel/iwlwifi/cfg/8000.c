@@ -99,11 +99,11 @@ const struct iwl_mac_cfg iwl8000_mac_cfg = {
 	.ucode_api_max = IWL8265_UCODE_API_MAX,				\
 	.ucode_api_min = IWL8265_UCODE_API_MIN				\
 
-const char iwl8260_2n_name[] = "Intel(R) Dual Band Wireless N 8260";
-const char iwl8260_2ac_name[] = "Intel(R) Dual Band Wireless AC 8260";
-const char iwl8265_2ac_name[] = "Intel(R) Dual Band Wireless AC 8265";
-const char iwl8275_2ac_name[] = "Intel(R) Dual Band Wireless AC 8275";
-const char iwl4165_2ac_name[] = "Intel(R) Dual Band Wireless AC 4165";
+const char iwl8260_2n_name[] = "Intel(R) Dual Band Wireless-N 8260";
+const char iwl8260_2ac_name[] = "Intel(R) Dual Band Wireless-AC 8260";
+const char iwl8265_2ac_name[] = "Intel(R) Dual Band Wireless-AC 8265";
+const char iwl8275_2ac_name[] = "Intel(R) Dual Band Wireless-AC 8275";
+const char iwl4165_2ac_name[] = "Intel(R) Dual Band Wireless-AC 4165";
 
 const struct iwl_rf_cfg iwl8260_cfg = {
 	.fw_name_pre = IWL8000_FW_PRE,
