@@ -154,7 +154,7 @@ static struct open_bucket *bch2_open_bucket_alloc(struct bch_fs *c)
 
 static inline bool is_superblock_bucket(struct bch_fs *c, struct bch_dev *ca, u64 b)
 {
-	if (c->curr_recovery_pass > BCH_RECOVERY_PASS_trans_mark_dev_sbs)
+	if (c->recovery.curr_pass > BCH_RECOVERY_PASS_trans_mark_dev_sbs)
 		return false;
 
 	return bch2_is_superblock_bucket(ca, b);
@@ -524,7 +524,7 @@ again:
 
 	if (!avail) {
 		if (req->watermark > BCH_WATERMARK_normal &&
-		    c->curr_recovery_pass <= BCH_RECOVERY_PASS_check_allocations)
+		    c->recovery.curr_pass <= BCH_RECOVERY_PASS_check_allocations)
 			goto alloc;
 
 		if (cl && !waiting) {
@@ -554,7 +554,7 @@ alloc:
 		goto alloc;
 	}
 
-	if (!ob && freespace && c->curr_recovery_pass <= BCH_RECOVERY_PASS_check_alloc_info) {
+	if (!ob && freespace && c->recovery.curr_pass <= BCH_RECOVERY_PASS_check_alloc_info) {
 		freespace = false;
 		goto alloc;
 	}

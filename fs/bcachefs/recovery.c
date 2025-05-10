@@ -434,7 +434,7 @@ int bch2_journal_replay(struct bch_fs *c)
 	trans = NULL;
 
 	if (!c->opts.retain_recovery_info &&
-	    c->recovery_pass_done >= BCH_RECOVERY_PASS_journal_replay)
+	    c->recovery.pass_done >= BCH_RECOVERY_PASS_journal_replay)
 		bch2_journal_keys_put_initial(c);
 
 	replay_now_at(j, j->replay_journal_seq_end);
@@ -1001,7 +1001,7 @@ use_clean:
 		bch_info(c, "Fixed errors, running fsck a second time to verify fs is clean");
 		clear_bit(BCH_FS_errors_fixed, &c->flags);
 
-		c->curr_recovery_pass = BCH_RECOVERY_PASS_check_alloc_info;
+		c->recovery.curr_pass = BCH_RECOVERY_PASS_check_alloc_info;
 
 		ret = bch2_run_recovery_passes(c);
 		if (ret)
@@ -1047,7 +1047,7 @@ use_clean:
 
 	if (c->opts.fsck &&
 	    !test_bit(BCH_FS_error, &c->flags) &&
-	    c->recovery_pass_done == BCH_RECOVERY_PASS_NR - 1 &&
+	    c->recovery.pass_done == BCH_RECOVERY_PASS_NR - 1 &&
 	    ext->btrees_lost_data) {
 		ext->btrees_lost_data = 0;
 		write_sb = true;
@@ -1234,7 +1234,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	if (ret)
 		goto err;
 
-	c->recovery_pass_done = BCH_RECOVERY_PASS_NR - 1;
+	c->recovery.pass_done = BCH_RECOVERY_PASS_NR - 1;
 
 	bch2_copygc_wakeup(c);
 	bch2_rebalance_wakeup(c);
@@ -1257,7 +1257,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
-	c->curr_recovery_pass = BCH_RECOVERY_PASS_NR;
+	c->recovery.curr_pass = BCH_RECOVERY_PASS_NR;
 	return 0;
 err:
 	bch_err_fn(c, ret);

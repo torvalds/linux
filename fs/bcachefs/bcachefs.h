@@ -502,6 +502,7 @@ enum bch_time_stats {
 #include "keylist_types.h"
 #include "quota_types.h"
 #include "rebalance_types.h"
+#include "recovery_passes_types.h"
 #include "replicas_types.h"
 #include "sb-members_types.h"
 #include "subvolume_types.h"
@@ -1116,21 +1117,7 @@ struct bch_fs {
 	/* RECOVERY */
 	u64			journal_replay_seq_start;
 	u64			journal_replay_seq_end;
-	/*
-	 * Two different uses:
-	 * "Has this fsck pass?" - i.e. should this type of error be an
-	 * emergency read-only
-	 * And, in certain situations fsck will rewind to an earlier pass: used
-	 * for signaling to the toplevel code which pass we want to run now.
-	 */
-	enum bch_recovery_pass	curr_recovery_pass;
-	enum bch_recovery_pass	next_recovery_pass;
-	/* bitmask of recovery passes that we actually ran */
-	u64			recovery_passes_complete;
-	/* never rewinds version of curr_recovery_pass */
-	enum bch_recovery_pass	recovery_pass_done;
-	spinlock_t		recovery_pass_lock;
-	struct semaphore	run_recovery_passes_lock;
+	struct bch_fs_recovery	recovery;
 
 	/* DEBUG JUNK */
 	struct dentry		*fs_debug_dir;

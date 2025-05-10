@@ -616,7 +616,7 @@ static int bch2_rebalance_thread(void *arg)
 	 * Data move operations can't run until after check_snapshots has
 	 * completed, and bch2_snapshot_is_ancestor() is available.
 	 */
-	kthread_wait_freezable(c->recovery_pass_done > BCH_RECOVERY_PASS_check_snapshots ||
+	kthread_wait_freezable(c->recovery.pass_done > BCH_RECOVERY_PASS_check_snapshots ||
 			       kthread_should_stop());
 
 	bch2_moving_ctxt_init(&ctxt, c, NULL, &r->work_stats,

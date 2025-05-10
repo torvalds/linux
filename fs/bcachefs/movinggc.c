@@ -362,7 +362,7 @@ static int bch2_copygc_thread(void *arg)
 	 * Data move operations can't run until after check_snapshots has
 	 * completed, and bch2_snapshot_is_ancestor() is available.
 	 */
-	kthread_wait_freezable(c->recovery_pass_done > BCH_RECOVERY_PASS_check_snapshots ||
+	kthread_wait_freezable(c->recovery.pass_done > BCH_RECOVERY_PASS_check_snapshots ||
 			       kthread_should_stop());
 
 	bch2_move_stats_init(&move_stats, "copygc");

@@ -120,7 +120,7 @@ static noinline int backpointer_mod_err(struct btree_trans *trans,
 		bch2_bkey_val_to_text(&buf, c, orig_k);
 
 		bch_err(c, "%s", buf.buf);
-	} else if (c->curr_recovery_pass > BCH_RECOVERY_PASS_check_extents_to_backpointers) {
+	} else if (c->recovery.curr_pass > BCH_RECOVERY_PASS_check_extents_to_backpointers) {
 		prt_printf(&buf, "backpointer not found when deleting\n");
 		printbuf_indent_add(&buf, 2);
 
@@ -136,7 +136,7 @@ static noinline int backpointer_mod_err(struct btree_trans *trans,
 		bch2_bkey_val_to_text(&buf, c, orig_k);
 	}
 
-	if (c->curr_recovery_pass > BCH_RECOVERY_PASS_check_extents_to_backpointers &&
+	if (c->recovery.curr_pass > BCH_RECOVERY_PASS_check_extents_to_backpointers &&
 	    __bch2_inconsistent_error(c, &buf))
 		ret = -BCH_ERR_erofs_unfixed_errors;
 

@@ -3177,7 +3177,7 @@ static int bch2_fsck_online_thread_fn(struct thread_with_stdio *stdio)
 	c->opts.fsck = true;
 	set_bit(BCH_FS_in_fsck, &c->flags);
 
-	c->curr_recovery_pass = BCH_RECOVERY_PASS_check_alloc_info;
+	c->recovery.curr_pass = BCH_RECOVERY_PASS_check_alloc_info;
 	int ret = bch2_run_online_recovery_passes(c);
 
 	clear_bit(BCH_FS_in_fsck, &c->flags);
@@ -3187,7 +3187,7 @@ static int bch2_fsck_online_thread_fn(struct thread_with_stdio *stdio)
 	c->stdio_filter = NULL;
 	c->opts.fix_errors = old_fix_errors;
 
-	up(&c->run_recovery_passes_lock);
+	up(&c->recovery.run_lock);
 	bch2_ro_ref_put(c);
 	return ret;
 }
@@ -3211,7 +3211,7 @@ long bch2_ioctl_fsck_online(struct bch_fs *c, struct bch_ioctl_fsck_online arg)
 	if (!bch2_ro_ref_tryget(c))
 		return -EROFS;
 
-	if (down_trylock(&c->run_recovery_passes_lock)) {
+	if (down_trylock(&c->recovery.run_lock)) {
 		bch2_ro_ref_put(c);
 		return -EAGAIN;
 	}
@@ -3243,7 +3243,7 @@ err:
 		bch_err_fn(c, ret);
 		if (thr)
 			bch2_fsck_thread_exit(&thr->thr);
-		up(&c->run_recovery_passes_lock);
+		up(&c->recovery.run_lock);
 		bch2_ro_ref_put(c);
 	}
 	return ret;

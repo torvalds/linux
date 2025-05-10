@@ -309,7 +309,7 @@ int bch2_alloc_v4_validate(struct bch_fs *c, struct bkey_s_c k,
 				 "data type inconsistency");
 
 		bkey_fsck_err_on(!a.io_time[READ] &&
-				 c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_to_lru_refs,
+				 c->recovery.curr_pass > BCH_RECOVERY_PASS_check_alloc_to_lru_refs,
 				 c, alloc_key_cached_but_read_time_zero,
 				 "cached bucket with read_time == 0");
 		break;

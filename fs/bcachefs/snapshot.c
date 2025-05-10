@@ -143,7 +143,7 @@ bool __bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
 	rcu_read_lock();
 	struct snapshot_table *t = rcu_dereference(c->snapshots);
 
-	if (unlikely(c->recovery_pass_done < BCH_RECOVERY_PASS_check_snapshots)) {
+	if (unlikely(c->recovery.pass_done < BCH_RECOVERY_PASS_check_snapshots)) {
 		ret = __bch2_snapshot_is_ancestor_early(t, id, ancestor);
 		goto out;
 	}
@@ -348,7 +348,7 @@ static int __bch2_mark_snapshot(struct btree_trans *trans,
 
 		if (BCH_SNAPSHOT_WILL_DELETE(s.v)) {
 			set_bit(BCH_FS_need_delete_dead_snapshots, &c->flags);
-			if (c->curr_recovery_pass > BCH_RECOVERY_PASS_delete_dead_snapshots)
+			if (c->recovery.curr_pass > BCH_RECOVERY_PASS_delete_dead_snapshots)
 				bch2_delete_dead_snapshots_async(c);
 		}
 	} else {

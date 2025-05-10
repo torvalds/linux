@@ -556,7 +556,7 @@ static int __btree_err(int ret,
 		       struct printbuf *err_msg,
 		       const char *fmt, ...)
 {
-	if (c->curr_recovery_pass == BCH_RECOVERY_PASS_scan_for_btree_nodes)
+	if (c->recovery.curr_pass == BCH_RECOVERY_PASS_scan_for_btree_nodes)
 		return -BCH_ERR_fsck_fix;
 
 	bool have_retry = false;
@@ -1428,7 +1428,7 @@ start:
 	if ((failed.nr ||
 	     btree_node_need_rewrite(b)) &&
 	    !btree_node_read_error(b) &&
-	    c->curr_recovery_pass != BCH_RECOVERY_PASS_scan_for_btree_nodes) {
+	    c->recovery.curr_pass != BCH_RECOVERY_PASS_scan_for_btree_nodes) {
 		prt_printf(&buf, " (rewriting node)");
 		bch2_btree_node_rewrite_async(c, b);
 	}
@@ -1776,7 +1776,7 @@ void bch2_btree_node_read(struct btree_trans *trans, struct btree *b,
 		bch2_btree_lost_data(c, &buf, b->c.btree_id);
 
 		if (c->opts.recovery_passes & BIT_ULL(BCH_RECOVERY_PASS_check_topology) &&
-		    c->curr_recovery_pass > BCH_RECOVERY_PASS_check_topology &&
+		    c->recovery.curr_pass > BCH_RECOVERY_PASS_check_topology &&
 		    bch2_fs_emergency_read_only2(c, &buf))
 			ratelimit = false;
 
