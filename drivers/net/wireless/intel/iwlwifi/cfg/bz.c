@@ -31,10 +31,6 @@
 #define IWL_BZ_A_HR_B_MODULE_FIRMWARE(api) \
 	IWL_BZ_A_HR_B_FW_PRE "-" __stringify(api) ".ucode"
 
-#if !IS_ENABLED(CONFIG_IWLMVM)
-const char iwl_ax211_name[] = "Intel(R) Wi-Fi 6E AX211 160MHz";
-#endif
-
 static const struct iwl_family_base_params iwl_bz_base = {
 	.num_of_queues = 512,
 	.max_tfd_queue_size = 65536,

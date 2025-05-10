@@ -134,24 +134,7 @@ const struct iwl_mac_cfg iwl_ma_mac_cfg = {
 	.umac_prph_offset = 0x300000
 };
 
-const char iwl_ax211_name[] = "Intel(R) Wi-Fi 6E AX211 160MHz";
 const char iwl_ax231_name[] = "Intel(R) Wi-Fi 6E AX231 160MHz";
-const char iwl_ax411_name[] = "Intel(R) Wi-Fi 6E AX411 160MHz";
-
-const char iwl_ax210_killer_1675w_name[] =
-	"Killer(R) Wi-Fi 6E AX1675w 160MHz Wireless Network Adapter (210D2W)";
-const char iwl_ax210_killer_1675x_name[] =
-	"Killer(R) Wi-Fi 6E AX1675x 160MHz Wireless Network Adapter (210NGW)";
-const char iwl_ax211_killer_1675s_name[] =
-	"Killer(R) Wi-Fi 6E AX1675s 160MHz Wireless Network Adapter (211NGW)";
-const char iwl_ax211_killer_1675i_name[] =
-	"Killer(R) Wi-Fi 6E AX1675i 160MHz Wireless Network Adapter (211NGW)";
-const char iwl_ax411_killer_1690s_name[] =
-	"Killer(R) Wi-Fi 6E AX1690s 160MHz Wireless Network Adapter (411D2W)";
-const char iwl_ax411_killer_1690i_name[] =
-	"Killer(R) Wi-Fi 6E AX1690i 160MHz Wireless Network Adapter (411NGW)";
-
-const char iwl_ax210_name[] = "Intel(R) Wi-Fi 6 AX210 160MHz";
 
 MODULE_FIRMWARE(IWL_SO_A_JF_B_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_SO_A_HR_B_MODULE_FIRMWARE(IWL_AX210_UCODE_API_MAX));
