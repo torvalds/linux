@@ -444,6 +444,30 @@ int bch2_run_recovery_passes(struct bch_fs *c, enum bch_recovery_pass from)
 	return ret;
 }
 
+static void prt_passes(struct printbuf *out, const char *msg, u64 passes)
+{
+	prt_printf(out, "%s:\t", msg);
+	prt_bitflags(out, bch2_recovery_passes, passes);
+	prt_newline(out);
+}
+
+void bch2_recovery_pass_status_to_text(struct printbuf *out, struct bch_fs *c)
+{
+	struct bch_fs_recovery *r = &c->recovery;
+
+	printbuf_tabstop_push(out, 32);
+	prt_passes(out, "Scheduled passes", c->sb.recovery_passes_required);
+	prt_passes(out, "Scheduled online passes", c->sb.recovery_passes_required &
+		   bch2_recovery_passes_match(PASS_ONLINE));
+	prt_passes(out, "Complete passes", r->passes_complete);
+	prt_passes(out, "Failing passes", r->passes_failing);
+
+	if (r->curr_pass) {
+		prt_printf(out, "Current pass:\t%s\n", bch2_recovery_passes[r->curr_pass]);
+		prt_passes(out, "Current passes", r->passes_to_run);
+	}
+}
+
 void bch2_fs_recovery_passes_init(struct bch_fs *c)
 {
 	spin_lock_init(&c->recovery.lock);

@@ -20,6 +20,8 @@ int bch2_run_explicit_recovery_pass_persistent(struct bch_fs *, struct printbuf 
 int bch2_run_online_recovery_passes(struct bch_fs *, u64);
 int bch2_run_recovery_passes(struct bch_fs *, enum bch_recovery_pass);
 
+void bch2_recovery_pass_status_to_text(struct printbuf *, struct bch_fs *);
+
 void bch2_fs_recovery_passes_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_RECOVERY_PASSES_H */
