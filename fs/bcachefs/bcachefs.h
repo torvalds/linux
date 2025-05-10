@@ -406,15 +406,16 @@ do {									\
 	BCH_DEBUG_PARAM(debug_check_btree_locking,			\
 		"Enable additional asserts for btree locking")		\
 	BCH_DEBUG_PARAM(debug_check_iterators,				\
-		"Enables extra verification for btree iterators")
+		"Enables extra verification for btree iterators")	\
+	BCH_DEBUG_PARAM(debug_check_bset_lookups,			\
+		"Enables extra verification for bset lookups")		\
+	BCH_DEBUG_PARAM(debug_check_btree_accounting,			\
+		"Verify btree accounting for keys within a node")	\
+	BCH_DEBUG_PARAM(debug_check_bkey_unpack,			\
+		"Enables extra verification for bkey unpack")
 
 /* Parameters that should only be compiled in debug mode: */
 #define BCH_DEBUG_PARAMS_DEBUG()					\
-	BCH_DEBUG_PARAM(expensive_debug_checks,				\
-		"Enables various runtime debugging checks that "	\
-		"significantly affect performance")			\
-	BCH_DEBUG_PARAM(debug_check_btree_accounting,			\
-		"Verify btree accounting for keys within a node")	\
 	BCH_DEBUG_PARAM(journal_seq_verify,				\
 		"Store the journal sequence number in the version "	\
 		"number of every btree key, and verify that btree "	\
