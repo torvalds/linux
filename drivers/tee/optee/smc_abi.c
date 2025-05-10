@@ -1551,8 +1551,7 @@ fw_load:
 		  data_pa_high, data_pa_low, 0, 0, 0, &res);
 	if (!rc)
 		rc = res.a0;
-	if (fw)
-		release_firmware(fw);
+	release_firmware(fw);
 	kfree(data_buf);
 
 	if (!rc) {
