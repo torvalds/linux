@@ -182,7 +182,7 @@ err:
 
 static int bch2_backpointer_del(struct btree_trans *trans, struct bpos pos)
 {
-	return (likely(!bch2_backpointers_no_use_write_buffer)
+	return (!static_branch_unlikely(&bch2_backpointers_no_use_write_buffer)
 		? bch2_btree_delete_at_buffered(trans, BTREE_ID_backpointers, pos)
 		: bch2_btree_delete(trans, BTREE_ID_backpointers, pos, 0)) ?:
 		 bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
@@ -192,7 +192,7 @@ static inline int bch2_backpointers_maybe_flush(struct btree_trans *trans,
 					 struct bkey_s_c visiting_k,
 					 struct bkey_buf *last_flushed)
 {
-	return likely(!bch2_backpointers_no_use_write_buffer)
+	return !static_branch_unlikely(&bch2_backpointers_no_use_write_buffer)
 		? bch2_btree_write_buffer_maybe_flush(trans, visiting_k, last_flushed)
 		: 0;
 }

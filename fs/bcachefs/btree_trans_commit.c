@@ -647,10 +647,10 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 
 	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) &&
 	    !(flags & BCH_TRANS_COMMIT_no_journal_res)) {
-		if (bch2_journal_seq_verify)
+		if (static_branch_unlikely(&bch2_journal_seq_verify))
 			trans_for_each_update(trans, i)
 				i->k->k.bversion.lo = trans->journal_res.seq;
-		else if (bch2_inject_invalid_keys)
+		else if (static_branch_unlikely(&bch2_inject_invalid_keys))
 			trans_for_each_update(trans, i)
 				i->k->k.bversion = MAX_VERSION;
 	}

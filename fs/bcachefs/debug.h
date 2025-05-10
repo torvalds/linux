@@ -14,7 +14,7 @@ void bch2_btree_node_ondisk_to_text(struct printbuf *, struct bch_fs *,
 
 static inline void bch2_btree_verify(struct bch_fs *c, struct btree *b)
 {
-	if (bch2_verify_btree_ondisk)
+	if (static_branch_unlikely(&bch2_verify_btree_ondisk))
 		__bch2_btree_verify(c, b);
 }
 

@@ -1296,7 +1296,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 		ret = btree_node_bkey_val_validate(c, b, u.s_c, READ);
 		if (ret == -BCH_ERR_fsck_delete_bkey ||
-		    (bch2_inject_invalid_keys &&
+		    (static_branch_unlikely(&bch2_inject_invalid_keys) &&
 		     !bversion_cmp(u.k->bversion, MAX_VERSION))) {
 			btree_keys_account_key_drop(&b->nr, 0, k);
 
@@ -1758,7 +1758,7 @@ void bch2_btree_node_read(struct btree_trans *trans, struct btree *b,
 
 	trace_and_count(c, btree_node_read, trans, b);
 
-	if (bch2_verify_all_btree_replicas &&
+	if (static_branch_unlikely(&bch2_verify_all_btree_replicas) &&
 	    !btree_node_read_all_replicas(c, b, sync))
 		return;
 

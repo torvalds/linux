@@ -147,7 +147,7 @@ static void bch2_btree_path_verify_level(struct btree_trans *trans,
 	struct printbuf buf3 = PRINTBUF;
 	const char *msg;
 
-	if (!bch2_debug_check_iterators)
+	if (!static_branch_unlikely(&bch2_debug_check_iterators))
 		return;
 
 	l	= &path->l[level];
@@ -281,7 +281,7 @@ static int bch2_btree_iter_verify_ret(struct btree_trans *trans,
 	struct bkey_s_c prev;
 	int ret = 0;
 
-	if (!bch2_debug_check_iterators)
+	if (!static_branch_unlikely(&bch2_debug_check_iterators))
 		return 0;
 
 	if (!(iter->flags & BTREE_ITER_filter_snapshots))
@@ -523,7 +523,7 @@ void bch2_btree_node_iter_fix(struct btree_trans *trans,
 		__bch2_btree_node_iter_fix(path, b, node_iter, t,
 					   where, clobber_u64s, new_u64s);
 
-		if (bch2_debug_check_iterators)
+		if (static_branch_unlikely(&bch2_debug_check_iterators))
 			bch2_btree_node_iter_verify(node_iter, b);
 	}
 
@@ -2929,7 +2929,7 @@ static void btree_trans_verify_sorted(struct btree_trans *trans)
 	struct btree_path *path, *prev = NULL;
 	struct trans_for_each_path_inorder_iter iter;
 
-	if (!bch2_debug_check_iterators)
+	if (!static_branch_unlikely(&bch2_debug_check_iterators))
 		return;
 
 	trans_for_each_path_inorder(trans, path, iter) {

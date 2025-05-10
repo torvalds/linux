@@ -619,7 +619,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 	deleted.p = k.k->p;
 
 	if (initial) {
-		BUG_ON(bch2_journal_seq_verify &&
+		BUG_ON(static_branch_unlikely(&bch2_journal_seq_verify) &&
 		       k.k->bversion.lo > atomic64_read(&c->journal.seq));
 
 		if (fsck_err_on(btree_id != BTREE_ID_accounting &&

@@ -102,7 +102,7 @@ static inline int bch2_bucket_backpointer_mod(struct btree_trans *trans,
 				struct bkey_i_backpointer *bp,
 				bool insert)
 {
-	if (unlikely(bch2_backpointers_no_use_write_buffer))
+	if (static_branch_unlikely(&bch2_backpointers_no_use_write_buffer))
 		return bch2_bucket_backpointer_mod_nowritebuffer(trans, orig_k, bp, insert);
 
 	if (!insert) {

@@ -164,7 +164,7 @@ static inline bool ptr_better(struct bch_fs *c,
 	if (unlikely(failed_delta))
 		return failed_delta < 0;
 
-	if (unlikely(bch2_force_reconstruct_read))
+	if (static_branch_unlikely(&bch2_force_reconstruct_read))
 		return p1.do_ec_reconstruct > p2.do_ec_reconstruct;
 
 	if (unlikely(p1.do_ec_reconstruct || p2.do_ec_reconstruct))
@@ -259,7 +259,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 			p.do_ec_reconstruct = true;
 		}
 
-		if (bch2_force_reconstruct_read && p.has_ec)
+		if (static_branch_unlikely(&bch2_force_reconstruct_read) && p.has_ec)
 			p.do_ec_reconstruct = true;
 
 		u64 p_latency = dev_latency(ca);

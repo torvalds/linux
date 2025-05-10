@@ -377,7 +377,7 @@ static int __btree_node_reclaim_checks(struct bch_fs *c, struct btree *b,
 			 * - unless btree verify mode is enabled, since it runs out of
 			 * the post write cleanup:
 			 */
-			if (bch2_verify_btree_ondisk)
+			if (static_branch_unlikely(&bch2_verify_btree_ondisk))
 				bch2_btree_node_write(c, b, SIX_LOCK_intent,
 						      BTREE_WRITE_cache_reclaim);
 			else
@@ -473,7 +473,7 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 	unsigned long ret = SHRINK_STOP;
 	bool trigger_writes = atomic_long_read(&bc->nr_dirty) + nr >= list->nr * 3 / 4;
 
-	if (bch2_btree_shrinker_disabled)
+	if (static_branch_unlikely(&bch2_btree_shrinker_disabled))
 		return SHRINK_STOP;
 
 	mutex_lock(&bc->lock);
@@ -569,7 +569,7 @@ static unsigned long bch2_btree_cache_count(struct shrinker *shrink,
 {
 	struct btree_cache_list *list = shrink->private_data;
 
-	if (bch2_btree_shrinker_disabled)
+	if (static_branch_unlikely(&bch2_btree_shrinker_disabled))
 		return 0;
 
 	return btree_cache_can_free(list);

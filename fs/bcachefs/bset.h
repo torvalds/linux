@@ -537,7 +537,7 @@ static inline void bch2_verify_insert_pos(struct btree *b,
 
 static inline void bch2_verify_btree_nr_keys(struct btree *b)
 {
-	if (bch2_debug_check_btree_accounting)
+	if (static_branch_unlikely(&bch2_debug_check_btree_accounting))
 		__bch2_verify_btree_nr_keys(b);
 }
 

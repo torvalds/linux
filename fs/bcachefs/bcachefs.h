@@ -439,15 +439,9 @@ do {									\
 #define BCH_DEBUG_PARAMS() BCH_DEBUG_PARAMS_ALWAYS()
 #endif
 
-#define BCH_DEBUG_PARAM(name, description) extern bool bch2_##name;
-BCH_DEBUG_PARAMS()
+#define BCH_DEBUG_PARAM(name, description) extern struct static_key_false bch2_##name;
+BCH_DEBUG_PARAMS_ALL()
 #undef BCH_DEBUG_PARAM
-
-#ifndef CONFIG_BCACHEFS_DEBUG
-#define BCH_DEBUG_PARAM(name, description) static const __maybe_unused bool bch2_##name;
-BCH_DEBUG_PARAMS_DEBUG()
-#undef BCH_DEBUG_PARAM
-#endif
 
 #define BCH_TIME_STATS()			\
 	x(btree_node_mem_alloc)			\
