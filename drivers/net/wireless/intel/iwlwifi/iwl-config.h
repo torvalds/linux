@@ -598,6 +598,8 @@ extern const char iwl8260_2ac_name[];
 extern const char iwl8265_2ac_name[];
 extern const char iwl8275_2ac_name[];
 extern const char iwl4165_2ac_name[];
+extern const char iwl_killer_1435i_name[];
+extern const char iwl_killer_1434_kix_name[];
 extern const char iwl9162_name[];
 extern const char iwl9260_name[];
 extern const char iwl9260_1_name[];

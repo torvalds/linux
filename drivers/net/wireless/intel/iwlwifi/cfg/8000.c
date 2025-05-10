@@ -105,6 +105,11 @@ const char iwl8265_2ac_name[] = "Intel(R) Dual Band Wireless-AC 8265";
 const char iwl8275_2ac_name[] = "Intel(R) Dual Band Wireless-AC 8275";
 const char iwl4165_2ac_name[] = "Intel(R) Dual Band Wireless-AC 4165";
 
+const char iwl_killer_1435i_name[] =
+	"Killer(R) Wireless-AC 1435i Wireless Network Adapter (8265D2W)";
+const char iwl_killer_1434_kix_name[] =
+	"Killer(R) Wireless-AC 1435-KIX Wireless Network Adapter (8265NGW)";
+
 const struct iwl_rf_cfg iwl8260_cfg = {
 	.fw_name_pre = IWL8000_FW_PRE,
 	IWL_DEVICE_8260,
