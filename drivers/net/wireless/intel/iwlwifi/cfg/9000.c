@@ -100,26 +100,5 @@ const struct iwl_mac_cfg iwl9560_shared_clk_mac_cfg = {
 	.extra_phy_cfg_flags = FW_PHY_CFG_SHARED_CLK
 };
 
-const char iwl9162_name[] = "Intel(R) Wireless-AC 9162";
-const char iwl9260_name[] = "Intel(R) Wireless-AC 9260";
-const char iwl9260_1_name[] = "Intel(R) Wireless-AC 9260-1";
-const char iwl9270_name[] = "Intel(R) Wireless-AC 9270";
-const char iwl9461_name[] = "Intel(R) Wireless-AC 9461";
-const char iwl9462_name[] = "Intel(R) Wireless-AC 9462";
-const char iwl9560_name[] = "Intel(R) Wireless-AC 9560";
-const char iwl9162_160_name[] = "Intel(R) Wireless-AC 9162 160MHz";
-const char iwl9260_160_name[] = "Intel(R) Wireless-AC 9260 160MHz";
-const char iwl9270_160_name[] = "Intel(R) Wireless-AC 9270 160MHz";
-const char iwl9461_160_name[] = "Intel(R) Wireless-AC 9461 160MHz";
-const char iwl9462_160_name[] = "Intel(R) Wireless-AC 9462 160MHz";
-const char iwl9560_160_name[] = "Intel(R) Wireless-AC 9560 160MHz";
-
-const char iwl9260_killer_1550_name[] =
-	"Killer(R) Wireless-AC 1550 Wireless Network Adapter (9260NGW) 160MHz";
-const char iwl9560_killer_1550i_name[] =
-	"Killer(R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) 160MHz";
-const char iwl9560_killer_1550s_name[] =
-	"Killer(R) Wireless-AC 1550s Wireless Network Adapter (9560D2W) 160MHz";
-
 MODULE_FIRMWARE(IWL9000_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL9260_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
