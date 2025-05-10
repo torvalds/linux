@@ -10,6 +10,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/sdio_func.h>
 #include "main.h"
+#include "mac.h"
 #include "debug.h"
 #include "fw.h"
 #include "ps.h"
@@ -1164,6 +1165,7 @@ static const struct rtw_hci_ops rtw_sdio_ops = {
 	.link_ps = rtw_sdio_link_ps,
 	.interface_cfg = rtw_sdio_interface_cfg,
 	.dynamic_rx_agg = NULL,
+	.write_firmware_page = rtw_write_firmware_page,
 
 	.read8 = rtw_sdio_read8,
 	.read16 = rtw_sdio_read16,
