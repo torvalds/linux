@@ -115,14 +115,10 @@ const char iwl9462_160_name[] = "Intel(R) Wireless-AC 9462 160MHz";
 const char iwl9560_160_name[] = "Intel(R) Wireless-AC 9560 160MHz";
 
 const char iwl9260_killer_1550_name[] =
-	"Killer (R) Wireless-AC 1550 Wireless Network Adapter (9260NGW) 160MHz";
+	"Killer(R) Wireless-AC 1550 Wireless Network Adapter (9260NGW) 160MHz";
 const char iwl9560_killer_1550i_name[] =
-	"Killer (R) Wireless-AC 1550i Wireless Network Adapter (9560NGW)";
-const char iwl9560_killer_1550i_160_name[] =
 	"Killer(R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) 160MHz";
 const char iwl9560_killer_1550s_name[] =
-	"Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW)";
-const char iwl9560_killer_1550s_160_name[] =
 	"Killer(R) Wireless-AC 1550s Wireless Network Adapter (9560D2W) 160MHz";
 
 MODULE_FIRMWARE(IWL9000_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));

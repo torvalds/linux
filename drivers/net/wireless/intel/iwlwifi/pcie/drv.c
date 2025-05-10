@@ -943,33 +943,12 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     DEVICE(0x24FD), SUBDEV(0x1012)),
 	IWL_DEV_INFO(iwl8265_cfg, iwl8275_2ac_name,
 		     DEVICE(0x24FD), SUBDEV(0x0012)),
-/* 9000 */
-	IWL_DEV_INFO(iwl_rf_jf, iwl9260_killer_1550_name,
-		     DEVICE(0x2526), SUBDEV(0x1550)),
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550s_name,
-		     DEVICE(0x2526), SUBDEV(0x1551)),
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550i_name,
-		     DEVICE(0x2526), SUBDEV(0x1552)),
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550s_name,
-		     DEVICE(0x30DC), SUBDEV(0x1551)),
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550i_name,
-		     DEVICE(0x30DC), SUBDEV(0x1552)),
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550s_name,
-		     DEVICE(0x31DC), SUBDEV(0x1551)),
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550i_name,
-		     DEVICE(0x31DC), SUBDEV(0x1552)),
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550s_name,
-		     DEVICE(0xA370), SUBDEV(0x1551)),
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550i_name,
-		     DEVICE(0xA370), SUBDEV(0x1552)),
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550s_160_name,
-		     DEVICE(0x54F0), SUBDEV(0x1551)),
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550i_name,
-		     DEVICE(0x54F0), SUBDEV(0x1552)),
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550s_160_name,
-		     DEVICE(0x51F0), SUBDEV(0x1552)),
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550i_160_name,
-		     DEVICE(0x51F0), SUBDEV(0x1551)),
+
+/* Killer CRFs */
+	IWL_DEV_INFO(iwl_rf_jf, iwl9260_killer_1550_name, SUBDEV(0x1550)),
+	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550s_name, SUBDEV(0x1551)),
+	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550i_name, SUBDEV(0x1552)),
+
 	IWL_DEV_INFO(iwl_rf_gf, iwl_ax411_killer_1690s_name,
 		     DEVICE(0x51F0), SUBDEV(0x1691)),
 	IWL_DEV_INFO(iwl_rf_gf, iwl_ax411_killer_1690i_name,
@@ -1192,16 +1171,6 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_name,
 		     DEVICE(0x7AF0), SUBDEV(0x0A10)),
 
-	/* So with JF */
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550s_160_name,
-		     DEVICE(0x7A70), SUBDEV(0x1551)),
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550i_160_name,
-		     DEVICE(0x7A70), SUBDEV(0x1552)),
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550s_160_name,
-		     DEVICE(0x7AF0), SUBDEV(0x1551)),
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550i_160_name,
-		     DEVICE(0x7AF0), SUBDEV(0x1552)),
-
 	/* SO with GF2 */
 	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_killer_1675s_name,
 		     DEVICE(0x51F0), SUBDEV(0x1671)),
@@ -1301,11 +1270,6 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     RF_TYPE(JF2), RF_ID(JF),
 		     BW_LIMITED, CORES(BT), NO_CDB),
 
-	IWL_DEV_INFO(iwl_rf_jf_80mhz, iwl9560_killer_1550s_name,
-		     SUBDEV(0x1551), MAC_TYPE(QU), MAC_STEP(B), RF_TYPE(JF2)),
-	IWL_DEV_INFO(iwl_rf_jf_80mhz, iwl9560_killer_1550i_name,
-		     SUBDEV(0x1552), MAC_TYPE(QU), MAC_STEP(B), RF_TYPE(JF2)),
-
 	/* Qu C step */
 	IWL_DEV_INFO(iwl_rf_jf, iwl9461_160_name,
 		     MAC_TYPE(QU), MAC_STEP(C),
@@ -1330,11 +1294,6 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     MAC_STEP(C), RF_TYPE(JF2), RF_ID(JF), BW_LIMITED, CORES(BT),
 		     NO_CDB),
 
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550s_name,
-		     SUBDEV(0x1551), MAC_TYPE(QU), MAC_STEP(C), RF_TYPE(JF2)),
-	IWL_DEV_INFO(iwl_rf_jf_80mhz, iwl9560_killer_1550i_name,
-		     SUBDEV(0x1552), MAC_TYPE(QU), MAC_STEP(C), RF_TYPE(JF2)),
-
 	/* QuZ */
 	IWL_DEV_INFO(iwl_rf_jf, iwl9461_160_name, MAC_TYPE(QUZ),
 		     RF_TYPE(JF1), RF_ID(JF1), BW_NOT_LIMITED, CORES(BT), NO_CDB),
@@ -1349,11 +1308,6 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     RF_TYPE(JF2), RF_ID(JF), BW_NOT_LIMITED, CORES(BT), NO_CDB),
 	IWL_DEV_INFO(iwl_rf_jf_80mhz, iwl9560_name, MAC_TYPE(QUZ),
 		     RF_TYPE(JF2), RF_ID(JF), BW_LIMITED, CORES(BT), NO_CDB),
-
-	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550s_name,
-		     SUBDEV(0x1551), MAC_TYPE(QUZ), RF_TYPE(JF2)),
-	IWL_DEV_INFO(iwl_rf_jf_80mhz, iwl9560_killer_1550i_name,
-		     SUBDEV(0x1552), MAC_TYPE(QUZ), RF_TYPE(JF2)),
 
 /* Qu with Hr */
 	/* Qu B step */
