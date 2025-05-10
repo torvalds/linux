@@ -647,7 +647,11 @@ extern const char iwl_be213_name[];
 extern const char iwl_killer_be1775s_name[];
 extern const char iwl_killer_be1775i_name[];
 extern const char iwl_be211_name[];
-extern const char iwl_pe_name[];
+extern const char iwl_killer_bn1850w2_name[];
+extern const char iwl_killer_bn1850i_name[];
+extern const char iwl_bn201_name[];
+extern const char iwl_be221_name[];
+extern const char iwl_be223_name[];
 extern const char iwl_dr_name[];
 extern const char iwl_br_name[];
 #if IS_ENABLED(CONFIG_IWLDVM)
