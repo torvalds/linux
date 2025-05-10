@@ -31,3 +31,12 @@ const struct iwl_rf_cfg iwl_rf_fm_160mhz = {
 	IWL_DEVICE_FM,
 	.bw_limit = 160,
 };
+
+const char iwl_killer_be1750s_name[] =
+	"Killer(R) Wi-Fi 7 BE1750s 320MHz Wireless Network Adapter (BE201D2W)";
+const char iwl_killer_be1750i_name[] =
+	"Killer(R) Wi-Fi 7 BE1750i 320MHz Wireless Network Adapter (BE201NGW)";
+const char iwl_killer_be1750w_name[] =
+	"Killer(TM) Wi-Fi 7 BE1750w 320MHz Wireless Network Adapter (BE200D2W)";
+const char iwl_killer_be1750x_name[] =
+	"Killer(TM) Wi-Fi 7 BE1750x 320MHz Wireless Network Adapter (BE200NGW)";

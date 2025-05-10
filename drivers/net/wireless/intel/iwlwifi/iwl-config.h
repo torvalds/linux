@@ -642,6 +642,10 @@ extern const char iwl_gl_name[];
 extern const char iwl_mtp_name[];
 extern const char iwl_dr_name[];
 extern const char iwl_br_name[];
+extern const char iwl_killer_be1750s_name[];
+extern const char iwl_killer_be1750i_name[];
+extern const char iwl_killer_be1750w_name[];
+extern const char iwl_killer_be1750x_name[];
 #if IS_ENABLED(CONFIG_IWLDVM)
 extern const struct iwl_rf_cfg iwl5300_agn_cfg;
 extern const struct iwl_rf_cfg iwl5350_agn_cfg;

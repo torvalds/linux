@@ -944,44 +944,36 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 	IWL_DEV_INFO(iwl8265_cfg, iwl8275_2ac_name,
 		     DEVICE(0x24FD), SUBDEV(0x0012)),
 
+/* HR RF */
+	/* FIXME - should have some RF match */
+	IWL_DEV_INFO(iwl_rf_hr, iwl_ax200_name, DEVICE(0x2723)),
+
 /* Killer CRFs */
 	IWL_DEV_INFO(iwl_rf_jf, iwl9260_killer_1550_name, SUBDEV(0x1550)),
 	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550s_name, SUBDEV(0x1551)),
 	IWL_DEV_INFO(iwl_rf_jf, iwl9560_killer_1550i_name, SUBDEV(0x1552)),
 
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax411_killer_1690s_name,
-		     DEVICE(0x51F0), SUBDEV(0x1691)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax411_killer_1690i_name,
-		     DEVICE(0x51F0), SUBDEV(0x1692)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax411_killer_1690i_name,
-		     DEVICE(0x51F1), SUBDEV(0x1692)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax411_killer_1690s_name,
-		     DEVICE(0x54F0), SUBDEV(0x1691)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax411_killer_1690i_name,
-		     DEVICE(0x54F0), SUBDEV(0x1692)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax411_killer_1690s_name,
-		     DEVICE(0x7A70), SUBDEV(0x1691)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax411_killer_1690i_name,
-		     DEVICE(0x7A70), SUBDEV(0x1692)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax411_killer_1690s_name,
-		     DEVICE(0x7AF0), SUBDEV(0x1691)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax411_killer_1690i_name,
-		     DEVICE(0x7AF0), SUBDEV(0x1692)),
+	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_killer_1650s_name, SUBDEV(0x1651)),
+	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_killer_1650i_name, SUBDEV(0x1652)),
 
-	IWL_DEV_INFO(iwl_rf_jf, iwl9260_1_name,
-		     DEVICE(0x271C), SUBDEV(0x0214)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax411_killer_1690s_name,
-		     DEVICE(0x7E40), SUBDEV(0x1691)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax411_killer_1690i_name,
-		     DEVICE(0x7E40), SUBDEV(0x1692)),
+	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_killer_1675s_name, SUBDEV(0x1671)),
+	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_killer_1675i_name, SUBDEV(0x1672)),
+	IWL_DEV_INFO(iwl_rf_gf, iwl_ax210_killer_1675w_name, SUBDEV(0x1673)),
+	IWL_DEV_INFO(iwl_rf_gf, iwl_ax210_killer_1675x_name, SUBDEV(0x1674)),
+	IWL_DEV_INFO(iwl_rf_gf, iwl_ax411_killer_1690s_name, SUBDEV(0x1691)),
+	IWL_DEV_INFO(iwl_rf_gf, iwl_ax411_killer_1690i_name, SUBDEV(0x1692)),
 
-/* AX200 */
-	IWL_DEV_INFO(iwl_rf_hr, iwl_ax200_name,
-		     DEVICE(0x2723)),
+/* Killer discrete */
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax200_killer_1650w_name,
 		     DEVICE(0x2723), SUBDEV(0x1653)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax200_killer_1650x_name,
 		     DEVICE(0x2723), SUBDEV(0x1654)),
+
+/* JF RF */
+	IWL_DEV_INFO(iwl_rf_jf, iwl9260_1_name,
+		     DEVICE(0x271C), SUBDEV(0x0214)),
+
+/* AX200 */
 
 	/* Qu with Hr */
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
@@ -992,10 +984,6 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     DEVICE(0x43F0), SUBDEV(0x0078)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
 		     DEVICE(0x43F0), SUBDEV(0x007C)),
-	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_killer_1650s_name,
-		     DEVICE(0x43F0), SUBDEV(0x1651)),
-	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_killer_1650i_name,
-		     DEVICE(0x43F0), SUBDEV(0x1652)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
 		     DEVICE(0x43F0), SUBDEV(0x2074)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
@@ -1010,10 +998,6 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     DEVICE(0xA0F0), SUBDEV(0x007C)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
 		     DEVICE(0xA0F0), SUBDEV(0x0A10)),
-	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_killer_1650s_name,
-		     DEVICE(0xA0F0), SUBDEV(0x1651)),
-	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_killer_1650i_name,
-		     DEVICE(0xA0F0), SUBDEV(0x1652)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
 		     DEVICE(0xA0F0), SUBDEV(0x2074)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
@@ -1032,10 +1016,6 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     DEVICE(0x02F0), SUBDEV(0x007C)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
 		     DEVICE(0x02F0), SUBDEV(0x0310)),
-	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_killer_1650s_name,
-		     DEVICE(0x02F0), SUBDEV(0x1651)),
-	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_killer_1650i_name,
-		     DEVICE(0x02F0), SUBDEV(0x1652)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
 		     DEVICE(0x02F0), SUBDEV(0x2074)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
@@ -1050,10 +1030,6 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     DEVICE(0x06F0), SUBDEV(0x007C)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
 		     DEVICE(0x06F0), SUBDEV(0x0310)),
-	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_killer_1650s_name,
-		     DEVICE(0x06F0), SUBDEV(0x1651)),
-	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_killer_1650i_name,
-		     DEVICE(0x06F0), SUBDEV(0x1652)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
 		     DEVICE(0x06F0), SUBDEV(0x2074)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
@@ -1068,10 +1044,6 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     DEVICE(0x34F0), SUBDEV(0x007C)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
 		     DEVICE(0x34F0), SUBDEV(0x0310)),
-	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_killer_1650s_name,
-		     DEVICE(0x34F0), SUBDEV(0x1651)),
-	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_killer_1650i_name,
-		     DEVICE(0x34F0), SUBDEV(0x1652)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
 		     DEVICE(0x34F0), SUBDEV(0x2074)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
@@ -1087,10 +1059,6 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     DEVICE(0x3DF0), SUBDEV(0x007C)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
 		     DEVICE(0x3DF0), SUBDEV(0x0310)),
-	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_killer_1650s_name,
-		     DEVICE(0x3DF0), SUBDEV(0x1651)),
-	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_killer_1650i_name,
-		     DEVICE(0x3DF0), SUBDEV(0x1652)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
 		     DEVICE(0x3DF0), SUBDEV(0x2074)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
@@ -1106,10 +1074,6 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     DEVICE(0x4DF0), SUBDEV(0x007C)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
 		     DEVICE(0x4DF0), SUBDEV(0x0310)),
-	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_killer_1650s_name,
-		     DEVICE(0x4DF0), SUBDEV(0x1651)),
-	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_killer_1650i_name,
-		     DEVICE(0x4DF0), SUBDEV(0x1652)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
 		     DEVICE(0x4DF0), SUBDEV(0x2074)),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name,
@@ -1142,10 +1106,6 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     DEVICE(0x2725), SUBDEV(0x6020)),
 	IWL_DEV_INFO(iwl_rf_gf, iwl_ax210_name,
 		     DEVICE(0x2725), SUBDEV(0x6024)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax210_killer_1675w_name,
-		     DEVICE(0x2725), SUBDEV(0x1673)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax210_killer_1675x_name,
-		     DEVICE(0x2725), SUBDEV(0x1674)),
 	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_name,
 		     DEVICE(0x7A70), SUBDEV(0x0090)),
 	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_name,
@@ -1171,37 +1131,7 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_name,
 		     DEVICE(0x7AF0), SUBDEV(0x0A10)),
 
-	/* SO with GF2 */
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_killer_1675s_name,
-		     DEVICE(0x51F0), SUBDEV(0x1671)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_killer_1675i_name,
-		     DEVICE(0x51F0), SUBDEV(0x1672)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_killer_1675s_name,
-		     DEVICE(0x51F1), SUBDEV(0x1671)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_killer_1675i_name,
-		     DEVICE(0x51F1), SUBDEV(0x1672)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_killer_1675s_name,
-		     DEVICE(0x54F0), SUBDEV(0x1671)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_killer_1675i_name,
-		     DEVICE(0x54F0), SUBDEV(0x1672)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_killer_1675s_name,
-		     DEVICE(0x7A70), SUBDEV(0x1671)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_killer_1675i_name,
-		     DEVICE(0x7A70), SUBDEV(0x1672)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_killer_1675s_name,
-		     DEVICE(0x7AF0), SUBDEV(0x1671)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_killer_1675i_name,
-		     DEVICE(0x7AF0), SUBDEV(0x1672)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_killer_1675s_name,
-		     DEVICE(0x7F70), SUBDEV(0x1671)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_killer_1675i_name,
-		     DEVICE(0x7F70), SUBDEV(0x1672)),
-
 	/* MA with GF2 */
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_killer_1675s_name,
-		     DEVICE(0x7E40), SUBDEV(0x1671)),
-	IWL_DEV_INFO(iwl_rf_gf, iwl_ax211_killer_1675i_name,
-		     DEVICE(0x7E40), SUBDEV(0x1672)),
 
 	IWL_DEV_INFO(iwl_rf_jf, iwl9461_160_name, MAC_TYPE(PU),
 		     RF_TYPE(JF1), RF_ID(JF1),
@@ -1344,9 +1274,6 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		     RF_TYPE(HR1), BW_LIMITED, NO_CDB),
 	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_name, MAC_TYPE(SO),
 		     RF_TYPE(HR2), BW_NOT_LIMITED, NO_CDB),
-	IWL_DEV_INFO(iwl_rf_hr, iwl_ax201_killer_1650i_name,
-		     DEVICE(0x51f0), SUBDEV(0x1652),
-		     MAC_TYPE(SO), RF_TYPE(HR2)),
 
 /* So-F with Hr */
 	IWL_DEV_INFO(iwl_rf_hr_80mhz, iwl_ax203_name, MAC_TYPE(SOF),
@@ -1404,6 +1331,17 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 #if IS_ENABLED(CONFIG_IWLMLD)
 	IWL_DEV_INFO(iwl_rf_fm, iwl_ax231_name, MAC_TYPE(MA), RF_TYPE(FM),
 		     NO_CDB),
+
+/* Killer CRFs */
+	IWL_DEV_INFO(iwl_rf_fm, iwl_killer_be1750s_name, SUBDEV(0x1771)),
+	IWL_DEV_INFO(iwl_rf_fm, iwl_killer_be1750i_name, SUBDEV(0x1772)),
+
+/* Killer discrete */
+	IWL_DEV_INFO(iwl_rf_fm, iwl_killer_be1750w_name,
+		     DEVICE(0x272B), SUBDEV(0x1773)),
+	IWL_DEV_INFO(iwl_rf_fm, iwl_killer_be1750x_name,
+		     DEVICE(0x272B), SUBDEV(0x1774)),
+
 /* Bz */
 	IWL_DEV_INFO(iwl_rf_fm, iwl_ax201_name, MAC_TYPE(BZ), RF_TYPE(HR2)),
 
