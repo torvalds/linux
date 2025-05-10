@@ -11,6 +11,10 @@
 / {
 	model = "Renesas White Hawk Single board";
 	compatible = "renesas,white-hawk-single";
+
+	aliases {
+		ethernet3 = &tsn0;
+	};
 };
 
 &hscif0 {
@@ -53,7 +57,7 @@
 	pinctrl-0 = <&tsn0_pins>;
 	pinctrl-names = "default";
 	phy-mode = "rgmii";
-	phy-handle = <&phy3>;
+	phy-handle = <&tsn0_phy>;
 	status = "okay";
 
 	mdio {
@@ -63,7 +67,7 @@
 		reset-gpios = <&gpio1 23 GPIO_ACTIVE_LOW>;
 		reset-post-delay-us = <4000>;
 
-		phy3: ethernet-phy@0 {
+		tsn0_phy: ethernet-phy@0 {
 			compatible = "ethernet-phy-id002b.0980",
 				     "ethernet-phy-ieee802.3-c22";
 			reg = <0>;

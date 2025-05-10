@@ -14,10 +14,16 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - nvidia,tegra114-cec
-      - nvidia,tegra124-cec
-      - nvidia,tegra210-cec
+    oneOf:
+      - enum:
+          - nvidia,tegra114-cec
+          - nvidia,tegra124-cec
+          - nvidia,tegra210-cec
+      - items:
+          - enum:
+              - nvidia,tegra186-cec
+              - nvidia,tegra194-cec
+          - const: nvidia,tegra210-cec
 
   clocks:
     maxItems: 1

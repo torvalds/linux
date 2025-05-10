@@ -91,7 +91,7 @@
 			status = "disabled";
 		};
 
-		ehci_usb0: ehci@e1800000 {
+		ehci_usb0: usb@e1800000 {
 			compatible = "st,spear600-ehci", "usb-ehci";
 			reg = <0xe1800000 0x1000>;
 			interrupt-parent = <&vic1>;
@@ -99,7 +99,7 @@
 			status = "disabled";
 		};
 
-		ehci_usb1: ehci@e2000000 {
+		ehci_usb1: usb@e2000000 {
 			compatible = "st,spear600-ehci", "usb-ehci";
 			reg = <0xe2000000 0x1000>;
 			interrupt-parent = <&vic1>;
@@ -107,7 +107,7 @@
 			status = "disabled";
 		};
 
-		ohci_usb0: ohci@e1900000 {
+		ohci_usb0: usb@e1900000 {
 			compatible = "st,spear600-ohci", "usb-ohci";
 			reg = <0xe1900000 0x1000>;
 			interrupt-parent = <&vic1>;
@@ -115,7 +115,7 @@
 			status = "disabled";
 		};
 
-		ohci_usb1: ohci@e2100000 {
+		ohci_usb1: usb@e2100000 {
 			compatible = "st,spear600-ohci", "usb-ohci";
 			reg = <0xe2100000 0x1000>;
 			interrupt-parent = <&vic1>;

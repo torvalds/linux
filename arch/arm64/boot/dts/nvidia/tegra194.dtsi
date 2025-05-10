@@ -747,6 +747,8 @@
 			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTA>;
 			resets = <&bpmp TEGRA194_RESET_UARTA>;
+			dmas = <&gpcdma 8>, <&gpcdma 8>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -757,6 +759,8 @@
 			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTB>;
 			resets = <&bpmp TEGRA194_RESET_UARTB>;
+			dmas = <&gpcdma 9>, <&gpcdma 9>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -766,9 +770,9 @@
 			reg-shift = <2>;
 			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTD>;
-			clock-names = "serial";
 			resets = <&bpmp TEGRA194_RESET_UARTD>;
-			reset-names = "serial";
+			dmas = <&gpcdma 19>, <&gpcdma 19>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -778,9 +782,9 @@
 			reg-shift = <2>;
 			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTE>;
-			clock-names = "serial";
 			resets = <&bpmp TEGRA194_RESET_UARTE>;
-			reset-names = "serial";
+			dmas = <&gpcdma 20>, <&gpcdma 20>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -790,9 +794,9 @@
 			reg-shift = <2>;
 			interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTF>;
-			clock-names = "serial";
 			resets = <&bpmp TEGRA194_RESET_UARTF>;
-			reset-names = "serial";
+			dmas = <&gpcdma 12>, <&gpcdma 12>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -817,9 +821,9 @@
 			reg-shift = <2>;
 			interrupts = <GIC_SPI 207 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTH>;
-			clock-names = "serial";
 			resets = <&bpmp TEGRA194_RESET_UARTH>;
-			reset-names = "serial";
+			dmas = <&gpcdma 13>, <&gpcdma 13>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -1339,7 +1343,7 @@
 		};
 
 		cec@3960000 {
-			compatible = "nvidia,tegra194-cec";
+			compatible = "nvidia,tegra194-cec", "nvidia,tegra210-cec";
 			reg = <0x0 0x03960000 0x0 0x10000>;
 			interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_CEC>;
@@ -1616,9 +1620,9 @@
 			reg-shift = <2>;
 			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTC>;
-			clock-names = "serial";
 			resets = <&bpmp TEGRA194_RESET_UARTC>;
-			reset-names = "serial";
+			dmas = <&gpcdma 3>, <&gpcdma 3>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -1628,9 +1632,9 @@
 			reg-shift = <2>;
 			interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_UARTG>;
-			clock-names = "serial";
 			resets = <&bpmp TEGRA194_RESET_UARTG>;
-			reset-names = "serial";
+			dmas = <&gpcdma 2>, <&gpcdma 2>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
