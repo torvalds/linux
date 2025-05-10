@@ -107,11 +107,6 @@ const struct iwl_mac_cfg iwl_gl_mac_cfg = {
 	.low_latency_xtal = true,
 };
 
-const char iwl_fm_name[] = "Intel(R) Wi-Fi 7 BE201 320MHz";
-const char iwl_wh_name[] = "Intel(R) Wi-Fi 7 BE211 320MHz";
-const char iwl_gl_name[] = "Intel(R) Wi-Fi 7 BE200 320MHz";
-const char iwl_mtp_name[] = "Intel(R) Wi-Fi 7 BE202 160MHz";
-
 MODULE_FIRMWARE(IWL_BZ_A_HR_B_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
 IWL_FW_AND_PNVM(IWL_BZ_A_GF_A_FW_PRE, IWL_BZ_UCODE_API_MAX);
 IWL_FW_AND_PNVM(IWL_BZ_A_GF4_A_FW_PRE, IWL_BZ_UCODE_API_MAX);

@@ -40,3 +40,12 @@ const char iwl_killer_be1750w_name[] =
 	"Killer(TM) Wi-Fi 7 BE1750w 320MHz Wireless Network Adapter (BE200D2W)";
 const char iwl_killer_be1750x_name[] =
 	"Killer(TM) Wi-Fi 7 BE1750x 320MHz Wireless Network Adapter (BE200NGW)";
+const char iwl_killer_be1790s_name[] =
+	"Killer(R) Wi-Fi 7 BE1790s 320MHz Wireless Network Adapter (BE401D2W)";
+const char iwl_killer_be1790i_name[] =
+	"Killer(R) Wi-Fi 7 BE1790i 320MHz Wireless Network Adapter (BE401NGW)";
+
+const char iwl_be201_name[] = "Intel(R) Wi-Fi 7 BE201 320MHz";
+const char iwl_be200_name[] = "Intel(R) Wi-Fi 7 BE200 320MHz";
+const char iwl_be202_name[] = "Intel(R) Wi-Fi 7 BE202 160MHz";
+const char iwl_be401_name[] = "Intel(R) Wi-Fi 7 BE401 320MHz";
