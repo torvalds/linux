@@ -63,7 +63,8 @@ static void __scoop_gpio_set(struct scoop_dev *sdev,
 	iowrite16(gpwr, sdev->base + SCOOP_GPWR);
 }
 
-static void scoop_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static int scoop_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			  int value)
 {
 	struct scoop_dev *sdev = gpiochip_get_data(chip);
 	unsigned long flags;
@@ -73,6 +74,8 @@ static void scoop_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	__scoop_gpio_set(sdev, offset, value);
 
 	spin_unlock_irqrestore(&sdev->scoop_lock, flags);
+
+	return 0;
 }
 
 static int scoop_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -215,7 +218,7 @@ static int scoop_probe(struct platform_device *pdev)
 		devptr->gpio.label = dev_name(&pdev->dev);
 		devptr->gpio.base = inf->gpio_base;
 		devptr->gpio.ngpio = 12; /* PA11 = 0, PA12 = 1, etc. up to PA22 = 11 */
-		devptr->gpio.set = scoop_gpio_set;
+		devptr->gpio.set_rv = scoop_gpio_set;
 		devptr->gpio.get = scoop_gpio_get;
 		devptr->gpio.direction_input = scoop_gpio_direction_input;
 		devptr->gpio.direction_output = scoop_gpio_direction_output;
