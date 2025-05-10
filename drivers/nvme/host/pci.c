@@ -230,6 +230,12 @@ union nvme_descriptor {
 	__le64			*prp_list;
 };
 
+/* bits for iod->flags */
+enum nvme_iod_flags {
+	/* this command has been aborted by the timeout handler */
+	IOD_ABORTED		= 1U << 0,
+};
+
 /*
  * The nvme_iod describes the data in an I/O.
  *
@@ -239,7 +245,7 @@ union nvme_descriptor {
 struct nvme_iod {
 	struct nvme_request req;
 	struct nvme_command cmd;
-	bool aborted;
+	u8 flags;
 	s8 nr_allocations;	/* PRP list pool allocations. 0 means small
 				   pool in use */
 	unsigned int dma_len;	/* length of single DMA segment mapping */
@@ -984,7 +990,7 @@ static blk_status_t nvme_prep_rq(struct nvme_dev *dev, struct request *req)
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 	blk_status_t ret;
 
-	iod->aborted = false;
+	iod->flags = 0;
 	iod->nr_allocations = -1;
 	iod->sgt.nents = 0;
 	iod->meta_sgt.nents = 0;
@@ -1551,7 +1557,7 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
 	 * returned to the driver, or if this is the admin queue.
 	 */
 	opcode = nvme_req(req)->cmd->common.opcode;
-	if (!nvmeq->qid || iod->aborted) {
+	if (!nvmeq->qid || (iod->flags & IOD_ABORTED)) {
 		dev_warn(dev->ctrl.device,
 			 "I/O tag %d (%04x) opcode %#x (%s) QID %d timeout, reset controller\n",
 			 req->tag, nvme_cid(req), opcode,
@@ -1564,7 +1570,7 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
 		atomic_inc(&dev->ctrl.abort_limit);
 		return BLK_EH_RESET_TIMER;
 	}
-	iod->aborted = true;
+	iod->flags |= IOD_ABORTED;
 
 	cmd.abort.opcode = nvme_admin_abort_cmd;
 	cmd.abort.cid = nvme_cid(req);
