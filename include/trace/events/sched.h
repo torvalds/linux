@@ -773,64 +773,64 @@ TRACE_EVENT(sched_wake_idle_without_ipi,
  *
  * Postfixed with _tp to make them easily identifiable in the code.
  */
-DECLARE_TRACE(pelt_cfs_tp,
+DECLARE_TRACE(pelt_cfs,
 	TP_PROTO(struct cfs_rq *cfs_rq),
 	TP_ARGS(cfs_rq));
 
-DECLARE_TRACE(pelt_rt_tp,
+DECLARE_TRACE(pelt_rt,
 	TP_PROTO(struct rq *rq),
 	TP_ARGS(rq));
 
-DECLARE_TRACE(pelt_dl_tp,
+DECLARE_TRACE(pelt_dl,
 	TP_PROTO(struct rq *rq),
 	TP_ARGS(rq));
 
-DECLARE_TRACE(pelt_hw_tp,
+DECLARE_TRACE(pelt_hw,
 	TP_PROTO(struct rq *rq),
 	TP_ARGS(rq));
 
-DECLARE_TRACE(pelt_irq_tp,
+DECLARE_TRACE(pelt_irq,
 	TP_PROTO(struct rq *rq),
 	TP_ARGS(rq));
 
-DECLARE_TRACE(pelt_se_tp,
+DECLARE_TRACE(pelt_se,
 	TP_PROTO(struct sched_entity *se),
 	TP_ARGS(se));
 
-DECLARE_TRACE(sched_cpu_capacity_tp,
+DECLARE_TRACE(sched_cpu_capacity,
 	TP_PROTO(struct rq *rq),
 	TP_ARGS(rq));
 
-DECLARE_TRACE(sched_overutilized_tp,
+DECLARE_TRACE(sched_overutilized,
 	TP_PROTO(struct root_domain *rd, bool overutilized),
 	TP_ARGS(rd, overutilized));
 
-DECLARE_TRACE(sched_util_est_cfs_tp,
+DECLARE_TRACE(sched_util_est_cfs,
 	TP_PROTO(struct cfs_rq *cfs_rq),
 	TP_ARGS(cfs_rq));
 
-DECLARE_TRACE(sched_util_est_se_tp,
+DECLARE_TRACE(sched_util_est_se,
 	TP_PROTO(struct sched_entity *se),
 	TP_ARGS(se));
 
-DECLARE_TRACE(sched_update_nr_running_tp,
+DECLARE_TRACE(sched_update_nr_running,
 	TP_PROTO(struct rq *rq, int change),
 	TP_ARGS(rq, change));
 
-DECLARE_TRACE(sched_compute_energy_tp,
+DECLARE_TRACE(sched_compute_energy,
 	TP_PROTO(struct task_struct *p, int dst_cpu, unsigned long energy,
 		 unsigned long max_util, unsigned long busy_time),
 	TP_ARGS(p, dst_cpu, energy, max_util, busy_time));
 
-DECLARE_TRACE(sched_entry_tp,
+DECLARE_TRACE(sched_entry,
 	TP_PROTO(bool preempt, unsigned long ip),
 	TP_ARGS(preempt, ip));
 
-DECLARE_TRACE(sched_exit_tp,
+DECLARE_TRACE(sched_exit,
 	TP_PROTO(bool is_switch, unsigned long ip),
 	TP_ARGS(is_switch, ip));
 
-DECLARE_TRACE_CONDITION(sched_set_state_tp,
+DECLARE_TRACE_CONDITION(sched_set_state,
 	TP_PROTO(struct task_struct *tsk, int state),
 	TP_ARGS(tsk, state),
 	TP_CONDITION(!!(tsk->__state) != !!state));
