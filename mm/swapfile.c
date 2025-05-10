@@ -1272,13 +1272,22 @@ int folio_alloc_swap(struct folio *folio, gfp_t gfp)
 	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
 	VM_BUG_ON_FOLIO(!folio_test_uptodate(folio), folio);
 
-	/*
-	 * Should not even be attempting large allocations when huge
-	 * page swap is disabled. Warn and fail the allocation.
-	 */
-	if (order && (!IS_ENABLED(CONFIG_THP_SWAP) || size > SWAPFILE_CLUSTER)) {
-		VM_WARN_ON_ONCE(1);
-		return -EINVAL;
+	if (order) {
+		/*
+		 * Reject large allocation when THP_SWAP is disabled,
+		 * the caller should split the folio and try again.
+		 */
+		if (!IS_ENABLED(CONFIG_THP_SWAP))
+			return -EAGAIN;
+
+		/*
+		 * Allocation size should never exceed cluster size
+		 * (HPAGE_PMD_SIZE).
+		 */
+		if (size > SWAPFILE_CLUSTER) {
+			VM_WARN_ON_ONCE(1);
+			return -EINVAL;
+		}
 	}
 
 	local_lock(&percpu_swap_cluster.lock);
