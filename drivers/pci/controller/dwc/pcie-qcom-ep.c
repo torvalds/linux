@@ -261,7 +261,7 @@ static void qcom_pcie_ep_configure_tcsr(struct qcom_pcie_ep *pcie_ep)
 	}
 }
 
-static int qcom_pcie_dw_link_up(struct dw_pcie *pci)
+static bool qcom_pcie_dw_link_up(struct dw_pcie *pci)
 {
 	struct qcom_pcie_ep *pcie_ep = to_pcie_ep(pci);
 	u32 reg;

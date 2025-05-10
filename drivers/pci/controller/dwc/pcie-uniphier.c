@@ -135,7 +135,7 @@ static int uniphier_pcie_wait_rc(struct uniphier_pcie *pcie)
 	return 0;
 }
 
-static int uniphier_pcie_link_up(struct dw_pcie *pci)
+static bool uniphier_pcie_link_up(struct dw_pcie *pci)
 {
 	struct uniphier_pcie *pcie = to_uniphier_pcie(pci);
 	u32 val, mask;

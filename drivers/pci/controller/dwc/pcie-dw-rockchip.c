@@ -183,7 +183,7 @@ static void rockchip_pcie_disable_ltssm(struct rockchip_pcie *rockchip)
 				 PCIE_CLIENT_GENERAL_CON);
 }
 
-static int rockchip_pcie_link_up(struct dw_pcie *pci)
+static bool rockchip_pcie_link_up(struct dw_pcie *pci)
 {
 	struct rockchip_pcie *rockchip = to_rockchip_pcie(pci);
 	u32 val = rockchip_pcie_get_ltssm(rockchip);

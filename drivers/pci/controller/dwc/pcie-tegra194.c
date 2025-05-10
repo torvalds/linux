@@ -1027,12 +1027,12 @@ retry_link:
 	return 0;
 }
 
-static int tegra_pcie_dw_link_up(struct dw_pcie *pci)
+static bool tegra_pcie_dw_link_up(struct dw_pcie *pci)
 {
 	struct tegra_pcie_dw *pcie = to_tegra_pcie(pci);
 	u32 val = dw_pcie_readw_dbi(pci, pcie->pcie_cap_base + PCI_EXP_LNKSTA);
 
-	return !!(val & PCI_EXP_LNKSTA_DLLLA);
+	return val & PCI_EXP_LNKSTA_DLLLA;
 }
 
 static void tegra_pcie_dw_stop_link(struct dw_pcie *pci)
