@@ -11237,7 +11237,6 @@ S:	Maintained
 F:	drivers/i2c/busses/i2c-cht-wc.c
 
 I2C/SMBUS ISMT DRIVER
-M:	Seth Heasley <seth.heasley@intel.com>
 M:	Neil Horman <nhorman@tuxdriver.com>
 L:	linux-i2c@vger.kernel.org
 F:	Documentation/i2c/busses/i2c-ismt.rst
