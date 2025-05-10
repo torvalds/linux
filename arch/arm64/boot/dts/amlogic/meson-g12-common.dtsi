@@ -2313,7 +2313,7 @@
 					     "amlogic,meson8-pwm-v2";
 				reg = <0x0 0x19000 0x0 0x20>;
 				clocks = <&xtal>,
-					 <>, /* unknown/untested, the datasheet calls it "vid_pll" */
+					 <0>, /* unknown/untested, the datasheet calls it "vid_pll" */
 					 <&clkc CLKID_FCLK_DIV4>,
 					 <&clkc CLKID_FCLK_DIV3>;
 				#pwm-cells = <3>;
@@ -2325,7 +2325,7 @@
 					     "amlogic,meson8-pwm-v2";
 				reg = <0x0 0x1a000 0x0 0x20>;
 				clocks = <&xtal>,
-					 <>, /* unknown/untested, the datasheet calls it "vid_pll" */
+					 <0>, /* unknown/untested, the datasheet calls it "vid_pll" */
 					 <&clkc CLKID_FCLK_DIV4>,
 					 <&clkc CLKID_FCLK_DIV3>;
 				#pwm-cells = <3>;
@@ -2337,7 +2337,7 @@
 					     "amlogic,meson8-pwm-v2";
 				reg = <0x0 0x1b000 0x0 0x20>;
 				clocks = <&xtal>,
-					 <>, /* unknown/untested, the datasheet calls it "vid_pll" */
+					 <0>, /* unknown/untested, the datasheet calls it "vid_pll" */
 					 <&clkc CLKID_FCLK_DIV4>,
 					 <&clkc CLKID_FCLK_DIV3>;
 				#pwm-cells = <3>;
