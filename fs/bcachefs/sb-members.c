@@ -222,17 +222,11 @@ static void member_to_text(struct printbuf *out,
 	printbuf_indent_add(out, 2);
 
 	prt_printf(out, "Label:\t");
-	if (BCH_MEMBER_GROUP(&m)) {
-		unsigned idx = BCH_MEMBER_GROUP(&m) - 1;
-
-		if (idx < disk_groups_nr(gi))
-			prt_printf(out, "%s (%u)",
-				   gi->entries[idx].label, idx);
-		else
-			prt_printf(out, "(bad disk labels section)");
-	} else {
+	if (BCH_MEMBER_GROUP(&m))
+		bch2_disk_path_to_text_sb(out, sb,
+				BCH_MEMBER_GROUP(&m) - 1);
+	else
 		prt_printf(out, "(none)");
-	}
 	prt_newline(out);
 
 	prt_printf(out, "UUID:\t");
