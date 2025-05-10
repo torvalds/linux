@@ -966,7 +966,7 @@ use_clean:
 	if (ret)
 		goto err;
 
-	ret = bch2_run_recovery_passes(c);
+	ret = bch2_run_recovery_passes(c, 0);
 	if (ret)
 		goto err;
 
@@ -1001,9 +1001,8 @@ use_clean:
 		bch_info(c, "Fixed errors, running fsck a second time to verify fs is clean");
 		clear_bit(BCH_FS_errors_fixed, &c->flags);
 
-		c->recovery.curr_pass = BCH_RECOVERY_PASS_check_alloc_info;
-
-		ret = bch2_run_recovery_passes(c);
+		ret = bch2_run_recovery_passes(c,
+			BCH_RECOVERY_PASS_check_alloc_info);
 		if (ret)
 			goto err;
 

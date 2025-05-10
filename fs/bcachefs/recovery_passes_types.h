@@ -14,8 +14,10 @@ struct bch_fs_recovery {
 	enum bch_recovery_pass	next_pass;
 	/* never rewinds version of curr_pass */
 	enum bch_recovery_pass	pass_done;
+	u64			passes_to_run;
 	/* bitmask of recovery passes that we actually ran */
 	u64			passes_complete;
+	u64			passes_failing;
 	spinlock_t		lock;
 	struct semaphore	run_lock;
 };
