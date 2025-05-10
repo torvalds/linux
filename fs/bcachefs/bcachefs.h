@@ -760,7 +760,8 @@ struct btree_trans_buf {
 	x(snapshot_delete_pagecache)					\
 	x(sysfs)							\
 	x(btree_write_buffer)						\
-	x(btree_node_scrub)
+	x(btree_node_scrub)						\
+	x(async_recovery_passes)
 
 enum bch_write_ref {
 #define x(n) BCH_WRITE_REF_##n,

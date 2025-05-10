@@ -18,8 +18,10 @@ struct bch_fs_recovery {
 	/* bitmask of recovery passes that we actually ran */
 	u64			passes_complete;
 	u64			passes_failing;
+	u64			passes_ratelimiting;
 	spinlock_t		lock;
 	struct semaphore	run_lock;
+	struct work_struct	work;
 };
 
 #endif /* _BCACHEFS_RECOVERY_PASSES_TYPES_H */

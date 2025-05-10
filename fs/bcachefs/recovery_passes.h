@@ -12,6 +12,7 @@ u64 bch2_fsck_recovery_passes(void);
 
 enum bch_run_recovery_pass_flags {
 	RUN_RECOVERY_PASS_nopersistent	= BIT(0),
+	RUN_RECOVERY_PASS_ratelimit	= BIT(1),
 };
 
 int bch2_run_print_explicit_recovery_pass(struct bch_fs *, enum bch_recovery_pass);
