@@ -25,7 +25,6 @@ config NXP_NETC_LIB
 config FSL_ENETC
 	tristate "ENETC PF driver"
 	depends on PCI_MSI
-	select MDIO_DEVRES
 	select FSL_ENETC_CORE
 	select FSL_ENETC_IERB
 	select FSL_ENETC_MDIO
@@ -43,7 +42,6 @@ config FSL_ENETC
 config NXP_ENETC4
 	tristate "ENETC4 PF driver"
 	depends on PCI_MSI
-	select MDIO_DEVRES
 	select FSL_ENETC_CORE
 	select FSL_ENETC_MDIO
 	select NXP_ENETC_PF_COMMON
