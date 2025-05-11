@@ -557,32 +557,33 @@ EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_hw_card_ids);
 	.name = _name,				\
 	.device = IWL_CFG_ANY,			\
 	.subdevice = IWL_CFG_ANY,		\
-	.subdevice_mask = ~0,			\
-	.rf_type = IWL_CFG_ANY,			\
-	.rf_step = IWL_CFG_ANY,			\
-	.bw_limit = IWL_CFG_ANY,		\
-	.jacket = IWL_CFG_ANY,			\
-	.cores = IWL_CFG_ANY,			\
-	.rf_id = IWL_CFG_ANY,			\
-	.cdb = IWL_CFG_ANY,			\
+	.subdevice_m_h = 15,			\
 	__VA_ARGS__				\
 }
 #define IWL_DEV_INFO(_cfg, _name, ...)		\
 	_IWL_DEV_INFO(_cfg, _name, __VA_ARGS__)
 
-#define DEVICE(n)	.device = (n)
-#define SUBDEV(n)	.subdevice = (n)
-#define SUBDEV_MASKED(v, m)			\
-			.subdevice = (v),	\
-			.subdevice_mask = (m)
-#define RF_TYPE(n)	.rf_type = IWL_CFG_RF_TYPE_##n
-#define RF_STEP(n)	.rf_step = SILICON_##n##_STEP
-#define CORES(n)	.cores = IWL_CFG_CORES_##n
-#define RF_ID(n)	.rf_id = IWL_CFG_RF_ID_##n
-#define NO_CDB		.cdb = IWL_CFG_NO_CDB
-#define CDB		.cdb = IWL_CFG_CDB
-#define BW_NOT_LIMITED	.bw_limit = 0
-#define BW_LIMITED	.bw_limit = 1
+#define DEVICE(n)		.device = (n)
+#define SUBDEV(n)		.subdevice = (n)
+#define _LOWEST_BIT(n)		(__builtin_ffs(n) - 1)
+#define _BIT_ABOVE_MASK(n)	((n) + (1 << _LOWEST_BIT(n)))
+#define _HIGHEST_BIT(n)		(__builtin_ffs(_BIT_ABOVE_MASK(n)) - 2)
+#define _IS_POW2(n)		(((n) & ((n) - 1)) == 0)
+#define _IS_CONTIG(n)		_IS_POW2(_BIT_ABOVE_MASK(n))
+#define _CHECK_MASK(m)		BUILD_BUG_ON_ZERO(!_IS_CONTIG(m))
+#define SUBDEV_MASKED(v, m)	.subdevice = (v) + _CHECK_MASK(m),	\
+				.subdevice_m_l = _LOWEST_BIT(m),	\
+				.subdevice_m_h = _HIGHEST_BIT(m)
+#define RF_TYPE(n)		.match_rf_type = 1,			\
+				.rf_type = IWL_CFG_RF_TYPE_##n
+#define RF_STEP(n)		.match_rf_step = 1,			\
+				.rf_step = SILICON_##n##_STEP
+#define RF_ID(n)		.match_rf_id = 1,			\
+				.rf_id = IWL_CFG_RF_ID_##n
+#define NO_CDB			.match_cdb = 1, .cdb = 0
+#define CDB			.match_cdb = 1, .cdb = 1
+#define BW_NOT_LIMITED		.match_bw_limit = 1, .bw_limit = 0
+#define BW_LIMITED		.match_bw_limit = 1, .bw_limit = 1
 
 VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 #if IS_ENABLED(CONFIG_IWLDVM)
@@ -1214,7 +1215,7 @@ out:
 
 VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info *
 iwl_pci_find_dev_info(u16 device, u16 subsystem_device, u16 rf_type, u8 cdb,
-		      u8 jacket, u8 rf_id, u8 bw_limit, u8 cores, u8 rf_step)
+		      u8 rf_id, u8 bw_limit, u8 rf_step)
 {
 	int num_devices = ARRAY_SIZE(iwl_dev_info_table);
 	int i;
@@ -1224,41 +1225,32 @@ iwl_pci_find_dev_info(u16 device, u16 subsystem_device, u16 rf_type, u8 cdb,
 
 	for (i = num_devices - 1; i >= 0; i--) {
 		const struct iwl_dev_info *dev_info = &iwl_dev_info_table[i];
+		u16 subdevice_mask;
 
 		if (dev_info->device != (u16)IWL_CFG_ANY &&
 		    dev_info->device != device)
 			continue;
 
+		subdevice_mask = GENMASK(dev_info->subdevice_m_h,
+					 dev_info->subdevice_m_l);
+
 		if (dev_info->subdevice != (u16)IWL_CFG_ANY &&
-		    dev_info->subdevice != (subsystem_device & dev_info->subdevice_mask))
+		    dev_info->subdevice != (subsystem_device & subdevice_mask))
 			continue;
 
-		if (dev_info->rf_type != (u16)IWL_CFG_ANY &&
-		    dev_info->rf_type != rf_type)
+		if (dev_info->match_rf_type && dev_info->rf_type != rf_type)
 			continue;
 
-		if (dev_info->cdb != (u8)IWL_CFG_ANY &&
-		    dev_info->cdb != cdb)
+		if (dev_info->match_cdb && dev_info->cdb != cdb)
 			continue;
 
-		if (dev_info->jacket != (u8)IWL_CFG_ANY &&
-		    dev_info->jacket != jacket)
+		if (dev_info->match_rf_id && dev_info->rf_id != rf_id)
 			continue;
 
-		if (dev_info->rf_id != (u8)IWL_CFG_ANY &&
-		    dev_info->rf_id != rf_id)
+		if (dev_info->match_bw_limit && dev_info->bw_limit != bw_limit)
 			continue;
 
-		if (dev_info->bw_limit != (u8)IWL_CFG_ANY &&
-		    dev_info->bw_limit != bw_limit)
-			continue;
-
-		if (dev_info->cores != (u8)IWL_CFG_ANY &&
-		    dev_info->cores != cores)
-			continue;
-
-		if (dev_info->rf_step != (u8)IWL_CFG_ANY &&
-		    dev_info->rf_step != rf_step)
+		if (dev_info->match_rf_step && dev_info->rf_step != rf_step)
 			continue;
 
 		return dev_info;
@@ -1378,10 +1370,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev_info = iwl_pci_find_dev_info(pdev->device, pdev->subsystem_device,
 					 CSR_HW_RFID_TYPE(info.hw_rf_id),
 					 CSR_HW_RFID_IS_CDB(info.hw_rf_id),
-					 CSR_HW_RFID_IS_JACKET(info.hw_rf_id),
 					 IWL_SUBDEVICE_RF_ID(pdev->subsystem_device),
 					 IWL_SUBDEVICE_BW_LIM(pdev->subsystem_device),
-					 IWL_SUBDEVICE_CORES(pdev->subsystem_device),
 					 CSR_HW_RFID_STEP(info.hw_rf_id));
 	if (dev_info) {
 		iwl_trans->cfg = dev_info->cfg;

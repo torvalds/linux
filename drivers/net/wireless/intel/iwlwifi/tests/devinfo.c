@@ -13,10 +13,50 @@ MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 
 static void iwl_pci_print_dev_info(const char *pfx, const struct iwl_dev_info *di)
 {
-	printk(KERN_DEBUG "%sdev=%.4x subdev=%.4x rf_type=%.4x cdb=%d jacket=%d rf_id=%.2x bw_limit=%d cores=%.2x\n",
-	       pfx, di->device, di->subdevice,
-	       di->rf_type, di->cdb, di->jacket, di->rf_id, di->bw_limit,
-	       di->cores);
+	u16 subdevice_mask = GENMASK(di->subdevice_m_h, di->subdevice_m_l);
+	char buf[100] = {};
+	int pos = 0;
+
+	if (di->match_rf_type)
+		pos += scnprintf(buf + pos, sizeof(buf) - pos,
+				 " rf_type=%03x", di->rf_type);
+	else
+		pos += scnprintf(buf + pos, sizeof(buf) - pos,
+				 " rf_type=*");
+
+	if (di->match_bw_limit)
+		pos += scnprintf(buf + pos, sizeof(buf) - pos,
+				 " bw_limit=%d", di->bw_limit);
+	else
+		pos += scnprintf(buf + pos, sizeof(buf) - pos,
+				 " bw_limit=*");
+
+	if (di->match_rf_step)
+		pos += scnprintf(buf + pos, sizeof(buf) - pos,
+				 " rf_step=%c",
+				 di->rf_step == SILICON_Z_STEP ? 'Z' :
+				 	'A' + di->rf_step);
+	else
+		pos += scnprintf(buf + pos, sizeof(buf) - pos,
+				 " rf_step=*");
+
+	if (di->match_rf_id)
+		pos += scnprintf(buf + pos, sizeof(buf) - pos,
+				 " rf_id=0x%x", di->rf_id);
+	else
+		pos += scnprintf(buf + pos, sizeof(buf) - pos,
+				 " rf_id=*");
+
+	if (di->match_cdb)
+		pos += scnprintf(buf + pos, sizeof(buf) - pos,
+				 " cdb=%d", di->cdb);
+	else
+		pos += scnprintf(buf + pos, sizeof(buf) - pos,
+				 " cdb=*");
+
+
+	printk(KERN_DEBUG "%sdev=%04x subdev=%04x/%04x%s\n",
+	       pfx, di->device, di->subdevice, subdevice_mask, buf);
 }
 
 static void devinfo_table_order(struct kunit *test)
@@ -29,9 +69,8 @@ static void devinfo_table_order(struct kunit *test)
 
 		ret = iwl_pci_find_dev_info(di->device, di->subdevice,
 					    di->rf_type, di->cdb,
-					    di->jacket, di->rf_id,
-					    di->bw_limit,
-					    di->cores, di->rf_step);
+					    di->rf_id, di->bw_limit,
+					    di->rf_step);
 		if (!ret) {
 			iwl_pci_print_dev_info("No entry found for: ", di);
 			KUNIT_FAIL(test,
@@ -98,25 +137,25 @@ static void devinfo_check_subdev_match(struct kunit *test)
 {
 	for (int i = 0; i < iwl_dev_info_table_size; i++) {
 		const struct iwl_dev_info *di = &iwl_dev_info_table[i];
+		u16 subdevice_mask = GENMASK(di->subdevice_m_h,
+					     di->subdevice_m_l);
 
 		/* if BW limit bit is matched then must have a limit */
-		if (di->bw_limit == 1)
+		if (di->match_bw_limit == 1 && di->bw_limit == 1)
 			KUNIT_EXPECT_NE(test, di->cfg->bw_limit, 0);
 
-		/* if subdevice is ANY we can have RF ID/BW limit/cores */
+		/* if subdevice is ANY we can have RF ID/BW limit */
 		if (di->subdevice == (u16)IWL_CFG_ANY)
 			continue;
 
 		/* same if the subdevice mask doesn't overlap them */
-		if (IWL_SUBDEVICE_RF_ID(di->subdevice_mask) == 0 &&
-		    IWL_SUBDEVICE_BW_LIM(di->subdevice_mask) == 0 &&
-		    IWL_SUBDEVICE_CORES(di->subdevice_mask) == 0)
+		if (IWL_SUBDEVICE_RF_ID(subdevice_mask) == 0 &&
+		    IWL_SUBDEVICE_BW_LIM(subdevice_mask) == 0)
 			continue;
 
 		/* but otherwise they shouldn't be used */
-		KUNIT_EXPECT_EQ(test, di->rf_id, (u8)IWL_CFG_ANY);
-		KUNIT_EXPECT_EQ(test, di->bw_limit, (u8)IWL_CFG_ANY);
-		KUNIT_EXPECT_EQ(test, di->cores, (u8)IWL_CFG_ANY);
+		KUNIT_EXPECT_EQ(test, (int)di->match_rf_id, 0);
+		KUNIT_EXPECT_EQ(test, (int)di->match_bw_limit, 0);
 	}
 }
 
