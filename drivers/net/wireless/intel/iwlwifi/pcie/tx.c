@@ -796,6 +796,8 @@ error:
 	return -ENOMEM;
 }
 
+#define BC_TABLE_SIZE	(sizeof(struct iwlagn_scd_bc_tbl_entry) * TFD_QUEUE_BC_SIZE)
+
 /*
  * iwl_pcie_tx_alloc - allocate TX context
  * Allocate all Tx DMA structures and initialize them
@@ -810,7 +812,7 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 	if (WARN_ON(trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210))
 		return -EINVAL;
 
-	bc_tbls_size *= sizeof(struct iwlagn_scd_bc_tbl);
+	bc_tbls_size *= BC_TABLE_SIZE;
 
 	/*It is not allowed to alloc twice, so warn when this happens.
 	 * We cannot rely on the previous allocation, so free and fail */
@@ -2065,7 +2067,7 @@ static void iwl_txq_gen1_update_byte_cnt_tbl(struct iwl_trans *trans,
 					     int num_tbs)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwlagn_scd_bc_tbl *scd_bc_tbl;
+	struct iwlagn_scd_bc_tbl_entry *scd_bc_tbl;
 	int write_ptr = txq->write_ptr;
 	int txq_id = txq->id;
 	u8 sec_ctl = 0;
@@ -2099,10 +2101,10 @@ static void iwl_txq_gen1_update_byte_cnt_tbl(struct iwl_trans *trans,
 
 	bc_ent = cpu_to_le16(len | (sta_id << 12));
 
-	scd_bc_tbl[txq_id].tfd_offset[write_ptr] = bc_ent;
+	scd_bc_tbl[txq_id * BC_TABLE_SIZE + write_ptr].tfd_offset = bc_ent;
 
 	if (write_ptr < TFD_QUEUE_SIZE_BC_DUP)
-		scd_bc_tbl[txq_id].tfd_offset[TFD_QUEUE_SIZE_MAX + write_ptr] =
+		scd_bc_tbl[txq_id * BC_TABLE_SIZE + TFD_QUEUE_SIZE_MAX + write_ptr].tfd_offset =
 			bc_ent;
 }
 
@@ -2312,7 +2314,7 @@ static void iwl_txq_gen1_inval_byte_cnt_tbl(struct iwl_trans *trans,
 					    int read_ptr)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwlagn_scd_bc_tbl *scd_bc_tbl = trans_pcie->txqs.scd_bc_tbls.addr;
+	struct iwlagn_scd_bc_tbl_entry *scd_bc_tbl = trans_pcie->txqs.scd_bc_tbls.addr;
 	int txq_id = txq->id;
 	u8 sta_id = 0;
 	__le16 bc_ent;
@@ -2326,10 +2328,10 @@ static void iwl_txq_gen1_inval_byte_cnt_tbl(struct iwl_trans *trans,
 
 	bc_ent = cpu_to_le16(1 | (sta_id << 12));
 
-	scd_bc_tbl[txq_id].tfd_offset[read_ptr] = bc_ent;
+	scd_bc_tbl[txq_id * BC_TABLE_SIZE + read_ptr].tfd_offset = bc_ent;
 
 	if (read_ptr < TFD_QUEUE_SIZE_BC_DUP)
-		scd_bc_tbl[txq_id].tfd_offset[TFD_QUEUE_SIZE_MAX + read_ptr] =
+		scd_bc_tbl[txq_id * BC_TABLE_SIZE + TFD_QUEUE_SIZE_MAX + read_ptr].tfd_offset =
 			bc_ent;
 }
 

@@ -587,12 +587,12 @@ static void iwl_pcie_gen2_update_byte_tbl(struct iwl_trans *trans,
 		bc_ent = cpu_to_le16(len | (num_fetch_chunks << 14));
 		scd_bc_tbl_gen3[idx].tfd_offset = bc_ent;
 	} else {
-		struct iwlagn_scd_bc_tbl *scd_bc_tbl = txq->bc_tbl.addr;
+		struct iwlagn_scd_bc_tbl_entry *scd_bc_tbl = txq->bc_tbl.addr;
 
 		len = DIV_ROUND_UP(len, 4);
 		WARN_ON(len > 0xFFF);
 		bc_ent = cpu_to_le16(len | (num_fetch_chunks << 12));
-		scd_bc_tbl->tfd_offset[idx] = bc_ent;
+		scd_bc_tbl[idx].tfd_offset = bc_ent;
 	}
 }
 

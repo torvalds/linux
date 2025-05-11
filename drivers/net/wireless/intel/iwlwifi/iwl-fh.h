@@ -717,7 +717,7 @@ struct iwl_tfh_tfd {
 /* Fixed (non-configurable) rx data from phy */
 
 /**
- * struct iwlagn_scd_bc_tbl - scheduler byte count table
+ * struct iwlagn_scd_bc_tbl_entry - scheduler byte count table entry
  *	base physical address provided by SCD_DRAM_BASE_ADDR
  * For devices up to 22000:
  * @tfd_offset:
@@ -729,8 +729,8 @@ struct iwl_tfh_tfd {
  *		12-13 - number of 64 byte chunks
  *		14-16 - reserved
  */
-struct iwlagn_scd_bc_tbl {
-	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];
+struct iwlagn_scd_bc_tbl_entry {
+	__le16 tfd_offset;
 } __packed;
 
 /**

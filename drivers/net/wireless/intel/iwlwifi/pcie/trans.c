@@ -3839,7 +3839,8 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		trans_pcie->txqs.bc_tbl_size =
 			sizeof(struct iwl_gen3_bc_tbl_entry) * TFD_QUEUE_BC_SIZE_AX210;
 	else
-		trans_pcie->txqs.bc_tbl_size = sizeof(struct iwlagn_scd_bc_tbl);
+		trans_pcie->txqs.bc_tbl_size =
+			sizeof(struct iwlagn_scd_bc_tbl_entry) * TFD_QUEUE_BC_SIZE;
 	/*
 	 * For gen2 devices, we use a single allocation for each byte-count
 	 * table, but they're pretty small (1k) so use a DMA pool that we
