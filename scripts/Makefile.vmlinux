@@ -94,7 +94,7 @@ $(vmlinux-final): $(RESOLVE_BTFIDS)
 endif
 
 ifdef CONFIG_BUILDTIME_TABLE_SORT
-vmlinux: scripts/sorttable
+$(vmlinux-final): scripts/sorttable
 endif
 
 # module.builtin.ranges
