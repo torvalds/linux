@@ -789,6 +789,53 @@ hws_bwc_matcher_rehash_size(struct mlx5hws_bwc_matcher *bwc_matcher)
 	return hws_bwc_matcher_move(bwc_matcher);
 }
 
+static int hws_bwc_rule_get_at_idx(struct mlx5hws_bwc_rule *bwc_rule,
+				   struct mlx5hws_rule_action rule_actions[],
+				   u16 bwc_queue_idx)
+{
+	struct mlx5hws_bwc_matcher *bwc_matcher = bwc_rule->bwc_matcher;
+	struct mlx5hws_context *ctx = bwc_matcher->matcher->tbl->ctx;
+	struct mutex *queue_lock; /* Protect the queue */
+	int at_idx, ret;
+
+	/* check if rehash needed due to missing action template */
+	at_idx = hws_bwc_matcher_find_at(bwc_matcher, rule_actions);
+	if (likely(at_idx >= 0))
+		return at_idx;
+
+	/* we need to extend BWC matcher action templates array */
+	queue_lock = hws_bwc_get_queue_lock(ctx, bwc_queue_idx);
+	mutex_unlock(queue_lock);
+	hws_bwc_lock_all_queues(ctx);
+
+	/* check again - perhaps other thread already did extend_at */
+	at_idx = hws_bwc_matcher_find_at(bwc_matcher, rule_actions);
+	if (at_idx >= 0)
+		goto out;
+
+	ret = hws_bwc_matcher_extend_at(bwc_matcher, rule_actions);
+	if (unlikely(ret)) {
+		mlx5hws_err(ctx, "BWC rule: failed extending AT (%d)", ret);
+		at_idx = -EINVAL;
+		goto out;
+	}
+
+	/* action templates array was extended, we need the last idx */
+	at_idx = bwc_matcher->num_of_at - 1;
+	ret = mlx5hws_matcher_attach_at(bwc_matcher->matcher,
+					bwc_matcher->at[at_idx]);
+	if (unlikely(ret)) {
+		mlx5hws_err(ctx, "BWC rule: failed attaching new AT (%d)", ret);
+		at_idx = -EINVAL;
+		goto out;
+	}
+
+out:
+	hws_bwc_unlock_all_queues(ctx);
+	mutex_lock(queue_lock);
+	return at_idx;
+}
+
 int mlx5hws_bwc_rule_create_simple(struct mlx5hws_bwc_rule *bwc_rule,
 				   u32 *match_param,
 				   struct mlx5hws_rule_action rule_actions[],
@@ -809,31 +856,12 @@ int mlx5hws_bwc_rule_create_simple(struct mlx5hws_bwc_rule *bwc_rule,
 
 	mutex_lock(queue_lock);
 
-	/* check if rehash needed due to missing action template */
-	at_idx = hws_bwc_matcher_find_at(bwc_matcher, rule_actions);
+	at_idx = hws_bwc_rule_get_at_idx(bwc_rule, rule_actions, bwc_queue_idx);
 	if (unlikely(at_idx < 0)) {
-		/* we need to extend BWC matcher action templates array */
 		mutex_unlock(queue_lock);
-		hws_bwc_lock_all_queues(ctx);
-
-		ret = hws_bwc_matcher_extend_at(bwc_matcher, rule_actions);
-		if (unlikely(ret)) {
-			hws_bwc_unlock_all_queues(ctx);
-			return ret;
-		}
-
-		/* action templates array was extended, we need the last idx */
-		at_idx = bwc_matcher->num_of_at - 1;
-
-		ret = mlx5hws_matcher_attach_at(bwc_matcher->matcher,
-						bwc_matcher->at[at_idx]);
-		if (unlikely(ret)) {
-			hws_bwc_unlock_all_queues(ctx);
-			return ret;
-		}
-
-		hws_bwc_unlock_all_queues(ctx);
-		mutex_lock(queue_lock);
+		mlx5hws_err(ctx, "BWC rule create: failed getting AT (%d)",
+			    ret);
+		return -EINVAL;
 	}
 
 	/* check if number of rules require rehash */
@@ -971,36 +999,11 @@ hws_bwc_rule_action_update(struct mlx5hws_bwc_rule *bwc_rule,
 
 	mutex_lock(queue_lock);
 
-	/* check if rehash needed due to missing action template */
-	at_idx = hws_bwc_matcher_find_at(bwc_matcher, rule_actions);
+	at_idx = hws_bwc_rule_get_at_idx(bwc_rule, rule_actions, idx);
 	if (unlikely(at_idx < 0)) {
-		/* we need to extend BWC matcher action templates array */
 		mutex_unlock(queue_lock);
-		hws_bwc_lock_all_queues(ctx);
-
-		/* check again - perhaps other thread already did extend_at */
-		at_idx = hws_bwc_matcher_find_at(bwc_matcher, rule_actions);
-		if (likely(at_idx < 0)) {
-			ret = hws_bwc_matcher_extend_at(bwc_matcher, rule_actions);
-			if (unlikely(ret)) {
-				hws_bwc_unlock_all_queues(ctx);
-				mlx5hws_err(ctx, "BWC rule update: failed extending AT (%d)", ret);
-				return -EINVAL;
-			}
-
-			/* action templates array was extended, we need the last idx */
-			at_idx = bwc_matcher->num_of_at - 1;
-
-			ret = mlx5hws_matcher_attach_at(bwc_matcher->matcher,
-							bwc_matcher->at[at_idx]);
-			if (unlikely(ret)) {
-				hws_bwc_unlock_all_queues(ctx);
-				return ret;
-			}
-		}
-
-		hws_bwc_unlock_all_queues(ctx);
-		mutex_lock(queue_lock);
+		mlx5hws_err(ctx, "BWC rule update: failed getting AT\n");
+		return -EINVAL;
 	}
 
 	ret = hws_bwc_rule_update_sync(bwc_rule,
