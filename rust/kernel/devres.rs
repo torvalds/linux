@@ -195,6 +195,7 @@ impl<T> Devres<T> {
     /// # Example
     ///
     /// ```no_run
+    /// # #![cfg(CONFIG_PCI)]
     /// # use kernel::{device::Core, devres::Devres, pci};
     ///
     /// fn from_core(dev: &pci::Device<Core>, devres: Devres<pci::Bar<0x4>>) -> Result {
