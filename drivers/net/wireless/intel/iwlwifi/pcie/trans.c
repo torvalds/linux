@@ -3834,10 +3834,10 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
 		trans_pcie->txqs.bc_tbl_size =
-			sizeof(struct iwl_gen3_bc_tbl_entry) * TFD_QUEUE_BC_SIZE_GEN3_BZ;
+			sizeof(struct iwl_gen3_bc_tbl_entry) * TFD_QUEUE_BC_SIZE_BZ;
 	else if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		trans_pcie->txqs.bc_tbl_size =
-			sizeof(struct iwl_gen3_bc_tbl_entry) * TFD_QUEUE_BC_SIZE_GEN3_AX210;
+			sizeof(struct iwl_gen3_bc_tbl_entry) * TFD_QUEUE_BC_SIZE_AX210;
 	else
 		trans_pcie->txqs.bc_tbl_size = sizeof(struct iwlagn_scd_bc_tbl);
 	/*

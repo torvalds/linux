@@ -378,14 +378,14 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  * Once the RXF-to-DRAM DMA is active, this flag is immediately turned off.
  */
 #define RFH_GEN_STATUS		0xA09808
-#define RFH_GEN_STATUS_GEN3	0xA07824
+#define RFH_GEN_STATUS_AX210	0xA07824
 #define RBD_FETCH_IDLE	BIT(29)
 #define SRAM_DMA_IDLE	BIT(30)
 #define RXF_DMA_IDLE	BIT(31)
 
 /* DMA configuration */
 #define RFH_RXF_DMA_CFG		0xA09820
-#define RFH_RXF_DMA_CFG_GEN3	0xA07880
+#define RFH_RXF_DMA_CFG_AX210	0xA07880
 /* RB size */
 #define RFH_RXF_DMA_RB_SIZE_MASK (0x000F0000) /* bits 16-19 */
 #define RFH_RXF_DMA_RB_SIZE_POS 16
@@ -593,8 +593,8 @@ struct iwl_rb_status {
 #define TFD_QUEUE_CB_SIZE(x)	(ilog2(x) - 3)
 #define TFD_QUEUE_SIZE_BC_DUP	(64)
 #define TFD_QUEUE_BC_SIZE	(TFD_QUEUE_SIZE_MAX + TFD_QUEUE_SIZE_BC_DUP)
-#define TFD_QUEUE_BC_SIZE_GEN3_AX210	1024
-#define TFD_QUEUE_BC_SIZE_GEN3_BZ	(1024 * 4)
+#define TFD_QUEUE_BC_SIZE_AX210	1024
+#define TFD_QUEUE_BC_SIZE_BZ	(1024 * 4)
 #define IWL_TX_DMA_MASK        DMA_BIT_MASK(36)
 #define IWL_NUM_OF_TBS		20
 #define IWL_TFH_NUM_TBS		25
