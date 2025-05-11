@@ -561,6 +561,7 @@ static void iwl_pcie_gen2_update_byte_tbl(struct iwl_trans *trans,
 					  int num_tbs)
 {
 	int idx = iwl_txq_get_cmd_index(txq, txq->write_ptr);
+	struct iwl_bc_tbl_entry *scd_bc_tbl = txq->bc_tbl.addr;
 	u8 filled_tfd_size, num_fetch_chunks;
 	u16 len = byte_cnt;
 	__le16 bc_ent;
@@ -581,19 +582,15 @@ static void iwl_pcie_gen2_update_byte_tbl(struct iwl_trans *trans,
 	num_fetch_chunks = DIV_ROUND_UP(filled_tfd_size, 64) - 1;
 
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
-		struct iwl_gen3_bc_tbl_entry *scd_bc_tbl_gen3 = txq->bc_tbl.addr;
-
 		WARN_ON(len > 0x3FFF);
 		bc_ent = cpu_to_le16(len | (num_fetch_chunks << 14));
-		scd_bc_tbl_gen3[idx].tfd_offset = bc_ent;
 	} else {
-		struct iwlagn_scd_bc_tbl_entry *scd_bc_tbl = txq->bc_tbl.addr;
-
 		len = DIV_ROUND_UP(len, 4);
 		WARN_ON(len > 0xFFF);
 		bc_ent = cpu_to_le16(len | (num_fetch_chunks << 12));
-		scd_bc_tbl[idx].tfd_offset = bc_ent;
 	}
+
+	scd_bc_tbl[idx].tfd_offset = bc_ent;
 }
 
 static u8 iwl_txq_gen2_get_num_tbs(struct iwl_tfh_tfd *tfd)

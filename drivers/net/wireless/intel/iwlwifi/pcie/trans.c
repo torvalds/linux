@@ -3785,6 +3785,7 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 {
 	struct iwl_trans_pcie *trans_pcie, **priv;
 	struct iwl_trans *trans;
+	unsigned int bc_tbl_n_entries;
 	int ret, addr_size;
 	u32 bar0;
 
@@ -3833,14 +3834,14 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	}
 
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
-		trans_pcie->txqs.bc_tbl_size =
-			sizeof(struct iwl_gen3_bc_tbl_entry) * TFD_QUEUE_BC_SIZE_BZ;
+		bc_tbl_n_entries = TFD_QUEUE_BC_SIZE_BZ;
 	else if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
-		trans_pcie->txqs.bc_tbl_size =
-			sizeof(struct iwl_gen3_bc_tbl_entry) * TFD_QUEUE_BC_SIZE_AX210;
+		bc_tbl_n_entries = TFD_QUEUE_BC_SIZE_AX210;
 	else
-		trans_pcie->txqs.bc_tbl_size =
-			sizeof(struct iwlagn_scd_bc_tbl_entry) * TFD_QUEUE_BC_SIZE;
+		bc_tbl_n_entries = TFD_QUEUE_BC_SIZE;
+
+	trans_pcie->txqs.bc_tbl_size =
+		sizeof(struct iwl_bc_tbl_entry) * bc_tbl_n_entries;
 	/*
 	 * For gen2 devices, we use a single allocation for each byte-count
 	 * table, but they're pretty small (1k) so use a DMA pool that we

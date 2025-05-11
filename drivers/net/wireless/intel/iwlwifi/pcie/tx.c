@@ -796,7 +796,7 @@ error:
 	return -ENOMEM;
 }
 
-#define BC_TABLE_SIZE	(sizeof(struct iwlagn_scd_bc_tbl_entry) * TFD_QUEUE_BC_SIZE)
+#define BC_TABLE_SIZE	(sizeof(struct iwl_bc_tbl_entry) * TFD_QUEUE_BC_SIZE)
 
 /*
  * iwl_pcie_tx_alloc - allocate TX context
@@ -2067,7 +2067,7 @@ static void iwl_txq_gen1_update_byte_cnt_tbl(struct iwl_trans *trans,
 					     int num_tbs)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwlagn_scd_bc_tbl_entry *scd_bc_tbl;
+	struct iwl_bc_tbl_entry *scd_bc_tbl;
 	int write_ptr = txq->write_ptr;
 	int txq_id = txq->id;
 	u8 sec_ctl = 0;
@@ -2314,7 +2314,7 @@ static void iwl_txq_gen1_inval_byte_cnt_tbl(struct iwl_trans *trans,
 					    int read_ptr)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwlagn_scd_bc_tbl_entry *scd_bc_tbl = trans_pcie->txqs.scd_bc_tbls.addr;
+	struct iwl_bc_tbl_entry *scd_bc_tbl = trans_pcie->txqs.scd_bc_tbls.addr;
 	int txq_id = txq->id;
 	u8 sta_id = 0;
 	__le16 bc_ent;

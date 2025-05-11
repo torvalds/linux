@@ -717,30 +717,19 @@ struct iwl_tfh_tfd {
 /* Fixed (non-configurable) rx data from phy */
 
 /**
- * struct iwlagn_scd_bc_tbl_entry - scheduler byte count table entry
+ * struct iwl_bc_tbl_entry - scheduler byte count table entry
  *	base physical address provided by SCD_DRAM_BASE_ADDR
  * For devices up to 22000:
  * @tfd_offset:
  *	For devices up to 22000:
  *		 0-12 - tx command byte count
  *		12-16 - station index
- *	For 22000:
+ *	For 22000 and on:
  *		 0-12 - tx command byte count
  *		12-13 - number of 64 byte chunks
  *		14-16 - reserved
  */
-struct iwlagn_scd_bc_tbl_entry {
-	__le16 tfd_offset;
-} __packed;
-
-/**
- * struct iwl_gen3_bc_tbl_entry - scheduler byte count table entry gen3
- * For AX210 and on:
- * @tfd_offset: 0-12 - tx command byte count
- *		12-13 - number of 64 byte chunks
- *		14-16 - reserved
- */
-struct iwl_gen3_bc_tbl_entry {
+struct iwl_bc_tbl_entry {
 	__le16 tfd_offset;
 } __packed;
 
