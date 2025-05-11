@@ -179,7 +179,7 @@ struct iwl_context_info {
 	__le32 reserved2[16];
 	struct iwl_context_info_dram_nonfseq dram;
 	__le32 reserved3[16];
-} __packed;
+} __packed; /* BOOT_LOADER_CONTEXT_INFO_S */
 
 int iwl_pcie_ctxt_info_init(struct iwl_trans *trans, const struct fw_img *img);
 void iwl_pcie_ctxt_info_free(struct iwl_trans *trans);
