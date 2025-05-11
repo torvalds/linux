@@ -34,6 +34,7 @@ enum mlx5hws_matcher_offset {
 enum mlx5hws_matcher_flags {
 	MLX5HWS_MATCHER_FLAGS_COLLISION = 1 << 2,
 	MLX5HWS_MATCHER_FLAGS_RESIZABLE	= 1 << 3,
+	MLX5HWS_MATCHER_FLAGS_ISOLATED	= 1 << 4,
 };
 
 struct mlx5hws_match_template {
@@ -96,9 +97,17 @@ static inline bool mlx5hws_matcher_is_in_resize(struct mlx5hws_matcher *matcher)
 	return !!matcher->resize_dst;
 }
 
+static inline bool mlx5hws_matcher_is_isolated(struct mlx5hws_matcher *matcher)
+{
+	return !!(matcher->flags & MLX5HWS_MATCHER_FLAGS_ISOLATED);
+}
+
 static inline bool mlx5hws_matcher_is_insert_by_idx(struct mlx5hws_matcher *matcher)
 {
 	return matcher->attr.insert_mode == MLX5HWS_MATCHER_INSERT_BY_INDEX;
 }
+
+int mlx5hws_matcher_update_end_ft_isolated(struct mlx5hws_table *tbl,
+					   u32 miss_ft_id);
 
 #endif /* HWS_MATCHER_H_ */

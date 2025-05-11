@@ -119,6 +119,8 @@ struct mlx5hws_matcher_attr {
 	};
 	/* Optional AT attach configuration - Max number of additional AT */
 	u8 max_num_of_at_attach;
+	/* Optional end FT (miss FT ID) for match RTC (for isolated matcher) */
+	u32 isolated_matcher_end_ft_id;
 };
 
 struct mlx5hws_rule_attr {
