@@ -971,7 +971,10 @@ static blk_status_t nvme_pci_setup_meta_mptr(struct nvme_dev *dev,
 
 static blk_status_t nvme_map_metadata(struct nvme_dev *dev, struct request *req)
 {
-	if (nvme_pci_metadata_use_sgls(dev, req))
+	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
+
+	if ((iod->cmd.common.flags & NVME_CMD_SGL_METABUF) &&
+	    nvme_pci_metadata_use_sgls(dev, req))
 		return nvme_pci_setup_meta_sgls(dev, req);
 	return nvme_pci_setup_meta_mptr(dev, req);
 }
