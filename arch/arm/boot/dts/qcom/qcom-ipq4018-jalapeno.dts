@@ -179,13 +179,13 @@
 &wifi0 {
 	status = "okay";
 
-	qcom,ath10k-calibration-variant = "8devices-Jalapeno";
+	qcom,calibration-variant = "8devices-Jalapeno";
 };
 
 &wifi1 {
 	status = "okay";
 
-	qcom,ath10k-calibration-variant = "8devices-Jalapeno";
+	qcom,calibration-variant = "8devices-Jalapeno";
 };
 
 &usb3_ss_phy {
