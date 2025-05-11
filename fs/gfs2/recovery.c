@@ -118,6 +118,7 @@ void gfs2_revoke_clean(struct gfs2_jdesc *jd)
 int __get_log_header(struct gfs2_sbd *sdp, const struct gfs2_log_header *lh,
 		     unsigned int blkno, struct gfs2_log_header_host *head)
 {
+	const u32 zero = 0;
 	u32 hash, crc;
 
 	if (lh->lh_header.mh_magic != cpu_to_be32(GFS2_MAGIC) ||
@@ -126,7 +127,7 @@ int __get_log_header(struct gfs2_sbd *sdp, const struct gfs2_log_header *lh,
 		return 1;
 
 	hash = crc32(~0, lh, LH_V1_SIZE - 4);
-	hash = ~crc32_le_shift(hash, 4); /* assume lh_hash is zero */
+	hash = ~crc32(hash, &zero, 4); /* assume lh_hash is zero */
 
 	if (be32_to_cpu(lh->lh_hash) != hash)
 		return 1;
