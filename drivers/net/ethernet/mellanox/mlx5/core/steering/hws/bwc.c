@@ -223,10 +223,10 @@ int mlx5hws_bwc_matcher_destroy(struct mlx5hws_bwc_matcher *bwc_matcher)
 	return 0;
 }
 
-static int hws_bwc_queue_poll(struct mlx5hws_context *ctx,
-			      u16 queue_id,
-			      u32 *pending_rules,
-			      bool drain)
+int mlx5hws_bwc_queue_poll(struct mlx5hws_context *ctx,
+			   u16 queue_id,
+			   u32 *pending_rules,
+			   bool drain)
 {
 	unsigned long timeout = jiffies +
 				secs_to_jiffies(MLX5HWS_BWC_POLLING_TIMEOUT);
@@ -361,7 +361,8 @@ hws_bwc_rule_destroy_hws_sync(struct mlx5hws_bwc_rule *bwc_rule,
 	if (unlikely(ret))
 		return ret;
 
-	ret = hws_bwc_queue_poll(ctx, rule_attr->queue_id, &expected_completions, true);
+	ret = mlx5hws_bwc_queue_poll(ctx, rule_attr->queue_id,
+				     &expected_completions, true);
 	if (unlikely(ret))
 		return ret;
 
@@ -442,9 +443,8 @@ hws_bwc_rule_create_sync(struct mlx5hws_bwc_rule *bwc_rule,
 	if (unlikely(ret))
 		return ret;
 
-	ret = hws_bwc_queue_poll(ctx, rule_attr->queue_id, &expected_completions, true);
-
-	return ret;
+	return mlx5hws_bwc_queue_poll(ctx, rule_attr->queue_id,
+				      &expected_completions, true);
 }
 
 static int
@@ -465,7 +465,8 @@ hws_bwc_rule_update_sync(struct mlx5hws_bwc_rule *bwc_rule,
 	if (unlikely(ret))
 		return ret;
 
-	ret = hws_bwc_queue_poll(ctx, rule_attr->queue_id, &expected_completions, true);
+	ret = mlx5hws_bwc_queue_poll(ctx, rule_attr->queue_id,
+				     &expected_completions, true);
 	if (unlikely(ret))
 		mlx5hws_err(ctx, "Failed updating BWC rule (%d)\n", ret);
 
@@ -651,8 +652,10 @@ static int hws_bwc_matcher_move_all_simple(struct mlx5hws_bwc_matcher *bwc_match
 							    &bwc_matcher->rules[i]) ?
 					       NULL : list_next_entry(bwc_rules[i], list_node);
 
-				ret = hws_bwc_queue_poll(ctx, rule_attr.queue_id,
-							 &pending_rules[i], false);
+				ret = mlx5hws_bwc_queue_poll(ctx,
+							     rule_attr.queue_id,
+							     &pending_rules[i],
+							     false);
 				if (unlikely(ret)) {
 					mlx5hws_err(ctx,
 						    "Moving BWC rule failed during rehash (%d)\n",
@@ -669,8 +672,8 @@ static int hws_bwc_matcher_move_all_simple(struct mlx5hws_bwc_matcher *bwc_match
 			u16 queue_id = mlx5hws_bwc_get_queue_id(ctx, i);
 
 			mlx5hws_send_engine_flush_queue(&ctx->send_queue[queue_id]);
-			ret = hws_bwc_queue_poll(ctx, queue_id,
-						 &pending_rules[i], true);
+			ret = mlx5hws_bwc_queue_poll(ctx, queue_id,
+						     &pending_rules[i], true);
 			if (unlikely(ret)) {
 				mlx5hws_err(ctx,
 					    "Moving BWC rule failed during rehash (%d)\n", ret);

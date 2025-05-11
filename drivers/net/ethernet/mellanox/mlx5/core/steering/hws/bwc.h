@@ -64,6 +64,11 @@ void mlx5hws_bwc_rule_fill_attr(struct mlx5hws_bwc_matcher *bwc_matcher,
 				u32 flow_source,
 				struct mlx5hws_rule_attr *rule_attr);
 
+int mlx5hws_bwc_queue_poll(struct mlx5hws_context *ctx,
+			   u16 queue_id,
+			   u32 *pending_rules,
+			   bool drain);
+
 static inline u16 mlx5hws_bwc_queues(struct mlx5hws_context *ctx)
 {
 	/* Besides the control queue, half of the queues are
