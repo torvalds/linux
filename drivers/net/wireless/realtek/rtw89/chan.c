@@ -2107,6 +2107,12 @@ static int rtw89_mcc_start(struct rtw89_dev *rtwdev)
 }
 
 struct rtw89_mcc_stop_sel {
+	struct {
+		const struct rtw89_vif_link *target;
+	} hint;
+
+	/* selection content */
+	bool filled;
 	u8 mac_id;
 	u8 slot_idx;
 };
@@ -2116,6 +2122,7 @@ static void rtw89_mcc_stop_sel_fill(struct rtw89_mcc_stop_sel *sel,
 {
 	sel->mac_id = mcc_role->rtwvif_link->mac_id;
 	sel->slot_idx = mcc_role->slot_idx;
+	sel->filled = true;
 }
 
 static int rtw89_mcc_stop_sel_iterator(struct rtw89_dev *rtwdev,
@@ -2125,23 +2132,35 @@ static int rtw89_mcc_stop_sel_iterator(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_mcc_stop_sel *sel = data;
 
+	if (mcc_role->rtwvif_link == sel->hint.target) {
+		rtw89_mcc_stop_sel_fill(sel, mcc_role);
+		return 1; /* break iteration */
+	}
+
+	if (sel->filled)
+		return 0;
+
 	if (!mcc_role->rtwvif_link->chanctx_assigned)
 		return 0;
 
 	rtw89_mcc_stop_sel_fill(sel, mcc_role);
-	return 1; /* break iteration */
+	return 0;
 }
 
-static void rtw89_mcc_stop(struct rtw89_dev *rtwdev)
+static void rtw89_mcc_stop(struct rtw89_dev *rtwdev,
+			   const struct rtw89_chanctx_pause_parm *pause)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
 	struct rtw89_mcc_role *ref = &mcc->role_ref;
-	struct rtw89_mcc_stop_sel sel;
+	struct rtw89_mcc_stop_sel sel = {
+		.hint.target = pause ? pause->trigger : NULL,
+	};
 	int ret;
 
 	/* by default, stop at ref */
-	rtw89_mcc_stop_sel_fill(&sel, ref);
 	rtw89_iterate_mcc_roles(rtwdev, rtw89_mcc_stop_sel_iterator, &sel);
+	if (!sel.filled)
+		rtw89_mcc_stop_sel_fill(&sel, ref);
 
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "MCC stop at <macid %d>\n", sel.mac_id);
 
@@ -2492,7 +2511,7 @@ void rtw89_chanctx_track(struct rtw89_dev *rtwdev)
 }
 
 void rtw89_chanctx_pause(struct rtw89_dev *rtwdev,
-			 enum rtw89_chanctx_pause_reasons rsn)
+			 const struct rtw89_chanctx_pause_parm *pause_parm)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 	enum rtw89_entity_mode mode;
@@ -2502,12 +2521,12 @@ void rtw89_chanctx_pause(struct rtw89_dev *rtwdev,
 	if (hal->entity_pause)
 		return;
 
-	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "chanctx pause (rsn: %d)\n", rsn);
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "chanctx pause (rsn: %d)\n", pause_parm->rsn);
 
 	mode = rtw89_get_entity_mode(rtwdev);
 	switch (mode) {
 	case RTW89_ENTITY_MODE_MCC:
-		rtw89_mcc_stop(rtwdev);
+		rtw89_mcc_stop(rtwdev, pause_parm);
 		break;
 	default:
 		break;
@@ -2732,7 +2751,7 @@ out:
 		cur = rtw89_get_entity_mode(rtwdev);
 		switch (cur) {
 		case RTW89_ENTITY_MODE_MCC:
-			rtw89_mcc_stop(rtwdev);
+			rtw89_mcc_stop(rtwdev, NULL);
 			break;
 		default:
 			break;

@@ -3389,6 +3389,9 @@ out:
 void rtw89_roc_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	struct rtw89_chanctx_pause_parm pause_parm = {
+		.rsn = RTW89_CHANCTX_PAUSE_REASON_ROC,
+	};
 	struct ieee80211_hw *hw = rtwdev->hw;
 	struct rtw89_roc *roc = &rtwvif->roc;
 	struct rtw89_vif_link *rtwvif_link;
@@ -3410,7 +3413,8 @@ void rtw89_roc_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 
 	roc->link_id = rtwvif_link->link_id;
 
-	rtw89_chanctx_pause(rtwdev, RTW89_CHANCTX_PAUSE_REASON_ROC);
+	pause_parm.trigger = rtwvif_link;
+	rtw89_chanctx_pause(rtwdev, &pause_parm);
 
 	ret = rtw89_core_send_nullfunc(rtwdev, rtwvif_link, true, true);
 	if (ret)

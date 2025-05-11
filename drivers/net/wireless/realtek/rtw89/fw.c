@@ -7446,6 +7446,10 @@ int rtw89_hw_scan_start(struct rtw89_dev *rtwdev,
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
 						       rtwvif_link->chanctx_idx);
 	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
+	struct rtw89_chanctx_pause_parm pause_parm = {
+		.rsn = RTW89_CHANCTX_PAUSE_REASON_HW_SCAN,
+		.trigger = rtwvif_link,
+	};
 	u32 rx_fltr = rtwdev->hal.rx_fltr;
 	u8 mac_addr[ETH_ALEN];
 	u32 reg;
@@ -7484,7 +7488,7 @@ int rtw89_hw_scan_start(struct rtw89_dev *rtwdev,
 	reg = rtw89_mac_reg_by_idx(rtwdev, mac->rx_fltr, rtwvif_link->mac_idx);
 	rtw89_write32_mask(rtwdev, reg, B_AX_RX_FLTR_CFG_MASK, rx_fltr);
 
-	rtw89_chanctx_pause(rtwdev, RTW89_CHANCTX_PAUSE_REASON_HW_SCAN);
+	rtw89_chanctx_pause(rtwdev, &pause_parm);
 
 	if (mode == RTW89_ENTITY_MODE_MCC)
 		rtw89_hw_scan_update_beacon_noa(rtwdev, req);

@@ -46,6 +46,11 @@ enum rtw89_chanctx_pause_reasons {
 	RTW89_CHANCTX_PAUSE_REASON_ROC,
 };
 
+struct rtw89_chanctx_pause_parm {
+	const struct rtw89_vif_link *trigger;
+	enum rtw89_chanctx_pause_reasons rsn;
+};
+
 struct rtw89_chanctx_cb_parm {
 	int (*cb)(struct rtw89_dev *rtwdev, void *data);
 	void *data;
@@ -113,7 +118,7 @@ void rtw89_queue_chanctx_change(struct rtw89_dev *rtwdev,
 				enum rtw89_chanctx_changes change);
 void rtw89_chanctx_track(struct rtw89_dev *rtwdev);
 void rtw89_chanctx_pause(struct rtw89_dev *rtwdev,
-			 enum rtw89_chanctx_pause_reasons rsn);
+			 const struct rtw89_chanctx_pause_parm *parm);
 void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev,
 			   const struct rtw89_chanctx_cb_parm *cb_parm);
 
