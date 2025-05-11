@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/pmbus/mps,mpq8785.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Monolithic Power Systems Multiphase Voltage Regulators with PMBus
+
+maintainers:
+  - Charles Hsu <ythsu0511@gmail.com>
+
+description:
+  Monolithic Power Systems digital multiphase voltage regulators with PMBus.
+
+properties:
+  compatible:
+    enum:
+      - mps,mpm3695
+      - mps,mpm3695-25
+      - mps,mpm82504
+      - mps,mpq8785
+
+  reg:
+    maxItems: 1
+
+  mps,vout-fb-divider-ratio-permille:
+    description:
+      The feedback resistor divider ratio, expressed in permille
+      (Vfb / Vout * 1000). This value is written to the PMBUS_VOUT_SCALE_LOOP
+      register and is required for correct output voltage presentation.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+    maximum: 4095
+    default: 706
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          enum:
+            - mps,mpm3695
+            - mps,mpm82504
+    then:
+      properties:
+        mps,vout-fb-divider-ratio-permille:
+          maximum: 1023
+
+  - if:
+      properties:
+        compatible:
+          const: mps,mpq8785
+    then:
+      properties:
+        mps,vout-fb-divider-ratio-permille:
+          maximum: 2047
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      pmic@30 {
+        compatible = "mps,mpm82504";
+        reg = <0x30>;
+        mps,vout-fb-divider-ratio-permille = <600>;
+      };
+    };
