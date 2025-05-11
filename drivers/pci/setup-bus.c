@@ -2298,8 +2298,8 @@ void pci_assign_unassigned_root_bus_resources(struct pci_bus *bus)
 
 		/* Depth last, allocate resources and update the hardware. */
 		__pci_bus_assign_resources(bus, add_list, &fail_head);
-		if (add_list)
-			BUG_ON(!list_empty(add_list));
+		if (WARN_ON_ONCE(add_list && !list_empty(add_list)))
+			free_list(add_list);
 		tried_times++;
 
 		/* Any device complain? */
@@ -2361,7 +2361,8 @@ void pci_assign_unassigned_bridge_resources(struct pci_dev *bridge)
 		pci_bridge_distribute_available_resources(bridge, &add_list);
 
 		__pci_bridge_assign_resources(bridge, &add_list, &fail_head);
-		BUG_ON(!list_empty(&add_list));
+		if (WARN_ON_ONCE(!list_empty(&add_list)))
+			free_list(&add_list);
 		tried_times++;
 
 		if (list_empty(&fail_head))
@@ -2437,7 +2438,8 @@ int pci_reassign_bridge_resources(struct pci_dev *bridge, unsigned long type)
 
 	__pci_bus_size_bridges(bridge->subordinate, &added);
 	__pci_bridge_assign_resources(bridge, &added, &failed);
-	BUG_ON(!list_empty(&added));
+	if (WARN_ON_ONCE(!list_empty(&added)))
+		free_list(&added);
 
 	if (!list_empty(&failed)) {
 		ret = -ENOSPC;
@@ -2493,6 +2495,7 @@ void pci_assign_unassigned_bus_resources(struct pci_bus *bus)
 			__pci_bus_size_bridges(dev->subordinate, &add_list);
 	up_read(&pci_bus_sem);
 	__pci_bus_assign_resources(bus, &add_list, NULL);
-	BUG_ON(!list_empty(&add_list));
+	if (WARN_ON_ONCE(!list_empty(&add_list)))
+		free_list(&add_list);
 }
 EXPORT_SYMBOL_GPL(pci_assign_unassigned_bus_resources);
