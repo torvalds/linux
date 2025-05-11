@@ -545,9 +545,6 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0xE340, PCI_ANY_ID, iwl_sc_mac_cfg)},
 	{IWL_PCI_DEVICE(0xD340, PCI_ANY_ID, iwl_sc_mac_cfg)},
 	{IWL_PCI_DEVICE(0x6E70, PCI_ANY_ID, iwl_sc_mac_cfg)},
-
-/* Dr devices */
-	{IWL_PCI_DEVICE(0x272F, PCI_ANY_ID, iwl_dr_mac_cfg)},
 #endif /* CONFIG_IWLMLD */
 
 	{0}

@@ -19,15 +19,9 @@
 #define IWL_DR_SMEM_LEN			0xD0000
 
 #define IWL_DR_A_PE_A_FW_PRE		"iwlwifi-dr-a0-pe-a0"
-#define IWL_BR_A_PET_A_FW_PRE		"iwlwifi-br-a0-petc-a0"
-#define IWL_BR_A_PE_A_FW_PRE		"iwlwifi-br-a0-pe-a0"
 
 #define IWL_DR_A_PE_A_FW_MODULE_FIRMWARE(api) \
 	IWL_DR_A_PE_A_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_BR_A_PET_A_FW_MODULE_FIRMWARE(api) \
-	IWL_BR_A_PET_A_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_BR_A_PE_A_FW_MODULE_FIRMWARE(api) \
-	IWL_BR_A_PE_A_FW_PRE "-" __stringify(api) ".ucode"
 
 static const struct iwl_family_base_params iwl_dr_base = {
 	.num_of_queues = 512,
@@ -95,20 +89,5 @@ const struct iwl_mac_cfg iwl_dr_mac_cfg = {
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
 };
 
-const char iwl_dr_name[] = "Intel(R) TBD Dr device";
-
-const struct iwl_mac_cfg iwl_br_mac_cfg = {
-	.device_family = IWL_DEVICE_FAMILY_DR,
-	.base = &iwl_dr_base,
-	.mq_rx_supported = true,
-	.gen2 = true,
-	.umac_prph_offset = 0x300000,
-	.xtal_latency = 12000,
-	.low_latency_xtal = true,
-};
-
-const char iwl_br_name[] = "Intel(R) TBD Br device";
-
 MODULE_FIRMWARE(IWL_DR_A_PE_A_FW_MODULE_FIRMWARE(IWL_DR_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_BR_A_PET_A_FW_MODULE_FIRMWARE(IWL_DR_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_BR_A_PE_A_FW_MODULE_FIRMWARE(IWL_DR_UCODE_API_MAX));
+
