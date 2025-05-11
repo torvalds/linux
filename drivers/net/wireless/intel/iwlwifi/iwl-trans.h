@@ -832,6 +832,8 @@ struct iwl_txq {
  * @hw_crf_id: the device CRF ID
  * @hw_wfpm_id: the device wfpm ID
  * @hw_id: the ID of the device / sub-device
+ *	Bits 0:15 represent the sub-device ID
+ *	Bits 16:31 represent the device ID.
  * @pcie_link_speed: current PCIe link speed (%PCI_EXP_LNKSTA_CLS_*),
  *	only valid for discrete (not integrated) NICs
  * @num_rxqs: number of RX queues allocated by the transport
@@ -1261,6 +1263,11 @@ static inline void iwl_trans_set_info(struct iwl_trans *trans,
 
 	write = (void *)(uintptr_t)&trans->info;
 	*write = *info;
+}
+
+static inline u16 iwl_trans_get_device_id(struct iwl_trans *trans)
+{
+	return u32_get_bits(trans->info.hw_id, GENMASK(31, 16));
 }
 
 #endif /* __iwl_trans_h__ */
