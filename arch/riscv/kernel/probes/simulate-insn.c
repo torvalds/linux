@@ -66,7 +66,7 @@ bool __kprobes simulate_jalr(u32 opcode, unsigned long addr, struct pt_regs *reg
 	unsigned long base_addr;
 	u32 imm = (opcode >> 20) & 0xfff;
 	u32 rd_index = (opcode >> 7) & 0x1f;
-	u32 rs1_index = (opcode >> 15) & 0x1f;
+	u32 rs1_index = RV_EXTRACT_RS1_REG(opcode);
 
 	ret = rv_insn_reg_get_val(regs, rs1_index, &base_addr);
 	if (!ret)
@@ -115,9 +115,6 @@ bool __kprobes simulate_auipc(u32 opcode, unsigned long addr, struct pt_regs *re
 	return true;
 }
 
-#define branch_rs1_idx(opcode) \
-	(((opcode) >> 15) & 0x1f)
-
 #define branch_imm(opcode) \
 	(((((opcode) >>  8) & 0xf ) <<  1) | \
 	 ((((opcode) >> 25) & 0x3f) <<  5) | \
@@ -147,7 +144,7 @@ bool __kprobes simulate_branch(u32 opcode, unsigned long addr, struct pt_regs *r
 	unsigned long rs1_val;
 	unsigned long rs2_val;
 
-	if (!rv_insn_reg_get_val(regs, branch_rs1_idx(opcode), &rs1_val) ||
+	if (!rv_insn_reg_get_val(regs, RV_EXTRACT_RS1_REG(opcode), &rs1_val) ||
 	    !rv_insn_reg_get_val(regs, RV_EXTRACT_RS2_REG(opcode), &rs2_val))
 		return false;
 
