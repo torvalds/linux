@@ -151,7 +151,7 @@ enum iwl_tx_cmd_sec_ctrl {
 #define IWL_LOW_RETRY_LIMIT			7
 
 /**
- * enum iwl_tx_offload_assist_flags_pos -  set %iwl_tx_cmd offload_assist values
+ * enum iwl_tx_offload_assist_flags_pos -  set %iwl_tx_cmd_v6 offload_assist values
  * @TX_CMD_OFFLD_IP_HDR: offset to start of IP header (in words)
  *	from mac header end. For normal case it is 4 words for SNAP.
  *	note: tx_cmd, mac header and pad are not counted in the offset.
@@ -181,7 +181,7 @@ enum iwl_tx_offload_assist_flags_pos {
 
 /* TODO: complete documentation for try_cnt and btkill_cnt */
 /**
- * struct iwl_tx_cmd - TX command struct to FW
+ * struct iwl_tx_cmd_v6 - TX command struct to FW
  * ( TX_CMD = 0x1c )
  * @len: in bytes of the payload, see below for details
  * @offload_assist: TX offload configuration
@@ -221,7 +221,7 @@ enum iwl_tx_offload_assist_flags_pos {
  * After the struct fields the MAC header is placed, plus any padding,
  * and then the actial payload.
  */
-struct iwl_tx_cmd {
+struct iwl_tx_cmd_v6 {
 	__le16 len;
 	__le16 offload_assist;
 	__le32 tx_flags;
@@ -258,7 +258,7 @@ struct iwl_dram_sec_info {
 } __packed; /* DRAM_SEC_INFO_API_S_VER_1 */
 
 /**
- * struct iwl_tx_cmd_gen2 - TX command struct to FW for 22000 devices
+ * struct iwl_tx_cmd_v9 - TX command struct to FW for 22000 devices
  * ( TX_CMD = 0x1c )
  * @len: in bytes of the payload, see below for details
  * @offload_assist: TX offload configuration
@@ -268,7 +268,7 @@ struct iwl_dram_sec_info {
  *	cleared. Combination of RATE_MCS_*
  * @hdr: 802.11 header
  */
-struct iwl_tx_cmd_gen2 {
+struct iwl_tx_cmd_v9 {
 	__le16 len;
 	__le16 offload_assist;
 	__le32 flags;
@@ -279,7 +279,7 @@ struct iwl_tx_cmd_gen2 {
 	       TX_CMD_API_S_VER_9 */
 
 /**
- * struct iwl_tx_cmd_gen3 - TX command struct to FW for AX210+ devices
+ * struct iwl_tx_cmd - TX command struct to FW for AX210+ devices
  * ( TX_CMD = 0x1c )
  * @len: in bytes of the payload, see below for details
  * @flags: combination of &enum iwl_tx_cmd_flags
@@ -290,7 +290,7 @@ struct iwl_tx_cmd_gen2 {
  * @reserved: reserved
  * @hdr: 802.11 header
  */
-struct iwl_tx_cmd_gen3 {
+struct iwl_tx_cmd {
 	__le16 len;
 	__le16 flags;
 	__le32 offload_assist;
@@ -748,7 +748,7 @@ struct iwl_compressed_ba_notif {
  * @frame: the template of the beacon frame
  */
 struct iwl_mac_beacon_cmd_v6 {
-	struct iwl_tx_cmd tx;
+	struct iwl_tx_cmd_v6 tx;
 	__le32 template_id;
 	__le32 tim_idx;
 	__le32 tim_size;
@@ -767,7 +767,7 @@ struct iwl_mac_beacon_cmd_v6 {
  * @frame: the template of the beacon frame
  */
 struct iwl_mac_beacon_cmd_v7 {
-	struct iwl_tx_cmd tx;
+	struct iwl_tx_cmd_v6 tx;
 	__le32 template_id;
 	__le32 tim_idx;
 	__le32 tim_size;

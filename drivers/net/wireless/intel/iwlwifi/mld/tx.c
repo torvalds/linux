@@ -488,7 +488,7 @@ static __le32 iwl_mld_get_tx_rate_n_flags(struct iwl_mld *mld,
 }
 
 static void
-iwl_mld_fill_tx_cmd_hdr(struct iwl_tx_cmd_gen3 *tx_cmd,
+iwl_mld_fill_tx_cmd_hdr(struct iwl_tx_cmd *tx_cmd,
 			struct sk_buff *skb, bool amsdu)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -534,7 +534,7 @@ iwl_mld_fill_tx_cmd(struct iwl_mld *mld, struct sk_buff *skb,
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	struct iwl_mld_sta *mld_sta = sta ? iwl_mld_sta_from_mac80211(sta) :
 					    NULL;
-	struct iwl_tx_cmd_gen3 *tx_cmd;
+	struct iwl_tx_cmd *tx_cmd;
 	bool amsdu = ieee80211_is_data_qos(hdr->frame_control) &&
 		     (*ieee80211_get_qos_ctl(hdr) &
 		      IEEE80211_QOS_CTL_A_MSDU_PRESENT);

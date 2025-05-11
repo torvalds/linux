@@ -163,7 +163,7 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 				    struct iwl_device_tx_cmd *dev_cmd)
 {
 #ifdef CONFIG_INET
-	struct iwl_tx_cmd_gen2 *tx_cmd = (void *)dev_cmd->payload;
+	struct iwl_tx_cmd_v9 *tx_cmd = (void *)dev_cmd->payload;
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	unsigned int snap_ip_tcp_hdrlen, ip_hdrlen, total_len, hdr_room;
 	unsigned int mss = skb_shinfo(skb)->gso_size;
@@ -490,21 +490,21 @@ struct iwl_tfh_tfd *iwl_txq_gen2_build_tfd(struct iwl_trans *trans,
 	bool amsdu;
 
 	/* There must be data left over for TB1 or this code must be changed */
-	BUILD_BUG_ON(sizeof(struct iwl_tx_cmd_gen2) < IWL_FIRST_TB_SIZE);
+	BUILD_BUG_ON(sizeof(struct iwl_tx_cmd_v9) < IWL_FIRST_TB_SIZE);
 	BUILD_BUG_ON(sizeof(struct iwl_cmd_header) +
-		     offsetofend(struct iwl_tx_cmd_gen2, dram_info) >
+		     offsetofend(struct iwl_tx_cmd_v9, dram_info) >
 		     IWL_FIRST_TB_SIZE);
-	BUILD_BUG_ON(sizeof(struct iwl_tx_cmd_gen3) < IWL_FIRST_TB_SIZE);
+	BUILD_BUG_ON(sizeof(struct iwl_tx_cmd) < IWL_FIRST_TB_SIZE);
 	BUILD_BUG_ON(sizeof(struct iwl_cmd_header) +
-		     offsetofend(struct iwl_tx_cmd_gen3, dram_info) >
+		     offsetofend(struct iwl_tx_cmd, dram_info) >
 		     IWL_FIRST_TB_SIZE);
 
 	memset(tfd, 0, sizeof(*tfd));
 
 	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
-		len = sizeof(struct iwl_tx_cmd_gen2);
+		len = sizeof(struct iwl_tx_cmd_v9);
 	else
-		len = sizeof(struct iwl_tx_cmd_gen3);
+		len = sizeof(struct iwl_tx_cmd);
 
 	amsdu = ieee80211_is_data_qos(hdr->frame_control) &&
 			(*ieee80211_get_qos_ctl(hdr) &
@@ -781,15 +781,15 @@ int iwl_txq_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	}
 
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
-		struct iwl_tx_cmd_gen3 *tx_cmd_gen3 =
+		struct iwl_tx_cmd *tx_cmd =
 			(void *)dev_cmd->payload;
 
-		cmd_len = le16_to_cpu(tx_cmd_gen3->len);
+		cmd_len = le16_to_cpu(tx_cmd->len);
 	} else {
-		struct iwl_tx_cmd_gen2 *tx_cmd_gen2 =
+		struct iwl_tx_cmd_v9 *tx_cmd_v9 =
 			(void *)dev_cmd->payload;
 
-		cmd_len = le16_to_cpu(tx_cmd_gen2->len);
+		cmd_len = le16_to_cpu(tx_cmd_v9->len);
 	}
 
 	/* Set up entry for this TFD in Tx byte-count array */

@@ -287,13 +287,13 @@ int iwl_trans_init(struct iwl_trans *trans)
 		return -EINVAL;
 
 	if (!trans->mac_cfg->gen2) {
-		txcmd_size = sizeof(struct iwl_tx_cmd);
+		txcmd_size = sizeof(struct iwl_tx_cmd_v6);
 		txcmd_align = sizeof(void *);
 	} else if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210) {
-		txcmd_size = sizeof(struct iwl_tx_cmd_gen2);
+		txcmd_size = sizeof(struct iwl_tx_cmd_v9);
 		txcmd_align = 64;
 	} else {
-		txcmd_size = sizeof(struct iwl_tx_cmd_gen3);
+		txcmd_size = sizeof(struct iwl_tx_cmd);
 		txcmd_align = 128;
 	}
 

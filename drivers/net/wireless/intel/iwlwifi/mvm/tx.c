@@ -148,7 +148,7 @@ out:
  * Sets most of the Tx cmd's fields
  */
 void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
-			struct iwl_tx_cmd *tx_cmd,
+			struct iwl_tx_cmd_v6 *tx_cmd,
 			struct ieee80211_tx_info *info, u8 sta_id)
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
@@ -395,7 +395,7 @@ static __le32 iwl_mvm_get_tx_rate_n_flags(struct iwl_mvm *mvm,
 /*
  * Sets the fields in the Tx cmd that are rate related
  */
-void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd *tx_cmd,
+void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd_v6 *tx_cmd,
 			    struct ieee80211_tx_info *info,
 			    struct ieee80211_sta *sta, __le16 fc)
 {
@@ -458,7 +458,7 @@ static inline void iwl_mvm_set_tx_cmd_pn(struct ieee80211_tx_info *info,
  */
 static void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
 				      struct ieee80211_tx_info *info,
-				      struct iwl_tx_cmd *tx_cmd,
+				      struct iwl_tx_cmd_v6 *tx_cmd,
 				      struct sk_buff *skb_frag,
 				      int hdrlen)
 {
@@ -556,7 +556,7 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct iwl_device_tx_cmd *dev_cmd;
-	struct iwl_tx_cmd *tx_cmd;
+	struct iwl_tx_cmd_v6 *tx_cmd;
 
 	dev_cmd = iwl_trans_alloc_tx_cmd(mvm->trans);
 
@@ -600,7 +600,7 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 		if (mvm->trans->mac_cfg->device_family >=
 		    IWL_DEVICE_FAMILY_AX210) {
-			struct iwl_tx_cmd_gen3 *cmd = (void *)dev_cmd->payload;
+			struct iwl_tx_cmd *cmd = (void *)dev_cmd->payload;
 			u32 offload_assist = iwl_mvm_tx_csum(mvm, skb,
 							     info, amsdu);
 
@@ -615,7 +615,7 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 			cmd->flags = cpu_to_le16(flags);
 			cmd->rate_n_flags = rate_n_flags;
 		} else {
-			struct iwl_tx_cmd_gen2 *cmd = (void *)dev_cmd->payload;
+			struct iwl_tx_cmd_v9 *cmd = (void *)dev_cmd->payload;
 			u16 offload_assist = iwl_mvm_tx_csum(mvm, skb,
 							     info, amsdu);
 
@@ -633,7 +633,7 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 		goto out;
 	}
 
-	tx_cmd = (struct iwl_tx_cmd *)dev_cmd->payload;
+	tx_cmd = (struct iwl_tx_cmd_v6 *)dev_cmd->payload;
 
 	if (info->control.hw_key)
 		iwl_mvm_set_tx_cmd_crypto(mvm, info, tx_cmd, skb, hdrlen);
@@ -1174,7 +1174,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		seq_number &= IEEE80211_SCTL_SEQ;
 
 		if (!iwl_mvm_has_new_tx_api(mvm)) {
-			struct iwl_tx_cmd *tx_cmd = (void *)dev_cmd->payload;
+			struct iwl_tx_cmd_v6 *tx_cmd = (void *)dev_cmd->payload;
 
 			hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
 			hdr->seq_ctrl |= cpu_to_le16(seq_number);
