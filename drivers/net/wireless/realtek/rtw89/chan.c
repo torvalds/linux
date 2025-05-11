@@ -1185,6 +1185,107 @@ static int __rtw89_mcc_calc_pattern_strict(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
+static void __rtw89_mcc_fill_ptrn_anchor_ref(struct rtw89_dev *rtwdev,
+					     struct rtw89_mcc_pattern *ptrn,
+					     bool small_bcn_ofst)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_role *aux = &mcc->role_aux;
+	struct rtw89_mcc_config *config = &mcc->config;
+	u16 bcn_ofst = config->beacon_offset;
+	u16 ref_tob;
+	u16 ref_toa;
+
+	if (ref->limit.enable) {
+		ref_tob = ref->limit.max_tob;
+		ref_toa = ref->limit.max_toa;
+	} else {
+		ref_tob = ref->duration / 2;
+		ref_toa = ref->duration / 2;
+	}
+
+	if (small_bcn_ofst) {
+		ptrn->toa_ref = ref_toa;
+		ptrn->tob_ref = ref->duration - ptrn->toa_ref;
+	} else {
+		ptrn->tob_ref = ref_tob;
+		ptrn->toa_ref = ref->duration - ptrn->tob_ref;
+	}
+
+	ptrn->tob_aux = bcn_ofst - ptrn->toa_ref;
+	ptrn->toa_aux = aux->duration - ptrn->tob_aux;
+}
+
+static void __rtw89_mcc_fill_ptrn_anchor_aux(struct rtw89_dev *rtwdev,
+					     struct rtw89_mcc_pattern *ptrn,
+					     bool small_bcn_ofst)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_role *aux = &mcc->role_aux;
+	struct rtw89_mcc_config *config = &mcc->config;
+	u16 bcn_ofst = config->beacon_offset;
+	u16 aux_tob;
+	u16 aux_toa;
+
+	if (aux->limit.enable) {
+		aux_tob = aux->limit.max_tob;
+		aux_toa = aux->limit.max_toa;
+	} else {
+		aux_tob = aux->duration / 2;
+		aux_toa = aux->duration / 2;
+	}
+
+	if (small_bcn_ofst) {
+		ptrn->tob_aux = aux_tob;
+		ptrn->toa_aux = aux->duration - ptrn->tob_aux;
+	} else {
+		ptrn->toa_aux = aux_toa;
+		ptrn->tob_aux = aux->duration - ptrn->toa_aux;
+	}
+
+	ptrn->toa_ref = bcn_ofst - ptrn->tob_aux;
+	ptrn->tob_ref = ref->duration - ptrn->toa_ref;
+}
+
+static int __rtw89_mcc_calc_pattern_anchor(struct rtw89_dev *rtwdev,
+					   struct rtw89_mcc_pattern *ptrn,
+					   bool hdl_bt)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_role *aux = &mcc->role_aux;
+	struct rtw89_mcc_config *config = &mcc->config;
+	u16 mcc_intvl = config->mcc_interval;
+	u16 bcn_ofst = config->beacon_offset;
+	bool small_bcn_ofst;
+
+	if (bcn_ofst < RTW89_MCC_MIN_RX_BCN_TIME)
+		small_bcn_ofst = true;
+	else if (mcc_intvl - bcn_ofst < RTW89_MCC_MIN_RX_BCN_TIME)
+		small_bcn_ofst = false;
+	else
+		return -EPERM;
+
+	*ptrn = (typeof(*ptrn)){
+		.plan = hdl_bt ? RTW89_MCC_PLAN_TAIL_BT : RTW89_MCC_PLAN_NO_BT,
+	};
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MCC calc ptrn_ac: plan %d, bcn_ofst %d\n",
+		    ptrn->plan, bcn_ofst);
+
+	if (ref->is_go || ref->is_gc)
+		__rtw89_mcc_fill_ptrn_anchor_ref(rtwdev, ptrn, small_bcn_ofst);
+	else if (aux->is_go || aux->is_gc)
+		__rtw89_mcc_fill_ptrn_anchor_aux(rtwdev, ptrn, small_bcn_ofst);
+	else
+		__rtw89_mcc_fill_ptrn_anchor_ref(rtwdev, ptrn, small_bcn_ofst);
+
+	return 0;
+}
+
 static int rtw89_mcc_calc_pattern(struct rtw89_dev *rtwdev, bool hdl_bt)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
@@ -1237,6 +1338,10 @@ static int rtw89_mcc_calc_pattern(struct rtw89_dev *rtwdev, bool hdl_bt)
 		else
 			goto done;
 	}
+
+	ret = __rtw89_mcc_calc_pattern_anchor(rtwdev, &ptrn, hdl_bt);
+	if (!ret)
+		goto done;
 
 	__rtw89_mcc_calc_pattern_loose(rtwdev, &ptrn, hdl_bt);
 
