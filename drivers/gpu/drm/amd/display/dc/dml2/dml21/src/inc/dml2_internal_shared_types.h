@@ -38,6 +38,12 @@ struct dml2_mcg_min_clock_table {
 	} max_clocks_khz;
 
 	struct {
+		unsigned int dispclk;
+		unsigned int dppclk;
+		unsigned int dtbclk;
+	} max_ss_clocks_khz;
+
+	struct {
 		unsigned int dprefclk;
 		unsigned int xtalclk;
 		unsigned int pcierefclk;

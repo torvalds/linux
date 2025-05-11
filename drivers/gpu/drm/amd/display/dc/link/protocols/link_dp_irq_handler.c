@@ -229,6 +229,10 @@ static void handle_hpd_irq_replay_sink(struct dc_link *link)
 
 		link->replay_settings.config.replay_error_status.raw |= replay_error_status.raw;
 
+		/* Increment desync error counter if a desync error is detected */
+		if (replay_configuration.bits.DESYNC_ERROR_STATUS)
+			link->replay_settings.replay_desync_error_fail_count++;
+
 		if (link->replay_settings.config.force_disable_desync_error_check)
 			return;
 
@@ -239,9 +243,6 @@ static void handle_hpd_irq_replay_sink(struct dc_link *link)
 			DP_SINK_PR_REPLAY_STATUS,
 			&replay_configuration.raw,
 			sizeof(replay_configuration.raw));
-
-		/* Update desync error counter */
-		link->replay_settings.replay_desync_error_fail_count++;
 
 		/* Acknowledge and clear error bits */
 		dm_helpers_dp_write_dpcd(

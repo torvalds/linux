@@ -240,7 +240,8 @@ bool dmub_abm_save_restore(
 	cmd.abm_save_restore.abm_init_config_data.version = DMUB_CMD_ABM_CONTROL_VERSION_1;
 	cmd.abm_save_restore.abm_init_config_data.panel_mask = panel_mask;
 
-	cmd.abm_save_restore.header.payload_bytes = sizeof(struct dmub_rb_cmd_abm_save_restore);
+	cmd.abm_save_restore.header.payload_bytes =
+			sizeof(struct dmub_rb_cmd_abm_save_restore) - sizeof(struct dmub_cmd_header);
 
 	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 

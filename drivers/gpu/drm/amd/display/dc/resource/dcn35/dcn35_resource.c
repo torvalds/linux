@@ -1732,7 +1732,7 @@ static void dcn35_get_panel_config_defaults(struct dc_panel_config *panel_config
 }
 
 
-static bool dcn35_validate_bandwidth(struct dc *dc,
+static enum dc_status dcn35_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate)
 {
@@ -1743,13 +1743,13 @@ static bool dcn35_validate_bandwidth(struct dc *dc,
 			fast_validate);
 
 	if (fast_validate)
-		return out;
+		return out ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
 
 	DC_FP_START();
 	dcn35_decide_zstate_support(dc, context);
 	DC_FP_END();
 
-	return out;
+	return out ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
 }
 
 enum dc_status dcn35_patch_unknown_plane_state(struct dc_plane_state *plane_state)
@@ -1903,7 +1903,7 @@ static bool dcn35_resource_construct(
 	dc->caps.max_disp_clock_khz_at_vmin = 650000;
 
 	/* Sequential ONO is based on ASIC. */
-	if (dc->ctx->asic_id.hw_internal_rev > 0x10)
+	if (dc->ctx->asic_id.hw_internal_rev >= 0x40)
 		dc->caps.sequential_ono = true;
 
 	/* Use pipe context based otg sync logic */

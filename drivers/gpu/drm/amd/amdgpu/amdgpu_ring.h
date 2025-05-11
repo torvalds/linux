@@ -164,8 +164,24 @@ void amdgpu_fence_update_start_timestamp(struct amdgpu_ring *ring, uint32_t seq,
 
 /* provided by hw blocks that expose a ring buffer for commands */
 struct amdgpu_ring_funcs {
+	/**
+	 * @type:
+	 *
+	 * GFX, Compute, SDMA, UVD, VCE, VCN, VPE, KIQ, MES, UMSCH, and CPER
+	 * use ring buffers. The type field just identifies which component the
+	 * ring buffer is associated with.
+	 */
 	enum amdgpu_ring_type	type;
 	uint32_t		align_mask;
+
+	/**
+	 * @nop:
+	 *
+	 * Every block in the amdgpu has no-op instructions (e.g., GFX 10
+	 * uses PACKET3(PACKET3_NOP, 0x3FFF), VCN 5 uses VCN_ENC_CMD_NO_OP,
+	 * etc). This field receives the specific no-op for the component
+	 * that initializes the ring.
+	 */
 	u32			nop;
 	bool			support_64bit_ptrs;
 	bool			no_user_fence;
@@ -241,6 +257,9 @@ struct amdgpu_ring_funcs {
 	bool (*is_guilty)(struct amdgpu_ring *ring);
 };
 
+/**
+ * amdgpu_ring - Holds ring information
+ */
 struct amdgpu_ring {
 	struct amdgpu_device		*adev;
 	const struct amdgpu_ring_funcs	*funcs;
@@ -252,13 +271,61 @@ struct amdgpu_ring {
 	unsigned		rptr_offs;
 	u64			rptr_gpu_addr;
 	volatile u32		*rptr_cpu_addr;
+
+	/**
+	 * @wptr:
+	 *
+	 * This is part of the Ring buffer implementation and represents the
+	 * write pointer. The wptr determines where the host has written.
+	 */
 	u64			wptr;
+
+	/**
+	 * @wptr_old:
+	 *
+	 * Before update wptr with the new value, usually the old value is
+	 * stored in the wptr_old.
+	 */
 	u64			wptr_old;
 	unsigned		ring_size;
+
+	/**
+	 * @max_dw:
+	 *
+	 * Maximum number of DWords for ring allocation. This information is
+	 * provided at the ring initialization time, and each IP block can
+	 * specify a specific value. Check places that invoke
+	 * amdgpu_ring_init() to see the maximum size per block.
+	 */
 	unsigned		max_dw;
+
+	/**
+	 * @count_dw:
+	 *
+	 * This value starts with the maximum amount of DWords supported by the
+	 * ring. This value is updated based on the ring manipulation.
+	 */
 	int			count_dw;
 	uint64_t		gpu_addr;
+
+	/**
+	 * @ptr_mask:
+	 *
+	 * Some IPs provide support for 64-bit pointers and others for 32-bit
+	 * only; this behavior is component-specific and defined by the field
+	 * support_64bit_ptr. If the IP block supports 64-bits, the mask
+	 * 0xffffffffffffffff is set; otherwise, this value assumes buf_mask.
+	 * Notice that this field is used to keep wptr under a valid range.
+	 */
 	uint64_t		ptr_mask;
+
+	/**
+	 * @buf_mask:
+	 *
+	 * Buffer mask is a value used to keep wptr count under its
+	 * thresholding. Buffer mask initialized during the ring buffer
+	 * initialization time, and it is defined as (ring_size / 4) -1.
+	 */
 	uint32_t		buf_mask;
 	u32			idx;
 	u32			xcc_id;
@@ -276,6 +343,13 @@ struct amdgpu_ring {
 	bool			use_pollmem;
 	unsigned		wptr_offs;
 	u64			wptr_gpu_addr;
+
+	/**
+	 * @wptr_cpu_addr:
+	 *
+	 * This is the CPU address pointer in the writeback slot. This is used
+	 * to commit changes to the GPU.
+	 */
 	volatile u32		*wptr_cpu_addr;
 	unsigned		fence_offs;
 	u64			fence_gpu_addr;
@@ -297,20 +371,15 @@ struct amdgpu_ring {
 	struct dma_fence	*vmid_wait;
 	bool			has_compute_vm_bug;
 	bool			no_scheduler;
+	bool			no_user_submission;
 	int			hw_prio;
 	unsigned 		num_hw_submission;
 	atomic_t		*sched_score;
-
-	/* used for mes */
-	bool			is_mes_queue;
-	uint32_t		hw_queue_id;
-	struct amdgpu_mes_ctx_data *mes_ctx;
 
 	bool            is_sw_ring;
 	unsigned int    entry_index;
 	/* store the cached rptr to restore after reset */
 	uint64_t cached_rptr;
-
 };
 
 #define amdgpu_ring_parse_cs(r, p, job, ib) ((r)->funcs->parse_cs((p), (job), (ib)))
@@ -434,15 +503,6 @@ static inline void amdgpu_ring_patch_cond_exec(struct amdgpu_ring *ring,
 		cur += ring->ring_size >> 2;
 	ring->ring[offset] = cur - offset;
 }
-
-#define amdgpu_mes_ctx_get_offs_gpu_addr(ring, offset)			\
-	(ring->is_mes_queue && ring->mes_ctx ?				\
-	 (ring->mes_ctx->meta_data_gpu_addr + offset) : 0)
-
-#define amdgpu_mes_ctx_get_offs_cpu_addr(ring, offset)			\
-	(ring->is_mes_queue && ring->mes_ctx ?				\
-	 (void *)((uint8_t *)(ring->mes_ctx->meta_data_ptr) + offset) : \
-	 NULL)
 
 int amdgpu_ring_test_helper(struct amdgpu_ring *ring);
 

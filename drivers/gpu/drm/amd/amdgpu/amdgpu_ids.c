@@ -576,8 +576,16 @@ void amdgpu_vmid_mgr_init(struct amdgpu_device *adev)
 		INIT_LIST_HEAD(&id_mgr->ids_lru);
 		id_mgr->reserved_use_count = 0;
 
-		/* manage only VMIDs not used by KFD */
-		id_mgr->num_ids = adev->vm_manager.first_kfd_vmid;
+		/* for GC <10, SDMA uses MMHUB so use first_kfd_vmid for both GC and MM */
+		if (amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(10, 0, 0))
+			/* manage only VMIDs not used by KFD */
+			id_mgr->num_ids = adev->vm_manager.first_kfd_vmid;
+		else if (AMDGPU_IS_MMHUB0(i) ||
+			 AMDGPU_IS_MMHUB1(i))
+			id_mgr->num_ids = 16;
+		else
+			/* manage only VMIDs not used by KFD */
+			id_mgr->num_ids = adev->vm_manager.first_kfd_vmid;
 
 		/* skip over VMID 0, since it is the system VM */
 		for (j = 1; j < id_mgr->num_ids; ++j) {
@@ -588,7 +596,7 @@ void amdgpu_vmid_mgr_init(struct amdgpu_device *adev)
 	}
 	/* alloc a default reserved vmid to enforce isolation */
 	for (i = 0; i < (adev->xcp_mgr ? adev->xcp_mgr->num_xcps : 1); i++) {
-		if (adev->enforce_isolation[i])
+		if (adev->enforce_isolation[i] != AMDGPU_ENFORCE_ISOLATION_DISABLE)
 			amdgpu_vmid_alloc_reserved(adev, AMDGPU_GFXHUB(i));
 	}
 }

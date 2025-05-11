@@ -51,8 +51,6 @@ static inline unsigned long long complete_integer_division_u64(
 {
 	unsigned long long result;
 
-	ASSERT(divisor);
-
 	result = div64_u64_rem(dividend, divisor, remainder);
 
 	return result;
@@ -213,9 +211,6 @@ struct fixed31_32 dc_fixpt_recip(struct fixed31_32 arg)
 	 * @note
 	 * Good idea to use Newton's method
 	 */
-
-	ASSERT(arg.value);
-
 	return dc_fixpt_from_fraction(
 		dc_fixpt_one.value,
 		arg.value);

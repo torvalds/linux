@@ -43,7 +43,7 @@ static int pm_map_process_v9(struct packet_manager *pm,
 	memset(buffer, 0, sizeof(struct pm4_mes_map_process));
 	packet->header.u32All = pm_build_pm4_header(IT_MAP_PROCESS,
 					sizeof(struct pm4_mes_map_process));
-	if (adev->enforce_isolation[kfd->node_id])
+	if (adev->enforce_isolation[kfd->node_id] == AMDGPU_ENFORCE_ISOLATION_ENABLE)
 		packet->bitfields2.exec_cleaner_shader = 1;
 	packet->bitfields2.diq_enable = (qpd->is_debug) ? 1 : 0;
 	packet->bitfields2.process_quantum = 10;
@@ -102,7 +102,8 @@ static int pm_map_process_aldebaran(struct packet_manager *pm,
 	memset(buffer, 0, sizeof(struct pm4_mes_map_process_aldebaran));
 	packet->header.u32All = pm_build_pm4_header(IT_MAP_PROCESS,
 			sizeof(struct pm4_mes_map_process_aldebaran));
-	if (adev->enforce_isolation[knode->node_id])
+	if (adev->enforce_isolation[knode->node_id] ==
+	    AMDGPU_ENFORCE_ISOLATION_ENABLE)
 		packet->bitfields2.exec_cleaner_shader = 1;
 	packet->bitfields2.diq_enable = (qpd->is_debug) ? 1 : 0;
 	packet->bitfields2.process_quantum = 10;
@@ -165,9 +166,9 @@ static int pm_runlist_v9(struct packet_manager *pm, uint32_t *buffer,
 	 * hws_max_conc_proc has been done in
 	 * kgd2kfd_device_init().
 	 */
-	concurrent_proc_cnt = adev->enforce_isolation[kfd->node_id] ?
-			1 : min(pm->dqm->processes_count,
-			kfd->max_proc_per_quantum);
+	concurrent_proc_cnt = (adev->enforce_isolation[kfd->node_id] ==
+			       AMDGPU_ENFORCE_ISOLATION_ENABLE) ?
+		1 : min(pm->dqm->processes_count, kfd->max_proc_per_quantum);
 
 	packet = (struct pm4_mes_runlist *)buffer;
 

@@ -290,28 +290,6 @@ int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder)
 	return result;
 }
 
-/*
- * write the audio workaround status to the hardware
- */
-void r600_hdmi_audio_workaround(struct drm_encoder *encoder)
-{
-	struct drm_device *dev = encoder->dev;
-	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	uint32_t offset = dig->afmt->offset;
-	bool hdmi_audio_workaround = false; /* FIXME */
-	u32 value;
-
-	if (!hdmi_audio_workaround ||
-	    r600_hdmi_is_audio_buffer_filled(encoder))
-		value = 0; /* disable workaround */
-	else
-		value = HDMI0_AUDIO_TEST_EN; /* enable workaround */
-	WREG32_P(HDMI0_AUDIO_PACKET_CONTROL + offset,
-		 value, ~HDMI0_AUDIO_TEST_EN);
-}
-
 void r600_hdmi_audio_set_dto(struct radeon_device *rdev,
 			     struct radeon_crtc *crtc, unsigned int clock)
 {

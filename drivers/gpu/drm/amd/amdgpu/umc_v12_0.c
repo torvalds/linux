@@ -220,6 +220,13 @@ static int umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 		nps = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
 
 	/* other nps modes are taken as nps1 */
+	if (nps == AMDGPU_NPS2_PARTITION_MODE) {
+		loop_bits[0] = UMC_V12_0_PA_CH5_BIT;
+		loop_bits[1] = UMC_V12_0_PA_C2_BIT;
+		loop_bits[2] = UMC_V12_0_PA_B1_BIT;
+		loop_bits[3] = UMC_V12_0_PA_R12_BIT;
+	}
+
 	if (nps == AMDGPU_NPS4_PARTITION_MODE) {
 		loop_bits[0] = UMC_V12_0_PA_CH4_BIT;
 		loop_bits[1] = UMC_V12_0_PA_CH5_BIT;
@@ -517,6 +524,9 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 
 	if (adev->gmc.gmc_funcs->query_mem_partition_mode)
 		nps = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
+
+	if (nps == AMDGPU_NPS2_PARTITION_MODE)
+		shift_bit = UMC_V12_0_PA_B1_BIT;
 	if (nps == AMDGPU_NPS4_PARTITION_MODE)
 		shift_bit = UMC_V12_0_PA_B0_BIT;
 

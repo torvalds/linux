@@ -688,3 +688,76 @@ enum mod_hdcp_status mod_hdcp_clear_cp_irq_status(struct mod_hdcp *hdcp)
 
 	return MOD_HDCP_STATUS_INVALID_OPERATION;
 }
+
+static bool write_stall_read_lc_fw_aux(struct mod_hdcp *hdcp)
+{
+	struct mod_hdcp_message_hdcp2 *hdcp2 = &hdcp->auth.msg.hdcp2;
+
+	struct mod_hdcp_atomic_op_aux write = {
+		hdcp_dpcd_addrs[MOD_HDCP_MESSAGE_ID_WRITE_LC_INIT],
+		hdcp2->lc_init + 1,
+		sizeof(hdcp2->lc_init) - 1,
+	};
+	struct mod_hdcp_atomic_op_aux stall = { 0, NULL, 0, };
+	struct mod_hdcp_atomic_op_aux read = {
+		hdcp_dpcd_addrs[MOD_HDCP_MESSAGE_ID_READ_LC_SEND_L_PRIME],
+		hdcp2->lc_l_prime + 1,
+		sizeof(hdcp2->lc_l_prime) - 1,
+	};
+
+	hdcp2->lc_l_prime[0] = HDCP_2_2_LC_SEND_LPRIME;
+
+	return hdcp->config.ddc.funcs.atomic_write_poll_read_aux(
+			hdcp->config.ddc.handle,
+			&write,
+			&stall,
+			&read,
+			16 * 1000,
+			0
+	);
+}
+
+static bool write_poll_read_lc_fw_i2c(struct mod_hdcp *hdcp)
+{
+	struct mod_hdcp_message_hdcp2 *hdcp2 = &hdcp->auth.msg.hdcp2;
+	uint8_t expected_rxstatus[2] = { sizeof(hdcp2->lc_l_prime) };
+
+	hdcp->buf[0] = hdcp_i2c_offsets[MOD_HDCP_MESSAGE_ID_WRITE_LC_INIT];
+	memmove(&hdcp->buf[1], hdcp2->lc_init, sizeof(hdcp2->lc_init));
+
+	struct mod_hdcp_atomic_op_i2c write = {
+		HDCP_I2C_ADDR,
+		0,
+		hdcp->buf,
+		sizeof(hdcp2->lc_init) + 1,
+	};
+	struct mod_hdcp_atomic_op_i2c poll = {
+		HDCP_I2C_ADDR,
+		hdcp_i2c_offsets[MOD_HDCP_MESSAGE_ID_READ_RXSTATUS],
+		expected_rxstatus,
+		sizeof(expected_rxstatus),
+	};
+	struct mod_hdcp_atomic_op_i2c read = {
+		HDCP_I2C_ADDR,
+		hdcp_i2c_offsets[MOD_HDCP_MESSAGE_ID_READ_LC_SEND_L_PRIME],
+		hdcp2->lc_l_prime,
+		sizeof(hdcp2->lc_l_prime),
+	};
+
+	return hdcp->config.ddc.funcs.atomic_write_poll_read_i2c(
+			hdcp->config.ddc.handle,
+			&write,
+			&poll,
+			&read,
+			20 * 1000,
+			6
+	);
+}
+
+enum mod_hdcp_status mod_hdcp_write_poll_read_lc_fw(struct mod_hdcp *hdcp)
+{
+	const bool success = (is_dp_hdcp(hdcp) ? write_stall_read_lc_fw_aux : write_poll_read_lc_fw_i2c)(hdcp);
+
+	return success ? MOD_HDCP_STATUS_SUCCESS : MOD_HDCP_STATUS_DDC_FAILURE;
+}
+

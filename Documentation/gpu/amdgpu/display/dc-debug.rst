@@ -154,7 +154,7 @@ of the display parameters, but the userspace might also cause this issue. One
 way to identify the source of the problem is to take a screenshot or make a
 desktop video capture when the problem happens; after checking the
 screenshot/video recording, if you don't see any of the artifacts, it means
-that the issue is likely on the the driver side. If you can still see the
+that the issue is likely on the driver side. If you can still see the
 problem in the data collected, it is an issue that probably happened during
 rendering, and the display code just got the framebuffer already corrupted.
 

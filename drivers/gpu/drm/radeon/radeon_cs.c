@@ -409,7 +409,6 @@ static int cmp_size_smaller_first(void *priv, const struct list_head *a,
  * radeon_cs_parser_fini() - clean parser states
  * @parser:	parser structure holding parsing context.
  * @error:	error number
- * @backoff:	indicator to backoff the reservation
  *
  * If error is set than unvalidate buffer, otherwise just free memory
  * used by parsing context.

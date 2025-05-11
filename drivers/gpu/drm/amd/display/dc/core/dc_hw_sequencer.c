@@ -697,7 +697,7 @@ void get_fams2_visual_confirm_color(
 void hwss_build_fast_sequence(struct dc *dc,
 		struct dc_dmub_cmd *dc_dmub_cmd,
 		unsigned int dmub_cmd_count,
-		struct block_sequence block_sequence[],
+		struct block_sequence block_sequence[MAX_HWSS_BLOCK_SEQUENCE_SIZE],
 		unsigned int *num_steps,
 		struct pipe_ctx *pipe_ctx,
 		struct dc_stream_status *stream_status,
@@ -896,7 +896,7 @@ void hwss_build_fast_sequence(struct dc *dc,
 }
 
 void hwss_execute_sequence(struct dc *dc,
-		struct block_sequence block_sequence[],
+		struct block_sequence block_sequence[MAX_HWSS_BLOCK_SEQUENCE_SIZE],
 		int num_steps)
 {
 	unsigned int i;

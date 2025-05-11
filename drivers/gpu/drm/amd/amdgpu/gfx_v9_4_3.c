@@ -105,9 +105,6 @@ static const struct amdgpu_hwip_reg_entry gc_reg_list_9_4_3[] = {
 	SOC15_REG_ENTRY_STR(GC, 0, regRLC_SMU_SAFE_MODE),
 	SOC15_REG_ENTRY_STR(GC, 0, regRLC_INT_STAT),
 	SOC15_REG_ENTRY_STR(GC, 0, regRLC_GPM_GENERAL_6),
-	/* cp header registers */
-	SOC15_REG_ENTRY_STR(GC, 0, regCP_MEC_ME1_HEADER_DUMP),
-	SOC15_REG_ENTRY_STR(GC, 0, regCP_MEC_ME2_HEADER_DUMP),
 	/* SE status registers */
 	SOC15_REG_ENTRY_STR(GC, 0, regGRBM_STATUS_SE0),
 	SOC15_REG_ENTRY_STR(GC, 0, regGRBM_STATUS_SE1),
@@ -154,6 +151,14 @@ static const struct amdgpu_hwip_reg_entry gc_cp_reg_list_9_4_3[] = {
 	SOC15_REG_ENTRY_STR(GC, 0, regCP_HQD_PQ_WPTR_LO),
 	SOC15_REG_ENTRY_STR(GC, 0, regCP_HQD_PQ_WPTR_HI),
 	SOC15_REG_ENTRY_STR(GC, 0, regCP_HQD_GFX_STATUS),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_MEC_ME1_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_MEC_ME1_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_MEC_ME1_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_MEC_ME1_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_MEC_ME1_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_MEC_ME1_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_MEC_ME1_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, regCP_MEC_ME1_HEADER_DUMP),
 };
 
 struct amdgpu_gfx_ras gfx_v9_4_3_ras;
@@ -4558,12 +4563,21 @@ static void gfx_v9_4_3_ip_print(struct amdgpu_ip_block *ip_block, struct drm_pri
 						   "\nxcc:%d mec:%d, pipe:%d, queue:%d\n",
 						    xcc_id, i, j, k);
 					for (reg = 0; reg < reg_count; reg++) {
-						drm_printf(p,
-							   "%-50s \t 0x%08x\n",
-							   gc_cp_reg_list_9_4_3[reg].reg_name,
-							   adev->gfx.ip_dump_compute_queues
-								[xcc_offset + inst_offset +
-								reg]);
+						if (i && gc_cp_reg_list_9_4_3[reg].reg_offset ==
+						    regCP_MEC_ME1_HEADER_DUMP)
+							drm_printf(p,
+								   "%-50s \t 0x%08x\n",
+								   "regCP_MEC_ME2_HEADER_DUMP",
+								   adev->gfx.ip_dump_compute_queues
+								   [xcc_offset + inst_offset +
+								    reg]);
+						else
+							drm_printf(p,
+								   "%-50s \t 0x%08x\n",
+								   gc_cp_reg_list_9_4_3[reg].reg_name,
+								   adev->gfx.ip_dump_compute_queues
+								   [xcc_offset + inst_offset +
+								    reg]);
 					}
 					inst_offset += reg_count;
 				}
@@ -4612,12 +4626,20 @@ static void gfx_v9_4_3_ip_dump(struct amdgpu_ip_block *ip_block)
 							  GET_INST(GC, xcc_id));
 
 					for (reg = 0; reg < reg_count; reg++) {
-						adev->gfx.ip_dump_compute_queues
-							[xcc_offset +
-							 inst_offset + reg] =
-							RREG32(SOC15_REG_ENTRY_OFFSET_INST(
-								gc_cp_reg_list_9_4_3[reg],
-								GET_INST(GC, xcc_id)));
+						if (i && gc_cp_reg_list_9_4_3[reg].reg_offset ==
+						    regCP_MEC_ME1_HEADER_DUMP)
+							adev->gfx.ip_dump_compute_queues
+								[xcc_offset +
+								 inst_offset + reg] =
+								RREG32(SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id),
+											regCP_MEC_ME2_HEADER_DUMP));
+						else
+							adev->gfx.ip_dump_compute_queues
+								[xcc_offset +
+								 inst_offset + reg] =
+								RREG32(SOC15_REG_ENTRY_OFFSET_INST(
+									       gc_cp_reg_list_9_4_3[reg],
+									       GET_INST(GC, xcc_id)));
 					}
 					inst_offset += reg_count;
 				}

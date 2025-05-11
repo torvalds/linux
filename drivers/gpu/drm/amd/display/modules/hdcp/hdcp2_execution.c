@@ -452,21 +452,12 @@ out:
 	return status;
 }
 
-static enum mod_hdcp_status locality_check(struct mod_hdcp *hdcp,
+static enum mod_hdcp_status locality_check_sw(struct mod_hdcp *hdcp,
 		struct mod_hdcp_event_context *event_ctx,
 		struct mod_hdcp_transition_input_hdcp2 *input)
 {
 	enum mod_hdcp_status status = MOD_HDCP_STATUS_SUCCESS;
 
-	if (event_ctx->event != MOD_HDCP_EVENT_CALLBACK) {
-		event_ctx->unexpected_event = 1;
-		goto out;
-	}
-
-	if (!mod_hdcp_execute_and_set(mod_hdcp_hdcp2_prepare_lc_init,
-			&input->lc_init_prepare, &status,
-			hdcp, "lc_init_prepare"))
-		goto out;
 	if (!mod_hdcp_execute_and_set(mod_hdcp_write_lc_init,
 			&input->lc_init_write, &status,
 			 hdcp, "lc_init_write"))
@@ -482,6 +473,48 @@ static enum mod_hdcp_status locality_check(struct mod_hdcp *hdcp,
 			&input->l_prime_read, &status,
 			hdcp, "l_prime_read"))
 		goto out;
+out:
+	return status;
+}
+
+static enum mod_hdcp_status locality_check_fw(struct mod_hdcp *hdcp,
+		struct mod_hdcp_event_context *event_ctx,
+		struct mod_hdcp_transition_input_hdcp2 *input)
+{
+	enum mod_hdcp_status status = MOD_HDCP_STATUS_SUCCESS;
+
+	if (!mod_hdcp_execute_and_set(mod_hdcp_write_poll_read_lc_fw,
+			&input->l_prime_read, &status,
+			hdcp, "l_prime_read"))
+		goto out;
+
+out:
+	return status;
+}
+
+static enum mod_hdcp_status locality_check(struct mod_hdcp *hdcp,
+		struct mod_hdcp_event_context *event_ctx,
+		struct mod_hdcp_transition_input_hdcp2 *input)
+{
+	enum mod_hdcp_status status = MOD_HDCP_STATUS_SUCCESS;
+	const bool use_fw = hdcp->config.ddc.funcs.atomic_write_poll_read_i2c
+			&& hdcp->config.ddc.funcs.atomic_write_poll_read_aux
+			&& !hdcp->connection.link.adjust.hdcp2.force_sw_locality_check;
+
+	if (event_ctx->event != MOD_HDCP_EVENT_CALLBACK) {
+		event_ctx->unexpected_event = 1;
+		goto out;
+	}
+
+	if (!mod_hdcp_execute_and_set(mod_hdcp_hdcp2_prepare_lc_init,
+			&input->lc_init_prepare, &status,
+			hdcp, "lc_init_prepare"))
+		goto out;
+
+	status = (use_fw ? locality_check_fw : locality_check_sw)(hdcp, event_ctx, input);
+	if (status != MOD_HDCP_STATUS_SUCCESS)
+		goto out;
+
 	if (!mod_hdcp_execute_and_set(mod_hdcp_hdcp2_validate_l_prime,
 			&input->l_prime_validation, &status,
 			hdcp, "l_prime_validation"))

@@ -170,10 +170,46 @@ struct amdgpu_kiq {
 #define AMDGPU_GFX_MAX_SE 4
 #define AMDGPU_GFX_MAX_SH_PER_SE 2
 
+/**
+ * amdgpu_rb_config - Configure a single Render Backend (RB)
+ *
+ * Bad RBs are fused off and there is a harvest register the driver reads to
+ * determine which RB(s) are fused off so that the driver can configure the
+ * hardware state so that nothing gets sent to them. There are also user
+ * harvest registers that the driver can program to disable additional RBs,
+ * etc., for testing purposes.
+ */
 struct amdgpu_rb_config {
+	/**
+	 * @rb_backend_disable:
+	 *
+	 * The value captured from register RB_BACKEND_DISABLE indicates if the
+	 * RB backend is disabled or not.
+	 */
 	uint32_t rb_backend_disable;
+
+	/**
+	 * @user_rb_backend_disable:
+	 *
+	 * The value captured from register USER_RB_BACKEND_DISABLE indicates
+	 * if the User RB backend is disabled or not.
+	 */
 	uint32_t user_rb_backend_disable;
+
+	/**
+	 * @raster_config:
+	 *
+	 * To set up all of the states, it is necessary to have two registers
+	 * to keep all of the states. This field holds the first register.
+	 */
 	uint32_t raster_config;
+
+	/**
+	 * @raster_config_1:
+	 *
+	 * To set up all of the states, it is necessary to have two registers
+	 * to keep all of the states. This field holds the second register.
+	 */
 	uint32_t raster_config_1;
 };
 
@@ -221,6 +257,13 @@ struct amdgpu_gfx_config {
 	uint32_t macrotile_mode_array[16];
 
 	struct gb_addr_config gb_addr_config_fields;
+
+	/**
+	 * @rb_config:
+	 *
+	 * Matrix that keeps all the Render Backend (color and depth buffer
+	 * handling) configuration on the 3D engine.
+	 */
 	struct amdgpu_rb_config rb_config[AMDGPU_GFX_MAX_SE][AMDGPU_GFX_MAX_SH_PER_SE];
 
 	/* gfx configure feature */
@@ -305,7 +348,8 @@ struct amdgpu_gfx_funcs {
 	void (*init_spm_golden)(struct amdgpu_device *adev);
 	void (*update_perfmon_mgcg)(struct amdgpu_device *adev, bool enable);
 	int (*get_gfx_shadow_info)(struct amdgpu_device *adev,
-				   struct amdgpu_gfx_shadow_info *shadow_info);
+				   struct amdgpu_gfx_shadow_info *shadow_info,
+				   bool skip_check);
 	enum amdgpu_gfx_partition
 			(*query_partition_mode)(struct amdgpu_device *adev);
 	int (*switch_partition_mode)(struct amdgpu_device *adev,
@@ -474,9 +518,9 @@ struct amdgpu_gfx {
 	bool				enable_cleaner_shader;
 	struct amdgpu_isolation_work	enforce_isolation[MAX_XCP];
 	/* Mutex for synchronizing KFD scheduler operations */
-	struct mutex                    kfd_sch_mutex;
-	u64				kfd_sch_req_count[MAX_XCP];
-	bool				kfd_sch_inactive[MAX_XCP];
+	struct mutex                    userq_sch_mutex;
+	u64				userq_sch_req_count[MAX_XCP];
+	bool				userq_sch_inactive[MAX_XCP];
 	unsigned long			enforce_isolation_jiffies[MAX_XCP];
 	unsigned long			enforce_isolation_time[MAX_XCP];
 
@@ -484,6 +528,9 @@ struct amdgpu_gfx {
 	struct delayed_work		idle_work;
 	bool				workload_profile_active;
 	struct mutex                    workload_profile_mutex;
+
+	bool				disable_kq;
+	bool				disable_uq;
 };
 
 struct amdgpu_gfx_ras_reg_entry {
@@ -503,7 +550,7 @@ struct amdgpu_gfx_ras_mem_id_entry {
 #define amdgpu_gfx_select_se_sh(adev, se, sh, instance, xcc_id) ((adev)->gfx.funcs->select_se_sh((adev), (se), (sh), (instance), (xcc_id)))
 #define amdgpu_gfx_select_me_pipe_q(adev, me, pipe, q, vmid, xcc_id) ((adev)->gfx.funcs->select_me_pipe_q((adev), (me), (pipe), (q), (vmid), (xcc_id)))
 #define amdgpu_gfx_init_spm_golden(adev) (adev)->gfx.funcs->init_spm_golden((adev))
-#define amdgpu_gfx_get_gfx_shadow_info(adev, si) ((adev)->gfx.funcs->get_gfx_shadow_info((adev), (si)))
+#define amdgpu_gfx_get_gfx_shadow_info(adev, si) ((adev)->gfx.funcs->get_gfx_shadow_info((adev), (si), false))
 
 /**
  * amdgpu_gfx_create_bitmask - create a bitmask
@@ -550,8 +597,6 @@ bool amdgpu_gfx_is_high_priority_compute_queue(struct amdgpu_device *adev,
 					       struct amdgpu_ring *ring);
 bool amdgpu_gfx_is_high_priority_graphics_queue(struct amdgpu_device *adev,
 						struct amdgpu_ring *ring);
-int amdgpu_gfx_me_queue_to_bit(struct amdgpu_device *adev, int me,
-			       int pipe, int queue);
 bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev, int me,
 				    int pipe, int queue);
 void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable);
@@ -597,6 +642,9 @@ void amdgpu_gfx_enforce_isolation_ring_end_use(struct amdgpu_ring *ring);
 void amdgpu_gfx_profile_idle_work_handler(struct work_struct *work);
 void amdgpu_gfx_profile_ring_begin_use(struct amdgpu_ring *ring);
 void amdgpu_gfx_profile_ring_end_use(struct amdgpu_ring *ring);
+u32 amdgpu_gfx_csb_preamble_start(volatile u32 *buffer);
+u32 amdgpu_gfx_csb_data_parser(struct amdgpu_device *adev, volatile u32 *buffer, u32 count);
+void amdgpu_gfx_csb_preamble_end(volatile u32 *buffer, u32 count);
 
 void amdgpu_debugfs_gfx_sched_mask_init(struct amdgpu_device *adev);
 void amdgpu_debugfs_compute_sched_mask_init(struct amdgpu_device *adev);
