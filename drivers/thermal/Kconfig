@@ -327,6 +327,15 @@ config QORIQ_THERMAL
 	  cpufreq is used as the cooling device to throttle CPUs when the
 	  passive trip is crossed.
 
+config AIROHA_THERMAL
+	tristate "Airoha thermal sensor driver"
+	depends on ARCH_AIROHA || COMPILE_TEST
+	depends on MFD_SYSCON
+	depends on OF
+	help
+	  Enable this to plug the Airoha thermal sensor driver into the Linux
+	  thermal framework.
+
 config SPEAR_THERMAL
 	tristate "SPEAr thermal sensor driver"
 	depends on PLAT_SPEAR || COMPILE_TEST
