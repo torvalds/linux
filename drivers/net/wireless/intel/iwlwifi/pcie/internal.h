@@ -326,7 +326,7 @@ struct iwl_pcie_txqs {
  * @global_table: table mapping received VID from hw to rxb
  * @rba: allocator for RX replenishing
  * @ctxt_info: context information for FW self init
- * @ctxt_info_gen3: context information for gen3 devices
+ * @ctxt_info_v2: context information for v1 devices
  * @prph_info: prph info for self init
  * @prph_scratch: prph scratch for self init
  * @ctxt_info_dma_addr: dma addr of context information
@@ -408,7 +408,7 @@ struct iwl_trans_pcie {
 	struct iwl_rb_allocator rba;
 	union {
 		struct iwl_context_info *ctxt_info;
-		struct iwl_context_info_gen3 *ctxt_info_gen3;
+		struct iwl_context_info_v2 *ctxt_info_v2;
 	};
 	struct iwl_prph_info *prph_info;
 	struct iwl_prph_scratch *prph_scratch;

@@ -8,7 +8,7 @@ iwlwifi-objs		+= iwl-nvm-utils.o
 iwlwifi-objs		+= iwl-utils.o
 iwlwifi-objs		+= iwl-phy-db.o iwl-nvm-parse.o
 iwlwifi-objs		+= pcie/drv.o pcie/rx.o pcie/tx.o pcie/trans.o
-iwlwifi-objs		+= pcie/ctxt-info.o pcie/ctxt-info-gen3.o
+iwlwifi-objs		+= pcie/ctxt-info.o pcie/ctxt-info-v2.o
 iwlwifi-objs		+= pcie/trans-gen2.o pcie/tx-gen2.o
 
 CFLAGS_pcie/drv.o += -Wno-override-init

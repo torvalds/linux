@@ -15,7 +15,7 @@
 #include <linux/dmapool.h>
 #include "fw/api/commands.h"
 #include "pcie/internal.h"
-#include "iwl-context-info-gen3.h"
+#include "iwl-context-info-v2.h"
 
 struct iwl_trans_dev_restart_data {
 	struct list_head list;
@@ -813,14 +813,14 @@ int iwl_trans_load_pnvm(struct iwl_trans *trans,
 			const struct iwl_pnvm_image *pnvm_data,
 			const struct iwl_ucode_capabilities *capa)
 {
-	return iwl_trans_pcie_ctx_info_gen3_load_pnvm(trans, pnvm_data, capa);
+	return iwl_trans_pcie_ctx_info_v2_load_pnvm(trans, pnvm_data, capa);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_load_pnvm);
 
 void iwl_trans_set_pnvm(struct iwl_trans *trans,
 			const struct iwl_ucode_capabilities *capa)
 {
-	iwl_trans_pcie_ctx_info_gen3_set_pnvm(trans, capa);
+	iwl_trans_pcie_ctx_info_v2_set_pnvm(trans, capa);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_set_pnvm);
 
@@ -828,7 +828,7 @@ int iwl_trans_load_reduce_power(struct iwl_trans *trans,
 				const struct iwl_pnvm_image *payloads,
 				const struct iwl_ucode_capabilities *capa)
 {
-	return iwl_trans_pcie_ctx_info_gen3_load_reduce_power(trans, payloads,
+	return iwl_trans_pcie_ctx_info_v2_load_reduce_power(trans, payloads,
 							      capa);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_load_reduce_power);
@@ -836,6 +836,6 @@ IWL_EXPORT_SYMBOL(iwl_trans_load_reduce_power);
 void iwl_trans_set_reduce_power(struct iwl_trans *trans,
 				const struct iwl_ucode_capabilities *capa)
 {
-	iwl_trans_pcie_ctx_info_gen3_set_reduce_power(trans, capa);
+	iwl_trans_pcie_ctx_info_v2_set_reduce_power(trans, capa);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_set_reduce_power);

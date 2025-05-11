@@ -6,7 +6,7 @@
 #include "iwl-trans.h"
 #include "iwl-prph.h"
 #include "iwl-context-info.h"
-#include "iwl-context-info-gen3.h"
+#include "iwl-context-info-v2.h"
 #include "internal.h"
 #include "fw/dbg.h"
 
@@ -192,7 +192,7 @@ static void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 
 	iwl_pcie_ctxt_info_free_paging(trans);
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
-		iwl_pcie_ctxt_info_gen3_free(trans, false);
+		iwl_pcie_ctxt_info_v2_free(trans, false);
 	else
 		iwl_pcie_ctxt_info_free(trans);
 
@@ -375,7 +375,7 @@ void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans)
 	 * paging memory cannot be freed included since FW will still use it
 	 */
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
-		iwl_pcie_ctxt_info_gen3_free(trans, true);
+		iwl_pcie_ctxt_info_v2_free(trans, true);
 	else
 		iwl_pcie_ctxt_info_free(trans);
 
@@ -555,12 +555,12 @@ again:
 
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		if (!top_reset_done) {
-			ret = iwl_pcie_ctxt_info_gen3_alloc(trans, fw, img);
+			ret = iwl_pcie_ctxt_info_v2_alloc(trans, fw, img);
 			if (ret)
 				goto out;
 		}
 
-		iwl_pcie_ctxt_info_gen3_kick(trans);
+		iwl_pcie_ctxt_info_v2_kick(trans);
 	} else {
 		ret = iwl_pcie_ctxt_info_init(trans, img);
 		if (ret)

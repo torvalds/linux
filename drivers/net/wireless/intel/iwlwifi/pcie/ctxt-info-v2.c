@@ -5,7 +5,7 @@
 #include <linux/dmi.h>
 #include "iwl-trans.h"
 #include "iwl-fh.h"
-#include "iwl-context-info-gen3.h"
+#include "iwl-context-info-v2.h"
 #include "internal.h"
 #include "iwl-prph.h"
 
@@ -97,12 +97,12 @@ out:
 		*control_flags |= IWL_PRPH_SCRATCH_EARLY_DEBUG_EN | dbg_flags;
 }
 
-int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
-				  const struct iwl_fw *fw,
-				  const struct fw_img *img)
+int iwl_pcie_ctxt_info_v2_alloc(struct iwl_trans *trans,
+				const struct iwl_fw *fw,
+				const struct fw_img *img)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_context_info_gen3 *ctxt_info_gen3;
+	struct iwl_context_info_v2 *ctxt_info_v2;
 	struct iwl_prph_scratch *prph_scratch;
 	struct iwl_prph_scratch_ctrl_cfg *prph_sc_ctrl;
 	struct iwl_prph_info *prph_info;
@@ -213,18 +213,18 @@ int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
 	}
 
 	/* Allocate context info */
-	ctxt_info_gen3 = dma_alloc_coherent(trans->dev,
-					    sizeof(*ctxt_info_gen3),
-					    &trans_pcie->ctxt_info_dma_addr,
-					    GFP_KERNEL);
-	if (!ctxt_info_gen3) {
+	ctxt_info_v2 = dma_alloc_coherent(trans->dev,
+					  sizeof(*ctxt_info_v2),
+					  &trans_pcie->ctxt_info_dma_addr,
+					  GFP_KERNEL);
+	if (!ctxt_info_v2) {
 		ret = -ENOMEM;
 		goto err_free_prph_info;
 	}
 
-	ctxt_info_gen3->prph_info_base_addr =
+	ctxt_info_v2->prph_info_base_addr =
 		cpu_to_le64(trans_pcie->prph_info_dma_addr);
-	ctxt_info_gen3->prph_scratch_base_addr =
+	ctxt_info_v2->prph_scratch_base_addr =
 		cpu_to_le64(trans_pcie->prph_scratch_dma_addr);
 
 	/*
@@ -236,29 +236,29 @@ int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
 		     sizeof(prph_scratch->dram.fseq_img) !=
 		     sizeof(*prph_scratch));
 	if (control_flags_ext & IWL_PRPH_SCRATCH_EXT_EXT_FSEQ)
-		ctxt_info_gen3->prph_scratch_size =
+		ctxt_info_v2->prph_scratch_size =
 			cpu_to_le32(sizeof(*prph_scratch));
 	else
-		ctxt_info_gen3->prph_scratch_size =
+		ctxt_info_v2->prph_scratch_size =
 			cpu_to_le32(offsetofend(typeof(*prph_scratch),
 						dram.common));
 
-	ctxt_info_gen3->cr_head_idx_arr_base_addr =
+	ctxt_info_v2->cr_head_idx_arr_base_addr =
 		cpu_to_le64(trans_pcie->rxq->rb_stts_dma);
-	ctxt_info_gen3->tr_tail_idx_arr_base_addr =
+	ctxt_info_v2->tr_tail_idx_arr_base_addr =
 		cpu_to_le64(trans_pcie->prph_info_dma_addr + PAGE_SIZE / 2);
-	ctxt_info_gen3->cr_tail_idx_arr_base_addr =
+	ctxt_info_v2->cr_tail_idx_arr_base_addr =
 		cpu_to_le64(trans_pcie->prph_info_dma_addr + 3 * PAGE_SIZE / 4);
-	ctxt_info_gen3->mtr_base_addr =
+	ctxt_info_v2->mtr_base_addr =
 		cpu_to_le64(trans_pcie->txqs.txq[trans->conf.cmd_queue]->dma_addr);
-	ctxt_info_gen3->mcr_base_addr =
+	ctxt_info_v2->mcr_base_addr =
 		cpu_to_le64(trans_pcie->rxq->used_bd_dma);
-	ctxt_info_gen3->mtr_size =
+	ctxt_info_v2->mtr_size =
 		cpu_to_le16(TFD_QUEUE_CB_SIZE(cmdq_size));
-	ctxt_info_gen3->mcr_size =
+	ctxt_info_v2->mcr_size =
 		cpu_to_le16(RX_QUEUE_CB_SIZE(iwl_trans_get_num_rbds(trans)));
 
-	trans_pcie->ctxt_info_gen3 = ctxt_info_gen3;
+	trans_pcie->ctxt_info_v2 = ctxt_info_v2;
 	trans_pcie->prph_info = prph_info;
 	trans_pcie->prph_scratch = prph_scratch;
 
@@ -277,10 +277,10 @@ int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
 	return 0;
 
 err_free_ctxt_info:
-	dma_free_coherent(trans->dev, sizeof(*trans_pcie->ctxt_info_gen3),
-			  trans_pcie->ctxt_info_gen3,
+	dma_free_coherent(trans->dev, sizeof(*trans_pcie->ctxt_info_v2),
+			  trans_pcie->ctxt_info_v2,
 			  trans_pcie->ctxt_info_dma_addr);
-	trans_pcie->ctxt_info_gen3 = NULL;
+	trans_pcie->ctxt_info_v2 = NULL;
 err_free_prph_info:
 	dma_free_coherent(trans->dev, PAGE_SIZE, prph_info,
 			  trans_pcie->prph_info_dma_addr);
@@ -294,7 +294,7 @@ err_free_prph_scratch:
 
 }
 
-void iwl_pcie_ctxt_info_gen3_kick(struct iwl_trans *trans)
+void iwl_pcie_ctxt_info_v2_kick(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -309,7 +309,7 @@ void iwl_pcie_ctxt_info_gen3_kick(struct iwl_trans *trans)
 		    CSR_AUTO_FUNC_BOOT_ENA);
 }
 
-void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans, bool alive)
+void iwl_pcie_ctxt_info_v2_free(struct iwl_trans *trans, bool alive)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -327,15 +327,15 @@ void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans, bool alive)
 	if (alive)
 		return;
 
-	if (!trans_pcie->ctxt_info_gen3)
+	if (!trans_pcie->ctxt_info_v2)
 		return;
 
-	/* ctxt_info_gen3 and prph_scratch are still needed for PNVM load */
-	dma_free_coherent(trans->dev, sizeof(*trans_pcie->ctxt_info_gen3),
-			  trans_pcie->ctxt_info_gen3,
+	/* ctxt_info_v2 and prph_scratch are still needed for PNVM load */
+	dma_free_coherent(trans->dev, sizeof(*trans_pcie->ctxt_info_v2),
+			  trans_pcie->ctxt_info_v2,
 			  trans_pcie->ctxt_info_dma_addr);
 	trans_pcie->ctxt_info_dma_addr = 0;
-	trans_pcie->ctxt_info_gen3 = NULL;
+	trans_pcie->ctxt_info_v2 = NULL;
 
 	dma_free_coherent(trans->dev, sizeof(*trans_pcie->prph_scratch),
 			  trans_pcie->prph_scratch,
@@ -439,9 +439,9 @@ static int iwl_pcie_load_payloads_segments
 
 }
 
-int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
-					   const struct iwl_pnvm_image *pnvm_payloads,
-					   const struct iwl_ucode_capabilities *capa)
+int iwl_trans_pcie_ctx_info_v2_load_pnvm(struct iwl_trans *trans,
+					 const struct iwl_pnvm_image *pnvm_payloads,
+					 const struct iwl_ucode_capabilities *capa)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_prph_scratch_ctrl_cfg *prph_sc_ctrl =
@@ -521,8 +521,8 @@ static void iwl_pcie_set_contig_pnvm(struct iwl_trans *trans)
 		cpu_to_le32(trans_pcie->pnvm_data.drams[0].size);
 }
 
-void iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
-					   const struct iwl_ucode_capabilities *capa)
+void iwl_trans_pcie_ctx_info_v2_set_pnvm(struct iwl_trans *trans,
+					 const struct iwl_ucode_capabilities *capa)
 {
 	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		return;
@@ -533,9 +533,9 @@ void iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
 		iwl_pcie_set_contig_pnvm(trans);
 }
 
-int iwl_trans_pcie_ctx_info_gen3_load_reduce_power(struct iwl_trans *trans,
-						   const struct iwl_pnvm_image *payloads,
-						   const struct iwl_ucode_capabilities *capa)
+int iwl_trans_pcie_ctx_info_v2_load_reduce_power(struct iwl_trans *trans,
+						 const struct iwl_pnvm_image *payloads,
+						 const struct iwl_ucode_capabilities *capa)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_prph_scratch_ctrl_cfg *prph_sc_ctrl =
@@ -604,8 +604,8 @@ static void iwl_pcie_set_contig_reduce_power(struct iwl_trans *trans)
 }
 
 void
-iwl_trans_pcie_ctx_info_gen3_set_reduce_power(struct iwl_trans *trans,
-					      const struct iwl_ucode_capabilities *capa)
+iwl_trans_pcie_ctx_info_v2_set_reduce_power(struct iwl_trans *trans,
+					    const struct iwl_ucode_capabilities *capa)
 {
 	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		return;

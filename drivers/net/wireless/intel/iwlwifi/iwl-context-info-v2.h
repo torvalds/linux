@@ -2,8 +2,8 @@
 /*
  * Copyright (C) 2018, 2020-2025 Intel Corporation
  */
-#ifndef __iwl_context_info_file_gen3_h__
-#define __iwl_context_info_file_gen3_h__
+#ifndef __iwl_context_info_file_v2_h__
+#define __iwl_context_info_file_v2_h__
 
 #include "iwl-context-info.h"
 
@@ -250,7 +250,7 @@ struct iwl_prph_info {
 } __packed; /* PERIPH_INFO_S */
 
 /**
- * struct iwl_context_info_gen3 - device INIT configuration
+ * struct iwl_context_info_v2 - device INIT configuration
  * @version: version of the context information
  * @size: size of context information in DWs
  * @config: context in which the peripheral would execute - a subset of
@@ -293,7 +293,7 @@ struct iwl_prph_info {
  * @prph_scratch_size: the size of the peripheral scratch structure in DWs
  * @reserved: reserved
  */
-struct iwl_context_info_gen3 {
+struct iwl_context_info_v2 {
 	__le16 version;
 	__le16 size;
 	__le32 config;
@@ -323,22 +323,22 @@ struct iwl_context_info_gen3 {
 	__le32 reserved;
 } __packed; /* IPC_CONTEXT_INFO_S */
 
-int iwl_pcie_ctxt_info_gen3_alloc(struct iwl_trans *trans,
-				  const struct iwl_fw *fw,
-				  const struct fw_img *img);
-void iwl_pcie_ctxt_info_gen3_kick(struct iwl_trans *trans);
-void iwl_pcie_ctxt_info_gen3_free(struct iwl_trans *trans, bool alive);
+int iwl_pcie_ctxt_info_v2_alloc(struct iwl_trans *trans,
+				const struct iwl_fw *fw,
+				const struct fw_img *img);
+void iwl_pcie_ctxt_info_v2_kick(struct iwl_trans *trans);
+void iwl_pcie_ctxt_info_v2_free(struct iwl_trans *trans, bool alive);
 
-int iwl_trans_pcie_ctx_info_gen3_load_pnvm(struct iwl_trans *trans,
-					   const struct iwl_pnvm_image *pnvm_payloads,
-					   const struct iwl_ucode_capabilities *capa);
-void iwl_trans_pcie_ctx_info_gen3_set_pnvm(struct iwl_trans *trans,
-					   const struct iwl_ucode_capabilities *capa);
+int iwl_trans_pcie_ctx_info_v2_load_pnvm(struct iwl_trans *trans,
+					 const struct iwl_pnvm_image *pnvm_payloads,
+					 const struct iwl_ucode_capabilities *capa);
+void iwl_trans_pcie_ctx_info_v2_set_pnvm(struct iwl_trans *trans,
+					 const struct iwl_ucode_capabilities *capa);
 int
-iwl_trans_pcie_ctx_info_gen3_load_reduce_power(struct iwl_trans *trans,
-					       const struct iwl_pnvm_image *payloads,
-					       const struct iwl_ucode_capabilities *capa);
+iwl_trans_pcie_ctx_info_v2_load_reduce_power(struct iwl_trans *trans,
+					     const struct iwl_pnvm_image *payloads,
+					     const struct iwl_ucode_capabilities *capa);
 void
-iwl_trans_pcie_ctx_info_gen3_set_reduce_power(struct iwl_trans *trans,
-					      const struct iwl_ucode_capabilities *capa);
-#endif /* __iwl_context_info_file_gen3_h__ */
+iwl_trans_pcie_ctx_info_v2_set_reduce_power(struct iwl_trans *trans,
+					    const struct iwl_ucode_capabilities *capa);
+#endif /* __iwl_context_info_file_v2_h__ */
