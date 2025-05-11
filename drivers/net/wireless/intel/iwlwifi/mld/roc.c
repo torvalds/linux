@@ -31,6 +31,47 @@ iwl_mld_vif_iter_emlsr_block_roc(void *data, u8 *mac, struct ieee80211_vif *vif)
 		*result = ret;
 }
 
+struct iwl_mld_roc_iter_data {
+	enum iwl_roc_activity activity;
+	struct ieee80211_vif *vif;
+	bool found;
+};
+
+static void iwl_mld_find_roc_vif_iter(void *data, u8 *mac,
+				      struct ieee80211_vif *vif)
+{
+	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	struct iwl_mld_roc_iter_data *roc_data = data;
+
+	if (mld_vif->roc_activity != roc_data->activity)
+		return;
+
+	/* The FW supports one ROC of each type simultaneously */
+	if (WARN_ON(roc_data->found)) {
+		roc_data->vif = NULL;
+		return;
+	}
+
+	roc_data->found = true;
+	roc_data->vif = vif;
+}
+
+static struct ieee80211_vif *
+iwl_mld_find_roc_vif(struct iwl_mld *mld, enum iwl_roc_activity activity)
+{
+	struct iwl_mld_roc_iter_data roc_data = {
+		.activity = activity,
+		.found = false,
+	};
+
+	ieee80211_iterate_active_interfaces_mtx(mld->hw,
+						IEEE80211_IFACE_ITER_NORMAL,
+						iwl_mld_find_roc_vif_iter,
+						&roc_data);
+
+	return roc_data.vif;
+}
+
 int iwl_mld_start_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      struct ieee80211_channel *channel, int duration,
 		      enum ieee80211_roc_type type)
@@ -73,10 +114,8 @@ int iwl_mld_start_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		activity = ROC_ACTIVITY_HOTSPOT;
 	}
 
-	if (WARN_ON(mld_vif->roc_activity != ROC_NUM_ACTIVITIES))
-		return -EBUSY;
-
-	if (vif->type == NL80211_IFTYPE_STATION && mld->bss_roc_vif)
+	/* The FW supports one ROC of each type simultaneously */
+	if (WARN_ON(iwl_mld_find_roc_vif(mld, activity)))
 		return -EBUSY;
 
 	ieee80211_iterate_active_interfaces_mtx(mld->hw,
@@ -109,9 +148,6 @@ int iwl_mld_start_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mld_vif->roc_activity = activity;
 
-	if (vif->type == NL80211_IFTYPE_STATION)
-		mld->bss_roc_vif = vif;
-
 	return 0;
 }
 
@@ -129,9 +165,6 @@ static void iwl_mld_destroy_roc(struct iwl_mld *mld,
 				struct iwl_mld_vif *mld_vif)
 {
 	mld_vif->roc_activity = ROC_NUM_ACTIVITIES;
-
-	if (vif->type == NL80211_IFTYPE_STATION)
-		mld->bss_roc_vif = NULL;
 
 	ieee80211_iterate_active_interfaces_mtx(mld->hw,
 						IEEE80211_IFACE_ITER_NORMAL,
@@ -203,11 +236,7 @@ void iwl_mld_handle_roc_notif(struct iwl_mld *mld,
 	struct iwl_mld_vif *mld_vif;
 	struct ieee80211_vif *vif;
 
-	if (activity == ROC_ACTIVITY_HOTSPOT)
-		vif = mld->bss_roc_vif;
-	else
-		vif = mld->p2p_device_vif;
-
+	vif = iwl_mld_find_roc_vif(mld, activity);
 	if (WARN_ON(!vif))
 		return;
 
