@@ -610,95 +610,69 @@ hws_bwc_matcher_find_at(struct mlx5hws_bwc_matcher *bwc_matcher,
 
 static int hws_bwc_matcher_move_all_simple(struct mlx5hws_bwc_matcher *bwc_matcher)
 {
+	bool move_error = false, poll_error = false, drain_error = false;
 	struct mlx5hws_context *ctx = bwc_matcher->matcher->tbl->ctx;
+	struct mlx5hws_matcher *matcher = bwc_matcher->matcher;
 	u16 bwc_queues = mlx5hws_bwc_queues(ctx);
-	struct mlx5hws_bwc_rule **bwc_rules;
 	struct mlx5hws_rule_attr rule_attr;
-	u32 *pending_rules;
-	int i, j, ret = 0;
-	bool all_done;
-	u16 burst_th;
+	struct mlx5hws_bwc_rule *bwc_rule;
+	struct mlx5hws_send_engine *queue;
+	struct list_head *rules_list;
+	u32 pending_rules;
+	int i, ret = 0;
 
 	mlx5hws_bwc_rule_fill_attr(bwc_matcher, 0, 0, &rule_attr);
 
-	pending_rules = kcalloc(bwc_queues, sizeof(*pending_rules), GFP_KERNEL);
-	if (!pending_rules)
-		return -ENOMEM;
-
-	bwc_rules = kcalloc(bwc_queues, sizeof(*bwc_rules), GFP_KERNEL);
-	if (!bwc_rules) {
-		ret = -ENOMEM;
-		goto free_pending_rules;
-	}
-
 	for (i = 0; i < bwc_queues; i++) {
 		if (list_empty(&bwc_matcher->rules[i]))
-			bwc_rules[i] = NULL;
-		else
-			bwc_rules[i] = list_first_entry(&bwc_matcher->rules[i],
-							struct mlx5hws_bwc_rule,
-							list_node);
-	}
+			continue;
 
-	do {
-		all_done = true;
+		pending_rules = 0;
+		rule_attr.queue_id = mlx5hws_bwc_get_queue_id(ctx, i);
+		rules_list = &bwc_matcher->rules[i];
 
-		for (i = 0; i < bwc_queues; i++) {
-			rule_attr.queue_id = mlx5hws_bwc_get_queue_id(ctx, i);
-			burst_th = hws_bwc_get_burst_th(ctx, rule_attr.queue_id);
-
-			for (j = 0; j < burst_th && bwc_rules[i]; j++) {
-				rule_attr.burst = !!((j + 1) % burst_th);
-				ret = mlx5hws_matcher_resize_rule_move(bwc_matcher->matcher,
-								       bwc_rules[i]->rule,
-								       &rule_attr);
-				if (unlikely(ret)) {
-					mlx5hws_err(ctx,
-						    "Moving BWC rule failed during rehash (%d)\n",
-						    ret);
-					goto free_bwc_rules;
-				}
-
-				all_done = false;
-				pending_rules[i]++;
-				bwc_rules[i] = list_is_last(&bwc_rules[i]->list_node,
-							    &bwc_matcher->rules[i]) ?
-					       NULL : list_next_entry(bwc_rules[i], list_node);
-
-				ret = mlx5hws_bwc_queue_poll(ctx,
-							     rule_attr.queue_id,
-							     &pending_rules[i],
-							     false);
-				if (unlikely(ret)) {
-					mlx5hws_err(ctx,
-						    "Moving BWC rule failed during rehash (%d)\n",
-						    ret);
-					goto free_bwc_rules;
-				}
-			}
-		}
-	} while (!all_done);
-
-	/* drain all the bwc queues */
-	for (i = 0; i < bwc_queues; i++) {
-		if (pending_rules[i]) {
-			u16 queue_id = mlx5hws_bwc_get_queue_id(ctx, i);
-
-			mlx5hws_send_engine_flush_queue(&ctx->send_queue[queue_id]);
-			ret = mlx5hws_bwc_queue_poll(ctx, queue_id,
-						     &pending_rules[i], true);
-			if (unlikely(ret)) {
+		list_for_each_entry(bwc_rule, rules_list, list_node) {
+			ret = mlx5hws_matcher_resize_rule_move(matcher,
+							       bwc_rule->rule,
+							       &rule_attr);
+			if (unlikely(ret && !move_error)) {
 				mlx5hws_err(ctx,
-					    "Moving BWC rule failed during rehash (%d)\n", ret);
-				goto free_bwc_rules;
+					    "Moving BWC rule: move failed (%d), attempting to move rest of the rules\n",
+					    ret);
+				move_error = true;
+			}
+
+			pending_rules++;
+			ret = mlx5hws_bwc_queue_poll(ctx,
+						     rule_attr.queue_id,
+						     &pending_rules,
+						     false);
+			if (unlikely(ret && !poll_error)) {
+				mlx5hws_err(ctx,
+					    "Moving BWC rule: poll failed (%d), attempting to move rest of the rules\n",
+					    ret);
+				poll_error = true;
+			}
+		}
+
+		if (pending_rules) {
+			queue = &ctx->send_queue[rule_attr.queue_id];
+			mlx5hws_send_engine_flush_queue(queue);
+			ret = mlx5hws_bwc_queue_poll(ctx,
+						     rule_attr.queue_id,
+						     &pending_rules,
+						     true);
+			if (unlikely(ret && !drain_error)) {
+				mlx5hws_err(ctx,
+					    "Moving BWC rule: drain failed (%d), attempting to move rest of the rules\n",
+					    ret);
+				drain_error = true;
 			}
 		}
 	}
 
-free_bwc_rules:
-	kfree(bwc_rules);
-free_pending_rules:
-	kfree(pending_rules);
+	if (move_error || poll_error || drain_error)
+		ret = -EINVAL;
 
 	return ret;
 }
@@ -742,15 +716,18 @@ static int hws_bwc_matcher_move(struct mlx5hws_bwc_matcher *bwc_matcher)
 	}
 
 	ret = hws_bwc_matcher_move_all(bwc_matcher);
-	if (ret) {
-		mlx5hws_err(ctx, "Rehash error: moving rules failed\n");
-		return -ENOMEM;
-	}
+	if (ret)
+		mlx5hws_err(ctx, "Rehash error: moving rules failed, attempting to remove the old matcher\n");
+
+	/* Error during rehash can't be rolled back.
+	 * The best option here is to allow the rehash to complete and remove
+	 * the old matcher - can't leave the matcher in the 'in_resize' state.
+	 */
 
 	bwc_matcher->matcher = new_matcher;
 	mlx5hws_matcher_destroy(old_matcher);
 
-	return 0;
+	return ret;
 }
 
 static int
