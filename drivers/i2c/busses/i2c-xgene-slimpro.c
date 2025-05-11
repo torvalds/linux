@@ -457,10 +457,9 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 		cl->tx_block = true;
 		cl->rx_callback = slimpro_i2c_rx_cb;
 		ctx->mbox_chan = mbox_request_channel(cl, MAILBOX_I2C_INDEX);
-		if (IS_ERR(ctx->mbox_chan)) {
-			dev_err(&pdev->dev, "i2c mailbox channel request failed\n");
-			return PTR_ERR(ctx->mbox_chan);
-		}
+		if (IS_ERR(ctx->mbox_chan))
+			return dev_err_probe(&pdev->dev, PTR_ERR(ctx->mbox_chan),
+					     "i2c mailbox channel request failed\n");
 	} else {
 		struct pcc_mbox_chan *pcc_chan;
 		const struct acpi_device_id *acpi_id;
@@ -477,17 +476,16 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 		cl->tx_block = false;
 		cl->rx_callback = slimpro_i2c_pcc_rx_cb;
 		pcc_chan = pcc_mbox_request_channel(cl, ctx->mbox_idx);
-		if (IS_ERR(pcc_chan)) {
-			dev_err(&pdev->dev, "PCC mailbox channel request failed\n");
-			return PTR_ERR(pcc_chan);
-		}
+		if (IS_ERR(pcc_chan))
+			return dev_err_probe(&pdev->dev, PTR_ERR(pcc_chan),
+					     "PCC mailbox channel request failed\n");
 
 		ctx->pcc_chan = pcc_chan;
 		ctx->mbox_chan = pcc_chan->mchan;
 
 		if (!ctx->mbox_chan->mbox->txdone_irq) {
-			dev_err(&pdev->dev, "PCC IRQ not supported\n");
-			rc = -ENOENT;
+			rc = dev_err_probe(&pdev->dev, -ENOENT,
+					   "PCC IRQ not supported\n");
 			goto mbox_err;
 		}
 
