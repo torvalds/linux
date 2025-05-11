@@ -189,7 +189,7 @@ void thaw_processes(void)
 
 	oom_killer_enable();
 
-	pr_info("Restarting tasks ...\n");
+	pr_info("Restarting tasks: Starting\n");
 
 	__usermodehelper_set_disable_depth(UMH_FREEZING);
 	thaw_workqueues();
@@ -208,7 +208,7 @@ void thaw_processes(void)
 	usermodehelper_enable();
 
 	schedule();
-	pr_info("Done restarting tasks.\n");
+	pr_info("Restarting tasks: Done\n");
 	trace_suspend_resume(TPS("thaw_processes"), 0, false);
 }
 
