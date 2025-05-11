@@ -64,7 +64,7 @@ bool __kprobes simulate_jalr(u32 opcode, unsigned long addr, struct pt_regs *reg
 	 */
 	bool ret;
 	unsigned long base_addr;
-	u32 imm = (opcode >> 20) & 0xfff;
+	u32 imm = RV_EXTRACT_ITYPE_IMM(opcode);
 	u32 rd_index = RV_EXTRACT_RD_REG(opcode);
 	u32 rs1_index = RV_EXTRACT_RS1_REG(opcode);
 
