@@ -46,10 +46,14 @@ static void hws_bwc_unlock_all_queues(struct mlx5hws_context *ctx)
 	}
 }
 
-static void hws_bwc_matcher_init_attr(struct mlx5hws_matcher_attr *attr,
+static void hws_bwc_matcher_init_attr(struct mlx5hws_bwc_matcher *bwc_matcher,
 				      u32 priority,
-				      u8 size_log)
+				      u8 size_log,
+				      struct mlx5hws_matcher_attr *attr)
 {
+	struct mlx5hws_bwc_matcher *first_matcher =
+		bwc_matcher->complex_first_bwc_matcher;
+
 	memset(attr, 0, sizeof(*attr));
 
 	attr->priority = priority;
@@ -61,6 +65,9 @@ static void hws_bwc_matcher_init_attr(struct mlx5hws_matcher_attr *attr,
 	attr->rule.num_log = size_log;
 	attr->resizable = true;
 	attr->max_num_of_at_attach = MLX5HWS_BWC_MATCHER_ATTACH_AT_NUM;
+
+	attr->isolated_matcher_end_ft_id =
+		first_matcher ? first_matcher->matcher->end_ft_id : 0;
 }
 
 int mlx5hws_bwc_matcher_create_simple(struct mlx5hws_bwc_matcher *bwc_matcher,
@@ -83,9 +90,10 @@ int mlx5hws_bwc_matcher_create_simple(struct mlx5hws_bwc_matcher *bwc_matcher,
 	for (i = 0; i < bwc_queues; i++)
 		INIT_LIST_HEAD(&bwc_matcher->rules[i]);
 
-	hws_bwc_matcher_init_attr(&attr,
+	hws_bwc_matcher_init_attr(bwc_matcher,
 				  priority,
-				  MLX5HWS_BWC_MATCHER_INIT_SIZE_LOG);
+				  MLX5HWS_BWC_MATCHER_INIT_SIZE_LOG,
+				  &attr);
 
 	bwc_matcher->priority = priority;
 	bwc_matcher->size_log = MLX5HWS_BWC_MATCHER_INIT_SIZE_LOG;
@@ -217,7 +225,10 @@ int mlx5hws_bwc_matcher_destroy(struct mlx5hws_bwc_matcher *bwc_matcher)
 			    "BWC matcher destroy: matcher still has %d rules\n",
 			    num_of_rules);
 
-	mlx5hws_bwc_matcher_destroy_simple(bwc_matcher);
+	if (bwc_matcher->complex)
+		mlx5hws_bwc_matcher_destroy_complex(bwc_matcher);
+	else
+		mlx5hws_bwc_matcher_destroy_simple(bwc_matcher);
 
 	kfree(bwc_matcher);
 	return 0;
@@ -401,9 +412,13 @@ int mlx5hws_bwc_rule_destroy_simple(struct mlx5hws_bwc_rule *bwc_rule)
 
 int mlx5hws_bwc_rule_destroy(struct mlx5hws_bwc_rule *bwc_rule)
 {
-	int ret;
+	bool is_complex = !!bwc_rule->bwc_matcher->complex;
+	int ret = 0;
 
-	ret = mlx5hws_bwc_rule_destroy_simple(bwc_rule);
+	if (is_complex)
+		ret = mlx5hws_bwc_rule_destroy_complex(bwc_rule);
+	else
+		ret = mlx5hws_bwc_rule_destroy_simple(bwc_rule);
 
 	mlx5hws_bwc_rule_free(bwc_rule);
 	return ret;
@@ -692,7 +707,10 @@ free_pending_rules:
 
 static int hws_bwc_matcher_move_all(struct mlx5hws_bwc_matcher *bwc_matcher)
 {
-	return hws_bwc_matcher_move_all_simple(bwc_matcher);
+	if (!bwc_matcher->complex)
+		return hws_bwc_matcher_move_all_simple(bwc_matcher);
+
+	return mlx5hws_bwc_matcher_move_all_complex(bwc_matcher);
 }
 
 static int hws_bwc_matcher_move(struct mlx5hws_bwc_matcher *bwc_matcher)
@@ -703,9 +721,10 @@ static int hws_bwc_matcher_move(struct mlx5hws_bwc_matcher *bwc_matcher)
 	struct mlx5hws_matcher *new_matcher;
 	int ret;
 
-	hws_bwc_matcher_init_attr(&matcher_attr,
+	hws_bwc_matcher_init_attr(bwc_matcher,
 				  bwc_matcher->priority,
-				  bwc_matcher->size_log);
+				  bwc_matcher->size_log,
+				  &matcher_attr);
 
 	old_matcher = bwc_matcher->matcher;
 	new_matcher = mlx5hws_matcher_create(old_matcher->tbl,
@@ -910,11 +929,18 @@ mlx5hws_bwc_rule_create(struct mlx5hws_bwc_matcher *bwc_matcher,
 
 	bwc_queue_idx = hws_bwc_gen_queue_idx(ctx);
 
-	ret = mlx5hws_bwc_rule_create_simple(bwc_rule,
-					     params->match_buf,
-					     rule_actions,
-					     flow_source,
-					     bwc_queue_idx);
+	if (bwc_matcher->complex)
+		ret = mlx5hws_bwc_rule_create_complex(bwc_rule,
+						      params,
+						      flow_source,
+						      rule_actions,
+						      bwc_queue_idx);
+	else
+		ret = mlx5hws_bwc_rule_create_simple(bwc_rule,
+						     params->match_buf,
+						     rule_actions,
+						     flow_source,
+						     bwc_queue_idx);
 	if (unlikely(ret)) {
 		mlx5hws_bwc_rule_free(bwc_rule);
 		return NULL;
@@ -996,5 +1022,10 @@ int mlx5hws_bwc_rule_action_update(struct mlx5hws_bwc_rule *bwc_rule,
 		return -EINVAL;
 	}
 
-	return hws_bwc_rule_action_update(bwc_rule, rule_actions);
+	/* For complex rule, the update should happen on the second matcher */
+	if (bwc_rule->isolated_bwc_rule)
+		return hws_bwc_rule_action_update(bwc_rule->isolated_bwc_rule,
+						  rule_actions);
+	else
+		return hws_bwc_rule_action_update(bwc_rule, rule_actions);
 }
