@@ -2367,7 +2367,7 @@ static void rtw89_mcc_track(struct rtw89_dev *rtwdev)
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
 	struct rtw89_mcc_config *config = &mcc->config;
 	struct rtw89_mcc_pattern *pattern = &config->pattern;
-	s16 tolerance;
+	u16 tolerance;
 	u16 bcn_ofst;
 	u16 diff;
 
@@ -2375,18 +2375,25 @@ static void rtw89_mcc_track(struct rtw89_dev *rtwdev)
 		return;
 
 	bcn_ofst = rtw89_mcc_get_bcn_ofst(rtwdev);
+	if (bcn_ofst == config->beacon_offset)
+		return;
+
 	if (bcn_ofst > config->beacon_offset) {
 		diff = bcn_ofst - config->beacon_offset;
 		if (pattern->tob_aux < 0)
 			tolerance = -pattern->tob_aux;
-		else
+		else if (pattern->toa_aux > 0)
 			tolerance = pattern->toa_aux;
+		else
+			return; /* no chance to improve */
 	} else {
 		diff = config->beacon_offset - bcn_ofst;
 		if (pattern->toa_aux < 0)
 			tolerance = -pattern->toa_aux;
-		else
+		else if (pattern->tob_aux > 0)
 			tolerance = pattern->tob_aux;
+		else
+			return; /* no chance to improve */
 	}
 
 	if (diff <= tolerance)
