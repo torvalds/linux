@@ -4004,6 +4004,9 @@ int rtw89_core_sta_link_disassoc(struct rtw89_dev *rtwdev,
 	if (vif->type == NL80211_IFTYPE_STATION)
 		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, rtwvif_link, false);
 
+	if (rtwvif_link->wifi_role == RTW89_WIFI_ROLE_P2P_CLIENT)
+		rtw89_p2p_noa_once_deinit(rtwvif_link);
+
 	return 0;
 }
 

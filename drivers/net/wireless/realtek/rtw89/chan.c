@@ -776,8 +776,10 @@ static void rtw89_mcc_fill_role_limit(struct rtw89_dev *rtwdev,
 	int ret;
 	int i;
 
-	if (!mcc_role->is_go && !mcc_role->is_gc)
+	if (!mcc_role->is_gc)
 		return;
+
+	rtw89_p2p_noa_once_recalc(rtwvif_link);
 
 	rcu_read_lock();
 

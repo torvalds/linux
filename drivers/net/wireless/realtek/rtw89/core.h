@@ -3485,6 +3485,14 @@ struct rtw89_p2p_noa_setter {
 	u8 noa_index;
 };
 
+struct rtw89_ps_noa_once_handler {
+	bool in_duration;
+	u64 tsf_begin;
+	u64 tsf_end;
+	struct wiphy_delayed_work set_work;
+	struct wiphy_delayed_work clr_work;
+};
+
 struct rtw89_vif_link {
 	struct rtw89_vif *rtwvif;
 	struct list_head dlink_schd;
@@ -3531,6 +3539,7 @@ struct rtw89_vif_link {
 	struct rtw89_phy_rate_pattern rate_pattern;
 	struct list_head general_pkt_list;
 	struct rtw89_p2p_noa_setter p2p_noa;
+	struct rtw89_ps_noa_once_handler noa_once;
 };
 
 enum rtw89_lv1_rcvy_step {

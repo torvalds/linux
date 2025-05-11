@@ -114,6 +114,8 @@ static int __rtw89_ops_add_iface_link(struct rtw89_dev *rtwdev,
 	wiphy_work_init(&rtwvif_link->update_beacon_work, rtw89_core_update_beacon_work);
 	INIT_LIST_HEAD(&rtwvif_link->general_pkt_list);
 
+	rtw89_p2p_noa_once_init(rtwvif_link);
+
 	rtwvif_link->hit_rule = 0;
 	rtwvif_link->bcn_hit_cond = 0;
 	rtwvif_link->chanctx_assigned = false;
@@ -142,6 +144,8 @@ static void __rtw89_ops_remove_iface_link(struct rtw89_dev *rtwdev,
 	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	wiphy_work_cancel(rtwdev->hw->wiphy, &rtwvif_link->update_beacon_work);
+
+	rtw89_p2p_noa_once_deinit(rtwvif_link);
 
 	rtw89_leave_ps_mode(rtwdev);
 
