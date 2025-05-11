@@ -3752,8 +3752,8 @@ static int write_dev_supers(struct btrfs_device *device,
 			continue;
 		} else if (ret < 0) {
 			btrfs_err(device->fs_info,
-				"couldn't get super block location for mirror %d",
-				i);
+			  "couldn't get super block location for mirror %d error %d",
+			  i, ret);
 			atomic_inc(&device->sb_write_errors);
 			continue;
 		}
@@ -3772,8 +3772,8 @@ static int write_dev_supers(struct btrfs_device *device,
 					    GFP_NOFS);
 		if (IS_ERR(folio)) {
 			btrfs_err(device->fs_info,
-			    "couldn't get super block page for bytenr %llu",
-			    bytenr);
+			  "couldn't get super block page for bytenr %llu error %ld",
+			  bytenr, PTR_ERR(folio));
 			atomic_inc(&device->sb_write_errors);
 			continue;
 		}
