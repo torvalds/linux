@@ -81,25 +81,21 @@ static int __maybe_unused bcm963xx_nvram_checksum(
 	const struct bcm963xx_nvram *nvram,
 	u32 *expected_out, u32 *actual_out)
 {
+	const u32 zero = 0;
 	u32 expected, actual;
 	size_t len;
 
 	if (nvram->version <= 4) {
 		expected = nvram->checksum_v4;
-		len = BCM963XX_NVRAM_V4_SIZE - sizeof(u32);
+		len = BCM963XX_NVRAM_V4_SIZE;
 	} else {
 		expected = nvram->checksum_v5;
-		len = BCM963XX_NVRAM_V5_SIZE - sizeof(u32);
+		len = BCM963XX_NVRAM_V5_SIZE;
 	}
 
-	/*
-	 * Calculate the CRC32 value for the nvram with a checksum value
-	 * of 0 without modifying or copying the nvram by combining:
-	 * - The CRC32 of the nvram without the checksum value
-	 * - The CRC32 of a zero checksum value (which is also 0)
-	 */
-	actual = crc32_le_combine(
-		crc32_le(~0, (u8 *)nvram, len), 0, sizeof(u32));
+	/* Calculate the CRC32 of the nvram with the checksum field set to 0. */
+	actual = crc32_le(~0, nvram, len - sizeof(u32));
+	actual = crc32_le(actual, &zero, sizeof(u32));
 
 	if (expected_out)
 		*expected_out = expected;
