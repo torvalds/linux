@@ -961,6 +961,15 @@ static int rtw89_mcc_fill_all_roles(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static bool rtw89_mcc_can_courtesy(const struct rtw89_mcc_role *provider,
+				   const struct rtw89_mcc_role *receiver)
+{
+	if (provider->is_go || receiver->is_gc)
+		return false;
+
+	return true;
+}
+
 static void rtw89_mcc_assign_pattern(struct rtw89_dev *rtwdev,
 				     const struct rtw89_mcc_pattern *new)
 {
@@ -980,7 +989,7 @@ static void rtw89_mcc_assign_pattern(struct rtw89_dev *rtwdev,
 	*pattern = *new;
 	memset(&pattern->courtesy, 0, sizeof(pattern->courtesy));
 
-	if (RTW89_MCC_REQ_COURTESY(pattern, aux)) {
+	if (RTW89_MCC_REQ_COURTESY(pattern, aux) && rtw89_mcc_can_courtesy(ref, aux)) {
 		crtz = &pattern->courtesy.ref;
 		ref->crtz = crtz;
 
@@ -994,7 +1003,7 @@ static void rtw89_mcc_assign_pattern(struct rtw89_dev *rtwdev,
 		ref->crtz = NULL;
 	}
 
-	if (RTW89_MCC_REQ_COURTESY(pattern, ref)) {
+	if (RTW89_MCC_REQ_COURTESY(pattern, ref) && rtw89_mcc_can_courtesy(aux, ref)) {
 		crtz = &pattern->courtesy.aux;
 		aux->crtz = crtz;
 
