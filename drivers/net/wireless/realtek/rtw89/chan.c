@@ -2150,12 +2150,18 @@ static int rtw89_mcc_stop_sel_iterator(struct rtw89_dev *rtwdev,
 static void rtw89_mcc_stop(struct rtw89_dev *rtwdev,
 			   const struct rtw89_chanctx_pause_parm *pause)
 {
+	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
 	struct rtw89_mcc_role *ref = &mcc->role_ref;
 	struct rtw89_mcc_stop_sel sel = {
 		.hint.target = pause ? pause->trigger : NULL,
 	};
 	int ret;
+
+	if (!pause) {
+		wiphy_delayed_work_cancel(rtwdev->hw->wiphy, &rtwdev->chanctx_work);
+		bitmap_zero(hal->changes, NUM_OF_RTW89_CHANCTX_CHANGES);
+	}
 
 	/* by default, stop at ref */
 	rtw89_iterate_mcc_roles(rtwdev, rtw89_mcc_stop_sel_iterator, &sel);
