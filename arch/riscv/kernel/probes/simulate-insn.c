@@ -188,7 +188,7 @@ static bool __kprobes simulate_c_jr_jalr(u32 opcode, unsigned long addr, struct 
 
 	unsigned long jump_addr;
 
-	u32 rs1 = (opcode >> 7) & 0x1f;
+	u32 rs1 = RVC_EXTRACT_C2_RS1_REG(opcode);
 
 	if (rs1 == 0) /* C.JR is only valid when rs1 != x0 */
 		return false;
