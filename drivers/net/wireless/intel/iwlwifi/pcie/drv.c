@@ -488,8 +488,8 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct pci_device_id iwl_hw_card_ids[] = {
 
 	{IWL_PCI_DEVICE(0x2723, PCI_ANY_ID, iwl_ax200_mac_cfg)},
 
-/* So devices */
-	{IWL_PCI_DEVICE(0x2725, PCI_ANY_ID, iwl_so_mac_cfg)},
+/* Ty/So devices */
+	{IWL_PCI_DEVICE(0x2725, PCI_ANY_ID, iwl_ty_mac_cfg)},
 	{IWL_PCI_DEVICE(0x7A70, PCI_ANY_ID, iwl_so_long_latency_imr_mac_cfg)},
 	{IWL_PCI_DEVICE(0x7AF0, PCI_ANY_ID, iwl_so_mac_cfg)},
 	{IWL_PCI_DEVICE(0x51F0, PCI_ANY_ID, iwl_so_long_latency_mac_cfg)},

@@ -527,6 +527,7 @@ extern const struct iwl_mac_cfg iwl_qu_mac_cfg;
 extern const struct iwl_mac_cfg iwl_qu_medium_latency_mac_cfg;
 extern const struct iwl_mac_cfg iwl_qu_long_latency_mac_cfg;
 extern const struct iwl_mac_cfg iwl_ax200_mac_cfg;
+extern const struct iwl_mac_cfg iwl_ty_mac_cfg;
 extern const struct iwl_mac_cfg iwl_so_mac_cfg;
 extern const struct iwl_mac_cfg iwl_so_long_latency_mac_cfg;
 extern const struct iwl_mac_cfg iwl_so_long_latency_imr_mac_cfg;

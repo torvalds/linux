@@ -88,6 +88,16 @@ static const struct iwl_family_base_params iwl_ax210_base = {
 	.ucode_api_max = IWL_AX210_UCODE_API_MAX,
 };
 
+const struct iwl_mac_cfg iwl_ty_mac_cfg = {
+	.mq_rx_supported = true,
+	.gen2 = true,
+	.device_family = IWL_DEVICE_FAMILY_AX210,
+	.base = &iwl_ax210_base,
+	.umac_prph_offset = 0x300000,
+	/* TODO: the following values need to be checked */
+	.xtal_latency = 500,
+};
+
 const struct iwl_mac_cfg iwl_so_mac_cfg = {
 	.mq_rx_supported = true,
 	.gen2 = true,
