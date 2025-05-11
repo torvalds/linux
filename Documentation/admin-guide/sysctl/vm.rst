@@ -75,6 +75,7 @@ Currently, these files are in /proc/sys/vm:
 - unprivileged_userfaultfd
 - user_reserve_kbytes
 - vfs_cache_pressure
+- vfs_cache_pressure_denom
 - watermark_boost_factor
 - watermark_scale_factor
 - zone_reclaim_mode
@@ -1017,19 +1018,28 @@ vfs_cache_pressure
 This percentage value controls the tendency of the kernel to reclaim
 the memory which is used for caching of directory and inode objects.
 
-At the default value of vfs_cache_pressure=100 the kernel will attempt to
-reclaim dentries and inodes at a "fair" rate with respect to pagecache and
-swapcache reclaim.  Decreasing vfs_cache_pressure causes the kernel to prefer
-to retain dentry and inode caches. When vfs_cache_pressure=0, the kernel will
-never reclaim dentries and inodes due to memory pressure and this can easily
-lead to out-of-memory conditions. Increasing vfs_cache_pressure beyond 100
-causes the kernel to prefer to reclaim dentries and inodes.
+At the default value of vfs_cache_pressure=vfs_cache_pressure_denom the kernel
+will attempt to reclaim dentries and inodes at a "fair" rate with respect to
+pagecache and swapcache reclaim.  Decreasing vfs_cache_pressure causes the
+kernel to prefer to retain dentry and inode caches. When vfs_cache_pressure=0,
+the kernel will never reclaim dentries and inodes due to memory pressure and
+this can easily lead to out-of-memory conditions. Increasing vfs_cache_pressure
+beyond vfs_cache_pressure_denom causes the kernel to prefer to reclaim dentries
+and inodes.
 
-Increasing vfs_cache_pressure significantly beyond 100 may have negative
-performance impact. Reclaim code needs to take various locks to find freeable
-directory and inode objects. With vfs_cache_pressure=1000, it will look for
-ten times more freeable objects than there are.
+Increasing vfs_cache_pressure significantly beyond vfs_cache_pressure_denom may
+have negative performance impact. Reclaim code needs to take various locks to
+find freeable directory and inode objects. When vfs_cache_pressure equals
+(10 * vfs_cache_pressure_denom), it will look for ten times more freeable
+objects than there are.
 
+Note: This setting should always be used together with vfs_cache_pressure_denom.
+
+vfs_cache_pressure_denom
+========================
+
+Defaults to 100 (minimum allowed value). Requires corresponding
+vfs_cache_pressure setting to take effect.
 
 watermark_boost_factor
 ======================
