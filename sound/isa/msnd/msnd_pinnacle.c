@@ -142,11 +142,6 @@ static void snd_msnd_eval_dsp_msg(struct snd_msnd *chip, u16 wMessage)
 		}
 		break;
 
-	case HIMT_MIDI_IN_UCHAR:
-		if (chip->msndmidi_mpu)
-			snd_msndmidi_input_read(chip->msndmidi_mpu);
-		break;
-
 	default:
 		dev_dbg(chip->card->dev, LOGNAME ": HIMT message %d 0x%02x\n",
 			HIBYTE(wMessage), HIBYTE(wMessage));
