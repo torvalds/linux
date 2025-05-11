@@ -5797,7 +5797,9 @@ static int grab_requested_root(struct mnt_namespace *ns, struct path *root)
 			     STATMOUNT_SB_SOURCE | \
 			     STATMOUNT_OPT_ARRAY | \
 			     STATMOUNT_OPT_SEC_ARRAY | \
-			     STATMOUNT_SUPPORTED_MASK)
+			     STATMOUNT_SUPPORTED_MASK | \
+			     STATMOUNT_MNT_UIDMAP | \
+			     STATMOUNT_MNT_GIDMAP)
 
 static int do_statmount(struct kstatmount *s, u64 mnt_id, u64 mnt_ns_id,
 			struct mnt_namespace *ns)
