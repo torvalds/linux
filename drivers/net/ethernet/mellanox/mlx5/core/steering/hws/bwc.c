@@ -169,6 +169,7 @@ mlx5hws_bwc_matcher_create(struct mlx5hws_table *table,
 		return NULL;
 
 	atomic_set(&bwc_matcher->num_of_rules, 0);
+	atomic_set(&bwc_matcher->rehash_required, false);
 
 	/* Check if the required match params can be all matched
 	 * in single STE, otherwise complex matcher is needed.
@@ -769,9 +770,9 @@ hws_bwc_matcher_rehash_size(struct mlx5hws_bwc_matcher *bwc_matcher)
 
 	/* It is possible that other rule has already performed rehash.
 	 * Need to check again if we really need rehash.
-	 * If the reason for rehash was size, but not any more - skip rehash.
 	 */
-	if (!hws_bwc_matcher_rehash_size_needed(bwc_matcher,
+	if (!atomic_read(&bwc_matcher->rehash_required) &&
+	    !hws_bwc_matcher_rehash_size_needed(bwc_matcher,
 						atomic_read(&bwc_matcher->num_of_rules)))
 		return 0;
 
@@ -781,6 +782,8 @@ hws_bwc_matcher_rehash_size(struct mlx5hws_bwc_matcher *bwc_matcher)
 	 *  - move all the rules to the new matcher
 	 *  - destroy the old matcher
 	 */
+
+	atomic_set(&bwc_matcher->rehash_required, false);
 
 	ret = hws_bwc_matcher_extend_size(bwc_matcher);
 	if (ret)
@@ -875,6 +878,7 @@ int mlx5hws_bwc_rule_create_simple(struct mlx5hws_bwc_rule *bwc_rule,
 	 * Try rehash by size and insert rule again - last chance.
 	 */
 
+	atomic_set(&bwc_matcher->rehash_required, true);
 	mutex_unlock(queue_lock);
 
 	hws_bwc_lock_all_queues(ctx);

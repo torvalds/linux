@@ -30,6 +30,7 @@ struct mlx5hws_bwc_matcher {
 	u8 size_log;
 	u32 priority;
 	atomic_t num_of_rules;
+	atomic_t rehash_required;
 	struct list_head *rules;
 };
 
