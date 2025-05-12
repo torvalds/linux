@@ -1016,7 +1016,15 @@ static u32 gen8_de_port_aux_mask(struct intel_display *display)
 
 static u32 gen8_de_pipe_fault_mask(struct intel_display *display)
 {
-	if (DISPLAY_VER(display) >= 14)
+	if (DISPLAY_VER(display) >= 20)
+		return MTL_PLANE_ATS_FAULT |
+			GEN9_PIPE_CURSOR_FAULT |
+			GEN11_PIPE_PLANE5_FAULT |
+			GEN9_PIPE_PLANE4_FAULT |
+			GEN9_PIPE_PLANE3_FAULT |
+			GEN9_PIPE_PLANE2_FAULT |
+			GEN9_PIPE_PLANE1_FAULT;
+	else if (DISPLAY_VER(display) >= 14)
 		return MTL_PIPEDMC_ATS_FAULT |
 			MTL_PLANE_ATS_FAULT |
 			GEN12_PIPEDMC_FAULT |

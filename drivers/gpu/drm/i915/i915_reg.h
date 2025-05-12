@@ -2126,8 +2126,8 @@
 #define  GEN8_PIPE_CDCLK_CRC_ERROR	REG_BIT(29)
 #define  GEN8_PIPE_CDCLK_CRC_DONE	REG_BIT(28)
 #define  GEN12_PIPEDMC_INTERRUPT	REG_BIT(26) /* tgl+ */
-#define  GEN12_PIPEDMC_FAULT		REG_BIT(25) /* tgl+ */
-#define  MTL_PIPEDMC_ATS_FAULT		REG_BIT(24) /* mtl+ */
+#define  GEN12_PIPEDMC_FAULT		REG_BIT(25) /* tgl-mtl */
+#define  MTL_PIPEDMC_ATS_FAULT		REG_BIT(24) /* mtl */
 #define  GEN11_PIPE_PLANE7_FAULT	REG_BIT(22) /* icl/tgl */
 #define  GEN11_PIPE_PLANE6_FAULT	REG_BIT(21) /* icl/tgl */
 #define  GEN11_PIPE_PLANE5_FAULT	REG_BIT(20) /* icl+ */
