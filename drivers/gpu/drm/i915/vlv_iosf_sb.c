@@ -57,23 +57,23 @@ static void __vlv_punit_put(struct drm_i915_private *i915)
 	iosf_mbi_punit_release();
 }
 
-void vlv_iosf_sb_get(struct drm_device *drm, unsigned long ports)
+void vlv_iosf_sb_get(struct drm_device *drm, unsigned long unit_mask)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 
-	if (ports & BIT(VLV_IOSF_SB_PUNIT))
+	if (unit_mask & BIT(VLV_IOSF_SB_PUNIT))
 		__vlv_punit_get(i915);
 
 	mutex_lock(&i915->vlv_iosf_sb.lock);
 }
 
-void vlv_iosf_sb_put(struct drm_device *drm, unsigned long ports)
+void vlv_iosf_sb_put(struct drm_device *drm, unsigned long unit_mask)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 
 	mutex_unlock(&i915->vlv_iosf_sb.lock);
 
-	if (ports & BIT(VLV_IOSF_SB_PUNIT))
+	if (unit_mask & BIT(VLV_IOSF_SB_PUNIT))
 		__vlv_punit_put(i915);
 }
 
