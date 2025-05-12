@@ -6,8 +6,7 @@
 #ifndef _ABI_GUC_ERRORS_ABI_H
 #define _ABI_GUC_ERRORS_ABI_H
 
-enum xe_guc_response_status {
-	XE_GUC_RESPONSE_STATUS_SUCCESS                      = 0x0,
+enum xe_guc_response {
 	XE_GUC_RESPONSE_ERROR_PROTOCOL                      = 0x04,
 	XE_GUC_RESPONSE_INVALID_STATE                       = 0x0A,
 	XE_GUC_RESPONSE_UNSUPPORTED_VERSION                 = 0x0B,
@@ -21,12 +20,20 @@ enum xe_guc_response_status {
 	XE_GUC_RESPONSE_CANNOT_COMPLETE_ACTION              = 0x41,
 	XE_GUC_RESPONSE_INVALID_KLV_DATA                    = 0x50,
 	XE_GUC_RESPONSE_INVALID_PARAMS                      = 0x60,
+	XE_GUC_RESPONSE_INVALID_CONTEXT_INDEX               = 0x61,
+	XE_GUC_RESPONSE_INVALID_CONTEXT_REGISTRATION        = 0x62,
+	XE_GUC_RESPONSE_INVALID_DOORBELL_ID                 = 0x63,
+	XE_GUC_RESPONSE_INVALID_ENGINE_ID                   = 0x64,
 	XE_GUC_RESPONSE_INVALID_BUFFER_RANGE                = 0x70,
 	XE_GUC_RESPONSE_INVALID_BUFFER                      = 0x71,
+	XE_GUC_RESPONSE_BUFFER_ALREADY_REGISTERED           = 0x72,
 	XE_GUC_RESPONSE_INVALID_GGTT_ADDRESS                = 0x80,
 	XE_GUC_RESPONSE_PENDING_ACTION                      = 0x90,
+	XE_GUC_RESPONSE_CONTEXT_NOT_REGISTERED              = 0x100,
+	XE_GUC_RESPONSE_CONTEXT_ALREADY_REGISTERED          = 0X101,
 	XE_GUC_RESPONSE_INVALID_SIZE                        = 0x102,
 	XE_GUC_RESPONSE_MALFORMED_KLV                       = 0x103,
+	XE_GUC_RESPONSE_INVALID_CONTEXT                     = 0x104,
 	XE_GUC_RESPONSE_INVALID_KLV_KEY                     = 0x105,
 	XE_GUC_RESPONSE_DATA_TOO_LARGE                      = 0x106,
 	XE_GUC_RESPONSE_VF_MIGRATED                         = 0x107,
@@ -40,10 +47,11 @@ enum xe_guc_response_status {
 	XE_GUC_RESPONSE_CTB_NOT_REGISTERED                  = 0x304,
 	XE_GUC_RESPONSE_CTB_IN_USE                          = 0x305,
 	XE_GUC_RESPONSE_CTB_INVALID_DESC                    = 0x306,
+	XE_GUC_RESPONSE_HW_TIMEOUT                          = 0x30C,
 	XE_GUC_RESPONSE_CTB_SOURCE_INVALID_DESCRIPTOR       = 0x30D,
 	XE_GUC_RESPONSE_CTB_DESTINATION_INVALID_DESCRIPTOR  = 0x30E,
 	XE_GUC_RESPONSE_INVALID_CONFIG_STATE                = 0x30F,
-	XE_GUC_RESPONSE_STATUS_GENERIC_FAIL                 = 0xF000,
+	XE_GUC_RESPONSE_GENERIC_FAIL                        = 0xF000,
 };
 
 enum xe_guc_load_status {
