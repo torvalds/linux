@@ -392,8 +392,7 @@ CXL Core
 .. kernel-doc:: drivers/cxl/core/features.c
    :doc: cxl features
 
-.. kernel-doc:: drivers/cxl/core/features.c
-   :identifiers:
+See :c:func:`devm_cxl_setup_features` for API details.
 
 CXL Regions
 -----------
