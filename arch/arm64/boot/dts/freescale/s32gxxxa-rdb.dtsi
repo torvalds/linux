@@ -153,6 +153,11 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
+
+	pca85073a: rtc@51 {
+		compatible = "nxp,pca85073a";
+		reg = <0x51>;
+	};
 };
 
 &i2c2 {

@@ -136,6 +136,15 @@
 		startup-delay-us = <20000>;
 	};
 
+	reg_usb_vbus: regulator-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "USB_VBUS";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&pcal6524 3 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	reg_vcc_12v: regulator-vcc-12v {
 		compatible = "regulator-fixed";
 		regulator-max-microvolt = <12000000>;
@@ -523,6 +532,13 @@
 	reset-gpio = <&gpio5 13 GPIO_ACTIVE_LOW>;
 	vpcie-supply = <&reg_m2_pwr>;
 	status = "okay";
+};
+
+&pcie0_ep {
+	pinctrl-0 = <&pinctrl_pcie0>;
+	pinctrl-names = "default";
+	vpcie-supply = <&reg_m2_pwr>;
+	status = "disabled";
 };
 
 &sai1 {
@@ -1020,6 +1036,13 @@
 &tpm6 {
 	pinctrl-0 = <&pinctrl_tpm6>;
 	pinctrl-names = "default";
+	status = "okay";
+};
+
+&usb2 {
+	dr_mode = "host";
+	vbus-supply = <&reg_usb_vbus>;
+	disable-over-current;
 	status = "okay";
 };
 

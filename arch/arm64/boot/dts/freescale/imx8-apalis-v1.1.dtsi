@@ -339,6 +339,25 @@
 	pinctrl-0 = <&pinctrl_flexcan3>;
 };
 
+&hsio_phy {
+	fsl,hsio-cfg = "pciea-pcieb-sata";
+	fsl,refclk-pad-mode = "input";
+	status = "okay";
+};
+
+&hsio_refa_clk {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie_sata_refclk>;
+	enable-gpios = <&lsio_gpio4 11 GPIO_ACTIVE_HIGH>;
+};
+
+&hsio_refb_clk {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie_wifi_refclk>;
+	clocks = <&hsio_refa_clk>;
+	enable-gpios = <&lsio_gpio2 11 GPIO_ACTIVE_HIGH>;
+};
+
 /* TODO: Apalis HDMI1 */
 
 &gpu_alert0 {
@@ -514,7 +533,10 @@
 			  "MXM3_112",
 			  "MXM3_118",
 			  "MXM3_114",
-			  "MXM3_116";
+			  "MXM3_116",
+			  "",
+			  "",
+			  "MXM3_26";
 };
 
 &lsio_gpio1 {
@@ -586,15 +608,6 @@
 			  "MXM3_183",
 			  "MXM3_185",
 			  "MXM3_187";
-
-	pcie-wifi-hog {
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_pcie_wifi_refclk>;
-		gpio-hog;
-		gpios = <11 GPIO_ACTIVE_HIGH>;
-		line-name = "PCIE_WIFI_CLK";
-		output-high;
-	};
 };
 
 &lsio_gpio3 {
@@ -660,16 +673,6 @@
 			  "MXM3_291",
 			  "MXM3_289",
 			  "MXM3_287";
-
-	/* Enable pcie root / sata ref clock unconditionally */
-	pcie-sata-hog {
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_pcie_sata_refclk>;
-		gpio-hog;
-		gpios = <11 GPIO_ACTIVE_HIGH>;
-		line-name = "PCIE_SATA_CLK";
-		output-high;
-	};
 };
 
 &lsio_gpio5 {
@@ -771,9 +774,30 @@
 	status = "okay";
 };
 
-/* TODO: Apalis PCIE1 */
+/* Apalis PCIE1 */
+&pciea {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_reset_moci>;
+	phys = <&hsio_phy 0 PHY_TYPE_PCIE 0>;
+	phy-names = "pcie-phy";
+	reset-gpio = <&lsio_gpio0 30 GPIO_ACTIVE_LOW>;
+	vpcie-supply = <&reg_pcie_switch>;
+};
 
-/* TODO: On-module Wi-Fi */
+/* On-module Wi-Fi */
+&pcieb {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcieb>, <&pinctrl_wifi>;
+	phys = <&hsio_phy 1 PHY_TYPE_PCIE 1>;
+	phy-names = "pcie-phy";
+	reset-gpio = <&lsio_gpio5 0 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&phyx2_lpcg {
+	clocks = <&hsio_refa_clk>, <&hsio_refb_clk>,
+		 <&hsio_refa_clk>, <&hsio_per_clk>;
+};
 
 /* TODO: Apalis BKL1_PWM */
 
@@ -805,8 +829,6 @@
 	assigned-clock-rates = <0>, <0>, <786432000>, <49152000>, <12288000>,
 			       <722534400>, <45158400>, <11289600>, <49152000>;
 };
-
-/* TODO: Apalis SATA1 */
 
 /* Apalis SPDIF1 */
 &spdif0 {
