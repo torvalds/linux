@@ -2071,17 +2071,8 @@ struct mdio_board_info {
 	const void	*platform_data;
 };
 
-#if IS_ENABLED(CONFIG_MDIO_DEVICE)
 int mdiobus_register_board_info(const struct mdio_board_info *info,
 				unsigned int n);
-#else
-static inline int mdiobus_register_board_info(const struct mdio_board_info *i,
-					      unsigned int n)
-{
-	return 0;
-}
-#endif
-
 
 /**
  * phy_module_driver() - Helper macro for registering PHY drivers
