@@ -3,7 +3,7 @@
  *
  * Module Name: amlresrc.h - AML resource descriptors
  *
- * Copyright (C) 2000 - 2023, Intel Corp.
+ * Copyright (C) 2000 - 2025, Intel Corp.
  *
  *****************************************************************************/
 
@@ -504,10 +504,6 @@ struct aml_resource_pin_group_config {
 
 #define AML_RESOURCE_PIN_GROUP_CONFIG_REVISION    1	/* ACPI 6.2 */
 
-/* restore default alignment */
-
-#pragma pack()
-
 /* Union of all resource descriptors, so we can allocate the worst case */
 
 union aml_resource {
@@ -561,6 +557,10 @@ union aml_resource {
 	u16 word_item;
 	u8 byte_item;
 };
+
+/* restore default alignment */
+
+#pragma pack()
 
 /* Interfaces used by both the disassembler and compiler */
 
