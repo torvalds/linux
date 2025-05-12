@@ -5420,6 +5420,151 @@ static void intel_pmu_check_event_constraints(struct event_constraint *event_con
 					      u64 fixed_cntr_mask,
 					      u64 intel_ctrl);
 
+enum dyn_constr_type {
+	DYN_CONSTR_NONE,
+	DYN_CONSTR_BR_CNTR,
+	DYN_CONSTR_ACR_CNTR,
+	DYN_CONSTR_ACR_CAUSE,
+
+	DYN_CONSTR_MAX,
+};
+
+static const char * const dyn_constr_type_name[] = {
+	[DYN_CONSTR_NONE] = "a normal event",
+	[DYN_CONSTR_BR_CNTR] = "a branch counter logging event",
+	[DYN_CONSTR_ACR_CNTR] = "an auto-counter reload event",
+	[DYN_CONSTR_ACR_CAUSE] = "an auto-counter reload cause event",
+};
+
+static void __intel_pmu_check_dyn_constr(struct event_constraint *constr,
+					 enum dyn_constr_type type, u64 mask)
+{
+	struct event_constraint *c1, *c2;
+	int new_weight, check_weight;
+	u64 new_mask, check_mask;
+
+	for_each_event_constraint(c1, constr) {
+		new_mask = c1->idxmsk64 & mask;
+		new_weight = hweight64(new_mask);
+
+		/* ignore topdown perf metrics event */
+		if (c1->idxmsk64 & INTEL_PMC_MSK_TOPDOWN)
+			continue;
+
+		if (!new_weight && fls64(c1->idxmsk64) < INTEL_PMC_IDX_FIXED) {
+			pr_info("The event 0x%llx is not supported as %s.\n",
+				c1->code, dyn_constr_type_name[type]);
+		}
+
+		if (new_weight <= 1)
+			continue;
+
+		for_each_event_constraint(c2, c1 + 1) {
+			bool check_fail = false;
+
+			check_mask = c2->idxmsk64 & mask;
+			check_weight = hweight64(check_mask);
+
+			if (c2->idxmsk64 & INTEL_PMC_MSK_TOPDOWN ||
+			    !check_weight)
+				continue;
+
+			/* The same constraints or no overlap */
+			if (new_mask == check_mask ||
+			    (new_mask ^ check_mask) == (new_mask | check_mask))
+				continue;
+
+			/*
+			 * A scheduler issue may be triggered in the following cases.
+			 * - Two overlap constraints have the same weight.
+			 *   E.g., A constraints: 0x3, B constraints: 0x6
+			 *   event	counter		failure case
+			 *   B		PMC[2:1]	1
+			 *   A		PMC[1:0]	0
+			 *   A		PMC[1:0]	FAIL
+			 * - Two overlap constraints have different weight.
+			 *   The constraint has a low weight, but has high last bit.
+			 *   E.g., A constraints: 0x7, B constraints: 0xC
+			 *   event	counter		failure case
+			 *   B		PMC[3:2]	2
+			 *   A		PMC[2:0]	0
+			 *   A		PMC[2:0]	1
+			 *   A		PMC[2:0]	FAIL
+			 */
+			if (new_weight == check_weight) {
+				check_fail = true;
+			} else if (new_weight < check_weight) {
+				if ((new_mask | check_mask) != check_mask &&
+				    fls64(new_mask) > fls64(check_mask))
+					check_fail = true;
+			} else {
+				if ((new_mask | check_mask) != new_mask &&
+				    fls64(new_mask) < fls64(check_mask))
+					check_fail = true;
+			}
+
+			if (check_fail) {
+				pr_info("The two events 0x%llx and 0x%llx may not be "
+					"fully scheduled under some circumstances as "
+					"%s.\n",
+					c1->code, c2->code, dyn_constr_type_name[type]);
+			}
+		}
+	}
+}
+
+static void intel_pmu_check_dyn_constr(struct pmu *pmu,
+				       struct event_constraint *constr,
+				       u64 cntr_mask)
+{
+	enum dyn_constr_type i;
+	u64 mask;
+
+	for (i = DYN_CONSTR_NONE; i < DYN_CONSTR_MAX; i++) {
+		mask = 0;
+		switch (i) {
+		case DYN_CONSTR_NONE:
+			mask = cntr_mask;
+			break;
+		case DYN_CONSTR_BR_CNTR:
+			if (x86_pmu.flags & PMU_FL_BR_CNTR)
+				mask = x86_pmu.lbr_counters;
+			break;
+		case DYN_CONSTR_ACR_CNTR:
+			mask = hybrid(pmu, acr_cntr_mask64) & GENMASK_ULL(INTEL_PMC_MAX_GENERIC - 1, 0);
+			break;
+		case DYN_CONSTR_ACR_CAUSE:
+			if (hybrid(pmu, acr_cntr_mask64) == hybrid(pmu, acr_cause_mask64))
+				continue;
+			mask = hybrid(pmu, acr_cause_mask64) & GENMASK_ULL(INTEL_PMC_MAX_GENERIC - 1, 0);
+			break;
+		default:
+			pr_warn("Unsupported dynamic constraint type %d\n", i);
+		}
+
+		if (mask)
+			__intel_pmu_check_dyn_constr(constr, i, mask);
+	}
+}
+
+static void intel_pmu_check_event_constraints_all(struct pmu *pmu)
+{
+	struct event_constraint *event_constraints = hybrid(pmu, event_constraints);
+	struct event_constraint *pebs_constraints = hybrid(pmu, pebs_constraints);
+	u64 cntr_mask = hybrid(pmu, cntr_mask64);
+	u64 fixed_cntr_mask = hybrid(pmu, fixed_cntr_mask64);
+	u64 intel_ctrl = hybrid(pmu, intel_ctrl);
+
+	intel_pmu_check_event_constraints(event_constraints, cntr_mask,
+					  fixed_cntr_mask, intel_ctrl);
+
+	if (event_constraints)
+		intel_pmu_check_dyn_constr(pmu, event_constraints, cntr_mask);
+
+	if (pebs_constraints)
+		intel_pmu_check_dyn_constr(pmu, pebs_constraints, cntr_mask);
+}
+
 static void intel_pmu_check_extra_regs(struct extra_reg *extra_regs);
 
 static inline bool intel_pmu_broken_perf_cap(void)
@@ -5537,10 +5682,7 @@ static void intel_pmu_check_hybrid_pmus(struct x86_hybrid_pmu *pmu)
 	else
 		pmu->intel_ctrl &= ~GLOBAL_CTRL_EN_PERF_METRICS;
 
-	intel_pmu_check_event_constraints(pmu->event_constraints,
-					  pmu->cntr_mask64,
-					  pmu->fixed_cntr_mask64,
-					  pmu->intel_ctrl);
+	intel_pmu_check_event_constraints_all(&pmu->pmu);
 
 	intel_pmu_check_extra_regs(pmu->extra_regs);
 }
@@ -7963,10 +8105,8 @@ __init int intel_pmu_init(void)
 	if (x86_pmu.intel_cap.anythread_deprecated)
 		x86_pmu.format_attrs = intel_arch_formats_attr;
 
-	intel_pmu_check_event_constraints(x86_pmu.event_constraints,
-					  x86_pmu.cntr_mask64,
-					  x86_pmu.fixed_cntr_mask64,
-					  x86_pmu.intel_ctrl);
+	intel_pmu_check_event_constraints_all(NULL);
+
 	/*
 	 * Access LBR MSR may cause #GP under certain circumstances.
 	 * Check all LBR MSR here.
