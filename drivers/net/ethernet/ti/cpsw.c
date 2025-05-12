@@ -1156,6 +1156,27 @@ static void cpsw_ndo_poll_controller(struct net_device *ndev)
 }
 #endif
 
+/* We need a custom implementation of phy_do_ioctl_running() because in switch
+ * mode, dev->phydev may be different than the phy of the active_slave. We need
+ * to operate on the locally saved phy instead.
+ */
+static int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
+{
+	struct cpsw_priv *priv = netdev_priv(dev);
+	struct cpsw_common *cpsw = priv->cpsw;
+	int slave_no = cpsw_slave_index(cpsw, priv);
+	struct phy_device *phy;
+
+	if (!netif_running(dev))
+		return -EINVAL;
+
+	phy = cpsw->slaves[slave_no].phy;
+	if (phy)
+		return phy_mii_ioctl(phy, req, cmd);
+
+	return -EOPNOTSUPP;
+}
+
 static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_open		= cpsw_ndo_open,
 	.ndo_stop		= cpsw_ndo_stop,

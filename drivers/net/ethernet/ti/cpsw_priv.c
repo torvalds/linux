@@ -710,23 +710,6 @@ int cpsw_hwtstamp_set(struct net_device *dev,
 }
 #endif /*CONFIG_TI_CPTS*/
 
-int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
-{
-	struct cpsw_priv *priv = netdev_priv(dev);
-	struct cpsw_common *cpsw = priv->cpsw;
-	int slave_no = cpsw_slave_index(cpsw, priv);
-	struct phy_device *phy;
-
-	if (!netif_running(dev))
-		return -EINVAL;
-
-	phy = cpsw->slaves[slave_no].phy;
-	if (phy)
-		return phy_mii_ioctl(phy, req, cmd);
-
-	return -EOPNOTSUPP;
-}
-
 int cpsw_ndo_set_tx_maxrate(struct net_device *ndev, int queue, u32 rate)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
