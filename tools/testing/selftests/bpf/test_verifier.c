@@ -734,7 +734,7 @@ static __u32 btf_raw_types[] = {
 	BTF_MEMBER_ENC(71, 13, 128), /* struct prog_test_member __kptr *ptr; */
 };
 
-static char bpf_vlog[UINT_MAX >> 8];
+static char bpf_vlog[UINT_MAX >> 5];
 
 static int load_btf_spec(__u32 *types, int types_len,
 			 const char *strings, int strings_len)
