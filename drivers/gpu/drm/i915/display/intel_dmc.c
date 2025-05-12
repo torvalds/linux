@@ -539,6 +539,14 @@ void intel_dmc_disable_pipe(struct intel_display *display, enum pipe pipe)
 	}
 }
 
+static u32 dmc_evt_ctl_disable(void)
+{
+	return REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
+			      DMC_EVT_CTL_TYPE_EDGE_0_1) |
+		REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
+			       DMC_EVENT_FALSE);
+}
+
 /**
  * intel_dmc_block_pkgc() - block PKG C-state
  * @display: display instance
@@ -578,10 +586,7 @@ void intel_dmc_start_pkgc_exit_at_start_of_undelayed_vblank(struct intel_display
 			REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
 				       PIPEDMC_EVENT_VBLANK);
 	else
-		val = REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
-				     DMC_EVENT_FALSE) |
-			REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
-				       DMC_EVT_CTL_TYPE_EDGE_0_1);
+		val = dmc_evt_ctl_disable();
 
 	intel_de_write(display, MTL_PIPEDMC_EVT_CTL_4(pipe),
 		       val);
@@ -638,10 +643,7 @@ static u32 dmc_mmiodata(struct intel_display *display,
 	if (disable_dmc_evt(display, dmc_id,
 			    dmc->dmc_info[dmc_id].mmioaddr[i],
 			    dmc->dmc_info[dmc_id].mmiodata[i]))
-		return REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
-				      DMC_EVT_CTL_TYPE_EDGE_0_1) |
-			REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
-				       DMC_EVENT_FALSE);
+		return dmc_evt_ctl_disable();
 	else
 		return dmc->dmc_info[dmc_id].mmiodata[i];
 }
