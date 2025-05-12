@@ -1618,6 +1618,8 @@ static inline void ata_port_desc_misc(struct ata_port *ap, int irq)
 {
 	ata_port_desc(ap, "irq %d", irq);
 	ata_port_desc(ap, "lpm-pol %d", ap->target_lpm_policy);
+	if (ap->pflags & ATA_PFLAG_EXTERNAL)
+		ata_port_desc(ap, "ext");
 }
 
 static inline bool ata_tag_internal(unsigned int tag)
