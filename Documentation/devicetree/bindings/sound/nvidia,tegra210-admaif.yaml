@@ -26,6 +26,7 @@ properties:
       - enum:
           - nvidia,tegra210-admaif
           - nvidia,tegra186-admaif
+          - nvidia,tegra264-admaif
       - items:
           - enum:
               - nvidia,tegra234-admaif

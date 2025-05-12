@@ -23,6 +23,7 @@ properties:
       - const: nvidia,tegra210-mbdrc
       - items:
           - enum:
+              - nvidia,tegra264-mbdrc
               - nvidia,tegra234-mbdrc
               - nvidia,tegra194-mbdrc
               - nvidia,tegra186-mbdrc
