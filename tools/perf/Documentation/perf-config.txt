@@ -708,6 +708,10 @@ intel-pt.*::
 		the maximum is exceeded there will be a "Never-ending loop"
 		error. The default is 100000.
 
+	intel-pt.all-switch-events::
+		If the user has permission to do so, always record all context
+		switch events on all CPUs.
+
 auxtrace.*::
 
 	auxtrace.dumpdir::
