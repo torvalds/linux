@@ -108,7 +108,7 @@
 #include "intel_pcode.h"
 #include "intel_region_ttm.h"
 #include "intel_sbi.h"
-#include "vlv_sideband.h"
+#include "vlv_iosf_sb.h"
 #include "vlv_suspend.h"
 
 static const struct drm_driver i915_drm_driver;

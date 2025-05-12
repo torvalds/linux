@@ -45,7 +45,7 @@ i915-y += \
 	intel_uncore.o \
 	intel_uncore_trace.o \
 	intel_wakeref.o \
-	vlv_sideband.o \
+	vlv_iosf_sb.o \
 	vlv_suspend.o
 
 # core peripheral code

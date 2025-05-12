@@ -6,7 +6,7 @@
 #include "i915_drv.h"
 #include "i915_iosf_mbi.h"
 #include "i915_reg.h"
-#include "vlv_sideband.h"
+#include "vlv_iosf_sb.h"
 
 #include "display/intel_dpio_phy.h"
 

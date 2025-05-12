@@ -23,7 +23,7 @@
 #include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
 #include "intel_rps.h"
-#include "vlv_sideband.h"
+#include "vlv_iosf_sb.h"
 #include "../../../platform/x86/intel_ips.h"
 
 #define BUSY_MAX_EI	20u /* ms */

@@ -16,7 +16,7 @@
 #include "intel_mchbar_regs.h"
 #include "intel_wm.h"
 #include "skl_watermark.h"
-#include "vlv_sideband.h"
+#include "vlv_iosf_sb.h"
 
 struct intel_watermark_params {
 	u16 fifo_size;

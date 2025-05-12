@@ -37,7 +37,7 @@
 #include "i915_reg.h"
 #include "intel_clock_gating.h"
 #include "intel_mchbar_regs.h"
-#include "vlv_sideband.h"
+#include "vlv_iosf_sb.h"
 
 struct drm_i915_clock_gating_funcs {
 	void (*init_clock_gating)(struct drm_i915_private *i915);

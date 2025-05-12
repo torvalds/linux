@@ -27,7 +27,7 @@
 #include "intel_snps_phy.h"
 #include "skl_watermark.h"
 #include "skl_watermark_regs.h"
-#include "vlv_sideband.h"
+#include "vlv_iosf_sb.h"
 
 #define for_each_power_domain_well(__display, __power_well, __domain)	\
 	for_each_power_well((__display), __power_well)			\

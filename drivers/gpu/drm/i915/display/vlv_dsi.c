@@ -49,7 +49,7 @@
 #include "vlv_dsi.h"
 #include "vlv_dsi_pll.h"
 #include "vlv_dsi_regs.h"
-#include "vlv_sideband.h"
+#include "vlv_iosf_sb.h"
 
 /* return pixels in terms of txbyteclkhs */
 static u16 txbyteclkhs(u16 pixels, int bpp, int lane_count,

@@ -10,7 +10,7 @@
 #include "intel_dram.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
-#include "vlv_sideband.h"
+#include "vlv_iosf_sb.h"
 
 struct dram_dimm_info {
 	u16 size;

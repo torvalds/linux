@@ -3,13 +3,13 @@
  * Copyright © 2013-2021 Intel Corporation
  */
 
-#ifndef _VLV_SIDEBAND_H_
-#define _VLV_SIDEBAND_H_
+#ifndef _VLV_IOSF_SB_H_
+#define _VLV_IOSF_SB_H_
 
 #include <linux/bitops.h>
 #include <linux/types.h>
 
-#include "vlv_sideband_reg.h"
+#include "vlv_iosf_sb_reg.h"
 
 enum dpio_phy;
 struct drm_i915_private;
@@ -122,4 +122,4 @@ static inline void vlv_punit_put(struct drm_i915_private *i915)
 	vlv_iosf_sb_put(i915, BIT(VLV_IOSF_SB_PUNIT));
 }
 
-#endif /* _VLV_SIDEBAND_H_ */
+#endif /* _VLV_IOSF_SB_H_ */

@@ -49,7 +49,7 @@
 #include "intel_pps_regs.h"
 #include "vlv_dsi.h"
 #include "vlv_dsi_regs.h"
-#include "vlv_sideband.h"
+#include "vlv_iosf_sb.h"
 
 #define MIPI_TRANSFER_MODE_SHIFT	0
 #define MIPI_VIRTUAL_CHANNEL_SHIFT	1

@@ -22,7 +22,7 @@
 #include "intel_rps.h"
 #include "intel_runtime_pm.h"
 #include "intel_uncore.h"
-#include "vlv_sideband.h"
+#include "vlv_iosf_sb.h"
 
 void intel_gt_pm_debugfs_forcewake_user_open(struct intel_gt *gt)
 {
