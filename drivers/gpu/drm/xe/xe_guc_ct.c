@@ -2013,7 +2013,6 @@ static void ct_dead_print(struct xe_dead_ct *dead)
 		return;
 	}
 
-
 	/* Can't generate a genuine core dump at this point, so just do the good bits */
 	drm_puts(&lp, "**** Xe Device Coredump ****\n");
 	drm_printf(&lp, "Reason: CTB is dead - 0x%X\n", dead->reason);
