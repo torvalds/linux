@@ -73,7 +73,6 @@
 			device_type = "cpu";
 			reg = <0>;
 			clock-frequency = <792000000>;
-			clock-latency = <61036>; /* two CLK32 periods */
 			clocks = <&clks IMX7D_CLK_ARM>;
 			cpu-idle-states = <&cpu_sleep_wait>;
 			operating-points-v2 = <&cpu0_opp_table>;
