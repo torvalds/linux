@@ -2309,7 +2309,7 @@ static bool add_free_nid(struct f2fs_sb_info *sbi,
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct free_nid *i, *e;
 	struct nat_entry *ne;
-	int err = -EINVAL;
+	int err;
 	bool ret = false;
 
 	/* 0 nid should not be used */
@@ -2323,7 +2323,10 @@ static bool add_free_nid(struct f2fs_sb_info *sbi,
 	i->nid = nid;
 	i->state = FREE_NID;
 
-	radix_tree_preload(GFP_NOFS | __GFP_NOFAIL);
+	err = radix_tree_preload(GFP_NOFS | __GFP_NOFAIL);
+	f2fs_bug_on(sbi, err);
+
+	err = -EINVAL;
 
 	spin_lock(&nm_i->nid_list_lock);
 
