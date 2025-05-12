@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ata/arasan,cf-spear1340.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Arasan PATA Compact Flash Controller
+
+maintainers:
+  - Viresh Kumar <viresh.kumar@linaro.org>
+
+properties:
+  compatible:
+    const: arasan,cf-spear1340
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  arasan,broken-udma:
+    description: UDMA mode is unusable
+    type: boolean
+
+  arasan,broken-mwdma:
+    description: MWDMA mode is unusable
+    type: boolean
+
+  arasan,broken-pio:
+    description: PIO mode is unusable
+    type: boolean
+
+  dmas:
+    maxItems: 1
+
+  dma-names:
+    items:
+      - const: data
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+allOf:
+  - if:
+      not:
+        required:
+          - arasan,broken-udma
+          - arasan,broken-mwdma
+    then:
+      required:
+        - dmas
+        - dma-names
+
+examples:
+  - |
+    cf@fc000000 {
+        compatible = "arasan,cf-spear1340";
+        reg = <0xfc000000 0x1000>;
+        interrupts = <12>;
+        dmas = <&dma 23>;
+        dma-names = "data";
+    };
