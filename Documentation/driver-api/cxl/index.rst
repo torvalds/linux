@@ -22,6 +22,12 @@ that have impacts on each other.  The docs here break up configurations steps.
    devices/device-types
 
 .. toctree::
+   :maxdepth: 2
+   :caption: Platform Configuration
+
+   platform/bios-and-efi
+
+.. toctree::
    :maxdepth: 1
    :caption: Linux Kernel Configuration
 
