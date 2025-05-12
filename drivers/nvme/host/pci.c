@@ -37,6 +37,9 @@
 
 #define SGES_PER_PAGE	(NVME_CTRL_PAGE_SIZE / sizeof(struct nvme_sgl_desc))
 
+/* Optimisation for I/Os between 4k and 128k */
+#define NVME_SMALL_POOL_SIZE	256
+
 /*
  * These can be higher, but we need to ensure that any command doesn't
  * require an sg allocation that needs more than a page of data.
@@ -407,7 +410,7 @@ static struct nvme_descriptor_pools *
 nvme_setup_descriptor_pools(struct nvme_dev *dev, unsigned numa_node)
 {
 	struct nvme_descriptor_pools *pools = &dev->descriptor_pools[numa_node];
-	size_t small_align = 256;
+	size_t small_align = NVME_SMALL_POOL_SIZE;
 
 	if (pools->small)
 		return pools; /* already initialized */
@@ -420,9 +423,8 @@ nvme_setup_descriptor_pools(struct nvme_dev *dev, unsigned numa_node)
 	if (dev->ctrl.quirks & NVME_QUIRK_DMAPOOL_ALIGN_512)
 		small_align = 512;
 
-	/* Optimisation for I/Os between 4k and 128k */
-	pools->small = dma_pool_create_node("nvme descriptor 256", dev->dev,
-			256, small_align, 0, numa_node);
+	pools->small = dma_pool_create_node("nvme descriptor small", dev->dev,
+			NVME_SMALL_POOL_SIZE, small_align, 0, numa_node);
 	if (!pools->small) {
 		dma_pool_destroy(pools->large);
 		pools->large = NULL;
@@ -689,7 +691,7 @@ static blk_status_t nvme_pci_setup_prps(struct nvme_queue *nvmeq,
 	}
 
 	if (DIV_ROUND_UP(length, NVME_CTRL_PAGE_SIZE) <=
-	    256 / sizeof(__le64))
+	    NVME_SMALL_POOL_SIZE / sizeof(__le64))
 		iod->flags |= IOD_SMALL_DESCRIPTOR;
 
 	prp_list = dma_pool_alloc(nvme_dma_pool(nvmeq, iod), GFP_ATOMIC,
@@ -774,7 +776,7 @@ static blk_status_t nvme_pci_setup_sgls(struct nvme_queue *nvmeq,
 		return BLK_STS_OK;
 	}
 
-	if (entries <= 256 / sizeof(*sg_list))
+	if (entries <= NVME_SMALL_POOL_SIZE / sizeof(*sg_list))
 		iod->flags |= IOD_SMALL_DESCRIPTOR;
 
 	sg_list = dma_pool_alloc(nvme_dma_pool(nvmeq, iod), GFP_ATOMIC,
