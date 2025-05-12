@@ -287,12 +287,6 @@ enum pipedmc_event_id {
 #define MTL_PIPEDMC_CONTROL		_MMIO(0x45250)
 #define  PIPEDMC_ENABLE_MTL(pipe)	REG_BIT(((pipe) - PIPE_A) * 4)
 
-#define _MTL_PIPEDMC_EVT_CTL_4_A	0x5f044
-#define _MTL_PIPEDMC_EVT_CTL_4_B	0x5f444
-#define MTL_PIPEDMC_EVT_CTL_4(pipe)	_MMIO_PIPE(pipe,		\
-						   _MTL_PIPEDMC_EVT_CTL_4_A, \
-						   _MTL_PIPEDMC_EVT_CTL_4_B)
-
 #define _PIPEDMC_STATUS_A		0x5f06c
 #define _PIPEDMC_STATUS_B		0x5f46c
 #define PIPEDMC_STATUS(pipe)		_MMIO_PIPE((pipe), _PIPEDMC_STATUS_A, _PIPEDMC_STATUS_B)

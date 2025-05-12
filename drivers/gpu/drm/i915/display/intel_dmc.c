@@ -576,6 +576,31 @@ static bool is_event_handler(struct intel_display *display,
 		REG_FIELD_GET(DMC_EVT_CTL_EVENT_ID_MASK, data) == event_id;
 }
 
+static void dmc_configure_event(struct intel_display *display,
+				enum intel_dmc_id dmc_id,
+				unsigned int event_id,
+				bool enable)
+{
+	struct intel_dmc *dmc = display_to_dmc(display);
+	int num_handlers = 0;
+	int i;
+
+	for (i = 0; i < dmc->dmc_info[dmc_id].mmio_count; i++) {
+		i915_reg_t reg = dmc->dmc_info[dmc_id].mmioaddr[i];
+		u32 data = dmc->dmc_info[dmc_id].mmiodata[i];
+
+		if (!is_event_handler(display, dmc_id, event_id, reg, data))
+			continue;
+
+		intel_de_write(display, reg, enable ? data : dmc_evt_ctl_disable());
+		num_handlers++;
+	}
+
+	drm_WARN_ONCE(display->drm, num_handlers != 1,
+		      "DMC %d has %d handlers for event 0x%x\n",
+		      dmc_id, num_handlers, event_id);
+}
+
 /**
  * intel_dmc_block_pkgc() - block PKG C-state
  * @display: display instance
@@ -606,19 +631,9 @@ void intel_dmc_block_pkgc(struct intel_display *display, enum pipe pipe,
 void intel_dmc_start_pkgc_exit_at_start_of_undelayed_vblank(struct intel_display *display,
 							    enum pipe pipe, bool enable)
 {
-	u32 val;
+	enum intel_dmc_id dmc_id = PIPE_TO_DMC_ID(pipe);
 
-	if (enable)
-		val = DMC_EVT_CTL_ENABLE | DMC_EVT_CTL_RECURRING |
-			REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
-				       DMC_EVT_CTL_TYPE_EDGE_0_1) |
-			REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
-				       PIPEDMC_EVENT_VBLANK);
-	else
-		val = dmc_evt_ctl_disable();
-
-	intel_de_write(display, MTL_PIPEDMC_EVT_CTL_4(pipe),
-		       val);
+	dmc_configure_event(display, dmc_id, PIPEDMC_EVENT_VBLANK, enable);
 }
 
 static bool disable_dmc_evt(struct intel_display *display,
