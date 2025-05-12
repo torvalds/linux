@@ -42,6 +42,7 @@ struct fbnic_fw_cap {
 	u8	all_multi	: 1;
 	u8	link_speed;
 	u8	link_fec;
+	u32	anti_rollback_version;
 };
 
 struct fbnic_fw_completion {
@@ -122,6 +123,7 @@ enum {
 	FBNIC_FW_CAP_RESP_STORED_CMRT_COMMIT_STR	= 0x10,
 	FBNIC_FW_CAP_RESP_UEFI_VERSION			= 0x11,
 	FBNIC_FW_CAP_RESP_UEFI_COMMIT_STR		= 0x12,
+	FBNIC_FW_CAP_RESP_ANTI_ROLLBACK_VERSION		= 0x15,
 	FBNIC_FW_CAP_RESP_MSG_MAX
 };
 

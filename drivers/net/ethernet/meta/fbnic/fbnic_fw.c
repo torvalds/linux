@@ -464,6 +464,7 @@ static const struct fbnic_tlv_index fbnic_fw_cap_resp_index[] = {
 	FBNIC_TLV_ATTR_U32(FBNIC_FW_CAP_RESP_UEFI_VERSION),
 	FBNIC_TLV_ATTR_STRING(FBNIC_FW_CAP_RESP_UEFI_COMMIT_STR,
 			      FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE),
+	FBNIC_TLV_ATTR_U32(FBNIC_FW_CAP_RESP_ANTI_ROLLBACK_VERSION),
 	FBNIC_TLV_ATTR_LAST
 };
 
@@ -585,6 +586,9 @@ static int fbnic_fw_parse_cap_resp(void *opaque, struct fbnic_tlv_msg **results)
 
 	if (results[FBNIC_FW_CAP_RESP_BMC_ALL_MULTI] || !bmc_present)
 		fbd->fw_cap.all_multi = all_multi;
+
+	fbd->fw_cap.anti_rollback_version =
+		fta_get_uint(results, FBNIC_FW_CAP_RESP_ANTI_ROLLBACK_VERSION);
 
 	return 0;
 }
