@@ -315,7 +315,7 @@ xfs_ail_splice(
 }
 
 /*
- * Delete the given item from the AIL.  Return a pointer to the item.
+ * Delete the given item from the AIL.
  */
 static void
 xfs_ail_delete(
