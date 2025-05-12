@@ -15566,7 +15566,7 @@ F:	mm/numa_memblks.c
 
 MEMORY MANAGEMENT - PAGE ALLOCATOR
 M:	Andrew Morton <akpm@linux-foundation.org>
-R:	Vlastimil Babka <vbabka@suse.cz>
+M:	Vlastimil Babka <vbabka@suse.cz>
 R:	Suren Baghdasaryan <surenb@google.com>
 R:	Michal Hocko <mhocko@suse.com>
 R:	Brendan Jackman <jackmanb@google.com>
@@ -15574,10 +15574,12 @@ R:	Johannes Weiner <hannes@cmpxchg.org>
 R:	Zi Yan <ziy@nvidia.com>
 L:	linux-mm@kvack.org
 S:	Maintained
+F:	include/linux/compaction.h
+F:	include/linux/gfp.h
+F:	include/linux/page-isolation.h
 F:	mm/compaction.c
 F:	mm/page_alloc.c
-F:	include/linux/gfp.h
-F:	include/linux/compaction.h
+F:	mm/page_isolation.c
 
 MEMORY MANAGEMENT - RMAP (REVERSE MAPPING)
 M:	Andrew Morton <akpm@linux-foundation.org>
