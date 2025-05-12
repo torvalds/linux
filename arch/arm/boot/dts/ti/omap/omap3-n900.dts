@@ -816,8 +816,6 @@
 		reg = <0x0c>;
 
 		VANA-supply = <&vaux4>;
-
-		#io-channel-cells = <0>;
 	};
 };
 
