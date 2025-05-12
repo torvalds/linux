@@ -1147,6 +1147,8 @@ static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_bpf		= cpsw_ndo_bpf,
 	.ndo_xdp_xmit		= cpsw_ndo_xdp_xmit,
 	.ndo_get_port_parent_id	= cpsw_get_port_parent_id,
+	.ndo_hwtstamp_get	= cpsw_hwtstamp_get,
+	.ndo_hwtstamp_set	= cpsw_hwtstamp_set,
 };
 
 static void cpsw_get_drvinfo(struct net_device *ndev,
