@@ -15,9 +15,9 @@ int xe_ggtt_init(struct xe_ggtt *ggtt);
 
 struct xe_ggtt_node *xe_ggtt_node_init(struct xe_ggtt *ggtt);
 void xe_ggtt_node_fini(struct xe_ggtt_node *node);
-int xe_ggtt_node_insert_balloon(struct xe_ggtt_node *node,
-				u64 start, u64 size);
-void xe_ggtt_node_remove_balloon(struct xe_ggtt_node *node);
+int xe_ggtt_node_insert_balloon_locked(struct xe_ggtt_node *node,
+				       u64 start, u64 size);
+void xe_ggtt_node_remove_balloon_locked(struct xe_ggtt_node *node);
 
 int xe_ggtt_node_insert(struct xe_ggtt_node *node, u32 size, u32 align);
 int xe_ggtt_node_insert_locked(struct xe_ggtt_node *node,

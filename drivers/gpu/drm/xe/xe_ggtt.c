@@ -429,16 +429,17 @@ static void xe_ggtt_dump_node(struct xe_ggtt *ggtt,
 }
 
 /**
- * xe_ggtt_node_insert_balloon - prevent allocation of specified GGTT addresses
+ * xe_ggtt_node_insert_balloon_locked - prevent allocation of specified GGTT addresses
  * @node: the &xe_ggtt_node to hold reserved GGTT node
  * @start: the starting GGTT address of the reserved region
  * @end: then end GGTT address of the reserved region
  *
- * Use xe_ggtt_node_remove_balloon() to release a reserved GGTT node.
+ * To be used in cases where ggtt->lock is already taken.
+ * Use xe_ggtt_node_remove_balloon_locked() to release a reserved GGTT node.
  *
  * Return: 0 on success or a negative error code on failure.
  */
-int xe_ggtt_node_insert_balloon(struct xe_ggtt_node *node, u64 start, u64 end)
+int xe_ggtt_node_insert_balloon_locked(struct xe_ggtt_node *node, u64 start, u64 end)
 {
 	struct xe_ggtt *ggtt = node->ggtt;
 	int err;
@@ -447,14 +448,13 @@ int xe_ggtt_node_insert_balloon(struct xe_ggtt_node *node, u64 start, u64 end)
 	xe_tile_assert(ggtt->tile, IS_ALIGNED(start, XE_PAGE_SIZE));
 	xe_tile_assert(ggtt->tile, IS_ALIGNED(end, XE_PAGE_SIZE));
 	xe_tile_assert(ggtt->tile, !drm_mm_node_allocated(&node->base));
+	lockdep_assert_held(&ggtt->lock);
 
 	node->base.color = 0;
 	node->base.start = start;
 	node->base.size = end - start;
 
-	mutex_lock(&ggtt->lock);
 	err = drm_mm_reserve_node(&ggtt->mm, &node->base);
-	mutex_unlock(&ggtt->lock);
 
 	if (xe_gt_WARN(ggtt->tile->primary_gt, err,
 		       "Failed to balloon GGTT %#llx-%#llx (%pe)\n",
@@ -466,27 +466,22 @@ int xe_ggtt_node_insert_balloon(struct xe_ggtt_node *node, u64 start, u64 end)
 }
 
 /**
- * xe_ggtt_node_remove_balloon - release a reserved GGTT region
+ * xe_ggtt_node_remove_balloon_locked - release a reserved GGTT region
  * @node: the &xe_ggtt_node with reserved GGTT region
  *
- * See xe_ggtt_node_insert_balloon() for details.
+ * To be used in cases where ggtt->lock is already taken.
+ * See xe_ggtt_node_insert_balloon_locked() for details.
  */
-void xe_ggtt_node_remove_balloon(struct xe_ggtt_node *node)
+void xe_ggtt_node_remove_balloon_locked(struct xe_ggtt_node *node)
 {
-	if (!node || !node->ggtt)
+	if (!xe_ggtt_node_allocated(node))
 		return;
 
-	if (!drm_mm_node_allocated(&node->base))
-		goto free_node;
+	lockdep_assert_held(&node->ggtt->lock);
 
 	xe_ggtt_dump_node(node->ggtt, &node->base, "remove-balloon");
 
-	mutex_lock(&node->ggtt->lock);
 	drm_mm_remove_node(&node->base);
-	mutex_unlock(&node->ggtt->lock);
-
-free_node:
-	xe_ggtt_node_fini(node);
 }
 
 /**
@@ -537,12 +532,12 @@ int xe_ggtt_node_insert(struct xe_ggtt_node *node, u32 size, u32 align)
  * xe_ggtt_node_init - Initialize %xe_ggtt_node struct
  * @ggtt: the &xe_ggtt where the new node will later be inserted/reserved.
  *
- * This function will allocated the struct %xe_ggtt_node and return it's pointer.
+ * This function will allocate the struct %xe_ggtt_node and return its pointer.
  * This struct will then be freed after the node removal upon xe_ggtt_node_remove()
- * or xe_ggtt_node_remove_balloon().
+ * or xe_ggtt_node_remove_balloon_locked().
  * Having %xe_ggtt_node struct allocated doesn't mean that the node is already allocated
  * in GGTT. Only the xe_ggtt_node_insert(), xe_ggtt_node_insert_locked(),
- * xe_ggtt_node_insert_balloon() will ensure the node is inserted or reserved in GGTT.
+ * xe_ggtt_node_insert_balloon_locked() will ensure the node is inserted or reserved in GGTT.
  *
  * Return: A pointer to %xe_ggtt_node struct on success. An ERR_PTR otherwise.
  **/
@@ -564,7 +559,7 @@ struct xe_ggtt_node *xe_ggtt_node_init(struct xe_ggtt *ggtt)
  * @node: the &xe_ggtt_node to be freed
  *
  * If anything went wrong with either xe_ggtt_node_insert(), xe_ggtt_node_insert_locked(),
- * or xe_ggtt_node_insert_balloon(); and this @node is not going to be reused, then,
+ * or xe_ggtt_node_insert_balloon_locked(); and this @node is not going to be reused, then,
  * this function needs to be called to free the %xe_ggtt_node struct
  **/
 void xe_ggtt_node_fini(struct xe_ggtt_node *node)
