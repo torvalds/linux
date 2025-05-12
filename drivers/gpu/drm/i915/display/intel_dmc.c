@@ -427,7 +427,7 @@ static void disable_event_handler(struct intel_display *display,
 		       REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
 				      DMC_EVT_CTL_TYPE_EDGE_0_1) |
 		       REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
-				      DMC_EVT_CTL_EVENT_ID_FALSE));
+				      DMC_EVENT_FALSE));
 	intel_de_write(display, htp_reg, 0);
 }
 
@@ -576,10 +576,10 @@ void intel_dmc_start_pkgc_exit_at_start_of_undelayed_vblank(struct intel_display
 			REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
 				       DMC_EVT_CTL_TYPE_EDGE_0_1) |
 			REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
-				       DMC_EVT_CTL_EVENT_ID_VBLANK_A);
+				       PIPEDMC_EVENT_VBLANK);
 	else
 		val = REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
-				     DMC_EVT_CTL_EVENT_ID_FALSE) |
+				     DMC_EVENT_FALSE) |
 			REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
 				       DMC_EVT_CTL_TYPE_EDGE_0_1);
 
@@ -620,12 +620,12 @@ static bool disable_dmc_evt(struct intel_display *display,
 
 	/* also disable the flip queue event on the main DMC on TGL */
 	if (display->platform.tigerlake &&
-	    REG_FIELD_GET(DMC_EVT_CTL_EVENT_ID_MASK, data) == DMC_EVT_CTL_EVENT_ID_CLK_MSEC)
+	    REG_FIELD_GET(DMC_EVT_CTL_EVENT_ID_MASK, data) == MAINDMC_EVENT_CLK_MSEC)
 		return true;
 
 	/* also disable the HRR event on the main DMC on TGL/ADLS */
 	if ((display->platform.tigerlake || display->platform.alderlake_s) &&
-	    REG_FIELD_GET(DMC_EVT_CTL_EVENT_ID_MASK, data) == DMC_EVT_CTL_EVENT_ID_VBLANK_A)
+	    REG_FIELD_GET(DMC_EVT_CTL_EVENT_ID_MASK, data) == MAINDMC_EVENT_VBLANK_A)
 		return true;
 
 	return false;
@@ -641,7 +641,7 @@ static u32 dmc_mmiodata(struct intel_display *display,
 		return REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
 				      DMC_EVT_CTL_TYPE_EDGE_0_1) |
 			REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
-				       DMC_EVT_CTL_EVENT_ID_FALSE);
+				       DMC_EVENT_FALSE);
 	else
 		return dmc->dmc_info[dmc_id].mmiodata[i];
 }
