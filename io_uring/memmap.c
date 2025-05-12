@@ -116,7 +116,7 @@ static int io_region_init_ptr(struct io_mapped_region *mr)
 	void *ptr;
 
 	if (io_check_coalesce_buffer(mr->pages, mr->nr_pages, &ifd)) {
-		if (ifd.nr_folios == 1) {
+		if (ifd.nr_folios == 1 && !PageHighMem(mr->pages[0])) {
 			mr->ptr = page_address(mr->pages[0]);
 			return 0;
 		}
