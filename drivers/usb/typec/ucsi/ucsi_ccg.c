@@ -1483,6 +1483,8 @@ static int ucsi_ccg_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, uc);
 
+	device_disable_async_suspend(uc->dev);
+
 	pm_runtime_set_active(uc->dev);
 	pm_runtime_enable(uc->dev);
 	pm_runtime_use_autosuspend(uc->dev);
