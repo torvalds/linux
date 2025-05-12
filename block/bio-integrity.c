@@ -127,10 +127,8 @@ int bio_integrity_add_page(struct bio *bio, struct page *page,
 
 	if (bip->bip_vcnt > 0) {
 		struct bio_vec *bv = &bip->bip_vec[bip->bip_vcnt - 1];
-		bool same_page = false;
 
-		if (bvec_try_merge_hw_page(q, bv, page, len, offset,
-					   &same_page)) {
+		if (bvec_try_merge_hw_page(q, bv, page, len, offset)) {
 			bip->bip_iter.bi_size += len;
 			return len;
 		}

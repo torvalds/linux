@@ -920,7 +920,7 @@ static inline bool bio_full(struct bio *bio, unsigned len)
 }
 
 static bool bvec_try_merge_page(struct bio_vec *bv, struct page *page,
-		unsigned int len, unsigned int off, bool *same_page)
+		unsigned int len, unsigned int off)
 {
 	size_t bv_end = bv->bv_offset + bv->bv_len;
 	phys_addr_t vec_end_addr = page_to_phys(bv->bv_page) + bv_end - 1;
@@ -933,9 +933,7 @@ static bool bvec_try_merge_page(struct bio_vec *bv, struct page *page,
 	if (!zone_device_pages_have_same_pgmap(bv->bv_page, page))
 		return false;
 
-	*same_page = ((vec_end_addr & PAGE_MASK) == ((page_addr + off) &
-		     PAGE_MASK));
-	if (!*same_page) {
+	if ((vec_end_addr & PAGE_MASK) != ((page_addr + off) & PAGE_MASK)) {
 		if (IS_ENABLED(CONFIG_KMSAN))
 			return false;
 		if (bv->bv_page + bv_end / PAGE_SIZE != page + off / PAGE_SIZE)
@@ -955,8 +953,7 @@ static bool bvec_try_merge_page(struct bio_vec *bv, struct page *page,
  * helpers to split.  Hopefully this will go away soon.
  */
 bool bvec_try_merge_hw_page(struct request_queue *q, struct bio_vec *bv,
-		struct page *page, unsigned len, unsigned offset,
-		bool *same_page)
+		struct page *page, unsigned len, unsigned offset)
 {
 	unsigned long mask = queue_segment_boundary(q);
 	phys_addr_t addr1 = bvec_phys(bv);
@@ -966,7 +963,7 @@ bool bvec_try_merge_hw_page(struct request_queue *q, struct bio_vec *bv,
 		return false;
 	if (len > queue_max_segment_size(q) - bv->bv_len)
 		return false;
-	return bvec_try_merge_page(bv, page, len, offset, same_page);
+	return bvec_try_merge_page(bv, page, len, offset);
 }
 
 /**
@@ -1020,8 +1017,6 @@ EXPORT_SYMBOL_GPL(bio_add_virt_nofail);
 int bio_add_page(struct bio *bio, struct page *page,
 		 unsigned int len, unsigned int offset)
 {
-	bool same_page = false;
-
 	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
 		return 0;
 	if (bio->bi_iter.bi_size > UINT_MAX - len)
@@ -1029,7 +1024,7 @@ int bio_add_page(struct bio *bio, struct page *page,
 
 	if (bio->bi_vcnt > 0 &&
 	    bvec_try_merge_page(&bio->bi_io_vec[bio->bi_vcnt - 1],
-				page, len, offset, &same_page)) {
+				page, len, offset)) {
 		bio->bi_iter.bi_size += len;
 		return len;
 	}
@@ -1161,27 +1156,6 @@ void bio_iov_bvec_set(struct bio *bio, const struct iov_iter *iter)
 	bio_set_flag(bio, BIO_CLONED);
 }
 
-static int bio_iov_add_folio(struct bio *bio, struct folio *folio, size_t len,
-			     size_t offset)
-{
-	bool same_page = false;
-
-	if (WARN_ON_ONCE(bio->bi_iter.bi_size > UINT_MAX - len))
-		return -EIO;
-
-	if (bio->bi_vcnt > 0 &&
-	    bvec_try_merge_page(&bio->bi_io_vec[bio->bi_vcnt - 1],
-				folio_page(folio, 0), len, offset,
-				&same_page)) {
-		bio->bi_iter.bi_size += len;
-		if (same_page && bio_flagged(bio, BIO_PAGE_PINNED))
-			unpin_user_folio(folio, 1);
-		return 0;
-	}
-	bio_add_folio_nofail(bio, folio, len, offset);
-	return 0;
-}
-
 static unsigned int get_contig_folio_len(unsigned int *num_pages,
 					 struct page **pages, unsigned int i,
 					 struct folio *folio, size_t left,
@@ -1276,6 +1250,7 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 	for (left = size, i = 0; left > 0; left -= len, i += num_pages) {
 		struct page *page = pages[i];
 		struct folio *folio = page_folio(page);
+		unsigned int old_vcnt = bio->bi_vcnt;
 
 		folio_offset = ((size_t)folio_page_idx(folio, page) <<
 			       PAGE_SHIFT) + offset;
@@ -1288,7 +1263,23 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 			len = get_contig_folio_len(&num_pages, pages, i,
 						   folio, left, offset);
 
-		bio_iov_add_folio(bio, folio, len, folio_offset);
+		if (!bio_add_folio(bio, folio, len, folio_offset)) {
+			WARN_ON_ONCE(1);
+			ret = -EINVAL;
+			goto out;
+		}
+
+		if (bio_flagged(bio, BIO_PAGE_PINNED)) {
+			/*
+			 * We're adding another fragment of a page that already
+			 * was part of the last segment.  Undo our pin as the
+			 * page was pinned when an earlier fragment of it was
+			 * added to the bio and __bio_release_pages expects a
+			 * single pin per page.
+			 */
+			if (offset && bio->bi_vcnt == old_vcnt)
+				unpin_user_folio(folio, 1);
+		}
 		offset = 0;
 	}
 
