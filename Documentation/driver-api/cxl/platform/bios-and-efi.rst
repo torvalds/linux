@@ -22,7 +22,7 @@ At a high level, this is what occurs during this phase of configuration.
 
 Much of what this section is concerned with is ACPI Table production and
 static memory map configuration. More detail on these tables can be found
-under Platform Configuration -> ACPI Table Reference.
+at :doc:`ACPI Tables <acpi>`.
 
 .. note::
    Platform Vendors should read carefully, as this sections has recommendations
@@ -175,9 +175,9 @@ to implement driver support for your platform.
 
 Interleave and Configuration Flexibility
 ----------------------------------------
-If providing cross-host-bridge interleave, a CFMWS entry in the CEDT must be
-presented with target host-bridges for the interleaved device sets (there may
-be multiple behind each host bridge).
+If providing cross-host-bridge interleave, a CFMWS entry in the :doc:`CEDT
+<acpi/cedt>` must be presented with target host-bridges for the interleaved
+device sets (there may be multiple behind each host bridge).
 
 If providing intra-host-bridge interleaving, only 1 CFMWS entry in the CEDT is
 required for that host bridge - if it covers the entire capacity of the devices
@@ -193,8 +193,8 @@ different purposes.  For example, you may want to consider adding:
 
 A platform may choose to add all of these, or change the mode based on a BIOS
 setting.  For each CFMWS entry, Linux expects descriptions of the described
-memory regions in the SRAT to determine the number of NUMA nodes it should
-reserve during early boot / init.
+memory regions in the :doc:`SRAT <acpi/srat>` to determine the number of
+NUMA nodes it should reserve during early boot / init.
 
 As of v6.14, Linux will create a NUMA node for each CEDT CFMWS entry, even if
 a matching SRAT entry does not exist; however, this is not guaranteed in the

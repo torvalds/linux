@@ -13,7 +13,7 @@ Things to note:
 * This SRAT describes one node for both host bridges.
 * The HMAT describes a single node's performance.
 
-CEDT ::
+:doc:`CEDT <../acpi/cedt>`::
 
             Subtable Type : 00 [CXL Host Bridge Structure]
                  Reserved : 00
@@ -48,7 +48,7 @@ CEDT ::
              First Target : 00000007
             Second Target : 00000006
 
-SRAT ::
+:doc:`SRAT <../acpi/srat>`::
 
          Subtable Type : 01 [Memory Affinity]
                 Length : 28
@@ -62,7 +62,7 @@ SRAT ::
        Hot Pluggable : 1
         Non-Volatile : 0
 
-HMAT ::
+:doc:`HMAT <../acpi/hmat>`::
 
                Structure Type : 0001 [SLLBI]
                     Data Type : 00   [Latency]
@@ -80,14 +80,14 @@ HMAT ::
                         Entry : 1200
                         Entry : 0400
 
-SLIT ::
+:doc:`SLIT <../acpi/slit>`::
 
      Signature : "SLIT"    [System Locality Information Table]
     Localities : 0000000000000003
   Locality   0 : 10 20
   Locality   1 : FF 0A
 
-DSDT ::
+:doc:`DSDT <../acpi/dsdt>`::
 
   Scope (_SB)
   {

@@ -115,7 +115,7 @@ A Multi-Headed Single-Logical Device (MHSLD) exposes a single logical
 device to multiple heads which may be connected to one or more discrete
 hosts.  An example of this would be a simple memory-pool which may be
 statically configured (prior to boot) to expose portions of its memory
-to Linux via the CEDT ACPI table.
+to Linux via :doc:`CEDT <../platform/acpi/cedt>`.
 
 MHMLD
 ~~~~~

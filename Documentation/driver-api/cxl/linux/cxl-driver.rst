@@ -77,11 +77,11 @@ Root Object` Device Class is found.
 
 The Root contains links to:
 
-* `Host Bridge Ports` defined by ACPI CEDT CHBS.
+* `Host Bridge Ports` defined by CHBS in the :doc:`CEDT<../platform/acpi/cedt>`
 
 * `Downstream Ports` typically connected to `Host Bridge Ports`.
 
-* `Root Decoders` defined by ACPI CEDT CFMWS.
+* `Root Decoders` defined by CFMWS the :doc:`CEDT<../platform/acpi/cedt>`
 
 ::
 
@@ -150,9 +150,8 @@ An `endpoint` is a terminal port in the fabric.  This is a `logical device`,
 and may be one of many `logical devices` presented by a memory device. It
 is still considered a type of `port` in the fabric.
 
-An `endpoint` contains `endpoint decoders` available for use and the
-*Coherent Device Attribute Table* (CDAT) used to describe the capabilities
-of the device. ::
+An `endpoint` contains `endpoint decoders` and the device's Coherent Device
+Attribute Table (which describes the device's capabilities). ::
 
   # ls /sys/bus/cxl/devices/endpoint5
     CDAT        decoders_committed  modalias      uevent
@@ -247,17 +246,18 @@ parameter.
 Root Decoder
 ~~~~~~~~~~~~
 A `Root Decoder` is logical construct of the physical address and interleave
-configurations present in the ACPI CEDT CFMWS.  Linux presents this information
-as a decoder present in the `CXL Root`.  We consider this a `Root Decoder`,
-though technically it exists on the boundary of the CXL specification and
-platform-specific CXL root implementations.
+configurations present in the CFMWS field of the :doc:`CEDT
+<../platform/acpi/cedt>`.
+Linux presents this information as a decoder present in the `CXL Root`.  We
+consider this a `Root Decoder`, though technically it exists on the boundary
+of the CXL specification and platform-specific CXL root implementations.
 
 Linux considers these logical decoders a type of `Routing Decoder`, and is the
 first decoder in the CXL fabric to receive a memory access from the platform's
 memory controllers.
 
 `Root Decoders` are created during :code:`cxl_acpi_probe`.  One root decoder
-is created per CFMWS entry in the ACPI CEDT.
+is created per CFMWS entry in the :doc:`CEDT <../platform/acpi/cedt>`.
 
 The :code:`target_list` parameter is filled by the CFMWS target fields. Targets
 of a root decoder are `Host Bridges`, which means interleave done at the root
@@ -267,9 +267,11 @@ Only root decoders are capable of `Inter-Host-Bridge Interleave`.
 
 Such interleaves must be configured by the platform and described in the ACPI
 CEDT CFMWS, as the target CXL host bridge UIDs in the CFMWS must match the CXL
-host bridge UIDs in the ACPI CEDT CHBS and ACPI DSDT.
+host bridge UIDs in the CHBS field of the :doc:`CEDT
+<../platform/acpi/cedt>` and the UID field of CXL Host Bridges defined in
+the :doc:`DSDT <../platform/acpi/dsdt>`.
 
-Interleave settings in a rootdecoder describe how to interleave accesses among
+Interleave settings in a root decoder describe how to interleave accesses among
 the *immediate downstream targets*, not the entire interleave set.
 
 The memory range described in the root decoder is used to
@@ -531,10 +533,11 @@ granularity configuration.
 
 At Root
 ~~~~~~~
-Root decoder interleave is defined by the ACPI CEDT CFMWS.  The CEDT
-may actually define multiple CFMWS configurations to describe the same
-physical capacity - with the intent to allow users to decide at runtime
-whether to online memory as interleaved or non-interleaved. ::
+Root decoder interleave is defined by CFMWS field of the :doc:`CEDT
+<../platform/acpi/cedt>`.  The CEDT may actually define multiple CFMWS
+configurations to describe the same physical capacity, with the intent to allow
+users to decide at runtime whether to online memory as interleaved or
+non-interleaved. ::
 
              Subtable Type : 01 [CXL Fixed Memory Window Structure]
        Window base address : 0000000100000000

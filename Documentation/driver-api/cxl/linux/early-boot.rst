@@ -12,8 +12,9 @@ read EFI and ACPI information throughout this process to configure logical
 representations of the devices.
 
 During Linux Early Boot stage (functions in the kernel that have the __init
-decorator), the system takes the resources created by EFI/BIOS (ACPI tables)
-and turns them into resources that the kernel can consume.
+decorator), the system takes the resources created by EFI/BIOS
+(:doc:`ACPI tables <../platform/acpi>`) and turns them into resources that the
+kernel can consume.
 
 
 BIOS, Build and Boot Options
@@ -70,13 +71,14 @@ significant impact performance depending on the memory capacity of the system.
 NUMA Node Reservation
 =====================
 
-Linux refers to the proximity domains (:code:`PXM`) defined in the SRAT to
-create NUMA nodes in :code:`acpi_numa_init`. Typically, there is a 1:1 relation
-between :code:`PXM` and NUMA node IDs.
+Linux refers to the proximity domains (:code:`PXM`) defined in the :doc:`SRAT
+<../platform/acpi/srat>` to create NUMA nodes in :code:`acpi_numa_init`.
+Typically, there is a 1:1 relation between :code:`PXM` and NUMA node IDs.
 
-SRAT is the only ACPI defined way of defining Proximity Domains. Linux chooses
-to, at most, map those 1:1 with NUMA nodes. CEDT adds a description of SPA
-ranges which Linux may wish to map to one or more NUMA nodes.
+The SRAT is the only ACPI defined way of defining Proximity Domains. Linux
+chooses to, at most, map those 1:1 with NUMA nodes.
+:doc:`CEDT <../platform/acpi/cedt>` adds a description of SPA ranges which
+Linux may map to one or more NUMA nodes.
 
 If there are CXL ranges in the CFMWS but not in SRAT, then a fake :code:`PXM`
 is created (as of v6.15). In the future, Linux may reject CFMWS not described
@@ -89,7 +91,8 @@ data for Linux to identify NUMA nodes their associated memory regions.
 
 The relevant code exists in: :code:`linux/drivers/acpi/numa/srat.c`.
 
-See the Example Platform Configurations section for more information.
+See :doc:`Example Platform Configurations <../platform/example-configs>`
+for more info.
 
 Memory Tiers Creation
 =====================
@@ -108,10 +111,13 @@ Tier membership can be inspected in ::
   /sys/devices/virtual/memory_tiering/memory_tierN/nodelist
   0-1
 
-If nodes are grouped which have clear difference in performance, check the HMAT
-and CDAT information for the CXL nodes.  All nodes default to the DRAM tier,
-unless HMAT/CDAT information is reported to the memory_tier component via
-`access_coordinates`.
+If nodes are grouped which have clear difference in performance, check the
+:doc:`HMAT <../platform/acpi/hmat>` and CDAT information for the CXL nodes. All
+nodes default to the DRAM tier, unless HMAT/CDAT information is reported to the
+memory_tier component via `access_coordinates`.
+
+For more, see :doc:`CXL access coordinates documentation
+<../linux/access-coordinates>`.
 
 Contiguous Memory Allocation
 ============================

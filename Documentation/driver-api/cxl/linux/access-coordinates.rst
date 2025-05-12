@@ -24,7 +24,7 @@ asymmetry in properties does not happen and all paths to EPs are equal.
 
 There can be multiple switches under an RP. There can be multiple RPs under
 a CXL Host Bridge (HB). There can be multiple HBs under a CXL Fixed Memory
-Window Structure (CFMWS).
+Window Structure (CFMWS) in the :doc:`CEDT <../platform/acpi/cedt>`.
 
 An example hierarchy::
 
@@ -83,8 +83,9 @@ also the index for the resulting xarray.
 
 The next step is to take the min() of the per host bridge bandwidth and the
 bandwidth from the Generic Port (GP). The bandwidths for the GP are retrieved
-via ACPI tables SRAT/HMAT. The minimum bandwidth are aggregated under the same
-ACPI0017 device to form a new xarray.
+via ACPI tables (:doc:`SRAT <../platform/acpi/srat>` and
+:doc:`HMAT <../platform/acpi/hmat>`). The minimum bandwidth are aggregated
+under the same ACPI0017 device to form a new xarray.
 
 Finally, the cxl_region_update_bandwidth() is called and the aggregated
 bandwidth from all the members of the last xarray is updated for the

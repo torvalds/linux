@@ -14,7 +14,7 @@ Things to note:
 * This CEDT/SRAT describes one node for both devices.
 * There is only one proximity domain the HMAT for both devices.
 
-CEDT ::
+:doc:`CEDT <../acpi/cedt>`::
 
             Subtable Type : 00 [CXL Host Bridge Structure]
                  Reserved : 00
@@ -39,7 +39,7 @@ CEDT ::
                     QtgId : 0001
              First Target : 00000007
 
-SRAT ::
+:doc:`SRAT <../acpi/srat>`::
 
          Subtable Type : 01 [Memory Affinity]
                 Length : 28
@@ -53,7 +53,7 @@ SRAT ::
        Hot Pluggable : 1
         Non-Volatile : 0
 
-HMAT ::
+:doc:`HMAT <../acpi/hmat>`::
 
                Structure Type : 0001 [SLLBI]
                     Data Type : 00   [Latency]
@@ -69,14 +69,14 @@ HMAT ::
                         Entry : 1200
                         Entry : 0200
 
-SLIT ::
+:doc:`SLIT <../acpi/slit>`::
 
      Signature : "SLIT"    [System Locality Information Table]
     Localities : 0000000000000003
   Locality   0 : 10 20
   Locality   1 : FF 0A
 
-DSDT ::
+:doc:`DSDT <../acpi/dsdt>`::
 
   Scope (_SB)
   {
