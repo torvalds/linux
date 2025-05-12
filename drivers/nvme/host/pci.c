@@ -3212,8 +3212,8 @@ static struct nvme_dev *nvme_pci_alloc_dev(struct pci_dev *pdev,
 	struct nvme_dev *dev;
 	int ret = -ENOMEM;
 
-	dev = kzalloc_node(sizeof(*dev) + nr_node_ids *
-			sizeof(*dev->descriptor_pools), GFP_KERNEL, node);
+	dev = kzalloc_node(struct_size(dev, descriptor_pools, nr_node_ids),
+			GFP_KERNEL, node);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 	INIT_WORK(&dev->ctrl.reset_work, nvme_reset_work);
