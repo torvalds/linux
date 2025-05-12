@@ -5002,8 +5002,11 @@ static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
 	list_for_each_entry(q, &set->tag_list, tag_set_list)
 		blk_mq_freeze_queue_nomemsave(q);
 
-	if (blk_mq_realloc_tag_set_tags(set, nr_hw_queues) < 0)
+	if (blk_mq_realloc_tag_set_tags(set, nr_hw_queues) < 0) {
+		list_for_each_entry(q, &set->tag_list, tag_set_list)
+			blk_mq_unfreeze_queue_nomemrestore(q);
 		goto reregister;
+	}
 
 fallback:
 	blk_mq_update_queue_map(set);
