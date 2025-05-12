@@ -811,11 +811,9 @@ Documentation/devicetree/bindings/ptp/timestamper.txt for more details.
 3.2.4 Other caveats for MAC drivers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Stacked PHCs, especially DSA (but not only) - since that doesn't require any
-modification to MAC drivers, so it is more difficult to ensure correctness of
-all possible code paths - is that they uncover bugs which were impossible to
-trigger before the existence of stacked PTP clocks.  One example has to do with
-this line of code, already presented earlier::
+The use of stacked PHCs may uncover MAC driver bugs which were impossible to
+trigger without them. One example has to do with this line of code, already
+presented earlier::
 
       skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 
