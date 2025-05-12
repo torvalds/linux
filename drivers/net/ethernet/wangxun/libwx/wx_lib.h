@@ -39,4 +39,4 @@ netdev_features_t wx_features_check(struct sk_buff *skb,
 void wx_set_ring(struct wx *wx, u32 new_tx_count,
 		 u32 new_rx_count, struct wx_ring *temp_ring);
 
-#endif /* _NGBE_LIB_H_ */
+#endif /* _WX_LIB_H_ */
