@@ -1,6 +1,8 @@
 soc/arm
 	arm/gpio-cleanup
 		https://git.kernel.org/pub/scm/linux/kernel/git/brgl/linux tags/arm-gpio-set-conversion-for-v6.16-rc1
+	omap/soc
+		git://git.kernel.org/pub/scm/linux/kernel/git/khilman/linux-omap tags/omap-for-v6.16/soc-signed
 
 soc/dt
 	patch
@@ -33,6 +35,8 @@ soc/dt
 		https://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-6.16-arm64-dt
 	tegra/dt
 		https://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-6.16-arm-dt
+	omap/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/khilman/linux-omap tags/omap-for-v6.16/dt-signed
 
 soc/drivers
 	renesas/drivers
@@ -57,8 +61,12 @@ soc/drivers
 		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-drivers-for-v6.16-tag2
 	drivers/tee
 		https://git.kernel.org/pub/scm/linux/kernel/git/jenswi/linux-tee tags/tee-for-v6.16
+	omap/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/khilman/linux-omap tags/omap-for-v6.16/drivers-signed
 
 soc/defconfig
+	renesas/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-arm-defconfig-for-v6.16-tag2
 
 soc/late
 
