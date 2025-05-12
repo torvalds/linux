@@ -319,10 +319,10 @@ static inline int ext4_journal_ensure_credits(handle_t *handle, int credits,
 				revoke_creds, 0);
 }
 
-static inline int ext4_journal_blocks_per_page(struct inode *inode)
+static inline int ext4_journal_blocks_per_folio(struct inode *inode)
 {
 	if (EXT4_JOURNAL(inode) != NULL)
-		return jbd2_journal_blocks_per_page(inode);
+		return jbd2_journal_blocks_per_folio(inode);
 	return 0;
 }
 
