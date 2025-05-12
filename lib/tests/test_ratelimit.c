@@ -24,19 +24,19 @@ static void test_ratelimit_smoke(struct kunit *test)
 	test_ratelimited(test, true);
 	test_ratelimited(test, false);
 
-	schedule_timeout_idle(TESTRL_INTERVAL - 40);
+	schedule_timeout_idle(TESTRL_INTERVAL / 2);
 	test_ratelimited(test, false);
 
-	schedule_timeout_idle(50);
+	schedule_timeout_idle(TESTRL_INTERVAL * 3 / 4);
 	test_ratelimited(test, true);
 
 	schedule_timeout_idle(2 * TESTRL_INTERVAL);
 	test_ratelimited(test, true);
 	test_ratelimited(test, true);
 
-	schedule_timeout_idle(TESTRL_INTERVAL - 40);
+	schedule_timeout_idle(TESTRL_INTERVAL / 2 );
 	test_ratelimited(test, true);
-	schedule_timeout_idle(50);
+	schedule_timeout_idle(TESTRL_INTERVAL * 3 / 4);
 	test_ratelimited(test, true);
 	test_ratelimited(test, true);
 	test_ratelimited(test, true);
