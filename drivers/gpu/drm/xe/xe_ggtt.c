@@ -484,6 +484,56 @@ void xe_ggtt_node_remove_balloon_locked(struct xe_ggtt_node *node)
 	drm_mm_remove_node(&node->base);
 }
 
+static void xe_ggtt_assert_fit(struct xe_ggtt *ggtt, u64 start, u64 size)
+{
+	struct xe_tile *tile = ggtt->tile;
+	struct xe_device *xe = tile_to_xe(tile);
+	u64 __maybe_unused wopcm = xe_wopcm_size(xe);
+
+	xe_tile_assert(tile, start >= wopcm);
+	xe_tile_assert(tile, start + size < ggtt->size - wopcm);
+}
+
+/**
+ * xe_ggtt_shift_nodes_locked - Shift GGTT nodes to adjust for a change in usable address range.
+ * @ggtt: the &xe_ggtt struct instance
+ * @shift: change to the location of area provisioned for current VF
+ *
+ * This function moves all nodes from the GGTT VM, to a temp list. These nodes are expected
+ * to represent allocations in range formerly assigned to current VF, before the range changed.
+ * When the GGTT VM is completely clear of any nodes, they are re-added with shifted offsets.
+ *
+ * The function has no ability of failing - because it shifts existing nodes, without
+ * any additional processing. If the nodes were successfully existing at the old address,
+ * they will do the same at the new one. A fail inside this function would indicate that
+ * the list of nodes was either already damaged, or that the shift brings the address range
+ * outside of valid bounds. Both cases justify an assert rather than error code.
+ */
+void xe_ggtt_shift_nodes_locked(struct xe_ggtt *ggtt, s64 shift)
+{
+	struct xe_tile *tile __maybe_unused = ggtt->tile;
+	struct drm_mm_node *node, *tmpn;
+	LIST_HEAD(temp_list_head);
+
+	lockdep_assert_held(&ggtt->lock);
+
+	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG))
+		drm_mm_for_each_node_safe(node, tmpn, &ggtt->mm)
+			xe_ggtt_assert_fit(ggtt, node->start + shift, node->size);
+
+	drm_mm_for_each_node_safe(node, tmpn, &ggtt->mm) {
+		drm_mm_remove_node(node);
+		list_add(&node->node_list, &temp_list_head);
+	}
+
+	list_for_each_entry_safe(node, tmpn, &temp_list_head, node_list) {
+		list_del(&node->node_list);
+		node->start += shift;
+		drm_mm_reserve_node(&ggtt->mm, node);
+		xe_tile_assert(tile, drm_mm_node_allocated(node));
+	}
+}
+
 /**
  * xe_ggtt_node_insert_locked - Locked version to insert a &xe_ggtt_node into the GGTT
  * @node: the &xe_ggtt_node to be inserted
