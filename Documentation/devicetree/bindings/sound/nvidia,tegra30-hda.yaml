@@ -24,6 +24,7 @@ properties:
           - nvidia,tegra30-hda
           - nvidia,tegra194-hda
           - nvidia,tegra234-hda
+          - nvidia,tegra264-hda
       - items:
           - enum:
               - nvidia,tegra186-hda
@@ -44,11 +45,11 @@ properties:
     maxItems: 1
 
   clocks:
-    minItems: 2
+    minItems: 1
     maxItems: 3
 
   clock-names:
-    minItems: 2
+    minItems: 1
     maxItems: 3
 
   resets:
@@ -153,6 +154,26 @@ allOf:
           items:
             - const: hda
             - const: hda2codec_2x
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra264-hda
+    then:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names:
+          items:
+            - const: hda
+        resets:
+          maxItems: 2
+        reset-names:
+          items:
+            - const: hda
+            - const: hda2codec_2x
+        power-domains: false
 
 examples:
   - |
