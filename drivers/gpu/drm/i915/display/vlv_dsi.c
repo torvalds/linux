@@ -30,10 +30,11 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_mipi_dsi.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
-#include "i915_drv.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_backlight.h"
 #include "intel_connector.h"
@@ -253,18 +254,16 @@ static int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs,
 
 static void band_gap_reset(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
+	vlv_flisdsi_get(display->drm);
 
-	vlv_flisdsi_get(dev_priv);
-
-	vlv_flisdsi_write(dev_priv, 0x08, 0x0001);
-	vlv_flisdsi_write(dev_priv, 0x0F, 0x0005);
-	vlv_flisdsi_write(dev_priv, 0x0F, 0x0025);
+	vlv_flisdsi_write(display->drm, 0x08, 0x0001);
+	vlv_flisdsi_write(display->drm, 0x0F, 0x0005);
+	vlv_flisdsi_write(display->drm, 0x0F, 0x0025);
 	udelay(150);
-	vlv_flisdsi_write(dev_priv, 0x0F, 0x0000);
-	vlv_flisdsi_write(dev_priv, 0x08, 0x0000);
+	vlv_flisdsi_write(display->drm, 0x0F, 0x0000);
+	vlv_flisdsi_write(display->drm, 0x08, 0x0000);
 
-	vlv_flisdsi_put(dev_priv);
+	vlv_flisdsi_put(display->drm);
 }
 
 static int intel_dsi_compute_config(struct intel_encoder *encoder,
@@ -457,17 +456,16 @@ static void bxt_dsi_device_ready(struct intel_encoder *encoder)
 static void vlv_dsi_device_ready(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
 
 	drm_dbg_kms(display->drm, "\n");
 
-	vlv_flisdsi_get(dev_priv);
+	vlv_flisdsi_get(display->drm);
 	/* program rcomp for compliance, reduce from 50 ohms to 45 ohms
 	 * needed everytime after power gate */
-	vlv_flisdsi_write(dev_priv, 0x04, 0x0004);
-	vlv_flisdsi_put(dev_priv);
+	vlv_flisdsi_write(display->drm, 0x04, 0x0004);
+	vlv_flisdsi_put(display->drm);
 
 	/* bandgap reset is needed after everytime we do power gate */
 	band_gap_reset(display);

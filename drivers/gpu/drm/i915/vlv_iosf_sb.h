@@ -10,6 +10,7 @@
 
 #include "vlv_iosf_sb_reg.h"
 
+struct drm_device;
 struct drm_i915_private;
 
 enum vlv_iosf_sb_unit {
@@ -27,10 +28,10 @@ enum vlv_iosf_sb_unit {
 void vlv_iosf_sb_init(struct drm_i915_private *i915);
 void vlv_iosf_sb_fini(struct drm_i915_private *i915);
 
-void vlv_iosf_sb_get(struct drm_i915_private *i915, unsigned long ports);
-void vlv_iosf_sb_put(struct drm_i915_private *i915, unsigned long ports);
+void vlv_iosf_sb_get(struct drm_device *drm, unsigned long ports);
+void vlv_iosf_sb_put(struct drm_device *drm, unsigned long ports);
 
-u32 vlv_iosf_sb_read(struct drm_i915_private *i915, enum vlv_iosf_sb_unit unit, u32 addr);
-int vlv_iosf_sb_write(struct drm_i915_private *i915, enum vlv_iosf_sb_unit unit, u32 addr, u32 val);
+u32 vlv_iosf_sb_read(struct drm_device *drm, enum vlv_iosf_sb_unit unit, u32 addr);
+int vlv_iosf_sb_write(struct drm_device *drm, enum vlv_iosf_sb_unit unit, u32 addr, u32 val);
 
 #endif /* _VLV_IOSF_SB_H_ */

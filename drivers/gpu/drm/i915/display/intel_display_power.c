@@ -1883,12 +1883,11 @@ static void vlv_cmnlane_wa(struct intel_display *display)
 
 static bool vlv_punit_is_power_gated(struct intel_display *display, u32 reg0)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	bool ret;
 
-	vlv_punit_get(dev_priv);
-	ret = (vlv_punit_read(dev_priv, reg0) & SSPM0_SSC_MASK) == SSPM0_SSC_PWR_GATE;
-	vlv_punit_put(dev_priv);
+	vlv_punit_get(display->drm);
+	ret = (vlv_punit_read(display->drm, reg0) & SSPM0_SSC_MASK) == SSPM0_SSC_PWR_GATE;
+	vlv_punit_put(display->drm);
 
 	return ret;
 }

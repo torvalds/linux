@@ -57,16 +57,20 @@ static void __vlv_punit_put(struct drm_i915_private *i915)
 	iosf_mbi_punit_release();
 }
 
-void vlv_iosf_sb_get(struct drm_i915_private *i915, unsigned long ports)
+void vlv_iosf_sb_get(struct drm_device *drm, unsigned long ports)
 {
+	struct drm_i915_private *i915 = to_i915(drm);
+
 	if (ports & BIT(VLV_IOSF_SB_PUNIT))
 		__vlv_punit_get(i915);
 
 	mutex_lock(&i915->vlv_iosf_sb.lock);
 }
 
-void vlv_iosf_sb_put(struct drm_i915_private *i915, unsigned long ports)
+void vlv_iosf_sb_put(struct drm_device *drm, unsigned long ports)
 {
+	struct drm_i915_private *i915 = to_i915(drm);
+
 	mutex_unlock(&i915->vlv_iosf_sb.lock);
 
 	if (ports & BIT(VLV_IOSF_SB_PUNIT))
@@ -166,8 +170,9 @@ static u32 unit_to_opcode(enum vlv_iosf_sb_unit unit, bool write)
 		return write ? SB_CRWRDA_NP : SB_CRRDDA_NP;
 }
 
-u32 vlv_iosf_sb_read(struct drm_i915_private *i915, enum vlv_iosf_sb_unit unit, u32 addr)
+u32 vlv_iosf_sb_read(struct drm_device *drm, enum vlv_iosf_sb_unit unit, u32 addr)
 {
+	struct drm_i915_private *i915 = to_i915(drm);
 	u32 devfn, port, opcode, val = 0;
 
 	devfn = unit_to_devfn(unit);
@@ -182,8 +187,9 @@ u32 vlv_iosf_sb_read(struct drm_i915_private *i915, enum vlv_iosf_sb_unit unit, 
 	return val;
 }
 
-int vlv_iosf_sb_write(struct drm_i915_private *i915, enum vlv_iosf_sb_unit unit, u32 addr, u32 val)
+int vlv_iosf_sb_write(struct drm_device *drm, enum vlv_iosf_sb_unit unit, u32 addr, u32 val)
 {
+	struct drm_i915_private *i915 = to_i915(drm);
 	u32 devfn, port, opcode;
 
 	devfn = unit_to_devfn(unit);

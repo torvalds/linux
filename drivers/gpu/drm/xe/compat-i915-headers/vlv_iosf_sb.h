@@ -10,7 +10,7 @@
 
 #include "vlv_iosf_sb_reg.h"
 
-struct drm_i915_private;
+struct drm_device;
 
 enum vlv_iosf_sb_unit {
 	VLV_IOSF_SB_BUNIT,
@@ -24,18 +24,18 @@ enum vlv_iosf_sb_unit {
 	VLV_IOSF_SB_PUNIT,
 };
 
-static inline void vlv_iosf_sb_get(struct drm_i915_private *i915, unsigned long ports)
+static inline void vlv_iosf_sb_get(struct drm_device *drm, unsigned long ports)
 {
 }
-static inline u32 vlv_iosf_sb_read(struct drm_i915_private *i915, enum vlv_iosf_sb_unit unit, u32 addr)
-{
-	return 0;
-}
-static inline int vlv_iosf_sb_write(struct drm_i915_private *i915, enum vlv_iosf_sb_unit unit, u32 addr, u32 val)
+static inline u32 vlv_iosf_sb_read(struct drm_device *drm, enum vlv_iosf_sb_unit unit, u32 addr)
 {
 	return 0;
 }
-static inline void vlv_iosf_sb_put(struct drm_i915_private *i915, unsigned long ports)
+static inline int vlv_iosf_sb_write(struct drm_device *drm, enum vlv_iosf_sb_unit unit, u32 addr, u32 val)
+{
+	return 0;
+}
+static inline void vlv_iosf_sb_put(struct drm_device *drm, unsigned long ports)
 {
 }
 

@@ -40,7 +40,6 @@ struct drm_encoder;
 struct drm_file;
 struct drm_format_info;
 struct drm_framebuffer;
-struct drm_i915_private;
 struct drm_mode_fb_cmd2;
 struct drm_modeset_acquire_ctx;
 struct drm_plane;
@@ -452,10 +451,10 @@ void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state);
 void intel_disable_transcoder(const struct intel_crtc_state *old_crtc_state);
 void i830_enable_pipe(struct intel_display *display, enum pipe pipe);
 void i830_disable_pipe(struct intel_display *display, enum pipe pipe);
-int vlv_get_hpll_vco(struct drm_i915_private *dev_priv);
-int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
+int vlv_get_hpll_vco(struct drm_device *drm);
+int vlv_get_cck_clock(struct drm_device *drm,
 		      const char *name, u32 reg, int ref_freq);
-int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
+int vlv_get_cck_clock_hpll(struct drm_device *drm,
 			   const char *name, u32 reg);
 bool intel_has_pending_fb_unpin(struct intel_display *display);
 void intel_encoder_destroy(struct drm_encoder *encoder);
