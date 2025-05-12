@@ -182,6 +182,8 @@ static inline int wb_flush_one(struct btree_trans *trans, struct btree_iter *ite
 		return wb_flush_one_slowpath(trans, iter, wb);
 	}
 
+	EBUG_ON(!bpos_eq(wb->k.k.p, path->pos));
+
 	bch2_btree_insert_key_leaf(trans, path, &wb->k, wb->journal_seq);
 	(*fast)++;
 	return 0;
