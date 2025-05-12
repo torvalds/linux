@@ -237,6 +237,44 @@ static int fbnic_mbx_map_tlv_msg(struct fbnic_dev *fbd,
 	return err;
 }
 
+static int fbnic_mbx_set_cmpl_slot(struct fbnic_dev *fbd,
+				   struct fbnic_fw_completion *cmpl_data)
+{
+	struct fbnic_fw_mbx *tx_mbx = &fbd->mbx[FBNIC_IPC_MBX_TX_IDX];
+	int free = -EXFULL;
+	int i;
+
+	if (!tx_mbx->ready)
+		return -ENODEV;
+
+	for (i = 0; i < FBNIC_MBX_CMPL_SLOTS; i++) {
+		if (!fbd->cmpl_data[i])
+			free = i;
+		else if (fbd->cmpl_data[i]->msg_type == cmpl_data->msg_type)
+			return -EEXIST;
+	}
+
+	if (free == -EXFULL)
+		return -EXFULL;
+
+	fbd->cmpl_data[free] = cmpl_data;
+
+	return 0;
+}
+
+static void fbnic_mbx_clear_cmpl_slot(struct fbnic_dev *fbd,
+				      struct fbnic_fw_completion *cmpl_data)
+{
+	int i;
+
+	for (i = 0; i < FBNIC_MBX_CMPL_SLOTS; i++) {
+		if (fbd->cmpl_data[i] == cmpl_data) {
+			fbd->cmpl_data[i] = NULL;
+			break;
+		}
+	}
+}
+
 static void fbnic_mbx_process_tx_msgs(struct fbnic_dev *fbd)
 {
 	struct fbnic_fw_mbx *tx_mbx = &fbd->mbx[FBNIC_IPC_MBX_TX_IDX];
@@ -258,6 +296,19 @@ static void fbnic_mbx_process_tx_msgs(struct fbnic_dev *fbd)
 	tx_mbx->head = head;
 }
 
+int fbnic_mbx_set_cmpl(struct fbnic_dev *fbd,
+		       struct fbnic_fw_completion *cmpl_data)
+{
+	unsigned long flags;
+	int err;
+
+	spin_lock_irqsave(&fbd->fw_tx_lock, flags);
+	err = fbnic_mbx_set_cmpl_slot(fbd, cmpl_data);
+	spin_unlock_irqrestore(&fbd->fw_tx_lock, flags);
+
+	return err;
+}
+
 static int fbnic_mbx_map_req_w_cmpl(struct fbnic_dev *fbd,
 				    struct fbnic_tlv_msg *msg,
 				    struct fbnic_fw_completion *cmpl_data)
@@ -266,23 +317,20 @@ static int fbnic_mbx_map_req_w_cmpl(struct fbnic_dev *fbd,
 	int err;
 
 	spin_lock_irqsave(&fbd->fw_tx_lock, flags);
-
-	/* If we are already waiting on a completion then abort */
-	if (cmpl_data && fbd->cmpl_data) {
-		err = -EBUSY;
-		goto unlock_mbx;
+	if (cmpl_data) {
+		err = fbnic_mbx_set_cmpl_slot(fbd, cmpl_data);
+		if (err)
+			goto unlock_mbx;
 	}
-
-	/* Record completion location and submit request */
-	if (cmpl_data)
-		fbd->cmpl_data = cmpl_data;
 
 	err = fbnic_mbx_map_msg(fbd, FBNIC_IPC_MBX_TX_IDX, msg,
 				le16_to_cpu(msg->hdr.len) * sizeof(u32), 1);
 
-	/* If msg failed then clear completion data for next caller */
+	/* If we successfully reserved a completion and msg failed
+	 * then clear completion data for next caller
+	 */
 	if (err && cmpl_data)
-		fbd->cmpl_data = NULL;
+		fbnic_mbx_clear_cmpl_slot(fbd, cmpl_data);
 
 unlock_mbx:
 	spin_unlock_irqrestore(&fbd->fw_tx_lock, flags);
@@ -304,12 +352,18 @@ fbnic_fw_get_cmpl_by_type(struct fbnic_dev *fbd, u32 msg_type)
 {
 	struct fbnic_fw_completion *cmpl_data = NULL;
 	unsigned long flags;
+	int i;
 
 	spin_lock_irqsave(&fbd->fw_tx_lock, flags);
-	if (fbd->cmpl_data && fbd->cmpl_data->msg_type == msg_type) {
-		cmpl_data = fbd->cmpl_data;
-		kref_get(&fbd->cmpl_data->ref_count);
+	for (i = 0; i < FBNIC_MBX_CMPL_SLOTS; i++) {
+		if (fbd->cmpl_data[i] &&
+		    fbd->cmpl_data[i]->msg_type == msg_type) {
+			cmpl_data = fbd->cmpl_data[i];
+			kref_get(&cmpl_data->ref_count);
+			break;
+		}
 	}
+
 	spin_unlock_irqrestore(&fbd->fw_tx_lock, flags);
 
 	return cmpl_data;
@@ -925,10 +979,16 @@ static void __fbnic_fw_evict_cmpl(struct fbnic_fw_completion *cmpl_data)
 
 static void fbnic_mbx_evict_all_cmpl(struct fbnic_dev *fbd)
 {
-	if (fbd->cmpl_data) {
-		__fbnic_fw_evict_cmpl(fbd->cmpl_data);
-		fbd->cmpl_data = NULL;
+	int i;
+
+	for (i = 0; i < FBNIC_MBX_CMPL_SLOTS; i++) {
+		struct fbnic_fw_completion *cmpl_data = fbd->cmpl_data[i];
+
+		if (cmpl_data)
+			__fbnic_fw_evict_cmpl(cmpl_data);
 	}
+
+	memset(fbd->cmpl_data, 0, sizeof(fbd->cmpl_data));
 }
 
 void fbnic_mbx_flush_tx(struct fbnic_dev *fbd)
@@ -989,12 +1049,13 @@ void fbnic_fw_init_cmpl(struct fbnic_fw_completion *fw_cmpl,
 	kref_init(&fw_cmpl->ref_count);
 }
 
-void fbnic_fw_clear_compl(struct fbnic_dev *fbd)
+void fbnic_fw_clear_cmpl(struct fbnic_dev *fbd,
+			 struct fbnic_fw_completion *fw_cmpl)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&fbd->fw_tx_lock, flags);
-	fbd->cmpl_data = NULL;
+	fbnic_mbx_clear_cmpl_slot(fbd, fw_cmpl);
 	spin_unlock_irqrestore(&fbd->fw_tx_lock, flags);
 }
 

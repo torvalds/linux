@@ -60,6 +60,8 @@ struct fbnic_fw_completion {
 
 void fbnic_mbx_init(struct fbnic_dev *fbd);
 void fbnic_mbx_clean(struct fbnic_dev *fbd);
+int fbnic_mbx_set_cmpl(struct fbnic_dev *fbd,
+		       struct fbnic_fw_completion *cmpl_data);
 void fbnic_mbx_poll(struct fbnic_dev *fbd);
 int fbnic_mbx_poll_tx_ready(struct fbnic_dev *fbd);
 void fbnic_mbx_flush_tx(struct fbnic_dev *fbd);
@@ -70,7 +72,8 @@ int fbnic_fw_xmit_tsene_read_msg(struct fbnic_dev *fbd,
 				 struct fbnic_fw_completion *cmpl_data);
 void fbnic_fw_init_cmpl(struct fbnic_fw_completion *cmpl_data,
 			u32 msg_type);
-void fbnic_fw_clear_compl(struct fbnic_dev *fbd);
+void fbnic_fw_clear_cmpl(struct fbnic_dev *fbd,
+			 struct fbnic_fw_completion *cmpl_data);
 void fbnic_fw_put_cmpl(struct fbnic_fw_completion *cmpl_data);
 
 #define fbnic_mk_full_fw_ver_str(_rev_id, _delim, _commit, _str, _str_sz) \
