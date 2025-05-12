@@ -76,7 +76,7 @@ static inline void vlv_ccu_put(struct drm_i915_private *i915)
 
 static inline void vlv_dpio_get(struct drm_i915_private *i915)
 {
-	vlv_iosf_sb_get(i915, BIT(VLV_IOSF_SB_DPIO));
+	vlv_iosf_sb_get(i915, BIT(VLV_IOSF_SB_DPIO) | BIT(VLV_IOSF_SB_DPIO_2));
 }
 
 u32 vlv_dpio_read(struct drm_i915_private *i915, enum dpio_phy phy, int reg);
@@ -85,7 +85,7 @@ void vlv_dpio_write(struct drm_i915_private *i915,
 
 static inline void vlv_dpio_put(struct drm_i915_private *i915)
 {
-	vlv_iosf_sb_put(i915, BIT(VLV_IOSF_SB_DPIO));
+	vlv_iosf_sb_put(i915, BIT(VLV_IOSF_SB_DPIO) | BIT(VLV_IOSF_SB_DPIO_2));
 }
 
 static inline void vlv_flisdsi_get(struct drm_i915_private *i915)

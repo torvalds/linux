@@ -198,96 +198,68 @@ int vlv_iosf_sb_write(struct drm_i915_private *i915, enum vlv_iosf_sb_unit unit,
 
 u32 vlv_punit_read(struct drm_i915_private *i915, u32 addr)
 {
-	u32 val = 0;
-
-	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_PUNIT,
-			SB_CRRDDA_NP, addr, &val);
-
-	return val;
+	return vlv_iosf_sb_read(i915, VLV_IOSF_SB_PUNIT, addr);
 }
 
 int vlv_punit_write(struct drm_i915_private *i915, u32 addr, u32 val)
 {
-	return vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_PUNIT,
-			       SB_CRWRDA_NP, addr, &val);
+	return vlv_iosf_sb_write(i915, VLV_IOSF_SB_PUNIT, addr, val);
 }
 
 u32 vlv_bunit_read(struct drm_i915_private *i915, u32 reg)
 {
-	u32 val = 0;
-
-	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_BUNIT,
-			SB_CRRDDA_NP, reg, &val);
-
-	return val;
+	return vlv_iosf_sb_read(i915, VLV_IOSF_SB_BUNIT, reg);
 }
 
 void vlv_bunit_write(struct drm_i915_private *i915, u32 reg, u32 val)
 {
-	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_BUNIT,
-			SB_CRWRDA_NP, reg, &val);
+	vlv_iosf_sb_write(i915, VLV_IOSF_SB_BUNIT, reg, val);
 }
 
 u32 vlv_nc_read(struct drm_i915_private *i915, u8 addr)
 {
-	u32 val = 0;
-
-	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_NC,
-			SB_CRRDDA_NP, addr, &val);
-
-	return val;
+	return vlv_iosf_sb_read(i915, VLV_IOSF_SB_NC, addr);
 }
 
 u32 vlv_cck_read(struct drm_i915_private *i915, u32 reg)
 {
-	u32 val = 0;
-
-	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_CCK,
-			SB_CRRDDA_NP, reg, &val);
-
-	return val;
+	return vlv_iosf_sb_read(i915, VLV_IOSF_SB_CCK, reg);
 }
 
 void vlv_cck_write(struct drm_i915_private *i915, u32 reg, u32 val)
 {
-	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_CCK,
-			SB_CRWRDA_NP, reg, &val);
+	vlv_iosf_sb_write(i915, VLV_IOSF_SB_CCK, reg, val);
 }
 
 u32 vlv_ccu_read(struct drm_i915_private *i915, u32 reg)
 {
-	u32 val = 0;
-
-	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_CCU,
-			SB_CRRDDA_NP, reg, &val);
-
-	return val;
+	return vlv_iosf_sb_read(i915, VLV_IOSF_SB_CCU, reg);
 }
 
 void vlv_ccu_write(struct drm_i915_private *i915, u32 reg, u32 val)
 {
-	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_CCU,
-			SB_CRWRDA_NP, reg, &val);
+	vlv_iosf_sb_write(i915, VLV_IOSF_SB_CCU, reg, val);
 }
 
-static u32 vlv_dpio_phy_iosf_port(struct drm_i915_private *i915, enum dpio_phy phy)
+static enum vlv_iosf_sb_unit vlv_dpio_phy_to_unit(struct drm_i915_private *i915,
+						  enum dpio_phy phy)
 {
 	/*
 	 * IOSF_PORT_DPIO: VLV x2 PHY (DP/HDMI B and C), CHV x1 PHY (DP/HDMI D)
 	 * IOSF_PORT_DPIO_2: CHV x2 PHY (DP/HDMI B and C)
 	 */
 	if (IS_CHERRYVIEW(i915))
-		return phy == DPIO_PHY0 ? IOSF_PORT_DPIO_2 : IOSF_PORT_DPIO;
+		return phy == DPIO_PHY0 ? VLV_IOSF_SB_DPIO_2 : VLV_IOSF_SB_DPIO;
 	else
-		return IOSF_PORT_DPIO;
+		return VLV_IOSF_SB_DPIO;
 }
 
 u32 vlv_dpio_read(struct drm_i915_private *i915, enum dpio_phy phy, int reg)
 {
-	u32 port = vlv_dpio_phy_iosf_port(i915, phy);
-	u32 val = 0;
+	enum vlv_iosf_sb_unit unit = vlv_dpio_phy_to_unit(i915, phy);
+	u32 val;
 
-	vlv_sideband_rw(i915, DPIO_DEVFN, port, SB_MRD_NP, reg, &val);
+	val = vlv_iosf_sb_read(i915, unit, reg);
 
 	/*
 	 * FIXME: There might be some registers where all 1's is a valid value,
@@ -303,24 +275,19 @@ u32 vlv_dpio_read(struct drm_i915_private *i915, enum dpio_phy phy, int reg)
 void vlv_dpio_write(struct drm_i915_private *i915,
 		    enum dpio_phy phy, int reg, u32 val)
 {
-	u32 port = vlv_dpio_phy_iosf_port(i915, phy);
+	enum vlv_iosf_sb_unit unit = vlv_dpio_phy_to_unit(i915, phy);
 
-	vlv_sideband_rw(i915, DPIO_DEVFN, port, SB_MWR_NP, reg, &val);
+	vlv_iosf_sb_write(i915, unit, reg, val);
 }
 
 u32 vlv_flisdsi_read(struct drm_i915_private *i915, u32 reg)
 {
-	u32 val = 0;
-
-	vlv_sideband_rw(i915, DPIO_DEVFN, IOSF_PORT_FLISDSI, SB_CRRDDA_NP,
-			reg, &val);
-	return val;
+	return vlv_iosf_sb_read(i915, VLV_IOSF_SB_FLISDSI, reg);
 }
 
 void vlv_flisdsi_write(struct drm_i915_private *i915, u32 reg, u32 val)
 {
-	vlv_sideband_rw(i915, DPIO_DEVFN, IOSF_PORT_FLISDSI, SB_CRWRDA_NP,
-			reg, &val);
+	vlv_iosf_sb_write(i915, VLV_IOSF_SB_FLISDSI, reg, val);
 }
 
 void vlv_iosf_sb_init(struct drm_i915_private *i915)
