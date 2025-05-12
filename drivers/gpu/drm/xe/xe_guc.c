@@ -710,6 +710,10 @@ static int vf_guc_init_post_hwconfig(struct xe_guc *guc)
 	if (err)
 		return err;
 
+	err = xe_guc_buf_cache_init(&guc->buf);
+	if (err)
+		return err;
+
 	/* XXX xe_guc_db_mgr_init not needed for now */
 
 	return 0;
