@@ -3067,8 +3067,6 @@ static bool cpufreq_policy_is_good_for_eas(unsigned int cpu)
 		return false;
 	}
 
-	guard(cpufreq_policy_read)(policy);
-
 	return sugov_is_governor(policy);
 }
 
