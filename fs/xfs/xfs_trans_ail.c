@@ -777,26 +777,28 @@ xfs_ail_update_finish(
 }
 
 /*
- * xfs_trans_ail_update - bulk AIL insertion operation.
+ * xfs_trans_ail_update_bulk - bulk AIL insertion operation.
  *
- * @xfs_trans_ail_update takes an array of log items that all need to be
+ * @xfs_trans_ail_update_bulk takes an array of log items that all need to be
  * positioned at the same LSN in the AIL. If an item is not in the AIL, it will
- * be added.  Otherwise, it will be repositioned  by removing it and re-adding
- * it to the AIL. If we move the first item in the AIL, update the log tail to
- * match the new minimum LSN in the AIL.
+ * be added. Otherwise, it will be repositioned by removing it and re-adding
+ * it to the AIL.
  *
- * This function takes the AIL lock once to execute the update operations on
- * all the items in the array, and as such should not be called with the AIL
- * lock held. As a result, once we have the AIL lock, we need to check each log
- * item LSN to confirm it needs to be moved forward in the AIL.
+ * If we move the first item in the AIL, update the log tail to match the new
+ * minimum LSN in the AIL.
  *
- * To optimise the insert operation, we delete all the items from the AIL in
- * the first pass, moving them into a temporary list, then splice the temporary
- * list into the correct position in the AIL. This avoids needing to do an
- * insert operation on every item.
+ * This function should be called with the AIL lock held.
  *
- * This function must be called with the AIL lock held.  The lock is dropped
- * before returning.
+ * To optimise the insert operation, we add all items to a temporary list, then
+ * splice this list into the correct position in the AIL.
+ *
+ * Items that are already in the AIL are first deleted from their current
+ * location before being added to the temporary list.
+ *
+ * This avoids needing to do an insert operation on every item.
+ *
+ * The AIL lock is dropped by xfs_ail_update_finish() before returning to
+ * the caller.
  */
 void
 xfs_trans_ail_update_bulk(
