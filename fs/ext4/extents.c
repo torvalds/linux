@@ -2409,9 +2409,10 @@ int ext4_ext_index_trans_blocks(struct inode *inode, int extents)
 	 * the time we actually modify the tree. Assume the worst case.
 	 */
 	if (extents <= 1)
-		index = EXT4_MAX_EXTENT_DEPTH * 2;
+		index = (EXT4_MAX_EXTENT_DEPTH * 2) + extents;
 	else
-		index = EXT4_MAX_EXTENT_DEPTH * 3;
+		index = (EXT4_MAX_EXTENT_DEPTH * 3) +
+			DIV_ROUND_UP(extents, ext4_ext_space_block(inode, 0));
 
 	return index;
 }

@@ -5844,18 +5844,16 @@ static int ext4_meta_trans_blocks(struct inode *inode, int lblocks,
 	int ret;
 
 	/*
-	 * How many index blocks need to touch to map @lblocks logical blocks
-	 * to @pextents physical extents?
+	 * How many index and lead blocks need to touch to map @lblocks
+	 * logical blocks to @pextents physical extents?
 	 */
 	idxblocks = ext4_index_trans_blocks(inode, lblocks, pextents);
-
-	ret = idxblocks;
 
 	/*
 	 * Now let's see how many group bitmaps and group descriptors need
 	 * to account
 	 */
-	groups = idxblocks + pextents;
+	groups = idxblocks;
 	gdpblocks = groups;
 	if (groups > ngroups)
 		groups = ngroups;
@@ -5863,7 +5861,7 @@ static int ext4_meta_trans_blocks(struct inode *inode, int lblocks,
 		gdpblocks = EXT4_SB(inode->i_sb)->s_gdb_count;
 
 	/* bitmaps and block group descriptor blocks */
-	ret += groups + gdpblocks;
+	ret = idxblocks + groups + gdpblocks;
 
 	/* Blocks for super block, inode, quota and xattr blocks */
 	ret += EXT4_META_TRANS_BLOCKS(inode->i_sb);
