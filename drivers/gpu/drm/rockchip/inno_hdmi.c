@@ -1269,53 +1269,34 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	if (IS_ERR(hdmi->regs))
 		return PTR_ERR(hdmi->regs);
 
-	hdmi->pclk = devm_clk_get(hdmi->dev, "pclk");
+	hdmi->pclk = devm_clk_get_enabled(hdmi->dev, "pclk");
 	if (IS_ERR(hdmi->pclk))
 		return dev_err_probe(dev, PTR_ERR(hdmi->pclk), "Unable to get HDMI pclk\n");
 
-	ret = clk_prepare_enable(hdmi->pclk);
-	if (ret)
-		return dev_err_probe(dev, ret, "Cannot enable HDMI pclk: %d\n", ret);
-
-	hdmi->refclk = devm_clk_get_optional(hdmi->dev, "ref");
-	if (IS_ERR(hdmi->refclk)) {
-		ret = dev_err_probe(dev, PTR_ERR(hdmi->refclk), "Unable to get HDMI refclk\n");
-		goto err_disable_pclk;
-	}
-
-	ret = clk_prepare_enable(hdmi->refclk);
-	if (ret) {
-		ret = dev_err_probe(dev, ret, "Cannot enable HDMI refclk: %d\n", ret);
-		goto err_disable_pclk;
-	}
+	hdmi->refclk = devm_clk_get_optional_enabled(hdmi->dev, "ref");
+	if (IS_ERR(hdmi->refclk))
+		return dev_err_probe(dev, PTR_ERR(hdmi->refclk), "Unable to get HDMI refclk\n");
 
 	if (hdmi->variant->dev_type == RK3036_HDMI) {
 		hdmi->grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
-		if (IS_ERR(hdmi->grf)) {
-			ret = dev_err_probe(dev, PTR_ERR(hdmi->grf),
-					    "Unable to get rockchip,grf\n");
-			goto err_disable_clk;
-		}
+		if (IS_ERR(hdmi->grf))
+			return dev_err_probe(dev,
+					     PTR_ERR(hdmi->grf), "Unable to get rockchip,grf\n");
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		ret = irq;
-		goto err_disable_clk;
-	}
+	if (irq < 0)
+		return irq;
 
 	inno_hdmi_init_hw(hdmi);
 
 	hdmi->ddc = inno_hdmi_i2c_adapter(hdmi);
-	if (IS_ERR(hdmi->ddc)) {
-		ret = PTR_ERR(hdmi->ddc);
-		hdmi->ddc = NULL;
-		goto err_disable_clk;
-	}
+	if (IS_ERR(hdmi->ddc))
+		return PTR_ERR(hdmi->ddc);
 
 	ret = inno_hdmi_register(drm, hdmi);
 	if (ret)
-		goto err_disable_clk;
+		return ret;
 
 	dev_set_drvdata(dev, hdmi);
 
@@ -1329,10 +1310,6 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 err_cleanup_hdmi:
 	hdmi->connector.funcs->destroy(&hdmi->connector);
 	hdmi->encoder.encoder.funcs->destroy(&hdmi->encoder.encoder);
-err_disable_clk:
-	clk_disable_unprepare(hdmi->refclk);
-err_disable_pclk:
-	clk_disable_unprepare(hdmi->pclk);
 	return ret;
 }
 
@@ -1343,9 +1320,6 @@ static void inno_hdmi_unbind(struct device *dev, struct device *master,
 
 	hdmi->connector.funcs->destroy(&hdmi->connector);
 	hdmi->encoder.encoder.funcs->destroy(&hdmi->encoder.encoder);
-
-	clk_disable_unprepare(hdmi->refclk);
-	clk_disable_unprepare(hdmi->pclk);
 }
 
 static const struct component_ops inno_hdmi_ops = {
