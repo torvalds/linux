@@ -232,6 +232,35 @@ static int vdec_ctrl_init(struct vpu_inst *inst)
 			  V4L2_CID_MPEG_VIDEO_DEC_DISPLAY_DELAY_ENABLE,
 			  0, 1, 1, 0);
 
+	v4l2_ctrl_new_std_menu(&inst->ctrl_handler, NULL,
+			       V4L2_CID_MPEG_VIDEO_H264_PROFILE,
+			       V4L2_MPEG_VIDEO_H264_PROFILE_MULTIVIEW_HIGH,
+			       ~((1 << V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE) |
+				 (1 << V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_BASELINE) |
+				 (1 << V4L2_MPEG_VIDEO_H264_PROFILE_MAIN) |
+				 (1 << V4L2_MPEG_VIDEO_H264_PROFILE_EXTENDED) |
+				 (1 << V4L2_MPEG_VIDEO_H264_PROFILE_HIGH)),
+			       V4L2_MPEG_VIDEO_H264_PROFILE_MAIN);
+
+	v4l2_ctrl_new_std_menu(&inst->ctrl_handler, NULL,
+			       V4L2_CID_MPEG_VIDEO_H264_LEVEL,
+			       V4L2_MPEG_VIDEO_H264_LEVEL_6_2,
+			       0,
+			       V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
+
+	v4l2_ctrl_new_std_menu(&inst->ctrl_handler, NULL,
+			       V4L2_CID_MPEG_VIDEO_HEVC_PROFILE,
+			       V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_10,
+			       ~((1 << V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN) |
+				 (1 << V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_10)),
+			       V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN);
+
+	v4l2_ctrl_new_std_menu(&inst->ctrl_handler, NULL,
+			       V4L2_CID_MPEG_VIDEO_HEVC_LEVEL,
+			       V4L2_MPEG_VIDEO_HEVC_LEVEL_6_2,
+			       0,
+			       V4L2_MPEG_VIDEO_HEVC_LEVEL_4);
+
 	ctrl = v4l2_ctrl_new_std(&inst->ctrl_handler, &vdec_ctrl_ops,
 				 V4L2_CID_MIN_BUFFERS_FOR_CAPTURE, 1, 32, 1, 2);
 	if (ctrl)
@@ -1166,6 +1195,35 @@ static void vdec_clear_slots(struct vpu_inst *inst)
 	}
 }
 
+static void vdec_update_v4l2_ctrl(struct vpu_inst *inst, u32 id, u32 val)
+{
+	struct v4l2_ctrl *ctrl = v4l2_ctrl_find(&inst->ctrl_handler, id);
+
+	if (ctrl)
+		v4l2_ctrl_s_ctrl(ctrl, val);
+}
+
+static void vdec_update_v4l2_profile_level(struct vpu_inst *inst, struct vpu_dec_codec_info *hdr)
+{
+	switch (inst->out_format.pixfmt) {
+	case V4L2_PIX_FMT_H264:
+	case V4L2_PIX_FMT_H264_MVC:
+		vdec_update_v4l2_ctrl(inst, V4L2_CID_MPEG_VIDEO_H264_PROFILE,
+				      vpu_get_h264_v4l2_profile(hdr));
+		vdec_update_v4l2_ctrl(inst, V4L2_CID_MPEG_VIDEO_H264_LEVEL,
+				      vpu_get_h264_v4l2_level(hdr));
+		break;
+	case V4L2_PIX_FMT_HEVC:
+		vdec_update_v4l2_ctrl(inst, V4L2_CID_MPEG_VIDEO_HEVC_PROFILE,
+				      vpu_get_hevc_v4l2_profile(hdr));
+		vdec_update_v4l2_ctrl(inst, V4L2_CID_MPEG_VIDEO_HEVC_LEVEL,
+				      vpu_get_hevc_v4l2_level(hdr));
+		break;
+	default:
+		return;
+	}
+}
+
 static void vdec_event_seq_hdr(struct vpu_inst *inst, struct vpu_dec_codec_info *hdr)
 {
 	struct vdec_t *vdec = inst->priv;
@@ -1189,6 +1247,7 @@ static void vdec_event_seq_hdr(struct vpu_inst *inst, struct vpu_dec_codec_info 
 	vdec_init_crop(inst);
 	vdec_init_mbi(inst);
 	vdec_init_dcp(inst);
+	vdec_update_v4l2_profile_level(inst, hdr);
 	if (!vdec->seq_hdr_found) {
 		vdec->seq_tag = vdec->codec_info.tag;
 		if (vdec->is_source_changed) {

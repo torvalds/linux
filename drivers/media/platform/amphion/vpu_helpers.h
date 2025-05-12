@@ -6,6 +6,8 @@
 #ifndef _AMPHION_VPU_HELPERS_H
 #define _AMPHION_VPU_HELPERS_H
 
+#include "vpu_defs.h"
+
 struct vpu_pair {
 	u32 src;
 	u32 dst;
@@ -65,4 +67,9 @@ u32 vpu_color_cvrt_full_range_i2v(u32 full_range);
 
 int vpu_find_dst_by_src(struct vpu_pair *pairs, u32 cnt, u32 src);
 int vpu_find_src_by_dst(struct vpu_pair *pairs, u32 cnt, u32 dst);
+
+u32 vpu_get_h264_v4l2_profile(struct vpu_dec_codec_info *hdr);
+u32 vpu_get_h264_v4l2_level(struct vpu_dec_codec_info *hdr);
+u32 vpu_get_hevc_v4l2_profile(struct vpu_dec_codec_info *hdr);
+u32 vpu_get_hevc_v4l2_level(struct vpu_dec_codec_info *hdr);
 #endif
