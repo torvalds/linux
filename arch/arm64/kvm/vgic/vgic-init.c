@@ -88,7 +88,7 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 	lockdep_assert_held(&kvm->lock);
 
 	ret = -EBUSY;
-	if (!lock_all_vcpus(kvm))
+	if (kvm_trylock_all_vcpus(kvm))
 		return ret;
 
 	mutex_lock(&kvm->arch.config_lock);
@@ -142,7 +142,7 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 
 out_unlock:
 	mutex_unlock(&kvm->arch.config_lock);
-	unlock_all_vcpus(kvm);
+	kvm_unlock_all_vcpus(kvm);
 	return ret;
 }
 
