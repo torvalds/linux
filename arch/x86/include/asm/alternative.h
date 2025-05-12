@@ -6,6 +6,7 @@
 #include <linux/stringify.h>
 #include <linux/objtool.h>
 #include <asm/asm.h>
+#include <asm/bug.h>
 
 #define ALT_FLAGS_SHIFT		16
 
@@ -121,6 +122,37 @@ static __always_inline int x86_call_depth_emit_accounting(u8 **pprog,
 							  void *func, void *ip)
 {
 	return 0;
+}
+#endif
+
+#ifdef CONFIG_MITIGATION_ITS
+extern void its_init_mod(struct module *mod);
+extern void its_fini_mod(struct module *mod);
+extern void its_free_mod(struct module *mod);
+extern u8 *its_static_thunk(int reg);
+#else /* CONFIG_MITIGATION_ITS */
+static inline void its_init_mod(struct module *mod) { }
+static inline void its_fini_mod(struct module *mod) { }
+static inline void its_free_mod(struct module *mod) { }
+static inline u8 *its_static_thunk(int reg)
+{
+	WARN_ONCE(1, "ITS not compiled in");
+
+	return NULL;
+}
+#endif
+
+#if defined(CONFIG_MITIGATION_RETHUNK) && defined(CONFIG_OBJTOOL)
+extern bool cpu_wants_rethunk(void);
+extern bool cpu_wants_rethunk_at(void *addr);
+#else
+static __always_inline bool cpu_wants_rethunk(void)
+{
+	return false;
+}
+static __always_inline bool cpu_wants_rethunk_at(void *addr)
+{
+	return false;
 }
 #endif
 
