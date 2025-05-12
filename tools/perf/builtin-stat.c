@@ -1854,7 +1854,7 @@ static int add_default_events(void)
 		 * will use this approach. To determine transaction support
 		 * on an architecture test for such a metric name.
 		 */
-		if (!metricgroup__has_metric(pmu, "transaction")) {
+		if (!metricgroup__has_metric_or_groups(pmu, "transaction")) {
 			pr_err("Missing transaction metrics\n");
 			ret = -1;
 			goto out;
@@ -1888,7 +1888,7 @@ static int add_default_events(void)
 			smi_reset = true;
 		}
 
-		if (!metricgroup__has_metric(pmu, "smi")) {
+		if (!metricgroup__has_metric_or_groups(pmu, "smi")) {
 			pr_err("Missing smi metrics\n");
 			ret = -1;
 			goto out;
@@ -1978,7 +1978,7 @@ static int add_default_events(void)
 		 * Add TopdownL1 metrics if they exist. To minimize
 		 * multiplexing, don't request threshold computation.
 		 */
-		if (metricgroup__has_metric(pmu, "Default")) {
+		if (metricgroup__has_metric_or_groups(pmu, "Default")) {
 			struct evlist *metric_evlist = evlist__new();
 
 			if (!metric_evlist) {
