@@ -1932,7 +1932,7 @@ r535_gsp_msg_rc_triggered(void *priv, u32 fn, void *repv, u32 repc)
 		   msg->nv2080EngineType, msg->chid, msg->exceptType, msg->scope,
 		   msg->partitionAttributionId);
 
-	chan = nvkm_chan_get_chid(&subdev->device->fifo->engine, msg->chid / 8, &flags);
+	chan = nvkm_chan_get_chid(&subdev->device->fifo->engine, msg->chid, &flags);
 	if (!chan) {
 		nvkm_error(subdev, "rc chid:%d not found!\n", msg->chid);
 		return 0;
