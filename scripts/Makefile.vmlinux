@@ -97,7 +97,7 @@ ifdef CONFIG_BUILDTIME_TABLE_SORT
 $(vmlinux-final): scripts/sorttable
 endif
 
-# module.builtin.ranges
+# modules.builtin.ranges
 # ---------------------------------------------------------------------------
 ifdef CONFIG_BUILTIN_MODULE_RANGES
 __default: modules.builtin.ranges
