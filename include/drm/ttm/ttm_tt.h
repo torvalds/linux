@@ -118,7 +118,7 @@ struct ttm_tt {
 	 * ttm_tt_create() callback is responsible for assigning
 	 * this field.
 	 */
-	struct ttm_backup *backup;
+	struct file *backup;
 	/**
 	 * @caching: The current caching state of the pages, see enum
 	 * ttm_caching.

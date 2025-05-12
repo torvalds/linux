@@ -66,6 +66,8 @@ static inline void bch2_inode_flags_to_vfs(struct bch_fs *c, struct bch_inode_in
 
 	if (bch2_inode_casefold(c, &inode->ei_inode))
 		inode->v.i_flags |= S_CASEFOLD;
+	else
+		inode->v.i_flags &= ~S_CASEFOLD;
 }
 
 void bch2_inode_update_after_write(struct btree_trans *trans,
@@ -848,10 +850,8 @@ int __bch2_unlink(struct inode *vdir, struct dentry *dentry,
 		set_nlink(&inode->v, 0);
 	}
 
-	if (IS_CASEFOLDED(vdir)) {
+	if (IS_CASEFOLDED(vdir))
 		d_invalidate(dentry);
-		d_prune_aliases(&inode->v);
-	}
 err:
 	bch2_trans_put(trans);
 	bch2_unlock_inodes(INODE_UPDATE_LOCK, dir, inode);
@@ -1464,8 +1464,8 @@ static int bch2_next_fiemap_extent(struct btree_trans *trans,
 		unsigned sectors = cur->kbuf.k->k.size;
 		s64 offset_into_extent = 0;
 		enum btree_id data_btree = BTREE_ID_extents;
-		int ret = bch2_read_indirect_extent(trans, &data_btree, &offset_into_extent,
-						    &cur->kbuf);
+		ret = bch2_read_indirect_extent(trans, &data_btree, &offset_into_extent,
+						&cur->kbuf);
 		if (ret)
 			goto err;
 
@@ -2502,10 +2502,9 @@ static int bch2_fs_get_tree(struct fs_context *fc)
 
 	bch2_opts_apply(&c->opts, opts);
 
-	/*
-	 * need to initialise sb and set c->vfs_sb _before_ starting fs,
-	 * for blk_holder_ops
-	 */
+	ret = bch2_fs_start(c);
+	if (ret)
+		goto err_stop_fs;
 
 	sb = sget(fc->fs_type, NULL, bch2_set_super, fc->sb_flags|SB_NOSEC, c);
 	ret = PTR_ERR_OR_ZERO(sb);
@@ -2567,9 +2566,10 @@ got_sb:
 
 	sb->s_shrink->seeks = 0;
 
-	ret = bch2_fs_start(c);
-	if (ret)
-		goto err_put_super;
+#ifdef CONFIG_UNICODE
+	sb->s_encoding = c->cf_encoding;
+#endif
+	generic_set_sb_d_ops(sb);
 
 	vinode = bch2_vfs_inode_get(c, BCACHEFS_ROOT_SUBVOL_INUM);
 	ret = PTR_ERR_OR_ZERO(vinode);

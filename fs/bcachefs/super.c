@@ -377,6 +377,11 @@ void bch2_fs_read_only(struct bch_fs *c)
 		bch_verbose(c, "marking filesystem clean");
 		bch2_fs_mark_clean(c);
 	} else {
+		/* Make sure error counts/counters are persisted */
+		mutex_lock(&c->sb_lock);
+		bch2_write_super(c);
+		mutex_unlock(&c->sb_lock);
+
 		bch_verbose(c, "done going read-only, filesystem not clean");
 	}
 }
@@ -530,6 +535,10 @@ static void __bch2_fs_free(struct bch_fs *c)
 {
 	for (unsigned i = 0; i < BCH_TIME_STAT_NR; i++)
 		bch2_time_stats_exit(&c->times[i]);
+
+#ifdef CONFIG_UNICODE
+	utf8_unload(c->cf_encoding);
+#endif
 
 	bch2_find_btree_nodes_exit(&c->found_btree_nodes);
 	bch2_free_pending_node_rewrites(c);
@@ -823,25 +832,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	if (ret)
 		goto err;
 
-#ifdef CONFIG_UNICODE
-	/* Default encoding until we can potentially have more as an option. */
-	c->cf_encoding = utf8_load(BCH_FS_DEFAULT_UTF8_ENCODING);
-	if (IS_ERR(c->cf_encoding)) {
-		printk(KERN_ERR "Cannot load UTF-8 encoding for filesystem. Version: %u.%u.%u",
-			unicode_major(BCH_FS_DEFAULT_UTF8_ENCODING),
-			unicode_minor(BCH_FS_DEFAULT_UTF8_ENCODING),
-			unicode_rev(BCH_FS_DEFAULT_UTF8_ENCODING));
-		ret = -EINVAL;
-		goto err;
-	}
-#else
-	if (c->sb.features & BIT_ULL(BCH_FEATURE_casefolding)) {
-		printk(KERN_ERR "Cannot mount a filesystem with casefolding on a kernel without CONFIG_UNICODE\n");
-		ret = -EINVAL;
-		goto err;
-	}
-#endif
-
 	pr_uuid(&name, c->sb.user_uuid.b);
 	ret = name.allocation_failure ? -BCH_ERR_ENOMEM_fs_name_alloc : 0;
 	if (ret)
@@ -940,6 +930,29 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    bch2_fs_fs_io_direct_init(c);
 	if (ret)
 		goto err;
+
+#ifdef CONFIG_UNICODE
+	/* Default encoding until we can potentially have more as an option. */
+	c->cf_encoding = utf8_load(BCH_FS_DEFAULT_UTF8_ENCODING);
+	if (IS_ERR(c->cf_encoding)) {
+		printk(KERN_ERR "Cannot load UTF-8 encoding for filesystem. Version: %u.%u.%u",
+			unicode_major(BCH_FS_DEFAULT_UTF8_ENCODING),
+			unicode_minor(BCH_FS_DEFAULT_UTF8_ENCODING),
+			unicode_rev(BCH_FS_DEFAULT_UTF8_ENCODING));
+		ret = -EINVAL;
+		goto err;
+	}
+	bch_info(c, "Using encoding defined by superblock: utf8-%u.%u.%u",
+		 unicode_major(BCH_FS_DEFAULT_UTF8_ENCODING),
+		 unicode_minor(BCH_FS_DEFAULT_UTF8_ENCODING),
+		 unicode_rev(BCH_FS_DEFAULT_UTF8_ENCODING));
+#else
+	if (c->sb.features & BIT_ULL(BCH_FEATURE_casefolding)) {
+		printk(KERN_ERR "Cannot mount a filesystem with casefolding on a kernel without CONFIG_UNICODE\n");
+		ret = -EINVAL;
+		goto err;
+	}
+#endif
 
 	for (i = 0; i < c->sb.nr_devices; i++) {
 		if (!bch2_member_exists(c->disk_sb.sb, i))
