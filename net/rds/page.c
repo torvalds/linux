@@ -69,7 +69,6 @@ int rds_page_remainder_alloc(struct scatterlist *scat, unsigned long bytes,
 			     gfp_t gfp)
 {
 	struct rds_page_remainder *rem;
-	unsigned long flags;
 	struct page *page;
 	int ret;
 
@@ -88,7 +87,7 @@ int rds_page_remainder_alloc(struct scatterlist *scat, unsigned long bytes,
 	}
 
 	rem = &per_cpu(rds_page_remainders, get_cpu());
-	local_irq_save(flags);
+	local_bh_disable();
 
 	while (1) {
 		/* avoid a tiny region getting stuck by tossing it */
@@ -116,13 +115,13 @@ int rds_page_remainder_alloc(struct scatterlist *scat, unsigned long bytes,
 		}
 
 		/* alloc if there is nothing for us to use */
-		local_irq_restore(flags);
+		local_bh_enable();
 		put_cpu();
 
 		page = alloc_page(gfp);
 
 		rem = &per_cpu(rds_page_remainders, get_cpu());
-		local_irq_save(flags);
+		local_bh_disable();
 
 		if (!page) {
 			ret = -ENOMEM;
@@ -140,7 +139,7 @@ int rds_page_remainder_alloc(struct scatterlist *scat, unsigned long bytes,
 		rem->r_offset = 0;
 	}
 
-	local_irq_restore(flags);
+	local_bh_enable();
 	put_cpu();
 out:
 	rdsdebug("bytes %lu ret %d %p %u %u\n", bytes, ret,
