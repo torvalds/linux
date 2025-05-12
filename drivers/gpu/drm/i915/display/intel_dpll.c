@@ -22,7 +22,7 @@
 #include "intel_pps.h"
 #include "intel_snps_phy.h"
 #include "vlv_dpio_phy_regs.h"
-#include "vlv_iosf_sb.h"
+#include "vlv_sideband.h"
 
 struct intel_dpll_funcs {
 	int (*crtc_compute_clock)(struct intel_atomic_state *state,

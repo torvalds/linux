@@ -30,7 +30,7 @@
 #include "intel_vga.h"
 #include "skl_watermark.h"
 #include "vlv_dpio_phy_regs.h"
-#include "vlv_iosf_sb.h"
+#include "vlv_sideband.h"
 #include "vlv_iosf_sb_reg.h"
 
 struct i915_power_well_regs {

@@ -47,7 +47,7 @@
 #include "skl_watermark.h"
 #include "skl_watermark_regs.h"
 #include "vlv_dsi.h"
-#include "vlv_iosf_sb.h"
+#include "vlv_sideband.h"
 
 /**
  * DOC: CDCLK / RAWCLK

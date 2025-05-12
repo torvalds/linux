@@ -34,7 +34,7 @@
 #include "intel_dsi.h"
 #include "vlv_dsi_pll.h"
 #include "vlv_dsi_pll_regs.h"
-#include "vlv_iosf_sb.h"
+#include "vlv_sideband.h"
 
 static const u16 lfsr_converts[] = {
 	426, 469, 234, 373, 442, 221, 110, 311, 411,		/* 62 - 70 */

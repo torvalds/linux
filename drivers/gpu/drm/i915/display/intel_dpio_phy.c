@@ -32,7 +32,7 @@
 #include "intel_dp.h"
 #include "intel_dpio_phy.h"
 #include "vlv_dpio_phy_regs.h"
-#include "vlv_iosf_sb.h"
+#include "vlv_sideband.h"
 
 /**
  * DOC: DPIO
