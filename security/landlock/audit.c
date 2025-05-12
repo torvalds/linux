@@ -437,7 +437,7 @@ void landlock_log_denial(const struct landlock_cred_security *const subject,
 		return;
 
 	/* Checks if the current exec was restricting itself. */
-	if (subject->domain_exec & (1 << youngest_layer)) {
+	if (subject->domain_exec & BIT(youngest_layer)) {
 		/* Ignores denials for the same execution. */
 		if (!youngest_denied->log_same_exec)
 			return;
