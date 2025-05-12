@@ -16,7 +16,7 @@
 #include "srccode.h"
 #include "debug.h"
 #include <internal/lib.h> // page_size
-#include "fncache.h"
+#include "hashmap.h"
 
 #define MAXSRCCACHE (32*1024*1024)
 #define MAXSRCFILES     64
@@ -92,7 +92,7 @@ static struct srcfile *find_srcfile(char *fn)
 	struct srcfile *h;
 	int fd;
 	unsigned long sz;
-	unsigned hval = shash((unsigned char *)fn) % SRC_HTAB_SZ;
+	size_t hval = str_hash(fn) % SRC_HTAB_SZ;
 
 	hlist_for_each_entry (h, &srcfile_htab[hval], hash_nd) {
 		if (!strcmp(fn, h->fn)) {
