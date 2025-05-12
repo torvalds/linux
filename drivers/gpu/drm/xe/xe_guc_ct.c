@@ -25,6 +25,7 @@
 #include "xe_gt_printk.h"
 #include "xe_gt_sriov_pf_control.h"
 #include "xe_gt_sriov_pf_monitor.h"
+#include "xe_gt_sriov_printk.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_guc.h"
 #include "xe_guc_log.h"
@@ -83,6 +84,8 @@ struct g2h_fence {
 	bool fail;
 	bool done;
 };
+
+#define make_u64(hi, lo) ((u64)((u64)(u32)(hi) << 32 | (u32)(lo)))
 
 static void g2h_fence_init(struct g2h_fence *g2h_fence, u32 *response_buffer)
 {
@@ -1622,6 +1625,186 @@ static void g2h_worker_func(struct work_struct *w)
 	struct xe_guc_ct *ct = container_of(w, struct xe_guc_ct, g2h_worker);
 
 	receive_g2h(ct);
+}
+
+static void xe_fixup_u64_in_cmds(struct xe_device *xe, struct iosys_map *cmds,
+				 u32 size, u32 idx, s64 shift)
+{
+	u32 hi, lo;
+	u64 offset;
+
+	lo = xe_map_rd_ring_u32(xe, cmds, idx, size);
+	hi = xe_map_rd_ring_u32(xe, cmds, idx + 1, size);
+	offset = make_u64(hi, lo);
+	offset += shift;
+	lo = lower_32_bits(offset);
+	hi = upper_32_bits(offset);
+	xe_map_wr_ring_u32(xe, cmds, idx, size, lo);
+	xe_map_wr_ring_u32(xe, cmds, idx + 1, size, hi);
+}
+
+/*
+ * Shift any GGTT addresses within a single message left within CTB from
+ * before post-migration recovery.
+ * @ct: pointer to CT struct of the target GuC
+ * @cmds: iomap buffer containing CT messages
+ * @head: start of the target message within the buffer
+ * @len: length of the target message
+ * @size: size of the commands buffer
+ * @shift: the address shift to be added to each GGTT reference
+ * Return: true if the message was fixed or needed no fixups, false on failure
+ */
+static bool ct_fixup_ggtt_in_message(struct xe_guc_ct *ct,
+				     struct iosys_map *cmds, u32 head,
+				     u32 len, u32 size, s64 shift)
+{
+	struct xe_gt *gt = ct_to_gt(ct);
+	struct xe_device *xe = ct_to_xe(ct);
+	u32 msg[GUC_HXG_MSG_MIN_LEN];
+	u32 action, i, n;
+
+	xe_gt_assert(gt, len >= GUC_HXG_MSG_MIN_LEN);
+
+	msg[0] = xe_map_rd_ring_u32(xe, cmds, head, size);
+	action = FIELD_GET(GUC_HXG_REQUEST_MSG_0_ACTION, msg[0]);
+
+	xe_gt_sriov_dbg_verbose(gt, "fixing H2G %#x\n", action);
+
+	switch (action) {
+	case XE_GUC_ACTION_REGISTER_CONTEXT:
+		if (len != XE_GUC_REGISTER_CONTEXT_MSG_LEN)
+			goto err_len;
+		xe_fixup_u64_in_cmds(xe, cmds, size, head +
+				     XE_GUC_REGISTER_CONTEXT_DATA_5_WQ_DESC_ADDR_LOWER,
+				     shift);
+		xe_fixup_u64_in_cmds(xe, cmds, size, head +
+				     XE_GUC_REGISTER_CONTEXT_DATA_7_WQ_BUF_BASE_LOWER,
+				     shift);
+		xe_fixup_u64_in_cmds(xe, cmds, size, head +
+				     XE_GUC_REGISTER_CONTEXT_DATA_10_HW_LRC_ADDR, shift);
+		break;
+	case XE_GUC_ACTION_REGISTER_CONTEXT_MULTI_LRC:
+		if (len < XE_GUC_REGISTER_CONTEXT_MULTI_LRC_MSG_MIN_LEN)
+			goto err_len;
+		n = xe_map_rd_ring_u32(xe, cmds, head +
+				       XE_GUC_REGISTER_CONTEXT_MULTI_LRC_DATA_10_NUM_CTXS, size);
+		if (len != XE_GUC_REGISTER_CONTEXT_MULTI_LRC_MSG_MIN_LEN + 2 * n)
+			goto err_len;
+		xe_fixup_u64_in_cmds(xe, cmds, size, head +
+				     XE_GUC_REGISTER_CONTEXT_MULTI_LRC_DATA_5_WQ_DESC_ADDR_LOWER,
+				     shift);
+		xe_fixup_u64_in_cmds(xe, cmds, size, head +
+				     XE_GUC_REGISTER_CONTEXT_MULTI_LRC_DATA_7_WQ_BUF_BASE_LOWER,
+				     shift);
+		for (i = 0; i < n; i++)
+			xe_fixup_u64_in_cmds(xe, cmds, size, head +
+					     XE_GUC_REGISTER_CONTEXT_MULTI_LRC_DATA_11_HW_LRC_ADDR
+					     + 2 * i, shift);
+		break;
+	default:
+		break;
+	}
+	return true;
+
+err_len:
+	xe_gt_err(gt, "Skipped G2G %#x message fixups, unexpected length (%u)\n", action, len);
+	return false;
+}
+
+/*
+ * Apply fixups to the next outgoing CT message within given CTB
+ * @ct: the &xe_guc_ct struct instance representing the target GuC
+ * @h2g: the &guc_ctb struct instance of the target buffer
+ * @shift: shift to be added to all GGTT addresses within the CTB
+ * @mhead: pointer to an integer storing message start position; the
+ *   position is changed to next message before this function return
+ * @avail: size of the area available for parsing, that is length
+ *   of all remaining messages stored within the CTB
+ * Return: size of the area available for parsing after one message
+ *   has been parsed, that is length remaining from the updated mhead
+ */
+static int ct_fixup_ggtt_in_buffer(struct xe_guc_ct *ct, struct guc_ctb *h2g,
+				   s64 shift, u32 *mhead, s32 avail)
+{
+	struct xe_gt *gt = ct_to_gt(ct);
+	struct xe_device *xe = ct_to_xe(ct);
+	u32 msg[GUC_HXG_MSG_MIN_LEN];
+	u32 size = h2g->info.size;
+	u32 head = *mhead;
+	u32 len;
+
+	xe_gt_assert(gt, avail >= (s32)GUC_CTB_MSG_MIN_LEN);
+
+	/* Read header */
+	msg[0] = xe_map_rd_ring_u32(xe, &h2g->cmds, head, size);
+	len = FIELD_GET(GUC_CTB_MSG_0_NUM_DWORDS, msg[0]) + GUC_CTB_MSG_MIN_LEN;
+
+	if (unlikely(len > (u32)avail)) {
+		xe_gt_err(gt, "H2G channel broken on read, avail=%d, len=%d, fixups skipped\n",
+			  avail, len);
+		return 0;
+	}
+
+	head = (head + GUC_CTB_MSG_MIN_LEN) % size;
+	if (!ct_fixup_ggtt_in_message(ct, &h2g->cmds, head, msg_len_to_hxg_len(len), size, shift))
+		return 0;
+	*mhead = (head + msg_len_to_hxg_len(len)) % size;
+
+	return avail - len;
+}
+
+/**
+ * xe_guc_ct_fixup_messages_with_ggtt - Fixup any pending H2G CTB messages
+ * @ct: pointer to CT struct of the target GuC
+ * @ggtt_shift: shift to be added to all GGTT addresses within the CTB
+ *
+ * Messages in GuC to Host CTB are owned by GuC and any fixups in them
+ * are made by GuC. But content of the Host to GuC CTB is owned by the
+ * KMD, so fixups to GGTT references in any pending messages need to be
+ * applied here.
+ * This function updates GGTT offsets in payloads of pending H2G CTB
+ * messages (messages which were not consumed by GuC before the VF got
+ * paused).
+ */
+void xe_guc_ct_fixup_messages_with_ggtt(struct xe_guc_ct *ct, s64 ggtt_shift)
+{
+	struct guc_ctb *h2g = &ct->ctbs.h2g;
+	struct xe_guc *guc = ct_to_guc(ct);
+	struct xe_gt *gt = guc_to_gt(guc);
+	u32 head, tail, size;
+	s32 avail;
+
+	if (unlikely(h2g->info.broken))
+		return;
+
+	h2g->info.head = desc_read(ct_to_xe(ct), h2g, head);
+	head = h2g->info.head;
+	tail = READ_ONCE(h2g->info.tail);
+	size = h2g->info.size;
+
+	if (unlikely(head > size))
+		goto corrupted;
+
+	if (unlikely(tail >= size))
+		goto corrupted;
+
+	avail = tail - head;
+
+	/* beware of buffer wrap case */
+	if (unlikely(avail < 0))
+		avail += size;
+	xe_gt_dbg(gt, "available %d (%u:%u:%u)\n", avail, head, tail, size);
+	xe_gt_assert(gt, avail >= 0);
+
+	while (avail > 0)
+		avail = ct_fixup_ggtt_in_buffer(ct, h2g, ggtt_shift, &head, avail);
+
+	return;
+
+corrupted:
+	xe_gt_err(gt, "Corrupted H2G descriptor head=%u tail=%u size=%u, fixups not applied\n",
+		  head, tail, size);
+	h2g->info.broken = true;
 }
 
 static struct xe_guc_ct_snapshot *guc_ct_snapshot_alloc(struct xe_guc_ct *ct, bool atomic,
