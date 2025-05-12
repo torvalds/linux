@@ -30,7 +30,7 @@ struct fuse_copy_state {
 	unsigned int len;
 	unsigned int offset;
 	bool write:1;
-	bool move_pages:1;
+	bool move_folios:1;
 	bool is_uring:1;
 	struct {
 		unsigned int copied_sz; /* copied size into the user buffer */
