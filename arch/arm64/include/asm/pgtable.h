@@ -64,7 +64,11 @@ static inline void queue_pte_barriers(void)
 {
 	unsigned long flags;
 
-	VM_WARN_ON(in_interrupt());
+	if (in_interrupt()) {
+		emit_pte_barriers();
+		return;
+	}
+
 	flags = read_thread_flags();
 
 	if (flags & BIT(TIF_LAZY_MMU)) {
@@ -79,7 +83,9 @@ static inline void queue_pte_barriers(void)
 #define  __HAVE_ARCH_ENTER_LAZY_MMU_MODE
 static inline void arch_enter_lazy_mmu_mode(void)
 {
-	VM_WARN_ON(in_interrupt());
+	if (in_interrupt())
+		return;
+
 	VM_WARN_ON(test_thread_flag(TIF_LAZY_MMU));
 
 	set_thread_flag(TIF_LAZY_MMU);
@@ -87,12 +93,18 @@ static inline void arch_enter_lazy_mmu_mode(void)
 
 static inline void arch_flush_lazy_mmu_mode(void)
 {
+	if (in_interrupt())
+		return;
+
 	if (test_and_clear_thread_flag(TIF_LAZY_MMU_PENDING))
 		emit_pte_barriers();
 }
 
 static inline void arch_leave_lazy_mmu_mode(void)
 {
+	if (in_interrupt())
+		return;
+
 	arch_flush_lazy_mmu_mode();
 	clear_thread_flag(TIF_LAZY_MMU);
 }
