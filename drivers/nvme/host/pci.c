@@ -113,7 +113,7 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown);
 static void nvme_delete_io_queues(struct nvme_dev *dev);
 static void nvme_update_attrs(struct nvme_dev *dev);
 
-struct nvme_prp_dma_pools {
+struct nvme_descriptor_pools {
 	struct dma_pool *large;
 	struct dma_pool *small;
 };
@@ -166,7 +166,7 @@ struct nvme_dev {
 	unsigned int nr_allocated_queues;
 	unsigned int nr_write_queues;
 	unsigned int nr_poll_queues;
-	struct nvme_prp_dma_pools prp_pools[];
+	struct nvme_descriptor_pools descriptor_pools[];
 };
 
 static int io_queue_depth_set(const char *val, const struct kernel_param *kp)
@@ -196,7 +196,7 @@ static inline struct nvme_dev *to_nvme_dev(struct nvme_ctrl *ctrl)
  */
 struct nvme_queue {
 	struct nvme_dev *dev;
-	struct nvme_prp_dma_pools prp_pools;
+	struct nvme_descriptor_pools descriptor_pools;
 	spinlock_t sq_lock;
 	void *sq_cmds;
 	 /* only used for poll queues: */
@@ -400,46 +400,44 @@ static int nvme_pci_npages_prp(void)
 	return DIV_ROUND_UP(8 * nprps, NVME_CTRL_PAGE_SIZE - 8);
 }
 
-static struct nvme_prp_dma_pools *
-nvme_setup_prp_pools(struct nvme_dev *dev, unsigned numa_node)
+static struct nvme_descriptor_pools *
+nvme_setup_descriptor_pools(struct nvme_dev *dev, unsigned numa_node)
 {
-	struct nvme_prp_dma_pools *prp_pools = &dev->prp_pools[numa_node];
+	struct nvme_descriptor_pools *pools = &dev->descriptor_pools[numa_node];
 	size_t small_align = 256;
 
-	if (prp_pools->small)
-		return prp_pools; /* already initialized */
+	if (pools->small)
+		return pools; /* already initialized */
 
-	prp_pools->large = dma_pool_create_node("prp list page", dev->dev,
-						NVME_CTRL_PAGE_SIZE,
-						NVME_CTRL_PAGE_SIZE, 0,
-						numa_node);
-	if (!prp_pools->large)
+	pools->large = dma_pool_create_node("nvme descriptor page", dev->dev,
+			NVME_CTRL_PAGE_SIZE, NVME_CTRL_PAGE_SIZE, 0, numa_node);
+	if (!pools->large)
 		return ERR_PTR(-ENOMEM);
 
 	if (dev->ctrl.quirks & NVME_QUIRK_DMAPOOL_ALIGN_512)
 		small_align = 512;
 
 	/* Optimisation for I/Os between 4k and 128k */
-	prp_pools->small = dma_pool_create_node("prp list 256", dev->dev,
-						256, small_align, 0, numa_node);
-	if (!prp_pools->small) {
-		dma_pool_destroy(prp_pools->large);
-		prp_pools->large = NULL;
+	pools->small = dma_pool_create_node("nvme descriptor 256", dev->dev,
+			256, small_align, 0, numa_node);
+	if (!pools->small) {
+		dma_pool_destroy(pools->large);
+		pools->large = NULL;
 		return ERR_PTR(-ENOMEM);
 	}
 
-	return prp_pools;
+	return pools;
 }
 
-static void nvme_release_prp_pools(struct nvme_dev *dev)
+static void nvme_release_descriptor_pools(struct nvme_dev *dev)
 {
 	unsigned i;
 
 	for (i = 0; i < nr_node_ids; i++) {
-		struct nvme_prp_dma_pools *prp_pools = &dev->prp_pools[i];
+		struct nvme_descriptor_pools *pools = &dev->descriptor_pools[i];
 
-		dma_pool_destroy(prp_pools->large);
-		dma_pool_destroy(prp_pools->small);
+		dma_pool_destroy(pools->large);
+		dma_pool_destroy(pools->small);
 	}
 }
 
@@ -448,16 +446,16 @@ static int nvme_init_hctx_common(struct blk_mq_hw_ctx *hctx, void *data,
 {
 	struct nvme_dev *dev = to_nvme_dev(data);
 	struct nvme_queue *nvmeq = &dev->queues[qid];
-	struct nvme_prp_dma_pools *prp_pools;
+	struct nvme_descriptor_pools *pools;
 	struct blk_mq_tags *tags;
 
 	tags = qid ? dev->tagset.tags[qid - 1] : dev->admin_tagset.tags[0];
 	WARN_ON(tags != hctx->tags);
-	prp_pools = nvme_setup_prp_pools(dev, hctx->numa_node);
-	if (IS_ERR(prp_pools))
-		return PTR_ERR(prp_pools);
+	pools = nvme_setup_descriptor_pools(dev, hctx->numa_node);
+	if (IS_ERR(pools))
+		return PTR_ERR(pools);
 
-	nvmeq->prp_pools = *prp_pools;
+	nvmeq->descriptor_pools = *pools;
 	hctx->driver_data = nvmeq;
 	return 0;
 }
@@ -602,7 +600,8 @@ static void nvme_free_prps(struct nvme_queue *nvmeq, struct request *req)
 		__le64 *prp_list = iod->descriptors[i];
 		dma_addr_t next_dma_addr = le64_to_cpu(prp_list[last_prp]);
 
-		dma_pool_free(nvmeq->prp_pools.large, prp_list, dma_addr);
+		dma_pool_free(nvmeq->descriptor_pools.large, prp_list,
+				dma_addr);
 		dma_addr = next_dma_addr;
 	}
 }
@@ -623,11 +622,11 @@ static void nvme_unmap_data(struct nvme_dev *dev, struct nvme_queue *nvmeq,
 	dma_unmap_sgtable(dev->dev, &iod->sgt, rq_dma_dir(req), 0);
 
 	if (iod->nr_descriptors == 0)
-		dma_pool_free(nvmeq->prp_pools.small, iod->descriptors[0],
-			      iod->first_dma);
+		dma_pool_free(nvmeq->descriptor_pools.small,
+				iod->descriptors[0], iod->first_dma);
 	else if (iod->nr_descriptors == 1)
-		dma_pool_free(nvmeq->prp_pools.large, iod->descriptors[0],
-			      iod->first_dma);
+		dma_pool_free(nvmeq->descriptor_pools.large,
+				iod->descriptors[0], iod->first_dma);
 	else
 		nvme_free_prps(nvmeq, req);
 	mempool_free(iod->sgt.sgl, dev->iod_mempool);
@@ -683,10 +682,10 @@ static blk_status_t nvme_pci_setup_prps(struct nvme_queue *nvmeq,
 
 	nprps = DIV_ROUND_UP(length, NVME_CTRL_PAGE_SIZE);
 	if (nprps <= (256 / 8)) {
-		pool = nvmeq->prp_pools.small;
+		pool = nvmeq->descriptor_pools.small;
 		iod->nr_descriptors = 0;
 	} else {
-		pool = nvmeq->prp_pools.large;
+		pool = nvmeq->descriptor_pools.large;
 		iod->nr_descriptors = 1;
 	}
 
@@ -773,10 +772,10 @@ static blk_status_t nvme_pci_setup_sgls(struct nvme_queue *nvmeq,
 	}
 
 	if (entries <= (256 / sizeof(struct nvme_sgl_desc))) {
-		pool = nvmeq->prp_pools.small;
+		pool = nvmeq->descriptor_pools.small;
 		iod->nr_descriptors = 0;
 	} else {
-		pool = nvmeq->prp_pools.large;
+		pool = nvmeq->descriptor_pools.large;
 		iod->nr_descriptors = 1;
 	}
 
@@ -921,7 +920,8 @@ static blk_status_t nvme_pci_setup_meta_sgls(struct nvme_dev *dev,
 	if (rc)
 		goto out_free_sg;
 
-	sg_list = dma_pool_alloc(nvmeq->prp_pools.small, GFP_ATOMIC, &sgl_dma);
+	sg_list = dma_pool_alloc(nvmeq->descriptor_pools.small, GFP_ATOMIC,
+			&sgl_dma);
 	if (!sg_list)
 		goto out_unmap_sg;
 
@@ -1108,7 +1108,7 @@ static __always_inline void nvme_unmap_metadata(struct nvme_dev *dev,
 		return;
 	}
 
-	dma_pool_free(nvmeq->prp_pools.small, iod->meta_descriptor,
+	dma_pool_free(nvmeq->descriptor_pools.small, iod->meta_descriptor,
 			iod->meta_dma);
 	dma_unmap_sgtable(dev->dev, &iod->meta_sgt, rq_dma_dir(req), 0);
 	mempool_free(iod->meta_sgt.sgl, dev->iod_meta_mempool);
@@ -3214,8 +3214,8 @@ static struct nvme_dev *nvme_pci_alloc_dev(struct pci_dev *pdev,
 	struct nvme_dev *dev;
 	int ret = -ENOMEM;
 
-	dev = kzalloc_node(sizeof(*dev) + nr_node_ids * sizeof(*dev->prp_pools),
-			   GFP_KERNEL, node);
+	dev = kzalloc_node(sizeof(*dev) + nr_node_ids *
+			sizeof(*dev->descriptor_pools), GFP_KERNEL, node);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 	INIT_WORK(&dev->ctrl.reset_work, nvme_reset_work);
@@ -3432,7 +3432,7 @@ static void nvme_remove(struct pci_dev *pdev)
 	nvme_free_queues(dev, 0);
 	mempool_destroy(dev->iod_mempool);
 	mempool_destroy(dev->iod_meta_mempool);
-	nvme_release_prp_pools(dev);
+	nvme_release_descriptor_pools(dev);
 	nvme_dev_unmap(dev);
 	nvme_uninit_ctrl(&dev->ctrl);
 }
