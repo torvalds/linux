@@ -216,7 +216,6 @@ struct snd_msnd {
 	int			captureLimit;
 	int			capturePeriods;
 	struct snd_card		*card;
-	void			*msndmidi_mpu;
 	struct snd_rawmidi	*rmidi;
 
 	/* Hardware resources */
@@ -285,9 +284,6 @@ void snd_msnd_dsp_halt(struct snd_msnd *chip, struct file *file);
 int snd_msnd_DAPQ(struct snd_msnd *chip, int start);
 int snd_msnd_DARQ(struct snd_msnd *chip, int start);
 int snd_msnd_pcm(struct snd_card *card, int device);
-
-int snd_msndmidi_new(struct snd_card *card, int device);
-void snd_msndmidi_input_read(void *mpu);
 
 void snd_msndmix_setup(struct snd_msnd *chip);
 int snd_msndmix_new(struct snd_card *card);
