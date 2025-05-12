@@ -2576,19 +2576,18 @@ u64 bch2_min_rw_member_capacity(struct bch_fs *c)
 static bool bch2_dev_has_open_write_point(struct bch_fs *c, struct bch_dev *ca)
 {
 	struct open_bucket *ob;
-	bool ret = false;
 
 	for (ob = c->open_buckets;
 	     ob < c->open_buckets + ARRAY_SIZE(c->open_buckets);
 	     ob++) {
-		spin_lock(&ob->lock);
-		if (ob->valid && !ob->on_partial_list &&
-		    ob->dev == ca->dev_idx)
-			ret = true;
-		spin_unlock(&ob->lock);
+		scoped_guard(spinlock, &ob->lock) {
+			if (ob->valid && !ob->on_partial_list &&
+			    ob->dev == ca->dev_idx)
+				return true;
+		}
 	}
 
-	return ret;
+	return false;
 }
 
 void bch2_dev_allocator_set_rw(struct bch_fs *c, struct bch_dev *ca, bool rw)
