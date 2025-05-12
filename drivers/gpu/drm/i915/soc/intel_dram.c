@@ -98,7 +98,7 @@ static unsigned int chv_mem_freq(struct drm_i915_private *i915)
 	u32 val;
 
 	vlv_iosf_sb_get(i915, BIT(VLV_IOSF_SB_CCK));
-	val = vlv_cck_read(i915, CCK_FUSE_REG);
+	val = vlv_iosf_sb_read(i915, VLV_IOSF_SB_CCK, CCK_FUSE_REG);
 	vlv_iosf_sb_put(i915, BIT(VLV_IOSF_SB_CCK));
 
 	switch ((val >> 2) & 0x7) {
@@ -114,7 +114,7 @@ static unsigned int vlv_mem_freq(struct drm_i915_private *i915)
 	u32 val;
 
 	vlv_iosf_sb_get(i915, BIT(VLV_IOSF_SB_PUNIT));
-	val = vlv_punit_read(i915, PUNIT_REG_GPU_FREQ_STS);
+	val = vlv_iosf_sb_read(i915, VLV_IOSF_SB_PUNIT, PUNIT_REG_GPU_FREQ_STS);
 	vlv_iosf_sb_put(i915, BIT(VLV_IOSF_SB_PUNIT));
 
 	switch ((val >> 6) & 3) {
