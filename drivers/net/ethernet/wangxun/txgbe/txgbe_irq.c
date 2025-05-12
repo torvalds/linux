@@ -112,8 +112,6 @@ static irqreturn_t txgbe_misc_irq_handle(int irq, void *data)
 
 	if (wx->pdev->msix_enabled) {
 		eicr = wx_misc_isb(wx, WX_ISB_MISC);
-		if (!eicr)
-			return IRQ_NONE;
 		txgbe->eicr = eicr;
 		if (eicr & TXGBE_PX_MISC_IC_VF_MBOX) {
 			wx_msg_task(txgbe->wx);
@@ -139,10 +137,7 @@ static irqreturn_t txgbe_misc_irq_handle(int irq, void *data)
 	q_vector = wx->q_vector[0];
 	napi_schedule_irqoff(&q_vector->napi);
 
-	eicr = wx_misc_isb(wx, WX_ISB_MISC);
-	if (!eicr)
-		return IRQ_NONE;
-	txgbe->eicr = eicr;
+	txgbe->eicr = wx_misc_isb(wx, WX_ISB_MISC);
 
 	return IRQ_WAKE_THREAD;
 }
