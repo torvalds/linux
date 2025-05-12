@@ -2491,6 +2491,7 @@ F:	include/dt-bindings/bus/moxtet.h
 F:	include/linux/armada-37xx-rwtm-mailbox.h
 F:	include/linux/moxtet.h
 F:	include/linux/turris-omnia-mcu-interface.h
+F:	include/linux/turris-signing-key.h
 
 ARM/FARADAY FA526 PORT
 M:	Hans Ulli Kroll <ulli.kroll@googlemail.com>

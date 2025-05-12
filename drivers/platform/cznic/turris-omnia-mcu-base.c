@@ -392,6 +392,10 @@ static int omnia_mcu_probe(struct i2c_client *client)
 	if (err)
 		return err;
 
+	err = omnia_mcu_register_keyctl(mcu);
+	if (err)
+		return err;
+
 	return omnia_mcu_register_trng(mcu);
 }
 
