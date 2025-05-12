@@ -2006,7 +2006,12 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 
 	delayed_refs = &trans->transaction->delayed_refs;
 	if (min_bytes == 0) {
-		max_count = delayed_refs->num_heads_ready;
+		/*
+		 * We may be subject to a harmless race if some task is
+		 * concurrently adding or removing a delayed ref, so silence
+		 * KCSAN and similar tools.
+		 */
+		max_count = data_race(delayed_refs->num_heads_ready);
 		min_bytes = U64_MAX;
 	}
 
