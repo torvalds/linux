@@ -39,15 +39,6 @@
 #include "flow_netlink.h"
 #include "openvswitch_trace.h"
 
-struct deferred_action {
-	struct sk_buff *skb;
-	const struct nlattr *actions;
-	int actions_len;
-
-	/* Store pkt_key clone when creating deferred action. */
-	struct sw_flow_key pkt_key;
-};
-
 #define MAX_L2_LEN	(VLAN_ETH_HLEN + 3 * MPLS_HLEN)
 struct ovs_frag_data {
 	unsigned long dst;
@@ -64,27 +55,9 @@ struct ovs_frag_data {
 
 static DEFINE_PER_CPU(struct ovs_frag_data, ovs_frag_data_storage);
 
-#define DEFERRED_ACTION_FIFO_SIZE 10
-#define OVS_RECURSION_LIMIT 5
-#define OVS_DEFERRED_ACTION_THRESHOLD (OVS_RECURSION_LIMIT - 2)
-struct action_fifo {
-	int head;
-	int tail;
-	/* Deferred action fifo queue storage. */
-	struct deferred_action fifo[DEFERRED_ACTION_FIFO_SIZE];
+DEFINE_PER_CPU(struct ovs_pcpu_storage, ovs_pcpu_storage) = {
+	.bh_lock = INIT_LOCAL_LOCK(bh_lock),
 };
-
-struct action_flow_keys {
-	struct sw_flow_key key[OVS_DEFERRED_ACTION_THRESHOLD];
-};
-
-struct ovs_pcpu_storage {
-	struct action_fifo action_fifos;
-	struct action_flow_keys flow_keys;
-	int exec_level;
-};
-
-static DEFINE_PER_CPU(struct ovs_pcpu_storage, ovs_pcpu_storage);
 
 /* Make a clone of the 'key', using the pre-allocated percpu 'flow_keys'
  * space. Return NULL if out of key spaces.

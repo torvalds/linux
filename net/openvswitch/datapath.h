@@ -173,6 +173,39 @@ struct ovs_net {
 	bool xt_label;
 };
 
+struct deferred_action {
+	struct sk_buff *skb;
+	const struct nlattr *actions;
+	int actions_len;
+
+	/* Store pkt_key clone when creating deferred action. */
+	struct sw_flow_key pkt_key;
+};
+
+#define DEFERRED_ACTION_FIFO_SIZE 10
+#define OVS_RECURSION_LIMIT 5
+#define OVS_DEFERRED_ACTION_THRESHOLD (OVS_RECURSION_LIMIT - 2)
+
+struct action_fifo {
+	int head;
+	int tail;
+	/* Deferred action fifo queue storage. */
+	struct deferred_action fifo[DEFERRED_ACTION_FIFO_SIZE];
+};
+
+struct action_flow_keys {
+	struct sw_flow_key key[OVS_DEFERRED_ACTION_THRESHOLD];
+};
+
+struct ovs_pcpu_storage {
+	struct action_fifo action_fifos;
+	struct action_flow_keys flow_keys;
+	int exec_level;
+	struct task_struct *owner;
+	local_lock_t bh_lock;
+};
+DECLARE_PER_CPU(struct ovs_pcpu_storage, ovs_pcpu_storage);
+
 /**
  * enum ovs_pkt_hash_types - hash info to include with a packet
  * to send to userspace.
