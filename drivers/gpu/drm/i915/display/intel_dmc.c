@@ -567,6 +567,15 @@ static bool is_dmc_evt_htp_reg(struct intel_display *display,
 	return offset >= start && offset < end;
 }
 
+static bool is_event_handler(struct intel_display *display,
+			     enum intel_dmc_id dmc_id,
+			     unsigned int event_id,
+			     i915_reg_t reg, u32 data)
+{
+	return is_dmc_evt_ctl_reg(display, dmc_id, reg) &&
+		REG_FIELD_GET(DMC_EVT_CTL_EVENT_ID_MASK, data) == event_id;
+}
+
 /**
  * intel_dmc_block_pkgc() - block PKG C-state
  * @display: display instance
@@ -625,12 +634,12 @@ static bool disable_dmc_evt(struct intel_display *display,
 
 	/* also disable the flip queue event on the main DMC on TGL */
 	if (display->platform.tigerlake &&
-	    REG_FIELD_GET(DMC_EVT_CTL_EVENT_ID_MASK, data) == MAINDMC_EVENT_CLK_MSEC)
+	    is_event_handler(display, dmc_id, MAINDMC_EVENT_CLK_MSEC, reg, data))
 		return true;
 
 	/* also disable the HRR event on the main DMC on TGL/ADLS */
 	if ((display->platform.tigerlake || display->platform.alderlake_s) &&
-	    REG_FIELD_GET(DMC_EVT_CTL_EVENT_ID_MASK, data) == MAINDMC_EVENT_VBLANK_A)
+	    is_event_handler(display, dmc_id, MAINDMC_EVENT_VBLANK_A, reg, data))
 		return true;
 
 	return false;
