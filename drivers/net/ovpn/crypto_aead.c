@@ -88,12 +88,15 @@ int ovpn_aead_encrypt(struct ovpn_peer *peer, struct ovpn_crypto_key_slot *ks,
 
 	/* build scatterlist to encrypt packet payload */
 	ret = skb_to_sgvec_nomark(skb, sg + 1, 0, skb->len);
-	if (unlikely(nfrags != ret))
-		return -EINVAL;
+	if (unlikely(ret < 0)) {
+		netdev_err(peer->ovpn->dev,
+			   "encrypt: cannot map skb to sg: %d\n", ret);
+		return ret;
+	}
 
 	/* append auth_tag onto scatterlist */
 	__skb_push(skb, tag_size);
-	sg_set_buf(sg + nfrags + 1, skb->data, tag_size);
+	sg_set_buf(sg + ret + 1, skb->data, tag_size);
 
 	/* obtain packet ID, which is used both as a first
 	 * 4 bytes of nonce and last 4 bytes of associated data.
@@ -201,11 +204,14 @@ int ovpn_aead_decrypt(struct ovpn_peer *peer, struct ovpn_crypto_key_slot *ks,
 
 	/* build scatterlist to decrypt packet payload */
 	ret = skb_to_sgvec_nomark(skb, sg + 1, payload_offset, payload_len);
-	if (unlikely(nfrags != ret))
-		return -EINVAL;
+	if (unlikely(ret < 0)) {
+		netdev_err(peer->ovpn->dev,
+			   "decrypt: cannot map skb to sg: %d\n", ret);
+		return ret;
+	}
 
 	/* append auth_tag onto scatterlist */
-	sg_set_buf(sg + nfrags + 1, skb->data + OVPN_AAD_SIZE, tag_size);
+	sg_set_buf(sg + ret + 1, skb->data + OVPN_AAD_SIZE, tag_size);
 
 	/* iv may be required by async crypto */
 	ovpn_skb_cb(skb)->iv = kmalloc(OVPN_NONCE_SIZE, GFP_ATOMIC);
