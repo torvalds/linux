@@ -2729,13 +2729,9 @@ static int __init dp_init(void)
 
 	pr_info("Open vSwitch switching datapath\n");
 
-	err = action_fifos_init();
-	if (err)
-		goto error;
-
 	err = ovs_internal_dev_rtnl_link_register();
 	if (err)
-		goto error_action_fifos_exit;
+		goto error;
 
 	err = ovs_flow_init();
 	if (err)
@@ -2778,8 +2774,6 @@ error_flow_exit:
 	ovs_flow_exit();
 error_unreg_rtnl_link:
 	ovs_internal_dev_rtnl_link_unregister();
-error_action_fifos_exit:
-	action_fifos_exit();
 error:
 	return err;
 }
@@ -2795,7 +2789,6 @@ static void dp_cleanup(void)
 	ovs_vport_exit();
 	ovs_flow_exit();
 	ovs_internal_dev_rtnl_link_unregister();
-	action_fifos_exit();
 }
 
 module_init(dp_init);

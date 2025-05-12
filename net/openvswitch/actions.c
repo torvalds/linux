@@ -78,17 +78,22 @@ struct action_flow_keys {
 	struct sw_flow_key key[OVS_DEFERRED_ACTION_THRESHOLD];
 };
 
-static struct action_fifo __percpu *action_fifos;
-static struct action_flow_keys __percpu *flow_keys;
-static DEFINE_PER_CPU(int, exec_actions_level);
+struct ovs_pcpu_storage {
+	struct action_fifo action_fifos;
+	struct action_flow_keys flow_keys;
+	int exec_level;
+};
+
+static DEFINE_PER_CPU(struct ovs_pcpu_storage, ovs_pcpu_storage);
 
 /* Make a clone of the 'key', using the pre-allocated percpu 'flow_keys'
  * space. Return NULL if out of key spaces.
  */
 static struct sw_flow_key *clone_key(const struct sw_flow_key *key_)
 {
-	struct action_flow_keys *keys = this_cpu_ptr(flow_keys);
-	int level = this_cpu_read(exec_actions_level);
+	struct ovs_pcpu_storage *ovs_pcpu = this_cpu_ptr(&ovs_pcpu_storage);
+	struct action_flow_keys *keys = &ovs_pcpu->flow_keys;
+	int level = ovs_pcpu->exec_level;
 	struct sw_flow_key *key = NULL;
 
 	if (level <= OVS_DEFERRED_ACTION_THRESHOLD) {
@@ -132,10 +137,9 @@ static struct deferred_action *add_deferred_actions(struct sk_buff *skb,
 				    const struct nlattr *actions,
 				    const int actions_len)
 {
-	struct action_fifo *fifo;
+	struct action_fifo *fifo = this_cpu_ptr(&ovs_pcpu_storage.action_fifos);
 	struct deferred_action *da;
 
-	fifo = this_cpu_ptr(action_fifos);
 	da = action_fifo_put(fifo);
 	if (da) {
 		da->skb = skb;
@@ -1608,13 +1612,13 @@ static int clone_execute(struct datapath *dp, struct sk_buff *skb,
 
 		if (actions) { /* Sample action */
 			if (clone_flow_key)
-				__this_cpu_inc(exec_actions_level);
+				__this_cpu_inc(ovs_pcpu_storage.exec_level);
 
 			err = do_execute_actions(dp, skb, clone,
 						 actions, len);
 
 			if (clone_flow_key)
-				__this_cpu_dec(exec_actions_level);
+				__this_cpu_dec(ovs_pcpu_storage.exec_level);
 		} else { /* Recirc action */
 			clone->recirc_id = recirc_id;
 			ovs_dp_process_packet(skb, clone);
@@ -1650,7 +1654,7 @@ static int clone_execute(struct datapath *dp, struct sk_buff *skb,
 
 static void process_deferred_actions(struct datapath *dp)
 {
-	struct action_fifo *fifo = this_cpu_ptr(action_fifos);
+	struct action_fifo *fifo = this_cpu_ptr(&ovs_pcpu_storage.action_fifos);
 
 	/* Do not touch the FIFO in case there is no deferred actions. */
 	if (action_fifo_is_empty(fifo))
@@ -1681,7 +1685,7 @@ int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
 {
 	int err, level;
 
-	level = __this_cpu_inc_return(exec_actions_level);
+	level = __this_cpu_inc_return(ovs_pcpu_storage.exec_level);
 	if (unlikely(level > OVS_RECURSION_LIMIT)) {
 		net_crit_ratelimited("ovs: recursion limit reached on datapath %s, probable configuration error\n",
 				     ovs_dp_name(dp));
@@ -1698,27 +1702,6 @@ int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
 		process_deferred_actions(dp);
 
 out:
-	__this_cpu_dec(exec_actions_level);
+	__this_cpu_dec(ovs_pcpu_storage.exec_level);
 	return err;
-}
-
-int action_fifos_init(void)
-{
-	action_fifos = alloc_percpu(struct action_fifo);
-	if (!action_fifos)
-		return -ENOMEM;
-
-	flow_keys = alloc_percpu(struct action_flow_keys);
-	if (!flow_keys) {
-		free_percpu(action_fifos);
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
-void action_fifos_exit(void)
-{
-	free_percpu(action_fifos);
-	free_percpu(flow_keys);
 }
