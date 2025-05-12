@@ -100,6 +100,15 @@ do {									\
 #define fbnic_mk_fw_ver_str(_rev_id, _str) \
 	fbnic_mk_full_fw_ver_str(_rev_id, "", "", _str, sizeof(_str))
 
+enum {
+	QSPI_SECTION_CMRT			= 0,
+	QSPI_SECTION_CONTROL_FW			= 1,
+	QSPI_SECTION_UCODE			= 2,
+	QSPI_SECTION_OPTION_ROM			= 3,
+	QSPI_SECTION_USER			= 4,
+	QSPI_SECTION_INVALID,
+};
+
 #define FW_HEARTBEAT_PERIOD		(10 * HZ)
 
 enum {

@@ -28,6 +28,17 @@ devlink dev info provides version information for all three components. In
 addition to the version the hg commit hash of the build is included as a
 separate entry.
 
+Upgrading Firmware
+------------------
+
+fbnic supports updating firmware using signed PLDM images with devlink dev
+flash. PLDM images are written into the flash. Flashing does not interrupt
+the operation of the device.
+
+On host boot the latest UEFI driver is always used, no explicit activation
+is required. Firmware activation is required to run new control firmware. cmrt
+firmware can only be activated by power cycling the NIC.
+
 Statistics
 ----------
 
