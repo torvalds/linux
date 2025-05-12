@@ -1983,7 +1983,7 @@ static int mpage_submit_folio(struct mpage_da_data *mpd, struct folio *folio)
 		len = size & (len - 1);
 	err = ext4_bio_write_folio(&mpd->io_submit, folio, len);
 	if (!err)
-		mpd->wbc->nr_to_write--;
+		mpd->wbc->nr_to_write -= folio_nr_pages(folio);
 
 	return err;
 }
@@ -2206,7 +2206,6 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 
 	start = mpd->map.m_lblk >> bpp_bits;
 	end = (mpd->map.m_lblk + mpd->map.m_len - 1) >> bpp_bits;
-	lblk = start << bpp_bits;
 	pblock = mpd->map.m_pblk;
 
 	folio_batch_init(&fbatch);
@@ -2217,6 +2216,7 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 		for (i = 0; i < nr; i++) {
 			struct folio *folio = fbatch.folios[i];
 
+			lblk = folio->index << bpp_bits;
 			err = mpage_process_folio(mpd, folio, &lblk, &pblock,
 						 &map_bh);
 			/*
@@ -2442,7 +2442,7 @@ static int mpage_journal_page_buffers(handle_t *handle,
 	size_t len = folio_size(folio);
 
 	folio_clear_checked(folio);
-	mpd->wbc->nr_to_write--;
+	mpd->wbc->nr_to_write -= folio_nr_pages(folio);
 
 	if (folio_pos(folio) + len > size &&
 	    !ext4_verity_in_progress(inode))
