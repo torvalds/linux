@@ -83,10 +83,20 @@ static inline void queue_pte_barriers(void)
 #define  __HAVE_ARCH_ENTER_LAZY_MMU_MODE
 static inline void arch_enter_lazy_mmu_mode(void)
 {
+	/*
+	 * lazy_mmu_mode is not supposed to permit nesting. But in practice this
+	 * does happen with CONFIG_DEBUG_PAGEALLOC, where a page allocation
+	 * inside a lazy_mmu_mode section (such as zap_pte_range()) will change
+	 * permissions on the linear map with apply_to_page_range(), which
+	 * re-enters lazy_mmu_mode. So we tolerate nesting in our
+	 * implementation. The first call to arch_leave_lazy_mmu_mode() will
+	 * flush and clear the flag such that the remainder of the work in the
+	 * outer nest behaves as if outside of lazy mmu mode. This is safe and
+	 * keeps tracking simple.
+	 */
+
 	if (in_interrupt())
 		return;
-
-	VM_WARN_ON(test_thread_flag(TIF_LAZY_MMU));
 
 	set_thread_flag(TIF_LAZY_MMU);
 }
