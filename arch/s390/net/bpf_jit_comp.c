@@ -2583,9 +2583,8 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	if (nr_stack_args > MAX_NR_STACK_ARGS)
 		return -ENOTSUPP;
 
-	/* Return to %r14, since func_addr and %r0 are not available. */
-	if ((!func_addr && !(flags & BPF_TRAMP_F_ORIG_STACK)) ||
-	    (flags & BPF_TRAMP_F_INDIRECT))
+	/* Return to %r14 in the struct_ops case. */
+	if (flags & BPF_TRAMP_F_INDIRECT)
 		flags |= BPF_TRAMP_F_SKIP_FRAME;
 
 	/*
