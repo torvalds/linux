@@ -86,8 +86,8 @@ int rds_page_remainder_alloc(struct scatterlist *scat, unsigned long bytes,
 		goto out;
 	}
 
-	rem = &per_cpu(rds_page_remainders, get_cpu());
 	local_bh_disable();
+	rem = this_cpu_ptr(&rds_page_remainders);
 
 	while (1) {
 		/* avoid a tiny region getting stuck by tossing it */
@@ -116,12 +116,11 @@ int rds_page_remainder_alloc(struct scatterlist *scat, unsigned long bytes,
 
 		/* alloc if there is nothing for us to use */
 		local_bh_enable();
-		put_cpu();
 
 		page = alloc_page(gfp);
 
-		rem = &per_cpu(rds_page_remainders, get_cpu());
 		local_bh_disable();
+		rem = this_cpu_ptr(&rds_page_remainders);
 
 		if (!page) {
 			ret = -ENOMEM;
@@ -140,7 +139,6 @@ int rds_page_remainder_alloc(struct scatterlist *scat, unsigned long bytes,
 	}
 
 	local_bh_enable();
-	put_cpu();
 out:
 	rdsdebug("bytes %lu ret %d %p %u %u\n", bytes, ret,
 		 ret ? NULL : sg_page(scat), ret ? 0 : scat->offset,
