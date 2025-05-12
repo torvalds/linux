@@ -39,6 +39,19 @@ properties:
 
   dma-names: true
 
+  interconnects:
+    items:
+      - description: APE read memory client
+      - description: APE write memory client
+
+  interconnect-names:
+    items:
+      - const: dma-mem # read
+      - const: write
+
+  iommus:
+    maxItems: 1
+
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
     description: |
@@ -74,6 +87,9 @@ then:
         Should be "tx1", "tx2" ... "tx10" for DMA Tx channel
       minItems: 1
       maxItems: 20
+    interconnects: false
+    interconnect-names: false
+    iommus: false
 
 else:
   properties:
