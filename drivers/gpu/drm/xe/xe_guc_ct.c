@@ -628,6 +628,47 @@ static void g2h_release_space(struct xe_guc_ct *ct, u32 g2h_len)
 	spin_unlock_irq(&ct->fast_lock);
 }
 
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
+static void fast_req_track(struct xe_guc_ct *ct, u16 fence, u16 action)
+{
+	unsigned int slot = fence % ARRAY_SIZE(ct->fast_req);
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG_GUC)
+	unsigned long entries[SZ_32];
+	unsigned int n;
+
+	n = stack_trace_save(entries, ARRAY_SIZE(entries), 1);
+
+	/* May be called under spinlock, so avoid sleeping */
+	ct->fast_req[slot].stack = stack_depot_save(entries, n, GFP_NOWAIT);
+#endif
+	ct->fast_req[slot].fence = fence;
+	ct->fast_req[slot].action = action;
+}
+#else
+static void fast_req_track(struct xe_guc_ct *ct, u16 fence, u16 action)
+{
+}
+#endif
+
+/*
+ * The CT protocol accepts a 16 bits fence. This field is fully owned by the
+ * driver, the GuC will just copy it to the reply message. Since we need to
+ * be able to distinguish between replies to REQUEST and FAST_REQUEST messages,
+ * we use one bit of the seqno as an indicator for that and a rolling counter
+ * for the remaining 15 bits.
+ */
+#define CT_SEQNO_MASK GENMASK(14, 0)
+#define CT_SEQNO_UNTRACKED BIT(15)
+static u16 next_ct_seqno(struct xe_guc_ct *ct, bool is_g2h_fence)
+{
+	u32 seqno = ct->fence_seqno++ & CT_SEQNO_MASK;
+
+	if (!is_g2h_fence)
+		seqno |= CT_SEQNO_UNTRACKED;
+
+	return seqno;
+}
+
 #define H2G_CT_HEADERS (GUC_CTB_HDR_LEN + 1) /* one DW CTB header and one DW HxG header */
 
 static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
@@ -704,6 +745,9 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 			FIELD_PREP(GUC_HXG_EVENT_MSG_0_ACTION |
 				   GUC_HXG_EVENT_MSG_0_DATA0, action[0]);
 	} else {
+		fast_req_track(ct, ct_fence_value,
+			       FIELD_GET(GUC_HXG_EVENT_MSG_0_ACTION, action[0]));
+
 		cmd[1] =
 			FIELD_PREP(GUC_HXG_MSG_0_TYPE, GUC_HXG_TYPE_FAST_REQUEST) |
 			FIELD_PREP(GUC_HXG_EVENT_MSG_0_ACTION |
@@ -734,25 +778,6 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 corrupted:
 	CT_DEAD(ct, &ct->ctbs.h2g, H2G_WRITE);
 	return -EPIPE;
-}
-
-/*
- * The CT protocol accepts a 16 bits fence. This field is fully owned by the
- * driver, the GuC will just copy it to the reply message. Since we need to
- * be able to distinguish between replies to REQUEST and FAST_REQUEST messages,
- * we use one bit of the seqno as an indicator for that and a rolling counter
- * for the remaining 15 bits.
- */
-#define CT_SEQNO_MASK GENMASK(14, 0)
-#define CT_SEQNO_UNTRACKED BIT(15)
-static u16 next_ct_seqno(struct xe_guc_ct *ct, bool is_g2h_fence)
-{
-	u32 seqno = ct->fence_seqno++ & CT_SEQNO_MASK;
-
-	if (!is_g2h_fence)
-		seqno |= CT_SEQNO_UNTRACKED;
-
-	return seqno;
 }
 
 static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
@@ -1146,6 +1171,55 @@ static int guc_crash_process_msg(struct xe_guc_ct *ct, u32 action)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
+static void fast_req_report(struct xe_guc_ct *ct, u16 fence)
+{
+	u16 fence_min = U16_MAX, fence_max = 0;
+	struct xe_gt *gt = ct_to_gt(ct);
+	bool found = false;
+	unsigned int n;
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG_GUC)
+	char *buf;
+#endif
+
+	lockdep_assert_held(&ct->lock);
+
+	for (n = 0; n < ARRAY_SIZE(ct->fast_req); n++) {
+		if (ct->fast_req[n].fence < fence_min)
+			fence_min = ct->fast_req[n].fence;
+		if (ct->fast_req[n].fence > fence_max)
+			fence_max = ct->fast_req[n].fence;
+
+		if (ct->fast_req[n].fence != fence)
+			continue;
+		found = true;
+
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG_GUC)
+		buf = kmalloc(SZ_4K, GFP_NOWAIT);
+		if (buf && stack_depot_snprint(ct->fast_req[n].stack, buf, SZ_4K, 0))
+			xe_gt_err(gt, "Fence 0x%x was used by action %#04x sent at:\n%s",
+				  fence, ct->fast_req[n].action, buf);
+		else
+			xe_gt_err(gt, "Fence 0x%x was used by action %#04x [failed to retrieve stack]\n",
+				  fence, ct->fast_req[n].action);
+		kfree(buf);
+#else
+		xe_gt_err(gt, "Fence 0x%x was used by action %#04x\n",
+			  fence, ct->fast_req[n].action);
+#endif
+		break;
+	}
+
+	if (!found)
+		xe_gt_warn(gt, "Fence 0x%x not found - tracking buffer wrapped? [range = 0x%x -> 0x%x, next = 0x%X]\n",
+			   fence, fence_min, fence_max, ct->fence_seqno);
+}
+#else
+static void fast_req_report(struct xe_guc_ct *ct, u16 fence)
+{
+}
+#endif
+
 static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 {
 	struct xe_gt *gt =  ct_to_gt(ct);
@@ -1174,6 +1248,9 @@ static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		else
 			xe_gt_err(gt, "unexpected response %u for FAST_REQ H2G fence 0x%x!\n",
 				  type, fence);
+
+		fast_req_report(ct, fence);
+
 		CT_DEAD(ct, NULL, PARSE_G2H_RESPONSE);
 
 		return -EPROTO;
