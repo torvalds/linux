@@ -547,6 +547,26 @@ static u32 dmc_evt_ctl_disable(void)
 			       DMC_EVENT_FALSE);
 }
 
+static bool is_dmc_evt_ctl_reg(struct intel_display *display,
+			       enum intel_dmc_id dmc_id, i915_reg_t reg)
+{
+	u32 offset = i915_mmio_reg_offset(reg);
+	u32 start = i915_mmio_reg_offset(DMC_EVT_CTL(display, dmc_id, 0));
+	u32 end = i915_mmio_reg_offset(DMC_EVT_CTL(display, dmc_id, DMC_EVENT_HANDLER_COUNT_GEN12));
+
+	return offset >= start && offset < end;
+}
+
+static bool is_dmc_evt_htp_reg(struct intel_display *display,
+			       enum intel_dmc_id dmc_id, i915_reg_t reg)
+{
+	u32 offset = i915_mmio_reg_offset(reg);
+	u32 start = i915_mmio_reg_offset(DMC_EVT_HTP(display, dmc_id, 0));
+	u32 end = i915_mmio_reg_offset(DMC_EVT_HTP(display, dmc_id, DMC_EVENT_HANDLER_COUNT_GEN12));
+
+	return offset >= start && offset < end;
+}
+
 /**
  * intel_dmc_block_pkgc() - block PKG C-state
  * @display: display instance
@@ -590,26 +610,6 @@ void intel_dmc_start_pkgc_exit_at_start_of_undelayed_vblank(struct intel_display
 
 	intel_de_write(display, MTL_PIPEDMC_EVT_CTL_4(pipe),
 		       val);
-}
-
-static bool is_dmc_evt_ctl_reg(struct intel_display *display,
-			       enum intel_dmc_id dmc_id, i915_reg_t reg)
-{
-	u32 offset = i915_mmio_reg_offset(reg);
-	u32 start = i915_mmio_reg_offset(DMC_EVT_CTL(display, dmc_id, 0));
-	u32 end = i915_mmio_reg_offset(DMC_EVT_CTL(display, dmc_id, DMC_EVENT_HANDLER_COUNT_GEN12));
-
-	return offset >= start && offset < end;
-}
-
-static bool is_dmc_evt_htp_reg(struct intel_display *display,
-			       enum intel_dmc_id dmc_id, i915_reg_t reg)
-{
-	u32 offset = i915_mmio_reg_offset(reg);
-	u32 start = i915_mmio_reg_offset(DMC_EVT_HTP(display, dmc_id, 0));
-	u32 end = i915_mmio_reg_offset(DMC_EVT_HTP(display, dmc_id, DMC_EVENT_HANDLER_COUNT_GEN12));
-
-	return offset >= start && offset < end;
 }
 
 static bool disable_dmc_evt(struct intel_display *display,
