@@ -26,20 +26,20 @@ There can be multiple switches under an RP. There can be multiple RPs under
 a CXL Host Bridge (HB). There can be multiple HBs under a CXL Fixed Memory
 Window Structure (CFMWS).
 
-An example hierarchy:
+An example hierarchy::
 
->                CFMWS 0
->                  |
->         _________|_________
->        |                   |
->    ACPI0017-0          ACPI0017-1
-> GP0/HB0/ACPI0016-0   GP1/HB1/ACPI0016-1
->    |          |        |           |
->   RP0        RP1      RP2         RP3
->    |          |        |           |
->  SW 0       SW 1     SW 2        SW 3
->  |   |      |   |    |   |       |   |
-> EP0 EP1    EP2 EP3  EP4  EP5    EP6 EP7
+                CFMWS 0
+                  |
+         _________|_________
+        |                   |
+    ACPI0017-0          ACPI0017-1
+ GP0/HB0/ACPI0016-0   GP1/HB1/ACPI0016-1
+    |          |        |           |
+   RP0        RP1      RP2         RP3
+    |          |        |           |
+  SW 0       SW 1     SW 2        SW 3
+  |   |      |   |    |   |       |   |
+ EP0 EP1    EP2 EP3  EP4  EP5    EP6 EP7
 
 Computation for the example hierarchy:
 
@@ -82,8 +82,8 @@ this point all the bandwidths are aggregated per each host bridge, which is
 also the index for the resulting xarray.
 
 The next step is to take the min() of the per host bridge bandwidth and the
-bandwidth from the Generic Port (GP). The bandwidths for the GP is retrieved
-via ACPI tables SRAT/HMAT. The min bandwidth are aggregated under the same
+bandwidth from the Generic Port (GP). The bandwidths for the GP are retrieved
+via ACPI tables SRAT/HMAT. The minimum bandwidth are aggregated under the same
 ACPI0017 device to form a new xarray.
 
 Finally, the cxl_region_update_bandwidth() is called and the aggregated
