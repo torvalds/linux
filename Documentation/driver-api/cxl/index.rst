@@ -16,6 +16,12 @@ that have impacts on each other.  The docs here break up configurations steps.
    maturity-map
 
 .. toctree::
+   :maxdepth: 2
+   :caption: Device Reference
+
+   devices/device-types
+
+.. toctree::
    :maxdepth: 1
    :caption: Linux Kernel Configuration
 
