@@ -123,6 +123,79 @@ static int vlv_sideband_rw(struct drm_i915_private *i915,
 	return err;
 }
 
+static u32 unit_to_devfn(enum vlv_iosf_sb_unit unit)
+{
+	if (unit == VLV_IOSF_SB_DPIO || unit == VLV_IOSF_SB_DPIO_2 ||
+	    unit == VLV_IOSF_SB_FLISDSI)
+		return DPIO_DEVFN;
+	else
+		return PCI_DEVFN(0, 0);
+}
+
+static u32 unit_to_port(enum vlv_iosf_sb_unit unit)
+{
+	switch (unit) {
+	case VLV_IOSF_SB_BUNIT:
+		return IOSF_PORT_BUNIT;
+	case VLV_IOSF_SB_CCK:
+		return IOSF_PORT_CCK;
+	case VLV_IOSF_SB_CCU:
+		return IOSF_PORT_CCU;
+	case VLV_IOSF_SB_DPIO:
+		return IOSF_PORT_DPIO;
+	case VLV_IOSF_SB_DPIO_2:
+		return IOSF_PORT_DPIO_2;
+	case VLV_IOSF_SB_FLISDSI:
+		return IOSF_PORT_FLISDSI;
+	case VLV_IOSF_SB_GPIO:
+		return 0; /* FIXME: unused */
+	case VLV_IOSF_SB_NC:
+		return IOSF_PORT_NC;
+	case VLV_IOSF_SB_PUNIT:
+		return IOSF_PORT_PUNIT;
+	default:
+		return 0;
+	}
+}
+
+static u32 unit_to_opcode(enum vlv_iosf_sb_unit unit, bool write)
+{
+	if (unit == VLV_IOSF_SB_DPIO || unit == VLV_IOSF_SB_DPIO_2)
+		return write ? SB_MWR_NP : SB_MRD_NP;
+	else
+		return write ? SB_CRWRDA_NP : SB_CRRDDA_NP;
+}
+
+u32 vlv_iosf_sb_read(struct drm_i915_private *i915, enum vlv_iosf_sb_unit unit, u32 addr)
+{
+	u32 devfn, port, opcode, val = 0;
+
+	devfn = unit_to_devfn(unit);
+	port = unit_to_port(unit);
+	opcode = unit_to_opcode(unit, false);
+
+	if (drm_WARN_ONCE(&i915->drm, !port, "invalid unit %d\n", unit))
+		return 0;
+
+	vlv_sideband_rw(i915, devfn, port, opcode, addr, &val);
+
+	return val;
+}
+
+int vlv_iosf_sb_write(struct drm_i915_private *i915, enum vlv_iosf_sb_unit unit, u32 addr, u32 val)
+{
+	u32 devfn, port, opcode;
+
+	devfn = unit_to_devfn(unit);
+	port = unit_to_port(unit);
+	opcode = unit_to_opcode(unit, true);
+
+	if (drm_WARN_ONCE(&i915->drm, !port, "invalid unit %d\n", unit))
+		return -EINVAL;
+
+	return vlv_sideband_rw(i915, devfn, port, opcode, addr, &val);
+}
+
 u32 vlv_punit_read(struct drm_i915_private *i915, u32 addr)
 {
 	u32 val = 0;

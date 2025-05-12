@@ -13,11 +13,12 @@
 enum pipe;
 struct drm_i915_private;
 
-enum {
+enum vlv_iosf_sb_unit {
 	VLV_IOSF_SB_BUNIT,
 	VLV_IOSF_SB_CCK,
 	VLV_IOSF_SB_CCU,
 	VLV_IOSF_SB_DPIO,
+	VLV_IOSF_SB_DPIO_2,
 	VLV_IOSF_SB_FLISDSI,
 	VLV_IOSF_SB_GPIO,
 	VLV_IOSF_SB_NC,
@@ -27,13 +28,13 @@ enum {
 static inline void vlv_iosf_sb_get(struct drm_i915_private *i915, unsigned long ports)
 {
 }
-static inline u32 vlv_iosf_sb_read(struct drm_i915_private *i915, u8 port, u32 reg)
+static inline u32 vlv_iosf_sb_read(struct drm_i915_private *i915, enum vlv_iosf_sb_unit unit, u32 addr)
 {
 	return 0;
 }
-static inline void vlv_iosf_sb_write(struct drm_i915_private *i915,
-				     u8 port, u32 reg, u32 val)
+static inline int vlv_iosf_sb_write(struct drm_i915_private *i915, enum vlv_iosf_sb_unit unit, u32 addr, u32 val)
 {
+	return 0;
 }
 static inline void vlv_iosf_sb_put(struct drm_i915_private *i915, unsigned long ports)
 {
