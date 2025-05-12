@@ -502,19 +502,12 @@ struct perf_pmu *tool_pmu__new(void)
 	struct perf_pmu *tool = zalloc(sizeof(struct perf_pmu));
 
 	if (!tool)
-		goto out;
-	tool->name = strdup("tool");
-	if (!tool->name) {
-		zfree(&tool);
-		goto out;
+		return NULL;
+
+	if (perf_pmu__init(tool, PERF_PMU_TYPE_TOOL, "tool") != 0) {
+		perf_pmu__delete(tool);
+		return NULL;
 	}
-
-	tool->type = PERF_PMU_TYPE_TOOL;
-	INIT_LIST_HEAD(&tool->aliases);
-	INIT_LIST_HEAD(&tool->caps);
-	INIT_LIST_HEAD(&tool->format);
 	tool->events_table = find_core_events_table("common", "common");
-
-out:
 	return tool;
 }

@@ -346,42 +346,43 @@ struct perf_pmu *hwmon_pmu__new(struct list_head *pmus, int hwmon_dir, const cha
 {
 	char buf[32];
 	struct hwmon_pmu *hwm;
+	__u32 type = PERF_PMU_TYPE_HWMON_START + strtoul(sysfs_name + 5, NULL, 10);
+
+	if (type > PERF_PMU_TYPE_HWMON_END) {
+		pr_err("Unable to encode hwmon type from %s in valid PMU type\n", sysfs_name);
+		return NULL;
+	}
+
+	snprintf(buf, sizeof(buf), "hwmon_%s", name);
+	fix_name(buf + 6);
 
 	hwm = zalloc(sizeof(*hwm));
 	if (!hwm)
 		return NULL;
 
-	hwm->hwmon_dir_fd = hwmon_dir;
-	hwm->pmu.type = PERF_PMU_TYPE_HWMON_START + strtoul(sysfs_name + 5, NULL, 10);
-	if (hwm->pmu.type > PERF_PMU_TYPE_HWMON_END) {
-		pr_err("Unable to encode hwmon type from %s in valid PMU type\n", sysfs_name);
-		goto err_out;
+	if (perf_pmu__init(&hwm->pmu, type, buf) != 0) {
+		perf_pmu__delete(&hwm->pmu);
+		return NULL;
 	}
-	snprintf(buf, sizeof(buf), "hwmon_%s", name);
-	fix_name(buf + 6);
-	hwm->pmu.name = strdup(buf);
-	if (!hwm->pmu.name)
-		goto err_out;
+
+	hwm->hwmon_dir_fd = hwmon_dir;
 	hwm->pmu.alias_name = strdup(sysfs_name);
-	if (!hwm->pmu.alias_name)
-		goto err_out;
+	if (!hwm->pmu.alias_name) {
+		perf_pmu__delete(&hwm->pmu);
+		return NULL;
+	}
 	hwm->pmu.cpus = perf_cpu_map__new("0");
-	if (!hwm->pmu.cpus)
-		goto err_out;
+	if (!hwm->pmu.cpus) {
+		perf_pmu__delete(&hwm->pmu);
+		return NULL;
+	}
 	INIT_LIST_HEAD(&hwm->pmu.format);
-	INIT_LIST_HEAD(&hwm->pmu.aliases);
 	INIT_LIST_HEAD(&hwm->pmu.caps);
 	hashmap__init(&hwm->events, hwmon_pmu__event_hashmap_hash,
 		      hwmon_pmu__event_hashmap_equal, /*ctx=*/NULL);
 
 	list_add_tail(&hwm->pmu.list, pmus);
 	return &hwm->pmu;
-err_out:
-	free((char *)hwm->pmu.name);
-	free(hwm->pmu.alias_name);
-	free(hwm);
-	close(hwmon_dir);
-	return NULL;
 }
 
 void hwmon_pmu__exit(struct perf_pmu *pmu)
