@@ -65,11 +65,17 @@ void vlv_iosf_sb_get(struct drm_device *drm, unsigned long unit_mask)
 		__vlv_punit_get(i915);
 
 	mutex_lock(&i915->vlv_iosf_sb.lock);
+
+	i915->vlv_iosf_sb.locked_unit_mask |= unit_mask;
 }
 
 void vlv_iosf_sb_put(struct drm_device *drm, unsigned long unit_mask)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
+
+	i915->vlv_iosf_sb.locked_unit_mask &= ~unit_mask;
+
+	drm_WARN_ON(drm, i915->vlv_iosf_sb.locked_unit_mask);
 
 	mutex_unlock(&i915->vlv_iosf_sb.lock);
 
@@ -182,6 +188,8 @@ u32 vlv_iosf_sb_read(struct drm_device *drm, enum vlv_iosf_sb_unit unit, u32 add
 	if (drm_WARN_ONCE(&i915->drm, !port, "invalid unit %d\n", unit))
 		return 0;
 
+	drm_WARN_ON(&i915->drm, !(i915->vlv_iosf_sb.locked_unit_mask & BIT(unit)));
+
 	vlv_sideband_rw(i915, devfn, port, opcode, addr, &val);
 
 	return val;
@@ -198,6 +206,8 @@ int vlv_iosf_sb_write(struct drm_device *drm, enum vlv_iosf_sb_unit unit, u32 ad
 
 	if (drm_WARN_ONCE(&i915->drm, !port, "invalid unit %d\n", unit))
 		return -EINVAL;
+
+	drm_WARN_ON(&i915->drm, !(i915->vlv_iosf_sb.locked_unit_mask & BIT(unit)));
 
 	return vlv_sideband_rw(i915, devfn, port, opcode, addr, &val);
 }

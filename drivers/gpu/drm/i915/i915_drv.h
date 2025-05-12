@@ -230,6 +230,7 @@ struct drm_i915_private {
 	/* VLV/CHV IOSF sideband */
 	struct {
 		struct mutex lock; /* protect sideband access */
+		unsigned long locked_unit_mask;
 		struct pm_qos_request qos;
 	} vlv_iosf_sb;
 
