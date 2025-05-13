@@ -90,3 +90,6 @@ under the same ACPI0017 device to form a new xarray.
 Finally, the cxl_region_update_bandwidth() is called and the aggregated
 bandwidth from all the members of the last xarray is updated for the
 access coordinates residing in the cxl region (cxlr) context.
+
+.. kernel-doc:: drivers/cxl/acpi.c
+   :identifiers: cxl_acpi_evaluate_qtg_dsm

@@ -749,10 +749,10 @@ static void remove_cxl_resources(void *data)
  * expanding its boundaries to ensure that any conflicting resources become
  * children. If a window is expanded it may then conflict with a another window
  * entry and require the window to be truncated or trimmed. Consider this
- * situation:
+ * situation::
  *
- * |-- "CXL Window 0" --||----- "CXL Window 1" -----|
- * |--------------- "System RAM" -------------|
+ *	|-- "CXL Window 0" --||----- "CXL Window 1" -----|
+ *	|--------------- "System RAM" -------------|
  *
  * ...where platform firmware has established as System RAM resource across 2
  * windows, but has left some portion of window 1 for dynamic CXL region

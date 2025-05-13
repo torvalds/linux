@@ -347,6 +347,9 @@ CXL Core
 .. kernel-doc:: drivers/cxl/cxl.h
    :internal:
 
+.. kernel-doc:: drivers/cxl/acpi.c
+   :identifiers: add_cxl_resources
+
 .. kernel-doc:: drivers/cxl/core/hdm.c
    :doc: cxl core hdm
 
@@ -371,11 +374,26 @@ CXL Core
 .. kernel-doc:: drivers/cxl/core/pmem.c
    :doc: cxl pmem
 
+.. kernel-doc:: drivers/cxl/core/pmem.c
+   :identifiers:
+
 .. kernel-doc:: drivers/cxl/core/regs.c
    :doc: cxl registers
 
+.. kernel-doc:: drivers/cxl/core/regs.c
+   :identifiers:
+
 .. kernel-doc:: drivers/cxl/core/mbox.c
    :doc: cxl mbox
+
+.. kernel-doc:: drivers/cxl/core/mbox.c
+   :identifiers:
+
+.. kernel-doc:: drivers/cxl/core/features.c
+   :doc: cxl features
+
+.. kernel-doc:: drivers/cxl/core/features.c
+   :identifiers:
 
 CXL Regions
 -----------
