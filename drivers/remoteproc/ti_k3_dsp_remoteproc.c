@@ -59,21 +59,6 @@ static int k3_dsp_rproc_start(struct rproc *rproc)
 }
 
 /*
- * Stop the DSP remote processor.
- *
- * This function puts the DSP processor into reset, and finishes processing
- * of any pending messages. This callback is invoked only in remoteproc mode.
- */
-static int k3_dsp_rproc_stop(struct rproc *rproc)
-{
-	struct k3_rproc *kproc = rproc->priv;
-
-	k3_rproc_reset(kproc);
-
-	return 0;
-}
-
-/*
  * Attach to a running DSP remote processor (IPC-only mode)
  *
  * This rproc attach callback is a NOP. The remote processor is already booted,
@@ -186,7 +171,7 @@ static void *k3_dsp_rproc_da_to_va(struct rproc *rproc, u64 da, size_t len, bool
 
 static const struct rproc_ops k3_dsp_rproc_ops = {
 	.start			= k3_dsp_rproc_start,
-	.stop			= k3_dsp_rproc_stop,
+	.stop			= k3_rproc_stop,
 	.attach			= k3_dsp_rproc_attach,
 	.detach			= k3_dsp_rproc_detach,
 	.kick			= k3_rproc_kick,
