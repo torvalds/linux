@@ -2702,15 +2702,16 @@ out:
 	return satcu;
 }
 
-static int dmar_ats_supported(struct pci_dev *dev, struct intel_iommu *iommu)
+static bool dmar_ats_supported(struct pci_dev *dev, struct intel_iommu *iommu)
 {
-	int i, ret = 1;
-	struct pci_bus *bus;
 	struct pci_dev *bridge = NULL;
-	struct device *tmp;
-	struct acpi_dmar_atsr *atsr;
 	struct dmar_atsr_unit *atsru;
 	struct dmar_satc_unit *satcu;
+	struct acpi_dmar_atsr *atsr;
+	bool supported = true;
+	struct pci_bus *bus;
+	struct device *tmp;
+	int i;
 
 	dev = pci_physfn(dev);
 	satcu = dmar_find_matched_satc_unit(dev);
@@ -2728,11 +2729,11 @@ static int dmar_ats_supported(struct pci_dev *dev, struct intel_iommu *iommu)
 		bridge = bus->self;
 		/* If it's an integrated device, allow ATS */
 		if (!bridge)
-			return 1;
+			return true;
 		/* Connected via non-PCIe: no ATS */
 		if (!pci_is_pcie(bridge) ||
 		    pci_pcie_type(bridge) == PCI_EXP_TYPE_PCI_BRIDGE)
-			return 0;
+			return false;
 		/* If we found the root port, look it up in the ATSR */
 		if (pci_pcie_type(bridge) == PCI_EXP_TYPE_ROOT_PORT)
 			break;
@@ -2751,11 +2752,11 @@ static int dmar_ats_supported(struct pci_dev *dev, struct intel_iommu *iommu)
 		if (atsru->include_all)
 			goto out;
 	}
-	ret = 0;
+	supported = false;
 out:
 	rcu_read_unlock();
 
-	return ret;
+	return supported;
 }
 
 int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
