@@ -376,45 +376,33 @@ unsigned int __io_put_kbufs(struct io_kiocb *req, int len, int nbufs)
 	return ret;
 }
 
-static int __io_remove_buffers(struct io_ring_ctx *ctx,
-			       struct io_buffer_list *bl, unsigned nbufs)
+static int io_remove_buffers_legacy(struct io_ring_ctx *ctx,
+				    struct io_buffer_list *bl,
+				    unsigned long nbufs)
 {
-	unsigned i = 0;
-
-	/* shouldn't happen */
-	if (!nbufs)
-		return 0;
-
-	if (bl->flags & IOBL_BUF_RING) {
-		i = bl->buf_ring->tail - bl->head;
-		io_free_region(ctx, &bl->region);
-		/* make sure it's seen as empty */
-		INIT_LIST_HEAD(&bl->buf_list);
-		bl->flags &= ~IOBL_BUF_RING;
-		return i;
-	}
+	unsigned long i = 0;
+	struct io_buffer *nxt;
 
 	/* protects io_buffers_cache */
 	lockdep_assert_held(&ctx->uring_lock);
+	WARN_ON_ONCE(bl->flags & IOBL_BUF_RING);
 
-	while (!list_empty(&bl->buf_list)) {
-		struct io_buffer *nxt;
-
+	for (i = 0; i < nbufs && !list_empty(&bl->buf_list); i++) {
 		nxt = list_first_entry(&bl->buf_list, struct io_buffer, list);
 		list_del(&nxt->list);
 		kfree(nxt);
-
-		if (++i == nbufs)
-			return i;
 		cond_resched();
 	}
-
 	return i;
 }
 
 static void io_put_bl(struct io_ring_ctx *ctx, struct io_buffer_list *bl)
 {
-	__io_remove_buffers(ctx, bl, -1U);
+	if (bl->flags & IOBL_BUF_RING)
+		io_free_region(ctx, &bl->region);
+	else
+		io_remove_buffers_legacy(ctx, bl, -1U);
+
 	kfree(bl);
 }
 
@@ -477,7 +465,7 @@ int io_remove_buffers(struct io_kiocb *req, unsigned int issue_flags)
 		ret = -EINVAL;
 		/* can't use provide/remove buffers command on mapped buffers */
 		if (!(bl->flags & IOBL_BUF_RING))
-			ret = __io_remove_buffers(ctx, bl, p->nbufs);
+			ret = io_remove_buffers_legacy(ctx, bl, p->nbufs);
 	}
 	io_ring_submit_unlock(ctx, issue_flags);
 	if (ret < 0)
