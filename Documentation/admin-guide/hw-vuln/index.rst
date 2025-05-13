@@ -24,3 +24,4 @@ are configurable at compile, boot or run time.
    reg-file-data-sampling
    rsb
    old_microcode
+   indirect-target-selection
