@@ -129,21 +129,6 @@ struct k3_r5_core {
 	bool released_from_reset;
 };
 
-/* kick a virtqueue */
-static void k3_r5_rproc_kick(struct rproc *rproc, int vqid)
-{
-	struct k3_rproc *kproc = rproc->priv;
-	struct device *dev = rproc->dev.parent;
-	mbox_msg_t msg = (mbox_msg_t)vqid;
-	int ret;
-
-	/* send the index of the triggered virtqueue in the mailbox payload */
-	ret = mbox_send_message(kproc->mbox, (void *)msg);
-	if (ret < 0)
-		dev_err(dev, "failed to send mailbox message, status = %d\n",
-			ret);
-}
-
 static int k3_r5_split_reset(struct k3_rproc *kproc)
 {
 	int ret;
@@ -735,7 +720,7 @@ static const struct rproc_ops k3_r5_rproc_ops = {
 	.unprepare	= k3_r5_rproc_unprepare,
 	.start		= k3_r5_rproc_start,
 	.stop		= k3_r5_rproc_stop,
-	.kick		= k3_r5_rproc_kick,
+	.kick		= k3_rproc_kick,
 	.da_to_va	= k3_r5_rproc_da_to_va,
 };
 
