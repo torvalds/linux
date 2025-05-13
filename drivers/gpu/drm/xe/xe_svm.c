@@ -651,6 +651,47 @@ static bool xe_svm_range_is_valid(struct xe_svm_range *range,
 		(!devmem_only || xe_svm_range_in_vram(range));
 }
 
+/** xe_svm_range_migrate_to_smem() - Move range pages from VRAM to SMEM
+ * @vm: xe_vm pointer
+ * @range: Pointer to the SVM range structure
+ *
+ * The xe_svm_range_migrate_to_smem() checks range has pages in VRAM
+ * and migrates them to SMEM
+ */
+void xe_svm_range_migrate_to_smem(struct xe_vm *vm, struct xe_svm_range *range)
+{
+	if (xe_svm_range_in_vram(range))
+		drm_gpusvm_range_evict(&vm->svm.gpusvm, &range->base);
+}
+
+/**
+ * xe_svm_range_validate() - Check if the SVM range is valid
+ * @vm: xe_vm pointer
+ * @range: Pointer to the SVM range structure
+ * @tile_mask: Mask representing the tiles to be checked
+ * @devmem_preferred : if true range needs to be in devmem
+ *
+ * The xe_svm_range_validate() function checks if a range is
+ * valid and located in the desired memory region.
+ *
+ * Return: true if the range is valid, false otherwise
+ */
+bool xe_svm_range_validate(struct xe_vm *vm,
+			   struct xe_svm_range *range,
+			   u8 tile_mask, bool devmem_preferred)
+{
+	bool ret;
+
+	xe_svm_notifier_lock(vm);
+
+	ret = (range->tile_present & ~range->tile_invalidated & tile_mask) == tile_mask &&
+	       (devmem_preferred == range->base.flags.has_devmem_pages);
+
+	xe_svm_notifier_unlock(vm);
+
+	return ret;
+}
+
 #if IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR)
 static struct xe_vram_region *tile_to_vr(struct xe_tile *tile)
 {
