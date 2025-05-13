@@ -795,8 +795,7 @@ static int msi_domain_ops_prepare(struct irq_domain *domain, struct device *dev,
 	return 0;
 }
 
-static void msi_domain_ops_teardown(struct irq_domain *domain,
-				    msi_alloc_info_t *arg)
+static void msi_domain_ops_teardown(struct irq_domain *domain, msi_alloc_info_t *arg)
 {
 }
 
