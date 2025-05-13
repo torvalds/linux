@@ -14,8 +14,8 @@
 #define QMI_UAUDIO_STREAM_IND_V01 0x0001
 
 struct mem_info_v01 {
-	u64 va;
-	u64 pa;
+	u64 iova;	/* mapped into sysdev */
+	u64 dma;	/* mapped into usb host */
 	u32 size;
 };
 

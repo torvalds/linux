@@ -14,7 +14,7 @@ static const struct qmi_elem_info mem_info_v01_ei[] = {
 		.elem_size	= sizeof(u64),
 		.array_type	= NO_ARRAY,
 		.tlv_type	= 0,
-		.offset		= offsetof(struct mem_info_v01, va),
+		.offset		= offsetof(struct mem_info_v01, iova),
 	},
 	{
 		.data_type	= QMI_UNSIGNED_8_BYTE,
@@ -22,7 +22,7 @@ static const struct qmi_elem_info mem_info_v01_ei[] = {
 		.elem_size	= sizeof(u64),
 		.array_type	= NO_ARRAY,
 		.tlv_type	= 0,
-		.offset		= offsetof(struct mem_info_v01, pa),
+		.offset		= offsetof(struct mem_info_v01, dma),
 	},
 	{
 		.data_type	= QMI_UNSIGNED_4_BYTE,
