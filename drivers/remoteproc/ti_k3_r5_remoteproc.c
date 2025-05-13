@@ -1356,6 +1356,13 @@ static int k3_r5_core_of_get_sram_memories(struct platform_device *pdev,
 	return 0;
 }
 
+static void k3_r5_release_tsp(void *data)
+{
+	struct ti_sci_proc *tsp = data;
+
+	ti_sci_proc_release(tsp);
+}
+
 static int k3_r5_cluster_rproc_init(struct platform_device *pdev)
 {
 	struct k3_r5_cluster *cluster = platform_get_drvdata(pdev);
@@ -1493,13 +1500,6 @@ static void k3_r5_cluster_rproc_exit(void *data)
 
 		mbox_free_channel(kproc->mbox);
 	}
-}
-
-static void k3_r5_release_tsp(void *data)
-{
-	struct ti_sci_proc *tsp = data;
-
-	ti_sci_proc_release(tsp);
 }
 
 static int k3_r5_core_of_init(struct platform_device *pdev)
