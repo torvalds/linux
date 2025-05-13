@@ -115,7 +115,7 @@ void __jbd2_debug(int level, const char *file, const char *func,
 #endif
 
 /* Checksumming functions */
-static __be32 jbd2_superblock_csum(journal_t *j, journal_superblock_t *sb)
+static __be32 jbd2_superblock_csum(journal_superblock_t *sb)
 {
 	__u32 csum;
 	__be32 old_csum;
@@ -1384,7 +1384,7 @@ static int journal_check_superblock(journal_t *journal)
 		}
 
 		/* Check superblock checksum */
-		if (sb->s_checksum != jbd2_superblock_csum(journal, sb)) {
+		if (sb->s_checksum != jbd2_superblock_csum(sb)) {
 			printk(KERN_ERR "JBD2: journal checksum error\n");
 			err = -EFSBADCRC;
 			return err;
@@ -1819,7 +1819,7 @@ static int jbd2_write_superblock(journal_t *journal, blk_opf_t write_flags)
 		set_buffer_uptodate(bh);
 	}
 	if (jbd2_journal_has_csum_v2or3(journal))
-		sb->s_checksum = jbd2_superblock_csum(journal, sb);
+		sb->s_checksum = jbd2_superblock_csum(sb);
 	get_bh(bh);
 	bh->b_end_io = end_buffer_write_sync;
 	submit_bh(REQ_OP_WRITE | write_flags, bh);
