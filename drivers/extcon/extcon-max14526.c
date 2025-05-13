@@ -272,7 +272,7 @@ static int max14526_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(max14526_pm_ops, NULL, max14526_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(max14526_pm_ops, NULL, max14526_resume);
 
 static const struct of_device_id max14526_match[] = {
 	{ .compatible = "maxim,max14526" },
