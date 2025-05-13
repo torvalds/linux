@@ -78,9 +78,9 @@ struct intf_info {
 	size_t data_xfer_ring_size;
 	unsigned long sync_xfer_ring_va;
 	size_t sync_xfer_ring_size;
-	unsigned long xfer_buf_iova;
+	dma_addr_t xfer_buf_iova;
 	size_t xfer_buf_size;
-	phys_addr_t xfer_buf_dma;
+	dma_addr_t xfer_buf_dma;
 	u8 *xfer_buf_cpu;
 
 	/* USB endpoint information */
@@ -1018,11 +1018,12 @@ static int uaudio_transfer_buffer_setup(struct snd_usb_substream *subs,
 					struct mem_info_v01 *mem_info)
 {
 	struct sg_table xfer_buf_sgt;
+	dma_addr_t xfer_buf_dma;
 	void *xfer_buf;
 	phys_addr_t xfer_buf_pa;
 	u32 len = xfer_buf_len;
 	bool dma_coherent;
-	unsigned long iova;
+	dma_addr_t xfer_buf_dma_sysdev;
 	u32 remainder;
 	u32 mult;
 	int ret;
@@ -1045,29 +1046,38 @@ static int uaudio_transfer_buffer_setup(struct snd_usb_substream *subs,
 		len = MAX_XFER_BUFF_LEN;
 	}
 
-	xfer_buf = usb_alloc_coherent(subs->dev, len, GFP_KERNEL, &xfer_buf_pa);
+	/* get buffer mapped into subs->dev */
+	xfer_buf = usb_alloc_coherent(subs->dev, len, GFP_KERNEL, &xfer_buf_dma);
 	if (!xfer_buf)
 		return -ENOMEM;
 
+	/* Remapping is not possible if xfer_buf is outside of linear map */
+	xfer_buf_pa = virt_to_phys(xfer_buf);
+	if (WARN_ON(!page_is_ram(PFN_DOWN(xfer_buf_pa)))) {
+		ret = -ENXIO;
+		goto unmap_sync;
+	}
 	dma_get_sgtable(subs->dev->bus->sysdev, &xfer_buf_sgt, xfer_buf,
-			xfer_buf_pa, len);
-	iova = uaudio_iommu_map(MEM_XFER_BUF, dma_coherent, xfer_buf_pa, len,
-			      &xfer_buf_sgt);
-	if (!iova) {
+			xfer_buf_dma, len);
+
+	/* map the physical buffer into sysdev as well */
+	xfer_buf_dma_sysdev = uaudio_iommu_map(MEM_XFER_BUF, dma_coherent,
+					       xfer_buf_pa, len, &xfer_buf_sgt);
+	if (!xfer_buf_dma_sysdev) {
 		ret = -ENOMEM;
 		goto unmap_sync;
 	}
 
-	mem_info->dma = xfer_buf_pa;
+	mem_info->dma = xfer_buf_dma;
 	mem_info->size = len;
-	mem_info->iova = PREPEND_SID_TO_IOVA(iova, uaudio_qdev->data->sid);
+	mem_info->iova = PREPEND_SID_TO_IOVA(xfer_buf_dma_sysdev, uaudio_qdev->data->sid);
 	*xfer_buf_cpu = xfer_buf;
 	sg_free_table(&xfer_buf_sgt);
 
 	return 0;
 
 unmap_sync:
-	usb_free_coherent(subs->dev, len, xfer_buf, xfer_buf_pa);
+	usb_free_coherent(subs->dev, len, xfer_buf, xfer_buf_dma);
 
 	return ret;
 }
