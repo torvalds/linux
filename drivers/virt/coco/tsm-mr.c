@@ -173,7 +173,7 @@ tsm_mr_create_attribute_group(const struct tsm_measurements *tm)
 	 * so that we don't have to free MR names one-by-one in
 	 * tsm_mr_free_attribute_group()
 	 */
-	const struct bin_attribute * const *attrs __free(kfree) =
+	const struct bin_attribute **attrs __free(kfree) =
 		kzalloc(sizeof(*attrs) * (tm->nr_mrs + 1) + nlen, GFP_KERNEL);
 	struct tm_context *ctx __free(kfree) =
 		kzalloc(struct_size(ctx, mrs, tm->nr_mrs), GFP_KERNEL);
@@ -187,16 +187,14 @@ tsm_mr_create_attribute_group(const struct tsm_measurements *tm)
 	end = name + nlen;
 
 	for (size_t i = 0; i < tm->nr_mrs; ++i) {
-		/* break const for init */
-		struct bin_attribute **bas = (struct bin_attribute **)attrs;
+		struct bin_attribute *bap = &ctx->mrs[i];
 
-		bas[i] = &ctx->mrs[i];
-		sysfs_bin_attr_init(bas[i]);
+		sysfs_bin_attr_init(bap);
 
 		if (tm->mrs[i].mr_flags & TSM_MR_F_NOHASH)
-			bas[i]->attr.name = tm->mrs[i].mr_name;
+			bap->attr.name = tm->mrs[i].mr_name;
 		else if (name < end) {
-			bas[i]->attr.name = name;
+			bap->attr.name = name;
 			name += snprintf(name, end - name, "%s:%s",
 					 tm->mrs[i].mr_name,
 					 hash_algo_name[tm->mrs[i].mr_hash]);
@@ -206,21 +204,23 @@ tsm_mr_create_attribute_group(const struct tsm_measurements *tm)
 
 		/* check for duplicated MR definitions */
 		for (size_t j = 0; j < i; ++j)
-			if (!strcmp(bas[i]->attr.name, bas[j]->attr.name))
+			if (!strcmp(bap->attr.name, attrs[j]->attr.name))
 				return ERR_PTR(-EINVAL);
 
 		if (tm->mrs[i].mr_flags & TSM_MR_F_READABLE) {
-			bas[i]->attr.mode |= 0444;
-			bas[i]->read_new = tm_digest_read;
+			bap->attr.mode |= 0444;
+			bap->read_new = tm_digest_read;
 		}
 
 		if (tm->mrs[i].mr_flags & TSM_MR_F_WRITABLE) {
-			bas[i]->attr.mode |= 0200;
-			bas[i]->write_new = tm_digest_write;
+			bap->attr.mode |= 0200;
+			bap->write_new = tm_digest_write;
 		}
 
-		bas[i]->size = tm->mrs[i].mr_size;
-		bas[i]->private = ctx;
+		bap->size = tm->mrs[i].mr_size;
+		bap->private = ctx;
+
+		attrs[i] = bap;
 	}
 
 	if (name != end)
@@ -244,7 +244,7 @@ EXPORT_SYMBOL_GPL(tsm_mr_create_attribute_group);
 void tsm_mr_free_attribute_group(const struct attribute_group *attr_grp)
 {
 	if (!IS_ERR_OR_NULL(attr_grp)) {
-		kfree(attr_grp->bin_attrs);
+		kfree(attr_grp->bin_attrs_new);
 		kfree(container_of(attr_grp, struct tm_context, agrp));
 	}
 }
