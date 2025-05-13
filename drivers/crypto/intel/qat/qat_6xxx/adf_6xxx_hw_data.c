@@ -16,6 +16,7 @@
 #include <adf_common_drv.h>
 #include <adf_fw_config.h>
 #include <adf_gen6_pm.h>
+#include <adf_gen6_ras.h>
 #include <adf_gen6_shared.h>
 #include <adf_timer.h>
 #include "adf_6xxx_hw_data.h"
@@ -834,6 +835,7 @@ void adf_init_hw_data_6xxx(struct adf_hw_device_data *hw_data)
 	adf_gen6_init_hw_csr_ops(&hw_data->csr_ops);
 	adf_gen6_init_pf_pfvf_ops(&hw_data->pfvf_ops);
 	adf_gen6_init_dc_ops(&hw_data->dc_ops);
+	adf_gen6_init_ras_ops(&hw_data->ras_ops);
 }
 
 void adf_clean_hw_data_6xxx(struct adf_hw_device_data *hw_data)
