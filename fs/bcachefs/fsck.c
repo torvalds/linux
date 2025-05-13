@@ -3177,7 +3177,6 @@ static int bch2_fsck_online_thread_fn(struct thread_with_stdio *stdio)
 	c->opts.fsck = true;
 	set_bit(BCH_FS_in_fsck, &c->flags);
 
-	c->recovery.curr_pass = BCH_RECOVERY_PASS_check_alloc_info;
 	int ret = bch2_run_online_recovery_passes(c, ~0ULL);
 
 	clear_bit(BCH_FS_in_fsck, &c->flags);

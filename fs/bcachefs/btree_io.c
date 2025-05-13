@@ -1775,8 +1775,7 @@ void bch2_btree_node_read(struct btree_trans *trans, struct btree *b,
 		prt_newline(&buf);
 		bch2_btree_lost_data(c, &buf, b->c.btree_id);
 
-		if (c->opts.recovery_passes & BIT_ULL(BCH_RECOVERY_PASS_check_topology) &&
-		    c->recovery.curr_pass > BCH_RECOVERY_PASS_check_topology &&
+		if (c->recovery.passes_complete & BIT_ULL(BCH_RECOVERY_PASS_check_topology) &&
 		    bch2_fs_emergency_read_only2(c, &buf))
 			ratelimit = false;
 

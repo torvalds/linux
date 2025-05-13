@@ -1003,7 +1003,7 @@ static noinline void btree_bad_header(struct bch_fs *c, struct btree *b)
 {
 	struct printbuf buf = PRINTBUF;
 
-	if (c->recovery.curr_pass <= BCH_RECOVERY_PASS_check_allocations)
+	if (c->recovery.pass_done < BCH_RECOVERY_PASS_check_allocations)
 		return;
 
 	prt_printf(&buf,
