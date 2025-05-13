@@ -761,13 +761,6 @@ out:
 	return ret;
 }
 
-static void k3_r5_mem_release(void *data)
-{
-	struct device *dev = data;
-
-	of_reserved_mem_device_release(dev);
-}
-
 static int k3_r5_reserved_mem_init(struct k3_rproc *kproc)
 {
 	struct device *dev = kproc->dev;
@@ -798,7 +791,7 @@ static int k3_r5_reserved_mem_init(struct k3_rproc *kproc)
 		return ret;
 	}
 
-	ret = devm_add_action_or_reset(dev, k3_r5_mem_release, dev);
+	ret = devm_add_action_or_reset(dev, k3_mem_release, dev);
 	if (ret)
 		return ret;
 
