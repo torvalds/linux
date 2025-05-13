@@ -23,21 +23,23 @@ static struct sock *selnl __ro_after_init;
 
 static int selnl_msglen(int msgtype)
 {
-	int ret = 0;
+   int ret = 0;
 
-	switch (msgtype) {
-	case SELNL_MSG_SETENFORCE:
-		ret = sizeof(struct selnl_msg_setenforce);
-		break;
+   switch (msgtype) {
+   case SELNL_MSG_SETENFORCE:
+       ret = sizeof(struct selnl_msg_setenforce);
+       break;
 
-	case SELNL_MSG_POLICYLOAD:
-		ret = sizeof(struct selnl_msg_policyload);
-		break;
+   case SELNL_MSG_POLICYLOAD:
+       ret = sizeof(struct selnl_msg_policyload);
+       break;
 
-	default:
-		BUG();
-	}
-	return ret;
+   default:
+       pr_err("Unknown message type in selnl_msglen: %d\n", msgtype);
+       ret = -EINVAL; // Return an error code or appropriate default value
+   }
+
+   return ret;
 }
 
 static void selnl_add_payload(struct nlmsghdr *nlh, int len, int msgtype, void *data)
