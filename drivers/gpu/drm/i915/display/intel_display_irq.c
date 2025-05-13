@@ -1427,7 +1427,8 @@ void gen8_de_irq_handler(struct intel_display *display, u32 master_ctl)
 		iir = intel_de_read(display, GEN8_DE_PIPE_IIR(pipe));
 		if (!iir) {
 			drm_err_ratelimited(display->drm,
-					    "The master control interrupt lied (DE PIPE)!\n");
+					    "The master control interrupt lied (DE PIPE %c)!\n",
+					    pipe_name(pipe));
 			continue;
 		}
 
