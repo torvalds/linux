@@ -7,12 +7,14 @@
 #include <linux/gpio/driver.h>
 #include <linux/bio.h>
 #include <linux/mutex.h>
+#include <linux/pci.h>
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
 
 #include "mchp_pci1xxxx_gp.h"
 
 #define PCI1XXXX_NR_PINS		93
+#define PCI_DEV_REV_OFFSET		0x08
 #define PERI_GEN_RESET			0
 #define OUT_EN_OFFSET(x)		((((x) / 32) * 4) + 0x400)
 #define INP_EN_OFFSET(x)		((((x) / 32) * 4) + 0x400 + 0x10)
@@ -41,7 +43,24 @@ struct pci1xxxx_gpio {
 	struct gpio_chip gpio;
 	spinlock_t lock;
 	int irq_base;
+	u8 dev_rev;
 };
+
+static int pci1xxxx_gpio_get_device_revision(struct pci1xxxx_gpio *priv)
+{
+	struct device *parent = priv->aux_dev->dev.parent;
+	struct pci_dev *pcidev = to_pci_dev(parent);
+	int ret;
+	u32 val;
+
+	ret = pci_read_config_dword(pcidev, PCI_DEV_REV_OFFSET, &val);
+	if (ret)
+		return ret;
+
+	priv->dev_rev = val;
+
+	return 0;
+}
 
 static int pci1xxxx_gpio_get_direction(struct gpio_chip *gpio, unsigned int nr)
 {
@@ -316,6 +335,10 @@ static int pci1xxxx_gpio_suspend(struct device *dev)
 	pci1xxx_assign_bit(priv->reg_base, PIO_GLOBAL_CONFIG_OFFSET,
 			   17, false);
 	pci1xxx_assign_bit(priv->reg_base, PERI_GEN_RESET, 16, true);
+
+	if (priv->dev_rev >= 0xC0)
+		pci1xxx_assign_bit(priv->reg_base, PERI_GEN_RESET, 17, true);
+
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
@@ -332,6 +355,10 @@ static int pci1xxxx_gpio_resume(struct device *dev)
 	pci1xxx_assign_bit(priv->reg_base, PIO_GLOBAL_CONFIG_OFFSET,
 			   16, false);
 	pci1xxx_assign_bit(priv->reg_base, PERI_GEN_RESET, 16, false);
+
+	if (priv->dev_rev >= 0xC0)
+		pci1xxx_assign_bit(priv->reg_base, PERI_GEN_RESET, 17, false);
+
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
@@ -411,6 +438,10 @@ static int pci1xxxx_gpio_probe(struct auxiliary_device *aux_dev,
 	retval = pci1xxxx_gpio_setup(priv, pdata->irq_num);
 
 	if (retval < 0)
+		return retval;
+
+	retval = pci1xxxx_gpio_get_device_revision(priv);
+	if (retval)
 		return retval;
 
 	dev_set_drvdata(&aux_dev->dev, priv);
