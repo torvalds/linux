@@ -769,6 +769,8 @@ void tcp_rcv_space_adjust(struct sock *sk)
 	if (copied <= tp->rcvq_space.space)
 		goto new_measure;
 
+	trace_tcp_rcvbuf_grow(sk, time);
+
 	/* A bit of theory :
 	 * copied = bytes received in previous RTT, our base window
 	 * To cope with packet losses, we need a 2x factor
