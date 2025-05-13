@@ -110,9 +110,6 @@ enum lkl_prot {
  * @iomem_acess - reads or writes to and I/O memory region; addr must be in the
  * range returned by ioremap
  *
- * @gettid - returns the host thread id of the caller, which need not
- * be the same as the handle returned by thread_create
- *
  * @jmp_buf_set - runs the give function and setups a jump back point by saving
  * the context in the jump buffer; jmp_buf_longjmp can be called from the give
  * function or any callee in that function to return back to the jump back
@@ -176,8 +173,6 @@ struct lkl_host_operations {
 	void* (*ioremap)(long addr, int size);
 	int (*iomem_access)(const volatile void *addr, void *val, int size,
 			    int write);
-
-	long (*gettid)(void);
 
 	void (*jmp_buf_set)(struct lkl_jmp_buf *jmpb, void (*f)(void));
 	void (*jmp_buf_longjmp)(struct lkl_jmp_buf *jmpb, int val);

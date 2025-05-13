@@ -385,20 +385,6 @@ static int lkl_test_semaphore(void)
 	return ret;
 }
 
-static int lkl_test_gettid(void)
-{
-	long tid = lkl_host_ops.gettid();
-	lkl_test_logf("%ld", tid);
-
-	/* As far as I know, thread IDs are non-zero on all reasonable
-	 * systems. */
-	if (tid) {
-		return TEST_SUCCESS;
-	} else {
-		return TEST_FAILURE;
-	}
-}
-
 static void test_thread(void *data)
 {
 	int *pipe_fds = (int*) data;
@@ -753,7 +739,6 @@ struct lkl_test tests[] = {
 	LKL_TEST(chdir_root),
 	LKL_TEST(umount_fs_proc),
 	LKL_TEST(lo_ifup),
-	LKL_TEST(gettid),
 	LKL_TEST(syscall_thread),
 	/*
 	 * Wine has an issue where the FlsCallback is not called when
