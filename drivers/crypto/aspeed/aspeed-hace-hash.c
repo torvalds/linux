@@ -114,29 +114,34 @@ static int aspeed_ahash_dma_prepare(struct aspeed_hace_dev *hace_dev)
 	struct aspeed_engine_hash *hash_engine = &hace_dev->hash_engine;
 	struct ahash_request *req = hash_engine->req;
 	struct aspeed_sham_reqctx *rctx = ahash_request_ctx(req);
-	int length, remain;
+	bool final = rctx->flags & SHA_FLAGS_FINUP;
+	unsigned int length, remain;
 
 	length = rctx->total + rctx->bufcnt;
-	remain = length % rctx->block_size;
+	remain = final ? 0 : length % rctx->block_size;
 
 	AHASH_DBG(hace_dev, "length:0x%x, remain:0x%x\n", length, remain);
 
 	if (rctx->bufcnt)
 		memcpy(hash_engine->ahash_src_addr, rctx->buffer, rctx->bufcnt);
 
-	if (rctx->total + rctx->bufcnt < ASPEED_CRYPTO_SRC_DMA_BUF_LEN) {
-		scatterwalk_map_and_copy(hash_engine->ahash_src_addr +
-					 rctx->bufcnt, rctx->src_sg,
-					 rctx->offset, rctx->total - remain, 0);
-		rctx->offset += rctx->total - remain;
-
-	} else {
+	if ((final ? round_up(length, rctx->block_size) + rctx->block_size :
+		     length) > ASPEED_CRYPTO_SRC_DMA_BUF_LEN) {
 		dev_warn(hace_dev->dev, "Hash data length is too large\n");
 		return -EINVAL;
 	}
 
-	scatterwalk_map_and_copy(rctx->buffer, rctx->src_sg,
-				 rctx->offset, remain, 0);
+	scatterwalk_map_and_copy(hash_engine->ahash_src_addr +
+				 rctx->bufcnt, rctx->src_sg,
+				 rctx->offset, rctx->total - remain, 0);
+	rctx->offset += rctx->total - remain;
+
+	if (final)
+		length += aspeed_ahash_fill_padding(
+			hace_dev, rctx, hash_engine->ahash_src_addr + length);
+	else
+		scatterwalk_map_and_copy(rctx->buffer, rctx->src_sg,
+					 rctx->offset, remain, 0);
 
 	rctx->bufcnt = remain;
 	rctx->digest_dma_addr = dma_map_single(hace_dev->dev, rctx->digest,
@@ -423,7 +428,7 @@ static int aspeed_ahash_update_resume(struct aspeed_hace_dev *hace_dev)
 			 SHA512_DIGEST_SIZE, DMA_BIDIRECTIONAL);
 
 	if (rctx->flags & SHA_FLAGS_FINUP)
-		return aspeed_ahash_req_final(hace_dev);
+		memcpy(req->result, rctx->digest, rctx->digsize);
 
 	return aspeed_ahash_complete(hace_dev);
 }
