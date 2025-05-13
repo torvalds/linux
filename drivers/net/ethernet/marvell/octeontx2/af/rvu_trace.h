@@ -95,6 +95,17 @@ TRACE_EVENT(otx2_msg_process,
 		      otx2_mbox_id2name(__entry->id), __entry->err)
 );
 
+TRACE_EVENT(otx2_msg_wait_rsp,
+	    TP_PROTO(const struct pci_dev *pdev),
+	    TP_ARGS(pdev),
+	    TP_STRUCT__entry(__string(dev, pci_name(pdev))
+	    ),
+	    TP_fast_assign(__assign_str(dev)
+	    ),
+	    TP_printk("[%s] timed out while waiting for response\n",
+		      __get_str(dev))
+);
+
 #endif /* __RVU_TRACE_H */
 
 #undef TRACE_INCLUDE_PATH
