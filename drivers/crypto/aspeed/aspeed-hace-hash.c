@@ -155,26 +155,30 @@ static int aspeed_ahash_dma_prepare(struct aspeed_hace_dev *hace_dev)
 	struct aspeed_engine_hash *hash_engine = &hace_dev->hash_engine;
 	struct ahash_request *req = hash_engine->req;
 	struct aspeed_sham_reqctx *rctx = ahash_request_ctx(req);
-	bool final = rctx->flags & SHA_FLAGS_FINUP;
 	unsigned int length, remain;
+	bool final = false;
 
-	length = rctx->total;
-	remain = final ? 0 : length % rctx->block_size;
+	length = rctx->total - rctx->offset;
+	remain = length - round_down(length, rctx->block_size);
 
 	AHASH_DBG(hace_dev, "length:0x%x, remain:0x%x\n", length, remain);
 
-	if ((final ? round_up(length, rctx->block_size) + rctx->block_size :
-		     length) > ASPEED_CRYPTO_SRC_DMA_BUF_LEN) {
-		dev_warn(hace_dev->dev, "Hash data length is too large\n");
-		return -EINVAL;
-	}
-
+	if (length > ASPEED_HASH_SRC_DMA_BUF_LEN)
+		length = ASPEED_HASH_SRC_DMA_BUF_LEN;
+	else if (rctx->flags & SHA_FLAGS_FINUP) {
+		if (round_up(length, rctx->block_size) + rctx->block_size >
+		    ASPEED_CRYPTO_SRC_DMA_BUF_LEN)
+			length = round_down(length - 1, rctx->block_size);
+		else
+			final = true;
+	} else
+		length -= remain;
 	scatterwalk_map_and_copy(hash_engine->ahash_src_addr, rctx->src_sg,
-				 rctx->offset, rctx->total - remain, 0);
-	rctx->offset += rctx->total - remain;
+				 rctx->offset, length, 0);
+	rctx->offset += length;
 
-	rctx->digcnt[0] += rctx->total - remain;
-	if (rctx->digcnt[0] < rctx->total - remain)
+	rctx->digcnt[0] += length;
+	if (rctx->digcnt[0] < length)
 		rctx->digcnt[1]++;
 
 	if (final)
@@ -189,7 +193,7 @@ static int aspeed_ahash_dma_prepare(struct aspeed_hace_dev *hace_dev)
 		return -ENOMEM;
 	}
 
-	hash_engine->src_length = length - remain;
+	hash_engine->src_length = length;
 	hash_engine->src_dma = hash_engine->ahash_src_dma_addr;
 	hash_engine->digest_dma = rctx->digest_dma_addr;
 
@@ -384,6 +388,10 @@ static int aspeed_ahash_update_resume(struct aspeed_hace_dev *hace_dev)
 
 	dma_unmap_single(hace_dev->dev, rctx->digest_dma_addr,
 			 SHA512_DIGEST_SIZE, DMA_BIDIRECTIONAL);
+
+	if (rctx->total - rctx->offset >= rctx->block_size ||
+	    (rctx->total != rctx->offset && rctx->flags & SHA_FLAGS_FINUP))
+		return aspeed_ahash_req_update(hace_dev);
 
 	return aspeed_ahash_complete(hace_dev);
 }
