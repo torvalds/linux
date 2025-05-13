@@ -396,8 +396,8 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct iwl_mld *mld, char *buf,
 		.data[0] = &cmd,
 	};
 	struct iwl_dhc_tas_status_resp *resp = NULL;
+	u32 resp_len = 0;
 	ssize_t pos = 0;
-	u32 resp_len;
 	u32 status;
 	int ret;
 
@@ -949,8 +949,9 @@ void iwl_mld_add_vif_debugfs(struct ieee80211_hw *hw,
 	snprintf(name, sizeof(name), "%pd", vif->debugfs_dir);
 	snprintf(target, sizeof(target), "../../../%pd3/iwlmld",
 		 vif->debugfs_dir);
-	mld_vif->dbgfs_slink =
-		debugfs_create_symlink(name, mld->debugfs_dir, target);
+	if (!mld_vif->dbgfs_slink)
+		mld_vif->dbgfs_slink =
+			debugfs_create_symlink(name, mld->debugfs_dir, target);
 
 	if (iwlmld_mod_params.power_scheme != IWL_POWER_SCHEME_CAM &&
 	    vif->type == NL80211_IFTYPE_STATION) {

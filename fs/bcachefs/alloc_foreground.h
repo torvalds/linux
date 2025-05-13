@@ -110,7 +110,9 @@ static inline void bch2_alloc_sectors_done_inlined(struct bch_fs *c, struct writ
 	unsigned i;
 
 	open_bucket_for_each(c, &wp->ptrs, ob, i)
-		ob_push(c, !ob->sectors_free ? &ptrs : &keep, ob);
+		ob_push(c, ob->sectors_free < block_sectors(c)
+			? &ptrs
+			: &keep, ob);
 	wp->ptrs = keep;
 
 	mutex_unlock(&wp->lock);

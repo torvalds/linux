@@ -272,9 +272,6 @@ static struct fsck_err_state *fsck_err_get(struct bch_fs *c,
 {
 	struct fsck_err_state *s;
 
-	if (!test_bit(BCH_FS_fsck_running, &c->flags))
-		return NULL;
-
 	list_for_each_entry(s, &c->fsck_error_msgs, list)
 		if (s->id == id) {
 			/*
@@ -481,7 +478,9 @@ int __bch2_fsck_err(struct bch_fs *c,
 	} else if (!test_bit(BCH_FS_fsck_running, &c->flags)) {
 		if (c->opts.errors != BCH_ON_ERROR_continue ||
 		    !(flags & (FSCK_CAN_FIX|FSCK_CAN_IGNORE))) {
-			prt_str(out, ", shutting down");
+			prt_str_indented(out, ", shutting down\n"
+					 "error not marked as autofix and not in fsck\n"
+					 "run fsck, and forward to devs so error can be marked for self-healing");
 			inconsistent = true;
 			print = true;
 			ret = -BCH_ERR_fsck_errors_not_fixed;
@@ -639,14 +638,14 @@ int __bch2_bkey_fsck_err(struct bch_fs *c,
 	return ret;
 }
 
-void bch2_flush_fsck_errs(struct bch_fs *c)
+static void __bch2_flush_fsck_errs(struct bch_fs *c, bool print)
 {
 	struct fsck_err_state *s, *n;
 
 	mutex_lock(&c->fsck_error_msgs_lock);
 
 	list_for_each_entry_safe(s, n, &c->fsck_error_msgs, list) {
-		if (s->ratelimited && s->last_msg)
+		if (print && s->ratelimited && s->last_msg)
 			bch_err(c, "Saw %llu errors like:\n  %s", s->nr, s->last_msg);
 
 		list_del(&s->list);
@@ -655,6 +654,16 @@ void bch2_flush_fsck_errs(struct bch_fs *c)
 	}
 
 	mutex_unlock(&c->fsck_error_msgs_lock);
+}
+
+void bch2_flush_fsck_errs(struct bch_fs *c)
+{
+	__bch2_flush_fsck_errs(c, true);
+}
+
+void bch2_free_fsck_errs(struct bch_fs *c)
+{
+	__bch2_flush_fsck_errs(c, false);
 }
 
 int bch2_inum_offset_err_msg_trans(struct btree_trans *trans, struct printbuf *out,

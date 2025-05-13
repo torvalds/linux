@@ -228,6 +228,11 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH_SB_ERASURE_CODE,		false,				\
 	  NULL,		"Enable erasure coding (DO NOT USE YET)")	\
+	x(casefold,			u8,				\
+	  OPT_FS|OPT_INODE|OPT_FORMAT,					\
+	  OPT_BOOL(),							\
+	  BCH_SB_CASEFOLD,		false,				\
+	  NULL,		"Dirent lookups are casefolded")		\
 	x(inodes_32bit,			u8,				\
 	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
 	  OPT_BOOL(),							\
