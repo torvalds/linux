@@ -622,10 +622,7 @@ static ssize_t store_local_boost(struct cpufreq_policy *policy,
 	if (!policy->boost_supported)
 		return -EINVAL;
 
-	cpus_read_lock();
 	ret = policy_set_boost(policy, enable);
-	cpus_read_unlock();
-
 	if (!ret)
 		return count;
 
