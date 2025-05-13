@@ -760,6 +760,9 @@ static void tcp_rcvbuf_grow(struct sock *sk)
 	/* slow start: allow the sender to double its rate. */
 	rcvwin = tp->rcvq_space.space << 1;
 
+	if (!RB_EMPTY_ROOT(&tp->out_of_order_queue))
+		rcvwin += TCP_SKB_CB(tp->ooo_last_skb)->end_seq - tp->rcv_nxt;
+
 	cap = READ_ONCE(net->ipv4.sysctl_tcp_rmem[2]);
 
 	rcvbuf = min_t(u32, tcp_space_from_win(sk, rcvwin), cap);
@@ -5166,6 +5169,7 @@ end:
 		skb_condense(skb);
 		skb_set_owner_r(skb, sk);
 	}
+	tcp_rcvbuf_grow(sk);
 }
 
 static int __must_check tcp_queue_rcv(struct sock *sk, struct sk_buff *skb,
