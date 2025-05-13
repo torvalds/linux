@@ -420,6 +420,32 @@ static int aspeed_hace_hash_handle_queue(struct aspeed_hace_dev *hace_dev,
 			hace_dev->crypt_engine_hash, req);
 }
 
+static noinline int aspeed_ahash_fallback(struct ahash_request *req)
+{
+	struct aspeed_sham_reqctx *rctx = ahash_request_ctx(req);
+	HASH_FBREQ_ON_STACK(fbreq, req);
+	u8 *state = rctx->buffer;
+	struct scatterlist sg[2];
+	struct scatterlist *ssg;
+	int ret;
+
+	ssg = scatterwalk_ffwd(sg, req->src, rctx->offset);
+	ahash_request_set_crypt(fbreq, ssg, req->result,
+				rctx->total - rctx->offset);
+
+	ret = aspeed_sham_export(req, state) ?:
+	      crypto_ahash_import_core(fbreq, state);
+
+	if (rctx->flags & SHA_FLAGS_FINUP)
+		ret = ret ?: crypto_ahash_finup(fbreq);
+	else
+		ret = ret ?: crypto_ahash_update(fbreq);
+			     crypto_ahash_export_core(fbreq, state) ?:
+			     aspeed_sham_import(req, state);
+	HASH_REQUEST_ZERO(fbreq);
+	return ret;
+}
+
 static int aspeed_ahash_do_request(struct crypto_engine *engine, void *areq)
 {
 	struct ahash_request *req = ahash_request_cast(areq);
@@ -434,7 +460,7 @@ static int aspeed_ahash_do_request(struct crypto_engine *engine, void *areq)
 
 	ret = aspeed_ahash_req_update(hace_dev);
 	if (ret != -EINPROGRESS)
-		return ret;
+		return aspeed_ahash_fallback(req);
 
 	return 0;
 }
