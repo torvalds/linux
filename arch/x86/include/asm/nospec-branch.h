@@ -561,7 +561,7 @@ DECLARE_STATIC_KEY_FALSE(mds_idle_clear);
 
 DECLARE_STATIC_KEY_FALSE(switch_mm_cond_l1d_flush);
 
-DECLARE_STATIC_KEY_FALSE(mmio_stale_data_clear);
+DECLARE_STATIC_KEY_FALSE(cpu_buf_vm_clear);
 
 extern u16 mds_verw_sel;
 
