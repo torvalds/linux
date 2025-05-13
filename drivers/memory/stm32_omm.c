@@ -164,7 +164,7 @@ static int stm32_omm_disable_child(struct device *dev)
 	u8 i;
 
 	ret = stm32_omm_toggle_child_clock(dev, true);
-	if (!ret)
+	if (ret)
 		return ret;
 
 	for (i = 0; i < omm->nb_child; i++) {
