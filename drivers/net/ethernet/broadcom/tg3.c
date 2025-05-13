@@ -54,7 +54,7 @@
 #include <linux/ssb/ssb_driver_gige.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
-#include <linux/crc32poly.h>
+#include <linux/crc32.h>
 #include <linux/dmi.h>
 
 #include <net/checksum.h>
@@ -9809,26 +9809,7 @@ static void tg3_setup_rxbd_thresholds(struct tg3 *tp)
 
 static inline u32 calc_crc(unsigned char *buf, int len)
 {
-	u32 reg;
-	u32 tmp;
-	int j, k;
-
-	reg = 0xffffffff;
-
-	for (j = 0; j < len; j++) {
-		reg ^= buf[j];
-
-		for (k = 0; k < 8; k++) {
-			tmp = reg & 0x01;
-
-			reg >>= 1;
-
-			if (tmp)
-				reg ^= CRC32_POLY_LE;
-		}
-	}
-
-	return ~reg;
+	return ~crc32(~0, buf, len);
 }
 
 static void tg3_set_multi(struct tg3 *tp, unsigned int accept_all)
