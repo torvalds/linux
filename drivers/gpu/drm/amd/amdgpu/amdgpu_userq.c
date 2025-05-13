@@ -394,6 +394,7 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	 *
 	 * This will also make sure we have a valid eviction fence ready to be used.
 	 */
+	mutex_lock(&adev->userq_mutex);
 	amdgpu_userq_ensure_ev_fence(&fpriv->userq_mgr, &fpriv->evf_mgr);
 
 	uq_funcs = adev->userq_funcs[args->in.ip_type];
@@ -456,7 +457,6 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	}
 
 	/* don't map the queue if scheduling is halted */
-	mutex_lock(&adev->userq_mutex);
 	if (adev->userq_halt_for_enforce_isolation &&
 	    ((queue->queue_type == AMDGPU_HW_IP_GFX) ||
 	     (queue->queue_type == AMDGPU_HW_IP_COMPUTE)))
@@ -466,7 +466,6 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	if (!skip_map_queue) {
 		r = amdgpu_userq_map_helper(uq_mgr, queue);
 		if (r) {
-			mutex_unlock(&adev->userq_mutex);
 			drm_file_err(uq_mgr->file, "Failed to map Queue\n");
 			idr_remove(&uq_mgr->userq_idr, qid);
 			amdgpu_userq_fence_driver_free(queue);
@@ -475,13 +474,13 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 			goto unlock;
 		}
 	}
-	mutex_unlock(&adev->userq_mutex);
 
 
 	args->out.queue_id = qid;
 
 unlock:
 	mutex_unlock(&uq_mgr->userq_mutex);
+	mutex_unlock(&adev->userq_mutex);
 
 	return r;
 }
