@@ -272,7 +272,7 @@ int amd_get_boost_ratio_numerator(unsigned int cpu, u64 *numerator)
 	}
 
 	/* detect if running on heterogeneous design */
-	if (cpu_feature_enabled(X86_FEATURE_AMD_HETEROGENEOUS_CORES)) {
+	if (cpu_feature_enabled(X86_FEATURE_AMD_HTR_CORES)) {
 		switch (core_type) {
 		case TOPO_CPU_TYPE_UNKNOWN:
 			pr_warn("Undefined core type found for cpu %d\n", cpu);

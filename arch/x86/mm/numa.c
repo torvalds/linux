@@ -18,7 +18,7 @@
 #include <asm/e820/api.h>
 #include <asm/proto.h>
 #include <asm/dma.h>
-#include <asm/amd_nb.h>
+#include <asm/amd/nb.h>
 
 #include "numa_internal.h"
 

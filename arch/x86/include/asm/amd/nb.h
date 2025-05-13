@@ -4,7 +4,7 @@
 
 #include <linux/ioport.h>
 #include <linux/pci.h>
-#include <asm/amd_node.h>
+#include <asm/amd/node.h>
 
 struct amd_nb_bus_dev_range {
 	u8 bus;

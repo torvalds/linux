@@ -26,7 +26,7 @@ static u32 ibs_caps;
 #include <linux/hardirq.h>
 
 #include <asm/nmi.h>
-#include <asm/amd-ibs.h>
+#include <asm/amd/ibs.h>
 
 /* attr.config2 */
 #define IBS_SW_FILTER_MASK	1

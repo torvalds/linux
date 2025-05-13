@@ -29,7 +29,7 @@
 #include <asm/gart.h>
 #include <asm/pci-direct.h>
 #include <asm/dma.h>
-#include <asm/amd_nb.h>
+#include <asm/amd/nb.h>
 #include <asm/x86_init.h>
 #include <linux/crash_dump.h>
 

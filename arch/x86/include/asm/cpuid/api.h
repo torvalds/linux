@@ -36,9 +36,9 @@ static inline void native_cpuid(u32 *eax, u32 *ebx,
 }
 
 #define NATIVE_CPUID_REG(reg)					\
-static inline u32 native_cpuid_##reg(u32 op)	\
+static inline u32 native_cpuid_##reg(u32 op)			\
 {								\
-	u32 eax = op, ebx, ecx = 0, edx;		\
+	u32 eax = op, ebx, ecx = 0, edx;			\
 								\
 	native_cpuid(&eax, &ebx, &ecx, &edx);			\
 								\
@@ -205,6 +205,15 @@ static inline u32 hypervisor_cpuid_base(const char *sig, u32 leaves)
 	}
 
 	return 0;
+}
+
+/*
+ * CPUID(0x80000006) parsing helpers
+ */
+
+static inline bool cpuid_amd_hygon_has_l3_cache(void)
+{
+	return cpuid_edx(0x80000006);
 }
 
 #endif /* _ASM_X86_CPUID_API_H */
