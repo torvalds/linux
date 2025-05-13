@@ -118,6 +118,21 @@ TRACE_EVENT(otx2_msg_wait_rsp,
 		      __get_str(dev))
 );
 
+TRACE_EVENT(otx2_msg_status,
+	    TP_PROTO(const struct pci_dev *pdev, const char *msg, u16 num_msgs),
+	    TP_ARGS(pdev, msg, num_msgs),
+	    TP_STRUCT__entry(__string(dev, pci_name(pdev))
+			     __string(str, msg)
+			     __field(u16, num_msgs)
+	    ),
+	    TP_fast_assign(__assign_str(dev);
+			   __assign_str(str);
+			   __entry->num_msgs = num_msgs;
+	    ),
+	    TP_printk("[%s] %s num_msgs:%d\n", __get_str(dev),
+		      __get_str(str), __entry->num_msgs)
+);
+
 #endif /* __RVU_TRACE_H */
 
 #undef TRACE_INCLUDE_PATH
