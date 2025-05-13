@@ -310,7 +310,7 @@ install-tools: $(OUTPUT)cpupower
 	$(INSTALL) -d $(DESTDIR)${libexecdir}
 	$(INSTALL_PROGRAM) cpupower.sh '$(DESTDIR)${libexecdir}/cpupower'
 	$(INSTALL) -d $(DESTDIR)${libdir}/systemd/system
-	sed 's|___CDIR___|$(DESTDIR)${confdir}|; s|___LDIR___|$(DESTDIR)${libexecdir}|' cpupower.service.in > '$(DESTDIR)${libdir}/systemd/system/cpupower.service'
+	sed 's|___CDIR___|${confdir}|; s|___LDIR___|${libexecdir}|' cpupower.service.in > '$(DESTDIR)${libdir}/systemd/system/cpupower.service'
 	$(SETPERM_DATA) '$(DESTDIR)${libdir}/systemd/system/cpupower.service'
 	if test -d /run/systemd/system; then systemctl daemon-reload; fi
 
