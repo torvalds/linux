@@ -493,7 +493,7 @@ static int tas2781_force_fwload_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-struct snd_kcontrol_new tas2781_snd_ctls[] = {
+static struct snd_kcontrol_new tas2781_snd_ctls[] = {
 	ACARD_SINGLE_RANGE_EXT_TLV(NULL, TAS2781_AMP_LEVEL, 1, 0, 20, 0,
 		tas2781_amp_getvol, tas2781_amp_putvol, amp_vol_tlv),
 	ACARD_SINGLE_RANGE_EXT_TLV(NULL, TAS2781_DVC_LVL, 0, 0, 200, 1,
@@ -502,14 +502,14 @@ struct snd_kcontrol_new tas2781_snd_ctls[] = {
 		tas2781_force_fwload_put),
 };
 
-struct snd_kcontrol_new tas2781_prof_ctl = {
+static struct snd_kcontrol_new tas2781_prof_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
 	.info = tasdevice_info_profile,
 	.get = tasdevice_get_profile_id,
 	.put = tasdevice_set_profile_id,
 };
 
-struct snd_kcontrol_new tas2781_dsp_ctls[] = {
+static struct snd_kcontrol_new tas2781_dsp_ctls[] = {
 	/* Speaker Program */
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_CARD,
