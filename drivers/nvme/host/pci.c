@@ -35,8 +35,6 @@
 #define SQ_SIZE(q)	((q)->q_depth << (q)->sqes)
 #define CQ_SIZE(q)	((q)->q_depth * sizeof(struct nvme_completion))
 
-#define SGES_PER_PAGE	(NVME_CTRL_PAGE_SIZE / sizeof(struct nvme_sgl_desc))
-
 /* Optimisation for I/Os between 4k and 128k */
 #define NVME_SMALL_POOL_SIZE	256
 
@@ -45,9 +43,23 @@
  * require an sg allocation that needs more than a page of data.
  */
 #define NVME_MAX_KB_SZ	8192
-#define NVME_MAX_SEGS	128
-#define NVME_MAX_META_SEGS 15
 #define NVME_MAX_NR_DESCRIPTORS	5
+
+/*
+ * For data SGLs we support a single descriptors worth of SGL entries, but for
+ * now we also limit it to avoid an allocation larger than PAGE_SIZE for the
+ * scatterlist.
+ */
+#define NVME_MAX_SEGS \
+	min(NVME_CTRL_PAGE_SIZE / sizeof(struct nvme_sgl_desc), \
+	    (PAGE_SIZE / sizeof(struct scatterlist)))
+
+/*
+ * For metadata SGLs, only the small descriptor is supported, and the first
+ * entry is the segment descriptor, which for the data pointer sits in the SQE.
+ */
+#define NVME_MAX_META_SEGS \
+	((NVME_SMALL_POOL_SIZE / sizeof(struct nvme_sgl_desc)) - 1)
 
 static int use_threaded_interrupts;
 module_param(use_threaded_interrupts, int, 0444);
@@ -3829,8 +3841,6 @@ static int __init nvme_init(void)
 	BUILD_BUG_ON(sizeof(struct nvme_create_sq) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_delete_queue) != 64);
 	BUILD_BUG_ON(IRQ_AFFINITY_MAX_SETS < 2);
-	BUILD_BUG_ON(NVME_MAX_SEGS > SGES_PER_PAGE);
-	BUILD_BUG_ON(sizeof(struct scatterlist) * NVME_MAX_SEGS > PAGE_SIZE);
 	BUILD_BUG_ON(nvme_pci_npages_prp() > NVME_MAX_NR_DESCRIPTORS);
 
 	return pci_register_driver(&nvme_driver);
