@@ -8,7 +8,7 @@
 #include <linux/miscdevice.h>
 #include <crypto/hash.h>
 
-struct {
+static struct {
 	u8 static_mr[SHA384_DIGEST_SIZE];
 	u8 config_mr[SHA512_DIGEST_SIZE];
 	u8 rtmr0[SHA256_DIGEST_SIZE];
