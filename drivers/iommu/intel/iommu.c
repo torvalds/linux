@@ -2686,7 +2686,6 @@ static struct dmar_satc_unit *dmar_find_matched_satc_unit(struct pci_dev *dev)
 	struct device *tmp;
 	int i;
 
-	dev = pci_physfn(dev);
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(satcu, &dmar_satc_units, list) {
