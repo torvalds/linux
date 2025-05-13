@@ -602,8 +602,7 @@ int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 
 	if (copy_from_user(&reg, arg, sizeof(reg)))
 		return -EFAULT;
-
-	if (reg.resv[0] || reg.resv[1] || reg.resv[2])
+	if (!mem_is_zero(reg.resv, sizeof(reg.resv)))
 		return -EINVAL;
 	if (reg.flags & ~(IOU_PBUF_RING_MMAP | IOU_PBUF_RING_INC))
 		return -EINVAL;
@@ -679,9 +678,7 @@ int io_unregister_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 
 	if (copy_from_user(&reg, arg, sizeof(reg)))
 		return -EFAULT;
-	if (reg.resv[0] || reg.resv[1] || reg.resv[2])
-		return -EINVAL;
-	if (reg.flags)
+	if (!mem_is_zero(reg.resv, sizeof(reg.resv)) || reg.flags)
 		return -EINVAL;
 
 	bl = io_buffer_get_list(ctx, reg.bgid);
@@ -701,14 +698,11 @@ int io_register_pbuf_status(struct io_ring_ctx *ctx, void __user *arg)
 {
 	struct io_uring_buf_status buf_status;
 	struct io_buffer_list *bl;
-	int i;
 
 	if (copy_from_user(&buf_status, arg, sizeof(buf_status)))
 		return -EFAULT;
-
-	for (i = 0; i < ARRAY_SIZE(buf_status.resv); i++)
-		if (buf_status.resv[i])
-			return -EINVAL;
+	if (!mem_is_zero(buf_status.resv, sizeof(buf_status.resv)))
+		return -EINVAL;
 
 	bl = io_buffer_get_list(ctx, buf_status.buf_group);
 	if (!bl)
