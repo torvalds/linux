@@ -442,6 +442,12 @@ static int wx_host_interface_command_r(struct wx *wx, u32 *buffer,
 		goto rel_out;
 	}
 
+	if (hdr->cmd_or_resp.ret_status == 0x80) {
+		wx_err(wx, "Unknown FW command: 0x%x\n", send_cmd);
+		err = -EINVAL;
+		goto rel_out;
+	}
+
 	/* expect no reply from FW then return */
 	if (!return_data)
 		goto rel_out;
