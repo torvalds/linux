@@ -697,6 +697,7 @@ enum {
 };
 
 #define TCA_FLOWER_KEY_CFM_OPT_MAX (__TCA_FLOWER_KEY_CFM_OPT_MAX - 1)
+#define TCA_FLOWER_KEY_CFM_MAX	   (__TCA_FLOWER_KEY_CFM_OPT_MAX - 1)
 
 #define TCA_FLOWER_MASK_FLAGS_RANGE	(1 << 0) /* Range-based match */
 
