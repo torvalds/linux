@@ -119,7 +119,6 @@
 #define SHA_FLAGS_SHA512		BIT(4)
 #define SHA_FLAGS_SHA512_224		BIT(5)
 #define SHA_FLAGS_SHA512_256		BIT(6)
-#define SHA_FLAGS_HMAC			BIT(8)
 #define SHA_FLAGS_FINUP			BIT(9)
 #define SHA_FLAGS_MASK			(0xff)
 
@@ -161,17 +160,8 @@ struct aspeed_engine_hash {
 	aspeed_hace_fn_t		dma_prepare;
 };
 
-struct aspeed_sha_hmac_ctx {
-	struct crypto_shash *shash;
-	u8 ipad[SHA512_BLOCK_SIZE];
-	u8 opad[SHA512_BLOCK_SIZE];
-};
-
 struct aspeed_sham_ctx {
 	struct aspeed_hace_dev		*hace_dev;
-	unsigned long			flags;	/* hmac flag */
-
-	struct aspeed_sha_hmac_ctx	base[];
 };
 
 struct aspeed_sham_reqctx {
