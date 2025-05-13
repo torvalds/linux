@@ -30,37 +30,21 @@
 #include "i915_reg_defs.h"
 #include "intel_display_limits.h"
 
-enum drm_scaling_filter;
-struct dpll;
 struct drm_atomic_state;
-struct drm_connector;
 struct drm_device;
 struct drm_display_mode;
 struct drm_encoder;
-struct drm_file;
-struct drm_format_info;
-struct drm_framebuffer;
-struct drm_mode_fb_cmd2;
 struct drm_modeset_acquire_ctx;
-struct drm_plane;
-struct drm_plane_state;
-struct i915_address_space;
-struct i915_gtt_view;
 struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_digital_port;
 struct intel_display;
-struct intel_dp;
 struct intel_encoder;
-struct intel_initial_plane_config;
 struct intel_link_m_n;
 struct intel_plane;
 struct intel_plane_state;
 struct intel_power_domain_mask;
-struct pci_dev;
-struct work_struct;
-
 
 #define pipe_name(p) ((p) + 'A')
 
