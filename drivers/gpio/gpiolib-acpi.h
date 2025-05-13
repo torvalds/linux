@@ -63,6 +63,8 @@ void acpi_gpio_process_deferred_list(struct list_head *list);
 bool acpi_gpio_add_to_deferred_list(struct list_head *list);
 void acpi_gpio_remove_from_deferred_list(struct list_head *list);
 
+int acpi_gpio_need_run_edge_events_on_boot(void);
+
 enum acpi_gpio_ignore_list {
 	ACPI_GPIO_IGNORE_WAKE,
 	ACPI_GPIO_IGNORE_INTERRUPT,

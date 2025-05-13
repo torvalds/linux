@@ -268,7 +268,7 @@ static void acpi_gpiochip_request_irq(struct acpi_gpio_chip *acpi_gpio,
 	event->irq_requested = true;
 
 	/* Make sure we trigger the initial state of edge-triggered IRQs */
-	if (run_edge_events_on_boot &&
+	if (acpi_gpio_need_run_edge_events_on_boot() &&
 	    (event->irqflags & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING))) {
 		value = gpiod_get_raw_value_cansleep(event->desc);
 		if (((event->irqflags & IRQF_TRIGGER_RISING) && value == 1) ||
@@ -369,6 +369,11 @@ void acpi_gpio_remove_from_deferred_list(struct list_head *list)
 	if (!list_empty(list))
 		list_del_init(list);
 	mutex_unlock(&acpi_gpio_deferred_req_irqs_lock);
+}
+
+int acpi_gpio_need_run_edge_events_on_boot(void)
+{
+	return run_edge_events_on_boot;
 }
 
 bool acpi_gpio_in_ignore_list(enum acpi_gpio_ignore_list list, const char *controller_in,
