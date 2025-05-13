@@ -29,9 +29,6 @@ static inline bool check_la57_support(void)
 	__pgtable_l5_enabled	= 1;
 	pgdir_shift		= 48;
 	ptrs_per_p4d		= 512;
-	page_offset_base	= __PAGE_OFFSET_BASE_L5;
-	vmalloc_base		= __VMALLOC_BASE_L5;
-	vmemmap_base		= __VMEMMAP_BASE_L5;
 
 	return true;
 }
