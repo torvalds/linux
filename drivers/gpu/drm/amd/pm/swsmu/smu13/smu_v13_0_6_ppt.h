@@ -74,4 +74,12 @@ extern void smu_v13_0_6_set_ppt_funcs(struct smu_context *smu);
 bool smu_v13_0_6_cap_supported(struct smu_context *smu, enum smu_v13_0_6_caps cap);
 int smu_v13_0_6_get_static_metrics_table(struct smu_context *smu);
 
+bool smu_v13_0_12_is_dpm_running(struct smu_context *smu);
+int smu_v13_0_12_get_max_metrics_size(void);
+int smu_v13_0_12_setup_driver_pptable(struct smu_context *smu);
+int smu_v13_0_12_get_smu_metrics_data(struct smu_context *smu,
+				      MetricsMember_t member, uint32_t *value);
+ssize_t smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table);
+extern const struct cmn2asic_mapping smu_v13_0_12_feature_mask_map[];
+extern const struct cmn2asic_msg_mapping smu_v13_0_12_message_map[];
 #endif
