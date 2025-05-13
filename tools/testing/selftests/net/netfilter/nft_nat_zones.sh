@@ -88,7 +88,6 @@ for i in $(seq 1 "$maxclients");do
   echo netns exec "$cl" sysctl -q net.ipv4.tcp_syn_retries=2
   echo netns exec "$gw" ip link set "veth$i" up
   echo netns exec "$gw" sysctl -q net.ipv4.conf.veth"$i".arp_ignore=2
-  echo netns exec "$gw" sysctl -q net.ipv4.conf.veth"$i".rp_filter=0
 
   # clients have same IP addresses.
   echo netns exec "$cl" ip addr add 10.1.0.3/24 dev eth0
@@ -178,7 +177,6 @@ fi
 
 ip netns exec "$gw" sysctl -q net.ipv4.conf.all.forwarding=1 > /dev/null
 ip netns exec "$gw" sysctl -q net.ipv6.conf.all.forwarding=1 > /dev/null
-ip netns exec "$gw" sysctl -q net.ipv4.conf.all.rp_filter=0 >/dev/null
 
 # useful for debugging: allows to use 'ping' from clients to gateway.
 ip netns exec "$gw" sysctl -q net.ipv4.fwmark_reflect=1 > /dev/null
