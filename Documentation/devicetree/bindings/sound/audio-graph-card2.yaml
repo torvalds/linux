@@ -39,6 +39,8 @@ properties:
     description: Codec to Codec node
   hp-det-gpios:
     $ref: audio-graph.yaml#/properties/hp-det-gpios
+  mic-det-gpios:
+    $ref: audio-graph.yaml#/properties/mic-det-gpios
   widgets:
     $ref: audio-graph.yaml#/properties/widgets
 
