@@ -19,78 +19,7 @@
 #include "omap_remoteproc.h"
 #include "remoteproc_internal.h"
 #include "ti_sci_proc.h"
-
-/**
- * struct k3_m4_rproc_mem - internal memory structure
- * @cpu_addr: MPU virtual address of the memory region
- * @bus_addr: Bus address used to access the memory region
- * @dev_addr: Device address of the memory region from remote processor view
- * @size: Size of the memory region
- */
-struct k3_m4_rproc_mem {
-	void __iomem *cpu_addr;
-	phys_addr_t bus_addr;
-	u32 dev_addr;
-	size_t size;
-};
-
-/**
- * struct k3_m4_mem_data - memory definitions for a remote processor
- * @name: name for this memory entry
- * @dev_addr: device address for the memory entry
- */
-struct k3_m4_mem_data {
-	const char *name;
-	const u32 dev_addr;
-};
-
-/**
- * struct k3_m4_dev_data - device data structure for a M4 core
- * @mems: pointer to memory definitions for a M4 core
- * @num_mems: number of memory regions in @mems
- * @boot_align_addr: boot vector address alignment granularity
- * @uses_lreset: flag to denote the need for local reset management
- */
-struct k3_m4_dev_data {
-	const struct k3_m4_mem_data *mems;
-	u32 num_mems;
-	u32 boot_align_addr;
-	bool uses_lreset;
-};
-
-/**
- * struct k3_m4_rproc - k3 remote processor driver structure
- * @dev: cached device pointer
- * @rproc: remoteproc device handle
- * @mem: internal memory regions data
- * @num_mems: number of internal memory regions
- * @rmem: reserved memory regions data
- * @num_rmems: number of reserved memory regions
- * @reset: reset control handle
- * @data: pointer to M4-specific device data
- * @tsp: TI-SCI processor control handle
- * @ti_sci: TI-SCI handle
- * @ti_sci_id: TI-SCI device identifier
- * @mbox: mailbox channel handle
- * @client: mailbox client to request the mailbox channel
- * @priv: Remote processor private data
- */
-struct k3_m4_rproc {
-	struct device *dev;
-	struct rproc *rproc;
-	struct k3_m4_rproc_mem *mem;
-	int num_mems;
-	struct k3_m4_rproc_mem *rmem;
-	int num_rmems;
-	struct reset_control *reset;
-	const struct k3_m4_dev_data *data;
-	struct ti_sci_proc *tsp;
-	const struct ti_sci_handle *ti_sci;
-	u32 ti_sci_id;
-	struct mbox_chan *mbox;
-	struct mbox_client client;
-	void *priv;
-};
+#include "ti_k3_common.h"
 
 /**
  * k3_m4_rproc_mbox_callback() - inbound mailbox message handler
@@ -147,7 +76,7 @@ static void k3_m4_rproc_mbox_callback(struct mbox_client *client, void *data)
  */
 static void k3_m4_rproc_kick(struct rproc *rproc, int vqid)
 {
-	struct k3_m4_rproc *kproc = rproc->priv;
+	struct k3_rproc *kproc = rproc->priv;
 	struct device *dev = kproc->dev;
 	u32 msg = (u32)vqid;
 	int ret;
@@ -163,7 +92,7 @@ static void k3_m4_rproc_kick(struct rproc *rproc, int vqid)
 			ret);
 }
 
-static int k3_m4_rproc_ping_mbox(struct k3_m4_rproc *kproc)
+static int k3_m4_rproc_ping_mbox(struct k3_rproc *kproc)
 {
 	struct device *dev = kproc->dev;
 	int ret;
@@ -195,7 +124,7 @@ static int k3_m4_rproc_ping_mbox(struct k3_m4_rproc *kproc)
  */
 static int k3_m4_rproc_prepare(struct rproc *rproc)
 {
-	struct k3_m4_rproc *kproc = rproc->priv;
+	struct k3_rproc *kproc = rproc->priv;
 	struct device *dev = kproc->dev;
 	int ret;
 
@@ -240,7 +169,7 @@ static int k3_m4_rproc_prepare(struct rproc *rproc)
  */
 static int k3_m4_rproc_unprepare(struct rproc *rproc)
 {
-	struct k3_m4_rproc *kproc = rproc->priv;
+	struct k3_rproc *kproc = rproc->priv;
 	struct device *dev = kproc->dev;
 	int ret;
 
@@ -271,7 +200,7 @@ static int k3_m4_rproc_unprepare(struct rproc *rproc)
 static struct resource_table *k3_m4_get_loaded_rsc_table(struct rproc *rproc,
 							 size_t *rsc_table_sz)
 {
-	struct k3_m4_rproc *kproc = rproc->priv;
+	struct k3_rproc *kproc = rproc->priv;
 	struct device *dev = kproc->dev;
 
 	if (!kproc->rmem[0].cpu_addr) {
@@ -301,7 +230,7 @@ static struct resource_table *k3_m4_get_loaded_rsc_table(struct rproc *rproc,
  */
 static void *k3_m4_rproc_da_to_va(struct rproc *rproc, u64 da, size_t len, bool *is_iomem)
 {
-	struct k3_m4_rproc *kproc = rproc->priv;
+	struct k3_rproc *kproc = rproc->priv;
 	void __iomem *va = NULL;
 	phys_addr_t bus_addr;
 	u32 dev_addr, offset;
@@ -347,9 +276,9 @@ static void *k3_m4_rproc_da_to_va(struct rproc *rproc, u64 da, size_t len, bool 
 }
 
 static int k3_m4_rproc_of_get_memories(struct platform_device *pdev,
-				       struct k3_m4_rproc *kproc)
+				       struct k3_rproc *kproc)
 {
-	const struct k3_m4_dev_data *data = kproc->data;
+	const struct k3_rproc_dev_data *data = kproc->data;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	int num_mems;
@@ -405,7 +334,7 @@ static void k3_m4_rproc_dev_mem_release(void *data)
 	of_reserved_mem_device_release(dev);
 }
 
-static int k3_m4_reserved_mem_init(struct k3_m4_rproc *kproc)
+static int k3_m4_reserved_mem_init(struct k3_rproc *kproc)
 {
 	struct device *dev = kproc->dev;
 	struct device_node *np = dev->of_node;
@@ -490,7 +419,7 @@ static void k3_m4_release_tsp(void *data)
  */
 static int k3_m4_rproc_start(struct rproc *rproc)
 {
-	struct k3_m4_rproc *kproc = rproc->priv;
+	struct k3_rproc *kproc = rproc->priv;
 	struct device *dev = kproc->dev;
 	int ret;
 
@@ -515,7 +444,7 @@ static int k3_m4_rproc_start(struct rproc *rproc)
  */
 static int k3_m4_rproc_stop(struct rproc *rproc)
 {
-	struct k3_m4_rproc *kproc = rproc->priv;
+	struct k3_rproc *kproc = rproc->priv;
 	struct device *dev = kproc->dev;
 	int ret;
 
@@ -537,7 +466,7 @@ static int k3_m4_rproc_stop(struct rproc *rproc)
  */
 static int k3_m4_rproc_attach(struct rproc *rproc)
 {
-	struct k3_m4_rproc *kproc = rproc->priv;
+	struct k3_rproc *kproc = rproc->priv;
 	int ret;
 
 	ret = k3_m4_rproc_ping_mbox(kproc);
@@ -573,9 +502,9 @@ static const struct rproc_ops k3_m4_rproc_ops = {
 
 static int k3_m4_rproc_probe(struct platform_device *pdev)
 {
-	const struct k3_m4_dev_data *data;
+	const struct k3_rproc_dev_data *data;
 	struct device *dev = &pdev->dev;
-	struct k3_m4_rproc *kproc;
+	struct k3_rproc *kproc;
 	struct rproc *rproc;
 	const char *fw_name;
 	bool r_state = false;
@@ -668,12 +597,12 @@ static int k3_m4_rproc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct k3_m4_mem_data am64_m4_mems[] = {
+static const struct k3_rproc_mem_data am64_m4_mems[] = {
 	{ .name = "iram", .dev_addr = 0x0 },
 	{ .name = "dram", .dev_addr = 0x30000 },
 };
 
-static const struct k3_m4_dev_data am64_m4_data = {
+static const struct k3_rproc_dev_data am64_m4_data = {
 	.mems = am64_m4_mems,
 	.num_mems = ARRAY_SIZE(am64_m4_mems),
 	.boot_align_addr = SZ_1K,

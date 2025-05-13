@@ -26,6 +26,7 @@
 #include "omap_remoteproc.h"
 #include "remoteproc_internal.h"
 #include "ti_sci_proc.h"
+#include "ti_k3_common.h"
 
 /* This address can either be for ATCM or BTCM with the other at address 0x0 */
 #define K3_R5_TCM_DEV_ADDR	0x41010000
@@ -55,20 +56,6 @@
 /* Applicable to only AM64x SoCs */
 #define PROC_BOOT_STATUS_FLAG_R5_SINGLECORE_ONLY	0x00000200
 
-/**
- * struct k3_r5_mem - internal memory structure
- * @cpu_addr: MPU virtual address of the memory region
- * @bus_addr: Bus address used to access the memory region
- * @dev_addr: Device address from remoteproc view
- * @size: Size of the memory region
- */
-struct k3_r5_mem {
-	void __iomem *cpu_addr;
-	phys_addr_t bus_addr;
-	u32 dev_addr;
-	size_t size;
-};
-
 /*
  * All cluster mode values are not applicable on all SoCs. The following
  * are the modes supported on various SoCs:
@@ -85,30 +72,6 @@ enum cluster_mode {
 };
 
 /**
- * struct k3_r5_mem_data - memory definitions for a R5
- * @name: name for this memory entry
- * @dev_addr: device address for the memory entry
- */
-struct k3_r5_mem_data {
-	const char *name;
-	const u32 dev_addr;
-};
-
-/**
- * struct k3_r5_dev_data - device data structure for a R5
- * @mems: pointer to memory definitions for a R5
- * @num_mems: number of memory regions in @mems
- * @boot_align_addr: boot vector address alignment granularity
- * @uses_lreset: flag to denote the need for local reset management
- */
-struct k3_r5_dev_data {
-	const struct k3_r5_mem_data *mems;
-	u32 num_mems;
-	u32 boot_align_addr;
-	bool uses_lreset;
-};
-
-/**
  * struct k3_r5_soc_data - match data to handle SoC variations
  * @tcm_is_double: flag to denote the larger unified TCMs in certain modes
  * @tcm_ecc_autoinit: flag to denote the auto-initialization of TCMs for ECC
@@ -121,7 +84,7 @@ struct k3_r5_soc_data {
 	bool tcm_ecc_autoinit;
 	bool single_cpu_mode;
 	bool is_single_core;
-	const struct k3_r5_dev_data *core_data;
+	const struct k3_rproc_dev_data *core_data;
 };
 
 /**
@@ -140,8 +103,6 @@ struct k3_r5_cluster {
 	const struct k3_r5_soc_data *soc_data;
 };
 
-struct k3_r5_rproc;
-
 /**
  * struct k3_r5_core - K3 R5 core structure
  * @elem: linked list item
@@ -158,48 +119,14 @@ struct k3_r5_rproc;
 struct k3_r5_core {
 	struct list_head elem;
 	struct device *dev;
-	struct k3_r5_rproc *kproc;
+	struct k3_rproc *kproc;
 	struct k3_r5_cluster *cluster;
-	struct k3_r5_mem *sram;
+	struct k3_rproc_mem *sram;
 	int num_sram;
 	u32 atcm_enable;
 	u32 btcm_enable;
 	u32 loczrama;
 	bool released_from_reset;
-};
-
-/**
- * struct k3_r5_rproc - K3 remote processor state
- * @dev: cached device pointer
- * @rproc: rproc handle
- * @mem: internal memory regions data
- * @num_mems: number of internal memory regions
- * @rmem: reserved memory regions data
- * @num_rmems: number of reserved memory regions
- * @reset: reset control handle
- * @data: pointer to R5-core-specific device data
- * @tsp: TI-SCI processor control handle
- * @ti_sci: TI-SCI handle
- * @ti_sci_id: TI-SCI device identifier
- * @mbox: mailbox channel handle
- * @client: mailbox client to request the mailbox channel
- * @priv: Remote processor private data
- */
-struct k3_r5_rproc {
-	struct device *dev;
-	struct rproc *rproc;
-	struct k3_r5_mem *mem;
-	int num_mems;
-	struct k3_r5_mem *rmem;
-	int num_rmems;
-	struct reset_control *reset;
-	const struct k3_r5_dev_data *data;
-	struct ti_sci_proc *tsp;
-	const struct ti_sci_handle *ti_sci;
-	u32 ti_sci_id;
-	struct mbox_chan *mbox;
-	struct mbox_client client;
-	void *priv;
 };
 
 /**
@@ -218,8 +145,7 @@ struct k3_r5_rproc {
  */
 static void k3_r5_rproc_mbox_callback(struct mbox_client *client, void *data)
 {
-	struct k3_r5_rproc *kproc = container_of(client, struct k3_r5_rproc,
-						client);
+	struct k3_rproc *kproc = container_of(client, struct k3_rproc, client);
 	struct device *dev = kproc->rproc->dev.parent;
 	const char *name = kproc->rproc->name;
 	u32 msg = omap_mbox_message(data);
@@ -254,7 +180,7 @@ static void k3_r5_rproc_mbox_callback(struct mbox_client *client, void *data)
 /* kick a virtqueue */
 static void k3_r5_rproc_kick(struct rproc *rproc, int vqid)
 {
-	struct k3_r5_rproc *kproc = rproc->priv;
+	struct k3_rproc *kproc = rproc->priv;
 	struct device *dev = rproc->dev.parent;
 	mbox_msg_t msg = (mbox_msg_t)vqid;
 	int ret;
@@ -266,7 +192,7 @@ static void k3_r5_rproc_kick(struct rproc *rproc, int vqid)
 			ret);
 }
 
-static int k3_r5_split_reset(struct k3_r5_rproc *kproc)
+static int k3_r5_split_reset(struct k3_rproc *kproc)
 {
 	int ret;
 
@@ -289,7 +215,7 @@ static int k3_r5_split_reset(struct k3_r5_rproc *kproc)
 	return ret;
 }
 
-static int k3_r5_split_release(struct k3_r5_rproc *kproc)
+static int k3_r5_split_release(struct k3_rproc *kproc)
 {
 	int ret;
 
@@ -316,7 +242,7 @@ static int k3_r5_split_release(struct k3_r5_rproc *kproc)
 static int k3_r5_lockstep_reset(struct k3_r5_cluster *cluster)
 {
 	struct k3_r5_core *core;
-	struct k3_r5_rproc *kproc;
+	struct k3_rproc *kproc;
 	int ret;
 
 	/* assert local reset on all applicable cores */
@@ -364,7 +290,7 @@ unroll_local_reset:
 static int k3_r5_lockstep_release(struct k3_r5_cluster *cluster)
 {
 	struct k3_r5_core *core;
-	struct k3_r5_rproc *kproc;
+	struct k3_rproc *kproc;
 	int ret;
 
 	/* enable PSC modules on all applicable cores */
@@ -409,13 +335,13 @@ unroll_module_reset:
 	return ret;
 }
 
-static inline int k3_r5_core_halt(struct k3_r5_rproc *kproc)
+static inline int k3_r5_core_halt(struct k3_rproc *kproc)
 {
 	return ti_sci_proc_set_control(kproc->tsp,
 				       PROC_BOOT_CTRL_FLAG_R5_CORE_HALT, 0);
 }
 
-static inline int k3_r5_core_run(struct k3_r5_rproc *kproc)
+static inline int k3_r5_core_run(struct k3_rproc *kproc)
 {
 	return ti_sci_proc_set_control(kproc->tsp,
 				       0, PROC_BOOT_CTRL_FLAG_R5_CORE_HALT);
@@ -423,7 +349,7 @@ static inline int k3_r5_core_run(struct k3_r5_rproc *kproc)
 
 static int k3_r5_rproc_request_mbox(struct rproc *rproc)
 {
-	struct k3_r5_rproc *kproc = rproc->priv;
+	struct k3_rproc *kproc = rproc->priv;
 	struct mbox_client *client = &kproc->client;
 	struct device *dev = kproc->dev;
 	int ret;
@@ -474,7 +400,7 @@ static int k3_r5_rproc_request_mbox(struct rproc *rproc)
  */
 static int k3_r5_rproc_prepare(struct rproc *rproc)
 {
-	struct k3_r5_rproc *kproc = rproc->priv;
+	struct k3_rproc *kproc = rproc->priv;
 	struct k3_r5_core *core = kproc->priv, *core0, *core1;
 	struct k3_r5_cluster *cluster = core->cluster;
 	struct device *dev = kproc->dev;
@@ -572,7 +498,7 @@ static int k3_r5_rproc_prepare(struct rproc *rproc)
  */
 static int k3_r5_rproc_unprepare(struct rproc *rproc)
 {
-	struct k3_r5_rproc *kproc = rproc->priv;
+	struct k3_rproc *kproc = rproc->priv;
 	struct k3_r5_core *core = kproc->priv, *core0, *core1;
 	struct k3_r5_cluster *cluster = core->cluster;
 	struct device *dev = kproc->dev;
@@ -635,7 +561,7 @@ static int k3_r5_rproc_unprepare(struct rproc *rproc)
  */
 static int k3_r5_rproc_start(struct rproc *rproc)
 {
-	struct k3_r5_rproc *kproc = rproc->priv;
+	struct k3_rproc *kproc = rproc->priv;
 	struct k3_r5_core *core = kproc->priv;
 	struct k3_r5_cluster *cluster = core->cluster;
 	struct device *dev = kproc->dev;
@@ -700,7 +626,7 @@ unroll_core_run:
  */
 static int k3_r5_rproc_stop(struct rproc *rproc)
 {
-	struct k3_r5_rproc *kproc = rproc->priv;
+	struct k3_rproc *kproc = rproc->priv;
 	struct k3_r5_core *core = kproc->priv;
 	struct k3_r5_cluster *cluster = core->cluster;
 	int ret;
@@ -764,7 +690,7 @@ static int k3_r5_rproc_detach(struct rproc *rproc) { return 0; }
 static struct resource_table *k3_r5_get_loaded_rsc_table(struct rproc *rproc,
 							 size_t *rsc_table_sz)
 {
-	struct k3_r5_rproc *kproc = rproc->priv;
+	struct k3_rproc *kproc = rproc->priv;
 	struct device *dev = kproc->dev;
 
 	if (!kproc->rmem[0].cpu_addr) {
@@ -793,7 +719,7 @@ static struct resource_table *k3_r5_get_loaded_rsc_table(struct rproc *rproc,
  */
 static void *k3_r5_rproc_da_to_va(struct rproc *rproc, u64 da, size_t len, bool *is_iomem)
 {
-	struct k3_r5_rproc *kproc = rproc->priv;
+	struct k3_rproc *kproc = rproc->priv;
 	struct k3_r5_core *core = kproc->priv;
 	void __iomem *va = NULL;
 	phys_addr_t bus_addr;
@@ -896,7 +822,7 @@ static const struct rproc_ops k3_r5_rproc_ops = {
  * both the cores with the same settings, before reconfiguing again for
  * LockStep mode.
  */
-static int k3_r5_rproc_configure(struct k3_r5_rproc *kproc)
+static int k3_r5_rproc_configure(struct k3_rproc *kproc)
 {
 	struct k3_r5_core *temp, *core0, *core = kproc->priv;
 	struct k3_r5_cluster *cluster = core->cluster;
@@ -1025,7 +951,7 @@ static void k3_r5_mem_release(void *data)
 	of_reserved_mem_device_release(dev);
 }
 
-static int k3_r5_reserved_mem_init(struct k3_r5_rproc *kproc)
+static int k3_r5_reserved_mem_init(struct k3_rproc *kproc)
 {
 	struct device *dev = kproc->dev;
 	struct device_node *np = dev_of_node(dev);
@@ -1118,7 +1044,7 @@ static int k3_r5_reserved_mem_init(struct k3_r5_rproc *kproc)
  * supported SoCs. The Core0 TCM sizes therefore have to be adjusted to only
  * half the original size in Split mode.
  */
-static void k3_r5_adjust_tcm_sizes(struct k3_r5_rproc *kproc)
+static void k3_r5_adjust_tcm_sizes(struct k3_rproc *kproc)
 {
 	struct k3_r5_core *core0, *core = kproc->priv;
 	struct k3_r5_cluster *cluster = core->cluster;
@@ -1156,7 +1082,7 @@ static void k3_r5_adjust_tcm_sizes(struct k3_r5_rproc *kproc)
  * actual values configured by bootloader. The driver internal device memory
  * addresses for TCMs are also updated.
  */
-static int k3_r5_rproc_configure_mode(struct k3_r5_rproc *kproc)
+static int k3_r5_rproc_configure_mode(struct k3_rproc *kproc)
 {
 	struct k3_r5_core *core0, *core = kproc->priv;
 	struct k3_r5_cluster *cluster = core->cluster;
@@ -1261,9 +1187,9 @@ static int k3_r5_rproc_configure_mode(struct k3_r5_rproc *kproc)
 }
 
 static int k3_r5_core_of_get_internal_memories(struct platform_device *pdev,
-					       struct k3_r5_rproc *kproc)
+					       struct k3_rproc *kproc)
 {
-	const struct k3_r5_dev_data *data = kproc->data;
+	const struct k3_rproc_dev_data *data = kproc->data;
 	struct device *dev = &pdev->dev;
 	struct k3_r5_core *core = kproc->priv;
 	struct resource *res;
@@ -1403,7 +1329,7 @@ static int k3_r5_cluster_rproc_init(struct platform_device *pdev)
 {
 	struct k3_r5_cluster *cluster = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
-	struct k3_r5_rproc *kproc;
+	struct k3_rproc *kproc;
 	struct k3_r5_core *core, *core1;
 	struct device_node *np;
 	struct device *cdev;
@@ -1562,7 +1488,7 @@ out:
 static void k3_r5_cluster_rproc_exit(void *data)
 {
 	struct k3_r5_cluster *cluster = platform_get_drvdata(data);
-	struct k3_r5_rproc *kproc;
+	struct k3_rproc *kproc;
 	struct k3_r5_core *core;
 	struct rproc *rproc;
 	int ret;
@@ -1803,12 +1729,12 @@ static int k3_r5_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct k3_r5_mem_data r5_mems[] = {
+static const struct k3_rproc_mem_data r5_mems[] = {
 	{ .name = "atcm", .dev_addr = 0x0 },
 	{ .name = "btcm", .dev_addr = K3_R5_TCM_DEV_ADDR },
 };
 
-static const struct k3_r5_dev_data r5_data = {
+static const struct k3_rproc_dev_data r5_data = {
 	.mems = r5_mems,
 	.num_mems = ARRAY_SIZE(r5_mems),
 	.boot_align_addr = 0,
