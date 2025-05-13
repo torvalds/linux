@@ -245,18 +245,6 @@ static void k3_m4_release_tsp(void *data)
 }
 
 /*
- * Attach to a running M4 remote processor (IPC-only mode)
- *
- * The remote processor is already booted, so there is no need to issue any
- * TI-SCI commands to boot the M4 core. This callback is used only in IPC-only
- * mode.
- */
-static int k3_m4_rproc_attach(struct rproc *rproc)
-{
-	return 0;
-}
-
-/*
  * Detach from a running M4 remote processor (IPC-only mode)
  *
  * This rproc detach callback performs the opposite operation to attach
@@ -273,7 +261,7 @@ static const struct rproc_ops k3_m4_rproc_ops = {
 	.unprepare = k3_rproc_unprepare,
 	.start = k3_rproc_start,
 	.stop = k3_rproc_stop,
-	.attach = k3_m4_rproc_attach,
+	.attach = k3_rproc_attach,
 	.detach = k3_m4_rproc_detach,
 	.kick = k3_rproc_kick,
 	.da_to_va = k3_m4_rproc_da_to_va,
