@@ -1425,15 +1425,15 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	mutex_init(&fpriv->bo_list_lock);
 	idr_init_base(&fpriv->bo_list_handles, 1);
 
+	r = amdgpu_userq_mgr_init(&fpriv->userq_mgr, file_priv, adev);
+	if (r)
+		DRM_WARN("Can't setup usermode queues, use legacy workload submission only\n");
+
 	r = amdgpu_eviction_fence_init(&fpriv->evf_mgr);
 	if (r)
 		goto error_vm;
 
 	amdgpu_ctx_mgr_init(&fpriv->ctx_mgr, adev);
-
-	r = amdgpu_userq_mgr_init(&fpriv->userq_mgr, file_priv, adev);
-	if (r)
-		DRM_WARN("Can't setup usermode queues, use legacy workload submission only\n");
 
 	file_priv->driver_priv = fpriv;
 	goto out_suspend;
