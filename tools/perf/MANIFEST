@@ -1,8 +1,10 @@
 COPYING
 LICENSES/preferred/GPL-2.0
 arch/arm64/tools/gen-sysreg.awk
+arch/arm64/tools/syscall_64.tbl
 arch/arm64/tools/sysreg
 arch/*/include/uapi/asm/bpf_perf_event.h
+include/uapi/asm-generic/Kbuild
 tools/perf
 tools/arch
 tools/scripts
@@ -25,6 +27,10 @@ tools/lib/str_error_r.c
 tools/lib/vsprintf.c
 tools/lib/zalloc.c
 scripts/bpf_doc.py
+scripts/Kbuild.include
+scripts/Makefile.asm-headers
+scripts/syscall.tbl
+scripts/syscallhdr.sh
 tools/bpf/bpftool
 kernel/bpf/disasm.c
 kernel/bpf/disasm.h
