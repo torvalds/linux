@@ -150,7 +150,7 @@ static struct mount *propagation_next(struct mount *m,
 					 struct mount *origin)
 {
 	/* are there any slaves of this mount? */
-	if (!IS_MNT_PROPAGATED(m) && !list_empty(&m->mnt_slave_list))
+	if (!IS_MNT_NEW(m) && !list_empty(&m->mnt_slave_list))
 		return first_slave(m);
 
 	while (1) {
@@ -174,7 +174,7 @@ static struct mount *skip_propagation_subtree(struct mount *m,
 	 * Advance m such that propagation_next will not return
 	 * the slaves of m.
 	 */
-	if (!IS_MNT_PROPAGATED(m) && !list_empty(&m->mnt_slave_list))
+	if (!IS_MNT_NEW(m) && !list_empty(&m->mnt_slave_list))
 		m = last_slave(m);
 
 	return m;
@@ -185,7 +185,7 @@ static struct mount *next_group(struct mount *m, struct mount *origin)
 	while (1) {
 		while (1) {
 			struct mount *next;
-			if (!IS_MNT_PROPAGATED(m) && !list_empty(&m->mnt_slave_list))
+			if (!IS_MNT_NEW(m) && !list_empty(&m->mnt_slave_list))
 				return first_slave(m);
 			next = next_peer(m);
 			if (m->mnt_group_id == origin->mnt_group_id) {
@@ -226,11 +226,15 @@ static int propagate_one(struct mount *m, struct mountpoint *dest_mp)
 	struct mount *child;
 	int type;
 	/* skip ones added by this propagate_mnt() */
-	if (IS_MNT_PROPAGATED(m))
+	if (IS_MNT_NEW(m))
 		return 0;
-	/* skip if mountpoint isn't covered by it */
+	/* skip if mountpoint isn't visible in m */
 	if (!is_subdir(dest_mp->m_dentry, m->mnt.mnt_root))
 		return 0;
+	/* skip if m is in the anon_ns we are emptying */
+	if (m->mnt_ns->mntns_flags & MNTNS_PROPAGATING)
+		return 0;
+
 	if (peers(m, last_dest)) {
 		type = CL_MAKE_SHARED;
 	} else {
@@ -378,9 +382,6 @@ bool propagation_would_overmount(const struct mount *from,
 				 const struct mountpoint *mp)
 {
 	if (!IS_MNT_SHARED(from))
-		return false;
-
-	if (IS_MNT_PROPAGATED(to))
 		return false;
 
 	if (to->mnt.mnt_root != mp->m_dentry)

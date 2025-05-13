@@ -79,7 +79,7 @@ xe_svm_range_alloc(struct drm_gpusvm *gpusvm)
 
 	range = kzalloc(sizeof(*range), GFP_KERNEL);
 	if (!range)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	INIT_LIST_HEAD(&range->garbage_collector_link);
 	xe_vm_get(gpusvm_to_vm(gpusvm));
@@ -947,3 +947,15 @@ int xe_devm_add(struct xe_tile *tile, struct xe_vram_region *vr)
 	return 0;
 }
 #endif
+
+/**
+ * xe_svm_flush() - SVM flush
+ * @vm: The VM.
+ *
+ * Flush all SVM actions.
+ */
+void xe_svm_flush(struct xe_vm *vm)
+{
+	if (xe_vm_in_fault_mode(vm))
+		flush_work(&vm->svm.garbage_collector.work);
+}

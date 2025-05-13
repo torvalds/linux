@@ -907,21 +907,6 @@ extern void fsnotify_wait_marks_destroyed(void);
 /* Clear all of the marks of a group attached to a given object type */
 extern void fsnotify_clear_marks_by_group(struct fsnotify_group *group,
 					  unsigned int obj_type);
-/* run all the marks in a group, and clear all of the vfsmount marks */
-static inline void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group)
-{
-	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_TYPE_VFSMOUNT);
-}
-/* run all the marks in a group, and clear all of the inode marks */
-static inline void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group)
-{
-	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_TYPE_INODE);
-}
-/* run all the marks in a group, and clear all of the sn marks */
-static inline void fsnotify_clear_sb_marks_by_group(struct fsnotify_group *group)
-{
-	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_TYPE_SB);
-}
 extern void fsnotify_get_mark(struct fsnotify_mark *mark);
 extern void fsnotify_put_mark(struct fsnotify_mark *mark);
 extern void fsnotify_finish_user_wait(struct fsnotify_iter_info *iter_info);

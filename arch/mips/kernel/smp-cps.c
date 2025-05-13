@@ -332,6 +332,8 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 	mips_cps_cluster_bootcfg = kcalloc(nclusters,
 					   sizeof(*mips_cps_cluster_bootcfg),
 					   GFP_KERNEL);
+	if (!mips_cps_cluster_bootcfg)
+		goto err_out;
 
 	if (nclusters > 1)
 		mips_cm_update_property();
@@ -348,6 +350,8 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 		mips_cps_cluster_bootcfg[cl].core_power =
 			kcalloc(BITS_TO_LONGS(ncores), sizeof(unsigned long),
 				GFP_KERNEL);
+		if (!mips_cps_cluster_bootcfg[cl].core_power)
+			goto err_out;
 
 		/* Allocate VPE boot configuration structs */
 		for (c = 0; c < ncores; c++) {
