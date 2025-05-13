@@ -426,8 +426,8 @@ void intel_alpm_pre_plane_update(struct intel_atomic_state *state,
 	}
 }
 
-static void intel_alpm_enable_sink(struct intel_dp *intel_dp,
-				   const struct intel_crtc_state *crtc_state)
+void intel_alpm_enable_sink(struct intel_dp *intel_dp,
+			    const struct intel_crtc_state *crtc_state)
 {
 	u8 val;
 
