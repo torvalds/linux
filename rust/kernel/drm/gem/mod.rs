@@ -177,7 +177,7 @@ impl<T> BaseObject for T where Self: crate::types::AlwaysRefCounted + IntoGEMObj
 #[pin_data]
 pub struct Object<T: DriverObject + Send + Sync> {
     obj: Opaque<bindings::drm_gem_object>,
-    dev: *const drm::Device<T::Driver>,
+    dev: NonNull<drm::Device<T::Driver>>,
     #[pin]
     data: T,
 }
@@ -212,7 +212,7 @@ impl<T: DriverObject> Object<T> {
                 data <- T::new(dev, size),
                 // INVARIANT: The drm subsystem guarantees that the `struct drm_device` will live
                 // as long as the GEM object lives.
-                dev,
+                dev: dev.into(),
             }),
             GFP_KERNEL,
         )?;
@@ -237,7 +237,7 @@ impl<T: DriverObject> Object<T> {
     pub fn dev(&self) -> &drm::Device<T::Driver> {
         // SAFETY: The DRM subsystem guarantees that the `struct drm_device` will live as long as
         // the GEM object lives, hence the pointer must be valid.
-        unsafe { &*self.dev }
+        unsafe { self.dev.as_ref() }
     }
 
     fn as_raw(&self) -> *mut bindings::drm_gem_object {
