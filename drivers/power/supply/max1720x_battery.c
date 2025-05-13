@@ -426,6 +426,8 @@ static int max1720x_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_MODEL_NAME:
 		ret = regmap_read(info->regmap, MAX172XX_DEV_NAME, &reg_val);
+		if (ret)
+			return ret;
 		reg_val = FIELD_GET(MAX172XX_DEV_NAME_TYPE_MASK, reg_val);
 		if (reg_val == MAX172XX_DEV_NAME_TYPE_MAX17201)
 			val->strval = max17201_model;
