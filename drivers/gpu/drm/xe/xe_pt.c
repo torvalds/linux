@@ -2216,6 +2216,18 @@ static void unbind_op_commit(struct xe_vm *vm, struct xe_tile *tile,
 	}
 }
 
+static void range_present_and_invalidated_tile(struct xe_vm *vm,
+					       struct xe_svm_range *range,
+					       u8 tile_id)
+{
+	/* WRITE_ONCE pairs with READ_ONCE in xe_svm.c */
+
+	lockdep_assert_held(&vm->svm.gpusvm.notifier_lock);
+
+	WRITE_ONCE(range->tile_present, range->tile_present | BIT(tile_id));
+	WRITE_ONCE(range->tile_invalidated, range->tile_invalidated & ~BIT(tile_id));
+}
+
 static void op_commit(struct xe_vm *vm,
 		      struct xe_tile *tile,
 		      struct xe_vm_pgtable_update_ops *pt_update_ops,
@@ -2271,19 +2283,13 @@ static void op_commit(struct xe_vm *vm,
 	case DRM_GPUVA_OP_DRIVER:
 	{
 		/* WRITE_ONCE pairs with READ_ONCE in xe_svm.c */
-
-		if (op->subop == XE_VMA_SUBOP_MAP_RANGE) {
-			WRITE_ONCE(op->map_range.range->tile_present,
-				   op->map_range.range->tile_present |
-				   BIT(tile->id));
-			WRITE_ONCE(op->map_range.range->tile_invalidated,
-				   op->map_range.range->tile_invalidated &
-				   ~BIT(tile->id));
-		} else if (op->subop == XE_VMA_SUBOP_UNMAP_RANGE) {
+		if (op->subop == XE_VMA_SUBOP_MAP_RANGE)
+			range_present_and_invalidated_tile(vm, op->map_range.range, tile->id);
+		else if (op->subop == XE_VMA_SUBOP_UNMAP_RANGE)
 			WRITE_ONCE(op->unmap_range.range->tile_present,
 				   op->unmap_range.range->tile_present &
 				   ~BIT(tile->id));
-		}
+
 		break;
 	}
 	default:
