@@ -46,6 +46,7 @@
 
 #define VCN_VID_SOC_ADDRESS_2_0						0x1fb00
 #define VCN1_VID_SOC_ADDRESS_3_0					(0x48300 + 0x38000)
+#define VCN1_AON_SOC_ADDRESS_3_0					(0x48000 + 0x38000)
 
 #define VCN_HARVEST_MMSCH							0
 
