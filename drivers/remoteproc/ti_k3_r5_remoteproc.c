@@ -85,17 +85,43 @@ enum cluster_mode {
 };
 
 /**
+ * struct k3_r5_mem_data - memory definitions for a R5
+ * @name: name for this memory entry
+ * @dev_addr: device address for the memory entry
+ */
+struct k3_r5_mem_data {
+	const char *name;
+	const u32 dev_addr;
+};
+
+/**
+ * struct k3_r5_dev_data - device data structure for a R5
+ * @mems: pointer to memory definitions for a R5
+ * @num_mems: number of memory regions in @mems
+ * @boot_align_addr: boot vector address alignment granularity
+ * @uses_lreset: flag to denote the need for local reset management
+ */
+struct k3_r5_dev_data {
+	const struct k3_r5_mem_data *mems;
+	u32 num_mems;
+	u32 boot_align_addr;
+	bool uses_lreset;
+};
+
+/**
  * struct k3_r5_soc_data - match data to handle SoC variations
  * @tcm_is_double: flag to denote the larger unified TCMs in certain modes
  * @tcm_ecc_autoinit: flag to denote the auto-initialization of TCMs for ECC
  * @single_cpu_mode: flag to denote if SoC/IP supports Single-CPU mode
  * @is_single_core: flag to denote if SoC/IP has only single core R5
+ * @core_data: pointer to R5-core-specific device data
  */
 struct k3_r5_soc_data {
 	bool tcm_is_double;
 	bool tcm_ecc_autoinit;
 	bool single_cpu_mode;
 	bool is_single_core;
+	const struct k3_r5_dev_data *core_data;
 };
 
 /**
@@ -151,6 +177,7 @@ struct k3_r5_core {
  * @rmem: reserved memory regions data
  * @num_rmems: number of reserved memory regions
  * @reset: reset control handle
+ * @data: pointer to R5-core-specific device data
  * @tsp: TI-SCI processor control handle
  * @ti_sci: TI-SCI handle
  * @ti_sci_id: TI-SCI device identifier
@@ -166,6 +193,7 @@ struct k3_r5_rproc {
 	struct k3_r5_mem *rmem;
 	int num_rmems;
 	struct reset_control *reset;
+	const struct k3_r5_dev_data *data;
 	struct ti_sci_proc *tsp;
 	const struct ti_sci_handle *ti_sci;
 	u32 ti_sci_id;
@@ -1235,31 +1263,32 @@ static int k3_r5_rproc_configure_mode(struct k3_r5_rproc *kproc)
 static int k3_r5_core_of_get_internal_memories(struct platform_device *pdev,
 					       struct k3_r5_rproc *kproc)
 {
-	static const char * const mem_names[] = {"atcm", "btcm"};
+	const struct k3_r5_dev_data *data = kproc->data;
 	struct device *dev = &pdev->dev;
 	struct k3_r5_core *core = kproc->priv;
 	struct resource *res;
 	int num_mems;
 	int i;
 
-	num_mems = ARRAY_SIZE(mem_names);
-	kproc->mem = devm_kcalloc(dev, num_mems, sizeof(*kproc->mem), GFP_KERNEL);
+	num_mems = data->num_mems;
+	kproc->mem = devm_kcalloc(kproc->dev, num_mems, sizeof(*kproc->mem),
+				  GFP_KERNEL);
 	if (!kproc->mem)
 		return -ENOMEM;
 
 	for (i = 0; i < num_mems; i++) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						   mem_names[i]);
+						   data->mems[i].name);
 		if (!res) {
 			dev_err(dev, "found no memory resource for %s\n",
-				mem_names[i]);
+				data->mems[i].name);
 			return -EINVAL;
 		}
 		if (!devm_request_mem_region(dev, res->start,
 					     resource_size(res),
 					     dev_name(dev))) {
 			dev_err(dev, "could not request %s region for resource\n",
-				mem_names[i]);
+				data->mems[i].name);
 			return -EBUSY;
 		}
 
@@ -1273,7 +1302,8 @@ static int k3_r5_core_of_get_internal_memories(struct platform_device *pdev,
 		kproc->mem[i].cpu_addr = devm_ioremap_wc(dev, res->start,
 							 resource_size(res));
 		if (!kproc->mem[i].cpu_addr) {
-			dev_err(dev, "failed to map %s memory\n", mem_names[i]);
+			dev_err(dev, "failed to map %s memory\n",
+				data->mems[i].name);
 			return -ENOMEM;
 		}
 		kproc->mem[i].bus_addr = res->start;
@@ -1286,7 +1316,7 @@ static int k3_r5_core_of_get_internal_memories(struct platform_device *pdev,
 		 * addresses 0 and 0x41010000 (same as the bus address on AM65x
 		 * SoCs) based on loczrama setting
 		 */
-		if (!strcmp(mem_names[i], "atcm")) {
+		if (!strcmp(data->mems[i].name, "atcm")) {
 			kproc->mem[i].dev_addr = core->loczrama ?
 							0 : K3_R5_TCM_DEV_ADDR;
 		} else {
@@ -1296,7 +1326,7 @@ static int k3_r5_core_of_get_internal_memories(struct platform_device *pdev,
 		kproc->mem[i].size = resource_size(res);
 
 		dev_dbg(dev, "memory %5s: bus addr %pa size 0x%zx va %pK da 0x%x\n",
-			mem_names[i], &kproc->mem[i].bus_addr,
+			data->mems[i].name, &kproc->mem[i].bus_addr,
 			kproc->mem[i].size, kproc->mem[i].cpu_addr,
 			kproc->mem[i].dev_addr);
 	}
@@ -1408,6 +1438,7 @@ static int k3_r5_cluster_rproc_init(struct platform_device *pdev)
 		kproc->priv = core;
 		kproc->dev = cdev;
 		kproc->rproc = rproc;
+		kproc->data = cluster->soc_data->core_data;
 		core->kproc = kproc;
 
 		kproc->ti_sci = devm_ti_sci_get_by_phandle(cdev, "ti,sci");
@@ -1772,11 +1803,24 @@ static int k3_r5_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct k3_r5_mem_data r5_mems[] = {
+	{ .name = "atcm", .dev_addr = 0x0 },
+	{ .name = "btcm", .dev_addr = K3_R5_TCM_DEV_ADDR },
+};
+
+static const struct k3_r5_dev_data r5_data = {
+	.mems = r5_mems,
+	.num_mems = ARRAY_SIZE(r5_mems),
+	.boot_align_addr = 0,
+	.uses_lreset = true,
+};
+
 static const struct k3_r5_soc_data am65_j721e_soc_data = {
 	.tcm_is_double = false,
 	.tcm_ecc_autoinit = false,
 	.single_cpu_mode = false,
 	.is_single_core = false,
+	.core_data = &r5_data,
 };
 
 static const struct k3_r5_soc_data j7200_j721s2_soc_data = {
@@ -1784,6 +1828,7 @@ static const struct k3_r5_soc_data j7200_j721s2_soc_data = {
 	.tcm_ecc_autoinit = true,
 	.single_cpu_mode = false,
 	.is_single_core = false,
+	.core_data = &r5_data,
 };
 
 static const struct k3_r5_soc_data am64_soc_data = {
@@ -1791,6 +1836,7 @@ static const struct k3_r5_soc_data am64_soc_data = {
 	.tcm_ecc_autoinit = true,
 	.single_cpu_mode = true,
 	.is_single_core = false,
+	.core_data = &r5_data,
 };
 
 static const struct k3_r5_soc_data am62_soc_data = {
@@ -1798,6 +1844,7 @@ static const struct k3_r5_soc_data am62_soc_data = {
 	.tcm_ecc_autoinit = true,
 	.single_cpu_mode = false,
 	.is_single_core = true,
+	.core_data = &r5_data,
 };
 
 static const struct of_device_id k3_r5_of_match[] = {
