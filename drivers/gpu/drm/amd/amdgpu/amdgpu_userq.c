@@ -240,17 +240,17 @@ amdgpu_userq_get_doorbell_index(struct amdgpu_userq_mgr *uq_mgr,
 	db_obj->obj = amdgpu_bo_ref(gem_to_amdgpu_bo(gobj));
 	drm_gem_object_put(gobj);
 
-	/* Pin the BO before generating the index, unpin in queue destroy */
-	r = amdgpu_bo_pin(db_obj->obj, AMDGPU_GEM_DOMAIN_DOORBELL);
+	r = amdgpu_bo_reserve(db_obj->obj, true);
 	if (r) {
 		drm_file_err(uq_mgr->file, "[Usermode queues] Failed to pin doorbell object\n");
 		goto unref_bo;
 	}
 
-	r = amdgpu_bo_reserve(db_obj->obj, true);
+	/* Pin the BO before generating the index, unpin in queue destroy */
+	r = amdgpu_bo_pin(db_obj->obj, AMDGPU_GEM_DOMAIN_DOORBELL);
 	if (r) {
 		drm_file_err(uq_mgr->file, "[Usermode queues] Failed to pin doorbell object\n");
-		goto unpin_bo;
+		goto unresv_bo;
 	}
 
 	switch (db_info->queue_type) {
@@ -286,7 +286,8 @@ amdgpu_userq_get_doorbell_index(struct amdgpu_userq_mgr *uq_mgr,
 
 unpin_bo:
 	amdgpu_bo_unpin(db_obj->obj);
-
+unresv_bo:
+	amdgpu_bo_unreserve(db_obj->obj);
 unref_bo:
 	amdgpu_bo_unref(&db_obj->obj);
 	return r;
@@ -311,9 +312,13 @@ amdgpu_userq_destroy(struct drm_file *filp, int queue_id)
 		return -EINVAL;
 	}
 	amdgpu_userq_wait_for_last_fence(uq_mgr, queue);
-	r = amdgpu_userq_unmap_helper(uq_mgr, queue);
-	amdgpu_bo_unpin(queue->db_obj.obj);
+	r = amdgpu_bo_reserve(queue->db_obj.obj, true);
+	if (!r) {
+		amdgpu_bo_unpin(queue->db_obj.obj);
+		amdgpu_bo_unreserve(queue->db_obj.obj);
+	}
 	amdgpu_bo_unref(&queue->db_obj.obj);
+	r = amdgpu_userq_unmap_helper(uq_mgr, queue);
 	amdgpu_userq_cleanup(uq_mgr, queue, queue_id);
 	mutex_unlock(&uq_mgr->userq_mutex);
 
