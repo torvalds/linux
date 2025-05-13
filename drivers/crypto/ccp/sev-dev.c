@@ -33,6 +33,7 @@
 #include <asm/cacheflush.h>
 #include <asm/e820/types.h>
 #include <asm/sev.h>
+#include <asm/msr.h>
 
 #include "psp-dev.h"
 #include "sev-dev.h"
@@ -1060,7 +1061,7 @@ static inline int __sev_do_init_locked(int *psp_ret)
 
 static void snp_set_hsave_pa(void *arg)
 {
-	wrmsrl(MSR_VM_HSAVE_PA, 0);
+	wrmsrq(MSR_VM_HSAVE_PA, 0);
 }
 
 static int snp_filter_reserved_mem_regions(struct resource *rs, void *arg)

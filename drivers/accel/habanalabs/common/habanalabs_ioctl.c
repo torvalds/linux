@@ -17,8 +17,6 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 
-#include <asm/msr.h>
-
 /* make sure there is space for all the signed info */
 static_assert(sizeof(struct cpucp_info) <= SEC_DEV_INFO_BUF_SZ);
 

@@ -106,9 +106,9 @@ static void amd_uncore_read(struct perf_event *event)
 	 * read counts directly from the corresponding PERF_CTR.
 	 */
 	if (hwc->event_base_rdpmc < 0)
-		rdmsrl(hwc->event_base, new);
+		rdmsrq(hwc->event_base, new);
 	else
-		rdpmcl(hwc->event_base_rdpmc, new);
+		new = rdpmc(hwc->event_base_rdpmc);
 
 	local64_set(&hwc->prev_count, new);
 	delta = (new << COUNTER_SHIFT) - (prev << COUNTER_SHIFT);
@@ -121,10 +121,10 @@ static void amd_uncore_start(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 
 	if (flags & PERF_EF_RELOAD)
-		wrmsrl(hwc->event_base, (u64)local64_read(&hwc->prev_count));
+		wrmsrq(hwc->event_base, (u64)local64_read(&hwc->prev_count));
 
 	hwc->state = 0;
-	wrmsrl(hwc->config_base, (hwc->config | ARCH_PERFMON_EVENTSEL_ENABLE));
+	wrmsrq(hwc->config_base, (hwc->config | ARCH_PERFMON_EVENTSEL_ENABLE));
 	perf_event_update_userpage(event);
 }
 
@@ -132,7 +132,7 @@ static void amd_uncore_stop(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hwc = &event->hw;
 
-	wrmsrl(hwc->config_base, hwc->config);
+	wrmsrq(hwc->config_base, hwc->config);
 	hwc->state |= PERF_HES_STOPPED;
 
 	if ((flags & PERF_EF_UPDATE) && !(hwc->state & PERF_HES_UPTODATE)) {
@@ -883,10 +883,10 @@ static void amd_uncore_umc_start(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 
 	if (flags & PERF_EF_RELOAD)
-		wrmsrl(hwc->event_base, (u64)local64_read(&hwc->prev_count));
+		wrmsrq(hwc->event_base, (u64)local64_read(&hwc->prev_count));
 
 	hwc->state = 0;
-	wrmsrl(hwc->config_base, (hwc->config | AMD64_PERFMON_V2_ENABLE_UMC));
+	wrmsrq(hwc->config_base, (hwc->config | AMD64_PERFMON_V2_ENABLE_UMC));
 	perf_event_update_userpage(event);
 }
 

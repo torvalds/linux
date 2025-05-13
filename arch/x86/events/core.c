@@ -32,6 +32,7 @@
 
 #include <asm/apic.h>
 #include <asm/stacktrace.h>
+#include <asm/msr.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
 #include <asm/alternative.h>
@@ -134,7 +135,7 @@ u64 x86_perf_event_update(struct perf_event *event)
 	 */
 	prev_raw_count = local64_read(&hwc->prev_count);
 	do {
-		rdpmcl(hwc->event_base_rdpmc, new_raw_count);
+		new_raw_count = rdpmc(hwc->event_base_rdpmc);
 	} while (!local64_try_cmpxchg(&hwc->prev_count,
 				      &prev_raw_count, new_raw_count));
 
@@ -269,7 +270,7 @@ bool check_hw_exists(struct pmu *pmu, unsigned long *cntr_mask,
 	 */
 	for_each_set_bit(i, cntr_mask, X86_PMC_IDX_MAX) {
 		reg = x86_pmu_config_addr(i);
-		ret = rdmsrl_safe(reg, &val);
+		ret = rdmsrq_safe(reg, &val);
 		if (ret)
 			goto msr_fail;
 		if (val & ARCH_PERFMON_EVENTSEL_ENABLE) {
@@ -283,7 +284,7 @@ bool check_hw_exists(struct pmu *pmu, unsigned long *cntr_mask,
 
 	if (*(u64 *)fixed_cntr_mask) {
 		reg = MSR_ARCH_PERFMON_FIXED_CTR_CTRL;
-		ret = rdmsrl_safe(reg, &val);
+		ret = rdmsrq_safe(reg, &val);
 		if (ret)
 			goto msr_fail;
 		for_each_set_bit(i, fixed_cntr_mask, X86_PMC_IDX_MAX) {
@@ -314,11 +315,11 @@ bool check_hw_exists(struct pmu *pmu, unsigned long *cntr_mask,
 	 * (qemu/kvm) that don't trap on the MSR access and always return 0s.
 	 */
 	reg = x86_pmu_event_addr(reg_safe);
-	if (rdmsrl_safe(reg, &val))
+	if (rdmsrq_safe(reg, &val))
 		goto msr_fail;
 	val ^= 0xffffUL;
-	ret = wrmsrl_safe(reg, val);
-	ret |= rdmsrl_safe(reg, &val_new);
+	ret = wrmsrq_safe(reg, val);
+	ret |= rdmsrq_safe(reg, &val_new);
 	if (ret || val != val_new)
 		goto msr_fail;
 
@@ -693,13 +694,13 @@ void x86_pmu_disable_all(void)
 
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
-		rdmsrl(x86_pmu_config_addr(idx), val);
+		rdmsrq(x86_pmu_config_addr(idx), val);
 		if (!(val & ARCH_PERFMON_EVENTSEL_ENABLE))
 			continue;
 		val &= ~ARCH_PERFMON_EVENTSEL_ENABLE;
-		wrmsrl(x86_pmu_config_addr(idx), val);
+		wrmsrq(x86_pmu_config_addr(idx), val);
 		if (is_counter_pair(hwc))
-			wrmsrl(x86_pmu_config_addr(idx + 1), 0);
+			wrmsrq(x86_pmu_config_addr(idx + 1), 0);
 	}
 }
 
@@ -1420,14 +1421,14 @@ int x86_perf_event_set_period(struct perf_event *event)
 	 */
 	local64_set(&hwc->prev_count, (u64)-left);
 
-	wrmsrl(hwc->event_base, (u64)(-left) & x86_pmu.cntval_mask);
+	wrmsrq(hwc->event_base, (u64)(-left) & x86_pmu.cntval_mask);
 
 	/*
 	 * Sign extend the Merge event counter's upper 16 bits since
 	 * we currently declare a 48-bit counter width
 	 */
 	if (is_counter_pair(hwc))
-		wrmsrl(x86_pmu_event_addr(idx + 1), 0xffff);
+		wrmsrq(x86_pmu_event_addr(idx + 1), 0xffff);
 
 	perf_event_update_userpage(event);
 
@@ -1550,10 +1551,10 @@ void perf_event_print_debug(void)
 		return;
 
 	if (x86_pmu.version >= 2) {
-		rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
-		rdmsrl(MSR_CORE_PERF_GLOBAL_STATUS, status);
-		rdmsrl(MSR_CORE_PERF_GLOBAL_OVF_CTRL, overflow);
-		rdmsrl(MSR_ARCH_PERFMON_FIXED_CTR_CTRL, fixed);
+		rdmsrq(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
+		rdmsrq(MSR_CORE_PERF_GLOBAL_STATUS, status);
+		rdmsrq(MSR_CORE_PERF_GLOBAL_OVF_CTRL, overflow);
+		rdmsrq(MSR_ARCH_PERFMON_FIXED_CTR_CTRL, fixed);
 
 		pr_info("\n");
 		pr_info("CPU#%d: ctrl:       %016llx\n", cpu, ctrl);
@@ -1561,19 +1562,19 @@ void perf_event_print_debug(void)
 		pr_info("CPU#%d: overflow:   %016llx\n", cpu, overflow);
 		pr_info("CPU#%d: fixed:      %016llx\n", cpu, fixed);
 		if (pebs_constraints) {
-			rdmsrl(MSR_IA32_PEBS_ENABLE, pebs);
+			rdmsrq(MSR_IA32_PEBS_ENABLE, pebs);
 			pr_info("CPU#%d: pebs:       %016llx\n", cpu, pebs);
 		}
 		if (x86_pmu.lbr_nr) {
-			rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
+			rdmsrq(MSR_IA32_DEBUGCTLMSR, debugctl);
 			pr_info("CPU#%d: debugctl:   %016llx\n", cpu, debugctl);
 		}
 	}
 	pr_info("CPU#%d: active:     %016llx\n", cpu, *(u64 *)cpuc->active_mask);
 
 	for_each_set_bit(idx, cntr_mask, X86_PMC_IDX_MAX) {
-		rdmsrl(x86_pmu_config_addr(idx), pmc_ctrl);
-		rdmsrl(x86_pmu_event_addr(idx), pmc_count);
+		rdmsrq(x86_pmu_config_addr(idx), pmc_ctrl);
+		rdmsrq(x86_pmu_event_addr(idx), pmc_count);
 
 		prev_left = per_cpu(pmc_prev_left[idx], cpu);
 
@@ -1587,7 +1588,7 @@ void perf_event_print_debug(void)
 	for_each_set_bit(idx, fixed_cntr_mask, X86_PMC_IDX_MAX) {
 		if (fixed_counter_disabled(idx, cpuc->pmu))
 			continue;
-		rdmsrl(x86_pmu_fixed_ctr_addr(idx), pmc_count);
+		rdmsrq(x86_pmu_fixed_ctr_addr(idx), pmc_count);
 
 		pr_info("CPU#%d: fixed-PMC%d count: %016llx\n",
 			cpu, idx, pmc_count);
@@ -2496,9 +2497,9 @@ void perf_clear_dirty_counters(void)
 			if (!test_bit(i - INTEL_PMC_IDX_FIXED, hybrid(cpuc->pmu, fixed_cntr_mask)))
 				continue;
 
-			wrmsrl(x86_pmu_fixed_ctr_addr(i - INTEL_PMC_IDX_FIXED), 0);
+			wrmsrq(x86_pmu_fixed_ctr_addr(i - INTEL_PMC_IDX_FIXED), 0);
 		} else {
-			wrmsrl(x86_pmu_event_addr(i), 0);
+			wrmsrq(x86_pmu_event_addr(i), 0);
 		}
 	}
 

@@ -17,6 +17,7 @@
 #include <asm/fpu/xstate.h>
 #include <asm/intel_ds.h>
 #include <asm/cpu.h>
+#include <asm/msr.h>
 
 /* To enable MSR tracing please use the generic trace points. */
 
@@ -1205,16 +1206,16 @@ static inline void __x86_pmu_enable_event(struct hw_perf_event *hwc,
 	u64 disable_mask = __this_cpu_read(cpu_hw_events.perf_ctr_virt_mask);
 
 	if (hwc->extra_reg.reg)
-		wrmsrl(hwc->extra_reg.reg, hwc->extra_reg.config);
+		wrmsrq(hwc->extra_reg.reg, hwc->extra_reg.config);
 
 	/*
 	 * Add enabled Merge event on next counter
 	 * if large increment event being enabled on this counter
 	 */
 	if (is_counter_pair(hwc))
-		wrmsrl(x86_pmu_config_addr(hwc->idx + 1), x86_pmu.perf_ctr_pair_en);
+		wrmsrq(x86_pmu_config_addr(hwc->idx + 1), x86_pmu.perf_ctr_pair_en);
 
-	wrmsrl(hwc->config_base, (hwc->config | enable_mask) & ~disable_mask);
+	wrmsrq(hwc->config_base, (hwc->config | enable_mask) & ~disable_mask);
 }
 
 void x86_pmu_enable_all(int added);
@@ -1230,10 +1231,10 @@ static inline void x86_pmu_disable_event(struct perf_event *event)
 	u64 disable_mask = __this_cpu_read(cpu_hw_events.perf_ctr_virt_mask);
 	struct hw_perf_event *hwc = &event->hw;
 
-	wrmsrl(hwc->config_base, hwc->config & ~disable_mask);
+	wrmsrq(hwc->config_base, hwc->config & ~disable_mask);
 
 	if (is_counter_pair(hwc))
-		wrmsrl(x86_pmu_config_addr(hwc->idx + 1), 0);
+		wrmsrq(x86_pmu_config_addr(hwc->idx + 1), 0);
 }
 
 void x86_pmu_enable_event(struct perf_event *event);
@@ -1401,12 +1402,12 @@ static __always_inline void __amd_pmu_lbr_disable(void)
 {
 	u64 dbg_ctl, dbg_extn_cfg;
 
-	rdmsrl(MSR_AMD_DBG_EXTN_CFG, dbg_extn_cfg);
-	wrmsrl(MSR_AMD_DBG_EXTN_CFG, dbg_extn_cfg & ~DBG_EXTN_CFG_LBRV2EN);
+	rdmsrq(MSR_AMD_DBG_EXTN_CFG, dbg_extn_cfg);
+	wrmsrq(MSR_AMD_DBG_EXTN_CFG, dbg_extn_cfg & ~DBG_EXTN_CFG_LBRV2EN);
 
 	if (cpu_feature_enabled(X86_FEATURE_AMD_LBR_PMC_FREEZE)) {
-		rdmsrl(MSR_IA32_DEBUGCTLMSR, dbg_ctl);
-		wrmsrl(MSR_IA32_DEBUGCTLMSR, dbg_ctl & ~DEBUGCTLMSR_FREEZE_LBRS_ON_PMI);
+		rdmsrq(MSR_IA32_DEBUGCTLMSR, dbg_ctl);
+		wrmsrq(MSR_IA32_DEBUGCTLMSR, dbg_ctl & ~DEBUGCTLMSR_FREEZE_LBRS_ON_PMI);
 	}
 }
 
@@ -1538,21 +1539,21 @@ static inline bool intel_pmu_has_bts(struct perf_event *event)
 
 static __always_inline void __intel_pmu_pebs_disable_all(void)
 {
-	wrmsrl(MSR_IA32_PEBS_ENABLE, 0);
+	wrmsrq(MSR_IA32_PEBS_ENABLE, 0);
 }
 
 static __always_inline void __intel_pmu_arch_lbr_disable(void)
 {
-	wrmsrl(MSR_ARCH_LBR_CTL, 0);
+	wrmsrq(MSR_ARCH_LBR_CTL, 0);
 }
 
 static __always_inline void __intel_pmu_lbr_disable(void)
 {
 	u64 debugctl;
 
-	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
+	rdmsrq(MSR_IA32_DEBUGCTLMSR, debugctl);
 	debugctl &= ~(DEBUGCTLMSR_LBR | DEBUGCTLMSR_FREEZE_LBRS_ON_PMI);
-	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
+	wrmsrq(MSR_IA32_DEBUGCTLMSR, debugctl);
 }
 
 int intel_pmu_save_and_restart(struct perf_event *event);

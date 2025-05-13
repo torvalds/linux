@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Nehalem-EX/Westmere-EX uncore support */
 #include <asm/cpu_device_id.h>
+#include <asm/msr.h>
 #include "uncore.h"
 
 /* NHM-EX event control */
@@ -200,12 +201,12 @@ DEFINE_UNCORE_FORMAT_ATTR(mask, mask, "config2:0-63");
 
 static void nhmex_uncore_msr_init_box(struct intel_uncore_box *box)
 {
-	wrmsrl(NHMEX_U_MSR_PMON_GLOBAL_CTL, NHMEX_U_PMON_GLOBAL_EN_ALL);
+	wrmsrq(NHMEX_U_MSR_PMON_GLOBAL_CTL, NHMEX_U_PMON_GLOBAL_EN_ALL);
 }
 
 static void nhmex_uncore_msr_exit_box(struct intel_uncore_box *box)
 {
-	wrmsrl(NHMEX_U_MSR_PMON_GLOBAL_CTL, 0);
+	wrmsrq(NHMEX_U_MSR_PMON_GLOBAL_CTL, 0);
 }
 
 static void nhmex_uncore_msr_disable_box(struct intel_uncore_box *box)
@@ -214,12 +215,12 @@ static void nhmex_uncore_msr_disable_box(struct intel_uncore_box *box)
 	u64 config;
 
 	if (msr) {
-		rdmsrl(msr, config);
+		rdmsrq(msr, config);
 		config &= ~((1ULL << uncore_num_counters(box)) - 1);
 		/* WBox has a fixed counter */
 		if (uncore_msr_fixed_ctl(box))
 			config &= ~NHMEX_W_PMON_GLOBAL_FIXED_EN;
-		wrmsrl(msr, config);
+		wrmsrq(msr, config);
 	}
 }
 
@@ -229,18 +230,18 @@ static void nhmex_uncore_msr_enable_box(struct intel_uncore_box *box)
 	u64 config;
 
 	if (msr) {
-		rdmsrl(msr, config);
+		rdmsrq(msr, config);
 		config |= (1ULL << uncore_num_counters(box)) - 1;
 		/* WBox has a fixed counter */
 		if (uncore_msr_fixed_ctl(box))
 			config |= NHMEX_W_PMON_GLOBAL_FIXED_EN;
-		wrmsrl(msr, config);
+		wrmsrq(msr, config);
 	}
 }
 
 static void nhmex_uncore_msr_disable_event(struct intel_uncore_box *box, struct perf_event *event)
 {
-	wrmsrl(event->hw.config_base, 0);
+	wrmsrq(event->hw.config_base, 0);
 }
 
 static void nhmex_uncore_msr_enable_event(struct intel_uncore_box *box, struct perf_event *event)
@@ -248,11 +249,11 @@ static void nhmex_uncore_msr_enable_event(struct intel_uncore_box *box, struct p
 	struct hw_perf_event *hwc = &event->hw;
 
 	if (hwc->idx == UNCORE_PMC_IDX_FIXED)
-		wrmsrl(hwc->config_base, NHMEX_PMON_CTL_EN_BIT0);
+		wrmsrq(hwc->config_base, NHMEX_PMON_CTL_EN_BIT0);
 	else if (box->pmu->type->event_mask & NHMEX_PMON_CTL_EN_BIT0)
-		wrmsrl(hwc->config_base, hwc->config | NHMEX_PMON_CTL_EN_BIT22);
+		wrmsrq(hwc->config_base, hwc->config | NHMEX_PMON_CTL_EN_BIT22);
 	else
-		wrmsrl(hwc->config_base, hwc->config | NHMEX_PMON_CTL_EN_BIT0);
+		wrmsrq(hwc->config_base, hwc->config | NHMEX_PMON_CTL_EN_BIT0);
 }
 
 #define NHMEX_UNCORE_OPS_COMMON_INIT()				\
@@ -382,10 +383,10 @@ static void nhmex_bbox_msr_enable_event(struct intel_uncore_box *box, struct per
 	struct hw_perf_event_extra *reg2 = &hwc->branch_reg;
 
 	if (reg1->idx != EXTRA_REG_NONE) {
-		wrmsrl(reg1->reg, reg1->config);
-		wrmsrl(reg1->reg + 1, reg2->config);
+		wrmsrq(reg1->reg, reg1->config);
+		wrmsrq(reg1->reg + 1, reg2->config);
 	}
-	wrmsrl(hwc->config_base, NHMEX_PMON_CTL_EN_BIT0 |
+	wrmsrq(hwc->config_base, NHMEX_PMON_CTL_EN_BIT0 |
 		(hwc->config & NHMEX_B_PMON_CTL_EV_SEL_MASK));
 }
 
@@ -467,12 +468,12 @@ static void nhmex_sbox_msr_enable_event(struct intel_uncore_box *box, struct per
 	struct hw_perf_event_extra *reg2 = &hwc->branch_reg;
 
 	if (reg1->idx != EXTRA_REG_NONE) {
-		wrmsrl(reg1->reg, 0);
-		wrmsrl(reg1->reg + 1, reg1->config);
-		wrmsrl(reg1->reg + 2, reg2->config);
-		wrmsrl(reg1->reg, NHMEX_S_PMON_MM_CFG_EN);
+		wrmsrq(reg1->reg, 0);
+		wrmsrq(reg1->reg + 1, reg1->config);
+		wrmsrq(reg1->reg + 2, reg2->config);
+		wrmsrq(reg1->reg, NHMEX_S_PMON_MM_CFG_EN);
 	}
-	wrmsrl(hwc->config_base, hwc->config | NHMEX_PMON_CTL_EN_BIT22);
+	wrmsrq(hwc->config_base, hwc->config | NHMEX_PMON_CTL_EN_BIT22);
 }
 
 static struct attribute *nhmex_uncore_sbox_formats_attr[] = {
@@ -842,25 +843,25 @@ static void nhmex_mbox_msr_enable_event(struct intel_uncore_box *box, struct per
 
 	idx = __BITS_VALUE(reg1->idx, 0, 8);
 	if (idx != 0xff)
-		wrmsrl(__BITS_VALUE(reg1->reg, 0, 16),
+		wrmsrq(__BITS_VALUE(reg1->reg, 0, 16),
 			nhmex_mbox_shared_reg_config(box, idx));
 	idx = __BITS_VALUE(reg1->idx, 1, 8);
 	if (idx != 0xff)
-		wrmsrl(__BITS_VALUE(reg1->reg, 1, 16),
+		wrmsrq(__BITS_VALUE(reg1->reg, 1, 16),
 			nhmex_mbox_shared_reg_config(box, idx));
 
 	if (reg2->idx != EXTRA_REG_NONE) {
-		wrmsrl(reg2->reg, 0);
+		wrmsrq(reg2->reg, 0);
 		if (reg2->config != ~0ULL) {
-			wrmsrl(reg2->reg + 1,
+			wrmsrq(reg2->reg + 1,
 				reg2->config & NHMEX_M_PMON_ADDR_MATCH_MASK);
-			wrmsrl(reg2->reg + 2, NHMEX_M_PMON_ADDR_MASK_MASK &
+			wrmsrq(reg2->reg + 2, NHMEX_M_PMON_ADDR_MASK_MASK &
 				(reg2->config >> NHMEX_M_PMON_ADDR_MASK_SHIFT));
-			wrmsrl(reg2->reg, NHMEX_M_PMON_MM_CFG_EN);
+			wrmsrq(reg2->reg, NHMEX_M_PMON_MM_CFG_EN);
 		}
 	}
 
-	wrmsrl(hwc->config_base, hwc->config | NHMEX_PMON_CTL_EN_BIT0);
+	wrmsrq(hwc->config_base, hwc->config | NHMEX_PMON_CTL_EN_BIT0);
 }
 
 DEFINE_UNCORE_FORMAT_ATTR(count_mode,		count_mode,	"config:2-3");
@@ -1121,31 +1122,31 @@ static void nhmex_rbox_msr_enable_event(struct intel_uncore_box *box, struct per
 
 	switch (idx % 6) {
 	case 0:
-		wrmsrl(NHMEX_R_MSR_PORTN_IPERF_CFG0(port), reg1->config);
+		wrmsrq(NHMEX_R_MSR_PORTN_IPERF_CFG0(port), reg1->config);
 		break;
 	case 1:
-		wrmsrl(NHMEX_R_MSR_PORTN_IPERF_CFG1(port), reg1->config);
+		wrmsrq(NHMEX_R_MSR_PORTN_IPERF_CFG1(port), reg1->config);
 		break;
 	case 2:
 	case 3:
-		wrmsrl(NHMEX_R_MSR_PORTN_QLX_CFG(port),
+		wrmsrq(NHMEX_R_MSR_PORTN_QLX_CFG(port),
 			uncore_shared_reg_config(box, 2 + (idx / 6) * 5));
 		break;
 	case 4:
-		wrmsrl(NHMEX_R_MSR_PORTN_XBR_SET1_MM_CFG(port),
+		wrmsrq(NHMEX_R_MSR_PORTN_XBR_SET1_MM_CFG(port),
 			hwc->config >> 32);
-		wrmsrl(NHMEX_R_MSR_PORTN_XBR_SET1_MATCH(port), reg1->config);
-		wrmsrl(NHMEX_R_MSR_PORTN_XBR_SET1_MASK(port), reg2->config);
+		wrmsrq(NHMEX_R_MSR_PORTN_XBR_SET1_MATCH(port), reg1->config);
+		wrmsrq(NHMEX_R_MSR_PORTN_XBR_SET1_MASK(port), reg2->config);
 		break;
 	case 5:
-		wrmsrl(NHMEX_R_MSR_PORTN_XBR_SET2_MM_CFG(port),
+		wrmsrq(NHMEX_R_MSR_PORTN_XBR_SET2_MM_CFG(port),
 			hwc->config >> 32);
-		wrmsrl(NHMEX_R_MSR_PORTN_XBR_SET2_MATCH(port), reg1->config);
-		wrmsrl(NHMEX_R_MSR_PORTN_XBR_SET2_MASK(port), reg2->config);
+		wrmsrq(NHMEX_R_MSR_PORTN_XBR_SET2_MATCH(port), reg1->config);
+		wrmsrq(NHMEX_R_MSR_PORTN_XBR_SET2_MASK(port), reg2->config);
 		break;
 	}
 
-	wrmsrl(hwc->config_base, NHMEX_PMON_CTL_EN_BIT0 |
+	wrmsrq(hwc->config_base, NHMEX_PMON_CTL_EN_BIT0 |
 		(hwc->config & NHMEX_R_PMON_CTL_EV_SEL_MASK));
 }
 

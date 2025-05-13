@@ -6,6 +6,7 @@
 
 #include <asm/debugreg.h>
 #include <asm/mmu_context.h>
+#include <asm/msr.h>
 
 #include "x86.h"
 #include "cpuid.h"
@@ -7202,8 +7203,8 @@ static void nested_vmx_setup_cr_fixed(struct nested_vmx_msrs *msrs)
 	msrs->cr4_fixed0 = VMXON_CR4_ALWAYSON;
 
 	/* These MSRs specify bits which the guest must keep fixed off. */
-	rdmsrl(MSR_IA32_VMX_CR0_FIXED1, msrs->cr0_fixed1);
-	rdmsrl(MSR_IA32_VMX_CR4_FIXED1, msrs->cr4_fixed1);
+	rdmsrq(MSR_IA32_VMX_CR0_FIXED1, msrs->cr0_fixed1);
+	rdmsrq(MSR_IA32_VMX_CR4_FIXED1, msrs->cr4_fixed1);
 
 	if (vmx_umip_emulated())
 		msrs->cr4_fixed1 |= X86_CR4_UMIP;

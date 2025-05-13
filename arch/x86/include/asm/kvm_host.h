@@ -34,6 +34,7 @@
 #include <asm/desc.h>
 #include <asm/mtrr.h>
 #include <asm/msr-index.h>
+#include <asm/msr.h>
 #include <asm/asm.h>
 #include <asm/irq_remapping.h>
 #include <asm/kvm_page_track.h>
@@ -2278,7 +2279,7 @@ static inline unsigned long read_msr(unsigned long msr)
 {
 	u64 value;
 
-	rdmsrl(msr, value);
+	rdmsrq(msr, value);
 	return value;
 }
 #endif

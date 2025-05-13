@@ -19,6 +19,7 @@
 #include <asm/cache.h>
 #include <asm/cacheflush.h>
 #include <asm/apic.h>
+#include <asm/msr.h>
 #include <asm/perf_event.h>
 #include <asm/tlb.h>
 
@@ -628,7 +629,7 @@ static void l1d_flush_evaluate(unsigned long prev_mm, unsigned long next_mm,
 {
 	/* Flush L1D if the outgoing task requests it */
 	if (prev_mm & LAST_USER_MM_L1D_FLUSH)
-		wrmsrl(MSR_IA32_FLUSH_CMD, L1D_FLUSH);
+		wrmsrq(MSR_IA32_FLUSH_CMD, L1D_FLUSH);
 
 	/* Check whether the incoming task opted in for L1D flush */
 	if (likely(!(next_mm & LAST_USER_MM_L1D_FLUSH)))

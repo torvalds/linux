@@ -340,7 +340,7 @@ static bool has_pkg_state_counter(void)
 
 	/* check if any one of the counter msrs exists */
 	while (info->msr_index) {
-		if (!rdmsrl_safe(info->msr_index, &val))
+		if (!rdmsrq_safe(info->msr_index, &val))
 			return true;
 		info++;
 	}
@@ -356,7 +356,7 @@ static u64 pkg_state_counter(void)
 
 	while (info->msr_index) {
 		if (!info->skip) {
-			if (!rdmsrl_safe(info->msr_index, &val))
+			if (!rdmsrq_safe(info->msr_index, &val))
 				count += val;
 			else
 				info->skip = true;

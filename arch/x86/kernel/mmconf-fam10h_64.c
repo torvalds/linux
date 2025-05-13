@@ -97,7 +97,7 @@ static void get_fam10h_pci_mmconf_base(void)
 
 	/* SYS_CFG */
 	address = MSR_AMD64_SYSCFG;
-	rdmsrl(address, val);
+	rdmsrq(address, val);
 
 	/* TOP_MEM2 is not enabled? */
 	if (!(val & (1<<21))) {
@@ -105,7 +105,7 @@ static void get_fam10h_pci_mmconf_base(void)
 	} else {
 		/* TOP_MEM2 */
 		address = MSR_K8_TOP_MEM2;
-		rdmsrl(address, val);
+		rdmsrq(address, val);
 		tom2 = max(val & 0xffffff800000ULL, 1ULL << 32);
 	}
 
@@ -177,7 +177,7 @@ void fam10h_check_enable_mmcfg(void)
 		return;
 
 	address = MSR_FAM10H_MMIO_CONF_BASE;
-	rdmsrl(address, val);
+	rdmsrq(address, val);
 
 	/* try to make sure that AP's setting is identical to BSP setting */
 	if (val & FAM10H_MMIO_CONF_ENABLE) {
@@ -212,7 +212,7 @@ void fam10h_check_enable_mmcfg(void)
 	     (FAM10H_MMIO_CONF_BUSRANGE_MASK<<FAM10H_MMIO_CONF_BUSRANGE_SHIFT));
 	val |= fam10h_pci_mmconf_base | (8 << FAM10H_MMIO_CONF_BUSRANGE_SHIFT) |
 	       FAM10H_MMIO_CONF_ENABLE;
-	wrmsrl(address, val);
+	wrmsrq(address, val);
 }
 
 static int __init set_check_enable_amd_mmconf(const struct dmi_system_id *d)

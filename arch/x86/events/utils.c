@@ -2,6 +2,7 @@
 #include <asm/insn.h>
 #include <linux/mm.h>
 
+#include <asm/msr.h>
 #include "perf_event.h"
 
 static int decode_branch_type(struct insn *insn)

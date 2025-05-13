@@ -23,6 +23,7 @@
 #include <asm/intel_pt.h>
 #include <asm/apic.h>
 #include <asm/cpu_device_id.h>
+#include <asm/msr.h>
 
 #include "../perf_event.h"
 
@@ -2285,7 +2286,7 @@ static __always_inline void __intel_pmu_disable_all(bool bts)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
-	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0);
+	wrmsrq(MSR_CORE_PERF_GLOBAL_CTRL, 0);
 
 	if (bts && test_bit(INTEL_PMC_IDX_FIXED_BTS, cpuc->active_mask))
 		intel_pmu_disable_bts();
@@ -2306,11 +2307,11 @@ static void __intel_pmu_enable_all(int added, bool pmi)
 	intel_pmu_lbr_enable_all(pmi);
 
 	if (cpuc->fixed_ctrl_val != cpuc->active_fixed_ctrl_val) {
-		wrmsrl(MSR_ARCH_PERFMON_FIXED_CTR_CTRL, cpuc->fixed_ctrl_val);
+		wrmsrq(MSR_ARCH_PERFMON_FIXED_CTR_CTRL, cpuc->fixed_ctrl_val);
 		cpuc->active_fixed_ctrl_val = cpuc->fixed_ctrl_val;
 	}
 
-	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL,
+	wrmsrq(MSR_CORE_PERF_GLOBAL_CTRL,
 	       intel_ctrl & ~cpuc->intel_ctrl_guest_mask);
 
 	if (test_bit(INTEL_PMC_IDX_FIXED_BTS, cpuc->active_mask)) {
@@ -2426,12 +2427,12 @@ static void intel_pmu_nhm_workaround(void)
 	}
 
 	for (i = 0; i < 4; i++) {
-		wrmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + i, nhm_magic[i]);
-		wrmsrl(MSR_ARCH_PERFMON_PERFCTR0 + i, 0x0);
+		wrmsrq(MSR_ARCH_PERFMON_EVENTSEL0 + i, nhm_magic[i]);
+		wrmsrq(MSR_ARCH_PERFMON_PERFCTR0 + i, 0x0);
 	}
 
-	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0xf);
-	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0x0);
+	wrmsrq(MSR_CORE_PERF_GLOBAL_CTRL, 0xf);
+	wrmsrq(MSR_CORE_PERF_GLOBAL_CTRL, 0x0);
 
 	for (i = 0; i < 4; i++) {
 		event = cpuc->events[i];
@@ -2441,7 +2442,7 @@ static void intel_pmu_nhm_workaround(void)
 			__x86_pmu_enable_event(&event->hw,
 					ARCH_PERFMON_EVENTSEL_ENABLE);
 		} else
-			wrmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + i, 0x0);
+			wrmsrq(MSR_ARCH_PERFMON_EVENTSEL0 + i, 0x0);
 	}
 }
 
@@ -2458,7 +2459,7 @@ static void intel_set_tfa(struct cpu_hw_events *cpuc, bool on)
 
 	if (cpuc->tfa_shadow != val) {
 		cpuc->tfa_shadow = val;
-		wrmsrl(MSR_TSX_FORCE_ABORT, val);
+		wrmsrq(MSR_TSX_FORCE_ABORT, val);
 	}
 }
 
@@ -2489,14 +2490,14 @@ static inline u64 intel_pmu_get_status(void)
 {
 	u64 status;
 
-	rdmsrl(MSR_CORE_PERF_GLOBAL_STATUS, status);
+	rdmsrq(MSR_CORE_PERF_GLOBAL_STATUS, status);
 
 	return status;
 }
 
 static inline void intel_pmu_ack_status(u64 ack)
 {
-	wrmsrl(MSR_CORE_PERF_GLOBAL_OVF_CTRL, ack);
+	wrmsrq(MSR_CORE_PERF_GLOBAL_OVF_CTRL, ack);
 }
 
 static inline bool event_is_checkpointed(struct perf_event *event)
@@ -2619,15 +2620,15 @@ static int icl_set_topdown_event_period(struct perf_event *event)
 	 * Don't need to clear them again.
 	 */
 	if (left == x86_pmu.max_period) {
-		wrmsrl(MSR_CORE_PERF_FIXED_CTR3, 0);
-		wrmsrl(MSR_PERF_METRICS, 0);
+		wrmsrq(MSR_CORE_PERF_FIXED_CTR3, 0);
+		wrmsrq(MSR_PERF_METRICS, 0);
 		hwc->saved_slots = 0;
 		hwc->saved_metric = 0;
 	}
 
 	if ((hwc->saved_slots) && is_slots_event(event)) {
-		wrmsrl(MSR_CORE_PERF_FIXED_CTR3, hwc->saved_slots);
-		wrmsrl(MSR_PERF_METRICS, hwc->saved_metric);
+		wrmsrq(MSR_CORE_PERF_FIXED_CTR3, hwc->saved_slots);
+		wrmsrq(MSR_PERF_METRICS, hwc->saved_metric);
 	}
 
 	perf_event_update_userpage(event);
@@ -2724,12 +2725,12 @@ static u64 intel_update_topdown_event(struct perf_event *event, int metric_end, 
 
 	if (!val) {
 		/* read Fixed counter 3 */
-		rdpmcl((3 | INTEL_PMC_FIXED_RDPMC_BASE), slots);
+		slots = rdpmc(3 | INTEL_PMC_FIXED_RDPMC_BASE);
 		if (!slots)
 			return 0;
 
 		/* read PERF_METRICS */
-		rdpmcl(INTEL_PMC_FIXED_RDPMC_METRICS, metrics);
+		metrics = rdpmc(INTEL_PMC_FIXED_RDPMC_METRICS);
 	} else {
 		slots = val[0];
 		metrics = val[1];
@@ -2773,8 +2774,8 @@ static u64 intel_update_topdown_event(struct perf_event *event, int metric_end, 
 
 	if (reset) {
 		/* The fixed counter 3 has to be written before the PERF_METRICS. */
-		wrmsrl(MSR_CORE_PERF_FIXED_CTR3, 0);
-		wrmsrl(MSR_PERF_METRICS, 0);
+		wrmsrq(MSR_CORE_PERF_FIXED_CTR3, 0);
+		wrmsrq(MSR_PERF_METRICS, 0);
 		if (event)
 			update_saved_topdown_regs(event, 0, 0, metric_end);
 	}
@@ -2937,7 +2938,7 @@ int intel_pmu_save_and_restart(struct perf_event *event)
 	 */
 	if (unlikely(event_is_checkpointed(event))) {
 		/* No race with NMIs because the counter should not be armed */
-		wrmsrl(event->hw.event_base, 0);
+		wrmsrq(event->hw.event_base, 0);
 		local64_set(&event->hw.prev_count, 0);
 	}
 	return static_call(x86_pmu_set_period)(event);
@@ -2976,13 +2977,13 @@ static void intel_pmu_reset(void)
 	pr_info("clearing PMU state on CPU#%d\n", smp_processor_id());
 
 	for_each_set_bit(idx, cntr_mask, INTEL_PMC_MAX_GENERIC) {
-		wrmsrl_safe(x86_pmu_config_addr(idx), 0ull);
-		wrmsrl_safe(x86_pmu_event_addr(idx),  0ull);
+		wrmsrq_safe(x86_pmu_config_addr(idx), 0ull);
+		wrmsrq_safe(x86_pmu_event_addr(idx),  0ull);
 	}
 	for_each_set_bit(idx, fixed_cntr_mask, INTEL_PMC_MAX_FIXED) {
 		if (fixed_counter_disabled(idx, cpuc->pmu))
 			continue;
-		wrmsrl_safe(x86_pmu_fixed_ctr_addr(idx), 0ull);
+		wrmsrq_safe(x86_pmu_fixed_ctr_addr(idx), 0ull);
 	}
 
 	if (ds)
@@ -2991,7 +2992,7 @@ static void intel_pmu_reset(void)
 	/* Ack all overflows and disable fixed counters */
 	if (x86_pmu.version >= 2) {
 		intel_pmu_ack_status(intel_pmu_get_status());
-		wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0);
+		wrmsrq(MSR_CORE_PERF_GLOBAL_CTRL, 0);
 	}
 
 	/* Reset LBRs and LBR freezing */
@@ -3101,7 +3102,7 @@ static int handle_pmi_common(struct pt_regs *regs, u64 status)
 		 * Update the MSR if pebs_enabled is changed.
 		 */
 		if (pebs_enabled != cpuc->pebs_enabled)
-			wrmsrl(MSR_IA32_PEBS_ENABLE, cpuc->pebs_enabled);
+			wrmsrq(MSR_IA32_PEBS_ENABLE, cpuc->pebs_enabled);
 
 		/*
 		 * Above PEBS handler (PEBS counters snapshotting) has updated fixed
@@ -5063,7 +5064,7 @@ static void update_pmu_cap(struct x86_hybrid_pmu *pmu)
 
 	if (!intel_pmu_broken_perf_cap()) {
 		/* Perf Metric (Bit 15) and PEBS via PT (Bit 16) are hybrid enumeration */
-		rdmsrl(MSR_IA32_PERF_CAPABILITIES, pmu->intel_cap.capabilities);
+		rdmsrq(MSR_IA32_PERF_CAPABILITIES, pmu->intel_cap.capabilities);
 	}
 }
 
@@ -5211,7 +5212,7 @@ static void intel_pmu_cpu_starting(int cpu)
 	if (!is_hybrid() && x86_pmu.intel_cap.perf_metrics) {
 		union perf_capabilities perf_cap;
 
-		rdmsrl(MSR_IA32_PERF_CAPABILITIES, perf_cap.capabilities);
+		rdmsrq(MSR_IA32_PERF_CAPABILITIES, perf_cap.capabilities);
 		if (!perf_cap.perf_metrics) {
 			x86_pmu.intel_cap.perf_metrics = 0;
 			x86_pmu.intel_ctrl &= ~(1ULL << GLOBAL_CTRL_EN_PERF_METRICS);
@@ -5619,24 +5620,24 @@ static bool check_msr(unsigned long msr, u64 mask)
 	 * matches, this is needed to detect certain hardware emulators
 	 * (qemu/kvm) that don't trap on the MSR access and always return 0s.
 	 */
-	if (rdmsrl_safe(msr, &val_old))
+	if (rdmsrq_safe(msr, &val_old))
 		return false;
 
 	/*
-	 * Only change the bits which can be updated by wrmsrl.
+	 * Only change the bits which can be updated by wrmsrq.
 	 */
 	val_tmp = val_old ^ mask;
 
 	if (is_lbr_from(msr))
 		val_tmp = lbr_from_signext_quirk_wr(val_tmp);
 
-	if (wrmsrl_safe(msr, val_tmp) ||
-	    rdmsrl_safe(msr, &val_new))
+	if (wrmsrq_safe(msr, val_tmp) ||
+	    rdmsrq_safe(msr, &val_new))
 		return false;
 
 	/*
-	 * Quirk only affects validation in wrmsr(), so wrmsrl()'s value
-	 * should equal rdmsrl()'s even with the quirk.
+	 * Quirk only affects validation in wrmsr(), so wrmsrq()'s value
+	 * should equal rdmsrq()'s even with the quirk.
 	 */
 	if (val_new != val_tmp)
 		return false;
@@ -5647,7 +5648,7 @@ static bool check_msr(unsigned long msr, u64 mask)
 	/* Here it's sure that the MSR can be safely accessed.
 	 * Restore the old value and return.
 	 */
-	wrmsrl(msr, val_old);
+	wrmsrq(msr, val_old);
 
 	return true;
 }
@@ -6651,7 +6652,7 @@ __init int intel_pmu_init(void)
 	if (boot_cpu_has(X86_FEATURE_PDCM)) {
 		u64 capabilities;
 
-		rdmsrl(MSR_IA32_PERF_CAPABILITIES, capabilities);
+		rdmsrq(MSR_IA32_PERF_CAPABILITIES, capabilities);
 		x86_pmu.intel_cap.capabilities = capabilities;
 	}
 

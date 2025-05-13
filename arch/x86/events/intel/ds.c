@@ -10,6 +10,7 @@
 #include <asm/tlbflush.h>
 #include <asm/insn.h>
 #include <asm/io.h>
+#include <asm/msr.h>
 #include <asm/timer.h>
 
 #include "../perf_event.h"
@@ -1517,7 +1518,7 @@ static void intel_pmu_pebs_via_pt_enable(struct perf_event *event)
 		else
 			value = ds->pebs_event_reset[MAX_PEBS_EVENTS + idx];
 	}
-	wrmsrl(base + idx, value);
+	wrmsrq(base + idx, value);
 }
 
 static inline void intel_pmu_drain_large_pebs(struct cpu_hw_events *cpuc)
@@ -1554,7 +1555,7 @@ void intel_pmu_pebs_enable(struct perf_event *event)
 			 */
 			intel_pmu_drain_pebs_buffer();
 			adaptive_pebs_record_size_update();
-			wrmsrl(MSR_PEBS_DATA_CFG, pebs_data_cfg);
+			wrmsrq(MSR_PEBS_DATA_CFG, pebs_data_cfg);
 			cpuc->active_pebs_data_cfg = pebs_data_cfg;
 		}
 	}
@@ -1617,7 +1618,7 @@ void intel_pmu_pebs_disable(struct perf_event *event)
 	intel_pmu_pebs_via_pt_disable(event);
 
 	if (cpuc->enabled)
-		wrmsrl(MSR_IA32_PEBS_ENABLE, cpuc->pebs_enabled);
+		wrmsrq(MSR_IA32_PEBS_ENABLE, cpuc->pebs_enabled);
 
 	hwc->config |= ARCH_PERFMON_EVENTSEL_INT;
 }
@@ -1627,7 +1628,7 @@ void intel_pmu_pebs_enable_all(void)
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
 	if (cpuc->pebs_enabled)
-		wrmsrl(MSR_IA32_PEBS_ENABLE, cpuc->pebs_enabled);
+		wrmsrq(MSR_IA32_PEBS_ENABLE, cpuc->pebs_enabled);
 }
 
 void intel_pmu_pebs_disable_all(void)
@@ -2276,7 +2277,7 @@ intel_pmu_save_and_restart_reload(struct perf_event *event, int count)
 	WARN_ON(this_cpu_read(cpu_hw_events.enabled));
 
 	prev_raw_count = local64_read(&hwc->prev_count);
-	rdpmcl(hwc->event_base_rdpmc, new_raw_count);
+	new_raw_count = rdpmc(hwc->event_base_rdpmc);
 	local64_set(&hwc->prev_count, new_raw_count);
 
 	/*
@@ -2790,5 +2791,5 @@ void perf_restore_debug_store(void)
 	if (!x86_pmu.bts && !x86_pmu.pebs)
 		return;
 
-	wrmsrl(MSR_IA32_DS_AREA, (unsigned long)ds);
+	wrmsrq(MSR_IA32_DS_AREA, (unsigned long)ds);
 }

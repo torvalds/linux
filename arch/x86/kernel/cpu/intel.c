@@ -159,7 +159,7 @@ static void detect_tme_early(struct cpuinfo_x86 *c)
 	u64 tme_activate;
 	int keyid_bits;
 
-	rdmsrl(MSR_IA32_TME_ACTIVATE, tme_activate);
+	rdmsrq(MSR_IA32_TME_ACTIVATE, tme_activate);
 
 	if (!TME_ACTIVATE_LOCKED(tme_activate) || !TME_ACTIVATE_ENABLED(tme_activate)) {
 		pr_info_once("x86/tme: not enabled by BIOS\n");
@@ -301,7 +301,7 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 	 * string flag and enhanced fast string capabilities accordingly.
 	 */
 	if (c->x86_vfm >= INTEL_PENTIUM_M_DOTHAN) {
-		rdmsrl(MSR_IA32_MISC_ENABLE, misc_enable);
+		rdmsrq(MSR_IA32_MISC_ENABLE, misc_enable);
 		if (misc_enable & MSR_IA32_MISC_ENABLE_FAST_STRING) {
 			/* X86_FEATURE_ERMS is set based on CPUID */
 			set_cpu_cap(c, X86_FEATURE_REP_GOOD);
@@ -490,7 +490,7 @@ static void init_cpuid_fault(struct cpuinfo_x86 *c)
 {
 	u64 msr;
 
-	if (!rdmsrl_safe(MSR_PLATFORM_INFO, &msr)) {
+	if (!rdmsrq_safe(MSR_PLATFORM_INFO, &msr)) {
 		if (msr & MSR_PLATFORM_INFO_CPUID_FAULT)
 			set_cpu_cap(c, X86_FEATURE_CPUID_FAULT);
 	}
@@ -500,7 +500,7 @@ static void init_intel_misc_features(struct cpuinfo_x86 *c)
 {
 	u64 msr;
 
-	if (rdmsrl_safe(MSR_MISC_FEATURES_ENABLES, &msr))
+	if (rdmsrq_safe(MSR_MISC_FEATURES_ENABLES, &msr))
 		return;
 
 	/* Clear all MISC features */
@@ -511,7 +511,7 @@ static void init_intel_misc_features(struct cpuinfo_x86 *c)
 	probe_xeon_phi_r3mwait(c);
 
 	msr = this_cpu_read(msr_misc_features_shadow);
-	wrmsrl(MSR_MISC_FEATURES_ENABLES, msr);
+	wrmsrq(MSR_MISC_FEATURES_ENABLES, msr);
 }
 
 /*

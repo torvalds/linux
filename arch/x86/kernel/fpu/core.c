@@ -11,6 +11,7 @@
 #include <asm/fpu/sched.h>
 #include <asm/fpu/signal.h>
 #include <asm/fpu/types.h>
+#include <asm/msr.h>
 #include <asm/traps.h>
 #include <asm/irq_regs.h>
 
@@ -334,7 +335,7 @@ void fpu_sync_guest_vmexit_xfd_state(void)
 
 	lockdep_assert_irqs_disabled();
 	if (fpu_state_size_dynamic()) {
-		rdmsrl(MSR_IA32_XFD, fpstate->xfd);
+		rdmsrq(MSR_IA32_XFD, fpstate->xfd);
 		__this_cpu_write(xfd_state, fpstate->xfd);
 	}
 }

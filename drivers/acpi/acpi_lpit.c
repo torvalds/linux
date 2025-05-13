@@ -39,7 +39,7 @@ static int lpit_read_residency_counter_us(u64 *counter, bool io_mem)
 		return 0;
 	}
 
-	err = rdmsrl_safe(residency_info_ffh.gaddr.address, counter);
+	err = rdmsrq_safe(residency_info_ffh.gaddr.address, counter);
 	if (!err) {
 		u64 mask = GENMASK_ULL(residency_info_ffh.gaddr.bit_offset +
 				       residency_info_ffh.gaddr. bit_width - 1,

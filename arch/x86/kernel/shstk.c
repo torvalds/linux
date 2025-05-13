@@ -173,8 +173,8 @@ static int shstk_setup(void)
 		return PTR_ERR((void *)addr);
 
 	fpregs_lock_and_load();
-	wrmsrl(MSR_IA32_PL3_SSP, addr + size);
-	wrmsrl(MSR_IA32_U_CET, CET_SHSTK_EN);
+	wrmsrq(MSR_IA32_PL3_SSP, addr + size);
+	wrmsrq(MSR_IA32_U_CET, CET_SHSTK_EN);
 	fpregs_unlock();
 
 	shstk->base = addr;
@@ -239,7 +239,7 @@ static unsigned long get_user_shstk_addr(void)
 
 	fpregs_lock_and_load();
 
-	rdmsrl(MSR_IA32_PL3_SSP, ssp);
+	rdmsrq(MSR_IA32_PL3_SSP, ssp);
 
 	fpregs_unlock();
 
@@ -372,7 +372,7 @@ int setup_signal_shadow_stack(struct ksignal *ksig)
 		return -EFAULT;
 
 	fpregs_lock_and_load();
-	wrmsrl(MSR_IA32_PL3_SSP, ssp);
+	wrmsrq(MSR_IA32_PL3_SSP, ssp);
 	fpregs_unlock();
 
 	return 0;
@@ -396,7 +396,7 @@ int restore_signal_shadow_stack(void)
 		return err;
 
 	fpregs_lock_and_load();
-	wrmsrl(MSR_IA32_PL3_SSP, ssp);
+	wrmsrq(MSR_IA32_PL3_SSP, ssp);
 	fpregs_unlock();
 
 	return 0;
@@ -460,7 +460,7 @@ static int wrss_control(bool enable)
 		return 0;
 
 	fpregs_lock_and_load();
-	rdmsrl(MSR_IA32_U_CET, msrval);
+	rdmsrq(MSR_IA32_U_CET, msrval);
 
 	if (enable) {
 		features_set(ARCH_SHSTK_WRSS);
@@ -473,7 +473,7 @@ static int wrss_control(bool enable)
 		msrval &= ~CET_WRSS_EN;
 	}
 
-	wrmsrl(MSR_IA32_U_CET, msrval);
+	wrmsrq(MSR_IA32_U_CET, msrval);
 
 unlock:
 	fpregs_unlock();
@@ -492,8 +492,8 @@ static int shstk_disable(void)
 
 	fpregs_lock_and_load();
 	/* Disable WRSS too when disabling shadow stack */
-	wrmsrl(MSR_IA32_U_CET, 0);
-	wrmsrl(MSR_IA32_PL3_SSP, 0);
+	wrmsrq(MSR_IA32_U_CET, 0);
+	wrmsrq(MSR_IA32_PL3_SSP, 0);
 	fpregs_unlock();
 
 	shstk_free(current);

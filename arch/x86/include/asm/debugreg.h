@@ -169,7 +169,7 @@ static inline unsigned long get_debugctlmsr(void)
 	if (boot_cpu_data.x86 < 6)
 		return 0;
 #endif
-	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
+	rdmsrq(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
 
 	return debugctlmsr;
 }
@@ -180,7 +180,7 @@ static inline void update_debugctlmsr(unsigned long debugctlmsr)
 	if (boot_cpu_data.x86 < 6)
 		return;
 #endif
-	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
+	wrmsrq(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
 }
 
 #endif /* _ASM_X86_DEBUGREG_H */

@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 
 #include <asm/cpu_device_id.h>
+#include <asm/msr.h>
 #include <asm/resctrl.h>
 
 #include "internal.h"
@@ -238,7 +239,7 @@ static int __rmid_read_phys(u32 prmid, enum resctrl_event_id eventid, u64 *val)
 	 * are error bits.
 	 */
 	wrmsr(MSR_IA32_QM_EVTSEL, eventid, prmid);
-	rdmsrl(MSR_IA32_QM_CTR, msr_val);
+	rdmsrq(MSR_IA32_QM_CTR, msr_val);
 
 	if (msr_val & RMID_VAL_ERROR)
 		return -EIO;

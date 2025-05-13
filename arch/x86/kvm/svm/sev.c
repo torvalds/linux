@@ -26,6 +26,7 @@
 #include <asm/fpu/xcr.h>
 #include <asm/fpu/xstate.h>
 #include <asm/debugreg.h>
+#include <asm/msr.h>
 #include <asm/sev.h>
 
 #include "mmu.h"
@@ -3119,7 +3120,7 @@ static void sev_flush_encrypted_page(struct kvm_vcpu *vcpu, void *va)
 	 * back to WBINVD if this faults so as not to make any problems worse
 	 * by leaving stale encrypted data in the cache.
 	 */
-	if (WARN_ON_ONCE(wrmsrl_safe(MSR_AMD64_VM_PAGE_FLUSH, addr | asid)))
+	if (WARN_ON_ONCE(wrmsrq_safe(MSR_AMD64_VM_PAGE_FLUSH, addr | asid)))
 		goto do_wbinvd;
 
 	return;

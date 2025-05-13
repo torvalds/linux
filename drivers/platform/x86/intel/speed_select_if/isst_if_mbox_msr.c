@@ -18,6 +18,7 @@
 #include <uapi/linux/isst_if.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
+#include <asm/msr.h>
 
 #include "isst_if_common.h"
 
@@ -39,7 +40,7 @@ static int isst_if_send_mbox_cmd(u8 command, u8 sub_command, u32 parameter,
 	/* Poll for rb bit == 0 */
 	retries = OS_MAILBOX_RETRY_COUNT;
 	do {
-		rdmsrl(MSR_OS_MAILBOX_INTERFACE, data);
+		rdmsrq(MSR_OS_MAILBOX_INTERFACE, data);
 		if (data & BIT_ULL(MSR_OS_MAILBOX_BUSY_BIT)) {
 			ret = -EBUSY;
 			continue;
@@ -52,19 +53,19 @@ static int isst_if_send_mbox_cmd(u8 command, u8 sub_command, u32 parameter,
 		return ret;
 
 	/* Write DATA register */
-	wrmsrl(MSR_OS_MAILBOX_DATA, command_data);
+	wrmsrq(MSR_OS_MAILBOX_DATA, command_data);
 
 	/* Write command register */
 	data = BIT_ULL(MSR_OS_MAILBOX_BUSY_BIT) |
 		      (parameter & GENMASK_ULL(13, 0)) << 16 |
 		      (sub_command << 8) |
 		      command;
-	wrmsrl(MSR_OS_MAILBOX_INTERFACE, data);
+	wrmsrq(MSR_OS_MAILBOX_INTERFACE, data);
 
 	/* Poll for rb bit == 0 */
 	retries = OS_MAILBOX_RETRY_COUNT;
 	do {
-		rdmsrl(MSR_OS_MAILBOX_INTERFACE, data);
+		rdmsrq(MSR_OS_MAILBOX_INTERFACE, data);
 		if (data & BIT_ULL(MSR_OS_MAILBOX_BUSY_BIT)) {
 			ret = -EBUSY;
 			continue;
@@ -74,7 +75,7 @@ static int isst_if_send_mbox_cmd(u8 command, u8 sub_command, u32 parameter,
 			return -ENXIO;
 
 		if (response_data) {
-			rdmsrl(MSR_OS_MAILBOX_DATA, data);
+			rdmsrq(MSR_OS_MAILBOX_DATA, data);
 			*response_data = data;
 		}
 		ret = 0;
@@ -176,11 +177,11 @@ static int __init isst_if_mbox_init(void)
 		return -ENODEV;
 
 	/* Check presence of mailbox MSRs */
-	ret = rdmsrl_safe(MSR_OS_MAILBOX_INTERFACE, &data);
+	ret = rdmsrq_safe(MSR_OS_MAILBOX_INTERFACE, &data);
 	if (ret)
 		return ret;
 
-	ret = rdmsrl_safe(MSR_OS_MAILBOX_DATA, &data);
+	ret = rdmsrq_safe(MSR_OS_MAILBOX_DATA, &data);
 	if (ret)
 		return ret;
 
