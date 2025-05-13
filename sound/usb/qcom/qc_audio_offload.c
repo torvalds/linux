@@ -1014,10 +1014,11 @@ put_suspend:
  *
  */
 static int uaudio_transfer_buffer_setup(struct snd_usb_substream *subs,
-					u8 *xfer_buf, u32 xfer_buf_len,
+					void **xfer_buf_cpu, u32 xfer_buf_len,
 					struct mem_info_v01 *mem_info)
 {
 	struct sg_table xfer_buf_sgt;
+	void *xfer_buf;
 	phys_addr_t xfer_buf_pa;
 	u32 len = xfer_buf_len;
 	bool dma_coherent;
@@ -1060,6 +1061,7 @@ static int uaudio_transfer_buffer_setup(struct snd_usb_substream *subs,
 	mem_info->dma = xfer_buf_pa;
 	mem_info->size = len;
 	mem_info->iova = PREPEND_SID_TO_IOVA(iova, uaudio_qdev->data->sid);
+	*xfer_buf_cpu = xfer_buf;
 	sg_free_table(&xfer_buf_sgt);
 
 	return 0;
@@ -1340,7 +1342,7 @@ static int prepare_qmi_response(struct snd_usb_substream *subs,
 	struct q6usb_offload *data;
 	int pcm_dev_num;
 	int card_num;
-	u8 *xfer_buf_cpu = NULL;
+	void *xfer_buf_cpu;
 	int ret;
 
 	pcm_dev_num = (req_msg->usb_token & QMI_STREAM_REQ_DEV_NUM_MASK) >> 8;
@@ -1409,7 +1411,7 @@ static int prepare_qmi_response(struct snd_usb_substream *subs,
 
 	resp->speed_info_valid = 1;
 
-	ret = uaudio_transfer_buffer_setup(subs, xfer_buf_cpu, req_msg->xfer_buff_size,
+	ret = uaudio_transfer_buffer_setup(subs, &xfer_buf_cpu, req_msg->xfer_buff_size,
 					   &resp->xhci_mem_info.xfer_buff);
 	if (ret < 0) {
 		ret = -ENOMEM;
