@@ -228,7 +228,7 @@ static int k3_m4_rproc_unprepare(struct rproc *rproc)
 	int ret;
 
 	/* If the core is going to be detached do not assert the module reset */
-	if (rproc->state == RPROC_ATTACHED)
+	if (rproc->state == RPROC_DETACHED)
 		return 0;
 
 	ret = kproc->ti_sci->ops.dev_ops.put_device(kproc->ti_sci,
