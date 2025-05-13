@@ -3418,11 +3418,7 @@ static int camss_subdev_notifier_complete(struct v4l2_async_notifier *async)
 		}
 	}
 
-	ret = v4l2_device_register_subdev_nodes(&camss->v4l2_dev);
-	if (ret < 0)
-		return ret;
-
-	return media_device_register(&camss->media_dev);
+	return v4l2_device_register_subdev_nodes(&camss->v4l2_dev);
 }
 
 static const struct v4l2_async_notifier_operations camss_subdev_notifier_ops = {
@@ -3646,6 +3642,12 @@ static int camss_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_register_subdevs;
 
+	ret = media_device_register(&camss->media_dev);
+	if (ret < 0) {
+		dev_err(dev, "Failed to register media device: %d\n", ret);
+		goto err_register_subdevs;
+	}
+
 	if (num_subdevs) {
 		camss->notifier.ops = &camss_subdev_notifier_ops;
 
@@ -3654,26 +3656,21 @@ static int camss_probe(struct platform_device *pdev)
 			dev_err(dev,
 				"Failed to register async subdev nodes: %d\n",
 				ret);
-			goto err_register_subdevs;
+			goto err_media_device_unregister;
 		}
 	} else {
 		ret = v4l2_device_register_subdev_nodes(&camss->v4l2_dev);
 		if (ret < 0) {
 			dev_err(dev, "Failed to register subdev nodes: %d\n",
 				ret);
-			goto err_register_subdevs;
-		}
-
-		ret = media_device_register(&camss->media_dev);
-		if (ret < 0) {
-			dev_err(dev, "Failed to register media device: %d\n",
-				ret);
-			goto err_register_subdevs;
+			goto err_media_device_unregister;
 		}
 	}
 
 	return 0;
 
+err_media_device_unregister:
+	media_device_unregister(&camss->media_dev);
 err_register_subdevs:
 	camss_unregister_entities(camss);
 err_v4l2_device_unregister:
