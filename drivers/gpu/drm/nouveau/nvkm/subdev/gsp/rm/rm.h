@@ -59,8 +59,7 @@ struct nvkm_rm_api {
 	} *alloc;
 
 	const struct nvkm_rm_api_client {
-		int (*ctor)(struct nvkm_gsp *, struct nvkm_gsp_client *);
-		void (*dtor)(struct nvkm_gsp_client *);
+		int (*ctor)(struct nvkm_gsp_client *, u32 handle);
 	} *client;
 
 	const struct nvkm_rm_api_device {

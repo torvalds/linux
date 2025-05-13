@@ -8,6 +8,7 @@
 /* RMAPI handles for various objects allocated from GSP-RM with RM_ALLOC. */
 
 #define NVKM_RM_CLIENT(id)         (0xc1d00000 | (id))
+#define NVKM_RM_CLIENT_MASK         0x0000ffff
 #define NVKM_RM_DEVICE              0xde1d0000
 #define NVKM_RM_SUBDEVICE           0x5d1d0000
 #define NVKM_RM_DISP                0x00730000

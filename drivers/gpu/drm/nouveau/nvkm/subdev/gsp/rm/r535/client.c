@@ -23,57 +23,23 @@
 
 #include "nvrm/client.h"
 
-static void
-r535_gsp_client_dtor(struct nvkm_gsp_client *client)
-{
-	struct nvkm_gsp *gsp = client->gsp;
-
-	nvkm_gsp_rm_free(&client->object);
-
-	mutex_lock(&gsp->client_id.mutex);
-	idr_remove(&gsp->client_id.idr, client->object.handle & 0xffff);
-	mutex_unlock(&gsp->client_id.mutex);
-
-	client->gsp = NULL;
-}
-
 static int
-r535_gsp_client_ctor(struct nvkm_gsp *gsp, struct nvkm_gsp_client *client)
+r535_gsp_client_ctor(struct nvkm_gsp_client *client, u32 handle)
 {
 	NV0000_ALLOC_PARAMETERS *args;
-	int ret;
 
-	mutex_lock(&gsp->client_id.mutex);
-	ret = idr_alloc(&gsp->client_id.idr, client, 0, 0xffff + 1, GFP_KERNEL);
-	mutex_unlock(&gsp->client_id.mutex);
-	if (ret < 0)
-		return ret;
-
-	client->gsp = gsp;
-	client->object.client = client;
-	INIT_LIST_HEAD(&client->events);
-
-	args = nvkm_gsp_rm_alloc_get(&client->object, NVKM_RM_CLIENT(ret), NV01_ROOT, sizeof(*args),
+	args = nvkm_gsp_rm_alloc_get(&client->object, handle, NV01_ROOT, sizeof(*args),
 				     &client->object);
-	if (IS_ERR(args)) {
-		r535_gsp_client_dtor(client);
-		return ret;
-	}
+	if (IS_ERR(args))
+		return PTR_ERR(args);
 
 	args->hClient = client->object.handle;
 	args->processID = ~0;
 
-	ret = nvkm_gsp_rm_alloc_wr(&client->object, args);
-	if (ret) {
-		r535_gsp_client_dtor(client);
-		return ret;
-	}
-
-	return 0;
+	return nvkm_gsp_rm_alloc_wr(&client->object, args);
 }
 
 const struct nvkm_rm_api_client
 r535_client = {
 	.ctor = r535_gsp_client_ctor,
-	.dtor = r535_gsp_client_dtor,
 };
