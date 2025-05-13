@@ -1481,7 +1481,7 @@ static const struct camss_subdev_resources csiphy_res_7280[] = {
 		.csiphy = {
 			.id = 0,
 			.hw_ops = &csiphy_ops_3ph_1_0,
-			.formats = &csiphy_formats_sc7280
+			.formats = &csiphy_formats_sdm845,
 		}
 	},
 	/* CSIPHY1 */
@@ -1496,7 +1496,7 @@ static const struct camss_subdev_resources csiphy_res_7280[] = {
 		.csiphy = {
 			.id = 1,
 			.hw_ops = &csiphy_ops_3ph_1_0,
-			.formats = &csiphy_formats_sc7280
+			.formats = &csiphy_formats_sdm845,
 		}
 	},
 	/* CSIPHY2 */
@@ -1511,7 +1511,7 @@ static const struct camss_subdev_resources csiphy_res_7280[] = {
 		.csiphy = {
 			.id = 2,
 			.hw_ops = &csiphy_ops_3ph_1_0,
-			.formats = &csiphy_formats_sc7280
+			.formats = &csiphy_formats_sdm845,
 		}
 	},
 	/* CSIPHY3 */
@@ -1526,7 +1526,7 @@ static const struct camss_subdev_resources csiphy_res_7280[] = {
 		.csiphy = {
 			.id = 3,
 			.hw_ops = &csiphy_ops_3ph_1_0,
-			.formats = &csiphy_formats_sc7280
+			.formats = &csiphy_formats_sdm845,
 		}
 	},
 	/* CSIPHY4 */
@@ -1541,7 +1541,7 @@ static const struct camss_subdev_resources csiphy_res_7280[] = {
 		.csiphy = {
 			.id = 4,
 			.hw_ops = &csiphy_ops_3ph_1_0,
-			.formats = &csiphy_formats_sc7280
+			.formats = &csiphy_formats_sdm845,
 		}
 	},
 };
