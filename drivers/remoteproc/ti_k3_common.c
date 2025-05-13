@@ -539,5 +539,13 @@ int k3_reserved_mem_init(struct k3_rproc *kproc)
 }
 EXPORT_SYMBOL_GPL(k3_reserved_mem_init);
 
+void k3_release_tsp(void *data)
+{
+	struct ti_sci_proc *tsp = data;
+
+	ti_sci_proc_release(tsp);
+}
+EXPORT_SYMBOL_GPL(k3_release_tsp);
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("TI K3 common Remoteproc code");
