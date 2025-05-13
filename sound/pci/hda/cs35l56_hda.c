@@ -678,6 +678,8 @@ static void cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	if (ret)
 		cs_dsp_stop(&cs35l56->cs_dsp);
 
+	cs35l56_log_tuning(&cs35l56->base, &cs35l56->cs_dsp);
+
 err_powered_up:
 	if (!cs35l56->base.fw_patched)
 		cs_dsp_power_down(&cs35l56->cs_dsp);
