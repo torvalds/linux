@@ -346,7 +346,7 @@ restart_drop_extra_replicas:
 							.btree	= m->btree_id,
 							.flags	= BCH_VALIDATE_commit,
 						 });
-		if (invalid) {
+		if (unlikely(invalid)) {
 			struct printbuf buf = PRINTBUF;
 			bch2_log_msg_start(c, &buf);
 
@@ -368,6 +368,21 @@ restart_drop_extra_replicas:
 			goto out;
 		}
 
+		printbuf_reset(&journal_msg);
+		prt_str(&journal_msg, bch2_data_update_type_strs[m->type]);
+
+		ret =   bch2_trans_log_msg(trans, &journal_msg) ?:
+			bch2_trans_log_bkey(trans, m->btree_id, 0, m->k.k) ?:
+			bch2_insert_snapshot_whiteouts(trans, m->btree_id,
+						k.k->p, bkey_start_pos(&insert->k)) ?:
+			bch2_insert_snapshot_whiteouts(trans, m->btree_id,
+						k.k->p, insert->k.p) ?:
+			bch2_bkey_set_needs_rebalance(c, &op->opts, insert) ?:
+			bch2_trans_update(trans, &iter, insert,
+				BTREE_UPDATE_internal_snapshot_node);
+		if (ret)
+			goto err;
+
 		if (trace_data_update_enabled()) {
 			struct printbuf buf = PRINTBUF;
 
@@ -382,30 +397,38 @@ restart_drop_extra_replicas:
 			printbuf_exit(&buf);
 		}
 
-		printbuf_reset(&journal_msg);
-		prt_str(&journal_msg, bch2_data_update_type_strs[m->type]);
+		if (bch2_bkey_sectors_need_rebalance(c, bkey_i_to_s_c(insert)) * k.k->size >
+		    bch2_bkey_sectors_need_rebalance(c, k) * insert->k.size) {
+			struct printbuf buf = PRINTBUF;
 
-		ret =   bch2_trans_log_msg(trans, &journal_msg) ?:
-			bch2_trans_log_bkey(trans, m->btree_id, 0, m->k.k) ?:
-			bch2_insert_snapshot_whiteouts(trans, m->btree_id,
-						k.k->p, bkey_start_pos(&insert->k)) ?:
-			bch2_insert_snapshot_whiteouts(trans, m->btree_id,
-						k.k->p, insert->k.p) ?:
-			bch2_bkey_set_needs_rebalance(c, &op->opts, insert) ?:
-			bch2_trans_update(trans, &iter, insert,
-				BTREE_UPDATE_internal_snapshot_node) ?:
-			bch2_trans_commit(trans, &op->res,
+			bch2_data_update_opts_to_text(&buf, c, &m->op.opts, &m->data_opts);
+
+			prt_str(&buf, "\nold: ");
+			bch2_bkey_val_to_text(&buf, c, old);
+			prt_str(&buf, "\nk:   ");
+			bch2_bkey_val_to_text(&buf, c, k);
+			prt_str(&buf, "\nnew: ");
+			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
+
+			trace_io_move_created_rebalance(c, buf.buf);
+			printbuf_exit(&buf);
+
+			this_cpu_inc(c->counters[BCH_COUNTER_io_move_created_rebalance]);
+		}
+
+		ret =   bch2_trans_commit(trans, &op->res,
 				NULL,
 				BCH_TRANS_COMMIT_no_check_rw|
 				BCH_TRANS_COMMIT_no_enospc|
 				m->data_opts.btree_insert_flags);
-		if (!ret) {
-			bch2_btree_iter_set_pos(trans, &iter, next_pos);
+		if (ret)
+			goto err;
 
-			this_cpu_add(c->counters[BCH_COUNTER_io_move_finish], new->k.size);
-			if (trace_io_move_finish_enabled())
-				trace_io_move_finish2(m, &new->k_i, insert);
-		}
+		bch2_btree_iter_set_pos(trans, &iter, next_pos);
+
+		this_cpu_add(c->counters[BCH_COUNTER_io_move_finish], new->k.size);
+		if (trace_io_move_finish_enabled())
+			trace_io_move_finish2(m, &new->k_i, insert);
 err:
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			ret = 0;
