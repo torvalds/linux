@@ -105,6 +105,8 @@
 #define PKT_XBE2_FW_5_EARLY 3
 #define PKT_XBE2_FW_5_11    4
 
+#define FLAG_DELAY_INIT BIT(0)
+
 static bool dpad_to_buttons;
 module_param(dpad_to_buttons, bool, S_IRUGO);
 MODULE_PARM_DESC(dpad_to_buttons, "Map D-PAD to buttons rather than axes for unknown pads");
@@ -127,6 +129,7 @@ static const struct xpad_device {
 	char *name;
 	u8 mapping;
 	u8 xtype;
+	u8 flags;
 } xpad_device[] = {
 	/* Please keep this list sorted by vendor and product ID. */
 	{ 0x0079, 0x18d4, "GPD Win 2 X-Box Controller", 0, XTYPE_XBOX360 },
@@ -596,6 +599,7 @@ struct xboxone_init_packet {
  * - https://github.com/medusalix/xone/blob/master/bus/protocol.c
  */
 #define GIP_CMD_ACK      0x01
+#define GIP_CMD_ANNOUNCE 0x02
 #define GIP_CMD_IDENTIFY 0x04
 #define GIP_CMD_POWER    0x05
 #define GIP_CMD_AUTHENTICATE 0x06
@@ -785,10 +789,13 @@ struct usb_xpad {
 	const char *name;		/* name of the device */
 	struct work_struct work;	/* init/remove device from callback */
 	time64_t mode_btn_down_ts;
+	bool delay_init;		/* init packets should be delayed */
+	bool delayed_init_done;
 };
 
 static int xpad_init_input(struct usb_xpad *xpad);
 static void xpad_deinit_input(struct usb_xpad *xpad);
+static int xpad_start_input(struct usb_xpad *xpad);
 static void xpadone_ack_mode_report(struct usb_xpad *xpad, u8 seq_num);
 static void xpad360w_poweroff_controller(struct usb_xpad *xpad);
 
@@ -1073,6 +1080,17 @@ static void xpadone_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char
 
 			do_sync = true;
 		}
+	} else if (data[0] == GIP_CMD_ANNOUNCE) {
+		int error;
+
+		if (xpad->delay_init && !xpad->delayed_init_done) {
+			xpad->delayed_init_done = true;
+			error = xpad_start_input(xpad);
+			if (error)
+				dev_warn(&xpad->dev->dev,
+					 "unable to start delayed input: %d\n",
+					 error);
+		}
 	} else if (data[0] == GIP_CMD_INPUT) { /* The main valid packet type for inputs */
 		/* menu/view buttons */
 		input_report_key(dev, BTN_START,  data[4] & BIT(2));
@@ -1249,6 +1267,14 @@ static bool xpad_prepare_next_init_packet(struct usb_xpad *xpad)
 	const struct xboxone_init_packet *init_packet;
 
 	if (xpad->xtype != XTYPE_XBOXONE)
+		return false;
+
+	/*
+	 * Some dongles will discard init packets if they're sent before the
+	 * controller connects. In these cases, we need to wait until we get
+	 * an announce packet from them to send the init packet sequence.
+	 */
+	if (xpad->delay_init && !xpad->delayed_init_done)
 		return false;
 
 	/* Perform initialization sequence for Xbox One pads that require it */
@@ -2066,6 +2092,9 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	xpad->mapping = xpad_device[i].mapping;
 	xpad->xtype = xpad_device[i].xtype;
 	xpad->name = xpad_device[i].name;
+	if (xpad_device[i].flags & FLAG_DELAY_INIT)
+		xpad->delay_init = true;
+
 	xpad->packet_type = PKT_XB;
 	INIT_WORK(&xpad->work, xpad_presence_work);
 
@@ -2265,6 +2294,7 @@ static int xpad_resume(struct usb_interface *intf)
 	struct usb_xpad *xpad = usb_get_intfdata(intf);
 	struct input_dev *input = xpad->dev;
 
+	xpad->delayed_init_done = false;
 	if (xpad->xtype == XTYPE_XBOX360W)
 		return xpad360w_start_input(xpad);
 
