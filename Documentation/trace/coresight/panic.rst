@@ -67,8 +67,8 @@ Trace data captured at the time of panic, can be read from rebooted kernel
 or from crashdump kernel using a special device file /dev/crash_tmc_xxx.
 This device file is created only when there is a valid crashdata available.
 
-General flow of trace capture and decode incase of kernel panic
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+General flow of trace capture and decode in case of kernel panic
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 1. Enable source and sink on all the cores using the sysfs interface.
    ETR sinks should have trace buffers allocated from reserved memory,
    by selecting "resrv" buffer mode from sysfs.
