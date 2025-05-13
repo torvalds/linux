@@ -660,17 +660,14 @@ static int aspeed_sham_digest(struct ahash_request *req)
 	return aspeed_sham_init(req) ? : aspeed_sham_finup(req);
 }
 
-static int aspeed_sham_cra_init(struct crypto_tfm *tfm)
+static int aspeed_sham_cra_init(struct crypto_ahash *tfm)
 {
-	struct ahash_alg *alg = __crypto_ahash_alg(tfm->__crt_alg);
-	struct aspeed_sham_ctx *tctx = crypto_tfm_ctx(tfm);
+	struct ahash_alg *alg = crypto_ahash_alg(tfm);
+	struct aspeed_sham_ctx *tctx = crypto_ahash_ctx(tfm);
 	struct aspeed_hace_alg *ast_alg;
 
 	ast_alg = container_of(alg, struct aspeed_hace_alg, alg.ahash.base);
 	tctx->hace_dev = ast_alg->hace_dev;
-
-	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
-				 sizeof(struct aspeed_sham_reqctx));
 
 	return 0;
 }
@@ -703,6 +700,7 @@ static struct aspeed_hace_alg aspeed_ahash_algs[] = {
 			.digest	= aspeed_sham_digest,
 			.export	= aspeed_sham_export,
 			.import	= aspeed_sham_import,
+			.init_tfm = aspeed_sham_cra_init,
 			.halg = {
 				.digestsize = SHA1_DIGEST_SIZE,
 				.statesize = sizeof(struct aspeed_sham_reqctx),
@@ -715,9 +713,9 @@ static struct aspeed_hace_alg aspeed_ahash_algs[] = {
 								  CRYPTO_ALG_KERN_DRIVER_ONLY,
 					.cra_blocksize		= SHA1_BLOCK_SIZE,
 					.cra_ctxsize		= sizeof(struct aspeed_sham_ctx),
+					.cra_reqsize		= sizeof(struct aspeed_sham_reqctx),
 					.cra_alignmask		= 0,
 					.cra_module		= THIS_MODULE,
-					.cra_init		= aspeed_sham_cra_init,
 				}
 			}
 		},
@@ -734,6 +732,7 @@ static struct aspeed_hace_alg aspeed_ahash_algs[] = {
 			.digest	= aspeed_sham_digest,
 			.export	= aspeed_sham_export,
 			.import	= aspeed_sham_import,
+			.init_tfm = aspeed_sham_cra_init,
 			.halg = {
 				.digestsize = SHA256_DIGEST_SIZE,
 				.statesize = sizeof(struct aspeed_sham_reqctx),
@@ -746,9 +745,9 @@ static struct aspeed_hace_alg aspeed_ahash_algs[] = {
 								  CRYPTO_ALG_KERN_DRIVER_ONLY,
 					.cra_blocksize		= SHA256_BLOCK_SIZE,
 					.cra_ctxsize		= sizeof(struct aspeed_sham_ctx),
+					.cra_reqsize		= sizeof(struct aspeed_sham_reqctx),
 					.cra_alignmask		= 0,
 					.cra_module		= THIS_MODULE,
-					.cra_init		= aspeed_sham_cra_init,
 				}
 			}
 		},
@@ -765,6 +764,7 @@ static struct aspeed_hace_alg aspeed_ahash_algs[] = {
 			.digest	= aspeed_sham_digest,
 			.export	= aspeed_sham_export,
 			.import	= aspeed_sham_import,
+			.init_tfm = aspeed_sham_cra_init,
 			.halg = {
 				.digestsize = SHA224_DIGEST_SIZE,
 				.statesize = sizeof(struct aspeed_sham_reqctx),
@@ -777,9 +777,9 @@ static struct aspeed_hace_alg aspeed_ahash_algs[] = {
 								  CRYPTO_ALG_KERN_DRIVER_ONLY,
 					.cra_blocksize		= SHA224_BLOCK_SIZE,
 					.cra_ctxsize		= sizeof(struct aspeed_sham_ctx),
+					.cra_reqsize		= sizeof(struct aspeed_sham_reqctx),
 					.cra_alignmask		= 0,
 					.cra_module		= THIS_MODULE,
-					.cra_init		= aspeed_sham_cra_init,
 				}
 			}
 		},
@@ -799,6 +799,7 @@ static struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
 			.digest	= aspeed_sham_digest,
 			.export	= aspeed_sham_export,
 			.import	= aspeed_sham_import,
+			.init_tfm = aspeed_sham_cra_init,
 			.halg = {
 				.digestsize = SHA384_DIGEST_SIZE,
 				.statesize = sizeof(struct aspeed_sham_reqctx),
@@ -811,9 +812,9 @@ static struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
 								  CRYPTO_ALG_KERN_DRIVER_ONLY,
 					.cra_blocksize		= SHA384_BLOCK_SIZE,
 					.cra_ctxsize		= sizeof(struct aspeed_sham_ctx),
+					.cra_reqsize		= sizeof(struct aspeed_sham_reqctx),
 					.cra_alignmask		= 0,
 					.cra_module		= THIS_MODULE,
-					.cra_init		= aspeed_sham_cra_init,
 				}
 			}
 		},
@@ -830,6 +831,7 @@ static struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
 			.digest	= aspeed_sham_digest,
 			.export	= aspeed_sham_export,
 			.import	= aspeed_sham_import,
+			.init_tfm = aspeed_sham_cra_init,
 			.halg = {
 				.digestsize = SHA512_DIGEST_SIZE,
 				.statesize = sizeof(struct aspeed_sham_reqctx),
@@ -842,9 +844,9 @@ static struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
 								  CRYPTO_ALG_KERN_DRIVER_ONLY,
 					.cra_blocksize		= SHA512_BLOCK_SIZE,
 					.cra_ctxsize		= sizeof(struct aspeed_sham_ctx),
+					.cra_reqsize		= sizeof(struct aspeed_sham_reqctx),
 					.cra_alignmask		= 0,
 					.cra_module		= THIS_MODULE,
-					.cra_init		= aspeed_sham_cra_init,
 				}
 			}
 		},
