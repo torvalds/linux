@@ -122,7 +122,7 @@ static __be32 jbd2_superblock_csum(journal_t *j, journal_superblock_t *sb)
 
 	old_csum = sb->s_checksum;
 	sb->s_checksum = 0;
-	csum = jbd2_chksum(j, ~0, (char *)sb, sizeof(journal_superblock_t));
+	csum = jbd2_chksum(~0, (char *)sb, sizeof(journal_superblock_t));
 	sb->s_checksum = old_csum;
 
 	return cpu_to_be32(csum);
@@ -1000,7 +1000,7 @@ void jbd2_descriptor_block_csum_set(journal_t *j, struct buffer_head *bh)
 	tail = (struct jbd2_journal_block_tail *)(bh->b_data + j->j_blocksize -
 			sizeof(struct jbd2_journal_block_tail));
 	tail->t_checksum = 0;
-	csum = jbd2_chksum(j, j->j_csum_seed, bh->b_data, j->j_blocksize);
+	csum = jbd2_chksum(j->j_csum_seed, bh->b_data, j->j_blocksize);
 	tail->t_checksum = cpu_to_be32(csum);
 }
 
@@ -1490,7 +1490,7 @@ static int journal_load_superblock(journal_t *journal)
 		journal->j_total_len = be32_to_cpu(sb->s_maxlen);
 	/* Precompute checksum seed for all metadata */
 	if (jbd2_journal_has_csum_v2or3(journal))
-		journal->j_csum_seed = jbd2_chksum(journal, ~0, sb->s_uuid,
+		journal->j_csum_seed = jbd2_chksum(~0, sb->s_uuid,
 						   sizeof(sb->s_uuid));
 	/* After journal features are set, we can compute transaction limits */
 	jbd2_journal_init_transaction_limits(journal);
@@ -2336,7 +2336,7 @@ int jbd2_journal_set_features(journal_t *journal, unsigned long compat,
 		sb->s_checksum_type = JBD2_CRC32C_CHKSUM;
 		sb->s_feature_compat &=
 			~cpu_to_be32(JBD2_FEATURE_COMPAT_CHECKSUM);
-		journal->j_csum_seed = jbd2_chksum(journal, ~0, sb->s_uuid,
+		journal->j_csum_seed = jbd2_chksum(~0, sb->s_uuid,
 						   sizeof(sb->s_uuid));
 	}
 

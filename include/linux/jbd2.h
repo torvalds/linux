@@ -1766,8 +1766,7 @@ static inline unsigned long jbd2_log_space_left(journal_t *journal)
 #define BJ_Reserved	4	/* Buffer is reserved for access by journal */
 #define BJ_Types	5
 
-static inline u32 jbd2_chksum(journal_t *journal, u32 crc,
-			      const void *address, unsigned int length)
+static inline u32 jbd2_chksum(u32 crc, const void *address, unsigned int length)
 {
 	return crc32c(crc, address, length);
 }
