@@ -206,7 +206,7 @@ static int write_relocate_add(Elf64_Shdr *sechdrs,
 				   write, apply);
 
 	if (!early) {
-		text_poke_sync();
+		smp_text_poke_sync_each_cpu();
 		mutex_unlock(&text_mutex);
 	}
 

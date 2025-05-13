@@ -882,16 +882,16 @@ static void do_int3_user(struct pt_regs *regs)
 DEFINE_IDTENTRY_RAW(exc_int3)
 {
 	/*
-	 * poke_int3_handler() is completely self contained code; it does (and
+	 * smp_text_poke_int3_handler() is completely self contained code; it does (and
 	 * must) *NOT* call out to anything, lest it hits upon yet another
 	 * INT3.
 	 */
-	if (poke_int3_handler(regs))
+	if (smp_text_poke_int3_handler(regs))
 		return;
 
 	/*
 	 * irqentry_enter_from_user_mode() uses static_branch_{,un}likely()
-	 * and therefore can trigger INT3, hence poke_int3_handler() must
+	 * and therefore can trigger INT3, hence smp_text_poke_int3_handler() must
 	 * be done before. If the entry came from kernel mode, then use
 	 * nmi_enter() because the INT3 could have been hit in any context
 	 * including NMI.

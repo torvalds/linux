@@ -847,7 +847,8 @@ void switch_mm_irqs_off(struct mm_struct *unused, struct mm_struct *next,
 		 * mm_cpumask. The TLB shootdown code can figure out from
 		 * cpu_tlbstate_shared.is_lazy whether or not to send an IPI.
 		 */
-		if (IS_ENABLED(CONFIG_DEBUG_VM) && WARN_ON_ONCE(prev != &init_mm &&
+		if (IS_ENABLED(CONFIG_DEBUG_VM) &&
+		    WARN_ON_ONCE(prev != &init_mm && !is_notrack_mm(prev) &&
 				 !cpumask_test_cpu(cpu, mm_cpumask(next))))
 			cpumask_set_cpu(cpu, mm_cpumask(next));
 
@@ -906,14 +907,6 @@ void switch_mm_irqs_off(struct mm_struct *unused, struct mm_struct *next,
 		this_cpu_write(cpu_tlbstate.loaded_mm, LOADED_MM_SWITCHING);
 		barrier();
 
-		/*
-		 * Leave this CPU in prev's mm_cpumask. Atomic writes to
-		 * mm_cpumask can be expensive under contention. The CPU
-		 * will be removed lazily at TLB flush time.
-		 */
-		VM_WARN_ON_ONCE(prev != &init_mm && !cpumask_test_cpu(cpu,
-				mm_cpumask(prev)));
-
 		/* Start receiving IPIs and then read tlb_gen (and LAM below) */
 		if (next != &init_mm && !cpumask_test_cpu(cpu, mm_cpumask(next)))
 			cpumask_set_cpu(cpu, mm_cpumask(next));
@@ -970,6 +963,77 @@ void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 		return;
 
 	this_cpu_write(cpu_tlbstate_shared.is_lazy, true);
+}
+
+/*
+ * Using a temporary mm allows to set temporary mappings that are not accessible
+ * by other CPUs. Such mappings are needed to perform sensitive memory writes
+ * that override the kernel memory protections (e.g., W^X), without exposing the
+ * temporary page-table mappings that are required for these write operations to
+ * other CPUs. Using a temporary mm also allows to avoid TLB shootdowns when the
+ * mapping is torn down.  Temporary mms can also be used for EFI runtime service
+ * calls or similar functionality.
+ *
+ * It is illegal to schedule while using a temporary mm -- the context switch
+ * code is unaware of the temporary mm and does not know how to context switch.
+ * Use a real (non-temporary) mm in a kernel thread if you need to sleep.
+ *
+ * Note: For sensitive memory writes, the temporary mm needs to be used
+ *       exclusively by a single core, and IRQs should be disabled while the
+ *       temporary mm is loaded, thereby preventing interrupt handler bugs from
+ *       overriding the kernel memory protection.
+ */
+struct mm_struct *use_temporary_mm(struct mm_struct *temp_mm)
+{
+	struct mm_struct *prev_mm;
+
+	lockdep_assert_preemption_disabled();
+	guard(irqsave)();
+
+	/*
+	 * Make sure not to be in TLB lazy mode, as otherwise we'll end up
+	 * with a stale address space WITHOUT being in lazy mode after
+	 * restoring the previous mm.
+	 */
+	if (this_cpu_read(cpu_tlbstate_shared.is_lazy))
+		leave_mm();
+
+	prev_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
+	switch_mm_irqs_off(NULL, temp_mm, current);
+
+	/*
+	 * If breakpoints are enabled, disable them while the temporary mm is
+	 * used. Userspace might set up watchpoints on addresses that are used
+	 * in the temporary mm, which would lead to wrong signals being sent or
+	 * crashes.
+	 *
+	 * Note that breakpoints are not disabled selectively, which also causes
+	 * kernel breakpoints (e.g., perf's) to be disabled. This might be
+	 * undesirable, but still seems reasonable as the code that runs in the
+	 * temporary mm should be short.
+	 */
+	if (hw_breakpoint_active())
+		hw_breakpoint_disable();
+
+	return prev_mm;
+}
+
+void unuse_temporary_mm(struct mm_struct *prev_mm)
+{
+	lockdep_assert_preemption_disabled();
+	guard(irqsave)();
+
+	/* Clear the cpumask, to indicate no TLB flushing is needed anywhere */
+	cpumask_clear_cpu(smp_processor_id(), mm_cpumask(this_cpu_read(cpu_tlbstate.loaded_mm)));
+
+	switch_mm_irqs_off(NULL, prev_mm, current);
+
+	/*
+	 * Restore the breakpoints if they were disabled before the temporary mm
+	 * was loaded.
+	 */
+	if (hw_breakpoint_active())
+		hw_breakpoint_restore();
 }
 
 /*
