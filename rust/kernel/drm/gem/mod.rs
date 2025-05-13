@@ -45,8 +45,14 @@ pub trait IntoGEMObject: Sized + super::private::Sealed {
     #[allow(clippy::wrong_self_convention)]
     fn into_gem_obj(&self) -> &Opaque<bindings::drm_gem_object>;
 
-    /// Converts a pointer to a `struct drm_gem_object` into a pointer to `Self`.
-    fn from_gem_obj(obj: *mut bindings::drm_gem_object) -> *mut Self;
+    /// Converts a pointer to a `struct drm_gem_object` into a reference to `Self`.
+    ///
+    /// # Safety
+    ///
+    /// - `self_ptr` must be a valid pointer to `Self`.
+    /// - The caller promises that holding the immutable reference returned by this function does
+    ///   not violate rust's data aliasing rules and remains valid throughout the lifetime of `'a`.
+    unsafe fn as_ref<'a>(self_ptr: *mut bindings::drm_gem_object) -> &'a Self;
 }
 
 /// Trait which must be implemented by drivers using base GEM objects.
@@ -63,14 +69,13 @@ extern "C" fn open_callback<T: BaseDriverObject<U>, U: BaseObject>(
     let file = unsafe {
         drm::File::<<<U as IntoGEMObject>::Driver as drm::Driver>::File>::as_ref(raw_file)
     };
-    let obj =
-        <<<U as IntoGEMObject>::Driver as drm::Driver>::Object as IntoGEMObject>::from_gem_obj(
-            raw_obj,
-        );
+    // SAFETY: `open_callback` is specified in the AllocOps structure for `Object<T>`, ensuring that
+    // `raw_obj` is indeed contained within a `Object<T>`.
+    let obj = unsafe {
+        <<<U as IntoGEMObject>::Driver as drm::Driver>::Object as IntoGEMObject>::as_ref(raw_obj)
+    };
 
-    // SAFETY: `from_gem_obj()` returns a valid pointer as long as the type is correct and the
-    // `raw_obj` we got is valid.
-    match T::open(unsafe { &*obj }, file) {
+    match T::open(obj, file) {
         Err(e) => e.to_errno(),
         Ok(()) => 0,
     }
@@ -84,14 +89,13 @@ extern "C" fn close_callback<T: BaseDriverObject<U>, U: BaseObject>(
     let file = unsafe {
         drm::File::<<<U as IntoGEMObject>::Driver as drm::Driver>::File>::as_ref(raw_file)
     };
-    let obj =
-        <<<U as IntoGEMObject>::Driver as drm::Driver>::Object as IntoGEMObject>::from_gem_obj(
-            raw_obj,
-        );
+    // SAFETY: `close_callback` is specified in the AllocOps structure for `Object<T>`, ensuring
+    // that `raw_obj` is indeed contained within a `Object<T>`.
+    let obj = unsafe {
+        <<<U as IntoGEMObject>::Driver as drm::Driver>::Object as IntoGEMObject>::as_ref(raw_obj)
+    };
 
-    // SAFETY: `from_gem_obj()` returns a valid pointer as long as the type is correct and the
-    // `raw_obj` we got is valid.
-    T::close(unsafe { &*obj }, file);
+    T::close(obj, file);
 }
 
 impl<T: DriverObject> IntoGEMObject for Object<T> {
@@ -101,9 +105,10 @@ impl<T: DriverObject> IntoGEMObject for Object<T> {
         &self.obj
     }
 
-    fn from_gem_obj(obj: *mut bindings::drm_gem_object) -> *mut Self {
-        // SAFETY: All of our objects are Object<T>.
-        unsafe { crate::container_of!(obj, Object<T>, obj).cast_mut() }
+    unsafe fn as_ref<'a>(self_ptr: *mut bindings::drm_gem_object) -> &'a Self {
+        // SAFETY: `obj` is guaranteed to be in an `Object<T>` via the safety contract of this
+        // function
+        unsafe { &*crate::container_of!(self_ptr, Object<T>, obj) }
     }
 }
 
@@ -144,11 +149,23 @@ where
     ) -> Result<ARef<Self>> {
         // SAFETY: The arguments are all valid per the type invariants.
         let ptr = unsafe { bindings::drm_gem_object_lookup(file.as_raw().cast(), handle) };
-        let ptr = <Self as IntoGEMObject>::from_gem_obj(ptr);
-        let ptr = NonNull::new(ptr).ok_or(ENOENT)?;
+        if ptr.is_null() {
+            return Err(ENOENT);
+        }
 
-        // SAFETY: We take ownership of the reference of `drm_gem_object_lookup()`.
-        Ok(unsafe { ARef::from_raw(ptr) })
+        // SAFETY:
+        // - A `drm::Driver` can only have a single `File` implementation.
+        // - `file` uses the same `drm::Driver` as `Self`.
+        // - Therefore, we're guaranteed that `ptr` must be a gem object embedded within `Self`.
+        // - And we check if the pointer is null befoe calling as_ref(), ensuring that `ptr` is a
+        //   valid pointer to an initialized `Self`.
+        let obj = unsafe { Self::as_ref(ptr) };
+
+        // SAFETY:
+        // - We take ownership of the reference of `drm_gem_object_lookup()`.
+        // - Our `NonNull` comes from an immutable reference, thus ensuring it is a valid pointer to
+        //   `Self`.
+        Ok(unsafe { ARef::from_raw(obj.into()) })
     }
 
     /// Creates an mmap offset to map the object from userspace.
