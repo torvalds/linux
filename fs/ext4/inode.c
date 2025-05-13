@@ -58,29 +58,27 @@ static void ext4_journalled_zero_new_buffers(handle_t *handle,
 static __u32 ext4_inode_csum(struct inode *inode, struct ext4_inode *raw,
 			      struct ext4_inode_info *ei)
 {
-	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	__u32 csum;
 	__u16 dummy_csum = 0;
 	int offset = offsetof(struct ext4_inode, i_checksum_lo);
 	unsigned int csum_size = sizeof(dummy_csum);
 
-	csum = ext4_chksum(sbi, ei->i_csum_seed, (__u8 *)raw, offset);
-	csum = ext4_chksum(sbi, csum, (__u8 *)&dummy_csum, csum_size);
+	csum = ext4_chksum(ei->i_csum_seed, (__u8 *)raw, offset);
+	csum = ext4_chksum(csum, (__u8 *)&dummy_csum, csum_size);
 	offset += csum_size;
-	csum = ext4_chksum(sbi, csum, (__u8 *)raw + offset,
+	csum = ext4_chksum(csum, (__u8 *)raw + offset,
 			   EXT4_GOOD_OLD_INODE_SIZE - offset);
 
 	if (EXT4_INODE_SIZE(inode->i_sb) > EXT4_GOOD_OLD_INODE_SIZE) {
 		offset = offsetof(struct ext4_inode, i_checksum_hi);
-		csum = ext4_chksum(sbi, csum, (__u8 *)raw +
-				   EXT4_GOOD_OLD_INODE_SIZE,
+		csum = ext4_chksum(csum, (__u8 *)raw + EXT4_GOOD_OLD_INODE_SIZE,
 				   offset - EXT4_GOOD_OLD_INODE_SIZE);
 		if (EXT4_FITS_IN_INODE(raw, ei, i_checksum_hi)) {
-			csum = ext4_chksum(sbi, csum, (__u8 *)&dummy_csum,
+			csum = ext4_chksum(csum, (__u8 *)&dummy_csum,
 					   csum_size);
 			offset += csum_size;
 		}
-		csum = ext4_chksum(sbi, csum, (__u8 *)raw + offset,
+		csum = ext4_chksum(csum, (__u8 *)raw + offset,
 				   EXT4_INODE_SIZE(inode->i_sb) - offset);
 	}
 
@@ -4922,10 +4920,9 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 		__u32 csum;
 		__le32 inum = cpu_to_le32(inode->i_ino);
 		__le32 gen = raw_inode->i_generation;
-		csum = ext4_chksum(sbi, sbi->s_csum_seed, (__u8 *)&inum,
+		csum = ext4_chksum(sbi->s_csum_seed, (__u8 *)&inum,
 				   sizeof(inum));
-		ei->i_csum_seed = ext4_chksum(sbi, csum, (__u8 *)&gen,
-					      sizeof(gen));
+		ei->i_csum_seed = ext4_chksum(csum, (__u8 *)&gen, sizeof(gen));
 	}
 
 	if ((!ext4_inode_csum_verify(inode, raw_inode, ei) ||

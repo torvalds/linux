@@ -2494,8 +2494,7 @@ static inline __le16 ext4_rec_len_to_disk(unsigned len, unsigned blocksize)
 #define DX_HASH_SIPHASH			6
 #define DX_HASH_LAST 			DX_HASH_SIPHASH
 
-static inline u32 ext4_chksum(struct ext4_sb_info *sbi, u32 crc,
-			      const void *address, unsigned int length)
+static inline u32 ext4_chksum(u32 crc, const void *address, unsigned int length)
 {
 	return crc32c(crc, address, length);
 }

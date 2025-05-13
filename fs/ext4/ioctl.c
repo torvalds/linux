@@ -354,8 +354,8 @@ void ext4_reset_inode_seed(struct inode *inode)
 	if (!ext4_has_feature_metadata_csum(inode->i_sb))
 		return;
 
-	csum = ext4_chksum(sbi, sbi->s_csum_seed, (__u8 *)&inum, sizeof(inum));
-	ei->i_csum_seed = ext4_chksum(sbi, csum, (__u8 *)&gen, sizeof(gen));
+	csum = ext4_chksum(sbi->s_csum_seed, (__u8 *)&inum, sizeof(inum));
+	ei->i_csum_seed = ext4_chksum(csum, (__u8 *)&gen, sizeof(gen));
 }
 
 /*

@@ -734,7 +734,7 @@ static u8 *ext4_fc_reserve_space(struct super_block *sb, int len, u32 *crc)
 	tl.fc_len = cpu_to_le16(remaining);
 	memcpy(dst, &tl, EXT4_FC_TAG_BASE_LEN);
 	memset(dst + EXT4_FC_TAG_BASE_LEN, 0, remaining);
-	*crc = ext4_chksum(sbi, *crc, sbi->s_fc_bh->b_data, bsize);
+	*crc = ext4_chksum(*crc, sbi->s_fc_bh->b_data, bsize);
 
 	ext4_fc_submit_bh(sb, false);
 
@@ -781,7 +781,7 @@ static int ext4_fc_write_tail(struct super_block *sb, u32 crc)
 	tail.fc_tid = cpu_to_le32(sbi->s_journal->j_running_transaction->t_tid);
 	memcpy(dst, &tail.fc_tid, sizeof(tail.fc_tid));
 	dst += sizeof(tail.fc_tid);
-	crc = ext4_chksum(sbi, crc, sbi->s_fc_bh->b_data,
+	crc = ext4_chksum(crc, sbi->s_fc_bh->b_data,
 			  dst - (u8 *)sbi->s_fc_bh->b_data);
 	tail.fc_crc = cpu_to_le32(crc);
 	memcpy(dst, &tail.fc_crc, sizeof(tail.fc_crc));
@@ -2133,13 +2133,13 @@ static int ext4_fc_replay_scan(journal_t *journal,
 		case EXT4_FC_TAG_INODE:
 		case EXT4_FC_TAG_PAD:
 			state->fc_cur_tag++;
-			state->fc_crc = ext4_chksum(sbi, state->fc_crc, cur,
+			state->fc_crc = ext4_chksum(state->fc_crc, cur,
 				EXT4_FC_TAG_BASE_LEN + tl.fc_len);
 			break;
 		case EXT4_FC_TAG_TAIL:
 			state->fc_cur_tag++;
 			memcpy(&tail, val, sizeof(tail));
-			state->fc_crc = ext4_chksum(sbi, state->fc_crc, cur,
+			state->fc_crc = ext4_chksum(state->fc_crc, cur,
 						EXT4_FC_TAG_BASE_LEN +
 						offsetof(struct ext4_fc_tail,
 						fc_crc));
@@ -2166,7 +2166,7 @@ static int ext4_fc_replay_scan(journal_t *journal,
 				break;
 			}
 			state->fc_cur_tag++;
-			state->fc_crc = ext4_chksum(sbi, state->fc_crc, cur,
+			state->fc_crc = ext4_chksum(state->fc_crc, cur,
 				EXT4_FC_TAG_BASE_LEN + tl.fc_len);
 			break;
 		default:

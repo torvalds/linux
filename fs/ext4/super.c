@@ -289,11 +289,10 @@ static int ext4_verify_csum_type(struct super_block *sb,
 __le32 ext4_superblock_csum(struct super_block *sb,
 			    struct ext4_super_block *es)
 {
-	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	int offset = offsetof(struct ext4_super_block, s_checksum);
 	__u32 csum;
 
-	csum = ext4_chksum(sbi, ~0, (char *)es, offset);
+	csum = ext4_chksum(~0, (char *)es, offset);
 
 	return cpu_to_le32(csum);
 }
@@ -3206,14 +3205,14 @@ static __le16 ext4_group_desc_csum(struct super_block *sb, __u32 block_group,
 		__u32 csum32;
 		__u16 dummy_csum = 0;
 
-		csum32 = ext4_chksum(sbi, sbi->s_csum_seed, (__u8 *)&le_group,
+		csum32 = ext4_chksum(sbi->s_csum_seed, (__u8 *)&le_group,
 				     sizeof(le_group));
-		csum32 = ext4_chksum(sbi, csum32, (__u8 *)gdp, offset);
-		csum32 = ext4_chksum(sbi, csum32, (__u8 *)&dummy_csum,
+		csum32 = ext4_chksum(csum32, (__u8 *)gdp, offset);
+		csum32 = ext4_chksum(csum32, (__u8 *)&dummy_csum,
 				     sizeof(dummy_csum));
 		offset += sizeof(dummy_csum);
 		if (offset < sbi->s_desc_size)
-			csum32 = ext4_chksum(sbi, csum32, (__u8 *)gdp + offset,
+			csum32 = ext4_chksum(csum32, (__u8 *)gdp + offset,
 					     sbi->s_desc_size - offset);
 
 		crc = csum32 & 0xFFFF;
@@ -4641,7 +4640,7 @@ static int ext4_init_metadata_csum(struct super_block *sb, struct ext4_super_blo
 		sbi->s_csum_seed = le32_to_cpu(es->s_checksum_seed);
 	else if (ext4_has_feature_metadata_csum(sb) ||
 		 ext4_has_feature_ea_inode(sb))
-		sbi->s_csum_seed = ext4_chksum(sbi, ~0, es->s_uuid,
+		sbi->s_csum_seed = ext4_chksum(~0, es->s_uuid,
 					       sizeof(es->s_uuid));
 	return 0;
 }
