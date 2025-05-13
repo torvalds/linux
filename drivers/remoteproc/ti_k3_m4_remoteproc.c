@@ -21,6 +21,30 @@
 #include "ti_sci_proc.h"
 #include "ti_k3_common.h"
 
+/* Release the M4 remote processor from reset */
+static int k3_m4_rproc_release(struct k3_rproc *kproc)
+{
+	struct device *dev = kproc->dev;
+	int ret;
+
+	if (kproc->data->uses_lreset) {
+		ret = reset_control_deassert(kproc->reset);
+		if (ret) {
+			dev_err(dev, "local-reset deassert failed, ret = %d\n", ret);
+			if (kproc->ti_sci->ops.dev_ops.put_device(kproc->ti_sci,
+								  kproc->ti_sci_id))
+				dev_warn(dev, "module-reset assert back failed\n");
+		}
+	} else {
+		ret = kproc->ti_sci->ops.dev_ops.get_device(kproc->ti_sci,
+							    kproc->ti_sci_id);
+		if (ret)
+			dev_err(dev, "module-reset deassert failed, ret = %d\n", ret);
+	}
+
+	return ret;
+}
+
 static int k3_m4_rproc_ping_mbox(struct k3_rproc *kproc)
 {
 	struct device *dev = kproc->dev;
@@ -347,20 +371,15 @@ static void k3_m4_release_tsp(void *data)
 static int k3_m4_rproc_start(struct rproc *rproc)
 {
 	struct k3_rproc *kproc = rproc->priv;
-	struct device *dev = kproc->dev;
 	int ret;
 
 	ret = k3_m4_rproc_ping_mbox(kproc);
 	if (ret)
 		return ret;
 
-	ret = reset_control_deassert(kproc->reset);
-	if (ret) {
-		dev_err(dev, "local-reset deassert failed, ret = %d\n", ret);
-		return ret;
-	}
+	ret = k3_m4_rproc_release(kproc);
 
-	return 0;
+	return ret;
 }
 
 /*
