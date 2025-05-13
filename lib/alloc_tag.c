@@ -244,17 +244,6 @@ static void shutdown_mem_profiling(bool remove_file)
 	mem_profiling_support = false;
 }
 
-static void __init procfs_init(void)
-{
-	if (!mem_profiling_support)
-		return;
-
-	if (!proc_create_seq(ALLOCINFO_FILE_NAME, 0400, NULL, &allocinfo_seq_op)) {
-		pr_err("Failed to create %s file\n", ALLOCINFO_FILE_NAME);
-		shutdown_mem_profiling(false);
-	}
-}
-
 void __init alloc_tag_sec_init(void)
 {
 	struct alloc_tag *last_codetag;
@@ -762,18 +751,33 @@ static int __init alloc_tag_init(void)
 	};
 	int res;
 
+	sysctl_init();
+
+	if (!mem_profiling_support) {
+		pr_info("Memory allocation profiling is not supported!\n");
+		return 0;
+	}
+
+	if (!proc_create_seq(ALLOCINFO_FILE_NAME, 0400, NULL, &allocinfo_seq_op)) {
+		pr_err("Failed to create %s file\n", ALLOCINFO_FILE_NAME);
+		shutdown_mem_profiling(false);
+		return -ENOMEM;
+	}
+
 	res = alloc_mod_tags_mem();
-	if (res)
+	if (res) {
+		pr_err("Failed to reserve address space for module tags, errno = %d\n", res);
+		shutdown_mem_profiling(true);
 		return res;
+	}
 
 	alloc_tag_cttype = codetag_register_type(&desc);
 	if (IS_ERR(alloc_tag_cttype)) {
+		pr_err("Allocation tags registration failed, errno = %ld\n", PTR_ERR(alloc_tag_cttype));
 		free_mod_tags_mem();
+		shutdown_mem_profiling(true);
 		return PTR_ERR(alloc_tag_cttype);
 	}
-
-	sysctl_init();
-	procfs_init();
 
 	return 0;
 }
