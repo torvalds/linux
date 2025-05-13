@@ -251,6 +251,11 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 		return -EINVAL;
 	}
 
+	if (xuo->flags & XFRM_OFFLOAD_INBOUND && x->if_id) {
+		NL_SET_ERR_MSG(extack, "XFRM if_id is not supported in RX path");
+		return -EINVAL;
+	}
+
 	is_packet_offload = xuo->flags & XFRM_OFFLOAD_PACKET;
 
 	/* We don't yet support TFC padding. */
