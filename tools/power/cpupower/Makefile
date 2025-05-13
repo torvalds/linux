@@ -312,7 +312,6 @@ install-tools: $(OUTPUT)cpupower
 	$(INSTALL) -d $(DESTDIR)${libdir}/systemd/system
 	sed 's|___CDIR___|${confdir}|; s|___LDIR___|${libexecdir}|' cpupower.service.in > '$(DESTDIR)${libdir}/systemd/system/cpupower.service'
 	$(SETPERM_DATA) '$(DESTDIR)${libdir}/systemd/system/cpupower.service'
-	if test -d /run/systemd/system; then systemctl daemon-reload; fi
 
 install-man:
 	$(INSTALL_DATA) -D man/cpupower.1 $(DESTDIR)${mandir}/man1/cpupower.1
@@ -360,7 +359,6 @@ uninstall:
 	- for HLANG in $(LANGUAGES); do \
 		rm -f $(DESTDIR)${localedir}/$$HLANG/LC_MESSAGES/cpupower.mo; \
 	  done;
-	- if test -d /run/systemd/system; then systemctl daemon-reload; fi
 
 help:
 	@echo  'Building targets:'

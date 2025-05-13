@@ -59,7 +59,7 @@ $ sudo make install
 -----------------------------------------------------------------------
 | man pages              | /usr/man                                   |
 -----------------------------------------------------------------------
-| systemd service        | /usr/lib                                   |
+| systemd service        | /usr/lib/systemd/system                    |
 -----------------------------------------------------------------------
 | systemd support script | /usr/libexec                               |
 -----------------------------------------------------------------------
@@ -113,7 +113,7 @@ The files will be installed to the following dirs:
 -----------------------------------------------------------------------
 | man pages              | ${DESTDIR}/usr/man                         |
 -----------------------------------------------------------------------
-| systemd service        | ${DESTDIR}/usr/lib                         |
+| systemd service        | ${DESTDIR}/usr/lib/systemd/system          |
 -----------------------------------------------------------------------
 | systemd support script | ${DESTDIR}/usr/libexec                     |
 -----------------------------------------------------------------------
@@ -185,10 +185,19 @@ systemd service
 ---------------
 
 A systemd service is also provided to run the cpupower utility at boot with
-settings read from a configuration file. In order to enable this systemd
-service, edit '${DESTDIR}/etc/default/cpupower' (uncommenting at least one of
-the options, depending on your preferences) and then issue the following
+settings read from a configuration file.
+
+If you want systemd to find the new service after the installation, the service
+unit must have been installed in one of the system unit search path directories
+(such as '/usr/lib/systemd/system/', which is the default location) and (unless
+you are willing to wait for the next reboot) you need to issue the following
 command:
+
+$ sudo systemctl daemon-reload
+
+If you want to enable this systemd service, edit
+'${DESTDIR}/etc/default/cpupower' (uncommenting at least one of the options,
+depending on your preferences) and then issue the following command:
 
 $ sudo systemctl enable --now cpupower.service
 
