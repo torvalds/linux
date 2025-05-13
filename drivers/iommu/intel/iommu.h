@@ -722,7 +722,7 @@ struct intel_iommu {
 	unsigned char	name[16];    /* Device Name */
 
 #ifdef CONFIG_INTEL_IOMMU
-	unsigned long 	*domain_ids; /* bitmap of domains */
+	struct ida	domain_ida; /* domain id allocator */
 	unsigned long	*copied_tables; /* bitmap of copied tables */
 	spinlock_t	lock; /* protect context, domain ids */
 	struct root_entry *root_entry; /* virtual address */
@@ -809,11 +809,22 @@ static inline struct dmar_domain *to_dmar_domain(struct iommu_domain *dom)
 }
 
 /*
- * Domain ID reserved for pasid entries programmed for first-level
- * only and pass-through transfer modes.
+ * Domain ID 0 and 1 are reserved:
+ *
+ * If Caching mode is set, then invalid translations are tagged
+ * with domain-id 0, hence we need to pre-allocate it. We also
+ * use domain-id 0 as a marker for non-allocated domain-id, so
+ * make sure it is not used for a real domain.
+ *
+ * Vt-d spec rev3.0 (section 6.2.3.1) requires that each pasid
+ * entry for first-level or pass-through translation modes should
+ * be programmed with a domain id different from those used for
+ * second-level or nested translation. We reserve a domain id for
+ * this purpose. This domain id is also used for identity domain
+ * in legacy mode.
  */
 #define FLPT_DEFAULT_DID		1
-#define NUM_RESERVED_DID		2
+#define IDA_START_DID			2
 
 /* Retrieve the domain ID which has allocated to the domain */
 static inline u16

@@ -1289,52 +1289,13 @@ static void iommu_disable_translation(struct intel_iommu *iommu)
 	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 }
 
-static int iommu_init_domains(struct intel_iommu *iommu)
-{
-	u32 ndomains;
-
-	ndomains = cap_ndoms(iommu->cap);
-	pr_debug("%s: Number of Domains supported <%d>\n",
-		 iommu->name, ndomains);
-
-	spin_lock_init(&iommu->lock);
-
-	iommu->domain_ids = bitmap_zalloc(ndomains, GFP_KERNEL);
-	if (!iommu->domain_ids)
-		return -ENOMEM;
-
-	/*
-	 * If Caching mode is set, then invalid translations are tagged
-	 * with domain-id 0, hence we need to pre-allocate it. We also
-	 * use domain-id 0 as a marker for non-allocated domain-id, so
-	 * make sure it is not used for a real domain.
-	 */
-	set_bit(0, iommu->domain_ids);
-
-	/*
-	 * Vt-d spec rev3.0 (section 6.2.3.1) requires that each pasid
-	 * entry for first-level or pass-through translation modes should
-	 * be programmed with a domain id different from those used for
-	 * second-level or nested translation. We reserve a domain id for
-	 * this purpose. This domain id is also used for identity domain
-	 * in legacy mode.
-	 */
-	set_bit(FLPT_DEFAULT_DID, iommu->domain_ids);
-
-	return 0;
-}
-
 static void disable_dmar_iommu(struct intel_iommu *iommu)
 {
-	if (!iommu->domain_ids)
-		return;
-
 	/*
 	 * All iommu domains must have been detached from the devices,
 	 * hence there should be no domain IDs in use.
 	 */
-	if (WARN_ON(bitmap_weight(iommu->domain_ids, cap_ndoms(iommu->cap))
-		    > NUM_RESERVED_DID))
+	if (WARN_ON(!ida_is_empty(&iommu->domain_ida)))
 		return;
 
 	if (iommu->gcmd & DMA_GCMD_TE)
@@ -1343,11 +1304,6 @@ static void disable_dmar_iommu(struct intel_iommu *iommu)
 
 static void free_dmar_iommu(struct intel_iommu *iommu)
 {
-	if (iommu->domain_ids) {
-		bitmap_free(iommu->domain_ids);
-		iommu->domain_ids = NULL;
-	}
-
 	if (iommu->copied_tables) {
 		bitmap_free(iommu->copied_tables);
 		iommu->copied_tables = NULL;
@@ -1380,7 +1336,6 @@ static bool first_level_by_default(struct intel_iommu *iommu)
 int domain_attach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu)
 {
 	struct iommu_domain_info *info, *curr;
-	unsigned long ndomains;
 	int num, ret = -ENOSPC;
 
 	if (domain->domain.type == IOMMU_DOMAIN_SVA)
@@ -1399,14 +1354,13 @@ int domain_attach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu)
 		return 0;
 	}
 
-	ndomains = cap_ndoms(iommu->cap);
-	num = find_first_zero_bit(iommu->domain_ids, ndomains);
-	if (num >= ndomains) {
+	num = ida_alloc_range(&iommu->domain_ida, IDA_START_DID,
+			      cap_ndoms(iommu->cap) - 1, GFP_ATOMIC);
+	if (num < 0) {
 		pr_err("%s: No free domain ids\n", iommu->name);
 		goto err_unlock;
 	}
 
-	set_bit(num, iommu->domain_ids);
 	info->refcnt	= 1;
 	info->did	= num;
 	info->iommu	= iommu;
@@ -1421,7 +1375,7 @@ int domain_attach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu)
 	return 0;
 
 err_clear:
-	clear_bit(info->did, iommu->domain_ids);
+	ida_free(&iommu->domain_ida, info->did);
 err_unlock:
 	spin_unlock(&iommu->lock);
 	kfree(info);
@@ -1438,7 +1392,7 @@ void domain_detach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu)
 	spin_lock(&iommu->lock);
 	info = xa_load(&domain->iommu_array, iommu->seq_id);
 	if (--info->refcnt == 0) {
-		clear_bit(info->did, iommu->domain_ids);
+		ida_free(&iommu->domain_ida, info->did);
 		xa_erase(&domain->iommu_array, iommu->seq_id);
 		domain->nid = NUMA_NO_NODE;
 		kfree(info);
@@ -2041,7 +1995,7 @@ static int copy_context_table(struct intel_iommu *iommu,
 
 		did = context_domain_id(&ce);
 		if (did >= 0 && did < cap_ndoms(iommu->cap))
-			set_bit(did, iommu->domain_ids);
+			ida_alloc_range(&iommu->domain_ida, did, did, GFP_KERNEL);
 
 		set_context_copied(iommu, bus, devfn);
 		new_ce[idx] = ce;
@@ -2168,11 +2122,6 @@ static int __init init_dmars(void)
 		}
 
 		intel_iommu_init_qi(iommu);
-
-		ret = iommu_init_domains(iommu);
-		if (ret)
-			goto free_iommu;
-
 		init_translation_status(iommu);
 
 		if (translation_pre_enabled(iommu) && !is_kdump_kernel()) {
@@ -2650,9 +2599,7 @@ static int intel_iommu_add(struct dmar_drhd_unit *dmaru)
 	if (iommu->gcmd & DMA_GCMD_TE)
 		iommu_disable_translation(iommu);
 
-	ret = iommu_init_domains(iommu);
-	if (ret == 0)
-		ret = iommu_alloc_root_entry(iommu);
+	ret = iommu_alloc_root_entry(iommu);
 	if (ret)
 		goto out;
 
@@ -2971,9 +2918,14 @@ static ssize_t domains_used_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct intel_iommu *iommu = dev_to_intel_iommu(dev);
-	return sysfs_emit(buf, "%d\n",
-			  bitmap_weight(iommu->domain_ids,
-					cap_ndoms(iommu->cap)));
+	unsigned int count = 0;
+	int id;
+
+	for (id = 0; id < cap_ndoms(iommu->cap); id++)
+		if (ida_exists(&iommu->domain_ida, id))
+			count++;
+
+	return sysfs_emit(buf, "%d\n", count);
 }
 static DEVICE_ATTR_RO(domains_used);
 
