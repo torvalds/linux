@@ -593,7 +593,6 @@ static int aspeed_sham_init(struct ahash_request *req)
 		rctx->flags |= SHA_FLAGS_SHA1;
 		rctx->digsize = SHA1_DIGEST_SIZE;
 		rctx->block_size = SHA1_BLOCK_SIZE;
-		rctx->sha_iv = sha1_iv;
 		rctx->ivsize = 32;
 		memcpy(rctx->digest, sha1_iv, rctx->ivsize);
 		break;
@@ -602,7 +601,6 @@ static int aspeed_sham_init(struct ahash_request *req)
 		rctx->flags |= SHA_FLAGS_SHA224;
 		rctx->digsize = SHA224_DIGEST_SIZE;
 		rctx->block_size = SHA224_BLOCK_SIZE;
-		rctx->sha_iv = sha224_iv;
 		rctx->ivsize = 32;
 		memcpy(rctx->digest, sha224_iv, rctx->ivsize);
 		break;
@@ -611,7 +609,6 @@ static int aspeed_sham_init(struct ahash_request *req)
 		rctx->flags |= SHA_FLAGS_SHA256;
 		rctx->digsize = SHA256_DIGEST_SIZE;
 		rctx->block_size = SHA256_BLOCK_SIZE;
-		rctx->sha_iv = sha256_iv;
 		rctx->ivsize = 32;
 		memcpy(rctx->digest, sha256_iv, rctx->ivsize);
 		break;
@@ -621,7 +618,6 @@ static int aspeed_sham_init(struct ahash_request *req)
 		rctx->flags |= SHA_FLAGS_SHA384;
 		rctx->digsize = SHA384_DIGEST_SIZE;
 		rctx->block_size = SHA384_BLOCK_SIZE;
-		rctx->sha_iv = (const __be32 *)sha384_iv;
 		rctx->ivsize = 64;
 		memcpy(rctx->digest, sha384_iv, rctx->ivsize);
 		break;
@@ -631,7 +627,6 @@ static int aspeed_sham_init(struct ahash_request *req)
 		rctx->flags |= SHA_FLAGS_SHA512;
 		rctx->digsize = SHA512_DIGEST_SIZE;
 		rctx->block_size = SHA512_BLOCK_SIZE;
-		rctx->sha_iv = (const __be32 *)sha512_iv;
 		rctx->ivsize = 64;
 		memcpy(rctx->digest, sha512_iv, rctx->ivsize);
 		break;

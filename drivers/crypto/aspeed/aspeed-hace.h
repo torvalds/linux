@@ -184,7 +184,6 @@ struct aspeed_sham_reqctx {
 	size_t			digsize;
 	size_t			block_size;
 	size_t			ivsize;
-	const __be32		*sha_iv;
 
 	/* remain data buffer */
 	dma_addr_t		buffer_dma_addr;
