@@ -208,6 +208,7 @@ fault_type=%d		 Support configuring fault injection type, should be
 			 FAULT_NO_SEGMENT                 0x00100000
 			 FAULT_INCONSISTENT_FOOTER        0x00200000
 			 FAULT_TIMEOUT                    0x00400000 (1000ms)
+			 FAULT_VMALLOC                    0x00800000
 			 ===========================      ==========
 mode=%s			 Control block allocation mode which supports "adaptive"
 			 and "lfs". In "lfs" mode, there should be no random

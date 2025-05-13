@@ -64,6 +64,7 @@ enum {
 	FAULT_NO_SEGMENT,
 	FAULT_INCONSISTENT_FOOTER,
 	FAULT_TIMEOUT,
+	FAULT_VMALLOC,
 	FAULT_MAX,
 };
 
@@ -3532,8 +3533,11 @@ static inline void *f2fs_kvzalloc(struct f2fs_sb_info *sbi,
 	return f2fs_kvmalloc(sbi, size, flags | __GFP_ZERO);
 }
 
-static inline void *f2fs_vmalloc(size_t size)
+static inline void *f2fs_vmalloc(struct f2fs_sb_info *sbi, size_t size)
 {
+	if (time_to_inject(sbi, FAULT_VMALLOC))
+		return NULL;
+
 	return vmalloc(size);
 }
 
