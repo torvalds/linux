@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/img,hash-accelerator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Imagination Technologies hardware hash accelerator
+
+maintainers:
+  - James Hartley <james.hartley@imgtec.com>
+
+description:
+  The hash accelerator provides hardware hashing acceleration for
+  SHA1, SHA224, SHA256 and MD5 hashes.
+
+properties:
+  compatible:
+    const: img,hash-accelerator
+
+  reg:
+    items:
+      - description: Register base address and size
+      - description: DMA port specifier
+
+  interrupts:
+    maxItems: 1
+
+  dmas:
+    maxItems: 1
+
+  dma-names:
+    items:
+      - const: tx
+
+  clocks:
+    items:
+      - description: System clock for hash block registers
+      - description: Hash clock for data path
+
+  clock-names:
+    items:
+      - const: sys
+      - const: hash
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - dmas
+  - dma-names
+  - clocks
+  - clock-names
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/mips-gic.h>
+    #include <dt-bindings/clock/pistachio-clk.h>
+
+    hash@18149600 {
+        compatible = "img,hash-accelerator";
+        reg = <0x18149600 0x100>, <0x18101100 0x4>;
+        interrupts = <GIC_SHARED 59 IRQ_TYPE_LEVEL_HIGH>;
+        dmas = <&dma 8 0xffffffff 0>;
+        dma-names = "tx";
+        clocks = <&cr_periph SYS_CLK_HASH>, <&clk_periph PERIPH_CLK_ROM>;
+        clock-names = "sys", "hash";
+    };
