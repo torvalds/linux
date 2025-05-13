@@ -42,7 +42,6 @@
 #include <drm/drm_gem_atomic_helper.h>
 
 #include "gem/i915_gem_object.h"
-#include "i915_config.h"
 #include "i915_scheduler_types.h"
 #include "i915_vma.h"
 #include "i9xx_plane_regs.h"
