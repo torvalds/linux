@@ -439,7 +439,7 @@ struct nfs_client *nfs_get_client(const struct nfs_client_initdata *cl_init)
 			spin_unlock(&nn->nfs_client_lock);
 			new = rpc_ops->init_client(new, cl_init);
 			if (!IS_ERR(new))
-				 nfs_local_probe(new);
+				 nfs_local_probe_async(new);
 			return new;
 		}
 
