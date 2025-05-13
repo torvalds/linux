@@ -3708,7 +3708,8 @@ static void amdgpu_ras_query_ras_capablity_from_vbios(struct amdgpu_device *adev
 		 */
 		if (amdgpu_ip_version(adev, VCN_HWIP, 0) == IP_VERSION(2, 6, 0) ||
 		    amdgpu_ip_version(adev, VCN_HWIP, 0) == IP_VERSION(4, 0, 0) ||
-		    amdgpu_ip_version(adev, VCN_HWIP, 0) == IP_VERSION(4, 0, 3))
+		    amdgpu_ip_version(adev, VCN_HWIP, 0) == IP_VERSION(4, 0, 3) ||
+		    amdgpu_ip_version(adev, VCN_HWIP, 0) == IP_VERSION(5, 0, 1))
 			adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__VCN |
 						 1 << AMDGPU_RAS_BLOCK__JPEG);
 		else
