@@ -343,7 +343,6 @@ static u32 init_page_array(void *hdr, u32 len, struct sk_buff *skb,
 	pb[0].len = len;
 	pb[0].pfn = virt_to_hvpfn(hdr);
 	packet->rmsg_size = len;
-	packet->rmsg_pgcnt = 1;
 
 	pb[1].offset = offset_in_hvpage(skb->data);
 	pb[1].len = skb_headlen(skb);
