@@ -404,6 +404,27 @@ static inline struct bio *__bio_split_to_limits(struct bio *bio,
 	}
 }
 
+/**
+ * get_max_segment_size() - maximum number of bytes to add as a single segment
+ * @lim: Request queue limits.
+ * @paddr: address of the range to add
+ * @len: maximum length available to add at @paddr
+ *
+ * Returns the maximum number of bytes of the range starting at @paddr that can
+ * be added to a single segment.
+ */
+static inline unsigned get_max_segment_size(const struct queue_limits *lim,
+		phys_addr_t paddr, unsigned int len)
+{
+	/*
+	 * Prevent an overflow if mask = ULONG_MAX and offset = 0 by adding 1
+	 * after having calculated the minimum.
+	 */
+	return min_t(unsigned long, len,
+		min(lim->seg_boundary_mask - (lim->seg_boundary_mask & paddr),
+		    (unsigned long)lim->max_segment_size - 1) + 1);
+}
+
 int ll_back_merge_fn(struct request *req, struct bio *bio,
 		unsigned int nr_segs);
 bool blk_attempt_req_merge(struct request_queue *q, struct request *rq,
