@@ -42,6 +42,7 @@ struct pci1xxxx_gpio {
 	raw_spinlock_t wa_lock;
 	struct gpio_chip gpio;
 	spinlock_t lock;
+	u32 gpio_wake_mask[3];
 	int irq_base;
 	u8 dev_rev;
 };
@@ -273,6 +274,22 @@ static int pci1xxxx_gpio_set_type(struct irq_data *data, unsigned int trigger_ty
 	return true;
 }
 
+static int pci1xxxx_gpio_set_wake(struct irq_data *data, unsigned int enable)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct pci1xxxx_gpio *priv = gpiochip_get_data(chip);
+	unsigned int gpio = irqd_to_hwirq(data);
+	unsigned int bitpos = gpio % 32;
+	unsigned int bank = gpio / 32;
+
+	if (enable)
+		priv->gpio_wake_mask[bank] |= (1 << bitpos);
+	else
+		priv->gpio_wake_mask[bank] &= ~(1 << bitpos);
+
+	return 0;
+}
+
 static irqreturn_t pci1xxxx_gpio_irq_handler(int irq, void *dev_id)
 {
 	struct pci1xxxx_gpio *priv = dev_id;
@@ -320,6 +337,7 @@ static const struct irq_chip pci1xxxx_gpio_irqchip = {
 	.irq_mask = pci1xxxx_gpio_irq_mask,
 	.irq_unmask = pci1xxxx_gpio_irq_unmask,
 	.irq_set_type = pci1xxxx_gpio_set_type,
+	.irq_set_wake = pci1xxxx_gpio_set_wake,
 	.flags = IRQCHIP_IMMUTABLE,
 	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
@@ -327,7 +345,25 @@ static const struct irq_chip pci1xxxx_gpio_irqchip = {
 static int pci1xxxx_gpio_suspend(struct device *dev)
 {
 	struct pci1xxxx_gpio *priv = dev_get_drvdata(dev);
+	struct device *parent = priv->aux_dev->dev.parent;
+	struct pci_dev *pcidev = to_pci_dev(parent);
+	unsigned int gpio_bank_base;
+	unsigned int wake_mask;
+	unsigned int gpiobank;
 	unsigned long flags;
+
+	for (gpiobank = 0; gpiobank < 3; gpiobank++) {
+		wake_mask = priv->gpio_wake_mask[gpiobank];
+
+		if (wake_mask) {
+			gpio_bank_base = gpiobank * 32;
+
+			pci1xxx_assign_bit(priv->reg_base,
+					   PIO_PCI_CTRL_REG_OFFSET, 0, true);
+			writel(~wake_mask, priv->reg_base +
+			       WAKEMASK_OFFSET(gpio_bank_base));
+		}
+	}
 
 	spin_lock_irqsave(&priv->lock, flags);
 	pci1xxx_assign_bit(priv->reg_base, PIO_GLOBAL_CONFIG_OFFSET,
@@ -341,13 +377,36 @@ static int pci1xxxx_gpio_suspend(struct device *dev)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
+	device_set_wakeup_enable(&pcidev->dev, true);
+	pci_wake_from_d3(pcidev, true);
+
 	return 0;
 }
 
 static int pci1xxxx_gpio_resume(struct device *dev)
 {
 	struct pci1xxxx_gpio *priv = dev_get_drvdata(dev);
+	struct device *parent = priv->aux_dev->dev.parent;
+	struct pci_dev *pcidev = to_pci_dev(parent);
+	unsigned int gpio_bank_base;
+	unsigned int wake_mask;
+	unsigned int gpiobank;
 	unsigned long flags;
+
+	for (gpiobank = 0; gpiobank < 3; gpiobank++) {
+		wake_mask = priv->gpio_wake_mask[gpiobank];
+
+		if (wake_mask) {
+			gpio_bank_base = gpiobank * 32;
+
+			writel(wake_mask, priv->reg_base +
+			       INTR_STAT_OFFSET(gpio_bank_base));
+			pci1xxx_assign_bit(priv->reg_base,
+					   PIO_PCI_CTRL_REG_OFFSET, 0, false);
+			writel(0xffffffff, priv->reg_base +
+			       WAKEMASK_OFFSET(gpio_bank_base));
+		}
+	}
 
 	spin_lock_irqsave(&priv->lock, flags);
 	pci1xxx_assign_bit(priv->reg_base, PIO_GLOBAL_CONFIG_OFFSET,
@@ -360,6 +419,8 @@ static int pci1xxxx_gpio_resume(struct device *dev)
 		pci1xxx_assign_bit(priv->reg_base, PERI_GEN_RESET, 17, false);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	pci_wake_from_d3(pcidev, false);
 
 	return 0;
 }
