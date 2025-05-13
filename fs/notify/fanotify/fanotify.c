@@ -415,7 +415,7 @@ static int fanotify_encode_fh(struct fanotify_fh *fh, struct inode *inode,
 {
 	int dwords, type = 0;
 	char *ext_buf = NULL;
-	void *buf = fh->buf;
+	void *buf = fh + 1;
 	int err;
 
 	fh->type = FILEID_ROOT;
