@@ -172,7 +172,6 @@ struct aspeed_sham_reqctx {
 	u64			digcnt[2];
 
 	unsigned long		flags;		/* final update flag should no use*/
-	unsigned long		op;		/* final or update */
 	u32			cmd;		/* trigger cmd */
 
 	/* walk state */
@@ -185,14 +184,11 @@ struct aspeed_sham_reqctx {
 	size_t			block_size;
 	size_t			ivsize;
 
-	/* remain data buffer */
 	dma_addr_t		buffer_dma_addr;
-	size_t			bufcnt;		/* buffer counter */
-
 	dma_addr_t		digest_dma_addr;
 
 	/* This is DMA too but read-only for hardware. */
-	u8			buffer[SHA512_BLOCK_SIZE * 2];
+	u8			buffer[SHA512_BLOCK_SIZE + 16];
 };
 
 struct aspeed_engine_crypto {
