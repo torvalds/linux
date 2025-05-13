@@ -1646,22 +1646,15 @@ struct task_struct {
 	struct user_event_mm		*user_event_mm;
 #endif
 
+	/* CPU-specific state of this task: */
+	struct thread_struct		thread;
+
 	/*
 	 * New fields for task_struct should be added above here, so that
 	 * they are included in the randomized portion of task_struct.
 	 */
 	randomized_struct_fields_end
-
-	/* CPU-specific state of this task: */
-	struct thread_struct		thread;
-
-	/*
-	 * WARNING: on x86, 'thread_struct' contains a variable-sized
-	 * structure.  It *MUST* be at the end of 'task_struct'.
-	 *
-	 * Do not put anything below here!
-	 */
-};
+} __attribute__ ((aligned (64)));
 
 #define TASK_REPORT_IDLE	(TASK_REPORT + 1)
 #define TASK_REPORT_MAX		(TASK_REPORT_IDLE << 1)

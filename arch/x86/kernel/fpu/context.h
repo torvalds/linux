@@ -53,7 +53,7 @@ static inline void fpregs_activate(struct fpu *fpu)
 /* Internal helper for switch_fpu_return() and signal frame setup */
 static inline void fpregs_restore_userregs(void)
 {
-	struct fpu *fpu = &current->thread.fpu;
+	struct fpu *fpu = x86_task_fpu(current);
 	int cpu = smp_processor_id();
 
 	if (WARN_ON_ONCE(current->flags & (PF_KTHREAD | PF_USER_WORKER)))
@@ -67,7 +67,7 @@ static inline void fpregs_restore_userregs(void)
 		 * If PKRU is enabled, then the PKRU value is already
 		 * correct because it was either set in switch_to() or in
 		 * flush_thread(). So it is excluded because it might be
-		 * not up to date in current->thread.fpu.xsave state.
+		 * not up to date in current->thread.fpu->xsave state.
 		 *
 		 * XFD state is handled in restore_fpregs_from_fpstate().
 		 */

@@ -74,11 +74,6 @@ DEFINE_EVENT(x86_fpu, x86_fpu_dropped,
 	TP_ARGS(fpu)
 );
 
-DEFINE_EVENT(x86_fpu, x86_fpu_copy_src,
-	TP_PROTO(struct fpu *fpu),
-	TP_ARGS(fpu)
-);
-
 DEFINE_EVENT(x86_fpu, x86_fpu_copy_dst,
 	TP_PROTO(struct fpu *fpu),
 	TP_ARGS(fpu)
