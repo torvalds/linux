@@ -146,6 +146,15 @@ static int aspeed_ahash_fill_padding(struct aspeed_hace_dev *hace_dev,
 	return padlen + bitslen;
 }
 
+static void aspeed_ahash_update_counter(struct aspeed_sham_reqctx *rctx,
+					unsigned int len)
+{
+	rctx->offset += len;
+	rctx->digcnt[0] += len;
+	if (rctx->digcnt[0] < len)
+		rctx->digcnt[1]++;
+}
+
 /*
  * Prepare DMA buffer before hardware engine
  * processing.
@@ -175,12 +184,7 @@ static int aspeed_ahash_dma_prepare(struct aspeed_hace_dev *hace_dev)
 		length -= remain;
 	scatterwalk_map_and_copy(hash_engine->ahash_src_addr, rctx->src_sg,
 				 rctx->offset, length, 0);
-	rctx->offset += length;
-
-	rctx->digcnt[0] += length;
-	if (rctx->digcnt[0] < length)
-		rctx->digcnt[1]++;
-
+	aspeed_ahash_update_counter(rctx, length);
 	if (final)
 		length += aspeed_ahash_fill_padding(
 			hace_dev, rctx, hash_engine->ahash_src_addr + length);
@@ -210,13 +214,16 @@ static int aspeed_ahash_dma_prepare_sg(struct aspeed_hace_dev *hace_dev)
 	struct ahash_request *req = hash_engine->req;
 	struct aspeed_sham_reqctx *rctx = ahash_request_ctx(req);
 	bool final = rctx->flags & SHA_FLAGS_FINUP;
+	int remain, sg_len, i, max_sg_nents;
+	unsigned int length, offset, total;
 	struct aspeed_sg_list *src_list;
 	struct scatterlist *s;
-	int length, remain, sg_len, i;
 	int rc = 0;
 
-	remain = final ? 0 : rctx->total % rctx->block_size;
-	length = rctx->total - remain;
+	offset = rctx->offset;
+	length = rctx->total - offset;
+	remain = final ? 0 : length - round_down(length, rctx->block_size);
+	length -= remain;
 
 	AHASH_DBG(hace_dev, "%s:0x%x, %s:0x%x, %s:0x%x\n",
 		  "rctx total", rctx->total,
@@ -230,6 +237,8 @@ static int aspeed_ahash_dma_prepare_sg(struct aspeed_hace_dev *hace_dev)
 		goto end;
 	}
 
+	max_sg_nents = ASPEED_HASH_SRC_DMA_BUF_LEN / sizeof(*src_list) - final;
+	sg_len = min(sg_len, max_sg_nents);
 	src_list = (struct aspeed_sg_list *)hash_engine->ahash_src_addr;
 	rctx->digest_dma_addr = dma_map_single(hace_dev->dev, rctx->digest,
 					       SHA512_DIGEST_SIZE,
@@ -240,9 +249,19 @@ static int aspeed_ahash_dma_prepare_sg(struct aspeed_hace_dev *hace_dev)
 		goto free_src_sg;
 	}
 
+	total = 0;
 	for_each_sg(rctx->src_sg, s, sg_len, i) {
 		u32 phy_addr = sg_dma_address(s);
 		u32 len = sg_dma_len(s);
+
+		if (len <= offset) {
+			offset -= len;
+			continue;
+		}
+
+		len -= offset;
+		phy_addr += offset;
+		offset = 0;
 
 		if (length > len)
 			length -= len;
@@ -252,24 +271,22 @@ static int aspeed_ahash_dma_prepare_sg(struct aspeed_hace_dev *hace_dev)
 			length = 0;
 		}
 
+		total += len;
 		src_list[i].phy_addr = cpu_to_le32(phy_addr);
 		src_list[i].len = cpu_to_le32(len);
 	}
 
 	if (length != 0) {
-		rc = -EINVAL;
-		goto free_rctx_digest;
+		total = round_down(total, rctx->block_size);
+		final = false;
 	}
 
-	rctx->digcnt[0] += rctx->total - remain;
-	if (rctx->digcnt[0] < rctx->total - remain)
-		rctx->digcnt[1]++;
-
+	aspeed_ahash_update_counter(rctx, total);
 	if (final) {
 		int len = aspeed_ahash_fill_padding(hace_dev, rctx,
 						    rctx->buffer);
 
-		rctx->total += len;
+		total += len;
 		rctx->buffer_dma_addr = dma_map_single(hace_dev->dev,
 						       rctx->buffer,
 						       sizeof(rctx->buffer),
@@ -286,8 +303,7 @@ static int aspeed_ahash_dma_prepare_sg(struct aspeed_hace_dev *hace_dev)
 	}
 	src_list[i - 1].len |= cpu_to_le32(HASH_SG_LAST_LIST);
 
-	rctx->offset = rctx->total - remain;
-	hash_engine->src_length = rctx->total - remain;
+	hash_engine->src_length = total;
 	hash_engine->src_dma = hash_engine->ahash_src_dma_addr;
 	hash_engine->digest_dma = rctx->digest_dma_addr;
 
@@ -310,6 +326,13 @@ static int aspeed_ahash_complete(struct aspeed_hace_dev *hace_dev)
 	struct aspeed_sham_reqctx *rctx = ahash_request_ctx(req);
 
 	AHASH_DBG(hace_dev, "\n");
+
+	dma_unmap_single(hace_dev->dev, rctx->digest_dma_addr,
+			 SHA512_DIGEST_SIZE, DMA_BIDIRECTIONAL);
+
+	if (rctx->total - rctx->offset >= rctx->block_size ||
+	    (rctx->total != rctx->offset && rctx->flags & SHA_FLAGS_FINUP))
+		return aspeed_ahash_req_update(hace_dev);
 
 	hash_engine->flags &= ~CRYPTO_FLAGS_BUSY;
 
@@ -366,32 +389,11 @@ static int aspeed_ahash_update_resume_sg(struct aspeed_hace_dev *hace_dev)
 	dma_unmap_sg(hace_dev->dev, rctx->src_sg, rctx->src_nents,
 		     DMA_TO_DEVICE);
 
-	if (rctx->flags & SHA_FLAGS_FINUP)
+	if (rctx->flags & SHA_FLAGS_FINUP && rctx->total == rctx->offset)
 		dma_unmap_single(hace_dev->dev, rctx->buffer_dma_addr,
 				 sizeof(rctx->buffer), DMA_TO_DEVICE);
 
-	dma_unmap_single(hace_dev->dev, rctx->digest_dma_addr,
-			 SHA512_DIGEST_SIZE, DMA_BIDIRECTIONAL);
-
 	rctx->cmd &= ~HASH_CMD_HASH_SRC_SG_CTRL;
-
-	return aspeed_ahash_complete(hace_dev);
-}
-
-static int aspeed_ahash_update_resume(struct aspeed_hace_dev *hace_dev)
-{
-	struct aspeed_engine_hash *hash_engine = &hace_dev->hash_engine;
-	struct ahash_request *req = hash_engine->req;
-	struct aspeed_sham_reqctx *rctx = ahash_request_ctx(req);
-
-	AHASH_DBG(hace_dev, "\n");
-
-	dma_unmap_single(hace_dev->dev, rctx->digest_dma_addr,
-			 SHA512_DIGEST_SIZE, DMA_BIDIRECTIONAL);
-
-	if (rctx->total - rctx->offset >= rctx->block_size ||
-	    (rctx->total != rctx->offset && rctx->flags & SHA_FLAGS_FINUP))
-		return aspeed_ahash_req_update(hace_dev);
 
 	return aspeed_ahash_complete(hace_dev);
 }
@@ -411,7 +413,7 @@ static int aspeed_ahash_req_update(struct aspeed_hace_dev *hace_dev)
 		resume = aspeed_ahash_update_resume_sg;
 
 	} else {
-		resume = aspeed_ahash_update_resume;
+		resume = aspeed_ahash_complete;
 	}
 
 	ret = hash_engine->dma_prepare(hace_dev);
