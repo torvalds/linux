@@ -1099,7 +1099,7 @@ tcp_limit_output_bytes - INTEGER
 	limits the number of bytes on qdisc or device to reduce artificial
 	RTT/cwnd and reduce bufferbloat.
 
-	Default: 1048576 (16 * 65536)
+	Default: 4194304 (4 MB)
 
 tcp_challenge_ack_limit - INTEGER
 	Limits number of Challenge ACK sent per second, as recommended
