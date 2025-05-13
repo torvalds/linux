@@ -1766,23 +1766,31 @@ void bch2_btree_node_read(struct btree_trans *trans, struct btree *b,
 					 NULL, &pick, -1);
 
 	if (ret <= 0) {
+		bool ratelimit = true;
 		struct printbuf buf = PRINTBUF;
+		bch2_log_msg_start(c, &buf);
 
 		prt_str(&buf, "btree node read error: no device to read from\n at ");
 		bch2_btree_pos_to_text(&buf, c, b);
 		prt_newline(&buf);
 		bch2_btree_lost_data(c, &buf, b->c.btree_id);
-		bch_err_ratelimited(c, "%s", buf.buf);
 
 		if (c->opts.recovery_passes & BIT_ULL(BCH_RECOVERY_PASS_check_topology) &&
-		    c->curr_recovery_pass > BCH_RECOVERY_PASS_check_topology)
-			bch2_fatal_error(c);
+		    c->curr_recovery_pass > BCH_RECOVERY_PASS_check_topology &&
+		    bch2_fs_emergency_read_only2(c, &buf))
+			ratelimit = false;
+
+		static DEFINE_RATELIMIT_STATE(rs,
+					      DEFAULT_RATELIMIT_INTERVAL,
+					      DEFAULT_RATELIMIT_BURST);
+		if (!ratelimit || __ratelimit(&rs))
+			bch2_print_str(c, KERN_ERR, buf.buf);
+		printbuf_exit(&buf);
 
 		set_btree_node_read_error(b);
 		clear_btree_node_read_in_flight(b);
 		smp_mb__after_atomic();
 		wake_up_bit(&b->flags, BTREE_NODE_read_in_flight);
-		printbuf_exit(&buf);
 		return;
 	}
 

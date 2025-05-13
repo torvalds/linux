@@ -348,6 +348,7 @@ restart_drop_extra_replicas:
 						 });
 		if (invalid) {
 			struct printbuf buf = PRINTBUF;
+			bch2_log_msg_start(c, &buf);
 
 			prt_str(&buf, "about to insert invalid key in data update path");
 			prt_printf(&buf, "\nop.nonce: %u", m->op.nonce);
@@ -358,10 +359,11 @@ restart_drop_extra_replicas:
 			prt_str(&buf, "\nnew: ");
 			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
 
+			bch2_fs_emergency_read_only2(c, &buf);
+
 			bch2_print_str(c, KERN_ERR, buf.buf);
 			printbuf_exit(&buf);
 
-			bch2_fatal_error(c);
 			ret = -BCH_ERR_invalid_bkey;
 			goto out;
 		}

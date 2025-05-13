@@ -438,6 +438,30 @@ bool bch2_fs_emergency_read_only(struct bch_fs *c)
 	return ret;
 }
 
+static bool __bch2_fs_emergency_read_only2(struct bch_fs *c, struct printbuf *out,
+					   bool locked)
+{
+	bool ret = !test_and_set_bit(BCH_FS_emergency_ro, &c->flags);
+
+	if (!locked)
+		bch2_journal_halt(&c->journal);
+	else
+		bch2_journal_halt_locked(&c->journal);
+	bch2_fs_read_only_async(c);
+	wake_up(&bch2_read_only_wait);
+
+	if (ret)
+		prt_printf(out, "emergency read only at seq %llu\n",
+			   journal_cur_seq(&c->journal));
+
+	return ret;
+}
+
+bool bch2_fs_emergency_read_only2(struct bch_fs *c, struct printbuf *out)
+{
+	return __bch2_fs_emergency_read_only2(c, out, false);
+}
+
 bool bch2_fs_emergency_read_only_locked(struct bch_fs *c)
 {
 	bool ret = !test_and_set_bit(BCH_FS_emergency_ro, &c->flags);
@@ -2252,19 +2276,31 @@ static void bch2_fs_bdev_mark_dead(struct block_device *bdev, bool surprise)
 	if (!ca)
 		goto unlock;
 
-	if (bch2_dev_state_allowed(c, ca, BCH_MEMBER_STATE_failed, BCH_FORCE_IF_DEGRADED)) {
+	bool dev = bch2_dev_state_allowed(c, ca,
+					  BCH_MEMBER_STATE_failed,
+					  BCH_FORCE_IF_DEGRADED);
+
+	if (!dev && sb) {
+		if (!surprise)
+			sync_filesystem(sb);
+		shrink_dcache_sb(sb);
+		evict_inodes(sb);
+	}
+
+	struct printbuf buf = PRINTBUF;
+	__bch2_log_msg_start(ca->name, &buf);
+
+	prt_printf(&buf, "offline from block layer");
+
+	if (dev) {
 		__bch2_dev_offline(c, ca);
 	} else {
-		if (sb) {
-			if (!surprise)
-				sync_filesystem(sb);
-			shrink_dcache_sb(sb);
-			evict_inodes(sb);
-		}
-
 		bch2_journal_flush(&c->journal);
-		bch2_fs_emergency_read_only(c);
+		bch2_fs_emergency_read_only2(c, &buf);
 	}
+
+	bch2_print_str(c, KERN_ERR, buf.buf);
+	printbuf_exit(&buf);
 
 	bch2_dev_put(ca);
 unlock:

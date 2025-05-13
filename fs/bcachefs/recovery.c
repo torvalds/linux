@@ -1108,8 +1108,17 @@ out:
 	return ret;
 err:
 fsck_err:
-	bch2_fs_emergency_read_only(c);
-	goto out;
+	{
+		struct printbuf buf = PRINTBUF;
+		bch2_log_msg_start(c, &buf);
+
+		prt_printf(&buf, "error in recovery: %s", bch2_err_str(ret));
+		bch2_fs_emergency_read_only2(c, &buf);
+
+		bch2_print_str(c, KERN_ERR, buf.buf);
+		printbuf_exit(&buf);
+	}
+	return ret;
 }
 
 int bch2_fs_initialize(struct bch_fs *c)

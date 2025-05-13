@@ -16,6 +16,7 @@
 #include "journal_io.h"
 #include "replicas.h"
 #include "snapshot.h"
+#include "super.h"
 #include "trace.h"
 
 #include <linux/random.h>
@@ -3449,28 +3450,44 @@ got_trans:
 	return trans;
 }
 
-static void check_btree_paths_leaked(struct btree_trans *trans)
-{
 #ifdef CONFIG_BCACHEFS_DEBUG
-	struct bch_fs *c = trans->c;
+
+static bool btree_paths_leaked(struct btree_trans *trans)
+{
 	struct btree_path *path;
 	unsigned i;
 
 	trans_for_each_path(trans, path, i)
 		if (path->ref)
-			goto leaked;
-	return;
-leaked:
-	bch_err(c, "btree paths leaked from %s!", trans->fn);
-	trans_for_each_path(trans, path, i)
-		if (path->ref)
-			printk(KERN_ERR "  btree %s %pS\n",
-			       bch2_btree_id_str(path->btree_id),
-			       (void *) path->ip_allocated);
-	/* Be noisy about this: */
-	bch2_fatal_error(c);
-#endif
+			return true;
+	return false;
 }
+
+static void check_btree_paths_leaked(struct btree_trans *trans)
+{
+	if (btree_paths_leaked(trans)) {
+		struct bch_fs *c = trans->c;
+		struct btree_path *path;
+		unsigned i;
+
+		struct printbuf buf = PRINTBUF;
+		bch2_log_msg_start(c, &buf);
+
+		prt_printf(&buf, "btree paths leaked from %s!\n", trans->fn);
+		trans_for_each_path(trans, path, i)
+			if (path->ref)
+				prt_printf(&buf, "btree %s %pS\n",
+					   bch2_btree_id_str(path->btree_id),
+					   (void *) path->ip_allocated);
+
+		bch2_fs_emergency_read_only2(c, &buf);
+		bch2_print_str(c, KERN_ERR, buf.buf);
+		printbuf_exit(&buf);
+	}
+}
+#else
+static inline void check_btree_paths_leaked(struct btree_trans *trans) {}
+#endif
 
 void bch2_trans_put(struct btree_trans *trans)
 	__releases(&c->btree_trans_barrier)

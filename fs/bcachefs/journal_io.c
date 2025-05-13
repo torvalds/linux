@@ -1628,8 +1628,6 @@ static CLOSURE_CALLBACK(journal_write_done)
 			       : j->noflush_write_time, j->write_start_time);
 
 	if (!w->devs_written.nr) {
-		if (!bch2_journal_error(j))
-			bch_err(c, "unable to write journal to sufficient devices");
 		err = -BCH_ERR_journal_write_err;
 	} else {
 		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_journal,
@@ -1637,8 +1635,20 @@ static CLOSURE_CALLBACK(journal_write_done)
 		err = bch2_mark_replicas(c, &replicas.e);
 	}
 
-	if (err)
-		bch2_fatal_error(c);
+	if (err && !bch2_journal_error(j)) {
+		struct printbuf buf = PRINTBUF;
+		bch2_log_msg_start(c, &buf);
+
+		if (err == -BCH_ERR_journal_write_err)
+			prt_printf(&buf, "unable to write journal to sufficient devices");
+		else
+			prt_printf(&buf, "journal write error marking replicas: %s", bch2_err_str(err));
+
+		bch2_fs_emergency_read_only2(c, &buf);
+
+		bch2_print_str(c, KERN_ERR, buf.buf);
+		printbuf_exit(&buf);
+	}
 
 	closure_debug_destroy(cl);
 

@@ -11,12 +11,12 @@
 
 #define FSCK_ERR_RATELIMIT_NR	10
 
-void bch2_log_msg_start(struct bch_fs *c, struct printbuf *out)
+void __bch2_log_msg_start(const char *fs_or_dev_name, struct printbuf *out)
 {
 	printbuf_indent_add_nextline(out, 2);
 
 #ifdef BCACHEFS_LOG_PREFIX
-	prt_printf(out, bch2_log_msg(c, ""));
+	prt_printf(out, "bcachefs (%s): ", fs_or_dev_name);
 #endif
 }
 
@@ -29,9 +29,7 @@ bool __bch2_inconsistent_error(struct bch_fs *c, struct printbuf *out)
 		return false;
 	case BCH_ON_ERROR_fix_safe:
 	case BCH_ON_ERROR_ro:
-		if (bch2_fs_emergency_read_only(c))
-			prt_printf(out, "inconsistency detected - emergency read only at journal seq %llu\n",
-				   journal_cur_seq(&c->journal));
+		bch2_fs_emergency_read_only2(c, out);
 		return true;
 	case BCH_ON_ERROR_panic:
 		bch2_print_str(c, KERN_ERR, out->buf);
@@ -151,14 +149,17 @@ void bch2_io_error_work(struct work_struct *work)
 
 		bool dev = !__bch2_dev_set_state(c, ca, BCH_MEMBER_STATE_ro,
 						 BCH_FORCE_IF_DEGRADED);
+		struct printbuf buf = PRINTBUF;
+		__bch2_log_msg_start(ca->name, &buf);
 
-		bch_err(ca,
-			"writes erroring for %u seconds, setting %s ro",
+		prt_printf(&buf, "writes erroring for %u seconds, setting %s ro",
 			c->opts.write_error_timeout,
 			dev ? "device" : "filesystem");
 		if (!dev)
-			bch2_fs_emergency_read_only(c);
+			bch2_fs_emergency_read_only2(c, &buf);
 
+		bch2_print_str(c, KERN_ERR, buf.buf);
+		printbuf_exit(&buf);
 	}
 out:
 	up_write(&c->state_lock);
