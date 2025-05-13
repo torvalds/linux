@@ -1206,15 +1206,20 @@ nfs4_inc_and_copy_stateid(stateid_t *dst, struct nfs4_stid *stid)
 
 static void put_deleg_file(struct nfs4_file *fp)
 {
+	struct nfsd_file *rnf = NULL;
 	struct nfsd_file *nf = NULL;
 
 	spin_lock(&fp->fi_lock);
-	if (--fp->fi_delegees == 0)
+	if (--fp->fi_delegees == 0) {
 		swap(nf, fp->fi_deleg_file);
+		swap(rnf, fp->fi_rdeleg_file);
+	}
 	spin_unlock(&fp->fi_lock);
 
 	if (nf)
 		nfsd_file_put(nf);
+	if (rnf)
+		nfs4_file_put_access(fp, NFS4_SHARE_ACCESS_READ);
 }
 
 static void nfs4_unlock_deleg_lease(struct nfs4_delegation *dp)
@@ -4738,6 +4743,7 @@ static void nfsd4_file_init(const struct svc_fh *fh, struct nfs4_file *fp)
 	INIT_LIST_HEAD(&fp->fi_clnt_odstate);
 	fh_copy_shallow(&fp->fi_fhandle, &fh->fh_handle);
 	fp->fi_deleg_file = NULL;
+	fp->fi_rdeleg_file = NULL;
 	fp->fi_had_conflict = false;
 	fp->fi_share_deny = 0;
 	memset(fp->fi_fds, 0, sizeof(fp->fi_fds));
@@ -6171,6 +6177,7 @@ nfsd4_add_rdaccess_to_wrdeleg(struct svc_rqst *rqstp, struct nfsd4_open *open,
 		__nfs4_file_get_access(fp, NFS4_SHARE_ACCESS_READ);
 		fp = stp->st_stid.sc_file;
 		fp->fi_fds[O_RDONLY] = nf;
+		fp->fi_rdeleg_file = nf;
 		spin_unlock(&fp->fi_lock);
 	}
 	return true;
