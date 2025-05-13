@@ -825,6 +825,9 @@ class TypeArrayNest(Type):
         elif self.sub_type == 'binary' and 'exact-len' in self.checks:
             ri.cw.p(f'for (i = 0; i < {var}->_count.{self.c_name}; i++)')
             ri.cw.p(f"ynl_attr_put(nlh, i, {var}->{self.c_name}[i], {self.checks['exact-len']});")
+        elif self.sub_type == 'nest':
+            ri.cw.p(f'for (i = 0; i < {var}->_count.{self.c_name}; i++)')
+            ri.cw.p(f"{self.nested_render_name}_put(nlh, i, &{var}->{self.c_name}[i]);")
         else:
             raise Exception(f"Put for ArrayNest sub-type {self.attr['sub-type']} not supported, yet")
         ri.cw.p('ynl_attr_nest_end(nlh, array);')
