@@ -266,6 +266,10 @@ static bool filldir(struct dir_context *ctx, const char *name, int namlen,
 	int reclen = ALIGN(offsetof(struct linux_dirent, d_name) + namlen + 2,
 		sizeof(long));
 	int prev_reclen;
+	unsigned int flags = d_type;
+
+	BUILD_BUG_ON(FILLDIR_FLAG_NOINTR & S_DT_MASK);
+	d_type &= S_DT_MASK;
 
 	buf->error = verify_dirent_name(name, namlen);
 	if (unlikely(buf->error))
@@ -279,7 +283,7 @@ static bool filldir(struct dir_context *ctx, const char *name, int namlen,
 		return false;
 	}
 	prev_reclen = buf->prev_reclen;
-	if (prev_reclen && signal_pending(current))
+	if (!(flags & FILLDIR_FLAG_NOINTR) && prev_reclen && signal_pending(current))
 		return false;
 	dirent = buf->current_dir;
 	prev = (void __user *) dirent - prev_reclen;
@@ -351,6 +355,10 @@ static bool filldir64(struct dir_context *ctx, const char *name, int namlen,
 	int reclen = ALIGN(offsetof(struct linux_dirent64, d_name) + namlen + 1,
 		sizeof(u64));
 	int prev_reclen;
+	unsigned int flags = d_type;
+
+	BUILD_BUG_ON(FILLDIR_FLAG_NOINTR & S_DT_MASK);
+	d_type &= S_DT_MASK;
 
 	buf->error = verify_dirent_name(name, namlen);
 	if (unlikely(buf->error))
@@ -359,7 +367,7 @@ static bool filldir64(struct dir_context *ctx, const char *name, int namlen,
 	if (reclen > buf->count)
 		return false;
 	prev_reclen = buf->prev_reclen;
-	if (prev_reclen && signal_pending(current))
+	if (!(flags & FILLDIR_FLAG_NOINTR) && prev_reclen && signal_pending(current))
 		return false;
 	dirent = buf->current_dir;
 	prev = (void __user *)dirent - prev_reclen;
@@ -513,6 +521,10 @@ static bool compat_filldir(struct dir_context *ctx, const char *name, int namlen
 	int reclen = ALIGN(offsetof(struct compat_linux_dirent, d_name) +
 		namlen + 2, sizeof(compat_long_t));
 	int prev_reclen;
+	unsigned int flags = d_type;
+
+	BUILD_BUG_ON(FILLDIR_FLAG_NOINTR & S_DT_MASK);
+	d_type &= S_DT_MASK;
 
 	buf->error = verify_dirent_name(name, namlen);
 	if (unlikely(buf->error))
@@ -526,7 +538,7 @@ static bool compat_filldir(struct dir_context *ctx, const char *name, int namlen
 		return false;
 	}
 	prev_reclen = buf->prev_reclen;
-	if (prev_reclen && signal_pending(current))
+	if (!(flags & FILLDIR_FLAG_NOINTR) && prev_reclen && signal_pending(current))
 		return false;
 	dirent = buf->current_dir;
 	prev = (void __user *) dirent - prev_reclen;

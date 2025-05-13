@@ -120,7 +120,7 @@ static bool fuse_emit(struct file *file, struct dir_context *ctx,
 		fuse_add_dirent_to_cache(file, dirent, ctx->pos);
 
 	return dir_emit(ctx, dirent->name, dirent->namelen, dirent->ino,
-			dirent->type);
+			dirent->type | FILLDIR_FLAG_NOINTR);
 }
 
 static int parse_dirfile(char *buf, size_t nbytes, struct file *file,
@@ -419,7 +419,7 @@ static enum fuse_parse_result fuse_parse_cache(struct fuse_file *ff,
 		if (ff->readdir.pos == ctx->pos) {
 			res = FOUND_SOME;
 			if (!dir_emit(ctx, dirent->name, dirent->namelen,
-				      dirent->ino, dirent->type))
+				      dirent->ino, dirent->type | FILLDIR_FLAG_NOINTR))
 				return FOUND_ALL;
 			ctx->pos = dirent->off;
 		}
