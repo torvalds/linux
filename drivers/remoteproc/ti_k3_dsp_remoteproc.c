@@ -25,51 +25,6 @@
 #define KEYSTONE_RPROC_LOCAL_ADDRESS_MASK	(SZ_16M - 1)
 
 /*
- * The C66x DSP cores have a local reset that affects only the CPU, and a
- * generic module reset that powers on the device and allows the DSP internal
- * memories to be accessed while the local reset is asserted. This function is
- * used to release the global reset on C66x DSPs to allow loading into the DSP
- * internal RAMs. The .prepare() ops is invoked by remoteproc core before any
- * firmware loading, and is followed by the .start() ops after loading to
- * actually let the C66x DSP cores run. This callback is invoked only in
- * remoteproc mode.
- */
-static int k3_dsp_rproc_prepare(struct rproc *rproc)
-{
-	struct k3_rproc *kproc = rproc->priv;
-	struct device *dev = kproc->dev;
-	int ret;
-
-	/* If the core is running already no need to deassert the module reset */
-	if (rproc->state == RPROC_DETACHED)
-		return 0;
-
-	/*
-	 * Ensure the local reset is asserted so the core doesn't
-	 * execute bogus code when the module reset is released.
-	 */
-	if (kproc->data->uses_lreset) {
-		ret = k3_rproc_reset(kproc);
-		if (ret)
-			return ret;
-
-		ret = reset_control_status(kproc->reset);
-		if (ret <= 0) {
-			dev_err(dev, "local reset still not asserted\n");
-			return ret;
-		}
-	}
-
-	ret = kproc->ti_sci->ops.dev_ops.get_device(kproc->ti_sci,
-						    kproc->ti_sci_id);
-	if (ret)
-		dev_err(dev, "module-reset deassert failed, cannot enable internal RAM loading (%pe)\n",
-			ERR_PTR(ret));
-
-	return ret;
-}
-
-/*
  * This function implements the .unprepare() ops and performs the complimentary
  * operations to that of the .prepare() ops. The function is used to assert the
  * global reset on applicable C66x cores. This completes the second portion of
@@ -428,7 +383,7 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 	rproc->has_iommu = false;
 	rproc->recovery_disabled = true;
 	if (data->uses_lreset) {
-		rproc->ops->prepare = k3_dsp_rproc_prepare;
+		rproc->ops->prepare = k3_rproc_prepare;
 		rproc->ops->unprepare = k3_dsp_rproc_unprepare;
 	}
 	kproc = rproc->priv;
