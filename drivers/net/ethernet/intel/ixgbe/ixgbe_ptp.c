@@ -936,20 +936,22 @@ void ixgbe_ptp_rx_rgtstamp(struct ixgbe_q_vector *q_vector,
 }
 
 /**
- * ixgbe_ptp_get_ts_config - get current hardware timestamping configuration
- * @adapter: pointer to adapter structure
- * @ifr: ioctl data
+ * ixgbe_ptp_hwtstamp_get - get current hardware timestamping configuration
+ * @netdev: pointer to net device structure
+ * @config: timestamping configuration structure
  *
  * This function returns the current timestamping settings. Rather than
  * attempt to deconstruct registers to fill in the values, simply keep a copy
  * of the old settings around, and return a copy when requested.
  */
-int ixgbe_ptp_get_ts_config(struct ixgbe_adapter *adapter, struct ifreq *ifr)
+int ixgbe_ptp_hwtstamp_get(struct net_device *netdev,
+			   struct kernel_hwtstamp_config *config)
 {
-	struct hwtstamp_config *config = &adapter->tstamp_config;
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 
-	return copy_to_user(ifr->ifr_data, config,
-			    sizeof(*config)) ? -EFAULT : 0;
+	*config = adapter->tstamp_config;
+
+	return 0;
 }
 
 /**
@@ -978,7 +980,7 @@ int ixgbe_ptp_get_ts_config(struct ixgbe_adapter *adapter, struct ifreq *ifr)
  * mode, if required to support the specifically requested mode.
  */
 static int ixgbe_ptp_set_timestamp_mode(struct ixgbe_adapter *adapter,
-				 struct hwtstamp_config *config)
+					struct kernel_hwtstamp_config *config)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 tsync_tx_ctl = IXGBE_TSYNCTXCTL_ENABLED;
@@ -1129,31 +1131,29 @@ static int ixgbe_ptp_set_timestamp_mode(struct ixgbe_adapter *adapter,
 }
 
 /**
- * ixgbe_ptp_set_ts_config - user entry point for timestamp mode
- * @adapter: pointer to adapter struct
- * @ifr: ioctl data
+ * ixgbe_ptp_hwtstamp_set - user entry point for timestamp mode
+ * @netdev: pointer to net device structure
+ * @config: timestamping configuration structure
+ * @extack: netlink extended ack structure for error reporting
  *
  * Set hardware to requested mode. If unsupported, return an error with no
  * changes. Otherwise, store the mode for future reference.
  */
-int ixgbe_ptp_set_ts_config(struct ixgbe_adapter *adapter, struct ifreq *ifr)
+int ixgbe_ptp_hwtstamp_set(struct net_device *netdev,
+			   struct kernel_hwtstamp_config *config,
+			   struct netlink_ext_ack *extack)
 {
-	struct hwtstamp_config config;
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 	int err;
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
-
-	err = ixgbe_ptp_set_timestamp_mode(adapter, &config);
+	err = ixgbe_ptp_set_timestamp_mode(adapter, config);
 	if (err)
 		return err;
 
 	/* save these settings for future reference */
-	memcpy(&adapter->tstamp_config, &config,
-	       sizeof(adapter->tstamp_config));
+	adapter->tstamp_config = *config;
 
-	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
-		-EFAULT : 0;
+	return 0;
 }
 
 static void ixgbe_ptp_link_speed_adjust(struct ixgbe_adapter *adapter,
