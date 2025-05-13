@@ -12,7 +12,7 @@ use crate::{
     prelude::*,
     types::{ARef, Opaque},
 };
-use core::{mem, ops::Deref, ptr, ptr::NonNull};
+use core::{mem, ops::Deref, ptr::NonNull};
 
 /// GEM object functions, which must be implemented by drivers.
 pub trait BaseDriverObject<T: BaseObject>: Sync + Send + Sized {
@@ -42,8 +42,7 @@ pub trait IntoGEMObject: Sized + super::private::Sealed {
 
     /// Returns a reference to the raw `drm_gem_object` structure, which must be valid as long as
     /// this owning object is valid.
-    #[allow(clippy::wrong_self_convention)]
-    fn into_gem_obj(&self) -> &Opaque<bindings::drm_gem_object>;
+    fn as_raw(&self) -> *mut bindings::drm_gem_object;
 
     /// Converts a pointer to a `struct drm_gem_object` into a reference to `Self`.
     ///
@@ -101,8 +100,8 @@ extern "C" fn close_callback<T: BaseDriverObject<U>, U: BaseObject>(
 impl<T: DriverObject> IntoGEMObject for Object<T> {
     type Driver = T::Driver;
 
-    fn into_gem_obj(&self) -> &Opaque<bindings::drm_gem_object> {
-        &self.obj
+    fn as_raw(&self) -> *mut bindings::drm_gem_object {
+        self.obj.get()
     }
 
     unsafe fn as_ref<'a>(self_ptr: *mut bindings::drm_gem_object) -> &'a Self {
@@ -119,9 +118,8 @@ where
 {
     /// Returns the size of the object in bytes.
     fn size(&self) -> usize {
-        // SAFETY: `self.into_gem_obj()` is guaranteed to be a pointer to a valid `struct
-        // drm_gem_object`.
-        unsafe { (*self.into_gem_obj().get()).size }
+        // SAFETY: `self.as_raw()` is guaranteed to be a pointer to a valid `struct drm_gem_object`.
+        unsafe { (*self.as_raw()).size }
     }
 
     /// Creates a new handle for the object associated with a given `File`
@@ -133,11 +131,7 @@ where
         let mut handle: u32 = 0;
         // SAFETY: The arguments are all valid per the type invariants.
         to_result(unsafe {
-            bindings::drm_gem_handle_create(
-                file.as_raw().cast(),
-                self.into_gem_obj().get(),
-                &mut handle,
-            )
+            bindings::drm_gem_handle_create(file.as_raw().cast(), self.as_raw(), &mut handle)
         })?;
         Ok(handle)
     }
@@ -171,14 +165,10 @@ where
     /// Creates an mmap offset to map the object from userspace.
     fn create_mmap_offset(&self) -> Result<u64> {
         // SAFETY: The arguments are valid per the type invariant.
-        to_result(unsafe { bindings::drm_gem_create_mmap_offset(self.into_gem_obj().get()) })?;
+        to_result(unsafe { bindings::drm_gem_create_mmap_offset(self.as_raw()) })?;
 
         // SAFETY: The arguments are valid per the type invariant.
-        Ok(unsafe {
-            bindings::drm_vma_node_offset_addr(ptr::addr_of_mut!(
-                (*self.into_gem_obj().get()).vma_node
-            ))
-        })
+        Ok(unsafe { bindings::drm_vma_node_offset_addr(&raw mut (*self.as_raw()).vma_node) })
     }
 }
 
