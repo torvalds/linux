@@ -52,14 +52,14 @@ a pointer to this `struct bpf_iter_<type>` as the very first argument.
 
 Additionally:
   - Constructor, i.e., `bpf_iter_<type>_new()`, can have arbitrary extra
-  number of arguments. Return type is not enforced either.
+    number of arguments. Return type is not enforced either.
   - Next method, i.e., `bpf_iter_<type>_next()`, has to return a pointer
-  type and should have exactly one argument: `struct bpf_iter_<type> *`
-  (const/volatile/restrict and typedefs are ignored).
+    type and should have exactly one argument: `struct bpf_iter_<type> *`
+    (const/volatile/restrict and typedefs are ignored).
   - Destructor, i.e., `bpf_iter_<type>_destroy()`, should return void and
-  should have exactly one argument, similar to the next method.
+    should have exactly one argument, similar to the next method.
   - `struct bpf_iter_<type>` size is enforced to be positive and
-  a multiple of 8 bytes (to fit stack slots correctly).
+    a multiple of 8 bytes (to fit stack slots correctly).
 
 Such strictness and consistency allows to build generic helpers abstracting
 important, but boilerplate, details to be able to use open-coded iterators
