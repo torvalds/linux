@@ -18,7 +18,7 @@
 
 #include <linux/irqchip/arm-gic-v3.h>
 
-#include "irq-msi-lib.h"
+#include <linux/irqchip/irq-msi-lib.h>
 
 struct mbi_range {
 	u32			spi_start;

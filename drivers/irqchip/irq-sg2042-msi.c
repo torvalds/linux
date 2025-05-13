@@ -17,7 +17,7 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 
-#include "irq-msi-lib.h"
+#include <linux/irqchip/irq-msi-lib.h>
 
 #define SG2042_MAX_MSI_VECTOR	32
 

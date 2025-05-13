@@ -18,7 +18,7 @@
 #include <linux/of_address.h>
 #include <linux/slab.h>
 
-#include "irq-msi-lib.h"
+#include <linux/irqchip/irq-msi-lib.h>
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 

@@ -18,7 +18,7 @@
 #include <asm/loongarch.h>
 #include <asm/setup.h>
 
-#include "irq-msi-lib.h"
+#include <linux/irqchip/irq-msi-lib.h>
 #include "irq-loongson.h"
 
 #define VECTORS_PER_REG		64

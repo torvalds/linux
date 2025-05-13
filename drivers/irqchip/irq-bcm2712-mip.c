@@ -11,7 +11,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 
-#include "irq-msi-lib.h"
+#include <linux/irqchip/irq-msi-lib.h>
 
 #define MIP_INT_RAISE		0x00
 #define MIP_INT_CLEAR		0x10

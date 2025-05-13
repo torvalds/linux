@@ -4,7 +4,7 @@
 
 #include <linux/export.h>
 
-#include "irq-msi-lib.h"
+#include <linux/irqchip/irq-msi-lib.h>
 
 /**
  * msi_lib_init_dev_msi_info - Domain info setup for MSI domains

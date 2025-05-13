@@ -14,7 +14,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
-#include "irq-msi-lib.h"
+#include <linux/irqchip/irq-msi-lib.h>
 
 /* Cause register */
 #define GICP_SECR(idx)		(0x0  + ((idx) * 0x4))
