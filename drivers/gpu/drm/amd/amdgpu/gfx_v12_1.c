@@ -30,7 +30,7 @@
 #include "amdgpu_psp.h"
 #include "amdgpu_smu.h"
 #include "amdgpu_atomfirmware.h"
-#include "imu_v12_0.h"
+#include "imu_v12_1.h"
 #include "soc_v1_0.h"
 #include "gfx_v12_1_pkt.h"
 
@@ -1065,26 +1065,18 @@ static int gfx_v12_1_rlc_backdoor_autoload_enable(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, GET_INST(GC, 0),
 		     regGFX_IMU_RLC_BOOTLOADER_SIZE, rlc_g_size);
 
-	if (adev->gfx.imu.funcs && (amdgpu_dpm > 0)) {
+	if (adev->gfx.imu.funcs) {
 		/* RLC autoload sequence 3: load IMU fw */
 		if (adev->gfx.imu.funcs->load_microcode)
 			adev->gfx.imu.funcs->load_microcode(adev);
-		/* RLC autoload sequence 4 init IMU fw */
-		if (adev->gfx.imu.funcs->setup_imu)
-			adev->gfx.imu.funcs->setup_imu(adev);
-		if (adev->gfx.imu.funcs->start_imu)
-			adev->gfx.imu.funcs->start_imu(adev);
-
-		/* RLC autoload sequence 5 disable gpa mode */
-		gfx_v12_1_xcc_disable_gpa_mode(adev, 0);
-	} else {
-		/* unhalt rlc to start autoload without imu */
-		data = RREG32_SOC15(GC, GET_INST(GC, 0), regRLC_GPM_THREAD_ENABLE);
-		data = REG_SET_FIELD(data, RLC_GPM_THREAD_ENABLE, THREAD0_ENABLE, 1);
-		data = REG_SET_FIELD(data, RLC_GPM_THREAD_ENABLE, THREAD1_ENABLE, 1);
-		WREG32_SOC15(GC, GET_INST(GC, 0), regRLC_GPM_THREAD_ENABLE, data);
-		WREG32_SOC15(GC, GET_INST(GC, 0), regRLC_CNTL, RLC_CNTL__RLC_ENABLE_F32_MASK);
 	}
+
+	/* unhalt rlc to start autoload */
+	data = RREG32_SOC15(GC, GET_INST(GC, 0), regRLC_GPM_THREAD_ENABLE);
+	data = REG_SET_FIELD(data, RLC_GPM_THREAD_ENABLE, THREAD0_ENABLE, 1);
+	data = REG_SET_FIELD(data, RLC_GPM_THREAD_ENABLE, THREAD1_ENABLE, 1);
+	WREG32_SOC15(GC, GET_INST(GC, 0), regRLC_GPM_THREAD_ENABLE, data);
+	WREG32_SOC15(GC, GET_INST(GC, 0), regRLC_CNTL, RLC_CNTL__RLC_ENABLE_F32_MASK);
 
 	return 0;
 }
@@ -2526,11 +2518,6 @@ static int gfx_v12_1_hw_init(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO) {
-		if (adev->gfx.imu.funcs && (amdgpu_dpm > 0)) {
-			/* RLC autoload sequence 1: Program rlc ram */
-			if (adev->gfx.imu.funcs->program_rlc_ram)
-				adev->gfx.imu.funcs->program_rlc_ram(adev);
-		}
 		/* rlc autoload firmware */
 		r = gfx_v12_1_rlc_backdoor_autoload_enable(adev);
 		if (r)
@@ -2539,16 +2526,12 @@ static int gfx_v12_1_hw_init(struct amdgpu_ip_block *ip_block)
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
 			num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 
-			for (i = 0; i < num_xcc; i++) {
-				if (adev->gfx.imu.funcs && (amdgpu_dpm > 0)) {
-					if (adev->gfx.imu.funcs->load_microcode)
-						adev->gfx.imu.funcs->load_microcode(adev);
-					if (adev->gfx.imu.funcs->setup_imu)
-						adev->gfx.imu.funcs->setup_imu(adev);
-					if (adev->gfx.imu.funcs->start_imu)
-						adev->gfx.imu.funcs->start_imu(adev);
-				}
+			if (adev->gfx.imu.funcs) {
+				if (adev->gfx.imu.funcs->load_microcode)
+					adev->gfx.imu.funcs->load_microcode(adev);
+			}
 
+			for (i = 0; i < num_xcc; i++) {
 				/* disable gpa mode in backdoor loading */
 				gfx_v12_1_xcc_disable_gpa_mode(adev, i);
 			}
@@ -3730,14 +3713,12 @@ static void gfx_v12_1_set_irq_funcs(struct amdgpu_device *adev)
 
 static void gfx_v12_1_set_imu_funcs(struct amdgpu_device *adev)
 {
-#if 0
 	if (adev->flags & AMD_IS_APU)
 		adev->gfx.imu.mode = MISSION_MODE;
 	else
 		adev->gfx.imu.mode = DEBUG_MODE;
 
-	adev->gfx.imu.funcs = &gfx_v12_0_imu_funcs;
-#endif
+	adev->gfx.imu.funcs = &gfx_v12_1_imu_funcs;
 }
 
 static void gfx_v12_1_set_rlc_funcs(struct amdgpu_device *adev)
