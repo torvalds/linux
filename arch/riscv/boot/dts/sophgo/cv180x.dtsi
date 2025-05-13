@@ -307,5 +307,17 @@
 			snps,data-width = <2>;
 			status = "disabled";
 		};
+
+		rtc@5025000 {
+			compatible = "sophgo,cv1800b-rtc", "syscon";
+			reg = <0x5025000 0x2000>;
+			interrupts = <SOC_PERIPHERAL_IRQ(1) IRQ_TYPE_LEVEL_HIGH>,
+				     <SOC_PERIPHERAL_IRQ(2) IRQ_TYPE_LEVEL_HIGH>,
+				     <SOC_PERIPHERAL_IRQ(3) IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "alarm", "longpress", "vbat";
+			clocks = <&clk CLK_RTC_25M>,
+				 <&clk CLK_SRC_RTC_SYS_0>;
+			clock-names = "rtc", "mcu";
+		};
 	};
 };
