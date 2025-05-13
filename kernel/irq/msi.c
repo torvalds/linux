@@ -912,6 +912,32 @@ struct irq_domain *msi_create_irq_domain(struct fwnode_handle *fwnode,
 }
 
 /**
+ * msi_create_parent_irq_domain - Create an MSI-parent interrupt domain
+ * @info:		MSI irqdomain creation info
+ * @msi_parent_ops:	MSI parent callbacks and configuration
+ *
+ * Return: pointer to the created &struct irq_domain or %NULL on failure
+ */
+struct irq_domain *msi_create_parent_irq_domain(struct irq_domain_info *info,
+						const struct msi_parent_ops *msi_parent_ops)
+{
+	struct irq_domain *d;
+
+	info->hwirq_max		= max(info->hwirq_max, info->size);
+	info->size		= info->hwirq_max;
+	info->domain_flags	|= IRQ_DOMAIN_FLAG_MSI_PARENT;
+	info->bus_token		= msi_parent_ops->bus_select_token;
+
+	d = irq_domain_instantiate(info);
+	if (IS_ERR(d))
+		return NULL;
+
+	d->msi_parent_ops = msi_parent_ops;
+	return d;
+}
+EXPORT_SYMBOL_GPL(msi_create_parent_irq_domain);
+
+/**
  * msi_parent_init_dev_msi_info - Delegate initialization of device MSI info down
  *				  in the domain hierarchy
  * @dev:		The device for which the domain should be created
