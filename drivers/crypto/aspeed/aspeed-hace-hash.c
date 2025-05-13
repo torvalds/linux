@@ -73,10 +73,10 @@ static const __be64 sha512_iv[8] = {
  *  - if message length < 112 bytes then padlen = 112 - message length
  *  - else padlen = 128 + 112 - message length
  */
-static void aspeed_ahash_fill_padding(struct aspeed_hace_dev *hace_dev,
-				      struct aspeed_sham_reqctx *rctx)
+static int aspeed_ahash_fill_padding(struct aspeed_hace_dev *hace_dev,
+				     struct aspeed_sham_reqctx *rctx, u8 *buf)
 {
-	unsigned int index, padlen;
+	unsigned int index, padlen, bitslen;
 	__be64 bits[2];
 
 	AHASH_DBG(hace_dev, "rctx flags:0x%x\n", (u32)rctx->flags);
@@ -86,25 +86,23 @@ static void aspeed_ahash_fill_padding(struct aspeed_hace_dev *hace_dev,
 	case SHA_FLAGS_SHA224:
 	case SHA_FLAGS_SHA256:
 		bits[0] = cpu_to_be64(rctx->digcnt[0] << 3);
-		index = rctx->bufcnt & 0x3f;
+		index = rctx->digcnt[0] & 0x3f;
 		padlen = (index < 56) ? (56 - index) : ((64 + 56) - index);
-		*(rctx->buffer + rctx->bufcnt) = 0x80;
-		memset(rctx->buffer + rctx->bufcnt + 1, 0, padlen - 1);
-		memcpy(rctx->buffer + rctx->bufcnt + padlen, bits, 8);
-		rctx->bufcnt += padlen + 8;
+		bitslen = 8;
 		break;
 	default:
 		bits[1] = cpu_to_be64(rctx->digcnt[0] << 3);
 		bits[0] = cpu_to_be64(rctx->digcnt[1] << 3 |
 				      rctx->digcnt[0] >> 61);
-		index = rctx->bufcnt & 0x7f;
+		index = rctx->digcnt[0] & 0x7f;
 		padlen = (index < 112) ? (112 - index) : ((128 + 112) - index);
-		*(rctx->buffer + rctx->bufcnt) = 0x80;
-		memset(rctx->buffer + rctx->bufcnt + 1, 0, padlen - 1);
-		memcpy(rctx->buffer + rctx->bufcnt + padlen, bits, 16);
-		rctx->bufcnt += padlen + 16;
+		bitslen = 16;
 		break;
 	}
+	buf[0] = 0x80;
+	memset(buf + 1, 0, padlen - 1);
+	memcpy(buf + padlen, bits, bitslen);
+	return padlen + bitslen;
 }
 
 /*
@@ -346,7 +344,8 @@ static int aspeed_ahash_req_final(struct aspeed_hace_dev *hace_dev)
 
 	AHASH_DBG(hace_dev, "\n");
 
-	aspeed_ahash_fill_padding(hace_dev, rctx);
+	rctx->bufcnt += aspeed_ahash_fill_padding(hace_dev, rctx,
+						  rctx->buffer + rctx->bufcnt);
 
 	rctx->digest_dma_addr = dma_map_single(hace_dev->dev,
 					       rctx->digest,
