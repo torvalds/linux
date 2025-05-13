@@ -442,8 +442,16 @@ int ovpn_udp_socket_attach(struct ovpn_socket *ovpn_sock,
  */
 void ovpn_udp_socket_detach(struct ovpn_socket *ovpn_sock)
 {
-	struct udp_tunnel_sock_cfg cfg = { };
+	struct sock *sk = ovpn_sock->sock->sk;
 
-	setup_udp_tunnel_sock(sock_net(ovpn_sock->sock->sk), ovpn_sock->sock,
-			      &cfg);
+	/* Re-enable multicast loopback */
+	inet_set_bit(MC_LOOP, sk);
+	/* Disable CHECKSUM_UNNECESSARY to CHECKSUM_COMPLETE conversion */
+	inet_dec_convert_csum(sk);
+
+	WRITE_ONCE(udp_sk(sk)->encap_type, 0);
+	WRITE_ONCE(udp_sk(sk)->encap_rcv, NULL);
+	WRITE_ONCE(udp_sk(sk)->encap_destroy, NULL);
+
+	rcu_assign_sk_user_data(sk, NULL);
 }
