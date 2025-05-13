@@ -197,8 +197,8 @@ Dispatch Queues
 To match the impedance between the scheduler core and the BPF scheduler,
 sched_ext uses DSQs (dispatch queues) which can operate as both a FIFO and a
 priority queue. By default, there is one global FIFO (``SCX_DSQ_GLOBAL``),
-and one local dsq per CPU (``SCX_DSQ_LOCAL``). The BPF scheduler can manage
-an arbitrary number of dsq's using ``scx_bpf_create_dsq()`` and
+and one local DSQ per CPU (``SCX_DSQ_LOCAL``). The BPF scheduler can manage
+an arbitrary number of DSQs using ``scx_bpf_create_dsq()`` and
 ``scx_bpf_destroy_dsq()``.
 
 A CPU always executes a task from its local DSQ. A task is "inserted" into a
