@@ -23,17 +23,197 @@ static void hws_matcher_destroy_end_ft(struct mlx5hws_matcher *matcher)
 	mlx5hws_table_destroy_default_ft(matcher->tbl, matcher->end_ft_id);
 }
 
+int mlx5hws_matcher_update_end_ft_isolated(struct mlx5hws_table *tbl,
+					   u32 miss_ft_id)
+{
+	struct mlx5hws_matcher *tmp_matcher;
+
+	if (list_empty(&tbl->matchers_list))
+		return -EINVAL;
+
+	/* Update isolated_matcher_end_ft_id attribute for all
+	 * the matchers in isolated table.
+	 */
+	list_for_each_entry(tmp_matcher, &tbl->matchers_list, list_node)
+		tmp_matcher->attr.isolated_matcher_end_ft_id = miss_ft_id;
+
+	tmp_matcher = list_last_entry(&tbl->matchers_list,
+				      struct mlx5hws_matcher,
+				      list_node);
+
+	return mlx5hws_table_ft_set_next_ft(tbl->ctx,
+					    tmp_matcher->end_ft_id,
+					    tbl->fw_ft_type,
+					    miss_ft_id);
+}
+
+static int hws_matcher_connect_end_ft_isolated(struct mlx5hws_matcher *matcher)
+{
+	struct mlx5hws_table *tbl = matcher->tbl;
+	u32 end_ft_id;
+	int ret;
+
+	/* Reset end_ft next RTCs */
+	ret = mlx5hws_table_ft_set_next_rtc(tbl->ctx,
+					    matcher->end_ft_id,
+					    matcher->tbl->fw_ft_type,
+					    0, 0);
+	if (ret) {
+		mlx5hws_err(tbl->ctx, "Isolated matcher: failed to reset FT's next RTCs\n");
+		return ret;
+	}
+
+	/* Connect isolated matcher's end_ft to the complex matcher's end FT */
+	end_ft_id = matcher->attr.isolated_matcher_end_ft_id;
+	ret = mlx5hws_table_ft_set_next_ft(tbl->ctx,
+					   matcher->end_ft_id,
+					   matcher->tbl->fw_ft_type,
+					   end_ft_id);
+
+	if (ret) {
+		mlx5hws_err(tbl->ctx, "Isolated matcher: failed to set FT's miss_ft_id\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int hws_matcher_create_end_ft_isolated(struct mlx5hws_matcher *matcher)
+{
+	struct mlx5hws_table *tbl = matcher->tbl;
+	int ret;
+
+	ret = mlx5hws_table_create_default_ft(tbl->ctx->mdev,
+					      tbl,
+					      &matcher->end_ft_id);
+	if (ret) {
+		mlx5hws_err(tbl->ctx, "Isolated matcher: failed to create end flow table\n");
+		return ret;
+	}
+
+	ret = hws_matcher_connect_end_ft_isolated(matcher);
+	if (ret) {
+		mlx5hws_err(tbl->ctx, "Isolated matcher: failed to connect end FT\n");
+		goto destroy_default_ft;
+	}
+
+	return 0;
+
+destroy_default_ft:
+	mlx5hws_table_destroy_default_ft(tbl, matcher->end_ft_id);
+	return ret;
+}
+
 static int hws_matcher_create_end_ft(struct mlx5hws_matcher *matcher)
 {
 	struct mlx5hws_table *tbl = matcher->tbl;
 	int ret;
 
-	ret = mlx5hws_table_create_default_ft(tbl->ctx->mdev, tbl, &matcher->end_ft_id);
+	if (mlx5hws_matcher_is_isolated(matcher))
+		ret = hws_matcher_create_end_ft_isolated(matcher);
+	else
+		ret = mlx5hws_table_create_default_ft(tbl->ctx->mdev, tbl,
+						      &matcher->end_ft_id);
+
 	if (ret) {
 		mlx5hws_err(tbl->ctx, "Failed to create matcher end flow table\n");
 		return ret;
 	}
+
 	return 0;
+}
+
+static int hws_matcher_connect_isolated_first(struct mlx5hws_matcher *matcher)
+{
+	struct mlx5hws_table *tbl = matcher->tbl;
+	struct mlx5hws_context *ctx = tbl->ctx;
+	int ret;
+
+	/* Isolated matcher's end_ft is already pointing to the end_ft
+	 * of the complex matcher - it was set at creation of end_ft,
+	 * so no need to connect it.
+	 * We still need to connect the isolated table's start FT to
+	 * this matcher's RTC.
+	 */
+	ret = mlx5hws_table_ft_set_next_rtc(ctx,
+					    tbl->ft_id,
+					    tbl->fw_ft_type,
+					    matcher->match_ste.rtc_0_id,
+					    matcher->match_ste.rtc_1_id);
+	if (ret) {
+		mlx5hws_err(ctx, "Isolated matcher: failed to connect start FT to match RTC\n");
+		return ret;
+	}
+
+	/* Reset table's FT default miss (drop refcount) */
+	ret = mlx5hws_table_ft_set_default_next_ft(tbl, tbl->ft_id);
+	if (ret) {
+		mlx5hws_err(ctx, "Isolated matcher: failed to reset table ft default miss\n");
+		return ret;
+	}
+
+	list_add(&matcher->list_node, &tbl->matchers_list);
+
+	return ret;
+}
+
+static int hws_matcher_connect_isolated_last(struct mlx5hws_matcher *matcher)
+{
+	struct mlx5hws_table *tbl = matcher->tbl;
+	struct mlx5hws_context *ctx = tbl->ctx;
+	struct mlx5hws_matcher *last;
+	int ret;
+
+	last = list_last_entry(&tbl->matchers_list,
+			       struct mlx5hws_matcher,
+			       list_node);
+
+	/* New matcher's end_ft is already pointing to the end_ft of
+	 * the complex matcher.
+	 * Connect previous matcher's end_ft to this new matcher RTC.
+	 */
+	ret = mlx5hws_table_ft_set_next_rtc(ctx,
+					    last->end_ft_id,
+					    tbl->fw_ft_type,
+					    matcher->match_ste.rtc_0_id,
+					    matcher->match_ste.rtc_1_id);
+	if (ret) {
+		mlx5hws_err(ctx,
+			    "Isolated matcher: failed to connect matcher end_ft to new match RTC\n");
+		return ret;
+	}
+
+	/* Reset prev matcher FT default miss (drop refcount) */
+	ret = mlx5hws_table_ft_set_default_next_ft(tbl, last->end_ft_id);
+	if (ret) {
+		mlx5hws_err(ctx, "Isolated matcher: failed to reset matcher ft default miss\n");
+		return ret;
+	}
+
+	/* Insert after the last matcher */
+	list_add(&matcher->list_node, &last->list_node);
+
+	return 0;
+}
+
+static int hws_matcher_connect_isolated(struct mlx5hws_matcher *matcher)
+{
+	/* Isolated matcher is expected to be the only one in its table.
+	 * However, it can have a collision matcher, and it can go through
+	 * rehash process, in which case we will temporary have both old and
+	 * new matchers in the isolated table.
+	 * Check if this is the first matcher in the isolated table.
+	 */
+	if (list_empty(&matcher->tbl->matchers_list))
+		return hws_matcher_connect_isolated_first(matcher);
+
+	/* If this wasn't the first matcher, then we have 3 possible cases:
+	 *  - this is a collision matcher for the first matcher
+	 *  - this is a new rehash dest matcher
+	 *  - this is a collision matcher for the new rehash dest matcher
+	 * The logic to add new matcher is the same for all these cases.
+	 */
+	return hws_matcher_connect_isolated_last(matcher);
 }
 
 static int hws_matcher_connect(struct mlx5hws_matcher *matcher)
@@ -44,6 +224,9 @@ static int hws_matcher_connect(struct mlx5hws_matcher *matcher)
 	struct mlx5hws_matcher *next = NULL;
 	struct mlx5hws_matcher *tmp_matcher;
 	int ret;
+
+	if (mlx5hws_matcher_is_isolated(matcher))
+		return hws_matcher_connect_isolated(matcher);
 
 	/* Find location in matcher list */
 	if (list_empty(&tbl->matchers_list)) {
@@ -121,12 +304,101 @@ remove_from_list:
 	return ret;
 }
 
+static int hws_matcher_disconnect_isolated(struct mlx5hws_matcher *matcher)
+{
+	struct mlx5hws_matcher *first, *last, *prev, *next;
+	struct mlx5hws_table *tbl = matcher->tbl;
+	struct mlx5hws_context *ctx = tbl->ctx;
+	u32 end_ft_id;
+	int ret;
+
+	first = list_first_entry(&tbl->matchers_list,
+				 struct mlx5hws_matcher,
+				 list_node);
+	last = list_last_entry(&tbl->matchers_list,
+			       struct mlx5hws_matcher,
+			       list_node);
+	prev = list_prev_entry(matcher, list_node);
+	next = list_next_entry(matcher, list_node);
+
+	list_del_init(&matcher->list_node);
+
+	if (first == last) {
+		/* This was the only matcher in the list.
+		 * Reset isolated table FT next RTCs and connect it
+		 * to the whole complex matcher end FT instead.
+		 */
+		ret = mlx5hws_table_ft_set_next_rtc(ctx,
+						    tbl->ft_id,
+						    tbl->fw_ft_type,
+						    0, 0);
+		if (ret) {
+			mlx5hws_err(tbl->ctx, "Isolated matcher: failed to reset FT's next RTCs\n");
+			return ret;
+		}
+
+		end_ft_id = matcher->attr.isolated_matcher_end_ft_id;
+		ret = mlx5hws_table_ft_set_next_ft(tbl->ctx,
+						   tbl->ft_id,
+						   tbl->fw_ft_type,
+						   end_ft_id);
+		if (ret) {
+			mlx5hws_err(tbl->ctx, "Isolated matcher: failed to set FT's miss_ft_id\n");
+			return ret;
+		}
+
+		return 0;
+	}
+
+	/* At this point we know that there are more matchers in the list */
+
+	if (matcher == first) {
+		/* We've disconnected the first matcher.
+		 * Now update isolated table default FT.
+		 */
+		if (!next)
+			return -EINVAL;
+		return mlx5hws_table_ft_set_next_rtc(ctx,
+						     tbl->ft_id,
+						     tbl->fw_ft_type,
+						     next->match_ste.rtc_0_id,
+						     next->match_ste.rtc_1_id);
+	}
+
+	if (matcher == last) {
+		/* If we've disconnected the last matcher - update prev
+		 * matcher's end_ft to point to the complex matcher end_ft.
+		 */
+		if (!prev)
+			return -EINVAL;
+		return hws_matcher_connect_end_ft_isolated(prev);
+	}
+
+	/* This wasn't the first or the last matcher, which means that it has
+	 * both prev and next matchers. Note that this only happens if we're
+	 * disconnecting collision matcher of the old matcher during rehash.
+	 */
+	if (!prev || !next ||
+	    !(matcher->flags & MLX5HWS_MATCHER_FLAGS_COLLISION))
+		return -EINVAL;
+
+	/* Update prev end FT to point to next match RTC */
+	return mlx5hws_table_ft_set_next_rtc(ctx,
+					     prev->end_ft_id,
+					     tbl->fw_ft_type,
+					     next->match_ste.rtc_0_id,
+					     next->match_ste.rtc_1_id);
+}
+
 static int hws_matcher_disconnect(struct mlx5hws_matcher *matcher)
 {
 	struct mlx5hws_matcher *next = NULL, *prev = NULL;
 	struct mlx5hws_table *tbl = matcher->tbl;
 	u32 prev_ft_id = tbl->ft_id;
 	int ret;
+
+	if (mlx5hws_matcher_is_isolated(matcher))
+		return hws_matcher_disconnect_isolated(matcher);
 
 	if (!list_is_first(&matcher->list_node, &tbl->matchers_list)) {
 		prev = list_prev_entry(matcher, list_node);
@@ -531,6 +803,8 @@ hws_matcher_process_attr(struct mlx5hws_cmd_query_caps *caps,
 		attr->table.sz_col_log = hws_matcher_rules_to_tbl_depth(attr->rule.num_log);
 
 	matcher->flags |= attr->resizable ? MLX5HWS_MATCHER_FLAGS_RESIZABLE : 0;
+	matcher->flags |= attr->isolated_matcher_end_ft_id ?
+			  MLX5HWS_MATCHER_FLAGS_ISOLATED : 0;
 
 	return hws_matcher_check_attr_sz(caps, matcher);
 }
@@ -617,6 +891,8 @@ hws_matcher_create_col_matcher(struct mlx5hws_matcher *matcher)
 		col_matcher->attr.table.sz_row_log -= MLX5HWS_MATCHER_ASSURED_ROW_RATIO;
 
 	col_matcher->attr.max_num_of_at_attach = matcher->attr.max_num_of_at_attach;
+	col_matcher->attr.isolated_matcher_end_ft_id =
+		matcher->attr.isolated_matcher_end_ft_id;
 
 	ret = hws_matcher_process_attr(ctx->caps, col_matcher);
 	if (ret)
