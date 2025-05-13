@@ -40,6 +40,10 @@ static int k3_dsp_rproc_prepare(struct rproc *rproc)
 	struct device *dev = kproc->dev;
 	int ret;
 
+	/* If the core is running already no need to deassert the module reset */
+	if (rproc->state == RPROC_DETACHED)
+		return 0;
+
 	ret = kproc->ti_sci->ops.dev_ops.get_device(kproc->ti_sci,
 						    kproc->ti_sci_id);
 	if (ret)
@@ -63,6 +67,10 @@ static int k3_dsp_rproc_unprepare(struct rproc *rproc)
 	struct k3_rproc *kproc = rproc->priv;
 	struct device *dev = kproc->dev;
 	int ret;
+
+	/* If the core is running already no need to deassert the module reset */
+	if (rproc->state == RPROC_DETACHED)
+		return 0;
 
 	ret = kproc->ti_sci->ops.dev_ops.put_device(kproc->ti_sci,
 						    kproc->ti_sci_id);
@@ -232,10 +240,13 @@ static void *k3_dsp_rproc_da_to_va(struct rproc *rproc, u64 da, size_t len, bool
 }
 
 static const struct rproc_ops k3_dsp_rproc_ops = {
-	.start		= k3_dsp_rproc_start,
-	.stop		= k3_dsp_rproc_stop,
-	.kick		= k3_rproc_kick,
-	.da_to_va	= k3_dsp_rproc_da_to_va,
+	.start			= k3_dsp_rproc_start,
+	.stop			= k3_dsp_rproc_stop,
+	.attach			= k3_dsp_rproc_attach,
+	.detach			= k3_dsp_rproc_detach,
+	.kick			= k3_rproc_kick,
+	.da_to_va		= k3_dsp_rproc_da_to_va,
+	.get_loaded_rsc_table	= k3_dsp_get_loaded_rsc_table,
 };
 
 static int k3_dsp_rproc_of_get_memories(struct platform_device *pdev,
@@ -458,14 +469,6 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 	if (p_state) {
 		dev_info(dev, "configured DSP for IPC-only mode\n");
 		rproc->state = RPROC_DETACHED;
-		/* override rproc ops with only required IPC-only mode ops */
-		rproc->ops->prepare = NULL;
-		rproc->ops->unprepare = NULL;
-		rproc->ops->start = NULL;
-		rproc->ops->stop = NULL;
-		rproc->ops->attach = k3_dsp_rproc_attach;
-		rproc->ops->detach = k3_dsp_rproc_detach;
-		rproc->ops->get_loaded_rsc_table = k3_dsp_get_loaded_rsc_table;
 	} else {
 		dev_info(dev, "configured DSP for remoteproc mode\n");
 		/*
