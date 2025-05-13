@@ -60,6 +60,7 @@ struct k3_m4_rproc_mem_data {
  * @ti_sci_id: TI-SCI device identifier
  * @mbox: mailbox channel handle
  * @client: mailbox client to request the mailbox channel
+ * @priv: Remote processor private data
  */
 struct k3_m4_rproc {
 	struct device *dev;
@@ -73,6 +74,7 @@ struct k3_m4_rproc {
 	u32 ti_sci_id;
 	struct mbox_chan *mbox;
 	struct mbox_client client;
+	void *priv;
 };
 
 /**
