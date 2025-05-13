@@ -4,7 +4,6 @@
 #include <asm/bootparam_utils.h>
 #include <asm/e820/types.h>
 #include <asm/processor.h>
-#include "pgtable.h"
 #include "../string.h"
 #include "efi.h"
 

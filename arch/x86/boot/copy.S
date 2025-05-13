@@ -22,10 +22,10 @@ SYM_FUNC_START_NOALIGN(memcpy)
 	movw	%dx, %si
 	pushw	%cx
 	shrw	$2, %cx
-	rep; movsl
+	rep movsl
 	popw	%cx
 	andw	$3, %cx
-	rep; movsb
+	rep movsb
 	popw	%di
 	popw	%si
 	retl
@@ -38,10 +38,10 @@ SYM_FUNC_START_NOALIGN(memset)
 	imull	$0x01010101,%eax
 	pushw	%cx
 	shrw	$2, %cx
-	rep; stosl
+	rep stosl
 	popw	%cx
 	andw	$3, %cx
-	rep; stosb
+	rep stosb
 	popw	%di
 	retl
 SYM_FUNC_END(memset)

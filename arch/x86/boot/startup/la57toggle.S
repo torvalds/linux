@@ -5,7 +5,6 @@
 #include <asm/boot.h>
 #include <asm/msr.h>
 #include <asm/processor-flags.h>
-#include "pgtable.h"
 
 /*
  * This is the 32-bit trampoline that will be copied over to low memory. It

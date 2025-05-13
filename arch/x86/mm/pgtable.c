@@ -10,6 +10,7 @@
 #ifdef CONFIG_DYNAMIC_PHYSICAL_MASK
 phys_addr_t physical_mask __ro_after_init = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
 EXPORT_SYMBOL(physical_mask);
+SYM_PIC_ALIAS(physical_mask);
 #endif
 
 pgtable_t pte_alloc_one(struct mm_struct *mm)

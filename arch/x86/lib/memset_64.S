@@ -42,6 +42,7 @@ SYM_FUNC_END(__memset)
 EXPORT_SYMBOL(__memset)
 
 SYM_FUNC_ALIAS_MEMFUNC(memset, __memset)
+SYM_PIC_ALIAS(memset)
 EXPORT_SYMBOL(memset)
 
 SYM_FUNC_START_LOCAL(memset_orig)

@@ -585,7 +585,7 @@ start_of_setup:
 	xorl	%eax, %eax
 	subw	%di, %cx
 	shrw	$2, %cx
-	rep; stosl
+	rep stosl
 
 # Jump to C code (should not return)
 	calll	main
