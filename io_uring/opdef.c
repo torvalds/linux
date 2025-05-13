@@ -333,13 +333,13 @@ const struct io_issue_def io_issue_defs[] = {
 		.audit_skip		= 1,
 		.iopoll			= 1,
 		.prep			= io_provide_buffers_prep,
-		.issue			= io_provide_buffers,
+		.issue			= io_manage_buffers_legacy,
 	},
 	[IORING_OP_REMOVE_BUFFERS] = {
 		.audit_skip		= 1,
 		.iopoll			= 1,
 		.prep			= io_remove_buffers_prep,
-		.issue			= io_remove_buffers,
+		.issue			= io_manage_buffers_legacy,
 	},
 	[IORING_OP_TEE] = {
 		.needs_file		= 1,

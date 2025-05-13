@@ -66,10 +66,8 @@ int io_buffers_peek(struct io_kiocb *req, struct buf_sel_arg *arg);
 void io_destroy_buffers(struct io_ring_ctx *ctx);
 
 int io_remove_buffers_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
-int io_remove_buffers(struct io_kiocb *req, unsigned int issue_flags);
-
 int io_provide_buffers_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
-int io_provide_buffers(struct io_kiocb *req, unsigned int issue_flags);
+int io_manage_buffers_legacy(struct io_kiocb *req, unsigned int issue_flags);
 
 int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg);
 int io_unregister_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg);

@@ -450,30 +450,6 @@ int io_remove_buffers_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
-int io_remove_buffers(struct io_kiocb *req, unsigned int issue_flags)
-{
-	struct io_provide_buf *p = io_kiocb_to_cmd(req, struct io_provide_buf);
-	struct io_ring_ctx *ctx = req->ctx;
-	struct io_buffer_list *bl;
-	int ret = 0;
-
-	io_ring_submit_lock(ctx, issue_flags);
-
-	ret = -ENOENT;
-	bl = io_buffer_get_list(ctx, p->bgid);
-	if (bl) {
-		ret = -EINVAL;
-		/* can't use provide/remove buffers command on mapped buffers */
-		if (!(bl->flags & IOBL_BUF_RING))
-			ret = io_remove_buffers_legacy(ctx, bl, p->nbufs);
-	}
-	io_ring_submit_unlock(ctx, issue_flags);
-	if (ret < 0)
-		req_set_fail(req);
-	io_req_set_res(req, ret, 0);
-	return IOU_OK;
-}
-
 int io_provide_buffers_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	unsigned long size, tmp_check;
@@ -535,37 +511,44 @@ static int io_add_buffers(struct io_ring_ctx *ctx, struct io_provide_buf *pbuf,
 	return i ? 0 : -ENOMEM;
 }
 
-int io_provide_buffers(struct io_kiocb *req, unsigned int issue_flags)
+static int __io_manage_buffers_legacy(struct io_kiocb *req,
+					struct io_buffer_list *bl)
+{
+	struct io_provide_buf *p = io_kiocb_to_cmd(req, struct io_provide_buf);
+	int ret;
+
+	if (!bl) {
+		if (req->opcode != IORING_OP_PROVIDE_BUFFERS)
+			return -ENOENT;
+		bl = kzalloc(sizeof(*bl), GFP_KERNEL_ACCOUNT);
+		if (!bl)
+			return -ENOMEM;
+
+		INIT_LIST_HEAD(&bl->buf_list);
+		ret = io_buffer_add_list(req->ctx, bl, p->bgid);
+		if (ret) {
+			kfree(bl);
+			return ret;
+		}
+	}
+	/* can't use provide/remove buffers command on mapped buffers */
+	if (bl->flags & IOBL_BUF_RING)
+		return -EINVAL;
+	if (req->opcode == IORING_OP_PROVIDE_BUFFERS)
+		return io_add_buffers(req->ctx, p, bl);
+	return io_remove_buffers_legacy(req->ctx, bl, p->nbufs);
+}
+
+int io_manage_buffers_legacy(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_provide_buf *p = io_kiocb_to_cmd(req, struct io_provide_buf);
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_buffer_list *bl;
-	int ret = 0;
+	int ret;
 
 	io_ring_submit_lock(ctx, issue_flags);
-
 	bl = io_buffer_get_list(ctx, p->bgid);
-	if (unlikely(!bl)) {
-		bl = kzalloc(sizeof(*bl), GFP_KERNEL_ACCOUNT);
-		if (!bl) {
-			ret = -ENOMEM;
-			goto err;
-		}
-		INIT_LIST_HEAD(&bl->buf_list);
-		ret = io_buffer_add_list(ctx, bl, p->bgid);
-		if (ret) {
-			kfree(bl);
-			goto err;
-		}
-	}
-	/* can't add buffers via this command for a mapped buffer ring */
-	if (bl->flags & IOBL_BUF_RING) {
-		ret = -EINVAL;
-		goto err;
-	}
-
-	ret = io_add_buffers(ctx, p, bl);
-err:
+	ret = __io_manage_buffers_legacy(req, bl);
 	io_ring_submit_unlock(ctx, issue_flags);
 
 	if (ret < 0)
