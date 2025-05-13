@@ -516,7 +516,7 @@ static void __mmu_config_save(struct mmu_config *config)
 
 static void __mmu_config_restore(struct mmu_config *config)
 {
-	write_sysreg(config->hcr,	hcr_el2);
+	write_sysreg_hcr(config->hcr);
 
 	/*
 	 * ARM errata 1165522 and 1530923 require TGE to be 1 before
@@ -1267,7 +1267,7 @@ static u64 __kvm_at_s1e01_fast(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 
 skip_mmu_switch:
 	/* Clear TGE, enable S2 translation, we're rolling */
-	write_sysreg((config.hcr & ~HCR_TGE) | HCR_VM,	hcr_el2);
+	write_sysreg_hcr((config.hcr & ~HCR_TGE) | HCR_VM);
 	isb();
 
 	switch (op) {
@@ -1350,7 +1350,7 @@ void __kvm_at_s1e2(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 		if (!vcpu_el2_e2h_is_set(vcpu))
 			val |= HCR_NV | HCR_NV1;
 
-		write_sysreg(val, hcr_el2);
+		write_sysreg_hcr(val);
 		isb();
 
 		par = SYS_PAR_EL1_F;
@@ -1375,7 +1375,7 @@ void __kvm_at_s1e2(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 		if (!fail)
 			par = read_sysreg_par();
 
-		write_sysreg(hcr, hcr_el2);
+		write_sysreg_hcr(hcr);
 		isb();
 	}
 
