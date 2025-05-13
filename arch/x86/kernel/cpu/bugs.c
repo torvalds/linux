@@ -2942,7 +2942,9 @@ static void __init srso_update_mitigation(void)
 	    boot_cpu_has(X86_FEATURE_IBPB_BRTYPE))
 		srso_mitigation = SRSO_MITIGATION_IBPB;
 
-	if (boot_cpu_has_bug(X86_BUG_SRSO) && !cpu_mitigations_off())
+	if (boot_cpu_has_bug(X86_BUG_SRSO) &&
+	    !cpu_mitigations_off() &&
+	    !boot_cpu_has(X86_FEATURE_SRSO_NO))
 		pr_info("%s\n", srso_strings[srso_mitigation]);
 }
 
