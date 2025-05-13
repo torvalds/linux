@@ -591,7 +591,7 @@ err:
 int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 {
 	struct io_uring_buf_reg reg;
-	struct io_buffer_list *bl, *free_bl = NULL;
+	struct io_buffer_list *bl;
 	struct io_uring_region_desc rd;
 	struct io_uring_buf_ring *br;
 	unsigned long mmap_offset;
@@ -620,7 +620,7 @@ int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 		io_destroy_bl(ctx, bl);
 	}
 
-	free_bl = bl = kzalloc(sizeof(*bl), GFP_KERNEL_ACCOUNT);
+	bl = kzalloc(sizeof(*bl), GFP_KERNEL_ACCOUNT);
 	if (!bl)
 		return -ENOMEM;
 
@@ -665,7 +665,7 @@ int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 	return 0;
 fail:
 	io_free_region(ctx, &bl->region);
-	kfree(free_bl);
+	kfree(bl);
 	return ret;
 }
 
