@@ -3136,8 +3136,7 @@ extern int ext4_read_bh_lock(struct buffer_head *bh, blk_opf_t op_flags, bool wa
 extern void ext4_sb_breadahead_unmovable(struct super_block *sb, sector_t block);
 extern int ext4_seq_options_show(struct seq_file *seq, void *offset);
 extern int ext4_calculate_overhead(struct super_block *sb);
-extern __le32 ext4_superblock_csum(struct super_block *sb,
-				   struct ext4_super_block *es);
+extern __le32 ext4_superblock_csum(struct ext4_super_block *es);
 extern void ext4_superblock_csum_set(struct super_block *sb);
 extern int ext4_alloc_flex_bg_array(struct super_block *sb,
 				    ext4_group_t ngroup);

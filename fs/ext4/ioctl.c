@@ -143,7 +143,7 @@ static int ext4_update_backup_sb(struct super_block *sb,
 	es = (struct ext4_super_block *) (bh->b_data + offset);
 	lock_buffer(bh);
 	if (ext4_has_feature_metadata_csum(sb) &&
-	    es->s_checksum != ext4_superblock_csum(sb, es)) {
+	    es->s_checksum != ext4_superblock_csum(es)) {
 		ext4_msg(sb, KERN_ERR, "Invalid checksum for backup "
 		"superblock %llu", sb_block);
 		unlock_buffer(bh);
@@ -151,7 +151,7 @@ static int ext4_update_backup_sb(struct super_block *sb,
 	}
 	func(es, arg);
 	if (ext4_has_feature_metadata_csum(sb))
-		es->s_checksum = ext4_superblock_csum(sb, es);
+		es->s_checksum = ext4_superblock_csum(es);
 	set_buffer_uptodate(bh);
 	unlock_buffer(bh);
 

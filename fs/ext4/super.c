@@ -286,8 +286,7 @@ static int ext4_verify_csum_type(struct super_block *sb,
 	return es->s_checksum_type == EXT4_CRC32C_CHKSUM;
 }
 
-__le32 ext4_superblock_csum(struct super_block *sb,
-			    struct ext4_super_block *es)
+__le32 ext4_superblock_csum(struct ext4_super_block *es)
 {
 	int offset = offsetof(struct ext4_super_block, s_checksum);
 	__u32 csum;
@@ -303,7 +302,7 @@ static int ext4_superblock_csum_verify(struct super_block *sb,
 	if (!ext4_has_feature_metadata_csum(sb))
 		return 1;
 
-	return es->s_checksum == ext4_superblock_csum(sb, es);
+	return es->s_checksum == ext4_superblock_csum(es);
 }
 
 void ext4_superblock_csum_set(struct super_block *sb)
@@ -313,7 +312,7 @@ void ext4_superblock_csum_set(struct super_block *sb)
 	if (!ext4_has_feature_metadata_csum(sb))
 		return;
 
-	es->s_checksum = ext4_superblock_csum(sb, es);
+	es->s_checksum = ext4_superblock_csum(es);
 }
 
 ext4_fsblk_t ext4_block_bitmap(struct super_block *sb,
@@ -5912,7 +5911,7 @@ static struct file *ext4_get_journal_blkdev(struct super_block *sb,
 
 	if ((le32_to_cpu(es->s_feature_ro_compat) &
 	     EXT4_FEATURE_RO_COMPAT_METADATA_CSUM) &&
-	    es->s_checksum != ext4_superblock_csum(sb, es)) {
+	    es->s_checksum != ext4_superblock_csum(es)) {
 		ext4_msg(sb, KERN_ERR, "external journal has corrupt superblock");
 		errno = -EFSCORRUPTED;
 		goto out_bh;
