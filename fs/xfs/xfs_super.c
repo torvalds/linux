@@ -1954,13 +1954,6 @@ xfs_fs_fill_super(
 		}
 	}
 
-
-	if (xfs_has_exchange_range(mp))
-		xfs_warn_experimental(mp, XFS_EXPERIMENTAL_EXCHRANGE);
-
-	if (xfs_has_parent(mp))
-		xfs_warn_experimental(mp, XFS_EXPERIMENTAL_PPTR);
-
 	/*
 	 * If no quota mount options were provided, maybe we'll try to pick
 	 * up the quota accounting and enforcement flags from the ondisk sb.

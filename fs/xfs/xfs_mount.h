@@ -559,8 +559,6 @@ __XFS_HAS_FEAT(nouuid, NOUUID)
 
 /* Kernel has logged a warning about pNFS being used on this fs. */
 #define XFS_OPSTATE_WARNED_PNFS		7
-/* Kernel has logged a warning about online fsck being used on this fs. */
-#define XFS_OPSTATE_WARNED_SCRUB	8
 /* Kernel has logged a warning about shrink being used on this fs. */
 #define XFS_OPSTATE_WARNED_SHRINK	9
 /* Kernel has logged a warning about logged xattr updates being used. */
@@ -573,10 +571,6 @@ __XFS_HAS_FEAT(nouuid, NOUUID)
 #define XFS_OPSTATE_USE_LARP		13
 /* Kernel has logged a warning about blocksize > pagesize on this fs. */
 #define XFS_OPSTATE_WARNED_LBS		14
-/* Kernel has logged a warning about exchange-range being used on this fs. */
-#define XFS_OPSTATE_WARNED_EXCHRANGE	15
-/* Kernel has logged a warning about parent pointers being used on this fs. */
-#define XFS_OPSTATE_WARNED_PPTR		16
 /* Kernel has logged a warning about metadata dirs being used on this fs. */
 #define XFS_OPSTATE_WARNED_METADIR	17
 /* Filesystem should use qflags to determine quotaon status */
@@ -645,7 +639,6 @@ xfs_should_warn(struct xfs_mount *mp, long nr)
 	{ (1UL << XFS_OPSTATE_READONLY),		"read_only" }, \
 	{ (1UL << XFS_OPSTATE_INODEGC_ENABLED),		"inodegc" }, \
 	{ (1UL << XFS_OPSTATE_BLOCKGC_ENABLED),		"blockgc" }, \
-	{ (1UL << XFS_OPSTATE_WARNED_SCRUB),		"wscrub" }, \
 	{ (1UL << XFS_OPSTATE_WARNED_SHRINK),		"wshrink" }, \
 	{ (1UL << XFS_OPSTATE_WARNED_LARP),		"wlarp" }, \
 	{ (1UL << XFS_OPSTATE_QUOTACHECK_RUNNING),	"quotacheck" }, \
