@@ -508,6 +508,20 @@ static int aspeed_ahash_do_one(struct crypto_engine *engine, void *areq)
 	return aspeed_ahash_do_request(engine, areq);
 }
 
+static int aspeed_sham_final(struct ahash_request *req)
+{
+	struct aspeed_sham_reqctx *rctx = ahash_request_ctx(req);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct aspeed_sham_ctx *tctx = crypto_ahash_ctx(tfm);
+	struct aspeed_hace_dev *hace_dev = tctx->hace_dev;
+
+	AHASH_DBG(hace_dev, "req->nbytes:%d, rctx->total:%d\n",
+		  req->nbytes, rctx->total);
+	rctx->op = SHA_OP_FINAL;
+
+	return aspeed_hace_hash_handle_queue(hace_dev, req);
+}
+
 static int aspeed_sham_update(struct ahash_request *req)
 {
 	struct aspeed_sham_reqctx *rctx = ahash_request_ctx(req);
@@ -533,22 +547,9 @@ static int aspeed_sham_update(struct ahash_request *req)
 					 rctx->total, 0);
 		rctx->bufcnt += rctx->total;
 
-		return 0;
+		return rctx->flags & SHA_FLAGS_FINUP ?
+		       aspeed_sham_final(req) : 0;
 	}
-
-	return aspeed_hace_hash_handle_queue(hace_dev, req);
-}
-
-static int aspeed_sham_final(struct ahash_request *req)
-{
-	struct aspeed_sham_reqctx *rctx = ahash_request_ctx(req);
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct aspeed_sham_ctx *tctx = crypto_ahash_ctx(tfm);
-	struct aspeed_hace_dev *hace_dev = tctx->hace_dev;
-
-	AHASH_DBG(hace_dev, "req->nbytes:%d, rctx->total:%d\n",
-		  req->nbytes, rctx->total);
-	rctx->op = SHA_OP_FINAL;
 
 	return aspeed_hace_hash_handle_queue(hace_dev, req);
 }
@@ -559,23 +560,12 @@ static int aspeed_sham_finup(struct ahash_request *req)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct aspeed_sham_ctx *tctx = crypto_ahash_ctx(tfm);
 	struct aspeed_hace_dev *hace_dev = tctx->hace_dev;
-	int rc1, rc2;
 
 	AHASH_DBG(hace_dev, "req->nbytes: %d\n", req->nbytes);
 
 	rctx->flags |= SHA_FLAGS_FINUP;
 
-	rc1 = aspeed_sham_update(req);
-	if (rc1 == -EINPROGRESS || rc1 == -EBUSY)
-		return rc1;
-
-	/*
-	 * final() has to be always called to cleanup resources
-	 * even if update() failed, except EINPROGRESS
-	 */
-	rc2 = aspeed_sham_final(req);
-
-	return rc1 ? : rc2;
+	return aspeed_sham_update(req);
 }
 
 static int aspeed_sham_init(struct ahash_request *req)
