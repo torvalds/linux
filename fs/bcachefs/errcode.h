@@ -269,7 +269,7 @@
 	x(BCH_ERR_invalid_sb,		invalid_sb_downgrade)			\
 	x(BCH_ERR_invalid,		invalid_bkey)				\
 	x(BCH_ERR_operation_blocked,    nocow_lock_blocked)			\
-	x(EIO,				journal_shutdown)			\
+	x(EROFS,			journal_shutdown)			\
 	x(EIO,				journal_flush_err)			\
 	x(EIO,				journal_write_err)			\
 	x(EIO,				btree_node_read_err)			\
@@ -287,7 +287,7 @@
 	x(EIO,				mark_stripe)				\
 	x(EIO,				stripe_reconstruct)			\
 	x(EIO,				key_type_error)				\
-	x(EIO,				extent_poisened)			\
+	x(EIO,				extent_poisoned)			\
 	x(EIO,				missing_indirect_extent)		\
 	x(EIO,				invalidate_stripe_to_dev)		\
 	x(EIO,				no_encryption_key)			\

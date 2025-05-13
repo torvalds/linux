@@ -6,6 +6,7 @@
 #include "errcode.h"
 #include "error.h"
 #include "fs.h"
+#include "recovery_passes.h"
 #include "snapshot.h"
 #include "subvolume.h"
 
@@ -44,8 +45,8 @@ static int check_subvol(struct btree_trans *trans,
 	ret = bch2_snapshot_lookup(trans, snapid, &snapshot);
 
 	if (bch2_err_matches(ret, ENOENT))
-		bch_err(c, "subvolume %llu points to nonexistent snapshot %u",
-			k.k->p.offset, snapid);
+		return bch2_run_explicit_recovery_pass(c,
+					BCH_RECOVERY_PASS_reconstruct_snapshots) ?: ret;
 	if (ret)
 		return ret;
 

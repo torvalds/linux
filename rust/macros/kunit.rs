@@ -15,10 +15,7 @@ pub(crate) fn kunit_tests(attr: TokenStream, ts: TokenStream) -> TokenStream {
     }
 
     if attr.len() > 255 {
-        panic!(
-            "The test suite name `{}` exceeds the maximum length of 255 bytes",
-            attr
-        )
+        panic!("The test suite name `{attr}` exceeds the maximum length of 255 bytes")
     }
 
     let mut tokens: Vec<_> = ts.into_iter().collect();
@@ -102,16 +99,14 @@ pub(crate) fn kunit_tests(attr: TokenStream, ts: TokenStream) -> TokenStream {
     let mut kunit_macros = "".to_owned();
     let mut test_cases = "".to_owned();
     for test in &tests {
-        let kunit_wrapper_fn_name = format!("kunit_rust_wrapper_{}", test);
+        let kunit_wrapper_fn_name = format!("kunit_rust_wrapper_{test}");
         let kunit_wrapper = format!(
-            "unsafe extern \"C\" fn {}(_test: *mut kernel::bindings::kunit) {{ {}(); }}",
-            kunit_wrapper_fn_name, test
+            "unsafe extern \"C\" fn {kunit_wrapper_fn_name}(_test: *mut kernel::bindings::kunit) {{ {test}(); }}"
         );
         writeln!(kunit_macros, "{kunit_wrapper}").unwrap();
         writeln!(
             test_cases,
-            "    kernel::kunit::kunit_case(kernel::c_str!(\"{}\"), {}),",
-            test, kunit_wrapper_fn_name
+            "    kernel::kunit::kunit_case(kernel::c_str!(\"{test}\"), {kunit_wrapper_fn_name}),"
         )
         .unwrap();
     }

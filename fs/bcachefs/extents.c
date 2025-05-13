@@ -139,7 +139,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 
 	if (bch2_bkey_extent_ptrs_flags(ptrs) & BIT_ULL(BCH_EXTENT_FLAG_poisoned))
-		return -BCH_ERR_extent_poisened;
+		return -BCH_ERR_extent_poisoned;
 
 	rcu_read_lock();
 	const union bch_extent_entry *entry;
@@ -1056,8 +1056,9 @@ bch2_extent_has_ptr(struct bkey_s_c k1, struct extent_ptr_decoded p1, struct bke
 static bool want_cached_ptr(struct bch_fs *c, struct bch_io_opts *opts,
 			    struct bch_extent_ptr *ptr)
 {
-	if (!opts->promote_target ||
-	    !bch2_dev_in_target(c, ptr->dev, opts->promote_target))
+	unsigned target = opts->promote_target ?: opts->foreground_target;
+
+	if (target && !bch2_dev_in_target(c, ptr->dev, target))
 		return false;
 
 	struct bch_dev *ca = bch2_dev_rcu_noerror(c, ptr->dev);

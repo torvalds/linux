@@ -252,7 +252,10 @@ void bch2_journal_space_available(struct journal *j)
 
 	bch2_journal_set_watermark(j);
 out:
-	j->cur_entry_sectors	= !ret ? j->space[journal_space_discarded].next_entry : 0;
+	j->cur_entry_sectors	= !ret
+		? round_down(j->space[journal_space_discarded].next_entry,
+			     block_sectors(c))
+		: 0;
 	j->cur_entry_error	= ret;
 
 	if (!ret)
@@ -263,10 +266,11 @@ out:
 
 static bool should_discard_bucket(struct journal *j, struct journal_device *ja)
 {
-	bool ret;
-
 	spin_lock(&j->lock);
-	ret = ja->discard_idx != ja->dirty_idx_ondisk;
+	unsigned min_free = max(4, ja->nr / 8);
+
+	bool ret = bch2_journal_dev_buckets_available(j, ja, journal_space_discarded) < min_free &&
+		ja->discard_idx != ja->dirty_idx_ondisk;
 	spin_unlock(&j->lock);
 
 	return ret;

@@ -307,7 +307,7 @@ void __init hv_get_partition_id(void)
 
 	local_irq_save(flags);
 	output = *this_cpu_ptr(hyperv_pcpu_input_arg);
-	status = hv_do_hypercall(HVCALL_GET_PARTITION_ID, NULL, &output);
+	status = hv_do_hypercall(HVCALL_GET_PARTITION_ID, NULL, output);
 	pt_id = output->partition_id;
 	local_irq_restore(flags);
 
@@ -566,9 +566,11 @@ int hv_common_cpu_die(unsigned int cpu)
 	 * originally allocated memory is reused in hv_common_cpu_init().
 	 */
 
-	synic_eventring_tail = this_cpu_ptr(hv_synic_eventring_tail);
-	kfree(*synic_eventring_tail);
-	*synic_eventring_tail = NULL;
+	if (hv_root_partition()) {
+		synic_eventring_tail = this_cpu_ptr(hv_synic_eventring_tail);
+		kfree(*synic_eventring_tail);
+		*synic_eventring_tail = NULL;
+	}
 
 	return 0;
 }

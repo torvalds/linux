@@ -503,7 +503,7 @@ int host_stage2_set_owner_locked(phys_addr_t addr, u64 size, u8 owner_id)
 {
 	int ret;
 
-	if (!addr_is_memory(addr))
+	if (!range_is_memory(addr, addr + size))
 		return -EPERM;
 
 	ret = host_stage2_try(kvm_pgtable_stage2_set_owner, &host_mmu.pgt,
@@ -578,7 +578,14 @@ void handle_host_mem_abort(struct kvm_cpu_context *host_ctxt)
 		return;
 	}
 
-	addr = (fault.hpfar_el2 & HPFAR_MASK) << 8;
+
+	/*
+	 * Yikes, we couldn't resolve the fault IPA. This should reinject an
+	 * abort into the host when we figure out how to do that.
+	 */
+	BUG_ON(!(fault.hpfar_el2 & HPFAR_EL2_NS));
+	addr = FIELD_GET(HPFAR_EL2_FIPA, fault.hpfar_el2) << 12;
+
 	ret = host_stage2_idmap(addr);
 	BUG_ON(ret && ret != -EAGAIN);
 }

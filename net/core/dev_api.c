@@ -268,6 +268,29 @@ void dev_disable_lro(struct net_device *dev)
 EXPORT_SYMBOL(dev_disable_lro);
 
 /**
+ * dev_set_promiscuity() - update promiscuity count on a device
+ * @dev: device
+ * @inc: modifier
+ *
+ * Add or remove promiscuity from a device. While the count in the device
+ * remains above zero the interface remains promiscuous. Once it hits zero
+ * the device reverts back to normal filtering operation. A negative inc
+ * value is used to drop promiscuity on the device.
+ * Return 0 if successful or a negative errno code on error.
+ */
+int dev_set_promiscuity(struct net_device *dev, int inc)
+{
+	int ret;
+
+	netdev_lock_ops(dev);
+	ret = netif_set_promiscuity(dev, inc);
+	netdev_unlock_ops(dev);
+
+	return ret;
+}
+EXPORT_SYMBOL(dev_set_promiscuity);
+
+/**
  * dev_set_allmulti() - update allmulti count on a device
  * @dev: device
  * @inc: modifier
@@ -327,3 +350,19 @@ int dev_xdp_propagate(struct net_device *dev, struct netdev_bpf *bpf)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_xdp_propagate);
+
+/**
+ * netdev_state_change() - device changes state
+ * @dev: device to cause notification
+ *
+ * Called to indicate a device has changed state. This function calls
+ * the notifier chains for netdev_chain and sends a NEWLINK message
+ * to the routing socket.
+ */
+void netdev_state_change(struct net_device *dev)
+{
+	netdev_lock_ops(dev);
+	netif_state_change(dev);
+	netdev_unlock_ops(dev);
+}
+EXPORT_SYMBOL(netdev_state_change);

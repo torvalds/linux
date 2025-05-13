@@ -293,7 +293,7 @@ static void do_test_vmsplice_in_parent(char *mem, size_t size,
 		.iov_base = mem,
 		.iov_len = size,
 	};
-	ssize_t cur, total, transferred;
+	ssize_t cur, total, transferred = 0;
 	struct comm_pipes comm_pipes;
 	char *old, *new;
 	int ret, fds[2];

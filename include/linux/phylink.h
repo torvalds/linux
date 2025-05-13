@@ -361,23 +361,29 @@ int mac_finish(struct phylink_config *config, unsigned int mode,
 		phy_interface_t iface);
 
 /**
- * mac_link_down() - take the link down
+ * mac_link_down() - notification that the link has gone down
  * @config: a pointer to a &struct phylink_config.
  * @mode: link autonegotiation mode
  * @interface: link &typedef phy_interface_t mode
  *
- * If @mode is not an in-band negotiation mode (as defined by
- * phylink_autoneg_inband()), force the link down and disable any
- * Energy Efficient Ethernet MAC configuration. Interface type
- * selection must be done in mac_config().
+ * Notifies the MAC that the link has gone down. This will not be called
+ * unless mac_link_up() has been previously called.
+ *
+ * The MAC should stop processing packets for transmission and reception.
+ * phylink will have called netif_carrier_off() to notify the networking
+ * stack that the link has gone down, so MAC drivers should not make this
+ * call.
+ *
+ * If @mode is %MLO_AN_INBAND, then this function must not prevent the
+ * link coming up.
  */
 void mac_link_down(struct phylink_config *config, unsigned int mode,
 		   phy_interface_t interface);
 
 /**
- * mac_link_up() - allow the link to come up
+ * mac_link_up() - notification that the link has come up
  * @config: a pointer to a &struct phylink_config.
- * @phy: any attached phy
+ * @phy: any attached phy (deprecated - please use LPI interfaces)
  * @mode: link autonegotiation mode
  * @interface: link &typedef phy_interface_t mode
  * @speed: link speed
@@ -385,7 +391,10 @@ void mac_link_down(struct phylink_config *config, unsigned int mode,
  * @tx_pause: link transmit pause enablement status
  * @rx_pause: link receive pause enablement status
  *
- * Configure the MAC for an established link.
+ * Notifies the MAC that the link has come up, and the parameters of the
+ * link as seen from the MACs point of view. If mac_link_up() has been
+ * called previously, there will be an intervening call to mac_link_down()
+ * before this method will be subsequently called.
  *
  * @speed, @duplex, @tx_pause and @rx_pause indicate the finalised link
  * settings, and should be used to configure the MAC block appropriately
@@ -397,9 +406,9 @@ void mac_link_down(struct phylink_config *config, unsigned int mode,
  * that the user wishes to override the pause settings, and this should
  * be allowed when considering the implementation of this method.
  *
- * If in-band negotiation mode is disabled, allow the link to come up. If
- * @phy is non-%NULL, configure Energy Efficient Ethernet by calling
- * phy_init_eee() and perform appropriate MAC configuration for EEE.
+ * Once configured, the MAC may begin to process packets for transmission
+ * and reception.
+ *
  * Interface type selection must be done in mac_config().
  */
 void mac_link_up(struct phylink_config *config, struct phy_device *phy,
