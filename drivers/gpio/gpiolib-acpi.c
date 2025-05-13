@@ -350,13 +350,24 @@ static struct gpio_desc *acpi_request_own_gpiod(struct gpio_chip *chip,
 	return desc;
 }
 
-static bool acpi_gpio_in_ignore_list(const char *ignore_list, const char *controller_in,
-				     unsigned int pin_in)
+bool acpi_gpio_in_ignore_list(enum acpi_gpio_ignore_list list, const char *controller_in,
+			      unsigned int pin_in)
 {
-	const char *controller, *pin_str;
+	const char *ignore_list, *controller, *pin_str;
 	unsigned int pin;
 	char *endp;
 	int len;
+
+	switch (list) {
+	case ACPI_GPIO_IGNORE_WAKE:
+		ignore_list = ignore_wake;
+		break;
+	case ACPI_GPIO_IGNORE_INTERRUPT:
+		ignore_list = ignore_interrupt;
+		break;
+	default:
+		return false;
+	}
 
 	controller = ignore_list;
 	while (controller) {
@@ -394,7 +405,7 @@ static bool acpi_gpio_irq_is_wake(struct device *parent,
 	if (agpio->wake_capable != ACPI_WAKE_CAPABLE)
 		return false;
 
-	if (acpi_gpio_in_ignore_list(ignore_wake, dev_name(parent), pin)) {
+	if (acpi_gpio_in_ignore_list(ACPI_GPIO_IGNORE_WAKE, dev_name(parent), pin)) {
 		dev_info(parent, "Ignoring wakeup on pin %u\n", pin);
 		return false;
 	}
@@ -437,7 +448,7 @@ static acpi_status acpi_gpiochip_alloc_event(struct acpi_resource *ares,
 	if (!handler)
 		return AE_OK;
 
-	if (acpi_gpio_in_ignore_list(ignore_interrupt, dev_name(chip->parent), pin)) {
+	if (acpi_gpio_in_ignore_list(ACPI_GPIO_IGNORE_INTERRUPT, dev_name(chip->parent), pin)) {
 		dev_info(chip->parent, "Ignoring interrupt on pin %u\n", pin);
 		return AE_OK;
 	}

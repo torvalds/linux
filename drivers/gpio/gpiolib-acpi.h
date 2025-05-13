@@ -58,4 +58,12 @@ static inline int acpi_gpio_count(const struct fwnode_handle *fwnode,
 }
 #endif
 
+enum acpi_gpio_ignore_list {
+	ACPI_GPIO_IGNORE_WAKE,
+	ACPI_GPIO_IGNORE_INTERRUPT,
+};
+
+bool acpi_gpio_in_ignore_list(enum acpi_gpio_ignore_list list,
+			      const char *controller_in, unsigned int pin_in);
+
 #endif /* GPIOLIB_ACPI_H */
