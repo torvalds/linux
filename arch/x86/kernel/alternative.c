@@ -133,7 +133,9 @@ static bool cfi_paranoid __ro_after_init;
 
 #ifdef CONFIG_MITIGATION_ITS
 
+#ifdef CONFIG_MODULES
 static struct module *its_mod;
+#endif
 static void *its_page;
 static unsigned int its_offset;
 
@@ -171,6 +173,7 @@ static void *its_init_thunk(void *thunk, int reg)
 	return thunk + offset;
 }
 
+#ifdef CONFIG_MODULES
 void its_init_mod(struct module *mod)
 {
 	if (!cpu_feature_enabled(X86_FEATURE_INDIRECT_THUNK_ITS))
@@ -209,6 +212,7 @@ void its_free_mod(struct module *mod)
 	}
 	kfree(mod->its_page_array);
 }
+#endif /* CONFIG_MODULES */
 
 static void *its_alloc(void)
 {
@@ -217,6 +221,7 @@ static void *its_alloc(void)
 	if (!page)
 		return NULL;
 
+#ifdef CONFIG_MODULES
 	if (its_mod) {
 		void *tmp = krealloc(its_mod->its_page_array,
 				     (its_mod->its_num_pages+1) * sizeof(void *),
@@ -229,6 +234,7 @@ static void *its_alloc(void)
 
 		execmem_make_temp_rw(page, PAGE_SIZE);
 	}
+#endif /* CONFIG_MODULES */
 
 	return no_free_ptr(page);
 }
