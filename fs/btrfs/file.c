@@ -1843,7 +1843,6 @@ static vm_fault_t btrfs_page_mkwrite(struct vm_fault *vmf)
 	size_t fsize = folio_size(folio);
 	vm_fault_t ret;
 	int ret2;
-	int reserved = 0;
 	u64 reserved_space;
 	u64 page_start;
 	u64 page_end;
@@ -1866,15 +1865,15 @@ static vm_fault_t btrfs_page_mkwrite(struct vm_fault *vmf)
 	 */
 	ret2 = btrfs_delalloc_reserve_space(BTRFS_I(inode), &data_reserved,
 					    page_start, reserved_space);
-	if (!ret2) {
-		ret2 = file_update_time(vmf->vma->vm_file);
-		reserved = 1;
-	}
 	if (ret2) {
 		ret = vmf_error(ret2);
-		if (reserved)
-			goto out;
 		goto out_noreserve;
+	}
+
+	ret2 = file_update_time(vmf->vma->vm_file);
+	if (ret2) {
+		ret = vmf_error(ret2);
+		goto out;
 	}
 
 	/* Make the VM retry the fault. */
@@ -1972,9 +1971,9 @@ out:
 	btrfs_delalloc_release_extents(BTRFS_I(inode), fsize);
 	btrfs_delalloc_release_space(BTRFS_I(inode), data_reserved, page_start,
 				     reserved_space, true);
+	extent_changeset_free(data_reserved);
 out_noreserve:
 	sb_end_pagefault(inode->i_sb);
-	extent_changeset_free(data_reserved);
 	return ret;
 }
 
