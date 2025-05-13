@@ -163,7 +163,7 @@ class Type(SpecAttr):
         return False
 
     def _free_lines(self, ri, var, ref):
-        if self.is_multi_val() or self.presence_type() == 'len':
+        if self.is_multi_val() or self.presence_type() in {'count', 'len'}:
             return [f'free({var}->{ref}{self.c_name});']
         return []
 
@@ -566,6 +566,57 @@ class TypeBinary(Type):
                 f'memcpy({member}, {self.c_name}, {presence});']
 
 
+class TypeBinaryStruct(TypeBinary):
+    def struct_member(self, ri):
+        ri.cw.p(f'struct {c_lower(self.get("struct"))} *{self.c_name};')
+
+    def _attr_get(self, ri, var):
+        struct_sz = 'sizeof(struct ' + c_lower(self.get("struct")) + ')'
+        len_mem = var + '->_' + self.presence_type() + '.' + self.c_name
+        return [f"{len_mem} = len;",
+                f"if (len < {struct_sz})",
+                f"{var}->{self.c_name} = calloc(1, {struct_sz});",
+                "else",
+                f"{var}->{self.c_name} = malloc(len);",
+                f"memcpy({var}->{self.c_name}, ynl_attr_data(attr), len);"], \
+               ['len = ynl_attr_data_len(attr);'], \
+               ['unsigned int len;']
+
+
+class TypeBinaryScalarArray(TypeBinary):
+    def arg_member(self, ri):
+        return [f'__{self.get("sub-type")} *{self.c_name}', 'size_t count']
+
+    def presence_type(self):
+        return 'count'
+
+    def struct_member(self, ri):
+        ri.cw.p(f'__{self.get("sub-type")} *{self.c_name};')
+
+    def attr_put(self, ri, var):
+        presence = self.presence_type()
+        ri.cw.block_start(line=f"if ({var}->_{presence}.{self.c_name})")
+        ri.cw.p(f"i = {var}->_{presence}.{self.c_name} * sizeof(__{self.get('sub-type')});")
+        ri.cw.p(f"ynl_attr_put(nlh, {self.enum_name}, " +
+                f"{var}->{self.c_name}, i);")
+        ri.cw.block_end()
+
+    def _attr_get(self, ri, var):
+        len_mem = var + '->_count.' + self.c_name
+        return [f"{len_mem} = len / sizeof(__{self.get('sub-type')});",
+                f"len = {len_mem} * sizeof(__{self.get('sub-type')});",
+                f"{var}->{self.c_name} = malloc(len);",
+                f"memcpy({var}->{self.c_name}, ynl_attr_data(attr), len);"], \
+               ['len = ynl_attr_data_len(attr);'], \
+               ['unsigned int len;']
+
+    def _setter_lines(self, ri, member, presence):
+        return [f"{presence} = count;",
+                f"count *= sizeof(__{self.get('sub-type')});",
+                f"{member} = malloc(count);",
+                f'memcpy({member}, {self.c_name}, count);']
+
+
 class TypeBitfield32(Type):
     def _complex_member_type(self, ri):
         return "struct nla_bitfield32"
@@ -672,7 +723,7 @@ class TypeMultiAttr(Type):
         lines = []
         if self.attr['type'] in scalars:
             lines += [f"free({var}->{ref}{self.c_name});"]
-        elif self.attr['type'] == 'binary' and 'struct' in self.attr:
+        elif self.attr['type'] == 'binary':
             lines += [f"free({var}->{ref}{self.c_name});"]
         elif self.attr['type'] == 'string':
             lines += [
@@ -976,7 +1027,12 @@ class AttrSet(SpecAttrSet):
         elif elem['type'] == 'string':
             t = TypeString(self.family, self, elem, value)
         elif elem['type'] == 'binary':
-            t = TypeBinary(self.family, self, elem, value)
+            if 'struct' in elem:
+                t = TypeBinaryStruct(self.family, self, elem, value)
+            elif elem.get('sub-type') in scalars:
+                t = TypeBinaryScalarArray(self.family, self, elem, value)
+            else:
+                t = TypeBinary(self.family, self, elem, value)
         elif elem['type'] == 'bitfield32':
             t = TypeBitfield32(self.family, self, elem, value)
         elif elem['type'] == 'nest':
@@ -1421,6 +1477,7 @@ class CodeWriter:
         if self._silent_block:
             ind += 1
         self._silent_block = line.endswith(')') and CodeWriter._is_cond(line)
+        self._silent_block |= line.strip() == 'else'
         if line[0] == '#':
             ind = 0
         if add_ind:
