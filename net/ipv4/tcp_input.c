@@ -682,6 +682,9 @@ static void tcp_rcv_rtt_update(struct tcp_sock *tp, u32 sample, int win_dep)
 		 */
 		if (win_dep)
 			return;
+		/* Do not use this sample if receive queue is not empty. */
+		if (tp->rcv_nxt != tp->copied_seq)
+			return;
 		new_sample = old_sample - (old_sample >> 3) + sample;
 	}
 
