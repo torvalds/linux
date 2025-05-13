@@ -1,0 +1,134 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/crypto/hisilicon,hip06-sec.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Hisilicon hip06/hip07 Security Accelerator
+
+maintainers:
+  - Jonathan Cameron <Jonathan.Cameron@huawei.com>
+
+properties:
+  compatible:
+    enum:
+      - hisilicon,hip06-sec
+      - hisilicon,hip07-sec
+
+  reg:
+    items:
+      - description: Registers for backend processing engines
+      - description: Registers for common functionality
+      - description: Registers for queue 0
+      - description: Registers for queue 1
+      - description: Registers for queue 2
+      - description: Registers for queue 3
+      - description: Registers for queue 4
+      - description: Registers for queue 5
+      - description: Registers for queue 6
+      - description: Registers for queue 7
+      - description: Registers for queue 8
+      - description: Registers for queue 9
+      - description: Registers for queue 10
+      - description: Registers for queue 11
+      - description: Registers for queue 12
+      - description: Registers for queue 13
+      - description: Registers for queue 14
+      - description: Registers for queue 15
+
+  interrupts:
+    items:
+      - description: SEC unit error queue interrupt
+      - description: Completion interrupt for queue 0
+      - description: Error interrupt for queue 0
+      - description: Completion interrupt for queue 1
+      - description: Error interrupt for queue 1
+      - description: Completion interrupt for queue 2
+      - description: Error interrupt for queue 2
+      - description: Completion interrupt for queue 3
+      - description: Error interrupt for queue 3
+      - description: Completion interrupt for queue 4
+      - description: Error interrupt for queue 4
+      - description: Completion interrupt for queue 5
+      - description: Error interrupt for queue 5
+      - description: Completion interrupt for queue 6
+      - description: Error interrupt for queue 6
+      - description: Completion interrupt for queue 7
+      - description: Error interrupt for queue 7
+      - description: Completion interrupt for queue 8
+      - description: Error interrupt for queue 8
+      - description: Completion interrupt for queue 9
+      - description: Error interrupt for queue 9
+      - description: Completion interrupt for queue 10
+      - description: Error interrupt for queue 10
+      - description: Completion interrupt for queue 11
+      - description: Error interrupt for queue 11
+      - description: Completion interrupt for queue 12
+      - description: Error interrupt for queue 12
+      - description: Completion interrupt for queue 13
+      - description: Error interrupt for queue 13
+      - description: Completion interrupt for queue 14
+      - description: Error interrupt for queue 14
+      - description: Completion interrupt for queue 15
+      - description: Error interrupt for queue 15
+
+  dma-coherent: true
+
+  iommus:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - dma-coherent
+
+additionalProperties: false
+
+examples:
+  - |
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        crypto@400d2000000 {
+            compatible = "hisilicon,hip07-sec";
+            reg = <0x400 0xd0000000 0x0 0x10000
+                  0x400 0xd2000000 0x0 0x10000
+                  0x400 0xd2010000 0x0 0x10000
+                  0x400 0xd2020000 0x0 0x10000
+                  0x400 0xd2030000 0x0 0x10000
+                  0x400 0xd2040000 0x0 0x10000
+                  0x400 0xd2050000 0x0 0x10000
+                  0x400 0xd2060000 0x0 0x10000
+                  0x400 0xd2070000 0x0 0x10000
+                  0x400 0xd2080000 0x0 0x10000
+                  0x400 0xd2090000 0x0 0x10000
+                  0x400 0xd20a0000 0x0 0x10000
+                  0x400 0xd20b0000 0x0 0x10000
+                  0x400 0xd20c0000 0x0 0x10000
+                  0x400 0xd20d0000 0x0 0x10000
+                  0x400 0xd20e0000 0x0 0x10000
+                  0x400 0xd20f0000 0x0 0x10000
+                  0x400 0xd2100000 0x0 0x10000>;
+            interrupts = <576 4>,
+                        <577 1>, <578 4>,
+                        <579 1>, <580 4>,
+                        <581 1>, <582 4>,
+                        <583 1>, <584 4>,
+                        <585 1>, <586 4>,
+                        <587 1>, <588 4>,
+                        <589 1>, <590 4>,
+                        <591 1>, <592 4>,
+                        <593 1>, <594 4>,
+                        <595 1>, <596 4>,
+                        <597 1>, <598 4>,
+                        <599 1>, <600 4>,
+                        <601 1>, <602 4>,
+                        <603 1>, <604 4>,
+                        <605 1>, <606 4>,
+                        <607 1>, <608 4>;
+            dma-coherent;
+            iommus = <&p1_smmu_alg_a 0x600>;
+        };
+    };
