@@ -165,6 +165,12 @@ struct aspeed_sham_ctx {
 };
 
 struct aspeed_sham_reqctx {
+	/* DMA buffer written by hardware */
+	u8			digest[SHA512_DIGEST_SIZE] __aligned(64);
+
+	/* Software state sorted by size. */
+	u64			digcnt[2];
+
 	unsigned long		flags;		/* final update flag should no use*/
 	unsigned long		op;		/* final or update */
 	u32			cmd;		/* trigger cmd */
@@ -181,14 +187,13 @@ struct aspeed_sham_reqctx {
 	const __be32		*sha_iv;
 
 	/* remain data buffer */
-	u8			buffer[SHA512_BLOCK_SIZE * 2];
 	dma_addr_t		buffer_dma_addr;
 	size_t			bufcnt;		/* buffer counter */
 
-	/* output buffer */
-	u8			digest[SHA512_DIGEST_SIZE] __aligned(64);
 	dma_addr_t		digest_dma_addr;
-	u64			digcnt[2];
+
+	/* This is DMA too but read-only for hardware. */
+	u8			buffer[SHA512_BLOCK_SIZE * 2];
 };
 
 struct aspeed_engine_crypto {
