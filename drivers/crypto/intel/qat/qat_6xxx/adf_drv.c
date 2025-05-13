@@ -173,6 +173,8 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to save pci state.\n");
 
+	accel_dev->ras_errors.enabled = true;
+
 	adf_dbgfs_init(accel_dev);
 
 	ret = devm_add_action_or_reset(dev, adf_dbgfs_cleanup, accel_dev);
