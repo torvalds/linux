@@ -2955,27 +2955,6 @@ static int i40e_change_mtu(struct net_device *netdev, int new_mtu)
 }
 
 /**
- * i40e_ioctl - Access the hwtstamp interface
- * @netdev: network interface device structure
- * @ifr: interface request data
- * @cmd: ioctl command
- **/
-int i40e_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
-{
-	struct i40e_netdev_priv *np = netdev_priv(netdev);
-	struct i40e_pf *pf = np->vsi->back;
-
-	switch (cmd) {
-	case SIOCGHWTSTAMP:
-		return i40e_ptp_get_ts_config(pf, ifr);
-	case SIOCSHWTSTAMP:
-		return i40e_ptp_set_ts_config(pf, ifr);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
-/**
  * i40e_vlan_stripping_enable - Turn on vlan stripping for the VSI
  * @vsi: the vsi being adjusted
  **/
@@ -13626,7 +13605,6 @@ static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= i40e_set_mac,
 	.ndo_change_mtu		= i40e_change_mtu,
-	.ndo_eth_ioctl		= i40e_ioctl,
 	.ndo_tx_timeout		= i40e_tx_timeout,
 	.ndo_vlan_rx_add_vid	= i40e_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= i40e_vlan_rx_kill_vid,
@@ -13654,6 +13632,8 @@ static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_xsk_wakeup	        = i40e_xsk_wakeup,
 	.ndo_dfwd_add_station	= i40e_fwd_add,
 	.ndo_dfwd_del_station	= i40e_fwd_del,
+	.ndo_hwtstamp_get	= i40e_ptp_hwtstamp_get,
+	.ndo_hwtstamp_set	= i40e_ptp_hwtstamp_set,
 };
 
 /**
