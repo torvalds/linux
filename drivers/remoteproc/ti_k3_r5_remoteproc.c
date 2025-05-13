@@ -560,15 +560,6 @@ out:
 }
 
 /*
- * Detach from a running R5F remote processor (IPC-only mode)
- *
- * The R5F detach callback is a NOP. The R5F cores are not stopped and will be
- * left in booted state in IPC-only mode. This callback is invoked only in
- * IPC-only mode and exists for sanity sake.
- */
-static int k3_r5_rproc_detach(struct rproc *rproc) { return 0; }
-
-/*
  * This function implements the .get_loaded_rsc_table() callback and is used
  * to provide the resource table for the booted R5F in IPC-only mode. The K3 R5F
  * firmwares follow a design-by-contract approach and are expected to have the
@@ -1049,7 +1040,7 @@ static int k3_r5_rproc_configure_mode(struct k3_rproc *kproc)
 		kproc->rproc->ops->start = NULL;
 		kproc->rproc->ops->stop = NULL;
 		kproc->rproc->ops->attach = k3_rproc_attach;
-		kproc->rproc->ops->detach = k3_r5_rproc_detach;
+		kproc->rproc->ops->detach = k3_rproc_detach;
 		kproc->rproc->ops->get_loaded_rsc_table =
 						k3_r5_get_loaded_rsc_table;
 	} else if (!c_state) {

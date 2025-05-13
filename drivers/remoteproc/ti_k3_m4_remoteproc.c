@@ -244,25 +244,13 @@ static void k3_m4_release_tsp(void *data)
 	ti_sci_proc_release(tsp);
 }
 
-/*
- * Detach from a running M4 remote processor (IPC-only mode)
- *
- * This rproc detach callback performs the opposite operation to attach
- * callback, the M4 core is not stopped and will be left to continue to
- * run its booted firmware. This callback is invoked only in IPC-only mode.
- */
-static int k3_m4_rproc_detach(struct rproc *rproc)
-{
-	return 0;
-}
-
 static const struct rproc_ops k3_m4_rproc_ops = {
 	.prepare = k3_rproc_prepare,
 	.unprepare = k3_rproc_unprepare,
 	.start = k3_rproc_start,
 	.stop = k3_rproc_stop,
 	.attach = k3_rproc_attach,
-	.detach = k3_m4_rproc_detach,
+	.detach = k3_rproc_detach,
 	.kick = k3_rproc_kick,
 	.da_to_va = k3_m4_rproc_da_to_va,
 	.get_loaded_rsc_table = k3_m4_get_loaded_rsc_table,
