@@ -976,10 +976,7 @@ static bool check_timeout(struct xe_exec_queue *q, struct xe_sched_job *job)
 	 */
 	xe_gt_assert(gt, timeout_ms < 100 * MSEC_PER_SEC);
 
-	if (ctx_timestamp < ctx_job_timestamp)
-		diff = ctx_timestamp + U32_MAX - ctx_job_timestamp;
-	else
-		diff = ctx_timestamp - ctx_job_timestamp;
+	diff = ctx_timestamp - ctx_job_timestamp;
 
 	/*
 	 * Ensure timeout is within 5% to account for an GuC scheduling latency
