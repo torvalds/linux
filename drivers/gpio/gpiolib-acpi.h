@@ -58,6 +58,11 @@ static inline int acpi_gpio_count(const struct fwnode_handle *fwnode,
 }
 #endif
 
+void acpi_gpio_process_deferred_list(struct list_head *list);
+
+bool acpi_gpio_add_to_deferred_list(struct list_head *list);
+void acpi_gpio_remove_from_deferred_list(struct list_head *list);
+
 enum acpi_gpio_ignore_list {
 	ACPI_GPIO_IGNORE_WAKE,
 	ACPI_GPIO_IGNORE_INTERRUPT,
