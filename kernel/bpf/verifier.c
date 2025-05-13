@@ -322,6 +322,7 @@ struct bpf_kfunc_call_arg_meta {
 	struct btf *arg_btf;
 	u32 arg_btf_id;
 	bool arg_owning_ref;
+	bool arg_prog;
 
 	struct {
 		struct btf_field *field;
@@ -11897,6 +11898,11 @@ static bool is_kfunc_arg_irq_flag(const struct btf *btf, const struct btf_param 
 	return btf_param_match_suffix(btf, arg, "__irq_flag");
 }
 
+static bool is_kfunc_arg_prog(const struct btf *btf, const struct btf_param *arg)
+{
+	return btf_param_match_suffix(btf, arg, "__prog");
+}
+
 static bool is_kfunc_arg_scalar_with_name(const struct btf *btf,
 					  const struct btf_param *arg,
 					  const char *name)
@@ -12937,6 +12943,17 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 
 		if (is_kfunc_arg_ignore(btf, &args[i]))
 			continue;
+
+		if (is_kfunc_arg_prog(btf, &args[i])) {
+			/* Used to reject repeated use of __prog. */
+			if (meta->arg_prog) {
+				verbose(env, "Only 1 prog->aux argument supported per-kfunc\n");
+				return -EFAULT;
+			}
+			meta->arg_prog = true;
+			cur_aux(env)->arg_prog = regno;
+			continue;
+		}
 
 		if (btf_type_is_scalar(t)) {
 			if (reg->type != SCALAR_VALUE) {
@@ -21517,13 +21534,17 @@ static int fixup_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		   desc->func_id == special_kfunc_list[KF_bpf_rdonly_cast]) {
 		insn_buf[0] = BPF_MOV64_REG(BPF_REG_0, BPF_REG_1);
 		*cnt = 1;
-	} else if (is_bpf_wq_set_callback_impl_kfunc(desc->func_id)) {
-		struct bpf_insn ld_addrs[2] = { BPF_LD_IMM64(BPF_REG_4, (long)env->prog->aux) };
+	}
 
-		insn_buf[0] = ld_addrs[0];
-		insn_buf[1] = ld_addrs[1];
-		insn_buf[2] = *insn;
-		*cnt = 3;
+	if (env->insn_aux_data[insn_idx].arg_prog) {
+		u32 regno = env->insn_aux_data[insn_idx].arg_prog;
+		struct bpf_insn ld_addrs[2] = { BPF_LD_IMM64(regno, (long)env->prog->aux) };
+		int idx = *cnt;
+
+		insn_buf[idx++] = ld_addrs[0];
+		insn_buf[idx++] = ld_addrs[1];
+		insn_buf[idx++] = *insn;
+		*cnt = idx;
 	}
 	return 0;
 }
