@@ -2017,7 +2017,8 @@ attribute-sets:
     attributes:
       -
         name: act
-        type: nest
+        type: indexed-array
+        sub-type: nest
         nested-attributes: tc-act-attrs
       -
         name: police
@@ -2250,7 +2251,8 @@ attribute-sets:
     attributes:
       -
         name: act
-        type: nest
+        type: indexed-array
+        sub-type: nest
         nested-attributes: tc-act-attrs
       -
         name: police
