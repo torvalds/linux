@@ -305,8 +305,8 @@ install-tools: $(OUTPUT)cpupower
 	$(INSTALL_PROGRAM) $(OUTPUT)cpupower $(DESTDIR)${bindir}
 	$(INSTALL) -d $(DESTDIR)${bash_completion_dir}
 	$(INSTALL_SCRIPT) cpupower-completion.sh '$(DESTDIR)${bash_completion_dir}/cpupower'
-	$(INSTALL) -d $(DESTDIR)${confdir}default
-	$(INSTALL_DATA) cpupower.default '$(DESTDIR)${confdir}default/cpupower'
+	$(INSTALL) -d $(DESTDIR)${confdir}
+	$(INSTALL_DATA) cpupower-service.conf '$(DESTDIR)${confdir}'
 	$(INSTALL) -d $(DESTDIR)${libexecdir}
 	$(INSTALL_PROGRAM) cpupower.sh '$(DESTDIR)${libexecdir}/cpupower'
 	$(INSTALL) -d $(DESTDIR)${libdir}/systemd/system
@@ -346,7 +346,7 @@ uninstall:
 	- rm -f $(DESTDIR)${includedir}/cpufreq.h
 	- rm -f $(DESTDIR)${includedir}/cpuidle.h
 	- rm -f $(DESTDIR)${bindir}/utils/cpupower
-	- rm -f $(DESTDIR)${confdir}default/cpupower
+	- rm -f $(DESTDIR)${confdir}cpupower-service.conf
 	- rm -f $(DESTDIR)${libexecdir}/cpupower
 	- rm -f $(DESTDIR)${libdir}/systemd/system/cpupower.service
 	- rm -f $(DESTDIR)${mandir}/man1/cpupower.1

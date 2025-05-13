@@ -195,9 +195,9 @@ command:
 
 $ sudo systemctl daemon-reload
 
-If you want to enable this systemd service, edit
-'${DESTDIR}/etc/default/cpupower' (uncommenting at least one of the options,
-depending on your preferences) and then issue the following command:
+If you want to enable this systemd service, edit '/etc/cpupower-service.conf'
+(uncommenting at least one of the options, depending on your preferences)
+and then issue the following command:
 
 $ sudo systemctl enable --now cpupower.service
 
