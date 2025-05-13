@@ -45,12 +45,13 @@ static int do_rps_boost(struct wait_queue_entry *_wait,
 void intel_display_rps_boost_after_vblank(struct drm_crtc *crtc,
 					  struct dma_fence *fence)
 {
+	struct intel_display *display = to_intel_display(crtc->dev);
 	struct wait_rps_boost *wait;
 
 	if (!dma_fence_is_i915(fence))
 		return;
 
-	if (DISPLAY_VER(to_i915(crtc->dev)) < 6)
+	if (DISPLAY_VER(display) < 6)
 		return;
 
 	if (drm_crtc_vblank_get(crtc))
