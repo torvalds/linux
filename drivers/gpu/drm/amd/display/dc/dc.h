@@ -2719,6 +2719,13 @@ bool dc_process_dmub_aux_transfer_async(struct dc *dc,
 				uint32_t link_index,
 				struct aux_payload *payload);
 
+/*
+ * smart power OLED Interfaces
+ */
+bool dc_smart_power_oled_enable(const struct dc_link *link, bool enable, uint16_t peak_nits,
+	uint8_t debug_control, uint16_t fixed_CLL, uint32_t triggerline);
+bool dc_smart_power_oled_get_max_cll(const struct dc_link *link, unsigned int *pCurrent_MaxCLL);
+
 /* Get dc link index from dpia port index */
 uint8_t get_link_index_from_dpia_port_index(const struct dc *dc,
 				uint8_t dpia_port_index);

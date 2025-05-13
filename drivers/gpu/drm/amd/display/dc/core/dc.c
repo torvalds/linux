@@ -5977,6 +5977,95 @@ bool dc_process_dmub_aux_transfer_async(struct dc *dc,
 	return true;
 }
 
+bool dc_smart_power_oled_enable(const struct dc_link *link, bool enable, uint16_t peak_nits,
+			uint8_t debug_control, uint16_t fixed_CLL, uint32_t triggerline)
+{
+	bool status = false;
+	struct dc *dc = link->ctx->dc;
+	union dmub_rb_cmd cmd;
+	uint8_t otg_inst = 0;
+	unsigned int panel_inst = 0;
+	struct pipe_ctx *pipe_ctx = NULL;
+	struct resource_context *res_ctx = &link->ctx->dc->current_state->res_ctx;
+	int i = 0;
+
+	// get panel_inst
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return status;
+
+	// get otg_inst
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (res_ctx &&
+			res_ctx->pipe_ctx[i].stream &&
+			res_ctx->pipe_ctx[i].stream->link &&
+			res_ctx->pipe_ctx[i].stream->link == link &&
+			res_ctx->pipe_ctx[i].stream->link->connector_signal == SIGNAL_TYPE_EDP) {
+			pipe_ctx = &res_ctx->pipe_ctx[i];
+			//TODO: refactor for multi edp support
+			break;
+		}
+	}
+
+	if (pipe_ctx)
+		otg_inst = pipe_ctx->stream_res.tg->inst;
+
+	// fill in cmd
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.smart_power_oled_enable.header.type = DMUB_CMD__SMART_POWER_OLED;
+	cmd.smart_power_oled_enable.header.sub_type = DMUB_CMD__SMART_POWER_OLED_ENABLE;
+	cmd.smart_power_oled_enable.header.payload_bytes =
+		sizeof(struct dmub_rb_cmd_smart_power_oled_enable_data) - sizeof(struct dmub_cmd_header);
+	cmd.smart_power_oled_enable.header.ret_status = 1;
+	cmd.smart_power_oled_enable.data.enable = enable;
+	cmd.smart_power_oled_enable.data.panel_inst = panel_inst;
+	cmd.smart_power_oled_enable.data.peak_nits = peak_nits;
+	cmd.smart_power_oled_enable.data.otg_inst = otg_inst;
+	cmd.smart_power_oled_enable.data.digfe_inst = link->link_enc->preferred_engine;
+	cmd.smart_power_oled_enable.data.digbe_inst = link->link_enc->transmitter;
+
+	cmd.smart_power_oled_enable.data.debugcontrol = debug_control;
+	cmd.smart_power_oled_enable.data.triggerline = triggerline;
+	cmd.smart_power_oled_enable.data.fixed_max_cll = fixed_CLL;
+
+	// send cmd
+	status = dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+
+	return status;
+}
+
+bool dc_smart_power_oled_get_max_cll(const struct dc_link *link, unsigned int *pCurrent_MaxCLL)
+{
+	struct dc *dc = link->ctx->dc;
+	union dmub_rb_cmd cmd;
+	bool status = false;
+	unsigned int panel_inst = 0;
+
+	// get panel_inst
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return status;
+
+	// fill in cmd
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.smart_power_oled_getmaxcll.header.type = DMUB_CMD__SMART_POWER_OLED;
+	cmd.smart_power_oled_getmaxcll.header.sub_type = DMUB_CMD__SMART_POWER_OLED_GETMAXCLL;
+	cmd.smart_power_oled_getmaxcll.header.payload_bytes = sizeof(cmd.smart_power_oled_getmaxcll.data);
+	cmd.smart_power_oled_getmaxcll.header.ret_status = 1;
+
+	cmd.smart_power_oled_getmaxcll.data.input.panel_inst = panel_inst;
+
+	// send cmd and wait for reply
+	status = dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY);
+
+	if (status)
+		*pCurrent_MaxCLL = cmd.smart_power_oled_getmaxcll.data.output.current_max_cll;
+	else
+		*pCurrent_MaxCLL = 0;
+
+	return status;
+}
+
 uint8_t get_link_index_from_dpia_port_index(const struct dc *dc,
 					    uint8_t dpia_port_index)
 {
