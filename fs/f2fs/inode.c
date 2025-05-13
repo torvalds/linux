@@ -144,15 +144,14 @@ static __u32 f2fs_inode_chksum(struct f2fs_sb_info *sbi, struct page *page)
 	unsigned int offset = offsetof(struct f2fs_inode, i_inode_checksum);
 	unsigned int cs_size = sizeof(dummy_cs);
 
-	chksum = f2fs_chksum(sbi, sbi->s_chksum_seed, (__u8 *)&ino,
-							sizeof(ino));
-	chksum_seed = f2fs_chksum(sbi, chksum, (__u8 *)&gen, sizeof(gen));
+	chksum = f2fs_chksum(sbi->s_chksum_seed, (__u8 *)&ino, sizeof(ino));
+	chksum_seed = f2fs_chksum(chksum, (__u8 *)&gen, sizeof(gen));
 
-	chksum = f2fs_chksum(sbi, chksum_seed, (__u8 *)ri, offset);
-	chksum = f2fs_chksum(sbi, chksum, (__u8 *)&dummy_cs, cs_size);
+	chksum = f2fs_chksum(chksum_seed, (__u8 *)ri, offset);
+	chksum = f2fs_chksum(chksum, (__u8 *)&dummy_cs, cs_size);
 	offset += cs_size;
-	chksum = f2fs_chksum(sbi, chksum, (__u8 *)ri + offset,
-						F2FS_BLKSIZE - offset);
+	chksum = f2fs_chksum(chksum, (__u8 *)ri + offset,
+			     F2FS_BLKSIZE - offset);
 	return chksum;
 }
 

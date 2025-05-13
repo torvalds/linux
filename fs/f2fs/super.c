@@ -3564,7 +3564,7 @@ static int sanity_check_raw_super(struct f2fs_sb_info *sbi,
 			return -EFSCORRUPTED;
 		}
 		crc = le32_to_cpu(raw_super->crc);
-		if (!f2fs_crc_valid(sbi, crc, raw_super, crc_offset)) {
+		if (crc != f2fs_crc32(raw_super, crc_offset)) {
 			f2fs_info(sbi, "Invalid SB checksum value: %u", crc);
 			return -EFSCORRUPTED;
 		}
@@ -4120,7 +4120,7 @@ int f2fs_commit_super(struct f2fs_sb_info *sbi, bool recover)
 
 	/* we should update superblock crc here */
 	if (!recover && f2fs_sb_has_sb_chksum(sbi)) {
-		crc = f2fs_crc32(sbi, F2FS_RAW_SUPER(sbi),
+		crc = f2fs_crc32(F2FS_RAW_SUPER(sbi),
 				offsetof(struct f2fs_super_block, crc));
 		F2FS_RAW_SUPER(sbi)->crc = cpu_to_le32(crc);
 	}
@@ -4581,8 +4581,8 @@ try_onemore:
 
 	/* precompute checksum seed for metadata */
 	if (f2fs_sb_has_inode_chksum(sbi))
-		sbi->s_chksum_seed = f2fs_chksum(sbi, ~0, raw_super->uuid,
-						sizeof(raw_super->uuid));
+		sbi->s_chksum_seed = f2fs_chksum(~0, raw_super->uuid,
+						 sizeof(raw_super->uuid));
 
 	default_options(sbi, false);
 	/* parse mount options */

@@ -1976,28 +1976,20 @@ static inline unsigned int f2fs_time_to_wait(struct f2fs_sb_info *sbi,
 /*
  * Inline functions
  */
-static inline u32 __f2fs_crc32(struct f2fs_sb_info *sbi, u32 crc,
-			      const void *address, unsigned int length)
+static inline u32 __f2fs_crc32(u32 crc, const void *address,
+			       unsigned int length)
 {
 	return crc32(crc, address, length);
 }
 
-static inline u32 f2fs_crc32(struct f2fs_sb_info *sbi, const void *address,
-			   unsigned int length)
+static inline u32 f2fs_crc32(const void *address, unsigned int length)
 {
-	return __f2fs_crc32(sbi, F2FS_SUPER_MAGIC, address, length);
+	return __f2fs_crc32(F2FS_SUPER_MAGIC, address, length);
 }
 
-static inline bool f2fs_crc_valid(struct f2fs_sb_info *sbi, __u32 blk_crc,
-				  void *buf, size_t buf_size)
+static inline u32 f2fs_chksum(u32 crc, const void *address, unsigned int length)
 {
-	return f2fs_crc32(sbi, buf, buf_size) == blk_crc;
-}
-
-static inline u32 f2fs_chksum(struct f2fs_sb_info *sbi, u32 crc,
-			      const void *address, unsigned int length)
-{
-	return __f2fs_crc32(sbi, crc, address, length);
+	return __f2fs_crc32(crc, address, length);
 }
 
 static inline struct f2fs_inode_info *F2FS_I(struct inode *inode)
