@@ -451,7 +451,7 @@ be added to the following table:
    * - ``udp_parsing``
      - ``drop``
      - Traps packets dropped due to an error in the UDP header parsing.
-       This packet trap could include checksum errorrs, an improper UDP
+       This packet trap could include checksum errors, an improper UDP
        length detected (smaller than 8 bytes) or detection of header
        truncation.
    * - ``tcp_parsing``
