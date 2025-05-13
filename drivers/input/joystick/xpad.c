@@ -676,20 +676,19 @@ static const u8 xboxone_hori_ack_id[] = {
 };
 
 /*
- * This packet is required for most (all?) of the PDP pads to start
- * sending input reports. These pads include: (0x0e6f:0x02ab),
- * (0x0e6f:0x02a4), (0x0e6f:0x02a6).
+ * This packet is sent by default on Windows, and is required for some pads to
+ * start sending input reports, including most (all?) of the PDP. These pads
+ * include: (0x0e6f:0x02ab), (0x0e6f:0x02a4), (0x0e6f:0x02a6).
  */
-static const u8 xboxone_pdp_led_on[] = {
-	GIP_CMD_LED, GIP_OPT_INTERNAL, GIP_SEQ0, GIP_PL_LEN(3), 0x00, GIP_LED_ON, 0x14
-};
+static const u8 xboxone_led_on[] = { GIP_CMD_LED, GIP_OPT_INTERNAL, GIP_SEQ0,
+GIP_PL_LEN(3), 0x00, GIP_LED_ON, 0x14 };
 
 /*
  * This packet is required for most (all?) of the PDP pads to start
  * sending input reports. These pads include: (0x0e6f:0x02ab),
  * (0x0e6f:0x02a4), (0x0e6f:0x02a6).
  */
-static const u8 xboxone_pdp_auth[] = {
+static const u8 xboxone_auth_done[] = {
 	GIP_CMD_AUTHENTICATE, GIP_OPT_INTERNAL, GIP_SEQ0, GIP_PL_LEN(2), 0x01, 0x00
 };
 
@@ -726,12 +725,8 @@ static const struct xboxone_init_packet xboxone_init_packets[] = {
 	XBOXONE_INIT_PKT(0x045e, 0x02ea, xboxone_s_init),
 	XBOXONE_INIT_PKT(0x045e, 0x0b00, xboxone_s_init),
 	XBOXONE_INIT_PKT(0x045e, 0x0b00, extra_input_packet_init),
-	XBOXONE_INIT_PKT(0x0e6f, 0x0000, xboxone_pdp_led_on),
-	XBOXONE_INIT_PKT(0x0f0d, 0x01b2, xboxone_pdp_led_on),
-	XBOXONE_INIT_PKT(0x20d6, 0xa01a, xboxone_pdp_led_on),
-	XBOXONE_INIT_PKT(0x0e6f, 0x0000, xboxone_pdp_auth),
-	XBOXONE_INIT_PKT(0x0f0d, 0x01b2, xboxone_pdp_auth),
-	XBOXONE_INIT_PKT(0x20d6, 0xa01a, xboxone_pdp_auth),
+	XBOXONE_INIT_PKT(0x0000, 0x0000, xboxone_led_on),
+	XBOXONE_INIT_PKT(0x0000, 0x0000, xboxone_auth_done),
 	XBOXONE_INIT_PKT(0x24c6, 0x541a, xboxone_rumblebegin_init),
 	XBOXONE_INIT_PKT(0x24c6, 0x542a, xboxone_rumblebegin_init),
 	XBOXONE_INIT_PKT(0x24c6, 0x543a, xboxone_rumblebegin_init),
