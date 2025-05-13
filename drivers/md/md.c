@@ -111,30 +111,46 @@ static void md_wakeup_thread_directly(struct md_thread __rcu *thread);
 /* Default safemode delay: 200 msec */
 #define DEFAULT_SAFEMODE_DELAY ((200 * HZ)/1000 +1)
 /*
- * Current RAID-1,4,5 parallel reconstruction 'guaranteed speed limit'
- * is 1000 KB/sec, so the extra system load does not show up that much.
- * Increase it if you want to have more _guaranteed_ speed. Note that
- * the RAID driver will use the maximum available bandwidth if the IO
- * subsystem is idle. There is also an 'absolute maximum' reconstruction
- * speed limit - in case reconstruction slows down your system despite
- * idle IO detection.
+ * Current RAID-1,4,5,6,10 parallel reconstruction 'guaranteed speed limit'
+ * is sysctl_speed_limit_min, 1000 KB/sec by default, so the extra system load
+ * does not show up that much. Increase it if you want to have more guaranteed
+ * speed. Note that the RAID driver will use the maximum bandwidth
+ * sysctl_speed_limit_max, 200 MB/sec by default, if the IO subsystem is idle.
  *
- * you can change it via /proc/sys/dev/raid/speed_limit_min and _max.
- * or /sys/block/mdX/md/sync_speed_{min,max}
+ * Background sync IO speed control:
+ *
+ * - below speed min:
+ *   no limit;
+ * - above speed min and below speed max:
+ *   a) if mddev is idle, then no limit;
+ *   b) if mddev is busy handling normal IO, then limit inflight sync IO
+ *   to sync_io_depth;
+ * - above speed max:
+ *   sync IO can't be issued;
+ *
+ * Following configurations can be changed via /proc/sys/dev/raid/ for system
+ * or /sys/block/mdX/md/ for one array.
  */
-
 static int sysctl_speed_limit_min = 1000;
 static int sysctl_speed_limit_max = 200000;
-static inline int speed_min(struct mddev *mddev)
+static int sysctl_sync_io_depth = 32;
+
+static int speed_min(struct mddev *mddev)
 {
 	return mddev->sync_speed_min ?
 		mddev->sync_speed_min : sysctl_speed_limit_min;
 }
 
-static inline int speed_max(struct mddev *mddev)
+static int speed_max(struct mddev *mddev)
 {
 	return mddev->sync_speed_max ?
 		mddev->sync_speed_max : sysctl_speed_limit_max;
+}
+
+static int sync_io_depth(struct mddev *mddev)
+{
+	return mddev->sync_io_depth ?
+		mddev->sync_io_depth : sysctl_sync_io_depth;
 }
 
 static void rdev_uninit_serial(struct md_rdev *rdev)
@@ -293,14 +309,21 @@ static const struct ctl_table raid_table[] = {
 		.procname	= "speed_limit_min",
 		.data		= &sysctl_speed_limit_min,
 		.maxlen		= sizeof(int),
-		.mode		= S_IRUGO|S_IWUSR,
+		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "speed_limit_max",
 		.data		= &sysctl_speed_limit_max,
 		.maxlen		= sizeof(int),
-		.mode		= S_IRUGO|S_IWUSR,
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "sync_io_depth",
+		.data		= &sysctl_sync_io_depth,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
 };
@@ -5091,7 +5114,7 @@ static ssize_t
 sync_min_show(struct mddev *mddev, char *page)
 {
 	return sprintf(page, "%d (%s)\n", speed_min(mddev),
-		       mddev->sync_speed_min ? "local": "system");
+		       mddev->sync_speed_min ? "local" : "system");
 }
 
 static ssize_t
@@ -5100,7 +5123,7 @@ sync_min_store(struct mddev *mddev, const char *buf, size_t len)
 	unsigned int min;
 	int rv;
 
-	if (strncmp(buf, "system", 6)==0) {
+	if (strncmp(buf, "system", 6) == 0) {
 		min = 0;
 	} else {
 		rv = kstrtouint(buf, 10, &min);
@@ -5120,7 +5143,7 @@ static ssize_t
 sync_max_show(struct mddev *mddev, char *page)
 {
 	return sprintf(page, "%d (%s)\n", speed_max(mddev),
-		       mddev->sync_speed_max ? "local": "system");
+		       mddev->sync_speed_max ? "local" : "system");
 }
 
 static ssize_t
@@ -5129,7 +5152,7 @@ sync_max_store(struct mddev *mddev, const char *buf, size_t len)
 	unsigned int max;
 	int rv;
 
-	if (strncmp(buf, "system", 6)==0) {
+	if (strncmp(buf, "system", 6) == 0) {
 		max = 0;
 	} else {
 		rv = kstrtouint(buf, 10, &max);
@@ -5144,6 +5167,35 @@ sync_max_store(struct mddev *mddev, const char *buf, size_t len)
 
 static struct md_sysfs_entry md_sync_max =
 __ATTR(sync_speed_max, S_IRUGO|S_IWUSR, sync_max_show, sync_max_store);
+
+static ssize_t
+sync_io_depth_show(struct mddev *mddev, char *page)
+{
+	return sprintf(page, "%d (%s)\n", sync_io_depth(mddev),
+		       mddev->sync_io_depth ? "local" : "system");
+}
+
+static ssize_t
+sync_io_depth_store(struct mddev *mddev, const char *buf, size_t len)
+{
+	unsigned int max;
+	int rv;
+
+	if (strncmp(buf, "system", 6) == 0) {
+		max = 0;
+	} else {
+		rv = kstrtouint(buf, 10, &max);
+		if (rv < 0)
+			return rv;
+		if (max == 0)
+			return -EINVAL;
+	}
+	mddev->sync_io_depth = max;
+	return len;
+}
+
+static struct md_sysfs_entry md_sync_io_depth =
+__ATTR_RW(sync_io_depth);
 
 static ssize_t
 degraded_show(struct mddev *mddev, char *page)
@@ -5671,6 +5723,7 @@ static struct attribute *md_redundancy_attrs[] = {
 	&md_mismatches.attr,
 	&md_sync_min.attr,
 	&md_sync_max.attr,
+	&md_sync_io_depth.attr,
 	&md_sync_speed.attr,
 	&md_sync_force_parallel.attr,
 	&md_sync_completed.attr,
@@ -8572,50 +8625,55 @@ void md_cluster_stop(struct mddev *mddev)
 	put_cluster_ops(mddev);
 }
 
-static int is_mddev_idle(struct mddev *mddev, int init)
+static bool is_rdev_holder_idle(struct md_rdev *rdev, bool init)
 {
+	unsigned long last_events = rdev->last_events;
+
+	if (!bdev_is_partition(rdev->bdev))
+		return true;
+
+	/*
+	 * If rdev is partition, and user doesn't issue IO to the array, the
+	 * array is still not idle if user issues IO to other partitions.
+	 */
+	rdev->last_events = part_stat_read_accum(rdev->bdev->bd_disk->part0,
+						 sectors) -
+			    part_stat_read_accum(rdev->bdev, sectors);
+
+	return init || rdev->last_events <= last_events;
+}
+
+/*
+ * mddev is idle if following conditions are matched since last check:
+ * 1) mddev doesn't have normal IO completed;
+ * 2) mddev doesn't have inflight normal IO;
+ * 3) if any member disk is partition, and other partitions don't have IO
+ *    completed;
+ *
+ * Noted this checking rely on IO accounting is enabled.
+ */
+static bool is_mddev_idle(struct mddev *mddev, int init)
+{
+	unsigned long last_events = mddev->normal_io_events;
+	struct gendisk *disk;
 	struct md_rdev *rdev;
-	int idle;
-	int curr_events;
+	bool idle = true;
 
-	idle = 1;
+	disk = mddev_is_dm(mddev) ? mddev->dm_gendisk : mddev->gendisk;
+	if (!disk)
+		return true;
+
+	mddev->normal_io_events = part_stat_read_accum(disk->part0, sectors);
+	if (!init && (mddev->normal_io_events > last_events ||
+		      bdev_count_inflight(disk->part0)))
+		idle = false;
+
 	rcu_read_lock();
-	rdev_for_each_rcu(rdev, mddev) {
-		struct gendisk *disk = rdev->bdev->bd_disk;
-
-		if (!init && !blk_queue_io_stat(disk->queue))
-			continue;
-
-		curr_events = (int)part_stat_read_accum(disk->part0, sectors) -
-			      atomic_read(&disk->sync_io);
-		/* sync IO will cause sync_io to increase before the disk_stats
-		 * as sync_io is counted when a request starts, and
-		 * disk_stats is counted when it completes.
-		 * So resync activity will cause curr_events to be smaller than
-		 * when there was no such activity.
-		 * non-sync IO will cause disk_stat to increase without
-		 * increasing sync_io so curr_events will (eventually)
-		 * be larger than it was before.  Once it becomes
-		 * substantially larger, the test below will cause
-		 * the array to appear non-idle, and resync will slow
-		 * down.
-		 * If there is a lot of outstanding resync activity when
-		 * we set last_event to curr_events, then all that activity
-		 * completing might cause the array to appear non-idle
-		 * and resync will be slowed down even though there might
-		 * not have been non-resync activity.  This will only
-		 * happen once though.  'last_events' will soon reflect
-		 * the state where there is little or no outstanding
-		 * resync requests, and further resync activity will
-		 * always make curr_events less than last_events.
-		 *
-		 */
-		if (init || curr_events - rdev->last_events > 64) {
-			rdev->last_events = curr_events;
-			idle = 0;
-		}
-	}
+	rdev_for_each_rcu(rdev, mddev)
+		if (!is_rdev_holder_idle(rdev, init))
+			idle = false;
 	rcu_read_unlock();
+
 	return idle;
 }
 
@@ -8927,6 +8985,23 @@ static sector_t md_sync_position(struct mddev *mddev, enum sync_action action)
 	}
 }
 
+static bool sync_io_within_limit(struct mddev *mddev)
+{
+	int io_sectors;
+
+	/*
+	 * For raid456, sync IO is stripe(4k) per IO, for other levels, it's
+	 * RESYNC_PAGES(64k) per IO.
+	 */
+	if (mddev->level == 4 || mddev->level == 5 || mddev->level == 6)
+		io_sectors = 8;
+	else
+		io_sectors = 128;
+
+	return atomic_read(&mddev->recovery_active) <
+		io_sectors * sync_io_depth(mddev);
+}
+
 #define SYNC_MARKS	10
 #define	SYNC_MARK_STEP	(3*HZ)
 #define UPDATE_FREQUENCY (5*60*HZ)
@@ -9195,7 +9270,8 @@ void md_do_sync(struct md_thread *thread)
 				msleep(500);
 				goto repeat;
 			}
-			if (!is_mddev_idle(mddev, 0)) {
+			if (!sync_io_within_limit(mddev) &&
+			    !is_mddev_idle(mddev, 0)) {
 				/*
 				 * Give other IO more of a chance.
 				 * The faster the devices, the less we wait.
