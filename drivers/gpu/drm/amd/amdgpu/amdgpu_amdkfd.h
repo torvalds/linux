@@ -419,8 +419,8 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd);
 void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry);
 void kgd2kfd_set_sram_ecc_flag(struct kfd_dev *kfd);
 void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint64_t throttle_bitmask);
-int kgd2kfd_check_and_lock_kfd(void);
-void kgd2kfd_unlock_kfd(void);
+int kgd2kfd_check_and_lock_kfd(struct kfd_dev *kfd);
+void kgd2kfd_unlock_kfd(struct kfd_dev *kfd);
 int kgd2kfd_start_sched(struct kfd_dev *kfd, uint32_t node_id);
 int kgd2kfd_stop_sched(struct kfd_dev *kfd, uint32_t node_id);
 bool kgd2kfd_compute_active(struct kfd_dev *kfd, uint32_t node_id);
@@ -489,12 +489,12 @@ void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint64_t throttle_bitmask)
 {
 }
 
-static inline int kgd2kfd_check_and_lock_kfd(void)
+static inline int kgd2kfd_check_and_lock_kfd(struct kfd_dev *kfd)
 {
 	return 0;
 }
 
-static inline void kgd2kfd_unlock_kfd(void)
+static inline void kgd2kfd_unlock_kfd(struct kfd_dev *kfd)
 {
 }
 

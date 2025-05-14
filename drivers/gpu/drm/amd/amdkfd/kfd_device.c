@@ -1013,10 +1013,30 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd)
 	return 0;
 }
 
-bool kfd_is_locked(void)
+bool kfd_is_locked(struct kfd_dev *kfd)
 {
+	uint8_t id  = 0;
+	struct kfd_node *dev;
+
 	lockdep_assert_held(&kfd_processes_mutex);
-	return  (kfd_locked > 0);
+
+	/* check reset/suspend lock */
+	if (kfd_locked > 0)
+		return true;
+
+	if (kfd)
+		return kfd->kfd_dev_lock > 0;
+
+	/* check lock on all cgroup accessible devices */
+	while (kfd_topology_enum_kfd_devices(id++, &dev) == 0) {
+		if (!dev || kfd_devcgroup_check_permission(dev))
+			continue;
+
+		if (dev->kfd->kfd_dev_lock > 0)
+			return true;
+	}
+
+	return false;
 }
 
 void kgd2kfd_suspend(struct kfd_dev *kfd, bool run_pm)
@@ -1442,24 +1462,53 @@ unsigned int kfd_get_num_xgmi_sdma_engines(struct kfd_node *node)
 		kfd_get_num_sdma_engines(node);
 }
 
-int kgd2kfd_check_and_lock_kfd(void)
+int kgd2kfd_check_and_lock_kfd(struct kfd_dev *kfd)
 {
+	struct kfd_process *p;
+	int r = 0, temp, idx;
+
 	mutex_lock(&kfd_processes_mutex);
-	if (!hash_empty(kfd_processes_table) || kfd_is_locked()) {
-		mutex_unlock(&kfd_processes_mutex);
-		return -EBUSY;
+
+	if (hash_empty(kfd_processes_table) && !kfd_is_locked(kfd))
+		goto out;
+
+	/* fail under system reset/resume or kfd device is partition switching. */
+	if (kfd_is_locked(kfd)) {
+		r = -EBUSY;
+		goto out;
 	}
 
-	++kfd_locked;
+	/*
+	 * ensure all running processes are cgroup excluded from device before mode switch.
+	 * i.e. no pdd was created on the process socket.
+	 */
+	idx = srcu_read_lock(&kfd_processes_srcu);
+	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
+		int i;
+
+		for (i = 0; i < p->n_pdds; i++) {
+			if (p->pdds[i]->dev->kfd != kfd)
+				continue;
+
+			r = -EBUSY;
+			goto proc_check_unlock;
+		}
+	}
+
+proc_check_unlock:
+	srcu_read_unlock(&kfd_processes_srcu, idx);
+out:
+	if (!r)
+		++kfd->kfd_dev_lock;
 	mutex_unlock(&kfd_processes_mutex);
 
-	return 0;
+	return r;
 }
 
-void kgd2kfd_unlock_kfd(void)
+void kgd2kfd_unlock_kfd(struct kfd_dev *kfd)
 {
 	mutex_lock(&kfd_processes_mutex);
-	--kfd_locked;
+	--kfd->kfd_dev_lock;
 	mutex_unlock(&kfd_processes_mutex);
 }
 
