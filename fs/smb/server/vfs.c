@@ -4,6 +4,7 @@
  *   Copyright (C) 2018 Samsung Electronics Co., Ltd.
  */
 
+#include <crypto/sha2.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/filelock.h>
@@ -1476,11 +1477,7 @@ int ksmbd_vfs_set_sd_xattr(struct ksmbd_conn *conn,
 	acl.sd_buf = (char *)pntsd;
 	acl.sd_size = len;
 
-	rc = ksmbd_gen_sd_hash(conn, acl.sd_buf, acl.sd_size, acl.hash);
-	if (rc) {
-		pr_err("failed to generate hash for ndr acl\n");
-		return rc;
-	}
+	sha256(acl.sd_buf, acl.sd_size, acl.hash);
 
 	smb_acl = ksmbd_vfs_make_xattr_posix_acl(idmap, inode,
 						 ACL_TYPE_ACCESS);
@@ -1495,12 +1492,7 @@ int ksmbd_vfs_set_sd_xattr(struct ksmbd_conn *conn,
 		goto out;
 	}
 
-	rc = ksmbd_gen_sd_hash(conn, acl_ndr.data, acl_ndr.offset,
-			       acl.posix_acl_hash);
-	if (rc) {
-		pr_err("failed to generate hash for ndr acl\n");
-		goto out;
-	}
+	sha256(acl_ndr.data, acl_ndr.offset, acl.posix_acl_hash);
 
 	rc = ndr_encode_v4_ntacl(&sd_ndr, &acl);
 	if (rc) {
@@ -1557,11 +1549,7 @@ int ksmbd_vfs_get_sd_xattr(struct ksmbd_conn *conn,
 		goto out_free;
 	}
 
-	rc = ksmbd_gen_sd_hash(conn, acl_ndr.data, acl_ndr.offset, cmp_hash);
-	if (rc) {
-		pr_err("failed to generate hash for ndr acl\n");
-		goto out_free;
-	}
+	sha256(acl_ndr.data, acl_ndr.offset, cmp_hash);
 
 	if (memcmp(cmp_hash, acl.posix_acl_hash, XATTR_SD_HASH_SIZE)) {
 		pr_err("hash value diff\n");

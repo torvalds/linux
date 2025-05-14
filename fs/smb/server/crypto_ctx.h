@@ -13,7 +13,6 @@ enum {
 	CRYPTO_SHASH_HMACMD5	= 0,
 	CRYPTO_SHASH_HMACSHA256,
 	CRYPTO_SHASH_CMACAES,
-	CRYPTO_SHASH_SHA256,
 	CRYPTO_SHASH_SHA512,
 	CRYPTO_SHASH_MAX,
 };
@@ -39,14 +38,12 @@ struct ksmbd_crypto_ctx {
 #define CRYPTO_HMACMD5(c)	((c)->desc[CRYPTO_SHASH_HMACMD5])
 #define CRYPTO_HMACSHA256(c)	((c)->desc[CRYPTO_SHASH_HMACSHA256])
 #define CRYPTO_CMACAES(c)	((c)->desc[CRYPTO_SHASH_CMACAES])
-#define CRYPTO_SHA256(c)	((c)->desc[CRYPTO_SHASH_SHA256])
 #define CRYPTO_SHA512(c)	((c)->desc[CRYPTO_SHASH_SHA512])
 
 #define CRYPTO_HMACMD5_TFM(c)	((c)->desc[CRYPTO_SHASH_HMACMD5]->tfm)
 #define CRYPTO_HMACSHA256_TFM(c)\
 				((c)->desc[CRYPTO_SHASH_HMACSHA256]->tfm)
 #define CRYPTO_CMACAES_TFM(c)	((c)->desc[CRYPTO_SHASH_CMACAES]->tfm)
-#define CRYPTO_SHA256_TFM(c)	((c)->desc[CRYPTO_SHASH_SHA256]->tfm)
 #define CRYPTO_SHA512_TFM(c)	((c)->desc[CRYPTO_SHASH_SHA512]->tfm)
 
 #define CRYPTO_GCM(c)		((c)->ccmaes[CRYPTO_AEAD_AES_GCM])
@@ -57,7 +54,6 @@ struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_hmacmd5(void);
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_hmacsha256(void);
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_cmacaes(void);
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_sha512(void);
-struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_sha256(void);
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_gcm(void);
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_ccm(void);
 void ksmbd_crypto_destroy(void);
