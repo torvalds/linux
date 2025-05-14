@@ -2,7 +2,7 @@
 CVEs
 ====
 
-Common Vulnerabilities and Exposure (CVE®) numbers were developed as an
+Common Vulnerabilities and Exposures (CVE®) numbers were developed as an
 unambiguous way to identify, define, and catalog publicly disclosed
 security vulnerabilities.  Over time, their usefulness has declined with
 regards to the kernel project, and CVE numbers were very often assigned
