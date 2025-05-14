@@ -124,10 +124,9 @@ patternProperties:
       mediatek,clk-provider:
         $ref: /schemas/types.yaml#/definitions/string
         description: Indicates dai-link clock master.
-        items:
-          enum:
-            - cpu
-            - codec
+        enum:
+          - cpu
+          - codec
 
     required:
       - link-name
