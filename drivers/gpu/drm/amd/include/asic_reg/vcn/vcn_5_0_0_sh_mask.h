@@ -5720,6 +5720,16 @@
 #define UVD_RAS_VCPU_VCODEC_STATUS__POISONED_VF_MASK                                                          0x7FFFFFFFL
 #define UVD_RAS_VCPU_VCODEC_STATUS__POISONED_PF_MASK                                                          0x80000000L
 
+//UVD_RAS_JPEG0_STATUS
+#define UVD_RAS_JPEG0_STATUS__POISONED_VF__SHIFT                                                              0x0
+#define UVD_RAS_JPEG0_STATUS__POISONED_PF__SHIFT                                                              0x1f
+#define UVD_RAS_JPEG0_STATUS__POISONED_VF_MASK                                                                0x7FFFFFFFL
+#define UVD_RAS_JPEG0_STATUS__POISONED_PF_MASK                                                                0x80000000L
+//UVD_RAS_JPEG1_STATUS
+#define UVD_RAS_JPEG1_STATUS__POISONED_VF__SHIFT                                                              0x0
+#define UVD_RAS_JPEG1_STATUS__POISONED_PF__SHIFT                                                              0x1f
+#define UVD_RAS_JPEG1_STATUS__POISONED_VF_MASK                                                                0x7FFFFFFFL
+#define UVD_RAS_JPEG1_STATUS__POISONED_PF_MASK                                                                0x80000000L
 //UVD_SCRATCH15
 #define UVD_SCRATCH15__SCRATCH15_DATA__SHIFT                                                                  0x0
 #define UVD_SCRATCH15__SCRATCH15_DATA_MASK                                                                    0xFFFFFFFFL
