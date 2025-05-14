@@ -843,6 +843,10 @@ int kvm_arch_vcpu_run_pid_change(struct kvm_vcpu *vcpu)
 		return ret;
 
 	if (vcpu_has_nv(vcpu)) {
+		ret = kvm_vcpu_allocate_vncr_tlb(vcpu);
+		if (ret)
+			return ret;
+
 		ret = kvm_vgic_vcpu_nv_init(vcpu);
 		if (ret)
 			return ret;
