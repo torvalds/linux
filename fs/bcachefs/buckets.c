@@ -399,8 +399,8 @@ static int bucket_ref_update_err(struct btree_trans *trans, struct printbuf *buf
 
 	bool print = __bch2_count_fsck_err(c, id, buf);
 
-	int ret = bch2_run_explicit_recovery_pass_persistent(c, buf,
-					BCH_RECOVERY_PASS_check_allocations);
+	int ret = bch2_run_explicit_recovery_pass(c, buf,
+					BCH_RECOVERY_PASS_check_allocations, 0);
 
 	if (insert) {
 		bch2_trans_updates_to_text(buf, trans);
@@ -972,8 +972,8 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 
 		bool print = bch2_count_fsck_err(c, bucket_metadata_type_mismatch, &buf);
 
-		bch2_run_explicit_recovery_pass_persistent(c, &buf,
-					BCH_RECOVERY_PASS_check_allocations);
+		bch2_run_explicit_recovery_pass(c, &buf,
+					BCH_RECOVERY_PASS_check_allocations, 0);
 
 		if (print)
 			bch2_print_str(c, KERN_ERR, buf.buf);

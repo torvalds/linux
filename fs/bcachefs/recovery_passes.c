@@ -218,104 +218,119 @@ u64 bch2_fsck_recovery_passes(void)
 	return bch2_recovery_passes_match(PASS_FSCK);
 }
 
+static bool recovery_pass_needs_set(struct bch_fs *c,
+				    enum bch_recovery_pass pass,
+				    enum bch_run_recovery_pass_flags flags)
+{
+	struct bch_fs_recovery *r = &c->recovery;
+	bool in_recovery = test_bit(BCH_FS_in_recovery, &c->flags);
+	bool persistent = !in_recovery || !(flags & RUN_RECOVERY_PASS_nopersistent);
+
+	/*
+	 * If RUN_RECOVERY_PASS_nopersistent is set, we don't want to do
+	 * anything if the pass has already run: these mean we need a prior pass
+	 * to run before we continue to repair, we don't expect that pass to fix
+	 * the damage we encountered.
+	 *
+	 * Otherwise, we run run_explicit_recovery_pass when we find damage, so
+	 * it should run again even if it's already run:
+	 */
+
+	return persistent
+		? !(c->sb.recovery_passes_required & BIT_ULL(pass))
+		: !((r->passes_to_run|r->passes_complete) & BIT_ULL(pass));
+}
+
 /*
  * For when we need to rewind recovery passes and run a pass we skipped:
  */
-static int __bch2_run_explicit_recovery_pass(struct printbuf *out,
-					     struct bch_fs *c,
-					     enum bch_recovery_pass pass)
+int __bch2_run_explicit_recovery_pass(struct bch_fs *c,
+				      struct printbuf *out,
+				      enum bch_recovery_pass pass,
+				      enum bch_run_recovery_pass_flags flags)
 {
 	struct bch_fs_recovery *r = &c->recovery;
+	int ret = 0;
 
-	if (r->curr_pass == ARRAY_SIZE(recovery_pass_fns))
-		return -BCH_ERR_not_in_recovery;
+	lockdep_assert_held(&c->sb_lock);
 
-	if (r->passes_complete & BIT_ULL(pass))
-		return 0;
+	bch2_printbuf_make_room(out, 1024);
+	out->atomic++;
 
-	bool print = !(c->opts.recovery_passes & BIT_ULL(pass));
+	unsigned long lockflags;
+	spin_lock_irqsave(&r->lock, lockflags);
 
-	if (pass < BCH_RECOVERY_PASS_set_may_go_rw &&
-	    r->curr_pass >= BCH_RECOVERY_PASS_set_may_go_rw) {
-		if (print)
-			prt_printf(out, "need recovery pass %s (%u), but already rw\n",
-				   bch2_recovery_passes[pass], pass);
-		return -BCH_ERR_cannot_rewind_recovery;
+	if (!recovery_pass_needs_set(c, pass, flags))
+		goto out;
+
+	bool in_recovery = test_bit(BCH_FS_in_recovery, &c->flags);
+	bool rewind = in_recovery && r->curr_pass > pass;
+
+	if ((flags & RUN_RECOVERY_PASS_nopersistent) && in_recovery) {
+		r->passes_to_run |= BIT_ULL(pass);
+	} else {
+		struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
+		__set_bit_le64(bch2_recovery_pass_to_stable(pass), ext->recovery_passes_required);
 	}
 
-	if (print)
-		prt_printf(out, "running explicit recovery pass %s (%u), currently at %s (%u)\n",
-			   bch2_recovery_passes[pass], pass,
-			   bch2_recovery_passes[r->curr_pass], r->curr_pass);
+	if (pass < BCH_RECOVERY_PASS_set_may_go_rw &&
+	    (!in_recovery || r->curr_pass >= BCH_RECOVERY_PASS_set_may_go_rw)) {
+		prt_printf(out, "need recovery pass %s (%u), but already rw\n",
+			   bch2_recovery_passes[pass], pass);
+		ret = -BCH_ERR_cannot_rewind_recovery;
+		goto out;
+	}
 
-	c->opts.recovery_passes |= BIT_ULL(pass);
+	prt_printf(out, "running recovery pass %s (%u), currently at %s (%u)%s\n",
+		   bch2_recovery_passes[pass], pass,
+		   bch2_recovery_passes[r->curr_pass], r->curr_pass,
+		   rewind ? " - rewinding" : "");
 
 	if (test_bit(BCH_FS_in_recovery, &c->flags))
 		r->passes_to_run |= BIT_ULL(pass);
 
-	if (test_bit(BCH_FS_in_recovery, &c->flags) &&
-	    r->curr_pass > pass) {
+	if (rewind) {
 		r->next_pass = pass;
-		return -BCH_ERR_restart_recovery;
-	} else {
-		return 0;
+		r->passes_complete &= (1ULL << pass) >> 1;
+		ret = -BCH_ERR_restart_recovery;
 	}
-}
-
-static int bch2_run_explicit_recovery_pass_printbuf(struct bch_fs *c,
-				    struct printbuf *out,
-				    enum bch_recovery_pass pass)
-{
-	bch2_printbuf_make_room(out, 1024);
-	out->atomic++;
-
-	unsigned long flags;
-	spin_lock_irqsave(&c->recovery.lock, flags);
-	int ret = __bch2_run_explicit_recovery_pass(out, c, pass);
-	spin_unlock_irqrestore(&c->recovery.lock, flags);
-
+out:
+	spin_unlock_irqrestore(&r->lock, lockflags);
 	--out->atomic;
 	return ret;
 }
 
 int bch2_run_explicit_recovery_pass(struct bch_fs *c,
-				    enum bch_recovery_pass pass)
+				    struct printbuf *out,
+				    enum bch_recovery_pass pass,
+				    enum bch_run_recovery_pass_flags flags)
 {
-	struct printbuf buf = PRINTBUF;
-	bch2_log_msg_start(c, &buf);
-	unsigned len = buf.pos;
-
-	int ret = bch2_run_explicit_recovery_pass_printbuf(c, &buf, pass);
-
-	if (len != buf.pos)
-		bch2_print_str(c, KERN_NOTICE, buf.buf);
-	printbuf_exit(&buf);
-	return ret;
-}
-
-int __bch2_run_explicit_recovery_pass_persistent(struct bch_fs *c,
-						 struct printbuf *out,
-						 enum bch_recovery_pass pass)
-{
-	lockdep_assert_held(&c->sb_lock);
-
-	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
-	__set_bit_le64(bch2_recovery_pass_to_stable(pass), ext->recovery_passes_required);
-
-	return bch2_run_explicit_recovery_pass_printbuf(c, out, pass);
-}
-
-int bch2_run_explicit_recovery_pass_persistent(struct bch_fs *c,
-					       struct printbuf *out,
-					       enum bch_recovery_pass pass)
-{
-	if (c->sb.recovery_passes_required & BIT_ULL(pass))
+	if (!recovery_pass_needs_set(c, pass, flags))
 		return 0;
 
 	mutex_lock(&c->sb_lock);
-	int ret = __bch2_run_explicit_recovery_pass_persistent(c, out, pass);
+	int ret = __bch2_run_explicit_recovery_pass(c, out, pass, flags);
+	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
+	return ret;
+}
+
+int bch2_run_print_explicit_recovery_pass(struct bch_fs *c, enum bch_recovery_pass pass)
+{
+	if (!recovery_pass_needs_set(c, pass, RUN_RECOVERY_PASS_nopersistent))
+		return 0;
+
+	struct printbuf buf = PRINTBUF;
+	bch2_log_msg_start(c, &buf);
+
+	mutex_lock(&c->sb_lock);
+	int ret = __bch2_run_explicit_recovery_pass(c, &buf, pass,
+						RUN_RECOVERY_PASS_nopersistent);
+	mutex_unlock(&c->sb_lock);
+
+	bch2_print_str(c, KERN_NOTICE, buf.buf);
+	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -409,6 +424,7 @@ static int __bch2_run_recovery_passes(struct bch_fs *c, u64 orig_passes_to_run,
 		}
 	}
 
+	clear_bit(BCH_FS_in_recovery, &c->flags);
 	spin_unlock_irq(&r->lock);
 
 	return ret;

@@ -541,7 +541,7 @@ int bch2_get_scanned_nodes(struct bch_fs *c, enum btree_id btree,
 
 	struct find_btree_nodes *f = &c->found_btree_nodes;
 
-	int ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_scan_for_btree_nodes);
+	int ret = bch2_run_print_explicit_recovery_pass(c, BCH_RECOVERY_PASS_scan_for_btree_nodes);
 	if (ret)
 		return ret;
 

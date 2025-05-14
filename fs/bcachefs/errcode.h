@@ -183,7 +183,6 @@
 	x(BCH_ERR_fsck,			fsck_repair_unimplemented)		\
 	x(BCH_ERR_fsck,			fsck_repair_impossible)			\
 	x(EINVAL,			restart_recovery)			\
-	x(EINVAL,			not_in_recovery)			\
 	x(EINVAL,			cannot_rewind_recovery)			\
 	x(0,				data_update_done)			\
 	x(BCH_ERR_data_update_done,	data_update_done_would_block)		\

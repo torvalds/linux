@@ -20,8 +20,8 @@ int bch2_dev_missing_bkey(struct bch_fs *c, struct bkey_s_c k, unsigned dev)
 
 	bool print = bch2_count_fsck_err(c, ptr_to_invalid_device, &buf);
 
-	int ret = bch2_run_explicit_recovery_pass_persistent(c, &buf,
-						 BCH_RECOVERY_PASS_check_allocations);
+	int ret = bch2_run_explicit_recovery_pass(c, &buf,
+					BCH_RECOVERY_PASS_check_allocations, 0);
 
 	if (print)
 		bch2_print_str(c, KERN_ERR, buf.buf);
