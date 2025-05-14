@@ -119,6 +119,12 @@ struct xfs_groups {
 	 * SMR hard drives.
 	 */
 	xfs_fsblock_t		start_fsb;
+
+	/*
+	 * Maximum length of an atomic write for files stored in this
+	 * collection of allocation groups, in fsblocks.
+	 */
+	xfs_extlen_t		awu_max;
 };
 
 struct xfs_freecounter {
@@ -230,6 +236,9 @@ typedef struct xfs_mount {
 	bool			m_update_sb;	/* sb needs update in mount */
 	unsigned int		m_max_open_zones;
 	unsigned int		m_zonegc_low_space;
+
+	/* max_atomic_write mount option value */
+	unsigned long long	m_awu_max_bytes;
 
 	/*
 	 * Bitsets of per-fs metadata that have been checked and/or are sick.
@@ -462,6 +471,11 @@ static inline bool xfs_has_rtreflink(const struct xfs_mount *mp)
 static inline bool xfs_has_nonzoned(const struct xfs_mount *mp)
 {
 	return !xfs_has_zoned(mp);
+}
+
+static inline bool xfs_can_sw_atomic_write(struct xfs_mount *mp)
+{
+	return xfs_has_reflink(mp);
 }
 
 /*
@@ -792,5 +806,8 @@ static inline void xfs_mod_sb_delalloc(struct xfs_mount *mp, int64_t delta)
 {
 	percpu_counter_add(&mp->m_delalloc_blks, delta);
 }
+
+int xfs_set_max_atomic_write_opt(struct xfs_mount *mp,
+		unsigned long long new_max_bytes);
 
 #endif	/* __XFS_MOUNT_H__ */
