@@ -744,7 +744,9 @@ static int can_write_extent(struct bch_fs *c, struct data_update *m)
 	rcu_read_lock();
 	unsigned nr_replicas = 0, i;
 	for_each_set_bit(i, devs.d, BCH_SB_MEMBERS_MAX) {
-		struct bch_dev *ca = bch2_dev_rcu(c, i);
+		struct bch_dev *ca = bch2_dev_rcu_noerror(c, i);
+		if (!ca)
+			continue;
 
 		struct bch_dev_usage usage;
 		bch2_dev_usage_read_fast(ca, &usage);
