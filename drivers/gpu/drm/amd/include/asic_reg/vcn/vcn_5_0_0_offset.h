@@ -1067,6 +1067,8 @@
 #define regVCN_FEATURES_BASE_IDX                                                                        1
 #define regUVD_GPUIOV_STATUS                                                                            0x0055
 #define regUVD_GPUIOV_STATUS_BASE_IDX                                                                   1
+#define regUVD_RAS_VCPU_VCODEC_STATUS                                                                   0x0057
+#define regUVD_RAS_VCPU_VCODEC_STATUS_BASE_IDX                                                          1
 #define regUVD_SCRATCH15                                                                                0x005c
 #define regUVD_SCRATCH15_BASE_IDX                                                                       1
 #define regUVD_VERSION                                                                                  0x005d
