@@ -155,7 +155,7 @@
  * Can operate in:
  * - 1 sample
  * - 2 sample and make average of them
- * - 4,6,10,16 sample, drop max and min and make avgerage of them
+ * - 4,6,10,16 sample, drop max and min and make average of them
  */
 #define   EN7581_MSRCTL_1SAMPLE			0x0
 #define   EN7581_MSRCTL_AVG2SAMPLE		0x1
@@ -365,12 +365,12 @@ static void airoha_thermal_setup_monitor(struct airoha_thermal_priv *priv)
 	/*
 	 * Configure ADC valid reading addr
 	 * The AHB temp monitor system doesn't have direct access to the
-	 * thermal sensor. It does instead work by providing all kind of
-	 * address to configure how to access and setup an ADC for the
+	 * thermal sensor. It does instead work by providing various
+	 * addresses to configure how to access and setup an ADC for the
 	 * sensor. EN7581 supports only one sensor hence the
 	 * implementation is greatly simplified but the AHB supports
-	 * up to 4 different sensor from the same ADC that can be
-	 * switched by tuning the ADC mux or wiriting address.
+	 * up to 4 different sensors from the same ADC that can be
+	 * switched by tuning the ADC mux or writing address.
 	 *
 	 * We set valid instead of volt as we don't enable valid/volt
 	 * split reading and AHB read valid addr in such case.
