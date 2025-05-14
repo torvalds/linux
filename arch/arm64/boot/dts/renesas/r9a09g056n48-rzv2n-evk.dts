@@ -39,6 +39,15 @@
 		reg = <0x0 0x48000000 0x1 0xf8000000>;
 	};
 
+	reg_0p8v: regulator-0p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-0.8V";
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	reg_3p3v: regulator-3p3v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-3.3V";
@@ -77,6 +86,11 @@
 	phy-handle = <&phy1>;
 	phy-mode = "rgmii-id";
 	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+	mali-supply = <&reg_0p8v>;
 };
 
 &i2c0 {
