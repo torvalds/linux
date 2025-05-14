@@ -1075,7 +1075,7 @@ static void test_stream_check_sigpipe(int fd)
 	timeout_begin(TIMEOUT);
 	while(1) {
 		res = send(fd, "A", 1, 0);
-		if (res == -1)
+		if (res == -1 && errno != EINTR)
 			break;
 
 		/* Sleep a little before trying again to avoid flooding the
@@ -1087,6 +1087,10 @@ static void test_stream_check_sigpipe(int fd)
 	}
 	timeout_end();
 
+	if (errno != EPIPE) {
+		fprintf(stderr, "unexpected send(2) errno %d\n", errno);
+		exit(EXIT_FAILURE);
+	}
 	if (!have_sigpipe) {
 		fprintf(stderr, "SIGPIPE expected\n");
 		exit(EXIT_FAILURE);
@@ -1097,7 +1101,7 @@ static void test_stream_check_sigpipe(int fd)
 	timeout_begin(TIMEOUT);
 	while(1) {
 		res = send(fd, "A", 1, MSG_NOSIGNAL);
-		if (res == -1)
+		if (res == -1 && errno != EINTR)
 			break;
 
 		timeout_usleep(SEND_SLEEP_USEC);
@@ -1105,6 +1109,10 @@ static void test_stream_check_sigpipe(int fd)
 	}
 	timeout_end();
 
+	if (errno != EPIPE) {
+		fprintf(stderr, "unexpected send(2) errno %d\n", errno);
+		exit(EXIT_FAILURE);
+	}
 	if (have_sigpipe) {
 		fprintf(stderr, "SIGPIPE not expected\n");
 		exit(EXIT_FAILURE);
