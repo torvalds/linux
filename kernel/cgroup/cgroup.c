@@ -5660,7 +5660,7 @@ static struct cgroup *cgroup_create(struct cgroup *parent, const char *name,
 	struct cgroup_root *root = parent->root;
 	struct cgroup *cgrp, *tcgrp;
 	struct kernfs_node *kn;
-	int level = parent->level + 1;
+	int i, level = parent->level + 1;
 	int ret;
 
 	/* allocate the cgroup and its ID, 0 is reserved for the root */
@@ -5700,11 +5700,8 @@ static struct cgroup *cgroup_create(struct cgroup *parent, const char *name,
 	if (ret)
 		goto out_stat_exit;
 
-	if (cgrp->root == &cgrp_dfl_root) {
-		ret = cgroup_bpf_inherit(cgrp);
-		if (ret)
-			goto out_psi_free;
-	}
+	for (tcgrp = cgrp; tcgrp; tcgrp = cgroup_parent(tcgrp))
+		cgrp->ancestors[tcgrp->level] = tcgrp;
 
 	/*
 	 * New cgroup inherits effective freeze counter, and
@@ -5722,24 +5719,6 @@ static struct cgroup *cgroup_create(struct cgroup *parent, const char *name,
 		set_bit(CGRP_FROZEN, &cgrp->flags);
 	}
 
-	spin_lock_irq(&css_set_lock);
-	for (tcgrp = cgrp; tcgrp; tcgrp = cgroup_parent(tcgrp)) {
-		cgrp->ancestors[tcgrp->level] = tcgrp;
-
-		if (tcgrp != cgrp) {
-			tcgrp->nr_descendants++;
-
-			/*
-			 * If the new cgroup is frozen, all ancestor cgroups
-			 * get a new frozen descendant, but their state can't
-			 * change because of this.
-			 */
-			if (cgrp->freezer.e_freeze)
-				tcgrp->freezer.nr_frozen_descendants++;
-		}
-	}
-	spin_unlock_irq(&css_set_lock);
-
 	if (notify_on_release(parent))
 		set_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
 
@@ -5748,7 +5727,28 @@ static struct cgroup *cgroup_create(struct cgroup *parent, const char *name,
 
 	cgrp->self.serial_nr = css_serial_nr_next++;
 
+	if (cgrp->root == &cgrp_dfl_root) {
+		ret = cgroup_bpf_inherit(cgrp);
+		if (ret)
+			goto out_psi_free;
+	}
+
 	/* allocation complete, commit to creation */
+	spin_lock_irq(&css_set_lock);
+	for (i = 0; i < level; i++) {
+		tcgrp = cgrp->ancestors[i];
+		tcgrp->nr_descendants++;
+
+		/*
+		 * If the new cgroup is frozen, all ancestor cgroups get a new
+		 * frozen descendant, but their state can't change because of
+		 * this.
+		 */
+		if (cgrp->freezer.e_freeze)
+			tcgrp->freezer.nr_frozen_descendants++;
+	}
+	spin_unlock_irq(&css_set_lock);
+
 	list_add_tail_rcu(&cgrp->self.sibling, &cgroup_parent(cgrp)->self.children);
 	atomic_inc(&root->nr_cgrps);
 	cgroup_get_live(parent);
