@@ -338,7 +338,6 @@ static const struct dpu_sspp_sub_blks dpu_dma_sblk = _DMA_SBLK();
  *************************************************************/
 
 static const struct dpu_lm_sub_blks msm8998_lm_sblk = {
-	.maxwidth = DEFAULT_DPU_OUTPUT_LINE_WIDTH,
 	.maxblendstages = 7, /* excluding base layer */
 	.blendstage_base = { /* offsets relative to mixer base */
 		0x20, 0x50, 0x80, 0xb0, 0x230,
@@ -347,7 +346,6 @@ static const struct dpu_lm_sub_blks msm8998_lm_sblk = {
 };
 
 static const struct dpu_lm_sub_blks sdm845_lm_sblk = {
-	.maxwidth = DEFAULT_DPU_OUTPUT_LINE_WIDTH,
 	.maxblendstages = 11, /* excluding base layer */
 	.blendstage_base = { /* offsets relative to mixer base */
 		0x20, 0x38, 0x50, 0x68, 0x80, 0x98,
@@ -356,7 +354,6 @@ static const struct dpu_lm_sub_blks sdm845_lm_sblk = {
 };
 
 static const struct dpu_lm_sub_blks sc7180_lm_sblk = {
-	.maxwidth = DEFAULT_DPU_OUTPUT_LINE_WIDTH,
 	.maxblendstages = 7, /* excluding base layer */
 	.blendstage_base = { /* offsets relative to mixer base */
 		0x20, 0x38, 0x50, 0x68, 0x80, 0x98, 0xb0
@@ -364,7 +361,6 @@ static const struct dpu_lm_sub_blks sc7180_lm_sblk = {
 };
 
 static const struct dpu_lm_sub_blks sm8750_lm_sblk = {
-	.maxwidth = DEFAULT_DPU_OUTPUT_LINE_WIDTH,
 	.maxblendstages = 11, /* excluding base layer */
 	.blendstage_base = { /* offsets relative to mixer base */
 		/* 0x40 + n*0x30 */
@@ -374,7 +370,6 @@ static const struct dpu_lm_sub_blks sm8750_lm_sblk = {
 };
 
 static const struct dpu_lm_sub_blks qcm2290_lm_sblk = {
-	.maxwidth = DEFAULT_DPU_LINE_WIDTH,
 	.maxblendstages = 4, /* excluding base layer */
 	.blendstage_base = { /* offsets relative to mixer base */
 		0x20, 0x38, 0x50, 0x68
