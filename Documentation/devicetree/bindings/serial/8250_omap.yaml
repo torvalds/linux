@@ -64,14 +64,7 @@ properties:
   clock-names:
     const: fclk
 
-  rts-gpios: true
-  cts-gpios: true
-  dtr-gpios: true
-  dsr-gpios: true
-  rng-gpios: true
-  dcd-gpios: true
   rs485-rts-active-high: true
-  rts-gpio: true
   power-domains: true
   clock-frequency: true
   current-speed: true
