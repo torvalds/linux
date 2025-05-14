@@ -735,7 +735,6 @@ static void populate_dml21_surface_config_from_plane_state(
 	switch (plane_state->tiling_info.gfxversion) {
 	case DcGfxVersion7:
 	case DcGfxVersion8:
-		// Placeholder for programming the array_mode
 		break;
 	case DcGfxVersion9:
 	case DcGfxVersion10:
