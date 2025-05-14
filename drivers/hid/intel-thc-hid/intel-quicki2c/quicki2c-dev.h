@@ -7,12 +7,12 @@
 #include <linux/hid-over-i2c.h>
 #include <linux/workqueue.h>
 
-#define THC_LNL_DEVICE_ID_I2C_PORT1	0xA848
-#define THC_LNL_DEVICE_ID_I2C_PORT2	0xA84A
-#define THC_PTL_H_DEVICE_ID_I2C_PORT1	0xE348
-#define THC_PTL_H_DEVICE_ID_I2C_PORT2	0xE34A
-#define THC_PTL_U_DEVICE_ID_I2C_PORT1	0xE448
-#define THC_PTL_U_DEVICE_ID_I2C_PORT2	0xE44A
+#define PCI_DEVICE_ID_INTEL_THC_LNL_DEVICE_ID_I2C_PORT1		0xA848
+#define PCI_DEVICE_ID_INTEL_THC_LNL_DEVICE_ID_I2C_PORT2		0xA84A
+#define PCI_DEVICE_ID_INTEL_THC_PTL_H_DEVICE_ID_I2C_PORT1	0xE348
+#define PCI_DEVICE_ID_INTEL_THC_PTL_H_DEVICE_ID_I2C_PORT2	0xE34A
+#define PCI_DEVICE_ID_INTEL_THC_PTL_U_DEVICE_ID_I2C_PORT1	0xE448
+#define PCI_DEVICE_ID_INTEL_THC_PTL_U_DEVICE_ID_I2C_PORT2	0xE44A
 
 /* Packet size value, the unit is 16 bytes */
 #define MAX_PACKET_SIZE_VALUE_LNL			256
@@ -122,6 +122,16 @@ struct quicki2c_subip_acpi_config {
 	u64 HMSL;
 };
 
+/**
+ * struct quicki2c_ddata - Driver specific data for quicki2c device
+ * @max_detect_size: Identify max packet size detect for rx
+ * @interrupt_delay: Identify interrupt detect delay for rx
+ */
+struct quicki2c_ddata {
+	u32 max_detect_size;
+	u32 interrupt_delay;
+};
+
 struct device;
 struct pci_dev;
 struct thc_device;
@@ -135,6 +145,7 @@ struct acpi_device;
  * @thc_hw: Point to THC device
  * @hid_dev: Point to HID device
  * @acpi_dev: Point to ACPI device
+ * @ddata: Point to QuickI2C platform specific driver data
  * @state: THC I2C device state
  * @mem_addr: MMIO memory address
  * @dev_desc: Device descriptor for HIDI2C protocol
@@ -158,6 +169,7 @@ struct quicki2c_device {
 	struct thc_device *thc_hw;
 	struct hid_device *hid_dev;
 	struct acpi_device *acpi_dev;
+	const struct quicki2c_ddata *ddata;
 	enum quicki2c_dev_state state;
 
 	void __iomem *mem_addr;
