@@ -41,19 +41,16 @@ bool __kprobes simulate_jal(u32 opcode, unsigned long addr, struct pt_regs *regs
 	 *     1         10          1           8       5    JAL/J
 	 */
 	bool ret;
-	u32 imm;
+	s32 imm;
 	u32 index = (opcode >> 7) & 0x1f;
 
 	ret = rv_insn_reg_set_val(regs, index, addr + 4);
 	if (!ret)
 		return ret;
 
-	imm  = ((opcode >> 21) & 0x3ff) << 1;
-	imm |= ((opcode >> 20) & 0x1)   << 11;
-	imm |= ((opcode >> 12) & 0xff)  << 12;
-	imm |= ((opcode >> 31) & 0x1)   << 20;
+	imm = RV_EXTRACT_JTYPE_IMM(opcode);
 
-	instruction_pointer_set(regs, addr + sign_extend32((imm), 20));
+	instruction_pointer_set(regs, addr + imm);
 
 	return ret;
 }
