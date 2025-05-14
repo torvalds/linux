@@ -22,7 +22,7 @@ static void deflate_release_params(struct zcomp_params *params)
 
 static int deflate_setup_params(struct zcomp_params *params)
 {
-	if (params->level == ZCOMP_PARAM_NO_LEVEL)
+	if (params->level == ZCOMP_PARAM_NOT_SET)
 		params->level = Z_DEFAULT_COMPRESSION;
 
 	return 0;

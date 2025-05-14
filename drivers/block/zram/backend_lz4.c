@@ -18,7 +18,7 @@ static void lz4_release_params(struct zcomp_params *params)
 
 static int lz4_setup_params(struct zcomp_params *params)
 {
-	if (params->level == ZCOMP_PARAM_NO_LEVEL)
+	if (params->level == ZCOMP_PARAM_NOT_SET)
 		params->level = LZ4_ACCELERATION_DEFAULT;
 
 	return 0;
