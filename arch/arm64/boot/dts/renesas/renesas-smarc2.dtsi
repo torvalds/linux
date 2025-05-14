@@ -35,6 +35,7 @@
 	};
 
 	aliases {
+		i2c0 = &i2c0;
 		serial3 = &scif0;
 		mmc1 = &sdhi1;
 	};
@@ -56,6 +57,11 @@
 
 &canfd {
 	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+	clock-frequency = <400000>;
 };
 
 &scif0 {
