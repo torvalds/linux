@@ -42,7 +42,7 @@ bool __kprobes simulate_jal(u32 opcode, unsigned long addr, struct pt_regs *regs
 	 */
 	bool ret;
 	s32 imm;
-	u32 index = (opcode >> 7) & 0x1f;
+	u32 index = RV_EXTRACT_RD_REG(opcode);
 
 	ret = rv_insn_reg_set_val(regs, index, addr + 4);
 	if (!ret)
@@ -65,7 +65,7 @@ bool __kprobes simulate_jalr(u32 opcode, unsigned long addr, struct pt_regs *reg
 	bool ret;
 	unsigned long base_addr;
 	u32 imm = (opcode >> 20) & 0xfff;
-	u32 rd_index = (opcode >> 7) & 0x1f;
+	u32 rd_index = RV_EXTRACT_RD_REG(opcode);
 	u32 rs1_index = RV_EXTRACT_RS1_REG(opcode);
 
 	ret = rv_insn_reg_get_val(regs, rs1_index, &base_addr);
@@ -80,9 +80,6 @@ bool __kprobes simulate_jalr(u32 opcode, unsigned long addr, struct pt_regs *reg
 
 	return ret;
 }
-
-#define auipc_rd_idx(opcode) \
-	((opcode >> 7) & 0x1f)
 
 #define auipc_imm(opcode) \
 	((((opcode) >> 12) & 0xfffff) << 12)
@@ -104,7 +101,7 @@ bool __kprobes simulate_auipc(u32 opcode, unsigned long addr, struct pt_regs *re
 	 *        20       5     7
 	 */
 
-	u32 rd_idx = auipc_rd_idx(opcode);
+	u32 rd_idx = RV_EXTRACT_RD_REG(opcode);
 	unsigned long rd_val = addr + auipc_offset(opcode);
 
 	if (!rv_insn_reg_set_val(regs, rd_idx, rd_val))
