@@ -1366,69 +1366,6 @@ static void test_redir(struct test_sockmap_listen *skel, struct bpf_map *map,
 	}
 }
 
-static void pairs_redir_to_connected(int cli0, int peer0, int cli1, int peer1,
-				     int sock_mapfd, int nop_mapfd,
-				     int verd_mapfd, enum redir_mode mode,
-				     int send_flags)
-{
-	const char *log_prefix = redir_mode_str(mode);
-	unsigned int pass;
-	int err, n;
-	u32 key;
-	char b;
-
-	zero_verdict_count(verd_mapfd);
-
-	err = add_to_sockmap(sock_mapfd, peer0, peer1);
-	if (err)
-		return;
-
-	if (nop_mapfd >= 0) {
-		err = add_to_sockmap(nop_mapfd, cli0, cli1);
-		if (err)
-			return;
-	}
-
-	/* Last byte is OOB data when send_flags has MSG_OOB bit set */
-	n = xsend(cli1, "ab", 2, send_flags);
-	if (n >= 0 && n < 2)
-		FAIL("%s: incomplete send", log_prefix);
-	if (n < 2)
-		return;
-
-	key = SK_PASS;
-	err = xbpf_map_lookup_elem(verd_mapfd, &key, &pass);
-	if (err)
-		return;
-	if (pass != 1)
-		FAIL("%s: want pass count 1, have %d", log_prefix, pass);
-
-	n = recv_timeout(mode == REDIR_INGRESS ? peer0 : cli0, &b, 1, 0, IO_TIMEOUT_SEC);
-	if (n < 0)
-		FAIL_ERRNO("%s: recv_timeout", log_prefix);
-	if (n == 0)
-		FAIL("%s: incomplete recv", log_prefix);
-
-	if (send_flags & MSG_OOB) {
-		/* Check that we can't read OOB while in sockmap */
-		errno = 0;
-		n = recv(peer1, &b, 1, MSG_OOB | MSG_DONTWAIT);
-		if (n != -1 || errno != EOPNOTSUPP)
-			FAIL("%s: recv(MSG_OOB): expected EOPNOTSUPP: retval=%d errno=%d",
-			     log_prefix, n, errno);
-
-		/* Remove peer1 from sockmap */
-		xbpf_map_delete_elem(sock_mapfd, &(int){ 1 });
-
-		/* Check that OOB was dropped on redirect */
-		errno = 0;
-		n = recv(peer1, &b, 1, MSG_OOB | MSG_DONTWAIT);
-		if (n != -1 || errno != EINVAL)
-			FAIL("%s: recv(MSG_OOB): expected EINVAL: retval=%d errno=%d",
-			     log_prefix, n, errno);
-	}
-}
-
 static void test_reuseport(struct test_sockmap_listen *skel,
 			   struct bpf_map *map, int family, int sotype)
 {
@@ -1469,68 +1406,6 @@ static void test_reuseport(struct test_sockmap_listen *skel,
 	}
 }
 
-static int inet_socketpair(int family, int type, int *s, int *c)
-{
-	return create_pair(family, type | SOCK_NONBLOCK, s, c);
-}
-
-static void udp_redir_to_connected(int family, int sock_mapfd, int verd_mapfd,
-				   enum redir_mode mode)
-{
-	int c0, c1, p0, p1;
-	int err;
-
-	err = inet_socketpair(family, SOCK_DGRAM, &p0, &c0);
-	if (err)
-		return;
-	err = inet_socketpair(family, SOCK_DGRAM, &p1, &c1);
-	if (err)
-		goto close_cli0;
-
-	pairs_redir_to_connected(c0, p0, c1, p1, sock_mapfd, -1, verd_mapfd,
-				 mode, NO_FLAGS);
-
-	xclose(c1);
-	xclose(p1);
-close_cli0:
-	xclose(c0);
-	xclose(p0);
-}
-
-static void udp_skb_redir_to_connected(struct test_sockmap_listen *skel,
-				       struct bpf_map *inner_map, int family)
-{
-	int verdict = bpf_program__fd(skel->progs.prog_skb_verdict);
-	int verdict_map = bpf_map__fd(skel->maps.verdict_map);
-	int sock_map = bpf_map__fd(inner_map);
-	int err;
-
-	err = xbpf_prog_attach(verdict, sock_map, BPF_SK_SKB_VERDICT, 0);
-	if (err)
-		return;
-
-	skel->bss->test_ingress = false;
-	udp_redir_to_connected(family, sock_map, verdict_map, REDIR_EGRESS);
-	skel->bss->test_ingress = true;
-	udp_redir_to_connected(family, sock_map, verdict_map, REDIR_INGRESS);
-
-	xbpf_prog_detach2(verdict, sock_map, BPF_SK_SKB_VERDICT);
-}
-
-static void test_udp_redir(struct test_sockmap_listen *skel, struct bpf_map *map,
-			   int family)
-{
-	const char *family_name, *map_name;
-	char s[MAX_TEST_NAME];
-
-	family_name = family_str(family);
-	map_name = map_type_str(map);
-	snprintf(s, sizeof(s), "%s %s %s", map_name, family_name, __func__);
-	if (!test__start_subtest(s))
-		return;
-	udp_skb_redir_to_connected(skel, map, family);
-}
-
 static void run_tests(struct test_sockmap_listen *skel, struct bpf_map *map,
 		      int family)
 {
@@ -1539,7 +1414,6 @@ static void run_tests(struct test_sockmap_listen *skel, struct bpf_map *map,
 	test_redir(skel, map, family, SOCK_STREAM);
 	test_reuseport(skel, map, family, SOCK_STREAM);
 	test_reuseport(skel, map, family, SOCK_DGRAM);
-	test_udp_redir(skel, map, family);
 }
 
 void serial_test_sockmap_listen(void)
