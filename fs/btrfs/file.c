@@ -1841,8 +1841,7 @@ static vm_fault_t btrfs_page_mkwrite(struct vm_fault *vmf)
 	unsigned long zero_start;
 	loff_t size;
 	size_t fsize = folio_size(folio);
-	vm_fault_t ret;
-	int ret2;
+	int ret;
 	u64 reserved_space;
 	u64 page_start;
 	u64 page_end;
@@ -1863,21 +1862,14 @@ static vm_fault_t btrfs_page_mkwrite(struct vm_fault *vmf)
 	 * end up waiting indefinitely to get a lock on the page currently
 	 * being processed by btrfs_page_mkwrite() function.
 	 */
-	ret2 = btrfs_delalloc_reserve_space(BTRFS_I(inode), &data_reserved,
-					    page_start, reserved_space);
-	if (ret2) {
-		ret = vmf_error(ret2);
+	ret = btrfs_delalloc_reserve_space(BTRFS_I(inode), &data_reserved,
+					   page_start, reserved_space);
+	if (ret < 0)
 		goto out_noreserve;
-	}
 
-	ret2 = file_update_time(vmf->vma->vm_file);
-	if (ret2) {
-		ret = vmf_error(ret2);
+	ret = file_update_time(vmf->vma->vm_file);
+	if (ret < 0)
 		goto out;
-	}
-
-	/* Make the VM retry the fault. */
-	ret = VM_FAULT_NOPAGE;
 again:
 	down_read(&BTRFS_I(inode)->i_mmap_lock);
 	folio_lock(folio);
@@ -1891,9 +1883,8 @@ again:
 	folio_wait_writeback(folio);
 
 	btrfs_lock_extent(io_tree, page_start, page_end, &cached_state);
-	ret2 = set_folio_extent_mapped(folio);
-	if (ret2 < 0) {
-		ret = vmf_error(ret2);
+	ret = set_folio_extent_mapped(folio);
+	if (ret < 0) {
 		btrfs_unlock_extent(io_tree, page_start, page_end, &cached_state);
 		goto out_unlock;
 	}
@@ -1933,11 +1924,10 @@ again:
 			       EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING |
 			       EXTENT_DEFRAG, &cached_state);
 
-	ret2 = btrfs_set_extent_delalloc(BTRFS_I(inode), page_start, end, 0,
+	ret = btrfs_set_extent_delalloc(BTRFS_I(inode), page_start, end, 0,
 					&cached_state);
-	if (ret2) {
+	if (ret < 0) {
 		btrfs_unlock_extent(io_tree, page_start, page_end, &cached_state);
-		ret = vmf_error(ret2);
 		goto out_unlock;
 	}
 
@@ -1974,7 +1964,12 @@ out:
 	extent_changeset_free(data_reserved);
 out_noreserve:
 	sb_end_pagefault(inode->i_sb);
-	return ret;
+
+	if (ret < 0)
+		return vmf_error(ret);
+
+	/* Make the VM retry the fault. */
+	return VM_FAULT_NOPAGE;
 }
 
 static const struct vm_operations_struct btrfs_file_vm_ops = {
