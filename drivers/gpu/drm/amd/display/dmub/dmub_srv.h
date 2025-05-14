@@ -356,6 +356,7 @@ struct dmub_diagnostic_data {
 	uint8_t is_traceport_en : 1;
 	uint8_t is_cw0_enabled : 1;
 	uint8_t is_cw6_enabled : 1;
+	uint8_t is_pwait : 1;
 };
 
 struct dmub_srv_inbox {
