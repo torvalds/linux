@@ -70,15 +70,6 @@
 	};
 };
 
-&gpio1 {
-	pmic-irq-hog {
-		gpio-hog;
-		gpios = <3 GPIO_ACTIVE_LOW>;
-		input;
-		line-name = "PMIC_IRQ#";
-	};
-};
-
 &lpi2c1 {
 	clock-frequency = <400000>;
 	pinctrl-names = "default", "sleep";
