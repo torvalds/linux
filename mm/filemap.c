@@ -142,7 +142,7 @@ static void page_cache_delete(struct address_space *mapping,
 	xas_init_marks(&xas);
 
 	folio->mapping = NULL;
-	/* Leave page->index set: truncation lookup relies upon it */
+	/* Leave folio->index set: truncation lookup relies upon it */
 	mapping->nrpages -= nr;
 }
 
@@ -949,7 +949,7 @@ unlock:
 	return 0;
 error:
 	folio->mapping = NULL;
-	/* Leave page->index set: truncation relies upon it */
+	/* Leave folio->index set: truncation relies upon it */
 	folio_put_refs(folio, nr);
 	return xas_error(&xas);
 }
