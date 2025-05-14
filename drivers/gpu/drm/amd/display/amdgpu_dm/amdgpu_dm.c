@@ -4910,6 +4910,7 @@ amdgpu_dm_register_backlight_device(struct amdgpu_dm_connector *aconnector)
 	struct backlight_properties props = { 0 };
 	struct amdgpu_dm_backlight_caps caps = { 0 };
 	char bl_name[16];
+	int min, max;
 
 	if (aconnector->bl_idx == -1)
 		return;
@@ -4922,11 +4923,15 @@ amdgpu_dm_register_backlight_device(struct amdgpu_dm_connector *aconnector)
 	}
 
 	amdgpu_acpi_get_backlight_caps(&caps);
-	if (caps.caps_valid) {
+	if (caps.caps_valid && get_brightness_range(&caps, &min, &max)) {
 		if (power_supply_is_system_supplied() > 0)
 			props.brightness = caps.ac_level;
 		else
 			props.brightness = caps.dc_level;
+		/* min is zero, so max needs to be adjusted */
+		props.max_brightness = max - min;
+		drm_dbg(drm, "Backlight caps: min: %d, max: %d, ac %d, dc %d\n", min, max,
+			caps.ac_level, caps.dc_level);
 	} else
 		props.brightness = AMDGPU_MAX_BL_LEVEL;
 
