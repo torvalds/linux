@@ -18,6 +18,7 @@
 #include <linux/mmu_context.h>
 #include <linux/bsearch.h>
 #include <linux/sync_core.h>
+#include <linux/execmem.h>
 #include <asm/text-patching.h>
 #include <asm/alternative.h>
 #include <asm/sections.h>
@@ -31,6 +32,8 @@
 #include <asm/paravirt.h>
 #include <asm/asm-prototypes.h>
 #include <asm/cfi.h>
+#include <asm/ibt.h>
+#include <asm/set_memory.h>
 
 int __read_mostly alternatives_patched;
 
@@ -123,6 +126,171 @@ const unsigned char * const x86_nops[ASM_NOP_MAX+1] =
 	x86nops + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10,
 #endif
 };
+
+#ifdef CONFIG_FINEIBT
+static bool cfi_paranoid __ro_after_init;
+#endif
+
+#ifdef CONFIG_MITIGATION_ITS
+
+#ifdef CONFIG_MODULES
+static struct module *its_mod;
+#endif
+static void *its_page;
+static unsigned int its_offset;
+
+/* Initialize a thunk with the "jmp *reg; int3" instructions. */
+static void *its_init_thunk(void *thunk, int reg)
+{
+	u8 *bytes = thunk;
+	int offset = 0;
+	int i = 0;
+
+#ifdef CONFIG_FINEIBT
+	if (cfi_paranoid) {
+		/*
+		 * When ITS uses indirect branch thunk the fineibt_paranoid
+		 * caller sequence doesn't fit in the caller site. So put the
+		 * remaining part of the sequence (<ea> + JNE) into the ITS
+		 * thunk.
+		 */
+		bytes[i++] = 0xea; /* invalid instruction */
+		bytes[i++] = 0x75; /* JNE */
+		bytes[i++] = 0xfd;
+
+		offset = 1;
+	}
+#endif
+
+	if (reg >= 8) {
+		bytes[i++] = 0x41; /* REX.B prefix */
+		reg -= 8;
+	}
+	bytes[i++] = 0xff;
+	bytes[i++] = 0xe0 + reg; /* jmp *reg */
+	bytes[i++] = 0xcc;
+
+	return thunk + offset;
+}
+
+#ifdef CONFIG_MODULES
+void its_init_mod(struct module *mod)
+{
+	if (!cpu_feature_enabled(X86_FEATURE_INDIRECT_THUNK_ITS))
+		return;
+
+	mutex_lock(&text_mutex);
+	its_mod = mod;
+	its_page = NULL;
+}
+
+void its_fini_mod(struct module *mod)
+{
+	if (!cpu_feature_enabled(X86_FEATURE_INDIRECT_THUNK_ITS))
+		return;
+
+	WARN_ON_ONCE(its_mod != mod);
+
+	its_mod = NULL;
+	its_page = NULL;
+	mutex_unlock(&text_mutex);
+
+	for (int i = 0; i < mod->its_num_pages; i++) {
+		void *page = mod->its_page_array[i];
+		execmem_restore_rox(page, PAGE_SIZE);
+	}
+}
+
+void its_free_mod(struct module *mod)
+{
+	if (!cpu_feature_enabled(X86_FEATURE_INDIRECT_THUNK_ITS))
+		return;
+
+	for (int i = 0; i < mod->its_num_pages; i++) {
+		void *page = mod->its_page_array[i];
+		execmem_free(page);
+	}
+	kfree(mod->its_page_array);
+}
+#endif /* CONFIG_MODULES */
+
+static void *its_alloc(void)
+{
+	void *page __free(execmem) = execmem_alloc(EXECMEM_MODULE_TEXT, PAGE_SIZE);
+
+	if (!page)
+		return NULL;
+
+#ifdef CONFIG_MODULES
+	if (its_mod) {
+		void *tmp = krealloc(its_mod->its_page_array,
+				     (its_mod->its_num_pages+1) * sizeof(void *),
+				     GFP_KERNEL);
+		if (!tmp)
+			return NULL;
+
+		its_mod->its_page_array = tmp;
+		its_mod->its_page_array[its_mod->its_num_pages++] = page;
+
+		execmem_make_temp_rw(page, PAGE_SIZE);
+	}
+#endif /* CONFIG_MODULES */
+
+	return no_free_ptr(page);
+}
+
+static void *its_allocate_thunk(int reg)
+{
+	int size = 3 + (reg / 8);
+	void *thunk;
+
+#ifdef CONFIG_FINEIBT
+	/*
+	 * The ITS thunk contains an indirect jump and an int3 instruction so
+	 * its size is 3 or 4 bytes depending on the register used. If CFI
+	 * paranoid is used then 3 extra bytes are added in the ITS thunk to
+	 * complete the fineibt_paranoid caller sequence.
+	 */
+	if (cfi_paranoid)
+		size += 3;
+#endif
+
+	if (!its_page || (its_offset + size - 1) >= PAGE_SIZE) {
+		its_page = its_alloc();
+		if (!its_page) {
+			pr_err("ITS page allocation failed\n");
+			return NULL;
+		}
+		memset(its_page, INT3_INSN_OPCODE, PAGE_SIZE);
+		its_offset = 32;
+	}
+
+	/*
+	 * If the indirect branch instruction will be in the lower half
+	 * of a cacheline, then update the offset to reach the upper half.
+	 */
+	if ((its_offset + size - 1) % 64 < 32)
+		its_offset = ((its_offset - 1) | 0x3F) + 33;
+
+	thunk = its_page + its_offset;
+	its_offset += size;
+
+	return its_init_thunk(thunk, reg);
+}
+
+u8 *its_static_thunk(int reg)
+{
+	u8 *thunk = __x86_indirect_its_thunk_array[reg];
+
+#ifdef CONFIG_FINEIBT
+	/* Paranoid thunk starts 2 bytes before */
+	if (cfi_paranoid)
+		return thunk - 2;
+#endif
+	return thunk;
+}
+
+#endif
 
 /*
  * Nomenclature for variable names to simplify and clarify this code and ease
@@ -581,7 +749,8 @@ static int emit_indirect(int op, int reg, u8 *bytes)
 	return i;
 }
 
-static int emit_call_track_retpoline(void *addr, struct insn *insn, int reg, u8 *bytes)
+static int __emit_trampoline(void *addr, struct insn *insn, u8 *bytes,
+			     void *call_dest, void *jmp_dest)
 {
 	u8 op = insn->opcode.bytes[0];
 	int i = 0;
@@ -602,7 +771,7 @@ static int emit_call_track_retpoline(void *addr, struct insn *insn, int reg, u8 
 	switch (op) {
 	case CALL_INSN_OPCODE:
 		__text_gen_insn(bytes+i, op, addr+i,
-				__x86_indirect_call_thunk_array[reg],
+				call_dest,
 				CALL_INSN_SIZE);
 		i += CALL_INSN_SIZE;
 		break;
@@ -610,7 +779,7 @@ static int emit_call_track_retpoline(void *addr, struct insn *insn, int reg, u8 
 	case JMP32_INSN_OPCODE:
 clang_jcc:
 		__text_gen_insn(bytes+i, op, addr+i,
-				__x86_indirect_jump_thunk_array[reg],
+				jmp_dest,
 				JMP32_INSN_SIZE);
 		i += JMP32_INSN_SIZE;
 		break;
@@ -624,6 +793,48 @@ clang_jcc:
 
 	return i;
 }
+
+static int emit_call_track_retpoline(void *addr, struct insn *insn, int reg, u8 *bytes)
+{
+	return __emit_trampoline(addr, insn, bytes,
+				 __x86_indirect_call_thunk_array[reg],
+				 __x86_indirect_jump_thunk_array[reg]);
+}
+
+#ifdef CONFIG_MITIGATION_ITS
+static int emit_its_trampoline(void *addr, struct insn *insn, int reg, u8 *bytes)
+{
+	u8 *thunk = __x86_indirect_its_thunk_array[reg];
+	u8 *tmp = its_allocate_thunk(reg);
+
+	if (tmp)
+		thunk = tmp;
+
+	return __emit_trampoline(addr, insn, bytes, thunk, thunk);
+}
+
+/* Check if an indirect branch is at ITS-unsafe address */
+static bool cpu_wants_indirect_its_thunk_at(unsigned long addr, int reg)
+{
+	if (!cpu_feature_enabled(X86_FEATURE_INDIRECT_THUNK_ITS))
+		return false;
+
+	/* Indirect branch opcode is 2 or 3 bytes depending on reg */
+	addr += 1 + reg / 8;
+
+	/* Lower-half of the cacheline? */
+	return !(addr & 0x20);
+}
+#else /* CONFIG_MITIGATION_ITS */
+
+#ifdef CONFIG_FINEIBT
+static bool cpu_wants_indirect_its_thunk_at(unsigned long addr, int reg)
+{
+	return false;
+}
+#endif
+
+#endif /* CONFIG_MITIGATION_ITS */
 
 /*
  * Rewrite the compiler generated retpoline thunk calls.
@@ -699,6 +910,15 @@ static int patch_retpoline(void *addr, struct insn *insn, u8 *bytes)
 		bytes[i++] = 0xe8; /* LFENCE */
 	}
 
+#ifdef CONFIG_MITIGATION_ITS
+	/*
+	 * Check if the address of last byte of emitted-indirect is in
+	 * lower-half of the cacheline. Such branches need ITS mitigation.
+	 */
+	if (cpu_wants_indirect_its_thunk_at((unsigned long)addr + i, reg))
+		return emit_its_trampoline(addr, insn, reg, bytes);
+#endif
+
 	ret = emit_indirect(op, reg, bytes + i);
 	if (ret < 0)
 		return ret;
@@ -732,6 +952,7 @@ void __init_or_module noinline apply_retpolines(s32 *start, s32 *end)
 		int len, ret;
 		u8 bytes[16];
 		u8 op1, op2;
+		u8 *dest;
 
 		ret = insn_decode_kernel(&insn, addr);
 		if (WARN_ON_ONCE(ret < 0))
@@ -748,6 +969,12 @@ void __init_or_module noinline apply_retpolines(s32 *start, s32 *end)
 
 		case CALL_INSN_OPCODE:
 		case JMP32_INSN_OPCODE:
+			/* Check for cfi_paranoid + ITS */
+			dest = addr + insn.length + insn.immediate.value;
+			if (dest[-1] == 0xea && (dest[0] & 0xf0) == 0x70) {
+				WARN_ON_ONCE(cfi_mode != CFI_FINEIBT);
+				continue;
+			}
 			break;
 
 		case 0x0f: /* escape */
@@ -775,6 +1002,21 @@ void __init_or_module noinline apply_retpolines(s32 *start, s32 *end)
 
 #ifdef CONFIG_MITIGATION_RETHUNK
 
+bool cpu_wants_rethunk(void)
+{
+	return cpu_feature_enabled(X86_FEATURE_RETHUNK);
+}
+
+bool cpu_wants_rethunk_at(void *addr)
+{
+	if (!cpu_feature_enabled(X86_FEATURE_RETHUNK))
+		return false;
+	if (x86_return_thunk != its_return_thunk)
+		return true;
+
+	return !((unsigned long)addr & 0x20);
+}
+
 /*
  * Rewrite the compiler generated return thunk tail-calls.
  *
@@ -791,7 +1033,7 @@ static int patch_return(void *addr, struct insn *insn, u8 *bytes)
 	int i = 0;
 
 	/* Patch the custom return thunks... */
-	if (cpu_feature_enabled(X86_FEATURE_RETHUNK)) {
+	if (cpu_wants_rethunk_at(addr)) {
 		i = JMP32_INSN_SIZE;
 		__text_gen_insn(bytes, JMP32_INSN_OPCODE, addr, x86_return_thunk, i);
 	} else {
@@ -808,7 +1050,7 @@ void __init_or_module noinline apply_returns(s32 *start, s32 *end)
 {
 	s32 *s;
 
-	if (cpu_feature_enabled(X86_FEATURE_RETHUNK))
+	if (cpu_wants_rethunk())
 		static_call_force_reinit();
 
 	for (s = start; s < end; s++) {
@@ -1021,8 +1263,6 @@ int cfi_get_func_arity(void *func)
 
 static bool cfi_rand __ro_after_init = true;
 static u32  cfi_seed __ro_after_init;
-
-static bool cfi_paranoid __ro_after_init = false;
 
 /*
  * Re-hash the CFI hash with a boot-time seed while making sure the result is
@@ -1436,6 +1676,19 @@ static int cfi_rand_callers(s32 *start, s32 *end)
 	return 0;
 }
 
+static int emit_paranoid_trampoline(void *addr, struct insn *insn, int reg, u8 *bytes)
+{
+	u8 *thunk = (void *)__x86_indirect_its_thunk_array[reg] - 2;
+
+#ifdef CONFIG_MITIGATION_ITS
+	u8 *tmp = its_allocate_thunk(reg);
+	if (tmp)
+		thunk = tmp;
+#endif
+
+	return __emit_trampoline(addr, insn, bytes, thunk, thunk);
+}
+
 static int cfi_rewrite_callers(s32 *start, s32 *end)
 {
 	s32 *s;
@@ -1477,9 +1730,14 @@ static int cfi_rewrite_callers(s32 *start, s32 *end)
 		memcpy(bytes, fineibt_paranoid_start, fineibt_paranoid_size);
 		memcpy(bytes + fineibt_caller_hash, &hash, 4);
 
-		ret = emit_indirect(op, 11, bytes + fineibt_paranoid_ind);
-		if (WARN_ON_ONCE(ret != 3))
-			continue;
+		if (cpu_wants_indirect_its_thunk_at((unsigned long)addr + fineibt_paranoid_ind, 11)) {
+			emit_paranoid_trampoline(addr + fineibt_caller_size,
+						 &insn, 11, bytes + fineibt_caller_size);
+		} else {
+			ret = emit_indirect(op, 11, bytes + fineibt_paranoid_ind);
+			if (WARN_ON_ONCE(ret != 3))
+				continue;
+		}
 
 		text_poke_early(addr, bytes, fineibt_paranoid_size);
 	}
@@ -1706,29 +1964,66 @@ Efault:
 	return false;
 }
 
+static bool is_paranoid_thunk(unsigned long addr)
+{
+	u32 thunk;
+
+	__get_kernel_nofault(&thunk, (u32 *)addr, u32, Efault);
+	return (thunk & 0x00FFFFFF) == 0xfd75ea;
+
+Efault:
+	return false;
+}
+
 /*
  * regs->ip points to a LOCK Jcc.d8 instruction from the fineibt_paranoid_start[]
- * sequence.
+ * sequence, or to an invalid instruction (0xea) + Jcc.d8 for cfi_paranoid + ITS
+ * thunk.
  */
 static bool decode_fineibt_paranoid(struct pt_regs *regs, unsigned long *target, u32 *type)
 {
 	unsigned long addr = regs->ip - fineibt_paranoid_ud;
-	u32 hash;
 
-	if (!cfi_paranoid || !is_cfi_trap(addr + fineibt_caller_size - LEN_UD2))
+	if (!cfi_paranoid)
 		return false;
 
-	__get_kernel_nofault(&hash, addr + fineibt_caller_hash, u32, Efault);
-	*target = regs->r11 + fineibt_preamble_size;
-	*type = regs->r10;
+	if (is_cfi_trap(addr + fineibt_caller_size - LEN_UD2)) {
+		*target = regs->r11 + fineibt_preamble_size;
+		*type = regs->r10;
+
+		/*
+		 * Since the trapping instruction is the exact, but LOCK prefixed,
+		 * Jcc.d8 that got us here, the normal fixup will work.
+		 */
+		return true;
+	}
 
 	/*
-	 * Since the trapping instruction is the exact, but LOCK prefixed,
-	 * Jcc.d8 that got us here, the normal fixup will work.
+	 * The cfi_paranoid + ITS thunk combination results in:
+	 *
+	 *  0:   41 ba 78 56 34 12       mov    $0x12345678, %r10d
+	 *  6:   45 3b 53 f7             cmp    -0x9(%r11), %r10d
+	 *  a:   4d 8d 5b f0             lea    -0x10(%r11), %r11
+	 *  e:   2e e8 XX XX XX XX	 cs call __x86_indirect_paranoid_thunk_r11
+	 *
+	 * Where the paranoid_thunk looks like:
+	 *
+	 *  1d:  <ea>                    (bad)
+	 *  __x86_indirect_paranoid_thunk_r11:
+	 *  1e:  75 fd                   jne 1d
+	 *  __x86_indirect_its_thunk_r11:
+	 *  20:  41 ff eb                jmp *%r11
+	 *  23:  cc                      int3
+	 *
 	 */
-	return true;
+	if (is_paranoid_thunk(regs->ip)) {
+		*target = regs->r11 + fineibt_preamble_size;
+		*type = regs->r10;
 
-Efault:
+		regs->ip = *target;
+		return true;
+	}
+
 	return false;
 }
 
@@ -2031,6 +2326,8 @@ static noinline void __init alt_reloc_selftest(void)
 
 void __init alternative_instructions(void)
 {
+	u64 ibt;
+
 	int3_selftest();
 
 	/*
@@ -2057,6 +2354,9 @@ void __init alternative_instructions(void)
 	 */
 	paravirt_set_cap();
 
+	/* Keep CET-IBT disabled until caller/callee are patched */
+	ibt = ibt_save(/*disable*/ true);
+
 	__apply_fineibt(__retpoline_sites, __retpoline_sites_end,
 			__cfi_sites, __cfi_sites_end, true);
 
@@ -2079,6 +2379,8 @@ void __init alternative_instructions(void)
 	 * Seal all functions that do not have their address taken.
 	 */
 	apply_seal_endbr(__ibt_endbr_seal, __ibt_endbr_seal_end);
+
+	ibt_restore(ibt);
 
 #ifdef CONFIG_SMP
 	/* Patch to UP if other cpus not imminent. */

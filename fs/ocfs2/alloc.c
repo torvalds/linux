@@ -6918,6 +6918,7 @@ static int ocfs2_grab_folios(struct inode *inode, loff_t start, loff_t end,
 		if (IS_ERR(folios[numfolios])) {
 			ret = PTR_ERR(folios[numfolios]);
 			mlog_errno(ret);
+			folios[numfolios] = NULL;
 			goto out;
 		}
 
