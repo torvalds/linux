@@ -7,6 +7,10 @@
 
 #define ZCOMP_PARAM_NOT_SET	INT_MIN
 
+struct deflate_params {
+	s32 winbits;
+};
+
 /*
  * Immutable driver (backend) parameters. The driver may attach private
  * data to it (e.g. driver representation of the dictionary, etc.).
@@ -17,6 +21,9 @@ struct zcomp_params {
 	void *dict;
 	size_t dict_sz;
 	s32 level;
+	union {
+		struct deflate_params deflate;
+	};
 
 	void *drv_data;
 };
