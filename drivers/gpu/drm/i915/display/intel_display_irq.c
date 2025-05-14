@@ -17,6 +17,7 @@
 #include "intel_display_rps.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
+#include "intel_dmc.h"
 #include "intel_dmc_wl.h"
 #include "intel_dp_aux.h"
 #include "intel_dsb.h"
@@ -1449,6 +1450,9 @@ void gen8_de_irq_handler(struct intel_display *display, u32 master_ctl)
 				intel_dsb_irq_handler(display, pipe, INTEL_DSB_2);
 		}
 
+		if (HAS_PIPEDMC(display) && iir & GEN12_PIPEDMC_INTERRUPT)
+			intel_pipedmc_irq_handler(display, pipe);
+
 		if (iir & GEN8_PIPE_CDCLK_CRC_DONE)
 			hsw_pipe_crc_irq_handler(display, pipe);
 
@@ -2265,6 +2269,10 @@ void gen8_de_irq_postinstall(struct intel_display *display)
 		de_pipe_masked |= GEN12_DSB_INT(INTEL_DSB_0) |
 			GEN12_DSB_INT(INTEL_DSB_1) |
 			GEN12_DSB_INT(INTEL_DSB_2);
+
+	/* TODO figure PIPEDMC interrupts for pre-LNL */
+	if (DISPLAY_VER(display) >= 20)
+		de_pipe_masked |= GEN12_PIPEDMC_INTERRUPT;
 
 	de_pipe_enables = de_pipe_masked |
 		GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN |

@@ -34,4 +34,6 @@ void intel_dmc_update_dc6_allowed_count(struct intel_display *display, bool star
 
 void assert_dmc_loaded(struct intel_display *display);
 
+void intel_pipedmc_irq_handler(struct intel_display *display, enum pipe pipe);
+
 #endif /* __INTEL_DMC_H__ */

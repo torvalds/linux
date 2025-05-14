@@ -27,9 +27,11 @@
 
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_rpm.h"
 #include "intel_display_power_well.h"
+#include "intel_display_types.h"
 #include "intel_dmc.h"
 #include "intel_dmc_regs.h"
 #include "intel_step.h"
@@ -490,12 +492,28 @@ static void pipedmc_clock_gating_wa(struct intel_display *display, bool enable)
 		adlp_pipedmc_clock_gating_wa(display, enable);
 }
 
+static u32 pipedmc_interrupt_mask(struct intel_display *display)
+{
+	/*
+	 * FIXME PIPEDMC_ERROR not enabled for now due to LNL pipe B
+	 * triggering it during the first DC state transition. Figure
+	 * out what is going on...
+	 */
+	return PIPEDMC_GTT_FAULT |
+		PIPEDMC_ATS_FAULT;
+}
+
 void intel_dmc_enable_pipe(struct intel_display *display, enum pipe pipe)
 {
 	enum intel_dmc_id dmc_id = PIPE_TO_DMC_ID(pipe);
 
 	if (!is_valid_dmc_id(dmc_id) || !has_dmc_id_fw(display, dmc_id))
 		return;
+
+	if (DISPLAY_VER(display) >= 20) {
+		intel_de_write(display, PIPEDMC_INTERRUPT(pipe), pipedmc_interrupt_mask(display));
+		intel_de_write(display, PIPEDMC_INTERRUPT_MASK(pipe), ~pipedmc_interrupt_mask(display));
+	}
 
 	if (DISPLAY_VER(display) >= 14)
 		intel_de_rmw(display, MTL_PIPEDMC_CONTROL, 0, PIPEDMC_ENABLE_MTL(pipe));
@@ -514,6 +532,11 @@ void intel_dmc_disable_pipe(struct intel_display *display, enum pipe pipe)
 		intel_de_rmw(display, MTL_PIPEDMC_CONTROL, PIPEDMC_ENABLE_MTL(pipe), 0);
 	else
 		intel_de_rmw(display, PIPEDMC_CONTROL(pipe), PIPEDMC_ENABLE, 0);
+
+	if (DISPLAY_VER(display) >= 20) {
+		intel_de_write(display, PIPEDMC_INTERRUPT_MASK(pipe), ~0);
+		intel_de_write(display, PIPEDMC_INTERRUPT(pipe), pipedmc_interrupt_mask(display));
+	}
 }
 
 /**
@@ -1402,4 +1425,30 @@ void intel_dmc_debugfs_register(struct intel_display *display)
 
 	debugfs_create_file("i915_dmc_info", 0444, minor->debugfs_root,
 			    display, &intel_dmc_debugfs_status_fops);
+}
+
+void intel_pipedmc_irq_handler(struct intel_display *display, enum pipe pipe)
+{
+	struct intel_crtc *crtc = intel_crtc_for_pipe(display, pipe);
+	u32 tmp;
+
+	if (DISPLAY_VER(display) >= 20) {
+		tmp = intel_de_read(display, PIPEDMC_INTERRUPT(pipe));
+		intel_de_write(display, PIPEDMC_INTERRUPT(pipe), tmp);
+
+		if (tmp & PIPEDMC_ATS_FAULT)
+			drm_err_ratelimited(display->drm, "[CRTC:%d:%s] PIPEDMC ATS fault\n",
+					    crtc->base.base.id, crtc->base.name);
+		if (tmp & PIPEDMC_GTT_FAULT)
+			drm_err_ratelimited(display->drm, "[CRTC:%d:%s] PIPEDMC GTT fault\n",
+					    crtc->base.base.id, crtc->base.name);
+		if (tmp & PIPEDMC_ERROR)
+			drm_err(display->drm, "[CRTC:%d:%s]] PIPEDMC error\n",
+				crtc->base.base.id, crtc->base.name);
+	}
+
+	tmp = intel_de_read(display, PIPEDMC_STATUS(pipe)) & PIPEDMC_INT_VECTOR_MASK;
+	if (tmp)
+		drm_err(display->drm, "[CRTC:%d:%s]] PIPEDMC interrupt vector 0x%x\n",
+			crtc->base.base.id, crtc->base.name, tmp);
 }
