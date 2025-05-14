@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/platform_profile.h>
+#include <linux/power_supply.h>
 #include <linux/rfkill.h>
 #include <linux/seq_file.h>
 #include <linux/sysfs.h>
@@ -34,6 +35,7 @@
 #include <linux/wmi.h>
 #include "ideapad-laptop.h"
 
+#include <acpi/battery.h>
 #include <acpi/video.h>
 
 #include <dt-bindings/leds/common.h>
@@ -162,6 +164,7 @@ struct ideapad_private {
 	struct backlight_device *blightdev;
 	struct ideapad_dytc_priv *dytc;
 	struct dentry *debug;
+	struct acpi_battery_hook battery_hook;
 	unsigned long cfg;
 	unsigned long r_touchpad_val;
 	struct {
@@ -589,6 +592,11 @@ static ssize_t camera_power_store(struct device *dev,
 
 static DEVICE_ATTR_RW(camera_power);
 
+static void show_conservation_mode_deprecation_warning(struct device *dev)
+{
+	dev_warn_once(dev, "conservation_mode attribute has been deprecated, see charge_types.\n");
+}
+
 static ssize_t conservation_mode_show(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
@@ -596,6 +604,8 @@ static ssize_t conservation_mode_show(struct device *dev,
 	struct ideapad_private *priv = dev_get_drvdata(dev);
 	unsigned long result;
 	int err;
+
+	show_conservation_mode_deprecation_warning(dev);
 
 	err = eval_gbmd(priv->adev->handle, &result);
 	if (err)
@@ -611,6 +621,8 @@ static ssize_t conservation_mode_store(struct device *dev,
 	struct ideapad_private *priv = dev_get_drvdata(dev);
 	bool state;
 	int err;
+
+	show_conservation_mode_deprecation_warning(dev);
 
 	err = kstrtobool(buf, &state);
 	if (err)
@@ -1973,10 +1985,90 @@ static const struct dmi_system_id ctrl_ps2_aux_port_list[] = {
 	{}
 };
 
-static void ideapad_check_features(struct ideapad_private *priv)
+static int ideapad_psy_ext_set_prop(struct power_supply *psy,
+				    const struct power_supply_ext *ext,
+				    void *ext_data,
+				    enum power_supply_property psp,
+				    const union power_supply_propval *val)
+{
+	struct ideapad_private *priv = ext_data;
+
+	switch (val->intval) {
+	case POWER_SUPPLY_CHARGE_TYPE_LONGLIFE:
+		return exec_sbmc(priv->adev->handle, SBMC_CONSERVATION_ON);
+	case POWER_SUPPLY_CHARGE_TYPE_STANDARD:
+		return exec_sbmc(priv->adev->handle, SBMC_CONSERVATION_OFF);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ideapad_psy_ext_get_prop(struct power_supply *psy,
+				    const struct power_supply_ext *ext,
+				    void *ext_data,
+				    enum power_supply_property psp,
+				    union power_supply_propval *val)
+{
+	struct ideapad_private *priv = ext_data;
+	unsigned long result;
+	int err;
+
+	err = eval_gbmd(priv->adev->handle, &result);
+	if (err)
+		return err;
+
+	if (test_bit(GBMD_CONSERVATION_STATE_BIT, &result))
+		val->intval = POWER_SUPPLY_CHARGE_TYPE_LONGLIFE;
+	else
+		val->intval = POWER_SUPPLY_CHARGE_TYPE_STANDARD;
+
+	return 0;
+}
+
+static int ideapad_psy_prop_is_writeable(struct power_supply *psy,
+					 const struct power_supply_ext *ext,
+					 void *data,
+					 enum power_supply_property psp)
+{
+	return true;
+}
+
+static const enum power_supply_property ideapad_power_supply_props[] = {
+	POWER_SUPPLY_PROP_CHARGE_TYPES,
+};
+
+static const struct power_supply_ext ideapad_battery_ext = {
+	.name			= "ideapad_laptop",
+	.properties		= ideapad_power_supply_props,
+	.num_properties		= ARRAY_SIZE(ideapad_power_supply_props),
+	.charge_types		= (BIT(POWER_SUPPLY_CHARGE_TYPE_STANDARD) |
+				   BIT(POWER_SUPPLY_CHARGE_TYPE_LONGLIFE)),
+	.get_property		= ideapad_psy_ext_get_prop,
+	.set_property		= ideapad_psy_ext_set_prop,
+	.property_is_writeable	= ideapad_psy_prop_is_writeable,
+};
+
+static int ideapad_battery_add(struct power_supply *battery, struct acpi_battery_hook *hook)
+{
+	struct ideapad_private *priv = container_of(hook, struct ideapad_private, battery_hook);
+
+	return power_supply_register_extension(battery, &ideapad_battery_ext,
+					       &priv->platform_device->dev, priv);
+}
+
+static int ideapad_battery_remove(struct power_supply *battery,
+				  struct acpi_battery_hook *hook)
+{
+	power_supply_unregister_extension(battery, &ideapad_battery_ext);
+
+	return 0;
+}
+
+static int ideapad_check_features(struct ideapad_private *priv)
 {
 	acpi_handle handle = priv->adev->handle;
 	unsigned long val;
+	int err;
 
 	priv->features.set_fn_lock_led =
 		set_fn_lock_led || dmi_check_system(set_fn_lock_led_list);
@@ -1991,8 +2083,16 @@ static void ideapad_check_features(struct ideapad_private *priv)
 	if (!read_ec_data(handle, VPCCMD_R_FAN, &val))
 		priv->features.fan_mode = true;
 
-	if (acpi_has_method(handle, "GBMD") && acpi_has_method(handle, "SBMC"))
+	if (acpi_has_method(handle, "GBMD") && acpi_has_method(handle, "SBMC")) {
 		priv->features.conservation_mode = true;
+		priv->battery_hook.add_battery = ideapad_battery_add;
+		priv->battery_hook.remove_battery = ideapad_battery_remove;
+		priv->battery_hook.name = "Ideapad Battery Extension";
+
+		err = devm_battery_hook_register(&priv->platform_device->dev, &priv->battery_hook);
+		if (err)
+			return err;
+	}
 
 	if (acpi_has_method(handle, "DYTC"))
 		priv->features.dytc = true;
@@ -2027,6 +2127,8 @@ static void ideapad_check_features(struct ideapad_private *priv)
 			}
 		}
 	}
+
+	return 0;
 }
 
 #if IS_ENABLED(CONFIG_ACPI_WMI)
@@ -2175,7 +2277,9 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	ideapad_check_features(priv);
+	err = ideapad_check_features(priv);
+	if (err)
+		return err;
 
 	ideapad_debugfs_init(priv);
 
