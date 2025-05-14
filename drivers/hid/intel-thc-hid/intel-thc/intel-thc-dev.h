@@ -62,6 +62,8 @@ enum thc_int_type {
  * @swdma_done: Bool value that indicates if SWDMA sequence is done
  * @perf_limit: The delay between read operation and write operation
  * @i2c_subip_regs: The copy of THC I2C sub-system registers for resuming restore
+ * @i2c_max_rx_size: I2C Rx transfer max input size
+ * @i2c_max_rx_size_en: Bool value that indicates I2C max input size control enabled or not
  */
 struct thc_device {
 	struct device *dev;
@@ -81,6 +83,9 @@ struct thc_device {
 	u32 perf_limit;
 
 	u32 *i2c_subip_regs;
+
+	u32 i2c_max_rx_size;
+	bool i2c_max_rx_size_en;
 };
 
 struct thc_device *thc_dev_init(struct device *device, void __iomem *mem_addr);
@@ -112,5 +117,7 @@ int thc_i2c_subip_init(struct thc_device *dev, const u32 target_address,
 		       const u32 speed, const u32 hcnt, const u32 lcnt);
 int thc_i2c_subip_regs_save(struct thc_device *dev);
 int thc_i2c_subip_regs_restore(struct thc_device *dev);
+int thc_i2c_set_rx_max_size(struct thc_device *dev, u32 max_rx_size);
+int thc_i2c_rx_max_size_enable(struct thc_device *dev, bool enable);
 
 #endif /* _INTEL_THC_DEV_H_ */

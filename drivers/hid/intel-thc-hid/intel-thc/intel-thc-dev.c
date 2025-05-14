@@ -1571,6 +1571,75 @@ int thc_i2c_subip_regs_restore(struct thc_device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(thc_i2c_subip_regs_restore, "INTEL_THC");
 
+/**
+ * thc_i2c_set_rx_max_size - Set I2C Rx transfer max input size
+ * @dev: The pointer of THC private device context
+ * @max_rx_size: Max input report packet size for input report
+ *
+ * Set @max_rx_size for I2C RxDMA max input size control feature.
+ *
+ * Return: 0 on success, other error codes on failure.
+ */
+int thc_i2c_set_rx_max_size(struct thc_device *dev, u32 max_rx_size)
+{
+	u32 val;
+	int ret;
+
+	if (!dev)
+		return -EINVAL;
+
+	if (!max_rx_size)
+		return -EOPNOTSUPP;
+
+	ret = regmap_read(dev->thc_regmap, THC_M_PRT_SW_SEQ_STS_OFFSET, &val);
+	if (ret)
+		return ret;
+
+	val |= FIELD_PREP(THC_M_PRT_SPI_ICRRD_OPCODE_I2C_MAX_SIZE, max_rx_size);
+
+	ret = regmap_write(dev->thc_regmap, THC_M_PRT_SPI_ICRRD_OPCODE_OFFSET, val);
+	if (ret)
+		return ret;
+
+	dev->i2c_max_rx_size = max_rx_size;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(thc_i2c_set_rx_max_size, "INTEL_THC");
+
+/**
+ * thc_i2c_rx_max_size_enable - Enable I2C Rx max input size control
+ * @dev: The pointer of THC private device context
+ * @enable: Enable max input size control or not
+ *
+ * Enable or disable I2C RxDMA max input size control feature.
+ * Max input size control only can be enabled after max input size
+ * was set by thc_i2c_set_rx_max_size().
+ *
+ * Return: 0 on success, other error codes on failure.
+ */
+int thc_i2c_rx_max_size_enable(struct thc_device *dev, bool enable)
+{
+	u32 mask = THC_M_PRT_SPI_ICRRD_OPCODE_I2C_MAX_SIZE_EN;
+	u32 val = enable ? mask : 0;
+	int ret;
+
+	if (!dev)
+		return -EINVAL;
+
+	if (!dev->i2c_max_rx_size)
+		return -EOPNOTSUPP;
+
+	ret = regmap_write_bits(dev->thc_regmap, THC_M_PRT_SPI_ICRRD_OPCODE_OFFSET, mask, val);
+	if (ret)
+		return ret;
+
+	dev->i2c_max_rx_size_en = enable;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(thc_i2c_rx_max_size_enable, "INTEL_THC");
+
 MODULE_AUTHOR("Xinpeng Sun <xinpeng.sun@intel.com>");
 MODULE_AUTHOR("Even Xu <even.xu@intel.com>");
 
