@@ -463,9 +463,9 @@ void dm_zone_endio(struct dm_io *io, struct bio *clone)
 	 */
 	if (clone->bi_status == BLK_STS_OK &&
 	    bio_op(clone) == REQ_OP_ZONE_APPEND) {
-		sector_t mask = bdev_zone_sectors(disk->part0) - 1;
-
-		orig_bio->bi_iter.bi_sector += clone->bi_iter.bi_sector & mask;
+		orig_bio->bi_iter.bi_sector +=
+			bdev_offset_from_zone_start(disk->part0,
+						    clone->bi_iter.bi_sector);
 	}
 
 	return;
