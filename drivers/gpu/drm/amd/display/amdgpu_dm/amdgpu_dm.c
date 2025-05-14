@@ -4925,9 +4925,9 @@ amdgpu_dm_register_backlight_device(struct amdgpu_dm_connector *aconnector)
 	amdgpu_acpi_get_backlight_caps(&caps);
 	if (caps.caps_valid && get_brightness_range(&caps, &min, &max)) {
 		if (power_supply_is_system_supplied() > 0)
-			props.brightness = caps.ac_level;
+			props.brightness = (max - min) * DIV_ROUND_CLOSEST(caps.ac_level, 100);
 		else
-			props.brightness = caps.dc_level;
+			props.brightness = (max - min) * DIV_ROUND_CLOSEST(caps.dc_level, 100);
 		/* min is zero, so max needs to be adjusted */
 		props.max_brightness = max - min;
 		drm_dbg(drm, "Backlight caps: min: %d, max: %d, ac %d, dc %d\n", min, max,
