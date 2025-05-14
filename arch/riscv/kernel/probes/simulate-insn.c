@@ -232,16 +232,10 @@ static bool __kprobes simulate_c_bnez_beqz(u32 opcode, unsigned long addr, struc
 	if (!rv_insn_reg_get_val(regs, rs1, &rs1_val))
 		return false;
 
-	if ((rs1_val != 0 && is_bnez) || (rs1_val == 0 && !is_bnez)) {
-		offset =  ((opcode >> 3)  & 0x3) << 1;
-		offset |= ((opcode >> 10) & 0x3) << 3;
-		offset |= ((opcode >> 2)  & 0x1) << 5;
-		offset |= ((opcode >> 5)  & 0x3) << 6;
-		offset |= ((opcode >> 12) & 0x1) << 8;
-		offset = sign_extend32(offset, 8);
-	} else {
+	if ((rs1_val != 0 && is_bnez) || (rs1_val == 0 && !is_bnez))
+		offset = RVC_EXTRACT_BTYPE_IMM(opcode);
+	else
 		offset = 2;
-	}
 
 	instruction_pointer_set(regs, addr + offset);
 
