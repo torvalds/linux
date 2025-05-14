@@ -1736,6 +1736,24 @@ void lan743x_ptp_tx_timestamp_skb(struct lan743x_adapter *adapter,
 	lan743x_ptp_tx_ts_complete(adapter);
 }
 
+int lan743x_ptp_hwtstamp_get(struct net_device *netdev,
+			     struct kernel_hwtstamp_config *config)
+{
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+	struct lan743x_tx *tx = &adapter->tx[0];
+
+	if (tx->ts_flags & TX_TS_FLAG_ONE_STEP_SYNC)
+		config->tx_type = HWTSTAMP_TX_ONESTEP_SYNC;
+	else if (tx->ts_flags & TX_TS_FLAG_TIMESTAMPING_ENABLED)
+		config->tx_type = HWTSTAMP_TX_ON;
+	else
+		config->tx_type = HWTSTAMP_TX_OFF;
+
+	config->rx_filter = adapter->rx_tstamp_filter;
+
+	return 0;
+}
+
 int lan743x_ptp_hwtstamp_set(struct net_device *netdev,
 			     struct kernel_hwtstamp_config *config,
 			     struct netlink_ext_ack *extack)

@@ -51,7 +51,8 @@ int lan743x_ptp_open(struct lan743x_adapter *adapter);
 void lan743x_ptp_close(struct lan743x_adapter *adapter);
 void lan743x_ptp_update_latency(struct lan743x_adapter *adapter,
 				u32 link_speed);
-
+int lan743x_ptp_hwtstamp_get(struct net_device *netdev,
+			     struct kernel_hwtstamp_config *config);
 int lan743x_ptp_hwtstamp_set(struct net_device *netdev,
 			     struct kernel_hwtstamp_config *config,
 			     struct netlink_ext_ack *extack);
