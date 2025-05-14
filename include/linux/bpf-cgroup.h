@@ -114,8 +114,7 @@ struct bpf_prog_list {
 	u32 flags;
 };
 
-int cgroup_bpf_inherit(struct cgroup *cgrp);
-void cgroup_bpf_offline(struct cgroup *cgrp);
+void __init cgroup_bpf_lifetime_notifier_init(void);
 
 int __cgroup_bpf_run_filter_skb(struct sock *sk,
 				struct sk_buff *skb,
@@ -431,8 +430,10 @@ const struct bpf_func_proto *
 cgroup_current_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog);
 #else
 
-static inline int cgroup_bpf_inherit(struct cgroup *cgrp) { return 0; }
-static inline void cgroup_bpf_offline(struct cgroup *cgrp) {}
+static inline void cgroup_bpf_lifetime_notifier_init(void)
+{
+	return;
+}
 
 static inline int cgroup_bpf_prog_attach(const union bpf_attr *attr,
 					 enum bpf_prog_type ptype,

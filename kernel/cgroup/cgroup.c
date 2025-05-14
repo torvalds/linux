@@ -2143,11 +2143,6 @@ int cgroup_setup_root(struct cgroup_root *root, u16 ss_mask)
 	if (ret)
 		goto exit_stats;
 
-	if (root == &cgrp_dfl_root) {
-		ret = cgroup_bpf_inherit(root_cgrp);
-		WARN_ON_ONCE(ret);
-	}
-
 	ret = blocking_notifier_call_chain(&cgroup_lifetime_notifier,
 					   CGROUP_LIFETIME_ONLINE, root_cgrp);
 	WARN_ON_ONCE(notifier_to_errno(ret));
@@ -5739,20 +5734,12 @@ static struct cgroup *cgroup_create(struct cgroup *parent, const char *name,
 
 	cgrp->self.serial_nr = css_serial_nr_next++;
 
-	if (cgrp->root == &cgrp_dfl_root) {
-		ret = cgroup_bpf_inherit(cgrp);
-		if (ret)
-			goto out_psi_free;
-	}
-
 	ret = blocking_notifier_call_chain_robust(&cgroup_lifetime_notifier,
 						  CGROUP_LIFETIME_ONLINE,
 						  CGROUP_LIFETIME_OFFLINE, cgrp);
 	ret = notifier_to_errno(ret);
-	if (ret) {
-		cgroup_bpf_offline(cgrp);
+	if (ret)
 		goto out_psi_free;
-	}
 
 	/* allocation complete, commit to creation */
 	spin_lock_irq(&css_set_lock);
@@ -6045,9 +6032,6 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 
 	cgroup1_check_for_release(parent);
 
-	if (cgrp->root == &cgrp_dfl_root)
-		cgroup_bpf_offline(cgrp);
-
 	ret = blocking_notifier_call_chain(&cgroup_lifetime_notifier,
 					   CGROUP_LIFETIME_OFFLINE, cgrp);
 	WARN_ON_ONCE(notifier_to_errno(ret));
@@ -6205,6 +6189,8 @@ int __init cgroup_init(void)
 	 */
 	hash_add(css_set_table, &init_css_set.hlist,
 		 css_set_hash(init_css_set.subsys));
+
+	cgroup_bpf_lifetime_notifier_init();
 
 	BUG_ON(cgroup_setup_root(&cgrp_dfl_root, 0));
 
