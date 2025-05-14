@@ -154,6 +154,8 @@ static void fq_ring_free_locked(struct iommu_dma_cookie *cookie, struct iova_fq 
 			       fq->entries[idx].iova_pfn,
 			       fq->entries[idx].pages);
 
+		fq->entries[idx].freelist =
+			IOMMU_PAGES_LIST_INIT(fq->entries[idx].freelist);
 		fq->head = (fq->head + 1) & fq->mod_mask;
 	}
 }

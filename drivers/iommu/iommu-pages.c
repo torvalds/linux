@@ -105,7 +105,9 @@ EXPORT_SYMBOL_GPL(iommu_free_pages);
  * iommu_put_pages_list - free a list of pages.
  * @list: The list of pages to be freed
  *
- * Frees a list of pages allocated by iommu_alloc_pages_node_sz().
+ * Frees a list of pages allocated by iommu_alloc_pages_node_sz(). On return the
+ * passed list is invalid, the caller must use IOMMU_PAGES_LIST_INIT to reinit
+ * the list if it expects to use it again.
  */
 void iommu_put_pages_list(struct iommu_pages_list *list)
 {
