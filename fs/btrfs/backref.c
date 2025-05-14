@@ -3161,18 +3161,14 @@ void btrfs_backref_release_cache(struct btrfs_backref_cache *cache)
 	ASSERT(!cache->nr_edges);
 }
 
-void btrfs_backref_link_edge(struct btrfs_backref_edge *edge,
-			     struct btrfs_backref_node *lower,
-			     struct btrfs_backref_node *upper,
-			     int link_which)
+static void btrfs_backref_link_edge(struct btrfs_backref_edge *edge,
+				    struct btrfs_backref_node *lower,
+				    struct btrfs_backref_node *upper)
 {
 	ASSERT(upper && lower && upper->level == lower->level + 1);
 	edge->node[LOWER] = lower;
 	edge->node[UPPER] = upper;
-	if (link_which & LINK_LOWER)
-		list_add_tail(&edge->list[LOWER], &lower->upper);
-	if (link_which & LINK_UPPER)
-		list_add_tail(&edge->list[UPPER], &upper->lower);
+	list_add_tail(&edge->list[LOWER], &lower->upper);
 }
 /*
  * Handle direct tree backref
@@ -3242,7 +3238,7 @@ static int handle_direct_tree_backref(struct btrfs_backref_cache *cache,
 		ASSERT(upper->checked);
 		INIT_LIST_HEAD(&edge->list[UPPER]);
 	}
-	btrfs_backref_link_edge(edge, cur, upper, LINK_LOWER);
+	btrfs_backref_link_edge(edge, cur, upper);
 	return 0;
 }
 
@@ -3412,7 +3408,7 @@ static int handle_indirect_tree_backref(struct btrfs_trans_handle *trans,
 			if (!upper->owner)
 				upper->owner = btrfs_header_owner(eb);
 		}
-		btrfs_backref_link_edge(edge, lower, upper, LINK_LOWER);
+		btrfs_backref_link_edge(edge, lower, upper);
 
 		if (rb_node) {
 			btrfs_put_root(root);
