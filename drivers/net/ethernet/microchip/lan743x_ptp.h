@@ -52,7 +52,9 @@ void lan743x_ptp_close(struct lan743x_adapter *adapter);
 void lan743x_ptp_update_latency(struct lan743x_adapter *adapter,
 				u32 link_speed);
 
-int lan743x_ptp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd);
+int lan743x_ptp_hwtstamp_set(struct net_device *netdev,
+			     struct kernel_hwtstamp_config *config,
+			     struct netlink_ext_ack *extack);
 
 #define LAN743X_PTP_NUMBER_OF_TX_TIMESTAMPS (4)
 

@@ -1736,23 +1736,14 @@ void lan743x_ptp_tx_timestamp_skb(struct lan743x_adapter *adapter,
 	lan743x_ptp_tx_ts_complete(adapter);
 }
 
-int lan743x_ptp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
+int lan743x_ptp_hwtstamp_set(struct net_device *netdev,
+			     struct kernel_hwtstamp_config *config,
+			     struct netlink_ext_ack *extack)
 {
 	struct lan743x_adapter *adapter = netdev_priv(netdev);
-	struct hwtstamp_config config;
-	int ret = 0;
 	int index;
 
-	if (!ifr) {
-		netif_err(adapter, drv, adapter->netdev,
-			  "SIOCSHWTSTAMP, ifr == NULL\n");
-		return -EINVAL;
-	}
-
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
-
-	switch (config.tx_type) {
+	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
 		for (index = 0; index < adapter->used_tx_channels;
 		     index++)
@@ -1776,19 +1767,12 @@ int lan743x_ptp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 		lan743x_ptp_set_sync_ts_insert(adapter, true);
 		break;
 	case HWTSTAMP_TX_ONESTEP_P2P:
-		ret = -ERANGE;
-		break;
+		return -ERANGE;
 	default:
 		netif_warn(adapter, drv, adapter->netdev,
-			   "  tx_type = %d, UNKNOWN\n", config.tx_type);
-		ret = -EINVAL;
-		break;
+			   "  tx_type = %d, UNKNOWN\n", config->tx_type);
+		return -EINVAL;
 	}
 
-	ret = lan743x_rx_set_tstamp_mode(adapter, config.rx_filter);
-
-	if (!ret)
-		return copy_to_user(ifr->ifr_data, &config,
-			sizeof(config)) ? -EFAULT : 0;
-	return ret;
+	return lan743x_rx_set_tstamp_mode(adapter, config->rx_filter);
 }
