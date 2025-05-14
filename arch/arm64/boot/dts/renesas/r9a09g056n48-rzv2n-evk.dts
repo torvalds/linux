@@ -17,6 +17,13 @@
 	aliases {
 		ethernet0 = &eth0;
 		ethernet1 = &eth1;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c6 = &i2c6;
+		i2c7 = &i2c7;
+		i2c8 = &i2c8;
 		mmc1 = &sdhi1;
 		serial0 = &scif;
 	};
@@ -69,6 +76,55 @@
 	pinctrl-names = "default";
 	phy-handle = <&phy1>;
 	phy-mode = "rgmii-id";
+	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&i2c1 {
+	pinctrl-0 = <&i2c1_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&i2c2 {
+	pinctrl-0 = <&i2c2_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&i2c3 {
+	pinctrl-0 = <&i2c3_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&i2c6 {
+	pinctrl-0 = <&i2c6_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&i2c7 {
+	pinctrl-0 = <&i2c7_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&i2c8 {
+	pinctrl-0 = <&i2c8_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <400000>;
 	status = "okay";
 };
 
@@ -151,6 +207,45 @@
 	eth1_pins: eth0 {
 		pins = "ET1_TXC_TXCLK";
 		output-enable;
+	};
+
+	i2c0_pins: i2c0 {
+		pinmux = <RZV2N_PORT_PINMUX(3, 0, 1)>, /* I2C0_SDA */
+			 <RZV2N_PORT_PINMUX(3, 1, 1)>; /* I2C0_SCL */
+	};
+
+	i2c1_pins: i2c1 {
+		pinmux = <RZV2N_PORT_PINMUX(3, 2, 1)>, /* I2C1_SDA */
+			 <RZV2N_PORT_PINMUX(3, 3, 1)>; /* I2C1_SCL */
+	};
+
+	i2c2_pins: i2c2 {
+		pinmux = <RZV2N_PORT_PINMUX(2, 0, 4)>, /* I2C2_SDA */
+			 <RZV2N_PORT_PINMUX(2, 1, 4)>; /* I2C2_SCL */
+	};
+
+	i2c3_pins: i2c3 {
+		pinmux = <RZV2N_PORT_PINMUX(3, 6, 1)>, /* I2C3_SDA */
+			 <RZV2N_PORT_PINMUX(3, 7, 1)>; /* I2C3_SCL */
+	};
+
+	i2c6_pins: i2c6 {
+		pinmux = <RZV2N_PORT_PINMUX(4, 4, 1)>, /* I2C6_SDA */
+			 <RZV2N_PORT_PINMUX(4, 5, 1)>; /* I2C6_SCL */
+		/* There are no pull-up resistors on the EVK, so enable the internal pull-up */
+		bias-pull-up;
+	};
+
+	i2c7_pins: i2c7 {
+		pinmux = <RZV2N_PORT_PINMUX(4, 6, 1)>, /* I2C7_SDA */
+			 <RZV2N_PORT_PINMUX(4, 7, 1)>; /* I2C7_SCL */
+		/* There are no pull-up resistors on the EVK, so enable the internal pull-up */
+		bias-pull-up;
+	};
+
+	i2c8_pins: i2c8 {
+		pinmux = <RZV2N_PORT_PINMUX(0, 6, 1)>, /* I2C8_SDA */
+			 <RZV2N_PORT_PINMUX(0, 7, 1)>; /* I2C8_SCL */
 	};
 
 	scif_pins: scif {
