@@ -141,10 +141,6 @@ xfs_warn_experimental(
 		const char		*name;
 		long			opstate;
 	} features[] = {
-		[XFS_EXPERIMENTAL_PNFS] = {
-			.opstate	= XFS_OPSTATE_WARNED_PNFS,
-			.name		= "pNFS",
-		},
 		[XFS_EXPERIMENTAL_SHRINK] = {
 			.opstate	= XFS_OPSTATE_WARNED_SHRINK,
 			.name		= "online shrink",

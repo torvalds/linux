@@ -557,8 +557,6 @@ __XFS_HAS_FEAT(nouuid, NOUUID)
  */
 #define XFS_OPSTATE_BLOCKGC_ENABLED	6
 
-/* Kernel has logged a warning about pNFS being used on this fs. */
-#define XFS_OPSTATE_WARNED_PNFS		7
 /* Kernel has logged a warning about shrink being used on this fs. */
 #define XFS_OPSTATE_WARNED_SHRINK	9
 /* Kernel has logged a warning about logged xattr updates being used. */
