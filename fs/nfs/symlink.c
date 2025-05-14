@@ -63,7 +63,7 @@ static const char *nfs_get_link(struct dentry *dentry,
 		if (IS_ERR(folio))
 			return ERR_CAST(folio);
 	}
-	set_delayed_call(done, page_put_link, &folio->page);
+	set_delayed_call(done, page_put_link, folio);
 	return folio_address(folio);
 }
 
