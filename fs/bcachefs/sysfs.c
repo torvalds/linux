@@ -642,7 +642,18 @@ static ssize_t sysfs_opt_store(struct bch_fs *c,
 	if (ret < 0)
 		goto err;
 
-	bool changed = bch2_opt_set_sb(c, ca, opt, v);
+	bool is_sb = opt->get_sb || opt->get_member;
+	bool changed = false;
+
+	if (is_sb) {
+		changed = bch2_opt_set_sb(c, ca, opt, v);
+	} else if (!ca) {
+		changed = bch2_opt_get_by_id(&c->opts, id) != v;
+	} else {
+		/* device options that aren't superblock options aren't
+		 * supported */
+		BUG();
+	}
 
 	if (!ca)
 		bch2_opt_set_by_id(&c->opts, id, v);
