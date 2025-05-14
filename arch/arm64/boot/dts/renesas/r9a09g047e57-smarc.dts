@@ -74,6 +74,11 @@
 };
 #endif
 
+&i2c0 {
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+};
+
 &pinctrl {
 	canfd_pins: canfd {
 		can1_pins: can1 {
@@ -85,6 +90,11 @@
 			pinmux = <RZG3E_PORT_PINMUX(5, 2, 3)>, /* RX */
 				 <RZG3E_PORT_PINMUX(5, 3, 3)>; /* TX */
 		};
+	};
+
+	i2c0_pins: i2c0 {
+		pinmux = <RZG3E_PORT_PINMUX(D, 4, 4)>, /* SCL0 */
+			 <RZG3E_PORT_PINMUX(D, 5, 4)>; /* SDA0 */
 	};
 
 	scif_pins: scif {
