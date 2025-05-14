@@ -19,6 +19,7 @@
 #include <linux/kernfs.h>
 #include <linux/jump_label.h>
 #include <linux/types.h>
+#include <linux/notifier.h>
 #include <linux/ns_common.h>
 #include <linux/nsproxy.h>
 #include <linux/user_namespace.h>
@@ -40,7 +41,7 @@ struct kernel_clone_args;
 
 #ifdef CONFIG_CGROUPS
 
-enum {
+enum css_task_iter_flags {
 	CSS_TASK_ITER_PROCS    = (1U << 0),  /* walk only threadgroup leaders */
 	CSS_TASK_ITER_THREADED = (1U << 1),  /* walk all threaded css_sets in the domain */
 	CSS_TASK_ITER_SKIPPED  = (1U << 16), /* internal flags */
@@ -66,10 +67,16 @@ struct css_task_iter {
 	struct list_head		iters_node;	/* css_set->task_iters */
 };
 
+enum cgroup_lifetime_events {
+	CGROUP_LIFETIME_ONLINE,
+	CGROUP_LIFETIME_OFFLINE,
+};
+
 extern struct file_system_type cgroup_fs_type;
 extern struct cgroup_root cgrp_dfl_root;
 extern struct css_set init_css_set;
 extern spinlock_t css_set_lock;
+extern struct blocking_notifier_head cgroup_lifetime_notifier;
 
 #define SUBSYS(_x) extern struct cgroup_subsys _x ## _cgrp_subsys;
 #include <linux/cgroup_subsys.h>
