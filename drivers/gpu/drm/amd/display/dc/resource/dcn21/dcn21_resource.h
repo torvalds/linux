@@ -51,6 +51,6 @@ bool dcn21_fast_validate_bw(
 		int *pipe_cnt_out,
 		int *pipe_split_from,
 		int *vlevel_out,
-		bool fast_validate);
+		enum dc_validate_mode validate_mode);
 
 #endif /* _DCN21_RESOURCE_H_ */

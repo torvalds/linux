@@ -100,12 +100,12 @@ void dcn32_add_phantom_pipes(struct dc *dc,
 
 enum dc_status dcn32_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
-		bool fast_validate);
+		enum dc_validate_mode validate_mode);
 
 int dcn32_populate_dml_pipes_from_context(
 	struct dc *dc, struct dc_state *context,
 	display_e2e_pipe_params_st *pipes,
-	bool fast_validate);
+	enum dc_validate_mode validate_mode);
 
 void dcn32_calculate_wm_and_dlg(
 		struct dc *dc, struct dc_state *context,

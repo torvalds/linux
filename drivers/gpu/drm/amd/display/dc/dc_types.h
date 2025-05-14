@@ -1370,4 +1370,12 @@ struct set_backlight_level_params {
 	uint8_t aux_inst;
 };
 
+enum dc_validate_mode {
+	/* validate the mode and program HW */
+	DC_VALIDATE_MODE_AND_PROGRAMMING = 0,
+	/* only validate the mode */
+	DC_VALIDATE_MODE_ONLY = 1,
+	/* validate the mode and get the max state (voltage level) */
+	DC_VALIDATE_MODE_AND_STATE_INDEX = 2,
+};
 #endif /* DC_TYPES_H_ */

@@ -57,14 +57,14 @@ unsigned int dcn30_calc_max_scaled_time(
 		unsigned int urgent_watermark);
 
 enum dc_status dcn30_validate_bandwidth(struct dc *dc, struct dc_state *context,
-		bool fast_validate);
+		enum dc_validate_mode validate_mode);
 bool dcn30_internal_validate_bw(
 		struct dc *dc,
 		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
 		int *pipe_cnt_out,
 		int *vlevel_out,
-		bool fast_validate,
+		enum dc_validate_mode validate_mode,
 		bool allow_self_refresh_only);
 void dcn30_calculate_wm_and_dlg(
 		struct dc *dc, struct dc_state *context,
@@ -78,7 +78,7 @@ void dcn30_populate_dml_writeback_from_context(
 int dcn30_populate_dml_pipes_from_context(
 	struct dc *dc, struct dc_state *context,
 	display_e2e_pipe_params_st *pipes,
-	bool fast_validate);
+	enum dc_validate_mode validate_mode);
 
 bool dcn30_acquire_post_bldn_3dlut(
 		struct resource_context *res_ctx,

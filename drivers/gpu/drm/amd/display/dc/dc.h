@@ -1804,19 +1804,15 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 					const struct dc_validation_set set[],
 					int set_count,
 					struct dc_state *context,
-					bool fast_validate);
+					enum dc_validate_mode validate_mode);
 
 bool dc_set_generic_gpio_for_stereo(bool enable,
 		struct gpio_service *gpio_service);
 
-/*
- * fast_validate: we return after determining if we can support the new state,
- * but before we populate the programming info
- */
 enum dc_status dc_validate_global_state(
 		struct dc *dc,
 		struct dc_state *new_ctx,
-		bool fast_validate);
+		enum dc_validate_mode validate_mode);
 
 bool dc_acquire_release_mpc_3dlut(
 		struct dc *dc, bool acquire,

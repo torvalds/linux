@@ -82,7 +82,7 @@ struct resource_funcs {
 	enum dc_status (*validate_bandwidth)(
 					struct dc *dc,
 					struct dc_state *context,
-					bool fast_validate);
+					enum dc_validate_mode validate_mode);
 	void (*calculate_wm_and_dlg)(
 				struct dc *dc, struct dc_state *context,
 				display_e2e_pipe_params_st *pipes,
@@ -107,7 +107,7 @@ struct resource_funcs {
 		struct dc *dc,
 		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
-		bool fast_validate);
+		enum dc_validate_mode validate_mode);
 
 	/*
 	 * Algorithm for assigning available link encoders to links.

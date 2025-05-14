@@ -39,7 +39,7 @@ struct dcn31_resource_pool {
 
 enum dc_status dcn31_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
-		bool fast_validate);
+		enum dc_validate_mode validate_mode);
 void dcn31_calculate_wm_and_dlg(
 		struct dc *dc, struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
@@ -48,7 +48,7 @@ void dcn31_calculate_wm_and_dlg(
 int dcn31_populate_dml_pipes_from_context(
 	struct dc *dc, struct dc_state *context,
 	display_e2e_pipe_params_st *pipes,
-	bool fast_validate);
+	enum dc_validate_mode validate_mode);
 void
 dcn31_populate_dml_writeback_from_context(struct dc *dc,
 					  struct resource_context *res_ctx,

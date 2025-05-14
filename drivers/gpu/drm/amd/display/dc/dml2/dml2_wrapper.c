@@ -721,7 +721,8 @@ static void dml2_apply_debug_options(const struct dc *dc, struct dml2_context *d
 	}
 }
 
-bool dml2_validate(const struct dc *in_dc, struct dc_state *context, struct dml2_context *dml2, bool fast_validate)
+bool dml2_validate(const struct dc *in_dc, struct dc_state *context, struct dml2_context *dml2,
+	enum dc_validate_mode validate_mode)
 {
 	bool out = false;
 
@@ -731,14 +732,14 @@ bool dml2_validate(const struct dc *in_dc, struct dc_state *context, struct dml2
 
 	/* DML2.1 validation path */
 	if (dml2->architecture == dml2_architecture_21) {
-		out = dml21_validate(in_dc, context, dml2, fast_validate);
+		out = dml21_validate(in_dc, context, dml2, validate_mode);
 		return out;
 	}
 
 	DC_FP_START();
 
-	/* Use dml_validate_only for fast_validate path */
-	if (fast_validate)
+	/* Use dml_validate_only for DC_VALIDATE_MODE_ONLY and DC_VALIDATE_MODE_AND_STATE_INDEX path */
+	if (validate_mode != DC_VALIDATE_MODE_AND_PROGRAMMING)
 		out = dml2_validate_only(context);
 	else
 		out = dml2_validate_and_build_resource(in_dc, context);
