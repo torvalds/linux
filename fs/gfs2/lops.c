@@ -451,7 +451,7 @@ static bool gfs2_jhead_folio_search(struct gfs2_jdesc *jd,
  * Find the folio with 'index' in the journal's mapping. Search the folio for
  * the journal head if requested (cleanup == false). Release refs on the
  * folio so the page cache can reclaim it. We grabbed a
- * reference on this folio twice, first when we did a grab_cache_page()
+ * reference on this folio twice, first when we did a filemap_grab_folio()
  * to obtain the folio to add it to the bio and second when we do a
  * filemap_get_folio() here to get the folio to wait on while I/O on it is being
  * completed.
@@ -476,7 +476,7 @@ static void gfs2_jhead_process_page(struct gfs2_jdesc *jd, unsigned long index,
 	if (!*done)
 		*done = gfs2_jhead_folio_search(jd, head, folio);
 
-	/* filemap_get_folio() and the earlier grab_cache_page() */
+	/* filemap_get_folio() and the earlier filemap_grab_folio() */
 	folio_put_refs(folio, 2);
 }
 
