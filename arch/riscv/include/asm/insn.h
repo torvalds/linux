@@ -64,6 +64,7 @@
 #define RVG_RS2_OPOFF		20
 #define RVG_RD_OPOFF		7
 #define RVG_RS1_MASK		GENMASK(4, 0)
+#define RVG_RS2_MASK		GENMASK(4, 0)
 #define RVG_RD_MASK		GENMASK(4, 0)
 
 /* The bit field of immediate value in RVC J instruction */
@@ -456,6 +457,10 @@ static __always_inline bool riscv_insn_is_c_jalr(u32 code)
 #define RV_EXTRACT_RS1_REG(x) \
 	({typeof(x) x_ = (x); \
 	(RV_X_mask(x_, RVG_RS1_OPOFF, RVG_RS1_MASK)); })
+
+#define RV_EXTRACT_RS2_REG(x) \
+	({typeof(x) x_ = (x); \
+	(RV_X_mask(x_, RVG_RS2_OPOFF, RVG_RS2_MASK)); })
 
 #define RV_EXTRACT_RD_REG(x) \
 	({typeof(x) x_ = (x); \
