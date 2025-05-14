@@ -310,8 +310,6 @@ struct pci_packet {
 	void (*completion_func)(void *context, struct pci_response *resp,
 				int resp_packet_size);
 	void *compl_ctxt;
-
-	struct pci_message message[];
 };
 
 /*
@@ -1496,7 +1494,7 @@ static int hv_read_config_block(struct pci_dev *pdev, void *buf,
 	memset(&pkt, 0, sizeof(pkt));
 	pkt.pkt.completion_func = hv_pci_read_config_compl;
 	pkt.pkt.compl_ctxt = &comp_pkt;
-	read_blk = (struct pci_read_block *)&pkt.pkt.message;
+	read_blk = (struct pci_read_block *)pkt.buf;
 	read_blk->message_type.type = PCI_READ_BLOCK;
 	read_blk->wslot.slot = devfn_to_wslot(pdev->devfn);
 	read_blk->block_id = block_id;
@@ -1576,7 +1574,7 @@ static int hv_write_config_block(struct pci_dev *pdev, void *buf,
 	memset(&pkt, 0, sizeof(pkt));
 	pkt.pkt.completion_func = hv_pci_write_config_compl;
 	pkt.pkt.compl_ctxt = &comp_pkt;
-	write_blk = (struct pci_write_block *)&pkt.pkt.message;
+	write_blk = (struct pci_write_block *)pkt.buf;
 	write_blk->message_type.type = PCI_WRITE_BLOCK;
 	write_blk->wslot.slot = devfn_to_wslot(pdev->devfn);
 	write_blk->block_id = block_id;
@@ -1657,7 +1655,7 @@ static void hv_int_desc_free(struct hv_pci_dev *hpdev,
 		return;
 	}
 	memset(&ctxt, 0, sizeof(ctxt));
-	int_pkt = (struct pci_delete_interrupt *)&ctxt.pkt.message;
+	int_pkt = (struct pci_delete_interrupt *)ctxt.buffer;
 	int_pkt->message_type.type =
 		PCI_DELETE_INTERRUPT_MESSAGE;
 	int_pkt->wslot.slot = hpdev->desc.win_slot.slot;
@@ -2540,7 +2538,7 @@ static struct hv_pci_dev *new_pcichild_device(struct hv_pcibus_device *hbus,
 	comp_pkt.hpdev = hpdev;
 	pkt.init_packet.compl_ctxt = &comp_pkt;
 	pkt.init_packet.completion_func = q_resource_requirements;
-	res_req = (struct pci_child_message *)&pkt.init_packet.message;
+	res_req = (struct pci_child_message *)pkt.buffer;
 	res_req->message_type.type = PCI_QUERY_RESOURCE_REQUIREMENTS;
 	res_req->wslot.slot = desc->win_slot.slot;
 
@@ -2918,7 +2916,7 @@ static void hv_eject_device_work(struct work_struct *work)
 		pci_destroy_slot(hpdev->pci_slot);
 
 	memset(&ctxt, 0, sizeof(ctxt));
-	ejct_pkt = (struct pci_eject_response *)&ctxt.pkt.message;
+	ejct_pkt = (struct pci_eject_response *)ctxt.buffer;
 	ejct_pkt->message_type.type = PCI_EJECTION_COMPLETE;
 	ejct_pkt->wslot.slot = hpdev->desc.win_slot.slot;
 	vmbus_sendpacket(hbus->hdev->channel, ejct_pkt,
@@ -3176,7 +3174,7 @@ static int hv_pci_protocol_negotiation(struct hv_device *hdev,
 	init_completion(&comp_pkt.host_event);
 	pkt->completion_func = hv_pci_generic_compl;
 	pkt->compl_ctxt = &comp_pkt;
-	version_req = (struct pci_version_request *)&pkt->message;
+	version_req = (struct pci_version_request *)(pkt + 1);
 	version_req->message_type.type = PCI_QUERY_PROTOCOL_VERSION;
 
 	for (i = 0; i < num_version; i++) {
@@ -3398,7 +3396,7 @@ enter_d0_retry:
 	init_completion(&comp_pkt.host_event);
 	pkt->completion_func = hv_pci_generic_compl;
 	pkt->compl_ctxt = &comp_pkt;
-	d0_entry = (struct pci_bus_d0_entry *)&pkt->message;
+	d0_entry = (struct pci_bus_d0_entry *)(pkt + 1);
 	d0_entry->message_type.type = PCI_BUS_D0ENTRY;
 	d0_entry->mmio_base = hbus->mem_config->start;
 
@@ -3556,20 +3554,20 @@ static int hv_send_resources_allocated(struct hv_device *hdev)
 
 		if (hbus->protocol_version < PCI_PROTOCOL_VERSION_1_2) {
 			res_assigned =
-				(struct pci_resources_assigned *)&pkt->message;
+				(struct pci_resources_assigned *)(pkt + 1);
 			res_assigned->message_type.type =
 				PCI_RESOURCES_ASSIGNED;
 			res_assigned->wslot.slot = hpdev->desc.win_slot.slot;
 		} else {
 			res_assigned2 =
-				(struct pci_resources_assigned2 *)&pkt->message;
+				(struct pci_resources_assigned2 *)(pkt + 1);
 			res_assigned2->message_type.type =
 				PCI_RESOURCES_ASSIGNED2;
 			res_assigned2->wslot.slot = hpdev->desc.win_slot.slot;
 		}
 		put_pcichild(hpdev);
 
-		ret = vmbus_sendpacket(hdev->channel, &pkt->message,
+		ret = vmbus_sendpacket(hdev->channel, pkt + 1,
 				size_res, (unsigned long)pkt,
 				VM_PKT_DATA_INBAND,
 				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
@@ -3867,6 +3865,7 @@ static int hv_pci_bus_exit(struct hv_device *hdev, bool keep_devs)
 		struct pci_packet teardown_packet;
 		u8 buffer[sizeof(struct pci_message)];
 	} pkt;
+	struct pci_message *msg;
 	struct hv_pci_compl comp_pkt;
 	struct hv_pci_dev *hpdev, *tmp;
 	unsigned long flags;
@@ -3912,10 +3911,10 @@ static int hv_pci_bus_exit(struct hv_device *hdev, bool keep_devs)
 	init_completion(&comp_pkt.host_event);
 	pkt.teardown_packet.completion_func = hv_pci_generic_compl;
 	pkt.teardown_packet.compl_ctxt = &comp_pkt;
-	pkt.teardown_packet.message[0].type = PCI_BUS_D0EXIT;
+	msg = (struct pci_message *)pkt.buffer;
+	msg->type = PCI_BUS_D0EXIT;
 
-	ret = vmbus_sendpacket_getid(chan, &pkt.teardown_packet.message,
-				     sizeof(struct pci_message),
+	ret = vmbus_sendpacket_getid(chan, msg, sizeof(*msg),
 				     (unsigned long)&pkt.teardown_packet,
 				     &trans_id, VM_PKT_DATA_INBAND,
 				     VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
