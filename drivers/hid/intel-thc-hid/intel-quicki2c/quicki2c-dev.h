@@ -36,6 +36,12 @@
 #define QUICKI2C_DEFAULT_LP_LTR_VALUE		500
 #define QUICKI2C_RPM_TIMEOUT_MS			500
 
+/* PTL Max packet size detection capability is 255 Bytes */
+#define MAX_RX_DETECT_SIZE_PTL			255
+
+/* Default interrupt delay is 1ms, suitable for most devices */
+#define DEFAULT_INTERRUPT_DELAY_US		(1 * USEC_PER_MSEC)
+
 /*
  * THC uses runtime auto suspend to dynamically switch between THC active LTR
  * and low power LTR to save CPU power.

@@ -18,6 +18,10 @@
 #include "quicki2c-hid.h"
 #include "quicki2c-protocol.h"
 
+struct quicki2c_ddata ptl_ddata = {
+	.max_detect_size = MAX_RX_DETECT_SIZE_PTL,
+};
+
 /* THC QuickI2C ACPI method to get device properties */
 /* HIDI2C device method */
 static guid_t i2c_hid_guid =
@@ -409,6 +413,50 @@ static void quicki2c_dev_deinit(struct quicki2c_device *qcdev)
 }
 
 /**
+ * quicki2c_dma_adv_enable - Configure and enable DMA advanced features
+ * @qcdev: Pointer to the quicki2c_device structure
+ *
+ * If platform supports THC DMA advanced features, such as max input size
+ * control or interrupt delay, configures and enables them.
+ */
+static void quicki2c_dma_adv_enable(struct quicki2c_device *qcdev)
+{
+	/*
+	 * If platform supports max input size control feature and touch device
+	 * max input length <= THC detect capability, enable the feature with device
+	 * max input length.
+	 */
+	if (qcdev->ddata->max_detect_size >=
+	    le16_to_cpu(qcdev->dev_desc.max_input_len)) {
+		thc_i2c_set_rx_max_size(qcdev->thc_hw,
+					le16_to_cpu(qcdev->dev_desc.max_input_len));
+		thc_i2c_rx_max_size_enable(qcdev->thc_hw, true);
+	}
+
+	/* If platform supports interrupt delay feature, enable it with given delay */
+	if (qcdev->ddata->interrupt_delay) {
+		thc_i2c_set_rx_int_delay(qcdev->thc_hw,
+					 qcdev->ddata->interrupt_delay);
+		thc_i2c_rx_int_delay_enable(qcdev->thc_hw, true);
+	}
+}
+
+/**
+ * quicki2c_dma_adv_disable - Disable DMA advanced features
+ * @qcdev: Pointer to the quicki2c device structure
+ *
+ * Disable all DMA advanced features if platform supports.
+ */
+static void quicki2c_dma_adv_disable(struct quicki2c_device *qcdev)
+{
+	if (qcdev->ddata->max_detect_size)
+		thc_i2c_rx_max_size_enable(qcdev->thc_hw, false);
+
+	if (qcdev->ddata->interrupt_delay)
+		thc_i2c_rx_int_delay_enable(qcdev->thc_hw, false);
+}
+
+/**
  * quicki2c_dma_init - Configure THC DMA for QuickI2C device
  * @qcdev: Pointer to the quicki2c_device structure
  *
@@ -447,6 +495,9 @@ static int quicki2c_dma_init(struct quicki2c_device *qcdev)
 		return ret;
 	}
 
+	if (qcdev->ddata)
+		quicki2c_dma_adv_enable(qcdev);
+
 	return 0;
 }
 
@@ -461,6 +512,9 @@ static void quicki2c_dma_deinit(struct quicki2c_device *qcdev)
 {
 	thc_dma_unconfigure(qcdev->thc_hw);
 	thc_dma_release(qcdev->thc_hw);
+
+	if (qcdev->ddata)
+		quicki2c_dma_adv_disable(qcdev);
 }
 
 /**
@@ -924,10 +978,10 @@ static const struct dev_pm_ops quicki2c_pm_ops = {
 static const struct pci_device_id quicki2c_pci_tbl[] = {
 	{ PCI_DEVICE_DATA(INTEL, THC_LNL_DEVICE_ID_I2C_PORT1, NULL) },
 	{ PCI_DEVICE_DATA(INTEL, THC_LNL_DEVICE_ID_I2C_PORT2, NULL) },
-	{ PCI_DEVICE_DATA(INTEL, THC_PTL_H_DEVICE_ID_I2C_PORT1, NULL) },
-	{ PCI_DEVICE_DATA(INTEL, THC_PTL_H_DEVICE_ID_I2C_PORT2, NULL) },
-	{ PCI_DEVICE_DATA(INTEL, THC_PTL_U_DEVICE_ID_I2C_PORT1, NULL) },
-	{ PCI_DEVICE_DATA(INTEL, THC_PTL_U_DEVICE_ID_I2C_PORT2, NULL) },
+	{ PCI_DEVICE_DATA(INTEL, THC_PTL_H_DEVICE_ID_I2C_PORT1, &ptl_ddata) },
+	{ PCI_DEVICE_DATA(INTEL, THC_PTL_H_DEVICE_ID_I2C_PORT2, &ptl_ddata) },
+	{ PCI_DEVICE_DATA(INTEL, THC_PTL_U_DEVICE_ID_I2C_PORT1, &ptl_ddata) },
+	{ PCI_DEVICE_DATA(INTEL, THC_PTL_U_DEVICE_ID_I2C_PORT2, &ptl_ddata) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, quicki2c_pci_tbl);
