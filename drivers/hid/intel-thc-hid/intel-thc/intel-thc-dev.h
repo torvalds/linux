@@ -9,6 +9,7 @@
 #include <linux/workqueue.h>
 
 #include "intel-thc-dma.h"
+#include "intel-thc-wot.h"
 
 #define THC_REGMAP_COMMON_OFFSET  0x10
 #define THC_REGMAP_MMIO_OFFSET    0x1000
@@ -56,6 +57,7 @@ enum thc_int_type {
  * @port_type: Port type of THC port instance
  * @pio_int_supported: PIO interrupt supported flag
  * @dma_ctx: DMA specific data
+ * @wot: THC Wake-on-Touch data
  * @write_complete_wait: Signal event for DMA write complete
  * @swdma_complete_wait: Signal event for SWDMA sequence complete
  * @write_done: Bool value that indicates if DMA write is done
@@ -76,6 +78,8 @@ struct thc_device {
 	bool pio_int_supported;
 
 	struct thc_dma_context *dma_ctx;
+
+	struct thc_wot wot;
 
 	wait_queue_head_t write_complete_wait;
 	wait_queue_head_t swdma_complete_wait;
