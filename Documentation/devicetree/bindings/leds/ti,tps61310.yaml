@@ -1,0 +1,120 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/leds/ti,tps61310.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments TPS6131X flash LED driver
+
+maintainers:
+  - Matthias Fend <matthias.fend@emfend.at>
+
+description: |
+  The TPS61310/TPS61311 is a flash LED driver with I2C interface.
+  Its power stage is capable of supplying a maximum total current of roughly 1500mA.
+  The TPS6131x provides three constant-current sinks, capable of sinking
+  up to 2 x 400mA (LED1 and LED3) and 800mA (LED2) in flash mode.
+  In torch mode, each sink (LED1, LED2, LED3) supports currents up to 175mA.
+  Since the three current sinks share most of the control components such as
+  flash timer, control logic, safety timer and the operating mode, they cannot
+  be used completely independently of each other. Therefore, only one LED is
+  supported, but the current sinks can be combined accordingly.
+
+  The data sheet can be found at:
+    https://www.ti.com/lit/ds/symlink/tps61310.pdf
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - ti,tps61311
+          - const: ti,tps61310
+      - items:
+          - const: ti,tps61310
+
+  reg:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+    description: GPIO connected to NRESET pin
+
+  ti,valley-current-limit:
+    type: boolean
+    description:
+      Reduce the valley peak current limit from 1750mA to 1250mA (TPS61310) or
+      from 2480mA to 1800mA (TPS61311).
+
+  led:
+    type: object
+    $ref: common.yaml#
+    unevaluatedProperties: false
+
+    properties:
+      led-sources:
+        minItems: 1
+        maxItems: 3
+        items:
+          enum: [1, 2, 3]
+
+      led-max-microamp:
+        oneOf:
+          - minimum: 50000
+            maximum: 350000
+            multipleOf: 50000
+          - minimum: 25000
+            maximum: 525000
+            multipleOf: 25000
+
+      flash-max-microamp:
+        oneOf:
+          - minimum: 50000
+            maximum: 800000
+            multipleOf: 50000
+          - minimum: 25000
+            maximum: 1500000
+            multipleOf: 25000
+
+      flash-max-timeout-us:
+        enum: [ 5300, 10700, 16000, 21300, 26600, 32000, 37300, 68200, 71500,
+                102200, 136300, 170400, 204500, 340800, 579300, 852000 ]
+
+    required:
+      - led-sources
+      - led-max-microamp
+      - flash-max-microamp
+      - flash-max-timeout-us
+
+required:
+  - compatible
+  - reg
+  - led
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/leds/common.h>
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      led-controller@33 {
+        compatible = "ti,tps61311", "ti,tps61310";
+        reg = <0x33>;
+
+        reset-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
+
+        led {
+          function = LED_FUNCTION_FLASH;
+          color = <LED_COLOR_ID_WHITE>;
+          led-sources = <1>, <2>, <3>;
+          led-max-microamp = <525000>;
+          flash-max-microamp = <1500000>;
+          flash-max-timeout-us = <852000>;
+        };
+      };
+    };
