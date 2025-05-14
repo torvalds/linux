@@ -179,6 +179,7 @@ amdgpu-y += \
 	amdgpu_mes.o \
 	mes_v11_0.o \
 	mes_v12_0.o \
+	mes_v12_1.o
 
 # add GFX userqueue support
 amdgpu-y += mes_userqueue.o
