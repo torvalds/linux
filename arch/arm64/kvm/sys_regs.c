@@ -3628,11 +3628,22 @@ static void s2_mmu_tlbi_s1e1(struct kvm_s2_mmu *mmu,
 	WARN_ON(__kvm_tlbi_s1e2(mmu, info->va.addr, info->va.encoding));
 }
 
+static bool handle_tlbi_el2(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
+			    const struct sys_reg_desc *r)
+{
+	u32 sys_encoding = sys_insn(p->Op0, p->Op1, p->CRn, p->CRm, p->Op2);
+
+	if (!kvm_supported_tlbi_s1e2_op(vcpu, sys_encoding))
+		return undef_access(vcpu, p, r);
+
+	kvm_handle_s1e2_tlbi(vcpu, sys_encoding, p->regval);
+	return true;
+}
+
 static bool handle_tlbi_el1(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 			    const struct sys_reg_desc *r)
 {
 	u32 sys_encoding = sys_insn(p->Op0, p->Op1, p->CRn, p->CRm, p->Op2);
-	u64 vttbr = vcpu_read_sys_reg(vcpu, VTTBR_EL2);
 
 	/*
 	 * If we're here, this is because we've trapped on a EL1 TLBI
@@ -3643,6 +3654,13 @@ static bool handle_tlbi_el1(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	 * - HCR_EL2.E2H == 0 : a non-VHE guest
 	 * - HCR_EL2.{E2H,TGE} == { 1, 0 } : a VHE guest in guest mode
 	 *
+	 * Another possibility is that we are invalidating the EL2 context
+	 * using EL1 instructions, but that we landed here because we need
+	 * additional invalidation for structures that are not held in the
+	 * CPU TLBs (such as the VNCR pseudo-TLB and its EL2 mapping). In
+	 * that case, we are guaranteed that HCR_EL2.{E2H,TGE} == { 1, 1 }
+	 * as we don't allow an NV-capable L1 in a nVHE configuration.
+	 *
 	 * We don't expect these helpers to ever be called when running
 	 * in a vEL1 context.
 	 */
@@ -3652,7 +3670,13 @@ static bool handle_tlbi_el1(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	if (!kvm_supported_tlbi_s1e1_op(vcpu, sys_encoding))
 		return undef_access(vcpu, p, r);
 
-	kvm_s2_mmu_iterate_by_vmid(vcpu->kvm, get_vmid(vttbr),
+	if (vcpu_el2_e2h_is_set(vcpu) && vcpu_el2_tge_is_set(vcpu)) {
+		kvm_handle_s1e2_tlbi(vcpu, sys_encoding, p->regval);
+		return true;
+	}
+
+	kvm_s2_mmu_iterate_by_vmid(vcpu->kvm,
+				   get_vmid(__vcpu_sys_reg(vcpu, VTTBR_EL2)),
 				   &(union tlbi_info) {
 					   .va = {
 						   .addr = p->regval,
@@ -3774,16 +3798,21 @@ static struct sys_reg_desc sys_insn_descs[] = {
 	SYS_INSN(TLBI_IPAS2LE1IS, handle_ipas2e1is),
 	SYS_INSN(TLBI_RIPAS2LE1IS, handle_ripas2e1is),
 
-	SYS_INSN(TLBI_ALLE2OS, undef_access),
-	SYS_INSN(TLBI_VAE2OS, undef_access),
+	SYS_INSN(TLBI_ALLE2OS, handle_tlbi_el2),
+	SYS_INSN(TLBI_VAE2OS, handle_tlbi_el2),
 	SYS_INSN(TLBI_ALLE1OS, handle_alle1is),
-	SYS_INSN(TLBI_VALE2OS, undef_access),
+	SYS_INSN(TLBI_VALE2OS, handle_tlbi_el2),
 	SYS_INSN(TLBI_VMALLS12E1OS, handle_vmalls12e1is),
 
-	SYS_INSN(TLBI_RVAE2IS, undef_access),
-	SYS_INSN(TLBI_RVALE2IS, undef_access),
+	SYS_INSN(TLBI_RVAE2IS, handle_tlbi_el2),
+	SYS_INSN(TLBI_RVALE2IS, handle_tlbi_el2),
+	SYS_INSN(TLBI_ALLE2IS, handle_tlbi_el2),
+	SYS_INSN(TLBI_VAE2IS, handle_tlbi_el2),
 
 	SYS_INSN(TLBI_ALLE1IS, handle_alle1is),
+
+	SYS_INSN(TLBI_VALE2IS, handle_tlbi_el2),
+
 	SYS_INSN(TLBI_VMALLS12E1IS, handle_vmalls12e1is),
 	SYS_INSN(TLBI_IPAS2E1OS, handle_ipas2e1is),
 	SYS_INSN(TLBI_IPAS2E1, handle_ipas2e1is),
@@ -3793,11 +3822,17 @@ static struct sys_reg_desc sys_insn_descs[] = {
 	SYS_INSN(TLBI_IPAS2LE1, handle_ipas2e1is),
 	SYS_INSN(TLBI_RIPAS2LE1, handle_ripas2e1is),
 	SYS_INSN(TLBI_RIPAS2LE1OS, handle_ripas2e1is),
-	SYS_INSN(TLBI_RVAE2OS, undef_access),
-	SYS_INSN(TLBI_RVALE2OS, undef_access),
-	SYS_INSN(TLBI_RVAE2, undef_access),
-	SYS_INSN(TLBI_RVALE2, undef_access),
+	SYS_INSN(TLBI_RVAE2OS, handle_tlbi_el2),
+	SYS_INSN(TLBI_RVALE2OS, handle_tlbi_el2),
+	SYS_INSN(TLBI_RVAE2, handle_tlbi_el2),
+	SYS_INSN(TLBI_RVALE2, handle_tlbi_el2),
+	SYS_INSN(TLBI_ALLE2, handle_tlbi_el2),
+	SYS_INSN(TLBI_VAE2, handle_tlbi_el2),
+
 	SYS_INSN(TLBI_ALLE1, handle_alle1is),
+
+	SYS_INSN(TLBI_VALE2, handle_tlbi_el2),
+
 	SYS_INSN(TLBI_VMALLS12E1, handle_vmalls12e1is),
 
 	SYS_INSN(TLBI_IPAS2E1ISNXS, handle_ipas2e1is),
@@ -3805,19 +3840,19 @@ static struct sys_reg_desc sys_insn_descs[] = {
 	SYS_INSN(TLBI_IPAS2LE1ISNXS, handle_ipas2e1is),
 	SYS_INSN(TLBI_RIPAS2LE1ISNXS, handle_ripas2e1is),
 
-	SYS_INSN(TLBI_ALLE2OSNXS, undef_access),
-	SYS_INSN(TLBI_VAE2OSNXS, undef_access),
+	SYS_INSN(TLBI_ALLE2OSNXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_VAE2OSNXS, handle_tlbi_el2),
 	SYS_INSN(TLBI_ALLE1OSNXS, handle_alle1is),
-	SYS_INSN(TLBI_VALE2OSNXS, undef_access),
+	SYS_INSN(TLBI_VALE2OSNXS, handle_tlbi_el2),
 	SYS_INSN(TLBI_VMALLS12E1OSNXS, handle_vmalls12e1is),
 
-	SYS_INSN(TLBI_RVAE2ISNXS, undef_access),
-	SYS_INSN(TLBI_RVALE2ISNXS, undef_access),
-	SYS_INSN(TLBI_ALLE2ISNXS, undef_access),
-	SYS_INSN(TLBI_VAE2ISNXS, undef_access),
+	SYS_INSN(TLBI_RVAE2ISNXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_RVALE2ISNXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_ALLE2ISNXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_VAE2ISNXS, handle_tlbi_el2),
 
 	SYS_INSN(TLBI_ALLE1ISNXS, handle_alle1is),
-	SYS_INSN(TLBI_VALE2ISNXS, undef_access),
+	SYS_INSN(TLBI_VALE2ISNXS, handle_tlbi_el2),
 	SYS_INSN(TLBI_VMALLS12E1ISNXS, handle_vmalls12e1is),
 	SYS_INSN(TLBI_IPAS2E1OSNXS, handle_ipas2e1is),
 	SYS_INSN(TLBI_IPAS2E1NXS, handle_ipas2e1is),
@@ -3827,14 +3862,14 @@ static struct sys_reg_desc sys_insn_descs[] = {
 	SYS_INSN(TLBI_IPAS2LE1NXS, handle_ipas2e1is),
 	SYS_INSN(TLBI_RIPAS2LE1NXS, handle_ripas2e1is),
 	SYS_INSN(TLBI_RIPAS2LE1OSNXS, handle_ripas2e1is),
-	SYS_INSN(TLBI_RVAE2OSNXS, undef_access),
-	SYS_INSN(TLBI_RVALE2OSNXS, undef_access),
-	SYS_INSN(TLBI_RVAE2NXS, undef_access),
-	SYS_INSN(TLBI_RVALE2NXS, undef_access),
-	SYS_INSN(TLBI_ALLE2NXS, undef_access),
-	SYS_INSN(TLBI_VAE2NXS, undef_access),
+	SYS_INSN(TLBI_RVAE2OSNXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_RVALE2OSNXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_RVAE2NXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_RVALE2NXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_ALLE2NXS, handle_tlbi_el2),
+	SYS_INSN(TLBI_VAE2NXS, handle_tlbi_el2),
 	SYS_INSN(TLBI_ALLE1NXS, handle_alle1is),
-	SYS_INSN(TLBI_VALE2NXS, undef_access),
+	SYS_INSN(TLBI_VALE2NXS, handle_tlbi_el2),
 	SYS_INSN(TLBI_VMALLS12E1NXS, handle_vmalls12e1is),
 };
 
