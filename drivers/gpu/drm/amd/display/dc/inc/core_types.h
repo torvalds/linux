@@ -556,7 +556,10 @@ struct dcn_bw_output {
 	struct dml2_mcache_surface_allocation mcache_allocations[DML2_MAX_PLANES];
 	struct dmub_cmd_fams2_global_config fams2_global_config;
 	union dmub_cmd_fams2_config fams2_stream_base_params[DML2_MAX_PLANES];
-	union dmub_cmd_fams2_config fams2_stream_sub_params[DML2_MAX_PLANES];
+	union {
+		union dmub_cmd_fams2_config fams2_stream_sub_params[DML2_MAX_PLANES];
+		union dmub_fams2_stream_static_sub_state_v2 fams2_stream_sub_params_v2[DML2_MAX_PLANES];
+	};
 	struct dml2_display_arb_regs arb_regs;
 };
 

@@ -1758,7 +1758,7 @@ static void dc_dmub_srv_ib_based_fams2_update_config(struct dc *dc,
 
 			/* copy stream static sub-state */
 			memcpy(&config->stream_v1[i].sub_state,
-				&context->bw_ctx.bw.dcn.fams2_stream_sub_params[i],
+				&context->bw_ctx.bw.dcn.fams2_stream_sub_params_v2[i],
 				sizeof(config->stream_v1[i].sub_state));
 		}
 	}
