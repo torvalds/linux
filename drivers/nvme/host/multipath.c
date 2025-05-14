@@ -1051,6 +1051,13 @@ void nvme_mpath_add_sysfs_link(struct nvme_ns_head *head)
 
 	list_for_each_entry_rcu(ns, &head->list, siblings) {
 		/*
+		 * Ensure that ns path disk node is already added otherwise we
+		 * may get invalid kobj name for target
+		 */
+		if (!test_bit(GD_ADDED, &ns->disk->state))
+			continue;
+
+		/*
 		 * Avoid creating link if it already exists for the given path.
 		 * When path ana state transitions from optimized to non-
 		 * optimized or vice-versa, the nvme_mpath_set_live() is
@@ -1063,13 +1070,6 @@ void nvme_mpath_add_sysfs_link(struct nvme_ns_head *head)
 		 * against multiple nvme paths being simultaneously added.
 		 */
 		if (test_and_set_bit(NVME_NS_SYSFS_ATTR_LINK, &ns->flags))
-			continue;
-
-		/*
-		 * Ensure that ns path disk node is already added otherwise we
-		 * may get invalid kobj name for target
-		 */
-		if (!test_bit(GD_ADDED, &ns->disk->state))
 			continue;
 
 		target = disk_to_dev(ns->disk);
