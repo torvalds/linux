@@ -310,9 +310,6 @@ struct brcmnand_host {
 	struct platform_device	*pdev;
 	int			cs;
 
-	unsigned int		last_cmd;
-	unsigned int		last_byte;
-	u64			last_addr;
 	struct brcmnand_cfg	hwcfg;
 	struct brcmnand_controller *ctrl;
 };
@@ -2233,14 +2230,11 @@ static int brcmnand_read_page(struct nand_chip *chip, uint8_t *buf,
 			      int oob_required, int page)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	struct brcmnand_host *host = nand_get_controller_data(chip);
 	u8 *oob = oob_required ? (u8 *)chip->oob_poi : NULL;
 	u64 addr = (u64)page << chip->page_shift;
 
-	host->last_addr = addr;
-
-	return brcmnand_read(mtd, chip, host->last_addr,
-			mtd->writesize >> FC_SHIFT, (u32 *)buf, oob);
+	return brcmnand_read(mtd, chip, addr, mtd->writesize >> FC_SHIFT,
+			     (u32 *)buf, oob);
 }
 
 static int brcmnand_read_page_raw(struct nand_chip *chip, uint8_t *buf,
@@ -2252,11 +2246,9 @@ static int brcmnand_read_page_raw(struct nand_chip *chip, uint8_t *buf,
 	int ret;
 	u64 addr = (u64)page << chip->page_shift;
 
-	host->last_addr = addr;
-
 	brcmnand_set_ecc_enabled(host, 0);
-	ret = brcmnand_read(mtd, chip, host->last_addr,
-			mtd->writesize >> FC_SHIFT, (u32 *)buf, oob);
+	ret = brcmnand_read(mtd, chip, addr, mtd->writesize >> FC_SHIFT,
+			    (u32 *)buf, oob);
 	brcmnand_set_ecc_enabled(host, 1);
 	return ret;
 }
@@ -2363,13 +2355,10 @@ static int brcmnand_write_page(struct nand_chip *chip, const uint8_t *buf,
 			       int oob_required, int page)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	struct brcmnand_host *host = nand_get_controller_data(chip);
 	void *oob = oob_required ? chip->oob_poi : NULL;
 	u64 addr = (u64)page << chip->page_shift;
 
-	host->last_addr = addr;
-
-	return brcmnand_write(mtd, chip, host->last_addr, (const u32 *)buf, oob);
+	return brcmnand_write(mtd, chip, addr, (const u32 *)buf, oob);
 }
 
 static int brcmnand_write_page_raw(struct nand_chip *chip, const uint8_t *buf,
@@ -2381,9 +2370,8 @@ static int brcmnand_write_page_raw(struct nand_chip *chip, const uint8_t *buf,
 	u64 addr = (u64)page << chip->page_shift;
 	int ret = 0;
 
-	host->last_addr = addr;
 	brcmnand_set_ecc_enabled(host, 0);
-	ret = brcmnand_write(mtd, chip, host->last_addr, (const u32 *)buf, oob);
+	ret = brcmnand_write(mtd, chip, addr, (const u32 *)buf, oob);
 	brcmnand_set_ecc_enabled(host, 1);
 
 	return ret;
