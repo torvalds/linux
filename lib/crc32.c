@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Aug 8, 2011 Bob Pearson with help from Joakim Tjernlund and George Spelvin
  * cleaned up code to current version of sparse and added the slicing-by-8
@@ -19,9 +20,6 @@
  *   drivers/net/smc9194.c uses seed ~0, doesn't xor with ~0.
  *   fs/jffs2 uses seed 0, doesn't xor with ~0.
  *   fs/partitions/efi.c uses seed ~0, xor's with ~0.
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 /* see: Documentation/staging/crc32.rst for a description of algorithms */
