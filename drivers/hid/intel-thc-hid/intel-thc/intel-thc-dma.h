@@ -117,9 +117,10 @@ struct thc_dma_configuration {
 	u32 dma_cntrl;
 };
 
-/*
- * THC DMA context
- * Store all THC Channel configures
+/**
+ * struct thc_dma_context - THC DMA context
+ * @thc_dma_configuration: Array of all THC Channel configures
+ * @use_write_interrupts: Indicate TxDMA using interrupt or polling
  */
 struct thc_dma_context {
 	struct thc_dma_configuration dma_config[MAX_THC_DMA_CHANNEL];
