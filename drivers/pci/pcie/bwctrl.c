@@ -117,18 +117,7 @@ static int pcie_bwctrl_change_speed(struct pci_dev *port, u16 target_speed, bool
 	if (ret != PCIBIOS_SUCCESSFUL)
 		return pcibios_err_to_errno(ret);
 
-	ret = pcie_retrain_link(port, use_lt);
-	if (ret < 0)
-		return ret;
-
-	/*
-	 * Ensure link speed updates also with platforms that have problems
-	 * with notifications.
-	 */
-	if (port->subordinate)
-		pcie_update_link_speed(port->subordinate);
-
-	return 0;
+	return pcie_retrain_link(port, use_lt);
 }
 
 /**
