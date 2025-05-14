@@ -1016,6 +1016,14 @@ enum scx_ops_state {
 #define SCX_OPSS_STATE_MASK	((1LU << SCX_OPSS_QSEQ_SHIFT) - 1)
 #define SCX_OPSS_QSEQ_MASK	(~SCX_OPSS_STATE_MASK)
 
+/*
+ * NOTE: sched_ext is in the process of growing multiple scheduler support and
+ * scx_root usage is in a transitional state. Naked dereferences are safe if the
+ * caller is one of the tasks attached to SCX and explicit RCU dereference is
+ * necessary otherwise. Naked scx_root dereferences trigger sparse warnings but
+ * are used as temporary markers to indicate that the dereferences need to be
+ * updated to point to the associated scheduler instances rather than scx_root.
+ */
 static struct scx_sched __rcu *scx_root;
 
 /*
