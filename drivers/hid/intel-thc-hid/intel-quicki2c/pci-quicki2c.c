@@ -11,8 +11,11 @@
 #include <linux/sizes.h>
 #include <linux/pm_runtime.h>
 
+#include <linux/gpio/consumer.h>
+
 #include "intel-thc-dev.h"
 #include "intel-thc-hw.h"
+#include "intel-thc-wot.h"
 
 #include "quicki2c-dev.h"
 #include "quicki2c-hid.h"
@@ -30,6 +33,14 @@ static guid_t i2c_hid_guid =
 /* platform method */
 static guid_t thc_platform_guid =
 	GUID_INIT(0x84005682, 0x5b71, 0x41a4, 0x8d, 0x66, 0x81, 0x30, 0xf7, 0x87, 0xa1, 0x38);
+
+/* QuickI2C Wake-on-Touch GPIO resource */
+static const struct acpi_gpio_params wake_gpio = { 0, 0, true };
+
+static const struct acpi_gpio_mapping quicki2c_gpios[] = {
+	{ "wake-on-touch", &wake_gpio, 1 },
+	{ }
+};
 
 /**
  * quicki2c_acpi_get_dsm_property - Query device ACPI DSM parameter
@@ -393,6 +404,8 @@ static struct quicki2c_device *quicki2c_dev_init(struct pci_dev *pdev, void __io
 
 	thc_interrupt_enable(qcdev->thc_hw, true);
 
+	thc_wot_config(qcdev->thc_hw, &quicki2c_gpios[0]);
+
 	qcdev->state = QUICKI2C_INITED;
 
 	return qcdev;
@@ -408,6 +421,7 @@ static void quicki2c_dev_deinit(struct quicki2c_device *qcdev)
 {
 	thc_interrupt_enable(qcdev->thc_hw, false);
 	thc_ltr_unconfig(qcdev->thc_hw);
+	thc_wot_unconfig(qcdev->thc_hw);
 
 	qcdev->state = QUICKI2C_DISABLED;
 }
