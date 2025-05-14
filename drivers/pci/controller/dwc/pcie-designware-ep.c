@@ -532,7 +532,7 @@ static int dw_pcie_ep_get_msi(struct pci_epc *epc, u8 func_no, u8 vfunc_no)
 
 	val = FIELD_GET(PCI_MSI_FLAGS_QSIZE, val);
 
-	return val;
+	return 1 << val;
 }
 
 static int dw_pcie_ep_set_msi(struct pci_epc *epc, u8 func_no, u8 vfunc_no,

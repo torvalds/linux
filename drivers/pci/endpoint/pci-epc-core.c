@@ -293,8 +293,6 @@ int pci_epc_get_msi(struct pci_epc *epc, u8 func_no, u8 vfunc_no)
 	if (interrupt < 0)
 		return 0;
 
-	interrupt = 1 << interrupt;
-
 	return interrupt;
 }
 EXPORT_SYMBOL_GPL(pci_epc_get_msi);
