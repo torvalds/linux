@@ -27,7 +27,7 @@
 
 /**
  * THC DMA channels:
- * @THC_RXDMA1: legacy channel, reserved for raw data reading
+ * @THC_RXDMA1: Legacy channel, reserved for raw data reading
  * @THC_RXDMA2: DMA to read HID data from touch device
  * @THC_TXDMA: DMA to write to touch device
  * @THC_SWDMA: SW triggered DMA to write and read from touch device
@@ -42,11 +42,11 @@ enum thc_dma_channel {
 
 /**
  * THC DMA Physical Memory Descriptor (PRD)
- * @dest_addr:		bit[53:0], destination address in system memory
- * @int_on_completion:	bit[63], if set, thc will trigger interrupt to driver
- * @len:		bit[87:64], length of this entry
- * @end_of_prd:		bit[88], if set, this entry is last one of current PRD table
- * @hw_status:		bit[90:89], hw status bits
+ * @dest_addr:		Bit[53:0], destination address in system memory
+ * @int_on_completion:	Bit[63], if set, thc will trigger interrupt to driver
+ * @len:		Bit[87:64], length of this entry
+ * @end_of_prd:		Bit[88], if set, this entry is last one of current PRD table
+ * @hw_status:		Bit[90:89], hardware status bits
  */
 struct thc_prd_entry {
 	u64  dest_addr : 54;
@@ -88,14 +88,14 @@ struct thc_prd_table {
  * struct thc_dma_configuration - THC DMA configure
  * @dma_channel: DMA channel for current DMA configuration
  * @prd_tbls_dma_handle: DMA buffer handle
- * @dir: direction of DMA for this config
+ * @dir: Direction of DMA for this config
  * @prd_tbls: PRD tables for current DMA
- * @sgls: array of pointers to scatter-gather lists
- * @sgls_nent: actual number of entries per sg list
- * @prd_tbl_num: actual number of PRD tables
- * @max_packet_size: size of the buffer needed for 1 DMA message (1 PRD table)
+ * @sgls: Array of pointers to scatter-gather lists
+ * @sgls_nent: Actual number of entries per scatter-gather list
+ * @prd_tbl_num: Actual number of PRD tables
+ * @max_packet_size: Size of the buffer needed for 1 DMA message (1 PRD table)
  * @prd_base_addr_high: High 32bits memory address where stores PRD table
- * @prd_base_addr_low: low 32bits memory address where stores PRD table
+ * @prd_base_addr_low: Low 32bits memory address where stores PRD table
  * @prd_cntrl: PRD control register value
  * @dma_cntrl: DMA control register value
  */

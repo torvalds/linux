@@ -52,16 +52,16 @@ enum thc_int_type {
  * struct thc_device - THC private device struct
  * @thc_regmap: MMIO regmap structure for accessing THC registers
  * @mmio_addr: MMIO registers address
- * @thc_bus_lock: mutex locker for THC config
- * @port_type: port type of THC port instance
+ * @thc_bus_lock: Mutex locker for THC config
+ * @port_type: Port type of THC port instance
  * @pio_int_supported: PIO interrupt supported flag
  * @dma_ctx: DMA specific data
- * @write_complete_wait: signal event for DMA write complete
- * @swdma_complete_wait: signal event for SWDMA sequence complete
- * @write_done: bool value that indicates if DMA write is done
- * @swdma_done: bool value that indicates if SWDMA swquence is done
- * @perf_limit: the delay between read operation and write operation
- * @i2c_subip_regs: the copy of THC I2C sub-system registers for resuming restore
+ * @write_complete_wait: Signal event for DMA write complete
+ * @swdma_complete_wait: Signal event for SWDMA sequence complete
+ * @write_done: Bool value that indicates if DMA write is done
+ * @swdma_done: Bool value that indicates if SWDMA sequence is done
+ * @perf_limit: The delay between read operation and write operation
+ * @i2c_subip_regs: The copy of THC I2C sub-system registers for resuming restore
  */
 struct thc_device {
 	struct device *dev;
