@@ -1136,17 +1136,20 @@ static struct kset *scx_kset;
 
 static void process_ddsp_deferred_locals(struct rq *rq);
 static void scx_bpf_kick_cpu(s32 cpu, u64 flags);
-static __printf(3, 4) void __scx_exit(enum scx_exit_kind kind, s64 exit_code,
-				      const char *fmt, ...);
+static void scx_vexit(enum scx_exit_kind kind, s64 exit_code, const char *fmt,
+		      va_list args);
 
-#define __scx_error(err, fmt, args...)						\
-	__scx_exit((err), 0, fmt, ##args)
+static __printf(3, 4) void scx_exit(enum scx_exit_kind kind, s64 exit_code,
+				    const char *fmt, ...)
+{
+	va_list args;
 
-#define scx_exit(code, fmt, args...)						\
-	__scx_exit(SCX_EXIT_UNREG_KERN, (code), fmt, ##args)
+	va_start(args, fmt);
+	scx_vexit(kind, exit_code, fmt, args);
+	va_end(args);
+}
 
-#define scx_error(fmt, args...)							\
-	__scx_error(SCX_EXIT_ERROR, fmt, ##args)
+#define scx_error(fmt, args...)		scx_exit(SCX_EXIT_ERROR, 0, fmt, ##args)
 
 #define SCX_HAS_OP(sch, op)	test_bit(SCX_OP_IDX(op), (sch)->has_op)
 
@@ -3554,7 +3557,8 @@ static void handle_hotplug(struct rq *rq, bool online)
 	else if (!online && SCX_HAS_OP(sch, cpu_offline))
 		SCX_CALL_OP(sch, SCX_KF_UNLOCKED, cpu_offline, NULL, cpu);
 	else
-		scx_exit(SCX_ECODE_ACT_RESTART | SCX_ECODE_RSN_HOTPLUG,
+		scx_exit(SCX_EXIT_UNREG_KERN,
+			 SCX_ECODE_ACT_RESTART | SCX_ECODE_RSN_HOTPLUG,
 			 "cpu %d going %s, exiting scheduler", cpu,
 			 online ? "online" : "offline");
 }
@@ -3595,9 +3599,9 @@ static bool check_rq_for_timeouts(struct rq *rq)
 					last_runnable + scx_watchdog_timeout))) {
 			u32 dur_ms = jiffies_to_msecs(jiffies - last_runnable);
 
-			__scx_error(SCX_EXIT_ERROR_STALL,
-				    "%s[%d] failed to run for %u.%03us",
-				    p->comm, p->pid, dur_ms / 1000, dur_ms % 1000);
+			scx_exit(SCX_EXIT_ERROR_STALL, 0,
+				 "%s[%d] failed to run for %u.%03us",
+				 p->comm, p->pid, dur_ms / 1000, dur_ms % 1000);
 			timed_out = true;
 			break;
 		}
@@ -3635,9 +3639,9 @@ void scx_tick(struct rq *rq)
 				last_check + READ_ONCE(scx_watchdog_timeout)))) {
 		u32 dur_ms = jiffies_to_msecs(jiffies - last_check);
 
-		__scx_error(SCX_EXIT_ERROR_STALL,
-			    "watchdog failed to check in for %u.%03us",
-			    dur_ms / 1000, dur_ms % 1000);
+		scx_exit(SCX_EXIT_ERROR_STALL, 0,
+			 "watchdog failed to check in for %u.%03us",
+			 dur_ms / 1000, dur_ms % 1000);
 	}
 
 	update_other_load_avgs(rq);
@@ -5263,13 +5267,12 @@ static void scx_error_irq_workfn(struct irq_work *irq_work)
 	kthread_queue_work(sch->helper, &sch->disable_work);
 }
 
-static __printf(3, 4) void __scx_exit(enum scx_exit_kind kind, s64 exit_code,
-				      const char *fmt, ...)
+static void scx_vexit(enum scx_exit_kind kind, s64 exit_code, const char *fmt,
+		      va_list args)
 {
 	struct scx_sched *sch;
 	struct scx_exit_info *ei;
 	int none = SCX_EXIT_NONE;
-	va_list args;
 
 	rcu_read_lock();
 	sch = rcu_dereference(scx_root);
@@ -5285,9 +5288,7 @@ static __printf(3, 4) void __scx_exit(enum scx_exit_kind kind, s64 exit_code,
 	if (kind >= SCX_EXIT_ERROR)
 		ei->bt_len = stack_trace_save(ei->bt, SCX_EXIT_BT_LEN, 1);
 #endif
-	va_start(args, fmt);
 	vscnprintf(ei->msg, SCX_EXIT_MSG_LEN, fmt, args);
-	va_end(args);
 
 	/*
 	 * Set ei->kind and ->reason for scx_dump_state(). They'll be set again
@@ -5391,7 +5392,8 @@ static void check_hotplug_seq(const struct sched_ext_ops *ops)
 	if (ops->hotplug_seq) {
 		global_hotplug_seq = atomic_long_read(&scx_hotplug_seq);
 		if (ops->hotplug_seq != global_hotplug_seq) {
-			scx_exit(SCX_ECODE_ACT_RESTART | SCX_ECODE_RSN_HOTPLUG,
+			scx_exit(SCX_EXIT_UNREG_KERN,
+				 SCX_ECODE_ACT_RESTART | SCX_ECODE_RSN_HOTPLUG,
 				 "expected hotplug seq %llu did not match actual %llu",
 				 ops->hotplug_seq, global_hotplug_seq);
 		}
@@ -7125,7 +7127,7 @@ __bpf_kfunc void scx_bpf_exit_bstr(s64 exit_code, char *fmt,
 
 	raw_spin_lock_irqsave(&scx_exit_bstr_buf_lock, flags);
 	if (bstr_format(&scx_exit_bstr_buf, fmt, data, data__sz) >= 0)
-		__scx_exit(SCX_EXIT_UNREG_BPF, exit_code, "%s", scx_exit_bstr_buf.line);
+		scx_exit(SCX_EXIT_UNREG_BPF, exit_code, "%s", scx_exit_bstr_buf.line);
 	raw_spin_unlock_irqrestore(&scx_exit_bstr_buf_lock, flags);
 }
 
@@ -7145,7 +7147,7 @@ __bpf_kfunc void scx_bpf_error_bstr(char *fmt, unsigned long long *data,
 
 	raw_spin_lock_irqsave(&scx_exit_bstr_buf_lock, flags);
 	if (bstr_format(&scx_exit_bstr_buf, fmt, data, data__sz) >= 0)
-		__scx_exit(SCX_EXIT_ERROR_BPF, 0, "%s", scx_exit_bstr_buf.line);
+		scx_exit(SCX_EXIT_ERROR_BPF, 0, "%s", scx_exit_bstr_buf.line);
 	raw_spin_unlock_irqrestore(&scx_exit_bstr_buf_lock, flags);
 }
 
