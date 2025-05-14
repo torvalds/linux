@@ -2009,20 +2009,20 @@ static int sdhci_esdhc_suspend(struct device *dev)
 	struct pltfm_imx_data *imx_data = sdhci_pltfm_priv(pltfm_host);
 	int ret;
 
-	if (host->mmc->caps2 & MMC_CAP2_CQE) {
-		ret = cqhci_suspend(host->mmc);
-		if (ret)
-			return ret;
-	}
+	/*
+	 * Switch to runtime resume for two reasons:
+	 * 1, there is register access (e.g., wakeup control register), so
+	 *    need to make sure gate on ipg clock.
+	 * 2, make sure the pm_runtime_force_resume() in sdhci_esdhc_resume() really
+	 *    invoke its ->runtime_resume callback (needs_force_resume = 1).
+	 */
+	pm_runtime_get_sync(dev);
 
 	if ((imx_data->socdata->flags & ESDHC_FLAG_STATE_LOST_IN_LPMODE) &&
 		(host->tuning_mode != SDHCI_TUNING_MODE_1)) {
 		mmc_retune_timer_stop(host->mmc);
 		mmc_retune_needed(host->mmc);
 	}
-
-	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
-		mmc_retune_needed(host->mmc);
 
 	/*
 	 * For the device need to keep power during system PM, need
@@ -2033,15 +2033,25 @@ static int sdhci_esdhc_suspend(struct device *dev)
 	    esdhc_is_usdhc(imx_data))
 		sdhc_esdhc_tuning_save(host);
 
-	ret = sdhci_suspend_host(host);
-	if (ret)
-		return ret;
+	if (device_may_wakeup(dev)) {
+		/* The irqs of imx are not shared. It is safe to disable */
+		disable_irq(host->irq);
+		ret = sdhci_enable_irq_wakeups(host);
+		if (!ret)
+			dev_warn(dev, "Failed to enable irq wakeup\n");
+	}
 
 	ret = pinctrl_pm_select_sleep_state(dev);
 	if (ret)
 		return ret;
 
 	ret = mmc_gpio_set_cd_wake(host->mmc, true);
+
+	/*
+	 * Make sure invoke runtime_suspend to gate off clock.
+	 * uSDHC IP supports in-band SDIO wakeup even without clock.
+	 */
+	pm_runtime_force_suspend(dev);
 
 	return ret;
 }
@@ -2053,16 +2063,19 @@ static int sdhci_esdhc_resume(struct device *dev)
 	struct pltfm_imx_data *imx_data = sdhci_pltfm_priv(pltfm_host);
 	int ret;
 
-	ret = pinctrl_pm_select_default_state(dev);
+	pm_runtime_force_resume(dev);
+
+	ret = mmc_gpio_set_cd_wake(host->mmc, false);
 	if (ret)
 		return ret;
 
 	/* re-initialize hw state in case it's lost in low power mode */
 	sdhci_esdhc_imx_hwinit(host);
 
-	ret = sdhci_resume_host(host);
-	if (ret)
-		return ret;
+	if (host->irq_wake_enabled) {
+		sdhci_disable_irq_wakeups(host);
+		enable_irq(host->irq);
+	}
 
 	/*
 	 * restore the saved tuning delay value for the device which keep
@@ -2072,11 +2085,8 @@ static int sdhci_esdhc_resume(struct device *dev)
 	    esdhc_is_usdhc(imx_data))
 		sdhc_esdhc_tuning_restore(host);
 
-	if (host->mmc->caps2 & MMC_CAP2_CQE)
-		ret = cqhci_resume(host->mmc);
-
-	if (!ret)
-		ret = mmc_gpio_set_cd_wake(host->mmc, false);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return ret;
 }
