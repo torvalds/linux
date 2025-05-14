@@ -524,6 +524,22 @@ static void qcom_spi_config_single_cw_page_read(struct qcom_nand_controller *sna
 	qcom_read_reg_dma(snandc, NAND_FLASH_STATUS, 1, 0);
 }
 
+static int qcom_spi_check_raw_flash_errors(struct qcom_nand_controller *snandc, int cw_cnt)
+{
+	int i;
+
+	qcom_nandc_dev_to_mem(snandc, true);
+
+	for (i = 0; i < cw_cnt; i++) {
+		u32 flash = le32_to_cpu(snandc->reg_read_buf[i]);
+
+		if (flash & (FS_OP_ERR | FS_MPU_ERR))
+			return -EIO;
+	}
+
+	return 0;
+}
+
 static int qcom_spi_read_last_cw(struct qcom_nand_controller *snandc,
 				 const struct spi_mem_op *op)
 {
@@ -569,11 +585,9 @@ static int qcom_spi_read_last_cw(struct qcom_nand_controller *snandc,
 		return ret;
 	}
 
-	qcom_nandc_dev_to_mem(snandc, true);
-	u32 flash = le32_to_cpu(snandc->reg_read_buf[0]);
-
-	if (flash & (FS_OP_ERR | FS_MPU_ERR))
-		return -EIO;
+	ret = qcom_spi_check_raw_flash_errors(snandc, 1);
+	if (ret)
+		return ret;
 
 	bbpos = mtd->writesize - ecc_cfg->cw_size * (num_cw - 1);
 
@@ -650,22 +664,6 @@ static int qcom_spi_check_error(struct qcom_nand_controller *snandc, u8 *data_bu
 		snandc->qspi->ecc_stats.bitflips = max_bitflips;
 	else
 		snandc->qspi->ecc_stats.failed++;
-
-	return 0;
-}
-
-static int qcom_spi_check_raw_flash_errors(struct qcom_nand_controller *snandc, int cw_cnt)
-{
-	int i;
-
-	qcom_nandc_dev_to_mem(snandc, true);
-
-	for (i = 0; i < cw_cnt; i++) {
-		u32 flash = le32_to_cpu(snandc->reg_read_buf[i]);
-
-		if (flash & (FS_OP_ERR | FS_MPU_ERR))
-			return -EIO;
-	}
 
 	return 0;
 }
