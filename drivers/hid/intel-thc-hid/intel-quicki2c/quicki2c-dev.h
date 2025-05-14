@@ -130,15 +130,14 @@ struct acpi_device;
 
 /**
  * struct quicki2c_device -  THC QuickI2C device struct
- * @dev: point to kernel device
- * @pdev: point to PCI device
- * @thc_hw: point to THC device
- * @hid_dev: point to hid device
- * @acpi_dev: point to ACPI device
- * @driver_data: point to quicki2c specific driver data
+ * @dev: Point to kernel device
+ * @pdev: Point to PCI device
+ * @thc_hw: Point to THC device
+ * @hid_dev: Point to HID device
+ * @acpi_dev: Point to ACPI device
  * @state: THC I2C device state
  * @mem_addr: MMIO memory address
- * @dev_desc: device descriptor for HIDI2C protocol
+ * @dev_desc: Device descriptor for HIDI2C protocol
  * @i2c_slave_addr: HIDI2C device slave address
  * @hid_desc_addr: Register address for retrieve HID device descriptor
  * @active_ltr_val: THC active LTR value
@@ -146,12 +145,12 @@ struct acpi_device;
  * @i2c_speed_mode: 0 - standard mode, 1 - fast mode, 2 - fast mode plus
  * @i2c_clock_hcnt: I2C CLK high period time (unit in cycle count)
  * @i2c_clock_lcnt: I2C CLK low period time (unit in cycle count)
- * @report_descriptor: store a copy of device report descriptor
- * @input_buf: store a copy of latest input report data
- * @report_buf: store a copy of latest input/output report packet from set/get feature
- * @report_len: the length of input/output report packet
- * @reset_ack_wq: workqueue for waiting reset response from device
- * @reset_ack: indicate reset response received or not
+ * @report_descriptor: Store a copy of device report descriptor
+ * @input_buf: Store a copy of latest input report data
+ * @report_buf: Store a copy of latest input/output report packet from set/get feature
+ * @report_len: The length of input/output report packet
+ * @reset_ack_wq: Workqueue for waiting reset response from device
+ * @reset_ack: Indicate reset response received or not
  */
 struct quicki2c_device {
 	struct device *dev;
