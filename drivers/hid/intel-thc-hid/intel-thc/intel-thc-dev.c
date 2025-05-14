@@ -2,6 +2,7 @@
 /* Copyright (c) 2024 Intel Corporation */
 
 #include <linux/bitfield.h>
+#include <linux/math.h>
 #include <linux/regmap.h>
 
 #include "intel-thc-dev.h"
@@ -1639,6 +1640,76 @@ int thc_i2c_rx_max_size_enable(struct thc_device *dev, bool enable)
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(thc_i2c_rx_max_size_enable, "INTEL_THC");
+
+/**
+ * thc_i2c_set_rx_int_delay - Set I2C Rx input interrupt delay value
+ * @dev: The pointer of THC private device context
+ * @delay_us: Interrupt delay value, unit is us
+ *
+ * Set @delay_us for I2C RxDMA input interrupt delay feature.
+ *
+ * Return: 0 on success, other error codes on failure.
+ */
+int thc_i2c_set_rx_int_delay(struct thc_device *dev, u32 delay_us)
+{
+	u32 val;
+	int ret;
+
+	if (!dev)
+		return -EINVAL;
+
+	if (!delay_us)
+		return -EOPNOTSUPP;
+
+	ret = regmap_read(dev->thc_regmap, THC_M_PRT_SW_SEQ_STS_OFFSET, &val);
+	if (ret)
+		return ret;
+
+	/* THC hardware counts at 10us unit */
+	val |= FIELD_PREP(THC_M_PRT_SPI_ICRRD_OPCODE_I2C_INTERVAL, DIV_ROUND_UP(delay_us, 10));
+
+	ret = regmap_write(dev->thc_regmap, THC_M_PRT_SPI_ICRRD_OPCODE_OFFSET, val);
+	if (ret)
+		return ret;
+
+	dev->i2c_int_delay_us = delay_us;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(thc_i2c_set_rx_int_delay, "INTEL_THC");
+
+/**
+ * thc_i2c_rx_int_delay_enable - Enable I2C Rx interrupt delay
+ * @dev: The pointer of THC private device context
+ * @enable: Enable interrupt delay or not
+ *
+ * Enable or disable I2C RxDMA input interrupt delay feature.
+ * Input interrupt delay can only be enabled after interrupt delay value
+ * was set by thc_i2c_set_rx_int_delay().
+ *
+ * Return: 0 on success, other error codes on failure.
+ */
+int thc_i2c_rx_int_delay_enable(struct thc_device *dev, bool enable)
+{
+	u32 mask = THC_M_PRT_SPI_ICRRD_OPCODE_I2C_INTERVAL_EN;
+	u32 val = enable ? mask : 0;
+	int ret;
+
+	if (!dev)
+		return -EINVAL;
+
+	if (!dev->i2c_int_delay_us)
+		return -EOPNOTSUPP;
+
+	ret = regmap_write_bits(dev->thc_regmap, THC_M_PRT_SPI_ICRRD_OPCODE_OFFSET, mask, val);
+	if (ret)
+		return ret;
+
+	dev->i2c_int_delay_en = enable;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(thc_i2c_rx_int_delay_enable, "INTEL_THC");
 
 MODULE_AUTHOR("Xinpeng Sun <xinpeng.sun@intel.com>");
 MODULE_AUTHOR("Even Xu <even.xu@intel.com>");

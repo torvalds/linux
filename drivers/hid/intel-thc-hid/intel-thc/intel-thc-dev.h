@@ -63,7 +63,9 @@ enum thc_int_type {
  * @perf_limit: The delay between read operation and write operation
  * @i2c_subip_regs: The copy of THC I2C sub-system registers for resuming restore
  * @i2c_max_rx_size: I2C Rx transfer max input size
+ * @i2c_int_delay_us: I2C input interrupt delay, unit is us
  * @i2c_max_rx_size_en: Bool value that indicates I2C max input size control enabled or not
+ * @i2c_int_delay_en: Bool value that indicates I2C input interrupt delay enabled or not
  */
 struct thc_device {
 	struct device *dev;
@@ -85,7 +87,9 @@ struct thc_device {
 	u32 *i2c_subip_regs;
 
 	u32 i2c_max_rx_size;
+	u32 i2c_int_delay_us;
 	bool i2c_max_rx_size_en;
+	bool i2c_int_delay_en;
 };
 
 struct thc_device *thc_dev_init(struct device *device, void __iomem *mem_addr);
@@ -119,5 +123,7 @@ int thc_i2c_subip_regs_save(struct thc_device *dev);
 int thc_i2c_subip_regs_restore(struct thc_device *dev);
 int thc_i2c_set_rx_max_size(struct thc_device *dev, u32 max_rx_size);
 int thc_i2c_rx_max_size_enable(struct thc_device *dev, bool enable);
+int thc_i2c_set_rx_int_delay(struct thc_device *dev, u32 delay_us);
+int thc_i2c_rx_int_delay_enable(struct thc_device *dev, bool enable);
 
 #endif /* _INTEL_THC_DEV_H_ */

@@ -123,12 +123,15 @@ struct thc_dma_configuration {
  * @use_write_interrupts: Indicate TxDMA using interrupt or polling
  * @rx_max_size_en: Temp flag to indicate THC I2C Rx max input size control feature
  *                  enabled or not, only be used during SWDMA operation.
+ * @rx_int_delay_en: Temp flag to indicate THC I2C Rx interrupt delay feature
+ *                   enabled or not, only be used during SWDMA operation.
  */
 struct thc_dma_context {
 	struct thc_dma_configuration dma_config[MAX_THC_DMA_CHANNEL];
 	u8 use_write_interrupts;
 
 	bool rx_max_size_en;
+	bool rx_int_delay_en;
 };
 
 struct thc_device;
