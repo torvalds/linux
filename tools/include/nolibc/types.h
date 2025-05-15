@@ -188,10 +188,6 @@ struct stat {
 typedef __kernel_clockid_t clockid_t;
 typedef int timer_t;
 
-#ifndef offsetof
-#define offsetof(TYPE, FIELD) ((size_t) &((TYPE *)0)->FIELD)
-#endif
-
 #ifndef container_of
 #define container_of(PTR, TYPE, FIELD) ({			\
 	__typeof__(((TYPE *)0)->FIELD) *__FIELD_PTR = (PTR);	\
