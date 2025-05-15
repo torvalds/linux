@@ -46,7 +46,7 @@
 	unreachable();					\
 } while (0)
 
-#define __WARN_FLAGS(flags) do {			\
+#define __WARN_FLAGS(cond_str, flags) do {		\
 	__EMIT_BUG(BUGFLAG_WARNING|(flags));		\
 } while (0)
 

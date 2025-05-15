@@ -52,7 +52,7 @@ do {							\
 	unreachable();					\
 } while (0)
 
-#define __WARN_FLAGS(flags)				\
+#define __WARN_FLAGS(cond_str, flags)			\
 do {							\
 	__asm__ __volatile__ (				\
 		"1:\t.short %O0\n"			\

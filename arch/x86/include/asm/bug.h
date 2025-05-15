@@ -92,7 +92,7 @@ do {								\
  * were to trigger, we'd rather wreck the machine in an attempt to get the
  * message out than not know about it.
  */
-#define __WARN_FLAGS(flags)					\
+#define __WARN_FLAGS(cond_str, flags)				\
 do {								\
 	__auto_type __flags = BUGFLAG_WARNING|(flags);		\
 	instrumentation_begin();				\

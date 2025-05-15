@@ -42,7 +42,7 @@
 	asm_inline volatile (__stringify(ASM_BUG_FLAGS(flags))		\
 			     extra);
 
-#define __WARN_FLAGS(flags)					\
+#define __WARN_FLAGS(cond_str, flags)				\
 do {								\
 	instrumentation_begin();				\
 	__BUG_FLAGS(BUGFLAG_WARNING|(flags), ANNOTATE_REACHABLE(10001b));\
