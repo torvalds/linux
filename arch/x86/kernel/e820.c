@@ -76,7 +76,7 @@ EXPORT_SYMBOL(pci_mem_start);
 static bool _e820__mapped_any(struct e820_table *table,
 			      u64 start, u64 end, enum e820_type type)
 {
-	int idx;
+	u32 idx;
 
 	for (idx = 0; idx < table->nr_entries; idx++) {
 		struct e820_entry *entry = &table->entries[idx];
@@ -111,7 +111,7 @@ EXPORT_SYMBOL_GPL(e820__mapped_any);
 static struct e820_entry *__e820__mapped_all(u64 start, u64 end,
 					     enum e820_type type)
 {
-	int idx;
+	u32 idx;
 
 	for (idx = 0; idx < e820_table->nr_entries; idx++) {
 		struct e820_entry *entry = &e820_table->entries[idx];
@@ -164,7 +164,7 @@ int e820__get_entry_type(u64 start, u64 end)
  */
 static void __init __e820__range_add(struct e820_table *table, u64 start, u64 size, enum e820_type type)
 {
-	int idx = table->nr_entries;
+	u32 idx = table->nr_entries;
 
 	if (idx >= ARRAY_SIZE(table->entries)) {
 		pr_err("too many E820 table entries; ignoring [mem %#010llx-%#010llx]\n",
@@ -202,7 +202,7 @@ static void __init e820_print_type(enum e820_type type)
 static void __init e820__print_table(const char *who)
 {
 	u64 range_end_prev = 0;
-	int idx;
+	u32 idx;
 
 	for (idx = 0; idx < e820_table->nr_entries; idx++) {
 		struct e820_entry *entry = e820_table->entries + idx;
@@ -482,7 +482,7 @@ static u64 __init
 __e820__range_update(struct e820_table *table, u64 start, u64 size, enum e820_type old_type, enum e820_type new_type)
 {
 	u64 end;
-	unsigned int idx;
+	u32 idx;
 	u64 real_updated_size = 0;
 
 	BUG_ON(old_type == new_type);
@@ -560,7 +560,7 @@ u64 __init e820__range_update_table(struct e820_table *t, u64 start, u64 size,
 /* Remove a range of memory from the E820 table: */
 u64 __init e820__range_remove(u64 start, u64 size, enum e820_type old_type, bool check_type)
 {
-	int idx;
+	u32 idx;
 	u64 end;
 	u64 real_removed_size = 0;
 
@@ -772,7 +772,7 @@ void __init e820__memory_setup_extended(u64 phys_addr, u32 data_len)
  */
 void __init e820__register_nosave_regions(unsigned long limit_pfn)
 {
-	int idx;
+	u32 idx;
 	u64 last_addr = 0;
 
 	for (idx = 0; idx < e820_table->nr_entries; idx++) {
@@ -797,7 +797,7 @@ void __init e820__register_nosave_regions(unsigned long limit_pfn)
  */
 static int __init e820__register_nvs_regions(void)
 {
-	int idx;
+	u32 idx;
 
 	for (idx = 0; idx < e820_table->nr_entries; idx++) {
 		struct e820_entry *entry = &e820_table->entries[idx];
@@ -848,7 +848,7 @@ u64 __init e820__memblock_alloc_reserved(u64 size, u64 align)
  */
 static unsigned long __init e820__end_ram_pfn(unsigned long limit_pfn)
 {
-	int idx;
+	u32 idx;
 	unsigned long last_pfn = 0;
 	unsigned long max_arch_pfn = MAX_ARCH_PFN;
 
@@ -1103,7 +1103,7 @@ static bool __init e820_device_region(enum e820_type type, struct resource *res)
  */
 void __init e820__reserve_resources(void)
 {
-	int idx;
+	u32 idx;
 	struct resource *res;
 	u64 end;
 
@@ -1168,7 +1168,7 @@ static unsigned long __init ram_alignment(resource_size_t pos)
 
 void __init e820__reserve_resources_late(void)
 {
-	int idx;
+	u32 idx;
 	struct resource *res;
 
 	/*
@@ -1272,7 +1272,7 @@ void __init e820__memory_setup(void)
 
 void __init e820__memblock_setup(void)
 {
-	int idx;
+	u32 idx;
 	u64 end;
 
 #ifdef CONFIG_MEMORY_HOTPLUG
