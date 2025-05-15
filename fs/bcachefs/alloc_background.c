@@ -914,15 +914,6 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 				goto err;
 		}
 
-		if ((flags & BTREE_TRIGGER_bucket_invalidate) &&
-		    old_a->cached_sectors) {
-			ret = bch2_mod_dev_cached_sectors(trans, ca->dev_idx,
-					 -((s64) old_a->cached_sectors),
-					 flags & BTREE_TRIGGER_gc);
-			if (ret)
-				goto err;
-		}
-
 		ret = bch2_alloc_key_to_dev_counters(trans, ca, old_a, new_a, flags);
 		if (ret)
 			goto err;
