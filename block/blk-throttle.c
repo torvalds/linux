@@ -1149,8 +1149,8 @@ again:
 	dispatched = false;
 
 	while (true) {
-		unsigned int bio_cnt_r = sq_queued(sq, READ);
-		unsigned int bio_cnt_w = sq_queued(sq, WRITE);
+		unsigned int __maybe_unused bio_cnt_r = sq_queued(sq, READ);
+		unsigned int __maybe_unused bio_cnt_w = sq_queued(sq, WRITE);
 
 		throtl_log(sq, "dispatch nr_queued=%u read=%u write=%u",
 			   bio_cnt_r + bio_cnt_w, bio_cnt_r, bio_cnt_w);
