@@ -84,8 +84,8 @@ config SAMPLE_RUST_DRIVER_FAUX
 
 config SAMPLE_RUST_DRIVER_AUXILIARY
 	tristate "Auxiliary Driver"
-	depends on AUXILIARY_BUS
 	depends on PCI
+	select AUXILIARY_BUS
 	help
 	  This option builds the Rust auxiliary driver sample.
 
