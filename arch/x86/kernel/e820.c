@@ -655,7 +655,7 @@ static int __init e820_search_gap(unsigned long *gap_start, unsigned long *gap_s
 		if (last > end) {
 			unsigned long gap = last - end;
 
-			if (gap >= *gap_size) {
+			if (gap > *gap_size) {
 				*gap_size = gap;
 				*gap_start = end;
 				found = 1;
