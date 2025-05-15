@@ -367,12 +367,12 @@ int xhci_set_interrupter_moderation(struct xhci_interrupter *ir,
 		return -EINVAL;
 
 	/* IMODI value in IMOD register is in 250ns increments */
-	imod_interval = umin(imod_interval / 250, ER_IRQ_INTERVAL_MASK);
+	imod_interval = umin(imod_interval / 250, IMODI_MASK);
 
-	imod = readl(&ir->ir_set->irq_control);
-	imod &= ~ER_IRQ_INTERVAL_MASK;
+	imod = readl(&ir->ir_set->imod);
+	imod &= ~IMODI_MASK;
 	imod |= imod_interval;
-	writel(imod, &ir->ir_set->irq_control);
+	writel(imod, &ir->ir_set->imod);
 
 	return 0;
 }
@@ -835,7 +835,7 @@ static void xhci_save_registers(struct xhci_hcd *xhci)
 		ir->s3_erst_base = xhci_read_64(xhci, &ir->ir_set->erst_base);
 		ir->s3_erst_dequeue = xhci_read_64(xhci, &ir->ir_set->erst_dequeue);
 		ir->s3_iman = readl(&ir->ir_set->iman);
-		ir->s3_irq_control = readl(&ir->ir_set->irq_control);
+		ir->s3_imod = readl(&ir->ir_set->imod);
 	}
 }
 
@@ -859,7 +859,7 @@ static void xhci_restore_registers(struct xhci_hcd *xhci)
 		xhci_write_64(xhci, ir->s3_erst_base, &ir->ir_set->erst_base);
 		xhci_write_64(xhci, ir->s3_erst_dequeue, &ir->ir_set->erst_dequeue);
 		writel(ir->s3_iman, &ir->ir_set->iman);
-		writel(ir->s3_irq_control, &ir->ir_set->irq_control);
+		writel(ir->s3_imod, &ir->ir_set->imod);
 	}
 }
 

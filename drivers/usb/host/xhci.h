@@ -213,7 +213,7 @@ struct xhci_op_regs {
  * struct xhci_intr_reg - Interrupt Register Set, v1.2 section 5.5.2.
  * @iman:		IMAN - Interrupt Management Register. Used to enable
  *			interrupts and check for pending interrupts.
- * @irq_control:	IMOD - Interrupt Moderation Register. Used to throttle interrupts.
+ * @imod:		IMOD - Interrupt Moderation Register. Used to throttle interrupts.
  * @erst_size:		ERSTSZ - Number of segments in the Event Ring Segment Table (ERST).
  * @erst_base:		ERSTBA - Event ring segment table base address.
  * @erst_dequeue:	ERDP - Event ring dequeue pointer.
@@ -227,7 +227,7 @@ struct xhci_op_regs {
  */
 struct xhci_intr_reg {
 	__le32	iman;
-	__le32	irq_control;
+	__le32	imod;
 	__le32	erst_size;
 	__le32	rsvd;
 	__le64	erst_base;
@@ -240,15 +240,15 @@ struct xhci_intr_reg {
 /* bit 1 - Interrupt Enable (IE), whether the interrupter is capable of generating an interrupt */
 #define	IMAN_IE			(1 << 1)
 
-/* irq_control bitmasks */
+/* imod bitmasks */
 /*
  * bits 15:0 - Interrupt Moderation Interval, the minimum interval between interrupts
  * (in 250ns intervals). The interval between interrupts will be longer if there are no
  * events on the event ring. Default is 4000 (1 ms).
  */
-#define ER_IRQ_INTERVAL_MASK	(0xffff)
+#define IMODI_MASK		(0xffff)
 /* bits 31:16 - Interrupt Moderation Counter, used to count down the time to the next interrupt */
-#define ER_IRQ_COUNTER_MASK	(0xffff << 16)
+#define IMODC_MASK		(0xffff << 16)
 
 /* erst_size bitmasks */
 /* bits 15:0 - Event Ring Segment Table Size, number of ERST entries */
@@ -1453,7 +1453,7 @@ struct xhci_interrupter {
 	u32			isoc_bei_interval;
 	/* For interrupter registers save and restore over suspend/resume */
 	u32	s3_iman;
-	u32	s3_irq_control;
+	u32	s3_imod;
 	u32	s3_erst_size;
 	u64	s3_erst_base;
 	u64	s3_erst_dequeue;
