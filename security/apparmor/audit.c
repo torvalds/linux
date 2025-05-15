@@ -94,23 +94,23 @@ static void audit_pre(struct audit_buffer *ab, void *va)
 	struct apparmor_audit_data *ad = aad_of_va(va);
 
 	if (aa_g_audit_header) {
-		audit_log_format(ab, "apparmor=\"%s\"",
-				 aa_audit_type[ad->type]);
+		//audit_log_format(ab, "apparmor=\"%s\"",
+		//		 aa_audit_type[ad->type]);
 	}
 
-	if (ad->op)
-		audit_log_format(ab, " operation=\"%s\"", ad->op);
-
-	if (ad->class)
-		audit_log_format(ab, " class=\"%s\"",
-				 ad->class <= AA_CLASS_LAST ?
-				 aa_class_names[ad->class] :
-				 "unknown");
-
+	if (ad->op){
+		//audit_log_format(ab, " operation=\"%s\"", ad->op);
+	}
+	if (ad->class){
+		// audit_log_format(ab, " class=\"%s\"",
+		// 		 ad->class <= AA_CLASS_LAST ?
+		// 		 aa_class_names[ad->class] :
+		// 		 "unknown");
+	}
 	if (ad->info) {
-		audit_log_format(ab, " info=\"%s\"", ad->info);
-		if (ad->error)
-			audit_log_format(ab, " error=%d", ad->error);
+		// audit_log_format(ab, " info=\"%s\"", ad->info);
+		// if (ad->error)
+		// 	audit_log_format(ab, " error=%d", ad->error);
 	}
 
 	if (ad->subj_label) {
@@ -120,22 +120,22 @@ static void audit_pre(struct audit_buffer *ab, void *va)
 			struct aa_profile *profile = labels_profile(label);
 
 			if (profile->ns != root_ns) {
-				audit_log_format(ab, " namespace=");
-				audit_log_untrustedstring(ab,
-						       profile->ns->base.hname);
+				// audit_log_format(ab, " namespace=");
+				// audit_log_untrustedstring(ab,
+				// 		       profile->ns->base.hname);
 			}
-			audit_log_format(ab, " profile=");
-			audit_log_untrustedstring(ab, profile->base.hname);
+			// audit_log_format(ab, " profile=");
+			// audit_log_untrustedstring(ab, profile->base.hname);
 		} else {
-			audit_log_format(ab, " label=");
-			aa_label_xaudit(ab, root_ns, label, FLAG_VIEW_SUBNS,
-					GFP_ATOMIC);
+			// audit_log_format(ab, " label=");
+			// aa_label_xaudit(ab, root_ns, label, FLAG_VIEW_SUBNS,
+			// 		GFP_ATOMIC);
 		}
 	}
 
 	if (ad->name) {
-		audit_log_format(ab, " name=");
-		audit_log_untrustedstring(ab, ad->name);
+		// audit_log_format(ab, " name=");
+		// audit_log_untrustedstring(ab, ad->name);
 	}
 }
 
