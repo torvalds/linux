@@ -11,7 +11,7 @@
 #else
 #define __BUGVERBOSE_LOCATION(file, line)			\
 		.pushsection .rodata.str, "aMS", @progbits, 1;	\
-	10002:	.string file;					\
+	10002:	.ascii file "\0";				\
 		.popsection;					\
 								\
 		.long 10002b - .;				\
@@ -26,7 +26,7 @@
 		.pushsection __bug_table, "aw";			\
 		.align 2;					\
 	10000:	.long 10001f - .;				\
-		_BUGVERBOSE_LOCATION(__FILE__, __LINE__)	\
+		_BUGVERBOSE_LOCATION(WARN_CONDITION_STR(cond_str) __FILE__, __LINE__) \
 		.short flags;					\
 		.popsection;					\
 	10001:
