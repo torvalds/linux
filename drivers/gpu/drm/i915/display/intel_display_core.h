@@ -42,7 +42,7 @@ struct intel_color_funcs;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_dmc;
-struct intel_dpll_funcs;
+struct intel_dpll_global_funcs;
 struct intel_dpll_mgr;
 struct intel_fbdev;
 struct intel_fdi_funcs;
@@ -300,7 +300,7 @@ struct intel_display {
 		const struct intel_cdclk_funcs *cdclk;
 
 		/* Display pll funcs */
-		const struct intel_dpll_funcs *dpll;
+		const struct intel_dpll_global_funcs *dpll;
 
 		/* irq display functions */
 		const struct intel_hotplug_funcs *hotplug;

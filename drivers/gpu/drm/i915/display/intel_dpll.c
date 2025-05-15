@@ -25,7 +25,7 @@
 #include "vlv_dpio_phy_regs.h"
 #include "vlv_sideband.h"
 
-struct intel_dpll_funcs {
+struct intel_dpll_global_funcs {
 	int (*crtc_compute_clock)(struct intel_atomic_state *state,
 				  struct intel_crtc *crtc);
 	int (*crtc_get_shared_dpll)(struct intel_atomic_state *state,
@@ -1691,45 +1691,45 @@ static int i8xx_crtc_compute_clock(struct intel_atomic_state *state,
 	return 0;
 }
 
-static const struct intel_dpll_funcs mtl_dpll_funcs = {
+static const struct intel_dpll_global_funcs mtl_dpll_funcs = {
 	.crtc_compute_clock = mtl_crtc_compute_clock,
 };
 
-static const struct intel_dpll_funcs dg2_dpll_funcs = {
+static const struct intel_dpll_global_funcs dg2_dpll_funcs = {
 	.crtc_compute_clock = dg2_crtc_compute_clock,
 };
 
-static const struct intel_dpll_funcs hsw_dpll_funcs = {
+static const struct intel_dpll_global_funcs hsw_dpll_funcs = {
 	.crtc_compute_clock = hsw_crtc_compute_clock,
 	.crtc_get_shared_dpll = hsw_crtc_get_shared_dpll,
 };
 
-static const struct intel_dpll_funcs ilk_dpll_funcs = {
+static const struct intel_dpll_global_funcs ilk_dpll_funcs = {
 	.crtc_compute_clock = ilk_crtc_compute_clock,
 	.crtc_get_shared_dpll = ilk_crtc_get_shared_dpll,
 };
 
-static const struct intel_dpll_funcs chv_dpll_funcs = {
+static const struct intel_dpll_global_funcs chv_dpll_funcs = {
 	.crtc_compute_clock = chv_crtc_compute_clock,
 };
 
-static const struct intel_dpll_funcs vlv_dpll_funcs = {
+static const struct intel_dpll_global_funcs vlv_dpll_funcs = {
 	.crtc_compute_clock = vlv_crtc_compute_clock,
 };
 
-static const struct intel_dpll_funcs g4x_dpll_funcs = {
+static const struct intel_dpll_global_funcs g4x_dpll_funcs = {
 	.crtc_compute_clock = g4x_crtc_compute_clock,
 };
 
-static const struct intel_dpll_funcs pnv_dpll_funcs = {
+static const struct intel_dpll_global_funcs pnv_dpll_funcs = {
 	.crtc_compute_clock = pnv_crtc_compute_clock,
 };
 
-static const struct intel_dpll_funcs i9xx_dpll_funcs = {
+static const struct intel_dpll_global_funcs i9xx_dpll_funcs = {
 	.crtc_compute_clock = i9xx_crtc_compute_clock,
 };
 
-static const struct intel_dpll_funcs i8xx_dpll_funcs = {
+static const struct intel_dpll_global_funcs i8xx_dpll_funcs = {
 	.crtc_compute_clock = i8xx_crtc_compute_clock,
 };
 
