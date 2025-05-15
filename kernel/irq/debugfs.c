@@ -225,7 +225,7 @@ void irq_debugfs_copy_devname(int irq, struct device *dev)
 
 void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *desc)
 {
-	char name [10];
+	char name [12];
 
 	if (!irq_dir || !desc || desc->debugfs_file)
 		return;
