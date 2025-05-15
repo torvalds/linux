@@ -396,9 +396,9 @@ void assert_dpll(struct intel_display *display,
 		 bool state);
 #define assert_dpll_enabled(d, p) assert_dpll(d, p, true)
 #define assert_dpll_disabled(d, p) assert_dpll(d, p, false)
-int intel_compute_dplls(struct intel_atomic_state *state,
-			struct intel_crtc *crtc,
-			struct intel_encoder *encoder);
+int intel_dpll_compute(struct intel_atomic_state *state,
+		       struct intel_crtc *crtc,
+		       struct intel_encoder *encoder);
 int intel_dpll_reserve(struct intel_atomic_state *state,
 		       struct intel_crtc *crtc,
 		       struct intel_encoder *encoder);

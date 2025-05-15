@@ -4361,7 +4361,7 @@ void intel_dpll_init(struct intel_display *display)
 }
 
 /**
- * intel_compute_dplls - compute DPLL state CRTC and encoder combination
+ * intel_dpll_compute - compute DPLL state CRTC and encoder combination
  * @state: atomic state
  * @crtc: CRTC to compute DPLLs for
  * @encoder: encoder
@@ -4374,9 +4374,9 @@ void intel_dpll_init(struct intel_display *display)
  * Returns:
  * 0 on success, negative error code on failure.
  */
-int intel_compute_dplls(struct intel_atomic_state *state,
-			struct intel_crtc *crtc,
-			struct intel_encoder *encoder)
+int intel_dpll_compute(struct intel_atomic_state *state,
+		       struct intel_crtc *crtc,
+		       struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(state);
 	const struct intel_dpll_mgr *dpll_mgr = display->dpll.mgr;
