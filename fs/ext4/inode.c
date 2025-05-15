@@ -3467,12 +3467,149 @@ static void ext4_set_iomap(struct inode *inode, struct iomap *iomap,
 	}
 }
 
+static int ext4_map_blocks_atomic_write_slow(handle_t *handle,
+			struct inode *inode, struct ext4_map_blocks *map)
+{
+	ext4_lblk_t m_lblk = map->m_lblk;
+	unsigned int m_len = map->m_len;
+	unsigned int mapped_len = 0, m_flags = 0;
+	ext4_fsblk_t next_pblk;
+	bool check_next_pblk = false;
+	int ret = 0;
+
+	WARN_ON_ONCE(!ext4_has_feature_bigalloc(inode->i_sb));
+
+	/*
+	 * This is a slow path in case of mixed mapping. We use
+	 * EXT4_GET_BLOCKS_CREATE_ZERO flag here to make sure we get a single
+	 * contiguous mapped mapping. This will ensure any unwritten or hole
+	 * regions within the requested range is zeroed out and we return
+	 * a single contiguous mapped extent.
+	 */
+	m_flags = EXT4_GET_BLOCKS_CREATE_ZERO;
+
+	do {
+		ret = ext4_map_blocks(handle, inode, map, m_flags);
+		if (ret < 0 && ret != -ENOSPC)
+			goto out_err;
+		/*
+		 * This should never happen, but let's return an error code to
+		 * avoid an infinite loop in here.
+		 */
+		if (ret == 0) {
+			ret = -EFSCORRUPTED;
+			ext4_warning_inode(inode,
+				"ext4_map_blocks() couldn't allocate blocks m_flags: 0x%x, ret:%d",
+				m_flags, ret);
+			goto out_err;
+		}
+		/*
+		 * With bigalloc we should never get ENOSPC nor discontiguous
+		 * physical extents.
+		 */
+		if ((check_next_pblk && next_pblk != map->m_pblk) ||
+				ret == -ENOSPC) {
+			ext4_warning_inode(inode,
+				"Non-contiguous allocation detected: expected %llu, got %llu, "
+				"or ext4_map_blocks() returned out of space ret: %d",
+				next_pblk, map->m_pblk, ret);
+			ret = -EFSCORRUPTED;
+			goto out_err;
+		}
+		next_pblk = map->m_pblk + map->m_len;
+		check_next_pblk = true;
+
+		mapped_len += map->m_len;
+		map->m_lblk += map->m_len;
+		map->m_len = m_len - mapped_len;
+	} while (mapped_len < m_len);
+
+	/*
+	 * We might have done some work in above loop, so we need to query the
+	 * start of the physical extent, based on the origin m_lblk and m_len.
+	 * Let's also ensure we were able to allocate the required range for
+	 * mixed mapping case.
+	 */
+	map->m_lblk = m_lblk;
+	map->m_len = m_len;
+	map->m_flags = 0;
+
+	ret = ext4_map_blocks(handle, inode, map,
+			      EXT4_GET_BLOCKS_QUERY_LAST_IN_LEAF);
+	if (ret != m_len) {
+		ext4_warning_inode(inode,
+			"allocation failed for atomic write request m_lblk:%u, m_len:%u, ret:%d\n",
+			m_lblk, m_len, ret);
+		ret = -EINVAL;
+	}
+	return ret;
+
+out_err:
+	/* reset map before returning an error */
+	map->m_lblk = m_lblk;
+	map->m_len = m_len;
+	map->m_flags = 0;
+	return ret;
+}
+
+/*
+ * ext4_map_blocks_atomic: Helper routine to ensure the entire requested
+ * range in @map [lblk, lblk + len) is one single contiguous extent with no
+ * mixed mappings.
+ *
+ * We first use m_flags passed to us by our caller (ext4_iomap_alloc()).
+ * We only call EXT4_GET_BLOCKS_ZERO in the slow path, when the underlying
+ * physical extent for the requested range does not have a single contiguous
+ * mapping type i.e. (Hole, Mapped, or Unwritten) throughout.
+ * In that case we will loop over the requested range to allocate and zero out
+ * the unwritten / holes in between, to get a single mapped extent from
+ * [m_lblk, m_lblk +  m_len). Note that this is only possible because we know
+ * this can be called only with bigalloc enabled filesystem where the underlying
+ * cluster is already allocated. This avoids allocating discontiguous extents
+ * in the slow path due to multiple calls to ext4_map_blocks().
+ * The slow path is mostly non-performance critical path, so it should be ok to
+ * loop using ext4_map_blocks() with appropriate flags to allocate & zero the
+ * underlying short holes/unwritten extents within the requested range.
+ */
+static int ext4_map_blocks_atomic_write(handle_t *handle, struct inode *inode,
+				struct ext4_map_blocks *map, int m_flags,
+				bool *force_commit)
+{
+	ext4_lblk_t m_lblk = map->m_lblk;
+	unsigned int m_len = map->m_len;
+	int ret = 0;
+
+	WARN_ON_ONCE(m_len > 1 && !ext4_has_feature_bigalloc(inode->i_sb));
+
+	ret = ext4_map_blocks(handle, inode, map, m_flags);
+	if (ret < 0 || ret == m_len)
+		goto out;
+	/*
+	 * This is a mixed mapping case where we were not able to allocate
+	 * a single contiguous extent. In that case let's reset requested
+	 * mapping and call the slow path.
+	 */
+	map->m_lblk = m_lblk;
+	map->m_len = m_len;
+	map->m_flags = 0;
+
+	/*
+	 * slow path means we have mixed mapping, that means we will need
+	 * to force txn commit.
+	 */
+	*force_commit = true;
+	return ext4_map_blocks_atomic_write_slow(handle, inode, map);
+out:
+	return ret;
+}
+
 static int ext4_iomap_alloc(struct inode *inode, struct ext4_map_blocks *map,
 			    unsigned int flags)
 {
 	handle_t *handle;
 	u8 blkbits = inode->i_blkbits;
 	int ret, dio_credits, m_flags = 0, retries = 0;
+	bool force_commit = false;
 
 	/*
 	 * Trim the mapping request to the maximum value that we can map at
@@ -3480,7 +3617,30 @@ static int ext4_iomap_alloc(struct inode *inode, struct ext4_map_blocks *map,
 	 */
 	if (map->m_len > DIO_MAX_BLOCKS)
 		map->m_len = DIO_MAX_BLOCKS;
-	dio_credits = ext4_chunk_trans_blocks(inode, map->m_len);
+
+	/*
+	 * journal credits estimation for atomic writes. We call
+	 * ext4_map_blocks(), to find if there could be a mixed mapping. If yes,
+	 * then let's assume the no. of pextents required can be m_len i.e.
+	 * every alternate block can be unwritten and hole.
+	 */
+	if (flags & IOMAP_ATOMIC) {
+		unsigned int orig_mlen = map->m_len;
+
+		ret = ext4_map_blocks(NULL, inode, map, 0);
+		if (ret < 0)
+			return ret;
+		if (map->m_len < orig_mlen) {
+			map->m_len = orig_mlen;
+			dio_credits = ext4_meta_trans_blocks(inode, orig_mlen,
+							     map->m_len);
+		} else {
+			dio_credits = ext4_chunk_trans_blocks(inode,
+							      map->m_len);
+		}
+	} else {
+		dio_credits = ext4_chunk_trans_blocks(inode, map->m_len);
+	}
 
 retry:
 	/*
@@ -3511,7 +3671,11 @@ retry:
 	else if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
 		m_flags = EXT4_GET_BLOCKS_IO_CREATE_EXT;
 
-	ret = ext4_map_blocks(handle, inode, map, m_flags);
+	if (flags & IOMAP_ATOMIC)
+		ret = ext4_map_blocks_atomic_write(handle, inode, map, m_flags,
+						   &force_commit);
+	else
+		ret = ext4_map_blocks(handle, inode, map, m_flags);
 
 	/*
 	 * We cannot fill holes in indirect tree based inodes as that could
@@ -3525,6 +3689,22 @@ retry:
 	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
 
+	/*
+	 * Force commit the current transaction if the allocation spans a mixed
+	 * mapping range. This ensures any pending metadata updates (like
+	 * unwritten to written extents conversion) in this range are in
+	 * consistent state with the file data blocks, before performing the
+	 * actual write I/O. If the commit fails, the whole I/O must be aborted
+	 * to prevent any possible torn writes.
+	 */
+	if (ret > 0 && force_commit) {
+		int ret2;
+
+		ret2 = ext4_force_commit(inode->i_sb);
+		if (ret2)
+			return ret2;
+	}
+
 	return ret;
 }
 
@@ -3535,6 +3715,7 @@ static int ext4_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	int ret;
 	struct ext4_map_blocks map;
 	u8 blkbits = inode->i_blkbits;
+	unsigned int orig_mlen;
 
 	if ((offset >> blkbits) > EXT4_MAX_LOGICAL_BLOCK)
 		return -EINVAL;
@@ -3548,6 +3729,7 @@ static int ext4_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	map.m_lblk = offset >> blkbits;
 	map.m_len = min_t(loff_t, (offset + length - 1) >> blkbits,
 			  EXT4_MAX_LOGICAL_BLOCK) - map.m_lblk + 1;
+	orig_mlen = map.m_len;
 
 	if (flags & IOMAP_WRITE) {
 		/*
@@ -3558,8 +3740,16 @@ static int ext4_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		 */
 		if (offset + length <= i_size_read(inode)) {
 			ret = ext4_map_blocks(NULL, inode, &map, 0);
-			if (ret > 0 && (map.m_flags & EXT4_MAP_MAPPED))
-				goto out;
+			/*
+			 * For atomic writes the entire requested length should
+			 * be mapped.
+			 */
+			if (map.m_flags & EXT4_MAP_MAPPED) {
+				if ((!(flags & IOMAP_ATOMIC) && ret > 0) ||
+				   (flags & IOMAP_ATOMIC && ret >= orig_mlen))
+					goto out;
+			}
+			map.m_len = orig_mlen;
 		}
 		ret = ext4_iomap_alloc(inode, &map, flags);
 	} else {
@@ -3580,6 +3770,16 @@ out:
 	 */
 	map.m_len = fscrypt_limit_io_blocks(inode, map.m_lblk, map.m_len);
 
+	/*
+	 * Before returning to iomap, let's ensure the allocated mapping
+	 * covers the entire requested length for atomic writes.
+	 */
+	if (flags & IOMAP_ATOMIC) {
+		if (map.m_len < (length >> blkbits)) {
+			WARN_ON_ONCE(1);
+			return -EINVAL;
+		}
+	}
 	ext4_set_iomap(inode, iomap, &map, offset, length, flags);
 
 	return 0;

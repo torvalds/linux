@@ -4797,6 +4797,93 @@ out_inode_lock:
 }
 
 /*
+ * This function converts a range of blocks to written extents. The caller of
+ * this function will pass the start offset and the size. all unwritten extents
+ * within this range will be converted to written extents.
+ *
+ * This function is called from the direct IO end io call back function for
+ * atomic writes, to convert the unwritten extents after IO is completed.
+ *
+ * Note that the requirement for atomic writes is that all conversion should
+ * happen atomically in a single fs journal transaction. We mainly only allocate
+ * unwritten extents either on a hole on a pre-exiting unwritten extent range in
+ * ext4_map_blocks_atomic_write(). The only case where we can have multiple
+ * unwritten extents in a range [offset, offset+len) is when there is a split
+ * unwritten extent between two leaf nodes which was cached in extent status
+ * cache during ext4_iomap_alloc() time. That will allow
+ * ext4_map_blocks_atomic_write() to return the unwritten extent range w/o going
+ * into the slow path. That means we might need a loop for conversion of this
+ * unwritten extent split across leaf block within a single journal transaction.
+ * Split extents across leaf nodes is a rare case, but let's still handle that
+ * to meet the requirements of multi-fsblock atomic writes.
+ *
+ * Returns 0 on success.
+ */
+int ext4_convert_unwritten_extents_atomic(handle_t *handle, struct inode *inode,
+					  loff_t offset, ssize_t len)
+{
+	unsigned int max_blocks;
+	int ret = 0, ret2 = 0, ret3 = 0;
+	struct ext4_map_blocks map;
+	unsigned int blkbits = inode->i_blkbits;
+	unsigned int credits = 0;
+	int flags = EXT4_GET_BLOCKS_IO_CONVERT_EXT;
+
+	map.m_lblk = offset >> blkbits;
+	max_blocks = EXT4_MAX_BLOCKS(len, offset, blkbits);
+
+	if (!handle) {
+		/*
+		 * TODO: An optimization can be added later by having an extent
+		 * status flag e.g. EXTENT_STATUS_SPLIT_LEAF. If we query that
+		 * it can tell if the extent in the cache is a split extent.
+		 * But for now let's assume pextents as 2 always.
+		 */
+		credits = ext4_meta_trans_blocks(inode, max_blocks, 2);
+	}
+
+	if (credits) {
+		handle = ext4_journal_start(inode, EXT4_HT_MAP_BLOCKS, credits);
+		if (IS_ERR(handle)) {
+			ret = PTR_ERR(handle);
+			return ret;
+		}
+	}
+
+	while (ret >= 0 && ret < max_blocks) {
+		map.m_lblk += ret;
+		map.m_len = (max_blocks -= ret);
+		ret = ext4_map_blocks(handle, inode, &map, flags);
+		if (ret != max_blocks)
+			ext4_msg(inode->i_sb, KERN_INFO,
+				     "inode #%lu: block %u: len %u: "
+				     "split block mapping found for atomic write, "
+				     "ret = %d",
+				     inode->i_ino, map.m_lblk,
+				     map.m_len, ret);
+		if (ret <= 0)
+			break;
+	}
+
+	ret2 = ext4_mark_inode_dirty(handle, inode);
+
+	if (credits) {
+		ret3 = ext4_journal_stop(handle);
+		if (unlikely(ret3))
+			ret2 = ret3;
+	}
+
+	if (ret <= 0 || ret2)
+		ext4_warning(inode->i_sb,
+			     "inode #%lu: block %u: len %u: "
+			     "returned %d or %d",
+			     inode->i_ino, map.m_lblk,
+			     map.m_len, ret, ret2);
+
+	return ret > 0 ? ret2 : ret;
+}
+
+/*
  * This function convert a range of blocks to written extents
  * The caller of this function will pass the start offset and the size.
  * all unwritten extents within this range will be converted to
