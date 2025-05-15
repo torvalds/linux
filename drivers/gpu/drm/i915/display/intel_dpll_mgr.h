@@ -404,9 +404,9 @@ int intel_reserve_dplls(struct intel_atomic_state *state,
 			struct intel_encoder *encoder);
 void intel_release_dplls(struct intel_atomic_state *state,
 			 struct intel_crtc *crtc);
-void intel_unreference_dpll_crtc(const struct intel_crtc *crtc,
-				 const struct intel_dpll *pll,
-				 struct intel_dpll_state *shared_dpll_state);
+void intel_dpll_crtc_put(const struct intel_crtc *crtc,
+			 const struct intel_dpll *pll,
+			 struct intel_dpll_state *shared_dpll_state);
 void icl_set_active_port_dpll(struct intel_crtc_state *crtc_state,
 			      enum icl_port_dpll_id port_dpll_id);
 void intel_update_active_dpll(struct intel_atomic_state *state,

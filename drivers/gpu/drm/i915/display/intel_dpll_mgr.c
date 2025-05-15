@@ -451,7 +451,7 @@ intel_reference_dpll(struct intel_atomic_state *state,
 }
 
 /**
- * intel_unreference_dpll_crtc - Drop a DPLL reference for a CRTC
+ * intel_dpll_crtc_put - Drop a DPLL reference for a CRTC
  * @crtc: CRTC on which behalf the reference is dropped
  * @pll: DPLL for which the reference is dropped
  * @dpll_state: the DPLL atomic state in which the reference is tracked
@@ -459,9 +459,9 @@ intel_reference_dpll(struct intel_atomic_state *state,
  * Drop a reference for @pll tracking the end of use of it by @crtc.
  */
 void
-intel_unreference_dpll_crtc(const struct intel_crtc *crtc,
-			    const struct intel_dpll *pll,
-			    struct intel_dpll_state *dpll_state)
+intel_dpll_crtc_put(const struct intel_crtc *crtc,
+		    const struct intel_dpll *pll,
+		    struct intel_dpll_state *dpll_state)
 {
 	struct intel_display *display = to_intel_display(crtc);
 
@@ -481,7 +481,7 @@ static void intel_unreference_dpll(struct intel_atomic_state *state,
 
 	dpll_state = intel_atomic_get_dpll_state(&state->base);
 
-	intel_unreference_dpll_crtc(crtc, pll, &dpll_state[pll->index]);
+	intel_dpll_crtc_put(crtc, pll, &dpll_state[pll->index]);
 }
 
 static void intel_put_dpll(struct intel_atomic_state *state,
