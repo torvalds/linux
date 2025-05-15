@@ -16,6 +16,9 @@ description: |-
   Image data is sent through MIPI CSI-2, which is configured as either 2 or
   4 data lanes.
 
+allOf:
+  - $ref: /schemas/media/video-interface-devices.yaml#
+
 properties:
   compatible:
     const: sony,imx219
@@ -79,7 +82,7 @@ required:
   - VDDL-supply
   - port
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
