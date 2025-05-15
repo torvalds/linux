@@ -3,6 +3,8 @@
 #ifndef _PKEYS_POWERPC_H
 #define _PKEYS_POWERPC_H
 
+#include <sys/stat.h>
+
 #ifndef SYS_pkey_alloc
 # define SYS_pkey_alloc		384
 # define SYS_pkey_free		385
@@ -102,8 +104,18 @@ static inline void expect_fault_on_read_execonly_key(void *p1, int pkey)
 	return;
 }
 
+#define REPEAT_8(s) s s s s s s s s
+#define REPEAT_64(s) REPEAT_8(s) REPEAT_8(s) REPEAT_8(s) REPEAT_8(s) \
+		     REPEAT_8(s) REPEAT_8(s) REPEAT_8(s) REPEAT_8(s)
+#define REPEAT_512(s) REPEAT_64(s) REPEAT_64(s) REPEAT_64(s) REPEAT_64(s) \
+		      REPEAT_64(s) REPEAT_64(s) REPEAT_64(s) REPEAT_64(s)
+#define REPEAT_4096(s) REPEAT_512(s) REPEAT_512(s) REPEAT_512(s) REPEAT_512(s) \
+		       REPEAT_512(s) REPEAT_512(s) REPEAT_512(s) REPEAT_512(s)
+#define REPEAT_16384(s) REPEAT_4096(s) REPEAT_4096(s) \
+			REPEAT_4096(s) REPEAT_4096(s)
+
 /* 4-byte instructions * 16384 = 64K page */
-#define __page_o_noops() asm(".rept 16384 ; nop; .endr")
+#define __page_o_noops() asm(REPEAT_16384("nop\n"))
 
 static inline void *malloc_pkey_with_mprotect_subpage(long size, int prot, u16 pkey)
 {

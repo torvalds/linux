@@ -77,6 +77,16 @@
 	};
 };
 
+/*
+ * The driver depends on boot loader initialized state which resets when this
+ * power-domain is powered off. This happens on suspend or when the driver is
+ * missing during boot. Mark the domain as always on until the driver can
+ * handle this.
+ */
+&ps_dispdfr_be {
+	apple,always-on;
+};
+
 &display_dfr {
 	status = "okay";
 };

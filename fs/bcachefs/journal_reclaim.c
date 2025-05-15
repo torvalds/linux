@@ -266,10 +266,11 @@ out:
 
 static bool should_discard_bucket(struct journal *j, struct journal_device *ja)
 {
-	bool ret;
-
 	spin_lock(&j->lock);
-	ret = ja->discard_idx != ja->dirty_idx_ondisk;
+	unsigned min_free = max(4, ja->nr / 8);
+
+	bool ret = bch2_journal_dev_buckets_available(j, ja, journal_space_discarded) < min_free &&
+		ja->discard_idx != ja->dirty_idx_ondisk;
 	spin_unlock(&j->lock);
 
 	return ret;
