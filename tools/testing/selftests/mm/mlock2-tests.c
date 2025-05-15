@@ -196,7 +196,7 @@ static void test_mlock_lock(void)
 		ksft_exit_fail_msg("munlock(): %s\n", strerror(errno));
 	}
 
-	ksft_test_result(!unlock_lock_check(map), "%s: Locked\n", __func__);
+	ksft_test_result(!unlock_lock_check(map), "%s: Unlocked\n", __func__);
 	munmap(map, 2 * page_size);
 }
 
