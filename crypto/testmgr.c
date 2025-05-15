@@ -17,10 +17,19 @@
  */
 
 #include <crypto/aead.h>
-#include <crypto/hash.h>
+#include <crypto/acompress.h>
+#include <crypto/akcipher.h>
+#include <crypto/drbg.h>
+#include <crypto/internal/cipher.h>
+#include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
+#include <crypto/kpp.h>
+#include <crypto/rng.h>
+#include <crypto/sig.h>
 #include <crypto/skcipher.h>
 #include <linux/err.h>
 #include <linux/fips.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/once.h>
 #include <linux/prandom.h>
@@ -28,14 +37,6 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/uio.h>
-#include <crypto/rng.h>
-#include <crypto/drbg.h>
-#include <crypto/akcipher.h>
-#include <crypto/kpp.h>
-#include <crypto/acompress.h>
-#include <crypto/sig.h>
-#include <crypto/internal/cipher.h>
-#include <crypto/internal/simd.h>
 
 #include "internal.h"
 
@@ -1464,6 +1465,49 @@ static int check_nonfinal_ahash_op(const char *op, int err,
 	return 0;
 }
 
+static int check_ahash_export(struct ahash_request *req,
+			      const struct hash_testvec *vec,
+			      const char *vec_name,
+			      const struct testvec_config *cfg,
+			      const char *driver, u8 *hashstate)
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	const unsigned int digestsize = crypto_ahash_digestsize(tfm);
+	HASH_FBREQ_ON_STACK(fbreq, req);
+	int err;
+
+	if (!vec->state)
+		return 0;
+
+	err = crypto_ahash_export(req, hashstate);
+	if (err) {
+		pr_err("alg: ahash: %s mixed export() failed with err %d on test vector %s, cfg=\"%s\"\n",
+		       driver, err, vec_name, cfg->name);
+		return err;
+	}
+	err = crypto_ahash_import(req, vec->state);
+	if (err) {
+		pr_err("alg: ahash: %s mixed import() failed with err %d on test vector %s, cfg=\"%s\"\n",
+		       driver, err, vec_name, cfg->name);
+		return err;
+	}
+	err = crypto_ahash_import(fbreq, hashstate);
+	if (err) {
+		pr_err("alg: ahash: %s fallback import() failed with err %d on test vector %s, cfg=\"%s\"\n",
+		       crypto_ahash_driver_name(crypto_ahash_reqtfm(fbreq)), err, vec_name, cfg->name);
+		return err;
+	}
+	ahash_request_set_crypt(fbreq, NULL, hashstate, 0);
+	testmgr_poison(hashstate, digestsize + TESTMGR_POISON_LEN);
+	err = crypto_ahash_final(fbreq);
+	if (err) {
+		pr_err("alg: ahash: %s fallback final() failed with err %d on test vector %s, cfg=\"%s\"\n",
+		       crypto_ahash_driver_name(crypto_ahash_reqtfm(fbreq)), err, vec_name, cfg->name);
+		return err;
+	}
+	return check_hash_result("ahash export", hashstate, digestsize, vec, vec_name, driver, cfg);
+}
+
 /* Test one hash test vector in one configuration, using the ahash API */
 static int test_ahash_vec_cfg(const struct hash_testvec *vec,
 			      const char *vec_name,
@@ -1609,6 +1653,10 @@ static int test_ahash_vec_cfg(const struct hash_testvec *vec,
 					      driver, vec_name, cfg);
 		if (err)
 			return err;
+		err = check_ahash_export(req, vec, vec_name, cfg,
+					 driver, hashstate);
+		if (err)
+			return err;
 		err = do_ahash_op(crypto_ahash_final, req, &wait, cfg->nosimd);
 		if (err) {
 			pr_err("alg: ahash: %s final() failed with err %d on test vector %s, cfg=\"%s\"\n",
@@ -1732,6 +1780,17 @@ static void generate_random_hash_testvec(struct rnd_state *rng,
 	vec->digest_error = crypto_hash_digest(
 		crypto_ahash_reqtfm(req), vec->plaintext,
 		vec->psize, (u8 *)vec->digest);
+
+	if (vec->digest_error || !vec->state)
+		goto done;
+
+	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
+	ahash_request_set_virt(req, vec->plaintext, (u8 *)vec->digest,
+			       vec->psize);
+	crypto_ahash_init(req);
+	crypto_ahash_update(req);
+	crypto_ahash_export(req, (u8 *)vec->state);
+
 done:
 	snprintf(name, max_namelen, "\"random: psize=%u ksize=%u\"",
 		 vec->psize, vec->ksize);
@@ -1750,6 +1809,7 @@ static int test_hash_vs_generic_impl(const char *generic_driver,
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	const unsigned int digestsize = crypto_ahash_digestsize(tfm);
+	const unsigned int statesize = crypto_ahash_statesize(tfm);
 	const unsigned int blocksize = crypto_ahash_blocksize(tfm);
 	const unsigned int maxdatasize = (2 * PAGE_SIZE) - TESTMGR_POISON_LEN;
 	const char *algname = crypto_hash_alg_common(tfm)->base.cra_name;
@@ -1822,6 +1882,22 @@ static int test_hash_vs_generic_impl(const char *generic_driver,
 		goto out;
 	}
 
+	if (crypto_hash_no_export_core(tfm) ||
+	    crypto_hash_no_export_core(generic_tfm))
+		;
+	else if (statesize != crypto_ahash_statesize(generic_tfm)) {
+		pr_err("alg: hash: statesize for %s (%u) doesn't match generic impl (%u)\n",
+		       driver, statesize,
+		       crypto_ahash_statesize(generic_tfm));
+		err = -EINVAL;
+		goto out;
+	} else {
+		vec.state = kmalloc(statesize, GFP_KERNEL);
+		err = -ENOMEM;
+		if (!vec.state)
+			goto out;
+	}
+
 	/*
 	 * Now generate test vectors using the generic implementation, and test
 	 * the other implementation against them.
@@ -1854,6 +1930,7 @@ out:
 	kfree(vec.key);
 	kfree(vec.plaintext);
 	kfree(vec.digest);
+	kfree(vec.state);
 	ahash_request_free(generic_req);
 	crypto_free_ahash(generic_tfm);
 	return err;

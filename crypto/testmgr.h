@@ -29,6 +29,7 @@
  * hash_testvec:	structure to describe a hash (message digest) test
  * @key:	Pointer to key (NULL if none)
  * @plaintext:	Pointer to source data
+ * @state:	Pointer to expected state
  * @digest:	Pointer to expected digest
  * @psize:	Length of source data in bytes
  * @ksize:	Length of @key in bytes (0 if no key)
@@ -39,6 +40,7 @@
 struct hash_testvec {
 	const char *key;
 	const char *plaintext;
+	const char *state;
 	const char *digest;
 	unsigned int psize;
 	unsigned short ksize;
