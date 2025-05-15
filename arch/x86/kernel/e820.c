@@ -61,9 +61,9 @@ static struct e820_table e820_table_init		__initdata;
 static struct e820_table e820_table_kexec_init		__initdata;
 static struct e820_table e820_table_firmware_init	__initdata;
 
-struct e820_table *e820_table __refdata			= &e820_table_init;
-struct e820_table *e820_table_kexec __refdata		= &e820_table_kexec_init;
-struct e820_table *e820_table_firmware __refdata	= &e820_table_firmware_init;
+__refdata struct e820_table *e820_table			= &e820_table_init;
+__refdata struct e820_table *e820_table_kexec		= &e820_table_kexec_init;
+__refdata struct e820_table *e820_table_firmware	= &e820_table_firmware_init;
 
 /* For PCI or other memory-mapped resources */
 unsigned long pci_mem_start = 0xaeedbabe;
