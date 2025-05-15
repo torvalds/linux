@@ -699,7 +699,7 @@ __init void e820__setup_pci_gap(void)
 	 */
 	pci_mem_start = gapstart;
 
-	pr_info("[mem %#010lx-%#010lx] available for PCI devices\n",
+	pr_info("[gap %#010lx-%#010lx] available for PCI devices\n",
 		gapstart, gapstart + gapsize - 1);
 }
 
