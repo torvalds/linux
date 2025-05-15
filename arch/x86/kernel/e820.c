@@ -305,18 +305,22 @@ static int __init cpcompare(const void *a, const void *b)
 	return (ap->addr != ap->entry->addr) - (bp->addr != bp->entry->addr);
 }
 
-static bool e820_nomerge(enum e820_type type)
+/*
+ * Can two consecutive E820 entries of this same E820 type be merged?
+ */
+static bool e820_type_mergeable(enum e820_type type)
 {
 	/*
 	 * These types may indicate distinct platform ranges aligned to
-	 * numa node, protection domain, performance domain, or other
+	 * NUMA node, protection domain, performance domain, or other
 	 * boundaries. Do not merge them.
 	 */
 	if (type == E820_TYPE_PRAM)
-		return true;
+		return false;
 	if (type == E820_TYPE_SOFT_RESERVED)
-		return true;
-	return false;
+		return false;
+
+	return true;
 }
 
 int __init e820__update_table(struct e820_table *table)
@@ -394,7 +398,7 @@ int __init e820__update_table(struct e820_table *table)
 		}
 
 		/* Continue building up new map based on this information: */
-		if (current_type != last_type || e820_nomerge(current_type)) {
+		if (current_type != last_type || !e820_type_mergeable(current_type)) {
 			if (last_type) {
 				new_entries[new_nr_entries].size = change_point[chg_idx]->addr - last_addr;
 				/* Move forward only if the new size was non-zero: */
