@@ -202,18 +202,32 @@ static void __init e820_print_type(enum e820_type type)
 
 static void __init e820__print_table(const char *who)
 {
+	u64 range_end_prev = 0;
 	int i;
 
 	for (i = 0; i < e820_table->nr_entries; i++) {
 		struct e820_entry *entry = e820_table->entries + i;
+		u64 range_start, range_end;
 
-		pr_info("%s: [mem %#018Lx-%#018Lx] ",
-			who,
-			entry->addr,
-			entry->addr + entry->size-1);
+		range_start = entry->addr;
+		range_end   = entry->addr + entry->size;
 
+		/* Out of order E820 maps should not happen: */
+		if (range_start < range_end_prev)
+			pr_info(FW_BUG "out of order E820 entry!\n");
+
+		if (range_start > range_end_prev) {
+			pr_info("%s: [gap %#018Lx-%#018Lx]\n",
+				who,
+				range_end_prev,
+				range_start-1);
+		}
+
+		pr_info("%s: [mem %#018Lx-%#018Lx] ", who, range_start, range_end-1);
 		e820_print_type(entry->type);
 		pr_cont("\n");
+
+		range_end_prev = range_end;
 	}
 }
 
