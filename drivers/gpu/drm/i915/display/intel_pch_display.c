@@ -251,7 +251,7 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 	u32 val, pipeconf_val;
 
 	/* Make sure PCH DPLL is enabled */
-	assert_shared_dpll_enabled(display, crtc_state->intel_dpll);
+	assert_dpll_enabled(display, crtc_state->intel_dpll);
 
 	/* FDI must be feeding us bits for PCH ports */
 	assert_fdi_tx_enabled(display, pipe);
@@ -382,7 +382,7 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 		temp |= TRANS_DPLL_ENABLE(pipe);
 		sel = TRANS_DPLLB_SEL(pipe);
 		if (crtc_state->intel_dpll ==
-		    intel_get_shared_dpll_by_id(display, DPLL_ID_PCH_PLL_B))
+		    intel_get_dpll_by_id(display, DPLL_ID_PCH_PLL_B))
 			temp |= sel;
 		else
 			temp &= ~sel;
@@ -394,11 +394,11 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 	 * transcoder, and we actually should do this to not upset any PCH
 	 * transcoder that already use the clock when we share it.
 	 *
-	 * Note that enable_shared_dpll tries to do the right thing, but
-	 * get_shared_dpll unconditionally resets the pll - we need that
+	 * Note that enable_dpll tries to do the right thing, but
+	 * get_dpll unconditionally resets the pll - we need that
 	 * to have the right LVDS enable sequence.
 	 */
-	intel_enable_shared_dpll(crtc_state);
+	intel_enable_dpll(crtc_state);
 
 	/* set transcoder timing, panel must allow it */
 	assert_pps_unlocked(display, pipe);
@@ -472,7 +472,7 @@ void ilk_pch_post_disable(struct intel_atomic_state *state,
 
 	ilk_fdi_pll_disable(crtc);
 
-	intel_disable_shared_dpll(old_crtc_state);
+	intel_disable_dpll(old_crtc_state);
 }
 
 static void ilk_pch_clock_get(struct intel_crtc_state *crtc_state)
@@ -528,7 +528,7 @@ void ilk_pch_get_config(struct intel_crtc_state *crtc_state)
 			pll_id = DPLL_ID_PCH_PLL_A;
 	}
 
-	crtc_state->intel_dpll = intel_get_shared_dpll_by_id(display, pll_id);
+	crtc_state->intel_dpll = intel_get_dpll_by_id(display, pll_id);
 	pll = crtc_state->intel_dpll;
 
 	pll_active = intel_dpll_get_hw_state(display, pll,

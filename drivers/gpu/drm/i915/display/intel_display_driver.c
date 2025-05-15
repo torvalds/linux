@@ -446,7 +446,7 @@ int intel_display_driver_probe_nogem(struct intel_display *display)
 	}
 
 	intel_plane_possible_crtcs_init(display);
-	intel_shared_dpll_init(display);
+	intel_dpll_init(display);
 	intel_fdi_pll_freq_update(display);
 
 	intel_update_czclk(display);
