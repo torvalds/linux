@@ -59,6 +59,10 @@ ifeq ($(SRCARCH),arc)
 no-header-test += linux/bpf_perf_event.h
 endif
 
+ifeq ($(SRCARCH),openrisc)
+no-header-test += linux/bpf_perf_event.h
+endif
+
 ifeq ($(SRCARCH),powerpc)
 no-header-test += linux/bpf_perf_event.h
 endif
