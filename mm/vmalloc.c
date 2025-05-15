@@ -4111,6 +4111,7 @@ void *vrealloc_noprof(const void *p, size_t size, gfp_t flags)
 		if (want_init_on_alloc(flags))
 			memset((void *)p + old_size, 0, size - old_size);
 		vm->requested_size = size;
+		return (void *)p;
 	}
 
 	/* TODO: Grow the vm_area, i.e. allocate and map additional pages. */
