@@ -650,7 +650,7 @@ static void dump_block_entry(struct btrfs_fs_info *fs_info,
  * our sanity checks pass as they are no longer needed.
  */
 int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
-		       struct btrfs_ref *generic_ref)
+		       const struct btrfs_ref *generic_ref)
 {
 	struct ref_entry *ref = NULL, *exist;
 	struct ref_action *ra = NULL;
