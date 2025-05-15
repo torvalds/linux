@@ -3870,7 +3870,9 @@ static inline int ext4_buffer_uptodate(struct buffer_head *bh)
 static inline bool ext4_inode_can_atomic_write(struct inode *inode)
 {
 
-	return S_ISREG(inode->i_mode) && EXT4_SB(inode->i_sb)->s_awu_min > 0;
+	return S_ISREG(inode->i_mode) &&
+		ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS) &&
+		EXT4_SB(inode->i_sb)->s_awu_min > 0;
 }
 
 extern int ext4_block_write_begin(handle_t *handle, struct folio *folio,
