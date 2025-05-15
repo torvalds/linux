@@ -317,8 +317,8 @@ static void __mt7996_init_txpower(struct mt7996_phy *phy,
 				  struct ieee80211_supported_band *sband)
 {
 	struct mt7996_dev *dev = phy->dev;
-	int i, nss = hweight16(phy->mt76->chainmask);
-	int nss_delta = mt76_tx_power_nss_delta(nss);
+	int i, n_chains = hweight16(phy->mt76->chainmask);
+	int path_delta = mt76_tx_power_path_delta(n_chains);
 	int pwr_delta = mt7996_eeprom_get_power_delta(dev, sband->band);
 	struct mt76_power_limits limits;
 
@@ -330,7 +330,7 @@ static void __mt7996_init_txpower(struct mt7996_phy *phy,
 		target_power = mt76_get_rate_power_limits(phy->mt76, chan,
 							  &limits,
 							  target_power);
-		target_power += nss_delta;
+		target_power += path_delta;
 		target_power = DIV_ROUND_UP(target_power, 2);
 		chan->max_power = min_t(int, chan->max_reg_power,
 					target_power);

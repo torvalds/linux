@@ -688,7 +688,7 @@ mt7996_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	n_chains = hweight16(phy->mt76->chainmask);
-	delta = mt76_tx_power_nss_delta(n_chains);
+	delta = mt76_tx_power_path_delta(n_chains);
 	*dbm = DIV_ROUND_UP(phy->mt76->txpower_cur + delta, 2);
 
 	return 0;
