@@ -507,18 +507,6 @@ int crypto_ahash_digest(struct ahash_request *req);
 int crypto_ahash_export(struct ahash_request *req, void *out);
 
 /**
- * crypto_ahash_export_core() - extract core state for message digest
- * @req: reference to the ahash_request handle whose state is exported
- * @out: output buffer of sufficient size that can hold the hash state
- *
- * Export the hash state without the partial block buffer.
- *
- * Context: Softirq or process context.
- * Return: 0 if the export creation was successful; < 0 if an error occurred
- */
-int crypto_ahash_export_core(struct ahash_request *req, void *out);
-
-/**
  * crypto_ahash_import() - import message digest state
  * @req: reference to ahash_request handle the state is imported into
  * @in: buffer holding the state
@@ -530,18 +518,6 @@ int crypto_ahash_export_core(struct ahash_request *req, void *out);
  * Return: 0 if the import was successful; < 0 if an error occurred
  */
 int crypto_ahash_import(struct ahash_request *req, const void *in);
-
-/**
- * crypto_ahash_import_core() - import core state
- * @req: reference to ahash_request handle the state is imported into
- * @in: buffer holding the state
- *
- * Import the hash state without the partial block buffer.
- *
- * Context: Softirq or process context.
- * Return: 0 if the import was successful; < 0 if an error occurred
- */
-int crypto_ahash_import_core(struct ahash_request *req, const void *in);
 
 /**
  * crypto_ahash_init() - (re)initialize message digest handle
@@ -934,18 +910,6 @@ int crypto_hash_digest(struct crypto_ahash *tfm, const u8 *data,
 int crypto_shash_export(struct shash_desc *desc, void *out);
 
 /**
- * crypto_shash_export_core() - extract core state for message digest
- * @desc: reference to the operational state handle whose state is exported
- * @out: output buffer of sufficient size that can hold the hash state
- *
- * Export the hash state without the partial block buffer.
- *
- * Context: Softirq or process context.
- * Return: 0 if the export creation was successful; < 0 if an error occurred
- */
-int crypto_shash_export_core(struct shash_desc *desc, void *out);
-
-/**
  * crypto_shash_import() - import operational state
  * @desc: reference to the operational state handle the state imported into
  * @in: buffer holding the state
@@ -958,18 +922,6 @@ int crypto_shash_export_core(struct shash_desc *desc, void *out);
  * Return: 0 if the import was successful; < 0 if an error occurred
  */
 int crypto_shash_import(struct shash_desc *desc, const void *in);
-
-/**
- * crypto_shash_import_core() - import core state
- * @desc: reference to the operational state handle the state imported into
- * @in: buffer holding the state
- *
- * Import the hash state without the partial block buffer.
- *
- * Context: Softirq or process context.
- * Return: 0 if the import was successful; < 0 if an error occurred
- */
-int crypto_shash_import_core(struct shash_desc *desc, const void *in);
 
 /**
  * crypto_shash_init() - (re)initialize message digest
