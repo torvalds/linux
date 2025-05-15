@@ -2019,7 +2019,6 @@
 				st,bank-ioport = <11>;
 				status = "disabled";
 			};
-
 		};
 
 		exti2: interrupt-controller@46230000 {
