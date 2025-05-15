@@ -2087,8 +2087,8 @@ static int _opp_set_supported_hw(struct opp_table *opp_table,
 	if (opp_table->supported_hw)
 		return 0;
 
-	opp_table->supported_hw = kmemdup(versions, count * sizeof(*versions),
-					GFP_KERNEL);
+	opp_table->supported_hw = kmemdup_array(versions, count,
+						sizeof(*versions), GFP_KERNEL);
 	if (!opp_table->supported_hw)
 		return -ENOMEM;
 
