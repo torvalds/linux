@@ -252,7 +252,7 @@ void dma_fence_chain_init(struct dma_fence_chain *chain,
 	chain->prev_seqno = 0;
 
 	/* Try to reuse the context of the previous chain node. */
-	if (prev_chain && __dma_fence_is_later(seqno, prev->seqno, prev->ops)) {
+	if (prev_chain && __dma_fence_is_later(prev, seqno, prev->seqno)) {
 		context = prev->context;
 		chain->prev_seqno = prev->seqno;
 	} else {
