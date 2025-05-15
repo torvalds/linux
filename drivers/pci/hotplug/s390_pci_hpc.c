@@ -59,7 +59,6 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 
 	pdev = pci_get_slot(zdev->zbus->bus, zdev->devfn);
 	if (pdev && pci_num_vf(pdev)) {
-		pci_dev_put(pdev);
 		rc = -EBUSY;
 		goto out;
 	}

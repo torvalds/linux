@@ -1786,7 +1786,7 @@ static bool arch_has_descending_max_zone_pfns(void)
 	return IS_ENABLED(CONFIG_ARC) && !IS_ENABLED(CONFIG_ARC_HAS_PAE40);
 }
 
-static void set_high_memory(void)
+static void __init set_high_memory(void)
 {
 	phys_addr_t highmem = memblock_end_of_DRAM();
 

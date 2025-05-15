@@ -44,7 +44,7 @@
 			next-level-cache = <&l2_0>;
 			clocks = <&scmi_dvfs 0>;
 
-			l2_0: l2-cache-0 {
+			l2_0: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
 				/* 8 ways set associative */
@@ -53,13 +53,6 @@
 				cache-sets = <2048>;
 				cache-unified;
 				next-level-cache = <&l3_0>;
-
-				l3_0: l3-cache {
-					compatible = "cache";
-					cache-level = <3>;
-					cache-size = <0x100000>;
-					cache-unified;
-				};
 			};
 		};
 
@@ -78,7 +71,7 @@
 			next-level-cache = <&l2_1>;
 			clocks = <&scmi_dvfs 0>;
 
-			l2_1: l2-cache-1 {
+			l2_1: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
 				/* 8 ways set associative */
@@ -105,7 +98,7 @@
 			next-level-cache = <&l2_2>;
 			clocks = <&scmi_dvfs 1>;
 
-			l2_2: l2-cache-2 {
+			l2_2: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
 				/* 8 ways set associative */
@@ -132,7 +125,7 @@
 			next-level-cache = <&l2_3>;
 			clocks = <&scmi_dvfs 1>;
 
-			l2_3: l2-cache-3 {
+			l2_3: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
 				/* 8 ways set associative */
@@ -142,6 +135,13 @@
 				cache-unified;
 				next-level-cache = <&l3_0>;
 			};
+		};
+
+		l3_0: l3-cache {
+			compatible = "cache";
+			cache-level = <3>;
+			cache-size = <0x100000>;
+			cache-unified;
 		};
 	};
 

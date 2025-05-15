@@ -13,7 +13,7 @@ ifdef CONFIG_ARCH_VMLINUX_NEEDS_RELOCS
 vmlinux-final := vmlinux.unstripped
 
 quiet_cmd_strip_relocs = RSTRIP  $@
-      cmd_strip_relocs = $(OBJCOPY) --remove-section='.rel*' $< $@
+      cmd_strip_relocs = $(OBJCOPY) --remove-section='.rel*' --remove-section=!'.rel*.dyn' $< $@
 
 vmlinux: $(vmlinux-final) FORCE
 	$(call if_changed,strip_relocs)
