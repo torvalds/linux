@@ -3490,6 +3490,10 @@ static int ext4_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		}
 		ret = ext4_iomap_alloc(inode, &map, flags);
 	} else {
+		/*
+		 * This can be called for overwrites path from
+		 * ext4_iomap_overwrite_begin().
+		 */
 		ret = ext4_map_blocks(NULL, inode, &map, 0);
 	}
 
