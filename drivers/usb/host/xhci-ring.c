@@ -3166,7 +3166,7 @@ void xhci_skip_sec_intr_events(struct xhci_hcd *xhci,
 	dma_addr_t deq;
 
 	/* disable irq, ack pending interrupt and ack all pending events */
-	xhci_disable_interrupter(ir);
+	xhci_disable_interrupter(xhci, ir);
 
 	/* last acked event trb is in erdp reg  */
 	erdp_reg = xhci_read_64(xhci, &ir->ir_set->erst_dequeue);
