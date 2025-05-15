@@ -29,18 +29,28 @@ struct cpg_core_clk {
 	unsigned int div;
 	unsigned int mult;
 	unsigned int offset;
+	union {
+		const char * const *parent_names;
+		const struct clk_div_table *dtable;
+	};
+	u32 conf;
+	u16 flag;
+	u8 mux_flags;
+	u8 num_parents;
 };
 
 /**
  * struct cpg_mssr_pub - data shared with device-specific clk registration code
  *
  * @base0: CPG/MSSR register block base0 address
+ * @base1: CPG/MSSR register block base1 address
  * @notifiers: Notifier chain to save/restore clock state for system resume
  * @rmw_lock: protects RMW register accesses
  * @clks: pointer to clocks
  */
 struct cpg_mssr_pub {
 	void __iomem *base0;
+	void __iomem *base1;
 	struct raw_notifier_head notifiers;
 	spinlock_t rmw_lock;
 	struct clk **clks;
@@ -106,6 +116,7 @@ enum clk_reg_layout {
 	CLK_REG_LAYOUT_RCAR_GEN2_AND_GEN3 = 0,
 	CLK_REG_LAYOUT_RZ_A,
 	CLK_REG_LAYOUT_RCAR_GEN4,
+	CLK_REG_LAYOUT_RZ_T2H,
 };
 
     /**
@@ -197,6 +208,7 @@ extern const struct cpg_mssr_info r8a779a0_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a779f0_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a779g0_cpg_mssr_info;
 extern const struct cpg_mssr_info r8a779h0_cpg_mssr_info;
+extern const struct cpg_mssr_info r9a09g077_cpg_mssr_info;
 
 void __init cpg_mssr_early_init(struct device_node *np,
 				const struct cpg_mssr_info *info);
