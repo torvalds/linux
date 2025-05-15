@@ -2079,7 +2079,7 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 					 0, subvolume);
 	ret = bkey_err(s.s_c);
 	if (ret && !bch2_err_matches(ret, ENOENT))
-		return ret;
+		goto err;
 
 	if (ret) {
 		if (fsck_err(trans, dirent_to_missing_subvol,
@@ -2090,18 +2090,28 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 		goto out;
 	}
 
-	if (fsck_err_on(le32_to_cpu(s.v->fs_path_parent) != parent_subvol,
-			trans, subvol_fs_path_parent_wrong,
-			"subvol with wrong fs_path_parent, should be be %u\n%s",
-			parent_subvol,
-			(bch2_bkey_val_to_text(&buf, c, s.s_c), buf.buf))) {
-		struct bkey_i_subvolume *n =
-			bch2_bkey_make_mut_typed(trans, &subvol_iter, &s.s_c, 0, subvolume);
-		ret = PTR_ERR_OR_ZERO(n);
+	if (le32_to_cpu(s.v->fs_path_parent) != parent_subvol) {
+		printbuf_reset(&buf);
+
+		prt_printf(&buf, "subvol with wrong fs_path_parent, should be be %u\n",
+			   parent_subvol);
+
+		ret = bch2_inum_to_path(trans, (subvol_inum) { s.k->p.offset,
+					le64_to_cpu(s.v->inode) }, &buf);
 		if (ret)
 			goto err;
+		prt_newline(&buf);
+		bch2_bkey_val_to_text(&buf, c, s.s_c);
 
-		n->v.fs_path_parent = cpu_to_le32(parent_subvol);
+		if (fsck_err(trans, subvol_fs_path_parent_wrong, "%s", buf.buf)) {
+			struct bkey_i_subvolume *n =
+				bch2_bkey_make_mut_typed(trans, &subvol_iter, &s.s_c, 0, subvolume);
+			ret = PTR_ERR_OR_ZERO(n);
+			if (ret)
+				goto err;
+
+			n->v.fs_path_parent = cpu_to_le32(parent_subvol);
+		}
 	}
 
 	u64 target_inum = le64_to_cpu(s.v->inode);
