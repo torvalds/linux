@@ -462,7 +462,9 @@ EXPORT_PER_CPU_SYMBOL(softnet_data);
  * PP consumers must pay attention to run APIs in the appropriate context
  * (e.g. NAPI context).
  */
-DEFINE_PER_CPU(struct page_pool *, system_page_pool);
+DEFINE_PER_CPU(struct page_pool_bh, system_page_pool) = {
+	.bh_lock = INIT_LOCAL_LOCK(bh_lock),
+};
 
 #ifdef CONFIG_LOCKDEP
 /*
@@ -5322,7 +5324,10 @@ netif_skb_check_for_xdp(struct sk_buff **pskb, const struct bpf_prog *prog)
 	struct sk_buff *skb = *pskb;
 	int err, hroom, troom;
 
-	if (!skb_cow_data_for_xdp(this_cpu_read(system_page_pool), pskb, prog))
+	local_lock_nested_bh(&system_page_pool.bh_lock);
+	err = skb_cow_data_for_xdp(this_cpu_read(system_page_pool.pool), pskb, prog);
+	local_unlock_nested_bh(&system_page_pool.bh_lock);
+	if (!err)
 		return 0;
 
 	/* In case we have to go down the path and also linearize,
@@ -12712,7 +12717,7 @@ static int net_page_pool_create(int cpuid)
 		return err;
 	}
 
-	per_cpu(system_page_pool, cpuid) = pp_ptr;
+	per_cpu(system_page_pool.pool, cpuid) = pp_ptr;
 #endif
 	return 0;
 }
@@ -12842,13 +12847,13 @@ out:
 		for_each_possible_cpu(i) {
 			struct page_pool *pp_ptr;
 
-			pp_ptr = per_cpu(system_page_pool, i);
+			pp_ptr = per_cpu(system_page_pool.pool, i);
 			if (!pp_ptr)
 				continue;
 
 			xdp_unreg_page_pool(pp_ptr);
 			page_pool_destroy(pp_ptr);
-			per_cpu(system_page_pool, i) = NULL;
+			per_cpu(system_page_pool.pool, i) = NULL;
 		}
 	}
 

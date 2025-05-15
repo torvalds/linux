@@ -739,25 +739,27 @@ static noinline bool xdp_copy_frags_from_zc(struct sk_buff *skb,
  */
 struct sk_buff *xdp_build_skb_from_zc(struct xdp_buff *xdp)
 {
-	struct page_pool *pp = this_cpu_read(system_page_pool);
 	const struct xdp_rxq_info *rxq = xdp->rxq;
 	u32 len = xdp->data_end - xdp->data_meta;
 	u32 truesize = xdp->frame_sz;
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
+	struct page_pool *pp;
 	int metalen;
 	void *data;
 
 	if (!IS_ENABLED(CONFIG_PAGE_POOL))
 		return NULL;
 
+	local_lock_nested_bh(&system_page_pool.bh_lock);
+	pp = this_cpu_read(system_page_pool.pool);
 	data = page_pool_dev_alloc_va(pp, &truesize);
 	if (unlikely(!data))
-		return NULL;
+		goto out;
 
 	skb = napi_build_skb(data, truesize);
 	if (unlikely(!skb)) {
 		page_pool_free_va(pp, data, true);
-		return NULL;
+		goto out;
 	}
 
 	skb_mark_for_recycle(skb);
@@ -776,13 +778,16 @@ struct sk_buff *xdp_build_skb_from_zc(struct xdp_buff *xdp)
 	if (unlikely(xdp_buff_has_frags(xdp)) &&
 	    unlikely(!xdp_copy_frags_from_zc(skb, xdp, pp))) {
 		napi_consume_skb(skb, true);
-		return NULL;
+		skb = NULL;
+		goto out;
 	}
 
 	xsk_buff_free(xdp);
 
 	skb->protocol = eth_type_trans(skb, rxq->dev);
 
+out:
+	local_unlock_nested_bh(&system_page_pool.bh_lock);
 	return skb;
 }
 EXPORT_SYMBOL_GPL(xdp_build_skb_from_zc);
