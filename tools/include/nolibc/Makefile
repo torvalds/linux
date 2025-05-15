@@ -49,6 +49,7 @@ all_files := \
 		string.h \
 		sys.h \
 		sys/auxv.h \
+		sys/ioctl.h \
 		sys/mman.h \
 		sys/random.h \
 		sys/stat.h \

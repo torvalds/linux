@@ -518,18 +518,6 @@ uid_t getuid(void)
 
 
 /*
- * int ioctl(int fd, unsigned long cmd, ... arg);
- */
-
-static __attribute__((unused))
-long sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	return my_syscall3(__NR_ioctl, fd, cmd, arg);
-}
-
-#define ioctl(fd, cmd, arg) __sysret(sys_ioctl(fd, cmd, (unsigned long)(arg)))
-
-/*
  * int kill(pid_t pid, int signal);
  */
 
