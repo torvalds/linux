@@ -334,8 +334,7 @@ out_unlock:
 static long futex_wait_restart(struct restart_block *restart);
 
 /**
- * futex_wait_queue() - futex_queue() and wait for wakeup, timeout, or signal
- * @hb:		the futex hash bucket, must be locked by the caller
+ * futex_do_wait() - wait for wakeup, timeout, or signal
  * @q:		the futex_q to queue up on
  * @timeout:	the prepared hrtimer_sleeper, or null for no timeout
  */
@@ -578,7 +577,7 @@ int futex_wait_multiple(struct futex_vector *vs, unsigned int count,
  * @flags:	futex flags (FLAGS_SHARED, etc.)
  * @q:		the associated futex_q
  * @key2:	the second futex_key if used for requeue PI
- * task:	Task queueing this futex
+ * @task:	Task queueing this futex
  *
  * Setup the futex_q and locate the hash_bucket.  Get the futex value and
  * compare it with the expected value.  Handle atomic faults internally.
