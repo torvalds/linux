@@ -384,6 +384,15 @@ int ynl_attr_validate(struct ynl_parse_arg *yarg, const struct nlattr *attr)
 	return 0;
 }
 
+int ynl_submsg_failed(struct ynl_parse_arg *yarg, const char *field_name,
+		      const char *sel_name)
+{
+	yerr(yarg->ys, YNL_ERROR_SUBMSG_KEY,
+	     "Parsing error: Sub-message key not set (msg %s, key %s)",
+	     field_name, sel_name);
+	return YNL_PARSE_CB_ERROR;
+}
+
 /* Generic code */
 
 static void ynl_err_reset(struct ynl_sock *ys)

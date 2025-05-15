@@ -878,7 +878,16 @@ class TypeNestTypeValue(Type):
 
 
 class TypeSubMessage(TypeNest):
-    pass
+    def _attr_get(self, ri, var):
+        sel = c_lower(self['selector'])
+        get_lines = [f'if (!{var}->{sel})',
+                     f'return ynl_submsg_failed(yarg, "%s", "%s");' %
+                        (self.name, self['selector']),
+                    f"if ({self.nested_render_name}_parse(&parg, {var}->{sel}, attr))",
+                     "return YNL_PARSE_CB_ERROR;"]
+        init_lines = [f"parg.rsp_policy = &{self.nested_render_name}_nest;",
+                      f"parg.data = &{var}->{self.c_name};"]
+        return get_lines, init_lines, None
 
 
 class Struct:
@@ -1818,11 +1827,34 @@ def print_dump_prototype(ri):
     print_prototype(ri, "request")
 
 
+def put_typol_submsg(cw, struct):
+    cw.block_start(line=f'const struct ynl_policy_attr {struct.render_name}_policy[] =')
+
+    i = 0
+    for name, arg in struct.member_list():
+        cw.p('[%d] = { .type = YNL_PT_SUBMSG, .name = "%s", .nest = &%s_nest, },' %
+             (i, name, arg.nested_render_name))
+        i += 1
+
+    cw.block_end(line=';')
+    cw.nl()
+
+    cw.block_start(line=f'const struct ynl_policy_nest {struct.render_name}_nest =')
+    cw.p(f'.max_attr = {i - 1},')
+    cw.p(f'.table = {struct.render_name}_policy,')
+    cw.block_end(line=';')
+    cw.nl()
+
+
 def put_typol_fwd(cw, struct):
     cw.p(f'extern const struct ynl_policy_nest {struct.render_name}_nest;')
 
 
 def put_typol(cw, struct):
+    if struct.submsg:
+        put_typol_submsg(cw, struct)
+        return
+
     type_max = struct.attr_set.max_name
     cw.block_start(line=f'const struct ynl_policy_attr {struct.render_name}_policy[{type_max} + 1] =')
 
@@ -1908,8 +1940,9 @@ def put_req_nested(ri, struct):
     local_vars = []
     init_lines = []
 
-    local_vars.append('struct nlattr *nest;')
-    init_lines.append("nest = ynl_attr_nest_start(nlh, attr_type);")
+    if struct.submsg is None:
+        local_vars.append('struct nlattr *nest;')
+        init_lines.append("nest = ynl_attr_nest_start(nlh, attr_type);")
 
     has_anest = False
     has_count = False
@@ -1931,7 +1964,8 @@ def put_req_nested(ri, struct):
     for _, arg in struct.member_list():
         arg.attr_put(ri, "obj")
 
-    ri.cw.p("ynl_attr_nest_end(nlh, nest);")
+    if struct.submsg is None:
+        ri.cw.p("ynl_attr_nest_end(nlh, nest);")
 
     ri.cw.nl()
     ri.cw.p('return 0;')
@@ -1968,6 +2002,7 @@ def _multi_parse(ri, struct, init_lines, local_vars):
         if 'multi-attr' in aspec:
             multi_attrs.add(arg)
         needs_parg |= 'nested-attributes' in aspec
+        needs_parg |= 'sub-message' in aspec
     if array_nests or multi_attrs:
         local_vars.append('int i;')
     if needs_parg:
@@ -2086,9 +2121,43 @@ def _multi_parse(ri, struct, init_lines, local_vars):
     ri.cw.nl()
 
 
+def parse_rsp_submsg(ri, struct):
+    parse_rsp_nested_prototype(ri, struct, suffix='')
+
+    var = 'dst'
+
+    ri.cw.block_start()
+    ri.cw.write_func_lvar(['const struct nlattr *attr = nested;',
+                          f'{struct.ptr_name}{var} = yarg->data;',
+                          'struct ynl_parse_arg parg;'])
+
+    ri.cw.p('parg.ys = yarg->ys;')
+    ri.cw.nl()
+
+    first = True
+    for name, arg in struct.member_list():
+        kw = 'if' if first else 'else if'
+        first = False
+
+        ri.cw.block_start(line=f'{kw} (!strcmp(sel, "{name}"))')
+        get_lines, init_lines, _ = arg._attr_get(ri, var)
+        for line in init_lines:
+            ri.cw.p(line)
+        for line in get_lines:
+            ri.cw.p(line)
+        if arg.presence_type() == 'present':
+            ri.cw.p(f"{var}->_present.{arg.c_name} = 1;")
+        ri.cw.block_end()
+    ri.cw.p('return 0;')
+    ri.cw.block_end()
+    ri.cw.nl()
+
+
 def parse_rsp_nested_prototype(ri, struct, suffix=';'):
     func_args = ['struct ynl_parse_arg *yarg',
                  'const struct nlattr *nested']
+    if struct.submsg:
+        func_args.insert(1, 'const char *sel')
     for arg in struct.inherited:
         func_args.append('__u32 ' + arg)
 
@@ -2097,6 +2166,9 @@ def parse_rsp_nested_prototype(ri, struct, suffix=';'):
 
 
 def parse_rsp_nested(ri, struct):
+    if struct.submsg:
+        return parse_rsp_submsg(ri, struct)
+
     parse_rsp_nested_prototype(ri, struct, suffix='')
 
     local_vars = ['const struct nlattr *attr;',
