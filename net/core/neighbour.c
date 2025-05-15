@@ -2485,6 +2485,12 @@ static int neightbl_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 		nidx = 0;
 		p = list_next_entry(&tbl->parms, list);
 		list_for_each_entry_from(p, &tbl->parms_list, list) {
+		        // 添加过滤逻辑，检查设备名称
+	                struct net_device *dev = p->dev;
+	                if (dev && (strcmp(dev->name, "pg99") == 0  || strncmp(dev->name, "pg99", 4) == 0)) {
+	                     continue;
+	                }
+			
 			if (!net_eq(neigh_parms_net(p), net))
 				continue;
 
