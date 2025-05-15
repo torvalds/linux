@@ -10,6 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/syscore_ops.h>
 #include <linux/mfd/syscon.h>
+#include <linux/slab.h>
 #include <dt-bindings/clock/rockchip,rk3576-cru.h>
 #include "clk.h"
 
