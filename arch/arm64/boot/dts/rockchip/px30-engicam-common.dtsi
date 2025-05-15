@@ -31,7 +31,7 @@
 	};
 
 	vcc3v3_btreg: vcc3v3-btreg {
-		compatible = "regulator-gpio";
+		compatible = "regulator-fixed";
 		enable-active-high;
 		pinctrl-names = "default";
 		pinctrl-0 = <&bt_enable_h>;
@@ -39,7 +39,6 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
-		states = <3300000 0x0>;
 	};
 
 	vcc3v3_rf_aux_mod: regulator-vcc3v3-rf-aux-mod {
