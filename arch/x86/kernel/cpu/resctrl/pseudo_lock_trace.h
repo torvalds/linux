@@ -39,5 +39,7 @@ TRACE_EVENT(pseudo_lock_l3,
 
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
+
 #define TRACE_INCLUDE_FILE pseudo_lock_trace
+
 #include <trace/define_trace.h>
