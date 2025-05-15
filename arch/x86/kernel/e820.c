@@ -624,30 +624,52 @@ __init static void e820__update_table_kexec(void)
  */
 __init static int e820_search_gap(unsigned long *max_gap_start, unsigned long *max_gap_size)
 {
-	u64 last = MAX_GAP_END;
-	int idx = e820_table->nr_entries;
+	struct e820_entry *entry;
+	u64 range_end_prev = 0;
 	int found = 0;
+	u32 idx;
 
-	while (--idx >= 0) {
-		u64 start = e820_table->entries[idx].addr;
-		u64 end = start + e820_table->entries[idx].size;
+	for (idx = 0; idx < e820_table->nr_entries; idx++) {
+		u64 range_start, range_end;
 
-		/*
-		 * Since "last" is at most 4GB, we know we'll
-		 * fit in 32 bits if this condition is true:
-		 */
-		if (last > end) {
-			unsigned long gap = last - end;
+		entry = e820_table->entries + idx;
+		range_start = entry->addr;
+		range_end   = entry->addr + entry->size;
 
-			if (gap > *max_gap_size) {
-				*max_gap_size = gap;
-				*max_gap_start = end;
-				found = 1;
+		/* Process any gap before this entry: */
+		if (range_start > range_end_prev) {
+			u64 gap_start = range_end_prev;
+			u64 gap_end = range_start;
+			u64 gap_size;
+
+			if (gap_start < MAX_GAP_END) {
+				/* Make sure the entirety of the gap is below MAX_GAP_END: */
+				gap_end = min(gap_end, MAX_GAP_END);
+				gap_size = gap_end-gap_start;
+
+				if (gap_size >= *max_gap_size) {
+					*max_gap_start = gap_start;
+					*max_gap_size = gap_size;
+					found = 1;
+				}
 			}
 		}
-		if (start < last)
-			last = start;
+
+		range_end_prev = range_end;
 	}
+
+	/* Is there a usable gap beyond the last entry: */
+	if (entry->addr + entry->size < MAX_GAP_END) {
+		u64 gap_start = entry->addr + entry->size;
+		u64 gap_size = MAX_GAP_END-gap_start;
+
+		if (gap_size >= *max_gap_size) {
+			*max_gap_start = gap_start;
+			*max_gap_size = gap_size;
+			found = 1;
+		}
+	}
+
 	return found;
 }
 
@@ -664,6 +686,7 @@ __init void e820__setup_pci_gap(void)
 	unsigned long max_gap_start, max_gap_size;
 	int found;
 
+	/* The minimum eligible gap size is 4MB: */
 	max_gap_size = SZ_4M;
 	found  = e820_search_gap(&max_gap_start, &max_gap_size);
 
@@ -683,7 +706,7 @@ __init void e820__setup_pci_gap(void)
 	pci_mem_start = max_gap_start;
 
 	pr_info("[gap %#010lx-%#010lx] available for PCI devices\n",
-		max_gap_start, max_gap_start + max_gap_size - 1);
+		max_gap_start, max_gap_start + max_gap_size-1);
 }
 
 /*
