@@ -13,13 +13,11 @@
 
 #include <crypto/hmac.h>
 #include <crypto/internal/hash.h>
-#include <crypto/scatterwalk.h>
 #include <linux/err.h>
 #include <linux/fips.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/scatterlist.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 
 struct hmac_ctx {
@@ -39,7 +37,7 @@ static int hmac_setkey(struct crypto_shash *parent,
 	u8 *ipad = &tctx->pads[0];
 	u8 *opad = &tctx->pads[ss];
 	SHASH_DESC_ON_STACK(shash, hash);
-	unsigned int i;
+	int err, i;
 
 	if (fips_enabled && (keylen < 112 / 8))
 		return -EINVAL;
@@ -65,12 +63,14 @@ static int hmac_setkey(struct crypto_shash *parent,
 		opad[i] ^= HMAC_OPAD_VALUE;
 	}
 
-	return crypto_shash_init(shash) ?:
-	       crypto_shash_update(shash, ipad, bs) ?:
-	       crypto_shash_export(shash, ipad) ?:
-	       crypto_shash_init(shash) ?:
-	       crypto_shash_update(shash, opad, bs) ?:
-	       crypto_shash_export(shash, opad);
+	err = crypto_shash_init(shash) ?:
+	      crypto_shash_update(shash, ipad, bs) ?:
+	      crypto_shash_export(shash, ipad) ?:
+	      crypto_shash_init(shash) ?:
+	      crypto_shash_update(shash, opad, bs) ?:
+	      crypto_shash_export(shash, opad);
+	shash_desc_zero(shash);
+	return err;
 }
 
 static int hmac_export(struct shash_desc *pdesc, void *out)
@@ -103,20 +103,6 @@ static int hmac_update(struct shash_desc *pdesc,
 	struct shash_desc *desc = shash_desc_ctx(pdesc);
 
 	return crypto_shash_update(desc, data, nbytes);
-}
-
-static int hmac_final(struct shash_desc *pdesc, u8 *out)
-{
-	struct crypto_shash *parent = pdesc->tfm;
-	int ds = crypto_shash_digestsize(parent);
-	int ss = crypto_shash_statesize(parent);
-	const struct hmac_ctx *tctx = crypto_shash_ctx(parent);
-	const u8 *opad = &tctx->pads[ss];
-	struct shash_desc *desc = shash_desc_ctx(pdesc);
-
-	return crypto_shash_final(desc, out) ?:
-	       crypto_shash_import(desc, opad) ?:
-	       crypto_shash_finup(desc, out, ds, out);
 }
 
 static int hmac_finup(struct shash_desc *pdesc, const u8 *data,
@@ -222,7 +208,6 @@ static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.descsize = sizeof(struct shash_desc) + salg->descsize;
 	inst->alg.init = hmac_init;
 	inst->alg.update = hmac_update;
-	inst->alg.final = hmac_final;
 	inst->alg.finup = hmac_finup;
 	inst->alg.export = hmac_export;
 	inst->alg.import = hmac_import;
