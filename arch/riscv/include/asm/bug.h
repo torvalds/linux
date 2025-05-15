@@ -50,7 +50,7 @@ typedef u32 bug_insn_t;
 #endif
 
 #ifdef CONFIG_GENERIC_BUG
-#define __BUG_FLAGS(flags)					\
+#define __BUG_FLAGS(cond_str, flags)				\
 do {								\
 	__asm__ __volatile__ (					\
 		"1:\n\t"					\
@@ -66,17 +66,17 @@ do {								\
 		  "i" (sizeof(struct bug_entry)));              \
 } while (0)
 #else /* CONFIG_GENERIC_BUG */
-#define __BUG_FLAGS(flags) do {					\
+#define __BUG_FLAGS(cond_str, flags) do {			\
 	__asm__ __volatile__ ("ebreak\n");			\
 } while (0)
 #endif /* CONFIG_GENERIC_BUG */
 
 #define BUG() do {						\
-	__BUG_FLAGS(0);						\
+	__BUG_FLAGS("", 0);					\
 	unreachable();						\
 } while (0)
 
-#define __WARN_FLAGS(cond_str, flags) __BUG_FLAGS(BUGFLAG_WARNING|(flags))
+#define __WARN_FLAGS(cond_str, flags) __BUG_FLAGS(cond_str, BUGFLAG_WARNING|(flags))
 
 #define HAVE_ARCH_BUG
 
