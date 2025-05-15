@@ -925,8 +925,7 @@ mt7915_set_stream_he_txbf_caps(struct mt7915_phy *phy,
 
 	c = IEEE80211_HE_PHY_CAP2_NDP_4x_LTF_AND_3_2US;
 	if (!is_mt7915(&dev->mt76))
-		c |= IEEE80211_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO |
-		     IEEE80211_HE_PHY_CAP2_UL_MU_PARTIAL_MU_MIMO;
+		c |= IEEE80211_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO;
 	elem->phy_cap_info[2] |= c;
 
 	c = IEEE80211_HE_PHY_CAP4_SU_BEAMFORMEE |
