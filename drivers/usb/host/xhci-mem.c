@@ -2414,22 +2414,6 @@ xhci_create_secondary_interrupter(struct usb_hcd *hcd, unsigned int segs,
 }
 EXPORT_SYMBOL_GPL(xhci_create_secondary_interrupter);
 
-static void xhci_hcd_page_size(struct xhci_hcd *xhci)
-{
-	u32 page_size;
-
-	page_size = readl(&xhci->op_regs->page_size) & XHCI_PAGE_SIZE_MASK;
-	if (!is_power_of_2(page_size)) {
-		xhci_warn(xhci, "Invalid page size register = 0x%x\n", page_size);
-		/* Fallback to 4K page size, since that's common */
-		page_size = 1;
-	}
-
-	xhci->page_size = page_size << 12;
-	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "HCD page size set to %iK",
-		       xhci->page_size >> 10);
-}
-
 int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 {
 	struct xhci_interrupter *ir;
@@ -2438,15 +2422,6 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	unsigned int	val, val2;
 	u64		val_64;
 	u32		temp;
-	int		i;
-
-	INIT_LIST_HEAD(&xhci->cmd_list);
-
-	/* init command timeout work */
-	INIT_DELAYED_WORK(&xhci->cmd_timer, xhci_handle_command_timeout);
-	init_completion(&xhci->cmd_ring_stop_completion);
-
-	xhci_hcd_page_size(xhci);
 
 	/*
 	 * Program the Number of Device Slots Enabled field in the CONFIG
@@ -2566,9 +2541,6 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 		goto fail;
 
 	ir->isoc_bei_interval = AVOID_BEI_INTERVAL_MAX;
-
-	for (i = 0; i < MAX_HC_SLOTS; i++)
-		xhci->devs[i] = NULL;
 
 	if (scratchpad_alloc(xhci, flags))
 		goto fail;

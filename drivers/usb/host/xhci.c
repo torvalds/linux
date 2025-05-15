@@ -461,6 +461,21 @@ static int xhci_all_ports_seen_u0(struct xhci_hcd *xhci)
 	return (xhci->port_status_u0 == ((1 << xhci->usb3_rhub.num_ports) - 1));
 }
 
+static void xhci_hcd_page_size(struct xhci_hcd *xhci)
+{
+	u32 page_size;
+
+	page_size = readl(&xhci->op_regs->page_size) & XHCI_PAGE_SIZE_MASK;
+	if (!is_power_of_2(page_size)) {
+		xhci_warn(xhci, "Invalid page size register = 0x%x\n", page_size);
+		/* Fallback to 4K page size, since that's common */
+		page_size = 1;
+	}
+
+	xhci->page_size = page_size << 12;
+	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "HCD page size set to %iK",
+		       xhci->page_size >> 10);
+}
 
 /*
  * Initialize memory for HCD and xHC (one-time init).
@@ -474,11 +489,18 @@ static int xhci_init(struct usb_hcd *hcd)
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	int retval;
 
-	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "xhci_init");
+	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "Starting %s", __func__);
 	spin_lock_init(&xhci->lock);
 
+	INIT_LIST_HEAD(&xhci->cmd_list);
+	INIT_DELAYED_WORK(&xhci->cmd_timer, xhci_handle_command_timeout);
+	init_completion(&xhci->cmd_ring_stop_completion);
+	xhci_hcd_page_size(xhci);
+	memset(xhci->devs, 0, MAX_HC_SLOTS * sizeof(*xhci->devs));
+
 	retval = xhci_mem_init(xhci, GFP_KERNEL);
-	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "Finished xhci_init");
+	if (retval)
+		return retval;
 
 	/* Initializing Compliance Mode Recovery Data If Needed */
 	if (xhci_compliance_mode_recovery_timer_quirk_check()) {
@@ -486,7 +508,8 @@ static int xhci_init(struct usb_hcd *hcd)
 		compliance_mode_recovery_timer_init(xhci);
 	}
 
-	return retval;
+	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "Finished %s", __func__);
+	return 0;
 }
 
 /*-------------------------------------------------------------------------*/
