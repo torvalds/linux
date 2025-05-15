@@ -256,9 +256,19 @@ struct ext4_allocation_request {
 #define EXT4_MAP_UNWRITTEN	BIT(BH_Unwritten)
 #define EXT4_MAP_BOUNDARY	BIT(BH_Boundary)
 #define EXT4_MAP_DELAYED	BIT(BH_Delay)
+/*
+ * This is for use in ext4_map_query_blocks() for a special case where we can
+ * have a physically and logically contiguous blocks split across two leaf
+ * nodes instead of a single extent. This is required in case of atomic writes
+ * to know whether the returned extent is last in leaf. If yes, then lookup for
+ * next in leaf block in ext4_map_query_blocks_next_in_leaf().
+ * - This is never going to be added to any buffer head state.
+ * - We use the next available bit after BH_BITMAP_UPTODATE.
+ */
+#define EXT4_MAP_QUERY_LAST_IN_LEAF	BIT(BH_BITMAP_UPTODATE + 1)
 #define EXT4_MAP_FLAGS		(EXT4_MAP_NEW | EXT4_MAP_MAPPED |\
 				 EXT4_MAP_UNWRITTEN | EXT4_MAP_BOUNDARY |\
-				 EXT4_MAP_DELAYED)
+				 EXT4_MAP_DELAYED | EXT4_MAP_QUERY_LAST_IN_LEAF)
 
 struct ext4_map_blocks {
 	ext4_fsblk_t m_pblk;
@@ -728,6 +738,12 @@ enum {
 					 EXT4_GET_BLOCKS_IO_SUBMIT)
 	/* Caller is in the atomic contex, find extent if it has been cached */
 #define EXT4_GET_BLOCKS_CACHED_NOWAIT		0x0800
+/*
+ * Atomic write caller needs this to query in the slow path of mixed mapping
+ * case, when a contiguous extent can be split across two adjacent leaf nodes.
+ * Look EXT4_MAP_QUERY_LAST_IN_LEAF.
+ */
+#define EXT4_GET_BLOCKS_QUERY_LAST_IN_LEAF	0x1000
 
 /*
  * The bit position of these flags must not overlap with any of the

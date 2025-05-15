@@ -4437,6 +4437,18 @@ got_allocated_blocks:
 	allocated = map->m_len;
 	ext4_ext_show_leaf(inode, path);
 out:
+	/*
+	 * We never use EXT4_GET_BLOCKS_QUERY_LAST_IN_LEAF with CREATE flag.
+	 * So we know that the depth used here is correct, since there was no
+	 * block allocation done if EXT4_GET_BLOCKS_QUERY_LAST_IN_LEAF is set.
+	 * If tomorrow we start using this QUERY flag with CREATE, then we will
+	 * need to re-calculate the depth as it might have changed due to block
+	 * allocation.
+	 */
+	if (flags & EXT4_GET_BLOCKS_QUERY_LAST_IN_LEAF)
+		if (!err && ex && (ex == EXT_LAST_EXTENT(path[depth].p_hdr)))
+			map->m_flags |= EXT4_MAP_QUERY_LAST_IN_LEAF;
+
 	ext4_free_ext_path(path);
 
 	trace_ext4_ext_map_blocks_exit(inode, flags, map,
