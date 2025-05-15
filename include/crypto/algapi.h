@@ -146,8 +146,16 @@ void *crypto_spawn_tfm2(struct crypto_spawn *spawn);
 struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb);
 int crypto_check_attr_type(struct rtattr **tb, u32 type, u32 *mask_ret);
 const char *crypto_attr_alg_name(struct rtattr *rta);
-int crypto_inst_setname(struct crypto_instance *inst, const char *name,
-			struct crypto_alg *alg);
+int __crypto_inst_setname(struct crypto_instance *inst, const char *name,
+			  const char *driver, struct crypto_alg *alg);
+
+#define crypto_inst_setname(inst, name, ...) \
+	CONCATENATE(crypto_inst_setname_, COUNT_ARGS(__VA_ARGS__))( \
+		inst, name, ##__VA_ARGS__)
+#define crypto_inst_setname_1(inst, name, alg) \
+	__crypto_inst_setname(inst, name, name, alg)
+#define crypto_inst_setname_2(inst, name, driver, alg) \
+	__crypto_inst_setname(inst, name, driver, alg)
 
 void crypto_init_queue(struct crypto_queue *queue, unsigned int max_qlen);
 int crypto_enqueue_request(struct crypto_queue *queue,

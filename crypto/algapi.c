@@ -923,20 +923,20 @@ const char *crypto_attr_alg_name(struct rtattr *rta)
 }
 EXPORT_SYMBOL_GPL(crypto_attr_alg_name);
 
-int crypto_inst_setname(struct crypto_instance *inst, const char *name,
-			struct crypto_alg *alg)
+int __crypto_inst_setname(struct crypto_instance *inst, const char *name,
+			  const char *driver, struct crypto_alg *alg)
 {
 	if (snprintf(inst->alg.cra_name, CRYPTO_MAX_ALG_NAME, "%s(%s)", name,
 		     alg->cra_name) >= CRYPTO_MAX_ALG_NAME)
 		return -ENAMETOOLONG;
 
 	if (snprintf(inst->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s(%s)",
-		     name, alg->cra_driver_name) >= CRYPTO_MAX_ALG_NAME)
+		     driver, alg->cra_driver_name) >= CRYPTO_MAX_ALG_NAME)
 		return -ENAMETOOLONG;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(crypto_inst_setname);
+EXPORT_SYMBOL_GPL(__crypto_inst_setname);
 
 void crypto_init_queue(struct crypto_queue *queue, unsigned int max_qlen)
 {
