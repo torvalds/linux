@@ -1239,6 +1239,25 @@ class Family(SpecFamily):
             else:
                 pns_key_list.append(name)
 
+    def _load_nested_set_nest(self, spec):
+        inherit = set()
+        nested = spec['nested-attributes']
+        if nested not in self.root_sets:
+            if nested not in self.pure_nested_structs:
+                self.pure_nested_structs[nested] = Struct(self, nested, inherited=inherit)
+        else:
+            raise Exception(f'Using attr set as root and nested not supported - {nested}')
+
+        if 'type-value' in spec:
+            if nested in self.root_sets:
+                raise Exception("Inheriting members to a space used as root not supported")
+            inherit.update(set(spec['type-value']))
+        elif spec['type'] == 'indexed-array':
+            inherit.add('idx')
+        self.pure_nested_structs[nested].set_inherited(inherit)
+
+        return nested
+
     def _load_nested_sets(self):
         attr_set_queue = list(self.root_sets.keys())
         attr_set_seen = set(self.root_sets.keys())
@@ -1246,28 +1265,14 @@ class Family(SpecFamily):
         while len(attr_set_queue):
             a_set = attr_set_queue.pop(0)
             for attr, spec in self.attr_sets[a_set].items():
-                if 'nested-attributes' not in spec:
+                if 'nested-attributes' in spec:
+                    nested = self._load_nested_set_nest(spec)
+                else:
                     continue
 
-                nested = spec['nested-attributes']
                 if nested not in attr_set_seen:
                     attr_set_queue.append(nested)
                     attr_set_seen.add(nested)
-
-                inherit = set()
-                if nested not in self.root_sets:
-                    if nested not in self.pure_nested_structs:
-                        self.pure_nested_structs[nested] = Struct(self, nested, inherited=inherit)
-                else:
-                    raise Exception(f'Using attr set as root and nested not supported - {nested}')
-
-                if 'type-value' in spec:
-                    if nested in self.root_sets:
-                        raise Exception("Inheriting members to a space used as root not supported")
-                    inherit.update(set(spec['type-value']))
-                elif spec['type'] == 'indexed-array':
-                    inherit.add('idx')
-                self.pure_nested_structs[nested].set_inherited(inherit)
 
         for root_set, rs_members in self.root_sets.items():
             for attr, spec in self.attr_sets[root_set].items():
