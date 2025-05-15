@@ -203,9 +203,10 @@ int crypto_shash_tfm_digest(struct crypto_shash *tfm, const u8 *data,
 }
 EXPORT_SYMBOL_GPL(crypto_shash_tfm_digest);
 
-int crypto_shash_export_core(struct shash_desc *desc, void *out)
+static int __crypto_shash_export(struct shash_desc *desc, void *out,
+				 int (*export)(struct shash_desc *desc,
+					       void *out))
 {
-	int (*export)(struct shash_desc *desc, void *out);
 	struct crypto_shash *tfm = desc->tfm;
 	u8 *buf = shash_desc_ctx(desc);
 	unsigned int plen, ss;
@@ -214,13 +215,18 @@ int crypto_shash_export_core(struct shash_desc *desc, void *out)
 	ss = crypto_shash_statesize(tfm);
 	if (crypto_shash_block_only(tfm))
 		ss -= plen;
-	export = crypto_shash_alg(tfm)->export;
 	if (!export) {
 		memcpy(out, buf, ss);
 		return 0;
 	}
 
 	return export(desc, out);
+}
+
+int crypto_shash_export_core(struct shash_desc *desc, void *out)
+{
+	return __crypto_shash_export(desc, out,
+				     crypto_shash_alg(desc->tfm)->export_core);
 }
 EXPORT_SYMBOL_GPL(crypto_shash_export_core);
 
@@ -236,13 +242,14 @@ int crypto_shash_export(struct shash_desc *desc, void *out)
 
 		memcpy(out + ss - plen, buf + descsize - plen, plen);
 	}
-	return crypto_shash_export_core(desc, out);
+	return __crypto_shash_export(desc, out, crypto_shash_alg(tfm)->export);
 }
 EXPORT_SYMBOL_GPL(crypto_shash_export);
 
-int crypto_shash_import_core(struct shash_desc *desc, const void *in)
+static int __crypto_shash_import(struct shash_desc *desc, const void *in,
+				 int (*import)(struct shash_desc *desc,
+					       const void *in))
 {
-	int (*import)(struct shash_desc *desc, const void *in);
 	struct crypto_shash *tfm = desc->tfm;
 	unsigned int descsize, plen, ss;
 	u8 *buf = shash_desc_ctx(desc);
@@ -256,13 +263,18 @@ int crypto_shash_import_core(struct shash_desc *desc, const void *in)
 	buf[descsize - 1] = 0;
 	if (crypto_shash_block_only(tfm))
 		ss -= plen;
-	import = crypto_shash_alg(tfm)->import;
 	if (!import) {
 		memcpy(buf, in, ss);
 		return 0;
 	}
 
 	return import(desc, in);
+}
+
+int crypto_shash_import_core(struct shash_desc *desc, const void *in)
+{
+	return __crypto_shash_import(desc, in,
+				     crypto_shash_alg(desc->tfm)->import_core);
 }
 EXPORT_SYMBOL_GPL(crypto_shash_import_core);
 
@@ -271,7 +283,7 @@ int crypto_shash_import(struct shash_desc *desc, const void *in)
 	struct crypto_shash *tfm = desc->tfm;
 	int err;
 
-	err = crypto_shash_import_core(desc, in);
+	err = __crypto_shash_import(desc, in, crypto_shash_alg(tfm)->import);
 	if (crypto_shash_block_only(tfm)) {
 		unsigned int plen = crypto_shash_blocksize(tfm) + 1;
 		unsigned int descsize = crypto_shash_descsize(tfm);
@@ -436,6 +448,16 @@ int hash_prepare_alg(struct hash_alg_common *alg)
 	return 0;
 }
 
+static int shash_default_export_core(struct shash_desc *desc, void *out)
+{
+	return -ENOSYS;
+}
+
+static int shash_default_import_core(struct shash_desc *desc, const void *in)
+{
+	return -ENOSYS;
+}
+
 static int shash_prepare_alg(struct shash_alg *alg)
 {
 	struct crypto_alg *base = &alg->halg.base;
@@ -476,6 +498,12 @@ static int shash_prepare_alg(struct shash_alg *alg)
 		BUILD_BUG_ON(MAX_ALGAPI_BLOCKSIZE >= 256);
 		alg->descsize += base->cra_blocksize + 1;
 		alg->statesize += base->cra_blocksize + 1;
+		alg->export_core = alg->export;
+		alg->import_core = alg->import;
+	} else if (!alg->export_core || !alg->import_core) {
+		alg->export_core = shash_default_export_core;
+		alg->import_core = shash_default_import_core;
+		base->cra_flags |= CRYPTO_AHASH_ALG_NO_EXPORT_CORE;
 	}
 
 	if (alg->descsize > HASH_MAX_DESCSIZE)

@@ -704,7 +704,7 @@ int crypto_ahash_export_core(struct ahash_request *req, void *out)
 
 	if (likely(tfm->using_shash))
 		return crypto_shash_export_core(ahash_request_ctx(req), out);
-	return crypto_ahash_alg(tfm)->export(req, out);
+	return crypto_ahash_alg(tfm)->export_core(req, out);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_export_core);
 
@@ -727,7 +727,7 @@ int crypto_ahash_import_core(struct ahash_request *req, const void *in)
 						in);
 	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		return -ENOKEY;
-	return crypto_ahash_alg(tfm)->import(req, in);
+	return crypto_ahash_alg(tfm)->import_core(req, in);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_import_core);
 
@@ -739,7 +739,7 @@ int crypto_ahash_import(struct ahash_request *req, const void *in)
 		return crypto_shash_import(prepare_shash_desc(req, tfm), in);
 	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		return -ENOKEY;
-	return crypto_ahash_import_core(req, in);
+	return crypto_ahash_alg(tfm)->import(req, in);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_import);
 
@@ -971,6 +971,16 @@ out_free_nhash:
 }
 EXPORT_SYMBOL_GPL(crypto_clone_ahash);
 
+static int ahash_default_export_core(struct ahash_request *req, void *out)
+{
+	return -ENOSYS;
+}
+
+static int ahash_default_import_core(struct ahash_request *req, const void *in)
+{
+	return -ENOSYS;
+}
+
 static int ahash_prepare_alg(struct ahash_alg *alg)
 {
 	struct crypto_alg *base = &alg->halg.base;
@@ -995,6 +1005,12 @@ static int ahash_prepare_alg(struct ahash_alg *alg)
 
 	if (!alg->setkey)
 		alg->setkey = ahash_nosetkey;
+
+	if (!alg->export_core || !alg->import_core) {
+		alg->export_core = ahash_default_export_core;
+		alg->import_core = ahash_default_import_core;
+		base->cra_flags |= CRYPTO_AHASH_ALG_NO_EXPORT_CORE;
+	}
 
 	return 0;
 }

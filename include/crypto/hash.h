@@ -129,6 +129,10 @@ struct ahash_request {
  *	    data so the transformation can continue from this point onward. No
  *	    data processing happens at this point. Driver must not use
  *	    req->result.
+ * @export_core: Export partial state without partial block.  Only defined
+ *		 for algorithms that are not block-only.
+ * @import_core: Import partial state without partial block.  Only defined
+ *		 for algorithms that are not block-only.
  * @init_tfm: Initialize the cryptographic transformation object.
  *	      This function is called only once at the instantiation
  *	      time, right after the transformation context was
@@ -151,6 +155,8 @@ struct ahash_alg {
 	int (*digest)(struct ahash_request *req);
 	int (*export)(struct ahash_request *req, void *out);
 	int (*import)(struct ahash_request *req, const void *in);
+	int (*export_core)(struct ahash_request *req, void *out);
+	int (*import_core)(struct ahash_request *req, const void *in);
 	int (*setkey)(struct crypto_ahash *tfm, const u8 *key,
 		      unsigned int keylen);
 	int (*init_tfm)(struct crypto_ahash *tfm);
@@ -200,6 +206,8 @@ struct shash_desc {
  * @digest: see struct ahash_alg
  * @export: see struct ahash_alg
  * @import: see struct ahash_alg
+ * @export_core: see struct ahash_alg
+ * @import_core: see struct ahash_alg
  * @setkey: see struct ahash_alg
  * @init_tfm: Initialize the cryptographic transformation object.
  *	      This function is called only once at the instantiation
@@ -230,6 +238,8 @@ struct shash_alg {
 		      unsigned int len, u8 *out);
 	int (*export)(struct shash_desc *desc, void *out);
 	int (*import)(struct shash_desc *desc, const void *in);
+	int (*export_core)(struct shash_desc *desc, void *out);
+	int (*import_core)(struct shash_desc *desc, const void *in);
 	int (*setkey)(struct crypto_shash *tfm, const u8 *key,
 		      unsigned int keylen);
 	int (*init_tfm)(struct crypto_shash *tfm);
