@@ -251,8 +251,8 @@ struct xhci_intr_reg {
 #define ER_IRQ_COUNTER_MASK	(0xffff << 16)
 
 /* erst_size bitmasks */
-/* Preserve bits 16:31 of erst_size */
-#define	ERST_SIZE_MASK		(0xffff << 16)
+/* bits 15:0 - Event Ring Segment Table Size, number of ERST entries */
+#define	ERST_SIZE_MASK		(0xffff)
 
 /* erst_base bitmasks */
 #define ERST_BASE_RSVDP		(GENMASK_ULL(5, 0))
