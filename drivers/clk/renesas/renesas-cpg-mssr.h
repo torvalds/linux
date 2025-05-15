@@ -8,6 +8,8 @@
 #ifndef __CLK_RENESAS_CPG_MSSR_H__
 #define __CLK_RENESAS_CPG_MSSR_H__
 
+#include <linux/notifier.h>
+
     /*
      * Definitions of CPG Core Clocks
      *
@@ -27,6 +29,21 @@ struct cpg_core_clk {
 	unsigned int div;
 	unsigned int mult;
 	unsigned int offset;
+};
+
+/**
+ * struct cpg_mssr_pub - data shared with device-specific clk registration code
+ *
+ * @base0: CPG/MSSR register block base0 address
+ * @notifiers: Notifier chain to save/restore clock state for system resume
+ * @rmw_lock: protects RMW register accesses
+ * @clks: pointer to clocks
+ */
+struct cpg_mssr_pub {
+	void __iomem *base0;
+	struct raw_notifier_head notifiers;
+	spinlock_t rmw_lock;
+	struct clk **clks;
 };
 
 enum clk_types {
@@ -153,8 +170,7 @@ struct cpg_mssr_info {
 	struct clk *(*cpg_clk_register)(struct device *dev,
 					const struct cpg_core_clk *core,
 					const struct cpg_mssr_info *info,
-					struct clk **clks, void __iomem *base,
-					struct raw_notifier_head *notifiers);
+					struct cpg_mssr_pub *pub);
 };
 
 extern const struct cpg_mssr_info r7s9210_cpg_mssr_info;
