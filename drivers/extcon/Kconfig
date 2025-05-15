@@ -136,6 +136,7 @@ config EXTCON_MAX8997
 
 config EXTCON_MAX14526
 	tristate "Maxim MAX14526 EXTCON Support"
+	depends on I2C
 	select IRQ_DOMAIN
 	select REGMAP_I2C
 	help
