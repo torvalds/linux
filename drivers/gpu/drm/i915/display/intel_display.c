@@ -1664,7 +1664,7 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	intel_encoders_pre_pll_enable(state, crtc);
 
 	if (new_crtc_state->intel_dpll)
-		intel_enable_dpll(new_crtc_state);
+		intel_dpll_enable(new_crtc_state);
 
 	intel_encoders_pre_enable(state, crtc);
 
@@ -1793,7 +1793,7 @@ static void hsw_crtc_disable(struct intel_atomic_state *state,
 	intel_encoders_disable(state, crtc);
 	intel_encoders_post_disable(state, crtc);
 
-	intel_disable_dpll(old_crtc_state);
+	intel_dpll_disable(old_crtc_state);
 
 	intel_encoders_post_pll_disable(state, crtc);
 

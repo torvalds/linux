@@ -418,8 +418,8 @@ int intel_dpll_get_freq(struct intel_display *display,
 bool intel_dpll_get_hw_state(struct intel_display *display,
 			     struct intel_dpll *pll,
 			     struct intel_dpll_hw_state *dpll_hw_state);
-void intel_enable_dpll(const struct intel_crtc_state *crtc_state);
-void intel_disable_dpll(const struct intel_crtc_state *crtc_state);
+void intel_dpll_enable(const struct intel_crtc_state *crtc_state);
+void intel_dpll_disable(const struct intel_crtc_state *crtc_state);
 void intel_dpll_swap_state(struct intel_atomic_state *state);
 void intel_dpll_init(struct intel_display *display);
 void intel_dpll_update_ref_clks(struct intel_display *display);

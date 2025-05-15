@@ -250,12 +250,12 @@ static void _intel_disable_shared_dpll(struct intel_display *display,
 }
 
 /**
- * intel_enable_dpll - enable a CRTC's DPLL
+ * intel_dpll_enable - enable a CRTC's DPLL
  * @crtc_state: CRTC, and its state, which has a DPLL
  *
  * Enable DPLL used by @crtc.
  */
-void intel_enable_dpll(const struct intel_crtc_state *crtc_state)
+void intel_dpll_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -296,12 +296,12 @@ out:
 }
 
 /**
- * intel_disable_dpll - disable a CRTC's shared DPLL
+ * intel_dpll_disable - disable a CRTC's shared DPLL
  * @crtc_state: CRTC, and its state, which has a shared DPLL
  *
  * Disable DPLL used by @crtc.
  */
-void intel_disable_dpll(const struct intel_crtc_state *crtc_state)
+void intel_dpll_disable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
