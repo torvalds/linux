@@ -1708,7 +1708,7 @@ static void ublk_cancel_cmd(struct ublk_queue *ubq, unsigned tag,
 	 * that ublk_dispatch_req() is always called
 	 */
 	req = blk_mq_tag_to_rq(ub->tag_set.tags[ubq->q_id], tag);
-	if (req && blk_mq_request_started(req))
+	if (req && blk_mq_request_started(req) && req->tag == tag)
 		return;
 
 	spin_lock(&ubq->cancel_lock);
