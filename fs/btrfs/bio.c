@@ -27,12 +27,12 @@ struct btrfs_failed_bio {
 };
 
 /* Is this a data path I/O that needs storage layer checksum and repair? */
-static inline bool is_data_bbio(struct btrfs_bio *bbio)
+static inline bool is_data_bbio(const struct btrfs_bio *bbio)
 {
 	return bbio->inode && is_data_inode(bbio->inode);
 }
 
-static bool bbio_has_ordered_extent(struct btrfs_bio *bbio)
+static bool bbio_has_ordered_extent(const struct btrfs_bio *bbio)
 {
 	return is_data_bbio(bbio) && btrfs_op(&bbio->bio) == BTRFS_MAP_WRITE;
 }
@@ -134,14 +134,14 @@ void btrfs_bio_end_io(struct btrfs_bio *bbio, blk_status_t status)
 	}
 }
 
-static int next_repair_mirror(struct btrfs_failed_bio *fbio, int cur_mirror)
+static int next_repair_mirror(const struct btrfs_failed_bio *fbio, int cur_mirror)
 {
 	if (cur_mirror == fbio->num_copies)
 		return cur_mirror + 1 - fbio->num_copies;
 	return cur_mirror + 1;
 }
 
-static int prev_repair_mirror(struct btrfs_failed_bio *fbio, int cur_mirror)
+static int prev_repair_mirror(const struct btrfs_failed_bio *fbio, int cur_mirror)
 {
 	if (cur_mirror == 1)
 		return fbio->num_copies;
@@ -301,7 +301,7 @@ static void btrfs_check_read_bio(struct btrfs_bio *bbio, struct btrfs_device *de
 		btrfs_bio_end_io(bbio, bbio->bio.bi_status);
 }
 
-static void btrfs_log_dev_io_error(struct bio *bio, struct btrfs_device *dev)
+static void btrfs_log_dev_io_error(const struct bio *bio, struct btrfs_device *dev)
 {
 	if (!dev || !dev->bdev)
 		return;
@@ -316,8 +316,8 @@ static void btrfs_log_dev_io_error(struct bio *bio, struct btrfs_device *dev)
 		btrfs_dev_stat_inc_and_print(dev, BTRFS_DEV_STAT_FLUSH_ERRS);
 }
 
-static struct workqueue_struct *btrfs_end_io_wq(struct btrfs_fs_info *fs_info,
-						struct bio *bio)
+static struct workqueue_struct *btrfs_end_io_wq(const struct btrfs_fs_info *fs_info,
+						const struct bio *bio)
 {
 	if (bio->bi_opf & REQ_META)
 		return fs_info->endio_meta_workers;

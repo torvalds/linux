@@ -667,7 +667,7 @@ enum btrfs_map_op {
 	BTRFS_MAP_GET_READ_MIRRORS,
 };
 
-static inline enum btrfs_map_op btrfs_op(struct bio *bio)
+static inline enum btrfs_map_op btrfs_op(const struct bio *bio)
 {
 	switch (bio_op(bio)) {
 	case REQ_OP_WRITE:
