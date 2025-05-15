@@ -23,7 +23,6 @@
 #include <linux/auxvec.h>
 #include <linux/fcntl.h> /* for O_* and AT_* */
 #include <linux/stat.h>  /* for statx() */
-#include <linux/resource.h>
 #include <linux/utsname.h>
 
 #include "errno.h"
@@ -727,43 +726,6 @@ static __attribute__((unused))
 ssize_t read(int fd, void *buf, size_t count)
 {
 	return __sysret(sys_read(fd, buf, count));
-}
-
-
-/*
- * int getrlimit(int resource, struct rlimit *rlim);
- * int setrlimit(int resource, const struct rlimit *rlim);
- */
-
-static __attribute__((unused))
-int sys_prlimit64(pid_t pid, int resource,
-		  const struct rlimit64 *new_limit, struct rlimit64 *old_limit)
-{
-	return my_syscall4(__NR_prlimit64, pid, resource, new_limit, old_limit);
-}
-
-static __attribute__((unused))
-int getrlimit(int resource, struct rlimit *rlim)
-{
-	struct rlimit64 rlim64;
-	int ret;
-
-	ret = __sysret(sys_prlimit64(0, resource, NULL, &rlim64));
-	rlim->rlim_cur = rlim64.rlim_cur;
-	rlim->rlim_max = rlim64.rlim_max;
-
-	return ret;
-}
-
-static __attribute__((unused))
-int setrlimit(int resource, const struct rlimit *rlim)
-{
-	struct rlimit64 rlim64 = {
-		.rlim_cur = rlim->rlim_cur,
-		.rlim_max = rlim->rlim_max,
-	};
-
-	return __sysret(sys_prlimit64(0, resource, &rlim64, NULL));
 }
 
 

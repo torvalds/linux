@@ -103,6 +103,7 @@
 #include "sys/prctl.h"
 #include "sys/random.h"
 #include "sys/reboot.h"
+#include "sys/resource.h"
 #include "sys/stat.h"
 #include "sys/syscall.h"
 #include "sys/time.h"

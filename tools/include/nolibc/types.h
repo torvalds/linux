@@ -15,7 +15,6 @@
 #include <linux/stat.h>
 #include <linux/time.h>
 #include <linux/wait.h>
-#include <linux/resource.h>
 
 
 /* Only the generic macros and types may be defined here. The arch-specific

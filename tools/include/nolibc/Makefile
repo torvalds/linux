@@ -55,6 +55,7 @@ all_files := \
 		sys/prctl.h \
 		sys/random.h \
 		sys/reboot.h \
+		sys/resource.h \
 		sys/stat.h \
 		sys/syscall.h \
 		sys/time.h \
