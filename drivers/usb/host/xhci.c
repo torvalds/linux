@@ -477,6 +477,24 @@ static void xhci_hcd_page_size(struct xhci_hcd *xhci)
 		       xhci->page_size >> 10);
 }
 
+static void xhci_enable_max_dev_slots(struct xhci_hcd *xhci)
+{
+	u32 config_reg;
+	u32 max_slots;
+
+	max_slots = HCS_MAX_SLOTS(xhci->hcs_params1);
+	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "xHC can handle at most %d device slots",
+		       max_slots);
+
+	config_reg = readl(&xhci->op_regs->config_reg);
+	config_reg &= ~HCS_SLOTS_MASK;
+	config_reg |= max_slots;
+
+	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "Setting Max device slots reg = 0x%x",
+		       config_reg);
+	writel(config_reg, &xhci->op_regs->config_reg);
+}
+
 /*
  * Initialize memory for HCD and xHC (one-time init).
  *
@@ -501,6 +519,9 @@ static int xhci_init(struct usb_hcd *hcd)
 	retval = xhci_mem_init(xhci, GFP_KERNEL);
 	if (retval)
 		return retval;
+
+	/* Set the Number of Device Slots Enabled to the maximum supported value */
+	xhci_enable_max_dev_slots(xhci);
 
 	/* Initializing Compliance Mode Recovery Data If Needed */
 	if (xhci_compliance_mode_recovery_timer_quirk_check()) {
