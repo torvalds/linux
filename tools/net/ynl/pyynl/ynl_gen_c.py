@@ -14,6 +14,7 @@ import yaml
 
 sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
 from lib import SpecFamily, SpecAttrSet, SpecAttr, SpecOperation, SpecEnumSet, SpecEnumEntry
+from lib import SpecSubMessage, SpecSubMessageFormat
 
 
 def c_upper(name):
@@ -872,6 +873,10 @@ class TypeNestTypeValue(Type):
         return get_lines, init_lines, local_vars
 
 
+class TypeSubMessage(TypeUnused):
+    pass
+
+
 class Struct:
     def __init__(self, family, space_name, type_list=None, inherited=None):
         self.family = family
@@ -1052,6 +1057,8 @@ class AttrSet(SpecAttrSet):
                 raise Exception(f'new_attr: unsupported sub-type {elem["sub-type"]}')
         elif elem['type'] == 'nest-type-value':
             t = TypeNestTypeValue(self.family, self, elem, value)
+        elif elem['type'] == 'sub-message':
+            t = TypeSubMessage(self.family, self, elem, value)
         else:
             raise Exception(f"No typed class for type {elem['type']}")
 
@@ -1094,6 +1101,16 @@ class Operation(SpecOperation):
 
     def mark_has_ntf(self):
         self.has_ntf = True
+
+
+class SubMessage(SpecSubMessage):
+    def __init__(self, family, yaml):
+        super().__init__(family, yaml)
+
+        self.render_name = c_lower(family.ident_name + '-' + yaml['name'])
+
+    def resolve(self):
+        self.resolve_up(super())
 
 
 class Family(SpecFamily):
@@ -1177,6 +1194,9 @@ class Family(SpecFamily):
 
     def new_operation(self, elem, req_value, rsp_value):
         return Operation(self, elem, req_value, rsp_value)
+
+    def new_sub_message(self, elem):
+        return SubMessage(self, elem)
 
     def is_classic(self):
         return self.proto == 'netlink-raw'
