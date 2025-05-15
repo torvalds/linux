@@ -42,3 +42,30 @@ Example ::
               Enabled : 1
         Hot Pluggable : 1
          Non-Volatile : 0
+
+
+Generic Port Affinity
+=====================
+The Generic Port Affinity subtable provides an association between a proximity
+domain and a device handle representing a Generic Port such as a CXL host
+bridge. With the association, latency and bandwidth numbers can be retrieved
+from the SRAT for the path between CPU(s) (initiator) and the Generic Port.
+This is used to construct performance coordinates for hotplugged CXL DEVICES,
+which cannot be enumerated at boot by platform firmware.
+
+Example ::
+
+         Subtable Type : 06 [Generic Port Affinity]
+                Length : 20               <- 32d, length of table
+              Reserved : 00
+    Device Handle Type : 00               <- 0 - ACPI, 1 - PCI
+      Proximity Domain : 00000001
+         Device Handle : ACPI0016:01
+                 Flags : 00000001         <- Bit 0 (Enabled)
+              Reserved : 00000000
+
+The Proximity Domain is matched up to the :doc:`HMAT <hmat>` SSLBI Target
+Proximity Domain List for the related latency or bandwidth numbers. Those
+performance numbers are tied to a CXL host bridge via the Device Handle.
+The driver uses the association to retrieve the Generic Port performance
+numbers for the whole CXL path access coordinates calculation.
