@@ -30,6 +30,15 @@ then
 	VERBOSE_BATCH_CPUS=0
 fi
 
+# Machine architecture?  ("uname -p" is said to be less portable.)1
+thisarch="`uname -m`"
+if test "${thisarch}" = aarch64
+then
+	ifnotaarch64=no
+else
+	ifnotaarch64=yes
+fi
+
 # Configurations/scenarios.
 configs_rcutorture=
 configs_locktorture=
@@ -57,7 +66,7 @@ do_kasan=yes
 do_kcsan=no
 do_clocksourcewd=yes
 do_rt=yes
-do_rcutasksflavors=yes
+do_rcutasksflavors="${ifnotaarch64}" # FIXME: Back to "yes" when SMP=n auto-avoided
 do_srcu_lockdep=yes
 do_rcu_rust=no
 
@@ -124,7 +133,7 @@ do
 		;;
 	--do-all|--doall)
 		do_allmodconfig=yes
-		do_rcutasksflavor=yes
+		do_rcutasksflavors="${ifnotaarch64}" # FIXME: Back to "yes" when SMP=n auto-avoided
 		do_rcutorture=yes
 		do_locktorture=yes
 		do_scftorture=yes
