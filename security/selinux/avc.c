@@ -656,31 +656,31 @@ static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 	const char *const *perms;
 	u32 i;
 
-	audit_log_format(ab, "avc:  %s ", sad->denied ? "denied" : "granted");
+	// audit_log_format(ab, "avc:  %s ", sad->denied ? "denied" : "granted");
 
 	if (av == 0) {
-		audit_log_format(ab, " null");
+		//audit_log_format(ab, " null");
 		return;
 	}
 
 	perms = secclass_map[sad->tclass-1].perms;
 
-	audit_log_format(ab, " {");
+	//audit_log_format(ab, " {");
 	i = 0;
 	perm = 1;
 	while (i < (sizeof(av) * 8)) {
 		if ((perm & av) && perms[i]) {
-			audit_log_format(ab, " %s", perms[i]);
+			//audit_log_format(ab, " %s", perms[i]);
 			av &= ~perm;
 		}
 		i++;
 		perm <<= 1;
 	}
 
-	if (av)
-		audit_log_format(ab, " 0x%x", av);
-
-	audit_log_format(ab, " } for ");
+	if (av){
+		//audit_log_format(ab, " 0x%x", av);
+	}
+	//audit_log_format(ab, " } for ");
 }
 
 /**
@@ -702,23 +702,23 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 
 	rc = security_sid_to_context(sad->ssid, &scontext,
 				     &scontext_len);
-	if (rc)
-		audit_log_format(ab, " ssid=%d", sad->ssid);
-	else
-		audit_log_format(ab, " scontext=%s", scontext);
+	// if (rc)
+	// 	audit_log_format(ab, " ssid=%d", sad->ssid);
+	// else
+	// 	audit_log_format(ab, " scontext=%s", scontext);
 
 	rc = security_sid_to_context(sad->tsid, &tcontext,
 				     &tcontext_len);
-	if (rc)
-		audit_log_format(ab, " tsid=%d", sad->tsid);
-	else
-		audit_log_format(ab, " tcontext=%s", tcontext);
+	// if (rc)
+	// 	audit_log_format(ab, " tsid=%d", sad->tsid);
+	// else
+	// 	audit_log_format(ab, " tcontext=%s", tcontext);
 
 	tclass = secclass_map[sad->tclass-1].name;
-	audit_log_format(ab, " tclass=%s", tclass);
+	//audit_log_format(ab, " tclass=%s", tclass);
 
-	if (sad->denied)
-		audit_log_format(ab, " permissive=%u", sad->result ? 0 : 1);
+	// if (sad->denied)
+	// 	audit_log_format(ab, " permissive=%u", sad->result ? 0 : 1);
 
 	trace_selinux_audited(sad, scontext, tcontext, tclass);
 	kfree(tcontext);
