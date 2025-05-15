@@ -123,6 +123,30 @@ static inline void sock_rps_record_flow(const struct sock *sk)
 #endif
 }
 
+static inline void sock_rps_delete_flow(const struct sock *sk)
+{
+#ifdef CONFIG_RPS
+	struct rps_sock_flow_table *table;
+	u32 hash, index;
+
+	if (!static_branch_unlikely(&rfs_needed))
+		return;
+
+	hash = READ_ONCE(sk->sk_rxhash);
+	if (!hash)
+		return;
+
+	rcu_read_lock();
+	table = rcu_dereference(net_hotdata.rps_sock_flow_table);
+	if (table) {
+		index = hash & table->mask;
+		if (READ_ONCE(table->ents[index]) != RPS_NO_CPU)
+			WRITE_ONCE(table->ents[index], RPS_NO_CPU);
+	}
+	rcu_read_unlock();
+#endif
+}
+
 static inline u32 rps_input_queue_tail_incr(struct softnet_data *sd)
 {
 #ifdef CONFIG_RPS
