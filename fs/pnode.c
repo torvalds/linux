@@ -24,11 +24,6 @@ static inline struct mount *first_slave(struct mount *p)
 	return list_entry(p->mnt_slave_list.next, struct mount, mnt_slave);
 }
 
-static inline struct mount *last_slave(struct mount *p)
-{
-	return list_entry(p->mnt_slave_list.prev, struct mount, mnt_slave);
-}
-
 static inline struct mount *next_slave(struct mount *p)
 {
 	return list_entry(p->mnt_slave.next, struct mount, mnt_slave);
@@ -136,6 +131,23 @@ void change_mnt_propagation(struct mount *mnt, int type)
 	}
 }
 
+static struct mount *__propagation_next(struct mount *m,
+					 struct mount *origin)
+{
+	while (1) {
+		struct mount *master = m->mnt_master;
+
+		if (master == origin->mnt_master) {
+			struct mount *next = next_peer(m);
+			return (next == origin) ? NULL : next;
+		} else if (m->mnt_slave.next != &master->mnt_slave_list)
+			return next_slave(m);
+
+		/* back at master */
+		m = master;
+	}
+}
+
 /*
  * get the next mount in the propagation tree.
  * @m: the mount seen last
@@ -153,31 +165,21 @@ static struct mount *propagation_next(struct mount *m,
 	if (!IS_MNT_NEW(m) && !list_empty(&m->mnt_slave_list))
 		return first_slave(m);
 
-	while (1) {
-		struct mount *master = m->mnt_master;
-
-		if (master == origin->mnt_master) {
-			struct mount *next = next_peer(m);
-			return (next == origin) ? NULL : next;
-		} else if (m->mnt_slave.next != &master->mnt_slave_list)
-			return next_slave(m);
-
-		/* back at master */
-		m = master;
-	}
+	return __propagation_next(m, origin);
 }
 
 static struct mount *skip_propagation_subtree(struct mount *m,
 						struct mount *origin)
 {
 	/*
-	 * Advance m such that propagation_next will not return
-	 * the slaves of m.
+	 * Advance m past everything that gets propagation from it.
 	 */
-	if (!IS_MNT_NEW(m) && !list_empty(&m->mnt_slave_list))
-		m = last_slave(m);
+	struct mount *p = __propagation_next(m, origin);
 
-	return m;
+	while (p && peers(m, p))
+		p = __propagation_next(p, origin);
+
+	return p;
 }
 
 static struct mount *next_group(struct mount *m, struct mount *origin)
@@ -458,181 +460,213 @@ void propagate_mount_unlock(struct mount *mnt)
 	}
 }
 
-static void umount_one(struct mount *mnt, struct list_head *to_umount)
+static inline bool is_candidate(struct mount *m)
 {
-	CLEAR_MNT_MARK(mnt);
-	mnt->mnt.mnt_flags |= MNT_UMOUNT;
-	list_del_init(&mnt->mnt_child);
-	list_del_init(&mnt->mnt_umounting);
-	move_from_ns(mnt, to_umount);
+	return m->mnt.mnt_flags & MNT_UMOUNT_CANDIDATE;
+}
+
+static inline bool will_be_unmounted(struct mount *m)
+{
+	return m->mnt.mnt_flags & MNT_UMOUNT;
+}
+
+static void umount_one(struct mount *m, struct list_head *to_umount)
+{
+	m->mnt.mnt_flags |= MNT_UMOUNT;
+	list_del_init(&m->mnt_child);
+	move_from_ns(m, to_umount);
+}
+
+static void remove_from_candidate_list(struct mount *m)
+{
+	m->mnt.mnt_flags &= ~(MNT_MARKED | MNT_UMOUNT_CANDIDATE);
+	list_del_init(&m->mnt_list);
+}
+
+static void gather_candidates(struct list_head *set,
+			      struct list_head *candidates)
+{
+	struct mount *m, *p, *q;
+
+	list_for_each_entry(m, set, mnt_list) {
+		if (is_candidate(m))
+			continue;
+		m->mnt.mnt_flags |= MNT_UMOUNT_CANDIDATE;
+		p = m->mnt_parent;
+		q = propagation_next(p, p);
+		while (q) {
+			struct mount *child = __lookup_mnt(&q->mnt,
+							   m->mnt_mountpoint);
+			if (child) {
+				/*
+				 * We might've already run into this one.  That
+				 * must've happened on earlier iteration of the
+				 * outer loop; in that case we can skip those
+				 * parents that get propagation from q - there
+				 * will be nothing new on those as well.
+				 */
+				if (is_candidate(child)) {
+					q = skip_propagation_subtree(q, p);
+					continue;
+				}
+				child->mnt.mnt_flags |= MNT_UMOUNT_CANDIDATE;
+				if (!will_be_unmounted(child))
+					list_add(&child->mnt_list, candidates);
+			}
+			q = propagation_next(q, p);
+		}
+	}
+	list_for_each_entry(m, set, mnt_list)
+		m->mnt.mnt_flags &= ~MNT_UMOUNT_CANDIDATE;
 }
 
 /*
- * NOTE: unmounting 'mnt' naturally propagates to all other mounts its
- * parent propagates to.
+ * We know that some child of @m can't be unmounted.  In all places where the
+ * chain of descent of @m has child not overmounting the root of parent,
+ * the parent can't be unmounted either.
  */
-static bool __propagate_umount(struct mount *mnt,
-			       struct list_head *to_umount,
-			       struct list_head *to_restore)
+static void trim_ancestors(struct mount *m)
 {
-	bool progress = false;
-	struct mount *child;
+	struct mount *p;
 
-	/*
-	 * The state of the parent won't change if this mount is
-	 * already unmounted or marked as without children.
-	 */
-	if (mnt->mnt.mnt_flags & (MNT_UMOUNT | MNT_MARKED))
-		goto out;
-
-	/* Verify topper is the only grandchild that has not been
-	 * speculatively unmounted.
-	 */
-	list_for_each_entry(child, &mnt->mnt_mounts, mnt_child) {
-		if (child->mnt_mountpoint == mnt->mnt.mnt_root)
-			continue;
-		if (!list_empty(&child->mnt_umounting) && IS_MNT_MARKED(child))
-			continue;
-		/* Found a mounted child */
-		goto children;
-	}
-
-	/* Mark mounts that can be unmounted if not locked */
-	SET_MNT_MARK(mnt);
-	progress = true;
-
-	/* If a mount is without children and not locked umount it. */
-	if (!IS_MNT_LOCKED(mnt)) {
-		umount_one(mnt, to_umount);
-	} else {
-children:
-		list_move_tail(&mnt->mnt_umounting, to_restore);
-	}
-out:
-	return progress;
-}
-
-static void umount_list(struct list_head *to_umount,
-			struct list_head *to_restore)
-{
-	struct mount *mnt, *child, *tmp;
-	list_for_each_entry(mnt, to_umount, mnt_list) {
-		list_for_each_entry_safe(child, tmp, &mnt->mnt_mounts, mnt_child) {
-			/* topper? */
-			if (child->mnt_mountpoint == mnt->mnt.mnt_root)
-				list_move_tail(&child->mnt_umounting, to_restore);
-			else
-				umount_one(child, to_umount);
-		}
-	}
-}
-
-static void restore_mounts(struct list_head *to_restore)
-{
-	/* Restore mounts to a clean working state */
-	while (!list_empty(to_restore)) {
-		struct mount *mnt, *parent;
-		struct mountpoint *mp;
-
-		mnt = list_first_entry(to_restore, struct mount, mnt_umounting);
-		CLEAR_MNT_MARK(mnt);
-		list_del_init(&mnt->mnt_umounting);
-
-		/* Should this mount be reparented? */
-		mp = mnt->mnt_mp;
-		parent = mnt->mnt_parent;
-		while (parent->mnt.mnt_flags & MNT_UMOUNT) {
-			mp = parent->mnt_mp;
-			parent = parent->mnt_parent;
-		}
-		if (parent != mnt->mnt_parent) {
-			mnt_change_mountpoint(parent, mp, mnt);
-			mnt_notify_add(mnt);
-		}
-	}
-}
-
-static void cleanup_umount_visitations(struct list_head *visited)
-{
-	while (!list_empty(visited)) {
-		struct mount *mnt =
-			list_first_entry(visited, struct mount, mnt_umounting);
-		list_del_init(&mnt->mnt_umounting);
+	for (p = m->mnt_parent; is_candidate(p); m = p, p = p->mnt_parent) {
+		if (IS_MNT_MARKED(m))	// all candidates beneath are overmounts
+			return;
+		SET_MNT_MARK(m);
+		if (m != p->overmount)
+			p->mnt.mnt_flags &= ~MNT_UMOUNT_CANDIDATE;
 	}
 }
 
 /*
- * collect all mounts that receive propagation from the mount in @list,
- * and return these additional mounts in the same list.
- * @list: the list of mounts to be unmounted.
+ * Find and exclude all umount candidates forbidden by @m
+ * (see Documentation/filesystems/propagate_umount.txt)
+ * If we can immediately tell that @m is OK to unmount (unlocked
+ * and all children are already committed to unmounting) commit
+ * to unmounting it.
+ * Only @m itself might be taken from the candidates list;
+ * anything found by trim_ancestors() is marked non-candidate
+ * and left on the list.
+ */
+static void trim_one(struct mount *m, struct list_head *to_umount)
+{
+	bool remove_this = false, found = false, umount_this = false;
+	struct mount *n;
+
+	if (!is_candidate(m)) { // trim_ancestors() left it on list
+		remove_from_candidate_list(m);
+		return;
+	}
+
+	list_for_each_entry(n, &m->mnt_mounts, mnt_child) {
+		if (!is_candidate(n)) {
+			found = true;
+			if (n != m->overmount) {
+				remove_this = true;
+				break;
+			}
+		}
+	}
+	if (found) {
+		trim_ancestors(m);
+	} else if (!IS_MNT_LOCKED(m) && list_empty(&m->mnt_mounts)) {
+		remove_this = true;
+		umount_this = true;
+	}
+	if (remove_this) {
+		remove_from_candidate_list(m);
+		if (umount_this)
+			umount_one(m, to_umount);
+	}
+}
+
+static void handle_locked(struct mount *m, struct list_head *to_umount)
+{
+	struct mount *cutoff = m, *p;
+
+	if (!is_candidate(m)) { // trim_ancestors() left it on list
+		remove_from_candidate_list(m);
+		return;
+	}
+	for (p = m; is_candidate(p); p = p->mnt_parent) {
+		remove_from_candidate_list(p);
+		if (!IS_MNT_LOCKED(p))
+			cutoff = p->mnt_parent;
+	}
+	if (will_be_unmounted(p))
+		cutoff = p;
+	while (m != cutoff) {
+		umount_one(m, to_umount);
+		m = m->mnt_parent;
+	}
+}
+
+/*
+ * @m is not to going away, and it overmounts the top of a stack of mounts
+ * that are going away.  We know that all of those are fully overmounted
+ * by the one above (@m being the topmost of the chain), so @m can be slid
+ * in place where the bottom of the stack is attached.
  *
- * vfsmount lock must be held for write
+ * NOTE: here we temporarily violate a constraint - two mounts end up with
+ * the same parent and mountpoint; that will be remedied as soon as we
+ * return from propagate_umount() - its caller (umount_tree()) will detach
+ * the stack from the parent it (and now @m) is attached to.  umount_tree()
+ * might choose to keep unmounted pieces stuck to each other, but it always
+ * detaches them from the mounts that remain in the tree.
  */
-int propagate_umount(struct list_head *list)
+static void reparent(struct mount *m)
 {
-	struct mount *mnt;
-	LIST_HEAD(to_restore);
-	LIST_HEAD(to_umount);
-	LIST_HEAD(visited);
+	struct mount *p = m;
+	struct mountpoint *mp;
 
-	/* Find candidates for unmounting */
-	list_for_each_entry_reverse(mnt, list, mnt_list) {
-		struct mount *parent = mnt->mnt_parent;
-		struct mount *m;
+	do {
+		mp = p->mnt_mp;
+		p = p->mnt_parent;
+	} while (will_be_unmounted(p));
 
-		/*
-		 * If this mount has already been visited it is known that it's
-		 * entire peer group and all of their slaves in the propagation
-		 * tree for the mountpoint has already been visited and there is
-		 * no need to visit them again.
-		 */
-		if (!list_empty(&mnt->mnt_umounting))
-			continue;
+	mnt_change_mountpoint(p, mp, m);
+	mnt_notify_add(m);
+}
 
-		list_add_tail(&mnt->mnt_umounting, &visited);
-		for (m = propagation_next(parent, parent); m;
-		     m = propagation_next(m, parent)) {
-			struct mount *child = __lookup_mnt(&m->mnt,
-							   mnt->mnt_mountpoint);
-			if (!child)
-				continue;
+/**
+ * propagate_umount - apply propagation rules to the set of mounts for umount()
+ * @set: the list of mounts to be unmounted.
+ *
+ * Collect all mounts that receive propagation from the mount in @set and have
+ * no obstacles to being unmounted.  Add these additional mounts to the set.
+ *
+ * See Documentation/filesystems/propagate_umount.txt if you do anything in
+ * this area.
+ *
+ * Locks held:
+ * mount_lock (write_seqlock), namespace_sem (exclusive).
+ */
+void propagate_umount(struct list_head *set)
+{
+	struct mount *m, *p;
+	LIST_HEAD(to_umount);	// committed to unmounting
+	LIST_HEAD(candidates);	// undecided umount candidates
 
-			if (!list_empty(&child->mnt_umounting)) {
-				/*
-				 * If the child has already been visited it is
-				 * know that it's entire peer group and all of
-				 * their slaves in the propgation tree for the
-				 * mountpoint has already been visited and there
-				 * is no need to visit this subtree again.
-				 */
-				m = skip_propagation_subtree(m, parent);
-				continue;
-			} else if (child->mnt.mnt_flags & MNT_UMOUNT) {
-				/*
-				 * We have come across a partially unmounted
-				 * mount in a list that has not been visited
-				 * yet. Remember it has been visited and
-				 * continue about our merry way.
-				 */
-				list_add_tail(&child->mnt_umounting, &visited);
-				continue;
-			}
+	// collect all candidates
+	gather_candidates(set, &candidates);
 
-			/* Check the child and parents while progress is made */
-			while (__propagate_umount(child,
-						  &to_umount, &to_restore)) {
-				/* Is the parent a umount candidate? */
-				child = child->mnt_parent;
-				if (list_empty(&child->mnt_umounting))
-					break;
-			}
-		}
+	// reduce the set until it's non-shifting
+	list_for_each_entry_safe(m, p, &candidates, mnt_list)
+		trim_one(m, &to_umount);
+
+	// ... and non-revealing
+	while (!list_empty(&candidates)) {
+		m = list_first_entry(&candidates,struct mount, mnt_list);
+		handle_locked(m, &to_umount);
 	}
 
-	umount_list(&to_umount, &to_restore);
-	restore_mounts(&to_restore);
-	cleanup_umount_visitations(&visited);
-	list_splice_tail(&to_umount, list);
+	// now to_umount consists of all acceptable candidates
+	// deal with reparenting of remaining overmounts on those
+	list_for_each_entry(m, &to_umount, mnt_list) {
+		if (m->overmount)
+			reparent(m->overmount);
+	}
 
-	return 0;
+	// and fold them into the set
+	list_splice_tail_init(&to_umount, set);
 }
