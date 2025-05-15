@@ -21,11 +21,6 @@
 		};
 	};
 
-	memory {
-		device_type = "memory";
-		reg = <0x0 0x0>;
-	};
-
  	aliases {
 		serial0 = &uart0;
 		serial1 = &uart1;
