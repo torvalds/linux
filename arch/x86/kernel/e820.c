@@ -296,7 +296,7 @@ struct change_member {
 	/* Pointer to the original entry: */
 	struct e820_entry	*entry;
 	/* Address for this change point: */
-	unsigned long long	addr;
+	u64			addr;
 };
 
 static struct change_member	change_point_list[2*E820_MAX_ENTRIES]	__initdata;
@@ -344,7 +344,7 @@ int __init e820__update_table(struct e820_table *table)
 	struct e820_entry *entries = table->entries;
 	u32 max_nr_entries = ARRAY_SIZE(table->entries);
 	enum e820_type current_type, last_type;
-	unsigned long long last_addr;
+	u64 last_addr;
 	u32 new_nr_entries, overlap_entries;
 	u32 i, chg_idx, chg_nr;
 
@@ -641,13 +641,13 @@ static void __init e820__update_table_kexec(void)
  */
 static int __init e820_search_gap(unsigned long *gapstart, unsigned long *gapsize)
 {
-	unsigned long long last = MAX_GAP_END;
+	u64 last = MAX_GAP_END;
 	int i = e820_table->nr_entries;
 	int found = 0;
 
 	while (--i >= 0) {
-		unsigned long long start = e820_table->entries[i].addr;
-		unsigned long long end = start + e820_table->entries[i].size;
+		u64 start = e820_table->entries[i].addr;
+		u64 end = start + e820_table->entries[i].size;
 
 		/*
 		 * Since "last" is at most 4GB, we know we'll
