@@ -106,6 +106,7 @@
 #include "sys/resource.h"
 #include "sys/stat.h"
 #include "sys/syscall.h"
+#include "sys/sysmacros.h"
 #include "sys/time.h"
 #include "sys/timerfd.h"
 #include "sys/wait.h"

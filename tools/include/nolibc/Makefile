@@ -58,6 +58,7 @@ all_files := \
 		sys/resource.h \
 		sys/stat.h \
 		sys/syscall.h \
+		sys/sysmacros.h \
 		sys/time.h \
 		sys/timerfd.h \
 		sys/types.h \
