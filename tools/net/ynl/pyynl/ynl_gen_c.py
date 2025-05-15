@@ -57,6 +57,8 @@ class Type(SpecAttr):
         self.request = False
         self.reply = False
 
+        self.is_selector = False
+
         if 'len' in attr:
             self.len = attr['len']
 
@@ -484,7 +486,10 @@ class TypeString(Type):
         ri.cw.p(f"char *{self.c_name};")
 
     def _attr_typol(self):
-        return f'.type = YNL_PT_NUL_STR, '
+        typol = f'.type = YNL_PT_NUL_STR, '
+        if self.is_selector:
+            typol += '.is_selector = 1, '
+        return typol
 
     def _attr_policy(self, policy):
         if 'exact-len' in self.checks:
@@ -878,6 +883,16 @@ class TypeNestTypeValue(Type):
 
 
 class TypeSubMessage(TypeNest):
+    def __init__(self, family, attr_set, attr, value):
+        super().__init__(family, attr_set, attr, value)
+
+        self.selector = Selector(attr, attr_set)
+
+    def _attr_typol(self):
+        typol = f'.type = YNL_PT_NEST, .nest = &{self.nested_render_name}_nest, '
+        typol += f'.is_submsg = 1, .selector_type = {self.attr_set[self["selector"]].value} '
+        return typol
+
     def _attr_get(self, ri, var):
         sel = c_lower(self['selector'])
         get_lines = [f'if (!{var}->{sel})',
@@ -888,6 +903,18 @@ class TypeSubMessage(TypeNest):
         init_lines = [f"parg.rsp_policy = &{self.nested_render_name}_nest;",
                       f"parg.data = &{var}->{self.c_name};"]
         return get_lines, init_lines, None
+
+
+class Selector:
+    def __init__(self, msg_attr, attr_set):
+        self.name = msg_attr["selector"]
+
+        if self.name in attr_set:
+            self.attr = attr_set[self.name]
+            self.attr.is_selector = True
+            self._external = False
+        else:
+            raise Exception("Passing selectors from external nests not supported")
 
 
 class Struct:

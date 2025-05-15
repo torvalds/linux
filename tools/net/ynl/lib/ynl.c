@@ -45,8 +45,39 @@
 #define perr(_ys, _msg)			__yerr(&(_ys)->err, errno, _msg)
 
 /* -- Netlink boiler plate */
+static bool
+ynl_err_walk_is_sel(const struct ynl_policy_nest *policy,
+		    const struct nlattr *attr)
+{
+	unsigned int type = ynl_attr_type(attr);
+
+	return policy && type <= policy->max_attr &&
+		policy->table[type].is_selector;
+}
+
+static const struct ynl_policy_nest *
+ynl_err_walk_sel_policy(const struct ynl_policy_attr *policy_attr,
+			const struct nlattr *selector)
+{
+	const struct ynl_policy_nest *policy = policy_attr->nest;
+	const char *sel;
+	unsigned int i;
+
+	if (!policy_attr->is_submsg)
+		return policy;
+
+	sel = ynl_attr_get_str(selector);
+	for (i = 0; i <= policy->max_attr; i++) {
+		if (!strcmp(sel, policy->table[i].name))
+			return policy->table[i].nest;
+	}
+
+	return NULL;
+}
+
 static int
-ynl_err_walk_report_one(const struct ynl_policy_nest *policy, unsigned int type,
+ynl_err_walk_report_one(const struct ynl_policy_nest *policy,
+			const struct nlattr *selector, unsigned int type,
 			char *str, int str_sz, int *n)
 {
 	if (!policy) {
@@ -67,9 +98,34 @@ ynl_err_walk_report_one(const struct ynl_policy_nest *policy, unsigned int type,
 		return 1;
 	}
 
-	if (*n < str_sz)
-		*n += snprintf(str, str_sz - *n,
-			       ".%s", policy->table[type].name);
+	if (*n < str_sz) {
+		int sz;
+
+		sz = snprintf(str, str_sz - *n,
+			      ".%s", policy->table[type].name);
+		*n += sz;
+		str += sz;
+	}
+
+	if (policy->table[type].is_submsg) {
+		if (!selector) {
+			if (*n < str_sz)
+				*n += snprintf(str, str_sz, "(!selector)");
+			return 1;
+		}
+
+		if (ynl_attr_type(selector) !=
+		    policy->table[type].selector_type) {
+			if (*n < str_sz)
+				*n += snprintf(str, str_sz, "(!=selector)");
+			return 1;
+		}
+
+		if (*n < str_sz)
+			*n += snprintf(str, str_sz - *n, "(%s)",
+				       ynl_attr_get_str(selector));
+	}
+
 	return 0;
 }
 
@@ -78,6 +134,8 @@ ynl_err_walk(struct ynl_sock *ys, void *start, void *end, unsigned int off,
 	     const struct ynl_policy_nest *policy, char *str, int str_sz,
 	     const struct ynl_policy_nest **nest_pol)
 {
+	const struct ynl_policy_nest *next_pol;
+	const struct nlattr *selector = NULL;
 	unsigned int astart_off, aend_off;
 	const struct nlattr *attr;
 	unsigned int data_len;
@@ -96,6 +154,10 @@ ynl_err_walk(struct ynl_sock *ys, void *start, void *end, unsigned int off,
 	ynl_attr_for_each_payload(start, data_len, attr) {
 		astart_off = (char *)attr - (char *)start;
 		aend_off = (char *)ynl_attr_data_end(attr) - (char *)start;
+
+		if (ynl_err_walk_is_sel(policy, attr))
+			selector = attr;
+
 		if (aend_off <= off)
 			continue;
 
@@ -109,16 +171,20 @@ ynl_err_walk(struct ynl_sock *ys, void *start, void *end, unsigned int off,
 
 	type = ynl_attr_type(attr);
 
-	if (ynl_err_walk_report_one(policy, type, str, str_sz, &n))
+	if (ynl_err_walk_report_one(policy, selector, type, str, str_sz, &n))
+		return n;
+
+	next_pol = ynl_err_walk_sel_policy(&policy->table[type], selector);
+	if (!next_pol)
 		return n;
 
 	if (!off) {
 		if (nest_pol)
-			*nest_pol = policy->table[type].nest;
+			*nest_pol = next_pol;
 		return n;
 	}
 
-	if (!policy->table[type].nest) {
+	if (!next_pol) {
 		if (n < str_sz)
 			n += snprintf(str, str_sz, "!nest");
 		return n;
@@ -128,7 +194,7 @@ ynl_err_walk(struct ynl_sock *ys, void *start, void *end, unsigned int off,
 	start =  ynl_attr_data(attr);
 	end = start + ynl_attr_data_len(attr);
 
-	return n + ynl_err_walk(ys, start, end, off, policy->table[type].nest,
+	return n + ynl_err_walk(ys, start, end, off, next_pol,
 				&str[n], str_sz - n, nest_pol);
 }
 
@@ -231,7 +297,7 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 		}
 
 		n2 = 0;
-		ynl_err_walk_report_one(nest_pol, type, &miss_attr[n],
+		ynl_err_walk_report_one(nest_pol, NULL, type, &miss_attr[n],
 					sizeof(miss_attr) - n, &n2);
 		n += n2;
 

@@ -43,7 +43,10 @@ typedef int (*ynl_parse_cb_t)(const struct nlmsghdr *nlh,
 			      struct ynl_parse_arg *yarg);
 
 struct ynl_policy_attr {
-	enum ynl_policy_type type;
+	enum ynl_policy_type type:8;
+	__u8 is_submsg:1;
+	__u8 is_selector:1;
+	__u16 selector_type;
 	unsigned int len;
 	const char *name;
 	const struct ynl_policy_nest *nest;
