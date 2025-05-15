@@ -922,9 +922,10 @@ prev_cpu:
  * @cpus_allowed: cpumask of allowed CPUs
  * @flags: %SCX_PICK_IDLE* flags
  *
- * Can only be called from ops.select_cpu() or ops.enqueue() if the
- * built-in CPU selection is enabled: ops.update_idle() is missing or
- * %SCX_OPS_KEEP_BUILTIN_IDLE is set.
+ * Can be called from ops.select_cpu(), ops.enqueue(), or from an unlocked
+ * context such as a BPF test_run() call, as long as built-in CPU selection
+ * is enabled: ops.update_idle() is missing or %SCX_OPS_KEEP_BUILTIN_IDLE
+ * is set.
  *
  * @p, @prev_cpu and @wake_flags match ops.select_cpu().
  *
@@ -936,6 +937,7 @@ __bpf_kfunc s32 scx_bpf_select_cpu_and(struct task_struct *p, s32 prev_cpu, u64 
 				       const struct cpumask *cpus_allowed, u64 flags)
 {
 	struct rq *rq;
+	struct rq_flags rf;
 	s32 cpu;
 
 	if (!kf_cpu_valid(prev_cpu, NULL))
@@ -944,15 +946,26 @@ __bpf_kfunc s32 scx_bpf_select_cpu_and(struct task_struct *p, s32 prev_cpu, u64 
 	if (!check_builtin_idle_enabled())
 		return -EBUSY;
 
-	if (!scx_kf_allowed(SCX_KF_SELECT_CPU | SCX_KF_ENQUEUE))
-		return -EPERM;
+	/*
+	 * If called from an unlocked context, acquire the task's rq lock,
+	 * so that we can safely access p->cpus_ptr and p->nr_cpus_allowed.
+	 *
+	 * Otherwise, allow to use this kfunc only from ops.select_cpu()
+	 * and ops.select_enqueue().
+	 */
+	if (scx_kf_allowed_if_unlocked()) {
+		rq = task_rq_lock(p, &rf);
+	} else {
+		if (!scx_kf_allowed(SCX_KF_SELECT_CPU | SCX_KF_ENQUEUE))
+			return -EPERM;
+		rq = scx_locked_rq();
+	}
 
 	/*
 	 * Validate locking correctness to access p->cpus_ptr and
 	 * p->nr_cpus_allowed: if we're holding an rq lock, we're safe;
 	 * otherwise, assert that p->pi_lock is held.
 	 */
-	rq = scx_locked_rq();
 	if (!rq)
 		lockdep_assert_held(&p->pi_lock);
 
@@ -966,13 +979,17 @@ __bpf_kfunc s32 scx_bpf_select_cpu_and(struct task_struct *p, s32 prev_cpu, u64 
 	if (p->nr_cpus_allowed == 1) {
 		if (cpumask_test_cpu(prev_cpu, cpus_allowed) &&
 		    scx_idle_test_and_clear_cpu(prev_cpu))
-			return prev_cpu;
-		return -EBUSY;
+			cpu = prev_cpu;
+		else
+			cpu = -EBUSY;
+	} else {
+		cpu = scx_select_cpu_dfl(p, prev_cpu, wake_flags, cpus_allowed, flags);
 	}
-	cpu = scx_select_cpu_dfl(p, prev_cpu, wake_flags, cpus_allowed, flags);
 #else
 	cpu = -EBUSY;
 #endif
+	if (scx_kf_allowed_if_unlocked())
+		task_rq_unlock(rq, p, &rf);
 
 	return cpu;
 }
@@ -1276,6 +1293,7 @@ BTF_ID_FLAGS(func, scx_bpf_pick_idle_cpu_node, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_pick_idle_cpu, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_pick_any_cpu_node, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_pick_any_cpu, KF_RCU)
+BTF_ID_FLAGS(func, scx_bpf_select_cpu_and, KF_RCU)
 BTF_KFUNCS_END(scx_kfunc_ids_idle)
 
 static const struct btf_kfunc_id_set scx_kfunc_set_idle = {
@@ -1285,7 +1303,6 @@ static const struct btf_kfunc_id_set scx_kfunc_set_idle = {
 
 BTF_KFUNCS_START(scx_kfunc_ids_select_cpu)
 BTF_ID_FLAGS(func, scx_bpf_select_cpu_dfl, KF_RCU)
-BTF_ID_FLAGS(func, scx_bpf_select_cpu_and, KF_RCU)
 BTF_KFUNCS_END(scx_kfunc_ids_select_cpu)
 
 static const struct btf_kfunc_id_set scx_kfunc_set_select_cpu = {
