@@ -3,21 +3,10 @@
 # MDIO Layer Configuration
 #
 
-menuconfig MDIO_DEVICE
-	tristate "MDIO bus device drivers"
-	help
-	  MDIO devices and driver infrastructure code.
-
-if MDIO_DEVICE
-
 config MDIO_BUS
-	tristate
-	default m if PHYLIB=m
-	default MDIO_DEVICE
+	tristate "MDIO bus consumer layer"
 	help
-	  This internal symbol is used for link time dependencies and it
-	  reflects whether the mdio_bus/mdio_device code is built as a
-	  loadable module or built-in.
+	  MDIO bus consumer layer
 
 if PHYLIB
 
@@ -290,5 +279,4 @@ config MDIO_BUS_MUX_MMIOREG
 	  Currently, only 8/16/32 bits registers are supported.
 
 
-endif
 endif

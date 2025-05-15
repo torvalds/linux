@@ -988,7 +988,7 @@ const struct bus_type mdio_bus_type = {
 };
 EXPORT_SYMBOL(mdio_bus_type);
 
-int __init mdio_bus_init(void)
+static int __init mdio_bus_init(void)
 {
 	int ret;
 
@@ -1002,16 +1002,14 @@ int __init mdio_bus_init(void)
 	return ret;
 }
 
-#if IS_ENABLED(CONFIG_PHYLIB)
-void mdio_bus_exit(void)
+static void __exit mdio_bus_exit(void)
 {
 	class_unregister(&mdio_bus_class);
 	bus_unregister(&mdio_bus_type);
 }
-EXPORT_SYMBOL_GPL(mdio_bus_exit);
-#else
-module_init(mdio_bus_init);
-/* no module_exit, intentional */
+
+subsys_initcall(mdio_bus_init);
+module_exit(mdio_bus_exit);
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MDIO bus/device layer");
-#endif

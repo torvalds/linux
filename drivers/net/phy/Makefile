@@ -6,27 +6,19 @@ libphy-y			:= phy.o phy-c45.o phy-core.o phy_device.o \
 				   phy_package.o phy_caps.o mdio_bus_provider.o
 mdio-bus-y			+= mdio_bus.o mdio_device.o
 
-ifdef CONFIG_MDIO_DEVICE
-obj-y				+= mdio-boardinfo.o
+ifdef CONFIG_PHYLIB
+# built-in whenever PHYLIB is built-in or module
+obj-y				+= stubs.o mdio-boardinfo.o
 endif
 
-# PHYLIB implies MDIO_DEVICE, in that case, we have a bunch of circular
-# dependencies that does not make it possible to split mdio-bus objects into a
-# dedicated loadable module, so we bundle them all together into libphy.ko
-ifdef CONFIG_PHYLIB
-libphy-y			+= $(mdio-bus-y)
-# the stubs are built-in whenever PHYLIB is built-in or module
-obj-y				+= stubs.o
-else
-obj-$(CONFIG_MDIO_DEVICE)	+= mdio-bus.o
-endif
-obj-$(CONFIG_PHYLIB)		+= mdio_devres.o
 libphy-$(CONFIG_SWPHY)		+= swphy.o
 libphy-$(CONFIG_LED_TRIGGER_PHY)	+= phy_led_triggers.o
 libphy-$(CONFIG_OPEN_ALLIANCE_HELPERS) += open_alliance_helpers.o
 
+obj-$(CONFIG_MDIO_BUS)		+= mdio-bus.o
 obj-$(CONFIG_PHYLINK)		+= phylink.o
 obj-$(CONFIG_PHYLIB)		+= libphy.o
+obj-$(CONFIG_PHYLIB)		+= mdio_devres.o
 
 obj-$(CONFIG_NETWORK_PHY_TIMESTAMPING) += mii_timestamper.o
 
