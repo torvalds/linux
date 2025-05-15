@@ -548,11 +548,10 @@ __init u64 e820__range_update_table(struct e820_table *t, u64 start, u64 size,
 }
 
 /* Remove a range of memory from the E820 table: */
-__init u64 e820__range_remove(u64 start, u64 size, enum e820_type old_type, bool check_type)
+__init void e820__range_remove(u64 start, u64 size, enum e820_type old_type, bool check_type)
 {
 	u32 idx;
 	u64 end;
-	u64 real_removed_size = 0;
 
 	if (size > (ULLONG_MAX - start))
 		size = ULLONG_MAX - start;
@@ -575,7 +574,6 @@ __init u64 e820__range_remove(u64 start, u64 size, enum e820_type old_type, bool
 
 		/* Completely covered? */
 		if (entry->addr >= start && entry_end <= end) {
-			real_removed_size += entry->size;
 			memset(entry, 0, sizeof(*entry));
 			continue;
 		}
@@ -584,7 +582,6 @@ __init u64 e820__range_remove(u64 start, u64 size, enum e820_type old_type, bool
 		if (entry->addr < start && entry_end > end) {
 			e820__range_add(end, entry_end - end, entry->type);
 			entry->size = start - entry->addr;
-			real_removed_size += size;
 			continue;
 		}
 
@@ -593,8 +590,6 @@ __init u64 e820__range_remove(u64 start, u64 size, enum e820_type old_type, bool
 		final_end = min(end, entry_end);
 		if (final_start >= final_end)
 			continue;
-
-		real_removed_size += final_end - final_start;
 
 		/*
 		 * Left range could be head or tail, so need to update
@@ -606,7 +601,6 @@ __init u64 e820__range_remove(u64 start, u64 size, enum e820_type old_type, bool
 
 		entry->addr = final_end;
 	}
-	return real_removed_size;
 }
 
 __init void e820__update_table_print(void)
