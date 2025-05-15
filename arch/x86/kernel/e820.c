@@ -1064,37 +1064,44 @@ static unsigned long __init e820_type_to_iores_desc(struct e820_entry *entry)
 	}
 }
 
-static bool __init do_mark_busy(enum e820_type type, struct resource *res)
+/*
+ * We assign one resource entry for each E820 map entry:
+ */
+static struct resource __initdata *e820_res;
+
+/*
+ * Is this a device address region that should not be marked busy?
+ * (Versus system address regions that we register & lock early.)
+ */
+static bool __init e820_device_region(enum e820_type type, struct resource *res)
 {
-	/* this is the legacy bios/dos rom-shadow + mmio region */
+	/* This is the legacy BIOS/DOS ROM-shadow + MMIO region: */
 	if (res->start < (1ULL<<20))
-		return true;
+		return false;
 
 	/*
 	 * Treat persistent memory and other special memory ranges like
-	 * device memory, i.e. reserve it for exclusive use of a driver
+	 * device memory, i.e. keep it available for exclusive use of a
+	 * driver:
 	 */
 	switch (type) {
 	case E820_TYPE_RESERVED:
 	case E820_TYPE_SOFT_RESERVED:
 	case E820_TYPE_PRAM:
 	case E820_TYPE_PMEM:
-		return false;
+		return true;
 	case E820_TYPE_RAM:
 	case E820_TYPE_ACPI:
 	case E820_TYPE_NVS:
 	case E820_TYPE_UNUSABLE:
 	default:
-		return true;
+		return false;
 	}
 }
 
 /*
- * Mark E820 reserved areas as busy for the resource manager:
+ * Mark E820 system regions as busy for the resource manager:
  */
-
-static struct resource __initdata *e820_res;
-
 void __init e820__reserve_resources(void)
 {
 	int i;
@@ -1120,18 +1127,18 @@ void __init e820__reserve_resources(void)
 		res->desc  = e820_type_to_iores_desc(entry);
 
 		/*
-		 * Don't register the region that could be conflicted with
-		 * PCI device BAR resources and insert them later in
-		 * pcibios_resource_survey():
+		 * Skip and don't register device regions that could be conflicted
+		 * with PCI device BAR resources. They get inserted later in
+		 * pcibios_resource_survey() -> e820__reserve_resources_late():
 		 */
-		if (do_mark_busy(entry->type, res)) {
+		if (!e820_device_region(entry->type, res)) {
 			res->flags |= IORESOURCE_BUSY;
 			insert_resource(&iomem_resource, res);
 		}
 		res++;
 	}
 
-	/* Expose the kexec e820 table to the sysfs. */
+	/* Expose the kexec e820 table to sysfs: */
 	for (i = 0; i < e820_table_kexec->nr_entries; i++) {
 		struct e820_entry *entry = e820_table_kexec->entries + i;
 
@@ -1165,6 +1172,10 @@ void __init e820__reserve_resources_late(void)
 	int i;
 	struct resource *res;
 
+	/*
+	 * Register device address regions listed in the E820 map,
+	 * these can be claimed by device drivers later on:
+	 */
 	res = e820_res;
 	for (i = 0; i < e820_table->nr_entries; i++) {
 		if (!res->parent && res->end)
@@ -1173,8 +1184,16 @@ void __init e820__reserve_resources_late(void)
 	}
 
 	/*
-	 * Try to bump up RAM regions to reasonable boundaries, to
-	 * avoid stolen RAM:
+	 * Create additional 'gaps' at the end of RAM regions,
+	 * rounding them up to 64k/1MB/64MB boundaries, should
+	 * they be weirdly sized, and register extra, locked
+	 * resource regions for them, to make sure drivers
+	 * won't claim those addresses.
+	 *
+	 * These are basically blind guesses and heuristics to
+	 * avoid resource conflicts with broken firmware that
+	 * doesn't properly list 'stolen RAM' as a system region
+	 * in the E820 map.
 	 */
 	for (i = 0; i < e820_table->nr_entries; i++) {
 		struct e820_entry *entry = &e820_table->entries[i];
@@ -1190,7 +1209,7 @@ void __init e820__reserve_resources_late(void)
 		if (start >= end)
 			continue;
 
-		printk(KERN_DEBUG "e820: reserve RAM buffer [mem %#010llx-%#010llx]\n", start, end);
+		pr_info("e820: register RAM buffer resource [mem %#010llx-%#010llx]\n", start, end);
 		reserve_region_with_split(&iomem_resource, start, end, "RAM buffer");
 	}
 }
