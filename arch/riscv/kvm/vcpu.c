@@ -51,11 +51,11 @@ const struct kvm_stats_header kvm_vcpu_stats_header = {
 		       sizeof(kvm_vcpu_stats_desc),
 };
 
-static void kvm_riscv_vcpu_context_reset(struct kvm_vcpu *vcpu)
+static void kvm_riscv_vcpu_context_reset(struct kvm_vcpu *vcpu,
+					 bool kvm_sbi_reset)
 {
 	struct kvm_vcpu_csr *csr = &vcpu->arch.guest_csr;
 	struct kvm_cpu_context *cntx = &vcpu->arch.guest_context;
-	struct kvm_vcpu_reset_state *reset_state = &vcpu->arch.reset_state;
 	void *vector_datap = cntx->vector.datap;
 
 	memset(cntx, 0, sizeof(*cntx));
@@ -65,13 +65,8 @@ static void kvm_riscv_vcpu_context_reset(struct kvm_vcpu *vcpu)
 	/* Restore datap as it's not a part of the guest context. */
 	cntx->vector.datap = vector_datap;
 
-	/* Load SBI reset values */
-	cntx->a0 = vcpu->vcpu_id;
-
-	spin_lock(&reset_state->lock);
-	cntx->sepc = reset_state->pc;
-	cntx->a1 = reset_state->a1;
-	spin_unlock(&reset_state->lock);
+	if (kvm_sbi_reset)
+		kvm_riscv_vcpu_sbi_load_reset_state(vcpu);
 
 	/* Setup reset state of shadow SSTATUS and HSTATUS CSRs */
 	cntx->sstatus = SR_SPP | SR_SPIE;
@@ -81,7 +76,7 @@ static void kvm_riscv_vcpu_context_reset(struct kvm_vcpu *vcpu)
 	cntx->hstatus |= HSTATUS_SPV;
 }
 
-static void kvm_riscv_reset_vcpu(struct kvm_vcpu *vcpu)
+static void kvm_riscv_reset_vcpu(struct kvm_vcpu *vcpu, bool kvm_sbi_reset)
 {
 	bool loaded;
 
@@ -97,7 +92,7 @@ static void kvm_riscv_reset_vcpu(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.last_exit_cpu = -1;
 
-	kvm_riscv_vcpu_context_reset(vcpu);
+	kvm_riscv_vcpu_context_reset(vcpu, kvm_sbi_reset);
 
 	kvm_riscv_vcpu_fp_reset(vcpu);
 
@@ -174,7 +169,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	kvm_riscv_vcpu_sbi_init(vcpu);
 
 	/* Reset VCPU */
-	kvm_riscv_reset_vcpu(vcpu);
+	kvm_riscv_reset_vcpu(vcpu, false);
 
 	return 0;
 }
@@ -523,6 +518,12 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	case KVM_MP_STATE_STOPPED:
 		__kvm_riscv_vcpu_power_off(vcpu);
 		break;
+	case KVM_MP_STATE_INIT_RECEIVED:
+		if (vcpu->kvm->arch.mp_state_reset)
+			kvm_riscv_reset_vcpu(vcpu, false);
+		else
+			ret = -EINVAL;
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -711,7 +712,7 @@ static void kvm_riscv_check_vcpu_requests(struct kvm_vcpu *vcpu)
 		}
 
 		if (kvm_check_request(KVM_REQ_VCPU_RESET, vcpu))
-			kvm_riscv_reset_vcpu(vcpu);
+			kvm_riscv_reset_vcpu(vcpu, true);
 
 		if (kvm_check_request(KVM_REQ_UPDATE_HGATP, vcpu))
 			kvm_riscv_gstage_update_hgatp(vcpu);

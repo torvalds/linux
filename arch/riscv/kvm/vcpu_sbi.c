@@ -167,6 +167,23 @@ void kvm_riscv_vcpu_sbi_request_reset(struct kvm_vcpu *vcpu,
 	kvm_make_request(KVM_REQ_VCPU_RESET, vcpu);
 }
 
+void kvm_riscv_vcpu_sbi_load_reset_state(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_csr *csr = &vcpu->arch.guest_csr;
+	struct kvm_cpu_context *cntx = &vcpu->arch.guest_context;
+	struct kvm_vcpu_reset_state *reset_state = &vcpu->arch.reset_state;
+
+	cntx->a0 = vcpu->vcpu_id;
+
+	spin_lock(&vcpu->arch.reset_state.lock);
+	cntx->sepc = reset_state->pc;
+	cntx->a1 = reset_state->a1;
+	spin_unlock(&vcpu->arch.reset_state.lock);
+
+	cntx->sstatus &= ~SR_SIE;
+	csr->vsatp = 0;
+}
+
 int kvm_riscv_vcpu_sbi_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	struct kvm_cpu_context *cp = &vcpu->arch.guest_context;
