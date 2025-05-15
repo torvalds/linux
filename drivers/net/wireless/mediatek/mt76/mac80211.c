@@ -449,8 +449,10 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_AIRTIME_FAIRNESS);
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_AQL);
 
-	wiphy->available_antennas_tx = phy->antenna_mask;
-	wiphy->available_antennas_rx = phy->antenna_mask;
+	if (!wiphy->available_antennas_tx)
+		wiphy->available_antennas_tx = phy->antenna_mask;
+	if (!wiphy->available_antennas_rx)
+		wiphy->available_antennas_rx = phy->antenna_mask;
 
 	wiphy->sar_capa = &mt76_sar_capa;
 	phy->frp = devm_kcalloc(dev->dev, wiphy->sar_capa->num_freq_ranges,
