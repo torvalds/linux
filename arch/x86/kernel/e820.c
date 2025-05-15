@@ -188,7 +188,7 @@ void __init e820__range_add(u64 start, u64 size, enum e820_type type)
 static void __init e820_print_type(enum e820_type type)
 {
 	switch (type) {
-	case E820_TYPE_RAM:		pr_cont(" usable");			break;
+	case E820_TYPE_RAM:		pr_cont(" System RAM");			break;
 	case E820_TYPE_RESERVED:	pr_cont(" reserved");			break;
 	case E820_TYPE_SOFT_RESERVED:	pr_cont(" soft reserved");		break;
 	case E820_TYPE_ACPI:		pr_cont(" ACPI data");			break;
