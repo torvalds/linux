@@ -224,8 +224,12 @@ CONTENTION OPTIONS
 	only with -b/--use-bpf.
 
 	The 'time' is specified in nsec but it can have a unit suffix.  Available
-	units are "ms" and "us".  Note that it will busy-wait after it gets the
-	lock.  Please use it at your own risk.
+	units are "ms", "us" and "ns".  Currently it accepts up to 10ms of delays
+	for safety reasons.
+
+	Note that it will busy-wait after it gets the lock. Delaying locks can
+	have significant consequences including potential kernel crashes.  Please
+	use it at your own risk.
 
 
 SEE ALSO

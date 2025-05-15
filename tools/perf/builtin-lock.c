@@ -2537,6 +2537,11 @@ static bool add_lock_delay(char *spec)
 		return false;
 	}
 
+	if (duration > 10 * 1000 * 1000) {
+		pr_err("lock delay is too long: %s (> 10ms)\n", spec);
+		return false;
+	}
+
 	tmp = realloc(delays, (nr_delays + 1) * sizeof(*delays));
 	if (tmp == NULL) {
 		pr_err("Memory allocation failure\n");
