@@ -511,6 +511,8 @@ static int shash_prepare_alg(struct shash_alg *alg)
 	if (alg->statesize > HASH_MAX_STATESIZE)
 		return -EINVAL;
 
+	base->cra_reqsize = sizeof(struct shash_desc) + alg->descsize;
+
 	return 0;
 }
 
