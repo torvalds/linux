@@ -133,6 +133,32 @@ TRACE_EVENT(otx2_msg_status,
 		      __get_str(str), __entry->num_msgs)
 );
 
+TRACE_EVENT(otx2_parse_dump,
+	    TP_PROTO(const struct pci_dev *pdev, char *msg, u64 *word),
+	    TP_ARGS(pdev, msg, word),
+	    TP_STRUCT__entry(__string(dev, pci_name(pdev))
+			     __string(str, msg)
+			     __field(u64, w0)
+			     __field(u64, w1)
+			     __field(u64, w2)
+			     __field(u64, w3)
+			     __field(u64, w4)
+			     __field(u64, w5)
+	    ),
+	    TP_fast_assign(__assign_str(dev);
+			   __assign_str(str);
+			   __entry->w0 = *(word + 0);
+			   __entry->w1 = *(word + 1);
+			   __entry->w2 = *(word + 2);
+			   __entry->w3 = *(word + 3);
+			   __entry->w4 = *(word + 4);
+			   __entry->w5 = *(word + 5);
+	    ),
+	    TP_printk("[%s] nix parse %s W0:%#llx W1:%#llx W2:%#llx W3:%#llx W4:%#llx W5:%#llx\n",
+		      __get_str(dev), __get_str(str), __entry->w0, __entry->w1, __entry->w2,
+		      __entry->w3, __entry->w4, __entry->w5)
+);
+
 #endif /* __RVU_TRACE_H */
 
 #undef TRACE_INCLUDE_PATH

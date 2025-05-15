@@ -335,6 +335,7 @@ static void otx2_rcv_pkt_handler(struct otx2_nic *pfvf,
 	struct nix_rx_parse_s *parse = &cqe->parse;
 	struct nix_rx_sg_s *sg = &cqe->sg;
 	struct sk_buff *skb = NULL;
+	u64 *word = (u64 *)parse;
 	void *end, *start;
 	u32 metasize = 0;
 	u64 *seg_addr;
@@ -342,9 +343,12 @@ static void otx2_rcv_pkt_handler(struct otx2_nic *pfvf,
 	int seg;
 
 	if (unlikely(parse->errlev || parse->errcode)) {
-		if (otx2_check_rcv_errors(pfvf, cqe, cq->cq_idx))
+		if (otx2_check_rcv_errors(pfvf, cqe, cq->cq_idx)) {
+			trace_otx2_parse_dump(pfvf->pdev, "Err:", word);
 			return;
+		}
 	}
+	trace_otx2_parse_dump(pfvf->pdev, "", word);
 
 	if (pfvf->xdp_prog)
 		if (otx2_xdp_rcv_pkt_handler(pfvf, pfvf->xdp_prog, cqe, cq,
