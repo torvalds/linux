@@ -324,7 +324,7 @@
 			interrupts = <48>;
 		};
 
-		sdhc@d800a000 {
+		mmc@d800a000 {
 			compatible = "wm,wm8505-sdhc";
 			reg = <0xd800a000 0x1000>;
 			interrupts = <20 21>;
