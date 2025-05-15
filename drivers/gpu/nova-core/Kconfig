@@ -1,9 +1,9 @@
 config NOVA_CORE
 	tristate "Nova Core GPU driver"
-	depends on AUXILIARY_BUS
 	depends on PCI
 	depends on RUST
 	depends on RUST_FW_LOADER_ABSTRACTIONS
+	select AUXILIARY_BUS
 	default n
 	help
 	  Choose this if you want to build the Nova Core driver for Nvidia
