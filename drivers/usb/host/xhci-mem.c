@@ -484,6 +484,35 @@ void xhci_free_container_ctx(struct xhci_hcd *xhci,
 	kfree(ctx);
 }
 
+struct xhci_container_ctx *xhci_alloc_port_bw_ctx(struct xhci_hcd *xhci,
+						  gfp_t flags)
+{
+	struct xhci_container_ctx *ctx;
+	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
+
+	ctx = kzalloc_node(sizeof(*ctx), flags, dev_to_node(dev));
+	if (!ctx)
+		return NULL;
+
+	ctx->size = GET_PORT_BW_ARRAY_SIZE;
+
+	ctx->bytes = dma_pool_zalloc(xhci->port_bw_pool, flags, &ctx->dma);
+	if (!ctx->bytes) {
+		kfree(ctx);
+		return NULL;
+	}
+	return ctx;
+}
+
+void xhci_free_port_bw_ctx(struct xhci_hcd *xhci,
+			     struct xhci_container_ctx *ctx)
+{
+	if (!ctx)
+		return;
+	dma_pool_free(xhci->port_bw_pool, ctx->bytes, ctx->dma);
+	kfree(ctx);
+}
+
 struct xhci_input_control_ctx *xhci_get_input_control_ctx(
 					      struct xhci_container_ctx *ctx)
 {
@@ -1912,6 +1941,11 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"Freed small stream array pool");
 
+	dma_pool_destroy(xhci->port_bw_pool);
+	xhci->port_bw_pool = NULL;
+	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
+			"Freed xhci port bw array pool");
+
 	dma_pool_destroy(xhci->medium_streams_pool);
 	xhci->medium_streams_pool = NULL;
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
@@ -2475,7 +2509,16 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	 * will be allocated with dma_alloc_coherent()
 	 */
 
-	if (!xhci->small_streams_pool || !xhci->medium_streams_pool)
+	/* refer to xhci rev1_2 protocol 5.3.3 max ports is 255.
+	 * refer to xhci rev1_2 protocol 6.4.3.14 port bandwidth buffer need
+	 * to be 16-byte aligned.
+	 */
+	xhci->port_bw_pool =
+		dma_pool_create("xHCI 256 port bw ctx arrays",
+			dev, GET_PORT_BW_ARRAY_SIZE, 16, 0);
+
+	if (!xhci->small_streams_pool || !xhci->medium_streams_pool ||
+		!xhci->port_bw_pool)
 		goto fail;
 
 	/* Set up the command ring to have one segments for now. */
