@@ -2419,7 +2419,6 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	struct xhci_interrupter *ir;
 	struct device	*dev = xhci_to_hcd(xhci)->self.sysdev;
 	dma_addr_t	dma;
-	unsigned int	val;
 	u32		temp;
 
 	/*
@@ -2495,13 +2494,6 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	 * disabling LPM, we only need to reserve one TRB for all devices.
 	 */
 	xhci->cmd_ring_reserved_trbs++;
-
-	val = readl(&xhci->cap_regs->db_off);
-	val &= DBOFF_MASK;
-	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-		       "// Doorbell array is located at offset 0x%x from cap regs base addr",
-		       val);
-	xhci->dba = (void __iomem *) xhci->cap_regs + val;
 
 	/* Allocate and set up primary interrupter 0 with an event ring. */
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,

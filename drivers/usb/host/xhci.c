@@ -514,6 +514,16 @@ static void xhci_set_cmd_ring_deq(struct xhci_hcd *xhci)
 	xhci_write_64(xhci, crcr, &xhci->op_regs->cmd_ring);
 }
 
+static void xhci_set_doorbell_ptr(struct xhci_hcd *xhci)
+{
+	u32 offset;
+
+	offset = readl(&xhci->cap_regs->db_off) & DBOFF_MASK;
+	xhci->dba = (void __iomem *)xhci->cap_regs + offset;
+	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
+		       "Doorbell array is located at offset 0x%x from cap regs base addr", offset);
+}
+
 /*
  * Initialize memory for HCD and xHC (one-time init).
  *
@@ -547,6 +557,9 @@ static int xhci_init(struct usb_hcd *hcd)
 
 	/* Set Device Context Base Address Array pointer */
 	xhci_write_64(xhci, xhci->dcbaa->dma, &xhci->op_regs->dcbaa_ptr);
+
+	/* Set Doorbell array pointer */
+	xhci_set_doorbell_ptr(xhci);
 
 	/* Initializing Compliance Mode Recovery Data If Needed */
 	if (xhci_compliance_mode_recovery_timer_quirk_check()) {
