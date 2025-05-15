@@ -697,7 +697,7 @@ void elv_update_nr_hw_queues(struct request_queue *q)
 	WARN_ON_ONCE(q->mq_freeze_depth == 0);
 
 	mutex_lock(&q->elevator_lock);
-	if (q->elevator && !blk_queue_dying(q) && !blk_queue_registered(q)) {
+	if (q->elevator && !blk_queue_dying(q) && blk_queue_registered(q)) {
 		ctx.name = q->elevator->type->elevator_name;
 
 		/* force to reattach elevator after nr_hw_queue is updated */
