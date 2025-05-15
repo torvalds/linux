@@ -56,8 +56,8 @@
  * users of a PLL are tracked and that tracking is integrated with the atomic
  * modset interface. During an atomic operation, required PLLs can be reserved
  * for a given CRTC and encoder configuration by calling
- * intel_reserve_dplls() and previously reserved PLLs can be released
- * with intel_release_dplls().
+ * intel_dpll_reserve() and previously reserved PLLs can be released
+ * with intel_dpll_release().
  * Changes to the users are first staged in the atomic state, and then made
  * effective by calling intel_dpll_swap_state() during the atomic
  * commit phase.
@@ -4388,7 +4388,7 @@ int intel_compute_dplls(struct intel_atomic_state *state,
 }
 
 /**
- * intel_reserve_dplls - reserve DPLLs for CRTC and encoder combination
+ * intel_dpll_reserve - reserve DPLLs for CRTC and encoder combination
  * @state: atomic state
  * @crtc: CRTC to reserve DPLLs for
  * @encoder: encoder
@@ -4401,15 +4401,15 @@ int intel_compute_dplls(struct intel_atomic_state *state,
  * calling intel_dpll_swap_state().
  *
  * The reserved DPLLs should be released by calling
- * intel_release_dplls().
+ * intel_dpll_release().
  *
  * Returns:
  * 0 if all required DPLLs were successfully reserved,
  * negative error code otherwise.
  */
-int intel_reserve_dplls(struct intel_atomic_state *state,
-			struct intel_crtc *crtc,
-			struct intel_encoder *encoder)
+int intel_dpll_reserve(struct intel_atomic_state *state,
+		       struct intel_crtc *crtc,
+		       struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(state);
 	const struct intel_dpll_mgr *dpll_mgr = display->dpll.mgr;
@@ -4421,18 +4421,18 @@ int intel_reserve_dplls(struct intel_atomic_state *state,
 }
 
 /**
- * intel_release_dplls - end use of DPLLs by CRTC in atomic state
+ * intel_dpll_release - end use of DPLLs by CRTC in atomic state
  * @state: atomic state
  * @crtc: crtc from which the DPLLs are to be released
  *
- * This function releases all DPLLs reserved by intel_reserve_dplls()
+ * This function releases all DPLLs reserved by intel_dpll_reserve()
  * from the current atomic commit @state and the old @crtc atomic state.
  *
  * The new configuration in the atomic commit @state is made effective by
  * calling intel_dpll_swap_state().
  */
-void intel_release_dplls(struct intel_atomic_state *state,
-			 struct intel_crtc *crtc)
+void intel_dpll_release(struct intel_atomic_state *state,
+			struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(state);
 	const struct intel_dpll_mgr *dpll_mgr = display->dpll.mgr;
@@ -4440,7 +4440,7 @@ void intel_release_dplls(struct intel_atomic_state *state,
 	/*
 	 * FIXME: this function is called for every platform having a
 	 * compute_clock hook, even though the platform doesn't yet support
-	 * the DPLL framework and intel_reserve_dplls() is not
+	 * the DPLL framework and intel_dpll_reserve() is not
 	 * called on those.
 	 */
 	if (!dpll_mgr)
@@ -4456,7 +4456,7 @@ void intel_release_dplls(struct intel_atomic_state *state,
  * @encoder: encoder determining the type of port DPLL
  *
  * Update the active DPLL for the given @crtc/@encoder in @crtc's atomic state,
- * from the port DPLLs reserved previously by intel_reserve_dplls(). The
+ * from the port DPLLs reserved previously by intel_dpll_reserve(). The
  * DPLL selected will be based on the current mode of the encoder's port.
  */
 void intel_update_active_dpll(struct intel_atomic_state *state,

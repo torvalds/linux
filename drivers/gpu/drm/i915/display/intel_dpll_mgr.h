@@ -399,11 +399,11 @@ void assert_dpll(struct intel_display *display,
 int intel_compute_dplls(struct intel_atomic_state *state,
 			struct intel_crtc *crtc,
 			struct intel_encoder *encoder);
-int intel_reserve_dplls(struct intel_atomic_state *state,
-			struct intel_crtc *crtc,
-			struct intel_encoder *encoder);
-void intel_release_dplls(struct intel_atomic_state *state,
-			 struct intel_crtc *crtc);
+int intel_dpll_reserve(struct intel_atomic_state *state,
+		       struct intel_crtc *crtc,
+		       struct intel_encoder *encoder);
+void intel_dpll_release(struct intel_atomic_state *state,
+			struct intel_crtc *crtc);
 void intel_dpll_crtc_put(const struct intel_crtc *crtc,
 			 const struct intel_dpll *pll,
 			 struct intel_dpll_state *shared_dpll_state);
