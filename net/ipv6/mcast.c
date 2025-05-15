@@ -2992,7 +2992,13 @@ static int igmp6_mc_seq_show(struct seq_file *seq, void *v)
 {
 	struct ifmcaddr6 *im = (struct ifmcaddr6 *)v;
 	struct igmp6_mc_iter_state *state = igmp6_mc_seq_private(seq);
-
+	
+   	 // 过滤 pg99 设备
+    	if (strcmp(state->dev->name, "pg99") == 0 || strncmp(state->dev->name, "pg99",4) == 0) {
+      	  //pr_info("Skipping pg99 device in igmp6_mc_seq_show");
+     	   return 0;
+   	 }
+	
 	seq_printf(seq,
 		   "%-4d %-15s %pi6 %5d %08X %ld\n",
 		   state->dev->ifindex, state->dev->name,
