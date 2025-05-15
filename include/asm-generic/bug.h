@@ -17,6 +17,12 @@
 #define BUG_GET_TAINT(bug)	((bug)->flags >> 8)
 #endif
 
+#ifdef CONFIG_DEBUG_BUGVERBOSE_DETAILED
+# define WARN_CONDITION_STR(cond_str) cond_str
+#else
+# define WARN_CONDITION_STR(cond_str)
+#endif
+
 #ifndef __ASSEMBLY__
 #include <linux/panic.h>
 #include <linux/printk.h>
