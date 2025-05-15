@@ -8,8 +8,8 @@
 #ifndef _CRYPTO_HASH_H
 #define _CRYPTO_HASH_H
 
-#include <linux/atomic.h>
 #include <linux/crypto.h>
+#include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 
@@ -64,6 +64,10 @@ struct ahash_request {
 		const u8 *svirt;
 	};
 	u8 *result;
+
+	struct scatterlist sg_head[2];
+	crypto_completion_t saved_complete;
+	void *saved_data;
 
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
@@ -488,7 +492,11 @@ int crypto_ahash_finup(struct ahash_request *req);
  * -EBUSY	if queue is full and request should be resubmitted later;
  * other < 0	if an error occurred
  */
-int crypto_ahash_final(struct ahash_request *req);
+static inline int crypto_ahash_final(struct ahash_request *req)
+{
+	req->nbytes = 0;
+	return crypto_ahash_finup(req);
+}
 
 /**
  * crypto_ahash_digest() - calculate message digest for a buffer
