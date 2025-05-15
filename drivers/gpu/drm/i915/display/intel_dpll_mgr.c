@@ -412,7 +412,7 @@ intel_find_dpll(struct intel_atomic_state *state,
 }
 
 /**
- * intel_reference_dpll_crtc - Get a DPLL reference for a CRTC
+ * intel_dpll_crtc_get - Get a DPLL reference for a CRTC
  * @crtc: CRTC on which behalf the reference is taken
  * @pll: DPLL for which the reference is taken
  * @dpll_state: the DPLL atomic state in which the reference is tracked
@@ -420,9 +420,9 @@ intel_find_dpll(struct intel_atomic_state *state,
  * Take a reference for @pll tracking the use of it by @crtc.
  */
 static void
-intel_reference_dpll_crtc(const struct intel_crtc *crtc,
-			  const struct intel_dpll *pll,
-			  struct intel_dpll_state *dpll_state)
+intel_dpll_crtc_get(const struct intel_crtc *crtc,
+		    const struct intel_dpll *pll,
+		    struct intel_dpll_state *dpll_state)
 {
 	struct intel_display *display = to_intel_display(crtc);
 
@@ -447,7 +447,7 @@ intel_reference_dpll(struct intel_atomic_state *state,
 	if (dpll_state[pll->index].pipe_mask == 0)
 		dpll_state[pll->index].hw_state = *dpll_hw_state;
 
-	intel_reference_dpll_crtc(crtc, pll, &dpll_state[pll->index]);
+	intel_dpll_crtc_get(crtc, pll, &dpll_state[pll->index]);
 }
 
 /**
@@ -4521,7 +4521,7 @@ static void readout_dpll_hw_state(struct intel_display *display,
 			to_intel_crtc_state(crtc->base.state);
 
 		if (crtc_state->hw.active && crtc_state->intel_dpll == pll)
-			intel_reference_dpll_crtc(crtc, pll, &pll->state);
+			intel_dpll_crtc_get(crtc, pll, &pll->state);
 	}
 	pll->active_mask = pll->state.pipe_mask;
 
