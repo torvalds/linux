@@ -14,6 +14,17 @@ static DEFINE_PER_CPU(raw_spinlock_t, rstat_base_cpu_lock);
 
 static void cgroup_base_stat_flush(struct cgroup *cgrp, int cpu);
 
+/*
+ * Determines whether a given css can participate in rstat.
+ * css's that are cgroup::self use rstat for base stats.
+ * Other css's associated with a subsystem use rstat only when
+ * they define the ss->css_rstat_flush callback.
+ */
+static inline bool css_uses_rstat(struct cgroup_subsys_state *css)
+{
+	return css_is_self(css) || css->ss->css_rstat_flush != NULL;
+}
+
 static struct css_rstat_cpu *css_rstat_cpu(
 		struct cgroup_subsys_state *css, int cpu)
 {
@@ -119,7 +130,7 @@ __bpf_kfunc void css_rstat_updated(struct cgroup_subsys_state *css, int cpu)
 	 * Since bpf programs can call this function, prevent access to
 	 * uninitialized rstat pointers.
 	 */
-	if (!css_is_self(css) && css->ss->css_rstat_flush == NULL)
+	if (!css_uses_rstat(css))
 		return;
 
 	/*
@@ -390,7 +401,7 @@ __bpf_kfunc void css_rstat_flush(struct cgroup_subsys_state *css)
 	 * Since bpf programs can call this function, prevent access to
 	 * uninitialized rstat pointers.
 	 */
-	if (!is_self && css->ss->css_rstat_flush == NULL)
+	if (!css_uses_rstat(css))
 		return;
 
 	might_sleep();
@@ -462,7 +473,7 @@ void css_rstat_exit(struct cgroup_subsys_state *css)
 {
 	int cpu;
 
-	if (!css_is_self(css) && css->ss->css_rstat_flush == NULL)
+	if (!css_uses_rstat(css))
 		return;
 
 	css_rstat_flush(css);
