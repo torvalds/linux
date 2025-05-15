@@ -548,7 +548,7 @@ __init u64 e820__range_update_table(struct e820_table *t, u64 start, u64 size,
 }
 
 /* Remove a range of memory from the E820 table: */
-__init void e820__range_remove(u64 start, u64 size, enum e820_type old_type, bool check_type)
+__init void e820__range_remove(u64 start, u64 size, enum e820_type filter_type)
 {
 	u32 idx;
 	u64 end;
@@ -558,8 +558,8 @@ __init void e820__range_remove(u64 start, u64 size, enum e820_type old_type, boo
 
 	end = start + size;
 	printk(KERN_DEBUG "e820: remove [mem %#010Lx-%#010Lx]", start, end - 1);
-	if (check_type)
-		e820_print_type(old_type);
+	if (filter_type)
+		e820_print_type(filter_type);
 	pr_cont("\n");
 
 	for (idx = 0; idx < e820_table->nr_entries; idx++) {
@@ -567,7 +567,7 @@ __init void e820__range_remove(u64 start, u64 size, enum e820_type old_type, boo
 		u64 final_start, final_end;
 		u64 entry_end;
 
-		if (check_type && entry->type != old_type)
+		if (filter_type && entry->type != filter_type)
 			continue;
 
 		entry_end = entry->addr + entry->size;
@@ -903,7 +903,7 @@ __init static int parse_memopt(char *p)
 	if (mem_size == 0)
 		return -EINVAL;
 
-	e820__range_remove(mem_size, ULLONG_MAX - mem_size, E820_TYPE_RAM, 1);
+	e820__range_remove(mem_size, ULLONG_MAX - mem_size, E820_TYPE_RAM);
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 	max_mem_size = mem_size;
@@ -959,12 +959,10 @@ __init static int parse_memmap_one(char *p)
 			e820__range_update(start_at, mem_size, from, to);
 		else if (to)
 			e820__range_add(start_at, mem_size, to);
-		else if (from)
-			e820__range_remove(start_at, mem_size, from, 1);
 		else
-			e820__range_remove(start_at, mem_size, 0, 0);
+			e820__range_remove(start_at, mem_size, from);
 	} else {
-		e820__range_remove(mem_size, ULLONG_MAX - mem_size, E820_TYPE_RAM, 1);
+		e820__range_remove(mem_size, ULLONG_MAX - mem_size, E820_TYPE_RAM);
 	}
 
 	return *p == '\0' ? 0 : -EINVAL;

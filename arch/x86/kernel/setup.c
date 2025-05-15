@@ -763,7 +763,7 @@ static void __init trim_bios_range(void)
 	 * area (640Kb -> 1Mb) as RAM even though it is not.
 	 * take them out.
 	 */
-	e820__range_remove(BIOS_BEGIN, BIOS_END - BIOS_BEGIN, E820_TYPE_RAM, 1);
+	e820__range_remove(BIOS_BEGIN, BIOS_END - BIOS_BEGIN, E820_TYPE_RAM);
 
 	e820__update_table(e820_table);
 }
@@ -785,7 +785,7 @@ static void __init e820_add_kernel_range(void)
 		return;
 
 	pr_warn(".text .data .bss are not marked as E820_TYPE_RAM!\n");
-	e820__range_remove(start, size, E820_TYPE_RAM, 0);
+	e820__range_remove(start, size, 0);
 	e820__range_add(start, size, E820_TYPE_RAM);
 }
 
