@@ -60,7 +60,12 @@ class Type(SpecAttr):
             self.len = attr['len']
 
         if 'nested-attributes' in attr:
-            self.nested_attrs = attr['nested-attributes']
+            nested = attr['nested-attributes']
+        else:
+            nested = None
+
+        if nested:
+            self.nested_attrs = nested
             if self.nested_attrs == family.name:
                 self.nested_render_name = c_lower(f"{family.ident_name}")
             else:
@@ -1225,15 +1230,18 @@ class Family(SpecFamily):
             for _, spec in self.attr_sets[name].items():
                 if 'nested-attributes' in spec:
                     nested = spec['nested-attributes']
-                    # If the unknown nest we hit is recursive it's fine, it'll be a pointer
-                    if self.pure_nested_structs[nested].recursive:
-                        continue
-                    if nested not in pns_key_seen:
-                        # Dicts are sorted, this will make struct last
-                        struct = self.pure_nested_structs.pop(name)
-                        self.pure_nested_structs[name] = struct
-                        finished = False
-                        break
+                else:
+                    continue
+
+                # If the unknown nest we hit is recursive it's fine, it'll be a pointer
+                if self.pure_nested_structs[nested].recursive:
+                    continue
+                if nested not in pns_key_seen:
+                    # Dicts are sorted, this will make struct last
+                    struct = self.pure_nested_structs.pop(name)
+                    self.pure_nested_structs[name] = struct
+                    finished = False
+                    break
             if finished:
                 pns_key_seen.add(name)
             else:
@@ -1278,10 +1286,15 @@ class Family(SpecFamily):
             for attr, spec in self.attr_sets[root_set].items():
                 if 'nested-attributes' in spec:
                     nested = spec['nested-attributes']
+                else:
+                    nested = None
+
+                if nested:
                     if attr in rs_members['request']:
                         self.pure_nested_structs[nested].request = True
                     if attr in rs_members['reply']:
                         self.pure_nested_structs[nested].reply = True
+
                     if spec.is_multi_val():
                         child = self.pure_nested_structs.get(nested)
                         child.in_multi_val = True
@@ -1291,19 +1304,23 @@ class Family(SpecFamily):
         # Propagate the request / reply / recursive
         for attr_set, struct in reversed(self.pure_nested_structs.items()):
             for _, spec in self.attr_sets[attr_set].items():
-                if 'nested-attributes' in spec:
-                    child_name = spec['nested-attributes']
-                    struct.child_nests.add(child_name)
-                    child = self.pure_nested_structs.get(child_name)
-                    if child:
-                        if not child.recursive:
-                            struct.child_nests.update(child.child_nests)
-                        child.request |= struct.request
-                        child.reply |= struct.reply
-                        if spec.is_multi_val():
-                            child.in_multi_val = True
                 if attr_set in struct.child_nests:
                     struct.recursive = True
+
+                if 'nested-attributes' in spec:
+                    child_name = spec['nested-attributes']
+                else:
+                    continue
+
+                struct.child_nests.add(child_name)
+                child = self.pure_nested_structs.get(child_name)
+                if child:
+                    if not child.recursive:
+                        struct.child_nests.update(child.child_nests)
+                    child.request |= struct.request
+                    child.reply |= struct.reply
+                    if spec.is_multi_val():
+                        child.in_multi_val = True
 
         self._sort_pure_types()
 
@@ -3307,8 +3324,7 @@ def main():
                     has_recursive_nests = True
             if has_recursive_nests:
                 cw.nl()
-            for name in parsed.pure_nested_structs:
-                struct = Struct(parsed, name)
+            for struct in parsed.pure_nested_structs.values():
                 put_typol(cw, struct)
             for name in parsed.root_sets:
                 struct = Struct(parsed, name)
