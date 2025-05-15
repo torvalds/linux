@@ -205,12 +205,14 @@ void __init e820__print_table(char *who)
 	int i;
 
 	for (i = 0; i < e820_table->nr_entries; i++) {
+		struct e820_entry *entry = e820_table->entries + i;
+
 		pr_info("%s: [mem %#018Lx-%#018Lx] ",
 			who,
-			e820_table->entries[i].addr,
-			e820_table->entries[i].addr + e820_table->entries[i].size - 1);
+			entry->addr,
+			entry->addr + entry->size-1);
 
-		e820_print_type(e820_table->entries[i].type);
+		e820_print_type(entry->type);
 		pr_cont("\n");
 	}
 }
