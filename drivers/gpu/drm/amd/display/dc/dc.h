@@ -819,6 +819,7 @@ enum pg_hw_resources {
 	PG_DCHVM,
 	PG_DWB,
 	PG_HPO,
+	PG_DCOH,
 	PG_HW_RESOURCES_NUM_ELEMENT
 };
 
@@ -962,6 +963,9 @@ struct dc_debug_options {
 	bool disable_dsc_power_gate;
 	bool disable_optc_power_gate;
 	bool disable_hpo_power_gate;
+	bool disable_io_clk_power_gate;
+	bool disable_mem_power_gate;
+	bool disable_dio_power_gate;
 	int dsc_min_slice_height_override;
 	int dsc_bpp_increment_div;
 	bool disable_pplib_wm_range;
