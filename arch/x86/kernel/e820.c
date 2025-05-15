@@ -188,15 +188,15 @@ void __init e820__range_add(u64 start, u64 size, enum e820_type type)
 static void __init e820_print_type(enum e820_type type)
 {
 	switch (type) {
-	case E820_TYPE_RAM:		pr_cont(" System RAM");			break;
-	case E820_TYPE_RESERVED:	pr_cont(" reserved");			break;
-	case E820_TYPE_SOFT_RESERVED:	pr_cont(" soft reserved");		break;
-	case E820_TYPE_ACPI:		pr_cont(" ACPI data");			break;
-	case E820_TYPE_NVS:		pr_cont(" ACPI NVS");			break;
-	case E820_TYPE_UNUSABLE:	pr_cont(" unusable");			break;
+	case E820_TYPE_RAM:		pr_cont(" System RAM");				break;
+	case E820_TYPE_RESERVED:	pr_cont(" device reserved");			break;
+	case E820_TYPE_SOFT_RESERVED:	pr_cont(" soft reserved");			break;
+	case E820_TYPE_ACPI:		pr_cont(" ACPI data");				break;
+	case E820_TYPE_NVS:		pr_cont(" ACPI NVS");				break;
+	case E820_TYPE_UNUSABLE:	pr_cont(" unusable");				break;
 	case E820_TYPE_PMEM:		/* Fall through: */
-	case E820_TYPE_PRAM:		pr_cont(" persistent (type %u)", type);	break;
-	default:			pr_cont(" type %u", type);		break;
+	case E820_TYPE_PRAM:		pr_cont(" persistent RAM (type %u)", type);	break;
+	default:			pr_cont(" type %u", type);			break;
 	}
 }
 
