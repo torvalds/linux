@@ -9,12 +9,9 @@
  *   $(CC) -nostdlib -I/path/to/nolibc/sysroot  => _NOLIBC_* guards are present
  *   $(CC) with default libc                    => NOLIBC* never defined
  */
-#ifndef NOLIBC
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _NOLIBC_STDIO_H
-/* standard libcs need more includes */
 #include <sys/auxv.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -43,8 +40,6 @@
 #include <unistd.h>
 #include <limits.h>
 #include <ctype.h>
-#endif
-#endif
 
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
