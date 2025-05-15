@@ -1150,13 +1150,12 @@ static int check_inode(struct btree_trans *trans,
 			goto err;
 	}
 
-	if (fsck_err_on(u.bi_hash_seed		!= snapshot_root->bi_hash_seed ||
-			INODE_STR_HASH(&u)	!= INODE_STR_HASH(snapshot_root),
-			trans, inode_snapshot_mismatch,
-			"inode hash info in different snapshots don't match")) {
-		u.bi_hash_seed = snapshot_root->bi_hash_seed;
-		SET_INODE_STR_HASH(&u, INODE_STR_HASH(snapshot_root));
-		do_update = true;
+	if (u.bi_hash_seed	!= snapshot_root->bi_hash_seed ||
+	    INODE_STR_HASH(&u)	!= INODE_STR_HASH(snapshot_root)) {
+		ret = bch2_repair_inode_hash_info(trans, snapshot_root);
+		BUG_ON(ret == -BCH_ERR_fsck_repair_unimplemented);
+		if (ret)
+			goto err;
 	}
 
 	if (u.bi_dir || u.bi_dir_offset) {
