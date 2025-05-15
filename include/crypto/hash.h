@@ -185,7 +185,8 @@ struct shash_desc {
  * containing a 'struct s390_sha_ctx'.
  */
 #define HASH_MAX_DESCSIZE	(sizeof(struct shash_desc) + 360)
-#define MAX_SYNC_HASH_REQSIZE	HASH_MAX_DESCSIZE
+#define MAX_SYNC_HASH_REQSIZE	(sizeof(struct ahash_request) + \
+				 HASH_MAX_DESCSIZE)
 
 #define SHASH_DESC_ON_STACK(shash, ctx)					     \
 	char __##shash##_desc[sizeof(struct shash_desc) + HASH_MAX_DESCSIZE] \

@@ -846,7 +846,7 @@ int crypto_has_ahash(const char *alg_name, u32 type, u32 mask)
 }
 EXPORT_SYMBOL_GPL(crypto_has_ahash);
 
-static bool crypto_hash_alg_has_setkey(struct hash_alg_common *halg)
+bool crypto_hash_alg_has_setkey(struct hash_alg_common *halg)
 {
 	struct crypto_alg *alg = &halg->base;
 
@@ -855,6 +855,7 @@ static bool crypto_hash_alg_has_setkey(struct hash_alg_common *halg)
 
 	return __crypto_ahash_alg(alg)->setkey != ahash_nosetkey;
 }
+EXPORT_SYMBOL_GPL(crypto_hash_alg_has_setkey);
 
 struct crypto_ahash *crypto_clone_ahash(struct crypto_ahash *hash)
 {
@@ -1076,6 +1077,13 @@ int crypto_hash_digest(struct crypto_ahash *tfm, const u8 *data,
 	return err;
 }
 EXPORT_SYMBOL_GPL(crypto_hash_digest);
+
+void ahash_free_singlespawn_instance(struct ahash_instance *inst)
+{
+	crypto_drop_spawn(ahash_instance_ctx(inst));
+	kfree(inst);
+}
+EXPORT_SYMBOL_GPL(ahash_free_singlespawn_instance);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Asynchronous cryptographic hash type");
