@@ -2512,17 +2512,6 @@ static void gfx_v12_1_init_golden_registers(struct amdgpu_device *adev)
 {
 	uint32_t val;
 
-	/* Setup the TCP Thrashing control register */
-	val = RREG32_SOC15(GC, 0, regTCP_UTCL0_THRASHING_CTRL);
-
-	val = REG_SET_FIELD(val, TCP_UTCL0_THRASHING_CTRL, THRASHING_EN, 0x2);
-	val = REG_SET_FIELD(val, TCP_UTCL0_THRASHING_CTRL,
-				RETRY_FRAGMENT_THRESHOLD_DOWN_EN, 0x0);
-	val = REG_SET_FIELD(val, TCP_UTCL0_THRASHING_CTRL,
-				RETRY_FRAGMENT_THRESHOLD_UP_EN, 0x0);
-
-	WREG32_SOC15(GC, 0, regTCP_UTCL0_THRASHING_CTRL, val);
-
 	/* Set the TCP UTCL0 register to enable atomics */
 	val = RREG32_SOC15(GC, 0, regTCP_UTCL0_CNTL1);
 	val = REG_SET_FIELD(val, TCP_UTCL0_CNTL1, ATOMIC_REQUESTER_EN, 0x1);
