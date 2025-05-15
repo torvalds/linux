@@ -288,9 +288,8 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	if (err)
 		return err;
 
-	hrtimer_init(&vcpu->arch.comparecount_timer, CLOCK_MONOTONIC,
-		     HRTIMER_MODE_REL);
-	vcpu->arch.comparecount_timer.function = kvm_mips_comparecount_wakeup;
+	hrtimer_setup(&vcpu->arch.comparecount_timer, kvm_mips_comparecount_wakeup, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 
 	/*
 	 * Allocate space for host mode exception handlers that handle

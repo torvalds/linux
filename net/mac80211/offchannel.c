@@ -30,9 +30,9 @@ static void ieee80211_offchannel_ps_enable(struct ieee80211_sub_if_data *sdata)
 
 	/* FIXME: what to do when local->pspolling is true? */
 
-	del_timer_sync(&local->dynamic_ps_timer);
-	del_timer_sync(&ifmgd->bcn_mon_timer);
-	del_timer_sync(&ifmgd->conn_mon_timer);
+	timer_delete_sync(&local->dynamic_ps_timer);
+	timer_delete_sync(&ifmgd->bcn_mon_timer);
+	timer_delete_sync(&ifmgd->conn_mon_timer);
 
 	wiphy_work_cancel(local->hw.wiphy, &local->dynamic_ps_enable_work);
 

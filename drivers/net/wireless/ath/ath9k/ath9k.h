@@ -274,7 +274,6 @@ struct ath_node {
 
 struct ath_tx_control {
 	struct ath_txq *txq;
-	struct ath_node *an;
 	struct ieee80211_sta *sta;
 	u8 paprd;
 };
@@ -1018,7 +1017,7 @@ struct ath_softc {
 
 	u8 gtt_cnt;
 	u32 intrstatus;
-	u32 rx_active_check_time;
+	unsigned long rx_active_check_time;
 	u32 rx_active_count;
 	u16 ps_flags; /* PS_* */
 	bool ps_enabled;

@@ -13,6 +13,7 @@
 #include "sys.h"
 
 /* This one is not marked static as it's needed by libgcc for divide by zero */
+int raise(int signal);
 __attribute__((weak,unused,section(".text.nolibc_raise")))
 int raise(int signal)
 {

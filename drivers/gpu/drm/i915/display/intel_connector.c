@@ -28,6 +28,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"
 #include "intel_backlight.h"
@@ -36,6 +37,44 @@
 #include "intel_display_types.h"
 #include "intel_hdcp.h"
 #include "intel_panel.h"
+
+static void intel_connector_modeset_retry_work_fn(struct work_struct *work)
+{
+	struct intel_connector *connector = container_of(work, typeof(*connector),
+							 modeset_retry_work);
+	struct intel_display *display = to_intel_display(connector);
+
+	drm_dbg_kms(display->drm, "[CONNECTOR:%d:%s]\n", connector->base.base.id,
+		    connector->base.name);
+
+	/* Grab the locks before changing connector property*/
+	mutex_lock(&display->drm->mode_config.mutex);
+	/* Set connector link status to BAD and send a Uevent to notify
+	 * userspace to do a modeset.
+	 */
+	drm_connector_set_link_status_property(&connector->base,
+					       DRM_MODE_LINK_STATUS_BAD);
+	mutex_unlock(&display->drm->mode_config.mutex);
+	/* Send Hotplug uevent so userspace can reprobe */
+	drm_kms_helper_connector_hotplug_event(&connector->base);
+
+	drm_connector_put(&connector->base);
+}
+
+void intel_connector_queue_modeset_retry_work(struct intel_connector *connector)
+{
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+
+	drm_connector_get(&connector->base);
+	if (!queue_work(i915->unordered_wq, &connector->modeset_retry_work))
+		drm_connector_put(&connector->base);
+}
+
+void intel_connector_cancel_modeset_retry_work(struct intel_connector *connector)
+{
+	if (cancel_work_sync(&connector->modeset_retry_work))
+		drm_connector_put(&connector->base);
+}
 
 int intel_connector_init(struct intel_connector *connector)
 {
@@ -55,6 +94,9 @@ int intel_connector_init(struct intel_connector *connector)
 					    &conn_state->base);
 
 	intel_panel_init_alloc(connector);
+
+	INIT_WORK(&connector->modeset_retry_work,
+		  intel_connector_modeset_retry_work_fn);
 
 	return 0;
 }
@@ -103,8 +145,8 @@ void intel_connector_destroy(struct drm_connector *connector)
 
 	drm_connector_cleanup(connector);
 
-	if (intel_connector->port)
-		drm_dp_mst_put_port_malloc(intel_connector->port);
+	if (intel_connector->mst.port)
+		drm_dp_mst_put_port_malloc(intel_connector->mst.port);
 
 	kfree(connector);
 }

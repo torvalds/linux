@@ -27,6 +27,7 @@
 #include "qos.h"
 #include <rvu_trace.h>
 #include "cn10k_ipsec.h"
+#include "otx2_xsk.h"
 
 #define DRV_NAME	"rvu_nicpf"
 #define DRV_STRING	"Marvell RVU NIC Physical Function Driver"
@@ -1662,9 +1663,7 @@ void otx2_free_hw_resources(struct otx2_nic *pf)
 	struct nix_lf_free_req *free_req;
 	struct mbox *mbox = &pf->mbox;
 	struct otx2_cq_queue *cq;
-	struct otx2_pool *pool;
 	struct msg_req *req;
-	int pool_id;
 	int qidx;
 
 	/* Ensure all SQE are processed */
@@ -1704,13 +1703,6 @@ void otx2_free_hw_resources(struct otx2_nic *pf)
 
 	/* Free RQ buffer pointers*/
 	otx2_free_aura_ptr(pf, AURA_NIX_RQ);
-
-	for (qidx = 0; qidx < pf->hw.rx_queues; qidx++) {
-		pool_id = otx2_get_pool_idx(pf, AURA_NIX_RQ, qidx);
-		pool = &pf->qset.pool[pool_id];
-		page_pool_destroy(pool->page_pool);
-		pool->page_pool = NULL;
-	}
 
 	otx2_free_cq_res(pf);
 
@@ -2691,7 +2683,6 @@ static int otx2_get_vf_config(struct net_device *netdev, int vf,
 static int otx2_xdp_xmit_tx(struct otx2_nic *pf, struct xdp_frame *xdpf,
 			    int qidx)
 {
-	struct page *page;
 	u64 dma_addr;
 	int err = 0;
 
@@ -2701,11 +2692,11 @@ static int otx2_xdp_xmit_tx(struct otx2_nic *pf, struct xdp_frame *xdpf,
 	if (dma_mapping_error(pf->dev, dma_addr))
 		return -ENOMEM;
 
-	err = otx2_xdp_sq_append_pkt(pf, dma_addr, xdpf->len, qidx);
+	err = otx2_xdp_sq_append_pkt(pf, xdpf, dma_addr, xdpf->len,
+				     qidx, OTX2_XDP_REDIRECT);
 	if (!err) {
 		otx2_dma_unmap_page(pf, dma_addr, xdpf->len, DMA_TO_DEVICE);
-		page = virt_to_page(xdpf->data);
-		put_page(page);
+		xdp_return_frame(xdpf);
 		return -ENOMEM;
 	}
 	return 0;
@@ -2789,6 +2780,8 @@ static int otx2_xdp(struct net_device *netdev, struct netdev_bpf *xdp)
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return otx2_xdp_setup(pf, xdp->prog);
+	case XDP_SETUP_XSK_POOL:
+		return otx2_xsk_pool_setup(pf, xdp->xsk.pool, xdp->xsk.queue_id);
 	default:
 		return -EINVAL;
 	}
@@ -2866,6 +2859,7 @@ static const struct net_device_ops otx2_netdev_ops = {
 	.ndo_set_vf_vlan	= otx2_set_vf_vlan,
 	.ndo_get_vf_config	= otx2_get_vf_config,
 	.ndo_bpf		= otx2_xdp,
+	.ndo_xsk_wakeup		= otx2_xsk_wakeup,
 	.ndo_xdp_xmit           = otx2_xdp_xmit,
 	.ndo_setup_tc		= otx2_setup_tc,
 	.ndo_set_vf_trust	= otx2_ndo_set_vf_trust,
@@ -3204,16 +3198,28 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Enable link notifications */
 	otx2_cgx_config_linkevents(pf, true);
 
+	pf->af_xdp_zc_qidx = bitmap_zalloc(qcount, GFP_KERNEL);
+	if (!pf->af_xdp_zc_qidx) {
+		err = -ENOMEM;
+		goto err_sriov_cleannup;
+	}
+
 #ifdef CONFIG_DCB
 	err = otx2_dcbnl_set_ops(netdev);
 	if (err)
-		goto err_pf_sriov_init;
+		goto err_free_zc_bmap;
 #endif
 
 	otx2_qos_init(pf, qos_txqs);
 
 	return 0;
 
+#ifdef CONFIG_DCB
+err_free_zc_bmap:
+	bitmap_free(pf->af_xdp_zc_qidx);
+#endif
+err_sriov_cleannup:
+	otx2_sriov_vfcfg_cleanup(pf);
 err_pf_sriov_init:
 	otx2_shutdown_tc(pf);
 err_mcam_flow_del:

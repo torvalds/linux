@@ -1,0 +1,92 @@
+[
+  {
+    "EventName": "EXCEPTION_TAKEN",
+    "EventCode": "0x100",
+    "BriefDescription": "Counts exceptions taken"
+  },
+  {
+    "EventName": "INTEGER_LOAD_RETIRED",
+    "EventCode": "0x200",
+    "BriefDescription": "Counts integer load instructions retired"
+  },
+  {
+    "EventName": "INTEGER_STORE_RETIRED",
+    "EventCode": "0x400",
+    "BriefDescription": "Counts integer store instructions retired"
+  },
+  {
+    "EventName": "ATOMIC_MEMORY_RETIRED",
+    "EventCode": "0x800",
+    "BriefDescription": "Counts atomic memory instructions retired"
+  },
+  {
+    "EventName": "SYSTEM_INSTRUCTION_RETIRED",
+    "EventCode": "0x1000",
+    "BriefDescription": "Counts system instructions retired (CSR, WFI, MRET, etc.)"
+  },
+  {
+    "EventName": "INTEGER_ARITHMETIC_RETIRED",
+    "EventCode": "0x2000",
+    "BriefDescription": "Counts integer arithmetic instructions retired"
+  },
+  {
+    "EventName": "CONDITIONAL_BRANCH_RETIRED",
+    "EventCode": "0x4000",
+    "BriefDescription": "Counts conditional branch instructions retired"
+  },
+  {
+    "EventName": "JAL_INSTRUCTION_RETIRED",
+    "EventCode": "0x8000",
+    "BriefDescription": "Counts jump-and-link instructions retired"
+  },
+  {
+    "EventName": "JALR_INSTRUCTION_RETIRED",
+    "EventCode": "0x10000",
+    "BriefDescription": "Counts indirect jump instructions (JALR) retired"
+  },
+  {
+    "EventName": "INTEGER_MULTIPLICATION_RETIRED",
+    "EventCode": "0x20000",
+    "BriefDescription": "Counts integer multiplication instructions retired"
+  },
+  {
+    "EventName": "INTEGER_DIVISION_RETIRED",
+    "EventCode": "0x40000",
+    "BriefDescription": "Counts integer division instructions retired"
+  },
+  {
+    "EventName": "FP_LOAD_RETIRED",
+    "EventCode": "0x80000",
+    "BriefDescription": "Counts floating-point load instructions retired"
+  },
+  {
+    "EventName": "FP_STORE_RETIRED",
+    "EventCode": "0x100000",
+    "BriefDescription": "Counts floating-point store instructions retired"
+  },
+  {
+    "EventName": "FP_ADD_RETIRED",
+    "EventCode": "0x200000",
+    "BriefDescription": "Counts floating-point add instructions retired"
+  },
+  {
+    "EventName": "FP_MUL_RETIRED",
+    "EventCode": "0x400000",
+    "BriefDescription": "Counts floating-point multiply instructions retired"
+  },
+  {
+    "EventName": "FP_MULADD_RETIRED",
+    "EventCode": "0x800000",
+    "BriefDescription": "Counts floating-point fused multiply-add instructions retired"
+  },
+  {
+    "EventName": "FP_DIV_SQRT_RETIRED",
+    "EventCode": "0x1000000",
+    "BriefDescription": "Counts floating point divide or square root instructions retired"
+  },
+  {
+    "EventName": "OTHER_FP_RETIRED",
+    "EventCode": "0x2000000",
+    "BriefDescription": "Counts other floating-point instructions retired"
+  }
+]

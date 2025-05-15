@@ -25,16 +25,6 @@ static inline void qat_comp_create_req(void *ctx, void *req, u64 src, u32 slen,
 	req_pars->out_buffer_sz = dlen;
 }
 
-static inline void qat_comp_override_dst(void *req, u64 dst, u32 dlen)
-{
-	struct icp_qat_fw_comp_req *fw_req = req;
-	struct icp_qat_fw_comp_req_params *req_pars = &fw_req->comp_pars;
-
-	fw_req->comn_mid.dest_data_addr = dst;
-	fw_req->comn_mid.dst_length = dlen;
-	req_pars->out_buffer_sz = dlen;
-}
-
 static inline void qat_comp_create_compression_req(void *ctx, void *req,
 						   u64 src, u32 slen,
 						   u64 dst, u32 dlen,

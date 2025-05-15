@@ -20,6 +20,7 @@
 #include "xfs_sysfs.h"
 #include "xfs_sb.h"
 #include "xfs_health.h"
+#include "xfs_zone_alloc.h"
 
 struct kmem_cache	*xfs_log_ticket_cache;
 
@@ -2887,7 +2888,7 @@ xlog_force_and_check_iclog(
  *
  *	1. the current iclog is active and has no data; the previous iclog
  *		is in the active or dirty state.
- *	2. the current iclog is drity, and the previous iclog is in the
+ *	2. the current iclog is dirty, and the previous iclog is in the
  *		active or dirty state.
  *
  * We may sleep if:
@@ -3540,6 +3541,9 @@ xlog_force_shutdown(
 	spin_unlock(&log->l_icloglock);
 
 	wake_up_var(&log->l_opstate);
+	if (IS_ENABLED(CONFIG_XFS_RT) && xfs_has_zoned(log->l_mp))
+		xfs_zoned_wake_all(log->l_mp);
+
 	return log_error;
 }
 

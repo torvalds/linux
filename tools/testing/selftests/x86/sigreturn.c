@@ -46,6 +46,8 @@
 #include <sys/ptrace.h>
 #include <sys/user.h>
 
+#include "helpers.h"
+
 /* Pull in AR_xyz defines. */
 typedef unsigned int u32;
 typedef unsigned short u16;
@@ -136,28 +138,6 @@ static unsigned short GDT3(int idx)
 static unsigned short LDT3(int idx)
 {
 	return (idx << 3) | 7;
-}
-
-static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
-		       int flags)
-{
-	struct sigaction sa;
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_sigaction = handler;
-	sa.sa_flags = SA_SIGINFO | flags;
-	sigemptyset(&sa.sa_mask);
-	if (sigaction(sig, &sa, 0))
-		err(1, "sigaction");
-}
-
-static void clearhandler(int sig)
-{
-	struct sigaction sa;
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = SIG_DFL;
-	sigemptyset(&sa.sa_mask);
-	if (sigaction(sig, &sa, 0))
-		err(1, "sigaction");
 }
 
 static void add_ldt(const struct user_desc *desc, unsigned short *var,

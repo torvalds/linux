@@ -1520,7 +1520,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 
 	if (!(mpic->flags & MPIC_SECONDARY)) {
 		mpic_primary = mpic;
-		irq_set_default_host(mpic->irqhost);
+		irq_set_default_domain(mpic->irqhost);
 	}
 
 	return mpic;

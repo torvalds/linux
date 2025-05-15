@@ -40,7 +40,7 @@
  * VLV, CHV and BXT have slightly peculiar display PHYs for driving DP/HDMI
  * ports. DPIO is the name given to such a display PHY. These PHYs
  * don't follow the standard programming model using direct MMIO
- * registers, and instead their registers must be accessed trough IOSF
+ * registers, and instead their registers must be accessed through IOSF
  * sideband. VLV has one such PHY for driving ports B and C, and CHV
  * adds another PHY for driving port D. Each PHY responds to specific
  * IOSF-SB port.
@@ -1155,4 +1155,38 @@ void vlv_phy_reset_lanes(struct intel_encoder *encoder,
 	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW0_GRP(ch), 0x00000000);
 	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW1_GRP(ch), 0x00e00060);
 	vlv_dpio_put(dev_priv);
+}
+
+void vlv_wait_port_ready(struct intel_encoder *encoder,
+			 unsigned int expected_mask)
+{
+	struct intel_display *display = to_intel_display(encoder);
+	u32 port_mask;
+	i915_reg_t dpll_reg;
+
+	switch (encoder->port) {
+	default:
+		MISSING_CASE(encoder->port);
+		fallthrough;
+	case PORT_B:
+		port_mask = DPLL_PORTB_READY_MASK;
+		dpll_reg = DPLL(display, 0);
+		break;
+	case PORT_C:
+		port_mask = DPLL_PORTC_READY_MASK;
+		dpll_reg = DPLL(display, 0);
+		expected_mask <<= 4;
+		break;
+	case PORT_D:
+		port_mask = DPLL_PORTD_READY_MASK;
+		dpll_reg = DPIO_PHY_STATUS;
+		break;
+	}
+
+	if (intel_de_wait(display, dpll_reg, port_mask, expected_mask, 1000))
+		drm_WARN(display->drm, 1,
+			 "timed out waiting for [ENCODER:%d:%s] port ready: got 0x%x, expected 0x%x\n",
+			 encoder->base.base.id, encoder->base.name,
+			 intel_de_read(display, dpll_reg) & port_mask,
+			 expected_mask);
 }

@@ -479,6 +479,19 @@ static int fsi_spi_transfer_one_message(struct spi_controller *ctlr,
 
 				shift = SPI_FSI_SEQUENCE_SHIFT_IN(next->len);
 				fsi_spi_sequence_add(&seq, shift);
+			} else if (next->tx_buf) {
+				if ((next->len + transfer->len) > (SPI_FSI_MAX_TX_SIZE + 8)) {
+					rc = -EINVAL;
+					goto error;
+				}
+
+				len = next->len;
+				while (len > 8) {
+					fsi_spi_sequence_add(&seq,
+							     SPI_FSI_SEQUENCE_SHIFT_OUT(8));
+					len -= 8;
+				}
+				fsi_spi_sequence_add(&seq, SPI_FSI_SEQUENCE_SHIFT_OUT(len));
 			} else {
 				next = NULL;
 			}

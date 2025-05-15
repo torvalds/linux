@@ -6,6 +6,7 @@
 #include "mlx5_core.h"
 #include "lib/eq.h"
 #include "lib/events.h"
+#include "hwmon.h"
 
 struct mlx5_event_nb {
 	struct mlx5_nb  nb;
@@ -153,21 +154,50 @@ static int any_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+#if IS_ENABLED(CONFIG_HWMON)
+static void print_sensor_names_in_bit_set(struct mlx5_core_dev *dev, struct mlx5_hwmon *hwmon,
+					  u64 bit_set, int bit_set_offset)
+{
+	unsigned long *bit_set_ptr = (unsigned long *)&bit_set;
+	int num_bits = sizeof(bit_set) * BITS_PER_BYTE;
+	int i;
+
+	for_each_set_bit(i, bit_set_ptr, num_bits) {
+		const char *sensor_name = hwmon_get_sensor_name(hwmon, i + bit_set_offset);
+
+		mlx5_core_warn(dev, "Sensor name[%d]: %s\n", i + bit_set_offset, sensor_name);
+	}
+}
+#endif /* CONFIG_HWMON */
+
 /* type == MLX5_EVENT_TYPE_TEMP_WARN_EVENT */
 static int temp_warn(struct notifier_block *nb, unsigned long type, void *data)
 {
 	struct mlx5_event_nb *event_nb = mlx5_nb_cof(nb, struct mlx5_event_nb, nb);
 	struct mlx5_events   *events   = event_nb->ctx;
+	struct mlx5_core_dev *dev      = events->dev;
 	struct mlx5_eqe      *eqe      = data;
 	u64 value_lsb;
 	u64 value_msb;
 
 	value_lsb = be64_to_cpu(eqe->data.temp_warning.sensor_warning_lsb);
+	/* bit 1-63 are not supported for NICs,
+	 * hence read only bit 0 (asic) from lsb.
+	 */
+	value_lsb &= 0x1;
 	value_msb = be64_to_cpu(eqe->data.temp_warning.sensor_warning_msb);
 
-	mlx5_core_warn(events->dev,
-		       "High temperature on sensors with bit set %llx %llx",
-		       value_msb, value_lsb);
+	if (net_ratelimit()) {
+		mlx5_core_warn(dev, "High temperature on sensors with bit set %#llx %#llx.\n",
+			       value_msb, value_lsb);
+#if IS_ENABLED(CONFIG_HWMON)
+		if (dev->hwmon) {
+			print_sensor_names_in_bit_set(dev, dev->hwmon, value_lsb, 0);
+			print_sensor_names_in_bit_set(dev, dev->hwmon, value_msb,
+						      sizeof(value_lsb) * BITS_PER_BYTE);
+		}
+#endif
+	}
 
 	return NOTIFY_OK;
 }

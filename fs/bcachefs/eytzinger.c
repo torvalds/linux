@@ -148,22 +148,87 @@ static int do_cmp(const void *a, const void *b, cmp_r_func_t cmp, const void *pr
 	return cmp(a, b, priv);
 }
 
-static inline int eytzinger0_do_cmp(void *base, size_t n, size_t size,
+static inline int eytzinger1_do_cmp(void *base1, size_t n, size_t size,
 			 cmp_r_func_t cmp_func, const void *priv,
 			 size_t l, size_t r)
 {
-	return do_cmp(base + inorder_to_eytzinger0(l, n) * size,
-		      base + inorder_to_eytzinger0(r, n) * size,
+	return do_cmp(base1 + inorder_to_eytzinger1(l, n) * size,
+		      base1 + inorder_to_eytzinger1(r, n) * size,
 		      cmp_func, priv);
 }
 
-static inline void eytzinger0_do_swap(void *base, size_t n, size_t size,
+static inline void eytzinger1_do_swap(void *base1, size_t n, size_t size,
 			   swap_r_func_t swap_func, const void *priv,
 			   size_t l, size_t r)
 {
-	do_swap(base + inorder_to_eytzinger0(l, n) * size,
-		base + inorder_to_eytzinger0(r, n) * size,
+	do_swap(base1 + inorder_to_eytzinger1(l, n) * size,
+		base1 + inorder_to_eytzinger1(r, n) * size,
 		size, swap_func, priv);
+}
+
+static void eytzinger1_sort_r(void *base1, size_t n, size_t size,
+			      cmp_r_func_t cmp_func,
+			      swap_r_func_t swap_func,
+			      const void *priv)
+{
+	unsigned i, j, k;
+
+	/* called from 'sort' without swap function, let's pick the default */
+	if (swap_func == SWAP_WRAPPER && !((struct wrapper *)priv)->swap_func)
+		swap_func = NULL;
+
+	if (!swap_func) {
+		if (is_aligned(base1, size, 8))
+			swap_func = SWAP_WORDS_64;
+		else if (is_aligned(base1, size, 4))
+			swap_func = SWAP_WORDS_32;
+		else
+			swap_func = SWAP_BYTES;
+	}
+
+	/* heapify */
+	for (i = n / 2; i >= 1; --i) {
+		/* Find the sift-down path all the way to the leaves. */
+		for (j = i; k = j * 2, k < n;)
+			j = eytzinger1_do_cmp(base1, n, size, cmp_func, priv, k, k + 1) > 0 ? k : k + 1;
+
+		/* Special case for the last leaf with no sibling. */
+		if (j * 2 == n)
+			j *= 2;
+
+		/* Backtrack to the correct location. */
+		while (j != i && eytzinger1_do_cmp(base1, n, size, cmp_func, priv, i, j) >= 0)
+			j /= 2;
+
+		/* Shift the element into its correct place. */
+		for (k = j; j != i;) {
+			j /= 2;
+			eytzinger1_do_swap(base1, n, size, swap_func, priv, j, k);
+		}
+	}
+
+	/* sort */
+	for (i = n; i > 1; --i) {
+		eytzinger1_do_swap(base1, n, size, swap_func, priv, 1, i);
+
+		/* Find the sift-down path all the way to the leaves. */
+		for (j = 1; k = j * 2, k + 1 < i;)
+			j = eytzinger1_do_cmp(base1, n, size, cmp_func, priv, k, k + 1) > 0 ? k : k + 1;
+
+		/* Special case for the last leaf with no sibling. */
+		if (j * 2 + 1 == i)
+			j *= 2;
+
+		/* Backtrack to the correct location. */
+		while (j >= 1 && eytzinger1_do_cmp(base1, n, size, cmp_func, priv, 1, j) >= 0)
+			j /= 2;
+
+		/* Shift the element into its correct place. */
+		for (k = j; j > 1;) {
+			j /= 2;
+			eytzinger1_do_swap(base1, n, size, swap_func, priv, j, k);
+		}
+	}
 }
 
 void eytzinger0_sort_r(void *base, size_t n, size_t size,
@@ -171,64 +236,9 @@ void eytzinger0_sort_r(void *base, size_t n, size_t size,
 		       swap_r_func_t swap_func,
 		       const void *priv)
 {
-	int i, j, k;
+	void *base1 = base - size;
 
-	/* called from 'sort' without swap function, let's pick the default */
-	if (swap_func == SWAP_WRAPPER && !((struct wrapper *)priv)->swap_func)
-		swap_func = NULL;
-
-	if (!swap_func) {
-		if (is_aligned(base, size, 8))
-			swap_func = SWAP_WORDS_64;
-		else if (is_aligned(base, size, 4))
-			swap_func = SWAP_WORDS_32;
-		else
-			swap_func = SWAP_BYTES;
-	}
-
-	/* heapify */
-	for (i = n / 2 - 1; i >= 0; --i) {
-		/* Find the sift-down path all the way to the leaves. */
-		for (j = i; k = j * 2 + 1, k + 1 < n;)
-			j = eytzinger0_do_cmp(base, n, size, cmp_func, priv, k, k + 1) > 0 ? k : k + 1;
-
-		/* Special case for the last leaf with no sibling. */
-		if (j * 2 + 2 == n)
-			j = j * 2 + 1;
-
-		/* Backtrack to the correct location. */
-		while (j != i && eytzinger0_do_cmp(base, n, size, cmp_func, priv, i, j) >= 0)
-			j = (j - 1) / 2;
-
-		/* Shift the element into its correct place. */
-		for (k = j; j != i;) {
-			j = (j - 1) / 2;
-			eytzinger0_do_swap(base, n, size, swap_func, priv, j, k);
-		}
-	}
-
-	/* sort */
-	for (i = n - 1; i > 0; --i) {
-		eytzinger0_do_swap(base, n, size, swap_func, priv, 0, i);
-
-		/* Find the sift-down path all the way to the leaves. */
-		for (j = 0; k = j * 2 + 1, k + 1 < i;)
-			j = eytzinger0_do_cmp(base, n, size, cmp_func, priv, k, k + 1) > 0 ? k : k + 1;
-
-		/* Special case for the last leaf with no sibling. */
-		if (j * 2 + 2 == i)
-			j = j * 2 + 1;
-
-		/* Backtrack to the correct location. */
-		while (j && eytzinger0_do_cmp(base, n, size, cmp_func, priv, 0, j) >= 0)
-			j = (j - 1) / 2;
-
-		/* Shift the element into its correct place. */
-		for (k = j; j;) {
-			j = (j - 1) / 2;
-			eytzinger0_do_swap(base, n, size, swap_func, priv, j, k);
-		}
-	}
+	return eytzinger1_sort_r(base1, n, size, cmp_func, swap_func, priv);
 }
 
 void eytzinger0_sort(void *base, size_t n, size_t size,

@@ -118,7 +118,6 @@ static const struct regmap_config adux1020_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
 	.max_register = 0x6F,
-	.cache_type = REGCACHE_NONE,
 };
 
 static const struct reg_sequence adux1020_def_conf[] = {

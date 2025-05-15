@@ -303,7 +303,7 @@ struct i915_execbuffer {
 	struct intel_gt_buffer_pool_node *batch_pool; /** pool node for batch buffer */
 
 	/**
-	 * Indicate either the size of the hastable used to resolve
+	 * Indicate either the size of the hashtable used to resolve
 	 * relocation handles, or if negative that we are using a direct
 	 * index into the execobj[].
 	 */
@@ -915,7 +915,7 @@ static struct i915_vma *eb_lookup_vma(struct i915_execbuffer *eb, u32 handle)
 		 */
 		if (i915_gem_context_uses_protected_content(eb->gem_context) &&
 		    i915_gem_object_is_protected(obj)) {
-			err = intel_pxp_key_check(eb->i915->pxp, intel_bo_to_drm_bo(obj), true);
+			err = intel_pxp_key_check(intel_bo_to_drm_bo(obj), true);
 			if (err) {
 				i915_gem_object_put(obj);
 				return ERR_PTR(err);
@@ -2543,7 +2543,7 @@ static int eb_pin_timeline(struct i915_execbuffer *eb, struct intel_context *ce,
 
 			/*
 			 * Error path, cannot use intel_context_timeline_lock as
-			 * that is user interruptable and this clean up step
+			 * that is user interruptible and this clean up step
 			 * must be done.
 			 */
 			mutex_lock(&ce->timeline->mutex);

@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/microchip,emc2305.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip EMC2305 SMBus compliant PWM fan controller
+
+maintainers:
+  - Michael Shych <michaelsh@nvidia.com>
+
+description:
+  Microchip EMC2301/2/3/5 pwm controller which supports up to five programmable
+  fan control circuits.
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - microchip,emc2305
+      - items:
+          - enum:
+              - microchip,emc2303
+              - microchip,emc2302
+              - microchip,emc2301
+          - const: microchip,emc2305
+
+  reg:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  '#pwm-cells':
+    const: 3
+    description: |
+      Number of cells in a PWM specifier.
+      - cell 0: The PWM frequency
+      - cell 1: The PWM polarity: 0 or PWM_POLARITY_INVERTED
+      - cell 2: The PWM output config:
+           - 0 (Open-Drain)
+           - 1 (Push-Pull)
+
+patternProperties:
+  '^fan@[0-4]$':
+    $ref: fan-common.yaml#
+    unevaluatedProperties: false
+    properties:
+      reg:
+        description:
+          The fan number used to determine the associated PWM channel.
+        maxItems: 1
+
+    required:
+      - reg
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/pwm/pwm.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        fan_controller: fan-controller@2f {
+            compatible = "microchip,emc2305";
+            reg = <0x2f>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            #pwm-cells = <3>;
+
+            fan@0 {
+                reg = <0x0>;
+                pwms = <&fan_controller 26000 PWM_POLARITY_INVERTED 1>;
+                #cooling-cells = <2>;
+            };
+
+            fan@1 {
+                reg = <0x1>;
+                pwms = <&fan_controller 26000 0 1>;
+                #cooling-cells = <2>;
+            };
+
+            fan@2 {
+                reg = <0x2>;
+                pwms = <&fan_controller 26000 0 1>;
+                #cooling-cells = <2>;
+            };
+
+            fan@3 {
+                reg = <0x3>;
+                pwms = <&fan_controller 26000 0 1>;
+                #cooling-cells = <2>;
+            };
+
+            fan@4 {
+                reg = <0x4>;
+                pwms = <&fan_controller 26000 0 1>;
+                #cooling-cells = <2>;
+            };
+        };
+    };
+...

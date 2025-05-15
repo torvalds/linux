@@ -10,7 +10,7 @@ void intel_display_rps_boost_after_vblank(struct drm_crtc *crtc,
 {
 }
 
-void intel_display_rps_mark_interactive(struct drm_i915_private *i915,
+void intel_display_rps_mark_interactive(struct intel_display *display,
 					struct intel_atomic_state *state,
 					bool interactive)
 {

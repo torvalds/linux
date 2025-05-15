@@ -475,7 +475,7 @@ static const struct sdw_device_id rt700_id[] = {
 };
 MODULE_DEVICE_TABLE(sdw, rt700_id);
 
-static int __maybe_unused rt700_dev_suspend(struct device *dev)
+static int rt700_dev_suspend(struct device *dev)
 {
 	struct rt700_priv *rt700 = dev_get_drvdata(dev);
 
@@ -490,7 +490,7 @@ static int __maybe_unused rt700_dev_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused rt700_dev_system_suspend(struct device *dev)
+static int rt700_dev_system_suspend(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct rt700_priv *rt700 = dev_get_drvdata(dev);
@@ -520,7 +520,7 @@ static int __maybe_unused rt700_dev_system_suspend(struct device *dev)
 
 #define RT700_PROBE_TIMEOUT 5000
 
-static int __maybe_unused rt700_dev_resume(struct device *dev)
+static int rt700_dev_resume(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct rt700_priv *rt700 = dev_get_drvdata(dev);
@@ -551,14 +551,14 @@ regmap_sync:
 }
 
 static const struct dev_pm_ops rt700_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(rt700_dev_system_suspend, rt700_dev_resume)
-	SET_RUNTIME_PM_OPS(rt700_dev_suspend, rt700_dev_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(rt700_dev_system_suspend, rt700_dev_resume)
+	RUNTIME_PM_OPS(rt700_dev_suspend, rt700_dev_resume, NULL)
 };
 
 static struct sdw_driver rt700_sdw_driver = {
 	.driver = {
 		.name = "rt700",
-		.pm = &rt700_pm,
+		.pm = pm_ptr(&rt700_pm),
 	},
 	.probe = rt700_sdw_probe,
 	.remove = rt700_sdw_remove,

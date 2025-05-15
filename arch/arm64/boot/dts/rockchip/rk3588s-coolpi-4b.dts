@@ -236,7 +236,7 @@
 	};
 };
 
-&hdptxphy_hdmi0 {
+&hdptxphy0 {
 	status = "okay";
 };
 
@@ -361,6 +361,10 @@
 	status = "okay";
 };
 
+&pd_gpu {
+	domain-supply = <&vdd_gpu_s0>;
+};
+
 &pinctrl {
 	hym8563 {
 		hym8563_int: hym8563-int {
@@ -429,7 +433,7 @@
 };
 
 &pwm13 {
-	pinctrl-names = "active";
+	pinctrl-names = "default";
 	pinctrl-0 = <&pwm13m2_pins>;
 	status = "okay";
 };
@@ -803,6 +807,14 @@
 	status = "okay";
 };
 
+&u2phy0 {
+	status = "okay";
+};
+
+&u2phy0_otg {
+	status = "okay";
+};
+
 &u2phy2 {
 	status = "okay";
 };
@@ -832,11 +844,26 @@
 	pinctrl-0 = <&uart9m2_xfer &uart9m2_ctsn>;
 };
 
+&usbdp_phy0 {
+	/*
+	 * USBDP PHY0 is wired to a USB3 Type-A OTG connector. Additionally
+	 * the differential pairs 0+1 and the aux channel are wired to a
+	 * mini DP connector.
+	 */
+	rockchip,dp-lane-mux = <0 1>;
+	status = "okay";
+};
+
 &usb_host0_ehci {
 	status = "okay";
 };
 
 &usb_host0_ohci {
+	status = "okay";
+};
+
+&usb_host0_xhci {
+	extcon = <&u2phy0>;
 	status = "okay";
 };
 

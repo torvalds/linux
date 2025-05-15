@@ -741,6 +741,8 @@ char *dce_version_to_string(const int version)
 		return "DCN 3.5";
 	case DCN_VERSION_3_51:
 		return "DCN 3.5.1";
+	case DCN_VERSION_3_6:
+		return "DCN 3.6";
 	case DCN_VERSION_4_01:
 		return "DCN 4.0.1";
 	default:

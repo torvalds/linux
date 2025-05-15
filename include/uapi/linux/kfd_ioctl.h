@@ -43,9 +43,10 @@
  * - 1.15 - Enable managing mappings in compute VMs with GEM_VA ioctl
  * - 1.16 - Add contiguous VRAM allocation flag
  * - 1.17 - Add SDMA queue creation with target SDMA engine ID
+ * - 1.18 - Rename pad in set_memory_policy_args to misc_process_flag
  */
 #define KFD_IOCTL_MAJOR_VERSION 1
-#define KFD_IOCTL_MINOR_VERSION 17
+#define KFD_IOCTL_MINOR_VERSION 18
 
 struct kfd_ioctl_get_version_args {
 	__u32 major_version;	/* from KFD */
@@ -61,6 +62,8 @@ struct kfd_ioctl_get_version_args {
 
 #define KFD_MAX_QUEUE_PERCENTAGE	100
 #define KFD_MAX_QUEUE_PRIORITY		15
+
+#define KFD_MIN_QUEUE_RING_SIZE		1024
 
 struct kfd_ioctl_create_queue_args {
 	__u64 ring_base_address;	/* to KFD */
@@ -148,6 +151,9 @@ struct kfd_dbg_device_info_entry {
 #define KFD_IOC_CACHE_POLICY_COHERENT 0
 #define KFD_IOC_CACHE_POLICY_NONCOHERENT 1
 
+/* Misc. per process flags */
+#define KFD_PROC_FLAG_MFMA_HIGH_PRECISION (1 << 0)
+
 struct kfd_ioctl_set_memory_policy_args {
 	__u64 alternate_aperture_base;	/* to KFD */
 	__u64 alternate_aperture_size;	/* to KFD */
@@ -155,7 +161,7 @@ struct kfd_ioctl_set_memory_policy_args {
 	__u32 gpu_id;			/* to KFD */
 	__u32 default_policy;		/* to KFD */
 	__u32 alternate_policy;		/* to KFD */
-	__u32 pad;
+	__u32 misc_process_flag;        /* to KFD */
 };
 
 /*

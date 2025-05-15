@@ -84,7 +84,7 @@ struct btrfs_fs_context {
 	u32 thread_pool_size;
 	unsigned long long mount_opt;
 	unsigned long compress_type:4;
-	unsigned int compress_level;
+	int compress_level;
 	refcount_t refs;
 };
 
@@ -947,7 +947,7 @@ static int get_default_subvol_objectid(struct btrfs_fs_info *fs_info, u64 *objec
 static int btrfs_fill_super(struct super_block *sb,
 			    struct btrfs_fs_devices *fs_devices)
 {
-	struct inode *inode;
+	struct btrfs_inode *inode;
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
 	int err;
 
@@ -982,7 +982,7 @@ static int btrfs_fill_super(struct super_block *sb,
 		goto fail_close;
 	}
 
-	sb->s_root = d_make_root(inode);
+	sb->s_root = d_make_root(&inode->vfs_inode);
 	if (!sb->s_root) {
 		err = -ENOMEM;
 		goto fail_close;
@@ -1139,8 +1139,7 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 	subvol_name = btrfs_get_subvol_name_from_objectid(info,
 			btrfs_root_id(BTRFS_I(d_inode(dentry))->root));
 	if (!IS_ERR(subvol_name)) {
-		seq_puts(seq, ",subvol=");
-		seq_escape(seq, subvol_name, " \t\n\\");
+		seq_show_option(seq, "subvol", subvol_name);
 		kfree(subvol_name);
 	}
 	return 0;

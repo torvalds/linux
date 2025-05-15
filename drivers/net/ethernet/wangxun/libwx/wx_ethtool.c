@@ -41,6 +41,9 @@ static const struct wx_stats wx_gstrings_stats[] = {
 	WX_STAT("rx_csum_offload_good_count", hw_csum_rx_good),
 	WX_STAT("rx_csum_offload_errors", hw_csum_rx_error),
 	WX_STAT("alloc_rx_buff_failed", alloc_rx_buff_failed),
+	WX_STAT("tx_hwtstamp_timeouts", tx_hwtstamp_timeouts),
+	WX_STAT("tx_hwtstamp_skipped", tx_hwtstamp_skipped),
+	WX_STAT("rx_hwtstamp_cleared", rx_hwtstamp_cleared),
 };
 
 static const struct wx_stats wx_gstrings_fdir_stats[] = {
@@ -69,7 +72,7 @@ int wx_get_sset_count(struct net_device *netdev, int sset)
 
 	switch (sset) {
 	case ETH_SS_STATS:
-		return (wx->mac.type == wx_mac_sp) ?
+		return (test_bit(WX_FLAG_FDIR_CAPABLE, wx->flags)) ?
 			WX_STATS_LEN + WX_FDIR_STATS_LEN : WX_STATS_LEN;
 	default:
 		return -EOPNOTSUPP;
@@ -87,7 +90,7 @@ void wx_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	case ETH_SS_STATS:
 		for (i = 0; i < WX_GLOBAL_STATS_LEN; i++)
 			ethtool_puts(&p, wx_gstrings_stats[i].stat_string);
-		if (wx->mac.type == wx_mac_sp) {
+		if (test_bit(WX_FLAG_FDIR_CAPABLE, wx->flags)) {
 			for (i = 0; i < WX_FDIR_STATS_LEN; i++)
 				ethtool_puts(&p, wx_gstrings_fdir_stats[i].stat_string);
 		}
@@ -121,7 +124,7 @@ void wx_get_ethtool_stats(struct net_device *netdev,
 			   sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
 
-	if (wx->mac.type == wx_mac_sp) {
+	if (test_bit(WX_FLAG_FDIR_CAPABLE, wx->flags)) {
 		for (k = 0; k < WX_FDIR_STATS_LEN; k++) {
 			p = (char *)wx + wx_gstrings_fdir_stats[k].stat_offset;
 			data[i++] = *(u64 *)p;
@@ -196,7 +199,7 @@ void wx_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *info)
 	unsigned int stats_len = WX_STATS_LEN;
 	struct wx *wx = netdev_priv(netdev);
 
-	if (wx->mac.type == wx_mac_sp)
+	if (test_bit(WX_FLAG_FDIR_CAPABLE, wx->flags))
 		stats_len += WX_FDIR_STATS_LEN;
 
 	strscpy(info->driver, wx->driver_name, sizeof(info->driver));
@@ -216,6 +219,9 @@ int wx_nway_reset(struct net_device *netdev)
 {
 	struct wx *wx = netdev_priv(netdev);
 
+	if (wx->mac.type == wx_mac_aml)
+		return -EOPNOTSUPP;
+
 	return phylink_ethtool_nway_reset(wx->phylink);
 }
 EXPORT_SYMBOL(wx_nway_reset);
@@ -224,6 +230,9 @@ int wx_get_link_ksettings(struct net_device *netdev,
 			  struct ethtool_link_ksettings *cmd)
 {
 	struct wx *wx = netdev_priv(netdev);
+
+	if (wx->mac.type == wx_mac_aml)
+		return -EOPNOTSUPP;
 
 	return phylink_ethtool_ksettings_get(wx->phylink, cmd);
 }
@@ -234,6 +243,9 @@ int wx_set_link_ksettings(struct net_device *netdev,
 {
 	struct wx *wx = netdev_priv(netdev);
 
+	if (wx->mac.type == wx_mac_aml)
+		return -EOPNOTSUPP;
+
 	return phylink_ethtool_ksettings_set(wx->phylink, cmd);
 }
 EXPORT_SYMBOL(wx_set_link_ksettings);
@@ -243,6 +255,9 @@ void wx_get_pauseparam(struct net_device *netdev,
 {
 	struct wx *wx = netdev_priv(netdev);
 
+	if (wx->mac.type == wx_mac_aml)
+		return;
+
 	phylink_ethtool_get_pauseparam(wx->phylink, pause);
 }
 EXPORT_SYMBOL(wx_get_pauseparam);
@@ -251,6 +266,9 @@ int wx_set_pauseparam(struct net_device *netdev,
 		      struct ethtool_pauseparam *pause)
 {
 	struct wx *wx = netdev_priv(netdev);
+
+	if (wx->mac.type == wx_mac_aml)
+		return -EOPNOTSUPP;
 
 	return phylink_ethtool_set_pauseparam(wx->phylink, pause);
 }
@@ -322,10 +340,17 @@ int wx_set_coalesce(struct net_device *netdev,
 	if (ec->tx_max_coalesced_frames_irq)
 		wx->tx_work_limit = ec->tx_max_coalesced_frames_irq;
 
-	if (wx->mac.type == wx_mac_sp)
+	switch (wx->mac.type) {
+	case wx_mac_sp:
 		max_eitr = WX_SP_MAX_EITR;
-	else
+		break;
+	case wx_mac_aml:
+		max_eitr = WX_AML_MAX_EITR;
+		break;
+	default:
 		max_eitr = WX_EM_MAX_EITR;
+		break;
+	}
 
 	if ((ec->rx_coalesce_usecs > (max_eitr >> 2)) ||
 	    (ec->tx_coalesce_usecs > (max_eitr >> 2)))
@@ -347,10 +372,15 @@ int wx_set_coalesce(struct net_device *netdev,
 		wx->tx_itr_setting = ec->tx_coalesce_usecs;
 
 	if (wx->tx_itr_setting == 1) {
-		if (wx->mac.type == wx_mac_sp)
+		switch (wx->mac.type) {
+		case wx_mac_sp:
+		case wx_mac_aml:
 			tx_itr_param = WX_12K_ITR;
-		else
+			break;
+		default:
 			tx_itr_param = WX_20K_ITR;
+			break;
+		}
 	} else {
 		tx_itr_param = wx->tx_itr_setting;
 	}
@@ -383,10 +413,15 @@ static unsigned int wx_max_channels(struct wx *wx)
 		max_combined = 1;
 	} else {
 		/* support up to max allowed queues with RSS */
-		if (wx->mac.type == wx_mac_sp)
+		switch (wx->mac.type) {
+		case wx_mac_sp:
+		case wx_mac_aml:
 			max_combined = 63;
-		else
+			break;
+		default:
 			max_combined = 8;
+			break;
+		}
 	}
 
 	return max_combined;
@@ -452,3 +487,53 @@ void wx_set_msglevel(struct net_device *netdev, u32 data)
 	wx->msg_enable = data;
 }
 EXPORT_SYMBOL(wx_set_msglevel);
+
+int wx_get_ts_info(struct net_device *dev,
+		   struct kernel_ethtool_ts_info *info)
+{
+	struct wx *wx = netdev_priv(dev);
+
+	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+			   BIT(HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
+			   BIT(HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
+			   BIT(HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
+			   BIT(HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
+			   BIT(HWTSTAMP_FILTER_PTP_V2_SYNC) |
+			   BIT(HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
+			   BIT(HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
+			   BIT(HWTSTAMP_FILTER_PTP_V2_DELAY_REQ) |
+			   BIT(HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
+			   BIT(HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
+			   BIT(HWTSTAMP_FILTER_PTP_V2_EVENT);
+
+	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
+				SOF_TIMESTAMPING_TX_HARDWARE |
+				SOF_TIMESTAMPING_RX_HARDWARE |
+				SOF_TIMESTAMPING_RAW_HARDWARE;
+
+	if (wx->ptp_clock)
+		info->phc_index = ptp_clock_index(wx->ptp_clock);
+	else
+		info->phc_index = -1;
+
+	info->tx_types = BIT(HWTSTAMP_TX_OFF) |
+			 BIT(HWTSTAMP_TX_ON);
+
+	return 0;
+}
+EXPORT_SYMBOL(wx_get_ts_info);
+
+void wx_get_ptp_stats(struct net_device *dev,
+		      struct ethtool_ts_stats *ts_stats)
+{
+	struct wx *wx = netdev_priv(dev);
+
+	if (wx->ptp_clock) {
+		ts_stats->pkts = wx->tx_hwtstamp_pkts;
+		ts_stats->lost = wx->tx_hwtstamp_timeouts +
+				 wx->tx_hwtstamp_skipped +
+				 wx->rx_hwtstamp_cleared;
+		ts_stats->err = wx->tx_hwtstamp_errors;
+	}
+}
+EXPORT_SYMBOL(wx_get_ptp_stats);

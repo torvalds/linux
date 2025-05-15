@@ -73,6 +73,18 @@ static const struct cs_dsp_mock_coeff_def mock_coeff_template = {
 	.length_bytes = 4,
 };
 
+static char *cs_dsp_ctl_alloc_test_string(struct kunit *test, char c, size_t len)
+{
+	char *str;
+
+	str = kunit_kmalloc(test, len + 1, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, str);
+	memset(str, c, len);
+	str[len] = '\0';
+
+	return str;
+}
+
 /* Algorithm info block without controls should load */
 static void cs_dsp_ctl_parse_no_coeffs(struct kunit *test)
 {
@@ -160,12 +172,8 @@ static void cs_dsp_ctl_parse_max_v1_name(struct kunit *test)
 	struct cs_dsp_mock_coeff_def def = mock_coeff_template;
 	struct cs_dsp_coeff_ctl *ctl;
 	struct firmware *wmfw;
-	char *name;
 
-	name = kunit_kzalloc(test, 256, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, name);
-	memset(name, 'A', 255);
-	def.fullname = name;
+	def.fullname = cs_dsp_ctl_alloc_test_string(test, 'A', 255);
 
 	cs_dsp_mock_wmfw_start_alg_info_block(local->wmfw_builder,
 					      cs_dsp_ctl_parse_test_algs[0].id,
@@ -252,14 +260,9 @@ static void cs_dsp_ctl_parse_max_short_name(struct kunit *test)
 	struct cs_dsp_test_local *local = priv->local;
 	struct cs_dsp_mock_coeff_def def = mock_coeff_template;
 	struct cs_dsp_coeff_ctl *ctl;
-	char *name;
 	struct firmware *wmfw;
 
-	name = kunit_kmalloc(test, 255, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, name);
-	memset(name, 'A', 255);
-
-	def.shortname = name;
+	def.shortname = cs_dsp_ctl_alloc_test_string(test, 'A', 255);
 
 	cs_dsp_mock_wmfw_start_alg_info_block(local->wmfw_builder,
 					      cs_dsp_ctl_parse_test_algs[0].id,
@@ -273,7 +276,7 @@ static void cs_dsp_ctl_parse_max_short_name(struct kunit *test)
 	ctl = list_first_entry_or_null(&priv->dsp->ctl_list, struct cs_dsp_coeff_ctl, list);
 	KUNIT_ASSERT_NOT_NULL(test, ctl);
 	KUNIT_EXPECT_EQ(test, ctl->subname_len, 255);
-	KUNIT_EXPECT_MEMEQ(test, ctl->subname, name, ctl->subname_len);
+	KUNIT_EXPECT_MEMEQ(test, ctl->subname, def.shortname, ctl->subname_len);
 	KUNIT_EXPECT_EQ(test, ctl->flags, def.flags);
 	KUNIT_EXPECT_EQ(test, ctl->type, def.type);
 	KUNIT_EXPECT_EQ(test, ctl->len, def.length_bytes);
@@ -323,12 +326,8 @@ static void cs_dsp_ctl_parse_with_max_fullname(struct kunit *test)
 	struct cs_dsp_mock_coeff_def def = mock_coeff_template;
 	struct cs_dsp_coeff_ctl *ctl;
 	struct firmware *wmfw;
-	char *fullname;
 
-	fullname = kunit_kmalloc(test, 255, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, fullname);
-	memset(fullname, 'A', 255);
-	def.fullname = fullname;
+	def.fullname = cs_dsp_ctl_alloc_test_string(test, 'A', 255);
 
 	cs_dsp_mock_wmfw_start_alg_info_block(local->wmfw_builder,
 					      cs_dsp_ctl_parse_test_algs[0].id,
@@ -392,12 +391,8 @@ static void cs_dsp_ctl_parse_with_max_description(struct kunit *test)
 	struct cs_dsp_mock_coeff_def def = mock_coeff_template;
 	struct cs_dsp_coeff_ctl *ctl;
 	struct firmware *wmfw;
-	char *description;
 
-	description = kunit_kmalloc(test, 65535, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, description);
-	memset(description, 'A', 65535);
-	def.description = description;
+	def.description = cs_dsp_ctl_alloc_test_string(test, 'A', 65535);
 
 	cs_dsp_mock_wmfw_start_alg_info_block(local->wmfw_builder,
 					      cs_dsp_ctl_parse_test_algs[0].id,
@@ -429,17 +424,9 @@ static void cs_dsp_ctl_parse_with_max_fullname_and_description(struct kunit *tes
 	struct cs_dsp_mock_coeff_def def = mock_coeff_template;
 	struct cs_dsp_coeff_ctl *ctl;
 	struct firmware *wmfw;
-	char *fullname, *description;
 
-	fullname = kunit_kmalloc(test, 255, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, fullname);
-	memset(fullname, 'A', 255);
-	def.fullname = fullname;
-
-	description = kunit_kmalloc(test, 65535, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, description);
-	memset(description, 'A', 65535);
-	def.description = description;
+	def.fullname = cs_dsp_ctl_alloc_test_string(test, 'A', 255);
+	def.description = cs_dsp_ctl_alloc_test_string(test, 'A', 65535);
 
 	cs_dsp_mock_wmfw_start_alg_info_block(local->wmfw_builder,
 					      cs_dsp_ctl_parse_test_algs[0].id,

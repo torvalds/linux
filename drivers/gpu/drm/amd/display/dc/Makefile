@@ -52,7 +52,7 @@ endif
 DC_LIBS += hdcp
 
 ifdef CONFIG_DRM_AMD_DC_FP
-DC_LIBS += spl
+DC_LIBS += sspl
 DC_SPL_TRANS += dc_spl_translate.o
 endif
 

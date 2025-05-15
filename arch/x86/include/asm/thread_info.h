@@ -54,7 +54,7 @@
  * - this struct should fit entirely inside of one cache line
  * - this struct shares the supervisor stack pages
  */
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 struct task_struct;
 #include <asm/cpufeature.h>
 #include <linux/atomic.h>
@@ -73,7 +73,7 @@ struct thread_info {
 	.flags		= 0,			\
 }
 
-#else /* !__ASSEMBLY__ */
+#else /* !__ASSEMBLER__ */
 
 #include <asm/asm-offsets.h>
 
@@ -161,7 +161,7 @@ struct thread_info {
  *
  * preempt_count needs to be 1 initially, until the scheduler is functional.
  */
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /*
  * Walks up the stack frames to make sure that the specified object is
@@ -213,7 +213,7 @@ static inline int arch_within_stack_frames(const void * const stack,
 #endif
 }
 
-#endif  /* !__ASSEMBLY__ */
+#endif  /* !__ASSEMBLER__ */
 
 /*
  * Thread-synchronous status.
@@ -224,7 +224,7 @@ static inline int arch_within_stack_frames(const void * const stack,
  */
 #define TS_COMPAT		0x0002	/* 32bit syscall active (64BIT)*/
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #ifdef CONFIG_COMPAT
 #define TS_I386_REGS_POKED	0x0004	/* regs poked by 32-bit ptracer */
 
@@ -242,6 +242,6 @@ static inline int arch_within_stack_frames(const void * const stack,
 
 extern void arch_setup_new_exec(void);
 #define arch_setup_new_exec arch_setup_new_exec
-#endif	/* !__ASSEMBLY__ */
+#endif	/* !__ASSEMBLER__ */
 
 #endif /* _ASM_X86_THREAD_INFO_H */

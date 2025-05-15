@@ -15,8 +15,8 @@
 //!   - Test code should be able to define functions and call them, without having to carry
 //!     the context.
 //!
-//!   - Later on, we may want to be able to test non-kernel code (e.g. `core`, `alloc` or
-//!     third-party crates) which likely use the standard library `assert*!` macros.
+//!   - Later on, we may want to be able to test non-kernel code (e.g. `core` or third-party
+//!     crates) which likely use the standard library `assert*!` macros.
 //!
 //! For this reason, instead of the passed context, `kunit_get_current_test()` is used instead
 //! (i.e. `current->kunit_test`).
@@ -87,8 +87,8 @@ fn find_real_path<'a>(srctree: &Path, valid_paths: &'a mut Vec<PathBuf>, file: &
 
     assert!(
         valid_paths.len() > 0,
-        "No path candidates found. This is likely a bug in the build system, or some files went \
-        away while compiling."
+        "No path candidates found for `{file}`. This is likely a bug in the build system, or some \
+        files went away while compiling."
     );
 
     if valid_paths.len() > 1 {
@@ -97,8 +97,8 @@ fn find_real_path<'a>(srctree: &Path, valid_paths: &'a mut Vec<PathBuf>, file: &
             eprintln!("    {path:?}");
         }
         panic!(
-            "Several path candidates found, please resolve the ambiguity by renaming a file or \
-            folder."
+            "Several path candidates found for `{file}`, please resolve the ambiguity by renaming \
+            a file or folder."
         );
     }
 

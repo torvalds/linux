@@ -21,6 +21,7 @@
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
+#include <linux/string_choices.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -657,7 +658,7 @@ static int wov_enable_put(struct snd_kcontrol *kcontrol,
 					   (uint8_t *)&p, sizeof(p), NULL, 0);
 		if (ret) {
 			dev_err(priv->dev, "failed to %s wov\n",
-				enabled ? "enable" : "disable");
+				str_enable_disable(enabled));
 			return ret;
 		}
 

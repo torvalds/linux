@@ -51,6 +51,7 @@ struct avs_dsp_ops {
 	int (* const load_basefw)(struct avs_dev *, struct firmware *);
 	int (* const load_lib)(struct avs_dev *, struct firmware *, u32);
 	int (* const transfer_mods)(struct avs_dev *, bool, struct avs_module_entry *, u32);
+	int (* const config_basefw)(struct avs_dev *);
 	int (* const enable_logs)(struct avs_dev *, enum avs_log_enable, u32, u32, unsigned long,
 				  u32 *);
 	int (* const log_buffer_offset)(struct avs_dev *, u32);

@@ -469,7 +469,7 @@ static void jmb38x_ms_complete_cmd(struct memstick_host *msh, int last)
 	unsigned int t_val = 0;
 	int rc;
 
-	del_timer(&host->timer);
+	timer_delete(&host->timer);
 
 	dev_dbg(&msh->dev, "c control %08x\n",
 		readl(host->addr + HOST_CONTROL));

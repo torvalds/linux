@@ -112,7 +112,7 @@ static void tbt_altmode_work(struct work_struct *work)
 	return;
 
 disable_plugs:
-	for (int i = TYPEC_PLUG_SOP_PP; i > 0; --i) {
+	for (int i = TYPEC_PLUG_SOP_PP; i >= 0; --i) {
 		if (tbt->plug[i])
 			typec_altmode_put_plug(tbt->plug[i]);
 
@@ -143,7 +143,7 @@ static int tbt_enter_modes_ordered(struct typec_altmode *alt)
 	if (tbt->plug[TYPEC_PLUG_SOP_P]) {
 		ret = typec_cable_altmode_enter(alt, TYPEC_PLUG_SOP_P, NULL);
 		if (ret < 0) {
-			for (int i = TYPEC_PLUG_SOP_PP; i > 0; --i) {
+			for (int i = TYPEC_PLUG_SOP_PP; i >= 0; --i) {
 				if (tbt->plug[i])
 					typec_altmode_put_plug(tbt->plug[i]);
 
@@ -324,7 +324,7 @@ static void tbt_altmode_remove(struct typec_altmode *alt)
 {
 	struct tbt_altmode *tbt = typec_altmode_get_drvdata(alt);
 
-	for (int i = TYPEC_PLUG_SOP_PP; i > 0; --i) {
+	for (int i = TYPEC_PLUG_SOP_PP; i >= 0; --i) {
 		if (tbt->plug[i])
 			typec_altmode_put_plug(tbt->plug[i]);
 	}
@@ -351,10 +351,10 @@ static bool tbt_ready(struct typec_altmode *alt)
 	 */
 	for (int i = 0; i < TYPEC_PLUG_SOP_PP + 1; i++) {
 		plug = typec_altmode_get_plug(tbt->alt, i);
-		if (IS_ERR(plug))
+		if (!plug)
 			continue;
 
-		if (!plug || plug->svid != USB_TYPEC_TBT_SID)
+		if (plug->svid != USB_TYPEC_TBT_SID)
 			break;
 
 		plug->desc = "Thunderbolt3";

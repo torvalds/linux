@@ -6,13 +6,14 @@ err=0
 set -e
 
 syscall="landlock_add_rule"
-non_syscall="timer:hrtimer_init,timer:hrtimer_start"
+non_syscall="timer:hrtimer_setup,timer:hrtimer_start"
 
 TESTPROG="perf test -w landlock"
 
 # shellcheck source=lib/probe.sh
 . "$(dirname $0)"/lib/probe.sh
 skip_if_no_perf_trace || exit 2
+[ "$(id -u)" = 0 ] || exit 2
 
 check_vmlinux() {
   echo "Checking if vmlinux exists"

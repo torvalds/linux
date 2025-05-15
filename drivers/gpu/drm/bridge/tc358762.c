@@ -20,10 +20,10 @@
 #include <video/mipi_display.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_of.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
@@ -149,7 +149,8 @@ static int tc358762_init(struct tc358762 *ctx)
 	return tc358762_clear_error(ctx);
 }
 
-static void tc358762_post_disable(struct drm_bridge *bridge, struct drm_bridge_state *state)
+static void tc358762_post_disable(struct drm_bridge *bridge,
+				  struct drm_atomic_state *state)
 {
 	struct tc358762 *ctx = bridge_to_tc358762(bridge);
 	int ret;
@@ -171,7 +172,8 @@ static void tc358762_post_disable(struct drm_bridge *bridge, struct drm_bridge_s
 		dev_err(ctx->dev, "error disabling regulators (%d)\n", ret);
 }
 
-static void tc358762_pre_enable(struct drm_bridge *bridge, struct drm_bridge_state *state)
+static void tc358762_pre_enable(struct drm_bridge *bridge,
+				struct drm_atomic_state *state)
 {
 	struct tc358762 *ctx = bridge_to_tc358762(bridge);
 	int ret;
@@ -188,7 +190,8 @@ static void tc358762_pre_enable(struct drm_bridge *bridge, struct drm_bridge_sta
 	ctx->pre_enabled = true;
 }
 
-static void tc358762_enable(struct drm_bridge *bridge, struct drm_bridge_state *state)
+static void tc358762_enable(struct drm_bridge *bridge,
+			    struct drm_atomic_state *state)
 {
 	struct tc358762 *ctx = bridge_to_tc358762(bridge);
 	int ret;

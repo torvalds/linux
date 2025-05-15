@@ -40,51 +40,6 @@
 	ARM_CSPMU_EXT_ATTR(_name, arm_cspmu_cpumask_show,	\
 				(unsigned long)_config)
 
-/*
- * CoreSight PMU Arch register offsets.
- */
-#define PMEVCNTR_LO					0x0
-#define PMEVCNTR_HI					0x4
-#define PMEVTYPER					0x400
-#define PMCCFILTR					0x47C
-#define PMEVFILTR					0xA00
-#define PMCNTENSET					0xC00
-#define PMCNTENCLR					0xC20
-#define PMINTENSET					0xC40
-#define PMINTENCLR					0xC60
-#define PMOVSCLR					0xC80
-#define PMOVSSET					0xCC0
-#define PMCFGR						0xE00
-#define PMCR						0xE04
-#define PMIIDR						0xE08
-
-/* PMCFGR register field */
-#define PMCFGR_NCG					GENMASK(31, 28)
-#define PMCFGR_HDBG					BIT(24)
-#define PMCFGR_TRO					BIT(23)
-#define PMCFGR_SS					BIT(22)
-#define PMCFGR_FZO					BIT(21)
-#define PMCFGR_MSI					BIT(20)
-#define PMCFGR_UEN					BIT(19)
-#define PMCFGR_NA					BIT(17)
-#define PMCFGR_EX					BIT(16)
-#define PMCFGR_CCD					BIT(15)
-#define PMCFGR_CC					BIT(14)
-#define PMCFGR_SIZE					GENMASK(13, 8)
-#define PMCFGR_N					GENMASK(7, 0)
-
-/* PMCR register field */
-#define PMCR_TRO					BIT(11)
-#define PMCR_HDBG					BIT(10)
-#define PMCR_FZO					BIT(9)
-#define PMCR_NA						BIT(8)
-#define PMCR_DP						BIT(5)
-#define PMCR_X						BIT(4)
-#define PMCR_D						BIT(3)
-#define PMCR_C						BIT(2)
-#define PMCR_P						BIT(1)
-#define PMCR_E						BIT(0)
-
 /* Each SET/CLR register supports up to 32 counters. */
 #define ARM_CSPMU_SET_CLR_COUNTER_SHIFT		5
 #define ARM_CSPMU_SET_CLR_COUNTER_NUM		\
@@ -111,7 +66,9 @@ static unsigned long arm_cspmu_cpuhp_state;
 static DEFINE_MUTEX(arm_cspmu_lock);
 
 static void arm_cspmu_set_ev_filter(struct arm_cspmu *cspmu,
-				    struct hw_perf_event *hwc, u32 filter);
+				    const struct perf_event *event);
+static void arm_cspmu_set_cc_filter(struct arm_cspmu *cspmu,
+				    const struct perf_event *event);
 
 static struct acpi_apmt_node *arm_cspmu_apmt_node(struct device *dev)
 {
@@ -226,6 +183,7 @@ arm_cspmu_event_attr_is_visible(struct kobject *kobj,
 static struct attribute *arm_cspmu_format_attrs[] = {
 	ARM_CSPMU_FORMAT_EVENT_ATTR,
 	ARM_CSPMU_FORMAT_FILTER_ATTR,
+	ARM_CSPMU_FORMAT_FILTER2_ATTR,
 	NULL,
 };
 
@@ -248,11 +206,6 @@ static u32 arm_cspmu_event_type(const struct perf_event *event)
 static bool arm_cspmu_is_cycle_counter_event(const struct perf_event *event)
 {
 	return (event->attr.config == ARM_CSPMU_EVT_CYCLES_DEFAULT);
-}
-
-static u32 arm_cspmu_event_filter(const struct perf_event *event)
-{
-	return event->attr.config1 & ARM_CSPMU_FILTER_MASK;
 }
 
 static ssize_t arm_cspmu_identifier_show(struct device *dev,
@@ -416,7 +369,7 @@ static int arm_cspmu_init_impl_ops(struct arm_cspmu *cspmu)
 		DEFAULT_IMPL_OP(get_name),
 		DEFAULT_IMPL_OP(is_cycle_counter_event),
 		DEFAULT_IMPL_OP(event_type),
-		DEFAULT_IMPL_OP(event_filter),
+		DEFAULT_IMPL_OP(set_cc_filter),
 		DEFAULT_IMPL_OP(set_ev_filter),
 		DEFAULT_IMPL_OP(event_attr_is_visible),
 	};
@@ -812,26 +765,28 @@ static inline void arm_cspmu_set_event(struct arm_cspmu *cspmu,
 }
 
 static void arm_cspmu_set_ev_filter(struct arm_cspmu *cspmu,
-					struct hw_perf_event *hwc,
-					u32 filter)
+				    const struct perf_event *event)
 {
-	u32 offset = PMEVFILTR + (4 * hwc->idx);
+	u32 filter = event->attr.config1 & ARM_CSPMU_FILTER_MASK;
+	u32 filter2 = event->attr.config2 & ARM_CSPMU_FILTER_MASK;
+	u32 offset = 4 * event->hw.idx;
 
-	writel(filter, cspmu->base0 + offset);
+	writel(filter, cspmu->base0 + PMEVFILTR + offset);
+	writel(filter2, cspmu->base0 + PMEVFILT2R + offset);
 }
 
-static inline void arm_cspmu_set_cc_filter(struct arm_cspmu *cspmu, u32 filter)
+static void arm_cspmu_set_cc_filter(struct arm_cspmu *cspmu,
+				    const struct perf_event *event)
 {
-	u32 offset = PMCCFILTR;
+	u32 filter = event->attr.config1 & ARM_CSPMU_FILTER_MASK;
 
-	writel(filter, cspmu->base0 + offset);
+	writel(filter, cspmu->base0 + PMCCFILTR);
 }
 
 static void arm_cspmu_start(struct perf_event *event, int pmu_flags)
 {
 	struct arm_cspmu *cspmu = to_arm_cspmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
-	u32 filter;
 
 	/* We always reprogram the counter */
 	if (pmu_flags & PERF_EF_RELOAD)
@@ -839,13 +794,11 @@ static void arm_cspmu_start(struct perf_event *event, int pmu_flags)
 
 	arm_cspmu_set_event_period(event);
 
-	filter = cspmu->impl.ops.event_filter(event);
-
 	if (event->hw.extra_reg.idx == cspmu->cycle_counter_logical_idx) {
-		arm_cspmu_set_cc_filter(cspmu, filter);
+		cspmu->impl.ops.set_cc_filter(cspmu, event);
 	} else {
 		arm_cspmu_set_event(cspmu, hwc);
-		cspmu->impl.ops.set_ev_filter(cspmu, hwc, filter);
+		cspmu->impl.ops.set_ev_filter(cspmu, event);
 	}
 
 	hwc->state = 0;

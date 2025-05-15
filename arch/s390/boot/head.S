@@ -254,8 +254,9 @@ SYM_CODE_START_LOCAL(startup_normal)
 	xc	0xf00(256),0xf00
 	larl	%r13,.Lctl
 	lctlg	%c0,%c15,0(%r13)	# load control registers
-	stcke	__LC_BOOT_CLOCK
-	mvc	__LC_LAST_UPDATE_CLOCK(8),__LC_BOOT_CLOCK+1
+	larl	%r13,tod_clock_base
+	stcke	0(%r13)
+	mvc	__LC_LAST_UPDATE_CLOCK(8),1(%r13)
 	larl	%r13,6f
 	spt	0(%r13)
 	mvc	__LC_LAST_UPDATE_TIMER(8),0(%r13)
@@ -292,12 +293,6 @@ SYM_CODE_END(startup_normal)
 
 #include "head_kdump.S"
 
-#
-# This program check is active immediately after kernel start
-# and until early_pgm_check_handler is set in kernel/early.c
-# It simply saves general/control registers and psw in
-# the save area and does disabled wait with a faulty address.
-#
 SYM_CODE_START_LOCAL(startup_pgm_check_handler)
 	stmg	%r8,%r15,__LC_SAVE_AREA
 	la	%r8,4095
@@ -311,8 +306,18 @@ SYM_CODE_START_LOCAL(startup_pgm_check_handler)
 	oi	__LC_RETURN_PSW+1,0x2	# set wait state bit
 	larl	%r9,.Lold_psw_disabled_wait
 	stg	%r9,__LC_PGM_NEW_PSW+8
-	larl	%r15,_dump_info_stack_end-STACK_FRAME_OVERHEAD
-	brasl	%r14,print_pgm_check_info
+	larl	%r15,_dump_info_stack_end-(STACK_FRAME_OVERHEAD+__PT_SIZE)
+	la	%r2,STACK_FRAME_OVERHEAD(%r15)
+	mvc	__PT_PSW(16,%r2),__LC_PSW_SAVE_AREA-4095(%r8)
+	mvc	__PT_R0(128,%r2),__LC_GPREGS_SAVE_AREA-4095(%r8)
+	mvc	__PT_LAST_BREAK(8,%r2),__LC_PGM_LAST_BREAK
+	mvc	__PT_INT_CODE(4,%r2),__LC_PGM_INT_CODE
+	brasl	%r14,do_pgm_check
+	larl	%r9,startup_pgm_check_handler
+	stg	%r9,__LC_PGM_NEW_PSW+8
+	mvc	__LC_RETURN_PSW(16),STACK_FRAME_OVERHEAD+__PT_PSW(%r15)
+	lmg	%r0,%r15,STACK_FRAME_OVERHEAD+__PT_R0(%r15)
+	lpswe	__LC_RETURN_PSW
 .Lold_psw_disabled_wait:
 	la	%r8,4095
 	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r8)

@@ -7,8 +7,11 @@
 #include <asm/extmem.h>
 #include <asm/sections.h>
 #include <asm/maccess.h>
+#include <asm/machine.h>
+#include <asm/sysinfo.h>
 #include <asm/cpu_mf.h>
 #include <asm/setup.h>
+#include <asm/timex.h>
 #include <asm/kasan.h>
 #include <asm/kexec.h>
 #include <asm/sclp.h>
@@ -34,12 +37,11 @@ unsigned long __bootdata_preserved(max_mappable);
 unsigned long __bootdata_preserved(page_noexec_mask);
 unsigned long __bootdata_preserved(segment_noexec_mask);
 unsigned long __bootdata_preserved(region_noexec_mask);
-int __bootdata_preserved(relocate_lowcore);
+union tod_clock __bootdata_preserved(tod_clock_base);
+u64 __bootdata_preserved(clock_comparator_max) = -1UL;
 
 u64 __bootdata_preserved(stfle_fac_list[16]);
 struct oldmem_data __bootdata_preserved(oldmem_data);
-
-struct machine_info machine;
 
 void error(char *x)
 {
@@ -48,50 +50,101 @@ void error(char *x)
 	disabled_wait();
 }
 
+static char sysinfo_page[PAGE_SIZE] __aligned(PAGE_SIZE);
+
+static void detect_machine_type(void)
+{
+	struct sysinfo_3_2_2 *vmms = (struct sysinfo_3_2_2 *)&sysinfo_page;
+
+	/* Check current-configuration-level */
+	if (stsi(NULL, 0, 0, 0) <= 2) {
+		set_machine_feature(MFEATURE_LPAR);
+		return;
+	}
+	/* Get virtual-machine cpu information. */
+	if (stsi(vmms, 3, 2, 2) || !vmms->count)
+		return;
+	/* Detect known hypervisors */
+	if (!memcmp(vmms->vm[0].cpi, "\xd2\xe5\xd4", 3))
+		set_machine_feature(MFEATURE_KVM);
+	else if (!memcmp(vmms->vm[0].cpi, "\xa9\x61\xe5\xd4", 4))
+		set_machine_feature(MFEATURE_VM);
+}
+
+static void detect_diag9c(void)
+{
+	unsigned int cpu;
+	int rc = 1;
+
+	cpu = stap();
+	asm_inline volatile(
+		"	diag	%[cpu],%%r0,0x9c\n"
+		"0:	lhi	%[rc],0\n"
+		"1:\n"
+		EX_TABLE(0b, 1b)
+		: [rc] "+d" (rc)
+		: [cpu] "d" (cpu)
+		: "cc", "memory");
+	if (!rc)
+		set_machine_feature(MFEATURE_DIAG9C);
+}
+
+static void reset_tod_clock(void)
+{
+	union tod_clock clk;
+
+	if (store_tod_clock_ext_cc(&clk) == 0)
+		return;
+	/* TOD clock not running. Set the clock to Unix Epoch. */
+	if (set_tod_clock(TOD_UNIX_EPOCH) || store_tod_clock_ext_cc(&clk))
+		disabled_wait();
+	memset(&tod_clock_base, 0, sizeof(tod_clock_base));
+	tod_clock_base.tod = TOD_UNIX_EPOCH;
+	get_lowcore()->last_update_clock = TOD_UNIX_EPOCH;
+}
+
 static void detect_facilities(void)
 {
-	if (test_facility(8)) {
-		machine.has_edat1 = 1;
+	if (cpu_has_edat1())
 		local_ctl_set_bit(0, CR0_EDAT_BIT);
-	}
-	if (test_facility(78))
-		machine.has_edat2 = 1;
 	page_noexec_mask = -1UL;
 	segment_noexec_mask = -1UL;
 	region_noexec_mask = -1UL;
-	if (!test_facility(130)) {
+	if (!cpu_has_nx()) {
 		page_noexec_mask &= ~_PAGE_NOEXEC;
 		segment_noexec_mask &= ~_SEGMENT_ENTRY_NOEXEC;
 		region_noexec_mask &= ~_REGION_ENTRY_NOEXEC;
 	}
+	if (IS_ENABLED(CONFIG_PCI) && test_facility(153))
+		set_machine_feature(MFEATURE_PCI_MIO);
+	reset_tod_clock();
+	if (test_facility(139) && (tod_clock_base.tod >> 63)) {
+		/* Enable signed clock comparator comparisons */
+		set_machine_feature(MFEATURE_SCC);
+		clock_comparator_max = -1UL >> 1;
+		local_ctl_set_bit(0, CR0_CLOCK_COMPARATOR_SIGN_BIT);
+	}
+	if (test_facility(50) && test_facility(73)) {
+		set_machine_feature(MFEATURE_TX);
+		local_ctl_set_bit(0, CR0_TRANSACTIONAL_EXECUTION_BIT);
+	}
+	if (cpu_has_vx())
+		local_ctl_set_bit(0, CR0_VECTOR_BIT);
 }
 
 static int cmma_test_essa(void)
 {
-	unsigned long reg1, reg2, tmp = 0;
+	unsigned long tmp = 0;
 	int rc = 1;
-	psw_t old;
 
 	/* Test ESSA_GET_STATE */
-	asm volatile(
-		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
-		"	epsw	%[reg1],%[reg2]\n"
-		"	st	%[reg1],0(%[psw_pgm])\n"
-		"	st	%[reg2],4(%[psw_pgm])\n"
-		"	larl	%[reg1],1f\n"
-		"	stg	%[reg1],8(%[psw_pgm])\n"
+	asm_inline volatile(
 		"	.insn	rrf,0xb9ab0000,%[tmp],%[tmp],%[cmd],0\n"
-		"	la	%[rc],0\n"
-		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
-		: [reg1] "=&d" (reg1),
-		  [reg2] "=&a" (reg2),
-		  [rc] "+&d" (rc),
-		  [tmp] "+&d" (tmp),
-		  "+Q" (get_lowcore()->program_new_psw),
-		  "=Q" (old)
-		: [psw_old] "a" (&old),
-		  [psw_pgm] "a" (&get_lowcore()->program_new_psw),
-		  [cmd] "i" (ESSA_GET_STATE)
+		"0:	lhi	%[rc],0\n"
+		"1:\n"
+		EX_TABLE(0b, 1b)
+		: [rc] "+d" (rc), [tmp] "+d" (tmp)
+		: [cmd] "i" (ESSA_GET_STATE)
 		: "cc", "memory");
 	return rc;
 }
@@ -462,7 +515,10 @@ void startup_kernel(void)
 
 	read_ipl_report();
 	sclp_early_read_info();
+	sclp_early_detect_machine_features();
 	detect_facilities();
+	detect_diag9c();
+	detect_machine_type();
 	cmma_init();
 	sanitize_prot_virt_host();
 	max_physmem_end = detect_max_physmem_end();

@@ -11,6 +11,7 @@
 #include "move.h"
 #include "recovery_passes.h"
 #include "replicas.h"
+#include "sb-counters.h"
 #include "super-io.h"
 #include "thread_with_file.h"
 
@@ -312,7 +313,12 @@ static int bch2_data_thread(void *arg)
 	struct bch_data_ctx *ctx = container_of(arg, struct bch_data_ctx, thr);
 
 	ctx->thr.ret = bch2_data_job(ctx->c, &ctx->stats, ctx->arg);
-	ctx->stats.data_type = U8_MAX;
+	if (ctx->thr.ret == -BCH_ERR_device_offline)
+		ctx->stats.ret = BCH_IOCTL_DATA_EVENT_RET_device_offline;
+	else {
+		ctx->stats.ret = BCH_IOCTL_DATA_EVENT_RET_done;
+		ctx->stats.data_type = (int) DATA_PROGRESS_DATA_TYPE_done;
+	}
 	return 0;
 }
 
@@ -331,13 +337,29 @@ static ssize_t bch2_data_job_read(struct file *file, char __user *buf,
 	struct bch_data_ctx *ctx = container_of(file->private_data, struct bch_data_ctx, thr);
 	struct bch_fs *c = ctx->c;
 	struct bch_ioctl_data_event e = {
-		.type			= BCH_DATA_EVENT_PROGRESS,
-		.p.data_type		= ctx->stats.data_type,
-		.p.btree_id		= ctx->stats.pos.btree,
-		.p.pos			= ctx->stats.pos.pos,
-		.p.sectors_done		= atomic64_read(&ctx->stats.sectors_seen),
-		.p.sectors_total	= bch2_fs_usage_read_short(c).used,
+		.type				= BCH_DATA_EVENT_PROGRESS,
+		.ret				= ctx->stats.ret,
+		.p.data_type			= ctx->stats.data_type,
+		.p.btree_id			= ctx->stats.pos.btree,
+		.p.pos				= ctx->stats.pos.pos,
+		.p.sectors_done			= atomic64_read(&ctx->stats.sectors_seen),
+		.p.sectors_error_corrected	= atomic64_read(&ctx->stats.sectors_error_corrected),
+		.p.sectors_error_uncorrected	= atomic64_read(&ctx->stats.sectors_error_uncorrected),
 	};
+
+	if (ctx->arg.op == BCH_DATA_OP_scrub) {
+		struct bch_dev *ca = bch2_dev_tryget(c, ctx->arg.scrub.dev);
+		if (ca) {
+			struct bch_dev_usage_full u;
+			bch2_dev_usage_full_read_fast(ca, &u);
+			for (unsigned i = BCH_DATA_btree; i < ARRAY_SIZE(u.d); i++)
+				if (ctx->arg.scrub.data_types & BIT(i))
+					e.p.sectors_total += u.d[i].sectors;
+			bch2_dev_put(ca);
+		}
+	} else {
+		e.p.sectors_total	= bch2_fs_usage_read_short(c).used;
+	}
 
 	if (len < sizeof(e))
 		return -EINVAL;
@@ -404,10 +426,8 @@ static long bch2_ioctl_fs_usage(struct bch_fs *c,
 	arg.replica_entries_bytes = replicas.nr;
 
 	for (unsigned i = 0; i < BCH_REPLICAS_MAX; i++) {
-		struct disk_accounting_pos k = {
-			.type = BCH_DISK_ACCOUNTING_persistent_reserved,
-			.persistent_reserved.nr_replicas = i,
-		};
+		struct disk_accounting_pos k;
+		disk_accounting_key_init(k, persistent_reserved, .nr_replicas = i);
 
 		bch2_accounting_mem_read(c,
 					 disk_accounting_pos_to_bpos(&k),
@@ -453,7 +473,7 @@ static long bch2_ioctl_dev_usage(struct bch_fs *c,
 				 struct bch_ioctl_dev_usage __user *user_arg)
 {
 	struct bch_ioctl_dev_usage arg;
-	struct bch_dev_usage src;
+	struct bch_dev_usage_full src;
 	struct bch_dev *ca;
 	unsigned i;
 
@@ -473,7 +493,7 @@ static long bch2_ioctl_dev_usage(struct bch_fs *c,
 	if (IS_ERR(ca))
 		return PTR_ERR(ca);
 
-	src = bch2_dev_usage_read(ca);
+	src = bch2_dev_usage_full_read(ca);
 
 	arg.state		= ca->mi.state;
 	arg.bucket_size		= ca->mi.bucket_size;
@@ -494,7 +514,7 @@ static long bch2_ioctl_dev_usage_v2(struct bch_fs *c,
 				 struct bch_ioctl_dev_usage_v2 __user *user_arg)
 {
 	struct bch_ioctl_dev_usage_v2 arg;
-	struct bch_dev_usage src;
+	struct bch_dev_usage_full src;
 	struct bch_dev *ca;
 	int ret = 0;
 
@@ -514,7 +534,7 @@ static long bch2_ioctl_dev_usage_v2(struct bch_fs *c,
 	if (IS_ERR(ca))
 		return PTR_ERR(ca);
 
-	src = bch2_dev_usage_read(ca);
+	src = bch2_dev_usage_full_read(ca);
 
 	arg.state		= ca->mi.state;
 	arg.bucket_size		= ca->mi.bucket_size;
@@ -595,7 +615,7 @@ static long bch2_ioctl_disk_get_idx(struct bch_fs *c,
 
 	for_each_online_member(c, ca)
 		if (ca->dev == dev) {
-			percpu_ref_put(&ca->io_ref);
+			percpu_ref_put(&ca->io_ref[READ]);
 			return ca->dev_idx;
 		}
 
@@ -710,6 +730,8 @@ long bch2_fs_ioctl(struct bch_fs *c, unsigned cmd, void __user *arg)
 		BCH_IOCTL(fsck_online, struct bch_ioctl_fsck_online);
 	case BCH_IOCTL_QUERY_ACCOUNTING:
 		return bch2_ioctl_query_accounting(c, arg);
+	case BCH_IOCTL_QUERY_COUNTERS:
+		return bch2_ioctl_query_counters(c, arg);
 	default:
 		return -ENOTTY;
 	}

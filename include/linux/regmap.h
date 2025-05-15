@@ -1352,6 +1352,7 @@ bool regmap_can_raw_write(struct regmap *map);
 size_t regmap_get_raw_read_max(struct regmap *map);
 size_t regmap_get_raw_write_max(struct regmap *map);
 
+void regcache_sort_defaults(struct reg_default *defaults, unsigned int ndefaults);
 int regcache_sync(struct regmap *map);
 int regcache_sync_region(struct regmap *map, unsigned int min,
 			 unsigned int max);
@@ -2041,6 +2042,12 @@ static inline bool regmap_might_sleep(struct regmap *map)
 {
 	WARN_ONCE(1, "regmap API is disabled");
 	return true;
+}
+
+static inline void regcache_sort_defaults(struct reg_default *defaults,
+					  unsigned int ndefaults)
+{
+	WARN_ONCE(1, "regmap API is disabled");
 }
 
 static inline int regcache_sync(struct regmap *map)

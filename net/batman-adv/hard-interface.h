@@ -23,12 +23,12 @@
 enum batadv_hard_if_state {
 	/**
 	 * @BATADV_IF_NOT_IN_USE: interface is not used as slave interface of a
-	 * batman-adv soft interface
+	 * batman-adv mesh interface
 	 */
 	BATADV_IF_NOT_IN_USE,
 
 	/**
-	 * @BATADV_IF_TO_BE_REMOVED: interface will be removed from soft
+	 * @BATADV_IF_TO_BE_REMOVED: interface will be removed from mesh
 	 * interface
 	 */
 	BATADV_IF_TO_BE_REMOVED,
@@ -74,10 +74,10 @@ bool batadv_is_wifi_hardif(struct batadv_hard_iface *hard_iface);
 struct batadv_hard_iface*
 batadv_hardif_get_by_netdev(const struct net_device *net_dev);
 int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
-				   struct net_device *soft_iface);
+				   struct net_device *mesh_iface);
 void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface);
-int batadv_hardif_min_mtu(struct net_device *soft_iface);
-void batadv_update_min_mtu(struct net_device *soft_iface);
+int batadv_hardif_min_mtu(struct net_device *mesh_iface);
+void batadv_update_min_mtu(struct net_device *mesh_iface);
 void batadv_hardif_release(struct kref *ref);
 int batadv_hardif_no_broadcast(struct batadv_hard_iface *if_outgoing,
 			       u8 *orig_addr, u8 *orig_neigh);
@@ -97,7 +97,7 @@ static inline void batadv_hardif_put(struct batadv_hard_iface *hard_iface)
 
 /**
  * batadv_primary_if_get_selected() - Get reference to primary interface
- * @bat_priv: the bat priv with all the soft interface information
+ * @bat_priv: the bat priv with all the mesh interface information
  *
  * Return: primary interface (with increased refcnt), otherwise NULL
  */

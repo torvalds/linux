@@ -589,4 +589,9 @@
 #define PCLK_EDP_S			569
 #define ACLK_KLAD			570
 
+/* SCMI clocks, use these when changing clocks through SCMI */
+#define SCMI_ARMCLK_L			10
+#define SCMI_ARMCLK_B			11
+#define SCMI_CLK_GPU			456
+
 #endif

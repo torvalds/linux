@@ -690,10 +690,9 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 			parser = mtd_part_parser_get(*types);
 			if (!parser && !request_module("%s", *types))
 				parser = mtd_part_parser_get(*types);
-			pr_debug("%s: got parser %s\n", master->name,
-				parser ? parser->name : NULL);
 			if (!parser)
 				continue;
+			pr_debug("%s: got parser %s\n", master->name, parser->name);
 			ret = mtd_part_do_parse(parser, master, &pparts, data);
 			if (ret <= 0)
 				mtd_part_parser_put(parser);

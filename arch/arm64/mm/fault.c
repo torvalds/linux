@@ -375,7 +375,7 @@ static void __do_kernel_fault(unsigned long addr, unsigned long esr,
 	 * Are we prepared to handle this kernel fault?
 	 * We are almost certainly not prepared to handle instruction faults.
 	 */
-	if (!is_el1_instruction_abort(esr) && fixup_exception(regs))
+	if (!is_el1_instruction_abort(esr) && fixup_exception(regs, esr))
 		return;
 
 	if (WARN_RATELIMIT(is_spurious_el1_translation_fault(addr, esr, regs),
@@ -606,7 +606,7 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
 			die_kernel_fault("execution of user memory",
 					 addr, esr, regs);
 
-		if (!search_exception_tables(regs->pc))
+		if (!insn_may_access_user(regs->pc, esr))
 			die_kernel_fault("access to user memory outside uaccess routines",
 					 addr, esr, regs);
 	}

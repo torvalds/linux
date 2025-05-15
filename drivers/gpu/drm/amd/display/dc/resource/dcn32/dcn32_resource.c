@@ -1749,7 +1749,8 @@ static bool dml1_validate(struct dc *dc, struct dc_state *context, bool fast_val
 
 	int vlevel = 0;
 	int pipe_cnt = 0;
-	display_e2e_pipe_params_st *pipes = kzalloc(dc->res_pool->pipe_count * sizeof(display_e2e_pipe_params_st), GFP_KERNEL);
+	display_e2e_pipe_params_st *pipes = kcalloc(dc->res_pool->pipe_count,
+			sizeof(display_e2e_pipe_params_st), GFP_KERNEL);
 
 	/* To handle Freesync properly, setting FreeSync DML parameters
 	 * to its default state for the first stage of validation
@@ -2112,8 +2113,6 @@ static bool dcn32_resource_construct(
 #undef REG_STRUCT
 #define REG_STRUCT dccg_regs
 	dccg_regs_init();
-
-	DC_FP_START();
 
 	ctx->dc_bios->regs = &bios_regs;
 
@@ -2500,13 +2499,9 @@ static bool dcn32_resource_construct(
 	if (ASICREV_IS_GC_11_0_3(dc->ctx->asic_id.hw_internal_rev) && (dc->config.sdpif_request_limit_words_per_umc == 0))
 		dc->config.sdpif_request_limit_words_per_umc = 16;
 
-	DC_FP_END();
-
 	return true;
 
 create_fail:
-
-	DC_FP_END();
 
 	dcn32_resource_destruct(pool);
 

@@ -228,9 +228,13 @@ static int propagate_one(struct mount *m, struct mountpoint *dest_mp)
 	/* skip ones added by this propagate_mnt() */
 	if (IS_MNT_NEW(m))
 		return 0;
-	/* skip if mountpoint isn't covered by it */
+	/* skip if mountpoint isn't visible in m */
 	if (!is_subdir(dest_mp->m_dentry, m->mnt.mnt_root))
 		return 0;
+	/* skip if m is in the anon_ns we are emptying */
+	if (m->mnt_ns->mntns_flags & MNTNS_PROPAGATING)
+		return 0;
+
 	if (peers(m, last_dest)) {
 		type = CL_MAKE_SHARED;
 	} else {
@@ -378,9 +382,6 @@ bool propagation_would_overmount(const struct mount *from,
 				 const struct mountpoint *mp)
 {
 	if (!IS_MNT_SHARED(from))
-		return false;
-
-	if (IS_MNT_NEW(to))
 		return false;
 
 	if (to->mnt.mnt_root != mp->m_dentry)
@@ -549,8 +550,10 @@ static void restore_mounts(struct list_head *to_restore)
 			mp = parent->mnt_mp;
 			parent = parent->mnt_parent;
 		}
-		if (parent != mnt->mnt_parent)
+		if (parent != mnt->mnt_parent) {
 			mnt_change_mountpoint(parent, mp, mnt);
+			mnt_notify_add(mnt);
+		}
 	}
 }
 

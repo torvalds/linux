@@ -579,7 +579,7 @@ static int acp_resume(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static bool acp_is_idle(void *handle)
+static bool acp_is_idle(struct amdgpu_ip_block *ip_block)
 {
 	return true;
 }

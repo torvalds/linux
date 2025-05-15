@@ -308,7 +308,7 @@ u32 intel_engine_context_size(struct intel_gt *gt, u8 class)
 			/*
 			 * There is a discrepancy here between the size reported
 			 * by the register and the size of the context layout
-			 * in the docs. Both are described as authorative!
+			 * in the docs. Both are described as authoritative!
 			 *
 			 * The discrepancy is on the order of a few cachelines,
 			 * but the total is under one page (4k), which is our
@@ -677,7 +677,7 @@ void intel_engines_release(struct intel_gt *gt)
 	 * in case we aborted before completely initialising the engines.
 	 */
 	GEM_BUG_ON(intel_gt_pm_is_awake(gt));
-	if (!INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
+	if (!intel_gt_gpu_reset_clobbers_display(gt))
 		intel_gt_reset_all_engines(gt);
 
 	/* Decouple the backend; but keep the layout for late GPU resets */
@@ -769,9 +769,8 @@ static void engine_mask_apply_media_fuses(struct intel_gt *gt)
 	if (MEDIA_VER_FULL(i915) < IP_VER(12, 55))
 		media_fuse = ~media_fuse;
 
-	vdbox_mask = media_fuse & GEN11_GT_VDBOX_DISABLE_MASK;
-	vebox_mask = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
-		      GEN11_GT_VEBOX_DISABLE_SHIFT;
+	vdbox_mask = REG_FIELD_GET(GEN11_GT_VDBOX_DISABLE_MASK, media_fuse);
+	vebox_mask = REG_FIELD_GET(GEN11_GT_VEBOX_DISABLE_MASK, media_fuse);
 
 	if (MEDIA_VER_FULL(i915) >= IP_VER(12, 55)) {
 		fuse1 = intel_uncore_read(gt->uncore, HSW_PAVP_FUSE1);
@@ -845,7 +844,7 @@ static void engine_mask_apply_compute_fuses(struct intel_gt *gt)
  * Note that we have a catch-22 situation where we need to be able to access
  * the blitter forcewake domain to read the engine fuses, but at the same time
  * we need to know which engines are available on the system to know which
- * forcewake domains are present. We solve this by intializing the forcewake
+ * forcewake domains are present. We solve this by initializing the forcewake
  * domains based on the full engine mask in the platform capabilities before
  * calling this function and pruning the domains for fused-off engines
  * afterwards.
@@ -1411,7 +1410,7 @@ create_ggtt_bind_context(struct intel_engine_cs *engine)
 
 	/*
 	 * MI_UPDATE_GTT can insert up to 511 PTE entries and there could be multiple
-	 * bind requets at a time so get a bigger ring.
+	 * bind requests at a time so get a bigger ring.
 	 */
 	return intel_engine_create_pinned_context(engine, engine->gt->vm, SZ_512K,
 						  I915_GEM_HWS_GGTT_BIND_ADDR,
@@ -1533,7 +1532,7 @@ int intel_engines_init(struct intel_gt *gt)
 
 /**
  * intel_engine_cleanup_common - cleans up the engine state created by
- *                                the common initiailizers.
+ *                                the common initializers.
  * @engine: Engine to cleanup.
  *
  * This cleans up everything created by the common helpers.

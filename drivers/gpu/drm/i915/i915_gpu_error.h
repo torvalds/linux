@@ -224,8 +224,6 @@ struct i915_gpu_error {
 	/* Protected by the above dev->gpu_error.lock. */
 	struct i915_gpu_coredump *first_error;
 
-	atomic_t pending_fb_pin;
-
 	/** Number of times the device has been reset (global) */
 	atomic_t reset_count;
 

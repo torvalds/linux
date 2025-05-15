@@ -32,3 +32,8 @@ amdgpu/amd_pci_unplug@amdgpu_hotunplug_with_exported_bo
 amdgpu/amd_pci_unplug@amdgpu_hotunplug_with_exported_fence
 amdgpu/amd_vrr_range@freesync-parsing
 device_reset.*
+
+# IGT issue. is_joiner_mode() should return false for non-Intel hardware.
+# https://gitlab.freedesktop.org/drm/igt-gpu-tools/-/issues/162
+kms_display_modes@extended-mode-basic
+kms_display_modes@mst-extended-mode-negative

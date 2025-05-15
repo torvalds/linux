@@ -14,11 +14,6 @@
 
 struct dml2_instance;
 
-enum dml2_status {
-	dml2_success = 0,
-	dml2_error_generic = 1
-};
-
 enum dml2_project_id {
 	dml2_project_invalid = 0,
 	dml2_project_dcn4x_stage1 = 1,
@@ -245,6 +240,7 @@ struct dml2_per_plane_programming {
 	struct {
 		bool valid;
 		struct dml2_plane_parameters descriptor;
+		struct dml2_mcache_surface_allocation mcache_allocation;
 		struct dml2_dchub_per_pipe_register_set *pipe_regs[DML2_MAX_PLANES];
 	} phantom_plane;
 };
@@ -456,6 +452,10 @@ struct dml2_display_cfg_programming {
 			unsigned int meta_row_height_plane0;
 			unsigned int meta_row_height_plane1;
 		} plane_info[DML2_MAX_PLANES];
+
+		struct {
+			unsigned int total_num_dpps_required;
+		} dpp;
 
 		struct {
 			unsigned long long total_surface_size_in_mall_bytes;

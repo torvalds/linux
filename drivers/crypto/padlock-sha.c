@@ -125,7 +125,7 @@ out:
 
 static int padlock_sha1_final(struct shash_desc *desc, u8 *out)
 {
-	u8 buf[4];
+	const u8 *buf = (void *)desc;
 
 	return padlock_sha1_finup(desc, buf, 0, out);
 }
@@ -186,7 +186,7 @@ out:
 
 static int padlock_sha256_final(struct shash_desc *desc, u8 *out)
 {
-	u8 buf[4];
+	const u8 *buf = (void *)desc;
 
 	return padlock_sha256_finup(desc, buf, 0, out);
 }

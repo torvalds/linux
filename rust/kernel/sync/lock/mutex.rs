@@ -26,7 +26,7 @@ pub use new_mutex;
 /// Since it may block, [`Mutex`] needs to be used with care in atomic contexts.
 ///
 /// Instances of [`Mutex`] need a lock class and to be pinned. The recommended way to create such
-/// instances is with the [`pin_init`](crate::pin_init) and [`new_mutex`] macros.
+/// instances is with the [`pin_init`](pin_init::pin_init) and [`new_mutex`] macros.
 ///
 /// # Examples
 ///

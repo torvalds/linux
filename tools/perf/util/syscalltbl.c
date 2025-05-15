@@ -7,119 +7,127 @@
 
 #include "syscalltbl.h"
 #include <stdlib.h>
+#include <asm/bitsperlong.h>
 #include <linux/compiler.h>
+#include <linux/kernel.h>
 #include <linux/zalloc.h>
 
 #include <string.h>
 #include "string2.h"
 
-#include <syscall_table.h>
-const int syscalltbl_native_max_id = SYSCALLTBL_MAX_ID;
-static const char *const *syscalltbl_native = syscalltbl;
+#include "trace/beauty/generated/syscalltbl.c"
 
-struct syscall {
-	int id;
+static const struct syscalltbl *find_table(int e_machine)
+{
+	static const struct syscalltbl *last_table;
+	static int last_table_machine = EM_NONE;
+
+	/* Tables only exist for EM_SPARC. */
+	if (e_machine == EM_SPARCV9)
+		e_machine = EM_SPARC;
+
+	if (last_table_machine == e_machine && last_table != NULL)
+		return last_table;
+
+	for (size_t i = 0; i < ARRAY_SIZE(syscalltbls); i++) {
+		const struct syscalltbl *entry = &syscalltbls[i];
+
+		if (entry->e_machine != e_machine && entry->e_machine != EM_NONE)
+			continue;
+
+		last_table = entry;
+		last_table_machine = e_machine;
+		return entry;
+	}
+	return NULL;
+}
+
+const char *syscalltbl__name(int e_machine, int id)
+{
+	const struct syscalltbl *table = find_table(e_machine);
+
+	if (e_machine == EM_MIPS && id > 1000) {
+		/*
+		 * MIPS may encode the N32/64/O32 type in the high part of
+		 * syscall number. Mask this off if present. See the values of
+		 * __NR_N32_Linux, __NR_64_Linux, __NR_O32_Linux and __NR_Linux.
+		 */
+		id = id % 1000;
+	}
+	if (table && id >= 0 && id < table->num_to_name_len)
+		return table->num_to_name[id];
+	return NULL;
+}
+
+struct syscall_cmp_key {
 	const char *name;
+	const char *const *tbl;
 };
 
 static int syscallcmpname(const void *vkey, const void *ventry)
 {
-	const char *key = vkey;
-	const struct syscall *entry = ventry;
+	const struct syscall_cmp_key *key = vkey;
+	const uint16_t *entry = ventry;
 
-	return strcmp(key, entry->name);
+	return strcmp(key->name, key->tbl[*entry]);
 }
 
-static int syscallcmp(const void *va, const void *vb)
+int syscalltbl__id(int e_machine, const char *name)
 {
-	const struct syscall *a = va, *b = vb;
+	const struct syscalltbl *table = find_table(e_machine);
+	struct syscall_cmp_key key;
+	const uint16_t *id;
 
-	return strcmp(a->name, b->name);
-}
-
-static int syscalltbl__init_native(struct syscalltbl *tbl)
-{
-	int nr_entries = 0, i, j;
-	struct syscall *entries;
-
-	for (i = 0; i <= syscalltbl_native_max_id; ++i)
-		if (syscalltbl_native[i])
-			++nr_entries;
-
-	entries = tbl->syscalls.entries = malloc(sizeof(struct syscall) * nr_entries);
-	if (tbl->syscalls.entries == NULL)
+	if (!table)
 		return -1;
 
-	for (i = 0, j = 0; i <= syscalltbl_native_max_id; ++i) {
-		if (syscalltbl_native[i]) {
-			entries[j].name = syscalltbl_native[i];
-			entries[j].id = i;
-			++j;
-		}
-	}
+	key.name = name;
+	key.tbl = table->num_to_name;
+	id = bsearch(&key, table->sorted_names, table->sorted_names_len,
+		     sizeof(table->sorted_names[0]), syscallcmpname);
 
-	qsort(tbl->syscalls.entries, nr_entries, sizeof(struct syscall), syscallcmp);
-	tbl->syscalls.nr_entries = nr_entries;
-	tbl->syscalls.max_id	 = syscalltbl_native_max_id;
-	return 0;
+	return id ? *id : -1;
 }
 
-struct syscalltbl *syscalltbl__new(void)
+int syscalltbl__num_idx(int e_machine)
 {
-	struct syscalltbl *tbl = malloc(sizeof(*tbl));
-	if (tbl) {
-		if (syscalltbl__init_native(tbl)) {
-			free(tbl);
-			return NULL;
-		}
-	}
-	return tbl;
+	const struct syscalltbl *table = find_table(e_machine);
+
+	if (!table)
+		return 0;
+
+	return table->sorted_names_len;
 }
 
-void syscalltbl__delete(struct syscalltbl *tbl)
+int syscalltbl__id_at_idx(int e_machine, int idx)
 {
-	zfree(&tbl->syscalls.entries);
-	free(tbl);
+	const struct syscalltbl *table = find_table(e_machine);
+
+	if (!table)
+		return -1;
+
+	assert(idx >= 0 && idx < table->sorted_names_len);
+	return table->sorted_names[idx];
 }
 
-const char *syscalltbl__name(const struct syscalltbl *tbl __maybe_unused, int id)
+int syscalltbl__strglobmatch_next(int e_machine, const char *syscall_glob, int *idx)
 {
-	return id <= syscalltbl_native_max_id ? syscalltbl_native[id]: NULL;
-}
+	const struct syscalltbl *table = find_table(e_machine);
 
-int syscalltbl__id(struct syscalltbl *tbl, const char *name)
-{
-	struct syscall *sc = bsearch(name, tbl->syscalls.entries,
-				     tbl->syscalls.nr_entries, sizeof(*sc),
-				     syscallcmpname);
+	for (int i = *idx + 1; table && i < table->sorted_names_len; ++i) {
+		const char *name = table->num_to_name[table->sorted_names[i]];
 
-	return sc ? sc->id : -1;
-}
-
-int syscalltbl__id_at_idx(struct syscalltbl *tbl, int idx)
-{
-	struct syscall *syscalls = tbl->syscalls.entries;
-
-	return idx < tbl->syscalls.nr_entries ? syscalls[idx].id : -1;
-}
-
-int syscalltbl__strglobmatch_next(struct syscalltbl *tbl, const char *syscall_glob, int *idx)
-{
-	int i;
-	struct syscall *syscalls = tbl->syscalls.entries;
-
-	for (i = *idx + 1; i < tbl->syscalls.nr_entries; ++i) {
-		if (strglobmatch(syscalls[i].name, syscall_glob)) {
+		if (strglobmatch(name, syscall_glob)) {
 			*idx = i;
-			return syscalls[i].id;
+			return table->sorted_names[i];
 		}
 	}
 
 	return -1;
 }
 
-int syscalltbl__strglobmatch_first(struct syscalltbl *tbl, const char *syscall_glob, int *idx)
+int syscalltbl__strglobmatch_first(int e_machine, const char *syscall_glob, int *idx)
 {
 	*idx = -1;
-	return syscalltbl__strglobmatch_next(tbl, syscall_glob, idx);
+	return syscalltbl__strglobmatch_next(e_machine, syscall_glob, idx);
 }

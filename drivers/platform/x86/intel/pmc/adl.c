@@ -11,7 +11,7 @@
 #include "core.h"
 
 /* Alder Lake: PGD PFET Enable Ack Status Register(s) bitmap */
-const struct pmc_bit_map adl_pfear_map[] = {
+static const struct pmc_bit_map adl_pfear_map[] = {
 	{"SPI/eSPI",		BIT(2)},
 	{"XHCI",		BIT(3)},
 	{"SPA",			BIT(4)},
@@ -54,7 +54,7 @@ const struct pmc_bit_map adl_pfear_map[] = {
 	{}
 };
 
-const struct pmc_bit_map *ext_adl_pfear_map[] = {
+static const struct pmc_bit_map *ext_adl_pfear_map[] = {
 	/*
 	 * Check intel_pmc_core_ids[] users of cnp_reg_map for
 	 * a list of core SoCs using this.
@@ -63,7 +63,7 @@ const struct pmc_bit_map *ext_adl_pfear_map[] = {
 	NULL
 };
 
-const struct pmc_bit_map adl_ltr_show_map[] = {
+static const struct pmc_bit_map adl_ltr_show_map[] = {
 	{"SOUTHPORT_A",		CNP_PMC_LTR_SPA},
 	{"SOUTHPORT_B",		CNP_PMC_LTR_SPB},
 	{"SATA",		CNP_PMC_LTR_SATA},
@@ -100,7 +100,7 @@ const struct pmc_bit_map adl_ltr_show_map[] = {
 	{}
 };
 
-const struct pmc_bit_map adl_clocksource_status_map[] = {
+static const struct pmc_bit_map adl_clocksource_status_map[] = {
 	{"CLKPART1_OFF_STS",			BIT(0)},
 	{"CLKPART2_OFF_STS",			BIT(1)},
 	{"CLKPART3_OFF_STS",			BIT(2)},
@@ -128,7 +128,7 @@ const struct pmc_bit_map adl_clocksource_status_map[] = {
 	{}
 };
 
-const struct pmc_bit_map adl_power_gating_status_0_map[] = {
+static const struct pmc_bit_map adl_power_gating_status_0_map[] = {
 	{"PMC_PGD0_PG_STS",			BIT(0)},
 	{"DMI_PGD0_PG_STS",			BIT(1)},
 	{"ESPISPI_PGD0_PG_STS",			BIT(2)},
@@ -158,7 +158,7 @@ const struct pmc_bit_map adl_power_gating_status_0_map[] = {
 	{}
 };
 
-const struct pmc_bit_map adl_power_gating_status_1_map[] = {
+static const struct pmc_bit_map adl_power_gating_status_1_map[] = {
 	{"USBR0_PGD0_PG_STS",			BIT(0)},
 	{"SMT1_PGD0_PG_STS",			BIT(2)},
 	{"CSMERTC_PGD0_PG_STS",			BIT(6)},
@@ -170,14 +170,14 @@ const struct pmc_bit_map adl_power_gating_status_1_map[] = {
 	{}
 };
 
-const struct pmc_bit_map adl_power_gating_status_2_map[] = {
+static const struct pmc_bit_map adl_power_gating_status_2_map[] = {
 	{"THC0_PGD0_PG_STS",			BIT(7)},
 	{"THC1_PGD0_PG_STS",			BIT(8)},
 	{"SPF_PGD0_PG_STS",			BIT(14)},
 	{}
 };
 
-const struct pmc_bit_map adl_d3_status_0_map[] = {
+static const struct pmc_bit_map adl_d3_status_0_map[] = {
 	{"ISH_D3_STS",				BIT(2)},
 	{"LPSS_D3_STS",				BIT(3)},
 	{"XDCI_D3_STS",				BIT(4)},
@@ -193,13 +193,13 @@ const struct pmc_bit_map adl_d3_status_0_map[] = {
 	{}
 };
 
-const struct pmc_bit_map adl_d3_status_1_map[] = {
+static const struct pmc_bit_map adl_d3_status_1_map[] = {
 	{"GBE_D3_STS",				BIT(19)},
 	{"CNVI_D3_STS",				BIT(27)},
 	{}
 };
 
-const struct pmc_bit_map adl_d3_status_2_map[] = {
+static const struct pmc_bit_map adl_d3_status_2_map[] = {
 	{"CSMERTC_D3_STS",			BIT(1)},
 	{"CSE_D3_STS",				BIT(4)},
 	{"KVMCC_D3_STS",			BIT(5)},
@@ -210,20 +210,20 @@ const struct pmc_bit_map adl_d3_status_2_map[] = {
 	{}
 };
 
-const struct pmc_bit_map adl_d3_status_3_map[] = {
+static const struct pmc_bit_map adl_d3_status_3_map[] = {
 	{"THC0_D3_STS",				BIT(14)},
 	{"THC1_D3_STS",				BIT(15)},
 	{}
 };
 
-const struct pmc_bit_map adl_vnn_req_status_0_map[] = {
+static const struct pmc_bit_map adl_vnn_req_status_0_map[] = {
 	{"ISH_VNN_REQ_STS",			BIT(2)},
 	{"ESPISPI_VNN_REQ_STS",			BIT(18)},
 	{"DSP_VNN_REQ_STS",			BIT(19)},
 	{}
 };
 
-const struct pmc_bit_map adl_vnn_req_status_1_map[] = {
+static const struct pmc_bit_map adl_vnn_req_status_1_map[] = {
 	{"NPK_VNN_REQ_STS",			BIT(4)},
 	{"EXI_VNN_REQ_STS",			BIT(9)},
 	{"GBE_VNN_REQ_STS",			BIT(19)},
@@ -232,7 +232,7 @@ const struct pmc_bit_map adl_vnn_req_status_1_map[] = {
 	{}
 };
 
-const struct pmc_bit_map adl_vnn_req_status_2_map[] = {
+static const struct pmc_bit_map adl_vnn_req_status_2_map[] = {
 	{"CSMERTC_VNN_REQ_STS",			BIT(1)},
 	{"CSE_VNN_REQ_STS",			BIT(4)},
 	{"SMT1_VNN_REQ_STS",			BIT(8)},
@@ -245,12 +245,12 @@ const struct pmc_bit_map adl_vnn_req_status_2_map[] = {
 	{}
 };
 
-const struct pmc_bit_map adl_vnn_req_status_3_map[] = {
+static const struct pmc_bit_map adl_vnn_req_status_3_map[] = {
 	{"GPIOCOM5_VNN_REQ_STS",		BIT(11)},
 	{}
 };
 
-const struct pmc_bit_map adl_vnn_misc_status_map[] = {
+static const struct pmc_bit_map adl_vnn_misc_status_map[] = {
 	{"CPU_C10_REQ_STS",			BIT(0)},
 	{"PCIe_LPM_En_REQ_STS",			BIT(3)},
 	{"ITH_REQ_STS",				BIT(5)},
@@ -265,7 +265,7 @@ const struct pmc_bit_map adl_vnn_misc_status_map[] = {
 	{}
 };
 
-const struct pmc_bit_map *adl_lpm_maps[] = {
+static const struct pmc_bit_map *adl_lpm_maps[] = {
 	adl_clocksource_status_map,
 	adl_power_gating_status_0_map,
 	adl_power_gating_status_1_map,
@@ -311,20 +311,8 @@ const struct pmc_reg_map adl_reg_map = {
 	.pson_residency_counter_step = TGL_PSON_RES_COUNTER_STEP,
 };
 
-int adl_core_init(struct pmc_dev *pmcdev)
-{
-	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
-	int ret;
-
-	pmcdev->suspend = cnl_suspend;
-	pmcdev->resume = cnl_resume;
-
-	pmc->map = &adl_reg_map;
-	ret = get_primary_reg_base(pmc);
-	if (ret)
-		return ret;
-
-	pmc_core_get_low_power_modes(pmcdev);
-
-	return 0;
-}
+struct pmc_dev_info adl_pmc_dev = {
+	.map = &adl_reg_map,
+	.suspend = cnl_suspend,
+	.resume = cnl_resume,
+};

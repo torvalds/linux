@@ -40,14 +40,14 @@
 #define FN(reg_name, field_name) \
 	mpc401->mpc_shift->field_name, mpc401->mpc_mask->field_name
 
-static void mpc401_update_3dlut_fast_load_select(struct mpc *mpc, int mpcc_id, int hubp_idx)
+void mpc401_update_3dlut_fast_load_select(struct mpc *mpc, int mpcc_id, int hubp_idx)
 {
 	struct dcn401_mpc *mpc401 = TO_DCN401_MPC(mpc);
 
 	REG_SET(MPCC_MCM_3DLUT_FAST_LOAD_SELECT[mpcc_id], 0, MPCC_MCM_3DLUT_FL_SEL, hubp_idx);
 }
 
-static void mpc401_get_3dlut_fast_load_status(struct mpc *mpc, int mpcc_id, uint32_t *done, uint32_t *soft_underflow, uint32_t *hard_underflow)
+void mpc401_get_3dlut_fast_load_status(struct mpc *mpc, int mpcc_id, uint32_t *done, uint32_t *soft_underflow, uint32_t *hard_underflow)
 {
 	struct dcn401_mpc *mpc401 = TO_DCN401_MPC(mpc);
 

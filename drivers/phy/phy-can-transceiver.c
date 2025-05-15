@@ -103,6 +103,7 @@ static int can_transceiver_phy_probe(struct platform_device *pdev)
 	struct phy *phy;
 	struct gpio_desc *standby_gpio;
 	struct gpio_desc *enable_gpio;
+	struct mux_state *mux_state;
 	u32 max_bitrate = 0;
 	int err;
 
@@ -113,13 +114,11 @@ static int can_transceiver_phy_probe(struct platform_device *pdev)
 	match = of_match_node(can_transceiver_phy_ids, pdev->dev.of_node);
 	drvdata = match->data;
 
-	if (of_property_read_bool(dev->of_node, "mux-states")) {
-		struct mux_state *mux_state;
-
-		mux_state = devm_mux_state_get(dev, NULL);
-		if (IS_ERR(mux_state))
-			return dev_err_probe(&pdev->dev, PTR_ERR(mux_state),
-					     "failed to get mux\n");
+	mux_state = devm_mux_state_get(dev, NULL);
+	if (IS_ERR(mux_state)) {
+		if (PTR_ERR(mux_state) == -EPROBE_DEFER)
+			return PTR_ERR(mux_state);
+	} else {
 		can_transceiver_phy->mux_state = mux_state;
 	}
 

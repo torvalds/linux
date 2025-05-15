@@ -104,7 +104,6 @@ unsigned int cs_dsp_mock_num_dsp_words_to_num_packed_regs(unsigned int num_dsp_w
 unsigned int cs_dsp_mock_xm_header_get_alg_base_in_words(struct cs_dsp_test *priv,
 							 unsigned int alg_id,
 							 int mem_type);
-unsigned int cs_dsp_mock_xm_header_get_fw_version_from_regmap(struct cs_dsp_test *priv);
 unsigned int cs_dsp_mock_xm_header_get_fw_version(struct cs_dsp_mock_xm_header *header);
 void cs_dsp_mock_xm_header_drop_from_regmap_cache(struct cs_dsp_test *priv);
 int cs_dsp_mock_xm_header_write_to_regmap(struct cs_dsp_mock_xm_header *header);

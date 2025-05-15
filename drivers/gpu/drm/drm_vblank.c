@@ -508,7 +508,7 @@ static void drm_vblank_init_release(struct drm_device *dev, void *ptr)
 		    drm_core_check_feature(dev, DRIVER_MODESET));
 
 	drm_vblank_destroy_worker(vblank);
-	del_timer_sync(&vblank->disable_timer);
+	timer_delete_sync(&vblank->disable_timer);
 }
 
 /**

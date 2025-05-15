@@ -2224,7 +2224,7 @@ static void da7213_i2c_remove(struct i2c_client *i2c)
 	pm_runtime_disable(&i2c->dev);
 }
 
-static int __maybe_unused da7213_runtime_suspend(struct device *dev)
+static int da7213_runtime_suspend(struct device *dev)
 {
 	struct da7213_priv *da7213 = dev_get_drvdata(dev);
 
@@ -2235,7 +2235,7 @@ static int __maybe_unused da7213_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused da7213_runtime_resume(struct device *dev)
+static int da7213_runtime_resume(struct device *dev)
 {
 	struct da7213_priv *da7213 = dev_get_drvdata(dev);
 	int ret;
@@ -2248,8 +2248,8 @@ static int __maybe_unused da7213_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops da7213_pm = {
-	SET_RUNTIME_PM_OPS(da7213_runtime_suspend, da7213_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	RUNTIME_PM_OPS(da7213_runtime_suspend, da7213_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static const struct i2c_device_id da7213_i2c_id[] = {
@@ -2264,7 +2264,7 @@ static struct i2c_driver da7213_i2c_driver = {
 		.name = "da7213",
 		.of_match_table = of_match_ptr(da7213_of_match),
 		.acpi_match_table = ACPI_PTR(da7213_acpi_match),
-		.pm = &da7213_pm,
+		.pm = pm_ptr(&da7213_pm),
 	},
 	.probe		= da7213_i2c_probe,
 	.remove		= da7213_i2c_remove,

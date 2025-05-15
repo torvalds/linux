@@ -625,10 +625,6 @@ struct bio_set {
 
 	mempool_t bio_pool;
 	mempool_t bvec_pool;
-#if defined(CONFIG_BLK_DEV_INTEGRITY)
-	mempool_t bio_integrity_pool;
-	mempool_t bvec_integrity_pool;
-#endif
 
 	unsigned int back_pad;
 	/*

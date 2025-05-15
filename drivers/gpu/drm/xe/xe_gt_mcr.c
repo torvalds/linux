@@ -341,7 +341,13 @@ static unsigned int dss_per_group(struct xe_gt *gt)
 	return DIV_ROUND_UP(max_subslices, max_slices);
 
 fallback:
-	xe_gt_dbg(gt, "GuC hwconfig cannot provide dss/slice; using typical fallback values\n");
+	/*
+	 * Some older platforms don't have tables or don't have complete tables.
+	 * Newer platforms should always have the required info.
+	 */
+	if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 2000)
+		xe_gt_err(gt, "Slice/Subslice counts missing from hwconfig table; using typical fallback values\n");
+
 	if (gt_to_xe(gt)->info.platform == XE_PVC)
 		return 8;
 	else if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1250)

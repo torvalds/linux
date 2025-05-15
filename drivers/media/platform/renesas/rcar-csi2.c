@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
@@ -15,6 +16,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/sys_soc.h>
+#include <linux/units.h>
 
 #include <media/mipi-csi2.h>
 #include <media/v4l2-ctrls.h>
@@ -637,6 +639,10 @@ static const struct rcar_csi2_format rcar_csi2_formats[] = {
 		.datatype = MIPI_CSI2_DT_YUV422_8B,
 		.bpp = 20,
 	}, {
+		.code = MEDIA_BUS_FMT_Y8_1X8,
+		.datatype = MIPI_CSI2_DT_RAW8,
+		.bpp = 8,
+	}, {
 		.code = MEDIA_BUS_FMT_Y10_1X10,
 		.datatype = MIPI_CSI2_DT_RAW10,
 		.bpp = 10,
@@ -657,9 +663,37 @@ static const struct rcar_csi2_format rcar_csi2_formats[] = {
 		.datatype = MIPI_CSI2_DT_RAW8,
 		.bpp = 8,
 	}, {
-		.code = MEDIA_BUS_FMT_Y8_1X8,
-		.datatype = MIPI_CSI2_DT_RAW8,
-		.bpp = 8,
+		.code = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.datatype = MIPI_CSI2_DT_RAW10,
+		.bpp = 10,
+	}, {
+		.code = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.datatype = MIPI_CSI2_DT_RAW10,
+		.bpp = 10,
+	}, {
+		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
+		.datatype = MIPI_CSI2_DT_RAW10,
+		.bpp = 10,
+	}, {
+		.code = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.datatype = MIPI_CSI2_DT_RAW10,
+		.bpp = 10,
+	}, {
+		.code = MEDIA_BUS_FMT_SBGGR12_1X12,
+		.datatype = MIPI_CSI2_DT_RAW12,
+		.bpp = 12,
+	}, {
+		.code = MEDIA_BUS_FMT_SGBRG12_1X12,
+		.datatype = MIPI_CSI2_DT_RAW12,
+		.bpp = 12,
+	}, {
+		.code = MEDIA_BUS_FMT_SGRBG12_1X12,
+		.datatype = MIPI_CSI2_DT_RAW12,
+		.bpp = 12,
+	}, {
+		.code = MEDIA_BUS_FMT_SRGGB12_1X12,
+		.datatype = MIPI_CSI2_DT_RAW12,
+		.bpp = 12,
 	},
 };
 
@@ -921,7 +955,7 @@ static int rcsi2_calc_mbps(struct rcar_csi2 *priv, unsigned int bpp,
 			   unsigned int lanes)
 {
 	struct v4l2_subdev *source;
-	struct v4l2_ctrl *ctrl;
+	s64 freq;
 	u64 mbps;
 
 	if (!priv->remote)
@@ -929,21 +963,17 @@ static int rcsi2_calc_mbps(struct rcar_csi2 *priv, unsigned int bpp,
 
 	source = priv->remote;
 
-	/* Read the pixel rate control from remote. */
-	ctrl = v4l2_ctrl_find(source->ctrl_handler, V4L2_CID_PIXEL_RATE);
-	if (!ctrl) {
-		dev_err(priv->dev, "no pixel rate control in subdev %s\n",
-			source->name);
-		return -EINVAL;
+	freq = v4l2_get_link_freq(source->ctrl_handler, bpp, 2 * lanes);
+	if (freq < 0) {
+		int ret = (int)freq;
+
+		dev_err(priv->dev, "failed to get link freq for %s: %d\n",
+			source->name, ret);
+
+		return ret;
 	}
 
-	/*
-	 * Calculate the phypll in mbps.
-	 * link_freq = (pixel_rate * bits_per_sample) / (2 * nr_of_lanes)
-	 * bps = link_freq * 2
-	 */
-	mbps = v4l2_ctrl_g_ctrl_int64(ctrl) * bpp;
-	do_div(mbps, lanes * 1000000);
+	mbps = div_u64(freq * 2, MEGA);
 
 	/* Adjust for C-PHY, divide by 2.8. */
 	if (priv->cphy)
@@ -1547,7 +1577,8 @@ static int rcsi2_start(struct rcar_csi2 *priv, struct v4l2_subdev_state *state)
 		return ret;
 	}
 
-	ret = v4l2_subdev_call(priv->remote, video, s_stream, 1);
+	ret = v4l2_subdev_enable_streams(priv->remote, priv->remote_pad,
+					 BIT_ULL(0));
 	if (ret) {
 		rcsi2_enter_standby(priv);
 		return ret;
@@ -1559,31 +1590,50 @@ static int rcsi2_start(struct rcar_csi2 *priv, struct v4l2_subdev_state *state)
 static void rcsi2_stop(struct rcar_csi2 *priv)
 {
 	rcsi2_enter_standby(priv);
-	v4l2_subdev_call(priv->remote, video, s_stream, 0);
+	v4l2_subdev_disable_streams(priv->remote, priv->remote_pad, BIT_ULL(0));
 }
 
-static int rcsi2_s_stream(struct v4l2_subdev *sd, int enable)
+static int rcsi2_enable_streams(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *state, u32 source_pad,
+				u64 source_streams_mask)
 {
 	struct rcar_csi2 *priv = sd_to_csi2(sd);
-	struct v4l2_subdev_state *state;
 	int ret = 0;
+
+	if (source_streams_mask != 1)
+		return -EINVAL;
 
 	if (!priv->remote)
 		return -ENODEV;
 
-	state = v4l2_subdev_lock_and_get_active_state(&priv->subdev);
-
-	if (enable && priv->stream_count == 0) {
+	if (priv->stream_count == 0) {
 		ret = rcsi2_start(priv, state);
 		if (ret)
-			goto out;
-	} else if (!enable && priv->stream_count == 1) {
-		rcsi2_stop(priv);
+			return ret;
 	}
 
-	priv->stream_count += enable ? 1 : -1;
-out:
-	v4l2_subdev_unlock_state(state);
+	priv->stream_count += 1;
+
+	return ret;
+}
+
+static int rcsi2_disable_streams(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *state,
+				 u32 source_pad, u64 source_streams_mask)
+{
+	struct rcar_csi2 *priv = sd_to_csi2(sd);
+	int ret = 0;
+
+	if (source_streams_mask != 1)
+		return -EINVAL;
+
+	if (!priv->remote)
+		return -ENODEV;
+
+	if (priv->stream_count == 1)
+		rcsi2_stop(priv);
+
+	priv->stream_count -= 1;
 
 	return ret;
 }
@@ -1610,17 +1660,15 @@ static int rcsi2_set_pad_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static const struct v4l2_subdev_video_ops rcar_csi2_video_ops = {
-	.s_stream = rcsi2_s_stream,
-};
-
 static const struct v4l2_subdev_pad_ops rcar_csi2_pad_ops = {
+	.enable_streams = rcsi2_enable_streams,
+	.disable_streams = rcsi2_disable_streams,
+
 	.set_fmt = rcsi2_set_pad_format,
 	.get_fmt = v4l2_subdev_get_fmt,
 };
 
 static const struct v4l2_subdev_ops rcar_csi2_subdev_ops = {
-	.video	= &rcar_csi2_video_ops,
 	.pad	= &rcar_csi2_pad_ops,
 };
 

@@ -396,7 +396,6 @@ static int prestera_port_sfp_bind(struct prestera_port *port)
 			continue;
 
 		port->phylink_pcs.ops = &prestera_pcs_ops;
-		port->phylink_pcs.neg_mode = true;
 
 		port->phy_config.dev = &port->dev->dev;
 		port->phy_config.type = PHYLINK_NETDEV;
@@ -635,7 +634,7 @@ static int prestera_port_create(struct prestera_switch *sw, u32 id)
 		goto err_dl_port_register;
 
 	dev->features |= NETIF_F_HW_TC;
-	dev->netns_local = true;
+	dev->netns_immutable = true;
 	dev->netdev_ops = &prestera_netdev_ops;
 	dev->ethtool_ops = &prestera_ethtool_ops;
 	SET_NETDEV_DEV(dev, sw->dev->dev);

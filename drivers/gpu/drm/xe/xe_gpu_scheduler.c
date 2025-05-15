@@ -63,13 +63,24 @@ int xe_sched_init(struct xe_gpu_scheduler *sched,
 		  atomic_t *score, const char *name,
 		  struct device *dev)
 {
+	const struct drm_sched_init_args args = {
+		.ops = ops,
+		.submit_wq = submit_wq,
+		.num_rqs = 1,
+		.credit_limit = hw_submission,
+		.hang_limit = hang_limit,
+		.timeout = timeout,
+		.timeout_wq = timeout_wq,
+		.score = score,
+		.name = name,
+		.dev = dev,
+	};
+
 	sched->ops = xe_ops;
 	INIT_LIST_HEAD(&sched->msgs);
 	INIT_WORK(&sched->work_process_msg, xe_sched_process_msg_work);
 
-	return drm_sched_init(&sched->base, ops, submit_wq, 1, hw_submission,
-			      hang_limit, timeout, timeout_wq, score, name,
-			      dev);
+	return drm_sched_init(&sched->base, &args);
 }
 
 void xe_sched_fini(struct xe_gpu_scheduler *sched)

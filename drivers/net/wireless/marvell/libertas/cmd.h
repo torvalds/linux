@@ -105,18 +105,8 @@ int lbs_get_tx_power(struct lbs_private *priv, s16 *curlevel, s16 *minlevel,
 
 int lbs_set_snmp_mib(struct lbs_private *priv, u32 oid, u16 val);
 
-int lbs_get_snmp_mib(struct lbs_private *priv, u32 oid, u16 *out_val);
-
 
 /* Commands only used in wext.c, assoc. and scan.c */
-
-int lbs_set_power_adapt_cfg(struct lbs_private *priv, int enable, int8_t p0,
-		int8_t p1, int8_t p2);
-
-int lbs_set_tpc_cfg(struct lbs_private *priv, int enable, int8_t p0, int8_t p1,
-		int8_t p2, int usesnr);
-
-int lbs_set_tx_power(struct lbs_private *priv, s16 dbm);
 
 int lbs_set_deep_sleep(struct lbs_private *priv, int deep_sleep);
 

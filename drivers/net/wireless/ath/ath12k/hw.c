@@ -543,7 +543,11 @@ static const struct ath12k_hw_ring_mask ath12k_hw_ring_mask_qcn9274 = {
 		ATH12K_TX_RING_MASK_3,
 	},
 	.rx_mon_dest = {
-		0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		ATH12K_RX_MON_RING_MASK_0,
+		ATH12K_RX_MON_RING_MASK_1,
+		ATH12K_RX_MON_RING_MASK_2,
 	},
 	.rx = {
 		0, 0, 0, 0,
@@ -1035,7 +1039,7 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 
 		.hal_params = &ath12k_hw_hal_params_qcn9274,
 
-		.rxdma1_enable = false,
+		.rxdma1_enable = true,
 		.num_rxdma_per_pdev = 1,
 		.num_rxdma_dst_ring = 0,
 		.rx_mac_buf_ring = false,

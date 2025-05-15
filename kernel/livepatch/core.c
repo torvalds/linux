@@ -59,7 +59,7 @@ static void klp_find_object_module(struct klp_object *obj)
 	if (!klp_is_module(obj))
 		return;
 
-	rcu_read_lock_sched();
+	guard(rcu)();
 	/*
 	 * We do not want to block removal of patched modules and therefore
 	 * we do not take a reference here. The patches are removed by
@@ -75,8 +75,6 @@ static void klp_find_object_module(struct klp_object *obj)
 	 */
 	if (mod && mod->klp_alive)
 		obj->mod = mod;
-
-	rcu_read_unlock_sched();
 }
 
 static bool klp_initialized(void)
@@ -601,9 +599,12 @@ static int klp_add_object_nops(struct klp_patch *patch,
 }
 
 /*
- * Add 'nop' functions which simply return to the caller to run
- * the original function. The 'nop' functions are added to a
- * patch to facilitate a 'replace' mode.
+ * Add 'nop' functions which simply return to the caller to run the
+ * original function.
+ *
+ * They are added only when the atomic replace mode is used and only for
+ * functions which are currently livepatched but are no longer included
+ * in the new livepatch.
  */
 static int klp_add_nops(struct klp_patch *patch)
 {

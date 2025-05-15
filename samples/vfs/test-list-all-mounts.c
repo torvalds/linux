@@ -128,20 +128,43 @@ next:
 					      STATMOUNT_MNT_POINT |
 					      STATMOUNT_MNT_NS_ID |
 					      STATMOUNT_MNT_OPTS |
-					      STATMOUNT_FS_TYPE, 0);
+					      STATMOUNT_FS_TYPE |
+					      STATMOUNT_MNT_UIDMAP |
+					      STATMOUNT_MNT_GIDMAP, 0);
 			if (!stmnt) {
 				printf("Failed to statmount(%" PRIu64 ") in mount namespace(%" PRIu64 ")\n",
 				       (uint64_t)last_mnt_id, (uint64_t)info.mnt_ns_id);
 				continue;
 			}
 
-			printf("mnt_id:\t\t%" PRIu64 "\nmnt_parent_id:\t%" PRIu64 "\nfs_type:\t%s\nmnt_root:\t%s\nmnt_point:\t%s\nmnt_opts:\t%s\n\n",
+			printf("mnt_id:\t\t%" PRIu64 "\nmnt_parent_id:\t%" PRIu64 "\nfs_type:\t%s\nmnt_root:\t%s\nmnt_point:\t%s\nmnt_opts:\t%s\n",
 			       (uint64_t)stmnt->mnt_id,
 			       (uint64_t)stmnt->mnt_parent_id,
-			       stmnt->str + stmnt->fs_type,
-			       stmnt->str + stmnt->mnt_root,
-			       stmnt->str + stmnt->mnt_point,
-			       stmnt->str + stmnt->mnt_opts);
+			       (stmnt->mask & STATMOUNT_FS_TYPE)   ? stmnt->str + stmnt->fs_type   : "",
+			       (stmnt->mask & STATMOUNT_MNT_ROOT)  ? stmnt->str + stmnt->mnt_root  : "",
+			       (stmnt->mask & STATMOUNT_MNT_POINT) ? stmnt->str + stmnt->mnt_point : "",
+			       (stmnt->mask & STATMOUNT_MNT_OPTS)  ? stmnt->str + stmnt->mnt_opts  : "");
+
+			if (stmnt->mask & STATMOUNT_MNT_UIDMAP) {
+				const char *idmap = stmnt->str + stmnt->mnt_uidmap;
+
+				for (size_t idx = 0; idx < stmnt->mnt_uidmap_num; idx++) {
+					printf("mnt_uidmap[%zu]:\t%s\n", idx, idmap);
+					idmap += strlen(idmap) + 1;
+				}
+			}
+
+			if (stmnt->mask & STATMOUNT_MNT_GIDMAP) {
+				const char *idmap = stmnt->str + stmnt->mnt_gidmap;
+
+				for (size_t idx = 0; idx < stmnt->mnt_gidmap_num; idx++) {
+					printf("mnt_gidmap[%zu]:\t%s\n", idx, idmap);
+					idmap += strlen(idmap) + 1;
+				}
+			}
+
+			printf("\n");
+
 			free(stmnt);
 		}
 	}

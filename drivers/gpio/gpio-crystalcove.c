@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/seq_file.h>
+#include <linux/string_choices.h>
 #include <linux/types.h>
 
 #define CRYSTALCOVE_GPIO_NUM	16
@@ -167,18 +168,18 @@ static int crystalcove_gpio_get(struct gpio_chip *chip, unsigned int gpio)
 	return val & 0x1;
 }
 
-static void crystalcove_gpio_set(struct gpio_chip *chip, unsigned int gpio, int value)
+static int crystalcove_gpio_set(struct gpio_chip *chip, unsigned int gpio, int value)
 {
 	struct crystalcove_gpio *cg = gpiochip_get_data(chip);
 	int reg = to_reg(gpio, CTRL_OUT);
 
 	if (reg < 0)
-		return;
+		return 0;
 
 	if (value)
-		regmap_update_bits(cg->regmap, reg, 1, 1);
-	else
-		regmap_update_bits(cg->regmap, reg, 1, 0);
+		return regmap_update_bits(cg->regmap, reg, 1, 1);
+
+	return regmap_update_bits(cg->regmap, reg, 1, 0);
 }
 
 static int crystalcove_irq_type(struct irq_data *data, unsigned int type)
@@ -317,7 +318,7 @@ static void crystalcove_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip
 		offset = gpio % 8;
 		seq_printf(s, " gpio-%-2d %s %s %s %s ctlo=%2x,%s %s %s\n",
 			   gpio, ctlo & CTLO_DIR_OUT ? "out" : "in ",
-			   ctli & 0x1 ? "hi" : "lo",
+			   str_hi_lo(ctli & 0x1),
 			   ctli & CTLI_INTCNT_NE ? "fall" : "    ",
 			   ctli & CTLI_INTCNT_PE ? "rise" : "    ",
 			   ctlo,
@@ -348,7 +349,7 @@ static int crystalcove_gpio_probe(struct platform_device *pdev)
 	cg->chip.direction_input = crystalcove_gpio_dir_in;
 	cg->chip.direction_output = crystalcove_gpio_dir_out;
 	cg->chip.get = crystalcove_gpio_get;
-	cg->chip.set = crystalcove_gpio_set;
+	cg->chip.set_rv = crystalcove_gpio_set;
 	cg->chip.base = -1;
 	cg->chip.ngpio = CRYSTALCOVE_VGPIO_NUM;
 	cg->chip.can_sleep = true;

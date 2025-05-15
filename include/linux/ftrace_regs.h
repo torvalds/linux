@@ -35,4 +35,9 @@ struct ftrace_regs;
 
 #endif /* HAVE_ARCH_FTRACE_REGS */
 
+/* This can be overridden by the architectures */
+#ifndef FTRACE_REGS_MAX_ARGS
+# define FTRACE_REGS_MAX_ARGS	6
+#endif
+
 #endif /* _LINUX_FTRACE_REGS_H */

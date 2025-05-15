@@ -58,7 +58,7 @@ static int mdp4_lvds_connector_get_modes(struct drm_connector *connector)
 
 static enum drm_mode_status
 mdp4_lvds_connector_mode_valid(struct drm_connector *connector,
-			       struct drm_display_mode *mode)
+			       const struct drm_display_mode *mode)
 {
 	struct mdp4_lvds_connector *mdp4_lvds_connector =
 			to_mdp4_lvds_connector(connector);

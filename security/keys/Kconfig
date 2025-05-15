@@ -60,7 +60,7 @@ config BIG_KEYS
 	bool "Large payload keys"
 	depends on KEYS
 	depends on TMPFS
-	depends on CRYPTO_LIB_CHACHA20POLY1305 = y
+	select CRYPTO_LIB_CHACHA20POLY1305
 	help
 	  This option provides support for holding large keys within the kernel
 	  (for example Kerberos ticket caches).  The data may be stored out to

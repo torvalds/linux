@@ -17,7 +17,7 @@
  * Number of instructions in each loop. 1 CLFLUSH/CLFLUSHOPT/NOP, 1 MFENCE,
  * 1 LOOP.
  */
-#define NUM_INSNS_PER_LOOP		3
+#define NUM_INSNS_PER_LOOP		4
 
 /*
  * Number of "extra" instructions that will be counted, i.e. the number of
@@ -29,9 +29,58 @@
 /* Total number of instructions retired within the measured section. */
 #define NUM_INSNS_RETIRED		(NUM_LOOPS * NUM_INSNS_PER_LOOP + NUM_EXTRA_INSNS)
 
+/* Track which architectural events are supported by hardware. */
+static uint32_t hardware_pmu_arch_events;
 
 static uint8_t kvm_pmu_version;
 static bool kvm_has_perf_caps;
+
+#define X86_PMU_FEATURE_NULL						\
+({									\
+	struct kvm_x86_pmu_feature feature = {};			\
+									\
+	feature;							\
+})
+
+static bool pmu_is_null_feature(struct kvm_x86_pmu_feature event)
+{
+	return !(*(u64 *)&event);
+}
+
+struct kvm_intel_pmu_event {
+	struct kvm_x86_pmu_feature gp_event;
+	struct kvm_x86_pmu_feature fixed_event;
+};
+
+/*
+ * Wrap the array to appease the compiler, as the macros used to construct each
+ * kvm_x86_pmu_feature use syntax that's only valid in function scope, and the
+ * compiler often thinks the feature definitions aren't compile-time constants.
+ */
+static struct kvm_intel_pmu_event intel_event_to_feature(uint8_t idx)
+{
+	const struct kvm_intel_pmu_event __intel_event_to_feature[] = {
+		[INTEL_ARCH_CPU_CYCLES_INDEX]		 = { X86_PMU_FEATURE_CPU_CYCLES, X86_PMU_FEATURE_CPU_CYCLES_FIXED },
+		[INTEL_ARCH_INSTRUCTIONS_RETIRED_INDEX]	 = { X86_PMU_FEATURE_INSNS_RETIRED, X86_PMU_FEATURE_INSNS_RETIRED_FIXED },
+		/*
+		 * Note, the fixed counter for reference cycles is NOT the same as the
+		 * general purpose architectural event.  The fixed counter explicitly
+		 * counts at the same frequency as the TSC, whereas the GP event counts
+		 * at a fixed, but uarch specific, frequency.  Bundle them here for
+		 * simplicity.
+		 */
+		[INTEL_ARCH_REFERENCE_CYCLES_INDEX]	 = { X86_PMU_FEATURE_REFERENCE_CYCLES, X86_PMU_FEATURE_REFERENCE_TSC_CYCLES_FIXED },
+		[INTEL_ARCH_LLC_REFERENCES_INDEX]	 = { X86_PMU_FEATURE_LLC_REFERENCES, X86_PMU_FEATURE_NULL },
+		[INTEL_ARCH_LLC_MISSES_INDEX]		 = { X86_PMU_FEATURE_LLC_MISSES, X86_PMU_FEATURE_NULL },
+		[INTEL_ARCH_BRANCHES_RETIRED_INDEX]	 = { X86_PMU_FEATURE_BRANCH_INSNS_RETIRED, X86_PMU_FEATURE_NULL },
+		[INTEL_ARCH_BRANCHES_MISPREDICTED_INDEX] = { X86_PMU_FEATURE_BRANCHES_MISPREDICTED, X86_PMU_FEATURE_NULL },
+		[INTEL_ARCH_TOPDOWN_SLOTS_INDEX]	 = { X86_PMU_FEATURE_TOPDOWN_SLOTS, X86_PMU_FEATURE_TOPDOWN_SLOTS_FIXED },
+	};
+
+	kvm_static_assert(ARRAY_SIZE(__intel_event_to_feature) == NR_INTEL_ARCH_EVENTS);
+
+	return __intel_event_to_feature[idx];
+}
 
 static struct kvm_vm *pmu_vm_create_with_one_vcpu(struct kvm_vcpu **vcpu,
 						  void *guest_code,
@@ -42,6 +91,7 @@ static struct kvm_vm *pmu_vm_create_with_one_vcpu(struct kvm_vcpu **vcpu,
 
 	vm = vm_create_with_one_vcpu(vcpu, guest_code);
 	sync_global_to_guest(vm, kvm_pmu_version);
+	sync_global_to_guest(vm, hardware_pmu_arch_events);
 
 	/*
 	 * Set PERF_CAPABILITIES before PMU version as KVM disallows enabling
@@ -98,14 +148,12 @@ static uint8_t guest_get_pmu_version(void)
  * Sanity check that in all cases, the event doesn't count when it's disabled,
  * and that KVM correctly emulates the write of an arbitrary value.
  */
-static void guest_assert_event_count(uint8_t idx,
-				     struct kvm_x86_pmu_feature event,
-				     uint32_t pmc, uint32_t pmc_msr)
+static void guest_assert_event_count(uint8_t idx, uint32_t pmc, uint32_t pmc_msr)
 {
 	uint64_t count;
 
 	count = _rdpmc(pmc);
-	if (!this_pmu_has(event))
+	if (!(hardware_pmu_arch_events & BIT(idx)))
 		goto sanity_checks;
 
 	switch (idx) {
@@ -126,7 +174,9 @@ static void guest_assert_event_count(uint8_t idx,
 		GUEST_ASSERT_NE(count, 0);
 		break;
 	case INTEL_ARCH_TOPDOWN_SLOTS_INDEX:
-		GUEST_ASSERT(count >= NUM_INSNS_RETIRED);
+		__GUEST_ASSERT(count >= NUM_INSNS_RETIRED,
+			       "Expected top-down slots >= %u, got count = %lu",
+			       NUM_INSNS_RETIRED, count);
 		break;
 	default:
 		break;
@@ -162,75 +212,42 @@ do {										\
 			     "1:\n\t"						\
 			     clflush "\n\t"					\
 			     "mfence\n\t"					\
+			     "mov %[m], %%eax\n\t"				\
 			     FEP "loop 1b\n\t"					\
 			     FEP "mov %%edi, %%ecx\n\t"				\
 			     FEP "xor %%eax, %%eax\n\t"				\
 			     FEP "xor %%edx, %%edx\n\t"				\
 			     "wrmsr\n\t"					\
 			     :: "a"((uint32_t)_value), "d"(_value >> 32),	\
-				"c"(_msr), "D"(_msr)				\
+				"c"(_msr), "D"(_msr), [m]"m"(kvm_pmu_version)	\
 	);									\
 } while (0)
 
-#define GUEST_TEST_EVENT(_idx, _event, _pmc, _pmc_msr, _ctrl_msr, _value, FEP)	\
+#define GUEST_TEST_EVENT(_idx, _pmc, _pmc_msr, _ctrl_msr, _value, FEP)		\
 do {										\
-	wrmsr(pmc_msr, 0);							\
+	wrmsr(_pmc_msr, 0);							\
 										\
 	if (this_cpu_has(X86_FEATURE_CLFLUSHOPT))				\
-		GUEST_MEASURE_EVENT(_ctrl_msr, _value, "clflushopt .", FEP);	\
+		GUEST_MEASURE_EVENT(_ctrl_msr, _value, "clflushopt %[m]", FEP);	\
 	else if (this_cpu_has(X86_FEATURE_CLFLUSH))				\
-		GUEST_MEASURE_EVENT(_ctrl_msr, _value, "clflush .", FEP);	\
+		GUEST_MEASURE_EVENT(_ctrl_msr, _value, "clflush  %[m]", FEP);	\
 	else									\
 		GUEST_MEASURE_EVENT(_ctrl_msr, _value, "nop", FEP);		\
 										\
-	guest_assert_event_count(_idx, _event, _pmc, _pmc_msr);			\
+	guest_assert_event_count(_idx, _pmc, _pmc_msr);				\
 } while (0)
 
-static void __guest_test_arch_event(uint8_t idx, struct kvm_x86_pmu_feature event,
-				    uint32_t pmc, uint32_t pmc_msr,
+static void __guest_test_arch_event(uint8_t idx, uint32_t pmc, uint32_t pmc_msr,
 				    uint32_t ctrl_msr, uint64_t ctrl_msr_value)
 {
-	GUEST_TEST_EVENT(idx, event, pmc, pmc_msr, ctrl_msr, ctrl_msr_value, "");
+	GUEST_TEST_EVENT(idx, pmc, pmc_msr, ctrl_msr, ctrl_msr_value, "");
 
 	if (is_forced_emulation_enabled)
-		GUEST_TEST_EVENT(idx, event, pmc, pmc_msr, ctrl_msr, ctrl_msr_value, KVM_FEP);
-}
-
-#define X86_PMU_FEATURE_NULL						\
-({									\
-	struct kvm_x86_pmu_feature feature = {};			\
-									\
-	feature;							\
-})
-
-static bool pmu_is_null_feature(struct kvm_x86_pmu_feature event)
-{
-	return !(*(u64 *)&event);
+		GUEST_TEST_EVENT(idx, pmc, pmc_msr, ctrl_msr, ctrl_msr_value, KVM_FEP);
 }
 
 static void guest_test_arch_event(uint8_t idx)
 {
-	const struct {
-		struct kvm_x86_pmu_feature gp_event;
-		struct kvm_x86_pmu_feature fixed_event;
-	} intel_event_to_feature[] = {
-		[INTEL_ARCH_CPU_CYCLES_INDEX]		 = { X86_PMU_FEATURE_CPU_CYCLES, X86_PMU_FEATURE_CPU_CYCLES_FIXED },
-		[INTEL_ARCH_INSTRUCTIONS_RETIRED_INDEX]	 = { X86_PMU_FEATURE_INSNS_RETIRED, X86_PMU_FEATURE_INSNS_RETIRED_FIXED },
-		/*
-		 * Note, the fixed counter for reference cycles is NOT the same
-		 * as the general purpose architectural event.  The fixed counter
-		 * explicitly counts at the same frequency as the TSC, whereas
-		 * the GP event counts at a fixed, but uarch specific, frequency.
-		 * Bundle them here for simplicity.
-		 */
-		[INTEL_ARCH_REFERENCE_CYCLES_INDEX]	 = { X86_PMU_FEATURE_REFERENCE_CYCLES, X86_PMU_FEATURE_REFERENCE_TSC_CYCLES_FIXED },
-		[INTEL_ARCH_LLC_REFERENCES_INDEX]	 = { X86_PMU_FEATURE_LLC_REFERENCES, X86_PMU_FEATURE_NULL },
-		[INTEL_ARCH_LLC_MISSES_INDEX]		 = { X86_PMU_FEATURE_LLC_MISSES, X86_PMU_FEATURE_NULL },
-		[INTEL_ARCH_BRANCHES_RETIRED_INDEX]	 = { X86_PMU_FEATURE_BRANCH_INSNS_RETIRED, X86_PMU_FEATURE_NULL },
-		[INTEL_ARCH_BRANCHES_MISPREDICTED_INDEX] = { X86_PMU_FEATURE_BRANCHES_MISPREDICTED, X86_PMU_FEATURE_NULL },
-		[INTEL_ARCH_TOPDOWN_SLOTS_INDEX]	 = { X86_PMU_FEATURE_TOPDOWN_SLOTS, X86_PMU_FEATURE_TOPDOWN_SLOTS_FIXED },
-	};
-
 	uint32_t nr_gp_counters = this_cpu_property(X86_PROPERTY_PMU_NR_GP_COUNTERS);
 	uint32_t pmu_version = guest_get_pmu_version();
 	/* PERF_GLOBAL_CTRL exists only for Architectural PMU Version 2+. */
@@ -248,7 +265,7 @@ static void guest_test_arch_event(uint8_t idx)
 	else
 		base_pmc_msr = MSR_IA32_PERFCTR0;
 
-	gp_event = intel_event_to_feature[idx].gp_event;
+	gp_event = intel_event_to_feature(idx).gp_event;
 	GUEST_ASSERT_EQ(idx, gp_event.f.bit);
 
 	GUEST_ASSERT(nr_gp_counters);
@@ -262,14 +279,14 @@ static void guest_test_arch_event(uint8_t idx)
 		if (guest_has_perf_global_ctrl)
 			wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, BIT_ULL(i));
 
-		__guest_test_arch_event(idx, gp_event, i, base_pmc_msr + i,
+		__guest_test_arch_event(idx, i, base_pmc_msr + i,
 					MSR_P6_EVNTSEL0 + i, eventsel);
 	}
 
 	if (!guest_has_perf_global_ctrl)
 		return;
 
-	fixed_event = intel_event_to_feature[idx].fixed_event;
+	fixed_event = intel_event_to_feature(idx).fixed_event;
 	if (pmu_is_null_feature(fixed_event) || !this_pmu_has(fixed_event))
 		return;
 
@@ -277,7 +294,7 @@ static void guest_test_arch_event(uint8_t idx)
 
 	wrmsr(MSR_CORE_PERF_FIXED_CTR_CTRL, FIXED_PMC_CTRL(i, FIXED_PMC_KERNEL));
 
-	__guest_test_arch_event(idx, fixed_event, i | INTEL_RDPMC_FIXED,
+	__guest_test_arch_event(idx, i | INTEL_RDPMC_FIXED,
 				MSR_CORE_PERF_FIXED_CTR0 + i,
 				MSR_CORE_PERF_GLOBAL_CTRL,
 				FIXED_PMC_GLOBAL_CTRL_ENABLE(i));
@@ -331,9 +348,9 @@ __GUEST_ASSERT(expect_gp ? vector == GP_VECTOR : !vector,			\
 	       expect_gp ? "#GP" : "no fault", msr, vector)			\
 
 #define GUEST_ASSERT_PMC_VALUE(insn, msr, val, expected)			\
-	__GUEST_ASSERT(val == expected_val,					\
+	__GUEST_ASSERT(val == expected,					\
 		       "Expected " #insn "(0x%x) to yield 0x%lx, got 0x%lx",	\
-		       msr, expected_val, val);
+		       msr, expected, val);
 
 static void guest_test_rdpmc(uint32_t rdpmc_idx, bool expect_success,
 			     uint64_t expected_val)
@@ -545,7 +562,6 @@ static void test_fixed_counters(uint8_t pmu_version, uint64_t perf_capabilities,
 
 static void test_intel_counters(void)
 {
-	uint8_t nr_arch_events = kvm_cpu_property(X86_PROPERTY_PMU_EBX_BIT_VECTOR_LENGTH);
 	uint8_t nr_fixed_counters = kvm_cpu_property(X86_PROPERTY_PMU_NR_FIXED_COUNTERS);
 	uint8_t nr_gp_counters = kvm_cpu_property(X86_PROPERTY_PMU_NR_GP_COUNTERS);
 	uint8_t pmu_version = kvm_cpu_property(X86_PROPERTY_PMU_VERSION);
@@ -567,18 +583,26 @@ static void test_intel_counters(void)
 
 	/*
 	 * Detect the existence of events that aren't supported by selftests.
-	 * This will (obviously) fail any time the kernel adds support for a
-	 * new event, but it's worth paying that price to keep the test fresh.
+	 * This will (obviously) fail any time hardware adds support for a new
+	 * event, but it's worth paying that price to keep the test fresh.
 	 */
-	TEST_ASSERT(nr_arch_events <= NR_INTEL_ARCH_EVENTS,
+	TEST_ASSERT(this_cpu_property(X86_PROPERTY_PMU_EBX_BIT_VECTOR_LENGTH) <= NR_INTEL_ARCH_EVENTS,
 		    "New architectural event(s) detected; please update this test (length = %u, mask = %x)",
-		    nr_arch_events, kvm_cpu_property(X86_PROPERTY_PMU_EVENTS_MASK));
+		    this_cpu_property(X86_PROPERTY_PMU_EBX_BIT_VECTOR_LENGTH),
+		    this_cpu_property(X86_PROPERTY_PMU_EVENTS_MASK));
 
 	/*
-	 * Force iterating over known arch events regardless of whether or not
-	 * KVM/hardware supports a given event.
+	 * Iterate over known arch events irrespective of KVM/hardware support
+	 * to verify that KVM doesn't reject programming of events just because
+	 * the *architectural* encoding is unsupported.  Track which events are
+	 * supported in hardware; the guest side will validate supported events
+	 * count correctly, even if *enumeration* of the event is unsupported
+	 * by KVM and/or isn't exposed to the guest.
 	 */
-	nr_arch_events = max_t(typeof(nr_arch_events), nr_arch_events, NR_INTEL_ARCH_EVENTS);
+	for (i = 0; i < NR_INTEL_ARCH_EVENTS; i++) {
+		if (this_pmu_has(intel_event_to_feature(i).gp_event))
+			hardware_pmu_arch_events |= BIT(i);
+	}
 
 	for (v = 0; v <= max_pmu_version; v++) {
 		for (i = 0; i < ARRAY_SIZE(perf_caps); i++) {
@@ -594,8 +618,8 @@ static void test_intel_counters(void)
 			 * vector length.
 			 */
 			if (v == pmu_version) {
-				for (k = 1; k < (BIT(nr_arch_events) - 1); k++)
-					test_arch_events(v, perf_caps[i], nr_arch_events, k);
+				for (k = 1; k < (BIT(NR_INTEL_ARCH_EVENTS) - 1); k++)
+					test_arch_events(v, perf_caps[i], NR_INTEL_ARCH_EVENTS, k);
 			}
 			/*
 			 * Test single bits for all PMU version and lengths up
@@ -604,11 +628,11 @@ static void test_intel_counters(void)
 			 * host length).  Explicitly test a mask of '0' and all
 			 * ones i.e. all events being available and unavailable.
 			 */
-			for (j = 0; j <= nr_arch_events + 1; j++) {
+			for (j = 0; j <= NR_INTEL_ARCH_EVENTS + 1; j++) {
 				test_arch_events(v, perf_caps[i], j, 0);
 				test_arch_events(v, perf_caps[i], j, 0xff);
 
-				for (k = 0; k < nr_arch_events; k++)
+				for (k = 0; k < NR_INTEL_ARCH_EVENTS; k++)
 					test_arch_events(v, perf_caps[i], j, BIT(k));
 			}
 

@@ -44,7 +44,7 @@ static void rescan_work_func(struct work_struct *work)
 						   struct pci_pwrctrl, work);
 
 	pci_lock_rescan_remove();
-	pci_rescan_bus(to_pci_dev(pwrctrl->dev->parent)->bus);
+	pci_rescan_bus(to_pci_host_bridge(pwrctrl->dev->parent)->bus);
 	pci_unlock_rescan_remove();
 }
 

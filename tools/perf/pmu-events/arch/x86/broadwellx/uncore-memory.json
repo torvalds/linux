@@ -184,6 +184,7 @@
     {
         "BriefDescription": "This event is deprecated. Refer to new event UNC_M_CLOCKTICKS_P",
         "Counter": "0,1,2,3",
+        "Deprecated": "1",
         "EventName": "UNC_M_DCLOCKTICKS",
         "PerPkg": "1",
         "Unit": "iMC"

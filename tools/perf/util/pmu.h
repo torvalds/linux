@@ -37,6 +37,8 @@ struct perf_pmu_caps {
 };
 
 enum {
+	PERF_PMU_TYPE_PE_START    = 0,
+	PERF_PMU_TYPE_PE_END      = 0xFFFEFFFF,
 	PERF_PMU_TYPE_HWMON_START = 0xFFFF0000,
 	PERF_PMU_TYPE_HWMON_END   = 0xFFFFFFFD,
 	PERF_PMU_TYPE_TOOL = 0xFFFFFFFE,
@@ -134,6 +136,11 @@ struct perf_pmu {
 	uint32_t cpu_json_aliases;
 	/** @sys_json_aliases: Number of json event aliases loaded matching the PMU's identifier. */
 	uint32_t sys_json_aliases;
+	/**
+	 * @cpu_common_json_aliases: Number of json events that overlapped with sysfs when
+	 * loading all sysfs events.
+	 */
+	uint32_t cpu_common_json_aliases;
 	/** @sysfs_aliases_loaded: Are sysfs aliases loaded from disk? */
 	bool sysfs_aliases_loaded;
 	/**
@@ -238,7 +245,8 @@ bool perf_pmu__have_event(struct perf_pmu *pmu, const char *name);
 size_t perf_pmu__num_events(struct perf_pmu *pmu);
 int perf_pmu__for_each_event(struct perf_pmu *pmu, bool skip_duplicate_pmus,
 			     void *state, pmu_event_callback cb);
-bool pmu__name_match(const struct perf_pmu *pmu, const char *pmu_name);
+bool perf_pmu__name_wildcard_match(const struct perf_pmu *pmu, const char *to_match);
+bool perf_pmu__name_no_suffix_match(const struct perf_pmu *pmu, const char *to_match);
 
 /**
  * perf_pmu_is_software - is the PMU a software PMU as in it uses the
@@ -273,7 +281,7 @@ void perf_pmu__warn_invalid_config(struct perf_pmu *pmu, __u64 config,
 				   const char *config_name);
 void perf_pmu__warn_invalid_formats(struct perf_pmu *pmu);
 
-bool perf_pmu__match(const struct perf_pmu *pmu, const char *tok);
+bool perf_pmu__wildcard_match(const struct perf_pmu *pmu, const char *wildcard_to_match);
 
 int perf_pmu__event_source_devices_scnprintf(char *pathname, size_t size);
 int perf_pmu__pathname_scnprintf(char *buf, size_t size,

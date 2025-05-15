@@ -2650,7 +2650,7 @@ static int radeonfb_pci_suspend_late(struct device *dev, pm_message_t mesg)
 	/* Sleep */
 	rinfo->asleep = 1;
 	rinfo->lock_blank = 1;
-	del_timer_sync(&rinfo->lvds_timer);
+	timer_delete_sync(&rinfo->lvds_timer);
 
 #ifdef CONFIG_PPC_PMAC
 	/* On powermac, we have hooks to properly suspend/resume AGP now,

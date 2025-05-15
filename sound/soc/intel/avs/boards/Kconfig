@@ -87,6 +87,16 @@ config SND_SOC_INTEL_AVS_MACH_NAU8825
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 
+config SND_SOC_INTEL_AVS_MACH_PCM3168A
+	tristate "pcm3168a I2S board"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_PCM3168A_I2C
+	help
+	  This adds support for AVS with PCM3168A I2C codec configuration.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
 config SND_SOC_INTEL_AVS_MACH_PROBE
 	tristate "Probing (data) board"
 	depends on DEBUG_FS

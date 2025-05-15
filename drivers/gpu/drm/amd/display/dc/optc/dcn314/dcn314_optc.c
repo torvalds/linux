@@ -255,6 +255,7 @@ static struct timing_generator_funcs dcn314_tg_funcs = {
 		.set_odm_combine = optc314_set_odm_combine,
 		.set_h_timing_div_manual_mode = optc314_set_h_timing_div_manual_mode,
 		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
+		.read_otg_state = optc31_read_otg_state,
 };
 
 void dcn314_timing_generator_init(struct optc *optc1)

@@ -191,10 +191,7 @@ static void guest_code(void)
 	struct vcpu_runstate_info *rs = (void *)RUNSTATE_VADDR;
 	int i;
 
-	__asm__ __volatile__(
-		"sti\n"
-		"nop\n"
-	);
+	sti_nop();
 
 	/* Trigger an interrupt injection */
 	GUEST_SYNC(TEST_INJECT_VECTOR);

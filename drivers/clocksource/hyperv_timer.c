@@ -582,7 +582,7 @@ static void __init hv_init_tsc_clocksource(void)
 	 * mapped.
 	 */
 	tsc_msr.as_uint64 = hv_get_msr(HV_MSR_REFERENCE_TSC);
-	if (hv_root_partition)
+	if (hv_root_partition())
 		tsc_pfn = tsc_msr.pfn;
 	else
 		tsc_pfn = HVPFN_DOWN(virt_to_phys(tsc_page));
@@ -627,7 +627,7 @@ void __init hv_remap_tsc_clocksource(void)
 	if (!(ms_hyperv.features & HV_MSR_REFERENCE_TSC_AVAILABLE))
 		return;
 
-	if (!hv_root_partition) {
+	if (!hv_root_partition()) {
 		WARN(1, "%s: attempt to remap TSC page in guest partition\n",
 		     __func__);
 		return;

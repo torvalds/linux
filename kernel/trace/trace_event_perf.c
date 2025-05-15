@@ -49,7 +49,7 @@ static int perf_trace_event_perm(struct trace_event_call *tp_event,
 
 	/* The ftrace function trace is allowed only for root. */
 	if (ftrace_event_is_function(tp_event)) {
-		ret = perf_allow_tracepoint(&p_event->attr);
+		ret = perf_allow_tracepoint();
 		if (ret)
 			return ret;
 
@@ -86,7 +86,7 @@ static int perf_trace_event_perm(struct trace_event_call *tp_event,
 	 * ...otherwise raw tracepoint data can be a severe data leak,
 	 * only allow root to have these.
 	 */
-	ret = perf_allow_tracepoint(&p_event->attr);
+	ret = perf_allow_tracepoint();
 	if (ret)
 		return ret;
 

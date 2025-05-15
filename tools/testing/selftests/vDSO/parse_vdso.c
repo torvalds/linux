@@ -19,13 +19,14 @@
 #include <stdint.h>
 #include <string.h>
 #include <limits.h>
-#include <elf.h>
+#include <linux/auxvec.h>
+#include <linux/elf.h>
 
 #include "parse_vdso.h"
 
 /* And here's the code. */
 #ifndef ELF_BITS
-# if ULONG_MAX > 0xffffffffUL
+# if __SIZEOF_LONG__ >= 8
 #  define ELF_BITS 64
 # else
 #  define ELF_BITS 32
@@ -53,7 +54,7 @@ static struct vdso_info
 	/* Symbol table */
 	ELF(Sym) *symtab;
 	const char *symstrings;
-	ELF(Word) *gnu_hash;
+	ELF(Word) *gnu_hash, *gnu_bucket;
 	ELF_HASH_ENTRY *bucket, *chain;
 	ELF_HASH_ENTRY nbucket, nchain;
 
@@ -185,8 +186,8 @@ void vdso_init_from_sysinfo_ehdr(uintptr_t base)
 		/* The bucket array is located after the header (4 uint32) and the bloom
 		 * filter (size_t array of gnu_hash[2] elements).
 		 */
-		vdso_info.bucket = vdso_info.gnu_hash + 4 +
-				   sizeof(size_t) / 4 * vdso_info.gnu_hash[2];
+		vdso_info.gnu_bucket = vdso_info.gnu_hash + 4 +
+				       sizeof(size_t) / 4 * vdso_info.gnu_hash[2];
 	} else {
 		vdso_info.nbucket = hash[0];
 		vdso_info.nchain = hash[1];
@@ -268,11 +269,11 @@ void *vdso_sym(const char *version, const char *name)
 	if (vdso_info.gnu_hash) {
 		uint32_t h1 = gnu_hash(name), h2, *hashval;
 
-		i = vdso_info.bucket[h1 % vdso_info.nbucket];
+		i = vdso_info.gnu_bucket[h1 % vdso_info.nbucket];
 		if (i == 0)
 			return 0;
 		h1 |= 1;
-		hashval = vdso_info.bucket + vdso_info.nbucket +
+		hashval = vdso_info.gnu_bucket + vdso_info.nbucket +
 			  (i - vdso_info.gnu_hash[1]);
 		for (;; i++) {
 			ELF(Sym) *sym = &vdso_info.symtab[i];
@@ -296,18 +297,4 @@ void *vdso_sym(const char *version, const char *name)
 	}
 
 	return 0;
-}
-
-void vdso_init_from_auxv(void *auxv)
-{
-	ELF(auxv_t) *elf_auxv = auxv;
-	for (int i = 0; elf_auxv[i].a_type != AT_NULL; i++)
-	{
-		if (elf_auxv[i].a_type == AT_SYSINFO_EHDR) {
-			vdso_init_from_sysinfo_ehdr(elf_auxv[i].a_un.a_val);
-			return;
-		}
-	}
-
-	vdso_info.valid = false;
 }

@@ -226,10 +226,47 @@ static __always_inline const struct page *page_fixed_fake_head(const struct page
 	}
 	return page;
 }
+
+static __always_inline bool page_count_writable(const struct page *page, int u)
+{
+	if (!static_branch_unlikely(&hugetlb_optimize_vmemmap_key))
+		return true;
+
+	/*
+	 * The refcount check is ordered before the fake-head check to prevent
+	 * the following race:
+	 *   CPU 1 (HVO)                     CPU 2 (speculative PFN walker)
+	 *
+	 *   page_ref_freeze()
+	 *   synchronize_rcu()
+	 *                                   rcu_read_lock()
+	 *                                   page_is_fake_head() is false
+	 *   vmemmap_remap_pte()
+	 *   XXX: struct page[] becomes r/o
+	 *
+	 *   page_ref_unfreeze()
+	 *                                   page_ref_count() is not zero
+	 *
+	 *                                   atomic_add_unless(&page->_refcount)
+	 *                                   XXX: try to modify r/o struct page[]
+	 *
+	 * The refcount check also prevents modification attempts to other (r/o)
+	 * tail pages that are not fake heads.
+	 */
+	if (atomic_read_acquire(&page->_refcount) == u)
+		return false;
+
+	return page_fixed_fake_head(page) == page;
+}
 #else
 static inline const struct page *page_fixed_fake_head(const struct page *page)
 {
 	return page;
+}
+
+static inline bool page_count_writable(const struct page *page, int u)
+{
+	return true;
 }
 #endif
 
@@ -673,12 +710,6 @@ PAGEFLAG_FALSE(VmemmapSelfHosted, vmemmap_self_hosted)
 #define PAGE_MAPPING_KSM	(PAGE_MAPPING_ANON | PAGE_MAPPING_MOVABLE)
 #define PAGE_MAPPING_FLAGS	(PAGE_MAPPING_ANON | PAGE_MAPPING_MOVABLE)
 
-/*
- * Different with flags above, this flag is used only for fsdax mode.  It
- * indicates that this page->mapping is now under reflink case.
- */
-#define PAGE_MAPPING_DAX_SHARED	((void *)0x1)
-
 static __always_inline bool folio_mapping_flags(const struct folio *folio)
 {
 	return ((unsigned long)folio->mapping & PAGE_MAPPING_FLAGS) != 0;
@@ -925,14 +956,15 @@ FOLIO_FLAG_FALSE(has_hwpoisoned)
 enum pagetype {
 	/* 0x00-0x7f are positive numbers, ie mapcount */
 	/* Reserve 0x80-0xef for mapcount overflow. */
-	PGTY_buddy	= 0xf0,
-	PGTY_offline	= 0xf1,
-	PGTY_table	= 0xf2,
-	PGTY_guard	= 0xf3,
-	PGTY_hugetlb	= 0xf4,
-	PGTY_slab	= 0xf5,
-	PGTY_zsmalloc	= 0xf6,
-	PGTY_unaccepted	= 0xf7,
+	PGTY_buddy		= 0xf0,
+	PGTY_offline		= 0xf1,
+	PGTY_table		= 0xf2,
+	PGTY_guard		= 0xf3,
+	PGTY_hugetlb		= 0xf4,
+	PGTY_slab		= 0xf5,
+	PGTY_zsmalloc		= 0xf6,
+	PGTY_unaccepted		= 0xf7,
+	PGTY_large_kmalloc	= 0xf8,
 
 	PGTY_mapcount_underflow = 0xff
 };
@@ -1075,6 +1107,7 @@ PAGE_TYPE_OPS(Zsmalloc, zsmalloc, zsmalloc)
  * Serialized with zone lock.
  */
 PAGE_TYPE_OPS(Unaccepted, unaccepted, unaccepted)
+FOLIO_TYPE_OPS(large_kmalloc, large_kmalloc)
 
 /**
  * PageHuge - Determine if the page belongs to hugetlbfs
@@ -1102,6 +1135,12 @@ static inline bool is_page_hwpoison(const struct page *page)
 		return true;
 	folio = page_folio(page);
 	return folio_test_hugetlb(folio) && PageHWPoison(&folio->page);
+}
+
+static inline bool folio_contain_hwpoisoned_page(struct folio *folio)
+{
+	return folio_test_hwpoison(folio) ||
+	    (folio_test_large(folio) && folio_test_has_hwpoisoned(folio));
 }
 
 bool is_free_buddy_page(const struct page *page);
@@ -1191,6 +1230,10 @@ static inline int folio_has_private(const struct folio *folio)
 	return !!(folio->flags & PAGE_FLAGS_PRIVATE);
 }
 
+static inline bool folio_test_large_maybe_mapped_shared(const struct folio *folio)
+{
+	return test_bit(FOLIO_MM_IDS_SHARED_BITNUM, &folio->_mm_ids);
+}
 #undef PF_ANY
 #undef PF_HEAD
 #undef PF_NO_TAIL

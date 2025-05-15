@@ -335,7 +335,7 @@ int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 {
 	int err;
 
-	if (mrq->cmd && mrq->cmd->has_ext_addr)
+	if (mrq->cmd->has_ext_addr)
 		mmc_send_ext_addr(host, mrq->cmd->ext_addr);
 
 	init_completion(&mrq->cmd_completion);

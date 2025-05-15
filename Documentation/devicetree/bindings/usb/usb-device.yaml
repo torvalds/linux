@@ -39,8 +39,10 @@ properties:
 
   reg:
     description: the number of the USB hub port or the USB host-controller
-      port to which this device is attached. The range is 1-255.
-    maxItems: 1
+      port to which this device is attached.
+    items:
+      - minimum: 1
+        maximum: 255
 
   "#address-cells":
     description: should be 1 for hub nodes with device nodes,

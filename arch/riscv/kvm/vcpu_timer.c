@@ -248,18 +248,19 @@ int kvm_riscv_vcpu_timer_init(struct kvm_vcpu *vcpu)
 	if (t->init_done)
 		return -EINVAL;
 
-	hrtimer_init(&t->hrt, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	t->init_done = true;
 	t->next_set = false;
 
 	/* Enable sstc for every vcpu if available in hardware */
 	if (riscv_isa_extension_available(NULL, SSTC)) {
 		t->sstc_enabled = true;
-		t->hrt.function = kvm_riscv_vcpu_vstimer_expired;
+		hrtimer_setup(&t->hrt, kvm_riscv_vcpu_vstimer_expired, CLOCK_MONOTONIC,
+			      HRTIMER_MODE_REL);
 		t->timer_next_event = kvm_riscv_vcpu_update_vstimecmp;
 	} else {
 		t->sstc_enabled = false;
-		t->hrt.function = kvm_riscv_vcpu_hrtimer_expired;
+		hrtimer_setup(&t->hrt, kvm_riscv_vcpu_hrtimer_expired, CLOCK_MONOTONIC,
+			      HRTIMER_MODE_REL);
 		t->timer_next_event = kvm_riscv_vcpu_update_hrtimer;
 	}
 

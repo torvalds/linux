@@ -20,10 +20,6 @@ always-m :=
 targets :=
 subdir-y :=
 subdir-m :=
-EXTRA_AFLAGS   :=
-EXTRA_CFLAGS   :=
-EXTRA_CPPFLAGS :=
-EXTRA_LDFLAGS  :=
 asflags-y  :=
 ccflags-y  :=
 rustflags-y :=
@@ -226,7 +222,7 @@ $(obj)/%.lst: $(obj)/%.c FORCE
 # Compile Rust sources (.rs)
 # ---------------------------------------------------------------------------
 
-rust_allowed_features := asm_const,asm_goto,arbitrary_self_types,lint_reasons
+rust_allowed_features := asm_const,asm_goto,arbitrary_self_types,lint_reasons,raw_ref_op
 
 # `--out-dir` is required to avoid temporaries being created by `rustc` in the
 # current working directory, which may be not accessible in the out-of-tree
@@ -237,7 +233,7 @@ rust_common_cmd = \
 	-Zallow-features=$(rust_allowed_features) \
 	-Zcrate-attr=no_std \
 	-Zcrate-attr='feature($(rust_allowed_features))' \
-	-Zunstable-options --extern kernel \
+	-Zunstable-options --extern pin_init --extern kernel \
 	--crate-type rlib -L $(objtree)/rust/ \
 	--crate-name $(basename $(notdir $@)) \
 	--sysroot=/dev/null \

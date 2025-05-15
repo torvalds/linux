@@ -10,6 +10,16 @@
         "Unit": "CHACMS"
     },
     {
+        "BriefDescription": "Counts the number of cycles FAST trigger is received from the global FAST distress wire.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x34",
+        "EventName": "UNC_CHACMS_RING_SRC_THRTL",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "Unit": "CHACMS"
+    },
+    {
         "BriefDescription": "Number of CHA clock cycles while the event is enabled",
         "Counter": "0,1,2,3",
         "EventCode": "0x01",
@@ -844,6 +854,16 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "Ingress (from CMS) Occupancy : IRQ : Counts number of entries in the specified Ingress queue in each cycle.",
+        "Counter": "0",
+        "EventCode": "0x11",
+        "EventName": "UNC_CHA_RxC_OCCUPANCY.IRQ",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "All TOR Inserts",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
@@ -1056,7 +1076,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Code read from local IA that miss the cache",
+        "BriefDescription": "Code read from local IA",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_CRD",
@@ -1076,7 +1096,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Data read from local IA that miss the cache",
+        "BriefDescription": "Data read from local IA",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_DRD",
@@ -1096,7 +1116,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Data read prefetch from local IA that miss the cache",
+        "BriefDescription": "Data read prefetch from local IA",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_DRD_PREF",
@@ -1276,7 +1296,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Last level cache prefetch read for ownership from local IA that miss the cache",
+        "BriefDescription": "Last level cache prefetch read for ownership from local IA",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_LLCPREFRFO",
@@ -1405,7 +1425,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Data read from local IA that miss the cache",
+        "BriefDescription": "Data read from local IA that miss the cache and targets local memory",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_LOCAL",
@@ -1476,7 +1496,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Data read prefetch from local IA that miss the cache",
+        "BriefDescription": "Data read prefetch from local IA that miss the cache and targets local memory",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_PREF_LOCAL",
@@ -1518,7 +1538,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Data read prefetch from local IA that miss the cache",
+        "BriefDescription": "Data read prefetch from local IA that miss the cache and targets remote memory",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_PREF_REMOTE",
@@ -1549,7 +1569,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Data read from local IA that miss the cache",
+        "BriefDescription": "Data read from local IA that miss the cache and targets remote memory",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_REMOTE",
@@ -1741,7 +1761,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Read for ownership from local IA that miss the cache",
+        "BriefDescription": "Read for ownership from local IA that miss the LLC targeting local memory",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO_LOCAL",
@@ -1770,7 +1790,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Read for ownership prefetch from local IA that miss the cache",
+        "BriefDescription": "Read for ownership prefetch from local IA that miss the LLC targeting local memory",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO_PREF_LOCAL",
@@ -1780,7 +1800,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Read for ownership prefetch from local IA that miss the cache",
+        "BriefDescription": "Read for ownership prefetch from local IA that miss the LLC targeting remote memory",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO_PREF_REMOTE",
@@ -1790,7 +1810,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Read for ownership from local IA that miss the cache",
+        "BriefDescription": "Read for ownership from local IA that miss the LLC targeting remote memory",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO_REMOTE",
@@ -1882,7 +1902,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Read for ownership from local IA that miss the cache",
+        "BriefDescription": "Read for ownership from local IA",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_RFO",
@@ -1892,7 +1912,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Read for ownership prefetch from local IA that miss the cache",
+        "BriefDescription": "Read for ownership prefetch from local IA",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_RFO_PREF",

@@ -3,6 +3,7 @@
 
 #include <linux/ctype.h>
 #include <linux/firmware.h>
+#include <linux/string_choices.h>
 #include "otx2_cptpf_ucode.h"
 #include "otx2_cpt_common.h"
 #include "otx2_cptpf.h"
@@ -1773,103 +1774,4 @@ int otx2_cpt_dl_custom_egrp_delete(struct otx2_cptpf_dev *cptpf,
 err_print:
 	dev_err(dev, "%s\n", err_msg);
 	return -EINVAL;
-}
-
-static void get_engs_info(struct otx2_cpt_eng_grp_info *eng_grp, char *buf,
-			  int size, int idx)
-{
-	struct otx2_cpt_engs_rsvd *mirrored_engs = NULL;
-	struct otx2_cpt_engs_rsvd *engs;
-	int len, i;
-
-	buf[0] = '\0';
-	for (i = 0; i < OTX2_CPT_MAX_ETYPES_PER_GRP; i++) {
-		engs = &eng_grp->engs[i];
-		if (!engs->type)
-			continue;
-		if (idx != -1 && idx != i)
-			continue;
-
-		if (eng_grp->mirror.is_ena)
-			mirrored_engs = find_engines_by_type(
-				&eng_grp->g->grp[eng_grp->mirror.idx],
-				engs->type);
-		if (i > 0 && idx == -1) {
-			len = strlen(buf);
-			scnprintf(buf + len, size - len, ", ");
-		}
-
-		len = strlen(buf);
-		scnprintf(buf + len, size - len, "%d %s ",
-			  mirrored_engs ? engs->count + mirrored_engs->count :
-					  engs->count,
-			  get_eng_type_str(engs->type));
-		if (mirrored_engs) {
-			len = strlen(buf);
-			scnprintf(buf + len, size - len,
-				  "(%d shared with engine_group%d) ",
-				  engs->count <= 0 ?
-					  engs->count + mirrored_engs->count :
-					  mirrored_engs->count,
-				  eng_grp->mirror.idx);
-		}
-	}
-}
-
-void otx2_cpt_print_uc_dbg_info(struct otx2_cptpf_dev *cptpf)
-{
-	struct otx2_cpt_eng_grps *eng_grps = &cptpf->eng_grps;
-	struct otx2_cpt_eng_grp_info *mirrored_grp;
-	char engs_info[2 * OTX2_CPT_NAME_LENGTH];
-	struct otx2_cpt_eng_grp_info *grp;
-	struct otx2_cpt_engs_rsvd *engs;
-	int i, j;
-
-	pr_debug("Engine groups global info");
-	pr_debug("max SE %d, max IE %d, max AE %d", eng_grps->avail.max_se_cnt,
-		 eng_grps->avail.max_ie_cnt, eng_grps->avail.max_ae_cnt);
-	pr_debug("free SE %d", eng_grps->avail.se_cnt);
-	pr_debug("free IE %d", eng_grps->avail.ie_cnt);
-	pr_debug("free AE %d", eng_grps->avail.ae_cnt);
-
-	for (i = 0; i < OTX2_CPT_MAX_ENGINE_GROUPS; i++) {
-		grp = &eng_grps->grp[i];
-		pr_debug("engine_group%d, state %s", i,
-			 grp->is_enabled ? "enabled" : "disabled");
-		if (grp->is_enabled) {
-			mirrored_grp = &eng_grps->grp[grp->mirror.idx];
-			pr_debug("Ucode0 filename %s, version %s",
-				 grp->mirror.is_ena ?
-					 mirrored_grp->ucode[0].filename :
-					 grp->ucode[0].filename,
-				 grp->mirror.is_ena ?
-					 mirrored_grp->ucode[0].ver_str :
-					 grp->ucode[0].ver_str);
-			if (is_2nd_ucode_used(grp))
-				pr_debug("Ucode1 filename %s, version %s",
-					 grp->ucode[1].filename,
-					 grp->ucode[1].ver_str);
-		}
-
-		for (j = 0; j < OTX2_CPT_MAX_ETYPES_PER_GRP; j++) {
-			engs = &grp->engs[j];
-			if (engs->type) {
-				u32 mask[5] = { };
-
-				get_engs_info(grp, engs_info,
-					      2 * OTX2_CPT_NAME_LENGTH, j);
-				pr_debug("Slot%d: %s", j, engs_info);
-				bitmap_to_arr32(mask, engs->bmap,
-						eng_grps->engs_num);
-				if (is_dev_otx2(cptpf->pdev))
-					pr_debug("Mask: %8.8x %8.8x %8.8x %8.8x",
-						 mask[3], mask[2], mask[1],
-						 mask[0]);
-				else
-					pr_debug("Mask: %8.8x %8.8x %8.8x %8.8x %8.8x",
-						 mask[4], mask[3], mask[2], mask[1],
-						 mask[0]);
-			}
-		}
-	}
 }

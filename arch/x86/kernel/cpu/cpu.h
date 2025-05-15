@@ -33,14 +33,6 @@ struct cpu_dev {
 #endif
 };
 
-struct _tlb_table {
-	unsigned char descriptor;
-	char tlb_type;
-	unsigned int entries;
-	/* unsigned int ways; */
-	char info[128];
-};
-
 #define cpu_dev_register(cpu_devX) \
 	static const struct cpu_dev *const __cpu_dev_##cpu_devX __used \
 	__section(".x86_cpu_dev.init") = \

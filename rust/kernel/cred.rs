@@ -47,6 +47,7 @@ impl Credential {
     ///
     /// The caller must ensure that `ptr` is valid and remains valid for the lifetime of the
     /// returned [`Credential`] reference.
+    #[inline]
     pub unsafe fn from_ptr<'a>(ptr: *const bindings::cred) -> &'a Credential {
         // SAFETY: The safety requirements guarantee the validity of the dereference, while the
         // `Credential` type being transparent makes the cast ok.
@@ -54,6 +55,7 @@ impl Credential {
     }
 
     /// Get the id for this security context.
+    #[inline]
     pub fn get_secid(&self) -> u32 {
         let mut secid = 0;
         // SAFETY: The invariants of this type ensures that the pointer is valid.
@@ -62,6 +64,7 @@ impl Credential {
     }
 
     /// Returns the effective UID of the given credential.
+    #[inline]
     pub fn euid(&self) -> Kuid {
         // SAFETY: By the type invariant, we know that `self.0` is valid. Furthermore, the `euid`
         // field of a credential is never changed after initialization, so there is no potential
@@ -72,11 +75,13 @@ impl Credential {
 
 // SAFETY: The type invariants guarantee that `Credential` is always ref-counted.
 unsafe impl AlwaysRefCounted for Credential {
+    #[inline]
     fn inc_ref(&self) {
         // SAFETY: The existence of a shared reference means that the refcount is nonzero.
         unsafe { bindings::get_cred(self.0.get()) };
     }
 
+    #[inline]
     unsafe fn dec_ref(obj: core::ptr::NonNull<Credential>) {
         // SAFETY: The safety requirements guarantee that the refcount is nonzero. The cast is okay
         // because `Credential` has the same representation as `struct cred`.

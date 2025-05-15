@@ -98,7 +98,7 @@ extern const u32 imx53_suspend_sz;
 void imx6_suspend(void __iomem *ocram_vbase);
 #else
 static inline void imx53_suspend(void __iomem *ocram_vbase) {}
-static const u32 imx53_suspend_sz;
+static __maybe_unused const u32 imx53_suspend_sz;
 static inline void imx6_suspend(void __iomem *ocram_vbase) {}
 #endif
 

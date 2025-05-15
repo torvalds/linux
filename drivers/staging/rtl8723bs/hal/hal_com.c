@@ -884,6 +884,9 @@ static u32 Array_kfreemap[] = {
 	0xfc, 0x0,
 };
 
+#define		REG_RF_BB_GAIN_OFFSET	0x7f
+//#define		RF_GAIN_OFFSET_MASK	0xfffff
+
 void rtw_bb_rf_gain_offset(struct adapter *padapter)
 {
 	u8 value = padapter->eeprompriv.EEPROMRFGainOffset;

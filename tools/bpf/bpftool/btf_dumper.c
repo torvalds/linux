@@ -653,7 +653,7 @@ static int __btf_dumper_type_only(const struct btf *btf, __u32 type_id,
 	case BTF_KIND_ARRAY:
 		array = (struct btf_array *)(t + 1);
 		BTF_PRINT_TYPE(array->type);
-		BTF_PRINT_ARG("[%d]", array->nelems);
+		BTF_PRINT_ARG("[%u]", array->nelems);
 		break;
 	case BTF_KIND_PTR:
 		BTF_PRINT_TYPE(t->type);

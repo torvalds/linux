@@ -17,6 +17,8 @@
 struct device_node;
 struct property;
 
+#define MIN_RMA			768		/* Minimum RMA (in MB) for CAS negotiation */
+
 #define OF_DT_BEGIN_NODE	0x1		/* Start of node, full name */
 #define OF_DT_END_NODE		0x2		/* End node */
 #define OF_DT_PROP		0x3		/* Property: name off, size,

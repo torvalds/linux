@@ -355,7 +355,7 @@ static int __maybe_unused xhci_histb_resume(struct device *dev)
 	if (!device_may_wakeup(dev))
 		xhci_histb_host_enable(histb);
 
-	return xhci_resume(xhci, PMSG_RESUME);
+	return xhci_resume(xhci, false, false);
 }
 
 static const struct dev_pm_ops xhci_histb_pm_ops = {

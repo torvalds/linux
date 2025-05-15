@@ -80,19 +80,19 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     efuse@21bc000 {
-         #address-cells = <1>;
-         #size-cells = <1>;
-         compatible = "fsl,imx6sx-ocotp", "syscon";
-         reg = <0x021bc000 0x4000>;
-         clocks = <&clks IMX6SX_CLK_OCOTP>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        compatible = "fsl,imx6sx-ocotp", "syscon";
+        reg = <0x021bc000 0x4000>;
+        clocks = <&clks IMX6SX_CLK_OCOTP>;
 
-         tempmon_calib: calib@38 {
-             reg = <0x38 4>;
-         };
+        tempmon_calib: calib@38 {
+            reg = <0x38 4>;
+        };
 
-         tempmon_temp_grade: temp-grade@20 {
-             reg = <0x20 4>;
-         };
+        tempmon_temp_grade: temp-grade@20 {
+            reg = <0x20 4>;
+        };
     };
 
     anatop@20c8000 {
@@ -103,12 +103,12 @@ examples:
                      <0 127 IRQ_TYPE_LEVEL_HIGH>;
 
         tempmon {
-             compatible = "fsl,imx6sx-tempmon";
-             interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
-             fsl,tempmon = <&anatop>;
-             nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
-             nvmem-cell-names = "calib", "temp_grade";
-             clocks = <&clks IMX6SX_CLK_PLL3_USB_OTG>;
-             #thermal-sensor-cells = <0>;
+            compatible = "fsl,imx6sx-tempmon";
+            interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+            fsl,tempmon = <&anatop>;
+            nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
+            nvmem-cell-names = "calib", "temp_grade";
+            clocks = <&clks IMX6SX_CLK_PLL3_USB_OTG>;
+            #thermal-sensor-cells = <0>;
         };
     };

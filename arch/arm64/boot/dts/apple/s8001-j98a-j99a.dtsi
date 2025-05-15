@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Apple iPad Pro (12.9-inch)
+ *
+ * This file contains parts common to iPad Pro (12.9-inch).
+ *
+ * target-type: J98a, J99a
+ *
+ * Copyright (c) 2024, Nick Chan <towinchenmi@gmail.com>
+ */
+
+&ps_dcs4 {
+	apple,always-on; /* LPDDR4 interface */
+};
+
+&ps_dcs5 {
+	apple,always-on; /* LPDDR4 interface */
+};
+
+&ps_dcs6 {
+	apple,always-on; /* LPDDR4 interface */
+};
+
+&ps_dcs7 {
+	apple,always-on; /* LPDDR4 interface */
+};

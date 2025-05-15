@@ -118,7 +118,7 @@ static struct drm_driver driver_platform;
 #ifdef CONFIG_DEBUG_FS
 struct dentry *nouveau_debugfs_root;
 
-/**
+/*
  * gsp_logs - list of nvif_log GSP-RM logging buffers
  *
  * Head pointer to a a list of nvif_log buffers that is created for each GPU

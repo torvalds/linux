@@ -4021,7 +4021,7 @@ static void qla4xxx_start_timer(struct scsi_qla_host *ha,
 
 static void qla4xxx_stop_timer(struct scsi_qla_host *ha)
 {
-	del_timer_sync(&ha->timer);
+	timer_delete_sync(&ha->timer);
 	ha->timer_active = 0;
 }
 

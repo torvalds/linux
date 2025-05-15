@@ -63,23 +63,32 @@
  *		wrt receive and holding up unrelated socket operations.
  */
 
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/socket.h>
-#include <linux/un.h>
-#include <linux/net.h>
 #include <linux/fs.h>
+#include <linux/list.h>
 #include <linux/skbuff.h>
-#include <linux/netdevice.h>
-#include <linux/file.h>
-#include <linux/proc_fs.h>
-#include <linux/mutex.h>
-#include <linux/wait.h>
-
-#include <net/sock.h>
+#include <linux/socket.h>
+#include <linux/workqueue.h>
 #include <net/af_unix.h>
 #include <net/scm.h>
 #include <net/tcp_states.h>
+
+#include "af_unix.h"
+
+struct unix_vertex {
+	struct list_head edges;
+	struct list_head entry;
+	struct list_head scc_entry;
+	unsigned long out_degree;
+	unsigned long index;
+	unsigned long scc_index;
+};
+
+struct unix_edge {
+	struct unix_sock *predecessor;
+	struct unix_sock *successor;
+	struct list_head vertex_entry;
+	struct list_head stack_entry;
+};
 
 struct unix_sock *unix_get_socket(struct file *filp)
 {

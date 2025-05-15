@@ -366,6 +366,10 @@ static inline void bkey_init(struct bkey *k)
 #define __BKEY_PADDED(key, pad)					\
 	struct bkey_i key; __u64 key ## _pad[pad]
 
+enum bch_bkey_type_flags {
+	BKEY_TYPE_strict_btree_checks	= BIT(0),
+};
+
 /*
  * - DELETED keys are used internally to mark keys that should be ignored but
  *   override keys in composition order.  Their version number is ignored.
@@ -383,46 +387,46 @@ static inline void bkey_init(struct bkey *k)
  *
  * - WHITEOUT: for hash table btrees
  */
-#define BCH_BKEY_TYPES()				\
-	x(deleted,		0)			\
-	x(whiteout,		1)			\
-	x(error,		2)			\
-	x(cookie,		3)			\
-	x(hash_whiteout,	4)			\
-	x(btree_ptr,		5)			\
-	x(extent,		6)			\
-	x(reservation,		7)			\
-	x(inode,		8)			\
-	x(inode_generation,	9)			\
-	x(dirent,		10)			\
-	x(xattr,		11)			\
-	x(alloc,		12)			\
-	x(quota,		13)			\
-	x(stripe,		14)			\
-	x(reflink_p,		15)			\
-	x(reflink_v,		16)			\
-	x(inline_data,		17)			\
-	x(btree_ptr_v2,		18)			\
-	x(indirect_inline_data,	19)			\
-	x(alloc_v2,		20)			\
-	x(subvolume,		21)			\
-	x(snapshot,		22)			\
-	x(inode_v2,		23)			\
-	x(alloc_v3,		24)			\
-	x(set,			25)			\
-	x(lru,			26)			\
-	x(alloc_v4,		27)			\
-	x(backpointer,		28)			\
-	x(inode_v3,		29)			\
-	x(bucket_gens,		30)			\
-	x(snapshot_tree,	31)			\
-	x(logged_op_truncate,	32)			\
-	x(logged_op_finsert,	33)			\
-	x(accounting,		34)			\
-	x(inode_alloc_cursor,	35)
+#define BCH_BKEY_TYPES()						\
+	x(deleted,		0,	0)				\
+	x(whiteout,		1,	0)				\
+	x(error,		2,	0)				\
+	x(cookie,		3,	0)				\
+	x(hash_whiteout,	4,	BKEY_TYPE_strict_btree_checks)	\
+	x(btree_ptr,		5,	BKEY_TYPE_strict_btree_checks)	\
+	x(extent,		6,	BKEY_TYPE_strict_btree_checks)	\
+	x(reservation,		7,	BKEY_TYPE_strict_btree_checks)	\
+	x(inode,		8,	BKEY_TYPE_strict_btree_checks)	\
+	x(inode_generation,	9,	BKEY_TYPE_strict_btree_checks)	\
+	x(dirent,		10,	BKEY_TYPE_strict_btree_checks)	\
+	x(xattr,		11,	BKEY_TYPE_strict_btree_checks)	\
+	x(alloc,		12,	BKEY_TYPE_strict_btree_checks)	\
+	x(quota,		13,	BKEY_TYPE_strict_btree_checks)	\
+	x(stripe,		14,	BKEY_TYPE_strict_btree_checks)	\
+	x(reflink_p,		15,	BKEY_TYPE_strict_btree_checks)	\
+	x(reflink_v,		16,	BKEY_TYPE_strict_btree_checks)	\
+	x(inline_data,		17,	BKEY_TYPE_strict_btree_checks)	\
+	x(btree_ptr_v2,		18,	BKEY_TYPE_strict_btree_checks)	\
+	x(indirect_inline_data,	19,	BKEY_TYPE_strict_btree_checks)	\
+	x(alloc_v2,		20,	BKEY_TYPE_strict_btree_checks)	\
+	x(subvolume,		21,	BKEY_TYPE_strict_btree_checks)	\
+	x(snapshot,		22,	BKEY_TYPE_strict_btree_checks)	\
+	x(inode_v2,		23,	BKEY_TYPE_strict_btree_checks)	\
+	x(alloc_v3,		24,	BKEY_TYPE_strict_btree_checks)	\
+	x(set,			25,	0)				\
+	x(lru,			26,	BKEY_TYPE_strict_btree_checks)	\
+	x(alloc_v4,		27,	BKEY_TYPE_strict_btree_checks)	\
+	x(backpointer,		28,	BKEY_TYPE_strict_btree_checks)	\
+	x(inode_v3,		29,	BKEY_TYPE_strict_btree_checks)	\
+	x(bucket_gens,		30,	BKEY_TYPE_strict_btree_checks)	\
+	x(snapshot_tree,	31,	BKEY_TYPE_strict_btree_checks)	\
+	x(logged_op_truncate,	32,	BKEY_TYPE_strict_btree_checks)	\
+	x(logged_op_finsert,	33,	BKEY_TYPE_strict_btree_checks)	\
+	x(accounting,		34,	BKEY_TYPE_strict_btree_checks)	\
+	x(inode_alloc_cursor,	35,	BKEY_TYPE_strict_btree_checks)
 
 enum bch_bkey_type {
-#define x(name, nr) KEY_TYPE_##name	= nr,
+#define x(name, nr, ...) KEY_TYPE_##name	= nr,
 	BCH_BKEY_TYPES()
 #undef x
 	KEY_TYPE_MAX,
@@ -686,7 +690,12 @@ struct bch_sb_field_ext {
 	x(inode_depth,			BCH_VERSION(1, 17))		\
 	x(persistent_inode_cursors,	BCH_VERSION(1, 18))		\
 	x(autofix_errors,		BCH_VERSION(1, 19))		\
-	x(directory_size,		BCH_VERSION(1, 20))
+	x(directory_size,		BCH_VERSION(1, 20))		\
+	x(cached_backpointers,		BCH_VERSION(1, 21))		\
+	x(stripe_backpointers,		BCH_VERSION(1, 22))		\
+	x(stripe_lru,			BCH_VERSION(1, 23))		\
+	x(casefolding,			BCH_VERSION(1, 24))		\
+	x(extent_flags,			BCH_VERSION(1, 25))
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
@@ -837,6 +846,7 @@ LE64_BITMASK(BCH_SB_SHARD_INUMS,	struct bch_sb, flags[3], 28, 29);
 LE64_BITMASK(BCH_SB_INODES_USE_KEY_CACHE,struct bch_sb, flags[3], 29, 30);
 LE64_BITMASK(BCH_SB_JOURNAL_FLUSH_DELAY,struct bch_sb, flags[3], 30, 62);
 LE64_BITMASK(BCH_SB_JOURNAL_FLUSH_DISABLED,struct bch_sb, flags[3], 62, 63);
+/* one free bit */
 LE64_BITMASK(BCH_SB_JOURNAL_RECLAIM_DELAY,struct bch_sb, flags[4], 0, 32);
 LE64_BITMASK(BCH_SB_JOURNAL_TRANSACTION_NAMES,struct bch_sb, flags[4], 32, 33);
 LE64_BITMASK(BCH_SB_NOCOW,		struct bch_sb, flags[4], 33, 34);
@@ -855,6 +865,9 @@ LE64_BITMASK(BCH_SB_VERSION_INCOMPAT,	struct bch_sb, flags[5], 32, 48);
 LE64_BITMASK(BCH_SB_VERSION_INCOMPAT_ALLOWED,
 					struct bch_sb, flags[5], 48, 64);
 LE64_BITMASK(BCH_SB_SHARD_INUMS_NBITS,	struct bch_sb, flags[6],  0,  4);
+LE64_BITMASK(BCH_SB_WRITE_ERROR_TIMEOUT,struct bch_sb, flags[6],  4, 14);
+LE64_BITMASK(BCH_SB_CSUM_ERR_RETRY_NR,	struct bch_sb, flags[6], 14, 20);
+LE64_BITMASK(BCH_SB_CASEFOLD,		struct bch_sb, flags[6], 22, 23);
 
 static inline __u64 BCH_SB_COMPRESSION_TYPE(const struct bch_sb *sb)
 {
@@ -908,7 +921,8 @@ static inline void SET_BCH_SB_BACKGROUND_COMPRESSION_TYPE(struct bch_sb *sb, __u
 	x(journal_no_flush,		16)	\
 	x(alloc_v2,			17)	\
 	x(extents_across_btree_nodes,	18)	\
-	x(incompat_version_field,	19)
+	x(incompat_version_field,	19)	\
+	x(casefolding,			20)
 
 #define BCH_SB_FEATURES_ALWAYS				\
 	(BIT_ULL(BCH_FEATURE_new_extent_overwrite)|	\
@@ -922,7 +936,8 @@ static inline void SET_BCH_SB_BACKGROUND_COMPRESSION_TYPE(struct bch_sb *sb, __u
 	 BIT_ULL(BCH_FEATURE_new_siphash)|		\
 	 BIT_ULL(BCH_FEATURE_btree_ptr_v2)|		\
 	 BIT_ULL(BCH_FEATURE_new_varint)|		\
-	 BIT_ULL(BCH_FEATURE_journal_no_flush))
+	 BIT_ULL(BCH_FEATURE_journal_no_flush)|		\
+	 BIT_ULL(BCH_FEATURE_incompat_version_field))
 
 enum bch_sb_feature {
 #define x(f, n) BCH_FEATURE_##f,
@@ -1133,7 +1148,8 @@ static inline __u64 __bset_magic(struct bch_sb *sb)
 	x(log,			9)		\
 	x(overwrite,		10)		\
 	x(write_buffer_keys,	11)		\
-	x(datetime,		12)
+	x(datetime,		12)		\
+	x(log_bkey,		13)
 
 enum bch_jset_entry_type {
 #define x(f, nr)	BCH_JSET_ENTRY_##f	= nr,

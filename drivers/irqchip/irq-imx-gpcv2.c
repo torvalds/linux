@@ -247,7 +247,7 @@ static int __init imx_gpcv2_irqchip_init(struct device_node *node,
 		kfree(cd);
 		return -ENOMEM;
 	}
-	irq_set_default_host(domain);
+	irq_set_default_domain(domain);
 
 	/* Initially mask all interrupts */
 	for (i = 0; i < IMR_NUM; i++) {

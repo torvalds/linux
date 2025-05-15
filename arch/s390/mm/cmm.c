@@ -201,7 +201,7 @@ static void cmm_set_timer(void)
 {
 	if (cmm_timed_pages_target <= 0 || cmm_timeout_seconds <= 0) {
 		if (timer_pending(&cmm_timer))
-			del_timer(&cmm_timer);
+			timer_delete(&cmm_timer);
 		return;
 	}
 	mod_timer(&cmm_timer, jiffies + secs_to_jiffies(cmm_timeout_seconds));
@@ -424,7 +424,7 @@ out_smsg:
 #endif
 	unregister_sysctl_table(cmm_sysctl_header);
 out_sysctl:
-	del_timer_sync(&cmm_timer);
+	timer_delete_sync(&cmm_timer);
 	return rc;
 }
 module_init(cmm_init);
@@ -437,7 +437,7 @@ static void __exit cmm_exit(void)
 #endif
 	unregister_oom_notifier(&cmm_oom_nb);
 	kthread_stop(cmm_thread_ptr);
-	del_timer_sync(&cmm_timer);
+	timer_delete_sync(&cmm_timer);
 	cmm_free_pages(cmm_pages, &cmm_pages, &cmm_page_list);
 	cmm_free_pages(cmm_timed_pages, &cmm_timed_pages, &cmm_timed_page_list);
 }

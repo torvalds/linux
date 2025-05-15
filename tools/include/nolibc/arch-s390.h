@@ -5,8 +5,8 @@
 
 #ifndef _NOLIBC_ARCH_S390_H
 #define _NOLIBC_ARCH_S390_H
-#include <asm/signal.h>
-#include <asm/unistd.h>
+#include <linux/signal.h>
+#include <linux/unistd.h>
 
 #include "compiler.h"
 #include "crt.h"
@@ -143,8 +143,13 @@
 void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _start(void)
 {
 	__asm__ volatile (
+#ifdef __s390x__
 		"lgr	%r2, %r15\n"          /* save stack pointer to %r2, as arg1 of _start_c */
 		"aghi	%r15, -160\n"         /* allocate new stackframe                        */
+#else
+		"lr	%r2, %r15\n"
+		"ahi	%r15, -96\n"
+#endif
 		"xc	0(8,%r15), 0(%r15)\n" /* clear backchain                                */
 		"brasl	%r14, _start_c\n"     /* transfer to c runtime                          */
 	);

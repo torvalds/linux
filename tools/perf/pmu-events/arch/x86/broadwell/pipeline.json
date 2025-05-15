@@ -379,7 +379,7 @@
         "BriefDescription": "Reference cycles when the core is not in halt state.",
         "Counter": "Fixed counter 2",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
-        "PublicDescription": "This event counts the number of reference cycles when the core is not in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is not affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was not in a halt state. This event has a constant ratio with the CPU_CLK_UNHALTED.REF_XCLK event. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. \nNote: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  This event is clocked by base clock (100 Mhz) on Sandy Bridge. The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is not clocked immediately so the overflow status bit will flip 'high (1)' and generate another PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should ignore this case.",
+        "PublicDescription": "This event counts the number of reference cycles when the core is not in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is not affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was not in a halt state. This event has a constant ratio with the CPU_CLK_UNHALTED.REF_XCLK event. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events.  Note: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  This event is clocked by base clock (100 Mhz) on Sandy Bridge. The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is not clocked immediately so the overflow status bit will flip 'high (1)' and generate another PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should ignore this case.",
         "SampleAfterValue": "2000003",
         "UMask": "0x3"
     },
@@ -579,7 +579,7 @@
         "BriefDescription": "Instructions retired from execution.",
         "Counter": "Fixed counter 0",
         "EventName": "INST_RETIRED.ANY",
-        "PublicDescription": "This event counts the number of instructions retired from execution. For instructions that consist of multiple micro-ops, this event counts the retirement of the last micro-op of the instruction. Counting continues during hardware interrupts, traps, and inside interrupt handlers. \nNotes: INST_RETIRED.ANY is counted by a designated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. INST_RETIRED.ANY_P is counted by a programmable counter and it is an architectural performance event. \nCounting: Faulting executions of GETSEC/VM entry/VM Exit/MWait will not count as retired instructions.",
+        "PublicDescription": "This event counts the number of instructions retired from execution. For instructions that consist of multiple micro-ops, this event counts the retirement of the last micro-op of the instruction. Counting continues during hardware interrupts, traps, and inside interrupt handlers.  Notes: INST_RETIRED.ANY is counted by a designated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. INST_RETIRED.ANY_P is counted by a programmable counter and it is an architectural performance event.  Counting: Faulting executions of GETSEC/VM entry/VM Exit/MWait will not count as retired instructions.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -654,7 +654,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.STORE_FORWARD",
-        "PublicDescription": "This event counts how many times the load operation got the true Block-on-Store blocking code preventing store forwarding. This includes cases when:\n - preceding store conflicts with the load (incomplete overlap);\n - store forwarding is impossible due to u-arch limitations;\n - preceding lock RMW operations are not forwarded;\n - store has the no-forward bit set (uncacheable/page-split/masked stores);\n - all-blocking stores are used (mostly, fences and port I/O);\nand others.\nThe most common case is a load blocked due to its address range overlapping with a preceding smaller uncompleted store. Note: This event does not take into account cases of out-of-SW-control (for example, SbTailHit), unknown physical STA, and cases of blocking loads on store due to being non-WB memory type or a lock. These cases are covered by other events.\nSee the table of not supported store forwards in the Optimization Guide.",
+        "PublicDescription": "This event counts how many times the load operation got the true Block-on-Store blocking code preventing store forwarding. This includes cases when:  - preceding store conflicts with the load (incomplete overlap);  - store forwarding is impossible due to u-arch limitations;  - preceding lock RMW operations are not forwarded;  - store has the no-forward bit set (uncacheable/page-split/masked stores);  - all-blocking stores are used (mostly, fences and port I/O); and others. The most common case is a load blocked due to its address range overlapping with a preceding smaller uncompleted store. Note: This event does not take into account cases of out-of-SW-control (for example, SbTailHit), unknown physical STA, and cases of blocking loads on store due to being non-WB memory type or a lock. These cases are covered by other events. See the table of not supported store forwards in the Optimization Guide.",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -822,7 +822,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x5E",
         "EventName": "RS_EVENTS.EMPTY_CYCLES",
-        "PublicDescription": "This event counts cycles during which the reservation station (RS) is empty for the thread.\nNote: In ST-mode, not active thread should drive 0. This is usually caused by severely costly branch mispredictions, or allocator/FE issues.",
+        "PublicDescription": "This event counts cycles during which the reservation station (RS) is empty for the thread. Note: In ST-mode, not active thread should drive 0. This is usually caused by severely costly branch mispredictions, or allocator/FE issues.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -1177,7 +1177,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x0E",
         "EventName": "UOPS_ISSUED.FLAGS_MERGE",
-        "PublicDescription": "Number of flags-merge uops being allocated. Such uops considered perf sensitive\n added by GSR u-arch.",
+        "PublicDescription": "Number of flags-merge uops being allocated. Such uops considered perf sensitive  added by GSR u-arch.",
         "SampleAfterValue": "2000003",
         "UMask": "0x10"
     },

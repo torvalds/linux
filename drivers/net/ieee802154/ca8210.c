@@ -52,12 +52,10 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
-#include <linux/gpio.h>
 #include <linux/ieee802154.h>
 #include <linux/io.h>
 #include <linux/kfifo.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/poll.h>
@@ -350,8 +348,8 @@ struct work_priv_container {
  * @extclockenable: true if the external clock is to be enabled
  * @extclockfreq:   frequency of the external clock
  * @extclockgpio:   ca8210 output gpio of the external clock
- * @gpio_reset:     gpio number of ca8210 reset line
- * @gpio_irq:       gpio number of ca8210 interrupt line
+ * @reset_gpio:     ca8210 reset GPIO descriptor
+ * @irq_gpio:       ca8210 interrupt GPIO descriptor
  * @irq_id:         identifier for the ca8210 irq
  *
  */
@@ -359,8 +357,8 @@ struct ca8210_platform_data {
 	bool extclockenable;
 	unsigned int extclockfreq;
 	unsigned int extclockgpio;
-	int gpio_reset;
-	int gpio_irq;
+	struct gpio_desc *reset_gpio;
+	struct gpio_desc *irq_gpio;
 	int irq_id;
 };
 
@@ -627,14 +625,15 @@ static int ca8210_spi_transfer(
  */
 static void ca8210_reset_send(struct spi_device *spi, unsigned int ms)
 {
-	struct ca8210_platform_data *pdata = spi->dev.platform_data;
+	struct device *dev = &spi->dev;
+	struct ca8210_platform_data *pdata = dev_get_platdata(dev);
 	struct ca8210_priv *priv = spi_get_drvdata(spi);
 	long status;
 
-	gpio_set_value(pdata->gpio_reset, 0);
+	gpiod_set_value(pdata->reset_gpio, 1);
 	reinit_completion(&priv->ca8210_is_awake);
 	msleep(ms);
-	gpio_set_value(pdata->gpio_reset, 1);
+	gpiod_set_value(pdata->reset_gpio, 0);
 	priv->promiscuous = false;
 
 	/* Wait until wakeup indication seen */
@@ -1446,8 +1445,7 @@ static u8 mcps_data_request(
 	command.pdata.data_req.src_addr_mode = src_addr_mode;
 	command.pdata.data_req.dst.mode = dst_address_mode;
 	if (dst_address_mode != MAC_MODE_NO_ADDR) {
-		command.pdata.data_req.dst.pan_id[0] = LS_BYTE(dst_pan_id);
-		command.pdata.data_req.dst.pan_id[1] = MS_BYTE(dst_pan_id);
+		put_unaligned_le16(dst_pan_id, command.pdata.data_req.dst.pan_id);
 		if (dst_address_mode == MAC_MODE_SHORT_ADDR) {
 			command.pdata.data_req.dst.address[0] = LS_BYTE(
 				dst_addr->short_address
@@ -1795,12 +1793,12 @@ static int ca8210_skb_rx(
 	}
 	hdr.source.mode = data_ind[0];
 	dev_dbg(&priv->spi->dev, "srcAddrMode: %#03x\n", hdr.source.mode);
-	hdr.source.pan_id = *(u16 *)&data_ind[1];
+	hdr.source.pan_id = cpu_to_le16(get_unaligned_le16(&data_ind[1]));
 	dev_dbg(&priv->spi->dev, "srcPanId: %#06x\n", hdr.source.pan_id);
 	memcpy(&hdr.source.extended_addr, &data_ind[3], 8);
 	hdr.dest.mode = data_ind[11];
 	dev_dbg(&priv->spi->dev, "dstAddrMode: %#03x\n", hdr.dest.mode);
-	hdr.dest.pan_id = *(u16 *)&data_ind[12];
+	hdr.dest.pan_id = cpu_to_le16(get_unaligned_le16(&data_ind[12]));
 	dev_dbg(&priv->spi->dev, "dstPanId: %#06x\n", hdr.dest.pan_id);
 	memcpy(&hdr.dest.extended_addr, &data_ind[14], 8);
 
@@ -1927,7 +1925,7 @@ static int ca8210_skb_tx(
 	status =  mcps_data_request(
 		header.source.mode,
 		header.dest.mode,
-		header.dest.pan_id,
+		le16_to_cpu(header.dest.pan_id),
 		(union macaddr *)&header.dest.extended_addr,
 		skb->len - mac_len,
 		&skb->data[mac_len],
@@ -2737,9 +2735,10 @@ static int ca8210_config_extern_clk(
  */
 static int ca8210_register_ext_clock(struct spi_device *spi)
 {
+	struct device *dev = &spi->dev;
+	struct ca8210_platform_data *pdata = dev_get_platdata(dev);
 	struct device_node *np = spi->dev.of_node;
 	struct ca8210_priv *priv = spi_get_drvdata(spi);
-	struct ca8210_platform_data *pdata = spi->dev.platform_data;
 
 	if (!np)
 		return -EFAULT;
@@ -2785,25 +2784,16 @@ static void ca8210_unregister_ext_clock(struct spi_device *spi)
  */
 static int ca8210_reset_init(struct spi_device *spi)
 {
-	int ret;
-	struct ca8210_platform_data *pdata = spi->dev.platform_data;
+	struct device *dev = &spi->dev;
+	struct ca8210_platform_data *pdata = dev_get_platdata(dev);
 
-	pdata->gpio_reset = of_get_named_gpio(
-		spi->dev.of_node,
-		"reset-gpio",
-		0
-	);
-
-	ret = gpio_direction_output(pdata->gpio_reset, 1);
-	if (ret < 0) {
-		dev_crit(
-			&spi->dev,
-			"Reset GPIO %d did not set to output mode\n",
-			pdata->gpio_reset
-		);
+	pdata->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(pdata->reset_gpio)) {
+		dev_crit(dev, "Reset GPIO did not set to output mode\n");
+		return PTR_ERR(pdata->reset_gpio);
 	}
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -2814,23 +2804,19 @@ static int ca8210_reset_init(struct spi_device *spi)
  */
 static int ca8210_interrupt_init(struct spi_device *spi)
 {
+	struct device *dev = &spi->dev;
+	struct ca8210_platform_data *pdata = dev_get_platdata(dev);
 	int ret;
-	struct ca8210_platform_data *pdata = spi->dev.platform_data;
 
-	pdata->gpio_irq = of_get_named_gpio(
-		spi->dev.of_node,
-		"irq-gpio",
-		0
-	);
+	pdata->irq_gpio = devm_gpiod_get(dev, "irq", GPIOD_IN);
+	if (IS_ERR(pdata->irq_gpio)) {
+		dev_crit(dev, "Could not retrieve IRQ GPIO\n");
+		return PTR_ERR(pdata->irq_gpio);
+	}
 
-	pdata->irq_id = gpio_to_irq(pdata->gpio_irq);
+	pdata->irq_id = gpiod_to_irq(pdata->irq_gpio);
 	if (pdata->irq_id < 0) {
-		dev_crit(
-			&spi->dev,
-			"Could not get irq for gpio pin %d\n",
-			pdata->gpio_irq
-		);
-		gpio_free(pdata->gpio_irq);
+		dev_crit(dev, "Could not get irq for IRQ GPIO\n");
 		return pdata->irq_id;
 	}
 
@@ -2841,10 +2827,8 @@ static int ca8210_interrupt_init(struct spi_device *spi)
 		"ca8210-irq",
 		spi_get_drvdata(spi)
 	);
-	if (ret) {
+	if (ret)
 		dev_crit(&spi->dev, "request_irq %d failed\n", pdata->irq_id);
-		gpio_free(pdata->gpio_irq);
-	}
 
 	return ret;
 }

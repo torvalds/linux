@@ -286,8 +286,11 @@ static int pciehp_suspend(struct pcie_device *dev)
 
 static bool pciehp_device_replaced(struct controller *ctrl)
 {
-	struct pci_dev *pdev __free(pci_dev_put);
+	struct pci_dev *pdev __free(pci_dev_put) = NULL;
 	u32 reg;
+
+	if (pci_dev_is_disconnected(ctrl->pcie->port))
+		return false;
 
 	pdev = pci_get_slot(ctrl->pcie->port->subordinate, PCI_DEVFN(0, 0));
 	if (!pdev)

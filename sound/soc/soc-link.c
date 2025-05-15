@@ -12,22 +12,8 @@
 static inline int _soc_link_ret(struct snd_soc_pcm_runtime *rtd,
 				const char *func, int ret)
 {
-	/* Positive, Zero values are not errors */
-	if (ret >= 0)
-		return ret;
-
-	/* Negative values might be errors */
-	switch (ret) {
-	case -EPROBE_DEFER:
-	case -ENOTSUPP:
-		break;
-	default:
-		dev_err(rtd->dev,
-			"ASoC: error at %s on %s: %d\n",
-			func, rtd->dai_link->name, ret);
-	}
-
-	return ret;
+	return snd_soc_ret(rtd->dev, ret,
+			   "at %s() on %s\n", func, rtd->dai_link->name);
 }
 
 /*

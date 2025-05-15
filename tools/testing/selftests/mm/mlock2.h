@@ -3,11 +3,16 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <asm-generic/unistd.h>
 
 static int mlock2_(void *start, size_t len, int flags)
 {
-	return syscall(__NR_mlock2, start, len, flags);
+	int ret = syscall(__NR_mlock2, start, len, flags);
+
+	if (ret) {
+		errno = ret;
+		return -1;
+	}
+	return 0;
 }
 
 static FILE *seek_to_smaps_entry(unsigned long addr)

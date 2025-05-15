@@ -651,7 +651,7 @@ static int vega20_ih_resume(struct amdgpu_ip_block *ip_block)
 	return vega20_ih_hw_init(ip_block);
 }
 
-static bool vega20_ih_is_idle(void *handle)
+static bool vega20_ih_is_idle(struct amdgpu_ip_block *ip_block)
 {
 	/* todo */
 	return true;

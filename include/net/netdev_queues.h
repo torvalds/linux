@@ -23,6 +23,7 @@ struct netdev_queue_stats_rx {
 	u64 hw_drops;
 	u64 hw_drop_overruns;
 
+	u64 csum_complete;
 	u64 csum_unnecessary;
 	u64 csum_none;
 	u64 csum_bad;
@@ -102,6 +103,12 @@ struct netdev_stat_ops {
 			       struct netdev_queue_stats_tx *tx);
 };
 
+void netdev_stat_queue_sum(struct net_device *netdev,
+			   int rx_start, int rx_end,
+			   struct netdev_queue_stats_rx *rx_sum,
+			   int tx_start, int tx_end,
+			   struct netdev_queue_stats_tx *tx_sum);
+
 /**
  * struct netdev_queue_mgmt_ops - netdev ops for queue management
  *
@@ -117,6 +124,10 @@ struct netdev_stat_ops {
  *
  * @ndo_queue_stop:	Stop the RX queue at the specified index. The stopped
  *			queue's memory is written at the specified address.
+ *
+ * Note that @ndo_queue_mem_alloc and @ndo_queue_mem_free may be called while
+ * the interface is closed. @ndo_queue_start and @ndo_queue_stop will only
+ * be called for an interface which is open.
  */
 struct netdev_queue_mgmt_ops {
 	size_t			ndo_queue_mem_size;

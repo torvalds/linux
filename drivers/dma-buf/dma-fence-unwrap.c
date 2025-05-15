@@ -84,8 +84,8 @@ struct dma_fence *__dma_fence_unwrap_merge(unsigned int num_fences,
 					   struct dma_fence **fences,
 					   struct dma_fence_unwrap *iter)
 {
+	struct dma_fence *tmp, *unsignaled = NULL, **array;
 	struct dma_fence_array *result;
-	struct dma_fence *tmp, **array;
 	ktime_t timestamp;
 	int i, j, count;
 
@@ -94,6 +94,8 @@ struct dma_fence *__dma_fence_unwrap_merge(unsigned int num_fences,
 	for (i = 0; i < num_fences; ++i) {
 		dma_fence_unwrap_for_each(tmp, &iter[i], fences[i]) {
 			if (!dma_fence_is_signaled(tmp)) {
+				dma_fence_put(unsignaled);
+				unsignaled = dma_fence_get(tmp);
 				++count;
 			} else {
 				ktime_t t = dma_fence_timestamp(tmp);
@@ -107,9 +109,16 @@ struct dma_fence *__dma_fence_unwrap_merge(unsigned int num_fences,
 	/*
 	 * If we couldn't find a pending fence just return a private signaled
 	 * fence with the timestamp of the last signaled one.
+	 *
+	 * Or if there was a single unsignaled fence left we can return it
+	 * directly and early since that is a major path on many workloads.
 	 */
 	if (count == 0)
 		return dma_fence_allocate_private_stub(timestamp);
+	else if (count == 1)
+		return unsignaled;
+
+	dma_fence_put(unsignaled);
 
 	array = kmalloc_array(count, sizeof(*array), GFP_KERNEL);
 	if (!array)

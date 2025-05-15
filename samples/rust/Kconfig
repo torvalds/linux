@@ -40,6 +40,17 @@ config SAMPLE_RUST_PRINT
 
 	  If unsure, say N.
 
+config SAMPLE_RUST_DMA
+	tristate "DMA Test Driver"
+	depends on PCI
+	help
+	  This option builds the Rust DMA Test driver sample.
+
+	  To compile this as a module, choose M here:
+	  the module will be called rust_dma.
+
+	  If unsure, say N.
+
 config SAMPLE_RUST_DRIVER_PCI
 	tristate "PCI Driver"
 	depends on PCI

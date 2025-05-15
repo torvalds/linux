@@ -20,6 +20,8 @@
 #include "ivpu_mmu.h"
 #include "ivpu_mmu_context.h"
 
+MODULE_IMPORT_NS("DMA_BUF");
+
 static const struct drm_gem_object_funcs ivpu_gem_funcs;
 
 static inline void ivpu_dbg_bo(struct ivpu_device *vdev, struct ivpu_bo *bo, const char *action)
@@ -170,6 +172,47 @@ struct drm_gem_object *ivpu_gem_create_object(struct drm_device *dev, size_t siz
 	mutex_init(&bo->lock);
 
 	return &bo->base.base;
+}
+
+struct drm_gem_object *ivpu_gem_prime_import(struct drm_device *dev,
+					     struct dma_buf *dma_buf)
+{
+	struct device *attach_dev = dev->dev;
+	struct dma_buf_attachment *attach;
+	struct sg_table *sgt;
+	struct drm_gem_object *obj;
+	int ret;
+
+	attach = dma_buf_attach(dma_buf, attach_dev);
+	if (IS_ERR(attach))
+		return ERR_CAST(attach);
+
+	get_dma_buf(dma_buf);
+
+	sgt = dma_buf_map_attachment_unlocked(attach, DMA_BIDIRECTIONAL);
+	if (IS_ERR(sgt)) {
+		ret = PTR_ERR(sgt);
+		goto fail_detach;
+	}
+
+	obj = drm_gem_shmem_prime_import_sg_table(dev, attach, sgt);
+	if (IS_ERR(obj)) {
+		ret = PTR_ERR(obj);
+		goto fail_unmap;
+	}
+
+	obj->import_attach = attach;
+	obj->resv = dma_buf->resv;
+
+	return obj;
+
+fail_unmap:
+	dma_buf_unmap_attachment_unlocked(attach, sgt, DMA_BIDIRECTIONAL);
+fail_detach:
+	dma_buf_detach(dma_buf, attach);
+	dma_buf_put(dma_buf);
+
+	return ERR_PTR(ret);
 }
 
 static struct ivpu_bo *ivpu_bo_alloc(struct ivpu_device *vdev, u64 size, u32 flags)

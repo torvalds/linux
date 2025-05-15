@@ -15,6 +15,7 @@
 #include "i9xx_wm.h"
 #include "intel_atomic.h"
 #include "intel_bw.h"
+#include "intel_cmtg.h"
 #include "intel_color.h"
 #include "intel_crtc.h"
 #include "intel_crtc_state_dump.h"
@@ -155,12 +156,6 @@ static void intel_crtc_disable_noatomic_complete(struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	struct intel_bw_state *bw_state =
-		to_intel_bw_state(i915->display.bw.obj.state);
-	struct intel_cdclk_state *cdclk_state =
-		to_intel_cdclk_state(i915->display.cdclk.obj.state);
-	struct intel_dbuf_state *dbuf_state =
-		to_intel_dbuf_state(i915->display.dbuf.obj.state);
 	struct intel_pmdemand_state *pmdemand_state =
 		to_intel_pmdemand_state(i915->display.pmdemand.obj.state);
 	struct intel_crtc_state *crtc_state =
@@ -176,16 +171,11 @@ static void intel_crtc_disable_noatomic_complete(struct intel_crtc *crtc)
 	intel_fbc_disable(crtc);
 	intel_update_watermarks(i915);
 
-	intel_display_power_put_all_in_set(i915, &crtc->enabled_power_domains);
+	intel_display_power_put_all_in_set(display, &crtc->enabled_power_domains);
 
-	cdclk_state->min_cdclk[pipe] = 0;
-	cdclk_state->min_voltage_level[pipe] = 0;
-	cdclk_state->active_pipes &= ~BIT(pipe);
-
-	dbuf_state->active_pipes &= ~BIT(pipe);
-
-	bw_state->data_rate[pipe] = 0;
-	bw_state->num_active_planes[pipe] = 0;
+	intel_cdclk_crtc_disable_noatomic(crtc);
+	skl_wm_crtc_disable_noatomic(crtc);
+	intel_bw_crtc_disable_noatomic(crtc);
 
 	intel_pmdemand_update_port_clock(display, pmdemand_state, pipe, 0);
 }
@@ -453,8 +443,8 @@ static struct intel_connector *intel_encoder_find_connector(struct intel_encoder
 
 static void intel_sanitize_fifo_underrun_reporting(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
 	/*
 	 * We start out with underrun reporting disabled on active
@@ -469,9 +459,9 @@ static void intel_sanitize_fifo_underrun_reporting(const struct intel_crtc_state
 	 * No protection against concurrent access is required - at
 	 * worst a fifo underrun happens which also sets this to false.
 	 */
-	intel_init_fifo_underrun_reporting(i915, crtc,
+	intel_init_fifo_underrun_reporting(display, crtc,
 					   !crtc_state->hw.active &&
-					   !HAS_GMCH(i915));
+					   !HAS_GMCH(display));
 }
 
 static bool intel_sanitize_crtc(struct intel_crtc *crtc,
@@ -703,10 +693,6 @@ static void readout_plane_state(struct drm_i915_private *i915)
 static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 {
 	struct intel_display *display = &i915->display;
-	struct intel_cdclk_state *cdclk_state =
-		to_intel_cdclk_state(i915->display.cdclk.obj.state);
-	struct intel_dbuf_state *dbuf_state =
-		to_intel_dbuf_state(i915->display.dbuf.obj.state);
 	struct intel_pmdemand_state *pmdemand_state =
 		to_intel_pmdemand_state(i915->display.pmdemand.obj.state);
 	enum pipe pipe;
@@ -714,7 +700,6 @@ static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
 	struct drm_connector_list_iter conn_iter;
-	u8 active_pipes = 0;
 
 	for_each_intel_crtc(&i915->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
@@ -731,17 +716,11 @@ static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 		crtc->base.enabled = crtc_state->hw.enable;
 		crtc->active = crtc_state->hw.active;
 
-		if (crtc_state->hw.active)
-			active_pipes |= BIT(crtc->pipe);
-
 		drm_dbg_kms(&i915->drm,
 			    "[CRTC:%d:%s] hw state readout: %s\n",
 			    crtc->base.base.id, crtc->base.name,
 			    str_enabled_disabled(crtc_state->hw.active));
 	}
-
-	cdclk_state->active_pipes = active_pipes;
-	dbuf_state->active_pipes = active_pipes;
 
 	readout_plane_state(i915);
 
@@ -794,7 +773,7 @@ static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 			    pipe_name(pipe));
 	}
 
-	intel_dpll_readout_hw_state(i915);
+	intel_dpll_readout_hw_state(display);
 
 	drm_connector_list_iter_begin(&i915->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
@@ -838,12 +817,9 @@ static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 	drm_connector_list_iter_end(&conn_iter);
 
 	for_each_intel_crtc(&i915->drm, crtc) {
-		struct intel_bw_state *bw_state =
-			to_intel_bw_state(i915->display.bw.obj.state);
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		struct intel_plane *plane;
-		int min_cdclk = 0;
 
 		if (crtc_state->hw.active) {
 			/*
@@ -892,21 +868,16 @@ static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 				    crtc_state->min_cdclk[plane->id]);
 		}
 
-		if (crtc_state->hw.active) {
-			min_cdclk = intel_crtc_compute_min_cdclk(crtc_state);
-			if (drm_WARN_ON(&i915->drm, min_cdclk < 0))
-				min_cdclk = 0;
-		}
-
-		cdclk_state->min_cdclk[crtc->pipe] = min_cdclk;
-		cdclk_state->min_voltage_level[crtc->pipe] =
-			crtc_state->min_voltage_level;
-
 		intel_pmdemand_update_port_clock(display, pmdemand_state, pipe,
 						 crtc_state->port_clock);
-
-		intel_bw_crtc_update(bw_state, crtc_state);
 	}
+
+	/* TODO move here (or even earlier?) on all platforms */
+	if (DISPLAY_VER(display) >= 9)
+		intel_wm_get_hw_state(i915);
+
+	intel_bw_update_hw_state(display);
+	intel_cdclk_update_hw_state(display);
 
 	intel_pmdemand_init_pmdemand_params(display, pmdemand_state);
 }
@@ -968,7 +939,7 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 	struct intel_crtc *crtc;
 	intel_wakeref_t wakeref;
 
-	wakeref = intel_display_power_get(i915, POWER_DOMAIN_INIT);
+	wakeref = intel_display_power_get(display, POWER_DOMAIN_INIT);
 
 	intel_early_display_was(i915);
 	intel_modeset_readout_hw_state(i915);
@@ -977,6 +948,8 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 	get_encoder_power_domains(i915);
 
 	intel_pch_sanitize(i915);
+
+	intel_cmtg_sanitize(display);
 
 	/*
 	 * intel_sanitize_plane_mapping() may need to do vblank
@@ -1011,9 +984,12 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 
 	intel_sanitize_all_crtcs(i915, ctx);
 
-	intel_dpll_sanitize_state(i915);
+	intel_dpll_sanitize_state(display);
 
-	intel_wm_get_hw_state(i915);
+	/* TODO move earlier on all platforms */
+	if (DISPLAY_VER(display) < 9)
+		intel_wm_get_hw_state(i915);
+	intel_wm_sanitize(i915);
 
 	for_each_intel_crtc(&i915->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
@@ -1025,7 +1001,7 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 			intel_modeset_put_crtc_power_domains(crtc, &put_domains);
 	}
 
-	intel_display_power_put(i915, POWER_DOMAIN_INIT, wakeref);
+	intel_display_power_put(display, POWER_DOMAIN_INIT, wakeref);
 
 	intel_power_domains_sanitize_state(display);
 }

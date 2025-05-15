@@ -3,14 +3,18 @@
 # description: Generic dynamic event - add/remove/test uprobe events
 # requires: uprobe_events
 
+if ! which readelf > /dev/null 2>&1 ; then
+  echo "No readelf found. skipped."
+  exit_unresolved
+fi
+
 echo 0 > events/enable
 echo > dynamic_events
 
 REALBIN=`readlink -f /bin/sh`
+ENTRYPOINT=`readelf -h ${REALBIN} | grep Entry | sed -e 's/[^0]*//'`
 
-echo 'cat /proc/$$/maps' | /bin/sh | \
-	grep "r-xp .*${REALBIN}$" | \
-	awk '{printf "p:myevent %s:0x%s\n", $6,$3 }' >> uprobe_events
+echo "p:myevent ${REALBIN}:${ENTRYPOINT}" >> uprobe_events
 
 grep -q myevent uprobe_events
 test -d events/uprobes/myevent

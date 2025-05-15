@@ -1060,7 +1060,7 @@ static const struct regmap_config bq25150_regmap_config = {
 	.max_register		= BQ2515X_DEVICE_ID,
 	.reg_defaults		= bq25150_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(bq25150_reg_defaults),
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 	.volatile_reg		= bq2515x_volatile_register,
 };
 
@@ -1071,7 +1071,7 @@ static const struct regmap_config bq25155_regmap_config = {
 	.max_register		= BQ2515X_DEVICE_ID,
 	.reg_defaults		= bq25155_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(bq25155_reg_defaults),
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 	.volatile_reg		= bq2515x_volatile_register,
 };
 
@@ -1102,7 +1102,7 @@ static int bq2515x_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, bq2515x);
 
 	charger_cfg.drv_data = bq2515x;
-	charger_cfg.of_node = dev->of_node;
+	charger_cfg.fwnode = dev_fwnode(dev);
 
 	ret = bq2515x_read_properties(bq2515x);
 	if (ret) {

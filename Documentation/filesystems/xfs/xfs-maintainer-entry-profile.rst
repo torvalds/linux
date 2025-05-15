@@ -93,7 +93,7 @@ others on a regular basis about burnout.
   sponsoring work on any part of XFS.
 
 - **LTS Maintainer**: Someone who backports and tests bug fixes from
-  uptream to the LTS kernels.
+  upstream to the LTS kernels.
   There tend to be six separate LTS trees at any given time.
 
   The maintainer for a given LTS release should identify themselves with an

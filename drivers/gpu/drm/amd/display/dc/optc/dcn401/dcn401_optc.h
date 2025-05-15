@@ -163,7 +163,8 @@
 	SF(OTG0_OTG_PIPE_UPDATE_STATUS, OTG_FLIP_PENDING, mask_sh),\
 	SF(OTG0_OTG_PIPE_UPDATE_STATUS, OTG_DC_REG_UPDATE_PENDING, mask_sh),\
 	SF(OTG0_OTG_PIPE_UPDATE_STATUS, OTG_CURSOR_UPDATE_PENDING, mask_sh),\
-	SF(OTG0_OTG_PIPE_UPDATE_STATUS, OTG_VUPDATE_KEEPOUT_STATUS, mask_sh)
+	SF(OTG0_OTG_PIPE_UPDATE_STATUS, OTG_VUPDATE_KEEPOUT_STATUS, mask_sh),\
+	SF(OTG0_INTERRUPT_DEST, OTG0_IHC_OTG_VERTICAL_INTERRUPT2_DEST, mask_sh)
 
 void dcn401_timing_generator_init(struct optc *optc1);
 
@@ -172,5 +173,24 @@ void optc401_set_drr(
 	const struct drr_params *params);
 void optc401_set_vtotal_min_max(struct timing_generator *optc, int vtotal_min, int vtotal_max);
 void optc401_setup_manual_trigger(struct timing_generator *optc);
+void optc401_program_global_sync(
+		struct timing_generator *optc,
+		int vready_offset,
+		int vstartup_start,
+		int vupdate_offset,
+		int vupdate_width,
+		int pstate_keepout);
+bool optc401_enable_crtc(struct timing_generator *optc);
+bool optc401_disable_crtc(struct timing_generator *optc);
+void optc401_phantom_crtc_post_enable(struct timing_generator *optc);
+void optc401_disable_phantom_otg(struct timing_generator *optc);
+void optc401_set_odm_bypass(struct timing_generator *optc,
+		const struct dc_crtc_timing *dc_crtc_timing);
+void optc401_set_odm_combine(struct timing_generator *optc, int *opp_id,
+		int opp_cnt, int segment_width, int last_segment_width);
+void optc401_set_h_timing_div_manual_mode(struct timing_generator *optc, bool manual_mode);
+void optc401_set_out_mux(struct timing_generator *optc, enum otg_out_mux_dest dest);
+bool optc401_wait_update_lock_status(struct timing_generator *tg, bool locked);
+void optc401_set_vupdate_keepout(struct timing_generator *tg, bool enable);
 
 #endif /* __DC_OPTC_DCN401_H__ */

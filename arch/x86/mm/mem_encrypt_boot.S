@@ -72,6 +72,7 @@ SYM_FUNC_START(sme_encrypt_execute)
 SYM_FUNC_END(sme_encrypt_execute)
 
 SYM_FUNC_START(__enc_copy)
+	ANNOTATE_NOENDBR
 /*
  * Routine used to encrypt memory in place.
  *   This routine must be run outside of the kernel proper since

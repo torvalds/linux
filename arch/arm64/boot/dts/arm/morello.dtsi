@@ -1,0 +1,323 @@
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+/*
+ * Copyright (c) 2020-2024, Arm Limited. All rights reserved.
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+	interrupt-parent = <&gic>;
+
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	soc_refclk50mhz: clock-50000000 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <50000000>;
+		clock-output-names = "apb_pclk";
+	};
+
+	soc_refclk85mhz: clock-85000000 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <85000000>;
+		clock-output-names = "iofpga:aclk";
+	};
+
+	cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			compatible = "arm,rainier";
+			reg = <0x0 0x0>;
+			device_type = "cpu";
+			enable-method = "psci";
+			/* 4 ways set associative */
+			i-cache-size = <0x10000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <512>;
+			d-cache-size = <0x10000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <512>;
+			next-level-cache = <&l2_0>;
+			clocks = <&scmi_dvfs 0>;
+
+			l2_0: l2-cache {
+				compatible = "cache";
+				cache-level = <2>;
+				/* 8 ways set associative */
+				cache-size = <0x100000>;
+				cache-line-size = <64>;
+				cache-sets = <2048>;
+				cache-unified;
+				next-level-cache = <&l3_0>;
+			};
+		};
+
+		cpu1: cpu@100 {
+			compatible = "arm,rainier";
+			reg = <0x0 0x100>;
+			device_type = "cpu";
+			enable-method = "psci";
+			/* 4 ways set associative */
+			i-cache-size = <0x10000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <512>;
+			d-cache-size = <0x10000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <512>;
+			next-level-cache = <&l2_1>;
+			clocks = <&scmi_dvfs 0>;
+
+			l2_1: l2-cache {
+				compatible = "cache";
+				cache-level = <2>;
+				/* 8 ways set associative */
+				cache-size = <0x100000>;
+				cache-line-size = <64>;
+				cache-sets = <2048>;
+				cache-unified;
+				next-level-cache = <&l3_0>;
+			};
+		};
+
+		cpu2: cpu@10000 {
+			compatible = "arm,rainier";
+			reg = <0x0 0x10000>;
+			device_type = "cpu";
+			enable-method = "psci";
+			/* 4 ways set associative */
+			i-cache-size = <0x10000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <512>;
+			d-cache-size = <0x10000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <512>;
+			next-level-cache = <&l2_2>;
+			clocks = <&scmi_dvfs 1>;
+
+			l2_2: l2-cache {
+				compatible = "cache";
+				cache-level = <2>;
+				/* 8 ways set associative */
+				cache-size = <0x100000>;
+				cache-line-size = <64>;
+				cache-sets = <2048>;
+				cache-unified;
+				next-level-cache = <&l3_0>;
+			};
+		};
+
+		cpu3: cpu@10100 {
+			compatible = "arm,rainier";
+			reg = <0x0 0x10100>;
+			device_type = "cpu";
+			enable-method = "psci";
+			/* 4 ways set associative */
+			i-cache-size = <0x10000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <512>;
+			d-cache-size = <0x10000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <512>;
+			next-level-cache = <&l2_3>;
+			clocks = <&scmi_dvfs 1>;
+
+			l2_3: l2-cache {
+				compatible = "cache";
+				cache-level = <2>;
+				/* 8 ways set associative */
+				cache-size = <0x100000>;
+				cache-line-size = <64>;
+				cache-sets = <2048>;
+				cache-unified;
+				next-level-cache = <&l3_0>;
+			};
+		};
+
+		l3_0: l3-cache {
+			compatible = "cache";
+			cache-level = <3>;
+			cache-size = <0x100000>;
+			cache-unified;
+		};
+	};
+
+	firmware {
+		interrupt-parent = <&gic>;
+
+		scmi {
+			compatible = "arm,scmi";
+			mbox-names = "tx", "rx";
+			mboxes = <&mailbox 1 0>, <&mailbox 1 1>;
+			shmem = <&cpu_scp_hpri0>, <&cpu_scp_hpri1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			scmi_dvfs: protocol@13 {
+				reg = <0x13>;
+				#clock-cells = <1>;
+			};
+
+			scmi_clk: protocol@14 {
+				reg = <0x14>;
+				#clock-cells = <1>;
+			};
+		};
+	};
+
+	/* The first bank of memory, memory map is actually provided by UEFI. */
+	memory@80000000 {
+		device_type = "memory";
+		/* [0x80000000-0xffffffff] */
+		reg = <0x00000000 0x80000000 0x0 0x7f000000>;
+	};
+
+	memory@8080000000 {
+		device_type = "memory";
+		/* [0x8080000000-0x83f7ffffff] */
+		reg = <0x00000080 0x80000000 0x3 0x78000000>;
+	};
+
+	pmu {
+		compatible = "arm,rainier-pmu";
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	psci {
+		compatible = "arm,psci-0.2";
+		method = "smc";
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		secure-firmware@ff000000 {
+			reg = <0x0 0xff000000 0x0 0x01000000>;
+			no-map;
+		};
+	};
+
+	spe-pmu {
+		compatible = "arm,statistical-profiling-extension-v1";
+		interrupts = <GIC_PPI 5 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	soc: soc {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		interrupt-parent = <&gic>;
+		ranges;
+
+		uart0: serial@2a400000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x0 0x2a400000 0x0 0x1000>;
+			interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&soc_refclk50mhz>, <&soc_refclk50mhz>;
+			clock-names = "uartclk", "apb_pclk";
+
+			status = "disabled";
+		};
+
+		gic: interrupt-controller@30000000 {
+			compatible = "arm,gic-v3";
+			reg = <0x0 0x30000000 0x0 0x10000>,	/* GICD */
+			      <0x0 0x300c0000 0x0 0x80000>;	/* GICR */
+
+			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+
+			#interrupt-cells = <3>;
+			interrupt-controller;
+
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+
+			its1: msi-controller@30040000 {
+				compatible = "arm,gic-v3-its";
+				reg = <0x0 0x30040000 0x0 0x20000>;
+
+				msi-controller;
+				#msi-cells = <1>;
+			};
+
+			its2: msi-controller@30060000 {
+				compatible = "arm,gic-v3-its";
+				reg = <0x0 0x30060000 0x0 0x20000>;
+
+				msi-controller;
+				#msi-cells = <1>;
+			};
+
+			its_ccix: msi-controller@30080000 {
+				compatible = "arm,gic-v3-its";
+				reg = <0x0 0x30080000 0x0 0x20000>;
+
+				msi-controller;
+				#msi-cells = <1>;
+			};
+
+			its_pcie: msi-controller@300a0000 {
+				compatible = "arm,gic-v3-its";
+				reg = <0x0 0x300a0000 0x0 0x20000>;
+
+				msi-controller;
+				#msi-cells = <1>;
+			};
+		};
+
+		smmu_dp: iommu@2ce00000 {
+			compatible = "arm,smmu-v3";
+			reg = <0x0 0x2ce00000 0x0 0x40000>;
+
+			interrupts = <GIC_SPI 76 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 80 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 78 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "eventq", "gerror", "cmdq-sync";
+			#iommu-cells = <1>;
+		};
+
+		mailbox: mhu@45000000 {
+			compatible = "arm,mhu-doorbell", "arm,primecell";
+			reg = <0x0 0x45000000 0x0 0x1000>;
+
+			interrupts = <GIC_SPI 318 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 316 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <2>;
+			clocks = <&soc_refclk50mhz>;
+			clock-names = "apb_pclk";
+		};
+
+		sram: sram@6000000 {
+			compatible = "mmio-sram";
+			reg = <0x0 0x06000000 0x0 0x8000>;
+			ranges = <0 0x0 0x06000000 0x8000>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			cpu_scp_hpri0: scp-sram@0 {
+				compatible = "arm,scmi-shmem";
+				reg = <0x0 0x80>;
+			};
+
+			cpu_scp_hpri1: scp-sram@80 {
+				compatible = "arm,scmi-shmem";
+				reg = <0x80 0x80>;
+			};
+		};
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
+	};
+};

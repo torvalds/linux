@@ -9,6 +9,8 @@ struct file;
 struct extent_state;
 struct kiocb;
 struct iov_iter;
+struct inode;
+struct folio;
 struct page;
 struct btrfs_ioctl_encoded_io_args;
 struct btrfs_drop_extents_args;

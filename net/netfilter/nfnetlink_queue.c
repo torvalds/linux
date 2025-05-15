@@ -567,7 +567,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	enum ip_conntrack_info ctinfo = 0;
 	const struct nfnl_ct_hook *nfnl_ct;
 	bool csum_verify;
-	struct lsm_context ctx;
+	struct lsm_context ctx = { NULL, 0, 0 };
 	int seclen = 0;
 	ktime_t tstamp;
 

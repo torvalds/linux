@@ -156,7 +156,7 @@ static struct snd_soc_dai_link mt8173_rt5650_rt5514_dais[] = {
 		.no_pcm = 1,
 		.init = mt8173_rt5650_rt5514_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			   SND_SOC_DAIFMT_CBS_CFS,
+			   SND_SOC_DAIFMT_CBC_CFC,
 		.ops = &mt8173_rt5650_rt5514_ops,
 		.ignore_pmdown_time = 1,
 		SND_SOC_DAILINK_REG(codec),

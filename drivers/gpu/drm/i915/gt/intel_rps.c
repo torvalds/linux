@@ -161,7 +161,7 @@ static void rps_start_timer(struct intel_rps *rps)
 
 static void rps_stop_timer(struct intel_rps *rps)
 {
-	del_timer_sync(&rps->timer);
+	timer_delete_sync(&rps->timer);
 	rps->pm_timestamp = ktime_sub(ktime_get(), rps->pm_timestamp);
 	cancel_work_sync(&rps->work);
 }
@@ -1001,6 +1001,10 @@ void intel_rps_dec_waiters(struct intel_rps *rps)
 	if (rps_uses_slpc(rps)) {
 		slpc = rps_to_slpc(rps);
 
+		/* Don't decrement num_waiters for req where increment was skipped */
+		if (slpc->power_profile == SLPC_POWER_PROFILES_POWER_SAVING)
+			return;
+
 		intel_guc_slpc_dec_waiters(slpc);
 	} else {
 		atomic_dec(&rps->num_waiters);
@@ -1025,11 +1029,19 @@ void intel_rps_boost(struct i915_request *rq)
 		if (rps_uses_slpc(rps)) {
 			slpc = rps_to_slpc(rps);
 
-			if (slpc->min_freq_softlimit >= slpc->boost_freq)
+			/* Waitboost should not be done with power saving profile */
+			if (slpc->power_profile == SLPC_POWER_PROFILES_POWER_SAVING)
 				return;
 
 			/* Return if old value is non zero */
 			if (!atomic_fetch_inc(&slpc->num_waiters)) {
+				/*
+				 * Skip queuing boost work if frequency is already boosted,
+				 * but still increment num_waiters.
+				 */
+				if (slpc->min_freq_softlimit >= slpc->boost_freq)
+					return;
+
 				GT_TRACE(rps_to_gt(rps), "boost fence:%llx:%llx\n",
 					 rq->fence.context, rq->fence.seqno);
 				queue_work(rps_to_gt(rps)->i915->unordered_wq,

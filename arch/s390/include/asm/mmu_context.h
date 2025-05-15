@@ -29,9 +29,6 @@ static inline int init_new_context(struct task_struct *tsk,
 	mm->context.gmap_asce = 0;
 	mm->context.flush_mm = 0;
 #ifdef CONFIG_PGSTE
-	mm->context.alloc_pgste = page_table_allocate_pgste ||
-		test_thread_flag(TIF_PGSTE) ||
-		(current->mm && current->mm->context.alloc_pgste);
 	mm->context.has_pgste = 0;
 	mm->context.uses_skeys = 0;
 	mm->context.uses_cmm = 0;

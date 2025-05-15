@@ -19,16 +19,25 @@ use core::ptr::{addr_of_mut, null, null_mut, NonNull};
 /// `self.0` always holds a valid pointer to an initialized and registered [`struct faux_device`].
 ///
 /// [`struct faux_device`]: srctree/include/linux/device/faux.h
-#[repr(transparent)]
 pub struct Registration(NonNull<bindings::faux_device>);
 
 impl Registration {
     /// Create and register a new faux device with the given name.
-    pub fn new(name: &CStr) -> Result<Self> {
+    #[inline]
+    pub fn new(name: &CStr, parent: Option<&device::Device>) -> Result<Self> {
         // SAFETY:
         // - `name` is copied by this function into its own storage
         // - `faux_ops` is safe to leave NULL according to the C API
-        let dev = unsafe { bindings::faux_device_create(name.as_char_ptr(), null_mut(), null()) };
+        // - `parent` can be either NULL or a pointer to a `struct device`, and `faux_device_create`
+        //   will take a reference to `parent` using `device_add` - ensuring that it remains valid
+        //   for the lifetime of the faux device.
+        let dev = unsafe {
+            bindings::faux_device_create(
+                name.as_char_ptr(),
+                parent.map_or(null_mut(), |p| p.as_raw()),
+                null(),
+            )
+        };
 
         // The above function will return either a valid device, or NULL on failure
         // INVARIANT: The device will remain registered until faux_device_destroy() is called, which
@@ -50,6 +59,7 @@ impl AsRef<device::Device> for Registration {
 }
 
 impl Drop for Registration {
+    #[inline]
     fn drop(&mut self) {
         // SAFETY: `self.0` is a valid registered faux_device via our type invariants.
         unsafe { bindings::faux_device_destroy(self.as_raw()) }

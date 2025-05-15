@@ -90,7 +90,7 @@
 DEFINE_MUTEX(cgroup_mutex);
 DEFINE_SPINLOCK(css_set_lock);
 
-#ifdef CONFIG_PROVE_RCU
+#if (defined CONFIG_PROVE_RCU || defined CONFIG_LOCKDEP)
 EXPORT_SYMBOL_GPL(cgroup_mutex);
 EXPORT_SYMBOL_GPL(css_set_lock);
 #endif
@@ -171,7 +171,7 @@ EXPORT_SYMBOL_GPL(cgrp_dfl_root);
  * The default hierarchy always exists but is hidden until mounted for the
  * first time.  This is for backward compatibility.
  */
-static bool cgrp_dfl_visible;
+bool cgrp_dfl_visible;
 
 /* some controllers are not supported in the default hierarchy */
 static u16 cgrp_dfl_inhibit_ss_mask;
@@ -633,9 +633,22 @@ int cgroup_task_count(const struct cgroup *cgrp)
 	return count;
 }
 
+static struct cgroup *kn_priv(struct kernfs_node *kn)
+{
+	struct kernfs_node *parent;
+	/*
+	 * The parent can not be replaced due to KERNFS_ROOT_INVARIANT_PARENT.
+	 * Therefore it is always safe to dereference this pointer outside of a
+	 * RCU section.
+	 */
+	parent = rcu_dereference_check(kn->__parent,
+				       kernfs_root_flags(kn) & KERNFS_ROOT_INVARIANT_PARENT);
+	return parent->priv;
+}
+
 struct cgroup_subsys_state *of_css(struct kernfs_open_file *of)
 {
-	struct cgroup *cgrp = of->kn->parent->priv;
+	struct cgroup *cgrp = kn_priv(of->kn);
 	struct cftype *cft = of_cft(of);
 
 	/*
@@ -1612,7 +1625,7 @@ void cgroup_kn_unlock(struct kernfs_node *kn)
 	if (kernfs_type(kn) == KERNFS_DIR)
 		cgrp = kn->priv;
 	else
-		cgrp = kn->parent->priv;
+		cgrp = kn_priv(kn);
 
 	cgroup_unlock();
 
@@ -1644,7 +1657,7 @@ struct cgroup *cgroup_kn_lock_live(struct kernfs_node *kn, bool drain_offline)
 	if (kernfs_type(kn) == KERNFS_DIR)
 		cgrp = kn->priv;
 	else
-		cgrp = kn->parent->priv;
+		cgrp = kn_priv(kn);
 
 	/*
 	 * We're gonna grab cgroup_mutex which nests outside kernfs
@@ -1682,7 +1695,7 @@ static void cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
 		cfile->kn = NULL;
 		spin_unlock_irq(&cgroup_file_kn_lock);
 
-		del_timer_sync(&cfile->notify_timer);
+		timer_delete_sync(&cfile->notify_timer);
 	}
 
 	kernfs_remove_by_name(cgrp->kn, cgroup_file_name(cgrp, cft, name));
@@ -2118,7 +2131,8 @@ int cgroup_setup_root(struct cgroup_root *root, u16 ss_mask)
 	root->kf_root = kernfs_create_root(kf_sops,
 					   KERNFS_ROOT_CREATE_DEACTIVATED |
 					   KERNFS_ROOT_SUPPORT_EXPORTOP |
-					   KERNFS_ROOT_SUPPORT_USER_XATTR,
+					   KERNFS_ROOT_SUPPORT_USER_XATTR |
+					   KERNFS_ROOT_INVARIANT_PARENT,
 					   root_cgrp);
 	if (IS_ERR(root->kf_root)) {
 		ret = PTR_ERR(root->kf_root);
@@ -2339,9 +2353,37 @@ static struct file_system_type cgroup2_fs_type = {
 };
 
 #ifdef CONFIG_CPUSETS_V1
+enum cpuset_param {
+	Opt_cpuset_v2_mode,
+};
+
+static const struct fs_parameter_spec cpuset_fs_parameters[] = {
+	fsparam_flag  ("cpuset_v2_mode", Opt_cpuset_v2_mode),
+	{}
+};
+
+static int cpuset_parse_param(struct fs_context *fc, struct fs_parameter *param)
+{
+	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
+	struct fs_parse_result result;
+	int opt;
+
+	opt = fs_parse(fc, cpuset_fs_parameters, param, &result);
+	if (opt < 0)
+		return opt;
+
+	switch (opt) {
+	case Opt_cpuset_v2_mode:
+		ctx->flags |= CGRP_ROOT_CPUSET_V2_MODE;
+		return 0;
+	}
+	return -EINVAL;
+}
+
 static const struct fs_context_operations cpuset_fs_context_ops = {
 	.get_tree	= cgroup1_get_tree,
 	.free		= cgroup_fs_context_free,
+	.parse_param	= cpuset_parse_param,
 };
 
 /*
@@ -2378,6 +2420,7 @@ static int cpuset_init_fs_context(struct fs_context *fc)
 static struct file_system_type cpuset_fs_type = {
 	.name			= "cpuset",
 	.init_fs_context	= cpuset_init_fs_context,
+	.parameters		= cpuset_fs_parameters,
 	.fs_flags		= FS_USERNS_MOUNT,
 };
 #endif
@@ -4115,7 +4158,7 @@ static ssize_t cgroup_file_write(struct kernfs_open_file *of, char *buf,
 				 size_t nbytes, loff_t off)
 {
 	struct cgroup_file_ctx *ctx = of->priv;
-	struct cgroup *cgrp = of->kn->parent->priv;
+	struct cgroup *cgrp = kn_priv(of->kn);
 	struct cftype *cft = of_cft(of);
 	struct cgroup_subsys_state *css;
 	int ret;
@@ -4447,7 +4490,7 @@ int cgroup_rm_cftypes(struct cftype *cfts)
  * function currently returns 0 as long as @cfts registration is successful
  * even if some file creation attempts on existing cgroups fail.
  */
-static int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
+int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
 {
 	int ret;
 
@@ -5831,7 +5874,7 @@ int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode)
 	}
 
 	/*
-	 * This extra ref will be put in cgroup_free_fn() and guarantees
+	 * This extra ref will be put in css_free_rwork_fn() and guarantees
 	 * that @cgrp->kn is always accessible.
 	 */
 	kernfs_get(cgrp->kn);
@@ -5908,6 +5951,12 @@ static void kill_css(struct cgroup_subsys_state *css)
 
 	if (css->flags & CSS_DYING)
 		return;
+
+	/*
+	 * Call css_killed(), if defined, before setting the CSS_DYING flag
+	 */
+	if (css->ss->css_killed)
+		css->ss->css_killed(css);
 
 	css->flags |= CSS_DYING;
 

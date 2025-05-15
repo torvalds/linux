@@ -5,8 +5,6 @@
 
 #include <stdlib.h>
 #include <errno.h>
-#include "utils.h"
-#include "osnoise.h"
 #include "timerlat.h"
 #include <unistd.h>
 

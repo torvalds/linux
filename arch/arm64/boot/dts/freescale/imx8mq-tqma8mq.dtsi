@@ -254,6 +254,7 @@
 		spi-max-frequency = <84000000>;
 		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <4>;
+		vcc-supply = <&nvcc_1v8_reg>;
 
 		partitions {
 			compatible = "fixed-partitions";

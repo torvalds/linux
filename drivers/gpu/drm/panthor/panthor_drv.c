@@ -1458,12 +1458,26 @@ static void panthor_gpu_show_fdinfo(struct panthor_device *ptdev,
 	drm_printf(p, "drm-curfreq-panthor:\t%lu Hz\n", ptdev->current_frequency);
 }
 
+static void panthor_show_internal_memory_stats(struct drm_printer *p, struct drm_file *file)
+{
+	char *drv_name = file->minor->dev->driver->name;
+	struct panthor_file *pfile = file->driver_priv;
+	struct drm_memory_stats stats = {0};
+
+	panthor_fdinfo_gather_group_mem_info(pfile, &stats);
+	panthor_vm_heaps_sizes(pfile, &stats);
+
+	drm_fdinfo_print_size(p, drv_name, "resident", "memory", stats.resident);
+	drm_fdinfo_print_size(p, drv_name, "active", "memory", stats.active);
+}
+
 static void panthor_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 {
 	struct drm_device *dev = file->minor->dev;
 	struct panthor_device *ptdev = container_of(dev, struct panthor_device, base);
 
 	panthor_gpu_show_fdinfo(ptdev, file->driver_priv, p);
+	panthor_show_internal_memory_stats(p, file);
 
 	drm_show_memory_stats(p, file);
 }

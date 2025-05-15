@@ -44,30 +44,28 @@ void io_futex_cache_free(struct io_ring_ctx *ctx)
 	io_alloc_cache_free(&ctx->futex_cache, kfree);
 }
 
-static void __io_futex_complete(struct io_kiocb *req, struct io_tw_state *ts)
+static void __io_futex_complete(struct io_kiocb *req, io_tw_token_t tw)
 {
 	req->async_data = NULL;
 	hlist_del_init(&req->hash_node);
-	io_req_task_complete(req, ts);
+	io_req_task_complete(req, tw);
 }
 
-static void io_futex_complete(struct io_kiocb *req, struct io_tw_state *ts)
+static void io_futex_complete(struct io_kiocb *req, io_tw_token_t tw)
 {
-	struct io_futex_data *ifd = req->async_data;
 	struct io_ring_ctx *ctx = req->ctx;
 
-	io_tw_lock(ctx, ts);
-	if (!io_alloc_cache_put(&ctx->futex_cache, ifd))
-		kfree(ifd);
-	__io_futex_complete(req, ts);
+	io_tw_lock(ctx, tw);
+	io_cache_free(&ctx->futex_cache, req->async_data);
+	__io_futex_complete(req, tw);
 }
 
-static void io_futexv_complete(struct io_kiocb *req, struct io_tw_state *ts)
+static void io_futexv_complete(struct io_kiocb *req, io_tw_token_t tw)
 {
 	struct io_futex *iof = io_kiocb_to_cmd(req, struct io_futex);
 	struct futex_vector *futexv = req->async_data;
 
-	io_tw_lock(req->ctx, ts);
+	io_tw_lock(req->ctx, tw);
 
 	if (!iof->futexv_unqueued) {
 		int res;
@@ -79,7 +77,7 @@ static void io_futexv_complete(struct io_kiocb *req, struct io_tw_state *ts)
 
 	kfree(req->async_data);
 	req->flags &= ~REQ_F_ASYNC_DATA;
-	__io_futex_complete(req, ts);
+	__io_futex_complete(req, tw);
 }
 
 static bool io_futexv_claim(struct io_futex *iof)
@@ -90,7 +88,7 @@ static bool io_futexv_claim(struct io_futex *iof)
 	return true;
 }
 
-static bool __io_futex_cancel(struct io_ring_ctx *ctx, struct io_kiocb *req)
+static bool __io_futex_cancel(struct io_kiocb *req)
 {
 	/* futex wake already done or in progress */
 	if (req->opcode == IORING_OP_FUTEX_WAIT) {
@@ -116,49 +114,13 @@ static bool __io_futex_cancel(struct io_ring_ctx *ctx, struct io_kiocb *req)
 int io_futex_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 		    unsigned int issue_flags)
 {
-	struct hlist_node *tmp;
-	struct io_kiocb *req;
-	int nr = 0;
-
-	if (cd->flags & (IORING_ASYNC_CANCEL_FD|IORING_ASYNC_CANCEL_FD_FIXED))
-		return -ENOENT;
-
-	io_ring_submit_lock(ctx, issue_flags);
-	hlist_for_each_entry_safe(req, tmp, &ctx->futex_list, hash_node) {
-		if (req->cqe.user_data != cd->data &&
-		    !(cd->flags & IORING_ASYNC_CANCEL_ANY))
-			continue;
-		if (__io_futex_cancel(ctx, req))
-			nr++;
-		if (!(cd->flags & IORING_ASYNC_CANCEL_ALL))
-			break;
-	}
-	io_ring_submit_unlock(ctx, issue_flags);
-
-	if (nr)
-		return nr;
-
-	return -ENOENT;
+	return io_cancel_remove(ctx, cd, issue_flags, &ctx->futex_list, __io_futex_cancel);
 }
 
 bool io_futex_remove_all(struct io_ring_ctx *ctx, struct io_uring_task *tctx,
 			 bool cancel_all)
 {
-	struct hlist_node *tmp;
-	struct io_kiocb *req;
-	bool found = false;
-
-	lockdep_assert_held(&ctx->uring_lock);
-
-	hlist_for_each_entry_safe(req, tmp, &ctx->futex_list, hash_node) {
-		if (!io_match_task_safe(req, tctx, cancel_all))
-			continue;
-		hlist_del_init(&req->hash_node);
-		__io_futex_cancel(ctx, req);
-		found = true;
-	}
-
-	return found;
+	return io_cancel_remove_all(ctx, tctx, &ctx->futex_list, cancel_all, __io_futex_cancel);
 }
 
 int io_futex_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)

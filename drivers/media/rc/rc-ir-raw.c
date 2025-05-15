@@ -662,7 +662,7 @@ void ir_raw_event_unregister(struct rc_dev *dev)
 		return;
 
 	kthread_stop(dev->raw->thread);
-	del_timer_sync(&dev->raw->edge_handle);
+	timer_delete_sync(&dev->raw->edge_handle);
 
 	mutex_lock(&ir_raw_handler_lock);
 	list_del(&dev->raw->list);

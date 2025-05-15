@@ -181,6 +181,7 @@ struct dc_panel_patch {
 	uint8_t blankstream_before_otg_off;
 	bool oled_optimize_display_on;
 	unsigned int force_mst_blocked_discovery;
+	unsigned int wait_after_dpcd_poweroff_ms;
 };
 
 struct dc_edid_caps {
@@ -1033,6 +1034,13 @@ struct psr_settings {
 	unsigned int psr_sdp_transmit_line_num_deadline;
 	uint8_t force_ffu_mode;
 	unsigned int psr_power_opt;
+
+	/**
+	 * Some panels cannot handle idle pattern during PSR entry.
+	 * To power down phy before disable stream to avoid sending
+	 * idle pattern.
+	 */
+	uint8_t power_down_phy_before_disable_stream;
 };
 
 enum replay_coasting_vtotal_type {
@@ -1216,7 +1224,6 @@ struct dc_dpia_bw_alloc {
 	int bw_granularity;    // BW Granularity
 	int dp_overhead;       // DP overhead in dp tunneling
 	bool bw_alloc_enabled; // The BW Alloc Mode Support is turned ON for all 3:  DP-Tx & Dpia & CM
-	bool response_ready;   // Response ready from the CM side
 	uint8_t nrd_max_lane_count; // Non-reduced max lane count
 	uint8_t nrd_max_link_rate; // Non-reduced max link rate
 };

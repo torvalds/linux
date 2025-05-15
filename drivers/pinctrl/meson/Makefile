@@ -10,5 +10,6 @@ obj-$(CONFIG_PINCTRL_MESON_AXG) += pinctrl-meson-axg.o
 obj-$(CONFIG_PINCTRL_MESON_G12A) += pinctrl-meson-g12a.o
 obj-$(CONFIG_PINCTRL_MESON_A1) += pinctrl-meson-a1.o
 obj-$(CONFIG_PINCTRL_MESON_S4) += pinctrl-meson-s4.o
+obj-$(CONFIG_PINCTRL_AMLOGIC_A4) += pinctrl-amlogic-a4.o
 obj-$(CONFIG_PINCTRL_AMLOGIC_C3) += pinctrl-amlogic-c3.o
 obj-$(CONFIG_PINCTRL_AMLOGIC_T7) += pinctrl-amlogic-t7.o

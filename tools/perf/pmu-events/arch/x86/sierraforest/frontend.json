@@ -31,5 +31,13 @@
         "EventName": "ICACHE.MISSES",
         "SampleAfterValue": "200003",
         "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Counts the number of cycles that the micro-sequencer is busy.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xe7",
+        "EventName": "MS_DECODED.MS_BUSY",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4"
     }
 ]

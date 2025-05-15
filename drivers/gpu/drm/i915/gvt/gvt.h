@@ -452,8 +452,10 @@ void intel_vgpu_free_resource(struct intel_vgpu *vgpu);
 void intel_vgpu_write_fence(struct intel_vgpu *vgpu,
 	u32 fence, u64 value);
 
-/* Macros for easily accessing vGPU virtual/shadow register.
-   Explicitly seperate use for typed MMIO reg or real offset.*/
+/*
+ * Macros for easily accessing vGPU virtual/shadow register.
+ * Explicitly separate use for typed MMIO reg or real offset.
+ */
 #define vgpu_vreg_t(vgpu, reg) \
 	(*(u32 *)(vgpu->mmio.vreg + i915_mmio_reg_offset(reg)))
 #define vgpu_vreg(vgpu, offset) \
@@ -531,12 +533,6 @@ int intel_gvt_set_edid(struct intel_vgpu *vgpu, int port_num);
 	    gvt_gmadr_is_hidden(gvt, gmadr))
 
 bool intel_gvt_ggtt_validate_range(struct intel_vgpu *vgpu, u64 addr, u32 size);
-int intel_gvt_ggtt_gmadr_g2h(struct intel_vgpu *vgpu, u64 g_addr, u64 *h_addr);
-int intel_gvt_ggtt_gmadr_h2g(struct intel_vgpu *vgpu, u64 h_addr, u64 *g_addr);
-int intel_gvt_ggtt_index_g2h(struct intel_vgpu *vgpu, unsigned long g_index,
-			     unsigned long *h_index);
-int intel_gvt_ggtt_h2g_index(struct intel_vgpu *vgpu, unsigned long h_index,
-			     unsigned long *g_index);
 
 void intel_vgpu_init_cfg_space(struct intel_vgpu *vgpu,
 		bool primary);
@@ -702,7 +698,7 @@ static inline void intel_gvt_mmio_set_cmd_write_patch(
  * @offset: register offset
  *
  * Returns:
- * True if GPU commmand write to an MMIO should be patched
+ * True if GPU command write to an MMIO should be patched.
  */
 static inline bool intel_gvt_mmio_is_cmd_write_patch(
 			struct intel_gvt *gvt, unsigned int offset)

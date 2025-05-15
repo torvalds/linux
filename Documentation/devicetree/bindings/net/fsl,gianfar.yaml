@@ -1,0 +1,248 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/fsl,gianfar.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale Three-Speed Ethernet Controller (TSEC), "Gianfar"
+
+maintainers:
+  - J. Neuschäfer <j.ne@posteo.net>
+
+# This is needed to distinguish gianfar.yaml and gianfar-mdio.yaml, because
+# both use compatible = "gianfar" (with different device_type values)
+select:
+  oneOf:
+    - properties:
+        compatible:
+          contains:
+            const: gianfar
+        device_type:
+          const: network
+      required:
+        - device_type
+
+    - properties:
+        compatible:
+          const: fsl,etsec2
+
+  required:
+    - compatible
+
+properties:
+  compatible:
+    enum:
+      - gianfar
+      - fsl,etsec2
+
+  device_type:
+    const: network
+
+  model:
+    enum:
+      - FEC
+      - TSEC
+      - eTSEC
+
+  reg:
+    maxItems: 1
+
+  ranges: true
+
+  "#address-cells":
+    enum: [ 1, 2 ]
+
+  "#size-cells":
+    enum: [ 1, 2 ]
+
+  cell-index:
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  interrupts:
+    minItems: 1
+    items:
+      - description: Transmit interrupt or single combined interrupt
+      - description: Receive interrupt
+      - description: Error interrupt
+
+  dma-coherent: true
+
+  fsl,magic-packet:
+    type: boolean
+    description:
+      If present, indicates that the hardware supports waking up via magic packet.
+
+  fsl,wake-on-filer:
+    type: boolean
+    description:
+      If present, indicates that the hardware supports waking up by Filer
+      General Purpose Interrupt (FGPI) asserted on the Rx int line. This is
+      an advanced power management capability allowing certain packet types
+      (user) defined by filer rules to wake up the system.
+
+  bd-stash:
+    type: boolean
+    description:
+      If present, indicates that the hardware supports stashing buffer
+      descriptors in the L2.
+
+  rx-stash-len:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Denotes the number of bytes of a received buffer to stash in the L2.
+
+  rx-stash-idx:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Denotes the index of the first byte from the received buffer to stash in
+      the L2.
+
+  fsl,num_rx_queues:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Number of receive queues
+    const: 8
+
+  fsl,num_tx_queues:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Number of transmit queues
+    const: 8
+
+  tbi-handle:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Reference (phandle) to the TBI node
+
+required:
+  - compatible
+  - model
+
+patternProperties:
+  "^mdio@[0-9a-f]+$":
+    $ref: /schemas/net/fsl,gianfar-mdio.yaml#
+
+allOf:
+  - $ref: ethernet-controller.yaml#
+
+  # eTSEC2 controller nodes have "queue group" subnodes and don't need a "reg"
+  # property.
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,etsec2
+    then:
+      patternProperties:
+        "^queue-group@[0-9a-f]+$":
+          type: object
+
+          properties:
+            reg:
+              maxItems: 1
+
+            interrupts:
+              items:
+                - description: Transmit interrupt
+                - description: Receive interrupt
+                - description: Error interrupt
+
+          required:
+            - reg
+            - interrupts
+
+          additionalProperties: false
+    else:
+      required:
+        - reg
+
+  # TSEC and eTSEC devices require three interrupts
+  - if:
+      properties:
+        model:
+          contains:
+            enum: [ TSEC, eTSEC ]
+    then:
+      properties:
+        interrupts:
+          items:
+            - description: Transmit interrupt
+            - description: Receive interrupt
+            - description: Error interrupt
+
+
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    ethernet@24000 {
+        device_type = "network";
+        model = "TSEC";
+        compatible = "gianfar";
+        reg = <0x24000 0x1000>;
+        local-mac-address = [ 00 00 00 00 00 00 ];
+        interrupts = <29 2>, <30 2>, <34 2>;
+        interrupt-parent = <&mpic>;
+        phy-handle = <&phy0>;
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    ethernet@24000 {
+        compatible = "gianfar";
+        reg = <0x24000 0x1000>;
+        ranges = <0x0 0x24000 0x1000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        cell-index = <0>;
+        device_type = "network";
+        model = "eTSEC";
+        local-mac-address = [ 00 00 00 00 00 00 ];
+        interrupts = <32 IRQ_TYPE_LEVEL_LOW>,
+                     <33 IRQ_TYPE_LEVEL_LOW>,
+                     <34 IRQ_TYPE_LEVEL_LOW>;
+        interrupt-parent = <&ipic>;
+
+        mdio@520 {
+            #address-cells = <1>;
+            #size-cells = <0>;
+            compatible = "fsl,gianfar-mdio";
+            reg = <0x520 0x20>;
+        };
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        ethernet {
+            compatible = "fsl,etsec2";
+            ranges;
+            device_type = "network";
+            #address-cells = <2>;
+            #size-cells = <2>;
+            interrupt-parent = <&gic>;
+            model = "eTSEC";
+            fsl,magic-packet;
+            dma-coherent;
+
+            queue-group@2d10000 {
+                reg = <0x0 0x2d10000 0x0 0x1000>;
+                interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>,
+                             <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
+                             <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
+            };
+
+            queue-group@2d14000  {
+                reg = <0x0 0x2d14000 0x0 0x1000>;
+                interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
+                             <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>,
+                             <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>;
+            };
+        };
+    };
+
+...

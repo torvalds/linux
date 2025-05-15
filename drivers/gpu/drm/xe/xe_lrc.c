@@ -883,7 +883,8 @@ static void xe_lrc_finish(struct xe_lrc *lrc)
 #define PVC_CTX_ACC_CTR_THOLD	(0x2a + 1)
 
 static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
-		       struct xe_vm *vm, u32 ring_size, u16 msix_vec)
+		       struct xe_vm *vm, u32 ring_size, u16 msix_vec,
+		       u32 init_flags)
 {
 	struct xe_gt *gt = hwe->gt;
 	struct xe_tile *tile = gt_to_tile(gt);
@@ -979,6 +980,16 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 				     RING_CTL_SIZE(lrc->ring.size) | RING_VALID);
 	}
 
+	if (init_flags & XE_LRC_CREATE_RUNALONE)
+		xe_lrc_write_ctx_reg(lrc, CTX_CONTEXT_CONTROL,
+				     xe_lrc_read_ctx_reg(lrc, CTX_CONTEXT_CONTROL) |
+				     _MASKED_BIT_ENABLE(CTX_CTRL_RUN_ALONE));
+
+	if (init_flags & XE_LRC_CREATE_PXP)
+		xe_lrc_write_ctx_reg(lrc, CTX_CONTEXT_CONTROL,
+				     xe_lrc_read_ctx_reg(lrc, CTX_CONTEXT_CONTROL) |
+				     _MASKED_BIT_ENABLE(CTX_CTRL_PXP_ENABLE));
+
 	xe_lrc_write_ctx_reg(lrc, CTX_TIMESTAMP, 0);
 
 	if (xe->info.has_asid && vm)
@@ -1021,6 +1032,7 @@ err_lrc_finish:
  * @vm: The VM (address space)
  * @ring_size: LRC ring size
  * @msix_vec: MSI-X interrupt vector (for platforms that support it)
+ * @flags: LRC initialization flags
  *
  * Allocate and initialize the Logical Ring Context (LRC).
  *
@@ -1028,7 +1040,7 @@ err_lrc_finish:
  * upon failure.
  */
 struct xe_lrc *xe_lrc_create(struct xe_hw_engine *hwe, struct xe_vm *vm,
-			     u32 ring_size, u16 msix_vec)
+			     u32 ring_size, u16 msix_vec, u32 flags)
 {
 	struct xe_lrc *lrc;
 	int err;
@@ -1037,7 +1049,7 @@ struct xe_lrc *xe_lrc_create(struct xe_hw_engine *hwe, struct xe_vm *vm,
 	if (!lrc)
 		return ERR_PTR(-ENOMEM);
 
-	err = xe_lrc_init(lrc, hwe, vm, ring_size, msix_vec);
+	err = xe_lrc_init(lrc, hwe, vm, ring_size, msix_vec, flags);
 	if (err) {
 		kfree(lrc);
 		return ERR_PTR(err);

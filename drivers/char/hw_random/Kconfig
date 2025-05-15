@@ -534,10 +534,10 @@ config HW_RANDOM_NPCM
 	  If unsure, say Y.
 
 config HW_RANDOM_KEYSTONE
+	tristate "TI Keystone NETCP SA Hardware random number generator"
 	depends on ARCH_KEYSTONE || COMPILE_TEST
 	depends on HAS_IOMEM && OF
 	default HW_RANDOM
-	tristate "TI Keystone NETCP SA Hardware random number generator"
 	help
 	  This option enables Keystone's hardware random generator.
 
@@ -579,15 +579,15 @@ config HW_RANDOM_ARM_SMCCC_TRNG
 	  module will be called arm_smccc_trng.
 
 config HW_RANDOM_CN10K
-       tristate "Marvell CN10K Random Number Generator support"
-       depends on HW_RANDOM && PCI && (ARM64 || (64BIT && COMPILE_TEST))
-       default HW_RANDOM if ARCH_THUNDER
-       help
-	 This driver provides support for the True Random Number
-	 generator available in Marvell CN10K SoCs.
+	tristate "Marvell CN10K Random Number Generator support"
+	depends on HW_RANDOM && PCI && (ARM64 || (64BIT && COMPILE_TEST))
+	default HW_RANDOM if ARCH_THUNDER
+	help
+	  This driver provides support for the True Random Number
+	  generator available in Marvell CN10K SoCs.
 
-	 To compile this driver as a module, choose M here.
-	 The module will be called cn10k_rng. If unsure, say Y.
+	  To compile this driver as a module, choose M here.
+	  The module will be called cn10k_rng. If unsure, say Y.
 
 config HW_RANDOM_JH7110
 	tristate "StarFive JH7110 Random Number Generator support"
@@ -606,7 +606,8 @@ config HW_RANDOM_ROCKCHIP
 	default HW_RANDOM
 	help
 	  This driver provides kernel-side support for the True Random Number
-	  Generator hardware found on some Rockchip SoC like RK3566 or RK3568.
+	  Generator hardware found on some Rockchip SoCs like RK3566, RK3568
+	  or RK3588.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rockchip-rng.

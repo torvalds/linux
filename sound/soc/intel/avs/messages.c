@@ -510,6 +510,44 @@ err:
 	return ret;
 }
 
+int avs_ipc_set_fw_config(struct avs_dev *adev, size_t num_tlvs, ...)
+{
+	struct avs_tlv *tlv;
+	void *payload;
+	size_t offset;
+	va_list args;
+	int ret, i;
+
+	payload = kzalloc(AVS_MAILBOX_SIZE, GFP_KERNEL);
+	if (!payload)
+		return -ENOMEM;
+
+	va_start(args, num_tlvs);
+	for (offset = i = 0; i < num_tlvs && offset < AVS_MAILBOX_SIZE - sizeof(*tlv); i++) {
+		tlv = (struct avs_tlv *)(payload + offset);
+		tlv->type = va_arg(args, u32);
+		tlv->length = va_arg(args, u32);
+
+		offset += sizeof(*tlv) + tlv->length;
+		if (offset > AVS_MAILBOX_SIZE)
+			break;
+
+		memcpy(tlv->value, va_arg(args, u8*), tlv->length);
+	}
+
+	if (i == num_tlvs)
+		ret = avs_ipc_set_large_config(adev, AVS_BASEFW_MOD_ID, AVS_BASEFW_INST_ID,
+					       AVS_BASEFW_FIRMWARE_CONFIG, payload, offset);
+	else
+		ret = -ERANGE;
+
+	va_end(args);
+	kfree(payload);
+	if (ret)
+		dev_err(adev->dev, "set fw cfg failed: %d\n", ret);
+	return ret;
+}
+
 int avs_ipc_get_hw_config(struct avs_dev *adev, struct avs_hw_cfg *cfg)
 {
 	struct avs_tlv *tlv;
@@ -639,13 +677,6 @@ int avs_ipc_copier_set_sink_format(struct avs_dev *adev, u16 module_id,
 					(u8 *)&cpr_fmt, sizeof(cpr_fmt));
 }
 
-int avs_ipc_peakvol_set_volume(struct avs_dev *adev, u16 module_id, u8 instance_id,
-			       struct avs_volume_cfg *vol)
-{
-	return avs_ipc_set_large_config(adev, module_id, instance_id, AVS_PEAKVOL_VOLUME, (u8 *)vol,
-					sizeof(*vol));
-}
-
 int avs_ipc_peakvol_get_volume(struct avs_dev *adev, u16 module_id, u8 instance_id,
 			       struct avs_volume_cfg **vols, size_t *num_vols)
 {
@@ -666,6 +697,110 @@ int avs_ipc_peakvol_get_volume(struct avs_dev *adev, u16 module_id, u8 instance_
 	*num_vols = payload_size / sizeof(**vols);
 
 	return 0;
+}
+
+int avs_ipc_peakvol_set_volume(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			       struct avs_volume_cfg *vol)
+{
+	return avs_ipc_set_large_config(adev, module_id, instance_id, AVS_PEAKVOL_VOLUME,
+					(u8 *)vol, sizeof(*vol));
+}
+
+int avs_ipc_peakvol_set_volumes(struct avs_dev *adev, u16 module_id, u8 instance_id,
+				struct avs_volume_cfg *vols, size_t num_vols)
+{
+	struct avs_tlv *tlv;
+	size_t offset;
+	size_t size;
+	u8 *payload;
+	int ret, i;
+
+	size = num_vols * sizeof(*vols);
+	size += num_vols * sizeof(*tlv);
+	if (size > AVS_MAILBOX_SIZE)
+		return -EINVAL;
+
+	payload = kzalloc(AVS_MAILBOX_SIZE, GFP_KERNEL);
+	if (!payload)
+		return -ENOMEM;
+
+	for (offset = i = 0; i < num_vols; i++) {
+		tlv = (struct avs_tlv *)(payload + offset);
+
+		tlv->type = AVS_PEAKVOL_VOLUME;
+		tlv->length = sizeof(*vols);
+		memcpy(tlv->value, &vols[i], tlv->length);
+
+		offset += sizeof(*tlv) + tlv->length;
+	}
+
+	ret = avs_ipc_set_large_config(adev, module_id, instance_id, AVS_VENDOR_CONFIG, payload,
+				       size);
+	kfree(payload);
+	return ret;
+}
+
+int avs_ipc_peakvol_get_mute(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			     struct avs_mute_cfg **mutes, size_t *num_mutes)
+{
+	size_t payload_size;
+	u8 *payload;
+	int ret;
+
+	ret = avs_ipc_get_large_config(adev, module_id, instance_id, AVS_PEAKVOL_MUTE, NULL, 0,
+				       &payload, &payload_size);
+	if (ret)
+		return ret;
+
+	/* Non-zero payload expected for PEAKVOL_MUTE. */
+	if (!payload_size)
+		return -EREMOTEIO;
+
+	*mutes = (struct avs_mute_cfg *)payload;
+	*num_mutes = payload_size / sizeof(**mutes);
+
+	return 0;
+}
+
+int avs_ipc_peakvol_set_mute(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			     struct avs_mute_cfg *mute)
+{
+	return avs_ipc_set_large_config(adev, module_id, instance_id, AVS_PEAKVOL_MUTE,
+					(u8 *)mute, sizeof(*mute));
+}
+
+int avs_ipc_peakvol_set_mutes(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			      struct avs_mute_cfg *mutes, size_t num_mutes)
+{
+	struct avs_tlv *tlv;
+	size_t offset;
+	size_t size;
+	u8 *payload;
+	int ret, i;
+
+	size = num_mutes * sizeof(*mutes);
+	size += num_mutes * sizeof(*tlv);
+	if (size > AVS_MAILBOX_SIZE)
+		return -EINVAL;
+
+	payload = kzalloc(AVS_MAILBOX_SIZE, GFP_KERNEL);
+	if (!payload)
+		return -ENOMEM;
+
+	for (offset = i = 0; i < num_mutes; i++) {
+		tlv = (struct avs_tlv *)(payload + offset);
+
+		tlv->type = AVS_PEAKVOL_MUTE;
+		tlv->length = sizeof(*mutes);
+		memcpy(tlv->value, &mutes[i], tlv->length);
+
+		offset += sizeof(*tlv) + tlv->length;
+	}
+
+	ret = avs_ipc_set_large_config(adev, module_id, instance_id, AVS_VENDOR_CONFIG, payload,
+				       size);
+	kfree(payload);
+	return ret;
 }
 
 #ifdef CONFIG_DEBUG_FS

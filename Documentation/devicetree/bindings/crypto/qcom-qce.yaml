@@ -55,6 +55,7 @@ properties:
               - qcom,sm8550-qce
               - qcom,sm8650-qce
               - qcom,sm8750-qce
+              - qcom,x1e80100-qce
           - const: qcom,sm8150-qce
           - const: qcom,qce
 

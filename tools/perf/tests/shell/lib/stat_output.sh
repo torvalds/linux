@@ -148,6 +148,14 @@ check_per_socket()
 	echo "[Success]"
 }
 
+check_metric_only()
+{
+	echo -n "Checking $1 output: metric only "
+	perf stat --metric-only $2 -e instructions,cycles true
+	commachecker --metric-only
+	echo "[Success]"
+}
+
 # The perf stat options for per-socket, per-core, per-die
 # and -A ( no_aggr mode ) uses the info fetched from this
 # directory: "/sys/devices/system/cpu/cpu*/topology". For

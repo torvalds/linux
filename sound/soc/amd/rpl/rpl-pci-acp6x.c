@@ -159,7 +159,7 @@ disable_pci:
 	return ret;
 }
 
-static int __maybe_unused snd_rpl_suspend(struct device *dev)
+static int snd_rpl_suspend(struct device *dev)
 {
 	struct rpl_dev_data *adata;
 	int ret;
@@ -171,7 +171,7 @@ static int __maybe_unused snd_rpl_suspend(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused snd_rpl_resume(struct device *dev)
+static int snd_rpl_resume(struct device *dev)
 {
 	struct rpl_dev_data *adata;
 	int ret;
@@ -184,8 +184,8 @@ static int __maybe_unused snd_rpl_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops rpl_pm = {
-	SET_RUNTIME_PM_OPS(snd_rpl_suspend, snd_rpl_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(snd_rpl_suspend, snd_rpl_resume)
+	RUNTIME_PM_OPS(snd_rpl_suspend, snd_rpl_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(snd_rpl_suspend, snd_rpl_resume)
 };
 
 static void snd_rpl_remove(struct pci_dev *pci)
@@ -217,7 +217,7 @@ static struct pci_driver rpl_acp6x_driver  = {
 	.probe = snd_rpl_probe,
 	.remove = snd_rpl_remove,
 	.driver = {
-		.pm = &rpl_pm,
+		.pm = pm_ptr(&rpl_pm),
 	}
 };
 

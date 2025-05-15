@@ -139,12 +139,12 @@
 			};
 		};
 
-		usb0: ohci@700000 {
+		usb0: usb@700000 {
 			status = "okay";
 			num-ports = <2>;
 		};
 
-		usb1: ehci@800000 {
+		usb1: usb@800000 {
 			status = "okay";
 		};
 	};

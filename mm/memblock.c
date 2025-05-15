@@ -16,6 +16,7 @@
 #include <linux/kmemleak.h>
 #include <linux/seq_file.h>
 #include <linux/memblock.h>
+#include <linux/mutex.h>
 
 #include <asm/sections.h>
 #include <linux/io.h>
@@ -456,7 +457,14 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
 				min(new_area_start, memblock.current_limit),
 				new_alloc_size, PAGE_SIZE);
 
-		new_array = addr ? __va(addr) : NULL;
+		if (addr) {
+			/* The memory may not have been accepted, yet. */
+			accept_memory(addr, new_alloc_size);
+
+			new_array = __va(addr);
+		} else {
+			new_array = NULL;
+		}
 	}
 	if (!addr) {
 		pr_err("memblock: Failed to double %s array from %ld to %ld entries !\n",
@@ -2164,8 +2172,10 @@ static unsigned long __init __free_memory_core(phys_addr_t start,
 				 phys_addr_t end)
 {
 	unsigned long start_pfn = PFN_UP(start);
-	unsigned long end_pfn = min_t(unsigned long,
-				      PFN_DOWN(end), max_low_pfn);
+	unsigned long end_pfn = PFN_DOWN(end);
+
+	if (!IS_ENABLED(CONFIG_HIGHMEM) && end_pfn > max_low_pfn)
+		end_pfn = max_low_pfn;
 
 	if (start_pfn >= end_pfn)
 		return 0;
@@ -2180,11 +2190,14 @@ static void __init memmap_init_reserved_pages(void)
 	struct memblock_region *region;
 	phys_addr_t start, end;
 	int nid;
+	unsigned long max_reserved;
 
 	/*
 	 * set nid on all reserved pages and also treat struct
 	 * pages for the NOMAP regions as PageReserved
 	 */
+repeat:
+	max_reserved = memblock.reserved.max;
 	for_each_mem_region(region) {
 		nid = memblock_get_region_node(region);
 		start = region->base;
@@ -2193,8 +2206,15 @@ static void __init memmap_init_reserved_pages(void)
 		if (memblock_is_nomap(region))
 			reserve_bootmem_region(start, end, nid);
 
-		memblock_set_node(start, end, &memblock.reserved, nid);
+		memblock_set_node(start, region->size, &memblock.reserved, nid);
 	}
+	/*
+	 * 'max' is changed means memblock.reserved has been doubled its
+	 * array, which may result a new reserved region before current
+	 * 'start'. Now we should repeat the procedure to set its node id.
+	 */
+	if (max_reserved != memblock.reserved.max)
+		goto repeat;
 
 	/*
 	 * initialize struct pages for reserved regions that don't have
@@ -2283,6 +2303,7 @@ struct reserve_mem_table {
 };
 static struct reserve_mem_table reserved_mem_table[RESERVE_MEM_MAX_ENTRIES];
 static int reserved_mem_count;
+static DEFINE_MUTEX(reserve_mem_lock);
 
 /* Add wildcard region with a lookup name */
 static void __init reserved_mem_add(phys_addr_t start, phys_addr_t size,
@@ -2294,6 +2315,21 @@ static void __init reserved_mem_add(phys_addr_t start, phys_addr_t size,
 	map->start = start;
 	map->size = size;
 	strscpy(map->name, name);
+}
+
+static struct reserve_mem_table *reserve_mem_find_by_name_nolock(const char *name)
+{
+	struct reserve_mem_table *map;
+	int i;
+
+	for (i = 0; i < reserved_mem_count; i++) {
+		map = &reserved_mem_table[i];
+		if (!map->size)
+			continue;
+		if (strcmp(name, map->name) == 0)
+			return map;
+	}
+	return NULL;
 }
 
 /**
@@ -2309,21 +2345,46 @@ static void __init reserved_mem_add(phys_addr_t start, phys_addr_t size,
 int reserve_mem_find_by_name(const char *name, phys_addr_t *start, phys_addr_t *size)
 {
 	struct reserve_mem_table *map;
-	int i;
 
-	for (i = 0; i < reserved_mem_count; i++) {
-		map = &reserved_mem_table[i];
-		if (!map->size)
-			continue;
-		if (strcmp(name, map->name) == 0) {
-			*start = map->start;
-			*size = map->size;
-			return 1;
-		}
-	}
-	return 0;
+	guard(mutex)(&reserve_mem_lock);
+	map = reserve_mem_find_by_name_nolock(name);
+	if (!map)
+		return 0;
+
+	*start = map->start;
+	*size = map->size;
+	return 1;
 }
 EXPORT_SYMBOL_GPL(reserve_mem_find_by_name);
+
+/**
+ * reserve_mem_release_by_name - Release reserved memory region with a given name
+ * @name: The name that is attatched to a reserved memory region
+ *
+ * Forcibly release the pages in the reserved memory region so that those memory
+ * can be used as free memory. After released the reserved region size becomes 0.
+ *
+ * Returns: 1 if released or 0 if not found.
+ */
+int reserve_mem_release_by_name(const char *name)
+{
+	char buf[RESERVE_MEM_NAME_SIZE + 12];
+	struct reserve_mem_table *map;
+	void *start, *end;
+
+	guard(mutex)(&reserve_mem_lock);
+	map = reserve_mem_find_by_name_nolock(name);
+	if (!map)
+		return 0;
+
+	start = phys_to_virt(map->start);
+	end = start + map->size - 1;
+	snprintf(buf, sizeof(buf), "reserve_mem:%s", name);
+	free_reserved_area(start, end, 0, buf);
+	map->size = 0;
+
+	return 1;
+}
 
 /*
  * Parse reserve_mem=nn:align:name

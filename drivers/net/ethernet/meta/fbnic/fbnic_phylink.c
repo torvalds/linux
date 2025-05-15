@@ -133,7 +133,6 @@ int fbnic_phylink_init(struct net_device *netdev)
 	struct fbnic_net *fbn = netdev_priv(netdev);
 	struct phylink *phylink;
 
-	fbn->phylink_pcs.neg_mode = true;
 	fbn->phylink_pcs.ops = &fbnic_phylink_pcs_ops;
 
 	fbn->phylink_config.dev = &netdev->dev;

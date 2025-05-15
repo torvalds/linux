@@ -525,7 +525,7 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	eb = __alloc_dummy_extent_buffer(fs_info, 0, nodesize);
+	eb = alloc_dummy_extent_buffer(fs_info, 0);
 	if (!eb) {
 		test_std_err(TEST_ALLOC_ROOT);
 		ret = -ENOMEM;
@@ -542,7 +542,7 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 	 * Test again for case where the tree block is sectorsize aligned but
 	 * not nodesize aligned.
 	 */
-	eb = __alloc_dummy_extent_buffer(fs_info, sectorsize, nodesize);
+	eb = alloc_dummy_extent_buffer(fs_info, sectorsize);
 	if (!eb) {
 		test_std_err(TEST_ALLOC_ROOT);
 		ret = -ENOMEM;
@@ -730,7 +730,7 @@ static int test_eb_mem_ops(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	eb = __alloc_dummy_extent_buffer(fs_info, SZ_1M, nodesize);
+	eb = alloc_dummy_extent_buffer(fs_info, SZ_1M);
 	if (!eb) {
 		test_std_err(TEST_ALLOC_EXTENT_BUFFER);
 		ret = -ENOMEM;

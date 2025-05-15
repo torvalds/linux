@@ -14,6 +14,7 @@
 struct elevator_type;
 
 #define	BLK_DEV_MAX_SECTORS	(LLONG_MAX >> 9)
+#define	BLK_MIN_SEGMENT_SIZE	4096
 
 /* Max future timer expiry for timeouts */
 #define BLK_MAX_TIMEOUT		(5 * HZ)
@@ -92,6 +93,9 @@ static inline void blk_wait_io(struct completion *done)
 	else
 		wait_for_completion_io(done);
 }
+
+struct block_device *blkdev_get_no_open(dev_t dev, bool autoload);
+void blkdev_put_no_open(struct block_device *bdev);
 
 #define BIO_INLINE_VECS 4
 struct bio_vec *bvec_alloc(mempool_t *pool, unsigned short *nr_vecs,
@@ -358,8 +362,12 @@ struct bio *bio_split_zone_append(struct bio *bio,
 static inline bool bio_may_need_split(struct bio *bio,
 		const struct queue_limits *lim)
 {
-	return lim->chunk_sectors || bio->bi_vcnt != 1 ||
-		bio->bi_io_vec->bv_len + bio->bi_io_vec->bv_offset > PAGE_SIZE;
+	if (lim->chunk_sectors)
+		return true;
+	if (bio->bi_vcnt != 1)
+		return true;
+	return bio->bi_io_vec->bv_len + bio->bi_io_vec->bv_offset >
+		lim->min_segment_size;
 }
 
 /**
@@ -472,7 +480,8 @@ static inline void blk_zone_update_request_bio(struct request *rq,
 	 * the original BIO sector so that blk_zone_write_plug_bio_endio() can
 	 * lookup the zone write plug.
 	 */
-	if (req_op(rq) == REQ_OP_ZONE_APPEND || bio_zone_write_plugging(bio))
+	if (req_op(rq) == REQ_OP_ZONE_APPEND ||
+	    bio_flagged(bio, BIO_EMULATES_ZONE_APPEND))
 		bio->bi_iter.bi_sector = rq->__sector;
 }
 void blk_zone_write_plug_bio_endio(struct bio *bio);
@@ -710,7 +719,7 @@ int bdev_open(struct block_device *bdev, blk_mode_t mode, void *holder,
 int bdev_permission(dev_t dev, blk_mode_t mode, void *holder);
 
 void blk_integrity_generate(struct bio *bio);
-void blk_integrity_verify(struct bio *bio);
+void blk_integrity_verify_iter(struct bio *bio, struct bvec_iter *saved_iter);
 void blk_integrity_prepare(struct request *rq);
 void blk_integrity_complete(struct request *rq, unsigned int nr_bytes);
 

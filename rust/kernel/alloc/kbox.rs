@@ -15,8 +15,9 @@ use core::pin::Pin;
 use core::ptr::NonNull;
 use core::result::Result;
 
-use crate::init::{InPlaceInit, InPlaceWrite, Init, PinInit};
+use crate::init::InPlaceInit;
 use crate::types::ForeignOwnable;
+use pin_init::{InPlaceWrite, Init, PinInit, ZeroableOption};
 
 /// The kernel's [`Box`] type -- a heap allocation for a single value of type `T`.
 ///
@@ -98,6 +99,10 @@ pub type VBox<T> = Box<T, super::allocator::Vmalloc>;
 /// # Ok::<(), Error>(())
 /// ```
 pub type KVBox<T> = Box<T, super::allocator::KVmalloc>;
+
+// SAFETY: All zeros is equivalent to `None` (option layout optimization guarantee:
+// https://doc.rust-lang.org/stable/std/option/index.html#representation).
+unsafe impl<T, A: Allocator> ZeroableOption for Box<T, A> {}
 
 // SAFETY: `Box` is `Send` if `T` is `Send` because the `Box` owns a `T`.
 unsafe impl<T, A> Send for Box<T, A>
@@ -243,6 +248,12 @@ where
         A: 'static,
     {
         Ok(Self::new(x, flags)?.into())
+    }
+
+    /// Convert a [`Box<T,A>`] to a [`Pin<Box<T,A>>`]. If `T` does not implement
+    /// [`Unpin`], then `x` will be pinned in memory and can't be moved.
+    pub fn into_pin(this: Self) -> Pin<Self> {
+        this.into()
     }
 
     /// Forgets the contents (does not run the destructor), but keeps the allocation.

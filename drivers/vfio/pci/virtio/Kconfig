@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIRTIO_VFIO_PCI
-	tristate "VFIO support for VIRTIO NET PCI VF devices"
+	tristate "VFIO support for VIRTIO PCI VF devices"
 	depends on VIRTIO_PCI
 	select VFIO_PCI_CORE
 	help
-	  This provides migration support for VIRTIO NET PCI VF devices
-	  using the VFIO framework. Migration support requires the
+	  This provides migration support for VIRTIO NET and BLOCK PCI VF
+	  devices using the VFIO framework. Migration support requires the
 	  SR-IOV PF device to support specific VIRTIO extensions,
 	  otherwise this driver provides no additional functionality
 	  beyond vfio-pci.

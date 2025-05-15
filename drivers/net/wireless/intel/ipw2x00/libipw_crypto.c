@@ -59,7 +59,7 @@ void libipw_crypt_info_free(struct libipw_crypt_info *info)
 	int i;
 
         libipw_crypt_quiescing(info);
-        del_timer_sync(&info->crypt_deinit_timer);
+        timer_delete_sync(&info->crypt_deinit_timer);
         libipw_crypt_deinit_entries(info, 1);
 
         for (i = 0; i < NUM_WEP_KEYS; i++) {

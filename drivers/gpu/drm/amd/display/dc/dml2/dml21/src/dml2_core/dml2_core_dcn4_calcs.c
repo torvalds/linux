@@ -15,6 +15,7 @@
 //#define DML_MODE_SUPPORT_USE_DPM_DRAM_BW
 //#define DML_GLOBAL_PREFETCH_CHECK
 #define ALLOW_SDPIF_RATE_LIMIT_PRE_CSTATE
+#define DML_MAX_VSTARTUP_START 1023
 
 const char *dml2_core_internal_bw_type_str(enum dml2_core_internal_bw_type bw_type)
 {
@@ -2352,6 +2353,7 @@ static void calculate_mcache_row_bytes(
 	if (p->full_vp_height == 0 && p->full_vp_width == 0) {
 		*p->num_mcaches = 0;
 		*p->mcache_row_bytes = 0;
+		*p->mcache_row_bytes_per_channel = 0;
 	} else {
 		blk_bytes = dml_get_tile_block_size_bytes(p->tiling_mode);
 
@@ -2420,15 +2422,18 @@ static void calculate_mcache_row_bytes(
 
 		// If this mcache_row_bytes for the full viewport of the surface is less than or equal to mcache_bytes,
 		// then one mcache can be used for this request stream. If not, it is useful to know the width of the viewport that can be supported in the mcache_bytes.
-		if (p->gpuvm_enable || !p->surf_vert) {
-			*p->mcache_row_bytes = mvmpg_per_row_ub * meta_per_mvmpg_per_channel_ub;
+		if (p->gpuvm_enable || p->surf_vert) {
+			*p->mcache_row_bytes_per_channel = mvmpg_per_row_ub * meta_per_mvmpg_per_channel_ub;
+			*p->mcache_row_bytes = *p->mcache_row_bytes_per_channel * p->num_chans;
 		} else { // horizontal and gpuvm disable
 			*p->mcache_row_bytes = *p->meta_row_width_ub * p->blk_height * p->bytes_per_pixel / 256;
-			*p->mcache_row_bytes = (unsigned int)math_ceil2((double)*p->mcache_row_bytes / p->num_chans, p->mcache_line_size_bytes);
+			if (p->mcache_line_size_bytes != 0)
+				*p->mcache_row_bytes_per_channel = (unsigned int)math_ceil2((double)*p->mcache_row_bytes / p->num_chans, p->mcache_line_size_bytes);
 		}
 
 		*p->dcc_dram_bw_pref_overhead_factor = 1 + math_max2(1.0 / 256.0, *p->mcache_row_bytes / p->full_swath_bytes); // dcc_dr_oh_pref
-		*p->num_mcaches = (unsigned int)math_ceil2((double)*p->mcache_row_bytes / p->mcache_size_bytes, 1);
+		if (p->mcache_size_bytes != 0)
+			*p->num_mcaches = (unsigned int)math_ceil2((double)*p->mcache_row_bytes_per_channel / p->mcache_size_bytes, 1);
 
 		mvmpg_per_mcache = p->mcache_size_bytes / meta_per_mvmpg_per_channel_ub;
 		*p->mvmpg_per_mcache_lb = (unsigned int)math_floor2(mvmpg_per_mcache, 1);
@@ -2449,6 +2454,7 @@ static void calculate_mcache_row_bytes(
 
 #ifdef __DML_VBA_DEBUG__
 	dml2_printf("DML::%s: mcache_row_bytes = %u\n", __func__, *p->mcache_row_bytes);
+	dml2_printf("DML::%s: mcache_row_bytes_per_channel = %u\n", __func__, *p->mcache_row_bytes_per_channel);
 	dml2_printf("DML::%s: num_mcaches = %u\n", __func__, *p->num_mcaches);
 #endif
 	DML2_ASSERT(*p->num_mcaches > 0);
@@ -2465,11 +2471,13 @@ static void calculate_mcache_setting(
 
 	*p->num_mcaches_l = 0;
 	*p->mcache_row_bytes_l = 0;
+	*p->mcache_row_bytes_per_channel_l = 0;
 	*p->dcc_dram_bw_nom_overhead_factor_l = 1.0;
 	*p->dcc_dram_bw_pref_overhead_factor_l = 1.0;
 
 	*p->num_mcaches_c = 0;
 	*p->mcache_row_bytes_c = 0;
+	*p->mcache_row_bytes_per_channel_c = 0;
 	*p->dcc_dram_bw_nom_overhead_factor_c = 1.0;
 	*p->dcc_dram_bw_pref_overhead_factor_c = 1.0;
 
@@ -2505,6 +2513,7 @@ static void calculate_mcache_setting(
 	// output
 	l->l_p.num_mcaches = p->num_mcaches_l;
 	l->l_p.mcache_row_bytes = p->mcache_row_bytes_l;
+	l->l_p.mcache_row_bytes_per_channel = p->mcache_row_bytes_per_channel_l;
 	l->l_p.dcc_dram_bw_nom_overhead_factor = p->dcc_dram_bw_nom_overhead_factor_l;
 	l->l_p.dcc_dram_bw_pref_overhead_factor = p->dcc_dram_bw_pref_overhead_factor_l;
 	l->l_p.mvmpg_width = &l->mvmpg_width_l;
@@ -2514,7 +2523,7 @@ static void calculate_mcache_setting(
 	l->l_p.mvmpg_per_mcache_lb = &l->mvmpg_per_mcache_lb_l;
 
 	calculate_mcache_row_bytes(scratch, &l->l_p);
-	dml2_assert(*p->num_mcaches_l > 0);
+	DML2_ASSERT(*p->num_mcaches_l > 0);
 
 	if (l->is_dual_plane) {
 		l->c_p.num_chans = p->num_chans;
@@ -2540,6 +2549,7 @@ static void calculate_mcache_setting(
 		// output
 		l->c_p.num_mcaches = p->num_mcaches_c;
 		l->c_p.mcache_row_bytes = p->mcache_row_bytes_c;
+		l->c_p.mcache_row_bytes_per_channel = p->mcache_row_bytes_per_channel_c;
 		l->c_p.dcc_dram_bw_nom_overhead_factor = p->dcc_dram_bw_nom_overhead_factor_c;
 		l->c_p.dcc_dram_bw_pref_overhead_factor = p->dcc_dram_bw_pref_overhead_factor_c;
 		l->c_p.mvmpg_width = &l->mvmpg_width_c;
@@ -2549,12 +2559,12 @@ static void calculate_mcache_setting(
 		l->c_p.mvmpg_per_mcache_lb = &l->mvmpg_per_mcache_lb_c;
 
 		calculate_mcache_row_bytes(scratch, &l->c_p);
-		dml2_assert(*p->num_mcaches_c > 0);
+		DML2_ASSERT(*p->num_mcaches_c > 0);
 	}
 
 	// Sharing for iMALL access
-	l->mcache_remainder_l = *p->mcache_row_bytes_l % p->mcache_size_bytes;
-	l->mcache_remainder_c = *p->mcache_row_bytes_c % p->mcache_size_bytes;
+	l->mcache_remainder_l = *p->mcache_row_bytes_per_channel_l % p->mcache_size_bytes;
+	l->mcache_remainder_c = *p->mcache_row_bytes_per_channel_c % p->mcache_size_bytes;
 	l->mvmpg_access_width_l = p->surf_vert ? l->mvmpg_height_l : l->mvmpg_width_l;
 	l->mvmpg_access_width_c = p->surf_vert ? l->mvmpg_height_c : l->mvmpg_width_c;
 
@@ -2577,11 +2587,14 @@ static void calculate_mcache_setting(
 	if (l->is_dual_plane) {
 		l->avg_mcache_element_size_c = l->meta_row_width_c / *p->num_mcaches_c;
 
-		if (!p->imall_enable || (*p->mall_comb_mcache_l == *p->mall_comb_mcache_c)) {
-			l->lc_comb_last_mcache_size = (unsigned int)((l->mcache_remainder_l * (*p->mall_comb_mcache_l ? 2 : 1) * l->luma_time_factor) +
-				(l->mcache_remainder_c * (*p->mall_comb_mcache_c ? 2 : 1)));
+		/* if either remainder is 0, then mcache sharing is not needed or not possible due to full utilization */
+		if (l->mcache_remainder_l && l->mcache_remainder_c) {
+			if (!p->imall_enable || (*p->mall_comb_mcache_l == *p->mall_comb_mcache_c)) {
+				l->lc_comb_last_mcache_size = (unsigned int)((l->mcache_remainder_l * (*p->mall_comb_mcache_l ? 2 : 1) * l->luma_time_factor) +
+					(l->mcache_remainder_c * (*p->mall_comb_mcache_c ? 2 : 1)));
+			}
+			*p->lc_comb_mcache = (l->lc_comb_last_mcache_size <= p->mcache_size_bytes) && (*p->mall_comb_mcache_l == *p->mall_comb_mcache_c);
 		}
-		*p->lc_comb_mcache = (l->lc_comb_last_mcache_size <= p->mcache_size_bytes) && (*p->mall_comb_mcache_l == *p->mall_comb_mcache_c);
 	}
 
 #ifdef __DML_VBA_DEBUG__
@@ -3397,7 +3410,7 @@ static void calculate_cursor_req_attributes(
 	} else {
 		if (cursor_width > 0) {
 			dml2_printf("DML::%s: Invalid cursor_bpp = %d\n", __func__, cursor_bpp);
-			dml2_assert(0);
+			DML2_ASSERT(0);
 		}
 	}
 
@@ -3440,7 +3453,7 @@ static void calculate_cursor_urgent_burst_factor(
 		CursorBufferSizeInTime = LinesInCursorBuffer * LineTime;
 		if (CursorBufferSizeInTime - UrgentLatency <= 0) {
 			*NotEnoughUrgentLatencyHiding = 1;
-			*UrgentBurstFactorCursor = 0;
+			*UrgentBurstFactorCursor = 1;
 		} else {
 			*NotEnoughUrgentLatencyHiding = 0;
 			*UrgentBurstFactorCursor = CursorBufferSizeInTime / (CursorBufferSizeInTime - UrgentLatency);
@@ -3503,7 +3516,7 @@ static void CalculateUrgentBurstFactor(
 	DETBufferSizeInTimeLuma = math_floor2(LinesInDETLuma, SwathHeightY) * LineTime / VRatio;
 	if (DETBufferSizeInTimeLuma - UrgentLatency <= 0) {
 		*NotEnoughUrgentLatencyHiding = 1;
-		*UrgentBurstFactorLuma = 0;
+		*UrgentBurstFactorLuma = 1;
 	} else {
 		*UrgentBurstFactorLuma = DETBufferSizeInTimeLuma / (DETBufferSizeInTimeLuma - UrgentLatency);
 	}
@@ -3514,7 +3527,7 @@ static void CalculateUrgentBurstFactor(
 		DETBufferSizeInTimeChroma = math_floor2(LinesInDETChroma, SwathHeightC) * LineTime / VRatioC;
 		if (DETBufferSizeInTimeChroma - UrgentLatency <= 0) {
 			*NotEnoughUrgentLatencyHiding = 1;
-			*UrgentBurstFactorChroma = 0;
+			*UrgentBurstFactorChroma = 1;
 		} else {
 			*UrgentBurstFactorChroma = DETBufferSizeInTimeChroma / (DETBufferSizeInTimeChroma - UrgentLatency);
 		}
@@ -3709,13 +3722,12 @@ static unsigned int CalculateMaxVStartup(
 	double line_time_us = (double)timing->h_total / ((double)timing->pixel_clock_khz / 1000);
 	unsigned int vblank_actual = timing->v_total - timing->v_active;
 	unsigned int vblank_nom_default_in_line = (unsigned int)math_floor2((double)vblank_nom_default_us / line_time_us, 1.0);
-	unsigned int vblank_nom_input = (unsigned int)math_min2(timing->vblank_nom, vblank_nom_default_in_line);
-	unsigned int vblank_avail = (vblank_nom_input == 0) ? vblank_nom_default_in_line : vblank_nom_input;
+	unsigned int vblank_avail = (timing->vblank_nom == 0) ? vblank_nom_default_in_line : (unsigned int)timing->vblank_nom;
 
 	vblank_size = (unsigned int)math_min2(vblank_actual, vblank_avail);
 
 	if (timing->interlaced && !ptoi_supported)
-		max_vstartup_lines = (unsigned int)(math_floor2(vblank_size / 2.0, 1.0));
+		max_vstartup_lines = (unsigned int)(math_floor2((vblank_size - 1) / 2.0, 1.0));
 	else
 		max_vstartup_lines = vblank_size - (unsigned int)math_max2(1.0, math_ceil2(write_back_delay_us / line_time_us, 1.0));
 #ifdef __DML_VBA_DEBUG__
@@ -3726,6 +3738,7 @@ static unsigned int CalculateMaxVStartup(
 	dml2_printf("DML::%s: vblank_avail = %u\n", __func__, vblank_avail);
 	dml2_printf("DML::%s: max_vstartup_lines = %u\n", __func__, max_vstartup_lines);
 #endif
+	max_vstartup_lines = (unsigned int)math_min2(max_vstartup_lines, DML_MAX_VSTARTUP_START);
 	return max_vstartup_lines;
 }
 
@@ -3894,8 +3907,8 @@ static void CalculateSwathAndDETConfiguration(struct dml2_core_internal_scratch 
 			p->SwathHeightC[k] = MaximumSwathHeightC[k] / 2;
 			RoundedUpSwathSizeBytesY[k] = p->full_swath_bytes_l[k] / 2;
 			RoundedUpSwathSizeBytesC[k] = p->full_swath_bytes_c[k] / 2;
-			p->request_size_bytes_luma[k] = ((p->BytePerPixY[k] == 2) == dml_is_vertical_rotation(p->display_cfg->plane_descriptors[k].composition.rotation_angle)) ? 128 : 64;;
-			p->request_size_bytes_chroma[k] = ((p->BytePerPixC[k] == 2) == dml_is_vertical_rotation(p->display_cfg->plane_descriptors[k].composition.rotation_angle)) ? 128 : 64;;
+			p->request_size_bytes_luma[k] = ((p->BytePerPixY[k] == 2) == dml_is_vertical_rotation(p->display_cfg->plane_descriptors[k].composition.rotation_angle)) ? 128 : 64;
+			p->request_size_bytes_chroma[k] = ((p->BytePerPixC[k] == 2) == dml_is_vertical_rotation(p->display_cfg->plane_descriptors[k].composition.rotation_angle)) ? 128 : 64;
 		}
 
 		if (p->SwathHeightC[k] == 0)
@@ -4910,6 +4923,7 @@ static double get_urgent_bandwidth_required(
 	double ReadBandwidthChroma[],
 	double PrefetchBandwidthLuma[],
 	double PrefetchBandwidthChroma[],
+	double PrefetchBandwidthOto[],
 	double excess_vactive_fill_bw_l[],
 	double excess_vactive_fill_bw_c[],
 	double cursor_bw[],
@@ -4973,8 +4987,9 @@ static double get_urgent_bandwidth_required(
 			l->vm_row_bw = NumberOfDPP[k] * prefetch_vmrow_bw[k];
 			l->flip_and_active_bw = l->per_plane_flip_bw[k] + ReadBandwidthLuma[k] * l->adj_factor_p0 + ReadBandwidthChroma[k] * l->adj_factor_p1 + cursor_bw[k] * l->adj_factor_cur;
 			l->flip_and_prefetch_bw = l->per_plane_flip_bw[k] + NumberOfDPP[k] * (PrefetchBandwidthLuma[k] * l->adj_factor_p0_pre + PrefetchBandwidthChroma[k] * l->adj_factor_p1_pre) + prefetch_cursor_bw[k] * l->adj_factor_cur_pre;
+			l->flip_and_prefetch_bw_oto = l->per_plane_flip_bw[k] + NumberOfDPP[k] * (PrefetchBandwidthOto[k] * l->adj_factor_p0_pre + PrefetchBandwidthChroma[k] * l->adj_factor_p1_pre) + prefetch_cursor_bw[k] * l->adj_factor_cur_pre;
 			l->active_and_excess_bw = (ReadBandwidthLuma[k] + excess_vactive_fill_bw_l[k]) * l->tmp_nom_adj_factor_p0 + (ReadBandwidthChroma[k] + excess_vactive_fill_bw_c[k]) * l->tmp_nom_adj_factor_p1 + dpte_row_bw[k] + meta_row_bw[k];
-			surface_required_bw[k] = math_max4(l->vm_row_bw, l->flip_and_active_bw, l->flip_and_prefetch_bw, l->active_and_excess_bw);
+			surface_required_bw[k] = math_max5(l->vm_row_bw, l->flip_and_active_bw, l->flip_and_prefetch_bw, l->active_and_excess_bw, l->flip_and_prefetch_bw_oto);
 
 			/* export peak required bandwidth for the surface */
 			surface_peak_required_bw[k] = math_max2(surface_required_bw[k], surface_peak_required_bw[k]);
@@ -5045,7 +5060,7 @@ static void CalculateExtraLatency(
 	double HostVMInefficiencyFactorPrefetch,
 	unsigned int HostVMMinPageSize,
 	enum dml2_qos_param_type qos_type,
-	bool max_oustanding_when_urgent_expected,
+	bool max_outstanding_when_urgent_expected,
 	unsigned int max_outstanding_requests,
 	unsigned int request_size_bytes_luma[],
 	unsigned int request_size_bytes_chroma[],
@@ -5093,7 +5108,7 @@ static void CalculateExtraLatency(
 	if (qos_type == dml2_qos_param_type_dcn4x) {
 		*ExtraLatency_sr = dchub_arb_to_ret_delay / DCFCLK;
 		*ExtraLatency = *ExtraLatency_sr;
-		if (max_oustanding_when_urgent_expected)
+		if (max_outstanding_when_urgent_expected)
 			*ExtraLatency = *ExtraLatency + (ROBBufferSizeInKByte * 1024 - max_outstanding_requests * max_request_size_bytes) / ReturnBW;
 	} else {
 		*ExtraLatency_sr = dchub_arb_to_ret_delay / DCFCLK + RoundTripPingLatencyCycles / FabricClock + ReorderingBytes / ReturnBW;
@@ -5108,7 +5123,7 @@ static void CalculateExtraLatency(
 	dml2_printf("DML::%s: qos_type=%u\n", __func__, qos_type);
 	dml2_printf("DML::%s: hostvm_mode=%u\n", __func__, hostvm_mode);
 	dml2_printf("DML::%s: Tex_trips=%u\n", __func__, Tex_trips);
-	dml2_printf("DML::%s: max_oustanding_when_urgent_expected=%u\n", __func__, max_oustanding_when_urgent_expected);
+	dml2_printf("DML::%s: max_outstanding_when_urgent_expected=%u\n", __func__, max_outstanding_when_urgent_expected);
 	dml2_printf("DML::%s: FabricClock=%f\n", __func__, FabricClock);
 	dml2_printf("DML::%s: DCFCLK=%f\n", __func__, DCFCLK);
 	dml2_printf("DML::%s: ReturnBW=%f\n", __func__, ReturnBW);
@@ -5172,6 +5187,7 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 	s->Tsw_est3 = 0.0;
 	s->cursor_prefetch_bytes = 0;
 	*p->prefetch_cursor_bw = 0;
+	*p->RequiredPrefetchBWOTO = 0.0;
 
 	dcc_mrq_enable = (p->dcc_enable && p->mrq_present);
 
@@ -5385,6 +5401,9 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 		s->prefetch_bw_oto += (p->swath_width_chroma_ub * p->myPipe->BytePerPixelC) / s->LineTime;
 	}
 
+	/* oto prefetch bw should be always be less than total vactive bw */
+	//DML2_ASSERT(s->prefetch_bw_oto < s->per_pipe_vactive_sw_bw * p->myPipe->DPPPerSurface);
+
 	s->prefetch_bw_oto = math_max2(s->per_pipe_vactive_sw_bw, s->prefetch_bw_oto) * p->mall_prefetch_sdp_overhead_factor;
 
 	s->prefetch_bw_oto = math_min2(s->prefetch_bw_oto, *p->prefetch_sw_bytes/(s->min_Lsw_oto*s->LineTime));
@@ -5394,6 +5413,12 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 	s->prefetch_bw_oto = math_max3(s->prefetch_bw_oto,
 					p->vm_bytes * p->HostVMInefficiencyFactor / (31 * s->LineTime) - *p->Tno_bw,
 					(p->PixelPTEBytesPerRow * p->HostVMInefficiencyFactor + p->meta_row_bytes + tdlut_row_bytes) / (15 * s->LineTime));
+
+	/* oto bw needs to be outputted even if the oto schedule isn't being used to avoid ms/mp mismatch.
+	 * mp will fail if ms decides to use equ schedule and mp decides to use oto schedule
+	 * and the required bandwidth increases when going from ms to mp
+	 */
+	*p->RequiredPrefetchBWOTO = s->prefetch_bw_oto;
 
 #ifdef __DML_VBA_DEBUG__
 	dml2_printf("DML::%s: vactive_sw_bw_l = %f\n", __func__, p->vactive_sw_bw_l);
@@ -5787,7 +5812,7 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 		dml2_printf("DML::%s: cursor_prefetch_bytes = %d\n", __func__, s->cursor_prefetch_bytes);
 		dml2_printf("DML::%s: prefetch_cursor_bw = %f\n", __func__, *p->prefetch_cursor_bw);
 #endif
-		dml2_assert(*p->dst_y_prefetch < 64);
+		DML2_ASSERT(*p->dst_y_prefetch < 64);
 
 		unsigned int min_lsw_required = (unsigned int)math_max2(2, p->tdlut_drain_time / s->LineTime);
 		if (s->LinesToRequestPrefetchPixelData >= min_lsw_required && s->prefetch_bw_equ > 0) {
@@ -5980,7 +6005,7 @@ static unsigned int find_max_impact_plane(unsigned int this_plane_idx, unsigned 
 		}
 	}
 	if (max_idx <= 0) {
-		dml2_assert(max_idx >= 0);
+		DML2_ASSERT(max_idx >= 0);
 		max_idx = this_plane_idx;
 	}
 
@@ -6155,6 +6180,7 @@ static void calculate_peak_bandwidth_required(
 				p->surface_read_bandwidth_c,
 				l->zero_array, //PrefetchBandwidthLuma,
 				l->zero_array, //PrefetchBandwidthChroma,
+				l->zero_array, //PrefetchBWOTO
 				l->zero_array,
 				l->zero_array,
 				l->zero_array,
@@ -6191,6 +6217,7 @@ static void calculate_peak_bandwidth_required(
 				p->surface_read_bandwidth_c,
 				l->zero_array, //PrefetchBandwidthLuma,
 				l->zero_array, //PrefetchBandwidthChroma,
+				l->zero_array, //PrefetchBWOTO
 				p->excess_vactive_fill_bw_l,
 				p->excess_vactive_fill_bw_c,
 				p->cursor_bw,
@@ -6227,6 +6254,7 @@ static void calculate_peak_bandwidth_required(
 				p->surface_read_bandwidth_c,
 				p->prefetch_bandwidth_l,
 				p->prefetch_bandwidth_c,
+				p->prefetch_bandwidth_oto, // to prevent ms/mp mismatch when oto bw > total vactive bw
 				p->excess_vactive_fill_bw_l,
 				p->excess_vactive_fill_bw_c,
 				p->cursor_bw,
@@ -6263,6 +6291,7 @@ static void calculate_peak_bandwidth_required(
 				p->surface_read_bandwidth_c,
 				p->prefetch_bandwidth_l,
 				p->prefetch_bandwidth_c,
+				p->prefetch_bandwidth_oto, // to prevent ms/mp mismatch when oto bw > total vactive bw
 				p->excess_vactive_fill_bw_l,
 				p->excess_vactive_fill_bw_c,
 				p->cursor_bw,
@@ -6299,6 +6328,7 @@ static void calculate_peak_bandwidth_required(
 				p->surface_read_bandwidth_c,
 				p->prefetch_bandwidth_l,
 				p->prefetch_bandwidth_c,
+				p->prefetch_bandwidth_oto, // to prevent ms/mp mismatch when oto bw > total vactive bw
 				p->excess_vactive_fill_bw_l,
 				p->excess_vactive_fill_bw_c,
 				p->cursor_bw,
@@ -6322,7 +6352,7 @@ static void calculate_peak_bandwidth_required(
 			dml2_printf("DML::%s: urg_bandwidth_required_qual[%s][%s]=%f\n", __func__, dml2_core_internal_soc_state_type_str(m), dml2_core_internal_bw_type_str(n), p->urg_bandwidth_required[m][n]);
 			dml2_printf("DML::%s: non_urg_bandwidth_required%s[%s][%s]=%f\n", __func__, (p->inc_flip_bw ? "_flip" : ""), dml2_core_internal_soc_state_type_str(m), dml2_core_internal_bw_type_str(n), p->non_urg_bandwidth_required[m][n]);
 #endif
-			dml2_assert(p->urg_bandwidth_required[m][n] >= p->non_urg_bandwidth_required[m][n]);
+			DML2_ASSERT(p->urg_bandwidth_required[m][n] >= p->non_urg_bandwidth_required[m][n]);
 		}
 	}
 }
@@ -6454,7 +6484,7 @@ static void calculate_immediate_flip_bandwidth_support(
 		dml2_printf("DML::%s: urg_bandwidth_required_flip = %f\n", __func__, urg_bandwidth_required_flip[eval_state][n]);
 		dml2_printf("DML::%s: flip_bandwidth_support_ok = %d\n", __func__, *flip_bandwidth_support_ok);
 #endif
-		dml2_assert(urg_bandwidth_required_flip[eval_state][n] >= non_urg_bandwidth_required_flip[eval_state][n]);
+		DML2_ASSERT(urg_bandwidth_required_flip[eval_state][n] >= non_urg_bandwidth_required_flip[eval_state][n]);
 	}
 
 	*frac_urg_bandwidth_flip = (frac_urg_bw_flip_sdp > frac_urg_bw_flip_dram) ? frac_urg_bw_flip_sdp : frac_urg_bw_flip_dram;
@@ -6568,7 +6598,7 @@ static void CalculateFlipSchedule(
 #ifdef __DML_VBA_DEBUG__
 		dml2_printf("DML::%s: min_row_time = %f\n", __func__, l->min_row_time);
 #endif
-		dml2_assert(l->min_row_time > 0);
+		DML2_ASSERT(l->min_row_time > 0);
 
 		if (use_lb_flip_bw) {
 			// For mode check, calculation the flip bw requirement with worst case flip time
@@ -7144,7 +7174,8 @@ static unsigned int get_active_min_uclk_dpm_index(unsigned long uclk_freq_khz, c
 		}
 	}
 
-	dml2_assert(clk_entry_found);
+	if (!clk_entry_found)
+		DML2_ASSERT(clk_entry_found);
 #if defined(__DML_VBA_DEBUG__)
 	dml2_printf("DML::%s: uclk_freq_khz = %ld\n", __func__, uclk_freq_khz);
 	dml2_printf("DML::%s: index = %d\n", __func__, i);
@@ -8753,11 +8784,13 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 
 			calculate_mcache_setting_params->num_mcaches_l = &mode_lib->ms.num_mcaches_l[k];
 			calculate_mcache_setting_params->mcache_row_bytes_l = &mode_lib->ms.mcache_row_bytes_l[k];
+			calculate_mcache_setting_params->mcache_row_bytes_per_channel_l = &mode_lib->ms.mcache_row_bytes_per_channel_l[k];
 			calculate_mcache_setting_params->mcache_offsets_l = mode_lib->ms.mcache_offsets_l[k];
 			calculate_mcache_setting_params->mcache_shift_granularity_l = &mode_lib->ms.mcache_shift_granularity_l[k];
 
 			calculate_mcache_setting_params->num_mcaches_c = &mode_lib->ms.num_mcaches_c[k];
 			calculate_mcache_setting_params->mcache_row_bytes_c = &mode_lib->ms.mcache_row_bytes_c[k];
+			calculate_mcache_setting_params->mcache_row_bytes_per_channel_c = &mode_lib->ms.mcache_row_bytes_per_channel_c[k];
 			calculate_mcache_setting_params->mcache_offsets_c = mode_lib->ms.mcache_offsets_c[k];
 			calculate_mcache_setting_params->mcache_shift_granularity_c = &mode_lib->ms.mcache_shift_granularity_c[k];
 
@@ -9061,6 +9094,7 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 				CalculatePrefetchSchedule_params->VRatioPrefetchC = &mode_lib->ms.VRatioPreC[k];
 				CalculatePrefetchSchedule_params->RequiredPrefetchPixelDataBWLuma = &mode_lib->ms.RequiredPrefetchPixelDataBWLuma[k]; // prefetch_sw_bw_l
 				CalculatePrefetchSchedule_params->RequiredPrefetchPixelDataBWChroma = &mode_lib->ms.RequiredPrefetchPixelDataBWChroma[k]; // prefetch_sw_bw_c
+				CalculatePrefetchSchedule_params->RequiredPrefetchBWOTO = &mode_lib->ms.RequiredPrefetchBWOTO[k];
 				CalculatePrefetchSchedule_params->NotEnoughTimeForDynamicMetadata = &mode_lib->ms.NoTimeForDynamicMetadata[k];
 				CalculatePrefetchSchedule_params->Tno_bw = &mode_lib->ms.Tno_bw[k];
 				CalculatePrefetchSchedule_params->Tno_bw_flip = &mode_lib->ms.Tno_bw_flip[k];
@@ -9205,6 +9239,7 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 				calculate_peak_bandwidth_params->surface_read_bandwidth_c = mode_lib->ms.vactive_sw_bw_c;
 				calculate_peak_bandwidth_params->prefetch_bandwidth_l = mode_lib->ms.RequiredPrefetchPixelDataBWLuma;
 				calculate_peak_bandwidth_params->prefetch_bandwidth_c = mode_lib->ms.RequiredPrefetchPixelDataBWChroma;
+				calculate_peak_bandwidth_params->prefetch_bandwidth_oto = mode_lib->ms.RequiredPrefetchBWOTO;
 				calculate_peak_bandwidth_params->excess_vactive_fill_bw_l = mode_lib->ms.excess_vactive_fill_bw_l;
 				calculate_peak_bandwidth_params->excess_vactive_fill_bw_c = mode_lib->ms.excess_vactive_fill_bw_c;
 				calculate_peak_bandwidth_params->cursor_bw = mode_lib->ms.cursor_bw;
@@ -9371,6 +9406,7 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 			calculate_peak_bandwidth_params->surface_read_bandwidth_c = mode_lib->ms.vactive_sw_bw_c;
 			calculate_peak_bandwidth_params->prefetch_bandwidth_l = mode_lib->ms.RequiredPrefetchPixelDataBWLuma;
 			calculate_peak_bandwidth_params->prefetch_bandwidth_c = mode_lib->ms.RequiredPrefetchPixelDataBWChroma;
+			calculate_peak_bandwidth_params->prefetch_bandwidth_oto = mode_lib->ms.RequiredPrefetchBWOTO;
 			calculate_peak_bandwidth_params->excess_vactive_fill_bw_l = mode_lib->ms.excess_vactive_fill_bw_l;
 			calculate_peak_bandwidth_params->excess_vactive_fill_bw_c = mode_lib->ms.excess_vactive_fill_bw_c;
 			calculate_peak_bandwidth_params->cursor_bw = mode_lib->ms.cursor_bw;
@@ -10408,13 +10444,13 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 
 	for (k = 0; k < s->num_active_planes; ++k) {
 		unsigned int stream_index = display_cfg->plane_descriptors[k].stream_index;
-		dml2_assert(cfg_support_info->stream_support_info[stream_index].odms_used <= 4);
-		dml2_assert(cfg_support_info->stream_support_info[stream_index].num_odm_output_segments == 4 ||
+		DML2_ASSERT(cfg_support_info->stream_support_info[stream_index].odms_used <= 4);
+		DML2_ASSERT(cfg_support_info->stream_support_info[stream_index].num_odm_output_segments == 4 ||
 					cfg_support_info->stream_support_info[stream_index].num_odm_output_segments == 2 ||
 					cfg_support_info->stream_support_info[stream_index].num_odm_output_segments == 1);
 
 		if (cfg_support_info->stream_support_info[stream_index].odms_used > 1)
-			dml2_assert(cfg_support_info->stream_support_info[stream_index].num_odm_output_segments == 1);
+			DML2_ASSERT(cfg_support_info->stream_support_info[stream_index].num_odm_output_segments == 1);
 
 		switch (cfg_support_info->stream_support_info[stream_index].odms_used) {
 		case (4):
@@ -10440,7 +10476,7 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 	for (k = 0; k < s->num_active_planes; ++k) {
 		mode_lib->mp.NoOfDPP[k] = cfg_support_info->plane_support_info[k].dpps_used;
 		mode_lib->mp.Dppclk[k] = programming->plane_programming[k].min_clocks.dcn4x.dppclk_khz / 1000.0;
-		dml2_assert(mode_lib->mp.Dppclk[k] > 0);
+		DML2_ASSERT(mode_lib->mp.Dppclk[k] > 0);
 	}
 
 	for (k = 0; k < s->num_active_planes; ++k) {
@@ -10452,14 +10488,14 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 	mode_lib->mp.Dispclk = programming->min_clocks.dcn4x.dispclk_khz / 1000.0;
 	mode_lib->mp.DCFCLKDeepSleep = programming->min_clocks.dcn4x.deepsleep_dcfclk_khz / 1000.0;
 
-	dml2_assert(mode_lib->mp.Dcfclk > 0);
-	dml2_assert(mode_lib->mp.FabricClock > 0);
-	dml2_assert(mode_lib->mp.dram_bw_mbps > 0);
-	dml2_assert(mode_lib->mp.uclk_freq_mhz > 0);
-	dml2_assert(mode_lib->mp.GlobalDPPCLK > 0);
-	dml2_assert(mode_lib->mp.Dispclk > 0);
-	dml2_assert(mode_lib->mp.DCFCLKDeepSleep > 0);
-	dml2_assert(s->SOCCLK > 0);
+	DML2_ASSERT(mode_lib->mp.Dcfclk > 0);
+	DML2_ASSERT(mode_lib->mp.FabricClock > 0);
+	DML2_ASSERT(mode_lib->mp.dram_bw_mbps > 0);
+	DML2_ASSERT(mode_lib->mp.uclk_freq_mhz > 0);
+	DML2_ASSERT(mode_lib->mp.GlobalDPPCLK > 0);
+	DML2_ASSERT(mode_lib->mp.Dispclk > 0);
+	DML2_ASSERT(mode_lib->mp.DCFCLKDeepSleep > 0);
+	DML2_ASSERT(s->SOCCLK > 0);
 
 #ifdef __DML_VBA_DEBUG__
 	dml2_printf("DML::%s: num_active_planes = %u\n", __func__, s->num_active_planes);
@@ -10847,11 +10883,13 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 
 			calculate_mcache_setting_params->num_mcaches_l = &mode_lib->mp.num_mcaches_l[k];
 			calculate_mcache_setting_params->mcache_row_bytes_l = &mode_lib->mp.mcache_row_bytes_l[k];
+			calculate_mcache_setting_params->mcache_row_bytes_per_channel_l = &mode_lib->mp.mcache_row_bytes_per_channel_l[k];
 			calculate_mcache_setting_params->mcache_offsets_l = mode_lib->mp.mcache_offsets_l[k];
 			calculate_mcache_setting_params->mcache_shift_granularity_l = &mode_lib->mp.mcache_shift_granularity_l[k];
 
 			calculate_mcache_setting_params->num_mcaches_c = &mode_lib->mp.num_mcaches_c[k];
 			calculate_mcache_setting_params->mcache_row_bytes_c = &mode_lib->mp.mcache_row_bytes_c[k];
+			calculate_mcache_setting_params->mcache_row_bytes_per_channel_c = &mode_lib->mp.mcache_row_bytes_per_channel_c[k];
 			calculate_mcache_setting_params->mcache_offsets_c = mode_lib->mp.mcache_offsets_c[k];
 			calculate_mcache_setting_params->mcache_shift_granularity_c = &mode_lib->mp.mcache_shift_granularity_c[k];
 
@@ -11287,6 +11325,7 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 			CalculatePrefetchSchedule_params->VRatioPrefetchC = &mode_lib->mp.VRatioPrefetchC[k];
 			CalculatePrefetchSchedule_params->RequiredPrefetchPixelDataBWLuma = &mode_lib->mp.RequiredPrefetchPixelDataBWLuma[k];
 			CalculatePrefetchSchedule_params->RequiredPrefetchPixelDataBWChroma = &mode_lib->mp.RequiredPrefetchPixelDataBWChroma[k];
+			CalculatePrefetchSchedule_params->RequiredPrefetchBWOTO = &s->dummy_single_array[0][k];
 			CalculatePrefetchSchedule_params->NotEnoughTimeForDynamicMetadata = &mode_lib->mp.NotEnoughTimeForDynamicMetadata[k];
 			CalculatePrefetchSchedule_params->Tno_bw = &mode_lib->mp.Tno_bw[k];
 			CalculatePrefetchSchedule_params->Tno_bw_flip = &mode_lib->mp.Tno_bw_flip[k];
@@ -11429,6 +11468,7 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 			calculate_peak_bandwidth_params->surface_read_bandwidth_c = mode_lib->mp.vactive_sw_bw_c;
 			calculate_peak_bandwidth_params->prefetch_bandwidth_l = mode_lib->mp.RequiredPrefetchPixelDataBWLuma;
 			calculate_peak_bandwidth_params->prefetch_bandwidth_c = mode_lib->mp.RequiredPrefetchPixelDataBWChroma;
+			calculate_peak_bandwidth_params->prefetch_bandwidth_oto = s->dummy_single_array[0];
 			calculate_peak_bandwidth_params->excess_vactive_fill_bw_l = mode_lib->mp.excess_vactive_fill_bw_l;
 			calculate_peak_bandwidth_params->excess_vactive_fill_bw_c = mode_lib->mp.excess_vactive_fill_bw_c;
 			calculate_peak_bandwidth_params->cursor_bw = mode_lib->mp.cursor_bw;
@@ -11568,6 +11608,7 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 			calculate_peak_bandwidth_params->meta_row_bw = mode_lib->mp.meta_row_bw;
 			calculate_peak_bandwidth_params->prefetch_cursor_bw = mode_lib->mp.prefetch_cursor_bw;
 			calculate_peak_bandwidth_params->prefetch_vmrow_bw = mode_lib->mp.prefetch_vmrow_bw;
+			calculate_peak_bandwidth_params->prefetch_bandwidth_oto = s->dummy_single_array[0];
 			calculate_peak_bandwidth_params->flip_bw = mode_lib->mp.final_flip_bw;
 			calculate_peak_bandwidth_params->urgent_burst_factor_l = mode_lib->mp.UrgentBurstFactorLuma;
 			calculate_peak_bandwidth_params->urgent_burst_factor_c = mode_lib->mp.UrgentBurstFactorChroma;
@@ -12373,7 +12414,7 @@ static void rq_dlg_get_dlg_reg(
 	dml2_printf("DML_DLG::%s: Calculation for pipe_idx=%d\n", __func__, pipe_idx);
 
 	l->plane_idx = dml_get_plane_idx(mode_lib, pipe_idx);
-	dml2_assert(l->plane_idx < DML2_MAX_PLANES);
+	DML2_ASSERT(l->plane_idx < DML2_MAX_PLANES);
 
 	l->source_format = dml2_444_8;
 	l->odm_mode = dml2_odm_mode_bypass;
@@ -13108,8 +13149,11 @@ void dml2_core_calcs_get_informative(const struct dml2_core_internal_display_mod
 	out->informative.watermarks.temp_read_or_ppt_watermark_us = dml_get_wm_temp_read_or_ppt(mode_lib);
 
 	out->informative.mall.total_surface_size_in_mall_bytes = 0;
-	for (k = 0; k < out->display_config.num_planes; ++k)
+	out->informative.dpp.total_num_dpps_required = 0;
+	for (k = 0; k < out->display_config.num_planes; ++k) {
 		out->informative.mall.total_surface_size_in_mall_bytes += mode_lib->mp.SurfaceSizeInTheMALL[k];
+		out->informative.dpp.total_num_dpps_required += mode_lib->mp.NoOfDPP[k];
+	}
 
 	out->informative.qos.min_return_latency_in_dcfclk = mode_lib->mp.min_return_latency_in_dcfclk;
 	out->informative.qos.urgent_latency_us = dml_get_urgent_latency(mode_lib);

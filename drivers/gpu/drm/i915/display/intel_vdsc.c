@@ -10,7 +10,7 @@
 #include <drm/display/drm_dsc_helper.h>
 #include <drm/drm_fixed.h>
 
-#include "i915_drv.h"
+#include "i915_utils.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
@@ -22,14 +22,13 @@
 
 bool intel_dsc_source_support(const struct intel_crtc_state *crtc_state)
 {
-	const struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc_state);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
-	if (!HAS_DSC(i915))
+	if (!HAS_DSC(display))
 		return false;
 
-	if (DISPLAY_VER(i915) == 11 && cpu_transcoder == TRANSCODER_A)
+	if (DISPLAY_VER(display) == 11 && cpu_transcoder == TRANSCODER_A)
 		return false;
 
 	return true;
@@ -37,9 +36,9 @@ bool intel_dsc_source_support(const struct intel_crtc_state *crtc_state)
 
 static bool is_pipe_dsc(struct intel_crtc *crtc, enum transcoder cpu_transcoder)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 
-	if (DISPLAY_VER(i915) >= 12)
+	if (DISPLAY_VER(display) >= 12)
 		return true;
 
 	if (cpu_transcoder == TRANSCODER_EDP ||
@@ -48,7 +47,7 @@ static bool is_pipe_dsc(struct intel_crtc *crtc, enum transcoder cpu_transcoder)
 		return false;
 
 	/* There's no pipe A DSC engine on ICL */
-	drm_WARN_ON(&i915->drm, crtc->pipe == PIPE_A);
+	drm_WARN_ON(display->drm, crtc->pipe == PIPE_A);
 
 	return true;
 }
@@ -64,6 +63,13 @@ intel_vdsc_set_min_max_qp(struct drm_dsc_config *vdsc_cfg, int buf,
 		intel_lookup_range_min_qp(bpc, buf, bpp, vdsc_cfg->native_420);
 	vdsc_cfg->rc_range_params[buf].range_max_qp =
 		intel_lookup_range_max_qp(bpc, buf, bpp, vdsc_cfg->native_420);
+}
+
+static int
+get_range_bpg_offset(int bpp_low, int offset_low, int bpp_high, int offset_high, int bpp)
+{
+	return offset_low + DIV_ROUND_UP((offset_high - offset_low) * (bpp - bpp_low),
+					 (bpp_low - bpp_high));
 }
 
 /*
@@ -83,7 +89,7 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 	int qp_bpc_modifier = (bpc - 8) * 2;
 	int uncompressed_bpg_rate;
 	int first_line_bpg_offset;
-	u32 res, buf_i, bpp_i;
+	u32 buf_i, bpp_i;
 
 	if (vdsc_cfg->slice_height >= 8)
 		first_line_bpg_offset =
@@ -99,7 +105,7 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 	 * According to DSC 1.2 spec in Section 4.1 if native_420 is set:
 	 * -second_line_bpg_offset is 12 in general and equal to 2*(slice_height-1) if slice
 	 * height < 8.
-	 * -second_line_offset_adj is 512 as shown by emperical values to yield best chroma
+	 * -second_line_offset_adj is 512 as shown by empirical values to yield best chroma
 	 * preservation in second line.
 	 * -nsl_bpg_offset is calculated as second_line_offset/slice_height -1 then rounded
 	 * up to 16 fractional bits, we left shift second line offset by 11 to preserve 11
@@ -117,7 +123,6 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 							vdsc_cfg->slice_height - 1);
 	}
 
-	/* Our hw supports only 444 modes as of today */
 	if (bpp >= 12)
 		vdsc_cfg->initial_offset = 2048;
 	else if (bpp >= 10)
@@ -163,23 +168,19 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 			intel_vdsc_set_min_max_qp(vdsc_cfg, buf_i, bpp_i);
 
 			/* Calculate range_bpg_offset */
-			if (bpp <= 8) {
+			if (bpp <= 8)
 				range_bpg_offset = ofs_und4[buf_i];
-			} else if (bpp <= 10) {
-				res = DIV_ROUND_UP(((bpp - 8) *
-						    (ofs_und5[buf_i] - ofs_und4[buf_i])), 2);
-				range_bpg_offset = ofs_und4[buf_i] + res;
-			} else if (bpp <= 12) {
-				res = DIV_ROUND_UP(((bpp - 10) *
-						    (ofs_und6[buf_i] - ofs_und5[buf_i])), 2);
-				range_bpg_offset = ofs_und5[buf_i] + res;
-			} else if (bpp <= 16) {
-				res = DIV_ROUND_UP(((bpp - 12) *
-						    (ofs_und8[buf_i] - ofs_und6[buf_i])), 4);
-				range_bpg_offset = ofs_und6[buf_i] + res;
-			} else {
+			else if (bpp <= 10)
+				range_bpg_offset = get_range_bpg_offset(8, ofs_und4[buf_i],
+									10, ofs_und5[buf_i], bpp);
+			else if (bpp <= 12)
+				range_bpg_offset = get_range_bpg_offset(10, ofs_und5[buf_i],
+									12, ofs_und6[buf_i], bpp);
+			else if (bpp <= 16)
+				range_bpg_offset = get_range_bpg_offset(12, ofs_und6[buf_i],
+									16, ofs_und8[buf_i], bpp);
+			else
 				range_bpg_offset = ofs_und8[buf_i];
-			}
 
 			vdsc_cfg->rc_range_params[buf_i].range_bpg_offset =
 				range_bpg_offset & DSC_RANGE_BPG_OFFSET_MASK;
@@ -215,21 +216,19 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 			intel_vdsc_set_min_max_qp(vdsc_cfg, buf_i, bpp_i);
 
 			/* Calculate range_bpg_offset */
-			if (bpp <= 6) {
+			if (bpp <= 6)
 				range_bpg_offset = ofs_und6[buf_i];
-			} else if (bpp <= 8) {
-				res = DIV_ROUND_UP(((bpp - 6) *
-						    (ofs_und8[buf_i] - ofs_und6[buf_i])), 2);
-				range_bpg_offset = ofs_und6[buf_i] + res;
-			} else if (bpp <= 12) {
-				range_bpg_offset = ofs_und8[buf_i];
-			} else if (bpp <= 15) {
-				res = DIV_ROUND_UP(((bpp - 12) *
-						    (ofs_und15[buf_i] - ofs_und12[buf_i])), 3);
-				range_bpg_offset = ofs_und12[buf_i] + res;
-			} else {
+			else if (bpp <= 8)
+				range_bpg_offset = get_range_bpg_offset(6, ofs_und6[buf_i],
+									8, ofs_und8[buf_i], bpp);
+			else if (bpp <= 12)
+				range_bpg_offset = get_range_bpg_offset(8, ofs_und8[buf_i],
+									12, ofs_und12[buf_i], bpp);
+			else if (bpp <= 15)
+				range_bpg_offset = get_range_bpg_offset(12, ofs_und12[buf_i],
+									15, ofs_und15[buf_i], bpp);
+			else
 				range_bpg_offset = ofs_und15[buf_i];
-			}
 
 			vdsc_cfg->rc_range_params[buf_i].range_bpg_offset =
 				range_bpg_offset & DSC_RANGE_BPG_OFFSET_MASK;
@@ -262,8 +261,7 @@ static int intel_dsc_slice_dimensions_valid(struct intel_crtc_state *pipe_config
 
 int intel_dsc_compute_params(struct intel_crtc_state *pipe_config)
 {
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(pipe_config);
 	struct drm_dsc_config *vdsc_cfg = &pipe_config->dsc.config;
 	u16 compressed_bpp = fxp_q4_to_int(pipe_config->dsc.compressed_bpp_x16);
 	int err;
@@ -276,7 +274,7 @@ int intel_dsc_compute_params(struct intel_crtc_state *pipe_config)
 	err = intel_dsc_slice_dimensions_valid(pipe_config, vdsc_cfg);
 
 	if (err) {
-		drm_dbg_kms(&dev_priv->drm, "Slice dimension requirements not met\n");
+		drm_dbg_kms(display->drm, "Slice dimension requirements not met\n");
 		return err;
 	}
 
@@ -287,7 +285,7 @@ int intel_dsc_compute_params(struct intel_crtc_state *pipe_config)
 	vdsc_cfg->convert_rgb = pipe_config->output_format != INTEL_OUTPUT_FORMAT_YCBCR420 &&
 				pipe_config->output_format != INTEL_OUTPUT_FORMAT_YCBCR444;
 
-	if (DISPLAY_VER(dev_priv) >= 14 &&
+	if (DISPLAY_VER(display) >= 14 &&
 	    pipe_config->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
 		vdsc_cfg->native_420 = true;
 	/* We do not support YcBCr422 as of now */
@@ -308,7 +306,7 @@ int intel_dsc_compute_params(struct intel_crtc_state *pipe_config)
 	vdsc_cfg->bits_per_component = pipe_config->pipe_bpp / 3;
 
 	if (vdsc_cfg->bits_per_component < 8) {
-		drm_dbg_kms(&dev_priv->drm, "DSC bpc requirements not met bpc: %d\n",
+		drm_dbg_kms(display->drm, "DSC bpc requirements not met bpc: %d\n",
 			    vdsc_cfg->bits_per_component);
 		return -EINVAL;
 	}
@@ -320,7 +318,7 @@ int intel_dsc_compute_params(struct intel_crtc_state *pipe_config)
 	 * upto uncompressed bpp-1, hence add calculations for all the rc
 	 * parameters
 	 */
-	if (DISPLAY_VER(dev_priv) >= 13) {
+	if (DISPLAY_VER(display) >= 13) {
 		calculate_rc_params(vdsc_cfg);
 	} else {
 		if ((compressed_bpp == 8 ||
@@ -356,7 +354,7 @@ int intel_dsc_compute_params(struct intel_crtc_state *pipe_config)
 enum intel_display_power_domain
 intel_dsc_power_domain(struct intel_crtc *crtc, enum transcoder cpu_transcoder)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 	enum pipe pipe = crtc->pipe;
 
 	/*
@@ -370,7 +368,8 @@ intel_dsc_power_domain(struct intel_crtc *crtc, enum transcoder cpu_transcoder)
 	 * the pipe in use. Hence another reference on the pipe power domain
 	 * will suffice. (Except no VDSC/joining on ICL pipe A.)
 	 */
-	if (DISPLAY_VER(i915) == 12 && !IS_ROCKETLAKE(i915) && pipe == PIPE_A)
+	if (DISPLAY_VER(display) == 12 && !display->platform.rocketlake &&
+	    pipe == PIPE_A)
 		return POWER_DOMAIN_TRANSCODER_VDSC_PW2;
 	else if (is_pipe_dsc(crtc, cpu_transcoder))
 		return POWER_DOMAIN_PIPE(pipe);
@@ -416,26 +415,25 @@ static void intel_dsc_get_pps_reg(const struct intel_crtc_state *crtc_state, int
 static void intel_dsc_pps_write(const struct intel_crtc_state *crtc_state,
 				int pps, u32 pps_val)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc_state);
 	i915_reg_t dsc_reg[3];
 	int i, vdsc_per_pipe, dsc_reg_num;
 
 	vdsc_per_pipe = intel_dsc_get_vdsc_per_pipe(crtc_state);
 	dsc_reg_num = min_t(int, ARRAY_SIZE(dsc_reg), vdsc_per_pipe);
 
-	drm_WARN_ON_ONCE(&i915->drm, dsc_reg_num < vdsc_per_pipe);
+	drm_WARN_ON_ONCE(display->drm, dsc_reg_num < vdsc_per_pipe);
 
 	intel_dsc_get_pps_reg(crtc_state, pps, dsc_reg, dsc_reg_num);
 
 	for (i = 0; i < dsc_reg_num; i++)
-		intel_de_write(i915, dsc_reg[i], pps_val);
+		intel_de_write(display, dsc_reg[i], pps_val);
 }
 
 static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	enum pipe pipe = crtc->pipe;
@@ -529,7 +527,7 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 					      vdsc_cfg->slice_height);
 	intel_dsc_pps_write(crtc_state, 16, pps_val);
 
-	if (DISPLAY_VER(dev_priv) >= 14) {
+	if (DISPLAY_VER(display) >= 14) {
 		/* PPS 17 */
 		pps_val = DSC_PPS17_SL_BPG_OFFSET(vdsc_cfg->second_line_bpg_offset);
 		intel_dsc_pps_write(crtc_state, 17, pps_val);
@@ -547,44 +545,44 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 			(u32)(vdsc_cfg->rc_buf_thresh[i] <<
 			      BITS_PER_BYTE * (i % 4));
 	if (!is_pipe_dsc(crtc, cpu_transcoder)) {
-		intel_de_write(dev_priv, DSCA_RC_BUF_THRESH_0,
+		intel_de_write(display, DSCA_RC_BUF_THRESH_0,
 			       rc_buf_thresh_dword[0]);
-		intel_de_write(dev_priv, DSCA_RC_BUF_THRESH_0_UDW,
+		intel_de_write(display, DSCA_RC_BUF_THRESH_0_UDW,
 			       rc_buf_thresh_dword[1]);
-		intel_de_write(dev_priv, DSCA_RC_BUF_THRESH_1,
+		intel_de_write(display, DSCA_RC_BUF_THRESH_1,
 			       rc_buf_thresh_dword[2]);
-		intel_de_write(dev_priv, DSCA_RC_BUF_THRESH_1_UDW,
+		intel_de_write(display, DSCA_RC_BUF_THRESH_1_UDW,
 			       rc_buf_thresh_dword[3]);
 		if (vdsc_instances_per_pipe > 1) {
-			intel_de_write(dev_priv, DSCC_RC_BUF_THRESH_0,
+			intel_de_write(display, DSCC_RC_BUF_THRESH_0,
 				       rc_buf_thresh_dword[0]);
-			intel_de_write(dev_priv, DSCC_RC_BUF_THRESH_0_UDW,
+			intel_de_write(display, DSCC_RC_BUF_THRESH_0_UDW,
 				       rc_buf_thresh_dword[1]);
-			intel_de_write(dev_priv, DSCC_RC_BUF_THRESH_1,
+			intel_de_write(display, DSCC_RC_BUF_THRESH_1,
 				       rc_buf_thresh_dword[2]);
-			intel_de_write(dev_priv, DSCC_RC_BUF_THRESH_1_UDW,
+			intel_de_write(display, DSCC_RC_BUF_THRESH_1_UDW,
 				       rc_buf_thresh_dword[3]);
 		}
 	} else {
-		intel_de_write(dev_priv, ICL_DSC0_RC_BUF_THRESH_0(pipe),
+		intel_de_write(display, ICL_DSC0_RC_BUF_THRESH_0(pipe),
 			       rc_buf_thresh_dword[0]);
-		intel_de_write(dev_priv, ICL_DSC0_RC_BUF_THRESH_0_UDW(pipe),
+		intel_de_write(display, ICL_DSC0_RC_BUF_THRESH_0_UDW(pipe),
 			       rc_buf_thresh_dword[1]);
-		intel_de_write(dev_priv, ICL_DSC0_RC_BUF_THRESH_1(pipe),
+		intel_de_write(display, ICL_DSC0_RC_BUF_THRESH_1(pipe),
 			       rc_buf_thresh_dword[2]);
-		intel_de_write(dev_priv, ICL_DSC0_RC_BUF_THRESH_1_UDW(pipe),
+		intel_de_write(display, ICL_DSC0_RC_BUF_THRESH_1_UDW(pipe),
 			       rc_buf_thresh_dword[3]);
 		if (vdsc_instances_per_pipe > 1) {
-			intel_de_write(dev_priv,
+			intel_de_write(display,
 				       ICL_DSC1_RC_BUF_THRESH_0(pipe),
 				       rc_buf_thresh_dword[0]);
-			intel_de_write(dev_priv,
+			intel_de_write(display,
 				       ICL_DSC1_RC_BUF_THRESH_0_UDW(pipe),
 				       rc_buf_thresh_dword[1]);
-			intel_de_write(dev_priv,
+			intel_de_write(display,
 				       ICL_DSC1_RC_BUF_THRESH_1(pipe),
 				       rc_buf_thresh_dword[2]);
-			intel_de_write(dev_priv,
+			intel_de_write(display,
 				       ICL_DSC1_RC_BUF_THRESH_1_UDW(pipe),
 				       rc_buf_thresh_dword[3]);
 		}
@@ -601,88 +599,88 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 			       (vdsc_cfg->rc_range_params[i].range_min_qp <<
 				RC_MIN_QP_SHIFT)) << 16 * (i % 2));
 	if (!is_pipe_dsc(crtc, cpu_transcoder)) {
-		intel_de_write(dev_priv, DSCA_RC_RANGE_PARAMETERS_0,
+		intel_de_write(display, DSCA_RC_RANGE_PARAMETERS_0,
 			       rc_range_params_dword[0]);
-		intel_de_write(dev_priv, DSCA_RC_RANGE_PARAMETERS_0_UDW,
+		intel_de_write(display, DSCA_RC_RANGE_PARAMETERS_0_UDW,
 			       rc_range_params_dword[1]);
-		intel_de_write(dev_priv, DSCA_RC_RANGE_PARAMETERS_1,
+		intel_de_write(display, DSCA_RC_RANGE_PARAMETERS_1,
 			       rc_range_params_dword[2]);
-		intel_de_write(dev_priv, DSCA_RC_RANGE_PARAMETERS_1_UDW,
+		intel_de_write(display, DSCA_RC_RANGE_PARAMETERS_1_UDW,
 			       rc_range_params_dword[3]);
-		intel_de_write(dev_priv, DSCA_RC_RANGE_PARAMETERS_2,
+		intel_de_write(display, DSCA_RC_RANGE_PARAMETERS_2,
 			       rc_range_params_dword[4]);
-		intel_de_write(dev_priv, DSCA_RC_RANGE_PARAMETERS_2_UDW,
+		intel_de_write(display, DSCA_RC_RANGE_PARAMETERS_2_UDW,
 			       rc_range_params_dword[5]);
-		intel_de_write(dev_priv, DSCA_RC_RANGE_PARAMETERS_3,
+		intel_de_write(display, DSCA_RC_RANGE_PARAMETERS_3,
 			       rc_range_params_dword[6]);
-		intel_de_write(dev_priv, DSCA_RC_RANGE_PARAMETERS_3_UDW,
+		intel_de_write(display, DSCA_RC_RANGE_PARAMETERS_3_UDW,
 			       rc_range_params_dword[7]);
 		if (vdsc_instances_per_pipe > 1) {
-			intel_de_write(dev_priv, DSCC_RC_RANGE_PARAMETERS_0,
+			intel_de_write(display, DSCC_RC_RANGE_PARAMETERS_0,
 				       rc_range_params_dword[0]);
-			intel_de_write(dev_priv,
+			intel_de_write(display,
 				       DSCC_RC_RANGE_PARAMETERS_0_UDW,
 				       rc_range_params_dword[1]);
-			intel_de_write(dev_priv, DSCC_RC_RANGE_PARAMETERS_1,
+			intel_de_write(display, DSCC_RC_RANGE_PARAMETERS_1,
 				       rc_range_params_dword[2]);
-			intel_de_write(dev_priv,
+			intel_de_write(display,
 				       DSCC_RC_RANGE_PARAMETERS_1_UDW,
 				       rc_range_params_dword[3]);
-			intel_de_write(dev_priv, DSCC_RC_RANGE_PARAMETERS_2,
+			intel_de_write(display, DSCC_RC_RANGE_PARAMETERS_2,
 				       rc_range_params_dword[4]);
-			intel_de_write(dev_priv,
+			intel_de_write(display,
 				       DSCC_RC_RANGE_PARAMETERS_2_UDW,
 				       rc_range_params_dword[5]);
-			intel_de_write(dev_priv, DSCC_RC_RANGE_PARAMETERS_3,
+			intel_de_write(display, DSCC_RC_RANGE_PARAMETERS_3,
 				       rc_range_params_dword[6]);
-			intel_de_write(dev_priv,
+			intel_de_write(display,
 				       DSCC_RC_RANGE_PARAMETERS_3_UDW,
 				       rc_range_params_dword[7]);
 		}
 	} else {
-		intel_de_write(dev_priv, ICL_DSC0_RC_RANGE_PARAMETERS_0(pipe),
+		intel_de_write(display, ICL_DSC0_RC_RANGE_PARAMETERS_0(pipe),
 			       rc_range_params_dword[0]);
-		intel_de_write(dev_priv,
+		intel_de_write(display,
 			       ICL_DSC0_RC_RANGE_PARAMETERS_0_UDW(pipe),
 			       rc_range_params_dword[1]);
-		intel_de_write(dev_priv, ICL_DSC0_RC_RANGE_PARAMETERS_1(pipe),
+		intel_de_write(display, ICL_DSC0_RC_RANGE_PARAMETERS_1(pipe),
 			       rc_range_params_dword[2]);
-		intel_de_write(dev_priv,
+		intel_de_write(display,
 			       ICL_DSC0_RC_RANGE_PARAMETERS_1_UDW(pipe),
 			       rc_range_params_dword[3]);
-		intel_de_write(dev_priv, ICL_DSC0_RC_RANGE_PARAMETERS_2(pipe),
+		intel_de_write(display, ICL_DSC0_RC_RANGE_PARAMETERS_2(pipe),
 			       rc_range_params_dword[4]);
-		intel_de_write(dev_priv,
+		intel_de_write(display,
 			       ICL_DSC0_RC_RANGE_PARAMETERS_2_UDW(pipe),
 			       rc_range_params_dword[5]);
-		intel_de_write(dev_priv, ICL_DSC0_RC_RANGE_PARAMETERS_3(pipe),
+		intel_de_write(display, ICL_DSC0_RC_RANGE_PARAMETERS_3(pipe),
 			       rc_range_params_dword[6]);
-		intel_de_write(dev_priv,
+		intel_de_write(display,
 			       ICL_DSC0_RC_RANGE_PARAMETERS_3_UDW(pipe),
 			       rc_range_params_dword[7]);
 		if (vdsc_instances_per_pipe > 1) {
-			intel_de_write(dev_priv,
+			intel_de_write(display,
 				       ICL_DSC1_RC_RANGE_PARAMETERS_0(pipe),
 				       rc_range_params_dword[0]);
-			intel_de_write(dev_priv,
+			intel_de_write(display,
 				       ICL_DSC1_RC_RANGE_PARAMETERS_0_UDW(pipe),
 				       rc_range_params_dword[1]);
-			intel_de_write(dev_priv,
+			intel_de_write(display,
 				       ICL_DSC1_RC_RANGE_PARAMETERS_1(pipe),
 				       rc_range_params_dword[2]);
-			intel_de_write(dev_priv,
+			intel_de_write(display,
 				       ICL_DSC1_RC_RANGE_PARAMETERS_1_UDW(pipe),
 				       rc_range_params_dword[3]);
-			intel_de_write(dev_priv,
+			intel_de_write(display,
 				       ICL_DSC1_RC_RANGE_PARAMETERS_2(pipe),
 				       rc_range_params_dword[4]);
-			intel_de_write(dev_priv,
+			intel_de_write(display,
 				       ICL_DSC1_RC_RANGE_PARAMETERS_2_UDW(pipe),
 				       rc_range_params_dword[5]);
-			intel_de_write(dev_priv,
+			intel_de_write(display,
 				       ICL_DSC1_RC_RANGE_PARAMETERS_3(pipe),
 				       rc_range_params_dword[6]);
-			intel_de_write(dev_priv,
+			intel_de_write(display,
 				       ICL_DSC1_RC_RANGE_PARAMETERS_3_UDW(pipe),
 				       rc_range_params_dword[7]);
 		}
@@ -746,8 +744,8 @@ static i915_reg_t dss_ctl2_reg(struct intel_crtc *crtc, enum transcoder cpu_tran
 
 void intel_uncompressed_joiner_enable(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 dss_ctl1_val = 0;
 
 	if (crtc_state->joiner_pipes && !crtc_state->dsc.compression_enable) {
@@ -756,14 +754,15 @@ void intel_uncompressed_joiner_enable(const struct intel_crtc_state *crtc_state)
 		else
 			dss_ctl1_val |= UNCOMPRESSED_JOINER_PRIMARY;
 
-		intel_de_write(dev_priv, dss_ctl1_reg(crtc, crtc_state->cpu_transcoder), dss_ctl1_val);
+		intel_de_write(display, dss_ctl1_reg(crtc, crtc_state->cpu_transcoder),
+			       dss_ctl1_val);
 	}
 }
 
 void intel_dsc_enable(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 dss_ctl1_val = 0;
 	u32 dss_ctl2_val = 0;
 	int vdsc_instances_per_pipe = intel_dsc_get_vdsc_per_pipe(crtc_state);
@@ -796,28 +795,27 @@ void intel_dsc_enable(const struct intel_crtc_state *crtc_state)
 		if (intel_crtc_is_bigjoiner_primary(crtc_state))
 			dss_ctl1_val |= PRIMARY_BIG_JOINER_ENABLE;
 	}
-	intel_de_write(dev_priv, dss_ctl1_reg(crtc, crtc_state->cpu_transcoder), dss_ctl1_val);
-	intel_de_write(dev_priv, dss_ctl2_reg(crtc, crtc_state->cpu_transcoder), dss_ctl2_val);
+	intel_de_write(display, dss_ctl1_reg(crtc, crtc_state->cpu_transcoder), dss_ctl1_val);
+	intel_de_write(display, dss_ctl2_reg(crtc, crtc_state->cpu_transcoder), dss_ctl2_val);
 }
 
 void intel_dsc_disable(const struct intel_crtc_state *old_crtc_state)
 {
+	struct intel_display *display = to_intel_display(old_crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	/* Disable only if either of them is enabled */
 	if (old_crtc_state->dsc.compression_enable ||
 	    old_crtc_state->joiner_pipes) {
-		intel_de_write(dev_priv, dss_ctl1_reg(crtc, old_crtc_state->cpu_transcoder), 0);
-		intel_de_write(dev_priv, dss_ctl2_reg(crtc, old_crtc_state->cpu_transcoder), 0);
+		intel_de_write(display, dss_ctl1_reg(crtc, old_crtc_state->cpu_transcoder), 0);
+		intel_de_write(display, dss_ctl2_reg(crtc, old_crtc_state->cpu_transcoder), 0);
 	}
 }
 
 static u32 intel_dsc_pps_read(struct intel_crtc_state *crtc_state, int pps,
 			      bool *all_equal)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc_state);
 	i915_reg_t dsc_reg[3];
 	int i, vdsc_per_pipe, dsc_reg_num;
 	u32 val;
@@ -825,16 +823,16 @@ static u32 intel_dsc_pps_read(struct intel_crtc_state *crtc_state, int pps,
 	vdsc_per_pipe = intel_dsc_get_vdsc_per_pipe(crtc_state);
 	dsc_reg_num = min_t(int, ARRAY_SIZE(dsc_reg), vdsc_per_pipe);
 
-	drm_WARN_ON_ONCE(&i915->drm, dsc_reg_num < vdsc_per_pipe);
+	drm_WARN_ON_ONCE(display->drm, dsc_reg_num < vdsc_per_pipe);
 
 	intel_dsc_get_pps_reg(crtc_state, pps, dsc_reg, dsc_reg_num);
 
 	*all_equal = true;
 
-	val = intel_de_read(i915, dsc_reg[0]);
+	val = intel_de_read(display, dsc_reg[0]);
 
 	for (i = 1; i < dsc_reg_num; i++) {
-		if (intel_de_read(i915, dsc_reg[i]) != val) {
+		if (intel_de_read(display, dsc_reg[i]) != val) {
 			*all_equal = false;
 			break;
 		}
@@ -845,22 +843,20 @@ static u32 intel_dsc_pps_read(struct intel_crtc_state *crtc_state, int pps,
 
 static u32 intel_dsc_pps_read_and_verify(struct intel_crtc_state *crtc_state, int pps)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc_state);
 	u32 val;
 	bool all_equal;
 
 	val = intel_dsc_pps_read(crtc_state, pps, &all_equal);
-	drm_WARN_ON(&i915->drm, !all_equal);
+	drm_WARN_ON(display->drm, !all_equal);
 
 	return val;
 }
 
 static void intel_dsc_get_pps_config(struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	int num_vdsc_instances = intel_dsc_get_num_vdsc_instances(crtc_state);
 	u32 pps_temp;
 
@@ -946,7 +942,7 @@ static void intel_dsc_get_pps_config(struct intel_crtc_state *crtc_state)
 
 	vdsc_cfg->slice_chunk_size = REG_FIELD_GET(DSC_PPS16_SLICE_CHUNK_SIZE_MASK, pps_temp);
 
-	if (DISPLAY_VER(i915) >= 14) {
+	if (DISPLAY_VER(display) >= 14) {
 		/* PPS 17 */
 		pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 17);
 
@@ -962,8 +958,8 @@ static void intel_dsc_get_pps_config(struct intel_crtc_state *crtc_state)
 
 void intel_dsc_get_config(struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	enum intel_display_power_domain power_domain;
 	intel_wakeref_t wakeref;
@@ -974,12 +970,12 @@ void intel_dsc_get_config(struct intel_crtc_state *crtc_state)
 
 	power_domain = intel_dsc_power_domain(crtc, cpu_transcoder);
 
-	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	wakeref = intel_display_power_get_if_enabled(display, power_domain);
 	if (!wakeref)
 		return;
 
-	dss_ctl1 = intel_de_read(dev_priv, dss_ctl1_reg(crtc, cpu_transcoder));
-	dss_ctl2 = intel_de_read(dev_priv, dss_ctl2_reg(crtc, cpu_transcoder));
+	dss_ctl1 = intel_de_read(display, dss_ctl1_reg(crtc, cpu_transcoder));
+	dss_ctl2 = intel_de_read(display, dss_ctl2_reg(crtc, cpu_transcoder));
 
 	crtc_state->dsc.compression_enable = dss_ctl2 & VDSC0_ENABLE;
 	if (!crtc_state->dsc.compression_enable)
@@ -994,7 +990,7 @@ void intel_dsc_get_config(struct intel_crtc_state *crtc_state)
 
 	intel_dsc_get_pps_config(crtc_state);
 out:
-	intel_display_power_put(dev_priv, power_domain, wakeref);
+	intel_display_power_put(display, power_domain, wakeref);
 }
 
 static void intel_vdsc_dump_state(struct drm_printer *p, int indent,
@@ -1019,8 +1015,7 @@ void intel_vdsc_state_dump(struct drm_printer *p, int indent,
 
 int intel_vdsc_min_cdclk(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct intel_display *display = to_intel_display(crtc);
+	struct intel_display *display = to_intel_display(crtc_state);
 	int num_vdsc_instances = intel_dsc_get_num_vdsc_instances(crtc_state);
 	int min_cdclk;
 

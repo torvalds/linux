@@ -563,7 +563,7 @@ static bool __oom_reap_task_mm(struct mm_struct *mm)
 }
 
 /*
- * Reaps the address space of the give task.
+ * Reaps the address space of the given task.
  *
  * Returns true on success and false if none or part of the address space
  * has been reclaimed and the caller should retry later.

@@ -22,7 +22,7 @@
 #include "selftests/igt_spinner.h"
 #include "selftests/librapl.h"
 
-/* Try to isolate the impact of cstates from determing frequency response */
+/* Try to isolate the impact of cstates from determining frequency response */
 #define CPU_LATENCY 0 /* -1 to disable pm_qos, 0 to disable cstates */
 
 static void dummy_rps_work(struct work_struct *wrk)
@@ -477,12 +477,13 @@ int live_rps_control(void *arg)
 			limit, intel_gpu_freq(rps, limit),
 			min, max, ktime_to_ns(min_dt), ktime_to_ns(max_dt));
 
-		if (limit == rps->min_freq) {
-			pr_err("%s: GPU throttled to minimum!\n",
-			       engine->name);
+		if (limit != rps->max_freq) {
+			u32 throttle = intel_uncore_read(gt->uncore,
+							 intel_gt_perf_limit_reasons_reg(gt));
+
+			pr_warn("%s: GPU throttled with reasons 0x%08x\n",
+				engine->name, throttle & GT0_PERF_LIMIT_REASONS_MASK);
 			show_pstate_limits(rps);
-			err = -ENODEV;
-			break;
 		}
 
 		if (igt_flush_test(gt->i915)) {
@@ -1115,7 +1116,7 @@ static u64 measure_power(struct intel_rps *rps, int *freq)
 	for (i = 0; i < 5; i++)
 		x[i] = __measure_power(5);
 
-	*freq = (*freq + intel_rps_read_actual_frequency(rps)) / 2;
+	*freq = (*freq + read_cagf(rps)) / 2;
 
 	/* A simple triangle filter for better result stability */
 	sort(x, 5, sizeof(*x), cmp_u64, NULL);

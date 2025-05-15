@@ -294,7 +294,7 @@ W6692_fill_Dfifo(struct w6692_hw *card)
 	WriteW6692(card, W_D_CMDR, cmd);
 	if (test_and_set_bit(FLG_BUSY_TIMER, &dch->Flags)) {
 		pr_debug("%s: fill_Dfifo dbusytimer running\n", card->name);
-		del_timer(&dch->timer);
+		timer_delete(&dch->timer);
 	}
 	dch->timer.expires = jiffies + ((DBUSY_TIMER_VALUE * HZ) / 1000);
 	add_timer(&dch->timer);
@@ -311,7 +311,7 @@ d_retransmit(struct w6692_hw *card)
 	struct dchannel *dch = &card->dch;
 
 	if (test_and_clear_bit(FLG_BUSY_TIMER, &dch->Flags))
-		del_timer(&dch->timer);
+		timer_delete(&dch->timer);
 #ifdef FIXME
 	if (test_and_clear_bit(FLG_L1_BUSY, &dch->Flags))
 		dchannel_sched_event(dch, D_CLEARBUSY);
@@ -372,7 +372,7 @@ handle_rxD(struct w6692_hw *card) {
 static void
 handle_txD(struct w6692_hw *card) {
 	if (test_and_clear_bit(FLG_BUSY_TIMER, &card->dch.Flags))
-		del_timer(&card->dch.timer);
+		timer_delete(&card->dch.timer);
 	if (card->dch.tx_skb && card->dch.tx_idx < card->dch.tx_skb->len) {
 		W6692_fill_Dfifo(card);
 	} else {
@@ -1130,7 +1130,7 @@ w6692_l1callback(struct dchannel *dch, u32 cmd)
 		}
 		test_and_clear_bit(FLG_TX_BUSY, &dch->Flags);
 		if (test_and_clear_bit(FLG_BUSY_TIMER, &dch->Flags))
-			del_timer(&dch->timer);
+			timer_delete(&dch->timer);
 		break;
 	case HW_POWERUP_REQ:
 		spin_lock_irqsave(&card->lock, flags);

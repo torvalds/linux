@@ -2233,31 +2233,26 @@ static int pxafb_probe(struct platform_device *dev)
 {
 	struct pxafb_info *fbi;
 	struct pxafb_mach_info *inf, *pdata;
-	int i, irq, ret;
+	int irq, ret;
 
 	dev_dbg(&dev->dev, "pxafb_probe\n");
 
 	ret = -ENOMEM;
 	pdata = dev_get_platdata(&dev->dev);
-	inf = devm_kmalloc(&dev->dev, sizeof(*inf), GFP_KERNEL);
-	if (!inf)
-		goto failed;
-
 	if (pdata) {
-		*inf = *pdata;
-		inf->modes =
-			devm_kmalloc_array(&dev->dev, pdata->num_modes,
-					   sizeof(inf->modes[0]), GFP_KERNEL);
+		inf = devm_kmemdup(&dev->dev, pdata, sizeof(*pdata), GFP_KERNEL);
+		if (!inf)
+			goto failed;
+
+		inf->modes = devm_kmemdup_array(&dev->dev, pdata->modes, pdata->num_modes,
+						sizeof(*pdata->modes), GFP_KERNEL);
 		if (!inf->modes)
 			goto failed;
-		for (i = 0; i < inf->num_modes; i++)
-			inf->modes[i] = pdata->modes[i];
 	} else {
 		inf = of_pxafb_of_mach_info(&dev->dev);
+		if (IS_ERR_OR_NULL(inf))
+			goto failed;
 	}
-
-	if (IS_ERR_OR_NULL(inf))
-		goto failed;
 
 	ret = pxafb_parse_options(&dev->dev, g_options, inf);
 	if (ret < 0)

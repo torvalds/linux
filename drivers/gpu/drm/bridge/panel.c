@@ -109,10 +109,9 @@ static void panel_bridge_detach(struct drm_bridge *bridge)
 }
 
 static void panel_bridge_atomic_pre_enable(struct drm_bridge *bridge,
-				struct drm_bridge_state *old_bridge_state)
+					   struct drm_atomic_state *atomic_state)
 {
 	struct panel_bridge *panel_bridge = drm_bridge_to_panel_bridge(bridge);
-	struct drm_atomic_state *atomic_state = old_bridge_state->base.state;
 	struct drm_encoder *encoder = bridge->encoder;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
@@ -129,10 +128,9 @@ static void panel_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 }
 
 static void panel_bridge_atomic_enable(struct drm_bridge *bridge,
-				struct drm_bridge_state *old_bridge_state)
+				       struct drm_atomic_state *atomic_state)
 {
 	struct panel_bridge *panel_bridge = drm_bridge_to_panel_bridge(bridge);
-	struct drm_atomic_state *atomic_state = old_bridge_state->base.state;
 	struct drm_encoder *encoder = bridge->encoder;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
@@ -149,10 +147,9 @@ static void panel_bridge_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void panel_bridge_atomic_disable(struct drm_bridge *bridge,
-				struct drm_bridge_state *old_bridge_state)
+					struct drm_atomic_state *atomic_state)
 {
 	struct panel_bridge *panel_bridge = drm_bridge_to_panel_bridge(bridge);
-	struct drm_atomic_state *atomic_state = old_bridge_state->base.state;
 	struct drm_encoder *encoder = bridge->encoder;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *new_crtc_state;
@@ -169,10 +166,9 @@ static void panel_bridge_atomic_disable(struct drm_bridge *bridge,
 }
 
 static void panel_bridge_atomic_post_disable(struct drm_bridge *bridge,
-				struct drm_bridge_state *old_bridge_state)
+					     struct drm_atomic_state *atomic_state)
 {
 	struct panel_bridge *panel_bridge = drm_bridge_to_panel_bridge(bridge);
-	struct drm_atomic_state *atomic_state = old_bridge_state->base.state;
 	struct drm_encoder *encoder = bridge->encoder;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *new_crtc_state;
@@ -322,8 +318,10 @@ void drm_panel_bridge_remove(struct drm_bridge *bridge)
 	if (!bridge)
 		return;
 
-	if (bridge->funcs != &panel_bridge_bridge_funcs)
+	if (!drm_bridge_is_panel(bridge)) {
+		drm_warn(bridge->dev, "%s: called on non-panel bridge!\n", __func__);
 		return;
+	}
 
 	panel_bridge = drm_bridge_to_panel_bridge(bridge);
 

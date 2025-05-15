@@ -79,7 +79,7 @@ static int __init rng_init (void)
 	if (err < 0)
 		goto err_out_cleanup_hw;
 
-	sigio_broken(random_fd);
+	sigio_broken();
 	hwrng.name = RNG_MODULE_NAME;
 	hwrng.read = rng_dev_read;
 

@@ -33,8 +33,7 @@ struct xe_heci_gsc {
 	int irq;
 };
 
-void xe_heci_gsc_init(struct xe_device *xe);
-void xe_heci_gsc_fini(struct xe_device *xe);
+int xe_heci_gsc_init(struct xe_device *xe);
 void xe_heci_gsc_irq_handler(struct xe_device *xe, u32 iir);
 void xe_heci_csc_irq_handler(struct xe_device *xe, u32 iir);
 

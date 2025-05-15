@@ -362,3 +362,53 @@ int afs_merge_fs_addr6(struct afs_net *net, struct afs_addr_list *alist,
 	alist->nr_addrs++;
 	return 0;
 }
+
+/*
+ * Set the app data on the rxrpc peers an address list points to
+ */
+void afs_set_peer_appdata(struct afs_server *server,
+			  struct afs_addr_list *old_alist,
+			  struct afs_addr_list *new_alist)
+{
+	unsigned long data = (unsigned long)server;
+	int n = 0, o = 0;
+
+	if (!old_alist) {
+		/* New server.  Just set all. */
+		for (; n < new_alist->nr_addrs; n++)
+			rxrpc_kernel_set_peer_data(new_alist->addrs[n].peer, data);
+		return;
+	}
+	if (!new_alist) {
+		/* Dead server.  Just remove all. */
+		for (; o < old_alist->nr_addrs; o++)
+			rxrpc_kernel_set_peer_data(old_alist->addrs[o].peer, 0);
+		return;
+	}
+
+	/* Walk through the two lists simultaneously, setting new peers and
+	 * clearing old ones.  The two lists are ordered by pointer to peer
+	 * record.
+	 */
+	while (n < new_alist->nr_addrs && o < old_alist->nr_addrs) {
+		struct rxrpc_peer *pn = new_alist->addrs[n].peer;
+		struct rxrpc_peer *po = old_alist->addrs[o].peer;
+
+		if (pn == po)
+			continue;
+		if (pn < po) {
+			rxrpc_kernel_set_peer_data(pn, data);
+			n++;
+		} else {
+			rxrpc_kernel_set_peer_data(po, 0);
+			o++;
+		}
+	}
+
+	if (n < new_alist->nr_addrs)
+		for (; n < new_alist->nr_addrs; n++)
+			rxrpc_kernel_set_peer_data(new_alist->addrs[n].peer, data);
+	if (o < old_alist->nr_addrs)
+		for (; o < old_alist->nr_addrs; o++)
+			rxrpc_kernel_set_peer_data(old_alist->addrs[o].peer, 0);
+}

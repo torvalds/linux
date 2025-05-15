@@ -138,12 +138,22 @@ get_cpu/put_cpu sequence requires. No processor number is
 available. Instead, the offset of the local per cpu area is simply
 added to the per cpu offset.
 
-Note that this operation is usually used in a code segment when
-preemption has been disabled. The pointer is then used to
-access local per cpu data in a critical section. When preemption
-is re-enabled this pointer is usually no longer useful since it may
-no longer point to per cpu data of the current processor.
+Note that this operation can only be used in code segments where
+smp_processor_id() may be used, for example, where preemption has been
+disabled. The pointer is then used to access local per cpu data in a
+critical section. When preemption is re-enabled this pointer is usually
+no longer useful since it may no longer point to per cpu data of the
+current processor.
 
+The special cases where it makes sense to obtain a per-CPU pointer in
+preemptible code are addressed by raw_cpu_ptr(), but such use cases need
+to handle cases where two different CPUs are accessing the same per cpu
+variable, which might well be that of a third CPU.  These use cases are
+typically performance optimizations.  For example, SRCU implements a pair
+of counters as a pair of per-CPU variables, and rcu_read_lock_nmisafe()
+uses raw_cpu_ptr() to get a pointer to some CPU's counter, and uses
+atomic_inc_long() to handle migration between the raw_cpu_ptr() and
+the atomic_inc_long().
 
 Per cpu variables and offsets
 -----------------------------

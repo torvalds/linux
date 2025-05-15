@@ -67,6 +67,7 @@ char dso__symtab_origin(const struct dso *dso)
 		[DSO_BINARY_TYPE__GUEST_KMODULE]		= 'G',
 		[DSO_BINARY_TYPE__GUEST_KMODULE_COMP]		= 'M',
 		[DSO_BINARY_TYPE__GUEST_VMLINUX]		= 'V',
+		[DSO_BINARY_TYPE__GNU_DEBUGDATA]		= 'n',
 	};
 
 	if (dso == NULL || dso__symtab_type(dso) == DSO_BINARY_TYPE__NOT_FOUND)
@@ -93,6 +94,7 @@ bool dso__is_object_file(const struct dso *dso)
 	case DSO_BINARY_TYPE__UBUNTU_DEBUGINFO:
 	case DSO_BINARY_TYPE__MIXEDUP_UBUNTU_DEBUGINFO:
 	case DSO_BINARY_TYPE__BUILDID_DEBUGINFO:
+	case DSO_BINARY_TYPE__GNU_DEBUGDATA:
 	case DSO_BINARY_TYPE__SYSTEM_PATH_DSO:
 	case DSO_BINARY_TYPE__GUEST_KMODULE:
 	case DSO_BINARY_TYPE__GUEST_KMODULE_COMP:
@@ -224,6 +226,7 @@ int dso__read_binary_type_filename(const struct dso *dso,
 	case DSO_BINARY_TYPE__VMLINUX:
 	case DSO_BINARY_TYPE__GUEST_VMLINUX:
 	case DSO_BINARY_TYPE__SYSTEM_PATH_DSO:
+	case DSO_BINARY_TYPE__GNU_DEBUGDATA:
 		__symbol__join_symfs(filename, size, dso__long_name(dso));
 		break;
 
@@ -490,11 +493,25 @@ void dso__set_module_info(struct dso *dso, struct kmod_path *m,
 /*
  * Global list of open DSOs and the counter.
  */
+struct mutex _dso__data_open_lock;
 static LIST_HEAD(dso__data_open);
-static long dso__data_open_cnt;
-static pthread_mutex_t dso__data_open_lock = PTHREAD_MUTEX_INITIALIZER;
+static long dso__data_open_cnt GUARDED_BY(_dso__data_open_lock);
 
-static void dso__list_add(struct dso *dso)
+static void dso__data_open_lock_init(void)
+{
+	mutex_init(&_dso__data_open_lock);
+}
+
+static struct mutex *dso__data_open_lock(void) LOCK_RETURNED(_dso__data_open_lock)
+{
+	static pthread_once_t data_open_lock_once = PTHREAD_ONCE_INIT;
+
+	pthread_once(&data_open_lock_once, dso__data_open_lock_init);
+
+	return &_dso__data_open_lock;
+}
+
+static void dso__list_add(struct dso *dso) EXCLUSIVE_LOCKS_REQUIRED(_dso__data_open_lock)
 {
 	list_add_tail(&dso__data(dso)->open_entry, &dso__data_open);
 #ifdef REFCNT_CHECKING
@@ -505,11 +522,13 @@ static void dso__list_add(struct dso *dso)
 	dso__data_open_cnt++;
 }
 
-static void dso__list_del(struct dso *dso)
+static void dso__list_del(struct dso *dso) EXCLUSIVE_LOCKS_REQUIRED(_dso__data_open_lock)
 {
 	list_del_init(&dso__data(dso)->open_entry);
 #ifdef REFCNT_CHECKING
+	mutex_unlock(dso__data_open_lock());
 	dso__put(dso__data(dso)->dso);
+	mutex_lock(dso__data_open_lock());
 #endif
 	WARN_ONCE(dso__data_open_cnt <= 0,
 		  "DSO data fd counter out of bounds.");
@@ -518,7 +537,7 @@ static void dso__list_del(struct dso *dso)
 
 static void close_first_dso(void);
 
-static int do_open(char *name)
+static int do_open(char *name) EXCLUSIVE_LOCKS_REQUIRED(_dso__data_open_lock)
 {
 	int fd;
 	char sbuf[STRERR_BUFSIZE];
@@ -545,6 +564,7 @@ char *dso__filename_with_chroot(const struct dso *dso, const char *filename)
 }
 
 static int __open_dso(struct dso *dso, struct machine *machine)
+	EXCLUSIVE_LOCKS_REQUIRED(_dso__data_open_lock)
 {
 	int fd = -EINVAL;
 	char *root_dir = (char *)"";
@@ -610,6 +630,7 @@ static void check_data_close(void);
  * list/count of open DSO objects.
  */
 static int open_dso(struct dso *dso, struct machine *machine)
+	EXCLUSIVE_LOCKS_REQUIRED(_dso__data_open_lock)
 {
 	int fd;
 	struct nscookie nsc;
@@ -635,7 +656,7 @@ static int open_dso(struct dso *dso, struct machine *machine)
 	return fd;
 }
 
-static void close_data_fd(struct dso *dso)
+static void close_data_fd(struct dso *dso) EXCLUSIVE_LOCKS_REQUIRED(_dso__data_open_lock)
 {
 	if (dso__data(dso)->fd >= 0) {
 		close(dso__data(dso)->fd);
@@ -652,12 +673,12 @@ static void close_data_fd(struct dso *dso)
  * Close @dso's data file descriptor and updates
  * list/count of open DSO objects.
  */
-static void close_dso(struct dso *dso)
+static void close_dso(struct dso *dso) EXCLUSIVE_LOCKS_REQUIRED(_dso__data_open_lock)
 {
 	close_data_fd(dso);
 }
 
-static void close_first_dso(void)
+static void close_first_dso(void) EXCLUSIVE_LOCKS_REQUIRED(_dso__data_open_lock)
 {
 	struct dso_data *dso_data;
 	struct dso *dso;
@@ -702,7 +723,7 @@ void reset_fd_limit(void)
 	fd_limit = 0;
 }
 
-static bool may_cache_fd(void)
+static bool may_cache_fd(void) EXCLUSIVE_LOCKS_REQUIRED(_dso__data_open_lock)
 {
 	if (!fd_limit)
 		fd_limit = get_fd_limit();
@@ -718,7 +739,7 @@ static bool may_cache_fd(void)
  * for opened dso file descriptors. The limit is half
  * of the RLIMIT_NOFILE files opened.
 */
-static void check_data_close(void)
+static void check_data_close(void) EXCLUSIVE_LOCKS_REQUIRED(_dso__data_open_lock)
 {
 	bool cache_fd = may_cache_fd();
 
@@ -734,12 +755,13 @@ static void check_data_close(void)
  */
 void dso__data_close(struct dso *dso)
 {
-	pthread_mutex_lock(&dso__data_open_lock);
+	mutex_lock(dso__data_open_lock());
 	close_dso(dso);
-	pthread_mutex_unlock(&dso__data_open_lock);
+	mutex_unlock(dso__data_open_lock());
 }
 
 static void try_to_open_dso(struct dso *dso, struct machine *machine)
+	EXCLUSIVE_LOCKS_REQUIRED(_dso__data_open_lock)
 {
 	enum dso_binary_type binary_type_data[] = {
 		DSO_BINARY_TYPE__BUILD_ID_CACHE,
@@ -781,25 +803,27 @@ out:
  * returns file descriptor.  It should be paired with
  * dso__data_put_fd() if it returns non-negative value.
  */
-int dso__data_get_fd(struct dso *dso, struct machine *machine)
+bool dso__data_get_fd(struct dso *dso, struct machine *machine, int *fd)
 {
+	*fd = -1;
 	if (dso__data(dso)->status == DSO_DATA_STATUS_ERROR)
-		return -1;
+		return false;
 
-	if (pthread_mutex_lock(&dso__data_open_lock) < 0)
-		return -1;
+	mutex_lock(dso__data_open_lock());
 
 	try_to_open_dso(dso, machine);
 
-	if (dso__data(dso)->fd < 0)
-		pthread_mutex_unlock(&dso__data_open_lock);
+	*fd = dso__data(dso)->fd;
+	if (*fd >= 0)
+		return true;
 
-	return dso__data(dso)->fd;
+	mutex_unlock(dso__data_open_lock());
+	return false;
 }
 
 void dso__data_put_fd(struct dso *dso __maybe_unused)
 {
-	pthread_mutex_unlock(&dso__data_open_lock);
+	mutex_unlock(dso__data_open_lock());
 }
 
 bool dso__data_status_seen(struct dso *dso, enum dso_data_status_seen by)
@@ -951,7 +975,7 @@ static ssize_t file_read(struct dso *dso, struct machine *machine,
 {
 	ssize_t ret;
 
-	pthread_mutex_lock(&dso__data_open_lock);
+	mutex_lock(dso__data_open_lock());
 
 	/*
 	 * dso__data(dso)->fd might be closed if other thread opened another
@@ -967,7 +991,7 @@ static ssize_t file_read(struct dso *dso, struct machine *machine,
 
 	ret = pread(dso__data(dso)->fd, data, DSO__DATA_CACHE_SIZE, offset);
 out:
-	pthread_mutex_unlock(&dso__data_open_lock);
+	mutex_unlock(dso__data_open_lock());
 	return ret;
 }
 
@@ -1075,7 +1099,7 @@ static int file_size(struct dso *dso, struct machine *machine)
 	struct stat st;
 	char sbuf[STRERR_BUFSIZE];
 
-	pthread_mutex_lock(&dso__data_open_lock);
+	mutex_lock(dso__data_open_lock());
 
 	/*
 	 * dso__data(dso)->fd might be closed if other thread opened another
@@ -1099,7 +1123,7 @@ static int file_size(struct dso *dso, struct machine *machine)
 	dso__data(dso)->file_size = st.st_size;
 
 out:
-	pthread_mutex_unlock(&dso__data_open_lock);
+	mutex_unlock(dso__data_open_lock());
 	return ret;
 }
 
@@ -1168,6 +1192,68 @@ ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
 		return -1;
 
 	return data_read_write_offset(dso, machine, offset, data, size, true);
+}
+
+uint16_t dso__e_machine(struct dso *dso, struct machine *machine)
+{
+	uint16_t e_machine = EM_NONE;
+	int fd;
+
+	switch (dso__binary_type(dso)) {
+	case DSO_BINARY_TYPE__KALLSYMS:
+	case DSO_BINARY_TYPE__GUEST_KALLSYMS:
+	case DSO_BINARY_TYPE__VMLINUX:
+	case DSO_BINARY_TYPE__GUEST_VMLINUX:
+	case DSO_BINARY_TYPE__GUEST_KMODULE:
+	case DSO_BINARY_TYPE__GUEST_KMODULE_COMP:
+	case DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE:
+	case DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP:
+	case DSO_BINARY_TYPE__KCORE:
+	case DSO_BINARY_TYPE__GUEST_KCORE:
+	case DSO_BINARY_TYPE__BPF_PROG_INFO:
+	case DSO_BINARY_TYPE__BPF_IMAGE:
+	case DSO_BINARY_TYPE__OOL:
+	case DSO_BINARY_TYPE__JAVA_JIT:
+		return EM_HOST;
+	case DSO_BINARY_TYPE__DEBUGLINK:
+	case DSO_BINARY_TYPE__BUILD_ID_CACHE:
+	case DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO:
+	case DSO_BINARY_TYPE__GNU_DEBUGDATA:
+	case DSO_BINARY_TYPE__SYSTEM_PATH_DSO:
+	case DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO:
+	case DSO_BINARY_TYPE__FEDORA_DEBUGINFO:
+	case DSO_BINARY_TYPE__UBUNTU_DEBUGINFO:
+	case DSO_BINARY_TYPE__MIXEDUP_UBUNTU_DEBUGINFO:
+	case DSO_BINARY_TYPE__BUILDID_DEBUGINFO:
+		break;
+	case DSO_BINARY_TYPE__NOT_FOUND:
+	default:
+		return EM_NONE;
+	}
+
+	mutex_lock(dso__data_open_lock());
+
+	/*
+	 * dso__data(dso)->fd might be closed if other thread opened another
+	 * file (dso) due to open file limit (RLIMIT_NOFILE).
+	 */
+	try_to_open_dso(dso, machine);
+	fd = dso__data(dso)->fd;
+	if (fd >= 0) {
+		_Static_assert(offsetof(Elf32_Ehdr, e_machine) == 18, "Unexpected offset");
+		_Static_assert(offsetof(Elf64_Ehdr, e_machine) == 18, "Unexpected offset");
+		if (dso__needs_swap(dso) == DSO_SWAP__UNSET) {
+			unsigned char eidata;
+
+			if (pread(fd, &eidata, sizeof(eidata), EI_DATA) == sizeof(eidata))
+				dso__swap_init(dso, eidata);
+		}
+		if (dso__needs_swap(dso) != DSO_SWAP__UNSET &&
+		    pread(fd, &e_machine, sizeof(e_machine), 18) == sizeof(e_machine))
+			e_machine = DSO__SWAP(dso, uint16_t, e_machine);
+	}
+	mutex_unlock(dso__data_open_lock());
+	return e_machine;
 }
 
 /**
@@ -1525,6 +1611,33 @@ void dso__put(struct dso *dso)
 		RC_CHK_PUT(dso);
 }
 
+int dso__swap_init(struct dso *dso, unsigned char eidata)
+{
+	static unsigned int const endian = 1;
+
+	dso__set_needs_swap(dso, DSO_SWAP__NO);
+
+	switch (eidata) {
+	case ELFDATA2LSB:
+		/* We are big endian, DSO is little endian. */
+		if (*(unsigned char const *)&endian != 1)
+			dso__set_needs_swap(dso, DSO_SWAP__YES);
+		break;
+
+	case ELFDATA2MSB:
+		/* We are little endian, DSO is big endian. */
+		if (*(unsigned char const *)&endian != 0)
+			dso__set_needs_swap(dso, DSO_SWAP__YES);
+		break;
+
+	default:
+		pr_err("unrecognized DSO data encoding %d\n", eidata);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 void dso__set_build_id(struct dso *dso, struct build_id *bid)
 {
 	RC_CHK_ACCESS(dso)->bid = *bid;
@@ -1608,11 +1721,10 @@ size_t dso__fprintf(struct dso *dso, FILE *fp)
 
 enum dso_type dso__type(struct dso *dso, struct machine *machine)
 {
-	int fd;
+	int fd = -1;
 	enum dso_type type = DSO__TYPE_UNKNOWN;
 
-	fd = dso__data_get_fd(dso, machine);
-	if (fd >= 0) {
+	if (dso__data_get_fd(dso, machine, &fd)) {
 		type = dso__type_fd(fd);
 		dso__data_put_fd(dso);
 	}

@@ -1723,8 +1723,8 @@ static int i2c_imx_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	spin_lock_init(&i2c_imx->slave_lock);
-	hrtimer_init(&i2c_imx->slave_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	i2c_imx->slave_timer.function = i2c_imx_slave_timeout;
+	hrtimer_setup(&i2c_imx->slave_timer, i2c_imx_slave_timeout, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_ABS);
 
 	match = device_get_match_data(&pdev->dev);
 	if (match)

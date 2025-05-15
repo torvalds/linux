@@ -96,19 +96,18 @@ static int adc084s021_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret < 0)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		ret = regulator_enable(adc->reg);
 		if (ret) {
-			iio_device_release_direct_mode(indio_dev);
+			iio_device_release_direct(indio_dev);
 			return ret;
 		}
 
 		adc->tx_buf[0] = channel->channel << 3;
 		ret = adc084s021_adc_conversion(adc, &be_val);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		regulator_disable(adc->reg);
 		if (ret < 0)
 			return ret;

@@ -262,6 +262,12 @@ retry:
 		goto err_exec;
 	}
 
+	if (xe_exec_queue_uses_pxp(q)) {
+		err = xe_vm_validate_protected(q->vm);
+		if (err)
+			goto err_exec;
+	}
+
 	job = xe_sched_job_create(q, xe_exec_queue_is_parallel(q) ?
 				  addresses : &args->address);
 	if (IS_ERR(job)) {

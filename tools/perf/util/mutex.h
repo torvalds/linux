@@ -33,6 +33,12 @@
 /* Documents if a type is a lockable type. */
 #define LOCKABLE __attribute__((lockable))
 
+/* Documents a function that expects a lock not to be held prior to entry. */
+#define LOCKS_EXCLUDED(...) __attribute__((locks_excluded(__VA_ARGS__)))
+
+/* Documents a function that returns a lock. */
+#define LOCK_RETURNED(x) __attribute__((lock_returned(x)))
+
 /* Documents functions that acquire a lock in the body of a function, and do not release it. */
 #define EXCLUSIVE_LOCK_FUNCTION(...)  __attribute__((exclusive_lock_function(__VA_ARGS__)))
 
@@ -57,6 +63,8 @@
 #define GUARDED_BY(x)
 #define PT_GUARDED_BY(x)
 #define LOCKABLE
+#define LOCKS_EXCLUDED(...)
+#define LOCK_RETURNED(x)
 #define EXCLUSIVE_LOCK_FUNCTION(...)
 #define UNLOCK_FUNCTION(...)
 #define EXCLUSIVE_TRYLOCK_FUNCTION(...)

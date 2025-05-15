@@ -9,10 +9,24 @@ enum counters_flags {
 
 #define BCH_PERSISTENT_COUNTERS()					\
 	x(io_read,					0,	TYPE_SECTORS)	\
+	x(io_read_inline,				80,	TYPE_SECTORS)	\
+	x(io_read_hole,					81,	TYPE_SECTORS)	\
+	x(io_read_promote,				30,	TYPE_COUNTER)	\
+	x(io_read_bounce,				31,	TYPE_COUNTER)	\
+	x(io_read_split,				33,	TYPE_COUNTER)	\
+	x(io_read_reuse_race,				34,	TYPE_COUNTER)	\
+	x(io_read_retry,				32,	TYPE_COUNTER)	\
 	x(io_write,					1,	TYPE_SECTORS)	\
 	x(io_move,					2,	TYPE_SECTORS)	\
+	x(io_move_read,					35,	TYPE_SECTORS)	\
+	x(io_move_write,				36,	TYPE_SECTORS)	\
+	x(io_move_finish,				37,	TYPE_SECTORS)	\
+	x(io_move_fail,					38,	TYPE_COUNTER)	\
+	x(io_move_write_fail,				82,	TYPE_COUNTER)	\
+	x(io_move_start_fail,				39,	TYPE_COUNTER)	\
 	x(bucket_invalidate,				3,	TYPE_COUNTER)	\
 	x(bucket_discard,				4,	TYPE_COUNTER)	\
+	x(bucket_discard_fast,				79,	TYPE_COUNTER)	\
 	x(bucket_alloc,					5,	TYPE_COUNTER)	\
 	x(bucket_alloc_fail,				6,	TYPE_COUNTER)	\
 	x(btree_cache_scan,				7,	TYPE_COUNTER)	\
@@ -38,16 +52,6 @@ enum counters_flags {
 	x(journal_reclaim_finish,			27,	TYPE_COUNTER)	\
 	x(journal_reclaim_start,			28,	TYPE_COUNTER)	\
 	x(journal_write,				29,	TYPE_COUNTER)	\
-	x(read_promote,					30,	TYPE_COUNTER)	\
-	x(read_bounce,					31,	TYPE_COUNTER)	\
-	x(read_split,					33,	TYPE_COUNTER)	\
-	x(read_retry,					32,	TYPE_COUNTER)	\
-	x(read_reuse_race,				34,	TYPE_COUNTER)	\
-	x(move_extent_read,				35,	TYPE_SECTORS)	\
-	x(move_extent_write,				36,	TYPE_SECTORS)	\
-	x(move_extent_finish,				37,	TYPE_SECTORS)	\
-	x(move_extent_fail,				38,	TYPE_COUNTER)	\
-	x(move_extent_start_fail,			39,	TYPE_COUNTER)	\
 	x(copygc,					40,	TYPE_COUNTER)	\
 	x(copygc_wait,					41,	TYPE_COUNTER)	\
 	x(gc_gens_end,					42,	TYPE_COUNTER)	\
@@ -93,6 +97,13 @@ enum bch_persistent_counters {
 	BCH_PERSISTENT_COUNTERS()
 #undef x
 	BCH_COUNTER_NR
+};
+
+enum bch_persistent_counters_stable {
+#define x(t, n, ...) BCH_COUNTER_STABLE_##t = n,
+	BCH_PERSISTENT_COUNTERS()
+#undef x
+	BCH_COUNTER_STABLE_NR
 };
 
 struct bch_sb_field_counters {

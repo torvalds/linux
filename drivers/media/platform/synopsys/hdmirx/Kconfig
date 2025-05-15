@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config VIDEO_SYNOPSYS_HDMIRX
+	tristate "Synopsys DesignWare HDMI Receiver driver"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	depends on VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select VIDEOBUF2_DMA_CONTIG
+	select CEC_CORE
+	select HDMI
+	help
+	  Support for Synopsys HDMI HDMI RX Controller.
+	  This driver supports HDMI 2.0 version.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called synopsys_hdmirx.
+
+config VIDEO_SYNOPSYS_HDMIRX_LOAD_DEFAULT_EDID
+	bool "Load default EDID"
+	depends on VIDEO_SYNOPSYS_HDMIRX
+	help
+	  Preload default EDID (Extended Display Identification Data)
+	  branded by Linux Foundation that exposes display modes up
+	  to 4k@30Hz, which have best compatibility with HDMI transmitters.
+
+	  Enabling this option is recommended for a non-production use-cases.
+	  It will make driver usable out-of-the-box.
+
+	  For a higher display modes you will need to load customized EDID
+	  from userspace using v4l2-ctl tool or by other means.
+
+	  Without enabling this option driver will be practically
+	  non-functional until EDID will be loaded from userspace.
+	  Which is a wanted behavior when using this driver in a
+	  commercial product that should utilize own branded EDID.

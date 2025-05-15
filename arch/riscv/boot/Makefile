@@ -32,10 +32,7 @@ $(obj)/xipImage: vmlinux FORCE
 endif
 
 ifdef CONFIG_RELOCATABLE
-vmlinux.relocs: vmlinux
-	@ (! [ -f vmlinux.relocs ] && echo "vmlinux.relocs can't be found, please remove vmlinux and try again") || true
-
-$(obj)/Image: vmlinux.relocs FORCE
+$(obj)/Image: vmlinux.unstripped FORCE
 else
 $(obj)/Image: vmlinux FORCE
 endif

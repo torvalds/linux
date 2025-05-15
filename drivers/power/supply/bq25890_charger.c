@@ -164,7 +164,7 @@ static const struct regmap_config bq25890_regmap_config = {
 	.val_bits = 8,
 
 	.max_register = 0x14,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.wr_table = &bq25890_writeable_regs,
 	.volatile_table = &bq25890_volatile_regs,

@@ -200,6 +200,31 @@ chk_msk_cestab()
 		 "${expected}" "${msg}" ""
 }
 
+chk_dump_one()
+{
+	local ss_token
+	local token
+	local msg
+
+	ss_token="$(ss -inmHMN $ns |
+		    mptcp_lib_get_info_value "token" "token")"
+
+	token="$(ip netns exec $ns ./mptcp_diag -t $ss_token |\
+		 awk -F':[ \t]+' '/^token/ {print $2}')"
+
+	msg="....chk dump_one"
+
+	mptcp_lib_print_title "$msg"
+	if [ -n "$ss_token" ] && [ "$ss_token" = "$token" ]; then
+		mptcp_lib_pr_ok
+		mptcp_lib_result_pass "${msg}"
+	else
+		mptcp_lib_pr_fail "expected $ss_token found $token"
+		mptcp_lib_result_fail "${msg}"
+		ret=${KSFT_FAIL}
+	fi
+}
+
 msk_info_get_value()
 {
 	local port="${1}"
@@ -290,6 +315,7 @@ chk_msk_remote_key_nr 2 "....chk remote_key"
 chk_msk_fallback_nr 0 "....chk no fallback"
 chk_msk_inuse 2
 chk_msk_cestab 2
+chk_dump_one
 flush_pids
 
 chk_msk_inuse 0 "2->0"

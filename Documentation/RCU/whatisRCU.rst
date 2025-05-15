@@ -971,6 +971,16 @@ unfortunately any spinlock in a ``SLAB_TYPESAFE_BY_RCU`` object must be
 initialized after each and every call to kmem_cache_alloc(), which renders
 reference-free spinlock acquisition completely unsafe.  Therefore, when
 using ``SLAB_TYPESAFE_BY_RCU``, make proper use of a reference counter.
+If using refcount_t, the specialized refcount_{add|inc}_not_zero_acquire()
+and refcount_set_release() APIs should be used to ensure correct operation
+ordering when verifying object identity and when initializing newly
+allocated objects. Acquire fence in refcount_{add|inc}_not_zero_acquire()
+ensures that identity checks happen *after* reference count is taken.
+refcount_set_release() should be called after a newly allocated object is
+fully initialized and release fence ensures that new values are visible
+*before* refcount can be successfully taken by other users. Once
+refcount_set_release() is called, the object should be considered visible
+by other tasks.
 (Those willing to initialize their locks in a kmem_cache constructor
 may also use locking, including cache-friendly sequence locking.)
 

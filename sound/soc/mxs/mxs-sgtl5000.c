@@ -59,7 +59,7 @@ static const struct snd_soc_ops mxs_sgtl5000_hifi_ops = {
 };
 
 #define MXS_SGTL5000_DAI_FMT (SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | \
-	SND_SOC_DAIFMT_CBS_CFS)
+	SND_SOC_DAIFMT_CBC_CFC)
 
 
 SND_SOC_DAILINK_DEFS(hifi_tx,

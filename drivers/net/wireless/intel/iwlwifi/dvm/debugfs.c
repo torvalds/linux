@@ -1870,7 +1870,7 @@ static ssize_t iwl_dbgfs_ucode_tracing_write(struct file *file,
 		}
 	} else {
 		priv->event_log.ucode_trace = false;
-		del_timer_sync(&priv->ucode_trace);
+		timer_delete_sync(&priv->ucode_trace);
 	}
 
 	return count;

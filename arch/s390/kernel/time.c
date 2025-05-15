@@ -54,10 +54,10 @@
 #include <asm/cio.h>
 #include "entry.h"
 
-union tod_clock tod_clock_base __section(".data");
+union tod_clock __bootdata_preserved(tod_clock_base);
 EXPORT_SYMBOL_GPL(tod_clock_base);
 
-u64 clock_comparator_max = -1ULL;
+u64 __bootdata_preserved(clock_comparator_max);
 EXPORT_SYMBOL_GPL(clock_comparator_max);
 
 static DEFINE_PER_CPU(struct clock_event_device, comparators);
@@ -79,12 +79,10 @@ void __init time_early_init(void)
 {
 	struct ptff_qto qto;
 	struct ptff_qui qui;
-	int cs;
 
 	/* Initialize TOD steering parameters */
 	tod_steering_end = tod_clock_base.tod;
-	for (cs = 0; cs < CS_BASES; cs++)
-		vdso_data[cs].arch_data.tod_steering_end = tod_steering_end;
+	vdso_k_time_data->arch_data.tod_steering_end = tod_steering_end;
 
 	if (!test_facility(28))
 		return;
@@ -373,7 +371,6 @@ static void clock_sync_global(long delta)
 {
 	unsigned long now, adj;
 	struct ptff_qto qto;
-	int cs;
 
 	/* Fixup the monotonic sched clock. */
 	tod_clock_base.eitod += delta;
@@ -389,10 +386,8 @@ static void clock_sync_global(long delta)
 		panic("TOD clock sync offset %li is too large to drift\n",
 		      tod_steering_delta);
 	tod_steering_end = now + (abs(tod_steering_delta) << 15);
-	for (cs = 0; cs < CS_BASES; cs++) {
-		vdso_data[cs].arch_data.tod_steering_end = tod_steering_end;
-		vdso_data[cs].arch_data.tod_steering_delta = tod_steering_delta;
-	}
+	vdso_k_time_data->arch_data.tod_steering_end = tod_steering_end;
+	vdso_k_time_data->arch_data.tod_steering_delta = tod_steering_delta;
 
 	/* Update LPAR offset. */
 	if (ptff_query(PTFF_QTO) && ptff(&qto, sizeof(qto), PTFF_QTO) == 0)
@@ -685,7 +680,7 @@ static void stp_work_fn(struct work_struct *work)
 
 	if (!stp_online) {
 		chsc_sstpc(stp_page, STP_OP_CTRL, 0x0000, NULL);
-		del_timer_sync(&stp_timer);
+		timer_delete_sync(&stp_timer);
 		goto out_unlock;
 	}
 

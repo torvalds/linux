@@ -356,7 +356,7 @@ static int ls_pcie_probe(struct platform_device *pdev)
 	if (pcie->drvdata->scfg_support) {
 		pcie->scfg =
 			syscon_regmap_lookup_by_phandle_args(dev->of_node,
-							     "fsl,pcie-scfg", 2,
+							     "fsl,pcie-scfg", 1,
 							     index);
 		if (IS_ERR(pcie->scfg)) {
 			dev_err(dev, "No syscfg phandle specified\n");

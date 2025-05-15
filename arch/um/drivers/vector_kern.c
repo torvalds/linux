@@ -1112,7 +1112,7 @@ static int vector_net_close(struct net_device *dev)
 	struct vector_private *vp = netdev_priv(dev);
 
 	netif_stop_queue(dev);
-	del_timer(&vp->tl);
+	timer_delete(&vp->tl);
 
 	vp->opened = false;
 

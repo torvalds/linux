@@ -12,10 +12,13 @@
 #include "vnic_wq.h"
 #include "vnic_rq.h"
 
-#define ENIC_MIN_WQ_DESCS		64
-#define ENIC_MAX_WQ_DESCS		4096
-#define ENIC_MIN_RQ_DESCS		64
-#define ENIC_MAX_RQ_DESCS		4096
+#define ENIC_MIN_WQ_DESCS 64
+#define ENIC_MAX_WQ_DESCS_DEFAULT 4096
+#define ENIC_MAX_WQ_DESCS 16384
+#define ENIC_MIN_RQ_DESCS 64
+#define ENIC_MAX_RQ_DESCS 16384
+#define ENIC_MAX_RQ_DESCS_DEFAULT 4096
+#define ENIC_MAX_CQ_DESCS_DEFAULT (64 * 1024)
 
 #define ENIC_MIN_MTU			ETH_MIN_MTU
 #define ENIC_MAX_MTU			9000

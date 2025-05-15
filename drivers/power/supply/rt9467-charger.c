@@ -826,7 +826,7 @@ static int rt9467_register_psy(struct rt9467_chg_data *data)
 {
 	struct power_supply_config cfg = {
 		.drv_data = data,
-		.of_node = dev_of_node(data->dev),
+		.fwnode = dev_fwnode(data->dev),
 		.attr_grp = rt9467_sysfs_groups,
 	};
 

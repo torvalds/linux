@@ -74,3 +74,59 @@ kms_bw@linear-tiling-2-displays-2160x1440p
 # IGT Version: 1.28-ga73311079
 # Linux Version: 6.11.0-rc5
 kms_flip@flip-vs-expired-vblank
+
+# Board Name: hp-11A-G6-EE-grunt
+# Bug Report: https://lore.kernel.org/dri-devel/f944dd08-c88c-49ae-aff0-274374550a93@collabora.com/T/#u
+# Failure Rate: 40
+# IGT Version: 1.29-g33adea9eb
+# Linux Version: 6.13.0-rc2
+kms_bw@linear-tiling-1-displays-2160x1440p
+
+# Board Name: hp-11A-G6-EE-grunt
+# Bug Report: https://lore.kernel.org/dri-devel/afa2d3bf-29f2-488d-8cc9-f30d461444b0@collabora.com/T/#u
+# Failure Rate: 80
+# IGT Version: 1.29-g33adea9eb
+# Linux Version: 6.13.0-rc2
+kms_plane_multiple@tiling-none
+
+# Board Name: hp-11A-G6-EE-grunt
+# Bug Report: https://lore.kernel.org/dri-devel/6fdaa97f-c1a5-4216-831f-dbb7c5f90498@collabora.com/T/#u
+# Failure Rate: 100
+# IGT Version: 1.29-g33adea9eb
+# Linux Version: 6.13.0-rc2
+kms_bw@linear-tiling-1-displays-1920x1080p
+
+# Board Name: hp-11A-G6-EE-grunt
+# Bug Report: https://lore.kernel.org/dri-devel/616aa015-9574-4527-9d07-d8d698bbcc3c@collabora.com/T/#u
+# Failure Rate: 100
+# IGT Version: 1.29-g33adea9eb
+# Linux Version: 6.13.0-rc2
+kms_plane@plane-position-hole-dpms
+
+# Board Name: hp-11A-G6-EE-grunt
+# Bug Report: https://lore.kernel.org/dri-devel/7a1b888f-d7db-4ed7-96cd-3975ace837fb@collabora.com/T/#u
+# Failure Rate: 100
+# IGT Version: 1.29-g33adea9eb
+# Linux Version: 6.13.0-rc2
+kms_flip@flip-vs-absolute-wf_vblank
+
+# Board Name: hp-11A-G6-EE-grunt
+# Bug Report: https://lore.kernel.org/dri-devel/f17fffb6-abc4-464e-8465-395311b01f6a@collabora.com/T/#u
+# Failure Rate: 100
+# IGT Version: 1.29-g33adea9eb
+# Linux Version: 6.13.0-rc2
+kms_flip@flip-vs-blocking-wf-vblank
+
+# Board Name: hp-11A-G6-EE-grunt
+# Bug Report: https://lore.kernel.org/dri-devel/9b590b26-1bf9-4951-b6a3-ef6c67e6a1c6@collabora.com/T/#u
+# Failure Rate: 60
+# IGT Version: 1.29-g33adea9eb
+# Linux Version: 6.13.0-rc2
+kms_bw@linear-tiling-2-displays-1920x1080p
+
+# Board Name: hp-11A-G6-EE-grunt
+# Bug Report: https://lore.kernel.org/dri-devel/059545fa-65b1-4f5c-a13e-4d2898679f51@collabora.com/T/#u
+# Failure Rate: 20
+# IGT Version: 1.29-g33adea9eb
+# Linux Version: 6.13.0-rc2
+kms_flip@modeset-vs-vblank-race-interruptible

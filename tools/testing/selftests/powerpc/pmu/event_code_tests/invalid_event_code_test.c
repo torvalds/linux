@@ -20,7 +20,7 @@
  * Some of the bits in the event code is
  * reserved for specific platforms.
  * Event code bits 52-59 are reserved in power9,
- * whereas in power10, these are used for programming
+ * whereas in ISA v3.1, these are used for programming
  * Monitor Mode Control Register 3 (MMCR3).
  * Bit 9 in event code is reserved in power9,
  * whereas it is used for programming "radix_scope_qual"
@@ -39,7 +39,7 @@ static int invalid_event_code(void)
 
 	/*
 	 * Events using MMCR3 bits and radix scope qual bits
-	 * should fail in power9 and should succeed in power10.
+	 * should fail in power9 and should succeed in power10 ( ISA v3.1 )
 	 * Init the events and check for pass/fail in event open.
 	 */
 	if (have_hwcap2(PPC_FEATURE2_ARCH_3_1)) {

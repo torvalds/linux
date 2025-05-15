@@ -28,6 +28,7 @@
 #include <linux/poll.h>
 #include <linux/security.h>
 #include <net/sock.h>
+#include <asm/machine.h>
 #include <asm/ebcdic.h>
 #include <asm/cpcmd.h>
 #include <linux/kmod.h>
@@ -2272,7 +2273,7 @@ static int __init afiucv_init(void)
 {
 	int err;
 
-	if (MACHINE_IS_VM && IS_ENABLED(CONFIG_IUCV)) {
+	if (machine_is_vm() && IS_ENABLED(CONFIG_IUCV)) {
 		cpcmd("QUERY USERID", iucv_userid, sizeof(iucv_userid), &err);
 		if (unlikely(err)) {
 			WARN_ON(err);

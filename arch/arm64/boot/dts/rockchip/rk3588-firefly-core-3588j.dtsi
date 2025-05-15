@@ -108,6 +108,10 @@
 	};
 };
 
+&pd_gpu {
+	domain-supply = <&vdd_gpu_s0>;
+};
+
 &sdhci {
 	bus-width = <8>;
 	no-sdio;

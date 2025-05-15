@@ -32,7 +32,6 @@
 #include <linux/pci.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
-#include <linux/pm_wakeup.h>
 #include <linux/spinlock.h>
 
 #include "t7xx_mhccif.h"

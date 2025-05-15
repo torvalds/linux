@@ -239,7 +239,6 @@ int b53_serdes_init(struct b53_device *dev, int port)
 	pcs->dev = dev;
 	pcs->lane = lane;
 	pcs->pcs.ops = &b53_pcs_ops;
-	pcs->pcs.neg_mode = true;
 
 	return 0;
 }

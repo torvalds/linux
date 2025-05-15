@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  * Copyright (C) 2018-2022 Intel Corporation
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024-2025 Intel Corporation
  */
 #ifndef __iwl_fw_api_location_h__
 #define __iwl_fw_api_location_h__
@@ -1015,7 +1015,7 @@ struct iwl_tof_range_req_ap_entry_v9 {
 } __packed; /* LOCATION_RANGE_REQ_AP_ENTRY_CMD_API_S_VER_9 */
 
 /**
- * struct iwl_tof_range_req_ap_entry_v10 - AP configuration parameters
+ * struct iwl_tof_range_req_ap_entry - AP configuration parameters
  * @initiator_ap_flags: see &enum iwl_initiator_ap_flags.
  * @band: 0 for 5.2 GHz, 1 for 2.4 GHz, 2 for 6GHz
  * @channel_num: AP Channel number
@@ -1063,7 +1063,7 @@ struct iwl_tof_range_req_ap_entry_v9 {
  * @min_time_between_msr: For non trigger based NDP ranging, the minimum time
  *	between measurements in units of milliseconds
  */
-struct iwl_tof_range_req_ap_entry_v10 {
+struct iwl_tof_range_req_ap_entry {
 	__le32 initiator_ap_flags;
 	u8 band;
 	u8 channel_num;
@@ -1134,7 +1134,7 @@ enum iwl_tof_initiator_flags {
 	IWL_TOF_INITIATOR_FLAGS_NON_ASAP_SUPPORT = BIT(20),
 }; /* LOCATION_RANGE_REQ_CMD_API_S_VER_5 */
 
-#define IWL_MVM_TOF_MAX_APS 5
+#define IWL_TOF_MAX_APS 5
 #define IWL_MVM_TOF_MAX_TWO_SIDED_APS 5
 
 /**
@@ -1153,7 +1153,7 @@ enum iwl_tof_initiator_flags {
  *		   when the session is done (successfully / partially).
  *		   one of iwl_tof_response_mode.
  * @reserved0: reserved
- * @num_of_ap: Number of APs to measure (error if > IWL_MVM_TOF_MAX_APS)
+ * @num_of_ap: Number of APs to measure (error if > IWL_TOF_MAX_APS)
  * @macaddr_random: '0' Use default source MAC address (i.e. p2_p),
  *	            '1' Use MAC Address randomization according to the below
  * @range_req_bssid: ranging request BSSID
@@ -1183,7 +1183,7 @@ struct iwl_tof_range_req_cmd_v5 {
 	u8 ftm_tx_chains;
 	__le16 common_calib;
 	__le16 specific_calib;
-	struct iwl_tof_range_req_ap_entry_v2 ap[IWL_MVM_TOF_MAX_APS];
+	struct iwl_tof_range_req_ap_entry_v2 ap[IWL_TOF_MAX_APS];
 } __packed;
 /* LOCATION_RANGE_REQ_CMD_API_S_VER_5 */
 
@@ -1192,7 +1192,7 @@ struct iwl_tof_range_req_cmd_v5 {
  * @initiator_flags: see flags @ iwl_tof_initiator_flags
  * @request_id: A Token incremented per request. The same Token will be
  *		sent back in the range response
- * @num_of_ap: Number of APs to measure (error if > IWL_MVM_TOF_MAX_APS)
+ * @num_of_ap: Number of APs to measure (error if > IWL_TOF_MAX_APS)
  * @range_req_bssid: ranging request BSSID
  * @macaddr_mask: Bits set to 0 shall be copied from the MAC address template.
  *		  Bits set to 1 shall be randomized by the UMAC
@@ -1216,7 +1216,7 @@ struct iwl_tof_range_req_cmd_v7 {
 	__le32 tsf_mac_id;
 	__le16 common_calib;
 	__le16 specific_calib;
-	struct iwl_tof_range_req_ap_entry_v3 ap[IWL_MVM_TOF_MAX_APS];
+	struct iwl_tof_range_req_ap_entry_v3 ap[IWL_TOF_MAX_APS];
 } __packed; /* LOCATION_RANGE_REQ_CMD_API_S_VER_7 */
 
 /**
@@ -1224,7 +1224,7 @@ struct iwl_tof_range_req_cmd_v7 {
  * @initiator_flags: see flags @ iwl_tof_initiator_flags
  * @request_id: A Token incremented per request. The same Token will be
  *		sent back in the range response
- * @num_of_ap: Number of APs to measure (error if > IWL_MVM_TOF_MAX_APS)
+ * @num_of_ap: Number of APs to measure (error if > IWL_TOF_MAX_APS)
  * @range_req_bssid: ranging request BSSID
  * @macaddr_mask: Bits set to 0 shall be copied from the MAC address template.
  *		  Bits set to 1 shall be randomized by the UMAC
@@ -1248,7 +1248,7 @@ struct iwl_tof_range_req_cmd_v8 {
 	__le32 tsf_mac_id;
 	__le16 common_calib;
 	__le16 specific_calib;
-	struct iwl_tof_range_req_ap_entry_v4 ap[IWL_MVM_TOF_MAX_APS];
+	struct iwl_tof_range_req_ap_entry_v4 ap[IWL_TOF_MAX_APS];
 } __packed; /* LOCATION_RANGE_REQ_CMD_API_S_VER_8 */
 
 /**
@@ -1256,7 +1256,7 @@ struct iwl_tof_range_req_cmd_v8 {
  * @initiator_flags: see flags @ iwl_tof_initiator_flags
  * @request_id: A Token incremented per request. The same Token will be
  *		sent back in the range response
- * @num_of_ap: Number of APs to measure (error if > IWL_MVM_TOF_MAX_APS)
+ * @num_of_ap: Number of APs to measure (error if > IWL_TOF_MAX_APS)
  * @range_req_bssid: ranging request BSSID
  * @macaddr_mask: Bits set to 0 shall be copied from the MAC address template.
  *		  Bits set to 1 shall be randomized by the UMAC
@@ -1276,7 +1276,7 @@ struct iwl_tof_range_req_cmd_v9 {
 	u8 macaddr_template[ETH_ALEN];
 	__le32 req_timeout_ms;
 	__le32 tsf_mac_id;
-	struct iwl_tof_range_req_ap_entry_v6 ap[IWL_MVM_TOF_MAX_APS];
+	struct iwl_tof_range_req_ap_entry_v6 ap[IWL_TOF_MAX_APS];
 } __packed; /* LOCATION_RANGE_REQ_CMD_API_S_VER_9 */
 
 /**
@@ -1284,7 +1284,7 @@ struct iwl_tof_range_req_cmd_v9 {
  * @initiator_flags: see flags @ iwl_tof_initiator_flags
  * @request_id: A Token incremented per request. The same Token will be
  *		sent back in the range response
- * @num_of_ap: Number of APs to measure (error if > IWL_MVM_TOF_MAX_APS)
+ * @num_of_ap: Number of APs to measure (error if > IWL_TOF_MAX_APS)
  * @range_req_bssid: ranging request BSSID
  * @macaddr_mask: Bits set to 0 shall be copied from the MAC address template.
  *		  Bits set to 1 shall be randomized by the UMAC
@@ -1304,7 +1304,7 @@ struct iwl_tof_range_req_cmd_v11 {
 	u8 macaddr_template[ETH_ALEN];
 	__le32 req_timeout_ms;
 	__le32 tsf_mac_id;
-	struct iwl_tof_range_req_ap_entry_v7 ap[IWL_MVM_TOF_MAX_APS];
+	struct iwl_tof_range_req_ap_entry_v7 ap[IWL_TOF_MAX_APS];
 } __packed; /* LOCATION_RANGE_REQ_CMD_API_S_VER_11 */
 
 /**
@@ -1312,7 +1312,7 @@ struct iwl_tof_range_req_cmd_v11 {
  * @initiator_flags: see flags @ iwl_tof_initiator_flags
  * @request_id: A Token incremented per request. The same Token will be
  *		sent back in the range response
- * @num_of_ap: Number of APs to measure (error if > IWL_MVM_TOF_MAX_APS)
+ * @num_of_ap: Number of APs to measure (error if > IWL_TOF_MAX_APS)
  * @range_req_bssid: ranging request BSSID
  * @macaddr_mask: Bits set to 0 shall be copied from the MAC address template.
  *		  Bits set to 1 shall be randomized by the UMAC
@@ -1332,7 +1332,7 @@ struct iwl_tof_range_req_cmd_v12 {
 	u8 macaddr_template[ETH_ALEN];
 	__le32 req_timeout_ms;
 	__le32 tsf_mac_id;
-	struct iwl_tof_range_req_ap_entry_v8 ap[IWL_MVM_TOF_MAX_APS];
+	struct iwl_tof_range_req_ap_entry_v8 ap[IWL_TOF_MAX_APS];
 } __packed; /* LOCATION_RANGE_REQ_CMD_API_S_VER_12 */
 
 /**
@@ -1340,7 +1340,7 @@ struct iwl_tof_range_req_cmd_v12 {
  * @initiator_flags: see flags @ iwl_tof_initiator_flags
  * @request_id: A Token incremented per request. The same Token will be
  *		sent back in the range response
- * @num_of_ap: Number of APs to measure (error if > IWL_MVM_TOF_MAX_APS)
+ * @num_of_ap: Number of APs to measure (error if > IWL_TOF_MAX_APS)
  * @range_req_bssid: ranging request BSSID
  * @macaddr_mask: Bits set to 0 shall be copied from the MAC address template.
  *		  Bits set to 1 shall be randomized by the UMAC
@@ -1360,15 +1360,15 @@ struct iwl_tof_range_req_cmd_v13 {
 	u8 macaddr_template[ETH_ALEN];
 	__le32 req_timeout_ms;
 	__le32 tsf_mac_id;
-	struct iwl_tof_range_req_ap_entry_v9 ap[IWL_MVM_TOF_MAX_APS];
+	struct iwl_tof_range_req_ap_entry_v9 ap[IWL_TOF_MAX_APS];
 } __packed; /* LOCATION_RANGE_REQ_CMD_API_S_VER_13 */
 
 /**
- * struct iwl_tof_range_req_cmd_v14 - start measurement cmd
+ * struct iwl_tof_range_req_cmd - start measurement cmd
  * @initiator_flags: see flags @ iwl_tof_initiator_flags
  * @request_id: A Token incremented per request. The same Token will be
  *		sent back in the range response
- * @num_of_ap: Number of APs to measure (error if > IWL_MVM_TOF_MAX_APS)
+ * @num_of_ap: Number of APs to measure (error if > IWL_TOF_MAX_APS)
  * @range_req_bssid: ranging request BSSID
  * @macaddr_mask: Bits set to 0 shall be copied from the MAC address template.
  *		  Bits set to 1 shall be randomized by the UMAC
@@ -1377,9 +1377,9 @@ struct iwl_tof_range_req_cmd_v13 {
  *	This is the session time for completing the measurement.
  * @tsf_mac_id: report the measurement start time for each ap in terms of the
  *	TSF of this mac id. 0xff to disable TSF reporting.
- * @ap: per-AP request data, see &struct iwl_tof_range_req_ap_entry_v10.
+ * @ap: per-AP request data, see &struct iwl_tof_range_req_ap_entry.
  */
-struct iwl_tof_range_req_cmd_v14 {
+struct iwl_tof_range_req_cmd {
 	__le32 initiator_flags;
 	u8 request_id;
 	u8 num_of_ap;
@@ -1388,8 +1388,8 @@ struct iwl_tof_range_req_cmd_v14 {
 	u8 macaddr_template[ETH_ALEN];
 	__le32 req_timeout_ms;
 	__le32 tsf_mac_id;
-	struct iwl_tof_range_req_ap_entry_v10 ap[IWL_MVM_TOF_MAX_APS];
-} __packed; /* LOCATION_RANGE_REQ_CMD_API_S_VER_13 */
+	struct iwl_tof_range_req_ap_entry ap[IWL_TOF_MAX_APS];
+} __packed; /* LOCATION_RANGE_REQ_CMD_API_S_VER_15 */
 
 /*
  * enum iwl_tof_range_request_status - status of the sent request
@@ -1609,7 +1609,7 @@ struct iwl_tof_range_rsp_ap_entry_ntfy_v5 {
 } __packed; /* LOCATION_RANGE_RSP_AP_ETRY_NTFY_API_S_VER_5 */
 
 /**
- * struct iwl_tof_range_rsp_ap_entry_ntfy_v6 - AP parameters (response)
+ * struct iwl_tof_range_rsp_ap_entry_ntfy - AP parameters (response)
  * @bssid: BSSID of the AP
  * @measure_status: current APs measurement status, one of
  *	&enum iwl_tof_entry_status.
@@ -1645,7 +1645,7 @@ struct iwl_tof_range_rsp_ap_entry_ntfy_v5 {
  * @tx_pn: the last PN used for this responder Tx in case PMF is configured in
  *	LE byte order.
  */
-struct iwl_tof_range_rsp_ap_entry_ntfy_v6 {
+struct iwl_tof_range_rsp_ap_entry_ntfy {
 	u8 bssid[ETH_ALEN];
 	u8 measure_status;
 	u8 measure_bw;
@@ -1695,7 +1695,7 @@ enum iwl_tof_response_status {
  * @request_status: status of current measurement session, one of
  *	&enum iwl_tof_response_status.
  * @last_in_batch: reprot policy (when not all responses are uploaded at once)
- * @num_of_aps: Number of APs to measure (error if > IWL_MVM_TOF_MAX_APS)
+ * @num_of_aps: Number of APs to measure (error if > IWL_TOF_MAX_APS)
  * @ap: per-AP data
  */
 struct iwl_tof_range_rsp_ntfy_v5 {
@@ -1703,7 +1703,7 @@ struct iwl_tof_range_rsp_ntfy_v5 {
 	u8 request_status;
 	u8 last_in_batch;
 	u8 num_of_aps;
-	struct iwl_tof_range_rsp_ap_entry_ntfy_v3 ap[IWL_MVM_TOF_MAX_APS];
+	struct iwl_tof_range_rsp_ap_entry_ntfy_v3 ap[IWL_TOF_MAX_APS];
 } __packed; /* LOCATION_RANGE_RSP_NTFY_API_S_VER_5 */
 
 /**
@@ -1719,7 +1719,7 @@ struct iwl_tof_range_rsp_ntfy_v6 {
 	u8 num_of_aps;
 	u8 last_report;
 	u8 reserved;
-	struct iwl_tof_range_rsp_ap_entry_ntfy_v4 ap[IWL_MVM_TOF_MAX_APS];
+	struct iwl_tof_range_rsp_ap_entry_ntfy_v4 ap[IWL_TOF_MAX_APS];
 } __packed; /* LOCATION_RANGE_RSP_NTFY_API_S_VER_6 */
 
 /**
@@ -1735,23 +1735,23 @@ struct iwl_tof_range_rsp_ntfy_v7 {
 	u8 num_of_aps;
 	u8 last_report;
 	u8 reserved;
-	struct iwl_tof_range_rsp_ap_entry_ntfy_v5 ap[IWL_MVM_TOF_MAX_APS];
+	struct iwl_tof_range_rsp_ap_entry_ntfy_v5 ap[IWL_TOF_MAX_APS];
 } __packed; /* LOCATION_RANGE_RSP_NTFY_API_S_VER_7 */
 
 /**
- * struct iwl_tof_range_rsp_ntfy_v8 - ranging response notification
+ * struct iwl_tof_range_rsp_ntfy - ranging response notification
  * @request_id: A Token ID of the corresponding Range request
  * @num_of_aps: Number of APs results
  * @last_report: 1 if no more FTM sessions are scheduled, 0 otherwise.
  * @reserved: reserved
  * @ap: per-AP data
  */
-struct iwl_tof_range_rsp_ntfy_v8 {
+struct iwl_tof_range_rsp_ntfy {
 	u8 request_id;
 	u8 num_of_aps;
 	u8 last_report;
 	u8 reserved;
-	struct iwl_tof_range_rsp_ap_entry_ntfy_v6 ap[IWL_MVM_TOF_MAX_APS];
+	struct iwl_tof_range_rsp_ap_entry_ntfy ap[IWL_TOF_MAX_APS];
 } __packed; /* LOCATION_RANGE_RSP_NTFY_API_S_VER_8,
 	       LOCATION_RANGE_RSP_NTFY_API_S_VER_9 */
 

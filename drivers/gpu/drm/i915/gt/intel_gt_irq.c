@@ -480,7 +480,7 @@ void gen8_gt_irq_postinstall(struct intel_gt *gt)
 	gen2_irq_init(uncore, GEN8_GT_IRQ_REGS(1), ~gt_interrupts[1], gt_interrupts[1]);
 	/*
 	 * RPS interrupts will get enabled/disabled on demand when RPS itself
-	 * is enabled/disabled. Same wil be the case for GuC interrupts.
+	 * is enabled/disabled. Same will be the case for GuC interrupts.
 	 */
 	gen2_irq_init(uncore, GEN8_GT_IRQ_REGS(2), gt->pm_imr, gt->pm_ier);
 	gen2_irq_init(uncore, GEN8_GT_IRQ_REGS(3), ~gt_interrupts[3], gt_interrupts[3]);

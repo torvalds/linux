@@ -136,6 +136,7 @@ amdgpu_atombios_lookup_gpio(struct amdgpu_device *adev,
 struct amdgpu_i2c_bus_rec amdgpu_atombios_lookup_i2c_gpio(struct amdgpu_device *adev,
 							  uint8_t id);
 void amdgpu_atombios_i2c_init(struct amdgpu_device *adev);
+void amdgpu_atombios_oem_i2c_init(struct amdgpu_device *adev, u8 i2c_id);
 
 bool amdgpu_atombios_has_dce_engine_info(struct amdgpu_device *adev);
 

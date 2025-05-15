@@ -8,6 +8,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/stop_machine.h>
+#include <linux/cpufeature.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/random.h>
@@ -19,6 +20,7 @@
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <asm/text-patching.h>
+#include <asm/machine.h>
 #include <asm/diag.h>
 #include <asm/facility.h>
 #include <asm/elf.h>
@@ -72,7 +74,7 @@ void notrace stop_machine_yield(const struct cpumask *cpumask)
 	this_cpu = smp_processor_id();
 	if (__this_cpu_inc_return(cpu_relax_retry) >= spin_retry) {
 		__this_cpu_write(cpu_relax_retry, 0);
-		cpu = cpumask_next_wrap(this_cpu, cpumask, this_cpu, false);
+		cpu = cpumask_next_wrap(this_cpu, cpumask);
 		if (cpu >= nr_cpu_ids)
 			return;
 		if (arch_vcpu_is_preempted(cpu))
@@ -209,14 +211,14 @@ static int __init setup_hwcaps(void)
 		elf_hwcap |= HWCAP_DFP;
 
 	/* huge page support */
-	if (MACHINE_HAS_EDAT1)
+	if (cpu_has_edat1())
 		elf_hwcap |= HWCAP_HPAGE;
 
 	/* 64-bit register support for 31-bit processes */
 	elf_hwcap |= HWCAP_HIGH_GPRS;
 
 	/* transactional execution */
-	if (MACHINE_HAS_TE)
+	if (machine_has_tx())
 		elf_hwcap |= HWCAP_TE;
 
 	/* vector */
@@ -244,10 +246,10 @@ static int __init setup_hwcaps(void)
 		elf_hwcap |= HWCAP_NNPA;
 
 	/* guarded storage */
-	if (MACHINE_HAS_GS)
+	if (cpu_has_gs())
 		elf_hwcap |= HWCAP_GS;
 
-	if (MACHINE_HAS_PCI_MIO)
+	if (test_machine_feature(MFEATURE_PCI_MIO))
 		elf_hwcap |= HWCAP_PCI_MIO;
 
 	/* virtualization support */
@@ -291,6 +293,10 @@ static int __init setup_elf_platform(void)
 	case 0x3931:
 	case 0x3932:
 		strcpy(elf_platform, "z16");
+		break;
+	case 0x9175:
+	case 0x9176:
+		strcpy(elf_platform, "z17");
 		break;
 	}
 	return 0;

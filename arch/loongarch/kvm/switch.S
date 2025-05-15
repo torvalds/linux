@@ -60,16 +60,8 @@
 	ld.d	t0, a2, KVM_ARCH_GPC
 	csrwr	t0, LOONGARCH_CSR_ERA
 
-	/* Save host PGDL */
-	csrrd	t0, LOONGARCH_CSR_PGDL
-	st.d	t0, a2, KVM_ARCH_HPGD
-
-	/* Switch to kvm */
-	ld.d	t1, a2, KVM_VCPU_KVM - KVM_VCPU_ARCH
-
-	/* Load guest PGDL */
-	li.w    t0, KVM_GPGD
-	ldx.d   t0, t1, t0
+	/* Load PGD for KVM hypervisor */
+	ld.d	t0, a2, KVM_ARCH_KVMPGD
 	csrwr	t0, LOONGARCH_CSR_PGDL
 
 	/* Mix GID and RID */

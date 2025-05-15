@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-
 $id: http://devicetree.org/schemas/hwmon/ti,ina2xx.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
@@ -27,6 +26,7 @@ properties:
       - ti,ina226
       - ti,ina230
       - ti,ina231
+      - ti,ina233
       - ti,ina237
       - ti,ina238
       - ti,ina260
@@ -75,12 +75,41 @@ properties:
       the alert polarity to active-high.
     $ref: /schemas/types.yaml#/definitions/flag
 
+  ti,maximum-expected-current-microamp:
+    description: |
+      This value indicates the maximum current in microamps that you can
+      expect to measure with ina233 in your circuit.
+
+      This value will be used to calculate the Current_LSB and current/power
+      coefficient for the pmbus and to calibrate the IC.
+    minimum: 32768
+    maximum: 4294967295
+    default: 32768000
+
 required:
   - compatible
   - reg
 
 allOf:
   - $ref: hwmon-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - silergy,sy24655
+              - ti,ina209
+              - ti,ina219
+              - ti,ina220
+              - ti,ina226
+              - ti,ina230
+              - ti,ina231
+              - ti,ina237
+              - ti,ina238
+              - ti,ina260
+    then:
+      properties:
+        ti,maximum-expected-current-microamp: false
 
 unevaluatedProperties: false
 

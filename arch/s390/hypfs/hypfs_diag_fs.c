@@ -16,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
+#include <asm/machine.h>
 #include <asm/diag.h>
 #include <asm/ebcdic.h>
 #include "hypfs_diag.h"
@@ -208,6 +209,8 @@ static int hypfs_create_cpu_files(struct dentry *cpus_dir, void *cpu_info)
 	snprintf(buffer, TMP_SIZE, "%d", cpu_info__cpu_addr(diag204_get_info_type(),
 							    cpu_info));
 	cpu_dir = hypfs_mkdir(cpus_dir, buffer);
+	if (IS_ERR(cpu_dir))
+		return PTR_ERR(cpu_dir);
 	rc = hypfs_create_u64(cpu_dir, "mgmtime",
 			      cpu_info__acc_time(diag204_get_info_type(), cpu_info) -
 			      cpu_info__lp_time(diag204_get_info_type(), cpu_info));
@@ -382,7 +385,7 @@ static void diag224_delete_name_table(void)
 
 int __init __hypfs_diag_fs_init(void)
 {
-	if (MACHINE_IS_LPAR)
+	if (machine_is_lpar())
 		return diag224_get_name_table();
 	return 0;
 }

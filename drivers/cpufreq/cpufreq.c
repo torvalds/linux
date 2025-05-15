@@ -88,6 +88,7 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 			      struct cpufreq_governor *new_gov,
 			      unsigned int new_pol);
 static bool cpufreq_boost_supported(void);
+static int cpufreq_boost_trigger_state(int state);
 
 /*
  * Two notifier lists: the "policy" list is involved in the
@@ -535,16 +536,18 @@ void cpufreq_disable_fast_switch(struct cpufreq_policy *policy)
 EXPORT_SYMBOL_GPL(cpufreq_disable_fast_switch);
 
 static unsigned int __resolve_freq(struct cpufreq_policy *policy,
-		unsigned int target_freq, unsigned int relation)
+				   unsigned int target_freq,
+				   unsigned int min, unsigned int max,
+				   unsigned int relation)
 {
 	unsigned int idx;
 
-	target_freq = clamp_val(target_freq, policy->min, policy->max);
+	target_freq = clamp_val(target_freq, min, max);
 
 	if (!policy->freq_table)
 		return target_freq;
 
-	idx = cpufreq_frequency_table_target(policy, target_freq, relation);
+	idx = cpufreq_frequency_table_target(policy, target_freq, min, max, relation);
 	policy->cached_resolved_idx = idx;
 	policy->cached_target_freq = target_freq;
 	return policy->freq_table[idx].frequency;
@@ -564,7 +567,21 @@ static unsigned int __resolve_freq(struct cpufreq_policy *policy,
 unsigned int cpufreq_driver_resolve_freq(struct cpufreq_policy *policy,
 					 unsigned int target_freq)
 {
-	return __resolve_freq(policy, target_freq, CPUFREQ_RELATION_LE);
+	unsigned int min = READ_ONCE(policy->min);
+	unsigned int max = READ_ONCE(policy->max);
+
+	/*
+	 * If this function runs in parallel with cpufreq_set_policy(), it may
+	 * read policy->min before the update and policy->max after the update
+	 * or the other way around, so there is no ordering guarantee.
+	 *
+	 * Resolve this by always honoring the max (in case it comes from
+	 * thermal throttling or similar).
+	 */
+	if (unlikely(min > max))
+		min = max;
+
+	return __resolve_freq(policy, target_freq, min, max, CPUFREQ_RELATION_LE);
 }
 EXPORT_SYMBOL_GPL(cpufreq_driver_resolve_freq);
 
@@ -629,6 +646,9 @@ static ssize_t store_local_boost(struct cpufreq_policy *policy,
 		return -EINVAL;
 
 	if (!cpufreq_driver->boost_enabled)
+		return -EINVAL;
+
+	if (!policy->boost_supported)
 		return -EINVAL;
 
 	if (policy->boost_enabled == enable)
@@ -729,18 +749,26 @@ show_one(cpuinfo_transition_latency, cpuinfo.transition_latency);
 show_one(scaling_min_freq, min);
 show_one(scaling_max_freq, max);
 
-__weak unsigned int arch_freq_get_on_cpu(int cpu)
+__weak int arch_freq_get_on_cpu(int cpu)
 {
-	return 0;
+	return -EOPNOTSUPP;
+}
+
+static inline bool cpufreq_avg_freq_supported(struct cpufreq_policy *policy)
+{
+	return arch_freq_get_on_cpu(policy->cpu) != -EOPNOTSUPP;
 }
 
 static ssize_t show_scaling_cur_freq(struct cpufreq_policy *policy, char *buf)
 {
 	ssize_t ret;
-	unsigned int freq;
+	int freq;
 
-	freq = arch_freq_get_on_cpu(policy->cpu);
-	if (freq)
+	freq = IS_ENABLED(CONFIG_CPUFREQ_ARCH_CUR_FREQ)
+		? arch_freq_get_on_cpu(policy->cpu)
+		: 0;
+
+	if (freq > 0)
 		ret = sysfs_emit(buf, "%u\n", freq);
 	else if (cpufreq_driver->setpolicy && cpufreq_driver->get)
 		ret = sysfs_emit(buf, "%u\n", cpufreq_driver->get(policy->cpu));
@@ -782,6 +810,19 @@ static ssize_t show_cpuinfo_cur_freq(struct cpufreq_policy *policy,
 		return sysfs_emit(buf, "%u\n", cur_freq);
 
 	return sysfs_emit(buf, "<unknown>\n");
+}
+
+/*
+ * show_cpuinfo_avg_freq - average CPU frequency as detected by hardware
+ */
+static ssize_t show_cpuinfo_avg_freq(struct cpufreq_policy *policy,
+				     char *buf)
+{
+	int avg_freq = arch_freq_get_on_cpu(policy->cpu);
+
+	if (avg_freq > 0)
+		return sysfs_emit(buf, "%u\n", avg_freq);
+	return avg_freq != 0 ? avg_freq : -EINVAL;
 }
 
 /*
@@ -946,6 +987,7 @@ static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
 }
 
 cpufreq_freq_attr_ro_perm(cpuinfo_cur_freq, 0400);
+cpufreq_freq_attr_ro(cpuinfo_avg_freq);
 cpufreq_freq_attr_ro(cpuinfo_min_freq);
 cpufreq_freq_attr_ro(cpuinfo_max_freq);
 cpufreq_freq_attr_ro(cpuinfo_transition_latency);
@@ -1059,6 +1101,21 @@ static int cpufreq_add_dev_interface(struct cpufreq_policy *policy)
 	struct freq_attr **drv_attr;
 	int ret = 0;
 
+	/* Attributes that need freq_table */
+	if (policy->freq_table) {
+		ret = sysfs_create_file(&policy->kobj,
+				&cpufreq_freq_attr_scaling_available_freqs.attr);
+		if (ret)
+			return ret;
+
+		if (cpufreq_boost_supported()) {
+			ret = sysfs_create_file(&policy->kobj,
+				&cpufreq_freq_attr_scaling_boost_freqs.attr);
+			if (ret)
+				return ret;
+		}
+	}
+
 	/* set up files for this cpu device */
 	drv_attr = cpufreq_driver->attr;
 	while (drv_attr && *drv_attr) {
@@ -1069,6 +1126,12 @@ static int cpufreq_add_dev_interface(struct cpufreq_policy *policy)
 	}
 	if (cpufreq_driver->get) {
 		ret = sysfs_create_file(&policy->kobj, &cpuinfo_cur_freq.attr);
+		if (ret)
+			return ret;
+	}
+
+	if (cpufreq_avg_freq_supported(policy)) {
+		ret = sysfs_create_file(&policy->kobj, &cpuinfo_avg_freq.attr);
 		if (ret)
 			return ret;
 	}
@@ -1571,14 +1634,14 @@ static int cpufreq_online(unsigned int cpu)
 		policy->cdev = of_cpufreq_cooling_register(policy);
 
 	/* Let the per-policy boost flag mirror the cpufreq_driver boost during init */
-	if (cpufreq_driver->set_boost &&
+	if (cpufreq_driver->set_boost && policy->boost_supported &&
 	    policy->boost_enabled != cpufreq_boost_enabled()) {
 		policy->boost_enabled = cpufreq_boost_enabled();
 		ret = cpufreq_driver->set_boost(policy, policy->boost_enabled);
 		if (ret) {
 			/* If the set_boost fails, the online operation is not affected */
 			pr_info("%s: CPU%d: Cannot %s BOOST\n", __func__, policy->cpu,
-				policy->boost_enabled ? "enable" : "disable");
+				str_enable_disable(policy->boost_enabled));
 			policy->boost_enabled = !policy->boost_enabled;
 		}
 	}
@@ -2337,7 +2400,8 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 	if (cpufreq_disabled())
 		return -ENODEV;
 
-	target_freq = __resolve_freq(policy, target_freq, relation);
+	target_freq = __resolve_freq(policy, target_freq, policy->min,
+				     policy->max, relation);
 
 	pr_debug("target for CPU %u: %u kHz, relation %u, requested %u kHz\n",
 		 policy->cpu, target_freq, relation, old_target_freq);
@@ -2661,11 +2725,18 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 	 * Resolve policy min/max to available frequencies. It ensures
 	 * no frequency resolution will neither overshoot the requested maximum
 	 * nor undershoot the requested minimum.
+	 *
+	 * Avoid storing intermediate values in policy->max or policy->min and
+	 * compiler optimizations around them because they may be accessed
+	 * concurrently by cpufreq_driver_resolve_freq() during the update.
 	 */
-	policy->min = new_data.min;
-	policy->max = new_data.max;
-	policy->min = __resolve_freq(policy, policy->min, CPUFREQ_RELATION_L);
-	policy->max = __resolve_freq(policy, policy->max, CPUFREQ_RELATION_H);
+	WRITE_ONCE(policy->max, __resolve_freq(policy, new_data.max,
+					       new_data.min, new_data.max,
+					       CPUFREQ_RELATION_H));
+	new_data.min = __resolve_freq(policy, new_data.min, new_data.min,
+				      new_data.max, CPUFREQ_RELATION_L);
+	WRITE_ONCE(policy->min, new_data.min > policy->max ? policy->max : new_data.min);
+
 	trace_cpu_frequency_limits(policy);
 
 	cpufreq_update_pressure(policy);
@@ -2762,6 +2833,12 @@ EXPORT_SYMBOL(cpufreq_update_policy);
  */
 void cpufreq_update_limits(unsigned int cpu)
 {
+	struct cpufreq_policy *policy __free(put_cpufreq_policy);
+
+	policy = cpufreq_cpu_get(cpu);
+	if (!policy)
+		return;
+
 	if (cpufreq_driver->update_limits)
 		cpufreq_driver->update_limits(cpu);
 	else
@@ -2772,7 +2849,7 @@ EXPORT_SYMBOL_GPL(cpufreq_update_limits);
 /*********************************************************************
  *               BOOST						     *
  *********************************************************************/
-static int cpufreq_boost_set_sw(struct cpufreq_policy *policy, int state)
+int cpufreq_boost_set_sw(struct cpufreq_policy *policy, int state)
 {
 	int ret;
 
@@ -2791,8 +2868,9 @@ static int cpufreq_boost_set_sw(struct cpufreq_policy *policy, int state)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpufreq_boost_set_sw);
 
-int cpufreq_boost_trigger_state(int state)
+static int cpufreq_boost_trigger_state(int state)
 {
 	struct cpufreq_policy *policy;
 	unsigned long flags;
@@ -2807,6 +2885,9 @@ int cpufreq_boost_trigger_state(int state)
 
 	cpus_read_lock();
 	for_each_active_policy(policy) {
+		if (!policy->boost_supported)
+			continue;
+
 		policy->boost_enabled = state;
 		ret = cpufreq_driver->set_boost(policy, state);
 		if (ret) {
@@ -2853,21 +2934,6 @@ static void remove_boost_sysfs_file(void)
 	if (cpufreq_boost_supported())
 		sysfs_remove_file(cpufreq_global_kobject, &boost.attr);
 }
-
-int cpufreq_enable_boost_support(void)
-{
-	if (!cpufreq_driver)
-		return -EINVAL;
-
-	if (cpufreq_boost_supported())
-		return 0;
-
-	cpufreq_driver->set_boost = cpufreq_boost_set_sw;
-
-	/* This will get removed on driver unregister */
-	return create_boost_sysfs_file();
-}
-EXPORT_SYMBOL_GPL(cpufreq_enable_boost_support);
 
 bool cpufreq_boost_enabled(void)
 {

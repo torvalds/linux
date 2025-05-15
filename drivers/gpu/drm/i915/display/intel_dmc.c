@@ -992,19 +992,16 @@ static int parse_dmc_fw(struct intel_dmc *dmc, const struct firmware *fw)
 
 static void intel_dmc_runtime_pm_get(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	drm_WARN_ON(display->drm, display->dmc.wakeref);
-	display->dmc.wakeref = intel_display_power_get(i915, POWER_DOMAIN_INIT);
+	display->dmc.wakeref = intel_display_power_get(display, POWER_DOMAIN_INIT);
 }
 
 static void intel_dmc_runtime_pm_put(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	intel_wakeref_t wakeref __maybe_unused =
 		fetch_and_zero(&display->dmc.wakeref);
 
-	intel_display_power_put(i915, POWER_DOMAIN_INIT, wakeref);
+	intel_display_power_put(display, POWER_DOMAIN_INIT, wakeref);
 }
 
 static const char *dmc_fallback_path(struct intel_display *display)

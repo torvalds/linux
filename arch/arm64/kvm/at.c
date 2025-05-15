@@ -1090,22 +1090,22 @@ static void compute_s1_overlay_permissions(struct kvm_vcpu *vcpu,
 		break;
 	}
 
-	if (pov_perms & ~POE_RXW)
+	if (pov_perms & ~POE_RWX)
 		pov_perms = POE_NONE;
 
 	if (wi->poe && wr->pov) {
 		wr->pr &= pov_perms & POE_R;
-		wr->px &= pov_perms & POE_X;
 		wr->pw &= pov_perms & POE_W;
+		wr->px &= pov_perms & POE_X;
 	}
 
-	if (uov_perms & ~POE_RXW)
+	if (uov_perms & ~POE_RWX)
 		uov_perms = POE_NONE;
 
 	if (wi->e0poe && wr->uov) {
 		wr->ur &= uov_perms & POE_R;
-		wr->ux &= uov_perms & POE_X;
 		wr->uw &= uov_perms & POE_W;
+		wr->ux &= uov_perms & POE_X;
 	}
 }
 

@@ -2,3 +2,29 @@ ifeq ($(CONFIG_LIBTRACEEVENT),y)
   perf-util-$(CONFIG_LIBPERL)   += perl/Perf-Trace-Util/
 endif
 perf-util-$(CONFIG_LIBPYTHON) += python/Perf-Trace-Util/
+
+ifdef MYPY
+  PY_TESTS := $(shell find python -type f -name '*.py')
+  MYPY_TEST_LOGS := $(PY_TESTS:python/%=python/%.mypy_log)
+else
+  MYPY_TEST_LOGS :=
+endif
+
+$(OUTPUT)%.mypy_log: %
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,test)mypy "$<" > $@ || (cat $@ && rm $@ && false)
+
+perf-y += $(MYPY_TEST_LOGS)
+
+ifdef PYLINT
+  PY_TESTS := $(shell find python -type f -name '*.py')
+  PYLINT_TEST_LOGS := $(PY_TESTS:python/%=python/%.pylint_log)
+else
+  PYLINT_TEST_LOGS :=
+endif
+
+$(OUTPUT)%.pylint_log: %
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,test)pylint "$<" > $@ || (cat $@ && rm $@ && false)
+
+perf-y += $(PYLINT_TEST_LOGS)

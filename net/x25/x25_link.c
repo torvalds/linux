@@ -55,7 +55,7 @@ static void x25_t20timer_expiry(struct timer_list *t)
 
 static inline void x25_stop_t20timer(struct x25_neigh *nb)
 {
-	del_timer(&nb->t20timer);
+	timer_delete(&nb->t20timer);
 }
 
 /*

@@ -336,19 +336,24 @@ static int ads1119_read_raw(struct iio_dev *indio_dev,
 {
 	struct ads1119_state *st = iio_priv(indio_dev);
 	unsigned int index = chan->address;
+	int ret;
 
 	if (index >= st->num_channels_cfg)
 		return -EINVAL;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		iio_device_claim_direct_scoped(return -EBUSY, indio_dev)
-			return ads1119_single_conversion(st, chan, val, false);
-		unreachable();
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+		ret = ads1119_single_conversion(st, chan, val, false);
+		iio_device_release_direct(indio_dev);
+		return ret;
 	case IIO_CHAN_INFO_OFFSET:
-		iio_device_claim_direct_scoped(return -EBUSY, indio_dev)
-			return ads1119_single_conversion(st, chan, val, true);
-		unreachable();
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+		ret = ads1119_single_conversion(st, chan, val, true);
+		iio_device_release_direct(indio_dev);
+		return ret;
 	case IIO_CHAN_INFO_SCALE:
 		*val = st->vref_uV / 1000;
 		*val /= st->channels_cfg[index].gain;

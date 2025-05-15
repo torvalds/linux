@@ -603,7 +603,7 @@
 };
 
 &pwm2 {
-	pinctrl-names = "active";
+	pinctrl-names = "default";
 	pinctrl-0 = <&pwm2_pin_pull_down>;
 	status = "okay";
 };

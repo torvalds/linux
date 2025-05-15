@@ -12,6 +12,7 @@
 #include "xe_drv.h"
 #include "xe_heci_gsc.h"
 #include "xe_platform_types.h"
+#include "xe_survivability_mode.h"
 
 #define GSC_BAR_LENGTH  0x00000FFC
 
@@ -88,12 +89,9 @@ static void heci_gsc_release_dev(struct device *dev)
 	kfree(adev);
 }
 
-void xe_heci_gsc_fini(struct xe_device *xe)
+static void xe_heci_gsc_fini(void *arg)
 {
-	struct xe_heci_gsc *heci_gsc = &xe->heci_gsc;
-
-	if (!xe->info.has_heci_gscfi && !xe->info.has_heci_cscfi)
-		return;
+	struct xe_heci_gsc *heci_gsc = arg;
 
 	if (heci_gsc->adev) {
 		struct auxiliary_device *aux_dev = &heci_gsc->adev->aux_dev;
@@ -105,6 +103,7 @@ void xe_heci_gsc_fini(struct xe_device *xe)
 
 	if (heci_gsc->irq >= 0)
 		irq_free_desc(heci_gsc->irq);
+
 	heci_gsc->irq = -1;
 }
 
@@ -171,14 +170,14 @@ static int heci_gsc_add_device(struct xe_device *xe, const struct heci_gsc_def *
 	return ret;
 }
 
-void xe_heci_gsc_init(struct xe_device *xe)
+int xe_heci_gsc_init(struct xe_device *xe)
 {
 	struct xe_heci_gsc *heci_gsc = &xe->heci_gsc;
-	const struct heci_gsc_def *def;
+	const struct heci_gsc_def *def = NULL;
 	int ret;
 
 	if (!xe->info.has_heci_gscfi && !xe->info.has_heci_cscfi)
-		return;
+		return 0;
 
 	heci_gsc->irq = -1;
 
@@ -190,29 +189,24 @@ void xe_heci_gsc_init(struct xe_device *xe)
 		def = &heci_gsc_def_dg2;
 	} else if (xe->info.platform == XE_DG1) {
 		def = &heci_gsc_def_dg1;
-	} else {
-		drm_warn_once(&xe->drm, "Unknown platform\n");
-		return;
 	}
 
-	if (!def->name) {
-		drm_warn_once(&xe->drm, "HECI is not implemented!\n");
-		return;
+	if (!def || !def->name) {
+		drm_warn(&xe->drm, "HECI is not implemented!\n");
+		return 0;
 	}
 
-	if (!def->use_polling) {
+	ret = devm_add_action_or_reset(xe->drm.dev, xe_heci_gsc_fini, heci_gsc);
+	if (ret)
+		return ret;
+
+	if (!def->use_polling && !xe_survivability_mode_is_enabled(xe)) {
 		ret = heci_gsc_irq_setup(xe);
 		if (ret)
-			goto fail;
+			return ret;
 	}
 
-	ret = heci_gsc_add_device(xe, def);
-	if (ret)
-		goto fail;
-
-	return;
-fail:
-	xe_heci_gsc_fini(xe);
+	return heci_gsc_add_device(xe, def);
 }
 
 void xe_heci_gsc_irq_handler(struct xe_device *xe, u32 iir)

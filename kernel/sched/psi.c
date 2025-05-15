@@ -1440,7 +1440,7 @@ void psi_trigger_destroy(struct psi_trigger *t)
 						group->rtpoll_task,
 						lockdep_is_held(&group->rtpoll_trigger_lock));
 				rcu_assign_pointer(group->rtpoll_task, NULL);
-				del_timer(&group->rtpoll_timer);
+				timer_delete(&group->rtpoll_timer);
 			}
 		}
 		mutex_unlock(&group->rtpoll_trigger_lock);

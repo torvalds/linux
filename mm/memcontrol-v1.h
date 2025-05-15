@@ -7,21 +7,6 @@
 
 /* Cgroup v1 and v2 common declarations */
 
-int try_charge_memcg(struct mem_cgroup *memcg, gfp_t gfp_mask,
-		     unsigned int nr_pages);
-
-static inline int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
-			     unsigned int nr_pages)
-{
-	if (mem_cgroup_is_root(memcg))
-		return 0;
-
-	return try_charge_memcg(memcg, gfp_mask, nr_pages);
-}
-
-void mem_cgroup_id_get_many(struct mem_cgroup *memcg, unsigned int n);
-void mem_cgroup_id_put_many(struct mem_cgroup *memcg, unsigned int n);
-
 /*
  * Iteration constructs for visiting all cgroups (under a tree).  If
  * loops are exited prematurely (break), mem_cgroup_iter_break() must
@@ -37,38 +22,29 @@ void mem_cgroup_id_put_many(struct mem_cgroup *memcg, unsigned int n);
 	     iter != NULL;				\
 	     iter = mem_cgroup_iter(NULL, iter, NULL))
 
+unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap);
+
+void drain_all_stock(struct mem_cgroup *root_memcg);
+
+unsigned long memcg_events(struct mem_cgroup *memcg, int event);
+unsigned long memcg_page_state_output(struct mem_cgroup *memcg, int item);
+int memory_stat_show(struct seq_file *m, void *v);
+
+void mem_cgroup_id_get_many(struct mem_cgroup *memcg, unsigned int n);
+struct mem_cgroup *mem_cgroup_id_get_online(struct mem_cgroup *memcg);
+
+/* Cgroup v1-specific declarations */
+#ifdef CONFIG_MEMCG_V1
+
 /* Whether legacy memory+swap accounting is active */
 static inline bool do_memsw_account(void)
 {
 	return !cgroup_subsys_on_dfl(memory_cgrp_subsys);
 }
 
-/*
- * Per memcg event counter is incremented at every pagein/pageout. With THP,
- * it will be incremented by the number of pages. This counter is used
- * to trigger some periodic events. This is straightforward and better
- * than using jiffies etc. to handle periodic memcg event.
- */
-enum mem_cgroup_events_target {
-	MEM_CGROUP_TARGET_THRESH,
-	MEM_CGROUP_TARGET_SOFTLIMIT,
-	MEM_CGROUP_NTARGETS,
-};
-
-unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap);
-
-void drain_all_stock(struct mem_cgroup *root_memcg);
-
-unsigned long memcg_events(struct mem_cgroup *memcg, int event);
 unsigned long memcg_events_local(struct mem_cgroup *memcg, int event);
 unsigned long memcg_page_state_local(struct mem_cgroup *memcg, int idx);
-unsigned long memcg_page_state_output(struct mem_cgroup *memcg, int item);
 unsigned long memcg_page_state_local_output(struct mem_cgroup *memcg, int item);
-int memory_stat_show(struct seq_file *m, void *v);
-
-/* Cgroup v1-specific declarations */
-#ifdef CONFIG_MEMCG_V1
-
 bool memcg1_alloc_events(struct mem_cgroup *memcg);
 void memcg1_free_events(struct mem_cgroup *memcg);
 
@@ -96,7 +72,6 @@ void memcg1_oom_finish(struct mem_cgroup *memcg, bool locked);
 void memcg1_oom_recover(struct mem_cgroup *memcg);
 
 void memcg1_commit_charge(struct folio *folio, struct mem_cgroup *memcg);
-void memcg1_swapout(struct folio *folio, struct mem_cgroup *memcg);
 void memcg1_uncharge_batch(struct mem_cgroup *memcg, unsigned long pgpgout,
 			   unsigned long nr_memory, int nid);
 
@@ -119,6 +94,7 @@ extern struct cftype mem_cgroup_legacy_files[];
 
 #else	/* CONFIG_MEMCG_V1 */
 
+static inline bool do_memsw_account(void) { return false; }
 static inline bool memcg1_alloc_events(struct mem_cgroup *memcg) { return true; }
 static inline void memcg1_free_events(struct mem_cgroup *memcg) {}
 
@@ -133,8 +109,6 @@ static inline void memcg1_oom_recover(struct mem_cgroup *memcg) {}
 
 static inline void memcg1_commit_charge(struct folio *folio,
 					struct mem_cgroup *memcg) {}
-
-static inline void memcg1_swapout(struct folio *folio, struct mem_cgroup *memcg) {}
 
 static inline void memcg1_uncharge_batch(struct mem_cgroup *memcg,
 					 unsigned long pgpgout,

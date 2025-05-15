@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mips/mti,mips-cm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MIPS Coherence Manager
+
+description:
+  The Coherence Manager (CM) is responsible for establishing the
+  global ordering of requests from all elements of the system and
+  sending the correct data back to the requester. It supports Cache
+  to Cache transfers.
+  https://training.mips.com/cps_mips/PDF/CPS_Introduction.pdf
+  https://training.mips.com/cps_mips/PDF/Coherency_Manager.pdf
+
+maintainers:
+  - Jiaxun Yang <jiaxun.yang@flygoat.com>
+
+properties:
+  compatible:
+    oneOf:
+      - const: mti,mips-cm
+      - const: mobileye,eyeq6-cm
+        description:
+          On EyeQ6 the HCI (Hardware Cache Initialization) information for
+          the L2 cache in multi-cluster configuration is broken.
+
+  reg:
+    description:
+      Base address and size of the Global Configuration Registers
+      referred to as CMGCR.They are the system programmer's interface
+      to the Coherency Manager. Their location in the memory map is
+      determined at core build time. In a functional system, the base
+      address is provided by the Coprocessor 0, but some
+      System-on-Chip (SoC) designs may not provide an accurate address
+      that needs to be described statically.
+
+    maxItems: 1
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    coherency-manager@1fbf8000 {
+      compatible = "mti,mips-cm";
+      reg = <0x1bde8000 0x8000>;
+    };
+
+  - |
+    coherency-manager {
+      compatible = "mobileye,eyeq6-cm";
+    };
+...

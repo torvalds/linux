@@ -123,7 +123,7 @@ mISDN_FsmDelTimer(struct FsmTimer *ft, int where)
 		ft->fi->printdebug(ft->fi, "mISDN_FsmDelTimer %lx %d",
 				   (long) ft, where);
 #endif
-	del_timer(&ft->tl);
+	timer_delete(&ft->tl);
 }
 EXPORT_SYMBOL(mISDN_FsmDelTimer);
 
@@ -167,7 +167,7 @@ mISDN_FsmRestartTimer(struct FsmTimer *ft,
 #endif
 
 	if (timer_pending(&ft->tl))
-		del_timer(&ft->tl);
+		timer_delete(&ft->tl);
 	ft->event = event;
 	ft->arg = arg;
 	ft->tl.expires = jiffies + (millisec * HZ) / 1000;

@@ -296,18 +296,81 @@ static ssize_t kb_wake_angle_store(struct device *dev,
 	return count;
 }
 
+static ssize_t usbpdmuxinfo_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
+	ssize_t count = 0;
+	struct ec_response_usb_pd_ports resp_pd_ports;
+	int ret;
+	int i;
+
+	ret = cros_ec_cmd(ec->ec_dev, 0, EC_CMD_USB_PD_PORTS, NULL, 0,
+			  &resp_pd_ports, sizeof(resp_pd_ports));
+	if (ret < 0)
+		return -EIO;
+
+	for (i = 0; i < resp_pd_ports.num_ports; i++) {
+		struct ec_response_usb_pd_mux_info resp_mux;
+		struct ec_params_usb_pd_mux_info req = {
+			.port = i,
+		};
+
+		ret = cros_ec_cmd(ec->ec_dev, 0, EC_CMD_USB_PD_MUX_INFO,
+			  &req, sizeof(req), &resp_mux, sizeof(resp_mux));
+
+		if (ret >= 0) {
+			count += sysfs_emit_at(buf, count, "Port %d:", i);
+			count += sysfs_emit_at(buf, count, " USB=%d",
+					!!(resp_mux.flags & USB_PD_MUX_USB_ENABLED));
+			count += sysfs_emit_at(buf, count, " DP=%d",
+					!!(resp_mux.flags & USB_PD_MUX_DP_ENABLED));
+			count += sysfs_emit_at(buf, count, " POLARITY=%s",
+					(resp_mux.flags & USB_PD_MUX_POLARITY_INVERTED) ?
+					"INVERTED" : "NORMAL");
+			count += sysfs_emit_at(buf, count, " HPD_IRQ=%d",
+					!!(resp_mux.flags & USB_PD_MUX_HPD_IRQ));
+			count += sysfs_emit_at(buf, count, " HPD_LVL=%d",
+					!!(resp_mux.flags & USB_PD_MUX_HPD_LVL));
+			count += sysfs_emit_at(buf, count, " SAFE=%d",
+					!!(resp_mux.flags & USB_PD_MUX_SAFE_MODE));
+			count += sysfs_emit_at(buf, count, " TBT=%d",
+					!!(resp_mux.flags & USB_PD_MUX_TBT_COMPAT_ENABLED));
+			count += sysfs_emit_at(buf, count, " USB4=%d\n",
+					!!(resp_mux.flags & USB_PD_MUX_USB4_ENABLED));
+		}
+	}
+
+	return count ? : -EIO;
+}
+
+static ssize_t ap_mode_entry_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
+	const bool ap_driven_altmode = cros_ec_check_features(
+		ec, EC_FEATURE_TYPEC_REQUIRE_AP_MODE_ENTRY);
+
+	return sysfs_emit(buf, "%s\n", ap_driven_altmode ? "yes" : "no");
+}
+
 /* Module initialization */
 
 static DEVICE_ATTR_RW(reboot);
 static DEVICE_ATTR_RO(version);
 static DEVICE_ATTR_RO(flashinfo);
 static DEVICE_ATTR_RW(kb_wake_angle);
+static DEVICE_ATTR_RO(usbpdmuxinfo);
+static DEVICE_ATTR_RO(ap_mode_entry);
 
 static struct attribute *__ec_attrs[] = {
 	&dev_attr_kb_wake_angle.attr,
 	&dev_attr_reboot.attr,
 	&dev_attr_version.attr,
 	&dev_attr_flashinfo.attr,
+	&dev_attr_usbpdmuxinfo.attr,
+	&dev_attr_ap_mode_entry.attr,
 	NULL,
 };
 
@@ -319,6 +382,14 @@ static umode_t cros_ec_ctrl_visible(struct kobject *kobj,
 
 	if (a == &dev_attr_kb_wake_angle.attr && !ec->has_kb_wake_angle)
 		return 0;
+
+	if (a == &dev_attr_usbpdmuxinfo.attr ||
+		a == &dev_attr_ap_mode_entry.attr) {
+		struct cros_ec_platform *ec_platform = dev_get_platdata(ec->dev);
+
+		if (strcmp(ec_platform->ec_name, CROS_EC_DEV_NAME))
+			return 0;
+	}
 
 	return a->mode;
 }

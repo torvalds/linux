@@ -17,6 +17,11 @@ properties:
   compatible:
     oneOf:
       - items:
+          - enum:
+              - microchip,sama7d65-shdwc
+          - const: microchip,sama7g5-shdwc
+          - const: syscon
+      - items:
           - const: microchip,sama7g5-shdwc
           - const: syscon
       - enum:

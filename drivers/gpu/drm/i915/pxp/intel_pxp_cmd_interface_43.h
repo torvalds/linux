@@ -41,7 +41,7 @@ struct pxp43_huc_auth_out {
 /* PXP-Input-Packet: Init PXP session */
 struct pxp43_create_arb_in {
 	struct pxp_cmd_header header;
-		/* header.stream_id fields for vesion 4.3 of Init PXP session: */
+		/* header.stream_id fields for version 4.3 of Init PXP session: */
 		#define PXP43_INIT_SESSION_VALID BIT(0)
 		#define PXP43_INIT_SESSION_APPTYPE BIT(1)
 		#define PXP43_INIT_SESSION_APPID GENMASK(17, 2)

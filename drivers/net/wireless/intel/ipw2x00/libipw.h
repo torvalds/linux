@@ -1011,8 +1011,6 @@ netdev_tx_t libipw_xmit(struct sk_buff *skb, struct net_device *dev);
 void libipw_txb_free(struct libipw_txb *);
 
 /* libipw_rx.c */
-void libipw_rx_any(struct libipw_device *ieee, struct sk_buff *skb,
-		   struct libipw_rx_stats *stats);
 int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 	      struct libipw_rx_stats *rx_stats);
 /* make sure to set stats->len */

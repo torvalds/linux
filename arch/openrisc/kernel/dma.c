@@ -17,6 +17,7 @@
 #include <linux/pagewalk.h>
 
 #include <asm/cpuinfo.h>
+#include <asm/cacheflush.h>
 #include <asm/spr_defs.h>
 #include <asm/tlbflush.h>
 
@@ -24,9 +25,6 @@ static int
 page_set_nocache(pte_t *pte, unsigned long addr,
 		 unsigned long next, struct mm_walk *walk)
 {
-	unsigned long cl;
-	struct cpuinfo_or1k *cpuinfo = &cpuinfo_or1k[smp_processor_id()];
-
 	pte_val(*pte) |= _PAGE_CI;
 
 	/*
@@ -36,8 +34,7 @@ page_set_nocache(pte_t *pte, unsigned long addr,
 	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
 
 	/* Flush page out of dcache */
-	for (cl = __pa(addr); cl < __pa(next); cl += cpuinfo->dcache_block_size)
-		mtspr(SPR_DCBFR, cl);
+	local_dcache_range_flush(__pa(addr), __pa(next));
 
 	return 0;
 }
@@ -98,21 +95,14 @@ void arch_dma_clear_uncached(void *cpu_addr, size_t size)
 void arch_sync_dma_for_device(phys_addr_t addr, size_t size,
 		enum dma_data_direction dir)
 {
-	unsigned long cl;
-	struct cpuinfo_or1k *cpuinfo = &cpuinfo_or1k[smp_processor_id()];
-
 	switch (dir) {
 	case DMA_TO_DEVICE:
 		/* Flush the dcache for the requested range */
-		for (cl = addr; cl < addr + size;
-		     cl += cpuinfo->dcache_block_size)
-			mtspr(SPR_DCBFR, cl);
+		local_dcache_range_flush(addr, addr + size);
 		break;
 	case DMA_FROM_DEVICE:
 		/* Invalidate the dcache for the requested range */
-		for (cl = addr; cl < addr + size;
-		     cl += cpuinfo->dcache_block_size)
-			mtspr(SPR_DCBIR, cl);
+		local_dcache_range_inv(addr, addr + size);
 		break;
 	default:
 		/*

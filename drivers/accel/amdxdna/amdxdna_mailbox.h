@@ -25,7 +25,7 @@ struct mailbox_channel;
 struct xdna_mailbox_msg {
 	u32		opcode;
 	void		*handle;
-	int		(*notify_cb)(void *handle, const u32 *data, size_t size);
+	int		(*notify_cb)(void *handle, void __iomem *data, size_t size);
 	u8		*send_data;
 	size_t		send_size;
 };

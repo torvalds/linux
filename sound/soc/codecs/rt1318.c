@@ -1147,14 +1147,14 @@ MODULE_DEVICE_TABLE(i2c, rt1318_i2c_id);
 
 static const struct of_device_id rt1318_of_match[] = {
 	{ .compatible = "realtek,rt1318", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rt1318_of_match);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt1318_acpi_match[] = {
-	{ "10EC1318", 0},
-	{ },
+	{ "10EC1318" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt1318_acpi_match);
 #endif

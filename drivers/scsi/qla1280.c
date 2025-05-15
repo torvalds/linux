@@ -2454,7 +2454,7 @@ qla1280_mailbox_command(struct scsi_qla_host *ha, uint8_t mr, uint16_t *mb)
 	qla1280_debounce_register(&reg->istatus);
 
 	wait_for_completion(&wait);
-	del_timer_sync(&ha->mailbox_timer);
+	timer_delete_sync(&ha->mailbox_timer);
 
 	spin_lock_irq(ha->host->host_lock);
 

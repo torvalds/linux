@@ -356,7 +356,7 @@ fail:
 }
 
 int aie2_register_asyn_event_msg(struct amdxdna_dev_hdl *ndev, dma_addr_t addr, u32 size,
-				 void *handle, int (*cb)(void*, const u32 *, size_t))
+				 void *handle, int (*cb)(void*, void __iomem *, size_t))
 {
 	struct async_event_msg_req req = { 0 };
 	struct xdna_mailbox_msg msg = {
@@ -435,7 +435,7 @@ int aie2_config_cu(struct amdxdna_hwctx *hwctx)
 }
 
 int aie2_execbuf(struct amdxdna_hwctx *hwctx, struct amdxdna_sched_job *job,
-		 int (*notify_cb)(void *, const u32 *, size_t))
+		 int (*notify_cb)(void *, void __iomem *, size_t))
 {
 	struct mailbox_channel *chann = hwctx->priv->mbox_chann;
 	struct amdxdna_dev *xdna = hwctx->client->xdna;
@@ -640,7 +640,7 @@ aie2_cmd_op_to_msg_op(u32 op)
 
 int aie2_cmdlist_multi_execbuf(struct amdxdna_hwctx *hwctx,
 			       struct amdxdna_sched_job *job,
-			       int (*notify_cb)(void *, const u32 *, size_t))
+			       int (*notify_cb)(void *, void __iomem *, size_t))
 {
 	struct amdxdna_gem_obj *cmdbuf_abo = aie2_cmdlist_get_cmd_buf(job);
 	struct mailbox_channel *chann = hwctx->priv->mbox_chann;
@@ -705,7 +705,7 @@ int aie2_cmdlist_multi_execbuf(struct amdxdna_hwctx *hwctx,
 
 int aie2_cmdlist_single_execbuf(struct amdxdna_hwctx *hwctx,
 				struct amdxdna_sched_job *job,
-				int (*notify_cb)(void *, const u32 *, size_t))
+				int (*notify_cb)(void *, void __iomem *, size_t))
 {
 	struct amdxdna_gem_obj *cmdbuf_abo = aie2_cmdlist_get_cmd_buf(job);
 	struct mailbox_channel *chann = hwctx->priv->mbox_chann;
@@ -740,7 +740,7 @@ int aie2_cmdlist_single_execbuf(struct amdxdna_hwctx *hwctx,
 }
 
 int aie2_sync_bo(struct amdxdna_hwctx *hwctx, struct amdxdna_sched_job *job,
-		 int (*notify_cb)(void *, const u32 *, size_t))
+		 int (*notify_cb)(void *, void __iomem *, size_t))
 {
 	struct mailbox_channel *chann = hwctx->priv->mbox_chann;
 	struct amdxdna_gem_obj *abo = to_xdna_obj(job->bos[0]);

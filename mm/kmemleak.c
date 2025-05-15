@@ -352,6 +352,15 @@ static bool unreferenced_object(struct kmemleak_object *object)
 			       jiffies_last_scan);
 }
 
+static const char *__object_type_str(struct kmemleak_object *object)
+{
+	if (object->flags & OBJECT_PHYS)
+		return " (phys)";
+	if (object->flags & OBJECT_PERCPU)
+		return " (percpu)";
+	return "";
+}
+
 /*
  * Printing of the unreferenced objects information to the seq file. The
  * print_unreferenced function must be called with the object->lock held.
@@ -364,8 +373,9 @@ static void print_unreferenced(struct seq_file *seq,
 	unsigned int nr_entries;
 
 	nr_entries = stack_depot_fetch(object->trace_handle, &entries);
-	warn_or_seq_printf(seq, "unreferenced object 0x%08lx (size %zu):\n",
-			  object->pointer, object->size);
+	warn_or_seq_printf(seq, "unreferenced object%s 0x%08lx (size %zu):\n",
+			   __object_type_str(object),
+			   object->pointer, object->size);
 	warn_or_seq_printf(seq, "  comm \"%s\", pid %d, jiffies %lu\n",
 			   object->comm, object->pid, object->jiffies);
 	hex_dump_object(seq, object);
@@ -384,10 +394,10 @@ static void print_unreferenced(struct seq_file *seq,
  */
 static void dump_object_info(struct kmemleak_object *object)
 {
-	pr_notice("Object 0x%08lx (size %zu):\n",
-			object->pointer, object->size);
+	pr_notice("Object%s 0x%08lx (size %zu):\n",
+		  __object_type_str(object), object->pointer, object->size);
 	pr_notice("  comm \"%s\", pid %d, jiffies %lu\n",
-			object->comm, object->pid, object->jiffies);
+		  object->comm, object->pid, object->jiffies);
 	pr_notice("  min_count = %d\n", object->min_count);
 	pr_notice("  count = %d\n", object->count);
 	pr_notice("  flags = 0x%x\n", object->flags);
@@ -1998,25 +2008,41 @@ static int kmemleak_open(struct inode *inode, struct file *file)
 	return seq_open(file, &kmemleak_seq_ops);
 }
 
-static int dump_str_object_info(const char *str)
+static bool __dump_str_object_info(unsigned long addr, unsigned int objflags)
 {
 	unsigned long flags;
 	struct kmemleak_object *object;
-	unsigned long addr;
 
-	if (kstrtoul(str, 0, &addr))
-		return -EINVAL;
-	object = find_and_get_object(addr, 0);
-	if (!object) {
-		pr_info("Unknown object at 0x%08lx\n", addr);
-		return -EINVAL;
-	}
+	object = __find_and_get_object(addr, 1, objflags);
+	if (!object)
+		return false;
 
 	raw_spin_lock_irqsave(&object->lock, flags);
 	dump_object_info(object);
 	raw_spin_unlock_irqrestore(&object->lock, flags);
 
 	put_object(object);
+
+	return true;
+}
+
+static int dump_str_object_info(const char *str)
+{
+	unsigned long addr;
+	bool found = false;
+
+	if (kstrtoul(str, 0, &addr))
+		return -EINVAL;
+
+	found |= __dump_str_object_info(addr, 0);
+	found |= __dump_str_object_info(addr, OBJECT_PHYS);
+	found |= __dump_str_object_info(addr, OBJECT_PERCPU);
+
+	if (!found) {
+		pr_info("Unknown object at 0x%08lx\n", addr);
+		return -EINVAL;
+	}
+
 	return 0;
 }
 

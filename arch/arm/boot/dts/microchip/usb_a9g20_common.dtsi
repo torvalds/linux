@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * usb_a9g20.dts - Device Tree file for Caloa USB A9G20 board
+ * usb_a9g20.dts - Device Tree file for Calao USB A9G20 board
  *
  *  Copyright (C) 2011 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
  */

@@ -2180,7 +2180,7 @@ static void gem_do_stop(struct net_device *dev, int wol)
 	gem_disable_ints(gp);
 
 	/* Stop the link timer */
-	del_timer_sync(&gp->link_timer);
+	timer_delete_sync(&gp->link_timer);
 
 	/* We cannot cancel the reset task while holding the
 	 * rtnl lock, we'd get an A->B / B->A deadlock stituation
@@ -2230,7 +2230,7 @@ static void gem_reset_task(struct work_struct *work)
 	}
 
 	/* Stop the link timer */
-	del_timer_sync(&gp->link_timer);
+	timer_delete_sync(&gp->link_timer);
 
 	/* Stop NAPI and tx */
 	gem_netif_stop(gp);
@@ -2610,7 +2610,7 @@ static int gem_set_link_ksettings(struct net_device *dev,
 
 	/* Apply settings and restart link process. */
 	if (netif_device_present(gp->dev)) {
-		del_timer_sync(&gp->link_timer);
+		timer_delete_sync(&gp->link_timer);
 		gem_begin_auto_negotiation(gp, cmd);
 	}
 
@@ -2626,7 +2626,7 @@ static int gem_nway_reset(struct net_device *dev)
 
 	/* Restart link process  */
 	if (netif_device_present(gp->dev)) {
-		del_timer_sync(&gp->link_timer);
+		timer_delete_sync(&gp->link_timer);
 		gem_begin_auto_negotiation(gp, NULL);
 	}
 

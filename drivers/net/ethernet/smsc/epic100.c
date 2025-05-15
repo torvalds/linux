@@ -1292,7 +1292,7 @@ static int epic_close(struct net_device *dev)
 		netdev_dbg(dev, "Shutting down ethercard, status was %2.2x.\n",
 			   er32(INTSTAT));
 
-	del_timer_sync(&ep->timer);
+	timer_delete_sync(&ep->timer);
 
 	epic_disable_int(dev, ep);
 

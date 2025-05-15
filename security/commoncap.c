@@ -115,10 +115,11 @@ static inline int cap_capable_helper(const struct cred *cred,
  * Determine whether the nominated task has the specified capability amongst
  * its effective set, returning 0 if it does, -ve if it does not.
  *
- * NOTE WELL: cap_has_capability() cannot be used like the kernel's capable()
- * and has_capability() functions.  That is, it has the reverse semantics:
- * cap_has_capability() returns 0 when a task has a capability, but the
- * kernel's capable() and has_capability() returns 1 for this case.
+ * NOTE WELL: cap_capable() has reverse semantics to the capable() call
+ * and friends. That is cap_capable() returns an int 0 when a task has
+ * a capability, while the kernel's capable(), has_ns_capability(),
+ * has_ns_capability_noaudit(), and has_capability_noaudit() return a
+ * bool true (1) for this case.
  */
 int cap_capable(const struct cred *cred, struct user_namespace *target_ns,
 		int cap, unsigned int opts)

@@ -1628,7 +1628,7 @@ static int b44_close(struct net_device *dev)
 
 	napi_disable(&bp->napi);
 
-	del_timer_sync(&bp->timer);
+	timer_delete_sync(&bp->timer);
 
 	spin_lock_irq(&bp->lock);
 
@@ -2473,7 +2473,7 @@ static int b44_suspend(struct ssb_device *sdev, pm_message_t state)
 	if (!netif_running(dev))
 		return 0;
 
-	del_timer_sync(&bp->timer);
+	timer_delete_sync(&bp->timer);
 
 	spin_lock_irq(&bp->lock);
 

@@ -907,6 +907,6 @@ int ip6_flowlabel_init(void)
 void ip6_flowlabel_cleanup(void)
 {
 	static_key_deferred_flush(&ipv6_flowlabel_exclusive);
-	del_timer(&ip6_fl_gc_timer);
+	timer_delete(&ip6_fl_gc_timer);
 	unregister_pernet_subsys(&ip6_flowlabel_net_ops);
 }

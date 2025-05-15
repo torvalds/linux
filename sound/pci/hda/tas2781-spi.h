@@ -88,7 +88,6 @@ struct tasdevice_priv {
 	struct mutex codec_lock;
 	struct regmap *regmap;
 	struct device *dev;
-	struct tm tm;
 
 	unsigned char crc8_lkp_tbl[CRC8_TABLE_SIZE];
 	unsigned char coef_binaryname[64];

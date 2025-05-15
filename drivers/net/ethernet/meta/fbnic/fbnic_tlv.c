@@ -196,12 +196,16 @@ int fbnic_tlv_attr_put_string(struct fbnic_tlv_msg *msg, u16 attr_id,
 /**
  * fbnic_tlv_attr_get_unsigned - Retrieve unsigned value from result
  * @attr: Attribute to retrieve data from
+ * @def: The default value if attr is NULL
  *
  * Return: unsigned 64b value containing integer value
  **/
-u64 fbnic_tlv_attr_get_unsigned(struct fbnic_tlv_msg *attr)
+u64 fbnic_tlv_attr_get_unsigned(struct fbnic_tlv_msg *attr, u64 def)
 {
 	__le64 le64_value = 0;
+
+	if (!attr)
+		return def;
 
 	memcpy(&le64_value, &attr->value[0],
 	       le16_to_cpu(attr->hdr.len) - sizeof(*attr));
@@ -212,14 +216,20 @@ u64 fbnic_tlv_attr_get_unsigned(struct fbnic_tlv_msg *attr)
 /**
  * fbnic_tlv_attr_get_signed - Retrieve signed value from result
  * @attr: Attribute to retrieve data from
+ * @def: The default value if attr is NULL
  *
  * Return: signed 64b value containing integer value
  **/
-s64 fbnic_tlv_attr_get_signed(struct fbnic_tlv_msg *attr)
+s64 fbnic_tlv_attr_get_signed(struct fbnic_tlv_msg *attr, s64 def)
 {
-	int shift = (8 + sizeof(*attr) - le16_to_cpu(attr->hdr.len)) * 8;
 	__le64 le64_value = 0;
+	int shift;
 	s64 value;
+
+	if (!attr)
+		return def;
+
+	shift = (8 + sizeof(*attr) - le16_to_cpu(attr->hdr.len)) * 8;
 
 	/* Copy the value and adjust for byte ordering */
 	memcpy(&le64_value, &attr->value[0],
@@ -233,19 +243,40 @@ s64 fbnic_tlv_attr_get_signed(struct fbnic_tlv_msg *attr)
 /**
  * fbnic_tlv_attr_get_string - Retrieve string value from result
  * @attr: Attribute to retrieve data from
- * @str: Pointer to an allocated string to store the data
- * @max_size: The maximum size which can be in str
+ * @dst: Pointer to an allocated string to store the data
+ * @dstsize: The maximum size which can be in dst
  *
- * Return: the size of the string read from firmware
+ * Return: the size of the string read from firmware or negative error.
  **/
-size_t fbnic_tlv_attr_get_string(struct fbnic_tlv_msg *attr, char *str,
-				 size_t max_size)
+ssize_t fbnic_tlv_attr_get_string(struct fbnic_tlv_msg *attr, char *dst,
+				  size_t dstsize)
 {
-	max_size = min_t(size_t, max_size,
-			 (le16_to_cpu(attr->hdr.len) * 4) - sizeof(*attr));
-	memcpy(str, &attr->value, max_size);
+	size_t srclen, len;
+	ssize_t ret;
 
-	return max_size;
+	if (!attr)
+		return -EINVAL;
+
+	if (dstsize == 0)
+		return -E2BIG;
+
+	srclen = le16_to_cpu(attr->hdr.len) - sizeof(*attr);
+	if (srclen > 0 && ((char *)attr->value)[srclen - 1] == '\0')
+		srclen--;
+
+	if (srclen >= dstsize) {
+		len = dstsize - 1;
+		ret = -E2BIG;
+	} else {
+		len = srclen;
+		ret = len;
+	}
+
+	memcpy(dst, &attr->value, len);
+	/* Zero pad end of dst. */
+	memset(dst + len, 0, dstsize - len);
+
+	return ret;
 }
 
 /**

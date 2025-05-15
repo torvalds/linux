@@ -300,6 +300,19 @@ union lane_align_status_updated {
 	uint8_t raw;
 };
 
+union link_service_irq_vector_esi0 {
+	struct {
+		uint8_t DP_LINK_RX_CAP_CHANGED:1;
+		uint8_t DP_LINK_STATUS_CHANGED:1;
+		uint8_t DP_LINK_STREAM_STATUS_CHANGED:1;
+		uint8_t DP_LINK_HDMI_LINK_STATUS_CHANGED:1;
+		uint8_t DP_LINK_CONNECTED_OFF_ENTRY_REQUESTED:1;
+		uint8_t DP_LINK_TUNNELING_IRQ:1;
+		uint8_t reserved:2;
+	} bits;
+	uint8_t raw;
+};
+
 union lane_adjust {
 	struct {
 		uint8_t VOLTAGE_SWING_LANE:2;
@@ -410,14 +423,6 @@ union dwnstream_port_caps_byte3_hdmi {
 	uint8_t raw;
 };
 
-union hdmi_sink_encoded_link_bw_support {
-	struct {
-		uint8_t HDMI_SINK_ENCODED_LINK_BW_SUPPORT:3;
-		uint8_t RESERVED:5;
-	} bits;
-	uint8_t raw;
-};
-
 union hdmi_encoded_link_bw {
 	struct {
 		uint8_t FRL_MODE:1; // Bit 0
@@ -427,7 +432,28 @@ union hdmi_encoded_link_bw {
 		uint8_t BW_32Gbps:1;
 		uint8_t BW_40Gbps:1;
 		uint8_t BW_48Gbps:1;
-		uint8_t RESERVED:1; // Bit 7
+		uint8_t FRL_LINK_TRAINING_FINISHED:1; // Bit 7
+	} bits;
+	uint8_t raw;
+};
+
+union hdmi_tx_link_status {
+	struct {
+		uint8_t HDMI_TX_LINK_ACTIVE_STATUS:1;
+		uint8_t HDMI_TX_READY_STATUS:1;
+		uint8_t RESERVED:6;
+	} bits;
+	uint8_t raw;
+};
+
+union autonomous_mode_and_frl_link_status {
+	struct {
+		uint8_t FRL_LT_IN_PROGRESS_STATUS:1;
+		uint8_t FRL_LT_LINK_CONFIG_IN_PROGRESS:3;
+		uint8_t RESERVED:1;
+		uint8_t FALLBACK_POLICY:1;
+		uint8_t FALLBACK_POLICY_VALID:1;
+		uint8_t REGULATED_AUTONOMOUS_MODE_SUPPORTED:1;
 	} bits;
 	uint8_t raw;
 };
@@ -470,8 +496,10 @@ union sink_status {
 	uint8_t raw;
 };
 
-/*6-byte structure corresponding to 6 registers (200h-205h)
-read during handling of HPD-IRQ*/
+/* 7-byte structure corresponding to 6 registers (200h-205h)
+ * and LINK_SERVICE_IRQ_ESI0 (2005h) for tunneling IRQ
+ * read during handling of HPD-IRQ
+ */
 union hpd_irq_data {
 	struct {
 		union sink_count sink_cnt;/* 200h */
@@ -479,9 +507,10 @@ union hpd_irq_data {
 		union lane_status lane01_status;/* 202h */
 		union lane_status lane23_status;/* 203h */
 		union lane_align_status_updated lane_status_updated;/* 204h */
-		union sink_status sink_status;
+		union sink_status sink_status;/* 205h */
+		union link_service_irq_vector_esi0 link_service_irq_esi0;/* 2005h */
 	} bytes;
-	uint8_t raw[6];
+	uint8_t raw[7];
 };
 
 union down_stream_port_count {
@@ -959,6 +988,14 @@ union dp_128b_132b_supported_lttpr_link_rates {
 	uint8_t raw;
 };
 
+union dp_alpm_lttpr_cap {
+	struct {
+		uint8_t AUX_LESS_ALPM_SUPPORTED	:1;
+		uint8_t RESERVED				:7;
+	} bits;
+	uint8_t raw;
+};
+
 union dp_sink_video_fallback_formats {
 	struct {
 		uint8_t dp_1024x768_60Hz_24bpp_support	:1;
@@ -1118,7 +1155,10 @@ struct dc_lttpr_caps {
 	uint8_t max_ext_timeout;
 	union dp_main_link_channel_coding_lttpr_cap main_link_channel_coding;
 	union dp_128b_132b_supported_lttpr_link_rates supported_128b_132b_rates;
+	union dp_alpm_lttpr_cap alpm;
 	uint8_t aux_rd_interval[MAX_REPEATER_CNT - 1];
+	uint8_t lttpr_ieee_oui[3];
+	uint8_t lttpr_device_id[6];
 };
 
 struct dc_dongle_dfp_cap_ext {
@@ -1147,6 +1187,7 @@ struct dc_dongle_caps {
 	uint32_t dp_hdmi_max_bpc;
 	uint32_t dp_hdmi_max_pixel_clk_in_khz;
 	uint32_t dp_hdmi_frl_max_link_bw_in_kbps;
+	uint32_t dp_hdmi_regulated_autonomous_mode_support;
 	struct dc_dongle_dfp_cap_ext dfp_cap_ext;
 };
 
@@ -1209,6 +1250,8 @@ struct dpcd_caps {
 	struct replay_info pr_info;
 	uint16_t edp_oled_emission_rate;
 	union dp_receive_port0_cap receive_port0_cap;
+	/* Indicates the number of SST links supported by MSO (Multi-Stream Output) */
+	uint8_t mso_cap_sst_links_supported;
 };
 
 union dpcd_sink_ext_caps {
@@ -1370,6 +1413,12 @@ struct dp_trace {
 #ifndef DPCD_MAX_UNCOMPRESSED_PIXEL_RATE_CAP
 #define DPCD_MAX_UNCOMPRESSED_PIXEL_RATE_CAP    0x221c
 #endif
+#ifndef DP_LTTPR_ALPM_CAPABILITIES
+#define DP_LTTPR_ALPM_CAPABILITIES              0xF0009
+#endif
+#ifndef DP_REGULATED_AUTONOMOUS_MODE_SUPPORTED_AND_HDMI_LINK_TRAINING_STATUS
+#define DP_REGULATED_AUTONOMOUS_MODE_SUPPORTED_AND_HDMI_LINK_TRAINING_STATUS	0x303C
+#endif
 #ifndef DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE
 #define DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE	0x50
 #endif
@@ -1378,6 +1427,12 @@ struct dp_trace {
 #endif
 #ifndef DP_BRANCH_VENDOR_SPECIFIC_START
 #define DP_BRANCH_VENDOR_SPECIFIC_START     0x50C
+#endif
+#ifndef DP_LTTPR_IEEE_OUI
+#define DP_LTTPR_IEEE_OUI 0xF003D
+#endif
+#ifndef DP_LTTPR_DEVICE_ID
+#define DP_LTTPR_DEVICE_ID 0xF0040
 #endif
 /** USB4 DPCD BW Allocation Registers Chapter 10.7 **/
 #ifndef DP_TUNNELING_CAPABILITIES
@@ -1416,4 +1471,20 @@ struct dp_trace {
 #ifndef REQUESTED_BW
 #define REQUESTED_BW					0xE0031 /* 1.4a */
 #endif
+# ifndef DP_TUNNELING_BW_ALLOC_BITS_MASK
+# define DP_TUNNELING_BW_ALLOC_BITS_MASK		(0x0F << 0)
+# endif
+# ifndef DP_TUNNELING_BW_REQUEST_FAILED
+# define DP_TUNNELING_BW_REQUEST_FAILED			(1 << 0)
+# endif
+# ifndef DP_TUNNELING_BW_REQUEST_SUCCEEDED
+# define DP_TUNNELING_BW_REQUEST_SUCCEEDED		(1 << 1)
+# endif
+# ifndef DP_TUNNELING_ESTIMATED_BW_CHANGED
+# define DP_TUNNELING_ESTIMATED_BW_CHANGED		(1 << 2)
+# endif
+# ifndef DP_TUNNELING_BW_ALLOC_CAP_CHANGED
+# define DP_TUNNELING_BW_ALLOC_CAP_CHANGED		(1 << 3)
+# endif
+
 #endif /* DC_DP_TYPES_H */

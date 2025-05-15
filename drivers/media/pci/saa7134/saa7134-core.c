@@ -322,7 +322,7 @@ void saa7134_buffer_next(struct saa7134_dev *dev,
 		/* nothing to do -- just stop DMA */
 		core_dbg("buffer_next %p\n", NULL);
 		saa7134_set_dmabits(dev);
-		del_timer(&q->timeout);
+		timer_delete(&q->timeout);
 	}
 }
 
@@ -364,7 +364,7 @@ void saa7134_stop_streaming(struct saa7134_dev *dev, struct saa7134_dmaqueue *q)
 		tmp = NULL;
 	}
 	spin_unlock_irqrestore(&dev->slock, flags);
-	saa7134_buffer_timeout(&q->timeout); /* also calls del_timer(&q->timeout) */
+	saa7134_buffer_timeout(&q->timeout); /* also calls timer_delete(&q->timeout) */
 }
 EXPORT_SYMBOL_GPL(saa7134_stop_streaming);
 
@@ -1390,9 +1390,9 @@ static int __maybe_unused saa7134_suspend(struct device *dev_d)
 	/* Disable timeout timers - if we have active buffers, we will
 	   fill them on resume*/
 
-	del_timer(&dev->video_q.timeout);
-	del_timer(&dev->vbi_q.timeout);
-	del_timer(&dev->ts_q.timeout);
+	timer_delete(&dev->video_q.timeout);
+	timer_delete(&dev->vbi_q.timeout);
+	timer_delete(&dev->ts_q.timeout);
 
 	if (dev->remote && dev->remote->dev->users)
 		saa7134_ir_close(dev->remote->dev);

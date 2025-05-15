@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 TARGET=$(basename $1)
 DIR=lib/tests/module

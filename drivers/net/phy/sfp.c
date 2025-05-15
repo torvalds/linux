@@ -234,6 +234,7 @@ struct sfp {
 	enum mdio_i2c_proto mdio_protocol;
 	struct phy_device *mod_phy;
 	const struct sff_data *type;
+	size_t i2c_max_block_size;
 	size_t i2c_block_size;
 	u32 max_power_mW;
 
@@ -385,7 +386,7 @@ static void sfp_fixup_rollball(struct sfp *sfp)
 	sfp->phy_t_retry = msecs_to_jiffies(1000);
 }
 
-static void sfp_fixup_fs_2_5gt(struct sfp *sfp)
+static void sfp_fixup_rollball_wait4s(struct sfp *sfp)
 {
 	sfp_fixup_rollball(sfp);
 
@@ -399,7 +400,7 @@ static void sfp_fixup_fs_2_5gt(struct sfp *sfp)
 static void sfp_fixup_fs_10gt(struct sfp *sfp)
 {
 	sfp_fixup_10gbaset_30m(sfp);
-	sfp_fixup_fs_2_5gt(sfp);
+	sfp_fixup_rollball_wait4s(sfp);
 }
 
 static void sfp_fixup_halny_gsfp(struct sfp *sfp)
@@ -479,9 +480,10 @@ static const struct sfp_quirk sfp_quirks[] = {
 	// PHY.
 	SFP_QUIRK_F("FS", "SFP-10G-T", sfp_fixup_fs_10gt),
 
-	// Fiberstore SFP-2.5G-T uses Rollball protocol to talk to the PHY and
-	// needs 4 sec wait before probing the PHY.
-	SFP_QUIRK_F("FS", "SFP-2.5G-T", sfp_fixup_fs_2_5gt),
+	// Fiberstore SFP-2.5G-T and SFP-10GM-T uses Rollball protocol to talk
+	// to the PHY and needs 4 sec wait before probing the PHY.
+	SFP_QUIRK_F("FS", "SFP-2.5G-T", sfp_fixup_rollball_wait4s),
+	SFP_QUIRK_F("FS", "SFP-10GM-T", sfp_fixup_rollball_wait4s),
 
 	// Fiberstore GPON-ONU-34-20BI can operate at 2500base-X, but report 1.2GBd
 	// NRZ in their EEPROM
@@ -515,6 +517,8 @@ static const struct sfp_quirk sfp_quirks[] = {
 
 	SFP_QUIRK_F("OEM", "SFP-10G-T", sfp_fixup_rollball_cc),
 	SFP_QUIRK_M("OEM", "SFP-2.5G-T", sfp_quirk_oem_2_5g),
+	SFP_QUIRK_M("OEM", "SFP-2.5G-BX10-D", sfp_quirk_2500basex),
+	SFP_QUIRK_M("OEM", "SFP-2.5G-BX10-U", sfp_quirk_2500basex),
 	SFP_QUIRK_F("OEM", "RTSFP-10", sfp_fixup_rollball_cc),
 	SFP_QUIRK_F("OEM", "RTSFP-10G", sfp_fixup_rollball_cc),
 	SFP_QUIRK_F("Turris", "RTSFP-2.5G", sfp_fixup_rollball),
@@ -688,14 +692,71 @@ static int sfp_i2c_write(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
 	return ret == ARRAY_SIZE(msgs) ? len : 0;
 }
 
+static int sfp_smbus_byte_read(struct sfp *sfp, bool a2, u8 dev_addr,
+			       void *buf, size_t len)
+{
+	union i2c_smbus_data smbus_data;
+	u8 bus_addr = a2 ? 0x51 : 0x50;
+	u8 *data = buf;
+	int ret;
+
+	while (len) {
+		ret = i2c_smbus_xfer(sfp->i2c, bus_addr, 0,
+				     I2C_SMBUS_READ, dev_addr,
+				     I2C_SMBUS_BYTE_DATA, &smbus_data);
+		if (ret < 0)
+			return ret;
+
+		*data = smbus_data.byte;
+
+		len--;
+		data++;
+		dev_addr++;
+	}
+
+	return data - (u8 *)buf;
+}
+
+static int sfp_smbus_byte_write(struct sfp *sfp, bool a2, u8 dev_addr,
+				void *buf, size_t len)
+{
+	union i2c_smbus_data smbus_data;
+	u8 bus_addr = a2 ? 0x51 : 0x50;
+	u8 *data = buf;
+	int ret;
+
+	while (len) {
+		smbus_data.byte = *data;
+		ret = i2c_smbus_xfer(sfp->i2c, bus_addr, 0,
+				     I2C_SMBUS_WRITE, dev_addr,
+				     I2C_SMBUS_BYTE_DATA, &smbus_data);
+		if (ret)
+			return ret;
+
+		len--;
+		data++;
+		dev_addr++;
+	}
+
+	return 0;
+}
+
 static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
 {
-	if (!i2c_check_functionality(i2c, I2C_FUNC_I2C))
-		return -EINVAL;
-
 	sfp->i2c = i2c;
-	sfp->read = sfp_i2c_read;
-	sfp->write = sfp_i2c_write;
+
+	if (i2c_check_functionality(i2c, I2C_FUNC_I2C)) {
+		sfp->read = sfp_i2c_read;
+		sfp->write = sfp_i2c_write;
+		sfp->i2c_max_block_size = SFP_EEPROM_BLOCK_SIZE;
+	} else if (i2c_check_functionality(i2c, I2C_FUNC_SMBUS_BYTE_DATA)) {
+		sfp->read = sfp_smbus_byte_read;
+		sfp->write = sfp_smbus_byte_write;
+		sfp->i2c_max_block_size = 1;
+	} else {
+		sfp->i2c = NULL;
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1591,7 +1652,7 @@ static void sfp_hwmon_probe(struct work_struct *work)
 	 */
 	if (sfp->i2c_block_size < 2) {
 		dev_info(sfp->dev,
-			 "skipping hwmon device registration due to broken EEPROM\n");
+			 "skipping hwmon device registration\n");
 		dev_info(sfp->dev,
 			 "diagnostic EEPROM area cannot be read atomically to guarantee data coherency\n");
 		return;
@@ -2198,7 +2259,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	u8 check;
 	int ret;
 
-	sfp->i2c_block_size = SFP_EEPROM_BLOCK_SIZE;
+	sfp->i2c_block_size = sfp->i2c_max_block_size;
 
 	ret = sfp_read(sfp, false, 0, &id.base, sizeof(id.base));
 	if (ret < 0) {
@@ -2938,7 +2999,6 @@ static struct sfp *sfp_alloc(struct device *dev)
 		return ERR_PTR(-ENOMEM);
 
 	sfp->dev = dev;
-	sfp->i2c_block_size = SFP_EEPROM_BLOCK_SIZE;
 
 	mutex_init(&sfp->sm_mutex);
 	mutex_init(&sfp->st_mutex);
@@ -3111,6 +3171,15 @@ static int sfp_probe(struct platform_device *pdev)
 	sfp->sfp_bus = sfp_register_socket(sfp->dev, sfp, &sfp_module_ops);
 	if (!sfp->sfp_bus)
 		return -ENOMEM;
+
+	if (sfp->i2c_max_block_size < 2)
+		dev_warn(sfp->dev,
+			 "Please note:\n"
+			 "This SFP cage is accessed via an SMBus only capable of single byte\n"
+			 "transactions. Some features are disabled, other may be unreliable or\n"
+			 "sporadically fail. Use with caution. There is nothing that the kernel\n"
+			 "or community can do to fix it, the kernel will try best efforts. Please\n"
+			 "verify any problems on hardware that supports multi-byte I2C transactions.\n");
 
 	sfp_debugfs_init(sfp);
 

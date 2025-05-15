@@ -129,6 +129,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		err = psp_init_ta_microcode(psp, ucode_prefix);
 		break;
 	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(11, 5, 2):
 		err = psp_init_asd_microcode(psp, ucode_prefix);
 		if (err)
 			return err;
@@ -532,7 +533,7 @@ static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 			}
 
 			memcpy_toio(adev->mman.aper_base_kaddr, buf, sz);
-			adev->hdp.funcs->flush_hdp(adev, NULL);
+			amdgpu_device_flush_hdp(adev, NULL);
 			vfree(buf);
 			drm_dev_exit(idx);
 		} else {

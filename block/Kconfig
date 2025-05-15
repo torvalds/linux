@@ -63,7 +63,7 @@ config BLK_DEV_BSGLIB
 config BLK_DEV_INTEGRITY
 	bool "Block layer data integrity support"
 	select CRC_T10DIF
-	select CRC64_ROCKSOFT
+	select CRC64
 	help
 	Some storage devices allow extra information to be
 	stored/retrieved to help protect the data.  The block layer

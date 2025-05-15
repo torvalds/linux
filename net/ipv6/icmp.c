@@ -957,12 +957,9 @@ static int icmpv6_rcv(struct sk_buff *skb)
 		break;
 
 	case ICMPV6_ECHO_REPLY:
-		reason = ping_rcv(skb);
-		break;
-
 	case ICMPV6_EXT_ECHO_REPLY:
-		reason = ping_rcv(skb);
-		break;
+		ping_rcv(skb);
+		return 0;
 
 	case ICMPV6_PKT_TOOBIG:
 		/* BUGGG_FUTURE: if packet contains rthdr, we cannot update

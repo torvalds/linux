@@ -21,6 +21,11 @@ struct vnic_enet_config {
 	u16 loop_tag;
 	u16 vf_rq_count;
 	u16 num_arfs;
+	u8 reserved[66];
+	u32 max_rq_ring;	// MAX RQ ring size
+	u32 max_wq_ring;	// MAX WQ ring size
+	u32 max_cq_ring;	// MAX CQ ring size
+	u32 rdma_rsvd_lkey;	// Reserved (privileged) LKey
 };
 
 #define VENETF_TSO		0x1	/* TSO enabled */

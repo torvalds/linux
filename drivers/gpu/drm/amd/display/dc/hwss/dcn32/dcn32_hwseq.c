@@ -316,10 +316,12 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 			cmd.cab.cab_alloc_ways = (uint8_t)ways;
 
 			dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
+			DC_LOG_MALL("enable scanout from MALL");
 
 			return true;
 		}
 
+		DC_LOG_MALL("surface cannot fit in CAB, disabling scanout from MALL\n");
 		return false;
 	}
 
@@ -1322,7 +1324,8 @@ void dcn32_unblank_stream(struct pipe_ctx *pipe_ctx,
 			params.timing.pix_clk_100hz /= 2;
 			params.pix_per_cycle = 2;
 		}
-		pipe_ctx->stream_res.stream_enc->funcs->dp_set_odm_combine(
+		if (pipe_ctx->stream_res.stream_enc->funcs->dp_set_odm_combine)
+			pipe_ctx->stream_res.stream_enc->funcs->dp_set_odm_combine(
 				pipe_ctx->stream_res.stream_enc, params.pix_per_cycle > 1);
 		pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(link, pipe_ctx->stream_res.stream_enc, &params);
 	}

@@ -130,7 +130,7 @@ intel_display_param_named_unsafe(enable_psr2_sel_fetch, bool, 0400,
 
 intel_display_param_named_unsafe(enable_dmc_wl, int, 0400,
 	"Enable DMC wakelock "
-	"(-1=use per-chip default, 0=disabled, 1=enabled) "
+	"(-1=use per-chip default, 0=disabled, 1=enabled, 2=match any register, 3=always locked) "
 	"Default: -1");
 
 __maybe_unused

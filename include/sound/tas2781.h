@@ -2,7 +2,7 @@
 //
 // ALSA SoC Texas Instruments TAS2563/TAS2781 Audio Smart Amplifier
 //
-// Copyright (C) 2022 - 2024 Texas Instruments Incorporated
+// Copyright (C) 2022 - 2025 Texas Instruments Incorporated
 // https://www.ti.com
 //
 // The TAS2563/TAS2781 driver implements a flexible and configurable
@@ -11,6 +11,7 @@
 //
 // Author: Shenghao Ding <shenghao-ding@ti.com>
 // Author: Kevin Lu <kevin-lu@ti.com>
+// Author: Baojun Xu <baojun.xu@ti.com>
 //
 
 #ifndef __TAS2781_H__
@@ -31,7 +32,7 @@
 	SNDRV_PCM_FMTBIT_S24_LE | \
 	SNDRV_PCM_FMTBIT_S32_LE)
 
-/*PAGE Control Register (available in page0 of each book) */
+/* PAGE Control Register (available in page0 of each book) */
 #define TASDEVICE_PAGE_SELECT		0x00
 #define TASDEVICE_BOOKCTL_PAGE		0x00
 #define TASDEVICE_BOOKCTL_REG		127
@@ -42,12 +43,12 @@
 #define TASDEVICE_REG(book, page, reg)	(((book * 256 * 128) + \
 					(page * 128)) + reg)
 
-/*Software Reset */
-#define TASDEVICE_REG_SWRESET		TASDEVICE_REG(0x0, 0X0, 0x01)
+/* Software Reset */
+#define TASDEVICE_REG_SWRESET		TASDEVICE_REG(0x0, 0x0, 0x01)
 #define TASDEVICE_REG_SWRESET_RESET	BIT(0)
 
-/*I2C Checksum */
-#define TASDEVICE_I2CChecksum		TASDEVICE_REG(0x0, 0x0, 0x7E)
+/* I2C Checksum */
+#define TASDEVICE_CHECKSUM_REG		TASDEVICE_REG(0x0, 0x0, 0x7e)
 
 /* XM_340 */
 #define	TASDEVICE_XM_A1_REG	TASDEVICE_REG(0x64, 0x63, 0x3c)
@@ -55,8 +56,8 @@
 #define	TASDEVICE_XM_A2_REG	TASDEVICE_REG(0x64, 0x63, 0x38)
 
 /* Volume control */
-#define TAS2563_DVC_LVL			TASDEVICE_REG(0x00, 0x02, 0x0C)
-#define TAS2781_DVC_LVL			TASDEVICE_REG(0x0, 0x0, 0x1A)
+#define TAS2563_DVC_LVL			TASDEVICE_REG(0x00, 0x02, 0x0c)
+#define TAS2781_DVC_LVL			TASDEVICE_REG(0x0, 0x0, 0x1a)
 #define TAS2781_AMP_LEVEL		TASDEVICE_REG(0x0, 0x0, 0x03)
 #define TAS2781_AMP_LEVEL_MASK		GENMASK(5, 1)
 
@@ -95,8 +96,8 @@
 #define TAS2781_PRM_SINEGAIN_REG	TASDEVICE_REG(0x00, 0x14, 0x40)
 #define TAS2781_PRM_SINEGAIN2_REG	TASDEVICE_REG(0x00, 0x14, 0x44)
 
-#define TAS2781_TEST_UNLOCK_REG		TASDEVICE_REG(0x00, 0xFD, 0x0D)
-#define TAS2781_TEST_PAGE_UNLOCK	0x0D
+#define TAS2781_TEST_UNLOCK_REG		TASDEVICE_REG(0x00, 0xfd, 0x0d)
+#define TAS2781_TEST_PAGE_UNLOCK	0x0d
 
 #define TAS2781_RUNTIME_LATCH_RE_REG	TASDEVICE_REG(0x00, 0x00, 0x49)
 #define TAS2781_RUNTIME_RE_REG_TF	TASDEVICE_REG(0x64, 0x62, 0x48)
@@ -110,6 +111,12 @@
 enum audio_device {
 	TAS2563,
 	TAS2781,
+};
+
+enum dspbin_type {
+	TASDEV_BASIC,
+	TASDEV_ALPHA,
+	TASDEV_BETA,
 };
 
 enum device_catlog_id {
@@ -126,6 +133,7 @@ struct bulk_reg_val {
 
 struct tasdevice {
 	struct bulk_reg_val *cali_data_backup;
+	struct bulk_reg_val alp_cali_bckp;
 	struct tasdevice_fw *cali_data_fmw;
 	unsigned int dev_addr;
 	unsigned int err_code;
@@ -161,7 +169,6 @@ struct tasdevice_priv {
 	struct mutex codec_lock;
 	struct regmap *regmap;
 	struct device *dev;
-	struct tm tm;
 
 	enum device_catlog_id catlog_id;
 	unsigned char cal_binaryname[TASDEVICE_MAX_CHANNELS][64];
@@ -171,6 +178,7 @@ struct tasdevice_priv {
 	unsigned char dev_name[32];
 	const char *name_prefix;
 	unsigned char ndev;
+	unsigned int dspbin_typ;
 	unsigned int magic_num;
 	unsigned int chip_id;
 	unsigned int sysclk;
@@ -194,6 +202,9 @@ struct tasdevice_priv {
 		struct tasdevice_fw *tas_fmw,
 		const struct firmware *fmw, int offset);
 	int (*fw_parse_configuration_data)(struct tasdevice_priv *tas_priv,
+		struct tasdevice_fw *tas_fmw,
+		const struct firmware *fmw, int offset);
+	int (*fw_parse_fct_param_address)(struct tasdevice_priv *tas_priv,
 		struct tasdevice_fw *tas_fmw,
 		const struct firmware *fmw, int offset);
 	int (*tasdevice_load_block)(struct tasdevice_priv *tas_priv,

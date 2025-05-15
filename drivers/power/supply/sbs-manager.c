@@ -379,7 +379,7 @@ static int sbsm_probe(struct i2c_client *client)
 		return ret;
 
 	psy_cfg.drv_data = data;
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.fwnode = dev_fwnode(dev);
 	data->psy = devm_power_supply_register(dev, psy_desc, &psy_cfg);
 	if (IS_ERR(data->psy))
 		return dev_err_probe(dev, PTR_ERR(data->psy),

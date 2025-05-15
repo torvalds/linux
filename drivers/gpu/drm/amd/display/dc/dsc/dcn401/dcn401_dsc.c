@@ -16,14 +16,7 @@ static void dsc_write_to_registers(struct display_stream_compressor *dsc, const 
 
 /* Object I/F functions */
 //static void dsc401_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz);
-static void dsc401_read_state(struct display_stream_compressor *dsc, struct dcn_dsc_state *s);
-static bool dsc401_validate_stream(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg);
-static void dsc401_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
-		struct dsc_optc_config *dsc_optc_cfg);
 //static bool dsc401_get_packed_pps(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg, uint8_t *dsc_packed_pps);
-static void dsc401_enable(struct display_stream_compressor *dsc, int opp_pipe);
-static void dsc401_disable(struct display_stream_compressor *dsc);
-static void dsc401_disconnect(struct display_stream_compressor *dsc);
 static void dsc401_wait_disconnect_pending_clear(struct display_stream_compressor *dsc);
 static void dsc401_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz);
 
@@ -117,7 +110,7 @@ static void dsc401_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clo
 /* this function read dsc related register fields to be logged later in dcn10_log_hw_state
  * into a dcn_dsc_state struct.
  */
-static void dsc401_read_state(struct display_stream_compressor *dsc, struct dcn_dsc_state *s)
+void dsc401_read_state(struct display_stream_compressor *dsc, struct dcn_dsc_state *s)
 {
 	struct dcn401_dsc *dsc401 = TO_DCN401_DSC(dsc);
 
@@ -134,7 +127,7 @@ static void dsc401_read_state(struct display_stream_compressor *dsc, struct dcn_
 }
 
 
-static bool dsc401_validate_stream(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg)
+bool dsc401_validate_stream(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg)
 {
 	struct dsc_optc_config dsc_optc_cfg;
 	struct dcn401_dsc *dsc401 = TO_DCN401_DSC(dsc);
@@ -145,7 +138,7 @@ static bool dsc401_validate_stream(struct display_stream_compressor *dsc, const 
 	return dsc_prepare_config(dsc_cfg, &dsc401->reg_vals, &dsc_optc_cfg);
 }
 
-static void dsc401_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
+void dsc401_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
 		struct dsc_optc_config *dsc_optc_cfg)
 {
 	bool is_config_ok;
@@ -160,7 +153,7 @@ static void dsc401_set_config(struct display_stream_compressor *dsc, const struc
 	dsc_write_to_registers(dsc, &dsc401->reg_vals);
 }
 
-static void dsc401_enable(struct display_stream_compressor *dsc, int opp_pipe)
+void dsc401_enable(struct display_stream_compressor *dsc, int opp_pipe)
 {
 	struct dcn401_dsc *dsc401 = TO_DCN401_DSC(dsc);
 	int dsc_clock_en;
@@ -185,7 +178,7 @@ static void dsc401_enable(struct display_stream_compressor *dsc, int opp_pipe)
 }
 
 
-static void dsc401_disable(struct display_stream_compressor *dsc)
+void dsc401_disable(struct display_stream_compressor *dsc)
 {
 	struct dcn401_dsc *dsc401 = TO_DCN401_DSC(dsc);
 	int dsc_clock_en;
@@ -211,7 +204,7 @@ static void dsc401_wait_disconnect_pending_clear(struct display_stream_compresso
 	REG_WAIT(DSCRM_DSC_FORWARD_CONFIG, DSCRM_DSC_FORWARD_EN_STATUS, 0, 2, 50000);
 }
 
-static void dsc401_disconnect(struct display_stream_compressor *dsc)
+void dsc401_disconnect(struct display_stream_compressor *dsc)
 {
 	struct dcn401_dsc *dsc401 = TO_DCN401_DSC(dsc);
 

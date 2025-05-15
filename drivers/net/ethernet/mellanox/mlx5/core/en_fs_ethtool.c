@@ -884,8 +884,10 @@ static int flow_type_to_traffic_type(u32 flow_type)
 	case ESP_V6_FLOW:
 		return MLX5_TT_IPV6_IPSEC_ESP;
 	case IPV4_FLOW:
+	case IP_USER_FLOW:
 		return MLX5_TT_IPV4;
 	case IPV6_FLOW:
+	case IPV6_USER_FLOW:
 		return MLX5_TT_IPV6;
 	default:
 		return -EINVAL;

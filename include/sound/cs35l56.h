@@ -12,6 +12,7 @@
 #include <linux/firmware/cirrus/cs_dsp.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regmap.h>
+#include <linux/spi/spi.h>
 #include <sound/cs-amp-lib.h>
 
 #define CS35L56_DEVID					0x0000000
@@ -61,6 +62,7 @@
 #define CS35L56_IRQ1_MASK_8				0x000E0AC
 #define CS35L56_IRQ1_MASK_18				0x000E0D4
 #define CS35L56_IRQ1_MASK_20				0x000E0DC
+#define CS35L56_DSP_MBOX_1_RAW				0x0011000
 #define CS35L56_DSP_VIRTUAL1_MBOX_1			0x0011020
 #define CS35L56_DSP_VIRTUAL1_MBOX_2			0x0011024
 #define CS35L56_DSP_VIRTUAL1_MBOX_3			0x0011028
@@ -224,6 +226,7 @@
 #define CS35L56_HALO_STATE_SHUTDOWN			1
 #define CS35L56_HALO_STATE_BOOT_DONE			2
 
+#define CS35L56_MBOX_CMD_PING				0x0A000000
 #define CS35L56_MBOX_CMD_AUDIO_PLAY			0x0B000001
 #define CS35L56_MBOX_CMD_AUDIO_PAUSE			0x0B000002
 #define CS35L56_MBOX_CMD_AUDIO_REINIT			0x0B000003
@@ -254,6 +257,16 @@
 #define CS35L56_NUM_BULK_SUPPLIES			3
 #define CS35L56_NUM_DSP_REGIONS				5
 
+/* Additional margin for SYSTEM_RESET to control port ready on SPI */
+#define CS35L56_SPI_RESET_TO_PORT_READY_US (CS35L56_CONTROL_PORT_READY_US + 2500)
+
+struct cs35l56_spi_payload {
+	__be32	addr;
+	__be16	pad;
+	__be32	value;
+} __packed;
+static_assert(sizeof(struct cs35l56_spi_payload) == 10);
+
 struct cs35l56_base {
 	struct device *dev;
 	struct regmap *regmap;
@@ -269,11 +282,29 @@ struct cs35l56_base {
 	s8 cal_index;
 	struct cirrus_amp_cal_data cal_data;
 	struct gpio_desc *reset_gpio;
+	struct cs35l56_spi_payload *spi_payload_buf;
 };
 
 static inline bool cs35l56_is_otp_register(unsigned int reg)
 {
 	return (reg >> 16) == 3;
+}
+
+static inline int cs35l56_init_config_for_spi(struct cs35l56_base *cs35l56,
+					      struct spi_device *spi)
+{
+	cs35l56->spi_payload_buf = devm_kzalloc(&spi->dev,
+						sizeof(*cs35l56->spi_payload_buf),
+						GFP_KERNEL | GFP_DMA);
+	if (!cs35l56->spi_payload_buf)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static inline bool cs35l56_is_spi(struct cs35l56_base *cs35l56)
+{
+	return IS_ENABLED(CONFIG_SPI_MASTER) && !!cs35l56->spi_payload_buf;
 }
 
 extern const struct regmap_config cs35l56_regmap_i2c;

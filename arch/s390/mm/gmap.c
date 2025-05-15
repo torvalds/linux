@@ -8,6 +8,7 @@
  *		 Janosch Frank <frankja@linux.vnet.ibm.com>
  */
 
+#include <linux/cpufeature.h>
 #include <linux/kernel.h>
 #include <linux/pagewalk.h>
 #include <linux/swap.h>
@@ -20,6 +21,7 @@
 #include <linux/pgtable.h>
 #include <asm/page-states.h>
 #include <asm/pgalloc.h>
+#include <asm/machine.h>
 #include <asm/gmap.h>
 #include <asm/page.h>
 #include <asm/tlb.h>
@@ -135,7 +137,7 @@ EXPORT_SYMBOL_GPL(gmap_create);
 
 static void gmap_flush_tlb(struct gmap *gmap)
 {
-	if (MACHINE_HAS_IDTE)
+	if (cpu_has_idte())
 		__tlb_flush_idte(gmap->asce);
 	else
 		__tlb_flush_global();
@@ -2025,10 +2027,10 @@ static void gmap_pmdp_xchg(struct gmap *gmap, pmd_t *pmdp, pmd_t new,
 	gaddr &= HPAGE_MASK;
 	pmdp_notify_gmap(gmap, pmdp, gaddr);
 	new = clear_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_GMAP_IN));
-	if (MACHINE_HAS_TLB_GUEST)
+	if (machine_has_tlb_guest())
 		__pmdp_idte(gaddr, (pmd_t *)pmdp, IDTE_GUEST_ASCE, gmap->asce,
 			    IDTE_GLOBAL);
-	else if (MACHINE_HAS_IDTE)
+	else if (cpu_has_idte())
 		__pmdp_idte(gaddr, (pmd_t *)pmdp, 0, 0, IDTE_GLOBAL);
 	else
 		__pmdp_csp(pmdp);
@@ -2103,10 +2105,10 @@ void gmap_pmdp_idte_local(struct mm_struct *mm, unsigned long vmaddr)
 			WARN_ON(pmd_val(*pmdp) & ~(_SEGMENT_ENTRY_HARDWARE_BITS_LARGE |
 						   _SEGMENT_ENTRY_GMAP_UC |
 						   _SEGMENT_ENTRY));
-			if (MACHINE_HAS_TLB_GUEST)
+			if (machine_has_tlb_guest())
 				__pmdp_idte(gaddr, pmdp, IDTE_GUEST_ASCE,
 					    gmap->asce, IDTE_LOCAL);
-			else if (MACHINE_HAS_IDTE)
+			else if (cpu_has_idte())
 				__pmdp_idte(gaddr, pmdp, 0, 0, IDTE_LOCAL);
 			*pmdp = __pmd(_SEGMENT_ENTRY_EMPTY);
 		}
@@ -2136,10 +2138,10 @@ void gmap_pmdp_idte_global(struct mm_struct *mm, unsigned long vmaddr)
 			WARN_ON(pmd_val(*pmdp) & ~(_SEGMENT_ENTRY_HARDWARE_BITS_LARGE |
 						   _SEGMENT_ENTRY_GMAP_UC |
 						   _SEGMENT_ENTRY));
-			if (MACHINE_HAS_TLB_GUEST)
+			if (machine_has_tlb_guest())
 				__pmdp_idte(gaddr, pmdp, IDTE_GUEST_ASCE,
 					    gmap->asce, IDTE_GLOBAL);
-			else if (MACHINE_HAS_IDTE)
+			else if (cpu_has_idte())
 				__pmdp_idte(gaddr, pmdp, 0, 0, IDTE_GLOBAL);
 			else
 				__pmdp_csp(pmdp);
@@ -2258,9 +2260,6 @@ int s390_enable_sie(void)
 	/* Do we have pgstes? if yes, we are done */
 	if (mm_has_pgste(mm))
 		return 0;
-	/* Fail if the page tables are 2K */
-	if (!mm_alloc_pgste(mm))
-		return -EINVAL;
 	mmap_write_lock(mm);
 	mm->context.has_pgste = 1;
 	/* split thp mappings and disable thp for future mappings */
@@ -2626,31 +2625,3 @@ int s390_replace_asce(struct gmap *gmap)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(s390_replace_asce);
-
-/**
- * kvm_s390_wiggle_split_folio() - try to drain extra references to a folio and optionally split
- * @mm:    the mm containing the folio to work on
- * @folio: the folio
- * @split: whether to split a large folio
- *
- * Context: Must be called while holding an extra reference to the folio;
- *          the mm lock should not be held.
- */
-int kvm_s390_wiggle_split_folio(struct mm_struct *mm, struct folio *folio, bool split)
-{
-	int rc;
-
-	lockdep_assert_not_held(&mm->mmap_lock);
-	folio_wait_writeback(folio);
-	lru_add_drain_all();
-	if (split) {
-		folio_lock(folio);
-		rc = split_folio(folio);
-		folio_unlock(folio);
-
-		if (rc != -EBUSY)
-			return rc;
-	}
-	return -EAGAIN;
-}
-EXPORT_SYMBOL_GPL(kvm_s390_wiggle_split_folio);

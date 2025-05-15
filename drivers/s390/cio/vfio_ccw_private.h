@@ -79,7 +79,7 @@ struct vfio_ccw_parent {
 
 	struct mdev_parent	parent;
 	struct mdev_type	mdev_type;
-	struct mdev_type	*mdev_types[];
+	struct mdev_type	*mdev_types;
 };
 
 /**

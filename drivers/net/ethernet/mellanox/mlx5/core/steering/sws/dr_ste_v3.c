@@ -79,6 +79,46 @@ static void dr_ste_v3_set_rx_decap(u8 *hw_ste_p, u8 *s_action)
 	dr_ste_v1_set_reparse(hw_ste_p);
 }
 
+static void dr_ste_v3_set_insert_hdr(u8 *hw_ste_p, u8 *d_action,
+				     u32 reformat_id, u8 anchor,
+				     u8 offset, int size)
+{
+	MLX5_SET(ste_double_action_insert_with_ptr_v3, d_action,
+		 action_id, DR_STE_V1_ACTION_ID_INSERT_POINTER);
+	MLX5_SET(ste_double_action_insert_with_ptr_v3, d_action,
+		 start_anchor, anchor);
+
+	/* The hardware expects here size and offset in words (2 byte) */
+	MLX5_SET(ste_double_action_insert_with_ptr_v3, d_action,
+		 size, size / 2);
+	MLX5_SET(ste_double_action_insert_with_ptr_v3, d_action,
+		 start_offset, offset / 2);
+
+	MLX5_SET(ste_double_action_insert_with_ptr_v3, d_action,
+		 pointer, reformat_id);
+	MLX5_SET(ste_double_action_insert_with_ptr_v3, d_action,
+		 attributes, DR_STE_V1_ACTION_INSERT_PTR_ATTR_NONE);
+
+	dr_ste_v1_set_reparse(hw_ste_p);
+}
+
+static void dr_ste_v3_set_remove_hdr(u8 *hw_ste_p, u8 *s_action,
+				     u8 anchor, u8 offset, int size)
+{
+	MLX5_SET(ste_single_action_remove_header_size_v3, s_action,
+		 action_id, DR_STE_V1_ACTION_ID_REMOVE_BY_SIZE);
+	MLX5_SET(ste_single_action_remove_header_size_v3, s_action,
+		 start_anchor, anchor);
+
+	/* The hardware expects here size and offset in words (2 byte) */
+	MLX5_SET(ste_single_action_remove_header_size_v3, s_action,
+		 remove_size, size / 2);
+	MLX5_SET(ste_single_action_remove_header_size_v3, s_action,
+		 start_offset, offset / 2);
+
+	dr_ste_v1_set_reparse(hw_ste_p);
+}
+
 static int
 dr_ste_v3_set_action_decap_l3_list(void *data, u32 data_sz,
 				   u8 *hw_action, u32 hw_action_sz,
@@ -211,6 +251,8 @@ static struct mlx5dr_ste_ctx ste_ctx_v3 = {
 	.set_pop_vlan			= &dr_ste_v3_set_pop_vlan,
 	.set_rx_decap			= &dr_ste_v3_set_rx_decap,
 	.set_encap_l3			= &dr_ste_v3_set_encap_l3,
+	.set_insert_hdr			= &dr_ste_v3_set_insert_hdr,
+	.set_remove_hdr			= &dr_ste_v3_set_remove_hdr,
 	/* Send */
 	.prepare_for_postsend		= &dr_ste_v1_prepare_for_postsend,
 };

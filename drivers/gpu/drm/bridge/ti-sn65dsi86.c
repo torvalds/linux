@@ -32,7 +32,6 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_of.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
@@ -196,7 +195,7 @@ struct ti_sn65dsi86 {
 	struct gpio_chip		gchip;
 	DECLARE_BITMAP(gchip_output, SN_NUM_GPIOS);
 #endif
-#if defined(CONFIG_PWM)
+#if IS_REACHABLE(CONFIG_PWM)
 	struct pwm_chip			*pchip;
 	bool				pwm_enabled;
 	atomic_t			pwm_pin_busy;
@@ -480,6 +479,7 @@ static int ti_sn65dsi86_add_aux_device(struct ti_sn65dsi86 *pdata,
 				       const char *name)
 {
 	struct device *dev = pdata->dev;
+	const struct i2c_client *client = to_i2c_client(dev);
 	struct auxiliary_device *aux;
 	int ret;
 
@@ -488,6 +488,7 @@ static int ti_sn65dsi86_add_aux_device(struct ti_sn65dsi86 *pdata,
 		return -ENOMEM;
 
 	aux->name = name;
+	aux->id = (client->adapter->nr << 10) | client->addr;
 	aux->dev.parent = dev;
 	aux->dev.release = ti_sn65dsi86_aux_device_release;
 	device_set_of_node_from_dev(&aux->dev, dev);
@@ -812,7 +813,7 @@ ti_sn_bridge_mode_valid(struct drm_bridge *bridge,
 }
 
 static void ti_sn_bridge_atomic_disable(struct drm_bridge *bridge,
-					struct drm_bridge_state *old_bridge_state)
+					struct drm_atomic_state *state)
 {
 	struct ti_sn65dsi86 *pdata = bridge_to_ti_sn65dsi86(bridge);
 
@@ -1072,7 +1073,7 @@ exit:
 }
 
 static void ti_sn_bridge_atomic_enable(struct drm_bridge *bridge,
-				       struct drm_bridge_state *old_bridge_state)
+				       struct drm_atomic_state *state)
 {
 	struct ti_sn65dsi86 *pdata = bridge_to_ti_sn65dsi86(bridge);
 	struct drm_connector *connector;
@@ -1084,7 +1085,7 @@ static void ti_sn_bridge_atomic_enable(struct drm_bridge *bridge,
 	int max_dp_lanes;
 	unsigned int bpp;
 
-	connector = drm_atomic_get_new_connector_for_encoder(old_bridge_state->base.state,
+	connector = drm_atomic_get_new_connector_for_encoder(state,
 							     bridge->encoder);
 	if (!connector) {
 		dev_err_ratelimited(pdata->dev, "Could not get the connector\n");
@@ -1163,7 +1164,7 @@ static void ti_sn_bridge_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void ti_sn_bridge_atomic_pre_enable(struct drm_bridge *bridge,
-					   struct drm_bridge_state *old_bridge_state)
+					   struct drm_atomic_state *state)
 {
 	struct ti_sn65dsi86 *pdata = bridge_to_ti_sn65dsi86(bridge);
 
@@ -1177,7 +1178,7 @@ static void ti_sn_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 }
 
 static void ti_sn_bridge_atomic_post_disable(struct drm_bridge *bridge,
-					     struct drm_bridge_state *old_bridge_state)
+					     struct drm_atomic_state *state)
 {
 	struct ti_sn65dsi86 *pdata = bridge_to_ti_sn65dsi86(bridge);
 
@@ -1361,7 +1362,7 @@ static struct auxiliary_driver ti_sn_bridge_driver = {
 /* -----------------------------------------------------------------------------
  * PWM Controller
  */
-#if defined(CONFIG_PWM)
+#if IS_REACHABLE(CONFIG_PWM)
 static int ti_sn_pwm_pin_request(struct ti_sn65dsi86 *pdata)
 {
 	return atomic_xchg(&pdata->pwm_pin_busy, 1) ? -EBUSY : 0;
@@ -1955,7 +1956,7 @@ static int ti_sn65dsi86_probe(struct i2c_client *client)
 			return ret;
 	}
 
-	if (IS_ENABLED(CONFIG_PWM)) {
+	if (IS_REACHABLE(CONFIG_PWM)) {
 		ret = ti_sn65dsi86_add_aux_device(pdata, &pdata->pwm_aux, "pwm");
 		if (ret)
 			return ret;

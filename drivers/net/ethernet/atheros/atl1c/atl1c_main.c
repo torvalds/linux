@@ -357,7 +357,7 @@ static void atl1c_common_task(struct work_struct *work)
 
 static void atl1c_del_timer(struct atl1c_adapter *adapter)
 {
-	del_timer_sync(&adapter->phy_config_timer);
+	timer_delete_sync(&adapter->phy_config_timer);
 }
 
 

@@ -562,6 +562,7 @@ static struct timing_generator_funcs dcn20_tg_funcs = {
 		.get_hw_timing = optc1_get_hw_timing,
 		.align_vblanks = optc2_align_vblanks,
 		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
+		.read_otg_state = optc1_read_otg_state,
 };
 
 void dcn20_timing_generator_init(struct optc *optc1)

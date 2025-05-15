@@ -1637,7 +1637,7 @@ void rtw88xxa_set_tx_power_index(struct rtw_dev *rtwdev)
 	int rs, path;
 
 	for (path = 0; path < hal->rf_path_num; path++) {
-		for (rs = 0; rs < RTW_RATE_SECTION_MAX; rs++) {
+		for (rs = 0; rs <= __RTW_RATE_SECTION_2SS_MAX; rs++) {
 			if (hal->rf_path_num == 1 &&
 			    (rs == RTW_RATE_SECTION_HT_2S ||
 			     rs == RTW_RATE_SECTION_VHT_2S))

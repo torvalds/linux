@@ -19,10 +19,23 @@ struct xfs_group {
 #ifdef __KERNEL__
 	/* -- kernel only structures below this line -- */
 
-	/*
-	 * Track freed but not yet committed extents.
-	 */
-	struct xfs_extent_busy_tree *xg_busy_extents;
+	union {
+		/*
+		 * For perags and non-zoned RT groups:
+		 * Track freed but not yet committed extents.
+		 */
+		struct xfs_extent_busy_tree	*xg_busy_extents;
+
+		/*
+		 * For zoned RT groups:
+		 * List of groups that need a zone reset.
+		 *
+		 * The zonegc code forces a log flush of the rtrmap inode before
+		 * resetting the write pointer, so there is no need for
+		 * individual busy extent tracking.
+		 */
+		struct xfs_group		*xg_next_reset;
+	};
 
 	/*
 	 * Bitsets of per-ag metadata that have been checked and/or are sick.
@@ -107,9 +120,15 @@ xfs_gbno_to_daddr(
 	xfs_agblock_t		gbno)
 {
 	struct xfs_mount	*mp = xg->xg_mount;
-	uint32_t		blocks = mp->m_groups[xg->xg_type].blocks;
+	struct xfs_groups	*g = &mp->m_groups[xg->xg_type];
+	xfs_fsblock_t		fsbno;
 
-	return XFS_FSB_TO_BB(mp, (xfs_fsblock_t)xg->xg_gno * blocks + gbno);
+	if (g->has_daddr_gaps)
+		fsbno = xfs_gbno_to_fsb(xg, gbno);
+	else
+		fsbno = (xfs_fsblock_t)xg->xg_gno * g->blocks + gbno;
+
+	return XFS_FSB_TO_BB(mp, g->start_fsb + fsbno);
 }
 
 static inline uint32_t

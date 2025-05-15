@@ -163,4 +163,11 @@ static inline void drm_panic_unlock(struct drm_device *dev, unsigned long flags)
 
 #endif
 
+#if defined(CONFIG_DRM_PANIC_SCREEN_QR_CODE)
+size_t drm_panic_qr_max_data_size(u8 version, size_t url_len);
+
+u8 drm_panic_qr_generate(const char *url, u8 *data, size_t data_len, size_t data_size,
+			 u8 *tmp, size_t tmp_size);
+#endif
+
 #endif /* __DRM_PANIC_H__ */

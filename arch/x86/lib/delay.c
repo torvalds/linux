@@ -131,7 +131,7 @@ static void delay_halt_mwaitx(u64 unused, u64 cycles)
 	 * Use cpu_tss_rw as a cacheline-aligned, seldom accessed per-cpu
 	 * variable as the monitor target.
 	 */
-	 __monitorx(raw_cpu_ptr(&cpu_tss_rw), 0, 0);
+	__monitorx(raw_cpu_ptr(&cpu_tss_rw), 0, 0);
 
 	/*
 	 * AMD, like Intel, supports the EAX hint and EAX=0xf means, do not

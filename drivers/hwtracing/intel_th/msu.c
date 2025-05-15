@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/workqueue.h>
 #include <linux/dma-mapping.h>
+#include <linux/pfn_t.h>
 
 #ifdef CONFIG_X86
 #include <asm/set_memory.h>
@@ -105,23 +106,32 @@ struct msc_iter {
 
 /**
  * struct msc - MSC device representation
- * @reg_base:		register window base address
+ * @reg_base:		register window base address for the entire MSU
+ * @msu_base:		register window base address for this MSC
  * @thdev:		intel_th_device pointer
  * @mbuf:		MSU buffer, if assigned
- * @mbuf_priv		MSU buffer's private data, if @mbuf
+ * @mbuf_priv:		MSU buffer's private data, if @mbuf
+ * @work:		a work to stop the trace when the buffer is full
  * @win_list:		list of windows in multiblock mode
  * @single_sgt:		single mode buffer
  * @cur_win:		current window
+ * @switch_on_unlock:	window to switch to when it becomes available
  * @nr_pages:		total number of pages allocated for this buffer
  * @single_sz:		amount of data in single mode
  * @single_wrap:	single mode wrap occurred
  * @base:		buffer's base pointer
  * @base_addr:		buffer's base address
+ * @orig_addr:		MSC0 buffer's base address
+ * @orig_sz:		MSC0 buffer's size
  * @user_count:		number of users of the buffer
  * @mmap_count:		number of mappings
  * @buf_mutex:		mutex to serialize access to buffer-related bits
+ * @iter_list:		list of open file descriptor iterators
+ * @stop_on_full:	stop the trace if the current window is full
  * @enabled:		MSC is enabled
  * @wrap:		wrapping is enabled
+ * @do_irq:		IRQ resource is available, handle interrupts
+ * @multi_is_broken:	multiblock mode enabled (not disabled by PCI drvdata)
  * @mode:		MSC operating mode
  * @burst_len:		write burst length
  * @index:		number of this MSC in the MSU
@@ -967,7 +977,6 @@ static void msc_buffer_contig_free(struct msc *msc)
 	for (off = 0; off < msc->nr_pages << PAGE_SHIFT; off += PAGE_SIZE) {
 		struct page *page = virt_to_page(msc->base + off);
 
-		page->mapping = NULL;
 		__free_page(page);
 	}
 
@@ -1149,9 +1158,6 @@ static void __msc_buffer_win_free(struct msc *msc, struct msc_window *win)
 	int i;
 
 	for_each_sg(win->sgt->sgl, sg, win->nr_segs, i) {
-		struct page *page = msc_sg_page(sg);
-
-		page->mapping = NULL;
 		dma_free_coherent(msc_dev(win->msc)->parent->parent, PAGE_SIZE,
 				  sg_virt(sg), sg_dma_address(sg));
 	}
@@ -1592,21 +1598,9 @@ static void msc_mmap_close(struct vm_area_struct *vma)
 {
 	struct msc_iter *iter = vma->vm_file->private_data;
 	struct msc *msc = iter->msc;
-	unsigned long pg;
 
 	if (!atomic_dec_and_mutex_lock(&msc->mmap_count, &msc->buf_mutex))
 		return;
-
-	/* drop page _refcounts */
-	for (pg = 0; pg < msc->nr_pages; pg++) {
-		struct page *page = msc_buffer_get_page(msc, pg);
-
-		if (WARN_ON_ONCE(!page))
-			continue;
-
-		if (page->mapping)
-			page->mapping = NULL;
-	}
 
 	/* last mapping -- drop user_count */
 	atomic_dec(&msc->user_count);
@@ -1617,16 +1611,14 @@ static vm_fault_t msc_mmap_fault(struct vm_fault *vmf)
 {
 	struct msc_iter *iter = vmf->vma->vm_file->private_data;
 	struct msc *msc = iter->msc;
+	struct page *page;
 
-	vmf->page = msc_buffer_get_page(msc, vmf->pgoff);
-	if (!vmf->page)
+	page = msc_buffer_get_page(msc, vmf->pgoff);
+	if (!page)
 		return VM_FAULT_SIGBUS;
 
-	get_page(vmf->page);
-	vmf->page->mapping = vmf->vma->vm_file->f_mapping;
-	vmf->page->index = vmf->pgoff;
-
-	return 0;
+	get_page(page);
+	return vmf_insert_mixed(vmf->vma, vmf->address, page_to_pfn_t(page));
 }
 
 static const struct vm_operations_struct msc_mmap_ops = {
@@ -1667,7 +1659,7 @@ out:
 		atomic_dec(&msc->user_count);
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTCOPY);
+	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTCOPY | VM_MIXEDMAP);
 	vma->vm_ops = &msc_mmap_ops;
 	return ret;
 }

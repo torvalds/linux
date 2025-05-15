@@ -9,6 +9,7 @@
 #include <drm/panthor_drm.h>
 
 #include <linux/build_bug.h>
+#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -88,9 +89,6 @@
 
 #define JOB_TIMEOUT_MS				5000
 
-#define MIN_CS_PER_CSG				8
-
-#define MIN_CSGS				3
 #define MAX_CSG_PRIO				0xf
 
 #define NUM_INSTRS_PER_CACHE_LINE		(64 / sizeof(u64))
@@ -628,16 +626,19 @@ struct panthor_group {
 	 */
 	struct panthor_kernel_bo *syncobjs;
 
-	/** @fdinfo: Per-file total cycle and timestamp values reference. */
+	/** @fdinfo: Per-file info exposed through /proc/<process>/fdinfo */
 	struct {
 		/** @data: Total sampled values for jobs in queues from this group. */
 		struct panthor_gpu_usage data;
 
 		/**
-		 * @lock: Mutex to govern concurrent access from drm file's fdinfo callback
-		 * and job post-completion processing function
+		 * @fdinfo.lock: Spinlock to govern concurrent access from drm file's fdinfo
+		 * callback and job post-completion processing function
 		 */
-		struct mutex lock;
+		spinlock_t lock;
+
+		/** @fdinfo.kbo_sizes: Aggregate size of private kernel BO's held by the group. */
+		size_t kbo_sizes;
 	} fdinfo;
 
 	/** @state: Group state. */
@@ -909,8 +910,6 @@ static void group_release_work(struct work_struct *work)
 						   struct panthor_group,
 						   release_work);
 	u32 i;
-
-	mutex_destroy(&group->fdinfo.lock);
 
 	for (i = 0; i < group->queue_count; i++)
 		group_free_queue(group, group->queues[i]);
@@ -2861,12 +2860,12 @@ static void update_fdinfo_stats(struct panthor_job *job)
 	struct panthor_job_profiling_data *slots = queue->profiling.slots->kmap;
 	struct panthor_job_profiling_data *data = &slots[job->profiling.slot];
 
-	mutex_lock(&group->fdinfo.lock);
-	if (job->profiling.mask & PANTHOR_DEVICE_PROFILING_CYCLES)
-		fdinfo->cycles += data->cycles.after - data->cycles.before;
-	if (job->profiling.mask & PANTHOR_DEVICE_PROFILING_TIMESTAMP)
-		fdinfo->time += data->time.after - data->time.before;
-	mutex_unlock(&group->fdinfo.lock);
+	scoped_guard(spinlock, &group->fdinfo.lock) {
+		if (job->profiling.mask & PANTHOR_DEVICE_PROFILING_CYCLES)
+			fdinfo->cycles += data->cycles.after - data->cycles.before;
+		if (job->profiling.mask & PANTHOR_DEVICE_PROFILING_TIMESTAMP)
+			fdinfo->time += data->time.after - data->time.before;
+	}
 }
 
 void panthor_fdinfo_gather_group_samples(struct panthor_file *pfile)
@@ -2878,14 +2877,15 @@ void panthor_fdinfo_gather_group_samples(struct panthor_file *pfile)
 	if (IS_ERR_OR_NULL(gpool))
 		return;
 
+	xa_lock(&gpool->xa);
 	xa_for_each(&gpool->xa, i, group) {
-		mutex_lock(&group->fdinfo.lock);
+		guard(spinlock)(&group->fdinfo.lock);
 		pfile->stats.cycles += group->fdinfo.data.cycles;
 		pfile->stats.time += group->fdinfo.data.time;
 		group->fdinfo.data.cycles = 0;
 		group->fdinfo.data.time = 0;
-		mutex_unlock(&group->fdinfo.lock);
 	}
+	xa_unlock(&gpool->xa);
 }
 
 static void group_sync_upd_work(struct work_struct *work)
@@ -3287,6 +3287,22 @@ static struct panthor_queue *
 group_create_queue(struct panthor_group *group,
 		   const struct drm_panthor_queue_create *args)
 {
+	const struct drm_sched_init_args sched_args = {
+		.ops = &panthor_queue_sched_ops,
+		.submit_wq = group->ptdev->scheduler->wq,
+		.num_rqs = 1,
+		/*
+		 * The credit limit argument tells us the total number of
+		 * instructions across all CS slots in the ringbuffer, with
+		 * some jobs requiring twice as many as others, depending on
+		 * their profiling status.
+		 */
+		.credit_limit = args->ringbuf_size / sizeof(u64),
+		.timeout = msecs_to_jiffies(JOB_TIMEOUT_MS),
+		.timeout_wq = group->ptdev->reset.wq,
+		.name = "panthor-queue",
+		.dev = group->ptdev->base.dev,
+	};
 	struct drm_gpu_scheduler *drm_sched;
 	struct panthor_queue *queue;
 	int ret;
@@ -3357,17 +3373,7 @@ group_create_queue(struct panthor_group *group,
 	if (ret)
 		goto err_free_queue;
 
-	/*
-	 * Credit limit argument tells us the total number of instructions
-	 * across all CS slots in the ringbuffer, with some jobs requiring
-	 * twice as many as others, depending on their profiling status.
-	 */
-	ret = drm_sched_init(&queue->scheduler, &panthor_queue_sched_ops,
-			     group->ptdev->scheduler->wq, 1,
-			     args->ringbuf_size / sizeof(u64),
-			     0, msecs_to_jiffies(JOB_TIMEOUT_MS),
-			     group->ptdev->reset.wq,
-			     NULL, "panthor-queue", group->ptdev->base.dev);
+	ret = drm_sched_init(&queue->scheduler, &sched_args);
 	if (ret)
 		goto err_free_queue;
 
@@ -3379,6 +3385,29 @@ group_create_queue(struct panthor_group *group,
 err_free_queue:
 	group_free_queue(group, queue);
 	return ERR_PTR(ret);
+}
+
+static void add_group_kbo_sizes(struct panthor_device *ptdev,
+				struct panthor_group *group)
+{
+	struct panthor_queue *queue;
+	int i;
+
+	if (drm_WARN_ON(&ptdev->base, IS_ERR_OR_NULL(group)))
+		return;
+	if (drm_WARN_ON(&ptdev->base, ptdev != group->ptdev))
+		return;
+
+	group->fdinfo.kbo_sizes += group->suspend_buf->obj->size;
+	group->fdinfo.kbo_sizes += group->protm_suspend_buf->obj->size;
+	group->fdinfo.kbo_sizes += group->syncobjs->obj->size;
+
+	for (i = 0; i < group->queue_count; i++) {
+		queue =	group->queues[i];
+		group->fdinfo.kbo_sizes += queue->ringbuf->obj->size;
+		group->fdinfo.kbo_sizes += queue->iface.mem->obj->size;
+		group->fdinfo.kbo_sizes += queue->profiling.slots->obj->size;
+	}
 }
 
 #define MAX_GROUPS_PER_POOL		128
@@ -3505,7 +3534,8 @@ int panthor_group_create(struct panthor_file *pfile,
 	}
 	mutex_unlock(&sched->reset.lock);
 
-	mutex_init(&group->fdinfo.lock);
+	add_group_kbo_sizes(group->ptdev, group);
+	spin_lock_init(&group->fdinfo.lock);
 
 	return gid;
 
@@ -3622,6 +3652,33 @@ void panthor_group_pool_destroy(struct panthor_file *pfile)
 	xa_destroy(&gpool->xa);
 	kfree(gpool);
 	pfile->groups = NULL;
+}
+
+/**
+ * panthor_fdinfo_gather_group_mem_info() - Retrieve aggregate size of all private kernel BO's
+ * belonging to all the groups owned by an open Panthor file
+ * @pfile: File.
+ * @stats: Memory statistics to be updated.
+ *
+ */
+void
+panthor_fdinfo_gather_group_mem_info(struct panthor_file *pfile,
+				     struct drm_memory_stats *stats)
+{
+	struct panthor_group_pool *gpool = pfile->groups;
+	struct panthor_group *group;
+	unsigned long i;
+
+	if (IS_ERR_OR_NULL(gpool))
+		return;
+
+	xa_lock(&gpool->xa);
+	xa_for_each(&gpool->xa, i, group) {
+		stats->resident += group->fdinfo.kbo_sizes;
+		if (group->csg_id >= 0)
+			stats->active += group->fdinfo.kbo_sizes;
+	}
+	xa_unlock(&gpool->xa);
 }
 
 static void job_release(struct kref *ref)

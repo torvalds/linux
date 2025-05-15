@@ -131,6 +131,7 @@ void kvm_smm_changed(struct kvm_vcpu *vcpu, bool entering_smm)
 
 	kvm_mmu_reset_context(vcpu);
 }
+EXPORT_SYMBOL_GPL(kvm_smm_changed);
 
 void process_smi(struct kvm_vcpu *vcpu)
 {
@@ -358,7 +359,7 @@ void enter_smm(struct kvm_vcpu *vcpu)
 			goto error;
 #endif
 
-	kvm_update_cpuid_runtime(vcpu);
+	vcpu->arch.cpuid_dynamic_bits_dirty = true;
 	kvm_mmu_reset_context(vcpu);
 	return;
 error:

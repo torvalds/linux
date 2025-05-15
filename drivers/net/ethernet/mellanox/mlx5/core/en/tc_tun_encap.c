@@ -42,8 +42,7 @@ static int mlx5e_set_int_port_tunnel(struct mlx5e_priv *priv,
 						&attr->action, out_index);
 
 out:
-	if (route_dev)
-		dev_put(route_dev);
+	dev_put(route_dev);
 
 	return err;
 }
@@ -753,8 +752,7 @@ static int mlx5e_set_vf_tunnel(struct mlx5_eswitch *esw,
 	}
 
 out:
-	if (route_dev)
-		dev_put(route_dev);
+	dev_put(route_dev);
 	return err;
 }
 
@@ -788,8 +786,7 @@ static int mlx5e_update_vf_tunnel(struct mlx5_eswitch *esw,
 	mlx5e_tc_match_to_reg_mod_hdr_change(esw->dev, mod_hdr_acts, VPORT_TO_REG, act_id, data);
 
 out:
-	if (route_dev)
-		dev_put(route_dev);
+	dev_put(route_dev);
 	return err;
 }
 

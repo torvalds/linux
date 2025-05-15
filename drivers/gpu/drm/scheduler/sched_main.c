@@ -64,12 +64,6 @@
  * credit limit, the job won't be executed. Instead, the scheduler will wait
  * until the credit count has decreased enough to not overflow its credit limit.
  * This implies waiting for previously executed jobs.
- *
- * Optionally, drivers may register a callback (update_job_credits) provided by
- * struct drm_sched_backend_ops to update the job's credits dynamically. The
- * scheduler executes this callback every time the scheduler considers a job for
- * execution and subsequently checks whether the job fits the scheduler's credit
- * limit.
  */
 
 #include <linux/wait.h>
@@ -84,6 +78,8 @@
 #include <drm/gpu_scheduler.h>
 #include <drm/spsc_queue.h>
 
+#include "sched_internal.h"
+
 #define CREATE_TRACE_POINTS
 #include "gpu_scheduler_trace.h"
 
@@ -92,9 +88,6 @@ static struct lockdep_map drm_sched_lockdep_map = {
 	.name = "drm_sched_lockdep_map"
 };
 #endif
-
-#define to_drm_sched_job(sched_job)		\
-		container_of((sched_job), struct drm_sched_job, queue_node)
 
 int drm_sched_policy = DRM_SCHED_POLICY_FIFO;
 
@@ -109,9 +102,9 @@ static u32 drm_sched_available_credits(struct drm_gpu_scheduler *sched)
 {
 	u32 credits;
 
-	drm_WARN_ON(sched, check_sub_overflow(sched->credit_limit,
-					      atomic_read(&sched->credit_count),
-					      &credits));
+	WARN_ON(check_sub_overflow(sched->credit_limit,
+				   atomic_read(&sched->credit_count),
+				   &credits));
 
 	return credits;
 }
@@ -129,23 +122,18 @@ static bool drm_sched_can_queue(struct drm_gpu_scheduler *sched,
 {
 	struct drm_sched_job *s_job;
 
-	s_job = to_drm_sched_job(spsc_queue_peek(&entity->job_queue));
+	s_job = drm_sched_entity_queue_peek(entity);
 	if (!s_job)
 		return false;
-
-	if (sched->ops->update_job_credits) {
-		s_job->credits = sched->ops->update_job_credits(s_job);
-
-		drm_WARN(sched, !s_job->credits,
-			 "Jobs with zero credits bypass job-flow control.\n");
-	}
 
 	/* If a job exceeds the credit limit, truncate it to the credit limit
 	 * itself to guarantee forward progress.
 	 */
-	if (drm_WARN(sched, s_job->credits > sched->credit_limit,
-		     "Jobs may not exceed the credit limit, truncate.\n"))
+	if (s_job->credits > sched->credit_limit) {
+		dev_WARN(sched->dev,
+			 "Jobs may not exceed the credit limit, truncate.\n");
 		s_job->credits = sched->credit_limit;
+	}
 
 	return drm_sched_available_credits(sched) >= s_job->credits;
 }
@@ -803,7 +791,7 @@ int drm_sched_job_init(struct drm_sched_job *job,
 		 * or worse--a blank screen--leave a trail in the
 		 * logs, so this can be debugged easier.
 		 */
-		drm_err(job->sched, "%s: entity has no rq!\n", __func__);
+		dev_err(job->sched->dev, "%s: entity has no rq!\n", __func__);
 		return -ENOENT;
 	}
 
@@ -998,17 +986,42 @@ int drm_sched_job_add_implicit_dependencies(struct drm_sched_job *job,
 EXPORT_SYMBOL(drm_sched_job_add_implicit_dependencies);
 
 /**
+ * drm_sched_job_has_dependency - check whether fence is the job's dependency
+ * @job: scheduler job to check
+ * @fence: fence to look for
+ *
+ * Returns:
+ * True if @fence is found within the job's dependencies, or otherwise false.
+ */
+bool drm_sched_job_has_dependency(struct drm_sched_job *job,
+				  struct dma_fence *fence)
+{
+	struct dma_fence *f;
+	unsigned long index;
+
+	xa_for_each(&job->dependencies, index, f) {
+		if (f == fence)
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(drm_sched_job_has_dependency);
+
+/**
  * drm_sched_job_cleanup - clean up scheduler job resources
  * @job: scheduler job to clean up
  *
  * Cleans up the resources allocated with drm_sched_job_init().
  *
  * Drivers should call this from their error unwind code if @job is aborted
- * before drm_sched_job_arm() is called.
+ * before it was submitted to an entity with drm_sched_entity_push_job().
  *
- * After that point of no return @job is committed to be executed by the
- * scheduler, and this function should be called from the
- * &drm_sched_backend_ops.free_job callback.
+ * Since calling drm_sched_job_arm() causes the job's fences to be initialized,
+ * it is up to the driver to ensure that fences that were exposed to external
+ * parties get signaled. drm_sched_job_cleanup() does not ensure this.
+ *
+ * This function must also be called in &struct drm_sched_backend_ops.free_job
  */
 void drm_sched_job_cleanup(struct drm_sched_job *job)
 {
@@ -1019,7 +1032,7 @@ void drm_sched_job_cleanup(struct drm_sched_job *job)
 		/* drm_sched_job_arm() has been called */
 		dma_fence_put(&job->s_fence->finished);
 	} else {
-		/* aborted job before committing to run it */
+		/* aborted job before arming */
 		drm_sched_fence_free(job->s_fence);
 	}
 
@@ -1166,9 +1179,6 @@ static void drm_sched_free_job_work(struct work_struct *w)
 		container_of(w, struct drm_gpu_scheduler, work_free_job);
 	struct drm_sched_job *job;
 
-	if (READ_ONCE(sched->pause_submit))
-		return;
-
 	job = drm_sched_get_finished_job(sched);
 	if (job)
 		sched->ops->free_job(job);
@@ -1191,9 +1201,6 @@ static void drm_sched_run_job_work(struct work_struct *w)
 	struct drm_sched_fence *s_fence;
 	struct drm_sched_job *sched_job;
 	int r;
-
-	if (READ_ONCE(sched->pause_submit))
-		return;
 
 	/* Find entity with a ready job */
 	entity = drm_sched_select_entity(sched);
@@ -1240,43 +1247,27 @@ static void drm_sched_run_job_work(struct work_struct *w)
  * drm_sched_init - Init a gpu scheduler instance
  *
  * @sched: scheduler instance
- * @ops: backend operations for this scheduler
- * @submit_wq: workqueue to use for submission. If NULL, an ordered wq is
- *	       allocated and used
- * @num_rqs: number of runqueues, one for each priority, up to DRM_SCHED_PRIORITY_COUNT
- * @credit_limit: the number of credits this scheduler can hold from all jobs
- * @hang_limit: number of times to allow a job to hang before dropping it
- * @timeout: timeout value in jiffies for the scheduler
- * @timeout_wq: workqueue to use for timeout work. If NULL, the system_wq is
- *		used
- * @score: optional score atomic shared with other schedulers
- * @name: name used for debugging
- * @dev: target &struct device
+ * @args: scheduler initialization arguments
  *
  * Return 0 on success, otherwise error code.
  */
-int drm_sched_init(struct drm_gpu_scheduler *sched,
-		   const struct drm_sched_backend_ops *ops,
-		   struct workqueue_struct *submit_wq,
-		   u32 num_rqs, u32 credit_limit, unsigned int hang_limit,
-		   long timeout, struct workqueue_struct *timeout_wq,
-		   atomic_t *score, const char *name, struct device *dev)
+int drm_sched_init(struct drm_gpu_scheduler *sched, const struct drm_sched_init_args *args)
 {
 	int i;
 
-	sched->ops = ops;
-	sched->credit_limit = credit_limit;
-	sched->name = name;
-	sched->timeout = timeout;
-	sched->timeout_wq = timeout_wq ? : system_wq;
-	sched->hang_limit = hang_limit;
-	sched->score = score ? score : &sched->_score;
-	sched->dev = dev;
+	sched->ops = args->ops;
+	sched->credit_limit = args->credit_limit;
+	sched->name = args->name;
+	sched->timeout = args->timeout;
+	sched->hang_limit = args->hang_limit;
+	sched->timeout_wq = args->timeout_wq ? args->timeout_wq : system_wq;
+	sched->score = args->score ? args->score : &sched->_score;
+	sched->dev = args->dev;
 
-	if (num_rqs > DRM_SCHED_PRIORITY_COUNT) {
+	if (args->num_rqs > DRM_SCHED_PRIORITY_COUNT) {
 		/* This is a gross violation--tell drivers what the  problem is.
 		 */
-		drm_err(sched, "%s: num_rqs cannot be greater than DRM_SCHED_PRIORITY_COUNT\n",
+		dev_err(sched->dev, "%s: num_rqs cannot be greater than DRM_SCHED_PRIORITY_COUNT\n",
 			__func__);
 		return -EINVAL;
 	} else if (sched->sched_rq) {
@@ -1284,20 +1275,20 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 		 * fine-tune their DRM calling order, and return all
 		 * is good.
 		 */
-		drm_warn(sched, "%s: scheduler already initialized!\n", __func__);
+		dev_warn(sched->dev, "%s: scheduler already initialized!\n", __func__);
 		return 0;
 	}
 
-	if (submit_wq) {
-		sched->submit_wq = submit_wq;
+	if (args->submit_wq) {
+		sched->submit_wq = args->submit_wq;
 		sched->own_submit_wq = false;
 	} else {
 #ifdef CONFIG_LOCKDEP
-		sched->submit_wq = alloc_ordered_workqueue_lockdep_map(name,
+		sched->submit_wq = alloc_ordered_workqueue_lockdep_map(args->name,
 								       WQ_MEM_RECLAIM,
 								       &drm_sched_lockdep_map);
 #else
-		sched->submit_wq = alloc_ordered_workqueue(name, WQ_MEM_RECLAIM);
+		sched->submit_wq = alloc_ordered_workqueue(args->name, WQ_MEM_RECLAIM);
 #endif
 		if (!sched->submit_wq)
 			return -ENOMEM;
@@ -1305,11 +1296,11 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 		sched->own_submit_wq = true;
 	}
 
-	sched->sched_rq = kmalloc_array(num_rqs, sizeof(*sched->sched_rq),
+	sched->sched_rq = kmalloc_array(args->num_rqs, sizeof(*sched->sched_rq),
 					GFP_KERNEL | __GFP_ZERO);
 	if (!sched->sched_rq)
 		goto Out_check_own;
-	sched->num_rqs = num_rqs;
+	sched->num_rqs = args->num_rqs;
 	for (i = DRM_SCHED_PRIORITY_KERNEL; i < sched->num_rqs; i++) {
 		sched->sched_rq[i] = kzalloc(sizeof(*sched->sched_rq[i]), GFP_KERNEL);
 		if (!sched->sched_rq[i])
@@ -1339,7 +1330,7 @@ Out_unroll:
 Out_check_own:
 	if (sched->own_submit_wq)
 		destroy_workqueue(sched->submit_wq);
-	drm_err(sched, "%s: Failed to setup GPU scheduler--out of memory\n", __func__);
+	dev_err(sched->dev, "%s: Failed to setup GPU scheduler--out of memory\n", __func__);
 	return -ENOMEM;
 }
 EXPORT_SYMBOL(drm_sched_init);

@@ -17,29 +17,31 @@ struct sdw_slave;
 #define SDCA_MAX_FUNCTION_COUNT 8
 
 /**
- * sdca_device_desc - short descriptor for an SDCA Function
- * @adr: ACPI address (used for SDCA register access)
- * @type: Function topology type
- * @name: human-readable string
+ * struct sdca_function_desc - short descriptor for an SDCA Function
+ * @node: firmware node for the Function.
+ * @name: Human-readable string.
+ * @type: Function topology type.
+ * @adr: ACPI address (used for SDCA register access).
  */
 struct sdca_function_desc {
+	struct fwnode_handle *node;
 	const char *name;
 	u32 type;
 	u8 adr;
 };
 
 /**
- * sdca_device_data - structure containing all SDCA related information
- * @sdca_interface_revision: value read from _DSD property, mainly to check
- * for changes between silicon versions
- * @num_functions: total number of supported SDCA functions. Invalid/unsupported
+ * struct sdca_device_data - structure containing all SDCA related information
+ * @interface_revision: Value read from _DSD property, mainly to check
+ * for changes between silicon versions.
+ * @num_functions: Total number of supported SDCA functions. Invalid/unsupported
  * functions will be skipped.
- * @sdca_func: array of function descriptors
+ * @function: Array of function descriptors.
  */
 struct sdca_device_data {
 	u32 interface_revision;
 	int num_functions;
-	struct sdca_function_desc sdca_func[SDCA_MAX_FUNCTION_COUNT];
+	struct sdca_function_desc function[SDCA_MAX_FUNCTION_COUNT];
 };
 
 enum sdca_quirk {

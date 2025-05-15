@@ -1364,6 +1364,7 @@ static void tegra_xhci_id_work(struct work_struct *work)
 	tegra->otg_usb3_port = tegra_xusb_padctl_get_usb3_companion(tegra->padctl,
 								    tegra->otg_usb2_port);
 
+	pm_runtime_get_sync(tegra->dev);
 	if (tegra->host_mode) {
 		/* switch to host mode */
 		if (tegra->otg_usb3_port >= 0) {
@@ -1393,6 +1394,7 @@ static void tegra_xhci_id_work(struct work_struct *work)
 		}
 
 		tegra_xhci_set_port_power(tegra, true, true);
+		pm_runtime_mark_last_busy(tegra->dev);
 
 	} else {
 		if (tegra->otg_usb3_port >= 0)
@@ -1400,6 +1402,7 @@ static void tegra_xhci_id_work(struct work_struct *work)
 
 		tegra_xhci_set_port_power(tegra, true, false);
 	}
+	pm_runtime_put_autosuspend(tegra->dev);
 }
 
 #if IS_ENABLED(CONFIG_PM) || IS_ENABLED(CONFIG_PM_SLEEP)
@@ -2162,11 +2165,11 @@ static void tegra_xhci_program_utmi_power_lp0_exit(struct tegra_xusb *tegra)
 	}
 }
 
-static int tegra_xusb_enter_elpg(struct tegra_xusb *tegra, bool runtime)
+static int tegra_xusb_enter_elpg(struct tegra_xusb *tegra, bool is_auto_resume)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(tegra->hcd);
 	struct device *dev = tegra->dev;
-	bool wakeup = runtime ? true : device_may_wakeup(dev);
+	bool wakeup = is_auto_resume ? true : device_may_wakeup(dev);
 	unsigned int i;
 	int err;
 	u32 usbcmd;
@@ -2232,11 +2235,11 @@ out:
 	return err;
 }
 
-static int tegra_xusb_exit_elpg(struct tegra_xusb *tegra, bool runtime)
+static int tegra_xusb_exit_elpg(struct tegra_xusb *tegra, bool is_auto_resume)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(tegra->hcd);
 	struct device *dev = tegra->dev;
-	bool wakeup = runtime ? true : device_may_wakeup(dev);
+	bool wakeup = is_auto_resume ? true : device_may_wakeup(dev);
 	unsigned int i;
 	u32 usbcmd;
 	int err;
@@ -2287,7 +2290,7 @@ static int tegra_xusb_exit_elpg(struct tegra_xusb *tegra, bool runtime)
 	if (wakeup)
 		tegra_xhci_disable_phy_sleepwalk(tegra);
 
-	err = xhci_resume(xhci, runtime ? PMSG_AUTO_RESUME : PMSG_RESUME);
+	err = xhci_resume(xhci, false, is_auto_resume);
 	if (err < 0) {
 		dev_err(tegra->dev, "failed to resume XHCI: %d\n", err);
 		goto disable_phy;

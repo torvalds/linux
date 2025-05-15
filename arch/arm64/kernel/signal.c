@@ -91,7 +91,7 @@ static void save_reset_user_access_state(struct user_access_state *ua_state)
 		u64 por_enable_all = 0;
 
 		for (int pkey = 0; pkey < arch_max_pkey(); pkey++)
-			por_enable_all |= POE_RXW << (pkey * POR_BITS_PER_PKEY);
+			por_enable_all |= POR_ELx_PERM_PREP(pkey, POE_RWX);
 
 		ua_state->por_el0 = read_sysreg_s(SYS_POR_EL0);
 		write_sysreg_s(por_enable_all, SYS_POR_EL0);

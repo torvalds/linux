@@ -287,6 +287,7 @@ static int imx8mq_mipi_csi_calc_hs_settle(struct csi_state *state,
 					  struct v4l2_subdev_state *sd_state,
 					  u32 *hs_settle)
 {
+	struct media_pad *src_pad;
 	s64 link_freq;
 	u32 lane_rate;
 	unsigned long esc_clk_rate;
@@ -294,13 +295,19 @@ static int imx8mq_mipi_csi_calc_hs_settle(struct csi_state *state,
 	const struct v4l2_mbus_framefmt *fmt;
 	const struct csi2_pix_format *csi2_fmt;
 
+	src_pad = media_entity_remote_source_pad_unique(&sd_state->sd->entity);
+	if (IS_ERR(src_pad)) {
+		dev_err(state->dev, "can't get source pad of %s (%ld)\n",
+			sd_state->sd->name, PTR_ERR(src_pad));
+		return PTR_ERR(src_pad);
+	}
+
 	/* Calculate the line rate from the pixel rate. */
 
 	fmt = v4l2_subdev_state_get_format(sd_state, MIPI_CSI2_PAD_SINK);
 	csi2_fmt = find_csi2_format(fmt->code);
 
-	link_freq = v4l2_get_link_freq(state->src_sd->ctrl_handler,
-				       csi2_fmt->width,
+	link_freq = v4l2_get_link_freq(src_pad, csi2_fmt->width,
 				       state->bus.num_data_lanes * 2);
 	if (link_freq < 0) {
 		dev_err(state->dev, "Unable to obtain link frequency: %d\n",

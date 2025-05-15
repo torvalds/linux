@@ -14,7 +14,7 @@
  *                     FREQUENCY TABLE HELPERS                       *
  *********************************************************************/
 
-bool policy_has_boost_freq(struct cpufreq_policy *policy)
+static bool policy_has_boost_freq(struct cpufreq_policy *policy)
 {
 	struct cpufreq_frequency_table *pos, *table = policy->freq_table;
 
@@ -27,7 +27,6 @@ bool policy_has_boost_freq(struct cpufreq_policy *policy)
 
 	return false;
 }
-EXPORT_SYMBOL_GPL(policy_has_boost_freq);
 
 int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 				    struct cpufreq_frequency_table *table)
@@ -116,8 +115,8 @@ int cpufreq_generic_frequency_table_verify(struct cpufreq_policy_data *policy)
 EXPORT_SYMBOL_GPL(cpufreq_generic_frequency_table_verify);
 
 int cpufreq_table_index_unsorted(struct cpufreq_policy *policy,
-				 unsigned int target_freq,
-				 unsigned int relation)
+				 unsigned int target_freq, unsigned int min,
+				 unsigned int max, unsigned int relation)
 {
 	struct cpufreq_frequency_table optimal = {
 		.driver_data = ~0,
@@ -148,7 +147,7 @@ int cpufreq_table_index_unsorted(struct cpufreq_policy *policy,
 	cpufreq_for_each_valid_entry_idx(pos, table, i) {
 		freq = pos->frequency;
 
-		if ((freq < policy->min) || (freq > policy->max))
+		if (freq < min || freq > max)
 			continue;
 		if (freq == target_freq) {
 			optimal.driver_data = i;
@@ -276,7 +275,6 @@ static ssize_t scaling_available_frequencies_show(struct cpufreq_policy *policy,
 	return show_available_freqs(policy, buf, false);
 }
 cpufreq_attr_available_freq(scaling_available);
-EXPORT_SYMBOL_GPL(cpufreq_freq_attr_scaling_available_freqs);
 
 /*
  * scaling_boost_frequencies_show - show available boost frequencies for
@@ -288,13 +286,6 @@ static ssize_t scaling_boost_frequencies_show(struct cpufreq_policy *policy,
 	return show_available_freqs(policy, buf, true);
 }
 cpufreq_attr_available_freq(scaling_boost);
-EXPORT_SYMBOL_GPL(cpufreq_freq_attr_scaling_boost_freqs);
-
-struct freq_attr *cpufreq_generic_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-EXPORT_SYMBOL_GPL(cpufreq_generic_attr);
 
 static int set_freq_table_sorted(struct cpufreq_policy *policy)
 {
@@ -366,6 +357,10 @@ int cpufreq_table_validate_and_sort(struct cpufreq_policy *policy)
 	ret = cpufreq_frequency_table_cpuinfo(policy, policy->freq_table);
 	if (ret)
 		return ret;
+
+	/* Driver's may have set this field already */
+	if (policy_has_boost_freq(policy))
+		policy->boost_supported = true;
 
 	return set_freq_table_sorted(policy);
 }

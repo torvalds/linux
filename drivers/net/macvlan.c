@@ -28,6 +28,7 @@
 #include <linux/if_macvlan.h>
 #include <linux/hash.h>
 #include <linux/workqueue.h>
+#include <net/netdev_lock.h>
 #include <net/rtnetlink.h>
 #include <net/xfrm.h>
 #include <linux/netpoll.h>
@@ -1440,21 +1441,24 @@ static int macvlan_changelink_sources(struct macvlan_dev *vlan, u32 mode,
 	return 0;
 }
 
-int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
-			   struct nlattr *tb[], struct nlattr *data[],
+int macvlan_common_newlink(struct net_device *dev,
+			   struct rtnl_newlink_params *params,
 			   struct netlink_ext_ack *extack)
 {
+	struct net *link_net = rtnl_newlink_link_net(params);
 	struct macvlan_dev *vlan = netdev_priv(dev);
-	struct macvlan_port *port;
+	struct nlattr **data = params->data;
+	struct nlattr **tb = params->tb;
 	struct net_device *lowerdev;
-	int err;
-	int macmode;
+	struct macvlan_port *port;
 	bool create = false;
+	int macmode;
+	int err;
 
 	if (!tb[IFLA_LINK])
 		return -EINVAL;
 
-	lowerdev = __dev_get_by_index(src_net, nla_get_u32(tb[IFLA_LINK]));
+	lowerdev = __dev_get_by_index(link_net, nla_get_u32(tb[IFLA_LINK]));
 	if (lowerdev == NULL)
 		return -ENODEV;
 
@@ -1565,11 +1569,11 @@ destroy_macvlan_port:
 }
 EXPORT_SYMBOL_GPL(macvlan_common_newlink);
 
-static int macvlan_newlink(struct net *src_net, struct net_device *dev,
-			   struct nlattr *tb[], struct nlattr *data[],
+static int macvlan_newlink(struct net_device *dev,
+			   struct rtnl_newlink_params *params,
 			   struct netlink_ext_ack *extack)
 {
-	return macvlan_common_newlink(src_net, dev, tb, data, extack);
+	return macvlan_common_newlink(dev, params, extack);
 }
 
 void macvlan_dellink(struct net_device *dev, struct list_head *head)

@@ -21,10 +21,10 @@ obj-$(CONFIG_CPU_HAS_LBT)	+= lbt.o
 
 obj-$(CONFIG_ARCH_STRICT_ALIGN)	+= unaligned.o
 
-CFLAGS_module.o		+= $(call cc-option,-Wno-override-init,)
-CFLAGS_syscall.o	+= $(call cc-option,-Wno-override-init,)
-CFLAGS_traps.o		+= $(call cc-option,-Wno-override-init,)
-CFLAGS_perf_event.o	+= $(call cc-option,-Wno-override-init,)
+CFLAGS_module.o		+= $(call cc-disable-warning, override-init)
+CFLAGS_syscall.o	+= $(call cc-disable-warning, override-init)
+CFLAGS_traps.o		+= $(call cc-disable-warning, override-init)
+CFLAGS_perf_event.o	+= $(call cc-disable-warning, override-init)
 
 ifdef CONFIG_FUNCTION_TRACER
   ifndef CONFIG_DYNAMIC_FTRACE

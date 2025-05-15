@@ -119,7 +119,7 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 	}
 
 	/* Now we got response from FW, cancel the command timer */
-	del_timer(&priv->command_timer);
+	timer_delete(&priv->command_timer);
 	priv->cmd_timed_out = 0;
 
 	if (respcmd == CMD_RET(CMD_802_11_PS_MODE)) {
@@ -279,7 +279,6 @@ void lbs_process_event(struct lbs_private *priv, u32 event)
 			priv->reset_deep_sleep_wakeup(priv);
 		lbs_deb_cmd("EVENT: ds awake\n");
 		priv->is_deep_sleep = 0;
-		priv->wakeup_dev_required = 0;
 		wake_up_interruptible(&priv->ds_awake_q);
 		break;
 

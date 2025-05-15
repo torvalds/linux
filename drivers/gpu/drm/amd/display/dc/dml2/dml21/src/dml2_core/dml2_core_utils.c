@@ -544,7 +544,8 @@ unsigned int dml2_core_utils_get_active_min_uclk_dpm_index(unsigned long uclk_fr
 		}
 	}
 
-	dml2_assert(clk_entry_found);
+	if (!clk_entry_found)
+		DML2_ASSERT(clk_entry_found);
 #if defined(__DML_VBA_DEBUG__)
 	dml2_printf("DML::%s: uclk_freq_khz = %ld\n", __func__, uclk_freq_khz);
 	dml2_printf("DML::%s: index = %d\n", __func__, i);

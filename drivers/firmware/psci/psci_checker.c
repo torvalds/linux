@@ -342,7 +342,7 @@ static int suspend_test_thread(void *arg)
 	 * Disable the timer to make sure that the timer will not trigger
 	 * later.
 	 */
-	del_timer(&wakeup_timer);
+	timer_delete(&wakeup_timer);
 	destroy_timer_on_stack(&wakeup_timer);
 
 	if (atomic_dec_return_relaxed(&nb_active_threads) == 0)

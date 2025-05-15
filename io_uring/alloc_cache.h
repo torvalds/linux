@@ -16,15 +16,6 @@ bool io_alloc_cache_init(struct io_alloc_cache *cache,
 
 void *io_cache_alloc_new(struct io_alloc_cache *cache, gfp_t gfp);
 
-static inline void io_alloc_cache_kasan(struct iovec **iov, int *nr)
-{
-	if (IS_ENABLED(CONFIG_KASAN)) {
-		kfree(*iov);
-		*iov = NULL;
-		*nr = 0;
-	}
-}
-
 static inline bool io_alloc_cache_put(struct io_alloc_cache *cache,
 				      void *entry)
 {
@@ -66,6 +57,12 @@ static inline void *io_cache_alloc(struct io_alloc_cache *cache, gfp_t gfp)
 	if (obj)
 		return obj;
 	return io_cache_alloc_new(cache, gfp);
+}
+
+static inline void io_cache_free(struct io_alloc_cache *cache, void *obj)
+{
+	if (!io_alloc_cache_put(cache, obj))
+		kfree(obj);
 }
 
 #endif

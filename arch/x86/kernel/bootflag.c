@@ -8,6 +8,7 @@
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/acpi.h>
+#include <linux/bitops.h>
 #include <asm/io.h>
 
 #include <linux/mc146818rtc.h>
@@ -20,27 +21,13 @@
 
 int sbf_port __initdata = -1;	/* set via acpi_boot_init() */
 
-static int __init parity(u8 v)
-{
-	int x = 0;
-	int i;
-
-	for (i = 0; i < 8; i++) {
-		x ^= (v & 1);
-		v >>= 1;
-	}
-
-	return x;
-}
-
 static void __init sbf_write(u8 v)
 {
 	unsigned long flags;
 
 	if (sbf_port != -1) {
-		v &= ~SBF_PARITY;
-		if (!parity(v))
-			v |= SBF_PARITY;
+		if (!parity8(v))
+			v ^= SBF_PARITY;
 
 		printk(KERN_INFO "Simple Boot Flag at 0x%x set to 0x%x\n",
 			sbf_port, v);
@@ -66,14 +53,14 @@ static u8 __init sbf_read(void)
 	return v;
 }
 
-static int __init sbf_value_valid(u8 v)
+static bool __init sbf_value_valid(u8 v)
 {
 	if (v & SBF_RESERVED)		/* Reserved bits */
-		return 0;
-	if (!parity(v))
-		return 0;
+		return false;
+	if (!parity8(v))
+		return false;
 
-	return 1;
+	return true;
 }
 
 static int __init sbf_init(void)

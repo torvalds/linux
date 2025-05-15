@@ -25,7 +25,7 @@ static inline int statmount(uint64_t mnt_id, uint64_t mnt_ns_id, uint64_t mask,
 	return syscall(__NR_statmount, &req, buf, bufsize, flags);
 }
 
-static ssize_t listmount(uint64_t mnt_id, uint64_t mnt_ns_id,
+static inline ssize_t listmount(uint64_t mnt_id, uint64_t mnt_ns_id,
 			 uint64_t last_mnt_id, uint64_t list[], size_t num,
 			 unsigned int flags)
 {

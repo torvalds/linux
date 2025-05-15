@@ -7,7 +7,6 @@
 
 #include <linux/kobject.h>
 #include <linux/slab.h>
-#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/err.h>
 #include "pci.h"
@@ -324,49 +323,6 @@ void pci_destroy_slot(struct pci_slot *slot)
 	mutex_unlock(&pci_slot_mutex);
 }
 EXPORT_SYMBOL_GPL(pci_destroy_slot);
-
-#if defined(CONFIG_HOTPLUG_PCI) || defined(CONFIG_HOTPLUG_PCI_MODULE)
-#include <linux/pci_hotplug.h>
-/**
- * pci_hp_create_module_link - create symbolic link to hotplug driver module
- * @pci_slot: struct pci_slot
- *
- * Helper function for pci_hotplug_core.c to create symbolic link to
- * the hotplug driver module.
- */
-void pci_hp_create_module_link(struct pci_slot *pci_slot)
-{
-	struct hotplug_slot *slot = pci_slot->hotplug;
-	struct kobject *kobj = NULL;
-	int ret;
-
-	if (!slot || !slot->ops)
-		return;
-	kobj = kset_find_obj(module_kset, slot->mod_name);
-	if (!kobj)
-		return;
-	ret = sysfs_create_link(&pci_slot->kobj, kobj, "module");
-	if (ret)
-		dev_err(&pci_slot->bus->dev, "Error creating sysfs link (%d)\n",
-			ret);
-	kobject_put(kobj);
-}
-EXPORT_SYMBOL_GPL(pci_hp_create_module_link);
-
-/**
- * pci_hp_remove_module_link - remove symbolic link to the hotplug driver
- * 	module.
- * @pci_slot: struct pci_slot
- *
- * Helper function for pci_hotplug_core.c to remove symbolic link to
- * the hotplug driver module.
- */
-void pci_hp_remove_module_link(struct pci_slot *pci_slot)
-{
-	sysfs_remove_link(&pci_slot->kobj, "module");
-}
-EXPORT_SYMBOL_GPL(pci_hp_remove_module_link);
-#endif
 
 static int pci_slot_init(void)
 {

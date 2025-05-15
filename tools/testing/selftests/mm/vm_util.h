@@ -5,11 +5,13 @@
 #include <err.h>
 #include <strings.h> /* ffsl() */
 #include <unistd.h> /* _SC_PAGESIZE */
+#include "../kselftest.h"
 
 #define BIT_ULL(nr)                   (1ULL << (nr))
 #define PM_SOFT_DIRTY                 BIT_ULL(55)
 #define PM_MMAP_EXCLUSIVE             BIT_ULL(56)
 #define PM_UFFD_WP                    BIT_ULL(57)
+#define PM_GUARD_REGION               BIT_ULL(58)
 #define PM_FILE                       BIT_ULL(61)
 #define PM_SWAP                       BIT_ULL(62)
 #define PM_PRESENT                    BIT_ULL(63)
@@ -29,6 +31,23 @@ static inline unsigned int pshift(void)
 	if (!__page_shift)
 		__page_shift = (ffsl(psize()) - 1);
 	return __page_shift;
+}
+
+/*
+ * Plan 9 FS has bugs (at least on QEMU) where certain operations fail with
+ * ENOENT on unlinked files. See
+ * https://gitlab.com/qemu-project/qemu/-/issues/103 for some info about such
+ * bugs. There are rumours of NFS implementations with similar bugs.
+ *
+ * Ideally, tests should just detect filesystems known to have such issues and
+ * bail early. But 9pfs has the additional "feature" that it causes fstatfs to
+ * pass through the f_type field from the host filesystem. To avoid having to
+ * scrape /proc/mounts or some other hackery, tests can call this function when
+ * it seems such a bug might have been encountered.
+ */
+static inline void skip_test_dodgy_fs(const char *op_name)
+{
+	ksft_test_result_skip("%s failed with ENOENT. Filesystem might be buggy (9pfs?)\n", op_name);
 }
 
 uint64_t pagemap_get_entry(int fd, char *start);
