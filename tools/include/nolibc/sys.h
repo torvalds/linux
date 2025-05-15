@@ -672,26 +672,6 @@ int mknod(const char *path, mode_t mode, dev_t dev)
 	return __sysret(sys_mknod(path, mode, dev));
 }
 
-/*
- * int mount(const char *source, const char *target,
- *           const char *fstype, unsigned long flags,
- *           const void *data);
- */
-static __attribute__((unused))
-int sys_mount(const char *src, const char *tgt, const char *fst,
-                     unsigned long flags, const void *data)
-{
-	return my_syscall5(__NR_mount, src, tgt, fst, flags, data);
-}
-
-static __attribute__((unused))
-int mount(const char *src, const char *tgt,
-          const char *fst, unsigned long flags,
-          const void *data)
-{
-	return __sysret(sys_mount(src, tgt, fst, flags, data));
-}
-
 
 /*
  * int pipe2(int pipefd[2], int flags);

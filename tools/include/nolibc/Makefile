@@ -51,6 +51,7 @@ all_files := \
 		sys/auxv.h \
 		sys/ioctl.h \
 		sys/mman.h \
+		sys/mount.h \
 		sys/random.h \
 		sys/stat.h \
 		sys/syscall.h \
