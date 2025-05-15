@@ -441,17 +441,22 @@ __init int e820__update_table(struct e820_table *table)
 	return 0;
 }
 
-__init static int __append_e820_table(struct boot_e820_entry *entries, u32 nr_entries)
+/*
+ * Copy the BIOS E820 map into the kernel's e820_table.
+ *
+ * Sanity-check it while we're at it..
+ */
+__init static int append_e820_table(struct boot_e820_entry *entries, u32 nr_entries)
 {
 	struct boot_e820_entry *entry = entries;
 
 	while (nr_entries) {
 		u64 start = entry->addr;
-		u64 size = entry->size;
-		u64 end = start + size - 1;
-		u32 type = entry->type;
+		u64 size  = entry->size;
+		u64 end   = start + size-1;
+		u32 type  = entry->type;
 
-		/* Ignore the entry on 64-bit overflow: */
+		/* Ignore the remaining entries on 64-bit overflow: */
 		if (start > end && likely(size))
 			return -1;
 
@@ -461,24 +466,6 @@ __init static int __append_e820_table(struct boot_e820_entry *entries, u32 nr_en
 		nr_entries--;
 	}
 	return 0;
-}
-
-/*
- * Copy the BIOS E820 map into a safe place.
- *
- * Sanity-check it while we're at it..
- *
- * If we're lucky and live on a modern system, the setup code
- * will have given us a memory map that we can use to properly
- * set up memory.  If we aren't, we'll fake a memory map.
- */
-__init static int append_e820_table(struct boot_e820_entry *entries, u32 nr_entries)
-{
-	/* Only one memory region (or negative)? Ignore it */
-	if (nr_entries < 2)
-		return -1;
-
-	return __append_e820_table(entries, nr_entries);
 }
 
 __init static u64
@@ -754,7 +741,7 @@ __init void e820__memory_setup_extended(u64 phys_addr, u32 data_len)
 	entries = sdata->len / sizeof(*extmap);
 	extmap = (struct boot_e820_entry *)(sdata->data);
 
-	__append_e820_table(extmap, entries);
+	append_e820_table(extmap, entries);
 	e820__update_table(e820_table);
 
 	memcpy(e820_table_kexec, e820_table, sizeof(*e820_table_kexec));
