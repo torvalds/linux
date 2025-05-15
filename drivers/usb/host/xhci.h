@@ -191,16 +191,16 @@ struct xhci_op_regs {
 #define	DEV_NOTE_FWAKE		ENABLE_DEV_NOTE(1)
 
 /* CRCR - Command Ring Control Register - cmd_ring bitmasks */
-/* bit 0 is the command ring cycle state */
+/* bit 0 - Cycle bit indicates the ownership of the command ring */
+#define CMD_RING_CYCLE		(1 << 0)
 /* stop ring operation after completion of the currently executing command */
 #define CMD_RING_PAUSE		(1 << 1)
 /* stop ring immediately - abort the currently executing command */
 #define CMD_RING_ABORT		(1 << 2)
 /* true: command ring is running */
 #define CMD_RING_RUNNING	(1 << 3)
-/* bits 4:5 reserved and should be preserved */
-/* Command Ring pointer - bit mask for the lower 32 bits. */
-#define CMD_RING_RSVD_BITS	(0x3f)
+/* bits 63:6 - Command Ring pointer */
+#define CMD_RING_PTR_MASK	GENMASK_ULL(63, 6)
 
 /* CONFIG - Configure Register - config_reg bitmasks */
 /* bits 0:7 - maximum number of device slots enabled (NumSlotsEn) */
