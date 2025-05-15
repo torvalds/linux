@@ -79,9 +79,6 @@ static void kvm_riscv_vcpu_context_reset(struct kvm_vcpu *vcpu)
 	cntx->hstatus |= HSTATUS_VTW;
 	cntx->hstatus |= HSTATUS_SPVP;
 	cntx->hstatus |= HSTATUS_SPV;
-
-	/* By default, make CY, TM, and IR counters accessible in VU mode */
-	csr->scounteren = 0x7;
 }
 
 static void kvm_riscv_reset_vcpu(struct kvm_vcpu *vcpu)
