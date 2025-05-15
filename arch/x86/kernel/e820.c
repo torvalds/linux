@@ -166,17 +166,18 @@ int e820__get_entry_type(u64 start, u64 end)
  */
 static void __init __e820__range_add(struct e820_table *table, u64 start, u64 size, enum e820_type type)
 {
-	int x = table->nr_entries;
+	int idx = table->nr_entries;
 
-	if (x >= ARRAY_SIZE(table->entries)) {
-		pr_err("too many entries; ignoring [mem %#010llx-%#010llx]\n",
-		       start, start + size - 1);
+	if (idx >= ARRAY_SIZE(table->entries)) {
+		pr_err("too many E820 table entries; ignoring [mem %#010llx-%#010llx]\n",
+		       start, start + size-1);
 		return;
 	}
 
-	table->entries[x].addr = start;
-	table->entries[x].size = size;
-	table->entries[x].type = type;
+	table->entries[idx].addr = start;
+	table->entries[idx].size = size;
+	table->entries[idx].type = type;
+
 	table->nr_entries++;
 }
 
