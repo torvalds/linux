@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2020-2021, 2023 Intel Corporation
+ * Copyright (C) 2005-2014, 2020-2021, 2023, 2025 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  */
 #ifndef __iwl_drv_h__
@@ -53,7 +53,7 @@
 
 struct iwl_drv;
 struct iwl_trans;
-struct iwl_cfg;
+struct iwl_rf_cfg;
 /**
  * iwl_drv_start - start the drv
  *
