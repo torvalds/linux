@@ -152,10 +152,6 @@ struct xhci_op_regs {
 #define XHCI_RESET_LONG_USEC		(10 * 1000 * 1000)
 #define XHCI_RESET_SHORT_USEC		(250 * 1000)
 
-/* IMAN - Interrupt Management Register */
-#define IMAN_IE		(1 << 1)
-#define IMAN_IP		(1 << 0)
-
 /* USBSTS - USB status - status bitmasks */
 /* HC not running - set to 1 when run/stop bit is cleared. */
 #define STS_HALT	XHCI_STS_HALT
@@ -240,12 +236,10 @@ struct xhci_intr_reg {
 };
 
 /* irq_pending bitmasks */
-#define	ER_IRQ_PENDING(p)	((p) & 0x1)
-/* bits 2:31 need to be preserved */
-/* THIS IS BUGGY - FIXME - IP IS WRITE 1 TO CLEAR */
-#define	ER_IRQ_CLEAR(p)		((p) & 0xfffffffe)
-#define	ER_IRQ_ENABLE(p)	((ER_IRQ_CLEAR(p)) | 0x2)
-#define	ER_IRQ_DISABLE(p)	((ER_IRQ_CLEAR(p)) & ~(0x2))
+/* bit 0 - Interrupt Pending (IP), whether there is an interrupt pending. Write-1-to-clear. */
+#define	IMAN_IP			(1 << 0)
+/* bit 1 - Interrupt Enable (IE), whether the interrupter is capable of generating an interrupt */
+#define	IMAN_IE			(1 << 1)
 
 /* irq_control bitmasks */
 /* Minimum interval between interrupts (in 250ns intervals).  The interval
