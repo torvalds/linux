@@ -3398,8 +3398,10 @@ static int dm_resume(struct amdgpu_ip_block *ip_block)
 		link_enc_cfg_copy(adev->dm.dc->current_state, dc_state);
 
 		r = dm_dmub_hw_init(adev);
-		if (r)
+		if (r) {
 			drm_err(adev_to_drm(adev), "DMUB interface failed to initialize: status=%d\n", r);
+			return r;
+		}
 
 		dc_dmub_srv_set_power_state(dm->dc->ctx->dmub_srv, DC_ACPI_CM_POWER_STATE_D0);
 		dc_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D0);
