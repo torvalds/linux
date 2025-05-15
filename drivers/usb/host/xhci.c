@@ -355,12 +355,15 @@ int xhci_set_interrupter_moderation(struct xhci_interrupter *ir,
 {
 	u32 imod;
 
-	if (!ir || !ir->ir_set || imod_interval > U16_MAX * 250)
+	if (!ir || !ir->ir_set)
 		return -EINVAL;
+
+	/* IMODI value in IMOD register is in 250ns increments */
+	imod_interval = umin(imod_interval / 250, ER_IRQ_INTERVAL_MASK);
 
 	imod = readl(&ir->ir_set->irq_control);
 	imod &= ~ER_IRQ_INTERVAL_MASK;
-	imod |= (imod_interval / 250) & ER_IRQ_INTERVAL_MASK;
+	imod |= imod_interval;
 	writel(imod, &ir->ir_set->irq_control);
 
 	return 0;
