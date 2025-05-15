@@ -253,9 +253,9 @@ int main(int argc, char **argv)
 	}
 
 	fprintf((errors) ? stderr : stdout,
-		"%s: %s: decoded and checked %d %s instructions with %d errors (seed:0x%x)\n",
+		"  %s: %s: Decoded and checked %d %s instructions with %d errors (seed:0x%x)\n",
 		prog,
-		(errors) ? "Failure" : "Success",
+		(errors) ? "failure" : "success",
 		insns,
 		(input_file) ? "given" : "random",
 		errors,
