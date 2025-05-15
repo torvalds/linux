@@ -1131,6 +1131,30 @@ int bch2_inode_find_by_inum(struct bch_fs *c, subvol_inum inum,
 	return bch2_trans_do(c, bch2_inode_find_by_inum_trans(trans, inum, inode));
 }
 
+int bch2_inode_find_snapshot_root(struct btree_trans *trans, u64 inum,
+				  struct bch_inode_unpacked *root)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret = 0;
+
+	for_each_btree_key_reverse_norestart(trans, iter, BTREE_ID_inodes,
+					     SPOS(0, inum, U32_MAX),
+					     BTREE_ITER_all_snapshots, k, ret) {
+		if (k.k->p.offset != inum)
+			break;
+		if (bkey_is_inode(k.k)) {
+			ret = bch2_inode_unpack(k, root);
+			goto out;
+		}
+	}
+	/* We're only called when we know we have an inode for @inum */
+	BUG_ON(!ret);
+out:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
 int bch2_inode_nlink_inc(struct bch_inode_unpacked *bi)
 {
 	if (bi->bi_flags & BCH_INODE_unlinked)

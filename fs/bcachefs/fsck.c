@@ -1115,32 +1115,6 @@ fsck_err:
 	return ret;
 }
 
-static int get_snapshot_root_inode(struct btree_trans *trans,
-				   struct bch_inode_unpacked *root,
-				   u64 inum)
-{
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret = 0;
-
-	for_each_btree_key_reverse_norestart(trans, iter, BTREE_ID_inodes,
-					     SPOS(0, inum, U32_MAX),
-					     BTREE_ITER_all_snapshots, k, ret) {
-		if (k.k->p.offset != inum)
-			break;
-		if (bkey_is_inode(k.k))
-			goto found_root;
-	}
-	if (ret)
-		goto err;
-	BUG();
-found_root:
-	ret = bch2_inode_unpack(k, root);
-err:
-	bch2_trans_iter_exit(trans, &iter);
-	return ret;
-}
-
 static int check_inode(struct btree_trans *trans,
 		       struct btree_iter *iter,
 		       struct bkey_s_c k,
@@ -1171,7 +1145,7 @@ static int check_inode(struct btree_trans *trans,
 		goto err;
 
 	if (snapshot_root->bi_inum != u.bi_inum) {
-		ret = get_snapshot_root_inode(trans, snapshot_root, u.bi_inum);
+		ret = bch2_inode_find_snapshot_root(trans, u.bi_inum, snapshot_root);
 		if (ret)
 			goto err;
 	}

@@ -173,6 +173,9 @@ int bch2_inode_find_by_inum_trans(struct btree_trans *, subvol_inum,
 int bch2_inode_find_by_inum(struct bch_fs *, subvol_inum,
 			    struct bch_inode_unpacked *);
 
+int bch2_inode_find_snapshot_root(struct btree_trans *trans, u64 inum,
+				  struct bch_inode_unpacked *root);
+
 #define inode_opt_get(_c, _inode, _name)			\
 	((_inode)->bi_##_name ? (_inode)->bi_##_name - 1 : (_c)->opts._name)
 

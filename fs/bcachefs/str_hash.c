@@ -146,34 +146,17 @@ static noinline int check_inode_hash_info_matches_root(struct btree_trans *trans
 						       struct bch_hash_info *hash_info)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret = 0;
-
-	for_each_btree_key_reverse_norestart(trans, iter, BTREE_ID_inodes, SPOS(0, inum, U32_MAX),
-					     BTREE_ITER_all_snapshots, k, ret) {
-		if (k.k->p.offset != inum)
-			break;
-		if (bkey_is_inode(k.k))
-			goto found;
-	}
-
-	/* This would've been caught by check_key_has_inode() */
-	bch_err(c, "%s(): inum %llu not found", __func__, inum);
-	ret = -BCH_ERR_fsck_repair_unimplemented;
-	goto err;
-found:;
-	struct bch_inode_unpacked inode;
-	ret = bch2_inode_unpack(k, &inode);
+	struct bch_inode_unpacked snapshot_root;
+	int ret = bch2_inode_find_snapshot_root(trans, inum, &snapshot_root);
 	if (ret)
-		goto err;
+		return ret;
 
-	struct bch_hash_info hash_root = bch2_hash_info_init(c, &inode);
+	struct bch_hash_info hash_root = bch2_hash_info_init(c, &snapshot_root);
 	if (hash_info->type != hash_root.type ||
 	    memcmp(&hash_info->siphash_key,
 		   &hash_root.siphash_key,
 		   sizeof(hash_root.siphash_key))) {
-		ret = repair_inode_hash_info(trans, &inode);
+		ret = repair_inode_hash_info(trans, &snapshot_root);
 		if (!ret) {
 			struct printbuf buf = PRINTBUF;
 			prt_printf(&buf, "inode %llu hash info mismatch with root, but mismatch not found\n", inum);
@@ -190,8 +173,7 @@ found:;
 			ret = -BCH_ERR_fsck_repair_unimplemented;
 		}
 	}
-err:
-	bch2_trans_iter_exit(trans, &iter);
+
 	return ret;
 }
 
