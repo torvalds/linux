@@ -27,6 +27,12 @@
 #define BCM59056_REV_DIGITAL_B0		2
 #define BCM59056_REV_ANALOG_B0		2
 
+/* regmap types */
+enum bcm590xx_regmap_type {
+	BCM590XX_REGMAP_PRI,
+	BCM590XX_REGMAP_SEC,
+};
+
 /* max register address */
 #define BCM590XX_MAX_REGISTER_PRI	0xe7
 #define BCM590XX_MAX_REGISTER_SEC	0xf0
