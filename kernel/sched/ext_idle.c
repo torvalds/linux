@@ -935,6 +935,7 @@ prev_cpu:
 __bpf_kfunc s32 scx_bpf_select_cpu_and(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 				       const struct cpumask *cpus_allowed, u64 flags)
 {
+	struct rq *rq;
 	s32 cpu;
 
 	if (!kf_cpu_valid(prev_cpu, NULL))
@@ -945,6 +946,15 @@ __bpf_kfunc s32 scx_bpf_select_cpu_and(struct task_struct *p, s32 prev_cpu, u64 
 
 	if (!scx_kf_allowed(SCX_KF_SELECT_CPU | SCX_KF_ENQUEUE))
 		return -EPERM;
+
+	/*
+	 * Validate locking correctness to access p->cpus_ptr and
+	 * p->nr_cpus_allowed: if we're holding an rq lock, we're safe;
+	 * otherwise, assert that p->pi_lock is held.
+	 */
+	rq = scx_locked_rq();
+	if (!rq)
+		lockdep_assert_held(&p->pi_lock);
 
 #ifdef CONFIG_SMP
 	/*
