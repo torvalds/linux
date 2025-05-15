@@ -459,22 +459,11 @@ out:
 	return ret;
 }
 
-static bool rebalance_pred(struct bch_fs *c, void *arg,
-			   enum btree_id btree, struct bkey_s_c k,
-			   struct bch_io_opts *io_opts,
-			   struct data_update_opts *data_opts)
-{
-	data_opts->rewrite_ptrs		= bch2_bkey_ptrs_need_rebalance(c, io_opts, k);
-	data_opts->target		= io_opts->background_target;
-	data_opts->write_flags		|= BCH_WRITE_only_specified_devs;
-	return data_opts->rewrite_ptrs != 0;
-}
-
 static int do_rebalance_scan(struct moving_context *ctxt, u64 inum, u64 cookie)
 {
 	struct btree_trans *trans = ctxt->trans;
+	struct bch_fs *c = trans->c;
 	struct bch_fs_rebalance *r = &trans->c->rebalance;
-	int ret;
 
 	bch2_move_stats_init(&r->scan_stats, "rebalance_scan");
 	ctxt->stats = &r->scan_stats;
@@ -489,11 +478,34 @@ static int do_rebalance_scan(struct moving_context *ctxt, u64 inum, u64 cookie)
 
 	r->state = BCH_REBALANCE_scanning;
 
-	ret = __bch2_move_data(ctxt, r->scan_start, r->scan_end, rebalance_pred, NULL) ?:
-		commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-			  bch2_clear_rebalance_needs_scan(trans, inum, cookie));
+	struct per_snapshot_io_opts snapshot_io_opts;
+	per_snapshot_io_opts_init(&snapshot_io_opts, c);
 
+	int ret = for_each_btree_key_max(trans, iter, BTREE_ID_extents,
+				      r->scan_start.pos, r->scan_end.pos,
+				      BTREE_ITER_all_snapshots|
+				      BTREE_ITER_not_extents|
+				      BTREE_ITER_prefetch, k, ({
+		ctxt->stats->pos = BBPOS(iter.btree_id, iter.pos);
+
+		struct bch_io_opts *io_opts = bch2_move_get_io_opts(trans,
+					&snapshot_io_opts, iter.pos, &iter, k);
+		PTR_ERR_OR_ZERO(io_opts);
+	})) ?:
+	commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+		  bch2_clear_rebalance_needs_scan(trans, inum, cookie));
+
+	per_snapshot_io_opts_exit(&snapshot_io_opts);
 	bch2_move_stats_exit(&r->scan_stats, trans->c);
+
+	/*
+	 * Ensure that the rebalance_work entries we created are seen by the
+	 * next iteration of do_rebalance(), so we don't end up stuck in
+	 * rebalance_wait():
+	 */
+	atomic64_inc(&r->scan_stats.sectors_seen);
+	bch2_btree_write_buffer_flush_sync(trans);
+
 	return ret;
 }
 

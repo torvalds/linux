@@ -122,6 +122,10 @@ int bch2_move_extent(struct moving_context *,
 		     struct bch_io_opts,
 		     struct data_update_opts);
 
+struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *,
+			  struct per_snapshot_io_opts *, struct bpos,
+			  struct btree_iter *, struct bkey_s_c);
+
 int bch2_move_data_btree(struct moving_context *, struct bpos, struct bpos,
 			 move_pred_fn, void *, enum btree_id, unsigned);
 int __bch2_move_data(struct moving_context *,

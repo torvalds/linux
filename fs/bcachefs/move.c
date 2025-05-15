@@ -412,7 +412,7 @@ err:
 	return ret;
 }
 
-static struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
+struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
 			  struct per_snapshot_io_opts *io_opts,
 			  struct bpos extent_pos, /* extent_iter, extent_k may be in reflink btree */
 			  struct btree_iter *extent_iter,
