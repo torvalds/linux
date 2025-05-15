@@ -255,7 +255,8 @@ struct xhci_intr_reg {
 #define	ERST_SIZE_MASK		(0xffff)
 
 /* erst_base bitmasks */
-#define ERST_BASE_RSVDP		(GENMASK_ULL(5, 0))
+/* bits 63:6 - Event Ring Segment Table Base Address Register */
+#define ERST_BASE_ADDRESS_MASK	GENMASK_ULL(63, 6)
 
 /* erst_dequeue bitmasks */
 /* Dequeue ERST Segment Index (DESI) - Segment number (or alias)

@@ -2338,8 +2338,8 @@ void xhci_add_interrupter(struct xhci_hcd *xhci, unsigned int intr_num)
 	writel(erst_size, &ir->ir_set->erst_size);
 
 	erst_base = xhci_read_64(xhci, &ir->ir_set->erst_base);
-	erst_base &= ERST_BASE_RSVDP;
-	erst_base |= ir->erst.erst_dma_addr & ~ERST_BASE_RSVDP;
+	erst_base &= ~ERST_BASE_ADDRESS_MASK;
+	erst_base |= ir->erst.erst_dma_addr & ERST_BASE_ADDRESS_MASK;
 	if (xhci->quirks & XHCI_WRITE_64_HI_LO)
 		hi_lo_writeq(erst_base, &ir->ir_set->erst_base);
 	else
