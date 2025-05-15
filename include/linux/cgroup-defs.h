@@ -169,6 +169,21 @@ struct cgroup_subsys_state {
 	/* reference count - access via css_[try]get() and css_put() */
 	struct percpu_ref refcnt;
 
+	/*
+	 * Depending on the context, this field is initialized
+	 * via css_rstat_init() at different places:
+	 *
+	 * when css is associated with cgroup::self
+	 *   when css->cgroup is the root cgroup
+	 *     performed in cgroup_init()
+	 *   when css->cgroup is not the root cgroup
+	 *     performed in cgroup_create()
+	 * when css is associated with a subsystem
+	 *   when css->cgroup is the root cgroup
+	 *     performed in cgroup_init_subsys() in the non-early path
+	 *   when css->cgroup is not the root cgroup
+	 *     performed in css_create()
+	 */
 	struct css_rstat_cpu __percpu *rstat_cpu;
 
 	/*
@@ -530,6 +545,15 @@ struct cgroup {
 	struct cgroup *dom_cgrp;
 	struct cgroup *old_dom_cgrp;		/* used while enabling threaded */
 
+	/*
+	 * Depending on the context, this field is initialized via
+	 * css_rstat_init() at different places:
+	 *
+	 * when cgroup is the root cgroup
+	 *   performed in cgroup_setup_root()
+	 * otherwise
+	 *   performed in cgroup_create()
+	 */
 	struct cgroup_rstat_base_cpu __percpu *rstat_base_cpu;
 
 	/*
