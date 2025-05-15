@@ -2414,14 +2414,14 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	 * xHCI section 5.4.6 - Device Context array must be
 	 * "physically contiguous and 64-byte (cache line) aligned".
 	 */
-	xhci->dcbaa = dma_alloc_coherent(dev, sizeof(*xhci->dcbaa), &dma,
-			flags);
+	xhci->dcbaa = dma_alloc_coherent(dev, sizeof(*xhci->dcbaa), &dma, flags);
 	if (!xhci->dcbaa)
 		goto fail;
+
 	xhci->dcbaa->dma = dma;
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-			"// Device context base array address = 0x%pad (DMA), %p (virt)",
-			&xhci->dcbaa->dma, xhci->dcbaa);
+		       "Device context base array address = 0x%pad (DMA), %p (virt)",
+		       &xhci->dcbaa->dma, xhci->dcbaa);
 
 	/*
 	 * Initialize the ring segment pool.  The ring must be a contiguous
@@ -2441,36 +2441,37 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 		goto fail;
 
 	/* See Table 46 and Note on Figure 55 */
-	xhci->device_pool = dma_pool_create("xHCI input/output contexts", dev,
-			2112, 64, xhci->page_size);
+	xhci->device_pool = dma_pool_create("xHCI input/output contexts", dev, 2112, 64,
+					    xhci->page_size);
 	if (!xhci->device_pool)
 		goto fail;
 
-	/* Linear stream context arrays don't have any boundary restrictions,
+	/*
+	 * Linear stream context arrays don't have any boundary restrictions,
 	 * and only need to be 16-byte aligned.
 	 */
-	xhci->small_streams_pool =
-		dma_pool_create("xHCI 256 byte stream ctx arrays",
-			dev, SMALL_STREAM_ARRAY_SIZE, 16, 0);
+	xhci->small_streams_pool = dma_pool_create("xHCI 256 byte stream ctx arrays",
+						   dev, SMALL_STREAM_ARRAY_SIZE, 16, 0);
 	if (!xhci->small_streams_pool)
 		goto fail;
 
-	xhci->medium_streams_pool =
-		dma_pool_create("xHCI 1KB stream ctx arrays",
-			dev, MEDIUM_STREAM_ARRAY_SIZE, 16, 0);
-	/* Any stream context array bigger than MEDIUM_STREAM_ARRAY_SIZE
-	 * will be allocated with dma_alloc_coherent()
+	/*
+	 * Any stream context array bigger than MEDIUM_STREAM_ARRAY_SIZE will be
+	 * allocated with dma_alloc_coherent().
 	 */
+
+	xhci->medium_streams_pool = dma_pool_create("xHCI 1KB stream ctx arrays",
+						    dev, MEDIUM_STREAM_ARRAY_SIZE, 16, 0);
 	if (!xhci->medium_streams_pool)
 		goto fail;
 
-	/* refer to xhci rev1_2 protocol 5.3.3 max ports is 255.
+	/*
+	 * refer to xhci rev1_2 protocol 5.3.3 max ports is 255.
 	 * refer to xhci rev1_2 protocol 6.4.3.14 port bandwidth buffer need
 	 * to be 16-byte aligned.
 	 */
-	xhci->port_bw_pool =
-		dma_pool_create("xHCI 256 port bw ctx arrays",
-			dev, GET_PORT_BW_ARRAY_SIZE, 16, 0);
+	xhci->port_bw_pool = dma_pool_create("xHCI 256 port bw ctx arrays",
+					     dev, GET_PORT_BW_ARRAY_SIZE, 16, 0);
 	if (!xhci->port_bw_pool)
 		goto fail;
 
@@ -2478,20 +2479,20 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci->cmd_ring = xhci_ring_alloc(xhci, 1, TYPE_COMMAND, 0, flags);
 	if (!xhci->cmd_ring)
 		goto fail;
-	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-			"Allocated command ring at %p", xhci->cmd_ring);
-	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "First segment DMA is 0x%pad",
-			&xhci->cmd_ring->first_seg->dma);
 
-	/* Reserve one command ring TRB for disabling LPM.
+	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "Allocated command ring at %p", xhci->cmd_ring);
+	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "First segment DMA is 0x%pad",
+		       &xhci->cmd_ring->first_seg->dma);
+
+	/*
+	 * Reserve one command ring TRB for disabling LPM.
 	 * Since the USB core grabs the shared usb_bus bandwidth mutex before
 	 * disabling LPM, we only need to reserve one TRB for all devices.
 	 */
 	xhci->cmd_ring_reserved_trbs++;
 
 	/* Allocate and set up primary interrupter 0 with an event ring. */
-	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-		       "Allocating primary event ring");
+	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "Allocating primary event ring");
 	xhci->interrupters = kcalloc_node(xhci->max_interrupters, sizeof(*xhci->interrupters),
 					  flags, dev_to_node(dev));
 	if (!xhci->interrupters)
@@ -2503,6 +2504,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 
 	if (scratchpad_alloc(xhci, flags))
 		goto fail;
+
 	if (xhci_setup_port_arrays(xhci, flags))
 		goto fail;
 
