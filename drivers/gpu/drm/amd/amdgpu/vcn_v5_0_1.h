@@ -27,6 +27,13 @@
 #define regVCN_RRMT_CNTL                          0x0940
 #define regVCN_RRMT_CNTL_BASE_IDX                 1
 
+
+enum amdgpu_vcn_v5_0_1_sub_block {
+	AMDGPU_VCN_V5_0_1_VCPU_VCODEC = 0,
+
+	AMDGPU_VCN_V5_0_1_MAX_SUB_BLOCK,
+};
+
 extern const struct amdgpu_ip_block_version vcn_v5_0_1_ip_block;
 
 #endif /* __VCN_v5_0_1_H__ */
