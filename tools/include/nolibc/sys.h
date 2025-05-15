@@ -731,24 +731,6 @@ ssize_t read(int fd, void *buf, size_t count)
 
 
 /*
- * int reboot(int cmd);
- * <cmd> is among LINUX_REBOOT_CMD_*
- */
-
-static __attribute__((unused))
-ssize_t sys_reboot(int magic1, int magic2, int cmd, void *arg)
-{
-	return my_syscall4(__NR_reboot, magic1, magic2, cmd, arg);
-}
-
-static __attribute__((unused))
-int reboot(int cmd)
-{
-	return __sysret(sys_reboot(LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, cmd, 0));
-}
-
-
-/*
  * int getrlimit(int resource, struct rlimit *rlim);
  * int setrlimit(int resource, const struct rlimit *rlim);
  */
