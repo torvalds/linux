@@ -1139,15 +1139,15 @@ __getblk_slow(struct block_device *bdev, sector_t block,
 	for (;;) {
 		struct buffer_head *bh;
 
+		if (!grow_buffers(bdev, block, size, gfp))
+			return NULL;
+
 		if (blocking)
 			bh = __find_get_block_nonatomic(bdev, block, size);
 		else
 			bh = __find_get_block(bdev, block, size);
 		if (bh)
 			return bh;
-
-		if (!grow_buffers(bdev, block, size, gfp))
-			return NULL;
 	}
 }
 
