@@ -44,6 +44,7 @@
 #include <linux/scatterlist.h>
 #include <linux/time.h>
 #include <linux/workqueue.h>
+#include <linux/string_choices.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
@@ -391,8 +392,7 @@ static void bcm2835_transfer_block_pio(struct bcm2835_host *host, bool is_read)
 
 				if (time_after(jiffies, wait_max)) {
 					dev_err(dev, "PIO %s timeout - EDM %08x\n",
-						is_read ? "read" : "write",
-						edm);
+						str_read_write(is_read), edm);
 					hsts = SDHSTS_REW_TIME_OUT;
 					break;
 				}
@@ -435,12 +435,12 @@ static void bcm2835_transfer_pio(struct bcm2835_host *host)
 		      SDHSTS_CRC7_ERROR |
 		      SDHSTS_FIFO_ERROR)) {
 		dev_err(dev, "%s transfer error - HSTS %08x\n",
-			is_read ? "read" : "write", sdhsts);
+			str_read_write(is_read), sdhsts);
 		host->data->error = -EILSEQ;
 	} else if ((sdhsts & (SDHSTS_CMD_TIME_OUT |
 			      SDHSTS_REW_TIME_OUT))) {
 		dev_err(dev, "%s timeout error - HSTS %08x\n",
-			is_read ? "read" : "write", sdhsts);
+			str_read_write(is_read), sdhsts);
 		host->data->error = -ETIMEDOUT;
 	}
 }
