@@ -52,6 +52,7 @@ all_files := \
 		sys/ioctl.h \
 		sys/mman.h \
 		sys/mount.h \
+		sys/prctl.h \
 		sys/random.h \
 		sys/stat.h \
 		sys/syscall.h \

@@ -100,6 +100,7 @@
 #include "sys/ioctl.h"
 #include "sys/mman.h"
 #include "sys/mount.h"
+#include "sys/prctl.h"
 #include "sys/random.h"
 #include "sys/stat.h"
 #include "sys/syscall.h"

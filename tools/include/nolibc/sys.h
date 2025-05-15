@@ -23,7 +23,6 @@
 #include <linux/auxvec.h>
 #include <linux/fcntl.h> /* for O_* and AT_* */
 #include <linux/stat.h>  /* for statx() */
-#include <linux/prctl.h>
 #include <linux/resource.h>
 #include <linux/utsname.h>
 
@@ -694,26 +693,6 @@ static __attribute__((unused))
 int pipe(int pipefd[2])
 {
 	return pipe2(pipefd, 0);
-}
-
-
-/*
- * int prctl(int option, unsigned long arg2, unsigned long arg3,
- *                       unsigned long arg4, unsigned long arg5);
- */
-
-static __attribute__((unused))
-int sys_prctl(int option, unsigned long arg2, unsigned long arg3,
-		          unsigned long arg4, unsigned long arg5)
-{
-	return my_syscall5(__NR_prctl, option, arg2, arg3, arg4, arg5);
-}
-
-static __attribute__((unused))
-int prctl(int option, unsigned long arg2, unsigned long arg3,
-		      unsigned long arg4, unsigned long arg5)
-{
-	return __sysret(sys_prctl(option, arg2, arg3, arg4, arg5));
 }
 
 
