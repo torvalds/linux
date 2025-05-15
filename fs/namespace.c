@@ -2493,18 +2493,19 @@ struct vfsmount *clone_private_mount(const struct path *path)
 	if (IS_MNT_UNBINDABLE(old_mnt))
 		return ERR_PTR(-EINVAL);
 
-	if (mnt_has_parent(old_mnt)) {
-		if (!check_mnt(old_mnt))
-			return ERR_PTR(-EINVAL);
-	} else {
-		if (!is_mounted(&old_mnt->mnt))
+	/*
+	 * Make sure the source mount is acceptable.
+	 * Anything mounted in our mount namespace is allowed.
+	 * Otherwise, it must be the root of an anonymous mount
+	 * namespace, and we need to make sure no namespace
+	 * loops get created.
+	 */
+	if (!check_mnt(old_mnt)) {
+		if (!is_mounted(&old_mnt->mnt) ||
+			!is_anon_ns(old_mnt->mnt_ns) ||
+			mnt_has_parent(old_mnt))
 			return ERR_PTR(-EINVAL);
 
-		/* Make sure this isn't something purely kernel internal. */
-		if (!is_anon_ns(old_mnt->mnt_ns))
-			return ERR_PTR(-EINVAL);
-
-		/* Make sure we don't create mount namespace loops. */
 		if (!check_for_nsfs_mounts(old_mnt))
 			return ERR_PTR(-EINVAL);
 	}
