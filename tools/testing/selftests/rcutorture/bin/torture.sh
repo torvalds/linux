@@ -64,7 +64,7 @@ do_normal=yes
 explicit_normal=no
 do_kasan=yes
 do_kcsan=no
-do_clocksourcewd=yes
+do_clocksourcewd="${ifnotaarch64}"
 do_rt=yes
 do_rcutasksflavors="${ifnotaarch64}" # FIXME: Back to "yes" when SMP=n auto-avoided
 do_srcu_lockdep=yes
@@ -145,7 +145,7 @@ do
 		explicit_normal=no
 		do_kasan=yes
 		do_kcsan=yes
-		do_clocksourcewd=yes
+		do_clocksourcewd="${ifnotaarch64}"
 		do_srcu_lockdep=yes
 		;;
 	--do-allmodconfig|--do-no-allmodconfig|--no-allmodconfig)
