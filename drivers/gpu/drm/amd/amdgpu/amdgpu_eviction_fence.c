@@ -134,7 +134,6 @@ static bool amdgpu_eviction_fence_enable_signaling(struct dma_fence *f)
 }
 
 static const struct dma_fence_ops amdgpu_eviction_fence_ops = {
-	.use_64bit_seqno = true,
 	.get_driver_name = amdgpu_eviction_fence_get_driver_name,
 	.get_timeline_name = amdgpu_eviction_fence_get_timeline_name,
 	.enable_signaling = amdgpu_eviction_fence_enable_signaling,
@@ -160,9 +159,9 @@ amdgpu_eviction_fence_create(struct amdgpu_eviction_fence_mgr *evf_mgr)
 	ev_fence->evf_mgr = evf_mgr;
 	get_task_comm(ev_fence->timeline_name, current);
 	spin_lock_init(&ev_fence->lock);
-	dma_fence_init(&ev_fence->base, &amdgpu_eviction_fence_ops,
-		       &ev_fence->lock, evf_mgr->ev_fence_ctx,
-		       atomic_inc_return(&evf_mgr->ev_fence_seq));
+	dma_fence_init64(&ev_fence->base, &amdgpu_eviction_fence_ops,
+			 &ev_fence->lock, evf_mgr->ev_fence_ctx,
+			 atomic_inc_return(&evf_mgr->ev_fence_seq));
 	return ev_fence;
 }
 
