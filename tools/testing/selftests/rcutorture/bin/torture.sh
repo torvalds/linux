@@ -719,8 +719,11 @@ fi
 echo Started at $startdate, ended at `date`, duration `get_starttime_duration $starttime`. | tee -a $T/log
 echo Summary: Successes: $nsuccesses Failures: $nfailures. | tee -a $T/log
 tdir="`cat $T/successes $T/failures | head -1 | awk '{ print $NF }' | sed -e 's,/[^/]\+/*$,,'`"
-find "$tdir" -name 'ConfigFragment.diags' -print > $T/configerrors
-find "$tdir" -name 'Make.out.diags' -print > $T/builderrors
+if test -n "$tdir"
+then
+	find "$tdir" -name 'ConfigFragment.diags' -print > $T/configerrors
+	find "$tdir" -name 'Make.out.diags' -print > $T/builderrors
+fi
 if test -s "$T/configerrors"
 then
 	echo "  Scenarios with .config errors: `wc -l "$T/configerrors" | awk '{ print $1 }'`"
