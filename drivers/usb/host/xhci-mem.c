@@ -2321,14 +2321,13 @@ xhci_alloc_interrupter(struct xhci_hcd *xhci, unsigned int segs, gfp_t flags)
 	return ir;
 }
 
-static void
-xhci_add_interrupter(struct xhci_hcd *xhci, struct xhci_interrupter *ir,
-		     unsigned int intr_num)
+void xhci_add_interrupter(struct xhci_hcd *xhci, unsigned int intr_num)
 {
+	struct xhci_interrupter *ir;
 	u64 erst_base;
 	u32 erst_size;
 
-	xhci->interrupters[intr_num] = ir;
+	ir = xhci->interrupters[intr_num];
 	ir->intr_num = intr_num;
 	ir->ir_set = &xhci->run_regs->ir_set[intr_num];
 
@@ -2372,14 +2371,16 @@ xhci_create_secondary_interrupter(struct usb_hcd *hcd, unsigned int segs,
 		/* Find available secondary interrupter, interrupter 0 is reserved for primary */
 		for (i = 1; i < xhci->max_interrupters; i++) {
 			if (!xhci->interrupters[i]) {
-				xhci_add_interrupter(xhci, ir, i);
+				xhci->interrupters[i] = ir;
+				xhci_add_interrupter(xhci, i);
 				err = 0;
 				break;
 			}
 		}
 	} else {
 		if (!xhci->interrupters[intr_num]) {
-			xhci_add_interrupter(xhci, ir, intr_num);
+			xhci->interrupters[intr_num] = ir;
+			xhci_add_interrupter(xhci, intr_num);
 			err = 0;
 		}
 	}
@@ -2406,7 +2407,6 @@ EXPORT_SYMBOL_GPL(xhci_create_secondary_interrupter);
 
 int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 {
-	struct xhci_interrupter *ir;
 	struct device	*dev = xhci_to_hcd(xhci)->self.sysdev;
 	dma_addr_t	dma;
 
@@ -2490,13 +2490,9 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci->interrupters = kcalloc_node(xhci->max_interrupters, sizeof(*xhci->interrupters),
 					  flags, dev_to_node(dev));
 
-	ir = xhci_alloc_interrupter(xhci, 0, flags);
-	if (!ir)
+	xhci->interrupters[0] = xhci_alloc_interrupter(xhci, 0, flags);
+	if (!xhci->interrupters[0])
 		goto fail;
-
-	xhci_add_interrupter(xhci, ir, 0);
-
-	ir->isoc_bei_interval = AVOID_BEI_INTERVAL_MAX;
 
 	if (scratchpad_alloc(xhci, flags))
 		goto fail;
