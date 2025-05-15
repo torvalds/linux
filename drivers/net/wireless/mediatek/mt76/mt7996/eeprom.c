@@ -310,6 +310,7 @@ int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy)
 		phy->has_aux_rx = true;
 
 	mphy->antenna_mask = BIT(nss) - 1;
+	phy->orig_antenna_mask = mphy->antenna_mask;
 	mphy->chainmask = (BIT(path) - 1) << dev->chainshift[band_idx];
 	phy->orig_chainmask = mphy->chainmask;
 	dev->chainmask |= mphy->chainmask;

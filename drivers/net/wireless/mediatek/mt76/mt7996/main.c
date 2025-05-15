@@ -1528,7 +1528,8 @@ mt7996_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 		u8 shift = dev->chainshift[band_idx];
 
 		phy->mt76->chainmask = tx_ant & phy->orig_chainmask;
-		phy->mt76->antenna_mask = phy->mt76->chainmask >> shift;
+		phy->mt76->antenna_mask = (phy->mt76->chainmask >> shift) &
+					  phy->orig_antenna_mask;
 
 		mt76_set_stream_caps(phy->mt76, true);
 		mt7996_set_stream_vht_txbf_caps(phy);

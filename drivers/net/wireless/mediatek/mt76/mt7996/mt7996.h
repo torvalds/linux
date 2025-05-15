@@ -312,6 +312,7 @@ struct mt7996_phy {
 	struct mt76_channel_state state_ts;
 
 	u16 orig_chainmask;
+	u16 orig_antenna_mask;
 
 	bool has_aux_rx;
 	bool counter_reset;
