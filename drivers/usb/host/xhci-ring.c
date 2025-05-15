@@ -3087,6 +3087,9 @@ static void xhci_clear_interrupt_pending(struct xhci_interrupter *ir)
 		irq_pending = readl(&ir->ir_set->irq_pending);
 		irq_pending |= IMAN_IP;
 		writel(irq_pending, &ir->ir_set->irq_pending);
+
+		/* Read operation to guarantee the write has been flushed from posted buffers */
+		readl(&ir->ir_set->irq_pending);
 	}
 }
 
