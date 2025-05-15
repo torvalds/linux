@@ -23,7 +23,6 @@
 #include <linux/auxvec.h>
 #include <linux/fcntl.h> /* for O_* and AT_* */
 #include <linux/stat.h>  /* for statx() */
-#include <linux/utsname.h>
 
 #include "errno.h"
 #include "stdarg.h"
@@ -891,32 +890,6 @@ static __attribute__((unused))
 int umount2(const char *path, int flags)
 {
 	return __sysret(sys_umount2(path, flags));
-}
-
-
-/*
- * int uname(struct utsname *buf);
- */
-
-struct utsname {
-	char sysname[65];
-	char nodename[65];
-	char release[65];
-	char version[65];
-	char machine[65];
-	char domainname[65];
-};
-
-static __attribute__((unused))
-int sys_uname(struct utsname *buf)
-{
-	return my_syscall1(__NR_uname, buf);
-}
-
-static __attribute__((unused))
-int uname(struct utsname *buf)
-{
-	return __sysret(sys_uname(buf));
 }
 
 

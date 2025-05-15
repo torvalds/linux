@@ -62,6 +62,7 @@ all_files := \
 		sys/time.h \
 		sys/timerfd.h \
 		sys/types.h \
+		sys/utsname.h \
 		sys/wait.h \
 		time.h \
 		types.h \
