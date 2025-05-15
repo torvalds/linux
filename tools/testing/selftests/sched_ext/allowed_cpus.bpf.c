@@ -111,6 +111,29 @@ void BPF_STRUCT_OPS(allowed_cpus_exit, struct scx_exit_info *ei)
 	UEI_RECORD(uei, ei);
 }
 
+struct task_cpu_arg {
+	pid_t pid;
+};
+
+SEC("syscall")
+int select_cpu_from_user(struct task_cpu_arg *input)
+{
+	struct task_struct *p;
+	int cpu;
+
+	p = bpf_task_from_pid(input->pid);
+	if (!p)
+		return -EINVAL;
+
+	bpf_rcu_read_lock();
+	cpu = scx_bpf_select_cpu_and(p, bpf_get_smp_processor_id(), 0, p->cpus_ptr, 0);
+	bpf_rcu_read_unlock();
+
+	bpf_task_release(p);
+
+	return cpu;
+}
+
 SEC(".struct_ops.link")
 struct sched_ext_ops allowed_cpus_ops = {
 	.select_cpu		= (void *)allowed_cpus_select_cpu,

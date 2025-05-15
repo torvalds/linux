@@ -23,6 +23,30 @@ static enum scx_test_status setup(void **ctx)
 	return SCX_TEST_PASS;
 }
 
+static int test_select_cpu_from_user(const struct allowed_cpus *skel)
+{
+	int fd, ret;
+	__u64 args[1];
+
+	LIBBPF_OPTS(bpf_test_run_opts, attr,
+		.ctx_in = args,
+		.ctx_size_in = sizeof(args),
+	);
+
+	args[0] = getpid();
+	fd = bpf_program__fd(skel->progs.select_cpu_from_user);
+	if (fd < 0)
+		return fd;
+
+	ret = bpf_prog_test_run_opts(fd, &attr);
+	if (ret < 0)
+		return ret;
+
+	fprintf(stderr, "%s: CPU %d\n", __func__, attr.retval);
+
+	return 0;
+}
+
 static enum scx_test_status run(void *ctx)
 {
 	struct allowed_cpus *skel = ctx;
@@ -30,6 +54,9 @@ static enum scx_test_status run(void *ctx)
 
 	link = bpf_map__attach_struct_ops(skel->maps.allowed_cpus_ops);
 	SCX_FAIL_IF(!link, "Failed to attach scheduler");
+
+	/* Pick an idle CPU from user-space */
+	SCX_FAIL_IF(test_select_cpu_from_user(skel), "Failed to pick idle CPU");
 
 	/* Just sleeping is fine, plenty of scheduling events happening */
 	sleep(1);
