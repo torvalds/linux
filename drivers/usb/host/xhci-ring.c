@@ -3082,14 +3082,14 @@ void xhci_update_erst_dequeue(struct xhci_hcd *xhci,
 static void xhci_clear_interrupt_pending(struct xhci_interrupter *ir)
 {
 	if (!ir->ip_autoclear) {
-		u32 irq_pending;
+		u32 iman;
 
-		irq_pending = readl(&ir->ir_set->irq_pending);
-		irq_pending |= IMAN_IP;
-		writel(irq_pending, &ir->ir_set->irq_pending);
+		iman = readl(&ir->ir_set->iman);
+		iman |= IMAN_IP;
+		writel(iman, &ir->ir_set->iman);
 
 		/* Read operation to guarantee the write has been flushed from posted buffers */
-		readl(&ir->ir_set->irq_pending);
+		readl(&ir->ir_set->iman);
 	}
 }
 

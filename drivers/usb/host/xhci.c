@@ -330,12 +330,12 @@ int xhci_enable_interrupter(struct xhci_interrupter *ir)
 	if (!ir || !ir->ir_set)
 		return -EINVAL;
 
-	iman = readl(&ir->ir_set->irq_pending);
+	iman = readl(&ir->ir_set->iman);
 	iman |= IMAN_IE;
-	writel(iman, &ir->ir_set->irq_pending);
+	writel(iman, &ir->ir_set->iman);
 
 	/* Read operation to guarantee the write has been flushed from posted buffers */
-	readl(&ir->ir_set->irq_pending);
+	readl(&ir->ir_set->iman);
 	return 0;
 }
 
@@ -346,11 +346,11 @@ int xhci_disable_interrupter(struct xhci_hcd *xhci, struct xhci_interrupter *ir)
 	if (!ir || !ir->ir_set)
 		return -EINVAL;
 
-	iman = readl(&ir->ir_set->irq_pending);
+	iman = readl(&ir->ir_set->iman);
 	iman &= ~IMAN_IE;
-	writel(iman, &ir->ir_set->irq_pending);
+	writel(iman, &ir->ir_set->iman);
 
-	iman = readl(&ir->ir_set->irq_pending);
+	iman = readl(&ir->ir_set->iman);
 	if (iman & IMAN_IP)
 		xhci_dbg(xhci, "%s: Interrupt pending\n", __func__);
 
@@ -834,7 +834,7 @@ static void xhci_save_registers(struct xhci_hcd *xhci)
 		ir->s3_erst_size = readl(&ir->ir_set->erst_size);
 		ir->s3_erst_base = xhci_read_64(xhci, &ir->ir_set->erst_base);
 		ir->s3_erst_dequeue = xhci_read_64(xhci, &ir->ir_set->erst_dequeue);
-		ir->s3_irq_pending = readl(&ir->ir_set->irq_pending);
+		ir->s3_iman = readl(&ir->ir_set->iman);
 		ir->s3_irq_control = readl(&ir->ir_set->irq_control);
 	}
 }
@@ -858,7 +858,7 @@ static void xhci_restore_registers(struct xhci_hcd *xhci)
 		writel(ir->s3_erst_size, &ir->ir_set->erst_size);
 		xhci_write_64(xhci, ir->s3_erst_base, &ir->ir_set->erst_base);
 		xhci_write_64(xhci, ir->s3_erst_dequeue, &ir->ir_set->erst_dequeue);
-		writel(ir->s3_irq_pending, &ir->ir_set->irq_pending);
+		writel(ir->s3_iman, &ir->ir_set->iman);
 		writel(ir->s3_irq_control, &ir->ir_set->irq_control);
 	}
 }
