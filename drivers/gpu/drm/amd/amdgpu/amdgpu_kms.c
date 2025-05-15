@@ -1502,11 +1502,6 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 		amdgpu_bo_unreserve(pd);
 	}
 
-	if (!fpriv->evf_mgr.fd_closing) {
-		fpriv->evf_mgr.fd_closing = true;
-		amdgpu_userq_mgr_fini(&fpriv->userq_mgr);
-		amdgpu_eviction_fence_destroy(&fpriv->evf_mgr);
-	}
 	amdgpu_ctx_mgr_fini(&fpriv->ctx_mgr);
 	amdgpu_vm_fini(adev, &fpriv->vm);
 
