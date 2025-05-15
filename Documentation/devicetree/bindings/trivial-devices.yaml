@@ -345,6 +345,8 @@ properties:
           - sensortek,stk8ba50
             # SGX Sensortech VZ89X Sensors
           - sgx,vz89x
+            # SGX Sensortech VZ89TE Sensors
+          - sgx,vz89te
             # Silicon Labs EM3581 Zigbee SoC with SPI interface
           - silabs,em3581
             # Silicon Labs SI3210 Programmable CMOS SLIC/CODEC with SPI interface
