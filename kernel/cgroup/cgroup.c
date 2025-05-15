@@ -6149,6 +6149,8 @@ int __init cgroup_init_early(void)
 		     ss->id, ss->name);
 		WARN(strlen(cgroup_subsys_name[i]) > MAX_CGROUP_TYPE_NAMELEN,
 		     "cgroup_subsys_name %s too long\n", cgroup_subsys_name[i]);
+		WARN(ss->early_init && ss->css_rstat_flush,
+		     "cgroup rstat cannot be used with early init subsystem\n");
 
 		ss->id = i;
 		ss->name = cgroup_subsys_name[i];
