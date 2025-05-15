@@ -3432,7 +3432,7 @@ static int ata_eh_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 	struct ata_eh_context *ehc = &link->eh_context;
 	struct ata_device *dev, *link_dev = NULL, *lpm_dev = NULL;
 	enum ata_lpm_policy old_policy = link->lpm_policy;
-	bool no_dipm = link->ap->flags & ATA_FLAG_NO_DIPM;
+	bool host_has_dipm = !(link->ap->flags & ATA_FLAG_NO_DIPM);
 	unsigned int hints = ATA_LPM_EMPTY | ATA_LPM_HIPM;
 	unsigned int err_mask;
 	int rc;
@@ -3462,7 +3462,8 @@ static int ata_eh_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 		if (!link_dev)
 			link_dev = dev;
 
-		if (!lpm_dev && (dev_has_hipm || (dev_has_dipm && !no_dipm)))
+		if (!lpm_dev &&
+		    (dev_has_hipm || (dev_has_dipm && host_has_dipm)))
 			lpm_dev = dev;
 
 		hints &= ~ATA_LPM_EMPTY;
@@ -3471,7 +3472,7 @@ static int ata_eh_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 
 		/* disable DIPM before changing link config */
 		if (policy < ATA_LPM_MED_POWER_WITH_DIPM &&
-		    (dev_has_dipm && !no_dipm)) {
+		    (dev_has_dipm && host_has_dipm)) {
 			err_mask = ata_dev_set_feature(dev,
 					SETFEATURES_SATA_DISABLE, SATA_DIPM);
 			if (err_mask && err_mask != AC_ERR_DEV) {
@@ -3520,7 +3521,7 @@ static int ata_eh_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 	ata_for_each_dev(dev, link, ENABLED) {
 		bool dev_has_dipm = ata_id_has_dipm(dev->id);
 
-		if (policy >= ATA_LPM_MED_POWER_WITH_DIPM && !no_dipm &&
+		if (policy >= ATA_LPM_MED_POWER_WITH_DIPM && host_has_dipm &&
 		    dev_has_dipm) {
 			err_mask = ata_dev_set_feature(dev,
 					SETFEATURES_SATA_ENABLE, SATA_DIPM);
