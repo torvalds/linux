@@ -61,7 +61,7 @@
 			     "\t.short %1, %2\n"			\
 			     "\t.blockz %3-2*4-2*2\n"			\
 			     "\t.popsection"				\
-			     : : "i" (__FILE__), "i" (__LINE__),	\
+			     : : "i" (WARN_CONDITION_STR(cond_str) __FILE__), "i" (__LINE__), \
 			     "i" (BUGFLAG_WARNING|(flags)),		\
 			     "i" (sizeof(struct bug_entry)) );		\
 	} while(0)
