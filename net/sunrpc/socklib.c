@@ -156,7 +156,6 @@ int csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 		netdev_rx_csum_fault(skb->dev, skb);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(csum_partial_copy_to_xdr);
 
 static inline int xprt_sendmsg(struct socket *sock, struct msghdr *msg,
 			       size_t seek)
