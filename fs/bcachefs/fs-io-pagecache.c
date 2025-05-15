@@ -605,9 +605,13 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 	struct address_space *mapping = file->f_mapping;
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch2_folio_reservation res;
-	unsigned len;
-	loff_t isize;
 	vm_fault_t ret;
+
+	loff_t file_offset = round_down(vmf->pgoff << PAGE_SHIFT, block_bytes(c));
+	unsigned offset = file_offset - folio_pos(folio);
+	unsigned len = max(PAGE_SIZE, block_bytes(c));
+
+	BUG_ON(offset + len > folio_size(folio));
 
 	bch2_folio_reservation_init(c, inode, &res);
 
@@ -623,24 +627,24 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 	bch2_pagecache_add_get(inode);
 
 	folio_lock(folio);
-	isize = i_size_read(&inode->v);
+	u64 isize = i_size_read(&inode->v);
 
-	if (folio->mapping != mapping || folio_pos(folio) >= isize) {
+	if (folio->mapping != mapping || file_offset >= isize) {
 		folio_unlock(folio);
 		ret = VM_FAULT_NOPAGE;
 		goto out;
 	}
 
-	len = min_t(loff_t, folio_size(folio), isize - folio_pos(folio));
+	len = min_t(unsigned, len, isize - file_offset);
 
 	if (bch2_folio_set(c, inode_inum(inode), &folio, 1) ?:
-	    bch2_folio_reservation_get(c, inode, folio, &res, 0, len)) {
+	    bch2_folio_reservation_get(c, inode, folio, &res, offset, len)) {
 		folio_unlock(folio);
 		ret = VM_FAULT_SIGBUS;
 		goto out;
 	}
 
-	bch2_set_folio_dirty(c, inode, folio, &res, 0, len);
+	bch2_set_folio_dirty(c, inode, folio, &res, offset, len);
 	bch2_folio_reservation_put(c, inode, &res);
 
 	folio_wait_stable(folio);
