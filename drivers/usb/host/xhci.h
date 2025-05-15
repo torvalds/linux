@@ -210,14 +210,13 @@ struct xhci_op_regs {
 #define XHCI_PAGE_SIZE_MASK     0xffff
 
 /**
- * struct xhci_intr_reg - Interrupt Register Set
- * @irq_pending:	IMAN - Interrupt Management Register.  Used to enable
+ * struct xhci_intr_reg - Interrupt Register Set, v1.2 section 5.5.2.
+ * @irq_pending:	IMAN - Interrupt Management Register. Used to enable
  *			interrupts and check for pending interrupts.
- * @irq_control:	IMOD - Interrupt Moderation Register.
- * 			Used to throttle interrupts.
- * @erst_size:		Number of segments in the Event Ring Segment Table (ERST).
- * @erst_base:		ERST base address.
- * @erst_dequeue:	Event ring dequeue pointer.
+ * @irq_control:	IMOD - Interrupt Moderation Register. Used to throttle interrupts.
+ * @erst_size:		ERSTSZ - Number of segments in the Event Ring Segment Table (ERST).
+ * @erst_base:		ERSTBA - Event ring segment table base address.
+ * @erst_dequeue:	ERDP - Event ring dequeue pointer.
  *
  * Each interrupter (defined by a MSI-X vector) has an event ring and an Event
  * Ring Segment Table (ERST) associated with it.  The event ring is comprised of
@@ -242,12 +241,13 @@ struct xhci_intr_reg {
 #define	IMAN_IE			(1 << 1)
 
 /* irq_control bitmasks */
-/* Minimum interval between interrupts (in 250ns intervals).  The interval
- * between interrupts will be longer if there are no events on the event ring.
- * Default is 4000 (1 ms).
+/*
+ * bits 15:0 - Interrupt Moderation Interval, the minimum interval between interrupts
+ * (in 250ns intervals). The interval between interrupts will be longer if there are no
+ * events on the event ring. Default is 4000 (1 ms).
  */
 #define ER_IRQ_INTERVAL_MASK	(0xffff)
-/* Counter used to count down the time to the next interrupt - HW use only */
+/* bits 31:16 - Interrupt Moderation Counter, used to count down the time to the next interrupt */
 #define ER_IRQ_COUNTER_MASK	(0xffff << 16)
 
 /* erst_size bitmasks */
@@ -259,15 +259,18 @@ struct xhci_intr_reg {
 #define ERST_BASE_ADDRESS_MASK	GENMASK_ULL(63, 6)
 
 /* erst_dequeue bitmasks */
-/* Dequeue ERST Segment Index (DESI) - Segment number (or alias)
- * where the current dequeue pointer lies.  This is an optional HW hint.
+/*
+ * bits 2:0 - Dequeue ERST Segment Index (DESI), is the segment number (or alias) where the
+ * current dequeue pointer lies. This is an optional HW hint.
  */
 #define ERST_DESI_MASK		(0x7)
-/* Event Handler Busy (EHB) - is the event ring scheduled to be serviced by
+/*
+ * bit 3 - Event Handler Busy (EHB), whether the event ring is scheduled to be serviced by
  * a work queue (or delayed service routine)?
  */
 #define ERST_EHB		(1 << 3)
-#define ERST_PTR_MASK		(GENMASK_ULL(63, 4))
+/* bits 63:4 - Event Ring Dequeue Pointer */
+#define ERST_PTR_MASK		GENMASK_ULL(63, 4)
 
 /**
  * struct xhci_run_regs
