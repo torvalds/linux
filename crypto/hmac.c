@@ -90,6 +90,22 @@ static int hmac_import(struct shash_desc *pdesc, const void *in)
 	return crypto_shash_import(desc, in);
 }
 
+static int hmac_export_core(struct shash_desc *pdesc, void *out)
+{
+	struct shash_desc *desc = shash_desc_ctx(pdesc);
+
+	return crypto_shash_export_core(desc, out);
+}
+
+static int hmac_import_core(struct shash_desc *pdesc, const void *in)
+{
+	const struct hmac_ctx *tctx = crypto_shash_ctx(pdesc->tfm);
+	struct shash_desc *desc = shash_desc_ctx(pdesc);
+
+	desc->tfm = tctx->hash;
+	return crypto_shash_import_core(desc, in);
+}
+
 static int hmac_init(struct shash_desc *pdesc)
 {
 	const struct hmac_ctx *tctx = crypto_shash_ctx(pdesc->tfm);
@@ -177,6 +193,7 @@ static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 		return -ENOMEM;
 	spawn = shash_instance_ctx(inst);
 
+	mask |= CRYPTO_AHASH_ALG_NO_EXPORT_CORE;
 	err = crypto_grab_shash(spawn, shash_crypto_instance(inst),
 				crypto_attr_alg_name(tb[1]), 0, mask);
 	if (err)
@@ -211,6 +228,8 @@ static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.finup = hmac_finup;
 	inst->alg.export = hmac_export;
 	inst->alg.import = hmac_import;
+	inst->alg.export_core = hmac_export_core;
+	inst->alg.import_core = hmac_import_core;
 	inst->alg.setkey = hmac_setkey;
 	inst->alg.init_tfm = hmac_init_tfm;
 	inst->alg.clone_tfm = hmac_clone_tfm;
