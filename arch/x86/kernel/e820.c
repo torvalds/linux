@@ -638,7 +638,7 @@ static void __init e820__update_table_kexec(void)
 /*
  * Search for a gap in the E820 memory space from 0 to MAX_GAP_END (4GB).
  */
-static int __init e820_search_gap(unsigned long *gapstart, unsigned long *gapsize)
+static int __init e820_search_gap(unsigned long *gap_start, unsigned long *gap_size)
 {
 	u64 last = MAX_GAP_END;
 	int idx = e820_table->nr_entries;
@@ -655,9 +655,9 @@ static int __init e820_search_gap(unsigned long *gapstart, unsigned long *gapsiz
 		if (last > end) {
 			unsigned long gap = last - end;
 
-			if (gap >= *gapsize) {
-				*gapsize = gap;
-				*gapstart = end;
+			if (gap >= *gap_size) {
+				*gap_size = gap;
+				*gap_start = end;
 				found = 1;
 			}
 		}
@@ -677,29 +677,29 @@ static int __init e820_search_gap(unsigned long *gapstart, unsigned long *gapsiz
  */
 __init void e820__setup_pci_gap(void)
 {
-	unsigned long gapstart, gapsize;
+	unsigned long gap_start, gap_size;
 	int found;
 
-	gapsize = 0x400000;
-	found  = e820_search_gap(&gapstart, &gapsize);
+	gap_size = SZ_4M;
+	found  = e820_search_gap(&gap_start, &gap_size);
 
 	if (!found) {
 #ifdef CONFIG_X86_64
-		gapstart = (max_pfn << PAGE_SHIFT) + 1024*1024;
+		gap_start = (max_pfn << PAGE_SHIFT) + SZ_1M;
 		pr_err("Cannot find an available gap in the 32-bit address range\n");
 		pr_err("PCI devices with unassigned 32-bit BARs may not work!\n");
 #else
-		gapstart = 0x10000000;
+		gap_start = 0x10000000;
 #endif
 	}
 
 	/*
 	 * e820__reserve_resources_late() protects stolen RAM already:
 	 */
-	pci_mem_start = gapstart;
+	pci_mem_start = gap_start;
 
 	pr_info("[gap %#010lx-%#010lx] available for PCI devices\n",
-		gapstart, gapstart + gapsize - 1);
+		gap_start, gap_start + gap_size - 1);
 }
 
 /*
