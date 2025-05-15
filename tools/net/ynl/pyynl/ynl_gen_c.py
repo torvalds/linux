@@ -62,6 +62,8 @@ class Type(SpecAttr):
 
         if 'nested-attributes' in attr:
             nested = attr['nested-attributes']
+        elif 'sub-message' in attr:
+            nested = attr['sub-message']
         else:
             nested = None
 
@@ -125,7 +127,9 @@ class Type(SpecAttr):
         return c_upper(value)
 
     def resolve(self):
-        if 'name-prefix' in self.attr:
+        if 'parent-sub-message' in self.attr:
+            enum_name = self.attr['parent-sub-message'].enum_name
+        elif 'name-prefix' in self.attr:
             enum_name = f"{self.attr['name-prefix']}{self.name}"
         else:
             enum_name = f"{self.attr_set.name_prefix}{self.name}"
@@ -873,18 +877,20 @@ class TypeNestTypeValue(Type):
         return get_lines, init_lines, local_vars
 
 
-class TypeSubMessage(TypeUnused):
+class TypeSubMessage(TypeNest):
     pass
 
 
 class Struct:
-    def __init__(self, family, space_name, type_list=None, inherited=None):
+    def __init__(self, family, space_name, type_list=None,
+                 inherited=None, submsg=None):
         self.family = family
         self.space_name = space_name
         self.attr_set = family.attr_sets[space_name]
         # Use list to catch comparisons with empty sets
         self._inherited = inherited if inherited is not None else []
         self.inherited = []
+        self.submsg = submsg
 
         self.nested = type_list is None
         if family.name == c_lower(space_name):
@@ -1250,6 +1256,8 @@ class Family(SpecFamily):
             for _, spec in self.attr_sets[name].items():
                 if 'nested-attributes' in spec:
                     nested = spec['nested-attributes']
+                elif 'sub-message' in spec:
+                    nested = spec.sub_message
                 else:
                     continue
 
@@ -1286,6 +1294,32 @@ class Family(SpecFamily):
 
         return nested
 
+    def _load_nested_set_submsg(self, spec):
+        # Fake the struct type for the sub-message itself
+        # its not a attr_set but codegen wants attr_sets.
+        submsg = self.sub_msgs[spec["sub-message"]]
+        nested = submsg.name
+
+        attrs = []
+        for name, fmt in submsg.formats.items():
+            attrs.append({
+                "name": name,
+                "type": "nest",
+                "parent-sub-message": spec,
+                "nested-attributes": fmt['attribute-set']
+            })
+
+        self.attr_sets[nested] = AttrSet(self, {
+            "name": nested,
+            "name-pfx": self.name + '-' + spec.name + '-',
+            "attributes": attrs
+        })
+
+        if nested not in self.pure_nested_structs:
+            self.pure_nested_structs[nested] = Struct(self, nested, submsg=submsg)
+
+        return nested
+
     def _load_nested_sets(self):
         attr_set_queue = list(self.root_sets.keys())
         attr_set_seen = set(self.root_sets.keys())
@@ -1295,6 +1329,8 @@ class Family(SpecFamily):
             for attr, spec in self.attr_sets[a_set].items():
                 if 'nested-attributes' in spec:
                     nested = self._load_nested_set_nest(spec)
+                elif 'sub-message' in spec:
+                    nested = self._load_nested_set_submsg(spec)
                 else:
                     continue
 
@@ -1306,6 +1342,8 @@ class Family(SpecFamily):
             for attr, spec in self.attr_sets[root_set].items():
                 if 'nested-attributes' in spec:
                     nested = spec['nested-attributes']
+                elif 'sub-message' in spec:
+                    nested = spec.sub_message
                 else:
                     nested = None
 
@@ -1329,6 +1367,8 @@ class Family(SpecFamily):
 
                 if 'nested-attributes' in spec:
                     child_name = spec['nested-attributes']
+                elif 'sub-message' in spec:
+                    child_name = spec.sub_message
                 else:
                     continue
 
