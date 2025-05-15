@@ -251,3 +251,12 @@ def parse_vmcore(s):
     else:
         kerneloffset = int(match.group(1), 16)
     return VmCore(kerneloffset=kerneloffset)
+
+
+def get_vmlinux():
+    vmlinux = 'vmlinux'
+    for obj in gdb.objfiles():
+        if (obj.filename.endswith('vmlinux') or
+            obj.filename.endswith('vmlinux.debug')):
+            vmlinux = obj.filename
+    return vmlinux

@@ -178,11 +178,7 @@ lx-symbols command."""
                 saved_states.append({'breakpoint': bp, 'enabled': bp.enabled})
 
         # drop all current symbols and reload vmlinux
-        orig_vmlinux = 'vmlinux'
-        for obj in gdb.objfiles():
-            if (obj.filename.endswith('vmlinux') or
-                obj.filename.endswith('vmlinux.debug')):
-                orig_vmlinux = obj.filename
+        orig_vmlinux = utils.get_vmlinux()
         gdb.execute("symbol-file", to_string=True)
         kerneloffset = get_kerneloffset()
         if kerneloffset is None:
