@@ -2419,7 +2419,6 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	struct xhci_interrupter *ir;
 	struct device	*dev = xhci_to_hcd(xhci)->self.sysdev;
 	dma_addr_t	dma;
-	u32		temp;
 
 	/*
 	 * xHCI section 5.4.6 - Device Context array must be
@@ -2514,15 +2513,6 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 		goto fail;
 	if (xhci_setup_port_arrays(xhci, flags))
 		goto fail;
-
-	/* Enable USB 3.0 device notifications for function remote wake, which
-	 * is necessary for allowing USB 3.0 devices to do remote wakeup from
-	 * U3 (device suspend).
-	 */
-	temp = readl(&xhci->op_regs->dev_notification);
-	temp &= ~DEV_NOTE_MASK;
-	temp |= DEV_NOTE_FWAKE;
-	writel(temp, &xhci->op_regs->dev_notification);
 
 	return 0;
 

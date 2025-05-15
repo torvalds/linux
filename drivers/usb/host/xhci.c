@@ -525,6 +525,20 @@ static void xhci_set_doorbell_ptr(struct xhci_hcd *xhci)
 }
 
 /*
+ * Enable USB 3.0 device notifications for function remote wake, which is necessary
+ * for allowing USB 3.0 devices to do remote wakeup from U3 (device suspend).
+ */
+static void xhci_set_dev_notifications(struct xhci_hcd *xhci)
+{
+	u32 dev_notf;
+
+	dev_notf = readl(&xhci->op_regs->dev_notification);
+	dev_notf &= ~DEV_NOTE_MASK;
+	dev_notf |= DEV_NOTE_FWAKE;
+	writel(dev_notf, &xhci->op_regs->dev_notification);
+}
+
+/*
  * Initialize memory for HCD and xHC (one-time init).
  *
  * Program the PAGESIZE register, initialize the device context array, create
@@ -560,6 +574,9 @@ static int xhci_init(struct usb_hcd *hcd)
 
 	/* Set Doorbell array pointer */
 	xhci_set_doorbell_ptr(xhci);
+
+	/* Set USB 3.0 device notifications for function remote wake */
+	xhci_set_dev_notifications(xhci);
 
 	/* Initializing Compliance Mode Recovery Data If Needed */
 	if (xhci_compliance_mode_recovery_timer_quirk_check()) {
