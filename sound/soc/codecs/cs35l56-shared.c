@@ -909,6 +909,33 @@ int cs35l56_read_prot_status(struct cs35l56_base *cs35l56_base,
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_read_prot_status, "SND_SOC_CS35L56_SHARED");
 
+void cs35l56_log_tuning(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_dsp)
+{
+	__be32 pid, sid, tid;
+	int ret;
+
+	scoped_guard(mutex, &cs_dsp->pwr_lock) {
+		ret = cs_dsp_coeff_read_ctrl(cs_dsp_get_ctl(cs_dsp, "AS_PRJCT_ID",
+							    WMFW_ADSP2_XM, 0x9f212),
+					     0, &pid, sizeof(pid));
+		if (!ret)
+			ret = cs_dsp_coeff_read_ctrl(cs_dsp_get_ctl(cs_dsp, "AS_CHNNL_ID",
+								    WMFW_ADSP2_XM, 0x9f212),
+						     0, &sid, sizeof(sid));
+		if (!ret)
+			ret = cs_dsp_coeff_read_ctrl(cs_dsp_get_ctl(cs_dsp, "AS_SNPSHT_ID",
+								    WMFW_ADSP2_XM, 0x9f212),
+						     0, &tid, sizeof(tid));
+	}
+
+	if (ret)
+		dev_warn(cs35l56_base->dev, "Can't read tuning IDs");
+	else
+		dev_info(cs35l56_base->dev, "Tuning PID: %#x, SID: %#x, TID: %#x\n",
+			 be32_to_cpu(pid), be32_to_cpu(sid), be32_to_cpu(tid));
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_log_tuning, "SND_SOC_CS35L56_SHARED");
+
 int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 {
 	int ret;
@@ -1249,3 +1276,4 @@ MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_AUTHOR("Simon Trimmer <simont@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS("SND_SOC_CS_AMP_LIB");
+MODULE_IMPORT_NS("FW_CS_DSP");
