@@ -594,6 +594,7 @@ definitions:
         name: reasm-overlaps
   - name: br-boolopt-multi
     type: struct
+    header: linux/if_bridge.h
     members:
       -
         name: optval
@@ -826,6 +827,8 @@ definitions:
       - name: default
   -
     name: ovpn-mode
+    enum-name: ovpn-mode
+    name-prefix: ovpn-mode
     type: enum
     entries:
       - p2p
@@ -2195,6 +2198,7 @@ attribute-sets:
         type: u16
   -
     name: linkinfo-ovpn-attrs
+    name-prefix: ifla-ovpn-
     attributes:
       -
         name: mode
