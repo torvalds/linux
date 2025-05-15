@@ -1383,8 +1383,10 @@ static int qcom_spi_io_op(struct qcom_nand_controller *snandc, const struct spi_
 	}
 
 	ret = qcom_submit_descs(snandc);
-	if (ret)
+	if (ret) {
 		dev_err(snandc->dev, "failure in submitting descriptor for:%d\n", opcode);
+		return ret;
+	}
 
 	if (copy) {
 		qcom_nandc_dev_to_mem(snandc, true);
@@ -1398,7 +1400,7 @@ static int qcom_spi_io_op(struct qcom_nand_controller *snandc, const struct spi_
 		memcpy(op->data.buf.in, &val, snandc->buf_count);
 	}
 
-	return ret;
+	return 0;
 }
 
 static bool qcom_spi_is_page_op(const struct spi_mem_op *op)
