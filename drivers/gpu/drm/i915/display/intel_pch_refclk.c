@@ -499,7 +499,7 @@ static void lpt_init_pch_refclk(struct intel_display *display)
 static void ilk_init_pch_refclk(struct intel_display *display)
 {
 	struct intel_encoder *encoder;
-	struct intel_shared_dpll *pll;
+	struct intel_dpll *pll;
 	int i;
 	u32 val, final;
 	bool has_lvds = false;

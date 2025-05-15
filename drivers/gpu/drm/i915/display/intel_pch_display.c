@@ -251,7 +251,7 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 	u32 val, pipeconf_val;
 
 	/* Make sure PCH DPLL is enabled */
-	assert_shared_dpll_enabled(display, crtc_state->shared_dpll);
+	assert_shared_dpll_enabled(display, crtc_state->intel_dpll);
 
 	/* FDI must be feeding us bits for PCH ports */
 	assert_fdi_tx_enabled(display, pipe);
@@ -381,7 +381,7 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 		temp = intel_de_read(display, PCH_DPLL_SEL);
 		temp |= TRANS_DPLL_ENABLE(pipe);
 		sel = TRANS_DPLLB_SEL(pipe);
-		if (crtc_state->shared_dpll ==
+		if (crtc_state->intel_dpll ==
 		    intel_get_shared_dpll_by_id(display, DPLL_ID_PCH_PLL_B))
 			temp |= sel;
 		else
@@ -496,7 +496,7 @@ void ilk_pch_get_config(struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct intel_shared_dpll *pll;
+	struct intel_dpll *pll;
 	enum pipe pipe = crtc->pipe;
 	enum intel_dpll_id pll_id;
 	bool pll_active;
@@ -528,8 +528,8 @@ void ilk_pch_get_config(struct intel_crtc_state *crtc_state)
 			pll_id = DPLL_ID_PCH_PLL_A;
 	}
 
-	crtc_state->shared_dpll = intel_get_shared_dpll_by_id(display, pll_id);
-	pll = crtc_state->shared_dpll;
+	crtc_state->intel_dpll = intel_get_shared_dpll_by_id(display, pll_id);
+	pll = crtc_state->intel_dpll;
 
 	pll_active = intel_dpll_get_hw_state(display, pll,
 					     &crtc_state->dpll_hw_state);

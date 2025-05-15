@@ -658,7 +658,7 @@ static void gen11_dsi_map_pll(struct intel_encoder *encoder,
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
-	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
+	struct intel_dpll *pll = crtc_state->intel_dpll;
 	enum phy phy;
 	u32 val;
 

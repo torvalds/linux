@@ -92,10 +92,10 @@ static void intel_crtc_disable_noatomic_begin(struct intel_crtc *crtc,
 	crtc->active = false;
 	crtc->base.enabled = false;
 
-	if (crtc_state->shared_dpll)
+	if (crtc_state->intel_dpll)
 		intel_unreference_shared_dpll_crtc(crtc,
-						   crtc_state->shared_dpll,
-						   &crtc_state->shared_dpll->state);
+						   crtc_state->intel_dpll,
+						   &crtc_state->intel_dpll->state);
 }
 
 static void set_encoder_for_connector(struct intel_connector *connector,
@@ -565,7 +565,7 @@ static bool has_bogus_dpll_config(const struct intel_crtc_state *crtc_state)
 	 */
 	return display->platform.sandybridge &&
 		crtc_state->hw.active &&
-		crtc_state->shared_dpll &&
+		crtc_state->intel_dpll &&
 		crtc_state->port_clock == 0;
 }
 

@@ -1768,9 +1768,9 @@ int intel_dpll_crtc_get_shared_dpll(struct intel_atomic_state *state,
 	int ret;
 
 	drm_WARN_ON(display->drm, !intel_crtc_needs_modeset(crtc_state));
-	drm_WARN_ON(display->drm, !crtc_state->hw.enable && crtc_state->shared_dpll);
+	drm_WARN_ON(display->drm, !crtc_state->hw.enable && crtc_state->intel_dpll);
 
-	if (!crtc_state->hw.enable || crtc_state->shared_dpll)
+	if (!crtc_state->hw.enable || crtc_state->intel_dpll)
 		return 0;
 
 	if (!display->funcs.dpll->crtc_get_shared_dpll)
