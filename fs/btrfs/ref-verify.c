@@ -88,27 +88,20 @@ static int block_entry_bytenr_key_cmp(const void *key, const struct rb_node *nod
 	return 0;
 }
 
+static int block_entry_bytenr_cmp(struct rb_node *new, const struct rb_node *existing)
+{
+	const struct block_entry *new_entry = rb_entry(new, struct block_entry, node);
+
+	return block_entry_bytenr_key_cmp(&new_entry->bytenr, existing);
+}
+
 static struct block_entry *insert_block_entry(struct rb_root *root,
 					      struct block_entry *be)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent_node = NULL;
-	struct block_entry *entry;
+	struct rb_node *node;
 
-	while (*p) {
-		parent_node = *p;
-		entry = rb_entry(parent_node, struct block_entry, node);
-		if (entry->bytenr > be->bytenr)
-			p = &(*p)->rb_left;
-		else if (entry->bytenr < be->bytenr)
-			p = &(*p)->rb_right;
-		else
-			return entry;
-	}
-
-	rb_link_node(&be->node, parent_node, p);
-	rb_insert_color(&be->node, root);
-	return NULL;
+	node = rb_find_add(&be->node, root, block_entry_bytenr_cmp);
+	return rb_entry_safe(node, struct block_entry, node);
 }
 
 static struct block_entry *lookup_block_entry(struct rb_root *root, u64 bytenr)
