@@ -2221,22 +2221,6 @@ static void nilfs_segctor_do_flush(struct nilfs_sc_info *sci, int bn)
 	spin_unlock(&sci->sc_state_lock);
 }
 
-/**
- * nilfs_flush_segment - trigger a segment construction for resource control
- * @sb: super block
- * @ino: inode number of the file to be flushed out.
- */
-void nilfs_flush_segment(struct super_block *sb, ino_t ino)
-{
-	struct the_nilfs *nilfs = sb->s_fs_info;
-	struct nilfs_sc_info *sci = nilfs->ns_writer;
-
-	if (!sci || nilfs_doing_construction())
-		return;
-	nilfs_segctor_do_flush(sci, NILFS_MDT_INODE(sb, ino) ? ino : 0);
-					/* assign bit 0 to data files */
-}
-
 struct nilfs_segctor_wait_request {
 	wait_queue_entry_t	wq;
 	__u32		seq;
