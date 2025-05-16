@@ -724,8 +724,8 @@ static bool io_cqring_add_overflow(struct io_ring_ctx *ctx,
 }
 
 static struct io_overflow_cqe *io_alloc_ocqe(struct io_ring_ctx *ctx,
-					     struct io_cqe *cqe, u64 extra1,
-					     u64 extra2, gfp_t gfp)
+					     struct io_cqe *cqe,
+					     struct io_big_cqe *big_cqe, gfp_t gfp)
 {
 	struct io_overflow_cqe *ocqe;
 	size_t ocq_size = sizeof(struct io_overflow_cqe);
@@ -734,17 +734,19 @@ static struct io_overflow_cqe *io_alloc_ocqe(struct io_ring_ctx *ctx,
 	if (is_cqe32)
 		ocq_size += sizeof(struct io_uring_cqe);
 
-	ocqe = kmalloc(ocq_size, gfp | __GFP_ACCOUNT);
+	ocqe = kzalloc(ocq_size, gfp | __GFP_ACCOUNT);
 	trace_io_uring_cqe_overflow(ctx, cqe->user_data, cqe->res, cqe->flags, ocqe);
 	if (ocqe) {
 		ocqe->cqe.user_data = cqe->user_data;
 		ocqe->cqe.res = cqe->res;
 		ocqe->cqe.flags = cqe->flags;
-		if (is_cqe32) {
-			ocqe->cqe.big_cqe[0] = extra1;
-			ocqe->cqe.big_cqe[1] = extra2;
+		if (is_cqe32 && big_cqe) {
+			ocqe->cqe.big_cqe[0] = big_cqe->extra1;
+			ocqe->cqe.big_cqe[1] = big_cqe->extra2;
 		}
 	}
+	if (big_cqe)
+		big_cqe->extra1 = big_cqe->extra2 = 0;
 	return ocqe;
 }
 
@@ -821,7 +823,7 @@ bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags
 		struct io_overflow_cqe *ocqe;
 		struct io_cqe cqe = io_init_cqe(user_data, res, cflags);
 
-		ocqe = io_alloc_ocqe(ctx, &cqe, 0, 0, GFP_ATOMIC);
+		ocqe = io_alloc_ocqe(ctx, &cqe, NULL, GFP_ATOMIC);
 		filled = io_cqring_add_overflow(ctx, ocqe);
 	}
 	io_cq_unlock_post(ctx);
@@ -841,7 +843,7 @@ void io_add_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags)
 		struct io_overflow_cqe *ocqe;
 		struct io_cqe cqe = io_init_cqe(user_data, res, cflags);
 
-		ocqe = io_alloc_ocqe(ctx, &cqe, 0, 0, GFP_KERNEL);
+		ocqe = io_alloc_ocqe(ctx, &cqe, NULL, GFP_KERNEL);
 		spin_lock(&ctx->completion_lock);
 		io_cqring_add_overflow(ctx, ocqe);
 		spin_unlock(&ctx->completion_lock);
@@ -1451,8 +1453,7 @@ void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 			gfp_t gfp = ctx->lockless_cq ? GFP_KERNEL : GFP_ATOMIC;
 			struct io_overflow_cqe *ocqe;
 
-			ocqe = io_alloc_ocqe(ctx, &req->cqe, req->big_cqe.extra1,
-					     req->big_cqe.extra2, gfp);
+			ocqe = io_alloc_ocqe(ctx, &req->cqe, &req->big_cqe, gfp);
 			if (ctx->lockless_cq) {
 				spin_lock(&ctx->completion_lock);
 				io_cqring_add_overflow(ctx, ocqe);
@@ -1460,8 +1461,6 @@ void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 			} else {
 				io_cqring_add_overflow(ctx, ocqe);
 			}
-
-			memset(&req->big_cqe, 0, sizeof(req->big_cqe));
 		}
 	}
 	__io_cq_unlock_post(ctx);
