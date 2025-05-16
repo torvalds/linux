@@ -22,10 +22,9 @@ TOOL:=../pyynl/ynl_gen_c.py
 TOOL_RST:=../pyynl/ynl_gen_rst.py
 
 SPECS_DIR:=../../../../Documentation/netlink/specs
-GENS_PATHS=$(shell grep -nrI --files-without-match \
-		'protocol: netlink' \
-		$(SPECS_DIR))
-GENS=$(patsubst $(SPECS_DIR)/%.yaml,%,${GENS_PATHS}) rt-addr rt-route
+SPECS_PATHS=$(wildcard $(SPECS_DIR)/*.yaml)
+GENS_UNSUP=conntrack nftables tc
+GENS=$(filter-out ${GENS_UNSUP},$(patsubst $(SPECS_DIR)/%.yaml,%,${SPECS_PATHS}))
 SRCS=$(patsubst %,%-user.c,${GENS})
 HDRS=$(patsubst %,%-user.h,${GENS})
 OBJS=$(patsubst %,%-user.o,${GENS})
