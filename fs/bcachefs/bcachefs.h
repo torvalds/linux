@@ -452,6 +452,7 @@ BCH_DEBUG_PARAMS_ALL()
 	x(btree_node_compact)			\
 	x(btree_node_merge)			\
 	x(btree_node_sort)			\
+	x(btree_node_get)			\
 	x(btree_node_read)			\
 	x(btree_node_read_done)			\
 	x(btree_node_write)			\
@@ -459,6 +460,10 @@ BCH_DEBUG_PARAMS_ALL()
 	x(btree_interior_update_total)		\
 	x(btree_gc)				\
 	x(data_write)				\
+	x(data_write_to_submit)			\
+	x(data_write_to_queue)			\
+	x(data_write_to_btree_update)		\
+	x(data_write_btree_update)		\
 	x(data_read)				\
 	x(data_promote)				\
 	x(journal_flush_write)			\
@@ -1271,5 +1276,18 @@ static inline unsigned data_replicas_required(struct bch_fs *c)
 
 #define BKEY_PADDED_ONSTACK(key, pad)				\
 	struct { struct bkey_i key; __u64 key ## _pad[pad]; }
+
+/*
+ * This is needed because discard is both a filesystem option and a device
+ * option, and mount options are supposed to apply to that mount and not be
+ * persisted, i.e. if it's set as a mount option we can't propagate it to the
+ * device.
+ */
+static inline bool bch2_discard_opt_enabled(struct bch_fs *c, struct bch_dev *ca)
+{
+	return test_bit(BCH_FS_discard_mount_opt_set, &c->flags)
+		? c->opts.discard
+		: ca->mi.discard;
+}
 
 #endif /* _BCACHEFS_H */

@@ -1798,19 +1798,6 @@ struct discard_buckets_state {
 	u64		discarded;
 };
 
-/*
- * This is needed because discard is both a filesystem option and a device
- * option, and mount options are supposed to apply to that mount and not be
- * persisted, i.e. if it's set as a mount option we can't propagate it to the
- * device.
- */
-static inline bool discard_opt_enabled(struct bch_fs *c, struct bch_dev *ca)
-{
-	return test_bit(BCH_FS_discard_mount_opt_set, &c->flags)
-		? c->opts.discard
-		: ca->mi.discard;
-}
-
 static int bch2_discard_one_bucket(struct btree_trans *trans,
 				   struct bch_dev *ca,
 				   struct btree_iter *need_discard_iter,
@@ -1874,7 +1861,7 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 		s->discarded++;
 		*discard_pos_done = iter.pos;
 
-		if (discard_opt_enabled(c, ca) && !c->opts.nochanges) {
+		if (bch2_discard_opt_enabled(c, ca) && !c->opts.nochanges) {
 			/*
 			 * This works without any other locks because this is the only
 			 * thread that removes items from the need_discard tree

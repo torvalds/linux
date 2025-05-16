@@ -300,7 +300,7 @@ void bch2_journal_do_discards(struct journal *j)
 
 		while (should_discard_bucket(j, ja)) {
 			if (!c->opts.nochanges &&
-			    ca->mi.discard &&
+			    bch2_discard_opt_enabled(c, ca) &&
 			    bdev_max_discard_sectors(ca->disk_sb.bdev))
 				blkdev_issue_discard(ca->disk_sb.bdev,
 					bucket_to_sector(ca,
@@ -701,6 +701,7 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct, bool kicked)
 		if (ret)
 			break;
 
+		/* XXX shove journal discards off to another thread */
 		bch2_journal_do_discards(j);
 
 		seq_to_flush = journal_seq_to_flush(j);
