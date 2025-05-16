@@ -116,7 +116,7 @@ Bash 4.2 or newer is needed.
 Binutils
 --------
 
-Binutils 2.25 or newer is needed to build the kernel.
+Binutils 2.30 or newer is needed to build the kernel.
 
 pkg-config
 ----------

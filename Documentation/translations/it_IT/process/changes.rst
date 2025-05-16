@@ -118,7 +118,7 @@ Questo richiede bash 4.2 o successivo.
 Binutils
 --------
 
-Per generare il kernel è necessario avere Binutils 2.25 o superiore.
+Per generare il kernel è necessario avere Binutils 2.30 o superiore.
 
 pkg-config
 ----------
