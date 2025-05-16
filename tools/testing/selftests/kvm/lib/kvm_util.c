@@ -37,9 +37,10 @@ int __open_path_or_exit(const char *path, int flags, const char *enoent_help)
 	return fd;
 
 error:
-	if (errno == ENOENT)
+	if (errno == EACCES || errno == ENOENT)
 		ksft_exit_skip("- Cannot open '%s': %s.  %s\n",
-			       path, strerror(errno), enoent_help);
+			       path, strerror(errno),
+			       errno == EACCES ? "Root required?" : enoent_help);
 	TEST_FAIL("Failed to open '%s'", path);
 }
 
