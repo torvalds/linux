@@ -697,8 +697,8 @@ static __cold void io_uring_drop_tctx_refs(struct task_struct *task)
 	}
 }
 
-static bool io_cqring_add_overflow(struct io_ring_ctx *ctx,
-				   struct io_overflow_cqe *ocqe)
+static __cold bool io_cqring_add_overflow(struct io_ring_ctx *ctx,
+					  struct io_overflow_cqe *ocqe)
 {
 	lockdep_assert_held(&ctx->completion_lock);
 
@@ -813,6 +813,27 @@ static inline struct io_cqe io_init_cqe(u64 user_data, s32 res, u32 cflags)
 	return (struct io_cqe) { .user_data = user_data, .res = res, .flags = cflags };
 }
 
+static __cold void io_cqe_overflow(struct io_ring_ctx *ctx, struct io_cqe *cqe,
+			           struct io_big_cqe *big_cqe)
+{
+	struct io_overflow_cqe *ocqe;
+
+	ocqe = io_alloc_ocqe(ctx, cqe, big_cqe, GFP_KERNEL);
+	spin_lock(&ctx->completion_lock);
+	io_cqring_add_overflow(ctx, ocqe);
+	spin_unlock(&ctx->completion_lock);
+}
+
+static __cold bool io_cqe_overflow_locked(struct io_ring_ctx *ctx,
+					  struct io_cqe *cqe,
+					  struct io_big_cqe *big_cqe)
+{
+	struct io_overflow_cqe *ocqe;
+
+	ocqe = io_alloc_ocqe(ctx, cqe, big_cqe, GFP_ATOMIC);
+	return io_cqring_add_overflow(ctx, ocqe);
+}
+
 bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags)
 {
 	bool filled;
@@ -820,11 +841,9 @@ bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags
 	io_cq_lock(ctx);
 	filled = io_fill_cqe_aux(ctx, user_data, res, cflags);
 	if (unlikely(!filled)) {
-		struct io_overflow_cqe *ocqe;
 		struct io_cqe cqe = io_init_cqe(user_data, res, cflags);
 
-		ocqe = io_alloc_ocqe(ctx, &cqe, NULL, GFP_ATOMIC);
-		filled = io_cqring_add_overflow(ctx, ocqe);
+		filled = io_cqe_overflow_locked(ctx, &cqe, NULL);
 	}
 	io_cq_unlock_post(ctx);
 	return filled;
@@ -840,13 +859,9 @@ void io_add_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags)
 	lockdep_assert(ctx->lockless_cq);
 
 	if (!io_fill_cqe_aux(ctx, user_data, res, cflags)) {
-		struct io_overflow_cqe *ocqe;
 		struct io_cqe cqe = io_init_cqe(user_data, res, cflags);
 
-		ocqe = io_alloc_ocqe(ctx, &cqe, NULL, GFP_KERNEL);
-		spin_lock(&ctx->completion_lock);
-		io_cqring_add_overflow(ctx, ocqe);
-		spin_unlock(&ctx->completion_lock);
+		io_cqe_overflow(ctx, &cqe, NULL);
 	}
 	ctx->submit_state.cq_flush = true;
 }
@@ -1450,17 +1465,10 @@ void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 		 */
 		if (!(req->flags & (REQ_F_CQE_SKIP | REQ_F_REISSUE)) &&
 		    unlikely(!io_fill_cqe_req(ctx, req))) {
-			gfp_t gfp = ctx->lockless_cq ? GFP_KERNEL : GFP_ATOMIC;
-			struct io_overflow_cqe *ocqe;
-
-			ocqe = io_alloc_ocqe(ctx, &req->cqe, &req->big_cqe, gfp);
-			if (ctx->lockless_cq) {
-				spin_lock(&ctx->completion_lock);
-				io_cqring_add_overflow(ctx, ocqe);
-				spin_unlock(&ctx->completion_lock);
-			} else {
-				io_cqring_add_overflow(ctx, ocqe);
-			}
+			if (ctx->lockless_cq)
+				io_cqe_overflow(ctx, &req->cqe, &req->big_cqe);
+			else
+				io_cqe_overflow_locked(ctx, &req->cqe, &req->big_cqe);
 		}
 	}
 	__io_cq_unlock_post(ctx);
