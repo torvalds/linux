@@ -264,8 +264,6 @@ static int handle_msg_rx_inline_ipsec_lf_cfg(struct otx2_cptpf_dev *cptpf,
 		return -ENOENT;
 	}
 
-	otx2_cptlf_set_dev_info(&cptpf->lfs, cptpf->pdev, cptpf->reg_base,
-				&cptpf->afpf_mbox, BLKADDR_CPT0);
 	cptpf->lfs.global_slot = 0;
 	cptpf->lfs.ctx_ilen_ovrd = cfg_req->ctx_ilen_valid;
 	cptpf->lfs.ctx_ilen = cfg_req->ctx_ilen;
@@ -278,9 +276,6 @@ static int handle_msg_rx_inline_ipsec_lf_cfg(struct otx2_cptpf_dev *cptpf,
 
 	if (cptpf->has_cpt1) {
 		cptpf->rsrc_req_blkaddr = BLKADDR_CPT1;
-		otx2_cptlf_set_dev_info(&cptpf->cpt1_lfs, cptpf->pdev,
-					cptpf->reg_base, &cptpf->afpf_mbox,
-					BLKADDR_CPT1);
 		cptpf->cpt1_lfs.global_slot = num_lfs;
 		cptpf->cpt1_lfs.ctx_ilen_ovrd = cfg_req->ctx_ilen_valid;
 		cptpf->cpt1_lfs.ctx_ilen = cfg_req->ctx_ilen;

@@ -639,6 +639,12 @@ static int cptpf_device_init(struct otx2_cptpf_dev *cptpf)
 	/* Disable all cores */
 	ret = otx2_cpt_disable_all_cores(cptpf);
 
+	otx2_cptlf_set_dev_info(&cptpf->lfs, cptpf->pdev, cptpf->reg_base,
+				&cptpf->afpf_mbox, BLKADDR_CPT0);
+	if (cptpf->has_cpt1)
+		otx2_cptlf_set_dev_info(&cptpf->cpt1_lfs, cptpf->pdev,
+					cptpf->reg_base, &cptpf->afpf_mbox,
+					BLKADDR_CPT1);
 	return ret;
 }
 
