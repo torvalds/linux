@@ -105,7 +105,8 @@ static struct list_head ptable_list[3] = {
 
 #define PD_PTABLE(page) ((ptable_desc *)&(virt_to_page((void *)(page))->lru))
 #define PD_PAGE(ptable) (list_entry(ptable, struct page, lru))
-#define PD_MARKBITS(dp) (*(unsigned int *)&PD_PAGE(dp)->index)
+#define PD_PTDESC(ptable) (list_entry(ptable, struct ptdesc, pt_list))
+#define PD_MARKBITS(dp) (*(unsigned int *)&PD_PTDESC(dp)->pt_index)
 
 static const int ptable_shift[3] = {
 	7+2, /* PGD */
