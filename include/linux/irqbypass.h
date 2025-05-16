@@ -33,7 +33,6 @@ struct irq_bypass_consumer;
 
 /**
  * struct irq_bypass_producer - IRQ bypass producer definition
- * @node: IRQ bypass manager private list management
  * @eventfd: eventfd context used to match producers and consumers
  * @consumer: The connected consumer (NULL if no connection)
  * @irq: Linux IRQ number for the producer device
@@ -47,7 +46,6 @@ struct irq_bypass_consumer;
  * for a physical device assigned to a VM.
  */
 struct irq_bypass_producer {
-	struct list_head node;
 	struct eventfd_ctx *eventfd;
 	struct irq_bypass_consumer *consumer;
 	int irq;
@@ -61,7 +59,6 @@ struct irq_bypass_producer {
 
 /**
  * struct irq_bypass_consumer - IRQ bypass consumer definition
- * @node: IRQ bypass manager private list management
  * @eventfd: eventfd context used to match producers and consumers
  * @producer: The connected producer (NULL if no connection)
  * @add_producer: Connect the IRQ consumer to an IRQ producer
@@ -75,7 +72,6 @@ struct irq_bypass_producer {
  * portions of the interrupt handling to the VM.
  */
 struct irq_bypass_consumer {
-	struct list_head node;
 	struct eventfd_ctx *eventfd;
 	struct irq_bypass_producer *producer;
 
