@@ -92,6 +92,8 @@ static void __init bhi_select_mitigation(void);
 static void __init bhi_update_mitigation(void);
 static void __init bhi_apply_mitigation(void);
 static void __init its_select_mitigation(void);
+static void __init its_update_mitigation(void);
+static void __init its_apply_mitigation(void);
 
 /* The base value of the SPEC_CTRL MSR without task-specific bits set */
 u64 x86_spec_ctrl_base;
@@ -235,6 +237,11 @@ void __init cpu_select_mitigations(void)
 	 * spectre_v2=ibrs.
 	 */
 	retbleed_update_mitigation();
+	/*
+	 * its_update_mitigation() depends on spectre_v2_update_mitigation()
+	 * and retbleed_update_mitigation().
+	 */
+	its_update_mitigation();
 
 	/*
 	 * spectre_v2_user_update_mitigation() depends on
@@ -263,6 +270,7 @@ void __init cpu_select_mitigations(void)
 	srbds_apply_mitigation();
 	srso_apply_mitigation();
 	gds_apply_mitigation();
+	its_apply_mitigation();
 	bhi_apply_mitigation();
 }
 
@@ -1115,6 +1123,17 @@ enum spectre_v2_mitigation spectre_v2_enabled __ro_after_init = SPECTRE_V2_NONE;
 #undef pr_fmt
 #define pr_fmt(fmt)     "RETBleed: " fmt
 
+enum its_mitigation {
+	ITS_MITIGATION_OFF,
+	ITS_MITIGATION_AUTO,
+	ITS_MITIGATION_VMEXIT_ONLY,
+	ITS_MITIGATION_ALIGNED_THUNKS,
+	ITS_MITIGATION_RETPOLINE_STUFF,
+};
+
+static enum its_mitigation its_mitigation __ro_after_init =
+	IS_ENABLED(CONFIG_MITIGATION_ITS) ? ITS_MITIGATION_AUTO : ITS_MITIGATION_OFF;
+
 enum retbleed_mitigation {
 	RETBLEED_MITIGATION_NONE,
 	RETBLEED_MITIGATION_AUTO,
@@ -1242,11 +1261,19 @@ static void __init retbleed_update_mitigation(void)
 	/*
 	 * retbleed=stuff is only allowed on Intel.  If stuffing can't be used
 	 * then a different mitigation will be selected below.
+	 *
+	 * its=stuff will also attempt to enable stuffing.
 	 */
-	if (retbleed_mitigation == RETBLEED_MITIGATION_STUFF) {
+	if (retbleed_mitigation == RETBLEED_MITIGATION_STUFF ||
+	    its_mitigation == ITS_MITIGATION_RETPOLINE_STUFF) {
 		if (spectre_v2_enabled != SPECTRE_V2_RETPOLINE) {
 			pr_err("WARNING: retbleed=stuff depends on spectre_v2=retpoline\n");
 			retbleed_mitigation = RETBLEED_MITIGATION_AUTO;
+		} else {
+			if (retbleed_mitigation != RETBLEED_MITIGATION_STUFF)
+				pr_info("Retbleed mitigation updated to stuffing\n");
+
+			retbleed_mitigation = RETBLEED_MITIGATION_STUFF;
 		}
 	}
 	/*
@@ -1338,31 +1365,12 @@ static void __init retbleed_apply_mitigation(void)
 #undef pr_fmt
 #define pr_fmt(fmt)     "ITS: " fmt
 
-enum its_mitigation_cmd {
-	ITS_CMD_OFF,
-	ITS_CMD_ON,
-	ITS_CMD_VMEXIT,
-	ITS_CMD_RSB_STUFF,
-};
-
-enum its_mitigation {
-	ITS_MITIGATION_OFF,
-	ITS_MITIGATION_VMEXIT_ONLY,
-	ITS_MITIGATION_ALIGNED_THUNKS,
-	ITS_MITIGATION_RETPOLINE_STUFF,
-};
-
 static const char * const its_strings[] = {
 	[ITS_MITIGATION_OFF]			= "Vulnerable",
 	[ITS_MITIGATION_VMEXIT_ONLY]		= "Mitigation: Vulnerable, KVM: Not affected",
 	[ITS_MITIGATION_ALIGNED_THUNKS]		= "Mitigation: Aligned branch/return thunks",
 	[ITS_MITIGATION_RETPOLINE_STUFF]	= "Mitigation: Retpolines, Stuffing RSB",
 };
-
-static enum its_mitigation its_mitigation __ro_after_init = ITS_MITIGATION_ALIGNED_THUNKS;
-
-static enum its_mitigation_cmd its_cmd __ro_after_init =
-	IS_ENABLED(CONFIG_MITIGATION_ITS) ? ITS_CMD_ON : ITS_CMD_OFF;
 
 static int __init its_parse_cmdline(char *str)
 {
@@ -1375,16 +1383,16 @@ static int __init its_parse_cmdline(char *str)
 	}
 
 	if (!strcmp(str, "off")) {
-		its_cmd = ITS_CMD_OFF;
+		its_mitigation = ITS_MITIGATION_OFF;
 	} else if (!strcmp(str, "on")) {
-		its_cmd = ITS_CMD_ON;
+		its_mitigation = ITS_MITIGATION_ALIGNED_THUNKS;
 	} else if (!strcmp(str, "force")) {
-		its_cmd = ITS_CMD_ON;
+		its_mitigation = ITS_MITIGATION_ALIGNED_THUNKS;
 		setup_force_cpu_bug(X86_BUG_ITS);
 	} else if (!strcmp(str, "vmexit")) {
-		its_cmd = ITS_CMD_VMEXIT;
+		its_mitigation = ITS_MITIGATION_VMEXIT_ONLY;
 	} else if (!strcmp(str, "stuff")) {
-		its_cmd = ITS_CMD_RSB_STUFF;
+		its_mitigation = ITS_MITIGATION_RETPOLINE_STUFF;
 	} else {
 		pr_err("Ignoring unknown indirect_target_selection option (%s).", str);
 	}
@@ -1395,83 +1403,88 @@ early_param("indirect_target_selection", its_parse_cmdline);
 
 static void __init its_select_mitigation(void)
 {
-	enum its_mitigation_cmd cmd = its_cmd;
-
 	if (!boot_cpu_has_bug(X86_BUG_ITS) || cpu_mitigations_off()) {
 		its_mitigation = ITS_MITIGATION_OFF;
 		return;
 	}
 
-	/* Retpoline+CDT mitigates ITS, bail out */
-	if (boot_cpu_has(X86_FEATURE_RETPOLINE) &&
-	    boot_cpu_has(X86_FEATURE_CALL_DEPTH)) {
-		its_mitigation = ITS_MITIGATION_RETPOLINE_STUFF;
-		goto out;
-	}
+	if (its_mitigation == ITS_MITIGATION_AUTO)
+		its_mitigation = ITS_MITIGATION_ALIGNED_THUNKS;
 
-	/* Exit early to avoid irrelevant warnings */
-	if (cmd == ITS_CMD_OFF) {
-		its_mitigation = ITS_MITIGATION_OFF;
-		goto out;
-	}
-	if (spectre_v2_enabled == SPECTRE_V2_NONE) {
-		pr_err("WARNING: Spectre-v2 mitigation is off, disabling ITS\n");
-		its_mitigation = ITS_MITIGATION_OFF;
-		goto out;
-	}
+	if (its_mitigation == ITS_MITIGATION_OFF)
+		return;
+
 	if (!IS_ENABLED(CONFIG_MITIGATION_RETPOLINE) ||
 	    !IS_ENABLED(CONFIG_MITIGATION_RETHUNK)) {
 		pr_err("WARNING: ITS mitigation depends on retpoline and rethunk support\n");
 		its_mitigation = ITS_MITIGATION_OFF;
-		goto out;
+		return;
 	}
+
 	if (IS_ENABLED(CONFIG_DEBUG_FORCE_FUNCTION_ALIGN_64B)) {
 		pr_err("WARNING: ITS mitigation is not compatible with CONFIG_DEBUG_FORCE_FUNCTION_ALIGN_64B\n");
 		its_mitigation = ITS_MITIGATION_OFF;
-		goto out;
+		return;
 	}
-	if (boot_cpu_has(X86_FEATURE_RETPOLINE_LFENCE)) {
+
+	if (its_mitigation == ITS_MITIGATION_RETPOLINE_STUFF &&
+	    !IS_ENABLED(CONFIG_MITIGATION_CALL_DEPTH_TRACKING)) {
+		pr_err("RSB stuff mitigation not supported, using default\n");
+		its_mitigation = ITS_MITIGATION_ALIGNED_THUNKS;
+	}
+
+	if (its_mitigation == ITS_MITIGATION_VMEXIT_ONLY &&
+	    !boot_cpu_has_bug(X86_BUG_ITS_NATIVE_ONLY))
+		its_mitigation = ITS_MITIGATION_ALIGNED_THUNKS;
+}
+
+static void __init its_update_mitigation(void)
+{
+	if (!boot_cpu_has_bug(X86_BUG_ITS) || cpu_mitigations_off())
+		return;
+
+	switch (spectre_v2_enabled) {
+	case SPECTRE_V2_NONE:
+		pr_err("WARNING: Spectre-v2 mitigation is off, disabling ITS\n");
+		its_mitigation = ITS_MITIGATION_OFF;
+		break;
+	case SPECTRE_V2_RETPOLINE:
+		/* Retpoline+CDT mitigates ITS */
+		if (retbleed_mitigation == RETBLEED_MITIGATION_STUFF)
+			its_mitigation = ITS_MITIGATION_RETPOLINE_STUFF;
+		break;
+	case SPECTRE_V2_LFENCE:
+	case SPECTRE_V2_EIBRS_LFENCE:
 		pr_err("WARNING: ITS mitigation is not compatible with lfence mitigation\n");
 		its_mitigation = ITS_MITIGATION_OFF;
-		goto out;
-	}
-
-	if (cmd == ITS_CMD_RSB_STUFF &&
-	    (!boot_cpu_has(X86_FEATURE_RETPOLINE) || !IS_ENABLED(CONFIG_MITIGATION_CALL_DEPTH_TRACKING))) {
-		pr_err("RSB stuff mitigation not supported, using default\n");
-		cmd = ITS_CMD_ON;
-	}
-
-	switch (cmd) {
-	case ITS_CMD_OFF:
-		its_mitigation = ITS_MITIGATION_OFF;
 		break;
-	case ITS_CMD_VMEXIT:
-		if (boot_cpu_has_bug(X86_BUG_ITS_NATIVE_ONLY)) {
-			its_mitigation = ITS_MITIGATION_VMEXIT_ONLY;
-			goto out;
-		}
-		fallthrough;
-	case ITS_CMD_ON:
+	default:
+		break;
+	}
+
+	/*
+	 * retbleed_update_mitigation() will try to do stuffing if its=stuff.
+	 * If it can't, such as if spectre_v2!=retpoline, then fall back to
+	 * aligned thunks.
+	 */
+	if (its_mitigation == ITS_MITIGATION_RETPOLINE_STUFF &&
+	    retbleed_mitigation != RETBLEED_MITIGATION_STUFF)
 		its_mitigation = ITS_MITIGATION_ALIGNED_THUNKS;
-		if (!boot_cpu_has(X86_FEATURE_RETPOLINE))
-			setup_force_cpu_cap(X86_FEATURE_INDIRECT_THUNK_ITS);
-		setup_force_cpu_cap(X86_FEATURE_RETHUNK);
-		set_return_thunk(its_return_thunk);
-		break;
-	case ITS_CMD_RSB_STUFF:
-		its_mitigation = ITS_MITIGATION_RETPOLINE_STUFF;
-		setup_force_cpu_cap(X86_FEATURE_RETHUNK);
-		setup_force_cpu_cap(X86_FEATURE_CALL_DEPTH);
-		set_return_thunk(call_depth_return_thunk);
-		if (retbleed_mitigation == RETBLEED_MITIGATION_NONE) {
-			retbleed_mitigation = RETBLEED_MITIGATION_STUFF;
-			pr_info("Retbleed mitigation updated to stuffing\n");
-		}
-		break;
-	}
-out:
+
 	pr_info("%s\n", its_strings[its_mitigation]);
+}
+
+static void __init its_apply_mitigation(void)
+{
+	/* its=stuff forces retbleed stuffing and is enabled there. */
+	if (its_mitigation != ITS_MITIGATION_ALIGNED_THUNKS)
+		return;
+
+	if (!boot_cpu_has(X86_FEATURE_RETPOLINE))
+		setup_force_cpu_cap(X86_FEATURE_INDIRECT_THUNK_ITS);
+
+	setup_force_cpu_cap(X86_FEATURE_RETHUNK);
+	set_return_thunk(its_return_thunk);
 }
 
 #undef pr_fmt
