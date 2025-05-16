@@ -15,7 +15,7 @@
 #include "../pci.h"
 #include "msi.h"
 
-int pci_msi_enable = 1;
+bool pci_msi_enable = true;
 
 /**
  * pci_msi_supported - check whether MSI may be enabled on a device
@@ -970,5 +970,5 @@ EXPORT_SYMBOL(msi_desc_to_pci_dev);
 
 void pci_no_msi(void)
 {
-	pci_msi_enable = 0;
+	pci_msi_enable = false;
 }

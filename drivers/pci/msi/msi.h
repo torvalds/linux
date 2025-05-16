@@ -87,7 +87,7 @@ static inline __attribute_const__ u32 msi_multi_mask(struct msi_desc *desc)
 void msix_prepare_msi_desc(struct pci_dev *dev, struct msi_desc *desc);
 
 /* Subsystem variables */
-extern int pci_msi_enable;
+extern bool pci_msi_enable;
 
 /* MSI internal functions invoked from the public APIs */
 void pci_msi_shutdown(struct pci_dev *dev);

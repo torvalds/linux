@@ -399,7 +399,7 @@ EXPORT_SYMBOL_GPL(pci_restore_msi_state);
  * Return: true if MSI has not been globally disabled through ACPI FADT,
  * PCI bridge quirks, or the "pci=nomsi" kernel command-line option.
  */
-int pci_msi_enabled(void)
+bool pci_msi_enabled(void)
 {
 	return pci_msi_enable;
 }
