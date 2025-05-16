@@ -617,12 +617,10 @@ int fib_nh_common_init(struct net *net, struct fib_nh_common *nhc,
 {
 	int err;
 
-	if (!nhc->nhc_pcpu_rth_output) {
-		nhc->nhc_pcpu_rth_output = alloc_percpu_gfp(struct rtable __rcu *,
-							    gfp_flags);
-		if (!nhc->nhc_pcpu_rth_output)
-			return -ENOMEM;
-	}
+	nhc->nhc_pcpu_rth_output = alloc_percpu_gfp(struct rtable __rcu *,
+						    gfp_flags);
+	if (!nhc->nhc_pcpu_rth_output)
+		return -ENOMEM;
 
 	if (encap) {
 		struct lwtunnel_state *lwtstate;
