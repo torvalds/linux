@@ -270,10 +270,6 @@ static void clean_journal(struct gfs2_jdesc *jd,
 	gfs2_write_log_header(sdp, jd, head->lh_sequence + 1, 0, lblock,
 			      GFS2_LOG_HEAD_UNMOUNT | GFS2_LOG_HEAD_RECOVERY,
 			      REQ_PREFLUSH | REQ_FUA | REQ_META | REQ_SYNC);
-	if (jd->jd_jid == sdp->sd_lockstruct.ls_jid) {
-		sdp->sd_log_flush_head = lblock;
-		gfs2_log_incr_head(sdp);
-	}
 }
 
 
@@ -581,12 +577,13 @@ int gfs2_recover_journal(struct gfs2_jdesc *jd, bool wait)
 	return wait ? jd->jd_recover_error : 0;
 }
 
-void gfs2_log_pointers_init(struct gfs2_sbd *sdp, unsigned int value)
+void gfs2_log_pointers_init(struct gfs2_sbd *sdp,
+			    struct gfs2_log_header_host *head)
 {
-	if (++value == sdp->sd_jdesc->jd_blocks) {
-		value = 0;
-	}
-	sdp->sd_log_tail = value;
-	sdp->sd_log_flush_tail = value;
-	sdp->sd_log_head = value;
+	sdp->sd_log_sequence = head->lh_sequence + 1;
+	gfs2_replay_incr_blk(sdp->sd_jdesc, &head->lh_blkno);
+	sdp->sd_log_tail = head->lh_blkno;
+	sdp->sd_log_flush_head = head->lh_blkno;
+	sdp->sd_log_flush_tail = head->lh_blkno;
+	sdp->sd_log_head = head->lh_blkno;
 }

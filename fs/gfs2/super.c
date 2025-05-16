@@ -153,8 +153,7 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 	}
 
 	/*  Initialize some head of the log stuff  */
-	sdp->sd_log_sequence = head.lh_sequence + 1;
-	gfs2_log_pointers_init(sdp, head.lh_blkno);
+	gfs2_log_pointers_init(sdp, &head);
 
 	error = gfs2_quota_init(sdp);
 	if (!error && gfs2_withdrawing_or_withdrawn(sdp))
