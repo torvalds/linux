@@ -134,26 +134,17 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 {
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_jdesc->jd_inode);
 	struct gfs2_glock *j_gl = ip->i_gl;
-	struct gfs2_log_header_host head;
 	int error;
 
 	j_gl->gl_ops->go_inval(j_gl, DIO_METADATA);
 	if (gfs2_withdrawing_or_withdrawn(sdp))
 		return -EIO;
 
-	error = gfs2_find_jhead(sdp->sd_jdesc, &head, false);
-	if (error) {
-		gfs2_consist(sdp);
-		return error;
-	}
-
-	if (!(head.lh_flags & GFS2_LOG_HEAD_UNMOUNT)) {
-		gfs2_consist(sdp);
+	if (sdp->sd_log_sequence == 0) {
+		fs_err(sdp, "unknown status of our own journal jid %d",
+		       sdp->sd_lockstruct.ls_jid);
 		return -EIO;
 	}
-
-	/*  Initialize some head of the log stuff  */
-	gfs2_log_pointers_init(sdp, &head);
 
 	error = gfs2_quota_init(sdp);
 	if (!error && gfs2_withdrawing_or_withdrawn(sdp))

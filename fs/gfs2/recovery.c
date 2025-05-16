@@ -530,6 +530,9 @@ void gfs2_recover_func(struct work_struct *work)
 			ktime_ms_delta(t_rep, t_tlck));
 	}
 
+	if (jd->jd_jid == sdp->sd_lockstruct.ls_jid)
+		gfs2_log_pointers_init(sdp, &head);
+
 	gfs2_recovery_done(sdp, jd->jd_jid, LM_RD_SUCCESS);
 
 	if (jlocked) {
