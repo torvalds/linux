@@ -159,25 +159,20 @@ static void ulist_rbtree_erase(struct ulist *ulist, struct ulist_node *node)
 	ulist->nnodes--;
 }
 
+static int ulist_node_val_cmp(struct rb_node *new, const struct rb_node *existing)
+{
+	const struct ulist_node *unode = rb_entry(new, struct ulist_node, rb_node);
+
+	return ulist_node_val_key_cmp(&unode->val, existing);
+}
+
 static int ulist_rbtree_insert(struct ulist *ulist, struct ulist_node *ins)
 {
-	struct rb_node **p = &ulist->root.rb_node;
-	struct rb_node *parent = NULL;
-	struct ulist_node *cur = NULL;
+	struct rb_node *node;
 
-	while (*p) {
-		parent = *p;
-		cur = rb_entry(parent, struct ulist_node, rb_node);
-
-		if (cur->val < ins->val)
-			p = &(*p)->rb_right;
-		else if (cur->val > ins->val)
-			p = &(*p)->rb_left;
-		else
-			return -EEXIST;
-	}
-	rb_link_node(&ins->rb_node, parent, p);
-	rb_insert_color(&ins->rb_node, &ulist->root);
+	node = rb_find_add(&ins->rb_node, &ulist->root, ulist_node_val_cmp);
+	if (node)
+		return -EEXIST;
 	return 0;
 }
 
