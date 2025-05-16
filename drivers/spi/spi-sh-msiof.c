@@ -105,15 +105,14 @@ struct sh_msiof_spi_priv {
 #define SIMDR2_GRPMASK1		BIT(0)		/* Group Output Mask 1 (SH, A1) */
 
 /* SITSCR and SIRSCR */
-#define SISCR_BRPS_MASK		GENMASK(12, 8)	/* Prescaler Setting (1-32) */
-#define SISCR_BRPS(i)		(((i) - 1) << 8)
-#define SISCR_BRDV_MASK		GENMASK(2, 0)	/* Baud Rate Generator's Division Ratio */
-#define SISCR_BRDV_DIV_2	0
-#define SISCR_BRDV_DIV_4	1
-#define SISCR_BRDV_DIV_8	2
-#define SISCR_BRDV_DIV_16	3
-#define SISCR_BRDV_DIV_32	4
-#define SISCR_BRDV_DIV_1	7
+#define SISCR_BRPS		GENMASK(12, 8)	/* Prescaler Setting (1-32) */
+#define SISCR_BRDV		GENMASK(2, 0)	/* Baud Rate Generator's Division Ratio */
+#define SISCR_BRDV_DIV_2	0U
+#define SISCR_BRDV_DIV_4	1U
+#define SISCR_BRDV_DIV_8	2U
+#define SISCR_BRDV_DIV_16	3U
+#define SISCR_BRDV_DIV_32	4U
+#define SISCR_BRDV_DIV_1	7U
 
 /* SICTR */
 #define SICTR_TSCKIZ_MASK	GENMASK(31, 30)	/* Transmit Clock I/O Polarity Select */
@@ -299,7 +298,8 @@ static void sh_msiof_spi_set_clk_regs(struct sh_msiof_spi_priv *p,
 
 	t->effective_speed_hz = parent_rate / (brps << div_pow);
 
-	scr = sh_msiof_spi_div_array[div_pow] | SISCR_BRPS(brps);
+	scr = FIELD_PREP(SISCR_BRDV, sh_msiof_spi_div_array[div_pow]) |
+	      FIELD_PREP(SISCR_BRPS, brps - 1);
 	sh_msiof_write(p, SITSCR, scr);
 	if (!(p->ctlr->flags & SPI_CONTROLLER_MUST_TX))
 		sh_msiof_write(p, SIRSCR, scr);
