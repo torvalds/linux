@@ -209,5 +209,6 @@ int otx2_cpt_detach_rsrcs_msg(struct otx2_cptlfs_info *lfs);
 int otx2_cpt_msix_offset_msg(struct otx2_cptlfs_info *lfs);
 int otx2_cpt_sync_mbox_msg(struct otx2_mbox *mbox);
 int otx2_cpt_lf_reset_msg(struct otx2_cptlfs_info *lfs, int slot);
+int otx2_cpt_lmtst_tbl_setup_msg(struct otx2_cptlfs_info *lfs);
 
 #endif /* __OTX2_CPT_COMMON_H */

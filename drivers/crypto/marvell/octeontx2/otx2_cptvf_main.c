@@ -376,10 +376,6 @@ static int otx2_cptvf_probe(struct pci_dev *pdev,
 
 	otx2_cpt_set_hw_caps(pdev, &cptvf->cap_flag);
 
-	ret = cn10k_cptvf_lmtst_init(cptvf);
-	if (ret)
-		goto clear_drvdata;
-
 	/* Initialize PF<=>VF mailbox */
 	ret = cptvf_pfvf_mbox_init(cptvf);
 	if (ret)
@@ -405,13 +401,19 @@ static int otx2_cptvf_probe(struct pci_dev *pdev,
 	if (cptvf->eng_caps[OTX2_CPT_SE_TYPES] & BIT_ULL(35))
 		cptvf->lfs.ops->cpt_sg_info_create = cn10k_sgv2_info_create;
 
-	/* Initialize CPT LFs */
-	ret = cptvf_lf_init(cptvf);
+	ret = cn10k_cptvf_lmtst_init(cptvf);
 	if (ret)
 		goto unregister_interrupts;
 
+	/* Initialize CPT LFs */
+	ret = cptvf_lf_init(cptvf);
+	if (ret)
+		goto free_lmtst;
+
 	return 0;
 
+free_lmtst:
+	cn10k_cpt_lmtst_free(pdev, &cptvf->lfs);
 unregister_interrupts:
 	cptvf_disable_pfvf_mbox_intrs(cptvf);
 destroy_pfvf_mbox:
@@ -435,6 +437,8 @@ static void otx2_cptvf_remove(struct pci_dev *pdev)
 	cptvf_disable_pfvf_mbox_intrs(cptvf);
 	/* Destroy PF-VF mbox */
 	cptvf_pfvf_mbox_destroy(cptvf);
+	/* Free LMTST memory */
+	cn10k_cpt_lmtst_free(pdev, &cptvf->lfs);
 	pci_set_drvdata(pdev, NULL);
 }
 

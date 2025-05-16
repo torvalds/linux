@@ -792,19 +792,19 @@ static int otx2_cptpf_probe(struct pci_dev *pdev,
 	cptpf->max_vfs = pci_sriov_get_totalvfs(pdev);
 	cptpf->kvf_limits = 1;
 
-	err = cn10k_cptpf_lmtst_init(cptpf);
+	/* Initialize CPT PF device */
+	err = cptpf_device_init(cptpf);
 	if (err)
 		goto unregister_intr;
 
-	/* Initialize CPT PF device */
-	err = cptpf_device_init(cptpf);
+	err = cn10k_cptpf_lmtst_init(cptpf);
 	if (err)
 		goto unregister_intr;
 
 	/* Initialize engine groups */
 	err = otx2_cpt_init_eng_grps(pdev, &cptpf->eng_grps);
 	if (err)
-		goto unregister_intr;
+		goto free_lmtst;
 
 	err = sysfs_create_group(&dev->kobj, &cptpf_sysfs_group);
 	if (err)
@@ -820,6 +820,8 @@ sysfs_grp_del:
 	sysfs_remove_group(&dev->kobj, &cptpf_sysfs_group);
 cleanup_eng_grps:
 	otx2_cpt_cleanup_eng_grps(pdev, &cptpf->eng_grps);
+free_lmtst:
+	cn10k_cpt_lmtst_free(pdev, &cptpf->lfs);
 unregister_intr:
 	cptpf_disable_afpf_mbox_intr(cptpf);
 destroy_afpf_mbox:
@@ -854,6 +856,8 @@ static void otx2_cptpf_remove(struct pci_dev *pdev)
 	cptpf_disable_afpf_mbox_intr(cptpf);
 	/* Destroy AF-PF mbox */
 	cptpf_afpf_mbox_destroy(cptpf);
+	/* Free LMTST memory */
+	cn10k_cpt_lmtst_free(pdev, &cptpf->lfs);
 	pci_set_drvdata(pdev, NULL);
 }
 
