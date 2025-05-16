@@ -412,140 +412,154 @@ static void sh_msiof_reset_str(struct sh_msiof_spi_priv *p)
 }
 
 static void sh_msiof_spi_write_fifo_8(struct sh_msiof_spi_priv *p,
-				      const void *tx_buf, int words, int fs)
+				      const void *tx_buf, unsigned int words,
+				      unsigned int fs)
 {
 	const u8 *buf_8 = tx_buf;
-	int k;
+	unsigned int k;
 
 	for (k = 0; k < words; k++)
 		sh_msiof_write(p, SITFDR, buf_8[k] << fs);
 }
 
 static void sh_msiof_spi_write_fifo_16(struct sh_msiof_spi_priv *p,
-				       const void *tx_buf, int words, int fs)
+				       const void *tx_buf, unsigned int words,
+				       unsigned int fs)
 {
 	const u16 *buf_16 = tx_buf;
-	int k;
+	unsigned int k;
 
 	for (k = 0; k < words; k++)
 		sh_msiof_write(p, SITFDR, buf_16[k] << fs);
 }
 
 static void sh_msiof_spi_write_fifo_16u(struct sh_msiof_spi_priv *p,
-					const void *tx_buf, int words, int fs)
+					const void *tx_buf, unsigned int words,
+					unsigned int fs)
 {
 	const u16 *buf_16 = tx_buf;
-	int k;
+	unsigned int k;
 
 	for (k = 0; k < words; k++)
 		sh_msiof_write(p, SITFDR, get_unaligned(&buf_16[k]) << fs);
 }
 
 static void sh_msiof_spi_write_fifo_32(struct sh_msiof_spi_priv *p,
-				       const void *tx_buf, int words, int fs)
+				       const void *tx_buf, unsigned int words,
+				       unsigned int fs)
 {
 	const u32 *buf_32 = tx_buf;
-	int k;
+	unsigned int k;
 
 	for (k = 0; k < words; k++)
 		sh_msiof_write(p, SITFDR, buf_32[k] << fs);
 }
 
 static void sh_msiof_spi_write_fifo_32u(struct sh_msiof_spi_priv *p,
-					const void *tx_buf, int words, int fs)
+					const void *tx_buf, unsigned int words,
+					unsigned int fs)
 {
 	const u32 *buf_32 = tx_buf;
-	int k;
+	unsigned int k;
 
 	for (k = 0; k < words; k++)
 		sh_msiof_write(p, SITFDR, get_unaligned(&buf_32[k]) << fs);
 }
 
 static void sh_msiof_spi_write_fifo_s32(struct sh_msiof_spi_priv *p,
-					const void *tx_buf, int words, int fs)
+					const void *tx_buf, unsigned int words,
+					unsigned int fs)
 {
 	const u32 *buf_32 = tx_buf;
-	int k;
+	unsigned int k;
 
 	for (k = 0; k < words; k++)
 		sh_msiof_write(p, SITFDR, swab32(buf_32[k] << fs));
 }
 
 static void sh_msiof_spi_write_fifo_s32u(struct sh_msiof_spi_priv *p,
-					 const void *tx_buf, int words, int fs)
+					 const void *tx_buf,
+					 unsigned int words, unsigned int fs)
 {
 	const u32 *buf_32 = tx_buf;
-	int k;
+	unsigned int k;
 
 	for (k = 0; k < words; k++)
 		sh_msiof_write(p, SITFDR, swab32(get_unaligned(&buf_32[k]) << fs));
 }
 
 static void sh_msiof_spi_read_fifo_8(struct sh_msiof_spi_priv *p,
-				     void *rx_buf, int words, int fs)
+				     void *rx_buf, unsigned int words,
+				     unsigned int fs)
 {
 	u8 *buf_8 = rx_buf;
-	int k;
+	unsigned int k;
 
 	for (k = 0; k < words; k++)
 		buf_8[k] = sh_msiof_read(p, SIRFDR) >> fs;
 }
 
 static void sh_msiof_spi_read_fifo_16(struct sh_msiof_spi_priv *p,
-				      void *rx_buf, int words, int fs)
+				      void *rx_buf, unsigned int words,
+				      unsigned int fs)
 {
 	u16 *buf_16 = rx_buf;
-	int k;
+	unsigned int k;
 
 	for (k = 0; k < words; k++)
 		buf_16[k] = sh_msiof_read(p, SIRFDR) >> fs;
 }
 
 static void sh_msiof_spi_read_fifo_16u(struct sh_msiof_spi_priv *p,
-				       void *rx_buf, int words, int fs)
+				       void *rx_buf, unsigned int words,
+				       unsigned int fs)
 {
 	u16 *buf_16 = rx_buf;
-	int k;
+	unsigned int k;
 
 	for (k = 0; k < words; k++)
 		put_unaligned(sh_msiof_read(p, SIRFDR) >> fs, &buf_16[k]);
 }
 
 static void sh_msiof_spi_read_fifo_32(struct sh_msiof_spi_priv *p,
-				      void *rx_buf, int words, int fs)
+				      void *rx_buf, unsigned int words,
+				      unsigned int fs)
 {
 	u32 *buf_32 = rx_buf;
-	int k;
+	unsigned int k;
 
 	for (k = 0; k < words; k++)
 		buf_32[k] = sh_msiof_read(p, SIRFDR) >> fs;
 }
 
 static void sh_msiof_spi_read_fifo_32u(struct sh_msiof_spi_priv *p,
-				       void *rx_buf, int words, int fs)
+				       void *rx_buf, unsigned int words,
+				       unsigned int fs)
 {
 	u32 *buf_32 = rx_buf;
-	int k;
+	unsigned int k;
 
 	for (k = 0; k < words; k++)
 		put_unaligned(sh_msiof_read(p, SIRFDR) >> fs, &buf_32[k]);
 }
 
 static void sh_msiof_spi_read_fifo_s32(struct sh_msiof_spi_priv *p,
-				       void *rx_buf, int words, int fs)
+				       void *rx_buf, unsigned int words,
+				       unsigned int fs)
 {
 	u32 *buf_32 = rx_buf;
-	int k;
+	unsigned int k;
 
 	for (k = 0; k < words; k++)
 		buf_32[k] = swab32(sh_msiof_read(p, SIRFDR) >> fs);
 }
 
 static void sh_msiof_spi_read_fifo_s32u(struct sh_msiof_spi_priv *p,
-				       void *rx_buf, int words, int fs)
+				       void *rx_buf, unsigned int words,
+				       unsigned int fs)
 {
 	u32 *buf_32 = rx_buf;
-	int k;
+	unsigned int k;
 
 	for (k = 0; k < words; k++)
 		put_unaligned(swab32(sh_msiof_read(p, SIRFDR) >> fs), &buf_32[k]);
@@ -673,13 +687,15 @@ static int sh_msiof_wait_for_completion(struct sh_msiof_spi_priv *p,
 
 static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 				  void (*tx_fifo)(struct sh_msiof_spi_priv *,
-						  const void *, int, int),
+						  const void *, unsigned int,
+						  unsigned int),
 				  void (*rx_fifo)(struct sh_msiof_spi_priv *,
-						  void *, int, int),
+						  void *, unsigned int,
+						  unsigned int),
 				  const void *tx_buf, void *rx_buf,
 				  unsigned int words, unsigned int bits)
 {
-	int fifo_shift;
+	unsigned int fifo_shift;
 	int ret;
 
 	/* limit maximum word transfer to rx/tx fifo size */
@@ -913,8 +929,10 @@ static int sh_msiof_transfer_one(struct spi_controller *ctlr,
 {
 	struct sh_msiof_spi_priv *p = spi_controller_get_devdata(ctlr);
 	void (*copy32)(u32 *, const u32 *, unsigned int);
-	void (*tx_fifo)(struct sh_msiof_spi_priv *, const void *, int, int);
-	void (*rx_fifo)(struct sh_msiof_spi_priv *, void *, int, int);
+	void (*tx_fifo)(struct sh_msiof_spi_priv *, const void *, unsigned int,
+			unsigned int);
+	void (*rx_fifo)(struct sh_msiof_spi_priv *, void *, unsigned int,
+			unsigned int);
 	const void *tx_buf = t->tx_buf;
 	void *rx_buf = t->rx_buf;
 	unsigned int len = t->len;
