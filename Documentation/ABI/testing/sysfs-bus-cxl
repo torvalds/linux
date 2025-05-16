@@ -572,7 +572,7 @@ Description:
 
 
 What:		/sys/bus/cxl/devices/regionZ/accessY/read_bandwidth
-		/sys/bus/cxl/devices/regionZ/accessY/write_banwidth
+		/sys/bus/cxl/devices/regionZ/accessY/write_bandwidth
 Date:		Jan, 2024
 KernelVersion:	v6.9
 Contact:	linux-cxl@vger.kernel.org
