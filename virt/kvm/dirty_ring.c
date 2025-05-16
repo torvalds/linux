@@ -118,6 +118,9 @@ int kvm_dirty_ring_reset(struct kvm *kvm, struct kvm_dirty_ring *ring,
 	cur_slot = cur_offset = mask = 0;
 
 	while (likely((*nr_entries_reset) < INT_MAX)) {
+		if (signal_pending(current))
+			return -EINTR;
+
 		entry = &ring->dirty_gfns[ring->reset_index & (ring->size - 1)];
 
 		if (!kvm_dirty_gfn_harvested(entry))
