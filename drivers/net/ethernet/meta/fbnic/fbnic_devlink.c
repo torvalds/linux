@@ -166,11 +166,10 @@ fbnic_flash_start(struct fbnic_dev *fbd, struct pldmfw_component *component)
 	struct fbnic_fw_completion *cmpl;
 	int err;
 
-	cmpl = kzalloc(sizeof(*cmpl), GFP_KERNEL);
+	cmpl = fbnic_fw_alloc_cmpl(FBNIC_TLV_MSG_ID_FW_START_UPGRADE_REQ);
 	if (!cmpl)
 		return -ENOMEM;
 
-	fbnic_fw_init_cmpl(cmpl, FBNIC_TLV_MSG_ID_FW_START_UPGRADE_REQ);
 	err = fbnic_fw_xmit_fw_start_upgrade(fbd, cmpl,
 					     component->identifier,
 					     component->component_size);
@@ -237,11 +236,10 @@ fbnic_flash_component(struct pldmfw *context,
 	 * Setup completions for write before issuing the start message so
 	 * the driver can catch both messages.
 	 */
-	cmpl = kzalloc(sizeof(*cmpl), GFP_KERNEL);
+	cmpl = fbnic_fw_alloc_cmpl(FBNIC_TLV_MSG_ID_FW_WRITE_CHUNK_REQ);
 	if (!cmpl)
 		return -ENOMEM;
 
-	fbnic_fw_init_cmpl(cmpl, FBNIC_TLV_MSG_ID_FW_WRITE_CHUNK_REQ);
 	err = fbnic_mbx_set_cmpl(fbd, cmpl);
 	if (err)
 		goto cmpl_free;

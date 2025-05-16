@@ -1232,12 +1232,19 @@ void fbnic_get_fw_ver_commit_str(struct fbnic_dev *fbd, char *fw_version,
 				 fw_version, str_sz);
 }
 
-void fbnic_fw_init_cmpl(struct fbnic_fw_completion *fw_cmpl,
-			u32 msg_type)
+struct fbnic_fw_completion *fbnic_fw_alloc_cmpl(u32 msg_type)
 {
-	fw_cmpl->msg_type = msg_type;
-	init_completion(&fw_cmpl->done);
-	kref_init(&fw_cmpl->ref_count);
+	struct fbnic_fw_completion *cmpl;
+
+	cmpl = kzalloc(sizeof(*cmpl), GFP_KERNEL);
+	if (!cmpl)
+		return NULL;
+
+	cmpl->msg_type = msg_type;
+	init_completion(&cmpl->done);
+	kref_init(&cmpl->ref_count);
+
+	return cmpl;
 }
 
 void fbnic_fw_clear_cmpl(struct fbnic_dev *fbd,

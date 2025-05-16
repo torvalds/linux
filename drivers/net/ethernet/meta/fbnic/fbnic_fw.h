@@ -80,8 +80,7 @@ int fbnic_fw_xmit_fw_write_chunk(struct fbnic_dev *fbd,
 				 int cancel_error);
 int fbnic_fw_xmit_tsene_read_msg(struct fbnic_dev *fbd,
 				 struct fbnic_fw_completion *cmpl_data);
-void fbnic_fw_init_cmpl(struct fbnic_fw_completion *cmpl_data,
-			u32 msg_type);
+struct fbnic_fw_completion *fbnic_fw_alloc_cmpl(u32 msg_type);
 void fbnic_fw_clear_cmpl(struct fbnic_dev *fbd,
 			 struct fbnic_fw_completion *cmpl_data);
 void fbnic_fw_put_cmpl(struct fbnic_fw_completion *cmpl_data);
