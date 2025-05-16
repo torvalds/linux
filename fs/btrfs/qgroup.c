@@ -160,23 +160,27 @@ qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 		   int init_flags);
 static void qgroup_rescan_zero_tracking(struct btrfs_fs_info *fs_info);
 
+static int btrfs_qgroup_qgroupid_key_cmp(const void *key, const struct rb_node *node)
+{
+	const u64 *qgroupid = key;
+	const struct btrfs_qgroup *qgroup = rb_entry(node, struct btrfs_qgroup, node);
+
+	if (qgroup->qgroupid < *qgroupid)
+		return -1;
+	else if (qgroup->qgroupid > *qgroupid)
+		return 1;
+
+	return 0;
+}
+
 /* must be called with qgroup_ioctl_lock held */
 static struct btrfs_qgroup *find_qgroup_rb(const struct btrfs_fs_info *fs_info,
 					   u64 qgroupid)
 {
-	struct rb_node *n = fs_info->qgroup_tree.rb_node;
-	struct btrfs_qgroup *qgroup;
+	struct rb_node *node;
 
-	while (n) {
-		qgroup = rb_entry(n, struct btrfs_qgroup, node);
-		if (qgroup->qgroupid < qgroupid)
-			n = n->rb_left;
-		else if (qgroup->qgroupid > qgroupid)
-			n = n->rb_right;
-		else
-			return qgroup;
-	}
-	return NULL;
+	node = rb_find(&qgroupid, &fs_info->qgroup_tree, btrfs_qgroup_qgroupid_key_cmp);
+	return rb_entry_safe(node, struct btrfs_qgroup, node);
 }
 
 /*
