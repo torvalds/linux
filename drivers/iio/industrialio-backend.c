@@ -827,6 +827,29 @@ int iio_backend_filter_type_set(struct iio_backend *back,
 EXPORT_SYMBOL_NS_GPL(iio_backend_filter_type_set, "IIO_BACKEND");
 
 /**
+ * iio_backend_interface_data_align - Perform the data alignment process.
+ * @back: Backend device
+ * @timeout_us: Timeout value in us.
+ *
+ * When activated, it initates a proccess that aligns the sample's most
+ * significant bit (MSB) based solely on the captured data, without
+ * considering any other external signals.
+ *
+ * The timeout_us value must be greater than 0.
+ *
+ * RETURNS:
+ * 0 on success, negative error number on failure.
+ */
+int iio_backend_interface_data_align(struct iio_backend *back, u32 timeout_us)
+{
+	if (!timeout_us)
+		return -EINVAL;
+
+	return iio_backend_op_call(back, interface_data_align, timeout_us);
+}
+EXPORT_SYMBOL_NS_GPL(iio_backend_interface_data_align, "IIO_BACKEND");
+
+/**
  * iio_backend_ddr_enable - Enable interface DDR (Double Data Rate) mode
  * @back: Backend device
  *
