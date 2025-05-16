@@ -149,7 +149,7 @@ struct sh_msiof_spi_priv {
 #define SIFCTR_TFWM_8		5U		/*  Transfer Request when 8 empty stages */
 #define SIFCTR_TFWM_4		6U		/*  Transfer Request when 4 empty stages */
 #define SIFCTR_TFWM_1		7U		/*  Transfer Request when 1 empty stage */
-#define SIFCTR_TFUA		GENMASK(26, 20) /* Transmit FIFO Usable Area */
+#define SIFCTR_TFUA		GENMASK(28, 20) /* Transmit FIFO Usable Area */
 #define SIFCTR_RFWM		GENMASK(15, 13)	/* Receive FIFO Watermark */
 #define SIFCTR_RFWM_1		0U		/*  Transfer Request when 1 valid stages */
 #define SIFCTR_RFWM_4		1U		/*  Transfer Request when 4 valid stages */
@@ -1113,6 +1113,15 @@ static const struct sh_msiof_chipdata rcar_gen3_data = {
 	.min_div_pow = 1,
 };
 
+static const struct sh_msiof_chipdata rcar_gen4_data = {
+	.bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16) |
+			      SPI_BPW_MASK(24) | SPI_BPW_MASK(32),
+	.tx_fifo_size = 256,
+	.rx_fifo_size = 256,
+	.ctlr_flags = SPI_CONTROLLER_MUST_TX,
+	.min_div_pow = 1,
+};
+
 static const struct sh_msiof_chipdata rcar_r8a7795_data = {
 	.bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16) |
 			      SPI_BPW_MASK(24) | SPI_BPW_MASK(32),
@@ -1128,7 +1137,9 @@ static const struct of_device_id sh_msiof_match[] __maybe_unused = {
 	{ .compatible = "renesas,rcar-gen2-msiof", .data = &rcar_gen2_data },
 	{ .compatible = "renesas,msiof-r8a7795",   .data = &rcar_r8a7795_data },
 	{ .compatible = "renesas,rcar-gen3-msiof", .data = &rcar_gen3_data },
-	{ .compatible = "renesas,rcar-gen4-msiof", .data = &rcar_gen3_data },
+	{ .compatible = "renesas,msiof-r8a779a0",  .data = &rcar_gen3_data },
+	{ .compatible = "renesas,msiof-r8a779f0",  .data = &rcar_gen3_data },
+	{ .compatible = "renesas,rcar-gen4-msiof", .data = &rcar_gen4_data },
 	{ .compatible = "renesas,sh-msiof",        .data = &sh_data }, /* Deprecated */
 	{ /* sentinel */ }
 };
