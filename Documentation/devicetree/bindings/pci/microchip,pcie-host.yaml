@@ -50,7 +50,7 @@ properties:
     items:
       pattern: '^fic[0-3]$'
 
-  dma-coherent: true
+  dma-noncoherent: true
 
   ranges:
     minItems: 1
