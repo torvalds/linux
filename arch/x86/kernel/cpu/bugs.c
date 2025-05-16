@@ -2975,10 +2975,10 @@ static void __init srso_apply_mitigation(void)
 
 		if (boot_cpu_data.x86 == 0x19) {
 			setup_force_cpu_cap(X86_FEATURE_SRSO_ALIAS);
-				set_return_thunk(srso_alias_return_thunk);
+			set_return_thunk(srso_alias_return_thunk);
 		} else {
 			setup_force_cpu_cap(X86_FEATURE_SRSO);
-				set_return_thunk(srso_return_thunk);
+			set_return_thunk(srso_return_thunk);
 		}
 		break;
 	case SRSO_MITIGATION_IBPB:
