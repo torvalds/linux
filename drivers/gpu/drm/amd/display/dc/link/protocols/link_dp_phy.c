@@ -142,11 +142,12 @@ enum dc_status dp_set_fec_ready(struct dc_link *link, const struct link_resource
 	 * if the sink supports it and leave it enabled on link.
 	 * If FEC is not supported, disable it.
 	 */
-	struct link_encoder *link_enc = NULL;
+	struct link_encoder *link_enc = link_res->dio_link_enc;
 	enum dc_status status = DC_OK;
 	uint8_t fec_config = 0;
 
-	link_enc = link_enc_cfg_get_link_enc(link);
+	if (!link->dc->config.unify_link_enc_assignment)
+		link_enc = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_enc);
 	if (link_enc->funcs->fec_set_ready == NULL)
 		return DC_NOT_SUPPORTED;
@@ -176,13 +177,14 @@ enum dc_status dp_set_fec_ready(struct dc_link *link, const struct link_resource
 	return status;
 }
 
-void dp_set_fec_enable(struct dc_link *link, bool enable)
+void dp_set_fec_enable(struct dc_link *link, const struct link_resource *link_res, bool enable)
 {
-	struct link_encoder *link_enc = NULL;
+	struct link_encoder *link_enc = link_res->dio_link_enc;
 
-	link_enc = link_enc_cfg_get_link_enc(link);
-	ASSERT(link_enc);
-	if (link_enc->funcs->fec_set_enable == NULL)
+	if (!link->dc->config.unify_link_enc_assignment)
+		link_enc = link_enc_cfg_get_link_enc(link);
+
+	if (link_enc == NULL || link_enc->funcs == NULL || link_enc->funcs->fec_set_enable == NULL)
 		return;
 
 	if (enable && dp_should_enable_fec(link)) {

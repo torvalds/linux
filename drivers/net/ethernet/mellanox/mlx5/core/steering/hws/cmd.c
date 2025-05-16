@@ -130,12 +130,6 @@ int mlx5hws_cmd_flow_table_destroy(struct mlx5_core_dev *mdev,
 	return mlx5_cmd_exec_in(mdev, destroy_flow_table, in);
 }
 
-void mlx5hws_cmd_alias_flow_table_destroy(struct mlx5_core_dev *mdev,
-					  u32 table_id)
-{
-	hws_cmd_general_obj_destroy(mdev, MLX5_OBJ_TYPE_FT_ALIAS, table_id);
-}
-
 static int hws_cmd_flow_group_create(struct mlx5_core_dev *mdev,
 				     struct mlx5hws_cmd_fg_attr *fg_attr,
 				     u32 *group_id)

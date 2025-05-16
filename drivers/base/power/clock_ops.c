@@ -259,39 +259,6 @@ int pm_clk_add_clk(struct device *dev, struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(pm_clk_add_clk);
 
-
-/**
- * of_pm_clk_add_clk - Start using a device clock for power management.
- * @dev: Device whose clock is going to be used for power management.
- * @name: Name of clock that is going to be used for power management.
- *
- * Add the clock described in the 'clocks' device-tree node that matches
- * with the 'name' provided, to the list of clocks used for the power
- * management of @dev. On success, returns 0. Returns a negative error
- * code if the clock is not found or cannot be added.
- */
-int of_pm_clk_add_clk(struct device *dev, const char *name)
-{
-	struct clk *clk;
-	int ret;
-
-	if (!dev || !dev->of_node || !name)
-		return -EINVAL;
-
-	clk = of_clk_get_by_name(dev->of_node, name);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
-
-	ret = pm_clk_add_clk(dev, clk);
-	if (ret) {
-		clk_put(clk);
-		return ret;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(of_pm_clk_add_clk);
-
 /**
  * of_pm_clk_add_clks - Start using device clock(s) for power management.
  * @dev: Device whose clock(s) is going to be used for power management.
@@ -375,46 +342,6 @@ static void __pm_clk_remove(struct pm_clock_entry *ce)
 	kfree(ce->con_id);
 	kfree(ce);
 }
-
-/**
- * pm_clk_remove - Stop using a device clock for power management.
- * @dev: Device whose clock should not be used for PM any more.
- * @con_id: Connection ID of the clock.
- *
- * Remove the clock represented by @con_id from the list of clocks used for
- * the power management of @dev.
- */
-void pm_clk_remove(struct device *dev, const char *con_id)
-{
-	struct pm_subsys_data *psd = dev_to_psd(dev);
-	struct pm_clock_entry *ce;
-
-	if (!psd)
-		return;
-
-	pm_clk_list_lock(psd);
-
-	list_for_each_entry(ce, &psd->clock_list, node) {
-		if (!con_id && !ce->con_id)
-			goto remove;
-		else if (!con_id || !ce->con_id)
-			continue;
-		else if (!strcmp(con_id, ce->con_id))
-			goto remove;
-	}
-
-	pm_clk_list_unlock(psd);
-	return;
-
- remove:
-	list_del(&ce->node);
-	if (ce->enabled_when_prepared)
-		psd->clock_op_might_sleep--;
-	pm_clk_list_unlock(psd);
-
-	__pm_clk_remove(ce);
-}
-EXPORT_SYMBOL_GPL(pm_clk_remove);
 
 /**
  * pm_clk_remove_clk - Stop using a device clock for power management.

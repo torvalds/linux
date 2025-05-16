@@ -1794,7 +1794,7 @@ static void interrupt_event_handler(struct controller *ctrl)
 				} else if (ctrl->event_queue[loop].event_type ==
 					   INT_BUTTON_CANCEL) {
 					dbg("button cancel\n");
-					del_timer(&p_slot->task_event);
+					timer_delete(&p_slot->task_event);
 
 					mutex_lock(&ctrl->crit_sect);
 

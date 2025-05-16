@@ -4,7 +4,7 @@ config BCACHEFS_FS
 	depends on BLOCK
 	select EXPORTFS
 	select CLOSURES
-	select LIBCRC32C
+	select CRC32
 	select CRC64
 	select FS_POSIX_ACL
 	select LZ4_COMPRESS
@@ -15,10 +15,9 @@ config BCACHEFS_FS
 	select ZLIB_INFLATE
 	select ZSTD_COMPRESS
 	select ZSTD_DECOMPRESS
-	select CRYPTO
-	select CRYPTO_SHA256
-	select CRYPTO_CHACHA20
-	select CRYPTO_POLY1305
+	select CRYPTO_LIB_SHA256
+	select CRYPTO_LIB_CHACHA
+	select CRYPTO_LIB_POLY1305
 	select KEYS
 	select RAID6_PQ
 	select XOR_BLOCKS
@@ -26,6 +25,7 @@ config BCACHEFS_FS
 	select SRCU
 	select SYMBOLIC_ERRNAME
 	select MIN_HEAP
+	select XARRAY_MULTI
 	help
 	The bcachefs filesystem - a modern, copy on write filesystem, with
 	support for multiple devices, compression, checksumming, etc.

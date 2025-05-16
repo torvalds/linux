@@ -40,7 +40,7 @@ static const struct reg_default tegra210_dmic_reg_defaults[] = {
 	{ TEGRA210_DMIC_LP_BIQUAD_1_COEF_4, 0x0 },
 };
 
-static int __maybe_unused tegra210_dmic_runtime_suspend(struct device *dev)
+static int tegra210_dmic_runtime_suspend(struct device *dev)
 {
 	struct tegra210_dmic *dmic = dev_get_drvdata(dev);
 
@@ -52,7 +52,7 @@ static int __maybe_unused tegra210_dmic_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused tegra210_dmic_runtime_resume(struct device *dev)
+static int tegra210_dmic_runtime_resume(struct device *dev)
 {
 	struct tegra210_dmic *dmic = dev_get_drvdata(dev);
 	int err;
@@ -543,10 +543,9 @@ static void tegra210_dmic_remove(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops tegra210_dmic_pm_ops = {
-	SET_RUNTIME_PM_OPS(tegra210_dmic_runtime_suspend,
-			   tegra210_dmic_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	RUNTIME_PM_OPS(tegra210_dmic_runtime_suspend,
+		       tegra210_dmic_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static const struct of_device_id tegra210_dmic_of_match[] = {
@@ -559,7 +558,7 @@ static struct platform_driver tegra210_dmic_driver = {
 	.driver = {
 		.name = "tegra210-dmic",
 		.of_match_table = tegra210_dmic_of_match,
-		.pm = &tegra210_dmic_pm_ops,
+		.pm = pm_ptr(&tegra210_dmic_pm_ops),
 	},
 	.probe = tegra210_dmic_probe,
 	.remove = tegra210_dmic_remove,

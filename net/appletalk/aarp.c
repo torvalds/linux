@@ -856,7 +856,7 @@ int __init aarp_proto_init(void)
 	add_timer(&aarp_timer);
 	rc = register_netdevice_notifier(&aarp_notifier);
 	if (rc) {
-		del_timer_sync(&aarp_timer);
+		timer_delete_sync(&aarp_timer);
 		unregister_snap_client(aarp_dl);
 	}
 	return rc;
@@ -1011,7 +1011,7 @@ const struct seq_operations aarp_seq_ops = {
 /* General module cleanup. Called from cleanup_module() in ddp.c. */
 void aarp_cleanup_module(void)
 {
-	del_timer_sync(&aarp_timer);
+	timer_delete_sync(&aarp_timer);
 	unregister_netdevice_notifier(&aarp_notifier);
 	unregister_snap_client(aarp_dl);
 	aarp_purge();

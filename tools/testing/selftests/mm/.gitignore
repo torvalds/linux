@@ -57,4 +57,4 @@ droppable
 hugetlb_dio
 pkey_sighandler_tests_32
 pkey_sighandler_tests_64
-guard-pages
+guard-regions

@@ -239,7 +239,7 @@ static void vcpu_thread_main(struct memstress_vcpu_args *vcpu_args)
 		case ITERATION_MARK_IDLE:
 			mark_vcpu_memory_idle(vm, vcpu_args);
 			break;
-		};
+		}
 
 		vcpu_last_completed_iteration[vcpu_idx] = current_iteration;
 	}

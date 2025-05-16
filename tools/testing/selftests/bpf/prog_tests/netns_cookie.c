@@ -33,19 +33,24 @@ void test_netns_cookie(void)
 
 	skel->links.get_netns_cookie_sockops = bpf_program__attach_cgroup(
 		skel->progs.get_netns_cookie_sockops, cgroup_fd);
-	if (!ASSERT_OK_PTR(skel->links.get_netns_cookie_sockops, "prog_attach"))
+	if (!ASSERT_OK_PTR(skel->links.get_netns_cookie_sockops, "prog_attach_sockops"))
 		goto done;
 
 	verdict = bpf_program__fd(skel->progs.get_netns_cookie_sk_msg);
 	map = bpf_map__fd(skel->maps.sock_map);
 	err = bpf_prog_attach(verdict, map, BPF_SK_MSG_VERDICT, 0);
-	if (!ASSERT_OK(err, "prog_attach"))
+	if (!ASSERT_OK(err, "prog_attach_sk_msg"))
 		goto done;
 
 	tc_fd = bpf_program__fd(skel->progs.get_netns_cookie_tcx);
 	err = bpf_prog_attach_opts(tc_fd, loopback, BPF_TCX_INGRESS, &opta);
-	if (!ASSERT_OK(err, "prog_attach"))
+	if (!ASSERT_OK(err, "prog_attach_tcx"))
 		goto done;
+
+	skel->links.get_netns_cookie_cgroup_skb = bpf_program__attach_cgroup(
+		skel->progs.get_netns_cookie_cgroup_skb, cgroup_fd);
+	if (!ASSERT_OK_PTR(skel->links.get_netns_cookie_cgroup_skb, "prog_attach_cgroup_skb"))
+		goto cleanup_tc;
 
 	server_fd = start_server(AF_INET6, SOCK_STREAM, "::1", 0, 0);
 	if (CHECK(server_fd < 0, "start_server", "errno %d\n", errno))
@@ -69,16 +74,18 @@ void test_netns_cookie(void)
 	if (!ASSERT_OK(err, "getsockopt"))
 		goto cleanup_tc;
 
-	ASSERT_EQ(val, cookie_expected_value, "cookie_value");
+	ASSERT_EQ(val, cookie_expected_value, "cookie_value_sockops");
 
 	err = bpf_map_lookup_elem(bpf_map__fd(skel->maps.sk_msg_netns_cookies),
 				  &client_fd, &val);
 	if (!ASSERT_OK(err, "map_lookup(sk_msg_netns_cookies)"))
 		goto cleanup_tc;
 
-	ASSERT_EQ(val, cookie_expected_value, "cookie_value");
-	ASSERT_EQ(skel->bss->tcx_init_netns_cookie, cookie_expected_value, "cookie_value");
-	ASSERT_EQ(skel->bss->tcx_netns_cookie, cookie_expected_value, "cookie_value");
+	ASSERT_EQ(val, cookie_expected_value, "cookie_value_sk_msg");
+	ASSERT_EQ(skel->bss->tcx_init_netns_cookie, cookie_expected_value, "cookie_value_init_tcx");
+	ASSERT_EQ(skel->bss->tcx_netns_cookie, cookie_expected_value, "cookie_value_tcx");
+	ASSERT_EQ(skel->bss->cgroup_skb_init_netns_cookie, cookie_expected_value, "cookie_value_init_cgroup_skb");
+	ASSERT_EQ(skel->bss->cgroup_skb_netns_cookie, cookie_expected_value, "cookie_value_cgroup_skb");
 
 cleanup_tc:
 	err = bpf_prog_detach_opts(tc_fd, loopback, BPF_TCX_INGRESS, &optd);

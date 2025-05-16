@@ -213,7 +213,7 @@ static void delete_writeback_properties(struct drm_device *dev)
 }
 
 /**
- * drm_writeback_connector_init_with_encoder - Initialize a writeback connector with
+ * __drm_writeback_connector_init - Initialize a writeback connector with
  * a custom encoder
  *
  * @dev: DRM device

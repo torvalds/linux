@@ -43,7 +43,6 @@
 #define ICP_QAT_SUOF_OBJS "SUF_OBJS"
 #define ICP_QAT_SUOF_IMAG "SUF_IMAG"
 #define ICP_QAT_SIMG_AE_INIT_SEQ_LEN    (50 * sizeof(unsigned long long))
-#define ICP_QAT_SIMG_AE_INSTS_LEN       (0x4000 * sizeof(unsigned long long))
 
 #define DSS_FWSK_MODULUS_LEN    384 /* RSA3K */
 #define DSS_FWSK_EXPONENT_LEN   4
@@ -75,13 +74,6 @@
 						DSS_SIGNATURE_LEN : \
 						CSS_SIGNATURE_LEN)
 
-#define ICP_QAT_CSS_AE_IMG_LEN     (sizeof(struct icp_qat_simg_ae_mode) + \
-				    ICP_QAT_SIMG_AE_INIT_SEQ_LEN +         \
-				    ICP_QAT_SIMG_AE_INSTS_LEN)
-#define ICP_QAT_CSS_AE_SIMG_LEN(handle) (sizeof(struct icp_qat_css_hdr) + \
-					ICP_QAT_CSS_FWSK_PUB_LEN(handle) + \
-					ICP_QAT_CSS_SIGNATURE_LEN(handle) + \
-					ICP_QAT_CSS_AE_IMG_LEN)
 #define ICP_QAT_AE_IMG_OFFSET(handle) (sizeof(struct icp_qat_css_hdr) + \
 					ICP_QAT_CSS_FWSK_MODULUS_LEN(handle) + \
 					ICP_QAT_CSS_FWSK_EXPONENT_LEN(handle) + \
@@ -404,8 +396,6 @@ struct icp_qat_suof_img_hdr {
 	char          *simg_buf;
 	unsigned long simg_len;
 	char          *css_header;
-	char          *css_key;
-	char          *css_signature;
 	char          *css_simg;
 	unsigned long simg_size;
 	unsigned int  ae_num;

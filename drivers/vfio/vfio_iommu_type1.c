@@ -103,9 +103,9 @@ struct vfio_dma {
 struct vfio_batch {
 	struct page		**pages;	/* for pin_user_pages_remote */
 	struct page		*fallback_page; /* if pages alloc fails */
-	int			capacity;	/* length of pages array */
-	int			size;		/* of batch currently */
-	int			offset;		/* of next entry in pages */
+	unsigned int		capacity;	/* length of pages array */
+	unsigned int		size;		/* of batch currently */
+	unsigned int		offset;		/* of next entry in pages */
 };
 
 struct vfio_iommu_group {
@@ -471,12 +471,12 @@ static int put_pfn(unsigned long pfn, int prot)
 
 #define VFIO_BATCH_MAX_CAPACITY (PAGE_SIZE / sizeof(struct page *))
 
-static void vfio_batch_init(struct vfio_batch *batch)
+static void __vfio_batch_init(struct vfio_batch *batch, bool single)
 {
 	batch->size = 0;
 	batch->offset = 0;
 
-	if (unlikely(disable_hugepages))
+	if (single || unlikely(disable_hugepages))
 		goto fallback;
 
 	batch->pages = (struct page **) __get_free_page(GFP_KERNEL);
@@ -489,6 +489,16 @@ static void vfio_batch_init(struct vfio_batch *batch)
 fallback:
 	batch->pages = &batch->fallback_page;
 	batch->capacity = 1;
+}
+
+static void vfio_batch_init(struct vfio_batch *batch)
+{
+	__vfio_batch_init(batch, false);
+}
+
+static void vfio_batch_init_single(struct vfio_batch *batch)
+{
+	__vfio_batch_init(batch, true);
 }
 
 static void vfio_batch_unpin(struct vfio_batch *batch, struct vfio_dma *dma)
@@ -510,7 +520,7 @@ static void vfio_batch_fini(struct vfio_batch *batch)
 
 static int follow_fault_pfn(struct vm_area_struct *vma, struct mm_struct *mm,
 			    unsigned long vaddr, unsigned long *pfn,
-			    bool write_fault)
+			    unsigned long *addr_mask, bool write_fault)
 {
 	struct follow_pfnmap_args args = { .vma = vma, .address = vaddr };
 	int ret;
@@ -534,10 +544,12 @@ static int follow_fault_pfn(struct vm_area_struct *vma, struct mm_struct *mm,
 			return ret;
 	}
 
-	if (write_fault && !args.writable)
+	if (write_fault && !args.writable) {
 		ret = -EFAULT;
-	else
+	} else {
 		*pfn = args.pfn;
+		*addr_mask = args.addr_mask;
+	}
 
 	follow_pfnmap_end(&args);
 	return ret;
@@ -545,25 +557,33 @@ static int follow_fault_pfn(struct vm_area_struct *vma, struct mm_struct *mm,
 
 /*
  * Returns the positive number of pfns successfully obtained or a negative
- * error code.
+ * error code.  The initial pfn is stored in the pfn arg.  For page-backed
+ * pfns, the provided batch is also updated to indicate the filled pages and
+ * initial offset.  For VM_PFNMAP pfns, only the returned number of pfns and
+ * returned initial pfn are provided; subsequent pfns are contiguous.
  */
-static int vaddr_get_pfns(struct mm_struct *mm, unsigned long vaddr,
-			  long npages, int prot, unsigned long *pfn,
-			  struct page **pages)
+static long vaddr_get_pfns(struct mm_struct *mm, unsigned long vaddr,
+			   unsigned long npages, int prot, unsigned long *pfn,
+			   struct vfio_batch *batch)
 {
+	unsigned long pin_pages = min_t(unsigned long, npages, batch->capacity);
 	struct vm_area_struct *vma;
 	unsigned int flags = 0;
-	int ret;
+	long ret;
 
 	if (prot & IOMMU_WRITE)
 		flags |= FOLL_WRITE;
 
 	mmap_read_lock(mm);
-	ret = pin_user_pages_remote(mm, vaddr, npages, flags | FOLL_LONGTERM,
-				    pages, NULL);
+	ret = pin_user_pages_remote(mm, vaddr, pin_pages, flags | FOLL_LONGTERM,
+				    batch->pages, NULL);
 	if (ret > 0) {
-		*pfn = page_to_pfn(pages[0]);
+		*pfn = page_to_pfn(batch->pages[0]);
+		batch->size = ret;
+		batch->offset = 0;
 		goto done;
+	} else if (!ret) {
+		ret = -EFAULT;
 	}
 
 	vaddr = untagged_addr_remote(mm, vaddr);
@@ -572,15 +592,22 @@ retry:
 	vma = vma_lookup(mm, vaddr);
 
 	if (vma && vma->vm_flags & VM_PFNMAP) {
-		ret = follow_fault_pfn(vma, mm, vaddr, pfn, prot & IOMMU_WRITE);
+		unsigned long addr_mask;
+
+		ret = follow_fault_pfn(vma, mm, vaddr, pfn, &addr_mask,
+				       prot & IOMMU_WRITE);
 		if (ret == -EAGAIN)
 			goto retry;
 
 		if (!ret) {
-			if (is_invalid_reserved_pfn(*pfn))
-				ret = 1;
-			else
+			if (is_invalid_reserved_pfn(*pfn)) {
+				unsigned long epfn;
+
+				epfn = (*pfn | (~addr_mask >> PAGE_SHIFT)) + 1;
+				ret = min_t(long, npages, epfn - *pfn);
+			} else {
 				ret = -EFAULT;
+			}
 		}
 	}
 done:
@@ -594,7 +621,7 @@ done:
  * first page and all consecutive pages with the same locking.
  */
 static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
-				  long npage, unsigned long *pfn_base,
+				  unsigned long npage, unsigned long *pfn_base,
 				  unsigned long limit, struct vfio_batch *batch)
 {
 	unsigned long pfn;
@@ -616,32 +643,42 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
 		*pfn_base = 0;
 	}
 
+	if (unlikely(disable_hugepages))
+		npage = 1;
+
 	while (npage) {
 		if (!batch->size) {
 			/* Empty batch, so refill it. */
-			long req_pages = min_t(long, npage, batch->capacity);
-
-			ret = vaddr_get_pfns(mm, vaddr, req_pages, dma->prot,
-					     &pfn, batch->pages);
+			ret = vaddr_get_pfns(mm, vaddr, npage, dma->prot,
+					     &pfn, batch);
 			if (ret < 0)
 				goto unpin_out;
-
-			batch->size = ret;
-			batch->offset = 0;
 
 			if (!*pfn_base) {
 				*pfn_base = pfn;
 				rsvd = is_invalid_reserved_pfn(*pfn_base);
 			}
+
+			/* Handle pfnmap */
+			if (!batch->size) {
+				if (pfn != *pfn_base + pinned || !rsvd)
+					goto out;
+
+				pinned += ret;
+				npage -= ret;
+				vaddr += (PAGE_SIZE * ret);
+				iova += (PAGE_SIZE * ret);
+				continue;
+			}
 		}
 
 		/*
-		 * pfn is preset for the first iteration of this inner loop and
-		 * updated at the end to handle a VM_PFNMAP pfn.  In that case,
-		 * batch->pages isn't valid (there's no struct page), so allow
-		 * batch->pages to be touched only when there's more than one
-		 * pfn to check, which guarantees the pfns are from a
-		 * !VM_PFNMAP vma.
+		 * pfn is preset for the first iteration of this inner loop
+		 * due to the fact that vaddr_get_pfns() needs to provide the
+		 * initial pfn for pfnmaps.  Therefore to reduce redundancy,
+		 * the next pfn is fetched at the end of the loop.
+		 * A PageReserved() page could still qualify as page backed
+		 * and rsvd here, and therefore continues to use the batch.
 		 */
 		while (true) {
 			if (pfn != *pfn_base + pinned ||
@@ -676,21 +713,12 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
 
 			pfn = page_to_pfn(batch->pages[batch->offset]);
 		}
-
-		if (unlikely(disable_hugepages))
-			break;
 	}
 
 out:
 	ret = vfio_lock_acct(dma, lock_acct, false);
 
 unpin_out:
-	if (batch->size == 1 && !batch->offset) {
-		/* May be a VM_PFNMAP pfn, which the batch can't remember. */
-		put_pfn(pfn, dma->prot);
-		batch->size = 0;
-	}
-
 	if (ret < 0) {
 		if (pinned && !rsvd) {
 			for (pfn = *pfn_base ; pinned ; pfn++, pinned--)
@@ -705,7 +733,7 @@ unpin_out:
 }
 
 static long vfio_unpin_pages_remote(struct vfio_dma *dma, dma_addr_t iova,
-				    unsigned long pfn, long npage,
+				    unsigned long pfn, unsigned long npage,
 				    bool do_accounting)
 {
 	long unlocked = 0, locked = 0;
@@ -728,7 +756,7 @@ static long vfio_unpin_pages_remote(struct vfio_dma *dma, dma_addr_t iova,
 static int vfio_pin_page_external(struct vfio_dma *dma, unsigned long vaddr,
 				  unsigned long *pfn_base, bool do_accounting)
 {
-	struct page *pages[1];
+	struct vfio_batch batch;
 	struct mm_struct *mm;
 	int ret;
 
@@ -736,7 +764,9 @@ static int vfio_pin_page_external(struct vfio_dma *dma, unsigned long vaddr,
 	if (!mmget_not_zero(mm))
 		return -ENODEV;
 
-	ret = vaddr_get_pfns(mm, vaddr, 1, dma->prot, pfn_base, pages);
+	vfio_batch_init_single(&batch);
+
+	ret = vaddr_get_pfns(mm, vaddr, 1, dma->prot, pfn_base, &batch);
 	if (ret != 1)
 		goto out;
 
@@ -755,6 +785,7 @@ static int vfio_pin_page_external(struct vfio_dma *dma, unsigned long vaddr,
 	}
 
 out:
+	vfio_batch_fini(&batch);
 	mmput(mm);
 	return ret;
 }

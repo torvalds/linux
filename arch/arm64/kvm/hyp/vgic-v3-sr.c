@@ -18,7 +18,7 @@
 #define vtr_to_nr_pre_bits(v)		((((u32)(v) >> 26) & 7) + 1)
 #define vtr_to_nr_apr_regs(v)		(1 << (vtr_to_nr_pre_bits(v) - 5))
 
-static u64 __gic_v3_get_lr(unsigned int lr)
+u64 __gic_v3_get_lr(unsigned int lr)
 {
 	switch (lr & 0xf) {
 	case 0:
@@ -218,7 +218,7 @@ void __vgic_v3_save_state(struct vgic_v3_cpu_if *cpu_if)
 
 		elrsr = read_gicreg(ICH_ELRSR_EL2);
 
-		write_gicreg(cpu_if->vgic_hcr & ~ICH_HCR_EN, ICH_HCR_EL2);
+		write_gicreg(cpu_if->vgic_hcr & ~ICH_HCR_EL2_En, ICH_HCR_EL2);
 
 		for (i = 0; i < used_lrs; i++) {
 			if (elrsr & (1 << i))
@@ -274,7 +274,7 @@ void __vgic_v3_activate_traps(struct vgic_v3_cpu_if *cpu_if)
 	 * system registers to trap to EL1 (duh), force ICC_SRE_EL1.SRE to 1
 	 * so that the trap bits can take effect. Yes, we *loves* the GIC.
 	 */
-	if (!(cpu_if->vgic_hcr & ICH_HCR_EN)) {
+	if (!(cpu_if->vgic_hcr & ICH_HCR_EL2_En)) {
 		write_gicreg(ICC_SRE_EL1_SRE, ICC_SRE_EL1);
 		isb();
 	} else if (!cpu_if->vgic_sre) {
@@ -752,7 +752,7 @@ static void __vgic_v3_bump_eoicount(void)
 	u32 hcr;
 
 	hcr = read_gicreg(ICH_HCR_EL2);
-	hcr += 1 << ICH_HCR_EOIcount_SHIFT;
+	hcr += 1 << ICH_HCR_EL2_EOIcount_SHIFT;
 	write_gicreg(hcr, ICH_HCR_EL2);
 }
 
@@ -1069,7 +1069,7 @@ static bool __vgic_v3_check_trap_forwarding(struct kvm_vcpu *vcpu,
 	case SYS_ICC_EOIR0_EL1:
 	case SYS_ICC_HPPIR0_EL1:
 	case SYS_ICC_IAR0_EL1:
-		return ich_hcr & ICH_HCR_TALL0;
+		return ich_hcr & ICH_HCR_EL2_TALL0;
 
 	case SYS_ICC_IGRPEN1_EL1:
 		if (is_read &&
@@ -1090,10 +1090,10 @@ static bool __vgic_v3_check_trap_forwarding(struct kvm_vcpu *vcpu,
 	case SYS_ICC_EOIR1_EL1:
 	case SYS_ICC_HPPIR1_EL1:
 	case SYS_ICC_IAR1_EL1:
-		return ich_hcr & ICH_HCR_TALL1;
+		return ich_hcr & ICH_HCR_EL2_TALL1;
 
 	case SYS_ICC_DIR_EL1:
-		if (ich_hcr & ICH_HCR_TDIR)
+		if (ich_hcr & ICH_HCR_EL2_TDIR)
 			return true;
 
 		fallthrough;
@@ -1101,7 +1101,7 @@ static bool __vgic_v3_check_trap_forwarding(struct kvm_vcpu *vcpu,
 	case SYS_ICC_RPR_EL1:
 	case SYS_ICC_CTLR_EL1:
 	case SYS_ICC_PMR_EL1:
-		return ich_hcr & ICH_HCR_TC;
+		return ich_hcr & ICH_HCR_EL2_TC;
 
 	default:
 		return false;

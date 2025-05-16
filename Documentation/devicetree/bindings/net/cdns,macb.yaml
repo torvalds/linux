@@ -197,7 +197,6 @@ examples:
     };
 
   - |
-    #include <dt-bindings/clock/xlnx-zynqmp-clk.h>
     #include <dt-bindings/power/xlnx-zynqmp-power.h>
     #include <dt-bindings/reset/xlnx-zynqmp-resets.h>
     #include <dt-bindings/phy/phy.h>
@@ -210,9 +209,9 @@ examples:
                     interrupt-parent = <&gic>;
                     interrupts = <0 59 4>, <0 59 4>;
                     reg = <0x0 0xff0c0000 0x0 0x1000>;
-                    clocks = <&zynqmp_clk LPD_LSBUS>, <&zynqmp_clk GEM1_REF>,
-                             <&zynqmp_clk GEM1_TX>, <&zynqmp_clk GEM1_RX>,
-                             <&zynqmp_clk GEM_TSU>;
+                    clocks = <&zynqmp_clk 31>, <&zynqmp_clk 105>,
+                             <&zynqmp_clk 51>, <&zynqmp_clk 50>,
+                             <&zynqmp_clk 44>;
                     clock-names = "pclk", "hclk", "tx_clk", "rx_clk", "tsu_clk";
                     #address-cells = <1>;
                     #size-cells = <0>;

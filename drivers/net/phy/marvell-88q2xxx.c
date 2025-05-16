@@ -7,30 +7,34 @@
  * Copyright (C) 2024 Liebherr-Electronics and Drives GmbH
  */
 #include <linux/ethtool_netlink.h>
-#include <linux/marvell_phy.h>
-#include <linux/phy.h>
 #include <linux/hwmon.h>
+#include <linux/marvell_phy.h>
+#include <linux/of.h>
+#include <linux/phy.h>
 
-#define PHY_ID_88Q2220_REVB0	(MARVELL_PHY_ID_88Q2220 | 0x1)
-#define PHY_ID_88Q2220_REVB1	(MARVELL_PHY_ID_88Q2220 | 0x2)
-#define PHY_ID_88Q2220_REVB2	(MARVELL_PHY_ID_88Q2220 | 0x3)
+#define PHY_ID_88Q2220_REVB0				(MARVELL_PHY_ID_88Q2220 | 0x1)
+#define PHY_ID_88Q2220_REVB1				(MARVELL_PHY_ID_88Q2220 | 0x2)
+#define PHY_ID_88Q2220_REVB2				(MARVELL_PHY_ID_88Q2220 | 0x3)
 
-#define MDIO_MMD_AN_MV_STAT			32769
-#define MDIO_MMD_AN_MV_STAT_ANEG		0x0100
-#define MDIO_MMD_AN_MV_STAT_LOCAL_RX		0x1000
-#define MDIO_MMD_AN_MV_STAT_REMOTE_RX		0x2000
-#define MDIO_MMD_AN_MV_STAT_LOCAL_MASTER	0x4000
-#define MDIO_MMD_AN_MV_STAT_MS_CONF_FAULT	0x8000
+#define MDIO_MMD_AN_MV_STAT				32769
+#define MDIO_MMD_AN_MV_STAT_ANEG			0x0100
+#define MDIO_MMD_AN_MV_STAT_LOCAL_RX			0x1000
+#define MDIO_MMD_AN_MV_STAT_REMOTE_RX			0x2000
+#define MDIO_MMD_AN_MV_STAT_LOCAL_MASTER		0x4000
+#define MDIO_MMD_AN_MV_STAT_MS_CONF_FAULT		0x8000
 
-#define MDIO_MMD_AN_MV_STAT2			32794
-#define MDIO_MMD_AN_MV_STAT2_AN_RESOLVED	0x0800
-#define MDIO_MMD_AN_MV_STAT2_100BT1		0x2000
-#define MDIO_MMD_AN_MV_STAT2_1000BT1		0x4000
+#define MDIO_MMD_AN_MV_STAT2				32794
+#define MDIO_MMD_AN_MV_STAT2_AN_RESOLVED		0x0800
+#define MDIO_MMD_AN_MV_STAT2_100BT1			0x2000
+#define MDIO_MMD_AN_MV_STAT2_1000BT1			0x4000
 
-#define MDIO_MMD_PCS_MV_INT_EN			32784
-#define MDIO_MMD_PCS_MV_INT_EN_LINK_UP		0x0040
-#define MDIO_MMD_PCS_MV_INT_EN_LINK_DOWN	0x0080
-#define MDIO_MMD_PCS_MV_INT_EN_100BT1		0x1000
+#define MDIO_MMD_PCS_MV_RESET_CTRL			32768
+#define MDIO_MMD_PCS_MV_RESET_CTRL_TX_DISABLE		0x8
+
+#define MDIO_MMD_PCS_MV_INT_EN				32784
+#define MDIO_MMD_PCS_MV_INT_EN_LINK_UP			0x0040
+#define MDIO_MMD_PCS_MV_INT_EN_LINK_DOWN		0x0080
+#define MDIO_MMD_PCS_MV_INT_EN_100BT1			0x1000
 
 #define MDIO_MMD_PCS_MV_GPIO_INT_STAT			32785
 #define MDIO_MMD_PCS_MV_GPIO_INT_STAT_LINK_UP		0x0040
@@ -39,6 +43,22 @@
 
 #define MDIO_MMD_PCS_MV_GPIO_INT_CTRL			32787
 #define MDIO_MMD_PCS_MV_GPIO_INT_CTRL_TRI_DIS		0x0800
+
+#define MDIO_MMD_PCS_MV_LED_FUNC_CTRL			32790
+#define MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LED_1_MASK	GENMASK(7, 4)
+#define MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LED_0_MASK	GENMASK(3, 0)
+#define MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LINK		0x0 /* Link established */
+#define MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LINK_RX_TX	0x1 /* Link established, blink for rx or tx activity */
+#define MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LINK_1000BT1	0x2 /* Blink 3x for 1000BT1 link established */
+#define MDIO_MMD_PCS_MV_LED_FUNC_CTRL_RX_TX_ON		0x3 /* Receive or transmit activity */
+#define MDIO_MMD_PCS_MV_LED_FUNC_CTRL_RX_TX		0x4 /* Blink on receive or transmit activity */
+#define MDIO_MMD_PCS_MV_LED_FUNC_CTRL_TX		0x5 /* Transmit activity */
+#define MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LINK_COPPER	0x6 /* Copper Link established */
+#define MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LINK_1000BT1_ON	0x7 /* 1000BT1 link established */
+#define MDIO_MMD_PCS_MV_LED_FUNC_CTRL_FORCE_OFF		0x8 /* Force off */
+#define MDIO_MMD_PCS_MV_LED_FUNC_CTRL_FORCE_ON		0x9 /* Force on */
+#define MDIO_MMD_PCS_MV_LED_FUNC_CTRL_FORCE_HIGHZ	0xa /* Force Hi-Z */
+#define MDIO_MMD_PCS_MV_LED_FUNC_CTRL_FORCE_BLINK	0xb /* Force blink */
 
 #define MDIO_MMD_PCS_MV_TEMP_SENSOR1			32833
 #define MDIO_MMD_PCS_MV_TEMP_SENSOR1_RAW_INT		0x0001
@@ -60,11 +80,11 @@
 #define MDIO_MMD_PCS_MV_100BT1_STAT1_REMOTE_RX		0x2000
 #define MDIO_MMD_PCS_MV_100BT1_STAT1_LOCAL_MASTER	0x4000
 
-#define MDIO_MMD_PCS_MV_100BT1_STAT2		33033
-#define MDIO_MMD_PCS_MV_100BT1_STAT2_JABBER	0x0001
-#define MDIO_MMD_PCS_MV_100BT1_STAT2_POL	0x0002
-#define MDIO_MMD_PCS_MV_100BT1_STAT2_LINK	0x0004
-#define MDIO_MMD_PCS_MV_100BT1_STAT2_ANGE	0x0008
+#define MDIO_MMD_PCS_MV_100BT1_STAT2			33033
+#define MDIO_MMD_PCS_MV_100BT1_STAT2_JABBER		0x0001
+#define MDIO_MMD_PCS_MV_100BT1_STAT2_POL		0x0002
+#define MDIO_MMD_PCS_MV_100BT1_STAT2_LINK		0x0004
+#define MDIO_MMD_PCS_MV_100BT1_STAT2_ANGE		0x0008
 
 #define MDIO_MMD_PCS_MV_100BT1_INT_EN			33042
 #define MDIO_MMD_PCS_MV_100BT1_INT_EN_LINKEVENT		0x0400
@@ -72,7 +92,7 @@
 #define MDIO_MMD_PCS_MV_COPPER_INT_STAT			33043
 #define MDIO_MMD_PCS_MV_COPPER_INT_STAT_LINKEVENT	0x0400
 
-#define MDIO_MMD_PCS_MV_RX_STAT			33328
+#define MDIO_MMD_PCS_MV_RX_STAT				33328
 
 #define MDIO_MMD_PCS_MV_TDR_RESET			65226
 #define MDIO_MMD_PCS_MV_TDR_RESET_TDR_RST		0x1000
@@ -95,8 +115,12 @@
 
 #define MDIO_MMD_PCS_MV_TDR_OFF_CUTOFF			65246
 
+#define MV88Q2XXX_LED_INDEX_TX_ENABLE			0
+#define MV88Q2XXX_LED_INDEX_GPIO			1
+
 struct mv88q2xxx_priv {
 	bool enable_temp;
+	bool enable_led0;
 };
 
 struct mmd_val {
@@ -460,6 +484,9 @@ static int mv88q2xxx_config_aneg(struct phy_device *phydev)
 
 static int mv88q2xxx_config_init(struct phy_device *phydev)
 {
+	struct mv88q2xxx_priv *priv = phydev->priv;
+	int ret;
+
 	/* The 88Q2XXX PHYs do have the extended ability register available, but
 	 * register MDIO_PMA_EXTABLE where they should signalize it does not
 	 * work according to specification. Therefore, we force it here.
@@ -469,10 +496,31 @@ static int mv88q2xxx_config_init(struct phy_device *phydev)
 	/* Configure interrupt with default settings, output is driven low for
 	 * active interrupt and high for inactive.
 	 */
-	if (phy_interrupt_is_valid(phydev))
-		return phy_set_bits_mmd(phydev, MDIO_MMD_PCS,
-					MDIO_MMD_PCS_MV_GPIO_INT_CTRL,
-					MDIO_MMD_PCS_MV_GPIO_INT_CTRL_TRI_DIS);
+	if (phy_interrupt_is_valid(phydev)) {
+		ret = phy_set_bits_mmd(phydev, MDIO_MMD_PCS,
+				       MDIO_MMD_PCS_MV_GPIO_INT_CTRL,
+				       MDIO_MMD_PCS_MV_GPIO_INT_CTRL_TRI_DIS);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* Enable LED function and disable TX disable feature on LED/TX_ENABLE */
+	if (priv->enable_led0) {
+		ret = phy_clear_bits_mmd(phydev, MDIO_MMD_PCS,
+					 MDIO_MMD_PCS_MV_RESET_CTRL,
+					 MDIO_MMD_PCS_MV_RESET_CTRL_TX_DISABLE);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* Enable temperature sense */
+	if (priv->enable_temp) {
+		ret = phy_modify_mmd(phydev, MDIO_MMD_PCS,
+				     MDIO_MMD_PCS_MV_TEMP_SENSOR2,
+				     MDIO_MMD_PCS_MV_TEMP_SENSOR2_DIS_MASK, 0);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }
@@ -717,16 +765,10 @@ static int mv88q2xxx_hwmon_probe(struct phy_device *phydev)
 	struct mv88q2xxx_priv *priv = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
 	struct device *hwmon;
-	char *hwmon_name;
 
 	priv->enable_temp = true;
-	hwmon_name = devm_hwmon_sanitize_name(dev, dev_name(dev));
-	if (IS_ERR(hwmon_name))
-		return PTR_ERR(hwmon_name);
 
-	hwmon = devm_hwmon_device_register_with_info(dev,
-						     hwmon_name,
-						     phydev,
+	hwmon = devm_hwmon_device_register_with_info(dev, NULL, phydev,
 						     &mv88q2xxx_hwmon_chip_info,
 						     NULL);
 
@@ -735,6 +777,49 @@ static int mv88q2xxx_hwmon_probe(struct phy_device *phydev)
 
 #else
 static int mv88q2xxx_hwmon_probe(struct phy_device *phydev)
+{
+	return 0;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_OF_MDIO)
+static int mv88q2xxx_leds_probe(struct phy_device *phydev)
+{
+	struct device_node *node = phydev->mdio.dev.of_node;
+	struct mv88q2xxx_priv *priv = phydev->priv;
+	struct device_node *leds;
+	int ret = 0;
+	u32 index;
+
+	if (!node)
+		return 0;
+
+	leds = of_get_child_by_name(node, "leds");
+	if (!leds)
+		return 0;
+
+	for_each_available_child_of_node_scoped(leds, led) {
+		ret = of_property_read_u32(led, "reg", &index);
+		if (ret)
+			goto exit;
+
+		if (index > MV88Q2XXX_LED_INDEX_GPIO) {
+			ret = -EINVAL;
+			goto exit;
+		}
+
+		if (index == MV88Q2XXX_LED_INDEX_TX_ENABLE)
+			priv->enable_led0 = true;
+	}
+
+exit:
+	of_node_put(leds);
+
+	return ret;
+}
+
+#else
+static int mv88q2xxx_leds_probe(struct phy_device *phydev)
 {
 	return 0;
 }
@@ -749,6 +834,21 @@ static int mv88q2xxx_probe(struct phy_device *phydev)
 		return -ENOMEM;
 
 	phydev->priv = priv;
+
+	return 0;
+}
+
+static int mv88q222x_probe(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = mv88q2xxx_probe(phydev);
+	if (ret)
+		return ret;
+
+	ret = mv88q2xxx_leds_probe(phydev);
+	if (ret)
+		return ret;
 
 	return mv88q2xxx_hwmon_probe(phydev);
 }
@@ -817,18 +917,6 @@ static int mv88q222x_revb1_revb2_config_init(struct phy_device *phydev)
 
 static int mv88q222x_config_init(struct phy_device *phydev)
 {
-	struct mv88q2xxx_priv *priv = phydev->priv;
-	int ret;
-
-	/* Enable temperature sense */
-	if (priv->enable_temp) {
-		ret = phy_modify_mmd(phydev, MDIO_MMD_PCS,
-				     MDIO_MMD_PCS_MV_TEMP_SENSOR2,
-				     MDIO_MMD_PCS_MV_TEMP_SENSOR2_DIS_MASK, 0);
-		if (ret < 0)
-			return ret;
-	}
-
 	if (phydev->c45_ids.device_ids[MDIO_MMD_PMAPMD] == PHY_ID_88Q2220_REVB0)
 		return mv88q222x_revb0_config_init(phydev);
 	else
@@ -918,11 +1006,104 @@ static int mv88q222x_cable_test_get_status(struct phy_device *phydev,
 	return 0;
 }
 
+static int mv88q2xxx_led_mode(u8 index, unsigned long rules)
+{
+	switch (rules) {
+	case BIT(TRIGGER_NETDEV_LINK):
+		return MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LINK;
+	case BIT(TRIGGER_NETDEV_LINK_1000):
+		return MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LINK_1000BT1_ON;
+	case BIT(TRIGGER_NETDEV_TX):
+		return MDIO_MMD_PCS_MV_LED_FUNC_CTRL_TX;
+	case BIT(TRIGGER_NETDEV_TX) | BIT(TRIGGER_NETDEV_RX):
+		return MDIO_MMD_PCS_MV_LED_FUNC_CTRL_RX_TX;
+	case BIT(TRIGGER_NETDEV_LINK) | BIT(TRIGGER_NETDEV_TX) | BIT(TRIGGER_NETDEV_RX):
+		return MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LINK_RX_TX;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int mv88q2xxx_led_hw_is_supported(struct phy_device *phydev, u8 index,
+					 unsigned long rules)
+{
+	int mode;
+
+	mode = mv88q2xxx_led_mode(index, rules);
+	if (mode < 0)
+		return mode;
+
+	return 0;
+}
+
+static int mv88q2xxx_led_hw_control_set(struct phy_device *phydev, u8 index,
+					unsigned long rules)
+{
+	int mode;
+
+	mode = mv88q2xxx_led_mode(index, rules);
+	if (mode < 0)
+		return mode;
+
+	if (index == MV88Q2XXX_LED_INDEX_TX_ENABLE)
+		return phy_modify_mmd(phydev, MDIO_MMD_PCS,
+				      MDIO_MMD_PCS_MV_LED_FUNC_CTRL,
+				      MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LED_0_MASK,
+				      FIELD_PREP(MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LED_0_MASK,
+						 mode));
+	else
+		return phy_modify_mmd(phydev, MDIO_MMD_PCS,
+				      MDIO_MMD_PCS_MV_LED_FUNC_CTRL,
+				      MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LED_1_MASK,
+				      FIELD_PREP(MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LED_1_MASK,
+						 mode));
+}
+
+static int mv88q2xxx_led_hw_control_get(struct phy_device *phydev, u8 index,
+					unsigned long *rules)
+{
+	int val;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_MMD_PCS_MV_LED_FUNC_CTRL);
+	if (val < 0)
+		return val;
+
+	if (index == MV88Q2XXX_LED_INDEX_TX_ENABLE)
+		val = FIELD_GET(MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LED_0_MASK, val);
+	else
+		val = FIELD_GET(MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LED_1_MASK, val);
+
+	switch (val) {
+	case MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LINK:
+		*rules = BIT(TRIGGER_NETDEV_LINK);
+		break;
+	case MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LINK_1000BT1_ON:
+		*rules = BIT(TRIGGER_NETDEV_LINK_1000);
+		break;
+	case MDIO_MMD_PCS_MV_LED_FUNC_CTRL_TX:
+		*rules = BIT(TRIGGER_NETDEV_TX);
+		break;
+	case MDIO_MMD_PCS_MV_LED_FUNC_CTRL_RX_TX:
+		*rules = BIT(TRIGGER_NETDEV_TX) | BIT(TRIGGER_NETDEV_RX);
+		break;
+	case MDIO_MMD_PCS_MV_LED_FUNC_CTRL_LINK_RX_TX:
+		*rules = BIT(TRIGGER_NETDEV_LINK) | BIT(TRIGGER_NETDEV_TX) |
+			 BIT(TRIGGER_NETDEV_RX);
+		break;
+	default:
+		*rules = 0;
+		break;
+	}
+
+	return 0;
+}
+
 static struct phy_driver mv88q2xxx_driver[] = {
 	{
 		.phy_id			= MARVELL_PHY_ID_88Q2110,
 		.phy_id_mask		= MARVELL_PHY_ID_MASK,
 		.name			= "mv88q2110",
+		.probe			= mv88q2xxx_probe,
 		.get_features		= mv88q2xxx_get_features,
 		.config_aneg		= mv88q2xxx_config_aneg,
 		.config_init		= mv88q2110_config_init,
@@ -937,7 +1118,7 @@ static struct phy_driver mv88q2xxx_driver[] = {
 		.phy_id_mask		= MARVELL_PHY_ID_MASK,
 		.name			= "mv88q2220",
 		.flags			= PHY_POLL_CABLE_TEST,
-		.probe			= mv88q2xxx_probe,
+		.probe			= mv88q222x_probe,
 		.get_features		= mv88q2xxx_get_features,
 		.config_aneg		= mv88q2xxx_config_aneg,
 		.aneg_done		= genphy_c45_aneg_done,
@@ -953,6 +1134,9 @@ static struct phy_driver mv88q2xxx_driver[] = {
 		.get_sqi_max		= mv88q2xxx_get_sqi_max,
 		.suspend		= mv88q2xxx_suspend,
 		.resume			= mv88q2xxx_resume,
+		.led_hw_is_supported	= mv88q2xxx_led_hw_is_supported,
+		.led_hw_control_set	= mv88q2xxx_led_hw_control_set,
+		.led_hw_control_get	= mv88q2xxx_led_hw_control_get,
 	},
 };
 

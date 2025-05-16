@@ -28,6 +28,9 @@ config SND_SOC_AMD_ACP_LEGACY_COMMON
 config SND_SOC_AMD_ACP_I2S
 	tristate
 
+config SND_SOC_AMD_ACPI_MACH
+	tristate
+
 config SND_SOC_AMD_ACP_PCM
 	tristate
 	select SND_SOC_ACPI if ACPI
@@ -37,6 +40,7 @@ config SND_SOC_AMD_ACP_PCI
 	depends on X86 && PCI
 	depends on ACPI
 	select SND_SOC_AMD_ACP_LEGACY_COMMON
+	select SND_SOC_AMD_ACPI_MACH
 	help
 	  This options enables generic PCI driver for ACP device.
 
@@ -47,6 +51,7 @@ config SND_AMD_ASOC_RENOIR
 	select SND_SOC_AMD_ACP_I2S
 	select SND_SOC_AMD_ACP_PDM
 	select SND_SOC_AMD_ACP_LEGACY_COMMON
+	select SND_SOC_AMD_ACPI_MACH
 	depends on X86 && PCI
 	help
 	  This option enables Renoir I2S support on AMD platform.
@@ -58,6 +63,8 @@ config SND_AMD_ASOC_REMBRANDT
 	select SND_SOC_AMD_ACP_I2S
 	select SND_SOC_AMD_ACP_PDM
 	select SND_SOC_AMD_ACP_LEGACY_COMMON
+	select SND_SOC_AMD_ACPI_MACH
+	depends on AMD_NODE
 	depends on X86 && PCI
 	help
 	  This option enables Rembrandt I2S support on AMD platform.
@@ -68,10 +75,12 @@ config SND_AMD_ASOC_ACP63
 	tristate "AMD ACP ASOC ACP6.3 Support"
 	depends on X86 && PCI
 	depends on ACPI
+	depends on AMD_NODE
 	select SND_SOC_AMD_ACP_PCM
 	select SND_SOC_AMD_ACP_I2S
 	select SND_SOC_AMD_ACP_PDM
 	select SND_SOC_AMD_ACP_LEGACY_COMMON
+	select SND_SOC_AMD_ACPI_MACH
 	help
 	  This option enables Acp6.3 I2S support on AMD platform.
 	  Say Y if you want to enable AUDIO on ACP6.3
@@ -81,10 +90,12 @@ config SND_AMD_ASOC_ACP70
 	tristate "AMD ACP ASOC Acp7.0 Support"
 	depends on X86 && PCI
 	depends on ACPI
+	depends on AMD_NODE
 	select SND_SOC_AMD_ACP_PCM
 	select SND_SOC_AMD_ACP_I2S
 	select SND_SOC_AMD_ACP_PDM
 	select SND_SOC_AMD_ACP_LEGACY_COMMON
+	select SND_SOC_AMD_ACPI_MACH
 	help
 	This option enables Acp7.0 PDM support on AMD platform.
 	Say Y if you want to enable AUDIO on ACP7.0
@@ -156,6 +167,7 @@ config SND_SOC_AMD_LEGACY_SDW_MACH
 	select SND_SOC_RT712_SDCA_SDW
 	select SND_SOC_RT712_SDCA_DMIC_SDW
 	select SND_SOC_RT1316_SDW
+	select SND_SOC_RT1320_SDW
 	select SND_SOC_RT715_SDW
 	select SND_SOC_RT715_SDCA_SDW
 	select SND_SOC_RT722_SDCA_SDW

@@ -226,7 +226,7 @@ void bch2_journal_space_available(struct journal *j)
 
 		bch_err(c, "%s", buf.buf);
 		printbuf_exit(&buf);
-		ret = JOURNAL_ERR_insufficient_devices;
+		ret = -BCH_ERR_insufficient_journal_devices;
 		goto out;
 	}
 
@@ -240,7 +240,7 @@ void bch2_journal_space_available(struct journal *j)
 	total		= j->space[journal_space_total].total;
 
 	if (!j->space[journal_space_discarded].next_entry)
-		ret = JOURNAL_ERR_journal_full;
+		ret = -BCH_ERR_journal_full;
 
 	if ((j->space[journal_space_clean_ondisk].next_entry <
 	     j->space[journal_space_clean_ondisk].total) &&
@@ -252,7 +252,10 @@ void bch2_journal_space_available(struct journal *j)
 
 	bch2_journal_set_watermark(j);
 out:
-	j->cur_entry_sectors	= !ret ? j->space[journal_space_discarded].next_entry : 0;
+	j->cur_entry_sectors	= !ret
+		? round_down(j->space[journal_space_discarded].next_entry,
+			     block_sectors(c))
+		: 0;
 	j->cur_entry_error	= ret;
 
 	if (!ret)
@@ -645,7 +648,6 @@ static u64 journal_seq_to_flush(struct journal *j)
  * @j:		journal object
  * @direct:	direct or background reclaim?
  * @kicked:	requested to run since we last ran?
- * Returns:	0 on success, or -EIO if the journal has been shutdown
  *
  * Background journal reclaim writes out btree nodes. It should be run
  * early enough so that we never completely run out of journal buckets.
@@ -685,10 +687,9 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct, bool kicked)
 		if (kthread && kthread_should_stop())
 			break;
 
-		if (bch2_journal_error(j)) {
-			ret = -EIO;
+		ret = bch2_journal_error(j);
+		if (ret)
 			break;
-		}
 
 		bch2_journal_do_discards(j);
 

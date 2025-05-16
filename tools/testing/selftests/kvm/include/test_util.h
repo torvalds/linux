@@ -22,7 +22,7 @@
 
 #define msecs_to_usecs(msec)    ((msec) * 1000ULL)
 
-static inline int _no_printf(const char *format, ...) { return 0; }
+static inline __printf(1, 2) int _no_printf(const char *format, ...) { return 0; }
 
 #ifdef DEBUG
 #define pr_debug(...) printf(__VA_ARGS__)

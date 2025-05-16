@@ -475,9 +475,9 @@ static const struct file_operations perf_fops = {
 };
 
 static struct miscdevice perf_dev = {
-	MISC_DYNAMIC_MINOR,
-	PA_PERF_DEV,
-	&perf_fops
+	.minor	= MISC_DYNAMIC_MINOR,
+	.name	= PA_PERF_DEV,
+	.fops	= &perf_fops,
 };
 
 /*

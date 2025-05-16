@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2022, 2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -14,6 +14,9 @@
  * @FW_CTXT_COLOR_POS: position of the color
  * @FW_CTXT_COLOR_MSK: mask of the color
  * @FW_CTXT_INVALID: value used to indicate unused/invalid
+ * @FW_CTXT_ID_INVALID: value used to indicate unused/invalid. This can be
+ *	used with newer firmware which no longer use the color. Typically,
+ *	firmware versions supported by iwlmld can use this value.
  */
 enum iwl_ctxt_id_and_color {
 	FW_CTXT_ID_POS		= 0,
@@ -21,6 +24,7 @@ enum iwl_ctxt_id_and_color {
 	FW_CTXT_COLOR_POS	= 8,
 	FW_CTXT_COLOR_MSK	= 0xff << FW_CTXT_COLOR_POS,
 	FW_CTXT_INVALID		= 0xffffffff,
+	FW_CTXT_ID_INVALID	= 0xff,
 };
 
 #define FW_CMD_ID_AND_COLOR(_id, _color) (((_id) << FW_CTXT_ID_POS) |\

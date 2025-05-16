@@ -161,8 +161,8 @@ static void llt_ndlc_rcv_queue(struct llt_ndlc *ndlc)
 			case PCB_SYNC_ACK:
 				skb = skb_dequeue(&ndlc->ack_pending_q);
 				kfree_skb(skb);
-				del_timer_sync(&ndlc->t1_timer);
-				del_timer_sync(&ndlc->t2_timer);
+				timer_delete_sync(&ndlc->t1_timer);
+				timer_delete_sync(&ndlc->t2_timer);
 				ndlc->t2_active = false;
 				ndlc->t1_active = false;
 				break;
@@ -213,8 +213,8 @@ static void llt_ndlc_sm_work(struct work_struct *work)
 		pr_debug("Handle T2(recv DATA) elapsed (T2 now inactive)\n");
 		ndlc->t2_active = false;
 		ndlc->t1_active = false;
-		del_timer_sync(&ndlc->t1_timer);
-		del_timer_sync(&ndlc->t2_timer);
+		timer_delete_sync(&ndlc->t1_timer);
+		timer_delete_sync(&ndlc->t2_timer);
 		ndlc_close(ndlc);
 		ndlc->hard_fault = -EREMOTEIO;
 	}
@@ -283,8 +283,8 @@ EXPORT_SYMBOL(ndlc_probe);
 void ndlc_remove(struct llt_ndlc *ndlc)
 {
 	/* cancel timers */
-	del_timer_sync(&ndlc->t1_timer);
-	del_timer_sync(&ndlc->t2_timer);
+	timer_delete_sync(&ndlc->t1_timer);
+	timer_delete_sync(&ndlc->t2_timer);
 	ndlc->t2_active = false;
 	ndlc->t1_active = false;
 	/* cancel work */

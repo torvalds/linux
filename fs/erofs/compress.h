@@ -11,6 +11,7 @@
 struct z_erofs_decompress_req {
 	struct super_block *sb;
 	struct page **in, **out;
+	unsigned int inpages, outpages;
 	unsigned short pageofs_in, pageofs_out;
 	unsigned int inputsize, outputsize;
 
@@ -59,7 +60,6 @@ extern const struct z_erofs_decompressor *z_erofs_decomp[];
 
 struct z_erofs_stream_dctx {
 	struct z_erofs_decompress_req *rq;
-	unsigned int inpages, outpages;	/* # of {en,de}coded pages */
 	int no, ni;			/* the current {en,de}coded page # */
 
 	unsigned int avail_out;		/* remaining bytes in the decoded buffer */

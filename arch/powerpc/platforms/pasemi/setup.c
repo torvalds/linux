@@ -228,7 +228,7 @@ static void __init nemo_init_IRQ(struct mpic *mpic)
 	irq_set_chained_handler(gpio_virq, sb600_8259_cascade);
 	mpic_unmask_irq(irq_get_irq_data(gpio_virq));
 
-	irq_set_default_host(mpic->irqhost);
+	irq_set_default_domain(mpic->irqhost);
 }
 
 #else

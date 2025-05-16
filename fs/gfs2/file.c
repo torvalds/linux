@@ -820,7 +820,7 @@ static ssize_t gfs2_file_direct_read(struct kiocb *iocb, struct iov_iter *to,
 	/*
 	 * In this function, we disable page faults when we're holding the
 	 * inode glock while doing I/O.  If a page fault occurs, we indicate
-	 * that the inode glock may be dropped, fault in the pages manually,
+	 * that the inode glock should be dropped, fault in the pages manually,
 	 * and retry.
 	 *
 	 * Unlike generic_file_read_iter, for reads, iomap_dio_rw can trigger
@@ -885,7 +885,7 @@ static ssize_t gfs2_file_direct_write(struct kiocb *iocb, struct iov_iter *from,
 	/*
 	 * In this function, we disable page faults when we're holding the
 	 * inode glock while doing I/O.  If a page fault occurs, we indicate
-	 * that the inode glock may be dropped, fault in the pages manually,
+	 * that the inode glock should be dropped, fault in the pages manually,
 	 * and retry.
 	 *
 	 * For writes, iomap_dio_rw only triggers manual page faults, so we
@@ -957,7 +957,7 @@ static ssize_t gfs2_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	/*
 	 * In this function, we disable page faults when we're holding the
 	 * inode glock while doing I/O.  If a page fault occurs, we indicate
-	 * that the inode glock may be dropped, fault in the pages manually,
+	 * that the inode glock should be dropped, fault in the pages manually,
 	 * and retry.
 	 */
 
@@ -1024,7 +1024,7 @@ static ssize_t gfs2_file_buffered_write(struct kiocb *iocb,
 	/*
 	 * In this function, we disable page faults when we're holding the
 	 * inode glock while doing I/O.  If a page fault occurs, we indicate
-	 * that the inode glock may be dropped, fault in the pages manually,
+	 * that the inode glock should be dropped, fault in the pages manually,
 	 * and retry.
 	 */
 

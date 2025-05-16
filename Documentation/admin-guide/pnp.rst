@@ -129,9 +129,6 @@ pnp_put_protocol
 pnp_register_protocol
   use this to register a new PnP protocol
 
-pnp_unregister_protocol
-  use this function to remove a PnP protocol from the Plug and Play Layer
-
 pnp_register_driver
   adds a PnP driver to the Plug and Play Layer
 

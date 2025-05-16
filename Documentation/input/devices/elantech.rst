@@ -556,7 +556,7 @@ Note on debounce:
 In case the box has unstable power supply or other electricity issues, or
 when number of finger changes, F/W would send "debounce packet" to inform
 driver that the hardware is in debounce status.
-The debouce packet has the following signature::
+The debounce packet has the following signature::
 
     byte 0: 0xc4
     byte 1: 0xff

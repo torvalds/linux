@@ -51,6 +51,26 @@
 
 #define AST_LUT_SIZE 256
 
+#define AST_PRIMARY_PLANE_MAX_OFFSET	(BIT(16) - 1)
+
+static unsigned long ast_fb_vram_offset(void)
+{
+	return 0; // with shmem, the primary plane is always at offset 0
+}
+
+static unsigned long ast_fb_vram_size(struct ast_device *ast)
+{
+	struct drm_device *dev = &ast->base;
+	unsigned long offset = ast_fb_vram_offset(); // starts at offset
+	long cursor_offset = ast_cursor_vram_offset(ast); // ends at cursor offset
+
+	if (cursor_offset < 0)
+		cursor_offset = ast->vram_size; // no cursor; it's all ours
+	if (drm_WARN_ON_ONCE(dev, offset > cursor_offset))
+		return 0; // cannot legally happen; signal error
+	return cursor_offset - offset;
+}
+
 static inline void ast_load_palette_index(struct ast_device *ast,
 				     u8 index, u8 red, u8 green,
 				     u8 blue)
@@ -439,7 +459,7 @@ static void ast_wait_for_vretrace(struct ast_device *ast)
  */
 
 int ast_plane_init(struct drm_device *dev, struct ast_plane *ast_plane,
-		   void __iomem *vaddr, u64 offset, unsigned long size,
+		   u64 offset, unsigned long size,
 		   uint32_t possible_crtcs,
 		   const struct drm_plane_funcs *funcs,
 		   const uint32_t *formats, unsigned int format_count,
@@ -448,13 +468,19 @@ int ast_plane_init(struct drm_device *dev, struct ast_plane *ast_plane,
 {
 	struct drm_plane *plane = &ast_plane->base;
 
-	ast_plane->vaddr = vaddr;
 	ast_plane->offset = offset;
 	ast_plane->size = size;
 
 	return drm_universal_plane_init(dev, plane, possible_crtcs, funcs,
 					formats, format_count, format_modifiers,
 					type, NULL);
+}
+
+void __iomem *ast_plane_vaddr(struct ast_plane *ast_plane)
+{
+	struct ast_device *ast = to_ast_device(ast_plane->base.dev);
+
+	return ast->vram + ast_plane->offset;
 }
 
 /*
@@ -503,7 +529,7 @@ static void ast_handle_damage(struct ast_plane *ast_plane, struct iosys_map *src
 			      struct drm_framebuffer *fb,
 			      const struct drm_rect *clip)
 {
-	struct iosys_map dst = IOSYS_MAP_INIT_VADDR_IOMEM(ast_plane->vaddr);
+	struct iosys_map dst = IOSYS_MAP_INIT_VADDR_IOMEM(ast_plane_vaddr(ast_plane));
 
 	iosys_map_incr(&dst, drm_fb_clip_offset(fb->pitches[0], fb->format, clip));
 	drm_fb_memcpy(&dst, fb->pitches, src, fb, clip);
@@ -576,12 +602,12 @@ static int ast_primary_plane_helper_get_scanout_buffer(struct drm_plane *plane,
 {
 	struct ast_plane *ast_plane = to_ast_plane(plane);
 
-	if (plane->state && plane->state->fb && ast_plane->vaddr) {
+	if (plane->state && plane->state->fb) {
 		sb->format = plane->state->fb->format;
 		sb->width = plane->state->fb->width;
 		sb->height = plane->state->fb->height;
 		sb->pitch[0] = plane->state->fb->pitches[0];
-		iosys_map_set_vaddr_iomem(&sb->map[0], ast_plane->vaddr);
+		iosys_map_set_vaddr_iomem(&sb->map[0], ast_plane_vaddr(ast_plane));
 		return 0;
 	}
 	return -ENODEV;
@@ -608,13 +634,11 @@ static int ast_primary_plane_init(struct ast_device *ast)
 	struct drm_device *dev = &ast->base;
 	struct ast_plane *ast_primary_plane = &ast->primary_plane;
 	struct drm_plane *primary_plane = &ast_primary_plane->base;
-	void __iomem *vaddr = ast->vram;
-	u64 offset = 0; /* with shmem, the primary plane is always at offset 0 */
-	unsigned long cursor_size = roundup(AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE, PAGE_SIZE);
-	unsigned long size = ast->vram_fb_available - cursor_size;
+	u64 offset = ast_fb_vram_offset();
+	unsigned long size = ast_fb_vram_size(ast);
 	int ret;
 
-	ret = ast_plane_init(dev, ast_primary_plane, vaddr, offset, size,
+	ret = ast_plane_init(dev, ast_primary_plane, offset, size,
 			     0x01, &ast_primary_plane_funcs,
 			     ast_primary_plane_formats, ARRAY_SIZE(ast_primary_plane_formats),
 			     NULL, DRM_PLANE_TYPE_PRIMARY);
@@ -922,9 +946,9 @@ static void ast_mode_config_helper_atomic_commit_tail(struct drm_atomic_state *s
 
 	/*
 	 * Concurrent operations could possibly trigger a call to
-	 * drm_connector_helper_funcs.get_modes by trying to read the
-	 * display modes. Protect access to I/O registers by acquiring
-	 * the I/O-register lock. Released in atomic_flush().
+	 * drm_connector_helper_funcs.get_modes by reading the display
+	 * modes. Protect access to registers by acquiring the modeset
+	 * lock.
 	 */
 	mutex_lock(&ast->modeset_lock);
 	drm_atomic_helper_commit_tail(state);
@@ -938,16 +962,20 @@ static const struct drm_mode_config_helper_funcs ast_mode_config_helper_funcs = 
 static enum drm_mode_status ast_mode_config_mode_valid(struct drm_device *dev,
 						       const struct drm_display_mode *mode)
 {
-	static const unsigned long max_bpp = 4; /* DRM_FORMAT_XRGB8888 */
+	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_XRGB8888);
 	struct ast_device *ast = to_ast_device(dev);
-	unsigned long fbsize, fbpages, max_fbpages;
+	unsigned long max_fb_size = ast_fb_vram_size(ast);
+	u64 pitch;
 
-	max_fbpages = (ast->vram_fb_available) >> PAGE_SHIFT;
+	if (drm_WARN_ON_ONCE(dev, !info))
+		return MODE_ERROR; /* driver bug */
 
-	fbsize = mode->hdisplay * mode->vdisplay * max_bpp;
-	fbpages = DIV_ROUND_UP(fbsize, PAGE_SIZE);
-
-	if (fbpages > max_fbpages)
+	pitch = drm_format_info_min_pitch(info, 0, mode->hdisplay);
+	if (!pitch)
+		return MODE_BAD_WIDTH;
+	if (pitch > AST_PRIMARY_PLANE_MAX_OFFSET)
+		return MODE_BAD_WIDTH; /* maximum programmable pitch */
+	if (pitch > max_fb_size / mode->vdisplay)
 		return MODE_MEM;
 
 	return MODE_OK;
@@ -1018,10 +1046,7 @@ int ast_mode_config_init(struct ast_device *ast)
 		return ret;
 
 	drm_mode_config_reset(dev);
-
-	ret = drmm_kms_helper_poll_init(dev);
-	if (ret)
-		return ret;
+	drmm_kms_helper_poll_init(dev);
 
 	return 0;
 }

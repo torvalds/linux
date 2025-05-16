@@ -4842,7 +4842,7 @@ il_setup_watchdog(struct il_priv *il)
 		mod_timer(&il->watchdog,
 			  jiffies + msecs_to_jiffies(IL_WD_TICK(timeout)));
 	else
-		del_timer(&il->watchdog);
+		timer_delete(&il->watchdog);
 }
 EXPORT_SYMBOL(il_setup_watchdog);
 

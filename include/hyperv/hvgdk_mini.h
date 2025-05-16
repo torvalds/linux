@@ -13,7 +13,7 @@ struct hv_u128 {
 	u64 high_part;
 } __packed;
 
-/* NOTE: when adding below, update hv_status_to_string() */
+/* NOTE: when adding below, update hv_result_to_string() */
 #define HV_STATUS_SUCCESS			    0x0
 #define HV_STATUS_INVALID_HYPERCALL_CODE	    0x2
 #define HV_STATUS_INVALID_HYPERCALL_INPUT	    0x3
@@ -51,6 +51,7 @@ struct hv_u128 {
 #define HV_HYP_PAGE_SHIFT		12
 #define HV_HYP_PAGE_SIZE		BIT(HV_HYP_PAGE_SHIFT)
 #define HV_HYP_PAGE_MASK		(~(HV_HYP_PAGE_SIZE - 1))
+#define HV_HYP_LARGE_PAGE_SHIFT		21
 
 #define HV_PARTITION_ID_INVALID		((u64)0)
 #define HV_PARTITION_ID_SELF		((u64)-1)
@@ -182,7 +183,7 @@ struct hv_tsc_emulation_control {	 /* HV_TSC_INVARIANT_CONTROL */
 
 #endif /* CONFIG_X86 */
 
-struct hv_get_partition_id {	 /* HV_OUTPUT_GET_PARTITION_ID */
+struct hv_output_get_partition_id {
 	u64 partition_id;
 } __packed;
 
@@ -204,7 +205,14 @@ union hv_reference_tsc_msr {
 /* The number of vCPUs in one sparse bank */
 #define HV_VCPUS_PER_SPARSE_BANK (64)
 
-/* Some of Hyper-V structs do not use hv_vpset where linux uses them */
+/*
+ * Some of Hyper-V structs do not use hv_vpset where linux uses them.
+ *
+ * struct hv_vpset is usually used as part of hypercall input. The portion
+ * that counts as "fixed size input header" vs. "variable size input header"
+ * varies per hypercall. See comments at relevant hypercall call sites as to
+ * how the "valid_bank_mask" field should be accounted.
+ */
 struct hv_vpset {	 /* HV_VP_SET */
 	u64 format;
 	u64 valid_bank_mask;
@@ -374,6 +382,10 @@ union hv_hypervisor_version_info {
 #define HV_SHARED_GPA_BOUNDARY_ACTIVE			BIT(5)
 #define HV_SHARED_GPA_BOUNDARY_BITS			GENMASK(11, 6)
 
+/* HYPERV_CPUID_FEATURES.ECX bits. */
+#define HV_VP_DISPATCH_INTERRUPT_INJECTION_AVAILABLE	BIT(9)
+#define HV_VP_GHCB_ROOT_MAPPING_AVAILABLE		BIT(10)
+
 enum hv_isolation_type {
 	HV_ISOLATION_TYPE_NONE	= 0,	/* HV_PARTITION_ISOLATION_TYPE_NONE */
 	HV_ISOLATION_TYPE_VBS	= 1,
@@ -436,10 +448,13 @@ union hv_vp_assist_msr_contents {	 /* HV_REGISTER_VP_ASSIST_PAGE */
 #define HVCALL_WITHDRAW_MEMORY				0x0049
 #define HVCALL_MAP_GPA_PAGES				0x004b
 #define HVCALL_UNMAP_GPA_PAGES				0x004c
+#define HVCALL_INSTALL_INTERCEPT			0x004d
 #define HVCALL_CREATE_VP				0x004e
 #define HVCALL_DELETE_VP				0x004f
 #define HVCALL_GET_VP_REGISTERS				0x0050
 #define HVCALL_SET_VP_REGISTERS				0x0051
+#define HVCALL_TRANSLATE_VIRTUAL_ADDRESS		0x0052
+#define HVCALL_CLEAR_VIRTUAL_INTERRUPT			0x0056
 #define HVCALL_DELETE_PORT				0x0058
 #define HVCALL_DISCONNECT_PORT				0x005b
 #define HVCALL_POST_MESSAGE				0x005c
@@ -447,12 +462,15 @@ union hv_vp_assist_msr_contents {	 /* HV_REGISTER_VP_ASSIST_PAGE */
 #define HVCALL_POST_DEBUG_DATA				0x0069
 #define HVCALL_RETRIEVE_DEBUG_DATA			0x006a
 #define HVCALL_RESET_DEBUG_SESSION			0x006b
+#define HVCALL_MAP_STATS_PAGE				0x006c
+#define HVCALL_UNMAP_STATS_PAGE				0x006d
 #define HVCALL_ADD_LOGICAL_PROCESSOR			0x0076
 #define HVCALL_GET_SYSTEM_PROPERTY			0x007b
 #define HVCALL_MAP_DEVICE_INTERRUPT			0x007c
 #define HVCALL_UNMAP_DEVICE_INTERRUPT			0x007d
 #define HVCALL_RETARGET_INTERRUPT			0x007e
 #define HVCALL_NOTIFY_PORT_RING_EMPTY			0x008b
+#define HVCALL_REGISTER_INTERCEPT_RESULT		0x0091
 #define HVCALL_ASSERT_VIRTUAL_INTERRUPT			0x0094
 #define HVCALL_CREATE_PORT				0x0095
 #define HVCALL_CONNECT_PORT				0x0096
@@ -460,12 +478,18 @@ union hv_vp_assist_msr_contents {	 /* HV_REGISTER_VP_ASSIST_PAGE */
 #define HVCALL_GET_VP_ID_FROM_APIC_ID			0x009a
 #define HVCALL_FLUSH_GUEST_PHYSICAL_ADDRESS_SPACE	0x00af
 #define HVCALL_FLUSH_GUEST_PHYSICAL_ADDRESS_LIST	0x00b0
+#define HVCALL_SIGNAL_EVENT_DIRECT			0x00c0
+#define HVCALL_POST_MESSAGE_DIRECT			0x00c1
 #define HVCALL_DISPATCH_VP				0x00c2
+#define HVCALL_GET_GPA_PAGES_ACCESS_STATES		0x00c9
+#define HVCALL_ACQUIRE_SPARSE_SPA_PAGE_HOST_ACCESS	0x00d7
+#define HVCALL_RELEASE_SPARSE_SPA_PAGE_HOST_ACCESS	0x00d8
 #define HVCALL_MODIFY_SPARSE_GPA_PAGE_HOST_VISIBILITY	0x00db
 #define HVCALL_MAP_VP_STATE_PAGE			0x00e1
 #define HVCALL_UNMAP_VP_STATE_PAGE			0x00e2
 #define HVCALL_GET_VP_STATE				0x00e3
 #define HVCALL_SET_VP_STATE				0x00e4
+#define HVCALL_GET_VP_CPUID_VALUES			0x00f4
 #define HVCALL_MMIO_READ				0x0106
 #define HVCALL_MMIO_WRITE				0x0107
 
@@ -775,10 +799,10 @@ struct hv_message_page {
 
 /* Define timer message payload structure. */
 struct hv_timer_message_payload {
-	__u32 timer_index;
-	__u32 reserved;
-	__u64 expiration_time;	/* When the timer expired */
-	__u64 delivery_time;	/* When the message was delivered */
+	u32 timer_index;
+	u32 reserved;
+	u64 expiration_time;	/* When the timer expired */
+	u64 delivery_time;	/* When the message was delivered */
 } __packed;
 
 struct hv_x64_segment_register {
@@ -806,6 +830,8 @@ struct hv_x64_table_register {
 	u16 limit;
 	u64 base;
 } __packed;
+
+#define HV_NORMAL_VTL	0
 
 union hv_input_vtl {
 	u8 as_uint8;
@@ -1324,6 +1350,49 @@ struct hv_retarget_device_interrupt {	 /* HV_INPUT_RETARGET_DEVICE_INTERRUPT */
 	u64 reserved2;
 	struct hv_device_interrupt_target int_target;
 } __packed __aligned(8);
+
+enum hv_intercept_type {
+#if defined(CONFIG_X86)
+	HV_INTERCEPT_TYPE_X64_IO_PORT			= 0x00000000,
+	HV_INTERCEPT_TYPE_X64_MSR			= 0x00000001,
+	HV_INTERCEPT_TYPE_X64_CPUID			= 0x00000002,
+#endif
+	HV_INTERCEPT_TYPE_EXCEPTION			= 0x00000003,
+	/* Used to be HV_INTERCEPT_TYPE_REGISTER */
+	HV_INTERCEPT_TYPE_RESERVED0			= 0x00000004,
+	HV_INTERCEPT_TYPE_MMIO				= 0x00000005,
+#if defined(CONFIG_X86)
+	HV_INTERCEPT_TYPE_X64_GLOBAL_CPUID		= 0x00000006,
+	HV_INTERCEPT_TYPE_X64_APIC_SMI			= 0x00000007,
+#endif
+	HV_INTERCEPT_TYPE_HYPERCALL			= 0x00000008,
+#if defined(CONFIG_X86)
+	HV_INTERCEPT_TYPE_X64_APIC_INIT_SIPI		= 0x00000009,
+	HV_INTERCEPT_MC_UPDATE_PATCH_LEVEL_MSR_READ	= 0x0000000A,
+	HV_INTERCEPT_TYPE_X64_APIC_WRITE		= 0x0000000B,
+	HV_INTERCEPT_TYPE_X64_MSR_INDEX			= 0x0000000C,
+#endif
+	HV_INTERCEPT_TYPE_MAX,
+	HV_INTERCEPT_TYPE_INVALID			= 0xFFFFFFFF,
+};
+
+union hv_intercept_parameters {
+	/*  HV_INTERCEPT_PARAMETERS is defined to be an 8-byte field. */
+	u64 as_uint64;
+#if defined(CONFIG_X86)
+	/* HV_INTERCEPT_TYPE_X64_IO_PORT */
+	u16 io_port;
+	/* HV_INTERCEPT_TYPE_X64_CPUID */
+	u32 cpuid_index;
+	/* HV_INTERCEPT_TYPE_X64_APIC_WRITE */
+	u32 apic_write_mask;
+	/* HV_INTERCEPT_TYPE_EXCEPTION */
+	u16 exception_vector;
+	/* HV_INTERCEPT_TYPE_X64_MSR_INDEX */
+	u32 msr_index;
+#endif
+	/* N.B. Other intercept types do not have any parameters. */
+};
 
 /* Data structures for HVCALL_MMIO_READ and HVCALL_MMIO_WRITE */
 #define HV_HYPERCALL_MMIO_MAX_DATA_LENGTH 64

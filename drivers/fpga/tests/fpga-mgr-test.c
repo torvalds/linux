@@ -330,4 +330,5 @@ static struct kunit_suite fpga_mgr_suite = {
 
 kunit_test_suite(fpga_mgr_suite);
 
+MODULE_DESCRIPTION("KUnit test for the FPGA Manager");
 MODULE_LICENSE("GPL");

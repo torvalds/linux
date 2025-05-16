@@ -26,42 +26,6 @@ struct hp_82341_priv {
 	enum hp_82341_hardware_version hw_version;
 };
 
-
-// interface functions
-int hp_82341_accel_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end,
-			size_t *bytes_read);
-int hp_82341_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
-			 size_t *bytes_written);
-int hp_82341_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end,
-		  size_t *bytes_read);
-int hp_82341_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
-		   size_t *bytes_written);
-int hp_82341_command(gpib_board_t *board, uint8_t *buffer, size_t length, size_t *bytes_written);
-int hp_82341_take_control(gpib_board_t *board, int synchronous);
-int hp_82341_go_to_standby(gpib_board_t *board);
-void hp_82341_request_system_control(gpib_board_t *board, int request_control);
-void hp_82341_interface_clear(gpib_board_t *board, int assert);
-void hp_82341_remote_enable(gpib_board_t *board, int enable);
-int hp_82341_enable_eos(gpib_board_t *board, uint8_t eos_byte, int
-			compare_8_bits);
-void hp_82341_disable_eos(gpib_board_t *board);
-unsigned int hp_82341_update_status(gpib_board_t *board, unsigned int clear_mask);
-int hp_82341_primary_address(gpib_board_t *board, unsigned int address);
-int hp_82341_secondary_address(gpib_board_t *board, unsigned int address, int
-			enable);
-int hp_82341_parallel_poll(gpib_board_t *board, uint8_t *result);
-void hp_82341_parallel_poll_configure(gpib_board_t *board, uint8_t config);
-void hp_82341_parallel_poll_response(gpib_board_t *board, int ist);
-void hp_82341_serial_poll_response(gpib_board_t *board, uint8_t status);
-void hp_82341_return_to_local(gpib_board_t *board);
-
-// interrupt service routines
-irqreturn_t hp_82341_interrupt(int irq, void *arg);
-
-// utility functions
-int hp_82341_allocate_private(gpib_board_t *board);
-void hp_82341_free_private(gpib_board_t *board);
-
 static const int hp_82341_region_iosize = 0x8;
 static const int hp_82341_num_io_regions = 4;
 static const int hp_82341_fifo_size = 0xffe;
@@ -199,7 +163,3 @@ enum hp_82341d_pnp_pio_bits {
 	HP_82341D_LEGACY_MODE_BIT = 0x4,
 	HP_82341D_NOT_PROG_BIT = 0x8,	// clear to reinitialize xilinx
 };
-
-unsigned short read_and_clear_event_status(gpib_board_t *board);
-int read_transfer_counter(struct hp_82341_priv *hp_priv);
-void set_transfer_counter(struct hp_82341_priv *hp_priv, int count);

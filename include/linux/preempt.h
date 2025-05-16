@@ -319,6 +319,7 @@ do { \
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 
 struct preempt_notifier;
+struct task_struct;
 
 /**
  * preempt_ops - notifiers called when a task is preempted and rescheduled
@@ -514,6 +515,8 @@ static inline bool preempt_model_rt(void)
 {
 	return IS_ENABLED(CONFIG_PREEMPT_RT);
 }
+
+extern const char *preempt_model_str(void);
 
 /*
  * Does the preemption model allow non-cooperative preemption?

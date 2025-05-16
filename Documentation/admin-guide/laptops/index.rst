@@ -11,6 +11,7 @@ Laptop Drivers
    disk-shock-protection
    laptop-mode
    lg-laptop
+   samsung-galaxybook
    sony-laptop
    sonypi
    thinkpad-acpi

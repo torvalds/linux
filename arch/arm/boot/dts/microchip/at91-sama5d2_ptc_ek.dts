@@ -47,7 +47,7 @@
 			status = "okay";
 		};
 
-		usb1: ohci@400000 {
+		usb1: usb@400000 {
 			num-ports = <3>;
 			atmel,vbus-gpio = <0
 					   &pioA PIN_PB12 GPIO_ACTIVE_HIGH
@@ -58,7 +58,7 @@
 			status = "okay";
 		};
 
-		usb2: ehci@500000 {
+		usb2: usb@500000 {
 			status = "okay";
 		};
 

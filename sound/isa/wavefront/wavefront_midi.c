@@ -157,7 +157,7 @@ static void snd_wavefront_midi_output_write(snd_wavefront_card_t *card)
 			} else {
 				if (midi->istimer) {
 					if (--midi->istimer <= 0)
-						del_timer(&midi->timer);
+						timer_delete(&midi->timer);
 				}
 				midi->mode[midi->output_mpu] &= ~MPU401_MODE_OUTPUT_TRIGGER;
 				spin_unlock_irqrestore (&midi->virtual, flags);
@@ -212,7 +212,7 @@ static void snd_wavefront_midi_output_write(snd_wavefront_card_t *card)
 			      __timer:
 				if (midi->istimer) {
 					if (--midi->istimer <= 0)
-						del_timer(&midi->timer);
+						timer_delete(&midi->timer);
 				}
 				midi->mode[mpu] &= ~MPU401_MODE_OUTPUT_TRIGGER;
 				spin_unlock_irqrestore (&midi->virtual, flags);

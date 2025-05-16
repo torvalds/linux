@@ -23,6 +23,7 @@
 #include <linux/rtnetlink.h>
 #include <net/rtnetlink.h>
 #include <net/genetlink.h>
+#include <net/netdev_lock.h>
 #include <net/netlink.h>
 #include <net/sch_generic.h>
 #include <linux/if_team.h>
@@ -2203,7 +2204,7 @@ static void team_setup(struct net_device *dev)
 	dev->lltx = true;
 
 	/* Don't allow team devices to change network namespaces. */
-	dev->netns_local = true;
+	dev->netns_immutable = true;
 
 	dev->features |= NETIF_F_GRO;
 
@@ -2218,10 +2219,12 @@ static void team_setup(struct net_device *dev)
 	dev->features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_STAG_TX;
 }
 
-static int team_newlink(struct net *src_net, struct net_device *dev,
-			struct nlattr *tb[], struct nlattr *data[],
+static int team_newlink(struct net_device *dev,
+			struct rtnl_newlink_params *params,
 			struct netlink_ext_ack *extack)
 {
+	struct nlattr **tb = params->tb;
+
 	if (tb[IFLA_ADDRESS] == NULL)
 		eth_hw_addr_random(dev);
 

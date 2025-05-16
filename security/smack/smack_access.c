@@ -45,11 +45,13 @@ LIST_HEAD(smack_known_list);
  */
 static u32 smack_next_secid = 10;
 
+#ifdef CONFIG_AUDIT
 /*
  * what events do we log
  * can be overwritten at run-time by /smack/logging
  */
 int log_policy = SMACK_AUDIT_DENIED;
+#endif /* CONFIG_AUDIT */
 
 /**
  * smk_access_entry - look up matching access rule
@@ -242,7 +244,7 @@ int smk_tskacc(struct task_smack *tsp, struct smack_known *obj_known,
 	}
 
 	/*
-	 * Allow for priviliged to override policy.
+	 * Allow for privileged to override policy.
 	 */
 	if (rc != 0 && smack_privileged(CAP_MAC_OVERRIDE))
 		rc = 0;
@@ -276,7 +278,7 @@ int smk_curacc(struct smack_known *obj_known,
 }
 
 /**
- * smack_str_from_perm : helper to transalate an int to a
+ * smack_str_from_perm : helper to translate an int to a
  * readable string
  * @string : the string to fill
  * @access : the int

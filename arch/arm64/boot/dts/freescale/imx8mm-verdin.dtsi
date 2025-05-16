@@ -18,20 +18,6 @@
 		rtc1 = &snvs_rtc;
 	};
 
-	backlight: backlight {
-		compatible = "pwm-backlight";
-		brightness-levels = <0 45 63 88 119 158 203 255>;
-		default-brightness-level = <4>;
-		/* Verdin I2S_2_D_OUT (DSI_1_BKL_EN/DSI_1_BKL_EN_LVDS, SODIMM 46) */
-		enable-gpios = <&gpio3 24 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_i2s_2_d_out_dsi_1_bkl_en>;
-		power-supply = <&reg_3p3v>;
-		/* Verdin PWM_3_DSI/PWM_3_DSI_LVDS (SODIMM 19) */
-		pwms = <&pwm1 0 6666667 PWM_POLARITY_INVERTED>;
-		status = "disabled";
-	};
-
 	/* Fixed clock dedicated to SPI CAN controller */
 	clk40m: oscillator {
 		compatible = "fixed-clock";
@@ -63,13 +49,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pwm_3_dsi_hpd_gpio>;
 		type = "a";
-		status = "disabled";
-	};
-
-	panel_lvds: panel-lvds {
-		compatible = "panel-lvds";
-		backlight = <&backlight>;
-		data-mapping = "vesa-24";
 		status = "disabled";
 	};
 

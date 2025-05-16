@@ -50,7 +50,6 @@ struct hotplug_slot_ops {
 /**
  * struct hotplug_slot - used to register a physical slot with the hotplug pci core
  * @ops: pointer to the &struct hotplug_slot_ops to be used for this slot
- * @slot_list: internal list used to track hotplug PCI slots
  * @pci_slot: represents a physical slot
  * @owner: The module owner of this structure
  * @mod_name: The module name (KBUILD_MODNAME) of this structure
@@ -59,7 +58,6 @@ struct hotplug_slot {
 	const struct hotplug_slot_ops	*ops;
 
 	/* Variables below this are for use only by the hotplug pci core. */
-	struct list_head		slot_list;
 	struct pci_slot			*pci_slot;
 	struct module			*owner;
 	const char			*mod_name;

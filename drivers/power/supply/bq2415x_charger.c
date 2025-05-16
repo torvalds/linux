@@ -1497,7 +1497,7 @@ static int bq2415x_power_supply_init(struct bq2415x_device *bq)
 	char revstr[8];
 	struct power_supply_config psy_cfg = {
 		.drv_data = bq,
-		.of_node = bq->dev->of_node,
+		.fwnode = dev_fwnode(bq->dev),
 		.attr_grp = bq2415x_sysfs_groups,
 	};
 

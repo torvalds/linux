@@ -65,14 +65,13 @@ allOf:
 
 examples:
   - |
-    #include <dt-bindings/clock/xlnx-zynqmp-clk.h>
     soc {
       #address-cells = <2>;
       #size-cells = <2>;
 
       qspi: spi@ff0f0000 {
         compatible = "xlnx,zynqmp-qspi-1.0";
-        clocks = <&zynqmp_clk QSPI_REF>, <&zynqmp_clk LPD_LSBUS>;
+        clocks = <&zynqmp_clk 53>, <&zynqmp_clk 82>;
         clock-names = "ref_clk", "pclk";
         interrupts = <0 15 4>;
         interrupt-parent = <&gic>;

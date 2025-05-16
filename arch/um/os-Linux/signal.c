@@ -21,7 +21,7 @@
 #include <sys/ucontext.h>
 #include <timetravel.h>
 
-void (*sig_info[NSIG])(int, struct siginfo *, struct uml_pt_regs *) = {
+void (*sig_info[NSIG])(int, struct siginfo *, struct uml_pt_regs *, void *mc) = {
 	[SIGTRAP]	= relay_signal,
 	[SIGFPE]	= relay_signal,
 	[SIGILL]	= relay_signal,
@@ -47,7 +47,7 @@ static void sig_handler_common(int sig, struct siginfo *si, mcontext_t *mc)
 	if ((sig != SIGIO) && (sig != SIGWINCH))
 		unblock_signals_trace();
 
-	(*sig_info[sig])(sig, si, &r);
+	(*sig_info[sig])(sig, si, &r, mc);
 
 	errno = save_errno;
 }

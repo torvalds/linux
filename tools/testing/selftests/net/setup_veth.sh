@@ -11,7 +11,8 @@ setup_veth_ns() {
 	local -r ns_mac="$4"
 
 	[[ -e /var/run/netns/"${ns_name}" ]] || ip netns add "${ns_name}"
-	echo 1000000 > "/sys/class/net/${ns_dev}/gro_flush_timeout"
+	echo 200000 > "/sys/class/net/${ns_dev}/gro_flush_timeout"
+	echo 1 > "/sys/class/net/${ns_dev}/napi_defer_hard_irqs"
 	ip link set dev "${ns_dev}" netns "${ns_name}" mtu 65535
 	ip -netns "${ns_name}" link set dev "${ns_dev}" up
 

@@ -215,17 +215,16 @@ ethnl_set_rings_validate(struct ethnl_req_info *req_info,
 static int
 ethnl_set_rings(struct ethnl_req_info *req_info, struct genl_info *info)
 {
-	struct kernel_ethtool_ringparam kernel_ringparam = {};
-	struct ethtool_ringparam ringparam = {};
+	struct kernel_ethtool_ringparam kernel_ringparam;
 	struct net_device *dev = req_info->dev;
+	struct ethtool_ringparam ringparam;
 	struct nlattr **tb = info->attrs;
 	const struct nlattr *err_attr;
 	bool mod = false;
 	int ret;
 
-	dev->ethtool_ops->get_ringparam(dev, &ringparam,
-					&kernel_ringparam, info->extack);
-	kernel_ringparam.tcp_data_split = dev->cfg->hds_config;
+	ethtool_ringparam_get_cfg(dev, &ringparam, &kernel_ringparam,
+				  info->extack);
 
 	ethnl_update_u32(&ringparam.rx_pending, tb[ETHTOOL_A_RINGS_RX], &mod);
 	ethnl_update_u32(&ringparam.rx_mini_pending,

@@ -62,7 +62,6 @@
 #define   LE_SSE_MASK				REG_GENMASK(18, 17)
 #define   LE_SSE(value)				REG_FIELD_PREP(LE_SSE_MASK, value)
 #define   LE_COS_MASK				REG_GENMASK(16, 15)
-#define   LE_COS(value)				REG_FIELD_PREP(LE_COS_MASK)
 #define   LE_SCF_MASK				REG_BIT(14)
 #define   LE_SCF(value)				REG_FIELD_PREP(LE_SCF_MASK, value)
 #define   LE_PFM_MASK				REG_GENMASK(13, 11)
@@ -358,14 +357,18 @@
 #define   RENDER_AWAKE_STATUS			REG_BIT(1)
 #define   MEDIA_SLICE0_AWAKE_STATUS		REG_BIT(0)
 
+#define MISC_STATUS_0				XE_REG(0xa500)
+
 #define FORCEWAKE_MEDIA_VDBOX(n)		XE_REG(0xa540 + (n) * 4)
 #define FORCEWAKE_MEDIA_VEBOX(n)		XE_REG(0xa560 + (n) * 4)
 #define FORCEWAKE_GSC				XE_REG(0xa618)
 
+#define XELP_GARBCNTL				XE_REG(0xb004)
+#define   XELP_BUS_HASH_CTL_BIT_EXC		REG_BIT(7)
+
 #define XEHPC_LNCFMISCCFGREG0			XE_REG_MCR(0xb01c, XE_REG_OPTION_MASKED)
 #define   XEHPC_OVRLSCCC			REG_BIT(0)
 
-/* L3 Cache Control */
 #define LNCFCMOCS_REG_COUNT			32
 #define XELP_LNCFCMOCS(i)			XE_REG(0xb020 + (i) * 4)
 #define XEHP_LNCFCMOCS(i)			XE_REG_MCR(0xb020 + (i) * 4)
@@ -387,6 +390,18 @@
 
 #define XEHP_L3NODEARBCFG			XE_REG_MCR(0xb0b4)
 #define   XEHP_LNESPARE				REG_BIT(19)
+
+#define LSN_VC_REG2				XE_REG_MCR(0xb0c8)
+#define   LSN_LNI_WGT_MASK			REG_GENMASK(31, 28)
+#define   LSN_LNI_WGT(value)			REG_FIELD_PREP(LSN_LNI_WGT_MASK, value)
+#define   LSN_LNE_WGT_MASK			REG_GENMASK(27, 24)
+#define   LSN_LNE_WGT(value)			REG_FIELD_PREP(LSN_LNE_WGT_MASK, value)
+#define   LSN_DIM_X_WGT_MASK			REG_GENMASK(23, 20)
+#define   LSN_DIM_X_WGT(value)			REG_FIELD_PREP(LSN_DIM_X_WGT_MASK, value)
+#define   LSN_DIM_Y_WGT_MASK			REG_GENMASK(19, 16)
+#define   LSN_DIM_Y_WGT(value)			REG_FIELD_PREP(LSN_DIM_Y_WGT_MASK, value)
+#define   LSN_DIM_Z_WGT_MASK			REG_GENMASK(15, 12)
+#define   LSN_DIM_Z_WGT(value)			REG_FIELD_PREP(LSN_DIM_Z_WGT_MASK, value)
 
 #define L3SQCREG2				XE_REG_MCR(0xb104)
 #define   COMPMEMRD256BOVRFETCHEN		REG_BIT(20)
@@ -478,6 +493,7 @@
 #define TDL_TSL_CHICKEN				XE_REG_MCR(0xe4c4, XE_REG_OPTION_MASKED)
 #define   STK_ID_RESTRICT			REG_BIT(12)
 #define   SLM_WMTP_RESTORE			REG_BIT(11)
+#define   RES_CHK_SPR_DIS			REG_BIT(6)
 
 #define ROW_CHICKEN				XE_REG_MCR(0xe4f0, XE_REG_OPTION_MASKED)
 #define   UGM_BACKUP_MODE			REG_BIT(13)

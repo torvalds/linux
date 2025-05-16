@@ -431,9 +431,9 @@ static ssize_t dmi_sel_raw_read_helper(struct dmi_sysfs_entry *entry,
 	}
 }
 
-static ssize_t dmi_sel_raw_read(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *bin_attr,
-				char *buf, loff_t pos, size_t count)
+static ssize_t raw_event_log_read(struct file *filp, struct kobject *kobj,
+				  const struct bin_attribute *bin_attr,
+				  char *buf, loff_t pos, size_t count)
 {
 	struct dmi_sysfs_entry *entry = to_entry(kobj->parent);
 	struct dmi_read_state state = {
@@ -445,10 +445,7 @@ static ssize_t dmi_sel_raw_read(struct file *filp, struct kobject *kobj,
 	return find_dmi_entry(entry, dmi_sel_raw_read_helper, &state);
 }
 
-static struct bin_attribute dmi_sel_raw_attr = {
-	.attr = {.name = "raw_event_log", .mode = 0400},
-	.read = dmi_sel_raw_read,
-};
+static const BIN_ATTR_ADMIN_RO(raw_event_log, 0);
 
 static int dmi_system_event_log(struct dmi_sysfs_entry *entry)
 {
@@ -464,7 +461,7 @@ static int dmi_system_event_log(struct dmi_sysfs_entry *entry)
 	if (ret)
 		goto out_free;
 
-	ret = sysfs_create_bin_file(entry->child, &dmi_sel_raw_attr);
+	ret = sysfs_create_bin_file(entry->child, &bin_attr_raw_event_log);
 	if (ret)
 		goto out_del;
 
@@ -537,10 +534,10 @@ static ssize_t dmi_entry_raw_read_helper(struct dmi_sysfs_entry *entry,
 				       &state->pos, dh, entry_length);
 }
 
-static ssize_t dmi_entry_raw_read(struct file *filp,
-				  struct kobject *kobj,
-				  struct bin_attribute *bin_attr,
-				  char *buf, loff_t pos, size_t count)
+static ssize_t raw_read(struct file *filp,
+			struct kobject *kobj,
+			const struct bin_attribute *bin_attr,
+			char *buf, loff_t pos, size_t count)
 {
 	struct dmi_sysfs_entry *entry = to_entry(kobj);
 	struct dmi_read_state state = {
@@ -552,10 +549,7 @@ static ssize_t dmi_entry_raw_read(struct file *filp,
 	return find_dmi_entry(entry, dmi_entry_raw_read_helper, &state);
 }
 
-static const struct bin_attribute dmi_entry_raw_attr = {
-	.attr = {.name = "raw", .mode = 0400},
-	.read = dmi_entry_raw_read,
-};
+static const BIN_ATTR_ADMIN_RO(raw, 0);
 
 static void dmi_sysfs_entry_release(struct kobject *kobj)
 {
@@ -630,7 +624,7 @@ static void __init dmi_sysfs_register_handle(const struct dmi_header *dh,
 		goto out_err;
 
 	/* Create the raw binary file to access the entry */
-	*ret = sysfs_create_bin_file(&entry->kobj, &dmi_entry_raw_attr);
+	*ret = sysfs_create_bin_file(&entry->kobj, &bin_attr_raw);
 	if (*ret)
 		goto out_err;
 

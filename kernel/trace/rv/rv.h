@@ -21,6 +21,7 @@ struct rv_interface {
 #define MAX_RV_REACTOR_NAME_SIZE	32
 
 extern struct mutex rv_interface_lock;
+extern struct list_head rv_monitors_list;
 
 #ifdef CONFIG_RV_REACTORS
 struct rv_reactor_def {
@@ -34,6 +35,7 @@ struct rv_reactor_def {
 struct rv_monitor_def {
 	struct list_head	list;
 	struct rv_monitor	*monitor;
+	struct rv_monitor	*parent;
 	struct dentry		*root_d;
 #ifdef CONFIG_RV_REACTORS
 	struct rv_reactor_def	*rdef;
@@ -45,6 +47,8 @@ struct rv_monitor_def {
 struct dentry *get_monitors_root(void);
 int rv_disable_monitor(struct rv_monitor_def *mdef);
 int rv_enable_monitor(struct rv_monitor_def *mdef);
+bool rv_is_container_monitor(struct rv_monitor_def *mdef);
+bool rv_is_nested_monitor(struct rv_monitor_def *mdef);
 
 #ifdef CONFIG_RV_REACTORS
 int reactor_populate_monitor(struct rv_monitor_def *mdef);

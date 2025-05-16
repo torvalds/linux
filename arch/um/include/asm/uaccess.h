@@ -9,6 +9,7 @@
 
 #include <asm/elf.h>
 #include <linux/unaligned.h>
+#include <sysdep/faultinfo.h>
 
 #define __under_task_size(addr, size) \
 	(((unsigned long) (addr) < TASK_SIZE) && \
@@ -44,19 +45,28 @@ static inline int __access_ok(const void __user *ptr, unsigned long size)
 		 __access_ok_vsyscall(addr, size));
 }
 
-/* no pagefaults for kernel addresses in um */
 #define __get_kernel_nofault(dst, src, type, err_label)			\
 do {									\
-	*((type *)dst) = get_unaligned((type *)(src));			\
-	if (0) /* make sure the label looks used to the compiler */	\
+	int __faulted;							\
+									\
+	___backtrack_faulted(__faulted);				\
+	if (__faulted) {						\
+		*((type *)dst) = (type) 0;				\
 		goto err_label;						\
+	}								\
+	*((type *)dst) = get_unaligned((type *)(src));			\
+	current->thread.segv_continue = NULL;				\
 } while (0)
 
 #define __put_kernel_nofault(dst, src, type, err_label)			\
 do {									\
-	put_unaligned(*((type *)src), (type *)(dst));			\
-	if (0) /* make sure the label looks used to the compiler */	\
+	int __faulted;							\
+									\
+	___backtrack_faulted(__faulted);				\
+	if (__faulted)							\
 		goto err_label;						\
+	put_unaligned(*((type *)src), (type *)(dst));			\
+	current->thread.segv_continue = NULL;				\
 } while (0)
 
 #endif

@@ -44,7 +44,7 @@ struct dml2_core_ip_params core_dcn4_ip_caps_base = {
 	.dppclk_delay_scl_lb_only = 16,
 	.dppclk_delay_cnvc_formatter = 28,
 	.dppclk_delay_cnvc_cursor = 6,
-	.cursor_buffer_size = 42,
+	.cursor_buffer_size = 24,
 	.cursor_chunk_size = 2,
 	.dispclk_delay_subtotal = 125,
 	.max_inter_dcn_tile_repeaters = 8,
@@ -141,9 +141,8 @@ bool core_dcn4_initialize(struct dml2_core_initialize_in_out *in_out)
 		core->clean_me_up.mode_lib.ip.subvp_fw_processing_delay_us = core_dcn4_ip_caps_base.subvp_pstate_allow_width_us;
 		core->clean_me_up.mode_lib.ip.subvp_swath_height_margin_lines = core_dcn4_ip_caps_base.subvp_swath_height_margin_lines;
 	} else {
-			memcpy(&core->clean_me_up.mode_lib.ip, &core_dcn4_ip_caps_base, sizeof(struct dml2_core_ip_params));
+		memcpy(&core->clean_me_up.mode_lib.ip, &core_dcn4_ip_caps_base, sizeof(struct dml2_core_ip_params));
 		patch_ip_params_with_ip_caps(&core->clean_me_up.mode_lib.ip, in_out->ip_caps);
-
 		core->clean_me_up.mode_lib.ip.imall_supported = false;
 	}
 
@@ -457,10 +456,10 @@ bool core_dcn4_mode_support(struct dml2_core_mode_support_in_out *in_out)
 		in_out->mode_support_result.global.active.urgent_bw_dram_kbps = (unsigned long)math_ceil2((l->mode_support_ex_params.out_evaluation_info->urg_bandwidth_required_flip[dml2_core_internal_soc_state_sys_active][dml2_core_internal_bw_dram] * 1000), 1.0);
 		in_out->mode_support_result.global.svp_prefetch.average_bw_dram_kbps = (unsigned long)math_ceil2((l->mode_support_ex_params.out_evaluation_info->avg_bandwidth_required[dml2_core_internal_soc_state_svp_prefetch][dml2_core_internal_bw_dram] * 1000), 1.0);
 		in_out->mode_support_result.global.svp_prefetch.urgent_bw_dram_kbps = (unsigned long)math_ceil2((l->mode_support_ex_params.out_evaluation_info->urg_bandwidth_required_flip[dml2_core_internal_soc_state_svp_prefetch][dml2_core_internal_bw_dram] * 1000), 1.0);
-		dml2_printf("DML::%s: in_out->mode_support_result.global.active.urgent_bw_sdp_kbps = %ld\n", __func__, in_out->mode_support_result.global.active.urgent_bw_sdp_kbps);
-		dml2_printf("DML::%s: in_out->mode_support_result.global.svp_prefetch.urgent_bw_sdp_kbps = %ld\n", __func__, in_out->mode_support_result.global.svp_prefetch.urgent_bw_sdp_kbps);
-		dml2_printf("DML::%s: in_out->mode_support_result.global.active.urgent_bw_dram_kbps = %ld\n", __func__, in_out->mode_support_result.global.active.urgent_bw_dram_kbps);
-		dml2_printf("DML::%s: in_out->mode_support_result.global.svp_prefetch.urgent_bw_dram_kbps = %ld\n", __func__, in_out->mode_support_result.global.svp_prefetch.urgent_bw_dram_kbps);
+		DML_LOG_VERBOSE("DML::%s: in_out->mode_support_result.global.active.urgent_bw_sdp_kbps = %ld\n", __func__, in_out->mode_support_result.global.active.urgent_bw_sdp_kbps);
+		DML_LOG_VERBOSE("DML::%s: in_out->mode_support_result.global.svp_prefetch.urgent_bw_sdp_kbps = %ld\n", __func__, in_out->mode_support_result.global.svp_prefetch.urgent_bw_sdp_kbps);
+		DML_LOG_VERBOSE("DML::%s: in_out->mode_support_result.global.active.urgent_bw_dram_kbps = %ld\n", __func__, in_out->mode_support_result.global.active.urgent_bw_dram_kbps);
+		DML_LOG_VERBOSE("DML::%s: in_out->mode_support_result.global.svp_prefetch.urgent_bw_dram_kbps = %ld\n", __func__, in_out->mode_support_result.global.svp_prefetch.urgent_bw_dram_kbps);
 
 		for (i = 0; i < l->svp_expanded_display_cfg.num_planes; i++) {
 			in_out->mode_support_result.per_plane[i].dppclk_khz = (unsigned int)(core->clean_me_up.mode_lib.ms.RequiredDPPCLK[i] * 1000);
@@ -510,7 +509,7 @@ bool core_dcn4_mode_support(struct dml2_core_mode_support_in_out *in_out)
 			stream_index = l->svp_expanded_display_cfg.plane_descriptors[i].stream_index;
 
 			in_out->mode_support_result.per_stream[stream_index].dscclk_khz = (unsigned int)core->clean_me_up.mode_lib.ms.required_dscclk_freq_mhz[i] * 1000;
-			dml2_printf("CORE_DCN4::%s: i=%d stream_index=%d, in_out->mode_support_result.per_stream[stream_index].dscclk_khz = %u\n", __func__, i, stream_index, in_out->mode_support_result.per_stream[stream_index].dscclk_khz);
+			DML_LOG_VERBOSE("CORE_DCN4::%s: i=%d stream_index=%d, in_out->mode_support_result.per_stream[stream_index].dscclk_khz = %u\n", __func__, i, stream_index, in_out->mode_support_result.per_stream[stream_index].dscclk_khz);
 
 			if (!((stream_bitmask >> stream_index) & 0x1)) {
 				in_out->mode_support_result.cfg_support_info.stream_support_info[stream_index].odms_used = odm_count;

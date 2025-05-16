@@ -1248,17 +1248,15 @@ static int a5psw_probe(struct platform_device *pdev)
 	if (ret)
 		goto clk_disable;
 
-	mdio = of_get_child_by_name(dev->of_node, "mdio");
-	if (of_device_is_available(mdio)) {
+	mdio = of_get_available_child_by_name(dev->of_node, "mdio");
+	if (mdio) {
 		ret = a5psw_probe_mdio(a5psw, mdio);
+		of_node_put(mdio);
 		if (ret) {
-			of_node_put(mdio);
 			dev_err(dev, "Failed to register MDIO: %d\n", ret);
 			goto hclk_disable;
 		}
 	}
-
-	of_node_put(mdio);
 
 	ds = &a5psw->ds;
 	ds->dev = dev;

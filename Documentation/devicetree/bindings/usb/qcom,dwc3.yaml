@@ -404,6 +404,7 @@ allOf:
           minItems: 2
           maxItems: 3
         interrupt-names:
+          minItems: 2
           items:
             - const: pwr_event
             - const: qusb2_phy
@@ -425,6 +426,7 @@ allOf:
           minItems: 3
           maxItems: 4
         interrupt-names:
+          minItems: 3
           items:
             - const: pwr_event
             - const: qusb2_phy

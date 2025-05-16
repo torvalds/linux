@@ -64,7 +64,7 @@ struct linux_binprm {
 	const char *fdpath;	/* generated filename for execveat */
 	unsigned interp_flags;
 	int execfd;		/* File descriptor of the executable */
-	unsigned long loader, exec;
+	unsigned long exec;
 
 	struct rlimit rlim_stack; /* Saved RLIMIT_STACK used during exec. */
 

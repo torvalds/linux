@@ -2,6 +2,7 @@
 # perftool-testsuite_probe (exclusive)
 # SPDX-License-Identifier: GPL-2.0
 
+[ "$(id -u)" = 0 ] || exit 2
 test -d "$(dirname "$0")/base_probe" || exit 2
 cd "$(dirname "$0")/base_probe" || exit 2
 status=0

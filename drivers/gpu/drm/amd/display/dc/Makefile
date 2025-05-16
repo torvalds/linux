@@ -53,31 +53,30 @@ DC_LIBS += hdcp
 
 ifdef CONFIG_DRM_AMD_DC_FP
 DC_LIBS += sspl
-DC_SPL_TRANS += dc_spl_translate.o
+AMD_DISPLAY_FILES += $(addprefix $(AMDDALPATH)/dc/, dc_spl_translate.o)
 endif
 
 AMD_DC = $(addsuffix /Makefile, $(addprefix $(FULL_AMD_DISPLAY_PATH)/dc/,$(DC_LIBS)))
 
 include $(AMD_DC)
 
-DISPLAY_CORE = dc.o dc_stat.o dc_resource.o dc_hw_sequencer.o dc_sink.o \
-dc_surface.o dc_debug.o dc_stream.o dc_link_enc_cfg.o dc_link_exports.o dc_state.o
+FILES =
+FILES += dc_dmub_srv.o
+FILES += dc_edid_parser.o
+FILES += dc_fused_io.o
+FILES += dc_helper.o
+FILES += core/dc.o
+FILES += core/dc_debug.o
+FILES += core/dc_hw_sequencer.o
+FILES += core/dc_link_enc_cfg.o
+FILES += core/dc_link_exports.o
+FILES += core/dc_resource.o
+FILES += core/dc_sink.o
+FILES += core/dc_stat.o
+FILES += core/dc_state.o
+FILES += core/dc_stream.o
+FILES += core/dc_surface.o
+FILES += core/dc_vm_helper.o
 
-DISPLAY_CORE += dc_vm_helper.o
+AMD_DISPLAY_FILES += $(addprefix $(AMDDALPATH)/dc/, $(FILES))
 
-AMD_DISPLAY_CORE = $(addprefix $(AMDDALPATH)/dc/core/,$(DISPLAY_CORE))
-
-AMD_DM_REG_UPDATE = $(addprefix $(AMDDALPATH)/dc/,dc_helper.o)
-
-AMD_DC_SPL_TRANS = $(addprefix $(AMDDALPATH)/dc/,$(DC_SPL_TRANS))
-
-AMD_DISPLAY_FILES += $(AMD_DISPLAY_CORE)
-AMD_DISPLAY_FILES += $(AMD_DM_REG_UPDATE)
-
-DC_DMUB += dc_dmub_srv.o
-DC_EDID += dc_edid_parser.o
-AMD_DISPLAY_DMUB = $(addprefix $(AMDDALPATH)/dc/,$(DC_DMUB))
-AMD_DISPLAY_EDID = $(addprefix $(AMDDALPATH)/dc/,$(DC_EDID))
-AMD_DISPLAY_FILES += $(AMD_DISPLAY_DMUB) $(AMD_DISPLAY_EDID)
-
-AMD_DISPLAY_FILES += $(AMD_DC_SPL_TRANS)

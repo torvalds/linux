@@ -327,6 +327,7 @@ static const struct of_device_id at91_pmc_ids[] = {
 	{ .compatible = "microchip,sam9x60-pmc" },
 	{ .compatible = "microchip,sama7g5-pmc" },
 	{ .compatible = "microchip,sam9x7-pmc" },
+	{ .compatible = "microchip,sama7d65-pmc" },
 	{ /* Sentinel. */ }
 };
 

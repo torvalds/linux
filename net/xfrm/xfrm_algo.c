@@ -5,13 +5,13 @@
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  */
 
+#include <crypto/acompress.h>
 #include <crypto/aead.h>
 #include <crypto/hash.h>
 #include <crypto/skcipher.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pfkeyv2.h>
-#include <linux/crypto.h>
 #include <linux/scatterlist.h>
 #include <net/xfrm.h>
 #if IS_ENABLED(CONFIG_INET_ESP) || IS_ENABLED(CONFIG_INET6_ESP)
@@ -669,7 +669,7 @@ static const struct xfrm_algo_list xfrm_ealg_list = {
 };
 
 static const struct xfrm_algo_list xfrm_calg_list = {
-	.find = crypto_has_comp,
+	.find = crypto_has_acomp,
 	.algs = calg_list,
 	.entries = ARRAY_SIZE(calg_list),
 };
@@ -828,8 +828,7 @@ void xfrm_probe_algs(void)
 	}
 
 	for (i = 0; i < calg_entries(); i++) {
-		status = crypto_has_comp(calg_list[i].name, 0,
-					 CRYPTO_ALG_ASYNC);
+		status = crypto_has_acomp(calg_list[i].name, 0, 0);
 		if (calg_list[i].available != status)
 			calg_list[i].available = status;
 	}

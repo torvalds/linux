@@ -1,0 +1,3 @@
+[{unsigned-integer-overflow,signed-integer-overflow,implicit-signed-integer-truncation,implicit-unsigned-integer-truncation}]
+type:*
+type:size_t=sanitize

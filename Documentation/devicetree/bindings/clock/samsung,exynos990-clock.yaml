@@ -31,6 +31,7 @@ properties:
   compatible:
     enum:
       - samsung,exynos990-cmu-hsi0
+      - samsung,exynos990-cmu-peris
       - samsung,exynos990-cmu-top
 
   clocks:
@@ -78,6 +79,24 @@ allOf:
             - const: usb31drd
             - const: usbdp_debug
             - const: dpgtc
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos990-cmu-peris
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: External reference clock (26 MHz)
+            - description: CMU_PERIS BUS clock (from CMU_TOP)
+
+        clock-names:
+          items:
+            - const: oscclk
+            - const: bus
 
   - if:
       properties:

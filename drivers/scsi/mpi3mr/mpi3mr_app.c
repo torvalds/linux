@@ -12,23 +12,98 @@
 #include <uapi/scsi/scsi_bsg_mpi3mr.h>
 
 /**
- * mpi3mr_alloc_trace_buffer:	Allocate trace buffer
+ * mpi3mr_alloc_trace_buffer: Allocate segmented trace buffer
  * @mrioc: Adapter instance reference
  * @trace_size: Trace buffer size
  *
- * Allocate trace buffer
+ * Allocate either segmented memory pools or contiguous buffer
+ * based on the controller capability for the host trace
+ * buffer.
+ *
  * Return: 0 on success, non-zero on failure.
  */
 static int mpi3mr_alloc_trace_buffer(struct mpi3mr_ioc *mrioc, u32 trace_size)
 {
 	struct diag_buffer_desc *diag_buffer = &mrioc->diag_buffers[0];
+	int i, sz;
+	u64 *diag_buffer_list = NULL;
+	dma_addr_t diag_buffer_list_dma;
+	u32 seg_count;
 
-	diag_buffer->addr = dma_alloc_coherent(&mrioc->pdev->dev,
-	    trace_size, &diag_buffer->dma_addr, GFP_KERNEL);
-	if (diag_buffer->addr) {
-		dprint_init(mrioc, "trace diag buffer is allocated successfully\n");
+	if (mrioc->seg_tb_support) {
+		seg_count = (trace_size) / MPI3MR_PAGE_SIZE_4K;
+		trace_size = seg_count * MPI3MR_PAGE_SIZE_4K;
+
+		diag_buffer_list = dma_alloc_coherent(&mrioc->pdev->dev,
+				sizeof(u64) * seg_count,
+				&diag_buffer_list_dma, GFP_KERNEL);
+		if (!diag_buffer_list)
+			return -1;
+
+		mrioc->num_tb_segs = seg_count;
+
+		sz = sizeof(struct segments) * seg_count;
+		mrioc->trace_buf = kzalloc(sz, GFP_KERNEL);
+		if (!mrioc->trace_buf)
+			goto trace_buf_failed;
+
+		mrioc->trace_buf_pool = dma_pool_create("trace_buf pool",
+		    &mrioc->pdev->dev, MPI3MR_PAGE_SIZE_4K, MPI3MR_PAGE_SIZE_4K,
+		    0);
+		if (!mrioc->trace_buf_pool) {
+			ioc_err(mrioc, "trace buf pool: dma_pool_create failed\n");
+			goto trace_buf_pool_failed;
+		}
+
+		for (i = 0; i < seg_count; i++) {
+			mrioc->trace_buf[i].segment =
+			    dma_pool_zalloc(mrioc->trace_buf_pool, GFP_KERNEL,
+			    &mrioc->trace_buf[i].segment_dma);
+			diag_buffer_list[i] =
+			    (u64) mrioc->trace_buf[i].segment_dma;
+			if (!diag_buffer_list[i])
+				goto tb_seg_alloc_failed;
+		}
+
+		diag_buffer->addr =  diag_buffer_list;
+		diag_buffer->dma_addr = diag_buffer_list_dma;
+		diag_buffer->is_segmented = true;
+
+		dprint_init(mrioc, "segmented trace diag buffer\n"
+				"is allocated successfully seg_count:%d\n", seg_count);
 		return 0;
+	} else {
+		diag_buffer->addr = dma_alloc_coherent(&mrioc->pdev->dev,
+		    trace_size, &diag_buffer->dma_addr, GFP_KERNEL);
+		if (diag_buffer->addr) {
+			dprint_init(mrioc, "trace diag buffer is allocated successfully\n");
+			return 0;
+		}
+		return -1;
 	}
+
+tb_seg_alloc_failed:
+	if (mrioc->trace_buf_pool) {
+		for (i = 0; i < mrioc->num_tb_segs; i++) {
+			if (mrioc->trace_buf[i].segment) {
+				dma_pool_free(mrioc->trace_buf_pool,
+				    mrioc->trace_buf[i].segment,
+				    mrioc->trace_buf[i].segment_dma);
+				mrioc->trace_buf[i].segment = NULL;
+			}
+			mrioc->trace_buf[i].segment = NULL;
+		}
+		dma_pool_destroy(mrioc->trace_buf_pool);
+		mrioc->trace_buf_pool = NULL;
+	}
+trace_buf_pool_failed:
+	kfree(mrioc->trace_buf);
+	mrioc->trace_buf = NULL;
+trace_buf_failed:
+	if (diag_buffer_list)
+		dma_free_coherent(&mrioc->pdev->dev,
+		    sizeof(u64) * mrioc->num_tb_segs,
+		    diag_buffer_list, diag_buffer_list_dma);
 	return -1;
 }
 
@@ -100,8 +175,9 @@ retry_trace:
 			dprint_init(mrioc,
 			    "trying to allocate trace diag buffer of size = %dKB\n",
 			    trace_size / 1024);
-		if (get_order(trace_size) > MAX_PAGE_ORDER ||
+		if ((!mrioc->seg_tb_support && (get_order(trace_size) > MAX_PAGE_ORDER)) ||
 		    mpi3mr_alloc_trace_buffer(mrioc, trace_size)) {
+
 			retry = true;
 			trace_size -= trace_dec_size;
 			dprint_init(mrioc, "trace diag buffer allocation failed\n"
@@ -161,6 +237,12 @@ int mpi3mr_issue_diag_buf_post(struct mpi3mr_ioc *mrioc,
 	u8 prev_status;
 	int retval = 0;
 
+	if (diag_buffer->disabled_after_reset) {
+		dprint_bsg_err(mrioc, "%s: skipping diag buffer posting\n"
+				"as it is disabled after reset\n", __func__);
+		return -1;
+	}
+
 	memset(&diag_buf_post_req, 0, sizeof(diag_buf_post_req));
 	mutex_lock(&mrioc->init_cmds.mutex);
 	if (mrioc->init_cmds.state & MPI3MR_CMD_PENDING) {
@@ -177,8 +259,12 @@ int mpi3mr_issue_diag_buf_post(struct mpi3mr_ioc *mrioc,
 	diag_buf_post_req.address = le64_to_cpu(diag_buffer->dma_addr);
 	diag_buf_post_req.length = le32_to_cpu(diag_buffer->size);
 
-	dprint_bsg_info(mrioc, "%s: posting diag buffer type %d\n", __func__,
-	    diag_buffer->type);
+	if (diag_buffer->is_segmented)
+		diag_buf_post_req.msg_flags |= MPI3_DIAG_BUFFER_POST_MSGFLAGS_SEGMENTED;
+
+	dprint_bsg_info(mrioc, "%s: posting diag buffer type %d segmented:%d\n", __func__,
+	    diag_buffer->type, diag_buffer->is_segmented);
+
 	prev_status = diag_buffer->status;
 	diag_buffer->status = MPI3MR_HDB_BUFSTATUS_POSTED_UNPAUSED;
 	init_completion(&mrioc->init_cmds.done);
@@ -2339,6 +2425,7 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 	}
 
 	if (!mrioc->ioctl_sges_allocated) {
+		mutex_unlock(&mrioc->bsg_cmds.mutex);
 		dprint_bsg_err(mrioc, "%s: DMA memory was not allocated\n",
 			       __func__);
 		return -ENOMEM;
@@ -3061,6 +3148,29 @@ reply_queue_count_show(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR_RO(reply_queue_count);
 
 /**
+ * reply_qfull_count_show - Show reply qfull count
+ * @dev: class device
+ * @attr: Device attributes
+ * @buf: Buffer to copy
+ *
+ * Retrieves the current value of the reply_qfull_count from the mrioc structure and
+ * formats it as a string for display.
+ *
+ * Return: sysfs_emit() return
+ */
+static ssize_t
+reply_qfull_count_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct mpi3mr_ioc *mrioc = shost_priv(shost);
+
+	return sysfs_emit(buf, "%u\n", atomic_read(&mrioc->reply_qfull_count));
+}
+
+static DEVICE_ATTR_RO(reply_qfull_count);
+
+/**
  * logging_level_show - Show controller debug level
  * @dev: class device
  * @attr: Device attributes
@@ -3152,6 +3262,7 @@ static struct attribute *mpi3mr_host_attrs[] = {
 	&dev_attr_fw_queue_depth.attr,
 	&dev_attr_op_req_q_count.attr,
 	&dev_attr_reply_queue_count.attr,
+	&dev_attr_reply_qfull_count.attr,
 	&dev_attr_logging_level.attr,
 	&dev_attr_adp_state.attr,
 	NULL,

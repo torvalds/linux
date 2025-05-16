@@ -12,12 +12,14 @@
 #include <linux/tty.h>
 #include "tty.h"
 
+#define TTY_AUDIT_BUF_SIZE	4096
+
 struct tty_audit_buf {
 	struct mutex mutex;	/* Protects all data below */
 	dev_t dev;		/* The TTY which the data is from */
 	bool icanon;
 	size_t valid;
-	u8 *data;		/* Allocated size N_TTY_BUF_SIZE */
+	u8 *data;		/* Allocated size TTY_AUDIT_BUF_SIZE */
 };
 
 static struct tty_audit_buf *tty_audit_buf_ref(void)
@@ -37,7 +39,7 @@ static struct tty_audit_buf *tty_audit_buf_alloc(void)
 	if (!buf)
 		goto err;
 
-	buf->data = kmalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
+	buf->data = kmalloc(TTY_AUDIT_BUF_SIZE, GFP_KERNEL);
 	if (!buf->data)
 		goto err_buf;
 
@@ -235,14 +237,14 @@ void tty_audit_add_data(const struct tty_struct *tty, const void *data,
 	do {
 		size_t run;
 
-		run = N_TTY_BUF_SIZE - buf->valid;
+		run = TTY_AUDIT_BUF_SIZE - buf->valid;
 		if (run > size)
 			run = size;
 		memcpy(buf->data + buf->valid, data, run);
 		buf->valid += run;
 		data += run;
 		size -= run;
-		if (buf->valid == N_TTY_BUF_SIZE)
+		if (buf->valid == TTY_AUDIT_BUF_SIZE)
 			tty_audit_buf_push(buf);
 	} while (size != 0);
 	mutex_unlock(&buf->mutex);

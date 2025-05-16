@@ -22,7 +22,7 @@ static DEFINE_IDR(path_idr);
  * When operating Coresight drivers from the sysFS interface, only a single
  * path can exist from a tracer (associated to a CPU) to a sink.
  */
-static DEFINE_PER_CPU(struct list_head *, tracer_path);
+static DEFINE_PER_CPU(struct coresight_path *, tracer_path);
 
 ssize_t coresight_simple_show_pair(struct device *_dev,
 			      struct device_attribute *attr, char *buf)
@@ -53,7 +53,8 @@ ssize_t coresight_simple_show32(struct device *_dev,
 EXPORT_SYMBOL_GPL(coresight_simple_show32);
 
 static int coresight_enable_source_sysfs(struct coresight_device *csdev,
-					 enum cs_mode mode, void *data)
+					 enum cs_mode mode,
+					 struct coresight_path *path)
 {
 	int ret;
 
@@ -64,7 +65,7 @@ static int coresight_enable_source_sysfs(struct coresight_device *csdev,
 	 */
 	lockdep_assert_held(&coresight_mutex);
 	if (coresight_get_mode(csdev) != CS_MODE_SYSFS) {
-		ret = source_ops(csdev)->enable(csdev, data, mode, NULL);
+		ret = source_ops(csdev)->enable(csdev, NULL, mode, path);
 		if (ret)
 			return ret;
 	}
@@ -167,7 +168,7 @@ int coresight_enable_sysfs(struct coresight_device *csdev)
 {
 	int cpu, ret = 0;
 	struct coresight_device *sink;
-	struct list_head *path;
+	struct coresight_path *path;
 	enum coresight_dev_subtype_source subtype;
 	u32 hash;
 
@@ -209,11 +210,15 @@ int coresight_enable_sysfs(struct coresight_device *csdev)
 		goto out;
 	}
 
+	coresight_path_assign_trace_id(path, CS_MODE_SYSFS);
+	if (!IS_VALID_CS_TRACE_ID(path->trace_id))
+		goto err_path;
+
 	ret = coresight_enable_path(path, CS_MODE_SYSFS, NULL);
 	if (ret)
 		goto err_path;
 
-	ret = coresight_enable_source_sysfs(csdev, CS_MODE_SYSFS, NULL);
+	ret = coresight_enable_source_sysfs(csdev, CS_MODE_SYSFS, path);
 	if (ret)
 		goto err_source;
 
@@ -262,7 +267,7 @@ EXPORT_SYMBOL_GPL(coresight_enable_sysfs);
 void coresight_disable_sysfs(struct coresight_device *csdev)
 {
 	int cpu, ret;
-	struct list_head *path = NULL;
+	struct coresight_path *path = NULL;
 	u32 hash;
 
 	mutex_lock(&coresight_mutex);

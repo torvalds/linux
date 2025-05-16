@@ -27,6 +27,7 @@ description: |
   * https://www.analog.com/en/products/ad7388-4.html
   * https://www.analog.com/en/products/adaq4370-4.html
   * https://www.analog.com/en/products/adaq4380-4.html
+  * https://www.analog.com/en/products/adaq4381-4.html
 
 
 $ref: /schemas/spi/spi-peripheral-props.yaml#
@@ -50,6 +51,7 @@ properties:
       - adi,ad7388-4
       - adi,adaq4370-4
       - adi,adaq4380-4
+      - adi,adaq4381-4
 
   reg:
     maxItems: 1
@@ -201,6 +203,7 @@ allOf:
             - adi,ad7380-4
             - adi,adaq4370-4
             - adi,adaq4380-4
+            - adi,adaq4381-4
     then:
       properties:
         refio-supply: false
@@ -218,6 +221,7 @@ allOf:
           enum:
             - adi,adaq4370-4
             - adi,adaq4380-4
+            - adi,adaq4381-4
     then:
       required:
         - vs-p-supply

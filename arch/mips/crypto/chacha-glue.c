@@ -20,12 +20,6 @@ EXPORT_SYMBOL(chacha_crypt_arch);
 asmlinkage void hchacha_block_arch(const u32 *state, u32 *stream, int nrounds);
 EXPORT_SYMBOL(hchacha_block_arch);
 
-void chacha_init_arch(u32 *state, const u32 *key, const u8 *iv)
-{
-	chacha_init_generic(state, key, iv);
-}
-EXPORT_SYMBOL(chacha_init_arch);
-
 static int chacha_mips_stream_xor(struct skcipher_request *req,
 				  const struct chacha_ctx *ctx, const u8 *iv)
 {
@@ -35,7 +29,7 @@ static int chacha_mips_stream_xor(struct skcipher_request *req,
 
 	err = skcipher_walk_virt(&walk, req, false);
 
-	chacha_init_generic(state, ctx->key, iv);
+	chacha_init(state, ctx->key, iv);
 
 	while (walk.nbytes > 0) {
 		unsigned int nbytes = walk.nbytes;
@@ -67,7 +61,7 @@ static int xchacha_mips(struct skcipher_request *req)
 	u32 state[16];
 	u8 real_iv[16];
 
-	chacha_init_generic(state, ctx->key, req->iv);
+	chacha_init(state, ctx->key, req->iv);
 
 	hchacha_block(state, subctx.key, ctx->nrounds);
 	subctx.nrounds = ctx->nrounds;

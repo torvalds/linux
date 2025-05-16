@@ -385,6 +385,8 @@ enum perf_event_read_format {
  *
  * @sample_max_stack: Max number of frame pointers in a callchain,
  *		      should be < /proc/sys/kernel/perf_event_max_stack
+ *		      Max number of entries of branch stack
+ *		      should be < hardware limit
  */
 struct perf_event_attr {
 

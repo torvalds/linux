@@ -44,6 +44,8 @@ struct mall_stream_config {
 	 */
 	enum mall_stream_type type;
 	struct dc_stream_state *paired_stream;	// master / slave stream
+	bool subvp_limit_cursor_size; /* stream has/is using subvp limiting hw cursor support */
+	bool cursor_size_limit_subvp; /* stream is using hw cursor config preventing subvp */
 };
 
 struct dc_stream_status {
@@ -503,6 +505,11 @@ void program_cursor_position(
 	struct dc *dc,
 	struct dc_stream_state *stream);
 
+bool dc_stream_check_cursor_attributes(
+	const struct dc_stream_state *stream,
+	struct dc_state *state,
+	const struct dc_cursor_attributes *attributes);
+
 bool dc_stream_set_cursor_attributes(
 	struct dc_stream_state *stream,
 	const struct dc_cursor_attributes *attributes);
@@ -579,4 +586,8 @@ void dc_dmub_update_dirty_rect(struct dc *dc,
 			       struct dc_stream_state *stream,
 			       struct dc_surface_update *srf_updates,
 			       struct dc_state *context);
+
+bool dc_stream_is_cursor_limit_pending(struct dc *dc, struct dc_stream_state *stream);
+bool dc_stream_can_clear_cursor_limit(struct dc *dc, struct dc_stream_state *stream);
+
 #endif /* DC_STREAM_H_ */

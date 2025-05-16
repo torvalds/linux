@@ -15,18 +15,8 @@
 static inline int _soc_card_ret(struct snd_soc_card *card,
 				const char *func, int ret)
 {
-	switch (ret) {
-	case -EPROBE_DEFER:
-	case -ENOTSUPP:
-	case 0:
-		break;
-	default:
-		dev_err(card->dev,
-			"ASoC: error at %s on %s: %d\n",
-			func, card->name, ret);
-	}
-
-	return ret;
+	return snd_soc_ret(card->dev, ret,
+			   "at %s() on %s\n", func, card->name);
 }
 
 struct snd_kcontrol *snd_soc_card_get_kcontrol(struct snd_soc_card *soc_card,

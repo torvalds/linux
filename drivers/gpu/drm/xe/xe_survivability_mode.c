@@ -10,6 +10,7 @@
 #include <linux/pci.h>
 #include <linux/sysfs.h>
 
+#include "xe_configfs.h"
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_heci_gsc.h"
@@ -28,20 +29,32 @@
  * This is implemented by loading the driver with bare minimum (no drm card) to allow the firmware
  * to be flashed through mei and collect telemetry. The driver's probe flow is modified
  * such that it enters survivability mode when pcode initialization is incomplete and boot status
- * denotes a failure. The driver then  populates the survivability_mode PCI sysfs indicating
- * survivability mode and provides additional information required for debug
+ * denotes a failure.
  *
- * KMD exposes below admin-only readable sysfs in survivability mode
+ * Survivability mode can also be entered manually using the survivability mode attribute available
+ * through configfs which is beneficial in several usecases. It can be used to address scenarios
+ * where pcode does not detect failure or for validation purposes. It can also be used in
+ * In-Field-Repair (IFR) to repair a single card without impacting the other cards in a node.
  *
- * device/survivability_mode: The presence of this file indicates that the card is in survivability
- *			      mode. Also, provides additional information on why the driver entered
- *			      survivability mode.
+ * Use below command enable survivability mode manually::
  *
- *			      Capability Information - Provides boot status
- *			      Postcode Information   - Provides information about the failure
- *			      Overflow Information   - Provides history of previous failures
- *			      Auxiliary Information  - Certain failures may have information in
- *						       addition to postcode information
+ *	# echo 1 > /sys/kernel/config/xe/0000:03:00.0/survivability_mode
+ *
+ * Refer :ref:`xe_configfs` for more details on how to use configfs
+ *
+ * Survivability mode is indicated by the below admin-only readable sysfs which provides additional
+ * debug information::
+ *
+ *	/sys/bus/pci/devices/<device>/surivability_mode
+ *
+ * Capability Information:
+ *	Provides boot status
+ * Postcode Information:
+ *	Provides information about the failure
+ * Overflow Information
+ *	Provides history of previous failures
+ * Auxiliary Information
+ *	Certain failures may have information in addition to postcode information
  */
 
 static u32 aux_history_offset(u32 reg_value)
@@ -127,101 +140,132 @@ static ssize_t survivability_mode_show(struct device *dev,
 
 static DEVICE_ATTR_ADMIN_RO(survivability_mode);
 
-static void enable_survivability_mode(struct pci_dev *pdev)
+static void xe_survivability_mode_fini(void *arg)
+{
+	struct xe_device *xe = arg;
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+	struct device *dev = &pdev->dev;
+
+	xe_configfs_clear_survivability_mode(pdev);
+	sysfs_remove_file(&dev->kobj, &dev_attr_survivability_mode.attr);
+}
+
+static int enable_survivability_mode(struct pci_dev *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct xe_device *xe = pdev_to_xe_device(pdev);
 	struct xe_survivability *survivability = &xe->survivability;
 	int ret = 0;
 
-	/* set survivability mode */
-	survivability->mode = true;
-	dev_info(dev, "In Survivability Mode\n");
-
 	/* create survivability mode sysfs */
 	ret = sysfs_create_file(&dev->kobj, &dev_attr_survivability_mode.attr);
 	if (ret) {
 		dev_warn(dev, "Failed to create survivability sysfs files\n");
-		return;
+		return ret;
 	}
 
-	xe_heci_gsc_init(xe);
+	ret = devm_add_action_or_reset(xe->drm.dev,
+				       xe_survivability_mode_fini, xe);
+	if (ret)
+		return ret;
+
+	/* Make sure xe_heci_gsc_init() knows about survivability mode */
+	survivability->mode = true;
+
+	ret = xe_heci_gsc_init(xe);
+	if (ret) {
+		/*
+		 * But if it fails, device can't enter survivability
+		 * so move it back for correct error handling
+		 */
+		survivability->mode = false;
+		return ret;
+	}
 
 	xe_vsec_init(xe);
+
+	dev_err(dev, "In Survivability Mode\n");
+
+	return 0;
 }
 
 /**
- * xe_survivability_mode_enabled - check if survivability mode is enabled
+ * xe_survivability_mode_is_enabled - check if survivability mode is enabled
  * @xe: xe device instance
  *
  * Returns true if in survivability mode, false otherwise
  */
-bool xe_survivability_mode_enabled(struct xe_device *xe)
+bool xe_survivability_mode_is_enabled(struct xe_device *xe)
 {
-	struct xe_survivability *survivability = &xe->survivability;
-
-	return survivability->mode;
+	return xe->survivability.mode;
 }
 
 /**
- * xe_survivability_mode_required - checks if survivability mode is required
+ * xe_survivability_mode_is_requested - check if it's possible to enable survivability
+ *					mode that was requested by firmware or userspace
  * @xe: xe device instance
  *
- * This function reads the boot status from Pcode
+ * This function reads configfs and  boot status from Pcode.
  *
- * Return: true if boot status indicates failure, false otherwise
+ * Return: true if platform support is available and boot status indicates
+ * failure or if survivability mode is requested, false otherwise.
  */
-bool xe_survivability_mode_required(struct xe_device *xe)
+bool xe_survivability_mode_is_requested(struct xe_device *xe)
 {
 	struct xe_survivability *survivability = &xe->survivability;
 	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	u32 data;
+	bool survivability_mode;
 
-	if (!IS_DGFX(xe) || xe->info.platform < XE_BATTLEMAGE || IS_SRIOV_VF(xe))
+	if (!IS_DGFX(xe) || IS_SRIOV_VF(xe))
 		return false;
+
+	survivability_mode = xe_configfs_get_survivability_mode(pdev);
+
+	if (xe->info.platform < XE_BATTLEMAGE) {
+		if (survivability_mode) {
+			dev_err(&pdev->dev, "Survivability Mode is not supported on this card\n");
+			xe_configfs_clear_survivability_mode(pdev);
+		}
+		return false;
+	}
+
+	/* Enable survivability mode if set via configfs */
+	if (survivability_mode)
+		return true;
 
 	data = xe_mmio_read32(mmio, PCODE_SCRATCH(0));
 	survivability->boot_status = REG_FIELD_GET(BOOT_STATUS, data);
 
-	return (survivability->boot_status == NON_CRITICAL_FAILURE ||
-		survivability->boot_status == CRITICAL_FAILURE);
+	return survivability->boot_status == NON_CRITICAL_FAILURE ||
+		survivability->boot_status == CRITICAL_FAILURE;
 }
 
 /**
- * xe_survivability_mode_remove - remove survivability mode
+ * xe_survivability_mode_enable - Initialize and enable the survivability mode
  * @xe: xe device instance
  *
- * clean up sysfs entries of survivability mode
- */
-void xe_survivability_mode_remove(struct xe_device *xe)
-{
-	struct xe_survivability *survivability = &xe->survivability;
-	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
-	struct device *dev = &pdev->dev;
-
-	sysfs_remove_file(&dev->kobj, &dev_attr_survivability_mode.attr);
-	xe_heci_gsc_fini(xe);
-	kfree(survivability->info);
-	pci_set_drvdata(pdev, NULL);
-}
-
-/**
- * xe_survivability_mode_init - Initialize the survivability mode
- * @xe: xe device instance
+ * Initialize survivability information and enable survivability mode
  *
- * Initializes survivability information and enables survivability mode
+ * Return: 0 if survivability mode is enabled or not requested; negative error
+ * code otherwise.
  */
-void xe_survivability_mode_init(struct xe_device *xe)
+int xe_survivability_mode_enable(struct xe_device *xe)
 {
 	struct xe_survivability *survivability = &xe->survivability;
 	struct xe_survivability_info *info;
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 
+	if (!xe_survivability_mode_is_requested(xe))
+		return 0;
+
 	survivability->size = MAX_SCRATCH_MMIO;
 
-	info = kcalloc(survivability->size, sizeof(*info), GFP_KERNEL);
+	info = devm_kcalloc(xe->drm.dev, survivability->size, sizeof(*info),
+			    GFP_KERNEL);
 	if (!info)
-		return;
+		return -ENOMEM;
 
 	survivability->info = info;
 
@@ -230,9 +274,8 @@ void xe_survivability_mode_init(struct xe_device *xe)
 	/* Only log debug information and exit if it is a critical failure */
 	if (survivability->boot_status == CRITICAL_FAILURE) {
 		log_survivability_info(pdev);
-		kfree(survivability->info);
-		return;
+		return -ENXIO;
 	}
 
-	enable_survivability_mode(pdev);
+	return enable_survivability_mode(pdev);
 }

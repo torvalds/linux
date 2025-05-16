@@ -8,6 +8,7 @@
 
 #include "s5l8960x.dtsi"
 #include "s5l8960x-common.dtsi"
+#include "s5l8960x-opp.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {
@@ -48,4 +49,12 @@
 			linux,code = <KEY_MUTE>;
 		};
 	};
+};
+
+&dwi_bl {
+	status = "okay";
+};
+
+&framebuffer0 {
+	power-domains = <&ps_disp0 &ps_mipi_dsi>;
 };

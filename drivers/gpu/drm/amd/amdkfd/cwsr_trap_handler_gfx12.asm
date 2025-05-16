@@ -30,6 +30,7 @@
 #define CHIP_GFX12 37
 
 #define SINGLE_STEP_MISSED_WORKAROUND 1	//workaround for lost TRAP_AFTER_INST exception when SAVECTX raised
+#define HAVE_VALU_SGPR_HAZARD (ASIC_FAMILY == CHIP_GFX12)
 
 var SQ_WAVE_STATE_PRIV_BARRIER_COMPLETE_MASK	= 0x4
 var SQ_WAVE_STATE_PRIV_SCC_SHIFT		= 9
@@ -351,6 +352,7 @@ L_HAVE_VGPRS:
 	v_writelane_b32	v0, ttmp13, 0xD
 	v_writelane_b32	v0, exec_lo, 0xE
 	v_writelane_b32	v0, exec_hi, 0xF
+	valu_sgpr_hazard()
 
 	s_mov_b32	exec_lo, 0x3FFF
 	s_mov_b32	exec_hi, 0x0
@@ -417,7 +419,6 @@ L_SAVE_HWREG:
 	v_mov_b32	v0, 0x0							//Offset[31:0] from buffer resource
 	v_mov_b32	v1, 0x0							//Offset[63:32] from buffer resource
 	v_mov_b32	v2, 0x0							//Set of SGPRs for TCP store
-	s_mov_b32	m0, 0x0							//Next lane of v2 to write to
 
 	// Ensure no further changes to barrier or LDS state.
 	// STATE_PRIV.BARRIER_COMPLETE may change up to this point.
@@ -430,40 +431,41 @@ L_SAVE_HWREG:
 	s_andn2_b32	s_save_state_priv, s_save_state_priv, SQ_WAVE_STATE_PRIV_BARRIER_COMPLETE_MASK
 	s_or_b32	s_save_state_priv, s_save_state_priv, s_save_tmp
 
-	write_hwreg_to_v2(s_save_m0)
-	write_hwreg_to_v2(s_save_pc_lo)
 	s_andn2_b32	s_save_tmp, s_save_pc_hi, S_SAVE_PC_HI_FIRST_WAVE_MASK
-	write_hwreg_to_v2(s_save_tmp)
-	write_hwreg_to_v2(s_save_exec_lo)
-	write_hwreg_to_v2(s_save_exec_hi)
-	write_hwreg_to_v2(s_save_state_priv)
+	v_writelane_b32	v2, s_save_m0, 0x0
+	v_writelane_b32	v2, s_save_pc_lo, 0x1
+	v_writelane_b32	v2, s_save_tmp, 0x2
+	v_writelane_b32	v2, s_save_exec_lo, 0x3
+	v_writelane_b32	v2, s_save_exec_hi, 0x4
+	v_writelane_b32	v2, s_save_state_priv, 0x5
+	v_writelane_b32	v2, s_save_xnack_mask, 0x7
+	valu_sgpr_hazard()
 
 	s_getreg_b32	s_save_tmp, hwreg(HW_REG_WAVE_EXCP_FLAG_PRIV)
-	write_hwreg_to_v2(s_save_tmp)
+	v_writelane_b32	v2, s_save_tmp, 0x6
 
-	write_hwreg_to_v2(s_save_xnack_mask)
+	s_getreg_b32	s_save_tmp, hwreg(HW_REG_WAVE_MODE)
+	v_writelane_b32	v2, s_save_tmp, 0x8
 
-	s_getreg_b32	s_save_m0, hwreg(HW_REG_WAVE_MODE)
-	write_hwreg_to_v2(s_save_m0)
+	s_getreg_b32	s_save_tmp, hwreg(HW_REG_WAVE_SCRATCH_BASE_LO)
+	v_writelane_b32	v2, s_save_tmp, 0x9
 
-	s_getreg_b32	s_save_m0, hwreg(HW_REG_WAVE_SCRATCH_BASE_LO)
-	write_hwreg_to_v2(s_save_m0)
+	s_getreg_b32	s_save_tmp, hwreg(HW_REG_WAVE_SCRATCH_BASE_HI)
+	v_writelane_b32	v2, s_save_tmp, 0xA
 
-	s_getreg_b32	s_save_m0, hwreg(HW_REG_WAVE_SCRATCH_BASE_HI)
-	write_hwreg_to_v2(s_save_m0)
+	s_getreg_b32	s_save_tmp, hwreg(HW_REG_WAVE_EXCP_FLAG_USER)
+	v_writelane_b32	v2, s_save_tmp, 0xB
 
-	s_getreg_b32	s_save_m0, hwreg(HW_REG_WAVE_EXCP_FLAG_USER)
-	write_hwreg_to_v2(s_save_m0)
-
-	s_getreg_b32	s_save_m0, hwreg(HW_REG_WAVE_TRAP_CTRL)
-	write_hwreg_to_v2(s_save_m0)
+	s_getreg_b32	s_save_tmp, hwreg(HW_REG_WAVE_TRAP_CTRL)
+	v_writelane_b32	v2, s_save_tmp, 0xC
 
 	s_getreg_b32	s_save_tmp, hwreg(HW_REG_WAVE_STATUS)
-	write_hwreg_to_v2(s_save_tmp)
+	v_writelane_b32	v2, s_save_tmp, 0xD
 
 	s_get_barrier_state s_save_tmp, -1
 	s_wait_kmcnt (0)
-	write_hwreg_to_v2(s_save_tmp)
+	v_writelane_b32	v2, s_save_tmp, 0xE
+	valu_sgpr_hazard()
 
 	// Write HWREGs with 16 VGPR lanes. TTMPs occupy space after this.
 	s_mov_b32       exec_lo, 0xFFFF
@@ -497,10 +499,12 @@ L_SAVE_SGPR_LOOP:
 	s_movrels_b64	s12, s12						//s12 = s[12+m0], s13 = s[13+m0]
 	s_movrels_b64	s14, s14						//s14 = s[14+m0], s15 = s[15+m0]
 
-	write_16sgpr_to_v2(s0)
-
-	s_cmp_eq_u32	ttmp13, 0x20						//have 32 VGPR lanes filled?
-	s_cbranch_scc0	L_SAVE_SGPR_SKIP_TCP_STORE
+	s_cmp_eq_u32	ttmp13, 0x0
+	s_cbranch_scc0	L_WRITE_V2_SECOND_HALF
+	write_16sgpr_to_v2(s0, 0x0)
+	s_branch	L_SAVE_SGPR_SKIP_TCP_STORE
+L_WRITE_V2_SECOND_HALF:
+	write_16sgpr_to_v2(s0, 0x10)
 
 	buffer_store_dword	v2, v0, s_save_buf_rsrc0, s_save_mem_offset scope:SCOPE_SYS
 	s_add_u32	s_save_mem_offset, s_save_mem_offset, 0x80
@@ -1056,27 +1060,21 @@ L_END_PGM:
 	s_endpgm_saved
 end
 
-function write_hwreg_to_v2(s)
-	// Copy into VGPR for later TCP store.
-	v_writelane_b32	v2, s, m0
-	s_add_u32	m0, m0, 0x1
-end
-
-
-function write_16sgpr_to_v2(s)
+function write_16sgpr_to_v2(s, lane_offset)
 	// Copy into VGPR for later TCP store.
 	for var sgpr_idx = 0; sgpr_idx < 16; sgpr_idx ++
-		v_writelane_b32	v2, s[sgpr_idx], ttmp13
-		s_add_u32	ttmp13, ttmp13, 0x1
+		v_writelane_b32	v2, s[sgpr_idx], sgpr_idx + lane_offset
 	end
+	valu_sgpr_hazard()
+	s_add_u32	ttmp13, ttmp13, 0x10
 end
 
 function write_12sgpr_to_v2(s)
 	// Copy into VGPR for later TCP store.
 	for var sgpr_idx = 0; sgpr_idx < 12; sgpr_idx ++
-		v_writelane_b32	v2, s[sgpr_idx], ttmp13
-		s_add_u32	ttmp13, ttmp13, 0x1
+		v_writelane_b32	v2, s[sgpr_idx], sgpr_idx
 	end
+	valu_sgpr_hazard()
 end
 
 function read_hwreg_from_mem(s, s_rsrc, s_mem_offset)
@@ -1127,4 +1125,12 @@ end
 function get_wave_size2(s_reg)
 	s_getreg_b32	s_reg, hwreg(HW_REG_WAVE_STATUS,SQ_WAVE_STATUS_WAVE64_SHIFT,SQ_WAVE_STATUS_WAVE64_SIZE)
 	s_lshl_b32	s_reg, s_reg, S_WAVE_SIZE
+end
+
+function valu_sgpr_hazard
+#if HAVE_VALU_SGPR_HAZARD
+	for var rep = 0; rep < 8; rep ++
+		ds_nop
+	end
+#endif
 end

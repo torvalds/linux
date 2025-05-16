@@ -157,8 +157,6 @@ static const struct acpi_device_id dw_dma_acpi_id_table[] = {
 MODULE_DEVICE_TABLE(acpi, dw_dma_acpi_id_table);
 #endif
 
-#ifdef CONFIG_PM_SLEEP
-
 static int dw_suspend_late(struct device *dev)
 {
 	struct dw_dma_chip_pdata *data = dev_get_drvdata(dev);
@@ -183,10 +181,8 @@ static int dw_resume_early(struct device *dev)
 	return do_dw_dma_enable(chip);
 }
 
-#endif /* CONFIG_PM_SLEEP */
-
 static const struct dev_pm_ops dw_dev_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(dw_suspend_late, dw_resume_early)
+	LATE_SYSTEM_SLEEP_PM_OPS(dw_suspend_late, dw_resume_early)
 };
 
 static struct platform_driver dw_driver = {
@@ -195,7 +191,7 @@ static struct platform_driver dw_driver = {
 	.shutdown       = dw_shutdown,
 	.driver = {
 		.name	= DRV_NAME,
-		.pm	= &dw_dev_pm_ops,
+		.pm	= pm_sleep_ptr(&dw_dev_pm_ops),
 		.of_match_table = of_match_ptr(dw_dma_of_id_table),
 		.acpi_match_table = ACPI_PTR(dw_dma_acpi_id_table),
 	},

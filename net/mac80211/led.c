@@ -342,7 +342,7 @@ static void ieee80211_stop_tpt_led_trig(struct ieee80211_local *local)
 		return;
 
 	tpt_trig->running = false;
-	del_timer_sync(&tpt_trig->timer);
+	timer_delete_sync(&tpt_trig->timer);
 
 	led_trigger_event(&local->tpt_led, LED_OFF);
 }

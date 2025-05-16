@@ -4,5 +4,5 @@
 int main(void)
 {
 	debuginfod_client* c = debuginfod_begin();
-	return (long)c;
+	return !!c;
 }

@@ -297,7 +297,7 @@ void __init arch_init_irq(void)
 	if (WARN_ON(domain == NULL))
 		return;
 
-	irq_set_default_host(domain);
+	irq_set_default_domain(domain);
 
 	irq_set_percpu_devid(IP27_HUB_PEND0_IRQ);
 	irq_set_chained_handler_and_data(IP27_HUB_PEND0_IRQ, ip27_do_irq_mask0,

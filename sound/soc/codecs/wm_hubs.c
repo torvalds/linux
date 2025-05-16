@@ -14,6 +14,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/mfd/wm8994/registers.h>
+#include <linux/string_choices.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -674,7 +675,7 @@ void wm_hubs_update_class_w(struct snd_soc_component *component)
 	if (hubs->check_class_w_digital && !hubs->check_class_w_digital(component))
 		enable = false;
 
-	dev_vdbg(component->dev, "Class W %s\n", enable ? "enabled" : "disabled");
+	dev_vdbg(component->dev, "Class W %s\n", str_enabled_disabled(enable));
 
 	snd_soc_component_update_bits(component, WM8993_CLASS_W_0,
 			    WM8993_CP_DYN_V | WM8993_CP_DYN_FREQ, enable);

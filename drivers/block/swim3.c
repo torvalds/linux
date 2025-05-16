@@ -362,7 +362,7 @@ static void set_timeout(struct floppy_state *fs, int nticks,
 			void (*proc)(struct timer_list *t))
 {
 	if (fs->timeout_pending)
-		del_timer(&fs->timeout);
+		timer_delete(&fs->timeout);
 	fs->timeout.expires = jiffies + nticks;
 	fs->timeout.function = proc;
 	add_timer(&fs->timeout);
@@ -677,7 +677,7 @@ static irqreturn_t swim3_interrupt(int irq, void *dev_id)
 			out_8(&sw->control_bic, DO_ACTION | WRITE_SECTORS);
 			out_8(&sw->select, RELAX);
 			out_8(&sw->intr_enable, 0);
-			del_timer(&fs->timeout);
+			timer_delete(&fs->timeout);
 			fs->timeout_pending = 0;
 			if (sw->ctrack == 0xff) {
 				swim3_err("%s", "Seen sector but cyl=ff?\n");
@@ -706,7 +706,7 @@ static irqreturn_t swim3_interrupt(int irq, void *dev_id)
 			out_8(&sw->control_bic, DO_SEEK);
 			out_8(&sw->select, RELAX);
 			out_8(&sw->intr_enable, 0);
-			del_timer(&fs->timeout);
+			timer_delete(&fs->timeout);
 			fs->timeout_pending = 0;
 			if (fs->state == seeking)
 				++fs->retries;
@@ -716,7 +716,7 @@ static irqreturn_t swim3_interrupt(int irq, void *dev_id)
 		break;
 	case settling:
 		out_8(&sw->intr_enable, 0);
-		del_timer(&fs->timeout);
+		timer_delete(&fs->timeout);
 		fs->timeout_pending = 0;
 		act(fs);
 		break;
@@ -726,7 +726,7 @@ static irqreturn_t swim3_interrupt(int irq, void *dev_id)
 		out_8(&sw->intr_enable, 0);
 		out_8(&sw->control_bic, WRITE_SECTORS | DO_ACTION);
 		out_8(&sw->select, RELAX);
-		del_timer(&fs->timeout);
+		timer_delete(&fs->timeout);
 		fs->timeout_pending = 0;
 		dr = fs->dma;
 		cp = fs->dma_cmd;

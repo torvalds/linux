@@ -1493,8 +1493,7 @@ static void adc3xxx_i2c_remove(struct i2c_client *client)
 {
 	struct adc3xxx *adc3xxx = i2c_get_clientdata(client);
 
-	if (adc3xxx->mclk)
-		clk_disable_unprepare(adc3xxx->mclk);
+	clk_disable_unprepare(adc3xxx->mclk);
 	adc3xxx_free_gpio(adc3xxx);
 	snd_soc_unregister_component(&client->dev);
 }

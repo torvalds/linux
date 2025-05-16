@@ -78,7 +78,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		internal-regs@7f000000 {
+		bus@7f000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "simple-bus";

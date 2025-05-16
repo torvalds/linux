@@ -12,8 +12,6 @@ powerpc
     bootwrapper
     cpu_families
     cpu_features
-    cxl
-    cxlflash
     dawr-power9
     dexcr
     dscr

@@ -86,7 +86,7 @@ configurable through configfs before starting the controller. To avoid issues
 with excessive local memory usage for executing commands, MDTS defaults to 512
 KB and is limited to a maximum of 2 MB (arbitrary limit).
 
-Mimimum number of PCI Address Mapping Windows Required
+Minimum number of PCI Address Mapping Windows Required
 ------------------------------------------------------
 
 Most PCI endpoint controllers provide a limited number of mapping windows for

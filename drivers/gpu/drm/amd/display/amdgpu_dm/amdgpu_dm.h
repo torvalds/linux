@@ -50,7 +50,7 @@
 
 #define AMDGPU_DM_MAX_NUM_EDP 2
 
-#define AMDGPU_DMUB_NOTIFICATION_MAX 7
+#define AMDGPU_DMUB_NOTIFICATION_MAX 8
 
 #define HDMI_AMD_VENDOR_SPECIFIC_DATA_BLOCK_IEEE_REGISTRATION_ID 0x00001A
 #define AMD_VSDB_VERSION_3_FEATURECAP_REPLAYMODE 0x40
@@ -81,6 +81,7 @@ struct amdgpu_bo;
 struct dmub_srv;
 struct dc_plane_state;
 struct dmub_notification;
+struct dmub_cmd_fused_request;
 
 struct amd_vsdb_block {
 	unsigned char ieee_id[3];
@@ -151,6 +152,18 @@ struct idle_workqueue {
 	bool running;
 };
 
+#define MAX_LUMINANCE_DATA_POINTS 99
+
+/**
+ * struct amdgpu_dm_luminance_data - Custom luminance data
+ * @luminance: Luminance in percent
+ * @input_signal: Input signal in range 0-255
+ */
+struct amdgpu_dm_luminance_data {
+	u8 luminance;
+	u8 input_signal;
+} __packed;
+
 /**
  * struct amdgpu_dm_backlight_caps - Information about backlight
  *
@@ -195,6 +208,14 @@ struct amdgpu_dm_backlight_caps {
 	 * @dc_level: the default brightness if booted on DC
 	 */
 	u8 dc_level;
+	/**
+	 * @data_points: the number of custom luminance data points
+	 */
+	u8 data_points;
+	/**
+	 * @luminance_data: custom luminance data
+	 */
+	struct amdgpu_dm_luminance_data luminance_data[MAX_LUMINANCE_DATA_POINTS];
 };
 
 /**
@@ -256,6 +277,10 @@ struct hpd_rx_irq_offload_work {
 	 * @offload_wq: offload work queue that this work is queued to
 	 */
 	struct hpd_rx_irq_offload_work_queue *offload_wq;
+	/**
+	 * @adev: amdgpu_device pointer
+	 */
+	struct amdgpu_device *adev;
 };
 
 /**
@@ -613,6 +638,16 @@ struct amdgpu_display_manager {
 	 * OEM i2c bus
 	 */
 	struct amdgpu_i2c_adapter *oem_i2c;
+
+	/**
+	 * @fused_io:
+	 *
+	 * dmub fused io interface
+	 */
+	struct fused_io_sync {
+		struct completion replied;
+		char reply_data[0x40];  // Cannot include dmub_cmd here
+	} fused_io[8];
 };
 
 enum dsc_clock_force_state {
@@ -991,6 +1026,14 @@ extern const struct drm_encoder_helper_funcs amdgpu_dm_encoder_helper_funcs;
 
 int amdgpu_dm_process_dmub_aux_transfer_sync(struct dc_context *ctx, unsigned int link_index,
 					struct aux_payload *payload, enum aux_return_code_type *operation_result);
+
+bool amdgpu_dm_execute_fused_io(
+		struct amdgpu_device *dev,
+		struct dc_link *link,
+		union dmub_rb_cmd *commands,
+		uint8_t count,
+		uint32_t timeout_us
+);
 
 int amdgpu_dm_process_dmub_set_config_sync(struct dc_context *ctx, unsigned int link_index,
 					struct set_config_cmd_payload *payload, enum set_config_status *operation_result);

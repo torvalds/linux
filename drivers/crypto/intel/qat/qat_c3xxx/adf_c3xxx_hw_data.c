@@ -27,8 +27,8 @@ static struct adf_hw_device_class c3xxx_class = {
 
 static u32 get_accel_mask(struct adf_hw_device_data *self)
 {
+	u32 fuses = self->fuses[ADF_FUSECTL0];
 	u32 straps = self->straps;
-	u32 fuses = self->fuses;
 	u32 accel;
 
 	accel = ~(fuses | straps) >> ADF_C3XXX_ACCELERATORS_REG_OFFSET;
@@ -39,8 +39,8 @@ static u32 get_accel_mask(struct adf_hw_device_data *self)
 
 static u32 get_ae_mask(struct adf_hw_device_data *self)
 {
+	u32 fuses = self->fuses[ADF_FUSECTL0];
 	u32 straps = self->straps;
-	u32 fuses = self->fuses;
 	unsigned long disabled;
 	u32 ae_disable;
 	int accel;

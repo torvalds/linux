@@ -35,15 +35,6 @@ struct dma_buf_attachment;
  */
 struct dma_buf_ops {
 	/**
-	  * @cache_sgt_mapping:
-	  *
-	  * If true the framework will cache the first mapping made for each
-	  * attachment. This avoids creating mappings for attachments multiple
-	  * times.
-	  */
-	bool cache_sgt_mapping;
-
-	/**
 	 * @attach:
 	 *
 	 * This is called from dma_buf_attach() to make sure that a given
@@ -493,8 +484,6 @@ struct dma_buf_attach_ops {
  * @dmabuf: buffer for this attachment.
  * @dev: device attached to the buffer.
  * @node: list of dma_buf_attachment, protected by dma_resv lock of the dmabuf.
- * @sgt: cached mapping.
- * @dir: direction of cached mapping.
  * @peer2peer: true if the importer can handle peer resources without pages.
  * @priv: exporter specific attachment data.
  * @importer_ops: importer operations for this attachment, if provided
@@ -514,8 +503,6 @@ struct dma_buf_attachment {
 	struct dma_buf *dmabuf;
 	struct device *dev;
 	struct list_head node;
-	struct sg_table *sgt;
-	enum dma_data_direction dir;
 	bool peer2peer;
 	const struct dma_buf_attach_ops *importer_ops;
 	void *importer_priv;
@@ -581,20 +568,6 @@ static inline void get_dma_buf(struct dma_buf *dmabuf)
 static inline bool dma_buf_is_dynamic(struct dma_buf *dmabuf)
 {
 	return !!dmabuf->ops->pin;
-}
-
-/**
- * dma_buf_attachment_is_dynamic - check if a DMA-buf attachment uses dynamic
- * mappings
- * @attach: the DMA-buf attachment to check
- *
- * Returns true if a DMA-buf importer wants to call the map/unmap functions with
- * the dma_resv lock held.
- */
-static inline bool
-dma_buf_attachment_is_dynamic(struct dma_buf_attachment *attach)
-{
-	return !!attach->importer_ops;
 }
 
 struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,

@@ -12,10 +12,16 @@ its CMA name like below:
 
 The structure of the files created under that directory is as follows:
 
- - [RO] base_pfn: The base PFN (Page Frame Number) of the zone.
+ - [RO] base_pfn: The base PFN (Page Frame Number) of the CMA area.
+        This is the same as ranges/0/base_pfn.
  - [RO] count: Amount of memory in the CMA area.
  - [RO] order_per_bit: Order of pages represented by one bit.
- - [RO] bitmap: The bitmap of page states in the zone.
+ - [RO] bitmap: The bitmap of allocated pages in the area.
+        This is the same as ranges/0/base_pfn.
+ - [RO] ranges/N/base_pfn: The base PFN of contiguous range N
+        in the CMA area.
+ - [RO] ranges/N/bitmap: The bit map of allocated pages in
+        range N in the CMA area.
  - [WO] alloc: Allocate N pages from that CMA area. For example::
 
 	echo 5 > <debugfs>/cma/<cma_name>/alloc

@@ -15,59 +15,103 @@
 #include <linux/module.h>
 #include <linux/scatterlist.h>
 
-static inline void memcpy_dir(void *buf, void *sgdata, size_t nbytes, int out)
+void scatterwalk_skip(struct scatter_walk *walk, unsigned int nbytes)
 {
-	void *src = out ? buf : sgdata;
-	void *dst = out ? sgdata : buf;
+	struct scatterlist *sg = walk->sg;
 
-	memcpy(dst, src, nbytes);
-}
+	nbytes += walk->offset - sg->offset;
 
-void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
-			    size_t nbytes, int out)
-{
-	for (;;) {
-		unsigned int len_this_page = scatterwalk_pagelen(walk);
-		u8 *vaddr;
-
-		if (len_this_page > nbytes)
-			len_this_page = nbytes;
-
-		if (out != 2) {
-			vaddr = scatterwalk_map(walk);
-			memcpy_dir(buf, vaddr, len_this_page, out);
-			scatterwalk_unmap(vaddr);
-		}
-
-		scatterwalk_advance(walk, len_this_page);
-
-		if (nbytes == len_this_page)
-			break;
-
-		buf += len_this_page;
-		nbytes -= len_this_page;
-
-		scatterwalk_pagedone(walk, out & 1, 1);
+	while (nbytes > sg->length) {
+		nbytes -= sg->length;
+		sg = sg_next(sg);
 	}
+	walk->sg = sg;
+	walk->offset = sg->offset + nbytes;
 }
-EXPORT_SYMBOL_GPL(scatterwalk_copychunks);
+EXPORT_SYMBOL_GPL(scatterwalk_skip);
 
-void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
-			      unsigned int start, unsigned int nbytes, int out)
+inline void memcpy_from_scatterwalk(void *buf, struct scatter_walk *walk,
+				    unsigned int nbytes)
+{
+	do {
+		unsigned int to_copy;
+
+		to_copy = scatterwalk_next(walk, nbytes);
+		memcpy(buf, walk->addr, to_copy);
+		scatterwalk_done_src(walk, to_copy);
+		buf += to_copy;
+		nbytes -= to_copy;
+	} while (nbytes);
+}
+EXPORT_SYMBOL_GPL(memcpy_from_scatterwalk);
+
+inline void memcpy_to_scatterwalk(struct scatter_walk *walk, const void *buf,
+				  unsigned int nbytes)
+{
+	do {
+		unsigned int to_copy;
+
+		to_copy = scatterwalk_next(walk, nbytes);
+		memcpy(walk->addr, buf, to_copy);
+		scatterwalk_done_dst(walk, to_copy);
+		buf += to_copy;
+		nbytes -= to_copy;
+	} while (nbytes);
+}
+EXPORT_SYMBOL_GPL(memcpy_to_scatterwalk);
+
+void memcpy_from_sglist(void *buf, struct scatterlist *sg,
+			unsigned int start, unsigned int nbytes)
 {
 	struct scatter_walk walk;
-	struct scatterlist tmp[2];
 
-	if (!nbytes)
+	if (unlikely(nbytes == 0)) /* in case sg == NULL */
 		return;
 
-	sg = scatterwalk_ffwd(tmp, sg, start);
-
-	scatterwalk_start(&walk, sg);
-	scatterwalk_copychunks(buf, &walk, nbytes, out);
-	scatterwalk_done(&walk, out, 0);
+	scatterwalk_start_at_pos(&walk, sg, start);
+	memcpy_from_scatterwalk(buf, &walk, nbytes);
 }
-EXPORT_SYMBOL_GPL(scatterwalk_map_and_copy);
+EXPORT_SYMBOL_GPL(memcpy_from_sglist);
+
+void memcpy_to_sglist(struct scatterlist *sg, unsigned int start,
+		      const void *buf, unsigned int nbytes)
+{
+	struct scatter_walk walk;
+
+	if (unlikely(nbytes == 0)) /* in case sg == NULL */
+		return;
+
+	scatterwalk_start_at_pos(&walk, sg, start);
+	memcpy_to_scatterwalk(&walk, buf, nbytes);
+}
+EXPORT_SYMBOL_GPL(memcpy_to_sglist);
+
+void memcpy_sglist(struct scatterlist *dst, struct scatterlist *src,
+		   unsigned int nbytes)
+{
+	struct scatter_walk swalk;
+	struct scatter_walk dwalk;
+
+	if (unlikely(nbytes == 0)) /* in case sg == NULL */
+		return;
+
+	scatterwalk_start(&swalk, src);
+	scatterwalk_start(&dwalk, dst);
+
+	do {
+		unsigned int slen, dlen;
+		unsigned int len;
+
+		slen = scatterwalk_next(&swalk, nbytes);
+		dlen = scatterwalk_next(&dwalk, nbytes);
+		len = min(slen, dlen);
+		memcpy(dwalk.addr, swalk.addr, len);
+		scatterwalk_done_dst(&dwalk, len);
+		scatterwalk_done_src(&swalk, len);
+		nbytes -= len;
+	} while (nbytes);
+}
+EXPORT_SYMBOL_GPL(memcpy_sglist);
 
 struct scatterlist *scatterwalk_ffwd(struct scatterlist dst[2],
 				     struct scatterlist *src,

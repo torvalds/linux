@@ -171,7 +171,7 @@ void mthca_start_catas_poll(struct mthca_dev *dev)
 
 void mthca_stop_catas_poll(struct mthca_dev *dev)
 {
-	del_timer_sync(&dev->catas_err.timer);
+	timer_delete_sync(&dev->catas_err.timer);
 
 	if (dev->catas_err.map)
 		iounmap(dev->catas_err.map);

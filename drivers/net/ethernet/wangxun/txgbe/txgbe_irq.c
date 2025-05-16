@@ -166,6 +166,9 @@ static void txgbe_del_irq_domain(struct txgbe *txgbe)
 
 void txgbe_free_misc_irq(struct txgbe *txgbe)
 {
+	if (txgbe->wx->mac.type == wx_mac_aml)
+		return;
+
 	free_irq(txgbe->link_irq, txgbe);
 	free_irq(txgbe->misc.irq, txgbe);
 	txgbe_del_irq_domain(txgbe);
@@ -176,6 +179,9 @@ int txgbe_setup_misc_irq(struct txgbe *txgbe)
 	unsigned long flags = IRQF_ONESHOT;
 	struct wx *wx = txgbe->wx;
 	int hwirq, err;
+
+	if (wx->mac.type == wx_mac_aml)
+		goto skip_sp_irq;
 
 	txgbe->misc.nirqs = 1;
 	txgbe->misc.domain = irq_domain_add_simple(NULL, txgbe->misc.nirqs, 0,
@@ -206,6 +212,7 @@ int txgbe_setup_misc_irq(struct txgbe *txgbe)
 	if (err)
 		goto free_msic_irq;
 
+skip_sp_irq:
 	wx->misc_irq_domain = true;
 
 	return 0;

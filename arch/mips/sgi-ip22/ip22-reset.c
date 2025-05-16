@@ -98,7 +98,7 @@ static void blink_timeout(struct timer_list *unused)
 
 static void debounce(struct timer_list *unused)
 {
-	del_timer(&debounce_timer);
+	timer_delete(&debounce_timer);
 	if (sgint->istat1 & SGINT_ISTAT1_PWR) {
 		/* Interrupt still being sent. */
 		debounce_timer.expires = jiffies + (HZ / 20); /* 0.05s	*/

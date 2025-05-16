@@ -127,7 +127,7 @@ typedef enum {
   VOLTAGE_GUARDBAND_COUNT
 } GFX_GUARDBAND_e;
 
-#define SMU_METRICS_TABLE_VERSION 0xF
+#define SMU_METRICS_TABLE_VERSION 0x10
 
 // Unified metrics table for smu_v13_0_6
 typedef struct __attribute__((packed, aligned(4))) {
@@ -241,7 +241,10 @@ typedef struct __attribute__((packed, aligned(4))) {
   uint32_t PCIeOtherEndRecoveryAcc;       // The Pcie counter itself is accumulated
 
   //Total App Clock Counter
-  uint64_t GfxclkBelowHostLimitAcc[8];
+  uint64_t GfxclkBelowHostLimitPptAcc[8];
+  uint64_t GfxclkBelowHostLimitThmAcc[8];
+  uint64_t GfxclkBelowHostLimitTotalAcc[8];
+  uint64_t GfxclkLowUtilizationAcc[8];
 } MetricsTableV0_t;
 
 // Metrics table for smu_v13_0_6 APUS
@@ -455,5 +458,12 @@ typedef struct __attribute__((packed, aligned(4))) {
   uint64_t AccGfxRsmuDpm_Busy;
   uint64_t AccGfxclkBelowHostLimit;
 } VfMetricsTable_t;
+
+#pragma pack(push, 4)
+typedef struct {
+  // Telemetry
+  uint32_t InputTelemetryVoltageInmV;
+} StaticMetricsTable_t;
+#pragma pack(pop)
 
 #endif

@@ -270,7 +270,6 @@ static int stm32_sai_probe(struct platform_device *pdev)
 	return devm_of_platform_populate(&pdev->dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 /*
  * When pins are shared by two sai sub instances, pins have to be defined
  * in sai parent node. In this case, pins state is not managed by alsa fw.
@@ -305,10 +304,9 @@ static int stm32_sai_resume(struct device *dev)
 
 	return pinctrl_pm_select_default_state(dev);
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops stm32_sai_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(stm32_sai_suspend, stm32_sai_resume)
+	SYSTEM_SLEEP_PM_OPS(stm32_sai_suspend, stm32_sai_resume)
 };
 
 MODULE_DEVICE_TABLE(of, stm32_sai_ids);
@@ -317,7 +315,7 @@ static struct platform_driver stm32_sai_driver = {
 	.driver = {
 		.name = "st,stm32-sai",
 		.of_match_table = stm32_sai_ids,
-		.pm = &stm32_sai_pm_ops,
+		.pm = pm_ptr(&stm32_sai_pm_ops),
 	},
 	.probe = stm32_sai_probe,
 };

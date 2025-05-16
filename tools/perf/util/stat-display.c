@@ -929,11 +929,15 @@ static void printout(struct perf_stat_config *config, struct outstate *os,
 	}
 }
 
-static void uniquify_event_name(struct evsel *counter)
+static void evsel__uniquify_counter(struct evsel *counter)
 {
 	const char *name, *pmu_name;
 	char *new_name, *config;
 	int ret;
+
+	/* No uniquification necessary. */
+	if (!counter->needs_uniquify)
+		return;
 
 	/* The evsel was already uniquified. */
 	if (counter->uniquified_name)
@@ -941,19 +945,6 @@ static void uniquify_event_name(struct evsel *counter)
 
 	/* Avoid checking to uniquify twice. */
 	counter->uniquified_name = true;
-
-	/* The evsel has a "name=" config term or is from libpfm. */
-	if (counter->use_config_name || counter->is_libpfm_event)
-		return;
-
-	/* Legacy no PMU event, don't uniquify. */
-	if  (!counter->pmu ||
-	     (counter->pmu->type < PERF_TYPE_MAX && counter->pmu->type != PERF_TYPE_RAW))
-		return;
-
-	/* A sysfs or json event replacing a legacy event, don't uniquify. */
-	if (counter->pmu->is_core && counter->alternate_hw_config != PERF_COUNT_HW_MAX)
-		return;
 
 	name = evsel__name(counter);
 	pmu_name = counter->pmu->name;
@@ -991,17 +982,6 @@ static void uniquify_event_name(struct evsel *counter)
 		/* ENOMEM from asprintf. */
 		counter->uniquified_name = false;
 	}
-}
-
-static bool hybrid_uniquify(struct evsel *evsel, struct perf_stat_config *config)
-{
-	return evsel__is_hybrid(evsel) && !config->hybrid_merge;
-}
-
-static void uniquify_counter(struct perf_stat_config *config, struct evsel *counter)
-{
-	if (config->aggr_mode == AGGR_NONE || hybrid_uniquify(counter, config))
-		uniquify_event_name(counter);
 }
 
 /**
@@ -1089,7 +1069,7 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 	if (counter->merged_stat)
 		return;
 
-	uniquify_counter(config, counter);
+	evsel__uniquify_counter(counter);
 
 	val = aggr->counts.val;
 	ena = aggr->counts.ena;
@@ -1670,7 +1650,8 @@ static void print_cgroup_counter(struct perf_stat_config *config, struct evlist 
 		print_metric_end(config, os);
 }
 
-static void disable_uniquify(struct evlist *evlist)
+/* Should uniquify be disabled for the evlist? */
+static bool evlist__disable_uniquify(const struct evlist *evlist)
 {
 	struct evsel *counter;
 	struct perf_pmu *last_pmu = NULL;
@@ -1679,20 +1660,84 @@ static void disable_uniquify(struct evlist *evlist)
 	evlist__for_each_entry(evlist, counter) {
 		/* If PMUs vary then uniquify can be useful. */
 		if (!first && counter->pmu != last_pmu)
-			return;
+			return false;
 		first = false;
 		if (counter->pmu) {
 			/* Allow uniquify for uncore PMUs. */
 			if (!counter->pmu->is_core)
-				return;
+				return false;
 			/* Keep hybrid event names uniquified for clarity. */
 			if (perf_pmus__num_core_pmus() > 1)
-				return;
+				return false;
 		}
 	}
-	evlist__for_each_entry_continue(evlist, counter) {
-		counter->uniquified_name = true;
+	return true;
+}
+
+static void evsel__set_needs_uniquify(struct evsel *counter, const struct perf_stat_config *config)
+{
+	struct evsel *evsel;
+
+	if (counter->merged_stat) {
+		/* Counter won't be shown. */
+		return;
 	}
+
+	if (counter->use_config_name || counter->is_libpfm_event) {
+		/* Original name will be used. */
+		return;
+	}
+
+	if (!config->hybrid_merge && evsel__is_hybrid(counter)) {
+		/* Unique hybrid counters necessary. */
+		counter->needs_uniquify = true;
+		return;
+	}
+
+	if  (counter->core.attr.type < PERF_TYPE_MAX && counter->core.attr.type != PERF_TYPE_RAW) {
+		/* Legacy event, don't uniquify. */
+		return;
+	}
+
+	if (counter->pmu && counter->pmu->is_core &&
+	    counter->alternate_hw_config != PERF_COUNT_HW_MAX) {
+		/* A sysfs or json event replacing a legacy event, don't uniquify. */
+		return;
+	}
+
+	if (config->aggr_mode == AGGR_NONE) {
+		/* Always unique with no aggregation. */
+		counter->needs_uniquify = true;
+		return;
+	}
+
+	/*
+	 * Do other non-merged events in the evlist have the same name? If so
+	 * uniquify is necessary.
+	 */
+	evlist__for_each_entry(counter->evlist, evsel) {
+		if (evsel == counter || evsel->merged_stat)
+			continue;
+
+		if (evsel__name_is(counter, evsel__name(evsel))) {
+			counter->needs_uniquify = true;
+			return;
+		}
+	}
+}
+
+static void evlist__set_needs_uniquify(struct evlist *evlist, const struct perf_stat_config *config)
+{
+	struct evsel *counter;
+
+	if (evlist__disable_uniquify(evlist)) {
+		evlist__for_each_entry(evlist, counter)
+			counter->uniquified_name = true;
+		return;
+	}
+
+	evlist__for_each_entry(evlist, counter)
+		evsel__set_needs_uniquify(counter, config);
 }
 
 void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *config,
@@ -1706,7 +1751,7 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 		.first = true,
 	};
 
-	disable_uniquify(evlist);
+	evlist__set_needs_uniquify(evlist, config);
 
 	if (config->iostat_run)
 		evlist->selected = evlist__first(evlist);

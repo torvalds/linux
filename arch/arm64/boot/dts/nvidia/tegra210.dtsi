@@ -874,6 +874,16 @@
 				pins = "sdmmc3";
 				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
 			};
+
+			gpio_1v8: gpio-1v8 {
+				pins = "gpio";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
+			};
+
+			gpio_3v3: gpio-3v3 {
+				pins = "gpio";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
+			};
 		};
 
 		powergates {

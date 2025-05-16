@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 # Put here option for CPU selection and depending optimization
 choice
-	prompt "Processor family"
-	default M686 if X86_32
-	default GENERIC_CPU if X86_64
+	prompt "x86-32 Processor family"
+	depends on X86_32
+	default M686
 	help
 	  This is the processor type of your CPU. This information is
 	  used for optimizing purposes. In order to compile a kernel
@@ -31,7 +31,6 @@ choice
 	  - "Pentium-4" for the Intel Pentium 4 or P4-based Celeron.
 	  - "K6" for the AMD K6, K6-II and K6-III (aka K6-3D).
 	  - "Athlon" for the AMD K7 family (Athlon/Duron/Thunderbird).
-	  - "Opteron/Athlon64/Hammer/K8" for all K8 and newer AMD CPUs.
 	  - "Crusoe" for the Transmeta Crusoe series.
 	  - "Efficeon" for the Transmeta Efficeon series.
 	  - "Winchip-C6" for original IDT Winchip.
@@ -42,13 +41,10 @@ choice
 	  - "CyrixIII/VIA C3" for VIA Cyrix III or VIA C3.
 	  - "VIA C3-2" for VIA C3-2 "Nehemiah" (model 9 and above).
 	  - "VIA C7" for VIA C7.
-	  - "Intel P4" for the Pentium 4/Netburst microarchitecture.
-	  - "Core 2/newer Xeon" for all core2 and newer Intel CPUs.
 	  - "Intel Atom" for the Atom-microarchitecture CPUs.
-	  - "Generic-x86-64" for a kernel which runs on any x86-64 CPU.
 
 	  See each option's help text for additional details. If you don't know
-	  what to do, choose "486".
+	  what to do, choose "Pentium-Pro".
 
 config M486SX
 	bool "486SX"
@@ -114,11 +110,11 @@ config MPENTIUMIII
 	  extensions.
 
 config MPENTIUMM
-	bool "Pentium M"
+	bool "Pentium M/Pentium Dual Core/Core Solo/Core Duo"
 	depends on X86_32
 	help
 	  Select this for Intel Pentium M (not Pentium-4 M)
-	  notebook chips.
+	  "Merom" Core Solo/Duo notebook chips
 
 config MPENTIUM4
 	bool "Pentium-4/Celeron(P4-based)/Pentium-4 M/older Xeon"
@@ -139,22 +135,10 @@ config MPENTIUM4
 		-Mobile Pentium 4
 		-Mobile Pentium 4 M
 		-Extreme Edition (Gallatin)
-		-Prescott
-		-Prescott 2M
-		-Cedar Mill
-		-Presler
-		-Smithfiled
 	    Xeons (Intel Xeon, Xeon MP, Xeon LV, Xeon MV) corename:
 		-Foster
 		-Prestonia
 		-Gallatin
-		-Nocona
-		-Irwindale
-		-Cranford
-		-Potomac
-		-Paxville
-		-Dempsey
-
 
 config MK6
 	bool "K6/K6-II/K6-III"
@@ -171,13 +155,6 @@ config MK7
 	  Select this for an AMD Athlon K7-family processor.  Enables use of
 	  some extended instructions, and passes appropriate optimization
 	  flags to GCC.
-
-config MK8
-	bool "Opteron/Athlon64/Hammer/K8"
-	help
-	  Select this for an AMD Opteron or Athlon64 Hammer-family processor.
-	  Enables use of some extended instructions, and passes appropriate
-	  optimization flags to GCC.
 
 config MCRUSOE
 	bool "Crusoe"
@@ -258,41 +235,13 @@ config MVIAC7
 	  Select this for a VIA C7.  Selecting this uses the correct cache
 	  shift and tells gcc to treat the CPU as a 686.
 
-config MPSC
-	bool "Intel P4 / older Netburst based Xeon"
-	depends on X86_64
-	help
-	  Optimize for Intel Pentium 4, Pentium D and older Nocona/Dempsey
-	  Xeon CPUs with Intel 64bit which is compatible with x86-64.
-	  Note that the latest Xeons (Xeon 51xx and 53xx) are not based on the
-	  Netburst core and shouldn't use this option. You can distinguish them
-	  using the cpu family field
-	  in /proc/cpuinfo. Family 15 is an older Xeon, Family 6 a newer one.
-
-config MCORE2
-	bool "Core 2/newer Xeon"
-	help
-
-	  Select this for Intel Core 2 and newer Core 2 Xeons (Xeon 51xx and
-	  53xx) CPUs. You can distinguish newer from older Xeons by the CPU
-	  family in /proc/cpuinfo. Newer ones have 6 and older ones 15
-	  (not a typo)
-
 config MATOM
 	bool "Intel Atom"
 	help
-
 	  Select this for the Intel Atom platform. Intel Atom CPUs have an
 	  in-order pipelining architecture and thus can benefit from
 	  accordingly optimized code. Use a recent GCC with specific Atom
 	  support in order to fully benefit from selecting this option.
-
-config GENERIC_CPU
-	bool "Generic-x86-64"
-	depends on X86_64
-	help
-	  Generic x86-64 CPU.
-	  Run equally well on all x86-64 CPUs.
 
 endchoice
 
@@ -317,8 +266,8 @@ config X86_INTERNODE_CACHE_SHIFT
 
 config X86_L1_CACHE_SHIFT
 	int
-	default "7" if MPENTIUM4 || MPSC
-	default "6" if MK7 || MK8 || MPENTIUMM || MCORE2 || MATOM || MVIAC7 || X86_GENERIC || GENERIC_CPU
+	default "7" if MPENTIUM4
+	default "6" if MK7 || MPENTIUMM || MATOM || MVIAC7 || X86_GENERIC || X86_64
 	default "4" if MELAN || M486SX || M486 || MGEODEGX1
 	default "5" if MWINCHIP3D || MWINCHIPC6 || MCRUSOE || MEFFICEON || MCYRIXIII || MK6 || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || M586 || MVIAC3_2 || MGEODE_LX
 
@@ -336,51 +285,35 @@ config X86_ALIGNMENT_16
 
 config X86_INTEL_USERCOPY
 	def_bool y
-	depends on MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M586MMX || X86_GENERIC || MK8 || MK7 || MEFFICEON || MCORE2
+	depends on MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M586MMX || X86_GENERIC || MK7 || MEFFICEON
 
 config X86_USE_PPRO_CHECKSUM
 	def_bool y
-	depends on MWINCHIP3D || MWINCHIPC6 || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MK8 || MVIAC3_2 || MVIAC7 || MEFFICEON || MGEODE_LX || MCORE2 || MATOM
-
-#
-# P6_NOPs are a relatively minor optimization that require a family >=
-# 6 processor, except that it is broken on certain VIA chips.
-# Furthermore, AMD chips prefer a totally different sequence of NOPs
-# (which work on all CPUs).  In addition, it looks like Virtual PC
-# does not understand them.
-#
-# As a result, disallow these if we're not compiling for X86_64 (these
-# NOPs do work on all x86-64 capable chips); the list of processors in
-# the right-hand clause are the cores that benefit from this optimization.
-#
-config X86_P6_NOP
-	def_bool y
-	depends on X86_64
-	depends on (MCORE2 || MPENTIUM4 || MPSC)
+	depends on MWINCHIP3D || MWINCHIPC6 || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MVIAC3_2 || MVIAC7 || MEFFICEON || MGEODE_LX || MATOM
 
 config X86_TSC
 	def_bool y
-	depends on (MWINCHIP3D || MCRUSOE || MEFFICEON || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || MK8 || MVIAC3_2 || MVIAC7 || MGEODEGX1 || MGEODE_LX || MCORE2 || MATOM) || X86_64
+	depends on (MWINCHIP3D || MCRUSOE || MEFFICEON || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || MVIAC3_2 || MVIAC7 || MGEODEGX1 || MGEODE_LX || MATOM) || X86_64
 
 config X86_HAVE_PAE
 	def_bool y
-	depends on MCRUSOE || MEFFICEON || MCYRIXIII || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MK8 || MVIAC7 || MCORE2 || MATOM || X86_64
+	depends on MCRUSOE || MEFFICEON || MCYRIXIII || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MVIAC7 || MATOM || X86_64
 
-config X86_CMPXCHG64
+config X86_CX8
 	def_bool y
-	depends on X86_HAVE_PAE || M586TSC || M586MMX || MK6 || MK7
+	depends on X86_HAVE_PAE || M586TSC || M586MMX || MK6 || MK7 || MGEODEGX1 || MGEODE_LX
 
 # this should be set for all -march=.. options where the compiler
 # generates cmov.
 config X86_CMOV
 	def_bool y
-	depends on (MK8 || MK7 || MCORE2 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MVIAC3_2 || MVIAC7 || MCRUSOE || MEFFICEON || X86_64 || MATOM || MGEODE_LX)
+	depends on (MK7 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MVIAC3_2 || MVIAC7 || MCRUSOE || MEFFICEON || MATOM || MGEODE_LX || X86_64)
 
 config X86_MINIMUM_CPU_FAMILY
 	int
 	default "64" if X86_64
-	default "6" if X86_32 && (MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MVIAC3_2 || MVIAC7 || MEFFICEON || MATOM || MCORE2 || MK7 || MK8)
-	default "5" if X86_32 && X86_CMPXCHG64
+	default "6" if X86_32 && (MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MVIAC3_2 || MVIAC7 || MEFFICEON || MATOM || MK7)
+	default "5" if X86_32 && X86_CX8
 	default "4"
 
 config X86_DEBUGCTLMSR
@@ -400,6 +333,10 @@ menuconfig PROCESSOR_SELECT
 	help
 	  This lets you choose what x86 vendor support code your kernel
 	  will include.
+
+config BROADCAST_TLB_FLUSH
+	def_bool y
+	depends on CPU_SUP_AMD && 64BIT
 
 config CPU_SUP_INTEL
 	default y

@@ -184,7 +184,7 @@ static int ads124s_reset(struct iio_dev *indio_dev)
 
 	if (priv->reset_gpio) {
 		gpiod_set_value_cansleep(priv->reset_gpio, 0);
-		udelay(200);
+		fsleep(200);
 		gpiod_set_value_cansleep(priv->reset_gpio, 1);
 	} else {
 		return ads124s_write_cmd(indio_dev, ADS124S08_CMD_RESET);

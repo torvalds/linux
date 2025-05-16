@@ -2922,9 +2922,7 @@ static long ibmvscsis_alloctimer(struct scsi_info *vscsi)
 	struct timer_cb *p_timer;
 
 	p_timer = &vscsi->rsp_q_timer;
-	hrtimer_init(&p_timer->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-
-	p_timer->timer.function = ibmvscsis_service_wait_q;
+	hrtimer_setup(&p_timer->timer, ibmvscsis_service_wait_q, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	p_timer->started = false;
 	p_timer->timer_pops = 0;
 

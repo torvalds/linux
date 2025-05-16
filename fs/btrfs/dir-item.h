@@ -10,6 +10,7 @@ struct fscrypt_str;
 struct btrfs_fs_info;
 struct btrfs_key;
 struct btrfs_path;
+struct btrfs_inode;
 struct btrfs_root;
 struct btrfs_trans_handle;
 

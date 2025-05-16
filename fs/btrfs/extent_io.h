@@ -252,8 +252,6 @@ void clear_folio_extent_mapped(struct folio *folio);
 
 struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 					  u64 start, u64 owner_root, int level);
-struct extent_buffer *__alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
-						  u64 start, unsigned long len);
 struct extent_buffer *alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
 						u64 start);
 struct extent_buffer *btrfs_clone_extent_buffer(const struct extent_buffer *src);
@@ -276,7 +274,8 @@ void btrfs_readahead_tree_block(struct btrfs_fs_info *fs_info,
 				u64 bytenr, u64 owner_root, u64 gen, int level);
 void btrfs_readahead_node_child(struct extent_buffer *node, int slot);
 
-static inline int num_extent_pages(const struct extent_buffer *eb)
+/* Note: this can be used in for loops without caching the value in a variable. */
+static inline int __pure num_extent_pages(const struct extent_buffer *eb)
 {
 	/*
 	 * For sectorsize == PAGE_SIZE case, since nodesize is always aligned to
@@ -294,8 +293,10 @@ static inline int num_extent_pages(const struct extent_buffer *eb)
  * As we can have either one large folio covering the whole eb
  * (either nodesize <= PAGE_SIZE, or high order folio), or multiple
  * single-paged folios.
+ *
+ * Note: this can be used in for loops without caching the value in a variable.
  */
-static inline int num_extent_folios(const struct extent_buffer *eb)
+static inline int __pure num_extent_folios(const struct extent_buffer *eb)
 {
 	if (folio_order(eb->folios[0]))
 		return 1;

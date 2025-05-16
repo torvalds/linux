@@ -130,10 +130,13 @@ properties:
           - const: giantec,gt24c32a
           - const: atmel,24c32
       - items:
-          - const: onnn,n24s64b
+          - enum:
+              - onnn,n24s64b
+              - puya,p24c64f
           - const: atmel,24c64
       - items:
           - enum:
+              - giantec,gt24p128e
               - giantec,gt24p128f
               - renesas,r1ex24128
               - samsung,s524ad0xd1

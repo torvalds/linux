@@ -14,8 +14,12 @@ allOf:
 
 properties:
   compatible:
-    const: fsl,imx27-nand
-
+    oneOf:
+      - const: fsl,imx27-nand
+      - items:
+          - enum:
+              - fsl,imx31-nand
+          - const: fsl,imx27-nand
   reg:
     maxItems: 1
 

@@ -930,7 +930,7 @@ static void do_act_establish(struct cxgbi_device *cdev, struct sk_buff *skb)
 			csk, csk->state, csk->flags, csk->tid);
 
 	if (csk->retry_timer.function) {
-		del_timer(&csk->retry_timer);
+		timer_delete(&csk->retry_timer);
 		csk->retry_timer.function = NULL;
 	}
 

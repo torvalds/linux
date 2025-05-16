@@ -24,7 +24,7 @@
 	x(check_topology,			 4, 0)					\
 	x(accounting_read,			39, PASS_ALWAYS)			\
 	x(alloc_read,				 0, PASS_ALWAYS)			\
-	x(stripes_read,				 1, PASS_ALWAYS)			\
+	x(stripes_read,				 1, 0)					\
 	x(initialize_subvolumes,		 2, 0)					\
 	x(snapshots_read,			 3, PASS_ALWAYS)			\
 	x(check_allocations,			 5, PASS_FSCK)				\

@@ -157,6 +157,11 @@ enabled driver and mode options. The value in the file is a bit mask where the
 bit definitions are the same as those used with MTSETDRVBUFFER in setting the
 options.
 
+Each directory contains the entry 'position_lost_in_reset'. If this value is
+one, reading and writing to the device is blocked after device reset. Most
+devices rewind the tape after reset and the writes/read don't access the
+tape position the user expects.
+
 A link named 'tape' is made from the SCSI device directory to the class
 directory corresponding to the mode 0 auto-rewind device (e.g., st0).
 

@@ -43,6 +43,8 @@
 #endif
 #endif
 
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 #include "nolibc-test-linkage.h"
 
 /* for the type of int_fast16_t and int_fast32_t, musl differs from glibc and nolibc */
@@ -690,14 +692,14 @@ int expect_strtox(int llen, void *func, const char *input, int base, intmax_t ex
 __attribute__((constructor))
 static void constructor1(void)
 {
-	constructor_test_value = 1;
+	constructor_test_value |= 1 << 0;
 }
 
 __attribute__((constructor))
 static void constructor2(int argc, char **argv, char **envp)
 {
 	if (argc && argv && envp)
-		constructor_test_value *= 2;
+		constructor_test_value |= 1 << 1;
 }
 
 int run_startup(int min, int max)
@@ -736,9 +738,9 @@ int run_startup(int min, int max)
 		CASE_TEST(environ_HOME);     EXPECT_PTRNZ(1, getenv("HOME")); break;
 		CASE_TEST(auxv_addr);        EXPECT_PTRGT(test_auxv != (void *)-1, test_auxv, brk); break;
 		CASE_TEST(auxv_AT_UID);      EXPECT_EQ(1, getauxval(AT_UID), getuid()); break;
-		CASE_TEST(constructor);      EXPECT_EQ(1, constructor_test_value, 2); break;
+		CASE_TEST(constructor);      EXPECT_EQ(is_nolibc, constructor_test_value, 0x3); break;
 		CASE_TEST(linkage_errno);    EXPECT_PTREQ(1, linkage_test_errno_addr(), &errno); break;
-		CASE_TEST(linkage_constr);   EXPECT_EQ(1, linkage_test_constructor_test_value, 6); break;
+		CASE_TEST(linkage_constr);   EXPECT_EQ(1, linkage_test_constructor_test_value, 0x3); break;
 		case __LINE__:
 			return ret; /* must be last */
 		/* note: do not set any defaults so as to permit holes above */
@@ -765,6 +767,44 @@ int test_getdents64(const char *dir)
 
 	errno = err;
 	return ret;
+}
+
+static int test_dirent(void)
+{
+	int comm = 0, cmdline = 0;
+	struct dirent dirent, *result;
+	DIR *dir;
+	int ret;
+
+	dir = opendir("/proc/self");
+	if (!dir)
+		return 1;
+
+	while (1) {
+		errno = 0;
+		ret = readdir_r(dir, &dirent, &result);
+		if (ret != 0)
+			return 1;
+		if (!result)
+			break;
+
+		if (strcmp(dirent.d_name, "comm") == 0)
+			comm++;
+		else if (strcmp(dirent.d_name, "cmdline") == 0)
+			cmdline++;
+	}
+
+	if (errno)
+		return 1;
+
+	ret = closedir(dir);
+	if (ret)
+		return 1;
+
+	if (comm != 1 || cmdline != 1)
+		return 1;
+
+	return 0;
 }
 
 int test_getpagesize(void)
@@ -988,6 +1028,22 @@ int test_rlimit(void)
 	return 0;
 }
 
+int test_openat(void)
+{
+	int dev, null;
+
+	dev = openat(AT_FDCWD, "/dev", O_DIRECTORY);
+	if (dev < 0)
+		return -1;
+
+	null = openat(dev, "null", O_RDONLY);
+	close(dev);
+	if (null < 0)
+		return -1;
+
+	close(null);
+	return 0;
+}
 
 /* Run syscall tests between IDs <min> and <max>.
  * Return 0 on success, non-zero on failure.
@@ -1059,6 +1115,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(fork);              EXPECT_SYSZR(1, test_fork()); break;
 		CASE_TEST(getdents64_root);   EXPECT_SYSNE(1, test_getdents64("/"), -1); break;
 		CASE_TEST(getdents64_null);   EXPECT_SYSER(1, test_getdents64("/dev/null"), -1, ENOTDIR); break;
+		CASE_TEST(directories);       EXPECT_SYSZR(proc, test_dirent()); break;
 		CASE_TEST(gettimeofday_tv);   EXPECT_SYSZR(1, gettimeofday(&tv, NULL)); break;
 		CASE_TEST(gettimeofday_tv_tz);EXPECT_SYSZR(1, gettimeofday(&tv, &tz)); break;
 		CASE_TEST(getpagesize);       EXPECT_SYSZR(1, test_getpagesize()); break;
@@ -1073,8 +1130,9 @@ int run_syscall(int min, int max)
 		CASE_TEST(mmap_bad);          EXPECT_PTRER(1, mmap(NULL, 0, PROT_READ, MAP_PRIVATE, 0, 0), MAP_FAILED, EINVAL); break;
 		CASE_TEST(munmap_bad);        EXPECT_SYSER(1, munmap(NULL, 0), -1, EINVAL); break;
 		CASE_TEST(mmap_munmap_good);  EXPECT_SYSZR(1, test_mmap_munmap()); break;
-		CASE_TEST(open_tty);          EXPECT_SYSNE(1, tmp = open("/dev/null", 0), -1); if (tmp != -1) close(tmp); break;
-		CASE_TEST(open_blah);         EXPECT_SYSER(1, tmp = open("/proc/self/blah", 0), -1, ENOENT); if (tmp != -1) close(tmp); break;
+		CASE_TEST(open_tty);          EXPECT_SYSNE(1, tmp = open("/dev/null", O_RDONLY), -1); if (tmp != -1) close(tmp); break;
+		CASE_TEST(open_blah);         EXPECT_SYSER(1, tmp = open("/proc/self/blah", O_RDONLY), -1, ENOENT); if (tmp != -1) close(tmp); break;
+		CASE_TEST(openat_dir);        EXPECT_SYSZR(1, test_openat()); break;
 		CASE_TEST(pipe);              EXPECT_SYSZR(1, test_pipe()); break;
 		CASE_TEST(poll_null);         EXPECT_SYSZR(1, poll(NULL, 0, 0)); break;
 		CASE_TEST(poll_stdout);       EXPECT_SYSNE(1, ({ struct pollfd fds = { 1, POLLOUT, 0}; poll(&fds, 1, 0); }), -1); break;
@@ -1284,6 +1342,73 @@ static int expect_vfprintf(int llen, int c, const char *expected, const char *fm
 	return ret;
 }
 
+static int test_scanf(void)
+{
+	unsigned long long ull;
+	unsigned long ul;
+	unsigned int u;
+	long long ll;
+	long l;
+	void *p;
+	int i;
+
+	/* return __LINE__ to point to the specific failure */
+
+	/* test EOF */
+	if (sscanf("", "foo") != EOF)
+		return __LINE__;
+
+	/* test simple literal without placeholder */
+	if (sscanf("foo", "foo") != 0)
+		return __LINE__;
+
+	/* test single placeholder */
+	if (sscanf("123", "%d", &i) != 1)
+		return __LINE__;
+
+	if (i != 123)
+		return __LINE__;
+
+	/* test multiple place holders and separators */
+	if (sscanf("a123b456c0x90", "a%db%uc%p", &i, &u, &p) != 3)
+		return __LINE__;
+
+	if (i != 123)
+		return __LINE__;
+
+	if (u != 456)
+		return __LINE__;
+
+	if (p != (void *)0x90)
+		return __LINE__;
+
+	/* test space handling */
+	if (sscanf("a    b1", "a b%d", &i) != 1)
+		return __LINE__;
+
+	if (i != 1)
+		return __LINE__;
+
+	/* test literal percent */
+	if (sscanf("a%1", "a%%%d", &i) != 1)
+		return __LINE__;
+
+	if (i != 1)
+		return __LINE__;
+
+	/* test stdint.h types */
+	if (sscanf("1|2|3|4|5|6",
+		   "%d|%ld|%lld|%u|%lu|%llu",
+		   &i, &l, &ll, &u, &ul, &ull) != 6)
+		return __LINE__;
+
+	if (i != 1 || l != 2 || ll != 3 ||
+	    u != 4 || ul != 5 || ull != 6)
+		return __LINE__;
+
+	return 0;
+}
+
 static int run_vfprintf(int min, int max)
 {
 	int test;
@@ -1305,6 +1430,7 @@ static int run_vfprintf(int min, int max)
 		CASE_TEST(char);         EXPECT_VFPRINTF(1, "c", "%c", 'c'); break;
 		CASE_TEST(hex);          EXPECT_VFPRINTF(1, "f", "%x", 0xf); break;
 		CASE_TEST(pointer);      EXPECT_VFPRINTF(3, "0x1", "%p", (void *) 0x1); break;
+		CASE_TEST(scanf);        EXPECT_ZR(1, test_scanf()); break;
 		case __LINE__:
 			return ret; /* must be last */
 		/* note: do not set any defaults so as to permit holes above */

@@ -1342,32 +1342,6 @@ static void calculate_inits_and_viewports(struct pipe_ctx *pipe_ctx)
 	data->viewport_c.y += src.y / vpc_div;
 }
 
-static bool is_subvp_high_refresh_candidate(struct dc_stream_state *stream)
-{
-	uint32_t refresh_rate;
-	struct dc *dc = stream->ctx->dc;
-
-	refresh_rate = (stream->timing.pix_clk_100hz * (uint64_t)100 +
-		stream->timing.v_total * stream->timing.h_total - (uint64_t)1);
-	refresh_rate = div_u64(refresh_rate, stream->timing.v_total);
-	refresh_rate = div_u64(refresh_rate, stream->timing.h_total);
-
-	/* If there's any stream that fits the SubVP high refresh criteria,
-	 * we must return true. This is because cursor updates are asynchronous
-	 * with full updates, so we could transition into a SubVP config and
-	 * remain in HW cursor mode if there's no cursor update which will
-	 * then cause corruption.
-	 */
-	if ((refresh_rate >= 120 && refresh_rate <= 175 &&
-			stream->timing.v_addressable >= 1080 &&
-			stream->timing.v_addressable <= 2160) &&
-			(dc->current_state->stream_count > 1 ||
-			(dc->current_state->stream_count == 1 && !stream->allow_freesync)))
-		return true;
-
-	return false;
-}
-
 static enum controller_dp_test_pattern convert_dp_to_controller_test_pattern(
 				enum dp_test_pattern test_pattern)
 {
@@ -1472,7 +1446,8 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 
 	/* Invalid input */
-	if (!plane_state->dst_rect.width ||
+	if (!plane_state ||
+			!plane_state->dst_rect.width ||
 			!plane_state->dst_rect.height ||
 			!plane_state->src_rect.width ||
 			!plane_state->src_rect.height) {
@@ -3622,10 +3597,13 @@ static int get_norm_pix_clk(const struct dc_crtc_timing *timing)
 			break;
 		case COLOR_DEPTH_121212:
 			normalized_pix_clk = (pix_clk * 36) / 24;
-		break;
+			break;
+		case COLOR_DEPTH_141414:
+			normalized_pix_clk = (pix_clk * 42) / 24;
+			break;
 		case COLOR_DEPTH_161616:
 			normalized_pix_clk = (pix_clk * 48) / 24;
-		break;
+			break;
 		default:
 			ASSERT(0);
 		break;
@@ -4255,6 +4233,11 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 		}
 	}
 
+	/* clear subvp cursor limitations */
+	for (i = 0; i < context->stream_count; i++) {
+		dc_state_set_stream_subvp_cursor_limit(context->streams[i], context, false);
+	}
+
 	res = dc_validate_global_state(dc, context, fast_validate);
 
 	/* calculate pixel rate divider after deciding pxiel clock & odm combine  */
@@ -4381,8 +4364,7 @@ enum dc_status dc_validate_global_state(
 	result = resource_build_scaling_params_for_context(dc, new_ctx);
 
 	if (result == DC_OK)
-		if (!dc->res_pool->funcs->validate_bandwidth(dc, new_ctx, fast_validate))
-			result = DC_FAIL_BANDWIDTH_VALIDATE;
+		result = dc->res_pool->funcs->validate_bandwidth(dc, new_ctx, fast_validate);
 
 	return result;
 }
@@ -4925,7 +4907,10 @@ bool pipe_need_reprogram(
 		return true;
 
 	/* DIG link encoder resource assignment for stream changed. */
-	if (pipe_ctx_old->stream->ctx->dc->res_pool->funcs->link_encs_assign) {
+	if (pipe_ctx_old->stream->ctx->dc->config.unify_link_enc_assignment) {
+		if (pipe_ctx_old->link_res.dio_link_enc != pipe_ctx->link_res.dio_link_enc)
+			return true;
+	} else if (pipe_ctx_old->stream->ctx->dc->res_pool->funcs->link_encs_assign) {
 		bool need_reprogram = false;
 		struct dc *dc = pipe_ctx_old->stream->ctx->dc;
 		struct link_encoder *link_enc_prev =
@@ -5191,7 +5176,7 @@ void get_audio_check(struct audio_info *aud_modes,
 	}
 }
 
-static struct link_encoder *get_temp_dio_link_enc(
+struct link_encoder *get_temp_dio_link_enc(
 		const struct resource_context *res_ctx,
 		const struct resource_pool *const pool,
 		const struct dc_link *link)
@@ -5529,20 +5514,6 @@ enum dc_status update_dp_encoder_resources_for_test_harness(const struct dc *dc,
 			return DC_NO_LINK_ENC_RESOURCE;
 
 	return DC_OK;
-}
-
-bool check_subvp_sw_cursor_fallback_req(const struct dc *dc, struct dc_stream_state *stream)
-{
-	if (!dc->debug.disable_subvp_high_refresh && is_subvp_high_refresh_candidate(stream))
-		return true;
-	if (dc->current_state->stream_count == 1 && stream->timing.v_addressable >= 2880 &&
-			((stream->timing.pix_clk_100hz * 100) / stream->timing.v_total / stream->timing.h_total) < 120)
-		return true;
-	else if (dc->current_state->stream_count > 1 && stream->timing.v_addressable >= 1080 &&
-			((stream->timing.pix_clk_100hz * 100) / stream->timing.v_total / stream->timing.h_total) < 120)
-		return true;
-
-	return false;
 }
 
 struct dscl_prog_data *resource_get_dscl_prog_data(struct pipe_ctx *pipe_ctx)

@@ -18,6 +18,7 @@
 #include <linux/kobject.h>
 
 #include <linux/uaccess.h>
+#include <asm/machine.h>
 #include <asm/cio.h>
 #include <asm/ccwdev.h>
 #include <asm/debug.h>
@@ -1009,7 +1010,7 @@ static int __init ur_init(void)
 	int rc;
 	dev_t dev;
 
-	if (!MACHINE_IS_VM) {
+	if (!machine_is_vm()) {
 		pr_err("The %s cannot be loaded without z/VM\n",
 		       ur_banner);
 		return -ENODEV;

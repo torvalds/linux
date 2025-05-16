@@ -114,7 +114,8 @@ config R8169
 	  will be called r8169.  This is recommended.
 
 config R8169_LEDS
-	def_bool R8169 && LEDS_TRIGGER_NETDEV
+	bool "Support for controlling the NIC LEDs"
+	depends on R8169 && LEDS_TRIGGER_NETDEV
 	depends on !(R8169=y && LEDS_CLASS=m)
 	help
 	  Optional support for controlling the NIC LED's with the netdev

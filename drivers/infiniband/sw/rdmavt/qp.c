@@ -1107,9 +1107,8 @@ int rvt_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 		}
 		/* initialize timers needed for rc qp */
 		timer_setup(&qp->s_timer, rvt_rc_timeout, 0);
-		hrtimer_init(&qp->s_rnr_timer, CLOCK_MONOTONIC,
-			     HRTIMER_MODE_REL);
-		qp->s_rnr_timer.function = rvt_rc_rnr_retry;
+		hrtimer_setup(&qp->s_rnr_timer, rvt_rc_rnr_retry, CLOCK_MONOTONIC,
+			      HRTIMER_MODE_REL);
 
 		/*
 		 * Driver needs to set up it's private QP structure and do any
@@ -1298,7 +1297,7 @@ int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err)
 
 	if (qp->s_flags & (RVT_S_TIMER | RVT_S_WAIT_RNR)) {
 		qp->s_flags &= ~(RVT_S_TIMER | RVT_S_WAIT_RNR);
-		del_timer(&qp->s_timer);
+		timer_delete(&qp->s_timer);
 	}
 
 	if (qp->s_flags & RVT_S_ANY_WAIT_SEND)
@@ -2547,7 +2546,7 @@ void rvt_stop_rc_timers(struct rvt_qp *qp)
 	/* Remove QP from all timers */
 	if (qp->s_flags & (RVT_S_TIMER | RVT_S_WAIT_RNR)) {
 		qp->s_flags &= ~(RVT_S_TIMER | RVT_S_WAIT_RNR);
-		del_timer(&qp->s_timer);
+		timer_delete(&qp->s_timer);
 		hrtimer_try_to_cancel(&qp->s_rnr_timer);
 	}
 }
@@ -2576,7 +2575,7 @@ static void rvt_stop_rnr_timer(struct rvt_qp *qp)
  */
 void rvt_del_timers_sync(struct rvt_qp *qp)
 {
-	del_timer_sync(&qp->s_timer);
+	timer_delete_sync(&qp->s_timer);
 	hrtimer_cancel(&qp->s_rnr_timer);
 }
 EXPORT_SYMBOL(rvt_del_timers_sync);
@@ -2597,7 +2596,7 @@ static void rvt_rc_timeout(struct timer_list *t)
 
 		qp->s_flags &= ~RVT_S_TIMER;
 		rvp->n_rc_timeouts++;
-		del_timer(&qp->s_timer);
+		timer_delete(&qp->s_timer);
 		trace_rvt_rc_timeout(qp, qp->s_last_psn + 1);
 		if (rdi->driver_f.notify_restart_rc)
 			rdi->driver_f.notify_restart_rc(qp,

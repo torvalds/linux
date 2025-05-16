@@ -1,13 +1,14 @@
 api_intel_allocator@reopen,Timeout
 api_intel_bb@destroy-bb,Timeout
 core_hotunplug@hotrebind-lateclose,Timeout
-drm_read@short-buffer-block,Timeout
 dumb_buffer@map-valid,Timeout
 i915_module_load@load,Fail
 i915_module_load@reload,Fail
 i915_module_load@reload-no-display,Fail
 i915_module_load@resize-bar,Fail
+i915_pm_rpm@gem-execbuf-stress,Timeout
 i915_pm_rps@engine-order,Timeout
+i915_pm_rps@waitboost,Fail
 kms_lease@lease-uevent,Fail
 kms_rotation_crc@multiplane-rotation,Fail
 perf@i915-ref-count,Fail
@@ -16,6 +17,7 @@ perf_pmu@enable-race,Timeout
 perf_pmu@module-unload,Fail
 perf_pmu@rc6,Crash
 perf_pmu@semaphore-wait-idle,Timeout
+prime_busy@before,Fail
 prime_mmap@test_refcounting,Timeout
 sriov_basic@enable-vfs-bind-unbind-each-numvfs-all,Timeout
 syncobj_basic@illegal-fd-to-handle,Timeout
@@ -26,8 +28,3 @@ syncobj_wait@multi-wait-all-submitted,Timeout
 syncobj_wait@multi-wait-for-submit-submitted-signaled,Timeout
 syncobj_wait@wait-any-complex,Timeout
 syncobj_wait@wait-delayed-signal,Timeout
-xe_module_load@force-load,Fail
-xe_module_load@load,Fail
-xe_module_load@many-reload,Fail
-xe_module_load@reload,Fail
-xe_module_load@reload-no-display,Fail

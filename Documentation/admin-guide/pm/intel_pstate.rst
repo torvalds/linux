@@ -696,6 +696,9 @@ of them have to be prepended with the ``intel_pstate=`` prefix.
 	Use per-logical-CPU P-State limits (see `Coordination of P-state
 	Limits`_ for details).
 
+``no_cas``
+	Do not enable capacity-aware scheduling (CAS) which is enabled by
+	default on hybrid systems.
 
 Diagnostics and Tuning
 ======================

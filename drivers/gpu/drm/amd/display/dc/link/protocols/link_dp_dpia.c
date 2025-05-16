@@ -92,6 +92,7 @@ bool dpia_query_hpd_status(struct dc_link *link)
 
 	/* prepare QUERY_HPD command */
 	cmd.query_hpd.header.type = DMUB_CMD__QUERY_HPD_STATE;
+	cmd.query_hpd.header.payload_bytes = sizeof(cmd.query_hpd.data);
 	cmd.query_hpd.data.instance = link->link_id.enum_id - ENUM_ID_1;
 	cmd.query_hpd.data.ch_type = AUX_CHANNEL_DPIA;
 

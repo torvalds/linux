@@ -210,6 +210,15 @@ config TCG_CRB
 	  from within Linux.  To compile this driver as a module, choose
 	  M here; the module will be called tpm_crb.
 
+config TCG_ARM_CRB_FFA
+	tristate "TPM CRB over Arm FF-A Transport"
+	depends on ARM_FFA_TRANSPORT && TCG_CRB
+	default TCG_CRB
+	help
+	  If the Arm FF-A transport is used to access the TPM say Yes.
+	  To compile this driver as a module, choose M here; the module
+	  will be called tpm_crb_ffa.
+
 config TCG_VTPM_PROXY
 	tristate "VTPM Proxy Interface"
 	depends on TCG_TPM

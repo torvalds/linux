@@ -10,6 +10,7 @@
 
 #include <linux/ctype.h>
 #include <linux/firmware.h>
+#include <linux/string_choices.h>
 #include "otx_cpt_common.h"
 #include "otx_cptpf_ucode.h"
 #include "otx_cptpf.h"
@@ -505,17 +506,6 @@ int otx_cpt_uc_supports_eng_type(struct otx_cpt_ucode *ucode, int eng_type)
 }
 EXPORT_SYMBOL_GPL(otx_cpt_uc_supports_eng_type);
 
-int otx_cpt_eng_grp_has_eng_type(struct otx_cpt_eng_grp_info *eng_grp,
-				 int eng_type)
-{
-	struct otx_cpt_engs_rsvd *engs;
-
-	engs = find_engines_by_type(eng_grp, eng_type);
-
-	return (engs != NULL ? 1 : 0);
-}
-EXPORT_SYMBOL_GPL(otx_cpt_eng_grp_has_eng_type);
-
 static void print_ucode_info(struct otx_cpt_eng_grp_info *eng_grp,
 			     char *buf, int size)
 {
@@ -614,8 +604,8 @@ static void print_dbg_info(struct device *dev,
 
 	for (i = 0; i < OTX_CPT_MAX_ENGINE_GROUPS; i++) {
 		grp = &eng_grps->grp[i];
-		pr_debug("engine_group%d, state %s\n", i, grp->is_enabled ?
-			 "enabled" : "disabled");
+		pr_debug("engine_group%d, state %s\n", i,
+			 str_enabled_disabled(grp->is_enabled));
 		if (grp->is_enabled) {
 			mirrored_grp = &eng_grps->grp[grp->mirror.idx];
 			pr_debug("Ucode0 filename %s, version %s\n",

@@ -248,7 +248,7 @@ static char *get_type_name(struct die *cache)
 		warn("found incomplete cache entry: %p", cache);
 		return NULL;
 	}
-	if (cache->state == DIE_SYMBOL)
+	if (cache->state == DIE_SYMBOL || cache->state == DIE_FQN)
 		return NULL;
 	if (!cache->fqn || !*cache->fqn)
 		return NULL;

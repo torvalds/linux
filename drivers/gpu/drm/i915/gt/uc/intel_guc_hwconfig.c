@@ -7,6 +7,7 @@
 #include "gt/intel_hwconfig.h"
 #include "i915_drv.h"
 #include "i915_memcpy.h"
+#include "intel_guc_print.h"
 
 /*
  * GuC has a blob containing hardware configuration information (HWConfig).
@@ -42,6 +43,8 @@ static int __guc_action_get_hwconfig(struct intel_guc *guc,
 	};
 	int ret;
 
+	guc_dbg(guc, "Querying HW config table: size = %d, offset = 0x%08X\n",
+		ggtt_size, ggtt_offset);
 	ret = intel_guc_send_mmio(guc, action, ARRAY_SIZE(action), NULL, 0);
 	if (ret == -ENXIO)
 		return -ENOENT;

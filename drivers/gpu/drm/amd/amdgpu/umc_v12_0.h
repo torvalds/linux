@@ -65,12 +65,14 @@
 /* row bits in SOC physical address */
 #define UMC_V12_0_PA_R0_BIT 22
 #define UMC_V12_0_PA_R11_BIT 33
+#define UMC_V12_0_PA_R12_BIT 34
 #define UMC_V12_0_PA_R13_BIT 35
 /* channel bit in SOC physical address */
 #define UMC_V12_0_PA_CH4_BIT 12
 #define UMC_V12_0_PA_CH5_BIT 13
 /* bank bit in SOC physical address */
 #define UMC_V12_0_PA_B0_BIT 19
+#define UMC_V12_0_PA_B1_BIT 20
 /* row bits in MCA address */
 #define UMC_V12_0_MA_R0_BIT 10
 

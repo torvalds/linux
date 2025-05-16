@@ -56,7 +56,7 @@ batadv_dat_init_orig_node_addr(struct batadv_orig_node *orig_node)
 
 /**
  * batadv_dat_init_own_addr() - assign a DAT address to the node itself
- * @bat_priv: the bat priv with all the soft interface information
+ * @bat_priv: the bat priv with all the mesh interface information
  * @primary_if: a pointer to the primary interface
  */
 static inline void
@@ -77,7 +77,7 @@ int batadv_dat_cache_dump(struct sk_buff *msg, struct netlink_callback *cb);
 
 /**
  * batadv_dat_inc_counter() - increment the correct DAT packet counter
- * @bat_priv: the bat priv with all the soft interface information
+ * @bat_priv: the bat priv with all the mesh interface information
  * @subtype: the 4addr subtype of the packet to be counted
  *
  * Updates the ethtool statistics for the received packet if it is a DAT subtype

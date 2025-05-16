@@ -427,11 +427,8 @@ static void dump_trace_event(struct expected_trace_point *e)
 	test_print("trace event filter %s [%s:%d => %s:%d, L3index %d, flags: %s%s%s%s%s, keyid: %d, rnext: %d, maclen: %d, sne: %d] = %zu",
 		   trace_event_names[e->type],
 		   src, e->src_port, dst, e->dst_port, e->L3index,
-		   (e->fin > 0) ? "F" : (e->fin == 0) ? "!F" : "",
-		   (e->syn > 0) ? "S" : (e->syn == 0) ? "!S" : "",
-		   (e->rst > 0) ? "R" : (e->rst == 0) ? "!R" : "",
-		   (e->psh > 0) ? "P" : (e->psh == 0) ? "!P" : "",
-		   (e->ack > 0) ? "." : (e->ack == 0) ? "!." : "",
+		   e->fin ? "F" : "", e->syn ? "S" : "", e->rst ? "R" : "",
+		   e->psh ? "P" : "", e->ack ? "." : "",
 		   e->keyid, e->rnext, e->maclen, e->sne, e->matched);
 }
 

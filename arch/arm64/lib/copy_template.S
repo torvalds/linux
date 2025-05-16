@@ -40,6 +40,16 @@ D_l	.req	x13
 D_h	.req	x14
 
 	mov	dst, dstin
+
+#ifdef CONFIG_AS_HAS_MOPS
+alternative_if_not ARM64_HAS_MOPS
+	b	.Lno_mops
+alternative_else_nop_endif
+	cpy1	dst, src, count
+	b	.Lexitfunc
+.Lno_mops:
+#endif
+
 	cmp	count, #16
 	/*When memory length is less than 16, the accessed are not aligned.*/
 	b.lo	.Ltiny15

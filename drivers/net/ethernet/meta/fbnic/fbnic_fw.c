@@ -494,16 +494,13 @@ static int fbnic_fw_parse_bmc_addrs(u8 bmc_mac_addr[][ETH_ALEN],
 
 static int fbnic_fw_parse_cap_resp(void *opaque, struct fbnic_tlv_msg **results)
 {
-	u32 active_slot = 0, all_multi = 0;
+	u32 all_multi = 0, version = 0;
 	struct fbnic_dev *fbd = opaque;
-	u32 speed = 0, fec = 0;
-	size_t commit_size = 0;
 	bool bmc_present;
 	int err;
 
-	get_unsigned_result(FBNIC_FW_CAP_RESP_VERSION,
-			    fbd->fw_cap.running.mgmt.version);
-
+	version = fta_get_uint(results, FBNIC_FW_CAP_RESP_VERSION);
+	fbd->fw_cap.running.mgmt.version = version;
 	if (!fbd->fw_cap.running.mgmt.version)
 		return -EINVAL;
 
@@ -524,43 +521,41 @@ static int fbnic_fw_parse_cap_resp(void *opaque, struct fbnic_tlv_msg **results)
 		return -EINVAL;
 	}
 
-	get_string_result(FBNIC_FW_CAP_RESP_VERSION_COMMIT_STR, commit_size,
-			  fbd->fw_cap.running.mgmt.commit,
-			  FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
-	if (!commit_size)
+	if (fta_get_str(results, FBNIC_FW_CAP_RESP_VERSION_COMMIT_STR,
+			fbd->fw_cap.running.mgmt.commit,
+			FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE) <= 0)
 		dev_warn(fbd->dev, "Firmware did not send mgmt commit!\n");
 
-	get_unsigned_result(FBNIC_FW_CAP_RESP_STORED_VERSION,
-			    fbd->fw_cap.stored.mgmt.version);
-	get_string_result(FBNIC_FW_CAP_RESP_STORED_COMMIT_STR, commit_size,
-			  fbd->fw_cap.stored.mgmt.commit,
-			  FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
+	version = fta_get_uint(results, FBNIC_FW_CAP_RESP_STORED_VERSION);
+	fbd->fw_cap.stored.mgmt.version = version;
+	fta_get_str(results, FBNIC_FW_CAP_RESP_STORED_COMMIT_STR,
+		    fbd->fw_cap.stored.mgmt.commit,
+		    FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
 
-	get_unsigned_result(FBNIC_FW_CAP_RESP_CMRT_VERSION,
-			    fbd->fw_cap.running.bootloader.version);
-	get_string_result(FBNIC_FW_CAP_RESP_CMRT_COMMIT_STR, commit_size,
-			  fbd->fw_cap.running.bootloader.commit,
-			  FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
+	version = fta_get_uint(results, FBNIC_FW_CAP_RESP_CMRT_VERSION);
+	fbd->fw_cap.running.bootloader.version = version;
+	fta_get_str(results, FBNIC_FW_CAP_RESP_CMRT_COMMIT_STR,
+		    fbd->fw_cap.running.bootloader.commit,
+		    FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
 
-	get_unsigned_result(FBNIC_FW_CAP_RESP_STORED_CMRT_VERSION,
-			    fbd->fw_cap.stored.bootloader.version);
-	get_string_result(FBNIC_FW_CAP_RESP_STORED_CMRT_COMMIT_STR, commit_size,
-			  fbd->fw_cap.stored.bootloader.commit,
-			  FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
+	version = fta_get_uint(results, FBNIC_FW_CAP_RESP_STORED_CMRT_VERSION);
+	fbd->fw_cap.stored.bootloader.version = version;
+	fta_get_str(results, FBNIC_FW_CAP_RESP_STORED_CMRT_COMMIT_STR,
+		    fbd->fw_cap.stored.bootloader.commit,
+		    FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
 
-	get_unsigned_result(FBNIC_FW_CAP_RESP_UEFI_VERSION,
-			    fbd->fw_cap.stored.undi.version);
-	get_string_result(FBNIC_FW_CAP_RESP_UEFI_COMMIT_STR, commit_size,
-			  fbd->fw_cap.stored.undi.commit,
-			  FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
+	version = fta_get_uint(results, FBNIC_FW_CAP_RESP_UEFI_VERSION);
+	fbd->fw_cap.stored.undi.version = version;
+	fta_get_str(results, FBNIC_FW_CAP_RESP_UEFI_COMMIT_STR,
+		    fbd->fw_cap.stored.undi.commit,
+		    FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE);
 
-	get_unsigned_result(FBNIC_FW_CAP_RESP_ACTIVE_FW_SLOT, active_slot);
-	fbd->fw_cap.active_slot = active_slot;
-
-	get_unsigned_result(FBNIC_FW_CAP_RESP_FW_LINK_SPEED, speed);
-	get_unsigned_result(FBNIC_FW_CAP_RESP_FW_LINK_FEC, fec);
-	fbd->fw_cap.link_speed = speed;
-	fbd->fw_cap.link_fec = fec;
+	fbd->fw_cap.active_slot =
+		fta_get_uint(results, FBNIC_FW_CAP_RESP_ACTIVE_FW_SLOT);
+	fbd->fw_cap.link_speed =
+		fta_get_uint(results, FBNIC_FW_CAP_RESP_FW_LINK_SPEED);
+	fbd->fw_cap.link_fec =
+		fta_get_uint(results, FBNIC_FW_CAP_RESP_FW_LINK_FEC);
 
 	bmc_present = !!results[FBNIC_FW_CAP_RESP_BMC_PRESENT];
 	if (bmc_present) {
@@ -575,7 +570,8 @@ static int fbnic_fw_parse_cap_resp(void *opaque, struct fbnic_tlv_msg **results)
 		if (err)
 			return err;
 
-		get_unsigned_result(FBNIC_FW_CAP_RESP_BMC_ALL_MULTI, all_multi);
+		all_multi =
+			fta_get_uint(results, FBNIC_FW_CAP_RESP_BMC_ALL_MULTI);
 	} else {
 		memset(fbd->fw_cap.bmc_mac_addr, 0,
 		       sizeof(fbd->fw_cap.bmc_mac_addr));
@@ -743,9 +739,9 @@ free_message:
 }
 
 static const struct fbnic_tlv_index fbnic_tsene_read_resp_index[] = {
-	FBNIC_TLV_ATTR_S32(FBNIC_TSENE_THERM),
-	FBNIC_TLV_ATTR_S32(FBNIC_TSENE_VOLT),
-	FBNIC_TLV_ATTR_S32(FBNIC_TSENE_ERROR),
+	FBNIC_TLV_ATTR_S32(FBNIC_FW_TSENE_THERM),
+	FBNIC_TLV_ATTR_S32(FBNIC_FW_TSENE_VOLT),
+	FBNIC_TLV_ATTR_S32(FBNIC_FW_TSENE_ERROR),
 	FBNIC_TLV_ATTR_LAST
 };
 
@@ -754,32 +750,31 @@ static int fbnic_fw_parse_tsene_read_resp(void *opaque,
 {
 	struct fbnic_fw_completion *cmpl_data;
 	struct fbnic_dev *fbd = opaque;
+	s32 err_resp;
 	int err = 0;
 
 	/* Verify we have a completion pointer to provide with data */
 	cmpl_data = fbnic_fw_get_cmpl_by_type(fbd,
 					      FBNIC_TLV_MSG_ID_TSENE_READ_RESP);
 	if (!cmpl_data)
-		return -EINVAL;
+		return -ENOSPC;
 
-	if (results[FBNIC_TSENE_ERROR]) {
-		err = fbnic_tlv_attr_get_unsigned(results[FBNIC_TSENE_ERROR]);
-		if (err)
-			goto exit_complete;
-	}
+	err_resp = fta_get_sint(results, FBNIC_FW_TSENE_ERROR);
+	if (err_resp)
+		goto msg_err;
 
-	if (!results[FBNIC_TSENE_THERM] || !results[FBNIC_TSENE_VOLT]) {
+	if (!results[FBNIC_FW_TSENE_THERM] || !results[FBNIC_FW_TSENE_VOLT]) {
 		err = -EINVAL;
-		goto exit_complete;
+		goto msg_err;
 	}
 
 	cmpl_data->u.tsene.millidegrees =
-		fbnic_tlv_attr_get_signed(results[FBNIC_TSENE_THERM]);
+		fta_get_sint(results, FBNIC_FW_TSENE_THERM);
 	cmpl_data->u.tsene.millivolts =
-		fbnic_tlv_attr_get_signed(results[FBNIC_TSENE_VOLT]);
+		fta_get_sint(results, FBNIC_FW_TSENE_VOLT);
 
-exit_complete:
-	cmpl_data->result = err;
+msg_err:
+	cmpl_data->result = err_resp ? : err;
 	complete(&cmpl_data->done);
 	fbnic_fw_put_cmpl(cmpl_data);
 

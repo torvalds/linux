@@ -55,18 +55,18 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
         dac@0 {
-           reg = <0>;
-           compatible = "adi,ad5390-5";
-           vref-supply = <&dacvref>;
+            reg = <0>;
+            compatible = "adi,ad5390-5";
+            vref-supply = <&dacvref>;
         };
     };
   - |
     i2c {
-       #address-cells = <1>;
-       #size-cells = <0>;
-       dac@42 {
-          reg = <0x42>;
-          compatible = "adi,ad5380-3";
-       };
+        #address-cells = <1>;
+        #size-cells = <0>;
+        dac@42 {
+            reg = <0x42>;
+            compatible = "adi,ad5380-3";
+        };
     };
 ...

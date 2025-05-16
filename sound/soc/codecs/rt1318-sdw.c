@@ -807,7 +807,7 @@ static const struct sdw_device_id rt1318_id[] = {
 };
 MODULE_DEVICE_TABLE(sdw, rt1318_id);
 
-static int __maybe_unused rt1318_dev_suspend(struct device *dev)
+static int rt1318_dev_suspend(struct device *dev)
 {
 	struct rt1318_sdw_priv *rt1318 = dev_get_drvdata(dev);
 
@@ -820,7 +820,7 @@ static int __maybe_unused rt1318_dev_suspend(struct device *dev)
 
 #define RT1318_PROBE_TIMEOUT 5000
 
-static int __maybe_unused rt1318_dev_resume(struct device *dev)
+static int rt1318_dev_resume(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct rt1318_sdw_priv *rt1318 = dev_get_drvdata(dev);
@@ -848,14 +848,14 @@ regmap_sync:
 }
 
 static const struct dev_pm_ops rt1318_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(rt1318_dev_suspend, rt1318_dev_resume)
-	SET_RUNTIME_PM_OPS(rt1318_dev_suspend, rt1318_dev_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(rt1318_dev_suspend, rt1318_dev_resume)
+	RUNTIME_PM_OPS(rt1318_dev_suspend, rt1318_dev_resume, NULL)
 };
 
 static struct sdw_driver rt1318_sdw_driver = {
 	.driver = {
 		.name = "rt1318-sdca",
-		.pm = &rt1318_pm,
+		.pm = pm_ptr(&rt1318_pm),
 	},
 	.probe = rt1318_sdw_probe,
 	.remove = rt1318_sdw_remove,

@@ -90,6 +90,7 @@
 #define mmCLK1_CLK5_ALLOW_DS 0x16EB1
 
 #define mmCLK5_spll_field_8 0x1B24B
+#define mmCLK6_spll_field_8 0x1B24B
 #define mmDENTIST_DISPCLK_CNTL 0x0124
 #define regDENTIST_DISPCLK_CNTL 0x0064
 #define regDENTIST_DISPCLK_CNTL_BASE_IDX 1
@@ -116,6 +117,7 @@
 #define DENTIST_DISPCLK_CNTL__DENTIST_DPPCLK_WDIVIDER_MASK 0x7F000000L
 
 #define CLK5_spll_field_8__spll_ssc_en_MASK 0x00002000L
+#define CLK6_spll_field_8__spll_ssc_en_MASK 0x00002000L
 
 #define SMU_VER_THRESHOLD 0x5D4A00 //93.74.0
 #undef FN
@@ -201,34 +203,41 @@ static void dcn35_disable_otg_wa(struct clk_mgr *clk_mgr_base, struct dc_state *
 		struct pipe_ctx *pipe = safe_to_lower
 			? &context->res_ctx.pipe_ctx[i]
 			: &dc->current_state->res_ctx.pipe_ctx[i];
+		struct link_encoder *new_pipe_link_enc = new_pipe->link_res.dio_link_enc;
+		struct link_encoder *pipe_link_enc = pipe->link_res.dio_link_enc;
 		bool stream_changed_otg_dig_on = false;
+		bool has_active_hpo = false;
+
 		if (pipe->top_pipe || pipe->prev_odm_pipe)
 			continue;
+
+		if (!dc->config.unify_link_enc_assignment) {
+			if (new_pipe->stream)
+				new_pipe_link_enc = new_pipe->stream->link_enc;
+			if (pipe->stream)
+				pipe_link_enc = pipe->stream->link_enc;
+		}
+
 		stream_changed_otg_dig_on = old_pipe->stream && new_pipe->stream &&
 		old_pipe->stream != new_pipe->stream &&
 		old_pipe->stream_res.tg == new_pipe->stream_res.tg &&
-		new_pipe->stream->link_enc && !new_pipe->stream->dpms_off &&
-		new_pipe->stream->link_enc->funcs->is_dig_enabled &&
-		new_pipe->stream->link_enc->funcs->is_dig_enabled(
-		new_pipe->stream->link_enc) &&
+		new_pipe_link_enc && !new_pipe->stream->dpms_off &&
+		new_pipe_link_enc->funcs->is_dig_enabled &&
+		new_pipe_link_enc->funcs->is_dig_enabled(
+		new_pipe_link_enc) &&
 		new_pipe->stream_res.stream_enc &&
 		new_pipe->stream_res.stream_enc->funcs->is_fifo_enabled &&
 		new_pipe->stream_res.stream_enc->funcs->is_fifo_enabled(new_pipe->stream_res.stream_enc);
-
-		bool has_active_hpo = false;
 
 		if (old_pipe->stream && new_pipe->stream && old_pipe->stream == new_pipe->stream) {
 			has_active_hpo =  dccg->ctx->dc->link_srv->dp_is_128b_132b_signal(old_pipe) &&
 			dccg->ctx->dc->link_srv->dp_is_128b_132b_signal(new_pipe);
 
-		 }
+		}
 
-
-		if (!has_active_hpo && !dccg->ctx->dc->link_srv->dp_is_128b_132b_signal(pipe) &&
-					(pipe->stream && (pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal) ||
-					!pipe->stream->link_enc) && !stream_changed_otg_dig_on)) {
-
-
+		if (!has_active_hpo && !stream_changed_otg_dig_on && pipe->stream &&
+		    (pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal) || !pipe_link_enc) &&
+		    !dccg->ctx->dc->link_srv->dp_is_128b_132b_signal(pipe)) {
 			/* This w/a should not trigger when we have a dig active */
 			if (disable) {
 				if (pipe->stream_res.tg && pipe->stream_res.tg->funcs->immediate_disable_crtc)
@@ -589,7 +598,11 @@ static bool dcn35_is_spll_ssc_enabled(struct clk_mgr *clk_mgr_base)
 
 	uint32_t ssc_enable;
 
-	ssc_enable = REG_READ(CLK5_spll_field_8) & CLK5_spll_field_8__spll_ssc_en_MASK;
+	if (clk_mgr_base->ctx->dce_version == DCN_VERSION_3_51) {
+		ssc_enable = REG_READ(CLK6_spll_field_8) & CLK6_spll_field_8__spll_ssc_en_MASK;
+	} else {
+		ssc_enable = REG_READ(CLK5_spll_field_8) & CLK5_spll_field_8__spll_ssc_en_MASK;
+	}
 
 	return ssc_enable != 0;
 }

@@ -319,7 +319,7 @@ static u32 m920x_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm m920x_i2c_algo = {
+static const struct i2c_algorithm m920x_i2c_algo = {
 	.master_xfer   = m920x_i2c_xfer,
 	.functionality = m920x_i2c_func,
 };
@@ -909,7 +909,7 @@ enum {
 	AZUREWAVE_TWINHAN_VP7049,
 };
 
-static struct usb_device_id m920x_table[] = {
+static const struct usb_device_id m920x_table[] = {
 	DVB_USB_DEV(MSI, MSI_MEGASKY580),
 	DVB_USB_DEV(ANUBIS_ELECTRONIC, ANUBIS_MSI_DIGI_VOX_MINI_II),
 	DVB_USB_DEV(ANUBIS_ELECTRONIC, ANUBIS_LIFEVIEW_TV_WALKER_TWIN_COLD),

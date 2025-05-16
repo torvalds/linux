@@ -49,7 +49,7 @@ static int cs4341_set_fmt(struct snd_soc_dai *dai, unsigned int format)
 	struct cs4341_priv *cs4341 = snd_soc_component_get_drvdata(component);
 
 	switch (format & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
 		return -EINVAL;

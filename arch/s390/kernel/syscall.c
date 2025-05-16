@@ -12,6 +12,7 @@
  *  platform.
  */
 
+#include <linux/cpufeature.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -81,25 +82,35 @@ SYSCALL_DEFINE0(ni_syscall)
 	return -ENOSYS;
 }
 
-static void do_syscall(struct pt_regs *regs)
+void noinstr __do_syscall(struct pt_regs *regs, int per_trap)
 {
 	unsigned long nr;
 
+	add_random_kstack_offset();
+	enter_from_user_mode(regs);
+	regs->psw = get_lowcore()->svc_old_psw;
+	regs->int_code = get_lowcore()->svc_int_code;
+	update_timer_sys();
+	if (cpu_has_bear())
+		current->thread.last_break = regs->last_break;
+	local_irq_enable();
+	regs->orig_gpr2 = regs->gprs[2];
+	if (unlikely(per_trap))
+		set_thread_flag(TIF_PER_TRAP);
+	regs->flags = 0;
+	set_pt_regs_flag(regs, PIF_SYSCALL);
 	nr = regs->int_code & 0xffff;
-	if (!nr) {
+	if (likely(!nr)) {
 		nr = regs->gprs[1] & 0xffff;
 		regs->int_code &= ~0xffffUL;
 		regs->int_code |= nr;
 	}
-
 	regs->gprs[2] = nr;
-
 	if (nr == __NR_restart_syscall && !(current->restart_block.arch_data & 1)) {
 		regs->psw.addr = current->restart_block.arch_data;
 		current->restart_block.arch_data = 1;
 	}
 	nr = syscall_enter_from_user_mode_work(regs, nr);
-
 	/*
 	 * In the s390 ptrace ABI, both the syscall number and the return value
 	 * use gpr2. However, userspace puts the syscall number either in the
@@ -107,37 +118,11 @@ static void do_syscall(struct pt_regs *regs)
 	 * work, the ptrace code sets PIF_SYSCALL_RET_SET, which is checked here
 	 * and if set, the syscall will be skipped.
 	 */
-
 	if (unlikely(test_and_clear_pt_regs_flag(regs, PIF_SYSCALL_RET_SET)))
 		goto out;
 	regs->gprs[2] = -ENOSYS;
-	if (likely(nr >= NR_syscalls))
-		goto out;
-	do {
+	if (likely(nr < NR_syscalls))
 		regs->gprs[2] = current->thread.sys_call_table[nr](regs);
-	} while (test_and_clear_pt_regs_flag(regs, PIF_EXECVE_PGSTE_RESTART));
 out:
-	syscall_exit_to_user_mode_work(regs);
-}
-
-void noinstr __do_syscall(struct pt_regs *regs, int per_trap)
-{
-	add_random_kstack_offset();
-	enter_from_user_mode(regs);
-	regs->psw = get_lowcore()->svc_old_psw;
-	regs->int_code = get_lowcore()->svc_int_code;
-	update_timer_sys();
-	if (static_branch_likely(&cpu_has_bear))
-		current->thread.last_break = regs->last_break;
-
-	local_irq_enable();
-	regs->orig_gpr2 = regs->gprs[2];
-
-	if (per_trap)
-		set_thread_flag(TIF_PER_TRAP);
-
-	regs->flags = 0;
-	set_pt_regs_flag(regs, PIF_SYSCALL);
-	do_syscall(regs);
-	exit_to_user_mode();
+	syscall_exit_to_user_mode(regs);
 }

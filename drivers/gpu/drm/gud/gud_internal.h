@@ -16,7 +16,6 @@
 struct gud_device {
 	struct drm_device drm;
 	struct drm_simple_display_pipe pipe;
-	struct device *dmadev;
 	struct work_struct work;
 	u32 flags;
 	const struct drm_format_info *xrgb8888_emulation_format;

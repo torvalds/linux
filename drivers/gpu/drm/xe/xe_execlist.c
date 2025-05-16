@@ -297,7 +297,7 @@ err:
 
 void xe_execlist_port_destroy(struct xe_execlist_port *port)
 {
-	del_timer(&port->irq_fail);
+	timer_delete(&port->irq_fail);
 
 	/* Prevent an interrupt while we're destroying */
 	spin_lock_irq(&gt_to_xe(port->hwe->gt)->irq.lock);

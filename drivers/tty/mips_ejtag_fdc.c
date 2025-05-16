@@ -1031,7 +1031,7 @@ err_stop_irq:
 		raw_spin_unlock_irq(&priv->lock);
 	} else {
 		priv->removing = true;
-		del_timer_sync(&priv->poll_timer);
+		timer_delete_sync(&priv->poll_timer);
 	}
 	kthread_stop(priv->thread);
 err_destroy_ports:
@@ -1061,7 +1061,7 @@ static int mips_ejtag_fdc_tty_cpu_down(struct mips_cdmm_device *dev)
 		raw_spin_unlock_irq(&priv->lock);
 	} else {
 		priv->removing = true;
-		del_timer_sync(&priv->poll_timer);
+		timer_delete_sync(&priv->poll_timer);
 	}
 	kthread_stop(priv->thread);
 

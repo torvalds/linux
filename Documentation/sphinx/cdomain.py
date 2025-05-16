@@ -1,6 +1,6 @@
 # -*- coding: utf-8; mode: python -*-
 # pylint: disable=W0141,C0113,C0103,C0325
-u"""
+"""
     cdomain
     ~~~~~~~
 
@@ -44,9 +44,6 @@ from itertools import chain
 import re
 
 __version__  = '1.1'
-
-# Get Sphinx version
-major, minor, patch = sphinx.version_info[:3]
 
 # Namespace to be prepended to the full name
 namespace = None
@@ -145,7 +142,7 @@ class CObject(Base_CObject):
     }
 
     def handle_func_like_macro(self, sig, signode):
-        u"""Handles signatures of function-like macros.
+        """Handles signatures of function-like macros.
 
         If the objtype is 'function' and the signature ``sig`` is a
         function-like macro, the name of the macro is returned. Otherwise

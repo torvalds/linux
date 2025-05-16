@@ -61,17 +61,21 @@ enum sja1105_ptp_clk_mode {
 int sja1105_hwtstamp_set(struct dsa_switch *ds, int port, struct ifreq *ifr)
 {
 	struct sja1105_private *priv = ds->priv;
+	unsigned long hwts_tx_en, hwts_rx_en;
 	struct hwtstamp_config config;
 
 	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
 		return -EFAULT;
 
+	hwts_tx_en = priv->hwts_tx_en;
+	hwts_rx_en = priv->hwts_rx_en;
+
 	switch (config.tx_type) {
 	case HWTSTAMP_TX_OFF:
-		priv->hwts_tx_en &= ~BIT(port);
+		hwts_tx_en &= ~BIT(port);
 		break;
 	case HWTSTAMP_TX_ON:
-		priv->hwts_tx_en |= BIT(port);
+		hwts_tx_en |= BIT(port);
 		break;
 	default:
 		return -ERANGE;
@@ -79,15 +83,21 @@ int sja1105_hwtstamp_set(struct dsa_switch *ds, int port, struct ifreq *ifr)
 
 	switch (config.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
-		priv->hwts_rx_en &= ~BIT(port);
+		hwts_rx_en &= ~BIT(port);
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+		hwts_rx_en |= BIT(port);
 		break;
 	default:
-		priv->hwts_rx_en |= BIT(port);
-		break;
+		return -ERANGE;
 	}
 
 	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
 		return -EFAULT;
+
+	priv->hwts_tx_en = hwts_tx_en;
+	priv->hwts_rx_en = hwts_rx_en;
+
 	return 0;
 }
 
@@ -832,7 +842,7 @@ static int sja1105_extts_enable(struct sja1105_private *priv,
 	if (on)
 		sja1105_ptp_extts_setup_timer(&priv->ptp_data);
 	else
-		del_timer_sync(&priv->ptp_data.extts_timer);
+		timer_delete_sync(&priv->ptp_data.extts_timer);
 
 	return 0;
 }
@@ -929,7 +939,7 @@ void sja1105_ptp_clock_unregister(struct dsa_switch *ds)
 	if (IS_ERR_OR_NULL(ptp_data->clock))
 		return;
 
-	del_timer_sync(&ptp_data->extts_timer);
+	timer_delete_sync(&ptp_data->extts_timer);
 	ptp_cancel_worker_sync(ptp_data->clock);
 	skb_queue_purge(&ptp_data->skb_txtstamp_queue);
 	skb_queue_purge(&ptp_data->skb_rxtstamp_queue);

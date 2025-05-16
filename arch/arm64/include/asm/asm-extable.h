@@ -9,7 +9,8 @@
 #define EX_TYPE_BPF			1
 #define EX_TYPE_UACCESS_ERR_ZERO	2
 #define EX_TYPE_KACCESS_ERR_ZERO	3
-#define EX_TYPE_LOAD_UNALIGNED_ZEROPAD	4
+#define EX_TYPE_UACCESS_CPY		4
+#define EX_TYPE_LOAD_UNALIGNED_ZEROPAD	5
 
 /* Data fields for EX_TYPE_UACCESS_ERR_ZERO */
 #define EX_DATA_REG_ERR_SHIFT	0
@@ -22,6 +23,9 @@
 #define EX_DATA_REG_DATA	GENMASK(4, 0)
 #define EX_DATA_REG_ADDR_SHIFT	5
 #define EX_DATA_REG_ADDR	GENMASK(9, 5)
+
+/* Data fields for EX_TYPE_UACCESS_CPY */
+#define EX_DATA_UACCESS_WRITE	BIT(0)
 
 #ifdef __ASSEMBLY__
 
@@ -67,6 +71,10 @@
 	.ifnc			\fixup,
 	_asm_extable_uaccess	\insn, \fixup
 	.endif
+	.endm
+
+	.macro		_asm_extable_uaccess_cpy, insn, fixup, uaccess_is_write
+	__ASM_EXTABLE_RAW(\insn, \fixup, EX_TYPE_UACCESS_CPY, \uaccess_is_write)
 	.endm
 
 #else /* __ASSEMBLY__ */

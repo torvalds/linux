@@ -376,7 +376,7 @@ static void bttv_set_irq_timer(struct bttv *btv)
 	if (btv->curr.frame_irq || btv->loop_irq || btv->cvbi)
 		mod_timer(&btv->timeout, jiffies + BTTV_TIMEOUT);
 	else
-		del_timer(&btv->timeout);
+		timer_delete(&btv->timeout);
 }
 
 static int bttv_set_capture_control(struct bttv *btv, int start_capture)

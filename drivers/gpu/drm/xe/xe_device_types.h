@@ -10,6 +10,7 @@
 
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
+#include <drm/drm_pagemap.h>
 #include <drm/ttm/ttm_device.h>
 
 #include "xe_devcoredump_types.h"
@@ -107,6 +108,21 @@ struct xe_vram_region {
 	void __iomem *mapping;
 	/** @ttm: VRAM TTM manager */
 	struct xe_ttm_vram_mgr ttm;
+#if IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR)
+	/** @pagemap: Used to remap device memory as ZONE_DEVICE */
+	struct dev_pagemap pagemap;
+	/**
+	 * @dpagemap: The struct drm_pagemap of the ZONE_DEVICE memory
+	 * pages of this tile.
+	 */
+	struct drm_pagemap dpagemap;
+	/**
+	 * @hpa_base: base host physical address
+	 *
+	 * This is generated when remap device memory as ZONE_DEVICE
+	 */
+	resource_size_t hpa_base;
+#endif
 };
 
 /**
@@ -299,6 +315,8 @@ struct xe_device {
 		u8 has_atomic_enable_pte_bit:1;
 		/** @info.has_device_atomics_on_smem: Supports device atomics on SMEM */
 		u8 has_device_atomics_on_smem:1;
+		/** @info.has_fan_control: Device supports fan control */
+		u8 has_fan_control:1;
 		/** @info.has_flat_ccs: Whether flat CCS metadata is used */
 		u8 has_flat_ccs:1;
 		/** @info.has_heci_cscfi: device has heci cscfi */
@@ -317,6 +335,8 @@ struct xe_device {
 		u8 has_usm:1;
 		/** @info.is_dgfx: is discrete device */
 		u8 is_dgfx:1;
+		/** @info.needs_scratch: needs scratch page for oob prefetch to work */
+		u8 needs_scratch:1;
 		/**
 		 * @info.probe_display: Probe display hardware.  If set to
 		 * false, the driver will behave as if there is no display
@@ -371,6 +391,8 @@ struct xe_device {
 		struct xe_vram_region vram;
 		/** @mem.sys_mgr: system TTM manager */
 		struct ttm_resource_manager sys_mgr;
+		/** @mem.sys_mgr: system memory shrinker. */
+		struct xe_shrinker *shrinker;
 	} mem;
 
 	/** @sriov: device level virtualization data */
@@ -401,12 +423,22 @@ struct xe_device {
 	struct {
 		/** @pinned.lock: protected pinned BO list state */
 		spinlock_t lock;
-		/** @pinned.kernel_bo_present: pinned kernel BO that are present */
-		struct list_head kernel_bo_present;
-		/** @pinned.evicted: pinned BO that have been evicted */
-		struct list_head evicted;
-		/** @pinned.external_vram: pinned external BO in vram*/
-		struct list_head external_vram;
+		/** @pinned.early: early pinned lists */
+		struct {
+			/** @pinned.early.kernel_bo_present: pinned kernel BO that are present */
+			struct list_head kernel_bo_present;
+			/** @pinned.early.evicted: pinned BO that have been evicted */
+			struct list_head evicted;
+		} early;
+		/** @pinned.late: late pinned lists */
+		struct {
+			/** @pinned.late.kernel_bo_present: pinned kernel BO that are present */
+			struct list_head kernel_bo_present;
+			/** @pinned.late.evicted: pinned BO that have been evicted */
+			struct list_head evicted;
+			/** @pinned.external: pinned external and dma-buf. */
+			struct list_head external;
+		} late;
 	} pinned;
 
 	/** @ufence_wq: user fence wait queue */
@@ -426,20 +458,6 @@ struct xe_device {
 
 	/** @tiles: device tiles */
 	struct xe_tile tiles[XE_MAX_TILES_PER_DEVICE];
-
-	/**
-	 * @remove_action_list: list of actions to execute on device remove.
-	 * Use xe_device_add_remove_action() for that. Actions can only be added
-	 * during probe and are executed during the call from PCI subsystem to
-	 * remove the driver from the device.
-	 */
-	struct list_head remove_action_list;
-
-	/**
-	 * @probing: cover the section in which @remove_action_list can be used
-	 * to post cleaning actions
-	 */
-	bool probing;
 
 	/**
 	 * @mem_access: keep track of memory access in the device, possibly
@@ -503,6 +521,9 @@ struct xe_device {
 		struct mutex lock;
 	} d3cold;
 
+	/** @pm_notifier: Our PM notifier to perform actions in response to various PM events. */
+	struct notifier_block pm_notifier;
+
 	/** @pmt: Support the PMT driver callback interface */
 	struct {
 		/** @pmt.lock: protect access for telemetry data */
@@ -537,6 +558,14 @@ struct xe_device {
 		/** @wedged.mode: Mode controlled by kernel parameter and debugfs */
 		int mode;
 	} wedged;
+
+	/** @bo_device: Struct to control async free of BOs */
+	struct xe_bo_dev {
+		/** @bo_device.async_free: Free worker */
+		struct work_struct async_free;
+		/** @bo_device.async_list: List of BOs to be freed */
+		struct llist_head async_list;
+	} bo_device;
 
 	/** @pmu: performance monitoring unit */
 	struct xe_pmu pmu;

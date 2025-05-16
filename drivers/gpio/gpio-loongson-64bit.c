@@ -31,7 +31,6 @@ struct loongson_gpio_chip_data {
 
 struct loongson_gpio_chip {
 	struct gpio_chip	chip;
-	struct fwnode_handle	*fwnode;
 	spinlock_t		lock;
 	void __iomem		*reg_base;
 	const struct loongson_gpio_chip_data *chip_data;
@@ -138,7 +137,6 @@ static int loongson_gpio_init(struct device *dev, struct loongson_gpio_chip *lgp
 			      void __iomem *reg_base)
 {
 	int ret;
-	u32 ngpios;
 
 	lgpio->reg_base = reg_base;
 	if (lgpio->chip_data->mode == BIT_CTRL_MODE) {
@@ -159,8 +157,6 @@ static int loongson_gpio_init(struct device *dev, struct loongson_gpio_chip *lgp
 		lgpio->chip.direction_output = loongson_gpio_direction_output;
 		lgpio->chip.set = loongson_gpio_set;
 		lgpio->chip.parent = dev;
-		device_property_read_u32(dev, "ngpios", &ngpios);
-		lgpio->chip.ngpio = ngpios;
 		spin_lock_init(&lgpio->lock);
 	}
 
@@ -258,6 +254,33 @@ static const struct loongson_gpio_chip_data loongson_gpio_ls7a_data = {
 	.out_offset = 0x900,
 };
 
+/* LS7A2000 chipset GPIO */
+static const struct loongson_gpio_chip_data loongson_gpio_ls7a2000_data0 = {
+	.label = "ls7a2000_gpio",
+	.mode = BYTE_CTRL_MODE,
+	.conf_offset = 0x800,
+	.in_offset = 0xa00,
+	.out_offset = 0x900,
+};
+
+/* LS7A2000 ACPI GPIO */
+static const struct loongson_gpio_chip_data loongson_gpio_ls7a2000_data1 = {
+	.label = "ls7a2000_gpio",
+	.mode = BYTE_CTRL_MODE,
+	.conf_offset = 0x4,
+	.in_offset = 0x8,
+	.out_offset = 0x0,
+};
+
+/* Loongson-3A6000 node GPIO */
+static const struct loongson_gpio_chip_data loongson_gpio_ls3a6000_data = {
+	.label = "ls3a6000_gpio",
+	.mode = BIT_CTRL_MODE,
+	.conf_offset = 0x0,
+	.in_offset = 0xc,
+	.out_offset = 0x8,
+};
+
 static const struct of_device_id loongson_gpio_of_match[] = {
 	{
 		.compatible = "loongson,ls2k-gpio",
@@ -291,6 +314,18 @@ static const struct of_device_id loongson_gpio_of_match[] = {
 		.compatible = "loongson,ls7a-gpio",
 		.data = &loongson_gpio_ls7a_data,
 	},
+	{
+		.compatible = "loongson,ls7a2000-gpio1",
+		.data = &loongson_gpio_ls7a2000_data0,
+	},
+	{
+		.compatible = "loongson,ls7a2000-gpio2",
+		.data = &loongson_gpio_ls7a2000_data1,
+	},
+	{
+		.compatible = "loongson,ls3a6000-gpio",
+		.data = &loongson_gpio_ls3a6000_data,
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, loongson_gpio_of_match);
@@ -315,6 +350,18 @@ static const struct acpi_device_id loongson_gpio_acpi_match[] = {
 	{
 		.id = "LOON000C",
 		.driver_data = (kernel_ulong_t)&loongson_gpio_ls2k2000_data2,
+	},
+	{
+		.id = "LOON000D",
+		.driver_data = (kernel_ulong_t)&loongson_gpio_ls7a2000_data0,
+	},
+	{
+		.id = "LOON000E",
+		.driver_data = (kernel_ulong_t)&loongson_gpio_ls7a2000_data1,
+	},
+	{
+		.id = "LOON000F",
+		.driver_data = (kernel_ulong_t)&loongson_gpio_ls3a6000_data,
 	},
 	{}
 };

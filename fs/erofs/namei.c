@@ -100,7 +100,7 @@ static void *erofs_find_target_block(struct erofs_buf *target,
 		struct erofs_dirent *de;
 
 		buf.mapping = dir->i_mapping;
-		de = erofs_bread(&buf, erofs_pos(dir->i_sb, mid), EROFS_KMAP);
+		de = erofs_bread(&buf, erofs_pos(dir->i_sb, mid), true);
 		if (!IS_ERR(de)) {
 			const int nameoff = nameoff_from_disk(de->nameoff, bsz);
 			const int ndirents = nameoff / sizeof(*de);

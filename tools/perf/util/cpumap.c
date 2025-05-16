@@ -67,19 +67,23 @@ static struct perf_cpu_map *cpu_map__from_entries(const struct perf_record_cpu_m
 	struct perf_cpu_map *map;
 
 	map = perf_cpu_map__empty_new(data->cpus_data.nr);
-	if (map) {
-		unsigned i;
+	if (!map)
+		return NULL;
 
-		for (i = 0; i < data->cpus_data.nr; i++) {
-			/*
-			 * Special treatment for -1, which is not real cpu number,
-			 * and we need to use (int) -1 to initialize map[i],
-			 * otherwise it would become 65535.
-			 */
-			if (data->cpus_data.cpu[i] == (u16) -1)
-				RC_CHK_ACCESS(map)->map[i].cpu = -1;
-			else
-				RC_CHK_ACCESS(map)->map[i].cpu = (int) data->cpus_data.cpu[i];
+	for (unsigned int i = 0; i < data->cpus_data.nr; i++) {
+		/*
+		 * Special treatment for -1, which is not real cpu number,
+		 * and we need to use (int) -1 to initialize map[i],
+		 * otherwise it would become 65535.
+		 */
+		if (data->cpus_data.cpu[i] == (u16) -1) {
+			RC_CHK_ACCESS(map)->map[i].cpu = -1;
+		} else if (data->cpus_data.cpu[i] < INT16_MAX) {
+			RC_CHK_ACCESS(map)->map[i].cpu = (int16_t) data->cpus_data.cpu[i];
+		} else {
+			pr_err("Invalid cpumap entry %u\n", data->cpus_data.cpu[i]);
+			perf_cpu_map__put(map);
+			return NULL;
 		}
 	}
 
@@ -106,8 +110,15 @@ static struct perf_cpu_map *cpu_map__from_mask(const struct perf_record_cpu_map_
 		int cpu;
 
 		perf_record_cpu_map_data__read_one_mask(data, i, local_copy);
-		for_each_set_bit(cpu, local_copy, 64)
-			RC_CHK_ACCESS(map)->map[j++].cpu = cpu + cpus_per_i;
+		for_each_set_bit(cpu, local_copy, 64) {
+			if (cpu + cpus_per_i < INT16_MAX) {
+				RC_CHK_ACCESS(map)->map[j++].cpu = cpu + cpus_per_i;
+			} else {
+				pr_err("Invalid cpumap entry %d\n", cpu + cpus_per_i);
+				perf_cpu_map__put(map);
+				return NULL;
+			}
+		}
 	}
 	return map;
 
@@ -127,8 +138,15 @@ static struct perf_cpu_map *cpu_map__from_range(const struct perf_record_cpu_map
 		RC_CHK_ACCESS(map)->map[i++].cpu = -1;
 
 	for (int cpu = data->range_cpu_data.start_cpu; cpu <= data->range_cpu_data.end_cpu;
-	     i++, cpu++)
-		RC_CHK_ACCESS(map)->map[i].cpu = cpu;
+	     i++, cpu++) {
+		if (cpu < INT16_MAX) {
+			RC_CHK_ACCESS(map)->map[i].cpu = cpu;
+		} else {
+			pr_err("Invalid cpumap entry %d\n", cpu);
+			perf_cpu_map__put(map);
+			return NULL;
+		}
+	}
 
 	return map;
 }
@@ -427,7 +445,7 @@ static void set_max_cpu_num(void)
 {
 	const char *mnt;
 	char path[PATH_MAX];
-	int ret = -1;
+	int max, ret = -1;
 
 	/* set up default */
 	max_cpu_num.cpu = 4096;
@@ -444,9 +462,11 @@ static void set_max_cpu_num(void)
 		goto out;
 	}
 
-	ret = get_max_num(path, &max_cpu_num.cpu);
+	ret = get_max_num(path, &max);
 	if (ret)
 		goto out;
+
+	max_cpu_num.cpu = max;
 
 	/* get the highest present cpu number for a sparse allocation */
 	ret = snprintf(path, PATH_MAX, "%s/devices/system/cpu/present", mnt);
@@ -455,8 +475,14 @@ static void set_max_cpu_num(void)
 		goto out;
 	}
 
-	ret = get_max_num(path, &max_present_cpu_num.cpu);
+	ret = get_max_num(path, &max);
 
+	if (!ret && max > INT16_MAX) {
+		pr_err("Read out of bounds max cpus of %d\n", max);
+		ret = -1;
+	}
+	if (!ret)
+		max_present_cpu_num.cpu = (int16_t)max;
 out:
 	if (ret)
 		pr_err("Failed to read max cpus, using default of %d\n", max_cpu_num.cpu);
@@ -606,7 +632,7 @@ size_t cpu_map__snprint(struct perf_cpu_map *map, char *buf, size_t size)
 #define COMMA first ? "" : ","
 
 	for (i = 0; i < perf_cpu_map__nr(map) + 1; i++) {
-		struct perf_cpu cpu = { .cpu = INT_MAX };
+		struct perf_cpu cpu = { .cpu = INT16_MAX };
 		bool last = i == perf_cpu_map__nr(map);
 
 		if (!last)
@@ -696,7 +722,7 @@ struct perf_cpu_map *cpu_map__online(void) /* thread unsafe */
 	if (!online)
 		online = perf_cpu_map__new_online_cpus(); /* from /sys/devices/system/cpu/online */
 
-	return online;
+	return perf_cpu_map__get(online);
 }
 
 bool aggr_cpu_id__equal(const struct aggr_cpu_id *a, const struct aggr_cpu_id *b)

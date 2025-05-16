@@ -52,6 +52,13 @@ enum {
 	IS_PREALLOC,		/* nat entry is preallocated */
 };
 
+/* For node type in __get_node_folio() */
+enum node_type {
+	NODE_TYPE_REGULAR,
+	NODE_TYPE_INODE,
+	NODE_TYPE_XATTR,
+};
+
 /*
  * For node information
  */
@@ -248,7 +255,7 @@ static inline nid_t nid_of_node(struct page *node_page)
 	return le32_to_cpu(rn->footer.nid);
 }
 
-static inline unsigned int ofs_of_node(struct page *node_page)
+static inline unsigned int ofs_of_node(const struct page *node_page)
 {
 	struct f2fs_node *rn = F2FS_NODE(node_page);
 	unsigned flag = le32_to_cpu(rn->footer.flag);
@@ -342,7 +349,7 @@ static inline bool is_recoverable_dnode(struct page *page)
  *                 `- indirect node ((6 + 2N) + (N - 1)(N + 1))
  *                       `- direct node
  */
-static inline bool IS_DNODE(struct page *node_page)
+static inline bool IS_DNODE(const struct page *node_page)
 {
 	unsigned int ofs = ofs_of_node(node_page);
 
@@ -389,7 +396,7 @@ static inline nid_t get_nid(struct page *p, int off, bool i)
  *  - Mark cold data pages in page cache
  */
 
-static inline int is_node(struct page *page, int type)
+static inline int is_node(const struct page *page, int type)
 {
 	struct f2fs_node *rn = F2FS_NODE(page);
 	return le32_to_cpu(rn->footer.flag) & BIT(type);

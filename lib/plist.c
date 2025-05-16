@@ -171,12 +171,24 @@ void plist_requeue(struct plist_node *node, struct plist_head *head)
 
 	plist_del(node, head);
 
+	/*
+	 * After plist_del(), iter is the replacement of the node.  If the node
+	 * was on prio_list, take shortcut to find node_next instead of looping.
+	 */
+	if (!list_empty(&iter->prio_list)) {
+		iter = list_entry(iter->prio_list.next, struct plist_node,
+				  prio_list);
+		node_next = &iter->node_list;
+		goto queue;
+	}
+
 	plist_for_each_continue(iter, head) {
 		if (node->prio != iter->prio) {
 			node_next = &iter->node_list;
 			break;
 		}
 	}
+queue:
 	list_add_tail(&node->node_list, node_next);
 
 	plist_check_head(head);

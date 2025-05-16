@@ -190,6 +190,7 @@ static irqreturn_t ge_b850v3_lvds_irq_handler(int irq, void *dev_id)
 }
 
 static int ge_b850v3_lvds_attach(struct drm_bridge *bridge,
+				 struct drm_encoder *encoder,
 				 enum drm_bridge_attach_flags flags)
 {
 	struct i2c_client *stdp4028_i2c

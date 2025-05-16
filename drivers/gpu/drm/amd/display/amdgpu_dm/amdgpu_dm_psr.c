@@ -30,23 +30,6 @@
 #include "amdgpu_dm.h"
 #include "modules/power/power_helpers.h"
 
-static bool is_specific_oled_panel(struct dc_link *link)
-{
-	if (!link->dpcd_sink_ext_caps.bits.oled)
-		return false;
-
-	/* Disable PSR-SU for some OLED panels to avoid glitches */
-	if (link->dpcd_caps.sink_dev_id == 0xBA4159) {
-		uint8_t sink_dev_id_str1[] = {'4', '0', 'C', 'U', '1'};
-
-		if (!memcmp(link->dpcd_caps.sink_dev_id_str, sink_dev_id_str1,
-		    sizeof(sink_dev_id_str1)))
-			return true;
-	}
-
-	return false;
-}
-
 static bool link_supports_psrsu(struct dc_link *link)
 {
 	struct dc *dc = link->ctx->dc;
@@ -55,9 +38,6 @@ static bool link_supports_psrsu(struct dc_link *link)
 		return false;
 
 	if (dc->ctx->dce_version < DCN_VERSION_3_1)
-		return false;
-
-	if (is_specific_oled_panel(link))
 		return false;
 
 	if (!is_psr_su_specific_panel(link))
@@ -74,7 +54,8 @@ static bool link_supports_psrsu(struct dc_link *link)
 	if (amdgpu_dc_debug_mask & DC_DISABLE_PSR_SU)
 		return false;
 
-	return dc_dmub_check_min_version(dc->ctx->dmub_srv->dmub);
+	/* Temporarily disable PSR-SU to avoid glitches */
+	return false;
 }
 
 /*
@@ -106,14 +87,6 @@ void amdgpu_dm_set_psr_caps(struct dc_link *link)
 
 		link->psr_settings.psr_feature_enabled = true;
 	}
-
-	DRM_INFO("PSR support %d, DC PSR ver %d, sink PSR ver %d DPCD caps 0x%x su_y_granularity %d\n",
-		link->psr_settings.psr_feature_enabled,
-		link->psr_settings.psr_version,
-		link->dpcd_caps.psr_info.psr_version,
-		link->dpcd_caps.psr_info.psr_dpcd_caps.raw,
-		link->dpcd_caps.psr_info.psr2_su_y_granularity_cap);
-
 }
 
 /*

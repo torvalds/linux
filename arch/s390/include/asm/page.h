@@ -71,9 +71,11 @@ static inline void copy_page(void *to, void *from)
 #define vma_alloc_zeroed_movable_folio(vma, vaddr) \
 	vma_alloc_folio(GFP_HIGHUSER_MOVABLE | __GFP_ZERO, 0, vma, vaddr)
 
-/*
- * These are used to make use of C type-checking..
- */
+#ifdef CONFIG_STRICT_MM_TYPECHECKS
+#define STRICT_MM_TYPECHECKS
+#endif
+
+#ifdef STRICT_MM_TYPECHECKS
 
 typedef struct { unsigned long pgprot; } pgprot_t;
 typedef struct { unsigned long pgste; } pgste_t;
@@ -82,43 +84,48 @@ typedef struct { unsigned long pmd; } pmd_t;
 typedef struct { unsigned long pud; } pud_t;
 typedef struct { unsigned long p4d; } p4d_t;
 typedef struct { unsigned long pgd; } pgd_t;
+
+#define DEFINE_PGVAL_FUNC(name)						\
+static __always_inline unsigned long name ## _val(name ## _t name)	\
+{									\
+	return name.name;						\
+}
+
+#else /* STRICT_MM_TYPECHECKS */
+
+typedef unsigned long pgprot_t;
+typedef unsigned long pgste_t;
+typedef unsigned long pte_t;
+typedef unsigned long pmd_t;
+typedef unsigned long pud_t;
+typedef unsigned long p4d_t;
+typedef unsigned long pgd_t;
+
+#define DEFINE_PGVAL_FUNC(name)						\
+static __always_inline unsigned long name ## _val(name ## _t name)	\
+{									\
+	return name;							\
+}
+
+#endif /* STRICT_MM_TYPECHECKS */
+
+DEFINE_PGVAL_FUNC(pgprot)
+DEFINE_PGVAL_FUNC(pgste)
+DEFINE_PGVAL_FUNC(pte)
+DEFINE_PGVAL_FUNC(pmd)
+DEFINE_PGVAL_FUNC(pud)
+DEFINE_PGVAL_FUNC(p4d)
+DEFINE_PGVAL_FUNC(pgd)
+
 typedef pte_t *pgtable_t;
 
-#define pgprot_val(x)	((x).pgprot)
-#define pgste_val(x)	((x).pgste)
-
-static inline unsigned long pte_val(pte_t pte)
-{
-	return pte.pte;
-}
-
-static inline unsigned long pmd_val(pmd_t pmd)
-{
-	return pmd.pmd;
-}
-
-static inline unsigned long pud_val(pud_t pud)
-{
-	return pud.pud;
-}
-
-static inline unsigned long p4d_val(p4d_t p4d)
-{
-	return p4d.p4d;
-}
-
-static inline unsigned long pgd_val(pgd_t pgd)
-{
-	return pgd.pgd;
-}
-
+#define __pgprot(x)	((pgprot_t) { (x) } )
 #define __pgste(x)	((pgste_t) { (x) } )
 #define __pte(x)        ((pte_t) { (x) } )
 #define __pmd(x)        ((pmd_t) { (x) } )
 #define __pud(x)	((pud_t) { (x) } )
 #define __p4d(x)	((p4d_t) { (x) } )
 #define __pgd(x)        ((pgd_t) { (x) } )
-#define __pgprot(x)     ((pgprot_t) { (x) } )
 
 static inline void page_set_storage_key(unsigned long addr,
 					unsigned char skey, int mapped)

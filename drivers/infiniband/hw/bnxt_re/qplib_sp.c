@@ -176,6 +176,9 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw)
 	attr->dev_cap_flags = le16_to_cpu(sb->dev_cap_flags);
 	attr->dev_cap_flags2 = le16_to_cpu(sb->dev_cap_ext_flags_2);
 
+	if (_is_max_srq_ext_supported(attr->dev_cap_flags2))
+		attr->max_srq += le16_to_cpu(sb->max_srq_ext);
+
 	bnxt_qplib_query_version(rcfw, attr->fw_ver);
 
 	for (i = 0; i < MAX_TQM_ALLOC_REQ / 4; i++) {

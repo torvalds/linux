@@ -814,7 +814,7 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 		ret = i2c->state;
 
 	/*
-	 * If this is the last message to be transfered (stop == 1)
+	 * If this is the last message to be transferred (stop == 1)
 	 * Then check if the bus can be brought back to idle.
 	 */
 	if (ret == 0 && stop)

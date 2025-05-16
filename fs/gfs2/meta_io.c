@@ -198,15 +198,14 @@ struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkno)
 
 static void gfs2_meta_read_endio(struct bio *bio)
 {
-	struct bio_vec *bvec;
-	struct bvec_iter_all iter_all;
+	struct folio_iter fi;
 
-	bio_for_each_segment_all(bvec, bio, iter_all) {
-		struct page *page = bvec->bv_page;
-		struct buffer_head *bh = page_buffers(page);
-		unsigned int len = bvec->bv_len;
+	bio_for_each_folio_all(fi, bio) {
+		struct folio *folio = fi.folio;
+		struct buffer_head *bh = folio_buffers(folio);
+		size_t len = fi.length;
 
-		while (bh_offset(bh) < bvec->bv_offset)
+		while (bh_offset(bh) < fi.offset)
 			bh = bh->b_this_page;
 		do {
 			struct buffer_head *next = bh->b_this_page;
@@ -232,7 +231,7 @@ static void gfs2_submit_bhs(blk_opf_t opf, struct buffer_head *bhs[], int num)
 		bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 		while (num > 0) {
 			bh = *bhs;
-			if (!bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh))) {
+			if (!bio_add_folio(bio, bh->b_folio, bh->b_size, bh_offset(bh))) {
 				BUG_ON(bio->bi_iter.bi_size == 0);
 				break;
 			}

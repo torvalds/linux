@@ -40,7 +40,7 @@
  * Legacy struct storing addresses to whole mapped BARs.
  */
 struct pcim_iomap_devres {
-	void __iomem *table[PCI_STD_NUM_BARS];
+	void __iomem *table[PCI_NUM_RESOURCES];
 };
 
 /* Used to restore the old INTx state on driver detach. */
@@ -577,7 +577,7 @@ static int pcim_add_mapping_to_legacy_table(struct pci_dev *pdev,
 {
 	void __iomem **legacy_iomap_table;
 
-	if (bar >= PCI_STD_NUM_BARS)
+	if (!pci_bar_index_is_valid(bar))
 		return -EINVAL;
 
 	legacy_iomap_table = (void __iomem **)pcim_iomap_table(pdev);
@@ -622,7 +622,7 @@ static void pcim_remove_bar_from_legacy_table(struct pci_dev *pdev, int bar)
 {
 	void __iomem **legacy_iomap_table;
 
-	if (bar >= PCI_STD_NUM_BARS)
+	if (!pci_bar_index_is_valid(bar))
 		return;
 
 	legacy_iomap_table = (void __iomem **)pcim_iomap_table(pdev);
@@ -654,6 +654,9 @@ void __iomem *pcim_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen)
 {
 	void __iomem *mapping;
 	struct pcim_addr_devres *res;
+
+	if (!pci_bar_index_is_valid(bar))
+		return NULL;
 
 	res = pcim_addr_devres_alloc(pdev);
 	if (!res)
@@ -721,6 +724,9 @@ void __iomem *pcim_iomap_region(struct pci_dev *pdev, int bar,
 {
 	int ret;
 	struct pcim_addr_devres *res;
+
+	if (!pci_bar_index_is_valid(bar))
+		return IOMEM_ERR_PTR(-EINVAL);
 
 	res = pcim_addr_devres_alloc(pdev);
 	if (!res)
@@ -822,6 +828,9 @@ static int _pcim_request_region(struct pci_dev *pdev, int bar, const char *name,
 {
 	int ret;
 	struct pcim_addr_devres *res;
+
+	if (!pci_bar_index_is_valid(bar))
+		return -EINVAL;
 
 	res = pcim_addr_devres_alloc(pdev);
 	if (!res)
@@ -990,6 +999,9 @@ void __iomem *pcim_iomap_range(struct pci_dev *pdev, int bar,
 {
 	void __iomem *mapping;
 	struct pcim_addr_devres *res;
+
+	if (!pci_bar_index_is_valid(bar))
+		return IOMEM_ERR_PTR(-EINVAL);
 
 	res = pcim_addr_devres_alloc(pdev);
 	if (!res)

@@ -23,6 +23,16 @@ else
 echo '%define with_devel 0'
 fi
 
+# debuginfo package generation uses find-debuginfo.sh under the hood,
+# which only works on uncompressed modules that contain debuginfo
+if grep -q CONFIG_DEBUG_INFO=y include/config/auto.conf &&
+   (! grep -q CONFIG_MODULE_COMPRESS=y include/config/auto.conf) &&
+   (! grep -q CONFIG_DEBUG_INFO_SPLIT=y include/config/auto.conf); then
+echo '%define with_debuginfo %{?_without_debuginfo: 0} %{?!_without_debuginfo: 1}'
+else
+echo '%define with_debuginfo 0'
+fi
+
 cat<<EOF
 %define ARCH ${ARCH}
 %define KERNELRELEASE ${KERNELRELEASE}

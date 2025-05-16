@@ -53,7 +53,7 @@ build() {
 _package() {
 	pkgdesc="The ${pkgdesc} kernel and modules"
 
-	local modulesdir="${pkgdir}/usr/${MODLIB}"
+	local modulesdir="${pkgdir}/usr/lib/modules/${KERNELRELEASE}"
 
 	_prologue
 
@@ -81,7 +81,7 @@ _package() {
 _package-headers() {
 	pkgdesc="Headers and scripts for building modules for the ${pkgdesc} kernel"
 
-	local builddir="${pkgdir}/usr/${MODLIB}/build"
+	local builddir="${pkgdir}/usr/lib/modules/${KERNELRELEASE}/build"
 
 	_prologue
 
@@ -114,7 +114,7 @@ _package-debug(){
 	pkgdesc="Non-stripped vmlinux file for the ${pkgdesc} kernel"
 
 	local debugdir="${pkgdir}/usr/src/debug/${pkgbase}"
-	local builddir="${pkgdir}/usr/${MODLIB}/build"
+	local builddir="${pkgdir}/usr/lib/modules/${KERNELRELEASE}/build"
 
 	_prologue
 

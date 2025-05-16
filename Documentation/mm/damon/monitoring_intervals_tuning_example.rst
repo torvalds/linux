@@ -36,7 +36,7 @@ Then, list the DAMON-found regions of different access patterns, sorted by the
 "access temperature".  "Access temperature" is a metric representing the
 access-hotness of a region.  It is calculated as a weighted sum of the access
 frequency and the age of the region.  If the access frequency is 0 %, the
-temperature is multipled by minus one.  That is, if a region is not accessed,
+temperature is multiplied by minus one.  That is, if a region is not accessed,
 it gets minus temperature and it gets lower as not accessed for longer time.
 The sorting is in temperature-ascendint order, so the region at the top of the
 list is the coldest, and the one at the bottom is the hottest one. ::
@@ -58,11 +58,11 @@ list is the coldest, and the one at the bottom is the hottest one. ::
 The list shows not seemingly hot regions, and only minimum access pattern
 diversity.  Every region has zero access frequency.  The number of region is
 10, which is the default ``min_nr_regions value``.  Size of each region is also
-nearly idential.  We can suspect this is because “adaptive regions adjustment”
+nearly identical.  We can suspect this is because “adaptive regions adjustment”
 mechanism was not well working.  As the guide suggested, we can get relative
 hotness of regions using ``age`` as the recency information.  That would be
 better than nothing, but given the fact that the longest age is only about 6
-seconds while we waited about ten minuts, it is unclear how useful this will
+seconds while we waited about ten minutes, it is unclear how useful this will
 be.
 
 The temperature ranges to total size of regions of each range histogram
@@ -190,7 +190,7 @@ for sampling and aggregation intervals, respectively). ::
 The number of regions having different access patterns has significantly
 increased.  Size of each region is also more varied. Total size of non-zero
 access frequency regions is also significantly increased. Maybe this is already
-good enough to make some meaningful memory management efficieny changes.
+good enough to make some meaningful memory management efficiency changes.
 
 800ms/16s intervals: Another bias
 =================================

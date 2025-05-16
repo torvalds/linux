@@ -120,6 +120,9 @@ static void aca_smu_bank_dump(struct amdgpu_device *adev, int idx, int total, st
 	for (i = 0; i < ARRAY_SIZE(aca_regs); i++)
 		RAS_EVENT_LOG(adev, event_id, HW_ERR "ACA[%02d/%02d].%s=0x%016llx\n",
 			      idx + 1, total, aca_regs[i].name, bank->regs[aca_regs[i].reg_idx]);
+
+	if (ACA_REG__STATUS__SCRUB(bank->regs[ACA_REG_IDX_STATUS]))
+		RAS_EVENT_LOG(adev, event_id, HW_ERR "hardware error logged by the scrubber\n");
 }
 
 static int aca_smu_get_valid_aca_banks(struct amdgpu_device *adev, enum aca_smu_type type,
@@ -194,6 +197,10 @@ static bool aca_bank_hwip_is_matched(struct aca_bank *bank, enum aca_hwip_type t
 static bool aca_bank_is_valid(struct aca_handle *handle, struct aca_bank *bank, enum aca_smu_type type)
 {
 	const struct aca_bank_ops *bank_ops = handle->bank_ops;
+
+	/* Parse all deferred errors with UMC aca handle */
+	if (ACA_BANK_ERR_IS_DEFFERED(bank))
+		return handle->hwip == ACA_HWIP_TYPE_UMC;
 
 	if (!aca_bank_hwip_is_matched(bank, handle->hwip))
 		return false;
@@ -391,6 +398,10 @@ static void aca_banks_generate_cper(struct amdgpu_device *adev,
 {
 	struct aca_bank_node *node;
 	struct aca_bank *bank;
+	int r;
+
+	if (!adev->cper.enabled)
+		return;
 
 	if (!banks || !count) {
 		dev_warn(adev->dev, "fail to generate cper records\n");
@@ -399,11 +410,27 @@ static void aca_banks_generate_cper(struct amdgpu_device *adev,
 
 	/* UEs must be encoded into separate CPER entries */
 	if (type == ACA_SMU_TYPE_UE) {
+		struct aca_banks de_banks;
+
+		aca_banks_init(&de_banks);
 		list_for_each_entry(node, &banks->list, node) {
 			bank = &node->bank;
-			if (amdgpu_cper_generate_ue_record(adev, bank))
-				dev_warn(adev->dev, "fail to generate ue cper records\n");
+			if (bank->aca_err_type == ACA_ERROR_TYPE_DEFERRED) {
+				r = aca_banks_add_bank(&de_banks, bank);
+				if (r)
+					dev_warn(adev->dev, "fail to add de banks, ret = %d\n", r);
+			} else {
+				if (amdgpu_cper_generate_ue_record(adev, bank))
+					dev_warn(adev->dev, "fail to generate ue cper records\n");
+			}
 		}
+
+		if (!list_empty(&de_banks.list)) {
+			if (amdgpu_cper_generate_ce_records(adev, &de_banks, de_banks.nr_banks))
+				dev_warn(adev->dev, "fail to generate de cper records\n");
+		}
+
+		aca_banks_release(&de_banks);
 	} else {
 		/*
 		 * SMU_TYPE_CE banks are combined into 1 CPER entries,
@@ -537,6 +564,10 @@ static int __aca_get_error_data(struct amdgpu_device *adev, struct aca_handle *h
 	ret = aca_banks_update(adev, smu_type, handler_aca_log_bank_error, qctx, NULL);
 	if (ret)
 		return ret;
+
+	/* DEs may contain in CEs or UEs */
+	if (type != ACA_ERROR_TYPE_DEFERRED)
+		aca_log_aca_error(handle, ACA_ERROR_TYPE_DEFERRED, err_data);
 
 	return aca_log_aca_error(handle, type, err_data);
 }

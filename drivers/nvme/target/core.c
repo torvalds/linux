@@ -324,6 +324,9 @@ int nvmet_enable_port(struct nvmet_port *port)
 
 	lockdep_assert_held(&nvmet_config_sem);
 
+	if (port->disc_addr.trtype == NVMF_TRTYPE_MAX)
+		return -EINVAL;
+
 	ops = nvmet_transports[port->disc_addr.trtype];
 	if (!ops) {
 		up_write(&nvmet_config_sem);
@@ -1618,8 +1621,6 @@ struct nvmet_ctrl *nvmet_alloc_ctrl(struct nvmet_alloc_ctrl_args *args)
 	}
 	ctrl->cntlid = ret;
 
-	uuid_copy(&ctrl->hostid, args->hostid);
-
 	/*
 	 * Discovery controllers may use some arbitrary high value
 	 * in order to cleanup stale discovery sessions
@@ -1647,7 +1648,7 @@ struct nvmet_ctrl *nvmet_alloc_ctrl(struct nvmet_alloc_ctrl_args *args)
 	if (args->hostid)
 		uuid_copy(&ctrl->hostid, args->hostid);
 
-	dhchap_status = nvmet_setup_auth(ctrl);
+	dhchap_status = nvmet_setup_auth(ctrl, args->sq);
 	if (dhchap_status) {
 		pr_err("Failed to setup authentication, dhchap status %u\n",
 		       dhchap_status);
@@ -1662,11 +1663,12 @@ struct nvmet_ctrl *nvmet_alloc_ctrl(struct nvmet_alloc_ctrl_args *args)
 
 	args->status = NVME_SC_SUCCESS;
 
-	pr_info("Created %s controller %d for subsystem %s for NQN %s%s%s.\n",
+	pr_info("Created %s controller %d for subsystem %s for NQN %s%s%s%s.\n",
 		nvmet_is_disc_subsys(ctrl->subsys) ? "discovery" : "nvm",
 		ctrl->cntlid, ctrl->subsys->subsysnqn, ctrl->hostnqn,
 		ctrl->pi_support ? " T10-PI is enabled" : "",
-		nvmet_has_auth(ctrl) ? " with DH-HMAC-CHAP" : "");
+		nvmet_has_auth(ctrl, args->sq) ? " with DH-HMAC-CHAP" : "",
+		nvmet_queue_tls_keyid(args->sq) ? ", TLS" : "");
 
 	return ctrl;
 

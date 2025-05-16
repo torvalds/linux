@@ -844,7 +844,7 @@ static void st21nfca_hci_cmd_received(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 			info->se_info.count_pipes++;
 
 		if (info->se_info.count_pipes == info->se_info.expected_pipes) {
-			del_timer_sync(&info->se_info.se_active_timer);
+			timer_delete_sync(&info->se_info.se_active_timer);
 			info->se_info.se_active = false;
 			info->se_info.count_pipes = 0;
 			complete(&info->se_info.req_completion);
@@ -864,7 +864,7 @@ static int st21nfca_admin_event_received(struct nfc_hci_dev *hdev, u8 event,
 	case ST21NFCA_EVT_HOT_PLUG:
 		if (info->se_info.se_active) {
 			if (!ST21NFCA_EVT_HOT_PLUG_IS_INHIBITED(skb)) {
-				del_timer_sync(&info->se_info.se_active_timer);
+				timer_delete_sync(&info->se_info.se_active_timer);
 				info->se_info.se_active = false;
 				complete(&info->se_info.req_completion);
 			} else {

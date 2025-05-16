@@ -96,9 +96,7 @@ config SND_HDA_CIRRUS_SCODEC
 
 config SND_HDA_CIRRUS_SCODEC_KUNIT_TEST
 	tristate "KUnit test for Cirrus side-codec library" if !KUNIT_ALL_TESTS
-	select SND_HDA_CIRRUS_SCODEC
-	select GPIOLIB
-	depends on KUNIT
+	depends on SND_HDA_CIRRUS_SCODEC && GPIOLIB && KUNIT
 	default KUNIT_ALL_TESTS
 	help
 	  This builds KUnit tests for the cirrus side-codec library.
@@ -222,6 +220,7 @@ comment "Set to Y if you want auto-loading the side codec driver"
 
 config SND_HDA_CODEC_REALTEK
 	tristate "Build Realtek HD-audio codec support"
+	depends on INPUT
 	select SND_HDA_GENERIC
 	select SND_HDA_GENERIC_LEDS
 	select SND_HDA_SCODEC_COMPONENT
@@ -266,6 +265,7 @@ comment "Set to Y if you want auto-loading the codec driver"
 config SND_HDA_CODEC_HDMI
 	tristate "Build HDMI/DisplayPort HD-audio codec support"
 	select SND_DYNAMIC_MINORS
+	select SND_PCM_ELD
 	help
 	  Say Y or M here to include HDMI and DisplayPort HD-audio codec
 	  support in snd-hda-intel driver.  This includes all AMD/ATI,

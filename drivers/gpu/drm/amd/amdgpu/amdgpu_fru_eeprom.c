@@ -31,6 +31,7 @@
 
 #define FRU_EEPROM_MADDR_6      0x60000
 #define FRU_EEPROM_MADDR_8      0x80000
+#define FRU_EEPROM_MADDR_INV    0xFFFFF
 
 static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 {
@@ -104,6 +105,10 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 			if (fru_addr)
 				*fru_addr = FRU_EEPROM_MADDR_8;
 			return true;
+	case IP_VERSION(13, 0, 12):
+			if (fru_addr)
+				*fru_addr = FRU_EEPROM_MADDR_INV;
+			return true;
 	default:
 		return false;
 	}
@@ -118,6 +123,10 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 	u8 csum;
 
 	if (!is_fru_eeprom_supported(adev, &fru_addr))
+		return 0;
+
+	/* FRU data avaialble, but no direct EEPROM access */
+	if (fru_addr == FRU_EEPROM_MADDR_INV)
 		return 0;
 
 	if (!adev->fru_info) {

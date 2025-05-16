@@ -219,7 +219,7 @@ The log is circular, so the positions in the log are defined by the combination
 of a cycle number - the number of times the log has been overwritten - and the
 offset into the log.  A LSN carries the cycle in the upper 32 bits and the
 offset in the lower 32 bits. The offset is in units of "basic blocks" (512
-bytes). Hence we can do realtively simple LSN based math to keep track of
+bytes). Hence we can do relatively simple LSN based math to keep track of
 available space in the log.
 
 Log space accounting is done via a pair of constructs called "grant heads".  The

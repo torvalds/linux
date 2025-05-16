@@ -100,12 +100,10 @@ static inline enum hctx_type blk_mq_get_hctx_type(blk_opf_t opf)
 
 /*
  * blk_mq_map_queue() - map (cmd_flags,type) to hardware queue
- * @q: request queue
  * @opf: operation type (REQ_OP_*) and flags (e.g. REQ_POLLED).
  * @ctx: software queue cpu ctx
  */
-static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
-						     blk_opf_t opf,
+static inline struct blk_mq_hw_ctx *blk_mq_map_queue(blk_opf_t opf,
 						     struct blk_mq_ctx *ctx)
 {
 	return ctx->hctxs[blk_mq_get_hctx_type(opf)];

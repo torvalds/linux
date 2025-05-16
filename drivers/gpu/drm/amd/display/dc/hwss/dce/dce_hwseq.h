@@ -1244,6 +1244,7 @@ struct dce_hwseq_registers {
 	type DOMAIN24_PGFSM_PWR_STATUS; \
 	type DOMAIN25_PGFSM_PWR_STATUS; \
 	type DOMAIN_DESIRED_PWR_STATE;
+
 struct dce_hwseq_shift {
 	HWSEQ_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN_REG_FIELD_LIST(uint8_t)

@@ -17,6 +17,7 @@
 static int generic_events_valid_test(void)
 {
 	struct event event;
+	int pvr = mfspr(SPRN_PVR);
 
 	/* Check for platform support for the test */
 	SKIP_IF(platform_check_for_tests());
@@ -31,7 +32,7 @@ static int generic_events_valid_test(void)
 	 * - PERF_COUNT_HW_STALLED_CYCLES_BACKEND
 	 * - PERF_COUNT_HW_REF_CPU_CYCLES
 	 */
-	if (PVR_VER(mfspr(SPRN_PVR)) == POWER10) {
+	if ((pvr == POWER10) || (pvr == POWER11)) {
 		event_init_opts(&event, PERF_COUNT_HW_CPU_CYCLES, PERF_TYPE_HARDWARE, "event");
 		FAIL_IF(event_open(&event));
 		event_close(&event);

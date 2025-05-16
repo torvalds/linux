@@ -33,6 +33,16 @@ properties:
   resets:
     maxItems: 1
 
+  nvmem-cells:
+    maxItems: 1
+
+  nvmem-cell-names:
+    items:
+      - const: calibration
+
+dependencies:
+  nvmem-cells: [ nvmem-cell-names ]
+
 required:
   - compatible
   - reg
@@ -58,4 +68,6 @@ examples:
         freq-table-hz = <200000000 200000000>, <38400000 38400000>;
         power-domains = <&sysc R8A779F0_PD_ALWAYS_ON>;
         resets = <&cpg 1514>;
+        nvmem-cells = <&ufs_tune>;
+        nvmem-cell-names = "calibration";
     };

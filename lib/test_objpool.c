@@ -190,8 +190,7 @@ static int ot_init_hrtimer(struct ot_item *item, unsigned long hrtimer)
 		return -ENOENT;
 
 	item->hrtcycle = ktime_set(0, hrtimer * 1000000UL);
-	hrtimer_init(hrt, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	hrt->function = ot_hrtimer_handler;
+	hrtimer_setup(hrt, ot_hrtimer_handler, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	return 0;
 }
 

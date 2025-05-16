@@ -39,6 +39,7 @@ struct ivpu_fw_info {
 	u64 read_only_addr;
 	u32 read_only_size;
 	u32 sched_mode;
+	u64 last_heartbeat;
 };
 
 int ivpu_fw_init(struct ivpu_device *vdev);

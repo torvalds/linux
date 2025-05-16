@@ -48,7 +48,7 @@ static int call__scnprintf(struct ins *ins, char *bf, size_t size,
 
 static void ins__sort(struct arch *arch);
 static int disasm_line__parse(char *line, const char **namep, char **rawp);
-static int disasm_line__parse_powerpc(struct disasm_line *dl);
+static int disasm_line__parse_powerpc(struct disasm_line *dl, struct annotate_args *args);
 static char *expand_tabs(char *line, char **storage, size_t *storage_len);
 
 static __attribute__((constructor)) void symbol__init_regexpr(void)
@@ -968,24 +968,25 @@ out:
 #define	PPC_OP(op)	(((op) >> 26) & 0x3F)
 #define	RAW_BYTES	11
 
-static int disasm_line__parse_powerpc(struct disasm_line *dl)
+static int disasm_line__parse_powerpc(struct disasm_line *dl, struct annotate_args *args)
 {
 	char *line = dl->al.line;
 	const char **namep = &dl->ins.name;
 	char **rawp = &dl->ops.raw;
 	char *tmp_raw_insn, *name_raw_insn = skip_spaces(line);
 	char *name = skip_spaces(name_raw_insn + RAW_BYTES);
-	int objdump = 0;
+	int disasm = 0;
+	int ret = 0;
 
-	if (strlen(line) > RAW_BYTES)
-		objdump = 1;
+	if (args->options->disassembler_used)
+		disasm = 1;
 
 	if (name_raw_insn[0] == '\0')
 		return -1;
 
-	if (objdump) {
-		disasm_line__parse(name, namep, rawp);
-	} else
+	if (disasm)
+		ret = disasm_line__parse(name, namep, rawp);
+	else
 		*namep = "";
 
 	tmp_raw_insn = strndup(name_raw_insn, 11);
@@ -995,10 +996,10 @@ static int disasm_line__parse_powerpc(struct disasm_line *dl)
 	remove_spaces(tmp_raw_insn);
 
 	sscanf(tmp_raw_insn, "%x", &dl->raw.raw_insn);
-	if (objdump)
+	if (disasm)
 		dl->raw.raw_insn = be32_to_cpu(dl->raw.raw_insn);
 
-	return 0;
+	return ret;
 }
 
 static void annotation_line__init(struct annotation_line *al,
@@ -1054,7 +1055,7 @@ struct disasm_line *disasm_line__new(struct annotate_args *args)
 
 	if (args->offset != -1) {
 		if (arch__is(args->arch, "powerpc")) {
-			if (disasm_line__parse_powerpc(dl) < 0)
+			if (disasm_line__parse_powerpc(dl, args) < 0)
 				goto out_free_line;
 		} else if (disasm_line__parse(dl->al.line, &dl->ins.name, &dl->ops.raw) < 0)
 			goto out_free_line;
@@ -2289,16 +2290,20 @@ int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 
 		switch (dis) {
 		case PERF_DISASM_LLVM:
+			args->options->disassembler_used = PERF_DISASM_LLVM;
 			err = symbol__disassemble_llvm(symfs_filename, sym, args);
 			break;
 		case PERF_DISASM_CAPSTONE:
+			args->options->disassembler_used = PERF_DISASM_CAPSTONE;
 			err = symbol__disassemble_capstone(symfs_filename, sym, args);
 			break;
 		case PERF_DISASM_OBJDUMP:
+			args->options->disassembler_used = PERF_DISASM_OBJDUMP;
 			err = symbol__disassemble_objdump(symfs_filename, sym, args);
 			break;
 		case PERF_DISASM_UNKNOWN: /* End of disassemblers. */
 		default:
+			args->options->disassembler_used = PERF_DISASM_UNKNOWN;
 			goto out_remove_tmp;
 		}
 		if (err == 0)

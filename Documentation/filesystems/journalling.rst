@@ -111,9 +111,7 @@ a callback function when the transaction is finally committed to disk,
 so that you can do some of your own management. You ask the journalling
 layer for calling the callback by simply setting
 ``journal->j_commit_callback`` function pointer and that function is
-called after each transaction commit. You can also use
-``transaction->t_private_list`` for attaching entries to a transaction
-that need processing when the transaction commits.
+called after each transaction commit.
 
 JBD2 also provides a way to block all transaction updates via
 jbd2_journal_lock_updates() /

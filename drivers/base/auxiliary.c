@@ -156,6 +156,16 @@
  *		},
  *		.ops = my_custom_ops,
  *	};
+ *
+ * Please note that such custom ops approach is valid, but it is hard to implement
+ * it right without global locks per-device to protect from auxiliary_drv removal
+ * during call to that ops. In addition, this implementation lacks proper module
+ * dependency, which causes to load/unload races between auxiliary parent and devices
+ * modules.
+ *
+ * The most easiest way to provide these ops reliably without needing to
+ * have a lock is to EXPORT_SYMBOL*() them and rely on already existing
+ * modules infrastructure for validity and correct dependencies chains.
  */
 
 static const struct auxiliary_device_id *auxiliary_match_id(const struct auxiliary_device_id *id,

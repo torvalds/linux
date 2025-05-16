@@ -119,7 +119,6 @@ struct irdma_puda_rsrc {
 	u32 rx_wqe_idx;
 	u32 rxq_invalid_cnt;
 	u32 tx_wqe_avail_cnt;
-	struct shash_desc *hash_desc;
 	struct list_head txpend;
 	struct list_head bufpool; /* free buffers pool list for recv and xmit */
 	u32 alloc_buf_count;
@@ -163,10 +162,8 @@ struct irdma_sc_qp *irdma_ieq_get_qp(struct irdma_sc_dev *dev,
 				     struct irdma_puda_buf *buf);
 int irdma_puda_get_tcpip_info(struct irdma_puda_cmpl_info *info,
 			      struct irdma_puda_buf *buf);
-int irdma_ieq_check_mpacrc(struct shash_desc *desc, void *addr, u32 len, u32 val);
-int irdma_init_hash_desc(struct shash_desc **desc);
+int irdma_ieq_check_mpacrc(const void *addr, u32 len, u32 val);
 void irdma_ieq_mpa_crc_ae(struct irdma_sc_dev *dev, struct irdma_sc_qp *qp);
-void irdma_free_hash_desc(struct shash_desc *desc);
 void irdma_ieq_update_tcpip_info(struct irdma_puda_buf *buf, u16 len, u32 seqnum);
 int irdma_cqp_qp_create_cmd(struct irdma_sc_dev *dev, struct irdma_sc_qp *qp);
 int irdma_cqp_cq_create_cmd(struct irdma_sc_dev *dev, struct irdma_sc_cq *cq);

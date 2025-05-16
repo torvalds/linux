@@ -20,6 +20,8 @@ static const struct mtk_gate_regs imgsys_cg_regs = {
 #define GATE_IMGSYS(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &imgsys_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
+#define IMG_SYS_SMI_LARB_RST_OFF	(0xC)
+
 static const struct mtk_gate imgsys_main_clks[] = {
 	GATE_IMGSYS(CLK_IMGSYS_MAIN_LARB9, "imgsys_main_larb9", "top_img", 0),
 	GATE_IMGSYS(CLK_IMGSYS_MAIN_TRAW0, "imgsys_main_traw0", "top_img", 1),
@@ -58,6 +60,17 @@ static const struct mtk_gate imgsys1_dip_nr_clks[] = {
 	GATE_IMGSYS(CLK_IMGSYS1_DIP_NR_DIP_NR, "imgsys1_dip_nr_dip_nr", "top_img", 1),
 };
 
+/* Reset for SMI larb 10/11a/11b/11c/15 */
+static u16 img_sys_rst_ofs[] = {
+	IMG_SYS_SMI_LARB_RST_OFF,
+};
+
+static const struct mtk_clk_rst_desc img_sys_rst_desc = {
+	.version = MTK_RST_SIMPLE,
+	.rst_bank_ofs = img_sys_rst_ofs,
+	.rst_bank_nr = ARRAY_SIZE(img_sys_rst_ofs),
+};
+
 static const struct mtk_clk_desc imgsys_main_desc = {
 	.clks = imgsys_main_clks,
 	.num_clks = ARRAY_SIZE(imgsys_main_clks),
@@ -66,26 +79,31 @@ static const struct mtk_clk_desc imgsys_main_desc = {
 static const struct mtk_clk_desc imgsys_wpe1_desc = {
 	.clks = imgsys_wpe1_clks,
 	.num_clks = ARRAY_SIZE(imgsys_wpe1_clks),
+	.rst_desc = &img_sys_rst_desc,
 };
 
 static const struct mtk_clk_desc imgsys_wpe2_desc = {
 	.clks = imgsys_wpe2_clks,
 	.num_clks = ARRAY_SIZE(imgsys_wpe2_clks),
+	.rst_desc = &img_sys_rst_desc,
 };
 
 static const struct mtk_clk_desc imgsys_wpe3_desc = {
 	.clks = imgsys_wpe3_clks,
 	.num_clks = ARRAY_SIZE(imgsys_wpe3_clks),
+	.rst_desc = &img_sys_rst_desc,
 };
 
 static const struct mtk_clk_desc imgsys1_dip_top_desc = {
 	.clks = imgsys1_dip_top_clks,
 	.num_clks = ARRAY_SIZE(imgsys1_dip_top_clks),
+	.rst_desc = &img_sys_rst_desc,
 };
 
 static const struct mtk_clk_desc imgsys1_dip_nr_desc = {
 	.clks = imgsys1_dip_nr_clks,
 	.num_clks = ARRAY_SIZE(imgsys1_dip_nr_clks),
+	.rst_desc = &img_sys_rst_desc,
 };
 
 static const struct of_device_id of_match_clk_mt8188_imgsys_main[] = {

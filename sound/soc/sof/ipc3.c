@@ -801,20 +801,16 @@ int sof_ipc3_validate_fw_version(struct snd_sof_dev *sdev)
 		return -EINVAL;
 	}
 
-	if (ready->flags & SOF_IPC_INFO_BUILD) {
+	if (ready->flags & SOF_IPC_INFO_BUILD)
 		dev_info(sdev->dev,
 			 "Firmware debug build %d on %s-%s - options:\n"
 			 " GDB: %s\n"
 			 " lock debug: %s\n"
 			 " lock vdebug: %s\n",
 			 v->build, v->date, v->time,
-			 (ready->flags & SOF_IPC_INFO_GDB) ?
-				"enabled" : "disabled",
-			 (ready->flags & SOF_IPC_INFO_LOCKS) ?
-				"enabled" : "disabled",
-			 (ready->flags & SOF_IPC_INFO_LOCKSV) ?
-				"enabled" : "disabled");
-	}
+			 str_enabled_disabled(ready->flags & SOF_IPC_INFO_GDB),
+			 str_enabled_disabled(ready->flags & SOF_IPC_INFO_LOCKS),
+			 str_enabled_disabled(ready->flags & SOF_IPC_INFO_LOCKSV));
 
 	/* copy the fw_version into debugfs at first boot */
 	memcpy(&sdev->fw_version, v, sizeof(*v));

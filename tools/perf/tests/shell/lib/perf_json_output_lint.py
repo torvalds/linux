@@ -19,6 +19,7 @@ ap.add_argument('--per-cluster', action='store_true')
 ap.add_argument('--per-die', action='store_true')
 ap.add_argument('--per-node', action='store_true')
 ap.add_argument('--per-socket', action='store_true')
+ap.add_argument('--metric-only', action='store_true')
 ap.add_argument('--file', type=argparse.FileType('r'), default=sys.stdin)
 args = ap.parse_args()
 
@@ -64,6 +65,8 @@ def check_json_output(expected_items):
       'socket': lambda x: True,
       'thread': lambda x: True,
       'unit': lambda x: True,
+      'insn per cycle': lambda x: isfloat(x),
+      'GHz': lambda x: True,  # FIXME: it seems unintended for --metric-only
   }
   input = '[\n' + ','.join(Lines) + '\n]'
   for item in json.loads(input):
@@ -77,6 +80,8 @@ def check_json_output(expected_items):
       elif count not in expected_items and count >= 1 and count <= 5 and 'metricgroup' in item:
         pass
       elif count - 1 in expected_items and 'metric-threshold' in item:
+          pass
+      elif count in expected_items and 'insn per cycle' in item:
           pass
       elif count not in expected_items:
         raise RuntimeError(f'wrong number of fields. counted {count} expected {expected_items}'
@@ -95,6 +100,8 @@ try:
     expected_items = [6, 8]
   elif args.per_core or args.per_socket or args.per_node or args.per_die or args.per_cluster or args.per_cache:
     expected_items = [7, 9]
+  elif args.metric_only:
+    expected_items = [1, 2]
   else:
     # If no option is specified, don't check the number of items.
     expected_items = -1

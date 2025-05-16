@@ -94,6 +94,47 @@ fail:
 	return ERR_PTR(-ENOMEM);
 }
 
+/*
+ * Helper for S390x with hardware zlib compression support.
+ *
+ * That hardware acceleration requires a buffer size larger than a single page
+ * to get ideal performance, thus we need to do the memory copy rather than
+ * use the page cache directly as input buffer.
+ */
+static int copy_data_into_buffer(struct address_space *mapping,
+				 struct workspace *workspace, u64 filepos,
+				 unsigned long length)
+{
+	u64 cur = filepos;
+
+	/* It's only for hardware accelerated zlib code. */
+	ASSERT(zlib_deflate_dfltcc_enabled());
+
+	while (cur < filepos + length) {
+		struct folio *folio;
+		void *data_in;
+		unsigned int offset;
+		unsigned long copy_length;
+		int ret;
+
+		ret = btrfs_compress_filemap_get_folio(mapping, cur, &folio);
+		if (ret < 0)
+			return ret;
+		/* No large folio support yet. */
+		ASSERT(!folio_test_large(folio));
+
+		offset = offset_in_folio(folio, cur);
+		copy_length = min(folio_size(folio) - offset,
+				  filepos + length - cur);
+
+		data_in = kmap_local_folio(folio, offset);
+		memcpy(workspace->buf + cur - filepos, data_in, copy_length);
+		kunmap_local(data_in);
+		cur += copy_length;
+	}
+	return 0;
+}
+
 int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
 			 u64 start, struct folio **folios, unsigned long *out_folios,
 			 unsigned long *total_in, unsigned long *total_out)
@@ -105,8 +146,6 @@ int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
 	int nr_folios = 0;
 	struct folio *in_folio = NULL;
 	struct folio *out_folio = NULL;
-	unsigned long bytes_left;
-	unsigned int in_buf_folios;
 	unsigned long len = *total_out;
 	unsigned long nr_dest_folios = *out_folios;
 	const unsigned long max_out = nr_dest_folios * PAGE_SIZE;
@@ -150,34 +189,21 @@ int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
 		 * the workspace buffer if required.
 		 */
 		if (workspace->strm.avail_in == 0) {
-			bytes_left = len - workspace->strm.total_in;
-			in_buf_folios = min(DIV_ROUND_UP(bytes_left, PAGE_SIZE),
-					    workspace->buf_size / PAGE_SIZE);
-			if (in_buf_folios > 1) {
-				int i;
+			unsigned long bytes_left = len - workspace->strm.total_in;
+			unsigned int copy_length = min(bytes_left, workspace->buf_size);
 
-				/* S390 hardware acceleration path, not subpage. */
-				ASSERT(!btrfs_is_subpage(
-						inode_to_fs_info(mapping->host),
-						mapping));
-				for (i = 0; i < in_buf_folios; i++) {
-					if (data_in) {
-						kunmap_local(data_in);
-						folio_put(in_folio);
-						data_in = NULL;
-					}
-					ret = btrfs_compress_filemap_get_folio(mapping,
-							start, &in_folio);
-					if (ret < 0)
-						goto out;
-					data_in = kmap_local_folio(in_folio, 0);
-					copy_page(workspace->buf + i * PAGE_SIZE,
-						  data_in);
-					start += PAGE_SIZE;
-				}
+			/*
+			 * This can only happen when hardware zlib compression is
+			 * enabled.
+			 */
+			if (copy_length > PAGE_SIZE) {
+				ret = copy_data_into_buffer(mapping, workspace,
+							    start, copy_length);
+				if (ret < 0)
+					goto out;
+				start += copy_length;
 				workspace->strm.next_in = workspace->buf;
-				workspace->strm.avail_in = min(bytes_left,
-							       in_buf_folios << PAGE_SHIFT);
+				workspace->strm.avail_in = copy_length;
 			} else {
 				unsigned int pg_off;
 				unsigned int cur_len;
@@ -463,6 +489,7 @@ out:
 
 const struct btrfs_compress_op btrfs_zlib_compress = {
 	.workspace_manager	= &wsm,
+	.min_level		= 1,
 	.max_level		= 9,
 	.default_level		= BTRFS_ZLIB_DEFAULT_LEVEL,
 };

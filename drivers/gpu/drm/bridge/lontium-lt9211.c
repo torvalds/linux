@@ -99,11 +99,12 @@ static struct lt9211 *bridge_to_lt9211(struct drm_bridge *bridge)
 }
 
 static int lt9211_attach(struct drm_bridge *bridge,
+			 struct drm_encoder *encoder,
 			 enum drm_bridge_attach_flags flags)
 {
 	struct lt9211 *ctx = bridge_to_lt9211(bridge);
 
-	return drm_bridge_attach(bridge->encoder, ctx->panel_bridge,
+	return drm_bridge_attach(encoder, ctx->panel_bridge,
 				 &ctx->bridge, flags);
 }
 

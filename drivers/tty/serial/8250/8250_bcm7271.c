@@ -1056,8 +1056,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 	}
 
 	/* setup HR timer */
-	hrtimer_init(&priv->hrt, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	priv->hrt.function = brcmuart_hrtimer_func;
+	hrtimer_setup(&priv->hrt, brcmuart_hrtimer_func, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 
 	up.port.shutdown = brcmuart_shutdown;
 	up.port.startup = brcmuart_startup;

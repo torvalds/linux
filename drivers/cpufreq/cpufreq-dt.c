@@ -36,12 +36,6 @@ struct private_data {
 
 static LIST_HEAD(priv_list);
 
-static struct freq_attr *cpufreq_dt_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,   /* Extra space for boost-attr if required */
-	NULL,
-};
-
 static struct private_data *cpufreq_dt_find_data(int cpu)
 {
 	struct private_data *priv;
@@ -120,21 +114,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = transition_latency;
 	policy->dvfs_possible_from_any_cpu = true;
 
-	/* Support turbo/boost mode */
-	if (policy_has_boost_freq(policy)) {
-		/* This gets disabled by core on driver unregister */
-		ret = cpufreq_enable_boost_support();
-		if (ret)
-			goto out_clk_put;
-		cpufreq_dt_attr[1] = &cpufreq_freq_attr_scaling_boost_freqs;
-	}
-
 	return 0;
-
-out_clk_put:
-	clk_put(cpu_clk);
-
-	return ret;
 }
 
 static int cpufreq_online(struct cpufreq_policy *policy)
@@ -169,7 +149,7 @@ static struct cpufreq_driver dt_cpufreq_driver = {
 	.offline = cpufreq_offline,
 	.register_em = cpufreq_register_em_with_opp,
 	.name = "cpufreq-dt",
-	.attr = cpufreq_dt_attr,
+	.set_boost = cpufreq_boost_set_sw,
 	.suspend = cpufreq_generic_suspend,
 };
 
@@ -303,7 +283,7 @@ static int dt_cpufreq_probe(struct platform_device *pdev)
 	int ret, cpu;
 
 	/* Request resources early so we can return in case of -EPROBE_DEFER */
-	for_each_possible_cpu(cpu) {
+	for_each_present_cpu(cpu) {
 		ret = dt_cpufreq_early_init(&pdev->dev, cpu);
 		if (ret)
 			goto err;

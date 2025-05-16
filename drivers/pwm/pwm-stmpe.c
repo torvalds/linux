@@ -326,12 +326,33 @@ static int __init stmpe_pwm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	platform_set_drvdata(pdev, chip);
+
 	return 0;
 }
 
-static struct platform_driver stmpe_pwm_driver = {
+static void __exit stmpe_pwm_remove(struct platform_device *pdev)
+{
+	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
+	struct pwm_chip *chip = platform_get_drvdata(pdev);
+
+	pwmchip_remove(chip);
+	stmpe_disable(stmpe, STMPE_BLOCK_PWM);
+}
+
+/*
+ * stmpe_pwm_remove() lives in .exit.text. For drivers registered via
+ * module_platform_driver_probe() this is ok because they cannot get unbound at
+ * runtime. So mark the driver struct with __refdata to prevent modpost
+ * triggering a section mismatch warning.
+ */
+static struct platform_driver stmpe_pwm_driver __refdata = {
 	.driver = {
 		.name = "stmpe-pwm",
 	},
+	.remove = __exit_p(stmpe_pwm_remove),
 };
-builtin_platform_driver_probe(stmpe_pwm_driver, stmpe_pwm_probe);
+module_platform_driver_probe(stmpe_pwm_driver, stmpe_pwm_probe);
+
+MODULE_DESCRIPTION("STMPE expander PWM");
+MODULE_LICENSE("GPL");

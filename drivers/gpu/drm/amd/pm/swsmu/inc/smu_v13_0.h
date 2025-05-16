@@ -53,6 +53,10 @@
 
 #define SMU_13_VCLK_SHIFT		16
 
+#define SMUQ10_TO_UINT(x) ((x) >> 10)
+#define SMUQ10_FRAC(x) ((x) & 0x3ff)
+#define SMUQ10_ROUND(x) ((SMUQ10_TO_UINT(x)) + ((SMUQ10_FRAC(x)) >= 0x200))
+
 extern const int pmfw_decoded_link_speed[5];
 extern const int pmfw_decoded_link_width[7];
 
@@ -108,6 +112,7 @@ struct smu_13_0_dpm_context {
 	uint32_t                    workload_policy_mask;
 	uint32_t                    dcef_min_ds_clk;
 	uint64_t                    caps;
+	uint32_t                    board_volt;
 };
 
 enum smu_13_0_power_state {
@@ -179,13 +184,6 @@ int smu_v13_0_disable_thermal_alert(struct smu_context *smu);
 
 int smu_v13_0_get_gfx_vdd(struct smu_context *smu, uint32_t *value);
 
-int smu_v13_0_set_min_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk);
-
-int
-smu_v13_0_display_clock_voltage_request(struct smu_context *smu,
-					struct pp_display_clock_request
-					*clock_req);
-
 uint32_t
 smu_v13_0_get_fan_control_mode(struct smu_context *smu);
 
@@ -221,11 +219,6 @@ int smu_v13_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type c
 
 int smu_v13_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_type clk_type,
 					  uint32_t min, uint32_t max, bool automatic);
-
-int smu_v13_0_set_hard_freq_limited_range(struct smu_context *smu,
-					  enum smu_clk_type clk_type,
-					  uint32_t min,
-					  uint32_t max);
 
 int smu_v13_0_set_performance_level(struct smu_context *smu,
 				    enum amd_dpm_forced_level level);
@@ -306,7 +299,15 @@ int smu_v13_0_get_boot_freq_by_index(struct smu_context *smu,
 				     uint32_t *value);
 
 void smu_v13_0_interrupt_work(struct smu_context *smu);
+void smu_v13_0_reset_custom_level(struct smu_context *smu);
 bool smu_v13_0_12_is_dpm_running(struct smu_context *smu);
+int smu_v13_0_12_get_max_metrics_size(void);
+int smu_v13_0_12_setup_driver_pptable(struct smu_context *smu);
+int smu_v13_0_12_get_smu_metrics_data(struct smu_context *smu,
+				      MetricsMember_t member,
+				      uint32_t *value);
+ssize_t smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table);
 extern const struct cmn2asic_mapping smu_v13_0_12_feature_mask_map[];
+extern const struct cmn2asic_msg_mapping smu_v13_0_12_message_map[];
 #endif
 #endif

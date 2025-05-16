@@ -329,6 +329,34 @@ int amdgpu_dpm_mode1_reset(struct amdgpu_device *adev)
 	return ret;
 }
 
+bool amdgpu_dpm_is_link_reset_supported(struct amdgpu_device *adev)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	bool support_link_reset = false;
+
+	if (is_support_sw_smu(adev)) {
+		mutex_lock(&adev->pm.mutex);
+		support_link_reset = smu_link_reset_is_support(smu);
+		mutex_unlock(&adev->pm.mutex);
+	}
+
+	return support_link_reset;
+}
+
+int amdgpu_dpm_link_reset(struct amdgpu_device *adev)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	int ret = -EOPNOTSUPP;
+
+	if (is_support_sw_smu(adev)) {
+		mutex_lock(&adev->pm.mutex);
+		ret = smu_link_reset(smu);
+		mutex_unlock(&adev->pm.mutex);
+	}
+
+	return ret;
+}
+
 int amdgpu_dpm_switch_power_profile(struct amdgpu_device *adev,
 				    enum PP_SMC_POWER_PROFILE type,
 				    bool en)
@@ -343,6 +371,25 @@ int amdgpu_dpm_switch_power_profile(struct amdgpu_device *adev,
 		mutex_lock(&adev->pm.mutex);
 		ret = pp_funcs->switch_power_profile(
 			adev->powerplay.pp_handle, type, en);
+		mutex_unlock(&adev->pm.mutex);
+	}
+
+	return ret;
+}
+
+int amdgpu_dpm_pause_power_profile(struct amdgpu_device *adev,
+				   bool pause)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	int ret = 0;
+
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
+	if (pp_funcs && pp_funcs->pause_power_profile) {
+		mutex_lock(&adev->pm.mutex);
+		ret = pp_funcs->pause_power_profile(
+			adev->powerplay.pp_handle, pause);
 		mutex_unlock(&adev->pm.mutex);
 	}
 
@@ -716,8 +763,32 @@ int amdgpu_dpm_send_rma_reason(struct amdgpu_device *adev)
 	ret = smu_send_rma_reason(smu);
 	mutex_unlock(&adev->pm.mutex);
 
-	if (amdgpu_cper_generate_bp_threshold_record(adev))
-		dev_warn(adev->dev, "fail to generate bad page threshold cper records\n");
+	if (adev->cper.enabled)
+		if (amdgpu_cper_generate_bp_threshold_record(adev))
+			dev_warn(adev->dev, "fail to generate bad page threshold cper records\n");
+
+	return ret;
+}
+
+/**
+ * amdgpu_dpm_reset_sdma_is_supported - Check if SDMA reset is supported
+ * @adev: amdgpu_device pointer
+ *
+ * This function checks if the SMU supports resetting the SDMA engine.
+ * It returns false if the hardware does not support software SMU or
+ * if the feature is not supported.
+ */
+bool amdgpu_dpm_reset_sdma_is_supported(struct amdgpu_device *adev)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	bool ret;
+
+	if (!is_support_sw_smu(adev))
+		return false;
+
+	mutex_lock(&adev->pm.mutex);
+	ret = smu_reset_sdma_is_supported(smu);
+	mutex_unlock(&adev->pm.mutex);
 
 	return ret;
 }
@@ -732,6 +803,21 @@ int amdgpu_dpm_reset_sdma(struct amdgpu_device *adev, uint32_t inst_mask)
 
 	mutex_lock(&adev->pm.mutex);
 	ret = smu_reset_sdma(smu, inst_mask);
+	mutex_unlock(&adev->pm.mutex);
+
+	return ret;
+}
+
+int amdgpu_dpm_reset_vcn(struct amdgpu_device *adev, uint32_t inst_mask)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	int ret;
+
+	if (!is_support_sw_smu(adev))
+		return -EOPNOTSUPP;
+
+	mutex_lock(&adev->pm.mutex);
+	ret = smu_reset_vcn(smu, inst_mask);
 	mutex_unlock(&adev->pm.mutex);
 
 	return ret;

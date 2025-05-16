@@ -45,6 +45,8 @@ SECTIONS
 
 		setup_size = ALIGN(ABSOLUTE(.), 4096);
 		setup_sects = ABSOLUTE(setup_size / 512);
+		ASSERT(setup_sects >= 5, "The setup must be at least 5 sectors in size");
+		ASSERT(setup_sects <= 64, "The setup must be at most 64 sectors in size");
 	}
 
 	. = ALIGN(16);

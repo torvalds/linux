@@ -43,7 +43,7 @@ enum {
 	HUMAX_DVB_T_STICK_HIGH_SPEED_WARM,
 };
 
-static struct usb_device_id dibusb_dib3000mc_table[] = {
+static const struct usb_device_id dibusb_dib3000mc_table[] = {
 	DVB_USB_DEV(DIBCOM, DIBCOM_MOD3001_COLD),
 	DVB_USB_DEV(DIBCOM, DIBCOM_MOD3001_WARM),
 	DVB_USB_DEV(ULTIMA_ELECTRONIC, ULTIMA_TVBOX_USB2_COLD),

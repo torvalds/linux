@@ -202,7 +202,7 @@ err_out:
 void test_setget_sockopt(void)
 {
 	cg_fd = test__join_cgroup(CG_NAME);
-	if (cg_fd < 0)
+	if (!ASSERT_OK_FD(cg_fd, "join cgroup"))
 		return;
 
 	if (create_netns())

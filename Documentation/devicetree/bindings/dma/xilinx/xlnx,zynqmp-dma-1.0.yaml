@@ -75,7 +75,6 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/xlnx-zynqmp-clk.h>
 
     fpd_dma_chan1: dma-controller@fd500000 {
       compatible = "xlnx,zynqmp-dma-1.0";
@@ -84,7 +83,7 @@ examples:
       interrupts = <0 117 0x4>;
       #dma-cells = <1>;
       clock-names = "clk_main", "clk_apb";
-      clocks = <&zynqmp_clk GDMA_REF>, <&zynqmp_clk LPD_LSBUS>;
+      clocks = <&zynqmp_clk 19>, <&zynqmp_clk 31>;
       xlnx,bus-width = <128>;
       dma-coherent;
     };

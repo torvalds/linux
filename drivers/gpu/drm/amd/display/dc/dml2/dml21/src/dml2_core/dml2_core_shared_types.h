@@ -1078,6 +1078,8 @@ struct dml2_core_calcs_mode_programming_locals {
 	enum dml2_source_format_class pixel_format[DML2_MAX_PLANES];
 	unsigned int lb_source_lines_l[DML2_MAX_PLANES];
 	unsigned int lb_source_lines_c[DML2_MAX_PLANES];
+	unsigned int num_dsc_slices[DML2_MAX_PLANES];
+	bool dsc_enable[DML2_MAX_PLANES];
 };
 
 struct dml2_core_calcs_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_locals {
@@ -1571,7 +1573,7 @@ struct dml2_core_calcs_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_param
 	unsigned int *DSTYAfterScaler;
 	bool UnboundedRequestEnabled;
 	unsigned int CompressedBufferSizeInkByte;
-	bool max_oustanding_when_urgent_expected;
+	bool max_outstanding_when_urgent_expected;
 	unsigned int max_outstanding_requests;
 	unsigned int max_request_size_bytes;
 	unsigned int *meta_row_height_l;

@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
+#include <asm/machine.h>
 #include <asm/debug.h>
 #include <linux/uaccess.h>
 #include <asm/ipl.h>
@@ -234,7 +235,7 @@ static int __init dasd_parse_keyword(char *keyword)
 		return 0;
         }
 	if (strncmp("nopav", keyword, length) == 0) {
-		if (MACHINE_IS_VM)
+		if (machine_is_vm())
 			pr_info("'nopav' is not supported on z/VM\n");
 		else {
 			dasd_nopav = 1;

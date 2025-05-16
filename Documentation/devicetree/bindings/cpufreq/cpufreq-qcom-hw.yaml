@@ -34,6 +34,7 @@ properties:
       - description: v2 of CPUFREQ HW (EPSS)
         items:
           - enum:
+              - qcom,qcs8300-cpufreq-epss
               - qcom,qdu1000-cpufreq-epss
               - qcom,sa8255p-cpufreq-epss
               - qcom,sa8775p-cpufreq-epss
@@ -111,22 +112,20 @@ allOf:
             enum:
               - qcom,qcm2290-cpufreq-hw
               - qcom,sar2130p-cpufreq-epss
+              - qcom,sdx75-cpufreq-epss
     then:
       properties:
         reg:
-          minItems: 1
           maxItems: 1
 
         reg-names:
-          minItems: 1
           maxItems: 1
 
         interrupts:
-          minItems: 1
           maxItems: 1
 
         interrupt-names:
-          minItems: 1
+          maxItems: 1
 
   - if:
       properties:
@@ -135,6 +134,7 @@ allOf:
             enum:
               - qcom,qdu1000-cpufreq-epss
               - qcom,sa8255p-cpufreq-epss
+              - qcom,sa8775p-cpufreq-epss
               - qcom,sc7180-cpufreq-hw
               - qcom,sc8180x-cpufreq-hw
               - qcom,sc8280xp-cpufreq-epss
@@ -160,12 +160,14 @@ allOf:
 
         interrupt-names:
           minItems: 2
+          maxItems: 2
 
   - if:
       properties:
         compatible:
           contains:
             enum:
+              - qcom,qcs8300-cpufreq-epss
               - qcom,sc7280-cpufreq-epss
               - qcom,sm8250-cpufreq-epss
               - qcom,sm8350-cpufreq-epss
@@ -187,6 +189,7 @@ allOf:
 
         interrupt-names:
           minItems: 3
+          maxItems: 3
 
   - if:
       properties:
@@ -211,7 +214,31 @@ allOf:
 
         interrupt-names:
           minItems: 2
+          maxItems: 2
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sm8650-cpufreq-epss
+    then:
+      properties:
+        reg:
+          minItems: 4
+          maxItems: 4
+
+        reg-names:
+          minItems: 4
+          maxItems: 4
+
+        interrupts:
+          minItems: 4
+          maxItems: 4
+
+        interrupt-names:
+          minItems: 4
+          maxItems: 4
 
 examples:
   - |

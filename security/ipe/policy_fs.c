@@ -16,7 +16,11 @@
 #define MAX_VERSION_SIZE ARRAY_SIZE("65535.65535.65535")
 
 /**
- * ipefs_file - defines a file in securityfs.
+ * struct ipefs_file - defines a file in securityfs.
+ *
+ * @name: file name inside the policy subdirectory
+ * @access: file permissions
+ * @fops: &file_operations specific to this file
  */
 struct ipefs_file {
 	const char *name;
@@ -401,7 +405,7 @@ static const struct file_operations delete_fops = {
 	.write = delete_policy,
 };
 
-/**
+/*
  * policy_subdir - files under a policy subdirectory
  */
 static const struct ipefs_file policy_subdir[] = {

@@ -370,7 +370,7 @@ static void imx_keypad_close(struct input_dev *dev)
 	/* Mark keypad as being inactive */
 	keypad->enabled = false;
 	synchronize_irq(keypad->irq);
-	del_timer_sync(&keypad->check_matrix_timer);
+	timer_delete_sync(&keypad->check_matrix_timer);
 
 	imx_keypad_inhibit(keypad);
 

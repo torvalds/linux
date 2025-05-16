@@ -111,6 +111,9 @@ struct netns_ipv4 {
 #endif
 	struct hlist_head	*fib_table_hash;
 	struct sock		*fibnl;
+	struct hlist_head	*fib_info_hash;
+	unsigned int		fib_info_hash_bits;
+	unsigned int		fib_info_cnt;
 
 	struct sock		*mc_autojoin_sk;
 
@@ -181,6 +184,7 @@ struct netns_ipv4 {
 	u8 sysctl_tcp_window_scaling;
 	u8 sysctl_tcp_timestamps;
 	int sysctl_tcp_rto_min_us;
+	int sysctl_tcp_rto_max_ms;
 	u8 sysctl_tcp_recovery;
 	u8 sysctl_tcp_thin_linear_timeouts;
 	u8 sysctl_tcp_slow_start_after_idle;

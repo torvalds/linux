@@ -65,7 +65,8 @@ static s64 cal_camerarx_get_ext_link_freq(struct cal_camerarx *phy)
 
 	bpp = fmtinfo->bpp;
 
-	freq = v4l2_get_link_freq(phy->source->ctrl_handler, bpp, 2 * num_lanes);
+	freq = v4l2_get_link_freq(&phy->source->entity.pads[phy->source_pad],
+				  bpp, 2 * num_lanes);
 	if (freq < 0) {
 		phy_err(phy, "failed to get link freq for subdev '%s'\n",
 			phy->source->name);

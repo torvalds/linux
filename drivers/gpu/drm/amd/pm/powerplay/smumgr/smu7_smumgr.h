@@ -53,8 +53,6 @@ struct smu7_smumgr {
 };
 
 
-int smu7_copy_bytes_from_smc(struct pp_hwmgr *hwmgr, uint32_t smc_start_address,
-				uint32_t *dest, uint32_t byte_count, uint32_t limit);
 int smu7_copy_bytes_to_smc(struct pp_hwmgr *hwmgr, uint32_t smc_start_address,
 			const uint8_t *src, uint32_t byte_count, uint32_t limit);
 int smu7_program_jump_on_start(struct pp_hwmgr *hwmgr);

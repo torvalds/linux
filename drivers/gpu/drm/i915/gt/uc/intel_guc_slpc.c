@@ -15,6 +15,34 @@
 #include "gt/intel_gt_regs.h"
 #include "gt/intel_rps.h"
 
+/**
+ * DOC: SLPC - Dynamic Frequency management
+ *
+ * Single Loop Power Control (SLPC) is a GuC algorithm that manages
+ * GT frequency based on busyness and how KMD initializes it. SLPC is
+ * almost completely in control after initialization except for a few
+ * scenarios mentioned below.
+ *
+ * KMD uses the concept of waitboost to ramp frequency to RP0 when there
+ * are pending submissions for a context. It achieves this by sending GuC a
+ * request to update the min frequency to RP0. Waitboost is disabled
+ * when the request retires.
+ *
+ * Another form of frequency control happens through per-context hints.
+ * A context can be marked as low latency during creation. That will ensure
+ * that SLPC uses an aggressive frequency ramp when that context is active.
+ *
+ * Power profiles add another level of control to these mechanisms.
+ * When power saving profile is chosen, SLPC will use conservative
+ * thresholds to ramp frequency, thus saving power. KMD will disable
+ * waitboosts as well, which achieves further power savings. Base profile
+ * is default and ensures balanced performance for any workload.
+ *
+ * Lastly, users have some level of control through sysfs, where min/max
+ * frequency values can be altered and the use of efficient freq
+ * can be toggled.
+ */
+
 static inline struct intel_guc *slpc_to_guc(struct intel_guc_slpc *slpc)
 {
 	return container_of(slpc, struct intel_guc, slpc);
@@ -264,6 +292,8 @@ int intel_guc_slpc_init(struct intel_guc_slpc *slpc)
 	atomic_set(&slpc->num_waiters, 0);
 	slpc->num_boosts = 0;
 	slpc->media_ratio_mode = SLPC_MEDIA_RATIO_MODE_DYNAMIC_CONTROL;
+
+	slpc->power_profile = SLPC_POWER_PROFILES_BASE;
 
 	mutex_init(&slpc->lock);
 	INIT_WORK(&slpc->boost_work, slpc_boost_work);
@@ -575,6 +605,34 @@ int intel_guc_slpc_set_media_ratio_mode(struct intel_guc_slpc *slpc, u32 val)
 	return ret;
 }
 
+int intel_guc_slpc_set_power_profile(struct intel_guc_slpc *slpc, u32 val)
+{
+	struct drm_i915_private *i915 = slpc_to_i915(slpc);
+	intel_wakeref_t wakeref;
+	int ret = 0;
+
+	if (val > SLPC_POWER_PROFILES_POWER_SAVING)
+		return -EINVAL;
+
+	mutex_lock(&slpc->lock);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+
+	ret = slpc_set_param(slpc,
+			     SLPC_PARAM_POWER_PROFILE,
+			     val);
+	if (ret)
+		guc_err(slpc_to_guc(slpc),
+			"Failed to set power profile to %d: %pe\n",
+			 val, ERR_PTR(ret));
+	else
+		slpc->power_profile = val;
+
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+	mutex_unlock(&slpc->lock);
+
+	return ret;
+}
+
 void intel_guc_pm_intrmsk_enable(struct intel_gt *gt)
 {
 	u32 pm_intrmsk_mbz = 0;
@@ -735,6 +793,13 @@ int intel_guc_slpc_enable(struct intel_guc_slpc *slpc)
 
 	/* Enable SLPC Optimized Strategy for compute */
 	intel_guc_slpc_set_strategy(slpc, SLPC_OPTIMIZED_STRATEGY_COMPUTE);
+
+	/* Set cached value of power_profile */
+	ret = intel_guc_slpc_set_power_profile(slpc, slpc->power_profile);
+	if (unlikely(ret)) {
+		guc_probe_error(guc, "Failed to set SLPC power profile: %pe\n", ERR_PTR(ret));
+		return ret;
+	}
 
 	return 0;
 }

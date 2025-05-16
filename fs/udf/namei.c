@@ -419,8 +419,8 @@ static int udf_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	return udf_add_nondir(dentry, inode);
 }
 
-static int udf_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-		     struct dentry *dentry, umode_t mode)
+static struct dentry *udf_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+				struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
 	struct udf_fileident_iter iter;
@@ -430,7 +430,7 @@ static int udf_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 
 	inode = udf_new_inode(dir, S_IFDIR | mode);
 	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+		return ERR_CAST(inode);
 
 	iinfo = UDF_I(inode);
 	inode->i_op = &udf_dir_inode_operations;
@@ -439,7 +439,7 @@ static int udf_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	if (err) {
 		clear_nlink(inode);
 		discard_new_inode(inode);
-		return err;
+		return ERR_PTR(err);
 	}
 	set_nlink(inode, 2);
 	iter.fi.icb.extLength = cpu_to_le32(inode->i_sb->s_blocksize);
@@ -456,7 +456,7 @@ static int udf_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	if (err) {
 		clear_nlink(inode);
 		discard_new_inode(inode);
-		return err;
+		return ERR_PTR(err);
 	}
 	iter.fi.icb.extLength = cpu_to_le32(inode->i_sb->s_blocksize);
 	iter.fi.icb.extLocation = cpu_to_lelb(iinfo->i_location);
@@ -471,7 +471,7 @@ static int udf_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	mark_inode_dirty(dir);
 	d_instantiate_new(dentry, inode);
 
-	return 0;
+	return NULL;
 }
 
 static int empty_dir(struct inode *dir)
