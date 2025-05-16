@@ -115,18 +115,18 @@ struct sh_msiof_spi_priv {
 #define SISCR_BRDV_DIV_1	7U
 
 /* SICTR */
-#define SICTR_TSCKIZ_MASK	GENMASK(31, 30)	/* Transmit Clock I/O Polarity Select */
+#define SICTR_TSCKIZ		GENMASK(31, 30)	/* Transmit Clock I/O Polarity Select */
 #define SICTR_TSCKIZ_SCK	BIT(31)		/*   Disable SCK when TX disabled */
-#define SICTR_TSCKIZ_POL_SHIFT	30		/*   Transmit Clock Polarity */
-#define SICTR_RSCKIZ_MASK	GENMASK(29, 28) /* Receive Clock Polarity Select */
+#define SICTR_TSCKIZ_POL	BIT(30)		/*   Transmit Clock Polarity */
+#define SICTR_RSCKIZ		GENMASK(29, 28) /* Receive Clock Polarity Select */
 #define SICTR_RSCKIZ_SCK	BIT(29)		/*   Must match CTR_TSCKIZ_SCK */
-#define SICTR_RSCKIZ_POL_SHIFT	28		/*   Receive Clock Polarity */
-#define SICTR_TEDG_SHIFT	27		/* Transmit Timing (1 = falling edge) */
-#define SICTR_REDG_SHIFT	26		/* Receive Timing (1 = falling edge) */
-#define SICTR_TXDIZ_MASK	GENMASK(23, 22)	/* Pin Output When TX is Disabled */
-#define SICTR_TXDIZ_LOW		(0 << 22)	/*   0 */
-#define SICTR_TXDIZ_HIGH	(1 << 22)	/*   1 */
-#define SICTR_TXDIZ_HIZ		(2 << 22)	/*   High-impedance */
+#define SICTR_RSCKIZ_POL	BIT(28)		/*   Receive Clock Polarity */
+#define SICTR_TEDG		BIT(27)		/* Transmit Timing (1 = falling edge) */
+#define SICTR_REDG		BIT(26)		/* Receive Timing (1 = falling edge) */
+#define SICTR_TXDIZ		GENMASK(23, 22)	/* Pin Output When TX is Disabled */
+#define SICTR_TXDIZ_LOW		0U		/*   0 */
+#define SICTR_TXDIZ_HIGH	1U		/*   1 */
+#define SICTR_TXDIZ_HIZ		2U		/*   High-impedance */
 #define SICTR_TSCKE		BIT(15)		/* Transmit Serial Clock Output Enable */
 #define SICTR_TFSE		BIT(14)		/* Transmit Frame Sync Signal Output Enable */
 #define SICTR_TXE		BIT(9)		/* Transmit Enable */
@@ -382,14 +382,15 @@ static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p, u32 ss,
 	sh_msiof_write(p, SIRMDR1, tmp);
 
 	tmp = 0;
-	tmp |= SICTR_TSCKIZ_SCK | cpol << SICTR_TSCKIZ_POL_SHIFT;
-	tmp |= SICTR_RSCKIZ_SCK | cpol << SICTR_RSCKIZ_POL_SHIFT;
+	tmp |= SICTR_TSCKIZ_SCK | FIELD_PREP(SICTR_TSCKIZ_POL, cpol);
+	tmp |= SICTR_RSCKIZ_SCK | FIELD_PREP(SICTR_RSCKIZ_POL, cpol);
 
 	edge = cpol ^ !cpha;
 
-	tmp |= edge << SICTR_TEDG_SHIFT;
-	tmp |= edge << SICTR_REDG_SHIFT;
-	tmp |= tx_hi_z ? SICTR_TXDIZ_HIZ : SICTR_TXDIZ_LOW;
+	tmp |= FIELD_PREP(SICTR_TEDG, edge);
+	tmp |= FIELD_PREP(SICTR_REDG, edge);
+	tmp |= FIELD_PREP(SICTR_TXDIZ,
+			  tx_hi_z ? SICTR_TXDIZ_HIZ : SICTR_TXDIZ_LOW);
 	sh_msiof_write(p, SICTR, tmp);
 }
 
