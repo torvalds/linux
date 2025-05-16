@@ -1522,13 +1522,15 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	btrfs_release_path(path);
 
 	/* now insert the actual backref */
-	if (owner < BTRFS_FIRST_FREE_OBJECTID)
+	if (owner < BTRFS_FIRST_FREE_OBJECTID) {
 		ret = insert_tree_block_ref(trans, path, node, bytenr);
-	else
+		if (ret)
+			btrfs_abort_transaction(trans, ret);
+	} else {
 		ret = insert_extent_data_ref(trans, path, node, bytenr);
-
-	if (ret)
-		btrfs_abort_transaction(trans, ret);
+		if (ret)
+			btrfs_abort_transaction(trans, ret);
+	}
 
 	return ret;
 }
