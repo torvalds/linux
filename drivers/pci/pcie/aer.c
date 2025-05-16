@@ -116,12 +116,12 @@ struct aer_info {
 					PCI_ERR_ROOT_MULTI_COR_RCV |	\
 					PCI_ERR_ROOT_MULTI_UNCOR_RCV)
 
-static int pcie_aer_disable;
+static bool pcie_aer_disable;
 static pci_ers_result_t aer_root_reset(struct pci_dev *dev);
 
 void pci_no_aer(void)
 {
-	pcie_aer_disable = 1;
+	pcie_aer_disable = true;
 }
 
 bool pci_aer_available(void)
