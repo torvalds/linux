@@ -262,7 +262,7 @@ int bch2_set_rebalance_needs_scan(struct bch_fs *c, u64 inum)
 	int ret = bch2_trans_commit_do(c, NULL, NULL,
 				       BCH_TRANS_COMMIT_no_enospc,
 			    bch2_set_rebalance_needs_scan_trans(trans, inum));
-	rebalance_wakeup(c);
+	bch2_rebalance_wakeup(c);
 	return ret;
 }
 
@@ -581,6 +581,13 @@ static int bch2_rebalance_thread(void *arg)
 
 	set_freezable();
 
+	/*
+	 * Data move operations can't run until after check_snapshots has
+	 * completed, and bch2_snapshot_is_ancestor() is available.
+	 */
+	kthread_wait_freezable(c->recovery_pass_done > BCH_RECOVERY_PASS_check_snapshots ||
+			       kthread_should_stop());
+
 	bch2_moving_ctxt_init(&ctxt, c, NULL, &r->work_stats,
 			      writepoint_ptr(&c->rebalance_write_point),
 			      true);
@@ -664,7 +671,7 @@ void bch2_rebalance_stop(struct bch_fs *c)
 	c->rebalance.thread = NULL;
 
 	if (p) {
-		/* for sychronizing with rebalance_wakeup() */
+		/* for sychronizing with bch2_rebalance_wakeup() */
 		synchronize_rcu();
 
 		kthread_stop(p);

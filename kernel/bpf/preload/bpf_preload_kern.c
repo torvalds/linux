@@ -89,5 +89,6 @@ static void __exit fini(void)
 }
 late_initcall(load);
 module_exit(fini);
+MODULE_IMPORT_NS("BPF_INTERNAL");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Embedded BPF programs for introspection in bpffs");

@@ -1080,6 +1080,7 @@ void software_node_notify(struct device *dev)
 	if (!swnode)
 		return;
 
+	kobject_get(&swnode->kobj);
 	ret = sysfs_create_link(&dev->kobj, &swnode->kobj, "software_node");
 	if (ret)
 		return;
@@ -1089,8 +1090,6 @@ void software_node_notify(struct device *dev)
 		sysfs_remove_link(&dev->kobj, "software_node");
 		return;
 	}
-
-	kobject_get(&swnode->kobj);
 }
 
 void software_node_notify_remove(struct device *dev)

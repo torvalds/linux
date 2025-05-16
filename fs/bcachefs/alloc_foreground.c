@@ -1425,6 +1425,8 @@ alloc_done:
 	open_bucket_for_each(c, &wp->ptrs, ob, i)
 		wp->sectors_free = min(wp->sectors_free, ob->sectors_free);
 
+	wp->sectors_free = rounddown(wp->sectors_free, block_sectors(c));
+
 	BUG_ON(!wp->sectors_free || wp->sectors_free == UINT_MAX);
 
 	return 0;

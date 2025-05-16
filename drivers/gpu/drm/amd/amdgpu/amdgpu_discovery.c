@@ -120,6 +120,8 @@ MODULE_FIRMWARE("amdgpu/vega20_ip_discovery.bin");
 MODULE_FIRMWARE("amdgpu/raven_ip_discovery.bin");
 MODULE_FIRMWARE("amdgpu/raven2_ip_discovery.bin");
 MODULE_FIRMWARE("amdgpu/picasso_ip_discovery.bin");
+MODULE_FIRMWARE("amdgpu/arcturus_ip_discovery.bin");
+MODULE_FIRMWARE("amdgpu/aldebaran_ip_discovery.bin");
 
 #define mmIP_DISCOVERY_VERSION  0x16A00
 #define mmRCC_CONFIG_MEMSIZE	0xde3

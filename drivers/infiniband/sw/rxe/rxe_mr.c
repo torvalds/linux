@@ -323,7 +323,7 @@ int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr,
 		return err;
 	}
 
-	if (mr->umem->is_odp)
+	if (is_odp_mr(mr))
 		return rxe_odp_mr_copy(mr, iova, addr, length, dir);
 	else
 		return rxe_mr_copy_xarray(mr, iova, addr, length, dir);
@@ -536,7 +536,7 @@ int rxe_mr_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
 	u64 *va;
 
 	/* ODP is not supported right now. WIP. */
-	if (mr->umem->is_odp)
+	if (is_odp_mr(mr))
 		return RESPST_ERR_UNSUPPORTED_OPCODE;
 
 	/* See IBA oA19-28 */

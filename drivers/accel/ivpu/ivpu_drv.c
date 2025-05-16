@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2024 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  */
 
 #include <linux/firmware.h>
@@ -164,7 +164,7 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 		args->value = vdev->platform;
 		break;
 	case DRM_IVPU_PARAM_CORE_CLOCK_RATE:
-		args->value = ivpu_hw_ratio_to_freq(vdev, vdev->hw->pll.max_ratio);
+		args->value = ivpu_hw_dpu_max_freq_get(vdev);
 		break;
 	case DRM_IVPU_PARAM_NUM_CONTEXTS:
 		args->value = ivpu_get_context_count(vdev);
@@ -421,9 +421,9 @@ void ivpu_prepare_for_reset(struct ivpu_device *vdev)
 {
 	ivpu_hw_irq_disable(vdev);
 	disable_irq(vdev->irq);
-	cancel_work_sync(&vdev->irq_ipc_work);
-	cancel_work_sync(&vdev->irq_dct_work);
-	cancel_work_sync(&vdev->context_abort_work);
+	flush_work(&vdev->irq_ipc_work);
+	flush_work(&vdev->irq_dct_work);
+	flush_work(&vdev->context_abort_work);
 	ivpu_ipc_disable(vdev);
 	ivpu_mmu_disable(vdev);
 }

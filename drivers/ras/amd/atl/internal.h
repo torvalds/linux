@@ -362,4 +362,7 @@ static inline void atl_debug_on_bad_intlv_mode(struct addr_ctx *ctx)
 	atl_debug(ctx, "Unrecognized interleave mode: %u", ctx->map.intlv_mode);
 }
 
+#define MI300_UMC_MCA_COL	GENMASK(5, 1)
+#define MI300_UMC_MCA_ROW13	BIT(23)
+
 #endif /* __AMD_ATL_INTERNAL_H__ */

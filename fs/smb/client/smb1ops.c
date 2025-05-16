@@ -568,6 +568,42 @@ static int cifs_query_path_info(const unsigned int xid,
 		data->reparse_point = le32_to_cpu(fi.Attributes) & ATTR_REPARSE;
 	}
 
+#ifdef CONFIG_CIFS_XATTR
+	/*
+	 * For WSL CHR and BLK reparse points it is required to fetch
+	 * EA $LXDEV which contains major and minor device numbers.
+	 */
+	if (!rc && data->reparse_point) {
+		struct smb2_file_full_ea_info *ea;
+
+		ea = (struct smb2_file_full_ea_info *)data->wsl.eas;
+		rc = CIFSSMBQAllEAs(xid, tcon, full_path, SMB2_WSL_XATTR_DEV,
+				    &ea->ea_data[SMB2_WSL_XATTR_NAME_LEN + 1],
+				    SMB2_WSL_XATTR_DEV_SIZE, cifs_sb);
+		if (rc == SMB2_WSL_XATTR_DEV_SIZE) {
+			ea->next_entry_offset = cpu_to_le32(0);
+			ea->flags = 0;
+			ea->ea_name_length = SMB2_WSL_XATTR_NAME_LEN;
+			ea->ea_value_length = cpu_to_le16(SMB2_WSL_XATTR_DEV_SIZE);
+			memcpy(&ea->ea_data[0], SMB2_WSL_XATTR_DEV, SMB2_WSL_XATTR_NAME_LEN + 1);
+			data->wsl.eas_len = sizeof(*ea) + SMB2_WSL_XATTR_NAME_LEN + 1 +
+					    SMB2_WSL_XATTR_DEV_SIZE;
+			rc = 0;
+		} else if (rc >= 0) {
+			/* It is an error if EA $LXDEV has wrong size. */
+			rc = -EINVAL;
+		} else {
+			/*
+			 * In all other cases ignore error if fetching
+			 * of EA $LXDEV failed. It is needed only for
+			 * WSL CHR and BLK reparse points and wsl_to_fattr()
+			 * handle the case when EA is missing.
+			 */
+			rc = 0;
+		}
+	}
+#endif
+
 	return rc;
 }
 
@@ -970,18 +1006,13 @@ static int cifs_query_symlink(const unsigned int xid,
 	return rc;
 }
 
-static int cifs_parse_reparse_point(struct cifs_sb_info *cifs_sb,
-				    const char *full_path,
-				    struct kvec *rsp_iov,
-				    struct cifs_open_info_data *data)
+static struct reparse_data_buffer *cifs_get_reparse_point_buffer(const struct kvec *rsp_iov,
+								 u32 *plen)
 {
-	struct reparse_data_buffer *buf;
 	TRANSACT_IOCTL_RSP *io = rsp_iov->iov_base;
-	u32 plen = le16_to_cpu(io->ByteCount);
-
-	buf = (struct reparse_data_buffer *)((__u8 *)&io->hdr.Protocol +
-					     le32_to_cpu(io->DataOffset));
-	return parse_reparse_point(buf, plen, cifs_sb, full_path, data);
+	*plen = le16_to_cpu(io->ByteCount);
+	return (struct reparse_data_buffer *)((__u8 *)&io->hdr.Protocol +
+					      le32_to_cpu(io->DataOffset));
 }
 
 static bool
@@ -1157,7 +1188,7 @@ struct smb_version_operations smb1_operations = {
 	.rename = CIFSSMBRename,
 	.create_hardlink = CIFSCreateHardLink,
 	.query_symlink = cifs_query_symlink,
-	.parse_reparse_point = cifs_parse_reparse_point,
+	.get_reparse_point_buffer = cifs_get_reparse_point_buffer,
 	.open = cifs_open_file,
 	.set_fid = cifs_set_fid,
 	.close = cifs_close_file,

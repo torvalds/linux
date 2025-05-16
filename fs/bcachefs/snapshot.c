@@ -396,7 +396,7 @@ u32 bch2_snapshot_tree_oldest_subvol(struct bch_fs *c, u32 snapshot_root)
 	u32 subvol = 0, s;
 
 	rcu_read_lock();
-	while (id) {
+	while (id && bch2_snapshot_exists(c, id)) {
 		s = snapshot_t(c, id)->subvol;
 
 		if (s && (!subvol || s < subvol))

@@ -3510,6 +3510,7 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 			amdgpu_device_mem_scratch_fini(adev);
 			amdgpu_ib_pool_fini(adev);
 			amdgpu_seq64_fini(adev);
+			amdgpu_doorbell_fini(adev);
 		}
 		if (adev->ip_blocks[i].version->funcs->sw_fini) {
 			r = adev->ip_blocks[i].version->funcs->sw_fini(&adev->ip_blocks[i]);
@@ -3643,6 +3644,13 @@ static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
 			    adev, adev->ip_blocks[i].version->type))
 			continue;
 
+		/* Since we skip suspend for S0i3, we need to cancel the delayed
+		 * idle work here as the suspend callback never gets called.
+		 */
+		if (adev->in_s0ix &&
+		    adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GFX &&
+		    amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(10, 0, 0))
+			cancel_delayed_work_sync(&adev->gfx.idle_work);
 		/* skip suspend of gfx/mes and psp for S0ix
 		 * gfx is in gfxoff state, so on resume it will exit gfxoff just
 		 * like at runtime. PSP is also part of the always on hardware
@@ -4851,7 +4859,6 @@ void amdgpu_device_fini_sw(struct amdgpu_device *adev)
 
 		iounmap(adev->rmmio);
 		adev->rmmio = NULL;
-		amdgpu_doorbell_fini(adev);
 		drm_dev_exit(idx);
 	}
 

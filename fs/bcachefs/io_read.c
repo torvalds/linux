@@ -487,6 +487,8 @@ static void bch2_rbio_retry(struct work_struct *work)
 		.inum	= rbio->read_pos.inode,
 	};
 	struct bch_io_failures failed = { .nr = 0 };
+	int orig_error = rbio->ret;
+
 	struct btree_trans *trans = bch2_trans_get(c);
 
 	trace_io_read_retry(&rbio->bio);
@@ -519,7 +521,9 @@ static void bch2_rbio_retry(struct work_struct *work)
 	if (ret) {
 		rbio->ret = ret;
 		rbio->bio.bi_status = BLK_STS_IOERR;
-	} else {
+	} else if (orig_error != -BCH_ERR_data_read_retry_csum_err_maybe_userspace &&
+		   orig_error != -BCH_ERR_data_read_ptr_stale_race &&
+		   !failed.nr) {
 		struct printbuf buf = PRINTBUF;
 
 		lockrestart_do(trans,
@@ -977,7 +981,8 @@ retry_pick:
 		goto err;
 	}
 
-	if (unlikely(bch2_csum_type_is_encryption(pick.crc.csum_type)) && !c->chacha20) {
+	if (unlikely(bch2_csum_type_is_encryption(pick.crc.csum_type)) &&
+	    !c->chacha20_key_set) {
 		struct printbuf buf = PRINTBUF;
 		bch2_read_err_msg_trans(trans, &buf, orig, read_pos);
 		prt_printf(&buf, "attempting to read encrypted data without encryption key\n  ");
@@ -1344,14 +1349,16 @@ err:
 
 	bch2_trans_iter_exit(trans, &iter);
 
-	if (ret) {
-		struct printbuf buf = PRINTBUF;
-		lockrestart_do(trans,
-			bch2_inum_offset_err_msg_trans(trans, &buf, inum,
-						       bvec_iter.bi_sector << 9));
-		prt_printf(&buf, "read error: %s", bch2_err_str(ret));
-		bch_err_ratelimited(c, "%s", buf.buf);
-		printbuf_exit(&buf);
+	if (unlikely(ret)) {
+		if (ret != -BCH_ERR_extent_poisoned) {
+			struct printbuf buf = PRINTBUF;
+			lockrestart_do(trans,
+				       bch2_inum_offset_err_msg_trans(trans, &buf, inum,
+								      bvec_iter.bi_sector << 9));
+			prt_printf(&buf, "data read error: %s", bch2_err_str(ret));
+			bch_err_ratelimited(c, "%s", buf.buf);
+			printbuf_exit(&buf);
+		}
 
 		rbio->bio.bi_status	= BLK_STS_IOERR;
 		rbio->ret		= ret;

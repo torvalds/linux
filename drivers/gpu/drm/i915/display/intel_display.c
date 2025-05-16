@@ -968,7 +968,9 @@ static bool vrr_params_changed(const struct intel_crtc_state *old_crtc_state,
 		old_crtc_state->vrr.vmin != new_crtc_state->vrr.vmin ||
 		old_crtc_state->vrr.vmax != new_crtc_state->vrr.vmax ||
 		old_crtc_state->vrr.guardband != new_crtc_state->vrr.guardband ||
-		old_crtc_state->vrr.pipeline_full != new_crtc_state->vrr.pipeline_full;
+		old_crtc_state->vrr.pipeline_full != new_crtc_state->vrr.pipeline_full ||
+		old_crtc_state->vrr.vsync_start != new_crtc_state->vrr.vsync_start ||
+		old_crtc_state->vrr.vsync_end != new_crtc_state->vrr.vsync_end;
 }
 
 static bool cmrr_params_changed(const struct intel_crtc_state *old_crtc_state,

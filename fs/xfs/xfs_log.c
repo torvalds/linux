@@ -2888,7 +2888,7 @@ xlog_force_and_check_iclog(
  *
  *	1. the current iclog is active and has no data; the previous iclog
  *		is in the active or dirty state.
- *	2. the current iclog is drity, and the previous iclog is in the
+ *	2. the current iclog is dirty, and the previous iclog is in the
  *		active or dirty state.
  *
  * We may sleep if:

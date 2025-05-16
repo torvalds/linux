@@ -321,6 +321,31 @@ static inline bool inode_should_reattach(struct bch_inode_unpacked *inode)
 	    inode->bi_subvol == BCACHEFS_ROOT_SUBVOL)
 		return false;
 
+	/*
+	 * Subvolume roots are special: older versions of subvolume roots may be
+	 * disconnected, it's only the newest version that matters.
+	 *
+	 * We only keep a single dirent pointing to a subvolume root, i.e.
+	 * older versions of snapshots will not have a different dirent pointing
+	 * to the same subvolume root.
+	 *
+	 * This is because dirents that point to subvolumes are only visible in
+	 * the parent subvolume - versioning is not needed - and keeping them
+	 * around would break fsck, because when we're crossing subvolumes we
+	 * don't have a consistent snapshot ID to do check the inode <-> dirent
+	 * relationships.
+	 *
+	 * Thus, a subvolume root that's been renamed after a snapshot will have
+	 * a disconnected older version - that's expected.
+	 *
+	 * Note that taking a snapshot always updates the root inode (to update
+	 * the dirent backpointer), so a subvolume root inode with
+	 * BCH_INODE_has_child_snapshot is never visible.
+	 */
+	if (inode->bi_subvol &&
+	    (inode->bi_flags & BCH_INODE_has_child_snapshot))
+		return false;
+
 	return !inode->bi_dir && !(inode->bi_flags & BCH_INODE_unlinked);
 }
 
@@ -1007,6 +1032,23 @@ static int check_inode_dirent_inode(struct btree_trans *trans,
 	if (ret && !bch2_err_matches(ret, ENOENT))
 		return ret;
 
+	if ((ret || dirent_points_to_inode_nowarn(d, inode)) &&
+	    inode->bi_subvol &&
+	    (inode->bi_flags & BCH_INODE_has_child_snapshot)) {
+		/* Older version of a renamed subvolume root: we won't have a
+		 * correct dirent for it. That's expected, see
+		 * inode_should_reattach().
+		 *
+		 * We don't clear the backpointer field when doing the rename
+		 * because there might be arbitrarily many versions in older
+		 * snapshots.
+		 */
+		inode->bi_dir = 0;
+		inode->bi_dir_offset = 0;
+		*write_inode = true;
+		goto out;
+	}
+
 	if (fsck_err_on(ret,
 			trans, inode_points_to_missing_dirent,
 			"inode points to missing dirent\n%s",
@@ -1027,7 +1069,7 @@ static int check_inode_dirent_inode(struct btree_trans *trans,
 		inode->bi_dir_offset = 0;
 		*write_inode = true;
 	}
-
+out:
 	ret = 0;
 fsck_err:
 	bch2_trans_iter_exit(trans, &dirent_iter);

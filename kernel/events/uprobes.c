@@ -1956,6 +1956,9 @@ static void free_ret_instance(struct uprobe_task *utask,
 	 * to-be-reused return instances for future uretprobes. If ri_timer()
 	 * happens to be running right now, though, we fallback to safety and
 	 * just perform RCU-delated freeing of ri.
+	 * Admittedly, this is a rather simple use of seqcount, but it nicely
+	 * abstracts away all the necessary memory barriers, so we use
+	 * a well-supported kernel primitive here.
 	 */
 	if (raw_seqcount_try_begin(&utask->ri_seqcount, seq)) {
 		/* immediate reuse of ri without RCU GP is OK */
@@ -2016,12 +2019,20 @@ static void ri_timer(struct timer_list *timer)
 	/* RCU protects return_instance from freeing. */
 	guard(rcu)();
 
-	write_seqcount_begin(&utask->ri_seqcount);
+	/*
+	 * See free_ret_instance() for notes on seqcount use.
+	 * We also employ raw API variants to avoid lockdep false-positive
+	 * warning complaining about enabled preemption. The timer can only be
+	 * invoked once for a uprobe_task. Therefore there can only be one
+	 * writer. The reader does not require an even sequence count to make
+	 * progress, so it is OK to remain preemptible on PREEMPT_RT.
+	 */
+	raw_write_seqcount_begin(&utask->ri_seqcount);
 
 	for_each_ret_instance_rcu(ri, utask->return_instances)
 		hprobe_expire(&ri->hprobe, false);
 
-	write_seqcount_end(&utask->ri_seqcount);
+	raw_write_seqcount_end(&utask->ri_seqcount);
 }
 
 static struct uprobe_task *alloc_utask(void)

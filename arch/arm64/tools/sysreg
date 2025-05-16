@@ -3536,3 +3536,10 @@ Field	5	F
 Field	4	P
 Field	3:0	Align
 EndSysreg
+
+Sysreg	HPFAR_EL2	3	4	6	0	4
+Field	63	NS
+Res0	62:48
+Field	47:4	FIPA
+Res0	3:0
+EndSysreg

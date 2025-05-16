@@ -861,14 +861,17 @@ int netdev_nl_bind_rx_doit(struct sk_buff *skb, struct genl_info *info)
 
 	mutex_lock(&priv->lock);
 
+	err = 0;
 	netdev = netdev_get_by_index_lock(genl_info_net(info), ifindex);
-	if (!netdev || !netif_device_present(netdev)) {
+	if (!netdev) {
 		err = -ENODEV;
 		goto err_unlock_sock;
 	}
-
-	if (!netdev_need_ops_lock(netdev)) {
+	if (!netif_device_present(netdev))
+		err = -ENODEV;
+	else if (!netdev_need_ops_lock(netdev))
 		err = -EOPNOTSUPP;
+	if (err) {
 		NL_SET_BAD_ATTR(info->extack,
 				info->attrs[NETDEV_A_DEV_IFINDEX]);
 		goto err_unlock;

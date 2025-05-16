@@ -143,7 +143,7 @@ config BNX2X
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select FW_LOADER
 	select ZLIB_INFLATE
-	select LIBCRC32C
+	select CRC32
 	select MDIO
 	help
 	  This driver supports Broadcom NetXtremeII 10 gigabit Ethernet cards.
@@ -207,7 +207,7 @@ config BNXT
 	depends on PCI
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select FW_LOADER
-	select LIBCRC32C
+	select CRC32
 	select NET_DEVLINK
 	select PAGE_POOL
 	select DIMLIB

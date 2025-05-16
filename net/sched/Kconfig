@@ -784,7 +784,7 @@ config NET_ACT_SKBEDIT
 config NET_ACT_CSUM
 	tristate "Checksum Updating"
 	depends on NET_CLS_ACT && INET
-	select LIBCRC32C
+	select CRC32
 	help
 	  Say Y here to update some common checksum after some direct
 	  packet alterations.

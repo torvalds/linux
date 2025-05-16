@@ -60,7 +60,7 @@ static struct devlink *netdev_to_devlink_get(struct net_device *dev)
 u32 ethtool_op_get_link(struct net_device *dev)
 {
 	/* Synchronize carrier state with link watch, see also rtnl_getlink() */
-	linkwatch_sync_dev(dev);
+	__linkwatch_sync_dev(dev);
 
 	return netif_carrier_ok(dev) ? 1 : 0;
 }

@@ -644,8 +644,6 @@ void bch2_btree_and_journal_iter_init_node_iter(struct btree_trans *trans,
  */
 static int journal_sort_key_cmp(const void *_l, const void *_r)
 {
-	cond_resched();
-
 	const struct journal_key *l = _l;
 	const struct journal_key *r = _r;
 
@@ -689,7 +687,8 @@ void bch2_journal_keys_put(struct bch_fs *c)
 
 static void __journal_keys_sort(struct journal_keys *keys)
 {
-	sort(keys->data, keys->nr, sizeof(keys->data[0]), journal_sort_key_cmp, NULL);
+	sort_nonatomic(keys->data, keys->nr, sizeof(keys->data[0]),
+		       journal_sort_key_cmp, NULL);
 
 	cond_resched();
 

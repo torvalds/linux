@@ -287,7 +287,7 @@
 	x(EIO,				mark_stripe)				\
 	x(EIO,				stripe_reconstruct)			\
 	x(EIO,				key_type_error)				\
-	x(EIO,				extent_poisened)			\
+	x(EIO,				extent_poisoned)			\
 	x(EIO,				missing_indirect_extent)		\
 	x(EIO,				invalidate_stripe_to_dev)		\
 	x(EIO,				no_encryption_key)			\

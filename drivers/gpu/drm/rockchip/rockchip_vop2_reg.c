@@ -1754,9 +1754,9 @@ static unsigned long rk3588_set_intf_mux(struct vop2_video_port *vp, int id, u32
 		dip |= FIELD_PREP(RK3588_DSP_IF_POL__DP0_PIN_POL, polflags);
 		break;
 	case ROCKCHIP_VOP2_EP_DP1:
-		die &= ~RK3588_SYS_DSP_INFACE_EN_MIPI1_MUX;
-		die |= RK3588_SYS_DSP_INFACE_EN_MIPI1 |
-			   FIELD_PREP(RK3588_SYS_DSP_INFACE_EN_MIPI1_MUX, vp->id);
+		die &= ~RK3588_SYS_DSP_INFACE_EN_DP1_MUX;
+		die |= RK3588_SYS_DSP_INFACE_EN_DP1 |
+			   FIELD_PREP(RK3588_SYS_DSP_INFACE_EN_DP1_MUX, vp->id);
 		dip &= ~RK3588_DSP_IF_POL__DP1_PIN_POL;
 		dip |= FIELD_PREP(RK3588_DSP_IF_POL__DP1_PIN_POL, polflags);
 		break;
