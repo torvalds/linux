@@ -211,12 +211,10 @@ struct paravirt_patch_template pv_ops = {
 
 	.mmu.set_p4d		= native_set_p4d,
 
-#if CONFIG_PGTABLE_LEVELS >= 5
 	.mmu.p4d_val		= PTE_IDENT,
 	.mmu.make_p4d		= PTE_IDENT,
 
 	.mmu.set_pgd		= native_set_pgd,
-#endif /* CONFIG_PGTABLE_LEVELS >= 5 */
 
 	.mmu.pte_val		= PTE_IDENT,
 	.mmu.pgd_val		= PTE_IDENT,

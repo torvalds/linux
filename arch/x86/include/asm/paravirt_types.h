@@ -189,12 +189,10 @@ struct pv_mmu_ops {
 
 	void (*set_p4d)(p4d_t *p4dp, p4d_t p4dval);
 
-#if CONFIG_PGTABLE_LEVELS >= 5
 	struct paravirt_callee_save p4d_val;
 	struct paravirt_callee_save make_p4d;
 
 	void (*set_pgd)(pgd_t *pgdp, pgd_t pgdval);
-#endif	/* CONFIG_PGTABLE_LEVELS >= 5 */
 
 	struct pv_lazy_ops lazy_mode;
 

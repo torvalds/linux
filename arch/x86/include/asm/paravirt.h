@@ -463,8 +463,6 @@ static inline void set_p4d(p4d_t *p4dp, p4d_t p4d)
 	PVOP_VCALL2(mmu.set_p4d, p4dp, val);
 }
 
-#if CONFIG_PGTABLE_LEVELS >= 5
-
 static inline p4d_t __p4d(p4dval_t val)
 {
 	p4dval_t ret = PVOP_ALT_CALLEE1(p4dval_t, mmu.make_p4d, val,
@@ -495,8 +493,6 @@ static inline void __set_pgd(pgd_t *pgdp, pgd_t pgd)
 	if (pgtable_l5_enabled())					\
 		set_pgd(pgdp, native_make_pgd(0));			\
 } while (0)
-
-#endif  /* CONFIG_PGTABLE_LEVELS == 5 */
 
 static inline void p4d_clear(p4d_t *p4dp)
 {
