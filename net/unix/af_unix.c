@@ -85,10 +85,13 @@
 #include <linux/file.h>
 #include <linux/filter.h>
 #include <linux/fs.h>
+#include <linux/fs_struct.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
+#include <linux/net.h>
+#include <linux/pidfs.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
 #include <linux/sched/signal.h>
@@ -100,7 +103,6 @@
 #include <linux/splice.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
-#include <linux/pidfs.h>
 #include <net/af_unix.h>
 #include <net/net_namespace.h>
 #include <net/scm.h>
@@ -1146,7 +1148,7 @@ static int unix_release(struct socket *sock)
 }
 
 static struct sock *unix_find_bsd(struct sockaddr_un *sunaddr, int addr_len,
-				  int type)
+				  int type, int flags)
 {
 	struct inode *inode;
 	struct path path;
@@ -1154,13 +1156,39 @@ static struct sock *unix_find_bsd(struct sockaddr_un *sunaddr, int addr_len,
 	int err;
 
 	unix_mkname_bsd(sunaddr, addr_len);
-	err = kern_path(sunaddr->sun_path, LOOKUP_FOLLOW, &path);
-	if (err)
-		goto fail;
 
-	err = path_permission(&path, MAY_WRITE);
-	if (err)
-		goto path_put;
+	if (flags & SOCK_COREDUMP) {
+		const struct cred *cred;
+		struct cred *kcred;
+		struct path root;
+
+		kcred = prepare_kernel_cred(&init_task);
+		if (!kcred) {
+			err = -ENOMEM;
+			goto fail;
+		}
+
+		task_lock(&init_task);
+		get_fs_root(init_task.fs, &root);
+		task_unlock(&init_task);
+
+		cred = override_creds(kcred);
+		err = vfs_path_lookup(root.dentry, root.mnt, sunaddr->sun_path,
+				      LOOKUP_BENEATH | LOOKUP_NO_SYMLINKS |
+				      LOOKUP_NO_MAGICLINKS, &path);
+		put_cred(revert_creds(cred));
+		path_put(&root);
+		if (err)
+			goto fail;
+	} else {
+		err = kern_path(sunaddr->sun_path, LOOKUP_FOLLOW, &path);
+		if (err)
+			goto fail;
+
+		err = path_permission(&path, MAY_WRITE);
+		if (err)
+			goto path_put;
+	}
 
 	err = -ECONNREFUSED;
 	inode = d_backing_inode(path.dentry);
@@ -1210,12 +1238,12 @@ static struct sock *unix_find_abstract(struct net *net,
 
 static struct sock *unix_find_other(struct net *net,
 				    struct sockaddr_un *sunaddr,
-				    int addr_len, int type)
+				    int addr_len, int type, int flags)
 {
 	struct sock *sk;
 
 	if (sunaddr->sun_path[0])
-		sk = unix_find_bsd(sunaddr, addr_len, type);
+		sk = unix_find_bsd(sunaddr, addr_len, type, flags);
 	else
 		sk = unix_find_abstract(net, sunaddr, addr_len, type);
 
@@ -1473,7 +1501,7 @@ static int unix_dgram_connect(struct socket *sock, struct sockaddr *addr,
 		}
 
 restart:
-		other = unix_find_other(sock_net(sk), sunaddr, alen, sock->type);
+		other = unix_find_other(sock_net(sk), sunaddr, alen, sock->type, 0);
 		if (IS_ERR(other)) {
 			err = PTR_ERR(other);
 			goto out;
@@ -1620,7 +1648,7 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 
 restart:
 	/*  Find listening sock. */
-	other = unix_find_other(net, sunaddr, addr_len, sk->sk_type);
+	other = unix_find_other(net, sunaddr, addr_len, sk->sk_type, flags);
 	if (IS_ERR(other)) {
 		err = PTR_ERR(other);
 		goto out_free_skb;
@@ -2089,7 +2117,7 @@ static int unix_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
 	if (msg->msg_namelen) {
 lookup:
 		other = unix_find_other(sock_net(sk), msg->msg_name,
-					msg->msg_namelen, sk->sk_type);
+					msg->msg_namelen, sk->sk_type, 0);
 		if (IS_ERR(other)) {
 			err = PTR_ERR(other);
 			goto out_free;
