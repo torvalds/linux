@@ -109,8 +109,6 @@ int xe_display_create(struct xe_device *xe)
 
 	xe->display = &xe->__display;
 
-	spin_lock_init(&display->fb_tracking.lock);
-
 	display->hotplug.dp_wq = alloc_ordered_workqueue("xe-dp", 0);
 	if (!display->hotplug.dp_wq)
 		return -ENOMEM;
