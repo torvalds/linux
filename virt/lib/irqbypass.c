@@ -90,8 +90,6 @@ int irq_bypass_register_producer(struct irq_bypass_producer *producer)
 	if (!producer->token)
 		return -EINVAL;
 
-	might_sleep();
-
 	mutex_lock(&lock);
 
 	list_for_each_entry(tmp, &producers, node) {
@@ -136,8 +134,6 @@ void irq_bypass_unregister_producer(struct irq_bypass_producer *producer)
 	if (!producer->token)
 		return;
 
-	might_sleep();
-
 	mutex_lock(&lock);
 
 	list_for_each_entry(tmp, &producers, node) {
@@ -175,8 +171,6 @@ int irq_bypass_register_consumer(struct irq_bypass_consumer *consumer)
 	if (!consumer->token ||
 	    !consumer->add_producer || !consumer->del_producer)
 		return -EINVAL;
-
-	might_sleep();
 
 	mutex_lock(&lock);
 
@@ -221,8 +215,6 @@ void irq_bypass_unregister_consumer(struct irq_bypass_consumer *consumer)
 
 	if (!consumer->token)
 		return;
-
-	might_sleep();
 
 	mutex_lock(&lock);
 
