@@ -169,6 +169,20 @@ enum sdca_ot_controls {
 };
 
 /**
+ * enum sdca_usage_range - Column definitions for Usage
+ */
+enum sdca_usage_range {
+	SDCA_USAGE_NUMBER				= 0,
+	SDCA_USAGE_CBN					= 1,
+	SDCA_USAGE_SAMPLE_RATE				= 2,
+	SDCA_USAGE_SAMPLE_WIDTH				= 3,
+	SDCA_USAGE_FULL_SCALE				= 4,
+	SDCA_USAGE_NOISE_FLOOR				= 5,
+	SDCA_USAGE_TAG					= 6,
+	SDCA_USAGE_NCOLS				= 7,
+};
+
+/**
  * enum sdca_mu_controls - SDCA Controls for Mixer Unit
  *
  * Control Selectors for Mixer Unit from SDCA specification v1.0
@@ -244,6 +258,15 @@ enum sdca_xu_controls {
 enum sdca_cs_controls {
 	SDCA_CTL_CS_CLOCK_VALID				= 0x02,
 	SDCA_CTL_CS_SAMPLERATEINDEX			= 0x10,
+};
+
+/**
+ * enum sdca_samplerateindex_range - Column definitions for SampleRateIndex
+ */
+enum sdca_samplerateindex_range {
+	SDCA_SAMPLERATEINDEX_INDEX			= 0,
+	SDCA_SAMPLERATEINDEX_RATE			= 1,
+	SDCA_SAMPLERATEINDEX_NCOLS			= 2,
 };
 
 /**
