@@ -1009,6 +1009,7 @@ finish:
 
 static void fanotify_free_group_priv(struct fsnotify_group *group)
 {
+	put_user_ns(group->user_ns);
 	kfree(group->fanotify_data.merge_hash);
 	if (group->fanotify_data.ucounts)
 		dec_ucount(group->fanotify_data.ucounts,
