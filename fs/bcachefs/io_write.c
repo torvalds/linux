@@ -403,8 +403,7 @@ static int bch2_write_index_default(struct bch_write_op *op)
 				     bkey_start_pos(&sk.k->k),
 				     BTREE_ITER_slots|BTREE_ITER_intent);
 
-		ret =   bch2_bkey_set_needs_rebalance(c, &op->opts, sk.k) ?:
-			bch2_extent_update(trans, inum, &iter, sk.k,
+		ret =   bch2_extent_update(trans, inum, &iter, sk.k,
 					&op->res,
 					op->new_i_size, &op->i_sectors_delta,
 					op->flags & BCH_WRITE_check_enospc);
@@ -475,6 +474,10 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 
 	BUG_ON(c->opts.nochanges);
 
+	const struct bch_extent_ptr *last = NULL;
+	bkey_for_each_ptr(ptrs, ptr)
+		last = ptr;
+
 	bkey_for_each_ptr(ptrs, ptr) {
 		/*
 		 * XXX: btree writes should be using io_ref[WRITE], but we
@@ -485,7 +488,7 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 			? bch2_dev_have_ref(c, ptr->dev)
 			: bch2_dev_get_ioref(c, ptr->dev, ref_rw, ref_idx);
 
-		if (to_entry(ptr + 1) < ptrs.end) {
+		if (ptr != last) {
 			n = to_wbio(bio_alloc_clone(NULL, &wbio->bio, GFP_NOFS, &c->replica_set));
 
 			n->bio.bi_end_io	= wbio->bio.bi_end_io;
@@ -795,6 +798,9 @@ static void init_append_extent(struct bch_write_op *op,
 
 	bch2_alloc_sectors_append_ptrs_inlined(op->c, wp, &e->k_i, crc.compressed_size,
 				       op->flags & BCH_WRITE_cached);
+
+	if (!(op->flags & BCH_WRITE_move))
+		bch2_bkey_set_needs_rebalance(op->c, &op->opts, &e->k_i);
 
 	bch2_keylist_push(&op->insert_keys);
 }
