@@ -15,7 +15,6 @@
 #include "cancel.h"
 #include "rsrc.h"
 
-#ifdef CONFIG_PROC_FS
 static __cold int io_uring_show_cred(struct seq_file *m, unsigned int id,
 		const struct cred *cred)
 {
@@ -264,4 +263,3 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
 		mutex_unlock(&ctx->uring_lock);
 	}
 }
-#endif
