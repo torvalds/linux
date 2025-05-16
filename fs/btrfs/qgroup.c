@@ -4670,6 +4670,20 @@ out:
 	spin_unlock(&swapped_blocks->lock);
 }
 
+static int qgroup_swapped_block_bytenr_key_cmp(const void *key, const struct rb_node *node)
+{
+	const u64 *bytenr = key;
+	const struct btrfs_qgroup_swapped_block *block = rb_entry(node,
+					  struct btrfs_qgroup_swapped_block, node);
+
+	if (block->subvol_bytenr < *bytenr)
+		return -1;
+	else if (block->subvol_bytenr > *bytenr)
+		return 1;
+
+	return 0;
+}
+
 /*
  * Add subtree roots record into @subvol_root.
  *
@@ -4798,7 +4812,6 @@ int btrfs_qgroup_trace_subtree_after_cow(struct btrfs_trans_handle *trans,
 	struct btrfs_qgroup_swapped_block *block;
 	struct extent_buffer *reloc_eb = NULL;
 	struct rb_node *node;
-	bool found = false;
 	bool swapped = false;
 	int level = btrfs_header_level(subvol_eb);
 	int ret = 0;
@@ -4814,23 +4827,14 @@ int btrfs_qgroup_trace_subtree_after_cow(struct btrfs_trans_handle *trans,
 		spin_unlock(&blocks->lock);
 		return 0;
 	}
-	node = blocks->blocks[level].rb_node;
-
-	while (node) {
-		block = rb_entry(node, struct btrfs_qgroup_swapped_block, node);
-		if (block->subvol_bytenr < subvol_eb->start) {
-			node = node->rb_left;
-		} else if (block->subvol_bytenr > subvol_eb->start) {
-			node = node->rb_right;
-		} else {
-			found = true;
-			break;
-		}
-	}
-	if (!found) {
+	node = rb_find(&subvol_eb->start, &blocks->blocks[level],
+			qgroup_swapped_block_bytenr_key_cmp);
+	if (!node) {
 		spin_unlock(&blocks->lock);
 		goto out;
 	}
+	block = rb_entry(node, struct btrfs_qgroup_swapped_block, node);
+
 	/* Found one, remove it from @blocks first and update blocks->swapped */
 	rb_erase(&block->node, &blocks->blocks[level]);
 	for (i = 0; i < BTRFS_MAX_LEVEL; i++) {
