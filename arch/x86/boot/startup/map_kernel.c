@@ -16,9 +16,6 @@ extern unsigned int next_early_pgt;
 
 static inline bool check_la57_support(void)
 {
-	if (!IS_ENABLED(CONFIG_X86_5LEVEL))
-		return false;
-
 	/*
 	 * 5-level paging is detected and enabled at kernel decompression
 	 * stage. Only check if it has been enabled there.
@@ -129,7 +126,7 @@ unsigned long __head __startup_64(unsigned long p2v_offset,
 	pgd = rip_rel_ptr(early_top_pgt);
 	pgd[pgd_index(__START_KERNEL_map)] += load_delta;
 
-	if (IS_ENABLED(CONFIG_X86_5LEVEL) && la57) {
+	if (la57) {
 		p4d = (p4dval_t *)rip_rel_ptr(level4_kernel_pgt);
 		p4d[MAX_PTRS_PER_P4D - 1] += load_delta;
 

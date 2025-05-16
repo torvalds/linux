@@ -41,11 +41,9 @@ static inline void sync_initial_page_table(void) { }
 	pr_err("%s:%d: bad pud %p(%016lx)\n",		\
 	       __FILE__, __LINE__, &(e), pud_val(e))
 
-#if CONFIG_PGTABLE_LEVELS >= 5
 #define p4d_ERROR(e)					\
 	pr_err("%s:%d: bad p4d %p(%016lx)\n",		\
 	       __FILE__, __LINE__, &(e), p4d_val(e))
-#endif
 
 #define pgd_ERROR(e)					\
 	pr_err("%s:%d: bad pgd %p(%016lx)\n",		\

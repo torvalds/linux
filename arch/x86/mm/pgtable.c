@@ -592,7 +592,7 @@ void native_set_fixmap(unsigned /* enum fixed_addresses */ idx,
 }
 
 #ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
-#ifdef CONFIG_X86_5LEVEL
+#if CONFIG_PGTABLE_LEVELS > 4
 /**
  * p4d_set_huge - Set up kernel P4D mapping
  * @p4d: Pointer to the P4D entry
