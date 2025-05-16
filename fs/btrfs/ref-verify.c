@@ -112,6 +112,19 @@ static struct block_entry *lookup_block_entry(struct rb_root *root, u64 bytenr)
 	return rb_entry_safe(node, struct block_entry, node);
 }
 
+static int root_entry_root_objectid_key_cmp(const void *key, const struct rb_node *node)
+{
+	const u64 *objectid = key;
+	const struct root_entry *entry = rb_entry(node, struct root_entry, node);
+
+	if (entry->root_objectid < *objectid)
+		return 1;
+	else if (entry->root_objectid > *objectid)
+		return -1;
+
+	return 0;
+}
+
 static struct root_entry *insert_root_entry(struct rb_root *root,
 					    struct root_entry *re)
 {
@@ -185,20 +198,10 @@ static struct ref_entry *insert_ref_entry(struct rb_root *root,
 
 static struct root_entry *lookup_root_entry(struct rb_root *root, u64 objectid)
 {
-	struct rb_node *n;
-	struct root_entry *entry = NULL;
+	struct rb_node *node;
 
-	n = root->rb_node;
-	while (n) {
-		entry = rb_entry(n, struct root_entry, node);
-		if (entry->root_objectid < objectid)
-			n = n->rb_right;
-		else if (entry->root_objectid > objectid)
-			n = n->rb_left;
-		else
-			return entry;
-	}
-	return NULL;
+	node = rb_find(&objectid, root, root_entry_root_objectid_key_cmp);
+	return rb_entry_safe(node, struct root_entry, node);
 }
 
 #ifdef CONFIG_STACKTRACE
