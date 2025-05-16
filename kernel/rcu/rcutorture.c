@@ -969,7 +969,8 @@ static struct rcu_torture_ops busted_srcud_ops = {
 
 /*
  * Definitions for trivial CONFIG_PREEMPT=n-only torture testing.
- * This implementation does not necessarily work well with CPU hotplug.
+ * This implementation does not work well with CPU hotplug nor
+ * with rcutorture's shuffling.
  */
 
 static void synchronize_rcu_trivial(void)
@@ -979,6 +980,16 @@ static void synchronize_rcu_trivial(void)
 	for_each_online_cpu(cpu) {
 		torture_sched_setaffinity(current->pid, cpumask_of(cpu), true);
 		WARN_ON_ONCE(raw_smp_processor_id() != cpu);
+	}
+}
+
+static void rcu_sync_torture_init_trivial(void)
+{
+	rcu_sync_torture_init();
+	// if (onoff_interval || shuffle_interval) {
+	if (WARN_ONCE(onoff_interval || shuffle_interval, "%s: Non-zero onoff_interval (%d) or shuffle_interval (%d) breaks trivial RCU, resetting to zero", __func__, onoff_interval, shuffle_interval)) {
+		onoff_interval = 0;
+		shuffle_interval = 0;
 	}
 }
 
@@ -995,7 +1006,7 @@ static void rcu_torture_read_unlock_trivial(int idx)
 
 static struct rcu_torture_ops trivial_ops = {
 	.ttype		= RCU_TRIVIAL_FLAVOR,
-	.init		= rcu_sync_torture_init,
+	.init		= rcu_sync_torture_init_trivial,
 	.readlock	= rcu_torture_read_lock_trivial,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= rcu_torture_read_unlock_trivial,
