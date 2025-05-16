@@ -26,15 +26,26 @@ static uint32_t last_guest_seed;
 
 static int vcpu_mmap_sz(void);
 
-int open_path_or_exit(const char *path, int flags)
+int __open_path_or_exit(const char *path, int flags, const char *enoent_help)
 {
 	int fd;
 
 	fd = open(path, flags);
-	__TEST_REQUIRE(fd >= 0 || errno != ENOENT, "Cannot open %s: %s", path, strerror(errno));
-	TEST_ASSERT(fd >= 0, "Failed to open '%s'", path);
+	if (fd < 0)
+		goto error;
 
 	return fd;
+
+error:
+	if (errno == ENOENT)
+		ksft_exit_skip("- Cannot open '%s': %s.  %s\n",
+			       path, strerror(errno), enoent_help);
+	TEST_FAIL("Failed to open '%s'", path);
+}
+
+int open_path_or_exit(const char *path, int flags)
+{
+	return __open_path_or_exit(path, flags, "");
 }
 
 /*
@@ -48,7 +59,7 @@ int open_path_or_exit(const char *path, int flags)
  */
 static int _open_kvm_dev_path_or_exit(int flags)
 {
-	return open_path_or_exit(KVM_DEV_PATH, flags);
+	return __open_path_or_exit(KVM_DEV_PATH, flags, "Is KVM loaded and enabled?");
 }
 
 int open_kvm_dev_path_or_exit(void)
