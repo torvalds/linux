@@ -207,6 +207,16 @@ enum sdca_fu_controls {
 };
 
 /**
+ * enum sdca_volume_range - Column definitions for Q7.8dB volumes/gains
+ */
+enum sdca_volume_range {
+	SDCA_VOLUME_LINEAR_MIN				= 0,
+	SDCA_VOLUME_LINEAR_MAX				= 1,
+	SDCA_VOLUME_LINEAR_STEP				= 2,
+	SDCA_VOLUME_LINEAR_NCOLS			= 3,
+};
+
+/**
  * enum sdca_xu_controls - SDCA Controls for Extension Unit
  *
  * Control Selectors for Extension Unit from SDCA specification v1.0
