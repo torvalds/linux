@@ -536,12 +536,17 @@ int ublk_queue_io_cmd(struct ublk_queue *q, struct ublk_io *io, unsigned tag)
 	if (!(io->flags & UBLKSRV_IO_FREE))
 		return 0;
 
-	/* we issue because we need either fetching or committing */
+	/*
+	 * we issue because we need either fetching or committing or
+	 * getting data
+	 */
 	if (!(io->flags &
-		(UBLKSRV_NEED_FETCH_RQ | UBLKSRV_NEED_COMMIT_RQ_COMP)))
+		(UBLKSRV_NEED_FETCH_RQ | UBLKSRV_NEED_COMMIT_RQ_COMP | UBLKSRV_NEED_GET_DATA)))
 		return 0;
 
-	if (io->flags & UBLKSRV_NEED_COMMIT_RQ_COMP)
+	if (io->flags & UBLKSRV_NEED_GET_DATA)
+		cmd_op = UBLK_U_IO_NEED_GET_DATA;
+	else if (io->flags & UBLKSRV_NEED_COMMIT_RQ_COMP)
 		cmd_op = UBLK_U_IO_COMMIT_AND_FETCH_REQ;
 	else if (io->flags & UBLKSRV_NEED_FETCH_RQ)
 		cmd_op = UBLK_U_IO_FETCH_REQ;
@@ -658,6 +663,9 @@ static void ublk_handle_cqe(struct io_uring *r,
 		assert(tag < q->q_depth);
 		if (q->tgt_ops->queue_io)
 			q->tgt_ops->queue_io(q, tag);
+	} else if (cqe->res == UBLK_IO_RES_NEED_GET_DATA) {
+		io->flags |= UBLKSRV_NEED_GET_DATA | UBLKSRV_IO_FREE;
+		ublk_queue_io_cmd(q, io, tag);
 	} else {
 		/*
 		 * COMMIT_REQ will be completed immediately since no fetching
@@ -1237,7 +1245,7 @@ static void __cmd_create_help(char *exe, bool recovery)
 
 	printf("%s %s -t [null|loop|stripe|fault_inject] [-q nr_queues] [-d depth] [-n dev_id]\n",
 			exe, recovery ? "recover" : "add");
-	printf("\t[--foreground] [--quiet] [-z] [--debug_mask mask] [-r 0|1 ] [-g 0|1]\n");
+	printf("\t[--foreground] [--quiet] [-z] [--debug_mask mask] [-r 0|1 ] [-g]\n");
 	printf("\t[-e 0|1 ] [-i 0|1]\n");
 	printf("\t[target options] [backfile1] [backfile2] ...\n");
 	printf("\tdefault: nr_queues=2(max 32), depth=128(max 1024), dev_id=-1(auto allocation)\n");
@@ -1313,7 +1321,7 @@ int main(int argc, char *argv[])
 
 	opterr = 0;
 	optind = 2;
-	while ((opt = getopt_long(argc, argv, "t:n:d:q:r:e:i:az",
+	while ((opt = getopt_long(argc, argv, "t:n:d:q:r:e:i:gaz",
 				  longopts, &option_idx)) != -1) {
 		switch (opt) {
 		case 'a':
@@ -1351,9 +1359,7 @@ int main(int argc, char *argv[])
 				ctx.flags |= UBLK_F_USER_RECOVERY | UBLK_F_USER_RECOVERY_REISSUE;
 			break;
 		case 'g':
-			value = strtol(optarg, NULL, 10);
-			if (value)
-				ctx.flags |= UBLK_F_NEED_GET_DATA;
+			ctx.flags |= UBLK_F_NEED_GET_DATA;
 			break;
 		case 0:
 			if (!strcmp(longopts[option_idx].name, "debug_mask"))
