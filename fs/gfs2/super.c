@@ -360,7 +360,7 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp)
 		error = gfs2_jdesc_check(jd);
 		if (error)
 			break;
-		error = gfs2_find_jhead(jd, &lh, false);
+		error = gfs2_find_jhead(jd, &lh);
 		if (error)
 			break;
 		if (!(lh.lh_flags & GFS2_LOG_HEAD_UNMOUNT)) {

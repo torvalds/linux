@@ -496,15 +496,13 @@ static struct bio *gfs2_chain_bio(struct bio *prev, unsigned int nr_iovecs)
  * gfs2_find_jhead - find the head of a log
  * @jd: The journal descriptor
  * @head: The log descriptor for the head of the log is returned here
- * @keep_cache: If set inode pages will not be truncated
  *
  * Do a search of a journal by reading it in large chunks using bios and find
  * the valid log entry with the highest sequence number.  (i.e. the log head)
  *
  * Returns: 0 on success, errno otherwise
  */
-int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head,
-		    bool keep_cache)
+int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 	struct address_space *mapping = jd->jd_inode->i_mapping;
@@ -593,8 +591,7 @@ out:
 	if (!ret)
 		ret = filemap_check_wb_err(mapping, since);
 
-	if (!keep_cache)
-		truncate_inode_pages(mapping, 0);
+	truncate_inode_pages(mapping, 0);
 
 	return ret;
 }

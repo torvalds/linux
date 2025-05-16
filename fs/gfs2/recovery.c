@@ -454,7 +454,7 @@ void gfs2_recover_func(struct work_struct *work)
 	if (error)
 		goto fail_gunlock_ji;
 
-	error = gfs2_find_jhead(jd, &head, true);
+	error = gfs2_find_jhead(jd, &head);
 	if (error)
 		goto fail_gunlock_ji;
 	t_jhd = ktime_get();
