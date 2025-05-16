@@ -348,11 +348,11 @@ static u32 sh_msiof_spi_get_dtdl_and_syncdl(struct sh_msiof_spi_priv *p)
 }
 
 static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p, u32 ss,
-				      u32 cpol, u32 cpha,
-				      u32 tx_hi_z, u32 lsb_first, u32 cs_high)
+				      bool cpol, bool cpha, bool tx_hi_z,
+				      bool lsb_first, bool cs_high)
 {
+	bool edge;
 	u32 tmp;
-	int edge;
 
 	/*
 	 * CPOL CPHA     TSCKIZ RSCKIZ TEDG REDG
@@ -587,7 +587,8 @@ static int sh_msiof_prepare_message(struct spi_controller *ctlr,
 {
 	struct sh_msiof_spi_priv *p = spi_controller_get_devdata(ctlr);
 	const struct spi_device *spi = msg->spi;
-	u32 ss, cs_high;
+	bool cs_high;
+	u32 ss;
 
 	/* Configure pins before asserting CS */
 	if (spi_get_csgpiod(spi, 0)) {
@@ -595,12 +596,11 @@ static int sh_msiof_prepare_message(struct spi_controller *ctlr,
 		cs_high = p->native_cs_high;
 	} else {
 		ss = spi_get_chipselect(spi, 0);
-		cs_high = !!(spi->mode & SPI_CS_HIGH);
+		cs_high = spi->mode & SPI_CS_HIGH;
 	}
-	sh_msiof_spi_set_pin_regs(p, ss, !!(spi->mode & SPI_CPOL),
-				  !!(spi->mode & SPI_CPHA),
-				  !!(spi->mode & SPI_3WIRE),
-				  !!(spi->mode & SPI_LSB_FIRST), cs_high);
+	sh_msiof_spi_set_pin_regs(p, ss, spi->mode & SPI_CPOL,
+				  spi->mode & SPI_CPHA, spi->mode & SPI_3WIRE,
+				  spi->mode & SPI_LSB_FIRST, cs_high);
 	return 0;
 }
 
