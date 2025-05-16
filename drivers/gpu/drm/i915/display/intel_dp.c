@@ -2524,6 +2524,7 @@ intel_dp_dsc_compute_pipe_bpp_limits(struct intel_dp *intel_dp,
 
 bool
 intel_dp_compute_config_limits(struct intel_dp *intel_dp,
+			       struct intel_connector *connector,
 			       struct intel_crtc_state *crtc_state,
 			       bool respect_downstream_limits,
 			       bool dsc,
@@ -2577,7 +2578,7 @@ intel_dp_compute_config_limits(struct intel_dp *intel_dp,
 	intel_dp_test_compute_config(intel_dp, crtc_state, limits);
 
 	return intel_dp_compute_config_link_bpp_limits(intel_dp,
-						       intel_dp->attached_connector,
+						       connector,
 						       crtc_state,
 						       dsc,
 						       limits);
@@ -2638,7 +2639,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	joiner_needs_dsc = intel_dp_joiner_needs_dsc(display, num_joined_pipes);
 
 	dsc_needed = joiner_needs_dsc || intel_dp->force_dsc_en ||
-		     !intel_dp_compute_config_limits(intel_dp, pipe_config,
+		     !intel_dp_compute_config_limits(intel_dp, connector, pipe_config,
 						     respect_downstream_limits,
 						     false,
 						     &limits);
@@ -2672,7 +2673,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 			    str_yes_no(ret), str_yes_no(joiner_needs_dsc),
 			    str_yes_no(intel_dp->force_dsc_en));
 
-		if (!intel_dp_compute_config_limits(intel_dp, pipe_config,
+		if (!intel_dp_compute_config_limits(intel_dp, connector, pipe_config,
 						    respect_downstream_limits,
 						    true,
 						    &limits))

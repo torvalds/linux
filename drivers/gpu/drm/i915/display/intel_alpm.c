@@ -426,8 +426,8 @@ void intel_alpm_pre_plane_update(struct intel_atomic_state *state,
 	}
 }
 
-static void intel_alpm_enable_sink(struct intel_dp *intel_dp,
-				   const struct intel_crtc_state *crtc_state)
+void intel_alpm_enable_sink(struct intel_dp *intel_dp,
+			    const struct intel_crtc_state *crtc_state)
 {
 	u8 val;
 
@@ -453,8 +453,8 @@ void intel_alpm_post_plane_update(struct intel_atomic_state *state,
 		intel_atomic_get_old_crtc_state(state, crtc);
 	struct intel_encoder *encoder;
 
-	if ((!crtc_state->has_lobf ||
-	     crtc_state->has_lobf == old_crtc_state->has_lobf) && !crtc_state->has_psr)
+	if (crtc_state->has_psr || !crtc_state->has_lobf ||
+	    crtc_state->has_lobf == old_crtc_state->has_lobf)
 		return;
 
 	for_each_intel_encoder_mask(display->drm, encoder,
