@@ -115,8 +115,6 @@ static const struct drm_driver i915_drm_driver;
 
 static int i915_workqueues_init(struct drm_i915_private *dev_priv)
 {
-	struct intel_display *display = dev_priv->display;
-
 	/*
 	 * The i915 workqueue is primarily used for batched retirement of
 	 * requests (and thus managing bo) once the task has been completed
@@ -135,10 +133,6 @@ static int i915_workqueues_init(struct drm_i915_private *dev_priv)
 	if (dev_priv->wq == NULL)
 		goto out_err;
 
-	display->hotplug.dp_wq = alloc_ordered_workqueue("i915-dp", 0);
-	if (!display->hotplug.dp_wq)
-		goto out_free_wq;
-
 	/*
 	 * The unordered i915 workqueue should be used for all work
 	 * scheduling that do not require running in order, which used
@@ -147,12 +141,10 @@ static int i915_workqueues_init(struct drm_i915_private *dev_priv)
 	 */
 	dev_priv->unordered_wq = alloc_workqueue("i915-unordered", 0, 0);
 	if (dev_priv->unordered_wq == NULL)
-		goto out_free_dp_wq;
+		goto out_free_wq;
 
 	return 0;
 
-out_free_dp_wq:
-	destroy_workqueue(display->hotplug.dp_wq);
 out_free_wq:
 	destroy_workqueue(dev_priv->wq);
 out_err:
@@ -163,10 +155,7 @@ out_err:
 
 static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
 {
-	struct intel_display *display = dev_priv->display;
-
 	destroy_workqueue(dev_priv->unordered_wq);
-	destroy_workqueue(display->hotplug.dp_wq);
 	destroy_workqueue(dev_priv->wq);
 }
 

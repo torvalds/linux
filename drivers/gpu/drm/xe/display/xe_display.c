@@ -83,14 +83,6 @@ static void unset_display_features(struct xe_device *xe)
 	xe->drm.driver_features &= ~(DRIVER_MODESET | DRIVER_ATOMIC);
 }
 
-static void display_destroy(struct drm_device *dev, void *dummy)
-{
-	struct xe_device *xe = to_xe_device(dev);
-	struct intel_display *display = xe->display;
-
-	destroy_workqueue(display->hotplug.dp_wq);
-}
-
 /**
  * xe_display_create - create display struct
  * @xe: XE device instance
@@ -105,15 +97,9 @@ static void display_destroy(struct drm_device *dev, void *dummy)
 int xe_display_create(struct xe_device *xe)
 {
 	/* TODO: Allocate display dynamically. */
-	struct intel_display *display = &xe->__display;
-
 	xe->display = &xe->__display;
 
-	display->hotplug.dp_wq = alloc_ordered_workqueue("xe-dp", 0);
-	if (!display->hotplug.dp_wq)
-		return -ENOMEM;
-
-	return drmm_add_action_or_reset(&xe->drm, display_destroy, NULL);
+	return 0;
 }
 
 static void xe_display_fini_early(void *arg)
