@@ -426,14 +426,6 @@ static void *cxlctl_get_supported_features(struct cxl_features_state *cxlfs,
 
 	rpc_out->size = struct_size(feat_out, ents, requested);
 	feat_out = &rpc_out->get_sup_feats_out;
-	if (requested == 0) {
-		feat_out->num_entries = cpu_to_le16(requested);
-		feat_out->supported_feats =
-			cpu_to_le16(cxlfs->entries->num_features);
-		rpc_out->retval = CXL_MBOX_CMD_RC_SUCCESS;
-		*out_len = out_size;
-		return no_free_ptr(rpc_out);
-	}
 
 	for (i = start, pos = &feat_out->ents[0];
 	     i < cxlfs->entries->num_features; i++, pos++) {
