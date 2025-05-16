@@ -12,6 +12,7 @@
 #include "fw.h"
 #include "ps.h"
 #include "debug.h"
+#include "mac.h"
 
 static bool rtw_disable_msi;
 static bool rtw_pci_disable_aspm;
@@ -1602,6 +1603,7 @@ static const struct rtw_hci_ops rtw_pci_ops = {
 	.link_ps = rtw_pci_link_ps,
 	.interface_cfg = rtw_pci_interface_cfg,
 	.dynamic_rx_agg = NULL,
+	.write_firmware_page = rtw_write_firmware_page,
 
 	.read8 = rtw_pci_read8,
 	.read16 = rtw_pci_read16,

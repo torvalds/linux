@@ -309,6 +309,9 @@ static void ser_reset_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 		rtw89_core_release_bit_map(rtwdev->hw_port, rtwvif_link->port);
 		rtwvif_link->net_type = RTW89_NET_TYPE_NO_LINK;
 		rtwvif_link->trigger = false;
+		rtwvif_link->rand_tsf_done = false;
+
+		rtw89_p2p_noa_once_deinit(rtwvif_link);
 	}
 }
 
