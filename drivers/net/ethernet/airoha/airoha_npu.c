@@ -124,17 +124,12 @@ static int airoha_npu_send_msg(struct airoha_npu *npu, int func_id,
 	u16 core = 0; /* FIXME */
 	u32 val, offset = core << 4;
 	dma_addr_t dma_addr;
-	void *addr;
 	int ret;
 
-	addr = kmemdup(p, size, GFP_ATOMIC);
-	if (!addr)
-		return -ENOMEM;
-
-	dma_addr = dma_map_single(npu->dev, addr, size, DMA_TO_DEVICE);
+	dma_addr = dma_map_single(npu->dev, p, size, DMA_TO_DEVICE);
 	ret = dma_mapping_error(npu->dev, dma_addr);
 	if (ret)
-		goto out;
+		return ret;
 
 	spin_lock_bh(&npu->cores[core].lock);
 
@@ -155,8 +150,6 @@ static int airoha_npu_send_msg(struct airoha_npu *npu, int func_id,
 	spin_unlock_bh(&npu->cores[core].lock);
 
 	dma_unmap_single(npu->dev, dma_addr, size, DMA_TO_DEVICE);
-out:
-	kfree(addr);
 
 	return ret;
 }
@@ -261,76 +254,101 @@ static irqreturn_t airoha_npu_wdt_handler(int irq, void *core_instance)
 
 static int airoha_npu_ppe_init(struct airoha_npu *npu)
 {
-	struct ppe_mbox_data ppe_data = {
-		.func_type = NPU_OP_SET,
-		.func_id = PPE_FUNC_SET_WAIT_HWNAT_INIT,
-		.init_info = {
-			.ppe_type = PPE_TYPE_L2B_IPV4_IPV6,
-			.wan_mode = QDMA_WAN_ETHER,
-		},
-	};
+	struct ppe_mbox_data *ppe_data;
+	int err;
 
-	return airoha_npu_send_msg(npu, NPU_FUNC_PPE, &ppe_data,
-				   sizeof(struct ppe_mbox_data));
+	ppe_data = kzalloc(sizeof(*ppe_data), GFP_KERNEL);
+	if (!ppe_data)
+		return -ENOMEM;
+
+	ppe_data->func_type = NPU_OP_SET;
+	ppe_data->func_id = PPE_FUNC_SET_WAIT_HWNAT_INIT;
+	ppe_data->init_info.ppe_type = PPE_TYPE_L2B_IPV4_IPV6;
+	ppe_data->init_info.wan_mode = QDMA_WAN_ETHER;
+
+	err = airoha_npu_send_msg(npu, NPU_FUNC_PPE, ppe_data,
+				  sizeof(*ppe_data));
+	kfree(ppe_data);
+
+	return err;
 }
 
 static int airoha_npu_ppe_deinit(struct airoha_npu *npu)
 {
-	struct ppe_mbox_data ppe_data = {
-		.func_type = NPU_OP_SET,
-		.func_id = PPE_FUNC_SET_WAIT_HWNAT_DEINIT,
-	};
+	struct ppe_mbox_data *ppe_data;
+	int err;
 
-	return airoha_npu_send_msg(npu, NPU_FUNC_PPE, &ppe_data,
-				   sizeof(struct ppe_mbox_data));
+	ppe_data = kzalloc(sizeof(*ppe_data), GFP_KERNEL);
+	if (!ppe_data)
+		return -ENOMEM;
+
+	ppe_data->func_type = NPU_OP_SET;
+	ppe_data->func_id = PPE_FUNC_SET_WAIT_HWNAT_DEINIT;
+
+	err = airoha_npu_send_msg(npu, NPU_FUNC_PPE, ppe_data,
+				  sizeof(*ppe_data));
+	kfree(ppe_data);
+
+	return err;
 }
 
 static int airoha_npu_ppe_flush_sram_entries(struct airoha_npu *npu,
 					     dma_addr_t foe_addr,
 					     int sram_num_entries)
 {
-	struct ppe_mbox_data ppe_data = {
-		.func_type = NPU_OP_SET,
-		.func_id = PPE_FUNC_SET_WAIT_API,
-		.set_info = {
-			.func_id = PPE_SRAM_RESET_VAL,
-			.data = foe_addr,
-			.size = sram_num_entries,
-		},
-	};
+	struct ppe_mbox_data *ppe_data;
+	int err;
 
-	return airoha_npu_send_msg(npu, NPU_FUNC_PPE, &ppe_data,
-				   sizeof(struct ppe_mbox_data));
+	ppe_data = kzalloc(sizeof(*ppe_data), GFP_KERNEL);
+	if (!ppe_data)
+		return -ENOMEM;
+
+	ppe_data->func_type = NPU_OP_SET;
+	ppe_data->func_id = PPE_FUNC_SET_WAIT_API;
+	ppe_data->set_info.func_id = PPE_SRAM_RESET_VAL;
+	ppe_data->set_info.data = foe_addr;
+	ppe_data->set_info.size = sram_num_entries;
+
+	err = airoha_npu_send_msg(npu, NPU_FUNC_PPE, ppe_data,
+				  sizeof(*ppe_data));
+	kfree(ppe_data);
+
+	return err;
 }
 
 static int airoha_npu_foe_commit_entry(struct airoha_npu *npu,
 				       dma_addr_t foe_addr,
 				       u32 entry_size, u32 hash, bool ppe2)
 {
-	struct ppe_mbox_data ppe_data = {
-		.func_type = NPU_OP_SET,
-		.func_id = PPE_FUNC_SET_WAIT_API,
-		.set_info = {
-			.data = foe_addr,
-			.size = entry_size,
-		},
-	};
+	struct ppe_mbox_data *ppe_data;
 	int err;
 
-	ppe_data.set_info.func_id = ppe2 ? PPE2_SRAM_SET_ENTRY
-					 : PPE_SRAM_SET_ENTRY;
+	ppe_data = kzalloc(sizeof(*ppe_data), GFP_ATOMIC);
+	if (!ppe_data)
+		return -ENOMEM;
 
-	err = airoha_npu_send_msg(npu, NPU_FUNC_PPE, &ppe_data,
-				  sizeof(struct ppe_mbox_data));
+	ppe_data->func_type = NPU_OP_SET;
+	ppe_data->func_id = PPE_FUNC_SET_WAIT_API;
+	ppe_data->set_info.data = foe_addr;
+	ppe_data->set_info.size = entry_size;
+	ppe_data->set_info.func_id = ppe2 ? PPE2_SRAM_SET_ENTRY
+					  : PPE_SRAM_SET_ENTRY;
+
+	err = airoha_npu_send_msg(npu, NPU_FUNC_PPE, ppe_data,
+				  sizeof(*ppe_data));
 	if (err)
-		return err;
+		goto out;
 
-	ppe_data.set_info.func_id = PPE_SRAM_SET_VAL;
-	ppe_data.set_info.data = hash;
-	ppe_data.set_info.size = sizeof(u32);
+	ppe_data->set_info.func_id = PPE_SRAM_SET_VAL;
+	ppe_data->set_info.data = hash;
+	ppe_data->set_info.size = sizeof(u32);
 
-	return airoha_npu_send_msg(npu, NPU_FUNC_PPE, &ppe_data,
-				   sizeof(struct ppe_mbox_data));
+	err = airoha_npu_send_msg(npu, NPU_FUNC_PPE, ppe_data,
+				  sizeof(*ppe_data));
+out:
+	kfree(ppe_data);
+
+	return err;
 }
 
 struct airoha_npu *airoha_npu_get(struct device *dev)
