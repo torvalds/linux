@@ -50,6 +50,14 @@
 #define PPE_NUM				2
 #define PPE1_SRAM_NUM_ENTRIES		(8 * 1024)
 #define PPE_SRAM_NUM_ENTRIES		(2 * PPE1_SRAM_NUM_ENTRIES)
+#ifdef CONFIG_NET_AIROHA_FLOW_STATS
+#define PPE1_STATS_NUM_ENTRIES		(4 * 1024)
+#else
+#define PPE1_STATS_NUM_ENTRIES		0
+#endif /* CONFIG_NET_AIROHA_FLOW_STATS */
+#define PPE_STATS_NUM_ENTRIES		(2 * PPE1_STATS_NUM_ENTRIES)
+#define PPE1_SRAM_NUM_DATA_ENTRIES	(PPE1_SRAM_NUM_ENTRIES - PPE1_STATS_NUM_ENTRIES)
+#define PPE_SRAM_NUM_DATA_ENTRIES	(2 * PPE1_SRAM_NUM_DATA_ENTRIES)
 #define PPE_DRAM_NUM_ENTRIES		(16 * 1024)
 #define PPE_NUM_ENTRIES			(PPE_SRAM_NUM_ENTRIES + PPE_DRAM_NUM_ENTRIES)
 #define PPE_HASH_MASK			(PPE_NUM_ENTRIES - 1)
@@ -261,6 +269,8 @@ struct airoha_foe_mac_info {
 
 	u16 pppoe_id;
 	u16 src_mac_lo;
+
+	u32 meter;
 };
 
 #define AIROHA_FOE_IB1_UNBIND_PREBIND		BIT(24)
@@ -295,6 +305,11 @@ struct airoha_foe_mac_info {
 #define AIROHA_FOE_DPI				BIT(7)
 #define AIROHA_FOE_TUNNEL			BIT(6)
 #define AIROHA_FOE_TUNNEL_ID			GENMASK(5, 0)
+
+#define AIROHA_FOE_TUNNEL_MTU			GENMASK(31, 16)
+#define AIROHA_FOE_ACNT_GRP3			GENMASK(15, 9)
+#define AIROHA_FOE_METER_GRP3			GENMASK(8, 5)
+#define AIROHA_FOE_METER_GRP2			GENMASK(4, 0)
 
 struct airoha_foe_bridge {
 	u32 dest_mac_hi;
@@ -379,6 +394,8 @@ struct airoha_foe_ipv6 {
 	u32 ib2;
 
 	struct airoha_foe_mac_info_common l2;
+
+	u32 meter;
 };
 
 struct airoha_foe_entry {
@@ -395,6 +412,16 @@ struct airoha_foe_entry {
 		};
 		u8 data[PPE_ENTRY_SIZE];
 	};
+};
+
+struct airoha_foe_stats {
+	u32 bytes;
+	u32 packets;
+};
+
+struct airoha_foe_stats64 {
+	u64 bytes;
+	u64 packets;
 };
 
 struct airoha_flow_data {
@@ -447,6 +474,7 @@ struct airoha_flow_table_entry {
 	struct hlist_node l2_subflow_node; /* PPE L2 subflow entry */
 	u32 hash;
 
+	struct airoha_foe_stats64 stats;
 	enum airoha_flow_entry_type type;
 
 	struct rhash_head node;
@@ -523,6 +551,9 @@ struct airoha_ppe {
 	struct hlist_head *foe_flow;
 	u16 foe_check_time[PPE_NUM_ENTRIES];
 
+	struct airoha_foe_stats *foe_stats;
+	dma_addr_t foe_stats_dma;
+
 	struct dentry *debugfs_dir;
 };
 
@@ -582,6 +613,8 @@ int airoha_ppe_init(struct airoha_eth *eth);
 void airoha_ppe_deinit(struct airoha_eth *eth);
 struct airoha_foe_entry *airoha_ppe_foe_get_entry(struct airoha_ppe *ppe,
 						  u32 hash);
+void airoha_ppe_foe_entry_get_stats(struct airoha_ppe *ppe, u32 hash,
+				    struct airoha_foe_stats64 *stats);
 
 #ifdef CONFIG_DEBUG_FS
 int airoha_ppe_debugfs_init(struct airoha_ppe *ppe);

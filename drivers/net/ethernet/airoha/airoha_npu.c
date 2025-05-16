@@ -12,6 +12,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/regmap.h>
 
+#include "airoha_eth.h"
 #include "airoha_npu.h"
 
 #define NPU_EN7581_FIRMWARE_DATA		"airoha/en7581_npu_data.bin"
@@ -72,6 +73,7 @@ enum {
 	PPE_FUNC_SET_WAIT_HWNAT_INIT,
 	PPE_FUNC_SET_WAIT_HWNAT_DEINIT,
 	PPE_FUNC_SET_WAIT_API,
+	PPE_FUNC_SET_WAIT_FLOW_STATS_SETUP,
 };
 
 enum {
@@ -115,6 +117,10 @@ struct ppe_mbox_data {
 			u32 size;
 			u32 data;
 		} set_info;
+		struct {
+			u32 npu_stats_addr;
+			u32 foe_stats_addr;
+		} stats_info;
 	};
 };
 
@@ -351,7 +357,40 @@ out:
 	return err;
 }
 
-struct airoha_npu *airoha_npu_get(struct device *dev)
+static int airoha_npu_stats_setup(struct airoha_npu *npu,
+				  dma_addr_t foe_stats_addr)
+{
+	int err, size = PPE_STATS_NUM_ENTRIES * sizeof(*npu->stats);
+	struct ppe_mbox_data *ppe_data;
+
+	if (!size) /* flow stats are disabled */
+		return 0;
+
+	ppe_data = kzalloc(sizeof(*ppe_data), GFP_ATOMIC);
+	if (!ppe_data)
+		return -ENOMEM;
+
+	ppe_data->func_type = NPU_OP_SET;
+	ppe_data->func_id = PPE_FUNC_SET_WAIT_FLOW_STATS_SETUP;
+	ppe_data->stats_info.foe_stats_addr = foe_stats_addr;
+
+	err = airoha_npu_send_msg(npu, NPU_FUNC_PPE, ppe_data,
+				  sizeof(*ppe_data));
+	if (err)
+		goto out;
+
+	npu->stats = devm_ioremap(npu->dev,
+				  ppe_data->stats_info.npu_stats_addr,
+				  size);
+	if (!npu->stats)
+		err = -ENOMEM;
+out:
+	kfree(ppe_data);
+
+	return err;
+}
+
+struct airoha_npu *airoha_npu_get(struct device *dev, dma_addr_t *stats_addr)
 {
 	struct platform_device *pdev;
 	struct device_node *np;
@@ -387,6 +426,17 @@ struct airoha_npu *airoha_npu_get(struct device *dev)
 			dev_name(dev));
 		npu = ERR_PTR(-EINVAL);
 		goto error_module_put;
+	}
+
+	if (stats_addr) {
+		int err;
+
+		err = airoha_npu_stats_setup(npu, *stats_addr);
+		if (err) {
+			dev_err(dev, "failed to allocate npu stats buffer\n");
+			npu = ERR_PTR(err);
+			goto error_module_put;
+		}
 	}
 
 	return npu;
