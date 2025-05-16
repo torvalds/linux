@@ -3,6 +3,8 @@ if command -v apt &> /dev/null; then
 sudo apt update
 sudo apt-get install build-essential ncurses-dev bison flex libssl-dev libelf-dev -y
 sudo apt-get install -y debhelper-compat=12
+sudo apt install libdw-dev libelf-dev binutils-dev
+
 fi
 
 if command -v yum &> /dev/null; then
