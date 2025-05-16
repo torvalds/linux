@@ -5874,13 +5874,18 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 
 	if (wc->refs[level] == 1) {
 		if (level == 0) {
-			if (wc->flags[level] & BTRFS_BLOCK_FLAG_FULL_BACKREF)
+			if (wc->flags[level] & BTRFS_BLOCK_FLAG_FULL_BACKREF) {
 				ret = btrfs_dec_ref(trans, root, eb, 1);
-			else
+				if (ret) {
+					btrfs_abort_transaction(trans, ret);
+					return ret;
+				}
+			} else {
 				ret = btrfs_dec_ref(trans, root, eb, 0);
-			if (ret) {
-				btrfs_abort_transaction(trans, ret);
-				return ret;
+				if (ret) {
+					btrfs_abort_transaction(trans, ret);
+					return ret;
+				}
 			}
 			if (is_fstree(btrfs_root_id(root))) {
 				ret = btrfs_qgroup_trace_leaf_items(trans, eb);
