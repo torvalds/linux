@@ -84,7 +84,7 @@ struct irq_bypass_consumer {
 };
 
 int irq_bypass_register_producer(struct irq_bypass_producer *producer,
-				 struct eventfd_ctx *eventfd);
+				 struct eventfd_ctx *eventfd, int irq);
 void irq_bypass_unregister_producer(struct irq_bypass_producer *producer);
 int irq_bypass_register_consumer(struct irq_bypass_consumer *consumer,
 				 struct eventfd_ctx *eventfd);
