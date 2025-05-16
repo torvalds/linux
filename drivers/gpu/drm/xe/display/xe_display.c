@@ -83,25 +83,6 @@ static void unset_display_features(struct xe_device *xe)
 	xe->drm.driver_features &= ~(DRIVER_MODESET | DRIVER_ATOMIC);
 }
 
-/**
- * xe_display_create - create display struct
- * @xe: XE device instance
- *
- * Initialize all fields used by the display part.
- *
- * TODO: once everything can be inside a single struct, make the struct opaque
- * to the rest of xe and return it to be xe->display.
- *
- * Returns: 0 on success
- */
-int xe_display_create(struct xe_device *xe)
-{
-	/* TODO: Allocate display dynamically. */
-	xe->display = &xe->__display;
-
-	return 0;
-}
-
 static void xe_display_fini_early(void *arg)
 {
 	struct xe_device *xe = arg;
@@ -524,6 +505,17 @@ static void display_device_remove(struct drm_device *dev, void *arg)
 	intel_display_device_remove(display);
 }
 
+/**
+ * xe_display_probe - probe display and create display struct
+ * @xe: XE device instance
+ *
+ * Initialize all fields used by the display part.
+ *
+ * TODO: once everything can be inside a single struct, make the struct opaque
+ * to the rest of xe and return it to be xe->display.
+ *
+ * Returns: 0 on success
+ */
 int xe_display_probe(struct xe_device *xe)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
@@ -532,6 +524,9 @@ int xe_display_probe(struct xe_device *xe)
 
 	if (!xe->info.probe_display)
 		goto no_display;
+
+	/* TODO: Allocate display dynamically. */
+	xe->display = &xe->__display;
 
 	display = intel_display_device_probe(pdev);
 
