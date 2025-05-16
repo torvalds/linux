@@ -90,10 +90,15 @@
  * map address of tree root to tree
  */
 struct mapping_node {
-	struct {
-		struct rb_node rb_node;
-		u64 bytenr;
-	}; /* Use rb_simle_node for search/insert */
+	union {
+		/* Use rb_simple_node for search/insert */
+		struct {
+			struct rb_node rb_node;
+			u64 bytenr;
+		};
+
+		struct rb_simple_node simple_node;
+	};
 	void *data;
 };
 
@@ -106,10 +111,15 @@ struct mapping_tree {
  * present a tree block to process
  */
 struct tree_block {
-	struct {
-		struct rb_node rb_node;
-		u64 bytenr;
-	}; /* Use rb_simple_node for search/insert */
+	union {
+		/* Use rb_simple_node for search/insert */
+		struct {
+			struct rb_node rb_node;
+			u64 bytenr;
+		};
+
+		struct rb_simple_node simple_node;
+	};
 	u64 owner;
 	struct btrfs_key key;
 	u8 level;
@@ -480,8 +490,7 @@ static int __add_reloc_root(struct btrfs_root *root)
 	node->data = root;
 
 	spin_lock(&rc->reloc_root_tree.lock);
-	rb_node = rb_simple_insert(&rc->reloc_root_tree.rb_root,
-				   node->bytenr, &node->rb_node);
+	rb_node = rb_simple_insert(&rc->reloc_root_tree.rb_root, &node->simple_node);
 	spin_unlock(&rc->reloc_root_tree.lock);
 	if (rb_node) {
 		btrfs_err(fs_info,
@@ -564,8 +573,7 @@ static int __update_reloc_root(struct btrfs_root *root)
 
 	spin_lock(&rc->reloc_root_tree.lock);
 	node->bytenr = root->node->start;
-	rb_node = rb_simple_insert(&rc->reloc_root_tree.rb_root,
-				   node->bytenr, &node->rb_node);
+	rb_node = rb_simple_insert(&rc->reloc_root_tree.rb_root, &node->simple_node);
 	spin_unlock(&rc->reloc_root_tree.lock);
 	if (rb_node)
 		btrfs_backref_panic(fs_info, node->bytenr, -EEXIST);
@@ -3155,7 +3163,7 @@ static int add_tree_block(struct reloc_control *rc,
 	block->key_ready = false;
 	block->owner = owner;
 
-	rb_node = rb_simple_insert(blocks, block->bytenr, &block->rb_node);
+	rb_node = rb_simple_insert(blocks, &block->simple_node);
 	if (rb_node)
 		btrfs_backref_panic(rc->extent_root->fs_info, block->bytenr,
 				    -EEXIST);

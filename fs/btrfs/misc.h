@@ -119,8 +119,8 @@ static inline struct rb_node *rb_simple_search_first(const struct rb_root *root,
 	return ret;
 }
 
-static inline struct rb_node *rb_simple_insert(struct rb_root *root, u64 bytenr,
-					       struct rb_node *node)
+static inline struct rb_node *rb_simple_insert(struct rb_root *root,
+					       struct rb_simple_node *simple_node)
 {
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
@@ -130,16 +130,16 @@ static inline struct rb_node *rb_simple_insert(struct rb_root *root, u64 bytenr,
 		parent = *p;
 		entry = rb_entry(parent, struct rb_simple_node, rb_node);
 
-		if (bytenr < entry->bytenr)
+		if (simple_node->bytenr < entry->bytenr)
 			p = &(*p)->rb_left;
-		else if (bytenr > entry->bytenr)
+		else if (simple_node->bytenr > entry->bytenr)
 			p = &(*p)->rb_right;
 		else
 			return parent;
 	}
 
-	rb_link_node(node, parent, p);
-	rb_insert_color(node, root);
+	rb_link_node(&simple_node->rb_node, parent, p);
+	rb_insert_color(&simple_node->rb_node, root);
 	return NULL;
 }
 

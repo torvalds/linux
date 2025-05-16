@@ -313,10 +313,15 @@ int btrfs_backref_iter_next(struct btrfs_backref_iter *iter);
  * Represent a tree block in the backref cache
  */
 struct btrfs_backref_node {
-	struct {
-		struct rb_node rb_node;
-		u64 bytenr;
-	}; /* Use rb_simple_node for search/insert */
+	union{
+		/* Use rb_simple_node for search/insert */
+		struct {
+			struct rb_node rb_node;
+			u64 bytenr;
+		};
+
+		struct rb_simple_node simple_node;
+	};
 
 	/*
 	 * This is a sanity check, whenever we COW a block we will update
