@@ -48,6 +48,8 @@ static bool has_display(struct xe_device *xe)
  *				   early on
  * @pdev: PCI device
  *
+ * Note: This is called before xe or display device creation.
+ *
  * Returns: true if probe needs to be deferred, false otherwise
  */
 bool xe_display_driver_probe_defer(struct pci_dev *pdev)
@@ -65,6 +67,8 @@ bool xe_display_driver_probe_defer(struct pci_dev *pdev)
  * Set features and function hooks in @driver that are needed for driving the
  * display IP. This sets the driver's capability of driving display, regardless
  * if the device has it enabled
+ *
+ * Note: This is called before xe or display device creation.
  */
 void xe_display_driver_set_hooks(struct drm_driver *driver)
 {
