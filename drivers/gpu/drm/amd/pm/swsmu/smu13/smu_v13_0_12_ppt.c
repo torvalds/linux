@@ -416,13 +416,16 @@ ssize_t smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table)
 	gpu_metrics->mem_activity_acc = SMUQ10_ROUND(metrics->DramBandwidthUtilizationAcc);
 
 	for (i = 0; i < NUM_XGMI_LINKS; i++) {
-		gpu_metrics->xgmi_read_data_acc[i] =
+		j = amdgpu_xgmi_get_ext_link(adev, i);
+		if (j < 0 || j >= NUM_XGMI_LINKS)
+			continue;
+		gpu_metrics->xgmi_read_data_acc[j] =
 			SMUQ10_ROUND(metrics->XgmiReadDataSizeAcc[i]);
-		gpu_metrics->xgmi_write_data_acc[i] =
+		gpu_metrics->xgmi_write_data_acc[j] =
 			SMUQ10_ROUND(metrics->XgmiWriteDataSizeAcc[i]);
 		ret = amdgpu_get_xgmi_link_status(adev, i);
 		if (ret >= 0)
-			gpu_metrics->xgmi_link_status[i] = ret;
+			gpu_metrics->xgmi_link_status[j] = ret;
 	}
 
 	gpu_metrics->num_partition = adev->xcp_mgr->num_xcps;
