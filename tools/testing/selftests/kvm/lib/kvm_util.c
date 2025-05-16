@@ -64,6 +64,9 @@ static ssize_t get_module_param(const char *module_name, const char *param,
 	ssize_t bytes_read;
 	int fd, r;
 
+	/* Verify KVM is loaded, to provide a more helpful SKIP message. */
+	close(open_kvm_dev_path_or_exit());
+
 	r = snprintf(path, path_size, "/sys/module/%s/parameters/%s",
 		     module_name, param);
 	TEST_ASSERT(r < path_size,

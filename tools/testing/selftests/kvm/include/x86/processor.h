@@ -1150,7 +1150,6 @@ do {											\
 
 void kvm_get_cpu_address_width(unsigned int *pa_bits, unsigned int *va_bits);
 void kvm_init_vm_address_properties(struct kvm_vm *vm);
-bool vm_is_unrestricted_guest(struct kvm_vm *vm);
 
 struct ex_regs {
 	uint64_t rax, rcx, rdx, rbx;
@@ -1323,6 +1322,11 @@ static inline bool kvm_is_pmu_enabled(void)
 static inline bool kvm_is_forced_emulation_enabled(void)
 {
 	return !!get_kvm_param_integer("force_emulation_prefix");
+}
+
+static inline bool kvm_is_unrestricted_guest_enabled(void)
+{
+	return get_kvm_intel_param_bool("unrestricted_guest");
 }
 
 uint64_t *__vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr,
