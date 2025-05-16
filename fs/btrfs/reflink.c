@@ -268,11 +268,15 @@ copy_inline_extent:
 	drop_args.end = aligned_end;
 	drop_args.drop_cache = true;
 	ret = btrfs_drop_extents(trans, root, inode, &drop_args);
-	if (ret)
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
 		goto out;
+	}
 	ret = btrfs_insert_empty_item(trans, root, path, new_key, size);
-	if (ret)
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
 		goto out;
+	}
 
 	write_extent_buffer(path->nodes[0], inline_data,
 			    btrfs_item_ptr_offset(path->nodes[0],
@@ -281,6 +285,8 @@ copy_inline_extent:
 	btrfs_update_inode_bytes(inode, datal, drop_args.bytes_found);
 	btrfs_set_inode_full_sync(inode);
 	ret = btrfs_inode_set_file_extent_range(inode, 0, aligned_end);
+	if (ret)
+		btrfs_abort_transaction(trans, ret);
 out:
 	if (!ret && !trans) {
 		/*
@@ -295,10 +301,8 @@ out:
 			trans = NULL;
 		}
 	}
-	if (ret && trans) {
-		btrfs_abort_transaction(trans, ret);
+	if (ret && trans)
 		btrfs_end_transaction(trans);
-	}
 	if (!ret)
 		*trans_out = trans;
 
