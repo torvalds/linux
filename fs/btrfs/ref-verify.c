@@ -162,30 +162,21 @@ static int comp_refs(struct ref_entry *ref1, struct ref_entry *ref2)
 	return 0;
 }
 
+static int ref_entry_cmp(struct rb_node *new, const struct rb_node *existing)
+{
+	struct ref_entry *new_entry = rb_entry(new, struct ref_entry, node);
+	struct ref_entry *existing_entry = rb_entry(existing, struct ref_entry, node);
+
+	return comp_refs(new_entry, existing_entry);
+}
+
 static struct ref_entry *insert_ref_entry(struct rb_root *root,
 					  struct ref_entry *ref)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent_node = NULL;
-	struct ref_entry *entry;
-	int cmp;
+	struct rb_node *node;
 
-	while (*p) {
-		parent_node = *p;
-		entry = rb_entry(parent_node, struct ref_entry, node);
-		cmp = comp_refs(entry, ref);
-		if (cmp > 0)
-			p = &(*p)->rb_left;
-		else if (cmp < 0)
-			p = &(*p)->rb_right;
-		else
-			return entry;
-	}
-
-	rb_link_node(&ref->node, parent_node, p);
-	rb_insert_color(&ref->node, root);
-	return NULL;
-
+	node = rb_find_add(&ref->node, root, ref_entry_cmp);
+	return rb_entry_safe(node, struct ref_entry, node);
 }
 
 static struct root_entry *lookup_root_entry(struct rb_root *root, u64 objectid)
