@@ -99,9 +99,15 @@ static int txgbe_calc_eeprom_checksum(struct wx *wx, u16 *checksum)
 	}
 	local_buffer = eeprom_ptrs;
 
-	for (i = 0; i < TXGBE_EEPROM_LAST_WORD; i++)
+	for (i = 0; i < TXGBE_EEPROM_LAST_WORD; i++) {
+		if (wx->mac.type == wx_mac_aml) {
+			if (i >= TXGBE_EEPROM_I2C_SRART_PTR &&
+			    i < TXGBE_EEPROM_I2C_END_PTR)
+				local_buffer[i] = 0xffff;
+		}
 		if (i != wx->eeprom.sw_region_offset + TXGBE_EEPROM_CHECKSUM)
 			*checksum += local_buffer[i];
+	}
 
 	kvfree(eeprom_ptrs);
 

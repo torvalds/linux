@@ -2017,7 +2017,8 @@ attribute-sets:
     attributes:
       -
         name: act
-        type: nest
+        type: indexed-array
+        sub-type: nest
         nested-attributes: tc-act-attrs
       -
         name: police
@@ -2250,7 +2251,8 @@ attribute-sets:
     attributes:
       -
         name: act
-        type: nest
+        type: indexed-array
+        sub-type: nest
         nested-attributes: tc-act-attrs
       -
         name: police
@@ -2745,7 +2747,7 @@ attribute-sets:
         type: u16
         byte-order: big-endian
       -
-        name: key-l2-tpv3-sid
+        name: key-l2tpv3-sid
         type: u32
         byte-order: big-endian
       -
@@ -3504,7 +3506,7 @@ attribute-sets:
         name: rate64
         type: u64
       -
-        name: prate4
+        name: prate64
         type: u64
       -
         name: burst
