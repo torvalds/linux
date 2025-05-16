@@ -46,11 +46,9 @@ static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		btrfs_end_transaction(trans);
-		goto out;
+		return ret;
 	}
-	ret = btrfs_end_transaction(trans);
-out:
-	return ret;
+	return btrfs_end_transaction(trans);
 }
 
 static int copy_inline_to_page(struct btrfs_inode *inode,
