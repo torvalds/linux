@@ -1304,7 +1304,7 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 	xs->queue_id = qid;
 	xp_add_xsk(xs->pool, xs);
 
-	if (xs->zc && qid < dev->real_num_rx_queues) {
+	if (qid < dev->real_num_rx_queues) {
 		struct netdev_rx_queue *rxq;
 
 		rxq = __netif_get_rx_queue(dev, qid);
