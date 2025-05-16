@@ -100,9 +100,14 @@ struct sh_msiof_spi_priv {
 						/* 0=MSIOF_SYNC, 1=MSIOF_SS1, 2=MSIOF_SS2 */
 
 /* SITMDR2 and SIRMDR2 */
+#define SIMDR2_GRP		GENMASK(31, 30)	/* Group Count */
 #define SIMDR2_BITLEN1		GENMASK(28, 24)	/* Data Size (8-32 bits) */
 #define SIMDR2_WDLEN1		GENMASK(23, 16)	/* Word Count (1-64/256 (SH, A1))) */
 #define SIMDR2_GRPMASK		GENMASK(3, 0)	/* Group Output Mask 1-4 (SH, A1) */
+
+/* SITMDR3 and SIRMDR3 */
+#define SIMDR3_BITLEN2		GENMASK(28, 24)	/* Data Size (8-32 bits) */
+#define SIMDR3_WDLEN2		GENMASK(23, 16)	/* Word Count (1-64/256 (SH, A1))) */
 
 /* SITSCR and SIRSCR */
 #define SISCR_BRPS		GENMASK(12, 8)	/* Prescaler Setting (1-32) */
@@ -392,10 +397,11 @@ static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p, u32 ss,
 
 static void sh_msiof_spi_set_mode_regs(struct sh_msiof_spi_priv *p,
 				       const void *tx_buf, void *rx_buf,
-				       u32 bits, u32 words)
+				       u32 bits, u32 words1, u32 words2)
 {
-	u32 dr2 = FIELD_PREP(SIMDR2_BITLEN1, bits - 1) |
-		  FIELD_PREP(SIMDR2_WDLEN1, words - 1);
+	u32 dr2 = FIELD_PREP(SIMDR2_GRP, words2 ? 1 : 0) |
+		  FIELD_PREP(SIMDR2_BITLEN1, bits - 1) |
+		  FIELD_PREP(SIMDR2_WDLEN1, words1 - 1);
 
 	if (tx_buf || (p->ctlr->flags & SPI_CONTROLLER_MUST_TX))
 		sh_msiof_write(p, SITMDR2, dr2);
@@ -404,6 +410,15 @@ static void sh_msiof_spi_set_mode_regs(struct sh_msiof_spi_priv *p,
 
 	if (rx_buf)
 		sh_msiof_write(p, SIRMDR2, dr2);
+
+	if (words2) {
+		u32 dr3 = FIELD_PREP(SIMDR3_BITLEN2, bits - 1) |
+			  FIELD_PREP(SIMDR3_WDLEN2, words2 - 1);
+
+		sh_msiof_write(p, SITMDR3, dr3);
+		if (rx_buf)
+			sh_msiof_write(p, SIRMDR3, dr3);
+	}
 }
 
 static void sh_msiof_reset_str(struct sh_msiof_spi_priv *p)
@@ -712,7 +727,7 @@ static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 	sh_msiof_write(p, SIFCTR, 0);
 
 	/* setup msiof transfer mode registers */
-	sh_msiof_spi_set_mode_regs(p, tx_buf, rx_buf, bits, words);
+	sh_msiof_spi_set_mode_regs(p, tx_buf, rx_buf, bits, words, 0);
 	sh_msiof_write(p, SIIER, SIIER_TEOFE | SIIER_REOFE);
 
 	/* write tx fifo */
@@ -812,7 +827,7 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 		       FIELD_PREP(SIFCTR_RFWM, SIFCTR_RFWM_1));
 
 	/* setup msiof transfer mode registers (32-bit words) */
-	sh_msiof_spi_set_mode_regs(p, tx, rx, 32, len / 4);
+	sh_msiof_spi_set_mode_regs(p, tx, rx, 32, len / 4, 0);
 
 	sh_msiof_write(p, SIIER, ier_bits);
 
