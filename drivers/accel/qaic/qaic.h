@@ -167,6 +167,14 @@ struct qaic_device {
 	struct workqueue_struct *bootlog_wq;
 	/* Synchronizes access of pages in MHI bootlog device */
 	struct mutex            bootlog_mutex;
+	/* MHI RAS channel device */
+	struct mhi_device	*ras_ch;
+	/* Correctable error count */
+	unsigned int		ce_count;
+	/* Un-correctable error count */
+	unsigned int		ue_count;
+	/* Un-correctable non-fatal error count */
+	unsigned int		ue_nf_count;
 };
 
 struct qaic_drm_device {

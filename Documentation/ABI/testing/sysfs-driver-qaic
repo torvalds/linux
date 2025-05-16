@@ -1,0 +1,18 @@
+What:		/sys/bus/pci/drivers/qaic/XXXX:XX:XX.X/ce_count
+Date:		May 2025
+KernelVersion:	6.17
+Contact:	dri-devel@lists.freedesktop.org
+Description:	Number of correctable errors received from device since driver is loaded.
+
+What:		/sys/bus/pci/drivers/qaic/XXXX:XX:XX.X/ue_count
+Date:		May 2025
+KernelVersion:	6.17
+Contact:	dri-devel@lists.freedesktop.org
+Description:	Number of uncorrectable errors received from device since driver is loaded.
+
+What:		/sys/bus/pci/drivers/qaic/XXXX:XX:XX.X/ue_nonfatal_count
+Date:		May 2025
+KernelVersion:	6.17
+Contact:	dri-devel@lists.freedesktop.org
+Description:	Number of uncorrectable non-fatal errors received from device since driver
+		is loaded.
