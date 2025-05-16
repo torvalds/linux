@@ -590,15 +590,21 @@ static void amd_spi_mem_data_in(struct amd_spi *amd_spi,
 	 * Use index mode otherwise.
 	 */
 	if (amd_spi->version == AMD_HID2_SPI && amd_is_spi_read_cmd(op->cmd.opcode)) {
+		u64 *dma_buf64 = (u64 *)amd_spi->dma_virt_addr;
+		u8 *dma_buf;
+
 		amd_spi_hiddma_read(amd_spi, op);
 
-		for (i = 0; left_data >= 8; i++, left_data -= 8)
-			*buf_64++ = readq((u8 __iomem *)amd_spi->dma_virt_addr + (i * 8));
+		/* Copy data from DMA buffer */
+		while (left_data >= 8) {
+			*buf_64++ = *dma_buf64++;
+			left_data -= 8;
+		}
 
 		buf = (u8 *)buf_64;
-		for (i = 0; i < left_data; i++)
-			buf[i] = readb((u8 __iomem *)amd_spi->dma_virt_addr +
-				       (nbytes - left_data + i));
+		dma_buf = (u8 *)dma_buf64;
+		while (left_data--)
+			*buf++ = *dma_buf++;
 
 		/* Reset HID RX memory logic */
 		data = amd_spi_readreg32(amd_spi, AMD_SPI_HID2_CNTRL);
