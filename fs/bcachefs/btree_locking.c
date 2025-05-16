@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "btree_cache.h"
 #include "btree_locking.h"
 #include "btree_types.h"
 
@@ -742,7 +743,9 @@ static noinline __cold int bch2_trans_relock_fail(struct btree_trans *trans, str
 		struct printbuf buf = PRINTBUF;
 
 		bch2_bpos_to_text(&buf, path->pos);
-		prt_printf(&buf, " l=%u seq=%u node seq=", f->l, path->l[f->l].lock_seq);
+		prt_printf(&buf, " %s l=%u seq=%u node seq=",
+			   bch2_btree_id_str(path->btree_id),
+			   f->l, path->l[f->l].lock_seq);
 		if (IS_ERR_OR_NULL(f->b)) {
 			prt_str(&buf, bch2_err_str(PTR_ERR(f->b)));
 		} else {
