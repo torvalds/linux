@@ -971,8 +971,9 @@ static int enetc4_pf_netdev_create(struct enetc_si *si)
 	return 0;
 
 err_reg_netdev:
-	enetc4_link_deinit(priv);
+	destroy_workqueue(si->workqueue);
 err_wq_init:
+	enetc4_link_deinit(priv);
 err_link_init:
 	enetc_free_msix(priv);
 err_alloc_msix:
