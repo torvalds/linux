@@ -3566,7 +3566,7 @@ int btrfs_backref_finish_upper_links(struct btrfs_backref_cache *cache,
 
 	ASSERT(start->checked);
 
-	rb_node = rb_simple_insert(&cache->rb_root, start->bytenr, &start->rb_node);
+	rb_node = rb_simple_insert(&cache->rb_root, &start->simple_node);
 	if (rb_node)
 		btrfs_backref_panic(cache->fs_info, start->bytenr, -EEXIST);
 
@@ -3617,8 +3617,7 @@ int btrfs_backref_finish_upper_links(struct btrfs_backref_cache *cache,
 			return -EUCLEAN;
 		}
 
-		rb_node = rb_simple_insert(&cache->rb_root, upper->bytenr,
-					   &upper->rb_node);
+		rb_node = rb_simple_insert(&cache->rb_root, &upper->simple_node);
 		if (unlikely(rb_node)) {
 			btrfs_backref_panic(cache->fs_info, upper->bytenr, -EEXIST);
 			return -EUCLEAN;
