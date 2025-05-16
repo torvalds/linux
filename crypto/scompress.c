@@ -163,11 +163,10 @@ static int crypto_scomp_init_tfm(struct crypto_tfm *tfm)
 		if (ret)
 			goto unlock;
 	}
-	if (!scomp_scratch_users) {
+	if (!scomp_scratch_users++) {
 		ret = crypto_scomp_alloc_scratches();
 		if (ret)
-			goto unlock;
-		scomp_scratch_users++;
+			scomp_scratch_users--;
 	}
 unlock:
 	mutex_unlock(&scomp_lock);
