@@ -479,10 +479,25 @@ struct bkey_i_alloc_v4 *bch2_trans_start_alloc_update(struct btree_trans *trans,
 						      enum btree_iter_update_trigger_flags flags)
 {
 	struct btree_iter iter;
-	struct bkey_i_alloc_v4 *a = bch2_trans_start_alloc_update_noupdate(trans, &iter, pos);
-	int ret = PTR_ERR_OR_ZERO(a);
-	if (ret)
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_alloc, pos,
+					       BTREE_ITER_with_updates|
+					       BTREE_ITER_cached|
+					       BTREE_ITER_intent);
+	int ret = bkey_err(k);
+	if (unlikely(ret))
 		return ERR_PTR(ret);
+
+	if ((void *) k.v >= trans->mem &&
+	    (void *) k.v <  trans->mem + trans->mem_top) {
+		bch2_trans_iter_exit(trans, &iter);
+		return container_of(bkey_s_c_to_alloc_v4(k).v, struct bkey_i_alloc_v4, v);
+	}
+
+	struct bkey_i_alloc_v4 *a = bch2_alloc_to_v4_mut_inlined(trans, k);
+	if (IS_ERR(a)) {
+		bch2_trans_iter_exit(trans, &iter);
+		return a;
+	}
 
 	ret = bch2_trans_update_ip(trans, &iter, &a->k_i, flags, _RET_IP_);
 	bch2_trans_iter_exit(trans, &iter);
