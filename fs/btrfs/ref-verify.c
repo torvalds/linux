@@ -75,6 +75,19 @@ struct block_entry {
 	struct list_head actions;
 };
 
+static int block_entry_bytenr_key_cmp(const void *key, const struct rb_node *node)
+{
+	const u64 *bytenr = key;
+	const struct block_entry *entry = rb_entry(node, struct block_entry, node);
+
+	if (entry->bytenr < *bytenr)
+		return 1;
+	else if (entry->bytenr > *bytenr)
+		return -1;
+
+	return 0;
+}
+
 static struct block_entry *insert_block_entry(struct rb_root *root,
 					      struct block_entry *be)
 {
@@ -100,20 +113,10 @@ static struct block_entry *insert_block_entry(struct rb_root *root,
 
 static struct block_entry *lookup_block_entry(struct rb_root *root, u64 bytenr)
 {
-	struct rb_node *n;
-	struct block_entry *entry = NULL;
+	struct rb_node *node;
 
-	n = root->rb_node;
-	while (n) {
-		entry = rb_entry(n, struct block_entry, node);
-		if (entry->bytenr < bytenr)
-			n = n->rb_right;
-		else if (entry->bytenr > bytenr)
-			n = n->rb_left;
-		else
-			return entry;
-	}
-	return NULL;
+	node = rb_find(&bytenr, root, block_entry_bytenr_key_cmp);
+	return rb_entry_safe(node, struct block_entry, node);
 }
 
 static struct root_entry *insert_root_entry(struct rb_root *root,
