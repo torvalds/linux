@@ -103,7 +103,8 @@ static const struct xe_pat_table_entry xelpg_pat_table[] = {
  *
  * Note: There is an implicit assumption in the driver that compression and
  * coh_1way+ are mutually exclusive. If this is ever not true then userptr
- * and imported dma-buf from external device will have uncleared ccs state.
+ * and imported dma-buf from external device will have uncleared ccs state. See
+ * also xe_bo_needs_ccs_pages().
  */
 #define XE2_PAT(no_promote, comp_en, l3clos, l3_policy, l4_policy, __coh_mode) \
 	{ \

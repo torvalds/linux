@@ -2982,6 +2982,14 @@ bool xe_bo_needs_ccs_pages(struct xe_bo *bo)
 	if (IS_DGFX(xe) && (bo->flags & XE_BO_FLAG_SYSTEM))
 		return false;
 
+	/*
+	 * Compression implies coh_none, therefore we know for sure that WB
+	 * memory can't currently use compression, which is likely one of the
+	 * common cases.
+	 */
+	if (bo->cpu_caching == DRM_XE_GEM_CPU_CACHING_WB)
+		return false;
+
 	return true;
 }
 
