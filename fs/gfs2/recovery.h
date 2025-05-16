@@ -29,6 +29,7 @@ void gfs2_recover_func(struct work_struct *work);
 int __get_log_header(struct gfs2_sbd *sdp,
 		     const struct gfs2_log_header *lh, unsigned int blkno,
 		     struct gfs2_log_header_host *head);
+void gfs2_log_pointers_init(struct gfs2_sbd *sdp, unsigned int value);
 
 #endif /* __RECOVERY_DOT_H__ */
 

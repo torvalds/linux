@@ -581,3 +581,12 @@ int gfs2_recover_journal(struct gfs2_jdesc *jd, bool wait)
 	return wait ? jd->jd_recover_error : 0;
 }
 
+void gfs2_log_pointers_init(struct gfs2_sbd *sdp, unsigned int value)
+{
+	if (++value == sdp->sd_jdesc->jd_blocks) {
+		value = 0;
+	}
+	sdp->sd_log_tail = value;
+	sdp->sd_log_flush_tail = value;
+	sdp->sd_log_head = value;
+}
