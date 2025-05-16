@@ -129,21 +129,25 @@ void ulist_free(struct ulist *ulist)
 	kfree(ulist);
 }
 
+static int ulist_node_val_key_cmp(const void *key, const struct rb_node *node)
+{
+	const u64 *val = key;
+	const struct ulist_node *unode = rb_entry(node, struct ulist_node, rb_node);
+
+	if (unode->val < *val)
+		return 1;
+	else if (unode->val > *val)
+		return -1;
+
+	return 0;
+}
+
 static struct ulist_node *ulist_rbtree_search(struct ulist *ulist, u64 val)
 {
-	struct rb_node *n = ulist->root.rb_node;
-	struct ulist_node *u = NULL;
+	struct rb_node *node;
 
-	while (n) {
-		u = rb_entry(n, struct ulist_node, rb_node);
-		if (u->val < val)
-			n = n->rb_right;
-		else if (u->val > val)
-			n = n->rb_left;
-		else
-			return u;
-	}
-	return NULL;
+	node = rb_find(&val, &ulist->root, ulist_node_val_key_cmp);
+	return rb_entry_safe(node, struct ulist_node, rb_node);
 }
 
 static void ulist_rbtree_erase(struct ulist *ulist, struct ulist_node *node)
