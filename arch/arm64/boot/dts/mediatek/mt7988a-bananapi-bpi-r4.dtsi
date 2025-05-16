@@ -12,6 +12,15 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		/* cooling level (0, 1, 2, 3) : (0% duty, 30% duty, 50% duty, 100% duty) */
+		cooling-levels = <0 80 128 255>;
+		#cooling-cells = <2>;
+		pwms = <&pwm 0 50000>;
+		status = "okay";
+	};
+
 	reg_1p8v: regulator-1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-1.8V";
@@ -71,6 +80,26 @@
 			temperature = <40000>;
 			hysteresis = <2000>;
 			type = "active";
+		};
+	};
+
+	cooling-maps {
+		map-cpu-active-high {
+			/* active: set fan to cooling level 2 */
+			cooling-device = <&fan 3 3>;
+			trip = <&cpu_trip_active_high>;
+		};
+
+		map-cpu-active-med {
+			/* active: set fan to cooling level 1 */
+			cooling-device = <&fan 2 2>;
+			trip = <&cpu_trip_active_med>;
+		};
+
+		map-cpu-active-low {
+			/* active: set fan to cooling level 0 */
+			cooling-device = <&fan 1 1>;
+			trip = <&cpu_trip_active_low>;
 		};
 	};
 };
