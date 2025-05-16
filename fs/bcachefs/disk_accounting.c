@@ -104,7 +104,7 @@ int bch2_disk_accounting_mod(struct btree_trans *trans,
 
 	if (likely(!gc)) {
 		struct bkey_i_accounting *a;
-
+#if 0
 		for (a = btree_trans_subbuf_base(trans, &trans->accounting);
 		     a != btree_trans_subbuf_top(trans, &trans->accounting);
 		     a = (void *) bkey_next(&a->k_i))
@@ -113,7 +113,7 @@ int bch2_disk_accounting_mod(struct btree_trans *trans,
 				acc_u64s(a->v.d, d, nr);
 				return 0;
 			}
-
+#endif
 		unsigned u64s = sizeof(*a) / sizeof(u64) + nr;
 		a = bch2_trans_subbuf_alloc(trans, &trans->accounting, u64s);
 		int ret = PTR_ERR_OR_ZERO(a);
