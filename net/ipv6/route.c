@@ -1820,11 +1820,13 @@ static int rt6_nh_flush_exceptions(struct fib6_nh *nh, void *arg)
 
 void rt6_flush_exceptions(struct fib6_info *f6i)
 {
-	if (f6i->nh)
-		nexthop_for_each_fib6_nh(f6i->nh, rt6_nh_flush_exceptions,
-					 f6i);
-	else
+	if (f6i->nh) {
+		rcu_read_lock();
+		nexthop_for_each_fib6_nh(f6i->nh, rt6_nh_flush_exceptions, f6i);
+		rcu_read_unlock();
+	} else {
 		fib6_nh_flush_exceptions(f6i->fib6_nh, f6i);
+	}
 }
 
 /* Find cached rt in the hash table inside passed in rt
@@ -3841,6 +3843,8 @@ static int ip6_route_info_create_nh(struct fib6_info *rt,
 	if (cfg->fc_nh_id) {
 		struct nexthop *nh;
 
+		rcu_read_lock();
+
 		nh = nexthop_find_by_id(net, cfg->fc_nh_id);
 		if (!nh) {
 			err = -EINVAL;
@@ -3860,6 +3864,8 @@ static int ip6_route_info_create_nh(struct fib6_info *rt,
 
 		rt->nh = nh;
 		fib6_nh = nexthop_fib6_nh(rt->nh);
+
+		rcu_read_unlock();
 	} else {
 		int addr_type;
 
@@ -3895,6 +3901,7 @@ out_release:
 	fib6_info_release(rt);
 	return err;
 out_free:
+	rcu_read_unlock();
 	ip_fib_metrics_put(rt->fib6_metrics);
 	kfree(rt);
 	return err;
@@ -3910,16 +3917,12 @@ int ip6_route_add(struct fib6_config *cfg, gfp_t gfp_flags,
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 
-	rcu_read_lock();
-
 	err = ip6_route_info_create_nh(rt, cfg, extack);
 	if (err)
-		goto unlock;
+		return err;
 
 	err = __ip6_ins_rt(rt, &cfg->fc_nlinfo, extack);
 	fib6_info_release(rt);
-unlock:
-	rcu_read_unlock();
 
 	return err;
 }
@@ -5534,8 +5537,6 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 	if (err)
 		return err;
 
-	rcu_read_lock();
-
 	err = ip6_route_mpath_info_create_nh(&rt6_nh_list, extack);
 	if (err)
 		goto cleanup;
@@ -5627,8 +5628,6 @@ add_errout:
 	}
 
 cleanup:
-	rcu_read_unlock();
-
 	list_for_each_entry_safe(nh, nh_safe, &rt6_nh_list, list) {
 		fib6_info_release(nh->fib6_info);
 		list_del(&nh->list);
@@ -6410,6 +6409,8 @@ void inet6_rt_notify(int event, struct fib6_info *rt, struct nl_info *info,
 	err = -ENOBUFS;
 	seq = info->nlh ? info->nlh->nlmsg_seq : 0;
 
+	rcu_read_lock();
+
 	skb = nlmsg_new(rt6_nlmsg_size(rt), GFP_ATOMIC);
 	if (!skb)
 		goto errout;
@@ -6422,10 +6423,14 @@ void inet6_rt_notify(int event, struct fib6_info *rt, struct nl_info *info,
 		kfree_skb(skb);
 		goto errout;
 	}
+
+	rcu_read_unlock();
+
 	rtnl_notify(skb, net, info->portid, RTNLGRP_IPV6_ROUTE,
 		    info->nlh, GFP_ATOMIC);
 	return;
 errout:
+	rcu_read_unlock();
 	rtnl_set_sk_err(net, RTNLGRP_IPV6_ROUTE, err);
 }
 

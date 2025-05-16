@@ -1027,8 +1027,9 @@ static void fib6_drop_pcpu_from(struct fib6_info *f6i,
 			.table = table
 		};
 
-		nexthop_for_each_fib6_nh(f6i->nh, fib6_nh_drop_pcpu_from,
-					 &arg);
+		rcu_read_lock();
+		nexthop_for_each_fib6_nh(f6i->nh, fib6_nh_drop_pcpu_from, &arg);
+		rcu_read_unlock();
 	} else {
 		struct fib6_nh *fib6_nh;
 
@@ -1221,7 +1222,9 @@ next_iter:
 			fib6_nsiblings++;
 		}
 		BUG_ON(fib6_nsiblings != rt->fib6_nsiblings);
+		rcu_read_lock();
 		rt6_multipath_rebalance(temp_sibling);
+		rcu_read_unlock();
 	}
 
 	/*
@@ -1264,7 +1267,9 @@ add:
 					sibling->fib6_nsiblings--;
 				rt->fib6_nsiblings = 0;
 				list_del_rcu(&rt->fib6_siblings);
+				rcu_read_lock();
 				rt6_multipath_rebalance(next_sibling);
+				rcu_read_unlock();
 				return err;
 			}
 		}
