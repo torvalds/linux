@@ -121,7 +121,6 @@ int kvm_dirty_ring_reset(struct kvm *kvm, struct kvm_dirty_ring *ring,
 	u64 cur_offset, next_offset;
 	unsigned long mask = 0;
 	struct kvm_dirty_gfn *entry;
-	bool first_round = true;
 
 	while (likely((*nr_entries_reset) < INT_MAX)) {
 		if (signal_pending(current))
@@ -141,42 +140,42 @@ int kvm_dirty_ring_reset(struct kvm *kvm, struct kvm_dirty_ring *ring,
 		ring->reset_index++;
 		(*nr_entries_reset)++;
 
-		/*
-		 * While the size of each ring is fixed, it's possible for the
-		 * ring to be constantly re-dirtied/harvested while the reset
-		 * is in-progress (the hard limit exists only to guard against
-		 * wrapping the count into negative space).
-		 */
-		if (!first_round)
+		if (mask) {
+			/*
+			 * While the size of each ring is fixed, it's possible
+			 * for the ring to be constantly re-dirtied/harvested
+			 * while the reset is in-progress (the hard limit exists
+			 * only to guard against the count becoming negative).
+			 */
 			cond_resched();
 
-		/*
-		 * Try to coalesce the reset operations when the guest is
-		 * scanning pages in the same slot.
-		 */
-		if (!first_round && next_slot == cur_slot) {
-			s64 delta = next_offset - cur_offset;
+			/*
+			 * Try to coalesce the reset operations when the guest
+			 * is scanning pages in the same slot.
+			 */
+			if (next_slot == cur_slot) {
+				s64 delta = next_offset - cur_offset;
 
-			if (delta >= 0 && delta < BITS_PER_LONG) {
-				mask |= 1ull << delta;
-				continue;
+				if (delta >= 0 && delta < BITS_PER_LONG) {
+					mask |= 1ull << delta;
+					continue;
+				}
+
+				/* Backwards visit, careful about overflows! */
+				if (delta > -BITS_PER_LONG && delta < 0 &&
+				(mask << -delta >> -delta) == mask) {
+					cur_offset = next_offset;
+					mask = (mask << -delta) | 1;
+					continue;
+				}
 			}
 
-			/* Backwards visit, careful about overflows!  */
-			if (delta > -BITS_PER_LONG && delta < 0 &&
-			    (mask << -delta >> -delta) == mask) {
-				cur_offset = next_offset;
-				mask = (mask << -delta) | 1;
-				continue;
-			}
-		}
-
-		/*
-		 * Reset the slot for all the harvested entries that have been
-		 * gathered, but not yet fully processed.
-		 */
-		if (mask)
+			/*
+			 * Reset the slot for all the harvested entries that
+			 * have been gathered, but not yet fully processed.
+			 */
 			kvm_reset_dirty_gfn(kvm, cur_slot, cur_offset, mask);
+		}
 
 		/*
 		 * The current slot was reset or this is the first harvested
@@ -185,7 +184,6 @@ int kvm_dirty_ring_reset(struct kvm *kvm, struct kvm_dirty_ring *ring,
 		cur_slot = next_slot;
 		cur_offset = next_offset;
 		mask = 1;
-		first_round = false;
 	}
 
 	/*
