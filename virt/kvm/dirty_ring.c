@@ -122,6 +122,14 @@ int kvm_dirty_ring_reset(struct kvm *kvm, struct kvm_dirty_ring *ring,
 	unsigned long mask = 0;
 	struct kvm_dirty_gfn *entry;
 
+	/*
+	 * Ensure concurrent calls to KVM_RESET_DIRTY_RINGS are serialized,
+	 * e.g. so that KVM fully resets all entries processed by a given call
+	 * before returning to userspace.  Holding slots_lock also protects
+	 * the various memslot accesses.
+	 */
+	lockdep_assert_held(&kvm->slots_lock);
+
 	while (likely((*nr_entries_reset) < INT_MAX)) {
 		if (signal_pending(current))
 			return -EINTR;
