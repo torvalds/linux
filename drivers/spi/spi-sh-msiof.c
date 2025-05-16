@@ -86,6 +86,7 @@ struct sh_msiof_spi_priv {
 /* SITMDR1 and SIRMDR1 */
 #define SIMDR1_TRMD		BIT(31)		/* Transfer Mode (1 = Master mode) */
 #define SIMDR1_SYNCMD		GENMASK(29, 28)	/* SYNC Mode */
+#define SIMDR1_SYNCMD_PULSE	0U		/*   Frame start sync pulse */
 #define SIMDR1_SYNCMD_SPI	2U		/*   Level mode/SPI */
 #define SIMDR1_SYNCMD_LR	3U		/*   L/R mode */
 #define SIMDR1_SYNCAC		BIT(25)		/* Sync Polarity (1 = Active-low) */
