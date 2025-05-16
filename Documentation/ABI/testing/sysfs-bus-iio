@@ -2278,6 +2278,9 @@ Description:
 		Reading returns a list with the possible filter modes. Options
 		for the attribute:
 
+		* "none" - Filter is disabled/bypassed.
+		* "sinc1" - The digital sinc1 filter. Fast 1st
+		  conversion time. Poor noise performance.
 		* "sinc3" - The digital sinc3 filter. Moderate 1st
 		  conversion time. Good noise performance.
 		* "sinc4" - Sinc 4. Excellent noise performance. Long
@@ -2293,6 +2296,7 @@ Description:
 		* "sinc3+pf2" - Sinc3 + device specific Post Filter 2.
 		* "sinc3+pf3" - Sinc3 + device specific Post Filter 3.
 		* "sinc3+pf4" - Sinc3 + device specific Post Filter 4.
+		* "sinc5+pf1" - Sinc5 + device specific Post Filter 1.
 		* "wideband" - filter with wideband low ripple passband
 		  and sharp transition band.
 
