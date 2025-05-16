@@ -395,6 +395,7 @@ void mhi_deinit_chan_ctxt(struct mhi_controller *mhi_cntrl,
 			  struct mhi_chan *mhi_chan);
 void mhi_reset_chan(struct mhi_controller *mhi_cntrl,
 		    struct mhi_chan *mhi_chan);
+void mhi_deinit_dev_ctxt(struct mhi_controller *mhi_cntrl);
 
 /* Event processing methods */
 void mhi_ctrl_ev_task(unsigned long data);

@@ -601,6 +601,12 @@ static int ath12k_mhi_set_state(struct ath12k_pci *ab_pci,
 
 	ath12k_mhi_set_state_bit(ab_pci, mhi_state);
 
+	/* mhi_power_down_keep_dev() has been updated to DEINIT without
+	 * freeing bhie tables
+	 */
+	if (mhi_state == ATH12K_MHI_POWER_OFF_KEEP_DEV)
+		ath12k_mhi_set_state_bit(ab_pci, ATH12K_MHI_DEINIT);
+
 	return 0;
 
 out:
@@ -635,12 +641,12 @@ void ath12k_mhi_stop(struct ath12k_pci *ab_pci, bool is_suspend)
 	 * workaround, otherwise ath12k_core_resume() will timeout
 	 * during resume.
 	 */
-	if (is_suspend)
+	if (is_suspend) {
 		ath12k_mhi_set_state(ab_pci, ATH12K_MHI_POWER_OFF_KEEP_DEV);
-	else
+	} else {
 		ath12k_mhi_set_state(ab_pci, ATH12K_MHI_POWER_OFF);
-
-	ath12k_mhi_set_state(ab_pci, ATH12K_MHI_DEINIT);
+		ath12k_mhi_set_state(ab_pci, ATH12K_MHI_DEINIT);
+	}
 }
 
 void ath12k_mhi_suspend(struct ath12k_pci *ab_pci)
