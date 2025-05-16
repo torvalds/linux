@@ -46,7 +46,9 @@
 #include <linux/pidfs.h>
 #include <linux/net.h>
 #include <linux/socket.h>
+#include <net/af_unix.h>
 #include <net/net_namespace.h>
+#include <net/sock.h>
 #include <uapi/linux/pidfd.h>
 #include <uapi/linux/un.h>
 
@@ -599,6 +601,8 @@ static int umh_coredump_setup(struct subprocess_info *info, struct cred *new)
 		if (IS_ERR(pidfs_file))
 			return PTR_ERR(pidfs_file);
 
+		pidfs_coredump(cp);
+
 		/*
 		 * Usermode helpers are childen of either
 		 * system_unbound_wq or of kthreadd. So we know that
@@ -875,8 +879,31 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		if (IS_ERR(file))
 			goto close_fail;
 
+		/*
+		 * Set the thread-group leader pid which is used for the
+		 * peer credentials during connect() below. Then
+		 * immediately register it in pidfs...
+		 */
+		cprm.pid = task_tgid(current);
+		retval = pidfs_register_pid(cprm.pid);
+		if (retval)
+			goto close_fail;
+
+		/*
+		 * ... and set the coredump information so userspace
+		 * has it available after connect()...
+		 */
+		pidfs_coredump(&cprm);
+
 		retval = kernel_connect(socket, (struct sockaddr *)(&addr),
 					addr_len, O_NONBLOCK | SOCK_COREDUMP);
+
+		/*
+		 * ... Make sure to only put our reference after connect() took
+		 * its own reference keeping the pidfs entry alive ...
+		 */
+		pidfs_put_pid(cprm.pid);
+
 		if (retval) {
 			if (retval == -EAGAIN)
 				coredump_report_failure("Coredump socket %s receive queue full", addr.sun_path);
@@ -884,6 +911,10 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 				coredump_report_failure("Coredump socket connection %s failed %d", addr.sun_path, retval);
 			goto close_fail;
 		}
+
+		/* ... and validate that @sk_peer_pid matches @cprm.pid. */
+		if (WARN_ON_ONCE(unix_peer(socket->sk)->sk_peer_pid != cprm.pid))
+			goto close_fail;
 
 		cprm.limit = RLIM_INFINITY;
 		cprm.file = no_free_ptr(file);
