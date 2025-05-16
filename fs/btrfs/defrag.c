@@ -60,6 +60,14 @@ static int compare_inode_defrag(const struct inode_defrag *defrag1,
 		return 0;
 }
 
+static int inode_defrag_cmp(struct rb_node *new, const struct rb_node *existing)
+{
+	const struct inode_defrag *new_defrag = rb_entry(new, struct inode_defrag, rb_node);
+	const struct inode_defrag *existing_defrag = rb_entry(existing, struct inode_defrag, rb_node);
+
+	return compare_inode_defrag(new_defrag, existing_defrag);
+}
+
 /*
  * Insert a record for an inode into the defrag tree.  The lock must be held
  * already.
@@ -71,37 +79,23 @@ static int btrfs_insert_inode_defrag(struct btrfs_inode *inode,
 				     struct inode_defrag *defrag)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct inode_defrag *entry;
-	struct rb_node **p;
-	struct rb_node *parent = NULL;
-	int ret;
+	struct rb_node *node;
 
-	p = &fs_info->defrag_inodes.rb_node;
-	while (*p) {
-		parent = *p;
-		entry = rb_entry(parent, struct inode_defrag, rb_node);
+	node = rb_find_add(&defrag->rb_node, &fs_info->defrag_inodes, inode_defrag_cmp);
+	if (node) {
+		struct inode_defrag *entry;
 
-		ret = compare_inode_defrag(defrag, entry);
-		if (ret < 0)
-			p = &parent->rb_left;
-		else if (ret > 0)
-			p = &parent->rb_right;
-		else {
-			/*
-			 * If we're reinserting an entry for an old defrag run,
-			 * make sure to lower the transid of our existing
-			 * record.
-			 */
-			if (defrag->transid < entry->transid)
-				entry->transid = defrag->transid;
-			entry->extent_thresh = min(defrag->extent_thresh,
-						   entry->extent_thresh);
-			return -EEXIST;
-		}
+		entry = rb_entry(node, struct inode_defrag, rb_node);
+		/*
+		 * If we're reinserting an entry for an old defrag run, make
+		 * sure to lower the transid of our existing record.
+		 */
+		if (defrag->transid < entry->transid)
+			entry->transid = defrag->transid;
+		entry->extent_thresh = min(defrag->extent_thresh, entry->extent_thresh);
+		return -EEXIST;
 	}
 	set_bit(BTRFS_INODE_IN_DEFRAG, &inode->runtime_flags);
-	rb_link_node(&defrag->rb_node, parent, p);
-	rb_insert_color(&defrag->rb_node, &fs_info->defrag_inodes);
 	return 0;
 }
 
