@@ -183,6 +183,13 @@ static struct btrfs_qgroup *find_qgroup_rb(const struct btrfs_fs_info *fs_info,
 	return rb_entry_safe(node, struct btrfs_qgroup, node);
 }
 
+static int btrfs_qgroup_qgroupid_cmp(struct rb_node *new, const struct rb_node *existing)
+{
+	const struct btrfs_qgroup *new_qgroup = rb_entry(new, struct btrfs_qgroup, node);
+
+	return btrfs_qgroup_qgroupid_key_cmp(&new_qgroup->qgroupid, existing);
+}
+
 /*
  * Add qgroup to the filesystem's qgroup tree.
  *
@@ -195,39 +202,25 @@ static struct btrfs_qgroup *add_qgroup_rb(struct btrfs_fs_info *fs_info,
 					  struct btrfs_qgroup *prealloc,
 					  u64 qgroupid)
 {
-	struct rb_node **p = &fs_info->qgroup_tree.rb_node;
-	struct rb_node *parent = NULL;
-	struct btrfs_qgroup *qgroup;
+	struct rb_node *node;
 
 	/* Caller must have pre-allocated @prealloc. */
 	ASSERT(prealloc);
 
-	while (*p) {
-		parent = *p;
-		qgroup = rb_entry(parent, struct btrfs_qgroup, node);
-
-		if (qgroup->qgroupid < qgroupid) {
-			p = &(*p)->rb_left;
-		} else if (qgroup->qgroupid > qgroupid) {
-			p = &(*p)->rb_right;
-		} else {
-			kfree(prealloc);
-			return qgroup;
-		}
+	prealloc->qgroupid = qgroupid;
+	node = rb_find_add(&prealloc->node, &fs_info->qgroup_tree, btrfs_qgroup_qgroupid_cmp);
+	if (node) {
+		kfree(prealloc);
+		return rb_entry(node, struct btrfs_qgroup, node);
 	}
 
-	qgroup = prealloc;
-	qgroup->qgroupid = qgroupid;
-	INIT_LIST_HEAD(&qgroup->groups);
-	INIT_LIST_HEAD(&qgroup->members);
-	INIT_LIST_HEAD(&qgroup->dirty);
-	INIT_LIST_HEAD(&qgroup->iterator);
-	INIT_LIST_HEAD(&qgroup->nested_iterator);
+	INIT_LIST_HEAD(&prealloc->groups);
+	INIT_LIST_HEAD(&prealloc->members);
+	INIT_LIST_HEAD(&prealloc->dirty);
+	INIT_LIST_HEAD(&prealloc->iterator);
+	INIT_LIST_HEAD(&prealloc->nested_iterator);
 
-	rb_link_node(&qgroup->node, parent, p);
-	rb_insert_color(&qgroup->node, &fs_info->qgroup_tree);
-
-	return qgroup;
+	return prealloc;
 }
 
 static void __del_qgroup_rb(struct btrfs_qgroup *qgroup)
