@@ -1648,7 +1648,8 @@ int iavf_napi_poll(struct napi_struct *napi, int budget)
 		 * continue to poll, otherwise we must stop polling so the
 		 * interrupt can move to the correct cpu.
 		 */
-		if (!cpumask_test_cpu(cpu_id, &q_vector->affinity_mask)) {
+		if (!cpumask_test_cpu(cpu_id,
+				      &q_vector->napi.config->affinity_mask)) {
 			/* Tell napi that we are done polling */
 			napi_complete_done(napi, work_done);
 
