@@ -125,7 +125,7 @@ struct sdca_init_write {
  * macros.
  *
  * Short hand to specific a Control type statically for example:
- * SDAC_CTL_TYPE_S(IT, MIC_BIAS).
+ * SDCA_CTL_TYPE_S(IT, MIC_BIAS).
  */
 #define SDCA_CTL_TYPE_S(ent, sel) SDCA_CTL_TYPE(SDCA_ENTITY_TYPE_##ent, \
 						SDCA_CTL_##ent##_##sel)
