@@ -86,8 +86,6 @@
 struct gc0310_device {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
-	/* Protect against concurrent changes to controls */
-	struct mutex input_lock;
 
 	struct regmap *regmap;
 	struct gpio_desc *reset;
@@ -466,11 +464,9 @@ static int gc0310_enable_streams(struct v4l2_subdev *sd,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
-	mutex_lock(&sensor->input_lock);
-
 	ret = pm_runtime_resume_and_get(&client->dev);
 	if (ret)
-		goto error_unlock;
+		return ret;
 
 	ret = regmap_multi_reg_write(sensor->regmap,
 				     gc0310_reset_register,
@@ -501,8 +497,6 @@ error_power_down:
 	if (ret)
 		pm_runtime_put(&client->dev);
 
-error_unlock:
-	mutex_unlock(&sensor->input_lock);
 	return ret;
 }
 
@@ -514,8 +508,6 @@ static int gc0310_disable_streams(struct v4l2_subdev *sd,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	mutex_lock(&sensor->input_lock);
-
 	cci_write(sensor->regmap, GC0310_RESET_RELATED_REG,
 		  GC0310_REGISTER_PAGE_3, &ret);
 	cci_write(sensor->regmap, GC0310_SW_STREAM_REG,
@@ -524,7 +516,6 @@ static int gc0310_disable_streams(struct v4l2_subdev *sd,
 		  GC0310_REGISTER_PAGE_0, &ret);
 
 	pm_runtime_put(&client->dev);
-	mutex_unlock(&sensor->input_lock);
 	return ret;
 }
 
@@ -615,7 +606,6 @@ static int gc0310_init_controls(struct gc0310_device *sensor)
 	v4l2_ctrl_handler_init(hdl, 8);
 
 	/* Use the same lock for controls as for everything else */
-	hdl->lock = &sensor->input_lock;
 	sensor->sd.ctrl_handler = hdl;
 
 	exp_max = GC0310_NATIVE_HEIGHT + GC0310_V_BLANK_DEFAULT;
@@ -669,9 +659,9 @@ static void gc0310_remove(struct i2c_client *client)
 	dev_dbg(&client->dev, "gc0310_remove...\n");
 
 	v4l2_async_unregister_subdev(sd);
+	v4l2_subdev_cleanup(sd);
 	media_entity_cleanup(&sensor->sd.entity);
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
-	mutex_destroy(&sensor->input_lock);
 	pm_runtime_disable(&client->dev);
 }
 
@@ -754,7 +744,6 @@ static int gc0310_probe(struct i2c_client *client)
 				     "getting powerdown GPIO\n");
 	}
 
-	mutex_init(&sensor->input_lock);
 	v4l2_i2c_subdev_init(&sensor->sd, client, &gc0310_ops);
 	gc0310_fill_format(&sensor->mode.fmt);
 
@@ -784,6 +773,13 @@ static int gc0310_probe(struct i2c_client *client)
 	}
 
 	ret = media_entity_pads_init(&sensor->sd.entity, 1, &sensor->pad);
+	if (ret) {
+		gc0310_remove(client);
+		return ret;
+	}
+
+	sensor->sd.state_lock = sensor->ctrls.handler.lock;
+	ret = v4l2_subdev_init_finalize(&sensor->sd);
 	if (ret) {
 		gc0310_remove(client);
 		return ret;
