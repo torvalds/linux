@@ -8021,35 +8021,31 @@ int *get_cstate_perf_group_fd(struct cstate_counter_info_t *cci, const char *gro
 	return NULL;
 }
 
-int add_cstate_perf_counter_(int cpu, struct cstate_counter_info_t *cci, const struct cstate_counter_arch_info *cai)
+int add_cstate_perf_counter(int cpu, struct cstate_counter_info_t *cci, const struct cstate_counter_arch_info *cai)
 {
+	int ret = -1;
+
 	if (no_perf)
 		return -1;
 
 	int *pfd_group = get_cstate_perf_group_fd(cci, cai->perf_subsys);
 
 	if (pfd_group == NULL)
-		return -1;
+		goto end;
 
 	const unsigned int type = read_perf_type(cai->perf_subsys);
 	const unsigned int config = read_perf_config(cai->perf_subsys, cai->perf_name);
 
-	const int fd_counter = open_perf_counter(cpu, type, config, *pfd_group, PERF_FORMAT_GROUP);
+	ret = open_perf_counter(cpu, type, config, *pfd_group, PERF_FORMAT_GROUP);
 
-	if (fd_counter == -1)
-		return -1;
+	if (ret == -1)
+		goto end;
 
 	/* If it's the first counter opened, make it a group descriptor */
 	if (*pfd_group == -1)
-		*pfd_group = fd_counter;
+		*pfd_group = ret;
 
-	return fd_counter;
-}
-
-int add_cstate_perf_counter(int cpu, struct cstate_counter_info_t *cci, const struct cstate_counter_arch_info *cai)
-{
-	int ret = add_cstate_perf_counter_(cpu, cci, cai);
-
+end:
 	if (debug >= 2)
 		fprintf(stderr, "%s: %d (cpu: %d)\n", __func__, ret, cpu);
 
