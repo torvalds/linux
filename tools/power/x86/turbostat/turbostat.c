@@ -8052,30 +8052,26 @@ end:
 	return ret;
 }
 
-int add_msr_perf_counter_(int cpu, struct msr_counter_info_t *cci, const struct msr_counter_arch_info *cai)
+int add_msr_perf_counter(int cpu, struct msr_counter_info_t *cci, const struct msr_counter_arch_info *cai)
 {
+	int ret = -1;
+
 	if (no_perf)
 		return -1;
 
 	const unsigned int type = read_perf_type(cai->perf_subsys);
 	const unsigned int config = read_perf_config(cai->perf_subsys, cai->perf_name);
 
-	const int fd_counter = open_perf_counter(cpu, type, config, cci->fd_perf, PERF_FORMAT_GROUP);
+	ret = open_perf_counter(cpu, type, config, cci->fd_perf, PERF_FORMAT_GROUP);
 
-	if (fd_counter == -1)
-		return -1;
+	if (ret == -1)
+		goto end;
 
 	/* If it's the first counter opened, make it a group descriptor */
 	if (cci->fd_perf == -1)
-		cci->fd_perf = fd_counter;
+		cci->fd_perf = ret;
 
-	return fd_counter;
-}
-
-int add_msr_perf_counter(int cpu, struct msr_counter_info_t *cci, const struct msr_counter_arch_info *cai)
-{
-	int ret = add_msr_perf_counter_(cpu, cci, cai);
-
+end:
 	if (debug)
 		fprintf(stderr, "%s: %s/%s: %d (cpu: %d)\n", __func__, cai->perf_subsys, cai->perf_name, ret, cpu);
 
