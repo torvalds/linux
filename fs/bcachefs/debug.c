@@ -320,6 +320,11 @@ ssize_t bch2_debugfs_flush_buf(struct dump_iter *i)
 		i->buf.pos -= copied;
 		memmove(i->buf.buf, i->buf.buf + copied, i->buf.pos);
 
+		if (i->buf.last_newline >= copied)
+			i->buf.last_newline -= copied;
+		if (i->buf.last_field >= copied)
+			i->buf.last_field -= copied;
+
 		if (copied != bytes)
 			return -EFAULT;
 	}
