@@ -3751,7 +3751,7 @@ static bool __wp_can_reuse_large_anon_folio(struct folio *folio,
 
 	/* Stabilize the mapcount vs. refcount and recheck. */
 	folio_lock_large_mapcount(folio);
-	VM_WARN_ON_ONCE(folio_large_mapcount(folio) < folio_ref_count(folio));
+	VM_WARN_ON_ONCE_FOLIO(folio_large_mapcount(folio) > folio_ref_count(folio), folio);
 
 	if (folio_test_large_maybe_mapped_shared(folio))
 		goto unlock;
