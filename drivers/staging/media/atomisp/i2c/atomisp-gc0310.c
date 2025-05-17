@@ -88,7 +88,6 @@ struct gc0310_device {
 	struct media_pad pad;
 	/* Protect against concurrent changes to controls */
 	struct mutex input_lock;
-	bool is_streaming;
 
 	struct regmap *regmap;
 	struct gpio_desc *reset;
@@ -507,13 +506,11 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 	if (!enable)
 		pm_runtime_put(&client->dev);
 
-	sensor->is_streaming = enable;
 	mutex_unlock(&sensor->input_lock);
 	return 0;
 
 error_power_down:
 	pm_runtime_put(&client->dev);
-	sensor->is_streaming = false;
 	mutex_unlock(&sensor->input_lock);
 	return ret;
 }
