@@ -131,7 +131,7 @@ int fixed_phy_set_link_update(struct phy_device *phydev,
 EXPORT_SYMBOL_GPL(fixed_phy_set_link_update);
 
 static int fixed_phy_add_gpiod(unsigned int irq, int phy_addr,
-			       struct fixed_phy_status *status,
+			       const struct fixed_phy_status *status,
 			       struct gpio_desc *gpiod)
 {
 	int ret;
@@ -160,7 +160,7 @@ static int fixed_phy_add_gpiod(unsigned int irq, int phy_addr,
 	return 0;
 }
 
-int fixed_phy_add(int phy_addr, struct fixed_phy_status *status)
+int fixed_phy_add(int phy_addr, const struct fixed_phy_status *status)
 {
 	return fixed_phy_add_gpiod(PHY_POLL, phy_addr, status, NULL);
 }
@@ -222,7 +222,7 @@ static struct gpio_desc *fixed_phy_get_gpiod(struct device_node *np)
 }
 #endif
 
-struct phy_device *fixed_phy_register(struct fixed_phy_status *status,
+struct phy_device *fixed_phy_register(const struct fixed_phy_status *status,
 				      struct device_node *np)
 {
 	struct fixed_mdio_bus *fmb = &platform_fmb;

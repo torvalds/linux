@@ -17,8 +17,8 @@ struct net_device;
 
 #if IS_ENABLED(CONFIG_FIXED_PHY)
 extern int fixed_phy_change_carrier(struct net_device *dev, bool new_carrier);
-int fixed_phy_add(int phy_id, struct fixed_phy_status *status);
-struct phy_device *fixed_phy_register(struct fixed_phy_status *status,
+int fixed_phy_add(int phy_id, const struct fixed_phy_status *status);
+struct phy_device *fixed_phy_register(const struct fixed_phy_status *status,
 				      struct device_node *np);
 
 extern void fixed_phy_unregister(struct phy_device *phydev);
@@ -27,12 +27,12 @@ extern int fixed_phy_set_link_update(struct phy_device *phydev,
 					   struct fixed_phy_status *));
 #else
 static inline int fixed_phy_add(int phy_id,
-				struct fixed_phy_status *status)
+				const struct fixed_phy_status *status)
 {
 	return -ENODEV;
 }
 static inline struct phy_device *
-fixed_phy_register(struct fixed_phy_status *status,
+fixed_phy_register(const struct fixed_phy_status *status,
 		   struct device_node *np)
 {
 	return ERR_PTR(-ENODEV);
