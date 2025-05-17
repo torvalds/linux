@@ -289,4 +289,8 @@ long compat_ksys_old_shmctl(int shmid, int cmd, void __user *uptr);
 
 #endif
 
+void audit_log_msg(const char *operation);
+void audit_log_ipc_ns(const char *operation, struct ipc_namespace *ns);
+void audit_log_ipc_syscall(const char *operation, unsigned int call, int first, unsigned long second, unsigned long third, void __user *ptr, long fifth);
+
 #endif
