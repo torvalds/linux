@@ -2222,32 +2222,46 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 	return 0;
 }
 
-int probe_rapl_msr(int cpu, off_t offset, int index)
+int add_msr_counter(int cpu, off_t offset)
 {
 	ssize_t retval;
 	unsigned long long value;
 
-	assert(!no_msr);
+	if (no_msr)
+		return -1;
 
 	retval = pread(get_msr_fd(cpu), &value, sizeof(value), offset);
 
 	/* if the read failed, the probe fails */
 	if (retval != sizeof(value))
-		return 1;
+		return -1;
 
-	/* If an Energy Status Counter MSR returns 0, the probe fails */
+	if (value == 0)
+		return 0;
+
+	return 1;
+}
+
+int add_rapl_msr_counter(int cpu, off_t offset, int index)
+{
+	int ret;
+
+	ret = add_msr_counter(cpu, offset);
+	if (ret < 0)
+		return -1;
+
 	switch (index) {
 	case RAPL_RCI_INDEX_ENERGY_PKG:
 	case RAPL_RCI_INDEX_ENERGY_CORES:
 	case RAPL_RCI_INDEX_DRAM:
 	case RAPL_RCI_INDEX_GFX:
 	case RAPL_RCI_INDEX_ENERGY_PLATFORM:
-		if (value == 0)
+		if (ret == 0)
 			return 1;
 	}
 
 	/* PKG,DRAM_PERF_STATUS MSRs, can return any value */
-	return 0;
+	return 1;
 }
 
 /* Convert CPU ID to domain ID for given added perf counter. */
@@ -7980,7 +7994,7 @@ void rapl_perf_init(void)
 					rci->flags[cai->rci_index] = cai->flags;
 
 					/* Use MSR for this counter */
-				} else if (!no_msr && cai->msr && probe_rapl_msr(cpu, cai->msr, cai->rci_index) == 0) {
+				} else if (!no_msr && cai->msr && add_rapl_msr_counter(cpu, cai->msr, cai->rci_index) >= 0) {
 					rci->source[cai->rci_index] = COUNTER_SOURCE_MSR;
 					rci->msr[cai->rci_index] = cai->msr;
 					rci->msr_mask[cai->rci_index] = cai->msr_mask;
@@ -8110,7 +8124,7 @@ void msr_perf_init_(void)
 					cai->present = true;
 
 					/* User MSR for this counter */
-				} else if (!no_msr && cai->msr && probe_rapl_msr(cpu, cai->msr, cai->rci_index) == 0) {
+				} else if (!no_msr && cai->msr && add_msr_counter(cpu, cai->msr) >= 0) {
 					cci->source[cai->rci_index] = COUNTER_SOURCE_MSR;
 					cci->msr[cai->rci_index] = cai->msr;
 					cci->msr_mask[cai->rci_index] = cai->msr_mask;
@@ -8224,7 +8238,7 @@ void cstate_perf_init_(bool soft_c1)
 
 					/* User MSR for this counter */
 				} else if (!no_msr && cai->msr && pkg_cstate_limit >= cai->pkg_cstate_limit
-					   && probe_rapl_msr(cpu, cai->msr, cai->rci_index) == 0) {
+					   && add_msr_counter(cpu, cai->msr) >= 0) {
 					cci->source[cai->rci_index] = COUNTER_SOURCE_MSR;
 					cci->msr[cai->rci_index] = cai->msr;
 				}
