@@ -85,7 +85,7 @@ static enum gpio_result dal_hw_hpd_get_value(
 	return dal_hw_gpio_get_value(ptr, value);
 }
 
-static enum gpio_result set_config(
+static enum gpio_result dal_hw_hpd_set_config(
 	struct hw_gpio_pin *ptr,
 	const struct gpio_config_data *config_data)
 {
@@ -106,7 +106,7 @@ static const struct hw_gpio_pin_funcs funcs = {
 	.open = dal_hw_gpio_open,
 	.get_value = dal_hw_hpd_get_value,
 	.set_value = dal_hw_gpio_set_value,
-	.set_config = set_config,
+	.set_config = dal_hw_hpd_set_config,
 	.change_mode = dal_hw_gpio_change_mode,
 	.close = dal_hw_gpio_close,
 };
