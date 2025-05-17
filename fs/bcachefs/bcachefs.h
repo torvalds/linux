@@ -626,7 +626,8 @@ struct bch_dev {
 	u8			*oldest_gen;
 	unsigned long		*buckets_nouse;
 
-	struct bucket_bitmap	bucket_backpointer_mismatches[2];
+	struct bucket_bitmap	bucket_backpointer_mismatch;
+	struct bucket_bitmap	bucket_backpointer_empty;
 
 	struct bch_dev_usage_full __percpu
 				*usage;

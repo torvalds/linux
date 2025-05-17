@@ -15,6 +15,8 @@
 
 #include <linux/mm.h>
 
+static int bch2_bucket_bitmap_set(struct bch_dev *, struct bucket_bitmap *, u64);
+
 static inline struct bbpos bp_to_bbpos(struct bch_backpointer bp)
 {
 	return (struct bbpos) {
@@ -685,31 +687,28 @@ static int check_extent_to_backpointers(struct btree_trans *trans,
 			continue;
 		}
 
-		u64 b = PTR_BUCKET_NR(ca, &p.ptr);
-		bool set[2];
-
-		for (unsigned i = 0; i < ARRAY_SIZE(ca->bucket_backpointer_mismatches); i++) {
-			unsigned long *bitmap =
-				READ_ONCE(ca->bucket_backpointer_mismatches[i].buckets);
-			set[i] = bitmap && test_bit(b, bitmap);
+		if (p.ptr.cached && dev_ptr_stale_rcu(ca, &p.ptr)) {
+			rcu_read_unlock();
+			continue;
 		}
 
-		bool check = set[0];
-		bool empty = set[1];
+		u64 b = PTR_BUCKET_NR(ca, &p.ptr);
+		if (!bch2_bucket_bitmap_test(&ca->bucket_backpointer_mismatch, b)) {
+			rcu_read_unlock();
+			continue;
+		}
 
-		bool stale = p.ptr.cached && (!ca || dev_ptr_stale_rcu(ca, &p.ptr));
+		bool empty = bch2_bucket_bitmap_test(&ca->bucket_backpointer_empty, b);
 		rcu_read_unlock();
 
-		if ((check || empty) && !stale) {
-			struct bkey_i_backpointer bp;
-			bch2_extent_ptr_to_bp(c, btree, level, k, p, entry, &bp);
+		struct bkey_i_backpointer bp;
+		bch2_extent_ptr_to_bp(c, btree, level, k, p, entry, &bp);
 
-			int ret = check
-				? check_bp_exists(trans, s, &bp, k)
-				: bch2_bucket_backpointer_mod(trans, k, &bp, true);
-			if (ret)
-				return ret;
-		}
+		int ret = !empty
+			? check_bp_exists(trans, s, &bp, k)
+			: bch2_bucket_backpointer_mod(trans, k, &bp, true);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -952,21 +951,12 @@ static int check_bucket_backpointer_mismatch(struct btree_trans *trans, struct b
 			      sectors[ALLOC_stripe] +
 			      sectors[ALLOC_cached]) == 0;
 
-		struct bucket_bitmap *bitmap = &ca->bucket_backpointer_mismatches[empty];
-
-		mutex_lock(&bitmap->lock);
-		if (!bitmap->buckets) {
-			bitmap->buckets = kvcalloc(BITS_TO_LONGS(ca->mi.nbuckets),
-						   sizeof(unsigned long), GFP_KERNEL);
-			if (!bitmap->buckets) {
-				mutex_unlock(&bitmap->lock);
-				ret = -BCH_ERR_ENOMEM_backpointer_mismatches_bitmap;
-				goto err;
-			}
-		}
-
-		bitmap->nr += !__test_and_set_bit(alloc_k.k->p.offset, bitmap->buckets);
-		mutex_unlock(&bitmap->lock);
+		ret = bch2_bucket_bitmap_set(ca, &ca->bucket_backpointer_mismatch,
+					     alloc_k.k->p.offset) ?:
+			(empty
+			 ? bch2_bucket_bitmap_set(ca, &ca->bucket_backpointer_empty,
+						  alloc_k.k->p.offset)
+			 : 0);
 	}
 err:
 	bch2_dev_put(ca);
@@ -992,15 +982,10 @@ static bool backpointer_node_has_missing(struct bch_fs *c, struct bkey_s_c k)
 			struct bpos bucket = bp_pos_to_bucket(ca, pos);
 			u64 next = ca->mi.nbuckets;
 
-			for (unsigned i = 0; i < ARRAY_SIZE(ca->bucket_backpointer_mismatches); i++) {
-				unsigned long *bitmap =
-					READ_ONCE(ca->bucket_backpointer_mismatches[i].buckets);
-				if (bitmap)
-					next = min_t(u64, next,
-						     find_next_bit(bitmap,
-								   ca->mi.nbuckets,
-								   bucket.offset));
-			}
+			unsigned long *bitmap = READ_ONCE(ca->bucket_backpointer_mismatch.buckets);
+			if (bitmap)
+				next = min_t(u64, next,
+					     find_next_bit(bitmap, ca->mi.nbuckets, bucket.offset));
 
 			bucket.offset = next;
 			if (bucket.offset == ca->mi.nbuckets)
@@ -1124,18 +1109,17 @@ int bch2_check_extents_to_backpointers(struct bch_fs *c)
 	if (ret)
 		goto err;
 
-	u64 nr_buckets = 0, nr_mismatches = 0, nr_empty = 0;
+	u64 nr_buckets = 0, nr_mismatches = 0;
 	for_each_member_device(c, ca) {
 		nr_buckets	+= ca->mi.nbuckets;
-		nr_mismatches	+= ca->bucket_backpointer_mismatches[0].nr;
-		nr_empty	+= ca->bucket_backpointer_mismatches[1].nr;
+		nr_mismatches	+= ca->bucket_backpointer_mismatch.nr;
 	}
 
-	if (!nr_mismatches && !nr_empty)
+	if (!nr_mismatches)
 		goto err;
 
 	bch_info(c, "scanning for missing backpointers in %llu/%llu buckets",
-		 nr_mismatches + nr_empty, nr_buckets);
+		 nr_mismatches, nr_buckets);
 
 	while (1) {
 		ret = bch2_pin_backpointer_nodes_with_missing(trans, s.bp_start, &s.bp_end);
@@ -1171,9 +1155,10 @@ err:
 	bch2_bkey_buf_exit(&s.last_flushed, c);
 	bch2_btree_cache_unpin(c);
 
-	for_each_member_device(c, ca)
-		for (unsigned i = 0; i < ARRAY_SIZE(ca->bucket_backpointer_mismatches); i++)
-			bch2_bucket_bitmap_free(&ca->bucket_backpointer_mismatches[i]);
+	for_each_member_device(c, ca) {
+		bch2_bucket_bitmap_free(&ca->bucket_backpointer_mismatch);
+		bch2_bucket_bitmap_free(&ca->bucket_backpointer_empty);
+	}
 
 	bch_err_fn(c, ret);
 	return ret;
@@ -1295,6 +1280,42 @@ int bch2_check_backpointers_to_extents(struct bch_fs *c)
 
 	bch_err_fn(c, ret);
 	return ret;
+}
+
+static int bch2_bucket_bitmap_set(struct bch_dev *ca, struct bucket_bitmap *b, u64 bit)
+{
+	scoped_guard(mutex, &b->lock) {
+		if (!b->buckets) {
+			b->buckets = kvcalloc(BITS_TO_LONGS(ca->mi.nbuckets),
+					      sizeof(unsigned long), GFP_KERNEL);
+			if (!b->buckets)
+				return -BCH_ERR_ENOMEM_backpointer_mismatches_bitmap;
+		}
+
+		b->nr += !__test_and_set_bit(bit, b->buckets);
+	}
+
+	return 0;
+}
+
+int bch2_bucket_bitmap_resize(struct bucket_bitmap *b, u64 old_size, u64 new_size)
+{
+	scoped_guard(mutex, &b->lock) {
+		if (!b->buckets)
+			return 0;
+
+		unsigned long *n = kvcalloc(BITS_TO_LONGS(new_size),
+					    sizeof(unsigned long), GFP_KERNEL);
+		if (!n)
+			return -BCH_ERR_ENOMEM_backpointer_mismatches_bitmap;
+
+		memcpy(n, b->buckets,
+		       BITS_TO_LONGS(min(old_size, new_size)) * sizeof(unsigned long));
+		kvfree(b->buckets);
+		b->buckets = n;
+	}
+
+	return 0;
 }
 
 void bch2_bucket_bitmap_free(struct bucket_bitmap *b)

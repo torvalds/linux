@@ -1324,27 +1324,10 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 		       sizeof(bucket_gens->b[0]) * copy);
 	}
 
-	for (unsigned i = 0; i < ARRAY_SIZE(ca->bucket_backpointer_mismatches); i++) {
-		struct bucket_bitmap *bitmap = &ca->bucket_backpointer_mismatches[i];
-
-		mutex_lock(&bitmap->lock);
-		if (bitmap->buckets) {
-			unsigned long *n = kvcalloc(BITS_TO_LONGS(nbuckets),
-						    sizeof(unsigned long), GFP_KERNEL);
-			if (!n) {
-				mutex_unlock(&bitmap->lock);
-				ret = -BCH_ERR_ENOMEM_backpointer_mismatches_bitmap;
-				goto err;
-			}
-
-			memcpy(n, bitmap->buckets,
-			       BITS_TO_LONGS(ca->mi.nbuckets) * sizeof(unsigned long));
-			kvfree(bitmap->buckets);
-			bitmap->buckets = n;
-
-		}
-		mutex_unlock(&bitmap->lock);
-	}
+	ret =   bch2_bucket_bitmap_resize(&ca->bucket_backpointer_mismatch,
+					  ca->mi.nbuckets, nbuckets) ?:
+		bch2_bucket_bitmap_resize(&ca->bucket_backpointer_empty,
+					  ca->mi.nbuckets, nbuckets);
 
 	rcu_assign_pointer(ca->bucket_gens, bucket_gens);
 	bucket_gens	= old_bucket_gens;

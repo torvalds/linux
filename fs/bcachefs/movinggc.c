@@ -8,6 +8,7 @@
 #include "bcachefs.h"
 #include "alloc_background.h"
 #include "alloc_foreground.h"
+#include "backpointers.h"
 #include "btree_iter.h"
 #include "btree_update.h"
 #include "btree_write_buffer.h"
@@ -76,7 +77,7 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 
 	if (ca->mi.state != BCH_MEMBER_STATE_rw ||
 	    !bch2_dev_is_online(ca))
-		goto out_put;
+		goto out;
 
 	struct bch_alloc_v4 _a;
 	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &_a);
@@ -85,9 +86,8 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 	u64 lru_idx	= alloc_lru_idx_fragmentation(*a, ca);
 
 	ret = lru_idx && lru_idx <= time;
-out_put:
-	bch2_dev_put(ca);
 out:
+	bch2_dev_put(ca);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }

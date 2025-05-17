@@ -188,6 +188,13 @@ int bch2_check_btree_backpointers(struct bch_fs *);
 int bch2_check_extents_to_backpointers(struct bch_fs *);
 int bch2_check_backpointers_to_extents(struct bch_fs *);
 
+static inline bool bch2_bucket_bitmap_test(struct bucket_bitmap *b, u64 i)
+{
+	unsigned long *bitmap = READ_ONCE(b->buckets);
+	return bitmap && test_bit(i, bitmap);
+}
+
+int bch2_bucket_bitmap_resize(struct bucket_bitmap *, u64, u64);
 void bch2_bucket_bitmap_free(struct bucket_bitmap *);
 
 #endif /* _BCACHEFS_BACKPOINTERS_BACKGROUND_H */
