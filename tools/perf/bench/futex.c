@@ -9,12 +9,14 @@
 
 void futex_set_nbuckets_param(struct bench_futex_parameters *params)
 {
+	unsigned long flags;
 	int ret;
 
 	if (params->nbuckets < 0)
 		return;
 
-	ret = prctl(PR_FUTEX_HASH, PR_FUTEX_HASH_SET_SLOTS, params->nbuckets, params->buckets_immutable);
+	flags = params->buckets_immutable ? FH_FLAG_IMMUTABLE : 0;
+	ret = prctl(PR_FUTEX_HASH, PR_FUTEX_HASH_SET_SLOTS, params->nbuckets, flags);
 	if (ret) {
 		printf("Requesting %d hash buckets failed: %d/%m\n",
 		       params->nbuckets, ret);
