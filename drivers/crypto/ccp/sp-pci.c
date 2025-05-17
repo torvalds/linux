@@ -375,6 +375,7 @@ static const struct tee_vdata teev1 = {
 static const struct tee_vdata teev2 = {
 	.ring_wptr_reg		= 0x10950,	/* C2PMSG_20 */
 	.ring_rptr_reg		= 0x10954,	/* C2PMSG_21 */
+	.info_reg		= 0x109e8,	/* C2PMSG_58 */
 };
 
 static const struct platform_access_vdata pa_v1 = {
