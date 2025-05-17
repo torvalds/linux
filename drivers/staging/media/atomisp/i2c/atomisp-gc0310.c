@@ -416,11 +416,7 @@ static int gc0310_detect(struct gc0310_device *sensor)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	ret = pm_runtime_get_sync(&client->dev);
-	if (ret >= 0)
-		ret = cci_read(sensor->regmap, GC0310_SC_CMMN_CHIP_ID_REG,
-			       &val, NULL);
-	pm_runtime_put(&client->dev);
+	ret = cci_read(sensor->regmap, GC0310_SC_CMMN_CHIP_ID_REG, &val, NULL);
 	if (ret < 0) {
 		dev_err(&client->dev, "read sensor_id failed: %d\n", ret);
 		return -ENODEV;
@@ -650,13 +646,15 @@ static void gc0310_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct gc0310_device *sensor = to_gc0310_sensor(sd);
 
-	dev_dbg(&client->dev, "gc0310_remove...\n");
-
 	v4l2_async_unregister_subdev(sd);
 	v4l2_subdev_cleanup(sd);
 	media_entity_cleanup(&sensor->sd.entity);
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
 	pm_runtime_disable(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev)) {
+		gc0310_power_off(&client->dev);
+		pm_runtime_set_suspended(&client->dev);
+	}
 }
 
 static int gc0310_check_hwcfg(struct device *dev)
@@ -744,16 +742,15 @@ static int gc0310_probe(struct i2c_client *client)
 	if (IS_ERR(sensor->regmap))
 		return PTR_ERR(sensor->regmap);
 
-	pm_runtime_set_suspended(&client->dev);
+	gc0310_power_on(&client->dev);
+
+	pm_runtime_set_active(&client->dev);
+	pm_runtime_get_noresume(&client->dev);
 	pm_runtime_enable(&client->dev);
-	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
-	pm_runtime_use_autosuspend(&client->dev);
 
 	ret = gc0310_detect(sensor);
-	if (ret) {
-		gc0310_remove(client);
-		return ret;
-	}
+	if (ret)
+		goto err_power_down;
 
 	sensor->sd.internal_ops = &gc0310_internal_ops;
 	sensor->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -761,31 +758,32 @@ static int gc0310_probe(struct i2c_client *client)
 	sensor->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	ret = gc0310_init_controls(sensor);
-	if (ret) {
-		gc0310_remove(client);
-		return ret;
-	}
+	if (ret)
+		goto err_power_down;
 
 	ret = media_entity_pads_init(&sensor->sd.entity, 1, &sensor->pad);
-	if (ret) {
-		gc0310_remove(client);
-		return ret;
-	}
+	if (ret)
+		goto err_power_down;
 
 	sensor->sd.state_lock = sensor->ctrls.handler.lock;
 	ret = v4l2_subdev_init_finalize(&sensor->sd);
-	if (ret) {
-		gc0310_remove(client);
-		return ret;
-	}
+	if (ret)
+		goto err_power_down;
 
 	ret = v4l2_async_register_subdev_sensor(&sensor->sd);
-	if (ret) {
-		gc0310_remove(client);
-		return ret;
-	}
+	if (ret)
+		goto err_power_down;
+
+	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
+	pm_runtime_use_autosuspend(&client->dev);
+	pm_runtime_put_autosuspend(&client->dev);
 
 	return 0;
+
+err_power_down:
+	pm_runtime_put_noidle(&client->dev);
+	gc0310_remove(client);
+	return ret;
 }
 
 static DEFINE_RUNTIME_DEV_PM_OPS(gc0310_pm_ops,
