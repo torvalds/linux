@@ -2230,6 +2230,9 @@ int add_msr_counter(int cpu, off_t offset)
 	if (no_msr)
 		return -1;
 
+	if (!offset)
+		return -1;
+
 	retval = pread(get_msr_fd(cpu), &value, sizeof(value), offset);
 
 	/* if the read failed, the probe fails */
@@ -7875,6 +7878,9 @@ int add_rapl_perf_counter(int cpu, struct rapl_counter_info_t *rci, const struct
 	if (no_perf)
 		return -1;
 
+	if (!cai->perf_name)
+		return -1;
+
 	const double scale = read_perf_scale(cai->perf_subsys, cai->perf_name);
 
 	if (scale == 0.0)
@@ -7986,15 +7992,14 @@ void rapl_perf_init(void)
 			if (platform->rapl_msrs & cai->feature_mask) {
 
 				/* Use perf API for this counter */
-				if (!no_perf && cai->perf_name
-				    && add_rapl_perf_counter(cpu, rci, cai, &scale, &unit) != -1) {
+				if (add_rapl_perf_counter(cpu, rci, cai, &scale, &unit) != -1) {
 					rci->source[cai->rci_index] = COUNTER_SOURCE_PERF;
 					rci->scale[cai->rci_index] = scale * cai->compat_scale;
 					rci->unit[cai->rci_index] = unit;
 					rci->flags[cai->rci_index] = cai->flags;
 
 					/* Use MSR for this counter */
-				} else if (!no_msr && cai->msr && add_rapl_msr_counter(cpu, cai->msr, cai->rci_index) >= 0) {
+				} else if (add_rapl_msr_counter(cpu, cai->msr, cai->rci_index) >= 0) {
 					rci->source[cai->rci_index] = COUNTER_SOURCE_MSR;
 					rci->msr[cai->rci_index] = cai->msr;
 					rci->msr_mask[cai->rci_index] = cai->msr_mask;
@@ -8042,6 +8047,9 @@ int add_cstate_perf_counter(int cpu, struct cstate_counter_info_t *cci, const st
 	if (no_perf)
 		return -1;
 
+	if (!cai->perf_name)
+		return -1;
+
 	int *pfd_group = get_cstate_perf_group_fd(cci, cai->perf_subsys);
 
 	if (pfd_group == NULL)
@@ -8071,6 +8079,9 @@ int add_msr_perf_counter(int cpu, struct msr_counter_info_t *cci, const struct m
 	int ret = -1;
 
 	if (no_perf)
+		return -1;
+
+	if (!cai->perf_name)
 		return -1;
 
 	const unsigned int type = read_perf_type(cai->perf_subsys);
@@ -8119,12 +8130,12 @@ void msr_perf_init_(void)
 
 			if (cai->needed) {
 				/* Use perf API for this counter */
-				if (!no_perf && cai->perf_name && add_msr_perf_counter(cpu, cci, cai) != -1) {
+				if (add_msr_perf_counter(cpu, cci, cai) != -1) {
 					cci->source[cai->rci_index] = COUNTER_SOURCE_PERF;
 					cai->present = true;
 
 					/* User MSR for this counter */
-				} else if (!no_msr && cai->msr && add_msr_counter(cpu, cai->msr) >= 0) {
+				} else if (add_msr_counter(cpu, cai->msr) >= 0) {
 					cci->source[cai->rci_index] = COUNTER_SOURCE_MSR;
 					cci->msr[cai->rci_index] = cai->msr;
 					cci->msr_mask[cai->rci_index] = cai->msr_mask;
@@ -8232,12 +8243,12 @@ void cstate_perf_init_(bool soft_c1)
 
 			if (counter_needed && counter_supported) {
 				/* Use perf API for this counter */
-				if (!no_perf && cai->perf_name && add_cstate_perf_counter(cpu, cci, cai) != -1) {
+				if (add_cstate_perf_counter(cpu, cci, cai) != -1) {
 
 					cci->source[cai->rci_index] = COUNTER_SOURCE_PERF;
 
 					/* User MSR for this counter */
-				} else if (!no_msr && cai->msr && pkg_cstate_limit >= cai->pkg_cstate_limit
+				} else if (pkg_cstate_limit >= cai->pkg_cstate_limit
 					   && add_msr_counter(cpu, cai->msr) >= 0) {
 					cci->source[cai->rci_index] = COUNTER_SOURCE_MSR;
 					cci->msr[cai->rci_index] = cai->msr;
