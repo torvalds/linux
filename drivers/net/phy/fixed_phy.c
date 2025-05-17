@@ -222,8 +222,7 @@ static struct gpio_desc *fixed_phy_get_gpiod(struct device_node *np)
 }
 #endif
 
-struct phy_device *fixed_phy_register(unsigned int irq,
-				      struct fixed_phy_status *status,
+struct phy_device *fixed_phy_register(struct fixed_phy_status *status,
 				      struct device_node *np)
 {
 	struct fixed_mdio_bus *fmb = &platform_fmb;
@@ -245,7 +244,7 @@ struct phy_device *fixed_phy_register(unsigned int irq,
 	if (phy_addr < 0)
 		return ERR_PTR(phy_addr);
 
-	ret = fixed_phy_add_gpiod(irq, phy_addr, status, gpiod);
+	ret = fixed_phy_add_gpiod(PHY_POLL, phy_addr, status, gpiod);
 	if (ret < 0) {
 		ida_free(&phy_fixed_ida, phy_addr);
 		return ERR_PTR(ret);
