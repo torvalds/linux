@@ -2502,7 +2502,14 @@ static int check_subvol_path(struct btree_trans *trans, struct btree_iter *iter,
 		u32 parent = le32_to_cpu(s.v->fs_path_parent);
 
 		if (darray_u32_has(&subvol_path, parent)) {
-			if (fsck_err(trans, subvol_loop, "subvolume loop"))
+			printbuf_reset(&buf);
+			prt_printf(&buf, "subvolume loop:\n");
+
+			darray_for_each_reverse(subvol_path, i)
+				prt_printf(&buf, "%u ", *i);
+			prt_printf(&buf, "%u", parent);
+
+			if (fsck_err(trans, subvol_loop, "%s", buf.buf))
 				ret = reattach_subvol(trans, s);
 			break;
 		}
@@ -2518,7 +2525,8 @@ static int check_subvol_path(struct btree_trans *trans, struct btree_iter *iter,
 		if (fsck_err_on(k.k->type != KEY_TYPE_subvolume,
 				trans, subvol_unreachable,
 				"unreachable subvolume %s",
-				(bch2_bkey_val_to_text(&buf, c, s.s_c),
+				(printbuf_reset(&buf),
+				 bch2_bkey_val_to_text(&buf, c, s.s_c),
 				 buf.buf))) {
 			ret = reattach_subvol(trans, s);
 			break;
@@ -2674,14 +2682,13 @@ static int check_path_loop(struct btree_trans *trans, struct bkey_s_c inode_k)
 		redo_bi_depth = true;
 
 		if (path_is_dup(&path, inode.bi_inum, snapshot)) {
-			/* XXX print path */
-			bch_err(c, "directory structure loop");
+			printbuf_reset(&buf);
+			prt_printf(&buf, "directory structure loop:\n");
+			darray_for_each_reverse(path, i)
+				prt_printf(&buf, "%llu:%u ", i->inum, i->snapshot);
+			prt_printf(&buf, "%llu:%u", inode.bi_inum, snapshot);
 
-			darray_for_each(path, i)
-				pr_err("%llu:%u", i->inum, i->snapshot);
-			pr_err("%llu:%u", inode.bi_inum, snapshot);
-
-			if (fsck_err(trans, dir_loop, "directory structure loop")) {
+			if (fsck_err(trans, dir_loop, "%s", buf.buf)) {
 				ret = remove_backpointer(trans, &inode);
 				bch_err_msg(c, ret, "removing dirent");
 				if (ret)
