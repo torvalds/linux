@@ -359,7 +359,7 @@ static void erofs_default_options(struct erofs_sb_info *sbi)
 
 enum {
 	Opt_user_xattr, Opt_acl, Opt_cache_strategy, Opt_dax, Opt_dax_enum,
-	Opt_device, Opt_fsid, Opt_domain_id, Opt_directio,
+	Opt_device, Opt_fsid, Opt_domain_id, Opt_directio, Opt_fsoffset,
 };
 
 static const struct constant_table erofs_param_cache_strategy[] = {
@@ -386,6 +386,7 @@ static const struct fs_parameter_spec erofs_fs_parameters[] = {
 	fsparam_string("fsid",		Opt_fsid),
 	fsparam_string("domain_id",	Opt_domain_id),
 	fsparam_flag_no("directio",	Opt_directio),
+	fsparam_u64("fsoffset",		Opt_fsoffset),
 	{}
 };
 
@@ -508,6 +509,9 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 #else
 		errorfc(fc, "%s option not supported", erofs_fs_parameters[opt].name);
 #endif
+		break;
+	case Opt_fsoffset:
+		sbi->dif0.fsoff = result.uint_64;
 		break;
 	}
 	return 0;
@@ -647,6 +651,14 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 			errorfc(fc, "failed to set erofs blksize");
 			return -EINVAL;
 		}
+	}
+
+	if (sbi->dif0.fsoff) {
+		if (sbi->dif0.fsoff & (sb->s_blocksize - 1))
+			return invalfc(fc, "fsoffset %llu is not aligned to block size %lu",
+				       sbi->dif0.fsoff, sb->s_blocksize);
+		if (erofs_is_fscache_mode(sb))
+			return invalfc(fc, "cannot use fsoffset in fscache mode");
 	}
 
 	if (test_opt(&sbi->opt, DAX_ALWAYS)) {
@@ -978,6 +990,8 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 	if (sbi->domain_id)
 		seq_printf(seq, ",domain_id=%s", sbi->domain_id);
 #endif
+	if (sbi->dif0.fsoff)
+		seq_printf(seq, ",fsoffset=%llu", sbi->dif0.fsoff);
 	return 0;
 }
 
