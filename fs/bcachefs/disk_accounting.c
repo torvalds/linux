@@ -68,15 +68,21 @@ static const char * const disk_accounting_type_strs[] = {
 	NULL
 };
 
-static inline void accounting_key_init(struct bkey_i *k, struct disk_accounting_pos *pos,
-				       s64 *d, unsigned nr)
+static inline void __accounting_key_init(struct bkey_i *k, struct bpos pos,
+					 s64 *d, unsigned nr)
 {
 	struct bkey_i_accounting *acc = bkey_accounting_init(k);
 
-	acc->k.p = disk_accounting_pos_to_bpos(pos);
+	acc->k.p = pos;
 	set_bkey_val_u64s(&acc->k, sizeof(struct bch_accounting) / sizeof(u64) + nr);
 
 	memcpy_u64s_small(acc->v.d, d, nr);
+}
+
+static inline void accounting_key_init(struct bkey_i *k, struct disk_accounting_pos *pos,
+				       s64 *d, unsigned nr)
+{
+	return __accounting_key_init(k, disk_accounting_pos_to_bpos(pos), d, nr);
 }
 
 static int bch2_accounting_update_sb_one(struct bch_fs *, struct bpos);
@@ -85,6 +91,8 @@ int bch2_disk_accounting_mod(struct btree_trans *trans,
 			     struct disk_accounting_pos *k,
 			     s64 *d, unsigned nr, bool gc)
 {
+	BUG_ON(nr > BCH_ACCOUNTING_MAX_COUNTERS);
+
 	/* Normalize: */
 	switch (k->type) {
 	case BCH_DISK_ACCOUNTING_replicas:
@@ -92,22 +100,32 @@ int bch2_disk_accounting_mod(struct btree_trans *trans,
 		break;
 	}
 
-	BUG_ON(nr > BCH_ACCOUNTING_MAX_COUNTERS);
+	struct bpos pos = disk_accounting_pos_to_bpos(k);
 
 	if (likely(!gc)) {
-		unsigned u64s = sizeof(struct bkey_i_accounting) / sizeof(u64) + nr;
-		struct bkey_i_accounting *a =
-			bch2_trans_subbuf_alloc(trans, &trans->accounting, u64s);
+		struct bkey_i_accounting *a;
+
+		for (a = btree_trans_subbuf_base(trans, &trans->accounting);
+		     a != btree_trans_subbuf_top(trans, &trans->accounting);
+		     a = (void *) bkey_next(&a->k_i))
+			if (bpos_eq(a->k.p, pos)) {
+				BUG_ON(nr != bch2_accounting_counters(&a->k));
+				acc_u64s(a->v.d, d, nr);
+				return 0;
+			}
+
+		unsigned u64s = sizeof(*a) / sizeof(u64) + nr;
+		a = bch2_trans_subbuf_alloc(trans, &trans->accounting, u64s);
 		int ret = PTR_ERR_OR_ZERO(a);
 		if (ret)
 			return ret;
 
-		accounting_key_init(&a->k_i, k, d, nr);
+		__accounting_key_init(&a->k_i, pos, d, nr);
 		return 0;
 	} else {
 		struct { __BKEY_PADDED(k, BCH_ACCOUNTING_MAX_COUNTERS); } k_i;
 
-		accounting_key_init(&k_i.k, k, d, nr);
+		__accounting_key_init(&k_i.k, pos, d, nr);
 
 		int ret = bch2_accounting_mem_add(trans, bkey_i_to_s_c_accounting(&k_i.k), true);
 		if (ret == -BCH_ERR_btree_insert_need_mark_replicas)
