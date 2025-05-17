@@ -7853,44 +7853,39 @@ static int has_instr_count_access(void)
 	return has_access;
 }
 
-int add_rapl_perf_counter_(int cpu, struct rapl_counter_info_t *rci, const struct rapl_counter_arch_info *cai,
+int add_rapl_perf_counter(int cpu, struct rapl_counter_info_t *rci, const struct rapl_counter_arch_info *cai,
 			   double *scale_, enum rapl_unit *unit_)
 {
+	int ret = -1;
+
 	if (no_perf)
 		return -1;
 
 	const double scale = read_perf_scale(cai->perf_subsys, cai->perf_name);
 
 	if (scale == 0.0)
-		return -1;
+		goto end;
 
 	const enum rapl_unit unit = read_perf_rapl_unit(cai->perf_subsys, cai->perf_name);
 
 	if (unit == RAPL_UNIT_INVALID)
-		return -1;
+		goto end;
 
 	const unsigned int rapl_type = read_perf_type(cai->perf_subsys);
 	const unsigned int rapl_energy_pkg_config = read_perf_config(cai->perf_subsys, cai->perf_name);
 
-	const int fd_counter =
-	    open_perf_counter(cpu, rapl_type, rapl_energy_pkg_config, rci->fd_perf, PERF_FORMAT_GROUP);
-	if (fd_counter == -1)
-		return -1;
+	ret = open_perf_counter(cpu, rapl_type, rapl_energy_pkg_config, rci->fd_perf, PERF_FORMAT_GROUP);
+	if (ret == -1)
+		goto end;
 
 	/* If it's the first counter opened, make it a group descriptor */
 	if (rci->fd_perf == -1)
-		rci->fd_perf = fd_counter;
+		rci->fd_perf = ret;
 
 	*scale_ = scale;
 	*unit_ = unit;
-	return fd_counter;
-}
 
-int add_rapl_perf_counter(int cpu, struct rapl_counter_info_t *rci, const struct rapl_counter_arch_info *cai,
-			  double *scale, enum rapl_unit *unit)
-{
-	int ret = add_rapl_perf_counter_(cpu, rci, cai, scale, unit);
-
+end:
 	if (debug >= 2)
 		fprintf(stderr, "%s: %d (cpu: %d)\n", __func__, ret, cpu);
 
