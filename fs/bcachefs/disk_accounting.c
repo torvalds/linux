@@ -307,8 +307,8 @@ static int bch2_accounting_update_sb_one(struct bch_fs *c, struct bpos p)
  */
 int bch2_accounting_update_sb(struct btree_trans *trans)
 {
-	for (struct jset_entry *i = trans->journal_entries;
-	     i != (void *) ((u64 *) trans->journal_entries + trans->journal_entries_u64s);
+	for (struct jset_entry *i = btree_trans_journal_entries_start(trans);
+	     i != btree_trans_journal_entries_top(trans);
 	     i = vstruct_next(i))
 		if (jset_entry_is_key(i) && i->start->k.type == KEY_TYPE_accounting) {
 			int ret = bch2_accounting_update_sb_one(trans->c, i->start->k.p);

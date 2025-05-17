@@ -712,7 +712,6 @@ struct btree_transaction_stats {
 	struct bch2_time_stats	lock_hold_times;
 	struct mutex		lock;
 	unsigned		nr_max_paths;
-	unsigned		journal_entries_size;
 	unsigned		max_mem;
 #ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
 	darray_trans_kmalloc_trace trans_kmalloc_trace;

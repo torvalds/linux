@@ -259,8 +259,8 @@ static inline int bch2_accounting_trans_commit_hook(struct btree_trans *trans,
 						    struct bkey_i_accounting *a,
 						    unsigned commit_flags)
 {
-	a->k.bversion = journal_pos_to_bversion(&trans->journal_res,
-						(u64 *) a - (u64 *) trans->journal_entries);
+	u64 *base = (u64 *) btree_trans_subbuf_base(trans, &trans->journal_entries);
+	a->k.bversion = journal_pos_to_bversion(&trans->journal_res, (u64 *) a - base);
 
 	EBUG_ON(bversion_zero(a->k.bversion));
 

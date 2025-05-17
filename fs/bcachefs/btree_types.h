@@ -480,6 +480,12 @@ struct trans_kmalloc_trace {
 };
 typedef DARRAY(struct trans_kmalloc_trace) darray_trans_kmalloc_trace;
 
+struct btree_trans_subbuf {
+	u16			base;
+	u16			u64s;
+	u16			size;;
+};
+
 struct btree_trans {
 	struct bch_fs		*c;
 
@@ -534,9 +540,7 @@ struct btree_trans {
 	int			srcu_idx;
 
 	/* update path: */
-	u16			journal_entries_u64s;
-	u16			journal_entries_size;
-	struct jset_entry	*journal_entries;
+	struct btree_trans_subbuf journal_entries;
 
 	struct btree_trans_commit_hook *hooks;
 	struct journal_entry_pin *journal_pin;

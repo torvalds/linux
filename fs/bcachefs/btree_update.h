@@ -113,23 +113,49 @@ bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 	return bch2_trans_update_ip(trans, iter, k, flags, _THIS_IP_);
 }
 
-struct jset_entry *__bch2_trans_jset_entry_alloc(struct btree_trans *, unsigned);
+static inline void *btree_trans_subbuf_base(struct btree_trans *trans,
+					    struct btree_trans_subbuf *buf)
+{
+	return (u64 *) trans->mem + buf->base;
+}
+
+static inline void *btree_trans_subbuf_top(struct btree_trans *trans,
+					   struct btree_trans_subbuf *buf)
+{
+	return (u64 *) trans->mem + buf->base + buf->u64s;
+}
+
+void *__bch2_trans_subbuf_alloc(struct btree_trans *,
+				struct btree_trans_subbuf *,
+				unsigned);
+
+static inline void *
+bch2_trans_subbuf_alloc(struct btree_trans *trans,
+			struct btree_trans_subbuf *buf,
+			unsigned u64s)
+{
+	if (buf->u64s + u64s > buf->size)
+		return __bch2_trans_subbuf_alloc(trans, buf, u64s);
+
+	void *p = btree_trans_subbuf_top(trans, buf);
+	buf->u64s += u64s;
+	return p;
+}
+
+static inline struct jset_entry *btree_trans_journal_entries_start(struct btree_trans *trans)
+{
+	return btree_trans_subbuf_base(trans, &trans->journal_entries);
+}
 
 static inline struct jset_entry *btree_trans_journal_entries_top(struct btree_trans *trans)
 {
-	return (void *) ((u64 *) trans->journal_entries + trans->journal_entries_u64s);
+	return btree_trans_subbuf_top(trans, &trans->journal_entries);
 }
 
 static inline struct jset_entry *
 bch2_trans_jset_entry_alloc(struct btree_trans *trans, unsigned u64s)
 {
-	if (!trans->journal_entries ||
-	    trans->journal_entries_u64s + u64s > trans->journal_entries_size)
-		return __bch2_trans_jset_entry_alloc(trans, u64s);
-
-	struct jset_entry *e = btree_trans_journal_entries_top(trans);
-	trans->journal_entries_u64s += u64s;
-	return e;
+	return bch2_trans_subbuf_alloc(trans, &trans->journal_entries, u64s);
 }
 
 int bch2_btree_insert_clone_trans(struct btree_trans *, enum btree_id, struct bkey_i *);
@@ -227,7 +253,8 @@ static inline void bch2_trans_reset_updates(struct btree_trans *trans)
 		bch2_path_put(trans, i->path, true);
 
 	trans->nr_updates		= 0;
-	trans->journal_entries_u64s	= 0;
+	trans->journal_entries.u64s	= 0;
+	trans->journal_entries.size	= 0;
 	trans->hooks			= NULL;
 	trans->extra_disk_res		= 0;
 }

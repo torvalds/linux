@@ -1499,7 +1499,7 @@ void bch2_trans_updates_to_text(struct printbuf *buf, struct btree_trans *trans)
 		prt_newline(buf);
 	}
 
-	for (struct jset_entry *e = trans->journal_entries;
+	for (struct jset_entry *e = btree_trans_journal_entries_start(trans);
 	     e != btree_trans_journal_entries_top(trans);
 	     e = vstruct_next(e)) {
 		bch2_journal_entry_to_text(buf, trans->c, e);
@@ -3280,7 +3280,6 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 
 	trans->restart_count++;
 	trans->mem_top			= 0;
-	trans->journal_entries		= NULL;
 
 	trans_for_each_path(trans, path, i) {
 		path->should_be_locked = false;
@@ -3438,7 +3437,6 @@ got_trans:
 		}
 
 		trans->nr_paths_max = s->nr_max_paths;
-		trans->journal_entries_size = s->journal_entries_size;
 	}
 
 	trans->srcu_idx		= srcu_read_lock(&c->btree_trans_barrier);

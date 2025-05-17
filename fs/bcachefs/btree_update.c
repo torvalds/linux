@@ -565,30 +565,29 @@ int bch2_btree_insert_clone_trans(struct btree_trans *trans,
 	return bch2_btree_insert_trans(trans, btree, n, 0);
 }
 
-struct jset_entry *__bch2_trans_jset_entry_alloc(struct btree_trans *trans, unsigned u64s)
+void *__bch2_trans_subbuf_alloc(struct btree_trans *trans,
+				struct btree_trans_subbuf *buf,
+				unsigned u64s)
 {
-	unsigned new_top = trans->journal_entries_u64s + u64s;
-	unsigned old_size = trans->journal_entries_size;
+	unsigned new_top = buf->u64s + u64s;
+	unsigned old_size = buf->size;
 
-	if (new_top > trans->journal_entries_size) {
-		trans->journal_entries_size = roundup_pow_of_two(new_top);
+	if (new_top > buf->size)
+		buf->size = roundup_pow_of_two(new_top);
 
-		btree_trans_stats(trans)->journal_entries_size = trans->journal_entries_size;
-	}
-
-	struct jset_entry *n =
-		bch2_trans_kmalloc_nomemzero(trans,
-				trans->journal_entries_size * sizeof(u64));
+	void *n = bch2_trans_kmalloc_nomemzero(trans, buf->size * sizeof(u64));
 	if (IS_ERR(n))
-		return ERR_CAST(n);
+		return n;
 
-	if (trans->journal_entries)
-		memcpy(n, trans->journal_entries, old_size * sizeof(u64));
-	trans->journal_entries = n;
+	if (buf->u64s)
+		memcpy(n,
+		       btree_trans_subbuf_base(trans, buf),
+		       old_size * sizeof(u64));
+	buf->base = (u64 *) n - (u64 *) trans->mem;
 
-	struct jset_entry *e = btree_trans_journal_entries_top(trans);
-	trans->journal_entries_u64s = new_top;
-	return e;
+	void *p = btree_trans_subbuf_top(trans, buf);
+	buf->u64s = new_top;
+	return p;
 }
 
 int bch2_bkey_get_empty_slot(struct btree_trans *trans, struct btree_iter *iter,
