@@ -541,6 +541,7 @@ struct btree_trans {
 
 	/* update path: */
 	struct btree_trans_subbuf journal_entries;
+	struct btree_trans_subbuf accounting;
 
 	struct btree_trans_commit_hook *hooks;
 	struct journal_entry_pin *journal_pin;

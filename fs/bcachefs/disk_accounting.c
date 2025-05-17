@@ -96,13 +96,13 @@ int bch2_disk_accounting_mod(struct btree_trans *trans,
 
 	if (likely(!gc)) {
 		unsigned u64s = sizeof(struct bkey_i_accounting) / sizeof(u64) + nr;
-		struct jset_entry *e = bch2_trans_jset_entry_alloc(trans, jset_u64s(u64s));
-		int ret = PTR_ERR_OR_ZERO(e);
+		struct bkey_i_accounting *a =
+			bch2_trans_subbuf_alloc(trans, &trans->accounting, u64s);
+		int ret = PTR_ERR_OR_ZERO(a);
 		if (ret)
 			return ret;
 
-		journal_entry_init(e, BCH_JSET_ENTRY_write_buffer_keys, BTREE_ID_accounting, 0, u64s);
-		accounting_key_init(e->start, k, d, nr);
+		accounting_key_init(&a->k_i, k, d, nr);
 		return 0;
 	} else {
 		struct { __BKEY_PADDED(k, BCH_ACCOUNTING_MAX_COUNTERS); } k_i;
@@ -307,14 +307,13 @@ static int bch2_accounting_update_sb_one(struct bch_fs *c, struct bpos p)
  */
 int bch2_accounting_update_sb(struct btree_trans *trans)
 {
-	for (struct jset_entry *i = btree_trans_journal_entries_start(trans);
-	     i != btree_trans_journal_entries_top(trans);
-	     i = vstruct_next(i))
-		if (jset_entry_is_key(i) && i->start->k.type == KEY_TYPE_accounting) {
-			int ret = bch2_accounting_update_sb_one(trans->c, i->start->k.p);
-			if (ret)
-				return ret;
-		}
+	for (struct bkey_i *i = btree_trans_subbuf_base(trans, &trans->accounting);
+	     i != btree_trans_subbuf_top(trans, &trans->accounting);
+	     i = bkey_next(i)) {
+		int ret = bch2_accounting_update_sb_one(trans->c, i->k.p);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }

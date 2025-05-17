@@ -286,7 +286,12 @@ static int bch2_journal_replay_key(struct btree_trans *trans,
 		goto out;
 
 	if (k->k->k.type == KEY_TYPE_accounting) {
-		ret = bch2_trans_update_buffered(trans, BTREE_ID_accounting, k->k);
+		struct bkey_i *n = bch2_trans_subbuf_alloc(trans, &trans->accounting, k->k->k.u64s);
+		ret = PTR_ERR_OR_ZERO(n);
+		if (ret)
+			goto out;
+
+		bkey_copy(n, k->k);
 		goto out;
 	}
 
