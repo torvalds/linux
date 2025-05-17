@@ -61,10 +61,8 @@ static void create_max_threads(void *futex_ptr)
 		thread_args[i].flags = FUTEX2_SIZE_U32 | FUTEX_PRIVATE_FLAG | FUTEX2_NUMA;
 		thread_args[i].result = 0;
 		ret = pthread_create(&threads[i], NULL, thread_lock_fn, &thread_args[i]);
-		if (ret) {
-			error("pthread_create failed\n", errno);
-			exit(1);
-		}
+		if (ret)
+			ksft_exit_fail_msg("pthread_create failed\n");
 	}
 }
 
@@ -74,10 +72,8 @@ static void join_max_threads(void)
 
 	for (i = 0; i < MAX_THREADS; i++) {
 		ret = pthread_join(threads[i], NULL);
-		if (ret) {
-			error("pthread_join failed for thread %d\n", errno, i);
-			exit(1);
-		}
+		if (ret)
+			ksft_exit_fail_msg("pthread_join failed for thread %d\n", i);
 	}
 }
 
@@ -95,12 +91,12 @@ static void __test_futex(void *futex_ptr, int must_fail, unsigned int futex_flag
 		if (must_fail) {
 			if (ret < 0)
 				break;
-			fail("Should fail, but didn't\n");
-			exit(1);
+			ksft_exit_fail_msg("futex2_wake(%d, 0x%x) should fail, but didn't\n",
+					   to_wake, futex_flags);
 		}
 		if (ret < 0) {
-			error("Failed futex2_wake(%d)\n", errno, to_wake);
-			exit(1);
+			ksft_exit_fail_msg("Failed futex2_wake(%d, 0x%x): %m\n",
+					   to_wake, futex_flags);
 		}
 		if (!ret)
 			usleep(50);
@@ -111,16 +107,17 @@ static void __test_futex(void *futex_ptr, int must_fail, unsigned int futex_flag
 
 	for (i = 0; i < MAX_THREADS; i++) {
 		if (must_fail && thread_args[i].result != -1) {
-			fail("Thread %d should fail but succeeded (%d)\n", i, thread_args[i].result);
+			ksft_print_msg("Thread %d should fail but succeeded (%d)\n",
+				       i, thread_args[i].result);
 			need_exit = 1;
 		}
 		if (!must_fail && thread_args[i].result != 0) {
-			fail("Thread %d failed (%d)\n", i, thread_args[i].result);
+			ksft_print_msg("Thread %d failed (%d)\n", i, thread_args[i].result);
 			need_exit = 1;
 		}
 	}
 	if (need_exit)
-		exit(1);
+		ksft_exit_fail_msg("Aborting due to earlier errors.\n");
 }
 
 static void test_futex(void *futex_ptr, int must_fail)
@@ -167,41 +164,41 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	ksft_print_header();
+	ksft_set_plan(1);
+
 	mem_size = sysconf(_SC_PAGE_SIZE);
 	futex_ptr = mmap(NULL, mem_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
-	if (futex_ptr == MAP_FAILED) {
-		error("mmap() for %d bytes failed\n", errno, mem_size);
-		return 1;
-	}
+	if (futex_ptr == MAP_FAILED)
+		ksft_exit_fail_msg("mmap() for %d bytes failed\n", mem_size);
+
 	futex_numa = futex_ptr;
 
-	info("Regular test\n");
+	ksft_print_msg("Regular test\n");
 	futex_numa->futex = 0;
 	futex_numa->numa = FUTEX_NO_NODE;
 	test_futex(futex_ptr, 0);
 
-	if (futex_numa->numa == FUTEX_NO_NODE) {
-		fail("NUMA node is left unitiliazed\n");
-		return 1;
-	}
+	if (futex_numa->numa == FUTEX_NO_NODE)
+		ksft_exit_fail_msg("NUMA node is left unitiliazed\n");
 
-	info("Memory too small\n");
+	ksft_print_msg("Memory too small\n");
 	test_futex(futex_ptr + mem_size - 4, 1);
 
-	info("Memory out of range\n");
+	ksft_print_msg("Memory out of range\n");
 	test_futex(futex_ptr + mem_size, 1);
 
 	futex_numa->numa = FUTEX_NO_NODE;
 	mprotect(futex_ptr, mem_size, PROT_READ);
-	info("Memory, RO\n");
+	ksft_print_msg("Memory, RO\n");
 	test_futex(futex_ptr, 1);
 
 	mprotect(futex_ptr, mem_size, PROT_NONE);
-	info("Memory, no access\n");
+	ksft_print_msg("Memory, no access\n");
 	test_futex(futex_ptr, 1);
 
 	mprotect(futex_ptr, mem_size, PROT_READ | PROT_WRITE);
-	info("Memory back to RW\n");
+	ksft_print_msg("Memory back to RW\n");
 	test_futex(futex_ptr, 0);
 
 	/* MPOL test. Does not work as expected */
@@ -213,20 +210,22 @@ int main(int argc, char *argv[])
 		ret = mbind(futex_ptr, mem_size, MPOL_BIND, &nodemask,
 			    sizeof(nodemask) * 8, 0);
 		if (ret == 0) {
-			info("Node %d test\n", i);
+			ksft_print_msg("Node %d test\n", i);
 			futex_numa->futex = 0;
 			futex_numa->numa = FUTEX_NO_NODE;
 
 			ret = futex2_wake(futex_ptr, 0, FUTEX2_SIZE_U32 | FUTEX_PRIVATE_FLAG | FUTEX2_NUMA | FUTEX2_MPOL);
 			if (ret < 0)
-				error("Failed to wake 0 with MPOL.\n", errno);
+				ksft_test_result_fail("Failed to wake 0 with MPOL: %m\n");
 			if (0)
 				test_futex_mpol(futex_numa, 0);
 			if (futex_numa->numa != i) {
-				fail("Returned NUMA node is %d expected %d\n",
-				     futex_numa->numa, i);
+				ksft_test_result_fail("Returned NUMA node is %d expected %d\n",
+						      futex_numa->numa, i);
 			}
 		}
 	}
+	ksft_test_result_pass("NUMA MPOL tests passed\n");
+	ksft_finished();
 	return 0;
 }
