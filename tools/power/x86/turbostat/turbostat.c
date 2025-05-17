@@ -7948,6 +7948,9 @@ void rapl_perf_init(void)
 		enum rapl_unit unit;
 		unsigned int next_domain;
 
+		if (!BIC_IS_ENABLED(cai->bic))
+			continue;
+
 		memset(domain_visited, 0, num_domains * sizeof(*domain_visited));
 
 		for (int cpu = 0; cpu < topo.max_cpu_num + 1; ++cpu) {
@@ -7971,7 +7974,7 @@ void rapl_perf_init(void)
 			struct rapl_counter_info_t *rci = &rapl_counter_info_perdomain[next_domain];
 
 			/* Check if the counter is enabled and accessible */
-			if (BIC_IS_ENABLED(cai->bic) && (platform->rapl_msrs & cai->feature_mask)) {
+			if (platform->rapl_msrs & cai->feature_mask) {
 
 				/* Use perf API for this counter */
 				if (!no_perf && cai->perf_name
