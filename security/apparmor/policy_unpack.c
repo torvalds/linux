@@ -919,7 +919,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 
 	/* optional */
 	(void) aa_unpack_u32(e, &profile->signal, "kill");
-	if (profile->signal < 1 && profile->signal > MAXMAPPED_SIG) {
+	if (profile->signal < 1 || profile->signal > MAXMAPPED_SIG) {
 		info = "profile kill.signal invalid value";
 		goto fail;
 	}
