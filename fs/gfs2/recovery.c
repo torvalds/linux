@@ -264,10 +264,10 @@ static void clean_journal(struct gfs2_jdesc *jd,
 			  struct gfs2_log_header_host *head)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
-	u32 lblock = head->lh_blkno;
 
-	gfs2_replay_incr_blk(jd, &lblock);
-	gfs2_write_log_header(sdp, jd, head->lh_sequence + 1, 0, lblock,
+	gfs2_replay_incr_blk(jd, &head->lh_blkno);
+	head->lh_sequence++;
+	gfs2_write_log_header(sdp, jd, head->lh_sequence, 0, head->lh_blkno,
 			      GFS2_LOG_HEAD_UNMOUNT | GFS2_LOG_HEAD_RECOVERY,
 			      REQ_PREFLUSH | REQ_FUA | REQ_META | REQ_SYNC);
 }
