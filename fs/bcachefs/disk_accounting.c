@@ -94,19 +94,27 @@ int bch2_disk_accounting_mod(struct btree_trans *trans,
 
 	BUG_ON(nr > BCH_ACCOUNTING_MAX_COUNTERS);
 
-	struct { __BKEY_PADDED(k, BCH_ACCOUNTING_MAX_COUNTERS); } k_i;
+	if (likely(!gc)) {
+		unsigned u64s = sizeof(struct bkey_i_accounting) / sizeof(u64) + nr;
+		struct jset_entry *e = bch2_trans_jset_entry_alloc(trans, jset_u64s(u64s));
+		int ret = PTR_ERR_OR_ZERO(e);
+		if (ret)
+			return ret;
 
-	accounting_key_init(&k_i.k, k, d, nr);
+		journal_entry_init(e, BCH_JSET_ENTRY_write_buffer_keys, BTREE_ID_accounting, 0, u64s);
+		accounting_key_init(e->start, k, d, nr);
+		return 0;
+	} else {
+		struct { __BKEY_PADDED(k, BCH_ACCOUNTING_MAX_COUNTERS); } k_i;
 
-	if (unlikely(gc)) {
+		accounting_key_init(&k_i.k, k, d, nr);
+
 		int ret = bch2_accounting_mem_add(trans, bkey_i_to_s_c_accounting(&k_i.k), true);
 		if (ret == -BCH_ERR_btree_insert_need_mark_replicas)
 			ret = drop_locks_do(trans,
 				bch2_accounting_update_sb_one(trans->c, disk_accounting_pos_to_bpos(k))) ?:
 				bch2_accounting_mem_add(trans, bkey_i_to_s_c_accounting(&k_i.k), true);
 		return ret;
-	} else {
-		return bch2_trans_update_buffered(trans, BTREE_ID_accounting, &k_i.k);
 	}
 }
 
