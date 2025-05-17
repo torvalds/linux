@@ -458,58 +458,71 @@ static int gc0310_detect(struct gc0310_device *sensor)
 	return 0;
 }
 
-static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
+static int gc0310_enable_streams(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *state,
+				 u32 pad, u64 streams_mask)
+{
+	struct gc0310_device *sensor = to_gc0310_sensor(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret;
+
+	mutex_lock(&sensor->input_lock);
+
+	ret = pm_runtime_resume_and_get(&client->dev);
+	if (ret)
+		goto error_unlock;
+
+	ret = regmap_multi_reg_write(sensor->regmap,
+				     gc0310_reset_register,
+				     ARRAY_SIZE(gc0310_reset_register));
+	if (ret)
+		goto error_power_down;
+
+	ret = regmap_multi_reg_write(sensor->regmap,
+				     gc0310_VGA_30fps,
+				     ARRAY_SIZE(gc0310_VGA_30fps));
+	if (ret)
+		goto error_power_down;
+
+	/* restore value of all ctrls */
+	ret = __v4l2_ctrl_handler_setup(&sensor->ctrls.handler);
+
+	/* enable per frame MIPI and sensor ctrl reset  */
+	cci_write(sensor->regmap, GC0310_RESET_RELATED_REG, 0x30, &ret);
+
+	cci_write(sensor->regmap, GC0310_RESET_RELATED_REG,
+		  GC0310_REGISTER_PAGE_3, &ret);
+	cci_write(sensor->regmap, GC0310_SW_STREAM_REG,
+		  GC0310_START_STREAMING, &ret);
+	cci_write(sensor->regmap, GC0310_RESET_RELATED_REG,
+		  GC0310_REGISTER_PAGE_0, &ret);
+
+error_power_down:
+	if (ret)
+		pm_runtime_put(&client->dev);
+
+error_unlock:
+	mutex_unlock(&sensor->input_lock);
+	return ret;
+}
+
+static int gc0310_disable_streams(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state,
+				  u32 pad, u64 streams_mask)
 {
 	struct gc0310_device *sensor = to_gc0310_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	dev_dbg(&client->dev, "%s S enable=%d\n", __func__, enable);
 	mutex_lock(&sensor->input_lock);
-
-	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0)
-			goto error_power_down;
-
-		ret = regmap_multi_reg_write(sensor->regmap,
-					     gc0310_reset_register,
-					     ARRAY_SIZE(gc0310_reset_register));
-		if (ret)
-			goto error_power_down;
-
-		ret = regmap_multi_reg_write(sensor->regmap,
-					     gc0310_VGA_30fps,
-					     ARRAY_SIZE(gc0310_VGA_30fps));
-		if (ret)
-			goto error_power_down;
-
-		/* restore value of all ctrls */
-		ret = __v4l2_ctrl_handler_setup(&sensor->ctrls.handler);
-		if (ret)
-			goto error_power_down;
-
-		/* enable per frame MIPI and sensor ctrl reset  */
-		cci_write(sensor->regmap, GC0310_RESET_RELATED_REG, 0x30, &ret);
-	}
 
 	cci_write(sensor->regmap, GC0310_RESET_RELATED_REG,
 		  GC0310_REGISTER_PAGE_3, &ret);
 	cci_write(sensor->regmap, GC0310_SW_STREAM_REG,
-		  enable ? GC0310_START_STREAMING : GC0310_STOP_STREAMING,
-		  &ret);
+		  GC0310_STOP_STREAMING, &ret);
 	cci_write(sensor->regmap, GC0310_RESET_RELATED_REG,
 		  GC0310_REGISTER_PAGE_0, &ret);
-	if (ret)
-		goto error_power_down;
 
-	if (!enable)
-		pm_runtime_put(&client->dev);
-
-	mutex_unlock(&sensor->input_lock);
-	return 0;
-
-error_power_down:
 	pm_runtime_put(&client->dev);
 	mutex_unlock(&sensor->input_lock);
 	return ret;
@@ -571,7 +584,7 @@ static const struct v4l2_subdev_sensor_ops gc0310_sensor_ops = {
 };
 
 static const struct v4l2_subdev_video_ops gc0310_video_ops = {
-	.s_stream = gc0310_s_stream,
+	.s_stream = v4l2_subdev_s_stream_helper,
 };
 
 static const struct v4l2_subdev_pad_ops gc0310_pad_ops = {
@@ -582,6 +595,8 @@ static const struct v4l2_subdev_pad_ops gc0310_pad_ops = {
 	.get_selection = gc0310_get_selection,
 	.set_selection = gc0310_get_selection,
 	.get_frame_interval = gc0310_get_frame_interval,
+	.enable_streams = gc0310_enable_streams,
+	.disable_streams = gc0310_disable_streams,
 };
 
 static const struct v4l2_subdev_ops gc0310_ops = {
