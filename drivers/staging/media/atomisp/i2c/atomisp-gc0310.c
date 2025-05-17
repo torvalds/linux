@@ -36,6 +36,7 @@
 #define GC0310_PIXELRATE			13923000
 /* single lane, bus-format is 8 bpp, CSI-2 is double data rate */
 #define GC0310_LINK_FREQ			(GC0310_PIXELRATE * 8 / 2)
+#define GC0310_MCLK_FREQ			19200000
 #define GC0310_FPS				30
 #define GC0310_SKIP_FRAMES			3
 
@@ -664,21 +665,68 @@ static void gc0310_remove(struct i2c_client *client)
 	pm_runtime_disable(&client->dev);
 }
 
-static int gc0310_probe(struct i2c_client *client)
+static int gc0310_check_hwcfg(struct device *dev)
 {
+	struct v4l2_fwnode_endpoint bus_cfg = {
+		.bus_type = V4L2_MBUS_CSI2_DPHY,
+	};
 	struct fwnode_handle *ep_fwnode;
-	struct gc0310_device *sensor;
+	unsigned long link_freq_bitmap;
+	u32 mclk;
 	int ret;
 
 	/*
 	 * Sometimes the fwnode graph is initialized by the bridge driver.
 	 * Bridge drivers doing this may also add GPIO mappings, wait for this.
 	 */
-	ep_fwnode = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev), NULL);
+	ep_fwnode = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), 0, 0, 0);
 	if (!ep_fwnode)
-		return dev_err_probe(&client->dev, -EPROBE_DEFER, "waiting for fwnode graph endpoint\n");
+		return dev_err_probe(dev, -EPROBE_DEFER,
+				     "waiting for fwnode graph endpoint\n");
 
+	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
+				       &mclk);
+	if (ret) {
+		fwnode_handle_put(ep_fwnode);
+		return dev_err_probe(dev, ret,
+				     "reading clock-frequency property\n");
+	}
+
+	if (mclk != GC0310_MCLK_FREQ) {
+		fwnode_handle_put(ep_fwnode);
+		return dev_err_probe(dev, -EINVAL,
+				     "external clock %u is not supported\n",
+				     mclk);
+	}
+
+	ret = v4l2_fwnode_endpoint_alloc_parse(ep_fwnode, &bus_cfg);
 	fwnode_handle_put(ep_fwnode);
+	if (ret)
+		return dev_err_probe(dev, ret, "parsing endpoint failed\n");
+
+	ret = v4l2_link_freq_to_bitmap(dev, bus_cfg.link_frequencies,
+				       bus_cfg.nr_of_link_frequencies,
+				       link_freq_menu_items,
+				       ARRAY_SIZE(link_freq_menu_items),
+				       &link_freq_bitmap);
+
+	if (ret == 0 && bus_cfg.bus.mipi_csi2.num_data_lanes != 1)
+		ret = dev_err_probe(dev, -EINVAL,
+				    "number of CSI2 data lanes %u is not supported\n",
+				    bus_cfg.bus.mipi_csi2.num_data_lanes);
+
+	v4l2_fwnode_endpoint_free(&bus_cfg);
+	return ret;
+}
+
+static int gc0310_probe(struct i2c_client *client)
+{
+	struct gc0310_device *sensor;
+	int ret;
+
+	ret = gc0310_check_hwcfg(&client->dev);
+	if (ret)
+		return ret;
 
 	sensor = devm_kzalloc(&client->dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
