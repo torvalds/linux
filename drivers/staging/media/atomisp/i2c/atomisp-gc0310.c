@@ -91,10 +91,6 @@ struct gc0310_device {
 	struct gpio_desc *reset;
 	struct gpio_desc *powerdown;
 
-	struct gc0310_mode {
-		struct v4l2_mbus_framefmt fmt;
-	} mode;
-
 	struct gc0310_ctrls {
 		struct v4l2_ctrl_handler handler;
 		struct v4l2_ctrl *exposure;
@@ -355,17 +351,6 @@ static const struct v4l2_ctrl_ops ctrl_ops = {
 	.s_ctrl = gc0310_s_ctrl,
 };
 
-static struct v4l2_mbus_framefmt *
-gc0310_get_pad_format(struct gc0310_device *sensor,
-		      struct v4l2_subdev_state *state,
-		      unsigned int pad, enum v4l2_subdev_format_whence which)
-{
-	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_state_get_format(state, pad);
-
-	return &sensor->mode.fmt;
-}
-
 /* The GC0310 currently only supports 1 fixed fmt */
 static void gc0310_fill_format(struct v4l2_mbus_framefmt *fmt)
 {
@@ -374,20 +359,6 @@ static void gc0310_fill_format(struct v4l2_mbus_framefmt *fmt)
 	fmt->height = GC0310_NATIVE_HEIGHT;
 	fmt->field = V4L2_FIELD_NONE;
 	fmt->code = MEDIA_BUS_FMT_SGRBG8_1X8;
-}
-
-static int gc0310_set_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_state *sd_state,
-			  struct v4l2_subdev_format *format)
-{
-	struct gc0310_device *sensor = to_gc0310_sensor(sd);
-	struct v4l2_mbus_framefmt *fmt;
-
-	fmt = gc0310_get_pad_format(sensor, sd_state, format->pad, format->which);
-	gc0310_fill_format(fmt);
-
-	format->format = *fmt;
-	return 0;
 }
 
 static int gc0310_get_selection(struct v4l2_subdev *sd,
@@ -570,7 +541,7 @@ static const struct v4l2_subdev_pad_ops gc0310_pad_ops = {
 	.enum_mbus_code = gc0310_enum_mbus_code,
 	.enum_frame_size = gc0310_enum_frame_size,
 	.get_fmt = v4l2_subdev_get_fmt,
-	.set_fmt = gc0310_set_fmt,
+	.set_fmt = v4l2_subdev_get_fmt, /* Only 1 fixed mode supported */
 	.get_selection = gc0310_get_selection,
 	.set_selection = gc0310_get_selection,
 	.get_frame_interval = gc0310_get_frame_interval,
@@ -744,7 +715,6 @@ static int gc0310_probe(struct i2c_client *client)
 	}
 
 	v4l2_i2c_subdev_init(&sensor->sd, client, &gc0310_ops);
-	gc0310_fill_format(&sensor->mode.fmt);
 
 	sensor->regmap = devm_cci_regmap_init_i2c(client, 8);
 	if (IS_ERR(sensor->regmap))
