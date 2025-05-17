@@ -526,16 +526,6 @@ static int gc0310_enum_frame_size(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int gc0310_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
-{
-	*frames = GC0310_SKIP_FRAMES;
-	return 0;
-}
-
-static const struct v4l2_subdev_sensor_ops gc0310_sensor_ops = {
-	.g_skip_frames	= gc0310_g_skip_frames,
-};
-
 static const struct v4l2_subdev_video_ops gc0310_video_ops = {
 	.s_stream = v4l2_subdev_s_stream_helper,
 };
@@ -554,7 +544,6 @@ static const struct v4l2_subdev_pad_ops gc0310_pad_ops = {
 static const struct v4l2_subdev_ops gc0310_ops = {
 	.video = &gc0310_video_ops,
 	.pad = &gc0310_pad_ops,
-	.sensor = &gc0310_sensor_ops,
 };
 
 static int gc0310_init_state(struct v4l2_subdev *sd,
