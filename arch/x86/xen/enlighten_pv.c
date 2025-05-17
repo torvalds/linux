@@ -1162,7 +1162,7 @@ static void xen_do_write_msr(u32 msr, u64 val, int *err)
 
 static int xen_read_msr_safe(u32 msr, u64 *val)
 {
-	int err;
+	int err = 0;
 
 	*val = xen_do_read_msr(msr, &err);
 	return err;
@@ -1179,7 +1179,7 @@ static int xen_write_msr_safe(u32 msr, u64 val)
 
 static u64 xen_read_msr(u32 msr)
 {
-	int err;
+	int err = 0;
 
 	return xen_do_read_msr(msr, xen_msr_safe ? &err : NULL);
 }
