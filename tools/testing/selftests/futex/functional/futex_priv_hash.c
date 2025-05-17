@@ -51,15 +51,16 @@ static void futex_hash_slots_set_verify(int slots)
 
 	ret = futex_hash_slots_set(slots, 0);
 	if (ret != 0) {
-		error("Failed to set slots to %d\n", errno, slots);
-		exit(1);
+		ksft_test_result_fail("Failed to set slots to %d: %m\n", slots);
+		ksft_finished();
 	}
 	ret = futex_hash_slots_get();
 	if (ret != slots) {
-		error("Set %d slots but PR_FUTEX_HASH_GET_SLOTS returns: %d\n",
-		       errno, slots, ret);
-		exit(1);
+		ksft_test_result_fail("Set %d slots but PR_FUTEX_HASH_GET_SLOTS returns: %d, %m\n",
+		       slots, ret);
+		ksft_finished();
 	}
+	ksft_test_result_pass("SET and GET slots %d passed\n", slots);
 }
 
 static void futex_hash_slots_set_must_fail(int slots, int immutable)
@@ -67,12 +68,8 @@ static void futex_hash_slots_set_must_fail(int slots, int immutable)
 	int ret;
 
 	ret = futex_hash_slots_set(slots, immutable);
-	if (ret < 0)
-		return;
-
-	fail("futex_hash_slots_set(%d, %d) expected to fail but succeeded.\n",
-	       slots, immutable);
-	exit(1);
+	ksft_test_result(ret < 0, "futex_hash_slots_set(%d, %d)\n",
+			 slots, immutable);
 }
 
 static void *thread_return_fn(void *arg)
@@ -97,10 +94,8 @@ static void create_max_threads(void *(*thread_fn)(void *))
 
 	for (i = 0; i < MAX_THREADS; i++) {
 		ret = pthread_create(&threads[i], NULL, thread_fn, NULL);
-		if (ret) {
-			error("pthread_create failed\n", errno);
-			exit(1);
-		}
+		if (ret)
+			ksft_exit_fail_msg("pthread_create failed: %m\n");
 	}
 }
 
@@ -110,10 +105,8 @@ static void join_max_threads(void)
 
 	for (i = 0; i < MAX_THREADS; i++) {
 		ret = pthread_join(threads[i], NULL);
-		if (ret) {
-			error("pthread_join failed for thread %d\n", errno, i);
-			exit(1);
-		}
+		if (ret)
+			ksft_exit_fail_msg("pthread_join failed for thread %d\n", i);
 	}
 }
 
@@ -126,6 +119,9 @@ static void usage(char *prog)
 	printf("  -v L  Verbosity level: %d=QUIET %d=CRITICAL %d=INFO\n",
 	       VQUIET, VCRITICAL, VINFO);
 }
+
+static const char *test_msg_auto_create = "Automatic hash bucket init on thread creation.\n";
+static const char *test_msg_auto_inc = "Automatic increase with more than 16 CPUs\n";
 
 int main(int argc, char *argv[])
 {
@@ -156,56 +152,50 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	ksft_print_header();
+	ksft_set_plan(22);
 
 	ret = pthread_mutexattr_init(&mutex_attr_pi);
 	ret |= pthread_mutexattr_setprotocol(&mutex_attr_pi, PTHREAD_PRIO_INHERIT);
 	ret |= pthread_mutex_init(&global_lock, &mutex_attr_pi);
 	if (ret != 0) {
-		fail("Failed to initialize pthread mutex.\n");
-		return 1;
+		ksft_exit_fail_msg("Failed to initialize pthread mutex.\n");
 	}
-
 	/* First thread, expect to be 0, not yet initialized */
 	ret = futex_hash_slots_get();
-	if (ret != 0) {
-		error("futex_hash_slots_get() failed: %d\n", errno, ret);
-		return 1;
-	}
-	ret = futex_hash_immutable_get();
-	if (ret != 0) {
-		error("futex_hash_immutable_get() failed: %d\n", errno, ret);
-		return 1;
-	}
+	if (ret != 0)
+		ksft_exit_fail_msg("futex_hash_slots_get() failed: %d, %m\n", ret);
 
+	ret = futex_hash_immutable_get();
+	if (ret != 0)
+		ksft_exit_fail_msg("futex_hash_immutable_get() failed: %d, %m\n", ret);
+
+	ksft_test_result_pass("Basic get slots and immutable status.\n");
 	ret = pthread_create(&threads[0], NULL, thread_return_fn, NULL);
-	if (ret != 0) {
-		error("pthread_create() failed: %d\n", errno, ret);
-		return 1;
-	}
+	if (ret != 0)
+		ksft_exit_fail_msg("pthread_create() failed: %d, %m\n", ret);
+
 	ret = pthread_join(threads[0], NULL);
-	if (ret != 0) {
-		error("pthread_join() failed: %d\n", errno, ret);
-		return 1;
-	}
+	if (ret != 0)
+		ksft_exit_fail_msg("pthread_join() failed: %d, %m\n", ret);
+
 	/* First thread, has to initialiaze private hash */
 	futex_slots1 = futex_hash_slots_get();
 	if (futex_slots1 <= 0) {
-		fail("Expected > 0 hash buckets, got: %d\n", futex_slots1);
-		return 1;
+		ksft_print_msg("Current hash buckets: %d\n", futex_slots1);
+		ksft_exit_fail_msg(test_msg_auto_create);
 	}
+
+	ksft_test_result_pass(test_msg_auto_create);
 
 	online_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	ret = pthread_barrier_init(&barrier_main, NULL, MAX_THREADS + 1);
-	if (ret != 0) {
-		error("pthread_barrier_init failed.\n", errno);
-		return 1;
-	}
+	if (ret != 0)
+		ksft_exit_fail_msg("pthread_barrier_init failed: %m.\n");
 
 	ret = pthread_mutex_lock(&global_lock);
-	if (ret != 0) {
-		error("pthread_mutex_lock failed.\n", errno);
-		return 1;
-	}
+	if (ret != 0)
+		ksft_exit_fail_msg("pthread_mutex_lock failed: %m.\n");
 
 	counter = 0;
 	create_max_threads(thread_lock_fn);
@@ -215,14 +205,17 @@ int main(int argc, char *argv[])
 	 * The current default size of hash buckets is 16. The auto increase
 	 * works only if more than 16 CPUs are available.
 	 */
+	ksft_print_msg("Online CPUs: %d\n", online_cpus);
 	if (online_cpus > 16) {
 		futex_slotsn = futex_hash_slots_get();
 		if (futex_slotsn < 0 || futex_slots1 == futex_slotsn) {
-			fail("Expected increase of hash buckets but got: %d -> %d\n",
-			      futex_slots1, futex_slotsn);
-			info("Online CPUs: %d\n", online_cpus);
-			return 1;
+			ksft_print_msg("Expected increase of hash buckets but got: %d -> %d\n",
+				       futex_slots1, futex_slotsn);
+			ksft_exit_fail_msg(test_msg_auto_inc);
 		}
+		ksft_test_result_pass(test_msg_auto_inc);
+	} else {
+		ksft_test_result_skip(test_msg_auto_inc);
 	}
 	ret = pthread_mutex_unlock(&global_lock);
 
@@ -234,17 +227,12 @@ int main(int argc, char *argv[])
 	futex_hash_slots_set_verify(16);
 
 	ret = futex_hash_slots_set(15, 0);
-	if (ret >= 0) {
-		fail("Expected to fail with 15 slots but succeeded: %d.\n", ret);
-		return 1;
-	}
+	ksft_test_result(ret < 0, "Use 15 slots\n");
+
 	futex_hash_slots_set_verify(2);
 	join_max_threads();
-	if (counter != MAX_THREADS) {
-		fail("Expected thread counter at %d but is %d\n",
-		       MAX_THREADS, counter);
-		return 1;
-	}
+	ksft_test_result(counter == MAX_THREADS, "Created of waited for %d of %d threads\n",
+			 counter, MAX_THREADS);
 	counter = 0;
 	/* Once the user set something, auto reisze must be disabled */
 	ret = pthread_barrier_init(&barrier_main, NULL, MAX_THREADS);
@@ -253,10 +241,8 @@ int main(int argc, char *argv[])
 	join_max_threads();
 
 	ret = futex_hash_slots_get();
-	if (ret != 2) {
-		printf("Expected 2 slots, no auto-resize, got %d\n", ret);
-		return 1;
-	}
+	ksft_test_result(ret == 2, "No more auto-resize after manaul setting, got %d\n",
+			 ret);
 
 	futex_hash_slots_set_must_fail(1 << 29, 0);
 
@@ -266,17 +252,13 @@ int main(int argc, char *argv[])
 	 */
 	if (use_global_hash) {
 		ret = futex_hash_slots_set(0, 0);
-		if (ret != 0) {
-			printf("Can't request global hash: %m\n");
-			return 1;
-		}
+		ksft_test_result(ret == 0, "Global hash request\n");
 	} else {
 		ret = futex_hash_slots_set(4, 1);
-		if (ret != 0) {
-			printf("Immutable resize to 4 failed: %m\n");
-			return 1;
-		}
+		ksft_test_result(ret == 0, "Immutable resize to 4\n");
 	}
+	if (ret != 0)
+		goto out;
 
 	futex_hash_slots_set_must_fail(4, 0);
 	futex_hash_slots_set_must_fail(4, 1);
@@ -287,7 +269,7 @@ int main(int argc, char *argv[])
 
 	ret = pthread_barrier_init(&barrier_main, NULL, MAX_THREADS);
 	if (ret != 0) {
-		error("pthread_barrier_init failed.\n", errno);
+		ksft_exit_fail_msg("pthread_barrier_init failed: %m\n");
 		return 1;
 	}
 	create_max_threads(thread_lock_fn);
@@ -295,21 +277,15 @@ int main(int argc, char *argv[])
 
 	ret = futex_hash_slots_get();
 	if (use_global_hash) {
-		if (ret != 0) {
-			error("Expected global hash, got %d\n", errno, ret);
-			return 1;
-		}
+		ksft_test_result(ret == 0, "Continue to use global hash\n");
 	} else {
-		if (ret != 4) {
-			error("Expected 4 slots, no auto-resize, got %d\n", errno, ret);
-			return 1;
-		}
+		ksft_test_result(ret == 4, "Continue to use the 4 hash buckets\n");
 	}
 
 	ret = futex_hash_immutable_get();
-	if (ret != 1) {
-		fail("Expected immutable private hash, got %d\n", ret);
-		return 1;
-	}
+	ksft_test_result(ret == 1, "Hash reports to be immutable\n");
+
+out:
+	ksft_finished();
 	return 0;
 }
