@@ -184,7 +184,7 @@ static void rtl92d_deinit_sw_vars(struct ieee80211_hw *hw)
 		skb_queue_purge(&rtlpriv->mac80211.skb_waitq[tid]);
 }
 
-static struct rtl_hal_ops rtl8192de_hal_ops = {
+static const struct rtl_hal_ops rtl8192de_hal_ops = {
 	.init_sw_vars = rtl92d_init_sw_vars,
 	.deinit_sw_vars = rtl92d_deinit_sw_vars,
 	.read_eeprom_info = rtl92d_read_eeprom_info,
