@@ -498,23 +498,6 @@ static int gc0310_disable_streams(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static int gc0310_get_frame_interval(struct v4l2_subdev *sd,
-				     struct v4l2_subdev_state *sd_state,
-				     struct v4l2_subdev_frame_interval *interval)
-{
-	/*
-	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
-	 * subdev active state API.
-	 */
-	if (interval->which != V4L2_SUBDEV_FORMAT_ACTIVE)
-		return -EINVAL;
-
-	interval->interval.numerator = 1;
-	interval->interval.denominator = GC0310_FPS;
-
-	return 0;
-}
-
 static int gc0310_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
@@ -564,7 +547,6 @@ static const struct v4l2_subdev_pad_ops gc0310_pad_ops = {
 	.set_fmt = v4l2_subdev_get_fmt, /* Only 1 fixed mode supported */
 	.get_selection = gc0310_get_selection,
 	.set_selection = gc0310_get_selection,
-	.get_frame_interval = gc0310_get_frame_interval,
 	.enable_streams = gc0310_enable_streams,
 	.disable_streams = gc0310_disable_streams,
 };
