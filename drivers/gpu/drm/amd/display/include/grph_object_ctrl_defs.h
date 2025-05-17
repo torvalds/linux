@@ -424,7 +424,7 @@ struct integrated_info {
 /*
  * DFS-bypass flag
  */
-/* Copy of SYS_INFO_GPUCAPS__ENABEL_DFS_BYPASS from atombios.h */
+/* Copy of SYS_INFO_GPUCAPS__ENABLE_DFS_BYPASS from atombios.h */
 enum {
 	DFS_BYPASS_ENABLE = 0x10
 };
