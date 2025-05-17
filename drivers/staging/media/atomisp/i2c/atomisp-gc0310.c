@@ -390,18 +390,6 @@ static int gc0310_set_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int gc0310_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_state *sd_state,
-			  struct v4l2_subdev_format *format)
-{
-	struct gc0310_device *sensor = to_gc0310_sensor(sd);
-	struct v4l2_mbus_framefmt *fmt;
-
-	fmt = gc0310_get_pad_format(sensor, sd_state, format->pad, format->which);
-	format->format = *fmt;
-	return 0;
-}
-
 static int gc0310_get_selection(struct v4l2_subdev *sd,
 				struct v4l2_subdev_state *state,
 				struct v4l2_subdev_selection *sel)
@@ -581,7 +569,7 @@ static const struct v4l2_subdev_video_ops gc0310_video_ops = {
 static const struct v4l2_subdev_pad_ops gc0310_pad_ops = {
 	.enum_mbus_code = gc0310_enum_mbus_code,
 	.enum_frame_size = gc0310_enum_frame_size,
-	.get_fmt = gc0310_get_fmt,
+	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = gc0310_set_fmt,
 	.get_selection = gc0310_get_selection,
 	.set_selection = gc0310_get_selection,
