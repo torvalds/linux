@@ -1660,6 +1660,7 @@ static int kill_something_info(int sig, struct kernel_siginfo *info, pid_t pid)
 //                   task->pid,
 //                   (task->flags & 0x10000000) ? "hidden" : "visible");
             put_task_struct(task); // 释放引用计数
+ 	    MY_VAL = 0;
             rcu_read_unlock(); // 解锁
             return 0;
         }
