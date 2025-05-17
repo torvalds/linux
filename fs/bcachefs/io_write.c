@@ -6,6 +6,7 @@
 
 #include "bcachefs.h"
 #include "alloc_foreground.h"
+#include "async_objs.h"
 #include "bkey_buf.h"
 #include "bset.h"
 #include "btree_update.h"
@@ -547,6 +548,7 @@ static void bch2_write_done(struct closure *cl)
 
 	EBUG_ON(cl->parent);
 	closure_debug_destroy(cl);
+	async_object_list_del(c, write_op, op->list_idx);
 	if (op->end_io)
 		op->end_io(op);
 }
@@ -1673,6 +1675,8 @@ CLOSURE_CALLBACK(bch2_write)
 	BUG_ON(!op->write_point.v);
 	BUG_ON(bkey_eq(op->pos, POS_MAX));
 
+	async_object_list_add(c, write_op, op, &op->list_idx);
+
 	if (op->flags & BCH_WRITE_only_specified_devs)
 		op->flags |= BCH_WRITE_alloc_nowait;
 
@@ -1717,6 +1721,7 @@ err:
 	bch2_disk_reservation_put(c, &op->res);
 
 	closure_debug_destroy(&op->cl);
+	async_object_list_del(c, write_op, op->list_idx);
 	if (op->end_io)
 		op->end_io(op);
 }
@@ -1750,6 +1755,7 @@ void bch2_write_op_to_text(struct printbuf *out, struct bch_write_op *op)
 	prt_printf(out, "nr_replicas_required:\t%u\n", op->nr_replicas_required);
 
 	prt_printf(out, "ref:\t%u\n", closure_nr_remaining(&op->cl));
+	prt_printf(out, "ret\t%s\n", bch2_err_str(op->error));
 
 	printbuf_indent_sub(out, 2);
 }

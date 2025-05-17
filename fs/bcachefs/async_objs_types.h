@@ -5,6 +5,7 @@
 #define BCH_ASYNC_OBJ_LISTS()						\
 	x(promote)							\
 	x(rbio)								\
+	x(write_op)							\
 	x(btree_read_bio)						\
 	x(btree_write_bio)
 

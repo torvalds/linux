@@ -9,6 +9,7 @@
 #include "btree_io.h"
 #include "debug.h"
 #include "io_read.h"
+#include "io_write.h"
 
 #include <linux/debugfs.h>
 
@@ -20,6 +21,11 @@ static void promote_obj_to_text(struct printbuf *out, void *obj)
 static void rbio_obj_to_text(struct printbuf *out, void *obj)
 {
 	bch2_read_bio_to_text(out, obj);
+}
+
+static void write_op_obj_to_text(struct printbuf *out, void *obj)
+{
+	bch2_write_op_to_text(out, obj);
 }
 
 static void btree_read_bio_obj_to_text(struct printbuf *out, void *obj)

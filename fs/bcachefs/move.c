@@ -109,7 +109,6 @@ static void move_write_done(struct bch_write_op *op)
 			struct printbuf buf = PRINTBUF;
 
 			bch2_write_op_to_text(&buf, op);
-			prt_printf(&buf, "ret\t%s\n", bch2_err_str(op->error));
 			trace_io_move_write_fail(c, buf.buf);
 			printbuf_exit(&buf);
 		}

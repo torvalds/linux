@@ -71,6 +71,10 @@ struct bch_write_op {
 	void			(*end_io)(struct bch_write_op *);
 	u64			start_time;
 
+#ifdef CONFIG_BCACHEFS_ASYNC_OBJECT_LISTS
+	unsigned		list_idx;
+#endif
+
 	unsigned		written; /* sectors */
 	u16			flags;
 	s16			error; /* dio write path expects it to hold -ERESTARTSYS... */
