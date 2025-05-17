@@ -5,6 +5,9 @@ config DRM_I2C_ADV7511
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
 	select DRM_MIPI_DSI
+	select DRM_DISPLAY_HELPER
+	select DRM_BRIDGE_CONNECTOR
+	select DRM_DISPLAY_HDMI_STATE_HELPER
 	help
 	  Support for the Analog Devices ADV7511(W)/13/33/35 HDMI encoders.
 
@@ -19,7 +22,7 @@ config DRM_I2C_ADV7511_AUDIO
 config DRM_I2C_ADV7511_CEC
 	bool "ADV7511/33/35 HDMI CEC driver"
 	depends on DRM_I2C_ADV7511
-	select CEC_CORE
+	select DRM_DISPLAY_HDMI_CEC_HELPER
 	default y
 	help
 	  When selected the HDMI transmitter will support the CEC feature.
