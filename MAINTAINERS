@@ -646,6 +646,12 @@ F:	drivers/iio/accel/adxl380.h
 F:	drivers/iio/accel/adxl380_i2c.c
 F:	drivers/iio/accel/adxl380_spi.c
 
+AEONSEMI PHY DRIVER
+M:	Christian Marangi <ansuelsmth@gmail.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/phy/as21xxx.c
+
 AF8133J THREE-AXIS MAGNETOMETER DRIVER
 M:	Ondřej Jirman <megi@xff.cz>
 S:	Maintained
