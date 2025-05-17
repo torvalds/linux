@@ -24,6 +24,7 @@
 #include "xe_hw_fence.h"
 #include "xe_map.h"
 #include "xe_memirq.h"
+#include "xe_mmio.h"
 #include "xe_sriov.h"
 #include "xe_trace_lrc.h"
 #include "xe_vm.h"
@@ -650,6 +651,7 @@ u32 xe_lrc_pphwsp_offset(struct xe_lrc *lrc)
 #define LRC_START_SEQNO_PPHWSP_OFFSET (LRC_SEQNO_PPHWSP_OFFSET + 8)
 #define LRC_CTX_JOB_TIMESTAMP_OFFSET (LRC_START_SEQNO_PPHWSP_OFFSET + 8)
 #define LRC_PARALLEL_PPHWSP_OFFSET 2048
+#define LRC_ENGINE_ID_PPHWSP_OFFSET 2096
 #define LRC_PPHWSP_SIZE SZ_4K
 
 u32 xe_lrc_regs_offset(struct xe_lrc *lrc)
@@ -684,7 +686,7 @@ static inline u32 __xe_lrc_start_seqno_offset(struct xe_lrc *lrc)
 
 static u32 __xe_lrc_ctx_job_timestamp_offset(struct xe_lrc *lrc)
 {
-	/* The start seqno is stored in the driver-defined portion of PPHWSP */
+	/* This is stored in the driver-defined portion of PPHWSP */
 	return xe_lrc_pphwsp_offset(lrc) + LRC_CTX_JOB_TIMESTAMP_OFFSET;
 }
 
@@ -694,9 +696,19 @@ static inline u32 __xe_lrc_parallel_offset(struct xe_lrc *lrc)
 	return xe_lrc_pphwsp_offset(lrc) + LRC_PARALLEL_PPHWSP_OFFSET;
 }
 
+static inline u32 __xe_lrc_engine_id_offset(struct xe_lrc *lrc)
+{
+	return xe_lrc_pphwsp_offset(lrc) + LRC_ENGINE_ID_PPHWSP_OFFSET;
+}
+
 static u32 __xe_lrc_ctx_timestamp_offset(struct xe_lrc *lrc)
 {
 	return __xe_lrc_regs_offset(lrc) + CTX_TIMESTAMP * sizeof(u32);
+}
+
+static u32 __xe_lrc_ctx_timestamp_udw_offset(struct xe_lrc *lrc)
+{
+	return __xe_lrc_regs_offset(lrc) + CTX_TIMESTAMP_UDW * sizeof(u32);
 }
 
 static inline u32 __xe_lrc_indirect_ring_offset(struct xe_lrc *lrc)
@@ -726,8 +738,10 @@ DECL_MAP_ADDR_HELPERS(regs)
 DECL_MAP_ADDR_HELPERS(start_seqno)
 DECL_MAP_ADDR_HELPERS(ctx_job_timestamp)
 DECL_MAP_ADDR_HELPERS(ctx_timestamp)
+DECL_MAP_ADDR_HELPERS(ctx_timestamp_udw)
 DECL_MAP_ADDR_HELPERS(parallel)
 DECL_MAP_ADDR_HELPERS(indirect_ring)
+DECL_MAP_ADDR_HELPERS(engine_id)
 
 #undef DECL_MAP_ADDR_HELPERS
 
@@ -743,18 +757,37 @@ u32 xe_lrc_ctx_timestamp_ggtt_addr(struct xe_lrc *lrc)
 }
 
 /**
+ * xe_lrc_ctx_timestamp_udw_ggtt_addr() - Get ctx timestamp udw GGTT address
+ * @lrc: Pointer to the lrc.
+ *
+ * Returns: ctx timestamp udw GGTT address
+ */
+u32 xe_lrc_ctx_timestamp_udw_ggtt_addr(struct xe_lrc *lrc)
+{
+	return __xe_lrc_ctx_timestamp_udw_ggtt_addr(lrc);
+}
+
+/**
  * xe_lrc_ctx_timestamp() - Read ctx timestamp value
  * @lrc: Pointer to the lrc.
  *
  * Returns: ctx timestamp value
  */
-u32 xe_lrc_ctx_timestamp(struct xe_lrc *lrc)
+u64 xe_lrc_ctx_timestamp(struct xe_lrc *lrc)
 {
 	struct xe_device *xe = lrc_to_xe(lrc);
 	struct iosys_map map;
+	u32 ldw, udw = 0;
 
 	map = __xe_lrc_ctx_timestamp_map(lrc);
-	return xe_map_read32(xe, &map);
+	ldw = xe_map_read32(xe, &map);
+
+	if (xe->info.has_64bit_timestamp) {
+		map = __xe_lrc_ctx_timestamp_udw_map(lrc);
+		udw = xe_map_read32(xe, &map);
+	}
+
+	return (u64)udw << 32 | ldw;
 }
 
 /**
@@ -864,7 +897,7 @@ static void *empty_lrc_data(struct xe_hw_engine *hwe)
 
 static void xe_lrc_set_ppgtt(struct xe_lrc *lrc, struct xe_vm *vm)
 {
-	u64 desc = xe_vm_pdp4_descriptor(vm, lrc->tile);
+	u64 desc = xe_vm_pdp4_descriptor(vm, gt_to_tile(lrc->gt));
 
 	xe_lrc_write_ctx_reg(lrc, CTX_PDP0_UDW, upper_32_bits(desc));
 	xe_lrc_write_ctx_reg(lrc, CTX_PDP0_LDW, lower_32_bits(desc));
@@ -877,6 +910,65 @@ static void xe_lrc_finish(struct xe_lrc *lrc)
 	xe_bo_unpin(lrc->bo);
 	xe_bo_unlock(lrc->bo);
 	xe_bo_put(lrc->bo);
+	xe_bo_unpin_map_no_vm(lrc->bb_per_ctx_bo);
+}
+
+/*
+ * xe_lrc_setup_utilization() - Setup wa bb to assist in calculating active
+ * context run ticks.
+ * @lrc: Pointer to the lrc.
+ *
+ * Context Timestamp (CTX_TIMESTAMP) in the LRC accumulates the run ticks of the
+ * context, but only gets updated when the context switches out. In order to
+ * check how long a context has been active before it switches out, two things
+ * are required:
+ *
+ * (1) Determine if the context is running:
+ * To do so, we program the WA BB to set an initial value for CTX_TIMESTAMP in
+ * the LRC. The value chosen is 1 since 0 is the initial value when the LRC is
+ * initialized. During a query, we just check for this value to determine if the
+ * context is active. If the context switched out, it would overwrite this
+ * location with the actual CTX_TIMESTAMP MMIO value. Note that WA BB runs as
+ * the last part of context restore, so reusing this LRC location will not
+ * clobber anything.
+ *
+ * (2) Calculate the time that the context has been active for:
+ * The CTX_TIMESTAMP ticks only when the context is active. If a context is
+ * active, we just use the CTX_TIMESTAMP MMIO as the new value of utilization.
+ * While doing so, we need to read the CTX_TIMESTAMP MMIO for the specific
+ * engine instance. Since we do not know which instance the context is running
+ * on until it is scheduled, we also read the ENGINE_ID MMIO in the WA BB and
+ * store it in the PPHSWP.
+ */
+#define CONTEXT_ACTIVE 1ULL
+static void xe_lrc_setup_utilization(struct xe_lrc *lrc)
+{
+	u32 *cmd;
+
+	cmd = lrc->bb_per_ctx_bo->vmap.vaddr;
+
+	*cmd++ = MI_STORE_REGISTER_MEM | MI_SRM_USE_GGTT | MI_SRM_ADD_CS_OFFSET;
+	*cmd++ = ENGINE_ID(0).addr;
+	*cmd++ = __xe_lrc_engine_id_ggtt_addr(lrc);
+	*cmd++ = 0;
+
+	*cmd++ = MI_STORE_DATA_IMM | MI_SDI_GGTT | MI_SDI_NUM_DW(1);
+	*cmd++ = __xe_lrc_ctx_timestamp_ggtt_addr(lrc);
+	*cmd++ = 0;
+	*cmd++ = lower_32_bits(CONTEXT_ACTIVE);
+
+	if (lrc_to_xe(lrc)->info.has_64bit_timestamp) {
+		*cmd++ = MI_STORE_DATA_IMM | MI_SDI_GGTT | MI_SDI_NUM_DW(1);
+		*cmd++ = __xe_lrc_ctx_timestamp_udw_ggtt_addr(lrc);
+		*cmd++ = 0;
+		*cmd++ = upper_32_bits(CONTEXT_ACTIVE);
+	}
+
+	*cmd++ = MI_BATCH_BUFFER_END;
+
+	xe_lrc_write_ctx_reg(lrc, CTX_BB_PER_CTX_PTR,
+			     xe_bo_ggtt_addr(lrc->bb_per_ctx_bo) | 1);
+
 }
 
 #define PVC_CTX_ASID		(0x2e + 1)
@@ -893,13 +985,18 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	void *init_data = NULL;
 	u32 arb_enable;
 	u32 lrc_size;
+	u32 bo_flags;
 	int err;
 
 	kref_init(&lrc->refcount);
+	lrc->gt = gt;
 	lrc->flags = 0;
 	lrc_size = ring_size + xe_gt_lrc_size(gt, hwe->class);
 	if (xe_gt_has_indirect_ring_state(gt))
 		lrc->flags |= XE_LRC_FLAG_INDIRECT_RING_STATE;
+
+	bo_flags = XE_BO_FLAG_VRAM_IF_DGFX(tile) | XE_BO_FLAG_GGTT |
+		   XE_BO_FLAG_GGTT_INVALIDATE;
 
 	/*
 	 * FIXME: Perma-pinning LRC as we don't yet support moving GGTT address
@@ -907,17 +1004,21 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	 */
 	lrc->bo = xe_bo_create_pin_map(xe, tile, vm, lrc_size,
 				       ttm_bo_type_kernel,
-				       XE_BO_FLAG_VRAM_IF_DGFX(tile) |
-				       XE_BO_FLAG_GGTT |
-				       XE_BO_FLAG_GGTT_INVALIDATE);
+				       bo_flags);
 	if (IS_ERR(lrc->bo))
 		return PTR_ERR(lrc->bo);
 
+	lrc->bb_per_ctx_bo = xe_bo_create_pin_map(xe, tile, NULL, SZ_4K,
+						  ttm_bo_type_kernel,
+						  bo_flags);
+	if (IS_ERR(lrc->bb_per_ctx_bo)) {
+		err = PTR_ERR(lrc->bb_per_ctx_bo);
+		goto err_lrc_finish;
+	}
+
 	lrc->size = lrc_size;
-	lrc->tile = gt_to_tile(hwe->gt);
 	lrc->ring.size = ring_size;
 	lrc->ring.tail = 0;
-	lrc->ctx_timestamp = 0;
 
 	xe_hw_fence_ctx_init(&lrc->fence_ctx, hwe->gt,
 			     hwe->fence_irq, hwe->name);
@@ -990,7 +1091,10 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 				     xe_lrc_read_ctx_reg(lrc, CTX_CONTEXT_CONTROL) |
 				     _MASKED_BIT_ENABLE(CTX_CTRL_PXP_ENABLE));
 
+	lrc->ctx_timestamp = 0;
 	xe_lrc_write_ctx_reg(lrc, CTX_TIMESTAMP, 0);
+	if (lrc_to_xe(lrc)->info.has_64bit_timestamp)
+		xe_lrc_write_ctx_reg(lrc, CTX_TIMESTAMP_UDW, 0);
 
 	if (xe->info.has_asid && vm)
 		xe_lrc_write_ctx_reg(lrc, PVC_CTX_ASID, vm->usm.asid);
@@ -1018,6 +1122,8 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 
 	map = __xe_lrc_start_seqno_map(lrc);
 	xe_map_write32(lrc_to_xe(lrc), &map, lrc->fence_ctx.next_seqno - 1);
+
+	xe_lrc_setup_utilization(lrc);
 
 	return 0;
 
@@ -1236,6 +1342,21 @@ u32 xe_lrc_parallel_ggtt_addr(struct xe_lrc *lrc)
 struct iosys_map xe_lrc_parallel_map(struct xe_lrc *lrc)
 {
 	return __xe_lrc_parallel_map(lrc);
+}
+
+/**
+ * xe_lrc_engine_id() - Read engine id value
+ * @lrc: Pointer to the lrc.
+ *
+ * Returns: context id value
+ */
+static u32 xe_lrc_engine_id(struct xe_lrc *lrc)
+{
+	struct xe_device *xe = lrc_to_xe(lrc);
+	struct iosys_map map;
+
+	map = __xe_lrc_engine_id_map(lrc);
+	return xe_map_read32(xe, &map);
 }
 
 static int instr_dw(u32 cmd_header)
@@ -1684,7 +1805,7 @@ struct xe_lrc_snapshot *xe_lrc_snapshot_capture(struct xe_lrc *lrc)
 	snapshot->lrc_offset = xe_lrc_pphwsp_offset(lrc);
 	snapshot->lrc_size = lrc->bo->size - snapshot->lrc_offset;
 	snapshot->lrc_snapshot = NULL;
-	snapshot->ctx_timestamp = xe_lrc_ctx_timestamp(lrc);
+	snapshot->ctx_timestamp = lower_32_bits(xe_lrc_ctx_timestamp(lrc));
 	snapshot->ctx_job_timestamp = xe_lrc_ctx_job_timestamp(lrc);
 	return snapshot;
 }
@@ -1784,22 +1905,74 @@ void xe_lrc_snapshot_free(struct xe_lrc_snapshot *snapshot)
 	kfree(snapshot);
 }
 
+static int get_ctx_timestamp(struct xe_lrc *lrc, u32 engine_id, u64 *reg_ctx_ts)
+{
+	u16 class = REG_FIELD_GET(ENGINE_CLASS_ID, engine_id);
+	u16 instance = REG_FIELD_GET(ENGINE_INSTANCE_ID, engine_id);
+	struct xe_hw_engine *hwe;
+	u64 val;
+
+	hwe = xe_gt_hw_engine(lrc->gt, class, instance, false);
+	if (xe_gt_WARN_ONCE(lrc->gt, !hwe || xe_hw_engine_is_reserved(hwe),
+			    "Unexpected engine class:instance %d:%d for context utilization\n",
+			    class, instance))
+		return -1;
+
+	if (lrc_to_xe(lrc)->info.has_64bit_timestamp)
+		val = xe_mmio_read64_2x32(&hwe->gt->mmio,
+					  RING_CTX_TIMESTAMP(hwe->mmio_base));
+	else
+		val = xe_mmio_read32(&hwe->gt->mmio,
+				     RING_CTX_TIMESTAMP(hwe->mmio_base));
+
+	*reg_ctx_ts = val;
+
+	return 0;
+}
+
 /**
  * xe_lrc_update_timestamp() - Update ctx timestamp
  * @lrc: Pointer to the lrc.
  * @old_ts: Old timestamp value
  *
  * Populate @old_ts current saved ctx timestamp, read new ctx timestamp and
- * update saved value.
+ * update saved value. With support for active contexts, the calculation may be
+ * slightly racy, so follow a read-again logic to ensure that the context is
+ * still active before returning the right timestamp.
  *
  * Returns: New ctx timestamp value
  */
-u32 xe_lrc_update_timestamp(struct xe_lrc *lrc, u32 *old_ts)
+u64 xe_lrc_update_timestamp(struct xe_lrc *lrc, u64 *old_ts)
 {
+	u64 lrc_ts, reg_ts;
+	u32 engine_id;
+
 	*old_ts = lrc->ctx_timestamp;
 
-	lrc->ctx_timestamp = xe_lrc_ctx_timestamp(lrc);
+	lrc_ts = xe_lrc_ctx_timestamp(lrc);
+	/* CTX_TIMESTAMP mmio read is invalid on VF, so return the LRC value */
+	if (IS_SRIOV_VF(lrc_to_xe(lrc))) {
+		lrc->ctx_timestamp = lrc_ts;
+		goto done;
+	}
 
+	if (lrc_ts == CONTEXT_ACTIVE) {
+		engine_id = xe_lrc_engine_id(lrc);
+		if (!get_ctx_timestamp(lrc, engine_id, &reg_ts))
+			lrc->ctx_timestamp = reg_ts;
+
+		/* read lrc again to ensure context is still active */
+		lrc_ts = xe_lrc_ctx_timestamp(lrc);
+	}
+
+	/*
+	 * If context switched out, just use the lrc_ts. Note that this needs to
+	 * be a separate if condition.
+	 */
+	if (lrc_ts != CONTEXT_ACTIVE)
+		lrc->ctx_timestamp = lrc_ts;
+
+done:
 	trace_xe_lrc_update_timestamp(lrc, *old_ts);
 
 	return lrc->ctx_timestamp;
