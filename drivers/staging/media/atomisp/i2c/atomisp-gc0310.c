@@ -473,8 +473,6 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 		if (ret < 0)
 			goto error_power_down;
 
-		msleep(100);
-
 		ret = regmap_multi_reg_write(sensor->regmap,
 					     gc0310_reset_register,
 					     ARRAY_SIZE(gc0310_reset_register));
@@ -803,10 +801,11 @@ static int gc0310_resume(struct device *dev)
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct gc0310_device *sensor = to_gc0310_sensor(sd);
 
-	usleep_range(10000, 15000);
+	fsleep(10 * USEC_PER_MSEC);
 	gpiod_set_value_cansleep(sensor->reset, 0);
-	usleep_range(10000, 15000);
+	fsleep(10 * USEC_PER_MSEC);
 	gpiod_set_value_cansleep(sensor->powerdown, 0);
+	fsleep(10 * USEC_PER_MSEC);
 
 	return 0;
 }
