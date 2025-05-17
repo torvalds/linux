@@ -585,7 +585,8 @@ int futex_wait_multiple(struct futex_vector *vs, unsigned int count,
  *
  * Return:
  *  -  0 - uaddr contains val and hb has been locked;
- *  - <1 - -EFAULT or -EWOULDBLOCK (uaddr does not contain val) and hb is unlocked
+ *  - <0 - On error and the hb is unlocked. A possible reason: the uaddr can not
+ *	   be read, does not contain the expected value or is not properly aligned.
  */
 int futex_wait_setup(u32 __user *uaddr, u32 val, unsigned int flags,
 		     struct futex_q *q, union futex_key *key2,
