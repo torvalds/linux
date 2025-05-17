@@ -245,7 +245,7 @@ struct pcie_link_state {
 	u32 clkpm_disable:1;		/* Clock PM disabled */
 };
 
-static int aspm_disabled, aspm_force;
+static bool aspm_disabled, aspm_force;
 static bool aspm_support_enabled = true;
 static DEFINE_MUTEX(aspm_lock);
 static LIST_HEAD(link_list);
@@ -1712,11 +1712,11 @@ static int __init pcie_aspm_disable(char *str)
 {
 	if (!strcmp(str, "off")) {
 		aspm_policy = POLICY_DEFAULT;
-		aspm_disabled = 1;
+		aspm_disabled = true;
 		aspm_support_enabled = false;
 		pr_info("PCIe ASPM is disabled\n");
 	} else if (!strcmp(str, "force")) {
-		aspm_force = 1;
+		aspm_force = true;
 		pr_info("PCIe ASPM is forcibly enabled\n");
 	}
 	return 1;
@@ -1734,7 +1734,7 @@ void pcie_no_aspm(void)
 	 */
 	if (!aspm_force) {
 		aspm_policy = POLICY_DEFAULT;
-		aspm_disabled = 1;
+		aspm_disabled = true;
 	}
 }
 
