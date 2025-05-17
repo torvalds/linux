@@ -2245,15 +2245,18 @@ int add_msr_counter(int cpu, off_t offset)
 	return 1;
 }
 
-int add_rapl_msr_counter(int cpu, off_t offset, int index)
+int add_rapl_msr_counter(int cpu, const struct rapl_counter_arch_info *cai)
 {
 	int ret;
 
-	ret = add_msr_counter(cpu, offset);
+	if (!(platform->rapl_msrs & cai->feature_mask))
+		return -1;
+
+	ret = add_msr_counter(cpu, cai->msr);
 	if (ret < 0)
 		return -1;
 
-	switch (index) {
+	switch (cai->rci_index) {
 	case RAPL_RCI_INDEX_ENERGY_PKG:
 	case RAPL_RCI_INDEX_ENERGY_CORES:
 	case RAPL_RCI_INDEX_DRAM:
@@ -2668,7 +2671,7 @@ void print_header(char *delim)
 	if (DO_BIC(BIC_SYS_LPI))
 		outp += sprintf(outp, "%sSYS%%LPI", (printed++ ? delim : ""));
 
-	if (platform->rapl_msrs && !rapl_joules) {
+	if (!rapl_joules) {
 		if (DO_BIC(BIC_PkgWatt))
 			outp += sprintf(outp, "%sPkgWatt", (printed++ ? delim : ""));
 		if (DO_BIC(BIC_CorWatt) && !platform->has_per_core_rapl)
@@ -2681,7 +2684,7 @@ void print_header(char *delim)
 			outp += sprintf(outp, "%sPKG_%%", (printed++ ? delim : ""));
 		if (DO_BIC(BIC_RAM__))
 			outp += sprintf(outp, "%sRAM_%%", (printed++ ? delim : ""));
-	} else if (platform->rapl_msrs && rapl_joules) {
+	} else {
 		if (DO_BIC(BIC_Pkg_J))
 			outp += sprintf(outp, "%sPkg_J", (printed++ ? delim : ""));
 		if (DO_BIC(BIC_Cor_J) && !platform->has_per_core_rapl)
@@ -7988,26 +7991,22 @@ void rapl_perf_init(void)
 
 			struct rapl_counter_info_t *rci = &rapl_counter_info_perdomain[next_domain];
 
-			/* Check if the counter is enabled and accessible */
-			if (platform->rapl_msrs & cai->feature_mask) {
+			/* Use perf API for this counter */
+			if (add_rapl_perf_counter(cpu, rci, cai, &scale, &unit) != -1) {
+				rci->source[cai->rci_index] = COUNTER_SOURCE_PERF;
+				rci->scale[cai->rci_index] = scale * cai->compat_scale;
+				rci->unit[cai->rci_index] = unit;
+				rci->flags[cai->rci_index] = cai->flags;
 
-				/* Use perf API for this counter */
-				if (add_rapl_perf_counter(cpu, rci, cai, &scale, &unit) != -1) {
-					rci->source[cai->rci_index] = COUNTER_SOURCE_PERF;
-					rci->scale[cai->rci_index] = scale * cai->compat_scale;
-					rci->unit[cai->rci_index] = unit;
-					rci->flags[cai->rci_index] = cai->flags;
-
-					/* Use MSR for this counter */
-				} else if (add_rapl_msr_counter(cpu, cai->msr, cai->rci_index) >= 0) {
-					rci->source[cai->rci_index] = COUNTER_SOURCE_MSR;
-					rci->msr[cai->rci_index] = cai->msr;
-					rci->msr_mask[cai->rci_index] = cai->msr_mask;
-					rci->msr_shift[cai->rci_index] = cai->msr_shift;
-					rci->unit[cai->rci_index] = RAPL_UNIT_JOULES;
-					rci->scale[cai->rci_index] = *cai->platform_rapl_msr_scale * cai->compat_scale;
-					rci->flags[cai->rci_index] = cai->flags;
-				}
+			/* Use MSR for this counter */
+			} else if (add_rapl_msr_counter(cpu, cai) >= 0) {
+				rci->source[cai->rci_index] = COUNTER_SOURCE_MSR;
+				rci->msr[cai->rci_index] = cai->msr;
+				rci->msr_mask[cai->rci_index] = cai->msr_mask;
+				rci->msr_shift[cai->rci_index] = cai->msr_shift;
+				rci->unit[cai->rci_index] = RAPL_UNIT_JOULES;
+				rci->scale[cai->rci_index] = *cai->platform_rapl_msr_scale * cai->compat_scale;
+				rci->flags[cai->rci_index] = cai->flags;
 			}
 
 			if (rci->source[cai->rci_index] != COUNTER_SOURCE_NONE)
