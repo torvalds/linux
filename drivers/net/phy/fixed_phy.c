@@ -160,10 +160,9 @@ static int fixed_phy_add_gpiod(unsigned int irq, int phy_addr,
 	return 0;
 }
 
-int fixed_phy_add(unsigned int irq, int phy_addr,
-		  struct fixed_phy_status *status)
+int fixed_phy_add(int phy_addr, struct fixed_phy_status *status)
 {
-	return fixed_phy_add_gpiod(irq, phy_addr, status, NULL);
+	return fixed_phy_add_gpiod(PHY_POLL, phy_addr, status, NULL);
 }
 EXPORT_SYMBOL_GPL(fixed_phy_add);
 
