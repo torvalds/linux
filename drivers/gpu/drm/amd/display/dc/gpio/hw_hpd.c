@@ -62,7 +62,7 @@ static void dal_hw_hpd_destroy(
 	*ptr = NULL;
 }
 
-static enum gpio_result get_value(
+static enum gpio_result dal_hw_hpd_get_value(
 	const struct hw_gpio_pin *ptr,
 	uint32_t *value)
 {
@@ -104,7 +104,7 @@ static enum gpio_result set_config(
 static const struct hw_gpio_pin_funcs funcs = {
 	.destroy = dal_hw_hpd_destroy,
 	.open = dal_hw_gpio_open,
-	.get_value = get_value,
+	.get_value = dal_hw_hpd_get_value,
 	.set_value = dal_hw_gpio_set_value,
 	.set_config = set_config,
 	.change_mode = dal_hw_gpio_change_mode,
