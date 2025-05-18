@@ -120,10 +120,6 @@ allOf:
       required:
         - power-domains
 
-    else:
-      properties:
-        power-domains: false
-
 unevaluatedProperties: false
 
 examples:
