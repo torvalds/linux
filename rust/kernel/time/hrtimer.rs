@@ -68,9 +68,25 @@
 //! `start` operation.
 
 use super::ClockId;
-use crate::{prelude::*, time::Ktime, types::Opaque};
+use crate::{prelude::*, types::Opaque};
 use core::marker::PhantomData;
 use pin_init::PinInit;
+
+/// A Rust wrapper around a `ktime_t`.
+// NOTE: Ktime is going to be removed when hrtimer is converted to Instant/Delta.
+#[repr(transparent)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
+pub struct Ktime {
+    inner: bindings::ktime_t,
+}
+
+impl Ktime {
+    /// Returns the number of nanoseconds.
+    #[inline]
+    pub fn to_ns(self) -> i64 {
+        self.inner
+    }
+}
 
 /// A timer backed by a C `struct hrtimer`.
 ///
