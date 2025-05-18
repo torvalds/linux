@@ -126,6 +126,7 @@ static inline void fpstate_init_soft(struct swregs_state *soft) {}
 #endif
 
 /* State tracking */
+DECLARE_PER_CPU(bool, kernel_fpu_allowed);
 DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
 
 /* Process cleanup */

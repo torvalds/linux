@@ -51,6 +51,9 @@ void fpu__init_cpu(void)
 {
 	fpu__init_cpu_generic();
 	fpu__init_cpu_xstate();
+
+	/* Start allowing kernel-mode FPU: */
+	this_cpu_write(kernel_fpu_allowed, true);
 }
 
 static bool __init fpu__probe_without_cpuid(void)
