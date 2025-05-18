@@ -2002,7 +2002,6 @@
 			status = "disabled";
 		};
 
-
 		i2c6: i2c@2ac90000 {
 			compatible = "rockchip,rk3576-i2c", "rockchip,rk3399-i2c";
 			reg = <0x0 0x2ac90000 0x0 0x1000>;
