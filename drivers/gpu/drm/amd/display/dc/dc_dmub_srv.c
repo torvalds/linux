@@ -39,6 +39,7 @@
 
 #define CTX dc_dmub_srv->ctx
 #define DC_LOGGER CTX->logger
+#define GPINT_RETRY_NUM 20
 
 static void dc_dmub_srv_construct(struct dc_dmub_srv *dc_srv, struct dc *dc,
 				  struct dmub_srv *dmub)
@@ -207,7 +208,7 @@ static bool dc_dmub_srv_fb_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_sr
 				return false;
 
 			do {
-				status = dmub_srv_wait_for_inbox_free(dmub, 100000, count - i);
+					status = dmub_srv_wait_for_inbox_free(dmub, 100000, count - i);
 			} while (dc_dmub_srv->ctx->dc->debug.disable_timeout && status != DMUB_STATUS_OK);
 
 			/* Requeue the command. */
@@ -247,6 +248,9 @@ bool dc_dmub_srv_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_srv,
 		} else {
 			res = dc_dmub_srv_fb_cmd_list_queue_execute(dc_dmub_srv, count, cmd_list);
 		}
+
+		if (res)
+			res = dmub_srv_update_inbox_status(dc_dmub_srv->dmub) == DMUB_STATUS_OK;
 	}
 
 	return res;
@@ -1885,11 +1889,14 @@ void dc_dmub_srv_ips_query_residency_info(struct dc_dmub_srv *dc_dmub_srv, struc
 	if (command_code == DMUB_GPINT__INVALID_COMMAND)
 		return;
 
-	// send gpint commands and wait for ack
-	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_PERCENT,
-				      (uint16_t)(output->ips_mode),
-				       &output->residency_percent, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-		output->residency_percent = 0;
+	for (i = 0; i < GPINT_RETRY_NUM; i++) {
+		// false could mean GPINT timeout, in which case we should retry
+		if (dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_PERCENT,
+					      (uint16_t)(output->ips_mode), &output->residency_percent,
+					      DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
+			break;
+		udelay(100);
+	}
 
 	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_ENTRY_COUNTER,
 				      (uint16_t)(output->ips_mode),

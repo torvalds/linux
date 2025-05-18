@@ -43,13 +43,13 @@ enum bw_type {
 };
 
 /*
- * Enable BW Allocation Mode Support from the DP-Tx side
+ * Enable USB4 DP BW allocation mode
  *
  * @link: pointer to the dc_link struct instance
  *
  * return: SUCCESS or FAILURE
  */
-bool link_dp_dpia_set_dptx_usb4_bw_alloc_support(struct dc_link *link);
+bool link_dpia_enable_usb4_dp_bw_alloc_mode(struct dc_link *link);
 
 /*
  * Allocates only what the stream needs for bw, so if:

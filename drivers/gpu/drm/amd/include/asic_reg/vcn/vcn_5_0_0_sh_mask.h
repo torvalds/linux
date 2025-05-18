@@ -5929,6 +5929,29 @@
 #define UVD_DPG_LMA_CTL2__JPEG_WRITE_PTR_MASK                                                                 0x0000FE00L
 
 
+// addressBlock: uvd_mmsch_dec
+//MMSCH_VF_VMID
+#define MMSCH_VF_VMID__VF_CTX_VMID__SHIFT                                                                     0x0
+#define MMSCH_VF_VMID__VF_GPCOM_VMID__SHIFT                                                                   0x5
+#define MMSCH_VF_VMID__VF_CTX_VMID_MASK                                                                       0x0000001FL
+#define MMSCH_VF_VMID__VF_GPCOM_VMID_MASK                                                                     0x000003E0L
+//MMSCH_VF_CTX_ADDR_LO
+#define MMSCH_VF_CTX_ADDR_LO__VF_CTX_ADDR_LO__SHIFT                                                           0x6
+#define MMSCH_VF_CTX_ADDR_LO__VF_CTX_ADDR_LO_MASK                                                             0xFFFFFFC0L
+//MMSCH_VF_CTX_ADDR_HI
+#define MMSCH_VF_CTX_ADDR_HI__VF_CTX_ADDR_HI__SHIFT                                                           0x0
+#define MMSCH_VF_CTX_ADDR_HI__VF_CTX_ADDR_HI_MASK                                                             0xFFFFFFFFL
+//MMSCH_VF_CTX_SIZE
+#define MMSCH_VF_CTX_SIZE__VF_CTX_SIZE__SHIFT                                                                 0x0
+#define MMSCH_VF_CTX_SIZE__VF_CTX_SIZE_MASK                                                                   0xFFFFFFFFL
+//MMSCH_VF_MAILBOX_HOST
+#define MMSCH_VF_MAILBOX_HOST__DATA__SHIFT                                                                    0x0
+#define MMSCH_VF_MAILBOX_HOST__DATA_MASK                                                                      0xFFFFFFFFL
+//MMSCH_VF_MAILBOX_RESP
+#define MMSCH_VF_MAILBOX_RESP__RESP__SHIFT                                                                    0x0
+#define MMSCH_VF_MAILBOX_RESP__RESP_MASK                                                                      0xFFFFFFFFL
+
+
 // addressBlock: uvd_vcn_umsch_dec
 //VCN_UMSCH_MES_CNTL
 #define VCN_UMSCH_MES_CNTL__PIPE_ID__SHIFT                                                                    0x0

@@ -78,6 +78,18 @@
 #define UMC_NPS_SHIFT 40
 #define UMC_NPS_MASK 0xffULL
 
+/* three column bits and one row bit in MCA address flip
+ * in bad page retirement
+ */
+#define RETIRE_FLIP_BITS_NUM 4
+
+struct amdgpu_umc_flip_bits {
+	uint32_t flip_bits_in_pa[RETIRE_FLIP_BITS_NUM];
+	uint32_t flip_row_bit;
+	uint32_t r13_in_pa;
+	uint32_t bit_num;
+};
+
 typedef int (*umc_func)(struct amdgpu_device *adev, uint32_t node_inst,
 			uint32_t umc_inst, uint32_t ch_inst, void *data);
 
@@ -100,6 +112,7 @@ struct amdgpu_umc_ras {
 			bool dump_addr);
 	uint32_t (*get_die_id_from_pa)(struct amdgpu_device *adev,
 			uint64_t mca_addr, uint64_t retired_page);
+	void (*get_retire_flip_bits)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_umc_funcs {
@@ -130,6 +143,10 @@ struct amdgpu_umc {
 
 	/* active mask for umc node instance */
 	unsigned long active_mask;
+
+	struct amdgpu_umc_flip_bits flip_bits;
+
+	unsigned long err_addr_cnt;
 };
 
 int amdgpu_umc_ras_sw_init(struct amdgpu_device *adev);

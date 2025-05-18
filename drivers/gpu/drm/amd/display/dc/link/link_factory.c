@@ -156,6 +156,7 @@ static void construct_link_service_dp_capability(struct link_service *link_srv)
 	link_srv->dp_get_encoding_format = link_dp_get_encoding_format;
 	link_srv->dp_should_enable_fec = dp_should_enable_fec;
 	link_srv->dp_decide_link_settings = link_decide_link_settings;
+	link_srv->dp_decide_tunnel_settings = link_decide_dp_tunnel_settings;
 	link_srv->mst_decide_link_encoding_format =
 			mst_decide_link_encoding_format;
 	link_srv->edp_decide_link_settings = edp_decide_link_settings;

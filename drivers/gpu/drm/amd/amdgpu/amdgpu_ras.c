@@ -2889,6 +2889,7 @@ static int __amdgpu_ras_convert_rec_from_rom(struct amdgpu_device *adev,
 		if (amdgpu_ras_mca2pa_by_idx(adev, bps, err_data))
 			return -EINVAL;
 	}
+
 	return __amdgpu_ras_restore_bad_pages(adev, err_data->err_addr,
 									adev->umc.retire_unit);
 }
@@ -2903,7 +2904,7 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 			&adev->psp.ras_context.ras->eeprom_control;
 	enum amdgpu_memory_partition nps = AMDGPU_NPS1_PARTITION_MODE;
 	int ret = 0;
-	uint32_t i;
+	uint32_t i = 0;
 
 	if (!con || !con->eh_data || !bps || pages <= 0)
 		return 0;
@@ -2924,34 +2925,36 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 	mutex_lock(&con->recovery_lock);
 
 	if (from_rom) {
-		for (i = 0; i < pages; i++) {
-			if (control->ras_num_recs - i >= adev->umc.retire_unit) {
-				if ((bps[i].address == bps[i + 1].address) &&
-				    (bps[i].mem_channel == bps[i + 1].mem_channel)) {
-					//deal with retire_unit records a time
-					ret = __amdgpu_ras_convert_rec_array_from_rom(adev,
-									&bps[i], &err_data, nps);
-					if (ret)
-						goto free;
-					i += (adev->umc.retire_unit - 1);
+		/* there is no pa recs in V3, so skip pa recs processing */
+		if (control->tbl_hdr.version < RAS_TABLE_VER_V3) {
+			for (i = 0; i < pages; i++) {
+				if (control->ras_num_recs - i >= adev->umc.retire_unit) {
+					if ((bps[i].address == bps[i + 1].address) &&
+						(bps[i].mem_channel == bps[i + 1].mem_channel)) {
+						/* deal with retire_unit records a time */
+						ret = __amdgpu_ras_convert_rec_array_from_rom(adev,
+										&bps[i], &err_data, nps);
+						if (ret)
+							control->ras_num_bad_pages -= adev->umc.retire_unit;
+						i += (adev->umc.retire_unit - 1);
+					} else {
+						break;
+					}
 				} else {
 					break;
 				}
-			} else {
-				break;
 			}
 		}
 		for (; i < pages; i++) {
 			ret = __amdgpu_ras_convert_rec_from_rom(adev,
 				&bps[i], &err_data, nps);
 			if (ret)
-				goto free;
+				control->ras_num_bad_pages -= adev->umc.retire_unit;
 		}
 	} else {
 		ret = __amdgpu_ras_restore_bad_pages(adev, bps, pages);
 	}
 
-free:
 	if (from_rom)
 		kfree(err_data.err_addr);
 	mutex_unlock(&con->recovery_lock);
@@ -3040,21 +3043,28 @@ static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 		dev_err(adev->dev, "Failed to load EEPROM table records!");
 	} else {
 		if (adev->umc.ras && adev->umc.ras->convert_ras_err_addr) {
-			for (i = 0; i < control->ras_num_recs; i++) {
-				if ((control->ras_num_recs - i) >= adev->umc.retire_unit) {
-					if ((bps[i].address == bps[i + 1].address) &&
-						(bps[i].mem_channel == bps[i + 1].mem_channel)) {
-						control->ras_num_pa_recs += adev->umc.retire_unit;
-						i += (adev->umc.retire_unit - 1);
+			/*In V3, there is no pa recs, and some cases(when address==0) may be parsed
+			as pa recs, so add verion check to avoid it.
+			*/
+			if (control->tbl_hdr.version < RAS_TABLE_VER_V3) {
+				for (i = 0; i < control->ras_num_recs; i++) {
+					if ((control->ras_num_recs - i) >= adev->umc.retire_unit) {
+						if ((bps[i].address == bps[i + 1].address) &&
+							(bps[i].mem_channel == bps[i + 1].mem_channel)) {
+							control->ras_num_pa_recs += adev->umc.retire_unit;
+							i += (adev->umc.retire_unit - 1);
+						} else {
+							control->ras_num_mca_recs +=
+										(control->ras_num_recs - i);
+							break;
+						}
 					} else {
-						control->ras_num_mca_recs +=
-									(control->ras_num_recs - i);
+						control->ras_num_mca_recs += (control->ras_num_recs - i);
 						break;
 					}
-				} else {
-					control->ras_num_mca_recs += (control->ras_num_recs - i);
-					break;
 				}
+			} else {
+				control->ras_num_mca_recs = control->ras_num_recs;
 			}
 		}
 
@@ -3462,6 +3472,10 @@ int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
 
 	if (!adev->umc.ras || !adev->umc.ras->convert_ras_err_addr)
 		control->ras_num_pa_recs = control->ras_num_recs;
+
+	if (adev->umc.ras &&
+	    adev->umc.ras->get_retire_flip_bits)
+		adev->umc.ras->get_retire_flip_bits(adev);
 
 	if (control->ras_num_recs) {
 		ret = amdgpu_ras_load_bad_pages(adev);
@@ -4484,8 +4498,11 @@ void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev)
 		enum ras_event_type type = RAS_EVENT_TYPE_FATAL;
 		u64 event_id;
 
-		if (amdgpu_ras_mark_ras_event(adev, type))
+		if (amdgpu_ras_mark_ras_event(adev, type)) {
+			dev_err(adev->dev,
+				"uncorrectable hardware error (ERREVENT_ATHUB_INTERRUPT) detected!\n");
 			return;
+		}
 
 		event_id = amdgpu_ras_acquire_event_id(adev, type);
 

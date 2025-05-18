@@ -602,6 +602,7 @@ struct amdgpu_firmware {
 
 	void *fw_buf_ptr;
 	uint64_t fw_buf_mc;
+	uint32_t pldm_version;
 };
 
 void amdgpu_ucode_print_mc_hdr(const struct common_firmware_header *hdr);

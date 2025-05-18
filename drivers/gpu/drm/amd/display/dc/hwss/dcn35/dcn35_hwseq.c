@@ -1550,7 +1550,7 @@ static bool should_avoid_empty_tu(struct pipe_ctx *pipe_ctx)
 	struct dc_link_settings *link_settings = &pipe_ctx->link_config.dp_link_settings;
 	const struct dc *dc = pipe_ctx->stream->link->dc;
 
-	if (pipe_ctx->stream->link->ep_type != DISPLAY_ENDPOINT_USB4_DPIA)
+	if (pipe_ctx->link_config.dp_tunnel_settings.should_enable_dp_tunneling == false)
 		return false;
 
 	// Not necessary for MST configurations

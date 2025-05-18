@@ -611,6 +611,7 @@ static bool detect_dp(struct dc_link *link,
 		link->dpcd_caps.dongle_type = sink_caps->dongle_type;
 		link->dpcd_caps.is_dongle_type_one = sink_caps->is_dongle_type_one;
 		link->dpcd_caps.dpcd_rev.raw = 0;
+		link->dpcd_caps.usb4_dp_tun_info.dp_tun_cap.raw = 0;
 	}
 
 	return true;
@@ -1007,21 +1008,11 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 					link->reported_link_cap.link_rate > LINK_RATE_HIGH3)
 				link->reported_link_cap.link_rate = LINK_RATE_HIGH3;
 
-			/*
-			 * If this is DP over USB4 link then we need to:
-			 * - Enable BW ALLOC support on DPtx if applicable
-			 */
-			if (dc->config.usb4_bw_alloc_support) {
-				if (link_dp_dpia_set_dptx_usb4_bw_alloc_support(link)) {
-					/* update with non reduced link cap if bw allocation mode is supported */
-					if (link->dpia_bw_alloc_config.nrd_max_link_rate &&
-						link->dpia_bw_alloc_config.nrd_max_lane_count) {
-						link->reported_link_cap.link_rate =
-							link->dpia_bw_alloc_config.nrd_max_link_rate;
-						link->reported_link_cap.lane_count =
-							link->dpia_bw_alloc_config.nrd_max_lane_count;
-					}
-				}
+			if (link->dpcd_caps.usb4_dp_tun_info.dp_tun_cap.bits.dp_tunneling
+					&& link->dpcd_caps.usb4_dp_tun_info.dp_tun_cap.bits.dpia_bw_alloc
+					&& link->dpcd_caps.usb4_dp_tun_info.driver_bw_cap.bits.driver_bw_alloc_support) {
+				if (link_dpia_enable_usb4_dp_bw_alloc_mode(link) == false)
+					link->dpcd_caps.usb4_dp_tun_info.dp_tun_cap.bits.dpia_bw_alloc = false;
 			}
 			break;
 		}

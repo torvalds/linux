@@ -181,7 +181,7 @@ void amdgpu_userq_fence_driver_destroy(struct kref *ref)
 	unsigned long index, flags;
 	struct dma_fence *f;
 
-	spin_lock(&fence_drv->fence_list_lock);
+	spin_lock_irqsave(&fence_drv->fence_list_lock, flags);
 	list_for_each_entry_safe(fence, tmp, &fence_drv->fences, link) {
 		f = &fence->base;
 
@@ -193,7 +193,7 @@ void amdgpu_userq_fence_driver_destroy(struct kref *ref)
 		list_del(&fence->link);
 		dma_fence_put(f);
 	}
-	spin_unlock(&fence_drv->fence_list_lock);
+	spin_unlock_irqrestore(&fence_drv->fence_list_lock, flags);
 
 	xa_lock_irqsave(xa, flags);
 	xa_for_each(xa, index, xa_fence_drv)
@@ -859,8 +859,10 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 		num_fences = dma_fence_dedup_array(fences, num_fences);
 
 		waitq = idr_find(&userq_mgr->userq_idr, wait_info->waitq_id);
-		if (!waitq)
+		if (!waitq) {
+			r = -EINVAL;
 			goto free_fences;
+		}
 
 		for (i = 0, cnt = 0; i < num_fences; i++) {
 			struct amdgpu_userq_fence_driver *fence_drv;
