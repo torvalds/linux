@@ -11,6 +11,8 @@
 
 /* DP_TX Registers */
 #define REG_DP_HW_VERSION			(0x00000000)
+#define DP_HW_VERSION_1_0	0x10000000
+#define DP_HW_VERSION_1_2	0x10020000
 
 #define REG_DP_SW_RESET				(0x00000010)
 #define DP_SW_RESET				(0x00000001)

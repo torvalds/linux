@@ -11,7 +11,6 @@
 #include <drm/display/drm_dp_helper.h>
 #include <drm/drm_edid.h>
 
-#include "dp_catalog.h"
 #include "dp_audio.h"
 #include "dp_drm.h"
 #include "dp_panel.h"
@@ -22,16 +21,30 @@
 struct msm_dp_audio_private {
 	struct platform_device *pdev;
 	struct drm_device *drm_dev;
-	struct msm_dp_catalog *catalog;
+	void __iomem *link_base;
 
 	u32 channels;
 
 	struct msm_dp_audio msm_dp_audio;
 };
 
+static inline u32 msm_dp_read_link(struct msm_dp_audio_private *audio, u32 offset)
+{
+	return readl_relaxed(audio->link_base + offset);
+}
+
+static inline void msm_dp_write_link(struct msm_dp_audio_private *audio,
+			       u32 offset, u32 data)
+{
+	/*
+	 * To make sure link reg writes happens before any other operation,
+	 * this function uses writel() instread of writel_relaxed()
+	 */
+	writel(data, audio->link_base + offset);
+}
+
 static void msm_dp_audio_stream_sdp(struct msm_dp_audio_private *audio)
 {
-	struct msm_dp_catalog *catalog = audio->catalog;
 	struct dp_sdp_header sdp_hdr = {
 		.HB0 = 0x00,
 		.HB1 = 0x02,
@@ -42,13 +55,12 @@ static void msm_dp_audio_stream_sdp(struct msm_dp_audio_private *audio)
 
 	msm_dp_utils_pack_sdp_header(&sdp_hdr, header);
 
-	msm_dp_write_link(catalog, MMSS_DP_AUDIO_STREAM_0, header[0]);
-	msm_dp_write_link(catalog, MMSS_DP_AUDIO_STREAM_1, header[1]);
+	msm_dp_write_link(audio, MMSS_DP_AUDIO_STREAM_0, header[0]);
+	msm_dp_write_link(audio, MMSS_DP_AUDIO_STREAM_1, header[1]);
 }
 
 static void msm_dp_audio_timestamp_sdp(struct msm_dp_audio_private *audio)
 {
-	struct msm_dp_catalog *catalog = audio->catalog;
 	struct dp_sdp_header sdp_hdr = {
 		.HB0 = 0x00,
 		.HB1 = 0x01,
@@ -59,13 +71,12 @@ static void msm_dp_audio_timestamp_sdp(struct msm_dp_audio_private *audio)
 
 	msm_dp_utils_pack_sdp_header(&sdp_hdr, header);
 
-	msm_dp_write_link(catalog, MMSS_DP_AUDIO_TIMESTAMP_0, header[0]);
-	msm_dp_write_link(catalog, MMSS_DP_AUDIO_TIMESTAMP_1, header[1]);
+	msm_dp_write_link(audio, MMSS_DP_AUDIO_TIMESTAMP_0, header[0]);
+	msm_dp_write_link(audio, MMSS_DP_AUDIO_TIMESTAMP_1, header[1]);
 }
 
 static void msm_dp_audio_infoframe_sdp(struct msm_dp_audio_private *audio)
 {
-	struct msm_dp_catalog *catalog = audio->catalog;
 	struct dp_sdp_header sdp_hdr = {
 		.HB0 = 0x00,
 		.HB1 = 0x84,
@@ -76,13 +87,12 @@ static void msm_dp_audio_infoframe_sdp(struct msm_dp_audio_private *audio)
 
 	msm_dp_utils_pack_sdp_header(&sdp_hdr, header);
 
-	msm_dp_write_link(catalog, MMSS_DP_AUDIO_INFOFRAME_0, header[0]);
-	msm_dp_write_link(catalog, MMSS_DP_AUDIO_INFOFRAME_1, header[1]);
+	msm_dp_write_link(audio, MMSS_DP_AUDIO_INFOFRAME_0, header[0]);
+	msm_dp_write_link(audio, MMSS_DP_AUDIO_INFOFRAME_1, header[1]);
 }
 
 static void msm_dp_audio_copy_management_sdp(struct msm_dp_audio_private *audio)
 {
-	struct msm_dp_catalog *catalog = audio->catalog;
 	struct dp_sdp_header sdp_hdr = {
 		.HB0 = 0x00,
 		.HB1 = 0x05,
@@ -93,13 +103,12 @@ static void msm_dp_audio_copy_management_sdp(struct msm_dp_audio_private *audio)
 
 	msm_dp_utils_pack_sdp_header(&sdp_hdr, header);
 
-	msm_dp_write_link(catalog, MMSS_DP_AUDIO_COPYMANAGEMENT_0, header[0]);
-	msm_dp_write_link(catalog, MMSS_DP_AUDIO_COPYMANAGEMENT_1, header[1]);
+	msm_dp_write_link(audio, MMSS_DP_AUDIO_COPYMANAGEMENT_0, header[0]);
+	msm_dp_write_link(audio, MMSS_DP_AUDIO_COPYMANAGEMENT_1, header[1]);
 }
 
 static void msm_dp_audio_isrc_sdp(struct msm_dp_audio_private *audio)
 {
-	struct msm_dp_catalog *catalog = audio->catalog;
 	struct dp_sdp_header sdp_hdr = {
 		.HB0 = 0x00,
 		.HB1 = 0x06,
@@ -110,21 +119,20 @@ static void msm_dp_audio_isrc_sdp(struct msm_dp_audio_private *audio)
 	u32 reg;
 
 	/* XXX: is it necessary to preserve this field? */
-	reg = msm_dp_read_link(catalog, MMSS_DP_AUDIO_ISRC_1);
+	reg = msm_dp_read_link(audio, MMSS_DP_AUDIO_ISRC_1);
 	sdp_hdr.HB3 = FIELD_GET(HEADER_3_MASK, reg);
 
 	msm_dp_utils_pack_sdp_header(&sdp_hdr, header);
 
-	msm_dp_write_link(catalog, MMSS_DP_AUDIO_ISRC_0, header[0]);
-	msm_dp_write_link(catalog, MMSS_DP_AUDIO_ISRC_1, header[1]);
+	msm_dp_write_link(audio, MMSS_DP_AUDIO_ISRC_0, header[0]);
+	msm_dp_write_link(audio, MMSS_DP_AUDIO_ISRC_1, header[1]);
 }
 
 static void msm_dp_audio_config_sdp(struct msm_dp_audio_private *audio)
 {
-	struct msm_dp_catalog *msm_dp_catalog = audio->catalog;
 	u32 sdp_cfg, sdp_cfg2;
 
-	sdp_cfg = msm_dp_read_link(msm_dp_catalog, MMSS_DP_SDP_CFG);
+	sdp_cfg = msm_dp_read_link(audio, MMSS_DP_SDP_CFG);
 	/* AUDIO_TIMESTAMP_SDP_EN */
 	sdp_cfg |= BIT(1);
 	/* AUDIO_STREAM_SDP_EN */
@@ -138,9 +146,9 @@ static void msm_dp_audio_config_sdp(struct msm_dp_audio_private *audio)
 
 	drm_dbg_dp(audio->drm_dev, "sdp_cfg = 0x%x\n", sdp_cfg);
 
-	msm_dp_write_link(msm_dp_catalog, MMSS_DP_SDP_CFG, sdp_cfg);
+	msm_dp_write_link(audio, MMSS_DP_SDP_CFG, sdp_cfg);
 
-	sdp_cfg2 = msm_dp_read_link(msm_dp_catalog, MMSS_DP_SDP_CFG2);
+	sdp_cfg2 = msm_dp_read_link(audio, MMSS_DP_SDP_CFG2);
 	/* IFRM_REGSRC -> Do not use reg values */
 	sdp_cfg2 &= ~BIT(0);
 	/* AUDIO_STREAM_HB3_REGSRC-> Do not use reg values */
@@ -148,7 +156,7 @@ static void msm_dp_audio_config_sdp(struct msm_dp_audio_private *audio)
 
 	drm_dbg_dp(audio->drm_dev, "sdp_cfg2 = 0x%x\n", sdp_cfg2);
 
-	msm_dp_write_link(msm_dp_catalog, MMSS_DP_SDP_CFG2, sdp_cfg2);
+	msm_dp_write_link(audio, MMSS_DP_SDP_CFG2, sdp_cfg2);
 }
 
 static void msm_dp_audio_setup_sdp(struct msm_dp_audio_private *audio)
@@ -190,7 +198,7 @@ static void msm_dp_audio_setup_acr(struct msm_dp_audio_private *audio)
 	drm_dbg_dp(audio->drm_dev, "select: %#x, acr_ctrl: %#x\n",
 		   select, acr_ctrl);
 
-	msm_dp_write_link(audio->catalog, MMSS_DP_AUDIO_ACR_CTRL, acr_ctrl);
+	msm_dp_write_link(audio, MMSS_DP_AUDIO_ACR_CTRL, acr_ctrl);
 }
 
 static void msm_dp_audio_safe_to_exit_level(struct msm_dp_audio_private *audio)
@@ -215,7 +223,7 @@ static void msm_dp_audio_safe_to_exit_level(struct msm_dp_audio_private *audio)
 		break;
 	}
 
-	mainlink_levels = msm_dp_read_link(audio->catalog, REG_DP_MAINLINK_LEVELS);
+	mainlink_levels = msm_dp_read_link(audio, REG_DP_MAINLINK_LEVELS);
 	mainlink_levels &= 0xFE0;
 	mainlink_levels |= safe_to_exit_level;
 
@@ -223,14 +231,14 @@ static void msm_dp_audio_safe_to_exit_level(struct msm_dp_audio_private *audio)
 		   "mainlink_level = 0x%x, safe_to_exit_level = 0x%x\n",
 		   mainlink_levels, safe_to_exit_level);
 
-	msm_dp_write_link(audio->catalog, REG_DP_MAINLINK_LEVELS, mainlink_levels);
+	msm_dp_write_link(audio, REG_DP_MAINLINK_LEVELS, mainlink_levels);
 }
 
 static void msm_dp_audio_enable(struct msm_dp_audio_private *audio, bool enable)
 {
 	u32 audio_ctrl;
 
-	audio_ctrl = msm_dp_read_link(audio->catalog, MMSS_DP_AUDIO_CFG);
+	audio_ctrl = msm_dp_read_link(audio, MMSS_DP_AUDIO_CFG);
 
 	if (enable)
 		audio_ctrl |= BIT(0);
@@ -239,7 +247,7 @@ static void msm_dp_audio_enable(struct msm_dp_audio_private *audio, bool enable)
 
 	drm_dbg_dp(audio->drm_dev, "dp_audio_cfg = 0x%x\n", audio_ctrl);
 
-	msm_dp_write_link(audio->catalog, MMSS_DP_AUDIO_CFG, audio_ctrl);
+	msm_dp_write_link(audio, MMSS_DP_AUDIO_CFG, audio_ctrl);
 	/* make sure audio engine is disabled */
 	wmb();
 }
@@ -330,13 +338,13 @@ void msm_dp_audio_shutdown(struct drm_connector *connector,
 }
 
 struct msm_dp_audio *msm_dp_audio_get(struct platform_device *pdev,
-			struct msm_dp_catalog *catalog)
+			      void __iomem *link_base)
 {
 	int rc = 0;
 	struct msm_dp_audio_private *audio;
 	struct msm_dp_audio *msm_dp_audio;
 
-	if (!pdev || !catalog) {
+	if (!pdev) {
 		DRM_ERROR("invalid input\n");
 		rc = -EINVAL;
 		goto error;
@@ -349,7 +357,7 @@ struct msm_dp_audio *msm_dp_audio_get(struct platform_device *pdev,
 	}
 
 	audio->pdev = pdev;
-	audio->catalog = catalog;
+	audio->link_base = link_base;
 
 	msm_dp_audio = &audio->msm_dp_audio;
 

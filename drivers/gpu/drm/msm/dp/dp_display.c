@@ -19,7 +19,6 @@
 #include "msm_drv.h"
 #include "msm_kms.h"
 #include "dp_ctrl.h"
-#include "dp_catalog.h"
 #include "dp_aux.h"
 #include "dp_reg.h"
 #include "dp_link.h"
@@ -87,7 +86,6 @@ struct msm_dp_display_private {
 
 	struct drm_device *drm_dev;
 
-	struct msm_dp_catalog *catalog;
 	struct drm_dp_aux *aux;
 	struct msm_dp_link    *link;
 	struct msm_dp_panel   *panel;
@@ -112,6 +110,18 @@ struct msm_dp_display_private {
 	bool wide_bus_supported;
 
 	struct msm_dp_audio *audio;
+
+	void __iomem *ahb_base;
+	size_t ahb_len;
+
+	void __iomem *aux_base;
+	size_t aux_len;
+
+	void __iomem *link_base;
+	size_t link_len;
+
+	void __iomem *p0_base;
+	size_t p0_len;
 };
 
 struct msm_dp_desc {
@@ -756,21 +766,10 @@ static int msm_dp_init_sub_modules(struct msm_dp_display_private *dp)
 			      dp->msm_dp_display.is_edp ? PHY_SUBMODE_EDP : PHY_SUBMODE_DP);
 	if (rc) {
 		DRM_ERROR("failed to set phy submode, rc = %d\n", rc);
-		dp->catalog = NULL;
 		goto error;
 	}
 
-	dp->catalog = msm_dp_catalog_get(dev);
-	if (IS_ERR(dp->catalog)) {
-		rc = PTR_ERR(dp->catalog);
-		DRM_ERROR("failed to initialize catalog, rc = %d\n", rc);
-		dp->catalog = NULL;
-		goto error;
-	}
-
-	dp->aux = msm_dp_aux_get(dev, dp->catalog,
-			     phy,
-			     dp->msm_dp_display.is_edp);
+	dp->aux = msm_dp_aux_get(dev, phy, dp->msm_dp_display.is_edp, dp->aux_base);
 	if (IS_ERR(dp->aux)) {
 		rc = PTR_ERR(dp->aux);
 		DRM_ERROR("failed to initialize aux, rc = %d\n", rc);
@@ -786,7 +785,7 @@ static int msm_dp_init_sub_modules(struct msm_dp_display_private *dp)
 		goto error_link;
 	}
 
-	dp->panel = msm_dp_panel_get(dev, dp->aux, dp->link, dp->catalog);
+	dp->panel = msm_dp_panel_get(dev, dp->aux, dp->link, dp->link_base, dp->p0_base);
 	if (IS_ERR(dp->panel)) {
 		rc = PTR_ERR(dp->panel);
 		DRM_ERROR("failed to initialize panel, rc = %d\n", rc);
@@ -795,8 +794,7 @@ static int msm_dp_init_sub_modules(struct msm_dp_display_private *dp)
 	}
 
 	dp->ctrl = msm_dp_ctrl_get(dev, dp->link, dp->panel, dp->aux,
-			       dp->catalog,
-			       phy);
+			       phy, dp->ahb_base, dp->link_base);
 	if (IS_ERR(dp->ctrl)) {
 		rc = PTR_ERR(dp->ctrl);
 		DRM_ERROR("failed to initialize ctrl, rc = %d\n", rc);
@@ -804,7 +802,7 @@ static int msm_dp_init_sub_modules(struct msm_dp_display_private *dp)
 		goto error_ctrl;
 	}
 
-	dp->audio = msm_dp_audio_get(dp->msm_dp_display.pdev, dp->catalog);
+	dp->audio = msm_dp_audio_get(dp->msm_dp_display.pdev, dp->link_base);
 	if (IS_ERR(dp->audio)) {
 		rc = PTR_ERR(dp->audio);
 		pr_err("failed to initialize audio, rc = %d\n", rc);
@@ -1027,7 +1025,14 @@ void msm_dp_snapshot(struct msm_disp_state *disp_state, struct msm_dp *dp)
 		return;
 	}
 
-	msm_dp_catalog_snapshot(msm_dp_display->catalog, disp_state);
+	msm_disp_snapshot_add_block(disp_state, msm_dp_display->ahb_len,
+				    msm_dp_display->ahb_base, "dp_ahb");
+	msm_disp_snapshot_add_block(disp_state, msm_dp_display->aux_len,
+				    msm_dp_display->aux_base, "dp_aux");
+	msm_disp_snapshot_add_block(disp_state, msm_dp_display->link_len,
+				    msm_dp_display->link_base, "dp_link");
+	msm_disp_snapshot_add_block(disp_state, msm_dp_display->p0_len,
+				    msm_dp_display->p0_base, "dp_p0");
 
 	mutex_unlock(&msm_dp_display->event_mutex);
 }
@@ -1274,6 +1279,80 @@ static int msm_dp_display_get_connector_type(struct platform_device *pdev,
 	return connector_type;
 }
 
+static void __iomem *msm_dp_ioremap(struct platform_device *pdev, int idx, size_t *len)
+{
+	struct resource *res;
+	void __iomem *base;
+
+	base = devm_platform_get_and_ioremap_resource(pdev, idx, &res);
+	if (!IS_ERR(base))
+		*len = resource_size(res);
+
+	return base;
+}
+
+#define DP_DEFAULT_AHB_OFFSET	0x0000
+#define DP_DEFAULT_AHB_SIZE	0x0200
+#define DP_DEFAULT_AUX_OFFSET	0x0200
+#define DP_DEFAULT_AUX_SIZE	0x0200
+#define DP_DEFAULT_LINK_OFFSET	0x0400
+#define DP_DEFAULT_LINK_SIZE	0x0C00
+#define DP_DEFAULT_P0_OFFSET	0x1000
+#define DP_DEFAULT_P0_SIZE	0x0400
+
+static int msm_dp_display_get_io(struct msm_dp_display_private *display)
+{
+	struct platform_device *pdev = display->msm_dp_display.pdev;
+
+	display->ahb_base = msm_dp_ioremap(pdev, 0, &display->ahb_len);
+	if (IS_ERR(display->ahb_base))
+		return PTR_ERR(display->ahb_base);
+
+	display->aux_base = msm_dp_ioremap(pdev, 1, &display->aux_len);
+	if (IS_ERR(display->aux_base)) {
+		if (display->aux_base != ERR_PTR(-EINVAL)) {
+			DRM_ERROR("unable to remap aux region: %pe\n", display->aux_base);
+			return PTR_ERR(display->aux_base);
+		}
+
+		/*
+		 * The initial binding had a single reg, but in order to
+		 * support variation in the sub-region sizes this was split.
+		 * msm_dp_ioremap() will fail with -EINVAL here if only a single
+		 * reg is specified, so fill in the sub-region offsets and
+		 * lengths based on this single region.
+		 */
+		if (display->ahb_len < DP_DEFAULT_P0_OFFSET + DP_DEFAULT_P0_SIZE) {
+			DRM_ERROR("legacy memory region not large enough\n");
+			return -EINVAL;
+		}
+
+		display->ahb_len = DP_DEFAULT_AHB_SIZE;
+		display->aux_base = display->ahb_base + DP_DEFAULT_AUX_OFFSET;
+		display->aux_len = DP_DEFAULT_AUX_SIZE;
+		display->link_base = display->ahb_base + DP_DEFAULT_LINK_OFFSET;
+		display->link_len = DP_DEFAULT_LINK_SIZE;
+		display->p0_base = display->ahb_base + DP_DEFAULT_P0_OFFSET;
+		display->p0_len = DP_DEFAULT_P0_SIZE;
+
+		return 0;
+	}
+
+	display->link_base = msm_dp_ioremap(pdev, 2, &display->link_len);
+	if (IS_ERR(display->link_base)) {
+		DRM_ERROR("unable to remap link region: %pe\n", display->link_base);
+		return PTR_ERR(display->link_base);
+	}
+
+	display->p0_base = msm_dp_ioremap(pdev, 3, &display->p0_len);
+	if (IS_ERR(display->p0_base)) {
+		DRM_ERROR("unable to remap p0 region: %pe\n", display->p0_base);
+		return PTR_ERR(display->p0_base);
+	}
+
+	return 0;
+}
+
 static int msm_dp_display_probe(struct platform_device *pdev)
 {
 	int rc = 0;
@@ -1299,6 +1378,10 @@ static int msm_dp_display_probe(struct platform_device *pdev)
 	dp->wide_bus_supported = desc->wide_bus_supported;
 	dp->msm_dp_display.is_edp =
 		(dp->msm_dp_display.connector_type == DRM_MODE_CONNECTOR_eDP);
+
+	rc = msm_dp_display_get_io(dp);
+	if (rc)
+		return rc;
 
 	rc = msm_dp_init_sub_modules(dp);
 	if (rc) {
@@ -1644,8 +1727,6 @@ void msm_dp_bridge_mode_set(struct drm_bridge *drm_bridge,
 
 	/* populate wide_bus_support to different layers */
 	msm_dp_display->ctrl->wide_bus_en =
-		msm_dp_display->msm_dp_mode.out_fmt_is_yuv_420 ? false : msm_dp_display->wide_bus_supported;
-	msm_dp_display->catalog->wide_bus_en =
 		msm_dp_display->msm_dp_mode.out_fmt_is_yuv_420 ? false : msm_dp_display->wide_bus_supported;
 }
 
