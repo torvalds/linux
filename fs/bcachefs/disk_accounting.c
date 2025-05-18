@@ -580,11 +580,11 @@ int bch2_gc_accounting_done(struct bch_fs *c)
 			prt_str(&buf, "accounting mismatch for ");
 			bch2_accounting_key_to_text(&buf, &acc_k);
 
-			prt_str(&buf, ": got");
+			prt_str(&buf, ":\n      got");
 			for (unsigned j = 0; j < nr; j++)
 				prt_printf(&buf, " %llu", dst_v[j]);
 
-			prt_str(&buf, " should be");
+			prt_str(&buf,  "\nshould be");
 			for (unsigned j = 0; j < nr; j++)
 				prt_printf(&buf, " %llu", src_v[j]);
 
