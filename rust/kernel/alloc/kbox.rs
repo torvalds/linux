@@ -57,12 +57,50 @@ use pin_init::{InPlaceWrite, Init, PinInit, ZeroableOption};
 /// assert!(KVBox::<Huge>::new_uninit(GFP_KERNEL).is_ok());
 /// ```
 ///
+/// [`Box`]es can also be used to store trait objects by coercing their type:
+///
+/// ```
+/// trait FooTrait {}
+///
+/// struct FooStruct;
+/// impl FooTrait for FooStruct {}
+///
+/// let _ = KBox::new(FooStruct, GFP_KERNEL)? as KBox<dyn FooTrait>;
+/// # Ok::<(), Error>(())
+/// ```
+///
 /// # Invariants
 ///
 /// `self.0` is always properly aligned and either points to memory allocated with `A` or, for
 /// zero-sized types, is a dangling, well aligned pointer.
 #[repr(transparent)]
-pub struct Box<T: ?Sized, A: Allocator>(NonNull<T>, PhantomData<A>);
+#[cfg_attr(CONFIG_RUSTC_HAS_COERCE_POINTEE, derive(core::marker::CoercePointee))]
+pub struct Box<#[cfg_attr(CONFIG_RUSTC_HAS_COERCE_POINTEE, pointee)] T: ?Sized, A: Allocator>(
+    NonNull<T>,
+    PhantomData<A>,
+);
+
+// This is to allow coercion from `Box<T, A>` to `Box<U, A>` if `T` can be converted to the
+// dynamically-sized type (DST) `U`.
+#[cfg(not(CONFIG_RUSTC_HAS_COERCE_POINTEE))]
+impl<T, U, A> core::ops::CoerceUnsized<Box<U, A>> for Box<T, A>
+where
+    T: ?Sized + core::marker::Unsize<U>,
+    U: ?Sized,
+    A: Allocator,
+{
+}
+
+// This is to allow `Box<U, A>` to be dispatched on when `Box<T, A>` can be coerced into `Box<U,
+// A>`.
+#[cfg(not(CONFIG_RUSTC_HAS_COERCE_POINTEE))]
+impl<T, U, A> core::ops::DispatchFromDyn<Box<U, A>> for Box<T, A>
+where
+    T: ?Sized + core::marker::Unsize<U>,
+    U: ?Sized,
+    A: Allocator,
+{
+}
 
 /// Type alias for [`Box`] with a [`Kmalloc`] allocator.
 ///
