@@ -6,6 +6,7 @@
 #define pr_fmt(fmt)	"[drm-dp] %s: " fmt, __func__
 
 #include <linux/types.h>
+#include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/iopoll.h>
@@ -16,6 +17,7 @@
 #include <linux/string_choices.h>
 
 #include <drm/display/drm_dp_helper.h>
+#include <drm/drm_device.h>
 #include <drm/drm_fixed.h>
 #include <drm/drm_print.h>
 
@@ -114,7 +116,8 @@ struct msm_dp_ctrl_private {
 	struct drm_dp_aux *aux;
 	struct msm_dp_panel *panel;
 	struct msm_dp_link *link;
-	struct msm_dp_catalog *catalog;
+	void __iomem *ahb_base;
+	void __iomem *link_base;
 
 	struct phy *phy;
 
@@ -138,6 +141,36 @@ struct msm_dp_ctrl_private {
 	bool link_clks_on;
 	bool stream_clks_on;
 };
+
+static inline u32 msm_dp_read_ahb(const struct msm_dp_ctrl_private *ctrl, u32 offset)
+{
+	return readl_relaxed(ctrl->ahb_base + offset);
+}
+
+static inline void msm_dp_write_ahb(struct msm_dp_ctrl_private *ctrl,
+			       u32 offset, u32 data)
+{
+	/*
+	 * To make sure phy reg writes happens before any other operation,
+	 * this function uses writel() instread of writel_relaxed()
+	 */
+	writel(data, ctrl->ahb_base + offset);
+}
+
+static inline u32 msm_dp_read_link(struct msm_dp_ctrl_private *ctrl, u32 offset)
+{
+	return readl_relaxed(ctrl->link_base + offset);
+}
+
+static inline void msm_dp_write_link(struct msm_dp_ctrl_private *ctrl,
+			       u32 offset, u32 data)
+{
+	/*
+	 * To make sure link reg writes happens before any other operation,
+	 * this function uses writel() instread of writel_relaxed()
+	 */
+	writel(data, ctrl->link_base + offset);
+}
 
 static int msm_dp_aux_link_configure(struct drm_dp_aux *aux,
 					struct msm_dp_link_info *link)
@@ -165,34 +198,32 @@ void msm_dp_ctrl_reset(struct msm_dp_ctrl *msm_dp_ctrl)
 {
 	struct msm_dp_ctrl_private *ctrl =
 		container_of(msm_dp_ctrl, struct msm_dp_ctrl_private, msm_dp_ctrl);
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
 	u32 sw_reset;
 
-	sw_reset = msm_dp_read_ahb(msm_dp_catalog, REG_DP_SW_RESET);
+	sw_reset = msm_dp_read_ahb(ctrl, REG_DP_SW_RESET);
 
 	sw_reset |= DP_SW_RESET;
-	msm_dp_write_ahb(msm_dp_catalog, REG_DP_SW_RESET, sw_reset);
+	msm_dp_write_ahb(ctrl, REG_DP_SW_RESET, sw_reset);
 	usleep_range(1000, 1100); /* h/w recommended delay */
 
 	sw_reset &= ~DP_SW_RESET;
-	msm_dp_write_ahb(msm_dp_catalog, REG_DP_SW_RESET, sw_reset);
+	msm_dp_write_ahb(ctrl, REG_DP_SW_RESET, sw_reset);
 
 	if (!ctrl->hw_revision) {
-		ctrl->hw_revision = msm_dp_read_ahb(msm_dp_catalog, REG_DP_HW_VERSION);
+		ctrl->hw_revision = msm_dp_read_ahb(ctrl, REG_DP_HW_VERSION);
 		ctrl->panel->hw_revision = ctrl->hw_revision;
 	}
 }
 
 static u32 msm_dp_ctrl_get_aux_interrupt(struct msm_dp_ctrl_private *ctrl)
 {
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
 	u32 intr, intr_ack;
 
-	intr = msm_dp_read_ahb(msm_dp_catalog, REG_DP_INTR_STATUS);
+	intr = msm_dp_read_ahb(ctrl, REG_DP_INTR_STATUS);
 	intr &= ~DP_INTERRUPT_STATUS1_MASK;
 	intr_ack = (intr & DP_INTERRUPT_STATUS1)
 			<< DP_INTERRUPT_STATUS_ACK_SHIFT;
-	msm_dp_write_ahb(msm_dp_catalog, REG_DP_INTR_STATUS,
+	msm_dp_write_ahb(ctrl, REG_DP_INTR_STATUS,
 		     intr_ack | DP_INTERRUPT_STATUS1_MASK);
 
 	return intr;
@@ -201,14 +232,13 @@ static u32 msm_dp_ctrl_get_aux_interrupt(struct msm_dp_ctrl_private *ctrl)
 
 static u32 msm_dp_ctrl_get_interrupt(struct msm_dp_ctrl_private *ctrl)
 {
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
 	u32 intr, intr_ack;
 
-	intr = msm_dp_read_ahb(msm_dp_catalog, REG_DP_INTR_STATUS2);
+	intr = msm_dp_read_ahb(ctrl, REG_DP_INTR_STATUS2);
 	intr &= ~DP_INTERRUPT_STATUS2_MASK;
 	intr_ack = (intr & DP_INTERRUPT_STATUS2)
 			<< DP_INTERRUPT_STATUS_ACK_SHIFT;
-	msm_dp_write_ahb(msm_dp_catalog, REG_DP_INTR_STATUS2,
+	msm_dp_write_ahb(ctrl, REG_DP_INTR_STATUS2,
 		     intr_ack | DP_INTERRUPT_STATUS2_MASK);
 
 	return intr;
@@ -218,11 +248,10 @@ void msm_dp_ctrl_enable_irq(struct msm_dp_ctrl *msm_dp_ctrl)
 {
 	struct msm_dp_ctrl_private *ctrl =
 		container_of(msm_dp_ctrl, struct msm_dp_ctrl_private, msm_dp_ctrl);
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
 
-	msm_dp_write_ahb(msm_dp_catalog, REG_DP_INTR_STATUS,
+	msm_dp_write_ahb(ctrl, REG_DP_INTR_STATUS,
 			DP_INTERRUPT_STATUS1_MASK);
-	msm_dp_write_ahb(msm_dp_catalog, REG_DP_INTR_STATUS2,
+	msm_dp_write_ahb(ctrl, REG_DP_INTR_STATUS2,
 			DP_INTERRUPT_STATUS2_MASK);
 }
 
@@ -230,111 +259,101 @@ void msm_dp_ctrl_disable_irq(struct msm_dp_ctrl *msm_dp_ctrl)
 {
 	struct msm_dp_ctrl_private *ctrl =
 		container_of(msm_dp_ctrl, struct msm_dp_ctrl_private, msm_dp_ctrl);
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
 
-	msm_dp_write_ahb(msm_dp_catalog, REG_DP_INTR_STATUS, 0x00);
-	msm_dp_write_ahb(msm_dp_catalog, REG_DP_INTR_STATUS2, 0x00);
+	msm_dp_write_ahb(ctrl, REG_DP_INTR_STATUS, 0x00);
+	msm_dp_write_ahb(ctrl, REG_DP_INTR_STATUS2, 0x00);
 }
 
 static u32 msm_dp_ctrl_get_psr_interrupt(struct msm_dp_ctrl_private *ctrl)
 {
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
 	u32 intr, intr_ack;
 
-	intr = msm_dp_read_ahb(msm_dp_catalog, REG_DP_INTR_STATUS4);
+	intr = msm_dp_read_ahb(ctrl, REG_DP_INTR_STATUS4);
 	intr_ack = (intr & DP_INTERRUPT_STATUS4)
 			<< DP_INTERRUPT_STATUS_ACK_SHIFT;
-	msm_dp_write_ahb(msm_dp_catalog, REG_DP_INTR_STATUS4, intr_ack);
+	msm_dp_write_ahb(ctrl, REG_DP_INTR_STATUS4, intr_ack);
 
 	return intr;
 }
 
 static void msm_dp_ctrl_config_psr_interrupt(struct msm_dp_ctrl_private *ctrl)
 {
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
-
-	msm_dp_write_ahb(msm_dp_catalog, REG_DP_INTR_MASK4, DP_INTERRUPT_MASK4);
+	msm_dp_write_ahb(ctrl, REG_DP_INTR_MASK4, DP_INTERRUPT_MASK4);
 }
 
 static void msm_dp_ctrl_psr_mainlink_enable(struct msm_dp_ctrl_private *ctrl)
 {
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
 	u32 val;
 
-	val = msm_dp_read_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL);
+	val = msm_dp_read_link(ctrl, REG_DP_MAINLINK_CTRL);
 	val |= DP_MAINLINK_CTRL_ENABLE;
-	msm_dp_write_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL, val);
+	msm_dp_write_link(ctrl, REG_DP_MAINLINK_CTRL, val);
 }
 
 static void msm_dp_ctrl_psr_mainlink_disable(struct msm_dp_ctrl_private *ctrl)
 {
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
 	u32 val;
 
-	val = msm_dp_read_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL);
+	val = msm_dp_read_link(ctrl, REG_DP_MAINLINK_CTRL);
 	val &= ~DP_MAINLINK_CTRL_ENABLE;
-	msm_dp_write_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL, val);
+	msm_dp_write_link(ctrl, REG_DP_MAINLINK_CTRL, val);
 }
 
 static void msm_dp_ctrl_mainlink_enable(struct msm_dp_ctrl_private *ctrl)
 {
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
 	u32 mainlink_ctrl;
 
 	drm_dbg_dp(ctrl->drm_dev, "enable\n");
 
-	mainlink_ctrl = msm_dp_read_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL);
+	mainlink_ctrl = msm_dp_read_link(ctrl, REG_DP_MAINLINK_CTRL);
 
 	mainlink_ctrl &= ~(DP_MAINLINK_CTRL_RESET |
 					DP_MAINLINK_CTRL_ENABLE);
-	msm_dp_write_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
+	msm_dp_write_link(ctrl, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
 
 	mainlink_ctrl |= DP_MAINLINK_CTRL_RESET;
-	msm_dp_write_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
+	msm_dp_write_link(ctrl, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
 
 	mainlink_ctrl &= ~DP_MAINLINK_CTRL_RESET;
-	msm_dp_write_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
+	msm_dp_write_link(ctrl, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
 
 	mainlink_ctrl |= (DP_MAINLINK_CTRL_ENABLE |
 				DP_MAINLINK_FB_BOUNDARY_SEL);
-	msm_dp_write_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
+	msm_dp_write_link(ctrl, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
 }
 
 static void msm_dp_ctrl_mainlink_disable(struct msm_dp_ctrl_private *ctrl)
 {
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
 	u32 mainlink_ctrl;
 
 	drm_dbg_dp(ctrl->drm_dev, "disable\n");
 
-	mainlink_ctrl = msm_dp_read_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL);
+	mainlink_ctrl = msm_dp_read_link(ctrl, REG_DP_MAINLINK_CTRL);
 	mainlink_ctrl &= ~DP_MAINLINK_CTRL_ENABLE;
-	msm_dp_write_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
+	msm_dp_write_link(ctrl, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
 }
 
 static void msm_dp_setup_peripheral_flush(struct msm_dp_ctrl_private *ctrl)
 {
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
 	u32 mainlink_ctrl;
 
-	mainlink_ctrl = msm_dp_read_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL);
+	mainlink_ctrl = msm_dp_read_link(ctrl, REG_DP_MAINLINK_CTRL);
 
 	if (ctrl->hw_revision >= DP_HW_VERSION_1_2)
 		mainlink_ctrl |= DP_MAINLINK_FLUSH_MODE_SDE_PERIPH_UPDATE;
 	else
 		mainlink_ctrl |= DP_MAINLINK_FLUSH_MODE_UPDATE_SDP;
 
-	msm_dp_write_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
+	msm_dp_write_link(ctrl, REG_DP_MAINLINK_CTRL, mainlink_ctrl);
 }
 
 static bool msm_dp_ctrl_mainlink_ready(struct msm_dp_ctrl_private *ctrl)
 {
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
 	u32 data;
 	int ret;
 
 	/* Poll for mainlink ready status */
-	ret = readl_poll_timeout(msm_dp_catalog->link_base + REG_DP_MAINLINK_READY,
+	ret = readl_poll_timeout(ctrl->link_base + REG_DP_MAINLINK_READY,
 				data, data & DP_MAINLINK_READY_FOR_VIDEO,
 				POLLING_SLEEP_US, POLLING_TIMEOUT_US);
 	if (ret < 0) {
@@ -352,7 +371,7 @@ void msm_dp_ctrl_push_idle(struct msm_dp_ctrl *msm_dp_ctrl)
 	ctrl = container_of(msm_dp_ctrl, struct msm_dp_ctrl_private, msm_dp_ctrl);
 
 	reinit_completion(&ctrl->idle_comp);
-	msm_dp_write_link(ctrl->catalog, REG_DP_STATE_CTRL, DP_STATE_CTRL_PUSH_IDLE);
+	msm_dp_write_link(ctrl, REG_DP_STATE_CTRL, DP_STATE_CTRL_PUSH_IDLE);
 
 	if (!wait_for_completion_timeout(&ctrl->idle_comp,
 			IDLE_PATTERN_COMPLETION_TIMEOUT_JIFFIES))
@@ -399,12 +418,11 @@ static void msm_dp_ctrl_config_ctrl(struct msm_dp_ctrl_private *ctrl)
 
 	drm_dbg_dp(ctrl->drm_dev, "DP_CONFIGURATION_CTRL=0x%x\n", config);
 
-	msm_dp_write_link(ctrl->catalog, REG_DP_CONFIGURATION_CTRL, config);
+	msm_dp_write_link(ctrl, REG_DP_CONFIGURATION_CTRL, config);
 }
 
 static void msm_dp_ctrl_lane_mapping(struct msm_dp_ctrl_private *ctrl)
 {
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
 	u32 ln_0 = 0, ln_1 = 1, ln_2 = 2, ln_3 = 3; /* One-to-One mapping */
 	u32 ln_mapping;
 
@@ -413,7 +431,7 @@ static void msm_dp_ctrl_lane_mapping(struct msm_dp_ctrl_private *ctrl)
 	ln_mapping |= ln_2 << LANE2_MAPPING_SHIFT;
 	ln_mapping |= ln_3 << LANE3_MAPPING_SHIFT;
 
-	msm_dp_write_link(msm_dp_catalog, REG_DP_LOGICAL2PHYSICAL_LANE_MAPPING,
+	msm_dp_write_link(ctrl, REG_DP_LOGICAL2PHYSICAL_LANE_MAPPING,
 			ln_mapping);
 }
 
@@ -429,7 +447,7 @@ static void msm_dp_ctrl_configure_source_params(struct msm_dp_ctrl_private *ctrl
 	test_bits_depth = msm_dp_link_get_test_bits_depth(ctrl->link, ctrl->panel->msm_dp_mode.bpp);
 	colorimetry_cfg = msm_dp_link_get_colorimetry_config(ctrl->link);
 
-	misc_val = msm_dp_read_link(ctrl->catalog, REG_DP_MISC1_MISC0);
+	misc_val = msm_dp_read_link(ctrl, REG_DP_MISC1_MISC0);
 
 	/* clear bpp bits */
 	misc_val &= ~(0x07 << DP_MISC0_TEST_BITS_DEPTH_SHIFT);
@@ -439,9 +457,9 @@ static void msm_dp_ctrl_configure_source_params(struct msm_dp_ctrl_private *ctrl
 	misc_val |= DP_MISC0_SYNCHRONOUS_CLK;
 
 	drm_dbg_dp(ctrl->drm_dev, "misc settings = 0x%x\n", misc_val);
-	msm_dp_write_link(ctrl->catalog, REG_DP_MISC1_MISC0, misc_val);
+	msm_dp_write_link(ctrl, REG_DP_MISC1_MISC0, misc_val);
 
-	msm_dp_panel_timing_cfg(ctrl->panel);
+	msm_dp_panel_timing_cfg(ctrl->panel, ctrl->msm_dp_ctrl.wide_bus_en);
 }
 
 /*
@@ -1257,9 +1275,9 @@ static void msm_dp_ctrl_setup_tr_unit(struct msm_dp_ctrl_private *ctrl)
 	pr_debug("dp_tu=0x%x, valid_boundary=0x%x, valid_boundary2=0x%x\n",
 			msm_dp_tu, valid_boundary, valid_boundary2);
 
-	msm_dp_write_link(ctrl->catalog, REG_DP_VALID_BOUNDARY, valid_boundary);
-	msm_dp_write_link(ctrl->catalog, REG_DP_TU, msm_dp_tu);
-	msm_dp_write_link(ctrl->catalog, REG_DP_VALID_BOUNDARY_2, valid_boundary2);
+	msm_dp_write_link(ctrl, REG_DP_VALID_BOUNDARY, valid_boundary);
+	msm_dp_write_link(ctrl, REG_DP_TU, msm_dp_tu);
+	msm_dp_write_link(ctrl, REG_DP_VALID_BOUNDARY_2, valid_boundary2);
 }
 
 static int msm_dp_ctrl_wait4video_ready(struct msm_dp_ctrl_private *ctrl)
@@ -1376,12 +1394,12 @@ static int msm_dp_ctrl_set_pattern_state_bit(struct msm_dp_ctrl_private *ctrl,
 
 	bit = BIT(state_bit - 1);
 	drm_dbg_dp(ctrl->drm_dev, "hw: bit=%d train=%d\n", bit, state_bit);
-	msm_dp_write_link(ctrl->catalog, REG_DP_STATE_CTRL, bit);
+	msm_dp_write_link(ctrl, REG_DP_STATE_CTRL, bit);
 
 	bit = BIT(state_bit - 1) << DP_MAINLINK_READY_LINK_TRAINING_SHIFT;
 
 	/* Poll for mainlink ready status */
-	ret = readx_poll_timeout(readl, ctrl->catalog->link_base + REG_DP_MAINLINK_READY,
+	ret = readx_poll_timeout(readl, ctrl->link_base + REG_DP_MAINLINK_READY,
 				 data, data & bit,
 				 POLLING_SLEEP_US, POLLING_TIMEOUT_US);
 	if (ret < 0) {
@@ -1403,7 +1421,7 @@ static int msm_dp_ctrl_link_train_1(struct msm_dp_ctrl_private *ctrl,
 	delay_us = drm_dp_read_clock_recovery_delay(ctrl->aux,
 						    ctrl->panel->dpcd, dp_phy, false);
 
-	msm_dp_write_link(ctrl->catalog, REG_DP_STATE_CTRL, 0);
+	msm_dp_write_link(ctrl, REG_DP_STATE_CTRL, 0);
 
 	*training_step = DP_TRAINING_1;
 
@@ -1521,7 +1539,7 @@ static int msm_dp_ctrl_link_train_2(struct msm_dp_ctrl_private *ctrl,
 	delay_us = drm_dp_read_channel_eq_delay(ctrl->aux,
 						ctrl->panel->dpcd, dp_phy, false);
 
-	msm_dp_write_link(ctrl->catalog, REG_DP_STATE_CTRL, 0);
+	msm_dp_write_link(ctrl, REG_DP_STATE_CTRL, 0);
 
 	*training_step = DP_TRAINING_2;
 
@@ -1638,7 +1656,7 @@ static int msm_dp_ctrl_link_train(struct msm_dp_ctrl_private *ctrl,
 	}
 
 end:
-	msm_dp_write_link(ctrl->catalog, REG_DP_STATE_CTRL, 0);
+	msm_dp_write_link(ctrl, REG_DP_STATE_CTRL, 0);
 
 	return ret;
 }
@@ -1783,55 +1801,50 @@ static int msm_dp_ctrl_enable_mainlink_clocks(struct msm_dp_ctrl_private *ctrl)
 
 static void msm_dp_ctrl_enable_sdp(struct msm_dp_ctrl_private *ctrl)
 {
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
-
 	/* trigger sdp */
-	msm_dp_write_link(msm_dp_catalog, MMSS_DP_SDP_CFG3, UPDATE_SDP);
-	msm_dp_write_link(msm_dp_catalog, MMSS_DP_SDP_CFG3, 0x0);
+	msm_dp_write_link(ctrl, MMSS_DP_SDP_CFG3, UPDATE_SDP);
+	msm_dp_write_link(ctrl, MMSS_DP_SDP_CFG3, 0x0);
 }
 
 static void msm_dp_ctrl_psr_enter(struct msm_dp_ctrl_private *ctrl)
 {
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
 	u32 cmd;
 
-	cmd = msm_dp_read_link(msm_dp_catalog, REG_PSR_CMD);
+	cmd = msm_dp_read_link(ctrl, REG_PSR_CMD);
 
 	cmd &= ~(PSR_ENTER | PSR_EXIT);
 	cmd |= PSR_ENTER;
 
 	msm_dp_ctrl_enable_sdp(ctrl);
-	msm_dp_write_link(msm_dp_catalog, REG_PSR_CMD, cmd);
+	msm_dp_write_link(ctrl, REG_PSR_CMD, cmd);
 }
 
 static void msm_dp_ctrl_psr_exit(struct msm_dp_ctrl_private *ctrl)
 {
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
 	u32 cmd;
 
-	cmd = msm_dp_read_link(msm_dp_catalog, REG_PSR_CMD);
+	cmd = msm_dp_read_link(ctrl, REG_PSR_CMD);
 
 	cmd &= ~(PSR_ENTER | PSR_EXIT);
 	cmd |= PSR_EXIT;
 
 	msm_dp_ctrl_enable_sdp(ctrl);
-	msm_dp_write_link(msm_dp_catalog, REG_PSR_CMD, cmd);
+	msm_dp_write_link(ctrl, REG_PSR_CMD, cmd);
 }
 
 void msm_dp_ctrl_config_psr(struct msm_dp_ctrl *msm_dp_ctrl)
 {
 	struct msm_dp_ctrl_private *ctrl = container_of(msm_dp_ctrl,
 			struct msm_dp_ctrl_private, msm_dp_ctrl);
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
 	u32 cfg;
 
 	if (!ctrl->panel->psr_cap.version)
 		return;
 
 	/* enable PSR1 function */
-	cfg = msm_dp_read_link(msm_dp_catalog, REG_PSR_CONFIG);
+	cfg = msm_dp_read_link(ctrl, REG_PSR_CONFIG);
 	cfg |= PSR1_SUPPORTED;
-	msm_dp_write_link(msm_dp_catalog, REG_PSR_CONFIG, cfg);
+	msm_dp_write_link(ctrl, REG_PSR_CONFIG, cfg);
 
 	msm_dp_ctrl_config_psr_interrupt(ctrl);
 	msm_dp_ctrl_enable_sdp(ctrl);
@@ -1870,25 +1883,25 @@ void msm_dp_ctrl_set_psr(struct msm_dp_ctrl *msm_dp_ctrl, bool enter)
 		}
 
 		msm_dp_ctrl_push_idle(msm_dp_ctrl);
-		msm_dp_write_link(ctrl->catalog, REG_DP_STATE_CTRL, 0);
+		msm_dp_write_link(ctrl, REG_DP_STATE_CTRL, 0);
 
 		msm_dp_ctrl_psr_mainlink_disable(ctrl);
 	} else {
 		msm_dp_ctrl_psr_mainlink_enable(ctrl);
 
 		msm_dp_ctrl_psr_exit(ctrl);
-		msm_dp_write_link(ctrl->catalog, REG_DP_STATE_CTRL, DP_STATE_CTRL_SEND_VIDEO);
+		msm_dp_write_link(ctrl, REG_DP_STATE_CTRL, DP_STATE_CTRL_SEND_VIDEO);
 		msm_dp_ctrl_wait4video_ready(ctrl);
-		msm_dp_write_link(ctrl->catalog, REG_DP_STATE_CTRL, 0);
+		msm_dp_write_link(ctrl, REG_DP_STATE_CTRL, 0);
 	}
 }
 
 static void msm_dp_ctrl_phy_reset(struct msm_dp_ctrl_private *ctrl)
 {
-	msm_dp_write_ahb(ctrl->catalog, REG_DP_PHY_CTRL,
+	msm_dp_write_ahb(ctrl, REG_DP_PHY_CTRL,
 			DP_PHY_CTRL_SW_RESET | DP_PHY_CTRL_SW_RESET_PLL);
 	usleep_range(1000, 1100); /* h/w recommended delay */
-	msm_dp_write_ahb(ctrl->catalog, REG_DP_PHY_CTRL, 0x0);
+	msm_dp_write_ahb(ctrl, REG_DP_PHY_CTRL, 0x0);
 }
 
 void msm_dp_ctrl_phy_init(struct msm_dp_ctrl *msm_dp_ctrl)
@@ -1990,7 +2003,7 @@ static int msm_dp_ctrl_link_maintenance(struct msm_dp_ctrl_private *ctrl)
 
 	msm_dp_ctrl_clear_training_pattern(ctrl, DP_PHY_DPRX);
 
-	msm_dp_write_link(ctrl->catalog, REG_DP_STATE_CTRL, DP_STATE_CTRL_SEND_VIDEO);
+	msm_dp_write_link(ctrl, REG_DP_STATE_CTRL, DP_STATE_CTRL_SEND_VIDEO);
 
 	ret = msm_dp_ctrl_wait4video_ready(ctrl);
 end:
@@ -2002,75 +2015,74 @@ end:
 static void msm_dp_ctrl_send_phy_pattern(struct msm_dp_ctrl_private *ctrl,
 				     u32 pattern)
 {
-	struct msm_dp_catalog *msm_dp_catalog = ctrl->catalog;
 	u32 value = 0x0;
 
 	/* Make sure to clear the current pattern before starting a new one */
-	msm_dp_write_link(msm_dp_catalog, REG_DP_STATE_CTRL, 0x0);
+	msm_dp_write_link(ctrl, REG_DP_STATE_CTRL, 0x0);
 
 	drm_dbg_dp(ctrl->drm_dev, "pattern: %#x\n", pattern);
 	switch (pattern) {
 	case DP_PHY_TEST_PATTERN_D10_2:
-		msm_dp_write_link(msm_dp_catalog, REG_DP_STATE_CTRL,
+		msm_dp_write_link(ctrl, REG_DP_STATE_CTRL,
 			      DP_STATE_CTRL_LINK_TRAINING_PATTERN1);
 		break;
 
 	case DP_PHY_TEST_PATTERN_ERROR_COUNT:
 		value &= ~(1 << 16);
-		msm_dp_write_link(msm_dp_catalog, REG_DP_HBR2_COMPLIANCE_SCRAMBLER_RESET,
+		msm_dp_write_link(ctrl, REG_DP_HBR2_COMPLIANCE_SCRAMBLER_RESET,
 			      value);
 		value |= SCRAMBLER_RESET_COUNT_VALUE;
-		msm_dp_write_link(msm_dp_catalog, REG_DP_HBR2_COMPLIANCE_SCRAMBLER_RESET,
+		msm_dp_write_link(ctrl, REG_DP_HBR2_COMPLIANCE_SCRAMBLER_RESET,
 			      value);
-		msm_dp_write_link(msm_dp_catalog, REG_DP_MAINLINK_LEVELS,
+		msm_dp_write_link(ctrl, REG_DP_MAINLINK_LEVELS,
 			      DP_MAINLINK_SAFE_TO_EXIT_LEVEL_2);
-		msm_dp_write_link(msm_dp_catalog, REG_DP_STATE_CTRL,
+		msm_dp_write_link(ctrl, REG_DP_STATE_CTRL,
 			      DP_STATE_CTRL_LINK_SYMBOL_ERR_MEASURE);
 		break;
 
 	case DP_PHY_TEST_PATTERN_PRBS7:
-		msm_dp_write_link(msm_dp_catalog, REG_DP_STATE_CTRL,
+		msm_dp_write_link(ctrl, REG_DP_STATE_CTRL,
 			      DP_STATE_CTRL_LINK_PRBS7);
 		break;
 
 	case DP_PHY_TEST_PATTERN_80BIT_CUSTOM:
-		msm_dp_write_link(msm_dp_catalog, REG_DP_STATE_CTRL,
+		msm_dp_write_link(ctrl, REG_DP_STATE_CTRL,
 			      DP_STATE_CTRL_LINK_TEST_CUSTOM_PATTERN);
 		/* 00111110000011111000001111100000 */
-		msm_dp_write_link(msm_dp_catalog, REG_DP_TEST_80BIT_CUSTOM_PATTERN_REG0,
+		msm_dp_write_link(ctrl, REG_DP_TEST_80BIT_CUSTOM_PATTERN_REG0,
 			      0x3E0F83E0);
 		/* 00001111100000111110000011111000 */
-		msm_dp_write_link(msm_dp_catalog, REG_DP_TEST_80BIT_CUSTOM_PATTERN_REG1,
+		msm_dp_write_link(ctrl, REG_DP_TEST_80BIT_CUSTOM_PATTERN_REG1,
 			      0x0F83E0F8);
 		/* 1111100000111110 */
-		msm_dp_write_link(msm_dp_catalog, REG_DP_TEST_80BIT_CUSTOM_PATTERN_REG2,
+		msm_dp_write_link(ctrl, REG_DP_TEST_80BIT_CUSTOM_PATTERN_REG2,
 			      0x0000F83E);
 		break;
 
 	case DP_PHY_TEST_PATTERN_CP2520:
-		value = msm_dp_read_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL);
+		value = msm_dp_read_link(ctrl, REG_DP_MAINLINK_CTRL);
 		value &= ~DP_MAINLINK_CTRL_SW_BYPASS_SCRAMBLER;
-		msm_dp_write_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL, value);
+		msm_dp_write_link(ctrl, REG_DP_MAINLINK_CTRL, value);
 
 		value = DP_HBR2_ERM_PATTERN;
-		msm_dp_write_link(msm_dp_catalog, REG_DP_HBR2_COMPLIANCE_SCRAMBLER_RESET,
+		msm_dp_write_link(ctrl, REG_DP_HBR2_COMPLIANCE_SCRAMBLER_RESET,
 			      value);
 		value |= SCRAMBLER_RESET_COUNT_VALUE;
-		msm_dp_write_link(msm_dp_catalog, REG_DP_HBR2_COMPLIANCE_SCRAMBLER_RESET,
+		msm_dp_write_link(ctrl, REG_DP_HBR2_COMPLIANCE_SCRAMBLER_RESET,
 			      value);
-		msm_dp_write_link(msm_dp_catalog, REG_DP_MAINLINK_LEVELS,
+		msm_dp_write_link(ctrl, REG_DP_MAINLINK_LEVELS,
 			      DP_MAINLINK_SAFE_TO_EXIT_LEVEL_2);
-		msm_dp_write_link(msm_dp_catalog, REG_DP_STATE_CTRL,
+		msm_dp_write_link(ctrl, REG_DP_STATE_CTRL,
 			      DP_STATE_CTRL_LINK_SYMBOL_ERR_MEASURE);
-		value = msm_dp_read_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL);
+		value = msm_dp_read_link(ctrl, REG_DP_MAINLINK_CTRL);
 		value |= DP_MAINLINK_CTRL_ENABLE;
-		msm_dp_write_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL, value);
+		msm_dp_write_link(ctrl, REG_DP_MAINLINK_CTRL, value);
 		break;
 
 	case DP_PHY_TEST_PATTERN_SEL_MASK:
-		msm_dp_write_link(msm_dp_catalog, REG_DP_MAINLINK_CTRL,
+		msm_dp_write_link(ctrl, REG_DP_MAINLINK_CTRL,
 			      DP_MAINLINK_CTRL_ENABLE);
-		msm_dp_write_link(msm_dp_catalog, REG_DP_STATE_CTRL,
+		msm_dp_write_link(ctrl, REG_DP_STATE_CTRL,
 			      DP_STATE_CTRL_LINK_TRAINING_PATTERN4);
 		break;
 
@@ -2099,7 +2111,7 @@ static bool msm_dp_ctrl_send_phy_test_pattern(struct msm_dp_ctrl_private *ctrl)
 	msm_dp_ctrl_update_phy_vx_px(ctrl, DP_PHY_DPRX);
 	msm_dp_link_send_test_response(ctrl->link);
 
-	pattern_sent = msm_dp_read_link(ctrl->catalog, REG_DP_MAINLINK_READY);
+	pattern_sent = msm_dp_read_link(ctrl, REG_DP_MAINLINK_READY);
 
 	switch (pattern_sent) {
 	case MR_LINK_TRAINING1:
@@ -2430,8 +2442,8 @@ static void msm_dp_ctrl_config_msa(struct msm_dp_ctrl_private *ctrl,
 		nvid *= 3;
 
 	drm_dbg_dp(ctrl->drm_dev, "mvid=0x%x, nvid=0x%x\n", mvid, nvid);
-	msm_dp_write_link(ctrl->catalog, REG_DP_SOFTWARE_MVID, mvid);
-	msm_dp_write_link(ctrl->catalog, REG_DP_SOFTWARE_NVID, nvid);
+	msm_dp_write_link(ctrl, REG_DP_SOFTWARE_MVID, mvid);
+	msm_dp_write_link(ctrl, REG_DP_SOFTWARE_NVID, nvid);
 }
 
 int msm_dp_ctrl_on_stream(struct msm_dp_ctrl *msm_dp_ctrl, bool force_link_train)
@@ -2508,7 +2520,7 @@ int msm_dp_ctrl_on_stream(struct msm_dp_ctrl *msm_dp_ctrl, bool force_link_train
 
 	msm_dp_ctrl_setup_tr_unit(ctrl);
 
-	msm_dp_write_link(ctrl->catalog, REG_DP_STATE_CTRL, DP_STATE_CTRL_SEND_VIDEO);
+	msm_dp_write_link(ctrl, REG_DP_STATE_CTRL, DP_STATE_CTRL_SEND_VIDEO);
 
 	ret = msm_dp_ctrl_wait4video_ready(ctrl);
 	if (ret)
@@ -2705,14 +2717,14 @@ static int msm_dp_ctrl_clk_init(struct msm_dp_ctrl *msm_dp_ctrl)
 
 struct msm_dp_ctrl *msm_dp_ctrl_get(struct device *dev, struct msm_dp_link *link,
 			struct msm_dp_panel *panel,	struct drm_dp_aux *aux,
-			struct msm_dp_catalog *catalog,
-			struct phy *phy)
+			struct phy *phy,
+			void __iomem *ahb_base,
+			void __iomem *link_base)
 {
 	struct msm_dp_ctrl_private *ctrl;
 	int ret;
 
-	if (!dev || !panel || !aux ||
-	    !link || !catalog) {
+	if (!dev || !panel || !aux || !link) {
 		DRM_ERROR("invalid input\n");
 		return ERR_PTR(-EINVAL);
 	}
@@ -2743,9 +2755,10 @@ struct msm_dp_ctrl *msm_dp_ctrl_get(struct device *dev, struct msm_dp_link *link
 	ctrl->panel    = panel;
 	ctrl->aux      = aux;
 	ctrl->link     = link;
-	ctrl->catalog  = catalog;
 	ctrl->dev      = dev;
 	ctrl->phy      = phy;
+	ctrl->ahb_base = ahb_base;
+	ctrl->link_base = link_base;
 
 	ret = msm_dp_ctrl_clk_init(&ctrl->msm_dp_ctrl);
 	if (ret) {

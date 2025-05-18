@@ -9,7 +9,6 @@
 #include "dp_aux.h"
 #include "dp_panel.h"
 #include "dp_link.h"
-#include "dp_catalog.h"
 
 struct msm_dp_ctrl {
 	bool wide_bus_en;
@@ -25,10 +24,13 @@ void msm_dp_ctrl_off(struct msm_dp_ctrl *msm_dp_ctrl);
 void msm_dp_ctrl_push_idle(struct msm_dp_ctrl *msm_dp_ctrl);
 irqreturn_t msm_dp_ctrl_isr(struct msm_dp_ctrl *msm_dp_ctrl);
 void msm_dp_ctrl_handle_sink_request(struct msm_dp_ctrl *msm_dp_ctrl);
-struct msm_dp_ctrl *msm_dp_ctrl_get(struct device *dev, struct msm_dp_link *link,
-			struct msm_dp_panel *panel,	struct drm_dp_aux *aux,
-			struct msm_dp_catalog *catalog,
-			struct phy *phy);
+struct msm_dp_ctrl *msm_dp_ctrl_get(struct device *dev,
+				    struct msm_dp_link *link,
+				    struct msm_dp_panel *panel,
+				    struct drm_dp_aux *aux,
+				    struct phy *phy,
+				    void __iomem *ahb_base,
+				    void __iomem *link_base);
 
 void msm_dp_ctrl_reset(struct msm_dp_ctrl *msm_dp_ctrl);
 void msm_dp_ctrl_phy_init(struct msm_dp_ctrl *msm_dp_ctrl);
