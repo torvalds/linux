@@ -439,6 +439,70 @@
 			reg = <0x0 0xff540000 0x0 0x40000>;
 		};
 
+		pmu: power-management@ff600000 {
+			compatible = "rockchip,rk3528-pmu", "syscon", "simple-mfd";
+			reg = <0x0 0xff600000 0x0 0x2000>;
+
+			power: power-controller {
+				compatible = "rockchip,rk3528-power-controller";
+				#power-domain-cells = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				/* These power domains are grouped by VD_GPU */
+				power-domain@4 {
+					reg = <4>;
+					clocks = <&cru ACLK_GPU_MALI>,
+						 <&cru PCLK_GPU_ROOT>;
+					pm_qos = <&qos_gpu_m0>,
+						 <&qos_gpu_m1>;
+					#power-domain-cells = <0>;
+				};
+
+				/* These power domains are grouped by VD_LOGIC */
+				power-domain@5 {
+					reg = <5>;
+					pm_qos = <&qos_rkvdec>;
+					#power-domain-cells = <0>;
+					status = "disabled";
+				};
+				power-domain@6 {
+					reg = <6>;
+					pm_qos = <&qos_rkvenc>;
+					#power-domain-cells = <0>;
+					status = "disabled";
+				};
+				power-domain@7 {
+					reg = <7>;
+					pm_qos = <&qos_gmac0>,
+						 <&qos_hdcp>,
+						 <&qos_jpegdec>,
+						 <&qos_rga2_m0ro>,
+						 <&qos_rga2_m0wo>,
+						 <&qos_sdmmc0>,
+						 <&qos_usb2host>,
+						 <&qos_vdpp>,
+						 <&qos_vop>;
+					#power-domain-cells = <0>;
+					status = "disabled";
+				};
+				power-domain@8 {
+					reg = <8>;
+					pm_qos = <&qos_emmc>,
+						 <&qos_fspi>,
+						 <&qos_gmac1>,
+						 <&qos_pcie>,
+						 <&qos_sdio0>,
+						 <&qos_sdio1>,
+						 <&qos_tsp>,
+						 <&qos_usb3otg>,
+						 <&qos_vpu>;
+					#power-domain-cells = <0>;
+					status = "disabled";
+				};
+			};
+		};
+
 		spi0: spi@ff9c0000 {
 			compatible = "rockchip,rk3528-spi",
 				     "rockchip,rk3066-spi";
