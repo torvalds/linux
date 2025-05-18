@@ -1,0 +1,34 @@
+From 1405dc9a853bd1ccd2bb66f8b26c113bdb199222 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Tue, 6 May 2025 07:15:12 +0000
+Subject: [PATCH 1/7] selftests: filesystems/mount-notify
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Fix warning from not handling return value of chdir().
+
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ .../selftests/filesystems/mount-notify/mount-notify_test.c     | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/tools/testing/selftests/filesystems/mount-notify/mount-notify_test.c b/tools/testing/selftests/filesystems/mount-notify/mount-notify_test.c
+index 59a71f22fb11..c64acbbbd562 100644
+--- a/tools/testing/selftests/filesystems/mount-notify/mount-notify_test.c
++++ b/tools/testing/selftests/filesystems/mount-notify/mount-notify_test.c
+@@ -487,7 +487,8 @@ TEST_F(fanotify, rmdir)
+ 	ASSERT_GE(ret, 0);
+ 
+ 	if (ret == 0) {
+-		chdir("/");
++		ret = chdir("/");
++		ASSERT_EQ(ret, 0);
+ 		unshare(CLONE_NEWNS);
+ 		mount("", "/", NULL, MS_REC|MS_PRIVATE, NULL);
+ 		umount2("/a", MNT_DETACH);
+
+base-commit: 01f95500a162fca88cefab9ed64ceded5afabc12
+-- 
+2.48.1
+

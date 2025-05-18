@@ -1,0 +1,212 @@
+# SPDX-FileCopyrightText: 2024 Rivos Inc.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: linux-riscv-ci-testsuites
+
+defaults:
+  run:
+    shell: bash -leo pipefail {0}
+
+on: pull_request
+
+concurrency:
+  group: ci-test-${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build-kernel:
+    if:  ${{ endsWith(github.head_ref, '_manual') }}
+    runs-on: self-hosted
+    timeout-minutes: 50400 # 35 days
+    container:
+      image: ghcr.io/linux-riscv/linaro-tuxrun-dispatcher-riscv64:latest
+      volumes:
+        - /home/github/ccache:/build/ccache
+        - /home/github/gitref:/build/gitref
+    steps:
+      - name: Configure git
+        run: |
+          git config --global --add safe.directory '*'
+      - name: Checkout git
+        run: |
+          mkdir -p /build/my-linux
+          cd /build/my-linux
+          git clone --filter=tree:0 --reference /build/gitref https://github.com/${{ github.repository }} .
+          git fetch origin ${{ github.event.pull_request.head.sha }}
+          git reset --hard ${{ github.event.pull_request.head.sha }}
+          git log -1
+      - name: Build kernel
+        continue-on-error: true
+        run: |
+          mkdir -p /build/logs/
+          cd /build/my-linux && bash .github/scripts/build_ubuntu_defconfig.sh
+      - name: Collect build log
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: /build/logs/*
+      - name: Publish kernel
+        uses: actions/upload-artifact@v4
+        # TODO create modules directory and kernel separately
+        with:
+          name: test-kernel
+          path: /build/rv64__testsuites__plain__gcc/*
+      - name: Publish CI files
+        uses: actions/upload-artifact@v4
+        with:
+          include-hidden-files: true
+          name: ci-files
+          path: /build/my-linux/.github/*
+
+  run-ltp:
+    needs: build-kernel
+    if:  ${{ endsWith(github.head_ref, '_manual') }}
+    runs-on: self-hosted
+    timeout-minutes: 50400 # 35 days
+    container:
+      image: ghcr.io/linux-riscv/linaro-tuxrun-dispatcher-riscv64:latest
+      volumes:
+        - /home/github/ccache:/build/ccache
+        - /home/github/gitref:/build/gitref
+        - /tmp:/tmp
+    steps:
+      - name: Download pre-built kernel
+        uses: actions/download-artifact@v4
+        with:
+          name: test-kernel
+          path: /build/test-kernel
+      - name: Download CI files
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-files
+          path: /build/my-linux/.github
+      - name: Run checks
+        env:
+          SQUAD_TOKEN: ${{ secrets.SQUAD_TOKEN }}
+          GITHUB_JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GITHUB_BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+        run: |
+          mkdir -p /build/logs/
+          cd /build/my-linux && bash .github/scripts/ltp.sh /build/test-kernel | tee -i /build/logs/all.log
+      - name: Collect logs and json squad
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-ltp
+          path: |
+            /build/logs/*
+            /build/squad_json/*
+
+  run-libhugetlbfs:
+    needs: build-kernel
+    if:  ${{ endsWith(github.head_ref, '_manual') }}
+    runs-on: self-hosted
+    timeout-minutes: 50400 # 35 days
+    container:
+      image: ghcr.io/linux-riscv/linaro-tuxrun-dispatcher-riscv64:latest
+      volumes:
+        - /home/github/ccache:/build/ccache
+        - /home/github/gitref:/build/gitref
+        - /tmp:/tmp
+    steps:
+      - name: Download pre-built kernel
+        uses: actions/download-artifact@v4
+        with:
+          name: test-kernel
+          path: /build/test-kernel
+      - name: Download CI files
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-files
+          path: /build/my-linux/.github
+      - name: Run checks
+        env:
+          SQUAD_TOKEN: ${{ secrets.SQUAD_TOKEN }}
+          GITHUB_JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GITHUB_BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+        run: |
+          mkdir -p /build/logs/
+          cd /build/my-linux && bash .github/scripts/libhugetlbfs.sh /build/test-kernel | tee -i /build/logs/all.log
+      - name: Collect logs and json squad
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-libhugetlbfs
+          path: |
+            /build/logs/*
+            /build/squad_json/*
+
+  run-xfstests:
+    needs: build-kernel
+    if:  ${{ endsWith(github.head_ref, '_manual') }}
+    runs-on: self-hosted
+    timeout-minutes: 50400 # 35 days
+    container:
+      image: ghcr.io/linux-riscv/linaro-tuxrun-dispatcher-riscv64:latest
+      volumes:
+        - /home/github/ccache:/build/ccache
+        - /home/github/gitref:/build/gitref
+        - /tmp:/tmp
+    steps:
+      - name: Download pre-built kernel
+        uses: actions/download-artifact@v4
+        with:
+          name: test-kernel
+          path: /build/test-kernel
+      - name: Download CI files
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-files
+          path: /build/my-linux/.github
+      - name: Run checks
+        env:
+          SQUAD_TOKEN: ${{ secrets.SQUAD_TOKEN }}
+          GITHUB_JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GITHUB_BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+        run: |
+          mkdir -p /build/logs/
+          cd /build/my-linux && bash .github/scripts/xfstests.sh /build/test-kernel | tee -i /build/logs/all.log
+      - name: Collect logs and json squad
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-xfstests
+          path: |
+            /build/logs/*
+            /build/squad_json/*
+
+  run-isolated-tests:
+    needs: build-kernel
+    if:  ${{ endsWith(github.head_ref, '_manual') }}
+    runs-on: self-hosted
+    timeout-minutes: 50400 # 35 days
+    container:
+      image: ghcr.io/linux-riscv/linaro-tuxrun-dispatcher-riscv64:latest
+      volumes:
+        - /home/github/ccache:/build/ccache
+        - /home/github/gitref:/build/gitref
+        - /tmp:/tmp
+    steps:
+      - name: Download pre-built kernel
+        uses: actions/download-artifact@v4
+        with:
+          name: test-kernel
+          path: /build/test-kernel
+      - name: Download CI files
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-files
+          path: /build/my-linux/.github
+      - name: Run checks
+        env:
+          SQUAD_TOKEN: ${{ secrets.SQUAD_TOKEN }}
+          GITHUB_JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GITHUB_BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+        run: |
+          mkdir -p /build/logs/
+          cd /build/my-linux && bash .github/scripts/isolated_tests.sh /build/test-kernel | tee -i /build/logs/all.log
+      - name: Collect logs and json squad
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-isolated-tests
+          path: |
+            /build/logs/*
+            /build/squad_json/*

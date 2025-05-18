@@ -1,0 +1,30 @@
+From 350c424f2379572fcdc9e6470a02e61e2da5441a Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Thu, 22 Aug 2024 16:28:10 +0000
+Subject: [PATCH 5/6] selftests: hid: Fix broken build
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+kexec prototypes are messed up in vmlinux.h w/o the define
+
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ tools/testing/selftests/hid/progs/hid_bpf_helpers.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/tools/testing/selftests/hid/progs/hid_bpf_helpers.h b/tools/testing/selftests/hid/progs/hid_bpf_helpers.h
+index e5db897586bb..76e06cab1b9d 100644
+--- a/tools/testing/selftests/hid/progs/hid_bpf_helpers.h
++++ b/tools/testing/selftests/hid/progs/hid_bpf_helpers.h
+@@ -22,6 +22,7 @@
+ #define HID_REQ_SET_IDLE         HID_REQ_SET_IDLE___not_used
+ #define HID_REQ_SET_PROTOCOL     HID_REQ_SET_PROTOCOL___not_used
+ 
++#define BPF_NO_KFUNC_PROTOTYPES
+ #include "vmlinux.h"
+ 
+ #undef hid_bpf_ctx
+-- 
+2.43.0
+

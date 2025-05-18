@@ -1,0 +1,30 @@
+From 1f035044cdf5a5619b49cc43dce96e7e1705f3ca Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Tue, 6 May 2025 07:18:29 +0000
+Subject: [PATCH 4/7] selftests: pid_namespace/pid_max
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Fix build error by including glibc headers.
+
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ tools/testing/selftests/pid_namespace/pid_max.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/tools/testing/selftests/pid_namespace/pid_max.c b/tools/testing/selftests/pid_namespace/pid_max.c
+index 51c414faabb0..972bedc475f1 100644
+--- a/tools/testing/selftests/pid_namespace/pid_max.c
++++ b/tools/testing/selftests/pid_namespace/pid_max.c
+@@ -11,6 +11,7 @@
+ #include <string.h>
+ #include <syscall.h>
+ #include <sys/wait.h>
++#include <sys/mount.h>
+ 
+ #include "../kselftest_harness.h"
+ #include "../pidfd/pidfd.h"
+-- 
+2.48.1
+
