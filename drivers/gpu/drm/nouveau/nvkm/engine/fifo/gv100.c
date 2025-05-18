@@ -70,7 +70,6 @@ gv100_chan_ramfc = {
 
 const struct nvkm_chan_func_userd
 gv100_chan_userd = {
-	.bar = -1,
 	.size = 0x200,
 	.clear = gf100_chan_userd_clear,
 };

@@ -133,7 +133,7 @@ gf100_chan_userd_clear(struct nvkm_chan *chan)
 
 static const struct nvkm_chan_func_userd
 gf100_chan_userd = {
-	.bar = 1,
+	.bar = NVKM_BAR1_FB,
 	.size = 0x1000,
 	.clear = gf100_chan_userd_clear,
 };

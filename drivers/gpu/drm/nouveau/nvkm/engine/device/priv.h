@@ -11,6 +11,7 @@
 #include <subdev/devinit.h>
 #include <subdev/fault.h>
 #include <subdev/fb.h>
+#include <subdev/fsp.h>
 #include <subdev/fuse.h>
 #include <subdev/gpio.h>
 #include <subdev/gsp.h>
@@ -43,8 +44,6 @@
 #include <engine/msvld.h>
 #include <engine/nvenc.h>
 #include <engine/nvdec.h>
-#include <engine/nvjpg.h>
-#include <engine/ofa.h>
 #include <engine/sec.h>
 #include <engine/sec2.h>
 #include <engine/sw.h>

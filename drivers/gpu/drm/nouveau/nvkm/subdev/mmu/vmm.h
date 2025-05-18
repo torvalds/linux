@@ -143,6 +143,8 @@ struct nvkm_vmm_func {
 	int (*aper)(enum nvkm_memory_target);
 	int (*valid)(struct nvkm_vmm *, void *argv, u32 argc,
 		     struct nvkm_vmm_map *);
+	int (*valid2)(struct nvkm_vmm *, bool ro, bool priv, u8 kind, u8 comp,
+		      struct nvkm_vmm_map *);
 	void (*flush)(struct nvkm_vmm *, int depth);
 
 	int (*mthd)(struct nvkm_vmm *, struct nvkm_client *,
@@ -254,6 +256,8 @@ void gp100_vmm_invalidate_pdb(struct nvkm_vmm *, u64 addr);
 
 int gv100_vmm_join(struct nvkm_vmm *, struct nvkm_memory *);
 
+void tu102_vmm_flush(struct nvkm_vmm *, int depth);
+
 int nv04_vmm_new(struct nvkm_mmu *, bool, u64, u64, void *, u32,
 		 struct lock_class_key *, const char *, struct nvkm_vmm **);
 int nv41_vmm_new(struct nvkm_mmu *, bool, u64, u64, void *, u32,
@@ -294,6 +298,9 @@ int gv100_vmm_new(struct nvkm_mmu *, bool, u64, u64, void *, u32,
 		  struct lock_class_key *, const char *,
 		  struct nvkm_vmm **);
 int tu102_vmm_new(struct nvkm_mmu *, bool, u64, u64, void *, u32,
+		  struct lock_class_key *, const char *,
+		  struct nvkm_vmm **);
+int gh100_vmm_new(struct nvkm_mmu *, bool, u64, u64, void *, u32,
 		  struct lock_class_key *, const char *,
 		  struct nvkm_vmm **);
 
