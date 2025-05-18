@@ -1424,7 +1424,7 @@ static struct target_opcode_descriptor tcm_opcode_write_verify16 = {
 	.update_usage_bits = set_dpofua_usage_bits,
 };
 
-static bool tcm_is_ws_enabled(struct target_opcode_descriptor *descr,
+static bool tcm_is_ws_enabled(const struct target_opcode_descriptor *descr,
 			      struct se_cmd *cmd)
 {
 	struct exec_cmd_ops *ops = cmd->protocol_data;
@@ -1452,7 +1452,7 @@ static struct target_opcode_descriptor tcm_opcode_write_same32 = {
 	.update_usage_bits = set_dpofua_usage_bits32,
 };
 
-static bool tcm_is_caw_enabled(struct target_opcode_descriptor *descr,
+static bool tcm_is_caw_enabled(const struct target_opcode_descriptor *descr,
 			       struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
@@ -1493,7 +1493,7 @@ static struct target_opcode_descriptor tcm_opcode_read_capacity16 = {
 		       0xff, 0xff, 0x00, SCSI_CONTROL_MASK},
 };
 
-static bool tcm_is_rep_ref_enabled(struct target_opcode_descriptor *descr,
+static bool tcm_is_rep_ref_enabled(const struct target_opcode_descriptor *descr,
 				   struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
@@ -1539,7 +1539,7 @@ static struct target_opcode_descriptor tcm_opcode_sync_cache16 = {
 		       0xff, 0xff, SCSI_GROUP_NUMBER_MASK, SCSI_CONTROL_MASK},
 };
 
-static bool tcm_is_unmap_enabled(struct target_opcode_descriptor *descr,
+static bool tcm_is_unmap_enabled(const struct target_opcode_descriptor *descr,
 				 struct se_cmd *cmd)
 {
 	struct exec_cmd_ops *ops = cmd->protocol_data;
@@ -1662,7 +1662,7 @@ static struct target_opcode_descriptor tcm_opcode_pri_read_resrv = {
 		       0xff, SCSI_CONTROL_MASK},
 };
 
-static bool tcm_is_pr_enabled(struct target_opcode_descriptor *descr,
+static bool tcm_is_pr_enabled(const struct target_opcode_descriptor *descr,
 			      struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
@@ -1880,7 +1880,7 @@ static struct target_opcode_descriptor tcm_opcode_inquiry = {
 		       0xff, SCSI_CONTROL_MASK},
 };
 
-static bool tcm_is_3pc_enabled(struct target_opcode_descriptor *descr,
+static bool tcm_is_3pc_enabled(const struct target_opcode_descriptor *descr,
 			       struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
@@ -1942,7 +1942,7 @@ static struct target_opcode_descriptor tcm_opcode_report_target_pgs = {
 		       0xff, 0xff, 0x00, SCSI_CONTROL_MASK},
 };
 
-static bool spc_rsoc_enabled(struct target_opcode_descriptor *descr,
+static bool spc_rsoc_enabled(const struct target_opcode_descriptor *descr,
 			     struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
@@ -1963,7 +1963,7 @@ static struct target_opcode_descriptor tcm_opcode_report_supp_opcodes = {
 	.enabled = spc_rsoc_enabled,
 };
 
-static bool tcm_is_set_tpg_enabled(struct target_opcode_descriptor *descr,
+static bool tcm_is_set_tpg_enabled(const struct target_opcode_descriptor *descr,
 				   struct se_cmd *cmd)
 {
 	struct t10_alua_tg_pt_gp *l_tg_pt_gp;
