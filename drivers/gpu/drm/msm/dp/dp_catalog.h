@@ -34,6 +34,18 @@
 struct msm_dp_catalog {
 	bool wide_bus_en;
 	u32 hw_revision;
+
+	void __iomem *ahb_base;
+	size_t ahb_len;
+
+	void __iomem *aux_base;
+	size_t aux_len;
+
+	void __iomem *link_base;
+	size_t link_len;
+
+	void __iomem *p0_base;
+	size_t p0_len;
 };
 
 /* Debug module */
