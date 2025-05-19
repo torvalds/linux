@@ -251,7 +251,7 @@ __run_io_and_remove()
 	local kill_server=$3
 
 	fio --name=job1 --filename=/dev/ublkb"${dev_id}" --ioengine=libaio \
-		--rw=readwrite --iodepth=256 --size="${size}" --numjobs=4 \
+		--rw=randrw --norandommap --iodepth=256 --size="${size}" --numjobs="$(nproc)" \
 		--runtime=20 --time_based > /dev/null 2>&1 &
 	sleep 2
 	if [ "${kill_server}" = "yes" ]; then
