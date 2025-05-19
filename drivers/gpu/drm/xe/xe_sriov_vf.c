@@ -123,6 +123,15 @@
  *      |                               |                               |
  */
 
+static bool vf_migration_supported(struct xe_device *xe)
+{
+	/*
+	 * TODO: Add conditions to allow specific platforms, when they're
+	 * supported at production quality.
+	 */
+	return IS_ENABLED(CONFIG_DRM_XE_DEBUG);
+}
+
 static void migration_worker_func(struct work_struct *w);
 
 /**
@@ -132,6 +141,9 @@ static void migration_worker_func(struct work_struct *w);
 void xe_sriov_vf_init_early(struct xe_device *xe)
 {
 	INIT_WORK(&xe->sriov.vf.migration.worker, migration_worker_func);
+
+	if (!vf_migration_supported(xe))
+		xe_sriov_info(xe, "migration not supported by this module version\n");
 }
 
 /**
@@ -236,6 +248,11 @@ static void vf_post_migration_recovery(struct xe_device *xe)
 		goto defer;
 	if (unlikely(err))
 		goto fail;
+	if (!vf_migration_supported(xe)) {
+		xe_sriov_err(xe, "migration not supported by this module version\n");
+		err = -ENOTRECOVERABLE;
+		goto fail;
+	}
 
 	need_fixups = vf_post_migration_fixup_ggtt_nodes(xe);
 	/* FIXME: add the recovery steps */
