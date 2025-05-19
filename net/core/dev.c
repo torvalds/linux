@@ -3599,7 +3599,7 @@ EXPORT_SYMBOL(skb_checksum_help);
 #ifdef CONFIG_NET_CRC32C
 int skb_crc32c_csum_help(struct sk_buff *skb)
 {
-	__le32 crc32c_csum;
+	u32 crc;
 	int ret = 0, offset, start;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
@@ -3627,10 +3627,8 @@ int skb_crc32c_csum_help(struct sk_buff *skb)
 	if (ret)
 		goto out;
 
-	crc32c_csum = cpu_to_le32(~__skb_checksum(skb, start,
-						  skb->len - start, ~(__u32)0,
-						  crc32c_csum_stub));
-	*(__le32 *)(skb->data + offset) = crc32c_csum;
+	crc = ~skb_crc32c(skb, start, skb->len - start, ~0);
+	*(__le32 *)(skb->data + offset) = cpu_to_le32(crc);
 	skb_reset_csum_not_inet(skb);
 out:
 	return ret;
