@@ -280,9 +280,13 @@ reassess:
 			stream->need_retry = true;
 			notes |= NEED_RETRY | MADE_PROGRESS;
 			break;
+		} else if (test_bit(NETFS_RREQ_SHORT_TRANSFER, &rreq->flags)) {
+			notes |= MADE_PROGRESS;
 		} else {
 			if (!stream->failed)
-				stream->transferred = stream->collected_to - rreq->start;
+				stream->transferred += transferred;
+			if (front->transferred < front->len)
+				set_bit(NETFS_RREQ_SHORT_TRANSFER, &rreq->flags);
 			notes |= MADE_PROGRESS;
 		}
 
@@ -342,22 +346,7 @@ need_retry:
  */
 static void netfs_rreq_assess_dio(struct netfs_io_request *rreq)
 {
-	struct netfs_io_subrequest *subreq;
-	struct netfs_io_stream *stream = &rreq->io_streams[0];
 	unsigned int i;
-
-	/* Collect unbuffered reads and direct reads, adding up the transfer
-	 * sizes until we find the first short or failed subrequest.
-	 */
-	list_for_each_entry(subreq, &stream->subrequests, rreq_link) {
-		rreq->transferred += subreq->transferred;
-
-		if (subreq->transferred < subreq->len ||
-		    test_bit(NETFS_SREQ_FAILED, &subreq->flags)) {
-			rreq->error = subreq->error;
-			break;
-		}
-	}
 
 	if (rreq->origin == NETFS_DIO_READ) {
 		for (i = 0; i < rreq->direct_bv_count; i++) {
