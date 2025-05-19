@@ -853,24 +853,6 @@ int pcim_request_region(struct pci_dev *pdev, int bar, const char *name)
 EXPORT_SYMBOL(pcim_request_region);
 
 /**
- * pcim_request_region_exclusive - Request a PCI BAR exclusively
- * @pdev: PCI device to request region for
- * @bar: Index of BAR to request
- * @name: Name of the driver requesting the resource
- *
- * Returns: 0 on success, a negative error code on failure.
- *
- * Request region specified by @bar exclusively.
- *
- * The region will automatically be released on driver detach. If desired,
- * release manually only with pcim_release_region().
- */
-int pcim_request_region_exclusive(struct pci_dev *pdev, int bar, const char *name)
-{
-	return _pcim_request_region(pdev, bar, name, IORESOURCE_EXCLUSIVE);
-}
-
-/**
  * pcim_release_region - Release a PCI BAR
  * @pdev: PCI device to operate on
  * @bar: Index of BAR to release
