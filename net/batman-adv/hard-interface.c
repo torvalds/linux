@@ -438,15 +438,13 @@ out:
 }
 
 static struct batadv_hard_iface *
-batadv_hardif_get_active(const struct net_device *mesh_iface)
+batadv_hardif_get_active(struct net_device *mesh_iface)
 {
 	struct batadv_hard_iface *hard_iface;
+	struct list_head *iter;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
-		if (hard_iface->mesh_iface != mesh_iface)
-			continue;
-
+	netdev_for_each_lower_private_rcu(mesh_iface, hard_iface, iter) {
 		if (hard_iface->if_status == BATADV_IF_ACTIVE &&
 		    kref_get_unless_zero(&hard_iface->refcount))
 			goto out;
@@ -508,17 +506,15 @@ batadv_hardif_is_iface_up(const struct batadv_hard_iface *hard_iface)
 
 static void batadv_check_known_mac_addr(const struct batadv_hard_iface *hard_iface)
 {
-	const struct net_device *mesh_iface = hard_iface->mesh_iface;
+	struct net_device *mesh_iface = hard_iface->mesh_iface;
 	const struct batadv_hard_iface *tmp_hard_iface;
+	struct list_head *iter;
 
 	if (!mesh_iface)
 		return;
 
-	list_for_each_entry(tmp_hard_iface, &batadv_hardif_list, list) {
+	netdev_for_each_lower_private(mesh_iface, tmp_hard_iface, iter) {
 		if (tmp_hard_iface == hard_iface)
-			continue;
-
-		if (tmp_hard_iface->mesh_iface != mesh_iface)
 			continue;
 
 		if (tmp_hard_iface->if_status == BATADV_IF_NOT_IN_USE)
@@ -545,13 +541,11 @@ static void batadv_hardif_recalc_extra_skbroom(struct net_device *mesh_iface)
 	unsigned short lower_headroom = 0;
 	unsigned short lower_tailroom = 0;
 	unsigned short needed_headroom;
+	struct list_head *iter;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
+	netdev_for_each_lower_private_rcu(mesh_iface, hard_iface, iter) {
 		if (hard_iface->if_status == BATADV_IF_NOT_IN_USE)
-			continue;
-
-		if (hard_iface->mesh_iface != mesh_iface)
 			continue;
 
 		lower_header_len = max_t(unsigned short, lower_header_len,
@@ -586,15 +580,13 @@ int batadv_hardif_min_mtu(struct net_device *mesh_iface)
 {
 	struct batadv_priv *bat_priv = netdev_priv(mesh_iface);
 	const struct batadv_hard_iface *hard_iface;
+	struct list_head *iter;
 	int min_mtu = INT_MAX;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
+	netdev_for_each_lower_private_rcu(mesh_iface, hard_iface, iter) {
 		if (hard_iface->if_status != BATADV_IF_ACTIVE &&
 		    hard_iface->if_status != BATADV_IF_TO_BE_ACTIVATED)
-			continue;
-
-		if (hard_iface->mesh_iface != mesh_iface)
 			continue;
 
 		min_mtu = min_t(int, hard_iface->net_dev->mtu, min_mtu);
@@ -734,7 +726,7 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 	bat_priv = netdev_priv(hard_iface->mesh_iface);
 
 	ret = netdev_master_upper_dev_link(hard_iface->net_dev,
-					   mesh_iface, NULL, NULL, NULL);
+					   mesh_iface, hard_iface, NULL, NULL);
 	if (ret)
 		goto err_dev;
 
@@ -803,18 +795,15 @@ err_dev:
  *
  * Return: number of connected/enslaved hard interfaces
  */
-static size_t batadv_hardif_cnt(const struct net_device *mesh_iface)
+static size_t batadv_hardif_cnt(struct net_device *mesh_iface)
 {
 	struct batadv_hard_iface *hard_iface;
+	struct list_head *iter;
 	size_t count = 0;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
-		if (hard_iface->mesh_iface != mesh_iface)
-			continue;
-
+	netdev_for_each_lower_private_rcu(mesh_iface, hard_iface, iter)
 		count++;
-	}
 	rcu_read_unlock();
 
 	return count;
