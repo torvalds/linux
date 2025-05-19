@@ -1663,10 +1663,11 @@ read_persistent_wall_and_boot_offset(struct timespec64 *wall_time,
 	*boot_offset = ns_to_timespec64(local_clock());
 }
 
-static __init void tkd_basic_setup(struct tk_data *tkd)
+static __init void tkd_basic_setup(struct tk_data *tkd, enum timekeeper_ids tk_id)
 {
 	raw_spin_lock_init(&tkd->lock);
 	seqcount_raw_spinlock_init(&tkd->seq, &tkd->lock);
+	tkd->timekeeper.id = tkd->shadow_timekeeper.id = tk_id;
 }
 
 /*
@@ -1696,7 +1697,7 @@ void __init timekeeping_init(void)
 	struct timekeeper *tks = &tk_core.shadow_timekeeper;
 	struct clocksource *clock;
 
-	tkd_basic_setup(&tk_core);
+	tkd_basic_setup(&tk_core, TIMEKEEPER_CORE);
 
 	read_persistent_wall_and_boot_offset(&wall_time, &boot_offset);
 	if (timespec64_valid_settod(&wall_time) &&

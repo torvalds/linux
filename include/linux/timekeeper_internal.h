@@ -12,6 +12,16 @@
 #include <linux/time.h>
 
 /**
+ * timekeeper_ids - IDs for various time keepers in the kernel
+ * @TIMEKEEPER_CORE:	The central core timekeeper managing system time
+ * @TIMEKEEPERS_MAX:	The maximum number of timekeepers managed
+ */
+enum timekeeper_ids {
+	TIMEKEEPER_CORE,
+	TIMEKEEPERS_MAX,
+};
+
+/**
  * struct tk_read_base - base structure for timekeeping readout
  * @clock:	Current clocksource used for timekeeping.
  * @mask:	Bitmask for two's complement subtraction of non 64bit clocks
@@ -52,6 +62,7 @@ struct tk_read_base {
  * @offs_boot:			Offset clock monotonic -> clock boottime
  * @offs_tai:			Offset clock monotonic -> clock tai
  * @coarse_nsec:		The nanoseconds part for coarse time getters
+ * @id:				The timekeeper ID
  * @tkr_raw:			The readout base structure for CLOCK_MONOTONIC_RAW
  * @raw_sec:			CLOCK_MONOTONIC_RAW  time in seconds
  * @clock_was_set_seq:		The sequence number of clock was set events
@@ -101,7 +112,7 @@ struct tk_read_base {
  * which results in the following cacheline layout:
  *
  * 0:	seqcount, tkr_mono
- * 1:	xtime_sec ... coarse_nsec
+ * 1:	xtime_sec ... id
  * 2:	tkr_raw, raw_sec
  * 3,4: Internal variables
  *
@@ -123,6 +134,7 @@ struct timekeeper {
 	ktime_t			offs_boot;
 	ktime_t			offs_tai;
 	u32			coarse_nsec;
+	enum timekeeper_ids	id;
 
 	/* Cacheline 2: */
 	struct tk_read_base	tkr_raw;
