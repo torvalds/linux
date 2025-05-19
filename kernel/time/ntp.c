@@ -303,7 +303,7 @@ static void ntp_update_offset(struct ntp_data *ntpdata, long offset)
 	 * Select how the frequency is to be controlled
 	 * and in which mode (PLL or FLL).
 	 */
-	real_secs = __ktime_get_real_seconds();
+	real_secs = ktime_get_ntp_seconds(ntpdata - tk_ntp_data);
 	secs = (long)(real_secs - ntpdata->time_reftime);
 	if (unlikely(ntpdata->time_status & STA_FREQHOLD))
 		secs = 0;
@@ -710,7 +710,7 @@ static inline void process_adj_status(struct ntp_data *ntpdata, const struct __k
 	 * reference time to current time.
 	 */
 	if (!(ntpdata->time_status & STA_PLL) && (txc->status & STA_PLL))
-		ntpdata->time_reftime = __ktime_get_real_seconds();
+		ntpdata->time_reftime = ktime_get_ntp_seconds(ntpdata - tk_ntp_data);
 
 	/* only set allowed bits */
 	ntpdata->time_status &= STA_RONLY;
