@@ -454,7 +454,6 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes);
 int attr_insert_range(struct ntfs_inode *ni, u64 vbo, u64 bytes);
 int attr_punch_hole(struct ntfs_inode *ni, u64 vbo, u64 bytes, u32 *frame_size);
 int attr_force_nonresident(struct ntfs_inode *ni);
-int attr_set_compress(struct ntfs_inode *ni, bool compr);
 
 /* Functions from attrlist.c */
 void al_destroy(struct ntfs_inode *ni);
@@ -497,9 +496,6 @@ extern const struct file_operations ntfs_dir_operations;
 extern const struct file_operations ntfs_legacy_dir_operations;
 
 /* Globals from file.c */
-int ntfs_fileattr_get(struct dentry *dentry, struct fileattr *fa);
-int ntfs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
-		      struct fileattr *fa);
 int ntfs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, u32 flags);
 int ntfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
@@ -585,7 +581,6 @@ int ni_rename(struct ntfs_inode *dir_ni, struct ntfs_inode *new_dir_ni,
 	      bool *is_bad);
 
 bool ni_is_dirty(struct inode *inode);
-int ni_set_compress(struct inode *inode, bool compr);
 
 /* Globals from fslog.c */
 bool check_index_header(const struct INDEX_HDR *hdr, size_t bytes);
