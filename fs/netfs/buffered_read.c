@@ -312,7 +312,7 @@ static void netfs_read_to_pagecache(struct netfs_io_request *rreq)
 	if (unlikely(size > 0)) {
 		smp_wmb(); /* Write lists before ALL_QUEUED. */
 		set_bit(NETFS_RREQ_ALL_QUEUED, &rreq->flags);
-		netfs_wake_read_collector(rreq);
+		netfs_wake_collector(rreq);
 	}
 
 	/* Defer error return as we may need to wait for outstanding I/O. */

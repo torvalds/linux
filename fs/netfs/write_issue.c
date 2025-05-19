@@ -542,7 +542,7 @@ static void netfs_end_issue_write(struct netfs_io_request *wreq)
 	}
 
 	if (needs_poke)
-		netfs_wake_write_collector(wreq);
+		netfs_wake_collector(wreq);
 }
 
 /*
@@ -576,6 +576,7 @@ int netfs_writepages(struct address_space *mapping,
 		goto couldnt_start;
 	}
 
+	__set_bit(NETFS_RREQ_OFFLOAD_COLLECTION, &wreq->flags);
 	trace_netfs_write(wreq, netfs_write_trace_writeback);
 	netfs_stat(&netfs_n_wh_writepages);
 
@@ -599,7 +600,7 @@ int netfs_writepages(struct address_space *mapping,
 	netfs_end_issue_write(wreq);
 
 	mutex_unlock(&ictx->wb_lock);
-	netfs_wake_write_collector(wreq);
+	netfs_wake_collector(wreq);
 
 	netfs_put_request(wreq, netfs_rreq_trace_put_return);
 	_leave(" = %d", error);
@@ -674,11 +675,11 @@ int netfs_advance_writethrough(struct netfs_io_request *wreq, struct writeback_c
 /*
  * End a write operation used when writing through the pagecache.
  */
-int netfs_end_writethrough(struct netfs_io_request *wreq, struct writeback_control *wbc,
-			   struct folio *writethrough_cache)
+ssize_t netfs_end_writethrough(struct netfs_io_request *wreq, struct writeback_control *wbc,
+			       struct folio *writethrough_cache)
 {
 	struct netfs_inode *ictx = netfs_inode(wreq->inode);
-	int ret;
+	ssize_t ret;
 
 	_enter("R=%x", wreq->debug_id);
 
@@ -689,12 +690,10 @@ int netfs_end_writethrough(struct netfs_io_request *wreq, struct writeback_contr
 
 	mutex_unlock(&ictx->wb_lock);
 
-	if (wreq->iocb) {
+	if (wreq->iocb)
 		ret = -EIOCBQUEUED;
-	} else {
-		wait_on_bit(&wreq->flags, NETFS_RREQ_IN_PROGRESS, TASK_UNINTERRUPTIBLE);
-		ret = wreq->error;
-	}
+	else
+		ret = netfs_wait_for_write(wreq);
 	netfs_put_request(wreq, netfs_rreq_trace_put_return);
 	return ret;
 }
@@ -723,10 +722,8 @@ int netfs_unbuffered_write(struct netfs_io_request *wreq, bool may_wait, size_t 
 		start += part;
 		len -= part;
 		rolling_buffer_advance(&wreq->buffer, part);
-		if (test_bit(NETFS_RREQ_PAUSE, &wreq->flags)) {
-			trace_netfs_rreq(wreq, netfs_rreq_trace_wait_pause);
-			wait_event(wreq->waitq, !test_bit(NETFS_RREQ_PAUSE, &wreq->flags));
-		}
+		if (test_bit(NETFS_RREQ_PAUSE, &wreq->flags))
+			netfs_wait_for_paused_write(wreq);
 		if (test_bit(NETFS_RREQ_FAILED, &wreq->flags))
 			break;
 	}
@@ -886,6 +883,7 @@ int netfs_writeback_single(struct address_space *mapping,
 		goto couldnt_start;
 	}
 
+	__set_bit(NETFS_RREQ_OFFLOAD_COLLECTION, &wreq->flags);
 	trace_netfs_write(wreq, netfs_write_trace_writeback_single);
 	netfs_stat(&netfs_n_wh_writepages);
 
@@ -915,7 +913,7 @@ stop:
 	set_bit(NETFS_RREQ_ALL_QUEUED, &wreq->flags);
 
 	mutex_unlock(&ictx->wb_lock);
-	netfs_wake_write_collector(wreq);
+	netfs_wake_collector(wreq);
 
 	netfs_put_request(wreq, netfs_rreq_trace_put_return);
 	_leave(" = %d", ret);

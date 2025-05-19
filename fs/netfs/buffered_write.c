@@ -386,7 +386,7 @@ out:
 		wbc_detach_inode(&wbc);
 		if (ret2 == -EIOCBQUEUED)
 			return ret2;
-		if (ret == 0)
+		if (ret == 0 && ret2 < 0)
 			ret = ret2;
 	}
 

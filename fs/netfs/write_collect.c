@@ -321,18 +321,14 @@ reassess_streams:
 
 	if (notes & NEED_RETRY)
 		goto need_retry;
-	if ((notes & MADE_PROGRESS) && test_bit(NETFS_RREQ_PAUSE, &wreq->flags)) {
-		trace_netfs_rreq(wreq, netfs_rreq_trace_unpause);
-		clear_bit_unlock(NETFS_RREQ_PAUSE, &wreq->flags);
-		smp_mb__after_atomic(); /* Set PAUSE before task state */
-		wake_up(&wreq->waitq);
-	}
 
-	if (notes & NEED_REASSESS) {
+	if (notes & MADE_PROGRESS) {
+		netfs_wake_rreq_flag(wreq, NETFS_RREQ_PAUSE, netfs_rreq_trace_unpause);
 		//cond_resched();
 		goto reassess_streams;
 	}
-	if (notes & MADE_PROGRESS) {
+
+	if (notes & NEED_REASSESS) {
 		//cond_resched();
 		goto reassess_streams;
 	}
@@ -356,7 +352,7 @@ need_retry:
 /*
  * Perform the collection of subrequests, folios and encryption buffers.
  */
-static bool netfs_write_collection(struct netfs_io_request *wreq)
+bool netfs_write_collection(struct netfs_io_request *wreq)
 {
 	struct netfs_inode *ictx = netfs_inode(wreq->inode);
 	size_t transferred;
@@ -417,8 +413,7 @@ static bool netfs_write_collection(struct netfs_io_request *wreq)
 		inode_dio_end(wreq->inode);
 
 	_debug("finished");
-	trace_netfs_rreq(wreq, netfs_rreq_trace_wake_ip);
-	clear_and_wake_up_bit(NETFS_RREQ_IN_PROGRESS, &wreq->flags);
+	netfs_wake_rreq_flag(wreq, NETFS_RREQ_IN_PROGRESS, netfs_rreq_trace_wake_ip);
 	/* As we cleared NETFS_RREQ_IN_PROGRESS, we acquired its ref. */
 
 	if (wreq->iocb) {
@@ -448,14 +443,6 @@ void netfs_write_collection_worker(struct work_struct *work)
 	}
 }
 
-/*
- * Wake the collection work item.
- */
-void netfs_wake_write_collector(struct netfs_io_request *wreq)
-{
-	queue_work(system_unbound_wq, &wreq->work);
-}
-
 /**
  * netfs_write_subrequest_terminated - Note the termination of a write operation.
  * @_op: The I/O request that has terminated.
@@ -479,7 +466,6 @@ void netfs_write_subrequest_terminated(void *_op, ssize_t transferred_or_error)
 {
 	struct netfs_io_subrequest *subreq = _op;
 	struct netfs_io_request *wreq = subreq->rreq;
-	struct netfs_io_stream *stream = &wreq->io_streams[subreq->stream_nr];
 
 	_enter("%x[%x] %zd", wreq->debug_id, subreq->debug_index, transferred_or_error);
 
@@ -531,15 +517,7 @@ void netfs_write_subrequest_terminated(void *_op, ssize_t transferred_or_error)
 	}
 
 	trace_netfs_sreq(subreq, netfs_sreq_trace_terminated);
-
-	clear_and_wake_up_bit(NETFS_SREQ_IN_PROGRESS, &subreq->flags);
-
-	/* If we are at the head of the queue, wake up the collector,
-	 * transferring a ref to it if we were the ones to do so.
-	 */
-	if (list_is_first(&subreq->rreq_link, &stream->subrequests))
-		netfs_wake_write_collector(wreq);
-
+	netfs_subreq_clear_in_progress(subreq);
 	netfs_put_subrequest(subreq, netfs_sreq_trace_put_terminated);
 }
 EXPORT_SYMBOL(netfs_write_subrequest_terminated);
