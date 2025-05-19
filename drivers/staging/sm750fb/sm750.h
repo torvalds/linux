@@ -204,9 +204,9 @@ int hw_sm750_output_set_mode(struct lynxfb_output *output,
 int hw_sm750_crtc_check_mode(struct lynxfb_crtc *crtc,
 			     struct fb_var_screeninfo *var);
 
-int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
-			  struct fb_var_screeninfo *var,
-			  struct fb_fix_screeninfo *fix);
+int hw_sm750_crtc_set_mode(struct lynxfb_crtc *crtc,
+			   struct fb_var_screeninfo *var,
+			   struct fb_fix_screeninfo *fix);
 
 int hw_sm750_setColReg(struct lynxfb_crtc *crtc, ushort index,
 		       ushort red, ushort green, ushort blue);
