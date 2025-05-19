@@ -318,7 +318,6 @@ struct netfs_request_ops {
  */
 enum netfs_read_from_hole {
 	NETFS_READ_HOLE_IGNORE,
-	NETFS_READ_HOLE_CLEAR,
 	NETFS_READ_HOLE_FAIL,
 };
 
