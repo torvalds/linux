@@ -6,6 +6,7 @@
  * Copyright 2012-2020 Analog Devices Inc.
  */
 
+#include <linux/adi-axi-common.h>
 #include <linux/bitfield.h>
 #include <linux/cleanup.h>
 #include <linux/clk.h>
@@ -19,8 +20,6 @@
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
-
-#include <linux/fpga/adi-axi-common.h>
 
 #include <linux/iio/backend.h>
 #include <linux/iio/buffer-dmaengine.h>
