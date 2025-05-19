@@ -192,7 +192,7 @@ Todo
 - Get rid of the previous paragraph.
 - Buy more coffee.
 - test/port to other arch.
-- try to add panning using tweeks with front and back buffer .
+- try to add panning using tweaks with front and back buffer.
 - try to implement accel on voodoo2, this board can actually do a
   lot in 2D even if it was sold as a 3D only board ...
 
