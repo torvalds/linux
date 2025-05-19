@@ -919,7 +919,7 @@ long amdgpu_ctx_mgr_entity_flush(struct amdgpu_ctx_mgr *mgr, long timeout)
 	return timeout;
 }
 
-void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr)
+static void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr)
 {
 	struct amdgpu_ctx *ctx;
 	struct idr *idp;
