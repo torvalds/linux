@@ -236,14 +236,15 @@ static inline struct rw_semaphore *thread__namespaces_lock(struct thread *thread
 	return &RC_CHK_ACCESS(thread)->namespaces_lock;
 }
 
-static inline struct list_head *thread__comm_list(struct thread *thread)
-{
-	return &RC_CHK_ACCESS(thread)->comm_list;
-}
-
 static inline struct rw_semaphore *thread__comm_lock(struct thread *thread)
 {
 	return &RC_CHK_ACCESS(thread)->comm_lock;
+}
+
+static inline struct list_head *thread__comm_list(struct thread *thread)
+	SHARED_LOCKS_REQUIRED(thread__comm_lock(thread))
+{
+	return &RC_CHK_ACCESS(thread)->comm_list;
 }
 
 static inline u64 thread__db_id(const struct thread *thread)

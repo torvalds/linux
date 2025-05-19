@@ -41,6 +41,7 @@ int thread__init_maps(struct thread *thread, struct machine *machine)
 }
 
 struct thread *thread__new(pid_t pid, pid_t tid)
+	NO_THREAD_SAFETY_ANALYSIS /* Allocation/creation is inherently single threaded. */
 {
 	RC_STRUCT(thread) *_thread = zalloc(sizeof(*_thread));
 	struct thread *thread;
@@ -202,22 +203,29 @@ int thread__set_namespaces(struct thread *thread, u64 timestamp,
 
 struct comm *thread__comm(struct thread *thread)
 {
-	if (list_empty(thread__comm_list(thread)))
-		return NULL;
+	struct comm *res = NULL;
 
-	return list_first_entry(thread__comm_list(thread), struct comm, list);
+	down_read(thread__comm_lock(thread));
+	if (!list_empty(thread__comm_list(thread)))
+		res = list_first_entry(thread__comm_list(thread), struct comm, list);
+	up_read(thread__comm_lock(thread));
+	return res;
 }
 
 struct comm *thread__exec_comm(struct thread *thread)
 {
 	struct comm *comm, *last = NULL, *second_last = NULL;
 
+	down_read(thread__comm_lock(thread));
 	list_for_each_entry(comm, thread__comm_list(thread), list) {
-		if (comm->exec)
+		if (comm->exec) {
+			up_read(thread__comm_lock(thread));
 			return comm;
+		}
 		second_last = last;
 		last = comm;
 	}
+	up_read(thread__comm_lock(thread));
 
 	/*
 	 * 'last' with no start time might be the parent's comm of a synthesized
@@ -233,6 +241,7 @@ struct comm *thread__exec_comm(struct thread *thread)
 
 static int ____thread__set_comm(struct thread *thread, const char *str,
 				u64 timestamp, bool exec)
+	EXCLUSIVE_LOCKS_REQUIRED(thread__comm_lock(thread))
 {
 	struct comm *new, *curr = thread__comm(thread);
 
