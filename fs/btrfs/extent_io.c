@@ -2189,7 +2189,6 @@ retry:
 					done = 1;
 					break;
 				}
-				free_extent_buffer(eb);
 				continue;
 			}
 
