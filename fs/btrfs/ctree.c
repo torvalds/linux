@@ -284,14 +284,18 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 	write_extent_buffer_fsid(cow, fs_info->fs_devices->metadata_uuid);
 
 	WARN_ON(btrfs_header_generation(buf) > trans->transid);
-	if (new_root_objectid == BTRFS_TREE_RELOC_OBJECTID)
+	if (new_root_objectid == BTRFS_TREE_RELOC_OBJECTID) {
 		ret = btrfs_inc_ref(trans, root, cow, 1);
-	else
+		if (ret)
+			btrfs_abort_transaction(trans, ret);
+	} else {
 		ret = btrfs_inc_ref(trans, root, cow, 0);
+		if (ret)
+			btrfs_abort_transaction(trans, ret);
+	}
 	if (ret) {
 		btrfs_tree_unlock(cow);
 		free_extent_buffer(cow);
-		btrfs_abort_transaction(trans, ret);
 		return ret;
 	}
 
