@@ -34,7 +34,6 @@ struct folio_queue {
 	struct folio_queue	*prev;		/* Previous queue segment of NULL */
 	unsigned long		marks;		/* 1-bit mark per folio */
 	unsigned long		marks2;		/* Second 1-bit mark per folio */
-	unsigned long		marks3;		/* Third 1-bit mark per folio */
 #if PAGEVEC_SIZE > BITS_PER_LONG
 #error marks is not big enough
 #endif
@@ -58,7 +57,6 @@ static inline void folioq_init(struct folio_queue *folioq, unsigned int rreq_id)
 	folioq->prev = NULL;
 	folioq->marks = 0;
 	folioq->marks2 = 0;
-	folioq->marks3 = 0;
 	folioq->rreq_id = rreq_id;
 	folioq->debug_id = 0;
 }
@@ -179,45 +177,6 @@ static inline void folioq_unmark2(struct folio_queue *folioq, unsigned int slot)
 }
 
 /**
- * folioq_is_marked3: Check third folio mark in a folio queue segment
- * @folioq: The segment to query
- * @slot: The slot number of the folio to query
- *
- * Determine if the third mark is set for the folio in the specified slot in a
- * folio queue segment.
- */
-static inline bool folioq_is_marked3(const struct folio_queue *folioq, unsigned int slot)
-{
-	return test_bit(slot, &folioq->marks3);
-}
-
-/**
- * folioq_mark3: Set the third mark on a folio in a folio queue segment
- * @folioq: The segment to modify
- * @slot: The slot number of the folio to modify
- *
- * Set the third mark for the folio in the specified slot in a folio queue
- * segment.
- */
-static inline void folioq_mark3(struct folio_queue *folioq, unsigned int slot)
-{
-	set_bit(slot, &folioq->marks3);
-}
-
-/**
- * folioq_unmark3: Clear the third mark on a folio in a folio queue segment
- * @folioq: The segment to modify
- * @slot: The slot number of the folio to modify
- *
- * Clear the third mark for the folio in the specified slot in a folio queue
- * segment.
- */
-static inline void folioq_unmark3(struct folio_queue *folioq, unsigned int slot)
-{
-	clear_bit(slot, &folioq->marks3);
-}
-
-/**
  * folioq_append: Add a folio to a folio queue segment
  * @folioq: The segment to add to
  * @folio: The folio to add
@@ -318,7 +277,6 @@ static inline void folioq_clear(struct folio_queue *folioq, unsigned int slot)
 	folioq->vec.folios[slot] = NULL;
 	folioq_unmark(folioq, slot);
 	folioq_unmark2(folioq, slot);
-	folioq_unmark3(folioq, slot);
 }
 
 #endif /* _LINUX_FOLIO_QUEUE_H */
