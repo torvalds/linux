@@ -337,6 +337,11 @@ struct sk_filter;
   *	@sk_txtime_deadline_mode: set deadline mode for SO_TXTIME
   *	@sk_txtime_report_errors: set report errors mode for SO_TXTIME
   *	@sk_txtime_unused: unused txtime flags
+  *	@sk_scm_recv_flags: all flags used by scm_recv()
+  *	@sk_scm_credentials: flagged by SO_PASSCRED to recv SCM_CREDENTIALS
+  *	@sk_scm_security: flagged by SO_PASSSEC to recv SCM_SECURITY
+  *	@sk_scm_pidfd: flagged by SO_PASSPIDFD to recv SCM_PIDFD
+  *	@sk_scm_unused: unused flags for scm_recv()
   *	@ns_tracker: tracker for netns reference
   *	@sk_user_frags: xarray of pages the user is holding a reference on.
   *	@sk_owner: reference to the real owner of the socket that calls
@@ -523,7 +528,16 @@ struct sock {
 #endif
 	int			sk_disconnects;
 
-	u8			sk_txrehash;
+	union {
+		u8		sk_txrehash;
+		u8		sk_scm_recv_flags;
+		struct {
+			u8	sk_scm_credentials : 1,
+				sk_scm_security : 1,
+				sk_scm_pidfd : 1,
+				sk_scm_unused : 5;
+		};
+	};
 	u8			sk_clockid;
 	u8			sk_txtime_deadline_mode : 1,
 				sk_txtime_report_errors : 1,

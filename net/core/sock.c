@@ -1220,24 +1220,6 @@ int sk_setsockopt(struct sock *sk, int level, int optname,
 			return 0;
 		}
 		return -EPERM;
-	case SO_PASSSEC:
-		if (!IS_ENABLED(CONFIG_SECURITY_NETWORK) || sk_may_scm_recv(sk))
-			return -EOPNOTSUPP;
-
-		assign_bit(SOCK_PASSSEC, &sock->flags, valbool);
-		return 0;
-	case SO_PASSCRED:
-		if (!sk_may_scm_recv(sk))
-			return -EOPNOTSUPP;
-
-		assign_bit(SOCK_PASSCRED, &sock->flags, valbool);
-		return 0;
-	case SO_PASSPIDFD:
-		if (!sk_is_unix(sk))
-			return -EOPNOTSUPP;
-
-		assign_bit(SOCK_PASSPIDFD, &sock->flags, valbool);
-		return 0;
 	case SO_TYPE:
 	case SO_PROTOCOL:
 	case SO_DOMAIN:
@@ -1568,6 +1550,26 @@ set_sndbuf:
 		sock_valbool_flag(sk, SOCK_SELECT_ERR_QUEUE, valbool);
 		break;
 
+	case SO_PASSCRED:
+		if (sk_may_scm_recv(sk))
+			sk->sk_scm_credentials = valbool;
+		else
+			ret = -EOPNOTSUPP;
+		break;
+
+	case SO_PASSSEC:
+		if (IS_ENABLED(CONFIG_SECURITY_NETWORK) && sk_may_scm_recv(sk))
+			sk->sk_scm_security = valbool;
+		else
+			ret = -EOPNOTSUPP;
+		break;
+
+	case SO_PASSPIDFD:
+		if (sk_is_unix(sk))
+			sk->sk_scm_pidfd = valbool;
+		else
+			ret = -EOPNOTSUPP;
+		break;
 
 	case SO_INCOMING_CPU:
 		reuseport_update_incoming_cpu(sk, val);
@@ -1867,14 +1869,14 @@ int sk_getsockopt(struct sock *sk, int level, int optname,
 		if (!sk_may_scm_recv(sk))
 			return -EOPNOTSUPP;
 
-		v.val = !!test_bit(SOCK_PASSCRED, &sock->flags);
+		v.val = sk->sk_scm_credentials;
 		break;
 
 	case SO_PASSPIDFD:
 		if (!sk_is_unix(sk))
 			return -EOPNOTSUPP;
 
-		v.val = !!test_bit(SOCK_PASSPIDFD, &sock->flags);
+		v.val = sk->sk_scm_pidfd;
 		break;
 
 	case SO_PEERCRED:
@@ -1974,7 +1976,7 @@ int sk_getsockopt(struct sock *sk, int level, int optname,
 		if (!IS_ENABLED(CONFIG_SECURITY_NETWORK) || !sk_may_scm_recv(sk))
 			return -EOPNOTSUPP;
 
-		v.val = !!test_bit(SOCK_PASSSEC, &sock->flags);
+		v.val = sk->sk_scm_security;
 		break;
 
 	case SO_PEERSEC:

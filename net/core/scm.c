@@ -406,12 +406,12 @@ struct scm_fp_list *scm_fp_dup(struct scm_fp_list *fpl)
 EXPORT_SYMBOL(scm_fp_dup);
 
 #ifdef CONFIG_SECURITY_NETWORK
-static void scm_passec(struct socket *sock, struct msghdr *msg, struct scm_cookie *scm)
+static void scm_passec(struct sock *sk, struct msghdr *msg, struct scm_cookie *scm)
 {
 	struct lsm_context ctx;
 	int err;
 
-	if (test_bit(SOCK_PASSSEC, &sock->flags)) {
+	if (sk->sk_scm_security) {
 		err = security_secid_to_secctx(scm->secid, &ctx);
 
 		if (err >= 0) {
@@ -423,16 +423,16 @@ static void scm_passec(struct socket *sock, struct msghdr *msg, struct scm_cooki
 	}
 }
 
-static bool scm_has_secdata(struct socket *sock)
+static bool scm_has_secdata(struct sock *sk)
 {
-	return test_bit(SOCK_PASSSEC, &sock->flags);
+	return sk->sk_scm_security;
 }
 #else
-static void scm_passec(struct socket *sock, struct msghdr *msg, struct scm_cookie *scm)
+static void scm_passec(struct sock *sk, struct msghdr *msg, struct scm_cookie *scm)
 {
 }
 
-static bool scm_has_secdata(struct socket *sock)
+static bool scm_has_secdata(struct sock *sk)
 {
 	return false;
 }
@@ -474,20 +474,19 @@ static void scm_pidfd_recv(struct msghdr *msg, struct scm_cookie *scm)
 		fd_install(pidfd, pidfd_file);
 }
 
-static bool __scm_recv_common(struct socket *sock, struct msghdr *msg,
+static bool __scm_recv_common(struct sock *sk, struct msghdr *msg,
 			      struct scm_cookie *scm, int flags)
 {
 	if (!msg->msg_control) {
-		if (test_bit(SOCK_PASSCRED, &sock->flags) ||
-		    test_bit(SOCK_PASSPIDFD, &sock->flags) ||
-		    scm->fp || scm_has_secdata(sock))
+		if (sk->sk_scm_credentials || sk->sk_scm_pidfd ||
+		    scm->fp || scm_has_secdata(sk))
 			msg->msg_flags |= MSG_CTRUNC;
 
 		scm_destroy(scm);
 		return false;
 	}
 
-	if (test_bit(SOCK_PASSCRED, &sock->flags)) {
+	if (sk->sk_scm_credentials) {
 		struct user_namespace *current_ns = current_user_ns();
 		struct ucred ucreds = {
 			.pid = scm->creds.pid,
@@ -498,7 +497,7 @@ static bool __scm_recv_common(struct socket *sock, struct msghdr *msg,
 		put_cmsg(msg, SOL_SOCKET, SCM_CREDENTIALS, sizeof(ucreds), &ucreds);
 	}
 
-	scm_passec(sock, msg, scm);
+	scm_passec(sk, msg, scm);
 
 	if (scm->fp)
 		scm_detach_fds(msg, scm);
@@ -509,7 +508,7 @@ static bool __scm_recv_common(struct socket *sock, struct msghdr *msg,
 void scm_recv(struct socket *sock, struct msghdr *msg,
 	      struct scm_cookie *scm, int flags)
 {
-	if (!__scm_recv_common(sock, msg, scm, flags))
+	if (!__scm_recv_common(sock->sk, msg, scm, flags))
 		return;
 
 	scm_destroy_cred(scm);
@@ -519,10 +518,10 @@ EXPORT_SYMBOL(scm_recv);
 void scm_recv_unix(struct socket *sock, struct msghdr *msg,
 		   struct scm_cookie *scm, int flags)
 {
-	if (!__scm_recv_common(sock, msg, scm, flags))
+	if (!__scm_recv_common(sock->sk, msg, scm, flags))
 		return;
 
-	if (test_bit(SOCK_PASSPIDFD, &sock->flags))
+	if (sock->sk->sk_scm_pidfd)
 		scm_pidfd_recv(msg, scm);
 
 	scm_destroy_cred(scm);

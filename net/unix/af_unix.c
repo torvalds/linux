@@ -767,10 +767,7 @@ static void copy_peercred(struct sock *sk, struct sock *peersk)
 
 static bool unix_may_passcred(const struct sock *sk)
 {
-	struct socket *sock = sk->sk_socket;
-
-	return test_bit(SOCK_PASSCRED, &sock->flags) ||
-		test_bit(SOCK_PASSPIDFD, &sock->flags);
+	return sk->sk_scm_credentials || sk->sk_scm_pidfd;
 }
 
 static int unix_listen(struct socket *sock, int backlog)
@@ -1713,17 +1710,6 @@ static int unix_socketpair(struct socket *socka, struct socket *sockb)
 	return 0;
 }
 
-static void unix_sock_inherit_flags(const struct socket *old,
-				    struct socket *new)
-{
-	if (test_bit(SOCK_PASSCRED, &old->flags))
-		set_bit(SOCK_PASSCRED, &new->flags);
-	if (test_bit(SOCK_PASSPIDFD, &old->flags))
-		set_bit(SOCK_PASSPIDFD, &new->flags);
-	if (test_bit(SOCK_PASSSEC, &old->flags))
-		set_bit(SOCK_PASSSEC, &new->flags);
-}
-
 static int unix_accept(struct socket *sock, struct socket *newsock,
 		       struct proto_accept_arg *arg)
 {
@@ -1760,7 +1746,7 @@ static int unix_accept(struct socket *sock, struct socket *newsock,
 	unix_state_lock(tsk);
 	unix_update_edges(unix_sk(tsk));
 	newsock->state = SS_CONNECTED;
-	unix_sock_inherit_flags(sock, newsock);
+	tsk->sk_scm_recv_flags = READ_ONCE(sk->sk_scm_recv_flags);
 	sock_graft(tsk, newsock);
 	unix_state_unlock(tsk);
 	return 0;
