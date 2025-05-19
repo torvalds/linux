@@ -380,7 +380,7 @@ int hw_sm750_set_col_reg(struct lynxfb_crtc *crtc, ushort index, ushort red,
 	return 0;
 }
 
-int hw_sm750le_setBLANK(struct lynxfb_output *output, int blank)
+int hw_sm750le_set_blank(struct lynxfb_output *output, int blank)
 {
 	int dpms, crtdb;
 
