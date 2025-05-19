@@ -1008,8 +1008,16 @@ static int __btrfs_update_delayed_inode(struct btrfs_trans_handle *trans,
 	ret = btrfs_lookup_inode(trans, root, path, &key, mod);
 	if (ret > 0)
 		ret = -ENOENT;
-	if (ret < 0)
+	if (ret < 0) {
+		/*
+		 * If we fail to update the delayed inode we need to abort the
+		 * transaction, because we could leave the inode with the
+		 * improper counts behind.
+		 */
+		if (ret != -ENOENT)
+			btrfs_abort_transaction(trans, ret);
 		goto out;
+	}
 
 	leaf = path->nodes[0];
 	inode_item = btrfs_item_ptr(leaf, path->slots[0],
@@ -1034,8 +1042,10 @@ static int __btrfs_update_delayed_inode(struct btrfs_trans_handle *trans,
 
 		btrfs_release_path(path);
 		ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
-		if (ret < 0)
+		if (ret < 0) {
+			btrfs_abort_transaction(trans, ret);
 			goto err_out;
+		}
 		ASSERT(ret > 0);
 		ASSERT(path->slots[0] > 0);
 		ret = 0;
@@ -1057,21 +1067,14 @@ static int __btrfs_update_delayed_inode(struct btrfs_trans_handle *trans,
 	 * in the same item doesn't exist.
 	 */
 	ret = btrfs_del_item(trans, root, path);
+	if (ret < 0)
+		btrfs_abort_transaction(trans, ret);
 out:
 	btrfs_release_delayed_iref(node);
 	btrfs_release_path(path);
 err_out:
 	btrfs_delayed_inode_release_metadata(fs_info, node, (ret < 0));
 	btrfs_release_delayed_inode(node);
-
-	/*
-	 * If we fail to update the delayed inode we need to abort the
-	 * transaction, because we could leave the inode with the improper
-	 * counts behind.
-	 */
-	if (ret && ret != -ENOENT)
-		btrfs_abort_transaction(trans, ret);
-
 	return ret;
 }
 
