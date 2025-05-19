@@ -1210,6 +1210,16 @@ static PyObject *pyrf_evlist__open(struct pyrf_evlist *pevlist,
 	return Py_None;
 }
 
+static PyObject *pyrf_evlist__close(struct pyrf_evlist *pevlist)
+{
+	struct evlist *evlist = &pevlist->evlist;
+
+	evlist__close(evlist);
+
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
 static PyObject *pyrf_evlist__config(struct pyrf_evlist *pevlist)
 {
 	struct record_opts opts = {
@@ -1267,6 +1277,12 @@ static PyMethodDef pyrf_evlist__methods[] = {
 		.ml_meth  = (PyCFunction)pyrf_evlist__open,
 		.ml_flags = METH_VARARGS | METH_KEYWORDS,
 		.ml_doc	  = PyDoc_STR("open the file descriptors.")
+	},
+	{
+		.ml_name  = "close",
+		.ml_meth  = (PyCFunction)pyrf_evlist__close,
+		.ml_flags = METH_NOARGS,
+		.ml_doc	  = PyDoc_STR("close the file descriptors.")
 	},
 	{
 		.ml_name  = "poll",
