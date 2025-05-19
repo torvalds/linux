@@ -921,7 +921,7 @@ static void mana_pf_deregister_filter(struct mana_port_context *apc)
 
 static int mana_query_device_cfg(struct mana_context *ac, u32 proto_major_ver,
 				 u32 proto_minor_ver, u32 proto_micro_ver,
-				 u16 *max_num_vports)
+				 u16 *max_num_vports, u8 *bm_hostmode)
 {
 	struct gdma_context *gc = ac->gdma_dev->gdma_context;
 	struct mana_query_device_cfg_resp resp = {};
@@ -932,7 +932,7 @@ static int mana_query_device_cfg(struct mana_context *ac, u32 proto_major_ver,
 	mana_gd_init_req_hdr(&req.hdr, MANA_QUERY_DEV_CONFIG,
 			     sizeof(req), sizeof(resp));
 
-	req.hdr.resp.msg_version = GDMA_MESSAGE_V2;
+	req.hdr.resp.msg_version = GDMA_MESSAGE_V3;
 
 	req.proto_major_ver = proto_major_ver;
 	req.proto_minor_ver = proto_minor_ver;
@@ -956,10 +956,15 @@ static int mana_query_device_cfg(struct mana_context *ac, u32 proto_major_ver,
 
 	*max_num_vports = resp.max_num_vports;
 
-	if (resp.hdr.response.msg_version == GDMA_MESSAGE_V2)
+	if (resp.hdr.response.msg_version >= GDMA_MESSAGE_V2)
 		gc->adapter_mtu = resp.adapter_mtu;
 	else
 		gc->adapter_mtu = ETH_FRAME_LEN;
+
+	if (resp.hdr.response.msg_version >= GDMA_MESSAGE_V3)
+		*bm_hostmode = resp.bm_hostmode;
+	else
+		*bm_hostmode = 0;
 
 	debugfs_create_u16("adapter-MTU", 0400, gc->mana_pci_debugfs, &gc->adapter_mtu);
 
@@ -2441,7 +2446,7 @@ static void mana_destroy_vport(struct mana_port_context *apc)
 	mana_destroy_txq(apc);
 	mana_uncfg_vport(apc);
 
-	if (gd->gdma_context->is_pf)
+	if (gd->gdma_context->is_pf && !apc->ac->bm_hostmode)
 		mana_pf_deregister_hw_vport(apc);
 }
 
@@ -2453,7 +2458,7 @@ static int mana_create_vport(struct mana_port_context *apc,
 
 	apc->default_rxobj = INVALID_MANA_HANDLE;
 
-	if (gd->gdma_context->is_pf) {
+	if (gd->gdma_context->is_pf && !apc->ac->bm_hostmode) {
 		err = mana_pf_register_hw_vport(apc);
 		if (err)
 			return err;
@@ -2689,7 +2694,7 @@ int mana_alloc_queues(struct net_device *ndev)
 		goto destroy_vport;
 	}
 
-	if (gd->gdma_context->is_pf) {
+	if (gd->gdma_context->is_pf && !apc->ac->bm_hostmode) {
 		err = mana_pf_register_filter(apc);
 		if (err)
 			goto destroy_vport;
@@ -2751,7 +2756,7 @@ static int mana_dealloc_queues(struct net_device *ndev)
 
 	mana_chn_setxdp(apc, NULL);
 
-	if (gd->gdma_context->is_pf)
+	if (gd->gdma_context->is_pf && !apc->ac->bm_hostmode)
 		mana_pf_deregister_filter(apc);
 
 	/* No packet can be transmitted now since apc->port_is_up is false.
@@ -2998,6 +3003,7 @@ int mana_probe(struct gdma_dev *gd, bool resuming)
 	struct gdma_context *gc = gd->gdma_context;
 	struct mana_context *ac = gd->driver_data;
 	struct device *dev = gc->dev;
+	u8 bm_hostmode = 0;
 	u16 num_ports = 0;
 	int err;
 	int i;
@@ -3026,9 +3032,11 @@ int mana_probe(struct gdma_dev *gd, bool resuming)
 	}
 
 	err = mana_query_device_cfg(ac, MANA_MAJOR_VERSION, MANA_MINOR_VERSION,
-				    MANA_MICRO_VERSION, &num_ports);
+				    MANA_MICRO_VERSION, &num_ports, &bm_hostmode);
 	if (err)
 		goto out;
+
+	ac->bm_hostmode = bm_hostmode;
 
 	if (!resuming) {
 		ac->num_ports = num_ports;
