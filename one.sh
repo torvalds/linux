@@ -28,11 +28,11 @@ echo "CONFIG_ZRAM_BACKEND_ZSTD=y" >> arch/x86/configs/my_defconfig
 echo "CONFIG_ZRAM_DEF_COMP_ZSTD=y" >> arch/x86/configs/my_defconfig
 
 
-sed -i 's/^CONFIG_ZSWAP_COMPRESSOR_DEFAULT=.*/CONFIG_ZSWAP_COMPRESSOR_DEFAULT="zstd"/' arch/x86/configs/my_defconfig
-sed -i 's/^CONFIG_ZSWAP_COMPRESSOR_DEFAULT_LZO=.*/CONFIG_ZSWAP_COMPRESSOR_DEFAULT_LZO=n/' arch/x86/configs/my_defconfig
+# sed -i 's/^CONFIG_ZSWAP_COMPRESSOR_DEFAULT=.*/CONFIG_ZSWAP_COMPRESSOR_DEFAULT="zstd"/' arch/x86/configs/my_defconfig
+# sed -i 's/^CONFIG_ZSWAP_COMPRESSOR_DEFAULT_LZO=.*/CONFIG_ZSWAP_COMPRESSOR_DEFAULT_LZO=n/' arch/x86/configs/my_defconfig
 
-echo "CONFIG_ZSWAP_COMPRESSOR_DEFAULT_ZSTD=y"  >> arch/x86/configs/my_defconfig
-echo "CONFIG_ZSWAP_DEFAULT_ON=y" >> arch/x86/configs/my_defconfig
+# echo "CONFIG_ZSWAP_COMPRESSOR_DEFAULT_ZSTD=y"  >> arch/x86/configs/my_defconfig
+# echo "CONFIG_ZSWAP_DEFAULT_ON=y" >> arch/x86/configs/my_defconfig
 
 echo "CONFIG_MEMCG_V1=y" >> arch/x86/configs/my_defconfig
 echo "CONFIG_CPUSETS_V1=y" >> arch/x86/configs/my_defconfig
