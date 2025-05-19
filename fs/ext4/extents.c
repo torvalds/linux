@@ -4827,7 +4827,7 @@ int ext4_convert_unwritten_extents_atomic(handle_t *handle, struct inode *inode,
 	struct ext4_map_blocks map;
 	unsigned int blkbits = inode->i_blkbits;
 	unsigned int credits = 0;
-	int flags = EXT4_GET_BLOCKS_IO_CONVERT_EXT;
+	int flags = EXT4_GET_BLOCKS_IO_CONVERT_EXT | EXT4_EX_NOCACHE;
 
 	map.m_lblk = offset >> blkbits;
 	max_blocks = EXT4_MAX_BLOCKS(len, offset, blkbits);
