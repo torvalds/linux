@@ -109,27 +109,6 @@ static int subvol_lookup(struct btree_trans *trans, u32 subvol,
 	return ret;
 }
 
-static int lookup_inode(struct btree_trans *trans, u64 inode_nr, u32 snapshot,
-			struct bch_inode_unpacked *inode)
-{
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret;
-
-	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes,
-			       SPOS(0, inode_nr, snapshot), 0);
-	ret = bkey_err(k);
-	if (ret)
-		goto err;
-
-	ret = bkey_is_inode(k.k)
-		? bch2_inode_unpack(k, inode)
-		: -BCH_ERR_ENOENT_inode;
-err:
-	bch2_trans_iter_exit(trans, &iter);
-	return ret;
-}
-
 static int lookup_dirent_in_snapshot(struct btree_trans *trans,
 			   struct bch_hash_info hash_info,
 			   subvol_inum dir, struct qstr *name,
@@ -231,7 +210,7 @@ static int lookup_lostfound(struct btree_trans *trans, u32 snapshot,
 
 	struct bch_inode_unpacked root_inode;
 	struct bch_hash_info root_hash_info;
-	ret = lookup_inode(trans, root_inum.inum, snapshot, &root_inode);
+	ret = bch2_inode_find_by_inum_snapshot(trans, root_inum.inum, snapshot, &root_inode, 0);
 	bch_err_msg(c, ret, "looking up root inode %llu for subvol %u",
 		    root_inum.inum, subvolid);
 	if (ret)
@@ -257,7 +236,7 @@ static int lookup_lostfound(struct btree_trans *trans, u32 snapshot,
 	 * The bch2_check_dirents pass has already run, dangling dirents
 	 * shouldn't exist here:
 	 */
-	ret = lookup_inode(trans, inum, snapshot, lostfound);
+	ret = bch2_inode_find_by_inum_snapshot(trans, inum, snapshot, lostfound, 0);
 	bch_err_msg(c, ret, "looking up lost+found %llu:%u in (root inode %llu, snapshot root %u)",
 		    inum, snapshot, root_inum.inum, bch2_snapshot_root(c, snapshot));
 	return ret;
@@ -2117,7 +2096,8 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 	u64 target_inum = le64_to_cpu(s.v->inode);
 	u32 target_snapshot = le32_to_cpu(s.v->snapshot);
 
-	ret = lookup_inode(trans, target_inum, target_snapshot, &subvol_root);
+	ret = bch2_inode_find_by_inum_snapshot(trans, target_inum, target_snapshot,
+					       &subvol_root, 0);
 	if (ret && !bch2_err_matches(ret, ENOENT))
 		goto err;
 
@@ -2434,7 +2414,8 @@ static int check_root_trans(struct btree_trans *trans)
 			goto err;
 	}
 
-	ret = lookup_inode(trans, BCACHEFS_ROOT_INO, snapshot, &root_inode);
+	ret = bch2_inode_find_by_inum_snapshot(trans, BCACHEFS_ROOT_INO, snapshot,
+					       &root_inode, 0);
 	if (ret && !bch2_err_matches(ret, ENOENT))
 		return ret;
 
