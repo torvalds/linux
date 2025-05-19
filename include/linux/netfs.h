@@ -48,7 +48,6 @@ enum netfs_io_source {
 	NETFS_INVALID_READ,
 	NETFS_UPLOAD_TO_SERVER,
 	NETFS_WRITE_TO_CACHE,
-	NETFS_INVALID_WRITE,
 } __mode(byte);
 
 typedef void (*netfs_io_terminated_t)(void *priv, ssize_t transferred_or_error,
