@@ -48,8 +48,6 @@ struct bpf_jit {
 	int lit64;		/* Current position in 64-bit literal pool */
 	int base_ip;		/* Base address for literal pool */
 	int exit_ip;		/* Address of exit */
-	int r1_thunk_ip;	/* Address of expoline thunk for 'br %r1' */
-	int r14_thunk_ip;	/* Address of expoline thunk for 'br %r14' */
 	int tail_call_start;	/* Tail call start offset */
 	int excnt;		/* Number of exception table entries */
 	int prologue_plt_ret;	/* Return address for prologue hotpatch PLT */
@@ -642,28 +640,17 @@ static void bpf_jit_prologue(struct bpf_jit *jit, struct bpf_prog *fp,
 }
 
 /*
- * Emit an expoline for a jump that follows
+ * Jump using a register either directly or via an expoline thunk
  */
-static void emit_expoline(struct bpf_jit *jit)
-{
-	/* exrl %r0,.+10 */
-	EMIT6_PCREL_RIL(0xc6000000, jit->prg + 10);
-	/* j . */
-	EMIT4_PCREL(0xa7f40000, 0);
-}
-
-/*
- * Emit __s390_indirect_jump_r1 thunk if necessary
- */
-static void emit_r1_thunk(struct bpf_jit *jit)
-{
-	if (nospec_uses_trampoline()) {
-		jit->r1_thunk_ip = jit->prg;
-		emit_expoline(jit);
-		/* br %r1 */
-		_EMIT2(0x07f1);
-	}
-}
+#define EMIT_JUMP_REG(reg) do {						\
+	if (nospec_uses_trampoline())					\
+		/* brcl 0xf,__s390_indirect_jump_rN */			\
+		EMIT6_PCREL_RILC_PTR(0xc0040000, 0x0f,			\
+				     __s390_indirect_jump_r ## reg);	\
+	else								\
+		/* br %rN */						\
+		_EMIT2(0x07f0 | reg);					\
+} while (0)
 
 /*
  * Call r1 either directly or via __s390_indirect_jump_r1 thunk
@@ -672,7 +659,8 @@ static void call_r1(struct bpf_jit *jit)
 {
 	if (nospec_uses_trampoline())
 		/* brasl %r14,__s390_indirect_jump_r1 */
-		EMIT6_PCREL_RILB(0xc0050000, REG_14, jit->r1_thunk_ip);
+		EMIT6_PCREL_RILB_PTR(0xc0050000, REG_14,
+				     __s390_indirect_jump_r1);
 	else
 		/* basr %r14,%r1 */
 		EMIT2(0x0d00, REG_14, REG_1);
@@ -688,16 +676,7 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 	EMIT4(0xb9040000, REG_2, BPF_REG_0);
 	/* Restore registers */
 	save_restore_regs(jit, REGS_RESTORE, stack_depth, 0);
-	if (nospec_uses_trampoline()) {
-		jit->r14_thunk_ip = jit->prg;
-		/* Generate __s390_indirect_jump_r14 thunk */
-		emit_expoline(jit);
-	}
-	/* br %r14 */
-	_EMIT2(0x07fe);
-
-	if (is_first_pass(jit) || (jit->seen & SEEN_FUNC))
-		emit_r1_thunk(jit);
+	EMIT_JUMP_REG(14);
 
 	jit->prg = ALIGN(jit->prg, 8);
 	jit->prologue_plt = jit->prg;
@@ -1899,7 +1878,8 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 			/* aghi %r1,tail_call_start */
 			EMIT4_IMM(0xa70b0000, REG_1, jit->tail_call_start);
 			/* brcl 0xf,__s390_indirect_jump_r1 */
-			EMIT6_PCREL_RILC(0xc0040000, 0xf, jit->r1_thunk_ip);
+			EMIT6_PCREL_RILC_PTR(0xc0040000, 0xf,
+					     __s390_indirect_jump_r1);
 		} else {
 			/* bc 0xf,tail_call_start(%r1) */
 			_EMIT4(0x47f01000 + jit->tail_call_start);
@@ -2868,17 +2848,10 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	       0xf000 | tjit->tccnt_off);
 	/* aghi %r15,stack_size */
 	EMIT4_IMM(0xa70b0000, REG_15, tjit->stack_size);
-	/* Emit an expoline for the following indirect jump. */
-	if (nospec_uses_trampoline())
-		emit_expoline(jit);
 	if (flags & BPF_TRAMP_F_SKIP_FRAME)
-		/* br %r14 */
-		_EMIT2(0x07fe);
+		EMIT_JUMP_REG(14);
 	else
-		/* br %r1 */
-		_EMIT2(0x07f1);
-
-	emit_r1_thunk(jit);
+		EMIT_JUMP_REG(1);
 
 	return 0;
 }
