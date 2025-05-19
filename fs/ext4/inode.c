@@ -570,8 +570,7 @@ static int ext4_map_query_blocks(handle_t *handle, struct inode *inode,
 	 * - if the last in leaf is the full requested range
 	 */
 	if (!(map->m_flags & EXT4_MAP_QUERY_LAST_IN_LEAF) ||
-			((map->m_flags & EXT4_MAP_QUERY_LAST_IN_LEAF) &&
-			 (map->m_len == orig_mlen))) {
+			map->m_len == orig_mlen) {
 		status = map->m_flags & EXT4_MAP_UNWRITTEN ?
 				EXTENT_STATUS_UNWRITTEN : EXTENT_STATUS_WRITTEN;
 		ext4_es_insert_extent(inode, map->m_lblk, map->m_len,
