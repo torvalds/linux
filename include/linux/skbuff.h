@@ -4192,15 +4192,6 @@ static inline int memcpy_to_msg(struct msghdr *msg, void *data, int len)
 	return copy_to_iter(data, len, &msg->msg_iter) == len ? 0 : -EFAULT;
 }
 
-struct skb_checksum_ops {
-	__wsum (*update)(const void *mem, int len, __wsum wsum);
-	__wsum (*combine)(__wsum csum, __wsum csum2, int offset, int len);
-};
-
-extern const struct skb_checksum_ops *crc32c_csum_stub __read_mostly;
-
-__wsum __skb_checksum(const struct sk_buff *skb, int offset, int len,
-		      __wsum csum, const struct skb_checksum_ops *ops);
 __wsum skb_checksum(const struct sk_buff *skb, int offset, int len,
 		    __wsum csum);
 u32 skb_crc32c(const struct sk_buff *skb, int offset, int len, u32 crc);
