@@ -742,25 +742,9 @@ void bch2_inum_offset_err_msg(struct bch_fs *c, struct printbuf *out,
 int bch2_inum_snap_offset_err_msg_trans(struct btree_trans *trans, struct printbuf *out,
 					struct bpos pos)
 {
-	struct bch_fs *c = trans->c;
-	int ret = 0;
-
-	if (!bch2_snapshot_is_leaf(c, pos.snapshot))
-		prt_str(out, "(multiple snapshots) ");
-
-	subvol_inum inum = {
-		.subvol	= bch2_snapshot_tree_oldest_subvol(c, pos.snapshot),
-		.inum	= pos.inode,
-	};
-
-	if (inum.subvol) {
-		ret = bch2_inum_to_path(trans, inum, out);
-		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-			return ret;
-	}
-
-	if (!inum.subvol || ret)
-		prt_printf(out, "inum %llu:%u", pos.inode, pos.snapshot);
+	int ret = bch2_inum_snapshot_to_path(trans, pos.inode, pos.snapshot, NULL, out);
+	if (ret)
+		return ret;
 
 	prt_printf(out, " offset %llu: ", pos.offset << 8);
 	return 0;

@@ -409,21 +409,30 @@ static u32 bch2_snapshot_tree_next(struct bch_fs *c, u32 id)
 	return 0;
 }
 
-u32 bch2_snapshot_tree_oldest_subvol(struct bch_fs *c, u32 snapshot_root)
+u32 bch2_snapshot_oldest_subvol(struct bch_fs *c, u32 snapshot_root,
+				snapshot_id_list *skip)
 {
-	u32 id = snapshot_root;
-	u32 subvol = 0, s;
-
+	u32 id, subvol = 0, s;
+retry:
+	id = snapshot_root;
 	rcu_read_lock();
 	while (id && bch2_snapshot_exists(c, id)) {
-		s = snapshot_t(c, id)->subvol;
+		if (!(skip && snapshot_list_has_id(skip, id))) {
+			s = snapshot_t(c, id)->subvol;
 
-		if (s && (!subvol || s < subvol))
-			subvol = s;
-
+			if (s && (!subvol || s < subvol))
+				subvol = s;
+		}
 		id = bch2_snapshot_tree_next(c, id);
+		if (id == snapshot_root)
+			break;
 	}
 	rcu_read_unlock();
+
+	if (!subvol && skip) {
+		skip = NULL;
+		goto retry;
+	}
 
 	return subvol;
 }
@@ -456,7 +465,7 @@ static int bch2_snapshot_tree_master_subvol(struct btree_trans *trans,
 	if (!ret && !found) {
 		struct bkey_i_subvolume *u;
 
-		*subvol_id = bch2_snapshot_tree_oldest_subvol(c, snapshot_root);
+		*subvol_id = bch2_snapshot_oldest_subvol(c, snapshot_root, NULL);
 
 		u = bch2_bkey_get_mut_typed(trans, &iter,
 					    BTREE_ID_subvolumes, POS(0, *subvol_id),
@@ -673,7 +682,7 @@ static int snapshot_tree_ptr_repair(struct btree_trans *trans,
 		u = bch2_bkey_make_mut_typed(trans, &root_iter, &root.s_c, 0, snapshot);
 		ret =   PTR_ERR_OR_ZERO(u) ?:
 			bch2_snapshot_tree_create(trans, root_id,
-				bch2_snapshot_tree_oldest_subvol(c, root_id),
+				bch2_snapshot_oldest_subvol(c, root_id, NULL),
 				&tree_id);
 		if (ret)
 			goto err;

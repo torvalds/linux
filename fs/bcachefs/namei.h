@@ -43,6 +43,8 @@ bool bch2_reinherit_attrs(struct bch_inode_unpacked *,
 			  struct bch_inode_unpacked *);
 
 int bch2_inum_to_path(struct btree_trans *, subvol_inum, struct printbuf *);
+int bch2_inum_snapshot_to_path(struct btree_trans *, u64, u32,
+			       snapshot_id_list *, struct printbuf *);
 
 int __bch2_check_dirent_target(struct btree_trans *,
 			       struct btree_iter *,

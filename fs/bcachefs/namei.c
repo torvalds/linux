@@ -654,6 +654,24 @@ disconnected:
 	goto out;
 }
 
+int bch2_inum_snapshot_to_path(struct btree_trans *trans, u64 inum, u32 snapshot,
+			       snapshot_id_list *snapshot_overwrites,
+			       struct printbuf *path)
+{
+	u32 subvol = bch2_snapshot_oldest_subvol(trans->c, snapshot, snapshot_overwrites);
+	int ret = 0;
+
+	if (subvol) {
+		ret = bch2_inum_to_path(trans, (subvol_inum) { subvol, inum }, path);
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			return ret;
+	}
+
+	if (!subvol || ret)
+		prt_printf(path, "inum %llu:%u", inum, snapshot);
+	return 0;
+}
+
 /* fsck */
 
 static int bch2_check_dirent_inode_dirent(struct btree_trans *trans,
