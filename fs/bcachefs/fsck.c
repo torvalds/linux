@@ -264,7 +264,7 @@ create_lostfound:
 	u64 cpu = raw_smp_processor_id();
 
 	bch2_inode_init_early(c, lostfound);
-	bch2_inode_init_late(lostfound, now, 0, 0, S_IFDIR|0700, 0, &root_inode);
+	bch2_inode_init_late(c, lostfound, now, 0, 0, S_IFDIR|0700, 0, &root_inode);
 	lostfound->bi_dir = root_inode.bi_inum;
 	lostfound->bi_snapshot = le32_to_cpu(st.root_snapshot);
 
@@ -545,7 +545,7 @@ static int reconstruct_subvol(struct btree_trans *trans, u32 snapshotid, u32 sub
 		u64 cpu = raw_smp_processor_id();
 
 		bch2_inode_init_early(c, &new_inode);
-		bch2_inode_init_late(&new_inode, bch2_current_time(c), 0, 0, S_IFDIR|0755, 0, NULL);
+		bch2_inode_init_late(c, &new_inode, bch2_current_time(c), 0, 0, S_IFDIR|0755, 0, NULL);
 
 		new_inode.bi_subvol = subvolid;
 
@@ -635,7 +635,7 @@ static int reconstruct_inode(struct btree_trans *trans, enum btree_id btree, u32
 
 	struct bch_inode_unpacked new_inode;
 	bch2_inode_init_early(c, &new_inode);
-	bch2_inode_init_late(&new_inode, bch2_current_time(c), 0, 0, i_mode|0600, 0, NULL);
+	bch2_inode_init_late(c, &new_inode, bch2_current_time(c), 0, 0, i_mode|0600, 0, NULL);
 	new_inode.bi_size = i_size;
 	new_inode.bi_inum = inum;
 	new_inode.bi_snapshot = snapshot;
@@ -1136,6 +1136,10 @@ static int check_inode(struct btree_trans *trans,
 		if (ret)
 			goto err;
 	}
+
+	ret = bch2_check_inode_has_case_insensitive(trans, &u, &s->ids, &do_update);
+	if (ret)
+		goto err;
 
 	if (u.bi_dir || u.bi_dir_offset) {
 		ret = check_inode_dirent_inode(trans, &u, &do_update);

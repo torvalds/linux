@@ -908,7 +908,8 @@ void bch2_inode_init_early(struct bch_fs *c,
 	get_random_bytes(&inode_u->bi_hash_seed, sizeof(inode_u->bi_hash_seed));
 }
 
-void bch2_inode_init_late(struct bch_inode_unpacked *inode_u, u64 now,
+void bch2_inode_init_late(struct bch_fs *c,
+			  struct bch_inode_unpacked *inode_u, u64 now,
 			  uid_t uid, gid_t gid, umode_t mode, dev_t rdev,
 			  struct bch_inode_unpacked *parent)
 {
@@ -935,6 +936,9 @@ void bch2_inode_init_late(struct bch_inode_unpacked *inode_u, u64 now,
 
 	if (!S_ISDIR(mode))
 		inode_u->bi_casefold = 0;
+
+	if (bch2_inode_casefold(c, inode_u))
+		inode_u->bi_flags |= BCH_INODE_has_case_insensitive;
 }
 
 void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
@@ -942,7 +946,7 @@ void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
 		     struct bch_inode_unpacked *parent)
 {
 	bch2_inode_init_early(c, inode_u);
-	bch2_inode_init_late(inode_u, bch2_current_time(c),
+	bch2_inode_init_late(c, inode_u, bch2_current_time(c),
 			     uid, gid, mode, rdev, parent);
 }
 
@@ -1279,7 +1283,7 @@ int bch2_inode_set_casefold(struct btree_trans *trans, subvol_inum inum,
 	bi->bi_casefold = v + 1;
 	bi->bi_fields_set |= BIT(Inode_opt_casefold);
 
-	return 0;
+	return bch2_maybe_propagate_has_case_insensitive(trans, inum, bi);
 #else
 	bch_err(c, "Cannot use casefolding on a kernel without CONFIG_UNICODE");
 	return -EOPNOTSUPP;

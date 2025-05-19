@@ -164,7 +164,7 @@ int bch2_fsck_write_inode(struct btree_trans *, struct bch_inode_unpacked *);
 
 void bch2_inode_init_early(struct bch_fs *,
 			   struct bch_inode_unpacked *);
-void bch2_inode_init_late(struct bch_inode_unpacked *, u64,
+void bch2_inode_init_late(struct bch_fs *, struct bch_inode_unpacked *, u64,
 			  uid_t, gid_t, umode_t, dev_t,
 			  struct bch_inode_unpacked *);
 void bch2_inode_init(struct bch_fs *, struct bch_inode_unpacked *,
