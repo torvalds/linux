@@ -6724,6 +6724,20 @@ static void igc_save_mqprio_params(struct igc_adapter *adapter, u8 num_tc,
 		adapter->queue_per_tc[i] = offset[i];
 }
 
+static bool
+igc_tsn_is_tc_to_queue_priority_ordered(struct tc_mqprio_qopt_offload *mqprio)
+{
+	int num_tc = mqprio->qopt.num_tc;
+	int i;
+
+	for (i = 1; i < num_tc; i++) {
+		if (mqprio->qopt.offset[i - 1] > mqprio->qopt.offset[i])
+			return false;
+	}
+
+	return true;
+}
+
 static int igc_tsn_enable_mqprio(struct igc_adapter *adapter,
 				 struct tc_mqprio_qopt_offload *mqprio)
 {
@@ -6754,6 +6768,12 @@ static int igc_tsn_enable_mqprio(struct igc_adapter *adapter,
 					   "Only one queue per TC supported");
 			return -EOPNOTSUPP;
 		}
+	}
+
+	if (!igc_tsn_is_tc_to_queue_priority_ordered(mqprio)) {
+		NL_SET_ERR_MSG_MOD(mqprio->extack,
+				   "tc to queue mapping must preserve increasing priority (higher tc -> higher queue)");
+		return -EOPNOTSUPP;
 	}
 
 	/* Preemption is not supported yet. */
