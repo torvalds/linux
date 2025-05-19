@@ -569,24 +569,6 @@ impl<T: AlwaysRefCounted> Drop for ARef<T> {
     }
 }
 
-/// A sum type that always holds either a value of type `L` or `R`.
-///
-/// # Examples
-///
-/// ```
-/// use kernel::types::Either;
-///
-/// let left_value: Either<i32, &str> = Either::Left(7);
-/// let right_value: Either<i32, &str> = Either::Right("right value");
-/// ```
-pub enum Either<L, R> {
-    /// Constructs an instance of [`Either`] containing a value of type `L`.
-    Left(L),
-
-    /// Constructs an instance of [`Either`] containing a value of type `R`.
-    Right(R),
-}
-
 /// Zero-sized type to mark types not [`Send`].
 ///
 /// Add this type as a field to your struct if your type should not be sent to a different task.
