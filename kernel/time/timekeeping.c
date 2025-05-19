@@ -975,9 +975,14 @@ time64_t ktime_get_real_seconds(void)
 EXPORT_SYMBOL_GPL(ktime_get_real_seconds);
 
 /**
- * __ktime_get_real_seconds - The same as ktime_get_real_seconds
- * but without the sequence counter protect. This internal function
- * is called just when timekeeping lock is already held.
+ * __ktime_get_real_seconds - Unprotected access to CLOCK_REALTIME seconds
+ *
+ * The same as ktime_get_real_seconds() but without the sequence counter
+ * protection. This function is used in restricted contexts like the x86 MCE
+ * handler and in KGDB. It's unprotected on 32-bit vs. concurrent half
+ * completed modification and only to be used for such critical contexts.
+ *
+ * Returns: Racy snapshot of the CLOCK_REALTIME seconds value
  */
 noinstr time64_t __ktime_get_real_seconds(void)
 {
