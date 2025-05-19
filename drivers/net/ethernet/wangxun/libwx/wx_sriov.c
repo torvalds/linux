@@ -76,7 +76,7 @@ static int __wx_enable_sriov(struct wx *wx, u8 num_vfs)
 	u32 value = 0;
 
 	set_bit(WX_FLAG_SRIOV_ENABLED, wx->flags);
-	wx_err(wx, "SR-IOV enabled with %d VFs\n", num_vfs);
+	dev_info(&wx->pdev->dev, "SR-IOV enabled with %d VFs\n", num_vfs);
 
 	/* Enable VMDq flag so device will be set in VM mode */
 	set_bit(WX_FLAG_VMDQ_ENABLED, wx->flags);
