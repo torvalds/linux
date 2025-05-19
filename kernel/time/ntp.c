@@ -767,8 +767,8 @@ static inline void process_adjtimex_modes(struct ntp_data *ntpdata, const struct
  * adjtimex() mainly allows reading (and writing, if superuser) of
  * kernel time-keeping variables. used by xntpd.
  */
-int __do_adjtimex(unsigned int tkid, struct __kernel_timex *txc, const struct timespec64 *ts,
-		  s32 *time_tai, struct audit_ntp_data *ad)
+int ntp_adjtimex(unsigned int tkid, struct __kernel_timex *txc, const struct timespec64 *ts,
+		 s32 *time_tai, struct audit_ntp_data *ad)
 {
 	struct ntp_data *ntpdata = &tk_ntp_data[tkid];
 	int result;

@@ -2586,7 +2586,7 @@ int do_adjtimex(struct __kernel_timex *txc)
 		}
 
 		orig_tai = tai = tks->tai_offset;
-		ret = __do_adjtimex(tks->id, txc, &ts, &tai, &ad);
+		ret = ntp_adjtimex(tks->id, txc, &ts, &tai, &ad);
 
 		if (tai != orig_tai) {
 			__timekeeping_set_tai_offset(tks, tai);
