@@ -116,18 +116,11 @@ static inline unsigned int __xfrm_src_hash(const xfrm_address_t *daddr,
 }
 
 static inline unsigned int
-__xfrm_spi_hash(const xfrm_address_t *daddr, __be32 spi, u8 proto,
-		unsigned short family, unsigned int hmask)
+__xfrm_spi_hash(const xfrm_address_t * __maybe_unused daddr, __be32 spi,
+		u8 __maybe_unused proto, unsigned short __maybe_unused family,
+		unsigned int hmask)
 {
-	unsigned int h = (__force u32)spi ^ proto;
-	switch (family) {
-	case AF_INET:
-		h ^= __xfrm4_addr_hash(daddr);
-		break;
-	case AF_INET6:
-		h ^= __xfrm6_addr_hash(daddr);
-		break;
-	}
+	unsigned int h = (__force u32)spi;
 	return (h ^ (h >> 10) ^ (h >> 20)) & hmask;
 }
 
