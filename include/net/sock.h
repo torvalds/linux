@@ -341,6 +341,7 @@ struct sk_filter;
   *	@sk_scm_credentials: flagged by SO_PASSCRED to recv SCM_CREDENTIALS
   *	@sk_scm_security: flagged by SO_PASSSEC to recv SCM_SECURITY
   *	@sk_scm_pidfd: flagged by SO_PASSPIDFD to recv SCM_PIDFD
+  *	@sk_scm_rights: flagged by SO_PASSRIGHTS to recv SCM_RIGHTS
   *	@sk_scm_unused: unused flags for scm_recv()
   *	@ns_tracker: tracker for netns reference
   *	@sk_user_frags: xarray of pages the user is holding a reference on.
@@ -535,7 +536,8 @@ struct sock {
 			u8	sk_scm_credentials : 1,
 				sk_scm_security : 1,
 				sk_scm_pidfd : 1,
-				sk_scm_unused : 5;
+				sk_scm_rights : 1,
+				sk_scm_unused : 4;
 		};
 	};
 	u8			sk_clockid;
