@@ -158,7 +158,7 @@ struct usb_ep *usb_ep_autoconfig(
 	if (!ep)
 		return NULL;
 
-	type = desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+	type = usb_endpoint_type(desc);
 
 	/* report (variable) full speed bulk maxpacket */
 	if (type == USB_ENDPOINT_XFER_BULK) {
