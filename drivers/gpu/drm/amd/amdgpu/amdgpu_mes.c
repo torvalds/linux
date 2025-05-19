@@ -458,33 +458,6 @@ error:
 	return r;
 }
 
-int amdgpu_mes_reg_wait(struct amdgpu_device *adev, uint32_t reg,
-			uint32_t val, uint32_t mask)
-{
-	struct mes_misc_op_input op_input;
-	int r;
-
-	op_input.op = MES_MISC_OP_WRM_REG_WAIT;
-	op_input.wrm_reg.reg0 = reg;
-	op_input.wrm_reg.ref = val;
-	op_input.wrm_reg.mask = mask;
-
-	if (!adev->mes.funcs->misc_op) {
-		dev_err(adev->dev, "mes reg wait is not supported!\n");
-		r = -EINVAL;
-		goto error;
-	}
-
-	amdgpu_mes_lock(&adev->mes);
-	r = adev->mes.funcs->misc_op(&adev->mes, &op_input);
-	amdgpu_mes_unlock(&adev->mes);
-	if (r)
-		dev_err(adev->dev, "failed to reg_write_reg_wait\n");
-
-error:
-	return r;
-}
-
 int amdgpu_mes_set_shader_debugger(struct amdgpu_device *adev,
 				uint64_t process_context_addr,
 				uint32_t spi_gdbg_per_vmid_cntl,
@@ -551,42 +524,6 @@ int amdgpu_mes_flush_shader_debugger(struct amdgpu_device *adev,
 	amdgpu_mes_unlock(&adev->mes);
 
 	return r;
-}
-
-#define DEFINE_AMDGPU_MES_CTX_GET_OFFS_ENG(_eng)			\
-do {									\
-       if (id_offs < AMDGPU_MES_CTX_MAX_OFFS)				\
-		return offsetof(struct amdgpu_mes_ctx_meta_data,	\
-				_eng[ring->idx].slots[id_offs]);        \
-       else if (id_offs == AMDGPU_MES_CTX_RING_OFFS)			\
-		return offsetof(struct amdgpu_mes_ctx_meta_data,        \
-				_eng[ring->idx].ring);                  \
-       else if (id_offs == AMDGPU_MES_CTX_IB_OFFS)			\
-		return offsetof(struct amdgpu_mes_ctx_meta_data,        \
-				_eng[ring->idx].ib);                    \
-       else if (id_offs == AMDGPU_MES_CTX_PADDING_OFFS)			\
-		return offsetof(struct amdgpu_mes_ctx_meta_data,        \
-				_eng[ring->idx].padding);               \
-} while(0)
-
-int amdgpu_mes_ctx_get_offs(struct amdgpu_ring *ring, unsigned int id_offs)
-{
-	switch (ring->funcs->type) {
-	case AMDGPU_RING_TYPE_GFX:
-		DEFINE_AMDGPU_MES_CTX_GET_OFFS_ENG(gfx);
-		break;
-	case AMDGPU_RING_TYPE_COMPUTE:
-		DEFINE_AMDGPU_MES_CTX_GET_OFFS_ENG(compute);
-		break;
-	case AMDGPU_RING_TYPE_SDMA:
-		DEFINE_AMDGPU_MES_CTX_GET_OFFS_ENG(sdma);
-		break;
-	default:
-		break;
-	}
-
-	WARN_ON(1);
-	return -EINVAL;
 }
 
 uint32_t amdgpu_mes_get_aggregated_doorbell_index(struct amdgpu_device *adev,

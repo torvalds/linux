@@ -372,8 +372,6 @@ struct amdgpu_mes_funcs {
 #define amdgpu_mes_kiq_hw_init(adev) (adev)->mes.kiq_hw_init((adev))
 #define amdgpu_mes_kiq_hw_fini(adev) (adev)->mes.kiq_hw_fini((adev))
 
-int amdgpu_mes_ctx_get_offs(struct amdgpu_ring *ring, unsigned int id_offs);
-
 int amdgpu_mes_init_microcode(struct amdgpu_device *adev, int pipe);
 int amdgpu_mes_init(struct amdgpu_device *adev);
 void amdgpu_mes_fini(struct amdgpu_device *adev);
@@ -395,8 +393,6 @@ int amdgpu_mes_reset_legacy_queue(struct amdgpu_device *adev,
 uint32_t amdgpu_mes_rreg(struct amdgpu_device *adev, uint32_t reg);
 int amdgpu_mes_wreg(struct amdgpu_device *adev,
 		    uint32_t reg, uint32_t val);
-int amdgpu_mes_reg_wait(struct amdgpu_device *adev, uint32_t reg,
-			uint32_t val, uint32_t mask);
 int amdgpu_mes_reg_write_reg_wait(struct amdgpu_device *adev,
 				  uint32_t reg0, uint32_t reg1,
 				  uint32_t ref, uint32_t mask);
