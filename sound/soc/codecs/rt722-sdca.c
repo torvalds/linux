@@ -1309,6 +1309,8 @@ int rt722_sdca_init(struct device *dev, struct regmap *regmap, struct sdw_slave 
 	rt722->slave = slave;
 	rt722->regmap = regmap;
 
+	regcache_cache_only(rt722->regmap, true);
+
 	mutex_init(&rt722->calibrate_mutex);
 	mutex_init(&rt722->disable_irq_lock);
 
@@ -1521,8 +1523,8 @@ int rt722_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 	if (rt722->hw_init)
 		return 0;
 
+	regcache_cache_only(rt722->regmap, false);
 	if (rt722->first_hw_init) {
-		regcache_cache_only(rt722->regmap, false);
 		regcache_cache_bypass(rt722->regmap, true);
 	} else {
 		/*
