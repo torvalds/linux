@@ -762,7 +762,8 @@ enum {
  * pass while lookup/querying of on disk extent tree.
  */
 #define EXT4_EX_QUERY_FILTER	(EXT4_EX_NOCACHE | EXT4_EX_FORCE_CACHE |\
-				 EXT4_EX_NOFAIL)
+				 EXT4_EX_NOFAIL |\
+				 EXT4_GET_BLOCKS_QUERY_LAST_IN_LEAF)
 
 /*
  * Flags used by ext4_free_blocks

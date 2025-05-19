@@ -544,12 +544,10 @@ static int ext4_map_query_blocks(handle_t *handle, struct inode *inode,
 	unsigned int status;
 	int retval;
 	unsigned int orig_mlen = map->m_len;
-	unsigned int query_flags = flags & EXT4_GET_BLOCKS_QUERY_LAST_IN_LEAF;
 
 	flags &= EXT4_EX_QUERY_FILTER;
 	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
-		retval = ext4_ext_map_blocks(handle, inode, map,
-					     flags | query_flags);
+		retval = ext4_ext_map_blocks(handle, inode, map, flags);
 	else
 		retval = ext4_ind_map_blocks(handle, inode, map, flags);
 
