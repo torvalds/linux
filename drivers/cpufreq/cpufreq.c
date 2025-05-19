@@ -917,9 +917,9 @@ static ssize_t store_scaling_setspeed(struct cpufreq_policy *policy,
 	if (!policy->governor || !policy->governor->store_setspeed)
 		return -EINVAL;
 
-	ret = sscanf(buf, "%u", &freq);
-	if (ret != 1)
-		return -EINVAL;
+	ret = kstrtouint(buf, 0, &freq);
+	if (ret)
+		return ret;
 
 	policy->governor->store_setspeed(policy, freq);
 
