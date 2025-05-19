@@ -13,11 +13,17 @@
 
 /**
  * timekeeper_ids - IDs for various time keepers in the kernel
- * @TIMEKEEPER_CORE:	The central core timekeeper managing system time
- * @TIMEKEEPERS_MAX:	The maximum number of timekeepers managed
+ * @TIMEKEEPER_CORE:		The central core timekeeper managing system time
+ * @TIMEKEEPER_AUX_FIRST:	The first AUX timekeeper
+ * @TIMEKEEPER_AUX_LAST:	The last AUX timekeeper
+ * @TIMEKEEPERS_MAX:		The maximum number of timekeepers managed
  */
 enum timekeeper_ids {
 	TIMEKEEPER_CORE,
+#ifdef CONFIG_POSIX_AUX_CLOCKS
+	TIMEKEEPER_AUX_FIRST,
+	TIMEKEEPER_AUX_LAST = TIMEKEEPER_AUX_FIRST + MAX_AUX_CLOCKS - 1,
+#endif
 	TIMEKEEPERS_MAX,
 };
 
