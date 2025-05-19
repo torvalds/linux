@@ -757,7 +757,12 @@ enum {
 #define EXT4_EX_NOCACHE				0x40000000
 #define EXT4_EX_FORCE_CACHE			0x20000000
 #define EXT4_EX_NOFAIL				0x10000000
-#define EXT4_EX_FILTER				0x70000000
+/*
+ * ext4_map_query_blocks() uses this filter mask to filter the flags needed to
+ * pass while lookup/querying of on disk extent tree.
+ */
+#define EXT4_EX_QUERY_FILTER	(EXT4_EX_NOCACHE | EXT4_EX_FORCE_CACHE |\
+				 EXT4_EX_NOFAIL)
 
 /*
  * Flags used by ext4_free_blocks
