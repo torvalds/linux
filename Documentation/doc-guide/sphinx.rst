@@ -42,12 +42,6 @@ with your distributions. In order to do so, it is recommended to install
 Sphinx inside a virtual environment, using ``virtualenv-3``
 or ``virtualenv``, depending on how your distribution packaged Python 3.
 
-.. note::
-
-   #) It is recommended to use the RTD theme for html output. Depending
-      on the Sphinx version, it should be installed separately,
-      with ``pip install sphinx_rtd_theme``.
-
 In summary, if you want to install the latest version of Sphinx, you
 should do::
 
@@ -161,6 +155,12 @@ the html layout, by using the ``DOCS_CSS`` make variable.
 By default, the "Alabaster" theme is used to build the HTML documentation;
 this theme is bundled with Sphinx and need not be installed separately.
 The Sphinx theme can be overridden by using the ``DOCS_THEME`` make variable.
+
+.. note::
+
+   Some people might prefer to use the RTD theme for html output.
+   Depending on the Sphinx version, it should be installed separately,
+   with ``pip install sphinx_rtd_theme``.
 
 There is another make variable ``SPHINXDIRS``, which is useful when test
 building a subset of documentation.  For example, you can build documents
