@@ -27,6 +27,7 @@ int exit_rwsem(struct rw_semaphore *sem)
 }
 
 int down_read(struct rw_semaphore *sem)
+	NO_THREAD_SAFETY_ANALYSIS
 {
 #if RWS_ERRORCHECK
 	mutex_lock(&sem->mtx);
@@ -37,6 +38,7 @@ int down_read(struct rw_semaphore *sem)
 }
 
 int up_read(struct rw_semaphore *sem)
+	NO_THREAD_SAFETY_ANALYSIS
 {
 #if RWS_ERRORCHECK
 	mutex_unlock(&sem->mtx);
@@ -47,6 +49,7 @@ int up_read(struct rw_semaphore *sem)
 }
 
 int down_write(struct rw_semaphore *sem)
+	NO_THREAD_SAFETY_ANALYSIS
 {
 #if RWS_ERRORCHECK
 	mutex_lock(&sem->mtx);
@@ -57,6 +60,7 @@ int down_write(struct rw_semaphore *sem)
 }
 
 int up_write(struct rw_semaphore *sem)
+	NO_THREAD_SAFETY_ANALYSIS
 {
 #if RWS_ERRORCHECK
 	mutex_unlock(&sem->mtx);
