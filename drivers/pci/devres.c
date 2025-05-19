@@ -808,31 +808,6 @@ err:
 }
 EXPORT_SYMBOL(pcim_iomap_regions);
 
-static int _pcim_request_region(struct pci_dev *pdev, int bar, const char *name,
-				int request_flags)
-{
-	int ret;
-	struct pcim_addr_devres *res;
-
-	if (!pci_bar_index_is_valid(bar))
-		return -EINVAL;
-
-	res = pcim_addr_devres_alloc(pdev);
-	if (!res)
-		return -ENOMEM;
-	res->type = PCIM_ADDR_DEVRES_TYPE_REGION;
-	res->bar = bar;
-
-	ret = __pcim_request_region(pdev, bar, name, request_flags);
-	if (ret != 0) {
-		pcim_addr_devres_free(res);
-		return ret;
-	}
-
-	devres_add(&pdev->dev, res);
-	return 0;
-}
-
 /**
  * pcim_request_region - Request a PCI BAR
  * @pdev: PCI device to request region for
@@ -848,7 +823,26 @@ static int _pcim_request_region(struct pci_dev *pdev, int bar, const char *name,
  */
 int pcim_request_region(struct pci_dev *pdev, int bar, const char *name)
 {
-	return _pcim_request_region(pdev, bar, name, 0);
+	int ret;
+	struct pcim_addr_devres *res;
+
+	if (!pci_bar_index_is_valid(bar))
+		return -EINVAL;
+
+	res = pcim_addr_devres_alloc(pdev);
+	if (!res)
+		return -ENOMEM;
+	res->type = PCIM_ADDR_DEVRES_TYPE_REGION;
+	res->bar = bar;
+
+	ret = __pcim_request_region(pdev, bar, name, 0);
+	if (ret != 0) {
+		pcim_addr_devres_free(res);
+		return ret;
+	}
+
+	devres_add(&pdev->dev, res);
+	return 0;
 }
 EXPORT_SYMBOL(pcim_request_region);
 
