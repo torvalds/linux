@@ -2196,10 +2196,10 @@ static u64 logarithmic_accumulation(struct timekeeper *tk, u64 offset,
  * timekeeping_advance - Updates the timekeeper to the current time and
  * current NTP tick length
  */
-static bool __timekeeping_advance(enum timekeeping_adv_mode mode)
+static bool __timekeeping_advance(struct tk_data *tkd, enum timekeeping_adv_mode mode)
 {
-	struct timekeeper *tk = &tk_core.shadow_timekeeper;
-	struct timekeeper *real_tk = &tk_core.timekeeper;
+	struct timekeeper *tk = &tkd->shadow_timekeeper;
+	struct timekeeper *real_tk = &tkd->timekeeper;
 	unsigned int clock_set = 0;
 	int shift = 0, maxshift;
 	u64 offset, orig_offset;
@@ -2252,7 +2252,7 @@ static bool __timekeeping_advance(enum timekeeping_adv_mode mode)
 	if (orig_offset != offset)
 		tk_update_coarse_nsecs(tk);
 
-	timekeeping_update_from_shadow(&tk_core, clock_set);
+	timekeeping_update_from_shadow(tkd, clock_set);
 
 	return !!clock_set;
 }
@@ -2260,7 +2260,7 @@ static bool __timekeeping_advance(enum timekeeping_adv_mode mode)
 static bool timekeeping_advance(enum timekeeping_adv_mode mode)
 {
 	guard(raw_spinlock_irqsave)(&tk_core.lock);
-	return __timekeeping_advance(mode);
+	return __timekeeping_advance(&tk_core, mode);
 }
 
 /**
@@ -2598,7 +2598,7 @@ int do_adjtimex(struct __kernel_timex *txc)
 
 		/* Update the multiplier immediately if frequency was set directly */
 		if (txc->modes & (ADJ_FREQUENCY | ADJ_TICK))
-			clock_set |= __timekeeping_advance(TK_ADV_FREQ);
+			clock_set |= __timekeeping_advance(&tk_core, TK_ADV_FREQ);
 	}
 
 	if (txc->modes & ADJ_SETOFFSET)
