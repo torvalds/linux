@@ -351,33 +351,38 @@ static void __ntp_clear(struct ntp_data *ntpdata)
 
 /**
  * ntp_clear - Clears the NTP state variables
+ * @tkid:	Timekeeper ID to be able to select proper ntp data array member
  */
-void ntp_clear(void)
+void ntp_clear(unsigned int tkid)
 {
-	__ntp_clear(&tk_ntp_data[TIMEKEEPER_CORE]);
+	__ntp_clear(&tk_ntp_data[tkid]);
 }
 
 
-u64 ntp_tick_length(void)
+u64 ntp_tick_length(unsigned int tkid)
 {
-	return tk_ntp_data[TIMEKEEPER_CORE].tick_length;
+	return tk_ntp_data[tkid].tick_length;
 }
 
 /**
  * ntp_get_next_leap - Returns the next leapsecond in CLOCK_REALTIME ktime_t
+ * @tkid:	Timekeeper ID
  *
- * Provides the time of the next leapsecond against CLOCK_REALTIME in
- * a ktime_t format. Returns KTIME_MAX if no leapsecond is pending.
+ * Returns: For @tkid == TIMEKEEPER_CORE this provides the time of the next
+ *	    leap second against CLOCK_REALTIME in a ktime_t format if a
+ *	    leap second is pending. KTIME_MAX otherwise.
  */
-ktime_t ntp_get_next_leap(void)
+ktime_t ntp_get_next_leap(unsigned int tkid)
 {
 	struct ntp_data *ntpdata = &tk_ntp_data[TIMEKEEPER_CORE];
-	ktime_t ret;
+
+	if (tkid != TIMEKEEPER_CORE)
+		return KTIME_MAX;
 
 	if ((ntpdata->time_state == TIME_INS) && (ntpdata->time_status & STA_INS))
 		return ktime_set(ntpdata->ntp_next_leap_sec, 0);
-	ret = KTIME_MAX;
-	return ret;
+
+	return KTIME_MAX;
 }
 
 /*
@@ -390,9 +395,9 @@ ktime_t ntp_get_next_leap(void)
  *
  * Also handles leap second processing, and returns leap offset
  */
-int second_overflow(time64_t secs)
+int second_overflow(unsigned int tkid, time64_t secs)
 {
-	struct ntp_data *ntpdata = &tk_ntp_data[TIMEKEEPER_CORE];
+	struct ntp_data *ntpdata = &tk_ntp_data[tkid];
 	s64 delta;
 	int leap = 0;
 	s32 rem;
@@ -762,10 +767,10 @@ static inline void process_adjtimex_modes(struct ntp_data *ntpdata, const struct
  * adjtimex() mainly allows reading (and writing, if superuser) of
  * kernel time-keeping variables. used by xntpd.
  */
-int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
+int __do_adjtimex(unsigned int tkid, struct __kernel_timex *txc, const struct timespec64 *ts,
 		  s32 *time_tai, struct audit_ntp_data *ad)
 {
-	struct ntp_data *ntpdata = &tk_ntp_data[TIMEKEEPER_CORE];
+	struct ntp_data *ntpdata = &tk_ntp_data[tkid];
 	int result;
 
 	if (txc->modes & ADJ_ADJTIME) {

@@ -601,7 +601,7 @@ EXPORT_SYMBOL_GPL(pvclock_gtod_unregister_notifier);
  */
 static inline void tk_update_leap_state(struct timekeeper *tk)
 {
-	tk->next_leap_ktime = ntp_get_next_leap();
+	tk->next_leap_ktime = ntp_get_next_leap(tk->id);
 	if (tk->next_leap_ktime != KTIME_MAX)
 		/* Convert to monotonic time */
 		tk->next_leap_ktime = ktime_sub(tk->next_leap_ktime, tk->offs_real);
@@ -678,7 +678,7 @@ static void timekeeping_update_from_shadow(struct tk_data *tkd, unsigned int act
 
 	if (action & TK_CLEAR_NTP) {
 		tk->ntp_error = 0;
-		ntp_clear();
+		ntp_clear(tk->id);
 	}
 
 	tk_update_leap_state(tk);
@@ -2049,7 +2049,7 @@ static __always_inline void timekeeping_apply_adjustment(struct timekeeper *tk,
  */
 static void timekeeping_adjust(struct timekeeper *tk, s64 offset)
 {
-	u64 ntp_tl = ntp_tick_length();
+	u64 ntp_tl = ntp_tick_length(tk->id);
 	u32 mult;
 
 	/*
@@ -2130,7 +2130,7 @@ static inline unsigned int accumulate_nsecs_to_secs(struct timekeeper *tk)
 		}
 
 		/* Figure out if its a leap sec and apply if needed */
-		leap = second_overflow(tk->xtime_sec);
+		leap = second_overflow(tk->id, tk->xtime_sec);
 		if (unlikely(leap)) {
 			struct timespec64 ts;
 
@@ -2227,7 +2227,7 @@ static bool __timekeeping_advance(enum timekeeping_adv_mode mode)
 	shift = ilog2(offset) - ilog2(tk->cycle_interval);
 	shift = max(0, shift);
 	/* Bound shift to one less than what overflows tick_length */
-	maxshift = (64 - (ilog2(ntp_tick_length())+1)) - 1;
+	maxshift = (64 - (ilog2(ntp_tick_length(tk->id)) + 1)) - 1;
 	shift = min(shift, maxshift);
 	while (offset >= tk->cycle_interval) {
 		offset = logarithmic_accumulation(tk, offset, shift, &clock_set);
@@ -2586,7 +2586,7 @@ int do_adjtimex(struct __kernel_timex *txc)
 		}
 
 		orig_tai = tai = tks->tai_offset;
-		ret = __do_adjtimex(txc, &ts, &tai, &ad);
+		ret = __do_adjtimex(tks->id, txc, &ts, &tai, &ad);
 
 		if (tai != orig_tai) {
 			__timekeeping_set_tai_offset(tks, tai);
