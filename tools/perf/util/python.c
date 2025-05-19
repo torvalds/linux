@@ -781,6 +781,27 @@ static PyObject *pyrf_evsel__open(struct pyrf_evsel *pevsel,
 	return Py_None;
 }
 
+static PyObject *pyrf_evsel__cpus(struct pyrf_evsel *pevsel)
+{
+	struct pyrf_cpu_map *pcpu_map = PyObject_New(struct pyrf_cpu_map, &pyrf_cpu_map__type);
+
+	if (pcpu_map)
+		pcpu_map->cpus = perf_cpu_map__get(pevsel->evsel.core.cpus);
+
+	return (PyObject *)pcpu_map;
+}
+
+static PyObject *pyrf_evsel__threads(struct pyrf_evsel *pevsel)
+{
+	struct pyrf_thread_map *pthread_map =
+		PyObject_New(struct pyrf_thread_map, &pyrf_thread_map__type);
+
+	if (pthread_map)
+		pthread_map->threads = perf_thread_map__get(pevsel->evsel.core.threads);
+
+	return (PyObject *)pthread_map;
+}
+
 static PyObject *pyrf_evsel__str(PyObject *self)
 {
 	struct pyrf_evsel *pevsel = (void *)self;
@@ -798,6 +819,18 @@ static PyMethodDef pyrf_evsel__methods[] = {
 		.ml_meth  = (PyCFunction)pyrf_evsel__open,
 		.ml_flags = METH_VARARGS | METH_KEYWORDS,
 		.ml_doc	  = PyDoc_STR("open the event selector file descriptor table.")
+	},
+	{
+		.ml_name  = "cpus",
+		.ml_meth  = (PyCFunction)pyrf_evsel__cpus,
+		.ml_flags = METH_NOARGS,
+		.ml_doc	  = PyDoc_STR("CPUs the event is to be used with.")
+	},
+	{
+		.ml_name  = "threads",
+		.ml_meth  = (PyCFunction)pyrf_evsel__threads,
+		.ml_flags = METH_NOARGS,
+		.ml_doc	  = PyDoc_STR("threads the event is to be used with.")
 	},
 	{ .ml_name = NULL, }
 };
