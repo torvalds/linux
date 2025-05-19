@@ -663,7 +663,7 @@ static void timekeeping_restore_shadow(struct tk_data *tkd)
 
 static void timekeeping_update_from_shadow(struct tk_data *tkd, unsigned int action)
 {
-	struct timekeeper *tk = &tk_core.shadow_timekeeper;
+	struct timekeeper *tk = &tkd->shadow_timekeeper;
 
 	lockdep_assert_held(&tkd->lock);
 
