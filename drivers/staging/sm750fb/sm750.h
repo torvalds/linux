@@ -195,7 +195,7 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev);
 int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev);
 void hw_sm750_init_accel(struct sm750_dev *sm750_dev);
 int hw_sm750_de_wait(void);
-int hw_sm750le_deWait(void);
+int hw_sm750le_de_wait(void);
 
 int hw_sm750_output_setMode(struct lynxfb_output *output,
 			    struct fb_var_screeninfo *var,
