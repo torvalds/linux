@@ -173,7 +173,6 @@ struct ili9341_config {
 };
 
 struct ili9341 {
-	struct device *dev;
 	const struct ili9341_config *conf;
 	struct drm_panel panel;
 	struct gpio_desc *reset_gpio;
