@@ -10,7 +10,6 @@ Copyright (c) 2010 - 2015, Intel Corporation.
 
 /* Temporary include, since IA_CSS_BINARY_MODE_COPY is still needed */
 #include "sh_css_defs.h"
-#include "isp_const.h" /* MAX_VECTORS_PER_INPUT_LINE */
 
 #define INPUT_BUF_HEIGHT	2 /* double buffer */
 #define INPUT_BUF_LINES		2
