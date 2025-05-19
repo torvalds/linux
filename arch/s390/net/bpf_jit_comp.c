@@ -127,6 +127,18 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 		jit->seen_regs |= (1 << r1);
 }
 
+static s32 off_to_pcrel(struct bpf_jit *jit, u32 off)
+{
+	return off - jit->prg;
+}
+
+static s64 ptr_to_pcrel(struct bpf_jit *jit, const void *ptr)
+{
+	if (jit->prg_buf)
+		return (const u8 *)ptr - ((const u8 *)jit->prg_buf + jit->prg);
+	return 0;
+}
+
 #define REG_SET_SEEN(b1)					\
 ({								\
 	reg_set_seen(jit, b1);					\
@@ -201,7 +213,7 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 
 #define EMIT4_PCREL_RIC(op, mask, target)			\
 ({								\
-	int __rel = ((target) - jit->prg) / 2;			\
+	int __rel = off_to_pcrel(jit, target) / 2;		\
 	_EMIT4((op) | (mask) << 20 | (__rel & 0xffff));		\
 })
 
@@ -239,7 +251,7 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 
 #define EMIT6_PCREL_RIEB(op1, op2, b1, b2, mask, target)	\
 ({								\
-	unsigned int rel = (int)((target) - jit->prg) / 2;	\
+	unsigned int rel = off_to_pcrel(jit, target) / 2;	\
 	_EMIT6((op1) | reg(b1, b2) << 16 | (rel & 0xffff),	\
 	       (op2) | (mask) << 12);				\
 	REG_SET_SEEN(b1);					\
@@ -248,7 +260,7 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 
 #define EMIT6_PCREL_RIEC(op1, op2, b1, imm, mask, target)	\
 ({								\
-	unsigned int rel = (int)((target) - jit->prg) / 2;	\
+	unsigned int rel = off_to_pcrel(jit, target) / 2;	\
 	_EMIT6((op1) | (reg_high(b1) | (mask)) << 16 |		\
 		(rel & 0xffff), (op2) | ((imm) & 0xff) << 8);	\
 	REG_SET_SEEN(b1);					\
@@ -257,29 +269,41 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 
 #define EMIT6_PCREL(op1, op2, b1, b2, i, off, mask)		\
 ({								\
-	int rel = (addrs[(i) + (off) + 1] - jit->prg) / 2;	\
+	int rel = off_to_pcrel(jit, addrs[(i) + (off) + 1]) / 2;\
 	_EMIT6((op1) | reg(b1, b2) << 16 | (rel & 0xffff), (op2) | (mask));\
 	REG_SET_SEEN(b1);					\
 	REG_SET_SEEN(b2);					\
 })
 
-#define EMIT6_PCREL_RILB(op, b, target)				\
-({								\
-	unsigned int rel = (int)((target) - jit->prg) / 2;	\
-	_EMIT6((op) | reg_high(b) << 16 | rel >> 16, rel & 0xffff);\
-	REG_SET_SEEN(b);					\
-})
+static void emit6_pcrel_ril(struct bpf_jit *jit, u32 op, s64 pcrel)
+{
+	u32 pc32dbl = (s32)(pcrel / 2);
 
-#define EMIT6_PCREL_RIL(op, target)				\
-({								\
-	unsigned int rel = (int)((target) - jit->prg) / 2;	\
-	_EMIT6((op) | rel >> 16, rel & 0xffff);			\
-})
+	_EMIT6(op | pc32dbl >> 16, pc32dbl & 0xffff);
+}
+
+static void emit6_pcrel_rilb(struct bpf_jit *jit, u32 op, u8 b, s64 pcrel)
+{
+	emit6_pcrel_ril(jit, op | reg_high(b) << 16, pcrel);
+	REG_SET_SEEN(b);
+}
+
+#define EMIT6_PCREL_RILB(op, b, target)				\
+	emit6_pcrel_rilb(jit, op, b, off_to_pcrel(jit, target))
+
+#define EMIT6_PCREL_RILB_PTR(op, b, target_ptr)			\
+	emit6_pcrel_rilb(jit, op, b, ptr_to_pcrel(jit, target_ptr))
+
+static void emit6_pcrel_rilc(struct bpf_jit *jit, u32 op, u8 mask, s64 pcrel)
+{
+	emit6_pcrel_ril(jit, op | mask << 20, pcrel);
+}
 
 #define EMIT6_PCREL_RILC(op, mask, target)			\
-({								\
-	EMIT6_PCREL_RIL((op) | (mask) << 20, (target));		\
-})
+	emit6_pcrel_rilc(jit, op, mask, off_to_pcrel(jit, target))
+
+#define EMIT6_PCREL_RILC_PTR(op, mask, target_ptr)		\
+	emit6_pcrel_rilc(jit, op, mask, ptr_to_pcrel(jit, target_ptr))
 
 #define _EMIT6_IMM(op, imm)					\
 ({								\
@@ -503,7 +527,7 @@ static void bpf_skip(struct bpf_jit *jit, int size)
 {
 	if (size >= 6 && !is_valid_rel(size)) {
 		/* brcl 0xf,size */
-		EMIT6_PCREL_RIL(0xc0f4000000, size);
+		EMIT6_PCREL_RILC(0xc0040000, 0xf, size);
 		size -= 6;
 	} else if (size >= 4 && is_valid_rel(size)) {
 		/* brc 0xf,size */
