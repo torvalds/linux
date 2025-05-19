@@ -404,8 +404,7 @@ int bch2_rename_trans(struct btree_trans *trans,
 
 	src_hash = bch2_hash_info_init(c, src_dir_u);
 
-	if (dst_dir.inum	!= src_dir.inum ||
-	    dst_dir.subvol	!= src_dir.subvol) {
+	if (!subvol_inum_eq(dst_dir, src_dir)) {
 		ret = bch2_inode_peek(trans, &dst_dir_iter, dst_dir_u, dst_dir,
 				      BTREE_ITER_intent);
 		if (ret)
@@ -599,8 +598,7 @@ int bch2_inum_to_path(struct btree_trans *trans, subvol_inum inum, struct printb
 	unsigned orig_pos = path->pos;
 	int ret = 0;
 
-	while (!(inum.subvol == BCACHEFS_ROOT_SUBVOL &&
-		 inum.inum   == BCACHEFS_ROOT_INO)) {
+	while (!subvol_inum_eq(inum, BCACHEFS_ROOT_SUBVOL_INUM)) {
 		struct bch_inode_unpacked inode;
 		ret = bch2_inode_find_by_inum_trans(trans, inum, &inode);
 		if (ret)

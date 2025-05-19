@@ -736,9 +736,6 @@ struct btree_trans_buf {
 	struct btree_trans	*trans;
 };
 
-#define BCACHEFS_ROOT_SUBVOL_INUM					\
-	((subvol_inum) { BCACHEFS_ROOT_SUBVOL,	BCACHEFS_ROOT_INO })
-
 #define BCH_WRITE_REFS()						\
 	x(journal)							\
 	x(trans)							\

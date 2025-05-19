@@ -191,11 +191,6 @@ int bch2_fs_quota_transfer(struct bch_fs *c,
 	return ret;
 }
 
-static bool subvol_inum_eq(subvol_inum a, subvol_inum b)
-{
-	return a.subvol == b.subvol && a.inum == b.inum;
-}
-
 static u32 bch2_vfs_inode_hash_fn(const void *data, u32 len, u32 seed)
 {
 	const subvol_inum *inum = data;

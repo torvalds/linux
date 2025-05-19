@@ -309,6 +309,14 @@ bch2_inode_rebalance_opts_get(struct bch_fs *c, struct bch_inode_unpacked *inode
 	return io_opts_to_rebalance_opts(c, &io_opts);
 }
 
+#define BCACHEFS_ROOT_SUBVOL_INUM					\
+	((subvol_inum) { BCACHEFS_ROOT_SUBVOL,	BCACHEFS_ROOT_INO })
+
+static inline bool subvol_inum_eq(subvol_inum a, subvol_inum b)
+{
+	return a.subvol == b.subvol && a.inum == b.inum;
+}
+
 int bch2_inode_rm_snapshot(struct btree_trans *, u64, u32);
 int bch2_delete_dead_inodes(struct bch_fs *);
 
