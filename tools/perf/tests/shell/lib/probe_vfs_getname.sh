@@ -13,8 +13,16 @@ cleanup_probe_vfs_getname() {
 add_probe_vfs_getname() {
 	add_probe_verbose=$1
 	if [ $had_vfs_getname -eq 1 ] ; then
-		result_filename_re="[[:space:]]+([[:digit:]]+)[[:space:]]+result->uptr.*"
-		line=$(perf probe -L getname_flags 2>&1 | grep -E "$result_filename_re" | sed -r "s/$result_filename_re/\1/")
+		result_initname_re="[[:space:]]+([[:digit:]]+)[[:space:]]+initname.*"
+		line=$(perf probe -L getname_flags 2>&1 | grep -E "$result_initname_re" | sed -r "s/$result_initname_re/\1/")
+
+		# Search the old regular expressions so that this will
+		# pass on older kernels as well.
+		if [ -z "$line" ] ; then
+			result_filename_re="[[:space:]]+([[:digit:]]+)[[:space:]]+result->uptr.*"
+			line=$(perf probe -L getname_flags 2>&1 | grep -E "$result_filename_re" | sed -r "s/$result_filename_re/\1/")
+		fi
+
 		if [ -z "$line" ] ; then
 			result_aname_re="[[:space:]]+([[:digit:]]+)[[:space:]]+result->aname = NULL;"
 			line=$(perf probe -L getname_flags 2>&1 | grep -E "$result_aname_re" | sed -r "s/$result_aname_re/\1/")
