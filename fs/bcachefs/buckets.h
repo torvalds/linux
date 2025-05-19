@@ -44,6 +44,7 @@ static inline void bucket_unlock(struct bucket *b)
 	BUILD_BUG_ON(!((union ulong_byte_assert) { .ulong = 1UL << BUCKET_LOCK_BITNR }).byte);
 
 	clear_bit_unlock(BUCKET_LOCK_BITNR, (void *) &b->lock);
+	smp_mb__after_atomic();
 	wake_up_bit((void *) &b->lock, BUCKET_LOCK_BITNR);
 }
 

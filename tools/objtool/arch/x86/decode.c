@@ -189,6 +189,15 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 	op2 = ins.opcode.bytes[1];
 	op3 = ins.opcode.bytes[2];
 
+	/*
+	 * XXX hack, decoder is buggered and thinks 0xea is 7 bytes long.
+	 */
+	if (op1 == 0xea) {
+		insn->len = 1;
+		insn->type = INSN_BUG;
+		return 0;
+	}
+
 	if (ins.rex_prefix.nbytes) {
 		rex = ins.rex_prefix.bytes[0];
 		rex_w = X86_REX_W(rex) >> 3;

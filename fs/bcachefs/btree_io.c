@@ -41,6 +41,7 @@ void bch2_btree_node_io_unlock(struct btree *b)
 
 	clear_btree_node_write_in_flight_inner(b);
 	clear_btree_node_write_in_flight(b);
+	smp_mb__after_atomic();
 	wake_up_bit(&b->flags, BTREE_NODE_write_in_flight);
 }
 
@@ -1400,6 +1401,7 @@ start:
 
 	printbuf_exit(&buf);
 	clear_btree_node_read_in_flight(b);
+	smp_mb__after_atomic();
 	wake_up_bit(&b->flags, BTREE_NODE_read_in_flight);
 }
 
@@ -1595,6 +1597,7 @@ fsck_err:
 	printbuf_exit(&buf);
 
 	clear_btree_node_read_in_flight(b);
+	smp_mb__after_atomic();
 	wake_up_bit(&b->flags, BTREE_NODE_read_in_flight);
 }
 
@@ -1721,6 +1724,7 @@ void bch2_btree_node_read(struct btree_trans *trans, struct btree *b,
 		set_btree_node_read_error(b);
 		bch2_btree_lost_data(c, b->c.btree_id);
 		clear_btree_node_read_in_flight(b);
+		smp_mb__after_atomic();
 		wake_up_bit(&b->flags, BTREE_NODE_read_in_flight);
 		printbuf_exit(&buf);
 		return;
@@ -2061,8 +2065,10 @@ static void __btree_node_write_done(struct bch_fs *c, struct btree *b, u64 start
 
 	if (new & (1U << BTREE_NODE_write_in_flight))
 		__bch2_btree_node_write(c, b, BTREE_WRITE_ALREADY_STARTED|type);
-	else
+	else {
+		smp_mb__after_atomic();
 		wake_up_bit(&b->flags, BTREE_NODE_write_in_flight);
+	}
 }
 
 static void btree_node_write_done(struct bch_fs *c, struct btree *b, u64 start_time)
@@ -2175,6 +2181,7 @@ static void btree_node_write_endio(struct bio *bio)
 	}
 
 	clear_btree_node_write_in_flight_inner(b);
+	smp_mb__after_atomic();
 	wake_up_bit(&b->flags, BTREE_NODE_write_in_flight_inner);
 	INIT_WORK(&wb->work, btree_node_write_work);
 	queue_work(c->btree_io_complete_wq, &wb->work);
