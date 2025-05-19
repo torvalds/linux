@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/rtc.h>
 #include <linux/audit.h>
+#include <linux/timekeeper_internal.h>
 
 #include "ntp_internal.h"
 #include "timekeeping_internal.h"
@@ -86,14 +87,16 @@ struct ntp_data {
 #endif
 };
 
-static struct ntp_data tk_ntp_data = {
-	.tick_usec		= USER_TICK_USEC,
-	.time_state		= TIME_OK,
-	.time_status		= STA_UNSYNC,
-	.time_constant		= 2,
-	.time_maxerror		= NTP_PHASE_LIMIT,
-	.time_esterror		= NTP_PHASE_LIMIT,
-	.ntp_next_leap_sec	= TIME64_MAX,
+static struct ntp_data tk_ntp_data[TIMEKEEPERS_MAX] = {
+	[ 0 ... TIMEKEEPERS_MAX - 1 ] = {
+		.tick_usec		= USER_TICK_USEC,
+		.time_state		= TIME_OK,
+		.time_status		= STA_UNSYNC,
+		.time_constant		= 2,
+		.time_maxerror		= NTP_PHASE_LIMIT,
+		.time_esterror		= NTP_PHASE_LIMIT,
+		.ntp_next_leap_sec	= TIME64_MAX,
+	},
 };
 
 #define SECS_PER_DAY		86400
@@ -351,13 +354,13 @@ static void __ntp_clear(struct ntp_data *ntpdata)
  */
 void ntp_clear(void)
 {
-	__ntp_clear(&tk_ntp_data);
+	__ntp_clear(&tk_ntp_data[TIMEKEEPER_CORE]);
 }
 
 
 u64 ntp_tick_length(void)
 {
-	return tk_ntp_data.tick_length;
+	return tk_ntp_data[TIMEKEEPER_CORE].tick_length;
 }
 
 /**
@@ -368,7 +371,7 @@ u64 ntp_tick_length(void)
  */
 ktime_t ntp_get_next_leap(void)
 {
-	struct ntp_data *ntpdata = &tk_ntp_data;
+	struct ntp_data *ntpdata = &tk_ntp_data[TIMEKEEPER_CORE];
 	ktime_t ret;
 
 	if ((ntpdata->time_state == TIME_INS) && (ntpdata->time_status & STA_INS))
@@ -389,7 +392,7 @@ ktime_t ntp_get_next_leap(void)
  */
 int second_overflow(time64_t secs)
 {
-	struct ntp_data *ntpdata = &tk_ntp_data;
+	struct ntp_data *ntpdata = &tk_ntp_data[TIMEKEEPER_CORE];
 	s64 delta;
 	int leap = 0;
 	s32 rem;
@@ -605,7 +608,7 @@ static inline int update_rtc(struct timespec64 *to_set, unsigned long *offset_ns
  */
 static inline bool ntp_synced(void)
 {
-	return !(tk_ntp_data.time_status & STA_UNSYNC);
+	return !(tk_ntp_data[TIMEKEEPER_CORE].time_status & STA_UNSYNC);
 }
 
 /*
@@ -762,7 +765,7 @@ static inline void process_adjtimex_modes(struct ntp_data *ntpdata, const struct
 int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 		  s32 *time_tai, struct audit_ntp_data *ad)
 {
-	struct ntp_data *ntpdata = &tk_ntp_data;
+	struct ntp_data *ntpdata = &tk_ntp_data[TIMEKEEPER_CORE];
 	int result;
 
 	if (txc->modes & ADJ_ADJTIME) {
@@ -1031,8 +1034,8 @@ static void hardpps_update_phase(struct ntp_data *ntpdata, long error)
  */
 void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_ts)
 {
+	struct ntp_data *ntpdata = &tk_ntp_data[TIMEKEEPER_CORE];
 	struct pps_normtime pts_norm, freq_norm;
-	struct ntp_data *ntpdata = &tk_ntp_data;
 
 	pts_norm = pps_normalize_ts(*phase_ts);
 
@@ -1083,18 +1086,18 @@ void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_t
 
 static int __init ntp_tick_adj_setup(char *str)
 {
-	int rc = kstrtos64(str, 0, &tk_ntp_data.ntp_tick_adj);
+	int rc = kstrtos64(str, 0, &tk_ntp_data[TIMEKEEPER_CORE].ntp_tick_adj);
 	if (rc)
 		return rc;
 
-	tk_ntp_data.ntp_tick_adj <<= NTP_SCALE_SHIFT;
+	tk_ntp_data[TIMEKEEPER_CORE].ntp_tick_adj <<= NTP_SCALE_SHIFT;
 	return 1;
 }
-
 __setup("ntp_tick_adj=", ntp_tick_adj_setup);
 
 void __init ntp_init(void)
 {
-	ntp_clear();
+	for (int id = 0; id < TIMEKEEPERS_MAX; id++)
+		__ntp_clear(tk_ntp_data + id);
 	ntp_init_cmos_sync();
 }
