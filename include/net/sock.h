@@ -2773,14 +2773,26 @@ static inline bool sk_is_udp(const struct sock *sk)
 	       sk->sk_protocol == IPPROTO_UDP;
 }
 
+static inline bool sk_is_unix(const struct sock *sk)
+{
+	return sk->sk_family == AF_UNIX;
+}
+
 static inline bool sk_is_stream_unix(const struct sock *sk)
 {
-	return sk->sk_family == AF_UNIX && sk->sk_type == SOCK_STREAM;
+	return sk_is_unix(sk) && sk->sk_type == SOCK_STREAM;
 }
 
 static inline bool sk_is_vsock(const struct sock *sk)
 {
 	return sk->sk_family == AF_VSOCK;
+}
+
+static inline bool sk_may_scm_recv(const struct sock *sk)
+{
+	return (IS_ENABLED(CONFIG_UNIX) && sk->sk_family == AF_UNIX) ||
+		sk->sk_family == AF_NETLINK ||
+		(IS_ENABLED(CONFIG_BT) && sk->sk_family == AF_BLUETOOTH);
 }
 
 /**
