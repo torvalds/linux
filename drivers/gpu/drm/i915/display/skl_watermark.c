@@ -2272,6 +2272,11 @@ static int skl_max_wm0_lines(const struct intel_crtc_state *crtc_state)
 	return wm0_lines;
 }
 
+/*
+ * TODO: In case we use PKG_C_LATENCY to allow C-states when the delayed vblank
+ * size is too small for the package C exit latency we need to notify PSR about
+ * the scenario to apply Wa_16025596647.
+ */
 static int skl_max_wm_level_for_vblank(struct intel_crtc_state *crtc_state,
 				       int wm0_lines)
 {

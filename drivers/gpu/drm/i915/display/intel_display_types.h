@@ -1121,6 +1121,7 @@ struct intel_crtc_state {
 	bool req_psr2_sdp_prior_scanline;
 	bool has_panel_replay;
 	bool wm_level_disabled;
+	bool pkg_c_latency_used;
 	u32 dc3co_exitline;
 	u16 su_y_granularity;
 	u8 active_non_psr_pipes;
@@ -1683,6 +1684,7 @@ struct intel_psr {
 	u8 entry_setup_frames;
 
 	bool link_ok;
+	bool pkg_c_latency_used;
 
 	u8 active_non_psr_pipes;
 };

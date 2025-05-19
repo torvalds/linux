@@ -915,7 +915,7 @@ static void hsw_activate_psr1(struct intel_dp *intel_dp)
 	/* Wa_16025596647 */
 	if ((DISPLAY_VER(display) == 20 ||
 	     IS_DISPLAY_VERx100_STEP(display, 3000, STEP_A0, STEP_B0)) &&
-	    is_dc5_dc6_blocked(intel_dp))
+	    is_dc5_dc6_blocked(intel_dp) && intel_dp->psr.pkg_c_latency_used)
 		intel_dmc_start_pkgc_exit_at_start_of_undelayed_vblank(display,
 								       intel_dp->psr.pipe,
 								       true);
@@ -1005,7 +1005,7 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	/* Wa_16025596647 */
 	if ((DISPLAY_VER(display) == 20 ||
 	     IS_DISPLAY_VERx100_STEP(display, 3000, STEP_A0, STEP_B0)) &&
-	    is_dc5_dc6_blocked(intel_dp))
+	    is_dc5_dc6_blocked(intel_dp) && intel_dp->psr.pkg_c_latency_used)
 		idle_frames = 0;
 	else
 		idle_frames = psr_compute_idle_frames(intel_dp);
@@ -2006,6 +2006,7 @@ static void intel_psr_enable_locked(struct intel_dp *intel_dp,
 	intel_dp->psr.req_psr2_sdp_prior_scanline =
 		crtc_state->req_psr2_sdp_prior_scanline;
 	intel_dp->psr.active_non_psr_pipes = crtc_state->active_non_psr_pipes;
+	intel_dp->psr.pkg_c_latency_used = crtc_state->pkg_c_latency_used;
 
 	if (!psr_interrupt_error_check(intel_dp))
 		return;
@@ -2186,6 +2187,7 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 	intel_dp->psr.su_region_et_enabled = false;
 	intel_dp->psr.psr2_sel_fetch_cff_enabled = false;
 	intel_dp->psr.active_non_psr_pipes = 0;
+	intel_dp->psr.pkg_c_latency_used = 0;
 }
 
 /**
@@ -3702,7 +3704,7 @@ static void intel_psr_apply_underrun_on_idle_wa_locked(struct intel_dp *intel_dp
 	struct intel_display *display = to_intel_display(intel_dp);
 	bool dc5_dc6_blocked;
 
-	if (!intel_dp->psr.active)
+	if (!intel_dp->psr.active || !intel_dp->psr.pkg_c_latency_used)
 		return;
 
 	dc5_dc6_blocked = is_dc5_dc6_blocked(intel_dp);
@@ -3727,7 +3729,8 @@ static void psr_dc5_dc6_wa_work(struct work_struct *work)
 
 		mutex_lock(&intel_dp->psr.lock);
 
-		if (intel_dp->psr.enabled && !intel_dp->psr.panel_replay_enabled)
+		if (intel_dp->psr.enabled && !intel_dp->psr.panel_replay_enabled &&
+		    !intel_dp->psr.pkg_c_latency_used)
 			intel_psr_apply_underrun_on_idle_wa_locked(intel_dp);
 
 		mutex_unlock(&intel_dp->psr.lock);
@@ -3805,7 +3808,8 @@ void intel_psr_notify_pipe_change(struct intel_atomic_state *state,
 			goto unlock;
 
 		if ((enable && intel_dp->psr.active_non_psr_pipes) ||
-		    (!enable && !intel_dp->psr.active_non_psr_pipes)) {
+		    (!enable && !intel_dp->psr.active_non_psr_pipes) ||
+		    !intel_dp->psr.pkg_c_latency_used) {
 			intel_dp->psr.active_non_psr_pipes = active_non_psr_pipes;
 			goto unlock;
 		}
@@ -3840,7 +3844,7 @@ void intel_psr_notify_vblank_enable_disable(struct intel_display *display,
 			break;
 		}
 
-		if (intel_dp->psr.enabled)
+		if (intel_dp->psr.enabled && intel_dp->psr.pkg_c_latency_used)
 			intel_psr_apply_underrun_on_idle_wa_locked(intel_dp);
 
 		mutex_unlock(&intel_dp->psr.lock);
