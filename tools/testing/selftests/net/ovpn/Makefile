@@ -20,6 +20,7 @@ LDLIBS += $(VAR_LDLIBS)
 TEST_FILES = common.sh
 
 TEST_PROGS = test.sh \
+	test-large-mtu.sh \
 	test-chachapoly.sh \
 	test-tcp.sh \
 	test-float.sh \

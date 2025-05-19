@@ -18,7 +18,7 @@ for p in $(seq 0 ${NUM_PEERS}); do
 done
 
 for p in $(seq 0 ${NUM_PEERS}); do
-	setup_ns ${p} 5.5.5.$((${p} + 1))/24
+	setup_ns ${p} 5.5.5.$((${p} + 1))/24 ${MTU}
 done
 
 for p in $(seq 0 ${NUM_PEERS}); do
@@ -34,7 +34,11 @@ sleep 1
 
 for p in $(seq 1 ${NUM_PEERS}); do
 	ip netns exec peer0 ping -qfc 500 -w 3 5.5.5.$((${p} + 1))
+	ip netns exec peer0 ping -qfc 500 -s 3000 -w 3 5.5.5.$((${p} + 1))
 done
+
+# ping LAN behind client 1
+ip netns exec peer0 ping -qfc 500 -w 3 ${LAN_IP}
 
 if [ "$FLOAT" == "1" ]; then
 	# make clients float..
