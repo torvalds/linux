@@ -85,7 +85,7 @@ static int netfs_dispatch_unbuffered_reads(struct netfs_io_request *rreq)
 		if (rreq->netfs_ops->prepare_read) {
 			ret = rreq->netfs_ops->prepare_read(subreq);
 			if (ret < 0) {
-				netfs_put_subrequest(subreq, false, netfs_sreq_trace_put_cancel);
+				netfs_put_subrequest(subreq, netfs_sreq_trace_put_cancel);
 				break;
 			}
 		}
@@ -144,7 +144,7 @@ static ssize_t netfs_unbuffered_read(struct netfs_io_request *rreq, bool sync)
 	ret = netfs_dispatch_unbuffered_reads(rreq);
 
 	if (!rreq->submitted) {
-		netfs_put_request(rreq, false, netfs_rreq_trace_put_no_submit);
+		netfs_put_request(rreq, netfs_rreq_trace_put_no_submit);
 		inode_dio_end(rreq->inode);
 		ret = 0;
 		goto out;
@@ -236,7 +236,7 @@ ssize_t netfs_unbuffered_read_iter_locked(struct kiocb *iocb, struct iov_iter *i
 	}
 
 out:
-	netfs_put_request(rreq, false, netfs_rreq_trace_put_return);
+	netfs_put_request(rreq, netfs_rreq_trace_put_return);
 	if (ret > 0)
 		orig_count -= ret;
 	return ret;

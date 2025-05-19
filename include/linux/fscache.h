@@ -628,7 +628,7 @@ static inline void fscache_write_to_cache(struct fscache_cookie *cookie,
 					 term_func, term_func_priv,
 					 using_pgpriv2, caching);
 	else if (term_func)
-		term_func(term_func_priv, -ENOBUFS, false);
+		term_func(term_func_priv, -ENOBUFS);
 
 }
 

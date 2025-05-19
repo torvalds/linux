@@ -117,7 +117,7 @@ ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *
 	}
 
 out:
-	netfs_put_request(wreq, false, netfs_rreq_trace_put_return);
+	netfs_put_request(wreq, netfs_rreq_trace_put_return);
 	return ret;
 }
 EXPORT_SYMBOL(netfs_unbuffered_write_iter_locked);

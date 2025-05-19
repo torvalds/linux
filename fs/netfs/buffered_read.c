@@ -262,9 +262,9 @@ static void netfs_read_to_pagecache(struct netfs_io_request *rreq)
 				if (ret < 0) {
 					subreq->error = ret;
 					/* Not queued - release both refs. */
-					netfs_put_subrequest(subreq, false,
+					netfs_put_subrequest(subreq,
 							     netfs_sreq_trace_put_cancel);
-					netfs_put_subrequest(subreq, false,
+					netfs_put_subrequest(subreq,
 							     netfs_sreq_trace_put_cancel);
 					break;
 				}
@@ -297,8 +297,8 @@ static void netfs_read_to_pagecache(struct netfs_io_request *rreq)
 			subreq->error = ret;
 			trace_netfs_sreq(subreq, netfs_sreq_trace_cancel);
 			/* Not queued - release both refs. */
-			netfs_put_subrequest(subreq, false, netfs_sreq_trace_put_cancel);
-			netfs_put_subrequest(subreq, false, netfs_sreq_trace_put_cancel);
+			netfs_put_subrequest(subreq, netfs_sreq_trace_put_cancel);
+			netfs_put_subrequest(subreq, netfs_sreq_trace_put_cancel);
 			break;
 		}
 		size -= slice;
@@ -365,12 +365,10 @@ void netfs_readahead(struct readahead_control *ractl)
 		goto cleanup_free;
 	netfs_read_to_pagecache(rreq);
 
-	netfs_put_request(rreq, true, netfs_rreq_trace_put_return);
-	return;
+	return netfs_put_request(rreq, netfs_rreq_trace_put_return);
 
 cleanup_free:
-	netfs_put_request(rreq, false, netfs_rreq_trace_put_failed);
-	return;
+	return netfs_put_request(rreq, netfs_rreq_trace_put_failed);
 }
 EXPORT_SYMBOL(netfs_readahead);
 
@@ -470,11 +468,11 @@ static int netfs_read_gaps(struct file *file, struct folio *folio)
 		folio_mark_uptodate(folio);
 	}
 	folio_unlock(folio);
-	netfs_put_request(rreq, false, netfs_rreq_trace_put_return);
+	netfs_put_request(rreq, netfs_rreq_trace_put_return);
 	return ret < 0 ? ret : 0;
 
 discard:
-	netfs_put_request(rreq, false, netfs_rreq_trace_put_discard);
+	netfs_put_request(rreq, netfs_rreq_trace_put_discard);
 alloc_error:
 	folio_unlock(folio);
 	return ret;
@@ -530,11 +528,11 @@ int netfs_read_folio(struct file *file, struct folio *folio)
 
 	netfs_read_to_pagecache(rreq);
 	ret = netfs_wait_for_read(rreq);
-	netfs_put_request(rreq, false, netfs_rreq_trace_put_return);
+	netfs_put_request(rreq, netfs_rreq_trace_put_return);
 	return ret < 0 ? ret : 0;
 
 discard:
-	netfs_put_request(rreq, false, netfs_rreq_trace_put_discard);
+	netfs_put_request(rreq, netfs_rreq_trace_put_discard);
 alloc_error:
 	folio_unlock(folio);
 	return ret;
@@ -689,7 +687,7 @@ retry:
 	ret = netfs_wait_for_read(rreq);
 	if (ret < 0)
 		goto error;
-	netfs_put_request(rreq, false, netfs_rreq_trace_put_return);
+	netfs_put_request(rreq, netfs_rreq_trace_put_return);
 
 have_folio:
 	ret = folio_wait_private_2_killable(folio);
@@ -701,7 +699,7 @@ have_folio_no_wait:
 	return 0;
 
 error_put:
-	netfs_put_request(rreq, false, netfs_rreq_trace_put_failed);
+	netfs_put_request(rreq, netfs_rreq_trace_put_failed);
 error:
 	if (folio) {
 		folio_unlock(folio);
@@ -752,11 +750,11 @@ int netfs_prefetch_for_write(struct file *file, struct folio *folio,
 
 	netfs_read_to_pagecache(rreq);
 	ret = netfs_wait_for_read(rreq);
-	netfs_put_request(rreq, false, netfs_rreq_trace_put_return);
+	netfs_put_request(rreq, netfs_rreq_trace_put_return);
 	return ret < 0 ? ret : 0;
 
 error_put:
-	netfs_put_request(rreq, false, netfs_rreq_trace_put_discard);
+	netfs_put_request(rreq, netfs_rreq_trace_put_discard);
 error:
 	_leave(" = %d", ret);
 	return ret;

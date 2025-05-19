@@ -539,7 +539,7 @@ static void ceph_set_page_fscache(struct page *page)
 	folio_start_private_2(page_folio(page)); /* [DEPRECATED] */
 }
 
-static void ceph_fscache_write_terminated(void *priv, ssize_t error, bool was_async)
+static void ceph_fscache_write_terminated(void *priv, ssize_t error)
 {
 	struct inode *inode = priv;
 

@@ -23,7 +23,7 @@
 /*
  * buffered_read.c
  */
-void netfs_cache_read_terminated(void *priv, ssize_t transferred_or_error, bool was_async);
+void netfs_cache_read_terminated(void *priv, ssize_t transferred_or_error);
 int netfs_prefetch_for_write(struct file *file, struct folio *folio,
 			     size_t offset, size_t len);
 
@@ -71,9 +71,8 @@ struct netfs_io_request *netfs_alloc_request(struct address_space *mapping,
 					     loff_t start, size_t len,
 					     enum netfs_io_origin origin);
 void netfs_get_request(struct netfs_io_request *rreq, enum netfs_rreq_ref_trace what);
-void netfs_clear_subrequests(struct netfs_io_request *rreq, bool was_async);
-void netfs_put_request(struct netfs_io_request *rreq, bool was_async,
-		       enum netfs_rreq_ref_trace what);
+void netfs_clear_subrequests(struct netfs_io_request *rreq);
+void netfs_put_request(struct netfs_io_request *rreq, enum netfs_rreq_ref_trace what);
 struct netfs_io_subrequest *netfs_alloc_subrequest(struct netfs_io_request *rreq);
 
 static inline void netfs_see_request(struct netfs_io_request *rreq,
@@ -94,7 +93,7 @@ static inline void netfs_see_subrequest(struct netfs_io_subrequest *subreq,
  */
 void netfs_read_collection_worker(struct work_struct *work);
 void netfs_wake_read_collector(struct netfs_io_request *rreq);
-void netfs_cache_read_terminated(void *priv, ssize_t transferred_or_error, bool was_async);
+void netfs_cache_read_terminated(void *priv, ssize_t transferred_or_error);
 ssize_t netfs_wait_for_read(struct netfs_io_request *rreq);
 void netfs_wait_for_pause(struct netfs_io_request *rreq);
 
@@ -177,7 +176,7 @@ static inline void netfs_stat_d(atomic_t *stat)
  */
 int netfs_folio_written_back(struct folio *folio);
 void netfs_write_collection_worker(struct work_struct *work);
-void netfs_wake_write_collector(struct netfs_io_request *wreq, bool was_async);
+void netfs_wake_write_collector(struct netfs_io_request *wreq);
 
 /*
  * write_issue.c

@@ -51,8 +51,7 @@ enum netfs_io_source {
 	NETFS_INVALID_WRITE,
 } __mode(byte);
 
-typedef void (*netfs_io_terminated_t)(void *priv, ssize_t transferred_or_error,
-				      bool was_async);
+typedef void (*netfs_io_terminated_t)(void *priv, ssize_t transferred_or_error);
 
 /*
  * Per-inode context.  This wraps the VFS inode.
@@ -223,9 +222,10 @@ enum netfs_io_origin {
  */
 struct netfs_io_request {
 	union {
-		struct work_struct work;
+		struct work_struct cleanup_work; /* Deferred cleanup work */
 		struct rcu_head rcu;
 	};
+	struct work_struct	work;		/* Result collector work */
 	struct inode		*inode;		/* The file being accessed */
 	struct address_space	*mapping;	/* The mapping being accessed */
 	struct kiocb		*iocb;		/* AIO completion vector */
@@ -270,7 +270,7 @@ struct netfs_io_request {
 #define NETFS_RREQ_NO_UNLOCK_FOLIO	2	/* Don't unlock no_unlock_folio on completion */
 #define NETFS_RREQ_DONT_UNLOCK_FOLIOS	3	/* Don't unlock the folios on completion */
 #define NETFS_RREQ_FAILED		4	/* The request failed */
-#define NETFS_RREQ_IN_PROGRESS		5	/* Unlocked when the request completes */
+#define NETFS_RREQ_IN_PROGRESS		5	/* Unlocked when the request completes (has ref) */
 #define NETFS_RREQ_FOLIO_COPY_TO_CACHE	6	/* Copy current folio to cache from read */
 #define NETFS_RREQ_UPLOAD_TO_SERVER	8	/* Need to write to the server */
 #define NETFS_RREQ_NONBLOCK		9	/* Don't block if possible (O_NONBLOCK) */
@@ -440,15 +440,14 @@ void netfs_read_subreq_terminated(struct netfs_io_subrequest *subreq);
 void netfs_get_subrequest(struct netfs_io_subrequest *subreq,
 			  enum netfs_sreq_ref_trace what);
 void netfs_put_subrequest(struct netfs_io_subrequest *subreq,
-			  bool was_async, enum netfs_sreq_ref_trace what);
+			  enum netfs_sreq_ref_trace what);
 ssize_t netfs_extract_user_iter(struct iov_iter *orig, size_t orig_len,
 				struct iov_iter *new,
 				iov_iter_extraction_t extraction_flags);
 size_t netfs_limit_iter(const struct iov_iter *iter, size_t start_offset,
 			size_t max_size, size_t max_segs);
 void netfs_prepare_write_failed(struct netfs_io_subrequest *subreq);
-void netfs_write_subrequest_terminated(void *_op, ssize_t transferred_or_error,
-				       bool was_async);
+void netfs_write_subrequest_terminated(void *_op, ssize_t transferred_or_error);
 void netfs_queue_write_request(struct netfs_io_subrequest *subreq);
 
 int netfs_start_io_read(struct inode *inode);
