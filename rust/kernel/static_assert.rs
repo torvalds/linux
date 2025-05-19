@@ -34,6 +34,6 @@
 #[macro_export]
 macro_rules! static_assert {
     ($condition:expr $(,$arg:literal)?) => {
-        const _: () = core::assert!($condition $(,$arg)?);
+        const _: () = ::core::assert!($condition $(,$arg)?);
     };
 }
