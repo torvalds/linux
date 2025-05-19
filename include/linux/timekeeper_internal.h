@@ -67,6 +67,7 @@ struct tk_read_base {
  * @offs_real:			Offset clock monotonic -> clock realtime
  * @offs_boot:			Offset clock monotonic -> clock boottime
  * @offs_tai:			Offset clock monotonic -> clock tai
+ * @offs_aux:			Offset clock monotonic -> clock AUX
  * @coarse_nsec:		The nanoseconds part for coarse time getters
  * @id:				The timekeeper ID
  * @tkr_raw:			The readout base structure for CLOCK_MONOTONIC_RAW
@@ -113,6 +114,9 @@ struct tk_read_base {
  * @monotonic_to_boottime is a timespec64 representation of @offs_boot to
  * accelerate the VDSO update for CLOCK_BOOTTIME.
  *
+ * @offs_aux is used by the auxiliary timekeepers which do not utilize any
+ * of the regular timekeeper offset fields.
+ *
  * The cacheline ordering of the structure is optimized for in kernel usage of
  * the ktime_get() and ktime_get_ts64() family of time accessors. Struct
  * timekeeper is prepended in the core timekeeping code with a sequence count,
@@ -139,7 +143,10 @@ struct timekeeper {
 	struct timespec64	wall_to_monotonic;
 	ktime_t			offs_real;
 	ktime_t			offs_boot;
-	ktime_t			offs_tai;
+	union {
+		ktime_t		offs_tai;
+		ktime_t		offs_aux;
+	};
 	u32			coarse_nsec;
 	enum timekeeper_ids	id;
 
