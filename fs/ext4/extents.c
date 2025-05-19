@@ -4445,9 +4445,11 @@ out:
 	 * need to re-calculate the depth as it might have changed due to block
 	 * allocation.
 	 */
-	if (flags & EXT4_GET_BLOCKS_QUERY_LAST_IN_LEAF)
+	if (flags & EXT4_GET_BLOCKS_QUERY_LAST_IN_LEAF) {
+		WARN_ON_ONCE(flags & EXT4_GET_BLOCKS_CREATE);
 		if (!err && ex && (ex == EXT_LAST_EXTENT(path[depth].p_hdr)))
 			map->m_flags |= EXT4_MAP_QUERY_LAST_IN_LEAF;
+	}
 
 	ext4_free_ext_path(path);
 
