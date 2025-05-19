@@ -856,6 +856,9 @@ void bch2_inode_init_late(struct bch_inode_unpacked *inode_u, u64 now,
 		BCH_INODE_OPTS()
 #undef x
 	}
+
+	if (!S_ISDIR(mode))
+		inode_u->bi_casefold = 0;
 }
 
 void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
