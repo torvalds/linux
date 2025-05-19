@@ -3,6 +3,7 @@ config RDMA_SIW
 	depends on INET && INFINIBAND
 	depends on INFINIBAND_VIRT_DMA
 	select CRC32
+	select NET_CRC32C
 	help
 	This driver implements the iWARP RDMA transport over
 	the Linux TCP/IP network stack. It enables a system with a
