@@ -200,7 +200,7 @@ void fnic_fcoe_start_fcf_discovery(struct fnic *fnic)
 		return;
 	}
 
-	memset(iport->selected_fcf.fcf_mac, 0, ETH_ALEN);
+	eth_zero_addr(iport->selected_fcf.fcf_mac);
 
 	pdisc_sol = (struct fip_discovery *) frame;
 	*pdisc_sol = (struct fip_discovery) {
@@ -588,12 +588,12 @@ void fnic_common_fip_cleanup(struct fnic *fnic)
 	if (!is_zero_ether_addr(iport->fpma))
 		vnic_dev_del_addr(fnic->vdev, iport->fpma);
 
-	memset(iport->fpma, 0, ETH_ALEN);
+	eth_zero_addr(iport->fpma);
 	iport->fcid = 0;
 	iport->r_a_tov = 0;
 	iport->e_d_tov = 0;
-	memset(fnic->iport.fcfmac, 0, ETH_ALEN);
-	memset(iport->selected_fcf.fcf_mac, 0, ETH_ALEN);
+	eth_zero_addr(fnic->iport.fcfmac);
+	eth_zero_addr(iport->selected_fcf.fcf_mac);
 	iport->selected_fcf.fcf_priority = 0;
 	iport->selected_fcf.fka_adv_period = 0;
 	iport->selected_fcf.ka_disabled = 0;
