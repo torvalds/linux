@@ -496,32 +496,34 @@ int bch2_rename_trans(struct btree_trans *trans,
 		}
 	}
 
-	if (bch2_reinherit_attrs(src_inode_u, dst_dir_u) &&
-	    S_ISDIR(src_inode_u->bi_mode)) {
-		ret = -EXDEV;
-		goto err;
+	if (!subvol_inum_eq(dst_dir, src_dir)) {
+		if (bch2_reinherit_attrs(src_inode_u, dst_dir_u) &&
+		    S_ISDIR(src_inode_u->bi_mode)) {
+			ret = -EXDEV;
+			goto err;
+		}
+
+		if (mode == BCH_RENAME_EXCHANGE &&
+		    bch2_reinherit_attrs(dst_inode_u, src_dir_u) &&
+		    S_ISDIR(dst_inode_u->bi_mode)) {
+			ret = -EXDEV;
+			goto err;
+		}
+
+		if (is_subdir_for_nlink(src_inode_u)) {
+			src_dir_u->bi_nlink--;
+			dst_dir_u->bi_nlink++;
+		}
+
+		if (S_ISDIR(src_inode_u->bi_mode) &&
+		    !src_inode_u->bi_subvol)
+			src_inode_u->bi_depth = dst_dir_u->bi_depth + 1;
+
+		if (mode == BCH_RENAME_EXCHANGE &&
+		    S_ISDIR(dst_inode_u->bi_mode) &&
+		    !dst_inode_u->bi_subvol)
+			dst_inode_u->bi_depth = src_dir_u->bi_depth + 1;
 	}
-
-	if (mode == BCH_RENAME_EXCHANGE &&
-	    bch2_reinherit_attrs(dst_inode_u, src_dir_u) &&
-	    S_ISDIR(dst_inode_u->bi_mode)) {
-		ret = -EXDEV;
-		goto err;
-	}
-
-	if (is_subdir_for_nlink(src_inode_u)) {
-		src_dir_u->bi_nlink--;
-		dst_dir_u->bi_nlink++;
-	}
-
-	if (S_ISDIR(src_inode_u->bi_mode) &&
-	    !src_inode_u->bi_subvol)
-		src_inode_u->bi_depth = dst_dir_u->bi_depth + 1;
-
-	if (mode == BCH_RENAME_EXCHANGE &&
-	    S_ISDIR(dst_inode_u->bi_mode) &&
-	    !dst_inode_u->bi_subvol)
-		dst_inode_u->bi_depth = src_dir_u->bi_depth + 1;
 
 	if (dst_inum.inum && is_subdir_for_nlink(dst_inode_u)) {
 		dst_dir_u->bi_nlink--;
