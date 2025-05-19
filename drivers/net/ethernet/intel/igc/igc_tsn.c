@@ -398,7 +398,8 @@ static int igc_tsn_enable_offload(struct igc_adapter *adapter)
 	if (igc_is_device_id_i226(hw))
 		igc_tsn_set_retx_qbvfullthreshold(adapter);
 
-	if (adapter->strict_priority_enable)
+	if (adapter->strict_priority_enable ||
+	    adapter->flags & IGC_FLAG_TSN_REVERSE_TXQ_PRIO)
 		igc_tsn_tx_arb(adapter, true);
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
