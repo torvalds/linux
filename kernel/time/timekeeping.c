@@ -53,7 +53,11 @@ struct tk_data {
 	raw_spinlock_t		lock;
 } ____cacheline_aligned;
 
-static struct tk_data tk_core;
+static struct tk_data timekeeper_data[TIMEKEEPERS_MAX];
+
+/* The core timekeeper */
+#define tk_core		(timekeeper_data[TIMEKEEPER_CORE])
+
 
 /* flag for if timekeeping is suspended */
 int __read_mostly timekeeping_suspended;
@@ -112,6 +116,12 @@ static struct tk_fast tk_fast_raw  ____cacheline_aligned = {
 	.base[0] = FAST_TK_INIT,
 	.base[1] = FAST_TK_INIT,
 };
+
+#ifdef CONFIG_POSIX_AUX_CLOCKS
+static __init void tk_aux_setup(void);
+#else
+static inline void tk_aux_setup(void) { }
+#endif
 
 unsigned long timekeeper_lock_irqsave(void)
 {
@@ -1589,7 +1599,6 @@ void ktime_get_raw_ts64(struct timespec64 *ts)
 }
 EXPORT_SYMBOL(ktime_get_raw_ts64);
 
-
 /**
  * timekeeping_valid_for_hres - Check if timekeeping is suitable for hres
  */
@@ -1701,6 +1710,7 @@ void __init timekeeping_init(void)
 	struct clocksource *clock;
 
 	tkd_basic_setup(&tk_core, TIMEKEEPER_CORE, true);
+	tk_aux_setup();
 
 	read_persistent_wall_and_boot_offset(&wall_time, &boot_offset);
 	if (timespec64_valid_settod(&wall_time) &&
@@ -2630,3 +2640,11 @@ void hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_ts)
 }
 EXPORT_SYMBOL(hardpps);
 #endif /* CONFIG_NTP_PPS */
+
+#ifdef CONFIG_POSIX_AUX_CLOCKS
+static __init void tk_aux_setup(void)
+{
+	for (int i = TIMEKEEPER_AUX_FIRST; i <= TIMEKEEPER_AUX_LAST; i++)
+		tkd_basic_setup(&timekeeper_data[i], i, false);
+}
+#endif /* CONFIG_POSIX_AUX_CLOCKS */
