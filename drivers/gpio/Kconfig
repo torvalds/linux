@@ -566,6 +566,7 @@ config GPIO_POLARFIRE_SOC
 config GPIO_PXA
 	bool "PXA GPIO support"
 	depends on ARCH_PXA || ARCH_MMP || COMPILE_TEST
+	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support the PXA GPIO device.
 
