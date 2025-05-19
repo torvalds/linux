@@ -170,6 +170,7 @@ struct bcmgenet_rx_stats64 {
 	u64_stats_t	errors;
 	u64_stats_t	dropped;
 	u64_stats_t	multicast;
+	u64_stats_t	missed;
 	u64_stats_t	length_errors;
 	u64_stats_t	over_errors;
 	u64_stats_t	crc_errors;

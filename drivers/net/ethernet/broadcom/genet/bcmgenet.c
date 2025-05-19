@@ -2297,7 +2297,7 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 		   DMA_P_INDEX_DISCARD_CNT_MASK;
 	if (discards > ring->old_discards) {
 		discards = discards - ring->old_discards;
-		BCMGENET_STATS64_ADD(stats, errors, discards);
+		BCMGENET_STATS64_ADD(stats, missed, discards);
 		ring->old_discards += discards;
 
 		/* Clear HW register when we reach 75% of maximum 0xFFFF */
@@ -3577,6 +3577,7 @@ static void bcmgenet_get_stats64(struct net_device *dev,
 	unsigned int start;
 	unsigned int q;
 	u64 multicast;
+	u64 rx_missed;
 
 	for (q = 0; q <= priv->hw_params->tx_queues; q++) {
 		tx_stats = &priv->tx_rings[q].stats64;
@@ -3602,6 +3603,7 @@ static void bcmgenet_get_stats64(struct net_device *dev,
 			rx_packets = u64_stats_read(&rx_stats->packets);
 			rx_errors = u64_stats_read(&rx_stats->errors);
 			rx_dropped = u64_stats_read(&rx_stats->dropped);
+			rx_missed = u64_stats_read(&rx_stats->missed);
 			rx_length_errors = u64_stats_read(&rx_stats->length_errors);
 			rx_over_errors = u64_stats_read(&rx_stats->over_errors);
 			rx_crc_errors = u64_stats_read(&rx_stats->crc_errors);
@@ -3617,7 +3619,7 @@ static void bcmgenet_get_stats64(struct net_device *dev,
 		stats->rx_packets += rx_packets;
 		stats->rx_errors += rx_errors;
 		stats->rx_dropped += rx_dropped;
-		stats->rx_missed_errors += rx_errors;
+		stats->rx_missed_errors += rx_missed;
 		stats->rx_length_errors += rx_length_errors;
 		stats->rx_over_errors += rx_over_errors;
 		stats->rx_crc_errors += rx_crc_errors;
