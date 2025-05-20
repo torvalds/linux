@@ -329,18 +329,18 @@ enum _pcs_anlpar {
 };
 
 typedef struct t_SROM {
-	u16 config_param;	/* 0x00 */
-	u16 asic_ctrl;		/* 0x02 */
-	u16 sub_vendor_id;	/* 0x04 */
-	u16 sub_system_id;	/* 0x06 */
-	u16 pci_base_1;		/* 0x08 (IP1000A only) */
-	u16 pci_base_2;		/* 0x0a (IP1000A only) */
+	__le16 config_param;	/* 0x00 */
+	__le16 asic_ctrl;	/* 0x02 */
+	__le16 sub_vendor_id;	/* 0x04 */
+	__le16 sub_system_id;	/* 0x06 */
+	__le16 pci_base_1;	/* 0x08 (IP1000A only) */
+	__le16 pci_base_2;	/* 0x0a (IP1000A only) */
 	__le16 led_mode;	/* 0x0c (IP1000A only) */
-	u16 reserved1[9];	/* 0x0e-0x1f */
+	__le16 reserved1[9];	/* 0x0e-0x1f */
 	u8 mac_addr[6];		/* 0x20-0x25 */
 	u8 reserved2[10];	/* 0x26-0x2f */
 	u8 sib[204];		/* 0x30-0xfb */
-	u32 crc;		/* 0xfc-0xff */
+	__le32 crc;		/* 0xfc-0xff */
 } SROM_t, *PSROM_t;
 
 /* Ioctl custom data */
