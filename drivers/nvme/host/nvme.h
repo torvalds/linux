@@ -506,7 +506,10 @@ struct nvme_ns_head {
 	struct work_struct	partition_scan_work;
 	struct mutex		lock;
 	unsigned long		flags;
-#define NVME_NSHEAD_DISK_LIVE	0
+	struct delayed_work	remove_work;
+	unsigned int		delayed_removal_secs;
+#define NVME_NSHEAD_DISK_LIVE		0
+#define NVME_NSHEAD_QUEUE_IF_NO_PATH	1
 	struct nvme_ns __rcu	*current_path[];
 #endif
 };
@@ -963,7 +966,7 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl,struct nvme_ns_head *head);
 void nvme_mpath_add_sysfs_link(struct nvme_ns_head *ns);
 void nvme_mpath_remove_sysfs_link(struct nvme_ns *ns);
 void nvme_mpath_add_disk(struct nvme_ns *ns, __le32 anagrpid);
-void nvme_mpath_remove_disk(struct nvme_ns_head *head);
+void nvme_mpath_put_disk(struct nvme_ns_head *head);
 int nvme_mpath_init_identify(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id);
 void nvme_mpath_init_ctrl(struct nvme_ctrl *ctrl);
 void nvme_mpath_update(struct nvme_ctrl *ctrl);
@@ -972,7 +975,7 @@ void nvme_mpath_stop(struct nvme_ctrl *ctrl);
 bool nvme_mpath_clear_current_path(struct nvme_ns *ns);
 void nvme_mpath_revalidate_paths(struct nvme_ns *ns);
 void nvme_mpath_clear_ctrl_paths(struct nvme_ctrl *ctrl);
-void nvme_mpath_shutdown_disk(struct nvme_ns_head *head);
+void nvme_mpath_remove_disk(struct nvme_ns_head *head);
 void nvme_mpath_start_request(struct request *rq);
 void nvme_mpath_end_request(struct request *rq);
 
@@ -989,11 +992,18 @@ extern struct device_attribute dev_attr_ana_grpid;
 extern struct device_attribute dev_attr_ana_state;
 extern struct device_attribute dev_attr_queue_depth;
 extern struct device_attribute dev_attr_numa_nodes;
+extern struct device_attribute dev_attr_delayed_removal_secs;
 extern struct device_attribute subsys_attr_iopolicy;
 
 static inline bool nvme_disk_is_ns_head(struct gendisk *disk)
 {
 	return disk->fops == &nvme_ns_head_ops;
+}
+static inline bool nvme_mpath_queue_if_no_path(struct nvme_ns_head *head)
+{
+	if (test_bit(NVME_NSHEAD_QUEUE_IF_NO_PATH, &head->flags))
+		return true;
+	return false;
 }
 #else
 #define multipath false
@@ -1015,7 +1025,7 @@ static inline int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl,
 static inline void nvme_mpath_add_disk(struct nvme_ns *ns, __le32 anagrpid)
 {
 }
-static inline void nvme_mpath_remove_disk(struct nvme_ns_head *head)
+static inline void nvme_mpath_put_disk(struct nvme_ns_head *head)
 {
 }
 static inline void nvme_mpath_add_sysfs_link(struct nvme_ns *ns)
@@ -1034,7 +1044,7 @@ static inline void nvme_mpath_revalidate_paths(struct nvme_ns *ns)
 static inline void nvme_mpath_clear_ctrl_paths(struct nvme_ctrl *ctrl)
 {
 }
-static inline void nvme_mpath_shutdown_disk(struct nvme_ns_head *head)
+static inline void nvme_mpath_remove_disk(struct nvme_ns_head *head)
 {
 }
 static inline void nvme_trace_bio_complete(struct request *req)
@@ -1079,6 +1089,10 @@ static inline void nvme_mpath_end_request(struct request *rq)
 {
 }
 static inline bool nvme_disk_is_ns_head(struct gendisk *disk)
+{
+	return false;
+}
+static inline bool nvme_mpath_queue_if_no_path(struct nvme_ns_head *head)
 {
 	return false;
 }
