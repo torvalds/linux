@@ -1605,6 +1605,7 @@
 			interrupts = <GIC_SPI 255 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru SCLK_FSPI1_X2>, <&cru HCLK_FSPI1>;
 			clock-names = "clk_sfc", "hclk_sfc";
+			power-domains = <&power RK3576_PD_SDGMAC>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -1655,6 +1656,7 @@
 			interrupts = <GIC_SPI 254 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru SCLK_FSPI_X2>, <&cru HCLK_FSPI>;
 			clock-names = "clk_sfc", "hclk_sfc";
+			power-domains = <&power RK3576_PD_NVM>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
