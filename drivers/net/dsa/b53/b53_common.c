@@ -326,6 +326,26 @@ static void b53_get_vlan_entry(struct b53_device *dev, u16 vid,
 	}
 }
 
+static void b53_set_eap_mode(struct b53_device *dev, int port, int mode)
+{
+	u64 eap_conf;
+
+	if (is5325(dev) || is5365(dev) || dev->chip_id == BCM5389_DEVICE_ID)
+		return;
+
+	b53_read64(dev, B53_EAP_PAGE, B53_PORT_EAP_CONF(port), &eap_conf);
+
+	if (is63xx(dev)) {
+		eap_conf &= ~EAP_MODE_MASK_63XX;
+		eap_conf |= (u64)mode << EAP_MODE_SHIFT_63XX;
+	} else {
+		eap_conf &= ~EAP_MODE_MASK;
+		eap_conf |= (u64)mode << EAP_MODE_SHIFT;
+	}
+
+	b53_write64(dev, B53_EAP_PAGE, B53_PORT_EAP_CONF(port), eap_conf);
+}
+
 static void b53_set_forwarding(struct b53_device *dev, int enable)
 {
 	u8 mgmt;
@@ -585,6 +605,13 @@ int b53_setup_port(struct dsa_switch *ds, int port)
 	b53_port_set_ucast_flood(dev, port, true);
 	b53_port_set_mcast_flood(dev, port, true);
 	b53_port_set_learning(dev, port, false);
+
+	/* Force all traffic to go to the CPU port to prevent the ASIC from
+	 * trying to forward to bridged ports on matching FDB entries, then
+	 * dropping frames because it isn't allowed to forward there.
+	 */
+	if (dsa_is_user_port(ds, port))
+		b53_set_eap_mode(dev, port, EAP_MODE_SIMPLIFIED);
 
 	return 0;
 }
@@ -2042,6 +2069,9 @@ int b53_br_join(struct dsa_switch *ds, int port, struct dsa_bridge bridge,
 		pvlan |= BIT(i);
 	}
 
+	/* Disable redirection of unknown SA to the CPU port */
+	b53_set_eap_mode(dev, port, EAP_MODE_BASIC);
+
 	/* Configure the local port VLAN control membership to include
 	 * remote ports and update the local port bitmask
 	 */
@@ -2076,6 +2106,9 @@ void b53_br_leave(struct dsa_switch *ds, int port, struct dsa_bridge bridge)
 		if (port != i)
 			pvlan &= ~BIT(i);
 	}
+
+	/* Enable redirection of unknown SA to the CPU port */
+	b53_set_eap_mode(dev, port, EAP_MODE_SIMPLIFIED);
 
 	b53_write16(dev, B53_PVLAN_PAGE, B53_PVLAN_PORT_MASK(port), pvlan);
 	dev->ports[port].vlan_ctl_mask = pvlan;

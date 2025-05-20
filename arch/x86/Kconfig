@@ -2711,6 +2711,18 @@ config MITIGATION_SSB
 	  of speculative execution in a similar way to the Meltdown and Spectre
 	  security vulnerabilities.
 
+config MITIGATION_ITS
+	bool "Enable Indirect Target Selection mitigation"
+	depends on CPU_SUP_INTEL && X86_64
+	depends on MITIGATION_RETPOLINE && MITIGATION_RETHUNK
+	select EXECMEM
+	default y
+	help
+	  Enable Indirect Target Selection (ITS) mitigation. ITS is a bug in
+	  BPU on some Intel CPUs that may allow Spectre V2 style attacks. If
+	  disabled, mitigation cannot be enabled via cmdline.
+	  See <file:Documentation/admin-guide/hw-vuln/indirect-target-selection.rst>
+
 endif
 
 config ARCH_HAS_ADD_PAGES

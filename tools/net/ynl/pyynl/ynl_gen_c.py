@@ -1143,10 +1143,9 @@ class Family(SpecFamily):
                         self.pure_nested_structs[nested].request = True
                     if attr in rs_members['reply']:
                         self.pure_nested_structs[nested].reply = True
-
-                if spec.is_multi_val():
-                    child = self.pure_nested_structs.get(nested)
-                    child.in_multi_val = True
+                    if spec.is_multi_val():
+                        child = self.pure_nested_structs.get(nested)
+                        child.in_multi_val = True
 
         self._sort_pure_types()
 

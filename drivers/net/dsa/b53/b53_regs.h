@@ -50,6 +50,9 @@
 /* Jumbo Frame Registers */
 #define B53_JUMBO_PAGE			0x40
 
+/* EAP Registers */
+#define B53_EAP_PAGE			0x42
+
 /* EEE Control Registers Page */
 #define B53_EEE_PAGE			0x92
 
@@ -479,6 +482,17 @@
 #define B53_JUMBO_MAX_SIZE_63XX		0x08
 #define   JMS_MIN_SIZE			1518
 #define   JMS_MAX_SIZE			9724
+
+/*************************************************************************
+ * EAP Page Registers
+ *************************************************************************/
+#define B53_PORT_EAP_CONF(i)		(0x20 + 8 * (i))
+#define  EAP_MODE_SHIFT			51
+#define  EAP_MODE_SHIFT_63XX		50
+#define  EAP_MODE_MASK			(0x3ull << EAP_MODE_SHIFT)
+#define  EAP_MODE_MASK_63XX		(0x3ull << EAP_MODE_SHIFT_63XX)
+#define  EAP_MODE_BASIC			0
+#define  EAP_MODE_SIMPLIFIED		3
 
 /*************************************************************************
  * EEE Configuration Page Registers

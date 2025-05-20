@@ -2232,11 +2232,19 @@ static void op_commit(struct xe_vm *vm,
 	}
 	case DRM_GPUVA_OP_DRIVER:
 	{
+		/* WRITE_ONCE pairs with READ_ONCE in xe_svm.c */
+
 		if (op->subop == XE_VMA_SUBOP_MAP_RANGE) {
-			op->map_range.range->tile_present |= BIT(tile->id);
-			op->map_range.range->tile_invalidated &= ~BIT(tile->id);
+			WRITE_ONCE(op->map_range.range->tile_present,
+				   op->map_range.range->tile_present |
+				   BIT(tile->id));
+			WRITE_ONCE(op->map_range.range->tile_invalidated,
+				   op->map_range.range->tile_invalidated &
+				   ~BIT(tile->id));
 		} else if (op->subop == XE_VMA_SUBOP_UNMAP_RANGE) {
-			op->unmap_range.range->tile_present &= ~BIT(tile->id);
+			WRITE_ONCE(op->unmap_range.range->tile_present,
+				   op->unmap_range.range->tile_present &
+				   ~BIT(tile->id));
 		}
 		break;
 	}

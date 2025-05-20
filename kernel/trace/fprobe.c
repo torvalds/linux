@@ -454,7 +454,8 @@ static void fprobe_remove_node_in_module(struct module *mod, struct hlist_head *
 	struct fprobe_hlist_node *node;
 	int ret = 0;
 
-	hlist_for_each_entry_rcu(node, head, hlist) {
+	hlist_for_each_entry_rcu(node, head, hlist,
+				 lockdep_is_held(&fprobe_mutex)) {
 		if (!within_module(node->addr, mod))
 			continue;
 		if (delete_fprobe_node(node))

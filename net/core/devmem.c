@@ -200,6 +200,8 @@ net_devmem_bind_dmabuf(struct net_device *dev, unsigned int dmabuf_fd,
 
 	refcount_set(&binding->ref, 1);
 
+	mutex_init(&binding->lock);
+
 	binding->dmabuf = dmabuf;
 
 	binding->attachment = dma_buf_attach(binding->dmabuf, dev->dev.parent);
@@ -379,6 +381,11 @@ static void mp_dmabuf_devmem_uninstall(void *mp_priv,
 	xa_for_each(&binding->bound_rxqs, xa_idx, bound_rxq) {
 		if (bound_rxq == rxq) {
 			xa_erase(&binding->bound_rxqs, xa_idx);
+			if (xa_empty(&binding->bound_rxqs)) {
+				mutex_lock(&binding->lock);
+				binding->dev = NULL;
+				mutex_unlock(&binding->lock);
+			}
 			break;
 		}
 	}
