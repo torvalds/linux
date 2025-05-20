@@ -109,6 +109,7 @@ config SND_HDA_SCODEC_CS35L41
 	tristate
 	select SND_HDA_GENERIC
 	select REGMAP_IRQ
+	select FW_CS_DSP
 
 config SND_HDA_SCODEC_COMPONENT
 	tristate
