@@ -830,6 +830,47 @@ void *__devm_drm_dev_alloc(struct device *parent,
 EXPORT_SYMBOL(__devm_drm_dev_alloc);
 
 /**
+ * __drm_dev_alloc - Allocation of a &drm_device instance
+ * @parent: Parent device object
+ * @driver: DRM driver
+ * @size: the size of the struct which contains struct drm_device
+ * @offset: the offset of the &drm_device within the container.
+ *
+ * This should *NOT* be by any drivers, but is a dedicated interface for the
+ * corresponding Rust abstraction.
+ *
+ * This is the same as devm_drm_dev_alloc(), but without the corresponding
+ * resource management through the parent device, but not the same as
+ * drm_dev_alloc(), since the latter is the deprecated version, which does not
+ * support subclassing.
+ *
+ * Returns: A pointer to new DRM device, or an ERR_PTR on failure.
+ */
+void *__drm_dev_alloc(struct device *parent,
+		      const struct drm_driver *driver,
+		      size_t size, size_t offset)
+{
+	void *container;
+	struct drm_device *drm;
+	int ret;
+
+	container = kzalloc(size, GFP_KERNEL);
+	if (!container)
+		return ERR_PTR(-ENOMEM);
+
+	drm = container + offset;
+	ret = drm_dev_init(drm, driver, parent);
+	if (ret) {
+		kfree(container);
+		return ERR_PTR(ret);
+	}
+	drmm_add_final_kfree(drm, container);
+
+	return container;
+}
+EXPORT_SYMBOL(__drm_dev_alloc);
+
+/**
  * drm_dev_alloc - Allocate new DRM device
  * @driver: DRM driver to allocate device for
  * @parent: Parent device object
@@ -844,22 +885,7 @@ EXPORT_SYMBOL(__devm_drm_dev_alloc);
 struct drm_device *drm_dev_alloc(const struct drm_driver *driver,
 				 struct device *parent)
 {
-	struct drm_device *dev;
-	int ret;
-
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev)
-		return ERR_PTR(-ENOMEM);
-
-	ret = drm_dev_init(dev, driver, parent);
-	if (ret) {
-		kfree(dev);
-		return ERR_PTR(ret);
-	}
-
-	drmm_add_final_kfree(dev, dev);
-
-	return dev;
+	return __drm_dev_alloc(parent, driver, sizeof(struct drm_device), 0);
 }
 EXPORT_SYMBOL(drm_dev_alloc);
 
