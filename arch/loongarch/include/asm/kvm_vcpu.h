@@ -37,7 +37,7 @@
 #define KVM_LOONGSON_IRQ_NUM_MASK	0xffff
 
 typedef union loongarch_instruction  larch_inst;
-typedef int (*exit_handle_fn)(struct kvm_vcpu *);
+typedef int (*exit_handle_fn)(struct kvm_vcpu *, int);
 
 int  kvm_emu_mmio_read(struct kvm_vcpu *vcpu, larch_inst inst);
 int  kvm_emu_mmio_write(struct kvm_vcpu *vcpu, larch_inst inst);
