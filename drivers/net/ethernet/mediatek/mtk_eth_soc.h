@@ -1178,7 +1178,7 @@ struct mtk_reg_map {
 };
 
 /* struct mtk_eth_data -	This is the structure holding all differences
- *				among various plaforms
+ *				among various platforms
  * @reg_map			Soc register map.
  * @ana_rgc3:                   The offset for register ANA_RGC3 related to
  *				sgmiisys syscon
@@ -1278,7 +1278,7 @@ struct mtk_soc_data {
  * @mii_bus:		If there is a bus we need to create an instance for it
  * @pending_work:	The workqueue used to reset the dma ring
  * @state:		Initialization and runtime state of the device
- * @soc:		Holding specific data among vaious SoCs
+ * @soc:		Holding specific data among various SoCs
  */
 
 struct mtk_eth {
