@@ -1076,7 +1076,7 @@ cpufreq governor about the minimum desired frequency which should always be
 provided by a CPU, as well as the maximum desired frequency, which should not
 be exceeded by a CPU.
 
-WARNING: cgroup2 cpu controller doesn't yet fully support the control of
+WARNING: cgroup2 cpu controller doesn't yet support the (bandwidth) control of
 realtime processes. For a kernel built with the CONFIG_RT_GROUP_SCHED option
 enabled for group scheduling of realtime processes, the cpu controller can only
 be enabled when all RT processes are in the root cgroup. Be aware that system
