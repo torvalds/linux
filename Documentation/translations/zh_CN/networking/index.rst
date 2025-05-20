@@ -21,6 +21,7 @@
    :maxdepth: 1
 
    msg_zerocopy
+   napi.rst
 
 Todolist:
 
@@ -94,7 +95,6 @@ Todolist:
 *   mptcp-sysctl
 *   multiqueue
 *   multi-pf-netdev
-*   napi
 *   net_cachelines/index
 *   netconsole
 *   netdev-features
