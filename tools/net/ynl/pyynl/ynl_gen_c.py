@@ -2214,12 +2214,16 @@ def parse_rsp_submsg(ri, struct):
     parse_rsp_nested_prototype(ri, struct, suffix='')
 
     var = 'dst'
+    local_vars = {'const struct nlattr *attr = nested;',
+                  f'{struct.ptr_name}{var} = yarg->data;',
+                  'struct ynl_parse_arg parg;'}
+
+    for _, arg in struct.member_list():
+        _, _, l_vars = arg._attr_get(ri, var)
+        local_vars |= set(l_vars) if l_vars else set()
 
     ri.cw.block_start()
-    ri.cw.write_func_lvar(['const struct nlattr *attr = nested;',
-                          f'{struct.ptr_name}{var} = yarg->data;',
-                          'struct ynl_parse_arg parg;'])
-
+    ri.cw.write_func_lvar(list(local_vars))
     ri.cw.p('parg.ys = yarg->ys;')
     ri.cw.nl()
 
