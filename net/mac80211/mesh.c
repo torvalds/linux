@@ -777,7 +777,7 @@ bool ieee80211_mesh_xmit_fast(struct ieee80211_sub_if_data *sdata,
 	if (ethertype < ETH_P_802_3_MIN)
 		return false;
 
-	if (skb->sk && sock_flag(skb->sk, SOCK_WIFI_STATUS))
+	if (sk_requests_wifi_status(skb->sk))
 		return false;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {

@@ -617,8 +617,7 @@ static inline bool wil_need_txstat(struct sk_buff *skb)
 {
 	const u8 *da = wil_skb_get_da(skb);
 
-	return is_unicast_ether_addr(da) && skb->sk &&
-	       sock_flag(skb->sk, SOCK_WIFI_STATUS);
+	return is_unicast_ether_addr(da) && sk_requests_wifi_status(skb->sk);
 }
 
 static inline void wil_consume_skb(struct sk_buff *skb, bool acked)
