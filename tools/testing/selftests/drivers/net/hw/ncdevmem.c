@@ -82,6 +82,9 @@
 #define MSG_SOCK_DEVMEM 0x2000000
 #endif
 
+#define MAX_IOV 1024
+
+static size_t max_chunk;
 static char *server_ip;
 static char *client_ip;
 static char *port;
@@ -834,10 +837,10 @@ static int do_client(struct memory_buffer *mem)
 	struct sockaddr_in6 server_sin;
 	struct sockaddr_in6 client_sin;
 	struct ynl_sock *ys = NULL;
+	struct iovec iov[MAX_IOV];
 	struct msghdr msg = {};
 	ssize_t line_size = 0;
 	struct cmsghdr *cmsg;
-	struct iovec iov[2];
 	char *line = NULL;
 	unsigned long mid;
 	size_t len = 0;
@@ -893,27 +896,29 @@ static int do_client(struct memory_buffer *mem)
 		if (line_size < 0)
 			break;
 
-		mid = (line_size / 2) + 1;
+		if (max_chunk) {
+			msg.msg_iovlen =
+				(line_size + max_chunk - 1) / max_chunk;
+			if (msg.msg_iovlen > MAX_IOV)
+				error(1, 0,
+				      "can't partition %zd bytes into maximum of %d chunks",
+				      line_size, MAX_IOV);
 
-		iov[0].iov_base = (void *)1;
-		iov[0].iov_len = mid;
-		iov[1].iov_base = (void *)(mid + 2);
-		iov[1].iov_len = line_size - mid;
+			for (int i = 0; i < msg.msg_iovlen; i++) {
+				iov[i].iov_base = (void *)(i * max_chunk);
+				iov[i].iov_len = max_chunk;
+			}
 
-		provider->memcpy_to_device(mem, (size_t)iov[0].iov_base, line,
-					   iov[0].iov_len);
-		provider->memcpy_to_device(mem, (size_t)iov[1].iov_base,
-					   line + iov[0].iov_len,
-					   iov[1].iov_len);
-
-		fprintf(stderr,
-			"read line_size=%ld iov[0].iov_base=%lu, iov[0].iov_len=%lu, iov[1].iov_base=%lu, iov[1].iov_len=%lu\n",
-			line_size, (unsigned long)iov[0].iov_base,
-			iov[0].iov_len, (unsigned long)iov[1].iov_base,
-			iov[1].iov_len);
+			iov[msg.msg_iovlen - 1].iov_len =
+				line_size - (msg.msg_iovlen - 1) * max_chunk;
+		} else {
+			iov[0].iov_base = 0;
+			iov[0].iov_len = line_size;
+			msg.msg_iovlen = 1;
+		}
 
 		msg.msg_iov = iov;
-		msg.msg_iovlen = 2;
+		provider->memcpy_to_device(mem, 0, line, line_size);
 
 		msg.msg_control = ctrl_data;
 		msg.msg_controllen = sizeof(ctrl_data);
@@ -934,7 +939,8 @@ static int do_client(struct memory_buffer *mem)
 		fprintf(stderr, "sendmsg_ret=%d\n", ret);
 
 		if (ret != line_size)
-			error(1, errno, "Did not send all bytes");
+			error(1, errno, "Did not send all bytes %d vs %zd", ret,
+			      line_size);
 
 		wait_compl(socket_fd);
 	}
@@ -956,7 +962,7 @@ int main(int argc, char *argv[])
 	int is_server = 0, opt;
 	int ret;
 
-	while ((opt = getopt(argc, argv, "ls:c:p:v:q:t:f:")) != -1) {
+	while ((opt = getopt(argc, argv, "ls:c:p:v:q:t:f:z:")) != -1) {
 		switch (opt) {
 		case 'l':
 			is_server = 1;
@@ -981,6 +987,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'f':
 			ifname = optarg;
+			break;
+		case 'z':
+			max_chunk = atoi(optarg);
 			break;
 		case '?':
 			fprintf(stderr, "unknown option: %c\n", optopt);
