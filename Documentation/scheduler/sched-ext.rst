@@ -1,3 +1,5 @@
+.. _sched-ext:
+
 ==========================
 Extensible Scheduler Class
 ==========================
