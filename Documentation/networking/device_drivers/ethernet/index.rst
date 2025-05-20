@@ -28,6 +28,7 @@ Contents:
    freescale/gianfar
    google/gve
    huawei/hinic
+   huawei/hinic3
    intel/e100
    intel/e1000
    intel/e1000e
