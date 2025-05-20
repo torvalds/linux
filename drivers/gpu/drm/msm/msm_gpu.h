@@ -253,12 +253,6 @@ struct msm_gpu {
 #define DRM_MSM_HANGCHECK_PROGRESS_RETRIES 3
 	struct timer_list hangcheck_timer;
 
-	/* Fault info for most recent iova fault: */
-	struct msm_gpu_fault_info fault_info;
-
-	/* work for handling GPU ioval faults: */
-	struct kthread_work fault_work;
-
 	/* work for handling GPU recovery: */
 	struct kthread_work recover_work;
 
@@ -704,6 +698,8 @@ static inline void msm_gpu_crashstate_put(struct msm_gpu *gpu)
 
 	mutex_unlock(&gpu->lock);
 }
+
+void msm_gpu_fault_crashstate_capture(struct msm_gpu *gpu, struct msm_gpu_fault_info *fault_info);
 
 /*
  * Simple macro to semi-cleanly add the MAP_PRIV flag for targets that can
