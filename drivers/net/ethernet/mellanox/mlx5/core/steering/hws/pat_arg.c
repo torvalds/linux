@@ -522,9 +522,9 @@ bool mlx5hws_pat_verify_actions(struct mlx5hws_context *ctx, __be64 pattern[], s
 	return true;
 }
 
-void mlx5hws_pat_calc_nope(__be64 *pattern, size_t num_actions,
-			   size_t max_actions, size_t *new_size,
-			   u32 *nope_location, __be64 *new_pat)
+void mlx5hws_pat_calc_nop(__be64 *pattern, size_t num_actions,
+			  size_t max_actions, size_t *new_size,
+			  u32 *nop_locations, __be64 *new_pat)
 {
 	u16 prev_src_field = 0, prev_dst_field = 0;
 	u16 src_field, dst_field;
@@ -532,7 +532,7 @@ void mlx5hws_pat_calc_nope(__be64 *pattern, size_t num_actions,
 	size_t i, j;
 
 	*new_size = num_actions;
-	*nope_location = 0;
+	*nop_locations = 0;
 
 	if (num_actions == 1)
 		return;
@@ -546,18 +546,18 @@ void mlx5hws_pat_calc_nope(__be64 *pattern, size_t num_actions,
 			if (action_type == MLX5_ACTION_TYPE_COPY &&
 			    (prev_src_field == src_field ||
 			     prev_dst_field == dst_field)) {
-				/* need Nope */
+				/* need Nop */
 				*new_size += 1;
-				*nope_location |= BIT(i);
+				*nop_locations |= BIT(i);
 				memset(&new_pat[j], 0, MLX5HWS_MODIFY_ACTION_SIZE);
 				MLX5_SET(set_action_in, &new_pat[j],
 					 action_type,
 					 MLX5_MODIFICATION_TYPE_NOP);
 				j++;
 			} else if (prev_src_field == src_field) {
-				/* need Nope*/
+				/* need Nop */
 				*new_size += 1;
-				*nope_location |= BIT(i);
+				*nop_locations |= BIT(i);
 				MLX5_SET(set_action_in, &new_pat[j],
 					 action_type,
 					 MLX5_MODIFICATION_TYPE_NOP);
@@ -568,7 +568,7 @@ void mlx5hws_pat_calc_nope(__be64 *pattern, size_t num_actions,
 		/* check if no more space */
 		if (j > max_actions) {
 			*new_size = num_actions;
-			*nope_location = 0;
+			*nop_locations = 0;
 			return;
 		}
 

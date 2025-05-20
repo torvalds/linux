@@ -136,7 +136,7 @@ struct mlx5hws_action {
 					u32 pat_id;
 					u32 arg_id;
 					__be64 single_action;
-					u32 nope_locations;
+					u32 nop_locations;
 					u8 num_of_patterns;
 					u8 single_action_type;
 					u8 num_of_actions;
