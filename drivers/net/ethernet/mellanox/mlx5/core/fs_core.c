@@ -1839,6 +1839,8 @@ int mlx5_fs_get_packet_reformat_id(struct mlx5_pkt_reformat *pkt_reformat,
 		return 0;
 	case MLX5_FLOW_RESOURCE_OWNER_SW:
 		return mlx5_fs_dr_action_get_pkt_reformat_id(pkt_reformat, id);
+	case MLX5_FLOW_RESOURCE_OWNER_HWS:
+		return mlx5_fs_hws_action_get_pkt_reformat_id(pkt_reformat, id);
 	default:
 		return -EINVAL;
 	}

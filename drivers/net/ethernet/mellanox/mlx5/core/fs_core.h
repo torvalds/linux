@@ -58,6 +58,7 @@ struct mlx5_flow_definer {
 enum mlx5_flow_resource_owner {
 	MLX5_FLOW_RESOURCE_OWNER_FW,
 	MLX5_FLOW_RESOURCE_OWNER_SW,
+	MLX5_FLOW_RESOURCE_OWNER_HWS,
 };
 
 struct mlx5_modify_hdr {

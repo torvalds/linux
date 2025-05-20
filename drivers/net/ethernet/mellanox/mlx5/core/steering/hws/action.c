@@ -72,6 +72,11 @@ enum mlx5hws_action_type mlx5hws_action_get_type(struct mlx5hws_action *action)
 	return action->type;
 }
 
+struct mlx5_core_dev *mlx5hws_action_get_dev(struct mlx5hws_action *action)
+{
+	return action->ctx->mdev;
+}
+
 static int hws_action_get_shared_stc_nic(struct mlx5hws_context *ctx,
 					 enum mlx5hws_context_shared_stc_type stc_type,
 					 u8 tbl_type)
