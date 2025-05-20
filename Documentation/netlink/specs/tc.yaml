@@ -3929,7 +3929,7 @@ operations:
       doc: Get / dump tc qdisc information.
       attribute-set: attrs
       fixed-header: tcmsg
-      do:
+      do: &getqdisc-do
         request:
           value: 38
           attributes:
@@ -3948,6 +3948,7 @@ operations:
             - chain
             - ingress-block
             - egress-block
+      dump: *getqdisc-do
     -
       name: newtclass
       doc: Get / dump tc traffic class information.
