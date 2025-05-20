@@ -219,6 +219,29 @@
  */
 #define UBLK_F_UPDATE_SIZE		 (1ULL << 10)
 
+/*
+ * request buffer is registered automatically to uring_cmd's io_uring
+ * context before delivering this io command to ublk server, meantime
+ * it is un-registered automatically when completing this io command.
+ *
+ * For using this feature:
+ *
+ * - ublk server has to create sparse buffer table
+ *
+ * - ublk server passes auto buf register data via uring_cmd's sqe->addr,
+ *   `struct ublk_auto_buf_reg` is populated from sqe->addr, please see
+ *   the definition of ublk_sqe_addr_to_auto_buf_reg()
+ *
+ * - pass buffer index from `ublk_auto_buf_reg.index`
+ *
+ * - all reserved fields in `ublk_auto_buf_reg` need to be zeroed
+ *
+ * This way avoids extra cost from two uring_cmd, but also simplifies backend
+ * implementation, such as, the dependency on IO_REGISTER_IO_BUF and
+ * IO_UNREGISTER_IO_BUF becomes not necessary.
+ */
+#define UBLK_F_AUTO_BUF_REG 	(1ULL << 11)
+
 /* device state */
 #define UBLK_S_DEV_DEAD	0
 #define UBLK_S_DEV_LIVE	1
@@ -337,6 +360,47 @@ static inline __u8 ublksrv_get_op(const struct ublksrv_io_desc *iod)
 static inline __u32 ublksrv_get_flags(const struct ublksrv_io_desc *iod)
 {
 	return iod->op_flags >> 8;
+}
+
+struct ublk_auto_buf_reg {
+	/* index for registering the delivered request buffer */
+	__u16  index;
+	__u16   reserved0;
+
+	/*
+	 * io_ring FD can be passed via the reserve field in future for
+	 * supporting to register io buffer to external io_uring
+	 */
+	__u32  reserved1;
+};
+
+/*
+ * For UBLK_F_AUTO_BUF_REG, auto buffer register data is carried via
+ * uring_cmd's sqe->addr:
+ *
+ * 	- bit0 ~ bit15: buffer index
+ * 	- bit24 ~ bit31: reserved0
+ * 	- bit32 ~ bit63: reserved1
+ */
+static inline struct ublk_auto_buf_reg ublk_sqe_addr_to_auto_buf_reg(
+		__u64 sqe_addr)
+{
+	struct ublk_auto_buf_reg reg = {
+		.index = sqe_addr & 0xffff,
+		.reserved0 = (sqe_addr >> 16) & 0xffff,
+		.reserved1 = sqe_addr >> 32,
+	};
+
+	return reg;
+}
+
+static inline __u64
+ublk_auto_buf_reg_to_sqe_addr(const struct ublk_auto_buf_reg *buf)
+{
+	__u64 addr = buf->index | (__u64)buf->reserved0 << 16 |
+		(__u64)buf->reserved1 << 32;
+
+	return addr;
 }
 
 /* issued to ublk driver via /dev/ublkcN */
