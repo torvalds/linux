@@ -939,7 +939,7 @@ class Selector:
 
 
 class Struct:
-    def __init__(self, family, space_name, type_list=None,
+    def __init__(self, family, space_name, type_list=None, fixed_header=None,
                  inherited=None, submsg=None):
         self.family = family
         self.space_name = space_name
@@ -947,6 +947,9 @@ class Struct:
         # Use list to catch comparisons with empty sets
         self._inherited = inherited if inherited is not None else []
         self.inherited = []
+        self.fixed_header = None
+        if fixed_header:
+            self.fixed_header = 'struct ' + c_lower(fixed_header)
         self.submsg = submsg
 
         self.nested = type_list is None
@@ -1345,7 +1348,9 @@ class Family(SpecFamily):
         nested = spec['nested-attributes']
         if nested not in self.root_sets:
             if nested not in self.pure_nested_structs:
-                self.pure_nested_structs[nested] = Struct(self, nested, inherited=inherit)
+                self.pure_nested_structs[nested] = \
+                    Struct(self, nested, inherited=inherit,
+                           fixed_header=spec.get('fixed-header'))
         else:
             raise Exception(f'Using attr set as root and nested not supported - {nested}')
 
@@ -1538,13 +1543,12 @@ class RenderInfo:
         self.op_mode = op_mode
         self.op = op
 
-        self.fixed_hdr = None
+        fixed_hdr = op.fixed_header if op else None
         self.fixed_hdr_len = 'ys->family->hdr_len'
         if op and op.fixed_header:
-            self.fixed_hdr = 'struct ' + c_lower(op.fixed_header)
             if op.fixed_header != family.fixed_header:
                 if family.is_classic():
-                    self.fixed_hdr_len = f"sizeof({self.fixed_hdr})"
+                    self.fixed_hdr_len = f"sizeof(struct {c_lower(fixed_hdr)})"
                 else:
                     raise Exception(f"Per-op fixed header not supported, yet")
 
@@ -1584,12 +1588,17 @@ class RenderInfo:
                 type_list = []
                 if op_dir in op[op_mode]:
                     type_list = op[op_mode][op_dir]['attributes']
-                self.struct[op_dir] = Struct(family, self.attr_set, type_list=type_list)
+                self.struct[op_dir] = Struct(family, self.attr_set,
+                                             fixed_header=fixed_hdr,
+                                             type_list=type_list)
         if op_mode == 'event':
-            self.struct['reply'] = Struct(family, self.attr_set, type_list=op['event']['attributes'])
+            self.struct['reply'] = Struct(family, self.attr_set,
+                                          fixed_header=fixed_hdr,
+                                          type_list=op['event']['attributes'])
 
     def type_empty(self, key):
-        return len(self.struct[key].attr_list) == 0 and self.fixed_hdr is None
+        return len(self.struct[key].attr_list) == 0 and \
+            self.struct['request'].fixed_header is None
 
     def needs_nlflags(self, direction):
         return self.op_mode == 'do' and direction == 'request' and self.family.is_classic()
@@ -2057,12 +2066,12 @@ def _multi_parse(ri, struct, init_lines, local_vars):
     if struct.nested:
         iter_line = "ynl_attr_for_each_nested(attr, nested)"
     else:
-        if ri.fixed_hdr:
+        if struct.fixed_header:
             local_vars += ['void *hdr;']
         iter_line = "ynl_attr_for_each(attr, nlh, yarg->ys->family->hdr_len)"
         if ri.op.fixed_header != ri.family.fixed_header:
             if ri.family.is_classic():
-                iter_line = f"ynl_attr_for_each(attr, nlh, sizeof({ri.fixed_hdr}))"
+                iter_line = f"ynl_attr_for_each(attr, nlh, sizeof({struct.fixed_header}))"
             else:
                 raise Exception(f"Per-op fixed header not supported, yet")
 
@@ -2104,12 +2113,12 @@ def _multi_parse(ri, struct, init_lines, local_vars):
     for arg in struct.inherited:
         ri.cw.p(f'dst->{arg} = {arg};')
 
-    if ri.fixed_hdr:
+    if struct.fixed_header:
         if ri.family.is_classic():
             ri.cw.p('hdr = ynl_nlmsg_data(nlh);')
         else:
             ri.cw.p('hdr = ynl_nlmsg_data_offset(nlh, sizeof(struct genlmsghdr));')
-        ri.cw.p(f"memcpy(&dst->_hdr, hdr, sizeof({ri.fixed_hdr}));")
+        ri.cw.p(f"memcpy(&dst->_hdr, hdr, sizeof({struct.fixed_header}));")
     for anest in sorted(all_multi):
         aspec = struct[anest]
         ri.cw.p(f"if (dst->{aspec.c_name})")
@@ -2303,7 +2312,7 @@ def print_req(ri):
         ret_err = 'NULL'
         local_vars += [f'{type_name(ri, rdir(direction))} *rsp;']
 
-    if ri.fixed_hdr:
+    if ri.struct["request"].fixed_header:
         local_vars += ['size_t hdr_len;',
                        'void *hdr;']
 
@@ -2327,7 +2336,7 @@ def print_req(ri):
         ri.cw.p(f"yrs.yarg.rsp_policy = &{ri.struct['reply'].render_name}_nest;")
     ri.cw.nl()
 
-    if ri.fixed_hdr:
+    if ri.struct['request'].fixed_header:
         ri.cw.p("hdr_len = sizeof(req->_hdr);")
         ri.cw.p("hdr = ynl_nlmsg_put_extra_header(nlh, hdr_len);")
         ri.cw.p("memcpy(hdr, &req->_hdr, hdr_len);")
@@ -2373,7 +2382,7 @@ def print_dump(ri):
                   'struct nlmsghdr *nlh;',
                   'int err;']
 
-    if ri.fixed_hdr:
+    if ri.struct['request'].fixed_header:
         local_vars += ['size_t hdr_len;',
                        'void *hdr;']
 
@@ -2394,7 +2403,7 @@ def print_dump(ri):
     else:
         ri.cw.p(f"nlh = ynl_gemsg_start_dump(ys, {ri.nl.get_family_id()}, {ri.op.enum_name}, 1);")
 
-    if ri.fixed_hdr:
+    if ri.struct['request'].fixed_header:
         ri.cw.p("hdr_len = sizeof(req->_hdr);")
         ri.cw.p("hdr = ynl_nlmsg_put_extra_header(nlh, hdr_len);")
         ri.cw.p("memcpy(hdr, &req->_hdr, hdr_len);")
@@ -2471,8 +2480,8 @@ def _print_type(ri, direction, struct):
     if ri.needs_nlflags(direction):
         ri.cw.p('__u16 _nlmsg_flags;')
         ri.cw.nl()
-    if ri.fixed_hdr:
-        ri.cw.p(ri.fixed_hdr + ' _hdr;')
+    if struct.fixed_header:
+        ri.cw.p(struct.fixed_header + ' _hdr;')
         ri.cw.nl()
 
     for type_filter in ['present', 'len', 'count']:
