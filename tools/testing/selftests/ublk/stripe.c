@@ -288,6 +288,11 @@ static int ublk_stripe_tgt_init(const struct dev_ctx *ctx, struct ublk_dev *dev)
 	loff_t bytes = 0;
 	int ret, i, mul = 1;
 
+	if (ctx->auto_zc_fallback) {
+		ublk_err("%s: not support auto_zc_fallback\n", __func__);
+		return -EINVAL;
+	}
+
 	if ((chunk_size & (chunk_size - 1)) || !chunk_size) {
 		ublk_err("invalid chunk size %u\n", chunk_size);
 		return -EINVAL;

@@ -84,6 +84,7 @@ struct dev_ctx {
 	unsigned int	all:1;
 	unsigned int	fg:1;
 	unsigned int	recovery:1;
+	unsigned int	auto_zc_fallback:1;
 
 	int _evtfd;
 	int _shmid;
@@ -141,6 +142,9 @@ struct ublk_tgt_ops {
 	 */
 	void (*parse_cmd_line)(struct dev_ctx *ctx, int argc, char *argv[]);
 	void (*usage)(const struct ublk_tgt_ops *ops);
+
+	/* return buffer index for UBLK_F_AUTO_BUF_REG */
+	unsigned short (*buf_index)(const struct ublk_queue *, int tag);
 };
 
 struct ublk_tgt {
@@ -170,6 +174,7 @@ struct ublk_queue {
 #define UBLKSRV_NO_BUF		(1U << 2)
 #define UBLKSRV_ZC		(1U << 3)
 #define UBLKSRV_AUTO_BUF_REG		(1U << 4)
+#define UBLKSRV_AUTO_BUF_REG_FALLBACK	(1U << 5)
 	unsigned state;
 	pid_t tid;
 	pthread_t thread;
@@ -204,6 +209,12 @@ struct ublk_dev {
 
 extern unsigned int ublk_dbg_mask;
 extern int ublk_queue_io_cmd(struct ublk_queue *q, struct ublk_io *io, unsigned tag);
+
+
+static inline int ublk_io_auto_zc_fallback(const struct ublksrv_io_desc *iod)
+{
+	return !!(iod->op_flags & UBLK_IO_F_NEED_REG_BUF);
+}
 
 static inline int is_target_io(__u64 user_data)
 {

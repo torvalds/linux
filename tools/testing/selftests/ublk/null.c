@@ -116,7 +116,7 @@ static int ublk_null_queue_io(struct ublk_queue *q, int tag)
 	unsigned zc = ublk_queue_use_zc(q);
 	int queued;
 
-	if (auto_zc)
+	if (auto_zc && !ublk_io_auto_zc_fallback(iod))
 		queued = null_queue_auto_zc_io(q, tag);
 	else if (zc)
 		queued = null_queue_zc_io(q, tag);
@@ -128,9 +128,21 @@ static int ublk_null_queue_io(struct ublk_queue *q, int tag)
 	return 0;
 }
 
+/*
+ * return invalid buffer index for triggering auto buffer register failure,
+ * then UBLK_IO_RES_NEED_REG_BUF handling is covered
+ */
+static unsigned short ublk_null_buf_index(const struct ublk_queue *q, int tag)
+{
+	if (q->state & UBLKSRV_AUTO_BUF_REG_FALLBACK)
+		return (unsigned short)-1;
+	return tag;
+}
+
 const struct ublk_tgt_ops null_tgt_ops = {
 	.name = "null",
 	.init_tgt = ublk_null_tgt_init,
 	.queue_io = ublk_null_queue_io,
 	.tgt_io_done = ublk_null_io_done,
+	.buf_index = ublk_null_buf_index,
 };

@@ -149,6 +149,11 @@ static int ublk_loop_tgt_init(const struct dev_ctx *ctx, struct ublk_dev *dev)
 		},
 	};
 
+	if (ctx->auto_zc_fallback) {
+		ublk_err("%s: not support auto_zc_fallback\n", __func__);
+		return -EINVAL;
+	}
+
 	ret = backing_file_tgt_init(dev);
 	if (ret)
 		return ret;
