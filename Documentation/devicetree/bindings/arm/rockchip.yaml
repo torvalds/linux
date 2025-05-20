@@ -961,6 +961,11 @@ properties:
           - const: radxa,rock-s0
           - const: rockchip,rk3308
 
+      - description: Radxa ROCK 5T
+        items:
+          - const: radxa,rock-5t
+          - const: rockchip,rk3588
+
       - description: Radxa ZERO 3W/3E
         items:
           - enum:
