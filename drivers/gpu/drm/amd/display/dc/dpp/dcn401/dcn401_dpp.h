@@ -641,6 +641,7 @@
 	uint32_t ISHARP_DELTA_DATA; \
 	uint32_t ISHARP_DELTA_INDEX; \
 	uint32_t ISHARP_NLDELTA_SOFT_CLIP
+
 struct dcn401_dpp_registers {
 	DPP_REG_VARIABLE_LIST_DCN401;
 };

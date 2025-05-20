@@ -481,6 +481,9 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 		case DC_CM2_GPU_MEM_SIZE_TRANSFORMED:
 			width = hubp_3dlut_fl_width_transformed;
 			break;
+		default:
+			//TODO: handle default case
+			break;
 		}
 
 		//check for support
