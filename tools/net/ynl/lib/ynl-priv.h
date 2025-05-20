@@ -213,10 +213,14 @@ static inline void *ynl_attr_data_end(const struct nlattr *attr)
 				     NLMSG_HDRLEN + fixed_hdr_sz); attr; \
 	     (attr) = ynl_attr_next(ynl_nlmsg_end_addr(nlh), attr))
 
-#define ynl_attr_for_each_nested(attr, outer)				\
+#define ynl_attr_for_each_nested_off(attr, outer, offset)		\
 	for ((attr) = ynl_attr_first(outer, outer->nla_len,		\
-				     sizeof(struct nlattr)); attr;	\
+				     sizeof(struct nlattr) + offset);	\
+	     attr;							\
 	     (attr) = ynl_attr_next(ynl_attr_data_end(outer), attr))
+
+#define ynl_attr_for_each_nested(attr, outer)				\
+	ynl_attr_for_each_nested_off(attr, outer, 0)
 
 #define ynl_attr_for_each_payload(start, len, attr)			\
 	for ((attr) = ynl_attr_first(start, len, 0); attr;		\

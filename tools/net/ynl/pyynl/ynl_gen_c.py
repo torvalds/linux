@@ -1372,12 +1372,25 @@ class Family(SpecFamily):
 
         attrs = []
         for name, fmt in submsg.formats.items():
-            attrs.append({
+            attr = {
                 "name": name,
-                "type": "nest",
                 "parent-sub-message": spec,
-                "nested-attributes": fmt['attribute-set']
-            })
+            }
+            if 'attribute-set' in fmt:
+                attr |= {
+                    "type": "nest",
+                    "nested-attributes": fmt['attribute-set'],
+                }
+                if 'fixed-header' in fmt:
+                    attr |= { "fixed-header": fmt["fixed-header"] }
+            elif 'fixed-header' in fmt:
+                attr |= {
+                    "type": "binary",
+                    "struct": fmt["fixed-header"],
+                }
+            else:
+                attr["type"] = "flag"
+            attrs.append(attr)
 
         self.attr_sets[nested] = AttrSet(self, {
             "name": nested,
@@ -1921,8 +1934,11 @@ def put_typol_submsg(cw, struct):
 
     i = 0
     for name, arg in struct.member_list():
-        cw.p('[%d] = { .type = YNL_PT_SUBMSG, .name = "%s", .nest = &%s_nest, },' %
-             (i, name, arg.nested_render_name))
+        nest = ""
+        if arg.type == 'nest':
+            nest = f" .nest = &{arg.nested_render_name}_nest,"
+        cw.p('[%d] = { .type = YNL_PT_SUBMSG, .name = "%s",%s },' %
+             (i, name, nest))
         i += 1
 
     cw.block_end(line=';')
@@ -2032,6 +2048,11 @@ def put_req_nested(ri, struct):
     if struct.submsg is None:
         local_vars.append('struct nlattr *nest;')
         init_lines.append("nest = ynl_attr_nest_start(nlh, attr_type);")
+    if struct.fixed_header:
+        local_vars.append('void *hdr;')
+        struct_sz = f'sizeof({struct.fixed_header})'
+        init_lines.append(f"hdr = ynl_nlmsg_put_extra_header(nlh, {struct_sz});")
+        init_lines.append(f"memcpy(hdr, &obj->_hdr, {struct_sz});")
 
     has_anest = False
     has_count = False
@@ -2063,11 +2084,14 @@ def put_req_nested(ri, struct):
 
 
 def _multi_parse(ri, struct, init_lines, local_vars):
+    if struct.fixed_header:
+        local_vars += ['void *hdr;']
     if struct.nested:
-        iter_line = "ynl_attr_for_each_nested(attr, nested)"
-    else:
         if struct.fixed_header:
-            local_vars += ['void *hdr;']
+            iter_line = f"ynl_attr_for_each_nested_off(attr, nested, sizeof({struct.fixed_header}))"
+        else:
+            iter_line = "ynl_attr_for_each_nested(attr, nested)"
+    else:
         iter_line = "ynl_attr_for_each(attr, nlh, yarg->ys->family->hdr_len)"
         if ri.op.fixed_header != ri.family.fixed_header:
             if ri.family.is_classic():
@@ -2114,7 +2138,9 @@ def _multi_parse(ri, struct, init_lines, local_vars):
         ri.cw.p(f'dst->{arg} = {arg};')
 
     if struct.fixed_header:
-        if ri.family.is_classic():
+        if struct.nested:
+            ri.cw.p('hdr = ynl_attr_data(nested);')
+        elif ri.family.is_classic():
             ri.cw.p('hdr = ynl_nlmsg_data(nlh);')
         else:
             ri.cw.p('hdr = ynl_nlmsg_data_offset(nlh, sizeof(struct genlmsghdr));')
@@ -2234,7 +2260,7 @@ def parse_rsp_submsg(ri, struct):
 
         ri.cw.block_start(line=f'{kw} (!strcmp(sel, "{name}"))')
         get_lines, init_lines, _ = arg._attr_get(ri, var)
-        for line in init_lines:
+        for line in init_lines or []:
             ri.cw.p(line)
         for line in get_lines:
             ri.cw.p(line)
