@@ -1452,7 +1452,7 @@ attribute-sets:
       -
         name: stats
         type: nest
-        nested-attributes: tc-act-stats-attrs
+        nested-attributes: tca-stats-attrs
       -
         name: pad
         type: pad
@@ -1471,38 +1471,6 @@ attribute-sets:
       -
         name: in-hw-count
         type: u32
-  -
-    name: tc-act-stats-attrs
-    attributes:
-      -
-        name: basic
-        type: binary
-        struct: gnet-stats-basic
-      -
-        name: rate-est
-        type: binary
-        struct: gnet-stats-rate-est
-      -
-        name: queue
-        type: binary
-        struct: gnet-stats-queue
-      -
-        name: app
-        type: binary
-      -
-        name: rate-est64
-        type: binary
-        struct: gnet-stats-rate-est64
-      -
-        name: pad
-        type: pad
-      -
-        name: basic-hw
-        type: binary
-        struct: gnet-stats-basic
-      -
-        name: pkt64
-        type: u64
   -
     name: tc-act-bpf-attrs
     attributes:
@@ -1797,44 +1765,6 @@ attribute-sets:
       -
         name: key-ex
         type: binary
-  -
-    name: tc-act-police-attrs
-    attributes:
-      -
-        name: tbf
-        type: binary
-        struct: tc-police
-      -
-        name: rate
-        type: binary # TODO
-      -
-        name: peakrate
-        type: binary # TODO
-      -
-        name: avrate
-        type: u32
-      -
-        name: result
-        type: u32
-      -
-        name: tm
-        type: binary
-        struct: tcf-t
-      -
-        name: pad
-        type: pad
-      -
-        name: rate64
-        type: u64
-      -
-        name: peakrate64
-        type: u64
-      -
-        name: pktrate64
-        type: u64
-      -
-        name: pktburst64
-        type: u64
   -
     name: tc-act-simple-attrs
     attributes:
@@ -3327,10 +3257,10 @@ attribute-sets:
         struct: tc-police
       -
         name: rate
-        type: binary
+        type: binary # TODO
       -
         name: peakrate
-        type: binary
+        type: binary # TODO
       -
         name: avrate
         type: u32
@@ -3817,7 +3747,7 @@ sub-messages:
         attribute-set: tc-act-pedit-attrs
       -
         value: police
-        attribute-set: tc-act-police-attrs
+        attribute-set: tc-police-attrs
       -
         value: sample
         attribute-set: tc-act-sample-attrs
