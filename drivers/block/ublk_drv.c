@@ -1182,6 +1182,16 @@ static inline void __ublk_abort_rq(struct ublk_queue *ubq,
 		blk_mq_end_request(rq, BLK_STS_IOERR);
 }
 
+static void ublk_auto_buf_reg_fallback(struct request *req, struct ublk_io *io)
+{
+	const struct ublk_queue *ubq = req->mq_hctx->driver_data;
+	struct ublksrv_io_desc *iod = ublk_get_iod(ubq, req->tag);
+	struct ublk_rq_data *data = blk_mq_rq_to_pdu(req);
+
+	iod->op_flags |= UBLK_IO_F_NEED_REG_BUF;
+	refcount_set(&data->ref, 1);
+}
+
 static bool ublk_auto_buf_reg(struct request *req, struct ublk_io *io,
 			      unsigned int issue_flags)
 {
@@ -1192,6 +1202,10 @@ static bool ublk_auto_buf_reg(struct request *req, struct ublk_io *io,
 	ret = io_buffer_register_bvec(io->cmd, req, ublk_io_release,
 				      pdu->buf.index, issue_flags);
 	if (ret) {
+		if (pdu->buf.flags & UBLK_AUTO_BUF_REG_FALLBACK) {
+			ublk_auto_buf_reg_fallback(req, io);
+			return true;
+		}
 		blk_mq_end_request(req, BLK_STS_IOERR);
 		return false;
 	}
@@ -1971,6 +1985,8 @@ static inline int ublk_set_auto_buf_reg(struct io_uring_cmd *cmd)
 	if (pdu->buf.reserved0 || pdu->buf.reserved1)
 		return -EINVAL;
 
+	if (pdu->buf.flags & ~UBLK_AUTO_BUF_REG_F_MASK)
+		return -EINVAL;
 	return 0;
 }
 
