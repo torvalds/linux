@@ -1190,14 +1190,15 @@ hws_action_create_modify_header_hws(struct mlx5hws_action *action,
 				    struct mlx5hws_action_mh_pattern *pattern,
 				    u32 log_bulk_size)
 {
+	u16 num_actions, max_mh_actions = 0, hw_max_actions;
 	struct mlx5hws_context *ctx = action->ctx;
-	u16 num_actions, max_mh_actions = 0;
 	int i, ret, size_in_bytes;
 	u32 pat_id, arg_id = 0;
 	__be64 *new_pattern;
 	size_t pat_max_sz;
 
 	pat_max_sz = MLX5HWS_ARG_CHUNK_SIZE_MAX * MLX5HWS_ARG_DATA_SIZE;
+	hw_max_actions = pat_max_sz / MLX5HWS_MODIFY_ACTION_SIZE;
 	size_in_bytes = pat_max_sz * sizeof(__be64);
 	new_pattern = kcalloc(num_of_patterns, size_in_bytes, GFP_KERNEL);
 	if (!new_pattern)
@@ -1211,10 +1212,14 @@ hws_action_create_modify_header_hws(struct mlx5hws_action *action,
 
 		cur_num_actions = pattern[i].sz / MLX5HWS_MODIFY_ACTION_SIZE;
 
-		mlx5hws_pat_calc_nop(pattern[i].data, cur_num_actions,
-				     pat_max_sz / MLX5HWS_MODIFY_ACTION_SIZE,
-				     &new_num_actions, &nop_locations,
-				     &new_pattern[i * pat_max_sz]);
+		ret = mlx5hws_pat_calc_nop(pattern[i].data, cur_num_actions,
+					   hw_max_actions, &new_num_actions,
+					   &nop_locations,
+					   &new_pattern[i * pat_max_sz]);
+		if (ret) {
+			mlx5hws_err(ctx, "Too many actions after nop insertion\n");
+			goto free_new_pat;
+		}
 
 		action[i].modify_header.nop_locations = nop_locations;
 		action[i].modify_header.num_of_actions = new_num_actions;
@@ -2116,10 +2121,12 @@ static void hws_action_modify_write(struct mlx5hws_send_engine *queue,
 		if (unlikely(!new_arg_data))
 			return;
 
-		for (i = 0, j = 0; i < num_of_actions; i++, j++) {
-			memcpy(&new_arg_data[j], arg_data, MLX5HWS_MODIFY_ACTION_SIZE);
+		for (i = 0, j = 0; j < num_of_actions; i++, j++) {
 			if (BIT(i) & nop_locations)
 				j++;
+			memcpy(&new_arg_data[j * MLX5HWS_MODIFY_ACTION_SIZE],
+			       &arg_data[i * MLX5HWS_MODIFY_ACTION_SIZE],
+			       MLX5HWS_MODIFY_ACTION_SIZE);
 		}
 	}
 
