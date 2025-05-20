@@ -36,5 +36,6 @@ struct tiocl_selection {
 #define TIOCL_BLANKSCREEN	14	/* keep screen blank even if a key is pressed */
 #define TIOCL_BLANKEDSCREEN	15	/* return which vt was blanked */
 #define TIOCL_GETKMSGREDIRECT	17	/* get the vt the kernel messages are restricted to */
+#define TIOCL_GETBRACKETEDPASTE	18	/* get whether paste may be bracketed */
 
 #endif /* _LINUX_TIOCL_H */

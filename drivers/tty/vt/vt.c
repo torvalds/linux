@@ -1870,6 +1870,14 @@ int mouse_reporting(void)
 	return vc_cons[fg_console].d->vc_report_mouse;
 }
 
+/* invoked via ioctl(TIOCLINUX) */
+static int get_bracketed_paste(struct tty_struct *tty)
+{
+	struct vc_data *vc = tty->driver_data;
+
+	return vc->vc_bracketed_paste;
+}
+
 enum {
 	CSI_DEC_hl_CURSOR_KEYS	= 1,	/* CKM: cursor keys send ^[Ox/^[[x */
 	CSI_DEC_hl_132_COLUMNS	= 3,	/* COLM: 80/132 mode switch */
@@ -1880,6 +1888,7 @@ enum {
 	CSI_DEC_hl_MOUSE_X10	= 9,
 	CSI_DEC_hl_SHOW_CURSOR	= 25,	/* TCEM */
 	CSI_DEC_hl_MOUSE_VT200	= 1000,
+	CSI_DEC_hl_BRACKETED_PASTE = 2004,
 };
 
 /* console_lock is held */
@@ -1931,6 +1940,9 @@ static void csi_DEC_hl(struct vc_data *vc, bool on_off)
 			break;
 		case CSI_DEC_hl_MOUSE_VT200:
 			vc->vc_report_mouse = on_off ? 2 : 0;
+			break;
+		case CSI_DEC_hl_BRACKETED_PASTE:
+			vc->vc_bracketed_paste = on_off;
 			break;
 		}
 }
@@ -2157,6 +2169,7 @@ static void reset_terminal(struct vc_data *vc, int do_clear)
 	vc->state.charset	= 0;
 	vc->vc_need_wrap	= 0;
 	vc->vc_report_mouse	= 0;
+	vc->vc_bracketed_paste	= 0;
 	vc->vc_utf              = default_utf8;
 	vc->vc_utf_count	= 0;
 
@@ -3483,6 +3496,8 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 		break;
 	case TIOCL_BLANKEDSCREEN:
 		return console_blanked;
+	case TIOCL_GETBRACKETEDPASTE:
+		return get_bracketed_paste(tty);
 	default:
 		return -EINVAL;
 	}
