@@ -1083,7 +1083,7 @@ static u32 mlxbf_i2c_get_ticks(struct mlxbf_i2c_priv *priv, u64 nanoseconds,
 	 *         Frequency
 	 */
 	frequency = priv->frequency;
-	ticks = (nanoseconds * frequency) / MLXBF_I2C_FREQUENCY_1GHZ;
+	ticks = div_u64(nanoseconds * frequency, MLXBF_I2C_FREQUENCY_1GHZ);
 	/*
 	 * The number of ticks is rounded down and if minimum is equal to 1
 	 * then add one tick.
@@ -1460,9 +1460,8 @@ static u64 mlxbf_i2c_calculate_freq_from_tyu(struct mlxbf_i2c_resource *corepll_
 	 * and PadFrequency, respectively.
 	 */
 	core_frequency = MLXBF_I2C_PLL_IN_FREQ * (++core_f);
-	core_frequency /= (++core_r) * (++core_od);
 
-	return core_frequency;
+	return div_u64(core_frequency, (++core_r) * (++core_od));
 }
 
 static u64 mlxbf_i2c_calculate_freq_from_yu(struct mlxbf_i2c_resource *corepll_res)
@@ -1491,9 +1490,8 @@ static u64 mlxbf_i2c_calculate_freq_from_yu(struct mlxbf_i2c_resource *corepll_r
 	 * and PadFrequency, respectively.
 	 */
 	corepll_frequency = (MLXBF_I2C_PLL_IN_FREQ * core_f) / MLNXBF_I2C_COREPLL_CONST;
-	corepll_frequency /= (++core_r) * (++core_od);
 
-	return corepll_frequency;
+	return div_u64(corepll_frequency, (++core_r) * (++core_od));
 }
 
 static int mlxbf_i2c_calculate_corepll_freq(struct platform_device *pdev,
