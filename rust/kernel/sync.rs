@@ -95,8 +95,11 @@ impl PinnedDrop for LockClassKey {
 macro_rules! static_lock_class {
     () => {{
         static CLASS: $crate::sync::LockClassKey =
-            // SAFETY: lockdep expects uninitialized memory when it's handed a statically allocated
-            // lock_class_key
+            // Lockdep expects uninitialized memory when it's handed a statically allocated `struct
+            // lock_class_key`.
+            //
+            // SAFETY: `LockClassKey` transparently wraps `Opaque` which permits uninitialized
+            // memory.
             unsafe { ::core::mem::MaybeUninit::uninit().assume_init() };
         $crate::prelude::Pin::static_ref(&CLASS)
     }};
