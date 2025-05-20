@@ -601,7 +601,7 @@ static int qcom_spi_read_last_cw(struct qcom_nand_controller *snandc,
 	return ret;
 }
 
-static int qcom_spi_check_error(struct qcom_nand_controller *snandc, u8 *data_buf, u8 *oob_buf)
+static int qcom_spi_check_error(struct qcom_nand_controller *snandc)
 {
 	struct snandc_read_status *buf;
 	struct qpic_ecc *ecc_cfg = snandc->qspi->ecc;
@@ -618,15 +618,6 @@ static int qcom_spi_check_error(struct qcom_nand_controller *snandc, u8 *data_bu
 
 	for (i = 0; i < num_cw; i++, buf++) {
 		u32 flash, buffer, erased_cw;
-		int data_len, oob_len;
-
-		if (i == (num_cw - 1)) {
-			data_len = NANDC_STEP_SIZE - ((num_cw - 1) << 2);
-			oob_len = num_cw << 2;
-		} else {
-			data_len = ecc_cfg->cw_data;
-			oob_len = 0;
-		}
 
 		flash = le32_to_cpu(buf->snandc_flash);
 		buffer = le32_to_cpu(buf->snandc_buffer);
@@ -650,11 +641,6 @@ static int qcom_spi_check_error(struct qcom_nand_controller *snandc, u8 *data_bu
 			snandc->qspi->ecc_stats.corrected += stat;
 			max_bitflips = max(max_bitflips, stat);
 		}
-
-		if (data_buf)
-			data_buf += data_len;
-		if (oob_buf)
-			oob_buf += oob_len + ecc_cfg->bytes;
 	}
 
 	if (flash_op_err)
@@ -792,15 +778,12 @@ static int qcom_spi_read_page_ecc(struct qcom_nand_controller *snandc,
 				  const struct spi_mem_op *op)
 {
 	struct qpic_ecc *ecc_cfg = snandc->qspi->ecc;
-	u8 *data_buf = NULL, *data_buf_start, *oob_buf = NULL, *oob_buf_start;
+	u8 *data_buf = NULL, *oob_buf = NULL;
 	int ret, i;
 	u32 cfg0, cfg1, ecc_bch_cfg, num_cw = snandc->qspi->num_cw;
 
 	data_buf = op->data.buf.in;
-	data_buf_start = data_buf;
-
 	oob_buf = snandc->qspi->oob_buf;
-	oob_buf_start = oob_buf;
 
 	snandc->buf_count = 0;
 	snandc->buf_start = 0;
@@ -881,21 +864,18 @@ static int qcom_spi_read_page_ecc(struct qcom_nand_controller *snandc,
 		return ret;
 	}
 
-	return qcom_spi_check_error(snandc, data_buf_start, oob_buf_start);
+	return qcom_spi_check_error(snandc);
 }
 
 static int qcom_spi_read_page_oob(struct qcom_nand_controller *snandc,
 				  const struct spi_mem_op *op)
 {
 	struct qpic_ecc *ecc_cfg = snandc->qspi->ecc;
-	u8 *data_buf = NULL, *data_buf_start, *oob_buf = NULL, *oob_buf_start;
+	u8 *oob_buf = NULL;
 	int ret, i;
 	u32 cfg0, cfg1, ecc_bch_cfg, num_cw = snandc->qspi->num_cw;
 
 	oob_buf = op->data.buf.in;
-	oob_buf_start = oob_buf;
-
-	data_buf_start = data_buf;
 
 	snandc->buf_count = 0;
 	snandc->buf_start = 0;
@@ -963,7 +943,7 @@ static int qcom_spi_read_page_oob(struct qcom_nand_controller *snandc,
 		return ret;
 	}
 
-	return qcom_spi_check_error(snandc, data_buf_start, oob_buf_start);
+	return qcom_spi_check_error(snandc);
 }
 
 static int qcom_spi_read_page(struct qcom_nand_controller *snandc,
