@@ -3,6 +3,7 @@
 #include <sys/syscall.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
+#include <sys/utsname.h>
 #include <string.h>
 
 #include "arch-tests.h"
@@ -912,6 +913,29 @@ out:
 	return max_sample_rate;
 }
 
+/*
+ * Bunch of IBS sample period fixes that this test exercise went in v6.15.
+ * Skip the test on older kernels to distinguish between test failure due
+ * to a new bug vs known failure due to older kernel.
+ */
+static bool kernel_v6_15_or_newer(void)
+{
+	struct utsname utsname;
+	char *endptr = NULL;
+	long major, minor;
+
+	if (uname(&utsname) < 0) {
+		pr_debug("uname() failed. [%m]");
+		return false;
+	}
+
+	major = strtol(utsname.release, &endptr, 10);
+	endptr++;
+	minor = strtol(endptr, NULL, 10);
+
+	return major >= 6 && minor >= 15;
+}
+
 int test__amd_ibs_period(struct test_suite *test __maybe_unused,
 			 int subtest __maybe_unused)
 {
@@ -930,6 +954,11 @@ int test__amd_ibs_period(struct test_suite *test __maybe_unused,
 
 	if (!x86__is_amd_cpu() || !fetch_pmu || !op_pmu)
 		return TEST_SKIP;
+
+	if (!kernel_v6_15_or_newer()) {
+		pr_debug("Need v6.15 or newer kernel. Skipping.\n");
+		return TEST_SKIP;
+	}
 
 	perf_exe(perf, sizeof(perf));
 
