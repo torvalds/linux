@@ -2650,14 +2650,16 @@ static void perf_event_unthrottle(struct perf_event *event, bool start)
 	event->hw.interrupts = 0;
 	if (start)
 		event->pmu->start(event, 0);
-	perf_log_throttle(event, 1);
+	if (event == event->group_leader)
+		perf_log_throttle(event, 1);
 }
 
 static void perf_event_throttle(struct perf_event *event)
 {
 	event->pmu->stop(event, 0);
 	event->hw.interrupts = MAX_INTERRUPTS;
-	perf_log_throttle(event, 0);
+	if (event == event->group_leader)
+		perf_log_throttle(event, 0);
 }
 
 static void perf_event_unthrottle_group(struct perf_event *event, bool skip_start_event)
