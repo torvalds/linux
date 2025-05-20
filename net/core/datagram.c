@@ -702,7 +702,8 @@ zerocopy_fill_skb_from_devmem(struct sk_buff *skb, struct iov_iter *from,
 	 * iov_addrs are interpreted as an offset in bytes into the dma-buf to
 	 * send from. We do not support other iter types.
 	 */
-	if (iov_iter_type(from) != ITER_IOVEC)
+	if (iov_iter_type(from) != ITER_IOVEC &&
+	    iov_iter_type(from) != ITER_UBUF)
 		return -EFAULT;
 
 	while (length && iov_iter_count(from)) {
