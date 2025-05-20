@@ -2719,7 +2719,7 @@ static int btintel_uefi_get_dsbr(u32 *dsbr_var)
 	} __packed data;
 
 	efi_status_t status;
-	unsigned long data_size = 0;
+	unsigned long data_size = sizeof(data);
 	efi_guid_t guid = EFI_GUID(0xe65d8884, 0xd4af, 0x4b20, 0x8d, 0x03,
 				   0x77, 0x2e, 0xcc, 0x3d, 0xa5, 0x31);
 
@@ -2730,15 +2730,9 @@ static int btintel_uefi_get_dsbr(u32 *dsbr_var)
 		return -EOPNOTSUPP;
 
 	status = efi.get_variable(BTINTEL_EFI_DSBR, &guid, NULL, &data_size,
-				  NULL);
-
-	if (status != EFI_BUFFER_TOO_SMALL || !data_size)
-		return -EIO;
-
-	status = efi.get_variable(BTINTEL_EFI_DSBR, &guid, NULL, &data_size,
 				  &data);
 
-	if (status != EFI_SUCCESS)
+	if (status != EFI_SUCCESS || data_size != sizeof(data))
 		return -ENXIO;
 
 	*dsbr_var = data.dsbr;
