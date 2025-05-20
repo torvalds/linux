@@ -685,7 +685,11 @@ class TypeNest(Type):
                             f"{self.enum_name}, {at}{var}->{self.c_name})")
 
     def _attr_get(self, ri, var):
-        get_lines = [f"if ({self.nested_render_name}_parse(&parg, attr))",
+        pns = self.family.pure_nested_structs[self.nested_attrs]
+        args = ["&parg", "attr"]
+        for sel in pns.external_selectors():
+            args.append(f'{var}->{sel.name}')
+        get_lines = [f"if ({self.nested_render_name}_parse({', '.join(args)}))",
                      "return YNL_PARSE_CB_ERROR;"]
         init_lines = [f"parg.rsp_policy = &{self.nested_render_name}_nest;",
                       f"parg.data = &{var}->{self.c_name};"]
@@ -890,15 +894,24 @@ class TypeSubMessage(TypeNest):
 
     def _attr_typol(self):
         typol = f'.type = YNL_PT_NEST, .nest = &{self.nested_render_name}_nest, '
-        typol += f'.is_submsg = 1, .selector_type = {self.attr_set[self["selector"]].value} '
+        typol += '.is_submsg = 1, '
+        # Reverse-parsing of the policy (ynl_err_walk() in ynl.c) does not
+        # support external selectors. No family uses sub-messages with external
+        # selector for requests so this is fine for now.
+        if not self.selector.is_external():
+            typol += f'.selector_type = {self.attr_set[self["selector"]].value} '
         return typol
 
     def _attr_get(self, ri, var):
         sel = c_lower(self['selector'])
-        get_lines = [f'if (!{var}->{sel})',
+        if self.selector.is_external():
+            sel_var = f"_sel_{sel}"
+        else:
+            sel_var = f"{var}->{sel}"
+        get_lines = [f'if (!{sel_var})',
                      f'return ynl_submsg_failed(yarg, "%s", "%s");' %
                         (self.name, self['selector']),
-                    f"if ({self.nested_render_name}_parse(&parg, {var}->{sel}, attr))",
+                    f"if ({self.nested_render_name}_parse(&parg, {sel_var}, attr))",
                      "return YNL_PARSE_CB_ERROR;"]
         init_lines = [f"parg.rsp_policy = &{self.nested_render_name}_nest;",
                       f"parg.data = &{var}->{self.c_name};"]
@@ -914,7 +927,15 @@ class Selector:
             self.attr.is_selector = True
             self._external = False
         else:
-            raise Exception("Passing selectors from external nests not supported")
+            # The selector will need to get passed down thru the structs
+            self.attr = None
+            self._external = True
+
+    def set_attr(self, attr):
+        self.attr = attr
+
+    def is_external(self):
+        return self._external
 
 
 class Struct:
@@ -975,6 +996,13 @@ class Struct:
         if self._inherited != new_inherited:
             raise Exception("Inheriting different members not supported")
         self.inherited = [c_lower(x) for x in sorted(self._inherited)]
+
+    def external_selectors(self):
+        sels = []
+        for name, attr in self.attr_list:
+            if isinstance(attr, TypeSubMessage) and attr.selector.is_external():
+                sels.append(attr.selector)
+        return sels
 
     def free_needs_iter(self):
         for _, attr in self.attr_list:
@@ -1222,6 +1250,7 @@ class Family(SpecFamily):
         self._load_root_sets()
         self._load_nested_sets()
         self._load_attr_use()
+        self._load_selector_passing()
         self._load_hooks()
 
         self.kernel_policy = self.yaml.get('kernel-policy', 'split')
@@ -1435,6 +1464,30 @@ class Family(SpecFamily):
                     spec.set_request()
                 if attr in rs_members['reply']:
                     spec.set_reply()
+
+    def _load_selector_passing(self):
+        def all_structs():
+            for k, v in reversed(self.pure_nested_structs.items()):
+                yield k, v
+            for k, _ in self.root_sets.items():
+                yield k, None  # we don't have a struct, but it must be terminal
+
+        for attr_set, struct in all_structs():
+            for _, spec in self.attr_sets[attr_set].items():
+                if 'nested-attributes' in spec:
+                    child_name = spec['nested-attributes']
+                elif 'sub-message' in spec:
+                    child_name = spec.sub_message
+                else:
+                    continue
+
+                child = self.pure_nested_structs.get(child_name)
+                for selector in child.external_selectors():
+                    if selector.name in self.attr_sets[attr_set]:
+                        sel_attr = self.attr_sets[attr_set][selector.name]
+                        selector.set_attr(sel_attr)
+                    else:
+                        raise Exception("Passing selector thru more than one layer not supported")
 
     def _load_global_policy(self):
         global_set = set()
@@ -2183,6 +2236,8 @@ def parse_rsp_submsg(ri, struct):
 def parse_rsp_nested_prototype(ri, struct, suffix=';'):
     func_args = ['struct ynl_parse_arg *yarg',
                  'const struct nlattr *nested']
+    for sel in struct.external_selectors():
+        func_args.append('const char *_sel_' + sel.name)
     if struct.submsg:
         func_args.insert(1, 'const char *sel')
     for arg in struct.inherited:
