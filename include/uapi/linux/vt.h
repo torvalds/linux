@@ -2,6 +2,8 @@
 #ifndef _UAPI_LINUX_VT_H
 #define _UAPI_LINUX_VT_H
 
+#include <linux/ioctl.h>
+#include <linux/types.h>
 
 /*
  * These constants are also useful for user-level apps (e.g., VC
@@ -83,5 +85,14 @@ struct vt_setactivate {
 };
 
 #define VT_SETACTIVATE	0x560F	/* Activate and set the mode of a console */
+
+/* get console size and cursor position */
+struct vt_consizecsrpos {
+	__u16 con_rows;		/* number of console rows */
+	__u16 con_cols;		/* number of console columns */
+	__u16 csr_row;		/* current cursor's row */
+	__u16 csr_col;		/* current cursor's column */
+};
+#define VT_GETCONSIZECSRPOS	_IOR('V', 0x10, struct vt_consizecsrpos)
 
 #endif /* _UAPI_LINUX_VT_H */
