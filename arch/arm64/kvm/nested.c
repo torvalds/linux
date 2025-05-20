@@ -1179,13 +1179,24 @@ static int kvm_translate_vncr(struct kvm_vcpu *vcpu)
 
 	vt = vcpu->arch.vncr_tlb;
 
-	vt->wi = (struct s1_walk_info) {
-		.regime	= TR_EL20,
-		.as_el0	= false,
-		.pan	= false,
-	};
-	vt->wr = (struct s1_walk_result){};
-	vt->valid = false;
+	/*
+	 * If we're about to walk the EL2 S1 PTs, we must invalidate the
+	 * current TLB, as it could be sampled from another vcpu doing a
+	 * TLBI *IS. A real CPU wouldn't do that, but we only keep a single
+	 * translation, so not much of a choice.
+	 *
+	 * We also prepare the next walk wilst we're at it.
+	 */
+	scoped_guard(write_lock, &vcpu->kvm->mmu_lock) {
+		invalidate_vncr(vt);
+
+		vt->wi = (struct s1_walk_info) {
+			.regime	= TR_EL20,
+			.as_el0	= false,
+			.pan	= false,
+		};
+		vt->wr = (struct s1_walk_result){};
+	}
 
 	guard(srcu)(&vcpu->kvm->srcu);
 
