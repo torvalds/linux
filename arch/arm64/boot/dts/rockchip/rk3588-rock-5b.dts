@@ -2,7 +2,7 @@
 
 /dts-v1/;
 
-#include "rk3588-rock-5b-5bp-5t.dtsi"
+#include "rk3588-rock-5b.dtsi"
 
 / {
 	model = "Radxa ROCK 5B";
