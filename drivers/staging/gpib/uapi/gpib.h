@@ -136,7 +136,7 @@ static inline __u8 MTA(unsigned int addr)
 
 static inline __u8 MSA(unsigned int addr)
 {
-	return gpib_address_restrict(addr) | SAD;
+	return (addr & 0x1f) | SAD;
 }
 
 static inline __u8 PPE_byte(unsigned int dio_line, int sense)
