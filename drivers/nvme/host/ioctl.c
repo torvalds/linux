@@ -493,13 +493,15 @@ static int nvme_uring_cmd_io(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	d.timeout_ms = READ_ONCE(cmd->timeout_ms);
 
 	if (d.data_len && (ioucmd->flags & IORING_URING_CMD_FIXED)) {
-		/* fixedbufs is only for non-vectored io */
-		if (vec)
-			return -EINVAL;
+		int ddir = nvme_is_write(&c) ? WRITE : READ;
 
-		ret = io_uring_cmd_import_fixed(d.addr, d.data_len,
-			nvme_is_write(&c) ? WRITE : READ, &iter, ioucmd,
-			issue_flags);
+		if (vec)
+			ret = io_uring_cmd_import_fixed_vec(ioucmd,
+					u64_to_user_ptr(d.addr), d.data_len,
+					ddir, &iter, issue_flags);
+		else
+			ret = io_uring_cmd_import_fixed(d.addr, d.data_len,
+					ddir, &iter, ioucmd, issue_flags);
 		if (ret < 0)
 			return ret;
 
