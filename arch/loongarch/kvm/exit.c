@@ -661,7 +661,7 @@ int kvm_emu_mmio_write(struct kvm_vcpu *vcpu, larch_inst inst)
 	return ret;
 }
 
-static int kvm_handle_rdwr_fault(struct kvm_vcpu *vcpu, bool write)
+static int kvm_handle_rdwr_fault(struct kvm_vcpu *vcpu, bool write, int ecode)
 {
 	int ret;
 	larch_inst inst;
@@ -675,7 +675,7 @@ static int kvm_handle_rdwr_fault(struct kvm_vcpu *vcpu, bool write)
 		return RESUME_GUEST;
 	}
 
-	ret = kvm_handle_mm_fault(vcpu, badv, write);
+	ret = kvm_handle_mm_fault(vcpu, badv, write, ecode);
 	if (ret) {
 		/* Treat as MMIO */
 		inst.word = vcpu->arch.badi;
@@ -707,12 +707,12 @@ static int kvm_handle_rdwr_fault(struct kvm_vcpu *vcpu, bool write)
 
 static int kvm_handle_read_fault(struct kvm_vcpu *vcpu, int ecode)
 {
-	return kvm_handle_rdwr_fault(vcpu, false);
+	return kvm_handle_rdwr_fault(vcpu, false, ecode);
 }
 
 static int kvm_handle_write_fault(struct kvm_vcpu *vcpu, int ecode)
 {
-	return kvm_handle_rdwr_fault(vcpu, true);
+	return kvm_handle_rdwr_fault(vcpu, true, ecode);
 }
 
 int kvm_complete_user_service(struct kvm_vcpu *vcpu, struct kvm_run *run)
