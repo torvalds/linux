@@ -439,6 +439,34 @@
 			reg = <0x0 0xff540000 0x0 0x40000>;
 		};
 
+		spi0: spi@ff9c0000 {
+			compatible = "rockchip,rk3528-spi",
+				     "rockchip,rk3066-spi";
+			reg = <0x0 0xff9c0000 0x0 0x1000>;
+			clocks = <&cru CLK_SPI0>, <&cru PCLK_SPI0>;
+			clock-names = "spiclk", "apb_pclk";
+			interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&dmac 25>, <&dmac 24>;
+			dma-names = "tx", "rx";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		spi1: spi@ff9d0000 {
+			compatible = "rockchip,rk3528-spi",
+				     "rockchip,rk3066-spi";
+			reg = <0x0 0xff9d0000 0x0 0x1000>;
+			clocks = <&cru CLK_SPI1>, <&cru PCLK_SPI1>;
+			clock-names = "spiclk", "apb_pclk";
+			interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&dmac 31>, <&dmac 30>;
+			dma-names = "tx", "rx";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		uart0: serial@ff9f0000 {
 			compatible = "rockchip,rk3528-uart", "snps,dw-apb-uart";
 			reg = <0x0 0xff9f0000 0x0 0x100>;
