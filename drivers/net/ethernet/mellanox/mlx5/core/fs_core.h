@@ -386,6 +386,9 @@ u32 mlx5_fs_get_capabilities(struct mlx5_core_dev *dev, enum mlx5_flow_namespace
 
 struct mlx5_flow_root_namespace *find_root(struct fs_node *node);
 
+int mlx5_fs_get_packet_reformat_id(struct mlx5_pkt_reformat *pkt_reformat,
+				   u32 *id);
+
 #define fs_get_obj(v, _node)  {v = container_of((_node), typeof(*v), node); }
 
 #define fs_list_for_each_entry(pos, root)		\
