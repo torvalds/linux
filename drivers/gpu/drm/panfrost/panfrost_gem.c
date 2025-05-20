@@ -305,6 +305,16 @@ panfrost_gem_prime_import_sg_table(struct drm_device *dev,
 	bo = to_panfrost_bo(obj);
 	bo->noexec = true;
 
+	/*
+	 * We assign this generic label because this function cannot
+	 * be reached through any of the Panfrost UM driver-specific
+	 * code paths, unless one is given by explicitly calling the
+	 * SET_LABEL_BO ioctl. It is therefore preferable to have a
+	 * blanket BO tag that tells us the object was imported from
+	 * another driver than nothing at all.
+	 */
+	panfrost_gem_internal_set_label(obj, "GEM PRIME buffer");
+
 	return obj;
 }
 
