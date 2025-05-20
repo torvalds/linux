@@ -370,6 +370,11 @@ enum DC_DEBUG_MASK {
 	 * path failure, retry using legacy SW path.
 	 */
 	DC_HDCP_LC_ENABLE_SW_FALLBACK = 0x100000,
+
+	/**
+	 * @DC_SKIP_DETECTION_LT: If set, skip detection link training
+	 */
+	DC_SKIP_DETECTION_LT = 0x200000,
 };
 
 enum amd_dpm_forced_level;
