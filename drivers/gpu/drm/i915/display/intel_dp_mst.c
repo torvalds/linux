@@ -1328,8 +1328,6 @@ static void mst_stream_enable(struct intel_atomic_state *state,
 			     FECSTALL_DIS_DPTSTREAM_DPTTG,
 			     pipe_config->fec_enable ? FECSTALL_DIS_DPTSTREAM_DPTTG : 0);
 
-	intel_audio_sdp_split_update(pipe_config);
-
 	intel_enable_transcoder(pipe_config);
 
 	for_each_pipe_crtc_modeset_enable(display, pipe_crtc, pipe_config, i) {
