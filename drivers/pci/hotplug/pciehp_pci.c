@@ -72,10 +72,6 @@ int pciehp_configure_device(struct controller *ctrl)
 	pci_bus_add_devices(parent);
 	down_read_nested(&ctrl->reset_lock, ctrl->depth);
 
-	dev = pci_get_slot(parent, PCI_DEVFN(0, 0));
-	ctrl->dsn = pci_get_dsn(dev);
-	pci_dev_put(dev);
-
  out:
 	pci_unlock_rescan_remove();
 	return ret;
