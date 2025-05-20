@@ -39,4 +39,11 @@ CFLAGS_rt-neigh:=$(call get_hdr_inc,__LINUX_RTNETLINK_H,rtnetlink.h) \
 	$(call get_hdr_inc,__LINUX_NEIGHBOUR_H,neighbour.h)
 CFLAGS_rt-route:=$(call get_hdr_inc,__LINUX_RTNETLINK_H,rtnetlink.h)
 CFLAGS_rt-rule:=$(call get_hdr_inc,__LINUX_FIB_RULES_H,fib_rules.h)
+CFLAGS_tc:= $(call get_hdr_inc,__LINUX_RTNETLINK_H,rtnetlink.h) \
+	$(call get_hdr_inc,__LINUX_PKT_SCHED_H,pkt_sched.h) \
+	$(call get_hdr_inc,__LINUX_PKT_CLS_H,pkt_cls.h) \
+	$(call get_hdr_inc,_TC_CT_H,tc_act/tc_ct.h) \
+	$(call get_hdr_inc,_TC_MIRRED_H,tc_act/tc_mirred.h) \
+	$(call get_hdr_inc,_TC_SKBEDIT_H,tc_act/tc_skbedit.h) \
+	$(call get_hdr_inc,_TC_TUNNEL_KEY_H,tc_act/tc_tunnel_key.h)
 CFLAGS_tcp_metrics:=$(call get_hdr_inc,_LINUX_TCP_METRICS_H,tcp_metrics.h)
