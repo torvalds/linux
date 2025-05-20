@@ -4815,6 +4815,7 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 	}
 
 use_local_napi:
+	DEBUG_NET_WARN_ON_ONCE(!list_empty(&napi->poll_list));
 	list_add_tail(&napi->poll_list, &sd->poll_list);
 	WRITE_ONCE(napi->list_owner, smp_processor_id());
 	/* If not called from net_rx_action()
@@ -7476,9 +7477,14 @@ static int napi_poll(struct napi_struct *n, struct list_head *repoll)
 
 	work = __napi_poll(n, &do_repoll);
 
-	if (do_repoll)
+	if (do_repoll) {
+#if defined(CONFIG_DEBUG_NET)
+		if (unlikely(!napi_is_scheduled(n)))
+			pr_crit("repoll requested for device %s %ps but napi is not scheduled.\n",
+				n->dev->name, n->poll);
+#endif
 		list_add_tail(&n->poll_list, repoll);
-
+	}
 	netpoll_poll_unlock(have);
 
 	return work;
