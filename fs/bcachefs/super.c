@@ -104,7 +104,7 @@ const char * const bch2_dev_write_refs[] = {
 #undef x
 
 static void __bch2_print_str(struct bch_fs *c, const char *prefix,
-			     const char *str, bool nonblocking)
+			     const char *str)
 {
 #ifdef __KERNEL__
 	struct stdio_redirect *stdio = bch2_fs_stdio_redirect(c);
@@ -114,17 +114,12 @@ static void __bch2_print_str(struct bch_fs *c, const char *prefix,
 		return;
 	}
 #endif
-	bch2_print_string_as_lines(KERN_ERR, str, nonblocking);
+	bch2_print_string_as_lines(KERN_ERR, str);
 }
 
 void bch2_print_str(struct bch_fs *c, const char *prefix, const char *str)
 {
-	__bch2_print_str(c, prefix, str, false);
-}
-
-void bch2_print_str_nonblocking(struct bch_fs *c, const char *prefix, const char *str)
-{
-	__bch2_print_str(c, prefix, str, true);
+	__bch2_print_str(c, prefix, str);
 }
 
 __printf(2, 0)
