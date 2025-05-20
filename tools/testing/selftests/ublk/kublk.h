@@ -115,6 +115,7 @@ struct ublk_io {
 #define UBLKSRV_NEED_COMMIT_RQ_COMP	(1UL << 1)
 #define UBLKSRV_IO_FREE			(1UL << 2)
 #define UBLKSRV_NEED_GET_DATA           (1UL << 3)
+#define UBLKSRV_NEED_REG_BUF            (1UL << 4)
 	unsigned short flags;
 	unsigned short refs;		/* used by target code only */
 
@@ -168,6 +169,7 @@ struct ublk_queue {
 #define UBLKSRV_QUEUE_IDLE	(1U << 1)
 #define UBLKSRV_NO_BUF		(1U << 2)
 #define UBLKSRV_ZC		(1U << 3)
+#define UBLKSRV_AUTO_BUF_REG		(1U << 4)
 	unsigned state;
 	pid_t tid;
 	pthread_t thread;
@@ -385,6 +387,11 @@ static inline int ublk_completed_tgt_io(struct ublk_queue *q, unsigned tag)
 static inline int ublk_queue_use_zc(const struct ublk_queue *q)
 {
 	return q->state & UBLKSRV_ZC;
+}
+
+static inline int ublk_queue_use_auto_zc(const struct ublk_queue *q)
+{
+	return q->state & UBLKSRV_AUTO_BUF_REG;
 }
 
 extern const struct ublk_tgt_ops null_tgt_ops;
