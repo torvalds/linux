@@ -425,9 +425,9 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 
 	if (prog) {
 		bnxt_set_rx_skb_mode(bp, true);
-		xdp_features_set_redirect_target(dev, true);
+		xdp_features_set_redirect_target_locked(dev, true);
 	} else {
-		xdp_features_clear_redirect_target(dev);
+		xdp_features_clear_redirect_target_locked(dev);
 		bnxt_set_rx_skb_mode(bp, false);
 	}
 	bp->tx_nr_rings_xdp = tx_xdp;
