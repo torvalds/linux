@@ -208,6 +208,35 @@ DEFINE_DEBUGFS_ATTRIBUTE(shrink_fops,
 			 shrink_get, shrink_set,
 			 "0x%08llx\n");
 
+/*
+ * Return the number of microseconds to wait until stall-on-fault is
+ * re-enabled. If 0 then it is already enabled or will be re-enabled on the
+ * next submit (unless there's a leftover devcoredump). This is useful for
+ * kernel tests that intentionally produce a fault and check the devcoredump to
+ * wait until the cooldown period is over.
+ */
+
+static int
+stall_reenable_time_get(void *data, u64 *val)
+{
+	struct msm_drm_private *priv = data;
+	unsigned long irq_flags;
+
+	spin_lock_irqsave(&priv->fault_stall_lock, irq_flags);
+
+	if (priv->stall_enabled)
+		*val = 0;
+	else
+		*val = max(ktime_us_delta(priv->stall_reenable_time, ktime_get()), 0);
+
+	spin_unlock_irqrestore(&priv->fault_stall_lock, irq_flags);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(stall_reenable_time_fops,
+			 stall_reenable_time_get, NULL,
+			 "%lld\n");
 
 static int msm_gem_show(struct seq_file *m, void *arg)
 {
@@ -318,6 +347,9 @@ static void msm_debugfs_gpu_init(struct drm_minor *minor)
 
 	debugfs_create_bool("disable_err_irq", 0600, minor->debugfs_root,
 		&priv->disable_err_irq);
+
+	debugfs_create_file("stall_reenable_time_us", 0400, minor->debugfs_root,
+		priv, &stall_reenable_time_fops);
 
 	gpu_devfreq = debugfs_create_dir("devfreq", minor->debugfs_root);
 
