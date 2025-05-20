@@ -272,7 +272,7 @@ static int bnxt_re_configure_cc(struct bnxt_re_dev *rdev, u32 gen_ext, u32 offse
 	int rc;
 
 	if (gen_ext != CC_CONFIG_GEN0_EXT0)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	rc = bnxt_re_fill_gen0_ext0(&ccparam, offset, val);
 	if (rc)
