@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
 	test_futex(futex_ptr, 0);
 
 	if (futex_numa->numa == FUTEX_NO_NODE)
-		ksft_exit_fail_msg("NUMA node is left unitiliazed\n");
+		ksft_exit_fail_msg("NUMA node is left uninitialized\n");
 
 	ksft_print_msg("Memory too small\n");
 	test_futex(futex_ptr + mem_size - 4, 1);
