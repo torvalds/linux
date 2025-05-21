@@ -368,7 +368,7 @@
 			mux {
 				groups = "uart_tx_ao_a", "uart_rx_ao_a";
 				function = "uart_ao";
-				bias-disable;
+				bias-pull-up;
 			};
 		};
 
@@ -521,7 +521,7 @@
 				groups = "uart_tx_b0",
 				       "uart_rx_b0";
 				function = "uart_b";
-				bias-disable;
+				bias-pull-up;
 			};
 		};
 
