@@ -515,6 +515,7 @@
 				remote-endpoint = <&cs42l51_tx_endpoint>;
 				dai-format = "i2s";
 				mclk-fs = <256>;
+				system-clock-direction-out;
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <32>;
 			};
