@@ -864,6 +864,8 @@ patternProperties:
     description: Linux-specific binding
   "^linx,.*":
     description: Linx Technologies
+  "^liontron,.*":
+    description: Shenzhen Liontron Technology Co., Ltd
   "^liteon,.*":
     description: LITE-ON Technology Corp.
   "^litex,.*":
@@ -1755,6 +1757,8 @@ patternProperties:
     description: Y Soft Corporation a.s.
   "^yuridenki,.*":
     description: Yuridenki-Shokai Co. Ltd.
+  "^yuzukihd,.*":
+    description: YuzukiHD Open Source Hardware
   "^zarlink,.*":
     description: Zarlink Semiconductor
   "^zealz,.*":

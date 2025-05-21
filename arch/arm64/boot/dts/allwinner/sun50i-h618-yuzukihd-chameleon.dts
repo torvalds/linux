@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (C) 2023 Arm Ltd.
+ * Copyright (C) 2024 Arm Ltd.
  */
 
 /dts-v1/;
@@ -10,28 +10,18 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/leds/common.h>
 
 / {
-	model = "OrangePi Zero 2W";
-	compatible = "xunlong,orangepi-zero2w", "allwinner,sun50i-h618";
+	model = "Yuzuki Chameleon";
+	compatible = "yuzukihd,chameleon", "allwinner,sun50i-h618";
 
 	aliases {
+		ethernet1 = &sdio_wifi;
 		serial0 = &uart0;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
-	};
-
-	leds {
-		compatible = "gpio-leds";
-
-		led-0 {
-			function = LED_FUNCTION_STATUS;
-			color = <LED_COLOR_ID_GREEN>;
-			gpios = <&pio 2 13 GPIO_ACTIVE_HIGH>; /* PC13 */
-		};
 	};
 
 	reg_vcc5v: vcc5v {
@@ -43,14 +33,13 @@
 		regulator-always-on;
 	};
 
-	reg_vcc3v3: vcc3v3 {
-		/* SY8089 DC/DC converter */
-		compatible = "regulator-fixed";
-		regulator-name = "vcc-3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&reg_vcc5v>;
-		regulator-always-on;
+	wifi_pwrseq: pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clock-names = "ext_clock";
+		pinctrl-0 = <&x32clk_fanout_pin>;
+		pinctrl-names = "default";
+		reset-gpios = <&pio 6 11 GPIO_ACTIVE_LOW>; /* PG11 */
 	};
 };
 
@@ -63,21 +52,57 @@
 	cpu-supply = <&reg_dcdc2>;
 };
 
+&ehci0 {
+	status = "okay";
+};
+
 &ehci1 {
 	status = "okay";
 };
 
-/* USB 2 & 3 are on the FPC connector (or the exansion board) */
+&ehci2 {
+	status = "okay";
+};
 
-&gpu {
-	mali-supply = <&reg_dcdc1>;
+&ehci3 {
 	status = "okay";
 };
 
 &mmc0 {
-	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>;	/* PF6 */
 	bus-width = <4>;
-	vmmc-supply = <&reg_vcc3v3>;
+	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>;	/* PF6 */
+	disable-wp;
+	vmmc-supply = <&reg_dldo1>;
+	status = "okay";
+};
+
+&mmc1 {
+	bus-width = <4>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	non-removable;
+	vmmc-supply = <&reg_dldo1>;
+	vqmmc-supply = <&reg_dldo1>;
+	status = "okay";
+
+	sdio_wifi: wifi@1 {
+		reg = <1>;
+		interrupt-parent = <&pio>;
+		interrupts = <6 12 IRQ_TYPE_LEVEL_LOW>;  /* PG12 */
+		interrupt-names = "host-wake";
+	};
+};
+
+&mmc2 {
+	bus-width = <8>;
+	cap-mmc-hw-reset;
+	mmc-ddr-3_3v;
+	non-removable;
+	vmmc-supply = <&reg_dldo1>;
+	vqmmc-supply = <&reg_dldo1>;
+	status = "okay";
+};
+
+&ohci0 {
 	status = "okay";
 };
 
@@ -85,11 +110,19 @@
 	status = "okay";
 };
 
+&ohci2 {
+	status = "okay";
+};
+
+&ohci3 {
+	status = "okay";
+};
+
 &pio {
 	vcc-pc-supply = <&reg_dldo1>;
-	vcc-pf-supply = <&reg_dldo1>;	/* internally via VCC-IO */
-	vcc-pg-supply = <&reg_aldo1>;
-	vcc-ph-supply = <&reg_dldo1>;	/* internally via VCC-IO */
+	vcc-pf-supply = <&reg_dldo1>;	/* via VCC_IO */
+	vcc-pg-supply = <&reg_dldo1>;
+	vcc-ph-supply = <&reg_dldo1>;	/* via VCC_IO */
 	vcc-pi-supply = <&reg_dldo1>;
 };
 
@@ -102,14 +135,14 @@
 		#interrupt-cells = <1>;
 		interrupt-controller;
 		interrupt-parent = <&pio>;
-		interrupts = <2 9 IRQ_TYPE_LEVEL_LOW>;	/* PC9 */
+		interrupts = <2 2 IRQ_TYPE_LEVEL_LOW>;	/* PC2 */
 
 		vin1-supply = <&reg_vcc5v>;
 		vin2-supply = <&reg_vcc5v>;
 		vin3-supply = <&reg_vcc5v>;
 
 		regulators {
-			/* Supplies VCC-PLL and DRAM */
+			/* Supplies VCC-PLL, so needs to be always on. */
 			reg_aldo1: aldo1 {
 				regulator-always-on;
 				regulator-min-microvolt = <1800000>;
@@ -141,31 +174,25 @@
 
 			reg_dcdc3: dcdc3 {
 				regulator-always-on;
-				regulator-min-microvolt = <1100000>;
-				regulator-max-microvolt = <1100000>;
+				regulator-min-microvolt = <1500000>;
+				regulator-max-microvolt = <1500000>;
 				regulator-name = "vdd-dram";
 			};
 		};
 	};
 };
 
-&spi0  {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi0_pins>, <&spi0_cs0_pin>;
-
-	flash@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
-		reg = <0>;
-		spi-max-frequency = <40000000>;
-	};
-};
-
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_ph_pins>;
+	status = "okay";
+};
+
+/* Connected to the Bluetooth UART pins of the XR829 Wifi/BT chip. */
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
+	uart-has-rtscts;
 	status = "okay";
 };
 
@@ -186,6 +213,10 @@
 };
 
 &usbphy {
+	usb0_id_det-gpios = <&pio 6 18 GPIO_ACTIVE_HIGH>; /* PG18 */
+	usb0_vbus-supply = <&reg_vcc5v>;
 	usb1_vbus-supply = <&reg_vcc5v>;
+	usb2_vbus-supply = <&reg_vcc5v>;
+	usb3_vbus-supply = <&reg_vcc5v>;
 	status = "okay";
 };

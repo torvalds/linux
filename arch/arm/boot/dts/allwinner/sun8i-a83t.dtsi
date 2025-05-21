@@ -1225,7 +1225,7 @@
 			};
 
 			cooling-maps {
-				cpu-hot-limit {
+				map0 {
 					trip = <&cpu0_hot>;
 					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
@@ -1255,7 +1255,7 @@
 			};
 
 			cooling-maps {
-				cpu-hot-limit {
+				map0 {
 					trip = <&cpu1_hot>;
 					cooling-device = <&cpu100 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 							 <&cpu101 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
