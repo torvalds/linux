@@ -123,8 +123,6 @@ static noinline int backpointer_mod_err(struct btree_trans *trans,
 
 		prt_printf(&buf, "for ");
 		bch2_bkey_val_to_text(&buf, c, orig_k);
-
-		bch_err(c, "%s", buf.buf);
 	} else if (!will_check) {
 		prt_printf(&buf, "backpointer not found when deleting\n");
 		printbuf_indent_add(&buf, 2);
