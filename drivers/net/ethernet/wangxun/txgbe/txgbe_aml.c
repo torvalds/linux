@@ -50,6 +50,22 @@ irqreturn_t txgbe_gpio_irq_handler_aml(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+int txgbe_test_hostif(struct wx *wx)
+{
+	struct txgbe_hic_ephy_getlink buffer;
+
+	if (wx->mac.type != wx_mac_aml)
+		return 0;
+
+	buffer.hdr.cmd = FW_PHY_GET_LINK_CMD;
+	buffer.hdr.buf_len = sizeof(struct txgbe_hic_ephy_getlink) -
+			     sizeof(struct wx_hic_hdr);
+	buffer.hdr.cmd_or_resp.cmd_resv = FW_CEM_CMD_RESERVED;
+
+	return wx_host_interface_command(wx, (u32 *)&buffer, sizeof(buffer),
+					WX_HI_COMMAND_TIMEOUT, true);
+}
+
 static int txgbe_identify_sfp_hostif(struct wx *wx, struct txgbe_hic_i2c_read *buffer)
 {
 	buffer->hdr.cmd = FW_READ_SFP_INFO_CMD;

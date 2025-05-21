@@ -864,6 +864,13 @@ static int txgbe_probe(struct pci_dev *pdev,
 	if (etrack_id < 0x20010)
 		dev_warn(&pdev->dev, "Please upgrade the firmware to 0x20010 or above.\n");
 
+	err = txgbe_test_hostif(wx);
+	if (err != 0) {
+		dev_err(&pdev->dev, "Mismatched Firmware version\n");
+		err = -EIO;
+		goto err_release_hw;
+	}
+
 	txgbe = devm_kzalloc(&pdev->dev, sizeof(*txgbe), GFP_KERNEL);
 	if (!txgbe) {
 		err = -ENOMEM;
