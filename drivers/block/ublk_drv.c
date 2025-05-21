@@ -1182,7 +1182,7 @@ static inline void __ublk_abort_rq(struct ublk_queue *ubq,
 		blk_mq_end_request(rq, BLK_STS_IOERR);
 }
 
-static void ublk_auto_buf_reg_fallback(struct request *req, struct ublk_io *io)
+static void ublk_auto_buf_reg_fallback(struct request *req)
 {
 	const struct ublk_queue *ubq = req->mq_hctx->driver_data;
 	struct ublksrv_io_desc *iod = ublk_get_iod(ubq, req->tag);
@@ -1203,7 +1203,7 @@ static bool ublk_auto_buf_reg(struct request *req, struct ublk_io *io,
 				      pdu->buf.index, issue_flags);
 	if (ret) {
 		if (pdu->buf.flags & UBLK_AUTO_BUF_REG_FALLBACK) {
-			ublk_auto_buf_reg_fallback(req, io);
+			ublk_auto_buf_reg_fallback(req);
 			return true;
 		}
 		blk_mq_end_request(req, BLK_STS_IOERR);
