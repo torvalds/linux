@@ -5,12 +5,9 @@
  * 2024 by Marek Behún <kabel@kernel.org>
  */
 
-#include <linux/bitfield.h>
 #include <linux/completion.h>
 #include <linux/container_of.h>
 #include <linux/errno.h>
-#include <linux/gpio/consumer.h>
-#include <linux/gpio/driver.h>
 #include <linux/hw_random.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -62,16 +59,11 @@ static int omnia_trng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 int omnia_mcu_register_trng(struct omnia_mcu *mcu)
 {
 	struct device *dev = &mcu->client->dev;
-	u8 irq_idx, dummy;
-	int irq, err;
+	u8 dummy;
+	int err;
 
 	if (!(mcu->features & OMNIA_FEAT_TRNG))
 		return 0;
-
-	irq_idx = omnia_int_to_gpio_idx[__bf_shf(OMNIA_INT_TRNG)];
-	irq = gpiod_to_irq(gpio_device_get_desc(mcu->gc.gpiodev, irq_idx));
-	if (irq < 0)
-		return dev_err_probe(dev, irq, "Cannot get TRNG IRQ\n");
 
 	/*
 	 * If someone else cleared the TRNG interrupt but did not read the
@@ -86,9 +78,8 @@ int omnia_mcu_register_trng(struct omnia_mcu *mcu)
 
 	init_completion(&mcu->trng_entropy_ready);
 
-	err = devm_request_threaded_irq(dev, irq, NULL, omnia_trng_irq_handler,
-					IRQF_ONESHOT, "turris-omnia-mcu-trng",
-					mcu);
+	err = omnia_mcu_request_irq(mcu, OMNIA_INT_TRNG, omnia_trng_irq_handler,
+				    "turris-omnia-mcu-trng");
 	if (err)
 		return dev_err_probe(dev, err, "Cannot request TRNG IRQ\n");
 

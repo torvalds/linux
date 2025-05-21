@@ -225,6 +225,13 @@ config RESET_RZG2L_USBPHY_CTRL
 	  Support for USBPHY Control found on RZ/G2L family. It mainly
 	  controls reset and power down of the USB/PHY.
 
+config RESET_RZV2H_USB2PHY
+	tristate "Renesas RZ/V2H(P) (and similar SoCs) USB2PHY Reset driver"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	help
+	  Support for USB2PHY Port reset Control found on the RZ/V2H(P) SoC
+	  (and similar SoCs).
+
 config RESET_SCMI
 	tristate "Reset driver controlled via ARM SCMI interface"
 	depends on ARM_SCMI_PROTOCOL || COMPILE_TEST
@@ -278,6 +285,16 @@ config RESET_SUNXI
 	select RESET_SIMPLE
 	help
 	  This enables the reset driver for Allwinner SoCs.
+
+config RESET_TH1520
+	tristate "T-HEAD 1520 reset controller"
+	depends on ARCH_THEAD || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  This driver provides support for the T-HEAD TH1520 SoC reset controller,
+	  which manages hardware reset lines for SoC components such as the GPU.
+	  Enable this option if you need to control hardware resets on TH1520-based
+	  systems.
 
 config RESET_TI_SCI
 	tristate "TI System Control Interface (TI-SCI) reset driver"
