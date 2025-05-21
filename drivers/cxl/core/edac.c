@@ -19,7 +19,7 @@
 #include <cxlmem.h>
 #include "core.h"
 
-#define CXL_NR_EDAC_DEV_FEATURES 1
+#define CXL_NR_EDAC_DEV_FEATURES 2
 
 #define CXL_SCRUB_NO_REGION -1
 
@@ -465,6 +465,354 @@ static int cxl_region_scrub_init(struct cxl_region *cxlr,
 	return 0;
 }
 
+struct cxl_ecs_context {
+	u16 num_media_frus;
+	u16 get_feat_size;
+	u16 set_feat_size;
+	u8 get_version;
+	u8 set_version;
+	u16 effects;
+	struct cxl_memdev *cxlmd;
+};
+
+/*
+ * See CXL spec rev 3.2 @8.2.10.9.11.2 Table 8-225 DDR5 ECS Control Feature
+ * Readable Attributes.
+ */
+struct cxl_ecs_fru_rd_attrbs {
+	u8 ecs_cap;
+	__le16 ecs_config;
+	u8 ecs_flags;
+} __packed;
+
+struct cxl_ecs_rd_attrbs {
+	u8 ecs_log_cap;
+	struct cxl_ecs_fru_rd_attrbs fru_attrbs[];
+} __packed;
+
+/*
+ * See CXL spec rev 3.2 @8.2.10.9.11.2 Table 8-226 DDR5 ECS Control Feature
+ * Writable Attributes.
+ */
+struct cxl_ecs_fru_wr_attrbs {
+	__le16 ecs_config;
+} __packed;
+
+struct cxl_ecs_wr_attrbs {
+	u8 ecs_log_cap;
+	struct cxl_ecs_fru_wr_attrbs fru_attrbs[];
+} __packed;
+
+#define CXL_ECS_LOG_ENTRY_TYPE_MASK GENMASK(1, 0)
+#define CXL_ECS_REALTIME_REPORT_CAP_MASK BIT(0)
+#define CXL_ECS_THRESHOLD_COUNT_MASK GENMASK(2, 0)
+#define CXL_ECS_COUNT_MODE_MASK BIT(3)
+#define CXL_ECS_RESET_COUNTER_MASK BIT(4)
+#define CXL_ECS_RESET_COUNTER 1
+
+enum {
+	ECS_THRESHOLD_256 = 256,
+	ECS_THRESHOLD_1024 = 1024,
+	ECS_THRESHOLD_4096 = 4096,
+};
+
+enum {
+	ECS_THRESHOLD_IDX_256 = 3,
+	ECS_THRESHOLD_IDX_1024 = 4,
+	ECS_THRESHOLD_IDX_4096 = 5,
+};
+
+static const u16 ecs_supp_threshold[] = {
+	[ECS_THRESHOLD_IDX_256] = 256,
+	[ECS_THRESHOLD_IDX_1024] = 1024,
+	[ECS_THRESHOLD_IDX_4096] = 4096,
+};
+
+enum {
+	ECS_LOG_ENTRY_TYPE_DRAM = 0x0,
+	ECS_LOG_ENTRY_TYPE_MEM_MEDIA_FRU = 0x1,
+};
+
+enum cxl_ecs_count_mode {
+	ECS_MODE_COUNTS_ROWS = 0,
+	ECS_MODE_COUNTS_CODEWORDS = 1,
+};
+
+static int cxl_mem_ecs_get_attrbs(struct device *dev,
+				  struct cxl_ecs_context *cxl_ecs_ctx,
+				  int fru_id, u8 *log_cap, u16 *config)
+{
+	struct cxl_memdev *cxlmd = cxl_ecs_ctx->cxlmd;
+	struct cxl_mailbox *cxl_mbox = &cxlmd->cxlds->cxl_mbox;
+	struct cxl_ecs_fru_rd_attrbs *fru_rd_attrbs;
+	size_t rd_data_size;
+	size_t data_size;
+
+	rd_data_size = cxl_ecs_ctx->get_feat_size;
+
+	struct cxl_ecs_rd_attrbs *rd_attrbs __free(kvfree) =
+		kvzalloc(rd_data_size, GFP_KERNEL);
+	if (!rd_attrbs)
+		return -ENOMEM;
+
+	data_size = cxl_get_feature(cxl_mbox, &CXL_FEAT_ECS_UUID,
+				    CXL_GET_FEAT_SEL_CURRENT_VALUE, rd_attrbs,
+				    rd_data_size, 0, NULL);
+	if (!data_size)
+		return -EIO;
+
+	fru_rd_attrbs = rd_attrbs->fru_attrbs;
+	*log_cap = rd_attrbs->ecs_log_cap;
+	*config = le16_to_cpu(fru_rd_attrbs[fru_id].ecs_config);
+
+	return 0;
+}
+
+static int cxl_mem_ecs_set_attrbs(struct device *dev,
+				  struct cxl_ecs_context *cxl_ecs_ctx,
+				  int fru_id, u8 log_cap, u16 config)
+{
+	struct cxl_memdev *cxlmd = cxl_ecs_ctx->cxlmd;
+	struct cxl_mailbox *cxl_mbox = &cxlmd->cxlds->cxl_mbox;
+	struct cxl_ecs_fru_rd_attrbs *fru_rd_attrbs;
+	struct cxl_ecs_fru_wr_attrbs *fru_wr_attrbs;
+	size_t rd_data_size, wr_data_size;
+	u16 num_media_frus, count;
+	size_t data_size;
+
+	num_media_frus = cxl_ecs_ctx->num_media_frus;
+	rd_data_size = cxl_ecs_ctx->get_feat_size;
+	wr_data_size = cxl_ecs_ctx->set_feat_size;
+	struct cxl_ecs_rd_attrbs *rd_attrbs __free(kvfree) =
+		kvzalloc(rd_data_size, GFP_KERNEL);
+	if (!rd_attrbs)
+		return -ENOMEM;
+
+	data_size = cxl_get_feature(cxl_mbox, &CXL_FEAT_ECS_UUID,
+				    CXL_GET_FEAT_SEL_CURRENT_VALUE, rd_attrbs,
+				    rd_data_size, 0, NULL);
+	if (!data_size)
+		return -EIO;
+
+	struct cxl_ecs_wr_attrbs *wr_attrbs __free(kvfree) =
+		kvzalloc(wr_data_size, GFP_KERNEL);
+	if (!wr_attrbs)
+		return -ENOMEM;
+
+	/*
+	 * Fill writable attributes from the current attributes read
+	 * for all the media FRUs.
+	 */
+	fru_rd_attrbs = rd_attrbs->fru_attrbs;
+	fru_wr_attrbs = wr_attrbs->fru_attrbs;
+	wr_attrbs->ecs_log_cap = log_cap;
+	for (count = 0; count < num_media_frus; count++)
+		fru_wr_attrbs[count].ecs_config =
+			fru_rd_attrbs[count].ecs_config;
+
+	fru_wr_attrbs[fru_id].ecs_config = cpu_to_le16(config);
+
+	return cxl_set_feature(cxl_mbox, &CXL_FEAT_ECS_UUID,
+			       cxl_ecs_ctx->set_version, wr_attrbs,
+			       wr_data_size,
+			       CXL_SET_FEAT_FLAG_DATA_SAVED_ACROSS_RESET,
+			       0, NULL);
+}
+
+static u8 cxl_get_ecs_log_entry_type(u8 log_cap, u16 config)
+{
+	return FIELD_GET(CXL_ECS_LOG_ENTRY_TYPE_MASK, log_cap);
+}
+
+static u16 cxl_get_ecs_threshold(u8 log_cap, u16 config)
+{
+	u8 index = FIELD_GET(CXL_ECS_THRESHOLD_COUNT_MASK, config);
+
+	return ecs_supp_threshold[index];
+}
+
+static u8 cxl_get_ecs_count_mode(u8 log_cap, u16 config)
+{
+	return FIELD_GET(CXL_ECS_COUNT_MODE_MASK, config);
+}
+
+#define CXL_ECS_GET_ATTR(attrb)						    \
+	static int cxl_ecs_get_##attrb(struct device *dev, void *drv_data,  \
+				       int fru_id, u32 *val)		    \
+	{								    \
+		struct cxl_ecs_context *ctx = drv_data;			    \
+		u8 log_cap;						    \
+		u16 config;						    \
+		int ret;						    \
+									    \
+		ret = cxl_mem_ecs_get_attrbs(dev, ctx, fru_id, &log_cap,    \
+					     &config);			    \
+		if (ret)						    \
+			return ret;					    \
+									    \
+		*val = cxl_get_ecs_##attrb(log_cap, config);		    \
+									    \
+		return 0;						    \
+	}
+
+CXL_ECS_GET_ATTR(log_entry_type)
+CXL_ECS_GET_ATTR(count_mode)
+CXL_ECS_GET_ATTR(threshold)
+
+static int cxl_set_ecs_log_entry_type(struct device *dev, u8 *log_cap,
+				      u16 *config, u32 val)
+{
+	if (val != ECS_LOG_ENTRY_TYPE_DRAM &&
+	    val != ECS_LOG_ENTRY_TYPE_MEM_MEDIA_FRU)
+		return -EINVAL;
+
+	*log_cap = FIELD_PREP(CXL_ECS_LOG_ENTRY_TYPE_MASK, val);
+
+	return 0;
+}
+
+static int cxl_set_ecs_threshold(struct device *dev, u8 *log_cap, u16 *config,
+				 u32 val)
+{
+	*config &= ~CXL_ECS_THRESHOLD_COUNT_MASK;
+
+	switch (val) {
+	case ECS_THRESHOLD_256:
+		*config |= FIELD_PREP(CXL_ECS_THRESHOLD_COUNT_MASK,
+				      ECS_THRESHOLD_IDX_256);
+		break;
+	case ECS_THRESHOLD_1024:
+		*config |= FIELD_PREP(CXL_ECS_THRESHOLD_COUNT_MASK,
+				      ECS_THRESHOLD_IDX_1024);
+		break;
+	case ECS_THRESHOLD_4096:
+		*config |= FIELD_PREP(CXL_ECS_THRESHOLD_COUNT_MASK,
+				      ECS_THRESHOLD_IDX_4096);
+		break;
+	default:
+		dev_dbg(dev, "Invalid CXL ECS threshold count(%d) to set\n",
+			val);
+		dev_dbg(dev, "Supported ECS threshold counts: %u, %u, %u\n",
+			ECS_THRESHOLD_256, ECS_THRESHOLD_1024,
+			ECS_THRESHOLD_4096);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int cxl_set_ecs_count_mode(struct device *dev, u8 *log_cap, u16 *config,
+				  u32 val)
+{
+	if (val != ECS_MODE_COUNTS_ROWS && val != ECS_MODE_COUNTS_CODEWORDS) {
+		dev_dbg(dev, "Invalid CXL ECS scrub mode(%d) to set\n", val);
+		dev_dbg(dev,
+			"Supported ECS Modes: 0: ECS counts rows with errors,"
+			" 1: ECS counts codewords with errors\n");
+		return -EINVAL;
+	}
+
+	*config &= ~CXL_ECS_COUNT_MODE_MASK;
+	*config |= FIELD_PREP(CXL_ECS_COUNT_MODE_MASK, val);
+
+	return 0;
+}
+
+static int cxl_set_ecs_reset_counter(struct device *dev, u8 *log_cap,
+				     u16 *config, u32 val)
+{
+	if (val != CXL_ECS_RESET_COUNTER)
+		return -EINVAL;
+
+	*config &= ~CXL_ECS_RESET_COUNTER_MASK;
+	*config |= FIELD_PREP(CXL_ECS_RESET_COUNTER_MASK, val);
+
+	return 0;
+}
+
+#define CXL_ECS_SET_ATTR(attrb)						    \
+	static int cxl_ecs_set_##attrb(struct device *dev, void *drv_data,  \
+					int fru_id, u32 val)		    \
+	{								    \
+		struct cxl_ecs_context *ctx = drv_data;			    \
+		u8 log_cap;						    \
+		u16 config;						    \
+		int ret;						    \
+									    \
+		if (!capable(CAP_SYS_RAWIO))				    \
+			return -EPERM;					    \
+									    \
+		ret = cxl_mem_ecs_get_attrbs(dev, ctx, fru_id, &log_cap,    \
+					     &config);			    \
+		if (ret)						    \
+			return ret;					    \
+									    \
+		ret = cxl_set_ecs_##attrb(dev, &log_cap, &config, val);     \
+		if (ret)						    \
+			return ret;					    \
+									    \
+		return cxl_mem_ecs_set_attrbs(dev, ctx, fru_id, log_cap,    \
+					      config);			    \
+	}
+CXL_ECS_SET_ATTR(log_entry_type)
+CXL_ECS_SET_ATTR(count_mode)
+CXL_ECS_SET_ATTR(reset_counter)
+CXL_ECS_SET_ATTR(threshold)
+
+static const struct edac_ecs_ops cxl_ecs_ops = {
+	.get_log_entry_type = cxl_ecs_get_log_entry_type,
+	.set_log_entry_type = cxl_ecs_set_log_entry_type,
+	.get_mode = cxl_ecs_get_count_mode,
+	.set_mode = cxl_ecs_set_count_mode,
+	.reset = cxl_ecs_set_reset_counter,
+	.get_threshold = cxl_ecs_get_threshold,
+	.set_threshold = cxl_ecs_set_threshold,
+};
+
+static int cxl_memdev_ecs_init(struct cxl_memdev *cxlmd,
+			       struct edac_dev_feature *ras_feature)
+{
+	struct cxl_ecs_context *cxl_ecs_ctx;
+	struct cxl_feat_entry *feat_entry;
+	int num_media_frus;
+
+	feat_entry =
+		cxl_feature_info(to_cxlfs(cxlmd->cxlds), &CXL_FEAT_ECS_UUID);
+	if (IS_ERR(feat_entry))
+		return -EOPNOTSUPP;
+
+	if (!(le32_to_cpu(feat_entry->flags) & CXL_FEATURE_F_CHANGEABLE))
+		return -EOPNOTSUPP;
+
+	num_media_frus = (le16_to_cpu(feat_entry->get_feat_size) -
+			  sizeof(struct cxl_ecs_rd_attrbs)) /
+			 sizeof(struct cxl_ecs_fru_rd_attrbs);
+	if (!num_media_frus)
+		return -EOPNOTSUPP;
+
+	cxl_ecs_ctx =
+		devm_kzalloc(&cxlmd->dev, sizeof(*cxl_ecs_ctx), GFP_KERNEL);
+	if (!cxl_ecs_ctx)
+		return -ENOMEM;
+
+	*cxl_ecs_ctx = (struct cxl_ecs_context){
+		.get_feat_size = le16_to_cpu(feat_entry->get_feat_size),
+		.set_feat_size = le16_to_cpu(feat_entry->set_feat_size),
+		.get_version = feat_entry->get_feat_ver,
+		.set_version = feat_entry->set_feat_ver,
+		.effects = le16_to_cpu(feat_entry->effects),
+		.num_media_frus = num_media_frus,
+		.cxlmd = cxlmd,
+	};
+
+	ras_feature->ft_type = RAS_FEAT_ECS;
+	ras_feature->ecs_ops = &cxl_ecs_ops;
+	ras_feature->ctx = cxl_ecs_ctx;
+	ras_feature->ecs_info.num_media_frus = num_media_frus;
+
+	return 0;
+}
+
 int devm_cxl_memdev_edac_register(struct cxl_memdev *cxlmd)
 {
 	struct edac_dev_feature ras_features[CXL_NR_EDAC_DEV_FEATURES];
@@ -473,6 +821,15 @@ int devm_cxl_memdev_edac_register(struct cxl_memdev *cxlmd)
 
 	if (IS_ENABLED(CONFIG_CXL_EDAC_SCRUB)) {
 		rc = cxl_memdev_scrub_init(cxlmd, &ras_features[num_ras_features], 0);
+		if (rc < 0 && rc != -EOPNOTSUPP)
+			return rc;
+
+		if (rc != -EOPNOTSUPP)
+			num_ras_features++;
+	}
+
+	if (IS_ENABLED(CONFIG_CXL_EDAC_ECS)) {
+		rc = cxl_memdev_ecs_init(cxlmd, &ras_features[num_ras_features]);
 		if (rc < 0 && rc != -EOPNOTSUPP)
 			return rc;
 

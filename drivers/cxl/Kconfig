@@ -147,6 +147,23 @@ config CXL_EDAC_SCRUB
 	  (e.g. scrub rates for the patrol scrub feature).
 	  Otherwise say 'n'.
 
+config CXL_EDAC_ECS
+	bool "Enable CXL Error Check Scrub (Repair)"
+	depends on CXL_EDAC_MEM_FEATURES
+	depends on EDAC_ECS
+	help
+	  The CXL EDAC ECS control is optional and allows host to
+	  control the ECS feature configurations of CXL memory expander
+	  devices.
+
+	  When enabled 'cxl_mem' EDAC devices are published with memory
+	  ECS control attributes as described by
+	  Documentation/ABI/testing/sysfs-edac-ecs.
+
+	  Say 'y' if you have an expert need to change default settings
+	  of a memory ECS feature established by the platform/device.
+	  Otherwise say 'n'.
+
 config CXL_PORT
 	default CXL_BUS
 	tristate
