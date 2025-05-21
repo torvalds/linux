@@ -7192,8 +7192,6 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 	struct btrfs_path *path;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_key key;
-	struct btrfs_key found_key;
-	struct btrfs_root *log;
 	struct btrfs_fs_info *fs_info = log_root_tree->fs_info;
 	struct walk_control wc = {
 		.process_func = process_one_buffer,
@@ -7227,6 +7225,9 @@ again:
 	key.offset = (u64)-1;
 
 	while (1) {
+		struct btrfs_root *log;
+		struct btrfs_key found_key;
+
 		ret = btrfs_search_slot(NULL, log_root_tree, &key, path, 0, 0);
 
 		if (ret < 0) {
@@ -7255,6 +7256,7 @@ again:
 						   true);
 		if (IS_ERR(wc.replay_dest)) {
 			ret = PTR_ERR(wc.replay_dest);
+			wc.replay_dest = NULL;
 			if (ret != -ENOENT) {
 				btrfs_put_root(log);
 				btrfs_abort_transaction(trans, ret);
@@ -7273,35 +7275,35 @@ again:
 			 * each subsequent pass.
 			 */
 			ret = btrfs_pin_extent_for_log_replay(trans, log->node);
-			btrfs_put_root(log);
-
-			if (!ret)
-				goto next;
-			btrfs_abort_transaction(trans, ret);
-			goto error;
+			if (ret) {
+				btrfs_put_root(log);
+				btrfs_abort_transaction(trans, ret);
+				goto error;
+			}
+			goto next;
 		}
 
 		wc.replay_dest->log_root = log;
 		ret = btrfs_record_root_in_trans(trans, wc.replay_dest);
 		if (ret) {
-			/* The loop needs to continue due to the root refs */
 			btrfs_abort_transaction(trans, ret);
-		} else {
-			ret = walk_log_tree(trans, log, &wc);
-			if (ret)
-				btrfs_abort_transaction(trans, ret);
+			goto next;
 		}
 
-		if (!ret && wc.stage == LOG_WALK_REPLAY_ALL) {
-			ret = fixup_inode_link_counts(trans, wc.replay_dest,
-						      path);
-			if (ret)
-				btrfs_abort_transaction(trans, ret);
+		ret = walk_log_tree(trans, log, &wc);
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto next;
 		}
 
-		if (!ret && wc.stage == LOG_WALK_REPLAY_ALL) {
+		if (wc.stage == LOG_WALK_REPLAY_ALL) {
 			struct btrfs_root *root = wc.replay_dest;
 
+			ret = fixup_inode_link_counts(trans, wc.replay_dest, path);
+			if (ret) {
+				btrfs_abort_transaction(trans, ret);
+				goto next;
+			}
 			/*
 			 * We have just replayed everything, and the highest
 			 * objectid of fs roots probably has changed in case
@@ -7311,17 +7313,20 @@ again:
 			 * could only happen during mount.
 			 */
 			ret = btrfs_init_root_free_objectid(root);
-			if (ret)
+			if (ret) {
 				btrfs_abort_transaction(trans, ret);
+				goto next;
+			}
 		}
-
-		wc.replay_dest->log_root = NULL;
-		btrfs_put_root(wc.replay_dest);
+next:
+		if (wc.replay_dest) {
+			wc.replay_dest->log_root = NULL;
+			btrfs_put_root(wc.replay_dest);
+		}
 		btrfs_put_root(log);
 
 		if (ret)
 			goto error;
-next:
 		if (found_key.offset == 0)
 			break;
 		key.offset = found_key.offset - 1;
