@@ -1228,9 +1228,9 @@ static int kvm_translate_vncr(struct kvm_vcpu *vcpu)
 		vt->cpu = -1;
 
 		kvm_make_request(KVM_REQ_MAP_L1_VNCR_EL2, vcpu);
+		kvm_release_faultin_page(vcpu->kvm, page, false, vt->wr.pw);
 	}
 
-	kvm_release_faultin_page(vcpu->kvm, page, false, vt->wr.pw);
 	if (vt->wr.pw)
 		mark_page_dirty(vcpu->kvm, gfn);
 
