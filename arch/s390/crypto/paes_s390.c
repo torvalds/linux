@@ -199,8 +199,11 @@ static inline int convert_key(const u8 *key, unsigned int keylen,
 
 	pk->len = sizeof(pk->protkey);
 
-	/* try three times in case of busy card */
-	for (rc = -EIO, i = 0; rc && i < 3; i++) {
+	/*
+	 * In case of a busy card retry with increasing delay
+	 * of 200, 400, 800 and 1600 ms - in total 3 s.
+	 */
+	for (rc = -EIO, i = 0; rc && i < 5; i++) {
 		if (rc == -EBUSY && msleep_interruptible((1 << i) * 100)) {
 			rc = -EINTR;
 			goto out;
