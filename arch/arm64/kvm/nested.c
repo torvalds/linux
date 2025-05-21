@@ -1044,6 +1044,8 @@ void kvm_handle_s1e2_tlbi(struct kvm_vcpu *vcpu, u32 inst, u64 val)
 	struct s1e2_tlbi_scope scope = {};
 
 	compute_s1_tlbi_range(vcpu, inst, val, &scope);
+
+	guard(write_lock)(&vcpu->kvm->mmu_lock);
 	invalidate_vncr_va(vcpu->kvm, &scope);
 }
 
