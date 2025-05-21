@@ -251,25 +251,25 @@ static void txgbe_init_type_code(struct wx *wx)
 
 	switch (device_type) {
 	case TXGBE_ID_SFP:
-		wx->media_type = sp_media_fiber;
+		wx->media_type = wx_media_fiber;
 		break;
 	case TXGBE_ID_XAUI:
 	case TXGBE_ID_SGMII:
-		wx->media_type = sp_media_copper;
+		wx->media_type = wx_media_copper;
 		break;
 	case TXGBE_ID_KR_KX_KX4:
 	case TXGBE_ID_MAC_XAUI:
 	case TXGBE_ID_MAC_SGMII:
-		wx->media_type = sp_media_backplane;
+		wx->media_type = wx_media_backplane;
 		break;
 	case TXGBE_ID_SFI_XAUI:
 		if (wx->bus.func == 0)
-			wx->media_type = sp_media_fiber;
+			wx->media_type = wx_media_fiber;
 		else
-			wx->media_type = sp_media_copper;
+			wx->media_type = wx_media_copper;
 		break;
 	default:
-		wx->media_type = sp_media_unknown;
+		wx->media_type = wx_media_unknown;
 		break;
 	}
 }
@@ -283,13 +283,13 @@ static int txgbe_sw_init(struct wx *wx)
 	u16 msix_count = 0;
 	int err;
 
-	wx->mac.num_rar_entries = TXGBE_SP_RAR_ENTRIES;
-	wx->mac.max_tx_queues = TXGBE_SP_MAX_TX_QUEUES;
-	wx->mac.max_rx_queues = TXGBE_SP_MAX_RX_QUEUES;
-	wx->mac.mcft_size = TXGBE_SP_MC_TBL_SIZE;
-	wx->mac.vft_size = TXGBE_SP_VFT_TBL_SIZE;
-	wx->mac.rx_pb_size = TXGBE_SP_RX_PB_SIZE;
-	wx->mac.tx_pb_size = TXGBE_SP_TDB_PB_SZ;
+	wx->mac.num_rar_entries = TXGBE_RAR_ENTRIES;
+	wx->mac.max_tx_queues = TXGBE_MAX_TXQ;
+	wx->mac.max_rx_queues = TXGBE_MAX_RXQ;
+	wx->mac.mcft_size = TXGBE_MC_TBL_SIZE;
+	wx->mac.vft_size = TXGBE_VFT_TBL_SIZE;
+	wx->mac.rx_pb_size = TXGBE_RX_PB_SIZE;
+	wx->mac.tx_pb_size = TXGBE_TDB_PB_SZ;
 
 	/* PCI config space info */
 	err = wx_sw_init(wx);

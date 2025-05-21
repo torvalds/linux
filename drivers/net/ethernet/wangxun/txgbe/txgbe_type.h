@@ -173,13 +173,13 @@
 #define TXGBE_MAX_RX_QUEUES   (TXGBE_MAX_FDIR_INDICES + 1)
 #define TXGBE_MAX_TX_QUEUES   (TXGBE_MAX_FDIR_INDICES + 1)
 
-#define TXGBE_SP_MAX_TX_QUEUES  128
-#define TXGBE_SP_MAX_RX_QUEUES  128
-#define TXGBE_SP_RAR_ENTRIES    128
-#define TXGBE_SP_MC_TBL_SIZE    128
-#define TXGBE_SP_VFT_TBL_SIZE   128
-#define TXGBE_SP_RX_PB_SIZE     512
-#define TXGBE_SP_TDB_PB_SZ      (160 * 1024) /* 160KB Packet Buffer */
+#define TXGBE_MAX_TXQ        128
+#define TXGBE_MAX_RXQ        128
+#define TXGBE_RAR_ENTRIES    128
+#define TXGBE_MC_TBL_SIZE    128
+#define TXGBE_VFT_TBL_SIZE   128
+#define TXGBE_RX_PB_SIZE     512
+#define TXGBE_TDB_PB_SZ      (160 * 1024) /* 160KB Packet Buffer */
 
 #define TXGBE_MAX_VFS_DRV_LIMIT                 63
 

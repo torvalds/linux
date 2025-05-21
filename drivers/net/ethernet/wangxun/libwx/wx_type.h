@@ -840,11 +840,11 @@ enum wx_mac_type {
 	wx_mac_aml,
 };
 
-enum sp_media_type {
-	sp_media_unknown = 0,
-	sp_media_fiber,
-	sp_media_copper,
-	sp_media_backplane
+enum wx_media_type {
+	wx_media_unknown = 0,
+	wx_media_fiber,
+	wx_media_copper,
+	wx_media_backplane
 };
 
 enum em_mac_type {
@@ -1211,7 +1211,7 @@ struct wx {
 	struct wx_mbx_info mbx;
 	struct wx_mac_info mac;
 	enum em_mac_type mac_type;
-	enum sp_media_type media_type;
+	enum wx_media_type media_type;
 	struct wx_eeprom_info eeprom;
 	struct wx_addr_filter_info addr_ctrl;
 	struct wx_fc_info fc;
