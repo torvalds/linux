@@ -250,7 +250,10 @@ static int mctp_rtm_getneigh(struct sk_buff *skb, struct netlink_callback *cb)
 		int idx;
 	} *cbctx = (void *)cb->ctx;
 
-	ndmsg = nlmsg_data(cb->nlh);
+	ndmsg = nlmsg_payload(cb->nlh, sizeof(*ndmsg));
+	if (!ndmsg)
+		return -EINVAL;
+
 	req_ifindex = ndmsg->ndm_ifindex;
 
 	idx = 0;
