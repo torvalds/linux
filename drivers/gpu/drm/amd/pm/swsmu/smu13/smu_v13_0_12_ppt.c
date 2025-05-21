@@ -378,7 +378,7 @@ ssize_t smu_v13_0_12_get_xcp_metrics(struct smu_context *smu, struct amdgpu_xcp 
 	return sizeof(*xcp_metrics);
 }
 
-ssize_t smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table)
+ssize_t smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table, void *smu_metrics)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v1_8 *gpu_metrics =
@@ -390,8 +390,7 @@ ssize_t smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table)
 	struct amdgpu_xcp *xcp;
 	u32 inst_mask;
 
-	metrics = kzalloc(sizeof(MetricsTable_t), GFP_KERNEL);
-	memcpy(metrics, smu_table->metrics_table, sizeof(MetricsTable_t));
+	metrics = (MetricsTable_t *)smu_metrics;
 
 	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 8);
 
@@ -533,7 +532,6 @@ ssize_t smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table)
 	gpu_metrics->firmware_timestamp = metrics->Timestamp;
 
 	*table = (void *)gpu_metrics;
-	kfree(metrics);
 
 	return sizeof(*gpu_metrics);
 }
