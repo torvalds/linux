@@ -271,6 +271,10 @@ class KernelFiles():
                                       no_doc_sections)
 
             msg = ""
+            if fname not in self.results:
+                self.config.log.warning("No kernel-doc for file %s", fname)
+                continue
+
             for name, arg in self.results[fname]:
                 m = self.out_msg(fname, name, arg)
 
