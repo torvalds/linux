@@ -47,6 +47,9 @@
  * @depth: endpoint port depth
  * @scrub_cycle: current scrub cycle set for this device
  * @scrub_region_id: id number of a backed region (if any) for which current scrub cycle set
+ * @err_rec_array: List of xarrarys to store the memdev error records to
+ *		   check attributes for a memory repair operation are from
+ *		   current boot.
  */
 struct cxl_memdev {
 	struct device dev;
@@ -60,6 +63,7 @@ struct cxl_memdev {
 	int depth;
 	u8 scrub_cycle;
 	int scrub_region_id;
+	void *err_rec_array;
 };
 
 static inline struct cxl_memdev *to_cxl_memdev(struct device *dev)
@@ -861,11 +865,22 @@ int cxl_clear_poison(struct cxl_memdev *cxlmd, u64 dpa);
 #ifdef CONFIG_CXL_EDAC_MEM_FEATURES
 int devm_cxl_memdev_edac_register(struct cxl_memdev *cxlmd);
 int devm_cxl_region_edac_register(struct cxl_region *cxlr);
+int cxl_store_rec_gen_media(struct cxl_memdev *cxlmd, union cxl_event *evt);
+int cxl_store_rec_dram(struct cxl_memdev *cxlmd, union cxl_event *evt);
+void devm_cxl_memdev_edac_release(struct cxl_memdev *cxlmd);
 #else
 static inline int devm_cxl_memdev_edac_register(struct cxl_memdev *cxlmd)
 { return 0; }
 static inline int devm_cxl_region_edac_register(struct cxl_region *cxlr)
 { return 0; }
+static inline int cxl_store_rec_gen_media(struct cxl_memdev *cxlmd,
+					  union cxl_event *evt)
+{ return 0; }
+static inline int cxl_store_rec_dram(struct cxl_memdev *cxlmd,
+				     union cxl_event *evt)
+{ return 0; }
+static inline void devm_cxl_memdev_edac_release(struct cxl_memdev *cxlmd)
+{ return; }
 #endif
 
 #ifdef CONFIG_CXL_SUSPEND

@@ -14,10 +14,12 @@
 #include <linux/cleanup.h>
 #include <linux/edac.h>
 #include <linux/limits.h>
+#include <linux/xarray.h>
 #include <cxl/features.h>
 #include <cxl.h>
 #include <cxlmem.h>
 #include "core.h"
+#include "trace.h"
 
 #define CXL_NR_EDAC_DEV_FEATURES 2
 
@@ -862,10 +864,285 @@ static int cxl_perform_maintenance(struct cxl_mailbox *cxl_mbox, u8 class,
 	return cxl_internal_send_cmd(cxl_mbox, &mbox_cmd);
 }
 
+/*
+ * Support for finding a memory operation attributes
+ * are from the current boot or not.
+ */
+
+struct cxl_mem_err_rec {
+	struct xarray rec_gen_media;
+	struct xarray rec_dram;
+};
+
+enum cxl_mem_repair_type {
+	CXL_PPR,
+	CXL_CACHELINE_SPARING,
+	CXL_ROW_SPARING,
+	CXL_BANK_SPARING,
+	CXL_RANK_SPARING,
+	CXL_REPAIR_MAX,
+};
+
+/**
+ * struct cxl_mem_repair_attrbs - CXL memory repair attributes
+ * @dpa: DPA of memory to repair
+ * @nibble_mask: nibble mask, identifies one or more nibbles on the memory bus
+ * @row: row of memory to repair
+ * @column: column of memory to repair
+ * @channel: channel of memory to repair
+ * @sub_channel: sub channel of memory to repair
+ * @rank: rank of memory to repair
+ * @bank_group: bank group of memory to repair
+ * @bank: bank of memory to repair
+ * @repair_type: repair type. For eg. PPR, memory sparing etc.
+ */
+struct cxl_mem_repair_attrbs {
+	u64 dpa;
+	u32 nibble_mask;
+	u32 row;
+	u16 column;
+	u8 channel;
+	u8 sub_channel;
+	u8 rank;
+	u8 bank_group;
+	u8 bank;
+	enum cxl_mem_repair_type repair_type;
+};
+
+static struct cxl_event_gen_media *
+cxl_find_rec_gen_media(struct cxl_memdev *cxlmd,
+		       struct cxl_mem_repair_attrbs *attrbs)
+{
+	struct cxl_mem_err_rec *array_rec = cxlmd->err_rec_array;
+	struct cxl_event_gen_media *rec;
+
+	if (!array_rec)
+		return NULL;
+
+	rec = xa_load(&array_rec->rec_gen_media, attrbs->dpa);
+	if (!rec)
+		return NULL;
+
+	if (attrbs->repair_type == CXL_PPR)
+		return rec;
+
+	return NULL;
+}
+
+static struct cxl_event_dram *
+cxl_find_rec_dram(struct cxl_memdev *cxlmd,
+		  struct cxl_mem_repair_attrbs *attrbs)
+{
+	struct cxl_mem_err_rec *array_rec = cxlmd->err_rec_array;
+	struct cxl_event_dram *rec;
+	u16 validity_flags;
+
+	if (!array_rec)
+		return NULL;
+
+	rec = xa_load(&array_rec->rec_dram, attrbs->dpa);
+	if (!rec)
+		return NULL;
+
+	validity_flags = get_unaligned_le16(rec->media_hdr.validity_flags);
+	if (!(validity_flags & CXL_DER_VALID_CHANNEL) ||
+	    !(validity_flags & CXL_DER_VALID_RANK))
+		return NULL;
+
+	switch (attrbs->repair_type) {
+	case CXL_PPR:
+		if (!(validity_flags & CXL_DER_VALID_NIBBLE) ||
+		    get_unaligned_le24(rec->nibble_mask) == attrbs->nibble_mask)
+			return rec;
+		break;
+	case CXL_CACHELINE_SPARING:
+		if (!(validity_flags & CXL_DER_VALID_BANK_GROUP) ||
+		    !(validity_flags & CXL_DER_VALID_BANK) ||
+		    !(validity_flags & CXL_DER_VALID_ROW) ||
+		    !(validity_flags & CXL_DER_VALID_COLUMN))
+			return NULL;
+
+		if (rec->media_hdr.channel == attrbs->channel &&
+		    rec->media_hdr.rank == attrbs->rank &&
+		    rec->bank_group == attrbs->bank_group &&
+		    rec->bank == attrbs->bank &&
+		    get_unaligned_le24(rec->row) == attrbs->row &&
+		    get_unaligned_le16(rec->column) == attrbs->column &&
+		    (!(validity_flags & CXL_DER_VALID_NIBBLE) ||
+		     get_unaligned_le24(rec->nibble_mask) ==
+			     attrbs->nibble_mask) &&
+		    (!(validity_flags & CXL_DER_VALID_SUB_CHANNEL) ||
+		     rec->sub_channel == attrbs->sub_channel))
+			return rec;
+		break;
+	case CXL_ROW_SPARING:
+		if (!(validity_flags & CXL_DER_VALID_BANK_GROUP) ||
+		    !(validity_flags & CXL_DER_VALID_BANK) ||
+		    !(validity_flags & CXL_DER_VALID_ROW))
+			return NULL;
+
+		if (rec->media_hdr.channel == attrbs->channel &&
+		    rec->media_hdr.rank == attrbs->rank &&
+		    rec->bank_group == attrbs->bank_group &&
+		    rec->bank == attrbs->bank &&
+		    get_unaligned_le24(rec->row) == attrbs->row &&
+		    (!(validity_flags & CXL_DER_VALID_NIBBLE) ||
+		     get_unaligned_le24(rec->nibble_mask) ==
+			     attrbs->nibble_mask))
+			return rec;
+		break;
+	case CXL_BANK_SPARING:
+		if (!(validity_flags & CXL_DER_VALID_BANK_GROUP) ||
+		    !(validity_flags & CXL_DER_VALID_BANK))
+			return NULL;
+
+		if (rec->media_hdr.channel == attrbs->channel &&
+		    rec->media_hdr.rank == attrbs->rank &&
+		    rec->bank_group == attrbs->bank_group &&
+		    rec->bank == attrbs->bank &&
+		    (!(validity_flags & CXL_DER_VALID_NIBBLE) ||
+		     get_unaligned_le24(rec->nibble_mask) ==
+			     attrbs->nibble_mask))
+			return rec;
+		break;
+	case CXL_RANK_SPARING:
+		if (rec->media_hdr.channel == attrbs->channel &&
+		    rec->media_hdr.rank == attrbs->rank &&
+		    (!(validity_flags & CXL_DER_VALID_NIBBLE) ||
+		     get_unaligned_le24(rec->nibble_mask) ==
+			     attrbs->nibble_mask))
+			return rec;
+		break;
+	default:
+		return NULL;
+	}
+
+	return NULL;
+}
+
+#define CXL_MAX_STORAGE_DAYS 10
+#define CXL_MAX_STORAGE_TIME_SECS (CXL_MAX_STORAGE_DAYS * 24 * 60 * 60)
+
+static void cxl_del_expired_gmedia_recs(struct xarray *rec_xarray,
+					struct cxl_event_gen_media *cur_rec)
+{
+	u64 cur_ts = le64_to_cpu(cur_rec->media_hdr.hdr.timestamp);
+	struct cxl_event_gen_media *rec;
+	unsigned long index;
+	u64 delta_ts_secs;
+
+	xa_for_each(rec_xarray, index, rec) {
+		delta_ts_secs = (cur_ts -
+			le64_to_cpu(rec->media_hdr.hdr.timestamp)) / 1000000000ULL;
+		if (delta_ts_secs >= CXL_MAX_STORAGE_TIME_SECS) {
+			xa_erase(rec_xarray, index);
+			kfree(rec);
+		}
+	}
+}
+
+static void cxl_del_expired_dram_recs(struct xarray *rec_xarray,
+				      struct cxl_event_dram *cur_rec)
+{
+	u64 cur_ts = le64_to_cpu(cur_rec->media_hdr.hdr.timestamp);
+	struct cxl_event_dram *rec;
+	unsigned long index;
+	u64 delta_secs;
+
+	xa_for_each(rec_xarray, index, rec) {
+		delta_secs = (cur_ts -
+			le64_to_cpu(rec->media_hdr.hdr.timestamp)) / 1000000000ULL;
+		if (delta_secs >= CXL_MAX_STORAGE_TIME_SECS) {
+			xa_erase(rec_xarray, index);
+			kfree(rec);
+		}
+	}
+}
+
+#define CXL_MAX_REC_STORAGE_COUNT 200
+
+static void cxl_del_overflow_old_recs(struct xarray *rec_xarray)
+{
+	void *err_rec;
+	unsigned long index, count = 0;
+
+	xa_for_each(rec_xarray, index, err_rec)
+		count++;
+
+	if (count <= CXL_MAX_REC_STORAGE_COUNT)
+		return;
+
+	count -= CXL_MAX_REC_STORAGE_COUNT;
+	xa_for_each(rec_xarray, index, err_rec) {
+		xa_erase(rec_xarray, index);
+		kfree(err_rec);
+		count--;
+		if (!count)
+			break;
+	}
+}
+
+int cxl_store_rec_gen_media(struct cxl_memdev *cxlmd, union cxl_event *evt)
+{
+	struct cxl_mem_err_rec *array_rec = cxlmd->err_rec_array;
+	struct cxl_event_gen_media *rec;
+	void *old_rec;
+
+	if (!IS_ENABLED(CONFIG_CXL_EDAC_MEM_REPAIR) || !array_rec)
+		return 0;
+
+	rec = kmemdup(&evt->gen_media, sizeof(*rec), GFP_KERNEL);
+	if (!rec)
+		return -ENOMEM;
+
+	old_rec = xa_store(&array_rec->rec_gen_media,
+			   le64_to_cpu(rec->media_hdr.phys_addr), rec,
+			   GFP_KERNEL);
+	if (xa_is_err(old_rec))
+		return xa_err(old_rec);
+
+	kfree(old_rec);
+
+	cxl_del_expired_gmedia_recs(&array_rec->rec_gen_media, rec);
+	cxl_del_overflow_old_recs(&array_rec->rec_gen_media);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_store_rec_gen_media, "CXL");
+
+int cxl_store_rec_dram(struct cxl_memdev *cxlmd, union cxl_event *evt)
+{
+	struct cxl_mem_err_rec *array_rec = cxlmd->err_rec_array;
+	struct cxl_event_dram *rec;
+	void *old_rec;
+
+	if (!IS_ENABLED(CONFIG_CXL_EDAC_MEM_REPAIR) || !array_rec)
+		return 0;
+
+	rec = kmemdup(&evt->dram, sizeof(*rec), GFP_KERNEL);
+	if (!rec)
+		return -ENOMEM;
+
+	old_rec = xa_store(&array_rec->rec_dram,
+			   le64_to_cpu(rec->media_hdr.phys_addr), rec,
+			   GFP_KERNEL);
+	if (xa_is_err(old_rec))
+		return xa_err(old_rec);
+
+	kfree(old_rec);
+
+	cxl_del_expired_dram_recs(&array_rec->rec_dram, rec);
+	cxl_del_overflow_old_recs(&array_rec->rec_dram);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_store_rec_dram, "CXL");
+
 int devm_cxl_memdev_edac_register(struct cxl_memdev *cxlmd)
 {
 	struct edac_dev_feature ras_features[CXL_NR_EDAC_DEV_FEATURES];
 	int num_ras_features = 0;
+	u8 repair_inst = 0;
 	int rc;
 
 	if (IS_ENABLED(CONFIG_CXL_EDAC_SCRUB)) {
@@ -884,6 +1161,20 @@ int devm_cxl_memdev_edac_register(struct cxl_memdev *cxlmd)
 
 		if (rc != -EOPNOTSUPP)
 			num_ras_features++;
+	}
+
+	if (IS_ENABLED(CONFIG_CXL_EDAC_MEM_REPAIR)) {
+		if (repair_inst) {
+			struct cxl_mem_err_rec *array_rec =
+				devm_kzalloc(&cxlmd->dev, sizeof(*array_rec),
+					     GFP_KERNEL);
+			if (!array_rec)
+				return -ENOMEM;
+
+			xa_init(&array_rec->rec_gen_media);
+			xa_init(&array_rec->rec_dram);
+			cxlmd->err_rec_array = array_rec;
+		}
 	}
 
 	if (!num_ras_features)
@@ -923,3 +1214,23 @@ int devm_cxl_region_edac_register(struct cxl_region *cxlr)
 				 num_ras_features, ras_features);
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_region_edac_register, "CXL");
+
+void devm_cxl_memdev_edac_release(struct cxl_memdev *cxlmd)
+{
+	struct cxl_mem_err_rec *array_rec = cxlmd->err_rec_array;
+	struct cxl_event_gen_media *rec_gen_media;
+	struct cxl_event_dram *rec_dram;
+	unsigned long index;
+
+	if (!IS_ENABLED(CONFIG_CXL_EDAC_MEM_REPAIR) || !array_rec)
+		return;
+
+	xa_for_each(&array_rec->rec_dram, index, rec_dram)
+		kfree(rec_dram);
+	xa_destroy(&array_rec->rec_dram);
+
+	xa_for_each(&array_rec->rec_gen_media, index, rec_gen_media)
+		kfree(rec_gen_media);
+	xa_destroy(&array_rec->rec_gen_media);
+}
+EXPORT_SYMBOL_NS_GPL(devm_cxl_memdev_edac_release, "CXL");
