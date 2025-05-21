@@ -185,6 +185,29 @@ struct acpm_match_data {
 #define handle_to_acpm_info(h) container_of(h, struct acpm_info, handle)
 
 /**
+ * acpm_get_saved_rx() - get the response if it was already saved.
+ * @achan:	ACPM channel info.
+ * @xfer:	reference to the transfer to get response for.
+ * @tx_seqnum:	xfer TX sequence number.
+ */
+static void acpm_get_saved_rx(struct acpm_chan *achan,
+			      const struct acpm_xfer *xfer, u32 tx_seqnum)
+{
+	const struct acpm_rx_data *rx_data = &achan->rx_data[tx_seqnum - 1];
+	u32 rx_seqnum;
+
+	if (!rx_data->response)
+		return;
+
+	rx_seqnum = FIELD_GET(ACPM_PROTOCOL_SEQNUM, rx_data->cmd[0]);
+
+	if (rx_seqnum == tx_seqnum) {
+		memcpy(xfer->rxd, rx_data->cmd, xfer->rxlen);
+		clear_bit(rx_seqnum - 1, achan->bitmap_seqnum);
+	}
+}
+
+/**
  * acpm_get_rx() - get response from RX queue.
  * @achan:	ACPM channel info.
  * @xfer:	reference to the transfer to get response for.
@@ -204,14 +227,15 @@ static int acpm_get_rx(struct acpm_chan *achan, const struct acpm_xfer *xfer)
 	rx_front = readl(achan->rx.front);
 	i = readl(achan->rx.rear);
 
-	/* Bail out if RX is empty. */
-	if (i == rx_front)
+	tx_seqnum = FIELD_GET(ACPM_PROTOCOL_SEQNUM, xfer->txd[0]);
+
+	if (i == rx_front) {
+		acpm_get_saved_rx(achan, xfer, tx_seqnum);
 		return 0;
+	}
 
 	base = achan->rx.base;
 	mlen = achan->mlen;
-
-	tx_seqnum = FIELD_GET(ACPM_PROTOCOL_SEQNUM, xfer->txd[0]);
 
 	/* Drain RX queue. */
 	do {
@@ -259,16 +283,8 @@ static int acpm_get_rx(struct acpm_chan *achan, const struct acpm_xfer *xfer)
 	 * If the response was not in this iteration of the queue, check if the
 	 * RX data was previously saved.
 	 */
-	rx_data = &achan->rx_data[tx_seqnum - 1];
-	if (!rx_set && rx_data->response) {
-		rx_seqnum = FIELD_GET(ACPM_PROTOCOL_SEQNUM,
-				      rx_data->cmd[0]);
-
-		if (rx_seqnum == tx_seqnum) {
-			memcpy(xfer->rxd, rx_data->cmd, xfer->rxlen);
-			clear_bit(rx_seqnum - 1, achan->bitmap_seqnum);
-		}
-	}
+	if (!rx_set)
+		acpm_get_saved_rx(achan, xfer, tx_seqnum);
 
 	return 0;
 }
