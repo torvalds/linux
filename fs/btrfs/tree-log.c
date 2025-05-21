@@ -7256,6 +7256,11 @@ again:
 						   true);
 		if (IS_ERR(wc.replay_dest)) {
 			ret = PTR_ERR(wc.replay_dest);
+			if (ret != -ENOENT) {
+				btrfs_put_root(log);
+				btrfs_abort_transaction(trans, ret);
+				goto error;
+			}
 
 			/*
 			 * We didn't find the subvol, likely because it was
@@ -7268,8 +7273,7 @@ again:
 			 * block from being modified, and we'll just bail for
 			 * each subsequent pass.
 			 */
-			if (ret == -ENOENT)
-				ret = btrfs_pin_extent_for_log_replay(trans, log->node);
+			ret = btrfs_pin_extent_for_log_replay(trans, log->node);
 			btrfs_put_root(log);
 
 			if (!ret)
