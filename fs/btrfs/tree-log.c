@@ -7302,8 +7302,6 @@ again:
 		if (!ret && wc.stage == LOG_WALK_REPLAY_ALL) {
 			struct btrfs_root *root = wc.replay_dest;
 
-			btrfs_release_path(path);
-
 			/*
 			 * We have just replayed everything, and the highest
 			 * objectid of fs roots probably has changed in case
