@@ -9697,6 +9697,7 @@ int netif_set_mac_address(struct net_device *dev, struct sockaddr_storage *ss,
 
 DECLARE_RWSEM(dev_addr_sem);
 
+/* "sa" is a true struct sockaddr with limited "sa_data" member. */
 int dev_get_mac_address(struct sockaddr *sa, struct net *net, char *dev_name)
 {
 	size_t size = sizeof(sa->sa_data_min);

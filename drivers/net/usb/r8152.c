@@ -8432,7 +8432,7 @@ static int rtl8152_post_reset(struct usb_interface *intf)
 
 	/* reset the MAC address in case of policy change */
 	if (determine_ethernet_addr(tp, &ss) >= 0)
-		dev_set_mac_address(tp->netdev, (struct sockaddr *)&ss, NULL);
+		dev_set_mac_address(tp->netdev, &ss, NULL);
 
 	netdev = tp->netdev;
 	if (!netif_running(netdev))
