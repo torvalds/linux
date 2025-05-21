@@ -401,6 +401,7 @@ $(BASH_PATH)/.installed: $(BASH_TAR)
 	flock -s $<.lock tar -C $(BUILD_PATH) -xf $<
 	touch $@
 
+$(BASH_PATH)/bash: export CFLAGS_FOR_BUILD += -std=gnu17
 $(BASH_PATH)/bash: | $(BASH_PATH)/.installed $(USERSPACE_DEPS)
 	cd $(BASH_PATH) && ./configure --prefix=/ $(CROSS_COMPILE_FLAG) --without-bash-malloc --disable-debugger --disable-help-builtin --disable-history --disable-progcomp --disable-readline --disable-mem-scramble
 	$(MAKE) -C $(BASH_PATH)
