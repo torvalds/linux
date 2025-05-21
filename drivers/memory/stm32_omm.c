@@ -164,7 +164,7 @@ static int stm32_omm_disable_child(struct device *dev)
 	u8 i;
 
 	ret = stm32_omm_toggle_child_clock(dev, true);
-	if (!ret)
+	if (ret)
 		return ret;
 
 	for (i = 0; i < omm->nb_child; i++) {
@@ -173,7 +173,7 @@ static int stm32_omm_disable_child(struct device *dev)
 		ret = reset_control_acquire(reset);
 		if (ret) {
 			stm32_omm_toggle_child_clock(dev, false);
-			dev_err(dev, "Can not acquire resset %d\n", ret);
+			dev_err(dev, "Can not acquire reset %d\n", ret);
 			return ret;
 		}
 
@@ -222,6 +222,7 @@ static int stm32_omm_configure(struct device *dev)
 		clk_rate = clk_get_rate(omm->clk_bulk[i].clk);
 		if (!clk_rate) {
 			dev_err(dev, "Invalid clock rate\n");
+			ret = -EINVAL;
 			goto error;
 		}
 
@@ -230,8 +231,10 @@ static int stm32_omm_configure(struct device *dev)
 	}
 
 	rstc = devm_reset_control_get_exclusive(dev, "omm");
-	if (IS_ERR(rstc))
-		return dev_err_probe(dev, PTR_ERR(rstc), "reset get failed\n");
+	if (IS_ERR(rstc)) {
+		ret = dev_err_probe(dev, PTR_ERR(rstc), "reset get failed\n");
+		goto error;
+	}
 
 	reset_control_assert(rstc);
 	udelay(2);
@@ -317,8 +320,8 @@ static int stm32_omm_probe(struct platform_device *pdev)
 		return PTR_ERR(omm->io_base);
 
 	omm->mm_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "memory_map");
-	if (IS_ERR(omm->mm_res))
-		return PTR_ERR(omm->mm_res);
+	if (!omm->mm_res)
+		return -ENODEV;
 
 	/* check child's access */
 	for_each_child_of_node_scoped(dev->of_node, child) {
