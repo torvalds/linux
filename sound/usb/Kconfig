@@ -178,7 +178,8 @@ config SND_BCD2000
 
 config SND_USB_AUDIO_QMI
 	tristate "Qualcomm Audio Offload driver"
-	depends on QCOM_QMI_HELPERS && SND_USB_AUDIO && USB_XHCI_SIDEBAND && SND_SOC_USB
+	depends on QCOM_QMI_HELPERS && SND_USB_AUDIO && SND_SOC_USB
+	depends on USB_XHCI_HCD && USB_XHCI_SIDEBAND
 	help
 	  Say Y here to enable the Qualcomm USB audio offloading feature.
 
