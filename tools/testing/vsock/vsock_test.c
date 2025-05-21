@@ -21,7 +21,6 @@
 #include <poll.h>
 #include <signal.h>
 #include <sys/ioctl.h>
-#include <linux/sockios.h>
 #include <linux/time64.h>
 
 #include "vsock_test_zerocopy.h"
@@ -1280,7 +1279,7 @@ static void test_unsent_bytes_server(const struct test_opts *opts, int type)
 static void test_unsent_bytes_client(const struct test_opts *opts, int type)
 {
 	unsigned char buf[MSG_BUF_IOCTL_LEN];
-	int ret, fd, sock_bytes_unsent;
+	int fd;
 
 	fd = vsock_connect(opts->peer_cid, opts->peer_port, type);
 	if (fd < 0) {
@@ -1297,22 +1296,12 @@ static void test_unsent_bytes_client(const struct test_opts *opts, int type)
 	/* SIOCOUTQ isn't guaranteed to instantly track sent data. Even though
 	 * the "RECEIVED" message means that the other side has received the
 	 * data, there can be a delay in our kernel before updating the "unsent
-	 * bytes" counter. Repeat SIOCOUTQ until it returns 0.
+	 * bytes" counter. vsock_wait_sent() will repeat SIOCOUTQ until it
+	 * returns 0.
 	 */
-	timeout_begin(TIMEOUT);
-	do {
-		ret = ioctl(fd, SIOCOUTQ, &sock_bytes_unsent);
-		if (ret < 0) {
-			if (errno == EOPNOTSUPP) {
-				fprintf(stderr, "Test skipped, SIOCOUTQ not supported.\n");
-				break;
-			}
-			perror("ioctl");
-			exit(EXIT_FAILURE);
-		}
-		timeout_check("SIOCOUTQ");
-	} while (sock_bytes_unsent != 0);
-	timeout_end();
+	if (!vsock_wait_sent(fd))
+		fprintf(stderr, "Test skipped, SIOCOUTQ not supported.\n");
+
 	close(fd);
 }
 
