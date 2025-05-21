@@ -741,10 +741,6 @@ ap_ts_i2c: &i2c14 {
 	};
 };
 
-&gmu {
-	status = "okay";
-};
-
 &gpu {
 	status = "okay";
 };

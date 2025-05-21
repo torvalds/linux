@@ -1221,7 +1221,7 @@
 				reg = <0 0x00980000 0 0x4000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&gcc GCC_QUPV3_WRAP2_S0_CLK>;
+				clocks = <&gcc GCC_QUPV3_WRAP0_S0_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 601 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SC8280XP_CX>;
@@ -1253,7 +1253,7 @@
 				reg = <0 0x00984000 0 0x4000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&gcc GCC_QUPV3_WRAP2_S1_CLK>;
+				clocks = <&gcc GCC_QUPV3_WRAP0_S1_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 602 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SC8280XP_CX>;
@@ -1285,7 +1285,7 @@
 				reg = <0 0x00988000 0 0x4000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&gcc GCC_QUPV3_WRAP2_S2_CLK>;
+				clocks = <&gcc GCC_QUPV3_WRAP0_S2_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 603 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SC8280XP_CX>;
@@ -1331,7 +1331,7 @@
 				reg = <0 0x0098c000 0 0x4000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&gcc GCC_QUPV3_WRAP2_S3_CLK>;
+				clocks = <&gcc GCC_QUPV3_WRAP0_S3_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 604 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SC8280XP_CX>;
@@ -1363,7 +1363,7 @@
 				reg = <0 0x00990000 0 0x4000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&gcc GCC_QUPV3_WRAP2_S4_CLK>;
+				clocks = <&gcc GCC_QUPV3_WRAP0_S4_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 605 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SC8280XP_CX>;
@@ -1395,7 +1395,7 @@
 				reg = <0 0x00994000 0 0x4000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&gcc GCC_QUPV3_WRAP2_S5_CLK>;
+				clocks = <&gcc GCC_QUPV3_WRAP0_S5_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 606 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SC8280XP_CX>;
@@ -1427,7 +1427,7 @@
 				reg = <0 0x00998000 0 0x4000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&gcc GCC_QUPV3_WRAP2_S6_CLK>;
+				clocks = <&gcc GCC_QUPV3_WRAP0_S6_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 607 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SC8280XP_CX>;
@@ -1459,7 +1459,7 @@
 				reg = <0 0x0099c000 0 0x4000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&gcc GCC_QUPV3_WRAP2_S7_CLK>;
+				clocks = <&gcc GCC_QUPV3_WRAP0_S7_CLK>;
 				clock-names = "se";
 				interrupts = <GIC_SPI 608 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&rpmhpd SC8280XP_CX>;
@@ -4141,7 +4141,7 @@
 			mdss0_mdp: display-controller@ae01000 {
 				compatible = "qcom,sc8280xp-dpu";
 				reg = <0 0x0ae01000 0 0x8f000>,
-				      <0 0x0aeb0000 0 0x2008>;
+				      <0 0x0aeb0000 0 0x3000>;
 				reg-names = "mdp", "vbif";
 
 				clocks = <&gcc GCC_DISP_HF_AXI_CLK>,
@@ -4927,6 +4927,20 @@
 			};
 		};
 
+		pcie_smmu: iommu@14f80000 {
+			compatible = "arm,smmu-v3";
+			reg = <0 0x14f80000 0 0x80000>;
+			#iommu-cells = <1>;
+			interrupts = <GIC_SPI 951 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 955 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 953 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "eventq",
+					  "gerror",
+					  "cmdq-sync";
+			dma-coherent;
+			status = "reserved"; /* Controlled by QHEE. */
+		};
+
 		apps_smmu: iommu@15000000 {
 			compatible = "qcom,sc8280xp-smmu-500", "arm,mmu-500";
 			reg = <0 0x15000000 0 0x100000>;
@@ -5459,7 +5473,7 @@
 			mdss1_mdp: display-controller@22001000 {
 				compatible = "qcom,sc8280xp-dpu";
 				reg = <0 0x22001000 0 0x8f000>,
-				      <0 0x220b0000 0 0x2008>;
+				      <0 0x220b0000 0 0x3000>;
 				reg-names = "mdp", "vbif";
 
 				clocks = <&gcc GCC_DISP_HF_AXI_CLK>,

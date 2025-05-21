@@ -69,6 +69,9 @@
 };
 
 &blsp_uart1 {
+	pinctrl-0 = <&blsp_uart1_console_default>;
+	pinctrl-1 = <&blsp_uart1_console_sleep>;
+	pinctrl-names = "default", "sleep";
 	status = "okay";
 };
 
@@ -127,14 +130,6 @@
 
 &wcnss_mem {
 	status = "okay";
-};
-
-/* CTS/RTX are not used */
-&blsp_uart1_default {
-	pins = "gpio0", "gpio1";
-};
-&blsp_uart1_sleep {
-	pins = "gpio0", "gpio1";
 };
 
 &tlmm {

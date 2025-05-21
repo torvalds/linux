@@ -953,7 +953,7 @@
 };
 
 &wifi {
-	qcom,ath11k-calibration-variant = "SHIFTphone_8";
+	qcom,calibration-variant = "SHIFTphone_8";
 
 	status = "okay";
 };
