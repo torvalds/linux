@@ -449,7 +449,7 @@ ATTRIBUTE_GROUPS(typec);
 
 static int typec_match(struct device *dev, const struct device_driver *driver)
 {
-	struct typec_altmode_driver *drv = to_altmode_driver(driver);
+	const struct typec_altmode_driver *drv = to_altmode_driver(driver);
 	struct typec_altmode *altmode = to_typec_altmode(dev);
 	const struct typec_device_id *id;
 
