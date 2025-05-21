@@ -40,6 +40,7 @@
 
 #include <linux/ip.h>
 #include <linux/tcp.h>
+#include <net/netdev_lock.h>
 #include <rdma/ib_cache.h>
 
 #include "ipoib.h"
@@ -781,16 +782,20 @@ static void ipoib_napi_enable(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
-	napi_enable(&priv->recv_napi);
-	napi_enable(&priv->send_napi);
+	netdev_lock_ops_to_full(dev);
+	napi_enable_locked(&priv->recv_napi);
+	napi_enable_locked(&priv->send_napi);
+	netdev_unlock_full_to_ops(dev);
 }
 
 static void ipoib_napi_disable(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
-	napi_disable(&priv->recv_napi);
-	napi_disable(&priv->send_napi);
+	netdev_lock_ops_to_full(dev);
+	napi_disable_locked(&priv->recv_napi);
+	napi_disable_locked(&priv->send_napi);
+	netdev_unlock_full_to_ops(dev);
 }
 
 int ipoib_ib_dev_stop_default(struct net_device *dev)
@@ -1240,10 +1245,14 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 		ipoib_ib_dev_down(dev);
 
 	if (level == IPOIB_FLUSH_HEAVY) {
+		netdev_lock_ops(dev);
 		if (test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
 			ipoib_ib_dev_stop(dev);
 
-		if (ipoib_ib_dev_open(dev))
+		result = ipoib_ib_dev_open(dev);
+		netdev_unlock_ops(dev);
+
+		if (result)
 			return;
 
 		if (netif_queue_stopped(dev))

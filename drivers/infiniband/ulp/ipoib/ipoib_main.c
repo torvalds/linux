@@ -49,6 +49,7 @@
 #include <linux/jhash.h>
 #include <net/arp.h>
 #include <net/addrconf.h>
+#include <net/netdev_lock.h>
 #include <net/pkt_sched.h>
 #include <linux/inetdevice.h>
 #include <rdma/ib_cache.h>
@@ -200,10 +201,10 @@ int ipoib_open(struct net_device *dev)
 		struct ipoib_dev_priv *cpriv;
 
 		/* Bring up any child interfaces too */
-		netdev_lock(dev);
+		netdev_lock_ops_to_full(dev);
 		list_for_each_entry(cpriv, &priv->child_intfs, list)
 			ipoib_schedule_ifupdown_task(cpriv->dev, true);
-		netdev_unlock(dev);
+		netdev_unlock_full_to_ops(dev);
 	} else if (priv->parent) {
 		struct ipoib_dev_priv *ppriv = ipoib_priv(priv->parent);
 
@@ -238,10 +239,10 @@ static int ipoib_stop(struct net_device *dev)
 		struct ipoib_dev_priv *cpriv;
 
 		/* Bring down any child interfaces too */
-		netdev_lock(dev);
+		netdev_lock_ops_to_full(dev);
 		list_for_each_entry(cpriv, &priv->child_intfs, list)
 			ipoib_schedule_ifupdown_task(cpriv->dev, false);
-		netdev_unlock(dev);
+		netdev_unlock_full_to_ops(dev);
 	}
 
 	return 0;
@@ -566,9 +567,11 @@ int ipoib_set_mode(struct net_device *dev, const char *buf)
 		set_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
 		ipoib_warn(priv, "enabling connected mode "
 			   "will cause multicast packet drops\n");
+		netdev_lock_ops(dev);
 		netdev_update_features(dev);
-		dev_set_mtu(dev, ipoib_cm_max_mtu(dev));
+		netif_set_mtu(dev, ipoib_cm_max_mtu(dev));
 		netif_set_real_num_tx_queues(dev, 1);
+		netdev_unlock_ops(dev);
 		rtnl_unlock();
 		priv->tx_wr.wr.send_flags &= ~IB_SEND_IP_CSUM;
 
@@ -578,9 +581,11 @@ int ipoib_set_mode(struct net_device *dev, const char *buf)
 
 	if (!strcmp(buf, "datagram\n")) {
 		clear_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
+		netdev_lock_ops(dev);
 		netdev_update_features(dev);
-		dev_set_mtu(dev, min(priv->mcast_mtu, dev->mtu));
+		netif_set_mtu(dev, min(priv->mcast_mtu, dev->mtu));
 		netif_set_real_num_tx_queues(dev, dev->num_tx_queues);
+		netdev_unlock_ops(dev);
 		rtnl_unlock();
 		ipoib_flush_paths(dev);
 		return (!rtnl_trylock()) ? -EBUSY : 0;
@@ -1247,6 +1252,7 @@ void ipoib_ib_tx_timeout_work(struct work_struct *work)
 	int err;
 
 	rtnl_lock();
+	netdev_lock_ops(priv->dev);
 
 	if (!test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
 		goto unlock;
@@ -1261,6 +1267,7 @@ void ipoib_ib_tx_timeout_work(struct work_struct *work)
 
 	netif_tx_wake_all_queues(priv->dev);
 unlock:
+	netdev_unlock_ops(priv->dev);
 	rtnl_unlock();
 
 }
@@ -2404,10 +2411,10 @@ static void set_base_guid(struct ipoib_dev_priv *priv, union ib_gid *gid)
 	netif_addr_unlock_bh(netdev);
 
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
-		netdev_lock(priv->dev);
+		netdev_lock_ops_to_full(priv->dev);
 		list_for_each_entry(child_priv, &priv->child_intfs, list)
 			set_base_guid(child_priv, gid);
-		netdev_unlock(priv->dev);
+		netdev_unlock_full_to_ops(priv->dev);
 	}
 }
 
@@ -2450,10 +2457,10 @@ static int ipoib_set_mac(struct net_device *dev, void *addr)
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 		struct ipoib_dev_priv *cpriv;
 
-		netdev_lock(dev);
+		netdev_lock_ops_to_full(dev);
 		list_for_each_entry(cpriv, &priv->child_intfs, list)
 			queue_work(ipoib_workqueue, &cpriv->flush_light);
-		netdev_unlock(dev);
+		netdev_unlock_full_to_ops(dev);
 	}
 	queue_work(ipoib_workqueue, &priv->flush_light);
 
