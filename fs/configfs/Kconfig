@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config CONFIGFS_FS
 	tristate "Userspace-driven configuration filesystem"
-	select SYSFS
 	help
 	  configfs is a RAM-based filesystem that provides the converse
 	  of sysfs's functionality. Where sysfs is a filesystem-based
