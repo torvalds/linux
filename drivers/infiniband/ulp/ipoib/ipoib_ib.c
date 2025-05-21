@@ -1294,10 +1294,10 @@ void ipoib_queue_work(struct ipoib_dev_priv *priv,
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 		struct ipoib_dev_priv *cpriv;
 
-		down_read(&priv->vlan_rwsem);
+		netdev_lock(priv->dev);
 		list_for_each_entry(cpriv, &priv->child_intfs, list)
 			ipoib_queue_work(cpriv, level);
-		up_read(&priv->vlan_rwsem);
+		netdev_unlock(priv->dev);
 	}
 
 	switch (level) {

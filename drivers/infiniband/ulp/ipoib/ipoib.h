@@ -329,14 +329,6 @@ struct ipoib_dev_priv {
 
 	unsigned long flags;
 
-	/*
-	 * This protects access to the child_intfs list.
-	 * To READ from child_intfs the RTNL or vlan_rwsem read side must be
-	 * held.  To WRITE RTNL and the vlan_rwsem write side must be held (in
-	 * that order) This lock exists because we have a few contexts where
-	 * we need the child_intfs, but do not want to grab the RTNL.
-	 */
-	struct rw_semaphore vlan_rwsem;
 	struct mutex mcast_mutex;
 
 	struct rb_root  path_tree;
@@ -399,6 +391,9 @@ struct ipoib_dev_priv {
 	struct ib_event_handler event_handler;
 
 	struct net_device *parent;
+	/* 'child_intfs' and 'list' membership of all child devices are
+	 * protected by the netdev instance lock of 'dev'.
+	 */
 	struct list_head child_intfs;
 	struct list_head list;
 	int    child_type;
