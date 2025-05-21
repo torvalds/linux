@@ -138,5 +138,15 @@ CXL device to perform a repair operation on its media. For example, a CXL
 device with DRAM components that support memory sparing features may
 implement sparing maintenance operations.
 
+2. CXL memory Soft Post Package Repair (sPPR)
+
+Post Package Repair (PPR) maintenance operations may be supported by CXL
+devices that implement CXL.mem protocol. A PPR maintenance operation
+requests the CXL device to perform a repair operation on its media.
+For example, a CXL device with DRAM components that support PPR features
+may implement PPR Maintenance operations. Soft PPR (sPPR) is a temporary
+row repair. Soft PPR may be faster, but the repair is lost with a power
+cycle.
+
 Sysfs files for memory repair are documented in
 `Documentation/ABI/testing/sysfs-edac-memory-repair`

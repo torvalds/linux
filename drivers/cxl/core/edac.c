@@ -14,6 +14,7 @@
 #include <linux/cleanup.h>
 #include <linux/edac.h>
 #include <linux/limits.h>
+#include <linux/unaligned.h>
 #include <linux/xarray.h>
 #include <cxl/features.h>
 #include <cxl.h>
@@ -21,7 +22,7 @@
 #include "core.h"
 #include "trace.h"
 
-#define CXL_NR_EDAC_DEV_FEATURES 6
+#define CXL_NR_EDAC_DEV_FEATURES 7
 
 #define CXL_SCRUB_NO_REGION -1
 
@@ -1665,6 +1666,321 @@ static int cxl_memdev_sparing_init(struct cxl_memdev *cxlmd,
 	return 0;
 }
 
+/*
+ * CXL memory soft PPR & hard PPR control
+ */
+struct cxl_ppr_context {
+	uuid_t repair_uuid;
+	u8 instance;
+	u16 get_feat_size;
+	u16 set_feat_size;
+	u8 get_version;
+	u8 set_version;
+	u16 effects;
+	u8 op_class;
+	u8 op_subclass;
+	bool cap_dpa;
+	bool cap_nib_mask;
+	bool media_accessible;
+	bool data_retained;
+	struct cxl_memdev *cxlmd;
+	enum edac_mem_repair_type repair_type;
+	bool persist_mode;
+	u64 dpa;
+	u32 nibble_mask;
+};
+
+/*
+ * See CXL rev 3.2 @8.2.10.7.2.1 Table 8-128 sPPR Feature Readable Attributes
+ *
+ * See CXL rev 3.2 @8.2.10.7.2.2 Table 8-131 hPPR Feature Readable Attributes
+ */
+
+#define CXL_PPR_OP_CAP_DEVICE_INITIATED BIT(0)
+#define CXL_PPR_OP_MODE_DEV_INITIATED BIT(0)
+
+#define CXL_PPR_FLAG_DPA_SUPPORT_MASK BIT(0)
+#define CXL_PPR_FLAG_NIB_SUPPORT_MASK BIT(1)
+#define CXL_PPR_FLAG_MEM_SPARING_EV_REC_SUPPORT_MASK BIT(2)
+#define CXL_PPR_FLAG_DEV_INITED_PPR_AT_BOOT_CAP_MASK BIT(3)
+
+#define CXL_PPR_RESTRICTION_FLAG_MEDIA_ACCESSIBLE_MASK BIT(0)
+#define CXL_PPR_RESTRICTION_FLAG_DATA_RETAINED_MASK BIT(2)
+
+#define CXL_PPR_SPARING_EV_REC_EN_MASK BIT(0)
+#define CXL_PPR_DEV_INITED_PPR_AT_BOOT_EN_MASK BIT(1)
+
+#define CXL_PPR_GET_CAP_DPA(flags) \
+	FIELD_GET(CXL_PPR_FLAG_DPA_SUPPORT_MASK, flags)
+#define CXL_PPR_GET_CAP_NIB_MASK(flags) \
+	FIELD_GET(CXL_PPR_FLAG_NIB_SUPPORT_MASK, flags)
+#define CXL_PPR_GET_MEDIA_ACCESSIBLE(restriction_flags) \
+	(FIELD_GET(CXL_PPR_RESTRICTION_FLAG_MEDIA_ACCESSIBLE_MASK, \
+		   restriction_flags) ^ 1)
+#define CXL_PPR_GET_DATA_RETAINED(restriction_flags) \
+	(FIELD_GET(CXL_PPR_RESTRICTION_FLAG_DATA_RETAINED_MASK, \
+		   restriction_flags) ^ 1)
+
+struct cxl_memdev_ppr_rd_attrbs {
+	struct cxl_memdev_repair_rd_attrbs_hdr hdr;
+	u8 ppr_flags;
+	__le16 restriction_flags;
+	u8 ppr_op_mode;
+} __packed;
+
+/*
+ * See CXL rev 3.2 @8.2.10.7.1.2 Table 8-118 sPPR Maintenance Input Payload
+ *
+ * See CXL rev 3.2 @8.2.10.7.1.3 Table 8-119 hPPR Maintenance Input Payload
+ */
+struct cxl_memdev_ppr_maintenance_attrbs {
+	u8 flags;
+	__le64 dpa;
+	u8 nibble_mask[3];
+} __packed;
+
+static int cxl_mem_ppr_get_attrbs(struct cxl_ppr_context *cxl_ppr_ctx)
+{
+	size_t rd_data_size = sizeof(struct cxl_memdev_ppr_rd_attrbs);
+	struct cxl_memdev *cxlmd = cxl_ppr_ctx->cxlmd;
+	struct cxl_mailbox *cxl_mbox = &cxlmd->cxlds->cxl_mbox;
+	u16 restriction_flags;
+	size_t data_size;
+	u16 return_code;
+
+	struct cxl_memdev_ppr_rd_attrbs *rd_attrbs __free(kfree) =
+		kmalloc(rd_data_size, GFP_KERNEL);
+	if (!rd_attrbs)
+		return -ENOMEM;
+
+	data_size = cxl_get_feature(cxl_mbox, &cxl_ppr_ctx->repair_uuid,
+				    CXL_GET_FEAT_SEL_CURRENT_VALUE, rd_attrbs,
+				    rd_data_size, 0, &return_code);
+	if (!data_size)
+		return -EIO;
+
+	cxl_ppr_ctx->op_class = rd_attrbs->hdr.op_class;
+	cxl_ppr_ctx->op_subclass = rd_attrbs->hdr.op_subclass;
+	cxl_ppr_ctx->cap_dpa = CXL_PPR_GET_CAP_DPA(rd_attrbs->ppr_flags);
+	cxl_ppr_ctx->cap_nib_mask =
+		CXL_PPR_GET_CAP_NIB_MASK(rd_attrbs->ppr_flags);
+
+	restriction_flags = le16_to_cpu(rd_attrbs->restriction_flags);
+	cxl_ppr_ctx->media_accessible =
+		CXL_PPR_GET_MEDIA_ACCESSIBLE(restriction_flags);
+	cxl_ppr_ctx->data_retained =
+		CXL_PPR_GET_DATA_RETAINED(restriction_flags);
+
+	return 0;
+}
+
+static int cxl_mem_perform_ppr(struct cxl_ppr_context *cxl_ppr_ctx)
+{
+	struct cxl_memdev_ppr_maintenance_attrbs maintenance_attrbs;
+	struct cxl_memdev *cxlmd = cxl_ppr_ctx->cxlmd;
+	struct cxl_mem_repair_attrbs attrbs = { 0 };
+
+	struct rw_semaphore *region_lock __free(rwsem_read_release) =
+		rwsem_read_intr_acquire(&cxl_region_rwsem);
+	if (!region_lock)
+		return -EINTR;
+
+	struct rw_semaphore *dpa_lock __free(rwsem_read_release) =
+		rwsem_read_intr_acquire(&cxl_dpa_rwsem);
+	if (!dpa_lock)
+		return -EINTR;
+
+	if (!cxl_ppr_ctx->media_accessible || !cxl_ppr_ctx->data_retained) {
+		/* Memory to repair must be offline */
+		if (cxl_is_memdev_memory_online(cxlmd))
+			return -EBUSY;
+	} else {
+		if (cxl_is_memdev_memory_online(cxlmd)) {
+			/* Check memory to repair is from the current boot */
+			attrbs.repair_type = CXL_PPR;
+			attrbs.dpa = cxl_ppr_ctx->dpa;
+			attrbs.nibble_mask = cxl_ppr_ctx->nibble_mask;
+			if (!cxl_find_rec_dram(cxlmd, &attrbs) &&
+			    !cxl_find_rec_gen_media(cxlmd, &attrbs))
+				return -EINVAL;
+		}
+	}
+
+	memset(&maintenance_attrbs, 0, sizeof(maintenance_attrbs));
+	maintenance_attrbs.flags = 0;
+	maintenance_attrbs.dpa = cpu_to_le64(cxl_ppr_ctx->dpa);
+	put_unaligned_le24(cxl_ppr_ctx->nibble_mask,
+			   maintenance_attrbs.nibble_mask);
+
+	return cxl_perform_maintenance(&cxlmd->cxlds->cxl_mbox,
+				       cxl_ppr_ctx->op_class,
+				       cxl_ppr_ctx->op_subclass,
+				       &maintenance_attrbs,
+				       sizeof(maintenance_attrbs));
+}
+
+static int cxl_ppr_get_repair_type(struct device *dev, void *drv_data,
+				   const char **repair_type)
+{
+	*repair_type = edac_repair_type[EDAC_REPAIR_PPR];
+
+	return 0;
+}
+
+static int cxl_ppr_get_persist_mode(struct device *dev, void *drv_data,
+				    bool *persist_mode)
+{
+	struct cxl_ppr_context *cxl_ppr_ctx = drv_data;
+
+	*persist_mode = cxl_ppr_ctx->persist_mode;
+
+	return 0;
+}
+
+static int cxl_get_ppr_safe_when_in_use(struct device *dev, void *drv_data,
+					bool *safe)
+{
+	struct cxl_ppr_context *cxl_ppr_ctx = drv_data;
+
+	*safe = cxl_ppr_ctx->media_accessible & cxl_ppr_ctx->data_retained;
+
+	return 0;
+}
+
+static int cxl_ppr_get_min_dpa(struct device *dev, void *drv_data, u64 *min_dpa)
+{
+	struct cxl_ppr_context *cxl_ppr_ctx = drv_data;
+	struct cxl_memdev *cxlmd = cxl_ppr_ctx->cxlmd;
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+
+	*min_dpa = cxlds->dpa_res.start;
+
+	return 0;
+}
+
+static int cxl_ppr_get_max_dpa(struct device *dev, void *drv_data, u64 *max_dpa)
+{
+	struct cxl_ppr_context *cxl_ppr_ctx = drv_data;
+	struct cxl_memdev *cxlmd = cxl_ppr_ctx->cxlmd;
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+
+	*max_dpa = cxlds->dpa_res.end;
+
+	return 0;
+}
+
+static int cxl_ppr_get_dpa(struct device *dev, void *drv_data, u64 *dpa)
+{
+	struct cxl_ppr_context *cxl_ppr_ctx = drv_data;
+
+	*dpa = cxl_ppr_ctx->dpa;
+
+	return 0;
+}
+
+static int cxl_ppr_set_dpa(struct device *dev, void *drv_data, u64 dpa)
+{
+	struct cxl_ppr_context *cxl_ppr_ctx = drv_data;
+	struct cxl_memdev *cxlmd = cxl_ppr_ctx->cxlmd;
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+
+	if (dpa < cxlds->dpa_res.start || dpa > cxlds->dpa_res.end)
+		return -EINVAL;
+
+	cxl_ppr_ctx->dpa = dpa;
+
+	return 0;
+}
+
+static int cxl_ppr_get_nibble_mask(struct device *dev, void *drv_data,
+				   u32 *nibble_mask)
+{
+	struct cxl_ppr_context *cxl_ppr_ctx = drv_data;
+
+	*nibble_mask = cxl_ppr_ctx->nibble_mask;
+
+	return 0;
+}
+
+static int cxl_ppr_set_nibble_mask(struct device *dev, void *drv_data,
+				   u32 nibble_mask)
+{
+	struct cxl_ppr_context *cxl_ppr_ctx = drv_data;
+
+	cxl_ppr_ctx->nibble_mask = nibble_mask;
+
+	return 0;
+}
+
+static int cxl_do_ppr(struct device *dev, void *drv_data, u32 val)
+{
+	struct cxl_ppr_context *cxl_ppr_ctx = drv_data;
+
+	if (!cxl_ppr_ctx->dpa || val != EDAC_DO_MEM_REPAIR)
+		return -EINVAL;
+
+	return cxl_mem_perform_ppr(cxl_ppr_ctx);
+}
+
+static const struct edac_mem_repair_ops cxl_sppr_ops = {
+	.get_repair_type = cxl_ppr_get_repair_type,
+	.get_persist_mode = cxl_ppr_get_persist_mode,
+	.get_repair_safe_when_in_use = cxl_get_ppr_safe_when_in_use,
+	.get_min_dpa = cxl_ppr_get_min_dpa,
+	.get_max_dpa = cxl_ppr_get_max_dpa,
+	.get_dpa = cxl_ppr_get_dpa,
+	.set_dpa = cxl_ppr_set_dpa,
+	.get_nibble_mask = cxl_ppr_get_nibble_mask,
+	.set_nibble_mask = cxl_ppr_set_nibble_mask,
+	.do_repair = cxl_do_ppr,
+};
+
+static int cxl_memdev_soft_ppr_init(struct cxl_memdev *cxlmd,
+				    struct edac_dev_feature *ras_feature,
+				    u8 repair_inst)
+{
+	struct cxl_ppr_context *cxl_sppr_ctx;
+	struct cxl_feat_entry *feat_entry;
+	int ret;
+
+	feat_entry = cxl_feature_info(to_cxlfs(cxlmd->cxlds),
+				      &CXL_FEAT_SPPR_UUID);
+	if (IS_ERR(feat_entry))
+		return -EOPNOTSUPP;
+
+	if (!(le32_to_cpu(feat_entry->flags) & CXL_FEATURE_F_CHANGEABLE))
+		return -EOPNOTSUPP;
+
+	cxl_sppr_ctx =
+		devm_kzalloc(&cxlmd->dev, sizeof(*cxl_sppr_ctx), GFP_KERNEL);
+	if (!cxl_sppr_ctx)
+		return -ENOMEM;
+
+	*cxl_sppr_ctx = (struct cxl_ppr_context){
+		.get_feat_size = le16_to_cpu(feat_entry->get_feat_size),
+		.set_feat_size = le16_to_cpu(feat_entry->set_feat_size),
+		.get_version = feat_entry->get_feat_ver,
+		.set_version = feat_entry->set_feat_ver,
+		.effects = le16_to_cpu(feat_entry->effects),
+		.cxlmd = cxlmd,
+		.repair_type = EDAC_REPAIR_PPR,
+		.persist_mode = 0,
+		.instance = repair_inst,
+	};
+	uuid_copy(&cxl_sppr_ctx->repair_uuid, &CXL_FEAT_SPPR_UUID);
+
+	ret = cxl_mem_ppr_get_attrbs(cxl_sppr_ctx);
+	if (ret)
+		return ret;
+
+	ras_feature->ft_type = RAS_FEAT_MEM_REPAIR;
+	ras_feature->instance = cxl_sppr_ctx->instance;
+	ras_feature->mem_repair_ops = &cxl_sppr_ops;
+	ras_feature->ctx = cxl_sppr_ctx;
+
+	return 0;
+}
+
 int devm_cxl_memdev_edac_register(struct cxl_memdev *cxlmd)
 {
 	struct edac_dev_feature ras_features[CXL_NR_EDAC_DEV_FEATURES];
@@ -1700,6 +2016,16 @@ int devm_cxl_memdev_edac_register(struct cxl_memdev *cxlmd)
 			if (rc < 0)
 				return rc;
 
+			repair_inst++;
+			num_ras_features++;
+		}
+
+		rc = cxl_memdev_soft_ppr_init(cxlmd, &ras_features[num_ras_features],
+					      repair_inst);
+		if (rc < 0 && rc != -EOPNOTSUPP)
+			return rc;
+
+		if (rc != -EOPNOTSUPP) {
 			repair_inst++;
 			num_ras_features++;
 		}
