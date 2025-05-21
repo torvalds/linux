@@ -6125,6 +6125,7 @@ static int ath12k_reg_11d_new_cc_event(struct ath12k_base *ab, struct sk_buff *s
 		pdev = &ab->pdevs[i];
 		ar = pdev->ar;
 		ar->state_11d = ATH12K_11D_IDLE;
+		ar->ah->regd_updated = false;
 		complete(&ar->completed_11d_scan);
 	}
 
