@@ -81,6 +81,12 @@ unsigned int ipu6_isys_mbus_code_to_mipi(u32 code)
 	case MEDIA_BUS_FMT_SGRBG8_1X8:
 	case MEDIA_BUS_FMT_SRGGB8_1X8:
 		return MIPI_CSI2_DT_RAW8;
+	case MEDIA_BUS_FMT_META_8:
+	case MEDIA_BUS_FMT_META_10:
+	case MEDIA_BUS_FMT_META_12:
+	case MEDIA_BUS_FMT_META_16:
+	case MEDIA_BUS_FMT_META_24:
+		return MIPI_CSI2_DT_EMBEDDED_8B;
 	default:
 		/* return unavailable MIPI data type - 0x3f */
 		WARN_ON(1);
