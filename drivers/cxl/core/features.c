@@ -36,7 +36,7 @@ static bool is_cxl_feature_exclusive(struct cxl_feat_entry *entry)
 	return is_cxl_feature_exclusive_by_uuid(&entry->uuid);
 }
 
-inline struct cxl_features_state *to_cxlfs(struct cxl_dev_state *cxlds)
+struct cxl_features_state *to_cxlfs(struct cxl_dev_state *cxlds)
 {
 	return cxlds->cxlfs;
 }
