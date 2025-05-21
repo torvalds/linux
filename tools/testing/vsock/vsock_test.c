@@ -1839,6 +1839,53 @@ static void test_stream_linger_server(const struct test_opts *opts)
 	close(fd);
 }
 
+/* Half of the default to not risk timing out the control channel */
+#define LINGER_TIMEOUT	(TIMEOUT / 2)
+
+static void test_stream_nolinger_client(const struct test_opts *opts)
+{
+	bool waited;
+	time_t ns;
+	int fd;
+
+	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	enable_so_linger(fd, LINGER_TIMEOUT);
+	send_byte(fd, 1, 0); /* Left unread to expose incorrect behaviour. */
+	waited = vsock_wait_sent(fd);
+
+	ns = current_nsec();
+	close(fd);
+	ns = current_nsec() - ns;
+
+	if (!waited) {
+		fprintf(stderr, "Test skipped, SIOCOUTQ not supported.\n");
+	} else if (DIV_ROUND_UP(ns, NSEC_PER_SEC) >= LINGER_TIMEOUT) {
+		fprintf(stderr, "Unexpected lingering\n");
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("DONE");
+}
+
+static void test_stream_nolinger_server(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	control_expectln("DONE");
+	close(fd);
+}
+
 static struct test_case test_cases[] = {
 	{
 		.name = "SOCK_STREAM connection reset",
@@ -1998,6 +2045,11 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_STREAM SO_LINGER null-ptr-deref",
 		.run_client = test_stream_linger_client,
 		.run_server = test_stream_linger_server,
+	},
+	{
+		.name = "SOCK_STREAM SO_LINGER close() on unread",
+		.run_client = test_stream_nolinger_client,
+		.run_server = test_stream_nolinger_server,
 	},
 	{},
 };
