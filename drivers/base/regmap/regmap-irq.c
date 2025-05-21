@@ -193,10 +193,10 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 	/* If we've changed our wakeup count propagate it to the parent */
 	if (d->wake_count < 0)
 		for (i = d->wake_count; i < 0; i++)
-			irq_set_irq_wake(d->irq, 0);
+			disable_irq_wake(d->irq);
 	else if (d->wake_count > 0)
 		for (i = 0; i < d->wake_count; i++)
-			irq_set_irq_wake(d->irq, 1);
+			enable_irq_wake(d->irq);
 
 	d->wake_count = 0;
 
