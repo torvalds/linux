@@ -548,6 +548,7 @@ struct i40e_pf {
 	u16 empr_count; /* EMP reset count */
 	u16 pfr_count; /* PF reset count */
 	u16 sw_int_count; /* SW interrupt count */
+	u32 link_down_events;
 
 	struct mutex switch_mutex;
 	u16 lan_vsi;       /* our default LAN VSI */

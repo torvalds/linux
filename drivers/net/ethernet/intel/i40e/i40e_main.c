@@ -9960,6 +9960,9 @@ static void i40e_link_event(struct i40e_pf *pf)
 	     new_link == netif_carrier_ok(vsi->netdev)))
 		return;
 
+	if (!new_link && old_link)
+		pf->link_down_events++;
+
 	i40e_print_link_message(vsi, new_link);
 
 	/* Notify the base of the switch tree connected to
