@@ -80,4 +80,5 @@ void setsockopt_int_check(int fd, int level, int optname, int val,
 void setsockopt_timeval_check(int fd, int level, int optname,
 			      struct timeval val, char const *errmsg);
 void enable_so_zerocopy_check(int fd);
+void enable_so_linger(int fd, int timeout);
 #endif /* UTIL_H */

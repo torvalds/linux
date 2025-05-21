@@ -1813,10 +1813,6 @@ static void test_stream_connect_retry_server(const struct test_opts *opts)
 
 static void test_stream_linger_client(const struct test_opts *opts)
 {
-	struct linger optval = {
-		.l_onoff = 1,
-		.l_linger = 1
-	};
 	int fd;
 
 	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
@@ -1825,11 +1821,7 @@ static void test_stream_linger_client(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
-	if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &optval, sizeof(optval))) {
-		perror("setsockopt(SO_LINGER)");
-		exit(EXIT_FAILURE);
-	}
-
+	enable_so_linger(fd, 1);
 	close(fd);
 }
 

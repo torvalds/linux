@@ -823,3 +823,16 @@ void enable_so_zerocopy_check(int fd)
 	setsockopt_int_check(fd, SOL_SOCKET, SO_ZEROCOPY, 1,
 			     "setsockopt SO_ZEROCOPY");
 }
+
+void enable_so_linger(int fd, int timeout)
+{
+	struct linger optval = {
+		.l_onoff = 1,
+		.l_linger = timeout
+	};
+
+	if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &optval, sizeof(optval))) {
+		perror("setsockopt(SO_LINGER)");
+		exit(EXIT_FAILURE);
+	}
+}
