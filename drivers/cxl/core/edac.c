@@ -813,6 +813,55 @@ static int cxl_memdev_ecs_init(struct cxl_memdev *cxlmd,
 	return 0;
 }
 
+/*
+ * Perform Maintenance CXL 3.2 Spec 8.2.10.7.1
+ */
+
+/*
+ * Perform Maintenance input payload
+ * CXL rev 3.2 section 8.2.10.7.1 Table 8-117
+ */
+struct cxl_mbox_maintenance_hdr {
+	u8 op_class;
+	u8 op_subclass;
+} __packed;
+
+static int cxl_perform_maintenance(struct cxl_mailbox *cxl_mbox, u8 class,
+				   u8 subclass, void *data_in,
+				   size_t data_in_size)
+{
+	struct cxl_memdev_maintenance_pi {
+		struct cxl_mbox_maintenance_hdr hdr;
+		u8 data[];
+	} __packed;
+	struct cxl_mbox_cmd mbox_cmd;
+	size_t hdr_size;
+
+	struct cxl_memdev_maintenance_pi *pi __free(kvfree) =
+		kvzalloc(cxl_mbox->payload_size, GFP_KERNEL);
+	if (!pi)
+		return -ENOMEM;
+
+	pi->hdr.op_class = class;
+	pi->hdr.op_subclass = subclass;
+	hdr_size = sizeof(pi->hdr);
+	/*
+	 * Check minimum mbox payload size is available for
+	 * the maintenance data transfer.
+	 */
+	if (hdr_size + data_in_size > cxl_mbox->payload_size)
+		return -ENOMEM;
+
+	memcpy(pi->data, data_in, data_in_size);
+	mbox_cmd = (struct cxl_mbox_cmd){
+		.opcode = CXL_MBOX_OP_DO_MAINTENANCE,
+		.size_in = hdr_size + data_in_size,
+		.payload_in = pi,
+	};
+
+	return cxl_internal_send_cmd(cxl_mbox, &mbox_cmd);
+}
+
 int devm_cxl_memdev_edac_register(struct cxl_memdev *cxlmd)
 {
 	struct edac_dev_feature ras_features[CXL_NR_EDAC_DEV_FEATURES];
