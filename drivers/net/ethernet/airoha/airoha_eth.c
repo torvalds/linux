@@ -1077,17 +1077,13 @@ static int airoha_qdma_init_hfwd_queues(struct airoha_qdma *qdma)
 	int size;
 
 	size = HW_DSCP_NUM * sizeof(struct airoha_qdma_fwd_desc);
-	qdma->hfwd.desc = dmam_alloc_coherent(eth->dev, size, &dma_addr,
-					      GFP_KERNEL);
-	if (!qdma->hfwd.desc)
+	if (!dmam_alloc_coherent(eth->dev, size, &dma_addr, GFP_KERNEL))
 		return -ENOMEM;
 
 	airoha_qdma_wr(qdma, REG_FWD_DSCP_BASE, dma_addr);
 
 	size = AIROHA_MAX_PACKET_SIZE * HW_DSCP_NUM;
-	qdma->hfwd.q = dmam_alloc_coherent(eth->dev, size, &dma_addr,
-					   GFP_KERNEL);
-	if (!qdma->hfwd.q)
+	if (!dmam_alloc_coherent(eth->dev, size, &dma_addr, GFP_KERNEL))
 		return -ENOMEM;
 
 	airoha_qdma_wr(qdma, REG_FWD_BUF_BASE, dma_addr);
