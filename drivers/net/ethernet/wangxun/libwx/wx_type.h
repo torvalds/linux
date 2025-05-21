@@ -838,6 +838,7 @@ enum wx_mac_type {
 	wx_mac_sp,
 	wx_mac_em,
 	wx_mac_aml,
+	wx_mac_aml40,
 };
 
 enum wx_media_type {

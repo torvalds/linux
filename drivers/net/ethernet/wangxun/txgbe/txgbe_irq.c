@@ -176,7 +176,7 @@ static void txgbe_del_irq_domain(struct txgbe *txgbe)
 
 void txgbe_free_misc_irq(struct txgbe *txgbe)
 {
-	if (txgbe->wx->mac.type == wx_mac_aml)
+	if (txgbe->wx->mac.type == wx_mac_aml40)
 		return;
 
 	free_irq(txgbe->link_irq, txgbe);
@@ -190,7 +190,7 @@ int txgbe_setup_misc_irq(struct txgbe *txgbe)
 	struct wx *wx = txgbe->wx;
 	int hwirq, err;
 
-	if (wx->mac.type == wx_mac_aml)
+	if (wx->mac.type == wx_mac_aml40)
 		goto skip_sp_irq;
 
 	txgbe->misc.nirqs = TXGBE_IRQ_MAX;

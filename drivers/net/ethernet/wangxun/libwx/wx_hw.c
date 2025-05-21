@@ -695,6 +695,7 @@ void wx_init_eeprom_params(struct wx *wx)
 	switch (wx->mac.type) {
 	case wx_mac_sp:
 	case wx_mac_aml:
+	case wx_mac_aml40:
 		if (wx_read_ee_hostif(wx, WX_SW_REGION_PTR, &data)) {
 			wx_err(wx, "NVM Read Error\n");
 			return;

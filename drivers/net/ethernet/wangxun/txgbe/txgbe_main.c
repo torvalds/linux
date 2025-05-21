@@ -91,6 +91,7 @@ static int txgbe_enumerate_functions(struct wx *wx)
 static void txgbe_up_complete(struct wx *wx)
 {
 	struct net_device *netdev = wx->netdev;
+	u32 reg;
 
 	wx_control_hw(wx, true);
 	wx_configure_vectors(wx);
@@ -99,17 +100,21 @@ static void txgbe_up_complete(struct wx *wx)
 	smp_mb__before_atomic();
 	wx_napi_enable_all(wx);
 
-	if (wx->mac.type == wx_mac_aml) {
-		u32 reg;
-
+	switch (wx->mac.type) {
+	case wx_mac_aml40:
 		reg = rd32(wx, TXGBE_AML_MAC_TX_CFG);
 		reg &= ~TXGBE_AML_MAC_TX_CFG_SPEED_MASK;
-		reg |= TXGBE_AML_MAC_TX_CFG_SPEED_25G;
+		reg |= TXGBE_AML_MAC_TX_CFG_SPEED_40G;
 		wr32(wx, WX_MAC_TX_CFG, reg);
 		txgbe_enable_sec_tx_path(wx);
 		netif_carrier_on(wx->netdev);
-	} else {
+		break;
+	case wx_mac_aml:
+	case wx_mac_sp:
 		phylink_start(wx->phylink);
+		break;
+	default:
+		break;
 	}
 
 	/* clear any pending interrupts, may auto mask */
@@ -207,10 +212,18 @@ void txgbe_down(struct wx *wx)
 {
 	txgbe_disable_device(wx);
 	txgbe_reset(wx);
-	if (wx->mac.type == wx_mac_aml)
+
+	switch (wx->mac.type) {
+	case wx_mac_aml40:
 		netif_carrier_off(wx->netdev);
-	else
+		break;
+	case wx_mac_aml:
+	case wx_mac_sp:
 		phylink_stop(wx->phylink);
+		break;
+	default:
+		break;
+	}
 
 	wx_clean_all_tx_rings(wx);
 	wx_clean_all_rx_rings(wx);
@@ -240,9 +253,11 @@ static void txgbe_init_type_code(struct wx *wx)
 	case TXGBE_DEV_ID_AML5110:
 	case TXGBE_DEV_ID_AML5025:
 	case TXGBE_DEV_ID_AML5125:
+		wx->mac.type = wx_mac_aml;
+		break;
 	case TXGBE_DEV_ID_AML5040:
 	case TXGBE_DEV_ID_AML5140:
-		wx->mac.type = wx_mac_aml;
+		wx->mac.type = wx_mac_aml40;
 		break;
 	default:
 		wx->mac.type = wx_mac_unknown;
@@ -341,6 +356,7 @@ static int txgbe_sw_init(struct wx *wx)
 	case wx_mac_sp:
 		break;
 	case wx_mac_aml:
+	case wx_mac_aml40:
 		set_bit(WX_FLAG_SWFW_RING, wx->flags);
 		wx->swfw_index = 0;
 		break;

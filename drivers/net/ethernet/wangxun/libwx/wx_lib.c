@@ -1959,6 +1959,7 @@ static int wx_alloc_q_vector(struct wx *wx,
 	switch (wx->mac.type) {
 	case wx_mac_sp:
 	case wx_mac_aml:
+	case wx_mac_aml40:
 		default_itr = WX_12K_ITR;
 		break;
 	default:
@@ -2327,6 +2328,7 @@ void wx_write_eitr(struct wx_q_vector *q_vector)
 		itr_reg = q_vector->itr & WX_SP_MAX_EITR;
 		break;
 	case wx_mac_aml:
+	case wx_mac_aml40:
 		itr_reg = (q_vector->itr >> 3) & WX_AML_MAX_EITR;
 		break;
 	default:

@@ -573,11 +573,17 @@ int txgbe_init_phy(struct txgbe *txgbe)
 	struct wx *wx = txgbe->wx;
 	int ret;
 
-	if (wx->mac.type == wx_mac_aml)
+	switch (wx->mac.type) {
+	case wx_mac_aml40:
+	case wx_mac_aml:
 		return 0;
-
-	if (txgbe->wx->media_type == wx_media_copper)
-		return txgbe_ext_phy_init(txgbe);
+	case wx_mac_sp:
+		if (wx->media_type == wx_media_copper)
+			return txgbe_ext_phy_init(txgbe);
+		break;
+	default:
+		break;
+	}
 
 	ret = txgbe_swnodes_register(txgbe);
 	if (ret) {
@@ -640,13 +646,19 @@ err_unregister_swnode:
 
 void txgbe_remove_phy(struct txgbe *txgbe)
 {
-	if (txgbe->wx->mac.type == wx_mac_aml)
+	switch (txgbe->wx->mac.type) {
+	case wx_mac_aml40:
+	case wx_mac_aml:
 		return;
-
-	if (txgbe->wx->media_type == wx_media_copper) {
-		phylink_disconnect_phy(txgbe->wx->phylink);
-		phylink_destroy(txgbe->wx->phylink);
-		return;
+	case wx_mac_sp:
+		if (txgbe->wx->media_type == wx_media_copper) {
+			phylink_disconnect_phy(txgbe->wx->phylink);
+			phylink_destroy(txgbe->wx->phylink);
+			return;
+		}
+		break;
+	default:
+		break;
 	}
 
 	platform_device_unregister(txgbe->sfp_dev);
