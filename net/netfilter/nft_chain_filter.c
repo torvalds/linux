@@ -332,8 +332,8 @@ static void nft_netdev_event(unsigned long event, struct net_device *dev,
 		if (!(basechain->chain.table->flags & NFT_TABLE_F_DORMANT))
 			nf_unregister_net_hook(dev_net(dev), ops);
 
-		list_del_rcu(&hook->list);
-		kfree_rcu(hook, rcu);
+		list_del_rcu(&ops->list);
+		kfree_rcu(ops, rcu);
 		break;
 	}
 }
