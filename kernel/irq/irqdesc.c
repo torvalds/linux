@@ -281,7 +281,6 @@ static ssize_t hwirq_show(struct kobject *kobj, struct kobj_attribute *attr, cha
 	struct irq_desc *desc = container_of(kobj, struct irq_desc, kobj);
 
 	guard(raw_spinlock_irq)(&desc->lock);
-	raw_spin_lock_irq(&desc->lock);
 	if (desc->irq_data.domain)
 		return sysfs_emit(buf, "%lu\n", desc->irq_data.hwirq);
 	return 0;
