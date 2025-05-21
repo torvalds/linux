@@ -38,4 +38,10 @@
 		power-domains = <&pd IMX_SC_R_SERDES_1>;
 		status = "disabled";
 	};
+
+	pcie0: pcie@5f010000 {
+	};
+
+	pcie0_ep: pcie-ep@5f010000 {
+	};
 };

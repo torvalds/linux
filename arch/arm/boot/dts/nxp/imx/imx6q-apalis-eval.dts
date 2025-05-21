@@ -36,15 +36,6 @@
 	status = "okay";
 };
 
-/* I2C1_SDA/SCL on MXM3 209/211 (e.g. RTC on carrier board) */
-&i2c1 {
-	/* PCIe Switch */
-	pcie-switch@58 {
-		compatible = "plx,pex8605";
-		reg = <0x58>;
-	};
-};
-
 &pcie {
 	vpcie-supply = <&reg_pcie_switch>;
 	status = "okay";

@@ -218,7 +218,7 @@
 			};
 
 			iim: efuse@5001c000 {
-				compatible = "fsl,imx31-iim", "fsl,imx27-iim";
+				compatible = "fsl,imx31-iim";
 				reg = <0x5001c000 0x1000>;
 				interrupts = <19>;
 				clocks = <&clks 25>;
