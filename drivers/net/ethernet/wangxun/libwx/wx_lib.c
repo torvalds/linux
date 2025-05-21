@@ -5,6 +5,7 @@
 #include <net/ip6_checksum.h>
 #include <net/page_pool/helpers.h>
 #include <net/inet_ecn.h>
+#include <linux/workqueue.h>
 #include <linux/iopoll.h>
 #include <linux/sctp.h>
 #include <linux/pci.h>
@@ -3094,6 +3095,36 @@ void wx_set_ring(struct wx *wx, u32 new_tx_count,
 	}
 }
 EXPORT_SYMBOL(wx_set_ring);
+
+void wx_service_event_schedule(struct wx *wx)
+{
+	if (!test_and_set_bit(WX_STATE_SERVICE_SCHED, wx->state))
+		queue_work(system_power_efficient_wq, &wx->service_task);
+}
+EXPORT_SYMBOL(wx_service_event_schedule);
+
+void wx_service_event_complete(struct wx *wx)
+{
+	if (WARN_ON(!test_bit(WX_STATE_SERVICE_SCHED, wx->state)))
+		return;
+
+	/* flush memory to make sure state is correct before next watchdog */
+	smp_mb__before_atomic();
+	clear_bit(WX_STATE_SERVICE_SCHED, wx->state);
+}
+EXPORT_SYMBOL(wx_service_event_complete);
+
+void wx_service_timer(struct timer_list *t)
+{
+	struct wx *wx = from_timer(wx, t, service_timer);
+	unsigned long next_event_offset = HZ * 2;
+
+	/* Reset the timer */
+	mod_timer(&wx->service_timer, next_event_offset + jiffies);
+
+	wx_service_event_schedule(wx);
+}
+EXPORT_SYMBOL(wx_service_timer);
 
 MODULE_DESCRIPTION("Common library for Wangxun(R) Ethernet drivers.");
 MODULE_LICENSE("GPL");

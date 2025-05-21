@@ -21,6 +21,7 @@
 #include "txgbe_type.h"
 #include "txgbe_hw.h"
 #include "txgbe_phy.h"
+#include "txgbe_aml.h"
 #include "txgbe_irq.h"
 #include "txgbe_fdir.h"
 #include "txgbe_ethtool.h"
@@ -88,6 +89,58 @@ static int txgbe_enumerate_functions(struct wx *wx)
 	return physfns;
 }
 
+static void txgbe_sfp_detection_subtask(struct wx *wx)
+{
+	int err;
+
+	if (!test_bit(WX_FLAG_NEED_SFP_RESET, wx->flags))
+		return;
+
+	/* wait for SFP module ready */
+	msleep(200);
+
+	err = txgbe_identify_sfp(wx);
+	if (err)
+		return;
+
+	clear_bit(WX_FLAG_NEED_SFP_RESET, wx->flags);
+}
+
+static void txgbe_link_config_subtask(struct wx *wx)
+{
+	int err;
+
+	if (!test_bit(WX_FLAG_NEED_LINK_CONFIG, wx->flags))
+		return;
+
+	err = txgbe_set_phy_link(wx);
+	if (err)
+		return;
+
+	clear_bit(WX_FLAG_NEED_LINK_CONFIG, wx->flags);
+}
+
+/**
+ * txgbe_service_task - manages and runs subtasks
+ * @work: pointer to work_struct containing our data
+ **/
+static void txgbe_service_task(struct work_struct *work)
+{
+	struct wx *wx = container_of(work, struct wx, service_task);
+
+	txgbe_sfp_detection_subtask(wx);
+	txgbe_link_config_subtask(wx);
+
+	wx_service_event_complete(wx);
+}
+
+static void txgbe_init_service(struct wx *wx)
+{
+	timer_setup(&wx->service_timer, wx_service_timer, 0);
+	INIT_WORK(&wx->service_task, txgbe_service_task);
+	clear_bit(WX_STATE_SERVICE_SCHED, wx->state);
+}
+
 static void txgbe_up_complete(struct wx *wx)
 {
 	struct net_device *netdev = wx->netdev;
@@ -110,6 +163,11 @@ static void txgbe_up_complete(struct wx *wx)
 		netif_carrier_on(wx->netdev);
 		break;
 	case wx_mac_aml:
+		/* Enable TX laser */
+		wr32m(wx, WX_GPIO_DR, TXGBE_GPIOBIT_1, 0);
+		txgbe_setup_link(wx);
+		phylink_start(wx->phylink);
+		break;
 	case wx_mac_sp:
 		phylink_start(wx->phylink);
 		break;
@@ -125,6 +183,7 @@ static void txgbe_up_complete(struct wx *wx)
 
 	/* enable transmits */
 	netif_tx_start_all_queues(netdev);
+	mod_timer(&wx->service_timer, jiffies);
 
 	/* Set PF Reset Done bit so PF/VF Mail Ops can work */
 	wr32m(wx, WX_CFG_PORT_CTL, WX_CFG_PORT_CTL_PFRSTD,
@@ -173,6 +232,8 @@ static void txgbe_disable_device(struct wx *wx)
 	wx_irq_disable(wx);
 	wx_napi_disable_all(wx);
 
+	timer_delete_sync(&wx->service_timer);
+
 	if (wx->bus.func < 2)
 		wr32m(wx, TXGBE_MIS_PRB_CTL, TXGBE_MIS_PRB_CTL_LAN_UP(wx->bus.func), 0);
 	else
@@ -218,6 +279,10 @@ void txgbe_down(struct wx *wx)
 		netif_carrier_off(wx->netdev);
 		break;
 	case wx_mac_aml:
+		phylink_stop(wx->phylink);
+		/* Disable TX laser */
+		wr32m(wx, WX_GPIO_DR, TXGBE_GPIOBIT_1, TXGBE_GPIOBIT_1);
+		break;
 	case wx_mac_sp:
 		phylink_stop(wx->phylink);
 		break;
@@ -752,9 +817,11 @@ static int txgbe_probe(struct pci_dev *pdev,
 	eth_hw_addr_set(netdev, wx->mac.perm_addr);
 	wx_mac_set_default_filter(wx, wx->mac.perm_addr);
 
+	txgbe_init_service(wx);
+
 	err = wx_init_interrupt_scheme(wx);
 	if (err)
-		goto err_free_mac_table;
+		goto err_cancel_service;
 
 	/* Save off EEPROM version number and Option Rom version which
 	 * together make a unique identify for the eeprom
@@ -847,6 +914,9 @@ err_free_misc_irq:
 err_release_hw:
 	wx_clear_interrupt_scheme(wx);
 	wx_control_hw(wx, false);
+err_cancel_service:
+	timer_delete_sync(&wx->service_timer);
+	cancel_work_sync(&wx->service_task);
 err_free_mac_table:
 	kfree(wx->rss_key);
 	kfree(wx->mac_table);
@@ -872,6 +942,8 @@ static void txgbe_remove(struct pci_dev *pdev)
 	struct wx *wx = pci_get_drvdata(pdev);
 	struct txgbe *txgbe = wx->priv;
 	struct net_device *netdev;
+
+	cancel_work_sync(&wx->service_task);
 
 	netdev = wx->netdev;
 	wx_disable_sriov(wx);

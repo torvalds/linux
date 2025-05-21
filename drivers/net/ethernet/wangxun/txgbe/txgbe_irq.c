@@ -11,6 +11,7 @@
 #include "txgbe_type.h"
 #include "txgbe_phy.h"
 #include "txgbe_irq.h"
+#include "txgbe_aml.h"
 
 /**
  * txgbe_irq_enable - Enable default interrupt generation settings
@@ -19,7 +20,14 @@
  **/
 void txgbe_irq_enable(struct wx *wx, bool queues)
 {
-	wr32(wx, WX_PX_MISC_IEN, TXGBE_PX_MISC_IEN_MASK);
+	u32 misc_ien = TXGBE_PX_MISC_IEN_MASK;
+
+	if (wx->mac.type == wx_mac_aml) {
+		misc_ien |= TXGBE_PX_MISC_GPIO;
+		txgbe_gpio_init_aml(wx);
+	}
+
+	wr32(wx, WX_PX_MISC_IEN, misc_ien);
 
 	/* unmask interrupt */
 	wx_intr_enable(wx, TXGBE_INTR_MISC);
@@ -79,6 +87,14 @@ static int txgbe_request_link_irq(struct txgbe *txgbe)
 	return request_threaded_irq(txgbe->link_irq, NULL,
 				    txgbe_link_irq_handler,
 				    IRQF_ONESHOT, "txgbe-link-irq", txgbe);
+}
+
+static int txgbe_request_gpio_irq(struct txgbe *txgbe)
+{
+	txgbe->gpio_irq = irq_find_mapping(txgbe->misc.domain, TXGBE_IRQ_GPIO);
+	return request_threaded_irq(txgbe->gpio_irq, NULL,
+				    txgbe_gpio_irq_handler_aml,
+				    IRQF_ONESHOT, "txgbe-gpio-irq", txgbe);
 }
 
 static const struct irq_chip txgbe_irq_chip = {
@@ -157,6 +173,11 @@ static irqreturn_t txgbe_misc_irq_thread_fn(int irq, void *data)
 		handle_nested_irq(sub_irq);
 		nhandled++;
 	}
+	if (eicr & TXGBE_PX_MISC_GPIO) {
+		sub_irq = irq_find_mapping(txgbe->misc.domain, TXGBE_IRQ_GPIO);
+		handle_nested_irq(sub_irq);
+		nhandled++;
+	}
 
 	wx_intr_enable(wx, TXGBE_INTR_MISC);
 	return (nhandled > 0 ? IRQ_HANDLED : IRQ_NONE);
@@ -178,6 +199,9 @@ void txgbe_free_misc_irq(struct txgbe *txgbe)
 {
 	if (txgbe->wx->mac.type == wx_mac_aml40)
 		return;
+
+	if (txgbe->wx->mac.type == wx_mac_aml)
+		free_irq(txgbe->gpio_irq, txgbe);
 
 	free_irq(txgbe->link_irq, txgbe);
 	free_irq(txgbe->misc.irq, txgbe);
@@ -222,11 +246,20 @@ int txgbe_setup_misc_irq(struct txgbe *txgbe)
 	if (err)
 		goto free_msic_irq;
 
+	if (wx->mac.type == wx_mac_sp)
+		goto skip_sp_irq;
+
+	err = txgbe_request_gpio_irq(txgbe);
+	if (err)
+		goto free_link_irq;
+
 skip_sp_irq:
 	wx->misc_irq_domain = true;
 
 	return 0;
 
+free_link_irq:
+	free_irq(txgbe->link_irq, txgbe);
 free_msic_irq:
 	free_irq(txgbe->misc.irq, txgbe);
 del_misc_irq:

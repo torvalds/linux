@@ -1154,6 +1154,7 @@ enum wx_state {
 	WX_STATE_SWFW_BUSY,
 	WX_STATE_PTP_RUNNING,
 	WX_STATE_PTP_TX_IN_PROGRESS,
+	WX_STATE_SERVICE_SCHED,
 	WX_STATE_NBITS		/* must be last */
 };
 
@@ -1197,6 +1198,8 @@ enum wx_pf_flags {
 	WX_FLAG_RX_HWTSTAMP_ENABLED,
 	WX_FLAG_RX_HWTSTAMP_IN_REGISTER,
 	WX_FLAG_PTP_PPS_ENABLED,
+	WX_FLAG_NEED_LINK_CONFIG,
+	WX_FLAG_NEED_SFP_RESET,
 	WX_PF_FLAGS_NBITS               /* must be last */
 };
 
@@ -1235,6 +1238,8 @@ struct wx {
 
 	/* PHY stuff */
 	bool notify_down;
+	int adv_speed;
+	int adv_duplex;
 	unsigned int link;
 	int speed;
 	int duplex;
@@ -1332,6 +1337,9 @@ struct wx {
 	struct ptp_clock_info ptp_caps;
 	struct kernel_hwtstamp_config tstamp_config;
 	struct sk_buff *ptp_tx_skb;
+
+	struct timer_list service_timer;
+	struct work_struct service_task;
 };
 
 #define WX_INTR_ALL (~0ULL)
