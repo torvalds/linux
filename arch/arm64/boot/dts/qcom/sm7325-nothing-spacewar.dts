@@ -253,6 +253,124 @@
 		regulator-max-microvolt = <3700000>;
 	};
 
+	vreg_cam_vio_1p8: regulator-cam-vio {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_cam_vio_1p8";
+
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		gpio = <&tlmm 49 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		/* Always-on prevents CCI bus timeouts */
+		regulator-always-on;
+
+		vin-supply = <&vreg_bob>;
+	};
+
+	vreg_camf_vana_2p8: regulator-camf-vana {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_camf_vana_2p8";
+
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+
+		gpio = <&tlmm 43 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vreg_bob>;
+	};
+
+	vreg_camf_vdig_1p1: regulator-camf-vdig {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_camf_vdig_1p1";
+
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1100000>;
+
+		gpio = <&tlmm 35 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vreg_s8b_1p256>;
+	};
+
+	vreg_camu_vaf_1p8: regulator-camu-vaf {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_camu_vaf_1p8";
+
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		gpio = <&tlmm 71 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vreg_bob>;
+	};
+
+	vreg_camu_vana_2p8: regulator-camu-vana {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_camu_vana_2p8";
+
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		gpio = <&tlmm 68 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vreg_bob>;
+	};
+
+	vreg_camu_vdig_1p1: regulator-camu-vdig {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_camu_vdig_1p1";
+
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1100000>;
+
+		gpio = <&tlmm 50 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vreg_s8b_1p256>;
+	};
+
+	vreg_camw_vaf_1p8: regulator-camw-vaf {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_camw_vaf_1p8";
+
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		gpio = <&tlmm 96 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vreg_bob>;
+	};
+
+	vreg_camw_vana_2p8: regulator-camw-vana {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_camw_vana_2p8";
+
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+
+		gpio = <&tlmm 79 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vreg_bob>;
+	};
+
+	vreg_camw_vdig_1p1: regulator-camw-vdig {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_camw_vdig_1p1";
+
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1100000>;
+
+		gpio = <&tlmm 108 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vreg_s8b_1p256>;
+	};
+
 	// S2B is really ebi.lvl but it's there for supply map completeness sake.
 	vreg_s2b_0p7: smpa3-regulator {
 		compatible = "regulator-fixed";
@@ -714,11 +832,26 @@
 };
 
 &cci0 {
+	/*
+	 * cci0_i2c1 bus is unused and GPIO 71&72 are repurposed.
+	 * So set only cci0_i2c0 pinctrl here.
+	 */
+	pinctrl-0 = <&cci0_default>;
+	pinctrl-1 = <&cci0_sleep>;
+
 	status = "okay";
 };
 
 &cci0_i2c0 {
-	/* sony,imx471 (Front) */
+	/* D-PHY sony,imx471 (Front) @ 0x1a */
+
+	camf_p24c64f: eeprom@52 {
+		compatible = "puya,p24c64f",
+			     "atmel,24c64";
+		reg = <0x52>;
+		vcc-supply = <&vreg_cam_vio_1p8>;
+		read-only;
+	};
 };
 
 &cci1 {
@@ -726,11 +859,29 @@
 };
 
 &cci1_i2c0 {
-	/* samsung,s5kjn1 (Rear-aux UW) */
+	/* actuator (For Ultra Wide sensor) @ 0xc */
+	/* D-PHY samsung,s5kjn1 (Ultra Wide) @ 0x2d */
+
+	camu_gt24p128e: eeprom@51 {
+		compatible = "giantec,gt24p128e",
+			     "atmel,24c128";
+		reg = <0x51>;
+		vcc-supply = <&vreg_cam_vio_1p8>;
+		read-only;
+	};
 };
 
 &cci1_i2c1 {
-	/* sony,imx766 (Rear Wide) */
+	/* actuator (For Wide sensor) @ 0xc */
+	/* C-PHY sony,imx766 (Wide) @ 0x10 */
+
+	camw_gt24p128e: eeprom@50 {
+		compatible = "giantec,gt24p128e",
+			     "atmel,24c128";
+		reg = <0x50>;
+		vcc-supply = <&vreg_cam_vio_1p8>;
+		read-only;
+	};
 };
 
 &gcc {
@@ -754,6 +905,10 @@
 };
 
 &gpi_dma1 {
+	status = "okay";
+};
+
+&gpu {
 	status = "okay";
 };
 
@@ -823,15 +978,44 @@
 	status = "okay";
 };
 
-/* MDSS remains disabled until the panel driver is present. */
+&mdss {
+	status = "okay";
+};
+
 &mdss_dsi {
 	vdda-supply = <&vdd_a_dsi_0_1p2>;
+	status = "okay";
 
-	/* Visionox RM692E5 panel */
+	panel: panel@0 {
+		compatible = "nothing,rm692e5-spacewar",
+			     "visionox,rm692e5";
+		reg = <0>;
+
+		reset-gpios = <&tlmm 44 GPIO_ACTIVE_LOW>;
+
+		vdd-supply = <&vdd_oled>;
+		vddio-supply = <&vdd_io_oled>;
+
+		pinctrl-0 = <&lcd_reset_n>,
+			    <&mdp_vsync_p>;
+		pinctrl-names = "default";
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&panel_in>;
 };
 
 &mdss_dsi_phy {
 	vdds-supply = <&vdd_a_dsi_0_0p9>;
+	status = "okay";
 };
 
 &pm7325_gpios {
@@ -1039,7 +1223,7 @@
 
 &q6asmdai {
 	dai@0 {
-		reg = <0>;
+		reg = <MSM_FRONTEND_DAI_MULTIMEDIA1>;
 	};
 };
 
@@ -1143,6 +1327,20 @@
 	nfc_int_req: nfc-int-req-state {
 		pins = "gpio41";
 		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	lcd_reset_n: lcd-reset-n-state {
+		pins = "gpio44";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	mdp_vsync_p: mdp-vsync-p-state {
+		pins = "gpio80";
+		function = "mdp_vsync";
 		drive-strength = <2>;
 		bias-pull-down;
 	};

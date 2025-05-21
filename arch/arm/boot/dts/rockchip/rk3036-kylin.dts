@@ -388,6 +388,18 @@
 	status = "okay";
 };
 
+&usb2phy {
+	status = "okay";
+};
+
+&usb2phy_host {
+	status = "okay";
+};
+
+&usb2phy_otg {
+	status = "okay";
+};
+
 &vop {
 	status = "okay";
 };

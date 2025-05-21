@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2025, Qualcomm Innovation Center, Inc. All rights reserved.
+*/
+
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/clock/qcom,gcc-sc7280.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
+
+&spi11 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	st33htpm0: tpm@0 {
+		compatible = "st,st33htpm-spi", "tcg,tpm_tis-spi";
+		reg = <0>;
+		spi-max-frequency = <20000000>;
+	};
+};

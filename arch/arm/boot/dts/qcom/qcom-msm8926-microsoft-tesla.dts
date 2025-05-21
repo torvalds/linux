@@ -8,6 +8,7 @@
 
 /dts-v1/;
 
+#include "msm8926.dtsi"
 #include "qcom-msm8226-microsoft-common.dtsi"
 
 /* This device has touchscreen on i2c1 instead */

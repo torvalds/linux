@@ -50,6 +50,7 @@
 
 	bt_sco_codec:bt_sco_codec {
 		compatible = "linux,bt-sco";
+		#sound-dai-cells = <0>;
 	};
 
 	backlight_lcd: backlight_lcd {

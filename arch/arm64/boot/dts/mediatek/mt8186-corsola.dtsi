@@ -518,7 +518,6 @@
 	cap-sdio-irq;
 	no-mmc;
 	no-sd;
-	non-removable;
 	vmmc-supply = <&pp3300_s3>;
 	vqmmc-supply = <&mt6366_vio18_reg>;
 	mmc-pwrseq = <&wifi_pwrseq>;

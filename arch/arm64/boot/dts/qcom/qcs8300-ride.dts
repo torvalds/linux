@@ -9,6 +9,7 @@
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 
 #include "qcs8300.dtsi"
+#include "qcs8300-pmics.dtsi"
 / {
 	model = "Qualcomm Technologies, Inc. QCS8300 Ride";
 	compatible = "qcom,qcs8300-ride", "qcom,qcs8300";
@@ -20,6 +21,16 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	regulator-usb2-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "USB2_VBUS";
+		gpio = <&pmm8650au_1_gpios 7 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&usb2_en>;
+		pinctrl-names = "default";
+		enable-active-high;
+		regulator-always-on;
 	};
 };
 
@@ -257,7 +268,6 @@
 
 	mtl_tx_setup: tx-queues-config {
 		snps,tx-queues-to-use = <4>;
-		snps,tx-sched-sp;
 
 		queue0 {
 			snps,dcb-algorithm;
@@ -282,6 +292,15 @@
 			snps,high_credit = <0x3e800>;
 			snps,low_credit = <0xffc18000>;
 		};
+	};
+};
+
+&pmm8650au_1_gpios {
+	usb2_en: usb2-en-state {
+		pins = "gpio7";
+		function = "normal";
+		output-enable;
+		power-source = <0>;
 	};
 };
 
@@ -354,6 +373,14 @@
 	status = "okay";
 };
 
+&usb_2_hsphy {
+	vdda-pll-supply = <&vreg_l7a>;
+	vdda18-supply = <&vreg_l7c>;
+	vdda33-supply = <&vreg_l9a>;
+
+	status = "okay";
+};
+
 &usb_qmpphy {
 	vdda-phy-supply = <&vreg_l7a>;
 	vdda-pll-supply = <&vreg_l5a>;
@@ -367,4 +394,12 @@
 
 &usb_1_dwc3 {
 	dr_mode = "peripheral";
+};
+
+&usb_2 {
+	status = "okay";
+};
+
+&usb_2_dwc3 {
+	dr_mode = "host";
 };

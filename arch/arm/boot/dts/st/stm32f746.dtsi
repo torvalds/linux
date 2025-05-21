@@ -43,6 +43,7 @@
 #include "../armv7-m.dtsi"
 #include <dt-bindings/clock/stm32fx-clock.h>
 #include <dt-bindings/mfd/stm32f7-rcc.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	#address-cells = <1>;
@@ -241,6 +242,39 @@
 			pwm {
 				compatible = "st,stm32-pwm";
 				#pwm-cells = <3>;
+				status = "disabled";
+			};
+		};
+
+		lptimer1: timer@40002400 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "st,stm32-lptimer";
+			reg = <0x40002400 0x400>;
+			interrupts-extended = <&exti 23 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&rcc 1 CLK_LPTIMER>;
+			clock-names = "mux";
+			status = "disabled";
+
+			pwm {
+				compatible = "st,stm32-pwm-lp";
+				#pwm-cells = <3>;
+				status = "disabled";
+			};
+
+			trigger@0 {
+				compatible = "st,stm32-lptimer-trigger";
+				reg = <0>;
+				status = "disabled";
+			};
+
+			counter {
+				compatible = "st,stm32-lptimer-counter";
+				status = "disabled";
+			};
+
+			timer {
+				compatible = "st,stm32-lptimer-timer";
 				status = "disabled";
 			};
 		};

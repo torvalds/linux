@@ -31,6 +31,15 @@
 			vsp-supply = <&reg_lcd_pos>;
 			vsn-supply = <&reg_lcd_neg>;
 			vddio-supply = <&vddio_disp_vreg>;
+			clocks = <&mmcc MDSS_AHB_CLK>,
+				 <&mmcc MDSS_AXI_CLK>,
+				 <&mmcc MDSS_BYTE0_CLK>,
+				 <&mmcc MDSS_ESC0_CLK>,
+				 <&mmcc MDSS_MDP_CLK>,
+				 <&mmcc MMSS_MISC_AHB_CLK>,
+				 <&mmcc MDSS_PCLK0_CLK>,
+				 <&mmcc MDSS_VSYNC_CLK>;
+			power-domains = <&mmcc MDSS_GDSC>;
 		};
 	};
 
@@ -53,9 +62,12 @@
 		};
 	};
 
+	/* TI TPS22902 */
 	vddio_disp_vreg: regulator-vddio-disp {
 		compatible = "regulator-fixed";
 		regulator-name = "vddio_disp";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
 		gpio = <&tlmm 34 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&pm8226_l8>;
 		startup-delay-us = <300>;
@@ -97,6 +109,7 @@
 };
 
 &blsp1_i2c2 {
+	clock-frequency = <100000>;
 	status = "okay";
 
 	magnetometer@c {
@@ -126,6 +139,7 @@
 };
 
 &blsp1_i2c3 {
+	clock-frequency = <400000>;
 	status = "okay";
 
 	regulator@3e {
@@ -136,8 +150,8 @@
 
 		reg_lcd_pos: outp {
 			regulator-name = "outp";
-			regulator-min-microvolt = <4000000>;
-			regulator-max-microvolt = <6000000>;
+			regulator-min-microvolt = <5400000>;
+			regulator-max-microvolt = <5400000>;
 			regulator-active-discharge = <1>;
 			regulator-boot-on;
 			enable-gpios = <&tlmm 31 GPIO_ACTIVE_HIGH>;
@@ -145,8 +159,8 @@
 
 		reg_lcd_neg: outn {
 			regulator-name = "outn";
-			regulator-min-microvolt = <4000000>;
-			regulator-max-microvolt = <6000000>;
+			regulator-min-microvolt = <5400000>;
+			regulator-max-microvolt = <5400000>;
 			regulator-active-discharge = <1>;
 			regulator-boot-on;
 			enable-gpios = <&tlmm 33 GPIO_ACTIVE_HIGH>;

@@ -175,6 +175,7 @@
 	 * BAM DMA interconnects support is in place.
 	 */
 	/delete-property/ clocks;
+	/delete-property/ clock-names;
 };
 
 &blsp1_uart2 {
@@ -187,6 +188,7 @@
 	 * BAM DMA interconnects support is in place.
 	 */
 	/delete-property/ clocks;
+	/delete-property/ clock-names;
 };
 
 &blsp2_uart1 {
@@ -507,7 +509,7 @@
 	vdd-3.3-ch0-supply = <&vreg_l19a_3p3>;
 	vdd-3.3-ch1-supply = <&vreg_l8b_3p3>;
 
-	qcom,ath10k-calibration-variant = "Inforce_IFC6560";
+	qcom,calibration-variant = "Inforce_IFC6560";
 
 	status = "okay";
 };
