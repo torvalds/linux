@@ -11,8 +11,8 @@ config OPENVSWITCH
 				     (!NF_NAT || NF_NAT) && \
 				     (!NETFILTER_CONNCOUNT || NETFILTER_CONNCOUNT)))
 	depends on PSAMPLE || !PSAMPLE
-	select CRC32
 	select MPLS
+	select NET_CRC32C
 	select NET_MPLS_GSO
 	select DST_CACHE
 	select NET_NSH

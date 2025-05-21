@@ -64,6 +64,7 @@
 #include <linux/mpls.h>
 #include <linux/kcov.h>
 #include <linux/iov_iter.h>
+#include <linux/crc32.h>
 
 #include <net/protocol.h>
 #include <net/dst.h>
@@ -3444,8 +3445,7 @@ fault:
 EXPORT_SYMBOL(skb_store_bits);
 
 /* Checksum skb data. */
-__wsum __skb_checksum(const struct sk_buff *skb, int offset, int len,
-		      __wsum csum, const struct skb_checksum_ops *ops)
+__wsum skb_checksum(const struct sk_buff *skb, int offset, int len, __wsum csum)
 {
 	int start = skb_headlen(skb);
 	int i, copy = start - offset;
@@ -3456,8 +3456,7 @@ __wsum __skb_checksum(const struct sk_buff *skb, int offset, int len,
 	if (copy > 0) {
 		if (copy > len)
 			copy = len;
-		csum = INDIRECT_CALL_1(ops->update, csum_partial_ext,
-				       skb->data + offset, copy, csum);
+		csum = csum_partial(skb->data + offset, copy, csum);
 		if ((len -= copy) == 0)
 			return csum;
 		offset += copy;
@@ -3487,13 +3486,9 @@ __wsum __skb_checksum(const struct sk_buff *skb, int offset, int len,
 					      skb_frag_off(frag) + offset - start,
 					      copy, p, p_off, p_len, copied) {
 				vaddr = kmap_atomic(p);
-				csum2 = INDIRECT_CALL_1(ops->update,
-							csum_partial_ext,
-							vaddr + p_off, p_len, 0);
+				csum2 = csum_partial(vaddr + p_off, p_len, 0);
 				kunmap_atomic(vaddr);
-				csum = INDIRECT_CALL_1(ops->combine,
-						       csum_block_add_ext, csum,
-						       csum2, pos, p_len);
+				csum = csum_block_add(csum, csum2, pos);
 				pos += p_len;
 			}
 
@@ -3514,10 +3509,9 @@ __wsum __skb_checksum(const struct sk_buff *skb, int offset, int len,
 			__wsum csum2;
 			if (copy > len)
 				copy = len;
-			csum2 = __skb_checksum(frag_iter, offset - start,
-					       copy, 0, ops);
-			csum = INDIRECT_CALL_1(ops->combine, csum_block_add_ext,
-					       csum, csum2, pos, copy);
+			csum2 = skb_checksum(frag_iter, offset - start, copy,
+					     0);
+			csum = csum_block_add(csum, csum2, pos);
 			if ((len -= copy) == 0)
 				return csum;
 			offset += copy;
@@ -3528,18 +3522,6 @@ __wsum __skb_checksum(const struct sk_buff *skb, int offset, int len,
 	BUG_ON(len);
 
 	return csum;
-}
-EXPORT_SYMBOL(__skb_checksum);
-
-__wsum skb_checksum(const struct sk_buff *skb, int offset,
-		    int len, __wsum csum)
-{
-	const struct skb_checksum_ops ops = {
-		.update  = csum_partial_ext,
-		.combine = csum_block_add_ext,
-	};
-
-	return __skb_checksum(skb, offset, len, csum, &ops);
 }
 EXPORT_SYMBOL(skb_checksum);
 
@@ -3633,6 +3615,78 @@ __wsum skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 }
 EXPORT_SYMBOL(skb_copy_and_csum_bits);
 
+#ifdef CONFIG_NET_CRC32C
+u32 skb_crc32c(const struct sk_buff *skb, int offset, int len, u32 crc)
+{
+	int start = skb_headlen(skb);
+	int i, copy = start - offset;
+	struct sk_buff *frag_iter;
+
+	if (copy > 0) {
+		copy = min(copy, len);
+		crc = crc32c(crc, skb->data + offset, copy);
+		len -= copy;
+		if (len == 0)
+			return crc;
+		offset += copy;
+	}
+
+	if (WARN_ON_ONCE(!skb_frags_readable(skb)))
+		return 0;
+
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		int end;
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+
+		WARN_ON(start > offset + len);
+
+		end = start + skb_frag_size(frag);
+		copy = end - offset;
+		if (copy > 0) {
+			u32 p_off, p_len, copied;
+			struct page *p;
+			u8 *vaddr;
+
+			copy = min(copy, len);
+			skb_frag_foreach_page(frag,
+					      skb_frag_off(frag) + offset - start,
+					      copy, p, p_off, p_len, copied) {
+				vaddr = kmap_atomic(p);
+				crc = crc32c(crc, vaddr + p_off, p_len);
+				kunmap_atomic(vaddr);
+			}
+			len -= copy;
+			if (len == 0)
+				return crc;
+			offset += copy;
+		}
+		start = end;
+	}
+
+	skb_walk_frags(skb, frag_iter) {
+		int end;
+
+		WARN_ON(start > offset + len);
+
+		end = start + frag_iter->len;
+		copy = end - offset;
+		if (copy > 0) {
+			copy = min(copy, len);
+			crc = skb_crc32c(frag_iter, offset - start, copy, crc);
+			len -= copy;
+			if (len == 0)
+				return crc;
+			offset += copy;
+		}
+		start = end;
+	}
+	BUG_ON(len);
+
+	return crc;
+}
+EXPORT_SYMBOL(skb_crc32c);
+#endif /* CONFIG_NET_CRC32C */
+
 __sum16 __skb_checksum_complete_head(struct sk_buff *skb, int len)
 {
 	__sum16 sum;
@@ -3691,32 +3745,6 @@ __sum16 __skb_checksum_complete(struct sk_buff *skb)
 	return sum;
 }
 EXPORT_SYMBOL(__skb_checksum_complete);
-
-static __wsum warn_crc32c_csum_update(const void *buff, int len, __wsum sum)
-{
-	net_warn_ratelimited(
-		"%s: attempt to compute crc32c without libcrc32c.ko\n",
-		__func__);
-	return 0;
-}
-
-static __wsum warn_crc32c_csum_combine(__wsum csum, __wsum csum2,
-				       int offset, int len)
-{
-	net_warn_ratelimited(
-		"%s: attempt to compute crc32c without libcrc32c.ko\n",
-		__func__);
-	return 0;
-}
-
-static const struct skb_checksum_ops default_crc32c_ops = {
-	.update  = warn_crc32c_csum_update,
-	.combine = warn_crc32c_csum_combine,
-};
-
-const struct skb_checksum_ops *crc32c_csum_stub __read_mostly =
-	&default_crc32c_ops;
-EXPORT_SYMBOL(crc32c_csum_stub);
 
  /**
  *	skb_zerocopy_headlen - Calculate headroom needed for skb_zerocopy()

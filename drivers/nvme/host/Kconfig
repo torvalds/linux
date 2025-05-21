@@ -84,9 +84,9 @@ config NVME_TCP
 	tristate "NVM Express over Fabrics TCP host driver"
 	depends on INET
 	depends on BLOCK
+	select CRC32
+	select NET_CRC32C
 	select NVME_FABRICS
-	select CRYPTO
-	select CRYPTO_CRC32C
 	help
 	  This provides support for the NVMe over Fabrics protocol using
 	  the TCP transport.  This allows you to use remote block devices

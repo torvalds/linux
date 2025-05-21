@@ -274,7 +274,6 @@
 			 SKB_DATA_ALIGN(sizeof(struct sk_buff)) +	\
 			 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
-struct ahash_request;
 struct net_device;
 struct scatterlist;
 struct pipe_inode_info;
@@ -4134,9 +4133,8 @@ static inline int skb_copy_datagram_msg(const struct sk_buff *from, int offset,
 }
 int skb_copy_and_csum_datagram_msg(struct sk_buff *skb, int hlen,
 				   struct msghdr *msg);
-int skb_copy_and_hash_datagram_iter(const struct sk_buff *skb, int offset,
-			   struct iov_iter *to, int len,
-			   struct ahash_request *hash);
+int skb_copy_and_crc32c_datagram_iter(const struct sk_buff *skb, int offset,
+				      struct iov_iter *to, int len, u32 *crcp);
 int skb_copy_datagram_from_iter(struct sk_buff *skb, int offset,
 				 struct iov_iter *from, int len);
 int zerocopy_sg_from_iter(struct sk_buff *skb, struct iov_iter *frm);
@@ -4192,17 +4190,9 @@ static inline int memcpy_to_msg(struct msghdr *msg, void *data, int len)
 	return copy_to_iter(data, len, &msg->msg_iter) == len ? 0 : -EFAULT;
 }
 
-struct skb_checksum_ops {
-	__wsum (*update)(const void *mem, int len, __wsum wsum);
-	__wsum (*combine)(__wsum csum, __wsum csum2, int offset, int len);
-};
-
-extern const struct skb_checksum_ops *crc32c_csum_stub __read_mostly;
-
-__wsum __skb_checksum(const struct sk_buff *skb, int offset, int len,
-		      __wsum csum, const struct skb_checksum_ops *ops);
 __wsum skb_checksum(const struct sk_buff *skb, int offset, int len,
 		    __wsum csum);
+u32 skb_crc32c(const struct sk_buff *skb, int offset, int len, u32 crc);
 
 static inline void * __must_check
 __skb_header_pointer(const struct sk_buff *skb, int offset, int len,
