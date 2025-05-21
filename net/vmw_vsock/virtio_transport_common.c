@@ -1195,12 +1195,14 @@ static void virtio_transport_wait_close(struct sock *sk, long timeout)
 {
 	if (timeout) {
 		DEFINE_WAIT_FUNC(wait, woken_wake_function);
+		struct vsock_sock *vsk = vsock_sk(sk);
 
 		add_wait_queue(sk_sleep(sk), &wait);
 
 		do {
 			if (sk_wait_event(sk, &timeout,
-					  sock_flag(sk, SOCK_DONE), &wait))
+					  virtio_transport_unsent_bytes(vsk) == 0,
+					  &wait))
 				break;
 		} while (!signal_pending(current) && timeout);
 
