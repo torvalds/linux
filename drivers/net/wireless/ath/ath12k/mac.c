@@ -5860,6 +5860,7 @@ static int ath12k_mac_handle_link_sta_state(struct ieee80211_hw *hw,
 			link_conf = ath12k_mac_get_link_bss_conf(arvif);
 			reg_info = ab->reg_info[ar->pdev_idx];
 			ath12k_dbg(ab, ATH12K_DBG_MAC, "connection done, update reg rules\n");
+			ath12k_hw_to_ah(hw)->regd_updated = false;
 			ath12k_reg_handle_chan_list(ab, reg_info, arvif->ahvif->vdev_type,
 						    link_conf->power_type);
 		}
