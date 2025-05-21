@@ -1820,11 +1820,13 @@ static int rt6_nh_flush_exceptions(struct fib6_nh *nh, void *arg)
 
 void rt6_flush_exceptions(struct fib6_info *f6i)
 {
-	if (f6i->nh)
-		nexthop_for_each_fib6_nh(f6i->nh, rt6_nh_flush_exceptions,
-					 f6i);
-	else
+	if (f6i->nh) {
+		rcu_read_lock();
+		nexthop_for_each_fib6_nh(f6i->nh, rt6_nh_flush_exceptions, f6i);
+		rcu_read_unlock();
+	} else {
 		fib6_nh_flush_exceptions(f6i->fib6_nh, f6i);
+	}
 }
 
 /* Find cached rt in the hash table inside passed in rt
@@ -3672,12 +3674,10 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 		goto out;
 
 pcpu_alloc:
+	fib6_nh->rt6i_pcpu = alloc_percpu_gfp(struct rt6_info *, gfp_flags);
 	if (!fib6_nh->rt6i_pcpu) {
-		fib6_nh->rt6i_pcpu = alloc_percpu_gfp(struct rt6_info *, gfp_flags);
-		if (!fib6_nh->rt6i_pcpu) {
-			err = -ENOMEM;
-			goto out;
-		}
+		err = -ENOMEM;
+		goto out;
 	}
 
 	fib6_nh->fib_nh_dev = dev;
@@ -3737,24 +3737,6 @@ void fib6_nh_release_dsts(struct fib6_nh *fib6_nh)
 	}
 }
 
-static int fib6_nh_prealloc_percpu(struct fib6_nh *fib6_nh, gfp_t gfp_flags)
-{
-	struct fib_nh_common *nhc = &fib6_nh->nh_common;
-
-	fib6_nh->rt6i_pcpu = alloc_percpu_gfp(struct rt6_info *, gfp_flags);
-	if (!fib6_nh->rt6i_pcpu)
-		return -ENOMEM;
-
-	nhc->nhc_pcpu_rth_output = alloc_percpu_gfp(struct rtable __rcu *,
-						    gfp_flags);
-	if (!nhc->nhc_pcpu_rth_output) {
-		free_percpu(fib6_nh->rt6i_pcpu);
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
 static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 					       gfp_t gfp_flags,
 					       struct netlink_ext_ack *extack)
@@ -3792,12 +3774,6 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 		goto free;
 	}
 
-	if (!cfg->fc_nh_id) {
-		err = fib6_nh_prealloc_percpu(&rt->fib6_nh[0], gfp_flags);
-		if (err)
-			goto free_metrics;
-	}
-
 	if (cfg->fc_flags & RTF_ADDRCONF)
 		rt->dst_nocount = true;
 
@@ -3822,8 +3798,6 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 	rt->fib6_src.plen = cfg->fc_src_len;
 #endif
 	return rt;
-free_metrics:
-	ip_fib_metrics_put(rt->fib6_metrics);
 free:
 	kfree(rt);
 err:
@@ -3832,6 +3806,7 @@ err:
 
 static int ip6_route_info_create_nh(struct fib6_info *rt,
 				    struct fib6_config *cfg,
+				    gfp_t gfp_flags,
 				    struct netlink_ext_ack *extack)
 {
 	struct net *net = cfg->fc_nlinfo.nl_net;
@@ -3840,6 +3815,8 @@ static int ip6_route_info_create_nh(struct fib6_info *rt,
 
 	if (cfg->fc_nh_id) {
 		struct nexthop *nh;
+
+		rcu_read_lock();
 
 		nh = nexthop_find_by_id(net, cfg->fc_nh_id);
 		if (!nh) {
@@ -3860,10 +3837,12 @@ static int ip6_route_info_create_nh(struct fib6_info *rt,
 
 		rt->nh = nh;
 		fib6_nh = nexthop_fib6_nh(rt->nh);
+
+		rcu_read_unlock();
 	} else {
 		int addr_type;
 
-		err = fib6_nh_init(net, rt->fib6_nh, cfg, GFP_ATOMIC, extack);
+		err = fib6_nh_init(net, rt->fib6_nh, cfg, gfp_flags, extack);
 		if (err)
 			goto out_release;
 
@@ -3895,6 +3874,7 @@ out_release:
 	fib6_info_release(rt);
 	return err;
 out_free:
+	rcu_read_unlock();
 	ip_fib_metrics_put(rt->fib6_metrics);
 	kfree(rt);
 	return err;
@@ -3910,16 +3890,12 @@ int ip6_route_add(struct fib6_config *cfg, gfp_t gfp_flags,
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 
-	rcu_read_lock();
-
-	err = ip6_route_info_create_nh(rt, cfg, extack);
+	err = ip6_route_info_create_nh(rt, cfg, gfp_flags, extack);
 	if (err)
-		goto unlock;
+		return err;
 
 	err = __ip6_ins_rt(rt, &cfg->fc_nlinfo, extack);
 	fib6_info_release(rt);
-unlock:
-	rcu_read_unlock();
 
 	return err;
 }
@@ -4704,7 +4680,7 @@ struct fib6_info *addrconf_f6i_alloc(struct net *net,
 	if (IS_ERR(f6i))
 		return f6i;
 
-	err = ip6_route_info_create_nh(f6i, &cfg, extack);
+	err = ip6_route_info_create_nh(f6i, &cfg, gfp_flags, extack);
 	if (err)
 		return ERR_PTR(err);
 
@@ -5172,8 +5148,7 @@ static int rtm_to_fib6_multipath_config(struct fib6_config *cfg,
 		rtnh = rtnh_next(rtnh, &remaining);
 	} while (rtnh_ok(rtnh, remaining));
 
-	return lwtunnel_valid_encap_type_attr(cfg->fc_mp, cfg->fc_mp_len,
-					      extack, false);
+	return lwtunnel_valid_encap_type_attr(cfg->fc_mp, cfg->fc_mp_len, extack);
 }
 
 static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -5310,8 +5285,7 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (tb[RTA_ENCAP_TYPE]) {
 		cfg->fc_encap_type = nla_get_u16(tb[RTA_ENCAP_TYPE]);
 
-		err = lwtunnel_valid_encap_type(cfg->fc_encap_type,
-						extack, false);
+		err = lwtunnel_valid_encap_type(cfg->fc_encap_type, extack);
 		if (err < 0)
 			goto errout;
 	}
@@ -5334,131 +5308,29 @@ struct rt6_nh {
 	struct fib6_info *fib6_info;
 	struct fib6_config r_cfg;
 	struct list_head list;
-	int weight;
 };
 
-static void ip6_route_mpath_info_cleanup(struct list_head *rt6_nh_list)
+static int ip6_route_info_append(struct list_head *rt6_nh_list,
+				 struct fib6_info *rt,
+				 struct fib6_config *r_cfg)
 {
-	struct rt6_nh *nh, *nh_next;
+	struct rt6_nh *nh;
 
-	list_for_each_entry_safe(nh, nh_next, rt6_nh_list, list) {
-		struct fib6_info *rt = nh->fib6_info;
-
-		if (rt) {
-			free_percpu(rt->fib6_nh->nh_common.nhc_pcpu_rth_output);
-			free_percpu(rt->fib6_nh->rt6i_pcpu);
-			ip_fib_metrics_put(rt->fib6_metrics);
-			kfree(rt);
-		}
-
-		list_del(&nh->list);
-		kfree(nh);
+	list_for_each_entry(nh, rt6_nh_list, list) {
+		/* check if fib6_info already exists */
+		if (rt6_duplicate_nexthop(nh->fib6_info, rt))
+			return -EEXIST;
 	}
-}
 
-static int ip6_route_mpath_info_create(struct list_head *rt6_nh_list,
-				       struct fib6_config *cfg,
-				       struct netlink_ext_ack *extack)
-{
-	struct rtnexthop *rtnh;
-	int remaining;
-	int err;
+	nh = kzalloc(sizeof(*nh), GFP_KERNEL);
+	if (!nh)
+		return -ENOMEM;
 
-	remaining = cfg->fc_mp_len;
-	rtnh = (struct rtnexthop *)cfg->fc_mp;
-
-	/* Parse a Multipath Entry and build a list (rt6_nh_list) of
-	 * fib6_info structs per nexthop
-	 */
-	while (rtnh_ok(rtnh, remaining)) {
-		struct fib6_config r_cfg;
-		struct fib6_info *rt;
-		struct rt6_nh *nh;
-		int attrlen;
-
-		nh = kzalloc(sizeof(*nh), GFP_KERNEL);
-		if (!nh) {
-			err = -ENOMEM;
-			goto err;
-		}
-
-		list_add_tail(&nh->list, rt6_nh_list);
-
-		memcpy(&r_cfg, cfg, sizeof(*cfg));
-		if (rtnh->rtnh_ifindex)
-			r_cfg.fc_ifindex = rtnh->rtnh_ifindex;
-
-		attrlen = rtnh_attrlen(rtnh);
-		if (attrlen > 0) {
-			struct nlattr *nla, *attrs = rtnh_attrs(rtnh);
-
-			nla = nla_find(attrs, attrlen, RTA_GATEWAY);
-			if (nla) {
-				r_cfg.fc_gateway = nla_get_in6_addr(nla);
-				r_cfg.fc_flags |= RTF_GATEWAY;
-			}
-
-			r_cfg.fc_encap = nla_find(attrs, attrlen, RTA_ENCAP);
-			nla = nla_find(attrs, attrlen, RTA_ENCAP_TYPE);
-			if (nla)
-				r_cfg.fc_encap_type = nla_get_u16(nla);
-		}
-
-		r_cfg.fc_flags |= (rtnh->rtnh_flags & RTNH_F_ONLINK);
-
-		rt = ip6_route_info_create(&r_cfg, GFP_KERNEL, extack);
-		if (IS_ERR(rt)) {
-			err = PTR_ERR(rt);
-			goto err;
-		}
-
-		nh->fib6_info = rt;
-		nh->weight = rtnh->rtnh_hops + 1;
-		memcpy(&nh->r_cfg, &r_cfg, sizeof(r_cfg));
-
-		rtnh = rtnh_next(rtnh, &remaining);
-	}
+	nh->fib6_info = rt;
+	memcpy(&nh->r_cfg, r_cfg, sizeof(*r_cfg));
+	list_add_tail(&nh->list, rt6_nh_list);
 
 	return 0;
-err:
-	ip6_route_mpath_info_cleanup(rt6_nh_list);
-	return err;
-}
-
-static int ip6_route_mpath_info_create_nh(struct list_head *rt6_nh_list,
-					  struct netlink_ext_ack *extack)
-{
-	struct rt6_nh *nh, *nh_next, *nh_tmp;
-	LIST_HEAD(tmp);
-	int err;
-
-	list_for_each_entry_safe(nh, nh_next, rt6_nh_list, list) {
-		struct fib6_info *rt = nh->fib6_info;
-
-		err = ip6_route_info_create_nh(rt, &nh->r_cfg, extack);
-		if (err) {
-			nh->fib6_info = NULL;
-			goto err;
-		}
-
-		rt->fib6_nh->fib_nh_weight = nh->weight;
-
-		list_move_tail(&nh->list, &tmp);
-
-		list_for_each_entry(nh_tmp, rt6_nh_list, list) {
-			/* check if fib6_info already exists */
-			if (rt6_duplicate_nexthop(nh_tmp->fib6_info, rt)) {
-				err = -EEXIST;
-				goto err;
-			}
-		}
-	}
-out:
-	list_splice(&tmp, rt6_nh_list);
-	return err;
-err:
-	ip6_route_mpath_info_cleanup(rt6_nh_list);
-	goto out;
 }
 
 static void ip6_route_mpath_notify(struct fib6_info *rt,
@@ -5518,11 +5390,16 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 	struct fib6_info *rt_notif = NULL, *rt_last = NULL;
 	struct nl_info *info = &cfg->fc_nlinfo;
 	struct rt6_nh *nh, *nh_safe;
+	struct fib6_config r_cfg;
+	struct rtnexthop *rtnh;
 	LIST_HEAD(rt6_nh_list);
 	struct rt6_nh *err_nh;
+	struct fib6_info *rt;
 	__u16 nlflags;
-	int nhn = 0;
+	int remaining;
+	int attrlen;
 	int replace;
+	int nhn = 0;
 	int err;
 
 	replace = (cfg->fc_nlinfo.nlh &&
@@ -5532,15 +5409,57 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 	if (info->nlh && info->nlh->nlmsg_flags & NLM_F_APPEND)
 		nlflags |= NLM_F_APPEND;
 
-	err = ip6_route_mpath_info_create(&rt6_nh_list, cfg, extack);
-	if (err)
-		return err;
+	remaining = cfg->fc_mp_len;
+	rtnh = (struct rtnexthop *)cfg->fc_mp;
 
-	rcu_read_lock();
+	/* Parse a Multipath Entry and build a list (rt6_nh_list) of
+	 * fib6_info structs per nexthop
+	 */
+	while (rtnh_ok(rtnh, remaining)) {
+		memcpy(&r_cfg, cfg, sizeof(*cfg));
+		if (rtnh->rtnh_ifindex)
+			r_cfg.fc_ifindex = rtnh->rtnh_ifindex;
 
-	err = ip6_route_mpath_info_create_nh(&rt6_nh_list, extack);
-	if (err)
-		goto cleanup;
+		attrlen = rtnh_attrlen(rtnh);
+		if (attrlen > 0) {
+			struct nlattr *nla, *attrs = rtnh_attrs(rtnh);
+
+			nla = nla_find(attrs, attrlen, RTA_GATEWAY);
+			if (nla) {
+				r_cfg.fc_gateway = nla_get_in6_addr(nla);
+				r_cfg.fc_flags |= RTF_GATEWAY;
+			}
+
+			r_cfg.fc_encap = nla_find(attrs, attrlen, RTA_ENCAP);
+			nla = nla_find(attrs, attrlen, RTA_ENCAP_TYPE);
+			if (nla)
+				r_cfg.fc_encap_type = nla_get_u16(nla);
+		}
+
+		r_cfg.fc_flags |= (rtnh->rtnh_flags & RTNH_F_ONLINK);
+		rt = ip6_route_info_create(&r_cfg, GFP_KERNEL, extack);
+		if (IS_ERR(rt)) {
+			err = PTR_ERR(rt);
+			rt = NULL;
+			goto cleanup;
+		}
+
+		err = ip6_route_info_create_nh(rt, &r_cfg, GFP_KERNEL, extack);
+		if (err) {
+			rt = NULL;
+			goto cleanup;
+		}
+
+		rt->fib6_nh->fib_nh_weight = rtnh->rtnh_hops + 1;
+
+		err = ip6_route_info_append(&rt6_nh_list, rt, &r_cfg);
+		if (err) {
+			fib6_info_release(rt);
+			goto cleanup;
+		}
+
+		rtnh = rtnh_next(rtnh, &remaining);
+	}
 
 	/* for add and replace send one notification with all nexthops.
 	 * Skip the notification in fib6_add_rt2node and send one with
@@ -5629,8 +5548,6 @@ add_errout:
 	}
 
 cleanup:
-	rcu_read_unlock();
-
 	list_for_each_entry_safe(nh, nh_safe, &rt6_nh_list, list) {
 		fib6_info_release(nh->fib6_info);
 		list_del(&nh->list);
@@ -6412,6 +6329,8 @@ void inet6_rt_notify(int event, struct fib6_info *rt, struct nl_info *info,
 	err = -ENOBUFS;
 	seq = info->nlh ? info->nlh->nlmsg_seq : 0;
 
+	rcu_read_lock();
+
 	skb = nlmsg_new(rt6_nlmsg_size(rt), GFP_ATOMIC);
 	if (!skb)
 		goto errout;
@@ -6424,10 +6343,14 @@ void inet6_rt_notify(int event, struct fib6_info *rt, struct nl_info *info,
 		kfree_skb(skb);
 		goto errout;
 	}
+
+	rcu_read_unlock();
+
 	rtnl_notify(skb, net, info->portid, RTNLGRP_IPV6_ROUTE,
 		    info->nlh, GFP_ATOMIC);
 	return;
 errout:
+	rcu_read_unlock();
 	rtnl_set_sk_err(net, RTNLGRP_IPV6_ROUTE, err);
 }
 
