@@ -685,7 +685,11 @@ class TypeNest(Type):
                             f"{self.enum_name}, {at}{var}->{self.c_name})")
 
     def _attr_get(self, ri, var):
-        get_lines = [f"if ({self.nested_render_name}_parse(&parg, attr))",
+        pns = self.family.pure_nested_structs[self.nested_attrs]
+        args = ["&parg", "attr"]
+        for sel in pns.external_selectors():
+            args.append(f'{var}->{sel.name}')
+        get_lines = [f"if ({self.nested_render_name}_parse({', '.join(args)}))",
                      "return YNL_PARSE_CB_ERROR;"]
         init_lines = [f"parg.rsp_policy = &{self.nested_render_name}_nest;",
                       f"parg.data = &{var}->{self.c_name};"]
@@ -890,15 +894,24 @@ class TypeSubMessage(TypeNest):
 
     def _attr_typol(self):
         typol = f'.type = YNL_PT_NEST, .nest = &{self.nested_render_name}_nest, '
-        typol += f'.is_submsg = 1, .selector_type = {self.attr_set[self["selector"]].value} '
+        typol += '.is_submsg = 1, '
+        # Reverse-parsing of the policy (ynl_err_walk() in ynl.c) does not
+        # support external selectors. No family uses sub-messages with external
+        # selector for requests so this is fine for now.
+        if not self.selector.is_external():
+            typol += f'.selector_type = {self.attr_set[self["selector"]].value} '
         return typol
 
     def _attr_get(self, ri, var):
         sel = c_lower(self['selector'])
-        get_lines = [f'if (!{var}->{sel})',
+        if self.selector.is_external():
+            sel_var = f"_sel_{sel}"
+        else:
+            sel_var = f"{var}->{sel}"
+        get_lines = [f'if (!{sel_var})',
                      f'return ynl_submsg_failed(yarg, "%s", "%s");' %
                         (self.name, self['selector']),
-                    f"if ({self.nested_render_name}_parse(&parg, {var}->{sel}, attr))",
+                    f"if ({self.nested_render_name}_parse(&parg, {sel_var}, attr))",
                      "return YNL_PARSE_CB_ERROR;"]
         init_lines = [f"parg.rsp_policy = &{self.nested_render_name}_nest;",
                       f"parg.data = &{var}->{self.c_name};"]
@@ -914,11 +927,19 @@ class Selector:
             self.attr.is_selector = True
             self._external = False
         else:
-            raise Exception("Passing selectors from external nests not supported")
+            # The selector will need to get passed down thru the structs
+            self.attr = None
+            self._external = True
+
+    def set_attr(self, attr):
+        self.attr = attr
+
+    def is_external(self):
+        return self._external
 
 
 class Struct:
-    def __init__(self, family, space_name, type_list=None,
+    def __init__(self, family, space_name, type_list=None, fixed_header=None,
                  inherited=None, submsg=None):
         self.family = family
         self.space_name = space_name
@@ -926,6 +947,9 @@ class Struct:
         # Use list to catch comparisons with empty sets
         self._inherited = inherited if inherited is not None else []
         self.inherited = []
+        self.fixed_header = None
+        if fixed_header:
+            self.fixed_header = 'struct ' + c_lower(fixed_header)
         self.submsg = submsg
 
         self.nested = type_list is None
@@ -975,6 +999,13 @@ class Struct:
         if self._inherited != new_inherited:
             raise Exception("Inheriting different members not supported")
         self.inherited = [c_lower(x) for x in sorted(self._inherited)]
+
+    def external_selectors(self):
+        sels = []
+        for name, attr in self.attr_list:
+            if isinstance(attr, TypeSubMessage) and attr.selector.is_external():
+                sels.append(attr.selector)
+        return sels
 
     def free_needs_iter(self):
         for _, attr in self.attr_list:
@@ -1222,6 +1253,7 @@ class Family(SpecFamily):
         self._load_root_sets()
         self._load_nested_sets()
         self._load_attr_use()
+        self._load_selector_passing()
         self._load_hooks()
 
         self.kernel_policy = self.yaml.get('kernel-policy', 'split')
@@ -1316,7 +1348,9 @@ class Family(SpecFamily):
         nested = spec['nested-attributes']
         if nested not in self.root_sets:
             if nested not in self.pure_nested_structs:
-                self.pure_nested_structs[nested] = Struct(self, nested, inherited=inherit)
+                self.pure_nested_structs[nested] = \
+                    Struct(self, nested, inherited=inherit,
+                           fixed_header=spec.get('fixed-header'))
         else:
             raise Exception(f'Using attr set as root and nested not supported - {nested}')
 
@@ -1338,12 +1372,25 @@ class Family(SpecFamily):
 
         attrs = []
         for name, fmt in submsg.formats.items():
-            attrs.append({
+            attr = {
                 "name": name,
-                "type": "nest",
                 "parent-sub-message": spec,
-                "nested-attributes": fmt['attribute-set']
-            })
+            }
+            if 'attribute-set' in fmt:
+                attr |= {
+                    "type": "nest",
+                    "nested-attributes": fmt['attribute-set'],
+                }
+                if 'fixed-header' in fmt:
+                    attr |= { "fixed-header": fmt["fixed-header"] }
+            elif 'fixed-header' in fmt:
+                attr |= {
+                    "type": "binary",
+                    "struct": fmt["fixed-header"],
+                }
+            else:
+                attr["type"] = "flag"
+            attrs.append(attr)
 
         self.attr_sets[nested] = AttrSet(self, {
             "name": nested,
@@ -1436,6 +1483,30 @@ class Family(SpecFamily):
                 if attr in rs_members['reply']:
                     spec.set_reply()
 
+    def _load_selector_passing(self):
+        def all_structs():
+            for k, v in reversed(self.pure_nested_structs.items()):
+                yield k, v
+            for k, _ in self.root_sets.items():
+                yield k, None  # we don't have a struct, but it must be terminal
+
+        for attr_set, struct in all_structs():
+            for _, spec in self.attr_sets[attr_set].items():
+                if 'nested-attributes' in spec:
+                    child_name = spec['nested-attributes']
+                elif 'sub-message' in spec:
+                    child_name = spec.sub_message
+                else:
+                    continue
+
+                child = self.pure_nested_structs.get(child_name)
+                for selector in child.external_selectors():
+                    if selector.name in self.attr_sets[attr_set]:
+                        sel_attr = self.attr_sets[attr_set][selector.name]
+                        selector.set_attr(sel_attr)
+                    else:
+                        raise Exception("Passing selector thru more than one layer not supported")
+
     def _load_global_policy(self):
         global_set = set()
         attr_set_name = None
@@ -1485,13 +1556,12 @@ class RenderInfo:
         self.op_mode = op_mode
         self.op = op
 
-        self.fixed_hdr = None
+        fixed_hdr = op.fixed_header if op else None
         self.fixed_hdr_len = 'ys->family->hdr_len'
         if op and op.fixed_header:
-            self.fixed_hdr = 'struct ' + c_lower(op.fixed_header)
             if op.fixed_header != family.fixed_header:
                 if family.is_classic():
-                    self.fixed_hdr_len = f"sizeof({self.fixed_hdr})"
+                    self.fixed_hdr_len = f"sizeof(struct {c_lower(fixed_hdr)})"
                 else:
                     raise Exception(f"Per-op fixed header not supported, yet")
 
@@ -1531,12 +1601,17 @@ class RenderInfo:
                 type_list = []
                 if op_dir in op[op_mode]:
                     type_list = op[op_mode][op_dir]['attributes']
-                self.struct[op_dir] = Struct(family, self.attr_set, type_list=type_list)
+                self.struct[op_dir] = Struct(family, self.attr_set,
+                                             fixed_header=fixed_hdr,
+                                             type_list=type_list)
         if op_mode == 'event':
-            self.struct['reply'] = Struct(family, self.attr_set, type_list=op['event']['attributes'])
+            self.struct['reply'] = Struct(family, self.attr_set,
+                                          fixed_header=fixed_hdr,
+                                          type_list=op['event']['attributes'])
 
     def type_empty(self, key):
-        return len(self.struct[key].attr_list) == 0 and self.fixed_hdr is None
+        return len(self.struct[key].attr_list) == 0 and \
+            self.struct['request'].fixed_header is None
 
     def needs_nlflags(self, direction):
         return self.op_mode == 'do' and direction == 'request' and self.family.is_classic()
@@ -1859,8 +1934,11 @@ def put_typol_submsg(cw, struct):
 
     i = 0
     for name, arg in struct.member_list():
-        cw.p('[%d] = { .type = YNL_PT_SUBMSG, .name = "%s", .nest = &%s_nest, },' %
-             (i, name, arg.nested_render_name))
+        nest = ""
+        if arg.type == 'nest':
+            nest = f" .nest = &{arg.nested_render_name}_nest,"
+        cw.p('[%d] = { .type = YNL_PT_SUBMSG, .name = "%s",%s },' %
+             (i, name, nest))
         i += 1
 
     cw.block_end(line=';')
@@ -1970,6 +2048,11 @@ def put_req_nested(ri, struct):
     if struct.submsg is None:
         local_vars.append('struct nlattr *nest;')
         init_lines.append("nest = ynl_attr_nest_start(nlh, attr_type);")
+    if struct.fixed_header:
+        local_vars.append('void *hdr;')
+        struct_sz = f'sizeof({struct.fixed_header})'
+        init_lines.append(f"hdr = ynl_nlmsg_put_extra_header(nlh, {struct_sz});")
+        init_lines.append(f"memcpy(hdr, &obj->_hdr, {struct_sz});")
 
     has_anest = False
     has_count = False
@@ -2001,15 +2084,18 @@ def put_req_nested(ri, struct):
 
 
 def _multi_parse(ri, struct, init_lines, local_vars):
+    if struct.fixed_header:
+        local_vars += ['void *hdr;']
     if struct.nested:
-        iter_line = "ynl_attr_for_each_nested(attr, nested)"
+        if struct.fixed_header:
+            iter_line = f"ynl_attr_for_each_nested_off(attr, nested, sizeof({struct.fixed_header}))"
+        else:
+            iter_line = "ynl_attr_for_each_nested(attr, nested)"
     else:
-        if ri.fixed_hdr:
-            local_vars += ['void *hdr;']
         iter_line = "ynl_attr_for_each(attr, nlh, yarg->ys->family->hdr_len)"
         if ri.op.fixed_header != ri.family.fixed_header:
             if ri.family.is_classic():
-                iter_line = f"ynl_attr_for_each(attr, nlh, sizeof({ri.fixed_hdr}))"
+                iter_line = f"ynl_attr_for_each(attr, nlh, sizeof({struct.fixed_header}))"
             else:
                 raise Exception(f"Per-op fixed header not supported, yet")
 
@@ -2051,12 +2137,14 @@ def _multi_parse(ri, struct, init_lines, local_vars):
     for arg in struct.inherited:
         ri.cw.p(f'dst->{arg} = {arg};')
 
-    if ri.fixed_hdr:
-        if ri.family.is_classic():
+    if struct.fixed_header:
+        if struct.nested:
+            ri.cw.p('hdr = ynl_attr_data(nested);')
+        elif ri.family.is_classic():
             ri.cw.p('hdr = ynl_nlmsg_data(nlh);')
         else:
             ri.cw.p('hdr = ynl_nlmsg_data_offset(nlh, sizeof(struct genlmsghdr));')
-        ri.cw.p(f"memcpy(&dst->_hdr, hdr, sizeof({ri.fixed_hdr}));")
+        ri.cw.p(f"memcpy(&dst->_hdr, hdr, sizeof({struct.fixed_header}));")
     for anest in sorted(all_multi):
         aspec = struct[anest]
         ri.cw.p(f"if (dst->{aspec.c_name})")
@@ -2152,12 +2240,16 @@ def parse_rsp_submsg(ri, struct):
     parse_rsp_nested_prototype(ri, struct, suffix='')
 
     var = 'dst'
+    local_vars = {'const struct nlattr *attr = nested;',
+                  f'{struct.ptr_name}{var} = yarg->data;',
+                  'struct ynl_parse_arg parg;'}
+
+    for _, arg in struct.member_list():
+        _, _, l_vars = arg._attr_get(ri, var)
+        local_vars |= set(l_vars) if l_vars else set()
 
     ri.cw.block_start()
-    ri.cw.write_func_lvar(['const struct nlattr *attr = nested;',
-                          f'{struct.ptr_name}{var} = yarg->data;',
-                          'struct ynl_parse_arg parg;'])
-
+    ri.cw.write_func_lvar(list(local_vars))
     ri.cw.p('parg.ys = yarg->ys;')
     ri.cw.nl()
 
@@ -2168,7 +2260,7 @@ def parse_rsp_submsg(ri, struct):
 
         ri.cw.block_start(line=f'{kw} (!strcmp(sel, "{name}"))')
         get_lines, init_lines, _ = arg._attr_get(ri, var)
-        for line in init_lines:
+        for line in init_lines or []:
             ri.cw.p(line)
         for line in get_lines:
             ri.cw.p(line)
@@ -2183,6 +2275,8 @@ def parse_rsp_submsg(ri, struct):
 def parse_rsp_nested_prototype(ri, struct, suffix=';'):
     func_args = ['struct ynl_parse_arg *yarg',
                  'const struct nlattr *nested']
+    for sel in struct.external_selectors():
+        func_args.append('const char *_sel_' + sel.name)
     if struct.submsg:
         func_args.insert(1, 'const char *sel')
     for arg in struct.inherited:
@@ -2248,7 +2342,7 @@ def print_req(ri):
         ret_err = 'NULL'
         local_vars += [f'{type_name(ri, rdir(direction))} *rsp;']
 
-    if ri.fixed_hdr:
+    if ri.struct["request"].fixed_header:
         local_vars += ['size_t hdr_len;',
                        'void *hdr;']
 
@@ -2272,7 +2366,7 @@ def print_req(ri):
         ri.cw.p(f"yrs.yarg.rsp_policy = &{ri.struct['reply'].render_name}_nest;")
     ri.cw.nl()
 
-    if ri.fixed_hdr:
+    if ri.struct['request'].fixed_header:
         ri.cw.p("hdr_len = sizeof(req->_hdr);")
         ri.cw.p("hdr = ynl_nlmsg_put_extra_header(nlh, hdr_len);")
         ri.cw.p("memcpy(hdr, &req->_hdr, hdr_len);")
@@ -2318,7 +2412,7 @@ def print_dump(ri):
                   'struct nlmsghdr *nlh;',
                   'int err;']
 
-    if ri.fixed_hdr:
+    if ri.struct['request'].fixed_header:
         local_vars += ['size_t hdr_len;',
                        'void *hdr;']
 
@@ -2339,7 +2433,7 @@ def print_dump(ri):
     else:
         ri.cw.p(f"nlh = ynl_gemsg_start_dump(ys, {ri.nl.get_family_id()}, {ri.op.enum_name}, 1);")
 
-    if ri.fixed_hdr:
+    if ri.struct['request'].fixed_header:
         ri.cw.p("hdr_len = sizeof(req->_hdr);")
         ri.cw.p("hdr = ynl_nlmsg_put_extra_header(nlh, hdr_len);")
         ri.cw.p("memcpy(hdr, &req->_hdr, hdr_len);")
@@ -2416,8 +2510,8 @@ def _print_type(ri, direction, struct):
     if ri.needs_nlflags(direction):
         ri.cw.p('__u16 _nlmsg_flags;')
         ri.cw.nl()
-    if ri.fixed_hdr:
-        ri.cw.p(ri.fixed_hdr + ' _hdr;')
+    if struct.fixed_header:
+        ri.cw.p(struct.fixed_header + ' _hdr;')
         ri.cw.nl()
 
     for type_filter in ['present', 'len', 'count']:
