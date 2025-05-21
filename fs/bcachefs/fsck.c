@@ -306,6 +306,7 @@ create_lostfound:
 				&lostfound_str,
 				lostfound->bi_inum,
 				&lostfound->bi_dir_offset,
+				BTREE_UPDATE_internal_snapshot_node|
 				STR_HASH_must_create) ?:
 		bch2_inode_write_flags(trans, &lostfound_iter, lostfound,
 				       BTREE_UPDATE_internal_snapshot_node);
@@ -431,6 +432,7 @@ static int reattach_inode(struct btree_trans *trans, struct bch_inode_unpacked *
 				&name,
 				inode->bi_subvol ?: inode->bi_inum,
 				&inode->bi_dir_offset,
+				BTREE_UPDATE_internal_snapshot_node|
 				STR_HASH_must_create);
 	if (ret) {
 		bch_err_msg(c, ret, "error creating dirent");
