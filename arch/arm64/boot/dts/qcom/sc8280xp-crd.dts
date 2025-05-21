@@ -751,6 +751,12 @@
 	status = "okay";
 };
 
+&remoteproc_slpi {
+	firmware-name = "qcom/sc8280xp/qcslpi8280.mbn";
+
+	status = "okay";
+};
+
 &sdc2 {
 	pinctrl-0 = <&sdc2_default_state>;
 	pinctrl-1 = <&sdc2_sleep_state>;

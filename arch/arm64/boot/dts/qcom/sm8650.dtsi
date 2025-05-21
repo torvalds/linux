@@ -188,7 +188,7 @@
 			power-domain-names = "psci";
 
 			enable-method = "psci";
-			next-level-cache = <&l2_200>;
+			next-level-cache = <&l2_300>;
 			capacity-dmips-mhz = <1792>;
 			dynamic-power-coefficient = <238>;
 
@@ -204,6 +204,13 @@
 					 &epss_l3 SLAVE_EPSS_L3_SHARED>;
 
 			#cooling-cells = <2>;
+
+			l2_300: l2-cache {
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
+				next-level-cache = <&l3_0>;
+			};
 		};
 
 		cpu4: cpu@400 {
