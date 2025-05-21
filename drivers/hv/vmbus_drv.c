@@ -1841,7 +1841,7 @@ static struct attribute *vmbus_chan_attrs[] = {
 	NULL
 };
 
-static struct bin_attribute *vmbus_chan_bin_attrs[] = {
+static const struct bin_attribute *vmbus_chan_bin_attrs[] = {
 	&chan_attr_ring_buffer,
 	NULL
 };
