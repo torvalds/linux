@@ -63,6 +63,46 @@ soc/dt
 		https://git.kernel.org/pub/scm/linux/kernel/git/amlogic/linux tags/amlogic-arm64-dt-for-v6.16
 	dt/cleanup-64
 		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-dt tags/dt64-cleanup-6.16
+	patch
+		arm64: dts: nuvoton: Add pinctrl
+	nuvoton/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/joel/bmc tags/nuvoton-arm-6.16-devicetree
+	qcom/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-arm64-for-6.16
+	vt8500/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-dt tags/dt-vt8500-6.16
+	qcom/dt32
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-arm32-for-6.16
+	spacemit/dt
+		https://github.com/spacemit-com/linux tags/spacemit-dt-for-6.16-1
+	stm32/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/atorgue/stm32 tags/stm32-dt-for-v6.16-1
+	sunxi/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/sunxi/linux tags/sunxi-dt-for-6.16
+	at91/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/at91/linux tags/at91-dt-6.16
+	microchip/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/at91/linux tags/microchip-dt64-6.16
+	riscv/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux tags/riscv-dt-for-v6.16
+	renesas/dt-3
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-dts-for-v6.16-tag3
+	renesas/dt-4
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-dts-for-v6.16-tag4
+	mvebu/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/gclement/mvebu tags/mvebu-dt64-6.16-1
+	<no branch> (1631cbdb808963354ef6b6454bc617cd15f90718)
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.16-rockchip-dts64-2
+	rockchip/dt64-3
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.16-rockchip-dts64-3
+	rockchip/dt32-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.16-rockchip-dts32-2
+	mediatek/dt64-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/mediatek/linux tags/mtk-dts64-for-v6.16-2
+	qcom/dt32-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-arm32-for-6.16-2
+	qcom/dt64-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-arm64-for-6.16-2
 
 soc/drivers
 	renesas/drivers
@@ -97,6 +137,26 @@ soc/drivers
 		git://git.pengutronix.de/pza/linux tags/reset-for-v6.16
 	ti/drivers
 		https://git.kernel.org/pub/scm/linux/kernel/git/ti/linux tags/ti-driver-soc-for-v6.16
+	amlogic/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/amlogic/linux tags/amlogic-driver-for-v6.16
+	vt8500/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-dt tags/soc-drivers-6.16
+	qcom/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-drivers-for-6.16
+	sophgo/drivers
+		https://github.com/sophgo/linux tags/riscv-sophgo-soc-for-v6.16
+	patch
+		ARM: aspeed: Don't select SRAM
+		soc: aspeed: lpc: Fix impossible judgment condition
+		soc: aspeed: Add NULL check in aspeed_lpc_enable_snoop()
+	samsung/drivers-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-drivers-6.16-2
+	drivers/memory-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-mem-ctrl tags/memory-controller-drv-6.16-2
+	drivers/cache
+		https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux tags/riscv-cache-for-v6.16
+	qcom/drivers-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-drivers-for-6.16-2
 
 soc/defconfig
 	renesas/defconfig
@@ -126,4 +186,10 @@ arm/fixes
 		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-fixes-6.15-2
 	exynos-fixes
 		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-fixes-6.15
+	patch
+		arm64: defconfig: Ensure CRYPTO_CHACHA20_NEON is selected
+	<no branch> (573f99c7585f597630f14596550c79e73ffaeef4)
+		https://git.kernel.org/pub/scm/linux/kernel/git/sunxi/linux tags/sunxi-fixes-for-6.15
+	<no branch> (b04f0d89e880bc2cca6a5c73cf287082c91878da)
+		https://git.kernel.org/pub/scm/linux/kernel/git/gclement/mvebu tags/mvebu-fixes-6.15-1
 
