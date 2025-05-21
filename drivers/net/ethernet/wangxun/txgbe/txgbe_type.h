@@ -50,6 +50,8 @@
 
 /**************** SP Registers ****************************/
 /* chip control Registers */
+#define TXGBE_MIS_RST                           0x1000C
+#define TXGBE_MIS_RST_MAC_RST(_i)               BIT(20 - (_i) * 3)
 #define TXGBE_MIS_PRB_CTL                       0x10010
 #define TXGBE_MIS_PRB_CTL_LAN_UP(_i)            BIT(1 - (_i))
 /* FMGR Registers */
@@ -62,6 +64,11 @@
 #define TXGBE_TS_CTL                            0x10300
 #define TXGBE_TS_CTL_EVAL_MD                    BIT(31)
 
+/* MAC Misc Registers */
+#define TXGBE_MAC_MISC_CTL                      0x11F00
+#define TXGBE_MAC_MISC_CTL_LINK_STS_MOD         BIT(0)
+#define TXGBE_MAC_MISC_CTL_LINK_PCS             FIELD_PREP(BIT(0), 0)
+#define TXGBE_MAC_MISC_CTL_LINK_BOTH            FIELD_PREP(BIT(0), 1)
 /* GPIO register bit */
 #define TXGBE_GPIOBIT_0                         BIT(0) /* I:tx fault */
 #define TXGBE_GPIOBIT_1                         BIT(1) /* O:tx disabled */
@@ -88,6 +95,8 @@
 /* Port cfg registers */
 #define TXGBE_CFG_PORT_ST                       0x14404
 #define TXGBE_CFG_PORT_ST_LINK_UP               BIT(0)
+#define TXGBE_CFG_PORT_ST_LINK_AML_25G          BIT(3)
+#define TXGBE_CFG_PORT_ST_LINK_AML_10G          BIT(4)
 #define TXGBE_CFG_VXLAN                         0x14410
 #define TXGBE_CFG_VXLAN_GPE                     0x14414
 #define TXGBE_CFG_GENEVE                        0x14418
@@ -151,9 +160,11 @@
 /*************************** Amber Lite Registers ****************************/
 #define TXGBE_PX_PF_BME                         0x4B8
 #define TXGBE_AML_MAC_TX_CFG                    0x11000
+#define TXGBE_AML_MAC_TX_CFG_TE                 BIT(0)
 #define TXGBE_AML_MAC_TX_CFG_SPEED_MASK         GENMASK(30, 27)
 #define TXGBE_AML_MAC_TX_CFG_SPEED_40G          FIELD_PREP(GENMASK(30, 27), 0)
 #define TXGBE_AML_MAC_TX_CFG_SPEED_25G          FIELD_PREP(GENMASK(30, 27), 2)
+#define TXGBE_AML_MAC_TX_CFG_SPEED_10G          FIELD_PREP(GENMASK(30, 27), 8)
 #define TXGBE_RDM_RSC_CTL                       0x1200C
 #define TXGBE_RDM_RSC_CTL_FREE_CTL              BIT(7)
 

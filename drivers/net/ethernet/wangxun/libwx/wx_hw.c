@@ -2252,10 +2252,8 @@ int wx_stop_adapter(struct wx *wx)
 }
 EXPORT_SYMBOL(wx_stop_adapter);
 
-void wx_reset_misc(struct wx *wx)
+void wx_reset_mac(struct wx *wx)
 {
-	int i;
-
 	/* receive packets that size > 2048 */
 	wr32m(wx, WX_MAC_RX_CFG, WX_MAC_RX_CFG_JE, WX_MAC_RX_CFG_JE);
 
@@ -2267,6 +2265,14 @@ void wx_reset_misc(struct wx *wx)
 	      WX_MAC_RX_FLOW_CTRL_RFE, WX_MAC_RX_FLOW_CTRL_RFE);
 
 	wr32(wx, WX_MAC_PKT_FLT, WX_MAC_PKT_FLT_PR);
+}
+EXPORT_SYMBOL(wx_reset_mac);
+
+void wx_reset_misc(struct wx *wx)
+{
+	int i;
+
+	wx_reset_mac(wx);
 
 	wr32m(wx, WX_MIS_RST_ST,
 	      WX_MIS_RST_ST_RST_INIT, 0x1E00);

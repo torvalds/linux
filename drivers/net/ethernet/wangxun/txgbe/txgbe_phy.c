@@ -20,6 +20,7 @@
 #include "../libwx/wx_mbx.h"
 #include "../libwx/wx_hw.h"
 #include "txgbe_type.h"
+#include "txgbe_aml.h"
 #include "txgbe_phy.h"
 #include "txgbe_hw.h"
 
@@ -318,7 +319,10 @@ irqreturn_t txgbe_link_irq_handler(int irq, void *data)
 	status = rd32(wx, TXGBE_CFG_PORT_ST);
 	up = !!(status & TXGBE_CFG_PORT_ST_LINK_UP);
 
-	phylink_pcs_change(txgbe->pcs, up);
+	if (txgbe->pcs)
+		phylink_pcs_change(txgbe->pcs, up);
+	else
+		phylink_mac_change(wx->phylink, up);
 
 	return IRQ_HANDLED;
 }
@@ -575,8 +579,9 @@ int txgbe_init_phy(struct txgbe *txgbe)
 
 	switch (wx->mac.type) {
 	case wx_mac_aml40:
-	case wx_mac_aml:
 		return 0;
+	case wx_mac_aml:
+		return txgbe_phylink_init_aml(txgbe);
 	case wx_mac_sp:
 		if (wx->media_type == wx_media_copper)
 			return txgbe_ext_phy_init(txgbe);
@@ -648,7 +653,9 @@ void txgbe_remove_phy(struct txgbe *txgbe)
 {
 	switch (txgbe->wx->mac.type) {
 	case wx_mac_aml40:
+		return;
 	case wx_mac_aml:
+		phylink_destroy(txgbe->wx->phylink);
 		return;
 	case wx_mac_sp:
 		if (txgbe->wx->media_type == wx_media_copper) {
