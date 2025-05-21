@@ -218,6 +218,74 @@
 		};
 	};
 
+	pinctrl: pinctrl {
+		compatible = "rockchip,rk3562-pinctrl";
+		rockchip,grf = <&ioc_grf>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		gpio0: gpio@ff260000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x0 0xff260000 0x0 0x100>;
+			clocks = <&cru PCLK_PMU0_GPIO0>, <&cru DBCLK_PMU0_GPIO0>;
+			gpio-controller;
+			gpio-ranges = <&pinctrl 0 0 32>;
+			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#gpio-cells = <2>;
+			#interrupt-cells = <2>;
+		};
+
+		gpio1: gpio@ff620000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x0 0xff620000 0x0 0x100>;
+			clocks = <&cru PCLK_PERI_GPIO1>, <&cru DCLK_PERI_GPIO1>;
+			gpio-controller;
+			gpio-ranges = <&pinctrl 0 32 32>;
+			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#gpio-cells = <2>;
+			#interrupt-cells = <2>;
+		};
+
+		gpio2: gpio@ff630000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x0 0xff630000 0x0 0x100>;
+			clocks = <&cru PCLK_PERI_GPIO2>, <&cru DCLK_PERI_GPIO2>;
+			gpio-controller;
+			gpio-ranges = <&pinctrl 0 64 32>;
+			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#gpio-cells = <2>;
+			#interrupt-cells = <2>;
+		};
+
+		gpio3: gpio@ffac0000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x0 0xffac0000 0x0 0x100>;
+			clocks = <&cru PCLK_GPIO3_VCCIO156>, <&cru DCLK_BUS_GPIO3>;
+			gpio-controller;
+			gpio-ranges = <&pinctrl 0 96 32>;
+			interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#gpio-cells = <2>;
+			#interrupt-cells = <2>;
+		};
+
+		gpio4: gpio@ffad0000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x0 0xffad0000 0x0 0x100>;
+			clocks = <&cru PCLK_GPIO4_VCCIO156>, <&cru DCLK_BUS_GPIO4>;
+			gpio-controller;
+			gpio-ranges = <&pinctrl 0 128 32>;
+			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#gpio-cells = <2>;
+			#interrupt-cells = <2>;
+		};
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
@@ -248,6 +316,59 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		pcie2x1: pcie@fe000000 {
+			compatible = "rockchip,rk3562-pcie", "rockchip,rk3568-pcie";
+			reg = <0x0 0xfe000000 0x0 0x400000>,
+			      <0x0 0xff500000 0x0 0x10000>,
+			      <0x0 0xfc000000 0x0 0x100000>;
+			reg-names = "dbi", "apb", "config";
+			bus-range = <0x0 0xff>;
+			clocks = <&cru ACLK_PCIE20_MST>, <&cru ACLK_PCIE20_SLV>,
+				 <&cru ACLK_PCIE20_DBI>, <&cru PCLK_PCIE20>,
+				 <&cru CLK_PCIE20_AUX>;
+			clock-names = "aclk_mst", "aclk_slv",
+				      "aclk_dbi", "pclk", "aux";
+			device_type = "pci";
+			interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "sys", "pmc", "msg", "legacy", "err", "msi";
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &pcie2x1_intc 0>,
+					<0 0 0 2 &pcie2x1_intc 1>,
+					<0 0 0 3 &pcie2x1_intc 2>,
+					<0 0 0 4 &pcie2x1_intc 3>;
+			linux,pci-domain = <0>;
+			max-link-speed = <2>;
+			num-ib-windows = <8>;
+			num-viewport = <8>;
+			num-ob-windows = <2>;
+			num-lanes = <1>;
+			phys = <&combphy PHY_TYPE_PCIE>;
+			phy-names = "pcie-phy";
+			power-domains = <&power 15>;
+			ranges = <0x01000000 0x0 0xfc100000 0x0 0xfc100000 0x0 0x100000
+				  0x02000000 0x0 0xfc200000 0x0 0xfc200000 0x0 0x1e00000
+				  0x03000000 0x3 0x00000000 0x3 0x00000000 0x0 0x40000000>;
+			resets = <&cru SRST_PCIE20_POWERUP>;
+			reset-names = "pipe";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			status = "disabled";
+
+			pcie2x1_intc: legacy-interrupt-controller {
+				interrupt-controller;
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-parent = <&gic>;
+				interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
 
 		gic: interrupt-controller@fe901000 {
 			compatible = "arm,gic-400";
@@ -619,59 +740,6 @@
 			power-domains = <&power 8>;
 			#cooling-cells = <2>;
 			status = "disabled";
-		};
-
-		pcie2x1: pcie@ff500000 {
-			compatible = "rockchip,rk3562-pcie", "rockchip,rk3568-pcie";
-			bus-range = <0x0 0xff>;
-			clocks = <&cru ACLK_PCIE20_MST>, <&cru ACLK_PCIE20_SLV>,
-				 <&cru ACLK_PCIE20_DBI>, <&cru PCLK_PCIE20>,
-				 <&cru CLK_PCIE20_AUX>;
-			clock-names = "aclk_mst", "aclk_slv",
-				      "aclk_dbi", "pclk", "aux";
-			device_type = "pci";
-			interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "sys", "pmc", "msg", "legacy", "err", "msi";
-			#interrupt-cells = <1>;
-			interrupt-map-mask = <0 0 0 7>;
-			interrupt-map = <0 0 0 1 &pcie2x1_intc 0>,
-					<0 0 0 2 &pcie2x1_intc 1>,
-					<0 0 0 3 &pcie2x1_intc 2>,
-					<0 0 0 4 &pcie2x1_intc 3>;
-			linux,pci-domain = <0>;
-			max-link-speed = <2>;
-			num-ib-windows = <8>;
-			num-viewport = <8>;
-			num-ob-windows = <2>;
-			num-lanes = <1>;
-			phys = <&combphy PHY_TYPE_PCIE>;
-			phy-names = "pcie-phy";
-			power-domains = <&power 15>;
-			ranges = <0x01000000 0x0 0xfc100000 0x0 0xfc100000 0x0 0x100000
-				  0x02000000 0x0 0xfc200000 0x0 0xfc200000 0x0 0x1e00000
-				  0x03000000 0x3 0x00000000 0x3 0x00000000 0x0 0x40000000>;
-			reg = <0x0 0xfe000000 0x0 0x400000>,
-			      <0x0 0xff500000 0x0 0x10000>,
-			      <0x0 0xfc000000 0x0 0x100000>;
-			reg-names = "dbi", "apb", "config";
-			resets = <&cru SRST_PCIE20_POWERUP>;
-			reset-names = "pipe";
-			#address-cells = <3>;
-			#size-cells = <2>;
-			status = "disabled";
-
-			pcie2x1_intc: legacy-interrupt-controller {
-				interrupt-controller;
-				#address-cells = <0>;
-				#interrupt-cells = <1>;
-				interrupt-parent = <&gic>;
-				interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
-			};
 		};
 
 		spi1: spi@ff640000 {
@@ -1110,74 +1178,6 @@
 			reset-names = "saradc-apb";
 			#io-channel-cells = <1>;
 			status = "disabled";
-		};
-
-		pinctrl: pinctrl {
-			compatible = "rockchip,rk3562-pinctrl";
-			rockchip,grf = <&ioc_grf>;
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
-
-			gpio0: gpio@ff260000 {
-				compatible = "rockchip,gpio-bank";
-				reg = <0x0 0xff260000 0x0 0x100>;
-				clocks = <&cru PCLK_PMU0_GPIO0>, <&cru DBCLK_PMU0_GPIO0>;
-				gpio-controller;
-				gpio-ranges = <&pinctrl 0 0 32>;
-				interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-controller;
-				#gpio-cells = <2>;
-				#interrupt-cells = <2>;
-			};
-
-			gpio1: gpio@ff620000 {
-				compatible = "rockchip,gpio-bank";
-				reg = <0x0 0xff620000 0x0 0x100>;
-				clocks = <&cru PCLK_PERI_GPIO1>, <&cru DCLK_PERI_GPIO1>;
-				gpio-controller;
-				gpio-ranges = <&pinctrl 0 32 32>;
-				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-controller;
-				#gpio-cells = <2>;
-				#interrupt-cells = <2>;
-			};
-
-			gpio2: gpio@ff630000 {
-				compatible = "rockchip,gpio-bank";
-				reg = <0x0 0xff630000 0x0 0x100>;
-				clocks = <&cru PCLK_PERI_GPIO2>, <&cru DCLK_PERI_GPIO2>;
-				gpio-controller;
-				gpio-ranges = <&pinctrl 0 64 32>;
-				interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-controller;
-				#gpio-cells = <2>;
-				#interrupt-cells = <2>;
-			};
-
-			gpio3: gpio@ffac0000 {
-				compatible = "rockchip,gpio-bank";
-				reg = <0x0 0xffac0000 0x0 0x100>;
-				clocks = <&cru PCLK_GPIO3_VCCIO156>, <&cru DCLK_BUS_GPIO3>;
-				gpio-controller;
-				gpio-ranges = <&pinctrl 0 96 32>;
-				interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-controller;
-				#gpio-cells = <2>;
-				#interrupt-cells = <2>;
-			};
-
-			gpio4: gpio@ffad0000 {
-				compatible = "rockchip,gpio-bank";
-				reg = <0x0 0xffad0000 0x0 0x100>;
-				clocks = <&cru PCLK_GPIO4_VCCIO156>, <&cru DCLK_BUS_GPIO4>;
-				gpio-controller;
-				gpio-ranges = <&pinctrl 0 128 32>;
-				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-controller;
-				#gpio-cells = <2>;
-				#interrupt-cells = <2>;
-			};
 		};
 	};
 };

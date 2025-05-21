@@ -95,6 +95,74 @@
 		};
 	};
 
+	pinctrl: pinctrl {
+		compatible = "rockchip,rk3528-pinctrl";
+		rockchip,grf = <&ioc_grf>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		gpio0: gpio@ff610000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x0 0xff610000 0x0 0x200>;
+			clocks = <&cru PCLK_GPIO0>, <&cru DBCLK_GPIO0>;
+			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 0 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio1: gpio@ffaf0000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x0 0xffaf0000 0x0 0x200>;
+			clocks = <&cru PCLK_GPIO1>, <&cru DBCLK_GPIO1>;
+			interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 32 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio2: gpio@ffb00000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x0 0xffb00000 0x0 0x200>;
+			clocks = <&cru PCLK_GPIO2>, <&cru DBCLK_GPIO2>;
+			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 64 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio3: gpio@ffb10000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x0 0xffb10000 0x0 0x200>;
+			clocks = <&cru PCLK_GPIO3>, <&cru DBCLK_GPIO3>;
+			interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 96 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio4: gpio@ffb20000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0x0 0xffb20000 0x0 0x200>;
+			clocks = <&cru PCLK_GPIO4>, <&cru DBCLK_GPIO4>;
+			interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 128 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
 	psci {
 		compatible = "arm,psci-1.0", "arm,psci-0.2";
 		method = "smc";
@@ -865,74 +933,6 @@
 				     <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
 			arm,pl330-periph-burst;
-		};
-
-		pinctrl: pinctrl {
-			compatible = "rockchip,rk3528-pinctrl";
-			rockchip,grf = <&ioc_grf>;
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
-
-			gpio0: gpio@ff610000 {
-				compatible = "rockchip,gpio-bank";
-				reg = <0x0 0xff610000 0x0 0x200>;
-				clocks = <&cru PCLK_GPIO0>, <&cru DBCLK_GPIO0>;
-				interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				gpio-ranges = <&pinctrl 0 0 32>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
-			};
-
-			gpio1: gpio@ffaf0000 {
-				compatible = "rockchip,gpio-bank";
-				reg = <0x0 0xffaf0000 0x0 0x200>;
-				clocks = <&cru PCLK_GPIO1>, <&cru DBCLK_GPIO1>;
-				interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				gpio-ranges = <&pinctrl 0 32 32>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
-			};
-
-			gpio2: gpio@ffb00000 {
-				compatible = "rockchip,gpio-bank";
-				reg = <0x0 0xffb00000 0x0 0x200>;
-				clocks = <&cru PCLK_GPIO2>, <&cru DBCLK_GPIO2>;
-				interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				gpio-ranges = <&pinctrl 0 64 32>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
-			};
-
-			gpio3: gpio@ffb10000 {
-				compatible = "rockchip,gpio-bank";
-				reg = <0x0 0xffb10000 0x0 0x200>;
-				clocks = <&cru PCLK_GPIO3>, <&cru DBCLK_GPIO3>;
-				interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				gpio-ranges = <&pinctrl 0 96 32>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
-			};
-
-			gpio4: gpio@ffb20000 {
-				compatible = "rockchip,gpio-bank";
-				reg = <0x0 0xffb20000 0x0 0x200>;
-				clocks = <&cru PCLK_GPIO4>, <&cru DBCLK_GPIO4>;
-				interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				gpio-ranges = <&pinctrl 0 128 32>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
-			};
 		};
 	};
 };
