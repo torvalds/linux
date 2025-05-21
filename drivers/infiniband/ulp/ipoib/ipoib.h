@@ -512,6 +512,8 @@ int ipoib_intf_init(struct ib_device *hca, u32 port, const char *format,
 void ipoib_ib_dev_flush_light(struct work_struct *work);
 void ipoib_ib_dev_flush_normal(struct work_struct *work);
 void ipoib_ib_dev_flush_heavy(struct work_struct *work);
+void ipoib_queue_work(struct ipoib_dev_priv *priv,
+		      enum ipoib_flush_level level);
 void ipoib_ib_tx_timeout_work(struct work_struct *work);
 void ipoib_ib_dev_cleanup(struct net_device *dev);
 

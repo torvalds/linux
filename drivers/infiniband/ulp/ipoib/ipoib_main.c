@@ -2415,6 +2415,14 @@ static int ipoib_set_mac(struct net_device *dev, void *addr)
 
 	set_base_guid(priv, (union ib_gid *)(ss->__data + 4));
 
+	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
+		struct ipoib_dev_priv *cpriv;
+
+		down_read(&priv->vlan_rwsem);
+		list_for_each_entry(cpriv, &priv->child_intfs, list)
+			queue_work(ipoib_workqueue, &cpriv->flush_light);
+		up_read(&priv->vlan_rwsem);
+	}
 	queue_work(ipoib_workqueue, &priv->flush_light);
 
 	return 0;
@@ -2526,7 +2534,7 @@ static struct net_device *ipoib_add_port(const char *format,
 	ib_register_event_handler(&priv->event_handler);
 
 	/* call event handler to ensure pkey in sync */
-	queue_work(ipoib_workqueue, &priv->flush_heavy);
+	ipoib_queue_work(priv, IPOIB_FLUSH_HEAVY);
 
 	ndev->rtnl_link_ops = ipoib_get_link_ops();
 
