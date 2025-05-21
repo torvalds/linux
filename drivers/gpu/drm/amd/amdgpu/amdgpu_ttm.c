@@ -2060,6 +2060,8 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 		/* return the FW reserved memory back to VRAM */
 		amdgpu_bo_free_kernel(&adev->mman.fw_reserved_memory, NULL,
 				      NULL);
+		amdgpu_bo_free_kernel(&adev->mman.fw_reserved_memory_extend, NULL,
+				      NULL);
 		if (adev->mman.stolen_reserved_size)
 			amdgpu_bo_free_kernel(&adev->mman.stolen_reserved_memory,
 					      NULL, NULL);

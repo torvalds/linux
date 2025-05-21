@@ -588,7 +588,7 @@ int psp_init_cap_microcode(struct psp_context *psp,
 			  const char *chip_name);
 int psp_get_fw_attestation_records_addr(struct psp_context *psp,
 					uint64_t *output_ptr);
-
+int psp_update_fw_reservation(struct psp_context *psp);
 int psp_load_fw_list(struct psp_context *psp,
 		     struct amdgpu_firmware_info **ucode_list, int ucode_count);
 void psp_copy_fw(struct psp_context *psp, uint8_t *start_addr, uint32_t bin_size);
