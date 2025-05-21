@@ -50,6 +50,7 @@ static int nft_fib6_flowi_init(struct flowi6 *fl6, const struct nft_fib *priv,
 		fl6->flowi6_mark = pkt->skb->mark;
 
 	fl6->flowlabel = (*(__be32 *)iph) & IPV6_FLOWINFO_MASK;
+	fl6->flowi6_l3mdev = nft_fib_l3mdev_master_ifindex_rcu(pkt, dev);
 
 	return lookup_flags;
 }
@@ -72,8 +73,6 @@ static u32 __nft_fib6_eval_type(const struct nft_fib *priv,
 		dev = nft_in(pkt);
 	else if (priv->flags & NFTA_FIB_F_OIF)
 		dev = nft_out(pkt);
-
-	fl6.flowi6_l3mdev = l3mdev_master_ifindex_rcu(dev);
 
 	nft_fib6_flowi_init(&fl6, priv, pkt, dev, iph);
 
@@ -166,7 +165,6 @@ void nft_fib6_eval(const struct nft_expr *expr, struct nft_regs *regs,
 		.flowi6_iif = LOOPBACK_IFINDEX,
 		.flowi6_proto = pkt->tprot,
 		.flowi6_uid = sock_net_uid(nft_net(pkt), NULL),
-		.flowi6_l3mdev = l3mdev_master_ifindex_rcu(nft_in(pkt)),
 	};
 	struct rt6_info *rt;
 	int lookup_flags;
