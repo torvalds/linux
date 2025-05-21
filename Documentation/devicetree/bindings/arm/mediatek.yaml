@@ -105,6 +105,10 @@ properties:
               - bananapi,bpi-r4
           - const: mediatek,mt7988a
       - items:
+          - const: bananapi,bpi-r4-2g5
+          - const: bananapi,bpi-r4
+          - const: mediatek,mt7988a
+      - items:
           - enum:
               - mediatek,mt8127-moose
           - const: mediatek,mt8127
@@ -284,6 +288,13 @@ properties:
           - const: google,steelix-sku393221
           - const: google,steelix-sku393218
           - const: google,steelix
+          - const: mediatek,mt8186
+      - description: Google Ponyta
+        items:
+          - enum:
+              - google,ponyta-sku0
+              - google,ponyta-sku1
+          - const: google,ponyta
           - const: mediatek,mt8186
       - description: Google Rusty (Lenovo 100e Chromebook Gen 4)
         items:

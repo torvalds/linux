@@ -21,6 +21,7 @@
 
 / {
 	aliases {
+		dsi0 = &disp_dsi0;
 		ethernet0 = &eth;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
@@ -32,6 +33,15 @@
 		mmc0 = &mmc0;
 		mmc1 = &mmc1;
 		serial0 = &uart0;
+	};
+
+	backlight_lcm1: backlight-lcm1 {
+		compatible = "pwm-backlight";
+		brightness-levels = <0 1023>;
+		default-brightness-level = <576>;
+		num-interpolated-steps = <1023>;
+		power-supply = <&reg_vsys>;
+		pwms = <&disp_pwm1 0 500000>;
 	};
 
 	chosen {
@@ -227,6 +237,28 @@
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
 	};
+
+	lcm1_iovcc: regulator-vio18-lcm1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vio18_lcm1";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		enable-active-high;
+		gpio = <&pio 111 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&dsi0_vreg_en_pins>;
+		vin-supply = <&reg_vsys>;
+	};
+
+	lcm1_vddp: regulator-vsys-lcm1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vsys_lcm1";
+		regulator-min-microvolt = <4200000>;
+		regulator-max-microvolt = <4200000>;
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&reg_vsys>;
+	};
 };
 
 &adsp {
@@ -237,6 +269,67 @@
 &afe {
 	memory-region = <&afe_dma_mem>;
 	status = "okay";
+};
+
+&disp_dsi0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	panel@0 {
+		compatible = "startek,kd070fhfid078", "himax,hx8279";
+		reg = <0>;
+		backlight = <&backlight_lcm1>;
+		enable-gpios = <&pio 45 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&pio 25 GPIO_ACTIVE_HIGH>;
+		iovcc-supply = <&lcm1_iovcc>;
+		vdd-supply = <&lcm1_vddp>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&panel_default_pins>;
+
+		port {
+			dsi_panel_in: endpoint {
+				remote-endpoint = <&dsi0_out>;
+			};
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			dsi0_in: endpoint {
+				remote-endpoint = <&dither0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			dsi0_out: endpoint {
+				remote-endpoint = <&dsi_panel_in>;
+			};
+		};
+	};
+};
+
+&disp_pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&disp_pwm1_pins>;
+	status = "okay";
+};
+
+&dither0_in {
+	remote-endpoint = <&postmask0_out>;
+};
+
+&dither0_out {
+	remote-endpoint = <&dsi0_in>;
+};
+
+&gamma0_out {
+	remote-endpoint = <&postmask0_in>;
 };
 
 &gpu {
@@ -390,6 +483,10 @@
 	domain-supply = <&mt6359_vsram_others_ldo_reg>;
 };
 
+&mipi_tx_config0 {
+	status = "okay";
+};
+
 &mmc0 {
 	status = "okay";
 	pinctrl-names = "default", "state_uhs";
@@ -499,9 +596,13 @@
 	mediatek,mic-type-1 = <3>; /* DCC */
 };
 
+&ovl0_in {
+	remote-endpoint = <&vdosys0_ep_main>;
+};
+
 &pcie {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pcie_pins_default>;
+	pinctrl-0 = <&pcie_default_pins>;
 	status = "okay";
 };
 
@@ -534,6 +635,12 @@
 				 <PINMUX_GPIO126__FUNC_I0_DMIC1_DAT>,
 				 <PINMUX_GPIO128__FUNC_O_DMIC2_CLK>,
 				 <PINMUX_GPIO129__FUNC_I0_DMIC2_DAT>;
+		};
+	};
+
+	disp_pwm1_pins: disp-pwm1-pins {
+		pins-pwm {
+			pinmux = <PINMUX_GPIO30__FUNC_O_DISP_PWM1>;
 		};
 	};
 
@@ -857,25 +964,27 @@
 		};
 	};
 
+	dsi0_vreg_en_pins: dsi0-vreg-en-pins {
+		pins-pwr-en {
+			pinmux = <PINMUX_GPIO111__FUNC_B_GPIO111>;
+			output-low;
+		};
+	};
+
 	panel_default_pins: panel-default-pins {
-		pins-dcdc {
-			pinmux = <PINMUX_GPIO45__FUNC_B_GPIO45>;
+		pins-rst {
+			pinmux = <PINMUX_GPIO25__FUNC_B_GPIO25>;
 			output-low;
 		};
 
 		pins-en {
-			pinmux = <PINMUX_GPIO111__FUNC_B_GPIO111>;
+			pinmux = <PINMUX_GPIO45__FUNC_B_GPIO45>;
 			output-low;
-		};
-
-		pins-rst {
-			pinmux = <PINMUX_GPIO25__FUNC_B_GPIO25>;
-			output-high;
 		};
 	};
 
-	pcie_pins_default: pcie-default {
-		mux {
+	pcie_default_pins: pcie-default-pins {
+		pins {
 			pinmux = <PINMUX_GPIO47__FUNC_I1_WAKEN>,
 				 <PINMUX_GPIO48__FUNC_O_PERSTN>,
 				 <PINMUX_GPIO49__FUNC_B1_CLKREQN>;
@@ -1055,7 +1164,19 @@
 	};
 };
 
-&scp {
+&postmask0_in {
+	remote-endpoint = <&gamma0_out>;
+};
+
+&postmask0_out {
+	remote-endpoint = <&dither0_in>;
+};
+
+&scp_cluster {
+	status = "okay";
+};
+
+&scp_c0 {
 	memory-region = <&scp_mem>;
 	status = "okay";
 };
@@ -1117,6 +1238,18 @@
 	pinctrl-0 = <&uart2_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+};
+
+&vdosys0 {
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		vdosys0_ep_main: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&ovl0_in>;
+		};
+	};
 };
 
 &u3phy0 {
@@ -1199,8 +1332,18 @@
 };
 
 &ssusb2 {
+	/*
+	 * the ssusb2 controller is one but we got two ports : one is routed
+	 * to the M.2 slot, the other is on the RPi header who does support
+	 * full OTG.
+	 * As the controller is shared between them, the role switch default
+	 * mode is set to host to make any peripheral inserted in the M.2
+	 * slot (i.e BT/WIFI module) be detected when the other port is
+	 * unused.
+	 */
 	dr_mode = "otg";
 	maximum-speed = "high-speed";
+	role-switch-default-mode = "host";
 	usb-role-switch;
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
 	wakeup-source;
@@ -1211,7 +1354,7 @@
 	connector {
 		compatible = "gpio-usb-b-connector", "usb-b-connector";
 		type = "micro";
-		id-gpios = <&pio 89 GPIO_ACTIVE_HIGH>;
+		id-gpios = <&pio 89 GPIO_ACTIVE_LOW>;
 		vbus-supply = <&usb_p2_vbus>;
 	};
 };
