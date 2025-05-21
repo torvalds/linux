@@ -355,17 +355,11 @@ static void cxlctl_close_uctx(struct fwctl_uctx *uctx)
 {
 }
 
-static struct cxl_feat_entry *
-get_support_feature_info(struct cxl_features_state *cxlfs,
-			 const struct fwctl_rpc_cxl *rpc_in)
+struct cxl_feat_entry *
+cxl_feature_info(struct cxl_features_state *cxlfs,
+		 const uuid_t *uuid)
 {
 	struct cxl_feat_entry *feat;
-	const uuid_t *uuid;
-
-	if (rpc_in->op_size < sizeof(uuid))
-		return ERR_PTR(-EINVAL);
-
-	uuid = &rpc_in->set_feat_in.uuid;
 
 	for (int i = 0; i < cxlfs->entries->num_features; i++) {
 		feat = &cxlfs->entries->ent[i];
@@ -547,7 +541,10 @@ static bool cxlctl_validate_set_features(struct cxl_features_state *cxlfs,
 	struct cxl_feat_entry *feat;
 	u32 flags;
 
-	feat = get_support_feature_info(cxlfs, rpc_in);
+	if (rpc_in->op_size < sizeof(uuid_t))
+		return ERR_PTR(-EINVAL);
+
+	feat = cxl_feature_info(cxlfs, &rpc_in->set_feat_in.uuid);
 	if (IS_ERR(feat))
 		return false;
 
