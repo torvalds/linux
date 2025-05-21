@@ -40,6 +40,7 @@ from docutils.parsers.rst import directives, Directive
 import sphinx
 from sphinx.util.docutils import switch_source_input
 from sphinx.util import logging
+from pprint import pformat
 
 srctree = os.path.abspath(os.environ["srctree"])
 sys.path.insert(0, os.path.join(srctree, "scripts/lib/kdoc"))
@@ -49,7 +50,7 @@ from kdoc_output import RestFormat
 
 __version__  = '1.0'
 kfiles = None
-logger = logging.getLogger('kerneldoc')
+logger = logging.getLogger(__name__)
 
 def cmd_str(cmd):
     """
@@ -190,46 +191,31 @@ class KernelDocDirective(Directive):
 
         return cmd
 
-    def run_cmd(self):
+    def run_cmd(self, cmd):
         """
         Execute an external kernel-doc command.
         """
 
         env = self.state.document.settings.env
-        cmd = self.handle_args()
-
-        if self.verbose >= 1:
-            print(cmd_str(cmd))
-
         node = nodes.section()
 
-        try:
-            logger.verbose("calling kernel-doc '%s'" % (" ".join(cmd)))
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = p.communicate()
 
-            p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            out, err = p.communicate()
+        out, err = codecs.decode(out, 'utf-8'), codecs.decode(err, 'utf-8')
 
-            out, err = codecs.decode(out, 'utf-8'), codecs.decode(err, 'utf-8')
+        if p.returncode != 0:
+            sys.stderr.write(err)
 
-            if p.returncode != 0:
-                sys.stderr.write(err)
-
-                logger.warning("kernel-doc '%s' failed with return code %d"
-                                    % (" ".join(cmd), p.returncode))
-                return [nodes.error(None, nodes.paragraph(text = "kernel-doc missing"))]
-            elif env.config.kerneldoc_verbosity > 0:
-                sys.stderr.write(err)
-
-        except Exception as e:  # pylint: disable=W0703
-            logger.warning("kernel-doc '%s' processing failed with: %s" %
-                                (" ".join(cmd), str(e)))
+            logger.warning("kernel-doc '%s' failed with return code %d"
+                                % (" ".join(cmd), p.returncode))
             return [nodes.error(None, nodes.paragraph(text = "kernel-doc missing"))]
+        elif env.config.kerneldoc_verbosity > 0:
+            sys.stderr.write(err)
 
         filenames = self.parse_args["file_list"]
         for filename in filenames:
-            ret = self.parse_msg(filename, node, out, cmd)
-            if ret:
-                return ret
+            self.parse_msg(filename, node, out, cmd)
 
         return node.children
 
@@ -240,40 +226,31 @@ class KernelDocDirective(Directive):
 
         env = self.state.document.settings.env
 
-        try:
-            lines = statemachine.string2lines(out, self.tab_width,
-                                              convert_whitespace=True)
-            result = ViewList()
+        lines = statemachine.string2lines(out, self.tab_width,
+                                            convert_whitespace=True)
+        result = ViewList()
 
-            lineoffset = 0;
-            line_regex = re.compile(r"^\.\. LINENO ([0-9]+)$")
-            for line in lines:
-                match = line_regex.search(line)
-                if match:
-                    # sphinx counts lines from 0
-                    lineoffset = int(match.group(1)) - 1
-                    # we must eat our comments since the upset the markup
-                else:
-                    doc = str(env.srcdir) + "/" + env.docname + ":" + str(self.lineno)
-                    result.append(line, doc + ": " + filename, lineoffset)
-                    lineoffset += 1
+        lineoffset = 0;
+        line_regex = re.compile(r"^\.\. LINENO ([0-9]+)$")
+        for line in lines:
+            match = line_regex.search(line)
+            if match:
+                # sphinx counts lines from 0
+                lineoffset = int(match.group(1)) - 1
+                # we must eat our comments since the upset the markup
+            else:
+                doc = str(env.srcdir) + "/" + env.docname + ":" + str(self.lineno)
+                result.append(line, doc + ": " + filename, lineoffset)
+                lineoffset += 1
 
-            self.do_parse(result, node)
+        self.do_parse(result, node)
 
-        except Exception as e:  # pylint: disable=W0703
-            logger.warning("kernel-doc '%s' processing failed with: %s" %
-                                (cmd_str(cmd), str(e)))
-            return [nodes.error(None, nodes.paragraph(text = "kernel-doc missing"))]
-
-        return None
-
-    def run_kdoc(self, kfiles):
+    def run_kdoc(self, cmd, kfiles):
         """
         Execute kernel-doc classes directly instead of running as a separate
         command.
         """
 
-        cmd = self.handle_args()
         env = self.state.document.settings.env
 
         node = nodes.section()
@@ -282,22 +259,27 @@ class KernelDocDirective(Directive):
         filenames = self.parse_args["file_list"]
 
         for filename, out in kfiles.msg(**self.msg_args, filenames=filenames):
-            if self.verbose >= 1:
-                print(cmd_str(cmd))
-
-            ret = self.parse_msg(filename, node, out, cmd)
-            if ret:
-                return ret
+            self.parse_msg(filename, node, out, cmd)
 
         return node.children
 
     def run(self):
         global kfiles
 
-        if kfiles:
-            return self.run_kdoc(kfiles)
-        else:
-            return self.run_cmd()
+        cmd = self.handle_args()
+        if self.verbose >= 1:
+            logger.info(cmd_str(cmd))
+
+        try:
+            if kfiles:
+                return self.run_kdoc(cmd, kfiles)
+            else:
+                return self.run_cmd(cmd)
+
+        except Exception as e:  # pylint: disable=W0703
+            logger.warning("kernel-doc '%s' processing failed with: %s" %
+                           (cmd_str(cmd), pformat(e)))
+            return [nodes.error(None, nodes.paragraph(text = "kernel-doc missing"))]
 
     def do_parse(self, result, node):
         with switch_source_input(self.state, result):
