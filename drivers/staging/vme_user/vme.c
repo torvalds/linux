@@ -1925,7 +1925,7 @@ EXPORT_SYMBOL(vme_unregister_driver);
 
 static int vme_bus_match(struct device *dev, const struct device_driver *drv)
 {
-	struct vme_driver *vme_drv;
+	const struct vme_driver *vme_drv;
 
 	vme_drv = container_of(drv, struct vme_driver, driver);
 
