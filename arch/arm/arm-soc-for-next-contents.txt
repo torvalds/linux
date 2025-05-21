@@ -3,6 +3,8 @@ soc/arm
 		https://git.kernel.org/pub/scm/linux/kernel/git/brgl/linux tags/arm-gpio-set-conversion-for-v6.16-rc1
 	omap/soc
 		git://git.kernel.org/pub/scm/linux/kernel/git/khilman/linux-omap tags/omap-for-v6.16/soc-signed
+	patch
+		ARM: s3c: stop including gpio.h
 
 soc/dt
 	patch
@@ -37,6 +39,30 @@ soc/dt
 		https://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-6.16-arm-dt
 	omap/dt
 		https://git.kernel.org/pub/scm/linux/kernel/git/khilman/linux-omap tags/omap-for-v6.16/dt-signed
+	imx/dt-bindings
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-bindings-6.16
+	nxp/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-dt-6.16
+	imx/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-dt64-6.16
+	patch
+		dt-bindings: clock: socfpga: convert to yaml
+	thead/dt
+		https://github.com/pdp7/linux tags/thead-dt-for-v6.16
+	patch
+		arm64: dts: blaize-blzp1600: Enable GPIO support
+	k3/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/ti/linux tags/ti-k3-dt-for-v6.16
+	patch
+		ARM: dts: samsung: sp5v210-aries: Align wifi node name with bindings
+	samsung/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-dt64-6.16
+	amlogic/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/amlogic/linux tags/amlogic-arm-dt-for-v6.16
+	amlogic/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/amlogic/linux tags/amlogic-arm64-dt-for-v6.16
+	dt/cleanup-64
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-dt tags/dt64-cleanup-6.16
 
 soc/drivers
 	renesas/drivers
@@ -63,10 +89,24 @@ soc/drivers
 		https://git.kernel.org/pub/scm/linux/kernel/git/jenswi/linux-tee tags/tee-for-v6.16
 	omap/drivers
 		https://git.kernel.org/pub/scm/linux/kernel/git/khilman/linux-omap tags/omap-for-v6.16/drivers-signed
+	cznic/platform
+		https://git.kernel.org/pub/scm/linux/kernel/git/soc/soc cznic/platform
+	imx/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-drivers-6.16
+	drivers/reset
+		git://git.pengutronix.de/pza/linux tags/reset-for-v6.16
+	ti/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/ti/linux tags/ti-driver-soc-for-v6.16
 
 soc/defconfig
 	renesas/defconfig
 		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-arm-defconfig-for-v6.16-tag2
+	imx/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-defconfig-6.16
+	k3/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/ti/linux tags/ti-k3-config-for-v6.16
+	patch
+		arm64: defconfig: enable ACPM protocol and Exynos mailbox
 
 soc/late
 
@@ -84,4 +124,6 @@ arm/fixes
 		arm64: dts: amazon: Fix simple-bus node name schema warnings
 	<no branch> (c6888983134e2ccc2db8ffd2720b0d4826d952e4)
 		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-fixes-6.15-2
+	exynos-fixes
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-fixes-6.15
 
