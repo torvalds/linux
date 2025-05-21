@@ -32,6 +32,7 @@
  * Xe's Freq provides a sysfs API for frequency management:
  *
  * device/tile#/gt#/freq0/<item>_freq *read-only* files:
+ *
  * - act_freq: The actual resolved frequency decided by PCODE.
  * - cur_freq: The current one requested by GuC PC to the PCODE.
  * - rpn_freq: The Render Performance (RP) N level, which is the minimal one.
@@ -39,6 +40,7 @@
  * - rp0_freq: The Render Performance (RP) 0 level, which is the maximum one.
  *
  * device/tile#/gt#/freq0/<item>_freq *read-write* files:
+ *
  * - min_freq: Min frequency request.
  * - max_freq: Max frequency request.
  *             If max <= min, then freq_min becomes a fixed frequency request.
