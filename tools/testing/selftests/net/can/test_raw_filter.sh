@@ -9,17 +9,25 @@ net_dir=$(dirname $0)/..
 source $net_dir/lib.sh
 
 export CANIF=${CANIF:-"vcan0"}
+BITRATE=${BITRATE:-500000}
 
 setup()
 {
-	ip link add name $CANIF type vcan || exit $ksft_skip
+	if [[ $CANIF == vcan* ]]; then
+		ip link add name $CANIF type vcan || exit $ksft_skip
+	else
+		ip link set dev $CANIF type can bitrate $BITRATE || exit $ksft_skip
+	fi
 	ip link set dev $CANIF up
 	pwd
 }
 
 cleanup()
 {
-	ip link delete $CANIF
+	ip link set dev $CANIF down
+	if [[ $CANIF == vcan* ]]; then
+		ip link delete $CANIF
+	fi
 }
 
 test_raw_filter()
