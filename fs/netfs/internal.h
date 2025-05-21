@@ -23,7 +23,7 @@
 /*
  * buffered_read.c
  */
-void netfs_cache_read_terminated(void *priv, ssize_t transferred_or_error, bool was_async);
+void netfs_cache_read_terminated(void *priv, ssize_t transferred_or_error);
 int netfs_prefetch_for_write(struct file *file, struct folio *folio,
 			     size_t offset, size_t len);
 
@@ -62,6 +62,14 @@ static inline void netfs_proc_del_rreq(struct netfs_io_request *rreq) {}
 struct folio_queue *netfs_buffer_make_space(struct netfs_io_request *rreq,
 					    enum netfs_folioq_trace trace);
 void netfs_reset_iter(struct netfs_io_subrequest *subreq);
+void netfs_wake_collector(struct netfs_io_request *rreq);
+void netfs_subreq_clear_in_progress(struct netfs_io_subrequest *subreq);
+void netfs_wait_for_in_progress_stream(struct netfs_io_request *rreq,
+				       struct netfs_io_stream *stream);
+ssize_t netfs_wait_for_read(struct netfs_io_request *rreq);
+ssize_t netfs_wait_for_write(struct netfs_io_request *rreq);
+void netfs_wait_for_paused_read(struct netfs_io_request *rreq);
+void netfs_wait_for_paused_write(struct netfs_io_request *rreq);
 
 /*
  * objects.c
@@ -71,9 +79,8 @@ struct netfs_io_request *netfs_alloc_request(struct address_space *mapping,
 					     loff_t start, size_t len,
 					     enum netfs_io_origin origin);
 void netfs_get_request(struct netfs_io_request *rreq, enum netfs_rreq_ref_trace what);
-void netfs_clear_subrequests(struct netfs_io_request *rreq, bool was_async);
-void netfs_put_request(struct netfs_io_request *rreq, bool was_async,
-		       enum netfs_rreq_ref_trace what);
+void netfs_clear_subrequests(struct netfs_io_request *rreq);
+void netfs_put_request(struct netfs_io_request *rreq, enum netfs_rreq_ref_trace what);
 struct netfs_io_subrequest *netfs_alloc_subrequest(struct netfs_io_request *rreq);
 
 static inline void netfs_see_request(struct netfs_io_request *rreq,
@@ -92,11 +99,9 @@ static inline void netfs_see_subrequest(struct netfs_io_subrequest *subreq,
 /*
  * read_collect.c
  */
+bool netfs_read_collection(struct netfs_io_request *rreq);
 void netfs_read_collection_worker(struct work_struct *work);
-void netfs_wake_read_collector(struct netfs_io_request *rreq);
-void netfs_cache_read_terminated(void *priv, ssize_t transferred_or_error, bool was_async);
-ssize_t netfs_wait_for_read(struct netfs_io_request *rreq);
-void netfs_wait_for_pause(struct netfs_io_request *rreq);
+void netfs_cache_read_terminated(void *priv, ssize_t transferred_or_error);
 
 /*
  * read_pgpriv2.c
@@ -176,8 +181,8 @@ static inline void netfs_stat_d(atomic_t *stat)
  * write_collect.c
  */
 int netfs_folio_written_back(struct folio *folio);
+bool netfs_write_collection(struct netfs_io_request *wreq);
 void netfs_write_collection_worker(struct work_struct *work);
-void netfs_wake_write_collector(struct netfs_io_request *wreq, bool was_async);
 
 /*
  * write_issue.c
@@ -198,8 +203,8 @@ struct netfs_io_request *netfs_begin_writethrough(struct kiocb *iocb, size_t len
 int netfs_advance_writethrough(struct netfs_io_request *wreq, struct writeback_control *wbc,
 			       struct folio *folio, size_t copied, bool to_page_end,
 			       struct folio **writethrough_cache);
-int netfs_end_writethrough(struct netfs_io_request *wreq, struct writeback_control *wbc,
-			   struct folio *writethrough_cache);
+ssize_t netfs_end_writethrough(struct netfs_io_request *wreq, struct writeback_control *wbc,
+			       struct folio *writethrough_cache);
 int netfs_unbuffered_write(struct netfs_io_request *wreq, bool may_wait, size_t len);
 
 /*
@@ -252,6 +257,21 @@ static inline void netfs_put_group_many(struct netfs_group *netfs_group, int nr)
 	    netfs_group != NETFS_FOLIO_COPY_TO_CACHE &&
 	    refcount_sub_and_test(nr, &netfs_group->ref))
 		netfs_group->free(netfs_group);
+}
+
+/*
+ * Clear and wake up a NETFS_RREQ_* flag bit on a request.
+ */
+static inline void netfs_wake_rreq_flag(struct netfs_io_request *rreq,
+					unsigned int rreq_flag,
+					enum netfs_rreq_trace trace)
+{
+	if (test_bit(rreq_flag, &rreq->flags)) {
+		trace_netfs_rreq(rreq, trace);
+		clear_bit_unlock(rreq_flag, &rreq->flags);
+		smp_mb__after_atomic(); /* Set flag before task state */
+		wake_up(&rreq->waitq);
+	}
 }
 
 /*

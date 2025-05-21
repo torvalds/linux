@@ -59,7 +59,7 @@ static void v9fs_issue_write(struct netfs_io_subrequest *subreq)
 	len = p9_client_write(fid, subreq->start, &subreq->io_iter, &err);
 	if (len > 0)
 		__set_bit(NETFS_SREQ_MADE_PROGRESS, &subreq->flags);
-	netfs_write_subrequest_terminated(subreq, len ?: err, false);
+	netfs_write_subrequest_terminated(subreq, len ?: err);
 }
 
 /**

@@ -142,7 +142,7 @@ static int netfs_single_dispatch_read(struct netfs_io_request *rreq)
 	set_bit(NETFS_RREQ_ALL_QUEUED, &rreq->flags);
 	return ret;
 cancel:
-	netfs_put_subrequest(subreq, false, netfs_sreq_trace_put_cancel);
+	netfs_put_subrequest(subreq, netfs_sreq_trace_put_cancel);
 	return ret;
 }
 
@@ -185,11 +185,11 @@ ssize_t netfs_read_single(struct inode *inode, struct file *file, struct iov_ite
 	netfs_single_dispatch_read(rreq);
 
 	ret = netfs_wait_for_read(rreq);
-	netfs_put_request(rreq, true, netfs_rreq_trace_put_return);
+	netfs_put_request(rreq, netfs_rreq_trace_put_return);
 	return ret;
 
 cleanup_free:
-	netfs_put_request(rreq, false, netfs_rreq_trace_put_failed);
+	netfs_put_request(rreq, netfs_rreq_trace_put_failed);
 	return ret;
 }
 EXPORT_SYMBOL(netfs_read_single);
