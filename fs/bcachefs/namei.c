@@ -609,29 +609,39 @@ static inline void reverse_bytes(void *b, size_t n)
 	}
 }
 
-/* XXX: we don't yet attempt to print paths when we don't know the subvol */
-int bch2_inum_to_path(struct btree_trans *trans, subvol_inum inum, struct printbuf *path)
+static int __bch2_inum_to_path(struct btree_trans *trans,
+			       u32 subvol, u64 inum, u32 snapshot,
+			       struct printbuf *path)
 {
 	unsigned orig_pos = path->pos;
 	int ret = 0;
 
-	while (!subvol_inum_eq(inum, BCACHEFS_ROOT_SUBVOL_INUM)) {
+	while (true) {
+		if (!snapshot) {
+			ret = bch2_subvolume_get_snapshot(trans, subvol, &snapshot);
+			if (ret)
+				goto disconnected;
+		}
+
 		struct bch_inode_unpacked inode;
-		ret = bch2_inode_find_by_inum_trans(trans, inum, &inode);
+		ret = bch2_inode_find_by_inum_snapshot(trans, inum, snapshot, &inode, 0);
 		if (ret)
 			goto disconnected;
+
+		if (inode.bi_subvol == BCACHEFS_ROOT_SUBVOL &&
+		    inode.bi_inum == BCACHEFS_ROOT_INO)
+			break;
 
 		if (!inode.bi_dir && !inode.bi_dir_offset) {
 			ret = -BCH_ERR_ENOENT_inode_no_backpointer;
 			goto disconnected;
 		}
 
-		inum = parent_inum(inum, &inode);
-
-		u32 snapshot;
-		ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
-		if (ret)
-			goto disconnected;
+		inum = inode.bi_dir;
+		if (inode.bi_parent_subvol) {
+			subvol = inode.bi_parent_subvol;
+			snapshot = 0;
+		}
 
 		struct btree_iter d_iter;
 		struct bkey_s_c_dirent d = bch2_bkey_get_iter_typed(trans, &d_iter,
@@ -668,22 +678,18 @@ disconnected:
 	goto out;
 }
 
+int bch2_inum_to_path(struct btree_trans *trans,
+		      subvol_inum inum,
+		      struct printbuf *path)
+{
+	return __bch2_inum_to_path(trans, inum.subvol, inum.inum, 0, path);
+}
+
 int bch2_inum_snapshot_to_path(struct btree_trans *trans, u64 inum, u32 snapshot,
 			       snapshot_id_list *snapshot_overwrites,
 			       struct printbuf *path)
 {
-	u32 subvol = bch2_snapshot_oldest_subvol(trans->c, snapshot, snapshot_overwrites);
-	int ret = 0;
-
-	if (subvol) {
-		ret = bch2_inum_to_path(trans, (subvol_inum) { subvol, inum }, path);
-		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-			return ret;
-	}
-
-	if (!subvol || ret)
-		prt_printf(path, "inum %llu:%u", inum, snapshot);
-	return 0;
+	return __bch2_inum_to_path(trans, 0, inum, snapshot, path);
 }
 
 /* fsck */
