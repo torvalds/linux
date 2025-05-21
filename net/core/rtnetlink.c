@@ -3100,7 +3100,7 @@ static int do_setlink(const struct sk_buff *skb, struct net_device *dev,
 
 		memcpy(sa->sa_data, nla_data(tb[IFLA_ADDRESS]),
 		       dev->addr_len);
-		err = netif_set_mac_address(dev, sa, extack);
+		err = netif_set_mac_address(dev, (struct sockaddr_storage *)sa, extack);
 		kfree(sa);
 		if (err) {
 			up_write(&dev_addr_sem);
