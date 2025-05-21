@@ -252,6 +252,23 @@ test_ping() {
   return 0
 }
 
+test_ping_unreachable() {
+  local daddr4=$1
+  local daddr6=$2
+
+  if ip netns exec "$ns1" ping -c 1 -w 1 -q "$daddr4" > /dev/null; then
+	echo "FAIL: ${ns1} could reach $daddr4" 1>&2
+	return 1
+  fi
+
+  if ip netns exec "$ns1" ping -c 1 -w 1 -q "$daddr6" > /dev/null; then
+	echo "FAIL: ${ns1} could reach $daddr6" 1>&2
+	return 1
+  fi
+
+  return 0
+}
+
 test_fib_type() {
 	local notice="$1"
 	local errmsg="addr-on-if"
@@ -293,6 +310,77 @@ test_fib_type() {
 		echo "FAIL: fib expression address types match ($notice)"
 		ret=1
 	fi
+}
+
+test_fib_vrf_dev_add_dummy()
+{
+	if ! ip -net "$nsrouter" link add dummy0 type dummy ;then
+		echo "SKIP: VRF tests: dummy device type not supported"
+		return 1
+	fi
+
+	if ! ip -net "$nsrouter" link add tvrf type vrf table 9876;then
+		echo "SKIP: VRF tests: vrf device type not supported"
+		return 1
+	fi
+
+	ip -net "$nsrouter" link set veth0 master tvrf
+	ip -net "$nsrouter" link set dummy0 master tvrf
+	ip -net "$nsrouter" link set dummy0 up
+	ip -net "$nsrouter" link set tvrf up
+}
+
+# Extends nsrouter config by adding dummy0+vrf.
+#
+#  10.0.1.99     10.0.1.1           10.0.2.1         10.0.2.99
+# dead:1::99    dead:1::1          dead:2::1        dead:2::99
+# ns1 <-------> [ veth0 ] nsrouter [veth1] <-------> ns2
+#                         [dummy0]
+#                         10.9.9.1
+#                        dead:9::1
+#                          [tvrf]
+test_fib_vrf()
+{
+	local dummynet="10.9.9"
+	local dummynet6="dead:9"
+	local cntname=""
+
+	if ! test_fib_vrf_dev_add_dummy; then
+		[ $ret -eq 0 ] && ret=$ksft_skip
+		return
+	fi
+
+	ip -net "$nsrouter" addr add "$dummynet.1"/24 dev dummy0
+	ip -net "$nsrouter" addr add "${dummynet6}::1"/64 dev dummy0 nodad
+
+
+ip netns exec "$nsrouter" nft -f - <<EOF
+flush ruleset
+table inet t {
+	counter fibcount4 { }
+	counter fibcount6 { }
+
+	chain prerouting {
+		type filter hook prerouting priority 0;
+		meta iifname veth0 ip daddr ${dummynet}.2 fib daddr oif dummy0 counter name fibcount4
+		meta iifname veth0 ip6 daddr ${dummynet6}::2 fib daddr oif dummy0 counter name fibcount6
+	}
+}
+EOF
+	# no echo reply for these addresses: The dummy interface is part of tvrf,
+	test_ping_unreachable "$dummynet.2" "${dummynet6}::2" &
+
+	wait
+
+	for cntname in fibcount4 fibcount6;do
+		if ip netns exec "$nsrouter" nft list counter inet t "$cntname" | grep -q "packets 1"; then
+			echo "PASS: vrf fib lookup did return expected output interface for $cntname"
+		else
+			ip netns exec "$nsrouter" nft list counter inet t "$cntname"
+			echo "FAIL: vrf fib lookup did not return expected output interface for $cntname"
+			ret=1
+		fi
+	done
 }
 
 ip netns exec "$nsrouter" sysctl net.ipv6.conf.all.forwarding=1 > /dev/null
@@ -415,5 +503,7 @@ ip -net "$nsrouter" -4 rule add from all table main priority 32766
 test_fib_type "default table"
 ip netns exec "$nsrouter" nft delete table ip filter
 ip netns exec "$nsrouter" nft delete table ip6 filter
+
+test_fib_vrf
 
 exit $ret
