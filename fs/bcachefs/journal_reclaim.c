@@ -17,6 +17,8 @@
 #include <linux/kthread.h>
 #include <linux/sched/mm.h>
 
+static bool __should_discard_bucket(struct journal *, struct journal_device *);
+
 /* Free space calculations: */
 
 static unsigned journal_space_from(struct journal_device *ja,
@@ -203,8 +205,7 @@ void bch2_journal_space_available(struct journal *j)
 		       ja->bucket_seq[ja->dirty_idx_ondisk] < j->last_seq_ondisk)
 			ja->dirty_idx_ondisk = (ja->dirty_idx_ondisk + 1) % ja->nr;
 
-		if (ja->discard_idx != ja->dirty_idx_ondisk)
-			can_discard = true;
+		can_discard |= __should_discard_bucket(j, ja);
 
 		max_entry_size = min_t(unsigned, max_entry_size, ca->mi.bucket_size);
 		nr_online++;
@@ -264,13 +265,19 @@ out:
 
 /* Discards - last part of journal reclaim: */
 
+static bool __should_discard_bucket(struct journal *j, struct journal_device *ja)
+{
+	unsigned min_free = max(4, ja->nr / 8);
+
+	return bch2_journal_dev_buckets_available(j, ja, journal_space_discarded) <
+		min_free &&
+		ja->discard_idx != ja->dirty_idx_ondisk;
+}
+
 static bool should_discard_bucket(struct journal *j, struct journal_device *ja)
 {
 	spin_lock(&j->lock);
-	unsigned min_free = max(4, ja->nr / 8);
-
-	bool ret = bch2_journal_dev_buckets_available(j, ja, journal_space_discarded) < min_free &&
-		ja->discard_idx != ja->dirty_idx_ondisk;
+	bool ret = __should_discard_bucket(j, ja);
 	spin_unlock(&j->lock);
 
 	return ret;

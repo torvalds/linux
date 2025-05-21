@@ -1149,7 +1149,7 @@ xfs_init_percpu_counters(
 	return 0;
 
 free_freecounters:
-	while (--i > 0)
+	while (--i >= 0)
 		percpu_counter_destroy(&mp->m_free[i].count);
 	percpu_counter_destroy(&mp->m_delalloc_rtextents);
 free_delalloc:
@@ -2114,6 +2114,21 @@ xfs_fs_reconfigure(
 	if (error)
 		return error;
 
+	/* attr2 -> noattr2 */
+	if (xfs_has_noattr2(new_mp)) {
+		if (xfs_has_crc(mp)) {
+			xfs_warn(mp,
+			"attr2 is always enabled for a V5 filesystem - can't be changed.");
+			return -EINVAL;
+		}
+		mp->m_features &= ~XFS_FEAT_ATTR2;
+		mp->m_features |= XFS_FEAT_NOATTR2;
+	} else if (xfs_has_attr2(new_mp)) {
+		/* noattr2 -> attr2 */
+		mp->m_features &= ~XFS_FEAT_NOATTR2;
+		mp->m_features |= XFS_FEAT_ATTR2;
+	}
+
 	/* inode32 -> inode64 */
 	if (xfs_has_small_inums(mp) && !xfs_has_small_inums(new_mp)) {
 		mp->m_features &= ~XFS_FEAT_SMALL_INUMS;
@@ -2125,6 +2140,17 @@ xfs_fs_reconfigure(
 		mp->m_features |= XFS_FEAT_SMALL_INUMS;
 		mp->m_maxagi = xfs_set_inode_alloc(mp, mp->m_sb.sb_agcount);
 	}
+
+	/*
+	 * Now that mp has been modified according to the remount options, we
+	 * do a final option validation with xfs_finish_flags() just like it is
+	 * just like it is done during mount. We cannot use
+	 * done during mount. We cannot use xfs_finish_flags() on new_mp as it
+	 * contains only the user given options.
+	 */
+	error = xfs_finish_flags(mp);
+	if (error)
+		return error;
 
 	/* ro -> rw */
 	if (xfs_is_readonly(mp) && !(flags & SB_RDONLY)) {

@@ -140,6 +140,7 @@ static const struct xe_graphics_desc graphics_xelpg = {
 	.has_indirect_ring_state = 1, \
 	.has_range_tlb_invalidation = 1, \
 	.has_usm = 1, \
+	.has_64bit_timestamp = 1, \
 	.va_bits = 48, \
 	.vm_max_level = 4, \
 	.hw_engine_mask = \
@@ -668,6 +669,7 @@ static int xe_info_init(struct xe_device *xe,
 
 	xe->info.has_range_tlb_invalidation = graphics_desc->has_range_tlb_invalidation;
 	xe->info.has_usm = graphics_desc->has_usm;
+	xe->info.has_64bit_timestamp = graphics_desc->has_64bit_timestamp;
 
 	for_each_remote_tile(tile, xe, id) {
 		int err;

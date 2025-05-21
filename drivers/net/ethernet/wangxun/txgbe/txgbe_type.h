@@ -158,6 +158,8 @@
 #define TXGBE_EEPROM_VERSION_L                  0x1D
 #define TXGBE_EEPROM_VERSION_H                  0x1E
 #define TXGBE_ISCSI_BOOT_CONFIG                 0x07
+#define TXGBE_EEPROM_I2C_SRART_PTR              0x580
+#define TXGBE_EEPROM_I2C_END_PTR                0x800
 
 #define TXGBE_MAX_MSIX_VECTORS          64
 #define TXGBE_MAX_FDIR_INDICES          63
