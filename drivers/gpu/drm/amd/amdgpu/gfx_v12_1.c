@@ -1998,17 +1998,15 @@ static void gfx_v12_1_xcc_kiq_setting(struct amdgpu_ring *ring,
 static void gfx_v12_1_xcc_cp_set_doorbell_range(struct amdgpu_device *adev,
 						int xcc_id)
 {
-	/* set graphics engine doorbell range */
-	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_RB_DOORBELL_RANGE_LOWER,
-		     (adev->doorbell_index.gfx_ring0 * 2) << 2);
-	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_RB_DOORBELL_RANGE_UPPER,
-		     (adev->doorbell_index.gfx_userqueue_end * 2) << 2);
-
 	/* set compute engine doorbell range */
 	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DOORBELL_RANGE_LOWER,
-		     (adev->doorbell_index.kiq * 2) << 2);
+		     ((adev->doorbell_index.kiq +
+		       xcc_id * adev->doorbell_index.xcc_doorbell_range) *
+		      2) << 2);
 	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DOORBELL_RANGE_UPPER,
-		     (adev->doorbell_index.userqueue_end * 2) << 2);
+		     ((adev->doorbell_index.userqueue_end +
+		       xcc_id * adev->doorbell_index.xcc_doorbell_range) *
+		      2) << 2);
 }
 
 static int gfx_v12_1_compute_mqd_init(struct amdgpu_device *adev, void *m,
@@ -2217,14 +2215,6 @@ static int gfx_v12_1_xcc_kiq_init_register(struct amdgpu_ring *ring,
 	       mqd->cp_hqd_pq_wptr_poll_addr_lo);
 	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_WPTR_POLL_ADDR_HI,
 	       mqd->cp_hqd_pq_wptr_poll_addr_hi);
-
-	/* enable the doorbell if requested */
-	if (ring->use_doorbell) {
-		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DOORBELL_RANGE_LOWER,
-			(adev->doorbell_index.kiq * 2) << 2);
-		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DOORBELL_RANGE_UPPER,
-			(adev->doorbell_index.userqueue_end * 2) << 2);
-	}
 
 	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_DOORBELL_CONTROL,
 	       mqd->cp_hqd_pq_doorbell_control);
