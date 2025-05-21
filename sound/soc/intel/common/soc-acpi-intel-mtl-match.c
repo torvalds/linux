@@ -730,6 +730,24 @@ static const struct snd_soc_acpi_adr_device cs35l56_3_l_adr[] = {
 	}
 };
 
+static const struct snd_soc_acpi_adr_device cs35l63_1_fb_adr[] = {
+	{
+		.adr = 0x00013001FA356301ull,
+		.num_endpoints = ARRAY_SIZE(cs35l56_l_fb_endpoints),
+		.endpoints = cs35l56_l_fb_endpoints,
+		.name_prefix = "AMP1"
+	},
+};
+
+static const struct snd_soc_acpi_adr_device cs35l63_3_fb_adr[] = {
+	{
+		.adr = 0x00033101FA356301ull,
+		.num_endpoints = ARRAY_SIZE(cs35l56_r_fb_endpoints),
+		.endpoints = cs35l56_r_fb_endpoints,
+		.name_prefix = "AMP2"
+	},
+};
+
 static const struct snd_soc_acpi_link_adr rt5682_link2_max98373_link0[] = {
 	/* Expected order: jack -> amp */
 	{
@@ -1027,6 +1045,20 @@ static const struct snd_soc_acpi_link_adr mtl_cs35l56_x8_link0_link1_fb[] = {
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr mtl_cs35l63_x2_link1_link3_fb[] = {
+	{
+		.mask = BIT(3),
+		.num_adr = ARRAY_SIZE(cs35l63_3_fb_adr),
+		.adr_d = cs35l63_3_fb_adr,
+	},
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(cs35l63_1_fb_adr),
+		.adr_d = cs35l63_1_fb_adr,
+	},
+	{}
+};
+
 /* this table is used when there is no I2S codec present */
 struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_sdw_machines[] = {
 	/* mockup tests need to be first */
@@ -1133,6 +1165,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_sdw_machines[] = {
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-mtl-cs42l43-l0.tplg",
 		.get_function_tplg_files = sof_sdw_get_tplg_files,
+	},
+	{
+		.link_mask = BIT(1) | BIT(3),
+		.links = mtl_cs35l63_x2_link1_link3_fb,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-mtl-cs35l56-l01-fb8.tplg",
 	},
 	{
 		.link_mask = GENMASK(3, 0),
