@@ -413,15 +413,10 @@ static unsigned int wx_max_channels(struct wx *wx)
 		max_combined = 1;
 	} else {
 		/* support up to max allowed queues with RSS */
-		switch (wx->mac.type) {
-		case wx_mac_sp:
-		case wx_mac_aml:
+		if (test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags))
 			max_combined = 63;
-			break;
-		default:
+		else
 			max_combined = 8;
-			break;
-		}
 	}
 
 	return max_combined;

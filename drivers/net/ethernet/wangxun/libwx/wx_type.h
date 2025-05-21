@@ -1184,6 +1184,7 @@ struct vf_macvlans {
 };
 
 enum wx_pf_flags {
+	WX_FLAG_MULTI_64_FUNC,
 	WX_FLAG_SWFW_RING,
 	WX_FLAG_VMDQ_ENABLED,
 	WX_FLAG_VLAN_PROMISC,

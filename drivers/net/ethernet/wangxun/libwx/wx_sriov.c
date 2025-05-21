@@ -106,7 +106,7 @@ static int __wx_enable_sriov(struct wx *wx, u8 num_vfs)
 		wx->vfinfo[i].xcast_mode = WXVF_XCAST_MODE_NONE;
 	}
 
-	if (wx->mac.type == wx_mac_em) {
+	if (!test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags)) {
 		value = WX_CFG_PORT_CTL_NUM_VT_8;
 	} else {
 		if (num_vfs < 32)
@@ -599,10 +599,10 @@ static int wx_set_vf_vlan_msg(struct wx *wx, u32 *msgbuf, u16 vf)
 		if (VMDQ_P(0) < 32) {
 			bits = rd32(wx, WX_PSR_VLAN_SWC_VM_L);
 			bits &= ~BIT(VMDQ_P(0));
-			if (wx->mac.type != wx_mac_em)
+			if (test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags))
 				bits |= rd32(wx, WX_PSR_VLAN_SWC_VM_H);
 		} else {
-			if (wx->mac.type != wx_mac_em)
+			if (test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags))
 				bits = rd32(wx, WX_PSR_VLAN_SWC_VM_H);
 			bits &= ~BIT(VMDQ_P(0) % 32);
 			bits |= rd32(wx, WX_PSR_VLAN_SWC_VM_L);
@@ -848,7 +848,7 @@ void wx_disable_vf_rx_tx(struct wx *wx)
 {
 	wr32(wx, WX_TDM_VFTE_CLR(0), U32_MAX);
 	wr32(wx, WX_RDM_VFRE_CLR(0), U32_MAX);
-	if (wx->mac.type != wx_mac_em) {
+	if (test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags)) {
 		wr32(wx, WX_TDM_VFTE_CLR(1), U32_MAX);
 		wr32(wx, WX_RDM_VFRE_CLR(1), U32_MAX);
 	}

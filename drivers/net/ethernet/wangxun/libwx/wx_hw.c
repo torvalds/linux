@@ -113,15 +113,10 @@ static void wx_intr_disable(struct wx *wx, u64 qmask)
 	if (mask)
 		wr32(wx, WX_PX_IMS(0), mask);
 
-	switch (wx->mac.type) {
-	case wx_mac_sp:
-	case wx_mac_aml:
+	if (test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags)) {
 		mask = (qmask >> 32);
 		if (mask)
 			wr32(wx, WX_PX_IMS(1), mask);
-		break;
-	default:
-		break;
 	}
 }
 
@@ -133,15 +128,10 @@ void wx_intr_enable(struct wx *wx, u64 qmask)
 	if (mask)
 		wr32(wx, WX_PX_IMC(0), mask);
 
-	switch (wx->mac.type) {
-	case wx_mac_sp:
-	case wx_mac_aml:
+	if (test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags)) {
 		mask = (qmask >> 32);
 		if (mask)
 			wr32(wx, WX_PX_IMC(1), mask);
-		break;
-	default:
-		break;
 	}
 }
 EXPORT_SYMBOL(wx_intr_enable);
@@ -774,14 +764,8 @@ static int wx_set_rar(struct wx *wx, u32 index, u8 *addr, u64 pools,
 	/* setup VMDq pool mapping */
 	wr32(wx, WX_PSR_MAC_SWC_VM_L, pools & 0xFFFFFFFF);
 
-	switch (wx->mac.type) {
-	case wx_mac_sp:
-	case wx_mac_aml:
+	if (test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags))
 		wr32(wx, WX_PSR_MAC_SWC_VM_H, pools >> 32);
-		break;
-	default:
-		break;
-	}
 
 	/* HW expects these in little endian so we reverse the byte
 	 * order from network order (big endian) to little endian
@@ -919,14 +903,9 @@ void wx_init_rx_addrs(struct wx *wx)
 
 		wx_set_rar(wx, 0, wx->mac.addr, 0, WX_PSR_MAC_SWC_AD_H_AV);
 
-		switch (wx->mac.type) {
-		case wx_mac_sp:
-		case wx_mac_aml:
+		if (test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags)) {
 			/* clear VMDq pool/queue selection for RAR 0 */
 			wx_clear_vmdq(wx, 0, WX_CLEAR_VMDQ_ALL);
-			break;
-		default:
-			break;
 		}
 	}
 
@@ -1512,7 +1491,7 @@ static void wx_configure_virtualization(struct wx *wx)
 		wr32m(wx, WX_PSR_VM_L2CTL(pool),
 		      WX_PSR_VM_L2CTL_AUPE, WX_PSR_VM_L2CTL_AUPE);
 
-	if (wx->mac.type == wx_mac_em) {
+	if (!test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags)) {
 		vf_shift = BIT(VMDQ_P(0));
 		/* Enable only the PF pools for Tx/Rx */
 		wr32(wx, WX_RDM_VF_RE(0), vf_shift);
@@ -1543,7 +1522,7 @@ static void wx_configure_port(struct wx *wx)
 {
 	u32 value, i;
 
-	if (wx->mac.type == wx_mac_em) {
+	if (!test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags)) {
 		value = (wx->num_vfs == 0) ?
 			WX_CFG_PORT_CTL_NUM_VT_NONE :
 			WX_CFG_PORT_CTL_NUM_VT_8;
@@ -2074,7 +2053,7 @@ static void wx_setup_psrtype(struct wx *wx)
 		  WX_RDB_PL_CFG_TUN_OUTL2HDR |
 		  WX_RDB_PL_CFG_TUN_TUNHDR;
 
-	if (wx->mac.type == wx_mac_em) {
+	if (!test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags)) {
 		for_each_set_bit(pool, &wx->fwd_bitmask, 8)
 			wr32(wx, WX_RDB_PL_CFG(VMDQ_P(pool)), psrtype);
 	} else {
