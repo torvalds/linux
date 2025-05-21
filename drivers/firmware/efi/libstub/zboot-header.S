@@ -123,11 +123,29 @@ __efistub_efi_zboot_header:
 			IMAGE_SCN_MEM_READ | \
 			IMAGE_SCN_MEM_EXECUTE
 
+#ifdef CONFIG_EFI_SBAT
+	.ascii		".sbat\0\0\0"
+	.long		__sbat_size
+	.long		_sbat - .Ldoshdr
+	.long		__sbat_size
+	.long		_sbat - .Ldoshdr
+
+	.long		0, 0
+	.short		0, 0
+	.long		IMAGE_SCN_CNT_INITIALIZED_DATA | \
+			IMAGE_SCN_MEM_READ | \
+			IMAGE_SCN_MEM_DISCARDABLE
+
+	.pushsection ".sbat", "a", @progbits
+	.incbin CONFIG_EFI_SBAT_FILE
+	.popsection
+#endif
+
 	.ascii		".data\0\0\0"
 	.long		__data_size
-	.long		_etext - .Ldoshdr
+	.long		_data - .Ldoshdr
 	.long		__data_rawsize
-	.long		_etext - .Ldoshdr
+	.long		_data - .Ldoshdr
 
 	.long		0, 0
 	.short		0, 0
