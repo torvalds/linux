@@ -969,12 +969,13 @@ static int bcmgenet_set_pauseparam(struct net_device *dev,
 
 /* standard ethtool support functions. */
 enum bcmgenet_stat_type {
-	BCMGENET_STAT_NETDEV = -1,
+	BCMGENET_STAT_RTNL = -1,
 	BCMGENET_STAT_MIB_RX,
 	BCMGENET_STAT_MIB_TX,
 	BCMGENET_STAT_RUNT,
 	BCMGENET_STAT_MISC,
 	BCMGENET_STAT_SOFT,
+	BCMGENET_STAT_SOFT64,
 };
 
 struct bcmgenet_stats {
@@ -984,13 +985,15 @@ struct bcmgenet_stats {
 	enum bcmgenet_stat_type type;
 	/* reg offset from UMAC base for misc counters */
 	u16 reg_offset;
+	/* sync for u64 stats counters */
+	int syncp_offset;
 };
 
-#define STAT_NETDEV(m) { \
+#define STAT_RTNL(m) { \
 	.stat_string = __stringify(m), \
-	.stat_sizeof = sizeof(((struct net_device_stats *)0)->m), \
-	.stat_offset = offsetof(struct net_device_stats, m), \
-	.type = BCMGENET_STAT_NETDEV, \
+	.stat_sizeof = sizeof(((struct rtnl_link_stats64 *)0)->m), \
+	.stat_offset = offsetof(struct rtnl_link_stats64, m), \
+	.type = BCMGENET_STAT_RTNL, \
 }
 
 #define STAT_GENET_MIB(str, m, _type) { \
@@ -998,6 +1001,14 @@ struct bcmgenet_stats {
 	.stat_sizeof = sizeof(((struct bcmgenet_priv *)0)->m), \
 	.stat_offset = offsetof(struct bcmgenet_priv, m), \
 	.type = _type, \
+}
+
+#define STAT_GENET_SOFT_MIB64(str, s, m) { \
+	.stat_string = str, \
+	.stat_sizeof = sizeof(((struct bcmgenet_priv *)0)->s.m), \
+	.stat_offset = offsetof(struct bcmgenet_priv, s.m), \
+	.type = BCMGENET_STAT_SOFT64, \
+	.syncp_offset = offsetof(struct bcmgenet_priv, s.syncp), \
 }
 
 #define STAT_GENET_MIB_RX(str, m) STAT_GENET_MIB(str, m, BCMGENET_STAT_MIB_RX)
@@ -1014,18 +1025,38 @@ struct bcmgenet_stats {
 }
 
 #define STAT_GENET_Q(num) \
-	STAT_GENET_SOFT_MIB("txq" __stringify(num) "_packets", \
-			tx_rings[num].packets), \
-	STAT_GENET_SOFT_MIB("txq" __stringify(num) "_bytes", \
-			tx_rings[num].bytes), \
-	STAT_GENET_SOFT_MIB("rxq" __stringify(num) "_bytes", \
-			rx_rings[num].bytes),	 \
-	STAT_GENET_SOFT_MIB("rxq" __stringify(num) "_packets", \
-			rx_rings[num].packets), \
-	STAT_GENET_SOFT_MIB("rxq" __stringify(num) "_errors", \
-			rx_rings[num].errors), \
-	STAT_GENET_SOFT_MIB("rxq" __stringify(num) "_dropped", \
-			rx_rings[num].dropped)
+	STAT_GENET_SOFT_MIB64("txq" __stringify(num) "_packets", \
+			tx_rings[num].stats64, packets), \
+	STAT_GENET_SOFT_MIB64("txq" __stringify(num) "_bytes", \
+			tx_rings[num].stats64, bytes), \
+	STAT_GENET_SOFT_MIB64("txq" __stringify(num) "_errors", \
+			tx_rings[num].stats64, errors), \
+	STAT_GENET_SOFT_MIB64("txq" __stringify(num) "_dropped", \
+			tx_rings[num].stats64, dropped), \
+	STAT_GENET_SOFT_MIB64("rxq" __stringify(num) "_bytes", \
+			rx_rings[num].stats64, bytes),	 \
+	STAT_GENET_SOFT_MIB64("rxq" __stringify(num) "_packets", \
+			rx_rings[num].stats64, packets), \
+	STAT_GENET_SOFT_MIB64("rxq" __stringify(num) "_errors", \
+			rx_rings[num].stats64, errors), \
+	STAT_GENET_SOFT_MIB64("rxq" __stringify(num) "_dropped", \
+			rx_rings[num].stats64, dropped), \
+	STAT_GENET_SOFT_MIB64("rxq" __stringify(num) "_multicast", \
+			rx_rings[num].stats64, multicast), \
+	STAT_GENET_SOFT_MIB64("rxq" __stringify(num) "_missed", \
+			rx_rings[num].stats64, missed), \
+	STAT_GENET_SOFT_MIB64("rxq" __stringify(num) "_length_errors", \
+			rx_rings[num].stats64, length_errors), \
+	STAT_GENET_SOFT_MIB64("rxq" __stringify(num) "_over_errors", \
+			rx_rings[num].stats64, over_errors), \
+	STAT_GENET_SOFT_MIB64("rxq" __stringify(num) "_crc_errors", \
+			rx_rings[num].stats64, crc_errors), \
+	STAT_GENET_SOFT_MIB64("rxq" __stringify(num) "_frame_errors", \
+			rx_rings[num].stats64, frame_errors), \
+	STAT_GENET_SOFT_MIB64("rxq" __stringify(num) "_fragmented_errors", \
+			rx_rings[num].stats64, fragmented_errors), \
+	STAT_GENET_SOFT_MIB64("rxq" __stringify(num) "_broadcast", \
+			rx_rings[num].stats64, broadcast)
 
 /* There is a 0xC gap between the end of RX and beginning of TX stats and then
  * between the end of TX stats and the beginning of the RX RUNT
@@ -1037,15 +1068,20 @@ struct bcmgenet_stats {
  */
 static const struct bcmgenet_stats bcmgenet_gstrings_stats[] = {
 	/* general stats */
-	STAT_NETDEV(rx_packets),
-	STAT_NETDEV(tx_packets),
-	STAT_NETDEV(rx_bytes),
-	STAT_NETDEV(tx_bytes),
-	STAT_NETDEV(rx_errors),
-	STAT_NETDEV(tx_errors),
-	STAT_NETDEV(rx_dropped),
-	STAT_NETDEV(tx_dropped),
-	STAT_NETDEV(multicast),
+	STAT_RTNL(rx_packets),
+	STAT_RTNL(tx_packets),
+	STAT_RTNL(rx_bytes),
+	STAT_RTNL(tx_bytes),
+	STAT_RTNL(rx_errors),
+	STAT_RTNL(tx_errors),
+	STAT_RTNL(rx_dropped),
+	STAT_RTNL(tx_dropped),
+	STAT_RTNL(multicast),
+	STAT_RTNL(rx_missed_errors),
+	STAT_RTNL(rx_length_errors),
+	STAT_RTNL(rx_over_errors),
+	STAT_RTNL(rx_crc_errors),
+	STAT_RTNL(rx_frame_errors),
 	/* UniMAC RSV counters */
 	STAT_GENET_MIB_RX("rx_64_octets", mib.rx.pkt_cnt.cnt_64),
 	STAT_GENET_MIB_RX("rx_65_127_oct", mib.rx.pkt_cnt.cnt_127),
@@ -1133,6 +1169,20 @@ static const struct bcmgenet_stats bcmgenet_gstrings_stats[] = {
 
 #define BCMGENET_STATS_LEN	ARRAY_SIZE(bcmgenet_gstrings_stats)
 
+#define BCMGENET_STATS64_ADD(stats, m, v) \
+	do { \
+		u64_stats_update_begin(&stats->syncp); \
+		u64_stats_add(&stats->m, v); \
+		u64_stats_update_end(&stats->syncp); \
+	} while (0)
+
+#define BCMGENET_STATS64_INC(stats, m) \
+	do { \
+		u64_stats_update_begin(&stats->syncp); \
+		u64_stats_inc(&stats->m); \
+		u64_stats_update_end(&stats->syncp); \
+	} while (0)
+
 static void bcmgenet_get_drvinfo(struct net_device *dev,
 				 struct ethtool_drvinfo *info)
 {
@@ -1216,8 +1266,9 @@ static void bcmgenet_update_mib_counters(struct bcmgenet_priv *priv)
 
 		s = &bcmgenet_gstrings_stats[i];
 		switch (s->type) {
-		case BCMGENET_STAT_NETDEV:
+		case BCMGENET_STAT_RTNL:
 		case BCMGENET_STAT_SOFT:
+		case BCMGENET_STAT_SOFT64:
 			continue;
 		case BCMGENET_STAT_RUNT:
 			offset += BCMGENET_STAT_OFFSET;
@@ -1255,28 +1306,40 @@ static void bcmgenet_get_ethtool_stats(struct net_device *dev,
 				       u64 *data)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
+	struct rtnl_link_stats64 stats64;
+	struct u64_stats_sync *syncp;
+	unsigned int start;
 	int i;
 
 	if (netif_running(dev))
 		bcmgenet_update_mib_counters(priv);
 
-	dev->netdev_ops->ndo_get_stats(dev);
+	dev_get_stats(dev, &stats64);
 
 	for (i = 0; i < BCMGENET_STATS_LEN; i++) {
 		const struct bcmgenet_stats *s;
 		char *p;
 
 		s = &bcmgenet_gstrings_stats[i];
-		if (s->type == BCMGENET_STAT_NETDEV)
-			p = (char *)&dev->stats;
-		else
-			p = (char *)priv;
-		p += s->stat_offset;
-		if (sizeof(unsigned long) != sizeof(u32) &&
-		    s->stat_sizeof == sizeof(unsigned long))
-			data[i] = *(unsigned long *)p;
-		else
-			data[i] = *(u32 *)p;
+		p = (char *)priv;
+
+		if (s->type == BCMGENET_STAT_SOFT64) {
+			syncp = (struct u64_stats_sync *)(p + s->syncp_offset);
+			do {
+				start = u64_stats_fetch_begin(syncp);
+				data[i] = u64_stats_read((u64_stats_t *)(p + s->stat_offset));
+			} while (u64_stats_fetch_retry(syncp, start));
+		} else {
+			if (s->type == BCMGENET_STAT_RTNL)
+				p = (char *)&stats64;
+
+			p += s->stat_offset;
+			if (sizeof(unsigned long) != sizeof(u32) &&
+				s->stat_sizeof == sizeof(unsigned long))
+				data[i] = *(unsigned long *)p;
+			else
+				data[i] = *(u32 *)p;
+		}
 	}
 }
 
@@ -1856,6 +1919,7 @@ static struct sk_buff *bcmgenet_free_rx_cb(struct device *dev,
 static unsigned int __bcmgenet_tx_reclaim(struct net_device *dev,
 					  struct bcmgenet_tx_ring *ring)
 {
+	struct bcmgenet_tx_stats64 *stats = &ring->stats64;
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	unsigned int txbds_processed = 0;
 	unsigned int bytes_compl = 0;
@@ -1896,8 +1960,10 @@ static unsigned int __bcmgenet_tx_reclaim(struct net_device *dev,
 	ring->free_bds += txbds_processed;
 	ring->c_index = c_index;
 
-	ring->packets += pkts_compl;
-	ring->bytes += bytes_compl;
+	u64_stats_update_begin(&stats->syncp);
+	u64_stats_add(&stats->packets, pkts_compl);
+	u64_stats_add(&stats->bytes, bytes_compl);
+	u64_stats_update_end(&stats->syncp);
 
 	netdev_tx_completed_queue(netdev_get_tx_queue(dev, ring->index),
 				  pkts_compl, bytes_compl);
@@ -1983,8 +2049,10 @@ static void bcmgenet_tx_reclaim_all(struct net_device *dev)
  * the transmit checksum offsets in the descriptors
  */
 static struct sk_buff *bcmgenet_add_tsb(struct net_device *dev,
-					struct sk_buff *skb)
+					struct sk_buff *skb,
+					struct bcmgenet_tx_ring *ring)
 {
+	struct bcmgenet_tx_stats64 *stats = &ring->stats64;
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct status_64 *status = NULL;
 	struct sk_buff *new_skb;
@@ -2001,7 +2069,7 @@ static struct sk_buff *bcmgenet_add_tsb(struct net_device *dev,
 		if (!new_skb) {
 			dev_kfree_skb_any(skb);
 			priv->mib.tx_realloc_tsb_failed++;
-			dev->stats.tx_dropped++;
+			BCMGENET_STATS64_INC(stats, dropped);
 			return NULL;
 		}
 		dev_consume_skb_any(skb);
@@ -2089,7 +2157,7 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 	GENET_CB(skb)->bytes_sent = skb->len;
 
 	/* add the Transmit Status Block */
-	skb = bcmgenet_add_tsb(dev, skb);
+	skb = bcmgenet_add_tsb(dev, skb, ring);
 	if (!skb) {
 		ret = NETDEV_TX_OK;
 		goto out;
@@ -2231,6 +2299,7 @@ static struct sk_buff *bcmgenet_rx_refill(struct bcmgenet_priv *priv,
 static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 				     unsigned int budget)
 {
+	struct bcmgenet_rx_stats64 *stats = &ring->stats64;
 	struct bcmgenet_priv *priv = ring->priv;
 	struct net_device *dev = priv->dev;
 	struct enet_cb *cb;
@@ -2253,7 +2322,7 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 		   DMA_P_INDEX_DISCARD_CNT_MASK;
 	if (discards > ring->old_discards) {
 		discards = discards - ring->old_discards;
-		ring->errors += discards;
+		BCMGENET_STATS64_ADD(stats, missed, discards);
 		ring->old_discards += discards;
 
 		/* Clear HW register when we reach 75% of maximum 0xFFFF */
@@ -2279,7 +2348,7 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 		skb = bcmgenet_rx_refill(priv, cb);
 
 		if (unlikely(!skb)) {
-			ring->dropped++;
+			BCMGENET_STATS64_INC(stats, dropped);
 			goto next;
 		}
 
@@ -2306,8 +2375,7 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 
 		if (unlikely(len > RX_BUF_LENGTH)) {
 			netif_err(priv, rx_status, dev, "oversized packet\n");
-			dev->stats.rx_length_errors++;
-			dev->stats.rx_errors++;
+			BCMGENET_STATS64_INC(stats, length_errors);
 			dev_kfree_skb_any(skb);
 			goto next;
 		}
@@ -2315,7 +2383,7 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 		if (unlikely(!(dma_flag & DMA_EOP) || !(dma_flag & DMA_SOP))) {
 			netif_err(priv, rx_status, dev,
 				  "dropping fragmented packet!\n");
-			ring->errors++;
+			BCMGENET_STATS64_INC(stats, fragmented_errors);
 			dev_kfree_skb_any(skb);
 			goto next;
 		}
@@ -2328,15 +2396,22 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 						DMA_RX_RXER))) {
 			netif_err(priv, rx_status, dev, "dma_flag=0x%x\n",
 				  (unsigned int)dma_flag);
+			u64_stats_update_begin(&stats->syncp);
 			if (dma_flag & DMA_RX_CRC_ERROR)
-				dev->stats.rx_crc_errors++;
+				u64_stats_inc(&stats->crc_errors);
 			if (dma_flag & DMA_RX_OV)
-				dev->stats.rx_over_errors++;
+				u64_stats_inc(&stats->over_errors);
 			if (dma_flag & DMA_RX_NO)
-				dev->stats.rx_frame_errors++;
+				u64_stats_inc(&stats->frame_errors);
 			if (dma_flag & DMA_RX_LG)
-				dev->stats.rx_length_errors++;
-			dev->stats.rx_errors++;
+				u64_stats_inc(&stats->length_errors);
+			if ((dma_flag & (DMA_RX_CRC_ERROR |
+						DMA_RX_OV |
+						DMA_RX_NO |
+						DMA_RX_LG |
+						DMA_RX_RXER)) == DMA_RX_RXER)
+				u64_stats_inc(&stats->errors);
+			u64_stats_update_end(&stats->syncp);
 			dev_kfree_skb_any(skb);
 			goto next;
 		} /* error packet */
@@ -2356,10 +2431,15 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_rx_ring *ring,
 
 		/*Finish setting up the received SKB and send it to the kernel*/
 		skb->protocol = eth_type_trans(skb, priv->dev);
-		ring->packets++;
-		ring->bytes += len;
+
+		u64_stats_update_begin(&stats->syncp);
+		u64_stats_inc(&stats->packets);
+		u64_stats_add(&stats->bytes, len);
 		if (dma_flag & DMA_RX_MULT)
-			dev->stats.multicast++;
+			u64_stats_inc(&stats->multicast);
+		else if (dma_flag & DMA_RX_BRDCAST)
+			u64_stats_inc(&stats->broadcast);
+		u64_stats_update_end(&stats->syncp);
 
 		/* Notify kernel */
 		napi_gro_receive(&ring->napi, skb);
@@ -3420,7 +3500,7 @@ static void bcmgenet_timeout(struct net_device *dev, unsigned int txqueue)
 
 	netif_trans_update(dev);
 
-	dev->stats.tx_errors++;
+	BCMGENET_STATS64_INC((&priv->tx_rings[txqueue].stats64), errors);
 
 	netif_tx_wake_all_queues(dev);
 }
@@ -3509,39 +3589,72 @@ static int bcmgenet_set_mac_addr(struct net_device *dev, void *p)
 	return 0;
 }
 
-static struct net_device_stats *bcmgenet_get_stats(struct net_device *dev)
+static void bcmgenet_get_stats64(struct net_device *dev,
+				 struct rtnl_link_stats64 *stats)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	unsigned long tx_bytes = 0, tx_packets = 0;
-	unsigned long rx_bytes = 0, rx_packets = 0;
-	unsigned long rx_errors = 0, rx_dropped = 0;
-	struct bcmgenet_tx_ring *tx_ring;
-	struct bcmgenet_rx_ring *rx_ring;
+	struct bcmgenet_tx_stats64 *tx_stats;
+	struct bcmgenet_rx_stats64 *rx_stats;
+	u64 rx_length_errors, rx_over_errors;
+	u64 rx_missed, rx_fragmented_errors;
+	u64 rx_crc_errors, rx_frame_errors;
+	u64 tx_errors, tx_dropped;
+	u64 rx_errors, rx_dropped;
+	u64 tx_bytes, tx_packets;
+	u64 rx_bytes, rx_packets;
+	unsigned int start;
 	unsigned int q;
+	u64 multicast;
 
 	for (q = 0; q <= priv->hw_params->tx_queues; q++) {
-		tx_ring = &priv->tx_rings[q];
-		tx_bytes += tx_ring->bytes;
-		tx_packets += tx_ring->packets;
+		tx_stats = &priv->tx_rings[q].stats64;
+		do {
+			start = u64_stats_fetch_begin(&tx_stats->syncp);
+			tx_bytes = u64_stats_read(&tx_stats->bytes);
+			tx_packets = u64_stats_read(&tx_stats->packets);
+			tx_errors = u64_stats_read(&tx_stats->errors);
+			tx_dropped = u64_stats_read(&tx_stats->dropped);
+		} while (u64_stats_fetch_retry(&tx_stats->syncp, start));
+
+		stats->tx_bytes += tx_bytes;
+		stats->tx_packets += tx_packets;
+		stats->tx_errors += tx_errors;
+		stats->tx_dropped += tx_dropped;
 	}
 
 	for (q = 0; q <= priv->hw_params->rx_queues; q++) {
-		rx_ring = &priv->rx_rings[q];
+		rx_stats = &priv->rx_rings[q].stats64;
+		do {
+			start = u64_stats_fetch_begin(&rx_stats->syncp);
+			rx_bytes = u64_stats_read(&rx_stats->bytes);
+			rx_packets = u64_stats_read(&rx_stats->packets);
+			rx_errors = u64_stats_read(&rx_stats->errors);
+			rx_dropped = u64_stats_read(&rx_stats->dropped);
+			rx_missed = u64_stats_read(&rx_stats->missed);
+			rx_length_errors = u64_stats_read(&rx_stats->length_errors);
+			rx_over_errors = u64_stats_read(&rx_stats->over_errors);
+			rx_crc_errors = u64_stats_read(&rx_stats->crc_errors);
+			rx_frame_errors = u64_stats_read(&rx_stats->frame_errors);
+			rx_fragmented_errors = u64_stats_read(&rx_stats->fragmented_errors);
+			multicast = u64_stats_read(&rx_stats->multicast);
+		} while (u64_stats_fetch_retry(&rx_stats->syncp, start));
 
-		rx_bytes += rx_ring->bytes;
-		rx_packets += rx_ring->packets;
-		rx_errors += rx_ring->errors;
-		rx_dropped += rx_ring->dropped;
+		rx_errors += rx_length_errors;
+		rx_errors += rx_crc_errors;
+		rx_errors += rx_frame_errors;
+		rx_errors += rx_fragmented_errors;
+
+		stats->rx_bytes += rx_bytes;
+		stats->rx_packets += rx_packets;
+		stats->rx_errors += rx_errors;
+		stats->rx_dropped += rx_dropped;
+		stats->rx_missed_errors += rx_missed;
+		stats->rx_length_errors += rx_length_errors;
+		stats->rx_over_errors += rx_over_errors;
+		stats->rx_crc_errors += rx_crc_errors;
+		stats->rx_frame_errors += rx_frame_errors;
+		stats->multicast += multicast;
 	}
-
-	dev->stats.tx_bytes = tx_bytes;
-	dev->stats.tx_packets = tx_packets;
-	dev->stats.rx_bytes = rx_bytes;
-	dev->stats.rx_packets = rx_packets;
-	dev->stats.rx_errors = rx_errors;
-	dev->stats.rx_missed_errors = rx_errors;
-	dev->stats.rx_dropped = rx_dropped;
-	return &dev->stats;
 }
 
 static int bcmgenet_change_carrier(struct net_device *dev, bool new_carrier)
@@ -3569,7 +3682,7 @@ static const struct net_device_ops bcmgenet_netdev_ops = {
 	.ndo_set_mac_address	= bcmgenet_set_mac_addr,
 	.ndo_eth_ioctl		= phy_do_ioctl_running,
 	.ndo_set_features	= bcmgenet_set_features,
-	.ndo_get_stats		= bcmgenet_get_stats,
+	.ndo_get_stats64	= bcmgenet_get_stats64,
 	.ndo_change_carrier	= bcmgenet_change_carrier,
 };
 
