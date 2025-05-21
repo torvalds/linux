@@ -8833,6 +8833,7 @@ static int ath12k_mac_op_add_interface(struct ieee80211_hw *hw,
 		ab = ar->ab;
 		reg_info = ab->reg_info[ar->pdev_idx];
 		ath12k_dbg(ab, ATH12K_DBG_MAC, "interface added to change reg rules\n");
+		ah->regd_updated = false;
 		ath12k_reg_handle_chan_list(ab, reg_info, ahvif->vdev_type,
 					    IEEE80211_REG_UNSET_AP);
 		break;

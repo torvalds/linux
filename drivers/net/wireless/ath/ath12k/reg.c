@@ -139,7 +139,7 @@ int ath12k_reg_update_chan_list(struct ath12k *ar, bool wait)
 	int num_channels = 0;
 	int i, ret, left;
 
-	if (wait && ar->state_11d != ATH12K_11D_IDLE) {
+	if (wait && ar->state_11d == ATH12K_11D_RUNNING) {
 		left = wait_for_completion_timeout(&ar->completed_11d_scan,
 						   ATH12K_SCAN_TIMEOUT_HZ);
 		if (!left) {
