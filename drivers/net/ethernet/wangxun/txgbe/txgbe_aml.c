@@ -8,6 +8,7 @@
 
 #include "../libwx/wx_type.h"
 #include "../libwx/wx_lib.h"
+#include "../libwx/wx_ptp.h"
 #include "../libwx/wx_hw.h"
 #include "txgbe_type.h"
 #include "txgbe_aml.h"
@@ -311,6 +312,9 @@ static void txgbe_mac_link_up_aml(struct phylink_config *config,
 	wr32(wx, TXGBE_AML_MAC_TX_CFG, txcfg | TXGBE_AML_MAC_TX_CFG_TE);
 
 	wx->speed = speed;
+	wx->last_rx_ptp_check = jiffies;
+	if (test_bit(WX_STATE_PTP_RUNNING, wx->state))
+		wx_ptp_reset_cyclecounter(wx);
 }
 
 static void txgbe_mac_link_down_aml(struct phylink_config *config,
@@ -323,6 +327,8 @@ static void txgbe_mac_link_down_aml(struct phylink_config *config,
 	wr32m(wx, WX_MAC_RX_CFG, WX_MAC_RX_CFG_RE, 0);
 
 	wx->speed = SPEED_UNKNOWN;
+	if (test_bit(WX_STATE_PTP_RUNNING, wx->state))
+		wx_ptp_reset_cyclecounter(wx);
 }
 
 static void txgbe_mac_config_aml(struct phylink_config *config, unsigned int mode,

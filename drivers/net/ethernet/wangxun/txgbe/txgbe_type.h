@@ -82,6 +82,7 @@
 /* Extended Interrupt Enable Set */
 #define TXGBE_PX_MISC_ETH_LKDN                  BIT(8)
 #define TXGBE_PX_MISC_DEV_RST                   BIT(10)
+#define TXGBE_PX_MISC_IC_TIMESYNC               BIT(11)
 #define TXGBE_PX_MISC_ETH_EVENT                 BIT(17)
 #define TXGBE_PX_MISC_ETH_LK                    BIT(18)
 #define TXGBE_PX_MISC_ETH_AN                    BIT(19)
@@ -92,7 +93,7 @@
 	(TXGBE_PX_MISC_ETH_LKDN | TXGBE_PX_MISC_DEV_RST | \
 	 TXGBE_PX_MISC_ETH_EVENT | TXGBE_PX_MISC_ETH_LK | \
 	 TXGBE_PX_MISC_ETH_AN | TXGBE_PX_MISC_INT_ERR | \
-	 TXGBE_PX_MISC_IC_VF_MBOX)
+	 TXGBE_PX_MISC_IC_VF_MBOX | TXGBE_PX_MISC_IC_TIMESYNC)
 
 /* Port cfg registers */
 #define TXGBE_CFG_PORT_ST                       0x14404
