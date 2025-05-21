@@ -3,6 +3,7 @@
  * Copyright 2024 NXP
  */
 
+#include <dt-bindings/clock/nxp,imx95-clock.h>
 #include <dt-bindings/dma/fsl-edma.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
@@ -1802,6 +1803,49 @@
 						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>;
 			power-domains = <&scmi_devpd IMX95_PD_HSIO_TOP>;
 			status = "disabled";
+		};
+
+		vpu_blk_ctrl: clock-controller@4c410000 {
+			compatible = "nxp,imx95-vpu-csr", "syscon";
+			reg = <0x0 0x4c410000 0x0 0x10000>;
+			#clock-cells = <1>;
+			clocks = <&scmi_clk IMX95_CLK_VPUAPB>;
+			power-domains = <&scmi_devpd IMX95_PD_VPU>;
+			assigned-clocks = <&scmi_clk IMX95_CLK_VPUAPB>,
+					  <&scmi_clk IMX95_CLK_VPU>,
+					  <&scmi_clk IMX95_CLK_VPUJPEG>;
+			assigned-clock-parents = <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>,
+						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD2>,
+						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD0>;
+			assigned-clock-rates = <133333333>, <667000000>, <500000000>;
+		};
+
+		jpegdec: jpegdec@4c500000 {
+			compatible = "nxp,imx95-jpgdec", "nxp,imx8qxp-jpgdec";
+			reg = <0x0 0x4C500000 0x0 0x00050000>;
+			interrupts = <GIC_SPI 295 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 296 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_VPU>,
+				 <&vpu_blk_ctrl IMX95_CLK_VPUBLK_JPEG_DEC>;
+			assigned-clocks = <&vpu_blk_ctrl IMX95_CLK_VPUBLK_JPEG_DEC>;
+			assigned-clock-parents = <&scmi_clk IMX95_CLK_VPUJPEG>;
+			power-domains = <&scmi_devpd IMX95_PD_VPU>;
+		};
+
+		jpegenc: jpegenc@4c550000 {
+			compatible = "nxp,imx95-jpgenc", "nxp,imx8qxp-jpgenc";
+			reg = <0x0 0x4C550000 0x0 0x00050000>;
+			interrupts = <GIC_SPI 291 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 292 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 293 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 294 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_VPU>,
+				 <&vpu_blk_ctrl IMX95_CLK_VPUBLK_JPEG_ENC>;
+			assigned-clocks = <&vpu_blk_ctrl IMX95_CLK_VPUBLK_JPEG_DEC>;
+			assigned-clock-parents = <&scmi_clk IMX95_CLK_VPUJPEG>;
+			power-domains = <&scmi_devpd IMX95_PD_VPU>;
 		};
 
 		netcmix_blk_ctrl: syscon@4c810000 {
