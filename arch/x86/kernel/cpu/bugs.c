@@ -2105,7 +2105,8 @@ static void __init spectre_v2_select_mitigation(void)
 
 static void __init spectre_v2_update_mitigation(void)
 {
-	if (spectre_v2_cmd == SPECTRE_V2_CMD_AUTO) {
+	if (spectre_v2_cmd == SPECTRE_V2_CMD_AUTO &&
+	    !spectre_v2_in_eibrs_mode(spectre_v2_enabled)) {
 		if (IS_ENABLED(CONFIG_MITIGATION_IBRS_ENTRY) &&
 		    boot_cpu_has_bug(X86_BUG_RETBLEED) &&
 		    retbleed_mitigation != RETBLEED_MITIGATION_NONE &&
