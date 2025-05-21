@@ -151,19 +151,16 @@ The marks can be set by::
 
 	void folioq_mark(struct folio_queue *folioq, unsigned int slot);
 	void folioq_mark2(struct folio_queue *folioq, unsigned int slot);
-	void folioq_mark3(struct folio_queue *folioq, unsigned int slot);
 
 Cleared by::
 
 	void folioq_unmark(struct folio_queue *folioq, unsigned int slot);
 	void folioq_unmark2(struct folio_queue *folioq, unsigned int slot);
-	void folioq_unmark3(struct folio_queue *folioq, unsigned int slot);
 
 And the marks can be queried by::
 
 	bool folioq_is_marked(const struct folio_queue *folioq, unsigned int slot);
 	bool folioq_is_marked2(const struct folio_queue *folioq, unsigned int slot);
-	bool folioq_is_marked3(const struct folio_queue *folioq, unsigned int slot);
 
 The marks can be used for any purpose and are not interpreted by this API.
 

@@ -495,8 +495,6 @@ void netfs_write_subrequest_terminated(void *_op, ssize_t transferred_or_error,
 	case NETFS_WRITE_TO_CACHE:
 		netfs_stat(&netfs_n_wh_write_done);
 		break;
-	case NETFS_INVALID_WRITE:
-		break;
 	default:
 		BUG();
 	}

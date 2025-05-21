@@ -498,9 +498,6 @@ static inline void fscache_end_operation(struct netfs_cache_resources *cres)
  *
  *	NETFS_READ_HOLE_IGNORE - Just try to read (may return a short read).
  *
- *	NETFS_READ_HOLE_CLEAR - Seek for data, clearing the part of the buffer
- *				skipped over, then do as for IGNORE.
- *
  *	NETFS_READ_HOLE_FAIL - Give ENODATA if we encounter a hole.
  */
 static inline
