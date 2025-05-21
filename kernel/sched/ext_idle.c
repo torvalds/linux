@@ -739,16 +739,6 @@ void __scx_update_idle(struct rq *rq, bool idle, bool do_notify)
 	lockdep_assert_rq_held(rq);
 
 	/*
-	 * Trigger ops.update_idle() only when transitioning from a task to
-	 * the idle thread and vice versa.
-	 *
-	 * Idle transitions are indicated by do_notify being set to true,
-	 * managed by put_prev_task_idle()/set_next_task_idle().
-	 */
-	if (SCX_HAS_OP(sch, update_idle) && do_notify && !scx_rq_bypassing(rq))
-		SCX_CALL_OP(sch, SCX_KF_REST, update_idle, rq, cpu_of(rq), idle);
-
-	/*
 	 * Update the idle masks:
 	 * - for real idle transitions (do_notify == true)
 	 * - for idle-to-idle transitions (indicated by the previous task
@@ -765,6 +755,21 @@ void __scx_update_idle(struct rq *rq, bool idle, bool do_notify)
 	if (static_branch_likely(&scx_builtin_idle_enabled))
 		if (do_notify || is_idle_task(rq->curr))
 			update_builtin_idle(cpu, idle);
+
+	/*
+	 * Trigger ops.update_idle() only when transitioning from a task to
+	 * the idle thread and vice versa.
+	 *
+	 * Idle transitions are indicated by do_notify being set to true,
+	 * managed by put_prev_task_idle()/set_next_task_idle().
+	 *
+	 * This must come after builtin idle update so that BPF schedulers can
+	 * create interlocking between ops.update_idle() and ops.enqueue() -
+	 * either enqueue() sees the idle bit or update_idle() sees the task
+	 * that enqueue() queued.
+	 */
+	if (SCX_HAS_OP(sch, update_idle) && do_notify && !scx_rq_bypassing(rq))
+		SCX_CALL_OP(sch, SCX_KF_REST, update_idle, rq, cpu_of(rq), idle);
 }
 
 static void reset_idle_masks(struct sched_ext_ops *ops)
