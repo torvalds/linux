@@ -28,6 +28,7 @@ config DAMON_VADDR
 	bool "Data access monitoring operations for virtual address spaces"
 	depends on DAMON && MMU
 	select PAGE_IDLE_FLAG
+	default DAMON
 	help
 	  This builds the default data access monitoring operations for DAMON
 	  that work for virtual address spaces.
@@ -36,6 +37,7 @@ config DAMON_PADDR
 	bool "Data access monitoring operations for the physical address space"
 	depends on DAMON && MMU
 	select PAGE_IDLE_FLAG
+	default DAMON
 	help
 	  This builds the default data access monitoring operations for DAMON
 	  that works for the physical address space.
@@ -55,6 +57,7 @@ config DAMON_VADDR_KUNIT_TEST
 config DAMON_SYSFS
 	bool "DAMON sysfs interface"
 	depends on DAMON && SYSFS
+	default DAMON
 	help
 	  This builds the sysfs interface for DAMON.  The user space can use
 	  the interface for arbitrary data access monitoring.
