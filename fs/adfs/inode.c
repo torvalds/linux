@@ -14,25 +14,26 @@
  * not support creation of new blocks, so we return -EIO for this case.
  */
 static int
-adfs_get_block(struct inode *inode, sector_t block, struct buffer_head *bh,
-	       int create)
-{
-	if (!create) {
-		if (block >= inode->i_blocks)
-			goto abort_toobig;
+adfs_get_block(struct inode *inode, sector_t block, struct buffer_head *bh, int create) {
+    // If create is false, check if the block number is valid
+    if (!create) {
+        if (block >= inode->i_blocks)
+            return -EFBIG; // The block number is too large, invalid.
 
-		block = __adfs_block_map(inode->i_sb, ADFS_I(inode)->indaddr,
-					 block);
-		if (block)
-			map_bh(bh, inode->i_sb, block);
-		return 0;
-	}
-	/* don't support allocation of blocks yet */
-	return -EIO;
+        // Map the block using the ADFS block mapping function
+        block = __adfs_block_map(inode->i_sb, ADFS_I(inode)->indaddr, block);
+        if (!block)
+            return -EIO; // Error in block mapping.
 
-abort_toobig:
-	return 0;
+        // Map the buffer head to the block
+        map_bh(bh, inode->i_sb, block);
+        return 0; // Success.
+    }
+
+    // Block allocation is not yet supported.
+    return -EOPNOTSUPP; 
 }
+
 
 static int adfs_writepages(struct address_space *mapping,
 		struct writeback_control *wbc)
