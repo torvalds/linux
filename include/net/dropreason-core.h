@@ -62,6 +62,7 @@
 	FN(NEIGH_FAILED)		\
 	FN(NEIGH_QUEUEFULL)		\
 	FN(NEIGH_DEAD)			\
+	FN(NEIGH_HH_FILLFAIL)		\
 	FN(TC_EGRESS)			\
 	FN(SECURITY_HOOK)		\
 	FN(QDISC_DROP)			\
@@ -348,6 +349,8 @@ enum skb_drop_reason {
 	SKB_DROP_REASON_NEIGH_QUEUEFULL,
 	/** @SKB_DROP_REASON_NEIGH_DEAD: neigh entry is dead */
 	SKB_DROP_REASON_NEIGH_DEAD,
+	/** @SKB_DROP_REASON_NEIGH_HH_FILLFAIL: failed to fill the device hard header */
+	SKB_DROP_REASON_NEIGH_HH_FILLFAIL,
 	/** @SKB_DROP_REASON_TC_EGRESS: dropped in TC egress HOOK */
 	SKB_DROP_REASON_TC_EGRESS,
 	/** @SKB_DROP_REASON_SECURITY_HOOK: dropped due to security HOOK */
