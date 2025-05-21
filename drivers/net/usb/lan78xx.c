@@ -2640,7 +2640,7 @@ static struct phy_device *lan78xx_register_fixed_phy(struct lan78xx_net *dev)
 	netdev_info(dev->net,
 		    "No PHY found on LAN7801 – registering fixed PHY (e.g. EVB-KSZ9897-1)\n");
 
-	return fixed_phy_register(PHY_POLL, &fphy_status, NULL);
+	return fixed_phy_register(&fphy_status, NULL);
 }
 
 /**
