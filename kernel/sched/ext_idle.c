@@ -854,87 +854,8 @@ static bool check_builtin_idle_enabled(void)
 	return false;
 }
 
-/**
- * scx_bpf_cpu_node - Return the NUMA node the given @cpu belongs to, or
- *		      trigger an error if @cpu is invalid
- * @cpu: target CPU
- */
-__bpf_kfunc int scx_bpf_cpu_node(s32 cpu)
-{
-#ifdef CONFIG_NUMA
-	if (!kf_cpu_valid(cpu, NULL))
-		return NUMA_NO_NODE;
-
-	return cpu_to_node(cpu);
-#else
-	return 0;
-#endif
-}
-
-/**
- * scx_bpf_select_cpu_dfl - The default implementation of ops.select_cpu()
- * @p: task_struct to select a CPU for
- * @prev_cpu: CPU @p was on previously
- * @wake_flags: %SCX_WAKE_* flags
- * @is_idle: out parameter indicating whether the returned CPU is idle
- *
- * Can only be called from ops.select_cpu() if the built-in CPU selection is
- * enabled - ops.update_idle() is missing or %SCX_OPS_KEEP_BUILTIN_IDLE is set.
- * @p, @prev_cpu and @wake_flags match ops.select_cpu().
- *
- * Returns the picked CPU with *@is_idle indicating whether the picked CPU is
- * currently idle and thus a good candidate for direct dispatching.
- */
-__bpf_kfunc s32 scx_bpf_select_cpu_dfl(struct task_struct *p, s32 prev_cpu,
-				       u64 wake_flags, bool *is_idle)
-{
-#ifdef CONFIG_SMP
-	s32 cpu;
-#endif
-	if (!kf_cpu_valid(prev_cpu, NULL))
-		goto prev_cpu;
-
-	if (!check_builtin_idle_enabled())
-		goto prev_cpu;
-
-	if (!scx_kf_allowed(SCX_KF_SELECT_CPU))
-		goto prev_cpu;
-
-#ifdef CONFIG_SMP
-	cpu = scx_select_cpu_dfl(p, prev_cpu, wake_flags, NULL, 0);
-	if (cpu >= 0) {
-		*is_idle = true;
-		return cpu;
-	}
-#endif
-
-prev_cpu:
-	*is_idle = false;
-	return prev_cpu;
-}
-
-/**
- * scx_bpf_select_cpu_and - Pick an idle CPU usable by task @p,
- *			    prioritizing those in @cpus_allowed
- * @p: task_struct to select a CPU for
- * @prev_cpu: CPU @p was on previously
- * @wake_flags: %SCX_WAKE_* flags
- * @cpus_allowed: cpumask of allowed CPUs
- * @flags: %SCX_PICK_IDLE* flags
- *
- * Can be called from ops.select_cpu(), ops.enqueue(), or from an unlocked
- * context such as a BPF test_run() call, as long as built-in CPU selection
- * is enabled: ops.update_idle() is missing or %SCX_OPS_KEEP_BUILTIN_IDLE
- * is set.
- *
- * @p, @prev_cpu and @wake_flags match ops.select_cpu().
- *
- * Returns the selected idle CPU, which will be automatically awakened upon
- * returning from ops.select_cpu() and can be used for direct dispatch, or
- * a negative value if no idle CPU is available.
- */
-__bpf_kfunc s32 scx_bpf_select_cpu_and(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
-				       const struct cpumask *cpus_allowed, u64 flags)
+s32 select_cpu_from_kfunc(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
+			  const struct cpumask *allowed, u64 flags)
 {
 	struct rq *rq;
 	struct rq_flags rf;
@@ -977,13 +898,14 @@ __bpf_kfunc s32 scx_bpf_select_cpu_and(struct task_struct *p, s32 prev_cpu, u64 
 	 * used CPU is idle and within the allowed cpumask.
 	 */
 	if (p->nr_cpus_allowed == 1) {
-		if (cpumask_test_cpu(prev_cpu, cpus_allowed) &&
+		if (cpumask_test_cpu(prev_cpu, allowed ?: p->cpus_ptr) &&
 		    scx_idle_test_and_clear_cpu(prev_cpu))
 			cpu = prev_cpu;
 		else
 			cpu = -EBUSY;
 	} else {
-		cpu = scx_select_cpu_dfl(p, prev_cpu, wake_flags, cpus_allowed, flags);
+		cpu = scx_select_cpu_dfl(p, prev_cpu, wake_flags,
+					 allowed ?: p->cpus_ptr, flags);
 	}
 #else
 	cpu = -EBUSY;
@@ -992,6 +914,79 @@ __bpf_kfunc s32 scx_bpf_select_cpu_and(struct task_struct *p, s32 prev_cpu, u64 
 		task_rq_unlock(rq, p, &rf);
 
 	return cpu;
+}
+
+/**
+ * scx_bpf_cpu_node - Return the NUMA node the given @cpu belongs to, or
+ *		      trigger an error if @cpu is invalid
+ * @cpu: target CPU
+ */
+__bpf_kfunc int scx_bpf_cpu_node(s32 cpu)
+{
+#ifdef CONFIG_NUMA
+	if (!kf_cpu_valid(cpu, NULL))
+		return NUMA_NO_NODE;
+
+	return cpu_to_node(cpu);
+#else
+	return 0;
+#endif
+}
+
+/**
+ * scx_bpf_select_cpu_dfl - The default implementation of ops.select_cpu()
+ * @p: task_struct to select a CPU for
+ * @prev_cpu: CPU @p was on previously
+ * @wake_flags: %SCX_WAKE_* flags
+ * @is_idle: out parameter indicating whether the returned CPU is idle
+ *
+ * Can be called from ops.select_cpu(), ops.enqueue(), or from an unlocked
+ * context such as a BPF test_run() call, as long as built-in CPU selection
+ * is enabled: ops.update_idle() is missing or %SCX_OPS_KEEP_BUILTIN_IDLE
+ * is set.
+ *
+ * Returns the picked CPU with *@is_idle indicating whether the picked CPU is
+ * currently idle and thus a good candidate for direct dispatching.
+ */
+__bpf_kfunc s32 scx_bpf_select_cpu_dfl(struct task_struct *p, s32 prev_cpu,
+				       u64 wake_flags, bool *is_idle)
+{
+	s32 cpu;
+
+	cpu = select_cpu_from_kfunc(p, prev_cpu, wake_flags, NULL, 0);
+	if (cpu >= 0) {
+		*is_idle = true;
+		return cpu;
+	}
+	*is_idle = false;
+
+	return prev_cpu;
+}
+
+/**
+ * scx_bpf_select_cpu_and - Pick an idle CPU usable by task @p,
+ *			    prioritizing those in @cpus_allowed
+ * @p: task_struct to select a CPU for
+ * @prev_cpu: CPU @p was on previously
+ * @wake_flags: %SCX_WAKE_* flags
+ * @cpus_allowed: cpumask of allowed CPUs
+ * @flags: %SCX_PICK_IDLE* flags
+ *
+ * Can be called from ops.select_cpu(), ops.enqueue(), or from an unlocked
+ * context such as a BPF test_run() call, as long as built-in CPU selection
+ * is enabled: ops.update_idle() is missing or %SCX_OPS_KEEP_BUILTIN_IDLE
+ * is set.
+ *
+ * @p, @prev_cpu and @wake_flags match ops.select_cpu().
+ *
+ * Returns the selected idle CPU, which will be automatically awakened upon
+ * returning from ops.select_cpu() and can be used for direct dispatch, or
+ * a negative value if no idle CPU is available.
+ */
+__bpf_kfunc s32 scx_bpf_select_cpu_and(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
+				       const struct cpumask *cpus_allowed, u64 flags)
+{
+	return select_cpu_from_kfunc(p, prev_cpu, wake_flags, cpus_allowed, flags);
 }
 
 /**
@@ -1294,6 +1289,7 @@ BTF_ID_FLAGS(func, scx_bpf_pick_idle_cpu, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_pick_any_cpu_node, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_pick_any_cpu, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_select_cpu_and, KF_RCU)
+BTF_ID_FLAGS(func, scx_bpf_select_cpu_dfl, KF_RCU)
 BTF_KFUNCS_END(scx_kfunc_ids_idle)
 
 static const struct btf_kfunc_id_set scx_kfunc_set_idle = {
@@ -1301,21 +1297,11 @@ static const struct btf_kfunc_id_set scx_kfunc_set_idle = {
 	.set			= &scx_kfunc_ids_idle,
 };
 
-BTF_KFUNCS_START(scx_kfunc_ids_select_cpu)
-BTF_ID_FLAGS(func, scx_bpf_select_cpu_dfl, KF_RCU)
-BTF_KFUNCS_END(scx_kfunc_ids_select_cpu)
-
-static const struct btf_kfunc_id_set scx_kfunc_set_select_cpu = {
-	.owner			= THIS_MODULE,
-	.set			= &scx_kfunc_ids_select_cpu,
-};
-
 int scx_idle_init(void)
 {
 	int ret;
 
-	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &scx_kfunc_set_select_cpu) ||
-	      register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &scx_kfunc_set_idle) ||
+	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &scx_kfunc_set_idle) ||
 	      register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &scx_kfunc_set_idle) ||
 	      register_btf_kfunc_id_set(BPF_PROG_TYPE_SYSCALL, &scx_kfunc_set_idle);
 
