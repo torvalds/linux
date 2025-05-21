@@ -189,15 +189,13 @@ static int feiyang_dsi_probe(struct mipi_dsi_device *dsi)
 	struct feiyang *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(&dsi->dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	ctx = devm_drm_panel_alloc(&dsi->dev, struct feiyang, panel,
+				   &feiyang_funcs, DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	mipi_dsi_set_drvdata(dsi, ctx);
 	ctx->dsi = dsi;
-
-	drm_panel_init(&ctx->panel, &dsi->dev, &feiyang_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
 
 	ctx->dvdd = devm_regulator_get(&dsi->dev, "dvdd");
 	if (IS_ERR(ctx->dvdd))
