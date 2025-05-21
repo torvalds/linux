@@ -1087,9 +1087,12 @@ static int nt35510_probe(struct mipi_dsi_device *dsi)
 	struct nt35510 *nt;
 	int ret;
 
-	nt = devm_kzalloc(dev, sizeof(struct nt35510), GFP_KERNEL);
-	if (!nt)
-		return -ENOMEM;
+	nt = devm_drm_panel_alloc(dev, struct nt35510, panel,
+				  &nt35510_drm_funcs,
+				  DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(nt))
+		return PTR_ERR(nt);
+
 	mipi_dsi_set_drvdata(dsi, nt);
 	nt->dev = dev;
 
@@ -1141,9 +1144,6 @@ static int nt35510_probe(struct mipi_dsi_device *dsi)
 		dev_err(dev, "error getting RESET GPIO\n");
 		return PTR_ERR(nt->reset_gpio);
 	}
-
-	drm_panel_init(&nt->panel, dev, &nt35510_drm_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
 
 	/*
 	 * First, try to locate an external backlight (such as on GPIO)
