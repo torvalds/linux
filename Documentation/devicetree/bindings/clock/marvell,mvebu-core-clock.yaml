@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/marvell,mvebu-core-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell MVEBU SoC core clock
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Gregory Clement <gregory.clement@bootlin.com>
+
+description: >
+  Marvell MVEBU SoCs usually allow to determine core clock frequencies by
+  reading the Sample-At-Reset (SAR) register. The core clock consumer should
+  specify the desired clock by having the clock ID in its "clocks" phandle cell.
+
+  The following is a list of provided IDs and clock names on Armada 370/XP:
+   0 = tclk    (Internal Bus clock)
+   1 = cpuclk  (CPU clock)
+   2 = nbclk   (L2 Cache clock)
+   3 = hclk    (DRAM control clock)
+   4 = dramclk (DDR clock)
+
+  The following is a list of provided IDs and clock names on Armada 375:
+   0 = tclk    (Internal Bus clock)
+   1 = cpuclk  (CPU clock)
+   2 = l2clk   (L2 Cache clock)
+   3 = ddrclk  (DDR clock)
+
+  The following is a list of provided IDs and clock names on Armada 380/385:
+   0 = tclk    (Internal Bus clock)
+   1 = cpuclk  (CPU clock)
+   2 = l2clk   (L2 Cache clock)
+   3 = ddrclk  (DDR clock)
+
+  The following is a list of provided IDs and clock names on Armada 39x:
+   0 = tclk    (Internal Bus clock)
+   1 = cpuclk  (CPU clock)
+   2 = nbclk   (Coherent Fabric clock)
+   3 = hclk    (SDRAM Controller Internal Clock)
+   4 = dclk    (SDRAM Interface Clock)
+   5 = refclk  (Reference Clock)
+
+  The following is a list of provided IDs and clock names on 98dx3236:
+   0 = tclk    (Internal Bus clock)
+   1 = cpuclk  (CPU clock)
+   2 = ddrclk  (DDR clock)
+   3 = mpll    (MPLL Clock)
+
+  The following is a list of provided IDs and clock names on Kirkwood and Dove:
+   0 = tclk   (Internal Bus clock)
+   1 = cpuclk (CPU0 clock)
+   2 = l2clk  (L2 Cache clock derived from CPU0 clock)
+   3 = ddrclk (DDR controller clock derived from CPU0 clock)
+
+  The following is a list of provided IDs and clock names on Orion5x:
+   0 = tclk   (Internal Bus clock)
+   1 = cpuclk (CPU0 clock)
+   2 = ddrclk (DDR controller clock derived from CPU0 clock)
+
+properties:
+  compatible:
+    enum:
+      - marvell,armada-370-core-clock
+      - marvell,armada-375-core-clock
+      - marvell,armada-380-core-clock
+      - marvell,armada-390-core-clock
+      - marvell,armada-xp-core-clock
+      - marvell,dove-core-clock
+      - marvell,kirkwood-core-clock
+      - marvell,mv88f5181-core-clock
+      - marvell,mv88f5182-core-clock
+      - marvell,mv88f5281-core-clock
+      - marvell,mv88f6180-core-clock
+      - marvell,mv88f6183-core-clock
+      - marvell,mv98dx1135-core-clock
+      - marvell,mv98dx3236-core-clock
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+  clock-output-names:
+    description: Overwrite default clock output names.
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+
+additionalProperties: false
