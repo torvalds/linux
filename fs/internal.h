@@ -343,3 +343,8 @@ static inline bool path_mounted(const struct path *path)
 void file_f_owner_release(struct file *file);
 bool file_seek_cur_needs_f_lock(struct file *file);
 int statmount_mnt_idmap(struct mnt_idmap *idmap, struct seq_file *seq, bool uid_map);
+int anon_inode_getattr(struct mnt_idmap *idmap, const struct path *path,
+		       struct kstat *stat, u32 request_mask,
+		       unsigned int query_flags);
+int anon_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+		       struct iattr *attr);
