@@ -2075,7 +2075,7 @@ static int ublk_fetch(struct io_uring_cmd *cmd, struct ublk_queue *ubq,
 	if (ublk_support_auto_buf_reg(ubq)) {
 		ret = ublk_set_auto_buf_reg(cmd);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
 	ublk_fill_io_cmd(io, cmd, buf_addr);
