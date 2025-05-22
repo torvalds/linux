@@ -265,7 +265,7 @@ RDS Protocol
 
       The bitmaps are allocated as connections are brought up.  This
       avoids allocation in the interrupt handling path which queues
-      sages on sockets.  The dense bitmaps let transports send the
+      messages on sockets.  The dense bitmaps let transports send the
       entire bitmap on any bitmap change reasonably efficiently.  This
       is much easier to implement than some finer-grained
       communication of per-port congestion.  The sender does a very
@@ -373,7 +373,7 @@ The recv path
     - validate header checksum
     - copy header to rds_ib_incoming struct if start of a new datagram
     - add to ibinc's fraglist
-    - if competed datagram:
+    - if completed datagram:
 	 - update cong map if datagram was cong update
 	 - call rds_recv_incoming() otherwise
 	 - note if ack is required
@@ -415,7 +415,7 @@ Multipath RDS (mprds)
   I/O workqs and reconnect threads are driven from the rds_conn_path.
   Transports such as TCP that are multipath capable may then set up a
   TCP socket per rds_conn_path, and this is managed by the transport via
-  the transport privatee cp_transport_data pointer.
+  the transport private cp_transport_data pointer.
 
   Transports announce themselves as multipath capable by setting the
   t_mp_capable bit during registration with the rds core module. When the
@@ -430,7 +430,7 @@ Multipath RDS (mprds)
   This is done by sending out a control packet exchange before the
   first data packet. The control packet exchange must have completed
   prior to outgoing hash completion in rds_sendmsg() when the transport
-  is mutlipath capable.
+  is multipath capable.
 
   The control packet is an RDS ping packet (i.e., packet to rds dest
   port 0) with the ping packet having a rds extension header option  of
