@@ -779,8 +779,11 @@ static void __init fpu__init_disable_system_xstate(unsigned int legacy_size)
 
 static u64 __init host_default_mask(void)
 {
-	/* Exclude dynamic features, which require userspace opt-in. */
-	return ~(u64)XFEATURE_MASK_USER_DYNAMIC;
+	/*
+	 * Exclude dynamic features (require userspace opt-in) and features
+	 * that are supported only for KVM guests.
+	 */
+	return ~((u64)XFEATURE_MASK_USER_DYNAMIC | XFEATURE_MASK_GUEST_SUPERVISOR);
 }
 
 static u64 __init guest_default_mask(void)
