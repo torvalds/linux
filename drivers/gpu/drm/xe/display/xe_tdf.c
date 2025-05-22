@@ -3,9 +3,9 @@
  * Copyright © 2024 Intel Corporation
  */
 
-#include "xe_device.h"
-#include "intel_display_types.h"
+#include "intel_display_core.h"
 #include "intel_tdf.h"
+#include "xe_device.h"
 
 void intel_td_flush(struct intel_display *display)
 {

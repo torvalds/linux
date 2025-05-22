@@ -30,11 +30,7 @@
 #define TEST_VM_OPS_ERROR
 #endif
 
-#if IS_ENABLED(CONFIG_DRM_XE_DISPLAY)
-#include "intel_display_core.h"
-#include "intel_display_device.h"
-#endif
-
+struct intel_display;
 struct xe_ggtt;
 struct xe_pat_ops;
 struct xe_pxp;

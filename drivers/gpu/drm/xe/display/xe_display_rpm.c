@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 /* Copyright © 2025 Intel Corporation */
 
+#include "intel_display_core.h"
 #include "intel_display_rpm.h"
 #include "xe_device.h"
 #include "xe_device_types.h"

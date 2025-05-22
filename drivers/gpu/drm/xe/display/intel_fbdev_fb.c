@@ -5,6 +5,7 @@
 
 #include <drm/drm_fb_helper.h>
 
+#include "intel_display_core.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_fbdev_fb.h"

@@ -3,8 +3,8 @@
  * Copyright © 2024 Intel Corporation
  */
 
+#include "intel_display_core.h"
 #include "intel_display_wa.h"
-
 #include "xe_device.h"
 #include "xe_wa.h"
 
