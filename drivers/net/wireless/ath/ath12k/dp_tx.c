@@ -350,7 +350,7 @@ tcl_ring_sel:
 	default:
 		/* TODO: Take care of other encap modes as well */
 		ret = -EINVAL;
-		atomic_inc(&ab->soc_stats.tx_err.misc_fail);
+		atomic_inc(&ab->device_stats.tx_err.misc_fail);
 		goto fail_remove_tx_buf;
 	}
 
@@ -373,7 +373,7 @@ tcl_ring_sel:
 map:
 	ti.paddr = dma_map_single(ab->dev, skb->data, skb->len, DMA_TO_DEVICE);
 	if (dma_mapping_error(ab->dev, ti.paddr)) {
-		atomic_inc(&ab->soc_stats.tx_err.misc_fail);
+		atomic_inc(&ab->device_stats.tx_err.misc_fail);
 		ath12k_warn(ab, "failed to DMA map data Tx buffer\n");
 		ret = -ENOMEM;
 		goto fail_remove_tx_buf;
@@ -448,7 +448,7 @@ map:
 		 * desc because the desc is directly enqueued onto hw queue.
 		 */
 		ath12k_hal_srng_access_end(ab, tcl_ring);
-		ab->soc_stats.tx_err.desc_na[ti.ring_id]++;
+		ab->device_stats.tx_err.desc_na[ti.ring_id]++;
 		spin_unlock_bh(&tcl_ring->lock);
 		ret = -ENOMEM;
 
@@ -476,6 +476,8 @@ map:
 	else
 		arvif->link_stats.tx_enqueued++;
 	spin_unlock_bh(&arvif->link_stats_lock);
+
+	ab->device_stats.tx_enqueued[ti.ring_id]++;
 
 	ath12k_hal_tx_cmd_desc_setup(ab, hal_tcl_desc, &ti);
 
@@ -557,6 +559,7 @@ ath12k_dp_tx_htt_tx_complete_buf(struct ath12k_base *ab,
 	info = IEEE80211_SKB_CB(msdu);
 
 	ar = skb_cb->ar;
+	ab->device_stats.tx_completed[tx_ring->tcl_data_ring_id]++;
 
 	if (atomic_dec_and_test(&ar->dp.num_tx_pending))
 		wake_up(&ar->dp.tx_empty_waitq);
@@ -614,6 +617,7 @@ ath12k_dp_tx_process_htt_tx_complete(struct ath12k_base *ab, void *desc,
 
 	wbm_status = le32_get_bits(status_desc->info0,
 				   HTT_TX_WBM_COMP_INFO0_STATUS);
+	ab->device_stats.fw_tx_status[wbm_status]++;
 
 	switch (wbm_status) {
 	case HAL_WBM_REL_HTT_TX_COMP_STATUS_OK:
@@ -760,7 +764,8 @@ static void ath12k_dp_tx_update_txcompl(struct ath12k *ar, struct hal_tx_status 
 
 static void ath12k_dp_tx_complete_msdu(struct ath12k *ar,
 				       struct ath12k_tx_desc_params *desc_params,
-				       struct hal_tx_status *ts)
+				       struct hal_tx_status *ts,
+				       int ring)
 {
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_hw *ah = ar->ah;
@@ -777,6 +782,7 @@ static void ath12k_dp_tx_complete_msdu(struct ath12k *ar,
 	}
 
 	skb_cb = ATH12K_SKB_CB(msdu);
+	ab->device_stats.tx_completed[ring]++;
 
 	dma_unmap_single(ab->dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
 	if (skb_cb->paddr_ext_desc) {
@@ -907,6 +913,8 @@ void ath12k_dp_tx_completion_handler(struct ath12k_base *ab, int ring_id)
 	struct hal_wbm_release_ring *desc;
 	u8 pdev_id;
 	u64 desc_va;
+	enum hal_wbm_rel_src_module buf_rel_source;
+	enum hal_wbm_tqm_rel_reason rel_status;
 
 	spin_lock_bh(&status_ring->lock);
 
@@ -963,6 +971,15 @@ void ath12k_dp_tx_completion_handler(struct ath12k_base *ab, int ring_id)
 		desc_params.skb = tx_desc->skb;
 		desc_params.skb_ext_desc = tx_desc->skb_ext_desc;
 
+		/* Find the HAL_WBM_RELEASE_INFO0_REL_SRC_MODULE value */
+		buf_rel_source = le32_get_bits(tx_status->info0,
+					       HAL_WBM_RELEASE_INFO0_REL_SRC_MODULE);
+		ab->device_stats.tx_wbm_rel_source[buf_rel_source]++;
+
+		rel_status = le32_get_bits(tx_status->info0,
+					   HAL_WBM_COMPL_TX_INFO0_TQM_RELEASE_REASON);
+		ab->device_stats.tqm_rel_reason[rel_status]++;
+
 		/* Release descriptor as soon as extracting necessary info
 		 * to reduce contention
 		 */
@@ -979,7 +996,8 @@ void ath12k_dp_tx_completion_handler(struct ath12k_base *ab, int ring_id)
 		if (atomic_dec_and_test(&ar->dp.num_tx_pending))
 			wake_up(&ar->dp.tx_empty_waitq);
 
-		ath12k_dp_tx_complete_msdu(ar, &desc_params, &ts);
+		ath12k_dp_tx_complete_msdu(ar, &desc_params, &ts,
+					   tx_ring->tcl_data_ring_id);
 	}
 }
 
@@ -1510,6 +1528,44 @@ int ath12k_dp_tx_htt_rx_monitor_mode_ring_config(struct ath12k *ar, bool reset)
 					   ret);
 				return ret;
 			}
+		}
+		return 0;
+	}
+
+	if (!reset) {
+		for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
+			ring_id = ab->dp.rx_mac_buf_ring[i].ring_id;
+			ret = ath12k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id,
+							       i,
+							       HAL_RXDMA_BUF,
+							       DP_RXDMA_REFILL_RING_SIZE,
+							       &tlv_filter);
+			if (ret) {
+				ath12k_err(ab,
+					   "failed to setup filter for mon rx buf %d\n",
+					   ret);
+				return ret;
+			}
+		}
+	}
+
+	for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
+		ring_id = ab->dp.rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
+		if (!reset) {
+			tlv_filter.rx_filter =
+				HTT_RX_MON_FILTER_TLV_FLAGS_MON_STATUS_RING;
+		}
+
+		ret = ath12k_dp_tx_htt_rx_filter_setup(ab, ring_id,
+						       i,
+						       HAL_RXDMA_MONITOR_STATUS,
+						       RX_MON_STATUS_BUF_SIZE,
+						       &tlv_filter);
+		if (ret) {
+			ath12k_err(ab,
+				   "failed to setup filter for mon status buf %d\n",
+				   ret);
+			return ret;
 		}
 	}
 

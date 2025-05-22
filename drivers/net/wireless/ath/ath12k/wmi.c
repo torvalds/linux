@@ -2187,9 +2187,10 @@ int ath12k_wmi_send_peer_assoc_cmd(struct ath12k *ar,
 	struct sk_buff *skb;
 	struct wmi_tlv *tlv;
 	void *ptr;
-	u32 peer_legacy_rates_align;
-	u32 peer_ht_rates_align;
+	u32 peer_legacy_rates_align, eml_pad_delay, eml_trans_delay;
+	u32 peer_ht_rates_align, eml_trans_timeout;
 	int i, ret, len;
+	u16 eml_cap;
 	__le32 v;
 
 	peer_legacy_rates_align = roundup(arg->peer_legacy_rates.num_rates,
@@ -2361,6 +2362,24 @@ int ath12k_wmi_send_peer_assoc_cmd(struct ath12k *ar,
 	ml_params->logical_link_idx = cpu_to_le32(arg->ml.logical_link_idx);
 	ml_params->ml_peer_id = cpu_to_le32(arg->ml.ml_peer_id);
 	ml_params->ieee_link_id = cpu_to_le32(arg->ml.ieee_link_id);
+
+	eml_cap = arg->ml.eml_cap;
+	if (u16_get_bits(eml_cap, IEEE80211_EML_CAP_EMLSR_SUPP)) {
+		/* Padding delay */
+		eml_pad_delay = ieee80211_emlsr_pad_delay_in_us(eml_cap);
+		ml_params->emlsr_padding_delay_us = cpu_to_le32(eml_pad_delay);
+		/* Transition delay */
+		eml_trans_delay = ieee80211_emlsr_trans_delay_in_us(eml_cap);
+		ml_params->emlsr_trans_delay_us = cpu_to_le32(eml_trans_delay);
+		/* Transition timeout */
+		eml_trans_timeout = ieee80211_eml_trans_timeout_in_us(eml_cap);
+		ml_params->emlsr_trans_timeout_us =
+					cpu_to_le32(eml_trans_timeout);
+		ath12k_dbg(ar->ab, ATH12K_DBG_WMI, "wmi peer %pM emlsr padding delay %u, trans delay %u trans timeout %u",
+			   arg->peer_mac, eml_pad_delay, eml_trans_delay,
+			   eml_trans_timeout);
+	}
+
 	ptr += sizeof(*ml_params);
 
 skip_ml_params:
@@ -2379,6 +2398,10 @@ skip_ml_params:
 		eht_mcs->tx_mcs_set = cpu_to_le32(arg->peer_eht_tx_mcs_set[i]);
 		ptr += sizeof(*eht_mcs);
 	}
+
+	/* Update MCS15 capability */
+	if (arg->eht_disable_mcs15)
+		cmd->peer_eht_ops = cpu_to_le32(IEEE80211_EHT_OPER_MCS15_DISABLE);
 
 	tlv = ptr;
 	len = arg->ml.enabled ? arg->ml.num_partner_links * sizeof(*partner_info) : 0;
@@ -2420,7 +2443,7 @@ skip_ml_params:
 
 send:
 	ath12k_dbg(ar->ab, ATH12K_DBG_WMI,
-		   "wmi peer assoc vdev id %d assoc id %d peer mac %pM peer_flags %x rate_caps %x peer_caps %x listen_intval %d ht_caps %x max_mpdu %d nss %d phymode %d peer_mpdu_density %d vht_caps %x he cap_info %x he ops %x he cap_info_ext %x he phy %x %x %x peer_bw_rxnss_override %x peer_flags_ext %x eht mac_cap %x %x eht phy_cap %x %x %x\n",
+		   "wmi peer assoc vdev id %d assoc id %d peer mac %pM peer_flags %x rate_caps %x peer_caps %x listen_intval %d ht_caps %x max_mpdu %d nss %d phymode %d peer_mpdu_density %d vht_caps %x he cap_info %x he ops %x he cap_info_ext %x he phy %x %x %x peer_bw_rxnss_override %x peer_flags_ext %x eht mac_cap %x %x eht phy_cap %x %x %x peer_eht_ops %x\n",
 		   cmd->vdev_id, cmd->peer_associd, arg->peer_mac,
 		   cmd->peer_flags, cmd->peer_rate_caps, cmd->peer_caps,
 		   cmd->peer_listen_intval, cmd->peer_ht_caps,
@@ -2433,7 +2456,7 @@ send:
 		   cmd->peer_bw_rxnss_override, cmd->peer_flags_ext,
 		   cmd->peer_eht_cap_mac[0], cmd->peer_eht_cap_mac[1],
 		   cmd->peer_eht_cap_phy[0], cmd->peer_eht_cap_phy[1],
-		   cmd->peer_eht_cap_phy[2]);
+		   cmd->peer_eht_cap_phy[2], cmd->peer_eht_ops);
 
 	ret = ath12k_wmi_cmd_send(wmi, skb, WMI_PEER_ASSOC_CMDID);
 	if (ret) {
@@ -4733,6 +4756,7 @@ static int ath12k_service_ready_ext_event(struct ath12k_base *ab,
 	return 0;
 
 err:
+	kfree(svc_rdy_ext.mac_phy_caps);
 	ath12k_wmi_free_dbring_caps(ab);
 	return ret;
 }
@@ -6101,6 +6125,7 @@ static int ath12k_reg_11d_new_cc_event(struct ath12k_base *ab, struct sk_buff *s
 		pdev = &ab->pdevs[i];
 		ar = pdev->ar;
 		ar->state_11d = ATH12K_11D_IDLE;
+		ar->ah->regd_updated = false;
 		complete(&ar->completed_11d_scan);
 	}
 
@@ -6115,24 +6140,11 @@ static void ath12k_wmi_htc_tx_complete(struct ath12k_base *ab,
 	dev_kfree_skb(skb);
 }
 
-static bool ath12k_reg_is_world_alpha(char *alpha)
-{
-	if (alpha[0] == '0' && alpha[1] == '0')
-		return true;
-
-	if (alpha[0] == 'n' && alpha[1] == 'a')
-		return true;
-
-	return false;
-}
-
 static int ath12k_reg_chan_list_event(struct ath12k_base *ab, struct sk_buff *skb)
 {
-	struct ath12k_reg_info *reg_info = NULL;
-	struct ieee80211_regdomain *regd = NULL;
-	bool intersect = false;
-	int ret = 0, pdev_idx, i, j;
-	struct ath12k *ar;
+	struct ath12k_reg_info *reg_info;
+	u8 pdev_idx;
+	int ret;
 
 	reg_info = kzalloc(sizeof(*reg_info), GFP_ATOMIC);
 	if (!reg_info) {
@@ -6141,86 +6153,52 @@ static int ath12k_reg_chan_list_event(struct ath12k_base *ab, struct sk_buff *sk
 	}
 
 	ret = ath12k_pull_reg_chan_list_ext_update_ev(ab, skb, reg_info);
-
 	if (ret) {
 		ath12k_warn(ab, "failed to extract regulatory info from received event\n");
-		goto fallback;
-	}
-
-	if (reg_info->status_code != REG_SET_CC_STATUS_PASS) {
-		/* In case of failure to set the requested ctry,
-		 * fw retains the current regd. We print a failure info
-		 * and return from here.
-		 */
-		ath12k_warn(ab, "Failed to set the requested Country regulatory setting\n");
 		goto mem_free;
 	}
 
+	ret = ath12k_reg_validate_reg_info(ab, reg_info);
+	if (ret == ATH12K_REG_STATUS_FALLBACK) {
+		ath12k_warn(ab, "failed to validate reg info %d\n", ret);
+		/* firmware has successfully switches to new regd but host can not
+		 * continue, so free reginfo and fallback to old regd
+		 */
+		goto mem_free;
+	} else if (ret == ATH12K_REG_STATUS_DROP) {
+		/* reg info is valid but we will not store it and
+		 * not going to create new regd for it
+		 */
+		ret = ATH12K_REG_STATUS_VALID;
+		goto mem_free;
+	}
+
+	/* free old reg_info if it exist */
 	pdev_idx = reg_info->phy_id;
-
-	if (pdev_idx >= ab->num_radios) {
-		/* Process the event for phy0 only if single_pdev_only
-		 * is true. If pdev_idx is valid but not 0, discard the
-		 * event. Otherwise, it goes to fallback.
-		 */
-		if (ab->hw_params->single_pdev_only &&
-		    pdev_idx < ab->hw_params->num_rxdma_per_pdev)
-			goto mem_free;
-		else
-			goto fallback;
+	if (ab->reg_info[pdev_idx]) {
+		ath12k_reg_reset_reg_info(ab->reg_info[pdev_idx]);
+		kfree(ab->reg_info[pdev_idx]);
 	}
-
-	/* Avoid multiple overwrites to default regd, during core
-	 * stop-start after mac registration.
+	/* reg_info is valid, we store it for later use
+	 * even below regd build failed
 	 */
-	if (ab->default_regd[pdev_idx] && !ab->new_regd[pdev_idx] &&
-	    !memcmp(ab->default_regd[pdev_idx]->alpha2,
-		    reg_info->alpha2, 2))
-		goto mem_free;
+	ab->reg_info[pdev_idx] = reg_info;
 
-	/* Intersect new rules with default regd if a new country setting was
-	 * requested, i.e a default regd was already set during initialization
-	 * and the regd coming from this event has a valid country info.
-	 */
-	if (ab->default_regd[pdev_idx] &&
-	    !ath12k_reg_is_world_alpha((char *)
-		ab->default_regd[pdev_idx]->alpha2) &&
-	    !ath12k_reg_is_world_alpha((char *)reg_info->alpha2))
-		intersect = true;
-
-	regd = ath12k_reg_build_regd(ab, reg_info, intersect);
-	if (!regd) {
-		ath12k_warn(ab, "failed to build regd from reg_info\n");
+	ret = ath12k_reg_handle_chan_list(ab, reg_info, WMI_VDEV_TYPE_UNSPEC,
+					  IEEE80211_REG_UNSET_AP);
+	if (ret) {
+		ath12k_warn(ab, "failed to handle chan list %d\n", ret);
 		goto fallback;
 	}
 
-	spin_lock(&ab->base_lock);
-	if (test_bit(ATH12K_FLAG_REGISTERED, &ab->dev_flags)) {
-		/* Once mac is registered, ar is valid and all CC events from
-		 * fw is considered to be received due to user requests
-		 * currently.
-		 * Free previously built regd before assigning the newly
-		 * generated regd to ar. NULL pointer handling will be
-		 * taken care by kfree itself.
-		 */
-		ar = ab->pdevs[pdev_idx].ar;
-		kfree(ab->new_regd[pdev_idx]);
-		ab->new_regd[pdev_idx] = regd;
-		queue_work(ab->workqueue, &ar->regd_update_work);
-	} else {
-		/* Multiple events for the same *ar is not expected. But we
-		 * can still clear any previously stored default_regd if we
-		 * are receiving this event for the same radio by mistake.
-		 * NULL pointer handling will be taken care by kfree itself.
-		 */
-		kfree(ab->default_regd[pdev_idx]);
-		/* This regd would be applied during mac registration */
-		ab->default_regd[pdev_idx] = regd;
-	}
-	ab->dfs_region = reg_info->dfs_region;
-	spin_unlock(&ab->base_lock);
+	goto out;
 
-	goto mem_free;
+mem_free:
+	ath12k_reg_reset_reg_info(reg_info);
+	kfree(reg_info);
+
+	if (ret == ATH12K_REG_STATUS_VALID)
+		return ret;
 
 fallback:
 	/* Fallback to older reg (by sending previous country setting
@@ -6232,20 +6210,8 @@ fallback:
 	 */
 	/* TODO: This is rare, but still should also be handled */
 	WARN_ON(1);
-mem_free:
-	if (reg_info) {
-		kfree(reg_info->reg_rules_2g_ptr);
-		kfree(reg_info->reg_rules_5g_ptr);
-		if (reg_info->is_ext_reg_event) {
-			for (i = 0; i < WMI_REG_CURRENT_MAX_AP_TYPE; i++)
-				kfree(reg_info->reg_rules_6g_ap_ptr[i]);
 
-			for (j = 0; j < WMI_REG_CURRENT_MAX_AP_TYPE; j++)
-				for (i = 0; i < WMI_REG_MAX_CLIENT_TYPE; i++)
-					kfree(reg_info->reg_rules_6g_client_ptr[j][i]);
-		}
-		kfree(reg_info);
-	}
+out:
 	return ret;
 }
 
@@ -6401,12 +6367,13 @@ static void ath12k_vdev_start_resp_event(struct ath12k_base *ab, struct sk_buff 
 	ar->last_wmi_vdev_start_status = 0;
 
 	status = le32_to_cpu(vdev_start_resp.status);
-
 	if (WARN_ON_ONCE(status)) {
 		ath12k_warn(ab, "vdev start resp error status %d (%s)\n",
 			    status, ath12k_wmi_vdev_resp_print(status));
 		ar->last_wmi_vdev_start_status = status;
 	}
+
+	ar->max_allowed_tx_power = (s8)le32_to_cpu(vdev_start_resp.max_allowed_tx_power);
 
 	complete(&ar->vdev_setup_done);
 
@@ -9872,6 +9839,72 @@ int ath12k_wmi_mlo_teardown(struct ath12k *ar)
 	if (ret) {
 		ath12k_warn(ar->ab, "failed to submit WMI MLO teardown command: %d\n",
 			    ret);
+		dev_kfree_skb(skb);
+		return ret;
+	}
+
+	return 0;
+}
+
+bool ath12k_wmi_supports_6ghz_cc_ext(struct ath12k *ar)
+{
+	return test_bit(WMI_TLV_SERVICE_REG_CC_EXT_EVENT_SUPPORT,
+			ar->ab->wmi_ab.svc_map) && ar->supports_6ghz;
+}
+
+int ath12k_wmi_send_vdev_set_tpc_power(struct ath12k *ar,
+				       u32 vdev_id,
+				       struct ath12k_reg_tpc_power_info *param)
+{
+	struct wmi_vdev_set_tpc_power_cmd *cmd;
+	struct ath12k_wmi_pdev *wmi = ar->wmi;
+	struct wmi_vdev_ch_power_params *ch;
+	int i, ret, len, array_len;
+	struct sk_buff *skb;
+	struct wmi_tlv *tlv;
+	u8 *ptr;
+
+	array_len = sizeof(*ch) * param->num_pwr_levels;
+	len = sizeof(*cmd) + TLV_HDR_SIZE + array_len;
+
+	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	ptr = skb->data;
+
+	cmd = (struct wmi_vdev_set_tpc_power_cmd *)ptr;
+	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_VDEV_SET_TPC_POWER_CMD,
+						 sizeof(*cmd));
+	cmd->vdev_id = cpu_to_le32(vdev_id);
+	cmd->psd_power = cpu_to_le32(param->is_psd_power);
+	cmd->eirp_power = cpu_to_le32(param->eirp_power);
+	cmd->power_type_6ghz = cpu_to_le32(param->ap_power_type);
+
+	ath12k_dbg(ar->ab, ATH12K_DBG_WMI,
+		   "tpc vdev id %d is psd power %d eirp power %d 6 ghz power type %d\n",
+		   vdev_id, param->is_psd_power, param->eirp_power, param->ap_power_type);
+
+	ptr += sizeof(*cmd);
+	tlv = (struct wmi_tlv *)ptr;
+	tlv->header = ath12k_wmi_tlv_hdr(WMI_TAG_ARRAY_STRUCT, array_len);
+
+	ptr += TLV_HDR_SIZE;
+	ch = (struct wmi_vdev_ch_power_params *)ptr;
+
+	for (i = 0; i < param->num_pwr_levels; i++, ch++) {
+		ch->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_VDEV_CH_POWER_INFO,
+							sizeof(*ch));
+		ch->chan_cfreq = cpu_to_le32(param->chan_power_info[i].chan_cfreq);
+		ch->tx_power = cpu_to_le32(param->chan_power_info[i].tx_power);
+
+		ath12k_dbg(ar->ab, ATH12K_DBG_WMI, "tpc chan freq %d TX power %d\n",
+			   ch->chan_cfreq, ch->tx_power);
+	}
+
+	ret = ath12k_wmi_cmd_send(wmi, skb, WMI_VDEV_SET_TPC_POWER_CMDID);
+	if (ret) {
+		ath12k_warn(ar->ab, "failed to send WMI_VDEV_SET_TPC_POWER_CMDID\n");
 		dev_kfree_skb(skb);
 		return ret;
 	}

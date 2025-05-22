@@ -107,6 +107,13 @@
 /* GIO Chicken Bits (PCI Express bus link power management) */
 #define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
 
+#define CSR_IPC_STATE		(CSR_BASE + 0x110)
+#define CSR_IPC_STATE_RESET	0x00000030
+#define CSR_IPC_STATE_RESET_NONE		0
+#define CSR_IPC_STATE_RESET_SW_READY		1
+#define CSR_IPC_STATE_RESET_TOP_READY		2
+#define CSR_IPC_STATE_RESET_TOP_FOLLOWER	3
+
 #define CSR_IPC_SLEEP_CONTROL	(CSR_BASE + 0x114)
 #define CSR_IPC_SLEEP_CONTROL_SUSPEND	0x3
 #define CSR_IPC_SLEEP_CONTROL_RESUME	0
@@ -643,7 +650,7 @@ enum msix_hw_int_causes {
  *                     HW address related registers                          *
  *****************************************************************************/
 
-#define CSR_ADDR_BASE(trans)			((trans)->cfg->mac_addr_from_csr)
+#define CSR_ADDR_BASE(trans)			((trans)->mac_cfg->base->mac_addr_from_csr)
 #define CSR_MAC_ADDR0_OTP(trans)		(CSR_ADDR_BASE(trans) + 0x00)
 #define CSR_MAC_ADDR1_OTP(trans)		(CSR_ADDR_BASE(trans) + 0x04)
 #define CSR_MAC_ADDR0_STRAP(trans)		(CSR_ADDR_BASE(trans) + 0x08)

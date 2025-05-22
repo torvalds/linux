@@ -165,5 +165,13 @@ void ath12k_dp_rx_h_fetch_info(struct ath12k_base *ab,  struct hal_rx_desc *rx_d
 			       struct ath12k_dp_rx_info *rx_info);
 
 int ath12k_dp_rx_crypto_mic_len(struct ath12k *ar, enum hal_encrypt_type enctype);
-
+u32 ath12k_dp_rxdesc_get_ppduid(struct ath12k_base *ab,
+				struct hal_rx_desc *rx_desc);
+bool ath12k_dp_rxdesc_mpdu_valid(struct ath12k_base *ab,
+				 struct hal_rx_desc *rx_desc);
+int ath12k_dp_rx_link_desc_return(struct ath12k_base *ab,
+				  struct ath12k_buffer_addr *buf_addr_info,
+				  enum hal_wbm_rel_bm_act action);
+bool ath12k_dp_rxdesc_mpdu_valid(struct ath12k_base *ab,
+				 struct hal_rx_desc *rx_desc);
 #endif /* ATH12K_DP_RX_H */

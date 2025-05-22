@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014, 2018 - 2022 Intel Corporation. All rights reserved.
- * Copyright(c) 2024 Intel Corporation. All rights reserved.
+ * Copyright(c) 2024-2025 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * Portions of this file are derived from the ipw3945 project, as well
@@ -824,11 +824,11 @@ int iwl_alive_start(struct iwl_priv *priv)
 	iwlagn_send_tx_ant_config(priv, priv->nvm_data->valid_tx_ant);
 
 	if (iwl_is_associated_ctx(ctx) && !priv->wowlan) {
-		struct iwl_rxon_cmd *active_rxon =
-				(struct iwl_rxon_cmd *)&ctx->active;
+		struct iwl_rxon_cmd *active = (void *)(uintptr_t)&ctx->active;
+
 		/* apply any changes in staging */
 		ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
-		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+		active->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	} else {
 		struct iwl_rxon_context *tmp;
 		/* Initialize our rx_config data */
@@ -1137,9 +1137,10 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 
 static void iwl_set_hw_params(struct iwl_priv *priv)
 {
-	if (priv->cfg->ht_params)
+	/* there are no devices with HT but without HT40 on all bands */
+	if (priv->cfg->ht_params.ht40_bands)
 		priv->hw_params.use_rts_for_aggregation =
-			priv->cfg->ht_params->use_rts_for_aggregation;
+			priv->cfg->ht_params.use_rts_for_aggregation;
 
 	/* Device-specific setup */
 	priv->lib->set_hw_params(priv);
@@ -1173,8 +1174,9 @@ static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 {
 	struct iwl_nvm_data *data = priv->nvm_data;
 
+	/* all HT devices also have HT40 on at least one band */
 	if (data->sku_cap_11n_enable &&
-	    !priv->cfg->ht_params) {
+	    !priv->cfg->ht_params.ht40_bands) {
 		IWL_ERR(priv, "Invalid 11n configuration\n");
 		return -EINVAL;
 	}
@@ -1224,7 +1226,7 @@ static int iwl_nvm_check_version(struct iwl_nvm_data *data,
 }
 
 static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
-						 const struct iwl_cfg *cfg,
+						 const struct iwl_rf_cfg *cfg,
 						 const struct iwl_fw *fw,
 						 struct dentry *dbgfs_dir)
 {
@@ -1233,7 +1235,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	struct iwl_op_mode *op_mode;
 	u16 num_mac;
 	u32 ucode_flags;
-	struct iwl_trans_config trans_cfg = {};
 	static const u8 no_reclaim_cmds[] = {
 		REPLY_RX_PHY_CMD,
 		REPLY_RX_MPDU_CMD,
@@ -1248,7 +1249,8 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 ************************/
 	hw = iwl_alloc_all();
 	if (!hw) {
-		pr_err("%s: Cannot allocate network device\n", trans->name);
+		pr_err("%s: Cannot allocate network device\n",
+		       trans->info.name);
 		err = -ENOMEM;
 		goto out;
 	}
@@ -1261,7 +1263,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	priv->cfg = cfg;
 	priv->fw = fw;
 
-	switch (priv->trans->trans_cfg->device_family) {
+	switch (priv->trans->mac_cfg->device_family) {
 	case IWL_DEVICE_FAMILY_1000:
 	case IWL_DEVICE_FAMILY_100:
 		priv->lib = &iwl_dvm_1000_cfg;
@@ -1309,52 +1311,50 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 * Populate the state variables that the transport layer needs
 	 * to know about.
 	 */
-	trans_cfg.op_mode = op_mode;
-	trans_cfg.no_reclaim_cmds = no_reclaim_cmds;
-	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
+	BUILD_BUG_ON(sizeof(no_reclaim_cmds) >
+		     sizeof(trans->conf.no_reclaim_cmds));
+	memcpy(trans->conf.no_reclaim_cmds, no_reclaim_cmds,
+	       sizeof(no_reclaim_cmds));
 
 	switch (iwlwifi_mod_params.amsdu_size) {
 	case IWL_AMSDU_DEF:
 	case IWL_AMSDU_4K:
-		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
+		trans->conf.rx_buf_size = IWL_AMSDU_4K;
 		break;
 	case IWL_AMSDU_8K:
-		trans_cfg.rx_buf_size = IWL_AMSDU_8K;
+		trans->conf.rx_buf_size = IWL_AMSDU_8K;
 		break;
 	case IWL_AMSDU_12K:
 	default:
-		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
+		trans->conf.rx_buf_size = IWL_AMSDU_4K;
 		pr_err("Unsupported amsdu_size: %d\n",
 		       iwlwifi_mod_params.amsdu_size);
 	}
 
-	trans_cfg.command_groups = iwl_dvm_groups;
-	trans_cfg.command_groups_size = ARRAY_SIZE(iwl_dvm_groups);
+	trans->conf.command_groups = iwl_dvm_groups;
+	trans->conf.command_groups_size = ARRAY_SIZE(iwl_dvm_groups);
 
-	trans_cfg.cmd_fifo = IWLAGN_CMD_FIFO_NUM;
-	trans_cfg.cb_data_offs = offsetof(struct ieee80211_tx_info,
-					  driver_data[2]);
+	trans->conf.cmd_fifo = IWLAGN_CMD_FIFO_NUM;
+	trans->conf.cb_data_offs = offsetof(struct ieee80211_tx_info,
+					    driver_data[2]);
 
 	WARN_ON(sizeof(priv->transport_queue_stop) * BITS_PER_BYTE <
-		priv->trans->trans_cfg->base_params->num_of_queues);
+		priv->trans->mac_cfg->base->num_of_queues);
 
 	ucode_flags = fw->ucode_capa.flags;
 
 	if (ucode_flags & IWL_UCODE_TLV_FLAGS_PAN) {
 		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
-		trans_cfg.cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
+		trans->conf.cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
 	} else {
 		priv->sta_key_max_num = STA_KEY_MAX_NUM;
-		trans_cfg.cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
+		trans->conf.cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
 	}
 
-	/* Configure transport layer */
-	iwl_trans_configure(priv->trans, &trans_cfg);
+	trans->conf.rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
+	trans->conf.rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_res_start);
 
-	trans->rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
-	trans->rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_res_start);
-	trans->command_groups = trans_cfg.command_groups;
-	trans->command_groups_size = trans_cfg.command_groups_size;
+	iwl_trans_op_mode_enter(priv->trans, op_mode);
 
 	/* At this point both hw and priv are allocated. */
 
@@ -1378,18 +1378,18 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 * 2. Read REV register
 	 ***********************/
 	IWL_INFO(priv, "Detected %s, REV=0x%X\n",
-		priv->trans->name, priv->trans->hw_rev);
+		priv->trans->info.name, priv->trans->info.hw_rev);
 
 	err = iwl_trans_start_hw(priv->trans);
 	if (err)
-		goto out_free_hw;
+		goto out_leave_trans;
 
 	/* Read the EEPROM */
 	err = iwl_read_eeprom(priv->trans, &priv->eeprom_blob,
 			      &priv->eeprom_blob_size);
 	if (err) {
 		IWL_ERR(priv, "Unable to init EEPROM\n");
-		goto out_free_hw;
+		goto out_leave_trans;
 	}
 
 	/* Reset chip to save power until we load uCode during "up". */
@@ -1437,10 +1437,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		 * packaging bug or due to the eeprom check above
 		 */
 		priv->sta_key_max_num = STA_KEY_MAX_NUM;
-		trans_cfg.cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
-
-		/* Configure transport layer again*/
-		iwl_trans_configure(priv->trans, &trans_cfg);
+		trans->conf.cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
 	}
 
 	/*******************
@@ -1508,6 +1505,8 @@ out_free_eeprom_blob:
 	kfree(priv->eeprom_blob);
 out_free_eeprom:
 	kfree(priv->nvm_data);
+out_leave_trans:
+	iwl_trans_op_mode_leave(priv->trans);
 out_free_hw:
 	ieee80211_free_hw(priv->hw);
 out:
@@ -1992,7 +1991,7 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 	/* SKU Control */
 	iwl_trans_set_bits_mask(priv->trans, CSR_HW_IF_CONFIG_REG,
 				CSR_HW_IF_CONFIG_REG_MSK_MAC_STEP_DASH,
-				CSR_HW_REV_STEP_DASH(priv->trans->hw_rev));
+				CSR_HW_REV_STEP_DASH(priv->trans->info.hw_rev));
 
 	/* write radio config values to register */
 	if (priv->nvm_data->radio_cfg_type <= EEPROM_RF_CONFIG_TYPE_MAX) {

@@ -168,6 +168,8 @@ static int ath12k_dp_srng_calculate_msi_group(struct ath12k_base *ab,
 		grp_mask = &ab->hw_params->ring_mask->reo_status[0];
 		break;
 	case HAL_RXDMA_MONITOR_STATUS:
+		grp_mask = &ab->hw_params->ring_mask->rx_mon_status[0];
+		break;
 	case HAL_RXDMA_MONITOR_DST:
 		grp_mask = &ab->hw_params->ring_mask->rx_mon_dest[0];
 		break;
@@ -274,10 +276,15 @@ int ath12k_dp_srng_setup(struct ath12k_base *ab, struct dp_srng *ring,
 		break;
 	case HAL_RXDMA_BUF:
 	case HAL_RXDMA_MONITOR_BUF:
-	case HAL_RXDMA_MONITOR_STATUS:
 		params.low_threshold = num_entries >> 3;
 		params.flags |= HAL_SRNG_FLAGS_LOW_THRESH_INTR_EN;
 		params.intr_batch_cntr_thres_entries = 0;
+		params.intr_timer_thres_us = HAL_SRNG_INT_TIMER_THRESHOLD_RX;
+		break;
+	case HAL_RXDMA_MONITOR_STATUS:
+		params.low_threshold = num_entries >> 3;
+		params.flags |= HAL_SRNG_FLAGS_LOW_THRESH_INTR_EN;
+		params.intr_batch_cntr_thres_entries = 1;
 		params.intr_timer_thres_us = HAL_SRNG_INT_TIMER_THRESHOLD_RX;
 		break;
 	case HAL_TX_MONITOR_DST:
@@ -354,7 +361,10 @@ u32 ath12k_dp_tx_get_vdev_bank_config(struct ath12k_base *ab,
 			u32_encode_bits(0, HAL_TX_BANK_CONFIG_EPD);
 
 	/* only valid if idx_lookup_override is not set in tcl_data_cmd */
-	bank_config |= u32_encode_bits(0, HAL_TX_BANK_CONFIG_INDEX_LOOKUP_EN);
+	if (ahvif->vdev_type == WMI_VDEV_TYPE_STA)
+		bank_config |= u32_encode_bits(1, HAL_TX_BANK_CONFIG_INDEX_LOOKUP_EN);
+	else
+		bank_config |= u32_encode_bits(0, HAL_TX_BANK_CONFIG_INDEX_LOOKUP_EN);
 
 	bank_config |= u32_encode_bits(arvif->hal_addr_search_flags & HAL_TX_ADDRX_EN,
 					HAL_TX_BANK_CONFIG_ADDRX_EN) |
@@ -919,6 +929,25 @@ int ath12k_dp_service_srng(struct ath12k_base *ab,
 			goto done;
 	}
 
+	if (ab->hw_params->ring_mask->rx_mon_status[grp_id]) {
+		ring_mask = ab->hw_params->ring_mask->rx_mon_status[grp_id];
+		for (i = 0; i < ab->num_radios; i++) {
+			for (j = 0; j < ab->hw_params->num_rxdma_per_pdev; j++) {
+				int id = i * ab->hw_params->num_rxdma_per_pdev + j;
+
+				if (ring_mask & BIT(id)) {
+					work_done =
+					ath12k_dp_mon_process_ring(ab, id, napi, budget,
+								   0);
+					budget -= work_done;
+					tot_work_done += work_done;
+					if (budget <= 0)
+						goto done;
+				}
+			}
+		}
+	}
+
 	if (ab->hw_params->ring_mask->rx_mon_dest[grp_id]) {
 		monitor_mode = ATH12K_DP_RX_MONITOR_MODE;
 		ring_mask = ab->hw_params->ring_mask->rx_mon_dest[grp_id];
@@ -982,11 +1011,6 @@ void ath12k_dp_pdev_free(struct ath12k_base *ab)
 {
 	int i;
 
-	if (!ab->mon_reap_timer.function)
-		return;
-
-	timer_delete_sync(&ab->mon_reap_timer);
-
 	for (i = 0; i < ab->num_radios; i++)
 		ath12k_dp_rx_pdev_free(ab, i);
 }
@@ -1024,27 +1048,6 @@ void ath12k_dp_hal_rx_desc_init(struct ath12k_base *ab)
 		ab->hal_rx_ops->rx_desc_get_desc_size();
 }
 
-static void ath12k_dp_service_mon_ring(struct timer_list *t)
-{
-	struct ath12k_base *ab = from_timer(ab, t, mon_reap_timer);
-	int i;
-
-	for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++)
-		ath12k_dp_mon_process_ring(ab, i, NULL, DP_MON_SERVICE_BUDGET,
-					   ATH12K_DP_RX_MONITOR_MODE);
-
-	mod_timer(&ab->mon_reap_timer, jiffies +
-		  msecs_to_jiffies(ATH12K_MON_TIMER_INTERVAL));
-}
-
-static void ath12k_dp_mon_reap_timer_init(struct ath12k_base *ab)
-{
-	if (ab->hw_params->rxdma1_enable)
-		return;
-
-	timer_setup(&ab->mon_reap_timer, ath12k_dp_service_mon_ring, 0);
-}
-
 int ath12k_dp_pdev_alloc(struct ath12k_base *ab)
 {
 	struct ath12k *ar;
@@ -1054,8 +1057,6 @@ int ath12k_dp_pdev_alloc(struct ath12k_base *ab)
 	ret = ath12k_dp_rx_htt_setup(ab);
 	if (ret)
 		goto out;
-
-	ath12k_dp_mon_reap_timer_init(ab);
 
 	/* TODO: Per-pdev rx ring unlike tx ring which is mapped to different AC's */
 	for (i = 0; i < ab->num_radios; i++) {
@@ -1107,11 +1108,8 @@ static void ath12k_dp_update_vdev_search(struct ath12k_link_vif *arvif)
 {
 	switch (arvif->ahvif->vdev_type) {
 	case WMI_VDEV_TYPE_STA:
-		/* TODO: Verify the search type and flags since ast hash
-		 * is not part of peer mapv3
-		 */
 		arvif->hal_addr_search_flags = HAL_TX_ADDRY_EN;
-		arvif->search_type = HAL_TX_ADDR_SEARCH_DEFAULT;
+		arvif->search_type = HAL_TX_ADDR_SEARCH_INDEX;
 		break;
 	case WMI_VDEV_TYPE_AP:
 	case WMI_VDEV_TYPE_IBSS:

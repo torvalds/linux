@@ -37,7 +37,7 @@ static inline bool iwl_mld_vif_has_emlsr_cap(struct ieee80211_vif *vif)
 	return ieee80211_vif_type_p2p(vif) == NL80211_IFTYPE_STATION &&
 	       ieee80211_vif_is_mld(vif) &&
 	       vif->cfg.eml_cap & IEEE80211_EML_CAP_EMLSR_SUPP &&
-	       !CSR_HW_RFID_IS_CDB(mld_vif->mld->trans->hw_rf_id);
+	       !CSR_HW_RFID_IS_CDB(mld_vif->mld->trans->info.hw_rf_id);
 }
 
 static inline int
@@ -158,10 +158,16 @@ struct iwl_mld_link_sel_data {
 };
 
 #if IS_ENABLED(CONFIG_IWLWIFI_KUNIT_TESTS)
-bool iwl_mld_channel_load_allows_emlsr(struct iwl_mld *mld,
-				       struct ieee80211_vif *vif,
-				       const struct iwl_mld_link_sel_data *a,
-				       const struct iwl_mld_link_sel_data *b);
+u32 iwl_mld_emlsr_pair_state(struct ieee80211_vif *vif,
+			     struct iwl_mld_link_sel_data *a,
+			     struct iwl_mld_link_sel_data *b);
+
+bool iwl_mld_bt_allows_emlsr(struct iwl_mld *mld,
+			     struct ieee80211_bss_conf *link,
+			     bool entry_criteria);
 #endif
+
+void iwl_mld_start_ignoring_tpt_updates(struct iwl_mld *mld);
+void iwl_mld_stop_ignoring_tpt_updates(struct iwl_mld *mld);
 
 #endif /* __iwl_mld_mlo_h__ */

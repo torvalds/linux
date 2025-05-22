@@ -1290,9 +1290,9 @@ static u8 ieee80211_num_beaconing_links(struct ieee80211_sub_if_data *sdata)
 	    sdata->vif.type != NL80211_IFTYPE_P2P_GO)
 		return num;
 
-	if (!sdata->vif.valid_links)
-		return num;
-
+	/* non-MLO mode of operation also uses link_id 0 in sdata so it is
+	 * safe to directly proceed with the below loop
+	 */
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
 		link = sdata_dereference(sdata->link[link_id], sdata);
 		if (!link)
@@ -1421,6 +1421,9 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 				(IEEE80211_EHT_PHY_CAP7_NON_OFDMA_UL_MU_MIMO_80MHZ |
 				 IEEE80211_EHT_PHY_CAP7_NON_OFDMA_UL_MU_MIMO_160MHZ |
 				 IEEE80211_EHT_PHY_CAP7_NON_OFDMA_UL_MU_MIMO_320MHZ);
+		link_conf->eht_disable_mcs15 =
+			u8_get_bits(params->eht_oper->params,
+				    IEEE80211_EHT_OPER_MCS15_DISABLE);
 	} else {
 		link_conf->eht_su_beamformer = false;
 		link_conf->eht_su_beamformee = false;
@@ -2921,7 +2924,7 @@ static int ieee80211_scan(struct wiphy *wiphy,
 		 * the frames sent while scanning on other channel will be
 		 * lost)
 		 */
-		if (sdata->deflink.u.ap.beacon &&
+		if (ieee80211_num_beaconing_links(sdata) &&
 		    (!(wiphy->features & NL80211_FEATURE_AP_SCAN) ||
 		     !(req->flags & NL80211_SCAN_FLAG_AP)))
 			return -EOPNOTSUPP;

@@ -21,6 +21,12 @@ properties:
   reg:
     maxItems: 1
 
+  firmware-name:
+    maxItems: 1
+    description:
+      If present, a board or platform specific string used to lookup
+      usecase-specific firmware files for the device.
+
   vddaon-supply:
     description: VDD_AON supply regulator handle
 

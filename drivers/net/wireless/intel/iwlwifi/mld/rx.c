@@ -36,11 +36,13 @@ struct iwl_mld_rx_phy_data {
 };
 
 static void
-iwl_mld_fill_phy_data(struct iwl_rx_mpdu_desc *desc,
+iwl_mld_fill_phy_data(struct iwl_mld *mld,
+		      struct iwl_rx_mpdu_desc *desc,
 		      struct iwl_mld_rx_phy_data *phy_data)
 {
 	phy_data->phy_info = le16_to_cpu(desc->phy_info);
-	phy_data->rate_n_flags = le32_to_cpu(desc->v3.rate_n_flags);
+	phy_data->rate_n_flags = iwl_v3_rate_from_v2_v3(desc->v3.rate_n_flags,
+							mld->fw_rates_ver_3);
 	phy_data->gp2_on_air_rise = le32_to_cpu(desc->v3.gp2_on_air_rise);
 	phy_data->energy_a = desc->v3.energy_a;
 	phy_data->energy_b = desc->v3.energy_b;
@@ -1176,7 +1178,7 @@ static void iwl_mld_rx_fill_status(struct iwl_mld *mld, struct sk_buff *skb,
 				      IWL_RX_PHY_DATA1_INFO_TYPE_MASK);
 
 	/* set the preamble flag if appropriate */
-	if (format == RATE_MCS_CCK_MSK &&
+	if (format == RATE_MCS_MOD_TYPE_CCK &&
 	    phy_data->phy_info & IWL_RX_MPDU_PHY_SHORT_PREAMBLE)
 		rx_status->enc_flags |= RX_ENC_FLAG_SHORTPRE;
 
@@ -1201,7 +1203,7 @@ static void iwl_mld_rx_fill_status(struct iwl_mld *mld, struct sk_buff *skb,
 	}
 
 	/* must be before L-SIG data */
-	if (format == RATE_MCS_HE_MSK)
+	if (format == RATE_MCS_MOD_TYPE_HE)
 		iwl_mld_rx_he(mld, skb, phy_data, queue);
 
 	iwl_mld_decode_lsig(skb, phy_data);
@@ -1209,40 +1211,53 @@ static void iwl_mld_rx_fill_status(struct iwl_mld *mld, struct sk_buff *skb,
 	rx_status->device_timestamp = phy_data->gp2_on_air_rise;
 
 	/* using TLV format and must be after all fixed len fields */
-	if (format == RATE_MCS_EHT_MSK)
+	if (format == RATE_MCS_MOD_TYPE_EHT)
 		iwl_mld_rx_eht(mld, skb, phy_data, queue);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	if (unlikely(mld->monitor.on))
+	if (unlikely(mld->monitor.on)) {
 		iwl_mld_add_rtap_sniffer_config(mld, skb);
+
+		if (mld->monitor.ptp_time) {
+			u64 adj_time =
+			    iwl_mld_ptp_get_adj_time(mld,
+						     phy_data->gp2_on_air_rise *
+						     NSEC_PER_USEC);
+
+			rx_status->mactime = div64_u64(adj_time, NSEC_PER_USEC);
+			rx_status->flag |= RX_FLAG_MACTIME_IS_RTAP_TS64;
+			rx_status->flag &= ~RX_FLAG_MACTIME;
+		}
+	}
 #endif
 
-	if (format != RATE_MCS_CCK_MSK && is_sgi)
+	if (format != RATE_MCS_MOD_TYPE_CCK && is_sgi)
 		rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 
 	if (rate_n_flags & RATE_MCS_LDPC_MSK)
 		rx_status->enc_flags |= RX_ENC_FLAG_LDPC;
 
 	switch (format) {
-	case RATE_MCS_HT_MSK:
+	case RATE_MCS_MOD_TYPE_HT:
 		rx_status->encoding = RX_ENC_HT;
 		rx_status->rate_idx = RATE_HT_MCS_INDEX(rate_n_flags);
 		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
 		break;
-	case RATE_MCS_VHT_MSK:
-	case RATE_MCS_HE_MSK:
-	case RATE_MCS_EHT_MSK:
-		if (format == RATE_MCS_VHT_MSK) {
+	case RATE_MCS_MOD_TYPE_VHT:
+	case RATE_MCS_MOD_TYPE_HE:
+	case RATE_MCS_MOD_TYPE_EHT:
+		if (format == RATE_MCS_MOD_TYPE_VHT) {
 			rx_status->encoding = RX_ENC_VHT;
-		} else if (format == RATE_MCS_HE_MSK) {
+		} else if (format == RATE_MCS_MOD_TYPE_HE) {
 			rx_status->encoding = RX_ENC_HE;
 			rx_status->he_dcm =
 				!!(rate_n_flags & RATE_HE_DUAL_CARRIER_MODE_MSK);
-		} else if (format == RATE_MCS_EHT_MSK) {
+		} else if (format == RATE_MCS_MOD_TYPE_EHT) {
 			rx_status->encoding = RX_ENC_EHT;
 		}
 
-		rx_status->nss = u32_get_bits(rate_n_flags, RATE_MCS_NSS_MSK) + 1;
+		rx_status->nss = u32_get_bits(rate_n_flags,
+					      RATE_MCS_NSS_MSK) + 1;
 		rx_status->rate_idx = rate_n_flags & RATE_MCS_CODE_MSK;
 		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
 		break;
@@ -1748,7 +1763,7 @@ void iwl_mld_rx_mpdu(struct iwl_mld *mld, struct napi_struct *napi,
 
 	hdr = (void *)(pkt->data + mpdu_desc_size);
 
-	iwl_mld_fill_phy_data(mpdu_desc, &phy_data);
+	iwl_mld_fill_phy_data(mld, mpdu_desc, &phy_data);
 
 	if (mpdu_desc->mac_flags2 & IWL_RX_MPDU_MFLG2_PAD) {
 		/* If the device inserted padding it means that (it thought)
@@ -1850,7 +1865,7 @@ void iwl_mld_sync_rx_queues(struct iwl_mld *mld,
 			    enum iwl_mld_internal_rxq_notif_type type,
 			    const void *notif_payload, u32 notif_payload_size)
 {
-	u8 num_rx_queues = mld->trans->num_rx_queues;
+	u8 num_rx_queues = mld->trans->info.num_rxqs;
 	struct {
 		struct iwl_rxq_sync_cmd sync_cmd;
 		struct iwl_mld_internal_rxq_notif notif;
@@ -1970,7 +1985,8 @@ void iwl_mld_rx_monitor_no_data(struct iwl_mld *mld, struct napi_struct *napi,
 	phy_data.data1 = desc->phy_info[1];
 	phy_data.phy_info = IWL_RX_MPDU_PHY_TSF_OVERLOAD;
 	phy_data.gp2_on_air_rise = le32_to_cpu(desc->on_air_rise_time);
-	phy_data.rate_n_flags = le32_to_cpu(desc->rate);
+	phy_data.rate_n_flags = iwl_v3_rate_from_v2_v3(desc->rate,
+						       mld->fw_rates_ver_3);
 	phy_data.with_data = false;
 
 	BUILD_BUG_ON(sizeof(phy_data.rx_vec) != sizeof(desc->rx_vec));
@@ -2032,17 +2048,17 @@ void iwl_mld_rx_monitor_no_data(struct iwl_mld *mld, struct napi_struct *napi,
 	 * may be up to 8 spatial streams.
 	 */
 	switch (format) {
-	case RATE_MCS_VHT_MSK:
+	case RATE_MCS_MOD_TYPE_VHT:
 		rx_status->nss =
 			le32_get_bits(desc->rx_vec[0],
 				      RX_NO_DATA_RX_VEC0_VHT_NSTS_MSK) + 1;
 		break;
-	case RATE_MCS_HE_MSK:
+	case RATE_MCS_MOD_TYPE_HE:
 		rx_status->nss =
 			le32_get_bits(desc->rx_vec[0],
 				      RX_NO_DATA_RX_VEC0_HE_NSTS_MSK) + 1;
 		break;
-	case RATE_MCS_EHT_MSK:
+	case RATE_MCS_MOD_TYPE_EHT:
 		rx_status->nss =
 			le32_get_bits(desc->rx_vec[2],
 				      RX_NO_DATA_RX_VEC2_EHT_NSTS_MSK) + 1;

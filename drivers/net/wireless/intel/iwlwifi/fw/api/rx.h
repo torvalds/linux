@@ -640,7 +640,9 @@ struct iwl_rx_mpdu_desc_v3 {
 	 */
 	__le32 reserved[1];
 } __packed; /* RX_MPDU_RES_START_API_S_VER_3,
-	       RX_MPDU_RES_START_API_S_VER_5 */
+	     * RX_MPDU_RES_START_API_S_VER_5,
+	     * RX_MPDU_RES_START_API_S_VER_6
+	     */
 
 /**
  * struct iwl_rx_mpdu_desc - RX MPDU descriptor
@@ -724,8 +726,10 @@ struct iwl_rx_mpdu_desc {
 		struct iwl_rx_mpdu_desc_v3 v3;
 	};
 } __packed; /* RX_MPDU_RES_START_API_S_VER_3,
-	       RX_MPDU_RES_START_API_S_VER_4,
-	       RX_MPDU_RES_START_API_S_VER_5 */
+	     * RX_MPDU_RES_START_API_S_VER_4,
+	     * RX_MPDU_RES_START_API_S_VER_5,
+	     * RX_MPDU_RES_START_API_S_VER_6
+	     */
 
 #define IWL_RX_DESC_SIZE_V1 offsetofend(struct iwl_rx_mpdu_desc, v1)
 
@@ -821,7 +825,7 @@ struct iwl_rx_no_data {
  *	15:8 chain-B, measured at FINA time (FINA_ENERGY), 16:23 channel
  * @on_air_rise_time: GP2 during on air rise
  * @fr_time: frame time
- * @rate: rate/mcs of frame
+ * @rate: rate/mcs of frame, format depends on the notification version
  * @phy_info: &enum iwl_rx_phy_eht_data0 and &enum iwl_rx_phy_info_type
  * @rx_vec: DW-12:9 raw RX vectors from DSP according to modulation type.
  *	for VHT: OFDM_RX_VECTOR_SIGA1_OUT, OFDM_RX_VECTOR_SIGA2_OUT
@@ -837,9 +841,7 @@ struct iwl_rx_no_data_ver_3 {
 	__le32 rate;
 	__le32 phy_info[2];
 	__le32 rx_vec[4];
-} __packed; /* RX_NO_DATA_NTFY_API_S_VER_1,
-	       RX_NO_DATA_NTFY_API_S_VER_2
-	       RX_NO_DATA_NTFY_API_S_VER_3 */
+} __packed; /* RX_NO_DATA_NTFY_API_S_VER_3, _VER_4 */
 
 struct iwl_frame_release {
 	u8 baid;

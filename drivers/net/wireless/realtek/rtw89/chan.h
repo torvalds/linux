@@ -31,11 +31,24 @@
 #define RTW89_MCC_DFLT_TX_NULL_EARLY 3
 #define RTW89_MCC_DFLT_COURTESY_SLOT 3
 
+#define RTW89_MCC_REQ_COURTESY_TIME 5
+#define RTW89_MCC_REQ_COURTESY(pattern, role)			\
+({								\
+	const struct rtw89_mcc_pattern *p = pattern;		\
+	p->tob_ ## role <= RTW89_MCC_REQ_COURTESY_TIME ||	\
+	p->toa_ ## role <= RTW89_MCC_REQ_COURTESY_TIME;		\
+})
+
 #define NUM_OF_RTW89_MCC_ROLES 2
 
 enum rtw89_chanctx_pause_reasons {
 	RTW89_CHANCTX_PAUSE_REASON_HW_SCAN,
 	RTW89_CHANCTX_PAUSE_REASON_ROC,
+};
+
+struct rtw89_chanctx_pause_parm {
+	const struct rtw89_vif_link *trigger;
+	enum rtw89_chanctx_pause_reasons rsn;
 };
 
 struct rtw89_chanctx_cb_parm {
@@ -95,7 +108,7 @@ void rtw89_config_entity_chandef(struct rtw89_dev *rtwdev,
 				 enum rtw89_chanctx_idx idx,
 				 const struct cfg80211_chan_def *chandef);
 void rtw89_config_roc_chandef(struct rtw89_dev *rtwdev,
-			      enum rtw89_chanctx_idx idx,
+			      struct rtw89_vif_link *rtwvif_link,
 			      const struct cfg80211_chan_def *chandef);
 void rtw89_entity_init(struct rtw89_dev *rtwdev);
 enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev);
@@ -105,7 +118,7 @@ void rtw89_queue_chanctx_change(struct rtw89_dev *rtwdev,
 				enum rtw89_chanctx_changes change);
 void rtw89_chanctx_track(struct rtw89_dev *rtwdev);
 void rtw89_chanctx_pause(struct rtw89_dev *rtwdev,
-			 enum rtw89_chanctx_pause_reasons rsn);
+			 const struct rtw89_chanctx_pause_parm *parm);
 void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev,
 			   const struct rtw89_chanctx_cb_parm *cb_parm);
 

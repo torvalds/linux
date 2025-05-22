@@ -304,12 +304,15 @@ CMD_VERSIONS(session_prot_notif,
 CMD_VERSIONS(missed_beacon_notif,
 	     CMD_VER_ENTRY(5, iwl_missed_beacons_notif))
 CMD_VERSIONS(tx_resp_notif,
-	     CMD_VER_ENTRY(8, iwl_tx_resp))
+	     CMD_VER_ENTRY(8, iwl_tx_resp)
+	     CMD_VER_ENTRY(9, iwl_tx_resp))
 CMD_VERSIONS(compressed_ba_notif,
 	     CMD_VER_ENTRY(5, iwl_compressed_ba_notif)
-	     CMD_VER_ENTRY(6, iwl_compressed_ba_notif))
+	     CMD_VER_ENTRY(6, iwl_compressed_ba_notif)
+	     CMD_VER_ENTRY(7, iwl_compressed_ba_notif))
 CMD_VERSIONS(tlc_notif,
-	     CMD_VER_ENTRY(3, iwl_tlc_update_notif))
+	     CMD_VER_ENTRY(3, iwl_tlc_update_notif)
+	     CMD_VER_ENTRY(4, iwl_tlc_update_notif))
 CMD_VERSIONS(mu_mimo_grp_notif,
 	     CMD_VER_ENTRY(1, iwl_mu_group_mgmt_notif))
 CMD_VERSIONS(channel_switch_start_notif,
@@ -335,7 +338,8 @@ CMD_VERSIONS(bt_coex_notif,
 CMD_VERSIONS(beacon_notification,
 	     CMD_VER_ENTRY(6, iwl_extended_beacon_notif))
 CMD_VERSIONS(emlsr_mode_notif,
-	     CMD_VER_ENTRY(1, iwl_esr_mode_notif))
+	     CMD_VER_ENTRY(1, iwl_esr_mode_notif_v1)
+	     CMD_VER_ENTRY(2, iwl_esr_mode_notif))
 CMD_VERSIONS(emlsr_trans_fail_notif,
 	     CMD_VER_ENTRY(1, iwl_esr_trans_fail_notif))
 CMD_VERSIONS(uapsd_misbehaving_ap_notif,
@@ -601,7 +605,7 @@ void iwl_mld_rx_rss(struct iwl_op_mode *op_mode, struct napi_struct *napi,
 	struct iwl_mld *mld = IWL_OP_MODE_GET_MLD(op_mode);
 	u16 cmd_id = WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd);
 
-	if (unlikely(queue >= mld->trans->num_rx_queues))
+	if (unlikely(queue >= mld->trans->info.num_rxqs))
 		return;
 
 	if (likely(cmd_id == WIDE_ID(LEGACY_GROUP, REPLY_RX_MPDU_CMD)))

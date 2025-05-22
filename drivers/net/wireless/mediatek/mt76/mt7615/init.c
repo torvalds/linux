@@ -273,7 +273,7 @@ void mt7615_init_txpower(struct mt7615_dev *dev,
 			 struct ieee80211_supported_band *sband)
 {
 	int i, n_chains = hweight8(dev->mphy.antenna_mask), target_chains;
-	int delta_idx, delta = mt76_tx_power_nss_delta(n_chains);
+	int delta_idx, delta = mt76_tx_power_path_delta(n_chains);
 	u8 *eep = (u8 *)dev->mt76.eeprom.data;
 	enum nl80211_band band = sband->band;
 	struct mt76_power_limits limits;

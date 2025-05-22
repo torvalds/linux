@@ -744,6 +744,7 @@ struct ieee80211_parsed_tpe {
  * @eht_80mhz_full_bw_ul_mumimo: in AP-mode, does this BSS support the
  *	reception of an EHT TB PPDU on an RU that spans the entire PPDU
  *	bandwidth
+ * @eht_disable_mcs15: disable EHT-MCS 15 reception capability.
  * @bss_param_ch_cnt: in BSS-mode, the BSS params change count. This
  *	information is the latest known value. It can come from this link's
  *	beacon or from a beacon sent by another link.
@@ -852,6 +853,8 @@ struct ieee80211_bss_conf {
 	bool eht_su_beamformee;
 	bool eht_mu_beamformer;
 	bool eht_80mhz_full_bw_ul_mumimo;
+	bool eht_disable_mcs15;
+
 	u8 bss_param_ch_cnt;
 	u8 bss_param_ch_cnt_link_id;
 };

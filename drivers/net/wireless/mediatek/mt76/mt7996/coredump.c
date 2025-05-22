@@ -48,8 +48,8 @@ const struct mt7996_mem_region*
 mt7996_coredump_get_mem_layout(struct mt7996_dev *dev, u32 *num)
 {
 	switch (mt76_chip(&dev->mt76)) {
-	case 0x7990:
-	case 0x7991:
+	case MT7996_DEVICE_ID:
+	case MT7996_DEVICE_ID_2:
 		*num = ARRAY_SIZE(mt7996_mem_regions);
 		return &mt7996_mem_regions[0];
 	default:

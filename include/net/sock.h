@@ -2822,6 +2822,12 @@ sk_is_refcounted(struct sock *sk)
 	return !sk_fullsock(sk) || !sock_flag(sk, SOCK_RCU_FREE);
 }
 
+static inline bool
+sk_requests_wifi_status(struct sock *sk)
+{
+	return sk && sk_fullsock(sk) && sock_flag(sk, SOCK_WIFI_STATUS);
+}
+
 /* Checks if this SKB belongs to an HW offloaded socket
  * and whether any SW fallbacks are required based on dev.
  * Check decrypted mark in case skb_orphan() cleared socket.

@@ -17,6 +17,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/panic_notifier.h>
 #include <linux/average.h>
+#include <linux/of.h>
 #include "qmi.h"
 #include "htc.h"
 #include "wmi.h"
@@ -63,8 +64,8 @@
 #define ATH12K_RECONFIGURE_TIMEOUT_HZ		(10 * HZ)
 #define ATH12K_RECOVER_START_TIMEOUT_HZ		(20 * HZ)
 
-#define ATH12K_MAX_SOCS 3
-#define ATH12K_GROUP_MAX_RADIO (ATH12K_MAX_SOCS * MAX_RADIOS)
+#define ATH12K_MAX_DEVICES 3
+#define ATH12K_GROUP_MAX_RADIO (ATH12K_MAX_DEVICES * MAX_RADIOS)
 #define ATH12K_INVALID_GROUP_ID  0xFF
 #define ATH12K_INVALID_DEVICE_ID 0xFF
 
@@ -175,9 +176,34 @@ struct ath12k_ext_irq_grp {
 	struct net_device *napi_ndev;
 };
 
+enum ath12k_smbios_cc_type {
+	/* disable country code setting from SMBIOS */
+	ATH12K_SMBIOS_CC_DISABLE = 0,
+
+	/* set country code by ANSI country name, based on ISO3166-1 alpha2 */
+	ATH12K_SMBIOS_CC_ISO = 1,
+
+	/* worldwide regdomain */
+	ATH12K_SMBIOS_CC_WW = 2,
+};
+
 struct ath12k_smbios_bdf {
 	struct dmi_header hdr;
-	u32 padding;
+	u8 features_disabled;
+
+	/* enum ath12k_smbios_cc_type */
+	u8 country_code_flag;
+
+	/* To set specific country, you need to set country code
+	 * flag=ATH12K_SMBIOS_CC_ISO first, then if country is United
+	 * States, then country code value = 0x5553 ("US",'U' = 0x55, 'S'=
+	 * 0x53). To set country to INDONESIA, then country code value =
+	 * 0x4944 ("IN", 'I'=0x49, 'D'=0x44). If country code flag =
+	 * ATH12K_SMBIOS_CC_WW, then you can use worldwide regulatory
+	 * setting.
+	 */
+	u16 cc_code;
+
 	u8 bdf_enabled;
 	u8 bdf_ext[];
 } __packed;
@@ -317,6 +343,8 @@ struct ath12k_link_vif {
 
 	/* only used in station mode */
 	bool is_sta_assoc_link;
+
+	struct ath12k_reg_tpc_power_info reg_tpc_info;
 };
 
 struct ath12k_vif {
@@ -784,6 +812,8 @@ struct ath12k {
 	u8 ftm_msgref;
 	struct ath12k_fw_stats fw_stats;
 	unsigned long last_tx_power_update;
+
+	s8 max_allowed_tx_power;
 };
 
 struct ath12k_hw {
@@ -875,7 +905,7 @@ struct ath12k_board_data {
 	size_t len;
 };
 
-struct ath12k_soc_dp_tx_err_stats {
+struct ath12k_device_dp_tx_err_stats {
 	/* TCL Ring Descriptor unavailable */
 	u32 desc_na[DP_TCL_NUM_RING_MAX];
 	/* Other failures during dp_tx due to mem allocation failure
@@ -884,13 +914,20 @@ struct ath12k_soc_dp_tx_err_stats {
 	atomic_t misc_fail;
 };
 
-struct ath12k_soc_dp_stats {
+struct ath12k_device_dp_stats {
 	u32 err_ring_pkts;
 	u32 invalid_rbm;
 	u32 rxdma_error[HAL_REO_ENTR_RING_RXDMA_ECODE_MAX];
 	u32 reo_error[HAL_REO_DEST_RING_ERROR_CODE_MAX];
 	u32 hal_reo_error[DP_REO_DST_RING_MAX];
-	struct ath12k_soc_dp_tx_err_stats tx_err;
+	struct ath12k_device_dp_tx_err_stats tx_err;
+	u32 reo_rx[DP_REO_DST_RING_MAX][ATH12K_MAX_DEVICES];
+	u32 rx_wbm_rel_source[HAL_WBM_REL_SRC_MODULE_MAX][ATH12K_MAX_DEVICES];
+	u32 tqm_rel_reason[MAX_TQM_RELEASE_REASON];
+	u32 fw_tx_status[MAX_FW_TX_STATUS];
+	u32 tx_wbm_rel_source[HAL_WBM_REL_SRC_MODULE_MAX];
+	u32 tx_enqueued[DP_TCL_NUM_RING_MAX];
+	u32 tx_completed[DP_TCL_NUM_RING_MAX];
 };
 
 struct ath12k_reg_freq {
@@ -919,7 +956,7 @@ struct ath12k_hw_group {
 	u8 num_probed;
 	u8 num_started;
 	unsigned long flags;
-	struct ath12k_base *ab[ATH12K_MAX_SOCS];
+	struct ath12k_base *ab[ATH12K_MAX_DEVICES];
 
 	/* protects access to this struct */
 	struct mutex mutex;
@@ -933,7 +970,7 @@ struct ath12k_hw_group {
 	struct ath12k_hw *ah[ATH12K_GROUP_MAX_RADIO];
 	u8 num_hw;
 	bool mlo_capable;
-	struct device_node *wsi_node[ATH12K_MAX_SOCS];
+	struct device_node *wsi_node[ATH12K_MAX_DEVICES];
 	struct ath12k_mlo_memory mlo_mem;
 	struct ath12k_hw_link hw_links[ATH12K_GROUP_MAX_RADIO];
 	bool hw_link_id_init_done;
@@ -1041,9 +1078,11 @@ struct ath12k_base {
 	 */
 	struct ieee80211_regdomain *new_regd[MAX_RADIOS];
 
+	struct ath12k_reg_info *reg_info[MAX_RADIOS];
+
 	/* Current DFS Regulatory */
 	enum ath12k_dfs_region dfs_region;
-	struct ath12k_soc_dp_stats soc_stats;
+	struct ath12k_device_dp_stats device_stats;
 #ifdef CONFIG_ATH12K_DEBUGFS
 	struct dentry *debugfs_soc;
 #endif
@@ -1071,8 +1110,6 @@ struct ath12k_base {
 
 	struct ath12k_dbring_cap *db_caps;
 	u32 num_db_cap;
-
-	struct timer_list mon_reap_timer;
 
 	struct completion htc_suspend;
 
@@ -1246,6 +1283,7 @@ struct ath12k_fw_stats_pdev {
 };
 
 int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab);
+void ath12k_core_hw_group_cleanup(struct ath12k_hw_group *ag);
 int ath12k_core_pre_init(struct ath12k_base *ab);
 int ath12k_core_init(struct ath12k_base *ath12k);
 void ath12k_core_deinit(struct ath12k_base *ath12k);
@@ -1342,8 +1380,16 @@ static inline void ath12k_core_create_firmware_path(struct ath12k_base *ab,
 						    const char *filename,
 						    void *buf, size_t buf_len)
 {
-	snprintf(buf, buf_len, "%s/%s/%s", ATH12K_FW_DIR,
-		 ab->hw_params->fw.dir, filename);
+	const char *fw_name = NULL;
+
+	of_property_read_string(ab->dev->of_node, "firmware-name", &fw_name);
+
+	if (fw_name && strncmp(filename, "board", 5))
+		snprintf(buf, buf_len, "%s/%s/%s/%s", ATH12K_FW_DIR,
+			 ab->hw_params->fw.dir, fw_name, filename);
+	else
+		snprintf(buf, buf_len, "%s/%s/%s", ATH12K_FW_DIR,
+			 ab->hw_params->fw.dir, filename);
 }
 
 static inline const char *ath12k_bus_str(enum ath12k_bus bus)

@@ -1125,14 +1125,13 @@ static void ath12k_ahb_remove(struct platform_device *pdev)
 
 	if (test_bit(ATH12K_FLAG_QMI_FAIL, &ab->dev_flags)) {
 		ath12k_ahb_power_down(ab, false);
-		ath12k_qmi_deinit_service(ab);
 		goto qmi_fail;
 	}
 
 	ath12k_ahb_remove_prepare(ab);
-	ath12k_core_deinit(ab);
-
+	ath12k_core_hw_group_cleanup(ab->ag);
 qmi_fail:
+	ath12k_core_deinit(ab);
 	ath12k_ahb_free_resources(ab);
 }
 

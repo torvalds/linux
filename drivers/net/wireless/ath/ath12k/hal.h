@@ -498,6 +498,7 @@ enum hal_srng_ring_id {
 
 	HAL_SRNG_RING_ID_WMAC1_SW2RXMON_BUF0 = HAL_SRNG_RING_ID_PMAC1_ID_START,
 
+	HAL_SRNG_RING_ID_WMAC1_SW2RXDMA1_STATBUF,
 	HAL_SRNG_RING_ID_WMAC1_RXDMA2SW0,
 	HAL_SRNG_RING_ID_WMAC1_RXDMA2SW1,
 	HAL_SRNG_RING_ID_WMAC1_RXMON2SW0 = HAL_SRNG_RING_ID_WMAC1_RXDMA2SW1,
@@ -1143,12 +1144,15 @@ void ath12k_hal_srng_get_params(struct ath12k_base *ab, struct hal_srng *srng,
 				struct hal_srng_params *params);
 void *ath12k_hal_srng_dst_get_next_entry(struct ath12k_base *ab,
 					 struct hal_srng *srng);
+void *ath12k_hal_srng_src_peek(struct ath12k_base *ab, struct hal_srng *srng);
 void *ath12k_hal_srng_dst_peek(struct ath12k_base *ab, struct hal_srng *srng);
 int ath12k_hal_srng_dst_num_free(struct ath12k_base *ab, struct hal_srng *srng,
 				 bool sync_hw_ptr);
 void *ath12k_hal_srng_src_get_next_reaped(struct ath12k_base *ab,
 					  struct hal_srng *srng);
 void *ath12k_hal_srng_src_reap_next(struct ath12k_base *ab,
+				    struct hal_srng *srng);
+void *ath12k_hal_srng_src_next_peek(struct ath12k_base *ab,
 				    struct hal_srng *srng);
 void *ath12k_hal_srng_src_get_next_entry(struct ath12k_base *ab,
 					 struct hal_srng *srng);

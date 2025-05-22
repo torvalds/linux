@@ -154,7 +154,14 @@ static const struct hal_srng_config hw_srng_config_template[] = {
 		.ring_dir = HAL_SRNG_DIR_SRC,
 		.max_size = HAL_RXDMA_RING_MAX_SIZE_BE,
 	},
-	[HAL_RXDMA_MONITOR_STATUS] = { 0, },
+	[HAL_RXDMA_MONITOR_STATUS] = {
+		.start_ring_id = HAL_SRNG_RING_ID_WMAC1_SW2RXDMA1_STATBUF,
+		.max_rings = 1,
+		.entry_size = sizeof(struct hal_wbm_buffer_ring) >> 2,
+		.mac_type = ATH12K_HAL_SRNG_PMAC,
+		.ring_dir = HAL_SRNG_DIR_SRC,
+		.max_size = HAL_RXDMA_RING_MAX_SIZE_BE,
+	},
 	[HAL_RXDMA_MONITOR_DESC] = { 0, },
 	[HAL_RXDMA_DIR_BUF] = {
 		.start_ring_id = HAL_SRNG_RING_ID_RXDMA_DIR_BUF,
@@ -1943,7 +1950,7 @@ u32 ath12k_hal_ce_dst_status_get_length(struct hal_ce_srng_dst_status_desc *desc
 {
 	u32 len;
 
-	len = le32_get_bits(desc->flags, HAL_CE_DST_STATUS_DESC_FLAGS_LEN);
+	len = le32_get_bits(READ_ONCE(desc->flags), HAL_CE_DST_STATUS_DESC_FLAGS_LEN);
 	desc->flags &= ~cpu_to_le32(HAL_CE_DST_STATUS_DESC_FLAGS_LEN);
 
 	return len;
@@ -2035,6 +2042,24 @@ int ath12k_hal_srng_src_num_free(struct ath12k_base *ab, struct hal_srng *srng,
 		return ((srng->ring_size - hp + tp) / srng->entry_size) - 1;
 }
 
+void *ath12k_hal_srng_src_next_peek(struct ath12k_base *ab,
+				    struct hal_srng *srng)
+{
+	void *desc;
+	u32 next_hp;
+
+	lockdep_assert_held(&srng->lock);
+
+	next_hp = (srng->u.src_ring.hp + srng->entry_size) % srng->ring_size;
+
+	if (next_hp == srng->u.src_ring.cached_tp)
+		return NULL;
+
+	desc = srng->ring_base_vaddr + next_hp;
+
+	return desc;
+}
+
 void *ath12k_hal_srng_src_get_next_entry(struct ath12k_base *ab,
 					 struct hal_srng *srng)
 {
@@ -2066,6 +2091,17 @@ void *ath12k_hal_srng_src_get_next_entry(struct ath12k_base *ab,
 	srng->u.src_ring.reap_hp = next_hp;
 
 	return desc;
+}
+
+void *ath12k_hal_srng_src_peek(struct ath12k_base *ab, struct hal_srng *srng)
+{
+	lockdep_assert_held(&srng->lock);
+
+	if (((srng->u.src_ring.hp + srng->entry_size) % srng->ring_size) ==
+	    srng->u.src_ring.cached_tp)
+		return NULL;
+
+	return srng->ring_base_vaddr + srng->u.src_ring.hp;
 }
 
 void *ath12k_hal_srng_src_reap_next(struct ath12k_base *ab,
@@ -2113,7 +2149,7 @@ void ath12k_hal_srng_access_begin(struct ath12k_base *ab, struct hal_srng *srng)
 		srng->u.src_ring.cached_tp =
 			*(volatile u32 *)srng->u.src_ring.tp_addr;
 	else
-		srng->u.dst_ring.cached_hp = *srng->u.dst_ring.hp_addr;
+		srng->u.dst_ring.cached_hp = READ_ONCE(*srng->u.dst_ring.hp_addr);
 }
 
 /* Update cached ring head/tail pointers to HW. ath12k_hal_srng_access_begin()
