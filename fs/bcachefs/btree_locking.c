@@ -628,8 +628,13 @@ bool __bch2_btree_path_upgrade_norestart(struct btree_trans *trans,
 {
 	path->locks_want = new_locks_want;
 
-	struct get_locks_fail f = {};
-	bool ret = !btree_path_get_locks(trans, path, true, &f, 0);
+	/*
+	 * If we need it locked, we can't touch it. Otherwise, we can return
+	 * success - bch2_path_get() will use this path, and it'll just be
+	 * retraversed:
+	 */
+	bool ret = !btree_path_get_locks(trans, path, true, NULL, 0) ||
+		!path->should_be_locked;
 
 	bch2_btree_path_verify_locks(path);
 	return ret;
