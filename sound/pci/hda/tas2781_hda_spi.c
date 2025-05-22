@@ -526,169 +526,6 @@ static struct snd_kcontrol_new tas2781_dsp_ctls[] = {
 	},
 };
 
-static void tas2781_apply_calib(struct tasdevice_priv *tas_priv)
-{
-	struct calidata *cali_data = &tas_priv->cali_data;
-	struct cali_reg *r = &cali_data->cali_reg_array;
-	unsigned char *data = cali_data->data;
-	unsigned int *tmp_val = (unsigned int *)data;
-	unsigned int cali_reg[TASDEV_CALIB_N] = {
-		TASDEVICE_REG(0, 0x17, 0x74),
-		TASDEVICE_REG(0, 0x18, 0x0c),
-		TASDEVICE_REG(0, 0x18, 0x14),
-		TASDEVICE_REG(0, 0x13, 0x70),
-		TASDEVICE_REG(0, 0x18, 0x7c),
-	};
-	unsigned int crc, oft;
-	unsigned char *buf;
-	int i, j, k, l;
-
-	if (tmp_val[0] == 2781) {
-		/*
-		 * New features were added in calibrated Data V3:
-		 *     1. Added calibration registers address define in
-		 *	    a node, marked as Device id == 0x80.
-		 * New features were added in calibrated Data V2:
-		 *     1. Added some the fields to store the link_id and
-		 *	    uniqie_id for multi-link solutions
-		 *     2. Support flexible number of devices instead of
-		 *	    fixed one in V1.
-		 * Layout of calibrated data V2 in UEFI(total 256 bytes):
-		 *     ChipID (2781, 4 bytes)
-		 *     Data-Group-Sum (4 bytes)
-		 *     TimeStamp of Calibration (4 bytes)
-		 *     for (i = 0; i < Data-Group-Sum; i++) {
-		 *	    if (Data type != 0x80) (4 bytes)
-		 *		 Calibrated Data of Device #i (20 bytes)
-		 *	    else
-		 *		 Calibration registers address (5*4 = 20 bytes)
-		 *		 # V2: No reg addr in data grp section.
-		 *		 # V3: Normally the last grp is the reg addr.
-		 *     }
-		 *     CRC (4 bytes)
-		 *     Reserved (the rest)
-		 */
-		crc = crc32(~0, data, (3 + tmp_val[1] * 6) * 4) ^ ~0;
-
-		if (crc != tmp_val[3 + tmp_val[1] * 6]) {
-			cali_data->total_sz = 0;
-			dev_err(tas_priv->dev, "%s: CRC error\n", __func__);
-			return;
-		}
-
-		for (j = 0, k = 0; j < tmp_val[1]; j++) {
-			oft = j * 6 + 3;
-			if (tmp_val[oft] == TASDEV_UEFI_CALI_REG_ADDR_FLG) {
-				for (i = 0; i < TASDEV_CALIB_N; i++) {
-					buf = &data[(oft + i + 1) * 4];
-					cali_reg[i] = TASDEVICE_REG(buf[1],
-						buf[2], buf[3]);
-				}
-			} else {
-				l = j * (cali_data->cali_dat_sz_per_dev + 1);
-				if (k >= tas_priv->ndev || l > oft * 4) {
-					dev_err(tas_priv->dev,
-						"%s: dev sum error\n",
-						__func__);
-					cali_data->total_sz = 0;
-					return;
-				}
-
-				data[l] = k;
-				for (i = 0; i < TASDEV_CALIB_N * 4; i++)
-					data[l + i] = data[4 * oft + i];
-				k++;
-			}
-		}
-	} else {
-		/*
-		 * Calibration data is in V1 format.
-		 * struct cali_data {
-		 *     char cali_data[20];
-		 * }
-		 *
-		 * struct {
-		 *     struct cali_data cali_data[4];
-		 *     int  TimeStamp of Calibration (4 bytes)
-		 *     int CRC (4 bytes)
-		 * } ueft;
-		 */
-		crc = crc32(~0, data, 84) ^ ~0;
-		if (crc != tmp_val[21]) {
-			cali_data->total_sz = 0;
-			dev_err(tas_priv->dev, "%s: V1 CRC error\n", __func__);
-			return;
-		}
-
-		for (j = tas_priv->ndev - 1; j >= 0; j--) {
-			l = j * (cali_data->cali_dat_sz_per_dev + 1);
-			for (i = TASDEV_CALIB_N * 4; i > 0 ; i--)
-				data[l + i] = data[tas_priv->index * 5 + i];
-			data[l+i] = j;
-		}
-	}
-
-	if (tas_priv->dspbin_typ == TASDEV_BASIC) {
-		r->r0_reg = cali_reg[0];
-		r->invr0_reg = cali_reg[1];
-		r->r0_low_reg = cali_reg[2];
-		r->pow_reg = cali_reg[3];
-		r->tlimit_reg = cali_reg[4];
-	}
-
-	tas_priv->is_user_space_calidata = true;
-	cali_data->total_sz =
-		tas_priv->ndev * (cali_data->cali_dat_sz_per_dev + 1);
-}
-
-/*
- * Update the calibration data, including speaker impedance, f0, etc,
- * into algo. Calibrate data is done by manufacturer in the factory.
- * These data are used by Algo for calculating the speaker temperature,
- * speaker membrane excursion and f0 in real time during playback.
- * Calibration data format in EFI is V2, since 2024.
- */
-static int tas2781_save_calibration(struct tasdevice_priv *tas_priv)
-{
-	/*
-	 * GUID was used for data access in BIOS, it was provided by board
-	 * manufactory, like HP: "{02f9af02-7734-4233-b43d-93fe5aa35db3}"
-	 */
-	efi_guid_t efi_guid =
-		EFI_GUID(0x02f9af02, 0x7734, 0x4233,
-			 0xb4, 0x3d, 0x93, 0xfe, 0x5a, 0xa3, 0x5d, 0xb3);
-	static efi_char16_t efi_name[] = TASDEVICE_CALIBRATION_DATA_NAME;
-	struct calidata *cali_data = &tas_priv->cali_data;
-	unsigned long total_sz = 0;
-	unsigned int attr, size;
-	efi_status_t status;
-	unsigned char *data;
-
-	cali_data->cali_dat_sz_per_dev = 20;
-	size = tas_priv->ndev * (cali_data->cali_dat_sz_per_dev + 1);
-	status = efi.get_variable(efi_name, &efi_guid, &attr, &total_sz, NULL);
-	cali_data->total_sz = total_sz > size ? total_sz : size;
-	if (status == EFI_BUFFER_TOO_SMALL) {
-		/* Allocate data buffer of data_size bytes */
-		data = tas_priv->cali_data.data = devm_kzalloc(tas_priv->dev,
-			tas_priv->cali_data.total_sz, GFP_KERNEL);
-		if (!data) {
-			tas_priv->cali_data.total_sz = 0;
-			return -ENOMEM;
-		}
-		/* Get variable contents into buffer */
-		status = efi.get_variable(efi_name, &efi_guid, &attr,
-			&tas_priv->cali_data.total_sz, data);
-	}
-	if (status != EFI_SUCCESS) {
-		tas_priv->cali_data.total_sz = 0;
-		return status;
-	}
-
-	tas_priv->apply_calibration(tas_priv);
-	return 0;
-}
-
 static void tas2781_hda_remove_controls(struct tas2781_hda *tas_hda)
 {
 	struct hda_codec *codec = tas_hda->priv->codec;
@@ -858,7 +695,7 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 	 * If calibrated data occurs error, dsp will still works with default
 	 * calibrated data inside algo.
 	 */
-	tas2781_save_calibration(tas_priv);
+	tas2781_save_calibration(tas_hda);
 out:
 	release_firmware(fmw);
 	pm_runtime_mark_last_busy(tas_hda->priv->dev);
@@ -961,8 +798,6 @@ static int tas2781_hda_spi_probe(struct spi_device *spi)
 	}
 	if (strstr(dev_name(&spi->dev), "TXNW2781")) {
 		device_name = "TXNW2781";
-		tas_priv->save_calibration = tas2781_save_calibration;
-		tas_priv->apply_calibration = tas2781_apply_calib;
 	} else {
 		dev_err(tas_priv->dev, "Unmatched spi dev %s\n",
 			dev_name(&spi->dev));

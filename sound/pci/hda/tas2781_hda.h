@@ -9,6 +9,8 @@
 
 #include <sound/asound.h>
 
+/* Flag of calibration registers address. */
+#define TASDEV_UEFI_CALI_REG_ADDR_FLG	BIT(7)
 #define TASDEVICE_CALIBRATION_DATA_NAME	L"CALI_DATA"
 #define TASDEV_CALIB_N			5
 
@@ -44,6 +46,13 @@
 	.private_value = xdata, \
 }
 
+enum device_catlog_id {
+	DELL = 0,
+	HP,
+	LENOVO,
+	OTHERS
+};
+
 struct tas2781_hda {
 	struct device *dev;
 	struct tasdevice_priv *priv;
@@ -54,6 +63,9 @@ struct tas2781_hda {
 	void *hda_priv;
 };
 
+extern const efi_guid_t tasdev_fct_efi_guid[];
+
+int tas2781_save_calibration(struct tas2781_hda *p);
 void tas2781_hda_remove(struct device *dev,
 	const struct component_ops *ops);
 int tasdevice_info_profile(struct snd_kcontrol *kctl,
