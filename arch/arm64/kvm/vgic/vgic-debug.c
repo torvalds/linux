@@ -352,7 +352,7 @@ static inline bool end_of_iter(struct vgic_its_iter *iter)
 }
 
 /**
- * vigc_its_iter_next - Advances the iterator to the next entry in the ITS tables.
+ * vgic_its_iter_next - Advances the iterator to the next entry in the ITS tables.
  * @its: The VGIC ITS structure.
  * @iter: The iterator to advance.
  *
