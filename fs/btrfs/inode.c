@@ -4250,9 +4250,9 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_del_inode_ref(trans, root, name, ino, dir_ino, &index);
 	if (ret) {
-		btrfs_info(fs_info,
-			"failed to delete reference to %.*s, inode %llu parent %llu",
-			name->len, name->name, ino, dir_ino);
+		btrfs_crit(fs_info,
+	   "failed to delete reference to %.*s, root %llu inode %llu parent %llu",
+			   name->len, name->name, btrfs_root_id(root), ino, dir_ino);
 		btrfs_abort_transaction(trans, ret);
 		goto err;
 	}
