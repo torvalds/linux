@@ -428,19 +428,16 @@ static int mxc_isi_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, isi->num_clks, "Failed to get clocks\n");
 
 	isi->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(isi->regs)) {
-		dev_err(dev, "Failed to get ISI register map\n");
-		return PTR_ERR(isi->regs);
-	}
+	if (IS_ERR(isi->regs))
+		return dev_err_probe(dev, PTR_ERR(isi->regs),
+				     "Failed to get ISI register map\n");
 
 	if (isi->pdata->gasket_ops) {
 		isi->gasket = syscon_regmap_lookup_by_phandle(dev->of_node,
 							      "fsl,blk-ctrl");
-		if (IS_ERR(isi->gasket)) {
-			ret = PTR_ERR(isi->gasket);
-			dev_err(dev, "failed to get gasket: %d\n", ret);
-			return ret;
-		}
+		if (IS_ERR(isi->gasket))
+			return dev_err_probe(dev, PTR_ERR(isi->gasket),
+					     "failed to get gasket\n");
 	}
 
 	dma_size = isi->pdata->has_36bit_dma ? 36 : 32;
