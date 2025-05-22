@@ -252,6 +252,15 @@
 			no-map;
 		};
 
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			alloc-ranges = <0 0xc0000000 0 0x3c000000>;
+			size = <0 0x3c000000>;
+			linux,cma-default;
+			reusable;
+		};
+
 		gpu_reserved: memory@880000000 {
 			no-map;
 			reg = <0x8 0x80000000 0 0x10000000>;
