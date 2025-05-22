@@ -296,7 +296,7 @@ static const struct dev_pm_ops hda_acpi_pm = {
 	SYSTEM_SLEEP_PM_OPS(hda_acpi_suspend, hda_acpi_resume)
 };
 
-struct hda_data nvidia_hda_data = {
+static const struct hda_data nvidia_hda_data = {
 	.short_name = "NVIDIA",
 	.long_name = "NVIDIA HDA Controller",
 	.flags = AZX_DCAPS_CORBRP_SELF_CLEAR,
