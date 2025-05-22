@@ -121,11 +121,6 @@ enum dspbin_type {
 	TASDEV_BETA,
 };
 
-enum device_catlog_id {
-	LENOVO = 0,
-	OTHERS
-};
-
 struct bulk_reg_val {
 	int reg;
 	unsigned char val[4];
@@ -172,7 +167,6 @@ struct tasdevice_priv {
 	struct regmap *regmap;
 	struct device *dev;
 
-	enum device_catlog_id catlog_id;
 	unsigned char cal_binaryname[TASDEVICE_MAX_CHANNELS][64];
 	unsigned char crc8_lkp_tbl[CRC8_TABLE_SIZE];
 	unsigned char coef_binaryname[64];
@@ -223,8 +217,6 @@ struct tasdevice_priv {
 	int (*dev_bulk_read)(struct tasdevice_priv *tas_priv,
 		unsigned short chn, unsigned int reg, unsigned char *p_data,
 		unsigned int n_length);
-	int (*save_calibration)(struct tasdevice_priv *tas_priv);
-	void (*apply_calibration)(struct tasdevice_priv *tas_priv);
 };
 
 int tasdevice_dev_read(struct tasdevice_priv *tas_priv,
@@ -238,6 +230,4 @@ int tasdevice_dev_bulk_write(
 	struct tasdevice_priv *tas_priv, unsigned short chn,
 	unsigned int reg, unsigned char *p_data, unsigned int n_length);
 void tasdevice_remove(struct tasdevice_priv *tas_priv);
-int tasdevice_save_calibration(struct tasdevice_priv *tas_priv);
-void tasdevice_apply_calibration(struct tasdevice_priv *tas_priv);
 #endif /* __TAS2781_H__ */
