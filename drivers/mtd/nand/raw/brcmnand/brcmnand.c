@@ -101,7 +101,7 @@ struct brcm_nand_dma_desc {
 #define BRCMNAND_MIN_DEVSIZE	(4ULL * 1024 * 1024)
 
 #define NAND_CTRL_RDY			(INTFC_CTLR_READY | INTFC_FLASH_READY)
-#define NAND_POLL_STATUS_TIMEOUT_MS	100
+#define NAND_POLL_STATUS_TIMEOUT_MS	500
 
 #define EDU_CMD_WRITE          0x00
 #define EDU_CMD_READ           0x01
