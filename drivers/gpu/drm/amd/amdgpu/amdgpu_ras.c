@@ -2886,8 +2886,20 @@ static int __amdgpu_ras_convert_rec_from_rom(struct amdgpu_device *adev,
 				bps->retired_page << AMDGPU_GPU_PAGE_SHIFT))
 			return -EINVAL;
 	} else {
-		if (amdgpu_ras_mca2pa_by_idx(adev, bps, err_data))
-			return -EINVAL;
+		if (bps->address) {
+			if (amdgpu_ras_mca2pa_by_idx(adev, bps, err_data))
+				return -EINVAL;
+		} else {
+			/* for specific old eeprom data, mca address is not stored,
+			 * calc it from pa
+			 */
+			if (amdgpu_umc_pa2mca(adev, bps->retired_page << AMDGPU_GPU_PAGE_SHIFT,
+				&(bps->address), AMDGPU_NPS1_PARTITION_MODE))
+				return -EINVAL;
+
+			if (amdgpu_ras_mca2pa(adev, bps, err_data))
+				return -EOPNOTSUPP;
+		}
 	}
 
 	return __amdgpu_ras_restore_bad_pages(adev, err_data->err_addr,
