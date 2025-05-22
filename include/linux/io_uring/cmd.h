@@ -140,6 +140,15 @@ static inline struct io_uring_cmd_data *io_uring_cmd_get_async_data(struct io_ur
 	return cmd_to_io_kiocb(cmd)->async_data;
 }
 
+/*
+ * Return uring_cmd's context reference as its context handle for driver to
+ * track per-context resource, such as registered kernel IO buffer
+ */
+static inline void *io_uring_cmd_ctx_handle(struct io_uring_cmd *cmd)
+{
+	return cmd_to_io_kiocb(cmd)->ctx;
+}
+
 int io_buffer_register_bvec(struct io_uring_cmd *cmd, struct request *rq,
 			    void (*release)(void *), unsigned int index,
 			    unsigned int issue_flags);
