@@ -243,7 +243,7 @@ struct tsens_plat_data data_8976 = {
 	.fields		= tsens_v1_regfields,
 };
 
-const struct tsens_ops ops_ipq5018 = {
+static const struct tsens_ops ops_ipq5018 = {
 	.init		= init_tsens_v1_no_rpm,
 	.calibrate	= tsens_calibrate_common,
 	.get_temp	= get_temp_tsens_valid,
