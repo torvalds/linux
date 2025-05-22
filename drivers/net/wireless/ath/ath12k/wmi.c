@@ -4992,6 +4992,444 @@ static int ath12k_wmi_tlv_mac_phy_caps_ext(struct ath12k_base *ab, u16 tag,
 	return 0;
 }
 
+static void
+ath12k_wmi_update_freq_info(struct ath12k_base *ab,
+			    struct ath12k_svc_ext_mac_phy_info *mac_cap,
+			    enum ath12k_hw_mode mode,
+			    u32 phy_id)
+{
+	struct ath12k_hw_mode_info *hw_mode_info = &ab->wmi_ab.hw_mode_info;
+	struct ath12k_hw_mode_freq_range_arg *mac_range;
+
+	mac_range = &hw_mode_info->freq_range_caps[mode][phy_id];
+
+	if (mac_cap->supported_bands & WMI_HOST_WLAN_2GHZ_CAP) {
+		mac_range->low_2ghz_freq = max_t(u32,
+						 mac_cap->hw_freq_range.low_2ghz_freq,
+						 ATH12K_MIN_2GHZ_FREQ);
+		mac_range->high_2ghz_freq = mac_cap->hw_freq_range.high_2ghz_freq ?
+					    min_t(u32,
+						  mac_cap->hw_freq_range.high_2ghz_freq,
+						  ATH12K_MAX_2GHZ_FREQ) :
+					    ATH12K_MAX_2GHZ_FREQ;
+	}
+
+	if (mac_cap->supported_bands & WMI_HOST_WLAN_5GHZ_CAP) {
+		mac_range->low_5ghz_freq = max_t(u32,
+						 mac_cap->hw_freq_range.low_5ghz_freq,
+						 ATH12K_MIN_5GHZ_FREQ);
+		mac_range->high_5ghz_freq = mac_cap->hw_freq_range.high_5ghz_freq ?
+					    min_t(u32,
+						  mac_cap->hw_freq_range.high_5ghz_freq,
+						  ATH12K_MAX_6GHZ_FREQ) :
+					    ATH12K_MAX_6GHZ_FREQ;
+	}
+}
+
+static bool
+ath12k_wmi_all_phy_range_updated(struct ath12k_base *ab,
+				 enum ath12k_hw_mode hwmode)
+{
+	struct ath12k_hw_mode_info *hw_mode_info = &ab->wmi_ab.hw_mode_info;
+	struct ath12k_hw_mode_freq_range_arg *mac_range;
+	u8 phy_id;
+
+	for (phy_id = 0; phy_id < MAX_RADIOS; phy_id++) {
+		mac_range = &hw_mode_info->freq_range_caps[hwmode][phy_id];
+		/* modify SBS/DBS range only when both phy for DBS are filled */
+		if (!mac_range->low_2ghz_freq && !mac_range->low_5ghz_freq)
+			return false;
+	}
+
+	return true;
+}
+
+static void ath12k_wmi_update_dbs_freq_info(struct ath12k_base *ab)
+{
+	struct ath12k_hw_mode_info *hw_mode_info = &ab->wmi_ab.hw_mode_info;
+	struct ath12k_hw_mode_freq_range_arg *mac_range;
+	u8 phy_id;
+
+	mac_range = hw_mode_info->freq_range_caps[ATH12K_HW_MODE_DBS];
+	/* Reset 5 GHz range for shared mac for DBS */
+	for (phy_id = 0; phy_id < MAX_RADIOS; phy_id++) {
+		if (mac_range[phy_id].low_2ghz_freq &&
+		    mac_range[phy_id].low_5ghz_freq) {
+			mac_range[phy_id].low_5ghz_freq = 0;
+			mac_range[phy_id].high_5ghz_freq = 0;
+		}
+	}
+}
+
+static u32
+ath12k_wmi_get_highest_5ghz_freq_from_range(struct ath12k_hw_mode_freq_range_arg *range)
+{
+	u32 highest_freq = 0;
+	u8 phy_id;
+
+	for (phy_id = 0; phy_id < MAX_RADIOS; phy_id++) {
+		if (range[phy_id].high_5ghz_freq > highest_freq)
+			highest_freq = range[phy_id].high_5ghz_freq;
+	}
+
+	return highest_freq ? highest_freq : ATH12K_MAX_6GHZ_FREQ;
+}
+
+static u32
+ath12k_wmi_get_lowest_5ghz_freq_from_range(struct ath12k_hw_mode_freq_range_arg *range)
+{
+	u32 lowest_freq = 0;
+	u8 phy_id;
+
+	for (phy_id = 0; phy_id < MAX_RADIOS; phy_id++) {
+		if ((!lowest_freq && range[phy_id].low_5ghz_freq) ||
+		    range[phy_id].low_5ghz_freq < lowest_freq)
+			lowest_freq = range[phy_id].low_5ghz_freq;
+	}
+
+	return lowest_freq ? lowest_freq : ATH12K_MIN_5GHZ_FREQ;
+}
+
+static void
+ath12k_wmi_fill_upper_share_sbs_freq(struct ath12k_base *ab,
+				     u16 sbs_range_sep,
+				     struct ath12k_hw_mode_freq_range_arg *ref_freq)
+{
+	struct ath12k_hw_mode_info *hw_mode_info = &ab->wmi_ab.hw_mode_info;
+	struct ath12k_hw_mode_freq_range_arg *upper_sbs_freq_range;
+	u8 phy_id;
+
+	upper_sbs_freq_range =
+			hw_mode_info->freq_range_caps[ATH12K_HW_MODE_SBS_UPPER_SHARE];
+
+	for (phy_id = 0; phy_id < MAX_RADIOS; phy_id++) {
+		upper_sbs_freq_range[phy_id].low_2ghz_freq =
+						ref_freq[phy_id].low_2ghz_freq;
+		upper_sbs_freq_range[phy_id].high_2ghz_freq =
+						ref_freq[phy_id].high_2ghz_freq;
+
+		/* update for shared mac */
+		if (upper_sbs_freq_range[phy_id].low_2ghz_freq) {
+			upper_sbs_freq_range[phy_id].low_5ghz_freq = sbs_range_sep + 10;
+			upper_sbs_freq_range[phy_id].high_5ghz_freq =
+				ath12k_wmi_get_highest_5ghz_freq_from_range(ref_freq);
+		} else {
+			upper_sbs_freq_range[phy_id].low_5ghz_freq =
+				ath12k_wmi_get_lowest_5ghz_freq_from_range(ref_freq);
+			upper_sbs_freq_range[phy_id].high_5ghz_freq = sbs_range_sep;
+		}
+	}
+}
+
+static void
+ath12k_wmi_fill_lower_share_sbs_freq(struct ath12k_base *ab,
+				     u16 sbs_range_sep,
+				     struct ath12k_hw_mode_freq_range_arg *ref_freq)
+{
+	struct ath12k_hw_mode_info *hw_mode_info = &ab->wmi_ab.hw_mode_info;
+	struct ath12k_hw_mode_freq_range_arg *lower_sbs_freq_range;
+	u8 phy_id;
+
+	lower_sbs_freq_range =
+			hw_mode_info->freq_range_caps[ATH12K_HW_MODE_SBS_LOWER_SHARE];
+
+	for (phy_id = 0; phy_id < MAX_RADIOS; phy_id++) {
+		lower_sbs_freq_range[phy_id].low_2ghz_freq =
+						ref_freq[phy_id].low_2ghz_freq;
+		lower_sbs_freq_range[phy_id].high_2ghz_freq =
+						ref_freq[phy_id].high_2ghz_freq;
+
+		/* update for shared mac */
+		if (lower_sbs_freq_range[phy_id].low_2ghz_freq) {
+			lower_sbs_freq_range[phy_id].low_5ghz_freq =
+				ath12k_wmi_get_lowest_5ghz_freq_from_range(ref_freq);
+			lower_sbs_freq_range[phy_id].high_5ghz_freq = sbs_range_sep;
+		} else {
+			lower_sbs_freq_range[phy_id].low_5ghz_freq = sbs_range_sep + 10;
+			lower_sbs_freq_range[phy_id].high_5ghz_freq =
+				ath12k_wmi_get_highest_5ghz_freq_from_range(ref_freq);
+		}
+	}
+}
+
+static const char *ath12k_wmi_hw_mode_to_str(enum ath12k_hw_mode hw_mode)
+{
+	static const char * const mode_str[] = {
+		[ATH12K_HW_MODE_SMM] = "SMM",
+		[ATH12K_HW_MODE_DBS] = "DBS",
+		[ATH12K_HW_MODE_SBS] = "SBS",
+		[ATH12K_HW_MODE_SBS_UPPER_SHARE] = "SBS_UPPER_SHARE",
+		[ATH12K_HW_MODE_SBS_LOWER_SHARE] = "SBS_LOWER_SHARE",
+	};
+
+	if (hw_mode >= ARRAY_SIZE(mode_str))
+		return "Unknown";
+
+	return mode_str[hw_mode];
+}
+
+static void
+ath12k_wmi_dump_freq_range_per_mac(struct ath12k_base *ab,
+				   struct ath12k_hw_mode_freq_range_arg *freq_range,
+				   enum ath12k_hw_mode hw_mode)
+{
+	u8 i;
+
+	for (i = 0; i < MAX_RADIOS; i++)
+		if (freq_range[i].low_2ghz_freq || freq_range[i].low_5ghz_freq)
+			ath12k_dbg(ab, ATH12K_DBG_WMI,
+				   "frequency range: %s(%d) mac %d 2 GHz [%d - %d] 5 GHz [%d - %d]",
+				   ath12k_wmi_hw_mode_to_str(hw_mode),
+				   hw_mode, i,
+				   freq_range[i].low_2ghz_freq,
+				   freq_range[i].high_2ghz_freq,
+				   freq_range[i].low_5ghz_freq,
+				   freq_range[i].high_5ghz_freq);
+}
+
+static void ath12k_wmi_dump_freq_range(struct ath12k_base *ab)
+{
+	struct ath12k_hw_mode_freq_range_arg *freq_range;
+	u8 i;
+
+	for (i = ATH12K_HW_MODE_SMM; i < ATH12K_HW_MODE_MAX; i++) {
+		freq_range = ab->wmi_ab.hw_mode_info.freq_range_caps[i];
+		ath12k_wmi_dump_freq_range_per_mac(ab, freq_range, i);
+	}
+}
+
+static int ath12k_wmi_modify_sbs_freq(struct ath12k_base *ab, u8 phy_id)
+{
+	struct ath12k_hw_mode_info *hw_mode_info = &ab->wmi_ab.hw_mode_info;
+	struct ath12k_hw_mode_freq_range_arg *sbs_mac_range, *shared_mac_range;
+	struct ath12k_hw_mode_freq_range_arg *non_shared_range;
+	u8 shared_phy_id;
+
+	sbs_mac_range = &hw_mode_info->freq_range_caps[ATH12K_HW_MODE_SBS][phy_id];
+
+	/* if SBS mac range has both 2.4 and 5 GHz ranges, i.e. shared phy_id
+	 * keep the range as it is in SBS
+	 */
+	if (sbs_mac_range->low_2ghz_freq && sbs_mac_range->low_5ghz_freq)
+		return 0;
+
+	if (sbs_mac_range->low_2ghz_freq && !sbs_mac_range->low_5ghz_freq) {
+		ath12k_err(ab, "Invalid DBS/SBS mode with only 2.4Ghz");
+		ath12k_wmi_dump_freq_range_per_mac(ab, sbs_mac_range, ATH12K_HW_MODE_SBS);
+		return -EINVAL;
+	}
+
+	non_shared_range = sbs_mac_range;
+	/* if SBS mac range has only 5 GHz then it's the non-shared phy, so
+	 * modify the range as per the shared mac.
+	 */
+	shared_phy_id = phy_id ? 0 : 1;
+	shared_mac_range =
+		&hw_mode_info->freq_range_caps[ATH12K_HW_MODE_SBS][shared_phy_id];
+
+	if (shared_mac_range->low_5ghz_freq > non_shared_range->low_5ghz_freq) {
+		ath12k_dbg(ab, ATH12K_DBG_WMI, "high 5 GHz shared");
+		/* If the shared mac lower 5 GHz frequency is greater than
+		 * non-shared mac lower 5 GHz frequency then the shared mac has
+		 * high 5 GHz shared with 2.4 GHz. So non-shared mac's 5 GHz high
+		 * freq should be less than the shared mac's low 5 GHz freq.
+		 */
+		if (non_shared_range->high_5ghz_freq >=
+		    shared_mac_range->low_5ghz_freq)
+			non_shared_range->high_5ghz_freq =
+				max_t(u32, shared_mac_range->low_5ghz_freq - 10,
+				      non_shared_range->low_5ghz_freq);
+	} else if (shared_mac_range->high_5ghz_freq <
+		   non_shared_range->high_5ghz_freq) {
+		ath12k_dbg(ab, ATH12K_DBG_WMI, "low 5 GHz shared");
+		/* If the shared mac high 5 GHz frequency is less than
+		 * non-shared mac high 5 GHz frequency then the shared mac has
+		 * low 5 GHz shared with 2.4 GHz. So non-shared mac's 5 GHz low
+		 * freq should be greater than the shared mac's high 5 GHz freq.
+		 */
+		if (shared_mac_range->high_5ghz_freq >=
+		    non_shared_range->low_5ghz_freq)
+			non_shared_range->low_5ghz_freq =
+				min_t(u32, shared_mac_range->high_5ghz_freq + 10,
+				      non_shared_range->high_5ghz_freq);
+	} else {
+		ath12k_warn(ab, "invalid SBS range with all 5 GHz shared");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void ath12k_wmi_update_sbs_freq_info(struct ath12k_base *ab)
+{
+	struct ath12k_hw_mode_info *hw_mode_info = &ab->wmi_ab.hw_mode_info;
+	struct ath12k_hw_mode_freq_range_arg *mac_range;
+	u16 sbs_range_sep;
+	u8 phy_id;
+	int ret;
+
+	mac_range = hw_mode_info->freq_range_caps[ATH12K_HW_MODE_SBS];
+
+	/* If sbs_lower_band_end_freq has a value, then the frequency range
+	 * will be split using that value.
+	 */
+	sbs_range_sep = ab->wmi_ab.sbs_lower_band_end_freq;
+	if (sbs_range_sep) {
+		ath12k_wmi_fill_upper_share_sbs_freq(ab, sbs_range_sep,
+						     mac_range);
+		ath12k_wmi_fill_lower_share_sbs_freq(ab, sbs_range_sep,
+						     mac_range);
+		/* Hardware specifies the range boundary with sbs_range_sep,
+		 * (i.e. the boundary between 5 GHz high and 5 GHz low),
+		 * reset the original one to make sure it will not get used.
+		 */
+		memset(mac_range, 0, sizeof(*mac_range) * MAX_RADIOS);
+		return;
+	}
+
+	/* If sbs_lower_band_end_freq is not set that means firmware will send one
+	 * shared mac range and one non-shared mac range. so update that freq.
+	 */
+	for (phy_id = 0; phy_id < MAX_RADIOS; phy_id++) {
+		ret = ath12k_wmi_modify_sbs_freq(ab, phy_id);
+		if (ret) {
+			memset(mac_range, 0, sizeof(*mac_range) * MAX_RADIOS);
+			break;
+		}
+	}
+}
+
+static void
+ath12k_wmi_update_mac_freq_info(struct ath12k_base *ab,
+				enum wmi_host_hw_mode_config_type hw_config_type,
+				u32 phy_id,
+				struct ath12k_svc_ext_mac_phy_info *mac_cap)
+{
+	if (phy_id >= MAX_RADIOS) {
+		ath12k_err(ab, "mac more than two not supported: %d", phy_id);
+		return;
+	}
+
+	ath12k_dbg(ab, ATH12K_DBG_WMI,
+		   "hw_mode_cfg %d mac %d band 0x%x SBS cutoff freq %d 2 GHz [%d - %d] 5 GHz [%d - %d]",
+		   hw_config_type, phy_id, mac_cap->supported_bands,
+		   ab->wmi_ab.sbs_lower_band_end_freq,
+		   mac_cap->hw_freq_range.low_2ghz_freq,
+		   mac_cap->hw_freq_range.high_2ghz_freq,
+		   mac_cap->hw_freq_range.low_5ghz_freq,
+		   mac_cap->hw_freq_range.high_5ghz_freq);
+
+	switch (hw_config_type) {
+	case WMI_HOST_HW_MODE_SINGLE:
+		if (phy_id) {
+			ath12k_dbg(ab, ATH12K_DBG_WMI, "mac phy 1 is not supported");
+			break;
+		}
+		ath12k_wmi_update_freq_info(ab, mac_cap, ATH12K_HW_MODE_SMM, phy_id);
+		break;
+
+	case WMI_HOST_HW_MODE_DBS:
+		if (!ath12k_wmi_all_phy_range_updated(ab, ATH12K_HW_MODE_DBS))
+			ath12k_wmi_update_freq_info(ab, mac_cap,
+						    ATH12K_HW_MODE_DBS, phy_id);
+		break;
+	case WMI_HOST_HW_MODE_DBS_SBS:
+	case WMI_HOST_HW_MODE_DBS_OR_SBS:
+		ath12k_wmi_update_freq_info(ab, mac_cap, ATH12K_HW_MODE_DBS, phy_id);
+		if (ab->wmi_ab.sbs_lower_band_end_freq ||
+		    mac_cap->hw_freq_range.low_5ghz_freq ||
+		    mac_cap->hw_freq_range.low_2ghz_freq)
+			ath12k_wmi_update_freq_info(ab, mac_cap, ATH12K_HW_MODE_SBS,
+						    phy_id);
+
+		if (ath12k_wmi_all_phy_range_updated(ab, ATH12K_HW_MODE_DBS))
+			ath12k_wmi_update_dbs_freq_info(ab);
+		if (ath12k_wmi_all_phy_range_updated(ab, ATH12K_HW_MODE_SBS))
+			ath12k_wmi_update_sbs_freq_info(ab);
+		break;
+	case WMI_HOST_HW_MODE_SBS:
+	case WMI_HOST_HW_MODE_SBS_PASSIVE:
+		ath12k_wmi_update_freq_info(ab, mac_cap, ATH12K_HW_MODE_SBS, phy_id);
+		if (ath12k_wmi_all_phy_range_updated(ab, ATH12K_HW_MODE_SBS))
+			ath12k_wmi_update_sbs_freq_info(ab);
+
+		break;
+	default:
+		break;
+	}
+}
+
+static bool ath12k_wmi_sbs_range_present(struct ath12k_base *ab)
+{
+	if (ath12k_wmi_all_phy_range_updated(ab, ATH12K_HW_MODE_SBS) ||
+	    (ab->wmi_ab.sbs_lower_band_end_freq &&
+	     ath12k_wmi_all_phy_range_updated(ab, ATH12K_HW_MODE_SBS_LOWER_SHARE) &&
+	     ath12k_wmi_all_phy_range_updated(ab, ATH12K_HW_MODE_SBS_UPPER_SHARE)))
+		return true;
+
+	return false;
+}
+
+static int ath12k_wmi_update_hw_mode_list(struct ath12k_base *ab)
+{
+	struct ath12k_svc_ext_info *svc_ext_info = &ab->wmi_ab.svc_ext_info;
+	struct ath12k_hw_mode_info *info = &ab->wmi_ab.hw_mode_info;
+	enum wmi_host_hw_mode_config_type hw_config_type;
+	struct ath12k_svc_ext_mac_phy_info *tmp;
+	bool dbs_mode = false, sbs_mode = false;
+	u32 i, j = 0;
+
+	if (!svc_ext_info->num_hw_modes) {
+		ath12k_err(ab, "invalid number of hw modes");
+		return -EINVAL;
+	}
+
+	ath12k_dbg(ab, ATH12K_DBG_WMI, "updated HW mode list: num modes %d",
+		   svc_ext_info->num_hw_modes);
+
+	memset(info->freq_range_caps, 0, sizeof(info->freq_range_caps));
+
+	for (i = 0; i < svc_ext_info->num_hw_modes; i++) {
+		if (j >= ATH12K_MAX_MAC_PHY_CAP)
+			return -EINVAL;
+
+		/* Update for MAC0 */
+		tmp = &svc_ext_info->mac_phy_info[j++];
+		hw_config_type = tmp->hw_mode_config_type;
+		ath12k_wmi_update_mac_freq_info(ab, hw_config_type, tmp->phy_id, tmp);
+
+		/* SBS and DBS have dual MAC. Up to 2 MACs are considered. */
+		if (hw_config_type == WMI_HOST_HW_MODE_DBS ||
+		    hw_config_type == WMI_HOST_HW_MODE_SBS_PASSIVE ||
+		    hw_config_type == WMI_HOST_HW_MODE_SBS ||
+		    hw_config_type == WMI_HOST_HW_MODE_DBS_OR_SBS) {
+			if (j >= ATH12K_MAX_MAC_PHY_CAP)
+				return -EINVAL;
+			/* Update for MAC1 */
+			tmp = &svc_ext_info->mac_phy_info[j++];
+			ath12k_wmi_update_mac_freq_info(ab, hw_config_type,
+							tmp->phy_id, tmp);
+
+			if (hw_config_type == WMI_HOST_HW_MODE_DBS ||
+			    hw_config_type == WMI_HOST_HW_MODE_DBS_OR_SBS)
+				dbs_mode = true;
+
+			if (ath12k_wmi_sbs_range_present(ab) &&
+			    (hw_config_type == WMI_HOST_HW_MODE_SBS_PASSIVE ||
+			     hw_config_type == WMI_HOST_HW_MODE_SBS ||
+			     hw_config_type == WMI_HOST_HW_MODE_DBS_OR_SBS))
+				sbs_mode = true;
+		}
+	}
+
+	info->support_dbs = dbs_mode;
+	info->support_sbs = sbs_mode;
+
+	ath12k_wmi_dump_freq_range(ab);
+
+	return 0;
+}
+
 static int ath12k_wmi_svc_rdy_ext2_parse(struct ath12k_base *ab,
 					 u16 tag, u16 len,
 					 const void *ptr, void *data)
@@ -5054,8 +5492,16 @@ static int ath12k_wmi_svc_rdy_ext2_parse(struct ath12k_base *ab,
 			ath12k_dbg(ab, ATH12K_DBG_WMI, "sbs_lower_band_end_freq %u\n",
 				   ab->wmi_ab.sbs_lower_band_end_freq);
 
+			ret = ath12k_wmi_update_hw_mode_list(ab);
+			if (ret) {
+				ath12k_warn(ab, "failed to update hw mode list: %d\n",
+					    ret);
+				return ret;
+			}
+
 			parse->dbs_or_sbs_cap_ext_done = true;
 		}
+
 		break;
 	default:
 		break;

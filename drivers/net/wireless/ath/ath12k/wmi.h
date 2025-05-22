@@ -5083,6 +5083,32 @@ struct ath12k_svc_ext_info {
 	struct ath12k_svc_ext_mac_phy_info mac_phy_info[ATH12K_MAX_MAC_PHY_CAP];
 };
 
+/**
+ * enum ath12k_hw_mode - enum for host mode
+ * @ATH12K_HW_MODE_SMM: Single mac mode
+ * @ATH12K_HW_MODE_DBS: DBS mode
+ * @ATH12K_HW_MODE_SBS: SBS mode with either high share or low share
+ * @ATH12K_HW_MODE_SBS_UPPER_SHARE: Higher 5 GHz shared with 2.4 GHz
+ * @ATH12K_HW_MODE_SBS_LOWER_SHARE: Lower 5 GHz shared with 2.4 GHz
+ * @ATH12K_HW_MODE_MAX: Max, used to indicate invalid mode
+ */
+enum ath12k_hw_mode {
+	ATH12K_HW_MODE_SMM,
+	ATH12K_HW_MODE_DBS,
+	ATH12K_HW_MODE_SBS,
+	ATH12K_HW_MODE_SBS_UPPER_SHARE,
+	ATH12K_HW_MODE_SBS_LOWER_SHARE,
+	ATH12K_HW_MODE_MAX,
+};
+
+struct ath12k_hw_mode_info {
+	bool support_dbs:1;
+	bool support_sbs:1;
+
+	struct ath12k_hw_mode_freq_range_arg freq_range_caps[ATH12K_HW_MODE_MAX]
+							    [MAX_RADIOS];
+};
+
 struct ath12k_wmi_base {
 	struct ath12k_base *ab;
 	struct ath12k_wmi_pdev wmi[MAX_RADIOS];
@@ -5103,6 +5129,7 @@ struct ath12k_wmi_base {
 
 	struct ath12k_svc_ext_info svc_ext_info;
 	u32 sbs_lower_band_end_freq;
+	struct ath12k_hw_mode_info hw_mode_info;
 };
 
 struct wmi_pdev_set_bios_interface_cmd {
