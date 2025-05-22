@@ -69,6 +69,52 @@ static int mpl3115_request(struct mpl3115_data *data)
 	return 0;
 }
 
+static int mpl3115_read_info_raw(struct mpl3115_data *data,
+				 struct iio_chan_spec const *chan, int *val)
+{
+	int ret;
+
+	switch (chan->type) {
+	case IIO_PRESSURE: { /* in 0.25 pascal / LSB */
+		__be32 tmp = 0;
+
+		guard(mutex)(&data->lock);
+		ret = mpl3115_request(data);
+		if (ret < 0)
+			return ret;
+
+		ret = i2c_smbus_read_i2c_block_data(data->client,
+						    MPL3115_OUT_PRESS,
+						    3, (u8 *) &tmp);
+		if (ret < 0)
+			return ret;
+
+		*val = be32_to_cpu(tmp) >> chan->scan_type.shift;
+		return IIO_VAL_INT;
+	}
+	case IIO_TEMP: { /* in 0.0625 celsius / LSB */
+		__be16 tmp;
+
+		guard(mutex)(&data->lock);
+		ret = mpl3115_request(data);
+		if (ret < 0)
+			return ret;
+
+		ret = i2c_smbus_read_i2c_block_data(data->client,
+						    MPL3115_OUT_TEMP,
+						    2, (u8 *) &tmp);
+		if (ret < 0)
+			return ret;
+
+		*val = sign_extend32(be16_to_cpu(tmp) >> chan->scan_type.shift,
+				     chan->scan_type.realbits - 1);
+		return IIO_VAL_INT;
+	}
+	default:
+		return -EINVAL;
+	}
+}
+
 static int mpl3115_read_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int *val, int *val2, long mask)
@@ -78,54 +124,11 @@ static int mpl3115_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
-		switch (chan->type) {
-		case IIO_PRESSURE: { /* in 0.25 pascal / LSB */
-			__be32 tmp = 0;
-
-			mutex_lock(&data->lock);
-			ret = mpl3115_request(data);
-			if (ret < 0) {
-				mutex_unlock(&data->lock);
-				break;
-			}
-			ret = i2c_smbus_read_i2c_block_data(data->client,
-				MPL3115_OUT_PRESS, 3, (u8 *) &tmp);
-			mutex_unlock(&data->lock);
-			if (ret < 0)
-				break;
-			*val = be32_to_cpu(tmp) >> chan->scan_type.shift;
-			ret = IIO_VAL_INT;
-			break;
-		}
-		case IIO_TEMP: { /* in 0.0625 celsius / LSB */
-			__be16 tmp;
-
-			mutex_lock(&data->lock);
-			ret = mpl3115_request(data);
-			if (ret < 0) {
-				mutex_unlock(&data->lock);
-				break;
-			}
-			ret = i2c_smbus_read_i2c_block_data(data->client,
-				MPL3115_OUT_TEMP, 2, (u8 *) &tmp);
-			mutex_unlock(&data->lock);
-			if (ret < 0)
-				break;
-			*val = sign_extend32(be16_to_cpu(tmp) >> chan->scan_type.shift,
-					     chan->scan_type.realbits - 1);
-			ret = IIO_VAL_INT;
-			break;
-		}
-		default:
-			ret = -EINVAL;
-			break;
-		}
-
-		iio_device_release_direct_mode(indio_dev);
+		ret = mpl3115_read_info_raw(data, chan, val);
+		iio_device_release_direct(indio_dev);
 		return ret;
 
 	case IIO_CHAN_INFO_SCALE:
@@ -188,8 +191,8 @@ static irqreturn_t mpl3115_trigger_handler(int irq, void *p)
 	}
 	mutex_unlock(&data->lock);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, buffer,
-		iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, buffer, sizeof(buffer),
+				    iio_get_time_ns(indio_dev));
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);

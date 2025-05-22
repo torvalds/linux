@@ -1084,9 +1084,8 @@ static int vcnl4010_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 	case IIO_CHAN_INFO_SCALE:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		/* Protect against event capture. */
 		if (vcnl4010_is_in_periodic_mode(data)) {
@@ -1096,7 +1095,7 @@ static int vcnl4010_read_raw(struct iio_dev *indio_dev,
 						mask);
 		}
 
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		return ret;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		switch (chan->type) {
@@ -1157,9 +1156,8 @@ static int vcnl4010_write_raw(struct iio_dev *indio_dev,
 	int ret;
 	struct vcnl4000_data *data = iio_priv(indio_dev);
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
 	/* Protect against event capture. */
 	if (vcnl4010_is_in_periodic_mode(data)) {
@@ -1183,7 +1181,7 @@ static int vcnl4010_write_raw(struct iio_dev *indio_dev,
 	}
 
 end:
-	iio_device_release_direct_mode(indio_dev);
+	iio_device_release_direct(indio_dev);
 	return ret;
 }
 
@@ -1410,46 +1408,52 @@ static int vcnl4010_read_event_config(struct iio_dev *indio_dev,
 	}
 }
 
+static int vcnl4010_config_threshold_enable(struct vcnl4000_data *data)
+{
+	int ret;
+
+	/* Enable periodic measurement of proximity data. */
+	ret = i2c_smbus_write_byte_data(data->client, VCNL4000_COMMAND,
+					VCNL4000_SELF_TIMED_EN | VCNL4000_PROX_EN);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Enable interrupts on threshold, for proximity data by
+	 * default.
+	 */
+	return i2c_smbus_write_byte_data(data->client, VCNL4010_INT_CTRL,
+					 VCNL4010_INT_THR_EN);
+}
+
+static int vcnl4010_config_threshold_disable(struct vcnl4000_data *data)
+{
+	int ret;
+
+	if (!vcnl4010_is_thr_enabled(data))
+		return 0;
+
+	ret = i2c_smbus_write_byte_data(data->client, VCNL4000_COMMAND, 0);
+	if (ret < 0)
+		return ret;
+
+	return i2c_smbus_write_byte_data(data->client, VCNL4010_INT_CTRL, 0);
+}
+
 static int vcnl4010_config_threshold(struct iio_dev *indio_dev, bool state)
 {
 	struct vcnl4000_data *data = iio_priv(indio_dev);
 	int ret;
-	int icr;
-	int command;
 
 	if (state) {
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
-
-		/* Enable periodic measurement of proximity data. */
-		command = VCNL4000_SELF_TIMED_EN | VCNL4000_PROX_EN;
-
-		/*
-		 * Enable interrupts on threshold, for proximity data by
-		 * default.
-		 */
-		icr = VCNL4010_INT_THR_EN;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+		ret = vcnl4010_config_threshold_enable(data);
+		iio_device_release_direct(indio_dev);
+		return ret;
 	} else {
-		if (!vcnl4010_is_thr_enabled(data))
-			return 0;
-
-		command = 0;
-		icr = 0;
+		return vcnl4010_config_threshold_disable(data);
 	}
-
-	ret = i2c_smbus_write_byte_data(data->client, VCNL4000_COMMAND,
-					command);
-	if (ret < 0)
-		goto end;
-
-	ret = i2c_smbus_write_byte_data(data->client, VCNL4010_INT_CTRL, icr);
-
-end:
-	if (state)
-		iio_device_release_direct_mode(indio_dev);
-
-	return ret;
 }
 
 static int vcnl4010_write_event_config(struct iio_dev *indio_dev,
@@ -1741,7 +1745,7 @@ static const struct iio_chan_spec_ext_info vcnl4000_ext_info[] = {
 		.shared = IIO_SEPARATE,
 		.read = vcnl4000_read_near_level,
 	},
-	{ /* sentinel */ }
+	{ }
 };
 
 static const struct iio_event_spec vcnl4000_event_spec[] = {
@@ -2064,7 +2068,7 @@ static const struct of_device_id vcnl_4000_of_match[] = {
 		.compatible = "vishay,vcnl4200",
 		.data = (void *)VCNL4200,
 	},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, vcnl_4000_of_match);
 

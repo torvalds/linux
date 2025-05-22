@@ -464,7 +464,7 @@ static DEFINE_RUNTIME_DEV_PM_OPS(imx93_adc_pm_ops,
 
 static const struct of_device_id imx93_adc_match[] = {
 	{ .compatible = "nxp,imx93-adc", },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, imx93_adc_match);
 

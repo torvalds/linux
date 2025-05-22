@@ -156,6 +156,31 @@ static int vcnl4035_set_pm_runtime_state(struct vcnl4035_data *data, bool on)
 	return ret;
 }
 
+static int vcnl4035_read_info_raw(struct iio_dev *indio_dev,
+				  struct iio_chan_spec const *chan, int *val)
+{
+	struct vcnl4035_data *data = iio_priv(indio_dev);
+	int ret;
+	int raw_data;
+	unsigned int reg;
+
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	if (chan->channel)
+		reg = VCNL4035_ALS_DATA;
+	else
+		reg = VCNL4035_WHITE_DATA;
+	ret = regmap_read(data->regmap, reg, &raw_data);
+	iio_device_release_direct(indio_dev);
+	if (ret)
+		return ret;
+
+	*val = raw_data;
+
+	return IIO_VAL_INT;
+}
+
 /*
  *	Device IT	INT Time (ms)	Scale (lux/step)
  *	000		50		0.064
@@ -175,28 +200,13 @@ static int vcnl4035_read_raw(struct iio_dev *indio_dev,
 {
 	struct vcnl4035_data *data = iio_priv(indio_dev);
 	int ret;
-	int raw_data;
-	unsigned int reg;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		ret = vcnl4035_set_pm_runtime_state(data, true);
 		if  (ret < 0)
 			return ret;
-
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (!ret) {
-			if (chan->channel)
-				reg = VCNL4035_ALS_DATA;
-			else
-				reg = VCNL4035_WHITE_DATA;
-			ret = regmap_read(data->regmap, reg, &raw_data);
-			iio_device_release_direct_mode(indio_dev);
-			if (!ret) {
-				*val = raw_data;
-				ret = IIO_VAL_INT;
-			}
-		}
+		ret = vcnl4035_read_info_raw(indio_dev, chan, val);
 		vcnl4035_set_pm_runtime_state(data, false);
 		return ret;
 	case IIO_CHAN_INFO_INT_TIME:

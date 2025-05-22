@@ -37,13 +37,13 @@ static int bme680_i2c_probe(struct i2c_client *client)
 
 static const struct i2c_device_id bme680_i2c_id[] = {
 	{ "bme680" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bme680_i2c_id);
 
 static const struct of_device_id bme680_of_i2c_match[] = {
 	{ .compatible = "bosch,bme680", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, bme680_of_i2c_match);
 

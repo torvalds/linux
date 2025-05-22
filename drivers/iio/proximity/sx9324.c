@@ -202,7 +202,7 @@ static const struct iio_chan_spec_ext_info sx9324_channel_ext_info[] = {
 		.shared = IIO_SEPARATE,
 		.read = sx9324_phase_configuration_show,
 	},
-	{}
+	{ }
 };
 
 #define SX9324_CHANNEL(idx)					 \

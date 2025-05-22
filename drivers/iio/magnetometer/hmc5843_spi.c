@@ -60,7 +60,6 @@ static int hmc5843_spi_probe(struct spi_device *spi)
 
 	spi->mode = SPI_MODE_3;
 	spi->max_speed_hz = 8000000;
-	spi->bits_per_word = 8;
 	ret = spi_setup(spi);
 	if (ret)
 		return ret;

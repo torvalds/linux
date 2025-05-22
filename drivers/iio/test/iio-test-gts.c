@@ -499,7 +499,7 @@ static struct kunit_case iio_gts_test_cases[] = {
 	KUNIT_CASE(test_iio_find_closest_gain_low),
 	KUNIT_CASE(test_iio_gts_total_gain_to_scale),
 	KUNIT_CASE(test_iio_gts_avail_test),
-	{}
+	{ }
 };
 
 static struct kunit_suite iio_gts_test_suite = {

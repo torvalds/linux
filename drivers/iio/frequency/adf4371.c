@@ -438,7 +438,7 @@ static const struct iio_chan_spec_ext_info adf4371_ext_info[] = {
 	_ADF4371_EXT_INFO("frequency", ADF4371_FREQ),
 	_ADF4371_EXT_INFO("powerdown", ADF4371_POWER_DOWN),
 	_ADF4371_EXT_INFO("name", ADF4371_CHANNEL_NAME),
-	{ },
+	{ }
 };
 
 #define ADF4371_CHANNEL(index) { \
@@ -626,14 +626,14 @@ static int adf4371_probe(struct spi_device *spi)
 static const struct spi_device_id adf4371_id_table[] = {
 	{ "adf4371", (kernel_ulong_t)&adf4371_chip_info },
 	{ "adf4372", (kernel_ulong_t)&adf4372_chip_info },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, adf4371_id_table);
 
 static const struct of_device_id adf4371_of_match[] = {
 	{ .compatible = "adi,adf4371", .data = &adf4371_chip_info },
 	{ .compatible = "adi,adf4372", .data = &adf4372_chip_info},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, adf4371_of_match);
 

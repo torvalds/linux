@@ -296,7 +296,7 @@ static const struct iio_map da9150_gpadc_default_maps[] = {
 	IIO_MAP("VBUS", "da9150-charger", "CHAN_VBUS"),
 	IIO_MAP("TJUNC_CORE", "da9150-charger", "CHAN_TJUNC"),
 	IIO_MAP("VBAT", "da9150-charger", "CHAN_VBAT"),
-	{},
+	{ }
 };
 
 static int da9150_gpadc_probe(struct platform_device *pdev)

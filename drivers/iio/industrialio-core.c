@@ -26,6 +26,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
+#include <linux/wordpart.h>
 
 #include <linux/iio/buffer.h>
 #include <linux/iio/buffer_impl.h>
@@ -966,8 +967,10 @@ static ssize_t iio_write_channel_info(struct device *dev,
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret, fract_mult = 100000;
 	int integer, fract = 0;
+	long long integer64;
 	bool is_char = false;
 	bool scale_db = false;
+	bool is_64bit = false;
 
 	/* Assumes decimal - precision based on number of digits */
 	if (!indio_dev->info->write_raw)
@@ -991,6 +994,9 @@ static ssize_t iio_write_channel_info(struct device *dev,
 		case IIO_VAL_CHAR:
 			is_char = true;
 			break;
+		case IIO_VAL_INT_64:
+			is_64bit = true;
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -1001,6 +1007,13 @@ static ssize_t iio_write_channel_info(struct device *dev,
 		if (sscanf(buf, "%c", &ch) != 1)
 			return -EINVAL;
 		integer = ch;
+	} else if (is_64bit) {
+		ret = kstrtoll(buf, 0, &integer64);
+		if (ret)
+			return ret;
+
+		fract = upper_32_bits(integer64);
+		integer = lower_32_bits(integer64);
 	} else {
 		ret = __iio_str_to_fixpoint(buf, fract_mult, &integer, &fract,
 					    scale_db);
@@ -2144,17 +2157,19 @@ int __devm_iio_device_register(struct device *dev, struct iio_dev *indio_dev,
 EXPORT_SYMBOL_GPL(__devm_iio_device_register);
 
 /**
- * iio_device_claim_direct_mode - Keep device in direct mode
+ * __iio_device_claim_direct - Keep device in direct mode
  * @indio_dev:	the iio_dev associated with the device
  *
  * If the device is in direct mode it is guaranteed to stay
- * that way until iio_device_release_direct_mode() is called.
+ * that way until __iio_device_release_direct() is called.
  *
- * Use with iio_device_release_direct_mode()
+ * Use with __iio_device_release_direct().
  *
- * Returns: 0 on success, -EBUSY on failure.
+ * Drivers should only call iio_device_claim_direct().
+ *
+ * Returns: true on success, false on failure.
  */
-int iio_device_claim_direct_mode(struct iio_dev *indio_dev)
+bool __iio_device_claim_direct(struct iio_dev *indio_dev)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 
@@ -2162,26 +2177,28 @@ int iio_device_claim_direct_mode(struct iio_dev *indio_dev)
 
 	if (iio_buffer_enabled(indio_dev)) {
 		mutex_unlock(&iio_dev_opaque->mlock);
-		return -EBUSY;
+		return false;
 	}
-	return 0;
+	return true;
 }
-EXPORT_SYMBOL_GPL(iio_device_claim_direct_mode);
+EXPORT_SYMBOL_GPL(__iio_device_claim_direct);
 
 /**
- * iio_device_release_direct_mode - releases claim on direct mode
+ * __iio_device_release_direct - releases claim on direct mode
  * @indio_dev:	the iio_dev associated with the device
  *
  * Release the claim. Device is no longer guaranteed to stay
  * in direct mode.
  *
- * Use with iio_device_claim_direct_mode()
+ * Drivers should only call iio_device_release_direct().
+ *
+ * Use with __iio_device_claim_direct()
  */
-void iio_device_release_direct_mode(struct iio_dev *indio_dev)
+void __iio_device_release_direct(struct iio_dev *indio_dev)
 {
 	mutex_unlock(&to_iio_dev_opaque(indio_dev)->mlock);
 }
-EXPORT_SYMBOL_GPL(iio_device_release_direct_mode);
+EXPORT_SYMBOL_GPL(__iio_device_release_direct);
 
 /**
  * iio_device_claim_buffer_mode - Keep device in buffer mode

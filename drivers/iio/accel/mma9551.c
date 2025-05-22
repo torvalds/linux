@@ -578,14 +578,14 @@ static const struct dev_pm_ops mma9551_pm_ops = {
 
 static const struct acpi_device_id mma9551_acpi_match[] = {
 	{"MMA9551", 0},
-	{},
+	{ }
 };
 
 MODULE_DEVICE_TABLE(acpi, mma9551_acpi_match);
 
 static const struct i2c_device_id mma9551_id[] = {
 	{ "mma9551" },
-	{}
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, mma9551_id);

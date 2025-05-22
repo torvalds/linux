@@ -712,13 +712,13 @@ static DEFINE_RUNTIME_DEV_PM_OPS(tmag5273_pm_ops,
 
 static const struct i2c_device_id tmag5273_id[] = {
 	{ "tmag5273" },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tmag5273_id);
 
 static const struct of_device_id tmag5273_of_match[] = {
 	{ .compatible = "ti,tmag5273" },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, tmag5273_of_match);
 

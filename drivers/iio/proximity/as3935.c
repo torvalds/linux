@@ -231,8 +231,8 @@ static irqreturn_t as3935_trigger_handler(int irq, void *private)
 		goto err_read;
 
 	st->scan.chan = val & AS3935_DATA_MASK;
-	iio_push_to_buffers_with_timestamp(indio_dev, &st->scan,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &st->scan, sizeof(st->scan),
+				    iio_get_time_ns(indio_dev));
 err_read:
 	iio_trigger_notify_done(indio_dev->trig);
 
@@ -444,13 +444,13 @@ static int as3935_probe(struct spi_device *spi)
 
 static const struct of_device_id as3935_of_match[] = {
 	{ .compatible = "ams,as3935", },
-	{ /* sentinel */ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, as3935_of_match);
 
 static const struct spi_device_id as3935_id[] = {
 	{"as3935", 0},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, as3935_id);
 

@@ -411,7 +411,7 @@ static const struct regmap_config afe4403_regmap_config = {
 
 static const struct of_device_id afe4403_of_match[] = {
 	{ .compatible = "ti,afe4403", },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, afe4403_of_match);
 
@@ -574,7 +574,7 @@ static int afe4403_probe(struct spi_device *spi)
 
 static const struct spi_device_id afe4403_ids[] = {
 	{ "afe4403", 0 },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, afe4403_ids);
 

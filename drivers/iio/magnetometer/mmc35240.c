@@ -556,13 +556,13 @@ MODULE_DEVICE_TABLE(of, mmc35240_of_match);
 
 static const struct acpi_device_id mmc35240_acpi_match[] = {
 	{"MMC35240", 0},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, mmc35240_acpi_match);
 
 static const struct i2c_device_id mmc35240_id[] = {
 	{ "mmc35240" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mmc35240_id);
 

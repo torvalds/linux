@@ -127,7 +127,7 @@ static const struct of_device_id adt7316_of_match[] = {
 	{ .compatible = "adi,adt7516" },
 	{ .compatible = "adi,adt7517" },
 	{ .compatible = "adi,adt7519" },
-	{ },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(of, adt7316_of_match);

@@ -40,119 +40,48 @@
 #define AD7606_RANGE_CH_ADDR(ch)	(0x03 + ((ch) >> 1))
 #define AD7606_OS_MODE			0x08
 
-#define AD760X_CHANNEL(num, mask_sep, mask_type, mask_all,	\
-		mask_sep_avail, mask_all_avail, bits) {		\
-		.type = IIO_VOLTAGE,				\
-		.indexed = 1,					\
-		.channel = num,					\
-		.address = num,					\
-		.info_mask_separate = mask_sep,			\
-		.info_mask_separate_available =			\
-			mask_sep_avail,				\
-		.info_mask_shared_by_type = mask_type,		\
-		.info_mask_shared_by_all = mask_all,		\
-		.info_mask_shared_by_all_available =		\
-			mask_all_avail,				\
-		.scan_index = num,				\
-		.scan_type = {					\
-			.sign = 's',				\
-			.realbits = (bits),			\
-			.storagebits = (bits) > 16 ? 32 : 16,	\
-			.endianness = IIO_CPU,			\
-		},						\
-}
-
-#define AD7606_SW_CHANNEL(num, bits)			\
-	AD760X_CHANNEL(num,				\
-		/* mask separate */			\
-		BIT(IIO_CHAN_INFO_RAW) |		\
-		BIT(IIO_CHAN_INFO_SCALE),		\
-		/* mask type */				\
-		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
-		/* mask all */				\
-		0,					\
-		/* mask separate available */		\
-		BIT(IIO_CHAN_INFO_SCALE),		\
-		/* mask all available */		\
-		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
-		bits)
-
-#define AD7605_CHANNEL(num)				\
-	AD760X_CHANNEL(num, BIT(IIO_CHAN_INFO_RAW),	\
-		BIT(IIO_CHAN_INFO_SCALE), 0, 0, 0, 16)
-
-#define AD7606_CHANNEL(num, bits)			\
-	AD760X_CHANNEL(num, BIT(IIO_CHAN_INFO_RAW),	\
-		BIT(IIO_CHAN_INFO_SCALE),		\
-		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
-		0, 0, bits)
-
-#define AD7616_CHANNEL(num)	AD7606_SW_CHANNEL(num, 16)
-
-#define AD7606_BI_CHANNEL(num)				\
-	AD760X_CHANNEL(num, 0,				\
-		BIT(IIO_CHAN_INFO_SCALE),		\
-		BIT(IIO_CHAN_INFO_SAMP_FREQ) |		\
-		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),  \
-		0, 0, 16)
-
-#define AD7606_BI_SW_CHANNEL(num)			\
-	AD760X_CHANNEL(num,				\
-		/* mask separate */			\
-		BIT(IIO_CHAN_INFO_SCALE),		\
-		/* mask type */				\
-		0,					\
-		/* mask all */				\
-		BIT(IIO_CHAN_INFO_SAMP_FREQ) |		\
-		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
-		/* mask separate available */		\
-		BIT(IIO_CHAN_INFO_SCALE),		\
-		/* mask all available */		\
-		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
-		16)
-
 struct ad7606_state;
 
 typedef int (*ad7606_scale_setup_cb_t)(struct iio_dev *indio_dev,
-				       struct iio_chan_spec *chan, int ch);
+				       struct iio_chan_spec *chan);
 typedef int (*ad7606_sw_setup_cb_t)(struct iio_dev *indio_dev);
 
 /**
  * struct ad7606_chip_info - chip specific information
- * @channels:		channel specification
- * @max_samplerate:	maximum supported samplerate
- * @name		device name
- * @num_channels:	number of channels
- * @num_adc_channels	the number of channels the ADC actually inputs.
+ * @max_samplerate:	maximum supported sample rate
+ * @name:		device name
+ * @bits:		data width in bits
+ * @num_adc_channels:	the number of physical voltage inputs
  * @scale_setup_cb:	callback to setup the scales for each channel
  * @sw_setup_cb:	callback to setup the software mode if available.
- * @oversampling_avail	pointer to the array which stores the available
+ * @oversampling_avail:	pointer to the array which stores the available
  *			oversampling ratios.
- * @oversampling_num	number of elements stored in oversampling_avail array
- * @os_req_reset	some devices require a reset to update oversampling
- * @init_delay_ms	required delay in milliseconds for initialization
+ * @oversampling_num:	number of elements stored in oversampling_avail array
+ * @os_req_reset:	some devices require a reset to update oversampling
+ * @init_delay_ms:	required delay in milliseconds for initialization
  *			after a restart
+ * @offload_storagebits: storage bits used by the offload hw implementation
  */
 struct ad7606_chip_info {
-	const struct iio_chan_spec	*channels;
 	unsigned int			max_samplerate;
 	const char			*name;
+	unsigned int			bits;
 	unsigned int			num_adc_channels;
-	unsigned int			num_channels;
 	ad7606_scale_setup_cb_t		scale_setup_cb;
 	ad7606_sw_setup_cb_t		sw_setup_cb;
 	const unsigned int		*oversampling_avail;
 	unsigned int			oversampling_num;
 	bool				os_req_reset;
 	unsigned long			init_delay_ms;
+	u8				offload_storagebits;
 };
 
 /**
  * struct ad7606_chan_scale - channel scale configuration
- * @scale_avail		pointer to the array which stores the available scales
- * @num_scales		number of elements stored in the scale_avail array
- * @range		voltage range selection, selects which scale to apply
- * @reg_offset		offset for the register value, to be applied when
+ * @scale_avail:	pointer to the array which stores the available scales
+ * @num_scales:		number of elements stored in the scale_avail array
+ * @range:		voltage range selection, selects which scale to apply
+ * @reg_offset:		offset for the register value, to be applied when
  *			writing the value of 'range' to the register value
  */
 struct ad7606_chan_scale {
@@ -165,32 +94,35 @@ struct ad7606_chan_scale {
 
 /**
  * struct ad7606_state - driver instance specific data
- * @dev		pointer to kernel device
- * @chip_info		entry in the table of chips that describes this device
- * @bops		bus operations (SPI or parallel)
- * @chan_scales		scale configuration for channels
- * @oversampling	oversampling selection
- * @cnvst_pwm		pointer to the PWM device connected to the cnvst pin
- * @base_address	address from where to read data in parallel operation
- * @sw_mode_en		software mode enabled
- * @oversampling_avail	pointer to the array which stores the available
+ * @dev:		pointer to kernel device
+ * @chip_info:		entry in the table of chips that describes this device
+ * @bops:		bus operations (SPI or parallel)
+ * @chan_scales:	scale configuration for channels
+ * @oversampling:	oversampling selection
+ * @cnvst_pwm:		pointer to the PWM device connected to the cnvst pin
+ * @base_address:	address from where to read data in parallel operation
+ * @sw_mode_en:		software mode enabled
+ * @oversampling_avail:	pointer to the array which stores the available
  *			oversampling ratios.
- * @num_os_ratios	number of elements stored in oversampling_avail array
- * @write_scale		pointer to the function which writes the scale
- * @write_os		pointer to the function which writes the os
- * @lock		protect sensor state from concurrent accesses to GPIOs
- * @gpio_convst	GPIO descriptor for conversion start signal (CONVST)
- * @gpio_reset		GPIO descriptor for device hard-reset
- * @gpio_range		GPIO descriptor for range selection
- * @gpio_standby	GPIO descriptor for stand-by signal (STBY),
+ * @num_os_ratios:	number of elements stored in oversampling_avail array
+ * @back:		pointer to the iio_backend structure, if used
+ * @write_scale:	pointer to the function which writes the scale
+ * @write_os:		pointer to the function which writes the os
+ * @lock:		protect sensor state from concurrent accesses to GPIOs
+ * @gpio_convst:	GPIO descriptor for conversion start signal (CONVST)
+ * @gpio_reset:		GPIO descriptor for device hard-reset
+ * @gpio_range:		GPIO descriptor for range selection
+ * @gpio_standby:	GPIO descriptor for stand-by signal (STBY),
  *			controls power-down mode of device
- * @gpio_frstdata	GPIO descriptor for reading from device when data
+ * @gpio_frstdata:	GPIO descriptor for reading from device when data
  *			is being read on the first channel
- * @gpio_os		GPIO descriptors to control oversampling on the device
- * @complete		completion to indicate end of conversion
- * @trig		The IIO trigger associated with the device.
- * @data		buffer for reading data from the device
- * @d16			be16 buffer for reading data from the device
+ * @gpio_os:		GPIO descriptors to control oversampling on the device
+ * @trig:		The IIO trigger associated with the device.
+ * @completion:		completion to indicate end of conversion
+ * @data:		buffer for reading data from the device
+ * @offload_en:		SPI offload enabled
+ * @bus_data:		bus-specific variables
+ * @d16:		be16 buffer for reading data from the device
  */
 struct ad7606_state {
 	struct device			*dev;
@@ -217,36 +149,44 @@ struct ad7606_state {
 	struct iio_trigger		*trig;
 	struct completion		completion;
 
+	bool				offload_en;
+	void				*bus_data;
+
 	/*
 	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
-	 * 16 * 16-bit samples + 64-bit timestamp - for AD7616
-	 * 8 * 32-bit samples + 64-bit timestamp - for AD7616C-18 (and similar)
+	 * 16 * 16-bit samples for AD7616
+	 * 8 * 32-bit samples for AD7616C-18 (and similar)
 	 */
-	union {
-		u16 buf16[20];
-		u32 buf32[10];
+	struct {
+		union {
+			u16 buf16[16];
+			u32 buf32[8];
+		};
+		aligned_s64 timestamp;
 	} data __aligned(IIO_DMA_MINALIGN);
 	__be16				d16[2];
 };
 
 /**
  * struct ad7606_bus_ops - driver bus operations
- * @iio_backend_config	function pointer for configuring the iio_backend for
+ * @iio_backend_config:	function pointer for configuring the iio_backend for
  *			the compatibles that use it
- * @read_block		function pointer for reading blocks of data
+ * @read_block:		function pointer for reading blocks of data
  * @sw_mode_config:	pointer to a function which configured the device
  *			for software mode
- * @reg_read	function pointer for reading spi register
- * @reg_write	function pointer for writing spi register
- * @write_mask	function pointer for write spi register with mask
- * @update_scan_mode	function pointer for handling the calls to iio_info's update_scan
- *			mode when enabling/disabling channels.
- * @rd_wr_cmd	pointer to the function which calculates the spi address
+ * @offload_config:     function pointer for configuring offload support,
+ *			where any
+ * @reg_read:		function pointer for reading spi register
+ * @reg_write:		function pointer for writing spi register
+ * @update_scan_mode:	function pointer for handling the calls to iio_info's
+ *			update_scan mode when enabling/disabling channels.
+ * @rd_wr_cmd:		pointer to the function which calculates the spi address
  */
 struct ad7606_bus_ops {
 	/* more methods added in future? */
 	int (*iio_backend_config)(struct device *dev, struct iio_dev *indio_dev);
+	int (*offload_config)(struct device *dev, struct iio_dev *indio_dev);
 	int (*read_block)(struct device *dev, int num, void *data);
 	int (*sw_mode_config)(struct iio_dev *indio_dev);
 	int (*reg_read)(struct ad7606_state *st, unsigned int addr);
@@ -254,13 +194,13 @@ struct ad7606_bus_ops {
 				unsigned int addr,
 				unsigned int val);
 	int (*update_scan_mode)(struct iio_dev *indio_dev, const unsigned long *scan_mask);
-	u16 (*rd_wr_cmd)(int addr, char isWriteOp);
+	u16 (*rd_wr_cmd)(int addr, char is_write_op);
 };
 
 /**
- * struct ad7606_bus_info - agregate ad7606_chip_info and ad7606_bus_ops
- * @chip_info		entry in the table of chips that describes this device
- * @bops		bus operations (SPI or parallel)
+ * struct ad7606_bus_info - aggregate ad7606_chip_info and ad7606_bus_ops
+ * @chip_info:		entry in the table of chips that describes this device
+ * @bops:		bus operations (SPI or parallel)
  */
 struct ad7606_bus_info {
 	const struct ad7606_chip_info	*chip_info;
@@ -272,6 +212,8 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		 const struct ad7606_bus_ops *bops);
 
 int ad7606_reset(struct ad7606_state *st);
+int ad7606_pwm_set_swing(struct ad7606_state *st);
+int ad7606_pwm_set_low(struct ad7606_state *st);
 
 extern const struct ad7606_chip_info ad7605_4_info;
 extern const struct ad7606_chip_info ad7606_8_info;

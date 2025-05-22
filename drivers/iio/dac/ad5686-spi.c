@@ -112,7 +112,7 @@ static const struct spi_device_id ad5686_spi_id[] = {
 	{"ad5685r", ID_AD5685R},
 	{"ad5686", ID_AD5686},
 	{"ad5686r", ID_AD5686R},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad5686_spi_id);
 

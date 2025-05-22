@@ -514,7 +514,7 @@ static const struct of_device_id rescale_match[] = {
 	  .data = &rescale_cfg[TEMP_SENSE_RTD], },
 	{ .compatible = "temperature-transducer",
 	  .data = &rescale_cfg[TEMP_TRANSDUCER], },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rescale_match);
 

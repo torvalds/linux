@@ -139,13 +139,13 @@ static int adxl367_spi_probe(struct spi_device *spi)
 
 static const struct spi_device_id adxl367_spi_id[] = {
 	{ "adxl367", 0 },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, adxl367_spi_id);
 
 static const struct of_device_id adxl367_of_match[] = {
 	{ .compatible = "adi,adxl367" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, adxl367_of_match);
 

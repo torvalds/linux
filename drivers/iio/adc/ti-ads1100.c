@@ -10,6 +10,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/bits.h>
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -219,36 +220,30 @@ static int ads1100_read_raw(struct iio_dev *indio_dev,
 	int ret;
 	struct ads1100_data *data = iio_priv(indio_dev);
 
-	mutex_lock(&data->lock);
+	guard(mutex)(&data->lock);
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			break;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		ret = ads1100_get_adc_result(data, chan->address, val);
-		if (ret >= 0)
-			ret = IIO_VAL_INT;
-		iio_device_release_direct_mode(indio_dev);
-		break;
+		iio_device_release_direct(indio_dev);
+		if (ret < 0)
+			return ret;
+
+		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		/* full-scale is the supply voltage in millivolts */
 		*val = ads1100_get_vdd_millivolts(data);
 		*val2 = 15 + FIELD_GET(ADS1100_PGA_MASK, data->config);
-		ret = IIO_VAL_FRACTIONAL_LOG2;
-		break;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*val = ads1100_data_rate[FIELD_GET(ADS1100_DR_MASK,
 						   data->config)];
-		ret = IIO_VAL_INT;
-		break;
+		return IIO_VAL_INT;
 	default:
-		ret = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-	mutex_unlock(&data->lock);
-
-	return ret;
 }
 
 static int ads1100_write_raw(struct iio_dev *indio_dev,
@@ -256,23 +251,16 @@ static int ads1100_write_raw(struct iio_dev *indio_dev,
 			     int val2, long mask)
 {
 	struct ads1100_data *data = iio_priv(indio_dev);
-	int ret;
 
-	mutex_lock(&data->lock);
+	guard(mutex)(&data->lock);
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		ret = ads1100_set_scale(data, val, val2);
-		break;
+		return ads1100_set_scale(data, val, val2);
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		ret = ads1100_set_data_rate(data, chan->address, val);
-		break;
+		return ads1100_set_data_rate(data, chan->address, val);
 	default:
-		ret = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-	mutex_unlock(&data->lock);
-
-	return ret;
 }
 
 static const struct iio_info ads1100_info = {

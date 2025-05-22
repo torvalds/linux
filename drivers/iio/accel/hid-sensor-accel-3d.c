@@ -228,7 +228,7 @@ static void hid_sensor_push_data(struct iio_dev *indio_dev, void *data,
 				 int len, int64_t timestamp)
 {
 	dev_dbg(&indio_dev->dev, "hid_sensor_push_data\n");
-	iio_push_to_buffers_with_timestamp(indio_dev, data, timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, data, len, timestamp);
 }
 
 /* Callback handler to send event after all samples are received and captured */
@@ -440,7 +440,7 @@ static const struct platform_device_id hid_accel_3d_ids[] = {
 	{	/* gravity sensor */
 		.name = "HID-SENSOR-20007b",
 	},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, hid_accel_3d_ids);
 

@@ -83,7 +83,7 @@ static const struct spi_device_id inv_mpu_id[] = {
 	{"iam20680", INV_IAM20680},
 	{"iam20680hp", INV_IAM20680HP},
 	{"iam20680ht", INV_IAM20680HT},
-	{}
+	{ }
 };
 
 MODULE_DEVICE_TABLE(spi, inv_mpu_id);
@@ -163,7 +163,7 @@ MODULE_DEVICE_TABLE(of, inv_of_match);
 
 static const struct acpi_device_id inv_acpi_match[] = {
 	{"INVN6000", INV_MPU6000},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, inv_acpi_match);
 

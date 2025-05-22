@@ -387,11 +387,10 @@ static int sx9500_read_raw(struct iio_dev *indio_dev,
 	case IIO_PROXIMITY:
 		switch (mask) {
 		case IIO_CHAN_INFO_RAW:
-			ret = iio_device_claim_direct_mode(indio_dev);
-			if (ret)
-				return ret;
+			if (!iio_device_claim_direct(indio_dev))
+				return -EBUSY;
 			ret = sx9500_read_proximity(data, chan, val);
-			iio_device_release_direct_mode(indio_dev);
+			iio_device_release_direct(indio_dev);
 			return ret;
 		case IIO_CHAN_INFO_SAMP_FREQ:
 			return sx9500_read_samp_freq(data, val, val2);
@@ -866,7 +865,7 @@ static const struct acpi_gpio_mapping acpi_sx9500_gpios[] = {
 	 * GPIO to be output only. Ask the GPIO core to ignore this limit.
 	 */
 	{ "interrupt-gpios", &interrupt_gpios, 1, ACPI_GPIO_QUIRK_NO_IO_RESTRICTION },
-	{ },
+	{ }
 };
 
 static void sx9500_gpio_probe(struct i2c_client *client,
@@ -1031,7 +1030,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(sx9500_pm_ops, sx9500_suspend, sx9500_resume);
 static const struct acpi_device_id sx9500_acpi_match[] = {
 	{"SSX9500", 0},
 	{"SASX9500", 0},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, sx9500_acpi_match);
 

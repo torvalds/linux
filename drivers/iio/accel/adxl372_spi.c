@@ -34,7 +34,7 @@ static int adxl372_spi_probe(struct spi_device *spi)
 
 static const struct spi_device_id adxl372_spi_id[] = {
 	{ "adxl372", 0 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, adxl372_spi_id);
 

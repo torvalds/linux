@@ -19,6 +19,8 @@ static const struct regmap_config adxl345_spi_regmap_config = {
 	.val_bits = 8,
 	 /* Setting bits 7 and 6 enables multiple-byte read */
 	.read_flag_mask = BIT(7) | BIT(6),
+	.volatile_reg = adxl345_is_volatile_reg,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int adxl345_spi_setup(struct device *dev, struct regmap *regmap)

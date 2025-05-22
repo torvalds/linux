@@ -882,8 +882,8 @@ static void ak8975_fill_buffer(struct iio_dev *indio_dev)
 	data->scan.channels[1] = clamp_t(s16, le16_to_cpu(fval[1]), -def->range, def->range);
 	data->scan.channels[2] = clamp_t(s16, le16_to_cpu(fval[2]), -def->range, def->range);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &data->scan, sizeof(data->scan),
+				    iio_get_time_ns(indio_dev));
 
 	return;
 
@@ -1107,7 +1107,7 @@ static const struct i2c_device_id ak8975_id[] = {
 	{"ak09912", (kernel_ulong_t)&ak_def_array[AK09912] },
 	{"ak09916", (kernel_ulong_t)&ak_def_array[AK09916] },
 	{"ak09918", (kernel_ulong_t)&ak_def_array[AK09918] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ak8975_id);
 
@@ -1122,7 +1122,7 @@ static const struct of_device_id ak8975_of_match[] = {
 	{ .compatible = "ak09912", .data = &ak_def_array[AK09912] },
 	{ .compatible = "asahi-kasei,ak09916", .data = &ak_def_array[AK09916] },
 	{ .compatible = "asahi-kasei,ak09918", .data = &ak_def_array[AK09918] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ak8975_of_match);
 

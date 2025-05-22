@@ -419,7 +419,7 @@ static const struct regmap_config afe4404_regmap_config = {
 
 static const struct of_device_id afe4404_of_match[] = {
 	{ .compatible = "ti,afe4404", },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, afe4404_of_match);
 
@@ -581,7 +581,7 @@ static int afe4404_probe(struct i2c_client *client)
 
 static const struct i2c_device_id afe4404_ids[] = {
 	{ "afe4404" },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, afe4404_ids);
 
