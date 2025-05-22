@@ -39,3 +39,7 @@
 	phy-names = "usb2-phy0", "usb2-phy1";
 };
  */
+
+&npu {
+	status = "okay";
+};
