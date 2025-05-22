@@ -2060,14 +2060,9 @@ int mlx5e_ethtool_flash_device(struct mlx5e_priv *priv,
 	if (err)
 		return err;
 
-	dev_hold(dev);
-	rtnl_unlock();
-
 	err = mlx5_firmware_flash(mdev, fw, NULL);
 	release_firmware(fw);
 
-	rtnl_lock();
-	dev_put(dev);
 	return err;
 }
 
