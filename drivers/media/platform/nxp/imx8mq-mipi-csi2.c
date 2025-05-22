@@ -5,6 +5,7 @@
  * Copyright (C) 2021 Purism SPC
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
@@ -88,6 +89,7 @@ static const char * const imx8mq_mipi_csi_clk_id[CSI2_NUM_CLKS] = {
 struct imx8mq_plat_data {
 	int (*enable)(struct csi_state *state, u32 hs_settle);
 	void (*disable)(struct csi_state *state);
+	bool use_reg_csr;
 };
 
 /*
@@ -165,6 +167,95 @@ static int imx8mq_gpr_enable(struct csi_state *state, u32 hs_settle)
 
 static const struct imx8mq_plat_data imx8mq_data = {
 	.enable = imx8mq_gpr_enable,
+};
+
+/* -----------------------------------------------------------------------------
+ * i.MX8QXP
+ */
+
+#define CSI2SS_PL_CLK_INTERVAL_US		100
+#define CSI2SS_PL_CLK_TIMEOUT_US		100000
+
+#define CSI2SS_PLM_CTRL				0x0
+#define CSI2SS_PLM_CTRL_ENABLE_PL		BIT(0)
+#define CSI2SS_PLM_CTRL_VSYNC_OVERRIDE		BIT(9)
+#define CSI2SS_PLM_CTRL_HSYNC_OVERRIDE		BIT(10)
+#define CSI2SS_PLM_CTRL_VALID_OVERRIDE		BIT(11)
+#define CSI2SS_PLM_CTRL_POLARITY_HIGH		BIT(12)
+#define CSI2SS_PLM_CTRL_PL_CLK_RUN		BIT(31)
+
+#define CSI2SS_PHY_CTRL				0x4
+#define CSI2SS_PHY_CTRL_RX_ENABLE		BIT(0)
+#define CSI2SS_PHY_CTRL_AUTO_PD_EN		BIT(1)
+#define CSI2SS_PHY_CTRL_DDRCLK_EN		BIT(2)
+#define CSI2SS_PHY_CTRL_CONT_CLK_MODE		BIT(3)
+#define CSI2SS_PHY_CTRL_RX_HS_SETTLE_MASK	GENMASK(9, 4)
+#define CSI2SS_PHY_CTRL_RTERM_SEL		BIT(21)
+#define CSI2SS_PHY_CTRL_PD			BIT(22)
+
+#define CSI2SS_DATA_TYPE_DISABLE_BF		0x38
+#define CSI2SS_DATA_TYPE_DISABLE_BF_MASK	GENMASK(23, 0)
+
+#define CSI2SS_CTRL_CLK_RESET			0x44
+#define CSI2SS_CTRL_CLK_RESET_EN		BIT(0)
+
+static int imx8qxp_gpr_enable(struct csi_state *state, u32 hs_settle)
+{
+	int ret;
+	u32 val;
+
+	/* Clear format */
+	regmap_clear_bits(state->phy_gpr, CSI2SS_DATA_TYPE_DISABLE_BF,
+			  CSI2SS_DATA_TYPE_DISABLE_BF_MASK);
+
+	regmap_write(state->phy_gpr, CSI2SS_PLM_CTRL, 0x0);
+
+	regmap_write(state->phy_gpr, CSI2SS_PHY_CTRL,
+		     FIELD_PREP(CSI2SS_PHY_CTRL_RX_HS_SETTLE_MASK, hs_settle) |
+		     CSI2SS_PHY_CTRL_RX_ENABLE | CSI2SS_PHY_CTRL_DDRCLK_EN |
+		     CSI2SS_PHY_CTRL_CONT_CLK_MODE | CSI2SS_PHY_CTRL_PD |
+		     CSI2SS_PHY_CTRL_RTERM_SEL | CSI2SS_PHY_CTRL_AUTO_PD_EN);
+
+	ret = regmap_read_poll_timeout(state->phy_gpr, CSI2SS_PLM_CTRL,
+				       val, !(val & CSI2SS_PLM_CTRL_PL_CLK_RUN),
+				       CSI2SS_PL_CLK_INTERVAL_US,
+				       CSI2SS_PL_CLK_TIMEOUT_US);
+
+	if (ret) {
+		dev_err(state->dev, "Timeout waiting for Pixel-Link clock\n");
+		return ret;
+	}
+
+	/* Enable Pixel link Master */
+	regmap_set_bits(state->phy_gpr, CSI2SS_PLM_CTRL,
+			CSI2SS_PLM_CTRL_ENABLE_PL | CSI2SS_PLM_CTRL_VALID_OVERRIDE);
+
+	/* PHY Enable */
+	regmap_clear_bits(state->phy_gpr, CSI2SS_PHY_CTRL,
+			  CSI2SS_PHY_CTRL_PD | CSI2SS_PLM_CTRL_POLARITY_HIGH);
+
+	/* Release Reset */
+	regmap_set_bits(state->phy_gpr, CSI2SS_CTRL_CLK_RESET, CSI2SS_CTRL_CLK_RESET_EN);
+
+	return ret;
+}
+
+static void imx8qxp_gpr_disable(struct csi_state *state)
+{
+	/* Disable Pixel Link */
+	regmap_write(state->phy_gpr, CSI2SS_PLM_CTRL, 0x0);
+
+	/* Disable PHY */
+	regmap_write(state->phy_gpr, CSI2SS_PHY_CTRL, 0x0);
+
+	regmap_clear_bits(state->phy_gpr, CSI2SS_CTRL_CLK_RESET,
+			  CSI2SS_CTRL_CLK_RESET_EN);
+};
+
+static const struct imx8mq_plat_data imx8qxp_data = {
+	.enable = imx8qxp_gpr_enable,
+	.disable = imx8qxp_gpr_disable,
+	.use_reg_csr = true,
 };
 
 static const struct csi2_pix_format imx8mq_mipi_csi_formats[] = {
@@ -865,6 +956,25 @@ static int imx8mq_mipi_csi_parse_dt(struct csi_state *state)
 		return PTR_ERR(state->rst);
 	}
 
+	if (state->pdata->use_reg_csr) {
+		const struct regmap_config regmap_config = {
+			.reg_bits = 32,
+			.val_bits = 32,
+			.reg_stride = 4,
+		};
+		void __iomem *base;
+
+		base = devm_platform_ioremap_resource(to_platform_device(dev), 1);
+		if (IS_ERR(base))
+			return dev_err_probe(dev, IS_ERR(base), "Missing CSR register\n");
+
+		state->phy_gpr = devm_regmap_init_mmio(dev, base, &regmap_config);
+		if (IS_ERR(state->phy_gpr))
+			return dev_err_probe(dev, PTR_ERR(state->phy_gpr),
+					     "Failed to init CSI MMIO regmap\n");
+		return 0;
+	}
+
 	ret = of_property_read_u32_array(np, "fsl,mipi-phy-gpr", out_val,
 					 ARRAY_SIZE(out_val));
 	if (ret) {
@@ -984,6 +1094,7 @@ static void imx8mq_mipi_csi_remove(struct platform_device *pdev)
 
 static const struct of_device_id imx8mq_mipi_csi_of_match[] = {
 	{ .compatible = "fsl,imx8mq-mipi-csi2", .data = &imx8mq_data },
+	{ .compatible = "fsl,imx8qxp-mipi-csi2", .data = &imx8qxp_data },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, imx8mq_mipi_csi_of_match);
