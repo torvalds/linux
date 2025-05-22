@@ -275,11 +275,6 @@ static const struct mxc_isi_set_thd mxc_imx8_isi_thd_v1 = {
 	.panic_set_thd_v = { .mask = 0xf0000, .offset = 16, .threshold = 0x7 },
 };
 
-static const struct clk_bulk_data mxc_imx8mn_clks[] = {
-	{ .id = "axi" },
-	{ .id = "apb" },
-};
-
 static const struct mxc_isi_plat_data mxc_imx8mn_data = {
 	.model			= MXC_ISI_IMX8MN,
 	.num_ports		= 1,
@@ -287,8 +282,6 @@ static const struct mxc_isi_plat_data mxc_imx8mn_data = {
 	.reg_offset		= 0,
 	.ier_reg		= &mxc_imx8_isi_ier_v1,
 	.set_thd		= &mxc_imx8_isi_thd_v1,
-	.clks			= mxc_imx8mn_clks,
-	.num_clks		= ARRAY_SIZE(mxc_imx8mn_clks),
 	.buf_active_reverse	= false,
 	.gasket_ops		= &mxc_imx8_gasket_ops,
 	.has_36bit_dma		= false,
@@ -301,8 +294,6 @@ static const struct mxc_isi_plat_data mxc_imx8mp_data = {
 	.reg_offset		= 0x2000,
 	.ier_reg		= &mxc_imx8_isi_ier_v2,
 	.set_thd		= &mxc_imx8_isi_thd_v1,
-	.clks			= mxc_imx8mn_clks,
-	.num_clks		= ARRAY_SIZE(mxc_imx8mn_clks),
 	.buf_active_reverse	= true,
 	.gasket_ops		= &mxc_imx8_gasket_ops,
 	.has_36bit_dma		= true,
@@ -315,8 +306,6 @@ static const struct mxc_isi_plat_data mxc_imx8ulp_data = {
 	.reg_offset		= 0x0,
 	.ier_reg		= &mxc_imx8_isi_ier_v2,
 	.set_thd		= &mxc_imx8_isi_thd_v1,
-	.clks			= mxc_imx8mn_clks,
-	.num_clks		= ARRAY_SIZE(mxc_imx8mn_clks),
 	.buf_active_reverse	= true,
 	.has_36bit_dma		= false,
 };
@@ -328,8 +317,6 @@ static const struct mxc_isi_plat_data mxc_imx93_data = {
 	.reg_offset		= 0,
 	.ier_reg		= &mxc_imx8_isi_ier_v2,
 	.set_thd		= &mxc_imx8_isi_thd_v1,
-	.clks			= mxc_imx8mn_clks,
-	.num_clks		= ARRAY_SIZE(mxc_imx8mn_clks),
 	.buf_active_reverse	= true,
 	.gasket_ops		= &mxc_imx93_gasket_ops,
 	.has_36bit_dma		= false,
@@ -386,7 +373,7 @@ static int mxc_isi_runtime_suspend(struct device *dev)
 {
 	struct mxc_isi_dev *isi = dev_get_drvdata(dev);
 
-	clk_bulk_disable_unprepare(isi->pdata->num_clks, isi->clks);
+	clk_bulk_disable_unprepare(isi->num_clks, isi->clks);
 
 	return 0;
 }
@@ -396,7 +383,7 @@ static int mxc_isi_runtime_resume(struct device *dev)
 	struct mxc_isi_dev *isi = dev_get_drvdata(dev);
 	int ret;
 
-	ret = clk_bulk_prepare_enable(isi->pdata->num_clks, isi->clks);
+	ret = clk_bulk_prepare_enable(isi->num_clks, isi->clks);
 	if (ret) {
 		dev_err(dev, "Failed to enable clocks (%d)\n", ret);
 		return ret;
@@ -413,27 +400,6 @@ static const struct dev_pm_ops mxc_isi_pm_ops = {
 /* -----------------------------------------------------------------------------
  * Probe, remove & driver
  */
-
-static int mxc_isi_clk_get(struct mxc_isi_dev *isi)
-{
-	unsigned int size = isi->pdata->num_clks
-			  * sizeof(*isi->clks);
-	int ret;
-
-	isi->clks = devm_kmemdup(isi->dev, isi->pdata->clks, size, GFP_KERNEL);
-	if (!isi->clks)
-		return -ENOMEM;
-
-	ret = devm_clk_bulk_get(isi->dev, isi->pdata->num_clks,
-				isi->clks);
-	if (ret < 0) {
-		dev_err(isi->dev, "Failed to acquire clocks: %d\n",
-			ret);
-		return ret;
-	}
-
-	return 0;
-}
 
 static int mxc_isi_probe(struct platform_device *pdev)
 {
@@ -457,11 +423,9 @@ static int mxc_isi_probe(struct platform_device *pdev)
 	if (!isi->pipes)
 		return -ENOMEM;
 
-	ret = mxc_isi_clk_get(isi);
-	if (ret < 0) {
-		dev_err(dev, "Failed to get clocks\n");
-		return ret;
-	}
+	isi->num_clks = devm_clk_bulk_get_all(dev, &isi->clks);
+	if (isi->num_clks < 0)
+		return dev_err_probe(dev, isi->num_clks, "Failed to get clocks\n");
 
 	isi->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(isi->regs)) {
