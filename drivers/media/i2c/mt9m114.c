@@ -790,41 +790,25 @@ static int mt9m114_initialize(struct mt9m114 *sensor)
 	return 0;
 }
 
-static int mt9m114_configure(struct mt9m114 *sensor,
-			     struct v4l2_subdev_state *pa_state,
-			     struct v4l2_subdev_state *ifp_state)
+static int mt9m114_configure_pa(struct mt9m114 *sensor,
+				struct v4l2_subdev_state *state)
 {
-	const struct v4l2_mbus_framefmt *pa_format;
-	const struct v4l2_rect *pa_crop;
-	const struct mt9m114_format_info *ifp_info;
-	const struct v4l2_mbus_framefmt *ifp_format;
-	const struct v4l2_rect *ifp_crop;
-	const struct v4l2_rect *ifp_compose;
+	const struct v4l2_mbus_framefmt *format;
+	const struct v4l2_rect *crop;
 	unsigned int hratio, vratio;
-	u64 output_format;
 	u64 read_mode;
-	int ret = 0;
+	int ret;
 
-	pa_format = v4l2_subdev_state_get_format(pa_state, 0);
-	pa_crop = v4l2_subdev_state_get_crop(pa_state, 0);
-
-	ifp_format = v4l2_subdev_state_get_format(ifp_state, 1);
-	ifp_info = mt9m114_format_info(sensor, 1, ifp_format->code);
-	ifp_crop = v4l2_subdev_state_get_crop(ifp_state, 0);
-	ifp_compose = v4l2_subdev_state_get_compose(ifp_state, 0);
+	format = v4l2_subdev_state_get_format(state, 0);
+	crop = v4l2_subdev_state_get_crop(state, 0);
 
 	ret = cci_read(sensor->regmap, MT9M114_CAM_SENSOR_CONTROL_READ_MODE,
 		       &read_mode, NULL);
 	if (ret < 0)
 		return ret;
 
-	ret = cci_read(sensor->regmap, MT9M114_CAM_OUTPUT_FORMAT,
-		       &output_format, NULL);
-	if (ret < 0)
-		return ret;
-
-	hratio = pa_crop->width / pa_format->width;
-	vratio = pa_crop->height / pa_format->height;
+	hratio = crop->width / format->width;
+	vratio = crop->height / format->height;
 
 	/*
 	 * Pixel array crop and binning. The CAM_SENSOR_CFG_CPIPE_LAST_ROW
@@ -833,15 +817,15 @@ static int mt9m114_configure(struct mt9m114 *sensor,
 	 * example sensor modes.
 	 */
 	cci_write(sensor->regmap, MT9M114_CAM_SENSOR_CFG_X_ADDR_START,
-		  pa_crop->left, &ret);
+		  crop->left, &ret);
 	cci_write(sensor->regmap, MT9M114_CAM_SENSOR_CFG_Y_ADDR_START,
-		  pa_crop->top, &ret);
+		  crop->top, &ret);
 	cci_write(sensor->regmap, MT9M114_CAM_SENSOR_CFG_X_ADDR_END,
-		  pa_crop->width + pa_crop->left - 1, &ret);
+		  crop->width + crop->left - 1, &ret);
 	cci_write(sensor->regmap, MT9M114_CAM_SENSOR_CFG_Y_ADDR_END,
-		  pa_crop->height + pa_crop->top - 1, &ret);
+		  crop->height + crop->top - 1, &ret);
 	cci_write(sensor->regmap, MT9M114_CAM_SENSOR_CFG_CPIPE_LAST_ROW,
-		  (pa_crop->height - 4) / vratio - 1, &ret);
+		  (crop->height - 4) / vratio - 1, &ret);
 
 	read_mode &= ~(MT9M114_CAM_SENSOR_CONTROL_X_READ_OUT_MASK |
 		       MT9M114_CAM_SENSOR_CONTROL_Y_READ_OUT_MASK);
@@ -854,6 +838,29 @@ static int mt9m114_configure(struct mt9m114 *sensor,
 	cci_write(sensor->regmap, MT9M114_CAM_SENSOR_CONTROL_READ_MODE,
 		  read_mode, &ret);
 
+	return ret;
+}
+
+static int mt9m114_configure_ifp(struct mt9m114 *sensor,
+				 struct v4l2_subdev_state *state)
+{
+	const struct mt9m114_format_info *info;
+	const struct v4l2_mbus_framefmt *format;
+	const struct v4l2_rect *crop;
+	const struct v4l2_rect *compose;
+	u64 output_format;
+	int ret = 0;
+
+	format = v4l2_subdev_state_get_format(state, 1);
+	info = mt9m114_format_info(sensor, 1, format->code);
+	crop = v4l2_subdev_state_get_crop(state, 0);
+	compose = v4l2_subdev_state_get_compose(state, 0);
+
+	ret = cci_read(sensor->regmap, MT9M114_CAM_OUTPUT_FORMAT,
+		       &output_format, NULL);
+	if (ret < 0)
+		return ret;
+
 	/*
 	 * Color pipeline (IFP) cropping and scaling. Subtract 4 from the left
 	 * and top coordinates to compensate for the lines and columns removed
@@ -861,18 +868,18 @@ static int mt9m114_configure(struct mt9m114 *sensor,
 	 * not in the hardware.
 	 */
 	cci_write(sensor->regmap, MT9M114_CAM_CROP_WINDOW_XOFFSET,
-		  ifp_crop->left - 4, &ret);
+		  crop->left - 4, &ret);
 	cci_write(sensor->regmap, MT9M114_CAM_CROP_WINDOW_YOFFSET,
-		  ifp_crop->top - 4, &ret);
+		  crop->top - 4, &ret);
 	cci_write(sensor->regmap, MT9M114_CAM_CROP_WINDOW_WIDTH,
-		  ifp_crop->width, &ret);
+		  crop->width, &ret);
 	cci_write(sensor->regmap, MT9M114_CAM_CROP_WINDOW_HEIGHT,
-		  ifp_crop->height, &ret);
+		  crop->height, &ret);
 
 	cci_write(sensor->regmap, MT9M114_CAM_OUTPUT_WIDTH,
-		  ifp_compose->width, &ret);
+		  compose->width, &ret);
 	cci_write(sensor->regmap, MT9M114_CAM_OUTPUT_HEIGHT,
-		  ifp_compose->height, &ret);
+		  compose->height, &ret);
 
 	/* AWB and AE windows, use the full frame. */
 	cci_write(sensor->regmap, MT9M114_CAM_STAT_AWB_CLIP_WINDOW_XSTART,
@@ -880,18 +887,18 @@ static int mt9m114_configure(struct mt9m114 *sensor,
 	cci_write(sensor->regmap, MT9M114_CAM_STAT_AWB_CLIP_WINDOW_YSTART,
 		  0, &ret);
 	cci_write(sensor->regmap, MT9M114_CAM_STAT_AWB_CLIP_WINDOW_XEND,
-		  ifp_compose->width - 1, &ret);
+		  compose->width - 1, &ret);
 	cci_write(sensor->regmap, MT9M114_CAM_STAT_AWB_CLIP_WINDOW_YEND,
-		  ifp_compose->height - 1, &ret);
+		  compose->height - 1, &ret);
 
 	cci_write(sensor->regmap, MT9M114_CAM_STAT_AE_INITIAL_WINDOW_XSTART,
 		  0, &ret);
 	cci_write(sensor->regmap, MT9M114_CAM_STAT_AE_INITIAL_WINDOW_YSTART,
 		  0, &ret);
 	cci_write(sensor->regmap, MT9M114_CAM_STAT_AE_INITIAL_WINDOW_XEND,
-		  ifp_compose->width / 5 - 1, &ret);
+		  compose->width / 5 - 1, &ret);
 	cci_write(sensor->regmap, MT9M114_CAM_STAT_AE_INITIAL_WINDOW_YEND,
-		  ifp_compose->height / 5 - 1, &ret);
+		  compose->height / 5 - 1, &ret);
 
 	cci_write(sensor->regmap, MT9M114_CAM_CROP_CROPMODE,
 		  MT9M114_CAM_CROP_MODE_AWB_AUTO_CROP_EN |
@@ -903,7 +910,7 @@ static int mt9m114_configure(struct mt9m114 *sensor,
 			   MT9M114_CAM_OUTPUT_FORMAT_FORMAT_MASK |
 			   MT9M114_CAM_OUTPUT_FORMAT_SWAP_BYTES |
 			   MT9M114_CAM_OUTPUT_FORMAT_SWAP_RED_BLUE);
-	output_format |= ifp_info->output_format;
+	output_format |= info->output_format;
 
 	cci_write(sensor->regmap, MT9M114_CAM_OUTPUT_FORMAT,
 		  output_format, &ret);
@@ -934,7 +941,11 @@ static int mt9m114_start_streaming(struct mt9m114 *sensor,
 	if (ret)
 		return ret;
 
-	ret = mt9m114_configure(sensor, pa_state, ifp_state);
+	ret = mt9m114_configure_ifp(sensor, ifp_state);
+	if (ret)
+		goto error;
+
+	ret = mt9m114_configure_pa(sensor, pa_state);
 	if (ret)
 		goto error;
 
