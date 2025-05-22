@@ -941,7 +941,7 @@ static bool check_timeout(struct xe_exec_queue *q, struct xe_sched_job *job)
 		return xe_sched_invalidate_job(job, 2);
 	}
 
-	ctx_timestamp = xe_lrc_ctx_timestamp(q->lrc[0]);
+	ctx_timestamp = lower_32_bits(xe_lrc_ctx_timestamp(q->lrc[0]));
 	ctx_job_timestamp = xe_lrc_ctx_job_timestamp(q->lrc[0]);
 
 	/*

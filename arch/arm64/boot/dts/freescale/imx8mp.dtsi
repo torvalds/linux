@@ -1645,6 +1645,12 @@
 					opp-hz = /bits/ 64 <200000000>;
 				};
 
+				/* Nominal drive mode maximum */
+				opp-800000000 {
+					opp-hz = /bits/ 64 <800000000>;
+				};
+
+				/* Overdrive mode maximum */
 				opp-1000000000 {
 					opp-hz = /bits/ 64 <1000000000>;
 				};

@@ -104,12 +104,14 @@ struct ppe_mbox_data {
 			u8 xpon_hal_api;
 			u8 wan_xsi;
 			u8 ct_joyme4;
-			int ppe_type;
-			int wan_mode;
-			int wan_sel;
+			u8 max_packet;
+			u8 rsv[3];
+			u32 ppe_type;
+			u32 wan_mode;
+			u32 wan_sel;
 		} init_info;
 		struct {
-			int func_id;
+			u32 func_id;
 			u32 size;
 			u32 data;
 		} set_info;

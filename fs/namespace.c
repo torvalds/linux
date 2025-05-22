@@ -787,15 +787,11 @@ int __legitimize_mnt(struct vfsmount *bastard, unsigned seq)
 		return 0;
 	mnt = real_mount(bastard);
 	mnt_add_count(mnt, 1);
-	smp_mb();			// see mntput_no_expire()
+	smp_mb();		// see mntput_no_expire() and do_umount()
 	if (likely(!read_seqretry(&mount_lock, seq)))
 		return 0;
-	if (bastard->mnt_flags & MNT_SYNC_UMOUNT) {
-		mnt_add_count(mnt, -1);
-		return 1;
-	}
 	lock_mount_hash();
-	if (unlikely(bastard->mnt_flags & MNT_DOOMED)) {
+	if (unlikely(bastard->mnt_flags & (MNT_SYNC_UMOUNT | MNT_DOOMED))) {
 		mnt_add_count(mnt, -1);
 		unlock_mount_hash();
 		return 1;
@@ -2048,6 +2044,7 @@ static int do_umount(struct mount *mnt, int flags)
 			umount_tree(mnt, UMOUNT_PROPAGATE);
 		retval = 0;
 	} else {
+		smp_mb(); // paired with __legitimize_mnt()
 		shrink_submounts(mnt);
 		retval = -EBUSY;
 		if (!propagate_mount_busy(mnt, 2)) {
@@ -3560,7 +3557,8 @@ static int can_move_mount_beneath(const struct path *from,
 	 * @mnt_from itself. This defeats the whole purpose of mounting
 	 * @mnt_from beneath @mnt_to.
 	 */
-	if (propagation_would_overmount(parent_mnt_to, mnt_from, mp))
+	if (check_mnt(mnt_from) &&
+	    propagation_would_overmount(parent_mnt_to, mnt_from, mp))
 		return -EINVAL;
 
 	return 0;
@@ -3718,15 +3716,14 @@ static int do_move_mount(struct path *old_path,
 	if (err)
 		goto out;
 
-	if (is_anon_ns(ns))
-		ns->mntns_flags &= ~MNTNS_PROPAGATING;
-
 	/* if the mount is moved, it should no longer be expire
 	 * automatically */
 	list_del_init(&old->mnt_expire);
 	if (attached)
 		put_mountpoint(old_mp);
 out:
+	if (is_anon_ns(ns))
+		ns->mntns_flags &= ~MNTNS_PROPAGATING;
 	unlock_mount(mp);
 	if (!err) {
 		if (attached) {

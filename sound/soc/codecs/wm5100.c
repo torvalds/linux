@@ -2236,12 +2236,14 @@ static irqreturn_t wm5100_edge_irq(int irq, void *data)
 }
 
 #ifdef CONFIG_GPIOLIB
-static void wm5100_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static int wm5100_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			   int value)
 {
 	struct wm5100_priv *wm5100 = gpiochip_get_data(chip);
 
-	regmap_update_bits(wm5100->regmap, WM5100_GPIO_CTRL_1 + offset,
-			   WM5100_GP1_LVL, !!value << WM5100_GP1_LVL_SHIFT);
+	return regmap_update_bits(wm5100->regmap, WM5100_GPIO_CTRL_1 + offset,
+				  WM5100_GP1_LVL,
+				  !!value << WM5100_GP1_LVL_SHIFT);
 }
 
 static int wm5100_gpio_direction_out(struct gpio_chip *chip,
@@ -2288,7 +2290,7 @@ static const struct gpio_chip wm5100_template_chip = {
 	.label			= "wm5100",
 	.owner			= THIS_MODULE,
 	.direction_output	= wm5100_gpio_direction_out,
-	.set			= wm5100_gpio_set,
+	.set_rv			= wm5100_gpio_set,
 	.direction_input	= wm5100_gpio_direction_in,
 	.get			= wm5100_gpio_get,
 	.can_sleep		= 1,

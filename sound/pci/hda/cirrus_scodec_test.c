@@ -58,9 +58,10 @@ static int cirrus_scodec_test_gpio_direction_out(struct gpio_chip *chip,
 	return -EOPNOTSUPP;
 }
 
-static void cirrus_scodec_test_gpio_set(struct gpio_chip *chip, unsigned int offset,
-					int value)
+static int cirrus_scodec_test_gpio_set(struct gpio_chip *chip,
+				       unsigned int offset, int value)
 {
+	return -EOPNOTSUPP;
 }
 
 static int cirrus_scodec_test_gpio_set_config(struct gpio_chip *gc,
@@ -85,7 +86,7 @@ static const struct gpio_chip cirrus_scodec_test_gpio_chip = {
 	.direction_input	= cirrus_scodec_test_gpio_direction_in,
 	.get			= cirrus_scodec_test_gpio_get,
 	.direction_output	= cirrus_scodec_test_gpio_direction_out,
-	.set			= cirrus_scodec_test_gpio_set,
+	.set_rv			= cirrus_scodec_test_gpio_set,
 	.set_config		= cirrus_scodec_test_gpio_set_config,
 	.base			= -1,
 	.ngpio			= 32,

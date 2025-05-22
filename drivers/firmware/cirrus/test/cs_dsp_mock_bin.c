@@ -176,6 +176,9 @@ struct cs_dsp_mock_bin_builder *cs_dsp_mock_bin_init(struct cs_dsp_test *priv,
 	struct cs_dsp_mock_bin_builder *builder;
 	struct wmfw_coeff_hdr *hdr;
 
+	KUNIT_ASSERT_LE(priv->test, format_version, 0xff);
+	KUNIT_ASSERT_LE(priv->test, fw_version, 0xffffff);
+
 	builder = kunit_kzalloc(priv->test, sizeof(*builder), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(priv->test, builder);
 	builder->test_priv = priv;

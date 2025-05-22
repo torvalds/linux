@@ -49,7 +49,7 @@
 #define TASDEVICE_REG_SWRESET		TASDEVICE_REG(0x0, 0x0, 0x01)
 #define TASDEVICE_REG_SWRESET_RESET	BIT(0)
 
-/* I2C Checksum */
+/* Checksum */
 #define TASDEVICE_CHECKSUM_REG		TASDEVICE_REG(0x0, 0x0, 0x7e)
 
 /* XM_340 */
@@ -105,11 +105,6 @@
 #define TAS2781_RUNTIME_RE_REG_TF	TASDEVICE_REG(0x64, 0x62, 0x48)
 #define TAS2781_RUNTIME_RE_REG		TASDEVICE_REG(0x64, 0x63, 0x44)
 
-#define TASDEVICE_CMD_SING_W		0x1
-#define TASDEVICE_CMD_BURST		0x2
-#define TASDEVICE_CMD_DELAY		0x3
-#define TASDEVICE_CMD_FIELD_W		0x4
-
 enum audio_device {
 	TAS2563,
 	TAS2781,
@@ -156,10 +151,33 @@ struct calidata {
 	unsigned int cali_dat_sz_per_dev;
 };
 
+/*
+ * To enable CONFIG_SND_SOC_TAS2781_ACOUST_I2C will create a bridge to the
+ * acoustic tuning tool which can tune the chips' acoustic effect. Due to the
+ * whole directly exposing the registers, there exist some potential risks. So
+ * this define is invisible in Kconfig, anyone who wants to use acoustic tool
+ * have to edit the source manually.
+ */
+#ifdef CONFIG_SND_SOC_TAS2781_ACOUST_I2C
+#define TASDEV_DATA_PAYLOAD_SIZE	128
+struct acoustic_data {
+	unsigned char len;
+	unsigned char id;
+	unsigned char addr;
+	unsigned char book;
+	unsigned char page;
+	unsigned char reg;
+	unsigned char data[TASDEV_DATA_PAYLOAD_SIZE];
+};
+#endif
+
 struct tasdevice_priv {
 	struct tasdevice tasdevice[TASDEVICE_MAX_CHANNELS];
 	struct tasdevice_rca rcabin;
 	struct calidata cali_data;
+#ifdef CONFIG_SND_SOC_TAS2781_ACOUST_I2C
+	struct acoustic_data acou_data;
+#endif
 	struct tasdevice_fw *fmw;
 	struct gpio_desc *speaker_id;
 	struct gpio_desc *reset;
