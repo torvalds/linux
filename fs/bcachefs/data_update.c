@@ -187,13 +187,8 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 	struct data_update *m =
 		container_of(op, struct data_update, op);
 	struct keylist *keys = &op->insert_keys;
-	struct bkey_buf _new, _insert;
 	struct printbuf journal_msg = PRINTBUF;
 	int ret = 0;
-
-	bch2_bkey_buf_init(&_new);
-	bch2_bkey_buf_init(&_insert);
-	bch2_bkey_buf_realloc(&_insert, c, U8_MAX);
 
 	bch2_trans_iter_init(trans, &iter, m->btree_id,
 			     bkey_start_pos(&bch2_keylist_front(keys)->k),
@@ -229,11 +224,22 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 			goto nowork;
 		}
 
-		bkey_reassemble(_insert.k, k);
-		insert = _insert.k;
+		insert = bch2_trans_kmalloc(trans,
+					    bkey_bytes(k.k) +
+					    bkey_val_bytes(&new->k) +
+					    sizeof(struct bch_extent_rebalance));
+		ret = PTR_ERR_OR_ZERO(insert);
+		if (ret)
+			goto err;
 
-		bch2_bkey_buf_copy(&_new, c, bch2_keylist_front(keys));
-		new = bkey_i_to_extent(_new.k);
+		bkey_reassemble(insert, k);
+
+		new = bch2_trans_kmalloc(trans, bkey_bytes(&new->k));
+		ret = PTR_ERR_OR_ZERO(new);
+		if (ret)
+			goto err;
+
+		bkey_copy(&new->k_i, bch2_keylist_front(keys));
 		bch2_cut_front(iter.pos, &new->k_i);
 
 		bch2_cut_front(iter.pos,	insert);
@@ -457,8 +463,6 @@ nowork:
 out:
 	printbuf_exit(&journal_msg);
 	bch2_trans_iter_exit(trans, &iter);
-	bch2_bkey_buf_exit(&_insert, c);
-	bch2_bkey_buf_exit(&_new, c);
 	BUG_ON(bch2_err_matches(ret, BCH_ERR_transaction_restart));
 	return ret;
 }
