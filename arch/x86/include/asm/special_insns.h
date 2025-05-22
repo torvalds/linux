@@ -104,9 +104,36 @@ static inline void wrpkru(u32 pkru)
 }
 #endif
 
+/*
+ * Write back all modified lines in all levels of cache associated with this
+ * logical processor to main memory, and then invalidate all caches.  Depending
+ * on the micro-architecture, WBINVD (and WBNOINVD below) may or may not affect
+ * lower level caches associated with another logical processor that shares any
+ * level of this processor's cache hierarchy.
+ */
 static __always_inline void wbinvd(void)
 {
-	asm volatile("wbinvd": : :"memory");
+	asm volatile("wbinvd" : : : "memory");
+}
+
+/* Instruction encoding provided for binutils backwards compatibility. */
+#define ASM_WBNOINVD _ASM_BYTES(0xf3,0x0f,0x09)
+
+/*
+ * Write back all modified lines in all levels of cache associated with this
+ * logical processor to main memory, but do NOT explicitly invalidate caches,
+ * i.e. leave all/most cache lines in the hierarchy in non-modified state.
+ */
+static __always_inline void wbnoinvd(void)
+{
+	/*
+	 * Explicitly encode WBINVD if X86_FEATURE_WBNOINVD is unavailable even
+	 * though WBNOINVD is backwards compatible (it's simply WBINVD with an
+	 * ignored REP prefix), to guarantee that WBNOINVD isn't used if it
+	 * needs to be avoided for any reason.  For all supported usage in the
+	 * kernel, WBINVD is functionally a superset of WBNOINVD.
+	 */
+	alternative("wbinvd", ASM_WBNOINVD, X86_FEATURE_WBNOINVD);
 }
 
 static inline unsigned long __read_cr4(void)
