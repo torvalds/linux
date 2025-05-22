@@ -973,7 +973,9 @@ static void populate_dml_surface_cfg_from_plane_state(enum dml_project_id dml2_p
 	}
 }
 
-static void get_scaler_data_for_plane(const struct dc_plane_state *in, struct dc_state *context, struct scaler_data *out)
+static struct scaler_data *get_scaler_data_for_plane(
+		const struct dc_plane_state *in,
+		struct dc_state *context)
 {
 	int i;
 	struct pipe_ctx *temp_pipe = &context->res_ctx.temp_pipe;
@@ -994,7 +996,7 @@ static void get_scaler_data_for_plane(const struct dc_plane_state *in, struct dc
 	}
 
 	ASSERT(i < MAX_PIPES);
-	memcpy(out, &temp_pipe->plane_res.scl_data, sizeof(*out));
+	return &temp_pipe->plane_res.scl_data;
 }
 
 static void populate_dummy_dml_plane_cfg(struct dml_plane_cfg_st *out, unsigned int location,
@@ -1057,11 +1059,7 @@ static void populate_dml_plane_cfg_from_plane_state(struct dml_plane_cfg_st *out
 						    const struct dc_plane_state *in, struct dc_state *context,
 						    const struct soc_bounding_box_st *soc)
 {
-	struct scaler_data *scaler_data = kzalloc(sizeof(*scaler_data), GFP_KERNEL);
-	if (!scaler_data)
-		return;
-
-	get_scaler_data_for_plane(in, context, scaler_data);
+	struct scaler_data *scaler_data = get_scaler_data_for_plane(in, context);
 
 	out->CursorBPP[location] = dml_cur_32bit;
 	out->CursorWidth[location] = 256;
@@ -1126,8 +1124,6 @@ static void populate_dml_plane_cfg_from_plane_state(struct dml_plane_cfg_st *out
 	out->DynamicMetadataTransmittedBytes[location] = 0;
 
 	out->NumberOfCursors[location] = 1;
-
-	kfree(scaler_data);
 }
 
 static unsigned int map_stream_to_dml_display_cfg(const struct dml2_context *dml2,

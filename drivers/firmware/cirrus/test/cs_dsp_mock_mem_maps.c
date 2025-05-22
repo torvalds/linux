@@ -505,9 +505,11 @@ void cs_dsp_mock_xm_header_drop_from_regmap_cache(struct cs_dsp_test *priv)
 		 * Could be one 32-bit register or two 16-bit registers.
 		 * A raw read will read the requested number of bytes.
 		 */
-		regmap_raw_read(priv->dsp->regmap,
-				xm + (offsetof(struct wmfw_adsp2_id_hdr, n_algs) / 2),
-				&num_algs_be32, sizeof(num_algs_be32));
+		KUNIT_ASSERT_GE(priv->test, 0,
+				regmap_raw_read(priv->dsp->regmap,
+						xm +
+						(offsetof(struct wmfw_adsp2_id_hdr, n_algs) / 2),
+						&num_algs_be32, sizeof(num_algs_be32)));
 		num_algs = be32_to_cpu(num_algs_be32);
 		bytes = sizeof(struct wmfw_adsp2_id_hdr) +
 			(num_algs * sizeof(struct wmfw_adsp2_alg_hdr)) +
@@ -516,9 +518,10 @@ void cs_dsp_mock_xm_header_drop_from_regmap_cache(struct cs_dsp_test *priv)
 		regcache_drop_region(priv->dsp->regmap, xm, xm + (bytes / 2) - 1);
 		break;
 	case WMFW_HALO:
-		regmap_read(priv->dsp->regmap,
-			    xm + offsetof(struct wmfw_halo_id_hdr, n_algs),
-			    &num_algs);
+		KUNIT_ASSERT_GE(priv->test, 0,
+				regmap_read(priv->dsp->regmap,
+					    xm + offsetof(struct wmfw_halo_id_hdr, n_algs),
+					    &num_algs));
 		bytes = sizeof(struct wmfw_halo_id_hdr) +
 			(num_algs * sizeof(struct wmfw_halo_alg_hdr)) +
 			4 /* terminator word */;

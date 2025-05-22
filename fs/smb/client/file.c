@@ -160,10 +160,10 @@ static int cifs_prepare_read(struct netfs_io_subrequest *subreq)
 	server = cifs_pick_channel(tlink_tcon(req->cfile->tlink)->ses);
 	rdata->server = server;
 
-	if (cifs_sb->ctx->rsize == 0)
-		cifs_sb->ctx->rsize =
-			server->ops->negotiate_rsize(tlink_tcon(req->cfile->tlink),
-						     cifs_sb->ctx);
+	if (cifs_sb->ctx->rsize == 0) {
+		cifs_negotiate_rsize(server, cifs_sb->ctx,
+				     tlink_tcon(req->cfile->tlink));
+	}
 
 	rc = server->ops->wait_mtu_credits(server, cifs_sb->ctx->rsize,
 					   &size, &rdata->credits);

@@ -104,7 +104,7 @@ struct posix_acl *nfs3_get_acl(struct inode *inode, int type, bool rcu)
 
 	switch (status) {
 		case 0:
-			status = nfs_refresh_inode(inode, res.fattr);
+			nfs_refresh_inode(inode, res.fattr);
 			break;
 		case -EPFNOSUPPORT:
 		case -EPROTONOSUPPORT:

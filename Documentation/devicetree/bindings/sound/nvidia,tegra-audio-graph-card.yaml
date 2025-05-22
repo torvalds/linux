@@ -23,6 +23,7 @@ properties:
     enum:
       - nvidia,tegra210-audio-graph-card
       - nvidia,tegra186-audio-graph-card
+      - nvidia,tegra264-audio-graph-card
 
   clocks:
     minItems: 2

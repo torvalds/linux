@@ -1,8 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * tegra210_amx.h - Definitions for Tegra210 AMX driver
+/* SPDX-License-Identifier: GPL-2.0-only
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2025 NVIDIA CORPORATION. All rights reserved.
  *
- * Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
+ * tegra210_amx.h - Definitions for Tegra210 AMX driver
  *
  */
 
@@ -32,7 +31,6 @@
 #define TEGRA210_AMX_INT_STATUS			0x90
 #define TEGRA210_AMX_CTRL			0xa4
 #define TEGRA210_AMX_OUT_BYTE_EN0		0xa8
-#define TEGRA210_AMX_OUT_BYTE_EN1		0xac
 #define TEGRA210_AMX_CYA			0xb0
 #define TEGRA210_AMX_CFG_RAM_CTRL		0xb8
 #define TEGRA210_AMX_CFG_RAM_DATA		0xbc
@@ -40,6 +38,13 @@
 #define TEGRA194_AMX_RX1_FRAME_PERIOD		0xc0
 #define TEGRA194_AMX_RX4_FRAME_PERIOD		0xcc
 #define TEGRA194_AMX_RX4_LAST_FRAME_PERIOD	0xdc
+
+#define TEGRA264_AMX_STREAMS_AUTO_DISABLE	0xb8
+#define TEGRA264_AMX_CFG_RAM_CTRL	0xc0
+#define TEGRA264_AMX_CFG_RAM_DATA	0xc4
+#define TEGRA264_AMX_RX1_FRAME_PERIOD	0xc8
+#define TEGRA264_AMX_RX4_FRAME_PERIOD	0xd4
+#define TEGRA264_AMX_RX4_LAST_FRAME_PERIOD	0xe4
 
 /* Fields in TEGRA210_AMX_ENABLE */
 #define TEGRA210_AMX_ENABLE_SHIFT			0
@@ -72,6 +77,15 @@
 #define TEGRA210_AMX_MAP_STREAM_NUM_SHIFT	6
 #define TEGRA210_AMX_MAP_WORD_NUM_SHIFT		2
 #define TEGRA210_AMX_MAP_BYTE_NUM_SHIFT		0
+#define TEGRA210_AMX_BYTE_MASK_COUNT		2
+#define TEGRA210_AMX_MAX_CHANNEL		16
+#define TEGRA210_AMX_AUTO_DISABLE_OFFSET	0
+
+#define TEGRA264_AMX_RAM_DEPTH			32
+#define TEGRA264_AMX_BYTE_MASK_COUNT		4
+#define TEGRA264_AMX_MAX_CHANNEL		32
+#define TEGRA264_AMX_AUTO_DISABLE_OFFSET	8
+#define TEGRA_AMX_OUT_DAI_ID			4
 
 enum {
 	TEGRA210_AMX_WAIT_ON_ALL,
@@ -81,13 +95,19 @@ enum {
 struct tegra210_amx_soc_data {
 	const struct regmap_config *regmap_conf;
 	bool auto_disable;
+	const struct snd_kcontrol_new *controls;
+	unsigned int num_controls;
+	unsigned int max_ch;
+	unsigned int ram_depth;
+	unsigned int byte_mask_size;
+	unsigned int reg_offset;
 };
 
 struct tegra210_amx {
 	const struct tegra210_amx_soc_data *soc_data;
-	unsigned int map[TEGRA210_AMX_RAM_DEPTH];
+	unsigned int *map;
+	unsigned int *byte_mask;
 	struct regmap *regmap;
-	unsigned int byte_mask[2];
 };
 
 #endif

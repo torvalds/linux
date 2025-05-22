@@ -2114,8 +2114,6 @@ static bool dcn32_resource_construct(
 #define REG_STRUCT dccg_regs
 	dccg_regs_init();
 
-	DC_FP_START();
-
 	ctx->dc_bios->regs = &bios_regs;
 
 	pool->base.res_cap = &res_cap_dcn32;
@@ -2501,13 +2499,9 @@ static bool dcn32_resource_construct(
 	if (ASICREV_IS_GC_11_0_3(dc->ctx->asic_id.hw_internal_rev) && (dc->config.sdpif_request_limit_words_per_umc == 0))
 		dc->config.sdpif_request_limit_words_per_umc = 16;
 
-	DC_FP_END();
-
 	return true;
 
 create_fail:
-
-	DC_FP_END();
 
 	dcn32_resource_destruct(pool);
 

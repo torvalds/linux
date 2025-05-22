@@ -29,6 +29,7 @@ properties:
       - const: nvidia,tegra186-dspk
       - items:
           - enum:
+              - nvidia,tegra264-dspk
               - nvidia,tegra234-dspk
               - nvidia,tegra194-dspk
           - const: nvidia,tegra186-dspk

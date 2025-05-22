@@ -57,7 +57,7 @@ static irqreturn_t fsl_edma3_tx_handler(int irq, void *dev_id)
 
 	intr = edma_readl_chreg(fsl_chan, ch_int);
 	if (!intr)
-		return IRQ_HANDLED;
+		return IRQ_NONE;
 
 	edma_writel_chreg(fsl_chan, 1, ch_int);
 

@@ -1021,6 +1021,7 @@ static int smb3_reconfigure(struct fs_context *fc)
 	struct dentry *root = fc->root;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(root->d_sb);
 	struct cifs_ses *ses = cifs_sb_master_tcon(cifs_sb)->ses;
+	unsigned int rsize = ctx->rsize, wsize = ctx->wsize;
 	char *new_password = NULL, *new_password2 = NULL;
 	bool need_recon = false;
 	int rc;
@@ -1103,11 +1104,8 @@ static int smb3_reconfigure(struct fs_context *fc)
 	STEAL_STRING(cifs_sb, ctx, iocharset);
 
 	/* if rsize or wsize not passed in on remount, use previous values */
-	if (ctx->rsize == 0)
-		ctx->rsize = cifs_sb->ctx->rsize;
-	if (ctx->wsize == 0)
-		ctx->wsize = cifs_sb->ctx->wsize;
-
+	ctx->rsize = rsize ? CIFS_ALIGN_RSIZE(fc, rsize) : cifs_sb->ctx->rsize;
+	ctx->wsize = wsize ? CIFS_ALIGN_WSIZE(fc, wsize) : cifs_sb->ctx->wsize;
 
 	smb3_cleanup_fs_context_contents(cifs_sb->ctx);
 	rc = smb3_fs_context_dup(cifs_sb->ctx, ctx);
@@ -1312,7 +1310,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 				__func__);
 			goto cifs_parse_mount_err;
 		}
-		ctx->bsize = result.uint_32;
+		ctx->bsize = CIFS_ALIGN_BSIZE(fc, result.uint_32);
 		ctx->got_bsize = true;
 		break;
 	case Opt_rasize:
@@ -1336,24 +1334,13 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		ctx->rasize = result.uint_32;
 		break;
 	case Opt_rsize:
-		ctx->rsize = result.uint_32;
+		ctx->rsize = CIFS_ALIGN_RSIZE(fc, result.uint_32);
 		ctx->got_rsize = true;
 		ctx->vol_rsize = ctx->rsize;
 		break;
 	case Opt_wsize:
-		ctx->wsize = result.uint_32;
+		ctx->wsize = CIFS_ALIGN_WSIZE(fc, result.uint_32);
 		ctx->got_wsize = true;
-		if (ctx->wsize % PAGE_SIZE != 0) {
-			ctx->wsize = round_down(ctx->wsize, PAGE_SIZE);
-			if (ctx->wsize == 0) {
-				ctx->wsize = PAGE_SIZE;
-				cifs_dbg(VFS, "wsize too small, reset to minimum %ld\n", PAGE_SIZE);
-			} else {
-				cifs_dbg(VFS,
-					 "wsize rounded down to %d to multiple of PAGE_SIZE %ld\n",
-					 ctx->wsize, PAGE_SIZE);
-			}
-		}
 		ctx->vol_wsize = ctx->wsize;
 		break;
 	case Opt_acregmax:

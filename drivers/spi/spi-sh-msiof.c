@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/sh_dma.h>
@@ -1276,20 +1277,26 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	const struct sh_msiof_chipdata *chipdata;
 	struct sh_msiof_spi_info *info;
 	struct sh_msiof_spi_priv *p;
+	struct device *dev = &pdev->dev;
 	unsigned long clksrc;
 	int i;
 	int ret;
 
-	chipdata = of_device_get_match_data(&pdev->dev);
+	/* Check whether MSIOF is used as I2S mode or SPI mode by checking "port" node */
+	struct device_node *port __free(device_node) = of_graph_get_next_port(dev->of_node, NULL);
+	if (port) /* It was MSIOF-I2S */
+		return -ENODEV;
+
+	chipdata = of_device_get_match_data(dev);
 	if (chipdata) {
-		info = sh_msiof_spi_parse_dt(&pdev->dev);
+		info = sh_msiof_spi_parse_dt(dev);
 	} else {
 		chipdata = (const void *)pdev->id_entry->driver_data;
-		info = dev_get_platdata(&pdev->dev);
+		info = dev_get_platdata(dev);
 	}
 
 	if (!info) {
-		dev_err(&pdev->dev, "failed to obtain device info\n");
+		dev_err(dev, "failed to obtain device info\n");
 		return -ENXIO;
 	}
 
@@ -1297,11 +1304,9 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 		info->dtdl = 200;
 
 	if (info->mode == MSIOF_SPI_TARGET)
-		ctlr = spi_alloc_target(&pdev->dev,
-				        sizeof(struct sh_msiof_spi_priv));
+		ctlr = spi_alloc_target(dev, sizeof(struct sh_msiof_spi_priv));
 	else
-		ctlr = spi_alloc_host(&pdev->dev,
-				      sizeof(struct sh_msiof_spi_priv));
+		ctlr = spi_alloc_host(dev, sizeof(struct sh_msiof_spi_priv));
 	if (ctlr == NULL)
 		return -ENOMEM;
 
@@ -1315,9 +1320,9 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	init_completion(&p->done);
 	init_completion(&p->done_txdma);
 
-	p->clk = devm_clk_get(&pdev->dev, NULL);
+	p->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(p->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
+		dev_err(dev, "cannot get clock\n");
 		ret = PTR_ERR(p->clk);
 		goto err1;
 	}
@@ -1334,15 +1339,14 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	ret = devm_request_irq(&pdev->dev, i, sh_msiof_spi_irq, 0,
-			       dev_name(&pdev->dev), p);
+	ret = devm_request_irq(dev, i, sh_msiof_spi_irq, 0, dev_name(&pdev->dev), p);
 	if (ret) {
-		dev_err(&pdev->dev, "unable to request irq\n");
+		dev_err(dev, "unable to request irq\n");
 		goto err1;
 	}
 
 	p->pdev = pdev;
-	pm_runtime_enable(&pdev->dev);
+	pm_runtime_enable(dev);
 
 	/* Platform data may override FIFO sizes */
 	p->tx_fifo_size = chipdata->tx_fifo_size;
@@ -1361,7 +1365,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	ctlr->flags = chipdata->ctlr_flags;
 	ctlr->bus_num = pdev->id;
 	ctlr->num_chipselect = p->info->num_chipselect;
-	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->dev.of_node = dev->of_node;
 	ctlr->setup = sh_msiof_spi_setup;
 	ctlr->prepare_message = sh_msiof_prepare_message;
 	ctlr->target_abort = sh_msiof_target_abort;
@@ -1373,11 +1377,11 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 
 	ret = sh_msiof_request_dma(p);
 	if (ret < 0)
-		dev_warn(&pdev->dev, "DMA not available, using PIO\n");
+		dev_warn(dev, "DMA not available, using PIO\n");
 
-	ret = devm_spi_register_controller(&pdev->dev, ctlr);
+	ret = devm_spi_register_controller(dev, ctlr);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "devm_spi_register_controller error.\n");
+		dev_err(dev, "devm_spi_register_controller error.\n");
 		goto err2;
 	}
 
@@ -1385,7 +1389,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 
  err2:
 	sh_msiof_release_dma(p);
-	pm_runtime_disable(&pdev->dev);
+	pm_runtime_disable(dev);
  err1:
 	spi_controller_put(ctlr);
 	return ret;

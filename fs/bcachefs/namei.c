@@ -343,6 +343,9 @@ bool bch2_reinherit_attrs(struct bch_inode_unpacked *dst_u,
 	bool ret = false;
 
 	for (id = 0; id < Inode_opt_nr; id++) {
+		if (!S_ISDIR(dst_u->bi_mode) && id == Inode_opt_casefold)
+			continue;
+
 		/* Skip attributes that were explicitly set on this inode */
 		if (dst_u->bi_fields_set & (1 << id))
 			continue;

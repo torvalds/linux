@@ -55,6 +55,7 @@ do {									\
 		goto err_label;						\
 	}								\
 	*((type *)dst) = get_unaligned((type *)(src));			\
+	barrier();							\
 	current->thread.segv_continue = NULL;				\
 } while (0)
 
@@ -66,6 +67,7 @@ do {									\
 	if (__faulted)							\
 		goto err_label;						\
 	put_unaligned(*((type *)src), (type *)(dst));			\
+	barrier();							\
 	current->thread.segv_continue = NULL;				\
 } while (0)
 

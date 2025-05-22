@@ -309,7 +309,7 @@ static int bch2_bkey_clear_needs_rebalance(struct btree_trans *trans,
 					   struct btree_iter *iter,
 					   struct bkey_s_c k)
 {
-	if (!bch2_bkey_rebalance_opts(k))
+	if (k.k->type == KEY_TYPE_reflink_v || !bch2_bkey_rebalance_opts(k))
 		return 0;
 
 	struct bkey_i *n = bch2_bkey_make_mut(trans, iter, &k, 0);
