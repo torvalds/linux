@@ -2747,6 +2747,11 @@ struct wmi_service_ready_ext2_event {
 	__le32 default_num_msduq_supported_per_tid;
 } __packed;
 
+struct ath12k_wmi_dbs_or_sbs_cap_params {
+	__le32 hw_mode_id;
+	__le32 sbs_lower_band_end_freq;
+} __packed;
+
 struct ath12k_wmi_caps_ext_params {
 	__le32 hw_mode_id;
 	__le32 pdev_and_hw_link_ids;
@@ -5097,6 +5102,7 @@ struct ath12k_wmi_base {
 	struct ath12k_wmi_target_cap_arg *targ_cap;
 
 	struct ath12k_svc_ext_info svc_ext_info;
+	u32 sbs_lower_band_end_freq;
 };
 
 struct wmi_pdev_set_bios_interface_cmd {

@@ -91,6 +91,11 @@ struct ath12k_wmi_svc_rdy_ext2_parse {
 	bool dma_ring_cap_done;
 	bool spectral_bin_scaling_done;
 	bool mac_phy_caps_ext_done;
+	bool hal_reg_caps_ext2_done;
+	bool scan_radio_caps_ext2_done;
+	bool twt_caps_done;
+	bool htt_msdu_idx_to_qtype_map_done;
+	bool dbs_or_sbs_cap_ext_done;
 };
 
 struct ath12k_wmi_rdy_parse {
@@ -4991,6 +4996,7 @@ static int ath12k_wmi_svc_rdy_ext2_parse(struct ath12k_base *ab,
 					 u16 tag, u16 len,
 					 const void *ptr, void *data)
 {
+	const struct ath12k_wmi_dbs_or_sbs_cap_params *dbs_or_sbs_caps;
 	struct ath12k_wmi_pdev *wmi_handle = &ab->wmi_ab.wmi[0];
 	struct ath12k_wmi_svc_rdy_ext2_parse *parse = data;
 	int ret;
@@ -5032,6 +5038,23 @@ static int ath12k_wmi_svc_rdy_ext2_parse(struct ath12k_base *ab,
 			}
 
 			parse->mac_phy_caps_ext_done = true;
+		} else if (!parse->hal_reg_caps_ext2_done) {
+			parse->hal_reg_caps_ext2_done = true;
+		} else if (!parse->scan_radio_caps_ext2_done) {
+			parse->scan_radio_caps_ext2_done = true;
+		} else if (!parse->twt_caps_done) {
+			parse->twt_caps_done = true;
+		} else if (!parse->htt_msdu_idx_to_qtype_map_done) {
+			parse->htt_msdu_idx_to_qtype_map_done = true;
+		} else if (!parse->dbs_or_sbs_cap_ext_done) {
+			dbs_or_sbs_caps = ptr;
+			ab->wmi_ab.sbs_lower_band_end_freq =
+				__le32_to_cpu(dbs_or_sbs_caps->sbs_lower_band_end_freq);
+
+			ath12k_dbg(ab, ATH12K_DBG_WMI, "sbs_lower_band_end_freq %u\n",
+				   ab->wmi_ab.sbs_lower_band_end_freq);
+
+			parse->dbs_or_sbs_cap_ext_done = true;
 		}
 		break;
 	default:
