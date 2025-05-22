@@ -43,6 +43,7 @@
 #include "display/intel_crt_regs.h"
 #include "display/intel_cursor_regs.h"
 #include "display/intel_display.h"
+#include "display/intel_display_core.h"
 #include "display/intel_dpio_phy.h"
 #include "display/intel_sprite_regs.h"
 

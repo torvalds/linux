@@ -33,6 +33,7 @@
 
 #include <drm/drm_drv.h>
 
+#include "display/intel_display_core.h"
 #include "display/intel_display_irq.h"
 #include "display/intel_hotplug.h"
 #include "display/intel_hotplug_irq.h"

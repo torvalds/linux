@@ -28,6 +28,8 @@
 
 #include <drm/drm_managed.h>
 
+#include "display/intel_display_device.h"
+
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_requests.h"
 #include "gt/mock_engine.h"

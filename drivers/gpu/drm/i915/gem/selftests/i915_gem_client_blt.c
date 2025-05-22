@@ -5,6 +5,7 @@
 
 #include "i915_selftest.h"
 
+#include "display/intel_display_core.h"
 #include "gt/intel_context.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_engine_user.h"

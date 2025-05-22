@@ -2,6 +2,7 @@
 /* Copyright © 2025 Intel Corporation */
 
 #include "i915_drv.h"
+#include "intel_display_core.h"
 #include "intel_display_rpm.h"
 #include "intel_runtime_pm.h"
 

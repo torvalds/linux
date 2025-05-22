@@ -6,6 +6,8 @@
 #include <linux/string_helpers.h>
 #include <linux/suspend.h>
 
+#include "display/intel_display_power.h"
+
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_params.h"

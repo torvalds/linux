@@ -5,6 +5,8 @@
 
 #include <linux/string_helpers.h>
 
+#include "../display/intel_display_core.h" /* FIXME */
+
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_dram.h"
