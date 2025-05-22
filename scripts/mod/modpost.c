@@ -28,6 +28,8 @@
 #include "modpost.h"
 #include "../../include/linux/license.h"
 
+#define MODULE_NS_PREFIX "module:"
+
 static bool module_enabled;
 /* Are we using CONFIG_MODVERSIONS? */
 static bool modversions;
@@ -1597,8 +1599,13 @@ static void read_symbols(const char *modname)
 
 		for (namespace = get_modinfo(&info, "import_ns");
 		     namespace;
-		     namespace = get_next_modinfo(&info, "import_ns", namespace))
+		     namespace = get_next_modinfo(&info, "import_ns", namespace)) {
+			if (strstarts(namespace, MODULE_NS_PREFIX))
+				error("%s: explicitly importing namespace \"%s\" is not allowed.\n",
+				      mod->name, namespace);
+
 			add_namespace(&mod->imported_namespaces, namespace);
+		}
 
 		if (!get_modinfo(&info, "description"))
 			warn("missing MODULE_DESCRIPTION() in %s\n", modname);
