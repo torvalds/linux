@@ -370,10 +370,8 @@ struct dma_buf {
 	 */
 	struct module *owner;
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
 	/** @list_node: node for dma_buf accounting and debugging. */
 	struct list_head list_node;
-#endif
 
 	/** @priv: exporter specific private data for this buffer object. */
 	void *priv;
