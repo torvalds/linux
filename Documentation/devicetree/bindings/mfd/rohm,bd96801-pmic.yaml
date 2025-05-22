@@ -4,19 +4,21 @@
 $id: http://devicetree.org/schemas/mfd/rohm,bd96801-pmic.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ROHM BD96801 Scalable Power Management Integrated Circuit
+title: ROHM BD96801/BD96805 Scalable Power Management Integrated Circuit
 
 maintainers:
   - Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>
 
 description:
-  BD96801 is an automotive grade single-chip power management IC.
-  It integrates 4 buck converters and 3 LDOs with safety features like
+  BD96801 and BD96805 are automotive grade, single-chip power management ICs.
+  They both integrate 4 buck converters and 3 LDOs with safety features like
   over-/under voltage and over current detection and a watchdog.
 
 properties:
   compatible:
-    const: rohm,bd96801
+    enum:
+      - rohm,bd96801
+      - rohm,bd96805
 
   reg:
     maxItems: 1
