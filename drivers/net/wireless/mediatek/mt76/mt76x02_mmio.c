@@ -174,7 +174,6 @@ static int mt76x02_poll_tx(struct napi_struct *napi, int budget)
 
 int mt76x02_dma_init(struct mt76x02_dev *dev)
 {
-	struct mt76_txwi_cache __maybe_unused *t;
 	int i, ret, fifo_size;
 	struct mt76_queue *q;
 	void *status_fifo;
