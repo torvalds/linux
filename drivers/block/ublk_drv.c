@@ -84,6 +84,7 @@ struct ublk_rq_data {
 
 	/* for auto-unregister buffer in case of UBLK_F_AUTO_BUF_REG */
 	u16 buf_index;
+	void *buf_ctx_handle;
 };
 
 struct ublk_uring_cmd_pdu {
@@ -1211,6 +1212,8 @@ static bool ublk_auto_buf_reg(struct request *req, struct ublk_io *io,
 	}
 	/* one extra reference is dropped by ublk_io_release */
 	refcount_set(&data->ref, 2);
+
+	data->buf_ctx_handle = io_uring_cmd_ctx_handle(io->cmd);
 	/* store buffer index in request payload */
 	data->buf_index = pdu->buf.index;
 	io->flags |= UBLK_IO_FLAG_AUTO_BUF_REG;
@@ -2111,12 +2114,22 @@ static int ublk_commit_and_fetch(const struct ublk_queue *ubq,
 	if (ublk_support_auto_buf_reg(ubq)) {
 		int ret;
 
+		/*
+		 * `UBLK_F_AUTO_BUF_REG` only works iff `UBLK_IO_FETCH_REQ`
+		 * and `UBLK_IO_COMMIT_AND_FETCH_REQ` are issued from same
+		 * `io_ring_ctx`.
+		 *
+		 * If this uring_cmd's io_ring_ctx isn't same with the
+		 * one for registering the buffer, it is ublk server's
+		 * responsibility for unregistering the buffer, otherwise
+		 * this ublk request gets stuck.
+		 */
 		if (io->flags & UBLK_IO_FLAG_AUTO_BUF_REG) {
 			struct ublk_rq_data *data = blk_mq_rq_to_pdu(req);
 
-			WARN_ON_ONCE(io_buffer_unregister_bvec(cmd,
-						data->buf_index,
-						issue_flags));
+			if (data->buf_ctx_handle == io_uring_cmd_ctx_handle(cmd))
+				io_buffer_unregister_bvec(cmd, data->buf_index,
+						issue_flags);
 			io->flags &= ~UBLK_IO_FLAG_AUTO_BUF_REG;
 		}
 

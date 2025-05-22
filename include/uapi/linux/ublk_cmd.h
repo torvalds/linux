@@ -226,7 +226,11 @@
  *
  * For using this feature:
  *
- * - ublk server has to create sparse buffer table
+ * - ublk server has to create sparse buffer table on the same `io_ring_ctx`
+ *   for issuing `UBLK_IO_FETCH_REQ` and `UBLK_IO_COMMIT_AND_FETCH_REQ`.
+ *   If uring_cmd isn't issued on same `io_ring_ctx`, it is ublk server's
+ *   responsibility to unregister the buffer by issuing `IO_UNREGISTER_IO_BUF`
+ *   manually, otherwise this ublk request won't complete.
  *
  * - ublk server passes auto buf register data via uring_cmd's sqe->addr,
  *   `struct ublk_auto_buf_reg` is populated from sqe->addr, please see
