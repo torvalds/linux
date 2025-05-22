@@ -352,7 +352,7 @@ static void airoha_thermal_setup_adc_val(struct device *dev,
 		priv->default_offset = airoha_get_thermal_ADC(priv);
 		priv->default_slope = EN7581_SLOPE_X100_DIO_DEFAULT;
 		priv->init_temp = EN7581_INIT_TEMP_NONK_X10;
-		dev_info(dev, "missing thermal calibrarion EFUSE, using non calibrated value\n");
+		dev_info(dev, "missing thermal calibration EFUSE, using non calibrated value\n");
 	}
 }
 
