@@ -114,7 +114,6 @@ struct mxc_isi_buffer {
 };
 
 struct mxc_isi_reg {
-	u32 offset;
 	u32 mask;
 };
 

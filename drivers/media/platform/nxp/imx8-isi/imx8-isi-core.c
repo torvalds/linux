@@ -3,6 +3,7 @@
  * Copyright 2019-2020 NXP
  */
 
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/errno.h>
@@ -247,24 +248,24 @@ static void mxc_isi_v4l2_cleanup(struct mxc_isi_dev *isi)
 
 /* For i.MX8QXP C0 and i.MX8MN ISI IER version */
 static const struct mxc_isi_ier_reg mxc_imx8_isi_ier_v1 = {
-	.oflw_y_buf_en = { .offset = 19, .mask = 0x80000  },
-	.oflw_u_buf_en = { .offset = 21, .mask = 0x200000 },
-	.oflw_v_buf_en = { .offset = 23, .mask = 0x800000 },
+	.oflw_y_buf_en = { .mask = BIT(19) },
+	.oflw_u_buf_en = { .mask = BIT(21) },
+	.oflw_v_buf_en = { .mask = BIT(23) },
 
-	.panic_y_buf_en = {.offset = 20, .mask = 0x100000  },
-	.panic_u_buf_en = {.offset = 22, .mask = 0x400000  },
-	.panic_v_buf_en = {.offset = 24, .mask = 0x1000000 },
+	.panic_y_buf_en = { .mask = BIT(20) },
+	.panic_u_buf_en = { .mask = BIT(22) },
+	.panic_v_buf_en = { .mask = BIT(24) },
 };
 
 /* For i.MX8MP ISI IER version */
 static const struct mxc_isi_ier_reg mxc_imx8_isi_ier_v2 = {
-	.oflw_y_buf_en = { .offset = 18, .mask = 0x40000  },
-	.oflw_u_buf_en = { .offset = 20, .mask = 0x100000 },
-	.oflw_v_buf_en = { .offset = 22, .mask = 0x400000 },
+	.oflw_y_buf_en = { .mask = BIT(18) },
+	.oflw_u_buf_en = { .mask = BIT(20) },
+	.oflw_v_buf_en = { .mask = BIT(22) },
 
-	.panic_y_buf_en = {.offset = 19, .mask = 0x80000  },
-	.panic_u_buf_en = {.offset = 21, .mask = 0x200000 },
-	.panic_v_buf_en = {.offset = 23, .mask = 0x800000 },
+	.panic_y_buf_en = { .mask = BIT(19) },
+	.panic_u_buf_en = { .mask = BIT(21) },
+	.panic_v_buf_en = { .mask = BIT(23) },
 };
 
 /* Panic will assert when the buffers are 50% full */
