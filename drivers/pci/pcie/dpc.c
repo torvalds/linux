@@ -222,7 +222,7 @@ static void dpc_process_rp_pio_error(struct pci_dev *pdev)
 			  dpc_tlp_log_len(pdev),
 			  pdev->subordinate->flit_mode,
 			  &tlp_log);
-	pcie_print_tlp_log(pdev, &tlp_log, dev_fmt(""));
+	pcie_print_tlp_log(pdev, &tlp_log, KERN_ERR, dev_fmt(""));
 
 	if (pdev->dpc_rp_log_size < PCIE_STD_NUM_TLP_HEADERLOG + 1)
 		goto clear_status;
