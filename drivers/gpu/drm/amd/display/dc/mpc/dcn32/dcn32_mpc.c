@@ -878,7 +878,7 @@ void mpc32_set3dlut_ram10(
 }
 
 
-static void mpc32_set_3dlut_mode(
+void mpc32_set_3dlut_mode(
 		struct mpc *mpc,
 		enum dc_lut_mode mode,
 		bool is_color_channel_12bits,

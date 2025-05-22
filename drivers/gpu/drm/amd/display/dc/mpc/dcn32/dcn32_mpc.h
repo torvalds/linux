@@ -391,4 +391,12 @@ void mpc32_select_3dlut_ram(
 		enum dc_lut_mode mode,
 		bool is_color_channel_12bits,
 		uint32_t mpcc_id);
+
+void mpc32_set_3dlut_mode(
+	struct mpc *mpc,
+	enum dc_lut_mode mode,
+	bool is_color_channel_12bits,
+	bool is_lut_size17x17x17,
+	uint32_t mpcc_id);
+
 #endif		//__DC_MPCC_DCN32_H__
