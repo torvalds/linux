@@ -49,8 +49,8 @@ options should be enabled to use sched_ext:
 sched_ext is used only when the BPF scheduler is loaded and running.
 
 If a task explicitly sets its scheduling policy to ``SCHED_EXT``, it will be
-treated as ``SCHED_NORMAL`` and scheduled by CFS until the BPF scheduler is
-loaded.
+treated as ``SCHED_NORMAL`` and scheduled by the fair-class scheduler until the
+BPF scheduler is loaded.
 
 When the BPF scheduler is loaded and ``SCX_OPS_SWITCH_PARTIAL`` is not set
 in ``ops->flags``, all ``SCHED_NORMAL``, ``SCHED_BATCH``, ``SCHED_IDLE``, and
@@ -59,11 +59,11 @@ in ``ops->flags``, all ``SCHED_NORMAL``, ``SCHED_BATCH``, ``SCHED_IDLE``, and
 However, when the BPF scheduler is loaded and ``SCX_OPS_SWITCH_PARTIAL`` is
 set in ``ops->flags``, only tasks with the ``SCHED_EXT`` policy are scheduled
 by sched_ext, while tasks with ``SCHED_NORMAL``, ``SCHED_BATCH`` and
-``SCHED_IDLE`` policies are scheduled by CFS.
+``SCHED_IDLE`` policies are scheduled by the fair-class scheduler.
 
 Terminating the sched_ext scheduler program, triggering `SysRq-S`, or
 detection of any internal error including stalled runnable tasks aborts the
-BPF scheduler and reverts all tasks back to CFS.
+BPF scheduler and reverts all tasks back to the fair-class scheduler.
 
 .. code-block:: none
 
