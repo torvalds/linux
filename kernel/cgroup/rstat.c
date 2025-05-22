@@ -510,11 +510,20 @@ int __init ss_rstat_init(struct cgroup_subsys *ss)
 {
 	int cpu;
 
+#ifdef CONFIG_SMP
+	/*
+	 * On uniprocessor machines, arch_spinlock_t is defined as an empty
+	 * struct. Avoid allocating a size of zero by having this block
+	 * excluded in this case. It's acceptable to leave the subsystem locks
+	 * unitialized since the associated lock functions are no-ops in the
+	 * non-smp case.
+	 */
 	if (ss) {
 		ss->rstat_ss_cpu_lock = alloc_percpu(raw_spinlock_t);
 		if (!ss->rstat_ss_cpu_lock)
 			return -ENOMEM;
 	}
+#endif
 
 	spin_lock_init(ss_rstat_lock(ss));
 	for_each_possible_cpu(cpu)
