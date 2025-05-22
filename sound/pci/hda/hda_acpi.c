@@ -293,7 +293,7 @@ static int hda_acpi_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops hda_acpi_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(hda_acpi_suspend, hda_acpi_resume)
+	SYSTEM_SLEEP_PM_OPS(hda_acpi_suspend, hda_acpi_resume)
 };
 
 struct hda_data nvidia_hda_data = {
