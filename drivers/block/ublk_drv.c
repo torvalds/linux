@@ -51,6 +51,7 @@
 /* private ioctl command mirror */
 #define UBLK_CMD_DEL_DEV_ASYNC	_IOC_NR(UBLK_U_CMD_DEL_DEV_ASYNC)
 #define UBLK_CMD_UPDATE_SIZE	_IOC_NR(UBLK_U_CMD_UPDATE_SIZE)
+#define UBLK_CMD_QUIESCE_DEV	_IOC_NR(UBLK_U_CMD_QUIESCE_DEV)
 
 #define UBLK_IO_REGISTER_IO_BUF		_IOC_NR(UBLK_U_IO_REGISTER_IO_BUF)
 #define UBLK_IO_UNREGISTER_IO_BUF	_IOC_NR(UBLK_U_IO_UNREGISTER_IO_BUF)
@@ -67,7 +68,8 @@
 		| UBLK_F_ZONED \
 		| UBLK_F_USER_RECOVERY_FAIL_IO \
 		| UBLK_F_UPDATE_SIZE \
-		| UBLK_F_AUTO_BUF_REG)
+		| UBLK_F_AUTO_BUF_REG \
+		| UBLK_F_QUIESCE)
 
 #define UBLK_F_ALL_RECOVERY_FLAGS (UBLK_F_USER_RECOVERY \
 		| UBLK_F_USER_RECOVERY_REISSUE \
@@ -2841,6 +2843,11 @@ static int ublk_ctrl_add_dev(const struct ublksrv_ctrl_cmd *header)
 		return -EINVAL;
 	}
 
+	if ((info.flags & UBLK_F_QUIESCE) && !(info.flags & UBLK_F_USER_RECOVERY)) {
+		pr_warn("UBLK_F_QUIESCE requires UBLK_F_USER_RECOVERY\n");
+		return -EINVAL;
+	}
+
 	/*
 	 * unprivileged device can't be trusted, but RECOVERY and
 	 * RECOVERY_REISSUE still may hang error handling, so can't
@@ -3233,6 +3240,117 @@ static void ublk_ctrl_set_size(struct ublk_device *ub, const struct ublksrv_ctrl
 	set_capacity_and_notify(ub->ub_disk, p->dev_sectors);
 	mutex_unlock(&ub->mutex);
 }
+
+struct count_busy {
+	const struct ublk_queue *ubq;
+	unsigned int nr_busy;
+};
+
+static bool ublk_count_busy_req(struct request *rq, void *data)
+{
+	struct count_busy *idle = data;
+
+	if (!blk_mq_request_started(rq) && rq->mq_hctx->driver_data == idle->ubq)
+		idle->nr_busy += 1;
+	return true;
+}
+
+/* uring_cmd is guaranteed to be active if the associated request is idle */
+static bool ubq_has_idle_io(const struct ublk_queue *ubq)
+{
+	struct count_busy data = {
+		.ubq = ubq,
+	};
+
+	blk_mq_tagset_busy_iter(&ubq->dev->tag_set, ublk_count_busy_req, &data);
+	return data.nr_busy < ubq->q_depth;
+}
+
+/* Wait until each hw queue has at least one idle IO */
+static int ublk_wait_for_idle_io(struct ublk_device *ub,
+				 unsigned int timeout_ms)
+{
+	unsigned int elapsed = 0;
+	int ret;
+
+	while (elapsed < timeout_ms && !signal_pending(current)) {
+		unsigned int queues_cancelable = 0;
+		int i;
+
+		for (i = 0; i < ub->dev_info.nr_hw_queues; i++) {
+			struct ublk_queue *ubq = ublk_get_queue(ub, i);
+
+			queues_cancelable += !!ubq_has_idle_io(ubq);
+		}
+
+		/*
+		 * Each queue needs at least one active command for
+		 * notifying ublk server
+		 */
+		if (queues_cancelable == ub->dev_info.nr_hw_queues)
+			break;
+
+		msleep(UBLK_REQUEUE_DELAY_MS);
+		elapsed += UBLK_REQUEUE_DELAY_MS;
+	}
+
+	if (signal_pending(current))
+		ret = -EINTR;
+	else if (elapsed >= timeout_ms)
+		ret = -EBUSY;
+	else
+		ret = 0;
+
+	return ret;
+}
+
+static int ublk_ctrl_quiesce_dev(struct ublk_device *ub,
+				 const struct ublksrv_ctrl_cmd *header)
+{
+	/* zero means wait forever */
+	u64 timeout_ms = header->data[0];
+	struct gendisk *disk;
+	int i, ret = -ENODEV;
+
+	if (!(ub->dev_info.flags & UBLK_F_QUIESCE))
+		return -EOPNOTSUPP;
+
+	mutex_lock(&ub->mutex);
+	disk = ublk_get_disk(ub);
+	if (!disk)
+		goto unlock;
+	if (ub->dev_info.state == UBLK_S_DEV_DEAD)
+		goto put_disk;
+
+	ret = 0;
+	/* already in expected state */
+	if (ub->dev_info.state != UBLK_S_DEV_LIVE)
+		goto put_disk;
+
+	/* Mark all queues as canceling */
+	blk_mq_quiesce_queue(disk->queue);
+	for (i = 0; i < ub->dev_info.nr_hw_queues; i++) {
+		struct ublk_queue *ubq = ublk_get_queue(ub, i);
+
+		ubq->canceling = true;
+	}
+	blk_mq_unquiesce_queue(disk->queue);
+
+	if (!timeout_ms)
+		timeout_ms = UINT_MAX;
+	ret = ublk_wait_for_idle_io(ub, timeout_ms);
+
+put_disk:
+	ublk_put_disk(disk);
+unlock:
+	mutex_unlock(&ub->mutex);
+
+	/* Cancel pending uring_cmd */
+	if (!ret)
+		ublk_cancel_dev(ub);
+	return ret;
+}
+
 /*
  * All control commands are sent via /dev/ublk-control, so we have to check
  * the destination device's permission
@@ -3319,6 +3437,7 @@ static int ublk_ctrl_uring_cmd_permission(struct ublk_device *ub,
 	case UBLK_CMD_START_USER_RECOVERY:
 	case UBLK_CMD_END_USER_RECOVERY:
 	case UBLK_CMD_UPDATE_SIZE:
+	case UBLK_CMD_QUIESCE_DEV:
 		mask = MAY_READ | MAY_WRITE;
 		break;
 	default:
@@ -3413,6 +3532,9 @@ static int ublk_ctrl_uring_cmd(struct io_uring_cmd *cmd,
 	case UBLK_CMD_UPDATE_SIZE:
 		ublk_ctrl_set_size(ub, header);
 		ret = 0;
+		break;
+	case UBLK_CMD_QUIESCE_DEV:
+		ret = ublk_ctrl_quiesce_dev(ub, header);
 		break;
 	default:
 		ret = -EOPNOTSUPP;

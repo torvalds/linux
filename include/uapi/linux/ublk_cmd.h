@@ -53,6 +53,8 @@
 	_IOR('u', 0x14, struct ublksrv_ctrl_cmd)
 #define UBLK_U_CMD_UPDATE_SIZE		\
 	_IOWR('u', 0x15, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_QUIESCE_DEV		\
+	_IOWR('u', 0x16, struct ublksrv_ctrl_cmd)
 
 /*
  * 64bits are enough now, and it should be easy to extend in case of
@@ -252,6 +254,23 @@
  * successfully
  */
 #define UBLK_F_AUTO_BUF_REG 	(1ULL << 11)
+
+/*
+ * Control command `UBLK_U_CMD_QUIESCE_DEV` is added for quiescing device,
+ * which state can be transitioned to `UBLK_S_DEV_QUIESCED` or
+ * `UBLK_S_DEV_FAIL_IO` finally, and it needs ublk server cooperation for
+ * handling `UBLK_IO_RES_ABORT` correctly.
+ *
+ * Typical use case is for supporting to upgrade ublk server application,
+ * meantime keep ublk block device persistent during the period.
+ *
+ * This feature is only available when UBLK_F_USER_RECOVERY is enabled.
+ *
+ * Note, this command returns -EBUSY in case that all IO commands are being
+ * handled by ublk server and not completed in specified time period which
+ * is passed from the control command parameter.
+ */
+#define UBLK_F_QUIESCE		(1ULL << 12)
 
 /* device state */
 #define UBLK_S_DEV_DEAD	0
