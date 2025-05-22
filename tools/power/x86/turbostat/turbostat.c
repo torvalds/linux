@@ -2140,13 +2140,20 @@ int get_msr_fd(int cpu)
 
 	if (fd)
 		return fd;
-
+#if defined(ANDROID)
+	sprintf(pathname, "/dev/msr%d", cpu);
+#else
 	sprintf(pathname, "/dev/cpu/%d/msr", cpu);
+#endif
 	fd = open(pathname, O_RDONLY);
 	if (fd < 0)
+#if defined(ANDROID)
+		err(-1, "%s open failed, try chown or chmod +r /dev/msr*, "
+		    "or run with --no-msr, or run as root", pathname);
+#else
 		err(-1, "%s open failed, try chown or chmod +r /dev/cpu/*/msr, "
 		    "or run with --no-msr, or run as root", pathname);
-
+#endif
 	fd_percpu[cpu] = fd;
 
 	return fd;
@@ -6476,8 +6483,11 @@ void check_dev_msr()
 
 	if (no_msr)
 		return;
-
+#if defined(ANDROID)
+	sprintf(pathname, "/dev/msr%d", base_cpu);
+#else
 	sprintf(pathname, "/dev/cpu/%d/msr", base_cpu);
+#endif
 	if (stat(pathname, &sb))
 		if (system("/sbin/modprobe msr > /dev/null 2>&1"))
 			no_msr = 1;
@@ -6527,7 +6537,11 @@ void check_msr_permission(void)
 	failed += check_for_cap_sys_rawio();
 
 	/* test file permissions */
+#if defined(ANDROID)
+	sprintf(pathname, "/dev/msr%d", base_cpu);
+#else
 	sprintf(pathname, "/dev/cpu/%d/msr", base_cpu);
+#endif
 	if (euidaccess(pathname, R_OK)) {
 		failed++;
 	}
