@@ -246,7 +246,7 @@ static void mxc_isi_v4l2_cleanup(struct mxc_isi_dev *isi)
 
 /* Panic will assert when the buffers are 50% full */
 
-/* For i.MX8QXP C0 and i.MX8MN ISI IER version */
+/* For i.MX8MN ISI IER version */
 static const struct mxc_isi_ier_reg mxc_imx8_isi_ier_v1 = {
 	.oflw_y_buf_en = { .mask = BIT(19) },
 	.oflw_u_buf_en = { .mask = BIT(21) },
@@ -257,7 +257,7 @@ static const struct mxc_isi_ier_reg mxc_imx8_isi_ier_v1 = {
 	.panic_v_buf_en = { .mask = BIT(24) },
 };
 
-/* For i.MX8MP ISI IER version */
+/* For i.MX8QXP C0 and i.MX8MP ISI IER version */
 static const struct mxc_isi_ier_reg mxc_imx8_isi_ier_v2 = {
 	.oflw_y_buf_en = { .mask = BIT(18) },
 	.oflw_u_buf_en = { .mask = BIT(20) },
@@ -266,6 +266,21 @@ static const struct mxc_isi_ier_reg mxc_imx8_isi_ier_v2 = {
 	.panic_y_buf_en = { .mask = BIT(19) },
 	.panic_u_buf_en = { .mask = BIT(21) },
 	.panic_v_buf_en = { .mask = BIT(23) },
+};
+
+/* For i.MX8QM ISI IER version */
+static const struct mxc_isi_ier_reg mxc_imx8_isi_ier_qm = {
+	.oflw_y_buf_en = { .mask = BIT(16) },
+	.oflw_u_buf_en = { .mask = BIT(19) },
+	.oflw_v_buf_en = { .mask = BIT(22) },
+
+	.excs_oflw_y_buf_en = { .mask = BIT(17) },
+	.excs_oflw_u_buf_en = { .mask = BIT(20) },
+	.excs_oflw_v_buf_en = { .mask = BIT(23) },
+
+	.panic_y_buf_en = { .mask = BIT(18) },
+	.panic_u_buf_en = { .mask = BIT(21) },
+	.panic_v_buf_en = { .mask = BIT(24) },
 };
 
 /* Panic will assert when the buffers are 50% full */
@@ -319,6 +334,28 @@ static const struct mxc_isi_plat_data mxc_imx93_data = {
 	.set_thd		= &mxc_imx8_isi_thd_v1,
 	.buf_active_reverse	= true,
 	.gasket_ops		= &mxc_imx93_gasket_ops,
+	.has_36bit_dma		= false,
+};
+
+static const struct mxc_isi_plat_data mxc_imx8qm_data = {
+	.model			= MXC_ISI_IMX8QM,
+	.num_ports		= 5,
+	.num_channels		= 8,
+	.reg_offset		= 0x10000,
+	.ier_reg		= &mxc_imx8_isi_ier_qm,
+	.set_thd		= &mxc_imx8_isi_thd_v1,
+	.buf_active_reverse	= true,
+	.has_36bit_dma		= false,
+};
+
+static const struct mxc_isi_plat_data mxc_imx8qxp_data = {
+	.model			= MXC_ISI_IMX8QXP,
+	.num_ports		= 5,
+	.num_channels		= 6,
+	.reg_offset		= 0x10000,
+	.ier_reg		= &mxc_imx8_isi_ier_v2,
+	.set_thd		= &mxc_imx8_isi_thd_v1,
+	.buf_active_reverse	= true,
 	.has_36bit_dma		= false,
 };
 
@@ -499,6 +536,8 @@ static void mxc_isi_remove(struct platform_device *pdev)
 static const struct of_device_id mxc_isi_of_match[] = {
 	{ .compatible = "fsl,imx8mn-isi", .data = &mxc_imx8mn_data },
 	{ .compatible = "fsl,imx8mp-isi", .data = &mxc_imx8mp_data },
+	{ .compatible = "fsl,imx8qm-isi", .data = &mxc_imx8qm_data },
+	{ .compatible = "fsl,imx8qxp-isi", .data = &mxc_imx8qxp_data },
 	{ .compatible = "fsl,imx8ulp-isi", .data = &mxc_imx8ulp_data },
 	{ .compatible = "fsl,imx93-isi", .data = &mxc_imx93_data },
 	{ /* sentinel */ },
