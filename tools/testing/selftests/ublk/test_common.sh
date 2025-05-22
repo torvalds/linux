@@ -23,6 +23,11 @@ _get_disk_dev_t() {
 	echo $(( (major & 0xfff) << 20 | (minor & 0xfffff) ))
 }
 
+_get_disk_size()
+{
+	lsblk -b -o SIZE -n "$1"
+}
+
 _run_fio_verify_io() {
 	fio --name=verify --rw=randwrite --direct=1 --ioengine=libaio \
 		--bs=8k --iodepth=32 --verify=crc32c --do_verify=1 \

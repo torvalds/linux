@@ -92,6 +92,9 @@ struct dev_ctx {
 	/* built from shmem, only for ublk_dump_dev() */
 	struct ublk_dev *shadow_dev;
 
+	/* for 'update_size' command */
+	unsigned long long size;
+
 	union {
 		struct stripe_ctx 	stripe;
 		struct fault_inject_ctx fault_inject;
