@@ -3144,6 +3144,8 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_ptp_destroy;
 
+	otx2_set_hw_capabilities(pf);
+
 	err = cn10k_mcs_init(pf);
 	if (err)
 		goto err_del_mcam_entries;
