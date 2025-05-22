@@ -742,6 +742,12 @@ EXPORT_SYMBOL_GPL(gpiochip_query_valid_mask);
 bool gpiochip_line_is_valid(const struct gpio_chip *gc,
 				unsigned int offset)
 {
+	/*
+	 * hog pins are requested before registering GPIO chip
+	 */
+	if (!gc->gpiodev)
+		return true;
+
 	/* No mask means all valid */
 	if (likely(!gc->gpiodev->valid_mask))
 		return true;
