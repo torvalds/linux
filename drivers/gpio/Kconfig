@@ -1557,6 +1557,7 @@ config GPIO_TC3589X
 config GPIO_TIMBERDALE
 	bool "Support for timberdale GPIO IP"
 	depends on MFD_TIMBERDALE
+	select GPIOLIB_IRQCHIP
 	help
 	Add support for the GPIO IP in the timberdale FPGA.
 
