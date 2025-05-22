@@ -979,9 +979,6 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
 	if (!file)
 		return -EBADF;
 
-	if ((mode & BLK_OPEN_WRITE) && !file->f_op->write_iter)
-		return -EINVAL;
-
 	error = loop_check_backing_file(file);
 	if (error)
 		return error;
