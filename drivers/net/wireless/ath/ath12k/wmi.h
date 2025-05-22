@@ -2617,6 +2617,8 @@ struct ath12k_wmi_soc_mac_phy_hw_mode_caps_params {
 	__le32 num_chainmask_tables;
 } __packed;
 
+#define WMI_HW_MODE_CAP_CFG_TYPE	GENMASK(27, 0)
+
 struct ath12k_wmi_hw_mode_cap_params {
 	__le32 tlv_header;
 	__le32 hw_mode_id;
@@ -2666,6 +2668,12 @@ struct ath12k_wmi_mac_phy_caps_params {
 	__le32 he_cap_info_2g_ext;
 	__le32 he_cap_info_5g_ext;
 	__le32 he_cap_info_internal;
+	__le32 wireless_modes;
+	__le32 low_2ghz_chan_freq;
+	__le32 high_2ghz_chan_freq;
+	__le32 low_5ghz_chan_freq;
+	__le32 high_5ghz_chan_freq;
+	__le32 nss_ratio;
 } __packed;
 
 struct ath12k_wmi_hal_reg_caps_ext_params {
@@ -5049,6 +5057,27 @@ struct ath12k_wmi_pdev {
 	u32 rx_decap_mode;
 };
 
+struct ath12k_hw_mode_freq_range_arg {
+	u32 low_2ghz_freq;
+	u32 high_2ghz_freq;
+	u32 low_5ghz_freq;
+	u32 high_5ghz_freq;
+};
+
+struct ath12k_svc_ext_mac_phy_info {
+	enum wmi_host_hw_mode_config_type hw_mode_config_type;
+	u32 phy_id;
+	u32 supported_bands;
+	struct ath12k_hw_mode_freq_range_arg hw_freq_range;
+};
+
+#define ATH12K_MAX_MAC_PHY_CAP	8
+
+struct ath12k_svc_ext_info {
+	u32 num_hw_modes;
+	struct ath12k_svc_ext_mac_phy_info mac_phy_info[ATH12K_MAX_MAC_PHY_CAP];
+};
+
 struct ath12k_wmi_base {
 	struct ath12k_base *ab;
 	struct ath12k_wmi_pdev wmi[MAX_RADIOS];
@@ -5066,6 +5095,8 @@ struct ath12k_wmi_base {
 	enum wmi_host_hw_mode_config_type preferred_hw_mode;
 
 	struct ath12k_wmi_target_cap_arg *targ_cap;
+
+	struct ath12k_svc_ext_info svc_ext_info;
 };
 
 struct wmi_pdev_set_bios_interface_cmd {

@@ -4395,6 +4395,7 @@ static int ath12k_wmi_hw_mode_caps_parse(struct ath12k_base *soc,
 static int ath12k_wmi_hw_mode_caps(struct ath12k_base *soc,
 				   u16 len, const void *ptr, void *data)
 {
+	struct ath12k_svc_ext_info *svc_ext_info = &soc->wmi_ab.svc_ext_info;
 	struct ath12k_wmi_svc_rdy_ext_parse *svc_rdy_ext = data;
 	const struct ath12k_wmi_hw_mode_cap_params *hw_mode_caps;
 	enum wmi_host_hw_mode_config_type mode, pref;
@@ -4427,8 +4428,11 @@ static int ath12k_wmi_hw_mode_caps(struct ath12k_base *soc,
 		}
 	}
 
-	ath12k_dbg(soc, ATH12K_DBG_WMI, "preferred_hw_mode:%d\n",
-		   soc->wmi_ab.preferred_hw_mode);
+	svc_ext_info->num_hw_modes = svc_rdy_ext->n_hw_mode_caps;
+
+	ath12k_dbg(soc, ATH12K_DBG_WMI, "num hw modes %u preferred_hw_mode %d\n",
+		   svc_ext_info->num_hw_modes, soc->wmi_ab.preferred_hw_mode);
+
 	if (soc->wmi_ab.preferred_hw_mode == WMI_HOST_HW_MODE_MAX)
 		return -EINVAL;
 
@@ -4658,6 +4662,65 @@ free_dir_buff:
 	return ret;
 }
 
+static void
+ath12k_wmi_save_mac_phy_info(struct ath12k_base *ab,
+			     const struct ath12k_wmi_mac_phy_caps_params *mac_phy_cap,
+			     struct ath12k_svc_ext_mac_phy_info *mac_phy_info)
+{
+	mac_phy_info->phy_id = __le32_to_cpu(mac_phy_cap->phy_id);
+	mac_phy_info->supported_bands = __le32_to_cpu(mac_phy_cap->supported_bands);
+	mac_phy_info->hw_freq_range.low_2ghz_freq =
+					__le32_to_cpu(mac_phy_cap->low_2ghz_chan_freq);
+	mac_phy_info->hw_freq_range.high_2ghz_freq =
+					__le32_to_cpu(mac_phy_cap->high_2ghz_chan_freq);
+	mac_phy_info->hw_freq_range.low_5ghz_freq =
+					__le32_to_cpu(mac_phy_cap->low_5ghz_chan_freq);
+	mac_phy_info->hw_freq_range.high_5ghz_freq =
+					__le32_to_cpu(mac_phy_cap->high_5ghz_chan_freq);
+}
+
+static void
+ath12k_wmi_save_all_mac_phy_info(struct ath12k_base *ab,
+				 struct ath12k_wmi_svc_rdy_ext_parse *svc_rdy_ext)
+{
+	struct ath12k_svc_ext_info *svc_ext_info = &ab->wmi_ab.svc_ext_info;
+	const struct ath12k_wmi_mac_phy_caps_params *mac_phy_cap;
+	const struct ath12k_wmi_hw_mode_cap_params *hw_mode_cap;
+	struct ath12k_svc_ext_mac_phy_info *mac_phy_info;
+	u32 hw_mode_id, phy_bit_map;
+	u8 hw_idx;
+
+	mac_phy_info = &svc_ext_info->mac_phy_info[0];
+	mac_phy_cap = svc_rdy_ext->mac_phy_caps;
+
+	for (hw_idx = 0; hw_idx < svc_ext_info->num_hw_modes; hw_idx++) {
+		hw_mode_cap = &svc_rdy_ext->hw_mode_caps[hw_idx];
+		hw_mode_id = __le32_to_cpu(hw_mode_cap->hw_mode_id);
+		phy_bit_map = __le32_to_cpu(hw_mode_cap->phy_id_map);
+
+		while (phy_bit_map) {
+			ath12k_wmi_save_mac_phy_info(ab, mac_phy_cap, mac_phy_info);
+			mac_phy_info->hw_mode_config_type =
+					le32_get_bits(hw_mode_cap->hw_mode_config_type,
+						      WMI_HW_MODE_CAP_CFG_TYPE);
+			ath12k_dbg(ab, ATH12K_DBG_WMI,
+				   "hw_idx %u hw_mode_id %u hw_mode_config_type %u supported_bands %u phy_id %u 2 GHz [%u - %u] 5 GHz [%u - %u]\n",
+				   hw_idx, hw_mode_id,
+				   mac_phy_info->hw_mode_config_type,
+				   mac_phy_info->supported_bands, mac_phy_info->phy_id,
+				   mac_phy_info->hw_freq_range.low_2ghz_freq,
+				   mac_phy_info->hw_freq_range.high_2ghz_freq,
+				   mac_phy_info->hw_freq_range.low_5ghz_freq,
+				   mac_phy_info->hw_freq_range.high_5ghz_freq);
+
+			mac_phy_cap++;
+			mac_phy_info++;
+
+			phy_bit_map >>= 1;
+		}
+	}
+}
+
 static int ath12k_wmi_svc_rdy_ext_parse(struct ath12k_base *ab,
 					u16 tag, u16 len,
 					const void *ptr, void *data)
@@ -4705,6 +4768,8 @@ static int ath12k_wmi_svc_rdy_ext_parse(struct ath12k_base *ab,
 				ath12k_warn(ab, "failed to parse tlv %d\n", ret);
 				return ret;
 			}
+
+			ath12k_wmi_save_all_mac_phy_info(ab, svc_rdy_ext);
 
 			svc_rdy_ext->mac_phy_done = true;
 		} else if (!svc_rdy_ext->ext_hal_reg_done) {
