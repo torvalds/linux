@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 2016-2020 Arm Limited
-// CMN-600 Coherent Mesh Network PMU driver
+// ARM CMN/CI interconnect PMU driver
 
 #include <linux/acpi.h>
 #include <linux/bitfield.h>
@@ -2693,5 +2693,5 @@ module_init(arm_cmn_init);
 module_exit(arm_cmn_exit);
 
 MODULE_AUTHOR("Robin Murphy <robin.murphy@arm.com>");
-MODULE_DESCRIPTION("Arm CMN-600 PMU driver");
+MODULE_DESCRIPTION("Arm CMN/CI interconnect PMU driver");
 MODULE_LICENSE("GPL v2");
