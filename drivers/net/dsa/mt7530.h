@@ -20,6 +20,7 @@ enum mt753x_id {
 	ID_MT7531 = 2,
 	ID_MT7988 = 3,
 	ID_EN7581 = 4,
+	ID_AN7583 = 5,
 };
 
 #define	NUM_TRGMII_CTRL			5
@@ -66,7 +67,8 @@ enum mt753x_id {
 
 #define MT753X_MIRROR_REG(id)		((id == ID_MT7531 || \
 					  id == ID_MT7988 || \
-					  id == ID_EN7581) ? \
+					  id == ID_EN7581 || \
+					  id == ID_AN7583) ? \
 					 MT7531_CFC : MT753X_MFC)
 
 #define MT753X_MIRROR_EN(id)		((id == ID_MT7531 || \
@@ -76,19 +78,22 @@ enum mt753x_id {
 
 #define MT753X_MIRROR_PORT_MASK(id)	((id == ID_MT7531 || \
 					  id == ID_MT7988 || \
-					  id == ID_EN7581) ? \
+					  id == ID_EN7581 || \
+					  id == ID_AN7583) ? \
 					 MT7531_MIRROR_PORT_MASK : \
 					 MT7530_MIRROR_PORT_MASK)
 
 #define MT753X_MIRROR_PORT_GET(id, val)	((id == ID_MT7531 || \
 					  id == ID_MT7988 || \
-					  id == ID_EN7581) ? \
+					  id == ID_EN7581 || \
+					  id == ID_AN7583) ? \
 					 MT7531_MIRROR_PORT_GET(val) : \
 					 MT7530_MIRROR_PORT_GET(val))
 
 #define MT753X_MIRROR_PORT_SET(id, val)	((id == ID_MT7531 || \
 					  id == ID_MT7988 || \
-					  id == ID_EN7581) ? \
+					  id == ID_EN7581 || \
+					  id == ID_AN7583) ? \
 					 MT7531_MIRROR_PORT_SET(val) : \
 					 MT7530_MIRROR_PORT_SET(val))
 
@@ -672,6 +677,11 @@ enum mt7531_xtal_fsel {
 #define MT753X_CPORT_SPTAG_CFG		0x7c10
 #define  CPORT_SW2FE_STAG_EN		BIT(1)
 #define  CPORT_FE2SW_STAG_EN		BIT(0)
+
+#define AN7583_GEPHY_CONN_CFG		0x7c14
+#define  AN7583_CSR_DPHY_CKIN_SEL	BIT(31)
+#define  AN7583_CSR_PHY_CORE_REG_CLK_SEL BIT(30)
+#define  AN7583_CSR_ETHER_AFE_PWD	GENMASK(28, 24)
 
 /* Registers for LED GPIO control (MT7530 only)
  * All registers follow this pattern:
