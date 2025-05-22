@@ -135,6 +135,7 @@ enum hal_encrypt_type;
 struct ath12k_hw_ring_mask {
 	u8 tx[ATH12K_EXT_IRQ_GRP_NUM_MAX];
 	u8 rx_mon_dest[ATH12K_EXT_IRQ_GRP_NUM_MAX];
+	u8 rx_mon_status[ATH12K_EXT_IRQ_GRP_NUM_MAX];
 	u8 rx[ATH12K_EXT_IRQ_GRP_NUM_MAX];
 	u8 rx_err[ATH12K_EXT_IRQ_GRP_NUM_MAX];
 	u8 rx_wbm_rel[ATH12K_EXT_IRQ_GRP_NUM_MAX];

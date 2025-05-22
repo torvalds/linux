@@ -289,19 +289,22 @@ struct ath10k_hw_ce_ctrl1 {
 	u32 sw_wr_mask;
 	u32 reset_mask;
 	u32 reset;
-	struct ath10k_hw_ce_regs_addr_map *src_ring;
-	struct ath10k_hw_ce_regs_addr_map *dst_ring;
-	struct ath10k_hw_ce_regs_addr_map *dmax; };
+	const struct ath10k_hw_ce_regs_addr_map *src_ring;
+	const struct ath10k_hw_ce_regs_addr_map *dst_ring;
+	const struct ath10k_hw_ce_regs_addr_map *dmax;
+};
 
 struct ath10k_hw_ce_cmd_halt {
 	u32 status_reset;
 	u32 msb;
 	u32 mask;
-	struct ath10k_hw_ce_regs_addr_map *status; };
+	const struct ath10k_hw_ce_regs_addr_map *status;
+};
 
 struct ath10k_hw_ce_host_ie {
 	u32 copy_complete_reset;
-	struct ath10k_hw_ce_regs_addr_map *copy_complete; };
+	const struct ath10k_hw_ce_regs_addr_map *copy_complete;
+};
 
 struct ath10k_hw_ce_host_wm_regs {
 	u32 dstr_lmask;
@@ -328,8 +331,9 @@ struct ath10k_hw_ce_dst_src_wm_regs {
 	u32 addr;
 	u32 low_rst;
 	u32 high_rst;
-	struct ath10k_hw_ce_regs_addr_map *wm_low;
-	struct ath10k_hw_ce_regs_addr_map *wm_high; };
+	const struct ath10k_hw_ce_regs_addr_map *wm_low;
+	const struct ath10k_hw_ce_regs_addr_map *wm_high;
+};
 
 struct ath10k_hw_ce_ctrl1_upd {
 	u32 shift;
@@ -355,14 +359,14 @@ struct ath10k_hw_ce_regs {
 	u32 ce_rri_low;
 	u32 ce_rri_high;
 	u32 host_ie_addr;
-	struct ath10k_hw_ce_host_wm_regs *wm_regs;
-	struct ath10k_hw_ce_misc_regs *misc_regs;
-	struct ath10k_hw_ce_ctrl1 *ctrl1_regs;
-	struct ath10k_hw_ce_cmd_halt *cmd_halt;
-	struct ath10k_hw_ce_host_ie *host_ie;
-	struct ath10k_hw_ce_dst_src_wm_regs *wm_srcr;
-	struct ath10k_hw_ce_dst_src_wm_regs *wm_dstr;
-	struct ath10k_hw_ce_ctrl1_upd *upd;
+	const struct ath10k_hw_ce_host_wm_regs *wm_regs;
+	const struct ath10k_hw_ce_misc_regs *misc_regs;
+	const struct ath10k_hw_ce_ctrl1 *ctrl1_regs;
+	const struct ath10k_hw_ce_cmd_halt *cmd_halt;
+	const struct ath10k_hw_ce_host_ie *host_ie;
+	const struct ath10k_hw_ce_dst_src_wm_regs *wm_srcr;
+	const struct ath10k_hw_ce_dst_src_wm_regs *wm_dstr;
+	const struct ath10k_hw_ce_ctrl1_upd *upd;
 };
 
 struct ath10k_hw_values {

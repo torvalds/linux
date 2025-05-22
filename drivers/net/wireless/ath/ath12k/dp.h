@@ -70,6 +70,16 @@ struct ath12k_pdev_mon_stats {
 	u32 dest_mpdu_drop;
 	u32 dup_mon_linkdesc_cnt;
 	u32 dup_mon_buf_cnt;
+	u32 dest_mon_stuck;
+	u32 dest_mon_not_reaped;
+};
+
+enum dp_mon_status_buf_state {
+	DP_MON_STATUS_MATCH,
+	DP_MON_STATUS_NO_DMA,
+	DP_MON_STATUS_LAG,
+	DP_MON_STATUS_LEAD,
+	DP_MON_STATUS_REPLINISH,
 };
 
 struct dp_link_desc_bank {
@@ -121,8 +131,11 @@ struct ath12k_mon_data {
 	u32 mon_last_buf_cookie;
 	u64 mon_last_linkdesc_paddr;
 	u16 chan_noise_floor;
+	u32 err_bitmap;
+	u8 decap_format;
 
 	struct ath12k_pdev_mon_stats rx_mon_stats;
+	enum dp_mon_status_buf_state buf_state;
 	/* lock for monitor data */
 	spinlock_t mon_lock;
 	struct sk_buff_head rx_status_q;
@@ -190,6 +203,14 @@ struct ath12k_pdev_dp {
 #define DP_RX_BUFFER_SIZE	2048
 #define DP_RX_BUFFER_SIZE_LITE	1024
 #define DP_RX_BUFFER_ALIGN_SIZE	128
+
+#define RX_MON_STATUS_BASE_BUF_SIZE	2048
+#define RX_MON_STATUS_BUF_ALIGN		128
+#define RX_MON_STATUS_BUF_RESERVATION	128
+#define RX_MON_STATUS_BUF_SIZE		(RX_MON_STATUS_BASE_BUF_SIZE - \
+				 (RX_MON_STATUS_BUF_RESERVATION + \
+				  RX_MON_STATUS_BUF_ALIGN + \
+				  SKB_DATA_ALIGN(sizeof(struct skb_shared_info))))
 
 #define DP_RXDMA_BUF_COOKIE_BUF_ID	GENMASK(17, 0)
 #define DP_RXDMA_BUF_COOKIE_PDEV_ID	GENMASK(19, 18)
@@ -266,6 +287,9 @@ struct ath12k_pdev_dp {
 /* Invalid TX Bank ID value */
 #define DP_INVALID_BANK_ID -1
 
+#define MAX_TQM_RELEASE_REASON 15
+#define MAX_FW_TX_STATUS 7
+
 struct ath12k_dp_tx_bank_profile {
 	u8 is_configured;
 	u32 num_users;
@@ -338,6 +362,7 @@ struct ath12k_link_stats {
 
 struct ath12k_dp {
 	struct ath12k_base *ab;
+	u32 mon_dest_ring_stuck_cnt;
 	u8 num_bank_profiles;
 	/* protects the access and update of bank_profiles */
 	spinlock_t tx_bank_lock;
@@ -390,6 +415,7 @@ struct ath12k_dp {
 	struct dp_srng rxdma_err_dst_ring[MAX_RXDMA_PER_PDEV];
 	struct dp_rxdma_mon_ring rxdma_mon_buf_ring;
 	struct dp_rxdma_mon_ring tx_mon_buf_ring;
+	struct dp_rxdma_mon_ring rx_mon_status_refill_ring[MAX_RXDMA_PER_PDEV];
 	struct ath12k_reo_q_addr_lut reoq_lut;
 	struct ath12k_reo_q_addr_lut ml_reoq_lut;
 };
@@ -1330,6 +1356,8 @@ struct htt_t2h_version_conf_msg {
 #define HTT_T2H_PEER_MAP_INFO1_MAC_ADDR_H16	GENMASK(15, 0)
 #define HTT_T2H_PEER_MAP_INFO1_HW_PEER_ID	GENMASK(31, 16)
 #define HTT_T2H_PEER_MAP_INFO2_AST_HASH_VAL	GENMASK(15, 0)
+#define HTT_T2H_PEER_MAP3_INFO2_HW_PEER_ID	GENMASK(15, 0)
+#define HTT_T2H_PEER_MAP3_INFO2_AST_HASH_VAL	GENMASK(31, 16)
 #define HTT_T2H_PEER_MAP_INFO2_NEXT_HOP_M	BIT(16)
 #define HTT_T2H_PEER_MAP_INFO2_NEXT_HOP_S	16
 
