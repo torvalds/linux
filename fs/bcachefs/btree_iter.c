@@ -1399,35 +1399,44 @@ static bool bch2_btree_path_can_relock(struct btree_trans *trans, struct btree_p
 
 void bch2_path_put(struct btree_trans *trans, btree_path_idx_t path_idx, bool intent)
 {
-	struct btree_path *path = trans->paths + path_idx, *dup;
+	struct btree_path *path = trans->paths + path_idx, *dup = NULL;
 
 	if (!__btree_path_put(trans, path, intent))
 		return;
 
+	if (!path->preserve && !path->should_be_locked)
+		goto free;
+
 	dup = path->preserve
 		? have_path_at_pos(trans, path)
 		: have_node_at_pos(trans, path);
-
-	trace_btree_path_free(trans, path_idx, dup);
-
-	if (!dup && !(!path->preserve && !is_btree_node(path, path->level)))
+	if (!dup)
 		return;
 
-	if (path->should_be_locked && !trans->restarted) {
-		if (!dup)
-			return;
-
+	/*
+	 * If we need this path locked, the duplicate also has te be locked
+	 * before we free this one:
+	 */
+	if (path->should_be_locked &&
+	    !dup->should_be_locked &&
+	    !trans->restarted) {
 		if (!(trans->locked
 		      ? bch2_btree_path_relock_norestart(trans, dup)
 		      : bch2_btree_path_can_relock(trans, dup)))
 			return;
+
+		dup->should_be_locked = true;
 	}
 
-	if (dup) {
-		dup->preserve		|= path->preserve;
-		dup->should_be_locked	|= path->should_be_locked;
-	}
+	BUG_ON(path->should_be_locked &&
+	       !trans->restarted &&
+	       trans->locked &&
+	       !btree_node_locked(dup, dup->level));
 
+	path->should_be_locked = false;
+	dup->preserve |= path->preserve;
+free:
+	trace_btree_path_free(trans, path_idx, dup);
 	__bch2_path_free(trans, path_idx);
 }
 
