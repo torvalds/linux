@@ -588,7 +588,7 @@ struct dpu_hw_intf *dpu_hw_intf_init(struct drm_device *dev,
 	c->ops.setup_misr = dpu_hw_intf_setup_misr;
 	c->ops.collect_misr = dpu_hw_intf_collect_misr;
 
-	if (cfg->features & BIT(DPU_INTF_INPUT_CTRL))
+	if (mdss_rev->core_major_ver >= 5)
 		c->ops.bind_pingpong_blk = dpu_hw_intf_bind_pingpong_blk;
 
 	/* INTF TE is only for DSI interfaces */
