@@ -288,7 +288,6 @@ static void kvm_irqfd_register(struct file *file, wait_queue_head_t *wqh,
 {
 	struct kvm_irqfd_pt *p = container_of(pt, struct kvm_irqfd_pt, pt);
 	struct kvm_kernel_irqfd *irqfd = p->irqfd;
-	struct kvm_kernel_irqfd *tmp;
 	struct kvm *kvm = p->kvm;
 
 	/*
@@ -327,16 +326,6 @@ static void kvm_irqfd_register(struct file *file, wait_queue_head_t *wqh,
 	spin_acquire(&kvm->irqfds.lock.dep_map, 0, 0, _RET_IP_);
 	if (p->ret)
 		goto out;
-
-	list_for_each_entry(tmp, &kvm->irqfds.items, list) {
-		if (irqfd->eventfd != tmp->eventfd)
-			continue;
-
-		WARN_ON_ONCE(1);
-		/* This fd is used for another irq already. */
-		p->ret = -EBUSY;
-		goto out;
-	}
 
 	list_add_tail(&irqfd->list, &kvm->irqfds.items);
 
