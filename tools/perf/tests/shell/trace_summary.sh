@@ -1,5 +1,5 @@
 #!/bin/sh
-# perf trace summary
+# perf trace summary (exclusive)
 # SPDX-License-Identifier: GPL-2.0
 
 # Check that perf trace works with various summary mode
