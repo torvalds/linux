@@ -21,6 +21,7 @@ static struct option set_opts[] = {
 	{"epp", required_argument, NULL, 'e'},
 	{"amd-pstate-mode", required_argument, NULL, 'm'},
 	{"turbo-boost", required_argument, NULL, 't'},
+	{"boost", required_argument, NULL, 't'},
 	{ },
 };
 
