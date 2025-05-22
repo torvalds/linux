@@ -18,9 +18,9 @@ API for selecting the platform profile of these automatic mechanisms.
 Note that this API is only for selecting the platform profile, it is
 NOT a goal of this API to allow monitoring the resulting performance
 characteristics. Monitoring performance is best done with device/vendor
-specific tools such as e.g. turbostat.
+specific tools, e.g. turbostat.
 
-Specifically when selecting a high performance profile the actual achieved
+Specifically, when selecting a high performance profile the actual achieved
 performance may be limited by various factors such as: the heat generated
 by other components, room temperature, free air flow at the bottom of a
 laptop, etc. It is explicitly NOT a goal of this API to let userspace know
@@ -44,7 +44,7 @@ added. Drivers which wish to introduce new profile names must:
 "Custom" profile support
 ========================
 The platform_profile class also supports profiles advertising a "custom"
-profile. This is intended to be set by drivers when the setttings in the
+profile. This is intended to be set by drivers when the settings in the
 driver have been modified in a way that a standard profile doesn't represent
 the current state.
 
