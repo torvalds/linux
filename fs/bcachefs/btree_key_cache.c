@@ -656,7 +656,7 @@ void bch2_btree_key_cache_drop(struct btree_trans *trans,
 			path2->should_be_locked = false;
 			__bch2_btree_path_unlock(trans, path2);
 			path2->l[0].b = ERR_PTR(-BCH_ERR_no_btree_node_drop);
-			btree_path_set_dirty(path2, BTREE_ITER_NEED_TRAVERSE);
+			btree_path_set_dirty(trans, path2, BTREE_ITER_NEED_TRAVERSE);
 		}
 
 	bch2_trans_verify_locks(trans);

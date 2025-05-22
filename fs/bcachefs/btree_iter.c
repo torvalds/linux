@@ -228,7 +228,7 @@ static void __bch2_btree_path_verify(struct btree_trans *trans,
 		__bch2_btree_path_verify_level(trans, path, i);
 	}
 
-	bch2_btree_path_verify_locks(path);
+	bch2_btree_path_verify_locks(trans, path);
 }
 
 void __bch2_trans_verify_paths(struct btree_trans *trans)
@@ -991,7 +991,7 @@ static __always_inline int btree_path_down(struct btree_trans *trans,
 	path->level = level;
 	bch2_btree_path_level_init(trans, path, b);
 
-	bch2_btree_path_verify_locks(path);
+	bch2_btree_path_verify_locks(trans, path);
 err:
 	bch2_bkey_buf_exit(&tmp, c);
 	return ret;
@@ -1103,7 +1103,7 @@ static void btree_path_set_level_down(struct btree_trans *trans,
 		if (btree_lock_want(path, l) == BTREE_NODE_UNLOCKED)
 			btree_node_unlock(trans, path, l);
 
-	btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
+	btree_path_set_dirty(trans, path, BTREE_ITER_NEED_TRAVERSE);
 	bch2_btree_path_verify(trans, path);
 }
 
@@ -1301,7 +1301,7 @@ __bch2_btree_path_set_pos(struct btree_trans *trans,
 	if (unlikely(path->cached)) {
 		btree_node_unlock(trans, path, 0);
 		path->l[0].b = ERR_PTR(-BCH_ERR_no_btree_node_up);
-		btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
+		btree_path_set_dirty(trans, path, BTREE_ITER_NEED_TRAVERSE);
 		goto out;
 	}
 
@@ -1330,7 +1330,7 @@ __bch2_btree_path_set_pos(struct btree_trans *trans,
 	}
 
 	if (unlikely(level != path->level)) {
-		btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
+		btree_path_set_dirty(trans, path, BTREE_ITER_NEED_TRAVERSE);
 		__bch2_btree_path_unlock(trans, path);
 	}
 out:
@@ -1984,7 +1984,7 @@ struct btree *bch2_btree_iter_next_node(struct btree_trans *trans, struct btree_
 		__bch2_btree_path_unlock(trans, path);
 		path->l[path->level].b		= ERR_PTR(-BCH_ERR_no_btree_node_relock);
 		path->l[path->level + 1].b	= ERR_PTR(-BCH_ERR_no_btree_node_relock);
-		btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
+		btree_path_set_dirty(trans, path, BTREE_ITER_NEED_TRAVERSE);
 		trace_and_count(trans->c, trans_restart_relock_next_node, trans, _THIS_IP_, path);
 		ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_relock);
 		goto err;

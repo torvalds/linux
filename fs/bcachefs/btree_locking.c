@@ -494,7 +494,7 @@ err:
 	}
 
 	__bch2_btree_path_unlock(trans, path);
-	btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
+	btree_path_set_dirty(trans, path, BTREE_ITER_NEED_TRAVERSE);
 
 	/*
 	 * When we fail to get a lock, we have to ensure that any child nodes
@@ -594,7 +594,7 @@ int bch2_btree_path_relock_intent(struct btree_trans *trans,
 	     l++) {
 		if (!bch2_btree_node_relock(trans, path, l)) {
 			__bch2_btree_path_unlock(trans, path);
-			btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
+			btree_path_set_dirty(trans, path, BTREE_ITER_NEED_TRAVERSE);
 			trace_and_count(trans->c, trans_restart_relock_path_intent, trans, _RET_IP_, path);
 			return btree_trans_restart(trans, BCH_ERR_transaction_restart_relock_path_intent);
 		}
@@ -636,7 +636,7 @@ bool __bch2_btree_path_upgrade_norestart(struct btree_trans *trans,
 	bool ret = !btree_path_get_locks(trans, path, true, NULL, 0) ||
 		!path->should_be_locked;
 
-	bch2_btree_path_verify_locks(path);
+	bch2_btree_path_verify_locks(trans, path);
 	return ret;
 }
 
@@ -739,7 +739,7 @@ void __bch2_btree_path_downgrade(struct btree_trans *trans,
 		}
 	}
 
-	bch2_btree_path_verify_locks(path);
+	bch2_btree_path_verify_locks(trans, path);
 
 	trace_path_downgrade(trans, _RET_IP_, path, old_locks_want);
 }
@@ -880,7 +880,7 @@ int __bch2_trans_mutex_lock(struct btree_trans *trans,
 
 /* Debug */
 
-void __bch2_btree_path_verify_locks(struct btree_path *path)
+void __bch2_btree_path_verify_locks(struct btree_trans *trans, struct btree_path *path)
 {
 	/*
 	 * A path may be uptodate and yet have nothing locked if and only if
@@ -929,5 +929,5 @@ void __bch2_trans_verify_locks(struct btree_trans *trans)
 	unsigned i;
 
 	trans_for_each_path(trans, path, i)
-		__bch2_btree_path_verify_locks(path);
+		__bch2_btree_path_verify_locks(trans, path);
 }
