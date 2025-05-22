@@ -62,4 +62,10 @@ test_perf_trace "-as --summary-mode=total --bpf-summary"
 # summary with normal output for system wide - total summary mode with BPF
 test_perf_trace "-aS --summary-mode=total --bpf-summary"
 
+# summary only for system wide - cgroup summary mode with BPF
+test_perf_trace "-as --summary-mode=cgroup --bpf-summary"
+
+# summary with normal output for system wide - cgroup summary mode with BPF
+test_perf_trace "-aS --summary-mode=cgroup --bpf-summary"
+
 rm -f ${OUTPUT}
