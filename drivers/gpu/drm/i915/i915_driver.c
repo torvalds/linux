@@ -293,6 +293,8 @@ static void i915_driver_late_release(struct drm_i915_private *dev_priv)
 	intel_sbi_fini(dev_priv);
 
 	i915_params_free(&dev_priv->params);
+
+	intel_display_device_remove(display);
 }
 
 /**
@@ -735,6 +737,7 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 	const struct intel_device_info *match_info =
 		(struct intel_device_info *)ent->driver_data;
 	struct drm_i915_private *i915;
+	struct intel_display *display;
 
 	i915 = devm_drm_dev_alloc(&pdev->dev, &i915_drm_driver,
 				  struct drm_i915_private, drm);
@@ -749,10 +752,11 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Set up device info and initial runtime info. */
 	intel_device_info_driver_create(i915, pdev->device, match_info);
 
-	/* TODO: Allocate display dynamically. */
-	i915->display = &i915->__display;
+	display = intel_display_device_probe(pdev);
+	if (IS_ERR(display))
+		return ERR_CAST(display);
 
-	intel_display_device_probe(pdev);
+	i915->display = display;
 
 	return i915;
 }
@@ -911,7 +915,6 @@ void i915_driver_remove(struct drm_i915_private *i915)
 static void i915_driver_release(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_display *display = dev_priv->display;
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
 	intel_wakeref_t wakeref;
 
@@ -934,8 +937,6 @@ static void i915_driver_release(struct drm_device *dev)
 	intel_runtime_pm_driver_release(rpm);
 
 	i915_driver_late_release(dev_priv);
-
-	intel_display_device_remove(display);
 }
 
 static int i915_driver_open(struct drm_device *dev, struct drm_file *file)

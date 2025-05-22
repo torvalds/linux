@@ -529,14 +529,15 @@ int xe_display_probe(struct xe_device *xe)
 	if (!xe->info.probe_display)
 		goto no_display;
 
-	/* TODO: Allocate display dynamically. */
-	xe->display = &xe->__display;
-
 	display = intel_display_device_probe(pdev);
+	if (IS_ERR(display))
+		return PTR_ERR(display);
 
 	err = drmm_add_action_or_reset(&xe->drm, display_device_remove, display);
 	if (err)
 		return err;
+
+	xe->display = display;
 
 	if (has_display(xe))
 		return 0;

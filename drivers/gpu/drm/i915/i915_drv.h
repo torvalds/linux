@@ -178,7 +178,6 @@ struct drm_i915_private {
 	struct drm_device drm;
 
 	struct intel_display *display;
-	struct intel_display __display; /* Transitional. Do not use directly. */
 
 	/* FIXME: Device release actions should all be moved to drmm_ */
 	bool do_release;

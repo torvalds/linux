@@ -588,7 +588,6 @@ struct xe_device {
 	 * migrating to the right sub-structs
 	 */
 	struct intel_display *display;
-	struct intel_display __display; /* Transitional. Do not use directly. */
 
 	struct dram_info {
 		bool wm_lv_0_adjust_needed;
