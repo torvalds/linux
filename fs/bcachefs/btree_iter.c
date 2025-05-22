@@ -1740,6 +1740,10 @@ btree_path_idx_t bch2_path_get(struct btree_trans *trans,
 
 	btree_trans_sort_paths(trans);
 
+	if (intent)
+		locks_want = max(locks_want, level + 1);
+	locks_want = min(locks_want, BTREE_MAX_DEPTH);
+
 	trans_for_each_path_inorder(trans, path, iter) {
 		if (__btree_path_cmp(path,
 				     btree_id,
@@ -1754,7 +1758,8 @@ btree_path_idx_t bch2_path_get(struct btree_trans *trans,
 	if (path_pos &&
 	    trans->paths[path_pos].cached	== cached &&
 	    trans->paths[path_pos].btree_id	== btree_id &&
-	    trans->paths[path_pos].level	== level) {
+	    trans->paths[path_pos].level	== level &&
+	    bch2_btree_path_upgrade_norestart(trans, trans->paths + path_pos, locks_want)) {
 		trace_btree_path_get(trans, trans->paths + path_pos, &pos);
 
 		__btree_path_get(trans, trans->paths + path_pos, intent);
@@ -1786,9 +1791,6 @@ btree_path_idx_t bch2_path_get(struct btree_trans *trans,
 	if (!(flags & BTREE_ITER_nopreserve))
 		path->preserve = true;
 
-	if (path->intent_ref)
-		locks_want = max(locks_want, level + 1);
-
 	/*
 	 * If the path has locks_want greater than requested, we don't downgrade
 	 * it here - on transaction restart because btree node split needs to
@@ -1796,10 +1798,6 @@ btree_path_idx_t bch2_path_get(struct btree_trans *trans,
 	 * Downgrading iterators only happens via bch2_trans_downgrade(), after
 	 * a successful transaction commit.
 	 */
-
-	locks_want = min(locks_want, BTREE_MAX_DEPTH);
-	if (locks_want > path->locks_want)
-		bch2_btree_path_upgrade_norestart(trans, path, locks_want);
 
 	return path_idx;
 }
