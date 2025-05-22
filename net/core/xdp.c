@@ -709,8 +709,7 @@ static noinline bool xdp_copy_frags_from_zc(struct sk_buff *skb,
 			return false;
 		}
 
-		memcpy(page_address(page) + offset,
-		       skb_frag_page(frag) + skb_frag_off(frag),
+		memcpy(page_address(page) + offset, skb_frag_address(frag),
 		       LARGEST_ALIGN(len));
 		__skb_fill_page_desc_noacc(sinfo, i, page, offset, len);
 
