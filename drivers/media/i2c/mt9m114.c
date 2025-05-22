@@ -1619,12 +1619,8 @@ static int mt9m114_ifp_get_frame_interval(struct v4l2_subdev *sd,
 	if (interval->which != V4L2_SUBDEV_FORMAT_ACTIVE)
 		return -EINVAL;
 
-	mutex_lock(sensor->ifp.hdl.lock);
-
 	ival->numerator = 1;
 	ival->denominator = sensor->ifp.frame_rate;
-
-	mutex_unlock(sensor->ifp.hdl.lock);
 
 	return 0;
 }
@@ -1644,8 +1640,6 @@ static int mt9m114_ifp_set_frame_interval(struct v4l2_subdev *sd,
 	if (interval->which != V4L2_SUBDEV_FORMAT_ACTIVE)
 		return -EINVAL;
 
-	mutex_lock(sensor->ifp.hdl.lock);
-
 	if (ival->numerator != 0 && ival->denominator != 0)
 		sensor->ifp.frame_rate = min_t(unsigned int,
 					       ival->denominator / ival->numerator,
@@ -1658,8 +1652,6 @@ static int mt9m114_ifp_set_frame_interval(struct v4l2_subdev *sd,
 
 	if (sensor->streaming)
 		ret = mt9m114_set_frame_rate(sensor);
-
-	mutex_unlock(sensor->ifp.hdl.lock);
 
 	return ret;
 }
