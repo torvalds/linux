@@ -100,9 +100,10 @@ static bool bkey_nocow_lock(struct bch_fs *c, struct moving_context *ctxt, struc
 	return true;
 }
 
-static noinline void trace_io_move_finish2(struct data_update *u,
-					       struct bkey_i *new,
-					       struct bkey_i *insert)
+noinline_for_stack
+static void trace_io_move_finish2(struct data_update *u,
+				  struct bkey_i *new,
+				  struct bkey_i *insert)
 {
 	struct bch_fs *c = u->op.c;
 	struct printbuf buf = PRINTBUF;
@@ -124,6 +125,7 @@ static noinline void trace_io_move_finish2(struct data_update *u,
 	printbuf_exit(&buf);
 }
 
+noinline_for_stack
 static void trace_io_move_fail2(struct data_update *m,
 			 struct bkey_s_c new,
 			 struct bkey_s_c wrote,
@@ -179,19 +181,84 @@ static void trace_io_move_fail2(struct data_update *m,
 	printbuf_exit(&buf);
 }
 
+noinline_for_stack
+static void trace_data_update2(struct data_update *m,
+			       struct bkey_s_c old, struct bkey_s_c k,
+			       struct bkey_i *insert)
+{
+	struct bch_fs *c = m->op.c;
+	struct printbuf buf = PRINTBUF;
+
+	prt_str(&buf, "\nold: ");
+	bch2_bkey_val_to_text(&buf, c, old);
+	prt_str(&buf, "\nk:   ");
+	bch2_bkey_val_to_text(&buf, c, k);
+	prt_str(&buf, "\nnew: ");
+	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
+
+	trace_data_update(c, buf.buf);
+	printbuf_exit(&buf);
+}
+
+noinline_for_stack
+static void trace_io_move_created_rebalance2(struct data_update *m,
+					     struct bkey_s_c old, struct bkey_s_c k,
+					     struct bkey_i *insert)
+{
+	struct bch_fs *c = m->op.c;
+	struct printbuf buf = PRINTBUF;
+
+	bch2_data_update_opts_to_text(&buf, c, &m->op.opts, &m->data_opts);
+
+	prt_str(&buf, "\nold: ");
+	bch2_bkey_val_to_text(&buf, c, old);
+	prt_str(&buf, "\nk:   ");
+	bch2_bkey_val_to_text(&buf, c, k);
+	prt_str(&buf, "\nnew: ");
+	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
+
+	trace_io_move_created_rebalance(c, buf.buf);
+	printbuf_exit(&buf);
+
+	this_cpu_inc(c->counters[BCH_COUNTER_io_move_created_rebalance]);
+}
+
+noinline_for_stack
+static int data_update_invalid_bkey(struct data_update *m,
+				    struct bkey_s_c old, struct bkey_s_c k,
+				    struct bkey_i *insert)
+{
+	struct bch_fs *c = m->op.c;
+	struct printbuf buf = PRINTBUF;
+	bch2_log_msg_start(c, &buf);
+
+	prt_str(&buf, "about to insert invalid key in data update path");
+	prt_printf(&buf, "\nop.nonce: %u", m->op.nonce);
+	prt_str(&buf, "\nold: ");
+	bch2_bkey_val_to_text(&buf, c, old);
+	prt_str(&buf, "\nk:   ");
+	bch2_bkey_val_to_text(&buf, c, k);
+	prt_str(&buf, "\nnew: ");
+	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
+
+	bch2_fs_emergency_read_only2(c, &buf);
+
+	bch2_print_str(c, KERN_ERR, buf.buf);
+	printbuf_exit(&buf);
+
+	return -BCH_ERR_invalid_bkey;
+}
+
 static int __bch2_data_update_index_update(struct btree_trans *trans,
 					   struct bch_write_op *op)
 {
 	struct bch_fs *c = op->c;
 	struct btree_iter iter;
-	struct data_update *m =
-		container_of(op, struct data_update, op);
-	struct keylist *keys = &op->insert_keys;
-	struct printbuf journal_msg = PRINTBUF;
+	struct data_update *m = container_of(op, struct data_update, op);
 	int ret = 0;
 
 	bch2_trans_iter_init(trans, &iter, m->btree_id,
-			     bkey_start_pos(&bch2_keylist_front(keys)->k),
+			     bkey_start_pos(&bch2_keylist_front(&op->insert_keys)->k),
 			     BTREE_ITER_slots|BTREE_ITER_intent);
 
 	while (1) {
@@ -216,11 +283,11 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		new = bkey_i_to_extent(bch2_keylist_front(keys));
+		new = bkey_i_to_extent(bch2_keylist_front(&op->insert_keys));
 
 		if (!bch2_extents_match(k, old)) {
 			trace_io_move_fail2(m, k, bkey_i_to_s_c(&new->k_i),
-						NULL, "no match:");
+					    NULL, "no match:");
 			goto nowork;
 		}
 
@@ -239,7 +306,7 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		bkey_copy(&new->k_i, bch2_keylist_front(keys));
+		bkey_copy(&new->k_i, bch2_keylist_front(&op->insert_keys));
 		bch2_cut_front(iter.pos, &new->k_i);
 
 		bch2_cut_front(iter.pos,	insert);
@@ -353,31 +420,11 @@ restart_drop_extra_replicas:
 							.flags	= BCH_VALIDATE_commit,
 						 });
 		if (unlikely(invalid)) {
-			struct printbuf buf = PRINTBUF;
-			bch2_log_msg_start(c, &buf);
-
-			prt_str(&buf, "about to insert invalid key in data update path");
-			prt_printf(&buf, "\nop.nonce: %u", m->op.nonce);
-			prt_str(&buf, "\nold: ");
-			bch2_bkey_val_to_text(&buf, c, old);
-			prt_str(&buf, "\nk:   ");
-			bch2_bkey_val_to_text(&buf, c, k);
-			prt_str(&buf, "\nnew: ");
-			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
-
-			bch2_fs_emergency_read_only2(c, &buf);
-
-			bch2_print_str(c, KERN_ERR, buf.buf);
-			printbuf_exit(&buf);
-
-			ret = -BCH_ERR_invalid_bkey;
+			ret = data_update_invalid_bkey(m, old, k, insert);
 			goto out;
 		}
 
-		printbuf_reset(&journal_msg);
-		prt_str(&journal_msg, bch2_data_update_type_strs[m->type]);
-
-		ret =   bch2_trans_log_msg(trans, &journal_msg) ?:
+		ret =   bch2_trans_log_str(trans, bch2_data_update_type_strs[m->type]) ?:
 			bch2_trans_log_bkey(trans, m->btree_id, 0, m->k.k) ?:
 			bch2_insert_snapshot_whiteouts(trans, m->btree_id,
 						k.k->p, bkey_start_pos(&insert->k)) ?:
@@ -389,38 +436,12 @@ restart_drop_extra_replicas:
 		if (ret)
 			goto err;
 
-		if (trace_data_update_enabled()) {
-			struct printbuf buf = PRINTBUF;
-
-			prt_str(&buf, "\nold: ");
-			bch2_bkey_val_to_text(&buf, c, old);
-			prt_str(&buf, "\nk:   ");
-			bch2_bkey_val_to_text(&buf, c, k);
-			prt_str(&buf, "\nnew: ");
-			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
-
-			trace_data_update(c, buf.buf);
-			printbuf_exit(&buf);
-		}
+		if (trace_data_update_enabled())
+			trace_data_update2(m, old, k, insert);
 
 		if (bch2_bkey_sectors_need_rebalance(c, bkey_i_to_s_c(insert)) * k.k->size >
-		    bch2_bkey_sectors_need_rebalance(c, k) * insert->k.size) {
-			struct printbuf buf = PRINTBUF;
-
-			bch2_data_update_opts_to_text(&buf, c, &m->op.opts, &m->data_opts);
-
-			prt_str(&buf, "\nold: ");
-			bch2_bkey_val_to_text(&buf, c, old);
-			prt_str(&buf, "\nk:   ");
-			bch2_bkey_val_to_text(&buf, c, k);
-			prt_str(&buf, "\nnew: ");
-			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
-
-			trace_io_move_created_rebalance(c, buf.buf);
-			printbuf_exit(&buf);
-
-			this_cpu_inc(c->counters[BCH_COUNTER_io_move_created_rebalance]);
-		}
+		    bch2_bkey_sectors_need_rebalance(c, k) * insert->k.size)
+			trace_io_move_created_rebalance2(m, old, k, insert);
 
 		ret =   bch2_trans_commit(trans, &op->res,
 				NULL,
@@ -441,9 +462,9 @@ err:
 		if (ret)
 			break;
 next:
-		while (bkey_ge(iter.pos, bch2_keylist_front(keys)->k.p)) {
-			bch2_keylist_pop_front(keys);
-			if (bch2_keylist_empty(keys))
+		while (bkey_ge(iter.pos, bch2_keylist_front(&op->insert_keys)->k.p)) {
+			bch2_keylist_pop_front(&op->insert_keys);
+			if (bch2_keylist_empty(&op->insert_keys))
 				goto out;
 		}
 		continue;
@@ -461,7 +482,6 @@ nowork:
 		goto next;
 	}
 out:
-	printbuf_exit(&journal_msg);
 	bch2_trans_iter_exit(trans, &iter);
 	BUG_ON(bch2_err_matches(ret, BCH_ERR_transaction_restart));
 	return ret;
