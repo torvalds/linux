@@ -6095,6 +6095,122 @@ static int ath12k_mac_mlo_sta_update_link_active(struct ath12k_base *ab,
 	return 0;
 }
 
+static bool ath12k_mac_are_sbs_chan(struct ath12k_base *ab, u32 freq_1, u32 freq_2)
+{
+	if (!ath12k_mac_is_hw_sbs_capable(ab))
+		return false;
+
+	if (ath12k_is_2ghz_channel_freq(freq_1) ||
+	    ath12k_is_2ghz_channel_freq(freq_2))
+		return false;
+
+	return !ath12k_mac_2_freq_same_mac_in_sbs(ab, freq_1, freq_2);
+}
+
+static bool ath12k_mac_are_dbs_chan(struct ath12k_base *ab, u32 freq_1, u32 freq_2)
+{
+	if (!ath12k_mac_is_hw_dbs_capable(ab))
+		return false;
+
+	return !ath12k_mac_2_freq_same_mac_in_dbs(ab, freq_1, freq_2);
+}
+
+static int ath12k_mac_select_links(struct ath12k_base *ab,
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_hw *hw,
+				   u16 *selected_links)
+{
+	unsigned long useful_links = ieee80211_vif_usable_links(vif);
+	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
+	u8 num_useful_links = hweight_long(useful_links);
+	struct ieee80211_chanctx_conf *chanctx;
+	struct ath12k_link_vif *assoc_arvif;
+	u32 assoc_link_freq, partner_freq;
+	u16 sbs_links = 0, dbs_links = 0;
+	struct ieee80211_bss_conf *info;
+	struct ieee80211_channel *chan;
+	struct ieee80211_sta *sta;
+	struct ath12k_sta *ahsta;
+	u8 link_id;
+
+	/* activate all useful links if less than max supported */
+	if (num_useful_links <= ATH12K_NUM_MAX_ACTIVE_LINKS_PER_DEVICE) {
+		*selected_links = useful_links;
+		return 0;
+	}
+
+	/* only in station mode we can get here, so it's safe
+	 * to use ap_addr
+	 */
+	rcu_read_lock();
+	sta = ieee80211_find_sta(vif, vif->cfg.ap_addr);
+	if (!sta) {
+		rcu_read_unlock();
+		ath12k_warn(ab, "failed to find sta with addr %pM\n", vif->cfg.ap_addr);
+		return -EINVAL;
+	}
+
+	ahsta = ath12k_sta_to_ahsta(sta);
+	assoc_arvif = wiphy_dereference(hw->wiphy, ahvif->link[ahsta->assoc_link_id]);
+	info = ath12k_mac_get_link_bss_conf(assoc_arvif);
+	chanctx = rcu_dereference(info->chanctx_conf);
+	assoc_link_freq = chanctx->def.chan->center_freq;
+	rcu_read_unlock();
+	ath12k_dbg(ab, ATH12K_DBG_MAC, "assoc link %u freq %u\n",
+		   assoc_arvif->link_id, assoc_link_freq);
+
+	/* assoc link is already activated and has to be kept active,
+	 * only need to select a partner link from others.
+	 */
+	useful_links &= ~BIT(assoc_arvif->link_id);
+	for_each_set_bit(link_id, &useful_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		info = wiphy_dereference(hw->wiphy, vif->link_conf[link_id]);
+		if (!info) {
+			ath12k_warn(ab, "failed to get link info for link: %u\n",
+				    link_id);
+			return -ENOLINK;
+		}
+
+		chan = info->chanreq.oper.chan;
+		if (!chan) {
+			ath12k_warn(ab, "failed to get chan for link: %u\n", link_id);
+			return -EINVAL;
+		}
+
+		partner_freq = chan->center_freq;
+		if (ath12k_mac_are_sbs_chan(ab, assoc_link_freq, partner_freq)) {
+			sbs_links |= BIT(link_id);
+			ath12k_dbg(ab, ATH12K_DBG_MAC, "new SBS link %u freq %u\n",
+				   link_id, partner_freq);
+			continue;
+		}
+
+		if (ath12k_mac_are_dbs_chan(ab, assoc_link_freq, partner_freq)) {
+			dbs_links |= BIT(link_id);
+			ath12k_dbg(ab, ATH12K_DBG_MAC, "new DBS link %u freq %u\n",
+				   link_id, partner_freq);
+			continue;
+		}
+
+		ath12k_dbg(ab, ATH12K_DBG_MAC, "non DBS/SBS link %u freq %u\n",
+			   link_id, partner_freq);
+	}
+
+	/* choose the first candidate no matter how many is in the list */
+	if (sbs_links)
+		link_id = __ffs(sbs_links);
+	else if (dbs_links)
+		link_id = __ffs(dbs_links);
+	else
+		link_id = ffs(useful_links) - 1;
+
+	ath12k_dbg(ab, ATH12K_DBG_MAC, "select partner link %u\n", link_id);
+
+	*selected_links = BIT(assoc_arvif->link_id) | BIT(link_id);
+
+	return 0;
+}
+
 static int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_sta *sta,
@@ -6108,6 +6224,7 @@ static int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 	struct ath12k_link_vif *arvif;
 	struct ath12k_link_sta *arsta;
 	unsigned long valid_links;
+	u16 selected_links = 0;
 	u8 link_id = 0, i;
 	struct ath12k *ar;
 	int ret;
@@ -6179,8 +6296,24 @@ static int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 	 * about to move to the associated state.
 	 */
 	if (ieee80211_vif_is_mld(vif) && vif->type == NL80211_IFTYPE_STATION &&
-	    old_state == IEEE80211_STA_AUTH && new_state == IEEE80211_STA_ASSOC)
-		ieee80211_set_active_links(vif, ieee80211_vif_usable_links(vif));
+	    old_state == IEEE80211_STA_AUTH && new_state == IEEE80211_STA_ASSOC) {
+		/* TODO: for now only do link selection for single device
+		 * MLO case. Other cases would be handled in the future.
+		 */
+		ab = ah->radio[0].ab;
+		if (ab->ag->num_devices == 1) {
+			ret = ath12k_mac_select_links(ab, vif, hw, &selected_links);
+			if (ret) {
+				ath12k_warn(ab,
+					    "failed to get selected links: %d\n", ret);
+				goto exit;
+			}
+		} else {
+			selected_links = ieee80211_vif_usable_links(vif);
+		}
+
+		ieee80211_set_active_links(vif, selected_links);
+	}
 
 	/* Handle all the other state transitions in generic way */
 	valid_links = ahsta->links_map;

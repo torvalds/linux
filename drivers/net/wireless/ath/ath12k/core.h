@@ -601,6 +601,12 @@ struct ath12k_sta {
 #define ATH12K_NUM_CHANS 101
 #define ATH12K_MAX_5GHZ_CHAN 173
 
+static inline bool ath12k_is_2ghz_channel_freq(u32 freq)
+{
+	return freq >= ATH12K_MIN_2GHZ_FREQ &&
+	       freq <= ATH12K_MAX_2GHZ_FREQ;
+}
+
 enum ath12k_hw_state {
 	ATH12K_HW_STATE_OFF,
 	ATH12K_HW_STATE_ON,
