@@ -10498,3 +10498,224 @@ int ath12k_wmi_send_vdev_set_tpc_power(struct ath12k *ar,
 
 	return 0;
 }
+
+static int
+ath12k_wmi_fill_disallowed_bmap(struct ath12k_base *ab,
+				struct wmi_disallowed_mlo_mode_bitmap_params *dislw_bmap,
+				struct wmi_mlo_link_set_active_arg *arg)
+{
+	struct wmi_ml_disallow_mode_bmap_arg *dislw_bmap_arg;
+	u8 i;
+
+	if (arg->num_disallow_mode_comb >
+	    ARRAY_SIZE(arg->disallow_bmap)) {
+		ath12k_warn(ab, "invalid num_disallow_mode_comb: %d",
+			    arg->num_disallow_mode_comb);
+		return -EINVAL;
+	}
+
+	dislw_bmap_arg = &arg->disallow_bmap[0];
+	for (i = 0; i < arg->num_disallow_mode_comb; i++) {
+		dislw_bmap->tlv_header =
+				ath12k_wmi_tlv_cmd_hdr(0, sizeof(*dislw_bmap));
+		dislw_bmap->disallowed_mode_bitmap =
+				cpu_to_le32(dislw_bmap_arg->disallowed_mode);
+		dislw_bmap->ieee_link_id_comb =
+			le32_encode_bits(dislw_bmap_arg->ieee_link_id[0],
+					 WMI_DISALW_MLO_MODE_BMAP_IEEE_LINK_ID_COMB_1) |
+			le32_encode_bits(dislw_bmap_arg->ieee_link_id[1],
+					 WMI_DISALW_MLO_MODE_BMAP_IEEE_LINK_ID_COMB_2) |
+			le32_encode_bits(dislw_bmap_arg->ieee_link_id[2],
+					 WMI_DISALW_MLO_MODE_BMAP_IEEE_LINK_ID_COMB_3) |
+			le32_encode_bits(dislw_bmap_arg->ieee_link_id[3],
+					 WMI_DISALW_MLO_MODE_BMAP_IEEE_LINK_ID_COMB_4);
+
+		ath12k_dbg(ab, ATH12K_DBG_WMI,
+			   "entry %d disallowed_mode %d ieee_link_id_comb 0x%x",
+			   i, dislw_bmap_arg->disallowed_mode,
+			   dislw_bmap_arg->ieee_link_id_comb);
+		dislw_bmap++;
+		dislw_bmap_arg++;
+	}
+
+	return 0;
+}
+
+int ath12k_wmi_send_mlo_link_set_active_cmd(struct ath12k_base *ab,
+					    struct wmi_mlo_link_set_active_arg *arg)
+{
+	struct wmi_disallowed_mlo_mode_bitmap_params *disallowed_mode_bmap;
+	struct wmi_mlo_set_active_link_number_params *link_num_param;
+	u32 num_link_num_param = 0, num_vdev_bitmap = 0;
+	struct ath12k_wmi_base *wmi_ab = &ab->wmi_ab;
+	struct wmi_mlo_link_set_active_cmd *cmd;
+	u32 num_inactive_vdev_bitmap = 0;
+	u32 num_disallow_mode_comb = 0;
+	struct wmi_tlv *tlv;
+	struct sk_buff *skb;
+	__le32 *vdev_bitmap;
+	void *buf_ptr;
+	int i, ret;
+	u32 len;
+
+	if (!arg->num_vdev_bitmap && !arg->num_link_entry) {
+		ath12k_warn(ab, "Invalid num_vdev_bitmap and num_link_entry");
+		return -EINVAL;
+	}
+
+	switch (arg->force_mode) {
+	case WMI_MLO_LINK_FORCE_MODE_ACTIVE_LINK_NUM:
+	case WMI_MLO_LINK_FORCE_MODE_INACTIVE_LINK_NUM:
+		num_link_num_param = arg->num_link_entry;
+		fallthrough;
+	case WMI_MLO_LINK_FORCE_MODE_ACTIVE:
+	case WMI_MLO_LINK_FORCE_MODE_INACTIVE:
+	case WMI_MLO_LINK_FORCE_MODE_NO_FORCE:
+		num_vdev_bitmap = arg->num_vdev_bitmap;
+		break;
+	case WMI_MLO_LINK_FORCE_MODE_ACTIVE_INACTIVE:
+		num_vdev_bitmap = arg->num_vdev_bitmap;
+		num_inactive_vdev_bitmap = arg->num_inactive_vdev_bitmap;
+		break;
+	default:
+		ath12k_warn(ab, "Invalid force mode: %u", arg->force_mode);
+		return -EINVAL;
+	}
+
+	num_disallow_mode_comb = arg->num_disallow_mode_comb;
+	len = sizeof(*cmd) +
+	      TLV_HDR_SIZE + sizeof(*link_num_param) * num_link_num_param +
+	      TLV_HDR_SIZE + sizeof(*vdev_bitmap) * num_vdev_bitmap +
+	      TLV_HDR_SIZE + TLV_HDR_SIZE + TLV_HDR_SIZE +
+	      TLV_HDR_SIZE + sizeof(*disallowed_mode_bmap) * num_disallow_mode_comb;
+	if (arg->force_mode == WMI_MLO_LINK_FORCE_MODE_ACTIVE_INACTIVE)
+		len += sizeof(*vdev_bitmap) * num_inactive_vdev_bitmap;
+
+	skb = ath12k_wmi_alloc_skb(wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_mlo_link_set_active_cmd *)skb->data;
+	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_MLO_LINK_SET_ACTIVE_CMD,
+						 sizeof(*cmd));
+	cmd->force_mode = cpu_to_le32(arg->force_mode);
+	cmd->reason = cpu_to_le32(arg->reason);
+	ath12k_dbg(ab, ATH12K_DBG_WMI,
+		   "mode %d reason %d num_link_num_param %d num_vdev_bitmap %d inactive %d num_disallow_mode_comb %d",
+		   arg->force_mode, arg->reason, num_link_num_param,
+		   num_vdev_bitmap, num_inactive_vdev_bitmap,
+		   num_disallow_mode_comb);
+
+	buf_ptr = skb->data + sizeof(*cmd);
+	tlv = buf_ptr;
+	tlv->header = ath12k_wmi_tlv_hdr(WMI_TAG_ARRAY_STRUCT,
+					 sizeof(*link_num_param) * num_link_num_param);
+	buf_ptr += TLV_HDR_SIZE;
+
+	if (num_link_num_param) {
+		cmd->ctrl_flags =
+			le32_encode_bits(arg->ctrl_flags.dync_force_link_num ? 1 : 0,
+					 CRTL_F_DYNC_FORCE_LINK_NUM);
+
+		link_num_param = buf_ptr;
+		for (i = 0; i < num_link_num_param; i++) {
+			link_num_param->tlv_header =
+				ath12k_wmi_tlv_cmd_hdr(0, sizeof(*link_num_param));
+			link_num_param->num_of_link =
+				cpu_to_le32(arg->link_num[i].num_of_link);
+			link_num_param->vdev_type =
+				cpu_to_le32(arg->link_num[i].vdev_type);
+			link_num_param->vdev_subtype =
+				cpu_to_le32(arg->link_num[i].vdev_subtype);
+			link_num_param->home_freq =
+				cpu_to_le32(arg->link_num[i].home_freq);
+			ath12k_dbg(ab, ATH12K_DBG_WMI,
+				   "entry %d num_of_link %d vdev type %d subtype %d freq %d control_flags %d",
+				   i, arg->link_num[i].num_of_link,
+				   arg->link_num[i].vdev_type,
+				   arg->link_num[i].vdev_subtype,
+				   arg->link_num[i].home_freq,
+				   __le32_to_cpu(cmd->ctrl_flags));
+			link_num_param++;
+		}
+
+		buf_ptr += sizeof(*link_num_param) * num_link_num_param;
+	}
+
+	tlv = buf_ptr;
+	tlv->header = ath12k_wmi_tlv_hdr(WMI_TAG_ARRAY_UINT32,
+					 sizeof(*vdev_bitmap) * num_vdev_bitmap);
+	buf_ptr += TLV_HDR_SIZE;
+
+	if (num_vdev_bitmap) {
+		vdev_bitmap = buf_ptr;
+		for (i = 0; i < num_vdev_bitmap; i++) {
+			vdev_bitmap[i] = cpu_to_le32(arg->vdev_bitmap[i]);
+			ath12k_dbg(ab, ATH12K_DBG_WMI, "entry %d vdev_id_bitmap 0x%x",
+				   i, arg->vdev_bitmap[i]);
+		}
+
+		buf_ptr += sizeof(*vdev_bitmap) * num_vdev_bitmap;
+	}
+
+	if (arg->force_mode == WMI_MLO_LINK_FORCE_MODE_ACTIVE_INACTIVE) {
+		tlv = buf_ptr;
+		tlv->header = ath12k_wmi_tlv_hdr(WMI_TAG_ARRAY_UINT32,
+						 sizeof(*vdev_bitmap) *
+						 num_inactive_vdev_bitmap);
+		buf_ptr += TLV_HDR_SIZE;
+
+		if (num_inactive_vdev_bitmap) {
+			vdev_bitmap = buf_ptr;
+			for (i = 0; i < num_inactive_vdev_bitmap; i++) {
+				vdev_bitmap[i] =
+					cpu_to_le32(arg->inactive_vdev_bitmap[i]);
+				ath12k_dbg(ab, ATH12K_DBG_WMI,
+					   "entry %d inactive_vdev_id_bitmap 0x%x",
+					    i, arg->inactive_vdev_bitmap[i]);
+			}
+
+			buf_ptr += sizeof(*vdev_bitmap) * num_inactive_vdev_bitmap;
+		}
+	} else {
+		/* add empty vdev bitmap2 tlv */
+		tlv = buf_ptr;
+		tlv->header = ath12k_wmi_tlv_hdr(WMI_TAG_ARRAY_UINT32, 0);
+		buf_ptr += TLV_HDR_SIZE;
+	}
+
+	/* add empty ieee_link_id_bitmap tlv */
+	tlv = buf_ptr;
+	tlv->header = ath12k_wmi_tlv_hdr(WMI_TAG_ARRAY_UINT32, 0);
+	buf_ptr += TLV_HDR_SIZE;
+
+	/* add empty ieee_link_id_bitmap2 tlv */
+	tlv = buf_ptr;
+	tlv->header = ath12k_wmi_tlv_hdr(WMI_TAG_ARRAY_UINT32, 0);
+	buf_ptr += TLV_HDR_SIZE;
+
+	tlv = buf_ptr;
+	tlv->header = ath12k_wmi_tlv_hdr(WMI_TAG_ARRAY_STRUCT,
+					 sizeof(*disallowed_mode_bmap) *
+					 arg->num_disallow_mode_comb);
+	buf_ptr += TLV_HDR_SIZE;
+
+	ret = ath12k_wmi_fill_disallowed_bmap(ab, buf_ptr, arg);
+	if (ret)
+		goto free_skb;
+
+	ret = ath12k_wmi_cmd_send(&wmi_ab->wmi[0], skb, WMI_MLO_LINK_SET_ACTIVE_CMDID);
+	if (ret) {
+		ath12k_warn(ab,
+			    "failed to send WMI_MLO_LINK_SET_ACTIVE_CMDID: %d\n", ret);
+		goto free_skb;
+	}
+
+	ath12k_dbg(ab, ATH12K_DBG_WMI, "WMI mlo link set active cmd");
+
+	return ret;
+
+free_skb:
+	dev_kfree_skb(skb);
+	return ret;
+}
