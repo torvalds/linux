@@ -1799,7 +1799,7 @@ btree_path_idx_t bch2_path_get(struct btree_trans *trans,
 
 	locks_want = min(locks_want, BTREE_MAX_DEPTH);
 	if (locks_want > path->locks_want)
-		bch2_btree_path_upgrade_noupgrade_sibs(trans, path, locks_want, NULL);
+		bch2_btree_path_upgrade_norestart(trans, path, locks_want);
 
 	return path_idx;
 }

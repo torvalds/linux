@@ -385,9 +385,16 @@ static inline bool bch2_btree_node_relock_notrace(struct btree_trans *trans,
 
 /* upgrade */
 
-bool bch2_btree_path_upgrade_noupgrade_sibs(struct btree_trans *,
-			       struct btree_path *, unsigned,
-			       struct get_locks_fail *);
+bool __bch2_btree_path_upgrade_norestart(struct btree_trans *, struct btree_path *, unsigned);
+
+static inline bool bch2_btree_path_upgrade_norestart(struct btree_trans *trans,
+			       struct btree_path *path,
+			       unsigned new_locks_want)
+{
+	return new_locks_want > path->locks_want
+		? __bch2_btree_path_upgrade_norestart(trans, path, new_locks_want)
+		: true;
+}
 
 int __bch2_btree_path_upgrade(struct btree_trans *,
 			      struct btree_path *, unsigned);

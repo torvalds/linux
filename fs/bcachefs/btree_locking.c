@@ -451,13 +451,13 @@ void bch2_btree_node_lock_write_nofail(struct btree_trans *trans,
 
 /* relock */
 
-static inline bool btree_path_get_locks(struct btree_trans *trans,
-					struct btree_path *path,
-					bool upgrade,
-					struct get_locks_fail *f)
+static int btree_path_get_locks(struct btree_trans *trans,
+				struct btree_path *path,
+				bool upgrade,
+				struct get_locks_fail *f,
+				int restart_err)
 {
 	unsigned l = path->level;
-	int fail_idx = -1;
 
 	do {
 		if (!btree_path_node(path, l))
@@ -465,39 +465,49 @@ static inline bool btree_path_get_locks(struct btree_trans *trans,
 
 		if (!(upgrade
 		      ? bch2_btree_node_upgrade(trans, path, l)
-		      : bch2_btree_node_relock(trans, path, l))) {
-			fail_idx	= l;
-
-			if (f) {
-				f->l	= l;
-				f->b	= path->l[l].b;
-			}
-		}
+		      : bch2_btree_node_relock(trans, path, l)))
+			goto err;
 
 		l++;
 	} while (l < path->locks_want);
+
+	if (path->uptodate == BTREE_ITER_NEED_RELOCK)
+		path->uptodate = BTREE_ITER_UPTODATE;
+
+	return path->uptodate < BTREE_ITER_NEED_RELOCK ? 0 : -1;
+err:
+	if (f) {
+		f->l	= l;
+		f->b	= path->l[l].b;
+	}
+
+	/*
+	 * Do transaction restart before unlocking, so we don't pop
+	 * should_be_locked asserts
+	 */
+	if (restart_err) {
+		btree_trans_restart(trans, restart_err);
+	} else if (path->should_be_locked && !trans->restarted) {
+		if (upgrade)
+			path->locks_want = l;
+		return -1;
+	}
+
+	__bch2_btree_path_unlock(trans, path);
+	btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
 
 	/*
 	 * When we fail to get a lock, we have to ensure that any child nodes
 	 * can't be relocked so bch2_btree_path_traverse has to walk back up to
 	 * the node that we failed to relock:
 	 */
-	if (fail_idx >= 0) {
-		__bch2_btree_path_unlock(trans, path);
-		btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
+	do {
+		path->l[l].b = upgrade
+			? ERR_PTR(-BCH_ERR_no_btree_node_upgrade)
+			: ERR_PTR(-BCH_ERR_no_btree_node_relock);
+	} while (l--);
 
-		do {
-			path->l[fail_idx].b = upgrade
-				? ERR_PTR(-BCH_ERR_no_btree_node_upgrade)
-				: ERR_PTR(-BCH_ERR_no_btree_node_relock);
-			--fail_idx;
-		} while (fail_idx >= 0);
-	}
-
-	if (path->uptodate == BTREE_ITER_NEED_RELOCK)
-		path->uptodate = BTREE_ITER_UPTODATE;
-
-	return path->uptodate < BTREE_ITER_NEED_RELOCK;
+	return -restart_err ?: -1;
 }
 
 bool __bch2_btree_node_relock(struct btree_trans *trans,
@@ -596,9 +606,7 @@ int bch2_btree_path_relock_intent(struct btree_trans *trans,
 __flatten
 bool bch2_btree_path_relock_norestart(struct btree_trans *trans, struct btree_path *path)
 {
-	struct get_locks_fail f;
-
-	bool ret = btree_path_get_locks(trans, path, false, &f);
+	bool ret = !btree_path_get_locks(trans, path, false, NULL, 0);
 	bch2_trans_verify_locks(trans);
 	return ret;
 }
@@ -614,15 +622,16 @@ int __bch2_btree_path_relock(struct btree_trans *trans,
 	return 0;
 }
 
-bool bch2_btree_path_upgrade_noupgrade_sibs(struct btree_trans *trans,
-			       struct btree_path *path,
-			       unsigned new_locks_want,
-			       struct get_locks_fail *f)
+bool __bch2_btree_path_upgrade_norestart(struct btree_trans *trans,
+					 struct btree_path *path,
+					 unsigned new_locks_want)
 {
-	path->locks_want = max_t(unsigned, path->locks_want, new_locks_want);
+	path->locks_want = new_locks_want;
 
-	bool ret = btree_path_get_locks(trans, path, true, f);
-	bch2_trans_verify_locks(trans);
+	struct get_locks_fail f = {};
+	bool ret = !btree_path_get_locks(trans, path, true, &f, 0);
+
+	bch2_btree_path_verify_locks(path);
 	return ret;
 }
 
@@ -630,12 +639,15 @@ int __bch2_btree_path_upgrade(struct btree_trans *trans,
 			      struct btree_path *path,
 			      unsigned new_locks_want)
 {
-	struct get_locks_fail f = {};
 	unsigned old_locks = path->nodes_locked;
 	unsigned old_locks_want = path->locks_want;
-	int ret = 0;
 
-	if (bch2_btree_path_upgrade_noupgrade_sibs(trans, path, new_locks_want, &f))
+	path->locks_want = max_t(unsigned, path->locks_want, new_locks_want);
+
+	struct get_locks_fail f = {};
+	int ret = btree_path_get_locks(trans, path, true, &f,
+				BCH_ERR_transaction_restart_upgrade);
+	if (!ret)
 		goto out;
 
 	/*
@@ -667,7 +679,7 @@ int __bch2_btree_path_upgrade(struct btree_trans *trans,
 			    linked->btree_id == path->btree_id &&
 			    linked->locks_want < new_locks_want) {
 				linked->locks_want = new_locks_want;
-				btree_path_get_locks(trans, linked, true, NULL);
+				btree_path_get_locks(trans, linked, true, NULL, 0);
 			}
 	}
 
@@ -691,7 +703,6 @@ int __bch2_btree_path_upgrade(struct btree_trans *trans,
 		trace_trans_restart_upgrade(trans->c, buf.buf);
 		printbuf_exit(&buf);
 	}
-	ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_upgrade);
 out:
 	bch2_trans_verify_locks(trans);
 	return ret;
@@ -752,7 +763,7 @@ static inline void __bch2_trans_unlock(struct btree_trans *trans)
 		__bch2_btree_path_unlock(trans, path);
 }
 
-static noinline __cold int bch2_trans_relock_fail(struct btree_trans *trans, struct btree_path *path,
+static noinline __cold void bch2_trans_relock_fail(struct btree_trans *trans, struct btree_path *path,
 						  struct get_locks_fail *f, bool trace)
 {
 	if (!trace)
@@ -786,7 +797,6 @@ static noinline __cold int bch2_trans_relock_fail(struct btree_trans *trans, str
 out:
 	__bch2_trans_unlock(trans);
 	bch2_trans_verify_locks(trans);
-	return btree_trans_restart(trans, BCH_ERR_transaction_restart_relock);
 }
 
 static inline int __bch2_trans_relock(struct btree_trans *trans, bool trace)
@@ -803,10 +813,14 @@ static inline int __bch2_trans_relock(struct btree_trans *trans, bool trace)
 
 	trans_for_each_path(trans, path, i) {
 		struct get_locks_fail f;
+		int ret;
 
 		if (path->should_be_locked &&
-		    !btree_path_get_locks(trans, path, false, &f))
-			return bch2_trans_relock_fail(trans, path, &f, trace);
+		    (ret = btree_path_get_locks(trans, path, false, &f,
+					BCH_ERR_transaction_restart_relock))) {
+			bch2_trans_relock_fail(trans, path, &f, trace);
+			return ret;
+		}
 	}
 
 	trans_set_locked(trans, true);
