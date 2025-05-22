@@ -218,7 +218,7 @@ void fpu_reset_from_exception_fixup(void)
 }
 
 #if IS_ENABLED(CONFIG_KVM)
-static void __fpstate_reset(struct fpstate *fpstate, u64 xfd);
+static void __fpstate_reset(struct fpstate *fpstate);
 
 static void fpu_lock_guest_permissions(void)
 {
@@ -253,8 +253,7 @@ bool fpu_alloc_guest_fpstate(struct fpu_guest *gfpu)
 	fpstate->is_valloc	= true;
 	fpstate->is_guest	= true;
 
-	/* Leave xfd to 0 (the reset value defined by spec) */
-	__fpstate_reset(fpstate, 0);
+	__fpstate_reset(fpstate);
 	fpstate_init_user(fpstate);
 
 	gfpu->fpstate		= fpstate;
@@ -545,7 +544,7 @@ void fpstate_init_user(struct fpstate *fpstate)
 		fpstate_init_fstate(fpstate);
 }
 
-static void __fpstate_reset(struct fpstate *fpstate, u64 xfd)
+static void __fpstate_reset(struct fpstate *fpstate)
 {
 	/*
 	 * Supervisor features (and thus sizes) may diverge between guest
@@ -553,25 +552,29 @@ static void __fpstate_reset(struct fpstate *fpstate, u64 xfd)
 	 * for guests despite not being utilized by the host. User
 	 * features and sizes are always identical, which allows for
 	 * common guest and userspace ABI.
+	 *
+	 * For the host, set XFD to the kernel's desired initialization
+	 * value. For guests, set XFD to its architectural RESET value.
 	 */
 	if (fpstate->is_guest) {
 		fpstate->size		= guest_default_cfg.size;
 		fpstate->xfeatures	= guest_default_cfg.features;
+		fpstate->xfd		= 0;
 	} else {
 		fpstate->size		= fpu_kernel_cfg.default_size;
 		fpstate->xfeatures	= fpu_kernel_cfg.default_features;
+		fpstate->xfd		= init_fpstate.xfd;
 	}
 
 	fpstate->user_size	= fpu_user_cfg.default_size;
 	fpstate->user_xfeatures	= fpu_user_cfg.default_features;
-	fpstate->xfd		= xfd;
 }
 
 void fpstate_reset(struct fpu *fpu)
 {
 	/* Set the fpstate pointer to the default fpstate */
 	fpu->fpstate = &fpu->__fpstate;
-	__fpstate_reset(fpu->fpstate, init_fpstate.xfd);
+	__fpstate_reset(fpu->fpstate);
 
 	/* Initialize the permission related info in fpu */
 	fpu->perm.__state_perm		= fpu_kernel_cfg.default_features;
