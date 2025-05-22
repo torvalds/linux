@@ -20,6 +20,8 @@
 
 #include "internal.h"
 
+#define ICC_DYN_ID_START 10000
+
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
@@ -826,7 +828,12 @@ static struct icc_node *icc_node_create_nolock(int id)
 	if (!node)
 		return ERR_PTR(-ENOMEM);
 
-	id = idr_alloc(&icc_idr, node, id, id + 1, GFP_KERNEL);
+	/* dynamic id allocation */
+	if (id == ICC_ALLOC_DYN_ID)
+		id = idr_alloc(&icc_idr, node, ICC_DYN_ID_START, 0, GFP_KERNEL);
+	else
+		id = idr_alloc(&icc_idr, node, id, id + 1, GFP_KERNEL);
+
 	if (id < 0) {
 		WARN(1, "%s: couldn't get idr\n", __func__);
 		kfree(node);
@@ -837,6 +844,25 @@ static struct icc_node *icc_node_create_nolock(int id)
 
 	return node;
 }
+
+/**
+ * icc_node_create_dyn() - create a node with dynamic id
+ *
+ * Return: icc_node pointer on success, or ERR_PTR() on error
+ */
+struct icc_node *icc_node_create_dyn(void)
+{
+	struct icc_node *node;
+
+	mutex_lock(&icc_lock);
+
+	node = icc_node_create_nolock(ICC_ALLOC_DYN_ID);
+
+	mutex_unlock(&icc_lock);
+
+	return node;
+}
+EXPORT_SYMBOL_GPL(icc_node_create_dyn);
 
 /**
  * icc_node_create() - create a node
@@ -883,6 +909,56 @@ void icc_node_destroy(int id)
 	kfree(node);
 }
 EXPORT_SYMBOL_GPL(icc_node_destroy);
+
+/**
+ * icc_link_nodes() - create link between two nodes
+ * @src_node: source node
+ * @dst_node: destination node
+ *
+ * Create a link between two nodes. The nodes might belong to different
+ * interconnect providers and the @dst_node might not exist (if the
+ * provider driver has not probed yet). So just create the @dst_node
+ * and when the actual provider driver is probed, the rest of the node
+ * data is filled.
+ *
+ * Return: 0 on success, or an error code otherwise
+ */
+int icc_link_nodes(struct icc_node *src_node, struct icc_node **dst_node)
+{
+	struct icc_node **new;
+	int ret = 0;
+
+	if (!src_node->provider)
+		return -EINVAL;
+
+	mutex_lock(&icc_lock);
+
+	if (!*dst_node) {
+		*dst_node = icc_node_create_nolock(ICC_ALLOC_DYN_ID);
+
+		if (IS_ERR(*dst_node)) {
+			ret = PTR_ERR(*dst_node);
+			goto out;
+		}
+	}
+
+	new = krealloc(src_node->links,
+		       (src_node->num_links + 1) * sizeof(*src_node->links),
+		       GFP_KERNEL);
+	if (!new) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	src_node->links = new;
+	src_node->links[src_node->num_links++] = *dst_node;
+
+out:
+	mutex_unlock(&icc_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(icc_link_nodes);
 
 /**
  * icc_link_create() - create a link between two nodes
@@ -961,6 +1037,10 @@ void icc_node_add(struct icc_node *node, struct icc_provider *provider)
 	}
 	node->avg_bw = node->init_avg;
 	node->peak_bw = node->init_peak;
+
+	if (node->id >= ICC_DYN_ID_START)
+		node->name = devm_kasprintf(provider->dev, GFP_KERNEL, "%s@%s",
+					    node->name, dev_name(provider->dev));
 
 	if (node->avg_bw || node->peak_bw) {
 		if (provider->pre_aggregate)

@@ -17,13 +17,37 @@
 #include "icc-rpmh.h"
 #include "sm8650.h"
 
+static const struct regmap_config icc_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.fast_io = true,
+};
+
+static struct qcom_icc_qosbox qhm_qspi_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0xc000 },
+	.prio = 2,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 0,
+};
+
 static struct qcom_icc_node qhm_qspi = {
 	.name = "qhm_qspi",
 	.id = SM8650_MASTER_QSPI_0,
 	.channels = 1,
 	.buswidth = 4,
+	.qosbox = &qhm_qspi_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_A1NOC_SNOC },
+};
+
+static struct qcom_icc_qosbox qhm_qup1_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0xd000 },
+	.prio = 2,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node qhm_qup1 = {
@@ -31,6 +55,7 @@ static struct qcom_icc_node qhm_qup1 = {
 	.id = SM8650_MASTER_QUP_1,
 	.channels = 1,
 	.buswidth = 4,
+	.qosbox = &qhm_qup1_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_A1NOC_SNOC },
 };
@@ -44,13 +69,30 @@ static struct qcom_icc_node qxm_qup02 = {
 	.links = { SM8650_SLAVE_A1NOC_SNOC },
 };
 
+static struct qcom_icc_qosbox xm_sdc4_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0xe000 },
+	.prio = 2,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 0,
+};
+
 static struct qcom_icc_node xm_sdc4 = {
 	.name = "xm_sdc4",
 	.id = SM8650_MASTER_SDCC_4,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &xm_sdc4_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_A1NOC_SNOC },
+};
+
+static struct qcom_icc_qosbox xm_ufs_mem_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0xf000 },
+	.prio = 2,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node xm_ufs_mem = {
@@ -58,8 +100,17 @@ static struct qcom_icc_node xm_ufs_mem = {
 	.id = SM8650_MASTER_UFS_MEM,
 	.channels = 1,
 	.buswidth = 16,
+	.qosbox = &xm_ufs_mem_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_A1NOC_SNOC },
+};
+
+static struct qcom_icc_qosbox xm_usb3_0_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0x10000 },
+	.prio = 2,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node xm_usb3_0 = {
@@ -67,8 +118,17 @@ static struct qcom_icc_node xm_usb3_0 = {
 	.id = SM8650_MASTER_USB3_0,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &xm_usb3_0_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_A1NOC_SNOC },
+};
+
+static struct qcom_icc_qosbox qhm_qdss_bam_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0x12000 },
+	.prio = 2,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node qhm_qdss_bam = {
@@ -76,8 +136,17 @@ static struct qcom_icc_node qhm_qdss_bam = {
 	.id = SM8650_MASTER_QDSS_BAM,
 	.channels = 1,
 	.buswidth = 4,
+	.qosbox = &qhm_qdss_bam_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_A2NOC_SNOC },
+};
+
+static struct qcom_icc_qosbox qhm_qup2_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0x13000 },
+	.prio = 2,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node qhm_qup2 = {
@@ -85,8 +154,17 @@ static struct qcom_icc_node qhm_qup2 = {
 	.id = SM8650_MASTER_QUP_2,
 	.channels = 1,
 	.buswidth = 4,
+	.qosbox = &qhm_qup2_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_A2NOC_SNOC },
+};
+
+static struct qcom_icc_qosbox qxm_crypto_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0x15000 },
+	.prio = 2,
+	.urg_fwd = 1,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node qxm_crypto = {
@@ -94,8 +172,17 @@ static struct qcom_icc_node qxm_crypto = {
 	.id = SM8650_MASTER_CRYPTO,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &qxm_crypto_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_A2NOC_SNOC },
+};
+
+static struct qcom_icc_qosbox qxm_ipa_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0x16000 },
+	.prio = 2,
+	.urg_fwd = 1,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node qxm_ipa = {
@@ -103,6 +190,7 @@ static struct qcom_icc_node qxm_ipa = {
 	.id = SM8650_MASTER_IPA,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &qxm_ipa_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_A2NOC_SNOC },
 };
@@ -116,13 +204,30 @@ static struct qcom_icc_node qxm_sp = {
 	.links = { SM8650_SLAVE_A2NOC_SNOC },
 };
 
+static struct qcom_icc_qosbox xm_qdss_etr_0_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0x17000 },
+	.prio = 2,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 0,
+};
+
 static struct qcom_icc_node xm_qdss_etr_0 = {
 	.name = "xm_qdss_etr_0",
 	.id = SM8650_MASTER_QDSS_ETR,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &xm_qdss_etr_0_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_A2NOC_SNOC },
+};
+
+static struct qcom_icc_qosbox xm_qdss_etr_1_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0x18000 },
+	.prio = 2,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node xm_qdss_etr_1 = {
@@ -130,8 +235,17 @@ static struct qcom_icc_node xm_qdss_etr_1 = {
 	.id = SM8650_MASTER_QDSS_ETR_1,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &xm_qdss_etr_1_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_A2NOC_SNOC },
+};
+
+static struct qcom_icc_qosbox xm_sdc2_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0x19000 },
+	.prio = 2,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node xm_sdc2 = {
@@ -139,6 +253,7 @@ static struct qcom_icc_node xm_sdc2 = {
 	.id = SM8650_MASTER_SDCC_2,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &xm_sdc2_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_A2NOC_SNOC },
 };
@@ -223,13 +338,30 @@ static struct qcom_icc_node qnm_gemnoc_pcie = {
 	.links = { SM8650_SLAVE_PCIE_0, SM8650_SLAVE_PCIE_1 },
 };
 
+static struct qcom_icc_qosbox alm_gpu_tcu_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0xbf000 },
+	.prio = 1,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 1,
+};
+
 static struct qcom_icc_node alm_gpu_tcu = {
 	.name = "alm_gpu_tcu",
 	.id = SM8650_MASTER_GPU_TCU,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &alm_gpu_tcu_qos,
 	.num_links = 2,
 	.links = { SM8650_SLAVE_GEM_NOC_CNOC, SM8650_SLAVE_LLCC },
+};
+
+static struct qcom_icc_qosbox alm_sys_tcu_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0xc1000 },
+	.prio = 6,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 1,
 };
 
 static struct qcom_icc_node alm_sys_tcu = {
@@ -237,8 +369,17 @@ static struct qcom_icc_node alm_sys_tcu = {
 	.id = SM8650_MASTER_SYS_TCU,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &alm_sys_tcu_qos,
 	.num_links = 2,
 	.links = { SM8650_SLAVE_GEM_NOC_CNOC, SM8650_SLAVE_LLCC },
+};
+
+static struct qcom_icc_qosbox alm_ubwc_p_tcu_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0xc5000 },
+	.prio = 1,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 1,
 };
 
 static struct qcom_icc_node alm_ubwc_p_tcu = {
@@ -246,6 +387,7 @@ static struct qcom_icc_node alm_ubwc_p_tcu = {
 	.id = SM8650_MASTER_UBWC_P_TCU,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &alm_ubwc_p_tcu_qos,
 	.num_links = 2,
 	.links = { SM8650_SLAVE_GEM_NOC_CNOC, SM8650_SLAVE_LLCC },
 };
@@ -260,13 +402,30 @@ static struct qcom_icc_node chm_apps = {
 		   SM8650_SLAVE_MEM_NOC_PCIE_SNOC },
 };
 
+static struct qcom_icc_qosbox qnm_gpu_qos = {
+	.num_ports = 2,
+	.port_offsets = { 0x31000, 0x71000 },
+	.prio = 0,
+	.urg_fwd = 1,
+	.prio_fwd_disable = 1,
+};
+
 static struct qcom_icc_node qnm_gpu = {
 	.name = "qnm_gpu",
 	.id = SM8650_MASTER_GFX3D,
 	.channels = 2,
 	.buswidth = 32,
+	.qosbox = &qnm_gpu_qos,
 	.num_links = 2,
 	.links = { SM8650_SLAVE_GEM_NOC_CNOC, SM8650_SLAVE_LLCC },
+};
+
+static struct qcom_icc_qosbox qnm_lpass_gemnoc_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0xb5000 },
+	.prio = 0,
+	.urg_fwd = 1,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node qnm_lpass_gemnoc = {
@@ -274,6 +433,7 @@ static struct qcom_icc_node qnm_lpass_gemnoc = {
 	.id = SM8650_MASTER_LPASS_GEM_NOC,
 	.channels = 1,
 	.buswidth = 16,
+	.qosbox = &qnm_lpass_gemnoc_qos,
 	.num_links = 3,
 	.links = { SM8650_SLAVE_GEM_NOC_CNOC, SM8650_SLAVE_LLCC,
 		   SM8650_SLAVE_MEM_NOC_PCIE_SNOC },
@@ -289,13 +449,30 @@ static struct qcom_icc_node qnm_mdsp = {
 		   SM8650_SLAVE_MEM_NOC_PCIE_SNOC },
 };
 
+static struct qcom_icc_qosbox qnm_mnoc_hf_qos = {
+	.num_ports = 2,
+	.port_offsets = { 0x33000, 0x73000 },
+	.prio = 0,
+	.urg_fwd = 1,
+	.prio_fwd_disable = 0,
+};
+
 static struct qcom_icc_node qnm_mnoc_hf = {
 	.name = "qnm_mnoc_hf",
 	.id = SM8650_MASTER_MNOC_HF_MEM_NOC,
 	.channels = 2,
 	.buswidth = 32,
+	.qosbox = &qnm_mnoc_hf_qos,
 	.num_links = 2,
 	.links = { SM8650_SLAVE_GEM_NOC_CNOC, SM8650_SLAVE_LLCC },
+};
+
+static struct qcom_icc_qosbox qnm_mnoc_sf_qos = {
+	.num_ports = 2,
+	.port_offsets = { 0x35000, 0x75000 },
+	.prio = 0,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node qnm_mnoc_sf = {
@@ -303,8 +480,17 @@ static struct qcom_icc_node qnm_mnoc_sf = {
 	.id = SM8650_MASTER_MNOC_SF_MEM_NOC,
 	.channels = 2,
 	.buswidth = 32,
+	.qosbox = &qnm_mnoc_sf_qos,
 	.num_links = 2,
 	.links = { SM8650_SLAVE_GEM_NOC_CNOC, SM8650_SLAVE_LLCC },
+};
+
+static struct qcom_icc_qosbox qnm_nsp_gemnoc_qos = {
+	.num_ports = 2,
+	.port_offsets = { 0x37000, 0x77000 },
+	.prio = 0,
+	.urg_fwd = 1,
+	.prio_fwd_disable = 1,
 };
 
 static struct qcom_icc_node qnm_nsp_gemnoc = {
@@ -312,9 +498,18 @@ static struct qcom_icc_node qnm_nsp_gemnoc = {
 	.id = SM8650_MASTER_COMPUTE_NOC,
 	.channels = 2,
 	.buswidth = 32,
+	.qosbox = &qnm_nsp_gemnoc_qos,
 	.num_links = 3,
 	.links = { SM8650_SLAVE_GEM_NOC_CNOC, SM8650_SLAVE_LLCC,
 		   SM8650_SLAVE_MEM_NOC_PCIE_SNOC },
+};
+
+static struct qcom_icc_qosbox qnm_pcie_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0xb7000 },
+	.prio = 2,
+	.urg_fwd = 1,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node qnm_pcie = {
@@ -322,8 +517,17 @@ static struct qcom_icc_node qnm_pcie = {
 	.id = SM8650_MASTER_ANOC_PCIE_GEM_NOC,
 	.channels = 1,
 	.buswidth = 16,
+	.qosbox = &qnm_pcie_qos,
 	.num_links = 2,
 	.links = { SM8650_SLAVE_GEM_NOC_CNOC, SM8650_SLAVE_LLCC },
+};
+
+static struct qcom_icc_qosbox qnm_snoc_sf_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0xbb000 },
+	.prio = 0,
+	.urg_fwd = 1,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node qnm_snoc_sf = {
@@ -331,9 +535,18 @@ static struct qcom_icc_node qnm_snoc_sf = {
 	.id = SM8650_MASTER_SNOC_SF_MEM_NOC,
 	.channels = 1,
 	.buswidth = 16,
+	.qosbox = &qnm_snoc_sf_qos,
 	.num_links = 3,
 	.links = { SM8650_SLAVE_GEM_NOC_CNOC, SM8650_SLAVE_LLCC,
 		   SM8650_SLAVE_MEM_NOC_PCIE_SNOC },
+};
+
+static struct qcom_icc_qosbox qnm_ubwc_p_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0xc3000 },
+	.prio = 1,
+	.urg_fwd = 1,
+	.prio_fwd_disable = 1,
 };
 
 static struct qcom_icc_node qnm_ubwc_p = {
@@ -341,8 +554,17 @@ static struct qcom_icc_node qnm_ubwc_p = {
 	.id = SM8650_MASTER_UBWC_P,
 	.channels = 1,
 	.buswidth = 32,
+	.qosbox = &qnm_ubwc_p_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_LLCC },
+};
+
+static struct qcom_icc_qosbox xm_gic_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0xb9000 },
+	.prio = 4,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 1,
 };
 
 static struct qcom_icc_node xm_gic = {
@@ -350,6 +572,7 @@ static struct qcom_icc_node xm_gic = {
 	.id = SM8650_MASTER_GIC,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &xm_gic_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_LLCC },
 };
@@ -390,13 +613,30 @@ static struct qcom_icc_node llcc_mc = {
 	.links = { SM8650_SLAVE_EBI1 },
 };
 
+static struct qcom_icc_qosbox qnm_camnoc_hf_qos = {
+	.num_ports = 2,
+	.port_offsets = { 0x28000, 0x29000 },
+	.prio = 0,
+	.urg_fwd = 1,
+	.prio_fwd_disable = 0,
+};
+
 static struct qcom_icc_node qnm_camnoc_hf = {
 	.name = "qnm_camnoc_hf",
 	.id = SM8650_MASTER_CAMNOC_HF,
 	.channels = 2,
 	.buswidth = 32,
+	.qosbox = &qnm_camnoc_hf_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_MNOC_HF_MEM_NOC },
+};
+
+static struct qcom_icc_qosbox qnm_camnoc_icp_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0x2a000 },
+	.prio = 4,
+	.urg_fwd = 1,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node qnm_camnoc_icp = {
@@ -404,8 +644,17 @@ static struct qcom_icc_node qnm_camnoc_icp = {
 	.id = SM8650_MASTER_CAMNOC_ICP,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &qnm_camnoc_icp_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_MNOC_SF_MEM_NOC },
+};
+
+static struct qcom_icc_qosbox qnm_camnoc_sf_qos = {
+	.num_ports = 2,
+	.port_offsets = { 0x2b000, 0x2c000 },
+	.prio = 0,
+	.urg_fwd = 1,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node qnm_camnoc_sf = {
@@ -413,8 +662,17 @@ static struct qcom_icc_node qnm_camnoc_sf = {
 	.id = SM8650_MASTER_CAMNOC_SF,
 	.channels = 2,
 	.buswidth = 32,
+	.qosbox = &qnm_camnoc_sf_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_MNOC_SF_MEM_NOC },
+};
+
+static struct qcom_icc_qosbox qnm_mdp_qos = {
+	.num_ports = 2,
+	.port_offsets = { 0x2d000, 0x2e000 },
+	.prio = 0,
+	.urg_fwd = 1,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node qnm_mdp = {
@@ -422,6 +680,7 @@ static struct qcom_icc_node qnm_mdp = {
 	.id = SM8650_MASTER_MDP,
 	.channels = 2,
 	.buswidth = 32,
+	.qosbox = &qnm_mdp_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_MNOC_HF_MEM_NOC },
 };
@@ -435,13 +694,30 @@ static struct qcom_icc_node qnm_vapss_hcp = {
 	.links = { SM8650_SLAVE_MNOC_SF_MEM_NOC },
 };
 
+static struct qcom_icc_qosbox qnm_video_qos = {
+	.num_ports = 2,
+	.port_offsets = { 0x30000, 0x31000 },
+	.prio = 0,
+	.urg_fwd = 1,
+	.prio_fwd_disable = 0,
+};
+
 static struct qcom_icc_node qnm_video = {
 	.name = "qnm_video",
 	.id = SM8650_MASTER_VIDEO,
 	.channels = 2,
 	.buswidth = 32,
+	.qosbox = &qnm_video_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_MNOC_SF_MEM_NOC },
+};
+
+static struct qcom_icc_qosbox qnm_video_cv_cpu_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0x32000 },
+	.prio = 4,
+	.urg_fwd = 1,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node qnm_video_cv_cpu = {
@@ -449,8 +725,17 @@ static struct qcom_icc_node qnm_video_cv_cpu = {
 	.id = SM8650_MASTER_VIDEO_CV_PROC,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &qnm_video_cv_cpu_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_MNOC_SF_MEM_NOC },
+};
+
+static struct qcom_icc_qosbox qnm_video_cvp_qos = {
+	.num_ports = 2,
+	.port_offsets = { 0x33000, 0x34000 },
+	.prio = 0,
+	.urg_fwd = 1,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node qnm_video_cvp = {
@@ -458,8 +743,17 @@ static struct qcom_icc_node qnm_video_cvp = {
 	.id = SM8650_MASTER_VIDEO_PROC,
 	.channels = 2,
 	.buswidth = 32,
+	.qosbox = &qnm_video_cvp_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_MNOC_SF_MEM_NOC },
+};
+
+static struct qcom_icc_qosbox qnm_video_v_cpu_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0x35000 },
+	.prio = 4,
+	.urg_fwd = 1,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node qnm_video_v_cpu = {
@@ -467,6 +761,7 @@ static struct qcom_icc_node qnm_video_v_cpu = {
 	.id = SM8650_MASTER_VIDEO_V_PROC,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &qnm_video_v_cpu_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_MNOC_SF_MEM_NOC },
 };
@@ -498,13 +793,30 @@ static struct qcom_icc_node qsm_pcie_anoc_cfg = {
 	.links = { SM8650_SLAVE_SERVICE_PCIE_ANOC },
 };
 
+static struct qcom_icc_qosbox xm_pcie3_0_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0xb000 },
+	.prio = 3,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 0,
+};
+
 static struct qcom_icc_node xm_pcie3_0 = {
 	.name = "xm_pcie3_0",
 	.id = SM8650_MASTER_PCIE_0,
 	.channels = 1,
 	.buswidth = 8,
+	.qosbox = &xm_pcie3_0_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_ANOC_PCIE_GEM_NOC },
+};
+
+static struct qcom_icc_qosbox xm_pcie3_1_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0xc000 },
+	.prio = 2,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 0,
 };
 
 static struct qcom_icc_node xm_pcie3_1 = {
@@ -512,6 +824,7 @@ static struct qcom_icc_node xm_pcie3_1 = {
 	.id = SM8650_MASTER_PCIE_1,
 	.channels = 1,
 	.buswidth = 16,
+	.qosbox = &xm_pcie3_1_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_ANOC_PCIE_GEM_NOC },
 };
@@ -530,6 +843,24 @@ static struct qcom_icc_node qnm_aggre2_noc = {
 	.id = SM8650_MASTER_A2NOC_SNOC,
 	.channels = 1,
 	.buswidth = 16,
+	.num_links = 1,
+	.links = { SM8650_SLAVE_SNOC_GEM_NOC_SF },
+};
+
+static struct qcom_icc_qosbox qnm_apss_noc_qos = {
+	.num_ports = 1,
+	.port_offsets = { 0x1c000 },
+	.prio = 2,
+	.urg_fwd = 0,
+	.prio_fwd_disable = 1,
+};
+
+static struct qcom_icc_node qnm_apss_noc = {
+	.name = "qnm_apss_noc",
+	.id = SM8650_MASTER_APSS_NOC,
+	.channels = 1,
+	.buswidth = 4,
+	.qosbox = &qnm_apss_noc_qos,
 	.num_links = 1,
 	.links = { SM8650_SLAVE_SNOC_GEM_NOC_SF },
 };
@@ -1325,6 +1656,7 @@ static struct qcom_icc_node * const aggre1_noc_nodes[] = {
 };
 
 static const struct qcom_icc_desc sm8650_aggre1_noc = {
+	.config = &icc_regmap_config,
 	.nodes = aggre1_noc_nodes,
 	.num_nodes = ARRAY_SIZE(aggre1_noc_nodes),
 };
@@ -1346,6 +1678,7 @@ static struct qcom_icc_node * const aggre2_noc_nodes[] = {
 };
 
 static const struct qcom_icc_desc sm8650_aggre2_noc = {
+	.config = &icc_regmap_config,
 	.nodes = aggre2_noc_nodes,
 	.num_nodes = ARRAY_SIZE(aggre2_noc_nodes),
 	.bcms = aggre2_noc_bcms,
@@ -1429,6 +1762,7 @@ static struct qcom_icc_node * const config_noc_nodes[] = {
 };
 
 static const struct qcom_icc_desc sm8650_config_noc = {
+	.config = &icc_regmap_config,
 	.nodes = config_noc_nodes,
 	.num_nodes = ARRAY_SIZE(config_noc_nodes),
 	.bcms = config_noc_bcms,
@@ -1456,6 +1790,7 @@ static struct qcom_icc_node * const cnoc_main_nodes[] = {
 };
 
 static const struct qcom_icc_desc sm8650_cnoc_main = {
+	.config = &icc_regmap_config,
 	.nodes = cnoc_main_nodes,
 	.num_nodes = ARRAY_SIZE(cnoc_main_nodes),
 	.bcms = cnoc_main_bcms,
@@ -1488,6 +1823,7 @@ static struct qcom_icc_node * const gem_noc_nodes[] = {
 };
 
 static const struct qcom_icc_desc sm8650_gem_noc = {
+	.config = &icc_regmap_config,
 	.nodes = gem_noc_nodes,
 	.num_nodes = ARRAY_SIZE(gem_noc_nodes),
 	.bcms = gem_noc_bcms,
@@ -1500,6 +1836,7 @@ static struct qcom_icc_node * const lpass_ag_noc_nodes[] = {
 };
 
 static const struct qcom_icc_desc sm8650_lpass_ag_noc = {
+	.config = &icc_regmap_config,
 	.nodes = lpass_ag_noc_nodes,
 	.num_nodes = ARRAY_SIZE(lpass_ag_noc_nodes),
 };
@@ -1514,6 +1851,7 @@ static struct qcom_icc_node * const lpass_lpiaon_noc_nodes[] = {
 };
 
 static const struct qcom_icc_desc sm8650_lpass_lpiaon_noc = {
+	.config = &icc_regmap_config,
 	.nodes = lpass_lpiaon_noc_nodes,
 	.num_nodes = ARRAY_SIZE(lpass_lpiaon_noc_nodes),
 	.bcms = lpass_lpiaon_noc_bcms,
@@ -1526,6 +1864,7 @@ static struct qcom_icc_node * const lpass_lpicx_noc_nodes[] = {
 };
 
 static const struct qcom_icc_desc sm8650_lpass_lpicx_noc = {
+	.config = &icc_regmap_config,
 	.nodes = lpass_lpicx_noc_nodes,
 	.num_nodes = ARRAY_SIZE(lpass_lpicx_noc_nodes),
 };
@@ -1569,6 +1908,7 @@ static struct qcom_icc_node * const mmss_noc_nodes[] = {
 };
 
 static const struct qcom_icc_desc sm8650_mmss_noc = {
+	.config = &icc_regmap_config,
 	.nodes = mmss_noc_nodes,
 	.num_nodes = ARRAY_SIZE(mmss_noc_nodes),
 	.bcms = mmss_noc_bcms,
@@ -1585,6 +1925,7 @@ static struct qcom_icc_node * const nsp_noc_nodes[] = {
 };
 
 static const struct qcom_icc_desc sm8650_nsp_noc = {
+	.config = &icc_regmap_config,
 	.nodes = nsp_noc_nodes,
 	.num_nodes = ARRAY_SIZE(nsp_noc_nodes),
 	.bcms = nsp_noc_bcms,
@@ -1604,6 +1945,7 @@ static struct qcom_icc_node * const pcie_anoc_nodes[] = {
 };
 
 static const struct qcom_icc_desc sm8650_pcie_anoc = {
+	.config = &icc_regmap_config,
 	.nodes = pcie_anoc_nodes,
 	.num_nodes = ARRAY_SIZE(pcie_anoc_nodes),
 	.bcms = pcie_anoc_bcms,
@@ -1620,9 +1962,11 @@ static struct qcom_icc_node * const system_noc_nodes[] = {
 	[MASTER_A1NOC_SNOC] = &qnm_aggre1_noc,
 	[MASTER_A2NOC_SNOC] = &qnm_aggre2_noc,
 	[SLAVE_SNOC_GEM_NOC_SF] = &qns_gemnoc_sf,
+	[MASTER_APSS_NOC] = &qnm_apss_noc,
 };
 
 static const struct qcom_icc_desc sm8650_system_noc = {
+	.config = &icc_regmap_config,
 	.nodes = system_noc_nodes,
 	.num_nodes = ARRAY_SIZE(system_noc_nodes),
 	.bcms = system_noc_bcms,

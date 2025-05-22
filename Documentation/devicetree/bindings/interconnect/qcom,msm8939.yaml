@@ -70,8 +70,8 @@ examples:
         reg = <0x00580000 0x14000>;
         #interconnect-cells = <1>;
 
-          snoc_mm: interconnect-snoc {
-              compatible = "qcom,msm8939-snoc-mm";
-              #interconnect-cells = <1>;
-          };
+        snoc_mm: interconnect-snoc {
+            compatible = "qcom,msm8939-snoc-mm";
+            #interconnect-cells = <1>;
+        };
     };
