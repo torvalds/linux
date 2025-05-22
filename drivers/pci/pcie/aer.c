@@ -733,8 +733,8 @@ out:
 			info->severity, info->tlp_header_valid, &info->tlp);
 }
 
-static void aer_print_port_info(struct pci_dev *dev, struct aer_err_info *info,
-				bool found)
+static void aer_print_source(struct pci_dev *dev, struct aer_err_info *info,
+			     bool found)
 {
 	u16 source = info->id;
 
@@ -1278,7 +1278,7 @@ static void aer_isr_one_error_type(struct pci_dev *root,
 	bool found;
 
 	found = find_source_device(root, info);
-	aer_print_port_info(root, info, found);
+	aer_print_source(root, info, found);
 	if (found)
 		aer_process_err_devices(info);
 }
