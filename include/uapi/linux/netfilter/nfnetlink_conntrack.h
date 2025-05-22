@@ -3,7 +3,7 @@
 #define _IPCONNTRACK_NETLINK_H
 #include <linux/netfilter/nfnetlink.h>
 
-enum cntl_msg_types {
+enum ctnl_msg_types {
 	IPCTNL_MSG_CT_NEW,
 	IPCTNL_MSG_CT_GET,
 	IPCTNL_MSG_CT_DELETE,
