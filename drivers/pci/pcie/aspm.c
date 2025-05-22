@@ -884,10 +884,9 @@ static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 /* Configure the ASPM L1 substates. Caller must disable L1 first. */
 static void pcie_config_aspm_l1ss(struct pcie_link_state *link, u32 state)
 {
-	u32 val;
+	u32 val = 0;
 	struct pci_dev *child = link->downstream, *parent = link->pdev;
 
-	val = 0;
 	if (state & PCIE_LINK_STATE_L1_1)
 		val |= PCI_L1SS_CTL1_ASPM_L1_1;
 	if (state & PCIE_LINK_STATE_L1_2)
