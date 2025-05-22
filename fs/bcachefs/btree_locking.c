@@ -846,9 +846,9 @@ int bch2_trans_relock_notrace(struct btree_trans *trans)
 
 void bch2_trans_unlock(struct btree_trans *trans)
 {
-	__bch2_trans_unlock(trans);
-
 	trans_set_unlocked(trans);
+
+	__bch2_trans_unlock(trans);
 }
 
 void bch2_trans_unlock_long(struct btree_trans *trans)
