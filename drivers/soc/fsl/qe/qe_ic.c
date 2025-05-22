@@ -450,13 +450,11 @@ static int qe_ic_init(struct platform_device *pdev)
 
 	qe_ic_write(qe_ic->regs, QEIC_CICR, 0);
 
-	irq_set_handler_data(qe_ic->virq_low, qe_ic);
-	irq_set_chained_handler(qe_ic->virq_low, low_handler);
+	irq_set_chained_handler_and_data(qe_ic->virq_low, low_handler, qe_ic);
 
-	if (high_handler) {
-		irq_set_handler_data(qe_ic->virq_high, qe_ic);
-		irq_set_chained_handler(qe_ic->virq_high, high_handler);
-	}
+	if (high_handler)
+		irq_set_chained_handler_and_data(qe_ic->virq_high,
+						 high_handler, qe_ic);
 	return 0;
 }
 static const struct of_device_id qe_ic_ids[] = {
