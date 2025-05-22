@@ -4,7 +4,6 @@
  *
  * Copyright (C) 2009 Texas Instruments Incorporated - https://www.ti.com/
  *
- * Derived from: arch/arm/mach-davinci/da830.c
  * Original Copyrights follow:
  *
  * 2009 (c) MontaVista Software, Inc.
