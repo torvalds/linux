@@ -828,23 +828,33 @@ int bch2_btree_bit_mod_buffered(struct btree_trans *trans, enum btree_id btree,
 	return bch2_trans_update_buffered(trans, btree, &k);
 }
 
-int bch2_trans_log_msg(struct btree_trans *trans, struct printbuf *buf)
+static int __bch2_trans_log_str(struct btree_trans *trans, const char *str, unsigned len)
 {
-	unsigned u64s = DIV_ROUND_UP(buf->pos, sizeof(u64));
-
-	int ret = buf->allocation_failure ? -BCH_ERR_ENOMEM_trans_log_msg : 0;
-	if (ret)
-		return ret;
+	unsigned u64s = DIV_ROUND_UP(len, sizeof(u64));
 
 	struct jset_entry *e = bch2_trans_jset_entry_alloc(trans, jset_u64s(u64s));
-	ret = PTR_ERR_OR_ZERO(e);
+	int ret = PTR_ERR_OR_ZERO(e);
 	if (ret)
 		return ret;
 
 	struct jset_entry_log *l = container_of(e, struct jset_entry_log, entry);
 	journal_entry_init(e, BCH_JSET_ENTRY_log, 0, 1, u64s);
-	memcpy_and_pad(l->d, u64s * sizeof(u64), buf->buf, buf->pos, 0);
+	memcpy_and_pad(l->d, u64s * sizeof(u64), str, len, 0);
 	return 0;
+}
+
+int bch2_trans_log_str(struct btree_trans *trans, const char *str)
+{
+	return __bch2_trans_log_str(trans, str, strlen(str));
+}
+
+int bch2_trans_log_msg(struct btree_trans *trans, struct printbuf *buf)
+{
+	int ret = buf->allocation_failure ? -BCH_ERR_ENOMEM_trans_log_msg : 0;
+	if (ret)
+		return ret;
+
+	return __bch2_trans_log_str(trans, buf->buf, buf->pos);
 }
 
 int bch2_trans_log_bkey(struct btree_trans *trans, enum btree_id btree,
