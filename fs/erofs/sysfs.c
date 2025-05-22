@@ -248,6 +248,12 @@ void erofs_unregister_sysfs(struct super_block *sb)
 	}
 }
 
+void erofs_exit_sysfs(void)
+{
+	kobject_put(&erofs_feat);
+	kset_unregister(&erofs_root);
+}
+
 int __init erofs_init_sysfs(void)
 {
 	int ret;
@@ -255,24 +261,12 @@ int __init erofs_init_sysfs(void)
 	kobject_set_name(&erofs_root.kobj, "erofs");
 	erofs_root.kobj.parent = fs_kobj;
 	ret = kset_register(&erofs_root);
-	if (ret)
-		goto root_err;
-
-	ret = kobject_init_and_add(&erofs_feat, &erofs_feat_ktype,
-				   NULL, "features");
-	if (ret)
-		goto feat_err;
+	if (!ret) {
+		ret = kobject_init_and_add(&erofs_feat, &erofs_feat_ktype,
+					   NULL, "features");
+		if (!ret)
+			return 0;
+		erofs_exit_sysfs();
+	}
 	return ret;
-
-feat_err:
-	kobject_put(&erofs_feat);
-	kset_unregister(&erofs_root);
-root_err:
-	return ret;
-}
-
-void erofs_exit_sysfs(void)
-{
-	kobject_put(&erofs_feat);
-	kset_unregister(&erofs_root);
 }
