@@ -117,13 +117,11 @@ enum {
  * PINGPONG sub-blocks
  * @DPU_PINGPONG_SPLIT      PP block supports split fifo
  * @DPU_PINGPONG_SLAVE      PP block is a suitable slave for split fifo
- * @DPU_PINGPONG_DITHER     Dither blocks
  * @DPU_PINGPONG_MAX
  */
 enum {
 	DPU_PINGPONG_SPLIT = 0x1,
 	DPU_PINGPONG_SLAVE,
-	DPU_PINGPONG_DITHER,
 	DPU_PINGPONG_MAX
 };
 
