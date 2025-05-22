@@ -1,18 +1,12 @@
-Linux kernel
+Dear Linus (not calling u by your last name)
 ============
 
-There are several guides for kernel developers and users. These guides can
-be rendered in a number of formats, like HTML and PDF. Please read
-Documentation/admin-guide/README.rst first.
+Open-Source as a state of software is and always has been aimed at breaking counties' boundaries and allowing progress without interference of politics and discrimination.
+If you wish the kernel not abide such principles, on which you settled yourself a long time ago, it should not be marketed as "Open-Source"
 
-In order to build the documentation, use ``make htmldocs`` or
-``make pdfdocs``.  The formatted documentation can also be read online at:
+After all, how "Open-Source" is it, when you outright cut off a significant part of your backing solely based on your prejudice towards Russian folk?
 
-    https://www.kernel.org/doc/html/latest/
+To all of the insulted ones, as a former RU citizen, I express my apologies for the state we have driven this community to.
+And to you, Linus, I wish you find your peace someday, and remember what got you started on the idea of free software. Free - as in freedom.
 
-There are various text files in the Documentation/ subdirectory,
-several of them using the reStructuredText markup notation.
-
-Please read the Documentation/process/changes.rst file, as it contains the
-requirements for building and running the kernel, and information about
-the problems which may result by upgrading your kernel.
+Goiyda, bratia!
