@@ -504,6 +504,15 @@ enum mlx5hws_action_type
 mlx5hws_action_get_type(struct mlx5hws_action *action);
 
 /**
+ * mlx5hws_action_get_dev - Get mlx5 core device.
+ *
+ * @action: The action to get the device from.
+ *
+ * Return: mlx5 core device.
+ */
+struct mlx5_core_dev *mlx5hws_action_get_dev(struct mlx5hws_action *action);
+
+/**
  * mlx5hws_action_create_dest_drop - Create a direct rule drop action.
  *
  * @ctx: The context in which the new action will be created.
