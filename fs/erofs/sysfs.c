@@ -7,12 +7,14 @@
 #include <linux/kobject.h>
 
 #include "internal.h"
+#include "compress.h"
 
 enum {
 	attr_feature,
 	attr_drop_caches,
 	attr_pointer_ui,
 	attr_pointer_bool,
+	attr_accel,
 };
 
 enum {
@@ -60,11 +62,22 @@ static struct erofs_attr erofs_attr_##_name = {			\
 EROFS_ATTR_RW_UI(sync_decompress, erofs_mount_opts);
 EROFS_ATTR_FUNC(drop_caches, 0200);
 #endif
+#ifdef CONFIG_EROFS_FS_ZIP_ACCEL
+EROFS_ATTR_FUNC(accel, 0644);
+#endif
 
-static struct attribute *erofs_attrs[] = {
+static struct attribute *erofs_sb_attrs[] = {
 #ifdef CONFIG_EROFS_FS_ZIP
 	ATTR_LIST(sync_decompress),
 	ATTR_LIST(drop_caches),
+#endif
+	NULL,
+};
+ATTRIBUTE_GROUPS(erofs_sb);
+
+static struct attribute *erofs_attrs[] = {
+#ifdef CONFIG_EROFS_FS_ZIP_ACCEL
+	ATTR_LIST(accel),
 #endif
 	NULL,
 };
@@ -128,12 +141,14 @@ static ssize_t erofs_attr_show(struct kobject *kobj,
 		if (!ptr)
 			return 0;
 		return sysfs_emit(buf, "%d\n", *(bool *)ptr);
+	case attr_accel:
+		return z_erofs_crypto_show_engines(buf, PAGE_SIZE, '\n');
 	}
 	return 0;
 }
 
 static ssize_t erofs_attr_store(struct kobject *kobj, struct attribute *attr,
-						const char *buf, size_t len)
+				const char *buf, size_t len)
 {
 	struct erofs_sb_info *sbi = container_of(kobj, struct erofs_sb_info,
 						s_kobj);
@@ -182,6 +197,19 @@ static ssize_t erofs_attr_store(struct kobject *kobj, struct attribute *attr,
 			invalidate_mapping_pages(MNGD_MAPPING(sbi), 0, -1);
 		return len;
 #endif
+#ifdef CONFIG_EROFS_FS_ZIP_ACCEL
+	case attr_accel:
+		buf = skip_spaces(buf);
+		z_erofs_crypto_disable_all_engines();
+		while (*buf) {
+			t = strcspn(buf, "\n");
+			ret = z_erofs_crypto_enable_engine(buf, t);
+			if (ret < 0)
+				return ret;
+			buf += buf[t] != '\0' ? t + 1 : t;
+		}
+		return len;
+#endif
 	}
 	return 0;
 }
@@ -199,12 +227,13 @@ static const struct sysfs_ops erofs_attr_ops = {
 };
 
 static const struct kobj_type erofs_sb_ktype = {
-	.default_groups = erofs_groups,
+	.default_groups = erofs_sb_groups,
 	.sysfs_ops	= &erofs_attr_ops,
 	.release	= erofs_sb_release,
 };
 
 static const struct kobj_type erofs_ktype = {
+	.default_groups = erofs_groups,
 	.sysfs_ops	= &erofs_attr_ops,
 };
 

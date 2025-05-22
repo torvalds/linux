@@ -441,6 +441,7 @@ void z_erofs_exit_subsystem(void)
 	z_erofs_destroy_pcpu_workers();
 	destroy_workqueue(z_erofs_workqueue);
 	z_erofs_destroy_pcluster_pool();
+	z_erofs_crypto_disable_all_engines();
 	z_erofs_exit_decompressor();
 }
 
