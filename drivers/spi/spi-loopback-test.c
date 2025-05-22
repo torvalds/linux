@@ -494,8 +494,8 @@ struct rx_ranges {
 static int rx_ranges_cmp(void *priv, const struct list_head *a,
 			 const struct list_head *b)
 {
-	struct rx_ranges *rx_a = list_entry(a, struct rx_ranges, list);
-	struct rx_ranges *rx_b = list_entry(b, struct rx_ranges, list);
+	const struct rx_ranges *rx_a = list_entry(a, struct rx_ranges, list);
+	const struct rx_ranges *rx_b = list_entry(b, struct rx_ranges, list);
 
 	if (rx_a->start > rx_b->start)
 		return 1;
