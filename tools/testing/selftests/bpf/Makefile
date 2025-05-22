@@ -34,6 +34,9 @@ OPT_FLAGS	?= $(if $(RELEASE),-O2,-O0)
 LIBELF_CFLAGS	:= $(shell $(PKG_CONFIG) libelf --cflags 2>/dev/null)
 LIBELF_LIBS	:= $(shell $(PKG_CONFIG) libelf --libs 2>/dev/null || echo -lelf)
 
+SKIP_DOCS	?=
+SKIP_LLVM	?=
+
 ifeq ($(srctree),)
 srctree := $(patsubst %/,%,$(dir $(CURDIR)))
 srctree := $(patsubst %/,%,$(dir $(srctree)))
@@ -172,6 +175,7 @@ override OUTPUT := $(patsubst %/,%,$(OUTPUT))
 endif
 endif
 
+ifneq ($(SKIP_LLVM),1)
 ifeq ($(feature-llvm),1)
   LLVM_CFLAGS  += -DHAVE_LLVM_SUPPORT
   LLVM_CONFIG_LIB_COMPONENTS := mcdisassembler all-targets
@@ -186,6 +190,7 @@ ifeq ($(feature-llvm),1)
     LLVM_LDLIBS  += $(shell $(LLVM_CONFIG) --link-shared --libs $(LLVM_CONFIG_LIB_COMPONENTS))
   endif
   LLVM_LDFLAGS += $(shell $(LLVM_CONFIG) --ldflags)
+endif
 endif
 
 SCRATCH_DIR := $(OUTPUT)/tools
