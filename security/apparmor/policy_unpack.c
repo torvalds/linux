@@ -775,7 +775,8 @@ static int unpack_pdb(struct aa_ext *e, struct aa_policydb **policy,
 		}
 	}
 
-	if (pdb->perms && version <= 2) {
+	/* accept2 is in some cases being allocated, even with perms */
+	if (pdb->perms && !pdb->dfa->tables[YYTD_ID_ACCEPT2]) {
 		/* add dfa flags table missing in v2 */
 		u32 noents = pdb->dfa->tables[YYTD_ID_ACCEPT]->td_lolen;
 		u16 tdflags = pdb->dfa->tables[YYTD_ID_ACCEPT]->td_flags;
