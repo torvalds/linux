@@ -956,9 +956,8 @@ new_cluster:
 	}
 
 	/*
-	 * We don't have free cluster but have some clusters in
-	 * discarding, do discard now and reclaim them, then
-	 * reread cluster_next_cpu since we dropped si->lock
+	 * We don't have free cluster but have some clusters in discarding,
+	 * do discard now and reclaim them.
 	 */
 	if ((si->flags & SWP_PAGE_DISCARD) && swap_do_scheduled_discard(si))
 		goto new_cluster;
