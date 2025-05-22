@@ -262,6 +262,11 @@ struct mr_table {
 	int			mroute_reg_vif_num;
 };
 
+static inline bool mr_can_free_table(struct net *net)
+{
+	return !check_net(net) || !net_initialized(net);
+}
+
 #ifdef CONFIG_IP_MROUTE_COMMON
 void vif_device_init(struct vif_device *v,
 		     struct net_device *dev,

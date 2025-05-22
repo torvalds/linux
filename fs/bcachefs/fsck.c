@@ -2446,7 +2446,7 @@ static int check_subvol_path(struct btree_trans *trans, struct btree_iter *iter,
 		u32 parent = le32_to_cpu(s.v->fs_path_parent);
 
 		if (darray_u32_has(&subvol_path, parent)) {
-			if (fsck_err(c, subvol_loop, "subvolume loop"))
+			if (fsck_err(trans, subvol_loop, "subvolume loop"))
 				ret = reattach_subvol(trans, s);
 			break;
 		}

@@ -727,9 +727,12 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 #ifdef CONFIG_DCB
-	err = otx2_dcbnl_set_ops(netdev);
-	if (err)
-		goto err_free_zc_bmap;
+	/* Priority flow control is not supported for LBK and SDP vf(s) */
+	if (!(is_otx2_lbkvf(vf->pdev) || is_otx2_sdp_rep(vf->pdev))) {
+		err = otx2_dcbnl_set_ops(netdev);
+		if (err)
+			goto err_free_zc_bmap;
+	}
 #endif
 	otx2_qos_init(vf, qos_txqs);
 

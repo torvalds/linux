@@ -1429,7 +1429,9 @@ static int bch2_next_fiemap_extent(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	ret = bch2_next_fiemap_pagecache_extent(trans, inode, start, end, cur);
+	u64 pagecache_end = k.k ? max(start, bkey_start_offset(k.k)) : end;
+
+	ret = bch2_next_fiemap_pagecache_extent(trans, inode, start, pagecache_end, cur);
 	if (ret)
 		goto err;
 
