@@ -5,6 +5,10 @@ soc/arm
 		git://git.kernel.org/pub/scm/linux/kernel/git/khilman/linux-omap tags/omap-for-v6.16/soc-signed
 	patch
 		ARM: s3c: stop including gpio.h
+	davinci/remove-da830
+		https://git.kernel.org/pub/scm/linux/kernel/git/brgl/linux tags/davinci-updates-for-v6.16-rc1
+	broadcom/maintainer
+		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.16/maintainers
 
 soc/dt
 	patch
@@ -91,7 +95,7 @@ soc/dt
 		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-dts-for-v6.16-tag4
 	mvebu/dt
 		https://git.kernel.org/pub/scm/linux/kernel/git/gclement/mvebu tags/mvebu-dt64-6.16-1
-	<no branch> (1631cbdb808963354ef6b6454bc617cd15f90718)
+	rockchip/dt64-2
 		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.16-rockchip-dts64-2
 	rockchip/dt64-3
 		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.16-rockchip-dts64-3
@@ -103,6 +107,8 @@ soc/dt
 		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-arm32-for-6.16-2
 	qcom/dt64-2
 		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-arm64-for-6.16-2
+	juno/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/sudeep.holla/linux tags/juno-updates-6.16
 
 soc/drivers
 	renesas/drivers
@@ -167,6 +173,14 @@ soc/defconfig
 		https://git.kernel.org/pub/scm/linux/kernel/git/ti/linux tags/ti-k3-config-for-v6.16
 	patch
 		arm64: defconfig: enable ACPM protocol and Exynos mailbox
+	riscv/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux tags/riscv-config-for-v6.16
+	qcom/defconfig-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-arm64-defconfig-for-6.16-2
+	mediate/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/mediatek/linux tags/mtk-defconfig-for-v6.16
+	rockchip/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.16-rockchip-defconfig64-1
 
 soc/late
 
