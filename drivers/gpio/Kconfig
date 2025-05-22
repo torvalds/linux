@@ -438,6 +438,7 @@ config GPIO_LPC18XX
 	default y if ARCH_LPC18XX
 	depends on OF_GPIO && (ARCH_LPC18XX || COMPILE_TEST)
 	select IRQ_DOMAIN_HIERARCHY
+	select GPIOLIB_IRQCHIP
 	help
 	  Select this option to enable GPIO driver for
 	  NXP LPC18XX/43XX devices.
