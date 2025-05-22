@@ -776,9 +776,9 @@ void *qmi_encode_message(int type, unsigned int msg_id, size_t *len,
 
 	hdr = msg;
 	hdr->type = type;
-	hdr->txn_id = txn_id;
-	hdr->msg_id = msg_id;
-	hdr->msg_len = msglen;
+	hdr->txn_id = cpu_to_le16(txn_id);
+	hdr->msg_id = cpu_to_le16(msg_id);
+	hdr->msg_len = cpu_to_le16(msglen);
 
 	*len = sizeof(*hdr) + msglen;
 
