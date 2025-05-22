@@ -444,11 +444,7 @@ static int mxc_isi_probe(struct platform_device *pdev)
 	}
 
 	dma_size = isi->pdata->has_36bit_dma ? 36 : 32;
-	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(dma_size));
-	if (ret) {
-		dev_err(dev, "failed to set DMA mask\n");
-		return ret;
-	}
+	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(dma_size));
 
 	pm_runtime_enable(dev);
 
