@@ -43,6 +43,15 @@ static inline int btree_node_locked_type(struct btree_path *path,
 	return BTREE_NODE_UNLOCKED + ((path->nodes_locked >> (level << 1)) & 3);
 }
 
+static inline int btree_node_locked_type_nowrite(struct btree_path *path,
+						 unsigned level)
+{
+	int have = btree_node_locked_type(path, level);
+	return have == BTREE_NODE_WRITE_LOCKED
+		? BTREE_NODE_INTENT_LOCKED
+		: have;
+}
+
 static inline bool btree_node_write_locked(struct btree_path *path, unsigned l)
 {
 	return btree_node_locked_type(path, l) == BTREE_NODE_WRITE_LOCKED;
@@ -366,8 +375,8 @@ static inline bool bch2_btree_node_relock_notrace(struct btree_trans *trans,
 						  struct btree_path *path, unsigned level)
 {
 	EBUG_ON(btree_node_locked(path, level) &&
-		!btree_node_write_locked(path, level) &&
-		btree_node_locked_type(path, level) != __btree_lock_want(path, level));
+		btree_node_locked_type_nowrite(path, level) !=
+		__btree_lock_want(path, level));
 
 	return likely(btree_node_locked(path, level)) ||
 		(!IS_ERR_OR_NULL(path->l[level].b) &&

@@ -877,14 +877,11 @@ void __bch2_btree_path_verify_locks(struct btree_path *path)
 
 	for (unsigned l = 0; l < BTREE_MAX_DEPTH; l++) {
 		int want = btree_lock_want(path, l);
-		int have = btree_node_locked_type(path, l);
+		int have = btree_node_locked_type_nowrite(path, l);
 
 		BUG_ON(!is_btree_node(path, l) && have != BTREE_NODE_UNLOCKED);
 
-		BUG_ON(is_btree_node(path, l) &&
-		       (want == BTREE_NODE_UNLOCKED ||
-			have != BTREE_NODE_WRITE_LOCKED) &&
-		       want != have);
+		BUG_ON(is_btree_node(path, l) && want != have);
 
 		BUG_ON(btree_node_locked(path, l) &&
 		       path->l[l].lock_seq != six_lock_seq(&path->l[l].b->c.lock));
