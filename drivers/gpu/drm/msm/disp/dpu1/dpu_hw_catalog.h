@@ -140,17 +140,6 @@ enum {
 };
 
 /**
- * INTF sub-blocks
- * @DPU_INTF_INPUT_CTRL             Supports the setting of pp block from which
- *                                  pixel data arrives to this INTF
- * @DPU_INTF_MAX
- */
-enum {
-	DPU_INTF_INPUT_CTRL = 0x1,
-	DPU_INTF_MAX
-};
-
-/**
   * WB sub-blocks and features
   * @DPU_WB_LINE_MODE        Writeback module supports line/linear mode
   * @DPU_WB_BLOCK_MODE       Writeback module supports block mode read
