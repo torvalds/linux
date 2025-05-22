@@ -228,6 +228,18 @@ static int ublk_ctrl_update_size(struct ublk_dev *dev,
 	return __ublk_ctrl_cmd(dev, &data);
 }
 
+static int ublk_ctrl_quiesce_dev(struct ublk_dev *dev,
+				 unsigned int timeout_ms)
+{
+	struct ublk_ctrl_cmd_data data = {
+		.cmd_op	= UBLK_U_CMD_QUIESCE_DEV,
+		.flags	= CTRL_CMD_HAS_DATA,
+	};
+
+	data.data[0] = timeout_ms;
+	return __ublk_ctrl_cmd(dev, &data);
+}
+
 static const char *ublk_dev_state_desc(struct ublk_dev *dev)
 {
 	switch (dev->dev_info.state) {
@@ -1053,6 +1065,9 @@ static int __cmd_dev_add(const struct dev_ctx *ctx)
 	info->nr_hw_queues = nr_queues;
 	info->queue_depth = depth;
 	info->flags = ctx->flags;
+	if ((features & UBLK_F_QUIESCE) &&
+			(info->flags & UBLK_F_USER_RECOVERY))
+		info->flags |= UBLK_F_QUIESCE;
 	dev->tgt.ops = ops;
 	dev->tgt.sq_depth = depth;
 	dev->tgt.cq_depth = depth;
@@ -1250,6 +1265,7 @@ static int cmd_dev_get_features(void)
 		[const_ilog2(UBLK_F_USER_RECOVERY_FAIL_IO)] = "RECOVERY_FAIL_IO",
 		[const_ilog2(UBLK_F_UPDATE_SIZE)] = "UPDATE_SIZE",
 		[const_ilog2(UBLK_F_AUTO_BUF_REG)] = "AUTO_BUF_REG",
+		[const_ilog2(UBLK_F_QUIESCE)] = "QUIESCE",
 	};
 	struct ublk_dev *dev;
 	__u64 features = 0;
@@ -1316,6 +1332,26 @@ out:
 	return ret;
 }
 
+static int cmd_dev_quiesce(struct dev_ctx *ctx)
+{
+	struct ublk_dev *dev = ublk_ctrl_init();
+	int ret = -EINVAL;
+
+	if (!dev)
+		return -ENODEV;
+
+	if (ctx->dev_id < 0) {
+		fprintf(stderr, "device id isn't provided for quiesce\n");
+		goto out;
+	}
+	dev->dev_info.dev_id = ctx->dev_id;
+	ret = ublk_ctrl_quiesce_dev(dev, 10000);
+
+out:
+	ublk_ctrl_deinit(dev);
+	return ret;
+}
+
 static void __cmd_create_help(char *exe, bool recovery)
 {
 	int i;
@@ -1359,6 +1395,7 @@ static int cmd_dev_help(char *exe)
 	printf("\t -a list all devices, -n list specified device, default -a \n\n");
 	printf("%s features\n", exe);
 	printf("%s update_size -n dev_id -s|--size size_in_bytes \n", exe);
+	printf("%s quiesce -n dev_id\n", exe);
 	return 0;
 }
 
@@ -1523,6 +1560,8 @@ int main(int argc, char *argv[])
 		ret = cmd_dev_get_features();
 	else if (!strcmp(cmd, "update_size"))
 		ret = cmd_dev_update_size(&ctx);
+	else if (!strcmp(cmd, "quiesce"))
+		ret = cmd_dev_quiesce(&ctx);
 	else
 		cmd_dev_help(argv[0]);
 
