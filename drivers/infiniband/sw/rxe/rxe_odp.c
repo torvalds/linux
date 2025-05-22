@@ -124,8 +124,8 @@ int rxe_odp_mr_init_user(struct rxe_dev *rxe, u64 start, u64 length,
 	return err;
 }
 
-static inline bool rxe_check_pagefault(struct ib_umem_odp *umem_odp,
-				       u64 iova, int length, u32 perm)
+static inline bool rxe_check_pagefault(struct ib_umem_odp *umem_odp, u64 iova,
+				       int length)
 {
 	bool need_fault = false;
 	u64 addr;
@@ -137,7 +137,7 @@ static inline bool rxe_check_pagefault(struct ib_umem_odp *umem_odp,
 	while (addr < iova + length) {
 		idx = (addr - ib_umem_start(umem_odp)) >> umem_odp->page_shift;
 
-		if (!(umem_odp->map.pfn_list[idx] & perm)) {
+		if (!(umem_odp->map.pfn_list[idx] & HMM_PFN_VALID)) {
 			need_fault = true;
 			break;
 		}
@@ -161,18 +161,14 @@ static int rxe_odp_map_range_and_lock(struct rxe_mr *mr, u64 iova, int length, u
 {
 	struct ib_umem_odp *umem_odp = to_ib_umem_odp(mr->umem);
 	bool need_fault;
-	u64 perm = 0;
 	int err;
 
 	if (unlikely(length < 1))
 		return -EINVAL;
 
-	if (!(flags & RXE_PAGEFAULT_RDONLY))
-		perm |= HMM_PFN_WRITE;
-
 	mutex_lock(&umem_odp->umem_mutex);
 
-	need_fault = rxe_check_pagefault(umem_odp, iova, length, perm);
+	need_fault = rxe_check_pagefault(umem_odp, iova, length);
 	if (need_fault) {
 		mutex_unlock(&umem_odp->umem_mutex);
 
@@ -182,7 +178,7 @@ static int rxe_odp_map_range_and_lock(struct rxe_mr *mr, u64 iova, int length, u
 		if (err < 0)
 			return err;
 
-		need_fault = rxe_check_pagefault(umem_odp, iova, length, perm);
+		need_fault = rxe_check_pagefault(umem_odp, iova, length);
 		if (need_fault)
 			return -EFAULT;
 	}
