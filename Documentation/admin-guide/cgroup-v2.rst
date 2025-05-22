@@ -1095,19 +1095,34 @@ realtime processes irrespective of CONFIG_RT_GROUP_SCHED.
 CPU Interface Files
 ~~~~~~~~~~~~~~~~~~~
 
-All time durations are in microseconds.
+The interaction of a process with the cpu controller depends on its scheduling
+policy and the underlying scheduler. From the point of view of the cpu controller,
+processes can be categorized as follows:
+
+* Processes under the fair-class scheduler
+* Processes under a BPF scheduler with the ``cgroup_set_weight`` callback
+* Everything else: ``SCHED_{FIFO,RR,DEADLINE}`` and processes under a BPF scheduler
+  without the ``cgroup_set_weight`` callback
+
+For details on when a process is under the fair-class scheduler or a BPF scheduler,
+check out :ref:`Documentation/scheduler/sched-ext.rst <sched-ext>`.
+
+For each of the following interface files, the above categories
+will be referred to. All time durations are in microseconds.
 
   cpu.stat
 	A read-only flat-keyed file.
 	This file exists whether the controller is enabled or not.
 
-	It always reports the following three stats:
+	It always reports the following three stats, which account for all the
+	processes in the cgroup:
 
 	- usage_usec
 	- user_usec
 	- system_usec
 
-	and the following five when the controller is enabled:
+	and the following five when the controller is enabled, which account for
+	only the processes under the fair-class scheduler:
 
 	- nr_periods
 	- nr_throttled
@@ -1125,6 +1140,10 @@ All time durations are in microseconds.
 	If the cgroup has been configured to be SCHED_IDLE (cpu.idle = 1),
 	then the weight will show as a 0.
 
+	This file affects only processes under the fair-class scheduler and a BPF
+	scheduler with the ``cgroup_set_weight`` callback depending on what the
+	callback actually does.
+
   cpu.weight.nice
 	A read-write single value file which exists on non-root
 	cgroups.  The default is "0".
@@ -1136,6 +1155,10 @@ All time durations are in microseconds.
 	same values used by nice(2).  Because the range is smaller and
 	granularity is coarser for the nice values, the read value is
 	the closest approximation of the current weight.
+
+	This file affects only processes under the fair-class scheduler and a BPF
+	scheduler with the ``cgroup_set_weight`` callback depending on what the
+	callback actually does.
 
   cpu.max
 	A read-write two value file which exists on non-root cgroups.
@@ -1149,17 +1172,23 @@ All time durations are in microseconds.
 	$PERIOD duration.  "max" for $MAX indicates no limit.  If only
 	one number is written, $MAX is updated.
 
+	This file affects only processes under the fair-class scheduler.
+
   cpu.max.burst
 	A read-write single value file which exists on non-root
 	cgroups.  The default is "0".
 
 	The burst in the range [0, $MAX].
 
+	This file affects only processes under the fair-class scheduler.
+
   cpu.pressure
 	A read-write nested-keyed file.
 
 	Shows pressure stall information for CPU. See
 	:ref:`Documentation/accounting/psi.rst <psi>` for details.
+
+	This file accounts for all the processes in the cgroup.
 
   cpu.uclamp.min
 	A read-write single value file which exists on non-root cgroups.
@@ -1177,6 +1206,8 @@ All time durations are in microseconds.
 	the current value for the maximum utilization (limit), i.e.
 	`cpu.uclamp.max`.
 
+	This file affects all the processes in the cgroup.
+
   cpu.uclamp.max
 	A read-write single value file which exists on non-root cgroups.
 	The default is "max". i.e. no utilization capping
@@ -1189,6 +1220,8 @@ All time durations are in microseconds.
 	value is used to clamp the task specific maximum utilization clamp,
 	including those of realtime processes.
 
+	This file affects all the processes in the cgroup.
+
   cpu.idle
 	A read-write single value file which exists on non-root cgroups.
 	The default is 0.
@@ -1199,7 +1232,7 @@ All time durations are in microseconds.
 	own relative priorities, but the cgroup itself will be treated as
 	very low priority relative to its peers.
 
-
+	This file affects only processes under the fair-class scheduler.
 
 Memory
 ------
