@@ -1284,41 +1284,6 @@ static const struct of_device_id fsl_dspi_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, fsl_dspi_dt_ids);
 
-#ifdef CONFIG_PM_SLEEP
-static int dspi_suspend(struct device *dev)
-{
-	struct fsl_dspi *dspi = dev_get_drvdata(dev);
-
-	if (dspi->irq)
-		disable_irq(dspi->irq);
-	spi_controller_suspend(dspi->ctlr);
-	clk_disable_unprepare(dspi->clk);
-
-	pinctrl_pm_select_sleep_state(dev);
-
-	return 0;
-}
-
-static int dspi_resume(struct device *dev)
-{
-	struct fsl_dspi *dspi = dev_get_drvdata(dev);
-	int ret;
-
-	pinctrl_pm_select_default_state(dev);
-
-	ret = clk_prepare_enable(dspi->clk);
-	if (ret)
-		return ret;
-	spi_controller_resume(dspi->ctlr);
-	if (dspi->irq)
-		enable_irq(dspi->irq);
-
-	return 0;
-}
-#endif /* CONFIG_PM_SLEEP */
-
-static SIMPLE_DEV_PM_OPS(dspi_pm, dspi_suspend, dspi_resume);
-
 static int dspi_init(struct fsl_dspi *dspi)
 {
 	unsigned int mcr;
@@ -1353,6 +1318,48 @@ static int dspi_init(struct fsl_dspi *dspi)
 
 	return 0;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int dspi_suspend(struct device *dev)
+{
+	struct fsl_dspi *dspi = dev_get_drvdata(dev);
+
+	if (dspi->irq)
+		disable_irq(dspi->irq);
+	spi_controller_suspend(dspi->ctlr);
+	clk_disable_unprepare(dspi->clk);
+
+	pinctrl_pm_select_sleep_state(dev);
+
+	return 0;
+}
+
+static int dspi_resume(struct device *dev)
+{
+	struct fsl_dspi *dspi = dev_get_drvdata(dev);
+	int ret;
+
+	pinctrl_pm_select_default_state(dev);
+
+	ret = clk_prepare_enable(dspi->clk);
+	if (ret)
+		return ret;
+	spi_controller_resume(dspi->ctlr);
+
+	ret = dspi_init(dspi);
+	if (ret) {
+		dev_err(dev, "failed to initialize dspi during resume\n");
+		return ret;
+	}
+
+	if (dspi->irq)
+		enable_irq(dspi->irq);
+
+	return 0;
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static SIMPLE_DEV_PM_OPS(dspi_pm, dspi_suspend, dspi_resume);
 
 static int dspi_target_abort(struct spi_controller *host)
 {
