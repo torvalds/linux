@@ -15,6 +15,7 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nf_tables.h>
+#include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_tables_core.h>
 #include <net/netfilter/nf_tables.h>
 
@@ -84,6 +85,49 @@ static int nf_trace_fill_dev_info(struct sk_buff *nlskb,
 
 		if (nla_put_be16(nlskb, NFTA_TRACE_OIFTYPE,
 				 htons(outdev->type)))
+			return -1;
+	}
+
+	return 0;
+}
+
+static int nf_trace_fill_ct_info(struct sk_buff *nlskb,
+				 const struct sk_buff *skb)
+{
+	const struct nf_ct_hook *ct_hook;
+	enum ip_conntrack_info ctinfo;
+	const struct nf_conn *ct;
+	u32 state;
+
+	ct_hook = rcu_dereference(nf_ct_hook);
+	if (!ct_hook)
+		return 0;
+
+	ct = nf_ct_get(skb, &ctinfo);
+	if (!ct) {
+		if (ctinfo != IP_CT_UNTRACKED) /* not seen by conntrack or invalid */
+			return 0;
+
+		state = NF_CT_STATE_UNTRACKED_BIT;
+	} else {
+		state = NF_CT_STATE_BIT(ctinfo);
+	}
+
+	if (nla_put_be32(nlskb, NFTA_TRACE_CT_STATE, htonl(state)))
+		return -1;
+
+	if (ct) {
+		u32 id = ct_hook->get_id(&ct->ct_general);
+		u32 status = READ_ONCE(ct->status);
+		u8 dir = CTINFO2DIR(ctinfo);
+
+		if (nla_put_u8(nlskb, NFTA_TRACE_CT_DIRECTION, dir))
+			return -1;
+
+		if (nla_put_be32(nlskb, NFTA_TRACE_CT_ID, (__force __be32)id))
+			return -1;
+
+		if (status && nla_put_be32(nlskb, NFTA_TRACE_CT_STATUS, htonl(status)))
 			return -1;
 	}
 
@@ -210,7 +254,11 @@ void nft_trace_notify(const struct nft_pktinfo *pkt,
 		nla_total_size(sizeof(__be32)) +	/* trace type */
 		nla_total_size(0) +			/* VERDICT, nested */
 			nla_total_size(sizeof(u32)) +	/* verdict code */
-		nla_total_size(sizeof(u32)) +		/* id */
+		nla_total_size(sizeof(u32)) +		/* ct id */
+		nla_total_size(sizeof(u8)) +		/* ct direction */
+		nla_total_size(sizeof(u32)) +		/* ct state */
+		nla_total_size(sizeof(u32)) +		/* ct status */
+		nla_total_size(sizeof(u32)) +		/* trace id */
 		nla_total_size(NFT_TRACETYPE_LL_HSIZE) +
 		nla_total_size(NFT_TRACETYPE_NETWORK_HSIZE) +
 		nla_total_size(NFT_TRACETYPE_TRANSPORT_HSIZE) +
@@ -291,6 +339,10 @@ void nft_trace_notify(const struct nft_pktinfo *pkt,
 
 		if (nf_trace_fill_pkt_info(skb, pkt))
 			goto nla_put_failure;
+
+		if (nf_trace_fill_ct_info(skb, pkt->skb))
+			goto nla_put_failure;
+
 		info->packet_dumped = true;
 	}
 
