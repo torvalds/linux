@@ -201,6 +201,7 @@ config GPIO_RASPBERRYPI_EXP
 config GPIO_BCM_KONA
 	bool "Broadcom Kona GPIO"
 	depends on ARCH_BCM_MOBILE || COMPILE_TEST
+	select GPIOLIB_IRQCHIP
 	help
 	  Turn on GPIO support for Broadcom "Kona" chips.
 
