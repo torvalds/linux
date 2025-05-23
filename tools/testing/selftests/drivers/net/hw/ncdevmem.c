@@ -373,7 +373,8 @@ static int configure_flow_steering(struct sockaddr_in6 *server_sin)
 		server_addr = strrchr(server_addr, ':') + 1;
 	}
 
-	return run_command("sudo ethtool -N %s flow-type %s %s %s dst-ip %s %s %s dst-port %s queue %d >&2",
+	/* Try configure 5-tuple */
+	if (run_command("sudo ethtool -N %s flow-type %s %s %s dst-ip %s %s %s dst-port %s queue %d >&2",
 			   ifname,
 			   type,
 			   client_ip ? "src-ip" : "",
@@ -381,7 +382,17 @@ static int configure_flow_steering(struct sockaddr_in6 *server_sin)
 			   server_addr,
 			   client_ip ? "src-port" : "",
 			   client_ip ? port : "",
-			   port, start_queue);
+			   port, start_queue))
+		/* If that fails, try configure 3-tuple */
+		if (run_command("sudo ethtool -N %s flow-type %s dst-ip %s dst-port %s queue %d >&2",
+				ifname,
+				type,
+				server_addr,
+				port, start_queue))
+			/* If that fails, return error */
+			return -1;
+
+	return 0;
 }
 
 static int bind_rx_queue(unsigned int ifindex, unsigned int dmabuf_fd,
