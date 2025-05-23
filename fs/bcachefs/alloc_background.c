@@ -1475,6 +1475,8 @@ delete:
 		w->c = c;
 		w->pos = BBPOS(iter->btree_id, iter->pos);
 		queue_work(c->write_ref_wq, &w->work);
+
+		ret = 1; /* don't allocate from this bucket */
 		goto out;
 	}
 }
