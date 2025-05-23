@@ -1339,8 +1339,8 @@ static void ilk_lut_write(const struct intel_crtc_state *crtc_state,
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 
-	if (crtc_state->dsb_color_vblank)
-		intel_dsb_reg_write(crtc_state->dsb_color_vblank, reg, val);
+	if (crtc_state->dsb_color)
+		intel_dsb_reg_write(crtc_state->dsb_color, reg, val);
 	else
 		intel_de_write_fw(display, reg, val);
 }
@@ -1350,8 +1350,8 @@ static void ilk_lut_write_indexed(const struct intel_crtc_state *crtc_state,
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 
-	if (crtc_state->dsb_color_vblank)
-		intel_dsb_reg_write_indexed(crtc_state->dsb_color_vblank, reg, val);
+	if (crtc_state->dsb_color)
+		intel_dsb_reg_write_indexed(crtc_state->dsb_color, reg, val);
 	else
 		intel_de_write_fw(display, reg, val);
 }
@@ -1389,7 +1389,7 @@ static void ilk_load_lut_8(const struct intel_crtc_state *crtc_state,
 	for (i = 0; i < 256; i++) {
 		ilk_lut_write(crtc_state, LGC_PALETTE(pipe, i),
 			      i9xx_lut_8(&lut[i]));
-		if (crtc_state->dsb_color_vblank)
+		if (crtc_state->dsb_color)
 			ilk_lut_write(crtc_state, LGC_PALETTE(pipe, i),
 				      i9xx_lut_8(&lut[i]));
 	}
@@ -1917,7 +1917,7 @@ void intel_color_load_luts(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 
-	if (crtc_state->dsb_color_vblank)
+	if (crtc_state->dsb_color)
 		return;
 
 	display->funcs.color->load_luts(crtc_state);
@@ -1982,39 +1982,39 @@ void intel_color_prepare_commit(struct intel_atomic_state *state,
 	if (!crtc_state->pre_csc_lut && !crtc_state->post_csc_lut)
 		return;
 
-	crtc_state->dsb_color_vblank = intel_dsb_prepare(state, crtc, INTEL_DSB_1, 1024);
-	if (!crtc_state->dsb_color_vblank)
+	crtc_state->dsb_color = intel_dsb_prepare(state, crtc, INTEL_DSB_1, 1024);
+	if (!crtc_state->dsb_color)
 		return;
 
 	display->funcs.color->load_luts(crtc_state);
 
 	if (crtc_state->use_dsb) {
-		intel_vrr_send_push(crtc_state->dsb_color_vblank, crtc_state);
-		intel_dsb_wait_vblank_delay(state, crtc_state->dsb_color_vblank);
-		intel_vrr_check_push_sent(crtc_state->dsb_color_vblank, crtc_state);
-		intel_dsb_interrupt(crtc_state->dsb_color_vblank);
+		intel_vrr_send_push(crtc_state->dsb_color, crtc_state);
+		intel_dsb_wait_vblank_delay(state, crtc_state->dsb_color);
+		intel_vrr_check_push_sent(crtc_state->dsb_color, crtc_state);
+		intel_dsb_interrupt(crtc_state->dsb_color);
 	}
 
-	intel_dsb_finish(crtc_state->dsb_color_vblank);
+	intel_dsb_finish(crtc_state->dsb_color);
 }
 
 void intel_color_cleanup_commit(struct intel_crtc_state *crtc_state)
 {
-	if (crtc_state->dsb_color_vblank) {
-		intel_dsb_cleanup(crtc_state->dsb_color_vblank);
-		crtc_state->dsb_color_vblank = NULL;
+	if (crtc_state->dsb_color) {
+		intel_dsb_cleanup(crtc_state->dsb_color);
+		crtc_state->dsb_color = NULL;
 	}
 }
 
 void intel_color_wait_commit(const struct intel_crtc_state *crtc_state)
 {
-	if (crtc_state->dsb_color_vblank)
-		intel_dsb_wait(crtc_state->dsb_color_vblank);
+	if (crtc_state->dsb_color)
+		intel_dsb_wait(crtc_state->dsb_color);
 }
 
 bool intel_color_uses_dsb(const struct intel_crtc_state *crtc_state)
 {
-	return crtc_state->dsb_color_vblank;
+	return crtc_state->dsb_color;
 }
 
 static bool intel_can_preload_luts(struct intel_atomic_state *state,

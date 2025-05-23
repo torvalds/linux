@@ -7192,7 +7192,7 @@ static void intel_atomic_dsb_finish(struct intel_atomic_state *state,
 	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 
-	if (!new_crtc_state->use_dsb && !new_crtc_state->dsb_color_vblank)
+	if (!new_crtc_state->use_dsb && !new_crtc_state->dsb_color)
 		return;
 
 	/*
@@ -7239,7 +7239,7 @@ static void intel_atomic_dsb_finish(struct intel_atomic_state *state,
 			skl_detach_scalers(new_crtc_state->dsb_commit,
 					   new_crtc_state);
 
-		if (!new_crtc_state->dsb_color_vblank) {
+		if (!new_crtc_state->dsb_color) {
 			intel_dsb_wait_vblanks(new_crtc_state->dsb_commit, 1);
 
 			intel_vrr_send_push(new_crtc_state->dsb_commit, new_crtc_state);
@@ -7249,9 +7249,9 @@ static void intel_atomic_dsb_finish(struct intel_atomic_state *state,
 		}
 	}
 
-	if (new_crtc_state->dsb_color_vblank)
+	if (new_crtc_state->dsb_color)
 		intel_dsb_chain(state, new_crtc_state->dsb_commit,
-				new_crtc_state->dsb_color_vblank, true);
+				new_crtc_state->dsb_color, true);
 
 	intel_dsb_finish(new_crtc_state->dsb_commit);
 }
@@ -7440,7 +7440,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 		 *
 		 * FIXME get rid of this funny new->old swapping
 		 */
-		old_crtc_state->dsb_color_vblank = fetch_and_zero(&new_crtc_state->dsb_color_vblank);
+		old_crtc_state->dsb_color = fetch_and_zero(&new_crtc_state->dsb_color);
 		old_crtc_state->dsb_commit = fetch_and_zero(&new_crtc_state->dsb_commit);
 	}
 
