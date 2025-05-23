@@ -1188,7 +1188,7 @@ int mlx5hws_bwc_rule_create_complex(struct mlx5hws_bwc_rule *bwc_rule,
 			      GFP_KERNEL);
 	if (unlikely(!match_buf_2)) {
 		mlx5hws_err(ctx, "Complex rule: failed allocating match_buf\n");
-		ret = ENOMEM;
+		ret = -ENOMEM;
 		goto hash_node_put;
 	}
 
