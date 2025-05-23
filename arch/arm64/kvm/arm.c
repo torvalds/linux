@@ -2790,6 +2790,7 @@ int kvm_arch_irq_bypass_add_producer(struct irq_bypass_consumer *cons,
 	return kvm_vgic_v4_set_forwarding(irqfd->kvm, prod->irq,
 					  &irqfd->irq_entry);
 }
+
 void kvm_arch_irq_bypass_del_producer(struct irq_bypass_consumer *cons,
 				      struct irq_bypass_producer *prod)
 {
@@ -2801,6 +2802,28 @@ void kvm_arch_irq_bypass_del_producer(struct irq_bypass_consumer *cons,
 		return;
 
 	kvm_vgic_v4_unset_forwarding(irqfd->kvm, prod->irq);
+}
+
+bool kvm_arch_irqfd_route_changed(struct kvm_kernel_irq_routing_entry *old,
+				  struct kvm_kernel_irq_routing_entry *new)
+{
+	if (new->type != KVM_IRQ_ROUTING_MSI)
+		return true;
+
+	return memcmp(&old->msi, &new->msi, sizeof(new->msi));
+}
+
+int kvm_arch_update_irqfd_routing(struct kvm *kvm, unsigned int host_irq,
+				  uint32_t guest_irq, bool set)
+{
+	/*
+	 * Remapping the vLPI requires taking the its_lock mutex to resolve
+	 * the new translation. We're in spinlock land at this point, so no
+	 * chance of resolving the translation.
+	 *
+	 * Unmap the vLPI and fall back to software LPI injection.
+	 */
+	return kvm_vgic_v4_unset_forwarding(kvm, host_irq);
 }
 
 void kvm_arch_irq_bypass_stop(struct irq_bypass_consumer *cons)
