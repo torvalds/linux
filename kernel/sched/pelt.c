@@ -23,6 +23,7 @@
  *  Move PELT related code from fair.c into this pelt.c file
  *  Author: Vincent Guittot <vincent.guittot@linaro.org>
  */
+#include "pelt.h"
 
 /*
  * Approximate:

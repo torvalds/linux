@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#include <linux/types.h>
+#include <linux/spinlock.h>
 
 #define IDX_INVALID		-1
 

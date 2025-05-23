@@ -136,6 +136,10 @@
  * cost-wise, yet way more sensitive and accurate than periodic
  * sampling of the aggregate task states would be.
  */
+#include <linux/sched/clock.h>
+#include <linux/workqueue.h>
+#include <linux/psi.h>
+#include "sched.h"
 
 static int psi_bug __read_mostly;
 

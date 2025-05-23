@@ -4,6 +4,9 @@
  * Auto-group scheduling implementation:
  */
 
+#include "autogroup.h"
+#include "sched.h"
+
 unsigned int __read_mostly sysctl_sched_autogroup_enabled = 1;
 static struct autogroup autogroup_default;
 static atomic_t autogroup_seq_nr;

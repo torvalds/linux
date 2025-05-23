@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
+#ifndef _KERNEL_SCHED_PELT_H
+#define _KERNEL_SCHED_PELT_H
+#include "sched.h"
+
 #ifdef CONFIG_SMP
 #include "sched-pelt.h"
 
@@ -233,4 +238,4 @@ update_idle_rq_clock_pelt(struct rq *rq) { }
 static inline void update_idle_cfs_rq_clock_pelt(struct cfs_rq *cfs_rq) { }
 #endif
 
-
+#endif /* _KERNEL_SCHED_PELT_H */

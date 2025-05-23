@@ -54,6 +54,9 @@
  *
  */
 
+#include <linux/sched/clock.h>
+#include "sched.h"
+
 /*
  * Scheduler clock - returns current time in nanosec units.
  * This is default implementation.

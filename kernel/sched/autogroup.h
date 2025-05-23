@@ -2,6 +2,8 @@
 #ifndef _KERNEL_SCHED_AUTOGROUP_H
 #define _KERNEL_SCHED_AUTOGROUP_H
 
+#include "sched.h"
+
 #ifdef CONFIG_SCHED_AUTOGROUP
 
 struct autogroup {

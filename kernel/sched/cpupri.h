@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#include <linux/atomic.h>
+#include <linux/cpumask.h>
+#include <linux/sched/rt.h>
 
 #define CPUPRI_NR_PRIORITIES	(MAX_RT_PRIO+1)
 
