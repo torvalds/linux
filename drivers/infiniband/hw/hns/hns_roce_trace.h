@@ -52,7 +52,7 @@ DECLARE_EVENT_CLASS(wqe_template,
 
 		    TP_STRUCT__entry(__field(unsigned long, qpn)
 				     __field(u32, idx)
-				     __array(__le32, wqe,
+				     __array(u32, wqe,
 					     MAX_WQE_SIZE / sizeof(__le32))
 				     __field(u32, len)
 				     __field(u64, id)
@@ -62,9 +62,10 @@ DECLARE_EVENT_CLASS(wqe_template,
 		    TP_fast_assign(__entry->qpn = qpn;
 				   __entry->idx = idx;
 				   __entry->id = id;
-				   memcpy(__entry->wqe, wqe, len);
 				   __entry->len = len / sizeof(__le32);
 				   __entry->type = type;
+				   for (int i = 0; i < __entry->len; i++)
+					__entry->wqe[i] = le32_to_cpu(((__le32 *)wqe)[i]);
 				   ),
 
 		    TP_printk("%s 0x%lx wqe(0x%x/0x%llx): %s",
@@ -92,14 +93,15 @@ TRACE_EVENT(hns_ae_info,
 	    TP_ARGS(event_type, aeqe, len),
 
 	    TP_STRUCT__entry(__field(int, event_type)
-			     __array(__le32, aeqe,
+			     __array(u32, aeqe,
 				     HNS_ROCE_V3_EQE_SIZE / sizeof(__le32))
 			     __field(u32, len)
 	    ),
 
 	    TP_fast_assign(__entry->event_type = event_type;
 			   __entry->len = len / sizeof(__le32);
-			   memcpy(__entry->aeqe, aeqe, len);
+			   for (int i = 0; i < __entry->len; i++)
+				__entry->aeqe[i] = le32_to_cpu(((__le32 *)aeqe)[i]);
 	    ),
 
 	    TP_printk("event %2d aeqe: %s", __entry->event_type,
@@ -179,14 +181,15 @@ DECLARE_EVENT_CLASS(cmdq,
 				     __field(u16, opcode)
 				     __field(u16, flag)
 				     __field(u16, retval)
-				     __array(__le32, data, 6)
+				     __array(u32, data, 6)
 		    ),
 
 		    TP_fast_assign(__assign_str(dev_name);
 				   __entry->opcode = le16_to_cpu(desc->opcode);
 				   __entry->flag = le16_to_cpu(desc->flag);
 				   __entry->retval = le16_to_cpu(desc->retval);
-				   memcpy(__entry->data, desc->data, 6 * sizeof(__le32));
+				   for (int i = 0; i < 6; i++)
+					__entry->data[i] = le32_to_cpu(desc->data[i]);
 		    ),
 
 		    TP_printk("%s cmdq opcode:0x%x, flag:0x%x, retval:0x%x, data:%s\n",
