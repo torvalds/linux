@@ -504,7 +504,7 @@ static int snps_eusb2_hsphy_exit(struct phy *p)
 {
 	struct snps_eusb2_hsphy *phy = phy_get_drvdata(p);
 
-	clk_disable_unprepare(phy->ref_clk);
+	clk_bulk_disable_unprepare(phy->data->num_clks, phy->clks);
 
 	regulator_bulk_disable(ARRAY_SIZE(phy->vregs), phy->vregs);
 
