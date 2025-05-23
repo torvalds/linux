@@ -94,7 +94,6 @@ void xfs_buf_cache_destroy(struct xfs_buf_cache *bch);
  */
 struct xfs_buftarg {
 	dev_t			bt_dev;
-	struct file		*bt_bdev_file;
 	struct block_device	*bt_bdev;
 	struct dax_device	*bt_daxdev;
 	struct file		*bt_file;
