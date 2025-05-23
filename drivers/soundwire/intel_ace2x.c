@@ -11,6 +11,7 @@
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_intel.h>
+#include <linux/string_choices.h>
 #include <sound/hdaudio.h>
 #include <sound/hda-mlink.h>
 #include <sound/hda-sdw-bpt.h>
@@ -183,7 +184,7 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 		return 0;
 
 	dev_err(cdns->dev, "%s: sdw_prepare_%s_dma_buffer failed %d\n",
-		__func__, command ? "read" : "write", ret);
+		__func__, str_read_write(command), ret);
 
 	ret1 = hda_sdw_bpt_close(cdns->dev->parent, /* PCI device */
 				 sdw->bpt_ctx.bpt_tx_stream, &sdw->bpt_ctx.dmab_tx_bdl,
