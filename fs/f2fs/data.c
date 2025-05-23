@@ -151,7 +151,7 @@ static void f2fs_finish_read_bio(struct bio *bio, bool in_task)
 		}
 
 		dec_page_count(F2FS_F_SB(folio), __read_io_type(folio));
-		folio_end_read(folio, bio->bi_status == 0);
+		folio_end_read(folio, bio->bi_status == BLK_STS_OK);
 	}
 
 	if (ctx)
@@ -290,7 +290,7 @@ static void f2fs_read_end_io(struct bio *bio)
 	if (time_to_inject(sbi, FAULT_READ_IO))
 		bio->bi_status = BLK_STS_IOERR;
 
-	if (bio->bi_status) {
+	if (bio->bi_status != BLK_STS_OK) {
 		f2fs_finish_read_bio(bio, intask);
 		return;
 	}
@@ -347,7 +347,7 @@ static void f2fs_write_end_io(struct bio *bio)
 
 		type = WB_DATA_TYPE(&folio->page, false);
 
-		if (unlikely(bio->bi_status)) {
+		if (unlikely(bio->bi_status != BLK_STS_OK)) {
 			mapping_set_error(folio->mapping, -EIO);
 			if (type == F2FS_WB_CP_DATA)
 				f2fs_stop_checkpoint(sbi, true,
