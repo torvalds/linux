@@ -474,7 +474,7 @@ static int snps_eusb2_hsphy_init(struct phy *p)
 	ret = reset_control_assert(phy->phy_reset);
 	if (ret) {
 		dev_err(&p->dev, "failed to assert phy_reset, %d\n", ret);
-		goto disable_ref_clk;
+		goto disable_clks;
 	}
 
 	usleep_range(100, 150);
@@ -482,16 +482,16 @@ static int snps_eusb2_hsphy_init(struct phy *p)
 	ret = reset_control_deassert(phy->phy_reset);
 	if (ret) {
 		dev_err(&p->dev, "failed to de-assert phy_reset, %d\n", ret);
-		goto disable_ref_clk;
+		goto disable_clks;
 	}
 
 	ret = phy->data->phy_init(p);
 	if (ret)
-		goto disable_ref_clk;
+		goto disable_clks;
 
 	return 0;
 
-disable_ref_clk:
+disable_clks:
 	clk_bulk_disable_unprepare(phy->data->num_clks, phy->clks);
 exit_repeater:
 	phy_exit(phy->repeater);
