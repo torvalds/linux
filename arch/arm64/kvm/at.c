@@ -60,11 +60,11 @@ struct s1_walk_result {
 	bool	failed;
 };
 
-static void fail_s1_walk(struct s1_walk_result *wr, u8 fst, bool ptw, bool s2)
+static void fail_s1_walk(struct s1_walk_result *wr, u8 fst, bool s1ptw)
 {
 	wr->fst		= fst;
-	wr->ptw		= ptw;
-	wr->s2		= s2;
+	wr->ptw		= s1ptw;
+	wr->s2		= s1ptw;
 	wr->failed	= true;
 }
 
@@ -345,11 +345,11 @@ static int setup_s1_walk(struct kvm_vcpu *vcpu, u32 op, struct s1_walk_info *wi,
 	return 0;
 
 addrsz:				/* Address Size Fault level 0 */
-	fail_s1_walk(wr, ESR_ELx_FSC_ADDRSZ_L(0), false, false);
+	fail_s1_walk(wr, ESR_ELx_FSC_ADDRSZ_L(0), false);
 	return -EFAULT;
 
 transfault_l0:			/* Translation Fault level 0 */
-	fail_s1_walk(wr, ESR_ELx_FSC_FAULT_L(0), false, false);
+	fail_s1_walk(wr, ESR_ELx_FSC_FAULT_L(0), false);
 	return -EFAULT;
 }
 
@@ -380,13 +380,13 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 			if (ret) {
 				fail_s1_walk(wr,
 					     (s2_trans.esr & ~ESR_ELx_FSC_LEVEL) | level,
-					     true, true);
+					     true);
 				return ret;
 			}
 
 			if (!kvm_s2_trans_readable(&s2_trans)) {
 				fail_s1_walk(wr, ESR_ELx_FSC_PERM_L(level),
-					     true, true);
+					     true);
 
 				return -EPERM;
 			}
@@ -396,8 +396,7 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 
 		ret = kvm_read_guest(vcpu->kvm, ipa, &desc, sizeof(desc));
 		if (ret) {
-			fail_s1_walk(wr, ESR_ELx_FSC_SEA_TTW(level),
-				     true, false);
+			fail_s1_walk(wr, ESR_ELx_FSC_SEA_TTW(level), false);
 			return ret;
 		}
 
@@ -457,6 +456,11 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 	if (check_output_size(desc & GENMASK(47, va_bottom), wi))
 		goto addrsz;
 
+	if (!(desc & PTE_AF)) {
+		fail_s1_walk(wr, ESR_ELx_FSC_ACCESS_L(level), false);
+		return -EACCES;
+	}
+
 	va_bottom += contiguous_bit_shift(desc, wi, level);
 
 	wr->failed = false;
@@ -468,10 +472,10 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 	return 0;
 
 addrsz:
-	fail_s1_walk(wr, ESR_ELx_FSC_ADDRSZ_L(level), true, false);
+	fail_s1_walk(wr, ESR_ELx_FSC_ADDRSZ_L(level), false);
 	return -EINVAL;
 transfault:
-	fail_s1_walk(wr, ESR_ELx_FSC_FAULT_L(level), true, false);
+	fail_s1_walk(wr, ESR_ELx_FSC_FAULT_L(level), false);
 	return -ENOENT;
 }
 
@@ -488,7 +492,6 @@ struct mmu_config {
 	u64	sctlr;
 	u64	vttbr;
 	u64	vtcr;
-	u64	hcr;
 };
 
 static void __mmu_config_save(struct mmu_config *config)
@@ -511,13 +514,10 @@ static void __mmu_config_save(struct mmu_config *config)
 	config->sctlr	= read_sysreg_el1(SYS_SCTLR);
 	config->vttbr	= read_sysreg(vttbr_el2);
 	config->vtcr	= read_sysreg(vtcr_el2);
-	config->hcr	= read_sysreg(hcr_el2);
 }
 
 static void __mmu_config_restore(struct mmu_config *config)
 {
-	write_sysreg(config->hcr,	hcr_el2);
-
 	/*
 	 * ARM errata 1165522 and 1530923 require TGE to be 1 before
 	 * we update the guest state.
@@ -1198,7 +1198,7 @@ static u64 handle_at_slow(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 	}
 
 	if (perm_fail)
-		fail_s1_walk(&wr, ESR_ELx_FSC_PERM_L(wr.level), false, false);
+		fail_s1_walk(&wr, ESR_ELx_FSC_PERM_L(wr.level), false);
 
 compute_par:
 	return compute_par_s1(vcpu, &wr, wi.regime);
@@ -1210,7 +1210,8 @@ compute_par:
  * If the translation is unsuccessful, the value may only contain
  * PAR_EL1.F, and cannot be taken at face value. It isn't an
  * indication of the translation having failed, only that the fast
- * path did not succeed, *unless* it indicates a S1 permission fault.
+ * path did not succeed, *unless* it indicates a S1 permission or
+ * access fault.
  */
 static u64 __kvm_at_s1e01_fast(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 {
@@ -1266,8 +1267,8 @@ static u64 __kvm_at_s1e01_fast(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 	__load_stage2(mmu, mmu->arch);
 
 skip_mmu_switch:
-	/* Clear TGE, enable S2 translation, we're rolling */
-	write_sysreg((config.hcr & ~HCR_TGE) | HCR_VM,	hcr_el2);
+	/* Temporarily switch back to guest context */
+	write_sysreg(vcpu->arch.hcr_el2, hcr_el2);
 	isb();
 
 	switch (op) {
@@ -1299,6 +1300,8 @@ skip_mmu_switch:
 	if (!fail)
 		par = read_sysreg_par();
 
+	write_sysreg(HCR_HOST_VHE_FLAGS, hcr_el2);
+
 	if (!(vcpu_el2_e2h_is_set(vcpu) && vcpu_el2_tge_is_set(vcpu)))
 		__mmu_config_restore(&config);
 
@@ -1313,19 +1316,29 @@ static bool par_check_s1_perm_fault(u64 par)
 		 !(par & SYS_PAR_EL1_S));
 }
 
+static bool par_check_s1_access_fault(u64 par)
+{
+	u8 fst = FIELD_GET(SYS_PAR_EL1_FST, par);
+
+	return  ((fst & ESR_ELx_FSC_TYPE) == ESR_ELx_FSC_ACCESS &&
+		 !(par & SYS_PAR_EL1_S));
+}
+
 void __kvm_at_s1e01(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 {
 	u64 par = __kvm_at_s1e01_fast(vcpu, op, vaddr);
 
 	/*
-	 * If PAR_EL1 reports that AT failed on a S1 permission fault, we
-	 * know for sure that the PTW was able to walk the S1 tables and
-	 * there's nothing else to do.
+	 * If PAR_EL1 reports that AT failed on a S1 permission or access
+	 * fault, we know for sure that the PTW was able to walk the S1
+	 * tables and there's nothing else to do.
 	 *
 	 * If AT failed for any other reason, then we must walk the guest S1
 	 * to emulate the instruction.
 	 */
-	if ((par & SYS_PAR_EL1_F) && !par_check_s1_perm_fault(par))
+	if ((par & SYS_PAR_EL1_F) &&
+	    !par_check_s1_perm_fault(par) &&
+	    !par_check_s1_access_fault(par))
 		par = handle_at_slow(vcpu, op, vaddr);
 
 	vcpu_write_sys_reg(vcpu, par, PAR_EL1);
