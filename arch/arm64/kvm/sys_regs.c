@@ -5195,65 +5195,13 @@ void kvm_calculate_traps(struct kvm_vcpu *vcpu)
 	if (test_bit(KVM_ARCH_FLAG_FGU_INITIALIZED, &kvm->arch.flags))
 		goto out;
 
-	kvm->arch.fgu[HFGxTR_GROUP] = (HFGxTR_EL2_nAMAIR2_EL1		|
-				       HFGxTR_EL2_nMAIR2_EL1		|
-				       HFGxTR_EL2_nS2POR_EL1		|
-				       HFGxTR_EL2_nACCDATA_EL1		|
-				       HFGxTR_EL2_nSMPRI_EL1_MASK	|
-				       HFGxTR_EL2_nTPIDR2_EL0_MASK);
-
-	if (!kvm_has_feat(kvm, ID_AA64ISAR0_EL1, TLB, OS))
-		kvm->arch.fgu[HFGITR_GROUP] |= (HFGITR_EL2_TLBIRVAALE1OS|
-						HFGITR_EL2_TLBIRVALE1OS	|
-						HFGITR_EL2_TLBIRVAAE1OS	|
-						HFGITR_EL2_TLBIRVAE1OS	|
-						HFGITR_EL2_TLBIVAALE1OS	|
-						HFGITR_EL2_TLBIVALE1OS	|
-						HFGITR_EL2_TLBIVAAE1OS	|
-						HFGITR_EL2_TLBIASIDE1OS	|
-						HFGITR_EL2_TLBIVAE1OS	|
-						HFGITR_EL2_TLBIVMALLE1OS);
-
-	if (!kvm_has_feat(kvm, ID_AA64ISAR0_EL1, TLB, RANGE))
-		kvm->arch.fgu[HFGITR_GROUP] |= (HFGITR_EL2_TLBIRVAALE1	|
-						HFGITR_EL2_TLBIRVALE1	|
-						HFGITR_EL2_TLBIRVAAE1	|
-						HFGITR_EL2_TLBIRVAE1	|
-						HFGITR_EL2_TLBIRVAALE1IS|
-						HFGITR_EL2_TLBIRVALE1IS	|
-						HFGITR_EL2_TLBIRVAAE1IS	|
-						HFGITR_EL2_TLBIRVAE1IS	|
-						HFGITR_EL2_TLBIRVAALE1OS|
-						HFGITR_EL2_TLBIRVALE1OS	|
-						HFGITR_EL2_TLBIRVAAE1OS	|
-						HFGITR_EL2_TLBIRVAE1OS);
-
-	if (!kvm_has_feat(kvm, ID_AA64ISAR2_EL1, ATS1A, IMP))
-		kvm->arch.fgu[HFGITR_GROUP] |= HFGITR_EL2_ATS1E1A;
-
-	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, PAN, PAN2))
-		kvm->arch.fgu[HFGITR_GROUP] |= (HFGITR_EL2_ATS1E1RP |
-						HFGITR_EL2_ATS1E1WP);
-
-	if (!kvm_has_s1pie(kvm))
-		kvm->arch.fgu[HFGxTR_GROUP] |= (HFGxTR_EL2_nPIRE0_EL1 |
-						HFGxTR_EL2_nPIR_EL1);
-
-	if (!kvm_has_s1poe(kvm))
-		kvm->arch.fgu[HFGxTR_GROUP] |= (HFGxTR_EL2_nPOR_EL1 |
-						HFGxTR_EL2_nPOR_EL0);
-
-	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, AMU, IMP))
-		kvm->arch.fgu[HAFGRTR_GROUP] |= ~(HAFGRTR_EL2_RES0 |
-						  HAFGRTR_EL2_RES1);
-
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, BRBE, IMP)) {
-		kvm->arch.fgu[HDFGRTR_GROUP] |= (HDFGRTR_EL2_nBRBDATA  |
-						 HDFGRTR_EL2_nBRBCTL   |
-						 HDFGRTR_EL2_nBRBIDR);
-		kvm->arch.fgu[HFGITR_GROUP] |= (HFGITR_EL2_nBRBINJ |
-						HFGITR_EL2_nBRBIALL);
-	}
+	compute_fgu(kvm, HFGRTR_GROUP);
+	compute_fgu(kvm, HFGITR_GROUP);
+	compute_fgu(kvm, HDFGRTR_GROUP);
+	compute_fgu(kvm, HAFGRTR_GROUP);
+	compute_fgu(kvm, HFGRTR2_GROUP);
+	compute_fgu(kvm, HFGITR2_GROUP);
+	compute_fgu(kvm, HDFGRTR2_GROUP);
 
 	set_bit(KVM_ARCH_FLAG_FGU_INITIALIZED, &kvm->arch.flags);
 out:
@@ -5310,6 +5258,8 @@ int __init kvm_sys_reg_table_init(void)
 	init_imp_id_regs();
 
 	ret = populate_nv_trap_config();
+
+	check_feature_map();
 
 	for (i = 0; !ret && i < ARRAY_SIZE(sys_reg_descs); i++)
 		ret = populate_sysreg_config(sys_reg_descs + i, i);

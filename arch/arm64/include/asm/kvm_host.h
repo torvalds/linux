@@ -273,11 +273,17 @@ struct kvm_sysreg_masks;
 
 enum fgt_group_id {
 	__NO_FGT_GROUP__,
-	HFGxTR_GROUP,
+	HFGRTR_GROUP,
+	HFGWTR_GROUP = HFGRTR_GROUP,
 	HDFGRTR_GROUP,
 	HDFGWTR_GROUP = HDFGRTR_GROUP,
 	HFGITR_GROUP,
 	HAFGRTR_GROUP,
+	HFGRTR2_GROUP,
+	HFGWTR2_GROUP = HFGRTR2_GROUP,
+	HDFGRTR2_GROUP,
+	HDFGWTR2_GROUP = HDFGRTR2_GROUP,
+	HFGITR2_GROUP,
 
 	/* Must be last */
 	__NR_FGT_GROUP_IDS__
@@ -561,6 +567,11 @@ enum vcpu_sysreg {
 	VNCR(HDFGRTR_EL2),
 	VNCR(HDFGWTR_EL2),
 	VNCR(HAFGRTR_EL2),
+	VNCR(HFGRTR2_EL2),
+	VNCR(HFGWTR2_EL2),
+	VNCR(HFGITR2_EL2),
+	VNCR(HDFGRTR2_EL2),
+	VNCR(HDFGWTR2_EL2),
 
 	VNCR(CNTVOFF_EL2),
 	VNCR(CNTV_CVAL_EL0),
@@ -605,6 +616,37 @@ struct kvm_sysreg_masks {
 		u64	res1;
 	} mask[NR_SYS_REGS - __SANITISED_REG_START__];
 };
+
+struct fgt_masks {
+	const char	*str;
+	u64		mask;
+	u64		nmask;
+	u64		res0;
+};
+
+extern struct fgt_masks hfgrtr_masks;
+extern struct fgt_masks hfgwtr_masks;
+extern struct fgt_masks hfgitr_masks;
+extern struct fgt_masks hdfgrtr_masks;
+extern struct fgt_masks hdfgwtr_masks;
+extern struct fgt_masks hafgrtr_masks;
+extern struct fgt_masks hfgrtr2_masks;
+extern struct fgt_masks hfgwtr2_masks;
+extern struct fgt_masks hfgitr2_masks;
+extern struct fgt_masks hdfgrtr2_masks;
+extern struct fgt_masks hdfgwtr2_masks;
+
+extern struct fgt_masks kvm_nvhe_sym(hfgrtr_masks);
+extern struct fgt_masks kvm_nvhe_sym(hfgwtr_masks);
+extern struct fgt_masks kvm_nvhe_sym(hfgitr_masks);
+extern struct fgt_masks kvm_nvhe_sym(hdfgrtr_masks);
+extern struct fgt_masks kvm_nvhe_sym(hdfgwtr_masks);
+extern struct fgt_masks kvm_nvhe_sym(hafgrtr_masks);
+extern struct fgt_masks kvm_nvhe_sym(hfgrtr2_masks);
+extern struct fgt_masks kvm_nvhe_sym(hfgwtr2_masks);
+extern struct fgt_masks kvm_nvhe_sym(hfgitr2_masks);
+extern struct fgt_masks kvm_nvhe_sym(hdfgrtr2_masks);
+extern struct fgt_masks kvm_nvhe_sym(hdfgwtr2_masks);
 
 struct kvm_cpu_context {
 	struct user_pt_regs regs;	/* sp = sp_el0 */
@@ -1552,11 +1594,15 @@ void kvm_set_vm_id_reg(struct kvm *kvm, u32 reg, u64 val);
 	 kvm_cmp_feat_signed(kvm, id, fld, op, limit) :			\
 	 kvm_cmp_feat_unsigned(kvm, id, fld, op, limit))
 
-#define kvm_has_feat(kvm, id, fld, limit)				\
+#define __kvm_has_feat(kvm, id, fld, limit)				\
 	kvm_cmp_feat(kvm, id, fld, >=, limit)
 
-#define kvm_has_feat_enum(kvm, id, fld, val)				\
+#define kvm_has_feat(kvm, ...) __kvm_has_feat(kvm, __VA_ARGS__)
+
+#define __kvm_has_feat_enum(kvm, id, fld, val)				\
 	kvm_cmp_feat_unsigned(kvm, id, fld, ==, val)
+
+#define kvm_has_feat_enum(kvm, ...) __kvm_has_feat_enum(kvm, __VA_ARGS__)
 
 #define kvm_has_feat_range(kvm, id, fld, min, max)			\
 	(kvm_cmp_feat(kvm, id, fld, >=, min) &&				\
@@ -1594,5 +1640,10 @@ static inline bool kvm_arch_has_irq_bypass(void)
 {
 	return true;
 }
+
+void compute_fgu(struct kvm *kvm, enum fgt_group_id fgt);
+void get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg, u64 *res0, u64 *res1);
+void check_feature_map(void);
+
 
 #endif /* __ARM64_KVM_HOST_H__ */
