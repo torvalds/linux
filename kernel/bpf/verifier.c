@@ -12107,44 +12107,6 @@ enum special_kfunc_type {
 	KF_bpf_res_spin_unlock_irqrestore,
 };
 
-BTF_SET_START(special_kfunc_set)
-BTF_ID(func, bpf_obj_new_impl)
-BTF_ID(func, bpf_obj_drop_impl)
-BTF_ID(func, bpf_refcount_acquire_impl)
-BTF_ID(func, bpf_list_push_front_impl)
-BTF_ID(func, bpf_list_push_back_impl)
-BTF_ID(func, bpf_list_pop_front)
-BTF_ID(func, bpf_list_pop_back)
-BTF_ID(func, bpf_list_front)
-BTF_ID(func, bpf_list_back)
-BTF_ID(func, bpf_cast_to_kern_ctx)
-BTF_ID(func, bpf_rdonly_cast)
-BTF_ID(func, bpf_rbtree_remove)
-BTF_ID(func, bpf_rbtree_add_impl)
-BTF_ID(func, bpf_rbtree_first)
-BTF_ID(func, bpf_rbtree_root)
-BTF_ID(func, bpf_rbtree_left)
-BTF_ID(func, bpf_rbtree_right)
-#ifdef CONFIG_NET
-BTF_ID(func, bpf_dynptr_from_skb)
-BTF_ID(func, bpf_dynptr_from_xdp)
-#endif
-BTF_ID(func, bpf_dynptr_slice)
-BTF_ID(func, bpf_dynptr_slice_rdwr)
-BTF_ID(func, bpf_dynptr_clone)
-BTF_ID(func, bpf_percpu_obj_new_impl)
-BTF_ID(func, bpf_percpu_obj_drop_impl)
-BTF_ID(func, bpf_throw)
-BTF_ID(func, bpf_wq_set_callback_impl)
-#ifdef CONFIG_CGROUPS
-BTF_ID(func, bpf_iter_css_task_new)
-#endif
-#ifdef CONFIG_BPF_LSM
-BTF_ID(func, bpf_set_dentry_xattr)
-BTF_ID(func, bpf_remove_dentry_xattr)
-#endif
-BTF_SET_END(special_kfunc_set)
-
 BTF_ID_LIST(special_kfunc_list)
 BTF_ID(func, bpf_obj_new_impl)
 BTF_ID(func, bpf_obj_drop_impl)
@@ -13452,6 +13414,178 @@ static int fetch_kfunc_meta(struct bpf_verifier_env *env,
 	return 0;
 }
 
+/* check special kfuncs and return:
+ *  1  - not fall-through to 'else' branch, continue verification
+ *  0  - fall-through to 'else' branch
+ * < 0 - not fall-through to 'else' branch, return error
+ */
+static int check_special_kfunc(struct bpf_verifier_env *env, struct bpf_kfunc_call_arg_meta *meta,
+			       struct bpf_reg_state *regs, struct bpf_insn_aux_data *insn_aux,
+			       const struct btf_type *ptr_type, struct btf *desc_btf)
+{
+	const struct btf_type *ret_t;
+	int err = 0;
+
+	if (meta->btf != btf_vmlinux)
+		return 0;
+
+	if (meta->func_id == special_kfunc_list[KF_bpf_obj_new_impl] ||
+	    meta->func_id == special_kfunc_list[KF_bpf_percpu_obj_new_impl]) {
+		struct btf_struct_meta *struct_meta;
+		struct btf *ret_btf;
+		u32 ret_btf_id;
+
+		if (meta->func_id == special_kfunc_list[KF_bpf_obj_new_impl] && !bpf_global_ma_set)
+			return -ENOMEM;
+
+		if (((u64)(u32)meta->arg_constant.value) != meta->arg_constant.value) {
+			verbose(env, "local type ID argument must be in range [0, U32_MAX]\n");
+			return -EINVAL;
+		}
+
+		ret_btf = env->prog->aux->btf;
+		ret_btf_id = meta->arg_constant.value;
+
+		/* This may be NULL due to user not supplying a BTF */
+		if (!ret_btf) {
+			verbose(env, "bpf_obj_new/bpf_percpu_obj_new requires prog BTF\n");
+			return -EINVAL;
+		}
+
+		ret_t = btf_type_by_id(ret_btf, ret_btf_id);
+		if (!ret_t || !__btf_type_is_struct(ret_t)) {
+			verbose(env, "bpf_obj_new/bpf_percpu_obj_new type ID argument must be of a struct\n");
+			return -EINVAL;
+		}
+
+		if (meta->func_id == special_kfunc_list[KF_bpf_percpu_obj_new_impl]) {
+			if (ret_t->size > BPF_GLOBAL_PERCPU_MA_MAX_SIZE) {
+				verbose(env, "bpf_percpu_obj_new type size (%d) is greater than %d\n",
+					ret_t->size, BPF_GLOBAL_PERCPU_MA_MAX_SIZE);
+				return -EINVAL;
+			}
+
+			if (!bpf_global_percpu_ma_set) {
+				mutex_lock(&bpf_percpu_ma_lock);
+				if (!bpf_global_percpu_ma_set) {
+					/* Charge memory allocated with bpf_global_percpu_ma to
+					 * root memcg. The obj_cgroup for root memcg is NULL.
+					 */
+					err = bpf_mem_alloc_percpu_init(&bpf_global_percpu_ma, NULL);
+					if (!err)
+						bpf_global_percpu_ma_set = true;
+				}
+				mutex_unlock(&bpf_percpu_ma_lock);
+				if (err)
+					return err;
+			}
+
+			mutex_lock(&bpf_percpu_ma_lock);
+			err = bpf_mem_alloc_percpu_unit_init(&bpf_global_percpu_ma, ret_t->size);
+			mutex_unlock(&bpf_percpu_ma_lock);
+			if (err)
+				return err;
+		}
+
+		struct_meta = btf_find_struct_meta(ret_btf, ret_btf_id);
+		if (meta->func_id == special_kfunc_list[KF_bpf_percpu_obj_new_impl]) {
+			if (!__btf_type_is_scalar_struct(env, ret_btf, ret_t, 0)) {
+				verbose(env, "bpf_percpu_obj_new type ID argument must be of a struct of scalars\n");
+				return -EINVAL;
+			}
+
+			if (struct_meta) {
+				verbose(env, "bpf_percpu_obj_new type ID argument must not contain special fields\n");
+				return -EINVAL;
+			}
+		}
+
+		mark_reg_known_zero(env, regs, BPF_REG_0);
+		regs[BPF_REG_0].type = PTR_TO_BTF_ID | MEM_ALLOC;
+		regs[BPF_REG_0].btf = ret_btf;
+		regs[BPF_REG_0].btf_id = ret_btf_id;
+		if (meta->func_id == special_kfunc_list[KF_bpf_percpu_obj_new_impl])
+			regs[BPF_REG_0].type |= MEM_PERCPU;
+
+		insn_aux->obj_new_size = ret_t->size;
+		insn_aux->kptr_struct_meta = struct_meta;
+	} else if (meta->func_id == special_kfunc_list[KF_bpf_refcount_acquire_impl]) {
+		mark_reg_known_zero(env, regs, BPF_REG_0);
+		regs[BPF_REG_0].type = PTR_TO_BTF_ID | MEM_ALLOC;
+		regs[BPF_REG_0].btf = meta->arg_btf;
+		regs[BPF_REG_0].btf_id = meta->arg_btf_id;
+
+		insn_aux->kptr_struct_meta =
+			btf_find_struct_meta(meta->arg_btf,
+					     meta->arg_btf_id);
+	} else if (is_list_node_type(ptr_type)) {
+		struct btf_field *field = meta->arg_list_head.field;
+
+		mark_reg_graph_node(regs, BPF_REG_0, &field->graph_root);
+	} else if (is_rbtree_node_type(ptr_type)) {
+		struct btf_field *field = meta->arg_rbtree_root.field;
+
+		mark_reg_graph_node(regs, BPF_REG_0, &field->graph_root);
+	} else if (meta->func_id == special_kfunc_list[KF_bpf_cast_to_kern_ctx]) {
+		mark_reg_known_zero(env, regs, BPF_REG_0);
+		regs[BPF_REG_0].type = PTR_TO_BTF_ID | PTR_TRUSTED;
+		regs[BPF_REG_0].btf = desc_btf;
+		regs[BPF_REG_0].btf_id = meta->ret_btf_id;
+	} else if (meta->func_id == special_kfunc_list[KF_bpf_rdonly_cast]) {
+		ret_t = btf_type_by_id(desc_btf, meta->arg_constant.value);
+		if (!ret_t || !btf_type_is_struct(ret_t)) {
+			verbose(env,
+				"kfunc bpf_rdonly_cast type ID argument must be of a struct\n");
+			return -EINVAL;
+		}
+
+		mark_reg_known_zero(env, regs, BPF_REG_0);
+		regs[BPF_REG_0].type = PTR_TO_BTF_ID | PTR_UNTRUSTED;
+		regs[BPF_REG_0].btf = desc_btf;
+		regs[BPF_REG_0].btf_id = meta->arg_constant.value;
+	} else if (meta->func_id == special_kfunc_list[KF_bpf_dynptr_slice] ||
+		   meta->func_id == special_kfunc_list[KF_bpf_dynptr_slice_rdwr]) {
+		enum bpf_type_flag type_flag = get_dynptr_type_flag(meta->initialized_dynptr.type);
+
+		mark_reg_known_zero(env, regs, BPF_REG_0);
+
+		if (!meta->arg_constant.found) {
+			verbose(env, "verifier internal error: bpf_dynptr_slice(_rdwr) no constant size\n");
+			return -EFAULT;
+		}
+
+		regs[BPF_REG_0].mem_size = meta->arg_constant.value;
+
+		/* PTR_MAYBE_NULL will be added when is_kfunc_ret_null is checked */
+		regs[BPF_REG_0].type = PTR_TO_MEM | type_flag;
+
+		if (meta->func_id == special_kfunc_list[KF_bpf_dynptr_slice]) {
+			regs[BPF_REG_0].type |= MEM_RDONLY;
+		} else {
+			/* this will set env->seen_direct_write to true */
+			if (!may_access_direct_pkt_data(env, NULL, BPF_WRITE)) {
+				verbose(env, "the prog does not allow writes to packet data\n");
+				return -EINVAL;
+			}
+		}
+
+		if (!meta->initialized_dynptr.id) {
+			verbose(env, "verifier internal error: no dynptr id\n");
+			return -EFAULT;
+		}
+		regs[BPF_REG_0].dynptr_id = meta->initialized_dynptr.id;
+
+		/* we don't need to set BPF_REG_0's ref obj id
+		 * because packet slices are not refcounted (see
+		 * dynptr_type_refcounted)
+		 */
+	} else {
+		return 0;
+	}
+
+	return 1;
+}
+
 static int check_return_code(struct bpf_verifier_env *env, int regno, const char *reg_name);
 
 static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
@@ -13466,7 +13600,6 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	struct bpf_insn_aux_data *insn_aux;
 	int err, insn_idx = *insn_idx_p;
 	const struct btf_param *args;
-	const struct btf_type *ret_t;
 	struct btf *desc_btf;
 
 	/* skip for now, but return error when we find this in fixup_kfunc_call */
@@ -13686,163 +13819,10 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		mark_btf_func_reg_size(env, BPF_REG_0, t->size);
 	} else if (btf_type_is_ptr(t)) {
 		ptr_type = btf_type_skip_modifiers(desc_btf, t->type, &ptr_type_id);
-
-		if (meta.btf == btf_vmlinux && btf_id_set_contains(&special_kfunc_set, meta.func_id)) {
-			if (meta.func_id == special_kfunc_list[KF_bpf_obj_new_impl] ||
-			    meta.func_id == special_kfunc_list[KF_bpf_percpu_obj_new_impl]) {
-				struct btf_struct_meta *struct_meta;
-				struct btf *ret_btf;
-				u32 ret_btf_id;
-
-				if (meta.func_id == special_kfunc_list[KF_bpf_obj_new_impl] && !bpf_global_ma_set)
-					return -ENOMEM;
-
-				if (((u64)(u32)meta.arg_constant.value) != meta.arg_constant.value) {
-					verbose(env, "local type ID argument must be in range [0, U32_MAX]\n");
-					return -EINVAL;
-				}
-
-				ret_btf = env->prog->aux->btf;
-				ret_btf_id = meta.arg_constant.value;
-
-				/* This may be NULL due to user not supplying a BTF */
-				if (!ret_btf) {
-					verbose(env, "bpf_obj_new/bpf_percpu_obj_new requires prog BTF\n");
-					return -EINVAL;
-				}
-
-				ret_t = btf_type_by_id(ret_btf, ret_btf_id);
-				if (!ret_t || !__btf_type_is_struct(ret_t)) {
-					verbose(env, "bpf_obj_new/bpf_percpu_obj_new type ID argument must be of a struct\n");
-					return -EINVAL;
-				}
-
-				if (meta.func_id == special_kfunc_list[KF_bpf_percpu_obj_new_impl]) {
-					if (ret_t->size > BPF_GLOBAL_PERCPU_MA_MAX_SIZE) {
-						verbose(env, "bpf_percpu_obj_new type size (%d) is greater than %d\n",
-							ret_t->size, BPF_GLOBAL_PERCPU_MA_MAX_SIZE);
-						return -EINVAL;
-					}
-
-					if (!bpf_global_percpu_ma_set) {
-						mutex_lock(&bpf_percpu_ma_lock);
-						if (!bpf_global_percpu_ma_set) {
-							/* Charge memory allocated with bpf_global_percpu_ma to
-							 * root memcg. The obj_cgroup for root memcg is NULL.
-							 */
-							err = bpf_mem_alloc_percpu_init(&bpf_global_percpu_ma, NULL);
-							if (!err)
-								bpf_global_percpu_ma_set = true;
-						}
-						mutex_unlock(&bpf_percpu_ma_lock);
-						if (err)
-							return err;
-					}
-
-					mutex_lock(&bpf_percpu_ma_lock);
-					err = bpf_mem_alloc_percpu_unit_init(&bpf_global_percpu_ma, ret_t->size);
-					mutex_unlock(&bpf_percpu_ma_lock);
-					if (err)
-						return err;
-				}
-
-				struct_meta = btf_find_struct_meta(ret_btf, ret_btf_id);
-				if (meta.func_id == special_kfunc_list[KF_bpf_percpu_obj_new_impl]) {
-					if (!__btf_type_is_scalar_struct(env, ret_btf, ret_t, 0)) {
-						verbose(env, "bpf_percpu_obj_new type ID argument must be of a struct of scalars\n");
-						return -EINVAL;
-					}
-
-					if (struct_meta) {
-						verbose(env, "bpf_percpu_obj_new type ID argument must not contain special fields\n");
-						return -EINVAL;
-					}
-				}
-
-				mark_reg_known_zero(env, regs, BPF_REG_0);
-				regs[BPF_REG_0].type = PTR_TO_BTF_ID | MEM_ALLOC;
-				regs[BPF_REG_0].btf = ret_btf;
-				regs[BPF_REG_0].btf_id = ret_btf_id;
-				if (meta.func_id == special_kfunc_list[KF_bpf_percpu_obj_new_impl])
-					regs[BPF_REG_0].type |= MEM_PERCPU;
-
-				insn_aux->obj_new_size = ret_t->size;
-				insn_aux->kptr_struct_meta = struct_meta;
-			} else if (meta.func_id == special_kfunc_list[KF_bpf_refcount_acquire_impl]) {
-				mark_reg_known_zero(env, regs, BPF_REG_0);
-				regs[BPF_REG_0].type = PTR_TO_BTF_ID | MEM_ALLOC;
-				regs[BPF_REG_0].btf = meta.arg_btf;
-				regs[BPF_REG_0].btf_id = meta.arg_btf_id;
-
-				insn_aux->kptr_struct_meta =
-					btf_find_struct_meta(meta.arg_btf,
-							     meta.arg_btf_id);
-			} else if (is_list_node_type(ptr_type)) {
-				struct btf_field *field = meta.arg_list_head.field;
-
-				mark_reg_graph_node(regs, BPF_REG_0, &field->graph_root);
-			} else if (is_rbtree_node_type(ptr_type)) {
-				struct btf_field *field = meta.arg_rbtree_root.field;
-
-				mark_reg_graph_node(regs, BPF_REG_0, &field->graph_root);
-			} else if (meta.func_id == special_kfunc_list[KF_bpf_cast_to_kern_ctx]) {
-				mark_reg_known_zero(env, regs, BPF_REG_0);
-				regs[BPF_REG_0].type = PTR_TO_BTF_ID | PTR_TRUSTED;
-				regs[BPF_REG_0].btf = desc_btf;
-				regs[BPF_REG_0].btf_id = meta.ret_btf_id;
-			} else if (meta.func_id == special_kfunc_list[KF_bpf_rdonly_cast]) {
-				ret_t = btf_type_by_id(desc_btf, meta.arg_constant.value);
-				if (!ret_t || !btf_type_is_struct(ret_t)) {
-					verbose(env,
-						"kfunc bpf_rdonly_cast type ID argument must be of a struct\n");
-					return -EINVAL;
-				}
-
-				mark_reg_known_zero(env, regs, BPF_REG_0);
-				regs[BPF_REG_0].type = PTR_TO_BTF_ID | PTR_UNTRUSTED;
-				regs[BPF_REG_0].btf = desc_btf;
-				regs[BPF_REG_0].btf_id = meta.arg_constant.value;
-			} else if (meta.func_id == special_kfunc_list[KF_bpf_dynptr_slice] ||
-				   meta.func_id == special_kfunc_list[KF_bpf_dynptr_slice_rdwr]) {
-				enum bpf_type_flag type_flag = get_dynptr_type_flag(meta.initialized_dynptr.type);
-
-				mark_reg_known_zero(env, regs, BPF_REG_0);
-
-				if (!meta.arg_constant.found) {
-					verbose(env, "verifier internal error: bpf_dynptr_slice(_rdwr) no constant size\n");
-					return -EFAULT;
-				}
-
-				regs[BPF_REG_0].mem_size = meta.arg_constant.value;
-
-				/* PTR_MAYBE_NULL will be added when is_kfunc_ret_null is checked */
-				regs[BPF_REG_0].type = PTR_TO_MEM | type_flag;
-
-				if (meta.func_id == special_kfunc_list[KF_bpf_dynptr_slice]) {
-					regs[BPF_REG_0].type |= MEM_RDONLY;
-				} else {
-					/* this will set env->seen_direct_write to true */
-					if (!may_access_direct_pkt_data(env, NULL, BPF_WRITE)) {
-						verbose(env, "the prog does not allow writes to packet data\n");
-						return -EINVAL;
-					}
-				}
-
-				if (!meta.initialized_dynptr.id) {
-					verbose(env, "verifier internal error: no dynptr id\n");
-					return -EFAULT;
-				}
-				regs[BPF_REG_0].dynptr_id = meta.initialized_dynptr.id;
-
-				/* we don't need to set BPF_REG_0's ref obj id
-				 * because packet slices are not refcounted (see
-				 * dynptr_type_refcounted)
-				 */
-			} else {
-				verbose(env, "kernel function %s unhandled dynamic return type\n",
-					meta.func_name);
-				return -EFAULT;
-			}
+		err = check_special_kfunc(env, &meta, regs, insn_aux, ptr_type, desc_btf);
+		if (err) {
+			if (err < 0)
+				return err;
 		} else if (btf_type_is_void(ptr_type)) {
 			/* kfunc returning 'void *' is equivalent to returning scalar */
 			mark_reg_unknown(env, regs, BPF_REG_0);
@@ -13918,7 +13898,7 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		if (reg_may_point_to_spin_lock(&regs[BPF_REG_0]) && !regs[BPF_REG_0].id)
 			regs[BPF_REG_0].id = ++env->id_gen;
 	} else if (btf_type_is_void(t)) {
-		if (meta.btf == btf_vmlinux && btf_id_set_contains(&special_kfunc_set, meta.func_id)) {
+		if (meta.btf == btf_vmlinux) {
 			if (meta.func_id == special_kfunc_list[KF_bpf_obj_drop_impl] ||
 			    meta.func_id == special_kfunc_list[KF_bpf_percpu_obj_drop_impl]) {
 				insn_aux->kptr_struct_meta =
