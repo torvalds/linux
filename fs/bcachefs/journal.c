@@ -415,7 +415,7 @@ static int journal_entry_open(struct journal *j)
 	if (atomic64_read(&j->seq) - j->seq_write_started == JOURNAL_STATE_BUF_NR)
 		return -BCH_ERR_journal_max_open;
 
-	if (journal_cur_seq(j) >= JOURNAL_SEQ_MAX) {
+	if (unlikely(journal_cur_seq(j) >= JOURNAL_SEQ_MAX)) {
 		bch_err(c, "cannot start: journal seq overflow");
 		if (bch2_fs_emergency_read_only_locked(c))
 			bch_err(c, "fatal error - emergency read only");
@@ -458,6 +458,14 @@ static int journal_entry_open(struct journal *j)
 	 */
 	atomic64_inc(&j->seq);
 	journal_pin_list_init(fifo_push_ref(&j->pin), 1);
+
+	if (unlikely(bch2_journal_seq_is_blacklisted(c, journal_cur_seq(j), false))) {
+		bch_err(c, "attempting to open blacklisted journal seq %llu",
+			journal_cur_seq(j));
+		if (bch2_fs_emergency_read_only_locked(c))
+			bch_err(c, "fatal error - emergency read only");
+		return -BCH_ERR_journal_shutdown;
+	}
 
 	BUG_ON(j->pin.back - 1 != atomic64_read(&j->seq));
 
@@ -1414,6 +1422,13 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 	struct genradix_iter iter;
 	bool had_entries = false;
 	u64 last_seq = cur_seq, nr, seq;
+
+	/*
+	 *
+	 * XXX pick most recent non blacklisted sequence number
+	 */
+
+	cur_seq = max(cur_seq, bch2_journal_last_blacklisted_seq(c));
 
 	if (cur_seq >= JOURNAL_SEQ_MAX) {
 		bch_err(c, "cannot start: journal seq overflow");
