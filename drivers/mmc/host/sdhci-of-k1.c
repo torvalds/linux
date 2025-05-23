@@ -178,7 +178,6 @@ static int spacemit_sdhci_pre_select_hs400(struct mmc_host *mmc)
 	struct sdhci_host *host = mmc_priv(mmc);
 
 	spacemit_sdhci_setbits(host, SDHC_MMC_HS400, SPACEMIT_SDHC_MMC_CTRL_REG);
-	host->mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY;
 
 	return 0;
 }
@@ -188,7 +187,6 @@ static void spacemit_sdhci_post_select_hs400(struct mmc_host *mmc)
 	struct sdhci_host *host = mmc_priv(mmc);
 
 	spacemit_sdhci_phy_dll_init(host);
-	host->mmc->caps &= ~MMC_CAP_WAIT_WHILE_BUSY;
 }
 
 static void spacemit_sdhci_pre_hs400_to_hs200(struct mmc_host *mmc)
