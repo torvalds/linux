@@ -150,6 +150,16 @@ static bool io_acct_cancel_pending_work(struct io_wq *wq,
 static void create_worker_cb(struct callback_head *cb);
 static void io_wq_cancel_tw_create(struct io_wq *wq);
 
+static inline unsigned int __io_get_work_hash(unsigned int work_flags)
+{
+	return work_flags >> IO_WQ_HASH_SHIFT;
+}
+
+static inline unsigned int io_get_work_hash(struct io_wq_work *work)
+{
+	return __io_get_work_hash(atomic_read(&work->flags));
+}
+
 static bool io_worker_get(struct io_worker *worker)
 {
 	return refcount_inc_not_zero(&worker->ref);
@@ -452,16 +462,6 @@ static void __io_worker_idle(struct io_wq_acct *acct, struct io_worker *worker)
 		set_bit(IO_WORKER_F_FREE, &worker->flags);
 		hlist_nulls_add_head_rcu(&worker->nulls_node, &acct->free_list);
 	}
-}
-
-static inline unsigned int __io_get_work_hash(unsigned int work_flags)
-{
-	return work_flags >> IO_WQ_HASH_SHIFT;
-}
-
-static inline unsigned int io_get_work_hash(struct io_wq_work *work)
-{
-	return __io_get_work_hash(atomic_read(&work->flags));
 }
 
 static bool io_wait_on_hash(struct io_wq *wq, unsigned int hash)
