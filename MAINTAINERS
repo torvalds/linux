@@ -7523,7 +7523,7 @@ F:	include/uapi/drm/msm_drm.h
 DRM DRIVER for Qualcomm display hardware
 M:	Rob Clark <robdclark@gmail.com>
 M:	Dmitry Baryshkov <lumag@kernel.org>
-R:	Abhinav Kumar <quic_abhinavk@quicinc.com>
+R:	Abhinav Kumar <abhinav.kumar@linux.dev>
 R:	Jessica Zhang <jessica.zhang@oss.qualcomm.com>
 R:	Sean Paul <sean@poorly.run>
 R:	Marijn Suijten <marijn.suijten@somainline.org>
@@ -19975,7 +19975,7 @@ F:	drivers/regulator/vqmmc-ipq4019-regulator.c
 QUALCOMM IRIS VIDEO ACCELERATOR DRIVER
 M:	Vikash Garodia <quic_vgarodia@quicinc.com>
 M:	Dikshita Agarwal <quic_dikshita@quicinc.com>
-R:	Abhinav Kumar <quic_abhinavk@quicinc.com>
+R:	Abhinav Kumar <abhinav.kumar@linux.dev>
 L:	linux-media@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
