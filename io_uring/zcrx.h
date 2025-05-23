@@ -38,6 +38,7 @@ struct io_zcrx_ifq {
 	struct net_device		*netdev;
 	netdevice_tracker		netdev_tracker;
 	spinlock_t			lock;
+	struct mutex			dma_lock;
 };
 
 #if defined(CONFIG_IO_URING_ZCRX)

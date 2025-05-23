@@ -234,7 +234,7 @@ static u64 hbg_get_irq_stats(struct hbg_vector *vectors, u32 mask)
 
 	for (i = 0; i < vectors->info_array_len; i++)
 		if (vectors->info_array[i].mask == mask)
-			return vectors->info_array[i].count;
+			return vectors->stats_array[i];
 
 	return 0;
 }

@@ -24,6 +24,20 @@
 	fsl,operating-mode = "nominal";
 };
 
+&gpu2d {
+	assigned-clocks = <&clk IMX8MP_CLK_GPU2D_CORE>;
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_800M>;
+	assigned-clock-rates = <800000000>;
+};
+
+&gpu3d {
+	assigned-clocks = <&clk IMX8MP_CLK_GPU3D_CORE>,
+			  <&clk IMX8MP_CLK_GPU3D_SHADER_CORE>;
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_800M>,
+				 <&clk IMX8MP_SYS_PLL1_800M>;
+	assigned-clock-rates = <800000000>, <800000000>;
+};
+
 &pgc_hdmimix {
 	assigned-clocks = <&clk IMX8MP_CLK_HDMI_AXI>,
 			  <&clk IMX8MP_CLK_HDMI_APB>;
@@ -46,6 +60,18 @@
 	assigned-clock-rates = <600000000>, <300000000>;
 };
 
+&pgc_mlmix {
+	assigned-clocks = <&clk IMX8MP_CLK_ML_CORE>,
+			  <&clk IMX8MP_CLK_ML_AXI>,
+			  <&clk IMX8MP_CLK_ML_AHB>;
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_800M>,
+				 <&clk IMX8MP_SYS_PLL1_800M>,
+				 <&clk IMX8MP_SYS_PLL1_800M>;
+	assigned-clock-rates = <800000000>,
+			       <800000000>,
+			       <300000000>;
+};
+
 &media_blk_ctrl {
 	assigned-clocks = <&clk IMX8MP_CLK_MEDIA_AXI>,
 			  <&clk IMX8MP_CLK_MEDIA_APB>,
@@ -62,3 +88,5 @@
 			       <0>, <0>, <400000000>,
 			       <1039500000>;
 };
+
+/delete-node/ &{noc_opp_table/opp-1000000000};

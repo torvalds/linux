@@ -199,7 +199,7 @@ static void rembrandt_audio_remove(struct platform_device *pdev)
 
 static int rmb_pcm_resume(struct device *dev)
 {
-	struct acp_chip_info *chip = dev_get_platdata(dev);
+	struct acp_chip_info *chip = dev_get_drvdata(dev->parent);
 	struct acp_stream *stream;
 	struct snd_pcm_substream *substream;
 	snd_pcm_uframes_t buf_in_frames;

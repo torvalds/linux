@@ -46,7 +46,7 @@ enum bch_fsck_flags {
 	x(btree_node_unsupported_version,			 34,	0)		\
 	x(btree_node_bset_older_than_sb_min,			 35,	0)		\
 	x(btree_node_bset_newer_than_sb,			 36,	0)		\
-	x(btree_node_data_missing,				 37,	0)		\
+	x(btree_node_data_missing,				 37,	FSCK_AUTOFIX)	\
 	x(btree_node_bset_after_end,				 38,	0)		\
 	x(btree_node_replicas_sectors_written_mismatch,		 39,	0)		\
 	x(btree_node_replicas_data_mismatch,			 40,	0)		\
@@ -205,9 +205,9 @@ enum bch_fsck_flags {
 	x(snapshot_bad_depth,					184,	0)		\
 	x(snapshot_bad_skiplist,				185,	0)		\
 	x(subvol_pos_bad,					186,	0)		\
-	x(subvol_not_master_and_not_snapshot,			187,	0)		\
+	x(subvol_not_master_and_not_snapshot,			187,	FSCK_AUTOFIX)	\
 	x(subvol_to_missing_root,				188,	0)		\
-	x(subvol_root_wrong_bi_subvol,				189,	0)		\
+	x(subvol_root_wrong_bi_subvol,				189,	FSCK_AUTOFIX)	\
 	x(bkey_in_missing_snapshot,				190,	0)		\
 	x(inode_pos_inode_nonzero,				191,	0)		\
 	x(inode_pos_blockdev_range,				192,	0)		\
@@ -236,6 +236,9 @@ enum bch_fsck_flags {
 	x(inode_has_child_snapshots_wrong,			287,	0)		\
 	x(inode_unreachable,					210,	FSCK_AUTOFIX)	\
 	x(inode_journal_seq_in_future,				299,	FSCK_AUTOFIX)	\
+	x(inode_i_sectors_underflow,				312,	FSCK_AUTOFIX)	\
+	x(vfs_inode_i_blocks_underflow,				311,	FSCK_AUTOFIX)	\
+	x(vfs_inode_i_blocks_not_zero_at_truncate,		313,	FSCK_AUTOFIX)	\
 	x(deleted_inode_but_clean,				211,	FSCK_AUTOFIX)	\
 	x(deleted_inode_missing,				212,	FSCK_AUTOFIX)	\
 	x(deleted_inode_is_dir,					213,	FSCK_AUTOFIX)	\
@@ -290,8 +293,8 @@ enum bch_fsck_flags {
 	x(btree_node_bkey_bad_u64s,				260,	0)		\
 	x(btree_node_topology_empty_interior_node,		261,	0)		\
 	x(btree_ptr_v2_min_key_bad,				262,	0)		\
-	x(btree_root_unreadable_and_scan_found_nothing,		263,	0)		\
-	x(snapshot_node_missing,				264,	0)		\
+	x(btree_root_unreadable_and_scan_found_nothing,		263,	FSCK_AUTOFIX)	\
+	x(snapshot_node_missing,				264,	FSCK_AUTOFIX)	\
 	x(dup_backpointer_to_bad_csum_extent,			265,	0)		\
 	x(btree_bitmap_not_marked,				266,	FSCK_AUTOFIX)	\
 	x(sb_clean_entry_overrun,				267,	0)		\
@@ -317,7 +320,9 @@ enum bch_fsck_flags {
 	x(directory_size_mismatch,				303,	FSCK_AUTOFIX)	\
 	x(dirent_cf_name_too_big,				304,	0)		\
 	x(dirent_stray_data_after_cf_name,			305,	0)		\
-	x(MAX,							308,	0)
+	x(rebalance_work_incorrectly_set,			309,	FSCK_AUTOFIX)	\
+	x(rebalance_work_incorrectly_unset,			310,	FSCK_AUTOFIX)	\
+	x(MAX,							314,	0)
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,

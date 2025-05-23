@@ -2047,7 +2047,7 @@ static int submit_eb_subpage(struct folio *folio, struct writeback_control *wbc)
 			      subpage->bitmaps)) {
 			spin_unlock_irqrestore(&subpage->lock, flags);
 			spin_unlock(&folio->mapping->i_private_lock);
-			bit_start++;
+			bit_start += sectors_per_node;
 			continue;
 		}
 
@@ -3508,8 +3508,8 @@ static void btree_clear_folio_dirty_tag(struct folio *folio)
 	ASSERT(folio_test_locked(folio));
 	xa_lock_irq(&folio->mapping->i_pages);
 	if (!folio_test_dirty(folio))
-		__xa_clear_mark(&folio->mapping->i_pages,
-				folio_index(folio), PAGECACHE_TAG_DIRTY);
+		__xa_clear_mark(&folio->mapping->i_pages, folio->index,
+				PAGECACHE_TAG_DIRTY);
 	xa_unlock_irq(&folio->mapping->i_pages);
 }
 

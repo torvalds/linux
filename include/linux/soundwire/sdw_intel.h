@@ -365,7 +365,7 @@ struct sdw_intel_res {
  * on e.g. which machine driver to select (I2S mode, HDaudio or
  * SoundWire).
  */
-int sdw_intel_acpi_scan(acpi_handle *parent_handle,
+int sdw_intel_acpi_scan(acpi_handle parent_handle,
 			struct sdw_intel_acpi_info *info);
 
 void sdw_intel_process_wakeen_event(struct sdw_intel_ctx *ctx);

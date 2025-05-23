@@ -3803,7 +3803,7 @@ out:
 	if (ret) {
 		if (inode)
 			iput(&inode->vfs_inode);
-		inode = ERR_PTR(ret);
+		return ERR_PTR(ret);
 	}
 	return &inode->vfs_inode;
 }

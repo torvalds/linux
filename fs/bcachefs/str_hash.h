@@ -33,7 +33,7 @@ bch2_str_hash_opt_to_type(struct bch_fs *c, enum bch_str_hash_opts opt)
 
 struct bch_hash_info {
 	u8			type;
-	struct unicode_map 	*cf_encoding;
+	struct unicode_map	*cf_encoding;
 	/*
 	 * For crc32 or crc64 string hashes the first key value of
 	 * the siphash_key (k0) is used as the key.
@@ -44,11 +44,10 @@ struct bch_hash_info {
 static inline struct bch_hash_info
 bch2_hash_info_init(struct bch_fs *c, const struct bch_inode_unpacked *bi)
 {
-	/* XXX ick */
 	struct bch_hash_info info = {
 		.type = INODE_STR_HASH(bi),
 #ifdef CONFIG_UNICODE
-		.cf_encoding = !!(bi->bi_flags & BCH_INODE_casefolded) ? c->cf_encoding : NULL,
+		.cf_encoding = bch2_inode_casefold(c, bi) ? c->cf_encoding : NULL,
 #endif
 		.siphash_key = { .k0 = bi->bi_hash_seed }
 	};

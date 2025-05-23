@@ -1945,6 +1945,12 @@ static int set_id_aa64pfr0_el1(struct kvm_vcpu *vcpu,
 	if ((hw_val & mpam_mask) == (user_val & mpam_mask))
 		user_val &= ~ID_AA64PFR0_EL1_MPAM_MASK;
 
+	/* Fail the guest's request to disable the AA64 ISA at EL{0,1,2} */
+	if (!FIELD_GET(ID_AA64PFR0_EL1_EL0, user_val) ||
+	    !FIELD_GET(ID_AA64PFR0_EL1_EL1, user_val) ||
+	    (vcpu_has_nv(vcpu) && !FIELD_GET(ID_AA64PFR0_EL1_EL2, user_val)))
+		return -EINVAL;
+
 	return set_id_reg(vcpu, rd, user_val);
 }
 

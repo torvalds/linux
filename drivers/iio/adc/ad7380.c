@@ -1211,6 +1211,9 @@ static int ad7380_offload_buffer_predisable(struct iio_dev *indio_dev)
 	struct ad7380_state *st = iio_priv(indio_dev);
 	int ret;
 
+	spi_offload_trigger_disable(st->offload, st->offload_trigger);
+	spi_unoptimize_message(&st->offload_msg);
+
 	if (st->seq) {
 		ret = regmap_update_bits(st->regmap,
 					 AD7380_REG_ADDR_CONFIG1,
@@ -1221,10 +1224,6 @@ static int ad7380_offload_buffer_predisable(struct iio_dev *indio_dev)
 
 		st->seq = false;
 	}
-
-	spi_offload_trigger_disable(st->offload, st->offload_trigger);
-
-	spi_unoptimize_message(&st->offload_msg);
 
 	return 0;
 }
@@ -1611,11 +1610,25 @@ static int ad7380_write_event_config(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static int ad7380_get_alert_th(struct ad7380_state *st,
+static int ad7380_get_alert_th(struct iio_dev *indio_dev,
+			       const struct iio_chan_spec *chan,
 			       enum iio_event_direction dir,
 			       int *val)
 {
-	int ret, tmp;
+	struct ad7380_state *st = iio_priv(indio_dev);
+	const struct iio_scan_type *scan_type;
+	int ret, tmp, shift;
+
+	scan_type = iio_get_current_scan_type(indio_dev, chan);
+	if (IS_ERR(scan_type))
+		return PTR_ERR(scan_type);
+
+	/*
+	 * The register value is 12-bits and is compared to the most significant
+	 * bits of raw value, therefore a shift is required to convert this to
+	 * the same scale as the raw value.
+	 */
+	shift = scan_type->realbits - 12;
 
 	switch (dir) {
 	case IIO_EV_DIR_RISING:
@@ -1625,7 +1638,7 @@ static int ad7380_get_alert_th(struct ad7380_state *st,
 		if (ret)
 			return ret;
 
-		*val = FIELD_GET(AD7380_ALERT_HIGH_TH, tmp);
+		*val = FIELD_GET(AD7380_ALERT_HIGH_TH, tmp) << shift;
 		return IIO_VAL_INT;
 	case IIO_EV_DIR_FALLING:
 		ret = regmap_read(st->regmap,
@@ -1634,7 +1647,7 @@ static int ad7380_get_alert_th(struct ad7380_state *st,
 		if (ret)
 			return ret;
 
-		*val = FIELD_GET(AD7380_ALERT_LOW_TH, tmp);
+		*val = FIELD_GET(AD7380_ALERT_LOW_TH, tmp) << shift;
 		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
@@ -1648,7 +1661,6 @@ static int ad7380_read_event_value(struct iio_dev *indio_dev,
 				   enum iio_event_info info,
 				   int *val, int *val2)
 {
-	struct ad7380_state *st = iio_priv(indio_dev);
 	int ret;
 
 	switch (info) {
@@ -1656,7 +1668,7 @@ static int ad7380_read_event_value(struct iio_dev *indio_dev,
 		if (!iio_device_claim_direct(indio_dev))
 			return -EBUSY;
 
-		ret = ad7380_get_alert_th(st, dir, val);
+		ret = ad7380_get_alert_th(indio_dev, chan, dir, val);
 
 		iio_device_release_direct(indio_dev);
 		return ret;

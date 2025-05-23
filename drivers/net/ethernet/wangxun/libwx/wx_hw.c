@@ -434,11 +434,17 @@ static int wx_host_interface_command_r(struct wx *wx, u32 *buffer,
 	wr32m(wx, WX_SW2FW_MBOX_CMD, WX_SW2FW_MBOX_CMD_VLD, WX_SW2FW_MBOX_CMD_VLD);
 
 	/* polling reply from FW */
-	err = read_poll_timeout(wx_poll_fw_reply, reply, reply, 1000, 50000,
-				true, wx, buffer, send_cmd);
+	err = read_poll_timeout(wx_poll_fw_reply, reply, reply, 2000,
+				timeout * 1000, true, wx, buffer, send_cmd);
 	if (err) {
 		wx_err(wx, "Polling from FW messages timeout, cmd: 0x%x, index: %d\n",
 		       send_cmd, wx->swfw_index);
+		goto rel_out;
+	}
+
+	if (hdr->cmd_or_resp.ret_status == 0x80) {
+		wx_err(wx, "Unknown FW command: 0x%x\n", send_cmd);
+		err = -EINVAL;
 		goto rel_out;
 	}
 

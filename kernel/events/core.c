@@ -3943,7 +3943,7 @@ static int merge_sched_in(struct perf_event *event, void *data)
 			perf_event_set_state(event, PERF_EVENT_STATE_ERROR);
 
 			if (*perf_event_fasync(event))
-				event->pending_kill = POLL_HUP;
+				event->pending_kill = POLL_ERR;
 
 			perf_event_wakeup(event);
 		} else {
@@ -6075,7 +6075,7 @@ static __poll_t perf_poll(struct file *file, poll_table *wait)
 
 	if (unlikely(READ_ONCE(event->state) == PERF_EVENT_STATE_ERROR &&
 		     event->attr.pinned))
-		return events;
+		return EPOLLERR;
 
 	/*
 	 * Pin the event->rb by taking event->mmap_mutex; otherwise

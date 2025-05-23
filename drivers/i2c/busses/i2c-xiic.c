@@ -1489,7 +1489,7 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 					pdev->name, i2c);
 
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Cannot claim IRQ\n");
+		dev_err_probe(&pdev->dev, ret, "Cannot claim IRQ\n");
 		goto err_pm_disable;
 	}
 
@@ -1510,7 +1510,7 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 
 	ret = xiic_reinit(i2c);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Cannot xiic_reinit\n");
+		dev_err_probe(&pdev->dev, ret, "Cannot xiic_reinit\n");
 		goto err_pm_disable;
 	}
 

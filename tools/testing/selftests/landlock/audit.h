@@ -300,15 +300,22 @@ out:
 	return err;
 }
 
-static int __maybe_unused matches_log_domain_allocated(int audit_fd,
+static int __maybe_unused matches_log_domain_allocated(int audit_fd, pid_t pid,
 						       __u64 *domain_id)
 {
-	return audit_match_record(
-		audit_fd, AUDIT_LANDLOCK_DOMAIN,
-		REGEX_LANDLOCK_PREFIX
-		" status=allocated mode=enforcing pid=[0-9]\\+ uid=[0-9]\\+"
-		" exe=\"[^\"]\\+\" comm=\".*_test\"$",
-		domain_id);
+	static const char log_template[] = REGEX_LANDLOCK_PREFIX
+		" status=allocated mode=enforcing pid=%d uid=[0-9]\\+"
+		" exe=\"[^\"]\\+\" comm=\".*_test\"$";
+	char log_match[sizeof(log_template) + 10];
+	int log_match_len;
+
+	log_match_len =
+		snprintf(log_match, sizeof(log_match), log_template, pid);
+	if (log_match_len > sizeof(log_match))
+		return -E2BIG;
+
+	return audit_match_record(audit_fd, AUDIT_LANDLOCK_DOMAIN, log_match,
+				  domain_id);
 }
 
 static int __maybe_unused matches_log_domain_deallocated(
