@@ -5,6 +5,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/string_helpers.h>
+#include <linux/string_choices.h>
 
 #include <drm/drm_debugfs.h>
 #include <drm/drm_drv.h>
@@ -972,7 +973,7 @@ static ssize_t i915_dsc_fec_support_write(struct file *file,
 		return ret;
 
 	drm_dbg(display->drm, "Got %s for DSC Enable\n",
-		(dsc_enable) ? "true" : "false");
+		str_true_false(dsc_enable));
 	intel_dp->force_dsc_en = dsc_enable;
 
 	*offp += len;
@@ -1183,7 +1184,7 @@ static ssize_t i915_dsc_fractional_bpp_write(struct file *file,
 		return ret;
 
 	drm_dbg(display->drm, "Got %s for DSC Fractional BPP Enable\n",
-		(dsc_fractional_bpp_enable) ? "true" : "false");
+		str_true_false(dsc_fractional_bpp_enable));
 	intel_dp->force_dsc_fractional_bpp_en = dsc_fractional_bpp_enable;
 
 	*offp += len;
