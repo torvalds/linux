@@ -444,7 +444,7 @@ int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int virq,
 	if (IS_ERR(its))
 		return 0;
 
-	mutex_lock(&its->its_lock);
+	guard(mutex)(&its->its_lock);
 
 	/*
 	 * Perform the actual DevID/EventID -> LPI translation.
@@ -455,11 +455,11 @@ int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int virq,
 	 */
 	if (vgic_its_resolve_lpi(kvm, its, irq_entry->msi.devid,
 				 irq_entry->msi.data, &irq))
-		goto out;
+		return 0;
 
 	/* Silently exit if the vLPI is already mapped */
 	if (irq->hw)
-		goto out;
+		return 0;
 
 	/*
 	 * Emit the mapping request. If it fails, the ITS probably
@@ -479,7 +479,7 @@ int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int virq,
 
 	ret = its_map_vlpi(virq, &map);
 	if (ret)
-		goto out;
+		return ret;
 
 	irq->hw		= true;
 	irq->host_irq	= virq;
@@ -503,8 +503,6 @@ int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int virq,
 		raw_spin_unlock_irqrestore(&irq->irq_lock, flags);
 	}
 
-out:
-	mutex_unlock(&its->its_lock);
 	return ret;
 }
 
