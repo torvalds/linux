@@ -27,6 +27,7 @@
 #include <linux/hrtimer_types.h>
 #include <linux/timer_types.h>
 #include <linux/seccomp_types.h>
+#include <linux/sysectl_types.h>
 #include <linux/nodemask_types.h>
 #include <linux/refcount_types.h>
 #include <linux/resource.h>
@@ -1644,6 +1645,10 @@ struct task_struct {
 
 #ifdef CONFIG_USER_EVENTS
 	struct user_event_mm		*user_event_mm;
+#endif
+
+#ifdef CONFIG_SYSECTL
+	struct sysectl			sysectl;
 #endif
 
 	/*

@@ -70,6 +70,7 @@
 #include <linux/user_events.h>
 #include <linux/uaccess.h>
 #include <linux/pidfs.h>
+#include <linux/sysectl.h>
 
 #include <uapi/linux/wait.h>
 
@@ -910,6 +911,9 @@ void __noreturn do_exit(long code)
 	exit_signals(tsk);  /* sets PF_EXITING */
 
 	seccomp_filter_release(tsk);
+#ifdef CONFIG_SYSECTL
+	sysectl_release(&tsk->sysectl);
+#endif
 
 	acct_update_integrals(tsk);
 	group_dead = atomic_dec_and_test(&tsk->signal->live);

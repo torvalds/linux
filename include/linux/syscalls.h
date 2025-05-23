@@ -1214,6 +1214,10 @@ asmlinkage long sys_ni_syscall(void);
 
 asmlinkage long sys_ni_posix_timers(void);
 
+#ifdef CONFIG_SYSECTL
+asmlinkage long sys_sysectl(void);
+#endif
+
 /*
  * Kernel code should not call syscalls (i.e., sys_xyzyyz()) directly.
  * Instead, use one of the functions which work equivalently, such as

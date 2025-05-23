@@ -52,6 +52,7 @@
 #include <linux/security.h>
 #include <linux/hugetlb.h>
 #include <linux/seccomp.h>
+#include <linux/sysectl_types.h>
 #include <linux/swap.h>
 #include <linux/syscalls.h>
 #include <linux/syscall_user_dispatch.h>
@@ -1154,6 +1155,10 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 	 * the usage counts on the error path calling free_task.
 	 */
 	tsk->seccomp.filter = NULL;
+#endif
+
+#ifdef CONFIG_SYSECTL
+	tsk->sysectl = SYSECTL_DEFAULTS;
 #endif
 
 	setup_thread_stack(tsk, orig);

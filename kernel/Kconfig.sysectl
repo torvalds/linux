@@ -1,0 +1,6 @@
+config SYSECTL
+	bool "Enable System call extended control"
+	default y
+	help
+		Say Y to enable the System call extended control
+

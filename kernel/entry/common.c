@@ -9,6 +9,7 @@
 #include <linux/livepatch.h>
 #include <linux/audit.h>
 #include <linux/tick.h>
+#include <linux/sysectl.h>
 
 #include "common.h"
 
@@ -64,6 +65,12 @@ long syscall_trace_enter(struct pt_regs *regs, long syscall,
 		 * system call number as well.
 		 */
 		syscall = syscall_get_nr(current, regs);
+	}
+
+	if (work & SYSCALL_WORK_SYSECTL) {
+		if (unlikely(sysectl_entry(syscall) == 0)) {
+			return -1L;
+		}
 	}
 
 	syscall_enter_audit(regs, syscall);

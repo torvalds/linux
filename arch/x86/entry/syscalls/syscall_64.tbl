@@ -391,6 +391,9 @@
 465	common	listxattrat		sys_listxattrat
 466	common	removexattrat		sys_removexattrat
 467	common	open_tree_attr		sys_open_tree_attr
+#ifdef CONFIG_SYSECTL
+468	common	sysectl			sys_sysectl
+#endif
 
 #
 # Due to a historical design error, certain syscalls are numbered differently
