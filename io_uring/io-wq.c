@@ -429,6 +429,8 @@ static void io_wq_dec_running(struct io_worker *worker)
 
 	if (!atomic_dec_and_test(&acct->nr_running))
 		return;
+	if (!worker->cur_work)
+		return;
 	if (!io_acct_run_queue(acct))
 		return;
 
