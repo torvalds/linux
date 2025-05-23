@@ -371,12 +371,12 @@ asmlinkage void start_secondary(void)
 	 * to an option instead of something based on .cputype
 	 */
 
-	calibrate_delay();
-	cpu_data[cpu].udelay_val = loops_per_jiffy;
-
 #ifdef CONFIG_HOTPLUG_PARALLEL
 	cpuhp_ap_sync_alive();
 #endif
+	calibrate_delay();
+	cpu_data[cpu].udelay_val = loops_per_jiffy;
+
 	set_cpu_sibling_map(cpu);
 	set_cpu_core_map(cpu);
 
