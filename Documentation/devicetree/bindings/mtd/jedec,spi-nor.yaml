@@ -20,7 +20,7 @@ properties:
           - pattern: "^((((micron|spansion|st),)?\
               (m25p(40|80|16|32|64|128)|\
               n25q(32b|064|128a11|128a13|256a|512a|164k)))|\
-              atmel,at25df(321a|641|081a)|\
+              atmel,at(25|26)df(321a|641|081a)|\
               everspin,mr25h(10|40|128|256)|\
               (mxicy|macronix),mx25l(4005a|1606e|6405d|8005|12805d|25635e)|\
               (mxicy|macronix),mx25u(4033|4035)|\
