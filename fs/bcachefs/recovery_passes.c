@@ -525,6 +525,9 @@ int bch2_run_recovery_passes(struct bch_fs *c, enum bch_recovery_pass from)
 		c->opts.recovery_passes |
 		c->sb.recovery_passes_required;
 
+	if (c->opts.recovery_pass_last)
+		passes &= BIT_ULL(c->opts.recovery_pass_last + 1) - 1;
+
 	/*
 	 * We can't allow set_may_go_rw to be excluded; that would cause us to
 	 * use the journal replay keys for updates where it's not expected.
