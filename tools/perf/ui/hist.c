@@ -172,7 +172,7 @@ int hpp__fmt_mem_stat(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *
 	assert(mem_stat_idx != -1);
 
 	for (int i = 0; i < MEM_STAT_LEN; i++)
-		total += he->mem_stat[mem_stat_idx].entries[i];
+		total += hists->mem_stat_total[mem_stat_idx].entries[i];
 	assert(total != 0);
 
 	for (int i = 0; i < MEM_STAT_LEN; i++) {
