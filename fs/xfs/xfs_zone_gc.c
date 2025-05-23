@@ -170,7 +170,8 @@ bool
 xfs_zoned_need_gc(
 	struct xfs_mount	*mp)
 {
-	s64			available, free;
+	s64			available, free, threshold;
+	s32			remainder;
 
 	if (!xfs_group_marked(mp, XG_TYPE_RTG, XFS_RTG_RECLAIMABLE))
 		return false;
@@ -183,7 +184,12 @@ xfs_zoned_need_gc(
 		return true;
 
 	free = xfs_estimate_freecounter(mp, XC_FREE_RTEXTENTS);
-	if (available < mult_frac(free, mp->m_zonegc_low_space, 100))
+
+	threshold = div_s64_rem(free, 100, &remainder);
+	threshold = threshold * mp->m_zonegc_low_space +
+		    remainder * div_s64(mp->m_zonegc_low_space, 100);
+
+	if (available < threshold)
 		return true;
 
 	return false;
@@ -801,7 +807,8 @@ xfs_zone_gc_write_chunk(
 {
 	struct xfs_zone_gc_data	*data = chunk->data;
 	struct xfs_mount	*mp = chunk->ip->i_mount;
-	unsigned int		folio_offset = chunk->bio.bi_io_vec->bv_offset;
+	phys_addr_t		bvec_paddr =
+		bvec_phys(bio_first_bvec_all(&chunk->bio));
 	struct xfs_gc_bio	*split_chunk;
 
 	if (chunk->bio.bi_status)
@@ -816,7 +823,7 @@ xfs_zone_gc_write_chunk(
 
 	bio_reset(&chunk->bio, mp->m_rtdev_targp->bt_bdev, REQ_OP_WRITE);
 	bio_add_folio_nofail(&chunk->bio, chunk->scratch->folio, chunk->len,
-			folio_offset);
+			offset_in_folio(chunk->scratch->folio, bvec_paddr));
 
 	while ((split_chunk = xfs_zone_gc_split_write(data, chunk)))
 		xfs_zone_gc_submit_write(data, split_chunk);

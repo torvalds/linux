@@ -830,7 +830,7 @@ void xe_exec_queue_update_run_ticks(struct xe_exec_queue *q)
 {
 	struct xe_device *xe = gt_to_xe(q->gt);
 	struct xe_lrc *lrc;
-	u32 old_ts, new_ts;
+	u64 old_ts, new_ts;
 	int idx;
 
 	/*

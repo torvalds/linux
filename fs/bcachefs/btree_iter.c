@@ -1971,6 +1971,12 @@ struct btree *bch2_btree_iter_next_node(struct btree_trans *trans, struct btree_
 		return NULL;
 	}
 
+	/*
+	 * We don't correctly handle nodes with extra intent locks here:
+	 * downgrade so we don't violate locking invariants
+	 */
+	bch2_btree_path_downgrade(trans, path);
+
 	if (!bch2_btree_node_relock(trans, path, path->level + 1)) {
 		__bch2_btree_path_unlock(trans, path);
 		path->l[path->level].b		= ERR_PTR(-BCH_ERR_no_btree_node_relock);
@@ -2577,7 +2583,10 @@ struct bkey_s_c bch2_btree_iter_peek_prev_min(struct btree_trans *trans, struct 
 					      struct bpos end)
 {
 	if ((iter->flags & (BTREE_ITER_is_extents|BTREE_ITER_filter_snapshots)) &&
-	   !bkey_eq(iter->pos, POS_MAX)) {
+	   !bkey_eq(iter->pos, POS_MAX) &&
+	   !((iter->flags & BTREE_ITER_is_extents) &&
+	     iter->pos.offset == U64_MAX)) {
+
 		/*
 		 * bkey_start_pos(), for extents, is not monotonically
 		 * increasing until after filtering for snapshots:
@@ -2602,7 +2611,7 @@ struct bkey_s_c bch2_btree_iter_peek_prev_min(struct btree_trans *trans, struct 
 
 	bch2_trans_verify_not_unlocked_or_in_restart(trans);
 	bch2_btree_iter_verify_entry_exit(iter);
-	EBUG_ON((iter->flags & BTREE_ITER_filter_snapshots) && bpos_eq(end, POS_MIN));
+	EBUG_ON((iter->flags & BTREE_ITER_filter_snapshots) && iter->pos.inode != end.inode);
 
 	int ret = trans_maybe_inject_restart(trans, _RET_IP_);
 	if (unlikely(ret)) {
@@ -2740,7 +2749,7 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_trans *trans, struct btre
 	ret = trans_maybe_inject_restart(trans, _RET_IP_);
 	if (unlikely(ret)) {
 		k = bkey_s_c_err(ret);
-		goto out_no_locked;
+		goto out;
 	}
 
 	/* extents can't span inode numbers: */
@@ -2760,12 +2769,14 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_trans *trans, struct btre
 	ret = bch2_btree_path_traverse(trans, iter->path, iter->flags);
 	if (unlikely(ret)) {
 		k = bkey_s_c_err(ret);
-		goto out_no_locked;
+		goto out;
 	}
 
 	struct btree_path *path = btree_iter_path(trans, iter);
 	if (unlikely(!btree_path_node(path, path->level)))
 		return bkey_s_c_null;
+
+	btree_path_set_should_be_locked(trans, path);
 
 	if ((iter->flags & BTREE_ITER_cached) ||
 	    !(iter->flags & (BTREE_ITER_is_extents|BTREE_ITER_filter_snapshots))) {
@@ -2787,12 +2798,12 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_trans *trans, struct btre
 			if (!bkey_err(k))
 				iter->k = *k.k;
 			/* We're not returning a key from iter->path: */
-			goto out_no_locked;
+			goto out;
 		}
 
-		k = bch2_btree_path_peek_slot(trans->paths + iter->path, &iter->k);
+		k = bch2_btree_path_peek_slot(btree_iter_path(trans, iter), &iter->k);
 		if (unlikely(!k.k))
-			goto out_no_locked;
+			goto out;
 
 		if (unlikely(k.k->type == KEY_TYPE_whiteout &&
 			     (iter->flags & BTREE_ITER_filter_snapshots) &&
@@ -2830,7 +2841,7 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_trans *trans, struct btre
 		}
 
 		if (unlikely(bkey_err(k)))
-			goto out_no_locked;
+			goto out;
 
 		next = k.k ? bkey_start_pos(k.k) : POS_MAX;
 
@@ -2852,8 +2863,6 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_trans *trans, struct btre
 		}
 	}
 out:
-	btree_path_set_should_be_locked(trans, btree_iter_path(trans, iter));
-out_no_locked:
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(trans, iter);
 	ret = bch2_btree_iter_verify_ret(trans, iter, k);

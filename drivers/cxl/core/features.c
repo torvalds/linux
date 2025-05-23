@@ -528,13 +528,13 @@ static void *cxlctl_set_feature(struct cxl_features_state *cxlfs,
 	rc = cxl_set_feature(cxl_mbox, &feat_in->uuid,
 			     feat_in->version, feat_in->feat_data,
 			     data_size, flags, offset, &return_code);
+	*out_len = sizeof(*rpc_out);
 	if (rc) {
 		rpc_out->retval = return_code;
 		return no_free_ptr(rpc_out);
 	}
 
 	rpc_out->retval = CXL_MBOX_CMD_RC_SUCCESS;
-	*out_len = sizeof(*rpc_out);
 
 	return no_free_ptr(rpc_out);
 }
@@ -677,7 +677,7 @@ static void free_memdev_fwctl(void *_fwctl_dev)
 	fwctl_put(fwctl_dev);
 }
 
-int devm_cxl_setup_fwctl(struct cxl_memdev *cxlmd)
+int devm_cxl_setup_fwctl(struct device *host, struct cxl_memdev *cxlmd)
 {
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_features_state *cxlfs;
@@ -700,7 +700,7 @@ int devm_cxl_setup_fwctl(struct cxl_memdev *cxlmd)
 	if (rc)
 		return rc;
 
-	return devm_add_action_or_reset(&cxlmd->dev, free_memdev_fwctl,
+	return devm_add_action_or_reset(host, free_memdev_fwctl,
 					no_free_ptr(fwctl_dev));
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_setup_fwctl, "CXL");

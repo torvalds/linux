@@ -604,6 +604,13 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 	}
 
 	struct bpos bucket = PTR_BUCKET_POS(ca, &p.ptr);
+	if (!bucket_valid(ca, bucket.offset)) {
+		if (insert) {
+			bch2_dev_bucket_missing(ca, bucket.offset);
+			ret = -BCH_ERR_trigger_pointer;
+		}
+		goto err;
+	}
 
 	if (flags & BTREE_TRIGGER_transactional) {
 		struct bkey_i_alloc_v4 *a = bch2_trans_start_alloc_update(trans, bucket, 0);
@@ -1307,13 +1314,11 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	old_bucket_gens = rcu_dereference_protected(ca->bucket_gens, 1);
 
 	if (resize) {
-		bucket_gens->nbuckets = min(bucket_gens->nbuckets,
-					    old_bucket_gens->nbuckets);
-		bucket_gens->nbuckets_minus_first =
-			bucket_gens->nbuckets - bucket_gens->first_bucket;
+		u64 copy = min(bucket_gens->nbuckets,
+			       old_bucket_gens->nbuckets);
 		memcpy(bucket_gens->b,
 		       old_bucket_gens->b,
-		       bucket_gens->nbuckets);
+		       sizeof(bucket_gens->b[0]) * copy);
 	}
 
 	rcu_assign_pointer(ca->bucket_gens, bucket_gens);

@@ -1018,7 +1018,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	rc = devm_cxl_setup_fwctl(cxlmd);
+	rc = devm_cxl_setup_fwctl(&pdev->dev, cxlmd);
 	if (rc)
 		dev_dbg(&pdev->dev, "No CXL FWCTL setup\n");
 

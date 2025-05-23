@@ -1102,7 +1102,8 @@ int bch2_write_super(struct bch_fs *c)
 		prt_str(&buf, ")");
 		bch2_fs_fatal_error(c, ": %s", buf.buf);
 		printbuf_exit(&buf);
-		return -BCH_ERR_sb_not_downgraded;
+		ret = -BCH_ERR_sb_not_downgraded;
+		goto out;
 	}
 
 	darray_for_each(online_devices, ca) {

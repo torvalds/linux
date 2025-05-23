@@ -3,7 +3,7 @@
 
 . "$(cd "$(dirname "$0")" && pwd)"/test_common.sh
 
-TID="generic_04"
+TID="generic_05"
 ERR_CODE=0
 
 ublk_run_recover_test()

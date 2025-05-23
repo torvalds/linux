@@ -50,7 +50,7 @@ fn concat_helper(tokens: &[TokenTree]) -> Vec<(String, Span)> {
                 let tokens = group.stream().into_iter().collect::<Vec<TokenTree>>();
                 segments.append(&mut concat_helper(tokens.as_slice()));
             }
-            token => panic!("unexpected token in paste segments: {:?}", token),
+            token => panic!("unexpected token in paste segments: {token:?}"),
         };
     }
 

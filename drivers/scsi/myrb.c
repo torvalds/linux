@@ -891,7 +891,7 @@ static bool myrb_enable_mmio(struct myrb_hba *cb, mbox_mmio_init_t mmio_init_fn)
 		status = mmio_init_fn(pdev, base, &mbox);
 		if (status != MYRB_STATUS_SUCCESS) {
 			dev_err(&pdev->dev,
-				"Failed to enable mailbox, statux %02X\n",
+				"Failed to enable mailbox, status %02X\n",
 				status);
 			return false;
 		}

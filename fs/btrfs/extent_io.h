@@ -298,6 +298,8 @@ static inline int __pure num_extent_pages(const struct extent_buffer *eb)
  */
 static inline int __pure num_extent_folios(const struct extent_buffer *eb)
 {
+	if (!eb->folios[0])
+		return 0;
 	if (folio_order(eb->folios[0]))
 		return 1;
 	return num_extent_pages(eb);

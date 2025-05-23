@@ -225,20 +225,20 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 			panic("Failed to sync kernel TLBs: %d", err);
 		goto out;
 	}
-	else if (current->mm == NULL) {
-		if (current->pagefault_disabled) {
-			if (!mc) {
-				show_regs(container_of(regs, struct pt_regs, regs));
-				panic("Segfault with pagefaults disabled but no mcontext");
-			}
-			if (!current->thread.segv_continue) {
-				show_regs(container_of(regs, struct pt_regs, regs));
-				panic("Segfault without recovery target");
-			}
-			mc_set_rip(mc, current->thread.segv_continue);
-			current->thread.segv_continue = NULL;
-			goto out;
+	else if (current->pagefault_disabled) {
+		if (!mc) {
+			show_regs(container_of(regs, struct pt_regs, regs));
+			panic("Segfault with pagefaults disabled but no mcontext");
 		}
+		if (!current->thread.segv_continue) {
+			show_regs(container_of(regs, struct pt_regs, regs));
+			panic("Segfault without recovery target");
+		}
+		mc_set_rip(mc, current->thread.segv_continue);
+		current->thread.segv_continue = NULL;
+		goto out;
+	}
+	else if (current->mm == NULL) {
 		show_regs(container_of(regs, struct pt_regs, regs));
 		panic("Segfault with no mm");
 	}

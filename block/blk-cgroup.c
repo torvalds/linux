@@ -797,7 +797,7 @@ int blkg_conf_open_bdev(struct blkg_conf_ctx *ctx)
 		return -EINVAL;
 	input = skip_spaces(input);
 
-	bdev = blkdev_get_no_open(MKDEV(major, minor));
+	bdev = blkdev_get_no_open(MKDEV(major, minor), false);
 	if (!bdev)
 		return -ENODEV;
 	if (bdev_is_partition(bdev)) {

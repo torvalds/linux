@@ -472,6 +472,11 @@ static void bsp_init_amd(struct cpuinfo_x86 *c)
 		case 0x60 ... 0x7f:
 			setup_force_cpu_cap(X86_FEATURE_ZEN5);
 			break;
+		case 0x50 ... 0x5f:
+		case 0x90 ... 0xaf:
+		case 0xc0 ... 0xcf:
+			setup_force_cpu_cap(X86_FEATURE_ZEN6);
+			break;
 		default:
 			goto warn;
 		}

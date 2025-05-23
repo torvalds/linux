@@ -249,20 +249,23 @@ static inline struct bch_dev *bch2_dev_tryget(struct bch_fs *c, unsigned dev)
 static inline struct bch_dev *bch2_dev_bucket_tryget_noerror(struct bch_fs *c, struct bpos bucket)
 {
 	struct bch_dev *ca = bch2_dev_tryget_noerror(c, bucket.inode);
-	if (ca && !bucket_valid(ca, bucket.offset)) {
+	if (ca && unlikely(!bucket_valid(ca, bucket.offset))) {
 		bch2_dev_put(ca);
 		ca = NULL;
 	}
 	return ca;
 }
 
-void bch2_dev_bucket_missing(struct bch_fs *, struct bpos);
+void bch2_dev_bucket_missing(struct bch_dev *, u64);
 
 static inline struct bch_dev *bch2_dev_bucket_tryget(struct bch_fs *c, struct bpos bucket)
 {
-	struct bch_dev *ca = bch2_dev_bucket_tryget_noerror(c, bucket);
-	if (!ca)
-		bch2_dev_bucket_missing(c, bucket);
+	struct bch_dev *ca = bch2_dev_tryget(c, bucket.inode);
+	if (ca && unlikely(!bucket_valid(ca, bucket.offset))) {
+		bch2_dev_bucket_missing(ca, bucket.offset);
+		bch2_dev_put(ca);
+		ca = NULL;
+	}
 	return ca;
 }
 
