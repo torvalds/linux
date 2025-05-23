@@ -202,6 +202,7 @@ void afs_retry_request(struct netfs_io_request *wreq, struct netfs_io_stream *st
 	case NETFS_READ_GAPS:
 	case NETFS_READ_SINGLE:
 	case NETFS_READ_FOR_WRITE:
+	case NETFS_UNBUFFERED_READ:
 	case NETFS_DIO_READ:
 		return;
 	default:

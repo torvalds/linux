@@ -39,6 +39,7 @@ static const char *netfs_origins[nr__netfs_io_origin] = {
 	[NETFS_READ_GAPS]		= "RG",
 	[NETFS_READ_SINGLE]		= "R1",
 	[NETFS_READ_FOR_WRITE]		= "RW",
+	[NETFS_UNBUFFERED_READ]		= "UR",
 	[NETFS_DIO_READ]		= "DR",
 	[NETFS_WRITEBACK]		= "WB",
 	[NETFS_WRITEBACK_SINGLE]	= "W1",

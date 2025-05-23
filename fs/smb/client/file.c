@@ -219,7 +219,8 @@ static void cifs_issue_read(struct netfs_io_subrequest *subreq)
 			goto failed;
 	}
 
-	if (subreq->rreq->origin != NETFS_DIO_READ)
+	if (subreq->rreq->origin != NETFS_UNBUFFERED_READ &&
+	    subreq->rreq->origin != NETFS_DIO_READ)
 		__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
 
 	trace_netfs_sreq(subreq, netfs_sreq_trace_submit);

@@ -461,6 +461,7 @@ all_collected:
 		case NETFS_DIO_READ:
 		case NETFS_DIO_WRITE:
 		case NETFS_READ_SINGLE:
+		case NETFS_UNBUFFERED_READ:
 		case NETFS_UNBUFFERED_WRITE:
 			break;
 		default:

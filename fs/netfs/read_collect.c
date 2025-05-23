@@ -340,7 +340,8 @@ static void netfs_rreq_assess_dio(struct netfs_io_request *rreq)
 {
 	unsigned int i;
 
-	if (rreq->origin == NETFS_DIO_READ) {
+	if (rreq->origin == NETFS_UNBUFFERED_READ ||
+	    rreq->origin == NETFS_DIO_READ) {
 		for (i = 0; i < rreq->direct_bv_count; i++) {
 			flush_dcache_page(rreq->direct_bv[i].bv_page);
 			// TODO: cifs marks pages in the destination buffer
@@ -358,7 +359,8 @@ static void netfs_rreq_assess_dio(struct netfs_io_request *rreq)
 	}
 	if (rreq->netfs_ops->done)
 		rreq->netfs_ops->done(rreq);
-	if (rreq->origin == NETFS_DIO_READ)
+	if (rreq->origin == NETFS_UNBUFFERED_READ ||
+	    rreq->origin == NETFS_DIO_READ)
 		inode_dio_end(rreq->inode);
 }
 
@@ -414,6 +416,7 @@ bool netfs_read_collection(struct netfs_io_request *rreq)
 	//netfs_rreq_is_still_valid(rreq);
 
 	switch (rreq->origin) {
+	case NETFS_UNBUFFERED_READ:
 	case NETFS_DIO_READ:
 	case NETFS_READ_GAPS:
 		netfs_rreq_assess_dio(rreq);

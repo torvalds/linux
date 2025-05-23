@@ -367,6 +367,7 @@ void nfs_netfs_read_completion(struct nfs_pgio_header *hdr)
 
 	sreq = netfs->sreq;
 	if (test_bit(NFS_IOHDR_EOF, &hdr->flags) &&
+	    sreq->rreq->origin != NETFS_UNBUFFERED_READ &&
 	    sreq->rreq->origin != NETFS_DIO_READ)
 		__set_bit(NETFS_SREQ_CLEAR_TAIL, &sreq->flags);
 
