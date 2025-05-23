@@ -1662,6 +1662,22 @@ macro_rules! impl_tuple_zeroable {
 
 impl_tuple_zeroable!(A, B, C, D, E, F, G, H, I, J);
 
+macro_rules! impl_fn_zeroable_option {
+    ([$($abi:literal),* $(,)?] $args:tt) => {
+        $(impl_fn_zeroable_option!({extern $abi} $args);)*
+        $(impl_fn_zeroable_option!({unsafe extern $abi} $args);)*
+    };
+    ({$($prefix:tt)*} {$(,)?}) => {};
+    ({$($prefix:tt)*} {$ret:ident, $($rest:ident),* $(,)?}) => {
+        // SAFETY: function pointers are part of the option layout optimization:
+        // <https://doc.rust-lang.org/stable/std/option/index.html#representation>.
+        unsafe impl<$ret, $($rest),*> ZeroableOption for $($prefix)* fn($($rest),*) -> $ret {}
+        impl_fn_zeroable_option!({$($prefix)*} {$($rest),*,});
+    };
+}
+
+impl_fn_zeroable_option!(["Rust", "C"] { A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U });
+
 /// This trait allows creating an instance of `Self` which contains exactly one
 /// [structurally pinned value](https://doc.rust-lang.org/std/pin/index.html#projections-and-structural-pinning).
 ///
