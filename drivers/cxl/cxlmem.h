@@ -45,6 +45,11 @@
  * @endpoint: connection to the CXL port topology for this memory device
  * @id: id number of this memdev instance.
  * @depth: endpoint port depth
+ * @scrub_cycle: current scrub cycle set for this device
+ * @scrub_region_id: id number of a backed region (if any) for which current scrub cycle set
+ * @err_rec_array: List of xarrarys to store the memdev error records to
+ *		   check attributes for a memory repair operation are from
+ *		   current boot.
  */
 struct cxl_memdev {
 	struct device dev;
@@ -56,6 +61,9 @@ struct cxl_memdev {
 	struct cxl_port *endpoint;
 	int id;
 	int depth;
+	u8 scrub_cycle;
+	int scrub_region_id;
+	void *err_rec_array;
 };
 
 static inline struct cxl_memdev *to_cxl_memdev(struct device *dev)
@@ -527,6 +535,7 @@ enum cxl_opcode {
 	CXL_MBOX_OP_GET_SUPPORTED_FEATURES	= 0x0500,
 	CXL_MBOX_OP_GET_FEATURE		= 0x0501,
 	CXL_MBOX_OP_SET_FEATURE		= 0x0502,
+	CXL_MBOX_OP_DO_MAINTENANCE	= 0x0600,
 	CXL_MBOX_OP_IDENTIFY		= 0x4000,
 	CXL_MBOX_OP_GET_PARTITION_INFO	= 0x4100,
 	CXL_MBOX_OP_SET_PARTITION_INFO	= 0x4101,
@@ -852,6 +861,27 @@ int cxl_mem_get_poison(struct cxl_memdev *cxlmd, u64 offset, u64 len,
 int cxl_trigger_poison_list(struct cxl_memdev *cxlmd);
 int cxl_inject_poison(struct cxl_memdev *cxlmd, u64 dpa);
 int cxl_clear_poison(struct cxl_memdev *cxlmd, u64 dpa);
+
+#ifdef CONFIG_CXL_EDAC_MEM_FEATURES
+int devm_cxl_memdev_edac_register(struct cxl_memdev *cxlmd);
+int devm_cxl_region_edac_register(struct cxl_region *cxlr);
+int cxl_store_rec_gen_media(struct cxl_memdev *cxlmd, union cxl_event *evt);
+int cxl_store_rec_dram(struct cxl_memdev *cxlmd, union cxl_event *evt);
+void devm_cxl_memdev_edac_release(struct cxl_memdev *cxlmd);
+#else
+static inline int devm_cxl_memdev_edac_register(struct cxl_memdev *cxlmd)
+{ return 0; }
+static inline int devm_cxl_region_edac_register(struct cxl_region *cxlr)
+{ return 0; }
+static inline int cxl_store_rec_gen_media(struct cxl_memdev *cxlmd,
+					  union cxl_event *evt)
+{ return 0; }
+static inline int cxl_store_rec_dram(struct cxl_memdev *cxlmd,
+				     union cxl_event *evt)
+{ return 0; }
+static inline void devm_cxl_memdev_edac_release(struct cxl_memdev *cxlmd)
+{ return; }
+#endif
 
 #ifdef CONFIG_CXL_SUSPEND
 void cxl_mem_active_inc(void);
