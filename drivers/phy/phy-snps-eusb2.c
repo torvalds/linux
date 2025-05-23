@@ -611,7 +611,9 @@ static const struct of_device_id snps_eusb2_hsphy_of_match_table[] = {
 	}, {
 		.compatible = "samsung,exynos2200-eusb2-phy",
 		.data = &exynos2200_snps_eusb2_phy,
-	}, { },
+	}, {
+		/* sentinel */
+	}
 };
 MODULE_DEVICE_TABLE(of, snps_eusb2_hsphy_of_match_table);
 
