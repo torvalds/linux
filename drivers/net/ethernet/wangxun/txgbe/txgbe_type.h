@@ -287,7 +287,7 @@ struct txgbe_fdir_filter {
 	struct hlist_node fdir_node;
 	union txgbe_atr_input filter;
 	u16 sw_idx;
-	u16 action;
+	u64 action;
 };
 
 /* TX/RX descriptor defines */

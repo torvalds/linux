@@ -367,12 +367,19 @@ static int txgbe_add_ethtool_fdir_entry(struct txgbe *txgbe,
 		queue = TXGBE_RDB_FDIR_DROP_QUEUE;
 	} else {
 		u32 ring = ethtool_get_flow_spec_ring(fsp->ring_cookie);
+		u8 vf = ethtool_get_flow_spec_ring_vf(fsp->ring_cookie);
 
-		if (ring >= wx->num_rx_queues)
+		if (!vf && ring >= wx->num_rx_queues)
+			return -EINVAL;
+		else if (vf && (vf > wx->num_vfs ||
+				ring >= wx->num_rx_queues_per_pool))
 			return -EINVAL;
 
 		/* Map the ring onto the absolute queue index */
-		queue = wx->rx_ring[ring]->reg_idx;
+		if (!vf)
+			queue = wx->rx_ring[ring]->reg_idx;
+		else
+			queue = ((vf - 1) * wx->num_rx_queues_per_pool) + ring;
 	}
 
 	/* Don't allow indexes to exist outside of available space */
