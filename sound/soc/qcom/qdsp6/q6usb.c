@@ -407,7 +407,7 @@ MODULE_DEVICE_TABLE(of, q6usb_dai_device_id);
 static struct platform_driver q6usb_dai_platform_driver = {
 	.driver = {
 		.name = "q6usb-dai",
-		.of_match_table = of_match_ptr(q6usb_dai_device_id),
+		.of_match_table = q6usb_dai_device_id,
 	},
 	.probe = q6usb_dai_dev_probe,
 	/*
