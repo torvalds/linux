@@ -354,7 +354,7 @@ static void f2fs_write_end_io(struct bio *bio)
 						STOP_CP_REASON_WRITE_FAIL);
 		}
 
-		f2fs_bug_on(sbi, folio->mapping == NODE_MAPPING(sbi) &&
+		f2fs_bug_on(sbi, is_node_folio(folio) &&
 				folio->index != nid_of_node(&folio->page));
 
 		dec_page_count(sbi, type);

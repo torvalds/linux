@@ -310,10 +310,10 @@ static unsigned int __gang_lookup_nat_set(struct f2fs_nm_info *nm_i,
 							start, nr);
 }
 
-bool f2fs_in_warm_node_list(struct f2fs_sb_info *sbi, const struct folio *folio)
+bool f2fs_in_warm_node_list(struct f2fs_sb_info *sbi, struct folio *folio)
 {
-	return NODE_MAPPING(sbi) == folio->mapping &&
-			IS_DNODE(&folio->page) && is_cold_node(&folio->page);
+	return is_node_folio(folio) && IS_DNODE(&folio->page) &&
+					is_cold_node(&folio->page);
 }
 
 void f2fs_init_fsync_node_info(struct f2fs_sb_info *sbi)
@@ -1222,7 +1222,7 @@ skip_partial:
 			goto fail;
 		if (offset[1] == 0 && get_nid(&folio->page, offset[0], true)) {
 			folio_lock(folio);
-			BUG_ON(folio->mapping != NODE_MAPPING(sbi));
+			BUG_ON(!is_node_folio(folio));
 			set_nid(folio, offset[0], 0, true);
 			folio_unlock(folio);
 		}
@@ -1507,7 +1507,7 @@ repeat:
 
 	folio_lock(folio);
 
-	if (unlikely(folio->mapping != NODE_MAPPING(sbi))) {
+	if (unlikely(!is_node_folio(folio))) {
 		f2fs_folio_put(folio, true);
 		goto repeat;
 	}
@@ -1625,7 +1625,7 @@ static struct folio *last_fsync_dnode(struct f2fs_sb_info *sbi, nid_t ino)
 
 			folio_lock(folio);
 
-			if (unlikely(folio->mapping != NODE_MAPPING(sbi))) {
+			if (unlikely(!is_node_folio(folio))) {
 continue_unlock:
 				folio_unlock(folio);
 				continue;
@@ -1834,7 +1834,7 @@ retry:
 
 			folio_lock(folio);
 
-			if (unlikely(folio->mapping != NODE_MAPPING(sbi))) {
+			if (unlikely(!is_node_folio(folio))) {
 continue_unlock:
 				folio_unlock(folio);
 				continue;
@@ -1969,7 +1969,7 @@ void f2fs_flush_inline_data(struct f2fs_sb_info *sbi)
 
 			folio_lock(folio);
 
-			if (unlikely(folio->mapping != NODE_MAPPING(sbi)))
+			if (unlikely(!is_node_folio(folio)))
 				goto unlock;
 			if (!folio_test_dirty(folio))
 				goto unlock;
@@ -2041,7 +2041,7 @@ lock_node:
 			else if (!folio_trylock(folio))
 				continue;
 
-			if (unlikely(folio->mapping != NODE_MAPPING(sbi))) {
+			if (unlikely(!is_node_folio(folio))) {
 continue_unlock:
 				folio_unlock(folio);
 				continue;

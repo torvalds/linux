@@ -93,7 +93,7 @@ repeat:
 	f2fs_update_iostat(sbi, NULL, FS_META_READ_IO, F2FS_BLKSIZE);
 
 	folio_lock(folio);
-	if (unlikely(folio->mapping != mapping)) {
+	if (unlikely(!is_meta_folio(folio))) {
 		f2fs_folio_put(folio, true);
 		goto repeat;
 	}
@@ -439,7 +439,7 @@ long f2fs_sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
 
 			folio_lock(folio);
 
-			if (unlikely(folio->mapping != mapping)) {
+			if (unlikely(!is_meta_folio(folio))) {
 continue_unlock:
 				folio_unlock(folio);
 				continue;
