@@ -264,8 +264,6 @@ static int eusb2_repeater_probe(struct platform_device *pdev)
 	if (IS_ERR(phy_provider))
 		return PTR_ERR(phy_provider);
 
-	dev_info(dev, "Registered Qcom-eUSB2 repeater\n");
-
 	return 0;
 }
 
