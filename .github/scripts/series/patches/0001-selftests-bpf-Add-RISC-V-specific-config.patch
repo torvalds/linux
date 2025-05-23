@@ -1,0 +1,47 @@
+From 611f4103494e5847190d8d8b22c15a496441c075 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Tue, 27 Aug 2024 17:21:12 +0000
+Subject: [PATCH 1/6] selftests: bpf: Add RISC-V specific config
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ tools/testing/selftests/bpf/config.riscv64 | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+ create mode 100644 tools/testing/selftests/bpf/config.riscv64
+
+diff --git a/tools/testing/selftests/bpf/config.riscv64 b/tools/testing/selftests/bpf/config.riscv64
+new file mode 100644
+index 000000000000..9124d1549a1a
+--- /dev/null
++++ b/tools/testing/selftests/bpf/config.riscv64
+@@ -0,0 +1,22 @@
++CONFIG_DEBUG_CREDENTIALS=y
++CONFIG_DEBUG_INFO_BTF=y
++CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT=y
++CONFIG_DEBUG_MEMORY_INIT=y
++CONFIG_EXPERT=y
++CONFIG_RUNTIME_TESTING_MENU=y
++CONFIG_TLS=y
++CONFIG_IP_ROUTE_MULTIPATH=y
++CONFIG_MACSEC=y
++CONFIG_CRYPTO_CHACHA20POLY1305=y
++CONFIG_CRYPTO_CHACHA20=y
++CONFIG_CRYPTO_CCM=y
++CONFIG_MACVTAP=y
++CONFIG_L2TP=y
++CONFIG_TEST_FPU=y
++CONFIG_IOMMUFD=y
++CONFIG_IPV6_SEG6_LWTUNNEL=y
++CONFIG_XFRM_SUB_POLICY=y
++CONFIG_XFRM_USER=y
++CONFIG_OPENVSWITCH=y
++CONFIG_NONPORTABLE=y
++CONFIG_RISCV_EFFICIENT_UNALIGNED_ACCESS=y
+
+base-commit: 8d8d276ba2fb5f9ac4984f5c10ae60858090babc
+-- 
+2.43.0
+

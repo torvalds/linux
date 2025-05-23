@@ -1,0 +1,28 @@
+{
+  "email": {
+    "server": "smtp.gmail.com",
+    "port": 587,
+    "user": "linux.riscv.bot@gmail.com",
+    "starttls": true,
+    "default-to": "linux-riscv-reports@googlegroups.com",
+    "only-maintainers": false,
+    "maintainers": [
+	"linux.riscv.bot@gmail.com"
+    ]
+  },
+  "patchwork": {
+    "url": "https://patchwork.kernel.org",
+    "project_name": "Linux RISC-V"
+  },
+  "space_details": {
+    "kernel": {
+      "include": [
+      ],
+      "exclude": [
+        "pull request",
+        "git pull",
+        "git,pull"
+      ]
+    }
+  }
+}
