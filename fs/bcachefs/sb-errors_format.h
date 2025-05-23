@@ -209,7 +209,7 @@ enum bch_fsck_flags {
 	x(subvol_to_missing_root,				188,	0)		\
 	x(subvol_root_wrong_bi_subvol,				189,	FSCK_AUTOFIX)	\
 	x(bkey_in_missing_snapshot,				190,	0)		\
-	x(bkey_in_deleted_snapshot,				315,	0)		\
+	x(bkey_in_deleted_snapshot,				315,	FSCK_AUTOFIX)	\
 	x(inode_pos_inode_nonzero,				191,	0)		\
 	x(inode_pos_blockdev_range,				192,	0)		\
 	x(inode_alloc_cursor_inode_bad,				301,	0)		\

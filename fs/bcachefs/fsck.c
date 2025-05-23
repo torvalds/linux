@@ -2204,11 +2204,11 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 			 buf.buf))) {
 		struct qstr name = bch2_dirent_get_name(d);
 		u32 subvol = d.v->d_type == DT_SUBVOL
-			? d.v->d_parent_subvol
+			? le32_to_cpu(d.v->d_parent_subvol)
 			: 0;
 		u64 target = d.v->d_type == DT_SUBVOL
-			? d.v->d_child_subvol
-			: d.v->d_inum;
+			? le32_to_cpu(d.v->d_child_subvol)
+			: le64_to_cpu(d.v->d_inum);
 		u64 dir_offset;
 
 		ret =   bch2_hash_delete_at(trans,
