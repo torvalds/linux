@@ -2041,8 +2041,12 @@ void intel_color_wait_commit(const struct intel_crtc_state *crtc_state)
 static bool intel_can_preload_luts(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(state);
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
+
+	if (HAS_DOUBLE_BUFFERED_LUT(display))
+		return false;
 
 	return !old_crtc_state->post_csc_lut &&
 		!old_crtc_state->pre_csc_lut;
