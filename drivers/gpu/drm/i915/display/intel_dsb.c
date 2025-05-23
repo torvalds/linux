@@ -606,6 +606,19 @@ void intel_dsb_gosub(struct intel_dsb *dsb,
 	intel_dsb_align_tail(dsb);
 }
 
+void intel_dsb_gosub_finish(struct intel_dsb *dsb)
+{
+	intel_dsb_align_tail(dsb);
+
+	/*
+	 * "All subroutines called by the GOSUB instruction
+	 *  must end with a cacheline of NOPs"
+	 */
+	intel_dsb_noop(dsb, 8);
+
+	intel_dsb_buffer_flush_map(&dsb->dsb_buf);
+}
+
 void intel_dsb_finish(struct intel_dsb *dsb)
 {
 	struct intel_crtc *crtc = dsb->crtc;
