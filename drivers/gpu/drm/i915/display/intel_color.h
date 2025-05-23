@@ -24,6 +24,8 @@ void intel_color_prepare_commit(struct intel_atomic_state *state,
 				struct intel_crtc *crtc);
 void intel_color_cleanup_commit(struct intel_crtc_state *crtc_state);
 bool intel_color_uses_dsb(const struct intel_crtc_state *crtc_state);
+bool intel_color_uses_chained_dsb(const struct intel_crtc_state *crtc_state);
+bool intel_color_uses_gosub_dsb(const struct intel_crtc_state *crtc_state);
 void intel_color_wait_commit(const struct intel_crtc_state *crtc_state);
 void intel_color_commit_noarm(struct intel_dsb *dsb,
 			      const struct intel_crtc_state *crtc_state);

@@ -1965,6 +1965,25 @@ void intel_color_modeset(const struct intel_crtc_state *crtc_state)
 	}
 }
 
+bool intel_color_uses_dsb(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->dsb_color;
+}
+
+bool intel_color_uses_chained_dsb(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+
+	return crtc_state->dsb_color && !HAS_DOUBLE_BUFFERED_LUT(display);
+}
+
+bool intel_color_uses_gosub_dsb(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+
+	return crtc_state->dsb_color && HAS_DOUBLE_BUFFERED_LUT(display);
+}
+
 void intel_color_prepare_commit(struct intel_atomic_state *state,
 				struct intel_crtc *crtc)
 {
@@ -1982,20 +2001,27 @@ void intel_color_prepare_commit(struct intel_atomic_state *state,
 	if (!crtc_state->pre_csc_lut && !crtc_state->post_csc_lut)
 		return;
 
-	crtc_state->dsb_color = intel_dsb_prepare(state, crtc, INTEL_DSB_1, 1024);
-	if (!crtc_state->dsb_color)
+	if (HAS_DOUBLE_BUFFERED_LUT(display))
+		crtc_state->dsb_color = intel_dsb_prepare(state, crtc, INTEL_DSB_0, 1024);
+	else
+		crtc_state->dsb_color = intel_dsb_prepare(state, crtc, INTEL_DSB_1, 1024);
+
+	if (!intel_color_uses_dsb(crtc_state))
 		return;
 
 	display->funcs.color->load_luts(crtc_state);
 
-	if (crtc_state->use_dsb) {
+	if (crtc_state->use_dsb && intel_color_uses_chained_dsb(crtc_state)) {
 		intel_vrr_send_push(crtc_state->dsb_color, crtc_state);
 		intel_dsb_wait_vblank_delay(state, crtc_state->dsb_color);
 		intel_vrr_check_push_sent(crtc_state->dsb_color, crtc_state);
 		intel_dsb_interrupt(crtc_state->dsb_color);
 	}
 
-	intel_dsb_finish(crtc_state->dsb_color);
+	if (intel_color_uses_gosub_dsb(crtc_state))
+		intel_dsb_gosub_finish(crtc_state->dsb_color);
+	else
+		intel_dsb_finish(crtc_state->dsb_color);
 }
 
 void intel_color_cleanup_commit(struct intel_crtc_state *crtc_state)
@@ -2010,11 +2036,6 @@ void intel_color_wait_commit(const struct intel_crtc_state *crtc_state)
 {
 	if (crtc_state->dsb_color)
 		intel_dsb_wait(crtc_state->dsb_color);
-}
-
-bool intel_color_uses_dsb(const struct intel_crtc_state *crtc_state)
-{
-	return crtc_state->dsb_color;
 }
 
 static bool intel_can_preload_luts(struct intel_atomic_state *state,
