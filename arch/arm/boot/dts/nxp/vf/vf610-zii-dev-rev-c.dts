@@ -311,7 +311,7 @@
 	 *    I/O14 - OPT1_TX_DIS
 	 *    I/O15 - OPT2_TX_DIS
 	 */
-	gpio6: sx1503@20 {
+	gpio6: pinctrl@20 {
 		compatible = "semtech,sx1503q";
 
 		pinctrl-names = "default";
