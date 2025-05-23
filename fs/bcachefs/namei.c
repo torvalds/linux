@@ -158,7 +158,6 @@ int bch2_create_trans(struct btree_trans *trans,
 					   name,
 					   dir_target,
 					   &dir_offset,
-					   &dir_u->bi_size,
 					   STR_HASH_must_create|BTREE_ITER_with_updates) ?:
 			bch2_inode_write(trans, &dir_iter, dir_u);
 		if (ret)
@@ -225,7 +224,6 @@ int bch2_link_trans(struct btree_trans *trans,
 				 mode_to_type(inode_u->bi_mode),
 				 name, inum.inum,
 				 &dir_offset,
-				 &dir_u->bi_size,
 				 STR_HASH_must_create);
 	if (ret)
 		goto err;

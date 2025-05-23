@@ -14,6 +14,7 @@
 #include "extent_update.h"
 #include "fs.h"
 #include "inode.h"
+#include "namei.h"
 #include "opts.h"
 #include "str_hash.h"
 #include "snapshot.h"
@@ -1202,6 +1203,41 @@ int bch2_inum_opts_get(struct btree_trans *trans, subvol_inum inum, struct bch_i
 
 	bch2_inode_opts_get(opts, trans->c, &inode);
 	return 0;
+}
+
+int bch2_inode_set_casefold(struct btree_trans *trans, subvol_inum inum,
+			    struct bch_inode_unpacked *bi, unsigned v)
+{
+	struct bch_fs *c = trans->c;
+
+#ifdef CONFIG_UNICODE
+	int ret = 0;
+	/* Not supported on individual files. */
+	if (!S_ISDIR(bi->bi_mode))
+		return -EOPNOTSUPP;
+
+	/*
+	 * Make sure the dir is empty, as otherwise we'd need to
+	 * rehash everything and update the dirent keys.
+	 */
+	ret = bch2_empty_dir_trans(trans, inum);
+	if (ret < 0)
+		return ret;
+
+	ret = bch2_request_incompat_feature(c, bcachefs_metadata_version_casefolding);
+	if (ret)
+		return ret;
+
+	bch2_check_set_feature(c, BCH_FEATURE_casefolding);
+
+	bi->bi_casefold = v + 1;
+	bi->bi_fields_set |= BIT(Inode_opt_casefold);
+
+	return 0;
+#else
+	bch_err(c, "Cannot use casefolding on a kernel without CONFIG_UNICODE");
+	return -EOPNOTSUPP;
+#endif
 }
 
 static noinline int __bch2_inode_rm_snapshot(struct btree_trans *trans, u64 inum, u32 snapshot)

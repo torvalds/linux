@@ -775,22 +775,23 @@ void xe_mocs_init(struct xe_gt *gt)
 void xe_mocs_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
+	enum xe_force_wake_domains domain;
 	struct xe_mocs_info table;
 	unsigned int fw_ref, flags;
 
 	flags = get_mocs_settings(xe, &table);
 
+	domain = flags & HAS_LNCF_MOCS ? XE_FORCEWAKE_ALL : XE_FW_GT;
 	xe_pm_runtime_get_noresume(xe);
-	fw_ref = xe_force_wake_get(gt_to_fw(gt),
-				   flags & HAS_LNCF_MOCS ?
-				   XE_FORCEWAKE_ALL : XE_FW_GT);
-	if (!fw_ref)
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), domain);
+
+	if (!xe_force_wake_ref_has_domain(fw_ref, domain))
 		goto err_fw;
 
 	table.ops->dump(&table, flags, gt, p);
 
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 err_fw:
+	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	xe_pm_runtime_put(xe);
 }
 
