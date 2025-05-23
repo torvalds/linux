@@ -623,7 +623,6 @@
 
 	i2c-mux@70 {
 		compatible = "nxp,pca9548";
-		pinctrl-names = "default";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x70>;
@@ -662,7 +661,6 @@
 
 	i2c-mux@71 {
 		compatible = "nxp,pca9548";
-		pinctrl-names = "default";
 		reg = <0x71>;
 		#address-cells = <1>;
 		#size-cells = <0>;
