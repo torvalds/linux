@@ -1250,7 +1250,7 @@ void hugetlb_dup_vma_private(struct vm_area_struct *vma)
 /*
  * Reset and decrement one ref on hugepage private reservation.
  * Called with mm->mmap_lock writer semaphore held.
- * This function should be only used by move_vma() and operate on
+ * This function should be only used by mremap and operate on
  * same sized vma. It should never come here with last ref on the
  * reservation.
  */
@@ -7938,4 +7938,18 @@ void hugetlb_unshare_all_pmds(struct vm_area_struct *vma)
 {
 	hugetlb_unshare_pmds(vma, ALIGN(vma->vm_start, PUD_SIZE),
 			ALIGN_DOWN(vma->vm_end, PUD_SIZE));
+}
+
+/*
+ * For hugetlb, mremap() is an odd edge case - while the VMA copying is
+ * performed, we permit both the old and new VMAs to reference the same
+ * reservation.
+ *
+ * We fix this up after the operation succeeds, or if a newly allocated VMA
+ * is closed as a result of a failure to allocate memory.
+ */
+void fixup_hugetlb_reservations(struct vm_area_struct *vma)
+{
+	if (is_vm_hugetlb_page(vma))
+		clear_vma_resv_huge_pages(vma);
 }
