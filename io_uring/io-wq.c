@@ -419,6 +419,30 @@ fail:
 	return false;
 }
 
+/* Defer if current and next work are both hashed to the same chain */
+static bool io_wq_hash_defer(struct io_wq_work *work, struct io_wq_acct *acct)
+{
+	unsigned int hash, work_flags;
+	struct io_wq_work *next;
+
+	lockdep_assert_held(&acct->lock);
+
+	work_flags = atomic_read(&work->flags);
+	if (!__io_wq_is_hashed(work_flags))
+		return false;
+
+	/* should not happen, io_acct_run_queue() said we had work */
+	if (wq_list_empty(&acct->work_list))
+		return true;
+
+	hash = __io_get_work_hash(work_flags);
+	next = container_of(acct->work_list.first, struct io_wq_work, list);
+	work_flags = atomic_read(&next->flags);
+	if (!__io_wq_is_hashed(work_flags))
+		return false;
+	return hash == __io_get_work_hash(work_flags);
+}
+
 static void io_wq_dec_running(struct io_worker *worker)
 {
 	struct io_wq_acct *acct = io_wq_get_acct(worker);
@@ -433,6 +457,10 @@ static void io_wq_dec_running(struct io_worker *worker)
 		return;
 	if (!io_acct_run_queue(acct))
 		return;
+	if (io_wq_hash_defer(worker->cur_work, acct)) {
+		raw_spin_unlock(&acct->lock);
+		return;
+	}
 
 	raw_spin_unlock(&acct->lock);
 	atomic_inc(&acct->nr_running);
