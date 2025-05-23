@@ -468,7 +468,7 @@ static int snps_eusb2_hsphy_init(struct phy *p)
 	ret = clk_bulk_prepare_enable(phy->data->num_clks, phy->clks);
 	if (ret) {
 		dev_err(&p->dev, "failed to enable ref clock, %d\n", ret);
-		goto disable_vreg;
+		goto exit_repeater;
 	}
 
 	ret = reset_control_assert(phy->phy_reset);
@@ -493,7 +493,8 @@ static int snps_eusb2_hsphy_init(struct phy *p)
 
 disable_ref_clk:
 	clk_bulk_disable_unprepare(phy->data->num_clks, phy->clks);
-
+exit_repeater:
+	phy_exit(phy->repeater);
 disable_vreg:
 	regulator_bulk_disable(ARRAY_SIZE(phy->vregs), phy->vregs);
 
