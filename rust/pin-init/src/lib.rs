@@ -1546,6 +1546,13 @@ pub unsafe trait ZeroableOption {}
 // SAFETY: by the safety requirement of `ZeroableOption`, this is valid.
 unsafe impl<T: ZeroableOption> Zeroable for Option<T> {}
 
+// SAFETY: `Option<&T>` is part of the option layout optimization guarantee:
+// <https://doc.rust-lang.org/stable/std/option/index.html#representation>.
+unsafe impl<T> ZeroableOption for &T {}
+// SAFETY: `Option<&mut T>` is part of the option layout optimization guarantee:
+// <https://doc.rust-lang.org/stable/std/option/index.html#representation>.
+unsafe impl<T> ZeroableOption for &mut T {}
+
 /// Create an initializer for a zeroed `T`.
 ///
 /// The returned initializer will write `0x00` to every byte of the given `slot`.
