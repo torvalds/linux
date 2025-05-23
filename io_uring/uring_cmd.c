@@ -275,6 +275,9 @@ int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
 {
 	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
 
+	if (WARN_ON_ONCE(!(ioucmd->flags & IORING_URING_CMD_FIXED)))
+		return -EINVAL;
+
 	return io_import_reg_buf(req, iter, ubuf, len, rw, issue_flags);
 }
 EXPORT_SYMBOL_GPL(io_uring_cmd_import_fixed);
@@ -288,6 +291,9 @@ int io_uring_cmd_import_fixed_vec(struct io_uring_cmd *ioucmd,
 	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
 	struct io_async_cmd *ac = req->async_data;
 	int ret;
+
+	if (WARN_ON_ONCE(!(ioucmd->flags & IORING_URING_CMD_FIXED)))
+		return -EINVAL;
 
 	ret = io_prep_reg_iovec(req, &ac->vec, uvec, uvec_segs);
 	if (ret)
