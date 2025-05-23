@@ -8650,6 +8650,8 @@ int __init vmx_init(void)
 {
 	int r, cpu;
 
+	KVM_SANITY_CHECK_VM_STRUCT_SIZE(kvm_vmx);
+
 	if (!kvm_is_vmx_supported())
 		return -EOPNOTSUPP;
 

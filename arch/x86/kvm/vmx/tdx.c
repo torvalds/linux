@@ -3630,6 +3630,8 @@ success_disable_tdx:
 
 void __init tdx_hardware_setup(void)
 {
+	KVM_SANITY_CHECK_VM_STRUCT_SIZE(kvm_tdx);
+
 	/*
 	 * Note, if the TDX module can't be loaded, KVM TDX support will be
 	 * disabled but KVM will continue loading (see tdx_bringup()).
