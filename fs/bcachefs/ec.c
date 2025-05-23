@@ -507,20 +507,14 @@ static const struct bch_extent_ptr *bkey_matches_stripe(struct bch_stripe *s,
 
 static bool extent_has_stripe_ptr(struct bkey_s_c k, u64 idx)
 {
-	switch (k.k->type) {
-	case KEY_TYPE_extent: {
-		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
-		const union bch_extent_entry *entry;
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const union bch_extent_entry *entry;
 
-		extent_for_each_entry(e, entry)
-			if (extent_entry_type(entry) ==
-			    BCH_EXTENT_ENTRY_stripe_ptr &&
-			    entry->stripe_ptr.idx == idx)
-				return true;
-
-		break;
-	}
-	}
+	bkey_extent_entry_for_each(ptrs, entry)
+		if (extent_entry_type(entry) ==
+		    BCH_EXTENT_ENTRY_stripe_ptr &&
+		    entry->stripe_ptr.idx == idx)
+			return true;
 
 	return false;
 }
