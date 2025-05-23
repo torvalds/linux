@@ -256,7 +256,7 @@ static int exynos_eusb2_ref_clk_init(struct snps_eusb2_hsphy *phy)
 	}
 
 	if (!config) {
-		dev_err(&phy->phy->dev, "unsupported ref_clk_freq:%lu\n", ref_clk_freq);
+		dev_err(&phy->phy->dev, "unsupported ref_clk_freq: %lu\n", ref_clk_freq);
 		return -EINVAL;
 	}
 
@@ -293,7 +293,7 @@ static int qcom_eusb2_ref_clk_init(struct snps_eusb2_hsphy *phy)
 	}
 
 	if (!config) {
-		dev_err(&phy->phy->dev, "unsupported ref_clk_freq:%lu\n", ref_clk_freq);
+		dev_err(&phy->phy->dev, "unsupported ref_clk_freq: %lu\n", ref_clk_freq);
 		return -EINVAL;
 	}
 
@@ -461,19 +461,19 @@ static int snps_eusb2_hsphy_init(struct phy *p)
 
 	ret = phy_init(phy->repeater);
 	if (ret) {
-		dev_err(&p->dev, "repeater init failed. %d\n", ret);
+		dev_err(&p->dev, "repeater init failed: %d\n", ret);
 		goto disable_vreg;
 	}
 
 	ret = clk_bulk_prepare_enable(phy->data->num_clks, phy->clks);
 	if (ret) {
-		dev_err(&p->dev, "failed to enable ref clock, %d\n", ret);
+		dev_err(&p->dev, "failed to enable ref clock: %d\n", ret);
 		goto exit_repeater;
 	}
 
 	ret = reset_control_assert(phy->phy_reset);
 	if (ret) {
-		dev_err(&p->dev, "failed to assert phy_reset, %d\n", ret);
+		dev_err(&p->dev, "failed to assert phy_reset: %d\n", ret);
 		goto disable_clks;
 	}
 
@@ -481,7 +481,7 @@ static int snps_eusb2_hsphy_init(struct phy *p)
 
 	ret = reset_control_deassert(phy->phy_reset);
 	if (ret) {
-		dev_err(&p->dev, "failed to de-assert phy_reset, %d\n", ret);
+		dev_err(&p->dev, "failed to de-assert phy_reset: %d\n", ret);
 		goto disable_clks;
 	}
 
@@ -588,7 +588,7 @@ static int snps_eusb2_hsphy_probe(struct platform_device *pdev)
 
 	generic_phy = devm_phy_create(dev, NULL, &snps_eusb2_hsphy_ops);
 	if (IS_ERR(generic_phy)) {
-		dev_err(dev, "failed to create phy %d\n", ret);
+		dev_err(dev, "failed to create phy: %d\n", ret);
 		return PTR_ERR(generic_phy);
 	}
 
