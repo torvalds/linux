@@ -137,6 +137,25 @@ REPORT OPTIONS
 In addition, for report all perf report options are valid, and for record
 all perf record options.
 
+OVERHEAD CALCULATION
+--------------------
+Unlike linkperf:perf-report[1], which calculates overhead from the actual
+sample period, perf-mem overhead is calculated using sample weight. E.g.
+there are two samples in perf.data file, both with the same sample period,
+but one sample with weight 180 and the other with weight 20:
+
+  $ perf script -F period,data_src,weight,ip,sym
+  100000    629080842 |OP LOAD|LVL L3 hit|...     20       7e69b93ca524 strcmp
+  100000   1a29081042 |OP LOAD|LVL RAM hit|...   180   ffffffff82429168 memcpy
+
+  $ perf report -F overhead,symbol
+  50%   [.] strcmp
+  50%   [k] memcpy
+
+  $ perf mem report -F overhead,symbol
+  90%   [k] memcpy
+  10%   [.] strcmp
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-report[1], linkperf:perf-arm-spe[1]
