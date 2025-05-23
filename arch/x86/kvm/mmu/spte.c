@@ -138,6 +138,22 @@ static bool kvm_is_mmio_pfn(kvm_pfn_t pfn, int *is_host_mmio)
 	return *is_host_mmio;
 }
 
+static void kvm_track_host_mmio_mapping(struct kvm_vcpu *vcpu)
+{
+	struct kvm_mmu_page *root = root_to_sp(vcpu->arch.mmu->root.hpa);
+
+	if (root)
+		WRITE_ONCE(root->has_mapped_host_mmio, true);
+	else
+		WRITE_ONCE(vcpu->kvm->arch.has_mapped_host_mmio, true);
+
+	/*
+	 * Force vCPUs to exit and flush CPU buffers if the vCPU is using the
+	 * affected root(s).
+	 */
+	kvm_make_all_cpus_request(vcpu->kvm, KVM_REQ_OUTSIDE_GUEST_MODE);
+}
+
 /*
  * Returns true if the SPTE needs to be updated atomically due to having bits
  * that may be changed without holding mmu_lock, and for which KVM must not
@@ -275,6 +291,11 @@ bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 		WARN_ON_ONCE(level > PG_LEVEL_4K);
 		mark_page_dirty_in_slot(vcpu->kvm, slot, gfn);
 	}
+
+	if (static_branch_unlikely(&cpu_buf_vm_clear) &&
+	    !kvm_vcpu_can_access_host_mmio(vcpu) &&
+	    kvm_is_mmio_pfn(pfn, &is_host_mmio))
+		kvm_track_host_mmio_mapping(vcpu);
 
 	*new_spte = spte;
 	return wrprot;
