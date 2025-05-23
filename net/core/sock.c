@@ -1220,15 +1220,6 @@ int sk_setsockopt(struct sock *sk, int level, int optname,
 			return 0;
 		}
 		return -EPERM;
-	case SO_PASSSEC:
-		assign_bit(SOCK_PASSSEC, &sock->flags, valbool);
-		return 0;
-	case SO_PASSCRED:
-		assign_bit(SOCK_PASSCRED, &sock->flags, valbool);
-		return 0;
-	case SO_PASSPIDFD:
-		assign_bit(SOCK_PASSPIDFD, &sock->flags, valbool);
-		return 0;
 	case SO_TYPE:
 	case SO_PROTOCOL:
 	case SO_DOMAIN:
@@ -1276,6 +1267,8 @@ int sk_setsockopt(struct sock *sk, int level, int optname,
 		return 0;
 		}
 	case SO_TXREHASH:
+		if (!sk_is_tcp(sk))
+			return -EOPNOTSUPP;
 		if (val < -1 || val > 1)
 			return -EINVAL;
 		if ((u8)val == SOCK_TXREHASH_DEFAULT)
@@ -1557,6 +1550,33 @@ set_sndbuf:
 		sock_valbool_flag(sk, SOCK_SELECT_ERR_QUEUE, valbool);
 		break;
 
+	case SO_PASSCRED:
+		if (sk_may_scm_recv(sk))
+			sk->sk_scm_credentials = valbool;
+		else
+			ret = -EOPNOTSUPP;
+		break;
+
+	case SO_PASSSEC:
+		if (IS_ENABLED(CONFIG_SECURITY_NETWORK) && sk_may_scm_recv(sk))
+			sk->sk_scm_security = valbool;
+		else
+			ret = -EOPNOTSUPP;
+		break;
+
+	case SO_PASSPIDFD:
+		if (sk_is_unix(sk))
+			sk->sk_scm_pidfd = valbool;
+		else
+			ret = -EOPNOTSUPP;
+		break;
+
+	case SO_PASSRIGHTS:
+		if (sk_is_unix(sk))
+			sk->sk_scm_rights = valbool;
+		else
+			ret = -EOPNOTSUPP;
+		break;
 
 	case SO_INCOMING_CPU:
 		reuseport_update_incoming_cpu(sk, val);
@@ -1853,11 +1873,24 @@ int sk_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case SO_PASSCRED:
-		v.val = !!test_bit(SOCK_PASSCRED, &sock->flags);
+		if (!sk_may_scm_recv(sk))
+			return -EOPNOTSUPP;
+
+		v.val = sk->sk_scm_credentials;
 		break;
 
 	case SO_PASSPIDFD:
-		v.val = !!test_bit(SOCK_PASSPIDFD, &sock->flags);
+		if (!sk_is_unix(sk))
+			return -EOPNOTSUPP;
+
+		v.val = sk->sk_scm_pidfd;
+		break;
+
+	case SO_PASSRIGHTS:
+		if (!sk_is_unix(sk))
+			return -EOPNOTSUPP;
+
+		v.val = sk->sk_scm_rights;
 		break;
 
 	case SO_PEERCRED:
@@ -1954,7 +1987,10 @@ int sk_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case SO_PASSSEC:
-		v.val = !!test_bit(SOCK_PASSSEC, &sock->flags);
+		if (!IS_ENABLED(CONFIG_SECURITY_NETWORK) || !sk_may_scm_recv(sk))
+			return -EOPNOTSUPP;
+
+		v.val = sk->sk_scm_security;
 		break;
 
 	case SO_PEERSEC:
@@ -2102,6 +2138,9 @@ int sk_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case SO_TXREHASH:
+		if (!sk_is_tcp(sk))
+			return -EOPNOTSUPP;
+
 		/* Paired with WRITE_ONCE() in sk_setsockopt() */
 		v.val = READ_ONCE(sk->sk_txrehash);
 		break;
