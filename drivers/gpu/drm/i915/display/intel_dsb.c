@@ -655,6 +655,9 @@ static u32 dsb_error_int_status(struct intel_display *display)
 	if (DISPLAY_VER(display) >= 14)
 		errors |= DSB_ATS_FAULT_INT_STATUS;
 
+	if (DISPLAY_VER(display) >= 30)
+		errors |= DSB_GOSUB_INT_STATUS;
+
 	return errors;
 }
 
@@ -668,6 +671,9 @@ static u32 dsb_error_int_en(struct intel_display *display)
 
 	if (DISPLAY_VER(display) >= 14)
 		errors |= DSB_ATS_FAULT_INT_EN;
+
+	if (DISPLAY_VER(display) >= 30)
+		errors |= DSB_GOSUB_INT_EN;
 
 	return errors;
 }
@@ -1006,5 +1012,8 @@ void intel_dsb_irq_handler(struct intel_display *display,
 			crtc->base.base.id, crtc->base.name, dsb_id);
 	if (errors & DSB_POLL_ERR_INT_STATUS)
 		drm_err(display->drm, "[CRTC:%d:%s] DSB %d poll error\n",
+			crtc->base.base.id, crtc->base.name, dsb_id);
+	if (errors & DSB_GOSUB_INT_STATUS)
+		drm_err(display->drm, "[CRTC:%d:%s] DSB %d GOSUB programming error\n",
 			crtc->base.base.id, crtc->base.name, dsb_id);
 }
