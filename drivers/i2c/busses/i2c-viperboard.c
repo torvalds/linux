@@ -11,6 +11,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/types.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
@@ -278,7 +279,7 @@ static int vprbrd_i2c_xfer(struct i2c_adapter *i2c, struct i2c_msg *msgs,
 
 		dev_dbg(&i2c->dev,
 			"  %d: %s (flags %d) %d bytes to 0x%02x\n",
-			i, pmsg->flags & I2C_M_RD ? "read" : "write",
+			i, str_read_write(pmsg->flags & I2C_M_RD),
 			pmsg->flags, pmsg->len, pmsg->addr);
 
 		mutex_lock(&vb->lock);
