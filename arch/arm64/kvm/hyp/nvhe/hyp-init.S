@@ -100,7 +100,7 @@ SYM_CODE_START_LOCAL(___kvm_hyp_init)
 	msr	mair_el2, x1
 
 	ldr	x1, [x0, #NVHE_INIT_HCR_EL2]
-	msr	hcr_el2, x1
+	msr_hcr_el2 x1
 
 	mov	x2, #HCR_E2H
 	and	x2, x1, x2
@@ -262,7 +262,7 @@ reset:
 
 alternative_if ARM64_KVM_PROTECTED_MODE
 	mov_q	x5, HCR_HOST_NVHE_FLAGS
-	msr	hcr_el2, x5
+	msr_hcr_el2 x5
 alternative_else_nop_endif
 
 	/* Install stub vectors */
