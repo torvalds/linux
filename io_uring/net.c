@@ -827,18 +827,24 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
 
 	if (sr->flags & IORING_RECVSEND_BUNDLE) {
-		cflags |= io_put_kbufs(req, *ret, io_bundle_nbufs(kmsg, *ret),
+		size_t this_ret = *ret - sr->done_io;
+
+		cflags |= io_put_kbufs(req, *ret, io_bundle_nbufs(kmsg, this_ret),
 				      issue_flags);
 		if (sr->retry)
 			cflags = req->cqe.flags | (cflags & CQE_F_MASK);
 		/* bundle with no more immediate buffers, we're done */
 		if (req->flags & REQ_F_BL_EMPTY)
 			goto finish;
-		/* if more is available, retry and append to this one */
-		if (!sr->retry && kmsg->msg.msg_inq > 0 && *ret > 0) {
+		/*
+		 * If more is available AND it was a full transfer, retry and
+		 * append to this one
+		 */
+		if (!sr->retry && kmsg->msg.msg_inq > 0 && this_ret > 0 &&
+		    !iov_iter_count(&kmsg->msg.msg_iter)) {
 			req->cqe.flags = cflags & ~CQE_F_MASK;
 			sr->len = kmsg->msg.msg_inq;
-			sr->done_io += *ret;
+			sr->done_io += this_ret;
 			sr->retry = true;
 			return false;
 		}

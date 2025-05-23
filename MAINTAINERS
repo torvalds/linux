@@ -20613,8 +20613,8 @@ F:	Documentation/devicetree/bindings/i2c/renesas,iic-emev2.yaml
 F:	drivers/i2c/busses/i2c-emev2.c
 
 RENESAS ETHERNET AVB DRIVER
-M:	Paul Barker <paul.barker.ct@bp.renesas.com>
 M:	Niklas Söderlund <niklas.soderlund@ragnatech.se>
+R:	Paul Barker <paul@pbarker.dev>
 L:	netdev@vger.kernel.org
 L:	linux-renesas-soc@vger.kernel.org
 S:	Maintained

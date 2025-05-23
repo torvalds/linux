@@ -1162,7 +1162,7 @@ int bch2_btree_path_traverse_one(struct btree_trans *trans,
 	}
 
 	if (path->cached) {
-		ret = bch2_btree_path_traverse_cached(trans, path, flags);
+		ret = bch2_btree_path_traverse_cached(trans, path_idx, flags);
 		goto out;
 	}
 

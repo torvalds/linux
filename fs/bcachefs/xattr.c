@@ -473,6 +473,12 @@ static int inode_opt_set_fn(struct btree_trans *trans,
 {
 	struct inode_opt_set *s = p;
 
+	if (s->id == Inode_opt_casefold) {
+		int ret = bch2_inode_set_casefold(trans, inode_inum(inode), bi, s->v);
+		if (ret)
+			return ret;
+	}
+
 	if (s->defined)
 		bi->bi_fields_set |= 1U << s->id;
 	else

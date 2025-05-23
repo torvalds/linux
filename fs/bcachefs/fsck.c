@@ -306,6 +306,7 @@ create_lostfound:
 				&lostfound_str,
 				lostfound->bi_inum,
 				&lostfound->bi_dir_offset,
+				BTREE_UPDATE_internal_snapshot_node|
 				STR_HASH_must_create) ?:
 		bch2_inode_write_flags(trans, &lostfound_iter, lostfound,
 				       BTREE_UPDATE_internal_snapshot_node);
@@ -431,6 +432,7 @@ static int reattach_inode(struct btree_trans *trans, struct bch_inode_unpacked *
 				&name,
 				inode->bi_subvol ?: inode->bi_inum,
 				&inode->bi_dir_offset,
+				BTREE_UPDATE_internal_snapshot_node|
 				STR_HASH_must_create);
 	if (ret) {
 		bch_err_msg(c, ret, "error creating dirent");
@@ -2187,6 +2189,41 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 		goto out;
 
 	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
+
+	/* check casefold */
+	if (fsck_err_on(d.v->d_casefold != !!hash_info->cf_encoding,
+			trans, dirent_casefold_mismatch,
+			"dirent casefold does not match dir casefold\n%s",
+			(printbuf_reset(&buf),
+			 bch2_bkey_val_to_text(&buf, c, k),
+			 buf.buf))) {
+		struct qstr name = bch2_dirent_get_name(d);
+		u32 subvol = d.v->d_type == DT_SUBVOL
+			? d.v->d_parent_subvol
+			: 0;
+		u64 target = d.v->d_type == DT_SUBVOL
+			? d.v->d_child_subvol
+			: d.v->d_inum;
+		u64 dir_offset;
+
+		ret =   bch2_hash_delete_at(trans,
+					    bch2_dirent_hash_desc, hash_info, iter,
+					    BTREE_UPDATE_internal_snapshot_node) ?:
+			bch2_dirent_create_snapshot(trans, subvol,
+						    d.k->p.inode, d.k->p.snapshot,
+						    hash_info,
+						    d.v->d_type,
+						    &name,
+						    target,
+						    &dir_offset,
+						    BTREE_ITER_with_updates|
+						    BTREE_UPDATE_internal_snapshot_node|
+						    STR_HASH_must_create) ?:
+			bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
+
+		/* might need another check_dirents pass */
+		goto out;
+	}
 
 	if (d.v->d_type == DT_SUBVOL) {
 		ret = check_dirent_to_subvol(trans, iter, d);

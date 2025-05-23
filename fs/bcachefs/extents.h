@@ -380,13 +380,6 @@ out:									\
 
 /* Iterate over pointers in KEY_TYPE_extent: */
 
-#define extent_for_each_entry_from(_e, _entry, _start)			\
-	__bkey_extent_entry_for_each_from(_start,			\
-				extent_entry_last(_e), _entry)
-
-#define extent_for_each_entry(_e, _entry)				\
-	extent_for_each_entry_from(_e, _entry, (_e).v->start)
-
 #define extent_ptr_next(_e, _ptr)					\
 	__bkey_ptr_next(_ptr, extent_entry_last(_e))
 

@@ -233,7 +233,7 @@ static void exynos_usi_unconfigure(void *data)
 	/* Make sure that we've stopped providing the clock to USI IP */
 	val = readl(usi->regs + USI_OPTION);
 	val &= ~USI_OPTION_CLKREQ_ON;
-	val |= ~USI_OPTION_CLKSTOP_ON;
+	val |= USI_OPTION_CLKSTOP_ON;
 	writel(val, usi->regs + USI_OPTION);
 
 	/* Set USI block state to reset */
