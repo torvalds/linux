@@ -1495,7 +1495,18 @@ pub unsafe trait PinnedDrop: __internal::HasPinData {
 /// ```rust,ignore
 /// let val: Self = unsafe { core::mem::zeroed() };
 /// ```
-pub unsafe trait Zeroable {}
+pub unsafe trait Zeroable {
+    /// Create a new zeroed `Self`.
+    ///
+    /// The returned initializer will write `0x00` to every byte of the given `slot`.
+    #[inline]
+    fn init_zeroed() -> impl Init<Self>
+    where
+        Self: Sized,
+    {
+        init_zeroed()
+    }
+}
 
 /// Marker trait for types that allow `Option<Self>` to be set to all zeroes in order to write
 /// `None` to that location.
