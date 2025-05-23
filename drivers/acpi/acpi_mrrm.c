@@ -14,7 +14,8 @@
 #include <linux/string.h>
 #include <linux/sysfs.h>
 
-static int max_mem_region = -ENOENT;
+/* Default assume one memory region covering all system memory, per the spec */
+static int max_mem_region = 1;
 
 /* Access for use by resctrl file system */
 int acpi_mrrm_max_mem_region(void)
