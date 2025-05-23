@@ -333,7 +333,7 @@
 		>;
 	};
 
-	pinctrl_leds_debug: pinctrl-leds-debug {
+	pinctrl_leds_debug: pinctrl-leds-debuggrp {
 		fsl,pins = <
 			VF610_PAD_PTD3__GPIO_82			0x31c2
 			VF610_PAD_PTE3__GPIO_108		0x31c2

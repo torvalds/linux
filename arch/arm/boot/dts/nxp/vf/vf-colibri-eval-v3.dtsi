@@ -142,11 +142,9 @@
 };
 
 &iomuxc {
-	vf610-colibri {
-		pinctrl_can_int: can_int {
-			fsl,pins = <
-				VF610_PAD_PTB21__GPIO_43	0x22ed
-			>;
-		};
+	pinctrl_can_int: can_intgrp {
+		fsl,pins = <
+			VF610_PAD_PTB21__GPIO_43	0x22ed
+		>;
 	};
 };
