@@ -57,6 +57,8 @@ void intel_dsb_vblank_evade(struct intel_atomic_state *state,
 void intel_dsb_poll(struct intel_dsb *dsb,
 		    i915_reg_t reg, u32 mask, u32 val,
 		    int wait_us, int count);
+void intel_dsb_gosub(struct intel_dsb *dsb,
+		     struct intel_dsb *sub_dsb);
 void intel_dsb_chain(struct intel_atomic_state *state,
 		     struct intel_dsb *dsb,
 		     struct intel_dsb *chained_dsb,
