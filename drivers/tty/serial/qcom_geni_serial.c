@@ -1303,7 +1303,7 @@ static void qcom_geni_serial_set_termios(struct uart_port *uport,
 	unsigned long timeout;
 
 	/* baud rate */
-	baud = uart_get_baud_rate(uport, termios, old, 300, 4000000);
+	baud = uart_get_baud_rate(uport, termios, old, 300, 8000000);
 
 	sampling_rate = UART_OVERSAMPLING;
 	/* Sampling rate is halved for IP versions >= 2.5 */
