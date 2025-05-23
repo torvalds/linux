@@ -156,9 +156,13 @@ static int bch2_check_fix_ptr(struct btree_trans *trans,
 			g->gen_valid		= true;
 			g->gen			= p.ptr.gen;
 		} else {
+			/* this pointer will be dropped */
 			*do_update = true;
+			goto out;
 		}
 	}
+
+	/* g->gen_valid == true */
 
 	if (fsck_err_on(gen_cmp(p.ptr.gen, g->gen) > 0,
 			trans, ptr_gen_newer_than_bucket_gen,
@@ -172,15 +176,13 @@ static int bch2_check_fix_ptr(struct btree_trans *trans,
 		if (!p.ptr.cached &&
 		    (g->data_type != BCH_DATA_btree ||
 		     data_type == BCH_DATA_btree)) {
-			g->gen_valid		= true;
-			g->gen			= p.ptr.gen;
-			g->data_type		= 0;
+			g->data_type		= data_type;
 			g->stripe_sectors	= 0;
 			g->dirty_sectors	= 0;
 			g->cached_sectors	= 0;
-		} else {
-			*do_update = true;
 		}
+
+		*do_update = true;
 	}
 
 	if (fsck_err_on(gen_cmp(g->gen, p.ptr.gen) > BUCKET_GC_GEN_MAX,
@@ -217,9 +219,8 @@ static int bch2_check_fix_ptr(struct btree_trans *trans,
 			bch2_data_type_str(data_type),
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
-		if (data_type == BCH_DATA_btree) {
-			g->gen_valid		= true;
-			g->gen			= p.ptr.gen;
+		if (!p.ptr.cached &&
+		    data_type == BCH_DATA_btree) {
 			g->data_type		= data_type;
 			g->stripe_sectors	= 0;
 			g->dirty_sectors	= 0;
