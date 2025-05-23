@@ -7522,8 +7522,9 @@ F:	include/uapi/drm/msm_drm.h
 
 DRM DRIVER for Qualcomm display hardware
 M:	Rob Clark <robdclark@gmail.com>
-M:	Abhinav Kumar <quic_abhinavk@quicinc.com>
 M:	Dmitry Baryshkov <lumag@kernel.org>
+R:	Abhinav Kumar <quic_abhinavk@quicinc.com>
+R:	Jessica Zhang <jessica.zhang@oss.qualcomm.com>
 R:	Sean Paul <sean@poorly.run>
 R:	Marijn Suijten <marijn.suijten@somainline.org>
 L:	linux-arm-msm@vger.kernel.org
