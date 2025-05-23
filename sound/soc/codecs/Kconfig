@@ -120,6 +120,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_ES8326
 	imply SND_SOC_ES8328_SPI
 	imply SND_SOC_ES8328_I2C
+	imply SND_SOC_ES8375
 	imply SND_SOC_ES8389
 	imply SND_SOC_ES7134
 	imply SND_SOC_ES7241
@@ -1211,6 +1212,10 @@ config SND_SOC_ES8328_SPI
 	tristate "Everest Semi ES8328 CODEC (SPI)"
 	depends on SPI_MASTER
 	select SND_SOC_ES8328
+
+config SND_SOC_ES8375
+	tristate "Everest Semi ES8375 CODEC"
+	depends on I2C
 
 config SND_SOC_ES8389
 	tristate "Everest Semi ES8389 CODEC"
