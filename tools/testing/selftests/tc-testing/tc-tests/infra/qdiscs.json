@@ -573,5 +573,32 @@
         "teardown": [
             "$TC qdisc del dev $DEV1 handle 1: root"
         ]
+    },
+    {
+        "id": "831d",
+        "name": "Test HFSC qlen accounting with DRR/NETEM/BLACKHOLE chain",
+        "category": ["qdisc", "hfsc", "drr", "netem", "blackhole"],
+        "plugins": { "requires": ["nsPlugin", "scapyPlugin"] },
+        "setup": [
+            "$IP link set dev $DEV1 up || true",
+            "$TC qdisc add dev $DEV1 root handle 1: drr",
+            "$TC filter add dev $DEV1 parent 1: basic classid 1:1",
+            "$TC class add dev $DEV1 parent 1: classid 1:1 drr",
+            "$TC qdisc add dev $DEV1 parent 1:1 handle 2: hfsc def 1",
+            "$TC class add dev $DEV1 parent 2: classid 2:1 hfsc rt m1 8 d 1 m2 0",
+            "$TC qdisc add dev $DEV1 parent 2:1 handle 3: netem",
+            "$TC qdisc add dev $DEV1 parent 3:1 handle 4: blackhole"
+        ],
+        "scapy": {
+            "iface": "$DEV0",
+            "count": 5,
+            "packet": "Ether()/IP(dst='10.10.10.1', src='10.10.10.10')/ICMP()"
+        },
+        "cmdUnderTest": "$TC -s qdisc show dev $DEV1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -s qdisc show dev $DEV1",
+        "matchPattern": "qdisc hfsc",
+        "matchCount": "1",
+        "teardown": ["$TC qdisc del dev $DEV1 root handle 1: drr"]
     }
 ]
