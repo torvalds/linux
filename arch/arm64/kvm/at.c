@@ -10,56 +10,6 @@
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
 
-enum trans_regime {
-	TR_EL10,
-	TR_EL20,
-	TR_EL2,
-};
-
-struct s1_walk_info {
-	u64	     		baddr;
-	enum trans_regime	regime;
-	unsigned int		max_oa_bits;
-	unsigned int		pgshift;
-	unsigned int		txsz;
-	int 	     		sl;
-	bool	     		hpd;
-	bool			e0poe;
-	bool			poe;
-	bool			pan;
-	bool	     		be;
-	bool	     		s2;
-};
-
-struct s1_walk_result {
-	union {
-		struct {
-			u64	desc;
-			u64	pa;
-			s8	level;
-			u8	APTable;
-			bool	UXNTable;
-			bool	PXNTable;
-			bool	uwxn;
-			bool	uov;
-			bool	ur;
-			bool	uw;
-			bool	ux;
-			bool	pwxn;
-			bool	pov;
-			bool	pr;
-			bool	pw;
-			bool	px;
-		};
-		struct {
-			u8	fst;
-			bool	ptw;
-			bool	s2;
-		};
-	};
-	bool	failed;
-};
-
 static void fail_s1_walk(struct s1_walk_result *wr, u8 fst, bool s1ptw)
 {
 	wr->fst		= fst;
@@ -145,19 +95,14 @@ static void compute_s1poe(struct kvm_vcpu *vcpu, struct s1_walk_info *wi)
 	}
 }
 
-static int setup_s1_walk(struct kvm_vcpu *vcpu, u32 op, struct s1_walk_info *wi,
+static int setup_s1_walk(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 			 struct s1_walk_result *wr, u64 va)
 {
 	u64 hcr, sctlr, tcr, tg, ps, ia_bits, ttbr;
 	unsigned int stride, x;
-	bool va55, tbi, lva, as_el0;
+	bool va55, tbi, lva;
 
 	hcr = __vcpu_sys_reg(vcpu, HCR_EL2);
-
-	wi->regime = compute_translation_regime(vcpu, op);
-	as_el0 = (op == OP_AT_S1E0R || op == OP_AT_S1E0W);
-	wi->pan = (op == OP_AT_S1E1RP || op == OP_AT_S1E1WP) &&
-		  (*vcpu_cpsr(vcpu) & PSR_PAN_BIT);
 
 	va55 = va & BIT(55);
 
@@ -319,7 +264,7 @@ static int setup_s1_walk(struct kvm_vcpu *vcpu, u32 op, struct s1_walk_info *wi,
 
 	/* R_BNDVG and following statements */
 	if (kvm_has_feat(vcpu->kvm, ID_AA64MMFR2_EL1, E0PD, IMP) &&
-	    as_el0 && (tcr & (va55 ? TCR_E0PD1 : TCR_E0PD0)))
+	    wi->as_el0 && (tcr & (va55 ? TCR_E0PD1 : TCR_E0PD0)))
 		goto transfault_l0;
 
 	/* AArch64.S1StartLevel() */
@@ -468,6 +413,33 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 	wr->desc = desc;
 	wr->pa = desc & GENMASK(47, va_bottom);
 	wr->pa |= va & GENMASK_ULL(va_bottom - 1, 0);
+
+	wr->nG = (wi->regime != TR_EL2) && (desc & PTE_NG);
+	if (wr->nG) {
+		u64 asid_ttbr, tcr;
+
+		switch (wi->regime) {
+		case TR_EL10:
+			tcr = vcpu_read_sys_reg(vcpu, TCR_EL1);
+			asid_ttbr = ((tcr & TCR_A1) ?
+				     vcpu_read_sys_reg(vcpu, TTBR1_EL1) :
+				     vcpu_read_sys_reg(vcpu, TTBR0_EL1));
+			break;
+		case TR_EL20:
+			tcr = vcpu_read_sys_reg(vcpu, TCR_EL2);
+			asid_ttbr = ((tcr & TCR_A1) ?
+				     vcpu_read_sys_reg(vcpu, TTBR1_EL2) :
+				     vcpu_read_sys_reg(vcpu, TTBR0_EL2));
+			break;
+		default:
+			BUG();
+		}
+
+		wr->asid = FIELD_GET(TTBR_ASID_MASK, asid_ttbr);
+		if (!kvm_has_feat_enum(vcpu->kvm, ID_AA64MMFR0_EL1, ASIDBITS, 16) ||
+		    !(tcr & TCR_ASID16))
+			wr->asid &= GENMASK(7, 0);
+	}
 
 	return 0;
 
@@ -1155,7 +1127,12 @@ static u64 handle_at_slow(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 	bool perm_fail = false;
 	int ret, idx;
 
-	ret = setup_s1_walk(vcpu, op, &wi, &wr, vaddr);
+	wi.regime = compute_translation_regime(vcpu, op);
+	wi.as_el0 = (op == OP_AT_S1E0R || op == OP_AT_S1E0W);
+	wi.pan = (op == OP_AT_S1E1RP || op == OP_AT_S1E1WP) &&
+		 (*vcpu_cpsr(vcpu) & PSR_PAN_BIT);
+
+	ret = setup_s1_walk(vcpu, &wi, &wr, vaddr);
 	if (ret)
 		goto compute_par;
 
@@ -1456,4 +1433,32 @@ void __kvm_at_s12(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 
 	par = compute_par_s12(vcpu, par, &out);
 	vcpu_write_sys_reg(vcpu, par, PAR_EL1);
+}
+
+/*
+ * Translate a VA for a given EL in a given translation regime, with
+ * or without PAN. This requires wi->{regime, as_el0, pan} to be
+ * set. The rest of the wi and wr should be 0-initialised.
+ */
+int __kvm_translate_va(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
+		       struct s1_walk_result *wr, u64 va)
+{
+	int ret;
+
+	ret = setup_s1_walk(vcpu, wi, wr, va);
+	if (ret)
+		return ret;
+
+	if (wr->level == S1_MMU_DISABLED) {
+		wr->ur = wr->uw = wr->ux = true;
+		wr->pr = wr->pw = wr->px = true;
+	} else {
+		ret = walk_s1(vcpu, wi, wr, va);
+		if (ret)
+			return ret;
+
+		compute_s1_permissions(vcpu, wi, wr);
+	}
+
+	return 0;
 }
