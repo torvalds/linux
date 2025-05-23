@@ -178,7 +178,8 @@ err_close_rxq:
 struct net_devmem_dmabuf_binding *
 net_devmem_bind_dmabuf(struct net_device *dev,
 		       enum dma_data_direction direction,
-		       unsigned int dmabuf_fd, struct netlink_ext_ack *extack)
+		       unsigned int dmabuf_fd, struct netdev_nl_sock *priv,
+		       struct netlink_ext_ack *extack)
 {
 	struct net_devmem_dmabuf_binding *binding;
 	static u32 id_alloc_next;
@@ -298,6 +299,8 @@ net_devmem_bind_dmabuf(struct net_device *dev,
 			      GFP_KERNEL);
 	if (err < 0)
 		goto err_free_chunks;
+
+	list_add(&binding->list, &priv->bindings);
 
 	return binding;
 
