@@ -58,6 +58,9 @@ enum {
 	MOCK_PFN_HUGE_IOVA = _MOCK_PFN_START << 2,
 };
 
+static int mock_dev_enable_iopf(struct device *dev, struct iommu_domain *domain);
+static void mock_dev_disable_iopf(struct device *dev, struct iommu_domain *domain);
+
 /*
  * Syzkaller has trouble randomizing the correct iova to use since it is linked
  * to the map ioctl's output, and it has no ide about that. So, simplify things.
@@ -168,6 +171,8 @@ struct mock_dev {
 	int id;
 	u32 cache[MOCK_DEV_CACHE_NUM];
 	atomic_t pasid_1024_fake_error;
+	unsigned int iopf_refcount;
+	struct iommu_domain *domain;
 };
 
 static inline struct mock_dev *to_mock_dev(struct device *dev)
@@ -221,6 +226,13 @@ static int mock_domain_nop_attach(struct iommu_domain *domain,
 		up_write(&mdev->viommu_rwsem);
 	}
 
+	rc = mock_dev_enable_iopf(dev, domain);
+	if (rc)
+		return rc;
+
+	mock_dev_disable_iopf(dev, mdev->domain);
+	mdev->domain = domain;
+
 	return 0;
 }
 
@@ -229,6 +241,7 @@ static int mock_domain_set_dev_pasid_nop(struct iommu_domain *domain,
 					 struct iommu_domain *old)
 {
 	struct mock_dev *mdev = to_mock_dev(dev);
+	int rc;
 
 	/*
 	 * Per the first attach with pasid 1024, set the
@@ -255,6 +268,12 @@ static int mock_domain_set_dev_pasid_nop(struct iommu_domain *domain,
 			atomic_set(&mdev->pasid_1024_fake_error, 1);
 		}
 	}
+
+	rc = mock_dev_enable_iopf(dev, domain);
+	if (rc)
+		return rc;
+
+	mock_dev_disable_iopf(dev, old);
 
 	return 0;
 }
@@ -610,22 +629,42 @@ static void mock_domain_page_response(struct device *dev, struct iopf_fault *evt
 {
 }
 
-static int mock_dev_enable_feat(struct device *dev, enum iommu_dev_features feat)
+static int mock_dev_enable_iopf(struct device *dev, struct iommu_domain *domain)
 {
-	if (feat != IOMMU_DEV_FEAT_IOPF || !mock_iommu_iopf_queue)
+	struct mock_dev *mdev = to_mock_dev(dev);
+	int ret;
+
+	if (!domain || !domain->iopf_handler)
+		return 0;
+
+	if (!mock_iommu_iopf_queue)
 		return -ENODEV;
 
-	return iopf_queue_add_device(mock_iommu_iopf_queue, dev);
-}
+	if (mdev->iopf_refcount) {
+		mdev->iopf_refcount++;
+		return 0;
+	}
 
-static int mock_dev_disable_feat(struct device *dev, enum iommu_dev_features feat)
-{
-	if (feat != IOMMU_DEV_FEAT_IOPF || !mock_iommu_iopf_queue)
-		return -ENODEV;
+	ret = iopf_queue_add_device(mock_iommu_iopf_queue, dev);
+	if (ret)
+		return ret;
 
-	iopf_queue_remove_device(mock_iommu_iopf_queue, dev);
+	mdev->iopf_refcount = 1;
 
 	return 0;
+}
+
+static void mock_dev_disable_iopf(struct device *dev, struct iommu_domain *domain)
+{
+	struct mock_dev *mdev = to_mock_dev(dev);
+
+	if (!domain || !domain->iopf_handler)
+		return;
+
+	if (--mdev->iopf_refcount)
+		return;
+
+	iopf_queue_remove_device(mock_iommu_iopf_queue, dev);
 }
 
 static void mock_viommu_destroy(struct iommufd_viommu *viommu)
@@ -770,8 +809,6 @@ static const struct iommu_ops mock_ops = {
 	.device_group = generic_device_group,
 	.probe_device = mock_probe_device,
 	.page_response = mock_domain_page_response,
-	.dev_enable_feat = mock_dev_enable_feat,
-	.dev_disable_feat = mock_dev_disable_feat,
 	.user_pasid_table = true,
 	.viommu_alloc = mock_viommu_alloc,
 	.default_domain_ops =

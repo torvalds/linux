@@ -7,180 +7,95 @@
 #ifndef __IOMMU_PAGES_H
 #define __IOMMU_PAGES_H
 
-#include <linux/vmstat.h>
-#include <linux/gfp.h>
-#include <linux/mm.h>
+#include <linux/iommu.h>
 
-/*
- * All page allocations that should be reported to as "iommu-pagetables" to
- * userspace must use one of the functions below.  This includes allocations of
- * page-tables and other per-iommu_domain configuration structures.
+/**
+ * struct ioptdesc - Memory descriptor for IOMMU page tables
+ * @iopt_freelist_elm: List element for a struct iommu_pages_list
  *
- * This is necessary for the proper accounting as IOMMU state can be rather
- * large, i.e. multiple gigabytes in size.
+ * This struct overlays struct page for now. Do not modify without a good
+ * understanding of the issues.
  */
+struct ioptdesc {
+	unsigned long __page_flags;
+
+	struct list_head iopt_freelist_elm;
+	unsigned long __page_mapping;
+	pgoff_t __index;
+	void *_private;
+
+	unsigned int __page_type;
+	atomic_t __page_refcount;
+#ifdef CONFIG_MEMCG
+	unsigned long memcg_data;
+#endif
+};
+
+static inline struct ioptdesc *folio_ioptdesc(struct folio *folio)
+{
+	return (struct ioptdesc *)folio;
+}
+
+static inline struct folio *ioptdesc_folio(struct ioptdesc *iopt)
+{
+	return (struct folio *)iopt;
+}
+
+static inline struct ioptdesc *virt_to_ioptdesc(void *virt)
+{
+	return folio_ioptdesc(virt_to_folio(virt));
+}
+
+void *iommu_alloc_pages_node_sz(int nid, gfp_t gfp, size_t size);
+void iommu_free_pages(void *virt);
+void iommu_put_pages_list(struct iommu_pages_list *list);
 
 /**
- * __iommu_alloc_account - account for newly allocated page.
- * @page: head struct page of the page.
- * @order: order of the page
+ * iommu_pages_list_add - add the page to a iommu_pages_list
+ * @list: List to add the page to
+ * @virt: Address returned from iommu_alloc_pages_node_sz()
  */
-static inline void __iommu_alloc_account(struct page *page, int order)
+static inline void iommu_pages_list_add(struct iommu_pages_list *list,
+					void *virt)
 {
-	const long pgcnt = 1l << order;
-
-	mod_node_page_state(page_pgdat(page), NR_IOMMU_PAGES, pgcnt);
-	mod_lruvec_page_state(page, NR_SECONDARY_PAGETABLE, pgcnt);
+	list_add_tail(&virt_to_ioptdesc(virt)->iopt_freelist_elm, &list->pages);
 }
 
 /**
- * __iommu_free_account - account a page that is about to be freed.
- * @page: head struct page of the page.
- * @order: order of the page
- */
-static inline void __iommu_free_account(struct page *page, int order)
-{
-	const long pgcnt = 1l << order;
-
-	mod_node_page_state(page_pgdat(page), NR_IOMMU_PAGES, -pgcnt);
-	mod_lruvec_page_state(page, NR_SECONDARY_PAGETABLE, -pgcnt);
-}
-
-/**
- * __iommu_alloc_pages - allocate a zeroed page of a given order.
- * @gfp: buddy allocator flags
- * @order: page order
+ * iommu_pages_list_splice - Put all the pages in list from into list to
+ * @from: Source list of pages
+ * @to: Destination list of pages
  *
- * returns the head struct page of the allocated page.
+ * from must be re-initialized after calling this function if it is to be
+ * used again.
  */
-static inline struct page *__iommu_alloc_pages(gfp_t gfp, int order)
+static inline void iommu_pages_list_splice(struct iommu_pages_list *from,
+					   struct iommu_pages_list *to)
 {
-	struct page *page;
-
-	page = alloc_pages(gfp | __GFP_ZERO, order);
-	if (unlikely(!page))
-		return NULL;
-
-	__iommu_alloc_account(page, order);
-
-	return page;
+	list_splice(&from->pages, &to->pages);
 }
 
 /**
- * __iommu_free_pages - free page of a given order
- * @page: head struct page of the page
- * @order: page order
+ * iommu_pages_list_empty - True if the list is empty
+ * @list: List to check
  */
-static inline void __iommu_free_pages(struct page *page, int order)
+static inline bool iommu_pages_list_empty(struct iommu_pages_list *list)
 {
-	if (!page)
-		return;
-
-	__iommu_free_account(page, order);
-	__free_pages(page, order);
+	return list_empty(&list->pages);
 }
 
 /**
- * iommu_alloc_pages_node - allocate a zeroed page of a given order from
- * specific NUMA node.
+ * iommu_alloc_pages_sz - Allocate a zeroed page of a given size from
+ *                          specific NUMA node
  * @nid: memory NUMA node id
  * @gfp: buddy allocator flags
- * @order: page order
+ * @size: Memory size to allocate, this is rounded up to a power of 2
  *
- * returns the virtual address of the allocated page
+ * Returns the virtual address of the allocated page.
  */
-static inline void *iommu_alloc_pages_node(int nid, gfp_t gfp, int order)
+static inline void *iommu_alloc_pages_sz(gfp_t gfp, size_t size)
 {
-	struct page *page = alloc_pages_node(nid, gfp | __GFP_ZERO, order);
-
-	if (unlikely(!page))
-		return NULL;
-
-	__iommu_alloc_account(page, order);
-
-	return page_address(page);
-}
-
-/**
- * iommu_alloc_pages - allocate a zeroed page of a given order
- * @gfp: buddy allocator flags
- * @order: page order
- *
- * returns the virtual address of the allocated page
- */
-static inline void *iommu_alloc_pages(gfp_t gfp, int order)
-{
-	struct page *page = __iommu_alloc_pages(gfp, order);
-
-	if (unlikely(!page))
-		return NULL;
-
-	return page_address(page);
-}
-
-/**
- * iommu_alloc_page_node - allocate a zeroed page at specific NUMA node.
- * @nid: memory NUMA node id
- * @gfp: buddy allocator flags
- *
- * returns the virtual address of the allocated page
- */
-static inline void *iommu_alloc_page_node(int nid, gfp_t gfp)
-{
-	return iommu_alloc_pages_node(nid, gfp, 0);
-}
-
-/**
- * iommu_alloc_page - allocate a zeroed page
- * @gfp: buddy allocator flags
- *
- * returns the virtual address of the allocated page
- */
-static inline void *iommu_alloc_page(gfp_t gfp)
-{
-	return iommu_alloc_pages(gfp, 0);
-}
-
-/**
- * iommu_free_pages - free page of a given order
- * @virt: virtual address of the page to be freed.
- * @order: page order
- */
-static inline void iommu_free_pages(void *virt, int order)
-{
-	if (!virt)
-		return;
-
-	__iommu_free_pages(virt_to_page(virt), order);
-}
-
-/**
- * iommu_free_page - free page
- * @virt: virtual address of the page to be freed.
- */
-static inline void iommu_free_page(void *virt)
-{
-	iommu_free_pages(virt, 0);
-}
-
-/**
- * iommu_put_pages_list - free a list of pages.
- * @page: the head of the lru list to be freed.
- *
- * There are no locking requirement for these pages, as they are going to be
- * put on a free list as soon as refcount reaches 0. Pages are put on this LRU
- * list once they are removed from the IOMMU page tables. However, they can
- * still be access through debugfs.
- */
-static inline void iommu_put_pages_list(struct list_head *page)
-{
-	while (!list_empty(page)) {
-		struct page *p = list_entry(page->prev, struct page, lru);
-
-		list_del(&p->lru);
-		__iommu_free_account(p, 0);
-		put_page(p);
-	}
+	return iommu_alloc_pages_node_sz(NUMA_NO_NODE, gfp, size);
 }
 
 #endif	/* __IOMMU_PAGES_H */
