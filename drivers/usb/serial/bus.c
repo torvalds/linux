@@ -17,7 +17,7 @@ static int usb_serial_device_match(struct device *dev,
 				   const struct device_driver *drv)
 {
 	const struct usb_serial_port *port = to_usb_serial_port(dev);
-	struct usb_serial_driver *driver = to_usb_serial_driver(drv);
+	const struct usb_serial_driver *driver = to_usb_serial_driver(drv);
 
 	/*
 	 * drivers are already assigned to ports in serial_probe so it's
