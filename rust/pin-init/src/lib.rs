@@ -148,7 +148,7 @@
 //!     fn new() -> impl PinInit<Self, Error> {
 //!         try_pin_init!(Self {
 //!             status <- CMutex::new(0),
-//!             buffer: Box::init(pin_init::zeroed())?,
+//!             buffer: Box::init(pin_init::init_zeroed())?,
 //!         }? Error)
 //!     }
 //! }
@@ -742,7 +742,7 @@ macro_rules! stack_try_pin_init {
 /// - Fields that you want to initialize in-place have to use `<-` instead of `:`.
 /// - In front of the initializer you can write `&this in` to have access to a [`NonNull<Self>`]
 ///   pointer named `this` inside of the initializer.
-/// - Using struct update syntax one can place `..Zeroable::zeroed()` at the very end of the
+/// - Using struct update syntax one can place `..Zeroable::init_zeroed()` at the very end of the
 ///   struct, this initializes every field with 0 and then runs all initializers specified in the
 ///   body. This can only be done if [`Zeroable`] is implemented for the struct.
 ///
@@ -769,7 +769,7 @@ macro_rules! stack_try_pin_init {
 /// });
 /// let init = pin_init!(Buf {
 ///     buf: [1; 64],
-///     ..Zeroable::zeroed()
+///     ..Zeroable::init_zeroed()
 /// });
 /// ```
 ///
@@ -805,7 +805,7 @@ macro_rules! pin_init {
 /// ```rust
 /// # #![feature(allocator_api)]
 /// # #[path = "../examples/error.rs"] mod error; use error::Error;
-/// use pin_init::{pin_data, try_pin_init, PinInit, InPlaceInit, zeroed};
+/// use pin_init::{pin_data, try_pin_init, PinInit, InPlaceInit, init_zeroed};
 ///
 /// #[pin_data]
 /// struct BigBuf {
@@ -817,7 +817,7 @@ macro_rules! pin_init {
 /// impl BigBuf {
 ///     fn new() -> impl PinInit<Self, Error> {
 ///         try_pin_init!(Self {
-///             big: Box::init(zeroed())?,
+///             big: Box::init(init_zeroed())?,
 ///             small: [0; 1024 * 1024],
 ///             ptr: core::ptr::null_mut(),
 ///         }? Error)
@@ -866,7 +866,7 @@ macro_rules! try_pin_init {
 /// # #[path = "../examples/error.rs"] mod error; use error::Error;
 /// # #[path = "../examples/mutex.rs"] mod mutex; use mutex::*;
 /// # use pin_init::InPlaceInit;
-/// use pin_init::{init, Init, zeroed};
+/// use pin_init::{init, Init, init_zeroed};
 ///
 /// struct BigBuf {
 ///     small: [u8; 1024 * 1024],
@@ -875,7 +875,7 @@ macro_rules! try_pin_init {
 /// impl BigBuf {
 ///     fn new() -> impl Init<Self> {
 ///         init!(Self {
-///             small <- zeroed(),
+///             small <- init_zeroed(),
 ///         })
 ///     }
 /// }
@@ -913,7 +913,7 @@ macro_rules! init {
 /// # #![feature(allocator_api)]
 /// # use core::alloc::AllocError;
 /// # use pin_init::InPlaceInit;
-/// use pin_init::{try_init, Init, zeroed};
+/// use pin_init::{try_init, Init, init_zeroed};
 ///
 /// struct BigBuf {
 ///     big: Box<[u8; 1024 * 1024 * 1024]>,
@@ -923,7 +923,7 @@ macro_rules! init {
 /// impl BigBuf {
 ///     fn new() -> impl Init<Self, AllocError> {
 ///         try_init!(Self {
-///             big: Box::init(zeroed())?,
+///             big: Box::init(init_zeroed())?,
 ///             small: [0; 1024 * 1024],
 ///         }? AllocError)
 ///     }
@@ -1170,7 +1170,7 @@ pub unsafe trait Init<T: ?Sized, E = Infallible>: PinInit<T, E> {
     ///
     /// ```rust
     /// # #![expect(clippy::disallowed_names)]
-    /// use pin_init::{init, zeroed, Init};
+    /// use pin_init::{init, init_zeroed, Init};
     ///
     /// struct Foo {
     ///     buf: [u8; 1_000_000],
@@ -1183,7 +1183,7 @@ pub unsafe trait Init<T: ?Sized, E = Infallible>: PinInit<T, E> {
     /// }
     ///
     /// let foo = init!(Foo {
-    ///     buf <- zeroed()
+    ///     buf <- init_zeroed()
     /// }).chain(|foo| {
     ///     foo.setup();
     ///     Ok(())
@@ -1508,11 +1508,11 @@ pub unsafe trait ZeroableOption {}
 // SAFETY: by the safety requirement of `ZeroableOption`, this is valid.
 unsafe impl<T: ZeroableOption> Zeroable for Option<T> {}
 
-/// Create a new zeroed T.
+/// Create an initializer for a zeroed `T`.
 ///
 /// The returned initializer will write `0x00` to every byte of the given `slot`.
 #[inline]
-pub fn zeroed<T: Zeroable>() -> impl Init<T> {
+pub fn init_zeroed<T: Zeroable>() -> impl Init<T> {
     // SAFETY: Because `T: Zeroable`, all bytes zero is a valid bit pattern for `T`
     // and because we write all zeroes, the memory is initialized.
     unsafe {

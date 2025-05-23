@@ -206,7 +206,7 @@ pub trait InPlaceInit<T>: Sized {
 ///
 /// ```rust
 /// use kernel::error::Error;
-/// use pin_init::zeroed;
+/// use pin_init::init_zeroed;
 /// struct BigBuf {
 ///     big: KBox<[u8; 1024 * 1024 * 1024]>,
 ///     small: [u8; 1024 * 1024],
@@ -215,7 +215,7 @@ pub trait InPlaceInit<T>: Sized {
 /// impl BigBuf {
 ///     fn new() -> impl Init<Self, Error> {
 ///         try_init!(Self {
-///             big: KBox::init(zeroed(), GFP_KERNEL)?,
+///             big: KBox::init(init_zeroed(), GFP_KERNEL)?,
 ///             small: [0; 1024 * 1024],
 ///         }? Error)
 ///     }
@@ -264,7 +264,7 @@ macro_rules! try_init {
 /// ```rust
 /// # #![feature(new_uninit)]
 /// use kernel::error::Error;
-/// use pin_init::zeroed;
+/// use pin_init::init_zeroed;
 /// #[pin_data]
 /// struct BigBuf {
 ///     big: KBox<[u8; 1024 * 1024 * 1024]>,
@@ -275,7 +275,7 @@ macro_rules! try_init {
 /// impl BigBuf {
 ///     fn new() -> impl PinInit<Self, Error> {
 ///         try_pin_init!(Self {
-///             big: KBox::init(zeroed(), GFP_KERNEL)?,
+///             big: KBox::init(init_zeroed(), GFP_KERNEL)?,
 ///             small: [0; 1024 * 1024],
 ///             ptr: core::ptr::null_mut(),
 ///         }? Error)
