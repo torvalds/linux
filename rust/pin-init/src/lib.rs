@@ -1506,6 +1506,33 @@ pub unsafe trait Zeroable {
     {
         init_zeroed()
     }
+
+    /// Create a `Self` consisting of all zeroes.
+    ///
+    /// Whenever a type implements [`Zeroable`], this function should be preferred over
+    /// [`core::mem::zeroed()`] or using `MaybeUninit<T>::zeroed().assume_init()`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use pin_init::{Zeroable, zeroed};
+    ///
+    /// #[derive(Zeroable)]
+    /// struct Point {
+    ///     x: u32,
+    ///     y: u32,
+    /// }
+    ///
+    /// let point: Point = zeroed();
+    /// assert_eq!(point.x, 0);
+    /// assert_eq!(point.y, 0);
+    /// ```
+    fn zeroed() -> Self
+    where
+        Self: Sized,
+    {
+        zeroed()
+    }
 }
 
 /// Marker trait for types that allow `Option<Self>` to be set to all zeroes in order to write
@@ -1532,6 +1559,31 @@ pub fn init_zeroed<T: Zeroable>() -> impl Init<T> {
             Ok(())
         })
     }
+}
+
+/// Create a `T` consisting of all zeroes.
+///
+/// Whenever a type implements [`Zeroable`], this function should be preferred over
+/// [`core::mem::zeroed()`] or using `MaybeUninit<T>::zeroed().assume_init()`.
+///
+/// # Examples
+///
+/// ```
+/// use pin_init::{Zeroable, zeroed};
+///
+/// #[derive(Zeroable)]
+/// struct Point {
+///     x: u32,
+///     y: u32,
+/// }
+///
+/// let point: Point = zeroed();
+/// assert_eq!(point.x, 0);
+/// assert_eq!(point.y, 0);
+/// ```
+pub const fn zeroed<T: Zeroable>() -> T {
+    // SAFETY:By the type invariants of `Zeroable`, all zeroes is a valid bit pattern for `T`.
+    unsafe { core::mem::zeroed() }
 }
 
 macro_rules! impl_zeroable {
