@@ -1583,7 +1583,7 @@ nl80211_parse_connkeys(struct cfg80211_registered_device *rdev,
 
 	return result;
  error:
-	kfree(result);
+	kfree_sensitive(result);
 	return ERR_PTR(err);
 }
 
