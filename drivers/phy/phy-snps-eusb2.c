@@ -552,7 +552,7 @@ static int snps_eusb2_hsphy_probe(struct platform_device *pdev)
 	if (!phy->clks)
 		return -ENOMEM;
 
-	for (int i = 0; i < phy->data->num_clks; ++i)
+	for (i = 0; i < phy->data->num_clks; ++i)
 		phy->clks[i].id = phy->data->clk_names[i];
 
 	ret = devm_clk_bulk_get(dev, phy->data->num_clks, phy->clks);
@@ -561,7 +561,7 @@ static int snps_eusb2_hsphy_probe(struct platform_device *pdev)
 				     "failed to get phy clock(s)\n");
 
 	phy->ref_clk = NULL;
-	for (int i = 0; i < phy->data->num_clks; ++i) {
+	for (i = 0; i < phy->data->num_clks; ++i) {
 		if (!strcmp(phy->clks[i].id, "ref")) {
 			phy->ref_clk = phy->clks[i].clk;
 			break;
