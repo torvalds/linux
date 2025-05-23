@@ -1707,6 +1707,43 @@ static void rtw_pci_napi_deinit(struct rtw_dev *rtwdev)
 	free_netdev(rtwpci->netdev);
 }
 
+static pci_ers_result_t rtw_pci_io_err_detected(struct pci_dev *pdev,
+						pci_channel_state_t state)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+
+	netif_device_detach(netdev);
+
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t rtw_pci_io_slot_reset(struct pci_dev *pdev)
+{
+	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
+	struct rtw_dev *rtwdev = hw->priv;
+
+	rtw_fw_recovery(rtwdev);
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+static void rtw_pci_io_resume(struct pci_dev *pdev)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+
+	/* ack any pending wake events, disable PME */
+	pci_enable_wake(pdev, PCI_D0, 0);
+
+	netif_device_attach(netdev);
+}
+
+const struct pci_error_handlers rtw_pci_err_handler = {
+	.error_detected = rtw_pci_io_err_detected,
+	.slot_reset = rtw_pci_io_slot_reset,
+	.resume = rtw_pci_io_resume,
+};
+EXPORT_SYMBOL(rtw_pci_err_handler);
+
 int rtw_pci_probe(struct pci_dev *pdev,
 		  const struct pci_device_id *id)
 {

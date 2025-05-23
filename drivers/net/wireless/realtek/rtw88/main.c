@@ -636,6 +636,7 @@ void rtw_fw_recovery(struct rtw_dev *rtwdev)
 	if (!test_bit(RTW_FLAG_RESTARTING, rtwdev->flags))
 		ieee80211_queue_work(rtwdev->hw, &rtwdev->fw_recovery_work);
 }
+EXPORT_SYMBOL(rtw_fw_recovery);
 
 static void __fw_recovery_work(struct rtw_dev *rtwdev)
 {
