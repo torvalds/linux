@@ -315,7 +315,7 @@ void optc31_read_otg_state(struct timing_generator *optc,
 	s->otg_double_buffer_control = REG_READ(OTG_DOUBLE_BUFFER_CONTROL);
 }
 
-static struct timing_generator_funcs dcn31_tg_funcs = {
+static const struct timing_generator_funcs dcn31_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
 		.setup_vertical_interrupt0 = optc1_setup_vertical_interrupt0,

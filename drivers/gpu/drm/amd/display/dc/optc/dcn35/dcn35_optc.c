@@ -428,7 +428,7 @@ static void optc35_set_long_vtotal(
 	}
 }
 
-static struct timing_generator_funcs dcn35_tg_funcs = {
+static const struct timing_generator_funcs dcn35_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
 		.setup_vertical_interrupt0 = optc1_setup_vertical_interrupt0,
