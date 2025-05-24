@@ -39,13 +39,11 @@ int bch2_set_fs_needs_rebalance(struct bch_fs *);
 
 static inline void bch2_rebalance_wakeup(struct bch_fs *c)
 {
-	struct task_struct *p;
-
-	rcu_read_lock();
-	p = rcu_dereference(c->rebalance.thread);
+	c->rebalance.kick++;
+	guard(rcu)();
+	struct task_struct *p = rcu_dereference(c->rebalance.thread);
 	if (p)
 		wake_up_process(p);
-	rcu_read_unlock();
 }
 
 void bch2_rebalance_status_to_text(struct printbuf *, struct bch_fs *);

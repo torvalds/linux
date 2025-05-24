@@ -527,7 +527,7 @@ static void rebalance_wait(struct bch_fs *c)
 		r->state		= BCH_REBALANCE_waiting;
 	}
 
-	bch2_kthread_io_clock_wait(clock, r->wait_iotime_end, MAX_SCHEDULE_TIMEOUT);
+	bch2_kthread_io_clock_wait_once(clock, r->wait_iotime_end, MAX_SCHEDULE_TIMEOUT);
 }
 
 static bool bch2_rebalance_enabled(struct bch_fs *c)
@@ -544,6 +544,7 @@ static int do_rebalance(struct moving_context *ctxt)
 	struct bch_fs_rebalance *r = &c->rebalance;
 	struct btree_iter rebalance_work_iter, extent_iter = {};
 	struct bkey_s_c k;
+	u32 kick = r->kick;
 	int ret = 0;
 
 	bch2_trans_begin(trans);
@@ -593,7 +594,8 @@ static int do_rebalance(struct moving_context *ctxt)
 	if (!ret &&
 	    !kthread_should_stop() &&
 	    !atomic64_read(&r->work_stats.sectors_seen) &&
-	    !atomic64_read(&r->scan_stats.sectors_seen)) {
+	    !atomic64_read(&r->scan_stats.sectors_seen) &&
+	    kick == r->kick) {
 		bch2_moving_ctxt_flush_all(ctxt);
 		bch2_trans_unlock_long(trans);
 		rebalance_wait(c);

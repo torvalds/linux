@@ -124,8 +124,9 @@ retry:
 		goto err;
 
 	struct bch_extent_rebalance new_r = bch2_inode_rebalance_opts_get(c, &inode_u);
+	bool rebalance_changed = memcmp(&old_r, &new_r, sizeof(new_r));
 
-	if (memcmp(&old_r, &new_r, sizeof(new_r))) {
+	if (rebalance_changed) {
 		ret = bch2_set_rebalance_needs_scan_trans(trans, inode_u.bi_inum);
 		if (ret)
 			goto err;
@@ -145,6 +146,9 @@ err:
 
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
+
+	if (rebalance_changed)
+		bch2_rebalance_wakeup(c);
 
 	bch2_fs_fatal_err_on(bch2_err_matches(ret, ENOENT), c,
 			     "%s: inode %llu:%llu not found when updating",
