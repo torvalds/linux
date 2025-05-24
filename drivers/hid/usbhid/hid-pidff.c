@@ -210,9 +210,7 @@ struct pidff_device {
  */
 static s32 pidff_clamp(s32 i, struct hid_field *field)
 {
-	s32 clamped = clamp(i, field->logical_minimum, field->logical_maximum);
-	pr_debug("clamped from %d to %d", i, clamped);
-	return clamped;
+	return (s32)clamp(i, field->logical_minimum, field->logical_maximum);
 }
 
 /*
