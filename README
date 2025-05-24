@@ -1,18 +1,11 @@
-Linux kernel
-============
+什么时候才能拥有一个放下一切政治、歧视、宗教等等等所有偏见，所有人都用爱共同维护的开源社区。从开源这一词被提出，我们就希望它能超越一切，让大家都能纯粹的进行技术交流。
+但不知道什么时候开始，开源社区出现了许多争吵，放眼望去，近几年来，有多少曾经受人们喜欢的开源项目因为各种原因停止维护，这真的是我们所希望的样子吗。
+我们都说，技术无国界，但人有国界。是啊，热爱自己的国家没有问题，但这并不是某些人将政治带入到开源工作中的理由。所有人都是用自己的热爱在维持着开源社区，他们并没有做错什么，但自己的名字却被删除了...
+不禁反问，这还是开源社区吗，为什么项目创始人就能随意修改文件而不需要大家的同意呢。有时候，毁掉一个项目，真的简简单单。
+只能说，希望未来的社区，能变得比现在更好吧。晚安各位
 
-There are several guides for kernel developers and users. These guides can
-be rendered in a number of formats, like HTML and PDF. Please read
-Documentation/admin-guide/README.rst first.
-
-In order to build the documentation, use ``make htmldocs`` or
-``make pdfdocs``.  The formatted documentation can also be read online at:
-
-    https://www.kernel.org/doc/html/latest/
-
-There are various text files in the Documentation/ subdirectory,
-several of them using the reStructuredText markup notation.
-
-Please read the Documentation/process/changes.rst file, as it contains the
-requirements for building and running the kernel, and information about
-the problems which may result by upgrading your kernel.
+When can we have an open source community that puts aside all prejudices such as politics, discrimination, religion, etc., and is jointly maintained by everyone with love. Since the term open source was coined, we hope it can transcend everything and allow everyone to engage in pure technical exchanges.
+But I don't know when it started, there have been many arguments in the open source community. Looking around, in recent years, how many once popular open source projects have stopped maintenance for various reasons? Is this really what we hope for.
+We all say that technology knows no borders, but people have borders. Yeah, it's okay to love your country, but that's not a reason why some people bring politics into open source work. Everyone is maintaining the open source community with their passion, and they haven't done anything wrong, but their names have been deleted
+Can't help but ask, is this still an open source community? Why can project founders freely modify files without everyone's consent. Sometimes, destroying a project is really simple.
+I can only say that I hope the future community can become better than it is now. Good night, everyone
