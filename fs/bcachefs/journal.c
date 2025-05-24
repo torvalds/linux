@@ -708,10 +708,9 @@ static unsigned max_dev_latency(struct bch_fs *c)
 {
 	u64 nsecs = 0;
 
-	rcu_read_lock();
+	guard(rcu)();
 	for_each_rw_member_rcu(c, ca)
 		nsecs = max(nsecs, ca->io_latency[WRITE].stats.max_duration);
-	rcu_read_unlock();
 
 	return nsecs_to_jiffies(nsecs);
 }
@@ -1732,7 +1731,7 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	printbuf_tabstop_push(out, 28);
 	out->atomic++;
 
-	rcu_read_lock();
+	guard(rcu)();
 	s = READ_ONCE(j->reservations);
 
 	prt_printf(out, "flags:\t");
@@ -1822,8 +1821,6 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	}
 
 	prt_printf(out, "replicas want %u need %u\n", c->opts.metadata_replicas, c->opts.metadata_replicas_required);
-
-	rcu_read_unlock();
 
 	--out->atomic;
 }

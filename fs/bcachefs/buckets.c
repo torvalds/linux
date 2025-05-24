@@ -299,9 +299,8 @@ int bch2_check_fix_ptrs(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		rcu_read_lock();
-		bch2_bkey_drop_ptrs(bkey_i_to_s(new), ptr, !bch2_dev_exists(c, ptr->dev));
-		rcu_read_unlock();
+		scoped_guard(rcu)
+			bch2_bkey_drop_ptrs(bkey_i_to_s(new), ptr, !bch2_dev_exists(c, ptr->dev));
 
 		if (level) {
 			/*
@@ -310,14 +309,11 @@ int bch2_check_fix_ptrs(struct btree_trans *trans,
 			 * sort it out:
 			 */
 			struct bkey_ptrs ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
-			rcu_read_lock();
-			bkey_for_each_ptr(ptrs, ptr) {
-				struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
-				struct bucket *g = PTR_GC_BUCKET(ca, ptr);
-
-				ptr->gen = g->gen;
-			}
-			rcu_read_unlock();
+			scoped_guard(rcu)
+				bkey_for_each_ptr(ptrs, ptr) {
+					struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
+					ptr->gen = PTR_GC_BUCKET(ca, ptr)->gen;
+				}
 		} else {
 			struct bkey_ptrs ptrs;
 			union bch_extent_entry *entry;

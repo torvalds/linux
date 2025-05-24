@@ -28,12 +28,9 @@ static inline struct bch_dev *bch2_dev_rcu(struct bch_fs *, unsigned);
 
 static inline bool bch2_dev_idx_is_online(struct bch_fs *c, unsigned dev)
 {
-	rcu_read_lock();
+	guard(rcu)();
 	struct bch_dev *ca = bch2_dev_rcu(c, dev);
-	bool ret = ca && bch2_dev_is_online(ca);
-	rcu_read_unlock();
-
-	return ret;
+	return ca && bch2_dev_is_online(ca);
 }
 
 static inline bool bch2_dev_is_healthy(struct bch_dev *ca)
@@ -142,12 +139,10 @@ static inline void bch2_dev_put(struct bch_dev *ca)
 
 static inline struct bch_dev *bch2_get_next_dev(struct bch_fs *c, struct bch_dev *ca)
 {
-	rcu_read_lock();
+	guard(rcu)();
 	bch2_dev_put(ca);
 	if ((ca = __bch2_next_dev(c, ca, NULL)))
 		bch2_dev_get(ca);
-	rcu_read_unlock();
-
 	return ca;
 }
 
@@ -166,7 +161,7 @@ static inline struct bch_dev *bch2_get_next_online_dev(struct bch_fs *c,
 						       unsigned state_mask,
 						       int rw, unsigned ref_idx)
 {
-	rcu_read_lock();
+	guard(rcu)();
 	if (ca)
 		enumerated_ref_put(&ca->io_ref[rw], ref_idx);
 
@@ -174,7 +169,6 @@ static inline struct bch_dev *bch2_get_next_online_dev(struct bch_fs *c,
 	       (!((1 << ca->mi.state) & state_mask) ||
 		!enumerated_ref_tryget(&ca->io_ref[rw], ref_idx)))
 		;
-	rcu_read_unlock();
 
 	return ca;
 }
@@ -239,11 +233,10 @@ static inline struct bch_dev *bch2_dev_rcu(struct bch_fs *c, unsigned dev)
 
 static inline struct bch_dev *bch2_dev_tryget_noerror(struct bch_fs *c, unsigned dev)
 {
-	rcu_read_lock();
+	guard(rcu)();
 	struct bch_dev *ca = bch2_dev_rcu_noerror(c, dev);
 	if (ca)
 		bch2_dev_get(ca);
-	rcu_read_unlock();
 	return ca;
 }
 
@@ -299,19 +292,16 @@ static inline struct bch_dev *bch2_dev_get_ioref(struct bch_fs *c, unsigned dev,
 {
 	might_sleep();
 
-	rcu_read_lock();
+	guard(rcu)();
 	struct bch_dev *ca = bch2_dev_rcu(c, dev);
-	if (ca && !enumerated_ref_tryget(&ca->io_ref[rw], ref_idx))
-		ca = NULL;
-	rcu_read_unlock();
+	if (!ca || !enumerated_ref_tryget(&ca->io_ref[rw], ref_idx))
+		return NULL;
 
-	if (ca &&
-	    (ca->mi.state == BCH_MEMBER_STATE_rw ||
-	    (ca->mi.state == BCH_MEMBER_STATE_ro && rw == READ)))
+	if (ca->mi.state == BCH_MEMBER_STATE_rw ||
+	    (ca->mi.state == BCH_MEMBER_STATE_ro && rw == READ))
 		return ca;
 
-	if (ca)
-		enumerated_ref_put(&ca->io_ref[rw], ref_idx);
+	enumerated_ref_put(&ca->io_ref[rw], ref_idx);
 	return NULL;
 }
 

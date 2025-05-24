@@ -141,13 +141,9 @@ static int check_subvol(struct btree_trans *trans,
 
 	if (!BCH_SUBVOLUME_SNAP(subvol.v)) {
 		u32 snapshot_root = bch2_snapshot_root(c, le32_to_cpu(subvol.v->snapshot));
-		u32 snapshot_tree;
+		u32 snapshot_tree = bch2_snapshot_tree(c, snapshot_root);
+
 		struct bch_snapshot_tree st;
-
-		rcu_read_lock();
-		snapshot_tree = snapshot_t(c, snapshot_root)->tree;
-		rcu_read_unlock();
-
 		ret = bch2_snapshot_tree_lookup(trans, snapshot_tree, &st);
 
 		bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), c,

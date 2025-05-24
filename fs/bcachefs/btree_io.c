@@ -1325,14 +1325,13 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 	btree_node_reset_sib_u64s(b);
 
-	rcu_read_lock();
-	bkey_for_each_ptr(bch2_bkey_ptrs(bkey_i_to_s(&b->key)), ptr) {
-		struct bch_dev *ca2 = bch2_dev_rcu(c, ptr->dev);
+	scoped_guard(rcu)
+		bkey_for_each_ptr(bch2_bkey_ptrs(bkey_i_to_s(&b->key)), ptr) {
+			struct bch_dev *ca2 = bch2_dev_rcu(c, ptr->dev);
 
-		if (!ca2 || ca2->mi.state != BCH_MEMBER_STATE_rw)
-			set_btree_node_need_rewrite(b);
-	}
-	rcu_read_unlock();
+			if (!ca2 || ca2->mi.state != BCH_MEMBER_STATE_rw)
+				set_btree_node_need_rewrite(b);
+		}
 
 	if (!ptr_written)
 		set_btree_node_need_rewrite(b);

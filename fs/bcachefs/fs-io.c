@@ -71,12 +71,12 @@ void bch2_inode_flush_nocow_writes_async(struct bch_fs *c,
 	memset(&inode->ei_devs_need_flush, 0, sizeof(inode->ei_devs_need_flush));
 
 	for_each_set_bit(dev, devs.d, BCH_SB_MEMBERS_MAX) {
-		rcu_read_lock();
-		ca = rcu_dereference(c->devs[dev]);
-		if (ca && !enumerated_ref_tryget(&ca->io_ref[WRITE],
-					BCH_DEV_WRITE_REF_nocow_flush))
-			ca = NULL;
-		rcu_read_unlock();
+		scoped_guard(rcu) {
+			ca = rcu_dereference(c->devs[dev]);
+			if (ca && !enumerated_ref_tryget(&ca->io_ref[WRITE],
+							 BCH_DEV_WRITE_REF_nocow_flush))
+				ca = NULL;
+		}
 
 		if (!ca)
 			continue;

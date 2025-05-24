@@ -311,7 +311,7 @@ int bch2_check_for_deadlock(struct btree_trans *trans, struct printbuf *cycle)
 	lock_graph_down(&g, trans);
 
 	/* trans->paths is rcu protected vs. freeing */
-	rcu_read_lock();
+	guard(rcu)();
 	if (cycle)
 		cycle->atomic++;
 next:
@@ -409,7 +409,6 @@ up:
 out:
 	if (cycle)
 		--cycle->atomic;
-	rcu_read_unlock();
 	return ret;
 }
 

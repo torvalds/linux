@@ -56,7 +56,7 @@ static bool bch2_target_congested(struct bch_fs *c, u16 target)
 	if (!target)
 		return false;
 
-	rcu_read_lock();
+	guard(rcu)();
 	devs = bch2_target_to_mask(c, target) ?:
 		&c->rw_devs[BCH_DATA_user];
 
@@ -73,7 +73,6 @@ static bool bch2_target_congested(struct bch_fs *c, u16 target)
 		total += max(congested, 0LL);
 		nr++;
 	}
-	rcu_read_unlock();
 
 	return get_random_u32_below(nr * CONGESTED_MAX) < total;
 }

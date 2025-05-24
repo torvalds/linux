@@ -1578,26 +1578,26 @@ static struct ec_stripe_new *ec_new_stripe_alloc(struct bch_fs *c, struct ec_str
 static void ec_stripe_head_devs_update(struct bch_fs *c, struct ec_stripe_head *h)
 {
 	struct bch_devs_mask devs = h->devs;
+	unsigned nr_devs, nr_devs_with_durability;
 
-	rcu_read_lock();
-	h->devs = target_rw_devs(c, BCH_DATA_user, h->disk_label
-				 ? group_to_target(h->disk_label - 1)
-				 : 0);
-	unsigned nr_devs = dev_mask_nr(&h->devs);
+	scoped_guard(rcu) {
+		h->devs = target_rw_devs(c, BCH_DATA_user, h->disk_label
+					 ? group_to_target(h->disk_label - 1)
+					 : 0);
+		nr_devs = dev_mask_nr(&h->devs);
 
-	for_each_member_device_rcu(c, ca, &h->devs)
-		if (!ca->mi.durability)
-			__clear_bit(ca->dev_idx, h->devs.d);
-	unsigned nr_devs_with_durability = dev_mask_nr(&h->devs);
+		for_each_member_device_rcu(c, ca, &h->devs)
+			if (!ca->mi.durability)
+				__clear_bit(ca->dev_idx, h->devs.d);
+		nr_devs_with_durability = dev_mask_nr(&h->devs);
 
-	h->blocksize = pick_blocksize(c, &h->devs);
+		h->blocksize = pick_blocksize(c, &h->devs);
 
-	h->nr_active_devs = 0;
-	for_each_member_device_rcu(c, ca, &h->devs)
-		if (ca->mi.bucket_size == h->blocksize)
-			h->nr_active_devs++;
-
-	rcu_read_unlock();
+		h->nr_active_devs = 0;
+		for_each_member_device_rcu(c, ca, &h->devs)
+			if (ca->mi.bucket_size == h->blocksize)
+				h->nr_active_devs++;
+	}
 
 	/*
 	 * If we only have redundancy + 1 devices, we're better off with just
@@ -2141,15 +2141,14 @@ int bch2_invalidate_stripe_to_dev(struct btree_trans *trans,
 
 	unsigned nr_good = 0;
 
-	rcu_read_lock();
-	bkey_for_each_ptr(ptrs, ptr) {
-		if (ptr->dev == dev_idx)
-			ptr->dev = BCH_SB_MEMBER_INVALID;
+	scoped_guard(rcu)
+		bkey_for_each_ptr(ptrs, ptr) {
+			if (ptr->dev == dev_idx)
+				ptr->dev = BCH_SB_MEMBER_INVALID;
 
-		struct bch_dev *ca = bch2_dev_rcu(trans->c, ptr->dev);
-		nr_good += ca && ca->mi.state != BCH_MEMBER_STATE_failed;
-	}
-	rcu_read_unlock();
+			struct bch_dev *ca = bch2_dev_rcu(trans->c, ptr->dev);
+			nr_good += ca && ca->mi.state != BCH_MEMBER_STATE_failed;
+		}
 
 	if (nr_good < s->v.nr_blocks && !(flags & BCH_FORCE_IF_DATA_DEGRADED))
 		return -BCH_ERR_remove_would_lose_data;

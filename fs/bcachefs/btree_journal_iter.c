@@ -457,11 +457,9 @@ static void bch2_journal_iter_advance(struct journal_iter *iter)
 
 static struct bkey_s_c bch2_journal_iter_peek(struct journal_iter *iter)
 {
-	struct bkey_s_c ret = bkey_s_c_null;
-
 	journal_iter_verify(iter);
 
-	rcu_read_lock();
+	guard(rcu)();
 	while (iter->idx < iter->keys->size) {
 		struct journal_key *k = iter->keys->data + iter->idx;
 
@@ -470,19 +468,16 @@ static struct bkey_s_c bch2_journal_iter_peek(struct journal_iter *iter)
 			break;
 		BUG_ON(cmp);
 
-		if (!k->overwritten) {
-			ret = bkey_i_to_s_c(k->k);
-			break;
-		}
+		if (!k->overwritten)
+			return bkey_i_to_s_c(k->k);
 
 		if (k->overwritten_range)
 			iter->idx = idx_to_pos(iter->keys, rcu_dereference(k->overwritten_range)->end);
 		else
 			bch2_journal_iter_advance(iter);
 	}
-	rcu_read_unlock();
 
-	return ret;
+	return bkey_s_c_null;
 }
 
 static void bch2_journal_iter_exit(struct journal_iter *iter)

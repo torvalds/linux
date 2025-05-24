@@ -339,12 +339,9 @@ static inline bool six_owner_running(struct six_lock *lock)
 	 * acquiring the lock and setting the owner field. If we're an RT task
 	 * that will live-lock because we won't let the owner complete.
 	 */
-	rcu_read_lock();
+	guard(rcu)();
 	struct task_struct *owner = READ_ONCE(lock->owner);
-	bool ret = owner ? owner_on_cpu(owner) : !rt_or_dl_task(current);
-	rcu_read_unlock();
-
-	return ret;
+	return owner ? owner_on_cpu(owner) : !rt_or_dl_task(current);
 }
 
 static inline bool six_optimistic_spin(struct six_lock *lock,

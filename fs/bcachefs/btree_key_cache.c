@@ -187,27 +187,23 @@ lock:
 static struct bkey_cached *
 bkey_cached_reuse(struct btree_key_cache *c)
 {
-	struct bucket_table *tbl;
+
+	guard(rcu)();
+	struct bucket_table *tbl = rht_dereference_rcu(c->table.tbl, &c->table);
 	struct rhash_head *pos;
 	struct bkey_cached *ck;
-	unsigned i;
 
-	rcu_read_lock();
-	tbl = rht_dereference_rcu(c->table.tbl, &c->table);
-	for (i = 0; i < tbl->size; i++)
+	for (unsigned i = 0; i < tbl->size; i++)
 		rht_for_each_entry_rcu(ck, pos, tbl, i, hash) {
 			if (!test_bit(BKEY_CACHED_DIRTY, &ck->flags) &&
 			    bkey_cached_lock_for_evict(ck)) {
 				if (bkey_cached_evict(c, ck))
-					goto out;
+					return ck;
 				six_unlock_write(&ck->c.lock);
 				six_unlock_intent(&ck->c.lock);
 			}
 		}
-	ck = NULL;
-out:
-	rcu_read_unlock();
-	return ck;
+	return NULL;
 }
 
 static int btree_key_cache_create(struct btree_trans *trans,

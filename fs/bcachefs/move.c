@@ -1176,7 +1176,7 @@ static bool rereplicate_pred(struct bch_fs *c, void *arg,
 		? c->opts.metadata_replicas
 		: io_opts->data_replicas;
 
-	rcu_read_lock();
+	guard(rcu)();
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	unsigned i = 0;
 	bkey_for_each_ptr(ptrs, ptr) {
@@ -1186,7 +1186,6 @@ static bool rereplicate_pred(struct bch_fs *c, void *arg,
 			data_opts->kill_ptrs |= BIT(i);
 		i++;
 	}
-	rcu_read_unlock();
 
 	if (!data_opts->kill_ptrs &&
 	    (!nr_good || nr_good >= replicas))
@@ -1294,7 +1293,7 @@ static bool drop_extra_replicas_pred(struct bch_fs *c, void *arg,
 	struct extent_ptr_decoded p;
 	unsigned i = 0;
 
-	rcu_read_lock();
+	guard(rcu)();
 	bkey_for_each_ptr_decode(k.k, bch2_bkey_ptrs_c(k), p, entry) {
 		unsigned d = bch2_extent_ptr_durability(c, &p);
 
@@ -1305,7 +1304,6 @@ static bool drop_extra_replicas_pred(struct bch_fs *c, void *arg,
 
 		i++;
 	}
-	rcu_read_unlock();
 
 	return data_opts->kill_ptrs != 0;
 }

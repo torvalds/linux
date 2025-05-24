@@ -3568,13 +3568,12 @@ bch2_btree_bkey_cached_common_to_text(struct printbuf *out,
 				      struct btree_bkey_cached_common *b)
 {
 	struct six_lock_count c = six_lock_counts(&b->lock);
-	struct task_struct *owner;
 	pid_t pid;
 
-	rcu_read_lock();
-	owner = READ_ONCE(b->lock.owner);
-	pid = owner ? owner->pid : 0;
-	rcu_read_unlock();
+	scoped_guard(rcu) {
+		struct task_struct *owner = READ_ONCE(b->lock.owner);
+		pid = owner ? owner->pid : 0;
+	}
 
 	prt_printf(out, "\t%px %c ", b, b->cached ? 'c' : 'b');
 	bch2_btree_id_to_text(out, b->btree_id);
@@ -3603,7 +3602,7 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 	prt_printf(out, "%i %s\n", task ? task->pid : 0, trans->fn);
 
 	/* trans->paths is rcu protected vs. freeing */
-	rcu_read_lock();
+	guard(rcu)();
 	out->atomic++;
 
 	struct btree_path *paths = rcu_dereference(trans->paths);
@@ -3646,7 +3645,6 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 	}
 out:
 	--out->atomic;
-	rcu_read_unlock();
 }
 
 void bch2_fs_btree_iter_exit(struct bch_fs *c)

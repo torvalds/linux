@@ -105,11 +105,8 @@ static bool __bch2_snapshot_is_ancestor_early(struct snapshot_table *t, u32 id, 
 
 static bool bch2_snapshot_is_ancestor_early(struct bch_fs *c, u32 id, u32 ancestor)
 {
-	rcu_read_lock();
-	bool ret = __bch2_snapshot_is_ancestor_early(rcu_dereference(c->snapshots), id, ancestor);
-	rcu_read_unlock();
-
-	return ret;
+	guard(rcu)();
+	return __bch2_snapshot_is_ancestor_early(rcu_dereference(c->snapshots), id, ancestor);
 }
 
 static inline u32 get_ancestor_below(struct snapshot_table *t, u32 id, u32 ancestor)
@@ -140,13 +137,11 @@ bool __bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
 {
 	bool ret;
 
-	rcu_read_lock();
+	guard(rcu)();
 	struct snapshot_table *t = rcu_dereference(c->snapshots);
 
-	if (unlikely(c->recovery.pass_done < BCH_RECOVERY_PASS_check_snapshots)) {
-		ret = __bch2_snapshot_is_ancestor_early(t, id, ancestor);
-		goto out;
-	}
+	if (unlikely(c->recovery.pass_done < BCH_RECOVERY_PASS_check_snapshots))
+		return __bch2_snapshot_is_ancestor_early(t, id, ancestor);
 
 	if (likely(ancestor >= IS_ANCESTOR_BITMAP))
 		while (id && id < ancestor - IS_ANCESTOR_BITMAP)
@@ -157,9 +152,6 @@ bool __bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
 		: id == ancestor;
 
 	EBUG_ON(ret != __bch2_snapshot_is_ancestor_early(t, id, ancestor));
-out:
-	rcu_read_unlock();
-
 	return ret;
 }
 
@@ -412,10 +404,10 @@ static u32 bch2_snapshot_tree_next(struct bch_fs *c, u32 id)
 u32 bch2_snapshot_oldest_subvol(struct bch_fs *c, u32 snapshot_root,
 				snapshot_id_list *skip)
 {
+	guard(rcu)();
 	u32 id, subvol = 0, s;
 retry:
 	id = snapshot_root;
-	rcu_read_lock();
 	while (id && bch2_snapshot_exists(c, id)) {
 		if (!(skip && snapshot_list_has_id(skip, id))) {
 			s = snapshot_t(c, id)->subvol;
@@ -427,7 +419,6 @@ retry:
 		if (id == snapshot_root)
 			break;
 	}
-	rcu_read_unlock();
 
 	if (!subvol && skip) {
 		skip = NULL;
@@ -617,18 +608,14 @@ static int snapshot_tree_ptr_good(struct btree_trans *trans,
 
 u32 bch2_snapshot_skiplist_get(struct bch_fs *c, u32 id)
 {
-	const struct snapshot_t *s;
-
 	if (!id)
 		return 0;
 
-	rcu_read_lock();
-	s = snapshot_t(c, id);
-	if (s->parent)
-		id = bch2_snapshot_nth_parent(c, id, get_random_u32_below(s->depth));
-	rcu_read_unlock();
-
-	return id;
+	guard(rcu)();
+	const struct snapshot_t *s = snapshot_t(c, id);
+	return s->parent
+		? bch2_snapshot_nth_parent(c, id, get_random_u32_below(s->depth))
+		: id;
 }
 
 static int snapshot_skiplist_good(struct btree_trans *trans, u32 id, struct bch_snapshot s)
@@ -1458,11 +1445,9 @@ static unsigned live_child(struct bch_fs *c, u32 id)
 {
 	struct snapshot_delete *d = &c->snapshot_delete;
 
-	rcu_read_lock();
-	u32 ret = __live_child(rcu_dereference(c->snapshots), id,
-			       &d->delete_leaves, &d->delete_interior);
-	rcu_read_unlock();
-	return ret;
+	guard(rcu)();
+	return __live_child(rcu_dereference(c->snapshots), id,
+			    &d->delete_leaves, &d->delete_interior);
 }
 
 static bool snapshot_id_dying(struct snapshot_delete *d, unsigned id)
@@ -1719,7 +1704,7 @@ static int check_should_delete_snapshot(struct btree_trans *trans, struct bkey_s
 static inline u32 bch2_snapshot_nth_parent_skip(struct bch_fs *c, u32 id, u32 n,
 						interior_delete_list *skip)
 {
-	rcu_read_lock();
+	guard(rcu)();
 	while (interior_delete_has_id(skip, id))
 		id = __bch2_snapshot_parent(c, id);
 
@@ -1728,7 +1713,6 @@ static inline u32 bch2_snapshot_nth_parent_skip(struct bch_fs *c, u32 id, u32 n,
 			id = __bch2_snapshot_parent(c, id);
 		} while (interior_delete_has_id(skip, id));
 	}
-	rcu_read_unlock();
 
 	return id;
 }

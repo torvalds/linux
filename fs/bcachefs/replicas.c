@@ -819,19 +819,18 @@ bool bch2_have_enough_devs(struct bch_fs *c, struct bch_devs_mask devs,
 		if (e->data_type == BCH_DATA_cached)
 			continue;
 
-		rcu_read_lock();
-		for (unsigned i = 0; i < e->nr_devs; i++) {
-			if (e->devs[i] == BCH_SB_MEMBER_INVALID) {
-				nr_failed++;
-				continue;
+		scoped_guard(rcu)
+			for (unsigned i = 0; i < e->nr_devs; i++) {
+				if (e->devs[i] == BCH_SB_MEMBER_INVALID) {
+					nr_failed++;
+					continue;
+				}
+
+				nr_online += test_bit(e->devs[i], devs.d);
+
+				struct bch_dev *ca = bch2_dev_rcu_noerror(c, e->devs[i]);
+				nr_failed += !ca || ca->mi.state == BCH_MEMBER_STATE_failed;
 			}
-
-			nr_online += test_bit(e->devs[i], devs.d);
-
-			struct bch_dev *ca = bch2_dev_rcu_noerror(c, e->devs[i]);
-			nr_failed += !ca || ca->mi.state == BCH_MEMBER_STATE_failed;
-		}
-		rcu_read_unlock();
 
 		if (nr_online + nr_failed == e->nr_devs)
 			continue;

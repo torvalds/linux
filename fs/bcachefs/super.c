@@ -219,23 +219,17 @@ static int bch2_fs_init_rw(struct bch_fs *);
 
 struct bch_fs *bch2_dev_to_fs(dev_t dev)
 {
+	guard(mutex)(&bch_fs_list_lock);
+	guard(rcu)();
+
 	struct bch_fs *c;
-
-	mutex_lock(&bch_fs_list_lock);
-	rcu_read_lock();
-
 	list_for_each_entry(c, &bch_fs_list, list)
 		for_each_member_device_rcu(c, ca, NULL)
 			if (ca->disk_sb.bdev && ca->disk_sb.bdev->bd_dev == dev) {
 				closure_get(&c->cl);
-				goto found;
+				return c;
 			}
-	c = NULL;
-found:
-	rcu_read_unlock();
-	mutex_unlock(&bch_fs_list_lock);
-
-	return c;
+	return NULL;
 }
 
 static struct bch_fs *__bch2_uuid_to_fs(__uuid_t uuid)
@@ -507,13 +501,12 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 
 	clear_bit(BCH_FS_clean_shutdown, &c->flags);
 
-	rcu_read_lock();
-	for_each_online_member_rcu(c, ca)
-		if (ca->mi.state == BCH_MEMBER_STATE_rw) {
-			bch2_dev_allocator_add(c, ca);
-			enumerated_ref_start(&ca->io_ref[WRITE]);
-		}
-	rcu_read_unlock();
+	scoped_guard(rcu)
+		for_each_online_member_rcu(c, ca)
+			if (ca->mi.state == BCH_MEMBER_STATE_rw) {
+				bch2_dev_allocator_add(c, ca);
+				enumerated_ref_start(&ca->io_ref[WRITE]);
+			}
 
 	bch2_recalc_capacity(c);
 
@@ -1184,22 +1177,20 @@ int bch2_fs_start(struct bch_fs *c)
 		goto err;
 	}
 
-	rcu_read_lock();
-	for_each_online_member_rcu(c, ca)
-		bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx)->last_mount =
-		cpu_to_le64(now);
-	rcu_read_unlock();
+	scoped_guard(rcu)
+		for_each_online_member_rcu(c, ca)
+			bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx)->last_mount =
+			cpu_to_le64(now);
 
 	/*
 	 * Dno't write superblock yet: recovery might have to downgrade
 	 */
 	mutex_unlock(&c->sb_lock);
 
-	rcu_read_lock();
-	for_each_online_member_rcu(c, ca)
-		if (ca->mi.state == BCH_MEMBER_STATE_rw)
-			bch2_dev_allocator_add(c, ca);
-	rcu_read_unlock();
+	scoped_guard(rcu)
+		for_each_online_member_rcu(c, ca)
+			if (ca->mi.state == BCH_MEMBER_STATE_rw)
+				bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);
 	up_write(&c->state_lock);
 

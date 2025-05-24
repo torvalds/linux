@@ -148,7 +148,6 @@ static struct journal_space __journal_space_available(struct journal *j, unsigne
 
 	BUG_ON(nr_devs_want > ARRAY_SIZE(dev_space));
 
-	rcu_read_lock();
 	for_each_member_device_rcu(c, ca, &c->rw_devs[BCH_DATA_journal]) {
 		if (!ca->journal.nr ||
 		    !ca->mi.durability)
@@ -166,7 +165,6 @@ static struct journal_space __journal_space_available(struct journal *j, unsigne
 
 		array_insert_item(dev_space, nr_devs, pos, space);
 	}
-	rcu_read_unlock();
 
 	if (nr_devs < nr_devs_want)
 		return (struct journal_space) { 0, 0 };
@@ -191,8 +189,8 @@ void bch2_journal_space_available(struct journal *j)
 	int ret = 0;
 
 	lockdep_assert_held(&j->lock);
+	guard(rcu)();
 
-	rcu_read_lock();
 	for_each_member_device_rcu(c, ca, &c->rw_devs[BCH_DATA_journal]) {
 		struct journal_device *ja = &ca->journal;
 
@@ -212,7 +210,6 @@ void bch2_journal_space_available(struct journal *j)
 		max_entry_size = min_t(unsigned, max_entry_size, ca->mi.bucket_size);
 		nr_online++;
 	}
-	rcu_read_unlock();
 
 	j->can_discard = can_discard;
 
@@ -223,10 +220,8 @@ void bch2_journal_space_available(struct journal *j)
 			prt_printf(&buf, "insufficient writeable journal devices available: have %u, need %u\n"
 				   "rw journal devs:", nr_online, metadata_replicas_required(c));
 
-			rcu_read_lock();
 			for_each_member_device_rcu(c, ca, &c->rw_devs[BCH_DATA_journal])
 				prt_printf(&buf, " %s", ca->name);
-			rcu_read_unlock();
 
 			bch_err(c, "%s", buf.buf);
 			printbuf_exit(&buf);
@@ -626,9 +621,9 @@ static u64 journal_seq_to_flush(struct journal *j)
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	u64 seq_to_flush = 0;
 
-	spin_lock(&j->lock);
+	guard(spinlock)(&j->lock);
+	guard(rcu)();
 
-	rcu_read_lock();
 	for_each_rw_member_rcu(c, ca) {
 		struct journal_device *ja = &ca->journal;
 		unsigned nr_buckets, bucket_to_flush;
@@ -643,15 +638,11 @@ static u64 journal_seq_to_flush(struct journal *j)
 		seq_to_flush = max(seq_to_flush,
 				   ja->bucket_seq[bucket_to_flush]);
 	}
-	rcu_read_unlock();
 
 	/* Also flush if the pin fifo is more than half full */
-	seq_to_flush = max_t(s64, seq_to_flush,
-			     (s64) journal_cur_seq(j) -
-			     (j->pin.size >> 1));
-	spin_unlock(&j->lock);
-
-	return seq_to_flush;
+	return max_t(s64, seq_to_flush,
+		     (s64) journal_cur_seq(j) -
+		     (j->pin.size >> 1));
 }
 
 /**

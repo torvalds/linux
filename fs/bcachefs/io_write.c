@@ -1208,16 +1208,13 @@ static bool bch2_extent_is_writeable(struct bch_write_op *op,
 
 	e = bkey_s_c_to_extent(k);
 
-	rcu_read_lock();
+	guard(rcu)();
 	extent_for_each_ptr_decode(e, p, entry) {
-		if (crc_is_encoded(p.crc) || p.has_ec) {
-			rcu_read_unlock();
+		if (crc_is_encoded(p.crc) || p.has_ec)
 			return false;
-		}
 
 		replicas += bch2_extent_ptr_durability(c, &p);
 	}
-	rcu_read_unlock();
 
 	return replicas >= op->opts.data_replicas;
 }

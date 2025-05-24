@@ -13,11 +13,9 @@
 
 static inline bool bch2_dev_bucket_exists(struct bch_fs *c, struct bpos pos)
 {
-	rcu_read_lock();
+	guard(rcu)();
 	struct bch_dev *ca = bch2_dev_rcu_noerror(c, pos.inode);
-	bool ret = ca && bucket_valid(ca, pos.offset);
-	rcu_read_unlock();
-	return ret;
+	return ca && bucket_valid(ca, pos.offset);
 }
 
 static inline u64 bucket_to_u64(struct bpos bucket)

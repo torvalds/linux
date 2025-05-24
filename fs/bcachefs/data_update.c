@@ -376,21 +376,21 @@ restart_drop_conflicting_replicas:
 			bch2_bkey_durability(c, bkey_i_to_s_c(&new->k_i));
 
 		/* Now, drop excess replicas: */
-		rcu_read_lock();
+		scoped_guard(rcu) {
 restart_drop_extra_replicas:
-		bkey_for_each_ptr_decode(old.k, bch2_bkey_ptrs(bkey_i_to_s(insert)), p, entry) {
-			unsigned ptr_durability = bch2_extent_ptr_durability(c, &p);
+			bkey_for_each_ptr_decode(old.k, bch2_bkey_ptrs(bkey_i_to_s(insert)), p, entry) {
+				unsigned ptr_durability = bch2_extent_ptr_durability(c, &p);
 
-			if (!p.ptr.cached &&
-			    durability - ptr_durability >= m->op.opts.data_replicas) {
-				durability -= ptr_durability;
+				if (!p.ptr.cached &&
+				    durability - ptr_durability >= m->op.opts.data_replicas) {
+					durability -= ptr_durability;
 
-				bch2_extent_ptr_set_cached(c, &m->op.opts,
-							   bkey_i_to_s(insert), &entry->ptr);
-				goto restart_drop_extra_replicas;
+					bch2_extent_ptr_set_cached(c, &m->op.opts,
+								   bkey_i_to_s(insert), &entry->ptr);
+					goto restart_drop_extra_replicas;
+				}
 			}
 		}
-		rcu_read_unlock();
 
 		/* Finally, add the pointers we just wrote: */
 		extent_for_each_ptr_decode(extent_i_to_s(new), p, entry)
@@ -782,7 +782,8 @@ static int can_write_extent(struct bch_fs *c, struct data_update *m)
 	darray_for_each(m->op.devs_have, i)
 		__clear_bit(*i, devs.d);
 
-	rcu_read_lock();
+	guard(rcu)();
+
 	unsigned nr_replicas = 0, i;
 	for_each_set_bit(i, devs.d, BCH_SB_MEMBERS_MAX) {
 		struct bch_dev *ca = bch2_dev_rcu_noerror(c, i);
@@ -799,7 +800,6 @@ static int can_write_extent(struct bch_fs *c, struct data_update *m)
 		if (nr_replicas >= m->op.nr_replicas)
 			break;
 	}
-	rcu_read_unlock();
 
 	if (!nr_replicas)
 		return -BCH_ERR_data_update_done_no_rw_devs;
@@ -876,7 +876,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 	unsigned ptr_bit = 1;
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 		if (!p.ptr.cached) {
-			rcu_read_lock();
+			guard(rcu)();
 			if (ptr_bit & m->data_opts.rewrite_ptrs) {
 				if (crc_is_compressed(p.crc))
 					reserve_sectors += k.k->size;
@@ -887,7 +887,6 @@ int bch2_data_update_init(struct btree_trans *trans,
 				bch2_dev_list_add_dev(&m->op.devs_have, p.ptr.dev);
 				durability_have += bch2_extent_ptr_durability(c, &p);
 			}
-			rcu_read_unlock();
 		}
 
 		/*

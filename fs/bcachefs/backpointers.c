@@ -48,17 +48,19 @@ void bch2_backpointer_to_text(struct printbuf *out, struct bch_fs *c, struct bke
 {
 	struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(k);
 
-	rcu_read_lock();
-	struct bch_dev *ca = bch2_dev_rcu_noerror(c, bp.k->p.inode);
-	if (ca) {
-		u32 bucket_offset;
-		struct bpos bucket = bp_pos_to_bucket_and_offset(ca, bp.k->p, &bucket_offset);
-		rcu_read_unlock();
-		prt_printf(out, "bucket=%llu:%llu:%u ", bucket.inode, bucket.offset, bucket_offset);
-	} else {
-		rcu_read_unlock();
-		prt_printf(out, "sector=%llu:%llu ", bp.k->p.inode, bp.k->p.offset >> MAX_EXTENT_COMPRESS_RATIO_SHIFT);
+	struct bch_dev *ca;
+	u32 bucket_offset;
+	struct bpos bucket;
+	scoped_guard(rcu) {
+		ca = bch2_dev_rcu_noerror(c, bp.k->p.inode);
+		if (ca)
+			bucket = bp_pos_to_bucket_and_offset(ca, bp.k->p, &bucket_offset);
 	}
+
+	if (ca)
+		prt_printf(out, "bucket=%llu:%llu:%u ", bucket.inode, bucket.offset, bucket_offset);
+	else
+		prt_printf(out, "sector=%llu:%llu ", bp.k->p.inode, bp.k->p.offset >> MAX_EXTENT_COMPRESS_RATIO_SHIFT);
 
 	bch2_btree_id_level_to_text(out, bp.v->btree_id, bp.v->level);
 	prt_str(out, " data_type=");
@@ -591,6 +593,7 @@ check_existing_bp:
 		bkey_for_each_ptr(other_extent_ptrs, ptr)
 			if (ptr->dev == bp->k.p.inode &&
 			    dev_ptr_stale_rcu(ca, ptr)) {
+				rcu_read_unlock();
 				ret = drop_dev_and_update(trans, other_bp.v->btree_id,
 							  other_extent, bp->k.p.inode);
 				if (ret)
@@ -679,26 +682,23 @@ static int check_extent_to_backpointers(struct btree_trans *trans,
 		if (p.ptr.dev == BCH_SB_MEMBER_INVALID)
 			continue;
 
-		rcu_read_lock();
-		struct bch_dev *ca = bch2_dev_rcu_noerror(c, p.ptr.dev);
-		if (!ca) {
-			rcu_read_unlock();
-			continue;
-		}
+		bool empty;
+		{
+			/* scoped_guard() is a loop, so it breaks continue */
+			guard(rcu)();
+			struct bch_dev *ca = bch2_dev_rcu_noerror(c, p.ptr.dev);
+			if (!ca)
+				continue;
 
-		if (p.ptr.cached && dev_ptr_stale_rcu(ca, &p.ptr)) {
-			rcu_read_unlock();
-			continue;
-		}
+			if (p.ptr.cached && dev_ptr_stale_rcu(ca, &p.ptr))
+				continue;
 
-		u64 b = PTR_BUCKET_NR(ca, &p.ptr);
-		if (!bch2_bucket_bitmap_test(&ca->bucket_backpointer_mismatch, b)) {
-			rcu_read_unlock();
-			continue;
-		}
+			u64 b = PTR_BUCKET_NR(ca, &p.ptr);
+			if (!bch2_bucket_bitmap_test(&ca->bucket_backpointer_mismatch, b))
+				continue;
 
-		bool empty = bch2_bucket_bitmap_test(&ca->bucket_backpointer_empty, b);
-		rcu_read_unlock();
+			empty = bch2_bucket_bitmap_test(&ca->bucket_backpointer_empty, b);
+		}
 
 		struct bkey_i_backpointer bp;
 		bch2_extent_ptr_to_bp(c, btree, level, k, p, entry, &bp);
@@ -981,7 +981,7 @@ static bool backpointer_node_has_missing(struct bch_fs *c, struct bkey_s_c k)
 	case KEY_TYPE_btree_ptr_v2: {
 		bool ret = false;
 
-		rcu_read_lock();
+		guard(rcu)();
 		struct bpos pos = bkey_s_c_to_btree_ptr_v2(k).v->min_key;
 		while (pos.inode <= k.k->p.inode) {
 			if (pos.inode >= c->sb.nr_devices)
@@ -1009,7 +1009,6 @@ static bool backpointer_node_has_missing(struct bch_fs *c, struct bkey_s_c k)
 next:
 			pos = SPOS(pos.inode + 1, 0, 0);
 		}
-		rcu_read_unlock();
 
 		return ret;
 	}

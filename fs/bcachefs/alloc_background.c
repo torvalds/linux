@@ -1000,14 +1000,11 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 		}
 
 		if (new_a->gen != old_a->gen) {
-			rcu_read_lock();
+			guard(rcu)();
 			u8 *gen = bucket_gen(ca, new.k->p.offset);
-			if (unlikely(!gen)) {
-				rcu_read_unlock();
+			if (unlikely(!gen))
 				goto invalid_bucket;
-			}
 			*gen = new_a->gen;
-			rcu_read_unlock();
 		}
 
 #define eval_state(_a, expr)		({ const struct bch_alloc_v4 *a = _a; expr; })
@@ -1033,15 +1030,12 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 	}
 
 	if ((flags & BTREE_TRIGGER_gc) && (flags & BTREE_TRIGGER_insert)) {
-		rcu_read_lock();
+		guard(rcu)();
 		struct bucket *g = gc_bucket(ca, new.k->p.offset);
-		if (unlikely(!g)) {
-			rcu_read_unlock();
+		if (unlikely(!g))
 			goto invalid_bucket;
-		}
 		g->gen_valid	= 1;
 		g->gen		= new_a->gen;
-		rcu_read_unlock();
 	}
 err:
 fsck_err:
@@ -1117,13 +1111,12 @@ static bool next_bucket(struct bch_fs *c, struct bch_dev **ca, struct bpos *buck
 		bucket->offset = 0;
 	}
 
-	rcu_read_lock();
+	guard(rcu)();
 	*ca = __bch2_next_dev_idx(c, bucket->inode, NULL);
 	if (*ca) {
 		*bucket = POS((*ca)->dev_idx, (*ca)->mi.first_bucket);
 		bch2_dev_get(*ca);
 	}
-	rcu_read_unlock();
 
 	return *ca != NULL;
 }
@@ -2514,7 +2507,7 @@ void bch2_recalc_capacity(struct bch_fs *c)
 
 	lockdep_assert_held(&c->state_lock);
 
-	rcu_read_lock();
+	guard(rcu)();
 	for_each_member_device_rcu(c, ca, NULL) {
 		struct block_device *bdev = READ_ONCE(ca->disk_sb.bdev);
 		if (bdev)
@@ -2559,7 +2552,6 @@ void bch2_recalc_capacity(struct bch_fs *c)
 		bucket_size_max = max_t(unsigned, bucket_size_max,
 					ca->mi.bucket_size);
 	}
-	rcu_read_unlock();
 
 	bch2_set_ra_pages(c, ra_pages);
 
@@ -2584,10 +2576,9 @@ u64 bch2_min_rw_member_capacity(struct bch_fs *c)
 {
 	u64 ret = U64_MAX;
 
-	rcu_read_lock();
+	guard(rcu)();
 	for_each_rw_member_rcu(c, ca)
 		ret = min(ret, ca->mi.nbuckets * ca->mi.bucket_size);
-	rcu_read_unlock();
 	return ret;
 }
 

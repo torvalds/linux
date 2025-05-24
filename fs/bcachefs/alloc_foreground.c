@@ -69,10 +69,9 @@ const char * const bch2_watermarks[] = {
 
 void bch2_reset_alloc_cursors(struct bch_fs *c)
 {
-	rcu_read_lock();
+	guard(rcu)();
 	for_each_member_device_rcu(c, ca, NULL)
 		memset(ca->alloc_cursor, 0, sizeof(ca->alloc_cursor));
-	rcu_read_unlock();
 }
 
 static void bch2_open_bucket_hash_add(struct bch_fs *c, struct open_bucket *ob)
@@ -166,9 +165,8 @@ static void open_bucket_free_unused(struct bch_fs *c, struct open_bucket *ob)
 	       ARRAY_SIZE(c->open_buckets_partial));
 
 	spin_lock(&c->freelist_lock);
-	rcu_read_lock();
-	bch2_dev_rcu(c, ob->dev)->nr_partial_buckets++;
-	rcu_read_unlock();
+	scoped_guard(rcu)
+		bch2_dev_rcu(c, ob->dev)->nr_partial_buckets++;
 
 	ob->on_partial_list = true;
 	c->open_buckets_partial[c->open_buckets_partial_nr++] =
@@ -873,9 +871,8 @@ static int bucket_alloc_set_partial(struct bch_fs *c,
 					  i);
 			ob->on_partial_list = false;
 
-			rcu_read_lock();
-			bch2_dev_rcu(c, ob->dev)->nr_partial_buckets--;
-			rcu_read_unlock();
+			scoped_guard(rcu)
+				bch2_dev_rcu(c, ob->dev)->nr_partial_buckets--;
 
 			ret = add_new_bucket(c, req, ob);
 			if (ret)
@@ -1057,9 +1054,8 @@ void bch2_open_buckets_stop(struct bch_fs *c, struct bch_dev *ca,
 
 			ob->on_partial_list = false;
 
-			rcu_read_lock();
-			bch2_dev_rcu(c, ob->dev)->nr_partial_buckets--;
-			rcu_read_unlock();
+			scoped_guard(rcu)
+				bch2_dev_rcu(c, ob->dev)->nr_partial_buckets--;
 
 			spin_unlock(&c->freelist_lock);
 			bch2_open_bucket_put(c, ob);
@@ -1087,14 +1083,11 @@ static struct write_point *__writepoint_find(struct hlist_head *head,
 {
 	struct write_point *wp;
 
-	rcu_read_lock();
+	guard(rcu)();
 	hlist_for_each_entry_rcu(wp, head, node)
 		if (wp->write_point == write_point)
-			goto out;
-	wp = NULL;
-out:
-	rcu_read_unlock();
-	return wp;
+			return wp;
+	return NULL;
 }
 
 static inline bool too_many_writepoints(struct bch_fs *c, unsigned factor)
@@ -1638,19 +1631,16 @@ static noinline void bch2_print_allocator_stuck(struct bch_fs *c)
 
 	bch2_printbuf_make_room(&buf, 4096);
 
-	rcu_read_lock();
 	buf.atomic++;
-
-	for_each_online_member_rcu(c, ca) {
-		prt_printf(&buf, "Dev %u:\n", ca->dev_idx);
-		printbuf_indent_add(&buf, 2);
-		bch2_dev_alloc_debug_to_text(&buf, ca);
-		printbuf_indent_sub(&buf, 2);
-		prt_newline(&buf);
-	}
-
+	scoped_guard(rcu)
+		for_each_online_member_rcu(c, ca) {
+			prt_printf(&buf, "Dev %u:\n", ca->dev_idx);
+			printbuf_indent_add(&buf, 2);
+			bch2_dev_alloc_debug_to_text(&buf, ca);
+			printbuf_indent_sub(&buf, 2);
+			prt_newline(&buf);
+		}
 	--buf.atomic;
-	rcu_read_unlock();
 
 	prt_printf(&buf, "Copygc debug:\n");
 	printbuf_indent_add(&buf, 2);
