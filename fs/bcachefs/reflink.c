@@ -711,7 +711,8 @@ s64 bch2_remap_range(struct bch_fs *c,
 			SET_REFLINK_P_IDX(&dst_p->v, offset);
 
 			if (reflink_p_may_update_opts_field &&
-			    may_change_src_io_path_opts)
+			    may_change_src_io_path_opts &&
+			    REFLINK_P_MAY_UPDATE_OPTIONS(src_p.v))
 				SET_REFLINK_P_MAY_UPDATE_OPTIONS(&dst_p->v, true);
 		} else {
 			BUG();
