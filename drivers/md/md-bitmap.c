@@ -1682,13 +1682,13 @@ __acquires(bitmap->lock)
 			&(bitmap->bp[page].map[pageoff]);
 }
 
-static int bitmap_startwrite(struct mddev *mddev, sector_t offset,
-			     unsigned long sectors)
+static void bitmap_start_write(struct mddev *mddev, sector_t offset,
+			       unsigned long sectors)
 {
 	struct bitmap *bitmap = mddev->bitmap;
 
 	if (!bitmap)
-		return 0;
+		return;
 
 	while (sectors) {
 		sector_t blocks;
@@ -1698,7 +1698,7 @@ static int bitmap_startwrite(struct mddev *mddev, sector_t offset,
 		bmc = md_bitmap_get_counter(&bitmap->counts, offset, &blocks, 1);
 		if (!bmc) {
 			spin_unlock_irq(&bitmap->counts.lock);
-			return 0;
+			return;
 		}
 
 		if (unlikely(COUNTER(*bmc) == COUNTER_MAX)) {
@@ -1734,11 +1734,10 @@ static int bitmap_startwrite(struct mddev *mddev, sector_t offset,
 		else
 			sectors = 0;
 	}
-	return 0;
 }
 
-static void bitmap_endwrite(struct mddev *mddev, sector_t offset,
-			    unsigned long sectors)
+static void bitmap_end_write(struct mddev *mddev, sector_t offset,
+			     unsigned long sectors)
 {
 	struct bitmap *bitmap = mddev->bitmap;
 
@@ -3013,8 +3012,8 @@ static struct bitmap_operations bitmap_ops = {
 	.end_behind_write	= bitmap_end_behind_write,
 	.wait_behind_writes	= bitmap_wait_behind_writes,
 
-	.startwrite		= bitmap_startwrite,
-	.endwrite		= bitmap_endwrite,
+	.start_write		= bitmap_start_write,
+	.end_write		= bitmap_end_write,
 	.start_sync		= bitmap_start_sync,
 	.end_sync		= bitmap_end_sync,
 	.cond_end_sync		= bitmap_cond_end_sync,

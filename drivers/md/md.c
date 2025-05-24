@@ -8799,14 +8799,14 @@ static void md_bitmap_start(struct mddev *mddev,
 		mddev->pers->bitmap_sector(mddev, &md_io_clone->offset,
 					   &md_io_clone->sectors);
 
-	mddev->bitmap_ops->startwrite(mddev, md_io_clone->offset,
-				      md_io_clone->sectors);
+	mddev->bitmap_ops->start_write(mddev, md_io_clone->offset,
+				       md_io_clone->sectors);
 }
 
 static void md_bitmap_end(struct mddev *mddev, struct md_io_clone *md_io_clone)
 {
-	mddev->bitmap_ops->endwrite(mddev, md_io_clone->offset,
-				    md_io_clone->sectors);
+	mddev->bitmap_ops->end_write(mddev, md_io_clone->offset,
+				     md_io_clone->sectors);
 }
 
 static void md_end_clone_io(struct bio *bio)
