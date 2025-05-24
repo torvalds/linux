@@ -227,8 +227,10 @@ static int pidff_rescale(int i, int max, struct hid_field *field)
  */
 static int pidff_rescale_signed(int i, struct hid_field *field)
 {
-	if (i > 0) return i * field->logical_maximum / S16_MAX;
-	if (i < 0) return i * field->logical_minimum / S16_MIN;
+	if (i > 0)
+		return i * field->logical_maximum / S16_MAX;
+	if (i < 0)
+		return i * field->logical_minimum / S16_MIN;
 	return 0;
 }
 
