@@ -2312,9 +2312,10 @@ int bch2_check_dirents(struct bch_fs *c)
 	snapshots_seen_init(&s);
 
 	int ret = bch2_trans_run(c,
-		for_each_btree_key(trans, iter, BTREE_ID_dirents,
+		for_each_btree_key_commit(trans, iter, BTREE_ID_dirents,
 				POS(BCACHEFS_ROOT_INO, 0),
 				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
+				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			check_dirent(trans, &iter, k, &hash_info, &dir, &target, &s)) ?:
 		check_subdir_count_notnested(trans, &dir));
 
