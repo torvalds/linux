@@ -563,7 +563,7 @@ static int tps6594_regulator_probe(struct platform_device *pdev)
 	bool buck_configured[BUCK_NB] = { false };
 	bool buck_multi[MULTI_PHASE_NB] = { false };
 
-	static const char *npname;
+	const char *npname;
 	int error, i, irq, multi;
 	int irq_idx = 0;
 	int buck_idx = 0;
