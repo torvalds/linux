@@ -356,7 +356,11 @@ enum {
 	INSN_F_SPI_MASK = 0x3f, /* 6 bits */
 	INSN_F_SPI_SHIFT = 3, /* shifted 3 bits to the left */
 
-	INSN_F_STACK_ACCESS = BIT(9), /* we need 10 bits total */
+	INSN_F_STACK_ACCESS = BIT(9),
+
+	INSN_F_DST_REG_STACK = BIT(10), /* dst_reg is PTR_TO_STACK */
+	INSN_F_SRC_REG_STACK = BIT(11), /* src_reg is PTR_TO_STACK */
+	/* total 12 bits are used now. */
 };
 
 static_assert(INSN_F_FRAMENO_MASK + 1 >= MAX_CALL_FRAMES);
@@ -365,9 +369,9 @@ static_assert(INSN_F_SPI_MASK + 1 >= MAX_BPF_STACK / 8);
 struct bpf_insn_hist_entry {
 	u32 idx;
 	/* insn idx can't be bigger than 1 million */
-	u32 prev_idx : 22;
-	/* special flags, e.g., whether insn is doing register stack spill/load */
-	u32 flags : 10;
+	u32 prev_idx : 20;
+	/* special INSN_F_xxx flags */
+	u32 flags : 12;
 	/* additional registers that need precision tracking when this
 	 * jump is backtracked, vector of six 10-bit records
 	 */
