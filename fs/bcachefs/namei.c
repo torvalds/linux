@@ -857,7 +857,8 @@ int __bch2_check_dirent_target(struct btree_trans *trans,
 			n->v.d_inum = cpu_to_le64(target->bi_inum);
 		}
 
-		ret = bch2_trans_update(trans, dirent_iter, &n->k_i, 0);
+		ret = bch2_trans_update(trans, dirent_iter, &n->k_i,
+					BTREE_UPDATE_internal_snapshot_node);
 		if (ret)
 			goto err;
 	}
