@@ -1991,12 +1991,12 @@ struct btree *bch2_btree_iter_next_node(struct btree_trans *trans, struct btree_
 	bch2_btree_path_downgrade(trans, path);
 
 	if (!bch2_btree_node_relock(trans, path, path->level + 1)) {
+		trace_and_count(trans->c, trans_restart_relock_next_node, trans, _THIS_IP_, path);
+		ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_relock);
 		__bch2_btree_path_unlock(trans, path);
 		path->l[path->level].b		= ERR_PTR(-BCH_ERR_no_btree_node_relock);
 		path->l[path->level + 1].b	= ERR_PTR(-BCH_ERR_no_btree_node_relock);
 		btree_path_set_dirty(trans, path, BTREE_ITER_NEED_TRAVERSE);
-		trace_and_count(trans->c, trans_restart_relock_next_node, trans, _THIS_IP_, path);
-		ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_relock);
 		goto err;
 	}
 
