@@ -1081,10 +1081,9 @@ static struct hid_field *pidff_find_special_field(struct hid_report *report,
 			if (!enforce_min ||
 			    report->field[i]->logical_minimum == 1)
 				return report->field[i];
-			else {
-				pr_err("logical_minimum is not 1 as it should be\n");
-				return NULL;
-			}
+
+			pr_err("logical_minimum is not 1 as it should be\n");
+			return NULL;
 		}
 	}
 	return NULL;
