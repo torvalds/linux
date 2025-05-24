@@ -125,6 +125,7 @@ struct aa_str_table {
 };
 
 void aa_free_str_table(struct aa_str_table *table);
+bool aa_resize_str_table(struct aa_str_table *t, int newsize, gfp_t gfp);
 
 struct counted_str {
 	struct kref count;
