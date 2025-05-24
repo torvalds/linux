@@ -640,8 +640,7 @@ int hmm_dma_map_alloc(struct device *dev, struct hmm_dma_map *map,
 	bool dma_need_sync = false;
 	bool use_iova;
 
-	if (!(nr_entries * PAGE_SIZE / dma_entry_size))
-		return -EINVAL;
+	WARN_ON_ONCE(!(nr_entries * PAGE_SIZE / dma_entry_size));
 
 	/*
 	 * The HMM API violates our normal DMA buffer ownership rules and can't

@@ -60,9 +60,11 @@ static int ib_init_umem_odp(struct ib_umem_odp *umem_odp,
 {
 	struct ib_device *dev = umem_odp->umem.ibdev;
 	size_t page_size = 1UL << umem_odp->page_shift;
+	struct hmm_dma_map *map;
 	unsigned long start;
 	unsigned long end;
-	int ret;
+	size_t nr_entries;
+	int ret = 0;
 
 	umem_odp->umem.is_odp = 1;
 	mutex_init(&umem_odp->umem_mutex);
@@ -75,9 +77,20 @@ static int ib_init_umem_odp(struct ib_umem_odp *umem_odp,
 	if (unlikely(end < page_size))
 		return -EOVERFLOW;
 
-	ret = hmm_dma_map_alloc(dev->dma_device, &umem_odp->map,
-				(end - start) >> PAGE_SHIFT,
-				1 << umem_odp->page_shift);
+	nr_entries = (end - start) >> PAGE_SHIFT;
+	if (!(nr_entries * PAGE_SIZE / page_size))
+		return -EINVAL;
+
+	map = &umem_odp->map;
+	if (ib_uses_virt_dma(dev)) {
+		map->pfn_list = kvcalloc(nr_entries, sizeof(*map->pfn_list),
+					 GFP_KERNEL | __GFP_NOWARN);
+		if (!map->pfn_list)
+			ret = -ENOMEM;
+	} else
+		ret = hmm_dma_map_alloc(dev->dma_device, map,
+					(end - start) >> PAGE_SHIFT,
+					1 << umem_odp->page_shift);
 	if (ret)
 		return ret;
 
@@ -90,7 +103,10 @@ static int ib_init_umem_odp(struct ib_umem_odp *umem_odp,
 	return 0;
 
 out_free_map:
-	hmm_dma_map_free(dev->dma_device, &umem_odp->map);
+	if (ib_uses_virt_dma(dev))
+		kfree(map->pfn_list);
+	else
+		hmm_dma_map_free(dev->dma_device, map);
 	return ret;
 }
 
@@ -259,7 +275,10 @@ static void ib_umem_odp_free(struct ib_umem_odp *umem_odp)
 				    ib_umem_end(umem_odp));
 	mutex_unlock(&umem_odp->umem_mutex);
 	mmu_interval_notifier_remove(&umem_odp->notifier);
-	hmm_dma_map_free(dev->dma_device, &umem_odp->map);
+	if (ib_uses_virt_dma(dev))
+		kfree(umem_odp->map.pfn_list);
+	else
+		hmm_dma_map_free(dev->dma_device, &umem_odp->map);
 }
 
 void ib_umem_odp_release(struct ib_umem_odp *umem_odp)
