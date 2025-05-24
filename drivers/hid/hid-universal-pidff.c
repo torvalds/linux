@@ -57,6 +57,7 @@ static int universal_pidff_probe(struct hid_device *hdev,
 				 const struct hid_device_id *id)
 {
 	int i, error;
+
 	error = hid_parse(hdev);
 	if (error) {
 		hid_err(hdev, "HID parse failed\n");
@@ -91,8 +92,8 @@ static int universal_pidff_probe(struct hid_device *hdev,
 
 	/* Check if HID_PID support is enabled */
 	int (*init_function)(struct hid_device *, u32);
-	init_function = hid_pidff_init_with_quirks;
 
+	init_function = hid_pidff_init_with_quirks;
 	if (!init_function) {
 		hid_warn(hdev, "HID_PID support not enabled!\n");
 		return 0;
