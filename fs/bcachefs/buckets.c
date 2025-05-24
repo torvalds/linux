@@ -406,7 +406,15 @@ static int bucket_ref_update_err(struct btree_trans *trans, struct printbuf *buf
 	if (insert) {
 		bch2_trans_updates_to_text(buf, trans);
 		__bch2_inconsistent_error(c, buf);
-		ret = -BCH_ERR_bucket_ref_update;
+		/*
+		 * If we're in recovery, run_explicit_recovery_pass might give
+		 * us an error code for rewinding recovery
+		 */
+		if (!ret)
+			ret = -BCH_ERR_bucket_ref_update;
+	} else {
+		/* Always ignore overwrite errors, so that deletion works */
+		ret = 0;
 	}
 
 	if (print || insert)
@@ -971,15 +979,16 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 			   bch2_data_type_str(type),
 			   bch2_data_type_str(type));
 
-		bool print = bch2_count_fsck_err(c, bucket_metadata_type_mismatch, &buf);
+		bch2_count_fsck_err(c, bucket_metadata_type_mismatch, &buf);
 
-		bch2_run_explicit_recovery_pass(c, &buf,
+		ret = bch2_run_explicit_recovery_pass(c, &buf,
 					BCH_RECOVERY_PASS_check_allocations, 0);
 
-		if (print)
-			bch2_print_str(c, KERN_ERR, buf.buf);
+		/* Always print, this is always fatal */
+		bch2_print_str(c, KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
-		ret = -BCH_ERR_metadata_bucket_inconsistency;
+		if (!ret)
+			ret = -BCH_ERR_metadata_bucket_inconsistency;
 		goto err;
 	}
 
