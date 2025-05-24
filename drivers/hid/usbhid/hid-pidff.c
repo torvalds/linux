@@ -940,7 +940,7 @@ static int pidff_find_fields(struct pidff_usage *usage, const u8 *table,
 			     struct hid_report *report, int count, int strict)
 {
 	if (!report) {
-		pr_debug("pidff_find_fields, null report\n");
+		pr_debug("%s, null report\n", __func__);
 		return -1;
 	}
 
@@ -1069,7 +1069,7 @@ static struct hid_field *pidff_find_special_field(struct hid_report *report,
 						  int usage, int enforce_min)
 {
 	if (!report) {
-		pr_debug("pidff_find_special_field, null report\n");
+		pr_debug("%s, null report\n", __func__);
 		return NULL;
 	}
 
