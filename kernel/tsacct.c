@@ -154,10 +154,10 @@ void acct_update_integrals(struct task_struct *tsk)
 	u64 utime, stime;
 	unsigned long flags;
 
-	local_irq_save(flags);
+	spin_lock_irqsave(&tsk->mm->page_table_lock, flags);
 	task_cputime(tsk, &utime, &stime);
 	__acct_update_integrals(tsk, utime, stime);
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&tsk->mm->page_table_lock, flags);
 }
 
 /**
