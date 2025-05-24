@@ -38,10 +38,10 @@ Description:	This controls cursor delay when using arrow keys. When a
 What:		/sys/accessibility/speakup/cur_phonetic
 KernelVersion:	6.2
 Contact:	speakup@linux-speakup.org
-Description:	This allows speakup to speak letters phoneticaly when arrowing through
+Description:	This allows speakup to speak letters phonetically when arrowing through
 		a word letter by letter. This doesn't affect the spelling when typing
 		the characters. When cur_phonetic=1, speakup will speak characters
-		phoneticaly when arrowing over a letter. When cur_phonetic=0, speakup
+		phonetically when arrowing over a letter. When cur_phonetic=0, speakup
 		will speak letters as normally.
 
 What:		/sys/accessibility/speakup/delimiters
