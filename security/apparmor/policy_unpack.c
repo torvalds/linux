@@ -802,8 +802,12 @@ static int unpack_pdb(struct aa_ext *e, struct aa_policydb **policy,
 	if (!pdb->dfa && pdb->trans.table)
 		aa_free_str_table(&pdb->trans);
 
-	/* TODO: move compat mapping here, requires dfa merging first */
-	/* TODO: move verify here, it has to be done after compat mappings */
+	/* TODO:
+	 * - move compat mapping here, requires dfa merging first
+	 * - move verify here, it has to be done after compat mappings
+	 * - move free of unneeded trans table here, has to be done
+	 *   after perm mapping.
+	 */
 out:
 	*policy = pdb;
 	return 0;
@@ -1242,21 +1246,32 @@ static bool verify_perm(struct aa_perms *perm)
 static bool verify_perms(struct aa_policydb *pdb)
 {
 	int i;
+	int xidx, xmax = -1;
 
 	for (i = 0; i < pdb->size; i++) {
 		if (!verify_perm(&pdb->perms[i]))
 			return false;
 		/* verify indexes into str table */
-		if ((pdb->perms[i].xindex & AA_X_TYPE_MASK) == AA_X_TABLE &&
-		    (pdb->perms[i].xindex & AA_X_INDEX_MASK) >= pdb->trans.size)
-			return false;
+		if ((pdb->perms[i].xindex & AA_X_TYPE_MASK) == AA_X_TABLE) {
+			xidx = pdb->perms[i].xindex & AA_X_INDEX_MASK;
+			if (xidx >= pdb->trans.size)
+				return false;
+			if (xmax < xidx)
+				xmax = xidx;
+		}
 		if (pdb->perms[i].tag && pdb->perms[i].tag >= pdb->trans.size)
 			return false;
 		if (pdb->perms[i].label &&
 		    pdb->perms[i].label >= pdb->trans.size)
 			return false;
 	}
-
+	/* deal with incorrectly constructed string tables */
+	if (xmax == -1) {
+		aa_free_str_table(&pdb->trans);
+	} else if (pdb->trans.size > xmax + 1) {
+		if (!aa_resize_str_table(&pdb->trans, xmax + 1, GFP_KERNEL))
+			return false;
+	}
 	return true;
 }
 
