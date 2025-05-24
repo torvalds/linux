@@ -5015,15 +5015,6 @@ static int asus_hotk_restore(struct device *device)
 	return 0;
 }
 
-static void asus_ally_s2idle_restore(void)
-{
-	if (use_ally_mcu_hack == ASUS_WMI_ALLY_MCU_HACK_ENABLED) {
-		acpi_execute_simple_method(NULL, ASUS_USB0_PWR_EC0_CSEE,
-					   ASUS_USB0_PWR_EC0_CSEE_ON);
-		msleep(ASUS_USB0_PWR_EC0_CSEE_WAIT);
-	}
-}
-
 static int asus_hotk_prepare(struct device *device)
 {
 	if (use_ally_mcu_hack == ASUS_WMI_ALLY_MCU_HACK_ENABLED) {
@@ -5034,10 +5025,35 @@ static int asus_hotk_prepare(struct device *device)
 	return 0;
 }
 
+#if defined(CONFIG_SUSPEND)
+static void asus_ally_s2idle_restore(void)
+{
+	if (use_ally_mcu_hack == ASUS_WMI_ALLY_MCU_HACK_ENABLED) {
+		acpi_execute_simple_method(NULL, ASUS_USB0_PWR_EC0_CSEE,
+					   ASUS_USB0_PWR_EC0_CSEE_ON);
+		msleep(ASUS_USB0_PWR_EC0_CSEE_WAIT);
+	}
+}
+
 /* Use only for Ally devices due to the wake_on_ac */
 static struct acpi_s2idle_dev_ops asus_ally_s2idle_dev_ops = {
 	.restore = asus_ally_s2idle_restore,
 };
+
+static void asus_s2idle_check_register(void)
+{
+	if (acpi_register_lps0_dev(&asus_ally_s2idle_dev_ops))
+		pr_warn("failed to register LPS0 sleep handler in asus-wmi\n");
+}
+
+static void asus_s2idle_check_unregister(void)
+{
+	acpi_unregister_lps0_dev(&asus_ally_s2idle_dev_ops);
+}
+#else
+static void asus_s2idle_check_register(void) {}
+static void asus_s2idle_check_unregister(void) {}
+#endif /* CONFIG_SUSPEND */
 
 static const struct dev_pm_ops asus_pm_ops = {
 	.thaw = asus_hotk_thaw,
@@ -5070,9 +5086,7 @@ static int asus_wmi_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	ret = acpi_register_lps0_dev(&asus_ally_s2idle_dev_ops);
-	if (ret)
-		pr_warn("failed to register LPS0 sleep handler in asus-wmi\n");
+	asus_s2idle_check_register();
 
 	return asus_wmi_add(pdev);
 }
@@ -5106,7 +5120,8 @@ EXPORT_SYMBOL_GPL(asus_wmi_register_driver);
 
 void asus_wmi_unregister_driver(struct asus_wmi_driver *driver)
 {
-	acpi_unregister_lps0_dev(&asus_ally_s2idle_dev_ops);
+	asus_s2idle_check_unregister();
+
 	platform_device_unregister(driver->platform_device);
 	platform_driver_unregister(&driver->platform_driver);
 	used = false;
