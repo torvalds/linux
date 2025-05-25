@@ -578,7 +578,7 @@ static int s25fs256t_late_init(struct spi_nor *nor)
 	return 0;
 }
 
-static struct spi_nor_fixups s25fs256t_fixups = {
+static const struct spi_nor_fixups s25fs256t_fixups = {
 	.post_bfpt = s25fs256t_post_bfpt_fixup,
 	.post_sfdp = s25fs256t_post_sfdp_fixup,
 	.late_init = s25fs256t_late_init,
@@ -650,7 +650,7 @@ static int s25hx_t_late_init(struct spi_nor *nor)
 	return 0;
 }
 
-static struct spi_nor_fixups s25hx_t_fixups = {
+static const struct spi_nor_fixups s25hx_t_fixups = {
 	.post_bfpt = s25hx_t_post_bfpt_fixup,
 	.post_sfdp = s25hx_t_post_sfdp_fixup,
 	.late_init = s25hx_t_late_init,
