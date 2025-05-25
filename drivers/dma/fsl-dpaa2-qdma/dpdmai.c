@@ -48,11 +48,6 @@ struct dpdmai_cmd_destroy {
 	__le32 dpdmai_id;
 } __packed;
 
-static inline u64 mc_enc(int lsoffset, int width, u64 val)
-{
-	return (val & MAKE_UMASK64(width)) << lsoffset;
-}
-
 /**
  * dpdmai_open() - Open a control session for the specified object
  * @mc_io:	Pointer to MC portal's I/O object
