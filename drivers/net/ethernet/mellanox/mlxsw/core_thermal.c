@@ -205,11 +205,11 @@ static int mlxsw_thermal_get_temp(struct thermal_zone_device *tzdev,
 	return 0;
 }
 
-static struct thermal_zone_params mlxsw_thermal_params = {
+static const struct thermal_zone_params mlxsw_thermal_params = {
 	.no_hwmon = true,
 };
 
-static struct thermal_zone_device_ops mlxsw_thermal_ops = {
+static const struct thermal_zone_device_ops mlxsw_thermal_ops = {
 	.should_bind = mlxsw_thermal_should_bind,
 	.get_temp = mlxsw_thermal_get_temp,
 };
@@ -252,7 +252,7 @@ static int mlxsw_thermal_module_temp_get(struct thermal_zone_device *tzdev,
 	return 0;
 }
 
-static struct thermal_zone_device_ops mlxsw_thermal_module_ops = {
+static const struct thermal_zone_device_ops mlxsw_thermal_module_ops = {
 	.should_bind	= mlxsw_thermal_module_should_bind,
 	.get_temp	= mlxsw_thermal_module_temp_get,
 };
@@ -280,7 +280,7 @@ static int mlxsw_thermal_gearbox_temp_get(struct thermal_zone_device *tzdev,
 	return 0;
 }
 
-static struct thermal_zone_device_ops mlxsw_thermal_gearbox_ops = {
+static const struct thermal_zone_device_ops mlxsw_thermal_gearbox_ops = {
 	.should_bind	= mlxsw_thermal_module_should_bind,
 	.get_temp	= mlxsw_thermal_gearbox_temp_get,
 };
