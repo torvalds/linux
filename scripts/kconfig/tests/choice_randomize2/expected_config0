@@ -1,8 +1,0 @@
-#
-# Automatically generated file; DO NOT EDIT.
-# Main menu
-#
-CONFIG_A=y
-# CONFIG_B is not set
-CONFIG_FOO=y
-CONFIG_X=y

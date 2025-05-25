@@ -1,6 +1,0 @@
-What:		/sys/bus/i2c/drivers/ucsi_ccg/.../do_flash
-Date:		May 2019
-Contact:	Ajay Gupta <ajayg@nvidia.com>
-Description:
-		Tell the driver for Cypress CCGx Type-C controller to attempt
-		firmware upgrade by writing [Yy1] to the file.

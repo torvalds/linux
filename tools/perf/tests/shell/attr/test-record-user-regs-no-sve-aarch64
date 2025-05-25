@@ -1,9 +1,0 @@
-# Test that asking for VG fails if the system doesn't support SVE. This
-# applies both before and after the feature was added in 6.1
-[config]
-command = record
-args    = --no-bpf-event --user-regs=vg kill >/dev/null 2>&1
-ret     = 129
-test_ret = true
-arch    = aarch64
-auxv    = auxv["AT_HWCAP"] & 0x400000 == 0

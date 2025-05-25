@@ -1,3 +1,0 @@
-perf-util-y += common.o
-perf-test-y += $(SRCARCH)/
-perf-util-y += $(SRCARCH)/

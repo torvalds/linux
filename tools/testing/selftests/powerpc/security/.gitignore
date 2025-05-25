@@ -1,5 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-rfi_flush
-entry_flush
-spectre_v2
-uaccess_flush

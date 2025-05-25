@@ -1,9 +1,0 @@
-ifeq ($(CONFIG_LIBTRACEEVENT),y)
-  perf-util-$(CONFIG_LIBPERL)   += trace-event-perl.o
-endif
-perf-util-$(CONFIG_LIBPYTHON) += trace-event-python.o
-
-CFLAGS_trace-event-perl.o += $(PERL_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-shadow -Wno-nested-externs -Wno-undef -Wno-switch-default -Wno-bad-function-cast -Wno-declaration-after-statement -Wno-switch-enum
-
-# -Wno-declaration-after-statement: The python headers have mixed code with declarations (decls after asserts, for instance)
-CFLAGS_trace-event-python.o += $(PYTHON_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-shadow -Wno-deprecated-declarations -Wno-switch-enum -Wno-declaration-after-statement

@@ -1,5 +1,0 @@
-libthermal-y += commands.o
-libthermal-y += events.o
-libthermal-y += thermal_nl.o
-libthermal-y += sampling.o
-libthermal-y += thermal.o

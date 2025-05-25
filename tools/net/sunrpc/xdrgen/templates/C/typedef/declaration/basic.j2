@@ -1,8 +1,0 @@
-{# SPDX-License-Identifier: GPL-2.0 #}
-
-bool xdrgen_decode_{{ name }}(struct xdr_stream *xdr, {{ name }} *ptr);
-{% if name in pass_by_reference %}
-bool xdrgen_encode_{{ name }}(struct xdr_stream *xdr, const {{ name }} *value);
-{%- else -%}
-bool xdrgen_encode_{{ name }}(struct xdr_stream *xdr, const {{ name }} value);
-{% endif %}

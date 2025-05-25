@@ -1,6 +1,0 @@
-[
-    {
-        "ArchStdEvent": "BRB_FILTRATE",
-        "PublicDescription": "Counts branch records captured which are not removed by filtering."
-    }
-]

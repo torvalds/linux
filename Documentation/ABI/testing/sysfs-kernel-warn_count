@@ -1,6 +1,0 @@
-What:		/sys/kernel/warn_count
-Date:		November 2022
-KernelVersion:	6.2.0
-Contact:	Linux Kernel Hardening List <linux-hardening@vger.kernel.org>
-Description:
-		Shows how many times the system has Warned since last boot.

@@ -1,1 +1,0 @@
-perf-util-$(CONFIG_AUXTRACE) += cs-etm-decoder.o

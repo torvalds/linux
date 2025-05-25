@@ -1,9 +1,0 @@
-What:		/sys/bus/platform/drivers/qcom_eud/.../enable
-Date:           February 2022
-Contact:        Souradeep Chowdhury <quic_schowdhu@quicinc.com>
-Description:
-		The Enable/Disable sysfs interface for Embedded
-		USB Debugger(EUD). This enables and disables the
-		EUD based on a 1 or a 0 value. By enabling EUD,
-		the user is able to activate the mini-usb hub of
-		EUD for debug and trace capabilities.

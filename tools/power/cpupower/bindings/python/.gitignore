@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-__pycache__/
-raw_pylibcpupower_wrap.c
-*.o
-*.so
-*.py
-!test_raw_pylibcpupower.py

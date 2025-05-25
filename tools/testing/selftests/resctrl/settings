@@ -1,3 +1,0 @@
-# If running time is longer than 120 seconds when new tests are added in
-# the future, increase timeout here.
-timeout=120
