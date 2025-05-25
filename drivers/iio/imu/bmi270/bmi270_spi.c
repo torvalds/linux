@@ -3,6 +3,7 @@
 #include <linux/iio/iio.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/pm.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 
@@ -79,6 +80,7 @@ static const struct of_device_id bmi270_of_match[] = {
 static struct spi_driver bmi270_spi_driver = {
 	.driver = {
 		.name = "bmi270",
+		.pm = pm_ptr(&bmi270_core_pm_ops),
 		.of_match_table = bmi270_of_match,
 	},
 	.probe = bmi270_spi_probe,

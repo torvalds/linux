@@ -982,6 +982,7 @@ int bmi270_core_probe(struct device *dev, struct regmap *regmap,
 	indio_dev->available_scan_masks = bmi270_avail_scan_masks;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &bmi270_info;
+	dev_set_drvdata(data->dev, indio_dev);
 
 	ret = bmi270_trigger_probe(data, indio_dev);
 	if (ret)
@@ -996,6 +997,25 @@ int bmi270_core_probe(struct device *dev, struct regmap *regmap,
 	return devm_iio_device_register(dev, indio_dev);
 }
 EXPORT_SYMBOL_NS_GPL(bmi270_core_probe, "IIO_BMI270");
+
+static int bmi270_core_runtime_suspend(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+
+	return iio_device_suspend_triggering(indio_dev);
+}
+
+static int bmi270_core_runtime_resume(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+
+	return iio_device_resume_triggering(indio_dev);
+}
+
+const struct dev_pm_ops bmi270_core_pm_ops = {
+	RUNTIME_PM_OPS(bmi270_core_runtime_suspend, bmi270_core_runtime_resume, NULL)
+};
+EXPORT_SYMBOL_NS_GPL(bmi270_core_pm_ops, "IIO_BMI270");
 
 MODULE_AUTHOR("Alex Lanzano");
 MODULE_DESCRIPTION("BMI270 driver");
