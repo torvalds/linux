@@ -16,7 +16,7 @@ a hacer de la participación en nuestra comunidad una experiencia libre de
 acoso para todo el mundo, independientemente de la edad, dimensión corporal,
 minusvalía visible o invisible, etnicidad, características sexuales,
 identidad y expresión de género, nivel de experiencia, educación, nivel
-socio-económico, nacionalidad, apariencia personal, raza, religión, o
+socio-económico, apariencia personal, raza, religión, o
 identidad u orientación sexual. Nos comprometemos a actuar e interactuar de
 maneras que contribuyan a una comunidad abierta, acogedora, diversa,
 inclusiva y sana.
