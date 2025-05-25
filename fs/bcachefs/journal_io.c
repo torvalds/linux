@@ -429,6 +429,10 @@ static void journal_entry_btree_keys_to_text(struct printbuf *out, struct bch_fs
 	bool first = true;
 
 	jset_entry_for_each_key(entry, k) {
+		/* We may be called on entries that haven't been validated: */
+		if (!k->k.u64s)
+			break;
+
 		if (!first) {
 			prt_newline(out);
 			bch2_prt_jset_entry_type(out, entry->type);
