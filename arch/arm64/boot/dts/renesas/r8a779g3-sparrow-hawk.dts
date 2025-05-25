@@ -679,19 +679,6 @@
 	};
 };
 
-/* Page 30 / Audio_Codec */
-&rcar_sound {
-	pinctrl-0 = <&sound_clk_pins>;
-	pinctrl-names = "default";
-
-	/* It is used for ADG output as DA7212_MCLK */
-
-	/* audio_clkout */
-	clock-frequency = <12288000>; /* 48 kHz groups */
-
-	status = "okay";
-};
-
 /* Page 31 / FAN */
 &pwm0 {
 	pinctrl-0 = <&pwm0_pins>;
@@ -717,6 +704,19 @@
 &pwm7 {
 	pinctrl-0 = <&pwm7_pins>;
 	pinctrl-names = "default";
+	status = "okay";
+};
+
+/* Page 30 / Audio_Codec */
+&rcar_sound {
+	pinctrl-0 = <&sound_clk_pins>;
+	pinctrl-names = "default";
+
+	/* It is used for ADG output as DA7212_MCLK */
+
+	/* audio_clkout */
+	clock-frequency = <12288000>; /* 48 kHz groups */
+
 	status = "okay";
 };
 
