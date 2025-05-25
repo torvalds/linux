@@ -96,7 +96,7 @@ macro_rules! impl_list_arc_safe {
     } $($rest:tt)*) => {
         impl$(<$($generics)*>)? $crate::list::ListArcSafe<$num> for $t {
             unsafe fn on_create_list_arc_from_unique(self: ::core::pin::Pin<&mut Self>) {
-                $crate::assert_pinned!($t, $field, $fty, inline);
+                ::pin_init::assert_pinned!($t, $field, $fty, inline);
 
                 // SAFETY: This field is structurally pinned as per the above assertion.
                 let field = unsafe {
