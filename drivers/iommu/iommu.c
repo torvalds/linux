@@ -3366,10 +3366,12 @@ static int __iommu_set_group_pasid(struct iommu_domain *domain,
 	int ret;
 
 	for_each_group_device(group, device) {
-		ret = domain->ops->set_dev_pasid(domain, device->dev,
-						 pasid, old);
-		if (ret)
-			goto err_revert;
+		if (device->dev->iommu->max_pasids > 0) {
+			ret = domain->ops->set_dev_pasid(domain, device->dev,
+							 pasid, old);
+			if (ret)
+				goto err_revert;
+		}
 	}
 
 	return 0;
@@ -3379,15 +3381,18 @@ err_revert:
 	for_each_group_device(group, device) {
 		if (device == last_gdev)
 			break;
-		/*
-		 * If no old domain, undo the succeeded devices/pasid.
-		 * Otherwise, rollback the succeeded devices/pasid to the old
-		 * domain. And it is a driver bug to fail attaching with a
-		 * previously good domain.
-		 */
-		if (!old || WARN_ON(old->ops->set_dev_pasid(old, device->dev,
+		if (device->dev->iommu->max_pasids > 0) {
+			/*
+			 * If no old domain, undo the succeeded devices/pasid.
+			 * Otherwise, rollback the succeeded devices/pasid to
+			 * the old domain. And it is a driver bug to fail
+			 * attaching with a previously good domain.
+			 */
+			if (!old ||
+			    WARN_ON(old->ops->set_dev_pasid(old, device->dev,
 							    pasid, domain)))
-			iommu_remove_dev_pasid(device->dev, pasid, domain);
+				iommu_remove_dev_pasid(device->dev, pasid, domain);
+		}
 	}
 	return ret;
 }
@@ -3398,8 +3403,10 @@ static void __iommu_remove_group_pasid(struct iommu_group *group,
 {
 	struct group_device *device;
 
-	for_each_group_device(group, device)
-		iommu_remove_dev_pasid(device->dev, pasid, domain);
+	for_each_group_device(group, device) {
+		if (device->dev->iommu->max_pasids > 0)
+			iommu_remove_dev_pasid(device->dev, pasid, domain);
+	}
 }
 
 /*
@@ -3440,7 +3447,13 @@ int iommu_attach_device_pasid(struct iommu_domain *domain,
 
 	mutex_lock(&group->mutex);
 	for_each_group_device(group, device) {
-		if (pasid >= device->dev->iommu->max_pasids) {
+		/*
+		 * Skip PASID validation for devices without PASID support
+		 * (max_pasids = 0). These devices cannot issue transactions
+		 * with PASID, so they don't affect group's PASID usage.
+		 */
+		if ((device->dev->iommu->max_pasids > 0) &&
+		    (pasid >= device->dev->iommu->max_pasids)) {
 			ret = -EINVAL;
 			goto out_unlock;
 		}
