@@ -140,6 +140,14 @@ void bch2_prt_bitflags_vector(struct printbuf *, const char * const[],
 	.size	= _size,				\
 })
 
+static inline struct printbuf bch2_printbuf_init(void)
+{
+	return PRINTBUF;
+}
+
+DEFINE_CLASS(printbuf, struct printbuf,
+	     bch2_printbuf_exit(&_T), bch2_printbuf_init(), void)
+
 /*
  * Returns size remaining of output buffer:
  */
