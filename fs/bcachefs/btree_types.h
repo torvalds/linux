@@ -555,6 +555,8 @@ struct btree_trans {
 	unsigned		journal_u64s;
 	unsigned		extra_disk_res; /* XXX kill */
 
+	__BKEY_PADDED(btree_path_down, BKEY_BTREE_PTR_VAL_U64s_MAX);
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
 #endif
