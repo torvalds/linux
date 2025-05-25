@@ -25,12 +25,12 @@
 
 #define CH_RX_REG(reg, id) CH_REG(admaif->soc_data->rx_base, reg, id)
 
-#define REG_DEFAULTS(id, rx_ctrl, tx_ctrl, tx_base, rx_base)		       \
+#define REG_DEFAULTS(id, rx_ctrl, tx_ctrl, tx_base, rx_base, cif_ctrl)	       \
 	{ CH_REG(rx_base, TEGRA_ADMAIF_RX_INT_MASK, id), 0x00000001 },	       \
-	{ CH_REG(rx_base, TEGRA_ADMAIF_CH_ACIF_RX_CTRL, id), 0x00007700 },     \
+	{ CH_REG(rx_base, TEGRA_ADMAIF_CH_ACIF_RX_CTRL, id), cif_ctrl },     \
 	{ CH_REG(rx_base, TEGRA_ADMAIF_RX_FIFO_CTRL, id), rx_ctrl },	       \
 	{ CH_REG(tx_base, TEGRA_ADMAIF_TX_INT_MASK, id), 0x00000001 },	       \
-	{ CH_REG(tx_base, TEGRA_ADMAIF_CH_ACIF_TX_CTRL, id), 0x00007700 },     \
+	{ CH_REG(tx_base, TEGRA_ADMAIF_CH_ACIF_TX_CTRL, id), cif_ctrl },     \
 	{ CH_REG(tx_base, TEGRA_ADMAIF_TX_FIFO_CTRL, id), tx_ctrl }
 
 #define ADMAIF_REG_DEFAULTS(id, chip)					       \
@@ -38,7 +38,8 @@
 		chip ## _ADMAIF_RX ## id ## _FIFO_CTRL_REG_DEFAULT,	       \
 		chip ## _ADMAIF_TX ## id ## _FIFO_CTRL_REG_DEFAULT,	       \
 		chip ## _ADMAIF_TX_BASE,				       \
-		chip ## _ADMAIF_RX_BASE)
+		chip ## _ADMAIF_RX_BASE,				       \
+		chip ## _ADMAIF_CIF_REG_DEFAULT)
 
 static const struct reg_default tegra186_admaif_reg_defaults[] = {
 	{(TEGRA_ADMAIF_GLOBAL_CG_0 + TEGRA186_ADMAIF_GLOBAL_BASE), 0x00000003},
@@ -76,6 +77,42 @@ static const struct reg_default tegra210_admaif_reg_defaults[] = {
 	ADMAIF_REG_DEFAULTS(8, TEGRA210),
 	ADMAIF_REG_DEFAULTS(9, TEGRA210),
 	ADMAIF_REG_DEFAULTS(10, TEGRA210)
+};
+
+static const struct reg_default tegra264_admaif_reg_defaults[] = {
+	{(TEGRA_ADMAIF_GLOBAL_CG_0 + TEGRA264_ADMAIF_GLOBAL_BASE), 0x00000003},
+	ADMAIF_REG_DEFAULTS(1, TEGRA264),
+	ADMAIF_REG_DEFAULTS(2, TEGRA264),
+	ADMAIF_REG_DEFAULTS(3, TEGRA264),
+	ADMAIF_REG_DEFAULTS(4, TEGRA264),
+	ADMAIF_REG_DEFAULTS(5, TEGRA264),
+	ADMAIF_REG_DEFAULTS(6, TEGRA264),
+	ADMAIF_REG_DEFAULTS(7, TEGRA264),
+	ADMAIF_REG_DEFAULTS(8, TEGRA264),
+	ADMAIF_REG_DEFAULTS(9, TEGRA264),
+	ADMAIF_REG_DEFAULTS(10, TEGRA264),
+	ADMAIF_REG_DEFAULTS(11, TEGRA264),
+	ADMAIF_REG_DEFAULTS(12, TEGRA264),
+	ADMAIF_REG_DEFAULTS(13, TEGRA264),
+	ADMAIF_REG_DEFAULTS(14, TEGRA264),
+	ADMAIF_REG_DEFAULTS(15, TEGRA264),
+	ADMAIF_REG_DEFAULTS(16, TEGRA264),
+	ADMAIF_REG_DEFAULTS(17, TEGRA264),
+	ADMAIF_REG_DEFAULTS(18, TEGRA264),
+	ADMAIF_REG_DEFAULTS(19, TEGRA264),
+	ADMAIF_REG_DEFAULTS(20, TEGRA264),
+	ADMAIF_REG_DEFAULTS(21, TEGRA264),
+	ADMAIF_REG_DEFAULTS(22, TEGRA264),
+	ADMAIF_REG_DEFAULTS(23, TEGRA264),
+	ADMAIF_REG_DEFAULTS(24, TEGRA264),
+	ADMAIF_REG_DEFAULTS(25, TEGRA264),
+	ADMAIF_REG_DEFAULTS(26, TEGRA264),
+	ADMAIF_REG_DEFAULTS(27, TEGRA264),
+	ADMAIF_REG_DEFAULTS(28, TEGRA264),
+	ADMAIF_REG_DEFAULTS(29, TEGRA264),
+	ADMAIF_REG_DEFAULTS(30, TEGRA264),
+	ADMAIF_REG_DEFAULTS(31, TEGRA264),
+	ADMAIF_REG_DEFAULTS(32, TEGRA264)
 };
 
 static bool tegra_admaif_wr_reg(struct device *dev, unsigned int reg)
@@ -220,6 +257,19 @@ static const struct regmap_config tegra186_admaif_regmap_config = {
 	.cache_type		= REGCACHE_FLAT,
 };
 
+static const struct regmap_config tegra264_admaif_regmap_config = {
+	.reg_bits		= 32,
+	.reg_stride		= 4,
+	.val_bits		= 32,
+	.max_register		= TEGRA264_ADMAIF_LAST_REG,
+	.writeable_reg		= tegra_admaif_wr_reg,
+	.readable_reg		= tegra_admaif_rd_reg,
+	.volatile_reg		= tegra_admaif_volatile_reg,
+	.reg_defaults		= tegra264_admaif_reg_defaults,
+	.num_reg_defaults	= TEGRA264_ADMAIF_CHANNEL_COUNT * 6 + 1,
+	.cache_type		= REGCACHE_FLAT,
+};
+
 static int tegra_admaif_runtime_suspend(struct device *dev)
 {
 	struct tegra_admaif *admaif = dev_get_drvdata(dev);
@@ -330,7 +380,10 @@ static int tegra_admaif_hw_params(struct snd_pcm_substream *substream,
 
 	tegra_admaif_set_pack_mode(admaif->regmap, reg, valid_bit);
 
-	tegra_set_cif(admaif->regmap, reg, &cif_conf);
+	if (admaif->soc_data->max_stream_ch == TEGRA264_ADMAIF_MAX_CHANNEL)
+		tegra264_set_cif(admaif->regmap, reg, &cif_conf);
+	else
+		tegra_set_cif(admaif->regmap, reg, &cif_conf);
 
 	return 0;
 }
@@ -571,13 +624,13 @@ static const struct snd_soc_dai_ops tegra_admaif_dai_ops = {
 	.prepare	= tegra_admaif_prepare,
 };
 
-#define DAI(dai_name)					\
+#define DAI(dai_name, channel)					\
 	{							\
 		.name = dai_name,				\
 		.playback = {					\
 			.stream_name = dai_name " Playback",	\
 			.channels_min = 1,			\
-			.channels_max = 16,			\
+			.channels_max = channel,		\
 			.rates = SNDRV_PCM_RATE_8000_192000,	\
 			.formats = SNDRV_PCM_FMTBIT_S8 |	\
 				SNDRV_PCM_FMTBIT_S16_LE |	\
@@ -587,7 +640,7 @@ static const struct snd_soc_dai_ops tegra_admaif_dai_ops = {
 		.capture = {					\
 			.stream_name = dai_name " Capture",	\
 			.channels_min = 1,			\
-			.channels_max = 16,			\
+			.channels_max = channel,		\
 			.rates = SNDRV_PCM_RATE_8000_192000,	\
 			.formats = SNDRV_PCM_FMTBIT_S8 |	\
 				SNDRV_PCM_FMTBIT_S16_LE |	\
@@ -598,39 +651,74 @@ static const struct snd_soc_dai_ops tegra_admaif_dai_ops = {
 	}
 
 static struct snd_soc_dai_driver tegra210_admaif_cmpnt_dais[] = {
-	DAI("ADMAIF1"),
-	DAI("ADMAIF2"),
-	DAI("ADMAIF3"),
-	DAI("ADMAIF4"),
-	DAI("ADMAIF5"),
-	DAI("ADMAIF6"),
-	DAI("ADMAIF7"),
-	DAI("ADMAIF8"),
-	DAI("ADMAIF9"),
-	DAI("ADMAIF10"),
+	DAI("ADMAIF1", TEGRA210_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF2", TEGRA210_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF3", TEGRA210_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF4", TEGRA210_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF5", TEGRA210_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF6", TEGRA210_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF7", TEGRA210_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF8", TEGRA210_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF9", TEGRA210_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF10", TEGRA210_ADMAIF_MAX_CHANNEL),
 };
 
 static struct snd_soc_dai_driver tegra186_admaif_cmpnt_dais[] = {
-	DAI("ADMAIF1"),
-	DAI("ADMAIF2"),
-	DAI("ADMAIF3"),
-	DAI("ADMAIF4"),
-	DAI("ADMAIF5"),
-	DAI("ADMAIF6"),
-	DAI("ADMAIF7"),
-	DAI("ADMAIF8"),
-	DAI("ADMAIF9"),
-	DAI("ADMAIF10"),
-	DAI("ADMAIF11"),
-	DAI("ADMAIF12"),
-	DAI("ADMAIF13"),
-	DAI("ADMAIF14"),
-	DAI("ADMAIF15"),
-	DAI("ADMAIF16"),
-	DAI("ADMAIF17"),
-	DAI("ADMAIF18"),
-	DAI("ADMAIF19"),
-	DAI("ADMAIF20"),
+	DAI("ADMAIF1", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF2", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF3", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF4", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF5", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF6", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF7", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF8", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF9", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF10", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF11", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF12", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF13", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF14", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF15", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF16", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF17", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF18", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF19", TEGRA186_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF20", TEGRA186_ADMAIF_MAX_CHANNEL),
+};
+
+static struct snd_soc_dai_driver tegra264_admaif_cmpnt_dais[] = {
+	DAI("ADMAIF1", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF2", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF3", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF4", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF5", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF6", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF7", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF8", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF9", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF10", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF11", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF12", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF13", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF14", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF15", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF16", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF17", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF18", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF19", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF20", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF21", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF22", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF23", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF24", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF25", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF26", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF27", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF28", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF29", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF30", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF31", TEGRA264_ADMAIF_MAX_CHANNEL),
+	DAI("ADMAIF32", TEGRA264_ADMAIF_MAX_CHANNEL),
 };
 
 static const char * const tegra_admaif_stereo_conv_text[] = {
@@ -710,6 +798,41 @@ static struct snd_kcontrol_new tegra186_admaif_controls[] = {
 	TEGRA_ADMAIF_CIF_CTRL(20),
 };
 
+static struct snd_kcontrol_new tegra264_admaif_controls[] = {
+	TEGRA_ADMAIF_CIF_CTRL(1),
+	TEGRA_ADMAIF_CIF_CTRL(2),
+	TEGRA_ADMAIF_CIF_CTRL(3),
+	TEGRA_ADMAIF_CIF_CTRL(4),
+	TEGRA_ADMAIF_CIF_CTRL(5),
+	TEGRA_ADMAIF_CIF_CTRL(6),
+	TEGRA_ADMAIF_CIF_CTRL(7),
+	TEGRA_ADMAIF_CIF_CTRL(8),
+	TEGRA_ADMAIF_CIF_CTRL(9),
+	TEGRA_ADMAIF_CIF_CTRL(10),
+	TEGRA_ADMAIF_CIF_CTRL(11),
+	TEGRA_ADMAIF_CIF_CTRL(12),
+	TEGRA_ADMAIF_CIF_CTRL(13),
+	TEGRA_ADMAIF_CIF_CTRL(14),
+	TEGRA_ADMAIF_CIF_CTRL(15),
+	TEGRA_ADMAIF_CIF_CTRL(16),
+	TEGRA_ADMAIF_CIF_CTRL(17),
+	TEGRA_ADMAIF_CIF_CTRL(18),
+	TEGRA_ADMAIF_CIF_CTRL(19),
+	TEGRA_ADMAIF_CIF_CTRL(20),
+	TEGRA_ADMAIF_CIF_CTRL(21),
+	TEGRA_ADMAIF_CIF_CTRL(22),
+	TEGRA_ADMAIF_CIF_CTRL(23),
+	TEGRA_ADMAIF_CIF_CTRL(24),
+	TEGRA_ADMAIF_CIF_CTRL(25),
+	TEGRA_ADMAIF_CIF_CTRL(26),
+	TEGRA_ADMAIF_CIF_CTRL(27),
+	TEGRA_ADMAIF_CIF_CTRL(28),
+	TEGRA_ADMAIF_CIF_CTRL(29),
+	TEGRA_ADMAIF_CIF_CTRL(30),
+	TEGRA_ADMAIF_CIF_CTRL(31),
+	TEGRA_ADMAIF_CIF_CTRL(32),
+};
+
 static const struct snd_soc_component_driver tegra210_admaif_cmpnt = {
 	.controls		= tegra210_admaif_controls,
 	.num_controls		= ARRAY_SIZE(tegra210_admaif_controls),
@@ -730,8 +853,19 @@ static const struct snd_soc_component_driver tegra186_admaif_cmpnt = {
 	.pointer		= tegra_pcm_pointer,
 };
 
+static const struct snd_soc_component_driver tegra264_admaif_cmpnt = {
+	.controls		= tegra264_admaif_controls,
+	.num_controls		= ARRAY_SIZE(tegra264_admaif_controls),
+	.pcm_construct		= tegra_pcm_construct,
+	.open			= tegra_pcm_open,
+	.close			= tegra_pcm_close,
+	.hw_params		= tegra_pcm_hw_params,
+	.pointer		= tegra_pcm_pointer,
+};
+
 static const struct tegra_admaif_soc_data soc_data_tegra210 = {
 	.num_ch		= TEGRA210_ADMAIF_CHANNEL_COUNT,
+	.max_stream_ch	= TEGRA210_ADMAIF_MAX_CHANNEL,
 	.cmpnt		= &tegra210_admaif_cmpnt,
 	.dais		= tegra210_admaif_cmpnt_dais,
 	.regmap_conf	= &tegra210_admaif_regmap_config,
@@ -742,6 +876,7 @@ static const struct tegra_admaif_soc_data soc_data_tegra210 = {
 
 static const struct tegra_admaif_soc_data soc_data_tegra186 = {
 	.num_ch		= TEGRA186_ADMAIF_CHANNEL_COUNT,
+	.max_stream_ch	= TEGRA186_ADMAIF_MAX_CHANNEL,
 	.cmpnt		= &tegra186_admaif_cmpnt,
 	.dais		= tegra186_admaif_cmpnt_dais,
 	.regmap_conf	= &tegra186_admaif_regmap_config,
@@ -750,9 +885,21 @@ static const struct tegra_admaif_soc_data soc_data_tegra186 = {
 	.rx_base	= TEGRA186_ADMAIF_RX_BASE,
 };
 
+static const struct tegra_admaif_soc_data soc_data_tegra264 = {
+	.num_ch		= TEGRA264_ADMAIF_CHANNEL_COUNT,
+	.max_stream_ch	= TEGRA264_ADMAIF_MAX_CHANNEL,
+	.cmpnt		= &tegra264_admaif_cmpnt,
+	.dais		= tegra264_admaif_cmpnt_dais,
+	.regmap_conf	= &tegra264_admaif_regmap_config,
+	.global_base	= TEGRA264_ADMAIF_GLOBAL_BASE,
+	.tx_base	= TEGRA264_ADMAIF_TX_BASE,
+	.rx_base	= TEGRA264_ADMAIF_RX_BASE,
+};
+
 static const struct of_device_id tegra_admaif_of_match[] = {
 	{ .compatible = "nvidia,tegra210-admaif", .data = &soc_data_tegra210 },
 	{ .compatible = "nvidia,tegra186-admaif", .data = &soc_data_tegra186 },
+	{ .compatible = "nvidia,tegra264-admaif", .data = &soc_data_tegra264 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, tegra_admaif_of_match);

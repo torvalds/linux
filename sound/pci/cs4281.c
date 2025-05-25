@@ -1302,14 +1302,15 @@ static int snd_cs4281_create(struct snd_card *card,
 	}
 	chip->dual_codec = dual_codec;
 
-	err = pcim_iomap_regions(pci, 0x03, "CS4281"); /* 2 BARs */
-	if (err < 0)
-		return err;
+	chip->ba0 = pcim_iomap_region(pci, 0, "CS4281");
+	if (IS_ERR(chip->ba0))
+		return PTR_ERR(chip->ba0);
 	chip->ba0_addr = pci_resource_start(pci, 0);
-	chip->ba1_addr = pci_resource_start(pci, 1);
 
-	chip->ba0 = pcim_iomap_table(pci)[0];
-	chip->ba1 = pcim_iomap_table(pci)[1];
+	chip->ba1 = pcim_iomap_region(pci, 1, "CS4281");
+	if (IS_ERR(chip->ba1))
+		return PTR_ERR(chip->ba1);
+	chip->ba1_addr = pci_resource_start(pci, 1);
 	
 	if (devm_request_irq(&pci->dev, pci->irq, snd_cs4281_interrupt,
 			     IRQF_SHARED, KBUILD_MODNAME, chip)) {

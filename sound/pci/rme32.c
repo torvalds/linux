@@ -1284,7 +1284,7 @@ static int snd_rme32_create(struct rme32 *rme32)
 	if (err < 0)
 		return err;
 
-	err = pci_request_regions(pci, "RME32");
+	err = pcim_request_all_regions(pci, "RME32");
 	if (err < 0)
 		return err;
 	rme32->port = pci_resource_start(rme32->pci, 0);

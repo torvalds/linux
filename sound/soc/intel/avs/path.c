@@ -131,9 +131,9 @@ int avs_path_set_constraint(struct avs_dev *adev, struct avs_tplg_path_template 
 	list_for_each_entry(path_template, &template->path_list, node)
 		i++;
 
-	rlist = kcalloc(i, sizeof(rlist), GFP_KERNEL);
-	clist = kcalloc(i, sizeof(clist), GFP_KERNEL);
-	slist = kcalloc(i, sizeof(slist), GFP_KERNEL);
+	rlist = kcalloc(i, sizeof(*rlist), GFP_KERNEL);
+	clist = kcalloc(i, sizeof(*clist), GFP_KERNEL);
+	slist = kcalloc(i, sizeof(*slist), GFP_KERNEL);
 
 	i = 0;
 	list_for_each_entry(path_template, &template->path_list, node) {
@@ -282,8 +282,51 @@ avs_nhlt_config_or_default(struct avs_dev *adev, struct avs_tplg_module *t)
 	return &fmtcfg->config;
 }
 
+static int avs_append_dma_cfg(struct avs_dev *adev, struct avs_copier_gtw_cfg *gtw,
+			      struct avs_tplg_module *t, u32 dma_id, size_t *cfg_size)
+{
+	u32 dma_type = t->cfg_ext->copier.dma_type;
+	struct avs_dma_cfg *dma;
+	struct avs_tlv *tlv;
+	size_t tlv_size;
+
+	if (!avs_platattr_test(adev, ALTHDA))
+		return 0;
+
+	switch (dma_type) {
+	case AVS_DMA_HDA_HOST_OUTPUT:
+	case AVS_DMA_HDA_HOST_INPUT:
+	case AVS_DMA_HDA_LINK_OUTPUT:
+	case AVS_DMA_HDA_LINK_INPUT:
+		return 0;
+	default:
+		break;
+	}
+
+	tlv_size = sizeof(*tlv) + sizeof(*dma);
+	if (*cfg_size + tlv_size > AVS_MAILBOX_SIZE)
+		return -E2BIG;
+
+	/* DMA config is a TLV tailing the existing payload. */
+	tlv = (struct avs_tlv *)&gtw->config.blob[gtw->config_length];
+	tlv->type = AVS_GTW_DMA_CONFIG_ID;
+	tlv->length = sizeof(*dma);
+
+	dma = (struct avs_dma_cfg *)tlv->value;
+	memset(dma, 0, sizeof(*dma));
+	dma->dma_method = AVS_DMA_METHOD_HDA;
+	dma->pre_allocated = true;
+	dma->dma_channel_id = dma_id;
+	dma->stream_id = dma_id + 1;
+
+	gtw->config_length += tlv_size / sizeof(u32);
+	*cfg_size += tlv_size;
+
+	return 0;
+}
+
 static int avs_fill_gtw_config(struct avs_dev *adev, struct avs_copier_gtw_cfg *gtw,
-			       struct avs_tplg_module *t, size_t *cfg_size)
+			       struct avs_tplg_module *t, u32 dma_id, size_t *cfg_size)
 {
 	struct acpi_nhlt_config *blob;
 	size_t gtw_size;
@@ -300,7 +343,7 @@ static int avs_fill_gtw_config(struct avs_dev *adev, struct avs_copier_gtw_cfg *
 	memcpy(gtw->config.blob, blob->capabilities, blob->capabilities_size);
 	*cfg_size += gtw_size;
 
-	return 0;
+	return avs_append_dma_cfg(adev, gtw, t, dma_id, cfg_size);
 }
 
 static int avs_copier_create(struct avs_dev *adev, struct avs_path_module *mod)
@@ -317,7 +360,7 @@ static int avs_copier_create(struct avs_dev *adev, struct avs_path_module *mod)
 	dma_id = mod->owner->owner->dma_id;
 	cfg_size = offsetof(struct avs_copier_cfg, gtw_cfg.config);
 
-	ret = avs_fill_gtw_config(adev, &cfg->gtw_cfg, t, &cfg_size);
+	ret = avs_fill_gtw_config(adev, &cfg->gtw_cfg, t, dma_id, &cfg_size);
 	if (ret)
 		return ret;
 
@@ -351,7 +394,7 @@ static int avs_whm_create(struct avs_dev *adev, struct avs_path_module *mod)
 	dma_id = mod->owner->owner->dma_id;
 	cfg_size = offsetof(struct avs_whm_cfg, gtw_cfg.config);
 
-	ret = avs_fill_gtw_config(adev, &cfg->gtw_cfg, t, &cfg_size);
+	ret = avs_fill_gtw_config(adev, &cfg->gtw_cfg, t, dma_id, &cfg_size);
 	if (ret)
 		return ret;
 
@@ -524,7 +567,7 @@ static int avs_updown_mix_create(struct avs_dev *adev, struct avs_path_module *m
 	cfg.base.audio_fmt = *t->in_fmt;
 	cfg.out_channel_config = t->cfg_ext->updown_mix.out_channel_config;
 	cfg.coefficients_select = t->cfg_ext->updown_mix.coefficients_select;
-	for (i = 0; i < AVS_CHANNELS_MAX; i++)
+	for (i = 0; i < AVS_COEFF_CHANNELS_MAX; i++)
 		cfg.coefficients[i] = t->cfg_ext->updown_mix.coefficients[i];
 	cfg.channel_map = t->cfg_ext->updown_mix.channel_map;
 

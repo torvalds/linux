@@ -54,14 +54,17 @@ void avs_hda_power_gating_enable(struct avs_dev *adev, bool enable)
 {
 	u32 value = enable ? 0 : pgctl_mask;
 
-	avs_hda_update_config_dword(&adev->base.core, AZX_PCIREG_PGCTL, pgctl_mask, value);
+	if (!avs_platattr_test(adev, ACE))
+		avs_hda_update_config_dword(&adev->base.core, AZX_PCIREG_PGCTL, pgctl_mask, value);
 }
 
 static void avs_hdac_clock_gating_enable(struct hdac_bus *bus, bool enable)
 {
+	struct avs_dev *adev = hdac_to_avs(bus);
 	u32 value = enable ? cgctl_mask : 0;
 
-	avs_hda_update_config_dword(bus, AZX_PCIREG_CGCTL, cgctl_mask, value);
+	if (!avs_platattr_test(adev, ACE))
+		avs_hda_update_config_dword(bus, AZX_PCIREG_CGCTL, cgctl_mask, value);
 }
 
 void avs_hda_clock_gating_enable(struct avs_dev *adev, bool enable)
@@ -71,6 +74,8 @@ void avs_hda_clock_gating_enable(struct avs_dev *adev, bool enable)
 
 void avs_hda_l1sen_enable(struct avs_dev *adev, bool enable)
 {
+	if (avs_platattr_test(adev, ACE))
+		return;
 	if (enable) {
 		if (atomic_inc_and_test(&adev->l1sen_counter))
 			snd_hdac_chip_updatel(&adev->base.core, VS_EM2, AZX_VS_EM2_L1SEN,
@@ -99,6 +104,7 @@ static int avs_hdac_bus_init_streams(struct hdac_bus *bus)
 
 static bool avs_hdac_bus_init_chip(struct hdac_bus *bus, bool full_reset)
 {
+	struct avs_dev *adev = hdac_to_avs(bus);
 	struct hdac_ext_link *hlink;
 	bool ret;
 
@@ -114,7 +120,8 @@ static bool avs_hdac_bus_init_chip(struct hdac_bus *bus, bool full_reset)
 	/* Set DUM bit to address incorrect position reporting for capture
 	 * streams. In order to do so, CTRL needs to be out of reset state
 	 */
-	snd_hdac_chip_updatel(bus, VS_EM2, AZX_VS_EM2_DUM, AZX_VS_EM2_DUM);
+	if (!avs_platattr_test(adev, ACE))
+		snd_hdac_chip_updatel(bus, VS_EM2, AZX_VS_EM2_DUM, AZX_VS_EM2_DUM);
 
 	return ret;
 }
@@ -445,7 +452,7 @@ static int avs_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 		return ret;
 	}
 
-	ret = pci_request_regions(pci, "AVS HDAudio");
+	ret = pcim_request_all_regions(pci, "AVS HDAudio");
 	if (ret < 0)
 		return ret;
 
@@ -454,8 +461,7 @@ static int avs_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	bus->remap_addr = pci_ioremap_bar(pci, 0);
 	if (!bus->remap_addr) {
 		dev_err(bus->dev, "ioremap error\n");
-		ret = -ENXIO;
-		goto err_remap_bar0;
+		return -ENXIO;
 	}
 
 	adev->dsp_ba = pci_ioremap_bar(pci, 4);
@@ -512,8 +518,6 @@ err_init_streams:
 	iounmap(adev->dsp_ba);
 err_remap_bar4:
 	iounmap(bus->remap_addr);
-err_remap_bar0:
-	pci_release_regions(pci);
 	return ret;
 }
 
@@ -584,7 +588,6 @@ static void avs_pci_remove(struct pci_dev *pci)
 	pci_free_irq_vectors(pci);
 	iounmap(bus->remap_addr);
 	iounmap(adev->dsp_ba);
-	pci_release_regions(pci);
 
 	/* Firmware is not needed anymore */
 	avs_release_firmwares(adev);
@@ -748,13 +751,16 @@ static const struct dev_pm_ops avs_dev_pm = {
 static const struct avs_sram_spec skl_sram_spec = {
 	.base_offset = SKL_ADSP_SRAM_BASE_OFFSET,
 	.window_size = SKL_ADSP_SRAM_WINDOW_SIZE,
-	.rom_status_offset = SKL_ADSP_SRAM_BASE_OFFSET,
 };
 
 static const struct avs_sram_spec apl_sram_spec = {
 	.base_offset = APL_ADSP_SRAM_BASE_OFFSET,
 	.window_size = APL_ADSP_SRAM_WINDOW_SIZE,
-	.rom_status_offset = APL_ADSP_SRAM_BASE_OFFSET,
+};
+
+static const struct avs_sram_spec mtl_sram_spec = {
+	.base_offset = MTL_ADSP_SRAM_BASE_OFFSET,
+	.window_size = MTL_ADSP_SRAM_WINDOW_SIZE,
 };
 
 static const struct avs_hipc_spec skl_hipc_spec = {
@@ -766,6 +772,19 @@ static const struct avs_hipc_spec skl_hipc_spec = {
 	.rsp_offset = SKL_ADSP_REG_HIPCT,
 	.rsp_busy_mask = SKL_ADSP_HIPCT_BUSY,
 	.ctl_offset = SKL_ADSP_REG_HIPCCTL,
+	.sts_offset = SKL_ADSP_SRAM_BASE_OFFSET,
+};
+
+static const struct avs_hipc_spec apl_hipc_spec = {
+	.req_offset = SKL_ADSP_REG_HIPCI,
+	.req_ext_offset = SKL_ADSP_REG_HIPCIE,
+	.req_busy_mask = SKL_ADSP_HIPCI_BUSY,
+	.ack_offset = SKL_ADSP_REG_HIPCIE,
+	.ack_done_mask = SKL_ADSP_HIPCIE_DONE,
+	.rsp_offset = SKL_ADSP_REG_HIPCT,
+	.rsp_busy_mask = SKL_ADSP_HIPCT_BUSY,
+	.ctl_offset = SKL_ADSP_REG_HIPCCTL,
+	.sts_offset = APL_ADSP_SRAM_BASE_OFFSET,
 };
 
 static const struct avs_hipc_spec cnl_hipc_spec = {
@@ -777,6 +796,19 @@ static const struct avs_hipc_spec cnl_hipc_spec = {
 	.rsp_offset = CNL_ADSP_REG_HIPCTDR,
 	.rsp_busy_mask = CNL_ADSP_HIPCTDR_BUSY,
 	.ctl_offset = CNL_ADSP_REG_HIPCCTL,
+	.sts_offset = APL_ADSP_SRAM_BASE_OFFSET,
+};
+
+static const struct avs_hipc_spec lnl_hipc_spec = {
+	.req_offset = MTL_REG_HfIPCxIDR,
+	.req_ext_offset = MTL_REG_HfIPCxIDD,
+	.req_busy_mask = MTL_HfIPCxIDR_BUSY,
+	.ack_offset = MTL_REG_HfIPCxIDA,
+	.ack_done_mask = MTL_HfIPCxIDA_DONE,
+	.rsp_offset = MTL_REG_HfIPCxTDR,
+	.rsp_busy_mask = MTL_HfIPCxTDR_BUSY,
+	.ctl_offset = MTL_REG_HfIPCxCTL,
+	.sts_offset = LNL_REG_HfDFR(0),
 };
 
 static const struct avs_spec skl_desc = {
@@ -796,7 +828,7 @@ static const struct avs_spec apl_desc = {
 	.core_init_mask = 3,
 	.attributes = AVS_PLATATTR_IMR,
 	.sram = &apl_sram_spec,
-	.hipc = &skl_hipc_spec,
+	.hipc = &apl_hipc_spec,
 };
 
 static const struct avs_spec cnl_desc = {
@@ -846,6 +878,16 @@ AVS_TGL_BASED_SPEC(ehl, 30);
 AVS_TGL_BASED_SPEC(adl, 35);
 AVS_TGL_BASED_SPEC(adl_n, 35);
 
+static const struct avs_spec fcl_desc = {
+	.name = "fcl",
+	.min_fw_version = { 0 },
+	.dsp_ops = &avs_ptl_dsp_ops,
+	.core_init_mask = 1,
+	.attributes = AVS_PLATATTR_IMR | AVS_PLATATTR_ACE | AVS_PLATATTR_ALTHDA,
+	.sram = &mtl_sram_spec,
+	.hipc = &lnl_hipc_spec,
+};
+
 static const struct pci_device_id avs_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, HDA_SKL_LP, &skl_desc) },
 	{ PCI_DEVICE_DATA(INTEL, HDA_SKL, &skl_desc) },
@@ -881,6 +923,7 @@ static const struct pci_device_id avs_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, HDA_RPL_P_1,	&adl_desc) },
 	{ PCI_DEVICE_DATA(INTEL, HDA_RPL_M,	&adl_desc) },
 	{ PCI_DEVICE_DATA(INTEL, HDA_RPL_PX,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_FCL,	&fcl_desc) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, avs_ids);
@@ -912,3 +955,4 @@ MODULE_FIRMWARE("intel/tgl/dsp_basefw.bin");
 MODULE_FIRMWARE("intel/ehl/dsp_basefw.bin");
 MODULE_FIRMWARE("intel/adl/dsp_basefw.bin");
 MODULE_FIRMWARE("intel/adl_n/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/fcl/dsp_basefw.bin");

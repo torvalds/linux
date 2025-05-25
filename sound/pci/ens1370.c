@@ -2022,7 +2022,7 @@ static int snd_ensoniq_create(struct snd_card *card,
 	ensoniq->card = card;
 	ensoniq->pci = pci;
 	ensoniq->irq = -1;
-	err = pci_request_regions(pci, "Ensoniq AudioPCI");
+	err = pcim_request_all_regions(pci, "Ensoniq AudioPCI");
 	if (err < 0)
 		return err;
 	ensoniq->port = pci_resource_start(pci, 0);

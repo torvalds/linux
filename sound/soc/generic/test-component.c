@@ -140,6 +140,15 @@ static int test_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
+static int test_dai_set_tdm_slot(struct snd_soc_dai *dai,
+				 unsigned int tx_mask, unsigned int rx_mask,
+				 int slots, int slot_width)
+{
+	dev_info(dai->dev, "set tdm slot: tx_mask=0x%08X, rx_mask=0x%08X, slots=%d, slot_width=%d\n",
+		 tx_mask, rx_mask, slots, slot_width);
+	return 0;
+}
+
 static int test_dai_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 {
 	mile_stone(dai);
@@ -203,6 +212,7 @@ static const u64 test_dai_formats =
 
 static const struct snd_soc_dai_ops test_ops = {
 	.set_fmt		= test_dai_set_fmt,
+	.set_tdm_slot		= test_dai_set_tdm_slot,
 	.startup		= test_dai_startup,
 	.shutdown		= test_dai_shutdown,
 	.auto_selectable_formats	= &test_dai_formats,
@@ -214,6 +224,7 @@ static const struct snd_soc_dai_ops test_verbose_ops = {
 	.set_pll		= test_dai_set_pll,
 	.set_clkdiv		= test_dai_set_clkdiv,
 	.set_fmt		= test_dai_set_fmt,
+	.set_tdm_slot		= test_dai_set_tdm_slot,
 	.mute_stream		= test_dai_mute_stream,
 	.startup		= test_dai_startup,
 	.shutdown		= test_dai_shutdown,

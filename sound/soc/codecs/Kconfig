@@ -103,6 +103,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_CS47L85
 	imply SND_SOC_CS47L90
 	imply SND_SOC_CS47L92
+	imply SND_SOC_CS48L32
 	imply SND_SOC_CS53L30
 	imply SND_SOC_CS530X_I2C
 	imply SND_SOC_CX20442
@@ -119,6 +120,8 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_ES8326
 	imply SND_SOC_ES8328_SPI
 	imply SND_SOC_ES8328_I2C
+	imply SND_SOC_ES8375
+	imply SND_SOC_ES8389
 	imply SND_SOC_ES7134
 	imply SND_SOC_ES7241
 	imply SND_SOC_FRAMER
@@ -234,6 +237,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT1318_SDW
 	imply SND_SOC_RT1320_SDW
 	imply SND_SOC_RT9120
+	imply SND_SOC_RT9123
 	imply SND_SOC_RTQ9128
 	imply SND_SOC_SDW_MOCKUP
 	imply SND_SOC_SGTL5000
@@ -260,6 +264,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TAS2770
 	imply SND_SOC_TAS2780
 	imply SND_SOC_TAS2781_COMLIB
+	imply SND_SOC_TAS2781_COMLIB_I2C
 	imply SND_SOC_TAS2781_FMWLIB
 	imply SND_SOC_TAS2781_I2C
 	imply SND_SOC_TAS5086
@@ -403,6 +408,7 @@ config SND_SOC_WM_ADSP
 	default y if SND_SOC_CS35L45_SPI=y
 	default y if SND_SOC_CS35L45_I2C=y
 	default y if SND_SOC_CS35L56=y
+	default y if SND_SOC_CS48L32=y
 	default m if SND_SOC_MADERA=m
 	default m if SND_SOC_CS47L24=m
 	default m if SND_SOC_WM5102=m
@@ -413,6 +419,7 @@ config SND_SOC_WM_ADSP
 	default m if SND_SOC_CS35L45_SPI=m
 	default m if SND_SOC_CS35L45_I2C=m
 	default m if SND_SOC_CS35L56=m
+	default m if SND_SOC_CS48L32=m
 
 config SND_SOC_AB8500_CODEC
 	tristate
@@ -1048,6 +1055,13 @@ config SND_SOC_CS47L92
 	tristate
 	depends on MFD_CS47L92
 
+config SND_SOC_CS48L32
+	tristate "Cirrus Logic CS48L32 audio DSP"
+	depends on SPI_MASTER
+	select REGMAP_SPI
+	help
+	  Build the codec driver for the Cirrus Logic CS48L32 audio DSP.
+
 # Cirrus Logic Quad-Channel ADC
 config SND_SOC_CS53L30
 	tristate "Cirrus Logic CS53L30 CODEC"
@@ -1198,6 +1212,14 @@ config SND_SOC_ES8328_SPI
 	tristate "Everest Semi ES8328 CODEC (SPI)"
 	depends on SPI_MASTER
 	select SND_SOC_ES8328
+
+config SND_SOC_ES8375
+	tristate "Everest Semi ES8375 CODEC"
+	depends on I2C
+
+config SND_SOC_ES8389
+	tristate "Everest Semi ES8389 CODEC"
+	depends on I2C
 
 config SND_SOC_FRAMER
 	tristate "Framer codec"
@@ -1822,6 +1844,20 @@ config SND_SOC_RT9120
 	  Enable support for Richtek RT9120 20W, stereo, inductor-less,
 	  high-efficiency Class-D audio amplifier.
 
+config SND_SOC_RT9123
+	tristate "Richtek RT9123 Mono Class-D Amplifier"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Enable support for the I2C control mode of Richtek RT9123 3.2W mono
+	  Class-D audio amplifier.
+
+config SND_SOC_RT9123P
+	tristate "Richtek RT9123P Mono Class-D Amplifier"
+	help
+	  Enable support for the HW control mode of Richtek RT9123P 3.2W mono
+	  Class-D audio amplifier.
+
 config SND_SOC_RTQ9128
 	tristate "Richtek RTQ9128 45W Digital Input Amplifier"
 	depends on I2C
@@ -1990,20 +2026,24 @@ config SND_SOC_TAS2780
 	  digital input mono Class-D audio power amplifiers.
 
 config SND_SOC_TAS2781_COMLIB
+	tristate
+
+config SND_SOC_TAS2781_COMLIB_I2C
 	depends on I2C
 	select CRC8
 	select REGMAP_I2C
 	tristate
 
 config SND_SOC_TAS2781_FMWLIB
-	depends on SND_SOC_TAS2781_COMLIB
+	select SND_SOC_TAS2781_COMLIB
+	select CRC8
 	tristate
 	default n
 
 config SND_SOC_TAS2781_I2C
 	tristate "Texas Instruments TAS2781 speaker amplifier based on I2C"
 	depends on I2C
-	select SND_SOC_TAS2781_COMLIB
+	select SND_SOC_TAS2781_COMLIB_I2C
 	select SND_SOC_TAS2781_FMWLIB
 	help
 	  Enable support for Texas Instruments TAS2781 Smart Amplifier
@@ -2238,6 +2278,7 @@ config SND_SOC_WCD938X
 	tristate
 	depends on SOUNDWIRE || !SOUNDWIRE
 	select SND_SOC_WCD_CLASSH
+	select MULTIPLEXER
 
 config SND_SOC_WCD938X_SDW
 	tristate "WCD9380/WCD9385 Codec - SDW"
@@ -2478,7 +2519,7 @@ config SND_SOC_WM8997
 	depends on MFD_WM8997 && MFD_ARIZONA
 
 config SND_SOC_WM8998
-	tristate
+	tristate "Wolfson Microelectronics WM8998 codec driver"
 	depends on MFD_WM8998 && MFD_ARIZONA
 
 config SND_SOC_WM9081

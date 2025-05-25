@@ -3407,13 +3407,16 @@ static int wm8962_gpio_request(struct gpio_chip *chip, unsigned offset)
 	return 0;
 }
 
-static void wm8962_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static int wm8962_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			   int value)
 {
 	struct wm8962_priv *wm8962 = gpiochip_get_data(chip);
 	struct snd_soc_component *component = wm8962->component;
 
-	snd_soc_component_update_bits(component, WM8962_GPIO_BASE + offset,
-			    WM8962_GP2_LVL, !!value << WM8962_GP2_LVL_SHIFT);
+	return snd_soc_component_update_bits(component,
+					     WM8962_GPIO_BASE + offset,
+					     WM8962_GP2_LVL,
+					     !!value << WM8962_GP2_LVL_SHIFT);
 }
 
 static int wm8962_gpio_direction_out(struct gpio_chip *chip,
@@ -3439,7 +3442,7 @@ static const struct gpio_chip wm8962_template_chip = {
 	.owner			= THIS_MODULE,
 	.request		= wm8962_gpio_request,
 	.direction_output	= wm8962_gpio_direction_out,
-	.set			= wm8962_gpio_set,
+	.set_rv			= wm8962_gpio_set,
 	.can_sleep		= 1,
 };
 

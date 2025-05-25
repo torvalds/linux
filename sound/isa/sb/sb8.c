@@ -9,6 +9,7 @@
 #include <linux/isa.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/string.h>
 #include <sound/core.h>
 #include <sound/sb.h>
 #include <sound/opl3.h>
@@ -162,8 +163,8 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 	if (err < 0)
 		return err;
 
-	strcpy(card->driver, chip->hardware == SB_HW_PRO ? "SB Pro" : "SB8");
-	strcpy(card->shortname, chip->name);
+	strscpy(card->driver, chip->hardware == SB_HW_PRO ? "SB Pro" : "SB8");
+	strscpy(card->shortname, chip->name);
 	sprintf(card->longname, "%s at 0x%lx, irq %d, dma %d",
 		chip->name,
 		chip->port,

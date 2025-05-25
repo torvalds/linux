@@ -42,6 +42,6 @@ struct fsl_rpmsg {
 	unsigned int mclk_streams;
 	int force_lpa;
 	int enable_lpa;
-	int buffer_size;
+	int buffer_size[2];
 };
 #endif /* __FSL_RPMSG_H */

@@ -11,8 +11,8 @@
 #include "tegra_isomgr_bw.h"
 #include "tegra210_admaif.h"
 
-/* Max possible rate is 192KHz x 16channel x 4bytes */
-#define MAX_BW_PER_DEV 12288
+#define MAX_SAMPLE_RATE		192	/* KHz*/
+#define MAX_BYTES_PER_SAMPLE	4
 
 int tegra_isomgr_adma_setbw(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai, bool is_running)
@@ -98,7 +98,8 @@ int tegra_isomgr_adma_register(struct device *dev)
 	}
 
 	adma_isomgr->max_pcm_device = admaif->soc_data->num_ch;
-	adma_isomgr->max_bw = STREAM_TYPE * MAX_BW_PER_DEV * adma_isomgr->max_pcm_device;
+	adma_isomgr->max_bw = STREAM_TYPE * MAX_SAMPLE_RATE * MAX_BYTES_PER_SAMPLE *
+			      admaif->soc_data->max_stream_ch * adma_isomgr->max_pcm_device;
 
 	for (i = 0; i < STREAM_TYPE; i++) {
 		adma_isomgr->bw_per_dev[i] = devm_kzalloc(dev, adma_isomgr->max_pcm_device *

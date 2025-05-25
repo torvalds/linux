@@ -2926,7 +2926,7 @@ static int snd_intel8x0_init(struct snd_card *card,
 	    pci->device == PCI_DEVICE_ID_INTEL_440MX)
 		chip->fix_nocache = 1; /* enable workaround */
 
-	err = pci_request_regions(pci, card->shortname);
+	err = pcim_request_all_regions(pci, card->shortname);
 	if (err < 0)
 		return err;
 

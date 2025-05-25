@@ -1060,7 +1060,7 @@ static int snd_intel8x0m_init(struct snd_card *card,
 	chip->pci = pci;
 	chip->irq = -1;
 
-	err = pci_request_regions(pci, card->shortname);
+	err = pcim_request_all_regions(pci, card->shortname);
 	if (err < 0)
 		return err;
 

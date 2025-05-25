@@ -284,7 +284,7 @@ static struct snd_soc_dai_driver probe_cpu_dais[] = {
 },
 };
 
-static const struct snd_soc_component_driver avs_probe_component_driver = {
+static struct snd_soc_component_driver avs_probe_component_driver = {
 	.name			= "avs-probe-compr",
 	.compress_ops		= &avs_probe_compress_ops,
 	.module_get_upon_open	= 1, /* increment refcount when a stream is opened */

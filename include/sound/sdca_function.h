@@ -125,7 +125,7 @@ struct sdca_init_write {
  * macros.
  *
  * Short hand to specific a Control type statically for example:
- * SDAC_CTL_TYPE_S(IT, MIC_BIAS).
+ * SDCA_CTL_TYPE_S(IT, MIC_BIAS).
  */
 #define SDCA_CTL_TYPE_S(ent, sel) SDCA_CTL_TYPE(SDCA_ENTITY_TYPE_##ent, \
 						SDCA_CTL_##ent##_##sel)
@@ -169,6 +169,20 @@ enum sdca_ot_controls {
 };
 
 /**
+ * enum sdca_usage_range - Column definitions for Usage
+ */
+enum sdca_usage_range {
+	SDCA_USAGE_NUMBER				= 0,
+	SDCA_USAGE_CBN					= 1,
+	SDCA_USAGE_SAMPLE_RATE				= 2,
+	SDCA_USAGE_SAMPLE_WIDTH				= 3,
+	SDCA_USAGE_FULL_SCALE				= 4,
+	SDCA_USAGE_NOISE_FLOOR				= 5,
+	SDCA_USAGE_TAG					= 6,
+	SDCA_USAGE_NCOLS				= 7,
+};
+
+/**
  * enum sdca_mu_controls - SDCA Controls for Mixer Unit
  *
  * Control Selectors for Mixer Unit from SDCA specification v1.0
@@ -207,6 +221,16 @@ enum sdca_fu_controls {
 };
 
 /**
+ * enum sdca_volume_range - Column definitions for Q7.8dB volumes/gains
+ */
+enum sdca_volume_range {
+	SDCA_VOLUME_LINEAR_MIN				= 0,
+	SDCA_VOLUME_LINEAR_MAX				= 1,
+	SDCA_VOLUME_LINEAR_STEP				= 2,
+	SDCA_VOLUME_LINEAR_NCOLS			= 3,
+};
+
+/**
  * enum sdca_xu_controls - SDCA Controls for Extension Unit
  *
  * Control Selectors for Extension Unit from SDCA specification v1.0
@@ -237,6 +261,15 @@ enum sdca_cs_controls {
 };
 
 /**
+ * enum sdca_samplerateindex_range - Column definitions for SampleRateIndex
+ */
+enum sdca_samplerateindex_range {
+	SDCA_SAMPLERATEINDEX_INDEX			= 0,
+	SDCA_SAMPLERATEINDEX_RATE			= 1,
+	SDCA_SAMPLERATEINDEX_NCOLS			= 2,
+};
+
+/**
  * enum sdca_cx_controls - SDCA Controls for Clock Selector
  *
  * Control Selectors for Clock Selector from SDCA specification v1.0
@@ -258,6 +291,14 @@ enum sdca_pde_controls {
 };
 
 /**
+ * enum sdca_requested_ps_range - Column definitions for Requested PS
+ */
+enum sdca_requested_ps_range {
+	SDCA_REQUESTED_PS_STATE				= 0,
+	SDCA_REQUESTED_PS_NCOLS				= 1,
+};
+
+/**
  * enum sdca_ge_controls - SDCA Controls for Group Unit
  *
  * Control Selectors for Group Unit from SDCA specification v1.0
@@ -266,6 +307,15 @@ enum sdca_pde_controls {
 enum sdca_ge_controls {
 	SDCA_CTL_GE_SELECTED_MODE			= 0x01,
 	SDCA_CTL_GE_DETECTED_MODE			= 0x02,
+};
+
+/**
+ * enum sdca_selected_mode_range - Column definitions for Selected Mode
+ */
+enum sdca_selected_mode_range {
+	SDCA_SELECTED_MODE_INDEX			= 0,
+	SDCA_SELECTED_MODE_TERM_TYPE			= 1,
+	SDCA_SELECTED_MODE_NCOLS			= 2,
 };
 
 /**
@@ -772,6 +822,25 @@ enum sdca_terminal_type {
 	SDCA_TERM_TYPE_PRIVACY_SIGNALING		= 0x741,
 	SDCA_TERM_TYPE_PRIVACY_INDICATORS		= 0x747,
 };
+
+#define SDCA_TERM_TYPE_LINEIN_STEREO_NAME		"LineIn Stereo"
+#define SDCA_TERM_TYPE_LINEIN_FRONT_LR_NAME		"LineIn Front-LR"
+#define SDCA_TERM_TYPE_LINEIN_CENTER_LFE_NAME		"LineIn Center-LFE"
+#define SDCA_TERM_TYPE_LINEIN_SURROUND_LR_NAME		"LineIn Surround-LR"
+#define SDCA_TERM_TYPE_LINEIN_REAR_LR_NAME		"LineIn Rear-LR"
+#define SDCA_TERM_TYPE_LINEOUT_STEREO_NAME		"LineOut Stereo"
+#define SDCA_TERM_TYPE_LINEOUT_FRONT_LR_NAME		"LineOut Front-LR"
+#define SDCA_TERM_TYPE_LINEOUT_CENTER_LFE_NAME		"LineOut Center-LFE"
+#define SDCA_TERM_TYPE_LINEOUT_SURROUND_LR_NAME		"LineOut Surround-LR"
+#define SDCA_TERM_TYPE_LINEOUT_REAR_LR_NAME		"LineOut Rear-LR"
+#define SDCA_TERM_TYPE_MIC_JACK_NAME			"Microphone"
+#define SDCA_TERM_TYPE_STEREO_JACK_NAME			"Speaker Stereo"
+#define SDCA_TERM_TYPE_FRONT_LR_JACK_NAME		"Speaker Front-LR"
+#define SDCA_TERM_TYPE_CENTER_LFE_JACK_NAME		"Speaker Center-LFE"
+#define SDCA_TERM_TYPE_SURROUND_LR_JACK_NAME		"Speaker Surround-LR"
+#define SDCA_TERM_TYPE_REAR_LR_JACK_NAME		"Speaker Rear-LR"
+#define SDCA_TERM_TYPE_HEADPHONE_JACK_NAME		"Headphone"
+#define SDCA_TERM_TYPE_HEADSET_JACK_NAME		"Headset"
 
 /**
  * enum sdca_connector_type - SDCA Connector Types

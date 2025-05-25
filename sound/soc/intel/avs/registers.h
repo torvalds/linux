@@ -35,6 +35,8 @@
 #define AVS_ADSPCS_CSTALL_MASK(cm)	((cm) << 8)
 #define AVS_ADSPCS_SPA_MASK(cm)		((cm) << 16)
 #define AVS_ADSPCS_CPA_MASK(cm)		((cm) << 24)
+#define AVS_ADSPCS_INTERVAL_US		500
+#define AVS_ADSPCS_TIMEOUT_US		10000
 #define AVS_MAIN_CORE_MASK		BIT(0)
 
 #define AVS_ADSP_HIPCCTL_BUSY		BIT(0)
@@ -67,14 +69,50 @@
 #define CNL_ADSP_HIPCIDR_BUSY		BIT(31)
 #define CNL_ADSP_HIPCIDA_DONE		BIT(31)
 
+/* MTL Intel HOST Inter-Processor Communication Registers */
+#define MTL_HfIPC_BASE			0x73000
+#define MTL_REG_HfIPCxTDR		(MTL_HfIPC_BASE + 0x200)
+#define MTL_REG_HfIPCxTDA		(MTL_HfIPC_BASE + 0x204)
+#define MTL_REG_HfIPCxIDR		(MTL_HfIPC_BASE + 0x210)
+#define MTL_REG_HfIPCxIDA		(MTL_HfIPC_BASE + 0x214)
+#define MTL_REG_HfIPCxCTL		(MTL_HfIPC_BASE + 0x228)
+#define MTL_REG_HfIPCxTDD		(MTL_HfIPC_BASE + 0x300)
+#define MTL_REG_HfIPCxIDD		(MTL_HfIPC_BASE + 0x380)
+
+#define MTL_HfIPCxTDR_BUSY		BIT(31)
+#define MTL_HfIPCxTDA_BUSY		BIT(31)
+#define MTL_HfIPCxIDR_BUSY		BIT(31)
+#define MTL_HfIPCxIDA_DONE		BIT(31)
+
+#define MTL_HfFLV_BASE			0x162000
+#define MTL_REG_HfFLGP(x, y)		(MTL_HfFLV_BASE + 0x1200 + (x) * 0x20 + (y) * 0x08)
+#define LNL_REG_HfDFR(x)		(0x160200 + (x) * 0x8)
+
+#define MTL_DWICTL_BASE			0x1800
+#define MTL_DWICTL_REG_INTENL		(MTL_DWICTL_BASE + 0x0)
+#define MTL_DWICTL_REG_FINALSTATUSL	(MTL_DWICTL_BASE + 0x30)
+
+#define MTL_HfPMCCU_BASE		0x1D00
+#define MTL_REG_HfCLKCTL		(MTL_HfPMCCU_BASE + 0x10)
+#define MTL_REG_HfPWRCTL		(MTL_HfPMCCU_BASE + 0x18)
+#define MTL_REG_HfPWRSTS		(MTL_HfPMCCU_BASE + 0x1C)
+#define MTL_REG_HfPWRCTL2		(MTL_HfPMCCU_BASE + 0x20)
+#define MTL_REG_HfPWRSTS2		(MTL_HfPMCCU_BASE + 0x24)
+#define MTL_HfPWRCTL_WPDSPHPxPG		BIT(0)
+#define MTL_HfPWRSTS_DSPHPxPGS		BIT(0)
+#define MTL_HfPWRCTL2_WPDSPHPxPG	BIT(0)
+#define MTL_HfPWRSTS2_DSPHPxPGS		BIT(0)
+
 /* Intel HD Audio SRAM windows base addresses */
 #define SKL_ADSP_SRAM_BASE_OFFSET	0x8000
 #define SKL_ADSP_SRAM_WINDOW_SIZE	0x2000
 #define APL_ADSP_SRAM_BASE_OFFSET	0x80000
 #define APL_ADSP_SRAM_WINDOW_SIZE	0x20000
+#define MTL_ADSP_SRAM_BASE_OFFSET	0x180000
+#define MTL_ADSP_SRAM_WINDOW_SIZE	0x8000
 
 /* Constants used when accessing SRAM, space shared with firmware */
-#define AVS_FW_REG_BASE(adev)		((adev)->spec->sram->base_offset)
+#define AVS_FW_REG_BASE(adev)		((adev)->spec->hipc->sts_offset)
 #define AVS_FW_REG_STATUS(adev)		(AVS_FW_REG_BASE(adev) + 0x0)
 #define AVS_FW_REG_ERROR(adev)		(AVS_FW_REG_BASE(adev) + 0x4)
 

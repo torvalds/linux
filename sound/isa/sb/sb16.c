@@ -10,6 +10,7 @@
 #include <linux/err.h>
 #include <linux/isa.h>
 #include <linux/module.h>
+#include <linux/string.h>
 #include <sound/core.h>
 #include <sound/sb.h>
 #include <sound/sb16_csp.h>
@@ -337,12 +338,12 @@ static int snd_sb16_probe(struct snd_card *card, int dev)
 	if (err < 0)
 		return err;
 
-	strcpy(card->driver,
+	strscpy(card->driver,
 #ifdef SNDRV_SBAWE_EMU8000
 			awe_port[dev] > 0 ? "SB AWE" :
 #endif
 			"SB16");
-	strcpy(card->shortname, chip->name);
+	strscpy(card->shortname, chip->name);
 	sprintf(card->longname, "%s at 0x%lx, irq %i, dma ",
 		chip->name,
 		chip->port,

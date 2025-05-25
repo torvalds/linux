@@ -5277,7 +5277,7 @@ static int snd_hdsp_create(struct snd_card *card,
 
 	pci_set_master(hdsp->pci);
 
-	err = pci_request_regions(pci, "hdsp");
+	err = pcim_request_all_regions(pci, "hdsp");
 	if (err < 0)
 		return err;
 	hdsp->port = pci_resource_start(pci, 0);

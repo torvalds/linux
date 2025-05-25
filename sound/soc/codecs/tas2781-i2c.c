@@ -14,6 +14,9 @@
 //
 
 #include <linux/crc8.h>
+#ifdef CONFIG_SND_SOC_TAS2781_ACOUST_I2C
+#include <linux/debugfs.h>
+#endif
 #include <linux/firmware.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -28,6 +31,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/tas2781.h>
+#include <sound/tas2781-comlib-i2c.h>
 #include <sound/tlv.h>
 #include <sound/tas2563-tlv.h>
 #include <sound/tas2781-tlv.h>
@@ -1422,10 +1426,150 @@ static int tasdevice_create_cali_ctrls(struct tasdevice_priv *priv)
 		nctrls < i ? nctrls : i);
 }
 
+#ifdef CONFIG_SND_SOC_TAS2781_ACOUST_I2C
+/*
+ * This debugfs node is a bridge to the acoustic tuning application
+ * tool which can tune the chips' acoustic effect.
+ *
+ * package structure for PPC3 communications:
+ *	Pkg len (1 byte)
+ *	Pkg id (1 byte, 'r' or 'w')
+ *	Dev id (1 byte, i2c address)
+ *	Book id (1 byte)
+ *	Page id (1 byte)
+ *	Reg id (1 byte)
+ *	switch (pkg id) {
+ *	case 'w':
+ *		1 byte, length of data to read
+ *	case 'r':
+ *		data payload (1~128 bytes)
+ *	}
+ */
+static ssize_t acoustic_ctl_read(struct file *file, char __user *to,
+	size_t count, loff_t *ppos)
+{
+	struct snd_soc_component *comp = file->private_data;
+	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(comp);
+	struct acoustic_data *p = &tas_priv->acou_data;
+	int ret = -1;
+
+	if (p->id == 'r' && p->len == count && count <= sizeof(*p))
+		ret = simple_read_from_buffer(to, count, ppos, p, p->len);
+	else
+		dev_err(tas_priv->dev, "Not ready for get.\n");
+	return ret;
+}
+
+static ssize_t acoustic_ctl_write(struct file *file,
+	const char __user *from, size_t count, loff_t *ppos)
+{
+	struct snd_soc_component *comp = file->private_data;
+	struct tasdevice_priv *priv = snd_soc_component_get_drvdata(comp);
+	struct acoustic_data *p = &priv->acou_data;
+	unsigned int max_pkg_len = sizeof(*p);
+	unsigned char *src;
+	int j, len, reg, val;
+	unsigned short chn;
+	int ret = -1;
+
+	if (count > sizeof(*p)) {
+		dev_err(priv->dev, "count(%u) is larger than max(%u).\n",
+			(unsigned int)count, max_pkg_len);
+		return ret;
+	}
+
+	src = memdup_user(from, count);
+	if (IS_ERR(src))
+		return PTR_ERR(src);
+
+	if (src[0] > max_pkg_len && src[0] != count) {
+		dev_err(priv->dev, "pkg(%u), max(%u), count(%u) dismatch.\n",
+			src[0], max_pkg_len, (unsigned int)count);
+		ret = 0;
+		goto exit;
+	}
+
+	switch (src[1]) {
+	case 'r':
+		/* length of data to read */
+		len = src[6];
+		break;
+	case 'w':
+		/* Skip 6 bytes for package type and register address */
+		len = src[0] - 6;
+		break;
+	default:
+		dev_err(priv->dev, "%s Wrong code %02x.\n", __func__, src[1]);
+		ret = 0;
+		goto exit;
+	}
+
+	if (len < 1) {
+		dev_err(priv->dev, "pkg fmt invalid %02x.\n", len);
+		ret = 0;
+		goto exit;
+	}
+
+	for (j = 0; j < priv->ndev; j++)
+		if (src[2] == priv->tasdevice[j].dev_addr) {
+			chn = j;
+			break;
+		}
+	if (j >= priv->ndev) {
+		dev_err(priv->dev, "no such device 0x%02x.\n", src[2]);
+		ret = 0;
+		goto exit;
+	}
+
+	reg = TASDEVICE_REG(src[3], src[4], src[5]);
+
+	guard(mutex)(&priv->codec_lock);
+
+	if (src[1] == 'w') {
+		if (len > 1)
+			ret = tasdevice_dev_bulk_write(priv, chn, reg,
+				 &src[6], len);
+		else
+			ret = tasdevice_dev_write(priv, chn, reg, src[6]);
+	} else {
+		struct acoustic_data *p = &priv->acou_data;
+
+		memcpy(p, src, 6);
+		if (len > 1) {
+			ret = tasdevice_dev_bulk_read(priv, chn, reg,
+				p->data, len);
+		} else {
+			ret = tasdevice_dev_read(priv, chn, reg, &val);
+			p->data[0] = val;
+		}
+		p->len = len + 6;
+	}
+
+	if (ret)
+		dev_err(priv->dev, "i2c communication error.\n");
+	else
+		ret = count;
+exit:
+	kfree(src);
+	return ret;
+}
+
+static const struct file_operations acoustic_ctl_fops = {
+	.open = simple_open,
+	.read = acoustic_ctl_read,
+	.write = acoustic_ctl_write,
+};
+#endif
+
 static void tasdevice_fw_ready(const struct firmware *fmw,
 	void *context)
 {
 	struct tasdevice_priv *tas_priv = context;
+#ifdef CONFIG_SND_SOC_TAS2781_ACOUST_I2C
+	struct snd_soc_component *comp = tas_priv->codec;
+	struct dentry *debugfs_root = comp->debugfs_root;
+	char *acoustic_debugfs_node;
+#endif
 	int ret = 0;
 	int i;
 
@@ -1499,14 +1643,24 @@ static void tasdevice_fw_ready(const struct firmware *fmw,
 
 	tasdevice_prmg_load(tas_priv, 0);
 	tas_priv->cur_prog = 0;
+
+#ifdef CONFIG_SND_SOC_TAS2781_ACOUST_I2C
+	if (tas_priv->name_prefix)
+		acoustic_debugfs_node = devm_kasprintf(tas_priv->dev,
+			GFP_KERNEL, "%s_acoustic_ctl", tas_priv->name_prefix);
+	else
+		acoustic_debugfs_node = devm_kstrdup(tas_priv->dev,
+			"acoustic_ctl", GFP_KERNEL);
+	debugfs_create_file(acoustic_debugfs_node, 0644, debugfs_root,
+		comp, &acoustic_ctl_fops);
+#endif
 out:
 	if (tas_priv->fw_state == TASDEVICE_RCA_FW_OK) {
 		/* If DSP FW fail, DSP kcontrol won't be created. */
 		tasdevice_dsp_remove(tas_priv);
 	}
 	mutex_unlock(&tas_priv->codec_lock);
-	if (fmw)
-		release_firmware(fmw);
+	release_firmware(fmw);
 }
 
 static int tasdevice_dapm_event(struct snd_soc_dapm_widget *w,
