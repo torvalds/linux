@@ -890,6 +890,25 @@ int bmi160_core_probe(struct device *dev, struct regmap *regmap,
 }
 EXPORT_SYMBOL_NS_GPL(bmi160_core_probe, "IIO_BMI160");
 
+static int bmi160_core_runtime_suspend(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+
+	return iio_device_suspend_triggering(indio_dev);
+}
+
+static int bmi160_core_runtime_resume(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+
+	return iio_device_resume_triggering(indio_dev);
+}
+
+const struct dev_pm_ops bmi160_core_pm_ops = {
+	RUNTIME_PM_OPS(bmi160_core_runtime_suspend, bmi160_core_runtime_resume, NULL)
+};
+EXPORT_SYMBOL_NS_GPL(bmi160_core_pm_ops, "IIO_BMI160");
+
 MODULE_AUTHOR("Daniel Baluta <daniel.baluta@intel.com>");
 MODULE_DESCRIPTION("Bosch BMI160 driver");
 MODULE_LICENSE("GPL v2");
