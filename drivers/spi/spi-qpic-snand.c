@@ -835,7 +835,7 @@ static int qcom_spi_read_page_ecc(struct qcom_nand_controller *snandc,
 		int data_size, oob_size;
 
 		if (i == (num_cw - 1)) {
-			data_size = 512 - ((num_cw - 1) << 2);
+			data_size = NANDC_STEP_SIZE - ((num_cw - 1) << 2);
 			oob_size = (num_cw << 2) + ecc_cfg->ecc_bytes_hw +
 				    ecc_cfg->spare_bytes;
 		} else {
