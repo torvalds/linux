@@ -1741,6 +1741,15 @@ int kernel_waitid_prepare(struct wait_opts *wo, int which, pid_t upid,
 
 		pid = find_get_pid(upid);
 		break;
+	case P_SID:
+		type = PIDTYPE_SID;
+		if (upid < 0)
+			return -EINVAL;
+
+		if (upid)
+			pid = find_get_pid(upid);
+		else
+			pid = get_task_pid(current, PIDTYPE_SID);
 	case P_PGID:
 		type = PIDTYPE_PGID;
 		if (upid < 0)
