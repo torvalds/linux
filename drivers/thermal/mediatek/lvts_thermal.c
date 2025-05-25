@@ -571,7 +571,7 @@ static irqreturn_t lvts_irq_handler(int irq, void *data)
 	return iret;
 }
 
-static struct thermal_zone_device_ops lvts_ops = {
+static const struct thermal_zone_device_ops lvts_ops = {
 	.get_temp = lvts_get_temp,
 	.set_trips = lvts_set_trips,
 };
