@@ -212,7 +212,7 @@ static int m41t80_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	err = i2c_smbus_read_i2c_block_data(client, M41T80_REG_SSEC,
 					    sizeof(buf), buf);
 	if (err < 0) {
-		dev_err(&client->dev, "Unable to read date\n");
+		dev_dbg(&client->dev, "Unable to read date\n");
 		return err;
 	}
 
@@ -268,7 +268,7 @@ static int m41t80_rtc_set_time(struct device *dev, struct rtc_time *in_tm)
 	err = i2c_smbus_write_i2c_block_data(client, M41T80_REG_SSEC,
 					     sizeof(buf), buf);
 	if (err < 0) {
-		dev_err(&client->dev, "Unable to write to date registers\n");
+		dev_dbg(&client->dev, "Unable to write to date registers\n");
 		return err;
 	}
 	if (flags & M41T80_FLAGS_OF) {
@@ -276,12 +276,12 @@ static int m41t80_rtc_set_time(struct device *dev, struct rtc_time *in_tm)
 		dev_warn(&client->dev, "OF bit is still set, kickstarting clock.\n");
 		err = i2c_smbus_write_byte_data(client, M41T80_REG_SEC, M41T80_SEC_ST);
 		if (err < 0) {
-			dev_err(&client->dev, "Can't set ST bit\n");
+			dev_dbg(&client->dev, "Can't set ST bit\n");
 			return err;
 		}
 		err = i2c_smbus_write_byte_data(client, M41T80_REG_SEC, flags & ~M41T80_SEC_ST);
 		if (err < 0) {
-			dev_err(&client->dev, "Can't clear ST bit\n");
+			dev_dbg(&client->dev, "Can't clear ST bit\n");
 			return err;
 		}
 		/* oscillator must run for 4sec before we attempt to reset OF bit */
@@ -289,14 +289,14 @@ static int m41t80_rtc_set_time(struct device *dev, struct rtc_time *in_tm)
 		/* Clear the OF bit of Flags Register */
 		err = i2c_smbus_write_byte_data(client, M41T80_REG_FLAGS, flags & ~M41T80_FLAGS_OF);
 		if (err < 0) {
-			dev_err(&client->dev, "Unable to write flags register\n");
+			dev_dbg(&client->dev, "Unable to write flags register\n");
 			return err;
 		}
 		flags = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
 		if (flags < 0) {
 			return flags;
 		} else if (flags & M41T80_FLAGS_OF) {
-			dev_err(&client->dev, "Can't clear the OF bit check battery\n");
+			dev_dbg(&client->dev, "Can't clear the OF bit check battery\n");
 			return err;
 		}
 	}
@@ -336,7 +336,7 @@ static int m41t80_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	retval = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON, flags);
 	if (retval < 0) {
-		dev_err(dev, "Unable to enable alarm IRQ %d\n", retval);
+		dev_dbg(dev, "Unable to enable alarm IRQ %d\n", retval);
 		return retval;
 	}
 	return 0;
@@ -361,7 +361,7 @@ static int m41t80_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	err = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON,
 					ret & ~(M41T80_ALMON_AFE));
 	if (err < 0) {
-		dev_err(dev, "Unable to clear AFE bit\n");
+		dev_dbg(dev, "Unable to clear AFE bit\n");
 		return err;
 	}
 
@@ -375,7 +375,7 @@ static int m41t80_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	err = i2c_smbus_write_byte_data(client, M41T80_REG_FLAGS,
 					ret & ~(M41T80_FLAGS_AF));
 	if (err < 0) {
-		dev_err(dev, "Unable to clear AF bit\n");
+		dev_dbg(dev, "Unable to clear AF bit\n");
 		return err;
 	}
 
