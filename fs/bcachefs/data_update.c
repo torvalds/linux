@@ -66,37 +66,46 @@ static void bkey_nocow_unlock(struct bch_fs *c, struct bkey_s_c k)
 	}
 }
 
-static bool bkey_nocow_lock(struct bch_fs *c, struct moving_context *ctxt, struct bkey_s_c k)
+static noinline_for_stack
+bool __bkey_nocow_lock(struct bch_fs *c, struct moving_context *ctxt, struct bkey_ptrs_c ptrs,
+		       const struct bch_extent_ptr *start)
 {
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	if (!ctxt) {
+		bkey_for_each_ptr(ptrs, ptr) {
+			if (ptr == start)
+				break;
 
+			struct bch_dev *ca = bch2_dev_have_ref(c, ptr->dev);
+			struct bpos bucket = PTR_BUCKET_POS(ca, ptr);
+			bch2_bucket_nocow_unlock(&c->nocow_locks, bucket, 0);
+		}
+		return false;
+	}
+
+	__bkey_for_each_ptr(start, ptrs.end, ptr) {
+		struct bch_dev *ca = bch2_dev_have_ref(c, ptr->dev);
+		struct bpos bucket = PTR_BUCKET_POS(ca, ptr);
+
+		bool locked;
+		move_ctxt_wait_event(ctxt,
+				     (locked = bch2_bucket_nocow_trylock(&c->nocow_locks, bucket, 0)) ||
+				     list_empty(&ctxt->ios));
+		if (!locked)
+			bch2_bucket_nocow_lock(&c->nocow_locks, bucket, 0);
+	}
+	return true;
+}
+
+static bool bkey_nocow_lock(struct bch_fs *c, struct moving_context *ctxt, struct bkey_ptrs_c ptrs)
+{
 	bkey_for_each_ptr(ptrs, ptr) {
 		struct bch_dev *ca = bch2_dev_have_ref(c, ptr->dev);
 		struct bpos bucket = PTR_BUCKET_POS(ca, ptr);
 
-		if (ctxt) {
-			bool locked;
-
-			move_ctxt_wait_event(ctxt,
-				(locked = bch2_bucket_nocow_trylock(&c->nocow_locks, bucket, 0)) ||
-				list_empty(&ctxt->ios));
-
-			if (!locked)
-				bch2_bucket_nocow_lock(&c->nocow_locks, bucket, 0);
-		} else {
-			if (!bch2_bucket_nocow_trylock(&c->nocow_locks, bucket, 0)) {
-				bkey_for_each_ptr(ptrs, ptr2) {
-					if (ptr2 == ptr)
-						break;
-
-					ca = bch2_dev_have_ref(c, ptr2->dev);
-					bucket = PTR_BUCKET_POS(ca, ptr2);
-					bch2_bucket_nocow_unlock(&c->nocow_locks, bucket, 0);
-				}
-				return false;
-			}
-		}
+		if (!bch2_bucket_nocow_trylock(&c->nocow_locks, bucket, 0))
+			return __bkey_nocow_lock(c, ctxt, ptrs, ptr);
 	}
+
 	return true;
 }
 
@@ -523,8 +532,9 @@ void bch2_data_update_exit(struct data_update *update)
 	bch2_bkey_buf_exit(&update->k, c);
 }
 
-static int bch2_update_unwritten_extent(struct btree_trans *trans,
-					struct data_update *update)
+static noinline_for_stack
+int bch2_update_unwritten_extent(struct btree_trans *trans,
+				 struct data_update *update)
 {
 	struct bch_fs *c = update->op.c;
 	struct bkey_i_extent *e;
@@ -716,18 +726,10 @@ int bch2_extent_drop_ptrs(struct btree_trans *trans,
 		bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
 }
 
-int bch2_data_update_bios_init(struct data_update *m, struct bch_fs *c,
-			       struct bch_io_opts *io_opts)
+static int __bch2_data_update_bios_init(struct data_update *m, struct bch_fs *c,
+					struct bch_io_opts *io_opts,
+					unsigned buf_bytes)
 {
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(bkey_i_to_s_c(m->k.k));
-	const union bch_extent_entry *entry;
-	struct extent_ptr_decoded p;
-
-	/* write path might have to decompress data: */
-	unsigned buf_bytes = 0;
-	bkey_for_each_ptr_decode(&m->k.k->k, ptrs, p, entry)
-		buf_bytes = max_t(unsigned, buf_bytes, p.crc.uncompressed_size << 9);
-
 	unsigned nr_vecs = DIV_ROUND_UP(buf_bytes, PAGE_SIZE);
 
 	m->bvecs = kmalloc_array(nr_vecs, sizeof*(m->bvecs), GFP_KERNEL);
@@ -749,6 +751,21 @@ int bch2_data_update_bios_init(struct data_update *m, struct bch_fs *c,
 	m->rbio.bio.bi_iter.bi_sector	= bkey_start_offset(&m->k.k->k);
 	m->op.wbio.bio.bi_ioprio	= IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0);
 	return 0;
+}
+
+int bch2_data_update_bios_init(struct data_update *m, struct bch_fs *c,
+			       struct bch_io_opts *io_opts)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(bkey_i_to_s_c(m->k.k));
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
+
+	/* write path might have to decompress data: */
+	unsigned buf_bytes = 0;
+	bkey_for_each_ptr_decode(&m->k.k->k, ptrs, p, entry)
+		buf_bytes = max_t(unsigned, buf_bytes, p.crc.uncompressed_size << 9);
+
+	return __bch2_data_update_bios_init(m, c, io_opts, buf_bytes);
 }
 
 static int can_write_extent(struct bch_fs *c, struct data_update *m)
@@ -802,10 +819,6 @@ int bch2_data_update_init(struct btree_trans *trans,
 			  struct bkey_s_c k)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const union bch_extent_entry *entry;
-	struct extent_ptr_decoded p;
-	unsigned reserve_sectors = k.k->size * data_opts.extra_replicas;
 	int ret = 0;
 
 	/*
@@ -842,6 +855,13 @@ int bch2_data_update_init(struct btree_trans *trans,
 
 	unsigned durability_have = 0, durability_removing = 0;
 
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(bkey_i_to_s_c(m->k.k));
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
+	unsigned reserve_sectors = k.k->size * data_opts.extra_replicas;
+	unsigned buf_bytes = 0;
+	bool unwritten = false;
+
 	unsigned ptr_bit = 1;
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 		if (!p.ptr.cached) {
@@ -871,6 +891,9 @@ int bch2_data_update_init(struct btree_trans *trans,
 
 		if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible)
 			m->op.incompressible = true;
+
+		buf_bytes = max_t(unsigned, buf_bytes, p.crc.uncompressed_size << 9);
+		unwritten |= p.ptr.unwritten;
 
 		ptr_bit <<= 1;
 	}
@@ -946,18 +969,18 @@ int bch2_data_update_init(struct btree_trans *trans,
 	}
 
 	if (c->opts.nocow_enabled &&
-	    !bkey_nocow_lock(c, ctxt, k)) {
+	    !bkey_nocow_lock(c, ctxt, ptrs)) {
 		ret = -BCH_ERR_nocow_lock_blocked;
 		goto out_put_dev_refs;
 	}
 
-	if (bkey_extent_is_unwritten(k)) {
+	if (unwritten) {
 		ret = bch2_update_unwritten_extent(trans, m) ?:
 			-BCH_ERR_data_update_done_unwritten;
 		goto out_nocow_unlock;
 	}
 
-	ret = bch2_data_update_bios_init(m, c, io_opts);
+	ret = __bch2_data_update_bios_init(m, c, io_opts, buf_bytes);
 	if (ret)
 		goto out_nocow_unlock;
 
