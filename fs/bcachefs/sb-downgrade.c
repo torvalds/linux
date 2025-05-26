@@ -20,6 +20,10 @@
  * x(version, recovery_passes, errors...)
  */
 #define UPGRADE_TABLE()						\
+	x(snapshot_2,						\
+	  RECOVERY_PASS_ALL_FSCK,				\
+	  BCH_FSCK_ERR_subvol_root_wrong_bi_subvol,		\
+	  BCH_FSCK_ERR_subvol_not_master_and_not_snapshot)	\
 	x(backpointers,						\
 	  RECOVERY_PASS_ALL_FSCK)				\
 	x(inode_v3,						\

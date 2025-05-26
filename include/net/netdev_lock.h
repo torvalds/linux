@@ -98,6 +98,9 @@ static inline int netdev_lock_cmp_fn(const struct lockdep_map *a,
 				  &qdisc_xmit_lock_key);	\
 }
 
+#define netdev_lock_dereference(p, dev)				\
+	rcu_dereference_protected(p, lockdep_is_held(&(dev)->lock))
+
 int netdev_debug_event(struct notifier_block *nb, unsigned long event,
 		       void *ptr);
 

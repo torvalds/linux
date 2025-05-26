@@ -1653,7 +1653,7 @@ static __maybe_unused int samsung_mipi_dcphy_runtime_resume(struct device *dev)
 		return ret;
 	}
 
-	clk_prepare_enable(samsung->ref_clk);
+	ret = clk_prepare_enable(samsung->ref_clk);
 	if (ret) {
 		dev_err(samsung->dev, "Failed to enable reference clock, %d\n", ret);
 		clk_disable_unprepare(samsung->pclk);

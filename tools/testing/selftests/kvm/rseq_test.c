@@ -196,25 +196,27 @@ static void calc_min_max_cpu(void)
 static void help(const char *name)
 {
 	puts("");
-	printf("usage: %s [-h] [-u]\n", name);
+	printf("usage: %s [-h] [-u] [-l latency]\n", name);
 	printf(" -u: Don't sanity check the number of successful KVM_RUNs\n");
+	printf(" -l: Set /dev/cpu_dma_latency to suppress deep sleep states\n");
 	puts("");
 	exit(0);
 }
 
 int main(int argc, char *argv[])
 {
+	int r, i, snapshot, opt, fd = -1, latency = -1;
 	bool skip_sanity_check = false;
-	int r, i, snapshot;
 	struct kvm_vm *vm;
 	struct kvm_vcpu *vcpu;
 	u32 cpu, rseq_cpu;
-	int opt;
 
-	while ((opt = getopt(argc, argv, "hu")) != -1) {
+	while ((opt = getopt(argc, argv, "hl:u")) != -1) {
 		switch (opt) {
 		case 'u':
 			skip_sanity_check = true;
+		case 'l':
+			latency = atoi_paranoid(optarg);
 			break;
 		case 'h':
 		default:
@@ -242,6 +244,20 @@ int main(int argc, char *argv[])
 
 	pthread_create(&migration_thread, NULL, migration_worker,
 		       (void *)(unsigned long)syscall(SYS_gettid));
+
+	if (latency >= 0) {
+		/*
+		 * Writes to cpu_dma_latency persist only while the file is
+		 * open, i.e. it allows userspace to provide guaranteed latency
+		 * while running a workload.  Keep the file open until the test
+		 * completes, otherwise writing cpu_dma_latency is meaningless.
+		 */
+		fd = open("/dev/cpu_dma_latency", O_RDWR);
+		TEST_ASSERT(fd >= 0, __KVM_SYSCALL_ERROR("open() /dev/cpu_dma_latency", fd));
+
+		r = write(fd, &latency, 4);
+		TEST_ASSERT(r >= 1, "Error setting /dev/cpu_dma_latency");
+	}
 
 	for (i = 0; !done; i++) {
 		vcpu_run(vcpu);
@@ -278,6 +294,9 @@ int main(int argc, char *argv[])
 			    "rseq CPU = %d, sched CPU = %d", rseq_cpu, cpu);
 	}
 
+	if (fd > 0)
+		close(fd);
+
 	/*
 	 * Sanity check that the test was able to enter the guest a reasonable
 	 * number of times, e.g. didn't get stalled too often/long waiting for
@@ -293,8 +312,8 @@ int main(int argc, char *argv[])
 	TEST_ASSERT(skip_sanity_check || i > (NR_TASK_MIGRATIONS / 2),
 		    "Only performed %d KVM_RUNs, task stalled too much?\n\n"
 		    "  Try disabling deep sleep states to reduce CPU wakeup latency,\n"
-		    "  e.g. via cpuidle.off=1 or setting /dev/cpu_dma_latency to '0',\n"
-		    "  or run with -u to disable this sanity check.", i);
+		    "  e.g. via cpuidle.off=1 or via -l <latency>, or run with -u to\n"
+		    "  disable this sanity check.", i);
 
 	pthread_join(migration_thread, NULL);
 

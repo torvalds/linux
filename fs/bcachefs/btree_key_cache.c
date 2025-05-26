@@ -301,9 +301,11 @@ static noinline_for_stack void do_trace_key_cache_fill(struct btree_trans *trans
 }
 
 static noinline int btree_key_cache_fill(struct btree_trans *trans,
-					 struct btree_path *ck_path,
+					 btree_path_idx_t ck_path_idx,
 					 unsigned flags)
 {
+	struct btree_path *ck_path = trans->paths + ck_path_idx;
+
 	if (flags & BTREE_ITER_cached_nofill) {
 		ck_path->l[0].b = NULL;
 		return 0;
@@ -325,6 +327,7 @@ static noinline int btree_key_cache_fill(struct btree_trans *trans,
 		goto err;
 
 	/* Recheck after btree lookup, before allocating: */
+	ck_path = trans->paths + ck_path_idx;
 	ret = bch2_btree_key_cache_find(c, ck_path->btree_id, ck_path->pos) ? -EEXIST : 0;
 	if (unlikely(ret))
 		goto out;
@@ -344,10 +347,11 @@ err:
 }
 
 static inline int btree_path_traverse_cached_fast(struct btree_trans *trans,
-						  struct btree_path *path)
+						  btree_path_idx_t path_idx)
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_cached *ck;
+	struct btree_path *path = trans->paths + path_idx;
 retry:
 	ck = bch2_btree_key_cache_find(c, path->btree_id, path->pos);
 	if (!ck)
@@ -373,19 +377,20 @@ retry:
 	return 0;
 }
 
-int bch2_btree_path_traverse_cached(struct btree_trans *trans, struct btree_path *path,
+int bch2_btree_path_traverse_cached(struct btree_trans *trans,
+				    btree_path_idx_t path_idx,
 				    unsigned flags)
 {
-	EBUG_ON(path->level);
-
-	path->l[1].b = NULL;
+	EBUG_ON(trans->paths[path_idx].level);
 
 	int ret;
 	do {
-		ret = btree_path_traverse_cached_fast(trans, path);
+		ret = btree_path_traverse_cached_fast(trans, path_idx);
 		if (unlikely(ret == -ENOENT))
-			ret = btree_key_cache_fill(trans, path, flags);
+			ret = btree_key_cache_fill(trans, path_idx, flags);
 	} while (ret == -EEXIST);
+
+	struct btree_path *path = trans->paths + path_idx;
 
 	if (unlikely(ret)) {
 		path->uptodate = BTREE_ITER_NEED_TRAVERSE;
@@ -393,7 +398,11 @@ int bch2_btree_path_traverse_cached(struct btree_trans *trans, struct btree_path
 			btree_node_unlock(trans, path, 0);
 			path->l[0].b = ERR_PTR(ret);
 		}
+	} else {
+		BUG_ON(path->uptodate);
+		BUG_ON(!path->nodes_locked);
 	}
+
 	return ret;
 }
 

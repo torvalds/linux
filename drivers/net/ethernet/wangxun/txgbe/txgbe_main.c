@@ -611,7 +611,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 	/* setup the private structure */
 	err = txgbe_sw_init(wx);
 	if (err)
-		goto err_free_mac_table;
+		goto err_pci_release_regions;
 
 	/* check if flash load is done after hw power up */
 	err = wx_check_flash_load(wx, TXGBE_SPI_ILDR_STATUS_PERST);
@@ -769,6 +769,7 @@ err_release_hw:
 	wx_clear_interrupt_scheme(wx);
 	wx_control_hw(wx, false);
 err_free_mac_table:
+	kfree(wx->rss_key);
 	kfree(wx->mac_table);
 err_pci_release_regions:
 	pci_release_selected_regions(pdev,

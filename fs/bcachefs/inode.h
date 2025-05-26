@@ -243,6 +243,14 @@ static inline unsigned bkey_inode_mode(struct bkey_s_c k)
 	}
 }
 
+static inline bool bch2_inode_casefold(struct bch_fs *c, const struct bch_inode_unpacked *bi)
+{
+	/* inode apts are stored with a +1 bias: 0 means "unset, use fs opt" */
+	return bi->bi_casefold
+		? bi->bi_casefold - 1
+		: c->opts.casefold;
+}
+
 /* i_nlink: */
 
 static inline unsigned nlink_bias(umode_t mode)
@@ -284,7 +292,9 @@ static inline bool bch2_inode_should_have_single_bp(struct bch_inode_unpacked *i
 struct bch_opts bch2_inode_opts_to_opts(struct bch_inode_unpacked *);
 void bch2_inode_opts_get(struct bch_io_opts *, struct bch_fs *,
 			 struct bch_inode_unpacked *);
-int bch2_inum_opts_get(struct btree_trans*, subvol_inum, struct bch_io_opts *);
+int bch2_inum_opts_get(struct btree_trans *, subvol_inum, struct bch_io_opts *);
+int bch2_inode_set_casefold(struct btree_trans *, subvol_inum,
+			    struct bch_inode_unpacked *, unsigned);
 
 #include "rebalance.h"
 

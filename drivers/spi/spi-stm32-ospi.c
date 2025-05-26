@@ -960,6 +960,10 @@ err_pm_resume:
 err_pm_enable:
 	pm_runtime_force_suspend(ospi->dev);
 	mutex_destroy(&ospi->lock);
+	if (ospi->dma_chtx)
+		dma_release_channel(ospi->dma_chtx);
+	if (ospi->dma_chrx)
+		dma_release_channel(ospi->dma_chrx);
 
 	return ret;
 }

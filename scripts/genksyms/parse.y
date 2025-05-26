@@ -91,6 +91,8 @@ static void record_compound(struct string_list **keyw,
 %token TYPEOF_KEYW
 %token VA_LIST_KEYW
 
+%token X86_SEG_KEYW
+
 %token EXPORT_SYMBOL_KEYW
 
 %token ASM_PHRASE
@@ -292,7 +294,8 @@ type_qualifier_seq:
 	;
 
 type_qualifier:
-	CONST_KEYW | VOLATILE_KEYW
+	X86_SEG_KEYW
+	| CONST_KEYW | VOLATILE_KEYW
 	| RESTRICT_KEYW
 		{ /* restrict has no effect in prototypes so ignore it */
 		  remove_node($1);

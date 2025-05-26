@@ -702,7 +702,7 @@ static enum resp_states atomic_reply(struct rxe_qp *qp,
 	if (!res->replay) {
 		u64 iova = qp->resp.va + qp->resp.offset;
 
-		if (mr->umem->is_odp)
+		if (is_odp_mr(mr))
 			err = rxe_odp_atomic_op(mr, iova, pkt->opcode,
 						atmeth_comp(pkt),
 						atmeth_swap_add(pkt),
@@ -755,7 +755,7 @@ static enum resp_states atomic_write_reply(struct rxe_qp *qp,
 		return RESPST_ERR_RKEY_VIOLATION;
 	}
 
-	if (mr->umem->is_odp)
+	if (is_odp_mr(mr))
 		err = rxe_odp_do_atomic_write(mr, iova, value);
 	else
 		err = rxe_mr_do_atomic_write(mr, iova, value);

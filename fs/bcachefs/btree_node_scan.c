@@ -183,7 +183,7 @@ static void try_read_btree_node(struct find_btree_nodes *f, struct bch_dev *ca,
 		return;
 
 	if (bch2_csum_type_is_encryption(BSET_CSUM_TYPE(&bn->keys))) {
-		if (!c->chacha20)
+		if (!c->chacha20_key_set)
 			return;
 
 		struct nonce nonce = btree_nonce(&bn->keys, 0);
@@ -398,7 +398,7 @@ int bch2_scan_for_btree_nodes(struct bch_fs *c)
 		bch2_print_string_as_lines(KERN_INFO, buf.buf);
 	}
 
-	sort(f->nodes.data, f->nodes.nr, sizeof(f->nodes.data[0]), found_btree_node_cmp_cookie, NULL);
+	sort_nonatomic(f->nodes.data, f->nodes.nr, sizeof(f->nodes.data[0]), found_btree_node_cmp_cookie, NULL);
 
 	dst = 0;
 	darray_for_each(f->nodes, i) {
@@ -418,7 +418,7 @@ int bch2_scan_for_btree_nodes(struct bch_fs *c)
 	}
 	f->nodes.nr = dst;
 
-	sort(f->nodes.data, f->nodes.nr, sizeof(f->nodes.data[0]), found_btree_node_cmp_pos, NULL);
+	sort_nonatomic(f->nodes.data, f->nodes.nr, sizeof(f->nodes.data[0]), found_btree_node_cmp_pos, NULL);
 
 	if (0 && c->opts.verbose) {
 		printbuf_reset(&buf);

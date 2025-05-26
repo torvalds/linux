@@ -513,6 +513,7 @@ enum WX_MSCA_CMD_value {
 #define WX_RXD_STAT_L4CS             BIT(7) /* L4 xsum calculated */
 #define WX_RXD_STAT_IPCS             BIT(8) /* IP xsum calculated */
 #define WX_RXD_STAT_OUTERIPCS        BIT(10) /* Cloud IP xsum calculated*/
+#define WX_RXD_STAT_IPV6EX           BIT(12) /* IPv6 Dest Header */
 #define WX_RXD_STAT_TS               BIT(14) /* IEEE1588 Time Stamp */
 
 #define WX_RXD_ERR_OUTERIPER         BIT(26) /* CRC IP Header error */
@@ -589,8 +590,6 @@ enum wx_l2_ptypes {
 
 #define WX_RXD_PKTTYPE(_rxd) \
 	((le32_to_cpu((_rxd)->wb.lower.lo_dword.data) >> 9) & 0xFF)
-#define WX_RXD_IPV6EX(_rxd) \
-	((le32_to_cpu((_rxd)->wb.lower.lo_dword.data) >> 6) & 0x1)
 /*********************** Transmit Descriptor Config Masks ****************/
 #define WX_TXD_STAT_DD               BIT(0)  /* Descriptor Done */
 #define WX_TXD_DTYP_DATA             0       /* Adv Data Descriptor */

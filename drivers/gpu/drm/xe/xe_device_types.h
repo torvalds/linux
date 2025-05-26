@@ -330,6 +330,8 @@ struct xe_device {
 		u8 has_sriov:1;
 		/** @info.has_usm: Device has unified shared memory support */
 		u8 has_usm:1;
+		/** @info.has_64bit_timestamp: Device supports 64-bit timestamps */
+		u8 has_64bit_timestamp:1;
 		/** @info.is_dgfx: is discrete device */
 		u8 is_dgfx:1;
 		/**
@@ -585,6 +587,7 @@ struct xe_device {
 			INTEL_DRAM_DDR5,
 			INTEL_DRAM_LPDDR5,
 			INTEL_DRAM_GDDR,
+			INTEL_DRAM_GDDR_ECC,
 		} type;
 		u8 num_qgv_points;
 		u8 num_psf_gv_points;

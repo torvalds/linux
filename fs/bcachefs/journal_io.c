@@ -19,6 +19,7 @@
 
 #include <linux/ioprio.h>
 #include <linux/string_choices.h>
+#include <linux/sched/sysctl.h>
 
 void bch2_journal_pos_from_member_info_set(struct bch_fs *c)
 {
@@ -1262,7 +1263,8 @@ int bch2_journal_read(struct bch_fs *c,
 			degraded = true;
 	}
 
-	closure_sync(&jlist.cl);
+	while (closure_sync_timeout(&jlist.cl, sysctl_hung_task_timeout_secs * HZ / 2))
+		;
 
 	if (jlist.ret)
 		return jlist.ret;
@@ -1460,7 +1462,7 @@ fsck_err:
 
 static void journal_advance_devs_to_next_bucket(struct journal *j,
 						struct dev_alloc_list *devs,
-						unsigned sectors, u64 seq)
+						unsigned sectors, __le64 seq)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 
@@ -1782,7 +1784,7 @@ static CLOSURE_CALLBACK(journal_write_submit)
 		struct bch_dev *ca = bch2_dev_get_ioref(c, ptr->dev, WRITE);
 		if (!ca) {
 			/* XXX: fix this */
-			bch_err(c, "missing device for journal write\n");
+			bch_err(c, "missing device %u for journal write", ptr->dev);
 			continue;
 		}
 

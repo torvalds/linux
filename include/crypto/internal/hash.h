@@ -249,7 +249,7 @@ static inline struct crypto_shash *__crypto_shash_cast(struct crypto_tfm *tfm)
 
 static inline bool ahash_request_chained(struct ahash_request *req)
 {
-	return crypto_request_chained(&req->base);
+	return false;
 }
 
 static inline bool ahash_request_isvirt(struct ahash_request *req)

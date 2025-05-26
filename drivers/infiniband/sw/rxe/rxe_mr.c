@@ -323,7 +323,7 @@ int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr,
 		return err;
 	}
 
-	if (mr->umem->is_odp)
+	if (is_odp_mr(mr))
 		return rxe_odp_mr_copy(mr, iova, addr, length, dir);
 	else
 		return rxe_mr_copy_xarray(mr, iova, addr, length, dir);
@@ -472,7 +472,7 @@ int rxe_flush_pmem_iova(struct rxe_mr *mr, u64 start, unsigned int length)
 	if (mr->ibmr.type == IB_MR_TYPE_DMA)
 		return -EFAULT;
 
-	if (mr->umem->is_odp)
+	if (is_odp_mr(mr))
 		err = rxe_odp_flush_pmem_iova(mr, start, length);
 	else
 		err = rxe_mr_flush_pmem_iova(mr, start, length);

@@ -221,7 +221,7 @@ static int irdma_init_interrupts(struct irdma_pci_f *rf, struct iidc_rdma_core_d
 			break;
 
 	if (i < IRDMA_MIN_MSIX) {
-		for (; i > 0; i--)
+		while (--i >= 0)
 			ice_free_rdma_qvector(cdev, &rf->msix_entries[i]);
 
 		kfree(rf->msix_entries);
@@ -255,6 +255,8 @@ static void irdma_remove(struct auxiliary_device *aux_dev)
 	ice_rdma_update_vsi_filter(cdev_info, iwdev->vsi_num, false);
 	irdma_ib_unregister_device(iwdev);
 	irdma_deinit_interrupts(iwdev->rf, cdev_info);
+
+	kfree(iwdev->rf);
 
 	pr_debug("INIT: Gen2 PF[%d] device remove success\n", PCI_FUNC(cdev_info->pdev->devfn));
 }

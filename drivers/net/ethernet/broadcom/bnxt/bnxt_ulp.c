@@ -20,6 +20,7 @@
 #include <asm/byteorder.h>
 #include <linux/bitmap.h>
 #include <linux/auxiliary_bus.h>
+#include <net/netdev_lock.h>
 
 #include "bnxt_hsi.h"
 #include "bnxt.h"
@@ -309,14 +310,12 @@ void bnxt_ulp_irq_stop(struct bnxt *bp)
 		if (!ulp->msix_requested)
 			return;
 
-		netdev_lock(bp->dev);
-		ops = rcu_dereference(ulp->ulp_ops);
+		ops = netdev_lock_dereference(ulp->ulp_ops, bp->dev);
 		if (!ops || !ops->ulp_irq_stop)
 			return;
 		if (test_bit(BNXT_STATE_FW_RESET_DET, &bp->state))
 			reset = true;
 		ops->ulp_irq_stop(ulp->handle, reset);
-		netdev_unlock(bp->dev);
 	}
 }
 
@@ -335,8 +334,7 @@ void bnxt_ulp_irq_restart(struct bnxt *bp, int err)
 		if (!ulp->msix_requested)
 			return;
 
-		netdev_lock(bp->dev);
-		ops = rcu_dereference(ulp->ulp_ops);
+		ops = netdev_lock_dereference(ulp->ulp_ops, bp->dev);
 		if (!ops || !ops->ulp_irq_restart)
 			return;
 
@@ -348,7 +346,6 @@ void bnxt_ulp_irq_restart(struct bnxt *bp, int err)
 			bnxt_fill_msix_vecs(bp, ent);
 		}
 		ops->ulp_irq_restart(ulp->handle, ent);
-		netdev_unlock(bp->dev);
 		kfree(ent);
 	}
 }

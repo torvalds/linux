@@ -1,0 +1,177 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: ftrace - function graph filters
+# requires: set_ftrace_filter function_graph:tracer
+
+# Make sure that function graph filtering works
+
+INSTANCE1="instances/test1_$$"
+INSTANCE2="instances/test2_$$"
+
+WD=`pwd`
+
+do_reset() {
+    cd $WD
+    if [ -d $INSTANCE1 ]; then
+	echo nop > $INSTANCE1/current_tracer
+	rmdir $INSTANCE1
+    fi
+    if [ -d $INSTANCE2 ]; then
+	echo nop > $INSTANCE2/current_tracer
+	rmdir $INSTANCE2
+    fi
+}
+
+mkdir $INSTANCE1
+if ! grep -q function_graph $INSTANCE1/available_tracers; then
+    echo "function_graph not allowed with instances"
+    rmdir $INSTANCE1
+    exit_unsupported
+fi
+
+mkdir $INSTANCE2
+
+fail() { # msg
+    do_reset
+    echo $1
+    exit_fail
+}
+
+disable_tracing
+clear_trace
+
+function_count() {
+    search=$1
+    vsearch=$2
+
+    if [ -z "$search" ]; then
+	cat enabled_functions | wc -l
+    elif [ -z "$vsearch" ]; then
+	grep $search enabled_functions | wc -l
+    else
+	grep $search enabled_functions | grep $vsearch| wc -l
+    fi
+}
+
+set_fgraph() {
+    instance=$1
+    filter="$2"
+    notrace="$3"
+
+    echo "$filter" > $instance/set_ftrace_filter
+    echo "$notrace" > $instance/set_ftrace_notrace
+    echo function_graph > $instance/current_tracer
+}
+
+check_functions() {
+    orig_cnt=$1
+    test=$2
+
+    cnt=`function_count $test`
+    if [ $cnt -gt $orig_cnt ]; then
+	fail
+    fi
+}
+
+check_cnt() {
+    orig_cnt=$1
+    search=$2
+    vsearch=$3
+
+    cnt=`function_count $search $vsearch`
+    if [ $cnt -gt $orig_cnt ]; then
+	fail
+    fi
+}
+
+reset_graph() {
+    instance=$1
+    echo nop > $instance/current_tracer
+}
+
+# get any functions that were enabled before the test
+total_cnt=`function_count`
+sched_cnt=`function_count sched`
+lock_cnt=`function_count lock`
+time_cnt=`function_count time`
+clock_cnt=`function_count clock`
+locks_clock_cnt=`function_count locks clock`
+clock_locks_cnt=`function_count clock locks`
+
+# Trace functions with "sched" but not "time"
+set_fgraph $INSTANCE1 '*sched*' '*time*'
+
+# Make sure "time" isn't listed
+check_functions $time_cnt 'time'
+instance1_cnt=`function_count`
+
+# Trace functions with "lock" but not "clock"
+set_fgraph $INSTANCE2 '*lock*' '*clock*'
+instance1_2_cnt=`function_count`
+
+# Turn off the first instance
+reset_graph $INSTANCE1
+
+# The second instance doesn't trace "clock" functions
+check_functions $clock_cnt 'clock'
+instance2_cnt=`function_count`
+
+# Start from a clean slate
+reset_graph $INSTANCE2
+check_functions $total_cnt
+
+# Trace functions with "lock" but not "clock"
+set_fgraph $INSTANCE2 '*lock*' '*clock*'
+
+# This should match the last time instance 2 was by itself
+cnt=`function_count`
+if [ $instance2_cnt -ne $cnt ]; then
+    fail
+fi
+
+# And it should not be tracing "clock" functions
+check_functions $clock_cnt 'clock'
+
+# Trace functions with "sched" but not "time"
+set_fgraph $INSTANCE1 '*sched*' '*time*'
+
+# This should match the last time both instances were enabled
+cnt=`function_count`
+if [ $instance1_2_cnt -ne $cnt ]; then
+    fail
+fi
+
+# Turn off the second instance
+reset_graph $INSTANCE2
+
+# This should match the last time instance 1 was by itself
+cnt=`function_count`
+if [ $instance1_cnt -ne $cnt ]; then
+    fail
+fi
+
+# And it should not be tracing "time" functions
+check_functions $time_cnt 'time'
+
+# Start from a clean slate
+reset_graph $INSTANCE1
+check_functions $total_cnt
+
+# Enable all functions but those that have "locks"
+set_fgraph $INSTANCE1 '' '*locks*'
+
+# Enable all functions but those that have "clock"
+set_fgraph $INSTANCE2 '' '*clock*'
+
+# If a function has "locks" it should not have "clock"
+check_cnt $locks_clock_cnt locks clock
+
+# If a function has "clock" it should not have "locks"
+check_cnt $clock_locks_cnt clock locks
+
+reset_graph $INSTANCE1
+reset_graph $INSTANCE2
+
+do_reset
+
+exit 0

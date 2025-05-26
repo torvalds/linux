@@ -23,6 +23,21 @@ struct bch_fs;
 struct bch_hash_info;
 struct bch_inode_info;
 
+int bch2_casefold(struct btree_trans *, const struct bch_hash_info *,
+		  const struct qstr *, struct qstr *);
+
+static inline int bch2_maybe_casefold(struct btree_trans *trans,
+				      const struct bch_hash_info *info,
+				      const struct qstr *str, struct qstr *out_cf)
+{
+	if (likely(!info->cf_encoding)) {
+		*out_cf = *str;
+		return 0;
+	} else {
+		return bch2_casefold(trans, info, str, out_cf);
+	}
+}
+
 struct qstr bch2_dirent_get_name(struct bkey_s_c_dirent d);
 
 static inline unsigned dirent_val_u64s(unsigned len, unsigned cf_len)
@@ -50,7 +65,7 @@ int bch2_dirent_create_snapshot(struct btree_trans *, u32, u64, u32,
 			enum btree_iter_update_trigger_flags);
 int bch2_dirent_create(struct btree_trans *, subvol_inum,
 		       const struct bch_hash_info *, u8,
-		       const struct qstr *, u64, u64 *, u64 *,
+		       const struct qstr *, u64, u64 *,
 		       enum btree_iter_update_trigger_flags);
 
 static inline unsigned vfs_d_type(unsigned type)

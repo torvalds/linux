@@ -283,7 +283,7 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto free_irqs;
 	}
 
-	err = fbnic_fw_enable_mbx(fbd);
+	err = fbnic_fw_request_mbx(fbd);
 	if (err) {
 		dev_err(&pdev->dev,
 			"Firmware mailbox initialization failure\n");
@@ -363,7 +363,7 @@ static void fbnic_remove(struct pci_dev *pdev)
 	fbnic_hwmon_unregister(fbd);
 	fbnic_dbg_fbd_exit(fbd);
 	fbnic_devlink_unregister(fbd);
-	fbnic_fw_disable_mbx(fbd);
+	fbnic_fw_free_mbx(fbd);
 	fbnic_free_irqs(fbd);
 
 	fbnic_devlink_free(fbd);
@@ -387,7 +387,7 @@ static int fbnic_pm_suspend(struct device *dev)
 	rtnl_unlock();
 
 null_uc_addr:
-	fbnic_fw_disable_mbx(fbd);
+	fbnic_fw_free_mbx(fbd);
 
 	/* Free the IRQs so they aren't trying to occupy sleeping CPUs */
 	fbnic_free_irqs(fbd);
@@ -420,7 +420,7 @@ static int __fbnic_pm_resume(struct device *dev)
 	fbd->mac->init_regs(fbd);
 
 	/* Re-enable mailbox */
-	err = fbnic_fw_enable_mbx(fbd);
+	err = fbnic_fw_request_mbx(fbd);
 	if (err)
 		goto err_free_irqs;
 
@@ -438,15 +438,15 @@ static int __fbnic_pm_resume(struct device *dev)
 	if (netif_running(netdev)) {
 		err = __fbnic_open(fbn);
 		if (err)
-			goto err_disable_mbx;
+			goto err_free_mbx;
 	}
 
 	rtnl_unlock();
 
 	return 0;
-err_disable_mbx:
+err_free_mbx:
 	rtnl_unlock();
-	fbnic_fw_disable_mbx(fbd);
+	fbnic_fw_free_mbx(fbd);
 err_free_irqs:
 	fbnic_free_irqs(fbd);
 err_invalidate_uc_addr:

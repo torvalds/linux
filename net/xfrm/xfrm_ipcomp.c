@@ -48,7 +48,6 @@ static int ipcomp_post_acomp(struct sk_buff *skb, int err, int hlen)
 {
 	struct acomp_req *req = ipcomp_cb(skb)->req;
 	struct ipcomp_req_extra *extra;
-	const int plen = skb->data_len;
 	struct scatterlist *dsg;
 	int len, dlen;
 
@@ -64,7 +63,7 @@ static int ipcomp_post_acomp(struct sk_buff *skb, int err, int hlen)
 
 	/* Only update truesize on input. */
 	if (!hlen)
-		skb->truesize += dlen - plen;
+		skb->truesize += dlen;
 	skb->data_len = dlen;
 	skb->len += dlen;
 

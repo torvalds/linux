@@ -7,10 +7,10 @@ menuconfig IP_SCTP
 	tristate "The SCTP Protocol"
 	depends on INET
 	depends on IPV6 || IPV6=n
+	select CRC32
 	select CRYPTO
 	select CRYPTO_HMAC
 	select CRYPTO_SHA1
-	select LIBCRC32C
 	select NET_UDP_TUNNEL
 	help
 	  Stream Control Transmission Protocol
