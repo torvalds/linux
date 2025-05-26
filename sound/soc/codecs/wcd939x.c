@@ -3241,10 +3241,9 @@ static int wcd939x_populate_dt_data(struct wcd939x_priv *wcd939x, struct device 
 	int ret;
 
 	wcd939x->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(wcd939x->reset_gpio)) {
-		ret = PTR_ERR(wcd939x->reset_gpio);
-		return dev_err_probe(dev, ret, "Failed to get reset gpio\n");
-	}
+	if (IS_ERR(wcd939x->reset_gpio))
+		return dev_err_probe(dev, PTR_ERR(wcd939x->reset_gpio),
+				     "Failed to get reset gpio\n");
 
 	ret = devm_regulator_bulk_get_enable(dev, ARRAY_SIZE(wcd939x_supplies),
 					     wcd939x_supplies);
