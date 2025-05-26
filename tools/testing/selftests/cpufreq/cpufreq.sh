@@ -52,7 +52,14 @@ read_cpufreq_files_in_dir()
 	for file in $files; do
 		if [ -f $1/$file ]; then
 			printf "$file:"
-			cat $1/$file
+			#file is readable ?
+			local rfile=$(ls -l $1/$file | awk '$1 ~ /^.*r.*/ { print $NF; }')
+
+			if [ ! -z $rfile ]; then
+				cat $1/$file
+			else
+				printf "$file is not readable\n"
+			fi
 		else
 			printf "\n"
 			read_cpufreq_files_in_dir "$1/$file"
@@ -83,10 +90,10 @@ update_cpufreq_files_in_dir()
 
 	for file in $files; do
 		if [ -f $1/$file ]; then
-			# file is writable ?
-			local wfile=$(ls -l $1/$file | awk '$1 ~ /^.*w.*/ { print $NF; }')
+			# file is readable and writable ?
+			local rwfile=$(ls -l $1/$file | awk '$1 ~ /^.*rw.*/ { print $NF; }')
 
-			if [ ! -z $wfile ]; then
+			if [ ! -z $rwfile ]; then
 				# scaling_setspeed is a special file and we
 				# should skip updating it
 				if [ $file != "scaling_setspeed" ]; then
@@ -244,9 +251,10 @@ do_suspend()
 					printf "Failed to suspend using RTC wake alarm\n"
 					return 1
 				fi
+			else
+				echo $filename > $SYSFS/power/state
 			fi
 
-			echo $filename > $SYSFS/power/state
 			printf "Came out of $1\n"
 
 			printf "Do basic tests after finishing $1 to verify cpufreq state\n\n"
