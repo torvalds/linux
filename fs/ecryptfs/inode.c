@@ -394,8 +394,8 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	char *encrypted_and_encoded_name = NULL;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
 	struct dentry *lower_dir_dentry, *lower_dentry;
-	const char *name = ecryptfs_dentry->d_name.name;
-	size_t len = ecryptfs_dentry->d_name.len;
+	struct qstr qname = QSTR_INIT(ecryptfs_dentry->d_name.name,
+				      ecryptfs_dentry->d_name.len);
 	struct dentry *res;
 	int rc = 0;
 
@@ -404,23 +404,25 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	mount_crypt_stat = &ecryptfs_superblock_to_private(
 				ecryptfs_dentry->d_sb)->mount_crypt_stat;
 	if (mount_crypt_stat->flags & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES) {
+		size_t len = qname.len;
 		rc = ecryptfs_encrypt_and_encode_filename(
 			&encrypted_and_encoded_name, &len,
-			mount_crypt_stat, name, len);
+			mount_crypt_stat, qname.name, len);
 		if (rc) {
 			printk(KERN_ERR "%s: Error attempting to encrypt and encode "
 			       "filename; rc = [%d]\n", __func__, rc);
 			return ERR_PTR(rc);
 		}
-		name = encrypted_and_encoded_name;
+		qname.name = encrypted_and_encoded_name;
+		qname.len = len;
 	}
 
-	lower_dentry = lookup_one_len_unlocked(name, lower_dir_dentry, len);
+	lower_dentry = lookup_noperm_unlocked(&qname, lower_dir_dentry);
 	if (IS_ERR(lower_dentry)) {
-		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_len() returned "
+		ecryptfs_printk(KERN_DEBUG, "%s: lookup_noperm() returned "
 				"[%ld] on lower_dentry = [%s]\n", __func__,
 				PTR_ERR(lower_dentry),
-				name);
+				qname.name);
 		res = ERR_CAST(lower_dentry);
 	} else {
 		res = ecryptfs_lookup_interpose(ecryptfs_dentry, lower_dentry);

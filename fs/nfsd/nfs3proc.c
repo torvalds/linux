@@ -284,7 +284,9 @@ nfsd3_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 
 	inode_lock_nested(inode, I_MUTEX_PARENT);
 
-	child = lookup_one_len(argp->name, parent, argp->len);
+	child = lookup_one(&nop_mnt_idmap,
+			   &QSTR_LEN(argp->name, argp->len),
+			   parent);
 	if (IS_ERR(child)) {
 		status = nfserrno(PTR_ERR(child));
 		goto out;

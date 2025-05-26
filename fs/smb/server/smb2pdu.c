@@ -4120,9 +4120,10 @@ static int process_query_dir_entries(struct smb2_query_dir_private *priv)
 			return -EINVAL;
 
 		lock_dir(priv->dir_fp);
-		dent = lookup_one(idmap, priv->d_info->name,
-				  priv->dir_fp->filp->f_path.dentry,
-				  priv->d_info->name_len);
+		dent = lookup_one(idmap,
+				  &QSTR_LEN(priv->d_info->name,
+					    priv->d_info->name_len),
+				  priv->dir_fp->filp->f_path.dentry);
 		unlock_dir(priv->dir_fp);
 
 		if (IS_ERR(dent)) {

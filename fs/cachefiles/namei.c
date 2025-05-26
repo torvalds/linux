@@ -98,7 +98,7 @@ struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 retry:
 	ret = cachefiles_inject_read_error();
 	if (ret == 0)
-		subdir = lookup_one_len(dirname, dir, strlen(dirname));
+		subdir = lookup_one(&nop_mnt_idmap, &QSTR(dirname), dir);
 	else
 		subdir = ERR_PTR(ret);
 	trace_cachefiles_lookup(NULL, dir, subdir);
@@ -338,7 +338,7 @@ try_again:
 		return -EIO;
 	}
 
-	grave = lookup_one_len(nbuffer, cache->graveyard, strlen(nbuffer));
+	grave = lookup_one(&nop_mnt_idmap, &QSTR(nbuffer), cache->graveyard);
 	if (IS_ERR(grave)) {
 		unlock_rename(cache->graveyard, dir);
 		trace_cachefiles_vfs_error(object, d_inode(cache->graveyard),
@@ -630,8 +630,8 @@ bool cachefiles_look_up_object(struct cachefiles_object *object)
 	/* Look up path "cache/vol/fanout/file". */
 	ret = cachefiles_inject_read_error();
 	if (ret == 0)
-		dentry = lookup_positive_unlocked(object->d_name, fan,
-						  object->d_name_len);
+		dentry = lookup_one_positive_unlocked(&nop_mnt_idmap,
+						      &QSTR(object->d_name), fan);
 	else
 		dentry = ERR_PTR(ret);
 	trace_cachefiles_lookup(object, fan, dentry);
@@ -683,7 +683,7 @@ bool cachefiles_commit_tmpfile(struct cachefiles_cache *cache,
 	inode_lock_nested(d_inode(fan), I_MUTEX_PARENT);
 	ret = cachefiles_inject_read_error();
 	if (ret == 0)
-		dentry = lookup_one_len(object->d_name, fan, object->d_name_len);
+		dentry = lookup_one(&nop_mnt_idmap, &QSTR(object->d_name), fan);
 	else
 		dentry = ERR_PTR(ret);
 	if (IS_ERR(dentry)) {
@@ -702,7 +702,7 @@ bool cachefiles_commit_tmpfile(struct cachefiles_cache *cache,
 		dput(dentry);
 		ret = cachefiles_inject_read_error();
 		if (ret == 0)
-			dentry = lookup_one_len(object->d_name, fan, object->d_name_len);
+			dentry = lookup_one(&nop_mnt_idmap, &QSTR(object->d_name), fan);
 		else
 			dentry = ERR_PTR(ret);
 		if (IS_ERR(dentry)) {
@@ -751,7 +751,7 @@ static struct dentry *cachefiles_lookup_for_cull(struct cachefiles_cache *cache,
 
 	inode_lock_nested(d_inode(dir), I_MUTEX_PARENT);
 
-	victim = lookup_one_len(filename, dir, strlen(filename));
+	victim = lookup_one(&nop_mnt_idmap, &QSTR(filename), dir);
 	if (IS_ERR(victim))
 		goto lookup_error;
 	if (d_is_negative(victim))

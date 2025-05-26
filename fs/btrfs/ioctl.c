@@ -909,7 +909,7 @@ static noinline int btrfs_mksubvol(const struct path *parent,
 	if (error == -EINTR)
 		return error;
 
-	dentry = lookup_one(idmap, name, parent->dentry, namelen);
+	dentry = lookup_one(idmap, &QSTR_LEN(name, namelen), parent->dentry);
 	error = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
 		goto out_unlock;
@@ -2288,7 +2288,6 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	struct btrfs_ioctl_vol_args_v2 *vol_args2 = NULL;
 	struct mnt_idmap *idmap = file_mnt_idmap(file);
 	char *subvol_name, *subvol_name_ptr = NULL;
-	int subvol_namelen;
 	int ret = 0;
 	bool destroy_parent = false;
 
@@ -2411,10 +2410,8 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 			goto out;
 	}
 
-	subvol_namelen = strlen(subvol_name);
-
 	if (strchr(subvol_name, '/') ||
-	    strncmp(subvol_name, "..", subvol_namelen) == 0) {
+	    strcmp(subvol_name, "..") == 0) {
 		ret = -EINVAL;
 		goto free_subvol_name;
 	}
@@ -2427,7 +2424,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	ret = down_write_killable_nested(&dir->i_rwsem, I_MUTEX_PARENT);
 	if (ret == -EINTR)
 		goto free_subvol_name;
-	dentry = lookup_one(idmap, subvol_name, parent, subvol_namelen);
+	dentry = lookup_one(idmap, &QSTR(subvol_name), parent);
 	if (IS_ERR(dentry)) {
 		ret = PTR_ERR(dentry);
 		goto out_unlock_dir;

@@ -271,7 +271,6 @@ static bool ovl_fill_merge(struct dir_context *ctx, const char *name,
 static int ovl_check_whiteouts(const struct path *path, struct ovl_readdir_data *rdd)
 {
 	int err;
-	struct ovl_cache_entry *p;
 	struct dentry *dentry, *dir = path->dentry;
 	const struct cred *old_cred;
 
@@ -280,9 +279,11 @@ static int ovl_check_whiteouts(const struct path *path, struct ovl_readdir_data 
 	err = down_write_killable(&dir->d_inode->i_rwsem);
 	if (!err) {
 		while (rdd->first_maybe_whiteout) {
-			p = rdd->first_maybe_whiteout;
+			struct ovl_cache_entry *p =
+				rdd->first_maybe_whiteout;
 			rdd->first_maybe_whiteout = p->next_maybe_whiteout;
-			dentry = lookup_one(mnt_idmap(path->mnt), p->name, dir, p->len);
+			dentry = lookup_one(mnt_idmap(path->mnt),
+					    &QSTR_LEN(p->name, p->len), dir);
 			if (!IS_ERR(dentry)) {
 				p->is_whiteout = ovl_is_whiteout(dentry);
 				dput(dentry);
@@ -492,7 +493,7 @@ static int ovl_cache_update(const struct path *path, struct ovl_cache_entry *p, 
 		}
 	}
 	/* This checks also for xwhiteouts */
-	this = lookup_one(mnt_idmap(path->mnt), p->name, dir, p->len);
+	this = lookup_one(mnt_idmap(path->mnt), &QSTR_LEN(p->name, p->len), dir);
 	if (IS_ERR_OR_NULL(this) || !this->d_inode) {
 		/* Mark a stale entry */
 		p->is_whiteout = true;

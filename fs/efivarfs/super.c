@@ -18,6 +18,7 @@
 #include <linux/statfs.h>
 #include <linux/notifier.h>
 #include <linux/printk.h>
+#include <linux/namei.h>
 
 #include "internal.h"
 
@@ -204,7 +205,6 @@ bool efivarfs_variable_is_present(efi_char16_t *variable_name,
 	char *name = efivar_get_utf8name(variable_name, vendor);
 	struct super_block *sb = data;
 	struct dentry *dentry;
-	struct qstr qstr;
 
 	if (!name)
 		/*
@@ -217,9 +217,7 @@ bool efivarfs_variable_is_present(efi_char16_t *variable_name,
 		 */
 		return true;
 
-	qstr.name = name;
-	qstr.len = strlen(name);
-	dentry = d_hash_and_lookup(sb->s_root, &qstr);
+	dentry = try_lookup_noperm(&QSTR(name), sb->s_root);
 	kfree(name);
 	if (!IS_ERR_OR_NULL(dentry))
 		dput(dentry);
@@ -404,8 +402,8 @@ static bool efivarfs_actor(struct dir_context *ctx, const char *name, int len,
 {
 	unsigned long size;
 	struct efivarfs_ctx *ectx = container_of(ctx, struct efivarfs_ctx, ctx);
-	struct qstr qstr = { .name = name, .len = len };
-	struct dentry *dentry = d_hash_and_lookup(ectx->sb->s_root, &qstr);
+	struct dentry *dentry = try_lookup_noperm(&QSTR_LEN(name, len),
+						  ectx->sb->s_root);
 	struct inode *inode;
 	struct efivar_entry *entry;
 	int err;
@@ -441,7 +439,6 @@ static int efivarfs_check_missing(efi_char16_t *name16, efi_guid_t vendor,
 	char *name;
 	struct super_block *sb = data;
 	struct dentry *dentry;
-	struct qstr qstr;
 	int err;
 
 	if (guid_equal(&vendor, &LINUX_EFI_RANDOM_SEED_TABLE_GUID))
@@ -451,9 +448,7 @@ static int efivarfs_check_missing(efi_char16_t *name16, efi_guid_t vendor,
 	if (!name)
 		return -ENOMEM;
 
-	qstr.name = name;
-	qstr.len = strlen(name);
-	dentry = d_hash_and_lookup(sb->s_root, &qstr);
+	dentry = try_lookup_noperm(&QSTR(name), sb->s_root);
 	if (IS_ERR(dentry)) {
 		err = PTR_ERR(dentry);
 		goto out;
