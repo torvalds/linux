@@ -23,6 +23,7 @@
 #define	SYS_FREQ_DEFAULT		(62500000)
 
 #define	PCI1XXXX_SPI_MAX_CLOCK_HZ	(30000000)
+#define	PCI1XXXX_SPI_CLK_25MHZ		(25000000)
 #define	PCI1XXXX_SPI_CLK_20MHZ		(20000000)
 #define	PCI1XXXX_SPI_CLK_15MHZ		(15000000)
 #define	PCI1XXXX_SPI_CLK_12MHZ		(12000000)
@@ -318,12 +319,14 @@ static void pci1xxxx_spi_set_cs(struct spi_device *spi, bool enable)
 	writel(regval, par->reg_base + SPI_MST_CTL_REG_OFFSET(p->hw_inst));
 }
 
-static u8 pci1xxxx_get_clock_div(u32 hz)
+static u8 pci1xxxx_get_clock_div(struct pci1xxxx_spi *par, u32 hz)
 {
 	u8 val = 0;
 
 	if (hz >= PCI1XXXX_SPI_MAX_CLOCK_HZ)
 		val = 2;
+	else if (par->dev_rev >= 0xC0 && hz >= PCI1XXXX_SPI_CLK_25MHZ)
+		val = 1;
 	else if ((hz < PCI1XXXX_SPI_MAX_CLOCK_HZ) && (hz >= PCI1XXXX_SPI_CLK_20MHZ))
 		val = 3;
 	else if ((hz < PCI1XXXX_SPI_CLK_20MHZ) && (hz >= PCI1XXXX_SPI_CLK_15MHZ))
@@ -423,7 +426,7 @@ static int pci1xxxx_spi_transfer_with_io(struct spi_controller *spi_ctlr,
 
 	p->spi_xfer_in_progress = true;
 	p->bytes_recvd = 0;
-	clkdiv = pci1xxxx_get_clock_div(xfer->speed_hz);
+	clkdiv = pci1xxxx_get_clock_div(par, xfer->speed_hz);
 	tx_buf = xfer->tx_buf;
 	rx_buf = xfer->rx_buf;
 	transfer_len = xfer->len;
@@ -492,7 +495,7 @@ static int pci1xxxx_spi_transfer_with_dma(struct spi_controller *spi_ctlr,
 	}
 	p->xfer = xfer;
 	p->mode = spi->mode;
-	p->clkdiv = pci1xxxx_get_clock_div(xfer->speed_hz);
+	p->clkdiv = pci1xxxx_get_clock_div(par, xfer->speed_hz);
 	p->bytes_recvd = 0;
 	p->rx_buf = xfer->rx_buf;
 	regval = readl(par->reg_base + SPI_MST_EVENT_REG_OFFSET(p->hw_inst));
