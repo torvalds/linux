@@ -2559,21 +2559,6 @@ static int gfx_v12_1_hw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	if ((adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT ||
-	     adev->firmware.load_type == AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO) &&
-	     (amdgpu_dpm == 1)) {
-		/**
-		 * For gfx 12, rlc firmware loading relies on smu firmware is
-		 * loaded firstly, so in direct type, it has to load smc ucode
-		 * here before rlc.
-		 */
-		if (!(adev->flags & AMD_IS_APU)) {
-			r = amdgpu_pm_load_smu_firmware(adev, NULL);
-			if (r)
-				return r;
-		}
-	}
-
 	gfx_v12_1_init_golden_registers(adev);
 
 	gfx_v12_1_constants_init(adev);
