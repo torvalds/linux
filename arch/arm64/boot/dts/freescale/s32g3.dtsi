@@ -171,6 +171,15 @@
 		#size-cells = <1>;
 		ranges = <0 0 0 0x80000000>;
 
+		rtc0: rtc@40060000 {
+			compatible = "nxp,s32g3-rtc",
+				     "nxp,s32g2-rtc";
+			reg = <0x40060000 0x1000>;
+			interrupts = <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks 54>, <&clks 55>;
+			clock-names = "ipg", "source0";
+		};
+
 		pinctrl: pinctrl@4009c240 {
 			compatible = "nxp,s32g2-siul2-pinctrl";
 				/* MSCR0-MSCR101 registers on siul2_0 */
