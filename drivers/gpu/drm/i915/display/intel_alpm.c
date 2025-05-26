@@ -336,7 +336,6 @@ static void lnl_alpm_configure(struct intel_dp *intel_dp,
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-	enum port port = dp_to_dig_port(intel_dp)->base.port;
 	u32 alpm_ctl;
 
 	if (DISPLAY_VER(display) < 20 || (!intel_psr_needs_alpm(intel_dp, crtc_state) &&
@@ -368,23 +367,6 @@ static void lnl_alpm_configure(struct intel_dp *intel_dp,
 				       pr_alpm_ctl);
 		}
 
-		intel_de_write(display,
-			       PORT_ALPM_CTL(port),
-			       PORT_ALPM_CTL_ALPM_AUX_LESS_ENABLE |
-			       PORT_ALPM_CTL_MAX_PHY_SWING_SETUP(15) |
-			       PORT_ALPM_CTL_MAX_PHY_SWING_HOLD(0) |
-			       PORT_ALPM_CTL_SILENCE_PERIOD(
-				       intel_dp->alpm_parameters.silence_period_sym_clocks));
-
-		intel_de_write(display,
-			       PORT_ALPM_LFPS_CTL(port),
-			       PORT_ALPM_LFPS_CTL_LFPS_CYCLE_COUNT(10) |
-			       PORT_ALPM_LFPS_CTL_LFPS_HALF_CYCLE_DURATION(
-				       intel_dp->alpm_parameters.lfps_half_cycle_num_of_syms) |
-			       PORT_ALPM_LFPS_CTL_FIRST_LFPS_HALF_CYCLE_DURATION(
-				       intel_dp->alpm_parameters.lfps_half_cycle_num_of_syms) |
-			       PORT_ALPM_LFPS_CTL_LAST_LFPS_HALF_CYCLE_DURATION(
-				       intel_dp->alpm_parameters.lfps_half_cycle_num_of_syms));
 	} else {
 		alpm_ctl = ALPM_CTL_EXTENDED_FAST_WAKE_ENABLE |
 			ALPM_CTL_EXTENDED_FAST_WAKE_TIME(intel_dp->alpm_parameters.fast_wake_lines);
@@ -406,6 +388,36 @@ void intel_alpm_configure(struct intel_dp *intel_dp,
 {
 	lnl_alpm_configure(intel_dp, crtc_state);
 	intel_dp->alpm_parameters.transcoder = crtc_state->cpu_transcoder;
+}
+
+void intel_alpm_port_configure(struct intel_dp *intel_dp,
+			       const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+	enum port port = dp_to_dig_port(intel_dp)->base.port;
+	u32 alpm_ctl_val = 0, lfps_ctl_val = 0;
+
+	if (DISPLAY_VER(display) < 20)
+		return;
+
+	if (intel_alpm_is_alpm_aux_less(intel_dp, crtc_state)) {
+		alpm_ctl_val = PORT_ALPM_CTL_ALPM_AUX_LESS_ENABLE |
+			PORT_ALPM_CTL_MAX_PHY_SWING_SETUP(15) |
+			PORT_ALPM_CTL_MAX_PHY_SWING_HOLD(0) |
+			PORT_ALPM_CTL_SILENCE_PERIOD(
+				intel_dp->alpm_parameters.silence_period_sym_clocks);
+		lfps_ctl_val = PORT_ALPM_LFPS_CTL_LFPS_CYCLE_COUNT(10) |
+			PORT_ALPM_LFPS_CTL_LFPS_HALF_CYCLE_DURATION(
+				intel_dp->alpm_parameters.lfps_half_cycle_num_of_syms) |
+			PORT_ALPM_LFPS_CTL_FIRST_LFPS_HALF_CYCLE_DURATION(
+				intel_dp->alpm_parameters.lfps_half_cycle_num_of_syms) |
+			PORT_ALPM_LFPS_CTL_LAST_LFPS_HALF_CYCLE_DURATION(
+				intel_dp->alpm_parameters.lfps_half_cycle_num_of_syms);
+	}
+
+	intel_de_write(display, PORT_ALPM_CTL(port), alpm_ctl_val);
+
+	intel_de_write(display, PORT_ALPM_LFPS_CTL(port), lfps_ctl_val);
 }
 
 void intel_alpm_pre_plane_update(struct intel_atomic_state *state,

@@ -3740,6 +3740,12 @@ static void mtl_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 
 	intel_ddi_buf_enable(encoder, intel_dp->DP);
 	intel_dp->DP |= DDI_BUF_CTL_ENABLE;
+
+	/*
+	 * 6.k If AUX-Less ALPM is going to be enabled
+	 *     i. Configure PORT_ALPM_CTL and PORT_ALPM_LFPS_CTL here
+	 */
+	intel_alpm_port_configure(intel_dp, crtc_state);
 }
 
 static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
