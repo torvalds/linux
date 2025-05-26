@@ -334,7 +334,7 @@ If the system-call audit module were to ever need to reject stale data, one way
 to accomplish this would be to add a ``deleted`` flag and a ``lock`` spinlock to the
 ``audit_entry`` structure, and modify audit_filter_task() as follows::
 
-	static enum audit_state audit_filter_task(struct task_struct *tsk)
+	static struct audit_entry *audit_filter_task(struct task_struct *tsk, char **key)
 	{
 		struct audit_entry *e;
 		enum audit_state   state;
@@ -346,16 +346,18 @@ to accomplish this would be to add a ``deleted`` flag and a ``lock`` spinlock to
 				if (e->deleted) {
 					spin_unlock(&e->lock);
 					rcu_read_unlock();
-					return AUDIT_BUILD_CONTEXT;
+					return NULL;
 				}
 				rcu_read_unlock();
 				if (state == AUDIT_STATE_RECORD)
 					*key = kstrdup(e->rule.filterkey, GFP_ATOMIC);
-				return state;
+				/* As long as e->lock is held, e is valid and
+				 * its value is not stale */
+				return e;
 			}
 		}
 		rcu_read_unlock();
-		return AUDIT_BUILD_CONTEXT;
+		return NULL;
 	}
 
 The ``audit_del_rule()`` function would need to set the ``deleted`` flag under the
