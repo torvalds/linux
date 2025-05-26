@@ -603,18 +603,18 @@ static int __dev_stripe_cmp(struct dev_stripe_state *stripe,
 
 #define dev_stripe_cmp(l, r) __dev_stripe_cmp(stripe, l, r)
 
-struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *c,
-					  struct dev_stripe_state *stripe,
-					  struct bch_devs_mask *devs)
+void bch2_dev_alloc_list(struct bch_fs *c,
+			 struct dev_stripe_state *stripe,
+			 struct bch_devs_mask *devs,
+			 struct dev_alloc_list *ret)
 {
-	struct dev_alloc_list ret = { .nr = 0 };
+	ret->nr = 0;
+
 	unsigned i;
-
 	for_each_set_bit(i, devs->d, BCH_SB_MEMBERS_MAX)
-		ret.data[ret.nr++] = i;
+		ret->data[ret->nr++] = i;
 
-	bubble_sort(ret.data, ret.nr, dev_stripe_cmp);
-	return ret;
+	bubble_sort(ret->data, ret->nr, dev_stripe_cmp);
 }
 
 static const u64 stripe_clock_hand_rescale	= 1ULL << 62; /* trigger rescale at */
@@ -705,18 +705,19 @@ static int add_new_bucket(struct bch_fs *c,
 	return 0;
 }
 
-int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
-				struct alloc_request *req,
-				struct dev_stripe_state *stripe,
-				struct closure *cl)
+inline int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
+				       struct alloc_request *req,
+				       struct dev_stripe_state *stripe,
+				       struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
 	int ret = -BCH_ERR_insufficient_devices;
 
 	BUG_ON(req->nr_effective >= req->nr_replicas);
 
-	struct dev_alloc_list devs_sorted = bch2_dev_alloc_list(c, stripe, &req->devs_may_alloc);
-	darray_for_each(devs_sorted, i) {
+	bch2_dev_alloc_list(c, stripe, &req->devs_may_alloc, &req->devs_sorted);
+
+	darray_for_each(req->devs_sorted, i) {
 		req->ca = bch2_dev_tryget_noerror(c, *i);
 		if (!req->ca)
 			continue;
@@ -776,9 +777,9 @@ static int bucket_alloc_from_stripe(struct btree_trans *trans,
 	if (!h)
 		return 0;
 
-	struct dev_alloc_list devs_sorted =
-		bch2_dev_alloc_list(c, &req->wp->stripe, &req->devs_may_alloc);
-	darray_for_each(devs_sorted, i)
+	bch2_dev_alloc_list(c, &req->wp->stripe, &req->devs_may_alloc, &req->devs_sorted);
+
+	darray_for_each(req->devs_sorted, i)
 		for (unsigned ec_idx = 0; ec_idx < h->s->nr_data; ec_idx++) {
 			if (!h->s->blocks[ec_idx])
 				continue;

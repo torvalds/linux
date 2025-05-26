@@ -1613,7 +1613,7 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w,
 
 retry_target:
 	devs = target_rw_devs(c, BCH_DATA_journal, target);
-	devs_sorted = bch2_dev_alloc_list(c, &j->wp.stripe, &devs);
+	bch2_dev_alloc_list(c, &j->wp.stripe, &devs, &devs_sorted);
 retry_alloc:
 	__journal_write_alloc(j, w, &devs_sorted, sectors, replicas, replicas_want);
 

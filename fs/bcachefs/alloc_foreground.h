@@ -42,6 +42,7 @@ struct alloc_request {
 	struct bch_devs_mask	devs_may_alloc;
 
 	/* bch2_bucket_alloc_set_trans(): */
+	struct dev_alloc_list	devs_sorted;
 	struct bch_dev_usage	usage;
 
 	/* bch2_bucket_alloc_trans(): */
@@ -71,9 +72,10 @@ struct alloc_request {
 	struct bch_devs_mask	scratch_devs_may_alloc;
 };
 
-struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *,
-					  struct dev_stripe_state *,
-					  struct bch_devs_mask *);
+void bch2_dev_alloc_list(struct bch_fs *,
+			 struct dev_stripe_state *,
+			 struct bch_devs_mask *,
+			 struct dev_alloc_list *);
 void bch2_dev_stripe_increment(struct bch_dev *, struct dev_stripe_state *);
 
 static inline struct bch_dev *ob_dev(struct bch_fs *c, struct open_bucket *ob)
