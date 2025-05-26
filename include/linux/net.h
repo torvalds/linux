@@ -70,6 +70,7 @@ enum sock_type {
 	SOCK_DCCP	= 6,
 	SOCK_PACKET	= 10,
 };
+#endif /* ARCH_HAS_SOCKET_TYPES */
 
 #define SOCK_MAX (SOCK_PACKET + 1)
 /* Mask which covers at least up to SOCK_MASK-1.  The
@@ -81,8 +82,7 @@ enum sock_type {
 #ifndef SOCK_NONBLOCK
 #define SOCK_NONBLOCK	O_NONBLOCK
 #endif
-
-#endif /* ARCH_HAS_SOCKET_TYPES */
+#define SOCK_COREDUMP	O_NOCTTY
 
 /**
  * enum sock_shutdown_cmd - Shutdown types
