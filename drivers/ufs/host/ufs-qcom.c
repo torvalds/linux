@@ -532,6 +532,12 @@ static int ufs_qcom_power_up_sequence(struct ufs_hba *hba)
 		goto out_disable_phy;
 	}
 
+	ret = phy_calibrate(phy);
+	if (ret) {
+		dev_err(hba->dev, "Failed to calibrate PHY: %d\n", ret);
+		goto out_disable_phy;
+	}
+
 	ufs_qcom_select_unipro_mode(host);
 
 	return 0;
