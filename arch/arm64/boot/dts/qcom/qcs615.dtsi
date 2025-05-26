@@ -3290,6 +3290,20 @@
 			reg = <0x0 0x0c3f0000 0x0 0x400>;
 		};
 
+		sram@14680000 {
+			compatible = "qcom,qcs615-imem", "syscon", "simple-mfd";
+			reg = <0x0 0x14680000 0x0 0x2c000>;
+			ranges = <0 0 0x14680000 0x2c000>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			pil-reloc@2a94c {
+				compatible = "qcom,pil-reloc-info";
+				reg = <0x2a94c 0xc8>;
+			};
+		};
+
 		apps_smmu: iommu@15000000 {
 			compatible = "qcom,qcs615-smmu-500", "qcom,smmu-500", "arm,mmu-500";
 			reg = <0x0 0x15000000 0x0 0x80000>;
