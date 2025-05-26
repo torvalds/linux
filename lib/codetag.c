@@ -194,7 +194,7 @@ static int codetag_module_init(struct codetag_type *cttype, struct module *mod)
 	if (err >= 0) {
 		cttype->count += range_size(cttype, &range);
 		if (cttype->desc.module_load)
-			cttype->desc.module_load(cttype, cmod);
+			cttype->desc.module_load(mod, range.start, range.stop);
 	}
 	up_write(&cttype->mod_lock);
 
@@ -333,7 +333,8 @@ void codetag_unload_module(struct module *mod)
 		}
 		if (found) {
 			if (cttype->desc.module_unload)
-				cttype->desc.module_unload(cttype, cmod);
+				cttype->desc.module_unload(cmod->mod,
+					cmod->range.start, cmod->range.stop);
 
 			cttype->count -= range_size(cttype, &cmod->range);
 			idr_remove(&cttype->mod_idr, mod_id);
