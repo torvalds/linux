@@ -19,7 +19,6 @@
 #include <sys/inotify.h>
 #include <sys/wait.h>
 #include <sys/eventfd.h>
-#include <sys/uio.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <linux/io_uring.h>
@@ -85,12 +84,16 @@ struct dev_ctx {
 	unsigned int	all:1;
 	unsigned int	fg:1;
 	unsigned int	recovery:1;
+	unsigned int	auto_zc_fallback:1;
 
 	int _evtfd;
 	int _shmid;
 
 	/* built from shmem, only for ublk_dump_dev() */
 	struct ublk_dev *shadow_dev;
+
+	/* for 'update_size' command */
+	unsigned long long size;
 
 	union {
 		struct stripe_ctx 	stripe;
@@ -116,6 +119,7 @@ struct ublk_io {
 #define UBLKSRV_NEED_COMMIT_RQ_COMP	(1UL << 1)
 #define UBLKSRV_IO_FREE			(1UL << 2)
 #define UBLKSRV_NEED_GET_DATA           (1UL << 3)
+#define UBLKSRV_NEED_REG_BUF            (1UL << 4)
 	unsigned short flags;
 	unsigned short refs;		/* used by target code only */
 
@@ -141,6 +145,9 @@ struct ublk_tgt_ops {
 	 */
 	void (*parse_cmd_line)(struct dev_ctx *ctx, int argc, char *argv[]);
 	void (*usage)(const struct ublk_tgt_ops *ops);
+
+	/* return buffer index for UBLK_F_AUTO_BUF_REG */
+	unsigned short (*buf_index)(const struct ublk_queue *, int tag);
 };
 
 struct ublk_tgt {
@@ -169,6 +176,8 @@ struct ublk_queue {
 #define UBLKSRV_QUEUE_IDLE	(1U << 1)
 #define UBLKSRV_NO_BUF		(1U << 2)
 #define UBLKSRV_ZC		(1U << 3)
+#define UBLKSRV_AUTO_BUF_REG		(1U << 4)
+#define UBLKSRV_AUTO_BUF_REG_FALLBACK	(1U << 5)
 	unsigned state;
 	pid_t tid;
 	pthread_t thread;
@@ -203,6 +212,12 @@ struct ublk_dev {
 
 extern unsigned int ublk_dbg_mask;
 extern int ublk_queue_io_cmd(struct ublk_queue *q, struct ublk_io *io, unsigned tag);
+
+
+static inline int ublk_io_auto_zc_fallback(const struct ublksrv_io_desc *iod)
+{
+	return !!(iod->op_flags & UBLK_IO_F_NEED_REG_BUF);
+}
 
 static inline int is_target_io(__u64 user_data)
 {
@@ -386,6 +401,11 @@ static inline int ublk_completed_tgt_io(struct ublk_queue *q, unsigned tag)
 static inline int ublk_queue_use_zc(const struct ublk_queue *q)
 {
 	return q->state & UBLKSRV_ZC;
+}
+
+static inline int ublk_queue_use_auto_zc(const struct ublk_queue *q)
+{
+	return q->state & UBLKSRV_AUTO_BUF_REG;
 }
 
 extern const struct ublk_tgt_ops null_tgt_ops;

@@ -276,6 +276,7 @@ static int __io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	}
 	rw->kiocb.dio_complete = NULL;
 	rw->kiocb.ki_flags = 0;
+	rw->kiocb.ki_write_stream = READ_ONCE(sqe->write_stream);
 
 	if (req->ctx->flags & IORING_SETUP_IOPOLL)
 		rw->kiocb.ki_complete = io_complete_rw_iopoll;

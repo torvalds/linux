@@ -51,6 +51,10 @@
 	_IOR('u', 0x13, struct ublksrv_ctrl_cmd)
 #define UBLK_U_CMD_DEL_DEV_ASYNC	\
 	_IOR('u', 0x14, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_UPDATE_SIZE		\
+	_IOWR('u', 0x15, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_QUIESCE_DEV		\
+	_IOWR('u', 0x16, struct ublksrv_ctrl_cmd)
 
 /*
  * 64bits are enough now, and it should be easy to extend in case of
@@ -211,6 +215,63 @@
  */
 #define UBLK_F_USER_RECOVERY_FAIL_IO (1ULL << 9)
 
+/*
+ * Resizing a block device is possible with UBLK_U_CMD_UPDATE_SIZE
+ * New size is passed in cmd->data[0] and is in units of sectors
+ */
+#define UBLK_F_UPDATE_SIZE		 (1ULL << 10)
+
+/*
+ * request buffer is registered automatically to uring_cmd's io_uring
+ * context before delivering this io command to ublk server, meantime
+ * it is un-registered automatically when completing this io command.
+ *
+ * For using this feature:
+ *
+ * - ublk server has to create sparse buffer table on the same `io_ring_ctx`
+ *   for issuing `UBLK_IO_FETCH_REQ` and `UBLK_IO_COMMIT_AND_FETCH_REQ`.
+ *   If uring_cmd isn't issued on same `io_ring_ctx`, it is ublk server's
+ *   responsibility to unregister the buffer by issuing `IO_UNREGISTER_IO_BUF`
+ *   manually, otherwise this ublk request won't complete.
+ *
+ * - ublk server passes auto buf register data via uring_cmd's sqe->addr,
+ *   `struct ublk_auto_buf_reg` is populated from sqe->addr, please see
+ *   the definition of ublk_sqe_addr_to_auto_buf_reg()
+ *
+ * - pass buffer index from `ublk_auto_buf_reg.index`
+ *
+ * - all reserved fields in `ublk_auto_buf_reg` need to be zeroed
+ *
+ * - pass flags from `ublk_auto_buf_reg.flags` if needed
+ *
+ * This way avoids extra cost from two uring_cmd, but also simplifies backend
+ * implementation, such as, the dependency on IO_REGISTER_IO_BUF and
+ * IO_UNREGISTER_IO_BUF becomes not necessary.
+ *
+ * If wrong data or flags are provided, both IO_FETCH_REQ and
+ * IO_COMMIT_AND_FETCH_REQ are failed, for the latter, the ublk IO request
+ * won't be completed until new IO_COMMIT_AND_FETCH_REQ command is issued
+ * successfully
+ */
+#define UBLK_F_AUTO_BUF_REG 	(1ULL << 11)
+
+/*
+ * Control command `UBLK_U_CMD_QUIESCE_DEV` is added for quiescing device,
+ * which state can be transitioned to `UBLK_S_DEV_QUIESCED` or
+ * `UBLK_S_DEV_FAIL_IO` finally, and it needs ublk server cooperation for
+ * handling `UBLK_IO_RES_ABORT` correctly.
+ *
+ * Typical use case is for supporting to upgrade ublk server application,
+ * meantime keep ublk block device persistent during the period.
+ *
+ * This feature is only available when UBLK_F_USER_RECOVERY is enabled.
+ *
+ * Note, this command returns -EBUSY in case that all IO commands are being
+ * handled by ublk server and not completed in specified time period which
+ * is passed from the control command parameter.
+ */
+#define UBLK_F_QUIESCE		(1ULL << 12)
+
 /* device state */
 #define UBLK_S_DEV_DEAD	0
 #define UBLK_S_DEV_LIVE	1
@@ -297,6 +358,17 @@ struct ublksrv_ctrl_dev_info {
 #define		UBLK_IO_F_FUA			(1U << 13)
 #define		UBLK_IO_F_NOUNMAP		(1U << 15)
 #define		UBLK_IO_F_SWAP			(1U << 16)
+/*
+ * For UBLK_F_AUTO_BUF_REG & UBLK_AUTO_BUF_REG_FALLBACK only.
+ *
+ * This flag is set if auto buffer register is failed & ublk server passes
+ * UBLK_AUTO_BUF_REG_FALLBACK, and ublk server need to register buffer
+ * manually for handling the delivered IO command if this flag is observed
+ *
+ * ublk server has to check this flag if UBLK_AUTO_BUF_REG_FALLBACK is
+ * passed in.
+ */
+#define		UBLK_IO_F_NEED_REG_BUF		(1U << 17)
 
 /*
  * io cmd is described by this structure, and stored in share memory, indexed
@@ -329,6 +401,62 @@ static inline __u8 ublksrv_get_op(const struct ublksrv_io_desc *iod)
 static inline __u32 ublksrv_get_flags(const struct ublksrv_io_desc *iod)
 {
 	return iod->op_flags >> 8;
+}
+
+/*
+ * If this flag is set, fallback by completing the uring_cmd and setting
+ * `UBLK_IO_F_NEED_REG_BUF` in case of auto-buf-register failure;
+ * otherwise the client ublk request is failed silently
+ *
+ * If ublk server passes this flag, it has to check if UBLK_IO_F_NEED_REG_BUF
+ * is set in `ublksrv_io_desc.op_flags`. If UBLK_IO_F_NEED_REG_BUF is set,
+ * ublk server needs to register io buffer manually for handling IO command.
+ */
+#define UBLK_AUTO_BUF_REG_FALLBACK 	(1 << 0)
+#define UBLK_AUTO_BUF_REG_F_MASK 	UBLK_AUTO_BUF_REG_FALLBACK
+
+struct ublk_auto_buf_reg {
+	/* index for registering the delivered request buffer */
+	__u16  index;
+	__u8   flags;
+	__u8   reserved0;
+
+	/*
+	 * io_ring FD can be passed via the reserve field in future for
+	 * supporting to register io buffer to external io_uring
+	 */
+	__u32  reserved1;
+};
+
+/*
+ * For UBLK_F_AUTO_BUF_REG, auto buffer register data is carried via
+ * uring_cmd's sqe->addr:
+ *
+ * 	- bit0 ~ bit15: buffer index
+ * 	- bit16 ~ bit23: flags
+ * 	- bit24 ~ bit31: reserved0
+ * 	- bit32 ~ bit63: reserved1
+ */
+static inline struct ublk_auto_buf_reg ublk_sqe_addr_to_auto_buf_reg(
+		__u64 sqe_addr)
+{
+	struct ublk_auto_buf_reg reg = {
+		.index = sqe_addr & 0xffff,
+		.flags = (sqe_addr >> 16) & 0xff,
+		.reserved0 = (sqe_addr >> 24) & 0xff,
+		.reserved1 = sqe_addr >> 32,
+	};
+
+	return reg;
+}
+
+static inline __u64
+ublk_auto_buf_reg_to_sqe_addr(const struct ublk_auto_buf_reg *buf)
+{
+	__u64 addr = buf->index | (__u64)buf->flags << 16 | (__u64)buf->reserved0 << 24 |
+		(__u64)buf->reserved1 << 32;
+
+	return addr;
 }
 
 /* issued to ublk driver via /dev/ublkcN */

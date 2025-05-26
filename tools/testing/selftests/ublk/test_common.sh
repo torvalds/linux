@@ -23,6 +23,11 @@ _get_disk_dev_t() {
 	echo $(( (major & 0xfff) << 20 | (minor & 0xfffff) ))
 }
 
+_get_disk_size()
+{
+	lsblk -b -o SIZE -n "$1"
+}
+
 _run_fio_verify_io() {
 	fio --name=verify --rw=randwrite --direct=1 --ioengine=libaio \
 		--bs=8k --iodepth=32 --verify=crc32c --do_verify=1 \
@@ -215,6 +220,26 @@ _recover_ublk_dev() {
 	echo "$state"
 }
 
+# quiesce device and return ublk device state
+__ublk_quiesce_dev()
+{
+	local dev_id=$1
+	local exp_state=$2
+	local state
+
+	if ! ${UBLK_PROG} quiesce -n "${dev_id}"; then
+		state=$(_get_ublk_dev_state "${dev_id}")
+		return "$state"
+	fi
+
+	for ((j=0;j<50;j++)); do
+		state=$(_get_ublk_dev_state "${dev_id}")
+		[ "$state" == "$exp_state" ] && break
+		sleep 1
+	done
+	echo "$state"
+}
+
 # kill the ublk daemon and return ublk device state
 __ublk_kill_daemon()
 {
@@ -251,7 +276,7 @@ __run_io_and_remove()
 	local kill_server=$3
 
 	fio --name=job1 --filename=/dev/ublkb"${dev_id}" --ioengine=libaio \
-		--rw=readwrite --iodepth=256 --size="${size}" --numjobs=4 \
+		--rw=randrw --norandommap --iodepth=256 --size="${size}" --numjobs="$(nproc)" \
 		--runtime=20 --time_based > /dev/null 2>&1 &
 	sleep 2
 	if [ "${kill_server}" = "yes" ]; then
@@ -303,20 +328,26 @@ run_io_and_kill_daemon()
 
 run_io_and_recover()
 {
+	local action=$1
 	local state
 	local dev_id
 
+	shift 1
 	dev_id=$(_add_ublk_dev "$@")
 	_check_add_dev "$TID" $?
 
 	fio --name=job1 --filename=/dev/ublkb"${dev_id}" --ioengine=libaio \
-		--rw=readwrite --iodepth=256 --size="${size}" --numjobs=4 \
+		--rw=randread --iodepth=256 --size="${size}" --numjobs=4 \
 		--runtime=20 --time_based > /dev/null 2>&1 &
 	sleep 4
 
-	state=$(__ublk_kill_daemon "${dev_id}" "QUIESCED")
+	if [ "$action" == "kill_daemon" ]; then
+		state=$(__ublk_kill_daemon "${dev_id}" "QUIESCED")
+	elif [ "$action" == "quiesce_dev" ]; then
+		state=$(__ublk_quiesce_dev "${dev_id}" "QUIESCED")
+	fi
 	if [ "$state" != "QUIESCED" ]; then
-		echo "device isn't quiesced($state) after killing daemon"
+		echo "device isn't quiesced($state) after $action"
 		return 255
 	fi
 

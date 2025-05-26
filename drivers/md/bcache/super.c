@@ -293,8 +293,7 @@ static void __write_super(struct cache_sb *sb, struct cache_sb_disk *out,
 
 	bio->bi_opf = REQ_OP_WRITE | REQ_SYNC | REQ_META;
 	bio->bi_iter.bi_sector	= SB_SECTOR;
-	__bio_add_page(bio, virt_to_page(out), SB_SIZE,
-			offset_in_page(out));
+	bio_add_virt_nofail(bio, out, SB_SIZE);
 
 	out->offset		= cpu_to_le64(sb->offset);
 

@@ -976,8 +976,7 @@ static void nvmet_rdma_handle_command(struct nvmet_rdma_queue *queue,
 		cmd->send_sge.addr, cmd->send_sge.length,
 		DMA_TO_DEVICE);
 
-	if (!nvmet_req_init(&cmd->req, &queue->nvme_cq,
-			&queue->nvme_sq, &nvmet_rdma_ops))
+	if (!nvmet_req_init(&cmd->req, &queue->nvme_sq, &nvmet_rdma_ops))
 		return;
 
 	status = nvmet_rdma_map_sgl(cmd);
@@ -1353,6 +1352,7 @@ static void nvmet_rdma_free_queue(struct nvmet_rdma_queue *queue)
 	pr_debug("freeing queue %d\n", queue->idx);
 
 	nvmet_sq_destroy(&queue->nvme_sq);
+	nvmet_cq_put(&queue->nvme_cq);
 
 	nvmet_rdma_destroy_queue_ib(queue);
 	if (!queue->nsrq) {
@@ -1436,7 +1436,8 @@ nvmet_rdma_alloc_queue(struct nvmet_rdma_device *ndev,
 		goto out_reject;
 	}
 
-	ret = nvmet_sq_init(&queue->nvme_sq);
+	nvmet_cq_init(&queue->nvme_cq);
+	ret = nvmet_sq_init(&queue->nvme_sq, &queue->nvme_cq);
 	if (ret) {
 		ret = NVME_RDMA_CM_NO_RSC;
 		goto out_free_queue;
@@ -1517,6 +1518,7 @@ out_ida_remove:
 out_destroy_sq:
 	nvmet_sq_destroy(&queue->nvme_sq);
 out_free_queue:
+	nvmet_cq_put(&queue->nvme_cq);
 	kfree(queue);
 out_reject:
 	nvmet_rdma_cm_reject(cm_id, ret);

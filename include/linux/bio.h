@@ -403,7 +403,6 @@ static inline int bio_iov_vecs_to_alloc(struct iov_iter *iter, int max_segs)
 
 struct request_queue;
 
-extern int submit_bio_wait(struct bio *bio);
 void bio_init(struct bio *bio, struct block_device *bdev, struct bio_vec *table,
 	      unsigned short max_vecs, blk_opf_t opf);
 extern void bio_uninit(struct bio *);
@@ -418,6 +417,30 @@ void __bio_add_page(struct bio *bio, struct page *page,
 		unsigned int len, unsigned int off);
 void bio_add_folio_nofail(struct bio *bio, struct folio *folio, size_t len,
 			  size_t off);
+void bio_add_virt_nofail(struct bio *bio, void *vaddr, unsigned len);
+
+/**
+ * bio_add_max_vecs - number of bio_vecs needed to add data to a bio
+ * @kaddr: kernel virtual address to add
+ * @len: length in bytes to add
+ *
+ * Calculate how many bio_vecs need to be allocated to add the kernel virtual
+ * address range in [@kaddr:@len] in the worse case.
+ */
+static inline unsigned int bio_add_max_vecs(void *kaddr, unsigned int len)
+{
+	if (is_vmalloc_addr(kaddr))
+		return DIV_ROUND_UP(offset_in_page(kaddr) + len, PAGE_SIZE);
+	return 1;
+}
+
+unsigned int bio_add_vmalloc_chunk(struct bio *bio, void *vaddr, unsigned len);
+bool bio_add_vmalloc(struct bio *bio, void *vaddr, unsigned int len);
+
+int submit_bio_wait(struct bio *bio);
+int bdev_rw_virt(struct block_device *bdev, sector_t sector, void *data,
+		size_t len, enum req_op op);
+
 int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter);
 void bio_iov_bvec_set(struct bio *bio, const struct iov_iter *iter);
 void __bio_release_pages(struct bio *bio, bool mark_dirty);

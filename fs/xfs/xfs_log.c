@@ -1607,27 +1607,6 @@ xlog_bio_end_io(
 		   &iclog->ic_end_io_work);
 }
 
-static int
-xlog_map_iclog_data(
-	struct bio		*bio,
-	void			*data,
-	size_t			count)
-{
-	do {
-		struct page	*page = kmem_to_page(data);
-		unsigned int	off = offset_in_page(data);
-		size_t		len = min_t(size_t, count, PAGE_SIZE - off);
-
-		if (bio_add_page(bio, page, len, off) != len)
-			return -EIO;
-
-		data += len;
-		count -= len;
-	} while (count);
-
-	return 0;
-}
-
 STATIC void
 xlog_write_iclog(
 	struct xlog		*log,
@@ -1693,11 +1672,12 @@ xlog_write_iclog(
 
 	iclog->ic_flags &= ~(XLOG_ICL_NEED_FLUSH | XLOG_ICL_NEED_FUA);
 
-	if (xlog_map_iclog_data(&iclog->ic_bio, iclog->ic_data, count))
-		goto shutdown;
-
-	if (is_vmalloc_addr(iclog->ic_data))
-		flush_kernel_vmap_range(iclog->ic_data, count);
+	if (is_vmalloc_addr(iclog->ic_data)) {
+		if (!bio_add_vmalloc(&iclog->ic_bio, iclog->ic_data, count))
+			goto shutdown;
+	} else {
+		bio_add_virt_nofail(&iclog->ic_bio, iclog->ic_data, count);
+	}
 
 	/*
 	 * If this log buffer would straddle the end of the log we will have

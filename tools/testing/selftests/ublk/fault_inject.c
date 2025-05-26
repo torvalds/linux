@@ -16,6 +16,11 @@ static int ublk_fault_inject_tgt_init(const struct dev_ctx *ctx,
 	const struct ublksrv_ctrl_dev_info *info = &dev->dev_info;
 	unsigned long dev_size = 250UL << 30;
 
+	if (ctx->auto_zc_fallback) {
+		ublk_err("%s: not support auto_zc_fallback\n", __func__);
+		return -EINVAL;
+	}
+
 	dev->tgt.dev_size = dev_size;
 	dev->tgt.params = (struct ublk_params) {
 		.types = UBLK_PARAM_TYPE_BASIC,

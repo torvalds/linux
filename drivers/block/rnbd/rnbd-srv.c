@@ -147,12 +147,7 @@ static int process_rdma(struct rnbd_srv_session *srv_sess,
 
 	bio = bio_alloc(file_bdev(sess_dev->bdev_file), 1,
 			rnbd_to_bio_flags(le32_to_cpu(msg->rw)), GFP_KERNEL);
-	if (bio_add_page(bio, virt_to_page(data), datalen,
-			offset_in_page(data)) != datalen) {
-		rnbd_srv_err_rl(sess_dev, "Failed to map data to bio\n");
-		err = -EINVAL;
-		goto bio_put;
-	}
+	bio_add_virt_nofail(bio, data, datalen);
 
 	bio->bi_opf = rnbd_to_bio_flags(le32_to_cpu(msg->rw));
 	if (bio_has_data(bio) &&

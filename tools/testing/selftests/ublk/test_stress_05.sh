@@ -60,5 +60,14 @@ if _have_feature "ZERO_COPY"; then
 	done
 fi
 
+if _have_feature "AUTO_BUF_REG"; then
+	for reissue in $(seq 0 1); do
+		ublk_io_and_remove 8G -t null -q 4 -g --auto_zc -r 1 -i "$reissue" &
+		ublk_io_and_remove 256M -t loop -q 4 -g --auto_zc -r 1 -i "$reissue" "${UBLK_BACKFILES[1]}" &
+		ublk_io_and_remove 8G -t null -q 4 -g -z --auto_zc --auto_zc_fallback -r 1 -i "$reissue" &
+		wait
+	done
+fi
+
 _cleanup_test "stress"
 _show_result $TID $ERR_CODE

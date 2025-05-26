@@ -182,7 +182,6 @@ struct gendisk {
 	struct list_head slave_bdevs;
 #endif
 	struct timer_rand_state *random;
-	atomic_t sync_io;		/* RAID */
 	struct disk_events *ev;
 
 #ifdef CONFIG_BLK_DEV_ZONED
@@ -218,6 +217,8 @@ struct gendisk {
 	 * devices that do not have multiple independent access ranges.
 	 */
 	struct blk_independent_access_ranges *ia_ranges;
+
+	struct mutex rqos_state_mutex;	/* rqos state change mutex */
 };
 
 /**
@@ -331,9 +332,6 @@ typedef unsigned int __bitwise blk_features_t;
 /* skip this queue in blk_mq_(un)quiesce_tagset */
 #define BLK_FEAT_SKIP_TAGSET_QUIESCE	((__force blk_features_t)(1u << 13))
 
-/* bounce all highmem pages */
-#define BLK_FEAT_BOUNCE_HIGH		((__force blk_features_t)(1u << 14))
-
 /* undocumented magic for bcache */
 #define BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE \
 	((__force blk_features_t)(1u << 15))
@@ -347,7 +345,7 @@ typedef unsigned int __bitwise blk_features_t;
  */
 #define BLK_FEAT_INHERIT_MASK \
 	(BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA | BLK_FEAT_ROTATIONAL | \
-	 BLK_FEAT_STABLE_WRITES | BLK_FEAT_ZONED | BLK_FEAT_BOUNCE_HIGH | \
+	 BLK_FEAT_STABLE_WRITES | BLK_FEAT_ZONED | \
 	 BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE)
 
 /* internal flags in queue_limits.flags */
@@ -404,6 +402,9 @@ struct queue_limits {
 	unsigned short		max_segments;
 	unsigned short		max_integrity_segments;
 	unsigned short		max_discard_segments;
+
+	unsigned short		max_write_streams;
+	unsigned int		write_stream_granularity;
 
 	unsigned int		max_open_zones;
 	unsigned int		max_active_zones;
@@ -644,6 +645,8 @@ enum {
 	QUEUE_FLAG_RQ_ALLOC_TIME,	/* record rq->alloc_time_ns */
 	QUEUE_FLAG_HCTX_ACTIVE,		/* at least one blk-mq hctx is active */
 	QUEUE_FLAG_SQ_SCHED,		/* single queue style io dispatch */
+	QUEUE_FLAG_DISABLE_WBT_DEF,	/* for sched to disable/enable wbt */
+	QUEUE_FLAG_NO_ELV_SWITCH,	/* can't switch elevator any more */
 	QUEUE_FLAG_MAX
 };
 
@@ -679,6 +682,10 @@ void blk_queue_flag_clear(unsigned int flag, struct request_queue *q);
 #define blk_queue_sq_sched(q)	test_bit(QUEUE_FLAG_SQ_SCHED, &(q)->queue_flags)
 #define blk_queue_skip_tagset_quiesce(q) \
 	((q)->limits.features & BLK_FEAT_SKIP_TAGSET_QUIESCE)
+#define blk_queue_disable_wbt(q)	\
+	test_bit(QUEUE_FLAG_DISABLE_WBT_DEF, &(q)->queue_flags)
+#define blk_queue_no_elv_switch(q)	\
+	test_bit(QUEUE_FLAG_NO_ELV_SWITCH, &(q)->queue_flags)
 
 extern void blk_set_pm_only(struct request_queue *q);
 extern void blk_clear_pm_only(struct request_queue *q);
@@ -1286,6 +1293,13 @@ bdev_max_zone_append_sectors(struct block_device *bdev)
 static inline unsigned int bdev_max_segments(struct block_device *bdev)
 {
 	return queue_max_segments(bdev_get_queue(bdev));
+}
+
+static inline unsigned short bdev_max_write_streams(struct block_device *bdev)
+{
+	if (bdev_is_partition(bdev))
+		return 0;
+	return bdev_limits(bdev)->max_write_streams;
 }
 
 static inline unsigned queue_logical_block_size(const struct request_queue *q)
