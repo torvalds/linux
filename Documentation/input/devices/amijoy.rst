@@ -123,7 +123,7 @@ JOY1DAT   Y7  Y6  Y5  Y4  Y3  Y2  Y1  Y0     X7  X6  X5  X4  X3  X2  X1  X0
         clocked by 2 of the signals input from the mouse serial
         stream. Starting with first bit received:
 
-         +-------------------+-----------------------------------------+
+         +--------+----------+-----------------------------------------+
          | Serial | Bit Name | Description                             |
          +========+==========+=========================================+
          |   0    | M0H      | JOY0DAT Horizontal Clock                |
