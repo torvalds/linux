@@ -31,6 +31,7 @@
 #define INIT_PASID	0
 
 struct address_space;
+struct futex_private_hash;
 struct mem_cgroup;
 
 /*
@@ -1031,7 +1032,11 @@ struct mm_struct {
 		 */
 		seqcount_t mm_lock_seq;
 #endif
-
+#ifdef CONFIG_FUTEX_PRIVATE_HASH
+		struct mutex			futex_hash_lock;
+		struct futex_private_hash	__rcu *futex_phash;
+		struct futex_private_hash	*futex_phash_new;
+#endif
 
 		unsigned long hiwater_rss; /* High-watermark of RSS usage */
 		unsigned long hiwater_vm;  /* High-water virtual memory usage */
