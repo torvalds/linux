@@ -403,7 +403,7 @@ static const u16 rzg2l_cru_regs[] = {
 	[ICnDMR] = 0x26c,
 };
 
-static const struct rzg2l_cru_info rzgl2_cru_info = {
+static const struct rzg2l_cru_info rzg2l_cru_info = {
 	.max_width = 2800,
 	.max_height = 4095,
 	.image_conv = ICnMC,
@@ -422,7 +422,7 @@ static const struct of_device_id rzg2l_cru_of_id_table[] = {
 	},
 	{
 		.compatible = "renesas,rzg2l-cru",
-		.data = &rzgl2_cru_info,
+		.data = &rzg2l_cru_info,
 	},
 	{ /* sentinel */ }
 };
