@@ -17,6 +17,7 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_panic.h>
 #include <drm/drm_plane.h>
 
 #include "hyperv_drm.h"
@@ -181,10 +182,45 @@ static void hyperv_plane_atomic_update(struct drm_plane *plane,
 	}
 }
 
+static int hyperv_plane_get_scanout_buffer(struct drm_plane *plane,
+					   struct drm_scanout_buffer *sb)
+{
+	struct hyperv_drm_device *hv = to_hv(plane->dev);
+	struct iosys_map map = IOSYS_MAP_INIT_VADDR_IOMEM(hv->vram);
+
+	if (plane->state && plane->state->fb) {
+		sb->format = plane->state->fb->format;
+		sb->width = plane->state->fb->width;
+		sb->height = plane->state->fb->height;
+		sb->pitch[0] = plane->state->fb->pitches[0];
+		sb->map[0] = map;
+		return 0;
+	}
+	return -ENODEV;
+}
+
+static void hyperv_plane_panic_flush(struct drm_plane *plane)
+{
+	struct hyperv_drm_device *hv = to_hv(plane->dev);
+	struct drm_rect rect;
+
+	if (!plane->state || !plane->state->fb)
+		return;
+
+	rect.x1 = 0;
+	rect.y1 = 0;
+	rect.x2 = plane->state->fb->width;
+	rect.y2 = plane->state->fb->height;
+
+	hyperv_update_dirt(hv->hdev, &rect);
+}
+
 static const struct drm_plane_helper_funcs hyperv_plane_helper_funcs = {
 	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
 	.atomic_check = hyperv_plane_atomic_check,
 	.atomic_update = hyperv_plane_atomic_update,
+	.get_scanout_buffer = hyperv_plane_get_scanout_buffer,
+	.panic_flush = hyperv_plane_panic_flush,
 };
 
 static const struct drm_plane_funcs hyperv_plane_funcs = {
