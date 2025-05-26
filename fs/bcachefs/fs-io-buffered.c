@@ -394,16 +394,8 @@ struct bch_writepage_state {
 	struct bch_io_opts	opts;
 	struct bch_folio_sector	*tmp;
 	unsigned		tmp_sectors;
+	struct blk_plug		plug;
 };
-
-static inline struct bch_writepage_state bch_writepage_state_init(struct bch_fs *c,
-								  struct bch_inode_info *inode)
-{
-	struct bch_writepage_state ret = { 0 };
-
-	bch2_inode_opts_get(&ret.opts, c, &inode->ei_inode);
-	return ret;
-}
 
 /*
  * Determine when a writepage io is full. We have to limit writepage bios to a
@@ -666,17 +658,17 @@ do_io:
 int bch2_writepages(struct address_space *mapping, struct writeback_control *wbc)
 {
 	struct bch_fs *c = mapping->host->i_sb->s_fs_info;
-	struct bch_writepage_state w =
-		bch_writepage_state_init(c, to_bch_ei(mapping->host));
-	struct blk_plug plug;
-	int ret;
+	struct bch_writepage_state *w = kzalloc(sizeof(*w), GFP_NOFS|__GFP_NOFAIL);
 
-	blk_start_plug(&plug);
-	ret = write_cache_pages(mapping, wbc, __bch2_writepage, &w);
-	if (w.io)
-		bch2_writepage_do_io(&w);
-	blk_finish_plug(&plug);
-	kfree(w.tmp);
+	bch2_inode_opts_get(&w->opts, c, &to_bch_ei(mapping->host)->ei_inode);
+
+	blk_start_plug(&w->plug);
+	int ret = write_cache_pages(mapping, wbc, __bch2_writepage, w);
+	if (w->io)
+		bch2_writepage_do_io(w);
+	blk_finish_plug(&w->plug);
+	kfree(w->tmp);
+	kfree(w);
 	return bch2_err_class(ret);
 }
 
