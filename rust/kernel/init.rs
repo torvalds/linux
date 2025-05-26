@@ -77,14 +77,6 @@
 //! #     pub unsafe fn destroy_foo(_ptr: *mut foo) {}
 //! #     pub unsafe fn enable_foo(_ptr: *mut foo, _flags: u32) -> i32 { 0 }
 //! # }
-//! # // `Error::from_errno` is `pub(crate)` in the `kernel` crate, thus provide a workaround.
-//! # trait FromErrno {
-//! #     fn from_errno(errno: core::ffi::c_int) -> Error {
-//! #         // Dummy error that can be constructed outside the `kernel` crate.
-//! #         Error::from(core::fmt::Error)
-//! #     }
-//! # }
-//! # impl FromErrno for Error {}
 //! /// # Invariants
 //! ///
 //! /// `foo` is always initialized
