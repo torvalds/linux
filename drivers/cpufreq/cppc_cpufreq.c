@@ -480,7 +480,7 @@ static int cppc_get_cpu_cost(struct device *cpu_dev, unsigned long KHz,
 	return 0;
 }
 
-static int populate_efficiency_class(void)
+static void populate_efficiency_class(void)
 {
 	struct acpi_madt_generic_interrupt *gicc;
 	DECLARE_BITMAP(used_classes, 256) = {};
@@ -495,7 +495,7 @@ static int populate_efficiency_class(void)
 	if (bitmap_weight(used_classes, 256) <= 1) {
 		pr_debug("Efficiency classes are all equal (=%d). "
 			"No EM registered", class);
-		return -EINVAL;
+		return;
 	}
 
 	/*
@@ -512,8 +512,6 @@ static int populate_efficiency_class(void)
 		index++;
 	}
 	cppc_cpufreq_driver.register_em = cppc_cpufreq_register_em;
-
-	return 0;
 }
 
 static void cppc_cpufreq_register_em(struct cpufreq_policy *policy)
@@ -529,9 +527,8 @@ static void cppc_cpufreq_register_em(struct cpufreq_policy *policy)
 }
 
 #else
-static int populate_efficiency_class(void)
+static void populate_efficiency_class(void)
 {
-	return 0;
 }
 #endif
 
