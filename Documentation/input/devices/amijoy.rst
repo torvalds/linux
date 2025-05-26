@@ -1,10 +1,12 @@
-~~~~~~~~~~~~~~~
+===============
 Amiga joysticks
-~~~~~~~~~~~~~~~
+===============
 
+Pinouts
+=======
 
 Amiga 4-joystick parallel port extension
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------------------
 
 Parallel port pins:
 
@@ -19,8 +21,8 @@ Pin    Meaning  Pin    Meaning
 19     Gnd1	18     Gnd2
 =====  ======== ====   ==========
 
-Amiga digital joystick pinout
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Amiga digital joystick
+----------------------
 
 === ============
 Pin Meaning
@@ -36,8 +38,8 @@ Pin Meaning
 9   Thumb button
 === ============
 
-Amiga mouse pinout
-~~~~~~~~~~~~~~~~~~
+Amiga mouse
+-----------
 
 === ============
 Pin Meaning
@@ -53,8 +55,8 @@ Pin Meaning
 9   Right button
 === ============
 
-Amiga analog joystick pinout
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Amiga analog joystick
+---------------------
 
 === ==============
 Pin Meaning
@@ -70,8 +72,8 @@ Pin Meaning
 9   Analog Y
 === ==============
 
-Amiga lightpen pinout
-~~~~~~~~~~~~~~~~~~~~~
+Amiga lightpen
+--------------
 
 === =============
 Pin Meaning
@@ -87,7 +89,11 @@ Pin Meaning
 9   Stylus button
 === =============
 
--------------------------------------------------------------------------------
+Register addresses
+==================
+
+JOY0DAT/JOY1DAT
+---------------
 
 ======== === ==== ==== ====== ===========================================
 NAME     rev ADDR type chip   Description
@@ -159,7 +165,8 @@ JOY1DAT   Y7  Y6  Y5  Y4  Y3  Y2  Y1  Y0     X7  X6  X5  X4  X3  X2  X1  X0
          | Right      |  4   | X1                              |
          +------------+------+---------------------------------+
 
--------------------------------------------------------------------------------
+JOYTEST
+-------
 
 ========  === ==== ==== ====== =================================================
 NAME      rev ADDR type chip    Description
@@ -176,7 +183,8 @@ JOYTEST       036   W   Denise  Write to all 4  joystick-mouse counters at once.
   JOYxDAT  Y7  Y6  Y5  Y4  Y3  Y2  xx  xx     X7  X6  X5  X4  X3  X2  xx  xx
 ========= === === === === === === === === ====== === === === === === === ===
 
--------------------------------------------------------------------------------
+POT0DAT/POT1DAT
+---------------
 
 ======= === ==== ==== ====== ===========================================
 NAME    rev ADDR type chip   Description
@@ -217,7 +225,8 @@ POT1DAT  h  014   R   Paula  Pot counter data right pair (vert., horiz.)
          the counters will count proportionally faster.
          This should be noted when doing variable beam displays.
 
--------------------------------------------------------------------------------
+POTGO
+-----
 
 ====== === ==== ==== ====== ================================================
 NAME   rev ADDR type chip   Description
@@ -226,7 +235,8 @@ POTGO      034   W   Paula  Pot port (4 bit) bi-direction and data, and pot
 			    counter start.
 ====== === ==== ==== ====== ================================================
 
--------------------------------------------------------------------------------
+POTINP
+------
 
 ====== === ==== ==== ====== ================================================
 NAME   rev ADDR type chip   Description
