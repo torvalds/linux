@@ -914,11 +914,6 @@ retry:
 	if (err == -EOPNOTSUPP || err == -EFAULT || err == -EPERM) {
 		ctx.timeslice_ms <<= 1;	/* Double timeslice if we have to retry */
 		if (migrate_try_count > 0 || !ctx.devmem_only) {
-			if (err == -EOPNOTSUPP) {
-				range_debug(range, "PAGE FAULT - EVICT PAGES");
-				drm_gpusvm_range_evict(&vm->svm.gpusvm,
-						       &range->base);
-			}
 			drm_dbg(&vm->xe->drm,
 				"Get pages failed, falling back to retrying, asid=%u, gpusvm=%p, errno=%pe\n",
 				vm->usm.asid, &vm->svm.gpusvm, ERR_PTR(err));
