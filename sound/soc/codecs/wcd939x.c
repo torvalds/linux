@@ -212,7 +212,7 @@ struct wcd939x_priv {
 };
 
 static const char * const wcd939x_supplies[] = {
-	"vdd-rxtx", "vdd-io", "vdd-buck", "vdd-mic-bias",
+	"vdd-rxtx", "vdd-io", "vdd-buck", "vdd-mic-bias", "vdd-px",
 };
 
 static const SNDRV_CTL_TLVD_DECLARE_DB_MINMAX(ear_pa_gain, 600, -1800);
