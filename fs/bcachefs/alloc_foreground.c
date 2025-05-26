@@ -1104,7 +1104,7 @@ static inline bool too_many_writepoints(struct bch_fs *c, unsigned factor)
 	return stranded * factor > free;
 }
 
-static bool try_increase_writepoints(struct bch_fs *c)
+static noinline bool try_increase_writepoints(struct bch_fs *c)
 {
 	struct write_point *wp;
 
@@ -1117,7 +1117,7 @@ static bool try_increase_writepoints(struct bch_fs *c)
 	return true;
 }
 
-static bool try_decrease_writepoints(struct btree_trans *trans, unsigned old_nr)
+static noinline bool try_decrease_writepoints(struct btree_trans *trans, unsigned old_nr)
 {
 	struct bch_fs *c = trans->c;
 	struct write_point *wp;
