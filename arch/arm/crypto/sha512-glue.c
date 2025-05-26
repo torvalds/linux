@@ -5,14 +5,13 @@
  * Copyright (C) 2015 Linaro Ltd <ard.biesheuvel@linaro.org>
  */
 
+#include <asm/hwcap.h>
+#include <asm/neon.h>
 #include <crypto/internal/hash.h>
 #include <crypto/sha2.h>
 #include <crypto/sha512_base.h>
-#include <linux/crypto.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
-
-#include <asm/hwcap.h>
-#include <asm/neon.h>
 
 #include "sha512.h"
 
@@ -28,50 +27,47 @@ MODULE_ALIAS_CRYPTO("sha512-arm");
 asmlinkage void sha512_block_data_order(struct sha512_state *state,
 					u8 const *src, int blocks);
 
-int sha512_arm_update(struct shash_desc *desc, const u8 *data,
-		      unsigned int len)
+static int sha512_arm_update(struct shash_desc *desc, const u8 *data,
+			     unsigned int len)
 {
-	return sha512_base_do_update(desc, data, len, sha512_block_data_order);
+	return sha512_base_do_update_blocks(desc, data, len,
+					    sha512_block_data_order);
 }
 
-static int sha512_arm_final(struct shash_desc *desc, u8 *out)
+static int sha512_arm_finup(struct shash_desc *desc, const u8 *data,
+			    unsigned int len, u8 *out)
 {
-	sha512_base_do_finalize(desc, sha512_block_data_order);
+	sha512_base_do_finup(desc, data, len, sha512_block_data_order);
 	return sha512_base_finish(desc, out);
-}
-
-int sha512_arm_finup(struct shash_desc *desc, const u8 *data,
-		     unsigned int len, u8 *out)
-{
-	sha512_base_do_update(desc, data, len, sha512_block_data_order);
-	return sha512_arm_final(desc, out);
 }
 
 static struct shash_alg sha512_arm_algs[] = { {
 	.init			= sha384_base_init,
 	.update			= sha512_arm_update,
-	.final			= sha512_arm_final,
 	.finup			= sha512_arm_finup,
-	.descsize		= sizeof(struct sha512_state),
+	.descsize		= SHA512_STATE_SIZE,
 	.digestsize		= SHA384_DIGEST_SIZE,
 	.base			= {
 		.cra_name		= "sha384",
 		.cra_driver_name	= "sha384-arm",
 		.cra_priority		= 250,
+		.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY |
+					  CRYPTO_AHASH_ALG_FINUP_MAX,
 		.cra_blocksize		= SHA512_BLOCK_SIZE,
 		.cra_module		= THIS_MODULE,
 	}
 },  {
 	.init			= sha512_base_init,
 	.update			= sha512_arm_update,
-	.final			= sha512_arm_final,
 	.finup			= sha512_arm_finup,
-	.descsize		= sizeof(struct sha512_state),
+	.descsize		= SHA512_STATE_SIZE,
 	.digestsize		= SHA512_DIGEST_SIZE,
 	.base			= {
 		.cra_name		= "sha512",
 		.cra_driver_name	= "sha512-arm",
 		.cra_priority		= 250,
+		.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY |
+					  CRYPTO_AHASH_ALG_FINUP_MAX,
 		.cra_blocksize		= SHA512_BLOCK_SIZE,
 		.cra_module		= THIS_MODULE,
 	}

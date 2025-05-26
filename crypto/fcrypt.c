@@ -411,7 +411,7 @@ static void __exit fcrypt_mod_fini(void)
 	crypto_unregister_alg(&fcrypt_alg);
 }
 
-subsys_initcall(fcrypt_mod_init);
+module_init(fcrypt_mod_init);
 module_exit(fcrypt_mod_fini);
 
 MODULE_LICENSE("Dual BSD/GPL");

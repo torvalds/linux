@@ -8,6 +8,7 @@
 #define MD5_HMAC_BLOCK_SIZE	64
 #define MD5_BLOCK_WORDS		16
 #define MD5_HASH_WORDS		4
+#define MD5_STATE_SIZE		24
 
 #define MD5_H0	0x67452301UL
 #define MD5_H1	0xefcdab89UL
@@ -18,8 +19,8 @@ extern const u8 md5_zero_message_hash[MD5_DIGEST_SIZE];
 
 struct md5_state {
 	u32 hash[MD5_HASH_WORDS];
-	u32 block[MD5_BLOCK_WORDS];
 	u64 byte_count;
+	u32 block[MD5_BLOCK_WORDS];
 };
 
 #endif

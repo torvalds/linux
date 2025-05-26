@@ -531,7 +531,7 @@ static void __exit cast5_mod_fini(void)
 	crypto_unregister_alg(&alg);
 }
 
-subsys_initcall(cast5_mod_init);
+module_init(cast5_mod_init);
 module_exit(cast5_mod_fini);
 
 MODULE_LICENSE("GPL");

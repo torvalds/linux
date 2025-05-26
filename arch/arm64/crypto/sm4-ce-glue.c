@@ -8,19 +8,18 @@
  * Copyright (C) 2022 Tianjia Zhang <tianjia.zhang@linux.alibaba.com>
  */
 
-#include <linux/module.h>
-#include <linux/crypto.h>
-#include <linux/kernel.h>
-#include <linux/cpufeature.h>
 #include <asm/neon.h>
-#include <asm/simd.h>
 #include <crypto/b128ops.h>
-#include <crypto/internal/simd.h>
-#include <crypto/internal/skcipher.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
-#include <crypto/xts.h>
 #include <crypto/sm4.h>
+#include <crypto/utils.h>
+#include <crypto/xts.h>
+#include <linux/cpufeature.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/string.h>
 
 #define BYTES2BLKS(nbytes)	((nbytes) >> 4)
 
@@ -64,7 +63,6 @@ struct sm4_mac_tfm_ctx {
 };
 
 struct sm4_mac_desc_ctx {
-	unsigned int len;
 	u8 digest[SM4_BLOCK_SIZE];
 };
 
@@ -591,8 +589,6 @@ static int sm4_mac_init(struct shash_desc *desc)
 	struct sm4_mac_desc_ctx *ctx = shash_desc_ctx(desc);
 
 	memset(ctx->digest, 0, SM4_BLOCK_SIZE);
-	ctx->len = 0;
-
 	return 0;
 }
 
@@ -601,87 +597,50 @@ static int sm4_mac_update(struct shash_desc *desc, const u8 *p,
 {
 	struct sm4_mac_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
 	struct sm4_mac_desc_ctx *ctx = shash_desc_ctx(desc);
-	unsigned int l, nblocks;
+	unsigned int nblocks = len / SM4_BLOCK_SIZE;
 
-	if (len == 0)
-		return 0;
-
-	if (ctx->len || ctx->len + len < SM4_BLOCK_SIZE) {
-		l = min(len, SM4_BLOCK_SIZE - ctx->len);
-
-		crypto_xor(ctx->digest + ctx->len, p, l);
-		ctx->len += l;
-		len -= l;
-		p += l;
-	}
-
-	if (len && (ctx->len % SM4_BLOCK_SIZE) == 0) {
-		kernel_neon_begin();
-
-		if (len < SM4_BLOCK_SIZE && ctx->len == SM4_BLOCK_SIZE) {
-			sm4_ce_crypt_block(tctx->key.rkey_enc,
-					   ctx->digest, ctx->digest);
-			ctx->len = 0;
-		} else {
-			nblocks = len / SM4_BLOCK_SIZE;
-			len %= SM4_BLOCK_SIZE;
-
-			sm4_ce_mac_update(tctx->key.rkey_enc, ctx->digest, p,
-					  nblocks, (ctx->len == SM4_BLOCK_SIZE),
-					  (len != 0));
-
-			p += nblocks * SM4_BLOCK_SIZE;
-
-			if (len == 0)
-				ctx->len = SM4_BLOCK_SIZE;
-		}
-
-		kernel_neon_end();
-
-		if (len) {
-			crypto_xor(ctx->digest, p, len);
-			ctx->len = len;
-		}
-	}
-
-	return 0;
+	len %= SM4_BLOCK_SIZE;
+	kernel_neon_begin();
+	sm4_ce_mac_update(tctx->key.rkey_enc, ctx->digest, p,
+			  nblocks, false, true);
+	kernel_neon_end();
+	return len;
 }
 
-static int sm4_cmac_final(struct shash_desc *desc, u8 *out)
+static int sm4_cmac_finup(struct shash_desc *desc, const u8 *src,
+			  unsigned int len, u8 *out)
 {
 	struct sm4_mac_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
 	struct sm4_mac_desc_ctx *ctx = shash_desc_ctx(desc);
 	const u8 *consts = tctx->consts;
 
-	if (ctx->len != SM4_BLOCK_SIZE) {
-		ctx->digest[ctx->len] ^= 0x80;
+	crypto_xor(ctx->digest, src, len);
+	if (len != SM4_BLOCK_SIZE) {
+		ctx->digest[len] ^= 0x80;
 		consts += SM4_BLOCK_SIZE;
 	}
-
 	kernel_neon_begin();
 	sm4_ce_mac_update(tctx->key.rkey_enc, ctx->digest, consts, 1,
 			  false, true);
 	kernel_neon_end();
-
 	memcpy(out, ctx->digest, SM4_BLOCK_SIZE);
-
 	return 0;
 }
 
-static int sm4_cbcmac_final(struct shash_desc *desc, u8 *out)
+static int sm4_cbcmac_finup(struct shash_desc *desc, const u8 *src,
+			    unsigned int len, u8 *out)
 {
 	struct sm4_mac_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
 	struct sm4_mac_desc_ctx *ctx = shash_desc_ctx(desc);
 
-	if (ctx->len) {
+	if (len) {
+		crypto_xor(ctx->digest, src, len);
 		kernel_neon_begin();
 		sm4_ce_crypt_block(tctx->key.rkey_enc, ctx->digest,
 				   ctx->digest);
 		kernel_neon_end();
 	}
-
 	memcpy(out, ctx->digest, SM4_BLOCK_SIZE);
-
 	return 0;
 }
 
@@ -691,6 +650,8 @@ static struct shash_alg sm4_mac_algs[] = {
 			.cra_name		= "cmac(sm4)",
 			.cra_driver_name	= "cmac-sm4-ce",
 			.cra_priority		= 400,
+			.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY |
+						  CRYPTO_AHASH_ALG_FINAL_NONZERO,
 			.cra_blocksize		= SM4_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct sm4_mac_tfm_ctx)
 							+ SM4_BLOCK_SIZE * 2,
@@ -699,7 +660,7 @@ static struct shash_alg sm4_mac_algs[] = {
 		.digestsize	= SM4_BLOCK_SIZE,
 		.init		= sm4_mac_init,
 		.update		= sm4_mac_update,
-		.final		= sm4_cmac_final,
+		.finup		= sm4_cmac_finup,
 		.setkey		= sm4_cmac_setkey,
 		.descsize	= sizeof(struct sm4_mac_desc_ctx),
 	}, {
@@ -707,6 +668,8 @@ static struct shash_alg sm4_mac_algs[] = {
 			.cra_name		= "xcbc(sm4)",
 			.cra_driver_name	= "xcbc-sm4-ce",
 			.cra_priority		= 400,
+			.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY |
+						  CRYPTO_AHASH_ALG_FINAL_NONZERO,
 			.cra_blocksize		= SM4_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct sm4_mac_tfm_ctx)
 							+ SM4_BLOCK_SIZE * 2,
@@ -715,7 +678,7 @@ static struct shash_alg sm4_mac_algs[] = {
 		.digestsize	= SM4_BLOCK_SIZE,
 		.init		= sm4_mac_init,
 		.update		= sm4_mac_update,
-		.final		= sm4_cmac_final,
+		.finup		= sm4_cmac_finup,
 		.setkey		= sm4_xcbc_setkey,
 		.descsize	= sizeof(struct sm4_mac_desc_ctx),
 	}, {
@@ -723,14 +686,15 @@ static struct shash_alg sm4_mac_algs[] = {
 			.cra_name		= "cbcmac(sm4)",
 			.cra_driver_name	= "cbcmac-sm4-ce",
 			.cra_priority		= 400,
-			.cra_blocksize		= 1,
+			.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY,
+			.cra_blocksize		= SM4_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct sm4_mac_tfm_ctx),
 			.cra_module		= THIS_MODULE,
 		},
 		.digestsize	= SM4_BLOCK_SIZE,
 		.init		= sm4_mac_init,
 		.update		= sm4_mac_update,
-		.final		= sm4_cbcmac_final,
+		.finup		= sm4_cbcmac_finup,
 		.setkey		= sm4_cbcmac_setkey,
 		.descsize	= sizeof(struct sm4_mac_desc_ctx),
 	}

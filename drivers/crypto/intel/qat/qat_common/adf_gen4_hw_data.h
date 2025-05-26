@@ -7,6 +7,7 @@
 
 #include "adf_accel_devices.h"
 #include "adf_cfg_common.h"
+#include "adf_dc.h"
 
 /* PCIe configuration space */
 #define ADF_GEN4_BAR_MASK	(BIT(0) | BIT(2) | BIT(4))
@@ -180,5 +181,6 @@ int adf_gen4_bank_state_save(struct adf_accel_dev *accel_dev, u32 bank_number,
 int adf_gen4_bank_state_restore(struct adf_accel_dev *accel_dev,
 				u32 bank_number, struct bank_state *state);
 bool adf_gen4_services_supported(unsigned long service_mask);
+void adf_gen4_init_dc_ops(struct adf_dc_ops *dc_ops);
 
 #endif

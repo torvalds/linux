@@ -52,32 +52,25 @@
  * different code, it uses a macro to generate several implementations that
  * share similar source code but are targeted at different CPUs, listed below:
  *
- * AES-NI + AVX
+ * AES-NI && AVX
  *    - 128-bit vectors (1 AES block per vector)
  *    - VEX-coded instructions
  *    - xmm0-xmm15
  *    - This is for older CPUs that lack VAES but do have AVX.
  *
- * VAES + VPCLMULQDQ + AVX2
+ * VAES && VPCLMULQDQ && AVX2
  *    - 256-bit vectors (2 AES blocks per vector)
  *    - VEX-coded instructions
  *    - ymm0-ymm15
- *    - This is for CPUs that have VAES but lack AVX512 or AVX10,
- *      e.g. Intel's Alder Lake and AMD's Zen 3.
+ *    - This is for CPUs that have VAES but either lack AVX512 (e.g. Intel's
+ *      Alder Lake and AMD's Zen 3) or downclock too eagerly when using zmm
+ *      registers (e.g. Intel's Ice Lake).
  *
- * VAES + VPCLMULQDQ + AVX10/256 + BMI2
- *    - 256-bit vectors (2 AES blocks per vector)
+ * VAES && VPCLMULQDQ && AVX512BW && AVX512VL && BMI2
+ *    - 512-bit vectors (4 AES blocks per vector)
  *    - EVEX-coded instructions
- *    - ymm0-ymm31
- *    - This is for CPUs that have AVX512 but where using zmm registers causes
- *      downclocking, and for CPUs that have AVX10/256 but not AVX10/512.
- *    - By "AVX10/256" we really mean (AVX512BW + AVX512VL) || AVX10/256.
- *      To avoid confusion with 512-bit, we just write AVX10/256.
- *
- * VAES + VPCLMULQDQ + AVX10/512 + BMI2
- *    - Same as the previous one, but upgrades to 512-bit vectors
- *      (4 AES blocks per vector) in zmm0-zmm31.
- *    - This is for CPUs that have good AVX512 or AVX10/512 support.
+ *    - zmm0-zmm31
+ *    - This is for CPUs that have good AVX512 support.
  *
  * This file doesn't have an implementation for AES-NI alone (without AVX), as
  * the lack of VEX would make all the assembly code different.
@@ -107,9 +100,20 @@
 	// exists when there's a carry out of the low 64 bits of the tweak.
 	.quad	0x87, 1
 
+	// These are the shift amounts that are needed when multiplying by [x^0,
+	// x^1, x^2, x^3] to compute the first vector of tweaks when VL=64.
+	//
+	// The right shifts by 64 are expected to zeroize the destination.
+	// 'vpsrlvq' is indeed defined to do that; i.e. it doesn't truncate the
+	// amount to 64 & 63 = 0 like the 'shr' scalar shift instruction would.
+.Lrshift_amounts:
+	.byte	64, 64, 63, 63, 62, 62, 61, 61
+.Llshift_amounts:
+	.byte	0, 0, 1, 1, 2, 2, 3, 3
+
 	// This table contains constants for vpshufb and vpblendvb, used to
 	// handle variable byte shifts and blending during ciphertext stealing
-	// on CPUs that don't support AVX10-style masking.
+	// on CPUs that don't support AVX512-style masking.
 .Lcts_permute_table:
 	.byte	0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
 	.byte	0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
@@ -138,7 +142,7 @@
 .irp i, 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
 	_define_Vi	\i
 .endr
-.if USE_AVX10
+.if USE_AVX512
 .irp i, 16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31
 	_define_Vi	\i
 .endr
@@ -193,7 +197,7 @@
 	// keys to the *end* of this register range.  I.e., AES-128 uses
 	// KEY5-KEY14, AES-192 uses KEY3-KEY14, and AES-256 uses KEY1-KEY14.
 	// (All also use KEY0 for the XOR-only "round" at the beginning.)
-.if USE_AVX10
+.if USE_AVX512
 	.set	KEY1_XMM,	%xmm16
 	.set	KEY1,		V16
 	.set	KEY2_XMM,	%xmm17
@@ -227,7 +231,6 @@
 .endm
 
 // Move a vector between memory and a register.
-// The register operand must be in the first 16 vector registers.
 .macro	_vmovdqu	src, dst
 .if VL < 64
 	vmovdqu		\src, \dst
@@ -238,9 +241,9 @@
 
 // Broadcast a 128-bit value into a vector.
 .macro	_vbroadcast128	src, dst
-.if VL == 16 && !USE_AVX10
+.if VL == 16
 	vmovdqu		\src, \dst
-.elseif VL == 32 && !USE_AVX10
+.elseif VL == 32
 	vbroadcasti128	\src, \dst
 .else
 	vbroadcasti32x4	\src, \dst
@@ -248,7 +251,6 @@
 .endm
 
 // XOR two vectors together.
-// Any register operands must be in the first 16 vector registers.
 .macro	_vpxor	src1, src2, dst
 .if VL < 64
 	vpxor		\src1, \src2, \dst
@@ -259,7 +261,7 @@
 
 // XOR three vectors together.
 .macro	_xor3	src1, src2, src3_and_dst
-.if USE_AVX10
+.if USE_AVX512
 	// vpternlogd with immediate 0x96 is a three-argument XOR.
 	vpternlogd	$0x96, \src1, \src2, \src3_and_dst
 .else
@@ -274,7 +276,7 @@
 	vpshufd		$0x13, \src, \tmp
 	vpaddq		\src, \src, \dst
 	vpsrad		$31, \tmp, \tmp
-.if USE_AVX10
+.if USE_AVX512
 	vpternlogd	$0x78, GF_POLY_XMM, \tmp, \dst
 .else
 	vpand		GF_POLY_XMM, \tmp, \tmp
@@ -303,52 +305,75 @@
 // Given the first XTS tweak at (TWEAK), compute the first set of tweaks and
 // store them in the vector registers TWEAK0-TWEAK3.  Clobbers V0-V5.
 .macro	_compute_first_set_of_tweaks
-	vmovdqu		(TWEAK), TWEAK0_XMM
-	_vbroadcast128	.Lgf_poly(%rip), GF_POLY
 .if VL == 16
-	// With VL=16, multiplying by x serially is fastest.
+	vmovdqu		(TWEAK), TWEAK0_XMM
+	vmovdqu		.Lgf_poly(%rip), GF_POLY
 	_next_tweak	TWEAK0, %xmm0, TWEAK1
 	_next_tweak	TWEAK1, %xmm0, TWEAK2
 	_next_tweak	TWEAK2, %xmm0, TWEAK3
-.else
-.if VL == 32
-	// Compute the second block of TWEAK0.
+.elseif VL == 32
+	vmovdqu		(TWEAK), TWEAK0_XMM
+	vbroadcasti128	.Lgf_poly(%rip), GF_POLY
+
+	// Compute the first vector of tweaks.
 	_next_tweak	TWEAK0_XMM, %xmm0, %xmm1
 	vinserti128	$1, %xmm1, TWEAK0, TWEAK0
-.elseif VL == 64
-	// Compute the remaining blocks of TWEAK0.
-	_next_tweak	TWEAK0_XMM, %xmm0, %xmm1
-	_next_tweak	%xmm1, %xmm0, %xmm2
-	_next_tweak	%xmm2, %xmm0, %xmm3
-	vinserti32x4	$1, %xmm1, TWEAK0, TWEAK0
-	vinserti32x4	$2, %xmm2, TWEAK0, TWEAK0
-	vinserti32x4	$3, %xmm3, TWEAK0, TWEAK0
-.endif
-	// Compute TWEAK[1-3] from TWEAK0.
-	vpsrlq		$64 - 1*VL/16, TWEAK0, V0
-	vpsrlq		$64 - 2*VL/16, TWEAK0, V2
-	vpsrlq		$64 - 3*VL/16, TWEAK0, V4
+
+	// Compute the next three vectors of tweaks:
+	//	TWEAK1 = TWEAK0 * [x^2, x^2]
+	//	TWEAK2 = TWEAK0 * [x^4, x^4]
+	//	TWEAK3 = TWEAK0 * [x^6, x^6]
+	vpsrlq		$64 - 2, TWEAK0, V0
+	vpsrlq		$64 - 4, TWEAK0, V2
+	vpsrlq		$64 - 6, TWEAK0, V4
 	vpclmulqdq	$0x01, GF_POLY, V0, V1
 	vpclmulqdq	$0x01, GF_POLY, V2, V3
 	vpclmulqdq	$0x01, GF_POLY, V4, V5
 	vpslldq		$8, V0, V0
 	vpslldq		$8, V2, V2
 	vpslldq		$8, V4, V4
-	vpsllq		$1*VL/16, TWEAK0, TWEAK1
-	vpsllq		$2*VL/16, TWEAK0, TWEAK2
-	vpsllq		$3*VL/16, TWEAK0, TWEAK3
-.if USE_AVX10
-	vpternlogd	$0x96, V0, V1, TWEAK1
-	vpternlogd	$0x96, V2, V3, TWEAK2
-	vpternlogd	$0x96, V4, V5, TWEAK3
-.else
+	vpsllq		$2, TWEAK0, TWEAK1
+	vpsllq		$4, TWEAK0, TWEAK2
+	vpsllq		$6, TWEAK0, TWEAK3
 	vpxor		V0, TWEAK1, TWEAK1
 	vpxor		V2, TWEAK2, TWEAK2
 	vpxor		V4, TWEAK3, TWEAK3
 	vpxor		V1, TWEAK1, TWEAK1
 	vpxor		V3, TWEAK2, TWEAK2
 	vpxor		V5, TWEAK3, TWEAK3
-.endif
+.else
+	vbroadcasti32x4	(TWEAK), TWEAK0
+	vbroadcasti32x4	.Lgf_poly(%rip), GF_POLY
+
+	// Compute the first vector of tweaks:
+	//	TWEAK0 = broadcast128(TWEAK) * [x^0, x^1, x^2, x^3]
+	vpmovzxbq	.Lrshift_amounts(%rip), V4
+	vpsrlvq		V4, TWEAK0, V0
+	vpclmulqdq	$0x01, GF_POLY, V0, V1
+	vpmovzxbq	.Llshift_amounts(%rip), V4
+	vpslldq		$8, V0, V0
+	vpsllvq		V4, TWEAK0, TWEAK0
+	vpternlogd	$0x96, V0, V1, TWEAK0
+
+	// Compute the next three vectors of tweaks:
+	//	TWEAK1 = TWEAK0 * [x^4, x^4, x^4, x^4]
+	//	TWEAK2 = TWEAK0 * [x^8, x^8, x^8, x^8]
+	//	TWEAK3 = TWEAK0 * [x^12, x^12, x^12, x^12]
+	// x^8 only needs byte-aligned shifts, so optimize accordingly.
+	vpsrlq		$64 - 4, TWEAK0, V0
+	vpsrldq		$(64 - 8) / 8, TWEAK0, V2
+	vpsrlq		$64 - 12, TWEAK0, V4
+	vpclmulqdq	$0x01, GF_POLY, V0, V1
+	vpclmulqdq	$0x01, GF_POLY, V2, V3
+	vpclmulqdq	$0x01, GF_POLY, V4, V5
+	vpslldq		$8, V0, V0
+	vpslldq		$8, V4, V4
+	vpsllq		$4, TWEAK0, TWEAK1
+	vpslldq		$8 / 8, TWEAK0, TWEAK2
+	vpsllq		$12, TWEAK0, TWEAK3
+	vpternlogd	$0x96, V0, V1, TWEAK1
+	vpxord		V3, TWEAK2, TWEAK2
+	vpternlogd	$0x96, V4, V5, TWEAK3
 .endif
 .endm
 
@@ -474,26 +499,26 @@
 	lea		OFFS-16(KEY, KEYLEN64, 4), KEY
 
 	// If all 32 SIMD registers are available, cache all the round keys.
-.if USE_AVX10
+.if USE_AVX512
 	cmp		$24, KEYLEN
 	jl		.Laes128\@
 	je		.Laes192\@
-	_vbroadcast128	-6*16(KEY), KEY1
-	_vbroadcast128	-5*16(KEY), KEY2
+	vbroadcasti32x4	-6*16(KEY), KEY1
+	vbroadcasti32x4	-5*16(KEY), KEY2
 .Laes192\@:
-	_vbroadcast128	-4*16(KEY), KEY3
-	_vbroadcast128	-3*16(KEY), KEY4
+	vbroadcasti32x4	-4*16(KEY), KEY3
+	vbroadcasti32x4	-3*16(KEY), KEY4
 .Laes128\@:
-	_vbroadcast128	-2*16(KEY), KEY5
-	_vbroadcast128	-1*16(KEY), KEY6
-	_vbroadcast128	0*16(KEY), KEY7
-	_vbroadcast128	1*16(KEY), KEY8
-	_vbroadcast128	2*16(KEY), KEY9
-	_vbroadcast128	3*16(KEY), KEY10
-	_vbroadcast128	4*16(KEY), KEY11
-	_vbroadcast128	5*16(KEY), KEY12
-	_vbroadcast128	6*16(KEY), KEY13
-	_vbroadcast128	7*16(KEY), KEY14
+	vbroadcasti32x4	-2*16(KEY), KEY5
+	vbroadcasti32x4	-1*16(KEY), KEY6
+	vbroadcasti32x4	0*16(KEY), KEY7
+	vbroadcasti32x4	1*16(KEY), KEY8
+	vbroadcasti32x4	2*16(KEY), KEY9
+	vbroadcasti32x4	3*16(KEY), KEY10
+	vbroadcasti32x4	4*16(KEY), KEY11
+	vbroadcasti32x4	5*16(KEY), KEY12
+	vbroadcasti32x4	6*16(KEY), KEY13
+	vbroadcasti32x4	7*16(KEY), KEY14
 .endif
 .endm
 
@@ -521,7 +546,7 @@
 // using the same key for all block(s).  The round key is loaded from the
 // appropriate register or memory location for round \i.  May clobber \tmp.
 .macro _vaes_1x		enc, i, xmm_suffix, data, tmp
-.if USE_AVX10
+.if USE_AVX512
 	_vaes		\enc, KEY\i\xmm_suffix, \data
 .else
 .ifnb \xmm_suffix
@@ -538,7 +563,7 @@
 // appropriate register or memory location for round \i.  In addition, does two
 // steps of the computation of the next set of tweaks.  May clobber V4 and V5.
 .macro	_vaes_4x	enc, i
-.if USE_AVX10
+.if USE_AVX512
 	_tweak_step	(2*(\i-5))
 	_vaes		\enc, KEY\i, V0
 	_vaes		\enc, KEY\i, V1
@@ -574,7 +599,7 @@
 .irp i, 5,6,7,8,9,10,11,12,13
 	_vaes_1x	\enc, \i, \xmm_suffix, \data, tmp=\tmp
 .endr
-.if USE_AVX10
+.if USE_AVX512
 	vpxord		KEY14\xmm_suffix, \tweak, \tmp
 .else
 .ifnb \xmm_suffix
@@ -617,11 +642,11 @@
 	// This is the main loop, en/decrypting 4*VL bytes per iteration.
 
 	// XOR each source block with its tweak and the zero-th round key.
-.if USE_AVX10
-	_vmovdqu	0*VL(SRC), V0
-	_vmovdqu	1*VL(SRC), V1
-	_vmovdqu	2*VL(SRC), V2
-	_vmovdqu	3*VL(SRC), V3
+.if USE_AVX512
+	vmovdqu8	0*VL(SRC), V0
+	vmovdqu8	1*VL(SRC), V1
+	vmovdqu8	2*VL(SRC), V2
+	vmovdqu8	3*VL(SRC), V3
 	vpternlogd	$0x96, TWEAK0, KEY0, V0
 	vpternlogd	$0x96, TWEAK1, KEY0, V1
 	vpternlogd	$0x96, TWEAK2, KEY0, V2
@@ -654,7 +679,7 @@
 	// Reduce latency by doing the XOR before the vaesenclast, utilizing the
 	// property vaesenclast(key, a) ^ b == vaesenclast(key ^ b, a)
 	// (and likewise for vaesdeclast).
-.if USE_AVX10
+.if USE_AVX512
 	_tweak_step	18
 	_tweak_step	19
 	vpxord		TWEAK0, KEY14, V4
@@ -762,7 +787,7 @@
 	_aes_crypt	\enc, _XMM, TWEAK1_XMM, %xmm0, tmp=%xmm1
 .endif
 
-.if USE_AVX10
+.if USE_AVX512
 	// Create a mask that has the first LEN bits set.
 	mov		$-1, %r9d
 	bzhi		LEN, %r9d, %r9d
@@ -811,7 +836,7 @@
 //			   u8 iv[AES_BLOCK_SIZE]);
 //
 // Encrypt |iv| using the AES key |tweak_key| to get the first tweak.  Assumes
-// that the CPU supports AES-NI and AVX, but not necessarily VAES or AVX10.
+// that the CPU supports AES-NI and AVX, but not necessarily VAES or AVX512.
 SYM_TYPED_FUNC_START(aes_xts_encrypt_iv)
 	.set	TWEAK_KEY,	%rdi
 	.set	IV,		%rsi
@@ -853,7 +878,7 @@ SYM_FUNC_END(aes_xts_encrypt_iv)
 // multiple of 16, then this function updates |tweak| to contain the next tweak.
 
 .set	VL, 16
-.set	USE_AVX10, 0
+.set	USE_AVX512, 0
 SYM_TYPED_FUNC_START(aes_xts_encrypt_aesni_avx)
 	_aes_xts_crypt	1
 SYM_FUNC_END(aes_xts_encrypt_aesni_avx)
@@ -863,7 +888,7 @@ SYM_FUNC_END(aes_xts_decrypt_aesni_avx)
 
 #if defined(CONFIG_AS_VAES) && defined(CONFIG_AS_VPCLMULQDQ)
 .set	VL, 32
-.set	USE_AVX10, 0
+.set	USE_AVX512, 0
 SYM_TYPED_FUNC_START(aes_xts_encrypt_vaes_avx2)
 	_aes_xts_crypt	1
 SYM_FUNC_END(aes_xts_encrypt_vaes_avx2)
@@ -871,21 +896,12 @@ SYM_TYPED_FUNC_START(aes_xts_decrypt_vaes_avx2)
 	_aes_xts_crypt	0
 SYM_FUNC_END(aes_xts_decrypt_vaes_avx2)
 
-.set	VL, 32
-.set	USE_AVX10, 1
-SYM_TYPED_FUNC_START(aes_xts_encrypt_vaes_avx10_256)
-	_aes_xts_crypt	1
-SYM_FUNC_END(aes_xts_encrypt_vaes_avx10_256)
-SYM_TYPED_FUNC_START(aes_xts_decrypt_vaes_avx10_256)
-	_aes_xts_crypt	0
-SYM_FUNC_END(aes_xts_decrypt_vaes_avx10_256)
-
 .set	VL, 64
-.set	USE_AVX10, 1
-SYM_TYPED_FUNC_START(aes_xts_encrypt_vaes_avx10_512)
+.set	USE_AVX512, 1
+SYM_TYPED_FUNC_START(aes_xts_encrypt_vaes_avx512)
 	_aes_xts_crypt	1
-SYM_FUNC_END(aes_xts_encrypt_vaes_avx10_512)
-SYM_TYPED_FUNC_START(aes_xts_decrypt_vaes_avx10_512)
+SYM_FUNC_END(aes_xts_encrypt_vaes_avx512)
+SYM_TYPED_FUNC_START(aes_xts_decrypt_vaes_avx512)
 	_aes_xts_crypt	0
-SYM_FUNC_END(aes_xts_decrypt_vaes_avx10_512)
+SYM_FUNC_END(aes_xts_decrypt_vaes_avx512)
 #endif /* CONFIG_AS_VAES && CONFIG_AS_VPCLMULQDQ */

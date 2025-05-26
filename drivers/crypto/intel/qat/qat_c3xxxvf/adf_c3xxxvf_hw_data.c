@@ -3,7 +3,6 @@
 #include <adf_accel_devices.h>
 #include <adf_common_drv.h>
 #include <adf_gen2_config.h>
-#include <adf_gen2_dc.h>
 #include <adf_gen2_hw_csr_data.h>
 #include <adf_gen2_hw_data.h>
 #include <adf_gen2_pfvf.h>
@@ -13,7 +12,6 @@
 static struct adf_hw_device_class c3xxxiov_class = {
 	.name = ADF_C3XXXVF_DEVICE_NAME,
 	.type = DEV_C3XXXVF,
-	.instances = 0
 };
 
 static u32 get_accel_mask(struct adf_hw_device_data *self)

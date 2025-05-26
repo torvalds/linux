@@ -309,11 +309,11 @@ static void crng_reseed(struct work_struct *work)
  * key value, at index 4, so the state should always be zeroed out
  * immediately after using in order to maintain forward secrecy.
  * If the state cannot be erased in a timely manner, then it is
- * safer to set the random_data parameter to &chacha_state[4] so
- * that this function overwrites it before returning.
+ * safer to set the random_data parameter to &chacha_state->x[4]
+ * so that this function overwrites it before returning.
  */
 static void crng_fast_key_erasure(u8 key[CHACHA_KEY_SIZE],
-				  u32 chacha_state[CHACHA_STATE_WORDS],
+				  struct chacha_state *chacha_state,
 				  u8 *random_data, size_t random_data_len)
 {
 	u8 first_block[CHACHA_BLOCK_SIZE];
@@ -321,8 +321,8 @@ static void crng_fast_key_erasure(u8 key[CHACHA_KEY_SIZE],
 	BUG_ON(random_data_len > 32);
 
 	chacha_init_consts(chacha_state);
-	memcpy(&chacha_state[4], key, CHACHA_KEY_SIZE);
-	memset(&chacha_state[12], 0, sizeof(u32) * 4);
+	memcpy(&chacha_state->x[4], key, CHACHA_KEY_SIZE);
+	memset(&chacha_state->x[12], 0, sizeof(u32) * 4);
 	chacha20_block(chacha_state, first_block);
 
 	memcpy(key, first_block, CHACHA_KEY_SIZE);
@@ -335,7 +335,7 @@ static void crng_fast_key_erasure(u8 key[CHACHA_KEY_SIZE],
  * random data. It also returns up to 32 bytes on its own of random data
  * that may be used; random_data_len may not be greater than 32.
  */
-static void crng_make_state(u32 chacha_state[CHACHA_STATE_WORDS],
+static void crng_make_state(struct chacha_state *chacha_state,
 			    u8 *random_data, size_t random_data_len)
 {
 	unsigned long flags;
@@ -395,7 +395,7 @@ static void crng_make_state(u32 chacha_state[CHACHA_STATE_WORDS],
 
 static void _get_random_bytes(void *buf, size_t len)
 {
-	u32 chacha_state[CHACHA_STATE_WORDS];
+	struct chacha_state chacha_state;
 	u8 tmp[CHACHA_BLOCK_SIZE];
 	size_t first_block_len;
 
@@ -403,26 +403,26 @@ static void _get_random_bytes(void *buf, size_t len)
 		return;
 
 	first_block_len = min_t(size_t, 32, len);
-	crng_make_state(chacha_state, buf, first_block_len);
+	crng_make_state(&chacha_state, buf, first_block_len);
 	len -= first_block_len;
 	buf += first_block_len;
 
 	while (len) {
 		if (len < CHACHA_BLOCK_SIZE) {
-			chacha20_block(chacha_state, tmp);
+			chacha20_block(&chacha_state, tmp);
 			memcpy(buf, tmp, len);
 			memzero_explicit(tmp, sizeof(tmp));
 			break;
 		}
 
-		chacha20_block(chacha_state, buf);
-		if (unlikely(chacha_state[12] == 0))
-			++chacha_state[13];
+		chacha20_block(&chacha_state, buf);
+		if (unlikely(chacha_state.x[12] == 0))
+			++chacha_state.x[13];
 		len -= CHACHA_BLOCK_SIZE;
 		buf += CHACHA_BLOCK_SIZE;
 	}
 
-	memzero_explicit(chacha_state, sizeof(chacha_state));
+	chacha_zeroize_state(&chacha_state);
 }
 
 /*
@@ -441,7 +441,7 @@ EXPORT_SYMBOL(get_random_bytes);
 
 static ssize_t get_random_bytes_user(struct iov_iter *iter)
 {
-	u32 chacha_state[CHACHA_STATE_WORDS];
+	struct chacha_state chacha_state;
 	u8 block[CHACHA_BLOCK_SIZE];
 	size_t ret = 0, copied;
 
@@ -453,21 +453,22 @@ static ssize_t get_random_bytes_user(struct iov_iter *iter)
 	 * bytes, in case userspace causes copy_to_iter() below to sleep
 	 * forever, so that we still retain forward secrecy in that case.
 	 */
-	crng_make_state(chacha_state, (u8 *)&chacha_state[4], CHACHA_KEY_SIZE);
+	crng_make_state(&chacha_state, (u8 *)&chacha_state.x[4],
+			CHACHA_KEY_SIZE);
 	/*
 	 * However, if we're doing a read of len <= 32, we don't need to
 	 * use chacha_state after, so we can simply return those bytes to
 	 * the user directly.
 	 */
 	if (iov_iter_count(iter) <= CHACHA_KEY_SIZE) {
-		ret = copy_to_iter(&chacha_state[4], CHACHA_KEY_SIZE, iter);
+		ret = copy_to_iter(&chacha_state.x[4], CHACHA_KEY_SIZE, iter);
 		goto out_zero_chacha;
 	}
 
 	for (;;) {
-		chacha20_block(chacha_state, block);
-		if (unlikely(chacha_state[12] == 0))
-			++chacha_state[13];
+		chacha20_block(&chacha_state, block);
+		if (unlikely(chacha_state.x[12] == 0))
+			++chacha_state.x[13];
 
 		copied = copy_to_iter(block, sizeof(block), iter);
 		ret += copied;
@@ -484,7 +485,7 @@ static ssize_t get_random_bytes_user(struct iov_iter *iter)
 
 	memzero_explicit(block, sizeof(block));
 out_zero_chacha:
-	memzero_explicit(chacha_state, sizeof(chacha_state));
+	chacha_zeroize_state(&chacha_state);
 	return ret ? ret : -EFAULT;
 }
 

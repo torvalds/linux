@@ -8,6 +8,7 @@
 #include <linux/workqueue.h>
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
+#include "adf_dc.h"
 #include "qat_bl.h"
 #include "qat_comp_req.h"
 #include "qat_compression.h"
@@ -145,9 +146,7 @@ static int qat_comp_alg_init_tfm(struct crypto_acomp *acomp_tfm)
 		return -EINVAL;
 	ctx->inst = inst;
 
-	ctx->inst->build_deflate_ctx(ctx->comp_ctx);
-
-	return 0;
+	return qat_comp_build_ctx(inst->accel_dev, ctx->comp_ctx, QAT_DEFLATE);
 }
 
 static void qat_comp_alg_exit_tfm(struct crypto_acomp *acomp_tfm)
@@ -241,13 +240,13 @@ static struct acomp_alg qat_acomp[] = { {
 		.cra_priority = 4001,
 		.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
 		.cra_ctxsize = sizeof(struct qat_compression_ctx),
+		.cra_reqsize = sizeof(struct qat_compression_req),
 		.cra_module = THIS_MODULE,
 	},
 	.init = qat_comp_alg_init_tfm,
 	.exit = qat_comp_alg_exit_tfm,
 	.compress = qat_comp_alg_compress,
 	.decompress = qat_comp_alg_decompress,
-	.reqsize = sizeof(struct qat_compression_req),
 }};
 
 int qat_comp_algs_register(void)

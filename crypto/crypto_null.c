@@ -15,14 +15,10 @@
 #include <crypto/null.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
+#include <crypto/scatterwalk.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/spinlock.h>
 #include <linux/string.h>
-
-static DEFINE_SPINLOCK(crypto_default_null_skcipher_lock);
-static struct crypto_sync_skcipher *crypto_default_null_skcipher;
-static int crypto_default_null_skcipher_refcnt;
 
 static int null_init(struct shash_desc *desc)
 {
@@ -65,19 +61,9 @@ static void null_crypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 
 static int null_skcipher_crypt(struct skcipher_request *req)
 {
-	struct skcipher_walk walk;
-	int err;
-
-	err = skcipher_walk_virt(&walk, req, false);
-
-	while (walk.nbytes) {
-		if (walk.src.virt.addr != walk.dst.virt.addr)
-			memcpy(walk.dst.virt.addr, walk.src.virt.addr,
-			       walk.nbytes);
-		err = skcipher_walk_done(&walk, 0);
-	}
-
-	return err;
+	if (req->src != req->dst)
+		memcpy_sglist(req->dst, req->src, req->cryptlen);
+	return 0;
 }
 
 static struct shash_alg digest_null = {
@@ -129,54 +115,6 @@ static struct crypto_alg cipher_null = {
 MODULE_ALIAS_CRYPTO("digest_null");
 MODULE_ALIAS_CRYPTO("cipher_null");
 
-struct crypto_sync_skcipher *crypto_get_default_null_skcipher(void)
-{
-	struct crypto_sync_skcipher *ntfm = NULL;
-	struct crypto_sync_skcipher *tfm;
-
-	spin_lock_bh(&crypto_default_null_skcipher_lock);
-	tfm = crypto_default_null_skcipher;
-
-	if (!tfm) {
-		spin_unlock_bh(&crypto_default_null_skcipher_lock);
-
-		ntfm = crypto_alloc_sync_skcipher("ecb(cipher_null)", 0, 0);
-		if (IS_ERR(ntfm))
-			return ntfm;
-
-		spin_lock_bh(&crypto_default_null_skcipher_lock);
-		tfm = crypto_default_null_skcipher;
-		if (!tfm) {
-			tfm = ntfm;
-			ntfm = NULL;
-			crypto_default_null_skcipher = tfm;
-		}
-	}
-
-	crypto_default_null_skcipher_refcnt++;
-	spin_unlock_bh(&crypto_default_null_skcipher_lock);
-
-	crypto_free_sync_skcipher(ntfm);
-
-	return tfm;
-}
-EXPORT_SYMBOL_GPL(crypto_get_default_null_skcipher);
-
-void crypto_put_default_null_skcipher(void)
-{
-	struct crypto_sync_skcipher *tfm = NULL;
-
-	spin_lock_bh(&crypto_default_null_skcipher_lock);
-	if (!--crypto_default_null_skcipher_refcnt) {
-		tfm = crypto_default_null_skcipher;
-		crypto_default_null_skcipher = NULL;
-	}
-	spin_unlock_bh(&crypto_default_null_skcipher_lock);
-
-	crypto_free_sync_skcipher(tfm);
-}
-EXPORT_SYMBOL_GPL(crypto_put_default_null_skcipher);
-
 static int __init crypto_null_mod_init(void)
 {
 	int ret = 0;
@@ -210,7 +148,7 @@ static void __exit crypto_null_mod_fini(void)
 	crypto_unregister_skcipher(&skcipher_null);
 }
 
-subsys_initcall(crypto_null_mod_init);
+module_init(crypto_null_mod_init);
 module_exit(crypto_null_mod_fini);
 
 MODULE_LICENSE("GPL");

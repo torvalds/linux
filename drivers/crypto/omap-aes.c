@@ -1086,10 +1086,7 @@ static struct attribute *omap_aes_attrs[] = {
 	&dev_attr_fallback.attr,
 	NULL,
 };
-
-static const struct attribute_group omap_aes_attr_group = {
-	.attrs = omap_aes_attrs,
-};
+ATTRIBUTE_GROUPS(omap_aes);
 
 static int omap_aes_probe(struct platform_device *pdev)
 {
@@ -1215,12 +1212,6 @@ static int omap_aes_probe(struct platform_device *pdev)
 		}
 	}
 
-	err = sysfs_create_group(&dev->kobj, &omap_aes_attr_group);
-	if (err) {
-		dev_err(dev, "could not create sysfs device attrs\n");
-		goto err_aead_algs;
-	}
-
 	return 0;
 err_aead_algs:
 	for (i = dd->pdata->aead_algs_info->registered - 1; i >= 0; i--) {
@@ -1277,8 +1268,6 @@ static void omap_aes_remove(struct platform_device *pdev)
 	tasklet_kill(&dd->done_task);
 	omap_aes_dma_cleanup(dd);
 	pm_runtime_disable(dd->dev);
-
-	sysfs_remove_group(&dd->dev->kobj, &omap_aes_attr_group);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1304,6 +1293,7 @@ static struct platform_driver omap_aes_driver = {
 		.name	= "omap-aes",
 		.pm	= &omap_aes_pm_ops,
 		.of_match_table	= omap_aes_of_match,
+		.dev_groups = omap_aes_groups,
 	},
 };
 

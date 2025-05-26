@@ -95,5 +95,5 @@ static void __exit fips_exit(void)
 	crypto_proc_fips_exit();
 }
 
-subsys_initcall(fips_init);
+module_init(fips_init);
 module_exit(fips_exit);

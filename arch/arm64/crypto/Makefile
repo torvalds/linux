@@ -8,9 +8,6 @@
 obj-$(CONFIG_CRYPTO_SHA1_ARM64_CE) += sha1-ce.o
 sha1-ce-y := sha1-ce-glue.o sha1-ce-core.o
 
-obj-$(CONFIG_CRYPTO_SHA2_ARM64_CE) += sha2-ce.o
-sha2-ce-y := sha2-ce-glue.o sha2-ce-core.o
-
 obj-$(CONFIG_CRYPTO_SHA512_ARM64_CE) += sha512-ce.o
 sha512-ce-y := sha512-ce-glue.o sha512-ce-core.o
 
@@ -56,18 +53,8 @@ aes-ce-blk-y := aes-glue-ce.o aes-ce.o
 obj-$(CONFIG_CRYPTO_AES_ARM64_NEON_BLK) += aes-neon-blk.o
 aes-neon-blk-y := aes-glue-neon.o aes-neon.o
 
-obj-$(CONFIG_CRYPTO_SHA256_ARM64) += sha256-arm64.o
-sha256-arm64-y := sha256-glue.o sha256-core.o
-
 obj-$(CONFIG_CRYPTO_SHA512_ARM64) += sha512-arm64.o
 sha512-arm64-y := sha512-glue.o sha512-core.o
-
-obj-$(CONFIG_CRYPTO_CHACHA20_NEON) += chacha-neon.o
-chacha-neon-y := chacha-neon-core.o chacha-neon-glue.o
-
-obj-$(CONFIG_CRYPTO_POLY1305_NEON) += poly1305-neon.o
-poly1305-neon-y := poly1305-core.o poly1305-glue.o
-AFLAGS_poly1305-core.o += -Dpoly1305_init=poly1305_init_arm64
 
 obj-$(CONFIG_CRYPTO_NHPOLY1305_NEON) += nhpoly1305-neon.o
 nhpoly1305-neon-y := nh-neon-core.o nhpoly1305-neon-glue.o
@@ -81,10 +68,7 @@ aes-neon-bs-y := aes-neonbs-core.o aes-neonbs-glue.o
 quiet_cmd_perlasm = PERLASM $@
       cmd_perlasm = $(PERL) $(<) void $(@)
 
-$(obj)/%-core.S: $(src)/%-armv8.pl
+$(obj)/sha512-core.S: $(src)/../lib/crypto/sha2-armv8.pl
 	$(call cmd,perlasm)
 
-$(obj)/sha256-core.S: $(src)/sha512-armv8.pl
-	$(call cmd,perlasm)
-
-clean-files += poly1305-core.S sha256-core.S sha512-core.S
+clean-files += sha512-core.S

@@ -7,14 +7,14 @@
 
 #include <asm/neon.h>
 #include <asm/simd.h>
-#include <linux/unaligned.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/simd.h>
 #include <crypto/sha1.h>
 #include <crypto/sha1_base.h>
 #include <linux/cpufeature.h>
-#include <linux/crypto.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/string.h>
 
 MODULE_DESCRIPTION("SHA1 secure hash using ARMv8 Crypto Extensions");
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
@@ -56,79 +56,49 @@ static int sha1_ce_update(struct shash_desc *desc, const u8 *data,
 {
 	struct sha1_ce_state *sctx = shash_desc_ctx(desc);
 
-	if (!crypto_simd_usable())
-		return crypto_sha1_update(desc, data, len);
-
 	sctx->finalize = 0;
-	sha1_base_do_update(desc, data, len, sha1_ce_transform);
-
-	return 0;
+	return sha1_base_do_update_blocks(desc, data, len, sha1_ce_transform);
 }
 
 static int sha1_ce_finup(struct shash_desc *desc, const u8 *data,
 			 unsigned int len, u8 *out)
 {
 	struct sha1_ce_state *sctx = shash_desc_ctx(desc);
-	bool finalize = !sctx->sst.count && !(len % SHA1_BLOCK_SIZE) && len;
-
-	if (!crypto_simd_usable())
-		return crypto_sha1_finup(desc, data, len, out);
+	bool finalized = false;
 
 	/*
 	 * Allow the asm code to perform the finalization if there is no
 	 * partial data and the input is a round multiple of the block size.
 	 */
-	sctx->finalize = finalize;
+	if (len >= SHA1_BLOCK_SIZE) {
+		unsigned int remain = len - round_down(len, SHA1_BLOCK_SIZE);
 
-	sha1_base_do_update(desc, data, len, sha1_ce_transform);
-	if (!finalize)
-		sha1_base_do_finalize(desc, sha1_ce_transform);
+		finalized = !remain;
+		sctx->finalize = finalized;
+		sha1_base_do_update_blocks(desc, data, len, sha1_ce_transform);
+		data += len - remain;
+		len = remain;
+	}
+	if (!finalized) {
+		sctx->finalize = 0;
+		sha1_base_do_finup(desc, data, len, sha1_ce_transform);
+	}
 	return sha1_base_finish(desc, out);
-}
-
-static int sha1_ce_final(struct shash_desc *desc, u8 *out)
-{
-	struct sha1_ce_state *sctx = shash_desc_ctx(desc);
-
-	if (!crypto_simd_usable())
-		return crypto_sha1_finup(desc, NULL, 0, out);
-
-	sctx->finalize = 0;
-	sha1_base_do_finalize(desc, sha1_ce_transform);
-	return sha1_base_finish(desc, out);
-}
-
-static int sha1_ce_export(struct shash_desc *desc, void *out)
-{
-	struct sha1_ce_state *sctx = shash_desc_ctx(desc);
-
-	memcpy(out, &sctx->sst, sizeof(struct sha1_state));
-	return 0;
-}
-
-static int sha1_ce_import(struct shash_desc *desc, const void *in)
-{
-	struct sha1_ce_state *sctx = shash_desc_ctx(desc);
-
-	memcpy(&sctx->sst, in, sizeof(struct sha1_state));
-	sctx->finalize = 0;
-	return 0;
 }
 
 static struct shash_alg alg = {
 	.init			= sha1_base_init,
 	.update			= sha1_ce_update,
-	.final			= sha1_ce_final,
 	.finup			= sha1_ce_finup,
-	.import			= sha1_ce_import,
-	.export			= sha1_ce_export,
 	.descsize		= sizeof(struct sha1_ce_state),
-	.statesize		= sizeof(struct sha1_state),
+	.statesize		= SHA1_STATE_SIZE,
 	.digestsize		= SHA1_DIGEST_SIZE,
 	.base			= {
 		.cra_name		= "sha1",
 		.cra_driver_name	= "sha1-ce",
 		.cra_priority		= 200,
+		.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY |
+					  CRYPTO_AHASH_ALG_FINUP_MAX,
 		.cra_blocksize		= SHA1_BLOCK_SIZE,
 		.cra_module		= THIS_MODULE,
 	}

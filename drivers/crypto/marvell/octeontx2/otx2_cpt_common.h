@@ -145,11 +145,8 @@ static inline u64 otx2_cpt_read64(void __iomem *reg_base, u64 blk, u64 slot,
 
 static inline bool is_dev_otx2(struct pci_dev *pdev)
 {
-	if (pdev->device == OTX2_CPT_PCI_PF_DEVICE_ID ||
-	    pdev->device == OTX2_CPT_PCI_VF_DEVICE_ID)
-		return true;
-
-	return false;
+	return pdev->device == OTX2_CPT_PCI_PF_DEVICE_ID ||
+	       pdev->device == OTX2_CPT_PCI_VF_DEVICE_ID;
 }
 
 static inline bool is_dev_cn10ka(struct pci_dev *pdev)
@@ -159,12 +156,10 @@ static inline bool is_dev_cn10ka(struct pci_dev *pdev)
 
 static inline bool is_dev_cn10ka_ax(struct pci_dev *pdev)
 {
-	if (pdev->subsystem_device == CPT_PCI_SUBSYS_DEVID_CN10K_A &&
-	    ((pdev->revision & 0xFF) == 4 || (pdev->revision & 0xFF) == 0x50 ||
-	     (pdev->revision & 0xff) == 0x51))
-		return true;
-
-	return false;
+	return pdev->subsystem_device == CPT_PCI_SUBSYS_DEVID_CN10K_A &&
+	       ((pdev->revision & 0xFF) == 4 ||
+		(pdev->revision & 0xFF) == 0x50 ||
+		(pdev->revision & 0xFF) == 0x51);
 }
 
 static inline bool is_dev_cn10kb(struct pci_dev *pdev)
@@ -174,11 +169,8 @@ static inline bool is_dev_cn10kb(struct pci_dev *pdev)
 
 static inline bool is_dev_cn10ka_b0(struct pci_dev *pdev)
 {
-	if (pdev->subsystem_device == CPT_PCI_SUBSYS_DEVID_CN10K_A &&
-	    (pdev->revision & 0xFF) == 0x54)
-		return true;
-
-	return false;
+	return pdev->subsystem_device == CPT_PCI_SUBSYS_DEVID_CN10K_A &&
+	       (pdev->revision & 0xFF) == 0x54;
 }
 
 static inline void otx2_cpt_set_hw_caps(struct pci_dev *pdev,
@@ -192,18 +184,12 @@ static inline void otx2_cpt_set_hw_caps(struct pci_dev *pdev,
 
 static inline bool cpt_is_errata_38550_exists(struct pci_dev *pdev)
 {
-	if (is_dev_otx2(pdev) || is_dev_cn10ka_ax(pdev))
-		return true;
-
-	return false;
+	return is_dev_otx2(pdev) || is_dev_cn10ka_ax(pdev);
 }
 
 static inline bool cpt_feature_sgv2(struct pci_dev *pdev)
 {
-	if (!is_dev_otx2(pdev) && !is_dev_cn10ka_ax(pdev))
-		return true;
-
-	return false;
+	return !is_dev_otx2(pdev) && !is_dev_cn10ka_ax(pdev);
 }
 
 int otx2_cpt_send_ready_msg(struct otx2_mbox *mbox, struct pci_dev *pdev);
@@ -223,5 +209,6 @@ int otx2_cpt_detach_rsrcs_msg(struct otx2_cptlfs_info *lfs);
 int otx2_cpt_msix_offset_msg(struct otx2_cptlfs_info *lfs);
 int otx2_cpt_sync_mbox_msg(struct otx2_mbox *mbox);
 int otx2_cpt_lf_reset_msg(struct otx2_cptlfs_info *lfs, int slot);
+int otx2_cpt_lmtst_tbl_setup_msg(struct otx2_cptlfs_info *lfs);
 
 #endif /* __OTX2_CPT_COMMON_H */

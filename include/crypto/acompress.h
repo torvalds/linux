@@ -32,30 +32,28 @@
 /* Set this bit for if virtual address destination cannot be used for DMA. */
 #define CRYPTO_ACOMP_REQ_DST_NONDMA	0x00000010
 
-/* Set this bit if source is a folio. */
-#define CRYPTO_ACOMP_REQ_SRC_FOLIO	0x00000020
-
-/* Set this bit if destination is a folio. */
-#define CRYPTO_ACOMP_REQ_DST_FOLIO	0x00000040
+/* Private flags that should not be touched by the user. */
+#define CRYPTO_ACOMP_REQ_PRIVATE \
+	(CRYPTO_ACOMP_REQ_SRC_VIRT | CRYPTO_ACOMP_REQ_SRC_NONDMA | \
+	 CRYPTO_ACOMP_REQ_DST_VIRT | CRYPTO_ACOMP_REQ_DST_NONDMA)
 
 #define CRYPTO_ACOMP_DST_MAX		131072
 
 #define	MAX_SYNC_COMP_REQSIZE		0
 
-#define ACOMP_REQUEST_ALLOC(name, tfm, gfp) \
+#define ACOMP_REQUEST_ON_STACK(name, tfm) \
         char __##name##_req[sizeof(struct acomp_req) + \
                             MAX_SYNC_COMP_REQSIZE] CRYPTO_MINALIGN_ATTR; \
         struct acomp_req *name = acomp_request_on_stack_init( \
-                __##name##_req, (tfm), (gfp), false)
+                __##name##_req, (tfm))
+
+#define ACOMP_REQUEST_CLONE(name, gfp) \
+	acomp_request_clone(name, sizeof(__##name##_req), gfp)
 
 struct acomp_req;
 struct folio;
 
 struct acomp_req_chain {
-	struct list_head head;
-	struct acomp_req *req0;
-	struct acomp_req *cur;
-	int (*op)(struct acomp_req *req);
 	crypto_completion_t compl;
 	void *data;
 	struct scatterlist ssg;
@@ -68,8 +66,6 @@ struct acomp_req_chain {
 		u8 *dst;
 		struct folio *dfolio;
 	};
-	size_t soff;
-	size_t doff;
 	u32 flags;
 };
 
@@ -81,10 +77,6 @@ struct acomp_req_chain {
  * @dst:	Destination scatterlist
  * @svirt:	Source virtual address
  * @dvirt:	Destination virtual address
- * @sfolio:	Source folio
- * @soff:	Source folio offset
- * @dfolio:	Destination folio
- * @doff:	Destination folio offset
  * @slen:	Size of the input buffer
  * @dlen:	Size of the output buffer and number of bytes produced
  * @chain:	Private API code data, do not use
@@ -95,15 +87,11 @@ struct acomp_req {
 	union {
 		struct scatterlist *src;
 		const u8 *svirt;
-		struct folio *sfolio;
 	};
 	union {
 		struct scatterlist *dst;
 		u8 *dvirt;
-		struct folio *dfolio;
 	};
-	size_t soff;
-	size_t doff;
 	unsigned int slen;
 	unsigned int dlen;
 
@@ -126,18 +114,11 @@ struct crypto_acomp {
 	int (*compress)(struct acomp_req *req);
 	int (*decompress)(struct acomp_req *req);
 	unsigned int reqsize;
-	struct crypto_acomp *fb;
 	struct crypto_tfm base;
-};
-
-struct crypto_acomp_stream {
-	spinlock_t lock;
-	void *ctx;
 };
 
 #define COMP_ALG_COMMON {			\
 	struct crypto_alg base;			\
-	struct crypto_acomp_stream __percpu *stream;	\
 }
 struct comp_alg_common COMP_ALG_COMMON;
 
@@ -213,7 +194,7 @@ static inline unsigned int crypto_acomp_reqsize(struct crypto_acomp *tfm)
 static inline void acomp_request_set_tfm(struct acomp_req *req,
 					 struct crypto_acomp *tfm)
 {
-	req->base.tfm = crypto_acomp_tfm(tfm);
+	crypto_request_set_tfm(&req->base, crypto_acomp_tfm(tfm));
 }
 
 static inline bool acomp_is_async(struct crypto_acomp *tfm)
@@ -310,6 +291,11 @@ static inline void *acomp_request_extra(struct acomp_req *req)
 	return (void *)((char *)req + len);
 }
 
+static inline bool acomp_req_on_stack(struct acomp_req *req)
+{
+	return crypto_req_on_stack(&req->base);
+}
+
 /**
  * acomp_request_free() -- zeroize and free asynchronous (de)compression
  *			   request as well as the output buffer if allocated
@@ -319,7 +305,7 @@ static inline void *acomp_request_extra(struct acomp_req *req)
  */
 static inline void acomp_request_free(struct acomp_req *req)
 {
-	if (!req || (req->base.flags & CRYPTO_TFM_REQ_ON_STACK))
+	if (!req || acomp_req_on_stack(req))
 		return;
 	kfree_sensitive(req);
 }
@@ -340,17 +326,9 @@ static inline void acomp_request_set_callback(struct acomp_req *req,
 					      crypto_completion_t cmpl,
 					      void *data)
 {
-	u32 keep = CRYPTO_ACOMP_REQ_SRC_VIRT | CRYPTO_ACOMP_REQ_SRC_NONDMA |
-		   CRYPTO_ACOMP_REQ_DST_VIRT | CRYPTO_ACOMP_REQ_DST_NONDMA |
-		   CRYPTO_ACOMP_REQ_SRC_FOLIO | CRYPTO_ACOMP_REQ_DST_FOLIO |
-		   CRYPTO_TFM_REQ_ON_STACK;
-
-	req->base.complete = cmpl;
-	req->base.data = data;
-	req->base.flags &= keep;
-	req->base.flags |= flgs & ~keep;
-
-	crypto_reqchain_init(&req->base);
+	flgs &= ~CRYPTO_ACOMP_REQ_PRIVATE;
+	flgs |= req->base.flags & CRYPTO_ACOMP_REQ_PRIVATE;
+	crypto_request_set_callback(&req->base, flgs, cmpl, data);
 }
 
 /**
@@ -379,8 +357,6 @@ static inline void acomp_request_set_params(struct acomp_req *req,
 
 	req->base.flags &= ~(CRYPTO_ACOMP_REQ_SRC_VIRT |
 			     CRYPTO_ACOMP_REQ_SRC_NONDMA |
-			     CRYPTO_ACOMP_REQ_SRC_FOLIO |
-			     CRYPTO_ACOMP_REQ_DST_FOLIO |
 			     CRYPTO_ACOMP_REQ_DST_VIRT |
 			     CRYPTO_ACOMP_REQ_DST_NONDMA);
 }
@@ -403,7 +379,6 @@ static inline void acomp_request_set_src_sg(struct acomp_req *req,
 
 	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_NONDMA;
 	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_VIRT;
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_FOLIO;
 }
 
 /**
@@ -423,7 +398,6 @@ static inline void acomp_request_set_src_dma(struct acomp_req *req,
 	req->slen = slen;
 
 	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_NONDMA;
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_FOLIO;
 	req->base.flags |= CRYPTO_ACOMP_REQ_SRC_VIRT;
 }
 
@@ -444,7 +418,6 @@ static inline void acomp_request_set_src_nondma(struct acomp_req *req,
 	req->svirt = src;
 	req->slen = slen;
 
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_FOLIO;
 	req->base.flags |= CRYPTO_ACOMP_REQ_SRC_NONDMA;
 	req->base.flags |= CRYPTO_ACOMP_REQ_SRC_VIRT;
 }
@@ -463,13 +436,9 @@ static inline void acomp_request_set_src_folio(struct acomp_req *req,
 					       struct folio *folio, size_t off,
 					       unsigned int len)
 {
-	req->sfolio = folio;
-	req->soff = off;
-	req->slen = len;
-
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_NONDMA;
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_VIRT;
-	req->base.flags |= CRYPTO_ACOMP_REQ_SRC_FOLIO;
+	sg_init_table(&req->chain.ssg, 1);
+	sg_set_folio(&req->chain.ssg, folio, len, off);
+	acomp_request_set_src_sg(req, &req->chain.ssg, len);
 }
 
 /**
@@ -490,7 +459,6 @@ static inline void acomp_request_set_dst_sg(struct acomp_req *req,
 
 	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_NONDMA;
 	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_VIRT;
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_FOLIO;
 }
 
 /**
@@ -510,7 +478,6 @@ static inline void acomp_request_set_dst_dma(struct acomp_req *req,
 	req->dlen = dlen;
 
 	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_NONDMA;
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_FOLIO;
 	req->base.flags |= CRYPTO_ACOMP_REQ_DST_VIRT;
 }
 
@@ -530,7 +497,6 @@ static inline void acomp_request_set_dst_nondma(struct acomp_req *req,
 	req->dvirt = dst;
 	req->dlen = dlen;
 
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_FOLIO;
 	req->base.flags |= CRYPTO_ACOMP_REQ_DST_NONDMA;
 	req->base.flags |= CRYPTO_ACOMP_REQ_DST_VIRT;
 }
@@ -549,19 +515,9 @@ static inline void acomp_request_set_dst_folio(struct acomp_req *req,
 					       struct folio *folio, size_t off,
 					       unsigned int len)
 {
-	req->dfolio = folio;
-	req->doff = off;
-	req->dlen = len;
-
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_NONDMA;
-	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_VIRT;
-	req->base.flags |= CRYPTO_ACOMP_REQ_DST_FOLIO;
-}
-
-static inline void acomp_request_chain(struct acomp_req *req,
-				       struct acomp_req *head)
-{
-	crypto_request_chain(&req->base, &head->base);
+	sg_init_table(&req->chain.dsg, 1);
+	sg_set_folio(&req->chain.dsg, folio, len, off);
+	acomp_request_set_dst_sg(req, &req->chain.dsg, len);
 }
 
 /**
@@ -587,18 +543,15 @@ int crypto_acomp_compress(struct acomp_req *req);
 int crypto_acomp_decompress(struct acomp_req *req);
 
 static inline struct acomp_req *acomp_request_on_stack_init(
-	char *buf, struct crypto_acomp *tfm, gfp_t gfp, bool stackonly)
+	char *buf, struct crypto_acomp *tfm)
 {
-	struct acomp_req *req;
+	struct acomp_req *req = (void *)buf;
 
-	if (!stackonly && (req = acomp_request_alloc(tfm, gfp)))
-		return req;
-
-	req = (void *)buf;
-	acomp_request_set_tfm(req, tfm->fb);
-	req->base.flags = CRYPTO_TFM_REQ_ON_STACK;
-
+	crypto_stack_request_init(&req->base, crypto_acomp_tfm(tfm));
 	return req;
 }
+
+struct acomp_req *acomp_request_clone(struct acomp_req *req,
+				      size_t total, gfp_t gfp);
 
 #endif

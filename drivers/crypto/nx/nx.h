@@ -3,7 +3,11 @@
 #ifndef __NX_H__
 #define __NX_H__
 
+#include <asm/vio.h>
 #include <crypto/ctr.h>
+#include <crypto/internal/aead.h>
+#include <crypto/internal/hash.h>
+#include <crypto/internal/skcipher.h>
 
 #define NX_NAME		"nx-crypto"
 #define NX_STRING	"IBM Power7+ Nest Accelerator Crypto Driver"
@@ -139,19 +143,20 @@ struct nx_crypto_ctx {
 	} priv;
 };
 
-struct crypto_aead;
+struct scatterlist;
 
 /* prototypes */
 int nx_crypto_ctx_aes_ccm_init(struct crypto_aead *tfm);
 int nx_crypto_ctx_aes_gcm_init(struct crypto_aead *tfm);
-int nx_crypto_ctx_aes_xcbc_init(struct crypto_tfm *tfm);
+int nx_crypto_ctx_aes_xcbc_init(struct crypto_shash *tfm);
 int nx_crypto_ctx_aes_ctr_init(struct crypto_skcipher *tfm);
 int nx_crypto_ctx_aes_cbc_init(struct crypto_skcipher *tfm);
 int nx_crypto_ctx_aes_ecb_init(struct crypto_skcipher *tfm);
-int nx_crypto_ctx_sha_init(struct crypto_tfm *tfm);
+int nx_crypto_ctx_sha_init(struct crypto_shash *tfm);
 void nx_crypto_ctx_exit(struct crypto_tfm *tfm);
 void nx_crypto_ctx_skcipher_exit(struct crypto_skcipher *tfm);
 void nx_crypto_ctx_aead_exit(struct crypto_aead *tfm);
+void nx_crypto_ctx_shash_exit(struct crypto_shash *tfm);
 void nx_ctx_init(struct nx_crypto_ctx *nx_ctx, unsigned int function);
 int nx_hcall_sync(struct nx_crypto_ctx *ctx, struct vio_pfo_op *op,
 		  u32 may_sleep);

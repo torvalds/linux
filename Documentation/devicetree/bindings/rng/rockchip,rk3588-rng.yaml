@@ -4,9 +4,9 @@
 $id: http://devicetree.org/schemas/rng/rockchip,rk3588-rng.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Rockchip RK3588 TRNG
+title: Rockchip RK3576/RK3588 TRNG
 
-description: True Random Number Generator on Rockchip RK3588 SoC
+description: True Random Number Generator on Rockchip RK3576/RK3588 SoCs
 
 maintainers:
   - Nicolas Frattaroli <nicolas.frattaroli@collabora.com>
@@ -14,6 +14,7 @@ maintainers:
 properties:
   compatible:
     enum:
+      - rockchip,rk3576-rng
       - rockchip,rk3588-rng
 
   reg:

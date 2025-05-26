@@ -7,15 +7,16 @@
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  */
 
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/delay.h>
-#include <linux/scatterlist.h>
-#include <linux/crypto.h>
-#include <crypto/algapi.h>
 #include <crypto/aes.h>
 #include <crypto/ctr.h>
-#include <crypto/scatterwalk.h>
+#include <crypto/internal/skcipher.h>
+#include <linux/err.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/module.h>
+#include <linux/scatterlist.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 
 #include "ccp-crypto.h"
 

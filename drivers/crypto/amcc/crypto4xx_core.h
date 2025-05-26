@@ -16,7 +16,6 @@
 #include <linux/ratelimit.h>
 #include <linux/mutex.h>
 #include <linux/scatterlist.h>
-#include <crypto/internal/hash.h>
 #include <crypto/internal/aead.h>
 #include <crypto/internal/rng.h>
 #include <crypto/internal/skcipher.h>
@@ -135,7 +134,6 @@ struct crypto4xx_alg_common {
 	u32 type;
 	union {
 		struct skcipher_alg cipher;
-		struct ahash_alg hash;
 		struct aead_alg aead;
 		struct rng_alg rng;
 	} u;
@@ -147,6 +145,12 @@ struct crypto4xx_alg {
 	struct crypto4xx_device *dev;
 };
 
+#if IS_ENABLED(CONFIG_CC_IS_GCC) && CONFIG_GCC_VERSION >= 120000
+#define BUILD_PD_ACCESS __attribute__((access(read_only, 6, 7)))
+#else
+#define BUILD_PD_ACCESS
+#endif
+
 int crypto4xx_alloc_sa(struct crypto4xx_ctx *ctx, u32 size);
 void crypto4xx_free_sa(struct crypto4xx_ctx *ctx);
 int crypto4xx_build_pd(struct crypto_async_request *req,
@@ -154,11 +158,11 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		       struct scatterlist *src,
 		       struct scatterlist *dst,
 		       const unsigned int datalen,
-		       const __le32 *iv, const u32 iv_len,
+		       const void *iv, const u32 iv_len,
 		       const struct dynamic_sa_ctl *sa,
 		       const unsigned int sa_len,
 		       const unsigned int assoclen,
-		       struct scatterlist *dst_tmp);
+		       struct scatterlist *dst_tmp) BUILD_PD_ACCESS;
 int crypto4xx_setkey_aes_cbc(struct crypto_skcipher *cipher,
 			     const u8 *key, unsigned int keylen);
 int crypto4xx_setkey_aes_ctr(struct crypto_skcipher *cipher,
@@ -177,11 +181,6 @@ int crypto4xx_encrypt_noiv_block(struct skcipher_request *req);
 int crypto4xx_decrypt_noiv_block(struct skcipher_request *req);
 int crypto4xx_rfc3686_encrypt(struct skcipher_request *req);
 int crypto4xx_rfc3686_decrypt(struct skcipher_request *req);
-int crypto4xx_sha1_alg_init(struct crypto_tfm *tfm);
-int crypto4xx_hash_digest(struct ahash_request *req);
-int crypto4xx_hash_final(struct ahash_request *req);
-int crypto4xx_hash_update(struct ahash_request *req);
-int crypto4xx_hash_init(struct ahash_request *req);
 
 /*
  * Note: Only use this function to copy items that is word aligned.

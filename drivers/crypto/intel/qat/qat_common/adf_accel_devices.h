@@ -12,6 +12,7 @@
 #include <linux/qat/qat_mig_dev.h>
 #include <linux/wordpart.h>
 #include "adf_cfg_common.h"
+#include "adf_dc.h"
 #include "adf_rl.h"
 #include "adf_telemetry.h"
 #include "adf_pfvf_msg.h"
@@ -25,14 +26,18 @@
 #define ADF_C3XXXVF_DEVICE_NAME "c3xxxvf"
 #define ADF_4XXX_DEVICE_NAME "4xxx"
 #define ADF_420XX_DEVICE_NAME "420xx"
-#define ADF_4XXX_PCI_DEVICE_ID 0x4940
-#define ADF_4XXXIOV_PCI_DEVICE_ID 0x4941
-#define ADF_401XX_PCI_DEVICE_ID 0x4942
-#define ADF_401XXIOV_PCI_DEVICE_ID 0x4943
-#define ADF_402XX_PCI_DEVICE_ID 0x4944
-#define ADF_402XXIOV_PCI_DEVICE_ID 0x4945
-#define ADF_420XX_PCI_DEVICE_ID 0x4946
-#define ADF_420XXIOV_PCI_DEVICE_ID 0x4947
+#define ADF_6XXX_DEVICE_NAME "6xxx"
+#define PCI_DEVICE_ID_INTEL_QAT_4XXX 0x4940
+#define PCI_DEVICE_ID_INTEL_QAT_4XXXIOV 0x4941
+#define PCI_DEVICE_ID_INTEL_QAT_401XX 0x4942
+#define PCI_DEVICE_ID_INTEL_QAT_401XXIOV 0x4943
+#define PCI_DEVICE_ID_INTEL_QAT_402XX 0x4944
+#define PCI_DEVICE_ID_INTEL_QAT_402XXIOV 0x4945
+#define PCI_DEVICE_ID_INTEL_QAT_420XX 0x4946
+#define PCI_DEVICE_ID_INTEL_QAT_420XXIOV 0x4947
+#define PCI_DEVICE_ID_INTEL_QAT_6XXX 0x4948
+#define PCI_DEVICE_ID_INTEL_QAT_6XXX_IOV 0x4949
+
 #define ADF_DEVICE_FUSECTL_OFFSET 0x40
 #define ADF_DEVICE_LEGFUSE_OFFSET 0x4C
 #define ADF_DEVICE_FUSECTL_MASK 0x80000000
@@ -267,7 +272,8 @@ struct adf_pfvf_ops {
 };
 
 struct adf_dc_ops {
-	void (*build_deflate_ctx)(void *ctx);
+	int (*build_comp_block)(void *ctx, enum adf_dc_algo algo);
+	int (*build_decomp_block)(void *ctx, enum adf_dc_algo algo);
 };
 
 struct qat_migdev_ops {

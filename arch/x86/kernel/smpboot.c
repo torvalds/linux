@@ -1188,6 +1188,12 @@ void cpu_disable_common(void)
 
 	remove_siblinginfo(cpu);
 
+	/*
+	 * Stop allowing kernel-mode FPU. This is needed so that if the CPU is
+	 * brought online again, the initial state is not allowed:
+	 */
+	this_cpu_write(kernel_fpu_allowed, false);
+
 	/* It's now safe to remove this processor from the online map */
 	lock_vector_lock();
 	remove_cpu_from_maps(cpu);

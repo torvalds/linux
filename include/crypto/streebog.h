@@ -23,15 +23,10 @@ struct streebog_uint512 {
 };
 
 struct streebog_state {
-	union {
-		u8 buffer[STREEBOG_BLOCK_SIZE];
-		struct streebog_uint512 m;
-	};
 	struct streebog_uint512 hash;
 	struct streebog_uint512 h;
 	struct streebog_uint512 N;
 	struct streebog_uint512 Sigma;
-	size_t fillsize;
 };
 
 #endif /* !_CRYPTO_STREEBOG_H_ */

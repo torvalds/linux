@@ -304,7 +304,7 @@ static void __exit aria_fini(void)
 	crypto_unregister_alg(&aria_alg);
 }
 
-subsys_initcall(aria_init);
+module_init(aria_init);
 module_exit(aria_fini);
 
 MODULE_DESCRIPTION("ARIA Cipher Algorithm");

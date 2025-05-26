@@ -1169,7 +1169,7 @@ MODULE_ALIAS_CRYPTO("wp512");
 MODULE_ALIAS_CRYPTO("wp384");
 MODULE_ALIAS_CRYPTO("wp256");
 
-subsys_initcall(wp512_mod_init);
+module_init(wp512_mod_init);
 module_exit(wp512_mod_fini);
 
 MODULE_LICENSE("GPL");
