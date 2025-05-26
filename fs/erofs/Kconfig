@@ -144,6 +144,20 @@ config EROFS_FS_ZIP_ZSTD
 
 	  If unsure, say N.
 
+config EROFS_FS_ZIP_ACCEL
+	bool "EROFS hardware decompression support"
+	depends on EROFS_FS_ZIP
+	help
+	  Saying Y here includes hardware accelerator support for reading
+	  EROFS file systems containing compressed data.  It gives better
+	  decompression speed than the software-implemented decompression, and
+	  it costs lower CPU overhead.
+
+	  Hardware accelerator support is an experimental feature for now and
+	  file systems are still readable without selecting this option.
+
+	  If unsure, say N.
+
 config EROFS_FS_ONDEMAND
 	bool "EROFS fscache-based on-demand read support (deprecated)"
 	depends on EROFS_FS
