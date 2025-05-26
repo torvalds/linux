@@ -25,6 +25,7 @@
 #include "disk_accounting.h"
 #include "disk_groups.h"
 #include "ec.h"
+#include "enumerated_ref.h"
 #include "inode.h"
 #include "journal.h"
 #include "journal_reclaim.h"
@@ -34,6 +35,7 @@
 #include "nocow_locking.h"
 #include "opts.h"
 #include "rebalance.h"
+#include "recovery_passes.h"
 #include "replicas.h"
 #include "super-io.h"
 #include "tests.h"
@@ -145,8 +147,10 @@ write_attribute(trigger_journal_flush);
 write_attribute(trigger_journal_writes);
 write_attribute(trigger_btree_cache_shrink);
 write_attribute(trigger_btree_key_cache_shrink);
-write_attribute(trigger_freelist_wakeup);
 write_attribute(trigger_btree_updates);
+write_attribute(trigger_freelist_wakeup);
+write_attribute(trigger_recalc_capacity);
+write_attribute(trigger_delete_dead_snapshots);
 read_attribute(gc_gens_pos);
 
 read_attribute(uuid);
@@ -176,24 +180,8 @@ read_attribute(open_buckets);
 read_attribute(open_buckets_partial);
 read_attribute(nocow_lock_table);
 
-#ifdef BCH_WRITE_REF_DEBUG
+read_attribute(read_refs);
 read_attribute(write_refs);
-
-static const char * const bch2_write_refs[] = {
-#define x(n)	#n,
-	BCH_WRITE_REFS()
-#undef x
-	NULL
-};
-
-static void bch2_write_refs_to_text(struct printbuf *out, struct bch_fs *c)
-{
-	bch2_printbuf_tabstop_push(out, 24);
-
-	for (unsigned i = 0; i < ARRAY_SIZE(c->writes); i++)
-		prt_printf(out, "%s\t%li\n", bch2_write_refs[i], atomic_long_read(&c->writes[i]));
-}
-#endif
 
 read_attribute(internal_uuid);
 read_attribute(disk_groups);
@@ -212,6 +200,8 @@ read_attribute(copy_gc_wait);
 
 sysfs_pd_controller_attribute(rebalance);
 read_attribute(rebalance_status);
+read_attribute(snapshot_delete_status);
+read_attribute(recovery_status);
 
 read_attribute(new_stripes);
 
@@ -334,6 +324,12 @@ SHOW(bch2_fs)
 	if (attr == &sysfs_rebalance_status)
 		bch2_rebalance_status_to_text(out, c);
 
+	if (attr == &sysfs_snapshot_delete_status)
+		bch2_snapshot_delete_status_to_text(out, c);
+
+	if (attr == &sysfs_recovery_status)
+		bch2_recovery_pass_status_to_text(out, c);
+
 	/* Debugging: */
 
 	if (attr == &sysfs_journal_debug)
@@ -369,10 +365,8 @@ SHOW(bch2_fs)
 	if (attr == &sysfs_moving_ctxts)
 		bch2_fs_moving_ctxts_to_text(out, c);
 
-#ifdef BCH_WRITE_REF_DEBUG
 	if (attr == &sysfs_write_refs)
-		bch2_write_refs_to_text(out, c);
-#endif
+		enumerated_ref_to_text(out, &c->writes, bch2_write_refs);
 
 	if (attr == &sysfs_nocow_lock_table)
 		bch2_nocow_locks_to_text(out, &c->nocow_locks);
@@ -405,7 +399,7 @@ STORE(bch2_fs)
 	if (attr == &sysfs_trigger_btree_updates)
 		queue_work(c->btree_interior_update_worker, &c->btree_interior_update_work);
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_sysfs))
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_sysfs))
 		return -EROFS;
 
 	if (attr == &sysfs_trigger_btree_cache_shrink) {
@@ -445,6 +439,15 @@ STORE(bch2_fs)
 	if (attr == &sysfs_trigger_freelist_wakeup)
 		closure_wake_up(&c->freelist_wait);
 
+	if (attr == &sysfs_trigger_recalc_capacity) {
+		down_read(&c->state_lock);
+		bch2_recalc_capacity(c);
+		up_read(&c->state_lock);
+	}
+
+	if (attr == &sysfs_trigger_delete_dead_snapshots)
+		__bch2_delete_dead_snapshots(c);
+
 #ifdef CONFIG_BCACHEFS_TESTS
 	if (attr == &sysfs_perf_test) {
 		char *tmp = kstrdup(buf, GFP_KERNEL), *p = tmp;
@@ -465,7 +468,7 @@ STORE(bch2_fs)
 			size = ret;
 	}
 #endif
-	bch2_write_ref_put(c, BCH_WRITE_REF_sysfs);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_sysfs);
 	return size;
 }
 SYSFS_OPS(bch2_fs);
@@ -476,6 +479,8 @@ struct attribute *bch2_fs_files[] = {
 	&sysfs_btree_write_stats,
 
 	&sysfs_rebalance_status,
+	&sysfs_snapshot_delete_status,
+	&sysfs_recovery_status,
 
 	&sysfs_compression_stats,
 
@@ -558,9 +563,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_new_stripes,
 	&sysfs_open_buckets,
 	&sysfs_open_buckets_partial,
-#ifdef BCH_WRITE_REF_DEBUG
 	&sysfs_write_refs,
-#endif
 	&sysfs_nocow_lock_table,
 	&sysfs_io_timers_read,
 	&sysfs_io_timers_write,
@@ -572,8 +575,10 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_trigger_journal_writes,
 	&sysfs_trigger_btree_cache_shrink,
 	&sysfs_trigger_btree_key_cache_shrink,
-	&sysfs_trigger_freelist_wakeup,
 	&sysfs_trigger_btree_updates,
+	&sysfs_trigger_freelist_wakeup,
+	&sysfs_trigger_recalc_capacity,
+	&sysfs_trigger_delete_dead_snapshots,
 
 	&sysfs_gc_gens_pos,
 
@@ -626,7 +631,7 @@ static ssize_t sysfs_opt_store(struct bch_fs *c,
 	 * We don't need to take c->writes for correctness, but it eliminates an
 	 * unsightly error message in the dmesg log when we're RO:
 	 */
-	if (unlikely(!bch2_write_ref_tryget(c, BCH_WRITE_REF_sysfs)))
+	if (unlikely(!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_sysfs)))
 		return -EROFS;
 
 	char *tmp = kstrdup(buf, GFP_KERNEL);
@@ -637,40 +642,34 @@ static ssize_t sysfs_opt_store(struct bch_fs *c,
 
 	u64 v;
 	ret =   bch2_opt_parse(c, opt, strim(tmp), &v, NULL) ?:
-		bch2_opt_check_may_set(c, ca, id, v);
+		bch2_opt_hook_pre_set(c, ca, id, v);
 	kfree(tmp);
 
 	if (ret < 0)
 		goto err;
 
-	bch2_opt_set_sb(c, ca, opt, v);
-	bch2_opt_set_by_id(&c->opts, id, v);
+	bool is_sb = opt->get_sb || opt->get_member;
+	bool changed = false;
 
-	if (v &&
-	    (id == Opt_background_target ||
-	     (id == Opt_foreground_target && !c->opts.background_target) ||
-	     id == Opt_background_compression ||
-	     (id == Opt_compression && !c->opts.background_compression)))
-		bch2_set_rebalance_needs_scan(c, 0);
-
-	if (v && id == Opt_rebalance_enabled)
-		bch2_rebalance_wakeup(c);
-
-	if (v && id == Opt_copygc_enabled)
-		bch2_copygc_wakeup(c);
-
-	if (id == Opt_discard && !ca) {
-		mutex_lock(&c->sb_lock);
-		for_each_member_device(c, ca)
-			opt->set_member(bch2_members_v2_get_mut(ca->disk_sb.sb, ca->dev_idx), v);
-
-		bch2_write_super(c);
-		mutex_unlock(&c->sb_lock);
+	if (is_sb) {
+		changed = bch2_opt_set_sb(c, ca, opt, v);
+	} else if (!ca) {
+		changed = bch2_opt_get_by_id(&c->opts, id) != v;
+	} else {
+		/* device options that aren't superblock options aren't
+		 * supported */
+		BUG();
 	}
+
+	if (!ca)
+		bch2_opt_set_by_id(&c->opts, id, v);
+
+	if (changed)
+		bch2_opt_hook_post_set(c, ca, 0, &c->opts, id);
 
 	ret = size;
 err:
-	bch2_write_ref_put(c, BCH_WRITE_REF_sysfs);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_sysfs);
 	return ret;
 }
 
@@ -821,6 +820,12 @@ SHOW(bch2_dev)
 	if (opt_id >= 0)
 		return sysfs_opt_show(c, ca, opt_id, out);
 
+	if (attr == &sysfs_read_refs)
+		enumerated_ref_to_text(out, &ca->io_ref[READ], bch2_dev_read_refs);
+
+	if (attr == &sysfs_write_refs)
+		enumerated_ref_to_text(out, &ca->io_ref[WRITE], bch2_dev_write_refs);
+
 	return 0;
 }
 
@@ -876,6 +881,9 @@ struct attribute *bch2_dev_files[] = {
 	/* debug: */
 	&sysfs_alloc_debug,
 	&sysfs_open_buckets,
+
+	&sysfs_read_refs,
+	&sysfs_write_refs,
 	NULL
 };
 

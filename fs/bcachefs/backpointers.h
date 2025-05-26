@@ -102,7 +102,7 @@ static inline int bch2_bucket_backpointer_mod(struct btree_trans *trans,
 				struct bkey_i_backpointer *bp,
 				bool insert)
 {
-	if (unlikely(bch2_backpointers_no_use_write_buffer))
+	if (static_branch_unlikely(&bch2_backpointers_no_use_write_buffer))
 		return bch2_bucket_backpointer_mod_nowritebuffer(trans, orig_k, bp, insert);
 
 	if (!insert) {
@@ -182,8 +182,20 @@ struct bkey_s_c bch2_backpointer_get_key(struct btree_trans *, struct bkey_s_c_b
 struct btree *bch2_backpointer_get_node(struct btree_trans *, struct bkey_s_c_backpointer,
 					struct btree_iter *, struct bkey_buf *);
 
+int bch2_check_bucket_backpointer_mismatch(struct btree_trans *, struct bch_dev *, u64,
+					   bool, struct bkey_buf *);
+
 int bch2_check_btree_backpointers(struct bch_fs *);
 int bch2_check_extents_to_backpointers(struct bch_fs *);
 int bch2_check_backpointers_to_extents(struct bch_fs *);
+
+static inline bool bch2_bucket_bitmap_test(struct bucket_bitmap *b, u64 i)
+{
+	unsigned long *bitmap = READ_ONCE(b->buckets);
+	return bitmap && test_bit(i, bitmap);
+}
+
+int bch2_bucket_bitmap_resize(struct bucket_bitmap *, u64, u64);
+void bch2_bucket_bitmap_free(struct bucket_bitmap *);
 
 #endif /* _BCACHEFS_BACKPOINTERS_BACKGROUND_H */

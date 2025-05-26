@@ -101,17 +101,25 @@ static noinline int hash_pick_winner(struct btree_trans *trans,
 	}
 }
 
-static int repair_inode_hash_info(struct btree_trans *trans,
-				  struct bch_inode_unpacked *snapshot_root)
+/*
+ * str_hash lookups across snapshots break in wild ways if hash_info in
+ * different snapshot versions doesn't match - so if we find one mismatch, check
+ * them all
+ */
+int bch2_repair_inode_hash_info(struct btree_trans *trans,
+				struct bch_inode_unpacked *snapshot_root)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_s_c k;
+	struct printbuf buf = PRINTBUF;
+	bool need_commit = false;
 	int ret = 0;
 
-	for_each_btree_key_reverse_norestart(trans, iter, BTREE_ID_inodes,
-					     SPOS(0, snapshot_root->bi_inum, snapshot_root->bi_snapshot - 1),
-					     BTREE_ITER_all_snapshots, k, ret) {
-		if (k.k->p.offset != snapshot_root->bi_inum)
+	for_each_btree_key_norestart(trans, iter, BTREE_ID_inodes,
+				     POS(0, snapshot_root->bi_inum),
+				     BTREE_ITER_all_snapshots, k, ret) {
+		if (bpos_ge(k.k->p, SPOS(0, snapshot_root->bi_inum, snapshot_root->bi_snapshot)))
 			break;
 		if (!bkey_is_inode(k.k))
 			continue;
@@ -121,19 +129,72 @@ static int repair_inode_hash_info(struct btree_trans *trans,
 		if (ret)
 			break;
 
-		if (fsck_err_on(inode.bi_hash_seed	!= snapshot_root->bi_hash_seed ||
-				INODE_STR_HASH(&inode)	!= INODE_STR_HASH(snapshot_root),
-				trans, inode_snapshot_mismatch,
-				"inode hash info in different snapshots don't match")) {
+		if (inode.bi_hash_seed		== snapshot_root->bi_hash_seed &&
+		    INODE_STR_HASH(&inode)	== INODE_STR_HASH(snapshot_root)) {
+#ifdef CONFIG_BCACHEFS_DEBUG
+			struct bch_hash_info hash1 = bch2_hash_info_init(c, snapshot_root);
+			struct bch_hash_info hash2 = bch2_hash_info_init(c, &inode);
+
+			BUG_ON(hash1.type != hash2.type ||
+			       memcmp(&hash1.siphash_key,
+				      &hash2.siphash_key,
+				      sizeof(hash1.siphash_key)));
+#endif
+			continue;
+		}
+
+		printbuf_reset(&buf);
+		prt_printf(&buf, "inode %llu hash info in snapshots %u %u don't match\n",
+			   snapshot_root->bi_inum,
+			   inode.bi_snapshot,
+			   snapshot_root->bi_snapshot);
+
+		bch2_prt_str_hash_type(&buf, INODE_STR_HASH(&inode));
+		prt_printf(&buf, " %llx\n", inode.bi_hash_seed);
+
+		bch2_prt_str_hash_type(&buf, INODE_STR_HASH(snapshot_root));
+		prt_printf(&buf, " %llx", snapshot_root->bi_hash_seed);
+
+		if (fsck_err(trans, inode_snapshot_mismatch, "%s", buf.buf)) {
 			inode.bi_hash_seed = snapshot_root->bi_hash_seed;
 			SET_INODE_STR_HASH(&inode, INODE_STR_HASH(snapshot_root));
-			ret = __bch2_fsck_write_inode(trans, &inode) ?:
-				bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc) ?:
-				-BCH_ERR_transaction_restart_nested;
-			break;
+
+			ret = __bch2_fsck_write_inode(trans, &inode);
+			if (ret)
+				break;
+			need_commit = true;
 		}
 	}
+
+	if (ret)
+		goto err;
+
+	if (!need_commit) {
+		struct printbuf buf = PRINTBUF;
+		bch2_log_msg_start(c, &buf);
+
+		prt_printf(&buf, "inode %llu hash info mismatch with root, but mismatch not found\n",
+			   snapshot_root->bi_inum);
+
+		prt_printf(&buf, "root snapshot %u ", snapshot_root->bi_snapshot);
+		bch2_prt_str_hash_type(&buf, INODE_STR_HASH(snapshot_root));
+		prt_printf(&buf, " %llx\n", snapshot_root->bi_hash_seed);
+#if 0
+		prt_printf(&buf, "vs   snapshot %u ", hash_info->inum_snapshot);
+		bch2_prt_str_hash_type(&buf, hash_info->type);
+		prt_printf(&buf, " %llx %llx", hash_info->siphash_key.k0, hash_info->siphash_key.k1);
+#endif
+		bch2_print_str(c, KERN_ERR, buf.buf);
+		printbuf_exit(&buf);
+		ret = -BCH_ERR_fsck_repair_unimplemented;
+		goto err;
+	}
+
+	ret = bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc) ?:
+		-BCH_ERR_transaction_restart_nested;
+err:
 fsck_err:
+	printbuf_exit(&buf);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
@@ -145,46 +206,18 @@ fsck_err:
 static noinline int check_inode_hash_info_matches_root(struct btree_trans *trans, u64 inum,
 						       struct bch_hash_info *hash_info)
 {
-	struct bch_fs *c = trans->c;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret = 0;
-
-	for_each_btree_key_reverse_norestart(trans, iter, BTREE_ID_inodes, SPOS(0, inum, U32_MAX),
-					     BTREE_ITER_all_snapshots, k, ret) {
-		if (k.k->p.offset != inum)
-			break;
-		if (bkey_is_inode(k.k))
-			goto found;
-	}
-	bch_err(c, "%s(): inum %llu not found", __func__, inum);
-	ret = -BCH_ERR_fsck_repair_unimplemented;
-	goto err;
-found:;
-	struct bch_inode_unpacked inode;
-	ret = bch2_inode_unpack(k, &inode);
+	struct bch_inode_unpacked snapshot_root;
+	int ret = bch2_inode_find_snapshot_root(trans, inum, &snapshot_root);
 	if (ret)
-		goto err;
+		return ret;
 
-	struct bch_hash_info hash2 = bch2_hash_info_init(c, &inode);
-	if (hash_info->type != hash2.type ||
-	    memcmp(&hash_info->siphash_key, &hash2.siphash_key, sizeof(hash2.siphash_key))) {
-		ret = repair_inode_hash_info(trans, &inode);
-		if (!ret) {
-			bch_err(c, "inode hash info mismatch with root, but mismatch not found\n"
-				"%u %llx %llx\n"
-				"%u %llx %llx",
-				hash_info->type,
-				hash_info->siphash_key.k0,
-				hash_info->siphash_key.k1,
-				hash2.type,
-				hash2.siphash_key.k0,
-				hash2.siphash_key.k1);
-			ret = -BCH_ERR_fsck_repair_unimplemented;
-		}
-	}
-err:
-	bch2_trans_iter_exit(trans, &iter);
+	struct bch_hash_info hash_root = bch2_hash_info_init(trans->c, &snapshot_root);
+	if (hash_info->type != hash_root.type ||
+	    memcmp(&hash_info->siphash_key,
+		   &hash_root.siphash_key,
+		   sizeof(hash_root.siphash_key)))
+		ret = bch2_repair_inode_hash_info(trans, &snapshot_root);
+
 	return ret;
 }
 

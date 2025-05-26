@@ -105,7 +105,7 @@ static inline u32 bch2_snapshot_nth_parent(struct bch_fs *c, u32 id, u32 n)
 	return id;
 }
 
-u32 bch2_snapshot_tree_oldest_subvol(struct bch_fs *, u32);
+u32 bch2_snapshot_oldest_subvol(struct bch_fs *, u32, snapshot_id_list *);
 u32 bch2_snapshot_skiplist_get(struct bch_fs *, u32);
 
 static inline u32 bch2_snapshot_root(struct bch_fs *c, u32 id)
@@ -120,19 +120,24 @@ static inline u32 bch2_snapshot_root(struct bch_fs *c, u32 id)
 	return id;
 }
 
-static inline bool __bch2_snapshot_exists(struct bch_fs *c, u32 id)
+static inline enum snapshot_id_state __bch2_snapshot_id_state(struct bch_fs *c, u32 id)
 {
 	const struct snapshot_t *s = snapshot_t(c, id);
-	return s ? s->live : 0;
+	return s ? s->state : SNAPSHOT_ID_empty;
+}
+
+static inline enum snapshot_id_state bch2_snapshot_id_state(struct bch_fs *c, u32 id)
+{
+	rcu_read_lock();
+	enum snapshot_id_state ret = __bch2_snapshot_id_state(c, id);
+	rcu_read_unlock();
+
+	return ret;
 }
 
 static inline bool bch2_snapshot_exists(struct bch_fs *c, u32 id)
 {
-	rcu_read_lock();
-	bool ret = __bch2_snapshot_exists(c, id);
-	rcu_read_unlock();
-
-	return ret;
+	return bch2_snapshot_id_state(c, id) == SNAPSHOT_ID_live;
 }
 
 static inline int bch2_snapshot_is_internal_node(struct bch_fs *c, u32 id)
@@ -241,10 +246,19 @@ int bch2_snapshot_node_create(struct btree_trans *, u32,
 int bch2_check_snapshot_trees(struct bch_fs *);
 int bch2_check_snapshots(struct bch_fs *);
 int bch2_reconstruct_snapshots(struct bch_fs *);
-int bch2_check_key_has_snapshot(struct btree_trans *, struct btree_iter *, struct bkey_s_c);
+
+int __bch2_check_key_has_snapshot(struct btree_trans *, struct btree_iter *, struct bkey_s_c);
+
+static inline int bch2_check_key_has_snapshot(struct btree_trans *trans,
+					      struct btree_iter *iter,
+					      struct bkey_s_c k)
+{
+	return likely(bch2_snapshot_exists(trans->c, k.k->p.snapshot))
+		? 0
+		: __bch2_check_key_has_snapshot(trans, iter, k);
+}
 
 int bch2_snapshot_node_set_deleted(struct btree_trans *, u32);
-void bch2_delete_dead_snapshots_work(struct work_struct *);
 
 int __bch2_key_has_snapshot_overwrites(struct btree_trans *, enum btree_id, struct bpos);
 
@@ -259,7 +273,14 @@ static inline int bch2_key_has_snapshot_overwrites(struct btree_trans *trans,
 	return __bch2_key_has_snapshot_overwrites(trans, id, pos);
 }
 
+int __bch2_delete_dead_snapshots(struct bch_fs *);
+int bch2_delete_dead_snapshots(struct bch_fs *);
+void bch2_delete_dead_snapshots_work(struct work_struct *);
+void bch2_delete_dead_snapshots_async(struct bch_fs *);
+void bch2_snapshot_delete_status_to_text(struct printbuf *, struct bch_fs *);
+
 int bch2_snapshots_read(struct bch_fs *);
 void bch2_fs_snapshots_exit(struct bch_fs *);
+void bch2_fs_snapshots_init_early(struct bch_fs *);
 
 #endif /* _BCACHEFS_SNAPSHOT_H */

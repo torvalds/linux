@@ -18,7 +18,12 @@ struct work_struct;
 
 /* Error messages: */
 
-void bch2_log_msg_start(struct bch_fs *, struct printbuf *);
+void __bch2_log_msg_start(const char *, struct printbuf *);
+
+static inline void bch2_log_msg_start(struct bch_fs *c, struct printbuf *out)
+{
+	__bch2_log_msg_start(c->name, out);
+}
 
 /*
  * Inconsistency errors: The on disk data is inconsistent. If these occur during
@@ -76,11 +81,13 @@ struct fsck_err_state {
 
 #define fsck_err_count(_c, _err)	bch2_sb_err_count(_c, BCH_FSCK_ERR_##_err)
 
-void __bch2_count_fsck_err(struct bch_fs *,
-			   enum bch_sb_error_id, const char *,
-			   bool *, bool *, bool *);
+bool __bch2_count_fsck_err(struct bch_fs *, enum bch_sb_error_id, struct printbuf *);
 #define bch2_count_fsck_err(_c, _err, ...)				\
 	__bch2_count_fsck_err(_c, BCH_FSCK_ERR_##_err, __VA_ARGS__)
+
+int bch2_fsck_err_opt(struct bch_fs *,
+		      enum bch_fsck_flags,
+		      enum bch_sb_error_id);
 
 __printf(5, 6) __cold
 int __bch2_fsck_err(struct bch_fs *, struct btree_trans *,

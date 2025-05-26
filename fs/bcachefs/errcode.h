@@ -53,6 +53,7 @@
 	x(ENOMEM,			ENOMEM_dio_write_bioset_init)		\
 	x(ENOMEM,			ENOMEM_nocow_flush_bioset_init)		\
 	x(ENOMEM,			ENOMEM_promote_table_init)		\
+	x(ENOMEM,			ENOMEM_async_obj_init)			\
 	x(ENOMEM,			ENOMEM_compression_bounce_read_init)	\
 	x(ENOMEM,			ENOMEM_compression_bounce_write_init)	\
 	x(ENOMEM,			ENOMEM_compression_workspace_init)	\
@@ -174,6 +175,7 @@
 	x(0,				backpointer_to_overwritten_btree_node)	\
 	x(0,				journal_reclaim_would_deadlock)		\
 	x(EINVAL,			fsck)					\
+	x(BCH_ERR_fsck,			fsck_ask)				\
 	x(BCH_ERR_fsck,			fsck_fix)				\
 	x(BCH_ERR_fsck,			fsck_delete_bkey)			\
 	x(BCH_ERR_fsck,			fsck_ignore)				\
@@ -181,7 +183,6 @@
 	x(BCH_ERR_fsck,			fsck_repair_unimplemented)		\
 	x(BCH_ERR_fsck,			fsck_repair_impossible)			\
 	x(EINVAL,			restart_recovery)			\
-	x(EINVAL,			not_in_recovery)			\
 	x(EINVAL,			cannot_rewind_recovery)			\
 	x(0,				data_update_done)			\
 	x(BCH_ERR_data_update_done,	data_update_done_would_block)		\
@@ -201,6 +202,7 @@
 	x(EINVAL,			device_has_been_removed)		\
 	x(EINVAL,			device_splitbrain)			\
 	x(EINVAL,			device_already_online)			\
+	x(EINVAL,			filesystem_uuid_already_open)		\
 	x(EINVAL,			insufficient_devices_to_start)		\
 	x(EINVAL,			invalid)				\
 	x(EINVAL,			internal_fsck_err)			\
@@ -211,6 +213,7 @@
 	x(EINVAL,			inode_unpack_error)			\
 	x(EINVAL,			varint_decode_error)			\
 	x(EINVAL,			erasure_coding_found_btree_node)	\
+	x(EINVAL,			option_negative)			\
 	x(EOPNOTSUPP,			may_not_use_incompat_feature)		\
 	x(EROFS,			erofs_trans_commit)			\
 	x(EROFS,			erofs_no_writes)			\
@@ -219,6 +222,8 @@
 	x(EROFS,			erofs_unfixed_errors)			\
 	x(EROFS,			erofs_norecovery)			\
 	x(EROFS,			erofs_nochanges)			\
+	x(EROFS,			erofs_no_alloc_info)			\
+	x(EROFS,			erofs_filesystem_full)			\
 	x(EROFS,			insufficient_devices)			\
 	x(0,				operation_blocked)			\
 	x(BCH_ERR_operation_blocked,	btree_cache_cannibalize_lock_blocked)	\

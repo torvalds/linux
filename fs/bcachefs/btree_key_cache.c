@@ -101,8 +101,8 @@ static void __bkey_cached_free(struct rcu_pending *pending, struct rcu_head *rcu
 	kmem_cache_free(bch2_key_cache, ck);
 }
 
-static void bkey_cached_free(struct btree_key_cache *bc,
-			     struct bkey_cached *ck)
+static inline void bkey_cached_free_noassert(struct btree_key_cache *bc,
+				      struct bkey_cached *ck)
 {
 	kfree(ck->k);
 	ck->k		= NULL;
@@ -114,6 +114,19 @@ static void bkey_cached_free(struct btree_key_cache *bc,
 	bool pcpu_readers = ck->c.lock.readers != NULL;
 	rcu_pending_enqueue(&bc->pending[pcpu_readers], &ck->rcu);
 	this_cpu_inc(*bc->nr_pending);
+}
+
+static void bkey_cached_free(struct btree_trans *trans,
+			     struct btree_key_cache *bc,
+			     struct bkey_cached *ck)
+{
+	/*
+	 * we'll hit strange issues in the SRCU code if we aren't holding an
+	 * SRCU read lock...
+	 */
+	EBUG_ON(!trans->srcu_held);
+
+	bkey_cached_free_noassert(bc, ck);
 }
 
 static struct bkey_cached *__bkey_cached_alloc(unsigned key_u64s, gfp_t gfp)
@@ -281,7 +294,7 @@ static int btree_key_cache_create(struct btree_trans *trans,
 	ck_path->uptodate = BTREE_ITER_UPTODATE;
 	return 0;
 err:
-	bkey_cached_free(bc, ck);
+	bkey_cached_free(trans, bc, ck);
 	mark_btree_node_locked_noreset(ck_path, 0, BTREE_NODE_UNLOCKED);
 
 	return ret;
@@ -511,7 +524,7 @@ evict:
 
 		mark_btree_node_locked_noreset(path, 0, BTREE_NODE_UNLOCKED);
 		if (bkey_cached_evict(&c->btree_key_cache, ck)) {
-			bkey_cached_free(&c->btree_key_cache, ck);
+			bkey_cached_free(trans, &c->btree_key_cache, ck);
 		} else {
 			six_unlock_write(&ck->c.lock);
 			six_unlock_intent(&ck->c.lock);
@@ -625,7 +638,7 @@ void bch2_btree_key_cache_drop(struct btree_trans *trans,
 	}
 
 	bkey_cached_evict(bc, ck);
-	bkey_cached_free(bc, ck);
+	bkey_cached_free(trans, bc, ck);
 
 	mark_btree_node_locked(trans, path, 0, BTREE_NODE_UNLOCKED);
 
@@ -633,10 +646,17 @@ void bch2_btree_key_cache_drop(struct btree_trans *trans,
 	unsigned i;
 	trans_for_each_path(trans, path2, i)
 		if (path2->l[0].b == (void *) ck) {
+			/*
+			 * It's safe to clear should_be_locked here because
+			 * we're evicting from the key cache, and we still have
+			 * the underlying btree locked: filling into the key
+			 * cache would require taking a write lock on the btree
+			 * node
+			 */
+			path2->should_be_locked = false;
 			__bch2_btree_path_unlock(trans, path2);
 			path2->l[0].b = ERR_PTR(-BCH_ERR_no_btree_node_drop);
-			path2->should_be_locked = false;
-			btree_path_set_dirty(path2, BTREE_ITER_NEED_TRAVERSE);
+			btree_path_set_dirty(trans, path2, BTREE_ITER_NEED_TRAVERSE);
 		}
 
 	bch2_trans_verify_locks(trans);
@@ -693,7 +713,7 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 			} else if (!bkey_cached_lock_for_evict(ck)) {
 				bc->skipped_lock_fail++;
 			} else if (bkey_cached_evict(bc, ck)) {
-				bkey_cached_free(bc, ck);
+				bkey_cached_free_noassert(bc, ck);
 				bc->freed++;
 				freed++;
 			} else {

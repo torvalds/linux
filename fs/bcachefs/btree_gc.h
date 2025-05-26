@@ -83,7 +83,6 @@ void bch2_gc_pos_to_text(struct printbuf *, struct gc_pos *);
 int bch2_gc_gens(struct bch_fs *);
 void bch2_gc_gens_async(struct bch_fs *);
 
-void bch2_fs_btree_gc_exit(struct bch_fs *);
-int bch2_fs_btree_gc_init(struct bch_fs *);
+void bch2_fs_btree_gc_init_early(struct bch_fs *);
 
 #endif /* _BCACHEFS_BTREE_GC_H */

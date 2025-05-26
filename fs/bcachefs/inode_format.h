@@ -129,6 +129,10 @@ enum inode_opt_id {
 	Inode_opt_nr,
 };
 
+/*
+ * BCH_INODE_has_case_insensitive is set if any descendent is case insensitive -
+ * for overlayfs
+ */
 #define BCH_INODE_FLAGS()			\
 	x(sync,				0)	\
 	x(immutable,			1)	\
@@ -139,7 +143,8 @@ enum inode_opt_id {
 	x(i_sectors_dirty,		6)	\
 	x(unlinked,			7)	\
 	x(backptr_untrusted,		8)	\
-	x(has_child_snapshot,		9)
+	x(has_child_snapshot,		9)	\
+	x(has_case_insensitive,		10)
 
 /* bits 20+ reserved for packed fields below: */
 

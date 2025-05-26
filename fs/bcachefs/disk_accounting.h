@@ -139,10 +139,10 @@ int bch2_accounting_mem_insert(struct bch_fs *, struct bkey_s_c_accounting, enum
 int bch2_accounting_mem_insert_locked(struct bch_fs *, struct bkey_s_c_accounting, enum bch_accounting_mode);
 void bch2_accounting_mem_gc(struct bch_fs *);
 
-static inline bool bch2_accounting_is_mem(struct disk_accounting_pos acc)
+static inline bool bch2_accounting_is_mem(struct disk_accounting_pos *acc)
 {
-	return acc.type < BCH_DISK_ACCOUNTING_TYPE_NR &&
-		acc.type != BCH_DISK_ACCOUNTING_inum;
+	return acc->type < BCH_DISK_ACCOUNTING_TYPE_NR &&
+		acc->type != BCH_DISK_ACCOUNTING_inum;
 }
 
 /*
@@ -163,7 +163,7 @@ static inline int bch2_accounting_mem_mod_locked(struct btree_trans *trans,
 	if (gc && !acc->gc_running)
 		return 0;
 
-	if (!bch2_accounting_is_mem(acc_k))
+	if (!bch2_accounting_is_mem(&acc_k))
 		return 0;
 
 	if (mode == BCH_ACCOUNTING_normal) {
@@ -259,8 +259,8 @@ static inline int bch2_accounting_trans_commit_hook(struct btree_trans *trans,
 						    struct bkey_i_accounting *a,
 						    unsigned commit_flags)
 {
-	a->k.bversion = journal_pos_to_bversion(&trans->journal_res,
-						(u64 *) a - (u64 *) trans->journal_entries);
+	u64 *base = (u64 *) btree_trans_subbuf_base(trans, &trans->accounting);
+	a->k.bversion = journal_pos_to_bversion(&trans->journal_res, (u64 *) a - base);
 
 	EBUG_ON(bversion_zero(a->k.bversion));
 

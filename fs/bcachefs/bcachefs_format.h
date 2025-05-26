@@ -497,7 +497,8 @@ struct bch_sb_field {
 	x(members_v2,			11)	\
 	x(errors,			12)	\
 	x(ext,				13)	\
-	x(downgrade,			14)
+	x(downgrade,			14)	\
+	x(recovery_passes,		15)
 
 #include "alloc_background_format.h"
 #include "dirent_format.h"
@@ -510,6 +511,7 @@ struct bch_sb_field {
 #include "logged_ops_format.h"
 #include "lru_format.h"
 #include "quota_format.h"
+#include "recovery_passes_format.h"
 #include "reflink_format.h"
 #include "replicas_format.h"
 #include "snapshot_format.h"
@@ -695,7 +697,10 @@ struct bch_sb_field_ext {
 	x(stripe_backpointers,		BCH_VERSION(1, 22))		\
 	x(stripe_lru,			BCH_VERSION(1, 23))		\
 	x(casefolding,			BCH_VERSION(1, 24))		\
-	x(extent_flags,			BCH_VERSION(1, 25))
+	x(extent_flags,			BCH_VERSION(1, 25))		\
+	x(snapshot_deletion_v2,		BCH_VERSION(1, 26))		\
+	x(fast_device_removal,		BCH_VERSION(1, 27))		\
+	x(inode_has_case_insensitive,	BCH_VERSION(1, 28))
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
@@ -846,7 +851,7 @@ LE64_BITMASK(BCH_SB_SHARD_INUMS,	struct bch_sb, flags[3], 28, 29);
 LE64_BITMASK(BCH_SB_INODES_USE_KEY_CACHE,struct bch_sb, flags[3], 29, 30);
 LE64_BITMASK(BCH_SB_JOURNAL_FLUSH_DELAY,struct bch_sb, flags[3], 30, 62);
 LE64_BITMASK(BCH_SB_JOURNAL_FLUSH_DISABLED,struct bch_sb, flags[3], 62, 63);
-/* one free bit */
+LE64_BITMASK(BCH_SB_MULTI_DEVICE,	struct bch_sb,	flags[3], 63, 64);
 LE64_BITMASK(BCH_SB_JOURNAL_RECLAIM_DELAY,struct bch_sb, flags[4], 0, 32);
 LE64_BITMASK(BCH_SB_JOURNAL_TRANSACTION_NAMES,struct bch_sb, flags[4], 32, 33);
 LE64_BITMASK(BCH_SB_NOCOW,		struct bch_sb, flags[4], 33, 34);
@@ -867,7 +872,9 @@ LE64_BITMASK(BCH_SB_VERSION_INCOMPAT_ALLOWED,
 LE64_BITMASK(BCH_SB_SHARD_INUMS_NBITS,	struct bch_sb, flags[6],  0,  4);
 LE64_BITMASK(BCH_SB_WRITE_ERROR_TIMEOUT,struct bch_sb, flags[6],  4, 14);
 LE64_BITMASK(BCH_SB_CSUM_ERR_RETRY_NR,	struct bch_sb, flags[6], 14, 20);
+LE64_BITMASK(BCH_SB_DEGRADED_ACTION,	struct bch_sb, flags[6], 20, 22);
 LE64_BITMASK(BCH_SB_CASEFOLD,		struct bch_sb, flags[6], 22, 23);
+LE64_BITMASK(BCH_SB_REBALANCE_AC_ONLY,	struct bch_sb, flags[6], 23, 24);
 
 static inline __u64 BCH_SB_COMPRESSION_TYPE(const struct bch_sb *sb)
 {
@@ -922,7 +929,9 @@ static inline void SET_BCH_SB_BACKGROUND_COMPRESSION_TYPE(struct bch_sb *sb, __u
 	x(alloc_v2,			17)	\
 	x(extents_across_btree_nodes,	18)	\
 	x(incompat_version_field,	19)	\
-	x(casefolding,			20)
+	x(casefolding,			20)	\
+	x(no_alloc_info,		21)	\
+	x(small_image,			22)
 
 #define BCH_SB_FEATURES_ALWAYS				\
 	(BIT_ULL(BCH_FEATURE_new_extent_overwrite)|	\
@@ -987,6 +996,19 @@ enum bch_error_actions {
 	BCH_ERROR_ACTIONS()
 #undef x
 	BCH_ON_ERROR_NR
+};
+
+#define BCH_DEGRADED_ACTIONS()		\
+	x(ask,			0)	\
+	x(yes,			1)	\
+	x(very,			2)	\
+	x(no,			3)
+
+enum bch_degraded_actions {
+#define x(t, n) BCH_DEGRADED_##t = n,
+	BCH_DEGRADED_ACTIONS()
+#undef x
+	BCH_DEGRADED_ACTIONS_NR
 };
 
 #define BCH_STR_HASH_TYPES()		\

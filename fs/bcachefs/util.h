@@ -14,6 +14,7 @@
 #include <linux/log2.h>
 #include <linux/percpu.h>
 #include <linux/preempt.h>
+#include <linux/random.h>
 #include <linux/ratelimit.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -55,15 +56,16 @@ static inline size_t buf_pages(void *p, size_t len)
 			    PAGE_SIZE);
 }
 
-static inline void *bch2_kvmalloc(size_t n, gfp_t flags)
+static inline void *bch2_kvmalloc_noprof(size_t n, gfp_t flags)
 {
 	void *p = unlikely(n >= INT_MAX)
-		? vmalloc(n)
-		: kvmalloc(n, flags & ~__GFP_ZERO);
+		? vmalloc_noprof(n)
+		: kvmalloc_noprof(n, flags & ~__GFP_ZERO);
 	if (p && (flags & __GFP_ZERO))
 		memset(p, 0, n);
 	return p;
 }
+#define bch2_kvmalloc(...)			alloc_hooks(bch2_kvmalloc_noprof(__VA_ARGS__))
 
 #define init_heap(heap, _size, gfp)					\
 ({									\
@@ -211,8 +213,7 @@ u64 bch2_read_flag_list(const char *, const char * const[]);
 void bch2_prt_u64_base2_nbits(struct printbuf *, u64, unsigned);
 void bch2_prt_u64_base2(struct printbuf *, u64);
 
-void bch2_print_string_as_lines(const char *prefix, const char *lines);
-void bch2_print_string_as_lines_nonblocking(const char *prefix, const char *lines);
+void bch2_print_string_as_lines(const char *, const char *, bool);
 
 typedef DARRAY(unsigned long) bch_stacktrace;
 int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *, unsigned, gfp_t);
@@ -418,6 +419,8 @@ static inline void bch2_maybe_corrupt_bio(struct bio *bio, unsigned ratio)
 #else
 #define bch2_maybe_corrupt_bio(...)	do {} while (0)
 #endif
+
+void bch2_bio_to_text(struct printbuf *, struct bio *);
 
 static inline void memcpy_u64s_small(void *dst, const void *src,
 				     unsigned u64s)
@@ -688,8 +691,8 @@ static inline bool qstr_eq(const struct qstr l, const struct qstr r)
 	return l.len == r.len && !memcmp(l.name, r.name, l.len);
 }
 
-void bch2_darray_str_exit(darray_str *);
-int bch2_split_devs(const char *, darray_str *);
+void bch2_darray_str_exit(darray_const_str *);
+int bch2_split_devs(const char *, darray_const_str *);
 
 #ifdef __KERNEL__
 
