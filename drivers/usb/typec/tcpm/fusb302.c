@@ -1477,9 +1477,6 @@ static irqreturn_t fusb302_irq_intn(int irq, void *dev_id)
 	struct fusb302_chip *chip = dev_id;
 	unsigned long flags;
 
-	/* Disable our level triggered IRQ until our irq_work has cleared it */
-	disable_irq_nosync(chip->gpio_int_n_irq);
-
 	spin_lock_irqsave(&chip->irq_lock, flags);
 	if (chip->irq_suspended)
 		chip->irq_while_suspended = true;
@@ -1622,7 +1619,6 @@ static void fusb302_irq_work(struct work_struct *work)
 	}
 done:
 	mutex_unlock(&chip->lock);
-	enable_irq(chip->gpio_int_n_irq);
 }
 
 static int init_gpio(struct fusb302_chip *chip)
@@ -1747,9 +1743,10 @@ static int fusb302_probe(struct i2c_client *client)
 		goto destroy_workqueue;
 	}
 
-	ret = request_irq(chip->gpio_int_n_irq, fusb302_irq_intn,
-			  IRQF_ONESHOT | IRQF_TRIGGER_LOW,
-			  "fsc_interrupt_int_n", chip);
+	ret = devm_request_threaded_irq(dev, chip->gpio_int_n_irq,
+					NULL, fusb302_irq_intn,
+					IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+					"fsc_interrupt_int_n", chip);
 	if (ret < 0) {
 		dev_err(dev, "cannot request IRQ for GPIO Int_N, ret=%d", ret);
 		goto tcpm_unregister_port;
@@ -1774,7 +1771,6 @@ static void fusb302_remove(struct i2c_client *client)
 	struct fusb302_chip *chip = i2c_get_clientdata(client);
 
 	disable_irq_wake(chip->gpio_int_n_irq);
-	free_irq(chip->gpio_int_n_irq, chip);
 	cancel_work_sync(&chip->irq_work);
 	cancel_delayed_work_sync(&chip->bc_lvl_handler);
 	tcpm_unregister_port(chip->tcpm_port);
