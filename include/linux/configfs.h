@@ -120,14 +120,18 @@ struct configfs_attribute {
 	ssize_t (*store)(struct config_item *, const char *, size_t);
 };
 
-#define CONFIGFS_ATTR(_pfx, _name)			\
+#define CONFIGFS_ATTR_PERM(_pfx, _name, _perm)		\
 static struct configfs_attribute _pfx##attr_##_name = {	\
 	.ca_name	= __stringify(_name),		\
-	.ca_mode	= S_IRUGO | S_IWUSR,		\
+	.ca_mode	= _perm,			\
 	.ca_owner	= THIS_MODULE,			\
 	.show		= _pfx##_name##_show,		\
 	.store		= _pfx##_name##_store,		\
 }
+
+#define CONFIGFS_ATTR(_pfx, _name) CONFIGFS_ATTR_PERM(	\
+		_pfx, _name, S_IRUGO | S_IWUSR		\
+)
 
 #define CONFIGFS_ATTR_RO(_pfx, _name)			\
 static struct configfs_attribute _pfx##attr_##_name = {	\
