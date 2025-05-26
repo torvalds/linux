@@ -5627,7 +5627,8 @@ static int sctp_getsockopt_autoclose(struct sock *sk, int len, char __user *optv
 }
 
 /* Helper routine to branch off an association to a new socket.  */
-int sctp_do_peeloff(struct sock *sk, sctp_assoc_t id, struct socket **sockp)
+static int sctp_do_peeloff(struct sock *sk, sctp_assoc_t id,
+		struct socket **sockp)
 {
 	struct sctp_association *asoc = sctp_id2assoc(sk, id);
 	struct sctp_sock *sp = sctp_sk(sk);
@@ -5675,7 +5676,6 @@ int sctp_do_peeloff(struct sock *sk, sctp_assoc_t id, struct socket **sockp)
 
 	return err;
 }
-EXPORT_SYMBOL(sctp_do_peeloff);
 
 static int sctp_getsockopt_peeloff_common(struct sock *sk, sctp_peeloff_arg_t *peeloff,
 					  struct file **newfile, unsigned flags)
