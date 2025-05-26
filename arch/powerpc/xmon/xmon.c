@@ -1770,7 +1770,7 @@ static void xmon_show_stack(unsigned long sp, unsigned long lr,
 				       sp + STACK_INT_FRAME_REGS);
 				break;
 			}
-			printf("--- Exception: %lx %s at ", regs.trap,
+			printf("---- Exception: %lx %s at ", regs.trap,
 			       getvecname(TRAP(&regs)));
 			pc = regs.nip;
 			lr = regs.link;

@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
+#include <linux/string_choices.h>
 #include <linux/types.h>
 #include <linux/pagemap.h>
 #include <linux/ptrace.h>
@@ -218,7 +219,7 @@ static bool bad_kernel_fault(struct pt_regs *regs, unsigned long error_code,
 	// Read/write fault blocked by KUAP is bad, it can never succeed.
 	if (bad_kuap_fault(regs, address, is_write)) {
 		pr_crit_ratelimited("Kernel attempted to %s user page (%lx) - exploit attempt? (uid: %d)\n",
-				    is_write ? "write" : "read", address,
+				    str_write_read(is_write), address,
 				    from_kuid(&init_user_ns, current_uid()));
 
 		// Fault on user outside of certain regions (eg. copy_tofrom_user()) is bad
@@ -625,7 +626,7 @@ static void __bad_page_fault(struct pt_regs *regs, int sig)
 	case INTERRUPT_DATA_STORAGE:
 	case INTERRUPT_H_DATA_STORAGE:
 		pr_alert("BUG: %s on %s at 0x%08lx\n", msg,
-			 is_write ? "write" : "read", regs->dar);
+			 str_write_read(is_write), regs->dar);
 		break;
 	case INTERRUPT_DATA_SEGMENT:
 		pr_alert("BUG: %s at 0x%08lx\n", msg, regs->dar);
