@@ -5,6 +5,7 @@
 #include <net/ip6_checksum.h>
 #include <net/page_pool/helpers.h>
 #include <net/inet_ecn.h>
+#include <linux/workqueue.h>
 #include <linux/iopoll.h>
 #include <linux/sctp.h>
 #include <linux/pci.h>
@@ -1633,7 +1634,7 @@ static bool wx_set_vmdq_queues(struct wx *wx)
 	/* Add starting offset to total pool count */
 	vmdq_i += wx->ring_feature[RING_F_VMDQ].offset;
 
-	if (wx->mac.type == wx_mac_sp) {
+	if (test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags)) {
 		/* double check we are limited to maximum pools */
 		vmdq_i = min_t(u16, 64, vmdq_i);
 
@@ -1693,7 +1694,7 @@ static void wx_set_rss_queues(struct wx *wx)
 
 	/* set mask for 16 queue limit of RSS */
 	f = &wx->ring_feature[RING_F_RSS];
-	if (wx->mac.type == wx_mac_sp)
+	if (test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags))
 		f->mask = WX_RSS_64Q_MASK;
 	else
 		f->mask = WX_RSS_8Q_MASK;
@@ -1853,7 +1854,7 @@ static bool wx_cache_ring_vmdq(struct wx *wx)
 	if (!test_bit(WX_FLAG_VMDQ_ENABLED, wx->flags))
 		return false;
 
-	if (wx->mac.type == wx_mac_sp) {
+	if (test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags)) {
 		/* start at VMDq register offset for SR-IOV enabled setups */
 		reg_idx = vmdq->offset * __ALIGN_MASK(1, ~vmdq->mask);
 		for (i = 0; i < wx->num_rx_queues; i++, reg_idx++) {
@@ -1959,6 +1960,7 @@ static int wx_alloc_q_vector(struct wx *wx,
 	switch (wx->mac.type) {
 	case wx_mac_sp:
 	case wx_mac_aml:
+	case wx_mac_aml40:
 		default_itr = WX_12K_ITR;
 		break;
 	default:
@@ -2327,6 +2329,7 @@ void wx_write_eitr(struct wx_q_vector *q_vector)
 		itr_reg = q_vector->itr & WX_SP_MAX_EITR;
 		break;
 	case wx_mac_aml:
+	case wx_mac_aml40:
 		itr_reg = (q_vector->itr >> 3) & WX_AML_MAX_EITR;
 		break;
 	default:
@@ -2354,10 +2357,10 @@ void wx_configure_vectors(struct wx *wx)
 
 	if (pdev->msix_enabled) {
 		/* Populate MSIX to EITR Select */
-		if (wx->mac.type == wx_mac_sp) {
+		if (test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags)) {
 			if (wx->num_vfs >= 32)
 				eitrsel = BIT(wx->num_vfs % 32) - 1;
-		} else if (wx->mac.type == wx_mac_em) {
+		} else {
 			for (i = 0; i < wx->num_vfs; i++)
 				eitrsel |= BIT(i);
 		}
@@ -3092,6 +3095,36 @@ void wx_set_ring(struct wx *wx, u32 new_tx_count,
 	}
 }
 EXPORT_SYMBOL(wx_set_ring);
+
+void wx_service_event_schedule(struct wx *wx)
+{
+	if (!test_and_set_bit(WX_STATE_SERVICE_SCHED, wx->state))
+		queue_work(system_power_efficient_wq, &wx->service_task);
+}
+EXPORT_SYMBOL(wx_service_event_schedule);
+
+void wx_service_event_complete(struct wx *wx)
+{
+	if (WARN_ON(!test_bit(WX_STATE_SERVICE_SCHED, wx->state)))
+		return;
+
+	/* flush memory to make sure state is correct before next watchdog */
+	smp_mb__before_atomic();
+	clear_bit(WX_STATE_SERVICE_SCHED, wx->state);
+}
+EXPORT_SYMBOL(wx_service_event_complete);
+
+void wx_service_timer(struct timer_list *t)
+{
+	struct wx *wx = from_timer(wx, t, service_timer);
+	unsigned long next_event_offset = HZ * 2;
+
+	/* Reset the timer */
+	mod_timer(&wx->service_timer, next_event_offset + jiffies);
+
+	wx_service_event_schedule(wx);
+}
+EXPORT_SYMBOL(wx_service_timer);
 
 MODULE_DESCRIPTION("Common library for Wangxun(R) Ethernet drivers.");
 MODULE_LICENSE("GPL");

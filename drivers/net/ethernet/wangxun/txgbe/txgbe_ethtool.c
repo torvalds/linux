@@ -12,6 +12,31 @@
 #include "txgbe_fdir.h"
 #include "txgbe_ethtool.h"
 
+int txgbe_get_link_ksettings(struct net_device *netdev,
+			     struct ethtool_link_ksettings *cmd)
+{
+	struct wx *wx = netdev_priv(netdev);
+	struct txgbe *txgbe = wx->priv;
+	int err;
+
+	if (wx->mac.type == wx_mac_aml40)
+		return -EOPNOTSUPP;
+
+	err = wx_get_link_ksettings(netdev, cmd);
+	if (err)
+		return err;
+
+	if (wx->mac.type == wx_mac_sp)
+		return 0;
+
+	cmd->base.port = txgbe->link_port;
+	cmd->base.autoneg = AUTONEG_DISABLE;
+	linkmode_copy(cmd->link_modes.supported, txgbe->sfp_support);
+	linkmode_copy(cmd->link_modes.advertising, txgbe->advertising);
+
+	return 0;
+}
+
 static int txgbe_set_ringparam(struct net_device *netdev,
 			       struct ethtool_ringparam *ring,
 			       struct kernel_ethtool_ringparam *kernel_ring,
@@ -510,7 +535,7 @@ static const struct ethtool_ops txgbe_ethtool_ops = {
 	.get_drvinfo		= wx_get_drvinfo,
 	.nway_reset		= wx_nway_reset,
 	.get_link		= ethtool_op_get_link,
-	.get_link_ksettings	= wx_get_link_ksettings,
+	.get_link_ksettings	= txgbe_get_link_ksettings,
 	.set_link_ksettings	= wx_set_link_ksettings,
 	.get_sset_count		= wx_get_sset_count,
 	.get_strings		= wx_get_strings,

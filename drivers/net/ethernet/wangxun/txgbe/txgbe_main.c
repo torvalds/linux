@@ -21,6 +21,7 @@
 #include "txgbe_type.h"
 #include "txgbe_hw.h"
 #include "txgbe_phy.h"
+#include "txgbe_aml.h"
 #include "txgbe_irq.h"
 #include "txgbe_fdir.h"
 #include "txgbe_ethtool.h"
@@ -88,9 +89,62 @@ static int txgbe_enumerate_functions(struct wx *wx)
 	return physfns;
 }
 
+static void txgbe_sfp_detection_subtask(struct wx *wx)
+{
+	int err;
+
+	if (!test_bit(WX_FLAG_NEED_SFP_RESET, wx->flags))
+		return;
+
+	/* wait for SFP module ready */
+	msleep(200);
+
+	err = txgbe_identify_sfp(wx);
+	if (err)
+		return;
+
+	clear_bit(WX_FLAG_NEED_SFP_RESET, wx->flags);
+}
+
+static void txgbe_link_config_subtask(struct wx *wx)
+{
+	int err;
+
+	if (!test_bit(WX_FLAG_NEED_LINK_CONFIG, wx->flags))
+		return;
+
+	err = txgbe_set_phy_link(wx);
+	if (err)
+		return;
+
+	clear_bit(WX_FLAG_NEED_LINK_CONFIG, wx->flags);
+}
+
+/**
+ * txgbe_service_task - manages and runs subtasks
+ * @work: pointer to work_struct containing our data
+ **/
+static void txgbe_service_task(struct work_struct *work)
+{
+	struct wx *wx = container_of(work, struct wx, service_task);
+
+	txgbe_sfp_detection_subtask(wx);
+	txgbe_link_config_subtask(wx);
+
+	wx_service_event_complete(wx);
+}
+
+static void txgbe_init_service(struct wx *wx)
+{
+	timer_setup(&wx->service_timer, wx_service_timer, 0);
+	INIT_WORK(&wx->service_task, txgbe_service_task);
+	clear_bit(WX_STATE_SERVICE_SCHED, wx->state);
+}
+
 static void txgbe_up_complete(struct wx *wx)
 {
 	struct net_device *netdev = wx->netdev;
+	u32 reg;
 
 	wx_control_hw(wx, true);
 	wx_configure_vectors(wx);
@@ -99,17 +153,26 @@ static void txgbe_up_complete(struct wx *wx)
 	smp_mb__before_atomic();
 	wx_napi_enable_all(wx);
 
-	if (wx->mac.type == wx_mac_aml) {
-		u32 reg;
-
+	switch (wx->mac.type) {
+	case wx_mac_aml40:
 		reg = rd32(wx, TXGBE_AML_MAC_TX_CFG);
 		reg &= ~TXGBE_AML_MAC_TX_CFG_SPEED_MASK;
-		reg |= TXGBE_AML_MAC_TX_CFG_SPEED_25G;
+		reg |= TXGBE_AML_MAC_TX_CFG_SPEED_40G;
 		wr32(wx, WX_MAC_TX_CFG, reg);
 		txgbe_enable_sec_tx_path(wx);
 		netif_carrier_on(wx->netdev);
-	} else {
+		break;
+	case wx_mac_aml:
+		/* Enable TX laser */
+		wr32m(wx, WX_GPIO_DR, TXGBE_GPIOBIT_1, 0);
+		txgbe_setup_link(wx);
 		phylink_start(wx->phylink);
+		break;
+	case wx_mac_sp:
+		phylink_start(wx->phylink);
+		break;
+	default:
+		break;
 	}
 
 	/* clear any pending interrupts, may auto mask */
@@ -120,6 +183,7 @@ static void txgbe_up_complete(struct wx *wx)
 
 	/* enable transmits */
 	netif_tx_start_all_queues(netdev);
+	mod_timer(&wx->service_timer, jiffies);
 
 	/* Set PF Reset Done bit so PF/VF Mail Ops can work */
 	wr32m(wx, WX_CFG_PORT_CTL, WX_CFG_PORT_CTL_PFRSTD,
@@ -168,6 +232,8 @@ static void txgbe_disable_device(struct wx *wx)
 	wx_irq_disable(wx);
 	wx_napi_disable_all(wx);
 
+	timer_delete_sync(&wx->service_timer);
+
 	if (wx->bus.func < 2)
 		wr32m(wx, TXGBE_MIS_PRB_CTL, TXGBE_MIS_PRB_CTL_LAN_UP(wx->bus.func), 0);
 	else
@@ -207,10 +273,22 @@ void txgbe_down(struct wx *wx)
 {
 	txgbe_disable_device(wx);
 	txgbe_reset(wx);
-	if (wx->mac.type == wx_mac_aml)
+
+	switch (wx->mac.type) {
+	case wx_mac_aml40:
 		netif_carrier_off(wx->netdev);
-	else
+		break;
+	case wx_mac_aml:
 		phylink_stop(wx->phylink);
+		/* Disable TX laser */
+		wr32m(wx, WX_GPIO_DR, TXGBE_GPIOBIT_1, TXGBE_GPIOBIT_1);
+		break;
+	case wx_mac_sp:
+		phylink_stop(wx->phylink);
+		break;
+	default:
+		break;
+	}
 
 	wx_clean_all_tx_rings(wx);
 	wx_clean_all_rx_rings(wx);
@@ -240,9 +318,11 @@ static void txgbe_init_type_code(struct wx *wx)
 	case TXGBE_DEV_ID_AML5110:
 	case TXGBE_DEV_ID_AML5025:
 	case TXGBE_DEV_ID_AML5125:
+		wx->mac.type = wx_mac_aml;
+		break;
 	case TXGBE_DEV_ID_AML5040:
 	case TXGBE_DEV_ID_AML5140:
-		wx->mac.type = wx_mac_aml;
+		wx->mac.type = wx_mac_aml40;
 		break;
 	default:
 		wx->mac.type = wx_mac_unknown;
@@ -251,25 +331,25 @@ static void txgbe_init_type_code(struct wx *wx)
 
 	switch (device_type) {
 	case TXGBE_ID_SFP:
-		wx->media_type = sp_media_fiber;
+		wx->media_type = wx_media_fiber;
 		break;
 	case TXGBE_ID_XAUI:
 	case TXGBE_ID_SGMII:
-		wx->media_type = sp_media_copper;
+		wx->media_type = wx_media_copper;
 		break;
 	case TXGBE_ID_KR_KX_KX4:
 	case TXGBE_ID_MAC_XAUI:
 	case TXGBE_ID_MAC_SGMII:
-		wx->media_type = sp_media_backplane;
+		wx->media_type = wx_media_backplane;
 		break;
 	case TXGBE_ID_SFI_XAUI:
 		if (wx->bus.func == 0)
-			wx->media_type = sp_media_fiber;
+			wx->media_type = wx_media_fiber;
 		else
-			wx->media_type = sp_media_copper;
+			wx->media_type = wx_media_copper;
 		break;
 	default:
-		wx->media_type = sp_media_unknown;
+		wx->media_type = wx_media_unknown;
 		break;
 	}
 }
@@ -283,13 +363,13 @@ static int txgbe_sw_init(struct wx *wx)
 	u16 msix_count = 0;
 	int err;
 
-	wx->mac.num_rar_entries = TXGBE_SP_RAR_ENTRIES;
-	wx->mac.max_tx_queues = TXGBE_SP_MAX_TX_QUEUES;
-	wx->mac.max_rx_queues = TXGBE_SP_MAX_RX_QUEUES;
-	wx->mac.mcft_size = TXGBE_SP_MC_TBL_SIZE;
-	wx->mac.vft_size = TXGBE_SP_VFT_TBL_SIZE;
-	wx->mac.rx_pb_size = TXGBE_SP_RX_PB_SIZE;
-	wx->mac.tx_pb_size = TXGBE_SP_TDB_PB_SZ;
+	wx->mac.num_rar_entries = TXGBE_RAR_ENTRIES;
+	wx->mac.max_tx_queues = TXGBE_MAX_TXQ;
+	wx->mac.max_rx_queues = TXGBE_MAX_RXQ;
+	wx->mac.mcft_size = TXGBE_MC_TBL_SIZE;
+	wx->mac.vft_size = TXGBE_VFT_TBL_SIZE;
+	wx->mac.rx_pb_size = TXGBE_RX_PB_SIZE;
+	wx->mac.tx_pb_size = TXGBE_TDB_PB_SZ;
 
 	/* PCI config space info */
 	err = wx_sw_init(wx);
@@ -318,6 +398,7 @@ static int txgbe_sw_init(struct wx *wx)
 	wx->configure_fdir = txgbe_configure_fdir;
 
 	set_bit(WX_FLAG_RSC_CAPABLE, wx->flags);
+	set_bit(WX_FLAG_MULTI_64_FUNC, wx->flags);
 
 	/* enable itr by default in dynamic mode */
 	wx->rx_itr_setting = 1;
@@ -340,6 +421,7 @@ static int txgbe_sw_init(struct wx *wx)
 	case wx_mac_sp:
 		break;
 	case wx_mac_aml:
+	case wx_mac_aml40:
 		set_bit(WX_FLAG_SWFW_RING, wx->flags);
 		wx->swfw_index = 0;
 		break;
@@ -735,9 +817,11 @@ static int txgbe_probe(struct pci_dev *pdev,
 	eth_hw_addr_set(netdev, wx->mac.perm_addr);
 	wx_mac_set_default_filter(wx, wx->mac.perm_addr);
 
+	txgbe_init_service(wx);
+
 	err = wx_init_interrupt_scheme(wx);
 	if (err)
-		goto err_free_mac_table;
+		goto err_cancel_service;
 
 	/* Save off EEPROM version number and Option Rom version which
 	 * together make a unique identify for the eeprom
@@ -779,6 +863,13 @@ static int txgbe_probe(struct pci_dev *pdev,
 
 	if (etrack_id < 0x20010)
 		dev_warn(&pdev->dev, "Please upgrade the firmware to 0x20010 or above.\n");
+
+	err = txgbe_test_hostif(wx);
+	if (err != 0) {
+		dev_err(&pdev->dev, "Mismatched Firmware version\n");
+		err = -EIO;
+		goto err_release_hw;
+	}
 
 	txgbe = devm_kzalloc(&pdev->dev, sizeof(*txgbe), GFP_KERNEL);
 	if (!txgbe) {
@@ -830,6 +921,9 @@ err_free_misc_irq:
 err_release_hw:
 	wx_clear_interrupt_scheme(wx);
 	wx_control_hw(wx, false);
+err_cancel_service:
+	timer_delete_sync(&wx->service_timer);
+	cancel_work_sync(&wx->service_task);
 err_free_mac_table:
 	kfree(wx->rss_key);
 	kfree(wx->mac_table);
@@ -855,6 +949,8 @@ static void txgbe_remove(struct pci_dev *pdev)
 	struct wx *wx = pci_get_drvdata(pdev);
 	struct txgbe *txgbe = wx->priv;
 	struct net_device *netdev;
+
+	cancel_work_sync(&wx->service_task);
 
 	netdev = wx->netdev;
 	wx_disable_sriov(wx);

@@ -15,12 +15,14 @@
 #define WX_INCVAL_100         0xA00000
 #define WX_INCVAL_10          0xC7F380
 #define WX_INCVAL_EM          0x2000000
+#define WX_INCVAL_AML         0xA00000
 
 #define WX_INCVAL_SHIFT_10GB  20
 #define WX_INCVAL_SHIFT_1GB   18
 #define WX_INCVAL_SHIFT_100   15
 #define WX_INCVAL_SHIFT_10    12
 #define WX_INCVAL_SHIFT_EM    22
+#define WX_INCVAL_SHIFT_AML   21
 
 #define WX_OVERFLOW_PERIOD    (HZ * 30)
 #define WX_PTP_TX_TIMEOUT     (HZ)
@@ -504,15 +506,27 @@ static long wx_ptp_create_clock(struct wx *wx)
 	wx->ptp_caps.gettimex64 = wx_ptp_gettimex64;
 	wx->ptp_caps.settime64 = wx_ptp_settime64;
 	wx->ptp_caps.do_aux_work = wx_ptp_do_aux_work;
-	if (wx->mac.type == wx_mac_em) {
+	switch (wx->mac.type) {
+	case wx_mac_aml:
+	case wx_mac_aml40:
+		wx->ptp_caps.max_adj = 250000000;
+		wx->ptp_caps.n_per_out = 1;
+		wx->ptp_setup_sdp = wx_ptp_setup_sdp;
+		wx->ptp_caps.enable = wx_ptp_feature_enable;
+		break;
+	case wx_mac_sp:
+		wx->ptp_caps.max_adj = 250000000;
+		wx->ptp_caps.n_per_out = 0;
+		wx->ptp_setup_sdp = NULL;
+		break;
+	case wx_mac_em:
 		wx->ptp_caps.max_adj = 500000000;
 		wx->ptp_caps.n_per_out = 1;
 		wx->ptp_setup_sdp = wx_ptp_setup_sdp;
 		wx->ptp_caps.enable = wx_ptp_feature_enable;
-	} else {
-		wx->ptp_caps.max_adj = 250000000;
-		wx->ptp_caps.n_per_out = 0;
-		wx->ptp_setup_sdp = NULL;
+		break;
+	default:
+		return -EOPNOTSUPP;
 	}
 
 	wx->ptp_clock = ptp_clock_register(&wx->ptp_caps, &wx->pdev->dev);
@@ -647,10 +661,18 @@ static u64 wx_ptp_read(const struct cyclecounter *hw_cc)
 
 static void wx_ptp_link_speed_adjust(struct wx *wx, u32 *shift, u32 *incval)
 {
-	if (wx->mac.type == wx_mac_em) {
+	switch (wx->mac.type) {
+	case wx_mac_aml:
+	case wx_mac_aml40:
+		*shift = WX_INCVAL_SHIFT_AML;
+		*incval = WX_INCVAL_AML;
+		return;
+	case wx_mac_em:
 		*shift = WX_INCVAL_SHIFT_EM;
 		*incval = WX_INCVAL_EM;
 		return;
+	default:
+		break;
 	}
 
 	switch (wx->speed) {
