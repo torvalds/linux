@@ -9,7 +9,7 @@
 #define IXGBE_IPSEC_KEY_BITS  160
 static const char aes_gcm_name[] = "rfc4106(gcm(aes))";
 
-static void ixgbe_ipsec_del_sa(struct xfrm_state *xs);
+static void ixgbe_ipsec_del_sa(struct net_device *dev, struct xfrm_state *xs);
 
 /**
  * ixgbe_ipsec_set_tx_sa - set the Tx SA registers
@@ -321,7 +321,7 @@ void ixgbe_ipsec_restore(struct ixgbe_adapter *adapter)
 
 		if (r->used) {
 			if (r->mode & IXGBE_RXTXMOD_VF)
-				ixgbe_ipsec_del_sa(r->xs);
+				ixgbe_ipsec_del_sa(adapter->netdev, r->xs);
 			else
 				ixgbe_ipsec_set_rx_sa(hw, i, r->xs->id.spi,
 						      r->key, r->salt,
@@ -330,7 +330,7 @@ void ixgbe_ipsec_restore(struct ixgbe_adapter *adapter)
 
 		if (t->used) {
 			if (t->mode & IXGBE_RXTXMOD_VF)
-				ixgbe_ipsec_del_sa(t->xs);
+				ixgbe_ipsec_del_sa(adapter->netdev, t->xs);
 			else
 				ixgbe_ipsec_set_tx_sa(hw, i, t->key, t->salt);
 		}
@@ -417,6 +417,7 @@ static struct xfrm_state *ixgbe_ipsec_find_rx_state(struct ixgbe_ipsec *ipsec,
 
 /**
  * ixgbe_ipsec_parse_proto_keys - find the key and salt based on the protocol
+ * @dev: pointer to net device
  * @xs: pointer to xfrm_state struct
  * @mykey: pointer to key array to populate
  * @mysalt: pointer to salt value to populate
@@ -424,10 +425,10 @@ static struct xfrm_state *ixgbe_ipsec_find_rx_state(struct ixgbe_ipsec *ipsec,
  * This copies the protocol keys and salt to our own data tables.  The
  * 82599 family only supports the one algorithm.
  **/
-static int ixgbe_ipsec_parse_proto_keys(struct xfrm_state *xs,
+static int ixgbe_ipsec_parse_proto_keys(struct net_device *dev,
+					struct xfrm_state *xs,
 					u32 *mykey, u32 *mysalt)
 {
-	struct net_device *dev = xs->xso.real_dev;
 	unsigned char *key_data;
 	char *alg_name = NULL;
 	int key_len;
@@ -473,11 +474,12 @@ static int ixgbe_ipsec_parse_proto_keys(struct xfrm_state *xs,
 
 /**
  * ixgbe_ipsec_check_mgmt_ip - make sure there is no clash with mgmt IP filters
+ * @dev: pointer to net device
  * @xs: pointer to transformer state struct
  **/
-static int ixgbe_ipsec_check_mgmt_ip(struct xfrm_state *xs)
+static int ixgbe_ipsec_check_mgmt_ip(struct net_device *dev,
+				     struct xfrm_state *xs)
 {
-	struct net_device *dev = xs->xso.real_dev;
 	struct ixgbe_adapter *adapter = ixgbe_from_netdev(dev);
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 mfval, manc, reg;
@@ -556,13 +558,14 @@ static int ixgbe_ipsec_check_mgmt_ip(struct xfrm_state *xs)
 
 /**
  * ixgbe_ipsec_add_sa - program device with a security association
+ * @dev: pointer to device to program
  * @xs: pointer to transformer state struct
  * @extack: extack point to fill failure reason
  **/
-static int ixgbe_ipsec_add_sa(struct xfrm_state *xs,
+static int ixgbe_ipsec_add_sa(struct net_device *dev,
+			      struct xfrm_state *xs,
 			      struct netlink_ext_ack *extack)
 {
-	struct net_device *dev = xs->xso.real_dev;
 	struct ixgbe_adapter *adapter = ixgbe_from_netdev(dev);
 	struct ixgbe_ipsec *ipsec = adapter->ipsec;
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -581,7 +584,7 @@ static int ixgbe_ipsec_add_sa(struct xfrm_state *xs,
 		return -EINVAL;
 	}
 
-	if (ixgbe_ipsec_check_mgmt_ip(xs)) {
+	if (ixgbe_ipsec_check_mgmt_ip(dev, xs)) {
 		NL_SET_ERR_MSG_MOD(extack, "IPsec IP addr clash with mgmt filters");
 		return -EINVAL;
 	}
@@ -615,7 +618,7 @@ static int ixgbe_ipsec_add_sa(struct xfrm_state *xs,
 			rsa.decrypt = xs->ealg || xs->aead;
 
 		/* get the key and salt */
-		ret = ixgbe_ipsec_parse_proto_keys(xs, rsa.key, &rsa.salt);
+		ret = ixgbe_ipsec_parse_proto_keys(dev, xs, rsa.key, &rsa.salt);
 		if (ret) {
 			NL_SET_ERR_MSG_MOD(extack, "Failed to get key data for Rx SA table");
 			return ret;
@@ -724,7 +727,7 @@ static int ixgbe_ipsec_add_sa(struct xfrm_state *xs,
 		if (xs->id.proto & IPPROTO_ESP)
 			tsa.encrypt = xs->ealg || xs->aead;
 
-		ret = ixgbe_ipsec_parse_proto_keys(xs, tsa.key, &tsa.salt);
+		ret = ixgbe_ipsec_parse_proto_keys(dev, xs, tsa.key, &tsa.salt);
 		if (ret) {
 			NL_SET_ERR_MSG_MOD(extack, "Failed to get key data for Tx SA table");
 			memset(&tsa, 0, sizeof(tsa));
@@ -752,11 +755,11 @@ static int ixgbe_ipsec_add_sa(struct xfrm_state *xs,
 
 /**
  * ixgbe_ipsec_del_sa - clear out this specific SA
+ * @dev: pointer to device to program
  * @xs: pointer to transformer state struct
  **/
-static void ixgbe_ipsec_del_sa(struct xfrm_state *xs)
+static void ixgbe_ipsec_del_sa(struct net_device *dev, struct xfrm_state *xs)
 {
-	struct net_device *dev = xs->xso.real_dev;
 	struct ixgbe_adapter *adapter = ixgbe_from_netdev(dev);
 	struct ixgbe_ipsec *ipsec = adapter->ipsec;
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -841,7 +844,8 @@ void ixgbe_ipsec_vf_clear(struct ixgbe_adapter *adapter, u32 vf)
 			continue;
 		if (ipsec->rx_tbl[i].mode & IXGBE_RXTXMOD_VF &&
 		    ipsec->rx_tbl[i].vf == vf)
-			ixgbe_ipsec_del_sa(ipsec->rx_tbl[i].xs);
+			ixgbe_ipsec_del_sa(adapter->netdev,
+					   ipsec->rx_tbl[i].xs);
 	}
 
 	/* search tx sa table */
@@ -850,7 +854,8 @@ void ixgbe_ipsec_vf_clear(struct ixgbe_adapter *adapter, u32 vf)
 			continue;
 		if (ipsec->tx_tbl[i].mode & IXGBE_RXTXMOD_VF &&
 		    ipsec->tx_tbl[i].vf == vf)
-			ixgbe_ipsec_del_sa(ipsec->tx_tbl[i].xs);
+			ixgbe_ipsec_del_sa(adapter->netdev,
+					   ipsec->tx_tbl[i].xs);
 	}
 }
 
@@ -930,7 +935,7 @@ int ixgbe_ipsec_vf_add_sa(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 	memcpy(xs->aead->alg_name, aes_gcm_name, sizeof(aes_gcm_name));
 
 	/* set up the HW offload */
-	err = ixgbe_ipsec_add_sa(xs, NULL);
+	err = ixgbe_ipsec_add_sa(adapter->netdev, xs, NULL);
 	if (err)
 		goto err_aead;
 
@@ -1034,7 +1039,7 @@ int ixgbe_ipsec_vf_del_sa(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 		xs = ipsec->tx_tbl[sa_idx].xs;
 	}
 
-	ixgbe_ipsec_del_sa(xs);
+	ixgbe_ipsec_del_sa(adapter->netdev, xs);
 
 	/* remove the xs that was made-up in the add request */
 	kfree_sensitive(xs);
