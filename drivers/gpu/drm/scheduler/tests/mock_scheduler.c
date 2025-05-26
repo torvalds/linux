@@ -117,7 +117,8 @@ drm_mock_sched_job_new(struct kunit *test,
 	ret = drm_sched_job_init(&job->base,
 				 &entity->base,
 				 1,
-				 NULL);
+				 NULL,
+				 1);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	job->test = test;
