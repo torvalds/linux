@@ -1362,6 +1362,11 @@ static void gfx_v12_1_xcc_init_compute_vmid(struct amdgpu_device *adev,
 		data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regSPI_GDBG_PER_VMID_CNTL);
 		data = REG_SET_FIELD(data, SPI_GDBG_PER_VMID_CNTL, TRAP_EN, 1);
 		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regSPI_GDBG_PER_VMID_CNTL, data);
+
+		/* Disable VGPR deallocation instruction for each KFD vmid. */
+		data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regSQ_DEBUG);
+		data = REG_SET_FIELD(data, SQ_DEBUG, DISABLE_VGPR_DEALLOC, 1);
+		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regSQ_DEBUG, data);
 	}
 	soc_v1_0_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, xcc_id));
 	mutex_unlock(&adev->srbm_mutex);
