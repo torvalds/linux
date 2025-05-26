@@ -690,41 +690,6 @@ EXPORT_SYMBOL(drm_gem_vram_plane_helper_cleanup_fb);
  */
 
 /**
- * drm_gem_vram_object_pin() - Implements &struct drm_gem_object_funcs.pin
- * @gem:	The GEM object to pin
- *
- * Returns:
- * 0 on success, or
- * a negative errno code otherwise.
- */
-static int drm_gem_vram_object_pin(struct drm_gem_object *gem)
-{
-	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
-
-	/*
-	 * Fbdev console emulation is the use case of these PRIME
-	 * helpers. This may involve updating a hardware buffer from
-	 * a shadow FB. We pin the buffer to it's current location
-	 * (either video RAM or system memory) to prevent it from
-	 * being relocated during the update operation. If you require
-	 * the buffer to be pinned to VRAM, implement a callback that
-	 * sets the flags accordingly.
-	 */
-	return drm_gem_vram_pin_locked(gbo, 0);
-}
-
-/**
- * drm_gem_vram_object_unpin() - Implements &struct drm_gem_object_funcs.unpin
- * @gem:	The GEM object to unpin
- */
-static void drm_gem_vram_object_unpin(struct drm_gem_object *gem)
-{
-	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
-
-	drm_gem_vram_unpin_locked(gbo);
-}
-
-/**
  * drm_gem_vram_object_vmap() -
  *	Implements &struct drm_gem_object_funcs.vmap
  * @gem: The GEM object to map
@@ -762,8 +727,6 @@ static void drm_gem_vram_object_vunmap(struct drm_gem_object *gem,
 
 static const struct drm_gem_object_funcs drm_gem_vram_object_funcs = {
 	.free	= drm_gem_vram_object_free,
-	.pin	= drm_gem_vram_object_pin,
-	.unpin	= drm_gem_vram_object_unpin,
 	.vmap	= drm_gem_vram_object_vmap,
 	.vunmap	= drm_gem_vram_object_vunmap,
 	.mmap   = drm_gem_ttm_mmap,
