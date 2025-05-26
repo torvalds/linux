@@ -124,7 +124,7 @@ SYM_FUNC_START(__hyp_do_panic)
 	/* Ensure host stage-2 is disabled */
 	mrs	x0, hcr_el2
 	bic	x0, x0, #HCR_VM
-	msr	hcr_el2, x0
+	msr_hcr_el2 x0
 	isb
 	tlbi	vmalls12e1
 	dsb	nsh

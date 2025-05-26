@@ -97,7 +97,7 @@ SYM_CODE_START_LOCAL(__finalise_el2)
 2:
 	// Engage the VHE magic!
 	mov_q	x0, HCR_HOST_VHE_FLAGS
-	msr	hcr_el2, x0
+	msr_hcr_el2 x0
 	isb
 
 	// Use the EL1 allocated stack, per-cpu offset
