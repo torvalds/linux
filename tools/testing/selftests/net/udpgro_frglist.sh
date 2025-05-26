@@ -3,7 +3,7 @@
 #
 # Run a series of udpgro benchmarks
 
-source net_helper.sh
+source lib.sh
 
 readonly PEER_NS="ns-peer-$(mktemp -u XXXXXX)"
 

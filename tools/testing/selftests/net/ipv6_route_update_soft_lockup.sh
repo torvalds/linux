@@ -69,7 +69,6 @@
 # which can affect the conditions needed to trigger a soft lockup.
 
 source lib.sh
-source net_helper.sh
 
 TEST_DURATION=300
 ROUTING_TABLE_REFRESH_PERIOD=0.01
