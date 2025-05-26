@@ -5,6 +5,7 @@
  */
 #include <linux/of.h>
 #include <linux/of_net.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/tcp.h>
 #include <linux/u64_stats_sync.h>
@@ -68,15 +69,6 @@ static void airoha_qdma_irq_disable(struct airoha_irq_bank *irq_bank,
 				    int index, u32 mask)
 {
 	airoha_qdma_set_irqmask(irq_bank, index, mask, 0);
-}
-
-static bool airhoa_is_lan_gdm_port(struct airoha_gdm_port *port)
-{
-	/* GDM1 port on EN7581 SoC is connected to the lan dsa switch.
-	 * GDM{2,3,4} can be used as wan port connected to an external
-	 * phy module.
-	 */
-	return port->id == 1;
 }
 
 static void airoha_set_macaddr(struct airoha_gdm_port *port, const u8 *addr)
@@ -1072,23 +1064,45 @@ static void airoha_qdma_cleanup_tx_queue(struct airoha_queue *q)
 static int airoha_qdma_init_hfwd_queues(struct airoha_qdma *qdma)
 {
 	struct airoha_eth *eth = qdma->eth;
+	int id = qdma - &eth->qdma[0];
 	dma_addr_t dma_addr;
+	const char *name;
+	int size, index;
 	u32 status;
-	int size;
 
 	size = HW_DSCP_NUM * sizeof(struct airoha_qdma_fwd_desc);
-	qdma->hfwd.desc = dmam_alloc_coherent(eth->dev, size, &dma_addr,
-					      GFP_KERNEL);
-	if (!qdma->hfwd.desc)
+	if (!dmam_alloc_coherent(eth->dev, size, &dma_addr, GFP_KERNEL))
 		return -ENOMEM;
 
 	airoha_qdma_wr(qdma, REG_FWD_DSCP_BASE, dma_addr);
 
-	size = AIROHA_MAX_PACKET_SIZE * HW_DSCP_NUM;
-	qdma->hfwd.q = dmam_alloc_coherent(eth->dev, size, &dma_addr,
-					   GFP_KERNEL);
-	if (!qdma->hfwd.q)
+	name = devm_kasprintf(eth->dev, GFP_KERNEL, "qdma%d-buf", id);
+	if (!name)
 		return -ENOMEM;
+
+	index = of_property_match_string(eth->dev->of_node,
+					 "memory-region-names", name);
+	if (index >= 0) {
+		struct reserved_mem *rmem;
+		struct device_node *np;
+
+		/* Consume reserved memory for hw forwarding buffers queue if
+		 * available in the DTS
+		 */
+		np = of_parse_phandle(eth->dev->of_node, "memory-region",
+				      index);
+		if (!np)
+			return -ENODEV;
+
+		rmem = of_reserved_mem_lookup(np);
+		of_node_put(np);
+		dma_addr = rmem->base;
+	} else {
+		size = AIROHA_MAX_PACKET_SIZE * HW_DSCP_NUM;
+		if (!dmam_alloc_coherent(eth->dev, size, &dma_addr,
+					 GFP_KERNEL))
+			return -ENOMEM;
+	}
 
 	airoha_qdma_wr(qdma, REG_FWD_BUF_BASE, dma_addr);
 
@@ -1101,7 +1115,7 @@ static int airoha_qdma_init_hfwd_queues(struct airoha_qdma *qdma)
 			LMGR_INIT_START | LMGR_SRAM_MODE_MASK |
 			HW_FWD_DESC_NUM_MASK,
 			FIELD_PREP(HW_FWD_DESC_NUM_MASK, HW_DSCP_NUM) |
-			LMGR_INIT_START);
+			LMGR_INIT_START | LMGR_SRAM_MODE_MASK);
 
 	return read_poll_timeout(airoha_qdma_rr, status,
 				 !(status & LMGR_INIT_START), USEC_PER_MSEC,

@@ -251,6 +251,12 @@ static int airoha_ppe_foe_entry_prepare(struct airoha_eth *eth,
 		else
 			pse_port = 2; /* uplink relies on GDM2 loopback */
 		val |= FIELD_PREP(AIROHA_FOE_IB2_PSE_PORT, pse_port);
+
+		/* For downlink traffic consume SRAM memory for hw forwarding
+		 * descriptors queue.
+		 */
+		if (airhoa_is_lan_gdm_port(port))
+			val |= AIROHA_FOE_IB2_FAST_PATH;
 	}
 
 	if (is_multicast_ether_addr(data->eth.h_dest))
