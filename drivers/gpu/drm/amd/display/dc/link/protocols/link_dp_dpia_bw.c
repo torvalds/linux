@@ -304,14 +304,16 @@ bool link_dpia_enable_usb4_dp_bw_alloc_mode(struct dc_link *link)
 			link->dpia_bw_alloc_config.bw_alloc_enabled = true;
 			ret = true;
 
-			/*
-			 * During DP tunnel creation, CM preallocates BW and reduces estimated BW of other
-			 * DPIA. CM release preallocation only when allocation is complete. Do zero alloc
-			 * to make the CM to release preallocation and update estimated BW correctly for
-			 * all DPIAs per host router
-			 */
-			// TODO: Zero allocation can be removed once the MSFT CM fix has been released
-			link_dp_dpia_allocate_usb4_bandwidth_for_stream(link, 0);
+			if (link->dc->debug.dpia_debug.bits.enable_usb4_bw_zero_alloc_patch) {
+				/*
+				 * During DP tunnel creation, the CM preallocates BW
+				 * and reduces the estimated BW of other DPIAs.
+				 * The CM releases the preallocation only when the allocation is complete.
+				 * Perform a zero allocation to make the CM release the preallocation
+				 * and correctly update the estimated BW for all DPIAs per host router.
+				 */
+				link_dp_dpia_allocate_usb4_bandwidth_for_stream(link, 0);
+			}
 		} else
 			DC_LOG_DEBUG("%s:  link[%d] failed to enable DPTX BW allocation mode", __func__, link->link_index);
 	}
