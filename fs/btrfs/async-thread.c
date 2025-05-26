@@ -219,8 +219,7 @@ static void run_ordered_work(struct btrfs_workqueue *wq,
 		spin_lock_irqsave(lock, flags);
 		if (list_empty(list))
 			break;
-		work = list_entry(list->next, struct btrfs_work,
-				  ordered_list);
+		work = list_first_entry(list, struct btrfs_work, ordered_list);
 		if (!test_bit(WORK_DONE_BIT, &work->flags))
 			break;
 		/*
