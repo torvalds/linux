@@ -36,7 +36,6 @@ DECLARE_EVENT_CLASS(drm_sched_job,
 	    TP_PROTO(struct drm_sched_job *sched_job, struct drm_sched_entity *entity),
 	    TP_ARGS(sched_job, entity),
 	    TP_STRUCT__entry(
-			     __field(uint64_t, id)
 			     __string(name, sched_job->sched->name)
 			     __field(u32, job_count)
 			     __field(int, hw_job_count)
@@ -47,7 +46,6 @@ DECLARE_EVENT_CLASS(drm_sched_job,
 			     ),
 
 	    TP_fast_assign(
-			   __entry->id = sched_job->id;
 			   __assign_str(name);
 			   __entry->job_count = spsc_queue_count(&entity->job_queue);
 			   __entry->hw_job_count = atomic_read(
@@ -57,8 +55,8 @@ DECLARE_EVENT_CLASS(drm_sched_job,
 			   __entry->fence_seqno = sched_job->s_fence->finished.seqno;
 			   __entry->client_id = sched_job->s_fence->drm_client_id;
 			   ),
-	    TP_printk("dev=%s, id=%llu, fence=%llu:%llu, ring=%s, job count:%u, hw job count:%d, client_id:%llu",
-		      __get_str(dev), __entry->id,
+	    TP_printk("dev=%s, fence=%llu:%llu, ring=%s, job count:%u, hw job count:%d, client_id:%llu",
+		      __get_str(dev),
 		      __entry->fence_context, __entry->fence_seqno, __get_str(name),
 		      __entry->job_count, __entry->hw_job_count, __entry->client_id)
 );
@@ -95,7 +93,6 @@ TRACE_EVENT(drm_sched_job_add_dep,
 	TP_STRUCT__entry(
 		    __field(u64, fence_context)
 		    __field(u64, fence_seqno)
-		    __field(u64, id)
 		    __field(u64, ctx)
 		    __field(u64, seqno)
 		    ),
@@ -103,12 +100,11 @@ TRACE_EVENT(drm_sched_job_add_dep,
 	TP_fast_assign(
 		    __entry->fence_context = sched_job->s_fence->finished.context;
 		    __entry->fence_seqno = sched_job->s_fence->finished.seqno;
-		    __entry->id = sched_job->id;
 		    __entry->ctx = fence->context;
 		    __entry->seqno = fence->seqno;
 		    ),
-	TP_printk("fence=%llu:%llu, id=%llu depends on fence=%llu:%llu",
-		  __entry->fence_context, __entry->fence_seqno, __entry->id,
+	TP_printk("fence=%llu:%llu depends on fence=%llu:%llu",
+		  __entry->fence_context, __entry->fence_seqno,
 		  __entry->ctx, __entry->seqno)
 );
 
@@ -118,7 +114,6 @@ TRACE_EVENT(drm_sched_job_unschedulable,
 	    TP_STRUCT__entry(
 			     __field(u64, fence_context)
 			     __field(u64, fence_seqno)
-			     __field(uint64_t, id)
 			     __field(u64, ctx)
 			     __field(u64, seqno)
 			     ),
@@ -126,12 +121,11 @@ TRACE_EVENT(drm_sched_job_unschedulable,
 	    TP_fast_assign(
 			   __entry->fence_context = sched_job->s_fence->finished.context;
 			   __entry->fence_seqno = sched_job->s_fence->finished.seqno;
-			   __entry->id = sched_job->id;
 			   __entry->ctx = fence->context;
 			   __entry->seqno = fence->seqno;
 			   ),
-	    TP_printk("fence=%llu:%llu, id=%llu depends on unsignalled fence=%llu:%llu",
-		      __entry->fence_context, __entry->fence_seqno, __entry->id,
+	    TP_printk("fence=%llu:%llu depends on unsignalled fence=%llu:%llu",
+		      __entry->fence_context, __entry->fence_seqno,
 		      __entry->ctx, __entry->seqno)
 );
 

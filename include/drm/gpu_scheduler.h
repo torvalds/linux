@@ -326,7 +326,6 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
  * @finish_cb: the callback for the finished fence.
  * @credits: the number of credits this job contributes to the scheduler
  * @work: Helper to reschedule job kill to different context.
- * @id: a unique id assigned to each job scheduled on the scheduler.
  * @karma: increment on every hang caused by this job. If this exceeds the hang
  *         limit of the scheduler then the job is marked guilty and will not
  *         be scheduled further.
@@ -339,8 +338,6 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
  * to schedule the job.
  */
 struct drm_sched_job {
-	u64				id;
-
 	/**
 	 * @submit_ts:
 	 *
