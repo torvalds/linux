@@ -516,7 +516,7 @@ static u8 intel_dp_get_su_capability(struct intel_dp *intel_dp)
 
 	if (intel_dp->psr.sink_panel_replay_su_support)
 		drm_dp_dpcd_readb(&intel_dp->aux,
-				  DP_PANEL_PANEL_REPLAY_CAPABILITY,
+				  DP_PANEL_REPLAY_CAP_CAPABILITY,
 				  &su_capability);
 	else
 		su_capability = intel_dp->psr_dpcd[1];
@@ -528,7 +528,7 @@ static unsigned int
 intel_dp_get_su_x_granularity_offset(struct intel_dp *intel_dp)
 {
 	return intel_dp->psr.sink_panel_replay_su_support ?
-		DP_PANEL_PANEL_REPLAY_X_GRANULARITY :
+		DP_PANEL_REPLAY_CAP_X_GRANULARITY :
 		DP_PSR2_SU_X_GRANULARITY;
 }
 
@@ -536,7 +536,7 @@ static unsigned int
 intel_dp_get_su_y_granularity_offset(struct intel_dp *intel_dp)
 {
 	return intel_dp->psr.sink_panel_replay_su_support ?
-		DP_PANEL_PANEL_REPLAY_Y_GRANULARITY :
+		DP_PANEL_REPLAY_CAP_Y_GRANULARITY :
 		DP_PSR2_SU_Y_GRANULARITY;
 }
 
@@ -676,7 +676,7 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 {
 	drm_dp_dpcd_read(&intel_dp->aux, DP_PSR_SUPPORT, intel_dp->psr_dpcd,
 			 sizeof(intel_dp->psr_dpcd));
-	drm_dp_dpcd_readb(&intel_dp->aux, DP_PANEL_REPLAY_CAP,
+	drm_dp_dpcd_readb(&intel_dp->aux, DP_PANEL_REPLAY_CAP_SUPPORT,
 			  &intel_dp->pr_dpcd);
 
 	if (intel_dp->pr_dpcd & DP_PANEL_REPLAY_SUPPORT)
