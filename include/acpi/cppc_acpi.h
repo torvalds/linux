@@ -139,7 +139,6 @@ struct cppc_perf_fb_ctrs {
 
 /* Per CPU container for runtime CPPC management. */
 struct cppc_cpudata {
-	struct list_head node;
 	struct cppc_perf_caps perf_caps;
 	struct cppc_perf_ctrls perf_ctrls;
 	struct cppc_perf_fb_ctrs perf_fb_ctrs;
