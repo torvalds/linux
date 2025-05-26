@@ -222,7 +222,7 @@ int vfs_parse_monolithic_sep(struct fs_context *fc, void *data,
 			char *value = strchr(key, '=');
 
 			if (value) {
-				if (value == key)
+				if (unlikely(value == key))
 					continue;
 				*value++ = 0;
 				v_len = strlen(value);
@@ -447,6 +447,10 @@ void logfc(struct fc_log *log, const char *prefix, char level, const char *fmt, 
 			break;
 		case 'e':
 			printk(KERN_ERR "%s%s%pV\n", prefix ? prefix : "",
+						prefix ? ": " : "", &vaf);
+			break;
+		case 'i':
+			printk(KERN_INFO "%s%s%pV\n", prefix ? prefix : "",
 						prefix ? ": " : "", &vaf);
 			break;
 		default:

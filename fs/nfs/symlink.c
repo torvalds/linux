@@ -40,31 +40,31 @@ static const char *nfs_get_link(struct dentry *dentry,
 				struct inode *inode,
 				struct delayed_call *done)
 {
-	struct page *page;
+	struct folio *folio;
 	void *err;
 
 	if (!dentry) {
 		err = ERR_PTR(nfs_revalidate_mapping_rcu(inode));
 		if (err)
 			return err;
-		page = find_get_page(inode->i_mapping, 0);
-		if (!page)
+		folio = filemap_get_folio(inode->i_mapping, 0);
+		if (IS_ERR(folio))
 			return ERR_PTR(-ECHILD);
-		if (!PageUptodate(page)) {
-			put_page(page);
+		if (!folio_test_uptodate(folio)) {
+			folio_put(folio);
 			return ERR_PTR(-ECHILD);
 		}
 	} else {
 		err = ERR_PTR(nfs_revalidate_mapping(inode, inode->i_mapping));
 		if (err)
 			return err;
-		page = read_cache_page(&inode->i_data, 0, nfs_symlink_filler,
+		folio = read_cache_folio(&inode->i_data, 0, nfs_symlink_filler,
 				NULL);
-		if (IS_ERR(page))
-			return ERR_CAST(page);
+		if (IS_ERR(folio))
+			return ERR_CAST(folio);
 	}
-	set_delayed_call(done, page_put_link, page);
-	return page_address(page);
+	set_delayed_call(done, page_put_link, folio);
+	return folio_address(folio);
 }
 
 /*

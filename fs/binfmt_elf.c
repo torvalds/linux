@@ -68,12 +68,6 @@
 
 static int load_elf_binary(struct linux_binprm *bprm);
 
-#ifdef CONFIG_USELIB
-static int load_elf_library(struct file *);
-#else
-#define load_elf_library NULL
-#endif
-
 /*
  * If we don't support core dumping, then supply a NULL so we
  * don't even try.
@@ -101,7 +95,6 @@ static int elf_core_dump(struct coredump_params *cprm);
 static struct linux_binfmt elf_format = {
 	.module		= THIS_MODULE,
 	.load_binary	= load_elf_binary,
-	.load_shlib	= load_elf_library,
 #ifdef CONFIG_COREDUMP
 	.core_dump	= elf_core_dump,
 	.min_coredump	= ELF_EXEC_PAGESIZE,
@@ -1383,75 +1376,6 @@ out_free_ph:
 	kfree(elf_phdata);
 	goto out;
 }
-
-#ifdef CONFIG_USELIB
-/* This is really simpleminded and specialized - we are loading an
-   a.out library that is given an ELF header. */
-static int load_elf_library(struct file *file)
-{
-	struct elf_phdr *elf_phdata;
-	struct elf_phdr *eppnt;
-	int retval, error, i, j;
-	struct elfhdr elf_ex;
-
-	error = -ENOEXEC;
-	retval = elf_read(file, &elf_ex, sizeof(elf_ex), 0);
-	if (retval < 0)
-		goto out;
-
-	if (memcmp(elf_ex.e_ident, ELFMAG, SELFMAG) != 0)
-		goto out;
-
-	/* First of all, some simple consistency checks */
-	if (elf_ex.e_type != ET_EXEC || elf_ex.e_phnum > 2 ||
-	    !elf_check_arch(&elf_ex) || !file->f_op->mmap)
-		goto out;
-	if (elf_check_fdpic(&elf_ex))
-		goto out;
-
-	/* Now read in all of the header information */
-
-	j = sizeof(struct elf_phdr) * elf_ex.e_phnum;
-	/* j < ELF_MIN_ALIGN because elf_ex.e_phnum <= 2 */
-
-	error = -ENOMEM;
-	elf_phdata = kmalloc(j, GFP_KERNEL);
-	if (!elf_phdata)
-		goto out;
-
-	eppnt = elf_phdata;
-	error = -ENOEXEC;
-	retval = elf_read(file, eppnt, j, elf_ex.e_phoff);
-	if (retval < 0)
-		goto out_free_ph;
-
-	for (j = 0, i = 0; i<elf_ex.e_phnum; i++)
-		if ((eppnt + i)->p_type == PT_LOAD)
-			j++;
-	if (j != 1)
-		goto out_free_ph;
-
-	while (eppnt->p_type != PT_LOAD)
-		eppnt++;
-
-	/* Now use mmap to map the library into memory. */
-	error = elf_load(file, ELF_PAGESTART(eppnt->p_vaddr),
-			eppnt,
-			PROT_READ | PROT_WRITE | PROT_EXEC,
-			MAP_FIXED_NOREPLACE | MAP_PRIVATE,
-			0);
-
-	if (error != ELF_PAGESTART(eppnt->p_vaddr))
-		goto out_free_ph;
-
-	error = 0;
-
-out_free_ph:
-	kfree(elf_phdata);
-out:
-	return error;
-}
-#endif /* #ifdef CONFIG_USELIB */
 
 #ifdef CONFIG_ELF_CORE
 /*

@@ -571,14 +571,14 @@ int inode_permission(struct mnt_idmap *idmap,
 	int retval;
 
 	retval = sb_permission(inode->i_sb, inode, mask);
-	if (retval)
+	if (unlikely(retval))
 		return retval;
 
 	if (unlikely(mask & MAY_WRITE)) {
 		/*
 		 * Nobody gets write access to an immutable file.
 		 */
-		if (IS_IMMUTABLE(inode))
+		if (unlikely(IS_IMMUTABLE(inode)))
 			return -EPERM;
 
 		/*
@@ -586,16 +586,16 @@ int inode_permission(struct mnt_idmap *idmap,
 		 * written back improperly if their true value is unknown
 		 * to the vfs.
 		 */
-		if (HAS_UNMAPPED_ID(idmap, inode))
+		if (unlikely(HAS_UNMAPPED_ID(idmap, inode)))
 			return -EACCES;
 	}
 
 	retval = do_inode_permission(idmap, inode, mask);
-	if (retval)
+	if (unlikely(retval))
 		return retval;
 
 	retval = devcgroup_inode_permission(inode, mask);
-	if (retval)
+	if (unlikely(retval))
 		return retval;
 
 	return security_inode_permission(inode, mask);
@@ -1915,13 +1915,13 @@ static const char *pick_link(struct nameidata *nd, struct path *link,
 			unlikely(link->mnt->mnt_flags & MNT_NOSYMFOLLOW))
 		return ERR_PTR(-ELOOP);
 
-	if (!(nd->flags & LOOKUP_RCU)) {
+	if (unlikely(atime_needs_update(&last->link, inode))) {
+		if (nd->flags & LOOKUP_RCU) {
+			if (!try_to_unlazy(nd))
+				return ERR_PTR(-ECHILD);
+		}
 		touch_atime(&last->link);
 		cond_resched();
-	} else if (atime_needs_update(&last->link, inode)) {
-		if (!try_to_unlazy(nd))
-			return ERR_PTR(-ECHILD);
-		touch_atime(&last->link);
 	}
 
 	error = security_inode_follow_link(link->dentry, inode,
@@ -2434,9 +2434,12 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 	nd->flags |= LOOKUP_PARENT;
 	if (IS_ERR(name))
 		return PTR_ERR(name);
-	while (*name=='/')
-		name++;
-	if (!*name) {
+	if (*name == '/') {
+		do {
+			name++;
+		} while (unlikely(*name == '/'));
+	}
+	if (unlikely(!*name)) {
 		nd->dir_mode = 0; // short-circuit the 'hardening' idiocy
 		return 0;
 	}
@@ -2449,7 +2452,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 
 		idmap = mnt_idmap(nd->path.mnt);
 		err = may_lookup(idmap, nd);
-		if (err)
+		if (unlikely(err))
 			return err;
 
 		nd->last.name = name;
@@ -5407,25 +5410,25 @@ EXPORT_SYMBOL(vfs_get_link);
 static char *__page_get_link(struct dentry *dentry, struct inode *inode,
 			     struct delayed_call *callback)
 {
-	struct page *page;
+	struct folio *folio;
 	struct address_space *mapping = inode->i_mapping;
 
 	if (!dentry) {
-		page = find_get_page(mapping, 0);
-		if (!page)
+		folio = filemap_get_folio(mapping, 0);
+		if (IS_ERR(folio))
 			return ERR_PTR(-ECHILD);
-		if (!PageUptodate(page)) {
-			put_page(page);
+		if (!folio_test_uptodate(folio)) {
+			folio_put(folio);
 			return ERR_PTR(-ECHILD);
 		}
 	} else {
-		page = read_mapping_page(mapping, 0, NULL);
-		if (IS_ERR(page))
-			return (char*)page;
+		folio = read_mapping_folio(mapping, 0, NULL);
+		if (IS_ERR(folio))
+			return ERR_CAST(folio);
 	}
-	set_delayed_call(callback, page_put_link, page);
+	set_delayed_call(callback, page_put_link, folio);
 	BUG_ON(mapping_gfp_mask(mapping) & __GFP_HIGHMEM);
-	return page_address(page);
+	return folio_address(folio);
 }
 
 const char *page_get_link_raw(struct dentry *dentry, struct inode *inode,
@@ -5435,6 +5438,17 @@ const char *page_get_link_raw(struct dentry *dentry, struct inode *inode,
 }
 EXPORT_SYMBOL_GPL(page_get_link_raw);
 
+/**
+ * page_get_link() - An implementation of the get_link inode_operation.
+ * @dentry: The directory entry which is the symlink.
+ * @inode: The inode for the symlink.
+ * @callback: Used to drop the reference to the symlink.
+ *
+ * Filesystems which store their symlinks in the page cache should use
+ * this to implement the get_link() member of their inode_operations.
+ *
+ * Return: A pointer to the NUL-terminated symlink.
+ */
 const char *page_get_link(struct dentry *dentry, struct inode *inode,
 					struct delayed_call *callback)
 {
@@ -5444,12 +5458,25 @@ const char *page_get_link(struct dentry *dentry, struct inode *inode,
 		nd_terminate_link(kaddr, inode->i_size, PAGE_SIZE - 1);
 	return kaddr;
 }
-
 EXPORT_SYMBOL(page_get_link);
 
+/**
+ * page_put_link() - Drop the reference to the symlink.
+ * @arg: The folio which contains the symlink.
+ *
+ * This is used internally by page_get_link().  It is exported for use
+ * by filesystems which need to implement a variant of page_get_link()
+ * themselves.  Despite the apparent symmetry, filesystems which use
+ * page_get_link() do not need to call page_put_link().
+ *
+ * The argument, while it has a void pointer type, must be a pointer to
+ * the folio which was retrieved from the page cache.  The delayed_call
+ * infrastructure is used to drop the reference count once the caller
+ * is done with the symlink.
+ */
 void page_put_link(void *arg)
 {
-	put_page(arg);
+	folio_put(arg);
 }
 EXPORT_SYMBOL(page_put_link);
 

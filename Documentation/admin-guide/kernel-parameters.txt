@@ -6268,7 +6268,7 @@
 			port and the regular usb controller gets disabled.
 
 	root=		[KNL] Root filesystem
-			Usually this a a block device specifier of some kind,
+			Usually this is a block device specifier of some kind,
 			see the early_lookup_bdev comment in
 			block/early-lookup.c for details.
 			Alternatively this can be "ram" for the legacy initial

@@ -569,36 +569,14 @@ static struct vfsmount *pidfs_mnt __ro_after_init;
 static int pidfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 			 struct iattr *attr)
 {
-	return -EOPNOTSUPP;
+	return anon_inode_setattr(idmap, dentry, attr);
 }
 
-
-/*
- * User space expects pidfs inodes to have no file type in st_mode.
- *
- * In particular, 'lsof' has this legacy logic:
- *
- *	type = s->st_mode & S_IFMT;
- *	switch (type) {
- *	  ...
- *	case 0:
- *		if (!strcmp(p, "anon_inode"))
- *			Lf->ntype = Ntype = N_ANON_INODE;
- *
- * to detect our old anon_inode logic.
- *
- * Rather than mess with our internal sane inode data, just fix it
- * up here in getattr() by masking off the format bits.
- */
 static int pidfs_getattr(struct mnt_idmap *idmap, const struct path *path,
 			 struct kstat *stat, u32 request_mask,
 			 unsigned int query_flags)
 {
-	struct inode *inode = d_inode(path->dentry);
-
-	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
-	stat->mode &= ~S_IFMT;
-	return 0;
+	return anon_inode_getattr(idmap, path, stat, request_mask, query_flags);
 }
 
 static const struct inode_operations pidfs_inode_operations = {
@@ -826,7 +804,7 @@ static int pidfs_init_inode(struct inode *inode, void *data)
 	const struct pid *pid = data;
 
 	inode->i_private = data;
-	inode->i_flags |= S_PRIVATE;
+	inode->i_flags |= S_PRIVATE | S_ANON_INODE;
 	inode->i_mode |= S_IRWXU;
 	inode->i_op = &pidfs_inode_operations;
 	inode->i_fop = &pidfs_file_operations;

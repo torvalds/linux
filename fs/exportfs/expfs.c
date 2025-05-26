@@ -284,6 +284,7 @@ static int get_name(const struct path *path, char *name, struct dentry *child)
 	};
 	struct getdents_callback buffer = {
 		.ctx.actor = filldir_one,
+		.ctx.count = INT_MAX,
 		.name = name,
 	};
 
