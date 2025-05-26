@@ -641,7 +641,7 @@ static bool xe_pm_suspending_or_resuming(struct xe_device *xe)
 
 	return dev->power.runtime_status == RPM_SUSPENDING ||
 		dev->power.runtime_status == RPM_RESUMING ||
-		pm_suspend_target_state != PM_SUSPEND_ON;
+		pm_suspend_in_progress();
 #else
 	return false;
 #endif

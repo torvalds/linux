@@ -1828,6 +1828,13 @@
 				lz4: Select LZ4 compression algorithm to
 				compress/decompress hibernation image.
 
+	hibernate.pm_test_delay=
+			[HIBERNATION]
+			Sets the number of seconds to remain in a hibernation test
+			mode before resuming the system (see
+			/sys/power/pm_test). Only available when CONFIG_PM_DEBUG
+			is set. Default value is 5.
+
 	highmem=nn[KMG]	[KNL,BOOT,EARLY] forces the highmem zone to have an exact
 			size of <nn>. This works even on boxes that have no
 			highmem otherwise. This also works to reduce highmem
