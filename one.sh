@@ -40,7 +40,7 @@ echo "CONFIG_CPUSETS_V1=y" >> arch/x86/configs/my_defconfig
 make my_defconfig
 
 
-make -j$(nproc)
+LOCALVERSION= make -j$(nproc)
 
 make modules -j$(nproc)
 make bindeb-pkg -j$(nproc)
