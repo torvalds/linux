@@ -10,7 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/dca.h>
 
-#include <asm/cpuid.h>
+#include <asm/cpuid/api.h>
 
 /* either a kernel change is needed, or we need something like this in kernel */
 #ifndef CONFIG_SMP

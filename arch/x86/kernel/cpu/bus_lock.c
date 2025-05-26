@@ -10,6 +10,7 @@
 #include <asm/cmdline.h>
 #include <asm/traps.h>
 #include <asm/cpu.h>
+#include <asm/msr.h>
 
 enum split_lock_detect_state {
 	sld_off = 0,
@@ -95,15 +96,15 @@ static bool split_lock_verify_msr(bool on)
 {
 	u64 ctrl, tmp;
 
-	if (rdmsrl_safe(MSR_TEST_CTRL, &ctrl))
+	if (rdmsrq_safe(MSR_TEST_CTRL, &ctrl))
 		return false;
 	if (on)
 		ctrl |= MSR_TEST_CTRL_SPLIT_LOCK_DETECT;
 	else
 		ctrl &= ~MSR_TEST_CTRL_SPLIT_LOCK_DETECT;
-	if (wrmsrl_safe(MSR_TEST_CTRL, ctrl))
+	if (wrmsrq_safe(MSR_TEST_CTRL, ctrl))
 		return false;
-	rdmsrl(MSR_TEST_CTRL, tmp);
+	rdmsrq(MSR_TEST_CTRL, tmp);
 	return ctrl == tmp;
 }
 
@@ -137,7 +138,7 @@ static void __init __split_lock_setup(void)
 		return;
 	}
 
-	rdmsrl(MSR_TEST_CTRL, msr_test_ctrl_cache);
+	rdmsrq(MSR_TEST_CTRL, msr_test_ctrl_cache);
 
 	if (!split_lock_verify_msr(true)) {
 		pr_info("MSR access failed: Disabled\n");
@@ -145,7 +146,7 @@ static void __init __split_lock_setup(void)
 	}
 
 	/* Restore the MSR to its cached value. */
-	wrmsrl(MSR_TEST_CTRL, msr_test_ctrl_cache);
+	wrmsrq(MSR_TEST_CTRL, msr_test_ctrl_cache);
 
 	setup_force_cpu_cap(X86_FEATURE_SPLIT_LOCK_DETECT);
 }
@@ -162,7 +163,7 @@ static void sld_update_msr(bool on)
 	if (on)
 		test_ctrl_val |= MSR_TEST_CTRL_SPLIT_LOCK_DETECT;
 
-	wrmsrl(MSR_TEST_CTRL, test_ctrl_val);
+	wrmsrq(MSR_TEST_CTRL, test_ctrl_val);
 }
 
 void split_lock_init(void)
@@ -297,7 +298,7 @@ void bus_lock_init(void)
 	if (!boot_cpu_has(X86_FEATURE_BUS_LOCK_DETECT))
 		return;
 
-	rdmsrl(MSR_IA32_DEBUGCTLMSR, val);
+	rdmsrq(MSR_IA32_DEBUGCTLMSR, val);
 
 	if ((boot_cpu_has(X86_FEATURE_SPLIT_LOCK_DETECT) &&
 	    (sld_state == sld_warn || sld_state == sld_fatal)) ||
@@ -311,7 +312,7 @@ void bus_lock_init(void)
 		val |= DEBUGCTLMSR_BUS_LOCK_DETECT;
 	}
 
-	wrmsrl(MSR_IA32_DEBUGCTLMSR, val);
+	wrmsrq(MSR_IA32_DEBUGCTLMSR, val);
 }
 
 bool handle_user_split_lock(struct pt_regs *regs, long error_code)
@@ -375,7 +376,7 @@ static void __init split_lock_setup(struct cpuinfo_x86 *c)
 	 * MSR_IA32_CORE_CAPS_SPLIT_LOCK_DETECT is.  All CPUs that set
 	 * it have split lock detection.
 	 */
-	rdmsrl(MSR_IA32_CORE_CAPS, ia32_core_caps);
+	rdmsrq(MSR_IA32_CORE_CAPS, ia32_core_caps);
 	if (ia32_core_caps & MSR_IA32_CORE_CAPS_SPLIT_LOCK_DETECT)
 		goto supported;
 

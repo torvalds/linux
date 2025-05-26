@@ -1486,7 +1486,7 @@ static void __init delay_with_tsc(void)
 	 * 1 GHz == 40 jiffies
 	 */
 	do {
-		rep_nop();
+		native_pause();
 		now = rdtsc();
 	} while ((now - start) < 40000000000ULL / HZ &&	time_before_eq(jiffies, end));
 }

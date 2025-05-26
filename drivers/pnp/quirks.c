@@ -290,7 +290,7 @@ static void quirk_system_pci_resources(struct pnp_dev *dev)
 
 #ifdef CONFIG_AMD_NB
 
-#include <asm/amd_nb.h>
+#include <asm/amd/nb.h>
 
 static void quirk_amd_mmconfig_area(struct pnp_dev *dev)
 {

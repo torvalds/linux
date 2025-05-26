@@ -14,76 +14,23 @@
 #ifndef __BOOT_COMPRESSED
 #define error(v)			pr_err(v)
 #define has_cpuflag(f)			boot_cpu_has(f)
-#define sev_printk(fmt, ...)		printk(fmt, ##__VA_ARGS__)
-#define sev_printk_rtl(fmt, ...)	printk_ratelimited(fmt, ##__VA_ARGS__)
 #else
 #undef WARN
 #define WARN(condition, format...) (!!(condition))
-#define sev_printk(fmt, ...)
-#define sev_printk_rtl(fmt, ...)
 #undef vc_forward_exception
 #define vc_forward_exception(c)		panic("SNP: Hypervisor requested exception\n")
 #endif
 
 /*
  * SVSM related information:
- *   When running under an SVSM, the VMPL that Linux is executing at must be
- *   non-zero. The VMPL is therefore used to indicate the presence of an SVSM.
- *
  *   During boot, the page tables are set up as identity mapped and later
  *   changed to use kernel virtual addresses. Maintain separate virtual and
  *   physical addresses for the CAA to allow SVSM functions to be used during
  *   early boot, both with identity mapped virtual addresses and proper kernel
  *   virtual addresses.
  */
-u8 snp_vmpl __ro_after_init;
-EXPORT_SYMBOL_GPL(snp_vmpl);
-static struct svsm_ca *boot_svsm_caa __ro_after_init;
-static u64 boot_svsm_caa_pa __ro_after_init;
-
-static struct svsm_ca *svsm_get_caa(void);
-static u64 svsm_get_caa_pa(void);
-static int svsm_perform_call_protocol(struct svsm_call *call);
-
-/* I/O parameters for CPUID-related helpers */
-struct cpuid_leaf {
-	u32 fn;
-	u32 subfn;
-	u32 eax;
-	u32 ebx;
-	u32 ecx;
-	u32 edx;
-};
-
-/*
- * Individual entries of the SNP CPUID table, as defined by the SNP
- * Firmware ABI, Revision 0.9, Section 7.1, Table 14.
- */
-struct snp_cpuid_fn {
-	u32 eax_in;
-	u32 ecx_in;
-	u64 xcr0_in;
-	u64 xss_in;
-	u32 eax;
-	u32 ebx;
-	u32 ecx;
-	u32 edx;
-	u64 __reserved;
-} __packed;
-
-/*
- * SNP CPUID table, as defined by the SNP Firmware ABI, Revision 0.9,
- * Section 8.14.2.6. Also noted there is the SNP firmware-enforced limit
- * of 64 entries per CPUID table.
- */
-#define SNP_CPUID_COUNT_MAX 64
-
-struct snp_cpuid_table {
-	u32 count;
-	u32 __reserved1;
-	u64 __reserved2;
-	struct snp_cpuid_fn fn[SNP_CPUID_COUNT_MAX];
-} __packed;
+struct svsm_ca *boot_svsm_caa __ro_after_init;
+u64 boot_svsm_caa_pa __ro_after_init;
 
 /*
  * Since feature negotiation related variables are set early in the boot
@@ -107,7 +54,7 @@ static u32 cpuid_std_range_max __ro_after_init;
 static u32 cpuid_hyp_range_max __ro_after_init;
 static u32 cpuid_ext_range_max __ro_after_init;
 
-static bool __init sev_es_check_cpu_features(void)
+bool __init sev_es_check_cpu_features(void)
 {
 	if (!has_cpuflag(X86_FEATURE_RDRAND)) {
 		error("RDRAND instruction not supported - no trusted source of randomness available\n");
@@ -117,7 +64,7 @@ static bool __init sev_es_check_cpu_features(void)
 	return true;
 }
 
-static void __head __noreturn
+void __head __noreturn
 sev_es_terminate(unsigned int set, unsigned int reason)
 {
 	u64 val = GHCB_MSR_TERM_REQ;
@@ -136,7 +83,7 @@ sev_es_terminate(unsigned int set, unsigned int reason)
 /*
  * The hypervisor features are available from GHCB version 2 onward.
  */
-static u64 get_hv_features(void)
+u64 get_hv_features(void)
 {
 	u64 val;
 
@@ -153,7 +100,7 @@ static u64 get_hv_features(void)
 	return GHCB_MSR_HV_FT_RESP_VAL(val);
 }
 
-static void snp_register_ghcb_early(unsigned long paddr)
+void snp_register_ghcb_early(unsigned long paddr)
 {
 	unsigned long pfn = paddr >> PAGE_SHIFT;
 	u64 val;
@@ -169,7 +116,7 @@ static void snp_register_ghcb_early(unsigned long paddr)
 		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_REGISTER);
 }
 
-static bool sev_es_negotiate_protocol(void)
+bool sev_es_negotiate_protocol(void)
 {
 	u64 val;
 
@@ -188,39 +135,6 @@ static bool sev_es_negotiate_protocol(void)
 	ghcb_version = min_t(size_t, GHCB_MSR_PROTO_MAX(val), GHCB_PROTOCOL_MAX);
 
 	return true;
-}
-
-static __always_inline void vc_ghcb_invalidate(struct ghcb *ghcb)
-{
-	ghcb->save.sw_exit_code = 0;
-	__builtin_memset(ghcb->save.valid_bitmap, 0, sizeof(ghcb->save.valid_bitmap));
-}
-
-static bool vc_decoding_needed(unsigned long exit_code)
-{
-	/* Exceptions don't require to decode the instruction */
-	return !(exit_code >= SVM_EXIT_EXCP_BASE &&
-		 exit_code <= SVM_EXIT_LAST_EXCP);
-}
-
-static enum es_result vc_init_em_ctxt(struct es_em_ctxt *ctxt,
-				      struct pt_regs *regs,
-				      unsigned long exit_code)
-{
-	enum es_result ret = ES_OK;
-
-	memset(ctxt, 0, sizeof(*ctxt));
-	ctxt->regs = regs;
-
-	if (vc_decoding_needed(exit_code))
-		ret = vc_decode_insn(ctxt);
-
-	return ret;
-}
-
-static void vc_finish_insn(struct es_em_ctxt *ctxt)
-{
-	ctxt->regs->ip += ctxt->insn.length;
 }
 
 static enum es_result verify_exception_info(struct ghcb *ghcb, struct es_em_ctxt *ctxt)
@@ -344,7 +258,7 @@ static int svsm_perform_ghcb_protocol(struct ghcb *ghcb, struct svsm_call *call)
 	 * Fill in protocol and format specifiers. This can be called very early
 	 * in the boot, so use rip-relative references as needed.
 	 */
-	ghcb->protocol_version = RIP_REL_REF(ghcb_version);
+	ghcb->protocol_version = ghcb_version;
 	ghcb->ghcb_usage       = GHCB_DEFAULT_USAGE;
 
 	ghcb_set_sw_exit_code(ghcb, SVM_VMGEXIT_SNP_RUN_VMPL);
@@ -371,10 +285,10 @@ static int svsm_perform_ghcb_protocol(struct ghcb *ghcb, struct svsm_call *call)
 	return svsm_process_result_codes(call);
 }
 
-static enum es_result sev_es_ghcb_hv_call(struct ghcb *ghcb,
-					  struct es_em_ctxt *ctxt,
-					  u64 exit_code, u64 exit_info_1,
-					  u64 exit_info_2)
+enum es_result sev_es_ghcb_hv_call(struct ghcb *ghcb,
+				   struct es_em_ctxt *ctxt,
+				   u64 exit_code, u64 exit_info_1,
+				   u64 exit_info_2)
 {
 	/* Fill in protocol and format specifiers */
 	ghcb->protocol_version = ghcb_version;
@@ -473,9 +387,9 @@ static int sev_cpuid_hv(struct ghcb *ghcb, struct es_em_ctxt *ctxt, struct cpuid
  * while running with the initial identity mapping as well as the
  * switch-over to kernel virtual addresses later.
  */
-static const struct snp_cpuid_table *snp_cpuid_get_table(void)
+const struct snp_cpuid_table *snp_cpuid_get_table(void)
 {
-	return &RIP_REL_REF(cpuid_table_copy);
+	return rip_rel_ptr(&cpuid_table_copy);
 }
 
 /*
@@ -672,7 +586,7 @@ snp_cpuid_postprocess(struct ghcb *ghcb, struct es_em_ctxt *ctxt,
  * Returns -EOPNOTSUPP if feature not enabled. Any other non-zero return value
  * should be treated as fatal by caller.
  */
-static int __head
+int __head
 snp_cpuid(struct ghcb *ghcb, struct es_em_ctxt *ctxt, struct cpuid_leaf *leaf)
 {
 	const struct snp_cpuid_table *cpuid_table = snp_cpuid_get_table();
@@ -701,9 +615,9 @@ snp_cpuid(struct ghcb *ghcb, struct es_em_ctxt *ctxt, struct cpuid_leaf *leaf)
 		leaf->eax = leaf->ebx = leaf->ecx = leaf->edx = 0;
 
 		/* Skip post-processing for out-of-range zero leafs. */
-		if (!(leaf->fn <= RIP_REL_REF(cpuid_std_range_max) ||
-		      (leaf->fn >= 0x40000000 && leaf->fn <= RIP_REL_REF(cpuid_hyp_range_max)) ||
-		      (leaf->fn >= 0x80000000 && leaf->fn <= RIP_REL_REF(cpuid_ext_range_max))))
+		if (!(leaf->fn <= cpuid_std_range_max ||
+		      (leaf->fn >= 0x40000000 && leaf->fn <= cpuid_hyp_range_max) ||
+		      (leaf->fn >= 0x80000000 && leaf->fn <= cpuid_ext_range_max)))
 			return 0;
 	}
 
@@ -782,391 +696,6 @@ fail:
 	sev_es_terminate(SEV_TERM_SET_GEN, GHCB_SEV_ES_GEN_REQ);
 }
 
-static enum es_result vc_insn_string_check(struct es_em_ctxt *ctxt,
-					   unsigned long address,
-					   bool write)
-{
-	if (user_mode(ctxt->regs) && fault_in_kernel_space(address)) {
-		ctxt->fi.vector     = X86_TRAP_PF;
-		ctxt->fi.error_code = X86_PF_USER;
-		ctxt->fi.cr2        = address;
-		if (write)
-			ctxt->fi.error_code |= X86_PF_WRITE;
-
-		return ES_EXCEPTION;
-	}
-
-	return ES_OK;
-}
-
-static enum es_result vc_insn_string_read(struct es_em_ctxt *ctxt,
-					  void *src, char *buf,
-					  unsigned int data_size,
-					  unsigned int count,
-					  bool backwards)
-{
-	int i, b = backwards ? -1 : 1;
-	unsigned long address = (unsigned long)src;
-	enum es_result ret;
-
-	ret = vc_insn_string_check(ctxt, address, false);
-	if (ret != ES_OK)
-		return ret;
-
-	for (i = 0; i < count; i++) {
-		void *s = src + (i * data_size * b);
-		char *d = buf + (i * data_size);
-
-		ret = vc_read_mem(ctxt, s, d, data_size);
-		if (ret != ES_OK)
-			break;
-	}
-
-	return ret;
-}
-
-static enum es_result vc_insn_string_write(struct es_em_ctxt *ctxt,
-					   void *dst, char *buf,
-					   unsigned int data_size,
-					   unsigned int count,
-					   bool backwards)
-{
-	int i, s = backwards ? -1 : 1;
-	unsigned long address = (unsigned long)dst;
-	enum es_result ret;
-
-	ret = vc_insn_string_check(ctxt, address, true);
-	if (ret != ES_OK)
-		return ret;
-
-	for (i = 0; i < count; i++) {
-		void *d = dst + (i * data_size * s);
-		char *b = buf + (i * data_size);
-
-		ret = vc_write_mem(ctxt, d, b, data_size);
-		if (ret != ES_OK)
-			break;
-	}
-
-	return ret;
-}
-
-#define IOIO_TYPE_STR  BIT(2)
-#define IOIO_TYPE_IN   1
-#define IOIO_TYPE_INS  (IOIO_TYPE_IN | IOIO_TYPE_STR)
-#define IOIO_TYPE_OUT  0
-#define IOIO_TYPE_OUTS (IOIO_TYPE_OUT | IOIO_TYPE_STR)
-
-#define IOIO_REP       BIT(3)
-
-#define IOIO_ADDR_64   BIT(9)
-#define IOIO_ADDR_32   BIT(8)
-#define IOIO_ADDR_16   BIT(7)
-
-#define IOIO_DATA_32   BIT(6)
-#define IOIO_DATA_16   BIT(5)
-#define IOIO_DATA_8    BIT(4)
-
-#define IOIO_SEG_ES    (0 << 10)
-#define IOIO_SEG_DS    (3 << 10)
-
-static enum es_result vc_ioio_exitinfo(struct es_em_ctxt *ctxt, u64 *exitinfo)
-{
-	struct insn *insn = &ctxt->insn;
-	size_t size;
-	u64 port;
-
-	*exitinfo = 0;
-
-	switch (insn->opcode.bytes[0]) {
-	/* INS opcodes */
-	case 0x6c:
-	case 0x6d:
-		*exitinfo |= IOIO_TYPE_INS;
-		*exitinfo |= IOIO_SEG_ES;
-		port	   = ctxt->regs->dx & 0xffff;
-		break;
-
-	/* OUTS opcodes */
-	case 0x6e:
-	case 0x6f:
-		*exitinfo |= IOIO_TYPE_OUTS;
-		*exitinfo |= IOIO_SEG_DS;
-		port	   = ctxt->regs->dx & 0xffff;
-		break;
-
-	/* IN immediate opcodes */
-	case 0xe4:
-	case 0xe5:
-		*exitinfo |= IOIO_TYPE_IN;
-		port	   = (u8)insn->immediate.value & 0xffff;
-		break;
-
-	/* OUT immediate opcodes */
-	case 0xe6:
-	case 0xe7:
-		*exitinfo |= IOIO_TYPE_OUT;
-		port	   = (u8)insn->immediate.value & 0xffff;
-		break;
-
-	/* IN register opcodes */
-	case 0xec:
-	case 0xed:
-		*exitinfo |= IOIO_TYPE_IN;
-		port	   = ctxt->regs->dx & 0xffff;
-		break;
-
-	/* OUT register opcodes */
-	case 0xee:
-	case 0xef:
-		*exitinfo |= IOIO_TYPE_OUT;
-		port	   = ctxt->regs->dx & 0xffff;
-		break;
-
-	default:
-		return ES_DECODE_FAILED;
-	}
-
-	*exitinfo |= port << 16;
-
-	switch (insn->opcode.bytes[0]) {
-	case 0x6c:
-	case 0x6e:
-	case 0xe4:
-	case 0xe6:
-	case 0xec:
-	case 0xee:
-		/* Single byte opcodes */
-		*exitinfo |= IOIO_DATA_8;
-		size       = 1;
-		break;
-	default:
-		/* Length determined by instruction parsing */
-		*exitinfo |= (insn->opnd_bytes == 2) ? IOIO_DATA_16
-						     : IOIO_DATA_32;
-		size       = (insn->opnd_bytes == 2) ? 2 : 4;
-	}
-
-	switch (insn->addr_bytes) {
-	case 2:
-		*exitinfo |= IOIO_ADDR_16;
-		break;
-	case 4:
-		*exitinfo |= IOIO_ADDR_32;
-		break;
-	case 8:
-		*exitinfo |= IOIO_ADDR_64;
-		break;
-	}
-
-	if (insn_has_rep_prefix(insn))
-		*exitinfo |= IOIO_REP;
-
-	return vc_ioio_check(ctxt, (u16)port, size);
-}
-
-static enum es_result vc_handle_ioio(struct ghcb *ghcb, struct es_em_ctxt *ctxt)
-{
-	struct pt_regs *regs = ctxt->regs;
-	u64 exit_info_1, exit_info_2;
-	enum es_result ret;
-
-	ret = vc_ioio_exitinfo(ctxt, &exit_info_1);
-	if (ret != ES_OK)
-		return ret;
-
-	if (exit_info_1 & IOIO_TYPE_STR) {
-
-		/* (REP) INS/OUTS */
-
-		bool df = ((regs->flags & X86_EFLAGS_DF) == X86_EFLAGS_DF);
-		unsigned int io_bytes, exit_bytes;
-		unsigned int ghcb_count, op_count;
-		unsigned long es_base;
-		u64 sw_scratch;
-
-		/*
-		 * For the string variants with rep prefix the amount of in/out
-		 * operations per #VC exception is limited so that the kernel
-		 * has a chance to take interrupts and re-schedule while the
-		 * instruction is emulated.
-		 */
-		io_bytes   = (exit_info_1 >> 4) & 0x7;
-		ghcb_count = sizeof(ghcb->shared_buffer) / io_bytes;
-
-		op_count    = (exit_info_1 & IOIO_REP) ? regs->cx : 1;
-		exit_info_2 = min(op_count, ghcb_count);
-		exit_bytes  = exit_info_2 * io_bytes;
-
-		es_base = insn_get_seg_base(ctxt->regs, INAT_SEG_REG_ES);
-
-		/* Read bytes of OUTS into the shared buffer */
-		if (!(exit_info_1 & IOIO_TYPE_IN)) {
-			ret = vc_insn_string_read(ctxt,
-					       (void *)(es_base + regs->si),
-					       ghcb->shared_buffer, io_bytes,
-					       exit_info_2, df);
-			if (ret)
-				return ret;
-		}
-
-		/*
-		 * Issue an VMGEXIT to the HV to consume the bytes from the
-		 * shared buffer or to have it write them into the shared buffer
-		 * depending on the instruction: OUTS or INS.
-		 */
-		sw_scratch = __pa(ghcb) + offsetof(struct ghcb, shared_buffer);
-		ghcb_set_sw_scratch(ghcb, sw_scratch);
-		ret = sev_es_ghcb_hv_call(ghcb, ctxt, SVM_EXIT_IOIO,
-					  exit_info_1, exit_info_2);
-		if (ret != ES_OK)
-			return ret;
-
-		/* Read bytes from shared buffer into the guest's destination. */
-		if (exit_info_1 & IOIO_TYPE_IN) {
-			ret = vc_insn_string_write(ctxt,
-						   (void *)(es_base + regs->di),
-						   ghcb->shared_buffer, io_bytes,
-						   exit_info_2, df);
-			if (ret)
-				return ret;
-
-			if (df)
-				regs->di -= exit_bytes;
-			else
-				regs->di += exit_bytes;
-		} else {
-			if (df)
-				regs->si -= exit_bytes;
-			else
-				regs->si += exit_bytes;
-		}
-
-		if (exit_info_1 & IOIO_REP)
-			regs->cx -= exit_info_2;
-
-		ret = regs->cx ? ES_RETRY : ES_OK;
-
-	} else {
-
-		/* IN/OUT into/from rAX */
-
-		int bits = (exit_info_1 & 0x70) >> 1;
-		u64 rax = 0;
-
-		if (!(exit_info_1 & IOIO_TYPE_IN))
-			rax = lower_bits(regs->ax, bits);
-
-		ghcb_set_rax(ghcb, rax);
-
-		ret = sev_es_ghcb_hv_call(ghcb, ctxt, SVM_EXIT_IOIO, exit_info_1, 0);
-		if (ret != ES_OK)
-			return ret;
-
-		if (exit_info_1 & IOIO_TYPE_IN) {
-			if (!ghcb_rax_is_valid(ghcb))
-				return ES_VMM_ERROR;
-			regs->ax = lower_bits(ghcb->save.rax, bits);
-		}
-	}
-
-	return ret;
-}
-
-static int vc_handle_cpuid_snp(struct ghcb *ghcb, struct es_em_ctxt *ctxt)
-{
-	struct pt_regs *regs = ctxt->regs;
-	struct cpuid_leaf leaf;
-	int ret;
-
-	leaf.fn = regs->ax;
-	leaf.subfn = regs->cx;
-	ret = snp_cpuid(ghcb, ctxt, &leaf);
-	if (!ret) {
-		regs->ax = leaf.eax;
-		regs->bx = leaf.ebx;
-		regs->cx = leaf.ecx;
-		regs->dx = leaf.edx;
-	}
-
-	return ret;
-}
-
-static enum es_result vc_handle_cpuid(struct ghcb *ghcb,
-				      struct es_em_ctxt *ctxt)
-{
-	struct pt_regs *regs = ctxt->regs;
-	u32 cr4 = native_read_cr4();
-	enum es_result ret;
-	int snp_cpuid_ret;
-
-	snp_cpuid_ret = vc_handle_cpuid_snp(ghcb, ctxt);
-	if (!snp_cpuid_ret)
-		return ES_OK;
-	if (snp_cpuid_ret != -EOPNOTSUPP)
-		return ES_VMM_ERROR;
-
-	ghcb_set_rax(ghcb, regs->ax);
-	ghcb_set_rcx(ghcb, regs->cx);
-
-	if (cr4 & X86_CR4_OSXSAVE)
-		/* Safe to read xcr0 */
-		ghcb_set_xcr0(ghcb, xgetbv(XCR_XFEATURE_ENABLED_MASK));
-	else
-		/* xgetbv will cause #GP - use reset value for xcr0 */
-		ghcb_set_xcr0(ghcb, 1);
-
-	ret = sev_es_ghcb_hv_call(ghcb, ctxt, SVM_EXIT_CPUID, 0, 0);
-	if (ret != ES_OK)
-		return ret;
-
-	if (!(ghcb_rax_is_valid(ghcb) &&
-	      ghcb_rbx_is_valid(ghcb) &&
-	      ghcb_rcx_is_valid(ghcb) &&
-	      ghcb_rdx_is_valid(ghcb)))
-		return ES_VMM_ERROR;
-
-	regs->ax = ghcb->save.rax;
-	regs->bx = ghcb->save.rbx;
-	regs->cx = ghcb->save.rcx;
-	regs->dx = ghcb->save.rdx;
-
-	return ES_OK;
-}
-
-static enum es_result vc_handle_rdtsc(struct ghcb *ghcb,
-				      struct es_em_ctxt *ctxt,
-				      unsigned long exit_code)
-{
-	bool rdtscp = (exit_code == SVM_EXIT_RDTSCP);
-	enum es_result ret;
-
-	/*
-	 * The hypervisor should not be intercepting RDTSC/RDTSCP when Secure
-	 * TSC is enabled. A #VC exception will be generated if the RDTSC/RDTSCP
-	 * instructions are being intercepted. If this should occur and Secure
-	 * TSC is enabled, guest execution should be terminated as the guest
-	 * cannot rely on the TSC value provided by the hypervisor.
-	 */
-	if (sev_status & MSR_AMD64_SNP_SECURE_TSC)
-		return ES_VMM_ERROR;
-
-	ret = sev_es_ghcb_hv_call(ghcb, ctxt, exit_code, 0, 0);
-	if (ret != ES_OK)
-		return ret;
-
-	if (!(ghcb_rax_is_valid(ghcb) && ghcb_rdx_is_valid(ghcb) &&
-	     (!rdtscp || ghcb_rcx_is_valid(ghcb))))
-		return ES_VMM_ERROR;
-
-	ctxt->regs->ax = ghcb->save.rax;
-	ctxt->regs->dx = ghcb->save.rdx;
-	if (rdtscp)
-		ctxt->regs->cx = ghcb->save.rcx;
-
-	return ES_OK;
-}
-
 struct cc_setup_data {
 	struct setup_data header;
 	u32 cc_blob_address;
@@ -1224,34 +753,12 @@ static void __head setup_cpuid_table(const struct cc_blob_sev_info *cc_info)
 		const struct snp_cpuid_fn *fn = &cpuid_table->fn[i];
 
 		if (fn->eax_in == 0x0)
-			RIP_REL_REF(cpuid_std_range_max) = fn->eax;
+			cpuid_std_range_max = fn->eax;
 		else if (fn->eax_in == 0x40000000)
-			RIP_REL_REF(cpuid_hyp_range_max) = fn->eax;
+			cpuid_hyp_range_max = fn->eax;
 		else if (fn->eax_in == 0x80000000)
-			RIP_REL_REF(cpuid_ext_range_max) = fn->eax;
+			cpuid_ext_range_max = fn->eax;
 	}
-}
-
-static inline void __pval_terminate(u64 pfn, bool action, unsigned int page_size,
-				    int ret, u64 svsm_ret)
-{
-	WARN(1, "PVALIDATE failure: pfn: 0x%llx, action: %u, size: %u, ret: %d, svsm_ret: 0x%llx\n",
-	     pfn, action, page_size, ret, svsm_ret);
-
-	sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_PVALIDATE);
-}
-
-static void svsm_pval_terminate(struct svsm_pvalidate_call *pc, int ret, u64 svsm_ret)
-{
-	unsigned int page_size;
-	bool action;
-	u64 pfn;
-
-	pfn = pc->entry[pc->cur_index].pfn;
-	action = pc->entry[pc->cur_index].action;
-	page_size = pc->entry[pc->cur_index].page_size;
-
-	__pval_terminate(pfn, action, page_size, ret, svsm_ret);
 }
 
 static void __head svsm_pval_4k_page(unsigned long paddr, bool validate)
@@ -1296,362 +803,13 @@ static void __head pvalidate_4k_page(unsigned long vaddr, unsigned long paddr,
 {
 	int ret;
 
-	/*
-	 * This can be called very early during boot, so use rIP-relative
-	 * references as needed.
-	 */
-	if (RIP_REL_REF(snp_vmpl)) {
+	if (snp_vmpl) {
 		svsm_pval_4k_page(paddr, validate);
 	} else {
 		ret = pvalidate(vaddr, RMP_PG_SIZE_4K, validate);
 		if (ret)
 			sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_PVALIDATE);
 	}
-}
-
-static void pval_pages(struct snp_psc_desc *desc)
-{
-	struct psc_entry *e;
-	unsigned long vaddr;
-	unsigned int size;
-	unsigned int i;
-	bool validate;
-	u64 pfn;
-	int rc;
-
-	for (i = 0; i <= desc->hdr.end_entry; i++) {
-		e = &desc->entries[i];
-
-		pfn = e->gfn;
-		vaddr = (unsigned long)pfn_to_kaddr(pfn);
-		size = e->pagesize ? RMP_PG_SIZE_2M : RMP_PG_SIZE_4K;
-		validate = e->operation == SNP_PAGE_STATE_PRIVATE;
-
-		rc = pvalidate(vaddr, size, validate);
-		if (!rc)
-			continue;
-
-		if (rc == PVALIDATE_FAIL_SIZEMISMATCH && size == RMP_PG_SIZE_2M) {
-			unsigned long vaddr_end = vaddr + PMD_SIZE;
-
-			for (; vaddr < vaddr_end; vaddr += PAGE_SIZE, pfn++) {
-				rc = pvalidate(vaddr, RMP_PG_SIZE_4K, validate);
-				if (rc)
-					__pval_terminate(pfn, validate, RMP_PG_SIZE_4K, rc, 0);
-			}
-		} else {
-			__pval_terminate(pfn, validate, size, rc, 0);
-		}
-	}
-}
-
-static u64 svsm_build_ca_from_pfn_range(u64 pfn, u64 pfn_end, bool action,
-					struct svsm_pvalidate_call *pc)
-{
-	struct svsm_pvalidate_entry *pe;
-
-	/* Nothing in the CA yet */
-	pc->num_entries = 0;
-	pc->cur_index   = 0;
-
-	pe = &pc->entry[0];
-
-	while (pfn < pfn_end) {
-		pe->page_size = RMP_PG_SIZE_4K;
-		pe->action    = action;
-		pe->ignore_cf = 0;
-		pe->pfn       = pfn;
-
-		pe++;
-		pfn++;
-
-		pc->num_entries++;
-		if (pc->num_entries == SVSM_PVALIDATE_MAX_COUNT)
-			break;
-	}
-
-	return pfn;
-}
-
-static int svsm_build_ca_from_psc_desc(struct snp_psc_desc *desc, unsigned int desc_entry,
-				       struct svsm_pvalidate_call *pc)
-{
-	struct svsm_pvalidate_entry *pe;
-	struct psc_entry *e;
-
-	/* Nothing in the CA yet */
-	pc->num_entries = 0;
-	pc->cur_index   = 0;
-
-	pe = &pc->entry[0];
-	e  = &desc->entries[desc_entry];
-
-	while (desc_entry <= desc->hdr.end_entry) {
-		pe->page_size = e->pagesize ? RMP_PG_SIZE_2M : RMP_PG_SIZE_4K;
-		pe->action    = e->operation == SNP_PAGE_STATE_PRIVATE;
-		pe->ignore_cf = 0;
-		pe->pfn       = e->gfn;
-
-		pe++;
-		e++;
-
-		desc_entry++;
-		pc->num_entries++;
-		if (pc->num_entries == SVSM_PVALIDATE_MAX_COUNT)
-			break;
-	}
-
-	return desc_entry;
-}
-
-static void svsm_pval_pages(struct snp_psc_desc *desc)
-{
-	struct svsm_pvalidate_entry pv_4k[VMGEXIT_PSC_MAX_ENTRY];
-	unsigned int i, pv_4k_count = 0;
-	struct svsm_pvalidate_call *pc;
-	struct svsm_call call = {};
-	unsigned long flags;
-	bool action;
-	u64 pc_pa;
-	int ret;
-
-	/*
-	 * This can be called very early in the boot, use native functions in
-	 * order to avoid paravirt issues.
-	 */
-	flags = native_local_irq_save();
-
-	/*
-	 * The SVSM calling area (CA) can support processing 510 entries at a
-	 * time. Loop through the Page State Change descriptor until the CA is
-	 * full or the last entry in the descriptor is reached, at which time
-	 * the SVSM is invoked. This repeats until all entries in the descriptor
-	 * are processed.
-	 */
-	call.caa = svsm_get_caa();
-
-	pc = (struct svsm_pvalidate_call *)call.caa->svsm_buffer;
-	pc_pa = svsm_get_caa_pa() + offsetof(struct svsm_ca, svsm_buffer);
-
-	/* Protocol 0, Call ID 1 */
-	call.rax = SVSM_CORE_CALL(SVSM_CORE_PVALIDATE);
-	call.rcx = pc_pa;
-
-	for (i = 0; i <= desc->hdr.end_entry;) {
-		i = svsm_build_ca_from_psc_desc(desc, i, pc);
-
-		do {
-			ret = svsm_perform_call_protocol(&call);
-			if (!ret)
-				continue;
-
-			/*
-			 * Check if the entry failed because of an RMP mismatch (a
-			 * PVALIDATE at 2M was requested, but the page is mapped in
-			 * the RMP as 4K).
-			 */
-
-			if (call.rax_out == SVSM_PVALIDATE_FAIL_SIZEMISMATCH &&
-			    pc->entry[pc->cur_index].page_size == RMP_PG_SIZE_2M) {
-				/* Save this entry for post-processing at 4K */
-				pv_4k[pv_4k_count++] = pc->entry[pc->cur_index];
-
-				/* Skip to the next one unless at the end of the list */
-				pc->cur_index++;
-				if (pc->cur_index < pc->num_entries)
-					ret = -EAGAIN;
-				else
-					ret = 0;
-			}
-		} while (ret == -EAGAIN);
-
-		if (ret)
-			svsm_pval_terminate(pc, ret, call.rax_out);
-	}
-
-	/* Process any entries that failed to be validated at 2M and validate them at 4K */
-	for (i = 0; i < pv_4k_count; i++) {
-		u64 pfn, pfn_end;
-
-		action  = pv_4k[i].action;
-		pfn     = pv_4k[i].pfn;
-		pfn_end = pfn + 512;
-
-		while (pfn < pfn_end) {
-			pfn = svsm_build_ca_from_pfn_range(pfn, pfn_end, action, pc);
-
-			ret = svsm_perform_call_protocol(&call);
-			if (ret)
-				svsm_pval_terminate(pc, ret, call.rax_out);
-		}
-	}
-
-	native_local_irq_restore(flags);
-}
-
-static void pvalidate_pages(struct snp_psc_desc *desc)
-{
-	if (snp_vmpl)
-		svsm_pval_pages(desc);
-	else
-		pval_pages(desc);
-}
-
-static int vmgexit_psc(struct ghcb *ghcb, struct snp_psc_desc *desc)
-{
-	int cur_entry, end_entry, ret = 0;
-	struct snp_psc_desc *data;
-	struct es_em_ctxt ctxt;
-
-	vc_ghcb_invalidate(ghcb);
-
-	/* Copy the input desc into GHCB shared buffer */
-	data = (struct snp_psc_desc *)ghcb->shared_buffer;
-	memcpy(ghcb->shared_buffer, desc, min_t(int, GHCB_SHARED_BUF_SIZE, sizeof(*desc)));
-
-	/*
-	 * As per the GHCB specification, the hypervisor can resume the guest
-	 * before processing all the entries. Check whether all the entries
-	 * are processed. If not, then keep retrying. Note, the hypervisor
-	 * will update the data memory directly to indicate the status, so
-	 * reference the data->hdr everywhere.
-	 *
-	 * The strategy here is to wait for the hypervisor to change the page
-	 * state in the RMP table before guest accesses the memory pages. If the
-	 * page state change was not successful, then later memory access will
-	 * result in a crash.
-	 */
-	cur_entry = data->hdr.cur_entry;
-	end_entry = data->hdr.end_entry;
-
-	while (data->hdr.cur_entry <= data->hdr.end_entry) {
-		ghcb_set_sw_scratch(ghcb, (u64)__pa(data));
-
-		/* This will advance the shared buffer data points to. */
-		ret = sev_es_ghcb_hv_call(ghcb, &ctxt, SVM_VMGEXIT_PSC, 0, 0);
-
-		/*
-		 * Page State Change VMGEXIT can pass error code through
-		 * exit_info_2.
-		 */
-		if (WARN(ret || ghcb->save.sw_exit_info_2,
-			 "SNP: PSC failed ret=%d exit_info_2=%llx\n",
-			 ret, ghcb->save.sw_exit_info_2)) {
-			ret = 1;
-			goto out;
-		}
-
-		/* Verify that reserved bit is not set */
-		if (WARN(data->hdr.reserved, "Reserved bit is set in the PSC header\n")) {
-			ret = 1;
-			goto out;
-		}
-
-		/*
-		 * Sanity check that entry processing is not going backwards.
-		 * This will happen only if hypervisor is tricking us.
-		 */
-		if (WARN(data->hdr.end_entry > end_entry || cur_entry > data->hdr.cur_entry,
-"SNP: PSC processing going backward, end_entry %d (got %d) cur_entry %d (got %d)\n",
-			 end_entry, data->hdr.end_entry, cur_entry, data->hdr.cur_entry)) {
-			ret = 1;
-			goto out;
-		}
-	}
-
-out:
-	return ret;
-}
-
-static enum es_result vc_check_opcode_bytes(struct es_em_ctxt *ctxt,
-					    unsigned long exit_code)
-{
-	unsigned int opcode = (unsigned int)ctxt->insn.opcode.value;
-	u8 modrm = ctxt->insn.modrm.value;
-
-	switch (exit_code) {
-
-	case SVM_EXIT_IOIO:
-	case SVM_EXIT_NPF:
-		/* handled separately */
-		return ES_OK;
-
-	case SVM_EXIT_CPUID:
-		if (opcode == 0xa20f)
-			return ES_OK;
-		break;
-
-	case SVM_EXIT_INVD:
-		if (opcode == 0x080f)
-			return ES_OK;
-		break;
-
-	case SVM_EXIT_MONITOR:
-		/* MONITOR and MONITORX instructions generate the same error code */
-		if (opcode == 0x010f && (modrm == 0xc8 || modrm == 0xfa))
-			return ES_OK;
-		break;
-
-	case SVM_EXIT_MWAIT:
-		/* MWAIT and MWAITX instructions generate the same error code */
-		if (opcode == 0x010f && (modrm == 0xc9 || modrm == 0xfb))
-			return ES_OK;
-		break;
-
-	case SVM_EXIT_MSR:
-		/* RDMSR */
-		if (opcode == 0x320f ||
-		/* WRMSR */
-		    opcode == 0x300f)
-			return ES_OK;
-		break;
-
-	case SVM_EXIT_RDPMC:
-		if (opcode == 0x330f)
-			return ES_OK;
-		break;
-
-	case SVM_EXIT_RDTSC:
-		if (opcode == 0x310f)
-			return ES_OK;
-		break;
-
-	case SVM_EXIT_RDTSCP:
-		if (opcode == 0x010f && modrm == 0xf9)
-			return ES_OK;
-		break;
-
-	case SVM_EXIT_READ_DR7:
-		if (opcode == 0x210f &&
-		    X86_MODRM_REG(ctxt->insn.modrm.value) == 7)
-			return ES_OK;
-		break;
-
-	case SVM_EXIT_VMMCALL:
-		if (opcode == 0x010f && modrm == 0xd9)
-			return ES_OK;
-
-		break;
-
-	case SVM_EXIT_WRITE_DR7:
-		if (opcode == 0x230f &&
-		    X86_MODRM_REG(ctxt->insn.modrm.value) == 7)
-			return ES_OK;
-		break;
-
-	case SVM_EXIT_WBINVD:
-		if (opcode == 0x90f)
-			return ES_OK;
-		break;
-
-	default:
-		break;
-	}
-
-	sev_printk(KERN_ERR "Wrong/unhandled opcode bytes: 0x%x, exit_code: 0x%lx, rIP: 0x%lx\n",
-		   opcode, exit_code, ctxt->regs->ip);
-
-	return ES_UNSUPPORTED;
 }
 
 /*
@@ -1681,7 +839,7 @@ static bool __head svsm_setup_ca(const struct cc_blob_sev_info *cc_info)
 	 * routine is running identity mapped when called, both by the decompressor
 	 * code and the early kernel code.
 	 */
-	if (!rmpadjust((unsigned long)&RIP_REL_REF(boot_ghcb_page), RMP_PG_SIZE_4K, 1))
+	if (!rmpadjust((unsigned long)rip_rel_ptr(&boot_ghcb_page), RMP_PG_SIZE_4K, 1))
 		return false;
 
 	/*
@@ -1698,7 +856,7 @@ static bool __head svsm_setup_ca(const struct cc_blob_sev_info *cc_info)
 	if (!secrets_page->svsm_guest_vmpl)
 		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_SVSM_VMPL0);
 
-	RIP_REL_REF(snp_vmpl) = secrets_page->svsm_guest_vmpl;
+	snp_vmpl = secrets_page->svsm_guest_vmpl;
 
 	caa = secrets_page->svsm_caa;
 
@@ -1713,8 +871,8 @@ static bool __head svsm_setup_ca(const struct cc_blob_sev_info *cc_info)
 	 * The CA is identity mapped when this routine is called, both by the
 	 * decompressor code and the early kernel code.
 	 */
-	RIP_REL_REF(boot_svsm_caa) = (struct svsm_ca *)caa;
-	RIP_REL_REF(boot_svsm_caa_pa) = caa;
+	boot_svsm_caa = (struct svsm_ca *)caa;
+	boot_svsm_caa_pa = caa;
 
 	/* Advertise the SVSM presence via CPUID. */
 	cpuid_table = (struct snp_cpuid_table *)snp_cpuid_get_table();

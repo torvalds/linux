@@ -83,6 +83,12 @@ struct alt_instr {
 
 extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
 
+extern s32 __retpoline_sites[], __retpoline_sites_end[];
+extern s32 __return_sites[],	__return_sites_end[];
+extern s32 __cfi_sites[],	__cfi_sites_end[];
+extern s32 __ibt_endbr_seal[],	__ibt_endbr_seal_end[];
+extern s32 __smp_locks[],	__smp_locks_end[];
+
 /*
  * Debug flag that can be tested to see whether alternative
  * instructions were patched in already:
@@ -366,11 +372,6 @@ void nop_func(void);
 .macro ALTERNATIVE oldinstr, newinstr, ft_flags
 	__ALTERNATIVE(\oldinstr, \newinstr, \ft_flags)
 .endm
-
-#define old_len			141b-140b
-#define new_len1		144f-143f
-#define new_len2		145f-144f
-#define new_len3		146f-145f
 
 /*
  * Same as ALTERNATIVE macro above but for two alternatives. If CPU

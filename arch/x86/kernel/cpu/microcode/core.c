@@ -37,6 +37,7 @@
 #include <asm/perf_event.h>
 #include <asm/processor.h>
 #include <asm/cmdline.h>
+#include <asm/msr.h>
 #include <asm/setup.h>
 
 #include "internal.h"
@@ -117,7 +118,7 @@ bool __init microcode_loader_disabled(void)
 	 * 3) Certain AMD patch levels are not allowed to be
 	 *    overwritten.
 	 */
-	if (!have_cpuid_p() ||
+	if (!cpuid_feature() ||
 	    native_cpuid_ecx(1) & BIT(31) ||
 	    amd_check_current_patch_level())
 		dis_ucode_ldr = true;
@@ -696,6 +697,8 @@ static int load_late_locked(void)
 		return load_late_stop_cpus(true);
 	case UCODE_NFOUND:
 		return -ENOENT;
+	case UCODE_OK:
+		return 0;
 	default:
 		return -EBADFD;
 	}

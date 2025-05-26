@@ -4,7 +4,7 @@
  * 55898 Rev 0.35 - Feb 5, 2021
  */
 
-#include <asm/msr-index.h>
+#include "../msr-index.h"
 
 /* IBS_OP_DATA2 DataSrc */
 #define IBS_DATA_SRC_LOC_CACHE			 2

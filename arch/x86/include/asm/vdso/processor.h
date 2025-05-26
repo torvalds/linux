@@ -7,15 +7,15 @@
 
 #ifndef __ASSEMBLER__
 
-/* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
-static __always_inline void rep_nop(void)
+/* PAUSE is a good thing to insert into busy-wait loops. */
+static __always_inline void native_pause(void)
 {
-	asm volatile("rep; nop" ::: "memory");
+	asm volatile("pause" ::: "memory");
 }
 
 static __always_inline void cpu_relax(void)
 {
-	rep_nop();
+	native_pause();
 }
 
 struct getcpu_cache;

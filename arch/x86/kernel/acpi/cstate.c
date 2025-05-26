@@ -14,7 +14,7 @@
 
 #include <acpi/processor.h>
 #include <asm/cpu_device_id.h>
-#include <asm/cpuid.h>
+#include <asm/cpuid/api.h>
 #include <asm/mwait.h>
 #include <asm/special_insns.h>
 #include <asm/smp.h>

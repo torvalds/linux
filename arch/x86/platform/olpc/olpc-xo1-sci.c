@@ -325,7 +325,7 @@ static int setup_sci_interrupt(struct platform_device *pdev)
 		dev_info(&pdev->dev, "SCI unmapped. Mapping to IRQ 3\n");
 		sci_irq = 3;
 		lo |= 0x00300000;
-		wrmsrl(0x51400020, lo);
+		wrmsrq(0x51400020, lo);
 	}
 
 	/* Select level triggered in PIC */
