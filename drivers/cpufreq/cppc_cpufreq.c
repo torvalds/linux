@@ -344,7 +344,6 @@ static unsigned int cppc_cpufreq_get_transition_delay_us(unsigned int cpu)
 #if defined(CONFIG_ARM64) && defined(CONFIG_ENERGY_MODEL)
 
 static DEFINE_PER_CPU(unsigned int, efficiency_class);
-static void cppc_cpufreq_register_em(struct cpufreq_policy *policy);
 
 /* Create an artificial performance state every CPPC_EM_CAP_STEP capacity unit. */
 #define CPPC_EM_CAP_STEP	(20)
@@ -480,6 +479,18 @@ static int cppc_get_cpu_cost(struct device *cpu_dev, unsigned long KHz,
 	return 0;
 }
 
+static void cppc_cpufreq_register_em(struct cpufreq_policy *policy)
+{
+	struct cppc_cpudata *cpu_data;
+	struct em_data_callback em_cb =
+		EM_ADV_DATA_CB(cppc_get_cpu_power, cppc_get_cpu_cost);
+
+	cpu_data = policy->driver_data;
+	em_dev_register_perf_domain(get_cpu_device(policy->cpu),
+			get_perf_level_count(policy), &em_cb,
+			cpu_data->shared_cpu_map, 0);
+}
+
 static void populate_efficiency_class(void)
 {
 	struct acpi_madt_generic_interrupt *gicc;
@@ -512,18 +523,6 @@ static void populate_efficiency_class(void)
 		index++;
 	}
 	cppc_cpufreq_driver.register_em = cppc_cpufreq_register_em;
-}
-
-static void cppc_cpufreq_register_em(struct cpufreq_policy *policy)
-{
-	struct cppc_cpudata *cpu_data;
-	struct em_data_callback em_cb =
-		EM_ADV_DATA_CB(cppc_get_cpu_power, cppc_get_cpu_cost);
-
-	cpu_data = policy->driver_data;
-	em_dev_register_perf_domain(get_cpu_device(policy->cpu),
-			get_perf_level_count(policy), &em_cb,
-			cpu_data->shared_cpu_map, 0);
 }
 
 #else
