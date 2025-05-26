@@ -131,6 +131,12 @@ secondary_start_sbi:
 	csrw CSR_IE, zero
 	csrw CSR_IP, zero
 
+#ifndef CONFIG_RISCV_M_MODE
+	/* Enable time CSR */
+	li t0, 0x2
+	csrw CSR_SCOUNTEREN, t0
+#endif
+
 	/* Load the global pointer */
 	load_global_pointer
 
@@ -226,6 +232,10 @@ SYM_CODE_START(_start_kernel)
 	 * to hand it to us.
 	 */
 	csrr a0, CSR_MHARTID
+#else
+	/* Enable time CSR */
+	li t0, 0x2
+	csrw CSR_SCOUNTEREN, t0
 #endif /* CONFIG_RISCV_M_MODE */
 
 	/* Load the global pointer */
