@@ -89,14 +89,14 @@ fail:
 	fprintf(stderr, "Failed to cleanup stackdump test: %s\n", reason);
 }
 
-TEST_F(coredump, stackdump)
+TEST_F_TIMEOUT(coredump, stackdump, 120)
 {
 	struct sigaction action = {};
 	unsigned long long stack;
 	char *test_dir, *line;
 	size_t line_length;
 	char buf[PATH_MAX];
-	int ret, i;
+	int ret, i, status;
 	FILE *file;
 	pid_t pid;
 
@@ -129,6 +129,10 @@ TEST_F(coredump, stackdump)
 	/*
 	 * Step 3: Wait for the stackdump script to write the stack pointers to the stackdump file
 	 */
+	waitpid(pid, &status, 0);
+	ASSERT_TRUE(WIFSIGNALED(status));
+	ASSERT_TRUE(WCOREDUMP(status));
+
 	for (i = 0; i < 10; ++i) {
 		file = fopen(STACKDUMP_FILE, "r");
 		if (file)
@@ -138,10 +142,12 @@ TEST_F(coredump, stackdump)
 	ASSERT_NE(file, NULL);
 
 	/* Step 4: Make sure all stack pointer values are non-zero */
+	line = NULL;
 	for (i = 0; -1 != getline(&line, &line_length, file); ++i) {
 		stack = strtoull(line, NULL, 10);
 		ASSERT_NE(stack, 0);
 	}
+	free(line);
 
 	ASSERT_EQ(i, 1 + NUM_THREAD_SPAWN);
 

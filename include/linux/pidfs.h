@@ -8,5 +8,8 @@ void pidfs_add_pid(struct pid *pid);
 void pidfs_remove_pid(struct pid *pid);
 void pidfs_exit(struct task_struct *tsk);
 extern const struct dentry_operations pidfs_dentry_operations;
+int pidfs_register_pid(struct pid *pid);
+void pidfs_get_pid(struct pid *pid);
+void pidfs_put_pid(struct pid *pid);
 
 #endif /* _LINUX_PID_FS_H */

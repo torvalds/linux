@@ -2037,54 +2037,10 @@ static inline void rcu_copy_process(struct task_struct *p)
 }
 
 /**
- * __pidfd_prepare - allocate a new pidfd_file and reserve a pidfd
- * @pid:   the struct pid for which to create a pidfd
- * @flags: flags of the new @pidfd
- * @ret: Where to return the file for the pidfd.
- *
- * Allocate a new file that stashes @pid and reserve a new pidfd number in the
- * caller's file descriptor table. The pidfd is reserved but not installed yet.
- *
- * The helper doesn't perform checks on @pid which makes it useful for pidfds
- * created via CLONE_PIDFD where @pid has no task attached when the pidfd and
- * pidfd file are prepared.
- *
- * If this function returns successfully the caller is responsible to either
- * call fd_install() passing the returned pidfd and pidfd file as arguments in
- * order to install the pidfd into its file descriptor table or they must use
- * put_unused_fd() and fput() on the returned pidfd and pidfd file
- * respectively.
- *
- * This function is useful when a pidfd must already be reserved but there
- * might still be points of failure afterwards and the caller wants to ensure
- * that no pidfd is leaked into its file descriptor table.
- *
- * Return: On success, a reserved pidfd is returned from the function and a new
- *         pidfd file is returned in the last argument to the function. On
- *         error, a negative error code is returned from the function and the
- *         last argument remains unchanged.
- */
-static int __pidfd_prepare(struct pid *pid, unsigned int flags, struct file **ret)
-{
-	struct file *pidfd_file;
-
-	CLASS(get_unused_fd, pidfd)(O_CLOEXEC);
-	if (pidfd < 0)
-		return pidfd;
-
-	pidfd_file = pidfs_alloc_file(pid, flags | O_RDWR);
-	if (IS_ERR(pidfd_file))
-		return PTR_ERR(pidfd_file);
-
-	*ret = pidfd_file;
-	return take_fd(pidfd);
-}
-
-/**
  * pidfd_prepare - allocate a new pidfd_file and reserve a pidfd
  * @pid:   the struct pid for which to create a pidfd
  * @flags: flags of the new @pidfd
- * @ret: Where to return the pidfd.
+ * @ret_file: return the new pidfs file
  *
  * Allocate a new file that stashes @pid and reserve a new pidfd number in the
  * caller's file descriptor table. The pidfd is reserved but not installed yet.
@@ -2107,14 +2063,48 @@ static int __pidfd_prepare(struct pid *pid, unsigned int flags, struct file **re
  *         error, a negative error code is returned from the function and the
  *         last argument remains unchanged.
  */
-int pidfd_prepare(struct pid *pid, unsigned int flags, struct file **ret)
+int pidfd_prepare(struct pid *pid, unsigned int flags, struct file **ret_file)
 {
-	bool thread = flags & PIDFD_THREAD;
+	struct file *pidfs_file;
 
-	if (!pid || !pid_has_task(pid, thread ? PIDTYPE_PID : PIDTYPE_TGID))
-		return -EINVAL;
+	/*
+	 * PIDFD_STALE is only allowed to be passed if the caller knows
+	 * that @pid is already registered in pidfs and thus
+	 * PIDFD_INFO_EXIT information is guaranteed to be available.
+	 */
+	if (!(flags & PIDFD_STALE)) {
+		/*
+		 * While holding the pidfd waitqueue lock removing the
+		 * task linkage for the thread-group leader pid
+		 * (PIDTYPE_TGID) isn't possible. Thus, if there's still
+		 * task linkage for PIDTYPE_PID not having thread-group
+		 * leader linkage for the pid means it wasn't a
+		 * thread-group leader in the first place.
+		 */
+		guard(spinlock_irq)(&pid->wait_pidfd.lock);
 
-	return __pidfd_prepare(pid, flags, ret);
+		/* Task has already been reaped. */
+		if (!pid_has_task(pid, PIDTYPE_PID))
+			return -ESRCH;
+		/*
+		 * If this struct pid isn't used as a thread-group
+		 * leader but the caller requested to create a
+		 * thread-group leader pidfd then report ENOENT.
+		 */
+		if (!(flags & PIDFD_THREAD) && !pid_has_task(pid, PIDTYPE_TGID))
+			return -ENOENT;
+	}
+
+	CLASS(get_unused_fd, pidfd)(O_CLOEXEC);
+	if (pidfd < 0)
+		return pidfd;
+
+	pidfs_file = pidfs_alloc_file(pid, flags | O_RDWR);
+	if (IS_ERR(pidfs_file))
+		return PTR_ERR(pidfs_file);
+
+	*ret_file = pidfs_file;
+	return take_fd(pidfd);
 }
 
 static void __delayed_free_task(struct rcu_head *rhp)
@@ -2463,7 +2453,7 @@ __latent_entropy struct task_struct *copy_process(
 		 * Note that no task has been attached to @pid yet indicate
 		 * that via CLONE_PIDFD.
 		 */
-		retval = __pidfd_prepare(pid, flags | PIDFD_CLONE, &pidfile);
+		retval = pidfd_prepare(pid, flags | PIDFD_STALE, &pidfile);
 		if (retval < 0)
 			goto bad_fork_free_pid;
 		pidfd = retval;

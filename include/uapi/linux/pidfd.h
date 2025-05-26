@@ -12,7 +12,7 @@
 #define PIDFD_THREAD	O_EXCL
 #ifdef __KERNEL__
 #include <linux/sched.h>
-#define PIDFD_CLONE CLONE_PIDFD
+#define PIDFD_STALE CLONE_PIDFD
 #endif
 
 /* Flags for pidfd_send_signal(). */
