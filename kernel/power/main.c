@@ -962,6 +962,34 @@ power_attr(pm_freeze_timeout);
 
 #endif	/* CONFIG_FREEZER*/
 
+#if defined(CONFIG_SUSPEND) || defined(CONFIG_HIBERNATION)
+bool filesystem_freeze_enabled = false;
+
+static ssize_t freeze_filesystems_show(struct kobject *kobj,
+				       struct kobj_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "%d\n", filesystem_freeze_enabled);
+}
+
+static ssize_t freeze_filesystems_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t n)
+{
+	unsigned long val;
+
+	if (kstrtoul(buf, 10, &val))
+		return -EINVAL;
+
+	if (val > 1)
+		return -EINVAL;
+
+	filesystem_freeze_enabled = !!val;
+	return n;
+}
+
+power_attr(freeze_filesystems);
+#endif /* CONFIG_SUSPEND || CONFIG_HIBERNATION */
+
 static struct attribute * g[] = {
 	&state_attr.attr,
 #ifdef CONFIG_PM_TRACE
@@ -991,6 +1019,9 @@ static struct attribute * g[] = {
 #endif
 #ifdef CONFIG_FREEZER
 	&pm_freeze_timeout_attr.attr,
+#endif
+#if defined(CONFIG_SUSPEND) || defined(CONFIG_HIBERNATION)
+	&freeze_filesystems_attr.attr,
 #endif
 	NULL,
 };
