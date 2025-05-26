@@ -1346,11 +1346,6 @@ static int lan743x_hw_reset_phy(struct lan743x_adapter *adapter)
 				  50000, 1000000);
 }
 
-static int lan743x_phy_init(struct lan743x_adapter *adapter)
-{
-	return lan743x_hw_reset_phy(adapter);
-}
-
 static void lan743x_phy_interface_select(struct lan743x_adapter *adapter)
 {
 	u32 id_rev;
@@ -3534,10 +3529,6 @@ static int lan743x_hardware_init(struct lan743x_adapter *adapter,
 	if (ret)
 		return ret;
 
-	ret = lan743x_phy_init(adapter);
-	if (ret)
-		return ret;
-
 	ret = lan743x_ptp_init(adapter);
 	if (ret)
 		return ret;
@@ -3671,6 +3662,10 @@ static int lan743x_pcidev_probe(struct pci_dev *pdev,
 		goto return_error;
 
 	ret = lan743x_csr_init(adapter);
+	if (ret)
+		goto cleanup_pci;
+
+	ret = lan743x_hw_reset_phy(adapter);
 	if (ret)
 		goto cleanup_pci;
 
