@@ -117,7 +117,7 @@ scm_version()
 		# If only the short version is requested, don't bother
 		# running further git commands
 		if $short; then
-			echo "+"
+			#echo "+"
 			return
 		fi
 
