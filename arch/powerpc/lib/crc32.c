@@ -13,7 +13,7 @@
 
 #define VECTOR_BREAKPOINT	512
 
-static DEFINE_STATIC_KEY_FALSE(have_vec_crypto);
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_vec_crypto);
 
 u32 __crc32c_vpmsum(u32 crc, const u8 *p, size_t len);
 
@@ -72,7 +72,7 @@ static int __init crc32_powerpc_init(void)
 		static_branch_enable(&have_vec_crypto);
 	return 0;
 }
-arch_initcall(crc32_powerpc_init);
+subsys_initcall(crc32_powerpc_init);
 
 static void __exit crc32_powerpc_exit(void)
 {

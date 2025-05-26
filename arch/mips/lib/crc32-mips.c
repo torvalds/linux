@@ -62,7 +62,7 @@ do {							\
 #define CRC32C(crc, value, size) \
 	_CRC32(crc, value, size, crc32c)
 
-static DEFINE_STATIC_KEY_FALSE(have_crc32);
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_crc32);
 
 u32 crc32_le_arch(u32 crc, const u8 *p, size_t len)
 {
@@ -163,7 +163,7 @@ static int __init crc32_mips_init(void)
 		static_branch_enable(&have_crc32);
 	return 0;
 }
-arch_initcall(crc32_mips_init);
+subsys_initcall(crc32_mips_init);
 
 static void __exit crc32_mips_exit(void)
 {

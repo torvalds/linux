@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Glue code for CRC32C optimized for sparc64 crypto opcodes.
+/* CRC32c (Castagnoli), sparc64 crc32c opcode accelerated
  *
  * This is based largely upon arch/x86/crypto/crc32c-intel.c
  *
@@ -17,7 +17,7 @@
 #include <asm/pstate.h>
 #include <asm/elf.h>
 
-static DEFINE_STATIC_KEY_FALSE(have_crc32c_opcode);
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_crc32c_opcode);
 
 u32 crc32_le_arch(u32 crc, const u8 *data, size_t len)
 {
@@ -74,7 +74,7 @@ static int __init crc32_sparc_init(void)
 	pr_info("Using sparc64 crc32c opcode optimized CRC32C implementation\n");
 	return 0;
 }
-arch_initcall(crc32_sparc_init);
+subsys_initcall(crc32_sparc_init);
 
 static void __exit crc32_sparc_exit(void)
 {

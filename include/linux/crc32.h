@@ -1,7 +1,4 @@
-/*
- * crc32.h
- * See linux/lib/crc32.c for license and changes
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _LINUX_CRC32_H
 #define _LINUX_CRC32_H
 

@@ -21,7 +21,7 @@
 
 #define VECTOR_BREAKPOINT	64
 
-static DEFINE_STATIC_KEY_FALSE(have_vec_crypto);
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_vec_crypto);
 
 u32 __crct10dif_vpmsum(u32 crc, unsigned char const *p, size_t len);
 
@@ -71,7 +71,7 @@ static int __init crc_t10dif_powerpc_init(void)
 		static_branch_enable(&have_vec_crypto);
 	return 0;
 }
-arch_initcall(crc_t10dif_powerpc_init);
+subsys_initcall(crc_t10dif_powerpc_init);
 
 static void __exit crc_t10dif_powerpc_exit(void)
 {

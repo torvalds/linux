@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include "crc-pclmul-template.h"
 
-static DEFINE_STATIC_KEY_FALSE(have_pclmulqdq);
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_pclmulqdq);
 
 DECLARE_CRC_PCLMUL_FUNCS(crc64_msb, u64);
 DECLARE_CRC_PCLMUL_FUNCS(crc64_lsb, u64);
@@ -39,7 +39,7 @@ static int __init crc64_x86_init(void)
 	}
 	return 0;
 }
-arch_initcall(crc64_x86_init);
+subsys_initcall(crc64_x86_init);
 
 static void __exit crc64_x86_exit(void)
 {

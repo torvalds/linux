@@ -16,8 +16,8 @@
 #include <asm/neon.h>
 #include <asm/simd.h>
 
-static DEFINE_STATIC_KEY_FALSE(have_neon);
-static DEFINE_STATIC_KEY_FALSE(have_pmull);
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_neon);
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_pmull);
 
 #define CRC_T10DIF_PMULL_CHUNK_SIZE	16U
 
@@ -60,7 +60,7 @@ static int __init crc_t10dif_arm_init(void)
 	}
 	return 0;
 }
-arch_initcall(crc_t10dif_arm_init);
+subsys_initcall(crc_t10dif_arm_init);
 
 static void __exit crc_t10dif_arm_exit(void)
 {

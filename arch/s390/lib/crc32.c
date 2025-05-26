@@ -18,8 +18,6 @@
 #define VX_ALIGNMENT		16L
 #define VX_ALIGN_MASK		(VX_ALIGNMENT - 1)
 
-static DEFINE_STATIC_KEY_FALSE(have_vxrs);
-
 /*
  * DEFINE_CRC32_VX() - Define a CRC-32 function using the vector extension
  *
@@ -34,8 +32,7 @@ static DEFINE_STATIC_KEY_FALSE(have_vxrs);
 		unsigned long prealign, aligned, remaining;		    \
 		DECLARE_KERNEL_FPU_ONSTACK16(vxstate);			    \
 									    \
-		if (datalen < VX_MIN_LEN + VX_ALIGN_MASK ||		    \
-		    !static_branch_likely(&have_vxrs))			    \
+		if (datalen < VX_MIN_LEN + VX_ALIGN_MASK || !cpu_has_vx())  \
 			return ___crc32_sw(crc, data, datalen);		    \
 									    \
 		if ((unsigned long)data & VX_ALIGN_MASK) {		    \
@@ -64,25 +61,13 @@ DEFINE_CRC32_VX(crc32_le_arch, crc32_le_vgfm_16, crc32_le_base)
 DEFINE_CRC32_VX(crc32_be_arch, crc32_be_vgfm_16, crc32_be_base)
 DEFINE_CRC32_VX(crc32c_arch, crc32c_le_vgfm_16, crc32c_base)
 
-static int __init crc32_s390_init(void)
-{
-	if (cpu_have_feature(S390_CPU_FEATURE_VXRS))
-		static_branch_enable(&have_vxrs);
-	return 0;
-}
-arch_initcall(crc32_s390_init);
-
-static void __exit crc32_s390_exit(void)
-{
-}
-module_exit(crc32_s390_exit);
-
 u32 crc32_optimizations(void)
 {
-	if (static_key_enabled(&have_vxrs))
+	if (cpu_has_vx()) {
 		return CRC32_LE_OPTIMIZATION |
 		       CRC32_BE_OPTIMIZATION |
 		       CRC32C_OPTIMIZATION;
+	}
 	return 0;
 }
 EXPORT_SYMBOL(crc32_optimizations);
