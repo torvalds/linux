@@ -120,13 +120,13 @@ ttm_backup_backup_page(struct file *backup, struct page *page,
 			.for_reclaim = 1,
 		};
 		folio_set_reclaim(to_folio);
-		ret = mapping->a_ops->writepage(folio_file_page(to_folio, idx), &wbc);
+		ret = shmem_writeout(to_folio, &wbc);
 		if (!folio_test_writeback(to_folio))
 			folio_clear_reclaim(to_folio);
 		/*
-		 * If writepage succeeds, it unlocks the folio.
-		 * writepage() errors are otherwise dropped, since writepage()
-		 * is only best effort here.
+		 * If writeout succeeds, it unlocks the folio.	errors
+		 * are otherwise dropped, since writeout is only best
+		 * effort here.
 		 */
 		if (ret)
 			folio_unlock(to_folio);

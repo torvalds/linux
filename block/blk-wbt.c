@@ -37,7 +37,7 @@
 enum wbt_flags {
 	WBT_TRACKED		= 1,	/* write, tracked for throttling */
 	WBT_READ		= 2,	/* read */
-	WBT_SWAP		= 4,	/* write, from swap_writepage() */
+	WBT_SWAP		= 4,	/* write, from swap_writeout() */
 	WBT_DISCARD		= 8,	/* discard */
 
 	WBT_NR_BITS		= 4,	/* number of bits */
