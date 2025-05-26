@@ -315,7 +315,9 @@ int __bch2_run_explicit_recovery_pass(struct bch_fs *c,
 		goto out;
 
 	bool in_recovery = test_bit(BCH_FS_in_recovery, &c->flags);
-	bool rewind = in_recovery && r->curr_pass > pass;
+	bool rewind = in_recovery &&
+		r->curr_pass > pass &&
+		!(r->passes_complete & BIT_ULL(pass));
 	bool ratelimit = flags & RUN_RECOVERY_PASS_ratelimit;
 
 	if (!(in_recovery && (flags & RUN_RECOVERY_PASS_nopersistent))) {
