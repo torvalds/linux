@@ -253,6 +253,7 @@ int bch2_alloc_v4_validate(struct bch_fs *, struct bkey_s_c,
 			   struct bkey_validate_context);
 void bch2_alloc_v4_swab(struct bkey_s);
 void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
+void bch2_alloc_v4_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_alloc ((struct bkey_ops) {	\
 	.key_validate	= bch2_alloc_v1_validate,	\
@@ -277,7 +278,7 @@ void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_alloc_v4 ((struct bkey_ops) {	\
 	.key_validate	= bch2_alloc_v4_validate,	\
-	.val_to_text	= bch2_alloc_to_text,		\
+	.val_to_text	= bch2_alloc_v4_to_text,	\
 	.swab		= bch2_alloc_v4_swab,		\
 	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 48,				\
