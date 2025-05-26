@@ -29,15 +29,15 @@
 //!
 //! ## General Examples
 //!
-//! ```rust,ignore
-//! # #![allow(clippy::disallowed_names)]
+//! ```rust
+//! # #![expect(clippy::disallowed_names, clippy::undocumented_unsafe_blocks)]
 //! use kernel::types::Opaque;
 //! use pin_init::pin_init_from_closure;
 //!
 //! // assume we have some `raw_foo` type in C:
 //! #[repr(C)]
 //! struct RawFoo([u8; 16]);
-//! extern {
+//! extern "C" {
 //!     fn init_foo(_: *mut RawFoo);
 //! }
 //!
@@ -66,12 +66,12 @@
 //! });
 //! ```
 //!
-//! ```rust,ignore
-//! # #![allow(unreachable_pub, clippy::disallowed_names)]
+//! ```rust
+//! # #![expect(unreachable_pub, clippy::disallowed_names)]
 //! use kernel::{prelude::*, types::Opaque};
 //! use core::{ptr::addr_of_mut, marker::PhantomPinned, pin::Pin};
 //! # mod bindings {
-//! #     #![allow(non_camel_case_types)]
+//! #     #![expect(non_camel_case_types, clippy::missing_safety_doc)]
 //! #     pub struct foo;
 //! #     pub unsafe fn init_foo(_ptr: *mut foo) {}
 //! #     pub unsafe fn destroy_foo(_ptr: *mut foo) {}
