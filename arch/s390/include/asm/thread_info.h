@@ -9,6 +9,7 @@
 #define _ASM_THREAD_INFO_H
 
 #include <linux/bits.h>
+#include <vdso/page.h>
 
 /*
  * General size of kernel stacks
@@ -24,8 +25,6 @@
 #define STACK_INIT_OFFSET (THREAD_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE)
 
 #ifndef __ASSEMBLY__
-#include <asm/lowcore.h>
-#include <asm/page.h>
 
 /*
  * low level task data that entry.S needs immediate access to
@@ -64,6 +63,7 @@ void arch_setup_new_exec(void);
 #define TIF_NEED_RESCHED_LAZY	3	/* lazy rescheduling needed */
 #define TIF_UPROBE		4	/* breakpointed or single-stepping */
 #define TIF_PATCH_PENDING	5	/* pending live patching update */
+#define TIF_ASCE_PRIMARY	6	/* primary asce is kernel asce */
 #define TIF_NOTIFY_SIGNAL	7	/* signal notifications exist */
 #define TIF_GUARDED_STORAGE	8	/* load guarded storage control block */
 #define TIF_ISOLATE_BP_GUEST	9	/* Run KVM guests with isolated BP */
@@ -85,6 +85,7 @@ void arch_setup_new_exec(void);
 #define _TIF_NEED_RESCHED_LAZY	BIT(TIF_NEED_RESCHED_LAZY)
 #define _TIF_UPROBE		BIT(TIF_UPROBE)
 #define _TIF_PATCH_PENDING	BIT(TIF_PATCH_PENDING)
+#define _TIF_ASCE_PRIMARY	BIT(TIF_ASCE_PRIMARY)
 #define _TIF_NOTIFY_SIGNAL	BIT(TIF_NOTIFY_SIGNAL)
 #define _TIF_GUARDED_STORAGE	BIT(TIF_GUARDED_STORAGE)
 #define _TIF_ISOLATE_BP_GUEST	BIT(TIF_ISOLATE_BP_GUEST)

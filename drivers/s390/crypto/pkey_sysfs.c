@@ -29,13 +29,13 @@ static int sys_pkey_handler_gen_key(u32 keytype, u32 keysubtype,
 	rc = pkey_handler_gen_key(NULL, 0,
 				  keytype, keysubtype,
 				  keybitsize, flags,
-				  keybuf, keybuflen, keyinfo);
+				  keybuf, keybuflen, keyinfo, 0);
 	if (rc == -ENODEV) {
 		pkey_handler_request_modules();
 		rc = pkey_handler_gen_key(NULL, 0,
 					  keytype, keysubtype,
 					  keybitsize, flags,
-					  keybuf, keybuflen, keyinfo);
+					  keybuf, keybuflen, keyinfo, 0);
 	}
 
 	return rc;

@@ -116,7 +116,7 @@ _LPP_OFFSET	= __LC_LPP
 	.macro SIEEXIT sie_control,lowcore
 	lg	%r9,\sie_control			# get control block pointer
 	ni	__SIE_PROG0C+3(%r9),0xfe		# no longer in SIE
-	lctlg	%c1,%c1,__LC_KERNEL_ASCE(\lowcore)	# load primary asce
+	lctlg	%c1,%c1,__LC_USER_ASCE(\lowcore)	# load primary asce
 	lg	%r9,__LC_CURRENT(\lowcore)
 	mvi	__TI_sie(%r9),0
 	larl	%r9,sie_exit			# skip forward to sie_exit
@@ -208,7 +208,7 @@ SYM_FUNC_START(__sie64a)
 	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
 	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
 	GET_LC	%r14
-	lctlg	%c1,%c1,__LC_KERNEL_ASCE(%r14)	# load primary asce
+	lctlg	%c1,%c1,__LC_USER_ASCE(%r14)	# load primary asce
 	lg	%r14,__LC_CURRENT(%r14)
 	mvi	__TI_sie(%r14),0
 SYM_INNER_LABEL(sie_exit, SYM_L_GLOBAL)
@@ -240,7 +240,6 @@ SYM_CODE_START(system_call)
 	lghi	%r14,0
 .Lsysc_per:
 	STBEAR	__LC_LAST_BREAK(%r13)
-	lctlg	%c1,%c1,__LC_KERNEL_ASCE(%r13)
 	lg	%r15,__LC_KERNEL_STACK(%r13)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	stmg	%r0,%r7,STACK_FRAME_OVERHEAD+__PT_R0(%r15)
@@ -261,7 +260,6 @@ SYM_CODE_START(system_call)
 	lgr	%r3,%r14
 	brasl	%r14,__do_syscall
 	STACKLEAK_ERASE
-	lctlg	%c1,%c1,__LC_USER_ASCE(%r13)
 	mvc	__LC_RETURN_PSW(16,%r13),STACK_FRAME_OVERHEAD+__PT_PSW(%r15)
 	BPON
 	LBEAR	STACK_FRAME_OVERHEAD+__PT_LAST_BREAK(%r15)
@@ -278,7 +276,6 @@ SYM_CODE_START(ret_from_fork)
 	brasl	%r14,__ret_from_fork
 	STACKLEAK_ERASE
 	GET_LC	%r13
-	lctlg	%c1,%c1,__LC_USER_ASCE(%r13)
 	mvc	__LC_RETURN_PSW(16,%r13),STACK_FRAME_OVERHEAD+__PT_PSW(%r15)
 	BPON
 	LBEAR	STACK_FRAME_OVERHEAD+__PT_LAST_BREAK(%r15)
@@ -299,10 +296,7 @@ SYM_CODE_START(pgm_check_handler)
 	lmg	%r8,%r9,__LC_PGM_OLD_PSW(%r13)
 	xgr	%r10,%r10
 	tmhh	%r8,0x0001		# coming from user space?
-	jno	.Lpgm_skip_asce
-	lctlg	%c1,%c1,__LC_KERNEL_ASCE(%r13)
-	j	3f			# -> fault in user space
-.Lpgm_skip_asce:
+	jo	3f			# -> fault in user space
 #if IS_ENABLED(CONFIG_KVM)
 	lg	%r11,__LC_CURRENT(%r13)
 	tm	__TI_sie(%r11),0xff
@@ -340,7 +334,6 @@ SYM_CODE_START(pgm_check_handler)
 	tmhh	%r8,0x0001		# returning to user space?
 	jno	.Lpgm_exit_kernel
 	STACKLEAK_ERASE
-	lctlg	%c1,%c1,__LC_USER_ASCE(%r13)
 	BPON
 	stpt	__LC_EXIT_TIMER(%r13)
 .Lpgm_exit_kernel:
@@ -384,8 +377,7 @@ SYM_CODE_START(\name)
 #endif
 0:	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	j	2f
-1:	lctlg	%c1,%c1,__LC_KERNEL_ASCE(%r13)
-	lg	%r15,__LC_KERNEL_STACK(%r13)
+1:	lg	%r15,__LC_KERNEL_STACK(%r13)
 2:	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
@@ -408,7 +400,6 @@ SYM_CODE_START(\name)
 	tmhh	%r8,0x0001		# returning to user ?
 	jno	2f
 	STACKLEAK_ERASE
-	lctlg	%c1,%c1,__LC_USER_ASCE(%r13)
 	BPON
 	stpt	__LC_EXIT_TIMER(%r13)
 2:	LBEAR	__PT_LAST_BREAK(%r11)
@@ -476,8 +467,6 @@ SYM_CODE_START(mcck_int_handler)
 .Lmcck_user:
 	lg	%r15,__LC_MCCK_STACK(%r13)
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
-	stctg	%c1,%c1,__PT_CR1(%r11)
-	lctlg	%c1,%c1,__LC_KERNEL_ASCE(%r13)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	lay	%r14,__LC_GPREGS_SAVE_AREA(%r13)
 	mvc	__PT_R0(128,%r11),0(%r14)
@@ -495,7 +484,6 @@ SYM_CODE_START(mcck_int_handler)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	brasl	%r14,s390_do_machine_check
-	lctlg	%c1,%c1,__PT_CR1(%r11)
 	lmg	%r0,%r10,__PT_R0(%r11)
 	mvc	__LC_RETURN_MCCK_PSW(16,%r13),__PT_PSW(%r11) # move return PSW
 	tm	__LC_RETURN_MCCK_PSW+1(%r13),0x01 # returning to user ?

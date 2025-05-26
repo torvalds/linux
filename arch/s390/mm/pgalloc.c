@@ -38,11 +38,15 @@ void crst_table_free(struct mm_struct *mm, unsigned long *table)
 static void __crst_table_upgrade(void *arg)
 {
 	struct mm_struct *mm = arg;
+	struct ctlreg asce;
 
 	/* change all active ASCEs to avoid the creation of new TLBs */
 	if (current->active_mm == mm) {
-		get_lowcore()->user_asce.val = mm->context.asce;
-		local_ctl_load(7, &get_lowcore()->user_asce);
+		asce.val = mm->context.asce;
+		get_lowcore()->user_asce = asce;
+		local_ctl_load(7, &asce);
+		if (!test_thread_flag(TIF_ASCE_PRIMARY))
+			local_ctl_load(1, &asce);
 	}
 	__tlb_flush_local();
 }
@@ -51,6 +55,8 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 {
 	unsigned long *pgd = NULL, *p4d = NULL, *__pgd;
 	unsigned long asce_limit = mm->context.asce_limit;
+
+	mmap_assert_write_locked(mm);
 
 	/* upgrade should only happen from 3 to 4, 3 to 5, or 4 to 5 levels */
 	VM_BUG_ON(asce_limit < _REGION2_SIZE);
@@ -74,13 +80,6 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 	}
 
 	spin_lock_bh(&mm->page_table_lock);
-
-	/*
-	 * This routine gets called with mmap_lock lock held and there is
-	 * no reason to optimize for the case of otherwise. However, if
-	 * that would ever change, the below check will let us know.
-	 */
-	VM_BUG_ON(asce_limit != mm->context.asce_limit);
 
 	if (p4d) {
 		__pgd = (unsigned long *) mm->pgd;

@@ -263,7 +263,7 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 	abs_lc = get_abs_lowcore();
 	memcpy(lc->cregs_save_area, abs_lc->cregs_save_area, sizeof(lc->cregs_save_area));
 	put_abs_lowcore(abs_lc);
-	lc->cregs_save_area[1] = lc->kernel_asce;
+	lc->cregs_save_area[1] = lc->user_asce;
 	lc->cregs_save_area[7] = lc->user_asce;
 	save_access_regs((unsigned int *) lc->access_regs_save_area);
 	arch_spin_lock_setup(cpu);
