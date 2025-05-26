@@ -114,6 +114,12 @@ struct vma_merge_struct {
 	 */
 	bool just_expand :1;
 
+	/*
+	 * If a merge is possible, but an OOM error occurs, give up and don't
+	 * execute the merge, returning NULL.
+	 */
+	bool give_up_on_oom :1;
+
 	/* Internal flags set during merge process: */
 
 	/*
@@ -255,7 +261,8 @@ __must_check struct vm_area_struct
 		       struct vm_area_struct *vma,
 		       unsigned long start, unsigned long end,
 		       unsigned long new_flags,
-		       struct vm_userfaultfd_ctx new_ctx);
+		       struct vm_userfaultfd_ctx new_ctx,
+		       bool give_up_on_oom);
 
 __must_check struct vm_area_struct
 *vma_merge_new_range(struct vma_merge_struct *vmg);

@@ -58,9 +58,6 @@ module_param(fuzz_iterations, uint, 0644);
 MODULE_PARM_DESC(fuzz_iterations, "number of fuzz test iterations");
 #endif
 
-/* Multibuffer is unlimited.  Set arbitrary limit for testing. */
-#define MAX_MB_MSGS	16
-
 #ifdef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
 
 /* a perfect nop */
@@ -3329,48 +3326,27 @@ static int test_acomp(struct crypto_acomp *tfm,
 		      int ctcount, int dtcount)
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_acomp_tfm(tfm));
-	struct scatterlist *src = NULL, *dst = NULL;
-	struct acomp_req *reqs[MAX_MB_MSGS] = {};
-	char *decomp_out[MAX_MB_MSGS] = {};
-	char *output[MAX_MB_MSGS] = {};
-	struct crypto_wait wait;
-	struct acomp_req *req;
-	int ret = -ENOMEM;
 	unsigned int i;
+	char *output, *decomp_out;
+	int ret;
+	struct scatterlist src, dst;
+	struct acomp_req *req;
+	struct crypto_wait wait;
 
-	src = kmalloc_array(MAX_MB_MSGS, sizeof(*src), GFP_KERNEL);
-	if (!src)
-		goto out;
-	dst = kmalloc_array(MAX_MB_MSGS, sizeof(*dst), GFP_KERNEL);
-	if (!dst)
-		goto out;
+	output = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
+	if (!output)
+		return -ENOMEM;
 
-	for (i = 0; i < MAX_MB_MSGS; i++) {
-		reqs[i] = acomp_request_alloc(tfm);
-		if (!reqs[i])
-			goto out;
-
-		acomp_request_set_callback(reqs[i],
-					   CRYPTO_TFM_REQ_MAY_SLEEP |
-					   CRYPTO_TFM_REQ_MAY_BACKLOG,
-					   crypto_req_done, &wait);
-		if (i)
-			acomp_request_chain(reqs[i], reqs[0]);
-
-		output[i] = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
-		if (!output[i])
-			goto out;
-
-		decomp_out[i] = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
-		if (!decomp_out[i])
-			goto out;
+	decomp_out = kmalloc(COMP_BUF_SIZE, GFP_KERNEL);
+	if (!decomp_out) {
+		kfree(output);
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < ctcount; i++) {
 		unsigned int dlen = COMP_BUF_SIZE;
 		int ilen = ctemplate[i].inlen;
 		void *input_vec;
-		int j;
 
 		input_vec = kmemdup(ctemplate[i].input, ilen, GFP_KERNEL);
 		if (!input_vec) {
@@ -3378,61 +3354,70 @@ static int test_acomp(struct crypto_acomp *tfm,
 			goto out;
 		}
 
+		memset(output, 0, dlen);
 		crypto_init_wait(&wait);
-		sg_init_one(src, input_vec, ilen);
+		sg_init_one(&src, input_vec, ilen);
+		sg_init_one(&dst, output, dlen);
 
-		for (j = 0; j < MAX_MB_MSGS; j++) {
-			sg_init_one(dst + j, output[j], dlen);
-			acomp_request_set_params(reqs[j], src, dst + j, ilen, dlen);
+		req = acomp_request_alloc(tfm);
+		if (!req) {
+			pr_err("alg: acomp: request alloc failed for %s\n",
+			       algo);
+			kfree(input_vec);
+			ret = -ENOMEM;
+			goto out;
 		}
 
-		req = reqs[0];
+		acomp_request_set_params(req, &src, &dst, ilen, dlen);
+		acomp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+					   crypto_req_done, &wait);
+
 		ret = crypto_wait_req(crypto_acomp_compress(req), &wait);
 		if (ret) {
 			pr_err("alg: acomp: compression failed on test %d for %s: ret=%d\n",
 			       i + 1, algo, -ret);
 			kfree(input_vec);
+			acomp_request_free(req);
 			goto out;
 		}
 
 		ilen = req->dlen;
 		dlen = COMP_BUF_SIZE;
+		sg_init_one(&src, output, ilen);
+		sg_init_one(&dst, decomp_out, dlen);
 		crypto_init_wait(&wait);
-		for (j = 0; j < MAX_MB_MSGS; j++) {
-			sg_init_one(src + j, output[j], ilen);
-			sg_init_one(dst + j, decomp_out[j], dlen);
-			acomp_request_set_params(reqs[j], src + j, dst + j, ilen, dlen);
+		acomp_request_set_params(req, &src, &dst, ilen, dlen);
+
+		ret = crypto_wait_req(crypto_acomp_decompress(req), &wait);
+		if (ret) {
+			pr_err("alg: acomp: compression failed on test %d for %s: ret=%d\n",
+			       i + 1, algo, -ret);
+			kfree(input_vec);
+			acomp_request_free(req);
+			goto out;
 		}
 
-		crypto_wait_req(crypto_acomp_decompress(req), &wait);
-		for (j = 0; j < MAX_MB_MSGS; j++) {
-			ret = reqs[j]->base.err;
-			if (ret) {
-				pr_err("alg: acomp: compression failed on test %d (%d) for %s: ret=%d\n",
-				       i + 1, j, algo, -ret);
-				kfree(input_vec);
-				goto out;
-			}
+		if (req->dlen != ctemplate[i].inlen) {
+			pr_err("alg: acomp: Compression test %d failed for %s: output len = %d\n",
+			       i + 1, algo, req->dlen);
+			ret = -EINVAL;
+			kfree(input_vec);
+			acomp_request_free(req);
+			goto out;
+		}
 
-			if (reqs[j]->dlen != ctemplate[i].inlen) {
-				pr_err("alg: acomp: Compression test %d (%d) failed for %s: output len = %d\n",
-				       i + 1, j, algo, reqs[j]->dlen);
-				ret = -EINVAL;
-				kfree(input_vec);
-				goto out;
-			}
-
-			if (memcmp(input_vec, decomp_out[j], reqs[j]->dlen)) {
-				pr_err("alg: acomp: Compression test %d (%d) failed for %s\n",
-				       i + 1, j, algo);
-				hexdump(output[j], reqs[j]->dlen);
-				ret = -EINVAL;
-				kfree(input_vec);
-				goto out;
-			}
+		if (memcmp(input_vec, decomp_out, req->dlen)) {
+			pr_err("alg: acomp: Compression test %d failed for %s\n",
+			       i + 1, algo);
+			hexdump(output, req->dlen);
+			ret = -EINVAL;
+			kfree(input_vec);
+			acomp_request_free(req);
+			goto out;
 		}
 
 		kfree(input_vec);
+		acomp_request_free(req);
 	}
 
 	for (i = 0; i < dtcount; i++) {
@@ -3446,9 +3431,10 @@ static int test_acomp(struct crypto_acomp *tfm,
 			goto out;
 		}
 
+		memset(output, 0, dlen);
 		crypto_init_wait(&wait);
-		sg_init_one(src, input_vec, ilen);
-		sg_init_one(dst, output[0], dlen);
+		sg_init_one(&src, input_vec, ilen);
+		sg_init_one(&dst, output, dlen);
 
 		req = acomp_request_alloc(tfm);
 		if (!req) {
@@ -3459,7 +3445,7 @@ static int test_acomp(struct crypto_acomp *tfm,
 			goto out;
 		}
 
-		acomp_request_set_params(req, src, dst, ilen, dlen);
+		acomp_request_set_params(req, &src, &dst, ilen, dlen);
 		acomp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 					   crypto_req_done, &wait);
 
@@ -3481,10 +3467,10 @@ static int test_acomp(struct crypto_acomp *tfm,
 			goto out;
 		}
 
-		if (memcmp(output[0], dtemplate[i].output, req->dlen)) {
+		if (memcmp(output, dtemplate[i].output, req->dlen)) {
 			pr_err("alg: acomp: Decompression test %d failed for %s\n",
 			       i + 1, algo);
-			hexdump(output[0], req->dlen);
+			hexdump(output, req->dlen);
 			ret = -EINVAL;
 			kfree(input_vec);
 			acomp_request_free(req);
@@ -3498,13 +3484,8 @@ static int test_acomp(struct crypto_acomp *tfm,
 	ret = 0;
 
 out:
-	acomp_request_free(reqs[0]);
-	for (i = 0; i < MAX_MB_MSGS; i++) {
-		kfree(output[i]);
-		kfree(decomp_out[i]);
-	}
-	kfree(dst);
-	kfree(src);
+	kfree(decomp_out);
+	kfree(output);
 	return ret;
 }
 

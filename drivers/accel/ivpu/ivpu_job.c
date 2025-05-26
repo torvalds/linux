@@ -470,8 +470,8 @@ static void ivpu_job_destroy(struct ivpu_job *job)
 	struct ivpu_device *vdev = job->vdev;
 	u32 i;
 
-	ivpu_dbg(vdev, JOB, "Job destroyed: id %3u ctx %2d engine %d",
-		 job->job_id, job->file_priv->ctx.id, job->engine_idx);
+	ivpu_dbg(vdev, JOB, "Job destroyed: id %3u ctx %2d cmdq_id %u engine %d",
+		 job->job_id, job->file_priv->ctx.id, job->cmdq_id, job->engine_idx);
 
 	for (i = 0; i < job->bo_count; i++)
 		if (job->bos[i])
@@ -564,8 +564,8 @@ static int ivpu_job_signal_and_destroy(struct ivpu_device *vdev, u32 job_id, u32
 	dma_fence_signal(job->done_fence);
 
 	trace_job("done", job);
-	ivpu_dbg(vdev, JOB, "Job complete:  id %3u ctx %2d engine %d status 0x%x\n",
-		 job->job_id, job->file_priv->ctx.id, job->engine_idx, job_status);
+	ivpu_dbg(vdev, JOB, "Job complete:  id %3u ctx %2d cmdq_id %u engine %d status 0x%x\n",
+		 job->job_id, job->file_priv->ctx.id, job->cmdq_id, job->engine_idx, job_status);
 
 	ivpu_job_destroy(job);
 	ivpu_stop_job_timeout_detection(vdev);
@@ -664,8 +664,8 @@ static int ivpu_job_submit(struct ivpu_job *job, u8 priority, u32 cmdq_id)
 	}
 
 	trace_job("submit", job);
-	ivpu_dbg(vdev, JOB, "Job submitted: id %3u ctx %2d engine %d prio %d addr 0x%llx next %d\n",
-		 job->job_id, file_priv->ctx.id, job->engine_idx, cmdq->priority,
+	ivpu_dbg(vdev, JOB, "Job submitted: id %3u ctx %2d cmdq_id %u engine %d prio %d addr 0x%llx next %d\n",
+		 job->job_id, file_priv->ctx.id, cmdq->id, job->engine_idx, cmdq->priority,
 		 job->cmd_buf_vpu_addr, cmdq->jobq->header.tail);
 
 	mutex_unlock(&file_priv->lock);
@@ -681,8 +681,8 @@ static int ivpu_job_submit(struct ivpu_job *job, u8 priority, u32 cmdq_id)
 err_erase_xa:
 	xa_erase(&vdev->submitted_jobs_xa, job->job_id);
 err_unlock:
-	mutex_unlock(&vdev->submitted_jobs_lock);
 	mutex_unlock(&file_priv->lock);
+	mutex_unlock(&vdev->submitted_jobs_lock);
 	ivpu_rpm_put(vdev);
 	return ret;
 }
@@ -777,7 +777,8 @@ static int ivpu_submit(struct drm_file *file, struct ivpu_file_priv *file_priv, 
 		goto err_free_handles;
 	}
 
-	ivpu_dbg(vdev, JOB, "Submit ioctl: ctx %u buf_count %u\n", file_priv->ctx.id, buffer_count);
+	ivpu_dbg(vdev, JOB, "Submit ioctl: ctx %u cmdq_id %u buf_count %u\n",
+		 file_priv->ctx.id, cmdq_id, buffer_count);
 
 	job = ivpu_job_create(file_priv, engine, buffer_count);
 	if (!job) {
@@ -873,14 +874,20 @@ int ivpu_cmdq_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *
 int ivpu_cmdq_create_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
 	struct ivpu_file_priv *file_priv = file->driver_priv;
+	struct ivpu_device *vdev = file_priv->vdev;
 	struct drm_ivpu_cmdq_create *args = data;
 	struct ivpu_cmdq *cmdq;
+	int ret;
 
-	if (!ivpu_is_capable(file_priv->vdev, DRM_IVPU_CAP_MANAGE_CMDQ))
+	if (!ivpu_is_capable(vdev, DRM_IVPU_CAP_MANAGE_CMDQ))
 		return -ENODEV;
 
 	if (args->priority > DRM_IVPU_JOB_PRIORITY_REALTIME)
 		return -EINVAL;
+
+	ret = ivpu_rpm_get(vdev);
+	if (ret < 0)
+		return ret;
 
 	mutex_lock(&file_priv->lock);
 
@@ -889,6 +896,8 @@ int ivpu_cmdq_create_ioctl(struct drm_device *dev, void *data, struct drm_file *
 		args->cmdq_id = cmdq->id;
 
 	mutex_unlock(&file_priv->lock);
+
+	ivpu_rpm_put(vdev);
 
 	return cmdq ? 0 : -ENOMEM;
 }
@@ -899,28 +908,35 @@ int ivpu_cmdq_destroy_ioctl(struct drm_device *dev, void *data, struct drm_file 
 	struct ivpu_device *vdev = file_priv->vdev;
 	struct drm_ivpu_cmdq_destroy *args = data;
 	struct ivpu_cmdq *cmdq;
-	u32 cmdq_id;
+	u32 cmdq_id = 0;
 	int ret;
 
 	if (!ivpu_is_capable(vdev, DRM_IVPU_CAP_MANAGE_CMDQ))
 		return -ENODEV;
+
+	ret = ivpu_rpm_get(vdev);
+	if (ret < 0)
+		return ret;
 
 	mutex_lock(&file_priv->lock);
 
 	cmdq = xa_load(&file_priv->cmdq_xa, args->cmdq_id);
 	if (!cmdq || cmdq->is_legacy) {
 		ret = -ENOENT;
-		goto err_unlock;
+	} else {
+		cmdq_id = cmdq->id;
+		ivpu_cmdq_destroy(file_priv, cmdq);
+		ret = 0;
 	}
 
-	cmdq_id = cmdq->id;
-	ivpu_cmdq_destroy(file_priv, cmdq);
 	mutex_unlock(&file_priv->lock);
-	ivpu_cmdq_abort_all_jobs(vdev, file_priv->ctx.id, cmdq_id);
-	return 0;
 
-err_unlock:
-	mutex_unlock(&file_priv->lock);
+	/* Abort any pending jobs only if cmdq was destroyed */
+	if (!ret)
+		ivpu_cmdq_abort_all_jobs(vdev, file_priv->ctx.id, cmdq_id);
+
+	ivpu_rpm_put(vdev);
+
 	return ret;
 }
 

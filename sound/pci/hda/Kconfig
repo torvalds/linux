@@ -96,9 +96,7 @@ config SND_HDA_CIRRUS_SCODEC
 
 config SND_HDA_CIRRUS_SCODEC_KUNIT_TEST
 	tristate "KUnit test for Cirrus side-codec library" if !KUNIT_ALL_TESTS
-	select SND_HDA_CIRRUS_SCODEC
-	select GPIOLIB
-	depends on KUNIT
+	depends on SND_HDA_CIRRUS_SCODEC && GPIOLIB && KUNIT
 	default KUNIT_ALL_TESTS
 	help
 	  This builds KUnit tests for the cirrus side-codec library.

@@ -187,6 +187,9 @@ static void pdev_sort_resources(struct pci_dev *dev, struct list_head *head)
 			panic("%s: kzalloc() failed!\n", __func__);
 		tmp->res = r;
 		tmp->dev = dev;
+		tmp->start = r->start;
+		tmp->end = r->end;
+		tmp->flags = r->flags;
 
 		/* Fallback is smallest one or list is empty */
 		n = head;
@@ -545,6 +548,7 @@ assign:
 		pci_dbg(dev, "%s %pR: releasing\n", res_name, res);
 
 		release_resource(res);
+		restore_dev_resource(dev_res);
 	}
 	/* Restore start/end/flags from saved list */
 	list_for_each_entry(save_res, &save_head, list)

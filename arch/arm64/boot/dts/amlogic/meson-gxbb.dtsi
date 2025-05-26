@@ -741,7 +741,7 @@
 
 &pwm_ab {
 	clocks = <&xtal>,
-		 <>, /* unknown/untested, the datasheet calls it "vid_pll" */
+		 <0>, /* unknown/untested, the datasheet calls it "vid_pll" */
 		 <&clkc CLKID_FCLK_DIV4>,
 		 <&clkc CLKID_FCLK_DIV3>;
 };
@@ -752,14 +752,14 @@
 
 &pwm_cd {
 	clocks = <&xtal>,
-		 <>, /* unknown/untested, the datasheet calls it "vid_pll" */
+		 <0>, /* unknown/untested, the datasheet calls it "vid_pll" */
 		 <&clkc CLKID_FCLK_DIV4>,
 		 <&clkc CLKID_FCLK_DIV3>;
 };
 
 &pwm_ef {
 	clocks = <&xtal>,
-		 <>, /* unknown/untested, the datasheet calls it "vid_pll" */
+		 <0>, /* unknown/untested, the datasheet calls it "vid_pll" */
 		 <&clkc CLKID_FCLK_DIV4>,
 		 <&clkc CLKID_FCLK_DIV3>;
 };

@@ -298,11 +298,6 @@ iwl_cleanup_mld(struct iwl_mld *mld)
 #endif
 
 	iwl_mld_low_latency_restart_cleanup(mld);
-
-	/* Empty the list of async notification handlers so we won't process
-	 * notifications from the dead fw after the reconfig flow.
-	 */
-	iwl_mld_purge_async_handlers_list(mld);
 }
 
 enum iwl_power_scheme {
