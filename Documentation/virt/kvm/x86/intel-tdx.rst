@@ -252,4 +252,4 @@ control flow is as follows:
 References
 ==========
 
-.. [1] https://www.intel.com/content/www/us/en/developer/tools/trust-domain-extensions/documentation.html
+https://www.intel.com/content/www/us/en/developer/tools/trust-domain-extensions/documentation.html
