@@ -5274,6 +5274,7 @@ F:	include/uapi/linux/can/isotp.h
 F:	include/uapi/linux/can/raw.h
 F:	net/can/
 F:	net/sched/em_canid.c
+F:	tools/testing/selftests/net/can/
 
 CAN-J1939 NETWORK LAYER
 M:	Robin van der Gracht <robin@protonic.nl>
@@ -17076,6 +17077,7 @@ X:	net/ceph/
 X:	net/mac80211/
 X:	net/rfkill/
 X:	net/wireless/
+X:	tools/testing/selftests/net/can/
 
 NETWORKING [IPSEC]
 M:	Steffen Klassert <steffen.klassert@secunet.com>

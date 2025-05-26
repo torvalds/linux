@@ -527,7 +527,7 @@ static int mcp251xfd_chip_timestamp_init(const struct mcp251xfd_priv *priv)
 static int mcp251xfd_set_bittiming(const struct mcp251xfd_priv *priv)
 {
 	const struct can_bittiming *bt = &priv->can.bittiming;
-	const struct can_bittiming *dbt = &priv->can.data_bittiming;
+	const struct can_bittiming *dbt = &priv->can.fd.data_bittiming;
 	u32 tdcmod, val = 0;
 	int err;
 
@@ -600,8 +600,8 @@ static int mcp251xfd_set_bittiming(const struct mcp251xfd_priv *priv)
 		tdcmod = MCP251XFD_REG_TDC_TDCMOD_DISABLED;
 
 	val = FIELD_PREP(MCP251XFD_REG_TDC_TDCMOD_MASK, tdcmod) |
-		FIELD_PREP(MCP251XFD_REG_TDC_TDCV_MASK, priv->can.tdc.tdcv) |
-		FIELD_PREP(MCP251XFD_REG_TDC_TDCO_MASK, priv->can.tdc.tdco);
+	      FIELD_PREP(MCP251XFD_REG_TDC_TDCV_MASK, priv->can.fd.tdc.tdcv) |
+	      FIELD_PREP(MCP251XFD_REG_TDC_TDCO_MASK, priv->can.fd.tdc.tdco);
 
 	return regmap_write(priv->map_reg, MCP251XFD_REG_TDC, val);
 }
@@ -2104,8 +2104,8 @@ static int mcp251xfd_probe(struct spi_device *spi)
 	priv->can.do_set_mode = mcp251xfd_set_mode;
 	priv->can.do_get_berr_counter = mcp251xfd_get_berr_counter;
 	priv->can.bittiming_const = &mcp251xfd_bittiming_const;
-	priv->can.data_bittiming_const = &mcp251xfd_data_bittiming_const;
-	priv->can.tdc_const = &mcp251xfd_tdc_const;
+	priv->can.fd.data_bittiming_const = &mcp251xfd_data_bittiming_const;
+	priv->can.fd.tdc_const = &mcp251xfd_tdc_const;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
 		CAN_CTRLMODE_LISTENONLY | CAN_CTRLMODE_BERR_REPORTING |
 		CAN_CTRLMODE_FD | CAN_CTRLMODE_FD_NON_ISO |
