@@ -77,6 +77,36 @@ static void sysectl_andc(struct sysectlmap *target, struct sysectlmap *source)
 	}	
 }
 
+static void sysectl_add4(struct sysectlmap *target, struct sysectlmap *source)
+{
+	unsigned short *syscalls = source->filter.syscalls;
+	unsigned long *t = (unsigned long*)target->filter.bitmap->bits;
+
+	for (int i=0; i<4; i++) {
+		if (syscalls[i] == 0)
+			return;
+
+		unsigned short index = syscalls[i] / 8;
+		unsigned short bit = syscalls[i] % 8;
+		t[index] |= (1 << bit);
+	}
+}
+
+static void sysectl_del4(struct sysectlmap *target, struct sysectlmap *source)
+{
+	unsigned short *syscalls = source->filter.syscalls;
+	unsigned long *t = (unsigned long*)target->filter.bitmap->bits;
+
+	for (int i=0; i<4; i++) {
+		if (syscalls[i] == 0)
+			return;
+
+		unsigned short index = syscalls[i] / 8;
+		unsigned short bit = syscalls[i] % 8;
+		t[index] &= ~(1 << bit);
+	}
+}
+
 // Modify sysectl filter
 SYSCALL_DEFINE0(sysectl)
 {
@@ -138,25 +168,25 @@ SYSCALL_DEFINE0(sysectl)
 	case 5: // SEC_FILTER_ADD
 		if (sysectl->restore)
 			sysectl_exit("TODO - sysectl:Add - Pair not matching\n");
-//		sysectl_or(sysectl->filter, map);
+		sysectl_or(&sysectl->filter, map);
 		break;
 
 	case 6: // SEC_FILTER_DEL
 		if (sysectl->restore)
 			sysectl_exit("TODO - sysectl:Del - Pair not matching\n");
-//		sysectl_andc(sysectl->filter, map);
+		sysectl_andc(&sysectl->filter, map);
 		break;
 
 	case 7: // SEC_FILTER_ADD4
 		if (sysectl->restore)
 			sysectl_exit("TODO - sysectl:Add4 - Pair not matching\n");
-//		sysectl_add(sysectl->filter, map);
+		sysectl_add4(&sysectl->filter, map);
 		break;
 
 	case 8: // SEC_FILTER_DEL4
 		if (sysectl->restore)
 			sysectl_exit("TODO - sysectl:Del4 - Pair not matching\n");
-//		sysectl_del(sysectl->filter, map);
+		sysectl_del4(&sysectl->filter, map);
 		break;
 	default:
 		sysectl_exit("sysectl: Invalid opcode\n");
@@ -183,7 +213,8 @@ long sysectl_entry(long nbr)
         if (sysectl_bitmap(current)[index] & bit)
 		return 1;
 	printk("Syscall:%ld access denied\n", nbr);
-	do_group_exit(-EFAULT);
+	do_exit(-EFAULT);
+	return -1L;
 }
 
 void sysectl_release(struct sysectl *sysectl)

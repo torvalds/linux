@@ -68,7 +68,7 @@ long syscall_trace_enter(struct pt_regs *regs, long syscall,
 	}
 
 	if (work & SYSCALL_WORK_SYSECTL) {
-		if (unlikely(sysectl_entry(syscall) == 0)) {
+		if (unlikely(sysectl_entry(syscall) == -1L)) {
 			return -1L;
 		}
 	}
