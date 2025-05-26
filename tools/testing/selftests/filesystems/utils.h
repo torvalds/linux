@@ -27,6 +27,7 @@ extern int caps_down(void);
 extern int cap_down(cap_value_t down);
 
 extern bool switch_ids(uid_t uid, gid_t gid);
+extern int setup_userns(void);
 
 static inline bool switch_userns(int fd, uid_t uid, gid_t gid, bool drop_caps)
 {
@@ -41,5 +42,7 @@ static inline bool switch_userns(int fd, uid_t uid, gid_t gid, bool drop_caps)
 
 	return true;
 }
+
+extern uint64_t get_unique_mnt_id(const char *path);
 
 #endif /* __IDMAP_UTILS_H */

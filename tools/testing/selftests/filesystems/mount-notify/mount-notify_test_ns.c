@@ -12,6 +12,7 @@
 #include <sys/syscall.h>
 
 #include "../../kselftest_harness.h"
+#include "../../pidfd/pidfd.h"
 #include "../statmount/statmount.h"
 #include "../utils.h"
 
@@ -25,6 +26,12 @@ typedef struct {
 #include <sys/fanotify.h>
 
 static const char root_mntpoint_templ[] = "/tmp/mount-notify_test_root.XXXXXX";
+
+static const int mark_types[] = {
+	FAN_MARK_FILESYSTEM,
+	FAN_MARK_MOUNT,
+	FAN_MARK_INODE
+};
 
 static const int mark_cmds[] = {
 	FAN_MARK_ADD,
@@ -41,6 +48,7 @@ FIXTURE(fanotify) {
 	void *next;
 	char root_mntpoint[sizeof(root_mntpoint_templ)];
 	int orig_root;
+	int orig_ns_fd;
 	int ns_fd;
 	uint64_t root_id;
 };
@@ -49,12 +57,14 @@ FIXTURE_SETUP(fanotify)
 {
 	int i, ret;
 
-	ASSERT_EQ(unshare(CLONE_NEWNS), 0);
+	self->orig_ns_fd = open("/proc/self/ns/mnt", O_RDONLY);
+	ASSERT_GE(self->orig_ns_fd, 0);
+
+	ret = setup_userns();
+	ASSERT_EQ(ret, 0);
 
 	self->ns_fd = open("/proc/self/ns/mnt", O_RDONLY);
 	ASSERT_GE(self->ns_fd, 0);
-
-	ASSERT_EQ(mount("", "/", NULL, MS_REC|MS_PRIVATE, NULL), 0);
 
 	strcpy(self->root_mntpoint, root_mntpoint_templ);
 	ASSERT_NE(mkdtemp(self->root_mntpoint), NULL);
@@ -76,14 +86,32 @@ FIXTURE_SETUP(fanotify)
 	ASSERT_NE(self->root_id, 0);
 
 	for (i = 0; i < NUM_FAN_FDS; i++) {
+		int fan_fd = fanotify_init(FAN_REPORT_FID, 0);
+		// Verify that watching tmpfs mounted inside userns is allowed
+		ret = fanotify_mark(fan_fd, FAN_MARK_ADD | mark_types[i],
+				    FAN_OPEN, AT_FDCWD, "/");
+		ASSERT_EQ(ret, 0);
+		// ...but watching entire orig root filesystem is not allowed
+		ret = fanotify_mark(fan_fd, FAN_MARK_ADD | FAN_MARK_FILESYSTEM,
+				    FAN_OPEN, self->orig_root, ".");
+		ASSERT_NE(ret, 0);
+		close(fan_fd);
+
 		self->fan_fd[i] = fanotify_init(FAN_REPORT_MNT | FAN_NONBLOCK,
 						0);
 		ASSERT_GE(self->fan_fd[i], 0);
+		// Verify that watching mntns where group was created is allowed
 		ret = fanotify_mark(self->fan_fd[i], FAN_MARK_ADD |
 				    FAN_MARK_MNTNS,
 				    FAN_MNT_ATTACH | FAN_MNT_DETACH,
 				    self->ns_fd, NULL);
 		ASSERT_EQ(ret, 0);
+		// ...but watching orig mntns is not allowed
+		ret = fanotify_mark(self->fan_fd[i], FAN_MARK_ADD |
+				    FAN_MARK_MNTNS,
+				    FAN_MNT_ATTACH | FAN_MNT_DETACH,
+				    self->orig_ns_fd, NULL);
+		ASSERT_NE(ret, 0);
 		// On fd[0] we do an extra ADD that changes nothing.
 		// On fd[1]/fd[2] we REMOVE/FLUSH which removes the mark.
 		ret = fanotify_mark(self->fan_fd[i], mark_cmds[i] |
@@ -338,18 +366,18 @@ TEST_F(fanotify, fsmount)
 	fs = fsopen("tmpfs", 0);
 	ASSERT_GE(fs, 0);
 
-        ret = fsconfig(fs, FSCONFIG_CMD_CREATE, 0, 0, 0);
+	ret = fsconfig(fs, FSCONFIG_CMD_CREATE, 0, 0, 0);
 	ASSERT_EQ(ret, 0);
 
-        mnt = fsmount(fs, 0, 0);
+	mnt = fsmount(fs, 0, 0);
 	ASSERT_GE(mnt, 0);
 
-        close(fs);
+	close(fs);
 
 	ret = move_mount(mnt, "", AT_FDCWD, "/a", MOVE_MOUNT_F_EMPTY_PATH);
 	ASSERT_EQ(ret, 0);
 
-        close(mnt);
+	close(mnt);
 
 	mnts[1] = expect_notify_mask(_metadata, self, FAN_MNT_ATTACH);
 	ASSERT_NE(mnts[0], mnts[1]);
