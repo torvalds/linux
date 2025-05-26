@@ -332,4 +332,13 @@ sched_numa_hop_mask(unsigned int node, unsigned int hops)
 	     !IS_ERR_OR_NULL(mask);					       \
 	     __hops++)
 
+DECLARE_PER_CPU(unsigned long, cpu_scale);
+
+static inline unsigned long topology_get_cpu_scale(int cpu)
+{
+	return per_cpu(cpu_scale, cpu);
+}
+
+void topology_set_cpu_scale(unsigned int cpu, unsigned long capacity);
+
 #endif /* _LINUX_TOPOLOGY_H */

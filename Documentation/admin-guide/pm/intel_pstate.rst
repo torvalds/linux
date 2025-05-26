@@ -329,6 +329,106 @@ information listed above is the same for all of the processors supporting the
 HWP feature, which is why ``intel_pstate`` works with all of them.]
 
 
+Support for Hybrid Processors
+=============================
+
+Some processors supported by ``intel_pstate`` contain two or more types of CPU
+cores differing by the maximum turbo P-state, performance vs power characteristics,
+cache sizes, and possibly other properties.  They are commonly referred to as
+hybrid processors.  To support them, ``intel_pstate`` requires HWP to be enabled
+and it assumes the HWP performance units to be the same for all CPUs in the
+system, so a given HWP performance level always represents approximately the
+same physical performance regardless of the core (CPU) type.
+
+Hybrid Processors with SMT
+--------------------------
+
+On systems where SMT (Simultaneous Multithreading), also referred to as
+HyperThreading (HT) in the context of Intel processors, is enabled on at least
+one core, ``intel_pstate`` assigns performance-based priorities to CPUs.  Namely,
+the priority of a given CPU reflects its highest HWP performance level which
+causes the CPU scheduler to generally prefer more performant CPUs, so the less
+performant CPUs are used when the other ones are fully loaded.  However, SMT
+siblings (that is, logical CPUs sharing one physical core) are treated in a
+special way such that if one of them is in use, the effective priority of the
+other ones is lowered below the priorities of the CPUs located in the other
+physical cores.
+
+This approach maximizes performance in the majority of cases, but unfortunately
+it also leads to excessive energy usage in some important scenarios, like video
+playback, which is not generally desirable.  While there is no other viable
+choice with SMT enabled because the effective capacity and utilization of SMT
+siblings are hard to determine, hybrid processors without SMT can be handled in
+more energy-efficient ways.
+
+.. _CAS:
+
+Capacity-Aware Scheduling Support
+---------------------------------
+
+The capacity-aware scheduling (CAS) support in the CPU scheduler is enabled by
+``intel_pstate`` by default on hybrid processors without SMT.  CAS generally
+causes the scheduler to put tasks on a CPU so long as there is a sufficient
+amount of spare capacity on it, and if the utilization of a given task is too
+high for it, the task will need to go somewhere else.
+
+Since CAS takes CPU capacities into account, it does not require CPU
+prioritization and it allows tasks to be distributed more symmetrically among
+the more performant and less performant CPUs.  Once placed on a CPU with enough
+capacity to accommodate it, a task may just continue to run there regardless of
+whether or not the other CPUs are fully loaded, so on average CAS reduces the
+utilization of the more performant CPUs which causes the energy usage to be more
+balanced because the more performant CPUs are generally less energy-efficient
+than the less performant ones.
+
+In order to use CAS, the scheduler needs to know the capacity of each CPU in
+the system and it needs to be able to compute scale-invariant utilization of
+CPUs, so ``intel_pstate`` provides it with the requisite information.
+
+First of all, the capacity of each CPU is represented by the ratio of its highest
+HWP performance level, multiplied by 1024, to the highest HWP performance level
+of the most performant CPU in the system, which works because the HWP performance
+units are the same for all CPUs.  Second, the frequency-invariance computations,
+carried out by the scheduler to always express CPU utilization in the same units
+regardless of the frequency it is currently running at, are adjusted to take the
+CPU capacity into account.  All of this happens when ``intel_pstate`` has
+registered itself with the ``CPUFreq`` core and it has figured out that it is
+running on a hybrid processor without SMT.
+
+Energy-Aware Scheduling Support
+-------------------------------
+
+If ``CONFIG_ENERGY_MODEL`` has been set during kernel configuration and
+``intel_pstate`` runs on a hybrid processor without SMT, in addition to enabling
+`CAS <CAS_>`_ it registers an Energy Model for the processor.  This allows the
+Energy-Aware Scheduling (EAS) support to be enabled in the CPU scheduler if
+``schedutil`` is used as the  ``CPUFreq`` governor which requires ``intel_pstate``
+to operate in the `passive mode <Passive Mode_>`_.
+
+The Energy Model registered by ``intel_pstate`` is artificial (that is, it is
+based on abstract cost values and it does not include any real power numbers)
+and it is relatively simple to avoid unnecessary computations in the scheduler.
+There is a performance domain in it for every CPU in the system and the cost
+values for these performance domains have been chosen so that running a task on
+a less performant (small) CPU appears to be always cheaper than running that
+task on a more performant (big) CPU.  However, for two CPUs of the same type,
+the cost difference depends on their current utilization, and the CPU whose
+current utilization is higher generally appears to be a more expensive
+destination for a given task.  This helps to balance the load among CPUs of the
+same type.
+
+Since EAS works on top of CAS, high-utilization tasks are always migrated to
+CPUs with enough capacity to accommodate them, but thanks to EAS, low-utilization
+tasks tend to be placed on the CPUs that look less expensive to the scheduler.
+Effectively, this causes the less performant and less loaded CPUs to be
+preferred as long as they have enough spare capacity to run the given task
+which generally leads to reduced energy usage.
+
+The Energy Model created by ``intel_pstate`` can be inspected by looking at
+the ``energy_model`` directory in ``debugfs`` (typlically mounted on
+``/sys/kernel/debug/``).
+
+
 User Space Interface in ``sysfs``
 =================================
 
@@ -697,8 +797,8 @@ of them have to be prepended with the ``intel_pstate=`` prefix.
 	Limits`_ for details).
 
 ``no_cas``
-	Do not enable capacity-aware scheduling (CAS) which is enabled by
-	default on hybrid systems.
+	Do not enable `capacity-aware scheduling <CAS_>`_ which is enabled by
+	default on hybrid systems without SMT.
 
 Diagnostics and Tuning
 ======================
