@@ -328,6 +328,7 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
+	uint32_t flags = 0;
 	int error;
 
 	BUG_ON(!__lockref_is_dead(&gl->gl_lockref));
@@ -352,7 +353,7 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 	 * When the lockspace is released, all remaining glocks will be
 	 * unlocked automatically.  This is more efficient than unlocking them
 	 * individually, but when the lock is held in DLM_LOCK_EX or
-	 * DLM_LOCK_PW mode, the lock value block (LVB) will be lost.
+	 * DLM_LOCK_PW mode, the lock value block (LVB) would be lost.
 	 */
 
 	if (test_bit(SDF_SKIP_DLM_UNLOCK, &sdp->sd_flags) &&
@@ -361,8 +362,11 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 		return;
 	}
 
+	if (gl->gl_lksb.sb_lvbptr)
+		flags |= DLM_LKF_VALBLK;
+
 again:
-	error = dlm_unlock(ls->ls_dlm, gl->gl_lksb.sb_lkid, DLM_LKF_VALBLK,
+	error = dlm_unlock(ls->ls_dlm, gl->gl_lksb.sb_lkid, flags,
 			   NULL, gl);
 	if (error == -EBUSY) {
 		msleep(20);
@@ -996,14 +1000,15 @@ locks_done:
 		if (sdp->sd_args.ar_spectator) {
 			fs_info(sdp, "Recovery is required. Waiting for a "
 				"non-spectator to mount.\n");
+			spin_unlock(&ls->ls_recover_spin);
 			msleep_interruptible(1000);
 		} else {
 			fs_info(sdp, "control_mount wait1 block %u start %u "
 				"mount %u lvb %u flags %lx\n", block_gen,
 				start_gen, mount_gen, lvb_gen,
 				ls->ls_recover_flags);
+			spin_unlock(&ls->ls_recover_spin);
 		}
-		spin_unlock(&ls->ls_recover_spin);
 		goto restart;
 	}
 
