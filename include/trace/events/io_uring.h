@@ -645,7 +645,7 @@ TRACE_EVENT(io_uring_short_write,
 /*
  * io_uring_local_work_run - ran ring local task work
  *
- * @tctx:		pointer to a io_uring_ctx
+ * @ctx:		pointer to an io_ring_ctx
  * @count:		how many functions it ran
  * @loops:		how many loops it ran
  *

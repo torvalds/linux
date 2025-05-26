@@ -6,6 +6,8 @@
 #include <linux/fdtable.h>
 #include <linux/fsnotify.h>
 #include <linux/namei.h>
+#include <linux/pipe_fs_i.h>
+#include <linux/watch_queue.h>
 #include <linux/io_uring.h>
 
 #include <uapi/linux/io_uring.h>
@@ -169,7 +171,7 @@ err:
 	if (ret < 0)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 int io_openat(struct io_kiocb *req, unsigned int issue_flags)
@@ -257,7 +259,7 @@ err:
 	if (ret < 0)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 int io_install_fixed_fd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -300,5 +302,136 @@ int io_install_fixed_fd(struct io_kiocb *req, unsigned int issue_flags)
 	if (ret < 0)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
+}
+
+struct io_pipe {
+	struct file *file;
+	int __user *fds;
+	int flags;
+	int file_slot;
+	unsigned long nofile;
+};
+
+int io_pipe_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_pipe *p = io_kiocb_to_cmd(req, struct io_pipe);
+
+	if (sqe->fd || sqe->off || sqe->addr3)
+		return -EINVAL;
+
+	p->fds = u64_to_user_ptr(READ_ONCE(sqe->addr));
+	p->flags = READ_ONCE(sqe->pipe_flags);
+	if (p->flags & ~(O_CLOEXEC | O_NONBLOCK | O_DIRECT | O_NOTIFICATION_PIPE))
+		return -EINVAL;
+
+	p->file_slot = READ_ONCE(sqe->file_index);
+	p->nofile = rlimit(RLIMIT_NOFILE);
+	return 0;
+}
+
+static int io_pipe_fixed(struct io_kiocb *req, struct file **files,
+			 unsigned int issue_flags)
+{
+	struct io_pipe *p = io_kiocb_to_cmd(req, struct io_pipe);
+	struct io_ring_ctx *ctx = req->ctx;
+	int ret, fds[2] = { -1, -1 };
+	int slot = p->file_slot;
+
+	if (p->flags & O_CLOEXEC)
+		return -EINVAL;
+
+	io_ring_submit_lock(ctx, issue_flags);
+
+	ret = __io_fixed_fd_install(ctx, files[0], slot);
+	if (ret < 0)
+		goto err;
+	fds[0] = ret;
+	files[0] = NULL;
+
+	/*
+	 * If a specific slot is given, next one will be used for
+	 * the write side.
+	 */
+	if (slot != IORING_FILE_INDEX_ALLOC)
+		slot++;
+
+	ret = __io_fixed_fd_install(ctx, files[1], slot);
+	if (ret < 0)
+		goto err;
+	fds[1] = ret;
+	files[1] = NULL;
+
+	io_ring_submit_unlock(ctx, issue_flags);
+
+	if (!copy_to_user(p->fds, fds, sizeof(fds)))
+		return 0;
+
+	ret = -EFAULT;
+	io_ring_submit_lock(ctx, issue_flags);
+err:
+	if (fds[0] != -1)
+		io_fixed_fd_remove(ctx, fds[0]);
+	if (fds[1] != -1)
+		io_fixed_fd_remove(ctx, fds[1]);
+	io_ring_submit_unlock(ctx, issue_flags);
+	return ret;
+}
+
+static int io_pipe_fd(struct io_kiocb *req, struct file **files)
+{
+	struct io_pipe *p = io_kiocb_to_cmd(req, struct io_pipe);
+	int ret, fds[2] = { -1, -1 };
+
+	ret = __get_unused_fd_flags(p->flags, p->nofile);
+	if (ret < 0)
+		goto err;
+	fds[0] = ret;
+
+	ret = __get_unused_fd_flags(p->flags, p->nofile);
+	if (ret < 0)
+		goto err;
+	fds[1] = ret;
+
+	if (!copy_to_user(p->fds, fds, sizeof(fds))) {
+		fd_install(fds[0], files[0]);
+		fd_install(fds[1], files[1]);
+		return 0;
+	}
+	ret = -EFAULT;
+err:
+	if (fds[0] != -1)
+		put_unused_fd(fds[0]);
+	if (fds[1] != -1)
+		put_unused_fd(fds[1]);
+	return ret;
+}
+
+int io_pipe(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_pipe *p = io_kiocb_to_cmd(req, struct io_pipe);
+	struct file *files[2];
+	int ret;
+
+	ret = create_pipe_files(files, p->flags);
+	if (ret)
+		return ret;
+	files[0]->f_mode |= FMODE_NOWAIT;
+	files[1]->f_mode |= FMODE_NOWAIT;
+
+	if (!!p->file_slot)
+		ret = io_pipe_fixed(req, files, issue_flags);
+	else
+		ret = io_pipe_fd(req, files);
+
+	io_req_set_res(req, ret, 0);
+	if (!ret)
+		return IOU_COMPLETE;
+
+	req_set_fail(req);
+	if (files[0])
+		fput(files[0]);
+	if (files[1])
+		fput(files[1]);
+	return ret;
 }

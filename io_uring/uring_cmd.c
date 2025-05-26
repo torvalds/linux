@@ -3,13 +3,10 @@
 #include <linux/errno.h>
 #include <linux/file.h>
 #include <linux/io_uring/cmd.h>
-#include <linux/io_uring/net.h>
 #include <linux/security.h>
 #include <linux/nospec.h>
-#include <net/sock.h>
 
 #include <uapi/linux/io_uring.h>
-#include <asm/ioctls.h>
 
 #include "io_uring.h"
 #include "alloc_cache.h"
@@ -268,7 +265,7 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 		req_set_fail(req);
 	io_req_uring_cleanup(req, issue_flags);
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
@@ -277,6 +274,9 @@ int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
 			      unsigned int issue_flags)
 {
 	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
+
+	if (WARN_ON_ONCE(!(ioucmd->flags & IORING_URING_CMD_FIXED)))
+		return -EINVAL;
 
 	return io_import_reg_buf(req, iter, ubuf, len, rw, issue_flags);
 }
@@ -291,6 +291,9 @@ int io_uring_cmd_import_fixed_vec(struct io_uring_cmd *ioucmd,
 	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
 	struct io_async_cmd *ac = req->async_data;
 	int ret;
+
+	if (WARN_ON_ONCE(!(ioucmd->flags & IORING_URING_CMD_FIXED)))
+		return -EINVAL;
 
 	ret = io_prep_reg_iovec(req, &ac->vec, uvec, uvec_segs);
 	if (ret)
@@ -307,83 +310,3 @@ void io_uring_cmd_issue_blocking(struct io_uring_cmd *ioucmd)
 
 	io_req_queue_iowq(req);
 }
-
-static inline int io_uring_cmd_getsockopt(struct socket *sock,
-					  struct io_uring_cmd *cmd,
-					  unsigned int issue_flags)
-{
-	const struct io_uring_sqe *sqe = cmd->sqe;
-	bool compat = !!(issue_flags & IO_URING_F_COMPAT);
-	int optlen, optname, level, err;
-	void __user *optval;
-
-	level = READ_ONCE(sqe->level);
-	if (level != SOL_SOCKET)
-		return -EOPNOTSUPP;
-
-	optval = u64_to_user_ptr(READ_ONCE(sqe->optval));
-	optname = READ_ONCE(sqe->optname);
-	optlen = READ_ONCE(sqe->optlen);
-
-	err = do_sock_getsockopt(sock, compat, level, optname,
-				 USER_SOCKPTR(optval),
-				 KERNEL_SOCKPTR(&optlen));
-	if (err)
-		return err;
-
-	/* On success, return optlen */
-	return optlen;
-}
-
-static inline int io_uring_cmd_setsockopt(struct socket *sock,
-					  struct io_uring_cmd *cmd,
-					  unsigned int issue_flags)
-{
-	const struct io_uring_sqe *sqe = cmd->sqe;
-	bool compat = !!(issue_flags & IO_URING_F_COMPAT);
-	int optname, optlen, level;
-	void __user *optval;
-	sockptr_t optval_s;
-
-	optval = u64_to_user_ptr(READ_ONCE(sqe->optval));
-	optname = READ_ONCE(sqe->optname);
-	optlen = READ_ONCE(sqe->optlen);
-	level = READ_ONCE(sqe->level);
-	optval_s = USER_SOCKPTR(optval);
-
-	return do_sock_setsockopt(sock, compat, level, optname, optval_s,
-				  optlen);
-}
-
-#if defined(CONFIG_NET)
-int io_uring_cmd_sock(struct io_uring_cmd *cmd, unsigned int issue_flags)
-{
-	struct socket *sock = cmd->file->private_data;
-	struct sock *sk = sock->sk;
-	struct proto *prot = READ_ONCE(sk->sk_prot);
-	int ret, arg = 0;
-
-	if (!prot || !prot->ioctl)
-		return -EOPNOTSUPP;
-
-	switch (cmd->cmd_op) {
-	case SOCKET_URING_OP_SIOCINQ:
-		ret = prot->ioctl(sk, SIOCINQ, &arg);
-		if (ret)
-			return ret;
-		return arg;
-	case SOCKET_URING_OP_SIOCOUTQ:
-		ret = prot->ioctl(sk, SIOCOUTQ, &arg);
-		if (ret)
-			return ret;
-		return arg;
-	case SOCKET_URING_OP_GETSOCKOPT:
-		return io_uring_cmd_getsockopt(sock, cmd, issue_flags);
-	case SOCKET_URING_OP_SETSOCKOPT:
-		return io_uring_cmd_setsockopt(sock, cmd, issue_flags);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-EXPORT_SYMBOL_GPL(io_uring_cmd_sock);
-#endif

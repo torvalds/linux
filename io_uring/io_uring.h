@@ -19,7 +19,6 @@
 #endif
 
 enum {
-	IOU_OK			= 0, /* deprecated, use IOU_COMPLETE */
 	IOU_COMPLETE		= 0,
 
 	IOU_ISSUE_SKIP_COMPLETE	= -EIOCBQUEUED,
@@ -196,7 +195,6 @@ static inline bool io_defer_get_uncommited_cqe(struct io_ring_ctx *ctx,
 {
 	io_lockdep_assert_cq_locked(ctx);
 
-	ctx->cq_extra++;
 	ctx->submit_state.cq_flush = true;
 	return io_get_cqe(ctx, cqe_ret);
 }
@@ -414,7 +412,7 @@ static inline void io_req_complete_defer(struct io_kiocb *req)
 
 static inline void io_commit_cqring_flush(struct io_ring_ctx *ctx)
 {
-	if (unlikely(ctx->off_timeout_used || ctx->drain_active ||
+	if (unlikely(ctx->off_timeout_used ||
 		     ctx->has_evfd || ctx->poll_activated))
 		__io_commit_cqring_flush(ctx);
 }

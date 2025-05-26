@@ -15,37 +15,6 @@
 #include "cancel.h"
 #include "rsrc.h"
 
-#ifdef CONFIG_PROC_FS
-static __cold int io_uring_show_cred(struct seq_file *m, unsigned int id,
-		const struct cred *cred)
-{
-	struct user_namespace *uns = seq_user_ns(m);
-	struct group_info *gi;
-	kernel_cap_t cap;
-	int g;
-
-	seq_printf(m, "%5d\n", id);
-	seq_put_decimal_ull(m, "\tUid:\t", from_kuid_munged(uns, cred->uid));
-	seq_put_decimal_ull(m, "\t\t", from_kuid_munged(uns, cred->euid));
-	seq_put_decimal_ull(m, "\t\t", from_kuid_munged(uns, cred->suid));
-	seq_put_decimal_ull(m, "\t\t", from_kuid_munged(uns, cred->fsuid));
-	seq_put_decimal_ull(m, "\n\tGid:\t", from_kgid_munged(uns, cred->gid));
-	seq_put_decimal_ull(m, "\t\t", from_kgid_munged(uns, cred->egid));
-	seq_put_decimal_ull(m, "\t\t", from_kgid_munged(uns, cred->sgid));
-	seq_put_decimal_ull(m, "\t\t", from_kgid_munged(uns, cred->fsgid));
-	seq_puts(m, "\n\tGroups:\t");
-	gi = cred->group_info;
-	for (g = 0; g < gi->ngroups; g++) {
-		seq_put_decimal_ull(m, g ? " " : "",
-					from_kgid_munged(uns, gi->gid[g]));
-	}
-	seq_puts(m, "\n\tCapEff:\t");
-	cap = cred->cap_effective;
-	seq_put_hex_ll(m, NULL, cap.val, 16);
-	seq_putc(m, '\n');
-	return 0;
-}
-
 #ifdef CONFIG_NET_RX_BUSY_POLL
 static __cold void common_tracking_show_fdinfo(struct io_ring_ctx *ctx,
 					       struct seq_file *m,
@@ -214,14 +183,6 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 		else
 			seq_printf(m, "%5u: <none>\n", i);
 	}
-	if (!xa_empty(&ctx->personalities)) {
-		unsigned long index;
-		const struct cred *cred;
-
-		seq_printf(m, "Personalities:\n");
-		xa_for_each(&ctx->personalities, index, cred)
-			io_uring_show_cred(m, index, cred);
-	}
 
 	seq_puts(m, "PollList:\n");
 	for (i = 0; i < (1U << ctx->cancel_table.hash_bits); i++) {
@@ -264,4 +225,3 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
 		mutex_unlock(&ctx->uring_lock);
 	}
 }
-#endif
