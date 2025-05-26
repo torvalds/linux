@@ -5164,13 +5164,15 @@ static int nfs4_do_create(struct inode *dir, struct dentry *dentry, struct nfs4_
 }
 
 static struct dentry *nfs4_do_mkdir(struct inode *dir, struct dentry *dentry,
-				    struct nfs4_createdata *data)
+				    struct nfs4_createdata *data, int *statusp)
 {
-	int status = nfs4_call_sync(NFS_SERVER(dir)->client, NFS_SERVER(dir), &data->msg,
+	struct dentry *ret;
+
+	*statusp = nfs4_call_sync(NFS_SERVER(dir)->client, NFS_SERVER(dir), &data->msg,
 				    &data->arg.seq_args, &data->res.seq_res, 1);
 
-	if (status)
-		return ERR_PTR(status);
+	if (*statusp)
+		return NULL;
 
 	spin_lock(&dir->i_lock);
 	/* Creating a directory bumps nlink in the parent */
@@ -5179,7 +5181,11 @@ static struct dentry *nfs4_do_mkdir(struct inode *dir, struct dentry *dentry,
 				      data->res.fattr->time_start,
 				      NFS_INO_INVALID_DATA);
 	spin_unlock(&dir->i_lock);
-	return nfs_add_or_obtain(dentry, data->res.fh, data->res.fattr);
+	ret = nfs_add_or_obtain(dentry, data->res.fh, data->res.fattr);
+	if (!IS_ERR(ret))
+		return ret;
+	*statusp = PTR_ERR(ret);
+	return NULL;
 }
 
 static void nfs4_free_createdata(struct nfs4_createdata *data)
@@ -5240,17 +5246,18 @@ static int nfs4_proc_symlink(struct inode *dir, struct dentry *dentry,
 
 static struct dentry *_nfs4_proc_mkdir(struct inode *dir, struct dentry *dentry,
 				       struct iattr *sattr,
-				       struct nfs4_label *label)
+				       struct nfs4_label *label, int *statusp)
 {
 	struct nfs4_createdata *data;
-	struct dentry *ret = ERR_PTR(-ENOMEM);
+	struct dentry *ret = NULL;
 
+	*statusp = -ENOMEM;
 	data = nfs4_alloc_createdata(dir, &dentry->d_name, sattr, NF4DIR);
 	if (data == NULL)
 		goto out;
 
 	data->arg.label = label;
-	ret = nfs4_do_mkdir(dir, dentry, data);
+	ret = nfs4_do_mkdir(dir, dentry, data, statusp);
 
 	nfs4_free_createdata(data);
 out:
@@ -5273,11 +5280,12 @@ static struct dentry *nfs4_proc_mkdir(struct inode *dir, struct dentry *dentry,
 	if (!(server->attr_bitmask[2] & FATTR4_WORD2_MODE_UMASK))
 		sattr->ia_mode &= ~current_umask();
 	do {
-		alias = _nfs4_proc_mkdir(dir, dentry, sattr, label);
-		err = PTR_ERR_OR_ZERO(alias);
+		alias = _nfs4_proc_mkdir(dir, dentry, sattr, label, &err);
 		trace_nfs4_mkdir(dir, &dentry->d_name, err);
-		err = nfs4_handle_exception(NFS_SERVER(dir), err,
-				&exception);
+		if (err)
+			alias = ERR_PTR(nfs4_handle_exception(NFS_SERVER(dir),
+							      err,
+							      &exception));
 	} while (exception.retry);
 	nfs4_label_release_security(label);
 
