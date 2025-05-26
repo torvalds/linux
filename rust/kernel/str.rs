@@ -576,25 +576,9 @@ macro_rules! c_str {
 mod tests {
     use super::*;
 
-    struct String(CString);
-
-    impl String {
-        fn from_fmt(args: fmt::Arguments<'_>) -> Self {
-            String(CString::try_from_fmt(args).unwrap())
-        }
-    }
-
-    impl Deref for String {
-        type Target = str;
-
-        fn deref(&self) -> &str {
-            self.0.to_str().unwrap()
-        }
-    }
-
     macro_rules! format {
         ($($f:tt)*) => ({
-            &*String::from_fmt(::kernel::fmt!($($f)*))
+            CString::try_from_fmt(::kernel::fmt!($($f)*)).unwrap().to_str().unwrap()
         })
     }
 
