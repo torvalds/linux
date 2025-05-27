@@ -157,8 +157,10 @@ static __init int add_boot_memory_ranges(void)
 
 	for (int i = 0; i < mrrm_mem_entry_num; i++) {
 		name = kasprintf(GFP_KERNEL, "range%d", i);
-		if (!name)
+		if (!name) {
+			ret = -ENOMEM;
 			break;
+		}
 
 		kobj = kobject_create_and_add(name, pkobj);
 
