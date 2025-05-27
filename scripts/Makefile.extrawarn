@@ -16,8 +16,8 @@ KBUILD_CFLAGS += -Werror=return-type
 KBUILD_CFLAGS += -Werror=strict-prototypes
 KBUILD_CFLAGS += -Wno-format-security
 KBUILD_CFLAGS += -Wno-trigraphs
-KBUILD_CFLAGS += $(call cc-disable-warning, frame-address)
-KBUILD_CFLAGS += $(call cc-disable-warning, address-of-packed-member)
+KBUILD_CFLAGS += $(call cc-option, -Wno-frame-address)
+KBUILD_CFLAGS += $(call cc-option, -Wno-address-of-packed-member)
 KBUILD_CFLAGS += -Wmissing-declarations
 KBUILD_CFLAGS += -Wmissing-prototypes
 
@@ -35,8 +35,8 @@ KBUILD_CFLAGS += -Wno-gnu
 
 # Clang checks for overflow/truncation with '%p', while GCC does not:
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=111219
-KBUILD_CFLAGS += $(call cc-disable-warning, format-overflow-non-kprintf)
-KBUILD_CFLAGS += $(call cc-disable-warning, format-truncation-non-kprintf)
+KBUILD_CFLAGS += $(call cc-option, -Wno-format-overflow-non-kprintf)
+KBUILD_CFLAGS += $(call cc-option, -Wno-format-truncation-non-kprintf)
 
 # Clang may emit a warning when a const variable, such as the dummy variables
 # in typecheck(), or const member of an aggregate type are not initialized,
@@ -48,7 +48,7 @@ KBUILD_CFLAGS += $(call cc-disable-warning, format-truncation-non-kprintf)
 # disabled with this same switch, there should not be too much coverage lost
 # because -Wuninitialized will still flag when an uninitialized const variable
 # is used.
-KBUILD_CFLAGS += $(call cc-disable-warning, default-const-init-unsafe)
+KBUILD_CFLAGS += $(call cc-option, -Wno-default-const-init-unsafe)
 else
 
 # gcc inanely warns about local variables called 'main'
@@ -56,7 +56,7 @@ KBUILD_CFLAGS += -Wno-main
 endif
 
 # These result in bogus false positives
-KBUILD_CFLAGS += $(call cc-disable-warning, dangling-pointer)
+KBUILD_CFLAGS += $(call cc-option, -Wno-dangling-pointer)
 
 # Variable Length Arrays (VLAs) should not be used anywhere in the kernel
 KBUILD_CFLAGS += -Wvla
@@ -70,11 +70,11 @@ KBUILD_CFLAGS += -Wno-pointer-sign
 KBUILD_CFLAGS += $(call cc-option, -Wcast-function-type)
 
 # Currently, disable -Wstringop-overflow for GCC 11, globally.
-KBUILD_CFLAGS-$(CONFIG_CC_NO_STRINGOP_OVERFLOW) += $(call cc-disable-warning, stringop-overflow)
+KBUILD_CFLAGS-$(CONFIG_CC_NO_STRINGOP_OVERFLOW) += $(call cc-option, -Wno-stringop-overflow)
 KBUILD_CFLAGS-$(CONFIG_CC_STRINGOP_OVERFLOW) += $(call cc-option, -Wstringop-overflow)
 
 # Currently, disable -Wunterminated-string-initialization as broken
-KBUILD_CFLAGS += $(call cc-disable-warning, unterminated-string-initialization)
+KBUILD_CFLAGS += $(call cc-option, -Wno-unterminated-string-initialization)
 
 # The allocators already balk at large sizes, so silence the compiler
 # warnings for bounds checks involving those possible values. While
@@ -120,14 +120,14 @@ else
 
 # Some diagnostics enabled by default are noisy.
 # Suppress them by using -Wno... except for W=1.
-KBUILD_CFLAGS += $(call cc-disable-warning, unused-but-set-variable)
-KBUILD_CFLAGS += $(call cc-disable-warning, unused-const-variable)
-KBUILD_CFLAGS += $(call cc-disable-warning, packed-not-aligned)
-KBUILD_CFLAGS += $(call cc-disable-warning, format-overflow)
+KBUILD_CFLAGS += $(call cc-option, -Wno-unused-but-set-variable)
+KBUILD_CFLAGS += $(call cc-option, -Wno-unused-const-variable)
+KBUILD_CFLAGS += $(call cc-option, -Wno-packed-not-aligned)
+KBUILD_CFLAGS += $(call cc-option, -Wno-format-overflow)
 ifdef CONFIG_CC_IS_GCC
-KBUILD_CFLAGS += $(call cc-disable-warning, format-truncation)
+KBUILD_CFLAGS += $(call cc-option, -Wno-format-truncation)
 endif
-KBUILD_CFLAGS += $(call cc-disable-warning, stringop-truncation)
+KBUILD_CFLAGS += $(call cc-option, -Wno-stringop-truncation)
 
 KBUILD_CFLAGS += -Wno-override-init # alias for -Wno-initializer-overrides in clang
 
@@ -145,9 +145,9 @@ ifeq ($(call clang-min-version, 120000),y)
 KBUILD_CFLAGS += -Wformat-insufficient-args
 endif
 endif
-KBUILD_CFLAGS += $(call cc-disable-warning, pointer-to-enum-cast)
+KBUILD_CFLAGS += $(call cc-option, -Wno-pointer-to-enum-cast)
 KBUILD_CFLAGS += -Wno-tautological-constant-out-of-range-compare
-KBUILD_CFLAGS += $(call cc-disable-warning, unaligned-access)
+KBUILD_CFLAGS += $(call cc-option, -Wno-unaligned-access)
 KBUILD_CFLAGS += -Wno-enum-compare-conditional
 endif
 
