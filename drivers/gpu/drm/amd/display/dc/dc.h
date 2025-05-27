@@ -1701,7 +1701,7 @@ struct dc {
 	} scratch;
 
 	struct dml2_configuration_options dml2_options;
-	struct dml2_configuration_options dml2_tmp;
+	struct dml2_configuration_options dml2_dc_power_options;
 	enum dc_acpi_cm_power_state power_state;
 
 };

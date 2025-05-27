@@ -324,6 +324,8 @@ struct clk_mgr_funcs {
 
 	int (*get_dispclk_from_dentist)(struct clk_mgr *clk_mgr_base);
 
+	bool (*is_dc_mode_present)(struct clk_mgr *clk_mgr);
+
 };
 
 struct clk_mgr {

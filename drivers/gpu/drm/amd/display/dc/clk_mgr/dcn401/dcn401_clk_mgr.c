@@ -311,6 +311,25 @@ void dcn401_init_clocks(struct clk_mgr *clk_mgr_base)
 	dcn401_build_wm_range_table(clk_mgr_base);
 }
 
+bool dcn401_is_dc_mode_present(struct clk_mgr *clk_mgr_base)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+
+	return clk_mgr->smu_present && clk_mgr->dpm_present &&
+			((clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_dcfclk_levels &&
+			clk_mgr_base->bw_params->dc_mode_limit.dcfclk_mhz) ||
+			(clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_dispclk_levels &&
+			clk_mgr_base->bw_params->dc_mode_limit.dispclk_mhz) ||
+			(clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_dtbclk_levels &&
+			clk_mgr_base->bw_params->dc_mode_limit.dtbclk_mhz) ||
+			(clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_fclk_levels &&
+			clk_mgr_base->bw_params->dc_mode_limit.fclk_mhz) ||
+			(clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_memclk_levels &&
+			clk_mgr_base->bw_params->dc_mode_limit.memclk_mhz) ||
+			(clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_socclk_levels &&
+			clk_mgr_base->bw_params->dc_mode_limit.socclk_mhz));
+}
+
 static void dcn401_dump_clk_registers(struct clk_state_registers_and_bypass *regs_and_bypass,
 		struct clk_mgr *clk_mgr_base, struct clk_log_info *log_info)
 {
@@ -1496,6 +1515,7 @@ static struct clk_mgr_funcs dcn401_funcs = {
 		.get_dispclk_from_dentist = dcn401_get_dispclk_from_dentist,
 		.get_hard_min_memclk = dcn401_get_hard_min_memclk,
 		.get_hard_min_fclk = dcn401_get_hard_min_fclk,
+		.is_dc_mode_present = dcn401_is_dc_mode_present,
 };
 
 struct clk_mgr_internal *dcn401_clk_mgr_construct(

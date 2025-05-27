@@ -1607,10 +1607,6 @@ static struct dc_cap_funcs cap_funcs = {
 
 static void dcn401_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
 {
-	struct dml2_configuration_options *dml2_opt = &dc->dml2_tmp;
-
-	memcpy(dml2_opt, &dc->dml2_options, sizeof(dc->dml2_options));
-
 	/* re-calculate the available MALL size if required */
 	if (bw_params->num_channels > 0) {
 		dc->caps.max_cab_allocation_bytes = dcn401_calc_num_avail_chans_for_mall(
@@ -1621,13 +1617,11 @@ static void dcn401_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *b
 
 	DC_FP_START();
 
-	dml2_opt->use_clock_dc_limits = false;
 	if (dc->debug.using_dml2 && dc->current_state && dc->current_state->bw_ctx.dml2)
-		dml2_reinit(dc, dml2_opt, &dc->current_state->bw_ctx.dml2);
+		dml2_reinit(dc, &dc->dml2_options, &dc->current_state->bw_ctx.dml2);
 
-	dml2_opt->use_clock_dc_limits = true;
 	if (dc->debug.using_dml2 && dc->current_state && dc->current_state->bw_ctx.dml2_dc_power_source)
-		dml2_reinit(dc, dml2_opt, &dc->current_state->bw_ctx.dml2_dc_power_source);
+		dml2_reinit(dc, &dc->dml2_dc_power_options, &dc->current_state->bw_ctx.dml2_dc_power_source);
 
 	DC_FP_END();
 }
@@ -2245,6 +2239,10 @@ static bool dcn401_resource_construct(
 
 	/* SPL */
 	dc->caps.scl_caps.sharpener_support = true;
+
+	/* init DC limited DML2 options */
+	memcpy(&dc->dml2_dc_power_options, &dc->dml2_options, sizeof(struct dml2_configuration_options));
+	dc->dml2_dc_power_options.use_clock_dc_limits = true;
 
 	return true;
 
