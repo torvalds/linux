@@ -70,7 +70,6 @@
 #include "dml/dcn30/display_mode_vba_30.h"
 #include "vm_helper.h"
 #include "dcn20/dcn20_vmid.h"
-#include "dml/dcn401/dcn401_fpu.h"
 
 #include "dc_state_priv.h"
 
@@ -1621,8 +1620,6 @@ static void dcn401_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *b
 	}
 
 	DC_FP_START();
-
-	dcn401_update_bw_bounding_box_fpu(dc, bw_params);
 
 	dml2_opt->use_clock_dc_limits = false;
 	if (dc->debug.using_dml2 && dc->current_state && dc->current_state->bw_ctx.dml2)
