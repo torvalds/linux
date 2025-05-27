@@ -37,7 +37,7 @@
 #include <asm/sev.h>			/* snp_dump_hva_rmpentry()	*/
 
 #define CREATE_TRACE_POINTS
-#include <asm/trace/exceptions.h>
+#include <trace/events/exceptions.h>
 
 /*
  * Returns 0 if mmiotrace is disabled, or if the fault is not
@@ -1454,9 +1454,6 @@ static __always_inline void
 trace_page_fault_entries(struct pt_regs *regs, unsigned long error_code,
 			 unsigned long address)
 {
-	if (!trace_pagefault_enabled())
-		return;
-
 	if (user_mode(regs))
 		trace_page_fault_user(address, regs, error_code);
 	else

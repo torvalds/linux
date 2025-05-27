@@ -29,8 +29,6 @@ obj-y				+= pat/
 # Make sure __phys_addr has no stackprotector
 CFLAGS_physaddr.o		:= -fno-stack-protector
 
-CFLAGS_fault.o := -I $(src)/../include/asm/trace
-
 obj-$(CONFIG_X86_32)		+= pgtable_32.o iomap_32.o
 
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
