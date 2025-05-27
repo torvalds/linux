@@ -25,6 +25,8 @@ all_archs=(
 	riscv32 riscv64
 	s390x s390
 	loongarch
+	sparc32 sparc64
+	m68k
 )
 archs="${all_archs[@]}"
 
@@ -111,6 +113,7 @@ crosstool_arch() {
 	loongarch) echo loongarch64;;
 	mips*) echo mips;;
 	s390*) echo s390;;
+	sparc*) echo sparc64;;
 	*) echo "$1";;
 	esac
 }
@@ -181,6 +184,10 @@ test_arch() {
 	esac
 	printf '%-15s' "$arch:"
 	if [ "$arch" = "s390" ] && ([ "$llvm" = "1" ] || [ "$test_mode" = "user" ]); then
+		echo "Unsupported configuration"
+		return
+	fi
+	if [ "$arch" = "m68k" ] && [ "$llvm" = "1" ]; then
 		echo "Unsupported configuration"
 		return
 	fi
