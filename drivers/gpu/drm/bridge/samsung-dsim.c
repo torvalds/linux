@@ -1236,43 +1236,34 @@ static void samsung_dsim_transfer_start(struct samsung_dsim *dsi)
 {
 	unsigned long flags;
 	struct samsung_dsim_transfer *xfer;
-	bool start = false;
 
-again:
 	spin_lock_irqsave(&dsi->transfer_lock, flags);
 
-	if (list_empty(&dsi->transfer_list)) {
+	while (!list_empty(&dsi->transfer_list)) {
+		xfer = list_first_entry(&dsi->transfer_list,
+					struct samsung_dsim_transfer, list);
+
 		spin_unlock_irqrestore(&dsi->transfer_lock, flags);
-		return;
+
+		if (xfer->packet.payload_length &&
+		    xfer->tx_done == xfer->packet.payload_length)
+			/* waiting for RX */
+			return;
+
+		samsung_dsim_send_to_fifo(dsi, xfer);
+
+		if (xfer->packet.payload_length || xfer->rx_len)
+			return;
+
+		xfer->result = 0;
+		complete(&xfer->completed);
+
+		spin_lock_irqsave(&dsi->transfer_lock, flags);
+
+		list_del_init(&xfer->list);
 	}
 
-	xfer = list_first_entry(&dsi->transfer_list,
-				struct samsung_dsim_transfer, list);
-
 	spin_unlock_irqrestore(&dsi->transfer_lock, flags);
-
-	if (xfer->packet.payload_length &&
-	    xfer->tx_done == xfer->packet.payload_length)
-		/* waiting for RX */
-		return;
-
-	samsung_dsim_send_to_fifo(dsi, xfer);
-
-	if (xfer->packet.payload_length || xfer->rx_len)
-		return;
-
-	xfer->result = 0;
-	complete(&xfer->completed);
-
-	spin_lock_irqsave(&dsi->transfer_lock, flags);
-
-	list_del_init(&xfer->list);
-	start = !list_empty(&dsi->transfer_list);
-
-	spin_unlock_irqrestore(&dsi->transfer_lock, flags);
-
-	if (start)
-		goto again;
 }
 
 static bool samsung_dsim_transfer_finish(struct samsung_dsim *dsi)
