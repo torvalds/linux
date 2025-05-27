@@ -43,7 +43,7 @@ static int psci_pd_power_off(struct generic_pm_domain *pd)
 
 	/* OSI mode is enabled, set the corresponding domain state. */
 	pd_state = state->data;
-	psci_set_domain_state(*pd_state);
+	psci_set_domain_state(pd, pd->state_idx, *pd_state);
 
 	return 0;
 }

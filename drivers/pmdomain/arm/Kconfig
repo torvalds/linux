@@ -2,7 +2,7 @@
 config ARM_SCMI_PERF_DOMAIN
 	tristate "SCMI performance domain driver"
 	depends on ARM_SCMI_PROTOCOL || (COMPILE_TEST && OF)
-	default y
+	default ARM_SCMI_PROTOCOL
 	select PM_GENERIC_DOMAINS if PM
 	help
 	  This enables support for the SCMI performance domains which can be
@@ -14,7 +14,7 @@ config ARM_SCMI_PERF_DOMAIN
 config ARM_SCMI_POWER_DOMAIN
 	tristate "SCMI power domain driver"
 	depends on ARM_SCMI_PROTOCOL || (COMPILE_TEST && OF)
-	default y
+	default ARM_SCMI_PROTOCOL
 	select PM_GENERIC_DOMAINS if PM
 	help
 	  This enables support for the SCMI power domains which can be
@@ -27,7 +27,7 @@ config ARM_SCMI_POWER_DOMAIN
 config ARM_SCPI_POWER_DOMAIN
 	tristate "SCPI power domain driver"
 	depends on ARM_SCPI_PROTOCOL || (COMPILE_TEST && OF)
-	default y
+	default ARM_SCPI_PROTOCOL
 	select PM_GENERIC_DOMAINS if PM
 	help
 	  This enables support for the SCPI power domains which can be
