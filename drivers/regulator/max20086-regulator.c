@@ -28,7 +28,7 @@
 #define	MAX20086_REG_ADC4		0x09
 
 /* DEVICE IDs */
-#define MAX20086_DEVICE_ID_MAX20086	0x40
+#define MAX20086_DEVICE_ID_MAX20086	0x30
 #define MAX20086_DEVICE_ID_MAX20087	0x20
 #define MAX20086_DEVICE_ID_MAX20088	0x10
 #define MAX20086_DEVICE_ID_MAX20089	0x00
@@ -264,7 +264,7 @@ static int max20086_i2c_probe(struct i2c_client *i2c)
 	 * shutdown.
 	 */
 	flags = boot_on ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW;
-	chip->ena_gpiod = devm_gpiod_get(chip->dev, "enable", flags);
+	chip->ena_gpiod = devm_gpiod_get_optional(chip->dev, "enable", flags);
 	if (IS_ERR(chip->ena_gpiod)) {
 		ret = PTR_ERR(chip->ena_gpiod);
 		dev_err(chip->dev, "Failed to get enable GPIO: %d\n", ret);
