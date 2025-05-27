@@ -11,7 +11,7 @@ struct drm_device;
 struct dram_info;
 
 void intel_dram_edram_detect(struct drm_i915_private *i915);
-void intel_dram_detect(struct drm_i915_private *i915);
+int intel_dram_detect(struct drm_i915_private *i915);
 unsigned int i9xx_fsb_freq(struct drm_i915_private *i915);
 const struct dram_info *intel_dram_info(struct drm_device *drm);
 

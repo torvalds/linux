@@ -122,7 +122,9 @@ int xe_display_init_early(struct xe_device *xe)
 	 * Fill the dram structure to get the system dram info. This will be
 	 * used for memory latency calculation.
 	 */
-	intel_dram_detect(xe);
+	err = intel_dram_detect(xe);
+	if (err)
+		goto err_opregion;
 
 	intel_bw_init_hw(display);
 

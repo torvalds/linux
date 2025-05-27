@@ -704,7 +704,7 @@ static int xelpdp_get_dram_info(struct drm_i915_private *i915, struct dram_info 
 	return 0;
 }
 
-void intel_dram_detect(struct drm_i915_private *i915)
+int intel_dram_detect(struct drm_i915_private *i915)
 {
 	struct dram_info *dram_info = &i915->dram_info;
 	int ret;
@@ -713,7 +713,7 @@ void intel_dram_detect(struct drm_i915_private *i915)
 	detect_mem_freq(i915);
 
 	if (GRAPHICS_VER(i915) < 9 || IS_DG2(i915) || !HAS_DISPLAY(i915))
-		return;
+		return 0;
 
 	/*
 	 * Assume level 0 watermark latency adjustment is needed until proven
@@ -735,8 +735,9 @@ void intel_dram_detect(struct drm_i915_private *i915)
 	drm_dbg_kms(&i915->drm, "DRAM type: %s\n",
 		    intel_dram_type_str(dram_info->type));
 
+	/* TODO: Do we want to abort probe on dram detection failures? */
 	if (ret)
-		return;
+		return 0;
 
 	drm_dbg_kms(&i915->drm, "Num qgv points %u\n", dram_info->num_qgv_points);
 
@@ -744,6 +745,8 @@ void intel_dram_detect(struct drm_i915_private *i915)
 
 	drm_dbg_kms(&i915->drm, "Watermark level 0 adjustment needed: %s\n",
 		    str_yes_no(dram_info->wm_lv_0_adjust_needed));
+
+	return 0;
 }
 
 const struct dram_info *intel_dram_info(struct drm_device *drm)
