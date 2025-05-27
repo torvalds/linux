@@ -2390,9 +2390,7 @@ static int gfx_v12_1_xcc_cp_resume(struct amdgpu_device *adev,
 
 	gfx_v12_1_xcc_cp_set_doorbell_range(adev, xcc_id);
 
-	if (amdgpu_async_gfx_ring) {
-		gfx_v12_1_xcc_cp_compute_enable(adev, true, xcc_id);
-	}
+	gfx_v12_1_xcc_cp_compute_enable(adev, true, xcc_id);
 
 	if (adev->enable_mes_kiq && adev->mes.kiq_hw_init)
 		r = amdgpu_mes_kiq_hw_init(adev, xcc_id);
