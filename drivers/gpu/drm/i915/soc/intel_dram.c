@@ -383,9 +383,8 @@ intel_is_dram_symmetric(const struct dram_channel_info *ch0,
 }
 
 static int
-skl_dram_get_channels_info(struct drm_i915_private *i915)
+skl_dram_get_channels_info(struct drm_i915_private *i915, struct dram_info *dram_info)
 {
-	struct dram_info *dram_info = &i915->dram_info;
 	struct dram_channel_info ch0 = {}, ch1 = {};
 	u32 val;
 	int ret;
@@ -446,14 +445,13 @@ skl_get_dram_type(struct drm_i915_private *i915)
 }
 
 static int
-skl_get_dram_info(struct drm_i915_private *i915)
+skl_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
 {
-	struct dram_info *dram_info = &i915->dram_info;
 	int ret;
 
 	dram_info->type = skl_get_dram_type(i915);
 
-	ret = skl_dram_get_channels_info(i915);
+	ret = skl_dram_get_channels_info(i915, dram_info);
 	if (ret)
 		return ret;
 
@@ -538,9 +536,8 @@ static void bxt_get_dimm_info(struct dram_dimm_info *dimm, u32 val)
 	dimm->size = bxt_get_dimm_size(val) * intel_dimm_num_devices(dimm);
 }
 
-static int bxt_get_dram_info(struct drm_i915_private *i915)
+static int bxt_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
 {
-	struct dram_info *dram_info = &i915->dram_info;
 	u32 val;
 	u8 valid_ranks = 0;
 	int i;
@@ -585,9 +582,9 @@ static int bxt_get_dram_info(struct drm_i915_private *i915)
 	return 0;
 }
 
-static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv)
+static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv,
+					  struct dram_info *dram_info)
 {
-	struct dram_info *dram_info = &dev_priv->dram_info;
 	u32 val = 0;
 	int ret;
 
@@ -647,27 +644,26 @@ static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-static int gen11_get_dram_info(struct drm_i915_private *i915)
+static int gen11_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
 {
-	int ret = skl_get_dram_info(i915);
+	int ret = skl_get_dram_info(i915, dram_info);
 
 	if (ret)
 		return ret;
 
-	return icl_pcode_read_mem_global_info(i915);
+	return icl_pcode_read_mem_global_info(i915, dram_info);
 }
 
-static int gen12_get_dram_info(struct drm_i915_private *i915)
+static int gen12_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
 {
-	i915->dram_info.wm_lv_0_adjust_needed = false;
+	dram_info->wm_lv_0_adjust_needed = false;
 
-	return icl_pcode_read_mem_global_info(i915);
+	return icl_pcode_read_mem_global_info(i915, dram_info);
 }
 
-static int xelpdp_get_dram_info(struct drm_i915_private *i915)
+static int xelpdp_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
 {
 	u32 val = intel_uncore_read(&i915->uncore, MTL_MEM_SS_INFO_GLOBAL);
-	struct dram_info *dram_info = &i915->dram_info;
 
 	switch (REG_FIELD_GET(MTL_DDR_TYPE_MASK, val)) {
 	case 0:
@@ -726,15 +722,15 @@ void intel_dram_detect(struct drm_i915_private *i915)
 	dram_info->wm_lv_0_adjust_needed = !IS_BROXTON(i915) && !IS_GEMINILAKE(i915);
 
 	if (DISPLAY_VER(i915) >= 14)
-		ret = xelpdp_get_dram_info(i915);
+		ret = xelpdp_get_dram_info(i915, dram_info);
 	else if (GRAPHICS_VER(i915) >= 12)
-		ret = gen12_get_dram_info(i915);
+		ret = gen12_get_dram_info(i915, dram_info);
 	else if (GRAPHICS_VER(i915) >= 11)
-		ret = gen11_get_dram_info(i915);
+		ret = gen11_get_dram_info(i915, dram_info);
 	else if (IS_BROXTON(i915) || IS_GEMINILAKE(i915))
-		ret = bxt_get_dram_info(i915);
+		ret = bxt_get_dram_info(i915, dram_info);
 	else
-		ret = skl_get_dram_info(i915);
+		ret = skl_get_dram_info(i915, dram_info);
 
 	drm_dbg_kms(&i915->drm, "DRAM type: %s\n",
 		    intel_dram_type_str(dram_info->type));
