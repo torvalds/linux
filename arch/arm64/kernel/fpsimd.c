@@ -180,12 +180,12 @@ static inline void set_sve_default_vl(int val)
 	set_default_vl(ARM64_VEC_SVE, val);
 }
 
-static void __percpu *efi_sve_state;
+static u8 *efi_sve_state;
 
 #else /* ! CONFIG_ARM64_SVE */
 
 /* Dummy declaration for code that will be optimised out: */
-extern void __percpu *efi_sve_state;
+extern u8 *efi_sve_state;
 
 #endif /* ! CONFIG_ARM64_SVE */
 
@@ -1131,15 +1131,15 @@ static void __init sve_efi_setup(void)
 	if (!sve_vl_valid(max_vl))
 		goto fail;
 
-	efi_sve_state = __alloc_percpu(
-		SVE_SIG_REGS_SIZE(sve_vq_from_vl(max_vl)), SVE_VQ_BYTES);
+	efi_sve_state = kmalloc(SVE_SIG_REGS_SIZE(sve_vq_from_vl(max_vl)),
+				GFP_KERNEL);
 	if (!efi_sve_state)
 		goto fail;
 
 	return;
 
 fail:
-	panic("Cannot allocate percpu memory for EFI SVE save/restore");
+	panic("Cannot allocate memory for EFI SVE save/restore");
 }
 
 void cpu_enable_sve(const struct arm64_cpu_capabilities *__always_unused p)
@@ -1948,10 +1948,10 @@ EXPORT_SYMBOL_GPL(kernel_neon_end);
 
 #ifdef CONFIG_EFI
 
-static DEFINE_PER_CPU(struct user_fpsimd_state, efi_fpsimd_state);
-static DEFINE_PER_CPU(bool, efi_fpsimd_state_used);
-static DEFINE_PER_CPU(bool, efi_sve_state_used);
-static DEFINE_PER_CPU(bool, efi_sm_state);
+static struct user_fpsimd_state efi_fpsimd_state;
+static bool efi_fpsimd_state_used;
+static bool efi_sve_state_used;
+static bool efi_sm_state;
 
 /*
  * EFI runtime services support functions
@@ -1984,18 +1984,16 @@ void __efi_fpsimd_begin(void)
 		 * If !efi_sve_state, SVE can't be in use yet and doesn't need
 		 * preserving:
 		 */
-		if (system_supports_sve() && likely(efi_sve_state)) {
-			char *sve_state = this_cpu_ptr(efi_sve_state);
+		if (system_supports_sve() && efi_sve_state != NULL) {
 			bool ffr = true;
 			u64 svcr;
 
-			__this_cpu_write(efi_sve_state_used, true);
+			efi_sve_state_used = true;
 
 			if (system_supports_sme()) {
 				svcr = read_sysreg_s(SYS_SVCR);
 
-				__this_cpu_write(efi_sm_state,
-						 svcr & SVCR_SM_MASK);
+				efi_sm_state = svcr & SVCR_SM_MASK;
 
 				/*
 				 * Unless we have FA64 FFR does not
@@ -2005,19 +2003,18 @@ void __efi_fpsimd_begin(void)
 					ffr = !(svcr & SVCR_SM_MASK);
 			}
 
-			sve_save_state(sve_state + sve_ffr_offset(sve_max_vl()),
-				       &this_cpu_ptr(&efi_fpsimd_state)->fpsr,
-				       ffr);
+			sve_save_state(efi_sve_state + sve_ffr_offset(sve_max_vl()),
+				       &efi_fpsimd_state.fpsr, ffr);
 
 			if (system_supports_sme())
 				sysreg_clear_set_s(SYS_SVCR,
 						   SVCR_SM_MASK, 0);
 
 		} else {
-			fpsimd_save_state(this_cpu_ptr(&efi_fpsimd_state));
+			fpsimd_save_state(&efi_fpsimd_state);
 		}
 
-		__this_cpu_write(efi_fpsimd_state_used, true);
+		efi_fpsimd_state_used = true;
 	}
 }
 
@@ -2029,12 +2026,10 @@ void __efi_fpsimd_end(void)
 	if (!system_supports_fpsimd())
 		return;
 
-	if (!__this_cpu_xchg(efi_fpsimd_state_used, false)) {
+	if (!efi_fpsimd_state_used) {
 		kernel_neon_end();
 	} else {
-		if (system_supports_sve() &&
-		    likely(__this_cpu_read(efi_sve_state_used))) {
-			char const *sve_state = this_cpu_ptr(efi_sve_state);
+		if (system_supports_sve() && efi_sve_state_used) {
 			bool ffr = true;
 
 			/*
@@ -2043,7 +2038,7 @@ void __efi_fpsimd_end(void)
 			 * streaming mode.
 			 */
 			if (system_supports_sme()) {
-				if (__this_cpu_read(efi_sm_state)) {
+				if (efi_sm_state) {
 					sysreg_clear_set_s(SYS_SVCR,
 							   0,
 							   SVCR_SM_MASK);
@@ -2057,14 +2052,15 @@ void __efi_fpsimd_end(void)
 				}
 			}
 
-			sve_load_state(sve_state + sve_ffr_offset(sve_max_vl()),
-				       &this_cpu_ptr(&efi_fpsimd_state)->fpsr,
-				       ffr);
+			sve_load_state(efi_sve_state + sve_ffr_offset(sve_max_vl()),
+				       &efi_fpsimd_state.fpsr, ffr);
 
-			__this_cpu_write(efi_sve_state_used, false);
+			efi_sve_state_used = false;
 		} else {
-			fpsimd_load_state(this_cpu_ptr(&efi_fpsimd_state));
+			fpsimd_load_state(&efi_fpsimd_state);
 		}
+
+		efi_fpsimd_state_used = false;
 	}
 }
 
