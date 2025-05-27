@@ -1076,10 +1076,8 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 	 * Avoid calling into the driver (or doing delays) if the chip select
 	 * isn't actually changing from the last time this was called.
 	 */
-	if (!force && ((enable && spi->controller->last_cs_index_mask == spi->cs_index_mask &&
-			spi_is_last_cs(spi)) ||
-		       (!enable && spi->controller->last_cs_index_mask == spi->cs_index_mask &&
-			!spi_is_last_cs(spi))) &&
+	if (!force && (enable == spi_is_last_cs(spi)) &&
+	    (spi->controller->last_cs_index_mask == spi->cs_index_mask) &&
 	    (spi->controller->last_cs_mode_high == (spi->mode & SPI_CS_HIGH)))
 		return;
 
@@ -1088,9 +1086,9 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 	spi->controller->last_cs_index_mask = spi->cs_index_mask;
 	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
 		spi->controller->last_cs[idx] = enable ? spi_get_chipselect(spi, 0) : SPI_INVALID_CS;
-	spi->controller->last_cs_mode_high = spi->mode & SPI_CS_HIGH;
 
-	if (spi->mode & SPI_CS_HIGH)
+	spi->controller->last_cs_mode_high = spi->mode & SPI_CS_HIGH;
+	if (spi->controller->last_cs_mode_high)
 		enable = !enable;
 
 	/*
@@ -3802,7 +3800,7 @@ int spi_split_transfers_maxwords(struct spi_controller *ctlr,
 		size_t maxsize;
 		int ret;
 
-		maxsize = maxwords * roundup_pow_of_two(BITS_TO_BYTES(xfer->bits_per_word));
+		maxsize = maxwords * spi_bpw_to_bytes(xfer->bits_per_word);
 		if (xfer->len > maxsize) {
 			ret = __spi_split_transfer_maxsize(ctlr, msg, &xfer,
 							   maxsize);
@@ -4094,6 +4092,13 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 			xfer->speed_hz = ctlr->max_speed_hz;
 
 		if (__spi_validate_bits_per_word(ctlr, xfer->bits_per_word))
+			return -EINVAL;
+
+		/* DDR mode is supported only if controller has dtr_caps=true.
+		 * default considered as SDR mode for SPI and QSPI controller.
+		 * Note: This is applicable only to QSPI controller.
+		 */
+		if (xfer->dtr_mode && !ctlr->dtr_caps)
 			return -EINVAL;
 
 		/*

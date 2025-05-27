@@ -17,6 +17,8 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-mem.h>
 
+#include "spi-amd.h"
+
 #define AMD_SPI_CTRL0_REG	0x00
 #define AMD_SPI_EXEC_CMD	BIT(16)
 #define AMD_SPI_FIFO_CLEAR	BIT(20)
@@ -52,10 +54,13 @@
 #define AMD_SPI_SPD7_MASK	GENMASK(13, AMD_SPI_SPD7_SHIFT)
 
 #define AMD_SPI_HID2_INPUT_RING_BUF0	0X100
+#define AMD_SPI_HID2_OUTPUT_BUF0	0x140
 #define AMD_SPI_HID2_CNTRL		0x150
 #define AMD_SPI_HID2_INT_STATUS		0x154
 #define AMD_SPI_HID2_CMD_START		0x156
 #define AMD_SPI_HID2_INT_MASK		0x158
+#define AMD_SPI_HID2_WRITE_CNTRL0	0x160
+#define AMD_SPI_HID2_WRITE_CNTRL1	0x164
 #define AMD_SPI_HID2_READ_CNTRL0	0x170
 #define AMD_SPI_HID2_READ_CNTRL1	0x174
 #define AMD_SPI_HID2_READ_CNTRL2	0x180
@@ -81,17 +86,9 @@
 #define AMD_SPI_OP_READ_1_1_4_4B	0x6c    /* Read data bytes (Quad Output SPI) */
 #define AMD_SPI_OP_READ_1_4_4_4B	0xec    /* Read data bytes (Quad I/O SPI) */
 
-/**
- * enum amd_spi_versions - SPI controller versions
- * @AMD_SPI_V1:		AMDI0061 hardware version
- * @AMD_SPI_V2:		AMDI0062 hardware version
- * @AMD_HID2_SPI:	AMDI0063 hardware version
- */
-enum amd_spi_versions {
-	AMD_SPI_V1 = 1,
-	AMD_SPI_V2,
-	AMD_HID2_SPI,
-};
+/* SPINAND write command opcodes */
+#define AMD_SPI_OP_PP			0x02	/* Page program */
+#define AMD_SPI_OP_PP_RANDOM		0x84	/* Page program */
 
 enum amd_spi_speed {
 	F_66_66MHz,
@@ -116,22 +113,6 @@ struct amd_spi_freq {
 	u32 speed_hz;
 	u32 enable_val;
 	u32 spd7_val;
-};
-
-/**
- * struct amd_spi - SPI driver instance
- * @io_remap_addr:	Start address of the SPI controller registers
- * @phy_dma_buf:	Physical address of DMA buffer
- * @dma_virt_addr:	Virtual address of DMA buffer
- * @version:		SPI controller hardware version
- * @speed_hz:		Device frequency
- */
-struct amd_spi {
-	void __iomem *io_remap_addr;
-	dma_addr_t phy_dma_buf;
-	void *dma_virt_addr;
-	enum amd_spi_versions version;
-	unsigned int speed_hz;
 };
 
 static inline u8 amd_spi_readreg8(struct amd_spi *amd_spi, int idx)
@@ -445,6 +426,17 @@ static inline bool amd_is_spi_read_cmd(const u16 op)
 	}
 }
 
+static inline bool amd_is_spi_write_cmd(const u16 op)
+{
+	switch (op) {
+	case AMD_SPI_OP_PP:
+	case AMD_SPI_OP_PP_RANDOM:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static bool amd_spi_supports_op(struct spi_mem *mem,
 				const struct spi_mem_op *op)
 {
@@ -455,7 +447,7 @@ static bool amd_spi_supports_op(struct spi_mem *mem,
 		return false;
 
 	/* AMD SPI controllers support quad mode only for read operations */
-	if (amd_is_spi_read_cmd(op->cmd.opcode)) {
+	if (amd_is_spi_read_cmd(op->cmd.opcode) || amd_is_spi_write_cmd(op->cmd.opcode)) {
 		if (op->data.buswidth > 4)
 			return false;
 
@@ -464,7 +456,8 @@ static bool amd_spi_supports_op(struct spi_mem *mem,
 		 * doesn't support 4-byte address commands.
 		 */
 		if (amd_spi->version == AMD_HID2_SPI) {
-			if (amd_is_spi_read_cmd_4b(op->cmd.opcode) ||
+			if ((amd_is_spi_read_cmd_4b(op->cmd.opcode) ||
+			     amd_is_spi_write_cmd(op->cmd.opcode)) &&
 			    op->data.nbytes > AMD_SPI_HID2_DMA_SIZE)
 				return false;
 		} else if (op->data.nbytes > AMD_SPI_MAX_DATA) {
@@ -490,7 +483,8 @@ static int amd_spi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 	 * controller index mode supports maximum of 64 bytes in a single
 	 * transaction.
 	 */
-	if (amd_spi->version == AMD_HID2_SPI && amd_is_spi_read_cmd(op->cmd.opcode))
+	if (amd_spi->version == AMD_HID2_SPI && (amd_is_spi_read_cmd(op->cmd.opcode) ||
+						 amd_is_spi_write_cmd(op->cmd.opcode)))
 		op->data.nbytes = clamp_val(op->data.nbytes, 0, AMD_SPI_HID2_DMA_SIZE);
 	else
 		op->data.nbytes = clamp_val(op->data.nbytes, 0, AMD_SPI_MAX_DATA);
@@ -514,32 +508,96 @@ static void amd_spi_set_addr(struct amd_spi *amd_spi,
 	}
 }
 
+static void amd_spi_hiddma_write(struct amd_spi *amd_spi, const struct spi_mem_op *op)
+{
+	u16 hid_cmd_start, val;
+	u32 hid_regval;
+
+	/*
+	 * Program the HID2 output Buffer0. 4k aligned buf_memory_addr[31:12],
+	 * buf_size[2:0].
+	 */
+	hid_regval = amd_spi->phy_dma_buf | BIT(0);
+	amd_spi_writereg32(amd_spi, AMD_SPI_HID2_OUTPUT_BUF0, hid_regval);
+
+	/* Program max write length in hid2_write_control1 register */
+	hid_regval = amd_spi_readreg32(amd_spi, AMD_SPI_HID2_WRITE_CNTRL1);
+	hid_regval = (hid_regval & ~GENMASK(15, 0)) | ((op->data.nbytes) + 3);
+	amd_spi_writereg32(amd_spi, AMD_SPI_HID2_WRITE_CNTRL1, hid_regval);
+
+	/* Set cmd start bit in hid2_cmd_start register to trigger HID basic write operation */
+	hid_cmd_start = amd_spi_readreg16(amd_spi, AMD_SPI_HID2_CMD_START);
+	amd_spi_writereg16(amd_spi, AMD_SPI_HID2_CMD_START, (hid_cmd_start | BIT(2)));
+
+	/* Check interrupt status of HIDDMA basic write operation in hid2_int_status register */
+	readw_poll_timeout(amd_spi->io_remap_addr + AMD_SPI_HID2_INT_STATUS, val,
+			   (val & BIT(2)), AMD_SPI_IO_SLEEP_US, AMD_SPI_IO_TIMEOUT_US);
+
+	/* Clear the interrupts by writing to hid2_int_status register */
+	val = amd_spi_readreg16(amd_spi, AMD_SPI_HID2_INT_STATUS);
+	amd_spi_writereg16(amd_spi, AMD_SPI_HID2_INT_STATUS, val);
+}
+
 static void amd_spi_mem_data_out(struct amd_spi *amd_spi,
 				 const struct spi_mem_op *op)
 {
 	int base_addr = AMD_SPI_FIFO_BASE + op->addr.nbytes;
 	u64 *buf_64 = (u64 *)op->data.buf.out;
+	u64 addr_val = op->addr.val;
 	u32 nbytes = op->data.nbytes;
 	u32 left_data = nbytes;
 	u8 *buf;
 	int i;
 
-	amd_spi_set_opcode(amd_spi, op->cmd.opcode);
-	amd_spi_set_addr(amd_spi, op);
+	/*
+	 * Condition for using HID write mode. Only for writing complete page data, use HID write.
+	 * Use index mode otherwise.
+	 */
+	if (amd_spi->version == AMD_HID2_SPI && amd_is_spi_write_cmd(op->cmd.opcode)) {
+		u64 *dma_buf64 = (u64 *)(amd_spi->dma_virt_addr + op->addr.nbytes + op->cmd.nbytes);
+		u8 *dma_buf = (u8 *)amd_spi->dma_virt_addr;
 
-	for (i = 0; left_data >= 8; i++, left_data -= 8)
-		amd_spi_writereg64(amd_spi, base_addr + op->dummy.nbytes + (i * 8), *buf_64++);
+		/* Copy opcode and address to DMA buffer */
+		*dma_buf = op->cmd.opcode;
 
-	buf = (u8 *)buf_64;
-	for (i = 0; i < left_data; i++) {
-		amd_spi_writereg8(amd_spi, base_addr + op->dummy.nbytes + nbytes + i - left_data,
-				  buf[i]);
+		dma_buf = (u8 *)dma_buf64;
+		for (i = 0; i < op->addr.nbytes; i++) {
+			*--dma_buf = addr_val & GENMASK(7, 0);
+			addr_val >>= 8;
+		}
+
+		/* Copy data to DMA buffer */
+		while (left_data >= 8) {
+			*dma_buf64++ = *buf_64++;
+			left_data -= 8;
+		}
+
+		buf = (u8 *)buf_64;
+		dma_buf = (u8 *)dma_buf64;
+		while (left_data--)
+			*dma_buf++ = *buf++;
+
+		amd_spi_hiddma_write(amd_spi, op);
+	} else {
+		amd_spi_set_opcode(amd_spi, op->cmd.opcode);
+		amd_spi_set_addr(amd_spi, op);
+
+		for (i = 0; left_data >= 8; i++, left_data -= 8)
+			amd_spi_writereg64(amd_spi, base_addr + op->dummy.nbytes + (i * 8),
+					   *buf_64++);
+
+		buf = (u8 *)buf_64;
+		for (i = 0; i < left_data; i++) {
+			amd_spi_writereg8(amd_spi,
+					  base_addr + op->dummy.nbytes + nbytes + i - left_data,
+					  buf[i]);
+		}
+
+		amd_spi_set_tx_count(amd_spi, op->addr.nbytes + op->data.nbytes);
+		amd_spi_set_rx_count(amd_spi, 0);
+		amd_spi_clear_fifo_ptr(amd_spi);
+		amd_spi_execute_opcode(amd_spi);
 	}
-
-	amd_spi_set_tx_count(amd_spi, op->addr.nbytes + op->data.nbytes);
-	amd_spi_set_rx_count(amd_spi, 0);
-	amd_spi_clear_fifo_ptr(amd_spi);
-	amd_spi_execute_opcode(amd_spi);
 }
 
 static void amd_spi_hiddma_read(struct amd_spi *amd_spi, const struct spi_mem_op *op)
@@ -616,15 +674,21 @@ static void amd_spi_mem_data_in(struct amd_spi *amd_spi,
 	 * Use index mode otherwise.
 	 */
 	if (amd_spi->version == AMD_HID2_SPI && amd_is_spi_read_cmd(op->cmd.opcode)) {
+		u64 *dma_buf64 = (u64 *)amd_spi->dma_virt_addr;
+		u8 *dma_buf;
+
 		amd_spi_hiddma_read(amd_spi, op);
 
-		for (i = 0; left_data >= 8; i++, left_data -= 8)
-			*buf_64++ = readq((u8 __iomem *)amd_spi->dma_virt_addr + (i * 8));
+		/* Copy data from DMA buffer */
+		while (left_data >= 8) {
+			*buf_64++ = *dma_buf64++;
+			left_data -= 8;
+		}
 
 		buf = (u8 *)buf_64;
-		for (i = 0; i < left_data; i++)
-			buf[i] = readb((u8 __iomem *)amd_spi->dma_virt_addr +
-				       (nbytes - left_data + i));
+		dma_buf = (u8 *)dma_buf64;
+		while (left_data--)
+			*buf++ = *dma_buf++;
 
 		/* Reset HID RX memory logic */
 		data = amd_spi_readreg32(amd_spi, AMD_SPI_HID2_CNTRL);
@@ -728,51 +792,38 @@ static int amd_spi_setup_hiddma(struct amd_spi *amd_spi, struct device *dev)
 {
 	u32 hid_regval;
 
-	/* Allocate DMA buffer to use for HID basic read operation */
-	amd_spi->dma_virt_addr = dma_alloc_coherent(dev, AMD_SPI_HID2_DMA_SIZE,
-						    &amd_spi->phy_dma_buf, GFP_KERNEL);
+	/* Allocate DMA buffer to use for HID basic read and write operations. For write
+	 * operations, the DMA buffer should include the opcode, address bytes and dummy
+	 * bytes(if any) in addition to the data bytes. Additionally, the hardware requires
+	 * that the buffer address be 4K aligned. So, allocate DMA buffer of size
+	 * 2 * AMD_SPI_HID2_DMA_SIZE.
+	 */
+	amd_spi->dma_virt_addr = dmam_alloc_coherent(dev, AMD_SPI_HID2_DMA_SIZE * 2,
+						     &amd_spi->phy_dma_buf, GFP_KERNEL);
 	if (!amd_spi->dma_virt_addr)
 		return -ENOMEM;
 
 	/*
 	 * Enable interrupts and set mask bits in hid2_int_mask register to generate interrupt
-	 * properly for HIDDMA basic read operations.
+	 * properly for HIDDMA basic read and write operations.
 	 */
 	hid_regval = amd_spi_readreg32(amd_spi, AMD_SPI_HID2_INT_MASK);
-	hid_regval = (hid_regval & GENMASK(31, 8)) | BIT(19);
+	hid_regval = (hid_regval & GENMASK(31, 8)) | BIT(18) | BIT(19);
 	amd_spi_writereg32(amd_spi, AMD_SPI_HID2_INT_MASK, hid_regval);
 
-	/* Configure buffer unit(4k) in hid2_control register */
+	/* Configure buffer unit(4k) and write threshold in hid2_control register */
 	hid_regval = amd_spi_readreg32(amd_spi, AMD_SPI_HID2_CNTRL);
-	amd_spi_writereg32(amd_spi, AMD_SPI_HID2_CNTRL, hid_regval & ~BIT(3));
+	amd_spi_writereg32(amd_spi, AMD_SPI_HID2_CNTRL, (hid_regval | GENMASK(13, 12)) & ~BIT(3));
 
 	return 0;
 }
 
-static int amd_spi_probe(struct platform_device *pdev)
+int amd_spi_probe_common(struct device *dev, struct spi_controller *host)
 {
-	struct device *dev = &pdev->dev;
-	struct spi_controller *host;
-	struct amd_spi *amd_spi;
+	struct amd_spi *amd_spi = spi_controller_get_devdata(host);
 	int err;
 
-	/* Allocate storage for host and driver private data */
-	host = devm_spi_alloc_host(dev, sizeof(struct amd_spi));
-	if (!host)
-		return dev_err_probe(dev, -ENOMEM, "Error allocating SPI host\n");
-
-	amd_spi = spi_controller_get_devdata(host);
-	amd_spi->io_remap_addr = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(amd_spi->io_remap_addr))
-		return dev_err_probe(dev, PTR_ERR(amd_spi->io_remap_addr),
-				     "ioremap of SPI registers failed\n");
-
-	dev_dbg(dev, "io_remap_address: %p\n", amd_spi->io_remap_addr);
-
-	amd_spi->version = (uintptr_t) device_get_match_data(dev);
-
 	/* Initialize the spi_controller fields */
-	host->bus_num = (amd_spi->version == AMD_HID2_SPI) ? 2 : 0;
 	host->num_chipselect = 4;
 	host->mode_bits = SPI_TX_DUAL | SPI_TX_QUAD | SPI_RX_DUAL | SPI_RX_QUAD;
 	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
@@ -794,6 +845,32 @@ static int amd_spi_probe(struct platform_device *pdev)
 		err = amd_spi_setup_hiddma(amd_spi, dev);
 
 	return err;
+}
+EXPORT_SYMBOL_GPL(amd_spi_probe_common);
+
+static int amd_spi_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct spi_controller *host;
+	struct amd_spi *amd_spi;
+
+	/* Allocate storage for host and driver private data */
+	host = devm_spi_alloc_host(dev, sizeof(struct amd_spi));
+	if (!host)
+		return dev_err_probe(dev, -ENOMEM, "Error allocating SPI host\n");
+
+	amd_spi = spi_controller_get_devdata(host);
+	amd_spi->io_remap_addr = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(amd_spi->io_remap_addr))
+		return dev_err_probe(dev, PTR_ERR(amd_spi->io_remap_addr),
+				     "ioremap of SPI registers failed\n");
+
+	dev_dbg(dev, "io_remap_address: %p\n", amd_spi->io_remap_addr);
+
+	amd_spi->version = (uintptr_t)device_get_match_data(dev);
+	host->bus_num = 0;
+
+	return amd_spi_probe_common(dev, host);
 }
 
 #ifdef CONFIG_ACPI

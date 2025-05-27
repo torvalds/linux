@@ -11,11 +11,9 @@
 
 #include <linux/platform_data/x86/spi-intel.h>
 
-struct resource;
-
 extern const struct attribute_group *intel_spi_groups[];
 
-int intel_spi_probe(struct device *dev, struct resource *mem,
+int intel_spi_probe(struct device *dev, void __iomem *base,
 		    const struct intel_spi_boardinfo *info);
 
 #endif /* SPI_INTEL_H */
