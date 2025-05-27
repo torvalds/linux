@@ -2516,6 +2516,30 @@ int cfg80211_check_combinations(struct wiphy *wiphy,
 }
 EXPORT_SYMBOL(cfg80211_check_combinations);
 
+int cfg80211_get_radio_idx_by_chan(struct wiphy *wiphy,
+				   const struct ieee80211_channel *chan)
+{
+	const struct wiphy_radio *radio;
+	int i, j;
+	u32 freq;
+
+	if (!chan)
+		return -EINVAL;
+
+	freq = ieee80211_channel_to_khz(chan);
+	for (i = 0; i < wiphy->n_radio; i++) {
+		radio = &wiphy->radio[i];
+		for (j = 0; j < radio->n_freq_range; j++) {
+			if (freq >= radio->freq_range[j].start_freq &&
+			    freq < radio->freq_range[j].end_freq)
+				return i;
+		}
+	}
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL(cfg80211_get_radio_idx_by_chan);
+
 int ieee80211_get_ratemask(struct ieee80211_supported_band *sband,
 			   const u8 *rates, unsigned int n_rates,
 			   u32 *mask)

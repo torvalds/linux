@@ -9372,6 +9372,17 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 			       void (*iter)(const struct ieee80211_iface_combination *c,
 					    void *data),
 			       void *data);
+/**
+ * cfg80211_get_radio_idx_by_chan - get the radio index by the channel
+ *
+ * @wiphy: the wiphy
+ * @chan: channel for which the supported radio index is required
+ *
+ * Return: radio index on success or a negative error code
+ */
+int cfg80211_get_radio_idx_by_chan(struct wiphy *wiphy,
+				   const struct ieee80211_channel *chan);
+
 
 /**
  * cfg80211_stop_iface - trigger interface disconnection
