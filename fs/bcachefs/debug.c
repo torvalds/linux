@@ -492,6 +492,8 @@ static void bch2_cached_btree_node_to_text(struct printbuf *out, struct bch_fs *
 	prt_printf(out, "journal pin %px:\t%llu\n",
 		   &b->writes[1].journal, b->writes[1].journal.seq);
 
+	prt_printf(out, "ob:\t%u\n", b->ob.nr);
+
 	printbuf_indent_sub(out, 2);
 }
 
