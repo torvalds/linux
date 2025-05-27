@@ -5,6 +5,8 @@
 
 #include <linux/string_helpers.h>
 
+#include <drm/drm_managed.h>
+
 #include "../display/intel_display_core.h" /* FIXME */
 
 #include "i915_drv.h"
@@ -706,7 +708,7 @@ static int xelpdp_get_dram_info(struct drm_i915_private *i915, struct dram_info 
 
 int intel_dram_detect(struct drm_i915_private *i915)
 {
-	struct dram_info *dram_info = &i915->dram_info;
+	struct dram_info *dram_info;
 	int ret;
 
 	detect_fsb_freq(i915);
@@ -714,6 +716,12 @@ int intel_dram_detect(struct drm_i915_private *i915)
 
 	if (GRAPHICS_VER(i915) < 9 || IS_DG2(i915) || !HAS_DISPLAY(i915))
 		return 0;
+
+	dram_info = drmm_kzalloc(&i915->drm, sizeof(*dram_info), GFP_KERNEL);
+	if (!dram_info)
+		return -ENOMEM;
+
+	i915->dram_info = dram_info;
 
 	/*
 	 * Assume level 0 watermark latency adjustment is needed until proven
@@ -749,11 +757,16 @@ int intel_dram_detect(struct drm_i915_private *i915)
 	return 0;
 }
 
+/*
+ * Returns NULL for platforms that don't have dram info. Avoid overzealous NULL
+ * checks, and prefer not dereferencing on platforms that shouldn't look at dram
+ * info, to catch accidental and incorrect dram info checks.
+ */
 const struct dram_info *intel_dram_info(struct drm_device *drm)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 
-	return &i915->dram_info;
+	return i915->dram_info;
 }
 
 static u32 gen9_edram_size_mb(struct drm_i915_private *i915, u32 cap)
