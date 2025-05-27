@@ -69,7 +69,6 @@
 #define RPR0521_DEFAULT_MEAS_TIME	0x06 /* ALS - 100ms, PXS - 100ms */
 
 #define RPR0521_DRV_NAME		"RPR0521"
-#define RPR0521_REGMAP_NAME		"rpr0521_regmap"
 
 #define RPR0521_SLEEP_DELAY_MS	2000
 
@@ -913,7 +912,7 @@ static bool rpr0521_is_volatile_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_config rpr0521_regmap_config = {
-	.name		= RPR0521_REGMAP_NAME,
+	.name		= "rpr0521_regmap",
 
 	.reg_bits	= 8,
 	.val_bits	= 8,

@@ -63,8 +63,6 @@
 #define LTR501_ALS_DEF_PERIOD 500000
 #define LTR501_PS_DEF_PERIOD 100000
 
-#define LTR501_REGMAP_NAME "ltr501_regmap"
-
 #define LTR501_LUX_CONV(vis_coeff, vis_data, ir_coeff, ir_data) \
 			((vis_coeff * vis_data) - (ir_coeff * ir_data))
 
@@ -1402,7 +1400,7 @@ static bool ltr501_is_volatile_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_config ltr501_regmap_config = {
-	.name =  LTR501_REGMAP_NAME,
+	.name = "ltr501_regmap",
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = LTR501_MAX_REG,

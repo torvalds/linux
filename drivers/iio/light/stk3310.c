@@ -46,7 +46,6 @@
 #define STK3310_PS_MAX_VAL			0xFFFF
 
 #define STK3310_DRIVER_NAME			"stk3310"
-#define STK3310_REGMAP_NAME			"stk3310_regmap"
 
 #define STK3310_SCALE_AVAILABLE			"6.4 1.6 0.4 0.1"
 
@@ -526,7 +525,7 @@ static bool stk3310_is_volatile_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_config stk3310_regmap_config = {
-	.name = STK3310_REGMAP_NAME,
+	.name = "stk3310_regmap",
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = STK3310_MAX_REG,

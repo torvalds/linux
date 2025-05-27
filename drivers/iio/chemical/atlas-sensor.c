@@ -24,7 +24,6 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/pm_runtime.h>
 
-#define ATLAS_REGMAP_NAME	"atlas_regmap"
 #define ATLAS_DRV_NAME		"atlas"
 
 #define ATLAS_REG_DEV_TYPE		0x00
@@ -96,7 +95,7 @@ struct atlas_data {
 };
 
 static const struct regmap_config atlas_regmap_config = {
-	.name = ATLAS_REGMAP_NAME,
+	.name = "atlas_regmap",
 	.reg_bits = 8,
 	.val_bits = 8,
 };
