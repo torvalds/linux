@@ -630,12 +630,13 @@ ifq_free:
 void io_unregister_zcrx_ifqs(struct io_ring_ctx *ctx)
 {
 	struct io_zcrx_ifq *ifq;
-	unsigned long id;
 
 	lockdep_assert_held(&ctx->uring_lock);
 
 	while (1) {
 		scoped_guard(mutex, &ctx->mmap_lock) {
+			unsigned long id = 0;
+
 			ifq = xa_find(&ctx->zcrx_ctxs, &id, ULONG_MAX, XA_PRESENT);
 			if (ifq)
 				xa_erase(&ctx->zcrx_ctxs, id);
