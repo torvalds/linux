@@ -512,25 +512,10 @@ alternative_else_nop_endif
 	ubfx	x1, x1, #ID_AA64MMFR3_EL1_S1PIE_SHIFT, #4
 	cbz	x1, .Lskip_indirection
 
-	/*
-	 * The PROT_* macros describing the various memory types may resolve to
-	 * C expressions if they include the PTE_MAYBE_* macros, and so they
-	 * can only be used from C code. The PIE_E* constants below are also
-	 * defined in terms of those macros, but will mask out those
-	 * PTE_MAYBE_* constants, whether they are set or not. So #define them
-	 * as 0x0 here so we can evaluate the PIE_E* constants in asm context.
-	 */
-
-#define PTE_MAYBE_NG		0
-#define PTE_MAYBE_SHARED	0
-
-	mov_q	x0, PIE_E0
+	mov_q	x0, PIE_E0_ASM
 	msr	REG_PIRE0_EL1, x0
-	mov_q	x0, PIE_E1
+	mov_q	x0, PIE_E1_ASM
 	msr	REG_PIR_EL1, x0
-
-#undef PTE_MAYBE_NG
-#undef PTE_MAYBE_SHARED
 
 	orr	tcr2, tcr2, TCR2_EL1_PIE
 	msr	REG_TCR2_EL1, x0
