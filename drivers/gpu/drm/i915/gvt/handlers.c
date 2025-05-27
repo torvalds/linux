@@ -1414,12 +1414,12 @@ static void write_virtual_sbi_register(struct intel_vgpu *vgpu,
 static int sbi_data_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
-	if (((vgpu_vreg_t(vgpu, SBI_CTL_STAT) & SBI_OPCODE_MASK) >>
-				SBI_OPCODE_SHIFT) == SBI_CMD_CRRD) {
-		unsigned int sbi_offset = (vgpu_vreg_t(vgpu, SBI_ADDR) &
-				SBI_ADDR_OFFSET_MASK) >> SBI_ADDR_OFFSET_SHIFT;
-		vgpu_vreg(vgpu, offset) = read_virtual_sbi_register(vgpu,
-				sbi_offset);
+	if ((vgpu_vreg_t(vgpu, SBI_CTL_STAT) & SBI_CTL_OP_MASK) == SBI_CTL_OP_CRRD) {
+		unsigned int sbi_offset;
+
+		sbi_offset = REG_FIELD_GET(SBI_ADDR_MASK, vgpu_vreg_t(vgpu, SBI_ADDR));
+
+		vgpu_vreg(vgpu, offset) = read_virtual_sbi_register(vgpu, sbi_offset);
 	}
 	read_vreg(vgpu, offset, p_data, bytes);
 	return 0;
@@ -1433,21 +1433,20 @@ static int sbi_ctl_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	write_vreg(vgpu, offset, p_data, bytes);
 	data = vgpu_vreg(vgpu, offset);
 
-	data &= ~(SBI_STAT_MASK << SBI_STAT_SHIFT);
-	data |= SBI_READY;
+	data &= ~SBI_STATUS_MASK;
+	data |= SBI_STATUS_READY;
 
-	data &= ~(SBI_RESPONSE_MASK << SBI_RESPONSE_SHIFT);
+	data &= ~SBI_RESPONSE_MASK;
 	data |= SBI_RESPONSE_SUCCESS;
 
 	vgpu_vreg(vgpu, offset) = data;
 
-	if (((vgpu_vreg_t(vgpu, SBI_CTL_STAT) & SBI_OPCODE_MASK) >>
-				SBI_OPCODE_SHIFT) == SBI_CMD_CRWR) {
-		unsigned int sbi_offset = (vgpu_vreg_t(vgpu, SBI_ADDR) &
-				SBI_ADDR_OFFSET_MASK) >> SBI_ADDR_OFFSET_SHIFT;
+	if ((vgpu_vreg_t(vgpu, SBI_CTL_STAT) & SBI_CTL_OP_MASK) == SBI_CTL_OP_CRWR) {
+		unsigned int sbi_offset;
 
-		write_virtual_sbi_register(vgpu, sbi_offset,
-					   vgpu_vreg_t(vgpu, SBI_DATA));
+		sbi_offset = REG_FIELD_GET(SBI_ADDR_MASK, vgpu_vreg_t(vgpu, SBI_ADDR));
+
+		write_virtual_sbi_register(vgpu, sbi_offset, vgpu_vreg_t(vgpu, SBI_DATA));
 	}
 	return 0;
 }

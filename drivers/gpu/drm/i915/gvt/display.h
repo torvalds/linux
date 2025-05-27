@@ -63,19 +63,6 @@ struct intel_vgpu;
 
 #define AUX_BURST_SIZE          20
 
-#define SBI_RESPONSE_MASK               0x3
-#define SBI_RESPONSE_SHIFT              0x1
-#define SBI_STAT_MASK                   0x1
-#define SBI_STAT_SHIFT                  0x0
-#define SBI_OPCODE_SHIFT                8
-#define SBI_OPCODE_MASK			(0xff << SBI_OPCODE_SHIFT)
-#define SBI_CMD_IORD                    2
-#define SBI_CMD_IOWR                    3
-#define SBI_CMD_CRRD                    6
-#define SBI_CMD_CRWR                    7
-#define SBI_ADDR_OFFSET_SHIFT           16
-#define SBI_ADDR_OFFSET_MASK            (0xffff << SBI_ADDR_OFFSET_SHIFT)
-
 struct intel_vgpu_sbi_register {
 	unsigned int offset;
 	u32 value;
