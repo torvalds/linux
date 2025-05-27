@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/units.h>
 
 #include <video/mipi_display.h>
 
@@ -558,10 +559,6 @@ static void samsung_dsim_reset(struct samsung_dsim *dsi)
 	samsung_dsim_write(dsi, DSIM_SWRST_REG, reset_val);
 }
 
-#ifndef MHZ
-#define MHZ	(1000 * 1000)
-#endif
-
 static unsigned long samsung_dsim_pll_find_pms(struct samsung_dsim *dsi,
 					       unsigned long fin,
 					       unsigned long fout,
@@ -575,8 +572,8 @@ static unsigned long samsung_dsim_pll_find_pms(struct samsung_dsim *dsi,
 	u16 _m, best_m;
 	u8 _s, best_s;
 
-	p_min = DIV_ROUND_UP(fin, (driver_data->pll_fin_max * MHZ));
-	p_max = fin / (driver_data->pll_fin_min * MHZ);
+	p_min = DIV_ROUND_UP(fin, (driver_data->pll_fin_max * HZ_PER_MHZ));
+	p_max = fin / (driver_data->pll_fin_min * HZ_PER_MHZ);
 
 	for (_p = p_min; _p <= p_max; ++_p) {
 		for (_s = 0; _s <= 5; ++_s) {
@@ -591,8 +588,8 @@ static unsigned long samsung_dsim_pll_find_pms(struct samsung_dsim *dsi,
 
 			tmp = (u64)_m * fin;
 			do_div(tmp, _p);
-			if (tmp < driver_data->min_freq  * MHZ ||
-			    tmp > driver_data->max_freq * MHZ)
+			if (tmp < driver_data->min_freq  * HZ_PER_MHZ ||
+			    tmp > driver_data->max_freq * HZ_PER_MHZ)
 				continue;
 
 			tmp = (u64)_m * fin;
@@ -635,7 +632,7 @@ static unsigned long samsung_dsim_set_pll(struct samsung_dsim *dsi,
 		 * limit.
 		 */
 		fin = clk_get_rate(clk_get_parent(dsi->pll_clk));
-		while (fin > driver_data->pll_fin_max * MHZ)
+		while (fin > driver_data->pll_fin_max * HZ_PER_MHZ)
 			fin /= 2;
 		clk_set_rate(dsi->pll_clk, fin);
 
@@ -661,10 +658,11 @@ static unsigned long samsung_dsim_set_pll(struct samsung_dsim *dsi,
 
 	if (driver_data->has_freqband) {
 		static const unsigned long freq_bands[] = {
-			100 * MHZ, 120 * MHZ, 160 * MHZ, 200 * MHZ,
-			270 * MHZ, 320 * MHZ, 390 * MHZ, 450 * MHZ,
-			510 * MHZ, 560 * MHZ, 640 * MHZ, 690 * MHZ,
-			770 * MHZ, 870 * MHZ, 950 * MHZ,
+			100 * HZ_PER_MHZ, 120 * HZ_PER_MHZ, 160 * HZ_PER_MHZ,
+			200 * HZ_PER_MHZ, 270 * HZ_PER_MHZ, 320 * HZ_PER_MHZ,
+			390 * HZ_PER_MHZ, 450 * HZ_PER_MHZ, 510 * HZ_PER_MHZ,
+			560 * HZ_PER_MHZ, 640 * HZ_PER_MHZ, 690 * HZ_PER_MHZ,
+			770 * HZ_PER_MHZ, 870 * HZ_PER_MHZ, 950 * HZ_PER_MHZ,
 		};
 		int band;
 
@@ -724,7 +722,7 @@ static int samsung_dsim_enable_clock(struct samsung_dsim *dsi)
 	esc_div = DIV_ROUND_UP(byte_clk, dsi->esc_clk_rate);
 	esc_clk = byte_clk / esc_div;
 
-	if (esc_clk > 20 * MHZ) {
+	if (esc_clk > 20 * HZ_PER_MHZ) {
 		++esc_div;
 		esc_clk = byte_clk / esc_div;
 	}
