@@ -2,6 +2,7 @@
 # Makefile for cpupower
 #
 # Copyright (C) 2005,2006 Dominik Brodowski <linux@dominikbrodowski.net>
+# Copyright (C) 2025      Francesco Poli <invernomuto@paranoici.org>
 #
 # Based largely on the Makefile for udev by:
 #
@@ -71,6 +72,7 @@ bindir ?=	/usr/bin
 sbindir ?=	/usr/sbin
 mandir ?=	/usr/man
 libdir ?=	/usr/lib
+libexecdir ?=	/usr/libexec
 includedir ?=	/usr/include
 localedir ?=	/usr/share/locale
 docdir ?=       /usr/share/doc/packages/cpupower
@@ -83,6 +85,7 @@ CP = cp -fpR
 INSTALL = /usr/bin/install -c
 INSTALL_PROGRAM = ${INSTALL}
 INSTALL_DATA  = ${INSTALL} -m 644
+SETPERM_DATA  = chmod 644
 #bash completion scripts get sourced and so they should be rw only.
 INSTALL_SCRIPT = ${INSTALL} -m 644
 
@@ -302,6 +305,13 @@ install-tools: $(OUTPUT)cpupower
 	$(INSTALL_PROGRAM) $(OUTPUT)cpupower $(DESTDIR)${bindir}
 	$(INSTALL) -d $(DESTDIR)${bash_completion_dir}
 	$(INSTALL_SCRIPT) cpupower-completion.sh '$(DESTDIR)${bash_completion_dir}/cpupower'
+	$(INSTALL) -d $(DESTDIR)${confdir}
+	$(INSTALL_DATA) cpupower-service.conf '$(DESTDIR)${confdir}'
+	$(INSTALL) -d $(DESTDIR)${libexecdir}
+	$(INSTALL_PROGRAM) cpupower.sh '$(DESTDIR)${libexecdir}/cpupower'
+	$(INSTALL) -d $(DESTDIR)${libdir}/systemd/system
+	sed 's|___CDIR___|${confdir}|; s|___LDIR___|${libexecdir}|' cpupower.service.in > '$(DESTDIR)${libdir}/systemd/system/cpupower.service'
+	$(SETPERM_DATA) '$(DESTDIR)${libdir}/systemd/system/cpupower.service'
 
 install-man:
 	$(INSTALL_DATA) -D man/cpupower.1 $(DESTDIR)${mandir}/man1/cpupower.1
@@ -336,6 +346,9 @@ uninstall:
 	- rm -f $(DESTDIR)${includedir}/cpufreq.h
 	- rm -f $(DESTDIR)${includedir}/cpuidle.h
 	- rm -f $(DESTDIR)${bindir}/utils/cpupower
+	- rm -f $(DESTDIR)${confdir}cpupower-service.conf
+	- rm -f $(DESTDIR)${libexecdir}/cpupower
+	- rm -f $(DESTDIR)${libdir}/systemd/system/cpupower.service
 	- rm -f $(DESTDIR)${mandir}/man1/cpupower.1
 	- rm -f $(DESTDIR)${mandir}/man1/cpupower-frequency-set.1
 	- rm -f $(DESTDIR)${mandir}/man1/cpupower-frequency-info.1

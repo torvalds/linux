@@ -43,7 +43,6 @@
 int dev_pm_opp_init_cpufreq_table(struct device *dev,
 				  struct cpufreq_frequency_table **opp_table)
 {
-	struct dev_pm_opp *opp;
 	struct cpufreq_frequency_table *freq_table = NULL;
 	int i, max_opps, ret = 0;
 	unsigned long rate;
@@ -57,6 +56,8 @@ int dev_pm_opp_init_cpufreq_table(struct device *dev,
 		return -ENOMEM;
 
 	for (i = 0, rate = 0; i < max_opps; i++, rate++) {
+		struct dev_pm_opp *opp __free(put_opp);
+
 		/* find next rate */
 		opp = dev_pm_opp_find_freq_ceil(dev, &rate);
 		if (IS_ERR(opp)) {
@@ -69,8 +70,6 @@ int dev_pm_opp_init_cpufreq_table(struct device *dev,
 		/* Is Boost/turbo opp ? */
 		if (dev_pm_opp_is_turbo(opp))
 			freq_table[i].flags = CPUFREQ_BOOST_FREQ;
-
-		dev_pm_opp_put(opp);
 	}
 
 	freq_table[i].driver_data = i;
@@ -155,10 +154,10 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_cpumask_remove_table);
 int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev,
 				const struct cpumask *cpumask)
 {
+	struct opp_table *opp_table __free(put_opp_table);
 	struct opp_device *opp_dev;
-	struct opp_table *opp_table;
 	struct device *dev;
-	int cpu, ret = 0;
+	int cpu;
 
 	opp_table = _find_opp_table(cpu_dev);
 	if (IS_ERR(opp_table))
@@ -186,9 +185,7 @@ int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev,
 		opp_table->shared_opp = OPP_TABLE_ACCESS_SHARED;
 	}
 
-	dev_pm_opp_put_opp_table(opp_table);
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_set_sharing_cpus);
 
@@ -204,33 +201,26 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_set_sharing_cpus);
  */
 int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
 {
+	struct opp_table *opp_table __free(put_opp_table);
 	struct opp_device *opp_dev;
-	struct opp_table *opp_table;
-	int ret = 0;
 
 	opp_table = _find_opp_table(cpu_dev);
 	if (IS_ERR(opp_table))
 		return PTR_ERR(opp_table);
 
-	if (opp_table->shared_opp == OPP_TABLE_ACCESS_UNKNOWN) {
-		ret = -EINVAL;
-		goto put_opp_table;
-	}
+	if (opp_table->shared_opp == OPP_TABLE_ACCESS_UNKNOWN)
+		return -EINVAL;
 
 	cpumask_clear(cpumask);
 
 	if (opp_table->shared_opp == OPP_TABLE_ACCESS_SHARED) {
-		mutex_lock(&opp_table->lock);
+		guard(mutex)(&opp_table->lock);
 		list_for_each_entry(opp_dev, &opp_table->dev_list, node)
 			cpumask_set_cpu(opp_dev->dev->id, cpumask);
-		mutex_unlock(&opp_table->lock);
 	} else {
 		cpumask_set_cpu(cpu_dev->id, cpumask);
 	}
 
-put_opp_table:
-	dev_pm_opp_put_opp_table(opp_table);
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_sharing_cpus);
