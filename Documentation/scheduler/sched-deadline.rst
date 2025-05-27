@@ -678,8 +678,7 @@ Deadline Task Scheduling
 5.1 SCHED_DEADLINE and cpusets HOWTO
 ------------------------------------
 
- An example of a simple configuration (pin a -deadline task to CPU0)
- follows (rt-app is used to create a -deadline task)::
+ An example of a simple configuration (pin a -deadline task to CPU0) follows::
 
    mkdir /dev/cpuset
    mount -t cgroup -o cpuset cpuset /dev/cpuset
@@ -692,8 +691,7 @@ Deadline Task Scheduling
    echo 1 > cpu0/cpuset.cpu_exclusive
    echo 1 > cpu0/cpuset.mem_exclusive
    echo $$ > cpu0/tasks
-   rt-app -t 100000:10000:d:0 -D5 # it is now actually superfluous to specify
-				  # task affinity
+   chrt --sched-runtime 100000 --sched-period 200000 --deadline 0 yes > /dev/null
 
 6. Future plans
 ===============
@@ -731,24 +729,38 @@ Appendix A. Test suite
  behaves under such workloads. In this way, results are easily reproducible.
  rt-app is available at: https://github.com/scheduler-tools/rt-app.
 
- Thread parameters can be specified from the command line, with something like
- this::
+ rt-app does not accept command line arguments, and instead reads from a JSON
+ configuration file. Here is an example ``config.json``:
 
-  # rt-app -t 100000:10000:d -t 150000:20000:f:10 -D5
+ .. code-block:: json
 
- The above creates 2 threads. The first one, scheduled by SCHED_DEADLINE,
- executes for 10ms every 100ms. The second one, scheduled at SCHED_FIFO
- priority 10, executes for 20ms every 150ms. The test will run for a total
- of 5 seconds.
+  {
+    "tasks": {
+      "dl_task": {
+        "policy": "SCHED_DEADLINE",
+        "priority": 0,
+        "dl-runtime": 10000,
+        "dl-period": 100000,
+        "dl-deadline": 100000
+      },
+      "fifo_task": {
+        "policy": "SCHED_FIFO",
+        "priority": 10,
+        "runtime": 20000,
+        "sleep": 130000
+      }
+    },
+    "global": {
+      "duration": 5
+    }
+  }
 
- More interestingly, configurations can be described with a json file that
- can be passed as input to rt-app with something like this::
+ On running ``rt-app config.json``, it creates 2 threads. The first one,
+ scheduled by SCHED_DEADLINE, executes for 10ms every 100ms. The second one,
+ scheduled at SCHED_FIFO priority 10, executes for 20ms every 150ms. The test
+ will run for a total of 5 seconds.
 
-  # rt-app my_config.json
-
- The parameters that can be specified with the second method are a superset
- of the command line options. Please refer to rt-app documentation for more
- details (`<rt-app-sources>/doc/*.json`).
+ Please refer to the rt-app documentation for the JSON schema and more examples.
 
  The second testing application is done using chrt which has support
  for SCHED_DEADLINE.
