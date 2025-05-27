@@ -124,14 +124,18 @@ static void ovpn_tcp_rcv(struct strparser *strp, struct sk_buff *skb)
 	 * this peer, therefore ovpn_peer_hold() is not expected to fail
 	 */
 	if (WARN_ON(!ovpn_peer_hold(peer)))
-		goto err;
+		goto err_nopeer;
 
 	ovpn_recv(peer, skb);
 	return;
 err:
+	/* take reference for deferred peer deletion. should never fail */
+	if (WARN_ON(!ovpn_peer_hold(peer)))
+		goto err_nopeer;
+	schedule_work(&peer->tcp.defer_del_work);
 	dev_dstats_rx_dropped(peer->ovpn->dev);
+err_nopeer:
 	kfree_skb(skb);
-	ovpn_peer_del(peer, OVPN_DEL_PEER_REASON_TRANSPORT_ERROR);
 }
 
 static int ovpn_tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
