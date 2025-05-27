@@ -231,7 +231,7 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 
 	spin_lock_init(&dev_priv->gpu_error.lock);
 
-	intel_sbi_init(dev_priv);
+	intel_sbi_init(display);
 	vlv_iosf_sb_init(dev_priv);
 	mutex_init(&dev_priv->sb_lock);
 
@@ -292,7 +292,7 @@ static void i915_driver_late_release(struct drm_i915_private *dev_priv)
 
 	mutex_destroy(&dev_priv->sb_lock);
 	vlv_iosf_sb_fini(dev_priv);
-	intel_sbi_fini(dev_priv);
+	intel_sbi_fini(display);
 
 	i915_params_free(&dev_priv->params);
 

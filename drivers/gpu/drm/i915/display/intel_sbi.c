@@ -6,14 +6,16 @@
  */
 
 #include "i915_drv.h"
-#include "intel_sbi.h"
 #include "i915_reg.h"
+#include "intel_display_core.h"
+#include "intel_sbi.h"
 
 /* SBI access */
-static int intel_sbi_rw(struct drm_i915_private *i915, u16 reg,
+static int intel_sbi_rw(struct intel_display *display, u16 reg,
 			enum intel_sbi_destination destination,
 			u32 *val, bool is_read)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_uncore *uncore = &i915->uncore;
 	u32 cmd;
 
@@ -22,8 +24,7 @@ static int intel_sbi_rw(struct drm_i915_private *i915, u16 reg,
 	if (intel_wait_for_register_fw(uncore,
 				       SBI_CTL_STAT, SBI_BUSY, 0,
 				       100)) {
-		drm_err(&i915->drm,
-			"timeout waiting for SBI to become ready\n");
+		drm_err(display->drm, "timeout waiting for SBI to become ready\n");
 		return -EBUSY;
 	}
 
@@ -41,13 +42,12 @@ static int intel_sbi_rw(struct drm_i915_private *i915, u16 reg,
 	if (__intel_wait_for_register_fw(uncore,
 					 SBI_CTL_STAT, SBI_BUSY, 0,
 					 100, 100, &cmd)) {
-		drm_err(&i915->drm,
-			"timeout waiting for SBI to complete read\n");
+		drm_err(display->drm, "timeout waiting for SBI to complete read\n");
 		return -ETIMEDOUT;
 	}
 
 	if (cmd & SBI_RESPONSE_FAIL) {
-		drm_err(&i915->drm, "error during SBI read of reg %x\n", reg);
+		drm_err(display->drm, "error during SBI read of reg %x\n", reg);
 		return -ENXIO;
 	}
 
@@ -57,38 +57,46 @@ static int intel_sbi_rw(struct drm_i915_private *i915, u16 reg,
 	return 0;
 }
 
-void intel_sbi_lock(struct drm_i915_private *i915)
+void intel_sbi_lock(struct intel_display *display)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
 	mutex_lock(&i915->sbi_lock);
 }
 
-void intel_sbi_unlock(struct drm_i915_private *i915)
+void intel_sbi_unlock(struct intel_display *display)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
 	mutex_unlock(&i915->sbi_lock);
 }
 
-u32 intel_sbi_read(struct drm_i915_private *i915, u16 reg,
+u32 intel_sbi_read(struct intel_display *display, u16 reg,
 		   enum intel_sbi_destination destination)
 {
 	u32 result = 0;
 
-	intel_sbi_rw(i915, reg, destination, &result, true);
+	intel_sbi_rw(display, reg, destination, &result, true);
 
 	return result;
 }
 
-void intel_sbi_write(struct drm_i915_private *i915, u16 reg, u32 value,
+void intel_sbi_write(struct intel_display *display, u16 reg, u32 value,
 		     enum intel_sbi_destination destination)
 {
-	intel_sbi_rw(i915, reg, destination, &value, false);
+	intel_sbi_rw(display, reg, destination, &value, false);
 }
 
-void intel_sbi_init(struct drm_i915_private *i915)
+void intel_sbi_init(struct intel_display *display)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
 	mutex_init(&i915->sbi_lock);
 }
 
-void intel_sbi_fini(struct drm_i915_private *i915)
+void intel_sbi_fini(struct intel_display *display)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
 	mutex_destroy(&i915->sbi_lock);
 }
