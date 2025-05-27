@@ -45,8 +45,9 @@ static void none_free_call_crypto(struct rxrpc_call *call)
 static bool none_validate_challenge(struct rxrpc_connection *conn,
 				    struct sk_buff *skb)
 {
-	return rxrpc_abort_conn(conn, skb, RX_PROTOCOL_ERROR, -EPROTO,
-				rxrpc_eproto_rxnull_challenge);
+	rxrpc_abort_conn(conn, skb, RX_PROTOCOL_ERROR, -EPROTO,
+			 rxrpc_eproto_rxnull_challenge);
+	return true;
 }
 
 static int none_sendmsg_respond_to_challenge(struct sk_buff *challenge,
