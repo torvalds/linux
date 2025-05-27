@@ -685,6 +685,17 @@ static irqreturn_t pci1xxxx_spi_isr(int irq, void *dev)
 		return pci1xxxx_spi_isr_io(irq, dev);
 }
 
+static irqreturn_t pci1xxxx_spi_shared_isr(int irq, void *dev)
+{
+	struct pci1xxxx_spi *par = dev;
+	u8 i = 0;
+
+	for (i = 0; i < par->total_hw_instances; i++)
+		pci1xxxx_spi_isr(irq, par->spi_int[i]);
+
+	return IRQ_HANDLED;
+}
+
 static bool pci1xxxx_spi_can_dma(struct spi_controller *host,
 				 struct spi_device *spi,
 				 struct spi_transfer *xfer)
@@ -702,6 +713,7 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 	struct device *dev = &pdev->dev;
 	struct pci1xxxx_spi *spi_bus;
 	struct spi_controller *spi_host;
+	int num_vector = 0;
 	u32 regval;
 	int ret;
 
@@ -749,9 +761,9 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 			if (!spi_bus->reg_base)
 				return -EINVAL;
 
-			ret = pci_alloc_irq_vectors(pdev, hw_inst_cnt, hw_inst_cnt,
-						    PCI_IRQ_ALL_TYPES);
-			if (ret < 0) {
+			num_vector = pci_alloc_irq_vectors(pdev, 1, hw_inst_cnt,
+							   PCI_IRQ_ALL_TYPES);
+			if (num_vector < 0) {
 				dev_err(&pdev->dev, "Error allocating MSI vectors\n");
 				return ret;
 			}
@@ -765,9 +777,15 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 			       SPI_MST_EVENT_MASK_REG_OFFSET(spi_sub_ptr->hw_inst));
 			spi_sub_ptr->irq = pci_irq_vector(pdev, 0);
 
-			ret = devm_request_irq(&pdev->dev, spi_sub_ptr->irq,
-					       pci1xxxx_spi_isr, PCI1XXXX_IRQ_FLAGS,
-					       pci_name(pdev), spi_sub_ptr);
+			if (num_vector >= hw_inst_cnt)
+				ret = devm_request_irq(&pdev->dev, spi_sub_ptr->irq,
+						       pci1xxxx_spi_isr, PCI1XXXX_IRQ_FLAGS,
+						       pci_name(pdev), spi_sub_ptr);
+			else
+				ret = devm_request_irq(&pdev->dev, spi_sub_ptr->irq,
+						       pci1xxxx_spi_shared_isr,
+						       PCI1XXXX_IRQ_FLAGS | IRQF_SHARED,
+						       pci_name(pdev), spi_bus);
 			if (ret < 0) {
 				dev_err(&pdev->dev, "Unable to request irq : %d",
 					spi_sub_ptr->irq);
@@ -798,14 +816,16 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 			regval &= ~SPI_INTR;
 			writel(regval, spi_bus->reg_base +
 			       SPI_MST_EVENT_MASK_REG_OFFSET(spi_sub_ptr->hw_inst));
-			spi_sub_ptr->irq = pci_irq_vector(pdev, iter);
-			ret = devm_request_irq(&pdev->dev, spi_sub_ptr->irq,
-					       pci1xxxx_spi_isr, PCI1XXXX_IRQ_FLAGS,
-					       pci_name(pdev), spi_sub_ptr);
-			if (ret < 0) {
-				dev_err(&pdev->dev, "Unable to request irq : %d",
-					spi_sub_ptr->irq);
-				return -ENODEV;
+			if (num_vector >= hw_inst_cnt) {
+				spi_sub_ptr->irq = pci_irq_vector(pdev, iter);
+				ret = devm_request_irq(&pdev->dev, spi_sub_ptr->irq,
+						       pci1xxxx_spi_isr, PCI1XXXX_IRQ_FLAGS,
+						       pci_name(pdev), spi_sub_ptr);
+				if (ret < 0) {
+					dev_err(&pdev->dev, "Unable to request irq : %d",
+						spi_sub_ptr->irq);
+					return -ENODEV;
+				}
 			}
 		}
 
