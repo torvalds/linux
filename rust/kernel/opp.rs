@@ -575,6 +575,7 @@ impl<T: ConfigOps + Default> Config<T> {
 /// frequency.
 ///
 /// ```
+/// # #![cfg(CONFIG_OF)]
 /// use kernel::clk::Hertz;
 /// use kernel::cpumask::Cpumask;
 /// use kernel::device::Device;
@@ -582,7 +583,6 @@ impl<T: ConfigOps + Default> Config<T> {
 /// use kernel::opp::Table;
 /// use kernel::types::ARef;
 ///
-/// #[cfg(CONFIG_OF)]
 /// fn get_table(dev: &ARef<Device>, mask: &mut Cpumask, freq: Hertz) -> Result<Table> {
 ///     let mut opp_table = Table::from_of_cpumask(dev, mask)?;
 ///
