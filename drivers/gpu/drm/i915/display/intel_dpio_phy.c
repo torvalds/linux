@@ -428,7 +428,7 @@ static void _bxt_dpio_phy_init(struct intel_display *display, enum dpio_phy phy)
 	 * use 1ms due to occasional timeouts observed with that.
 	 */
 	if (intel_de_wait_fw(display, BXT_PORT_CL1CM_DW0(phy),
-			     PHY_RESERVED | PHY_POWER_GOOD, PHY_POWER_GOOD, 1))
+			     PHY_RESERVED | PHY_POWER_GOOD, PHY_POWER_GOOD, 1, NULL))
 		drm_err(display->drm, "timeout during PHY%d power on\n",
 			phy);
 

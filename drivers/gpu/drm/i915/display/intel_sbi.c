@@ -23,7 +23,7 @@ static int intel_sbi_rw(struct intel_display *display, u16 reg,
 
 	if (intel_wait_for_register_fw(uncore,
 				       SBI_CTL_STAT, SBI_BUSY, 0,
-				       100)) {
+				       100, NULL)) {
 		drm_err(display->drm, "timeout waiting for SBI to become ready\n");
 		return -EBUSY;
 	}
