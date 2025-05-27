@@ -5,8 +5,10 @@
  * LPT/WPT IOSF sideband.
  */
 
-#include "i915_drv.h"
+#include <drm/drm_print.h>
+
 #include "i915_reg.h"
+#include "intel_de.h"
 #include "intel_display_core.h"
 #include "intel_sbi.h"
 
@@ -15,21 +17,17 @@ static int intel_sbi_rw(struct intel_display *display, u16 reg,
 			enum intel_sbi_destination destination,
 			u32 *val, bool is_read)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-	struct intel_uncore *uncore = &i915->uncore;
 	u32 cmd;
 
 	lockdep_assert_held(&display->sbi.lock);
 
-	if (intel_wait_for_register_fw(uncore,
-				       SBI_CTL_STAT, SBI_BUSY, 0,
-				       100, NULL)) {
+	if (intel_de_wait_fw(display, SBI_CTL_STAT, SBI_BUSY, 0, 100, NULL)) {
 		drm_err(display->drm, "timeout waiting for SBI to become ready\n");
 		return -EBUSY;
 	}
 
-	intel_uncore_write_fw(uncore, SBI_ADDR, (u32)reg << 16);
-	intel_uncore_write_fw(uncore, SBI_DATA, is_read ? 0 : *val);
+	intel_de_write_fw(display, SBI_ADDR, (u32)reg << 16);
+	intel_de_write_fw(display, SBI_DATA, is_read ? 0 : *val);
 
 	if (destination == SBI_ICLK)
 		cmd = SBI_CTL_DEST_ICLK | SBI_CTL_OP_CRRD;
@@ -37,11 +35,9 @@ static int intel_sbi_rw(struct intel_display *display, u16 reg,
 		cmd = SBI_CTL_DEST_MPHY | SBI_CTL_OP_IORD;
 	if (!is_read)
 		cmd |= BIT(8);
-	intel_uncore_write_fw(uncore, SBI_CTL_STAT, cmd | SBI_BUSY);
+	intel_de_write_fw(display, SBI_CTL_STAT, cmd | SBI_BUSY);
 
-	if (__intel_wait_for_register_fw(uncore,
-					 SBI_CTL_STAT, SBI_BUSY, 0,
-					 100, 100, &cmd)) {
+	if (intel_de_wait_fw(display, SBI_CTL_STAT, SBI_BUSY, 0, 100, &cmd)) {
 		drm_err(display->drm, "timeout waiting for SBI to complete read\n");
 		return -ETIMEDOUT;
 	}
@@ -52,7 +48,7 @@ static int intel_sbi_rw(struct intel_display *display, u16 reg,
 	}
 
 	if (is_read)
-		*val = intel_uncore_read_fw(uncore, SBI_DATA);
+		*val = intel_de_read_fw(display, SBI_DATA);
 
 	return 0;
 }
