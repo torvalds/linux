@@ -83,6 +83,13 @@ int devm_snd_soc_register_card(struct device *dev, struct snd_soc_card *card)
 }
 EXPORT_SYMBOL_GPL(devm_snd_soc_register_card);
 
+int devm_snd_soc_register_deferrable_card(struct device *dev, struct snd_soc_card *card)
+{
+	card->devres_dev = dev;
+	return snd_soc_register_card(card);
+}
+EXPORT_SYMBOL_GPL(devm_snd_soc_register_deferrable_card);
+
 #ifdef CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM
 
 static void devm_dmaengine_pcm_release(struct device *dev, void *res)

@@ -15,7 +15,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/component.h>
 #include <sound/tlv.h>
-#include <linux/of_gpio.h>
 #include <linux/of_graph.h>
 #include <linux/of.h>
 #include <sound/jack.h>
@@ -201,7 +200,7 @@ struct wcd939x_priv {
 	u32 hph_mode;
 	u32 tx_mode[TX_ADC_MAX];
 	int variant;
-	int reset_gpio;
+	struct gpio_desc *reset_gpio;
 	u32 micb1_mv;
 	u32 micb2_mv;
 	u32 micb3_mv;
@@ -3215,7 +3214,7 @@ static void wcd939x_dt_parse_micbias_info(struct device *dev, struct wcd939x_pri
 }
 
 #if IS_ENABLED(CONFIG_TYPEC)
-static bool wcd939x_swap_gnd_mic(struct snd_soc_component *component, bool active)
+static bool wcd939x_swap_gnd_mic(struct snd_soc_component *component)
 {
 	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
 
@@ -3239,10 +3238,11 @@ static int wcd939x_populate_dt_data(struct wcd939x_priv *wcd939x, struct device 
 #endif /* CONFIG_TYPEC */
 	int ret;
 
-	wcd939x->reset_gpio = of_get_named_gpio(dev->of_node, "reset-gpios", 0);
-	if (wcd939x->reset_gpio < 0)
-		return dev_err_probe(dev, wcd939x->reset_gpio,
-				     "Failed to get reset gpio\n");
+	wcd939x->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(wcd939x->reset_gpio)) {
+		ret = PTR_ERR(wcd939x->reset_gpio);
+		return dev_err_probe(dev, ret, "Failed to get reset gpio\n");
+	}
 
 	wcd939x->supplies[0].supply = "vdd-rxtx";
 	wcd939x->supplies[1].supply = "vdd-io";
@@ -3290,10 +3290,10 @@ static int wcd939x_populate_dt_data(struct wcd939x_priv *wcd939x, struct device 
 
 static int wcd939x_reset(struct wcd939x_priv *wcd939x)
 {
-	gpio_direction_output(wcd939x->reset_gpio, 0);
+	gpiod_set_value(wcd939x->reset_gpio, 1);
 	/* 20us sleep required after pulling the reset gpio to LOW */
 	usleep_range(20, 30);
-	gpio_set_value(wcd939x->reset_gpio, 1);
+	gpiod_set_value(wcd939x->reset_gpio, 0);
 	/* 20us sleep required after pulling the reset gpio to HIGH */
 	usleep_range(20, 30);
 

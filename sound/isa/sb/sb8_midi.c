@@ -14,6 +14,7 @@
  */
 
 #include <linux/io.h>
+#include <linux/string.h>
 #include <linux/time.h>
 #include <sound/core.h>
 #include <sound/sb.h>
@@ -254,7 +255,7 @@ int snd_sb8dsp_midi(struct snd_sb *chip, int device)
 	err = snd_rawmidi_new(chip->card, "SB8 MIDI", device, 1, 1, &rmidi);
 	if (err < 0)
 		return err;
-	strcpy(rmidi->name, "SB8 MIDI");
+	strscpy(rmidi->name, "SB8 MIDI");
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT, &snd_sb8dsp_midi_output);
 	snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_INPUT, &snd_sb8dsp_midi_input);
 	rmidi->info_flags |= SNDRV_RAWMIDI_INFO_OUTPUT | SNDRV_RAWMIDI_INFO_INPUT;

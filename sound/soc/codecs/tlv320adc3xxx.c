@@ -1015,10 +1015,10 @@ static int adc3xxx_gpio_direction_out(struct gpio_chip *chip,
  * so we set the output mode and output value in the same call. Hence
  * .set in practice does the same thing as .direction_out .
  */
-static void adc3xxx_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			     int value)
+static int adc3xxx_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			    int value)
 {
-	(void) adc3xxx_gpio_direction_out(chip, offset, value);
+	return adc3xxx_gpio_direction_out(chip, offset, value);
 }
 
 /* Even though we only support GPIO output for now, some GPIO clients
@@ -1052,7 +1052,7 @@ static const struct gpio_chip adc3xxx_gpio_chip = {
 	.owner			= THIS_MODULE,
 	.request		= adc3xxx_gpio_request,
 	.direction_output	= adc3xxx_gpio_direction_out,
-	.set			= adc3xxx_gpio_set,
+	.set_rv			= adc3xxx_gpio_set,
 	.get			= adc3xxx_gpio_get,
 	.can_sleep		= 1,
 };

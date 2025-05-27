@@ -102,6 +102,8 @@ struct avs_tlv {
 } __packed;
 static_assert(sizeof(struct avs_tlv) == 8);
 
+#define avs_tlv_size(tlv) struct_size(tlv, value, (tlv)->length / 4)
+
 enum avs_module_msg_type {
 	AVS_MOD_INIT_INSTANCE = 0,
 	AVS_MOD_LARGE_CONFIG_GET = 3,
@@ -697,8 +699,9 @@ enum avs_sample_type {
 	AVS_SAMPLE_TYPE_FLOAT = 4,
 };
 
-#define AVS_CHANNELS_MAX	8
+#define AVS_COEFF_CHANNELS_MAX	8
 #define AVS_ALL_CHANNELS_MASK	UINT_MAX
+#define AVS_CHANNELS_MAX	16
 
 struct avs_audio_format {
 	u32 sampling_freq;
@@ -786,6 +789,33 @@ union avs_gtw_attributes {
 } __packed;
 static_assert(sizeof(union avs_gtw_attributes) == 4);
 
+#define AVS_GTW_DMA_CONFIG_ID	0x1000
+#define AVS_DMA_METHOD_HDA	1
+
+struct avs_dma_device_stream_channel_map {
+	u32 device_address;
+	u32 channel_map;
+} __packed;
+static_assert(sizeof(struct avs_dma_device_stream_channel_map) == 8);
+
+struct avs_dma_stream_channel_map {
+	u32 device_count;
+	struct avs_dma_device_stream_channel_map map[16];
+} __packed;
+static_assert(sizeof(struct avs_dma_stream_channel_map) == 132);
+
+struct avs_dma_cfg {
+	u8 dma_method;
+	u8 pre_allocated;
+	u16 rsvd;
+	u32 dma_channel_id;
+	u32 stream_id;
+	struct avs_dma_stream_channel_map map;
+	u32 config_size;
+	u8 config[] __counted_by(config_size);
+} __packed;
+static_assert(sizeof(struct avs_dma_cfg) == 148);
+
 struct avs_copier_gtw_cfg {
 	union avs_connector_node_id node_id;
 	u32 dma_buffer_size;
@@ -846,7 +876,7 @@ struct avs_updown_mixer_cfg {
 	struct avs_modcfg_base base;
 	u32 out_channel_config;
 	u32 coefficients_select;
-	s32 coefficients[AVS_CHANNELS_MAX];
+	s32 coefficients[AVS_COEFF_CHANNELS_MAX];
 	u32 channel_map;
 } __packed;
 static_assert(sizeof(struct avs_updown_mixer_cfg) == 84);

@@ -2300,8 +2300,7 @@ static const char * const sampleclock_sources[] = {
 static int snd_asihpi_clksrc_info(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_info *uinfo)
 {
-	struct snd_card_asihpi *asihpi =
-			(struct snd_card_asihpi *)(kcontrol->private_data);
+	struct snd_card_asihpi *asihpi = snd_kcontrol_chip(kcontrol);
 	struct clk_cache *clkcache = &asihpi->cc;
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
@@ -2319,8 +2318,7 @@ static int snd_asihpi_clksrc_info(struct snd_kcontrol *kcontrol,
 static int snd_asihpi_clksrc_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_card_asihpi *asihpi =
-			(struct snd_card_asihpi *)(kcontrol->private_data);
+	struct snd_card_asihpi *asihpi = snd_kcontrol_chip(kcontrol);
 	struct clk_cache *clkcache = &asihpi->cc;
 	u32 h_control = kcontrol->private_value;
 	u16 source, srcindex = 0;
@@ -2347,8 +2345,7 @@ static int snd_asihpi_clksrc_get(struct snd_kcontrol *kcontrol,
 static int snd_asihpi_clksrc_put(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_card_asihpi *asihpi =
-			(struct snd_card_asihpi *)(kcontrol->private_data);
+	struct snd_card_asihpi *asihpi = snd_kcontrol_chip(kcontrol);
 	struct clk_cache *clkcache = &asihpi->cc;
 	unsigned int item;
 	int change;

@@ -759,6 +759,24 @@ static const struct dmi_system_id sof_sdw_quirk_table[] = {
 					SOF_BT_OFFLOAD_SSP(2) |
 					SOF_SSP_BT_OFFLOAD_PRESENT),
 	},
+	/* Wildcatlake devices*/
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Intel_wclrvp"),
+		},
+		.driver_data = (void *)(SOC_SDW_PCH_DMIC),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Ocelot"),
+		},
+		.driver_data = (void *)(SOC_SDW_PCH_DMIC |
+					SOF_BT_OFFLOAD_SSP(2) |
+					SOF_SSP_BT_OFFLOAD_PRESENT),
+	},
 	{}
 };
 
@@ -779,13 +797,6 @@ static void sof_sdw_check_ssid_quirk(const struct snd_soc_acpi_mach *mach)
 	if (quirk_entry)
 		sof_sdw_quirk = quirk_entry->value;
 }
-
-static struct snd_soc_dai_link_component platform_component[] = {
-	{
-		/* name might be overridden during probe */
-		.name = "0000:00:1f.3"
-	}
-};
 
 static const struct snd_soc_ops sdw_ops = {
 	.startup = asoc_sdw_startup,
@@ -836,6 +847,7 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 		struct snd_soc_dai_link_ch_map *codec_maps;
 		struct snd_soc_dai_link_component *codecs;
 		struct snd_soc_dai_link_component *cpus;
+		struct snd_soc_dai_link_component *platform;
 		int num_cpus = hweight32(sof_dai->link_mask[stream]);
 		int num_codecs = sof_dai->num_devs[stream];
 		int playback, capture;
@@ -874,6 +886,10 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 
 		codecs = devm_kcalloc(dev, num_codecs, sizeof(*codecs), GFP_KERNEL);
 		if (!codecs)
+			return -ENOMEM;
+
+		platform = devm_kzalloc(dev, sizeof(*platform), GFP_KERNEL);
+		if (!platform)
 			return -ENOMEM;
 
 		codec_maps = devm_kcalloc(dev, num_codecs, sizeof(*codec_maps), GFP_KERNEL);
@@ -917,8 +933,7 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 		capture = (stream == SNDRV_PCM_STREAM_CAPTURE);
 
 		asoc_sdw_init_dai_link(dev, *dai_links, be_id, name, playback, capture,
-				       cpus, num_cpus, platform_component,
-				       ARRAY_SIZE(platform_component), codecs, num_codecs,
+				       cpus, num_cpus, platform, 1, codecs, num_codecs,
 				       1, asoc_sdw_rtd_init, &sdw_ops);
 
 		/*
@@ -994,8 +1009,7 @@ static int create_ssp_dailinks(struct snd_soc_card *card,
 
 		ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, name,
 						    playback, capture, cpu_dai_name,
-						    platform_component->name,
-						    ARRAY_SIZE(platform_component), codec_name,
+						    "dummy", codec_name,
 						    ssp_info->dais[0].dai_name, 1, NULL,
 						    ssp_info->ops);
 		if (ret)
@@ -1019,8 +1033,7 @@ static int create_dmic_dailinks(struct snd_soc_card *card,
 
 	ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, "dmic01",
 					    0, 1, // DMIC only supports capture
-					    "DMIC01 Pin", platform_component->name,
-					    ARRAY_SIZE(platform_component),
+					    "DMIC01 Pin", "dummy",
 					    "dmic-codec", "dmic-hifi", 1,
 					    asoc_sdw_dmic_init, NULL);
 	if (ret)
@@ -1030,8 +1043,7 @@ static int create_dmic_dailinks(struct snd_soc_card *card,
 
 	ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, "dmic16k",
 					    0, 1, // DMIC only supports capture
-					    "DMIC16k Pin", platform_component->name,
-					    ARRAY_SIZE(platform_component),
+					    "DMIC16k Pin", "dummy",
 					    "dmic-codec", "dmic-hifi", 1,
 					    /* don't call asoc_sdw_dmic_init() twice */
 					    NULL, NULL);
@@ -1074,8 +1086,7 @@ static int create_hdmi_dailinks(struct snd_soc_card *card,
 
 		ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, name,
 						    1, 0, // HDMI only supports playback
-						    cpu_dai_name, platform_component->name,
-						    ARRAY_SIZE(platform_component),
+						    cpu_dai_name, "dummy",
 						    codec_name, codec_dai_name, 1,
 						    i == 0 ? sof_sdw_hdmi_init : NULL, NULL);
 		if (ret)
@@ -1101,8 +1112,7 @@ static int create_bt_dailinks(struct snd_soc_card *card,
 	int ret;
 
 	ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, name,
-					    1, 1, cpu_dai_name, platform_component->name,
-					    ARRAY_SIZE(platform_component),
+					    1, 1, cpu_dai_name, "dummy",
 					    snd_soc_dummy_dlc.name, snd_soc_dummy_dlc.dai_name,
 					    1, NULL, NULL);
 	if (ret)

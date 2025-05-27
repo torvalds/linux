@@ -1105,12 +1105,6 @@ static int find_sdca_entity_pde(struct device *dev,
 		return -EINVAL;
 	}
 
-	/* There are 3 values per delay */
-	delays = devm_kcalloc(dev, num_delays / mult_delay,
-			      sizeof(*delays), GFP_KERNEL);
-	if (!delays)
-		return -ENOMEM;
-
 	delay_list = kcalloc(num_delays, sizeof(*delay_list), GFP_KERNEL);
 	if (!delay_list)
 		return -ENOMEM;
@@ -1120,6 +1114,10 @@ static int find_sdca_entity_pde(struct device *dev,
 				       delay_list, num_delays);
 
 	num_delays /= mult_delay;
+
+	delays = devm_kcalloc(dev, num_delays, sizeof(*delays), GFP_KERNEL);
+	if (!delays)
+		return -ENOMEM;
 
 	for (i = 0, j = 0; i < num_delays; i++) {
 		delays[i].from_ps = delay_list[j++];

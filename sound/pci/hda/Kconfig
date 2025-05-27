@@ -42,6 +42,17 @@ config SND_HDA_TEGRA
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-hda-tegra.
 
+config SND_HDA_ACPI
+	tristate "HD Audio ACPI"
+	depends on ACPI
+	select SND_HDA
+	help
+	  Say Y here to include support for Azalia-compatible HDA controllers
+	  which are advertised via ACPI objects.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-hda-acpi.
+
 if SND_HDA
 
 config SND_HDA_HWDEP
@@ -109,9 +120,6 @@ config SND_HDA_SCODEC_CS35L41
 	tristate
 	select SND_HDA_GENERIC
 	select REGMAP_IRQ
-
-config SND_HDA_CS_DSP_CONTROLS
-	tristate
 	select FW_CS_DSP
 
 config SND_HDA_SCODEC_COMPONENT
@@ -125,7 +133,6 @@ config SND_HDA_SCODEC_CS35L41_I2C
 	depends on SND_SOC
 	select SND_SOC_CS35L41_LIB
 	select SND_HDA_SCODEC_CS35L41
-	select SND_HDA_CS_DSP_CONTROLS
 	select SND_SOC_CS_AMP_LIB
 	help
 	  Say Y or M here to include CS35L41 I2C HD-audio side codec support
@@ -142,7 +149,6 @@ config SND_HDA_SCODEC_CS35L41_SPI
 	depends on SND_SOC
 	select SND_SOC_CS35L41_LIB
 	select SND_HDA_SCODEC_CS35L41
-	select SND_HDA_CS_DSP_CONTROLS
 	select SND_SOC_CS_AMP_LIB
 	help
 	  Say Y or M here to include CS35L41 SPI HD-audio side codec support
@@ -157,7 +163,7 @@ config SND_HDA_SCODEC_CS35L56
 config SND_HDA_SCODEC_CS35L56_I2C
 	tristate "Build CS35L56 HD-audio side codec support for I2C Bus"
 	depends on I2C
-	depends on ACPI || COMPILE_TEST
+	depends on ACPI
 	depends on SND_SOC
 	select FW_CS_DSP
 	imply SERIAL_MULTI_INSTANTIATE
@@ -165,7 +171,6 @@ config SND_HDA_SCODEC_CS35L56_I2C
 	select SND_SOC_CS35L56_SHARED
 	select SND_HDA_SCODEC_CS35L56
 	select SND_HDA_CIRRUS_SCODEC
-	select SND_HDA_CS_DSP_CONTROLS
 	select SND_SOC_CS_AMP_LIB
 	help
 	  Say Y or M here to include CS35L56 amplifier support with
@@ -174,7 +179,7 @@ config SND_HDA_SCODEC_CS35L56_I2C
 config SND_HDA_SCODEC_CS35L56_SPI
 	tristate "Build CS35L56 HD-audio side codec support for SPI Bus"
 	depends on SPI_MASTER
-	depends on ACPI || COMPILE_TEST
+	depends on ACPI
 	depends on SND_SOC
 	select FW_CS_DSP
 	imply SERIAL_MULTI_INSTANTIATE
@@ -182,11 +187,14 @@ config SND_HDA_SCODEC_CS35L56_SPI
 	select SND_SOC_CS35L56_SHARED
 	select SND_HDA_SCODEC_CS35L56
 	select SND_HDA_CIRRUS_SCODEC
-	select SND_HDA_CS_DSP_CONTROLS
 	select SND_SOC_CS_AMP_LIB
 	help
 	  Say Y or M here to include CS35L56 amplifier support with
 	  SPI control.
+
+config SND_HDA_SCODEC_TAS2781
+	tristate
+	select SND_HDA_GENERIC
 
 config SND_HDA_SCODEC_TAS2781_I2C
 	tristate "Build TAS2781 HD-audio side codec support for I2C Bus"
@@ -194,7 +202,8 @@ config SND_HDA_SCODEC_TAS2781_I2C
 	depends on ACPI
 	depends on EFI
 	depends on SND_SOC
-	select SND_SOC_TAS2781_COMLIB
+	select SND_HDA_SCODEC_TAS2781
+	select SND_SOC_TAS2781_COMLIB_I2C
 	select SND_SOC_TAS2781_FMWLIB
 	select CRC32
 	help
@@ -210,6 +219,10 @@ config SND_HDA_SCODEC_TAS2781_SPI
 	depends on ACPI
 	depends on EFI
 	depends on SND_SOC
+	select SND_HDA_SCODEC_TAS2781
+	select SND_SOC_TAS2781_COMLIB
+	select SND_SOC_TAS2781_FMWLIB
+	select CRC8
 	select CRC32
 	help
 	  Say Y or M here to include TAS2781 SPI HD-audio side codec support

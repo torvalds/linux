@@ -1827,7 +1827,7 @@ static const struct dev_pm_ops fsl_xcvr_pm_ops = {
 static struct platform_driver fsl_xcvr_driver = {
 	.probe = fsl_xcvr_probe,
 	.driver = {
-		.name = "fsl,imx8mp-audio-xcvr",
+		.name = "fsl-xcvr",
 		.pm = pm_ptr(&fsl_xcvr_pm_ops),
 		.of_match_table = fsl_xcvr_dt_ids,
 	},

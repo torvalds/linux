@@ -261,7 +261,7 @@ static int imx_rpmsg_pcm_open(struct snd_soc_component *component,
 	info->send_message(msg, info);
 
 	pcm_hardware = imx_rpmsg_pcm_hardware;
-	pcm_hardware.buffer_bytes_max = rpmsg->buffer_size;
+	pcm_hardware.buffer_bytes_max = rpmsg->buffer_size[substream->stream];
 	pcm_hardware.period_bytes_max = pcm_hardware.buffer_bytes_max / 2;
 
 	snd_soc_set_runtime_hwparams(substream, &pcm_hardware);
@@ -597,14 +597,29 @@ static int imx_rpmsg_pcm_new(struct snd_soc_component *component,
 	struct snd_pcm *pcm = rtd->pcm;
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct fsl_rpmsg *rpmsg = dev_get_drvdata(cpu_dai->dev);
+	struct snd_pcm_substream *substream;
 	int ret;
 
 	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
 	if (ret)
 		return ret;
 
-	return snd_pcm_set_fixed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_WC,
-					    pcm->card->dev, rpmsg->buffer_size);
+	substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
+	if (substream) {
+		ret = snd_pcm_set_fixed_buffer(substream, SNDRV_DMA_TYPE_DEV_WC, pcm->card->dev,
+					       rpmsg->buffer_size[SNDRV_PCM_STREAM_PLAYBACK]);
+		if (ret < 0)
+			return ret;
+	}
+	substream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
+	if (substream) {
+		ret = snd_pcm_set_fixed_buffer(substream, SNDRV_DMA_TYPE_DEV_WC, pcm->card->dev,
+					       rpmsg->buffer_size[SNDRV_PCM_STREAM_CAPTURE]);
+		if (ret < 0)
+			return ret;
+	}
+
+	return ret;
 }
 
 static const struct snd_soc_component_driver imx_rpmsg_soc_component = {

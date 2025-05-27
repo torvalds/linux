@@ -1872,6 +1872,7 @@ void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 		break;
 	case USB_ID(0x2b73, 0x000a): /* Pioneer DJM-900NXS2 */
 	case USB_ID(0x2b73, 0x0013): /* Pioneer DJM-450 */
+	case USB_ID(0x2b73, 0x0034): /* Pioneer DJM-V10 */
 		pioneer_djm_set_format_quirk(subs, 0x0082);
 		break;
 	case USB_ID(0x08e4, 0x017f): /* Pioneer DJM-750 */

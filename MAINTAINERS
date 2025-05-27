@@ -5656,7 +5656,6 @@ F:	include/sound/cs*
 F:	sound/pci/hda/cirrus*
 F:	sound/pci/hda/cs*
 F:	sound/pci/hda/hda_component*
-F:	sound/pci/hda/hda_cs_dsp_ctl.*
 F:	sound/soc/codecs/cs*
 
 CIRRUS LOGIC HAPTIC DRIVERS
@@ -16439,6 +16438,7 @@ F:	arch/mips/include/asm/mach-loongson32/
 F:	arch/mips/loongson32/
 F:	drivers/*/*loongson1*
 F:	drivers/net/ethernet/stmicro/stmmac/dwmac-loongson1.c
+F:	sound/soc/loongson/loongson1_ac97.c
 
 MIPS/LOONGSON2EF ARCHITECTURE
 M:	Jiaxun Yang <jiaxun.yang@flygoat.com>
@@ -21146,6 +21146,13 @@ F:	Documentation/devicetree/bindings/sound/rockchip,rk3308-codec.yaml
 F:	sound/soc/codecs/rk3308_codec.c
 F:	sound/soc/codecs/rk3308_codec.h
 
+ROCKCHIP SAI DRIVER
+M:	Nicolas Frattaroli <nicolas.frattaroli@collabora.com>
+L:	linux-rockchip@lists.infradead.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/sound/rockchip,rk3576-sai.yaml
+F:	sound/soc/rockchip/rockchip_sai.*
+
 ROCKCHIP VIDEO DECODER DRIVER
 M:	Ezequiel Garcia <ezequiel@vanguardiasur.com.ar>
 L:	linux-media@vger.kernel.org
@@ -22891,10 +22898,10 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound.git
 F:	Documentation/devicetree/bindings/sound/
 F:	Documentation/sound/soc/
 F:	include/dt-bindings/sound/
-F:	include/sound/cs-amp-lib.h
-F:	include/sound/cs35l*
-F:	include/sound/cs4271.h
-F:	include/sound/cs42l*
+F:	include/sound/cs*
+X:	include/sound/cs4231-regs.h
+X:	include/sound/cs8403.h
+X:	include/sound/cs8427.h
 F:	include/sound/madera-pdata.h
 F:	include/sound/soc*
 F:	include/sound/sof.h
@@ -24122,7 +24129,6 @@ F:	Documentation/devicetree/bindings/sound/ti,tlv320*.yaml
 F:	Documentation/devicetree/bindings/sound/ti,tlv320adcx140.yaml
 F:	include/sound/tas2*.h
 F:	include/sound/tlv320*.h
-F:	include/sound/tpa6130a2-plat.h
 F:	sound/pci/hda/tas2781_hda_i2c.c
 F:	sound/soc/codecs/pcm1681.c
 F:	sound/soc/codecs/pcm1789*.*

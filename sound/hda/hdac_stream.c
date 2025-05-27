@@ -826,25 +826,6 @@ int snd_hdac_stream_set_spib(struct hdac_bus *bus,
 EXPORT_SYMBOL_GPL(snd_hdac_stream_set_spib);
 
 /**
- * snd_hdac_stream_get_spbmaxfifo - gets the spib value of a stream
- * @bus: HD-audio core bus
- * @azx_dev: hdac_stream
- *
- * Return maxfifo for the stream
- */
-int snd_hdac_stream_get_spbmaxfifo(struct hdac_bus *bus,
-				   struct hdac_stream *azx_dev)
-{
-	if (!bus->spbcap) {
-		dev_err(bus->dev, "Address of SPB capability is NULL\n");
-		return -EINVAL;
-	}
-
-	return readl(azx_dev->fifo_addr);
-}
-EXPORT_SYMBOL_GPL(snd_hdac_stream_get_spbmaxfifo);
-
-/**
  * snd_hdac_stream_drsm_enable - enable DMA resume for a stream
  * @bus: HD-audio core bus
  * @enable: flag to enable/disable DRSM

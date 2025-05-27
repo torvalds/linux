@@ -2491,7 +2491,7 @@ static int snd_vt1724_create(struct snd_card *card,
 	pci_set_master(pci);
 	snd_vt1724_proc_init(ice);
 
-	err = pci_request_regions(pci, "ICE1724");
+	err = pcim_request_all_regions(pci, "ICE1724");
 	if (err < 0)
 		return err;
 	ice->port = pci_resource_start(pci, 0);

@@ -2649,7 +2649,7 @@ static int snd_es1968_create(struct snd_card *card,
 	chip->playback_streams = play_streams;
 	chip->capture_streams = capt_streams;
 
-	err = pci_request_regions(pci, "ESS Maestro");
+	err = pcim_request_all_regions(pci, "ESS Maestro");
 	if (err < 0)
 		return err;
 	chip->io_port = pci_resource_start(pci, 0);

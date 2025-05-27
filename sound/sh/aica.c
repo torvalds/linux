@@ -469,8 +469,8 @@ static int aica_pcmvolume_info(struct snd_kcontrol *kcontrol,
 static int aica_pcmvolume_get(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_card_aica *dreamcastcard;
-	dreamcastcard = kcontrol->private_data;
+	struct snd_card_aica *dreamcastcard = snd_kcontrol_chip(kcontrol);
+
 	if (unlikely(!dreamcastcard->channel))
 		return -ETXTBSY;	/* we've not yet been set up */
 	ucontrol->value.integer.value[0] = dreamcastcard->channel->vol;
@@ -480,9 +480,9 @@ static int aica_pcmvolume_get(struct snd_kcontrol *kcontrol,
 static int aica_pcmvolume_put(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_card_aica *dreamcastcard;
+	struct snd_card_aica *dreamcastcard = snd_kcontrol_chip(kcontrol);
 	unsigned int vol;
-	dreamcastcard = kcontrol->private_data;
+
 	if (unlikely(!dreamcastcard->channel))
 		return -ETXTBSY;
 	vol = ucontrol->value.integer.value[0];

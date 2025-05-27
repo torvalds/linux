@@ -3626,11 +3626,25 @@ int snd_soc_dapm_info_pin_switch(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_info_pin_switch);
 
+static int __snd_soc_dapm_get_pin_switch(struct snd_soc_dapm_context *dapm,
+					 const char *pin,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	snd_soc_dapm_mutex_lock(dapm);
+	ucontrol->value.integer.value[0] = snd_soc_dapm_get_pin_status(dapm, pin);
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	return 0;
+}
+
 /**
  * snd_soc_dapm_get_pin_switch - Get information for a pin switch
  *
  * @kcontrol: mixer control
  * @ucontrol: Value
+ *
+ * Callback to provide information for a pin switch added at the card
+ * level.
  */
 int snd_soc_dapm_get_pin_switch(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -3638,39 +3652,81 @@ int snd_soc_dapm_get_pin_switch(struct snd_kcontrol *kcontrol,
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	const char *pin = (const char *)kcontrol->private_value;
 
-	snd_soc_dapm_mutex_lock(card);
-
-	ucontrol->value.integer.value[0] =
-		snd_soc_dapm_get_pin_status(&card->dapm, pin);
-
-	snd_soc_dapm_mutex_unlock(card);
-
-	return 0;
+	return __snd_soc_dapm_get_pin_switch(&card->dapm, pin, ucontrol);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_get_pin_switch);
+
+/**
+ * snd_soc_dapm_get_component_pin_switch - Get information for a pin switch
+ *
+ * @kcontrol: mixer control
+ * @ucontrol: Value
+ *
+ * Callback to provide information for a pin switch added at the component
+ * level.
+ */
+int snd_soc_dapm_get_component_pin_switch(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	const char *pin = (const char *)kcontrol->private_value;
+
+	return __snd_soc_dapm_get_pin_switch(&component->dapm, pin, ucontrol);
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_get_component_pin_switch);
+
+static int __snd_soc_dapm_put_pin_switch(struct snd_soc_dapm_context *dapm,
+					 const char *pin,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	int ret;
+
+	snd_soc_dapm_mutex_lock(dapm);
+	ret = __snd_soc_dapm_set_pin(dapm, pin, !!ucontrol->value.integer.value[0]);
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	snd_soc_dapm_sync(dapm);
+
+	return ret;
+}
 
 /**
  * snd_soc_dapm_put_pin_switch - Set information for a pin switch
  *
  * @kcontrol: mixer control
  * @ucontrol: Value
+ *
+ * Callback to provide information for a pin switch added at the card
+ * level.
  */
 int snd_soc_dapm_put_pin_switch(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	const char *pin = (const char *)kcontrol->private_value;
-	int ret;
 
-	snd_soc_dapm_mutex_lock(card);
-	ret = __snd_soc_dapm_set_pin(&card->dapm, pin,
-				     !!ucontrol->value.integer.value[0]);
-	snd_soc_dapm_mutex_unlock(card);
-
-	snd_soc_dapm_sync(&card->dapm);
-	return ret;
+	return __snd_soc_dapm_put_pin_switch(&card->dapm, pin, ucontrol);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_put_pin_switch);
+
+/**
+ * snd_soc_dapm_put_component_pin_switch - Set information for a pin switch
+ *
+ * @kcontrol: mixer control
+ * @ucontrol: Value
+ *
+ * Callback to provide information for a pin switch added at the component
+ * level.
+ */
+int snd_soc_dapm_put_component_pin_switch(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	const char *pin = (const char *)kcontrol->private_value;
+
+	return __snd_soc_dapm_put_pin_switch(&component->dapm, pin, ucontrol);
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_put_component_pin_switch);
 
 struct snd_soc_dapm_widget *
 snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
