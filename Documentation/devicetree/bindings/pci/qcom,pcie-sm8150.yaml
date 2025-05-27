@@ -16,7 +16,12 @@ description:
 
 properties:
   compatible:
-    const: qcom,pcie-sm8150
+    oneOf:
+      - const: qcom,pcie-sm8150
+      - items:
+          - enum:
+              - qcom,pcie-qcs615
+          - const: qcom,pcie-sm8150
 
   reg:
     minItems: 5
