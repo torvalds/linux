@@ -97,7 +97,8 @@ kill $nft_monitor_pid
 kill $rename_loop_pid
 wait
 
-ip netns exec $nsr nft -f - <<EOF
+wildcard_prep() {
+	ip netns exec $nsr nft -f - <<EOF
 table ip t {
 	flowtable ft_wild {
 		hook ingress priority 0
@@ -105,7 +106,9 @@ table ip t {
 	}
 }
 EOF
-if [[ $? -ne 0 ]]; then
+}
+
+if ! wildcard_prep; then
 	echo "SKIP wildcard tests: not supported by host's nft?"
 else
 	for ((i = 0; i < 100; i++)); do
