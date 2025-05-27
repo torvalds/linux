@@ -5,6 +5,7 @@
 
 #include <drm/drm_atomic_state_helper.h>
 
+#include "soc/intel_dram.h"
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i915_utils.h"
@@ -13,9 +14,9 @@
 #include "intel_cdclk.h"
 #include "intel_display_core.h"
 #include "intel_display_types.h"
-#include "skl_watermark.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
+#include "skl_watermark.h"
 
 /* Parameters for Qclk Geyserville (QGV) */
 struct intel_qgv_point {
@@ -763,7 +764,7 @@ static unsigned int icl_qgv_bw(struct intel_display *display,
 
 void intel_bw_init_hw(struct intel_display *display)
 {
-	const struct dram_info *dram_info = &to_i915(display->drm)->dram_info;
+	const struct dram_info *dram_info = intel_dram_info(display->drm);
 
 	if (!HAS_DISPLAY(display))
 		return;

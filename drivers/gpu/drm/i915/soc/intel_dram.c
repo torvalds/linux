@@ -750,6 +750,13 @@ void intel_dram_detect(struct drm_i915_private *i915)
 		    str_yes_no(dram_info->wm_lv_0_adjust_needed));
 }
 
+const struct dram_info *intel_dram_info(struct drm_device *drm)
+{
+	struct drm_i915_private *i915 = to_i915(drm);
+
+	return &i915->dram_info;
+}
+
 static u32 gen9_edram_size_mb(struct drm_i915_private *i915, u32 cap)
 {
 	static const u8 ways[8] = { 4, 8, 12, 16, 16, 16, 16, 16 };

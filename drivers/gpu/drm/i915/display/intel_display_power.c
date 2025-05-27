@@ -5,6 +5,7 @@
 
 #include <linux/string_helpers.h>
 
+#include "soc/intel_dram.h"
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
@@ -1604,9 +1605,7 @@ static const struct buddy_page_mask wa_1409767108_buddy_page_masks[] = {
 
 static void tgl_bw_buddy_init(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-	enum intel_dram_type type = dev_priv->dram_info.type;
-	u8 num_channels = dev_priv->dram_info.num_channels;
+	const struct dram_info *dram_info = intel_dram_info(display->drm);
 	const struct buddy_page_mask *table;
 	unsigned long abox_mask = DISPLAY_INFO(display)->abox_mask;
 	int config, i;
@@ -1623,8 +1622,8 @@ static void tgl_bw_buddy_init(struct intel_display *display)
 		table = tgl_buddy_page_masks;
 
 	for (config = 0; table[config].page_mask != 0; config++)
-		if (table[config].num_channels == num_channels &&
-		    table[config].type == type)
+		if (table[config].num_channels == dram_info->num_channels &&
+		    table[config].type == dram_info->type)
 			break;
 
 	if (table[config].page_mask == 0) {
