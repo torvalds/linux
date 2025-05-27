@@ -4685,10 +4685,7 @@ void ring_buffer_discard_commit(struct trace_buffer *buffer,
 	RB_WARN_ON(buffer, !local_read(&cpu_buffer->committing));
 
 	rb_decrement_entry(cpu_buffer, event);
-	if (rb_try_to_discard(cpu_buffer, event))
-		goto out;
-
- out:
+	rb_try_to_discard(cpu_buffer, event);
 	rb_end_commit(cpu_buffer);
 
 	trace_recursive_unlock(cpu_buffer);
