@@ -33,7 +33,7 @@ struct drm_atomic_helper_connector_hdmi_priv {
 	struct drm_encoder encoder;
 	struct drm_connector connector;
 
-	const char *current_edid;
+	const void *current_edid;
 	size_t current_edid_len;
 };
 
@@ -56,7 +56,7 @@ static struct drm_display_mode *find_preferred_mode(struct drm_connector *connec
 }
 
 static int set_connector_edid(struct kunit *test, struct drm_connector *connector,
-			      const char *edid, size_t edid_len)
+			      const void *edid, size_t edid_len)
 {
 	struct drm_atomic_helper_connector_hdmi_priv *priv =
 		connector_to_priv(connector);
