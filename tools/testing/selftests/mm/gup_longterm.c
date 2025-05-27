@@ -455,7 +455,7 @@ static int tests_per_test_case(void)
 
 int main(int argc, char **argv)
 {
-	int i, err;
+	int i;
 
 	pagesize = getpagesize();
 	nr_hugetlbsizes = detect_hugetlb_page_sizes(hugetlbsizes,
@@ -469,9 +469,5 @@ int main(int argc, char **argv)
 	for (i = 0; i < ARRAY_SIZE(test_cases); i++)
 		run_test_case(&test_cases[i]);
 
-	err = ksft_get_fail_cnt();
-	if (err)
-		ksft_exit_fail_msg("%d out of %d tests failed\n",
-				   err, ksft_test_num());
-	ksft_exit_pass();
+	ksft_finished();
 }

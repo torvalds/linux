@@ -1771,7 +1771,6 @@ static int tests_per_non_anon_test_case(void)
 
 int main(int argc, char **argv)
 {
-	int err;
 	struct thp_settings default_settings;
 
 	ksft_print_header();
@@ -1811,9 +1810,5 @@ int main(int argc, char **argv)
 		thp_restore_settings();
 	}
 
-	err = ksft_get_fail_cnt();
-	if (err)
-		ksft_exit_fail_msg("%d out of %d tests failed\n",
-				   err, ksft_test_num());
-	ksft_exit_pass();
+	ksft_finished();
 }
