@@ -1589,6 +1589,16 @@ int folio_wait_private_2_killable(struct folio *folio)
 }
 EXPORT_SYMBOL(folio_wait_private_2_killable);
 
+static void filemap_end_dropbehind(struct folio *folio)
+{
+	struct address_space *mapping = folio->mapping;
+
+	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
+
+	if (mapping && !folio_test_writeback(folio) && !folio_test_dirty(folio))
+		folio_unmap_invalidate(mapping, folio, 0);
+}
+
 /*
  * If folio was marked as dropbehind, then pages should be dropped when writeback
  * completes. Do that now. If we fail, it's likely because of a big folio -
@@ -1604,8 +1614,7 @@ static void folio_end_dropbehind_write(struct folio *folio)
 	 * invalidation in that case.
 	 */
 	if (in_task() && folio_trylock(folio)) {
-		if (folio->mapping)
-			folio_unmap_invalidate(folio->mapping, folio, 0);
+		filemap_end_dropbehind(folio);
 		folio_unlock(folio);
 	}
 }
