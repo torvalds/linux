@@ -19,7 +19,7 @@ static int intel_sbi_rw(struct intel_display *display, u16 reg,
 	struct intel_uncore *uncore = &i915->uncore;
 	u32 cmd;
 
-	lockdep_assert_held(&i915->sbi_lock);
+	lockdep_assert_held(&display->sbi.lock);
 
 	if (intel_wait_for_register_fw(uncore,
 				       SBI_CTL_STAT, SBI_BUSY, 0,
@@ -59,16 +59,12 @@ static int intel_sbi_rw(struct intel_display *display, u16 reg,
 
 void intel_sbi_lock(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	mutex_lock(&i915->sbi_lock);
+	mutex_lock(&display->sbi.lock);
 }
 
 void intel_sbi_unlock(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	mutex_unlock(&i915->sbi_lock);
+	mutex_unlock(&display->sbi.lock);
 }
 
 u32 intel_sbi_read(struct intel_display *display, u16 reg,
@@ -89,14 +85,10 @@ void intel_sbi_write(struct intel_display *display, u16 reg, u32 value,
 
 void intel_sbi_init(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	mutex_init(&i915->sbi_lock);
+	mutex_init(&display->sbi.lock);
 }
 
 void intel_sbi_fini(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	mutex_destroy(&i915->sbi_lock);
+	mutex_destroy(&display->sbi.lock);
 }

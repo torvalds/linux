@@ -539,6 +539,11 @@ struct intel_display {
 	} sagv;
 
 	struct {
+		/* LPT/WPT IOSF sideband protection */
+		struct mutex lock;
+	} sbi;
+
+	struct {
 		/*
 		 * DG2: Mask of PHYs that were not calibrated by the firmware
 		 * and should not be used.

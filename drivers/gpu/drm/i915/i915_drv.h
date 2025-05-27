@@ -223,9 +223,6 @@ struct drm_i915_private {
 
 	bool irqs_enabled;
 
-	/* LPT/WPT IOSF sideband protection */
-	struct mutex sbi_lock;
-
 	/* VLV/CHV IOSF sideband */
 	struct {
 		struct mutex lock; /* protect sideband access */
