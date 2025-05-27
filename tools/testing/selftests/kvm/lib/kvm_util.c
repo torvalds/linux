@@ -447,6 +447,15 @@ void kvm_set_files_rlimit(uint32_t nr_vcpus)
 
 }
 
+static bool is_guest_memfd_required(struct vm_shape shape)
+{
+#ifdef __x86_64__
+	return shape.type == KVM_X86_SNP_VM;
+#else
+	return false;
+#endif
+}
+
 struct kvm_vm *__vm_create(struct vm_shape shape, uint32_t nr_runnable_vcpus,
 			   uint64_t nr_extra_pages)
 {
@@ -454,7 +463,7 @@ struct kvm_vm *__vm_create(struct vm_shape shape, uint32_t nr_runnable_vcpus,
 						 nr_extra_pages);
 	struct userspace_mem_region *slot0;
 	struct kvm_vm *vm;
-	int i;
+	int i, flags;
 
 	kvm_set_files_rlimit(nr_runnable_vcpus);
 
@@ -463,7 +472,15 @@ struct kvm_vm *__vm_create(struct vm_shape shape, uint32_t nr_runnable_vcpus,
 
 	vm = ____vm_create(shape);
 
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, 0, 0, nr_pages, 0);
+	/*
+	 * Force GUEST_MEMFD for the primary memory region if necessary, e.g.
+	 * for CoCo VMs that require GUEST_MEMFD backed private memory.
+	 */
+	flags = 0;
+	if (is_guest_memfd_required(shape))
+		flags |= KVM_MEM_GUEST_MEMFD;
+
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, 0, 0, nr_pages, flags);
 	for (i = 0; i < NR_MEM_REGIONS; i++)
 		vm->memslots[i] = 0;
 

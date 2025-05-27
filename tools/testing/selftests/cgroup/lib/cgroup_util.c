@@ -17,10 +17,10 @@
 #include <unistd.h>
 
 #include "cgroup_util.h"
-#include "../clone3/clone3_selftests.h"
+#include "../../clone3/clone3_selftests.h"
 
 /* Returns read len on success, or -errno on failure. */
-static ssize_t read_text(const char *path, char *buf, size_t max_len)
+ssize_t read_text(const char *path, char *buf, size_t max_len)
 {
 	ssize_t len;
 	int fd;
@@ -39,7 +39,7 @@ static ssize_t read_text(const char *path, char *buf, size_t max_len)
 }
 
 /* Returns written len on success, or -errno on failure. */
-static ssize_t write_text(const char *path, char *buf, ssize_t len)
+ssize_t write_text(const char *path, char *buf, ssize_t len)
 {
 	int fd;
 
@@ -217,7 +217,8 @@ int cg_write_numeric(const char *cgroup, const char *control, long value)
 	return cg_write(cgroup, control, buf);
 }
 
-int cg_find_unified_root(char *root, size_t len, bool *nsdelegate)
+static int cg_find_root(char *root, size_t len, const char *controller,
+			bool *nsdelegate)
 {
 	char buf[10 * PAGE_SIZE];
 	char *fs, *mount, *type, *options;
@@ -236,16 +237,35 @@ int cg_find_unified_root(char *root, size_t len, bool *nsdelegate)
 		options = strtok(NULL, delim);
 		strtok(NULL, delim);
 		strtok(NULL, delim);
-
-		if (strcmp(type, "cgroup2") == 0) {
-			strncpy(root, mount, len);
-			if (nsdelegate)
-				*nsdelegate = !!strstr(options, "nsdelegate");
-			return 0;
+		if (strcmp(type, "cgroup") == 0) {
+			if (!controller || !strstr(options, controller))
+				continue;
+		} else if (strcmp(type, "cgroup2") == 0) {
+			if (controller &&
+					cg_read_strstr(mount, "cgroup.controllers", controller))
+				continue;
+		} else {
+			continue;
 		}
+		strncpy(root, mount, len);
+
+		if (nsdelegate)
+			*nsdelegate = !!strstr(options, "nsdelegate");
+		return 0;
+
 	}
 
 	return -1;
+}
+
+int cg_find_controller_root(char *root, size_t len, const char *controller)
+{
+	return cg_find_root(root, len, controller, NULL);
+}
+
+int cg_find_unified_root(char *root, size_t len, bool *nsdelegate)
+{
+	return cg_find_root(root, len, NULL, nsdelegate);
 }
 
 int cg_create(const char *cgroup)
@@ -486,84 +506,6 @@ int cg_run_nowait(const char *cgroup,
 	}
 
 	return pid;
-}
-
-int get_temp_fd(void)
-{
-	return open(".", O_TMPFILE | O_RDWR | O_EXCL);
-}
-
-int alloc_pagecache(int fd, size_t size)
-{
-	char buf[PAGE_SIZE];
-	struct stat st;
-	int i;
-
-	if (fstat(fd, &st))
-		goto cleanup;
-
-	size += st.st_size;
-
-	if (ftruncate(fd, size))
-		goto cleanup;
-
-	for (i = 0; i < size; i += sizeof(buf))
-		read(fd, buf, sizeof(buf));
-
-	return 0;
-
-cleanup:
-	return -1;
-}
-
-int alloc_anon(const char *cgroup, void *arg)
-{
-	size_t size = (unsigned long)arg;
-	char *buf, *ptr;
-
-	buf = malloc(size);
-	for (ptr = buf; ptr < buf + size; ptr += PAGE_SIZE)
-		*ptr = 0;
-
-	free(buf);
-	return 0;
-}
-
-int is_swap_enabled(void)
-{
-	char buf[PAGE_SIZE];
-	const char delim[] = "\n";
-	int cnt = 0;
-	char *line;
-
-	if (read_text("/proc/swaps", buf, sizeof(buf)) <= 0)
-		return -1;
-
-	for (line = strtok(buf, delim); line; line = strtok(NULL, delim))
-		cnt++;
-
-	return cnt > 1;
-}
-
-int set_oom_adj_score(int pid, int score)
-{
-	char path[PATH_MAX];
-	int fd, len;
-
-	sprintf(path, "/proc/%d/oom_score_adj", pid);
-
-	fd = open(path, O_WRONLY | O_APPEND);
-	if (fd < 0)
-		return fd;
-
-	len = dprintf(fd, "%d", score);
-	if (len < 0) {
-		close(fd);
-		return len;
-	}
-
-	close(fd);
-	return 0;
 }
 
 int proc_mount_contains(const char *option)

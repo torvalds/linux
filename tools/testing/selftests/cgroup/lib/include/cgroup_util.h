@@ -2,9 +2,9 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include "../kselftest.h"
-
+#ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
+#endif
 
 #define MB(x) (x << 20)
 
@@ -21,6 +21,10 @@ static inline int values_close(long a, long b, int err)
 	return labs(a - b) <= (a + b) / 100 * err;
 }
 
+extern ssize_t read_text(const char *path, char *buf, size_t max_len);
+extern ssize_t write_text(const char *path, char *buf, ssize_t len);
+
+extern int cg_find_controller_root(char *root, size_t len, const char *controller);
 extern int cg_find_unified_root(char *root, size_t len, bool *nsdelegate);
 extern char *cg_name(const char *root, const char *name);
 extern char *cg_name_indexed(const char *root, const char *name, int index);
@@ -49,11 +53,6 @@ extern int cg_enter_current_thread(const char *cgroup);
 extern int cg_run_nowait(const char *cgroup,
 			 int (*fn)(const char *cgroup, void *arg),
 			 void *arg);
-extern int get_temp_fd(void);
-extern int alloc_pagecache(int fd, size_t size);
-extern int alloc_anon(const char *cgroup, void *arg);
-extern int is_swap_enabled(void);
-extern int set_oom_adj_score(int pid, int score);
 extern int cg_wait_for_proc_count(const char *cgroup, int count);
 extern int cg_killall(const char *cgroup);
 int proc_mount_contains(const char *option);
