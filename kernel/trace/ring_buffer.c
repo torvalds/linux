@@ -6113,21 +6113,16 @@ rb_reset_cpu(struct ring_buffer_per_cpu *cpu_buffer)
 /* Must have disabled the cpu buffer then done a synchronize_rcu */
 static void reset_disabled_cpu_buffer(struct ring_buffer_per_cpu *cpu_buffer)
 {
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
+	guard(raw_spinlock_irqsave)(&cpu_buffer->reader_lock);
 
 	if (RB_WARN_ON(cpu_buffer, local_read(&cpu_buffer->committing)))
-		goto out;
+		return;
 
 	arch_spin_lock(&cpu_buffer->lock);
 
 	rb_reset_cpu(cpu_buffer);
 
 	arch_spin_unlock(&cpu_buffer->lock);
-
- out:
-	raw_spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 }
 
 /**
