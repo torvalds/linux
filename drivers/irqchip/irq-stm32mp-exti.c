@@ -531,7 +531,7 @@ static int stm32mp_exti_domain_alloc(struct irq_domain *dm,
 		if (ret)
 			return ret;
 		/* we only support one parent, so far */
-		if (of_node_to_fwnode(out_irq.np) != dm->parent->fwnode)
+		if (of_fwnode_handle(out_irq.np) != dm->parent->fwnode)
 			return -EINVAL;
 
 		of_phandle_args_to_fwspec(out_irq.np, out_irq.args,
@@ -682,10 +682,9 @@ static int stm32mp_exti_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	domain = irq_domain_add_hierarchy(parent_domain, 0,
-					  drv_data->bank_nr * IRQS_PER_BANK,
-					  np, &stm32mp_exti_domain_ops,
-					  host_data);
+	domain = irq_domain_create_hierarchy(parent_domain, 0, drv_data->bank_nr * IRQS_PER_BANK,
+					     of_fwnode_handle(np), &stm32mp_exti_domain_ops,
+					     host_data);
 
 	if (!domain) {
 		dev_err(dev, "Could not register exti domain\n");

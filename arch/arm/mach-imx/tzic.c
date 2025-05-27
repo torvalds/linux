@@ -175,8 +175,8 @@ static int __init tzic_init_dt(struct device_node *np, struct device_node *p)
 	irq_base = irq_alloc_descs(-1, 0, TZIC_NUM_IRQS, numa_node_id());
 	WARN_ON(irq_base < 0);
 
-	domain = irq_domain_add_legacy(np, TZIC_NUM_IRQS, irq_base, 0,
-				       &irq_domain_simple_ops, NULL);
+	domain = irq_domain_create_legacy(of_fwnode_handle(np), TZIC_NUM_IRQS, irq_base, 0,
+					  &irq_domain_simple_ops, NULL);
 	WARN_ON(!domain);
 
 	for (i = 0; i < 4; i++, irq_base += 32)

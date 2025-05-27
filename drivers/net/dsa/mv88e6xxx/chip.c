@@ -297,7 +297,7 @@ static int mv88e6xxx_g1_irq_setup_common(struct mv88e6xxx_chip *chip)
 	u16 reg, mask;
 
 	chip->g1_irq.nirqs = chip->info->g1_irqs;
-	chip->g1_irq.domain = irq_domain_add_simple(
+	chip->g1_irq.domain = irq_domain_create_simple(
 		NULL, chip->g1_irq.nirqs, 0,
 		&mv88e6xxx_g1_irq_domain_ops, chip);
 	if (!chip->g1_irq.domain)

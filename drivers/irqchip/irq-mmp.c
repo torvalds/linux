@@ -261,9 +261,9 @@ static int __init mmp_init_bases(struct device_node *node)
 	}
 
 	icu_data[0].virq_base = 0;
-	icu_data[0].domain = irq_domain_add_linear(node, nr_irqs,
-						   &mmp_irq_domain_ops,
-						   &icu_data[0]);
+	icu_data[0].domain = irq_domain_create_linear(of_fwnode_handle(node), nr_irqs,
+						      &mmp_irq_domain_ops,
+						      &icu_data[0]);
 	for (irq = 0; irq < nr_irqs; irq++) {
 		ret = irq_create_mapping(icu_data[0].domain, irq);
 		if (!ret) {
@@ -391,9 +391,9 @@ static int __init mmp2_mux_of_init(struct device_node *node,
 		return -EINVAL;
 
 	icu_data[i].virq_base = 0;
-	icu_data[i].domain = irq_domain_add_linear(node, nr_irqs,
-						   &mmp_irq_domain_ops,
-						   &icu_data[i]);
+	icu_data[i].domain = irq_domain_create_linear(of_fwnode_handle(node), nr_irqs,
+						      &mmp_irq_domain_ops,
+						      &icu_data[i]);
 	for (irq = 0; irq < nr_irqs; irq++) {
 		ret = irq_create_mapping(icu_data[i].domain, irq);
 		if (!ret) {

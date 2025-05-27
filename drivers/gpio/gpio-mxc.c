@@ -502,7 +502,7 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 		goto out_bgio;
 	}
 
-	port->domain = irq_domain_add_legacy(np, 32, irq_base, 0,
+	port->domain = irq_domain_create_legacy(of_fwnode_handle(np), 32, irq_base, 0,
 					     &irq_domain_simple_ops, NULL);
 	if (!port->domain) {
 		err = -ENODEV;

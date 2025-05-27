@@ -348,12 +348,12 @@ static int __init mpic_msi_init(struct mpic *mpic, struct device_node *node,
 		mpic->msi_doorbell_mask = PCI_MSI_FULL_DOORBELL_MASK;
 	}
 
-	mpic->msi_inner_domain = irq_domain_add_linear(NULL, mpic->msi_doorbell_size,
+	mpic->msi_inner_domain = irq_domain_create_linear(NULL, mpic->msi_doorbell_size,
 						       &mpic_msi_domain_ops, mpic);
 	if (!mpic->msi_inner_domain)
 		return -ENOMEM;
 
-	mpic->msi_domain = pci_msi_create_irq_domain(of_node_to_fwnode(node), &mpic_msi_domain_info,
+	mpic->msi_domain = pci_msi_create_irq_domain(of_fwnode_handle(node), &mpic_msi_domain_info,
 						     mpic->msi_inner_domain);
 	if (!mpic->msi_domain) {
 		irq_domain_remove(mpic->msi_inner_domain);
@@ -492,7 +492,7 @@ static int __init mpic_ipi_init(struct mpic *mpic, struct device_node *node)
 {
 	int base_ipi;
 
-	mpic->ipi_domain = irq_domain_create_linear(of_node_to_fwnode(node), IPI_DOORBELL_NR,
+	mpic->ipi_domain = irq_domain_create_linear(of_fwnode_handle(node), IPI_DOORBELL_NR,
 						    &mpic_ipi_domain_ops, mpic);
 	if (WARN_ON(!mpic->ipi_domain))
 		return -ENOMEM;
@@ -546,7 +546,7 @@ static void mpic_reenable_percpu(struct mpic *mpic)
 {
 	/* Re-enable per-CPU interrupts that were enabled before suspend */
 	for (irq_hw_number_t i = 0; i < MPIC_PER_CPU_IRQS_NR; i++) {
-		unsigned int virq = irq_linear_revmap(mpic->domain, i);
+		unsigned int virq = irq_find_mapping(mpic->domain, i);
 		struct irq_data *d;
 
 		if (!virq || !irq_percpu_is_enabled(virq))
@@ -740,7 +740,7 @@ static void mpic_resume(void)
 
 	/* Re-enable interrupts */
 	for (irq_hw_number_t i = 0; i < mpic->domain->hwirq_max; i++) {
-		unsigned int virq = irq_linear_revmap(mpic->domain, i);
+		unsigned int virq = irq_find_mapping(mpic->domain, i);
 		struct irq_data *d;
 
 		if (!virq)
@@ -861,7 +861,7 @@ static int __init mpic_of_init(struct device_node *node, struct device_node *par
 	if (!mpic_is_ipi_available(mpic))
 		nr_irqs = MPIC_PER_CPU_IRQS_NR;
 
-	mpic->domain = irq_domain_add_linear(node, nr_irqs, &mpic_irq_ops, mpic);
+	mpic->domain = irq_domain_create_linear(of_fwnode_handle(node), nr_irqs, &mpic_irq_ops, mpic);
 	if (!mpic->domain) {
 		pr_err("%pOF: Unable to add IRQ domain\n", node);
 		return -ENOMEM;

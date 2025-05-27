@@ -636,9 +636,9 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 	if (!pxa_last_gpio)
 		return -EINVAL;
 
-	pchip->irqdomain = irq_domain_add_legacy(pdev->dev.of_node,
-						 pxa_last_gpio + 1, irq_base,
-						 0, &pxa_irq_domain_ops, pchip);
+	pchip->irqdomain = irq_domain_create_legacy(of_fwnode_handle(pdev->dev.of_node),
+						    pxa_last_gpio + 1, irq_base, 0,
+						    &pxa_irq_domain_ops, pchip);
 	if (!pchip->irqdomain)
 		return -ENOMEM;
 
