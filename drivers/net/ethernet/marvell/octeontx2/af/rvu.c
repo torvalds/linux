@@ -2033,6 +2033,9 @@ int rvu_mbox_handler_get_hw_cap(struct rvu *rvu, struct msg_req *req,
 	rsp->nix_shaping = hw->cap.nix_shaping;
 	rsp->npc_hash_extract = hw->cap.npc_hash_extract;
 
+	if (rvu->mcs_blk_cnt)
+		rsp->hw_caps = HW_CAP_MACSEC;
+
 	return 0;
 }
 
