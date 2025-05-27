@@ -439,10 +439,17 @@ static bool check_ptrace_values_sve(pid_t child, struct test_config *config)
 		pass = false;
 	}
 
-	if (sve->size != SVE_PT_SIZE(vq, sve->flags)) {
-		ksft_print_msg("Mismatch in SVE header size: %d != %lu\n",
-			       sve->size, SVE_PT_SIZE(vq, sve->flags));
-		pass = false;
+	if (svcr_in & SVCR_SM) {
+		if (sve->size != sizeof(sve)) {
+			ksft_print_msg("NT_ARM_SVE reports data with PSTATE.SM\n");
+			pass = false;
+		}
+	} else {
+		if (sve->size != SVE_PT_SIZE(vq, sve->flags)) {
+			ksft_print_msg("Mismatch in SVE header size: %d != %lu\n",
+				       sve->size, SVE_PT_SIZE(vq, sve->flags));
+			pass = false;
+		}
 	}
 
 	/* The registers might be in completely different formats! */
@@ -515,10 +522,17 @@ static bool check_ptrace_values_ssve(pid_t child, struct test_config *config)
 		pass = false;
 	}
 
-	if (sve->size != SVE_PT_SIZE(vq, sve->flags)) {
-		ksft_print_msg("Mismatch in SSVE header size: %d != %lu\n",
-			       sve->size, SVE_PT_SIZE(vq, sve->flags));
-		pass = false;
+	if (!(svcr_in & SVCR_SM)) {
+		if (sve->size != sizeof(sve)) {
+			ksft_print_msg("NT_ARM_SSVE reports data without PSTATE.SM\n");
+			pass = false;
+		}
+	} else {
+		if (sve->size != SVE_PT_SIZE(vq, sve->flags)) {
+			ksft_print_msg("Mismatch in SSVE header size: %d != %lu\n",
+				       sve->size, SVE_PT_SIZE(vq, sve->flags));
+			pass = false;
+		}
 	}
 
 	/* The registers might be in completely different formats! */
@@ -891,17 +905,10 @@ static void set_initial_values(struct test_config *config)
 {
 	int vq = __sve_vq_from_vl(vl_in(config));
 	int sme_vq = __sve_vq_from_vl(config->sme_vl_in);
-	bool sm_change;
 
 	svcr_in = config->svcr_in;
 	svcr_expected = config->svcr_expected;
 	svcr_out = 0;
-
-	if (sme_supported() &&
-	    (svcr_in & SVCR_SM) != (svcr_expected & SVCR_SM))
-		sm_change = true;
-	else
-		sm_change = false;
 
 	fill_random(&v_in, sizeof(v_in));
 	memcpy(v_expected, v_in, sizeof(v_in));
@@ -953,12 +960,7 @@ static void set_initial_values(struct test_config *config)
 	if (fpmr_supported()) {
 		fill_random(&fpmr_in, sizeof(fpmr_in));
 		fpmr_in &= FPMR_SAFE_BITS;
-
-		/* Entering or exiting streaming mode clears FPMR */
-		if (sm_change)
-			fpmr_expected = 0;
-		else
-			fpmr_expected = fpmr_in;
+		fpmr_expected = fpmr_in;
 	} else {
 		fpmr_in = 0;
 		fpmr_expected = 0;
@@ -1195,18 +1197,8 @@ static void sve_write(pid_t child, struct test_config *config)
 
 static bool za_write_supported(struct test_config *config)
 {
-	if (config->sme_vl_in != config->sme_vl_expected) {
-		/* Changing the SME VL exits streaming mode. */
-		if (config->svcr_expected & SVCR_SM) {
-			return false;
-		}
-	} else {
-		/* Otherwise we can't change streaming mode */
-		if ((config->svcr_in & SVCR_SM) !=
-		    (config->svcr_expected & SVCR_SM)) {
-			return false;
-		}
-	}
+	if ((config->svcr_in & SVCR_SM) != (config->svcr_expected & SVCR_SM))
+		return false;
 
 	return true;
 }
@@ -1224,10 +1216,8 @@ static void za_write_expected(struct test_config *config)
 		memset(zt_expected, 0, sizeof(zt_expected));
 	}
 
-	/* Changing the SME VL flushes ZT, SVE state and exits SM */
+	/* Changing the SME VL flushes ZT, SVE state */
 	if (config->sme_vl_in != config->sme_vl_expected) {
-		svcr_expected &= ~SVCR_SM;
-
 		sve_vq = __sve_vq_from_vl(vl_expected(config));
 		memset(z_expected, 0, __SVE_ZREGS_SIZE(sve_vq));
 		memset(p_expected, 0, __SVE_PREGS_SIZE(sve_vq));
