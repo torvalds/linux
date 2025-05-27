@@ -526,7 +526,7 @@
 		ports {
 			usb2-0 {
 				status = "okay";
-				mode = "peripheral";
+				mode = "otg";
 				usb-role-switch;
 
 				vbus-supply = <&vdd_5v0_usb>;
