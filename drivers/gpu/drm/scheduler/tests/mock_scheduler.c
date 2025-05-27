@@ -64,7 +64,7 @@ static void drm_mock_sched_job_complete(struct drm_mock_sched_job *job)
 
 	job->flags |= DRM_MOCK_SCHED_JOB_DONE;
 	list_move_tail(&job->link, &sched->done_list);
-	dma_fence_signal(&job->hw_fence);
+	dma_fence_signal_locked(&job->hw_fence);
 	complete(&job->done);
 }
 
@@ -124,7 +124,6 @@ drm_mock_sched_job_new(struct kunit *test,
 	job->test = test;
 
 	init_completion(&job->done);
-	spin_lock_init(&job->lock);
 	INIT_LIST_HEAD(&job->link);
 	hrtimer_setup(&job->timer, drm_mock_sched_job_signal_timer,
 		      CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
@@ -170,7 +169,7 @@ static struct dma_fence *mock_sched_run_job(struct drm_sched_job *sched_job)
 
 	dma_fence_init(&job->hw_fence,
 		       &drm_mock_sched_hw_fence_ops,
-		       &job->lock,
+		       &sched->lock,
 		       sched->hw_timeline.context,
 		       atomic_inc_return(&sched->hw_timeline.next_seqno));
 
