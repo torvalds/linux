@@ -245,6 +245,7 @@ struct mpc_color_caps {
 	struct rom_curve_caps ogam_rom_caps;
 	struct lut3d_caps mcm_3d_lut_caps;
 	struct lut3d_caps rmcm_3d_lut_caps;
+	bool preblend;
 };
 
 /**
