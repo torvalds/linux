@@ -82,6 +82,8 @@
 #define SEL_PLL6_2	SEL_PLL_PACK(CPG_PL6_ETH_SSEL, 0, 1)
 #define SEL_GPU2	SEL_PLL_PACK(CPG_PL6_SSEL, 12, 1)
 
+#define MSTOP(name, bitmask)	((CPG_##name##_MSTOP) << 16 | (bitmask))
+
 #define EXTAL_FREQ_IN_MEGA_HZ	(24)
 
 /**
@@ -201,6 +203,7 @@ enum clk_types {
  * @name: handle between common and hardware-specific interfaces
  * @id: clock index in array containing all Core and Module Clocks
  * @parent: id of parent clock
+ * @mstop_conf: MSTOP configuration
  * @off: register offset
  * @bit: ON/MON bit
  * @is_coupled: flag to indicate coupled clock
@@ -209,26 +212,28 @@ struct rzg2l_mod_clk {
 	const char *name;
 	unsigned int id;
 	unsigned int parent;
+	u32 mstop_conf;
 	u16 off;
 	u8 bit;
 	bool is_coupled;
 };
 
-#define DEF_MOD_BASE(_name, _id, _parent, _off, _bit, _is_coupled)	\
+#define DEF_MOD_BASE(_name, _id, _parent, _off, _bit, _mstop_conf, _is_coupled)	\
 	{ \
 		.name = _name, \
 		.id = MOD_CLK_BASE + (_id), \
 		.parent = (_parent), \
+		.mstop_conf = (_mstop_conf), \
 		.off = (_off), \
 		.bit = (_bit), \
 		.is_coupled = (_is_coupled), \
 	}
 
-#define DEF_MOD(_name, _id, _parent, _off, _bit)	\
-	DEF_MOD_BASE(_name, _id, _parent, _off, _bit, false)
+#define DEF_MOD(_name, _id, _parent, _off, _bit, _mstop_conf)	\
+	DEF_MOD_BASE(_name, _id, _parent, _off, _bit, _mstop_conf, false)
 
-#define DEF_COUPLED(_name, _id, _parent, _off, _bit)	\
-	DEF_MOD_BASE(_name, _id, _parent, _off, _bit, true)
+#define DEF_COUPLED(_name, _id, _parent, _off, _bit, _mstop_conf)	\
+	DEF_MOD_BASE(_name, _id, _parent, _off, _bit, _mstop_conf, true)
 
 /**
  * struct rzg2l_reset - Reset definitions
