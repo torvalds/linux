@@ -2644,8 +2644,7 @@ static inline bool pos_same_folio(loff_t pos1, loff_t pos2, struct folio *folio)
 	return (pos1 >> shift == pos2 >> shift);
 }
 
-static void filemap_end_dropbehind_read(struct address_space *mapping,
-					struct folio *folio)
+static void filemap_end_dropbehind_read(struct folio *folio)
 {
 	if (!folio_test_dropbehind(folio))
 		return;
@@ -2653,7 +2652,7 @@ static void filemap_end_dropbehind_read(struct address_space *mapping,
 		return;
 	if (folio_trylock(folio)) {
 		if (folio_test_clear_dropbehind(folio))
-			folio_unmap_invalidate(mapping, folio, 0);
+			filemap_end_dropbehind(folio);
 		folio_unlock(folio);
 	}
 }
@@ -2774,7 +2773,7 @@ put_folios:
 		for (i = 0; i < folio_batch_count(&fbatch); i++) {
 			struct folio *folio = fbatch.folios[i];
 
-			filemap_end_dropbehind_read(mapping, folio);
+			filemap_end_dropbehind_read(folio);
 			folio_put(folio);
 		}
 		folio_batch_init(&fbatch);
