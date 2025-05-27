@@ -226,6 +226,9 @@ EXPORT_SYMBOL_GPL(allow_smaller_maxphyaddr);
 bool __read_mostly enable_apicv = true;
 EXPORT_SYMBOL_GPL(enable_apicv);
 
+bool __read_mostly enable_device_posted_irqs = true;
+EXPORT_SYMBOL_GPL(enable_device_posted_irqs);
+
 const struct _kvm_stats_desc kvm_vm_stats_desc[] = {
 	KVM_GENERIC_VM_STATS(),
 	STATS_DESC_COUNTER(VM, mmu_shadow_zapped),
@@ -4990,6 +4993,8 @@ static bool need_emulate_wbinvd(struct kvm_vcpu *vcpu)
 	return kvm_arch_has_noncoherent_dma(vcpu->kvm);
 }
 
+static DEFINE_PER_CPU(struct kvm_vcpu *, last_vcpu);
+
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
@@ -5011,6 +5016,19 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	}
 
 	kvm_x86_call(vcpu_load)(vcpu, cpu);
+
+	if (vcpu != per_cpu(last_vcpu, cpu)) {
+		/*
+		 * Flush the branch predictor when switching vCPUs on the same
+		 * physical CPU, as each vCPU needs its own branch prediction
+		 * domain.  No IBPB is needed when switching between L1 and L2
+		 * on the same vCPU unless IBRS is advertised to the vCPU; that
+		 * is handled on the nested VM-Exit path.
+		 */
+		if (static_branch_likely(&switch_vcpu_ibpb))
+			indirect_branch_prediction_barrier();
+		per_cpu(last_vcpu, cpu) = vcpu;
+	}
 
 	/* Save host pkru register if supported */
 	vcpu->arch.host_pkru = read_pkru();
@@ -8023,7 +8041,7 @@ static int emulator_read_write(struct x86_emulate_ctxt *ctxt,
 		return rc;
 
 	if (!vcpu->mmio_nr_fragments)
-		return rc;
+		return X86EMUL_CONTINUE;
 
 	gpa = vcpu->mmio_fragments[0].gpa;
 
@@ -9811,6 +9829,9 @@ int kvm_x86_vendor_init(struct kvm_x86_init_ops *ops)
 	if (r != 0)
 		goto out_mmu_exit;
 
+	enable_device_posted_irqs &= enable_apicv &&
+				     irq_remapping_cap(IRQ_POSTING_CAP);
+
 	kvm_ops_update(ops);
 
 	for_each_online_cpu(cpu) {
@@ -10694,6 +10715,7 @@ static void vcpu_scan_ioapic(struct kvm_vcpu *vcpu)
 		return;
 
 	bitmap_zero(vcpu->arch.ioapic_handled_vectors, 256);
+	vcpu->arch.highest_stale_pending_ioapic_eoi = -1;
 
 	kvm_x86_call(sync_pir_to_irr)(vcpu);
 
@@ -12419,12 +12441,15 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
-	int idx;
+	int idx, cpu;
 
 	kvm_clear_async_pf_completion_queue(vcpu);
 	kvm_mmu_unload(vcpu);
 
 	kvmclock_reset(vcpu);
+
+	for_each_possible_cpu(cpu)
+		cmpxchg(per_cpu_ptr(&last_vcpu, cpu), vcpu, NULL);
 
 	kvm_x86_call(vcpu_free)(vcpu);
 
