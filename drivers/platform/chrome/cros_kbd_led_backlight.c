@@ -137,15 +137,11 @@ static int
 keyboard_led_set_brightness_ec_pwm(struct led_classdev *cdev,
 				   enum led_brightness brightness)
 {
-	struct {
-		struct cros_ec_command msg;
-		struct ec_params_pwm_set_keyboard_backlight params;
-	} __packed buf;
-	struct ec_params_pwm_set_keyboard_backlight *params = &buf.params;
-	struct cros_ec_command *msg = &buf.msg;
+	DEFINE_RAW_FLEX(struct cros_ec_command, msg, data,
+			sizeof(struct ec_params_pwm_set_keyboard_backlight));
+	struct ec_params_pwm_set_keyboard_backlight *params =
+			(struct ec_params_pwm_set_keyboard_backlight *)msg->data;
 	struct keyboard_led *keyboard_led = container_of(cdev, struct keyboard_led, cdev);
-
-	memset(&buf, 0, sizeof(buf));
 
 	msg->command = EC_CMD_PWM_SET_KEYBOARD_BACKLIGHT;
 	msg->outsize = sizeof(*params);
@@ -158,16 +154,12 @@ keyboard_led_set_brightness_ec_pwm(struct led_classdev *cdev,
 static enum led_brightness
 keyboard_led_get_brightness_ec_pwm(struct led_classdev *cdev)
 {
-	struct {
-		struct cros_ec_command msg;
-		struct ec_response_pwm_get_keyboard_backlight resp;
-	} __packed buf;
-	struct ec_response_pwm_get_keyboard_backlight *resp = &buf.resp;
-	struct cros_ec_command *msg = &buf.msg;
+	DEFINE_RAW_FLEX(struct cros_ec_command, msg, data,
+			sizeof(struct ec_response_pwm_get_keyboard_backlight));
+	struct ec_response_pwm_get_keyboard_backlight *resp =
+			(struct ec_response_pwm_get_keyboard_backlight *)msg->data;
 	struct keyboard_led *keyboard_led = container_of(cdev, struct keyboard_led, cdev);
 	int ret;
-
-	memset(&buf, 0, sizeof(buf));
 
 	msg->command = EC_CMD_PWM_GET_KEYBOARD_BACKLIGHT;
 	msg->insize = sizeof(*resp);
