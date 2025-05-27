@@ -2,8 +2,8 @@
 // Copyright (C) 2022 Linutronix GmbH
 // Copyright (C) 2022 Intel
 
-#ifndef _DRIVERS_IRQCHIP_IRQ_MSI_LIB_H
-#define _DRIVERS_IRQCHIP_IRQ_MSI_LIB_H
+#ifndef _IRQCHIP_IRQ_MSI_LIB_H
+#define _IRQCHIP_IRQ_MSI_LIB_H
 
 #include <linux/bits.h>
 #include <linux/irqdomain.h>
@@ -24,4 +24,4 @@ bool msi_lib_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
 			       struct irq_domain *real_parent,
 			       struct msi_domain_info *info);
 
-#endif /* _DRIVERS_IRQCHIP_IRQ_MSI_LIB_H */
+#endif /* _IRQCHIP_IRQ_MSI_LIB_H */

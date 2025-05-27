@@ -26,7 +26,7 @@
 #include <linux/irqchip/arm-gic.h>
 #include <linux/irqchip/arm-gic-common.h>
 
-#include "irq-msi-lib.h"
+#include <linux/irqchip/irq-msi-lib.h>
 
 /*
 * MSI_TYPER:
@@ -261,23 +261,23 @@ static struct msi_parent_ops gicv2m_msi_parent_ops = {
 
 static __init int gicv2m_allocate_domains(struct irq_domain *parent)
 {
-	struct irq_domain *inner_domain;
+	struct irq_domain_info info = {
+		.ops		= &gicv2m_domain_ops,
+		.parent		= parent,
+	};
 	struct v2m_data *v2m;
 
 	v2m = list_first_entry_or_null(&v2m_nodes, struct v2m_data, entry);
 	if (!v2m)
 		return 0;
 
-	inner_domain = irq_domain_create_hierarchy(parent, 0, 0, v2m->fwnode,
-						   &gicv2m_domain_ops, v2m);
-	if (!inner_domain) {
+	info.host_data = v2m;
+	info.fwnode = v2m->fwnode;
+
+	if (!msi_create_parent_irq_domain(&info, &gicv2m_msi_parent_ops)) {
 		pr_err("Failed to create GICv2m domain\n");
 		return -ENOMEM;
 	}
-
-	irq_domain_update_bus_token(inner_domain, DOMAIN_BUS_NEXUS);
-	inner_domain->flags |= IRQ_DOMAIN_FLAG_MSI_PARENT;
-	inner_domain->msi_parent_ops = &gicv2m_msi_parent_ops;
 	return 0;
 }
 

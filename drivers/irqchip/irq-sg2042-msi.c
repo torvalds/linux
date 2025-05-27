@@ -17,7 +17,7 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 
-#include "irq-msi-lib.h"
+#include <linux/irqchip/irq-msi-lib.h>
 
 struct sg204x_msi_chip_info {
 	const struct irq_chip		*irqchip;
