@@ -3953,6 +3953,33 @@ static u8 ieee80211_chanctx_radar_detect(struct ieee80211_local *local,
 	return radar_detect;
 }
 
+bool ieee80211_is_radio_idx_in_scan_req(struct wiphy *wiphy,
+					struct cfg80211_scan_request *scan_req,
+					int radio_idx)
+{
+	struct ieee80211_channel *chan;
+	int i, chan_radio_idx;
+
+	for (i = 0; i < scan_req->n_channels; i++) {
+		chan = scan_req->channels[i];
+		chan_radio_idx = cfg80211_get_radio_idx_by_chan(wiphy, chan);
+		/*
+		 * The chan_radio_idx should be valid since it's taken from a
+		 * valid scan request.
+		 * However, if chan_radio_idx is unexpectedly invalid (negative),
+		 * we take a conservative approach and assume the scan request
+		 * might use the specified radio_idx. Hence, return true.
+		 */
+		if (WARN_ON(chan_radio_idx < 0))
+			return true;
+
+		if (chan_radio_idx == radio_idx)
+			return true;
+	}
+
+	return false;
+}
+
 static u32
 __ieee80211_get_radio_mask(struct ieee80211_sub_if_data *sdata)
 {
