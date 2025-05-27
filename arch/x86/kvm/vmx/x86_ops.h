@@ -57,6 +57,7 @@ void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu);
 void vmx_update_exception_bitmap(struct kvm_vcpu *vcpu);
 int vmx_get_feature_msr(u32 msr, u64 *data);
 int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info);
+#define vmx_complete_emulated_msr kvm_complete_insn_gp
 u64 vmx_get_segment_base(struct kvm_vcpu *vcpu, int seg);
 void vmx_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
 void vmx_set_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
@@ -163,71 +164,6 @@ void tdx_flush_tlb_current(struct kvm_vcpu *vcpu);
 void tdx_flush_tlb_all(struct kvm_vcpu *vcpu);
 void tdx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa, int root_level);
 int tdx_gmem_private_max_mapping_level(struct kvm *kvm, kvm_pfn_t pfn);
-#else
-static inline void tdx_disable_virtualization_cpu(void) {}
-static inline int tdx_vm_init(struct kvm *kvm) { return -EOPNOTSUPP; }
-static inline void tdx_mmu_release_hkid(struct kvm *kvm) {}
-static inline void tdx_vm_destroy(struct kvm *kvm) {}
-static inline int tdx_vm_ioctl(struct kvm *kvm, void __user *argp) { return -EOPNOTSUPP; }
-
-static inline int tdx_vcpu_create(struct kvm_vcpu *vcpu) { return -EOPNOTSUPP; }
-static inline void tdx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event) {}
-static inline void tdx_vcpu_free(struct kvm_vcpu *vcpu) {}
-static inline void tdx_vcpu_load(struct kvm_vcpu *vcpu, int cpu) {}
-static inline int tdx_vcpu_pre_run(struct kvm_vcpu *vcpu) { return -EOPNOTSUPP; }
-static inline fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
-{
-	return EXIT_FASTPATH_NONE;
-}
-static inline void tdx_prepare_switch_to_guest(struct kvm_vcpu *vcpu) {}
-static inline void tdx_vcpu_put(struct kvm_vcpu *vcpu) {}
-static inline bool tdx_protected_apic_has_interrupt(struct kvm_vcpu *vcpu) { return false; }
-static inline int tdx_handle_exit(struct kvm_vcpu *vcpu,
-		enum exit_fastpath_completion fastpath) { return 0; }
-
-static inline void tdx_deliver_interrupt(struct kvm_lapic *apic, int delivery_mode,
-					 int trig_mode, int vector) {}
-static inline void tdx_inject_nmi(struct kvm_vcpu *vcpu) {}
-static inline void tdx_get_exit_info(struct kvm_vcpu *vcpu, u32 *reason, u64 *info1,
-				     u64 *info2, u32 *intr_info, u32 *error_code) {}
-static inline bool tdx_has_emulated_msr(u32 index) { return false; }
-static inline int tdx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr) { return 1; }
-static inline int tdx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr) { return 1; }
-
-static inline int tdx_vcpu_ioctl(struct kvm_vcpu *vcpu, void __user *argp) { return -EOPNOTSUPP; }
-
-static inline int tdx_sept_link_private_spt(struct kvm *kvm, gfn_t gfn,
-					    enum pg_level level,
-					    void *private_spt)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int tdx_sept_free_private_spt(struct kvm *kvm, gfn_t gfn,
-					    enum pg_level level,
-					    void *private_spt)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int tdx_sept_set_private_spte(struct kvm *kvm, gfn_t gfn,
-					    enum pg_level level,
-					    kvm_pfn_t pfn)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int tdx_sept_remove_private_spte(struct kvm *kvm, gfn_t gfn,
-					       enum pg_level level,
-					       kvm_pfn_t pfn)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline void tdx_flush_tlb_current(struct kvm_vcpu *vcpu) {}
-static inline void tdx_flush_tlb_all(struct kvm_vcpu *vcpu) {}
-static inline void tdx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa, int root_level) {}
-static inline int tdx_gmem_private_max_mapping_level(struct kvm *kvm, kvm_pfn_t pfn) { return 0; }
 #endif
 
 #endif /* __KVM_X86_VMX_X86_OPS_H */
