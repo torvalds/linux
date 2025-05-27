@@ -279,6 +279,7 @@ bool is_hugetlb_entry_migration(pte_t pte);
 bool is_hugetlb_entry_hwpoisoned(pte_t pte);
 void hugetlb_unshare_all_pmds(struct vm_area_struct *vma);
 void fixup_hugetlb_reservations(struct vm_area_struct *vma);
+void hugetlb_split(struct vm_area_struct *vma, unsigned long addr);
 
 #else /* !CONFIG_HUGETLB_PAGE */
 
@@ -475,6 +476,8 @@ static inline void hugetlb_unshare_all_pmds(struct vm_area_struct *vma) { }
 static inline void fixup_hugetlb_reservations(struct vm_area_struct *vma)
 {
 }
+
+static inline void hugetlb_split(struct vm_area_struct *vma, unsigned long addr) {}
 
 #endif /* !CONFIG_HUGETLB_PAGE */
 
