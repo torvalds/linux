@@ -257,7 +257,7 @@ config HISI_THERMAL
 	depends on ARCH_HISI || COMPILE_TEST
 	depends on HAS_IOMEM
 	depends on OF
-	default y
+	default ARCH_HISI
 	help
 	  Enable this to plug hisilicon's thermal sensor driver into the Linux
 	  thermal framework. cpufreq is used as the cooling device to throttle
@@ -326,6 +326,15 @@ config QORIQ_THERMAL
 	  It supports one critical trip point and one passive trip point. The
 	  cpufreq is used as the cooling device to throttle CPUs when the
 	  passive trip is crossed.
+
+config AIROHA_THERMAL
+	tristate "Airoha thermal sensor driver"
+	depends on ARCH_AIROHA || COMPILE_TEST
+	depends on MFD_SYSCON
+	depends on OF
+	help
+	  Enable this to plug the Airoha thermal sensor driver into the Linux
+	  thermal framework.
 
 config SPEAR_THERMAL
 	tristate "SPEAr thermal sensor driver"

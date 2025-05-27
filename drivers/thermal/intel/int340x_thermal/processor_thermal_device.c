@@ -400,13 +400,21 @@ int proc_thermal_mmio_add(struct pci_dev *pdev,
 		}
 	}
 
+	if (feature_mask & PROC_THERMAL_FEATURE_PTC) {
+		ret = proc_thermal_ptc_add(pdev, proc_priv);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to add PTC MMIO interface\n");
+			goto err_rem_rapl;
+		}
+	}
+
 	if (feature_mask & PROC_THERMAL_FEATURE_FIVR ||
 	    feature_mask & PROC_THERMAL_FEATURE_DVFS ||
 	    feature_mask & PROC_THERMAL_FEATURE_DLVR) {
 		ret = proc_thermal_rfim_add(pdev, proc_priv);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to add RFIM interface\n");
-			goto err_rem_rapl;
+			goto err_rem_ptc;
 		}
 	}
 
@@ -428,6 +436,8 @@ int proc_thermal_mmio_add(struct pci_dev *pdev,
 
 err_rem_rfim:
 	proc_thermal_rfim_remove(pdev);
+err_rem_ptc:
+	proc_thermal_ptc_remove(pdev);
 err_rem_rapl:
 	proc_thermal_rapl_remove();
 
@@ -439,6 +449,9 @@ void proc_thermal_mmio_remove(struct pci_dev *pdev, struct proc_thermal_device *
 {
 	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_RAPL)
 		proc_thermal_rapl_remove();
+
+	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_PTC)
+		proc_thermal_ptc_remove(pdev);
 
 	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_FIVR ||
 	    proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_DVFS ||
