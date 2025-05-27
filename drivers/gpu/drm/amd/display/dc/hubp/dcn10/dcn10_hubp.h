@@ -666,10 +666,29 @@ struct dcn_mi_mask {
 	DCN_HUBP_REG_FIELD_LIST(uint32_t);
 };
 
+struct dcn_fl_regs_st {
+	uint32_t lut_enable;
+	uint32_t lut_done;
+	uint32_t lut_addr_mode;
+	uint32_t lut_width;
+	uint32_t lut_tmz;
+	uint32_t lut_crossbar_sel_r;
+	uint32_t lut_crossbar_sel_g;
+	uint32_t lut_crossbar_sel_b;
+	uint32_t lut_addr_hi;
+	uint32_t lut_addr_lo;
+	uint32_t refcyc_3dlut_group;
+	uint32_t lut_fl_bias;
+	uint32_t lut_fl_scale;
+	uint32_t lut_fl_mode;
+	uint32_t lut_fl_format;
+};
+
 struct dcn_hubp_state {
 	struct _vcs_dpi_display_dlg_regs_st dlg_attr;
 	struct _vcs_dpi_display_ttu_regs_st ttu_attr;
 	struct _vcs_dpi_display_rq_regs_st rq_regs;
+	struct dcn_fl_regs_st fl_regs;
 	uint32_t pixel_format;
 	uint32_t inuse_addr_hi;
 	uint32_t inuse_addr_lo;
