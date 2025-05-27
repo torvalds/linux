@@ -52,11 +52,10 @@ static void ingenic_tcu_gc_unmask_enable_reg(struct irq_data *d)
 	struct regmap *map = gc->private;
 	u32 mask = d->mask;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	regmap_write(map, ct->regs.ack, mask);
 	regmap_write(map, ct->regs.enable, mask);
 	*ct->mask_cache |= mask;
-	irq_gc_unlock(gc);
 }
 
 static void ingenic_tcu_gc_mask_disable_reg(struct irq_data *d)
@@ -66,10 +65,9 @@ static void ingenic_tcu_gc_mask_disable_reg(struct irq_data *d)
 	struct regmap *map = gc->private;
 	u32 mask = d->mask;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	regmap_write(map, ct->regs.disable, mask);
 	*ct->mask_cache &= ~mask;
-	irq_gc_unlock(gc);
 }
 
 static void ingenic_tcu_gc_mask_disable_reg_and_ack(struct irq_data *d)
@@ -79,10 +77,9 @@ static void ingenic_tcu_gc_mask_disable_reg_and_ack(struct irq_data *d)
 	struct regmap *map = gc->private;
 	u32 mask = d->mask;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	regmap_write(map, ct->regs.ack, mask);
 	regmap_write(map, ct->regs.disable, mask);
-	irq_gc_unlock(gc);
 }
 
 static int __init ingenic_tcu_irq_init(struct device_node *np,

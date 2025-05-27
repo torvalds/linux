@@ -257,10 +257,9 @@ static void pmu_irq_handler(struct irq_desc *desc)
 	 * So, let's structure the code so that the window is as small as
 	 * possible.
 	 */
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	done &= readl_relaxed(base + PMC_IRQ_CAUSE);
 	writel_relaxed(done, base + PMC_IRQ_CAUSE);
-	irq_gc_unlock(gc);
 }
 
 static int __init dove_init_pmu_irq(struct pmu_data *pmu, int irq)

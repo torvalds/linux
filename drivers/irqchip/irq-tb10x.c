@@ -41,11 +41,9 @@ static inline u32 ab_irqctl_readreg(struct irq_chip_generic *gc, u32 reg)
 static int tb10x_irq_set_type(struct irq_data *data, unsigned int flow_type)
 {
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(data);
-	uint32_t im, mod, pol;
+	uint32_t mod, pol, im = data->mask;
 
-	im = data->mask;
-
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 
 	mod = ab_irqctl_readreg(gc, AB_IRQCTL_SRC_MODE) | im;
 	pol = ab_irqctl_readreg(gc, AB_IRQCTL_SRC_POLARITY) | im;
@@ -67,9 +65,7 @@ static int tb10x_irq_set_type(struct irq_data *data, unsigned int flow_type)
 	case IRQ_TYPE_EDGE_RISING:
 		break;
 	default:
-		irq_gc_unlock(gc);
-		pr_err("%s: Cannot assign multiple trigger modes to IRQ %d.\n",
-			__func__, data->irq);
+		pr_err("%s: Cannot assign multiple trigger modes to IRQ %d.\n",	__func__, data->irq);
 		return -EBADR;
 	}
 
@@ -79,9 +75,6 @@ static int tb10x_irq_set_type(struct irq_data *data, unsigned int flow_type)
 	ab_irqctl_writereg(gc, AB_IRQCTL_SRC_MODE, mod);
 	ab_irqctl_writereg(gc, AB_IRQCTL_SRC_POLARITY, pol);
 	ab_irqctl_writereg(gc, AB_IRQCTL_INT_STATUS, im);
-
-	irq_gc_unlock(gc);
-
 	return IRQ_SET_MASK_OK;
 }
 

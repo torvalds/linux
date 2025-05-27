@@ -581,8 +581,7 @@ static int pruss_intc_probe(struct platform_device *pdev)
 		host_data->intc = intc;
 		host_data->host_irq = i;
 
-		irq_set_handler_data(irq, host_data);
-		irq_set_chained_handler(irq, pruss_intc_irq_handler);
+		irq_set_chained_handler_and_data(irq, pruss_intc_irq_handler, host_data);
 	}
 
 	return 0;

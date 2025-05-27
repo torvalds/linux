@@ -40,10 +40,9 @@ void irq_gc_mask_disable_reg(struct irq_data *d)
 	struct irq_chip_type *ct = irq_data_get_chip_type(d);
 	u32 mask = d->mask;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	irq_reg_writel(gc, mask, ct->regs.disable);
 	*ct->mask_cache &= ~mask;
-	irq_gc_unlock(gc);
 }
 EXPORT_SYMBOL_GPL(irq_gc_mask_disable_reg);
 
@@ -60,10 +59,9 @@ void irq_gc_mask_set_bit(struct irq_data *d)
 	struct irq_chip_type *ct = irq_data_get_chip_type(d);
 	u32 mask = d->mask;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	*ct->mask_cache |= mask;
 	irq_reg_writel(gc, *ct->mask_cache, ct->regs.mask);
-	irq_gc_unlock(gc);
 }
 EXPORT_SYMBOL_GPL(irq_gc_mask_set_bit);
 
@@ -80,10 +78,9 @@ void irq_gc_mask_clr_bit(struct irq_data *d)
 	struct irq_chip_type *ct = irq_data_get_chip_type(d);
 	u32 mask = d->mask;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	*ct->mask_cache &= ~mask;
 	irq_reg_writel(gc, *ct->mask_cache, ct->regs.mask);
-	irq_gc_unlock(gc);
 }
 EXPORT_SYMBOL_GPL(irq_gc_mask_clr_bit);
 
@@ -100,10 +97,9 @@ void irq_gc_unmask_enable_reg(struct irq_data *d)
 	struct irq_chip_type *ct = irq_data_get_chip_type(d);
 	u32 mask = d->mask;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	irq_reg_writel(gc, mask, ct->regs.enable);
 	*ct->mask_cache |= mask;
-	irq_gc_unlock(gc);
 }
 EXPORT_SYMBOL_GPL(irq_gc_unmask_enable_reg);
 
@@ -117,9 +113,8 @@ void irq_gc_ack_set_bit(struct irq_data *d)
 	struct irq_chip_type *ct = irq_data_get_chip_type(d);
 	u32 mask = d->mask;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	irq_reg_writel(gc, mask, ct->regs.ack);
-	irq_gc_unlock(gc);
 }
 EXPORT_SYMBOL_GPL(irq_gc_ack_set_bit);
 
@@ -133,9 +128,8 @@ void irq_gc_ack_clr_bit(struct irq_data *d)
 	struct irq_chip_type *ct = irq_data_get_chip_type(d);
 	u32 mask = ~d->mask;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	irq_reg_writel(gc, mask, ct->regs.ack);
-	irq_gc_unlock(gc);
 }
 
 /**
@@ -156,11 +150,10 @@ void irq_gc_mask_disable_and_ack_set(struct irq_data *d)
 	struct irq_chip_type *ct = irq_data_get_chip_type(d);
 	u32 mask = d->mask;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	irq_reg_writel(gc, mask, ct->regs.disable);
 	*ct->mask_cache &= ~mask;
 	irq_reg_writel(gc, mask, ct->regs.ack);
-	irq_gc_unlock(gc);
 }
 EXPORT_SYMBOL_GPL(irq_gc_mask_disable_and_ack_set);
 
@@ -174,9 +167,8 @@ void irq_gc_eoi(struct irq_data *d)
 	struct irq_chip_type *ct = irq_data_get_chip_type(d);
 	u32 mask = d->mask;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	irq_reg_writel(gc, mask, ct->regs.eoi);
-	irq_gc_unlock(gc);
 }
 
 /**
@@ -196,12 +188,11 @@ int irq_gc_set_wake(struct irq_data *d, unsigned int on)
 	if (!(mask & gc->wake_enabled))
 		return -EINVAL;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	if (on)
 		gc->wake_active |= mask;
 	else
 		gc->wake_active &= ~mask;
-	irq_gc_unlock(gc);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(irq_gc_set_wake);
@@ -288,7 +279,6 @@ int irq_domain_alloc_generic_chips(struct irq_domain *d,
 {
 	struct irq_domain_chip_generic *dgc;
 	struct irq_chip_generic *gc;
-	unsigned long flags;
 	int numchips, i;
 	size_t dgc_sz;
 	size_t gc_sz;
@@ -340,9 +330,8 @@ int irq_domain_alloc_generic_chips(struct irq_domain *d,
 				goto err;
 		}
 
-		raw_spin_lock_irqsave(&gc_lock, flags);
-		list_add_tail(&gc->list, &gc_list);
-		raw_spin_unlock_irqrestore(&gc_lock, flags);
+		scoped_guard (raw_spinlock_irqsave, &gc_lock)
+			list_add_tail(&gc->list, &gc_list);
 		/* Calc pointer to the next generic chip */
 		tmp += gc_sz;
 	}
@@ -459,7 +448,6 @@ int irq_map_generic_chip(struct irq_domain *d, unsigned int virq,
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
 	struct irq_chip *chip;
-	unsigned long flags;
 	int idx;
 
 	gc = __irq_get_domain_generic_chip(d, hw_irq);
@@ -479,9 +467,8 @@ int irq_map_generic_chip(struct irq_domain *d, unsigned int virq,
 
 	/* We only init the cache for the first mapping of a generic chip */
 	if (!gc->installed) {
-		raw_spin_lock_irqsave(&gc->lock, flags);
+		guard(raw_spinlock_irqsave)(&gc->lock);
 		irq_gc_init_mask_cache(gc, dgc->gc_flags);
-		raw_spin_unlock_irqrestore(&gc->lock, flags);
 	}
 
 	/* Mark the interrupt as installed */
@@ -548,9 +535,8 @@ void irq_setup_generic_chip(struct irq_chip_generic *gc, u32 msk,
 	struct irq_chip *chip = &ct->chip;
 	unsigned int i;
 
-	raw_spin_lock(&gc_lock);
-	list_add_tail(&gc->list, &gc_list);
-	raw_spin_unlock(&gc_lock);
+	scoped_guard (raw_spinlock, &gc_lock)
+		list_add_tail(&gc->list, &gc_list);
 
 	irq_gc_init_mask_cache(gc, flags);
 
@@ -616,9 +602,8 @@ void irq_remove_generic_chip(struct irq_chip_generic *gc, u32 msk,
 {
 	unsigned int i, virq;
 
-	raw_spin_lock(&gc_lock);
-	list_del(&gc->list);
-	raw_spin_unlock(&gc_lock);
+	scoped_guard (raw_spinlock, &gc_lock)
+		list_del(&gc->list);
 
 	for (i = 0; msk; msk >>= 1, i++) {
 		if (!(msk & 0x01))
