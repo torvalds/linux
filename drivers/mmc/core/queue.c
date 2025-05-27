@@ -184,9 +184,9 @@ static void mmc_queue_setup_discard(struct mmc_card *card,
 		return;
 
 	lim->max_hw_discard_sectors = max_discard;
-	if (mmc_can_secure_erase_trim(card))
+	if (mmc_card_can_secure_erase_trim(card))
 		lim->max_secure_erase_sectors = max_discard;
-	if (mmc_can_trim(card) && card->erased_byte == 0)
+	if (mmc_card_can_trim(card) && card->erased_byte == 0)
 		lim->max_write_zeroes_sectors = max_discard;
 
 	/* granularity must not be greater than max. discard */
@@ -352,7 +352,7 @@ static struct gendisk *mmc_alloc_disk(struct mmc_queue *mq,
 	};
 	struct gendisk *disk;
 
-	if (mmc_can_erase(card))
+	if (mmc_card_can_erase(card))
 		mmc_queue_setup_discard(card, &lim);
 
 	lim.max_hw_sectors = min(host->max_blk_count, host->max_req_size / 512);
