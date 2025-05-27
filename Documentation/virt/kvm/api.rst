@@ -8001,6 +8001,11 @@ apply some other policy-based mitigation. When exiting to userspace, KVM sets
 KVM_RUN_X86_BUS_LOCK in vcpu-run->flags, and conditionally sets the exit_reason
 to KVM_EXIT_X86_BUS_LOCK.
 
+Due to differences in the underlying hardware implementation, the vCPU's RIP at
+the time of exit diverges between Intel and AMD.  On Intel hosts, RIP points at
+the next instruction, i.e. the exit is trap-like.  On AMD hosts, RIP points at
+the offending instruction, i.e. the exit is fault-like.
+
 Note! Detected bus locks may be coincident with other exits to userspace, i.e.
 KVM_RUN_X86_BUS_LOCK should be checked regardless of the primary exit reason if
 userspace wants to take action on all detected bus locks.

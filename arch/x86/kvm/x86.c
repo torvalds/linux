@@ -9382,7 +9382,7 @@ static int complete_fast_pio_out(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.pio.count = 0;
 
-	if (unlikely(!kvm_is_linear_rip(vcpu, vcpu->arch.pio.linear_rip)))
+	if (unlikely(!kvm_is_linear_rip(vcpu, vcpu->arch.cui_linear_rip)))
 		return 1;
 
 	return kvm_skip_emulated_instruction(vcpu);
@@ -9407,7 +9407,7 @@ static int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size,
 			complete_fast_pio_out_port_0x7e;
 		kvm_skip_emulated_instruction(vcpu);
 	} else {
-		vcpu->arch.pio.linear_rip = kvm_get_linear_rip(vcpu);
+		vcpu->arch.cui_linear_rip = kvm_get_linear_rip(vcpu);
 		vcpu->arch.complete_userspace_io = complete_fast_pio_out;
 	}
 	return 0;
@@ -9420,7 +9420,7 @@ static int complete_fast_pio_in(struct kvm_vcpu *vcpu)
 	/* We should only ever be called with arch.pio.count equal to 1 */
 	BUG_ON(vcpu->arch.pio.count != 1);
 
-	if (unlikely(!kvm_is_linear_rip(vcpu, vcpu->arch.pio.linear_rip))) {
+	if (unlikely(!kvm_is_linear_rip(vcpu, vcpu->arch.cui_linear_rip))) {
 		vcpu->arch.pio.count = 0;
 		return 1;
 	}
@@ -9449,7 +9449,7 @@ static int kvm_fast_pio_in(struct kvm_vcpu *vcpu, int size,
 		return ret;
 	}
 
-	vcpu->arch.pio.linear_rip = kvm_get_linear_rip(vcpu);
+	vcpu->arch.cui_linear_rip = kvm_get_linear_rip(vcpu);
 	vcpu->arch.complete_userspace_io = complete_fast_pio_in;
 
 	return 0;

@@ -3739,7 +3739,7 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_wake_up);
 /*
  * Kick a sleeping VCPU, or a guest VCPU in guest mode, into host kernel mode.
  */
-void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
+void __kvm_vcpu_kick(struct kvm_vcpu *vcpu, bool wait)
 {
 	int me, cpu;
 
@@ -3768,13 +3768,24 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 	 */
 	if (kvm_arch_vcpu_should_kick(vcpu)) {
 		cpu = READ_ONCE(vcpu->cpu);
-		if (cpu != me && (unsigned)cpu < nr_cpu_ids && cpu_online(cpu))
-			smp_send_reschedule(cpu);
+		if (cpu != me && (unsigned int)cpu < nr_cpu_ids && cpu_online(cpu)) {
+			/*
+			 * Use a reschedule IPI to kick the vCPU if the caller
+			 * doesn't need to wait for a response, as KVM allows
+			 * kicking vCPUs while IRQs are disabled, but using the
+			 * SMP function call framework with IRQs disabled can
+			 * deadlock due to taking cross-CPU locks.
+			 */
+			if (wait)
+				smp_call_function_single(cpu, ack_kick, NULL, wait);
+			else
+				smp_send_reschedule(cpu);
+		}
 	}
 out:
 	put_cpu();
 }
-EXPORT_SYMBOL_GPL(kvm_vcpu_kick);
+EXPORT_SYMBOL_GPL(__kvm_vcpu_kick);
 #endif /* !CONFIG_S390 */
 
 int kvm_vcpu_yield_to(struct kvm_vcpu *target)
