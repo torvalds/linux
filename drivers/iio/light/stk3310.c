@@ -47,7 +47,6 @@
 
 #define STK3310_DRIVER_NAME			"stk3310"
 #define STK3310_REGMAP_NAME			"stk3310_regmap"
-#define STK3310_EVENT				"stk3310_event"
 
 #define STK3310_SCALE_AVAILABLE			"6.4 1.6 0.4 0.1"
 
@@ -643,7 +642,7 @@ static int stk3310_probe(struct i2c_client *client)
 						stk3310_irq_event_handler,
 						IRQF_TRIGGER_FALLING |
 						IRQF_ONESHOT,
-						STK3310_EVENT, indio_dev);
+						"stk3310_event", indio_dev);
 		if (ret < 0) {
 			dev_err(&client->dev, "request irq %d failed\n",
 				client->irq);

@@ -17,7 +17,6 @@
 #include <linux/pm_runtime.h>
 #include "mma9551_core.h"
 
-#define MMA9551_IRQ_NAME		"mma9551_event"
 #define MMA9551_GPIO_COUNT		4
 
 /* Tilt application (inclination in IIO terms). */
@@ -421,7 +420,7 @@ static int mma9551_gpio_probe(struct iio_dev *indio_dev)
 		ret = devm_request_threaded_irq(dev, data->irqs[i],
 				NULL, mma9551_event_handler,
 				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-				MMA9551_IRQ_NAME, indio_dev);
+				"mma9551_event", indio_dev);
 		if (ret < 0) {
 			dev_err(dev, "request irq %d failed\n", data->irqs[i]);
 			return ret;

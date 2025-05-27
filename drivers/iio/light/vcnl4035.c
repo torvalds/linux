@@ -23,7 +23,6 @@
 #include <linux/iio/triggered_buffer.h>
 
 #define VCNL4035_DRV_NAME	"vcnl4035"
-#define VCNL4035_IRQ_NAME	"vcnl4035_event"
 #define VCNL4035_REGMAP_NAME	"vcnl4035_regmap"
 
 /* Device registers */
@@ -545,7 +544,7 @@ static int vcnl4035_probe_trigger(struct iio_dev *indio_dev)
 	ret = devm_request_threaded_irq(&data->client->dev, data->client->irq,
 			NULL, vcnl4035_drdy_irq_thread,
 			IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-			VCNL4035_IRQ_NAME, indio_dev);
+			"vcnl4035_event", indio_dev);
 	if (ret < 0)
 		dev_err(&data->client->dev, "request irq %d for trigger0 failed\n",
 				data->client->irq);

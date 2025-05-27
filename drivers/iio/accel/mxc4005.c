@@ -19,7 +19,6 @@
 #include <linux/iio/trigger_consumer.h>
 
 #define MXC4005_DRV_NAME		"mxc4005"
-#define MXC4005_IRQ_NAME		"mxc4005_event"
 #define MXC4005_REGMAP_NAME		"mxc4005_regmap"
 
 #define MXC4005_REG_XOUT_UPPER		0x03
@@ -493,7 +492,7 @@ static int mxc4005_probe(struct i2c_client *client)
 						NULL,
 						IRQF_TRIGGER_FALLING |
 						IRQF_ONESHOT,
-						MXC4005_IRQ_NAME,
+						"mxc4005_event",
 						data->dready_trig);
 		if (ret) {
 			dev_err(&client->dev,

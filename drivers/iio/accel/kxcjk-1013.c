@@ -26,8 +26,6 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/accel/kxcjk_1013.h>
 
-#define KXCJK1013_IRQ_NAME "kxcjk1013_event"
-
 #define KXTF9_REG_HP_XOUT_L		0x00
 #define KXTF9_REG_HP_XOUT_H		0x01
 #define KXTF9_REG_HP_YOUT_L		0x02
@@ -1463,7 +1461,7 @@ static int kxcjk1013_probe(struct i2c_client *client)
 						kxcjk1013_data_rdy_trig_poll,
 						kxcjk1013_event_handler,
 						IRQF_TRIGGER_RISING,
-						KXCJK1013_IRQ_NAME,
+						"kxcjk1013_event",
 						indio_dev);
 		if (ret)
 			goto err_poweroff;

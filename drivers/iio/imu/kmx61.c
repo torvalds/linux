@@ -22,8 +22,6 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
 
-#define KMX61_IRQ_NAME "kmx61_event"
-
 #define KMX61_REG_WHO_AM_I	0x00
 #define KMX61_REG_INS1		0x01
 #define KMX61_REG_INS2		0x02
@@ -1311,7 +1309,7 @@ static int kmx61_probe(struct i2c_client *client)
 						kmx61_data_rdy_trig_poll,
 						kmx61_event_handler,
 						IRQF_TRIGGER_RISING,
-						KMX61_IRQ_NAME,
+						"kmx61_event",
 						data);
 		if (ret)
 			goto err_chip_uninit;
