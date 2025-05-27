@@ -1697,6 +1697,28 @@ int amdgpu_dpm_is_overdrive_supported(struct amdgpu_device *adev)
 	}
 }
 
+int amdgpu_dpm_is_overdrive_enabled(struct amdgpu_device *adev)
+{
+	if (is_support_sw_smu(adev)) {
+		struct smu_context *smu = adev->powerplay.pp_handle;
+
+		return smu->od_enabled;
+	} else {
+		struct pp_hwmgr *hwmgr;
+
+		/*
+		 * dpm on some legacy asics don't carry od_enabled member
+		 * as its pp_handle is casted directly from adev.
+		 */
+		if (amdgpu_dpm_is_legacy_dpm(adev))
+			return false;
+
+		hwmgr = (struct pp_hwmgr *)adev->powerplay.pp_handle;
+
+		return hwmgr->od_enabled;
+	}
+}
+
 int amdgpu_dpm_set_pp_table(struct amdgpu_device *adev,
 			    const char *buf,
 			    size_t size)
