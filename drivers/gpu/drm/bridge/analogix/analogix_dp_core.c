@@ -1586,7 +1586,7 @@ analogix_dp_probe(struct device *dev, struct analogix_dp_plat_data *plat_data)
 	pm_runtime_set_autosuspend_delay(dp->dev, 100);
 	ret = devm_pm_runtime_enable(dp->dev);
 	if (ret)
-		goto err_disable_clk;
+		return ERR_PTR(ret);
 
 	return dp;
 }
