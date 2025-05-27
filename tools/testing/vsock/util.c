@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <sys/epoll.h>
 #include <sys/mman.h>
+#include <linux/sockios.h>
 
 #include "timeout.h"
 #include "control.h"
@@ -94,6 +95,30 @@ void vsock_wait_remote_close(int fd)
 	assert(ev.data.fd == fd);
 
 	close(epollfd);
+}
+
+/* Wait until transport reports no data left to be sent.
+ * Return false if transport does not implement the unsent_bytes() callback.
+ */
+bool vsock_wait_sent(int fd)
+{
+	int ret, sock_bytes_unsent;
+
+	timeout_begin(TIMEOUT);
+	do {
+		ret = ioctl(fd, SIOCOUTQ, &sock_bytes_unsent);
+		if (ret < 0) {
+			if (errno == EOPNOTSUPP)
+				break;
+
+			perror("ioctl(SIOCOUTQ)");
+			exit(EXIT_FAILURE);
+		}
+		timeout_check("SIOCOUTQ");
+	} while (sock_bytes_unsent != 0);
+	timeout_end();
+
+	return !ret;
 }
 
 /* Create socket <type>, bind to <cid, port> and return the file descriptor. */
@@ -797,4 +822,17 @@ void enable_so_zerocopy_check(int fd)
 {
 	setsockopt_int_check(fd, SOL_SOCKET, SO_ZEROCOPY, 1,
 			     "setsockopt SO_ZEROCOPY");
+}
+
+void enable_so_linger(int fd, int timeout)
+{
+	struct linger optval = {
+		.l_onoff = 1,
+		.l_linger = timeout
+	};
+
+	if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &optval, sizeof(optval))) {
+		perror("setsockopt(SO_LINGER)");
+		exit(EXIT_FAILURE);
+	}
 }

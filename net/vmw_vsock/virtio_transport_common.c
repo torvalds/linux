@@ -1191,23 +1191,6 @@ static void virtio_transport_remove_sock(struct vsock_sock *vsk)
 	vsock_remove_sock(vsk);
 }
 
-static void virtio_transport_wait_close(struct sock *sk, long timeout)
-{
-	if (timeout) {
-		DEFINE_WAIT_FUNC(wait, woken_wake_function);
-
-		add_wait_queue(sk_sleep(sk), &wait);
-
-		do {
-			if (sk_wait_event(sk, &timeout,
-					  sock_flag(sk, SOCK_DONE), &wait))
-				break;
-		} while (!signal_pending(current) && timeout);
-
-		remove_wait_queue(sk_sleep(sk), &wait);
-	}
-}
-
 static void virtio_transport_cancel_close_work(struct vsock_sock *vsk,
 					       bool cancel_timeout)
 {
@@ -1277,8 +1260,8 @@ static bool virtio_transport_close(struct vsock_sock *vsk)
 	if ((sk->sk_shutdown & SHUTDOWN_MASK) != SHUTDOWN_MASK)
 		(void)virtio_transport_shutdown(vsk, SHUTDOWN_MASK);
 
-	if (sock_flag(sk, SOCK_LINGER) && !(current->flags & PF_EXITING))
-		virtio_transport_wait_close(sk, sk->sk_lingertime);
+	if (!(current->flags & PF_EXITING))
+		vsock_linger(sk);
 
 	if (sock_flag(sk, SOCK_DONE)) {
 		return true;

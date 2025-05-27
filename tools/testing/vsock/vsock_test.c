@@ -21,7 +21,6 @@
 #include <poll.h>
 #include <signal.h>
 #include <sys/ioctl.h>
-#include <linux/sockios.h>
 #include <linux/time64.h>
 
 #include "vsock_test_zerocopy.h"
@@ -1280,7 +1279,7 @@ static void test_unsent_bytes_server(const struct test_opts *opts, int type)
 static void test_unsent_bytes_client(const struct test_opts *opts, int type)
 {
 	unsigned char buf[MSG_BUF_IOCTL_LEN];
-	int ret, fd, sock_bytes_unsent;
+	int fd;
 
 	fd = vsock_connect(opts->peer_cid, opts->peer_port, type);
 	if (fd < 0) {
@@ -1297,22 +1296,12 @@ static void test_unsent_bytes_client(const struct test_opts *opts, int type)
 	/* SIOCOUTQ isn't guaranteed to instantly track sent data. Even though
 	 * the "RECEIVED" message means that the other side has received the
 	 * data, there can be a delay in our kernel before updating the "unsent
-	 * bytes" counter. Repeat SIOCOUTQ until it returns 0.
+	 * bytes" counter. vsock_wait_sent() will repeat SIOCOUTQ until it
+	 * returns 0.
 	 */
-	timeout_begin(TIMEOUT);
-	do {
-		ret = ioctl(fd, SIOCOUTQ, &sock_bytes_unsent);
-		if (ret < 0) {
-			if (errno == EOPNOTSUPP) {
-				fprintf(stderr, "Test skipped, SIOCOUTQ not supported.\n");
-				break;
-			}
-			perror("ioctl");
-			exit(EXIT_FAILURE);
-		}
-		timeout_check("SIOCOUTQ");
-	} while (sock_bytes_unsent != 0);
-	timeout_end();
+	if (!vsock_wait_sent(fd))
+		fprintf(stderr, "Test skipped, SIOCOUTQ not supported.\n");
+
 	close(fd);
 }
 
@@ -1824,10 +1813,6 @@ static void test_stream_connect_retry_server(const struct test_opts *opts)
 
 static void test_stream_linger_client(const struct test_opts *opts)
 {
-	struct linger optval = {
-		.l_onoff = 1,
-		.l_linger = 1
-	};
 	int fd;
 
 	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
@@ -1836,11 +1821,7 @@ static void test_stream_linger_client(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
-	if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &optval, sizeof(optval))) {
-		perror("setsockopt(SO_LINGER)");
-		exit(EXIT_FAILURE);
-	}
-
+	enable_so_linger(fd, 1);
 	close(fd);
 }
 
@@ -1855,6 +1836,53 @@ static void test_stream_linger_server(const struct test_opts *opts)
 	}
 
 	vsock_wait_remote_close(fd);
+	close(fd);
+}
+
+/* Half of the default to not risk timing out the control channel */
+#define LINGER_TIMEOUT	(TIMEOUT / 2)
+
+static void test_stream_nolinger_client(const struct test_opts *opts)
+{
+	bool waited;
+	time_t ns;
+	int fd;
+
+	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	enable_so_linger(fd, LINGER_TIMEOUT);
+	send_byte(fd, 1, 0); /* Left unread to expose incorrect behaviour. */
+	waited = vsock_wait_sent(fd);
+
+	ns = current_nsec();
+	close(fd);
+	ns = current_nsec() - ns;
+
+	if (!waited) {
+		fprintf(stderr, "Test skipped, SIOCOUTQ not supported.\n");
+	} else if (DIV_ROUND_UP(ns, NSEC_PER_SEC) >= LINGER_TIMEOUT) {
+		fprintf(stderr, "Unexpected lingering\n");
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("DONE");
+}
+
+static void test_stream_nolinger_server(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	control_expectln("DONE");
 	close(fd);
 }
 
@@ -2017,6 +2045,11 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_STREAM SO_LINGER null-ptr-deref",
 		.run_client = test_stream_linger_client,
 		.run_server = test_stream_linger_server,
+	},
+	{
+		.name = "SOCK_STREAM SO_LINGER close() on unread",
+		.run_client = test_stream_nolinger_client,
+		.run_server = test_stream_nolinger_server,
 	},
 	{},
 };
