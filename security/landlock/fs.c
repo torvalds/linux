@@ -714,7 +714,8 @@ static void test_is_eacces_with_write(struct kunit *const test)
  * is_access_to_paths_allowed - Check accesses for requests with a common path
  *
  * @domain: Domain to check against.
- * @path: File hierarchy to walk through.
+ * @path: File hierarchy to walk through.  For refer checks, this would be
+ *     the common mountpoint.
  * @access_request_parent1: Accesses to check, once @layer_masks_parent1 is
  *     equal to @layer_masks_parent2 (if any).  This is tied to the unique
  *     requested path for most actions, or the source in case of a refer action
