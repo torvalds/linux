@@ -135,7 +135,7 @@ of idleness (busy, idle and newly idle):
         cpu was idle but no busier group was found
 
     23) # of times in this domain sched_balance_rq() was called when the
-        was just becoming idle
+        cpu was just becoming idle
     24) # of times in this domain sched_balance_rq() checked but found the
         load did not require balancing when the cpu was just becoming idle
     25) # of times in this domain sched_balance_rq() tried to move one or more
