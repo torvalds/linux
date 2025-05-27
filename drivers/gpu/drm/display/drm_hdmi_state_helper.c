@@ -649,12 +649,22 @@ hdmi_compute_config(const struct drm_connector *connector,
 				       8, connector->max_bpc);
 	int ret;
 
-	/*
-	 * TODO: Add support for YCbCr420 output for HDMI 2.0 capable
-	 * devices, for modes that only support YCbCr420.
-	 */
 	ret = hdmi_compute_format_bpc(connector, conn_state, mode, max_bpc,
 				      HDMI_COLORSPACE_RGB);
+	if (ret) {
+		if (connector->ycbcr_420_allowed) {
+			ret = hdmi_compute_format_bpc(connector, conn_state,
+						      mode, max_bpc,
+						      HDMI_COLORSPACE_YUV420);
+			if (ret)
+				drm_dbg_kms(connector->dev,
+					    "YUV420 output format doesn't work.\n");
+		} else {
+			drm_dbg_kms(connector->dev,
+				    "YUV420 output format not allowed for connector.\n");
+			ret = -EINVAL;
+		}
+	}
 
 	return ret;
 }
