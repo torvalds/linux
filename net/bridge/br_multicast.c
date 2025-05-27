@@ -2061,7 +2061,7 @@ static void br_multicast_enable(struct bridge_mcast_own_query *query)
 {
 	query->startup_sent = 0;
 
-	if (try_to_del_timer_sync(&query->timer) >= 0 ||
+	if (timer_delete_sync_try(&query->timer) >= 0 ||
 	    timer_delete(&query->timer))
 		mod_timer(&query->timer, jiffies);
 }
@@ -3480,7 +3480,7 @@ static void br_ip4_multicast_query(struct net_bridge_mcast *brmctx,
 	if (mp->host_joined &&
 	    (timer_pending(&mp->timer) ?
 	     time_after(mp->timer.expires, now + max_delay) :
-	     try_to_del_timer_sync(&mp->timer) >= 0))
+	     timer_delete_sync_try(&mp->timer) >= 0))
 		mod_timer(&mp->timer, now + max_delay);
 
 	for (pp = &mp->ports;
@@ -3488,7 +3488,7 @@ static void br_ip4_multicast_query(struct net_bridge_mcast *brmctx,
 	     pp = &p->next) {
 		if (timer_pending(&p->timer) ?
 		    time_after(p->timer.expires, now + max_delay) :
-		    try_to_del_timer_sync(&p->timer) >= 0 &&
+		    timer_delete_sync_try(&p->timer) >= 0 &&
 		    (brmctx->multicast_igmp_version == 2 ||
 		     p->filter_mode == MCAST_EXCLUDE))
 			mod_timer(&p->timer, now + max_delay);
@@ -3569,7 +3569,7 @@ static int br_ip6_multicast_query(struct net_bridge_mcast *brmctx,
 	if (mp->host_joined &&
 	    (timer_pending(&mp->timer) ?
 	     time_after(mp->timer.expires, now + max_delay) :
-	     try_to_del_timer_sync(&mp->timer) >= 0))
+	     timer_delete_sync_try(&mp->timer) >= 0))
 		mod_timer(&mp->timer, now + max_delay);
 
 	for (pp = &mp->ports;
@@ -3577,7 +3577,7 @@ static int br_ip6_multicast_query(struct net_bridge_mcast *brmctx,
 	     pp = &p->next) {
 		if (timer_pending(&p->timer) ?
 		    time_after(p->timer.expires, now + max_delay) :
-		    try_to_del_timer_sync(&p->timer) >= 0 &&
+		    timer_delete_sync_try(&p->timer) >= 0 &&
 		    (brmctx->multicast_mld_version == 1 ||
 		     p->filter_mode == MCAST_EXCLUDE))
 			mod_timer(&p->timer, now + max_delay);
@@ -3649,7 +3649,7 @@ br_multicast_leave_group(struct net_bridge_mcast *brmctx,
 			if (!hlist_unhashed(&p->mglist) &&
 			    (timer_pending(&p->timer) ?
 			     time_after(p->timer.expires, time) :
-			     try_to_del_timer_sync(&p->timer) >= 0)) {
+			     timer_delete_sync_try(&p->timer) >= 0)) {
 				mod_timer(&p->timer, time);
 			}
 
@@ -3665,7 +3665,7 @@ br_multicast_leave_group(struct net_bridge_mcast *brmctx,
 		if (mp->host_joined &&
 		    (timer_pending(&mp->timer) ?
 		     time_after(mp->timer.expires, time) :
-		     try_to_del_timer_sync(&mp->timer) >= 0)) {
+		     timer_delete_sync_try(&mp->timer) >= 0)) {
 			mod_timer(&mp->timer, time);
 		}
 
@@ -3681,7 +3681,7 @@ br_multicast_leave_group(struct net_bridge_mcast *brmctx,
 		if (!hlist_unhashed(&p->mglist) &&
 		    (timer_pending(&p->timer) ?
 		     time_after(p->timer.expires, time) :
-		     try_to_del_timer_sync(&p->timer) >= 0)) {
+		     timer_delete_sync_try(&p->timer) >= 0)) {
 			mod_timer(&p->timer, time);
 		}
 

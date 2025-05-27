@@ -560,7 +560,7 @@ static void dpm_watchdog_clear(struct dpm_watchdog *wd)
 	struct timer_list *timer = &wd->timer;
 
 	timer_delete_sync(timer);
-	destroy_timer_on_stack(timer);
+	timer_destroy_on_stack(timer);
 }
 #else
 #define DECLARE_DPM_WATCHDOG_ON_STACK(wd)

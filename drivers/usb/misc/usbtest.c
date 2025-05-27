@@ -630,7 +630,7 @@ static int perform_sglist(
 			retval = -ETIMEDOUT;
 		else
 			retval = req->status;
-		destroy_timer_on_stack(&timeout.timer);
+		timer_destroy_on_stack(&timeout.timer);
 
 		/* FIXME check resulting data pattern */
 

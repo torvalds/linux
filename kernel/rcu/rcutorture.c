@@ -2371,7 +2371,7 @@ rcu_torture_reader(void *arg)
 	} while (!torture_must_stop());
 	if (irqreader && cur_ops->irq_capable) {
 		timer_delete_sync(&t);
-		destroy_timer_on_stack(&t);
+		timer_destroy_on_stack(&t);
 	}
 	tick_dep_clear_task(current, TICK_DEP_BIT_RCU);
 	torture_kthread_stopping("rcu_torture_reader");
