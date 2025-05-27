@@ -28,8 +28,6 @@
 
 #include "bmc150_magn.h"
 
-#define BMC150_MAGN_DRV_NAME			"bmc150_magn"
-
 #define BMC150_MAGN_REG_CHIP_ID			0x40
 #define BMC150_MAGN_CHIP_ID_VAL			0x32
 

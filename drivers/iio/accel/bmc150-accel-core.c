@@ -25,8 +25,6 @@
 
 #include "bmc150-accel.h"
 
-#define BMC150_ACCEL_DRV_NAME			"bmc150_accel"
-
 #define BMC150_ACCEL_REG_CHIP_ID		0x00
 
 #define BMC150_ACCEL_REG_INT_STATUS_2		0x0B
