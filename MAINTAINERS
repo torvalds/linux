@@ -11002,6 +11002,7 @@ M:	Pengyu Luo <mitltlatltl@gmail.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/platform/huawei,gaokun-ec.yaml
 F:	drivers/platform/arm64/huawei-gaokun-ec.c
+F:	drivers/power/supply/huawei-gaokun-battery.c
 F:	include/linux/platform_data/huawei-gaokun-ec.h
 
 HUGETLB SUBSYSTEM
@@ -24682,6 +24683,13 @@ M:	Herton Ronaldo Krzesinski <herton@canonical.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/topstar-laptop.c
+
+TORADEX EMBEDDED CONTROLLER DRIVER
+M:	Emanuele Ghidoli <ghidoliemanuele@gmail.com>
+M:	Francesco Dolcini <francesco@dolcini.it>
+S:	Maintained
+F:	Documentation/devicetree/bindings/power/reset/toradex,smarc-ec.yaml
+F:	drivers/power/reset/tdx-ec-poweroff.c
 
 TORTURE-TEST MODULES
 M:	Davidlohr Bueso <dave@stgolabs.net>
