@@ -20,7 +20,8 @@ Deadline Task Scheduling
       4.3 Default behavior
       4.4 Behavior of sched_yield()
     5. Tasks CPU affinity
-      5.1 SCHED_DEADLINE and cpusets HOWTO
+      5.1 Using cgroup v1 cpuset controller
+      5.2 Using cgroup v2 cpuset controller
     6. Future plans
     A. Test suite
     B. Minimal main()
@@ -671,12 +672,15 @@ Deadline Task Scheduling
 5. Tasks CPU affinity
 =====================
 
- -deadline tasks cannot have an affinity mask smaller that the entire
- root_domain they are created on. However, affinities can be specified
- through the cpuset facility (Documentation/admin-guide/cgroup-v1/cpusets.rst).
+ Deadline tasks cannot have a cpu affinity mask smaller than the root domain they
+ are created on. So, using ``sched_setaffinity(2)`` won't work. Instead, the
+ the deadline task should be created in a restricted root domain. This can be
+ done using the cpuset controller of either cgroup v1 (deprecated) or cgroup v2.
+ See :ref:`Documentation/admin-guide/cgroup-v1/cpusets.rst <cpusets>` and
+ :ref:`Documentation/admin-guide/cgroup-v2.rst <cgroup-v2>` for more information.
 
-5.1 SCHED_DEADLINE and cpusets HOWTO
-------------------------------------
+5.1 Using cgroup v1 cpuset controller
+-------------------------------------
 
  An example of a simple configuration (pin a -deadline task to CPU0) follows::
 
@@ -691,6 +695,19 @@ Deadline Task Scheduling
    echo 1 > cpu0/cpuset.cpu_exclusive
    echo 1 > cpu0/cpuset.mem_exclusive
    echo $$ > cpu0/tasks
+   chrt --sched-runtime 100000 --sched-period 200000 --deadline 0 yes > /dev/null
+
+5.2 Using cgroup v2 cpuset controller
+-------------------------------------
+
+ Assuming the cgroup v2 root is mounted at ``/sys/fs/cgroup``.
+
+   cd /sys/fs/cgroup
+   echo '+cpuset' > cgroup.subtree_control
+   mkdir deadline_group
+   echo 0 > deadline_group/cpuset.cpus
+   echo 'root' > deadline_group/cpuset.cpus.partition
+   echo $$ > deadline_group/cgroup.procs
    chrt --sched-runtime 100000 --sched-period 200000 --deadline 0 yes > /dev/null
 
 6. Future plans
