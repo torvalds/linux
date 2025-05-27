@@ -24,8 +24,6 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/triggered_buffer.h>
 
-#define LTR501_DRV_NAME "ltr501"
-
 #define LTR501_ALS_CONTR 0x80 /* ALS operation mode, SW reset */
 #define LTR501_PS_CONTR 0x81 /* PS operation mode */
 #define LTR501_PS_MEAS_RATE 0x84 /* measurement rate*/
@@ -1626,7 +1624,7 @@ MODULE_DEVICE_TABLE(of, ltr501_of_match);
 
 static struct i2c_driver ltr501_driver = {
 	.driver = {
-		.name   = LTR501_DRV_NAME,
+		.name   = "ltr501",
 		.of_match_table = ltr501_of_match,
 		.pm	= pm_sleep_ptr(&ltr501_pm_ops),
 		.acpi_match_table = ltr_acpi_match,

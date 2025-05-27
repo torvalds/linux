@@ -17,7 +17,6 @@
 #include <linux/pm_runtime.h>
 #include "mma9551_core.h"
 
-#define MMA9551_DRV_NAME		"mma9551"
 #define MMA9551_IRQ_NAME		"mma9551_event"
 #define MMA9551_GPIO_COUNT		4
 
@@ -592,7 +591,7 @@ MODULE_DEVICE_TABLE(i2c, mma9551_id);
 
 static struct i2c_driver mma9551_driver = {
 	.driver = {
-		   .name = MMA9551_DRV_NAME,
+		   .name = "mma9551",
 		   .acpi_match_table = mma9551_acpi_match,
 		   .pm = pm_ptr(&mma9551_pm_ops),
 	},

@@ -25,8 +25,6 @@
 #include <linux/mod_devicetable.h>
 #include <linux/property.h>
 
-#define DRIVER_NAME			"max9611"
-
 /* max9611 register addresses */
 #define MAX9611_REG_CSA_DATA		0x00
 #define MAX9611_REG_RS_DATA		0x02
@@ -553,7 +551,7 @@ static int max9611_probe(struct i2c_client *client)
 
 static struct i2c_driver max9611_driver = {
 	.driver = {
-		   .name = DRIVER_NAME,
+		   .name = "max9611",
 		   .of_match_table = max9611_of_table,
 	},
 	.probe = max9611_probe,

@@ -15,7 +15,6 @@
 #include <linux/pm_runtime.h>
 #include "mma9551_core.h"
 
-#define MMA9553_DRV_NAME			"mma9553"
 #define MMA9553_IRQ_NAME			"mma9553_event"
 
 /* Pedometer configuration registers (R/W) */
@@ -1230,7 +1229,7 @@ MODULE_DEVICE_TABLE(i2c, mma9553_id);
 
 static struct i2c_driver mma9553_driver = {
 	.driver = {
-		   .name = MMA9553_DRV_NAME,
+		   .name = "mma9553",
 		   .acpi_match_table = mma9553_acpi_match,
 		   .pm = pm_ptr(&mma9553_pm_ops),
 	},
