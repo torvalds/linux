@@ -1604,7 +1604,7 @@ static void filemap_end_dropbehind(struct folio *folio)
  * completes. Do that now. If we fail, it's likely because of a big folio -
  * just reset dropbehind for that case and latter completions should invalidate.
  */
-static void folio_end_dropbehind_write(struct folio *folio)
+static void filemap_end_dropbehind_write(struct folio *folio)
 {
 	/*
 	 * Hitting !in_task() should not happen off RWF_DONTCACHE writeback,
@@ -1659,7 +1659,7 @@ void folio_end_writeback(struct folio *folio)
 	acct_reclaim_writeback(folio);
 
 	if (folio_dropbehind)
-		folio_end_dropbehind_write(folio);
+		filemap_end_dropbehind_write(folio);
 	folio_put(folio);
 }
 EXPORT_SYMBOL(folio_end_writeback);
