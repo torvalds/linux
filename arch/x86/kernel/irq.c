@@ -380,61 +380,18 @@ void intel_posted_msi_init(void)
 	this_cpu_write(posted_msi_pi_desc.ndst, destination);
 }
 
-/*
- * De-multiplexing posted interrupts is on the performance path, the code
- * below is written to optimize the cache performance based on the following
- * considerations:
- * 1.Posted interrupt descriptor (PID) fits in a cache line that is frequently
- *   accessed by both CPU and IOMMU.
- * 2.During posted MSI processing, the CPU needs to do 64-bit read and xchg
- *   for checking and clearing posted interrupt request (PIR), a 256 bit field
- *   within the PID.
- * 3.On the other side, the IOMMU does atomic swaps of the entire PID cache
- *   line when posting interrupts and setting control bits.
- * 4.The CPU can access the cache line a magnitude faster than the IOMMU.
- * 5.Each time the IOMMU does interrupt posting to the PIR will evict the PID
- *   cache line. The cache line states after each operation are as follows:
- *   CPU		IOMMU			PID Cache line state
- *   ---------------------------------------------------------------
- *...read64					exclusive
- *...lock xchg64				modified
- *...			post/atomic swap	invalid
- *...-------------------------------------------------------------
- *
- * To reduce L1 data cache miss, it is important to avoid contention with
- * IOMMU's interrupt posting/atomic swap. Therefore, a copy of PIR is used
- * to dispatch interrupt handlers.
- *
- * In addition, the code is trying to keep the cache line state consistent
- * as much as possible. e.g. when making a copy and clearing the PIR
- * (assuming non-zero PIR bits are present in the entire PIR), it does:
- *		read, read, read, read, xchg, xchg, xchg, xchg
- * instead of:
- *		read, xchg, read, xchg, read, xchg, read, xchg
- */
-static __always_inline bool handle_pending_pir(u64 *pir, struct pt_regs *regs)
+static __always_inline bool handle_pending_pir(unsigned long *pir, struct pt_regs *regs)
 {
-	int i, vec = FIRST_EXTERNAL_VECTOR;
-	unsigned long pir_copy[4];
-	bool handled = false;
+	unsigned long pir_copy[NR_PIR_WORDS];
+	int vec = FIRST_EXTERNAL_VECTOR;
 
-	for (i = 0; i < 4; i++)
-		pir_copy[i] = pir[i];
+	if (!pi_harvest_pir(pir, pir_copy))
+		return false;
 
-	for (i = 0; i < 4; i++) {
-		if (!pir_copy[i])
-			continue;
+	for_each_set_bit_from(vec, pir_copy, FIRST_SYSTEM_VECTOR)
+		call_irq_handler(vec, regs);
 
-		pir_copy[i] = arch_xchg(&pir[i], 0);
-		handled = true;
-	}
-
-	if (handled) {
-		for_each_set_bit_from(vec, pir_copy, FIRST_SYSTEM_VECTOR)
-			call_irq_handler(vec, regs);
-	}
-
-	return handled;
+	return true;
 }
 
 /*
@@ -464,7 +421,7 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_posted_msi_notification)
 	 * MAX_POSTED_MSI_COALESCING_LOOP - 1 loops are executed here.
 	 */
 	while (++i < MAX_POSTED_MSI_COALESCING_LOOP) {
-		if (!handle_pending_pir(pid->pir64, regs))
+		if (!handle_pending_pir(pid->pir, regs))
 			break;
 	}
 
@@ -479,7 +436,7 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_posted_msi_notification)
 	 * process PIR bits one last time such that handling the new interrupts
 	 * are not delayed until the next IRQ.
 	 */
-	handle_pending_pir(pid->pir64, regs);
+	handle_pending_pir(pid->pir, regs);
 
 	apic_eoi();
 	irq_exit();
