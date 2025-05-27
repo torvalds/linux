@@ -131,6 +131,11 @@ Work items:
   helpers (x86 inb()/outb()) and convert port-mapped I/O drivers to use
   this with dry-coding and sending to maintainers to test
 
+- Move the MMIO GPIO specific fields out of struct gpio_chip into a
+  dedicated structure. Currently every GPIO chip has them if gpio-mmio is
+  enabled in Kconfig even if it itself doesn't register with the helper
+  library.
+
 -------------------------------------------------------------------------------
 
 Generic regmap GPIO
