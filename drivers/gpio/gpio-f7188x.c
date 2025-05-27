@@ -159,7 +159,8 @@ static int f7188x_gpio_direction_in(struct gpio_chip *chip, unsigned offset);
 static int f7188x_gpio_get(struct gpio_chip *chip, unsigned offset);
 static int f7188x_gpio_direction_out(struct gpio_chip *chip,
 				     unsigned offset, int value);
-static void f7188x_gpio_set(struct gpio_chip *chip, unsigned offset, int value);
+static int f7188x_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			   int value);
 static int f7188x_gpio_set_config(struct gpio_chip *chip, unsigned offset,
 				  unsigned long config);
 
@@ -172,7 +173,7 @@ static int f7188x_gpio_set_config(struct gpio_chip *chip, unsigned offset,
 			.direction_input  = f7188x_gpio_direction_in,	\
 			.get              = f7188x_gpio_get,		\
 			.direction_output = f7188x_gpio_direction_out,	\
-			.set              = f7188x_gpio_set,		\
+			.set_rv           = f7188x_gpio_set,		\
 			.set_config	  = f7188x_gpio_set_config,	\
 			.base             = -1,				\
 			.ngpio            = _ngpio,			\
@@ -391,7 +392,8 @@ static int f7188x_gpio_direction_out(struct gpio_chip *chip,
 	return 0;
 }
 
-static void f7188x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static int f7188x_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			   int value)
 {
 	int err;
 	struct f7188x_gpio_bank *bank = gpiochip_get_data(chip);
@@ -400,7 +402,8 @@ static void f7188x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 	err = superio_enter(sio->addr);
 	if (err)
-		return;
+		return err;
+
 	superio_select(sio->addr, sio->device);
 
 	data_out = superio_inb(sio->addr, f7188x_gpio_data_out(bank->regbase));
@@ -411,6 +414,8 @@ static void f7188x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	superio_outb(sio->addr, f7188x_gpio_data_out(bank->regbase), data_out);
 
 	superio_exit(sio->addr);
+
+	return 0;
 }
 
 static int f7188x_gpio_set_config(struct gpio_chip *chip, unsigned offset,
