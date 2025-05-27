@@ -219,6 +219,7 @@ unsafe impl AlwaysRefCounted for File {
 ///   must be on the same thread as this file.
 ///
 /// [`assume_no_fdget_pos`]: LocalFile::assume_no_fdget_pos
+#[repr(transparent)]
 pub struct LocalFile {
     inner: Opaque<bindings::file>,
 }
