@@ -12,6 +12,7 @@
 #include "intel_panel.h"
 #include "intel_pch_refclk.h"
 #include "intel_sbi.h"
+#include "intel_sbi_regs.h"
 
 static void lpt_fdi_reset_mphy(struct intel_display *display)
 {

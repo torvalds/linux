@@ -56,6 +56,7 @@
 #include "display/intel_fdi_regs.h"
 #include "display/intel_pps_regs.h"
 #include "display/intel_psr_regs.h"
+#include "display/intel_sbi_regs.h"
 #include "display/intel_sprite_regs.h"
 #include "display/intel_vga_regs.h"
 #include "display/skl_universal_plane_regs.h"

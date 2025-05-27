@@ -7,10 +7,10 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_display_core.h"
 #include "intel_sbi.h"
+#include "intel_sbi_regs.h"
 
 /* SBI access */
 static int intel_sbi_rw(struct intel_display *display, u16 reg,
