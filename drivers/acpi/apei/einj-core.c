@@ -766,7 +766,7 @@ static int __init einj_probe(struct faux_device *fdev)
 
 	rc = einj_get_available_error_type(&available_error_type);
 	if (rc)
-		return rc;
+		goto err_put_table;
 
 	rc = -ENOMEM;
 	einj_debug_dir = debugfs_create_dir("einj", apei_get_debugfs_dir());
