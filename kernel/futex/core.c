@@ -583,8 +583,8 @@ int get_futex_key(u32 __user *uaddr, unsigned int flags, union futex_key *key,
 		if (futex_get_value(&node, naddr))
 			return -EFAULT;
 
-		if (node != FUTEX_NO_NODE &&
-		    (node >= MAX_NUMNODES || !node_possible(node)))
+		if ((node != FUTEX_NO_NODE) &&
+		    ((unsigned int)node >= MAX_NUMNODES || !node_possible(node)))
 			return -EINVAL;
 	}
 
