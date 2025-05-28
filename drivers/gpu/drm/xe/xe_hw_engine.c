@@ -17,6 +17,7 @@
 #include "regs/xe_irq_regs.h"
 #include "xe_assert.h"
 #include "xe_bo.h"
+#include "xe_configfs.h"
 #include "xe_device.h"
 #include "xe_execlist.h"
 #include "xe_force_wake.h"
@@ -805,6 +806,24 @@ static void check_gsc_availability(struct xe_gt *gt)
 	}
 }
 
+static void check_sw_disable(struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+	u64 sw_allowed = xe_configfs_get_engines_allowed(to_pci_dev(xe->drm.dev));
+	enum xe_hw_engine_id id;
+
+	for (id = 0; id < XE_NUM_HW_ENGINES; ++id) {
+		if (!(gt->info.engine_mask & BIT(id)))
+			continue;
+
+		if (!(sw_allowed & BIT(id))) {
+			gt->info.engine_mask &= ~BIT(id);
+			xe_gt_info(gt, "%s disabled via configfs\n",
+				   engine_infos[id].name);
+		}
+	}
+}
+
 int xe_hw_engines_init_early(struct xe_gt *gt)
 {
 	int i;
@@ -813,6 +832,7 @@ int xe_hw_engines_init_early(struct xe_gt *gt)
 	read_copy_fuses(gt);
 	read_compute_fuses(gt);
 	check_gsc_availability(gt);
+	check_sw_disable(gt);
 
 	BUILD_BUG_ON(XE_HW_ENGINE_PREEMPT_TIMEOUT < XE_HW_ENGINE_PREEMPT_TIMEOUT_MIN);
 	BUILD_BUG_ON(XE_HW_ENGINE_PREEMPT_TIMEOUT > XE_HW_ENGINE_PREEMPT_TIMEOUT_MAX);

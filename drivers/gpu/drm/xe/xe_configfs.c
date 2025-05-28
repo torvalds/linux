@@ -226,6 +226,21 @@ void xe_configfs_clear_survivability_mode(struct pci_dev *pdev)
 	config_item_put(&dev->group.cg_item);
 }
 
+/**
+ * xe_configfs_get_engines_allowed - get engine allowed mask from configfs
+ * @pdev: pci device
+ *
+ * Find the configfs group that belongs to the pci device and return
+ * the mask of engines allowed to be used.
+ *
+ * Return: engine mask with allowed engines
+ */
+u64 xe_configfs_get_engines_allowed(struct pci_dev *pdev)
+{
+	/* dummy implementation */
+	return U64_MAX;
+}
+
 int __init xe_configfs_init(void)
 {
 	struct config_group *root = &xe_configfs.su_group;
