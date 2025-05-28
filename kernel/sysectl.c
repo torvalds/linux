@@ -9,7 +9,7 @@
 static void sysectl_exit(char *msg)
 {
 	printk(msg);
-	do_group_exit(-EFAULT); // TODO - Which is the right way to exit?
+	do_exit(-EFAULT); // TODO - Which is the right way to exit?
 }
 
 static struct sysectlmap *
@@ -44,6 +44,7 @@ sysectl_lookup (struct sysectltable *table, unsigned long ip)
 	return NULL;
 }
 
+/*
 static void sysectl_xor(struct sysectlmap *target, struct sysectlmap *source)
 {
 	unsigned long *t = (unsigned long*)target->filter.bitmap->bits;
@@ -54,10 +55,19 @@ static void sysectl_xor(struct sysectlmap *target, struct sysectlmap *source)
         	t[i] ^= s[i];
 	}	
 }
+*/
 
-static void sysectl_or(struct sysectlmap *target, struct sysectlmap *source)
+static void sysectl_allow(struct sysectl *sysectl, struct sysectlmap *source)
 {
-	unsigned long *t = (unsigned long*)target->filter.bitmap->bits;
+	if (&sysectl->top[1] >= sysectl->stackend)
+		sysectl_exit("Sysectl stack overflow\n");
+
+	sysectl->top[1] = sysectl->top[0];
+	sysectl->top++;
+
+	sysectl->top->map = source;
+
+	unsigned long *t = (unsigned long*)&sysectl->top->bitmap.bits;
 	unsigned long *s = (unsigned long*)source->filter.bitmap->bits;
 
 	#pragma GCC unroll 8
@@ -66,9 +76,17 @@ static void sysectl_or(struct sysectlmap *target, struct sysectlmap *source)
 	}	
 }
 
-static void sysectl_andc(struct sysectlmap *target, struct sysectlmap *source)
+static void sysectl_deny(struct sysectl *sysectl, struct sysectlmap *source)
 {
-	unsigned long *t = (unsigned long*)target->filter.bitmap->bits;
+	if (&sysectl->top[1] >= sysectl->stackend)
+		sysectl_exit("Sysectl stack overflow\n");
+
+	sysectl->top[1] = sysectl->top[0];
+	sysectl->top = &sysectl->top[1];
+
+	sysectl->top->map = source;
+
+	unsigned long *t = (unsigned long*)&sysectl->top->bitmap.bits;
 	unsigned long *s = (unsigned long*)source->filter.bitmap->bits;
 
 	#pragma GCC unroll 8
@@ -77,6 +95,43 @@ static void sysectl_andc(struct sysectlmap *target, struct sysectlmap *source)
 	}	
 }
 
+static void sysectl_add(struct sysectl *sysectl, struct sysectlmap *source)
+{
+	struct sysectlstack *top = sysectl->top;
+	struct sysectlstack *dest = sysectl->stack;
+	unsigned long *s = (unsigned long*)source->filter.bitmap->bits;
+
+	do {
+		unsigned long *d = (unsigned long*)&dest->bitmap.bits;
+
+		#pragma GCC unroll 8
+		for (int i=0; i<8; i++) {
+			d[i] |= s[i];
+		}
+
+		dest++;
+	} while (dest <= top);
+}
+
+static void sysectl_del(struct sysectl *sysectl, struct sysectlmap *source)
+{
+	struct sysectlstack *top = sysectl->top;
+	struct sysectlstack *dest = sysectl->stack;
+	unsigned long *s = (unsigned long*)source->filter.bitmap->bits;
+
+	do {
+		unsigned long *d = (unsigned long*)&dest->bitmap.bits;
+
+		#pragma GCC unroll 8
+		for (int i=0; i<8; i++) {
+			d[i] &= ~s[i];
+		}
+
+		dest++;
+	} while (dest <= top);
+}
+/*
+ * TODO - REMOVED FOR NOW, NOT THE CORE FEATURES ATM
 static void sysectl_add4(struct sysectlmap *target, struct sysectlmap *source)
 {
 	unsigned short *syscalls = source->filter.syscalls;
@@ -106,7 +161,7 @@ static void sysectl_del4(struct sysectlmap *target, struct sysectlmap *source)
 		t[index] &= ~(1 << bit);
 	}
 }
-
+*/
 // Modify sysectl filter
 SYSCALL_DEFINE0(sysectl)
 {
@@ -133,68 +188,62 @@ SYSCALL_DEFINE0(sysectl)
 	// 	once we know how lib/kmod/kernel code work together
 	switch(map->opcode) {
 	case 1: // SEC_FILTER_SET
-		if (sysectl->restore)
-			sysectl_exit("sysectl:Set - Pair not matching\n");
-		sysectl->filter = *map;
+		sysectl->top = sysectl->stack;
+		sysectl->top->map = map;
+		sysectl->top->bitmap = *map->filter.bitmap;
 		printk("Filter set to %px\n", map);
 		break;
 
 	case 2: // SEC_FILTER_RESTORE
-		if (sysectl->restore == NULL ||
-		    sysectl->restore->filter.bitmap != map->filter.bitmap)
+		printk("sysectl:Restore: %px - %px - %px - %px\n", sysectl->top, sysectl->stack, sysectl->top->map->filter.bitmap, map->filter.bitmap);
+		if (sysectl->top == sysectl->stack ||
+		    sysectl->top->map->filter.bitmap != map->filter.bitmap)
 		{
 			sysectl_exit("sysectl:Restore - Pair not matching\n");
 		}
-		printk("Filter xor %px\n", map);
-		sysectl->restore = NULL;
-		sysectl_xor(&sysectl->filter, map);
+		printk("Filter restore %px\n", map);
+		sysectl->top--;
 		break;
 
 	case 3: // SEC_FILTER_DENY
-		if (sysectl->restore)
-			sysectl_exit("sysectl:Deny - Pair not matching\n");
-		printk("Filter andc %px\n", map);
-		sysectl_andc(&sysectl->filter, map);
+		printk("Filter deny %px\n", map);
+		sysectl_deny(sysectl, map);
 		break;
 
 	case 4: // SEC_FILTER_ALLOW
-		if (sysectl->restore)
-			sysectl_exit("sysectl:Allow - Pair not matching\n");
-		printk("Filter or %px\n", map);
-		sysectl_or(&sysectl->filter, map);
+		printk("Filter allow %px\n", map);
+		sysectl_allow(sysectl, map);
 		break;
 
-// TODO - All below
 	case 5: // SEC_FILTER_ADD
-		if (sysectl->restore)
-			sysectl_exit("TODO - sysectl:Add - Pair not matching\n");
-		sysectl_or(&sysectl->filter, map);
+		printk("Filter add %px\n", map);
+		sysectl_add(sysectl, map);
 		break;
 
 	case 6: // SEC_FILTER_DEL
-		if (sysectl->restore)
-			sysectl_exit("TODO - sysectl:Del - Pair not matching\n");
-		sysectl_andc(&sysectl->filter, map);
+		printk("Filter del %px\n", map);
+		sysectl_del(sysectl, map);
 		break;
 
+// TODO - All below
+#if 0
 	case 7: // SEC_FILTER_ADD4
-		if (sysectl->restore)
-			sysectl_exit("TODO - sysectl:Add4 - Pair not matching\n");
-		sysectl_add4(&sysectl->filter, map);
+		printk("Filter add4 %px\n", map);
+		sysectl_add4(sysectl->top, map);
 		break;
 
 	case 8: // SEC_FILTER_DEL4
-		if (sysectl->restore)
-			sysectl_exit("TODO - sysectl:Del4 - Pair not matching\n");
-		sysectl_del4(&sysectl->filter, map);
+		printk("Filter del4 %px\n", map);
+		sysectl_del4(sysectl->top, map);
 		break;
+#endif
 	default:
 		sysectl_exit("sysectl: Invalid opcode\n");
 	};
 
 	printk("FILTER:");
 	for (int i=0; i<64; i++) {
-		printk("%02x\n", sysectl->filter.filter.bitmap->bits[i]);
+		printk("%02x\n", sysectl->top->bitmap.bits[i]);
 	}
 
 	return 0;
@@ -230,6 +279,12 @@ void sysectl_release(struct sysectl *sysectl)
 	if (sysectl->ltable.index != NULL) {
 		kfree(sysectl->ltable.index);
 		sysectl->ltable.index = NULL;
+	}
+	if (sysectl->stack != NULL) {
+		kfree(sysectl->stack);
+		sysectl->stack = NULL;
+		sysectl->stackend = NULL;
+		sysectl->top = NULL;
 	}
 }
 

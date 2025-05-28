@@ -4,9 +4,9 @@
 #ifdef CONFIG_SYSECTL
 
 // Initialize everything to 0 and all bits in the bitmap to 1
-#define SYSECTL_DEFAULTS ((struct sysectl){{0}})
+#define SYSECTL_DEFAULTS ((struct sysectl){0})
 
-#define sysectl_bitmap(tsk) tsk->sysectl.filter.filter.bitmap->bits
+#define sysectl_bitmap(tsk) tsk->sysectl.top->bitmap.bits
 
 // .section .secfilterbitmap
 struct sysectl_filter_bitmap {
@@ -36,18 +36,27 @@ struct sysectltable {
 	struct sysectl_filter_bitmap *bitmaps;
 };
 
+// map = Which map was used to set or modify the bitmap
+// 	Notice: map is used to create restore - deny/allow pair
+struct sysectlstack {
+	struct sysectlmap *map;
+	struct sysectl_filter_bitmap bitmap;
+};
+
 // Declared in task_structure
 struct sysectl {
 	// TODO - Direct reference to filter itself?
 	// 	There can be many kind of filters?  Copy type is not clear?
 	// 	If we want many kind of filters, we may need an interface.
-	struct sysectlmap filter;	// Currently running filter
-	struct sysectlmap *restore;	// Set when the restore is expected
+	struct sysectlstack *stack;
+	struct sysectlstack *stackend;
+	struct sysectlstack *top;
+
 	struct sysectltable ltable;
 };
 
 #else
 #define sysectl_entry(nbr) 1
 #endif /* CONFIG_SYSECTL */
-#endif /* _LINUX_SYSECTL_H_ */
+#endif /* _LINUX_SYSECTL_TYPES_H_ */
 
