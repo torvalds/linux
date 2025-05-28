@@ -162,9 +162,17 @@ new_child:
 
 static bool should_ignore_sample(const struct perf_sample *sample, const struct tpebs_retire_lat *t)
 {
-	pid_t workload_pid = t->evsel->evlist->workload.pid;
-	pid_t sample_pid = sample->pid;
+	pid_t workload_pid, sample_pid = sample->pid;
 
+	/*
+	 * During evlist__purge the evlist will be removed prior to the
+	 * evsel__exit calling evsel__tpebs_close and taking the
+	 * tpebs_mtx. Avoid a segfault by ignoring samples in this case.
+	 */
+	if (t->evsel->evlist == NULL)
+		return true;
+
+	workload_pid = t->evsel->evlist->workload.pid;
 	if (workload_pid < 0 || workload_pid == sample_pid)
 		return false;
 
