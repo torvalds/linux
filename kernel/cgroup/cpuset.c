@@ -1482,12 +1482,13 @@ static void update_isolation_cpumasks(void)
 	if (!isolated_cpus_updating)
 		return;
 
-	lockdep_assert_cpus_held();
-
 	ret = workqueue_unbound_exclude_cpumask(isolated_cpus);
 	WARN_ON_ONCE(ret < 0);
 
 	ret = tmigr_isolated_exclude_cpumask(isolated_cpus);
+	WARN_ON_ONCE(ret < 0);
+
+	ret = housekeeping_update(isolated_cpus);
 	WARN_ON_ONCE(ret < 0);
 
 	isolated_cpus_updating = false;
