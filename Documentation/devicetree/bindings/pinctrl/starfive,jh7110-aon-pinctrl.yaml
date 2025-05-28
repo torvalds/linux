@@ -15,7 +15,7 @@ description: |
   Some peripherals such as PWM have their I/O go through the 4 "GPIOs".
 
 maintainers:
-  - Jianlong Huang <jianlong.huang@starfivetech.com>
+  - Hal Feng <hal.feng@starfivetech.com>
 
 properties:
   compatible:
