@@ -2840,10 +2840,7 @@ unsigned long arch_scale_freq_capacity(int cpu)
 static inline void double_rq_clock_clear_update(struct rq *rq1, struct rq *rq2)
 {
 	rq1->clock_update_flags &= (RQCF_REQ_SKIP|RQCF_ACT_SKIP);
-	/* rq1 == rq2 for !CONFIG_SMP, so just clear RQCF_UPDATED once. */
-#ifdef CONFIG_SMP
 	rq2->clock_update_flags &= (RQCF_REQ_SKIP|RQCF_ACT_SKIP);
-#endif
 }
 
 #define DEFINE_LOCK_GUARD_2(name, type, _lock, _unlock, ...)				\
