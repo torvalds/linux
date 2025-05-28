@@ -209,10 +209,8 @@ int idle_cpu(int cpu)
 	if (rq->nr_running)
 		return 0;
 
-#ifdef CONFIG_SMP
 	if (rq->ttwu_pending)
 		return 0;
-#endif
 
 	return 1;
 }
@@ -641,7 +639,6 @@ change:
 			goto unlock;
 		}
 #endif /* CONFIG_RT_GROUP_SCHED */
-#ifdef CONFIG_SMP
 		if (dl_bandwidth_enabled() && dl_policy(policy) &&
 				!(attr->sched_flags & SCHED_FLAG_SUGOV)) {
 			cpumask_t *span = rq->rd->span;
@@ -657,7 +654,6 @@ change:
 				goto unlock;
 			}
 		}
-#endif /* CONFIG_SMP */
 	}
 
 	/* Re-check policy now with rq lock held: */
@@ -1239,7 +1235,7 @@ long sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
 	user_mask = alloc_user_cpus_ptr(NUMA_NO_NODE);
 	if (user_mask) {
 		cpumask_copy(user_mask, in_mask);
-	} else if (IS_ENABLED(CONFIG_SMP)) {
+	} else {
 		return -ENOMEM;
 	}
 
