@@ -2520,21 +2520,6 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	return ctx->idx;
 }
 
-static int btf_func_model_nregs(const struct btf_func_model *m)
-{
-	int nregs = m->nr_args;
-	int i;
-
-	/* extra registers needed for struct argument */
-	for (i = 0; i < MAX_BPF_FUNC_ARGS; i++) {
-		/* The arg_size is at most 16 bytes, enforced by the verifier. */
-		if (m->arg_flags[i] & BTF_FMODEL_STRUCT_ARG)
-			nregs += (m->arg_size[i] + 7) / 8 - 1;
-	}
-
-	return nregs;
-}
-
 int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 			     struct bpf_tramp_links *tlinks, void *func_addr)
 {
@@ -2543,10 +2528,8 @@ int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 		.idx = 0,
 	};
 	struct bpf_tramp_image im;
-	struct arg_aux  aaux;
-	int nregs, ret;
-
-	nregs = btf_func_model_nregs(m);
+	struct arg_aux aaux;
+	int ret;
 
 	ret = calc_arg_aux(m, &aaux);
 	if (ret < 0)
