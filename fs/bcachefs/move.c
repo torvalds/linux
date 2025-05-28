@@ -436,9 +436,6 @@ int bch2_move_extent(struct moving_context *ctxt,
 err_free:
 	kfree(io);
 err:
-	if (bch2_err_matches(ret, BCH_ERR_data_update_done))
-		return 0;
-
 	if (bch2_err_matches(ret, EROFS) ||
 	    bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		return ret;
@@ -454,6 +451,9 @@ err:
 		trace_io_move_start_fail(c, buf.buf);
 		printbuf_exit(&buf);
 	}
+
+	if (bch2_err_matches(ret, BCH_ERR_data_update_done))
+		return 0;
 	return ret;
 }
 
