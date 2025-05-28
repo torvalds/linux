@@ -693,7 +693,7 @@ static void read_media_fuses(struct xe_gt *gt)
 
 		if (!(BIT(j) & vdbox_mask)) {
 			gt->info.engine_mask &= ~BIT(i);
-			drm_info(&xe->drm, "vcs%u fused off\n", j);
+			xe_gt_info(gt, "vcs%u fused off\n", j);
 		}
 	}
 
@@ -703,7 +703,7 @@ static void read_media_fuses(struct xe_gt *gt)
 
 		if (!(BIT(j) & vebox_mask)) {
 			gt->info.engine_mask &= ~BIT(i);
-			drm_info(&xe->drm, "vecs%u fused off\n", j);
+			xe_gt_info(gt, "vecs%u fused off\n", j);
 		}
 	}
 }
@@ -728,15 +728,13 @@ static void read_copy_fuses(struct xe_gt *gt)
 
 		if (!(BIT(j / 2) & bcs_mask)) {
 			gt->info.engine_mask &= ~BIT(i);
-			drm_info(&xe->drm, "bcs%u fused off\n", j);
+			xe_gt_info(gt, "bcs%u fused off\n", j);
 		}
 	}
 }
 
 static void read_compute_fuses_from_dss(struct xe_gt *gt)
 {
-	struct xe_device *xe = gt_to_xe(gt);
-
 	/*
 	 * CCS fusing based on DSS masks only applies to platforms that can
 	 * have more than one CCS.
@@ -755,14 +753,13 @@ static void read_compute_fuses_from_dss(struct xe_gt *gt)
 
 		if (!xe_gt_topology_has_dss_in_quadrant(gt, j)) {
 			gt->info.engine_mask &= ~BIT(i);
-			drm_info(&xe->drm, "ccs%u fused off\n", j);
+			xe_gt_info(gt, "ccs%u fused off\n", j);
 		}
 	}
 }
 
 static void read_compute_fuses_from_reg(struct xe_gt *gt)
 {
-	struct xe_device *xe = gt_to_xe(gt);
 	u32 ccs_mask;
 
 	ccs_mask = xe_mmio_read32(&gt->mmio, XEHP_FUSE4);
@@ -774,7 +771,7 @@ static void read_compute_fuses_from_reg(struct xe_gt *gt)
 
 		if ((ccs_mask & BIT(j)) == 0) {
 			gt->info.engine_mask &= ~BIT(i);
-			drm_info(&xe->drm, "ccs%u fused off\n", j);
+			xe_gt_info(gt, "ccs%u fused off\n", j);
 		}
 	}
 }
@@ -789,8 +786,6 @@ static void read_compute_fuses(struct xe_gt *gt)
 
 static void check_gsc_availability(struct xe_gt *gt)
 {
-	struct xe_device *xe = gt_to_xe(gt);
-
 	if (!(gt->info.engine_mask & BIT(XE_HW_ENGINE_GSCCS0)))
 		return;
 
@@ -806,7 +801,7 @@ static void check_gsc_availability(struct xe_gt *gt)
 		xe_mmio_write32(&gt->mmio, GUNIT_GSC_INTR_ENABLE, 0);
 		xe_mmio_write32(&gt->mmio, GUNIT_GSC_INTR_MASK, ~0);
 
-		drm_dbg(&xe->drm, "GSC FW not used, disabling gsccs\n");
+		xe_gt_dbg(gt, "GSC FW not used, disabling gsccs\n");
 	}
 }
 
