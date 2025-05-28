@@ -1461,4 +1461,9 @@ static inline int __call_mmap_prepare(struct file *file,
 	return file->f_op->mmap_prepare(desc);
 }
 
+static inline void fixup_hugetlb_reservations(struct vm_area_struct *vma)
+{
+	(void)vma;
+}
+
 #endif	/* __MM_VMA_INTERNAL_H */
