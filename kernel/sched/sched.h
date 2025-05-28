@@ -792,11 +792,9 @@ struct rt_rq {
 		int		curr; /* highest queued rt task prio */
 		int		next; /* next highest */
 	} highest_prio;
-#ifdef CONFIG_SMP
 	bool			overloaded;
 	struct plist_head	pushable_tasks;
 
-#endif /* CONFIG_SMP */
 	int			rt_queued;
 
 #ifdef CONFIG_RT_GROUP_SCHED
