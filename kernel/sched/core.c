@@ -5419,8 +5419,6 @@ unsigned int nr_iowait(void)
 	return sum;
 }
 
-#ifdef CONFIG_SMP
-
 /*
  * sched_exec - execve() is a valuable balancing opportunity, because at
  * this point the task has the smallest effective memory and cache footprint.
@@ -5443,8 +5441,6 @@ void sched_exec(void)
 	}
 	stop_one_cpu(task_cpu(p), migration_cpu_stop, &arg);
 }
-
-#endif /* CONFIG_SMP */
 
 DEFINE_PER_CPU(struct kernel_stat, kstat);
 DEFINE_PER_CPU(struct kernel_cpustat, kernel_cpustat);
