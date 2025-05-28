@@ -2261,11 +2261,9 @@ static inline int task_on_rq_migrating(struct task_struct *p)
 #define WF_CURRENT_CPU		0x40 /* Prefer to move the wakee to the current CPU. */
 #define WF_RQ_SELECTED		0x80 /* ->select_task_rq() was called */
 
-#ifdef CONFIG_SMP
 static_assert(WF_EXEC == SD_BALANCE_EXEC);
 static_assert(WF_FORK == SD_BALANCE_FORK);
 static_assert(WF_TTWU == SD_BALANCE_WAKE);
-#endif
 
 /*
  * To aid in avoiding the subversion of "niceness" due to uneven distribution
