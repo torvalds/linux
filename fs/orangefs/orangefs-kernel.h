@@ -32,6 +32,8 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/fs.h>
+#include <linux/fs_context.h>
+#include <linux/fs_parser.h>
 #include <linux/vmalloc.h>
 
 #include <linux/aio.h>
@@ -328,11 +330,9 @@ void purge_waiting_ops(void);
  * defined in super.c
  */
 extern uint64_t orangefs_features;
+extern const struct fs_parameter_spec orangefs_fs_param_spec[];
 
-struct dentry *orangefs_mount(struct file_system_type *fst,
-			   int flags,
-			   const char *devname,
-			   void *data);
+int orangefs_init_fs_context(struct fs_context *fc);
 
 void orangefs_kill_sb(struct super_block *sb);
 int orangefs_remount(struct orangefs_sb_info_s *);
