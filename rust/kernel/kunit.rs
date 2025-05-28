@@ -7,7 +7,7 @@
 //! Reference: <https://docs.kernel.org/dev-tools/kunit/index.html>
 
 use crate::prelude::*;
-use core::{ffi::c_void, fmt};
+use core::fmt;
 
 #[cfg(CONFIG_PRINTK)]
 use crate::c_str;
