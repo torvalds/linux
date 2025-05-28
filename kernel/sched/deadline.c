@@ -3005,7 +3005,6 @@ static void prio_changed_dl(struct rq *rq, struct task_struct *p,
 	if (!task_on_rq_queued(p))
 		return;
 
-#ifdef CONFIG_SMP
 	/*
 	 * This might be too much, but unfortunately
 	 * we don't have the old deadline value, and
@@ -3034,13 +3033,6 @@ static void prio_changed_dl(struct rq *rq, struct task_struct *p,
 		    dl_time_before(p->dl.deadline, rq->curr->dl.deadline))
 			resched_curr(rq);
 	}
-#else /* !CONFIG_SMP: */
-	/*
-	 * We don't know if p has a earlier or later deadline, so let's blindly
-	 * set a (maybe not needed) rescheduling point.
-	 */
-	resched_curr(rq);
-#endif /* !CONFIG_SMP */
 }
 
 #ifdef CONFIG_SCHED_CORE
