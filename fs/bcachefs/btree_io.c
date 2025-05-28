@@ -602,8 +602,8 @@ static int __btree_err(int ret,
 		switch (ret) {
 		case -BCH_ERR_btree_node_read_err_fixable:
 			ret2 = bch2_fsck_err_opt(c, FSCK_CAN_FIX, err_type);
-			if (ret2 != -BCH_ERR_fsck_fix &&
-			    ret2 != -BCH_ERR_fsck_ignore) {
+			if (!bch2_err_matches(ret2, BCH_ERR_fsck_fix) &&
+			    !bch2_err_matches(ret2, BCH_ERR_fsck_ignore)) {
 				ret = ret2;
 				goto fsck_err;
 			}
@@ -631,8 +631,8 @@ static int __btree_err(int ret,
 	switch (ret) {
 	case -BCH_ERR_btree_node_read_err_fixable:
 		ret2 = __bch2_fsck_err(c, NULL, FSCK_CAN_FIX, err_type, "%s", out.buf);
-		if (ret2 != -BCH_ERR_fsck_fix &&
-		    ret2 != -BCH_ERR_fsck_ignore) {
+		if (!bch2_err_matches(ret2, BCH_ERR_fsck_fix) &&
+		    !bch2_err_matches(ret2, BCH_ERR_fsck_ignore)) {
 			ret = ret2;
 			goto fsck_err;
 		}
@@ -660,7 +660,7 @@ fsck_err:
 			       failed, err_msg,				\
 			       msg, ##__VA_ARGS__);			\
 									\
-	if (_ret != -BCH_ERR_fsck_fix) {				\
+	if (!bch2_err_matches(_ret, BCH_ERR_fsck_fix)) {		\
 		ret = _ret;						\
 		goto fsck_err;						\
 	}								\

@@ -444,7 +444,7 @@ int __bch2_fsck_err(struct bch_fs *c,
 {
 	va_list args;
 	struct printbuf buf = PRINTBUF, *out = &buf;
-	int ret = -BCH_ERR_fsck_ignore;
+	int ret = 0;
 	const char *action_orig = "fix?", *action = action_orig;
 
 	might_sleep();
@@ -573,19 +573,26 @@ int __bch2_fsck_err(struct bch_fs *c,
 		} else {
 			prt_str(out, ", not ");
 			prt_actioning(out, action);
+			ret = -BCH_ERR_fsck_ignore;
 		}
-	} else if (!(flags & FSCK_CAN_IGNORE)) {
-		prt_str(out, " (repair unimplemented)");
+	} else {
+		if (flags & FSCK_CAN_IGNORE) {
+			prt_str(out, ", continuing");
+			ret = -BCH_ERR_fsck_ignore;
+		} else {
+			prt_str(out, " (repair unimplemented)");
+			ret = -BCH_ERR_fsck_repair_unimplemented;
+		}
 	}
 
-	if (ret == -BCH_ERR_fsck_ignore &&
+	if (bch2_err_matches(ret, BCH_ERR_fsck_ignore) &&
 	    (c->opts.fix_errors == FSCK_FIX_exit ||
 	     !(flags & FSCK_CAN_IGNORE)))
 		ret = -BCH_ERR_fsck_errors_not_fixed;
 
 	if (test_bit(BCH_FS_in_fsck, &c->flags) &&
-	    (ret != -BCH_ERR_fsck_fix &&
-	     ret != -BCH_ERR_fsck_ignore)) {
+	    (!bch2_err_matches(ret, BCH_ERR_fsck_fix) &&
+	     !bch2_err_matches(ret, BCH_ERR_fsck_ignore))) {
 		exiting = true;
 		print = true;
 	}
@@ -613,26 +620,26 @@ print:
 
 	if (s)
 		s->ret = ret;
-
+err_unlock:
+	mutex_unlock(&c->fsck_error_msgs_lock);
+err:
 	/*
 	 * We don't yet track whether the filesystem currently has errors, for
 	 * log_fsck_err()s: that would require us to track for every error type
 	 * which recovery pass corrects it, to get the fsck exit status correct:
 	 */
-	if (flags & FSCK_CAN_FIX) {
-		if (ret == -BCH_ERR_fsck_fix) {
-			set_bit(BCH_FS_errors_fixed, &c->flags);
-		} else {
-			set_bit(BCH_FS_errors_not_fixed, &c->flags);
-			set_bit(BCH_FS_error, &c->flags);
-		}
+	if (bch2_err_matches(ret, BCH_ERR_fsck_fix)) {
+		set_bit(BCH_FS_errors_fixed, &c->flags);
+	} else {
+		set_bit(BCH_FS_errors_not_fixed, &c->flags);
+		set_bit(BCH_FS_error, &c->flags);
 	}
-err_unlock:
-	mutex_unlock(&c->fsck_error_msgs_lock);
-err:
+
 	if (action != action_orig)
 		kfree(action);
 	printbuf_exit(&buf);
+
+	BUG_ON(!ret);
 	return ret;
 }
 

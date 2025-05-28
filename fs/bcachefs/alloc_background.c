@@ -709,8 +709,8 @@ static int __need_discard_or_freespace_err(struct btree_trans *trans,
 				  set ? "" : "un",
 				  bch2_btree_id_str(btree),
 				  buf.buf);
-	if (ret == -BCH_ERR_fsck_ignore ||
-	    ret == -BCH_ERR_fsck_errors_not_fixed)
+	if (bch2_err_matches(ret, BCH_ERR_fsck_ignore) ||
+	    bch2_err_matches(ret, BCH_ERR_fsck_errors_not_fixed))
 		ret = 0;
 
 	printbuf_exit(&buf);
