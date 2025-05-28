@@ -1323,7 +1323,6 @@ next:
 /* Update the "asym_prefer_cpu" when arch_asym_cpu_priority() changes. */
 void sched_update_asym_prefer_cpu(int cpu, int old_prio, int new_prio)
 {
-#ifdef CONFIG_SMP
 	int asym_prefer_cpu = cpu;
 	struct sched_domain *sd;
 
@@ -1373,7 +1372,6 @@ void sched_update_asym_prefer_cpu(int cpu, int old_prio, int new_prio)
 
 		WRITE_ONCE(sg->asym_prefer_cpu, asym_prefer_cpu);
 	}
-#endif /* CONFIG_SMP */
 }
 
 /*
