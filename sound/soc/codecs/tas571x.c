@@ -839,6 +839,56 @@ static const struct tas571x_chip tas5733_chip = {
 	.vol_reg_size                   = 2,
 };
 
+static const struct reg_default tas5753_reg_defaults[] = {
+	{TAS571X_CLK_CTRL_REG,		0x6c},
+	{TAS571X_DEV_ID_REG,		0x41},
+	{TAS571X_ERR_STATUS_REG,	0x00},
+	{TAS571X_SYS_CTRL_1_REG,	0xa0},
+	{TAS571X_SDI_REG,		0x05},
+	{TAS571X_SYS_CTRL_2_REG,	0x40},
+	{TAS571X_SOFT_MUTE_REG,		0x00},
+	{TAS571X_MVOL_REG,		0x03ff},
+	{TAS571X_CH1_VOL_REG,		0x00c0},
+	{TAS571X_CH2_VOL_REG,		0x00c0},
+	{TAS571X_CH3_VOL_REG,		0x00c0},
+	{TAS571X_VOL_CFG_REG,		0xf0},
+	{TAS571X_MODULATION_LIMIT_REG,	0x01},
+	{TAS571X_IC_DELAY_CH1_REG,	0xac},
+	{TAS571X_IC_DELAY_CH2_REG,	0x54},
+	{TAS571X_IC_DELAY_CH3_REG,	0xac},
+	{TAS571X_IC_DELAY_CH4_REG,	0x54},
+	{TAS571X_OSC_TRIM_REG,		0x82},
+	{TAS571X_BKND_ERR_REG,		0x57},
+	{TAS571X_INPUT_MUX_REG,		0x00017772},
+	{TAS571X_PWM_MUX_REG,		0x01021345},
+	{TAS5717_CH1_RIGHT_CH_MIX_REG,	0x00},
+	{TAS5717_CH1_LEFT_CH_MIX_REG,	0x800000},
+	{TAS5717_CH2_LEFT_CH_MIX_REG,	0x00},
+	{TAS5717_CH2_RIGHT_CH_MIX_REG,	0x800000},
+};
+
+static const struct regmap_config tas5753_regmap_config = {
+	.reg_bits			= 8,
+	.val_bits			= 32,
+	.max_register			= 0xff,
+	.reg_read			= tas571x_reg_read,
+	.reg_write			= tas571x_reg_write,
+	.reg_defaults			= tas5753_reg_defaults,
+	.num_reg_defaults		= ARRAY_SIZE(tas5753_reg_defaults),
+	.cache_type			= REGCACHE_RBTREE,
+	.wr_table			= &tas571x_write_regs,
+	.volatile_table			= &tas571x_volatile_regs,
+};
+
+static const struct tas571x_chip tas5753_chip = {
+	.supply_names			= tas5721_supply_names,
+	.num_supply_names		= ARRAY_SIZE(tas5721_supply_names),
+	.controls			= tas5733_controls,
+	.num_controls			= ARRAY_SIZE(tas5733_controls),
+	.regmap_config			= &tas5753_regmap_config,
+	.vol_reg_size			= 2,
+};
+
 static const struct tas571x_chip tas5721_chip = {
 	.supply_names			= tas5721_supply_names,
 	.num_supply_names		= ARRAY_SIZE(tas5721_supply_names),
@@ -1007,6 +1057,7 @@ static const struct of_device_id tas571x_of_match[] __maybe_unused = {
 	{ .compatible = "ti,tas5719", .data = &tas5717_chip, },
 	{ .compatible = "ti,tas5721", .data = &tas5721_chip, },
 	{ .compatible = "ti,tas5733", .data = &tas5733_chip, },
+	{ .compatible = "ti,tas5753", .data = &tas5753_chip, },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, tas571x_of_match);
@@ -1018,6 +1069,7 @@ static const struct i2c_device_id tas571x_i2c_id[] = {
 	{ "tas5719", (kernel_ulong_t) &tas5717_chip },
 	{ "tas5721", (kernel_ulong_t) &tas5721_chip },
 	{ "tas5733", (kernel_ulong_t) &tas5733_chip },
+	{ "tas5753", (kernel_ulong_t) &tas5753_chip },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tas571x_i2c_id);
