@@ -192,6 +192,20 @@ static inline void notify_partition_change(struct cpuset *cs, int old_prs)
 		WRITE_ONCE(cs->prs_err, PERR_NONE);
 }
 
+/*
+ * The top_cpuset is always synchronized to cpu_active_mask and we should avoid
+ * using cpu_online_mask as much as possible. An active CPU is always an online
+ * CPU, but not vice versa. cpu_active_mask and cpu_online_mask can differ
+ * during hotplug operations. A CPU is marked active at the last stage of CPU
+ * bringup (CPUHP_AP_ACTIVE). It is also the stage where cpuset hotplug code
+ * will be called to update the sched domains so that the scheduler can move
+ * a normal task to a newly active CPU or remove tasks away from a newly
+ * inactivated CPU. The online bit is set much earlier in the CPU bringup
+ * process and cleared much later in CPU teardown.
+ *
+ * If cpu_online_mask is used while a hotunplug operation is happening in
+ * parallel, we may leave an offline CPU in cpu_allowed or some other masks.
+ */
 static struct cpuset top_cpuset = {
 	.flags = BIT(CS_ONLINE) | BIT(CS_CPU_EXCLUSIVE) |
 		 BIT(CS_MEM_EXCLUSIVE) | BIT(CS_SCHED_LOAD_BALANCE),
@@ -355,18 +369,18 @@ static inline bool partition_is_populated(struct cpuset *cs,
  * appropriate cpus.
  *
  * One way or another, we guarantee to return some non-empty subset
- * of cpu_online_mask.
+ * of cpu_active_mask.
  *
  * Call with callback_lock or cpuset_mutex held.
  */
-static void guarantee_online_cpus(struct task_struct *tsk,
+static void guarantee_active_cpus(struct task_struct *tsk,
 				  struct cpumask *pmask)
 {
 	const struct cpumask *possible_mask = task_cpu_possible_mask(tsk);
 	struct cpuset *cs;
 
-	if (WARN_ON(!cpumask_and(pmask, possible_mask, cpu_online_mask)))
-		cpumask_copy(pmask, cpu_online_mask);
+	if (WARN_ON(!cpumask_and(pmask, possible_mask, cpu_active_mask)))
+		cpumask_copy(pmask, cpu_active_mask);
 
 	rcu_read_lock();
 	cs = task_cs(tsk);
@@ -1390,14 +1404,12 @@ static int compute_effective_exclusive_cpumask(struct cpuset *cs,
 		if (sibling == cs)
 			continue;
 
-		if (!cpumask_empty(sibling->exclusive_cpus) &&
-		    cpumask_intersects(xcpus, sibling->exclusive_cpus)) {
+		if (cpumask_intersects(xcpus, sibling->exclusive_cpus)) {
 			cpumask_andnot(xcpus, xcpus, sibling->exclusive_cpus);
 			retval++;
 			continue;
 		}
-		if (!cpumask_empty(sibling->effective_xcpus) &&
-		    cpumask_intersects(xcpus, sibling->effective_xcpus)) {
+		if (cpumask_intersects(xcpus, sibling->effective_xcpus)) {
 			cpumask_andnot(xcpus, xcpus, sibling->effective_xcpus);
 			retval++;
 		}
@@ -1441,13 +1453,15 @@ static int remote_partition_enable(struct cpuset *cs, int new_prs,
 	 * The requested exclusive_cpus must not be allocated to other
 	 * partitions and it can't use up all the root's effective_cpus.
 	 *
-	 * Note that if there is any local partition root above it or
-	 * remote partition root underneath it, its exclusive_cpus must
-	 * have overlapped with subpartitions_cpus.
+	 * The effective_xcpus mask can contain offline CPUs, but there must
+	 * be at least one or more online CPUs present before it can be enabled.
+	 *
+	 * Note that creating a remote partition with any local partition root
+	 * above it or remote partition root underneath it is not allowed.
 	 */
 	compute_effective_exclusive_cpumask(cs, tmp->new_cpus, NULL);
-	if (cpumask_empty(tmp->new_cpus) ||
-	    cpumask_intersects(tmp->new_cpus, subpartitions_cpus) ||
+	WARN_ON_ONCE(cpumask_intersects(tmp->new_cpus, subpartitions_cpus));
+	if (!cpumask_intersects(tmp->new_cpus, cpu_active_mask) ||
 	    cpumask_subset(top_cpuset.effective_cpus, tmp->new_cpus))
 		return PERR_INVCPUS;
 
@@ -1543,6 +1557,7 @@ static void remote_cpus_update(struct cpuset *cs, struct cpumask *xcpus,
 	 * left in the top cpuset.
 	 */
 	if (adding) {
+		WARN_ON_ONCE(cpumask_intersects(tmp->addmask, subpartitions_cpus));
 		if (!capable(CAP_SYS_ADMIN))
 			cs->prs_err = PERR_ACCESS;
 		else if (cpumask_intersects(tmp->addmask, subpartitions_cpus) ||
@@ -1652,7 +1667,7 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 	bool nocpu;
 
 	lockdep_assert_held(&cpuset_mutex);
-	WARN_ON_ONCE(is_remote_partition(cs));
+	WARN_ON_ONCE(is_remote_partition(cs));	/* For local partition only */
 
 	/*
 	 * new_prs will only be changed for the partcmd_update and
@@ -1698,7 +1713,7 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 		 * exclusive_cpus not set. Sibling conflict should only happen
 		 * if exclusive_cpus isn't set.
 		 */
-		xcpus = tmp->new_cpus;
+		xcpus = tmp->delmask;
 		if (compute_effective_exclusive_cpumask(cs, xcpus, NULL))
 			WARN_ON_ONCE(!cpumask_empty(cs->exclusive_cpus));
 
@@ -1719,9 +1734,20 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 		if (nocpu)
 			return PERR_NOCPUS;
 
-		deleting = cpumask_and(tmp->delmask, xcpus, parent->effective_xcpus);
-		if (deleting)
-			subparts_delta++;
+		/*
+		 * This function will only be called when all the preliminary
+		 * checks have passed. At this point, the following condition
+		 * should hold.
+		 *
+		 * (cs->effective_xcpus & cpu_active_mask) ⊆ parent->effective_cpus
+		 *
+		 * Warn if it is not the case.
+		 */
+		cpumask_and(tmp->new_cpus, xcpus, cpu_active_mask);
+		WARN_ON_ONCE(!cpumask_subset(tmp->new_cpus, parent->effective_cpus));
+
+		deleting = true;
+		subparts_delta++;
 		new_prs = (cmd == partcmd_enable) ? PRS_ROOT : PRS_ISOLATED;
 	} else if (cmd == partcmd_disable) {
 		/*
@@ -1775,6 +1801,15 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 			deleting = cpumask_and(tmp->delmask, tmp->delmask,
 					       parent->effective_xcpus);
 		}
+		/*
+		 * The new CPUs to be removed from parent's effective CPUs
+		 * must be present.
+		 */
+		if (deleting) {
+			cpumask_and(tmp->new_cpus, tmp->delmask, cpu_active_mask);
+			WARN_ON_ONCE(!cpumask_subset(tmp->new_cpus, parent->effective_cpus));
+		}
+
 		/*
 		 * Make partition invalid if parent's effective_cpus could
 		 * become empty and there are tasks in the parent.
@@ -2265,7 +2300,7 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 	bool force = false;
 	int old_prs = cs->partition_root_state;
 
-	/* top_cpuset.cpus_allowed tracks cpu_online_mask; it's read-only */
+	/* top_cpuset.cpus_allowed tracks cpu_active_mask; it's read-only */
 	if (cs == &top_cpuset)
 		return -EACCES;
 
@@ -3084,7 +3119,7 @@ static void cpuset_attach_task(struct cpuset *cs, struct task_struct *task)
 	lockdep_assert_held(&cpuset_mutex);
 
 	if (cs != &top_cpuset)
-		guarantee_online_cpus(task, cpus_attach);
+		guarantee_active_cpus(task, cpus_attach);
 	else
 		cpumask_andnot(cpus_attach, task_cpu_possible_mask(task),
 			       subpartitions_cpus);
@@ -3526,11 +3561,7 @@ out_unlock:
  * will call rebuild_sched_domains_locked(). That is not needed
  * in the default hierarchy where only changes in partition
  * will cause repartitioning.
- *
- * If the cpuset has the 'sched.partition' flag enabled, simulate
- * turning 'sched.partition" off.
  */
-
 static void cpuset_css_offline(struct cgroup_subsys_state *css)
 {
 	struct cpuset *cs = css_cs(css);
@@ -3548,6 +3579,11 @@ static void cpuset_css_offline(struct cgroup_subsys_state *css)
 	cpus_read_unlock();
 }
 
+/*
+ * If a dying cpuset has the 'cpus.partition' enabled, turn it off by
+ * changing it back to member to free its exclusive CPUs back to the pool to
+ * be used by other online cpusets.
+ */
 static void cpuset_css_killed(struct cgroup_subsys_state *css)
 {
 	struct cpuset *cs = css_cs(css);
@@ -4028,7 +4064,7 @@ void __init cpuset_init_smp(void)
  *
  * Description: Returns the cpumask_var_t cpus_allowed of the cpuset
  * attached to the specified @tsk.  Guaranteed to return some non-empty
- * subset of cpu_online_mask, even if this means going outside the
+ * subset of cpu_active_mask, even if this means going outside the
  * tasks cpuset, except when the task is in the top cpuset.
  **/
 
@@ -4042,7 +4078,7 @@ void cpuset_cpus_allowed(struct task_struct *tsk, struct cpumask *pmask)
 
 	cs = task_cs(tsk);
 	if (cs != &top_cpuset)
-		guarantee_online_cpus(tsk, pmask);
+		guarantee_active_cpus(tsk, pmask);
 	/*
 	 * Tasks in the top cpuset won't get update to their cpumasks
 	 * when a hotplug online/offline event happens. So we include all
@@ -4056,7 +4092,7 @@ void cpuset_cpus_allowed(struct task_struct *tsk, struct cpumask *pmask)
 		 * allowable online cpu left, we fall back to all possible cpus.
 		 */
 		cpumask_andnot(pmask, possible_mask, subpartitions_cpus);
-		if (!cpumask_intersects(pmask, cpu_online_mask))
+		if (!cpumask_intersects(pmask, cpu_active_mask))
 			cpumask_copy(pmask, possible_mask);
 	}
 

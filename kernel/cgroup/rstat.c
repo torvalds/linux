@@ -9,18 +9,52 @@
 
 #include <trace/events/cgroup.h>
 
-static DEFINE_SPINLOCK(cgroup_rstat_lock);
-static DEFINE_PER_CPU(raw_spinlock_t, cgroup_rstat_cpu_lock);
+static DEFINE_SPINLOCK(rstat_base_lock);
+static DEFINE_PER_CPU(raw_spinlock_t, rstat_base_cpu_lock);
 
 static void cgroup_base_stat_flush(struct cgroup *cgrp, int cpu);
 
-static struct cgroup_rstat_cpu *cgroup_rstat_cpu(struct cgroup *cgrp, int cpu)
+/*
+ * Determines whether a given css can participate in rstat.
+ * css's that are cgroup::self use rstat for base stats.
+ * Other css's associated with a subsystem use rstat only when
+ * they define the ss->css_rstat_flush callback.
+ */
+static inline bool css_uses_rstat(struct cgroup_subsys_state *css)
 {
-	return per_cpu_ptr(cgrp->rstat_cpu, cpu);
+	return css_is_self(css) || css->ss->css_rstat_flush != NULL;
+}
+
+static struct css_rstat_cpu *css_rstat_cpu(
+		struct cgroup_subsys_state *css, int cpu)
+{
+	return per_cpu_ptr(css->rstat_cpu, cpu);
+}
+
+static struct cgroup_rstat_base_cpu *cgroup_rstat_base_cpu(
+		struct cgroup *cgrp, int cpu)
+{
+	return per_cpu_ptr(cgrp->rstat_base_cpu, cpu);
+}
+
+static spinlock_t *ss_rstat_lock(struct cgroup_subsys *ss)
+{
+	if (ss)
+		return &ss->rstat_ss_lock;
+
+	return &rstat_base_lock;
+}
+
+static raw_spinlock_t *ss_rstat_cpu_lock(struct cgroup_subsys *ss, int cpu)
+{
+	if (ss)
+		return per_cpu_ptr(ss->rstat_ss_cpu_lock, cpu);
+
+	return per_cpu_ptr(&rstat_base_cpu_lock, cpu);
 }
 
 /*
- * Helper functions for rstat per CPU lock (cgroup_rstat_cpu_lock).
+ * Helper functions for rstat per CPU locks.
  *
  * This makes it easier to diagnose locking issues and contention in
  * production environments. The parameter @fast_path determine the
@@ -28,20 +62,23 @@ static struct cgroup_rstat_cpu *cgroup_rstat_cpu(struct cgroup *cgrp, int cpu)
  * operations without handling high-frequency fast-path "update" events.
  */
 static __always_inline
-unsigned long _cgroup_rstat_cpu_lock(raw_spinlock_t *cpu_lock, int cpu,
-				     struct cgroup *cgrp, const bool fast_path)
+unsigned long _css_rstat_cpu_lock(struct cgroup_subsys_state *css, int cpu,
+		const bool fast_path)
 {
+	struct cgroup *cgrp = css->cgroup;
+	raw_spinlock_t *cpu_lock;
 	unsigned long flags;
 	bool contended;
 
 	/*
-	 * The _irqsave() is needed because cgroup_rstat_lock is
-	 * spinlock_t which is a sleeping lock on PREEMPT_RT. Acquiring
-	 * this lock with the _irq() suffix only disables interrupts on
-	 * a non-PREEMPT_RT kernel. The raw_spinlock_t below disables
-	 * interrupts on both configurations. The _irqsave() ensures
-	 * that interrupts are always disabled and later restored.
+	 * The _irqsave() is needed because the locks used for flushing are
+	 * spinlock_t which is a sleeping lock on PREEMPT_RT. Acquiring this lock
+	 * with the _irq() suffix only disables interrupts on a non-PREEMPT_RT
+	 * kernel. The raw_spinlock_t below disables interrupts on both
+	 * configurations. The _irqsave() ensures that interrupts are always
+	 * disabled and later restored.
 	 */
+	cpu_lock = ss_rstat_cpu_lock(css->ss, cpu);
 	contended = !raw_spin_trylock_irqsave(cpu_lock, flags);
 	if (contended) {
 		if (fast_path)
@@ -61,50 +98,59 @@ unsigned long _cgroup_rstat_cpu_lock(raw_spinlock_t *cpu_lock, int cpu,
 }
 
 static __always_inline
-void _cgroup_rstat_cpu_unlock(raw_spinlock_t *cpu_lock, int cpu,
-			      struct cgroup *cgrp, unsigned long flags,
-			      const bool fast_path)
+void _css_rstat_cpu_unlock(struct cgroup_subsys_state *css, int cpu,
+		unsigned long flags, const bool fast_path)
 {
+	struct cgroup *cgrp = css->cgroup;
+	raw_spinlock_t *cpu_lock;
+
 	if (fast_path)
 		trace_cgroup_rstat_cpu_unlock_fastpath(cgrp, cpu, false);
 	else
 		trace_cgroup_rstat_cpu_unlock(cgrp, cpu, false);
 
+	cpu_lock = ss_rstat_cpu_lock(css->ss, cpu);
 	raw_spin_unlock_irqrestore(cpu_lock, flags);
 }
 
 /**
- * cgroup_rstat_updated - keep track of updated rstat_cpu
- * @cgrp: target cgroup
+ * css_rstat_updated - keep track of updated rstat_cpu
+ * @css: target cgroup subsystem state
  * @cpu: cpu on which rstat_cpu was updated
  *
- * @cgrp's rstat_cpu on @cpu was updated.  Put it on the parent's matching
- * rstat_cpu->updated_children list.  See the comment on top of
- * cgroup_rstat_cpu definition for details.
+ * @css's rstat_cpu on @cpu was updated. Put it on the parent's matching
+ * rstat_cpu->updated_children list. See the comment on top of
+ * css_rstat_cpu definition for details.
  */
-__bpf_kfunc void cgroup_rstat_updated(struct cgroup *cgrp, int cpu)
+__bpf_kfunc void css_rstat_updated(struct cgroup_subsys_state *css, int cpu)
 {
-	raw_spinlock_t *cpu_lock = per_cpu_ptr(&cgroup_rstat_cpu_lock, cpu);
 	unsigned long flags;
+
+	/*
+	 * Since bpf programs can call this function, prevent access to
+	 * uninitialized rstat pointers.
+	 */
+	if (!css_uses_rstat(css))
+		return;
 
 	/*
 	 * Speculative already-on-list test. This may race leading to
 	 * temporary inaccuracies, which is fine.
 	 *
 	 * Because @parent's updated_children is terminated with @parent
-	 * instead of NULL, we can tell whether @cgrp is on the list by
+	 * instead of NULL, we can tell whether @css is on the list by
 	 * testing the next pointer for NULL.
 	 */
-	if (data_race(cgroup_rstat_cpu(cgrp, cpu)->updated_next))
+	if (data_race(css_rstat_cpu(css, cpu)->updated_next))
 		return;
 
-	flags = _cgroup_rstat_cpu_lock(cpu_lock, cpu, cgrp, true);
+	flags = _css_rstat_cpu_lock(css, cpu, true);
 
-	/* put @cgrp and all ancestors on the corresponding updated lists */
+	/* put @css and all ancestors on the corresponding updated lists */
 	while (true) {
-		struct cgroup_rstat_cpu *rstatc = cgroup_rstat_cpu(cgrp, cpu);
-		struct cgroup *parent = cgroup_parent(cgrp);
-		struct cgroup_rstat_cpu *prstatc;
+		struct css_rstat_cpu *rstatc = css_rstat_cpu(css, cpu);
+		struct cgroup_subsys_state *parent = css->parent;
+		struct css_rstat_cpu *prstatc;
 
 		/*
 		 * Both additions and removals are bottom-up.  If a cgroup
@@ -115,53 +161,78 @@ __bpf_kfunc void cgroup_rstat_updated(struct cgroup *cgrp, int cpu)
 
 		/* Root has no parent to link it to, but mark it busy */
 		if (!parent) {
-			rstatc->updated_next = cgrp;
+			rstatc->updated_next = css;
 			break;
 		}
 
-		prstatc = cgroup_rstat_cpu(parent, cpu);
+		prstatc = css_rstat_cpu(parent, cpu);
 		rstatc->updated_next = prstatc->updated_children;
-		prstatc->updated_children = cgrp;
+		prstatc->updated_children = css;
 
-		cgrp = parent;
+		css = parent;
 	}
 
-	_cgroup_rstat_cpu_unlock(cpu_lock, cpu, cgrp, flags, true);
+	_css_rstat_cpu_unlock(css, cpu, flags, true);
 }
 
 /**
- * cgroup_rstat_push_children - push children cgroups into the given list
+ * css_rstat_push_children - push children css's into the given list
  * @head: current head of the list (= subtree root)
  * @child: first child of the root
  * @cpu: target cpu
- * Return: A new singly linked list of cgroups to be flush
+ * Return: A new singly linked list of css's to be flushed
  *
- * Iteratively traverse down the cgroup_rstat_cpu updated tree level by
+ * Iteratively traverse down the css_rstat_cpu updated tree level by
  * level and push all the parents first before their next level children
- * into a singly linked list built from the tail backward like "pushing"
- * cgroups into a stack. The root is pushed by the caller.
+ * into a singly linked list via the rstat_flush_next pointer built from the
+ * tail backward like "pushing" css's into a stack. The root is pushed by
+ * the caller.
  */
-static struct cgroup *cgroup_rstat_push_children(struct cgroup *head,
-						 struct cgroup *child, int cpu)
+static struct cgroup_subsys_state *css_rstat_push_children(
+		struct cgroup_subsys_state *head,
+		struct cgroup_subsys_state *child, int cpu)
 {
-	struct cgroup *chead = child;	/* Head of child cgroup level */
-	struct cgroup *ghead = NULL;	/* Head of grandchild cgroup level */
-	struct cgroup *parent, *grandchild;
-	struct cgroup_rstat_cpu *crstatc;
+	struct cgroup_subsys_state *cnext = child;	/* Next head of child css level */
+	struct cgroup_subsys_state *ghead = NULL;	/* Head of grandchild css level */
+	struct cgroup_subsys_state *parent, *grandchild;
+	struct css_rstat_cpu *crstatc;
 
 	child->rstat_flush_next = NULL;
 
-next_level:
-	while (chead) {
-		child = chead;
-		chead = child->rstat_flush_next;
-		parent = cgroup_parent(child);
+	/*
+	 * The subsystem rstat lock must be held for the whole duration from
+	 * here as the rstat_flush_next list is being constructed to when
+	 * it is consumed later in css_rstat_flush().
+	 */
+	lockdep_assert_held(ss_rstat_lock(head->ss));
 
-		/* updated_next is parent cgroup terminated */
+	/*
+	 * Notation: -> updated_next pointer
+	 *	     => rstat_flush_next pointer
+	 *
+	 * Assuming the following sample updated_children lists:
+	 *  P: C1 -> C2 -> P
+	 *  C1: G11 -> G12 -> C1
+	 *  C2: G21 -> G22 -> C2
+	 *
+	 * After 1st iteration:
+	 *  head => C2 => C1 => NULL
+	 *  ghead => G21 => G11 => NULL
+	 *
+	 * After 2nd iteration:
+	 *  head => G12 => G11 => G22 => G21 => C2 => C1 => NULL
+	 */
+next_level:
+	while (cnext) {
+		child = cnext;
+		cnext = child->rstat_flush_next;
+		parent = child->parent;
+
+		/* updated_next is parent cgroup terminated if !NULL */
 		while (child != parent) {
 			child->rstat_flush_next = head;
 			head = child;
-			crstatc = cgroup_rstat_cpu(child, cpu);
+			crstatc = css_rstat_cpu(child, cpu);
 			grandchild = crstatc->updated_children;
 			if (grandchild != child) {
 				/* Push the grand child to the next level */
@@ -175,7 +246,7 @@ next_level:
 	}
 
 	if (ghead) {
-		chead = ghead;
+		cnext = ghead;
 		ghead = NULL;
 		goto next_level;
 	}
@@ -183,31 +254,31 @@ next_level:
 }
 
 /**
- * cgroup_rstat_updated_list - return a list of updated cgroups to be flushed
- * @root: root of the cgroup subtree to traverse
+ * css_rstat_updated_list - build a list of updated css's to be flushed
+ * @root: root of the css subtree to traverse
  * @cpu: target cpu
- * Return: A singly linked list of cgroups to be flushed
+ * Return: A singly linked list of css's to be flushed
  *
  * Walks the updated rstat_cpu tree on @cpu from @root.  During traversal,
- * each returned cgroup is unlinked from the updated tree.
+ * each returned css is unlinked from the updated tree.
  *
  * The only ordering guarantee is that, for a parent and a child pair
  * covered by a given traversal, the child is before its parent in
  * the list.
  *
  * Note that updated_children is self terminated and points to a list of
- * child cgroups if not empty. Whereas updated_next is like a sibling link
- * within the children list and terminated by the parent cgroup. An exception
- * here is the cgroup root whose updated_next can be self terminated.
+ * child css's if not empty. Whereas updated_next is like a sibling link
+ * within the children list and terminated by the parent css. An exception
+ * here is the css root whose updated_next can be self terminated.
  */
-static struct cgroup *cgroup_rstat_updated_list(struct cgroup *root, int cpu)
+static struct cgroup_subsys_state *css_rstat_updated_list(
+		struct cgroup_subsys_state *root, int cpu)
 {
-	raw_spinlock_t *cpu_lock = per_cpu_ptr(&cgroup_rstat_cpu_lock, cpu);
-	struct cgroup_rstat_cpu *rstatc = cgroup_rstat_cpu(root, cpu);
-	struct cgroup *head = NULL, *parent, *child;
+	struct css_rstat_cpu *rstatc = css_rstat_cpu(root, cpu);
+	struct cgroup_subsys_state *head = NULL, *parent, *child;
 	unsigned long flags;
 
-	flags = _cgroup_rstat_cpu_lock(cpu_lock, cpu, root, false);
+	flags = _css_rstat_cpu_lock(root, cpu, false);
 
 	/* Return NULL if this subtree is not on-list */
 	if (!rstatc->updated_next)
@@ -217,17 +288,17 @@ static struct cgroup *cgroup_rstat_updated_list(struct cgroup *root, int cpu)
 	 * Unlink @root from its parent. As the updated_children list is
 	 * singly linked, we have to walk it to find the removal point.
 	 */
-	parent = cgroup_parent(root);
+	parent = root->parent;
 	if (parent) {
-		struct cgroup_rstat_cpu *prstatc;
-		struct cgroup **nextp;
+		struct css_rstat_cpu *prstatc;
+		struct cgroup_subsys_state **nextp;
 
-		prstatc = cgroup_rstat_cpu(parent, cpu);
+		prstatc = css_rstat_cpu(parent, cpu);
 		nextp = &prstatc->updated_children;
 		while (*nextp != root) {
-			struct cgroup_rstat_cpu *nrstatc;
+			struct css_rstat_cpu *nrstatc;
 
-			nrstatc = cgroup_rstat_cpu(*nextp, cpu);
+			nrstatc = css_rstat_cpu(*nextp, cpu);
 			WARN_ON_ONCE(*nextp == parent);
 			nextp = &nrstatc->updated_next;
 		}
@@ -242,16 +313,16 @@ static struct cgroup *cgroup_rstat_updated_list(struct cgroup *root, int cpu)
 	child = rstatc->updated_children;
 	rstatc->updated_children = root;
 	if (child != root)
-		head = cgroup_rstat_push_children(head, child, cpu);
+		head = css_rstat_push_children(head, child, cpu);
 unlock_ret:
-	_cgroup_rstat_cpu_unlock(cpu_lock, cpu, root, flags, false);
+	_css_rstat_cpu_unlock(root, cpu, flags, false);
 	return head;
 }
 
 /*
  * A hook for bpf stat collectors to attach to and flush their stats.
- * Together with providing bpf kfuncs for cgroup_rstat_updated() and
- * cgroup_rstat_flush(), this enables a complete workflow where bpf progs that
+ * Together with providing bpf kfuncs for css_rstat_updated() and
+ * css_rstat_flush(), this enables a complete workflow where bpf progs that
  * collect cgroup stats can integrate with rstat for efficient flushing.
  *
  * A static noinline declaration here could cause the compiler to optimize away
@@ -271,7 +342,7 @@ __weak noinline void bpf_rstat_flush(struct cgroup *cgrp,
 __bpf_hook_end();
 
 /*
- * Helper functions for locking cgroup_rstat_lock.
+ * Helper functions for locking.
  *
  * This makes it easier to diagnose locking issues and contention in
  * production environments.  The parameter @cpu_in_loop indicate lock
@@ -279,115 +350,186 @@ __bpf_hook_end();
  * value -1 is used when obtaining the main lock else this is the CPU
  * number processed last.
  */
-static inline void __cgroup_rstat_lock(struct cgroup *cgrp, int cpu_in_loop)
-	__acquires(&cgroup_rstat_lock)
+static inline void __css_rstat_lock(struct cgroup_subsys_state *css,
+		int cpu_in_loop)
+	__acquires(ss_rstat_lock(css->ss))
 {
+	struct cgroup *cgrp = css->cgroup;
+	spinlock_t *lock;
 	bool contended;
 
-	contended = !spin_trylock_irq(&cgroup_rstat_lock);
+	lock = ss_rstat_lock(css->ss);
+	contended = !spin_trylock_irq(lock);
 	if (contended) {
 		trace_cgroup_rstat_lock_contended(cgrp, cpu_in_loop, contended);
-		spin_lock_irq(&cgroup_rstat_lock);
+		spin_lock_irq(lock);
 	}
 	trace_cgroup_rstat_locked(cgrp, cpu_in_loop, contended);
 }
 
-static inline void __cgroup_rstat_unlock(struct cgroup *cgrp, int cpu_in_loop)
-	__releases(&cgroup_rstat_lock)
+static inline void __css_rstat_unlock(struct cgroup_subsys_state *css,
+				      int cpu_in_loop)
+	__releases(ss_rstat_lock(css->ss))
 {
+	struct cgroup *cgrp = css->cgroup;
+	spinlock_t *lock;
+
+	lock = ss_rstat_lock(css->ss);
 	trace_cgroup_rstat_unlock(cgrp, cpu_in_loop, false);
-	spin_unlock_irq(&cgroup_rstat_lock);
+	spin_unlock_irq(lock);
 }
 
 /**
- * cgroup_rstat_flush - flush stats in @cgrp's subtree
- * @cgrp: target cgroup
+ * css_rstat_flush - flush stats in @css's rstat subtree
+ * @css: target cgroup subsystem state
  *
- * Collect all per-cpu stats in @cgrp's subtree into the global counters
- * and propagate them upwards.  After this function returns, all cgroups in
- * the subtree have up-to-date ->stat.
+ * Collect all per-cpu stats in @css's subtree into the global counters
+ * and propagate them upwards. After this function returns, all rstat
+ * nodes in the subtree have up-to-date ->stat.
  *
- * This also gets all cgroups in the subtree including @cgrp off the
+ * This also gets all rstat nodes in the subtree including @css off the
  * ->updated_children lists.
  *
  * This function may block.
  */
-__bpf_kfunc void cgroup_rstat_flush(struct cgroup *cgrp)
+__bpf_kfunc void css_rstat_flush(struct cgroup_subsys_state *css)
 {
 	int cpu;
+	bool is_self = css_is_self(css);
+
+	/*
+	 * Since bpf programs can call this function, prevent access to
+	 * uninitialized rstat pointers.
+	 */
+	if (!css_uses_rstat(css))
+		return;
 
 	might_sleep();
 	for_each_possible_cpu(cpu) {
-		struct cgroup *pos;
+		struct cgroup_subsys_state *pos;
 
 		/* Reacquire for each CPU to avoid disabling IRQs too long */
-		__cgroup_rstat_lock(cgrp, cpu);
-		pos = cgroup_rstat_updated_list(cgrp, cpu);
+		__css_rstat_lock(css, cpu);
+		pos = css_rstat_updated_list(css, cpu);
 		for (; pos; pos = pos->rstat_flush_next) {
-			struct cgroup_subsys_state *css;
-
-			cgroup_base_stat_flush(pos, cpu);
-			bpf_rstat_flush(pos, cgroup_parent(pos), cpu);
-
-			rcu_read_lock();
-			list_for_each_entry_rcu(css, &pos->rstat_css_list,
-						rstat_css_node)
-				css->ss->css_rstat_flush(css, cpu);
-			rcu_read_unlock();
+			if (is_self) {
+				cgroup_base_stat_flush(pos->cgroup, cpu);
+				bpf_rstat_flush(pos->cgroup,
+						cgroup_parent(pos->cgroup), cpu);
+			} else
+				pos->ss->css_rstat_flush(pos, cpu);
 		}
-		__cgroup_rstat_unlock(cgrp, cpu);
+		__css_rstat_unlock(css, cpu);
 		if (!cond_resched())
 			cpu_relax();
 	}
 }
 
-int cgroup_rstat_init(struct cgroup *cgrp)
+int css_rstat_init(struct cgroup_subsys_state *css)
 {
+	struct cgroup *cgrp = css->cgroup;
 	int cpu;
+	bool is_self = css_is_self(css);
 
-	/* the root cgrp has rstat_cpu preallocated */
-	if (!cgrp->rstat_cpu) {
-		cgrp->rstat_cpu = alloc_percpu(struct cgroup_rstat_cpu);
-		if (!cgrp->rstat_cpu)
+	if (is_self) {
+		/* the root cgrp has rstat_base_cpu preallocated */
+		if (!cgrp->rstat_base_cpu) {
+			cgrp->rstat_base_cpu = alloc_percpu(struct cgroup_rstat_base_cpu);
+			if (!cgrp->rstat_base_cpu)
+				return -ENOMEM;
+		}
+	} else if (css->ss->css_rstat_flush == NULL)
+		return 0;
+
+	/* the root cgrp's self css has rstat_cpu preallocated */
+	if (!css->rstat_cpu) {
+		css->rstat_cpu = alloc_percpu(struct css_rstat_cpu);
+		if (!css->rstat_cpu) {
+			if (is_self)
+				free_percpu(cgrp->rstat_base_cpu);
+
 			return -ENOMEM;
+		}
 	}
 
 	/* ->updated_children list is self terminated */
 	for_each_possible_cpu(cpu) {
-		struct cgroup_rstat_cpu *rstatc = cgroup_rstat_cpu(cgrp, cpu);
+		struct css_rstat_cpu *rstatc = css_rstat_cpu(css, cpu);
 
-		rstatc->updated_children = cgrp;
-		u64_stats_init(&rstatc->bsync);
+		rstatc->updated_children = css;
+
+		if (is_self) {
+			struct cgroup_rstat_base_cpu *rstatbc;
+
+			rstatbc = cgroup_rstat_base_cpu(cgrp, cpu);
+			u64_stats_init(&rstatbc->bsync);
+		}
 	}
 
 	return 0;
 }
 
-void cgroup_rstat_exit(struct cgroup *cgrp)
+void css_rstat_exit(struct cgroup_subsys_state *css)
 {
 	int cpu;
 
-	cgroup_rstat_flush(cgrp);
+	if (!css_uses_rstat(css))
+		return;
+
+	css_rstat_flush(css);
 
 	/* sanity check */
 	for_each_possible_cpu(cpu) {
-		struct cgroup_rstat_cpu *rstatc = cgroup_rstat_cpu(cgrp, cpu);
+		struct css_rstat_cpu *rstatc = css_rstat_cpu(css, cpu);
 
-		if (WARN_ON_ONCE(rstatc->updated_children != cgrp) ||
+		if (WARN_ON_ONCE(rstatc->updated_children != css) ||
 		    WARN_ON_ONCE(rstatc->updated_next))
 			return;
 	}
 
-	free_percpu(cgrp->rstat_cpu);
-	cgrp->rstat_cpu = NULL;
+	if (css_is_self(css)) {
+		struct cgroup *cgrp = css->cgroup;
+
+		free_percpu(cgrp->rstat_base_cpu);
+		cgrp->rstat_base_cpu = NULL;
+	}
+
+	free_percpu(css->rstat_cpu);
+	css->rstat_cpu = NULL;
 }
 
-void __init cgroup_rstat_boot(void)
+/**
+ * ss_rstat_init - subsystem-specific rstat initialization
+ * @ss: target subsystem
+ *
+ * If @ss is NULL, the static locks associated with the base stats
+ * are initialized. If @ss is non-NULL, the subsystem-specific locks
+ * are initialized.
+ */
+int __init ss_rstat_init(struct cgroup_subsys *ss)
 {
 	int cpu;
 
+#ifdef CONFIG_SMP
+	/*
+	 * On uniprocessor machines, arch_spinlock_t is defined as an empty
+	 * struct. Avoid allocating a size of zero by having this block
+	 * excluded in this case. It's acceptable to leave the subsystem locks
+	 * unitialized since the associated lock functions are no-ops in the
+	 * non-smp case.
+	 */
+	if (ss) {
+		ss->rstat_ss_cpu_lock = alloc_percpu(raw_spinlock_t);
+		if (!ss->rstat_ss_cpu_lock)
+			return -ENOMEM;
+	}
+#endif
+
+	spin_lock_init(ss_rstat_lock(ss));
 	for_each_possible_cpu(cpu)
-		raw_spin_lock_init(per_cpu_ptr(&cgroup_rstat_cpu_lock, cpu));
+		raw_spin_lock_init(ss_rstat_cpu_lock(ss, cpu));
+
+	return 0;
 }
 
 /*
@@ -420,9 +562,9 @@ static void cgroup_base_stat_sub(struct cgroup_base_stat *dst_bstat,
 
 static void cgroup_base_stat_flush(struct cgroup *cgrp, int cpu)
 {
-	struct cgroup_rstat_cpu *rstatc = cgroup_rstat_cpu(cgrp, cpu);
+	struct cgroup_rstat_base_cpu *rstatbc = cgroup_rstat_base_cpu(cgrp, cpu);
 	struct cgroup *parent = cgroup_parent(cgrp);
-	struct cgroup_rstat_cpu *prstatc;
+	struct cgroup_rstat_base_cpu *prstatbc;
 	struct cgroup_base_stat delta;
 	unsigned seq;
 
@@ -432,15 +574,15 @@ static void cgroup_base_stat_flush(struct cgroup *cgrp, int cpu)
 
 	/* fetch the current per-cpu values */
 	do {
-		seq = __u64_stats_fetch_begin(&rstatc->bsync);
-		delta = rstatc->bstat;
-	} while (__u64_stats_fetch_retry(&rstatc->bsync, seq));
+		seq = __u64_stats_fetch_begin(&rstatbc->bsync);
+		delta = rstatbc->bstat;
+	} while (__u64_stats_fetch_retry(&rstatbc->bsync, seq));
 
 	/* propagate per-cpu delta to cgroup and per-cpu global statistics */
-	cgroup_base_stat_sub(&delta, &rstatc->last_bstat);
+	cgroup_base_stat_sub(&delta, &rstatbc->last_bstat);
 	cgroup_base_stat_add(&cgrp->bstat, &delta);
-	cgroup_base_stat_add(&rstatc->last_bstat, &delta);
-	cgroup_base_stat_add(&rstatc->subtree_bstat, &delta);
+	cgroup_base_stat_add(&rstatbc->last_bstat, &delta);
+	cgroup_base_stat_add(&rstatbc->subtree_bstat, &delta);
 
 	/* propagate cgroup and per-cpu global delta to parent (unless that's root) */
 	if (cgroup_parent(parent)) {
@@ -449,73 +591,73 @@ static void cgroup_base_stat_flush(struct cgroup *cgrp, int cpu)
 		cgroup_base_stat_add(&parent->bstat, &delta);
 		cgroup_base_stat_add(&cgrp->last_bstat, &delta);
 
-		delta = rstatc->subtree_bstat;
-		prstatc = cgroup_rstat_cpu(parent, cpu);
-		cgroup_base_stat_sub(&delta, &rstatc->last_subtree_bstat);
-		cgroup_base_stat_add(&prstatc->subtree_bstat, &delta);
-		cgroup_base_stat_add(&rstatc->last_subtree_bstat, &delta);
+		delta = rstatbc->subtree_bstat;
+		prstatbc = cgroup_rstat_base_cpu(parent, cpu);
+		cgroup_base_stat_sub(&delta, &rstatbc->last_subtree_bstat);
+		cgroup_base_stat_add(&prstatbc->subtree_bstat, &delta);
+		cgroup_base_stat_add(&rstatbc->last_subtree_bstat, &delta);
 	}
 }
 
-static struct cgroup_rstat_cpu *
+static struct cgroup_rstat_base_cpu *
 cgroup_base_stat_cputime_account_begin(struct cgroup *cgrp, unsigned long *flags)
 {
-	struct cgroup_rstat_cpu *rstatc;
+	struct cgroup_rstat_base_cpu *rstatbc;
 
-	rstatc = get_cpu_ptr(cgrp->rstat_cpu);
-	*flags = u64_stats_update_begin_irqsave(&rstatc->bsync);
-	return rstatc;
+	rstatbc = get_cpu_ptr(cgrp->rstat_base_cpu);
+	*flags = u64_stats_update_begin_irqsave(&rstatbc->bsync);
+	return rstatbc;
 }
 
 static void cgroup_base_stat_cputime_account_end(struct cgroup *cgrp,
-						 struct cgroup_rstat_cpu *rstatc,
+						 struct cgroup_rstat_base_cpu *rstatbc,
 						 unsigned long flags)
 {
-	u64_stats_update_end_irqrestore(&rstatc->bsync, flags);
-	cgroup_rstat_updated(cgrp, smp_processor_id());
-	put_cpu_ptr(rstatc);
+	u64_stats_update_end_irqrestore(&rstatbc->bsync, flags);
+	css_rstat_updated(&cgrp->self, smp_processor_id());
+	put_cpu_ptr(rstatbc);
 }
 
 void __cgroup_account_cputime(struct cgroup *cgrp, u64 delta_exec)
 {
-	struct cgroup_rstat_cpu *rstatc;
+	struct cgroup_rstat_base_cpu *rstatbc;
 	unsigned long flags;
 
-	rstatc = cgroup_base_stat_cputime_account_begin(cgrp, &flags);
-	rstatc->bstat.cputime.sum_exec_runtime += delta_exec;
-	cgroup_base_stat_cputime_account_end(cgrp, rstatc, flags);
+	rstatbc = cgroup_base_stat_cputime_account_begin(cgrp, &flags);
+	rstatbc->bstat.cputime.sum_exec_runtime += delta_exec;
+	cgroup_base_stat_cputime_account_end(cgrp, rstatbc, flags);
 }
 
 void __cgroup_account_cputime_field(struct cgroup *cgrp,
 				    enum cpu_usage_stat index, u64 delta_exec)
 {
-	struct cgroup_rstat_cpu *rstatc;
+	struct cgroup_rstat_base_cpu *rstatbc;
 	unsigned long flags;
 
-	rstatc = cgroup_base_stat_cputime_account_begin(cgrp, &flags);
+	rstatbc = cgroup_base_stat_cputime_account_begin(cgrp, &flags);
 
 	switch (index) {
 	case CPUTIME_NICE:
-		rstatc->bstat.ntime += delta_exec;
+		rstatbc->bstat.ntime += delta_exec;
 		fallthrough;
 	case CPUTIME_USER:
-		rstatc->bstat.cputime.utime += delta_exec;
+		rstatbc->bstat.cputime.utime += delta_exec;
 		break;
 	case CPUTIME_SYSTEM:
 	case CPUTIME_IRQ:
 	case CPUTIME_SOFTIRQ:
-		rstatc->bstat.cputime.stime += delta_exec;
+		rstatbc->bstat.cputime.stime += delta_exec;
 		break;
 #ifdef CONFIG_SCHED_CORE
 	case CPUTIME_FORCEIDLE:
-		rstatc->bstat.forceidle_sum += delta_exec;
+		rstatbc->bstat.forceidle_sum += delta_exec;
 		break;
 #endif
 	default:
 		break;
 	}
 
-	cgroup_base_stat_cputime_account_end(cgrp, rstatc, flags);
+	cgroup_base_stat_cputime_account_end(cgrp, rstatbc, flags);
 }
 
 /*
@@ -574,12 +716,12 @@ void cgroup_base_stat_cputime_show(struct seq_file *seq)
 	struct cgroup_base_stat bstat;
 
 	if (cgroup_parent(cgrp)) {
-		cgroup_rstat_flush(cgrp);
-		__cgroup_rstat_lock(cgrp, -1);
+		css_rstat_flush(&cgrp->self);
+		__css_rstat_lock(&cgrp->self, -1);
 		bstat = cgrp->bstat;
 		cputime_adjust(&cgrp->bstat.cputime, &cgrp->prev_cputime,
 			       &bstat.cputime.utime, &bstat.cputime.stime);
-		__cgroup_rstat_unlock(cgrp, -1);
+		__css_rstat_unlock(&cgrp->self, -1);
 	} else {
 		root_cgroup_cputime(&bstat);
 	}
@@ -601,10 +743,10 @@ void cgroup_base_stat_cputime_show(struct seq_file *seq)
 	cgroup_force_idle_show(seq, &bstat);
 }
 
-/* Add bpf kfuncs for cgroup_rstat_updated() and cgroup_rstat_flush() */
+/* Add bpf kfuncs for css_rstat_updated() and css_rstat_flush() */
 BTF_KFUNCS_START(bpf_rstat_kfunc_ids)
-BTF_ID_FLAGS(func, cgroup_rstat_updated)
-BTF_ID_FLAGS(func, cgroup_rstat_flush, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, css_rstat_updated)
+BTF_ID_FLAGS(func, css_rstat_flush, KF_SLEEPABLE)
 BTF_KFUNCS_END(bpf_rstat_kfunc_ids)
 
 static const struct btf_kfunc_id_set bpf_rstat_kfunc_set = {
