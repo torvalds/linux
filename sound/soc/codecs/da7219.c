@@ -2312,7 +2312,7 @@ static void da7219_handle_pdata(struct snd_soc_component *component)
  * Regmap configs
  */
 
-static struct reg_default da7219_reg_defaults[] = {
+static const struct reg_default da7219_reg_defaults[] = {
 	{ DA7219_MIC_1_SELECT, 0x00 },
 	{ DA7219_CIF_TIMEOUT_CTRL, 0x01 },
 	{ DA7219_SR_24_48, 0x00 },
@@ -2443,7 +2443,7 @@ static const struct regmap_config da7219_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static struct reg_sequence da7219_rev_aa_patch[] = {
+static const struct reg_sequence da7219_rev_aa_patch[] = {
 	{ DA7219_REFERENCES, 0x08 },
 };
 

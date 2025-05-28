@@ -275,7 +275,7 @@ static const struct regmap_irq wcd938x_irqs[WCD938X_NUM_IRQS] = {
 	REGMAP_IRQ_REG(WCD938X_IRQ_HPHR_SURGE_DET_INT, 2, 0x08),
 };
 
-static struct regmap_irq_chip wcd938x_regmap_irq_chip = {
+static const struct regmap_irq_chip wcd938x_regmap_irq_chip = {
 	.name = "wcd938x",
 	.irqs = wcd938x_irqs,
 	.num_irqs = ARRAY_SIZE(wcd938x_irqs),
