@@ -359,15 +359,13 @@ int bch2_move_extent(struct moving_context *ctxt,
 		return 0;
 	}
 
-	/*
-	 * Before memory allocations & taking nocow locks in
-	 * bch2_data_update_init():
-	 */
-	bch2_trans_unlock(trans);
-
-	struct moving_io *io = kzalloc(sizeof(struct moving_io), GFP_KERNEL);
+	struct moving_io *io = allocate_dropping_locks(trans, ret,
+				kzalloc(sizeof(struct moving_io), _gfp));
 	if (!io)
 		goto err;
+
+	if (ret)
+		goto err_free;
 
 	INIT_LIST_HEAD(&io->io_list);
 	io->write.ctxt		= ctxt;
@@ -387,6 +385,8 @@ int bch2_move_extent(struct moving_context *ctxt,
 
 		io->write.op.c		= c;
 		io->write.data_opts	= data_opts;
+
+		bch2_trans_unlock(trans);
 
 		ret = bch2_data_update_bios_init(&io->write, c, &io_opts);
 		if (ret)

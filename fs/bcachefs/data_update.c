@@ -980,6 +980,8 @@ int bch2_data_update_init(struct btree_trans *trans,
 		goto out_nocow_unlock;
 	}
 
+	bch2_trans_unlock(trans);
+
 	ret = __bch2_data_update_bios_init(m, c, io_opts, buf_bytes);
 	if (ret)
 		goto out_nocow_unlock;
