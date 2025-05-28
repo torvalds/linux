@@ -399,6 +399,8 @@ int otx2_cpt_get_eng_grp_num(struct pci_dev *pdev,
 	switch (eng_type) {
 	case OTX2_CPT_SE_TYPES:
 		return cptvf->lfs.kcrypto_se_eng_grp_num;
+	case OTX2_CPT_AE_TYPES:
+		return cptvf->lfs.kcrypto_ae_eng_grp_num;
 	default:
 		dev_err(&cptvf->pdev->dev, "Unsupported engine type");
 		break;

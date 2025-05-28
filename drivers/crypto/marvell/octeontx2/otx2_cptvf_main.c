@@ -276,7 +276,22 @@ static int cptvf_lf_init(struct otx2_cptvf_dev *cptvf)
 			"Symmetric Engine group for crypto not available\n");
 		return -ENOENT;
 	}
-	eng_grp_msk = 1 << cptvf->lfs.kcrypto_se_eng_grp_num;
+
+	/* Get engine group number for asymmetric crypto */
+	cptvf->lfs.kcrypto_ae_eng_grp_num = OTX2_CPT_INVALID_CRYPTO_ENG_GRP;
+	ret = otx2_cptvf_send_eng_grp_num_msg(cptvf, OTX2_CPT_AE_TYPES);
+	if (ret)
+		return ret;
+
+	if (cptvf->lfs.kcrypto_ae_eng_grp_num ==
+		OTX2_CPT_INVALID_CRYPTO_ENG_GRP) {
+		dev_err(dev,
+			"Asymmetric Engine group for crypto not available\n");
+		return -ENOENT;
+	}
+
+	eng_grp_msk = BIT(cptvf->lfs.kcrypto_se_eng_grp_num) |
+		      BIT(cptvf->lfs.kcrypto_ae_eng_grp_num);
 
 	ret = otx2_cptvf_send_kvf_limits_msg(cptvf);
 	if (ret)

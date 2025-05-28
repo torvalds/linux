@@ -126,6 +126,8 @@ static void process_pfvf_mbox_mbox_msg(struct otx2_cptvf_dev *cptvf,
 		grp_num = rsp_grp->eng_grp_num;
 		if (rsp_grp->eng_type == OTX2_CPT_SE_TYPES)
 			cptvf->lfs.kcrypto_se_eng_grp_num = grp_num;
+		else if (rsp_grp->eng_type == OTX2_CPT_AE_TYPES)
+			cptvf->lfs.kcrypto_ae_eng_grp_num = grp_num;
 		break;
 	case MBOX_MSG_GET_KVF_LIMITS:
 		rsp_limits = (struct otx2_cpt_kvf_limits_rsp *) msg;
