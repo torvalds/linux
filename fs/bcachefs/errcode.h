@@ -357,9 +357,11 @@ enum bch_errcode {
 	BCH_ERR_MAX
 };
 
-const char *bch2_err_str(int);
-bool __bch2_err_matches(int, int);
+__attribute__((const)) const char *bch2_err_str(int);
 
+__attribute__((const)) bool __bch2_err_matches(int, int);
+
+__attribute__((const))
 static inline bool _bch2_err_matches(int err, int class)
 {
 	return err < 0 && __bch2_err_matches(err, class);
