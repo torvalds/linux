@@ -136,7 +136,7 @@ int uv_destroy_folio(struct folio *folio)
 {
 	int rc;
 
-	/* See gmap_make_secure(): large folios cannot be secure */
+	/* Large folios cannot be secure */
 	if (unlikely(folio_test_large(folio)))
 		return 0;
 
@@ -185,7 +185,7 @@ int uv_convert_from_secure_folio(struct folio *folio)
 {
 	int rc;
 
-	/* See gmap_make_secure(): large folios cannot be secure */
+	/* Large folios cannot be secure */
 	if (unlikely(folio_test_large(folio)))
 		return 0;
 
@@ -462,15 +462,15 @@ EXPORT_SYMBOL_GPL(make_hva_secure);
 
 /*
  * To be called with the folio locked or with an extra reference! This will
- * prevent gmap_make_secure from touching the folio concurrently. Having 2
- * parallel arch_make_folio_accessible is fine, as the UV calls will become a
- * no-op if the folio is already exported.
+ * prevent kvm_s390_pv_make_secure() from touching the folio concurrently.
+ * Having 2 parallel arch_make_folio_accessible is fine, as the UV calls will
+ * become a no-op if the folio is already exported.
  */
 int arch_make_folio_accessible(struct folio *folio)
 {
 	int rc = 0;
 
-	/* See gmap_make_secure(): large folios cannot be secure */
+	/* Large folios cannot be secure */
 	if (unlikely(folio_test_large(folio)))
 		return 0;
 
