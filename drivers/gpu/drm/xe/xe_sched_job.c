@@ -114,7 +114,7 @@ struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
 	xe_exec_queue_get(job->q);
 
 	err = drm_sched_job_init(&job->drm, q->entity, 1, NULL,
-				 q->xef->drm->client_id);
+				 q->xef ? q->xef->drm->client_id : 0);
 	if (err)
 		goto err_free;
 
