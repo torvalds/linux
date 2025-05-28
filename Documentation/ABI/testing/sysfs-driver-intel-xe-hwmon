@@ -124,3 +124,27 @@ Contact:	intel-xe@lists.freedesktop.org
 Description:	RO. VRAM temperature in millidegree Celsius.
 
 		Only supported for particular Intel Xe graphics platforms.
+
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/fan1_input
+Date:		March 2025
+KernelVersion:	6.16
+Contact:	intel-xe@lists.freedesktop.org
+Description:	RO. Fan 1 speed in RPM.
+
+		Only supported for particular Intel Xe graphics platforms.
+
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/fan2_input
+Date:		March 2025
+KernelVersion:	6.16
+Contact:	intel-xe@lists.freedesktop.org
+Description:	RO. Fan 2 speed in RPM.
+
+		Only supported for particular Intel Xe graphics platforms.
+
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/fan3_input
+Date:		March 2025
+KernelVersion:	6.16
+Contact:	intel-xe@lists.freedesktop.org
+Description:	RO. Fan 3 speed in RPM.
+
+		Only supported for particular Intel Xe graphics platforms.

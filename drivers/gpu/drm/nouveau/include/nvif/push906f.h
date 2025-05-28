@@ -7,6 +7,7 @@
 #ifndef PUSH906F_SUBC
 // Host methods
 #define PUSH906F_SUBC_NV906F	0
+#define PUSH906F_SUBC_NVC36F	0
 
 // Twod
 #define PUSH906F_SUBC_NV902D	3

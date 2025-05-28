@@ -34,6 +34,7 @@
 #define   DGFX_PCODE_STATUS		0x7E
 #define     DGFX_GET_INIT_STATUS	0x0
 #define     DGFX_INIT_STATUS_COMPLETE	0x1
+#define     DGFX_LINK_DOWNGRADE_STATUS	REG_BIT(31)
 
 #define   PCODE_POWER_SETUP			0x7C
 #define     POWER_SETUP_SUBCOMMAND_READ_I1	0x4
@@ -49,6 +50,9 @@
 /* Domain IDs (param2) */
 #define     PCODE_MBOX_DOMAIN_HBM		0x2
 
+#define   FAN_SPEED_CONTROL			0x7D
+#define     FSC_READ_NUM_FANS			0x4
+
 #define PCODE_SCRATCH(x)		XE_REG(0x138320 + ((x) * 4))
 /* PCODE_SCRATCH0 */
 #define   AUXINFO_REG_OFFSET		REG_GENMASK(17, 15)
@@ -62,6 +66,10 @@
 
 /* Auxiliary info bits */
 #define   AUXINFO_HISTORY_OFFSET	REG_GENMASK(31, 29)
+
+#define BMG_PCIE_CAP			XE_REG(0x138340)
+#define   LINK_DOWNGRADE		REG_GENMASK(1, 0)
+#define     DOWNGRADE_CAPABLE		2
 
 struct pcode_err_decode {
 	int errno;

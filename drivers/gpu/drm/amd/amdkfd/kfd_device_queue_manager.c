@@ -1576,8 +1576,9 @@ static int allocate_sdma_queue(struct device_queue_manager *dqm,
 	int bit;
 
 	if (q->properties.type == KFD_QUEUE_TYPE_SDMA) {
-		if (bitmap_empty(dqm->sdma_bitmap, KFD_MAX_SDMA_QUEUES)) {
-			dev_err(dev, "No more SDMA queue to allocate\n");
+		if (bitmap_empty(dqm->sdma_bitmap, get_num_sdma_queues(dqm))) {
+			dev_warn(dev, "No more SDMA queue to allocate (%d total queues)\n",
+				 get_num_sdma_queues(dqm));
 			return -ENOMEM;
 		}
 
@@ -1602,8 +1603,9 @@ static int allocate_sdma_queue(struct device_queue_manager *dqm,
 		q->properties.sdma_queue_id = q->sdma_id /
 				kfd_get_num_sdma_engines(dqm->dev);
 	} else if (q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI) {
-		if (bitmap_empty(dqm->xgmi_sdma_bitmap, KFD_MAX_SDMA_QUEUES)) {
-			dev_err(dev, "No more XGMI SDMA queue to allocate\n");
+		if (bitmap_empty(dqm->xgmi_sdma_bitmap, get_num_xgmi_sdma_queues(dqm))) {
+			dev_warn(dev, "No more XGMI SDMA queue to allocate (%d total queues)\n",
+				 get_num_xgmi_sdma_queues(dqm));
 			return -ENOMEM;
 		}
 		if (restore_sdma_id) {
@@ -1662,8 +1664,8 @@ static int allocate_sdma_queue(struct device_queue_manager *dqm,
 		}
 
 		if (!free_bit_found) {
-			dev_err(dev, "No more SDMA queue to allocate for target ID %i\n",
-				q->properties.sdma_engine_id);
+			dev_warn(dev, "No more SDMA queue to allocate for target ID %i (%d total queues)\n",
+				 q->properties.sdma_engine_id, num_queues);
 			return -ENOMEM;
 		}
 	}

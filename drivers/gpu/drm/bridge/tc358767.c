@@ -1795,6 +1795,7 @@ static const struct drm_connector_funcs tc_connector_funcs = {
 };
 
 static int tc_dpi_bridge_attach(struct drm_bridge *bridge,
+				struct drm_encoder *encoder,
 				enum drm_bridge_attach_flags flags)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
@@ -1807,6 +1808,7 @@ static int tc_dpi_bridge_attach(struct drm_bridge *bridge,
 }
 
 static int tc_edp_bridge_attach(struct drm_bridge *bridge,
+				struct drm_encoder *encoder,
 				enum drm_bridge_attach_flags flags)
 {
 	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;

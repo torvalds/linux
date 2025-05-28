@@ -1712,7 +1712,7 @@ static void dcn35_get_panel_config_defaults(struct dc_panel_config *panel_config
 }
 
 
-static bool dcn351_validate_bandwidth(struct dc *dc,
+static enum dc_status dcn351_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate)
 {
@@ -1723,13 +1723,13 @@ static bool dcn351_validate_bandwidth(struct dc *dc,
 			fast_validate);
 
 	if (fast_validate)
-		return out;
+		return out ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
 
 	DC_FP_START();
 	dcn35_decide_zstate_support(dc, context);
 	DC_FP_END();
 
-	return out;
+	return out ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
 }
 
 static struct resource_funcs dcn351_res_pool_funcs = {

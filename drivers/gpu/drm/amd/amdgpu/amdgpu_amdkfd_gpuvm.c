@@ -2559,6 +2559,18 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 			if (ret != -EFAULT)
 				return ret;
 
+			/* If applications unmap memory before destroying the userptr
+			 * from the KFD, trigger a segmentation fault in VM debug mode.
+			 */
+			if (amdgpu_ttm_adev(bo->tbo.bdev)->debug_vm_userptr) {
+				pr_err("Pid %d unmapped memory before destroying userptr at GPU addr 0x%llx\n",
+								pid_nr(process_info->pid), mem->va);
+
+				// Send GPU VM fault to user space
+				kfd_signal_vm_fault_event_with_userptr(kfd_lookup_process_by_pid(process_info->pid),
+								mem->va);
+			}
+
 			ret = 0;
 		}
 

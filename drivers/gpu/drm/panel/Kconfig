@@ -67,6 +67,15 @@ config DRM_PANEL_BOE_HIMAX8279D
 	  24 bit RGB per pixel. It provides a MIPI DSI interface to
 	  the host and has a built-in LED backlight.
 
+config DRM_PANEL_BOE_TD4320
+	tristate "BOE TD4320 DSI panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for BOE TD4320 1080x2340
+	  video mode panel found in Xiaomi Redmi Note 7 smartphones.
+
 config DRM_PANEL_BOE_TH101MB31UIG002_28A
 	tristate "Boe TH101MB31UIG002-28A panel"
 	depends on OF
@@ -153,6 +162,17 @@ config DRM_PANEL_LVDS
 	  This driver supports LVDS panels that don't require device-specific
 	  handling of power supplies or control signals. It implements automatic
 	  backlight handling if the panel is attached to a backlight controller.
+
+config DRM_PANEL_HIMAX_HX8279
+	tristate "Himax HX8279-based panels"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y if you want to enable support for panels based on the
+	  Himax HX8279 controller, such as the Startek KD070FHFID078
+	  7.0" 1200x1920 IPS LCD panel that uses a MIPI-DSI interface
+	  and others.
 
 config DRM_PANEL_HIMAX_HX83102
 	tristate "Himax HX83102-based panels"
@@ -496,6 +516,16 @@ config DRM_PANEL_NOVATEK_NT36672E
 	  Say Y here if you want to enable support for Novatek NT36672E DSI Video Mode
 	  LCD panel module. The panel has a resolution of 1080x2408 and uses 24 bit
 	  RGB per pixel.
+
+config DRM_PANEL_NOVATEK_NT37801
+	tristate "Novatek NT37801/NT37810 AMOLED DSI panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Novatek NT37801 (or
+	  NT37810) AMOLED DSI Video Mode LCD panel module with 1440x3200
+	  resolution.
 
 config DRM_PANEL_NOVATEK_NT39016
 	tristate "Novatek NT39016 RGB/SPI panel"
@@ -995,6 +1025,15 @@ config DRM_PANEL_TRULY_NT35597_WQXGA
 	help
 	  Say Y here if you want to enable support for Truly NT35597 WQXGA Dual DSI
 	  Video Mode panel
+
+config DRM_PANEL_VISIONOX_G2647FB105
+	tristate "Visionox G2647FB105"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the Visionox
+	  G2647FB105 (2340x1080@60Hz) AMOLED DSI cmd mode panel.
 
 config DRM_PANEL_VISIONOX_R66451
 	tristate "Visionox R66451"

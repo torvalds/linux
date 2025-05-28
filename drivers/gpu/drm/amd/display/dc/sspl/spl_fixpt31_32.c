@@ -29,8 +29,6 @@ static inline unsigned long long spl_complete_integer_division_u64(
 {
 	unsigned long long result;
 
-	SPL_ASSERT(divisor);
-
 	result = spl_div64_u64_rem(dividend, divisor, remainder);
 
 	return result;
@@ -195,8 +193,6 @@ struct spl_fixed31_32 spl_fixpt_recip(struct spl_fixed31_32 arg)
 	 * @note
 	 * Good idea to use Newton's method
 	 */
-
-	SPL_ASSERT(arg.value);
 
 	return spl_fixpt_from_fraction(
 		spl_fixpt_one.value,

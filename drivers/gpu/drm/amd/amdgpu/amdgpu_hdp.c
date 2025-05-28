@@ -22,6 +22,7 @@
  */
 #include "amdgpu.h"
 #include "amdgpu_ras.h"
+#include <uapi/linux/kfd_ioctl.h>
 
 int amdgpu_hdp_ras_sw_init(struct amdgpu_device *adev)
 {
@@ -45,4 +46,23 @@ int amdgpu_hdp_ras_sw_init(struct amdgpu_device *adev)
 
 	/* hdp ras follows amdgpu_ras_block_late_init_default for late init */
 	return 0;
+}
+
+void amdgpu_hdp_generic_flush(struct amdgpu_device *adev,
+			      struct amdgpu_ring *ring)
+{
+	if (!ring || !ring->funcs->emit_wreg) {
+		WREG32((adev->rmmio_remap.reg_offset +
+			KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL) >>
+			       2,
+		       0);
+		if (adev->nbio.funcs->get_memsize)
+			adev->nbio.funcs->get_memsize(adev);
+	} else {
+		amdgpu_ring_emit_wreg(ring,
+				      (adev->rmmio_remap.reg_offset +
+				       KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL) >>
+					      2,
+				      0);
+	}
 }

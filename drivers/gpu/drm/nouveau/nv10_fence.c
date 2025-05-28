@@ -85,10 +85,8 @@ void
 nv10_fence_destroy(struct nouveau_drm *drm)
 {
 	struct nv10_fence_priv *priv = drm->fence;
-	nouveau_bo_unmap(priv->bo);
-	if (priv->bo)
-		nouveau_bo_unpin(priv->bo);
-	nouveau_bo_fini(priv->bo);
+
+	nouveau_bo_unpin_del(&priv->bo);
 	drm->fence = NULL;
 	kfree(priv);
 }

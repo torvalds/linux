@@ -288,6 +288,31 @@ static int vcn_v4_0_3_sw_fini(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
+static int vcn_v4_0_3_hw_init_inst(struct amdgpu_vcn_inst *vinst)
+{
+	int vcn_inst;
+	struct amdgpu_device *adev = vinst->adev;
+	struct amdgpu_ring *ring;
+	int inst_idx = vinst->inst;
+
+	vcn_inst = GET_INST(VCN, inst_idx);
+	ring = &adev->vcn.inst[inst_idx].ring_enc[0];
+	if (ring->use_doorbell) {
+		adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
+			(adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 9 * vcn_inst,
+			adev->vcn.inst[inst_idx].aid_id);
+
+		WREG32_SOC15(VCN, vcn_inst, regVCN_RB1_DB_CTRL,
+			ring->doorbell_index << VCN_RB1_DB_CTRL__OFFSET__SHIFT |
+			VCN_RB1_DB_CTRL__EN_MASK);
+
+		/* Read DB_CTRL to flush the write DB_CTRL command. */
+		RREG32_SOC15(VCN, vcn_inst, regVCN_RB1_DB_CTRL);
+	}
+
+	return 0;
+}
+
 /**
  * vcn_v4_0_3_hw_init - start and test VCN block
  *
@@ -299,7 +324,8 @@ static int vcn_v4_0_3_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
-	int i, r, vcn_inst;
+	struct amdgpu_vcn_inst *vinst;
+	int i, r;
 
 	if (amdgpu_sriov_vf(adev)) {
 		r = vcn_v4_0_3_start_sriov(adev);
@@ -322,28 +348,9 @@ static int vcn_v4_0_3_hw_init(struct amdgpu_ip_block *ip_block)
 		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 			struct amdgpu_vcn4_fw_shared *fw_shared;
 
-			vcn_inst = GET_INST(VCN, i);
 			ring = &adev->vcn.inst[i].ring_enc[0];
-
-			if (ring->use_doorbell) {
-				adev->nbio.funcs->vcn_doorbell_range(
-					adev, ring->use_doorbell,
-					(adev->doorbell_index.vcn.vcn_ring0_1 << 1) +
-						9 * vcn_inst,
-					adev->vcn.inst[i].aid_id);
-
-				WREG32_SOC15(
-					VCN, GET_INST(VCN, ring->me),
-					regVCN_RB1_DB_CTRL,
-					ring->doorbell_index
-							<< VCN_RB1_DB_CTRL__OFFSET__SHIFT |
-						VCN_RB1_DB_CTRL__EN_MASK);
-
-				/* Read DB_CTRL to flush the write DB_CTRL command. */
-				RREG32_SOC15(
-					VCN, GET_INST(VCN, ring->me),
-					regVCN_RB1_DB_CTRL);
-			}
+			vinst = &adev->vcn.inst[i];
+			vcn_v4_0_3_hw_init_inst(vinst);
 
 			/* Re-init fw_shared when RAS fatal error occurred */
 			fw_shared = adev->vcn.inst[i].fw_shared.cpu_addr;
@@ -1564,6 +1571,37 @@ static void vcn_v4_0_3_unified_ring_set_wptr(struct amdgpu_ring *ring)
 	}
 }
 
+static int vcn_v4_0_3_ring_reset(struct amdgpu_ring *ring, unsigned int vmid)
+{
+	int r = 0;
+	int vcn_inst;
+	struct amdgpu_device *adev = ring->adev;
+	struct amdgpu_vcn_inst *vinst = &adev->vcn.inst[ring->me];
+
+	if (amdgpu_sriov_vf(ring->adev))
+		return -EOPNOTSUPP;
+
+	if (!(adev->vcn.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
+		return -EOPNOTSUPP;
+
+	vcn_inst = GET_INST(VCN, ring->me);
+	r = amdgpu_dpm_reset_vcn(adev, 1 << vcn_inst);
+
+	if (r) {
+		DRM_DEV_ERROR(adev->dev, "VCN reset fail : %d\n", r);
+		return r;
+	}
+
+	/* This flag is not set for VF, assumed to be disabled always */
+	if (RREG32_SOC15(VCN, GET_INST(VCN, 0), regVCN_RRMT_CNTL) & 0x100)
+		adev->vcn.caps |= AMDGPU_VCN_CAPS(RRMT_ENABLED);
+	vcn_v4_0_3_hw_init_inst(vinst);
+	vcn_v4_0_3_start_dpg_mode(vinst, adev->vcn.inst[ring->me].indirect_sram);
+	r = amdgpu_ring_test_helper(ring);
+
+	return r;
+}
+
 static const struct amdgpu_ring_funcs vcn_v4_0_3_unified_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_VCN_ENC,
 	.align_mask = 0x3f,
@@ -1592,6 +1630,7 @@ static const struct amdgpu_ring_funcs vcn_v4_0_3_unified_ring_vm_funcs = {
 	.emit_wreg = vcn_v4_0_3_enc_ring_emit_wreg,
 	.emit_reg_wait = vcn_v4_0_3_enc_ring_emit_reg_wait,
 	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
+	.reset = vcn_v4_0_3_ring_reset,
 };
 
 /**

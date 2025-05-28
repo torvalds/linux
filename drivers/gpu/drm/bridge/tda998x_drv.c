@@ -1365,6 +1365,7 @@ static int tda998x_connector_init(struct tda998x_priv *priv,
 /* DRM bridge functions */
 
 static int tda998x_bridge_attach(struct drm_bridge *bridge,
+				 struct drm_encoder *encoder,
 				 enum drm_bridge_attach_flags flags)
 {
 	struct tda998x_priv *priv = bridge_to_tda998x_priv(bridge);
@@ -1780,9 +1781,9 @@ static int tda998x_create(struct device *dev)
 	u32 video;
 	int rev_lo, rev_hi, ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
+	priv = devm_drm_bridge_alloc(dev, struct tda998x_priv, bridge, &tda998x_bridge_funcs);
+	if (IS_ERR(priv))
+		return PTR_ERR(priv);
 
 	dev_set_drvdata(dev, priv);
 
@@ -1947,7 +1948,6 @@ static int tda998x_create(struct device *dev)
 			tda998x_audio_codec_init(priv, &client->dev);
 	}
 
-	priv->bridge.funcs = &tda998x_bridge_funcs;
 #ifdef CONFIG_OF
 	priv->bridge.of_node = dev->of_node;
 #endif

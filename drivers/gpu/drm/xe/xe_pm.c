@@ -16,7 +16,6 @@
 #include "xe_bo.h"
 #include "xe_bo_evict.h"
 #include "xe_device.h"
-#include "xe_device_sysfs.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
@@ -188,7 +187,7 @@ int xe_pm_resume(struct xe_device *xe)
 	 * This only restores pinned memory which is the memory required for the
 	 * GT(s) to resume.
 	 */
-	err = xe_bo_restore_kernel(xe);
+	err = xe_bo_restore_early(xe);
 	if (err)
 		goto err;
 
@@ -199,7 +198,7 @@ int xe_pm_resume(struct xe_device *xe)
 
 	xe_display_pm_resume(xe);
 
-	err = xe_bo_restore_user(xe);
+	err = xe_bo_restore_late(xe);
 	if (err)
 		goto err;
 
@@ -273,6 +272,7 @@ int xe_pm_init_early(struct xe_device *xe)
 	if (err)
 		return err;
 
+	xe->d3cold.capable = xe_pm_pci_d3cold_capable(xe);
 	return 0;
 }
 ALLOW_ERROR_INJECTION(xe_pm_init_early, ERRNO); /* See xe_pci_probe() */
@@ -284,6 +284,42 @@ static u32 vram_threshold_value(struct xe_device *xe)
 		return 0;
 
 	return DEFAULT_VRAM_THRESHOLD;
+}
+
+static int xe_pm_notifier_callback(struct notifier_block *nb,
+				   unsigned long action, void *data)
+{
+	struct xe_device *xe = container_of(nb, struct xe_device, pm_notifier);
+	int err = 0;
+
+	switch (action) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_SUSPEND_PREPARE:
+		xe_pm_runtime_get(xe);
+		err = xe_bo_evict_all_user(xe);
+		if (err) {
+			drm_dbg(&xe->drm, "Notifier evict user failed (%d)\n", err);
+			xe_pm_runtime_put(xe);
+			break;
+		}
+
+		err = xe_bo_notifier_prepare_all_pinned(xe);
+		if (err) {
+			drm_dbg(&xe->drm, "Notifier prepare pin failed (%d)\n", err);
+			xe_pm_runtime_put(xe);
+		}
+		break;
+	case PM_POST_HIBERNATION:
+	case PM_POST_SUSPEND:
+		xe_bo_notifier_unprepare_all_pinned(xe);
+		xe_pm_runtime_put(xe);
+		break;
+	}
+
+	if (err)
+		return NOTIFY_BAD;
+
+	return NOTIFY_DONE;
 }
 
 /**
@@ -299,38 +335,48 @@ int xe_pm_init(struct xe_device *xe)
 	u32 vram_threshold;
 	int err;
 
+	xe->pm_notifier.notifier_call = xe_pm_notifier_callback;
+	err = register_pm_notifier(&xe->pm_notifier);
+	if (err)
+		return err;
+
 	/* For now suspend/resume is only allowed with GuC */
 	if (!xe_device_uc_enabled(xe))
 		return 0;
 
-	xe->d3cold.capable = xe_pm_pci_d3cold_capable(xe);
-
 	if (xe->d3cold.capable) {
-		err = xe_device_sysfs_init(xe);
-		if (err)
-			return err;
-
 		vram_threshold = vram_threshold_value(xe);
 		err = xe_pm_set_vram_threshold(xe, vram_threshold);
 		if (err)
-			return err;
+			goto err_unregister;
 	}
 
 	xe_pm_runtime_init(xe);
-
 	return 0;
+
+err_unregister:
+	unregister_pm_notifier(&xe->pm_notifier);
+	return err;
 }
 
-/**
- * xe_pm_runtime_fini - Finalize Runtime PM
- * @xe: xe device instance
- */
-void xe_pm_runtime_fini(struct xe_device *xe)
+static void xe_pm_runtime_fini(struct xe_device *xe)
 {
 	struct device *dev = xe->drm.dev;
 
 	pm_runtime_get_sync(dev);
 	pm_runtime_forbid(dev);
+}
+
+/**
+ * xe_pm_fini - Finalize PM
+ * @xe: xe device instance
+ */
+void xe_pm_fini(struct xe_device *xe)
+{
+	if (xe_device_uc_enabled(xe))
+		xe_pm_runtime_fini(xe);
+
+	unregister_pm_notifier(&xe->pm_notifier);
 }
 
 static void xe_pm_write_callback_task(struct xe_device *xe,
@@ -484,7 +530,7 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 		 * This only restores pinned memory which is the memory
 		 * required for the GT(s) to resume.
 		 */
-		err = xe_bo_restore_kernel(xe);
+		err = xe_bo_restore_early(xe);
 		if (err)
 			goto out;
 	}
@@ -497,7 +543,7 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 	xe_display_pm_runtime_resume(xe);
 
 	if (xe->d3cold.allowed) {
-		err = xe_bo_restore_user(xe);
+		err = xe_bo_restore_late(xe);
 		if (err)
 			goto out;
 	}

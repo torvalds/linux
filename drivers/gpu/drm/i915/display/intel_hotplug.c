@@ -30,6 +30,7 @@
 #include "i915_irq.h"
 #include "intel_connector.h"
 #include "intel_display_power.h"
+#include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_hdcp.h"
 #include "intel_hotplug.h"
@@ -118,7 +119,7 @@ intel_connector_hpd_pin(struct intel_connector *connector)
 
 /**
  * intel_hpd_irq_storm_detect - gather stats and detect HPD IRQ storm on a pin
- * @dev_priv: private driver data pointer
+ * @display: display device
  * @pin: the pin to gather stats on
  * @long_hpd: whether the HPD IRQ was long or short
  *
@@ -127,13 +128,13 @@ intel_connector_hpd_pin(struct intel_connector *connector)
  * responsible for further action.
  *
  * The number of IRQs that are allowed within @HPD_STORM_DETECT_PERIOD is
- * stored in @dev_priv->display.hotplug.hpd_storm_threshold which defaults to
+ * stored in @display->hotplug.hpd_storm_threshold which defaults to
  * @HPD_STORM_DEFAULT_THRESHOLD. Long IRQs count as +10 to this threshold, and
  * short IRQs count as +1. If this threshold is exceeded, it's considered an
  * IRQ storm and the IRQ state is set to @HPD_MARK_DISABLED.
  *
  * By default, most systems will only count long IRQs towards
- * &dev_priv->display.hotplug.hpd_storm_threshold. However, some older systems also
+ * &display->hotplug.hpd_storm_threshold. However, some older systems also
  * suffer from short IRQ storms and must also track these. Because short IRQ
  * storms are naturally caused by sideband interactions with DP MST devices,
  * short IRQ detection is only enabled for systems without DP MST support.
@@ -145,10 +146,10 @@ intel_connector_hpd_pin(struct intel_connector *connector)
  *
  * Return true if an IRQ storm was detected on @pin.
  */
-static bool intel_hpd_irq_storm_detect(struct drm_i915_private *dev_priv,
+static bool intel_hpd_irq_storm_detect(struct intel_display *display,
 				       enum hpd_pin pin, bool long_hpd)
 {
-	struct intel_hotplug *hpd = &dev_priv->display.hotplug;
+	struct intel_hotplug *hpd = &display->hotplug;
 	unsigned long start = hpd->stats[pin].last_jiffies;
 	unsigned long end = start + msecs_to_jiffies(HPD_STORM_DETECT_PERIOD);
 	const int increment = long_hpd ? 10 : 1;
@@ -156,7 +157,7 @@ static bool intel_hpd_irq_storm_detect(struct drm_i915_private *dev_priv,
 	bool storm = false;
 
 	if (!threshold ||
-	    (!long_hpd && !dev_priv->display.hotplug.hpd_short_storm_enabled))
+	    (!long_hpd && !display->hotplug.hpd_short_storm_enabled))
 		return false;
 
 	if (!time_in_range(jiffies, start, end)) {
@@ -167,11 +168,11 @@ static bool intel_hpd_irq_storm_detect(struct drm_i915_private *dev_priv,
 	hpd->stats[pin].count += increment;
 	if (hpd->stats[pin].count > threshold) {
 		hpd->stats[pin].state = HPD_MARK_DISABLED;
-		drm_dbg_kms(&dev_priv->drm,
+		drm_dbg_kms(display->drm,
 			    "HPD interrupt storm detected on PIN %d\n", pin);
 		storm = true;
 	} else {
-		drm_dbg_kms(&dev_priv->drm,
+		drm_dbg_kms(display->drm,
 			    "Received HPD interrupt on PIN %d - cnt: %d\n",
 			      pin,
 			      hpd->stats[pin].count);
@@ -180,56 +181,62 @@ static bool intel_hpd_irq_storm_detect(struct drm_i915_private *dev_priv,
 	return storm;
 }
 
-static bool detection_work_enabled(struct drm_i915_private *i915)
+static bool detection_work_enabled(struct intel_display *display)
 {
-	lockdep_assert_held(&i915->irq_lock);
+	lockdep_assert_held(&display->irq.lock);
 
-	return i915->display.hotplug.detection_work_enabled;
+	return display->hotplug.detection_work_enabled;
 }
 
 static bool
-mod_delayed_detection_work(struct drm_i915_private *i915, struct delayed_work *work, int delay)
+mod_delayed_detection_work(struct intel_display *display, struct delayed_work *work, int delay)
 {
-	lockdep_assert_held(&i915->irq_lock);
+	struct drm_i915_private *i915 = to_i915(display->drm);
 
-	if (!detection_work_enabled(i915))
+	lockdep_assert_held(&display->irq.lock);
+
+	if (!detection_work_enabled(display))
 		return false;
 
 	return mod_delayed_work(i915->unordered_wq, work, delay);
 }
 
 static bool
-queue_delayed_detection_work(struct drm_i915_private *i915, struct delayed_work *work, int delay)
+queue_delayed_detection_work(struct intel_display *display, struct delayed_work *work, int delay)
 {
-	lockdep_assert_held(&i915->irq_lock);
+	struct drm_i915_private *i915 = to_i915(display->drm);
 
-	if (!detection_work_enabled(i915))
+	lockdep_assert_held(&display->irq.lock);
+
+	if (!detection_work_enabled(display))
 		return false;
 
 	return queue_delayed_work(i915->unordered_wq, work, delay);
 }
 
 static bool
-queue_detection_work(struct drm_i915_private *i915, struct work_struct *work)
+queue_detection_work(struct intel_display *display, struct work_struct *work)
 {
-	lockdep_assert_held(&i915->irq_lock);
+	struct drm_i915_private *i915 = to_i915(display->drm);
 
-	if (!detection_work_enabled(i915))
+	lockdep_assert_held(&display->irq.lock);
+
+	if (!detection_work_enabled(display))
 		return false;
 
 	return queue_work(i915->unordered_wq, work);
 }
 
 static void
-intel_hpd_irq_storm_switch_to_polling(struct drm_i915_private *dev_priv)
+intel_hpd_irq_storm_switch_to_polling(struct intel_display *display)
 {
 	struct drm_connector_list_iter conn_iter;
 	struct intel_connector *connector;
 	bool hpd_disabled = false;
 
-	lockdep_assert_held(&dev_priv->irq_lock);
+	lockdep_assert_held(&display->irq.lock);
 
-	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
+	drm_connector_list_iter_begin(display->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		enum hpd_pin pin;
 
@@ -238,15 +245,15 @@ intel_hpd_irq_storm_switch_to_polling(struct drm_i915_private *dev_priv)
 
 		pin = intel_connector_hpd_pin(connector);
 		if (pin == HPD_NONE ||
-		    dev_priv->display.hotplug.stats[pin].state != HPD_MARK_DISABLED)
+		    display->hotplug.stats[pin].state != HPD_MARK_DISABLED)
 			continue;
 
-		drm_info(&dev_priv->drm,
+		drm_info(display->drm,
 			 "HPD interrupt storm detected on connector %s: "
 			 "switching from hotplug detection to polling\n",
 			 connector->base.name);
 
-		dev_priv->display.hotplug.stats[pin].state = HPD_DISABLED;
+		display->hotplug.stats[pin].state = HPD_DISABLED;
 		connector->base.polled = DRM_CONNECTOR_POLL_CONNECT |
 			DRM_CONNECTOR_POLL_DISCONNECT;
 		hpd_disabled = true;
@@ -255,36 +262,35 @@ intel_hpd_irq_storm_switch_to_polling(struct drm_i915_private *dev_priv)
 
 	/* Enable polling and queue hotplug re-enabling. */
 	if (hpd_disabled) {
-		drm_kms_helper_poll_reschedule(&dev_priv->drm);
-		mod_delayed_detection_work(dev_priv,
-					   &dev_priv->display.hotplug.reenable_work,
+		drm_kms_helper_poll_reschedule(display->drm);
+		mod_delayed_detection_work(display,
+					   &display->hotplug.reenable_work,
 					   msecs_to_jiffies(HPD_STORM_REENABLE_DELAY));
 	}
 }
 
 static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 {
-	struct drm_i915_private *dev_priv =
-		container_of(work, typeof(*dev_priv),
-			     display.hotplug.reenable_work.work);
+	struct intel_display *display =
+		container_of(work, typeof(*display), hotplug.reenable_work.work);
 	struct drm_connector_list_iter conn_iter;
 	struct intel_connector *connector;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	enum hpd_pin pin;
 
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
+	wakeref = intel_display_rpm_get(display);
 
-	spin_lock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 
-	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
+	drm_connector_list_iter_begin(display->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		pin = intel_connector_hpd_pin(connector);
 		if (pin == HPD_NONE ||
-		    dev_priv->display.hotplug.stats[pin].state != HPD_DISABLED)
+		    display->hotplug.stats[pin].state != HPD_DISABLED)
 			continue;
 
 		if (connector->base.polled != connector->polled)
-			drm_dbg(&dev_priv->drm,
+			drm_dbg(display->drm,
 				"Reenabling HPD on connector %s\n",
 				connector->base.name);
 		connector->base.polled = connector->polled;
@@ -292,15 +298,15 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 	drm_connector_list_iter_end(&conn_iter);
 
 	for_each_hpd_pin(pin) {
-		if (dev_priv->display.hotplug.stats[pin].state == HPD_DISABLED)
-			dev_priv->display.hotplug.stats[pin].state = HPD_ENABLED;
+		if (display->hotplug.stats[pin].state == HPD_DISABLED)
+			display->hotplug.stats[pin].state = HPD_ENABLED;
 	}
 
-	intel_hpd_irq_setup(dev_priv);
+	intel_hpd_irq_setup(display);
 
-	spin_unlock_irq(&dev_priv->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
+	intel_display_rpm_put(display, wakeref);
 }
 
 static enum intel_hotplug_state
@@ -349,32 +355,72 @@ static bool intel_encoder_has_hpd_pulse(struct intel_encoder *encoder)
 		enc_to_dig_port(encoder)->hpd_pulse != NULL;
 }
 
+static bool hpd_pin_has_pulse(struct intel_display *display, enum hpd_pin pin)
+{
+	struct intel_encoder *encoder;
+
+	for_each_intel_encoder(display->drm, encoder) {
+		if (encoder->hpd_pin != pin)
+			continue;
+
+		if (intel_encoder_has_hpd_pulse(encoder))
+			return true;
+	}
+
+	return false;
+}
+
+static bool hpd_pin_is_blocked(struct intel_display *display, enum hpd_pin pin)
+{
+	lockdep_assert_held(&display->irq.lock);
+
+	return display->hotplug.stats[pin].blocked_count;
+}
+
+static u32 get_blocked_hpd_pin_mask(struct intel_display *display)
+{
+	enum hpd_pin pin;
+	u32 hpd_pin_mask = 0;
+
+	for_each_hpd_pin(pin) {
+		if (hpd_pin_is_blocked(display, pin))
+			hpd_pin_mask |= BIT(pin);
+	}
+
+	return hpd_pin_mask;
+}
+
 static void i915_digport_work_func(struct work_struct *work)
 {
-	struct drm_i915_private *dev_priv =
-		container_of(work, struct drm_i915_private, display.hotplug.dig_port_work);
-	u32 long_port_mask, short_port_mask;
+	struct intel_display *display =
+		container_of(work, struct intel_display, hotplug.dig_port_work);
+	struct intel_hotplug *hotplug = &display->hotplug;
+	u32 long_hpd_pin_mask, short_hpd_pin_mask;
 	struct intel_encoder *encoder;
+	u32 blocked_hpd_pin_mask;
 	u32 old_bits = 0;
 
-	spin_lock_irq(&dev_priv->irq_lock);
-	long_port_mask = dev_priv->display.hotplug.long_port_mask;
-	dev_priv->display.hotplug.long_port_mask = 0;
-	short_port_mask = dev_priv->display.hotplug.short_port_mask;
-	dev_priv->display.hotplug.short_port_mask = 0;
-	spin_unlock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 
-	for_each_intel_encoder(&dev_priv->drm, encoder) {
+	blocked_hpd_pin_mask = get_blocked_hpd_pin_mask(display);
+	long_hpd_pin_mask = hotplug->long_hpd_pin_mask & ~blocked_hpd_pin_mask;
+	hotplug->long_hpd_pin_mask &= ~long_hpd_pin_mask;
+	short_hpd_pin_mask = hotplug->short_hpd_pin_mask & ~blocked_hpd_pin_mask;
+	hotplug->short_hpd_pin_mask &= ~short_hpd_pin_mask;
+
+	spin_unlock_irq(&display->irq.lock);
+
+	for_each_intel_encoder(display->drm, encoder) {
 		struct intel_digital_port *dig_port;
-		enum port port = encoder->port;
+		enum hpd_pin pin = encoder->hpd_pin;
 		bool long_hpd, short_hpd;
 		enum irqreturn ret;
 
 		if (!intel_encoder_has_hpd_pulse(encoder))
 			continue;
 
-		long_hpd = long_port_mask & BIT(port);
-		short_hpd = short_port_mask & BIT(port);
+		long_hpd = long_hpd_pin_mask & BIT(pin);
+		short_hpd = short_hpd_pin_mask & BIT(pin);
 
 		if (!long_hpd && !short_hpd)
 			continue;
@@ -384,16 +430,16 @@ static void i915_digport_work_func(struct work_struct *work)
 		ret = dig_port->hpd_pulse(dig_port, long_hpd);
 		if (ret == IRQ_NONE) {
 			/* fall back to old school hpd */
-			old_bits |= BIT(encoder->hpd_pin);
+			old_bits |= BIT(pin);
 		}
 	}
 
 	if (old_bits) {
-		spin_lock_irq(&dev_priv->irq_lock);
-		dev_priv->display.hotplug.event_bits |= old_bits;
-		queue_delayed_detection_work(dev_priv,
-					     &dev_priv->display.hotplug.hotplug_work, 0);
-		spin_unlock_irq(&dev_priv->irq_lock);
+		spin_lock_irq(&display->irq.lock);
+		display->hotplug.event_bits |= old_bits;
+		queue_delayed_detection_work(display,
+					     &display->hotplug.hotplug_work, 0);
+		spin_unlock_irq(&display->irq.lock);
 	}
 }
 
@@ -406,13 +452,17 @@ static void i915_digport_work_func(struct work_struct *work)
  */
 void intel_hpd_trigger_irq(struct intel_digital_port *dig_port)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_display *display = to_intel_display(dig_port);
+	struct intel_hotplug *hotplug = &display->hotplug;
+	struct intel_encoder *encoder = &dig_port->base;
 
-	spin_lock_irq(&i915->irq_lock);
-	i915->display.hotplug.short_port_mask |= BIT(dig_port->base.port);
-	spin_unlock_irq(&i915->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 
-	queue_work(i915->display.hotplug.dp_wq, &i915->display.hotplug.dig_port_work);
+	hotplug->short_hpd_pin_mask |= BIT(encoder->hpd_pin);
+	if (!hpd_pin_is_blocked(display, encoder->hpd_pin))
+		queue_work(hotplug->dp_wq, &hotplug->dig_port_work);
+
+	spin_unlock_irq(&display->irq.lock);
 }
 
 /*
@@ -420,9 +470,9 @@ void intel_hpd_trigger_irq(struct intel_digital_port *dig_port)
  */
 static void i915_hotplug_work_func(struct work_struct *work)
 {
-	struct drm_i915_private *dev_priv =
-		container_of(work, struct drm_i915_private,
-			     display.hotplug.hotplug_work.work);
+	struct intel_display *display =
+		container_of(work, struct intel_display, hotplug.hotplug_work.work);
+	struct intel_hotplug *hotplug = &display->hotplug;
 	struct drm_connector_list_iter conn_iter;
 	struct intel_connector *connector;
 	u32 changed = 0, retry = 0;
@@ -430,30 +480,32 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	u32 hpd_retry_bits;
 	struct drm_connector *first_changed_connector = NULL;
 	int changed_connectors = 0;
+	u32 blocked_hpd_pin_mask;
 
-	mutex_lock(&dev_priv->drm.mode_config.mutex);
-	drm_dbg_kms(&dev_priv->drm, "running encoder hotplug functions\n");
+	mutex_lock(&display->drm->mode_config.mutex);
+	drm_dbg_kms(display->drm, "running encoder hotplug functions\n");
 
-	spin_lock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 
-	hpd_event_bits = dev_priv->display.hotplug.event_bits;
-	dev_priv->display.hotplug.event_bits = 0;
-	hpd_retry_bits = dev_priv->display.hotplug.retry_bits;
-	dev_priv->display.hotplug.retry_bits = 0;
+	blocked_hpd_pin_mask = get_blocked_hpd_pin_mask(display);
+	hpd_event_bits = hotplug->event_bits & ~blocked_hpd_pin_mask;
+	hotplug->event_bits &= ~hpd_event_bits;
+	hpd_retry_bits = hotplug->retry_bits & ~blocked_hpd_pin_mask;
+	hotplug->retry_bits &= ~hpd_retry_bits;
 
 	/* Enable polling for connectors which had HPD IRQ storms */
-	intel_hpd_irq_storm_switch_to_polling(dev_priv);
+	intel_hpd_irq_storm_switch_to_polling(display);
 
-	spin_unlock_irq(&dev_priv->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 
 	/* Skip calling encode hotplug handlers if ignore long HPD set*/
-	if (dev_priv->display.hotplug.ignore_long_hpd) {
-		drm_dbg_kms(&dev_priv->drm, "Ignore HPD flag on - skip encoder hotplug handlers\n");
-		mutex_unlock(&dev_priv->drm.mode_config.mutex);
+	if (display->hotplug.ignore_long_hpd) {
+		drm_dbg_kms(display->drm, "Ignore HPD flag on - skip encoder hotplug handlers\n");
+		mutex_unlock(&display->drm->mode_config.mutex);
 		return;
 	}
 
-	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
+	drm_connector_list_iter_begin(display->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		enum hpd_pin pin;
 		u32 hpd_bit;
@@ -472,7 +524,7 @@ static void i915_hotplug_work_func(struct work_struct *work)
 			else
 				connector->hotplug_retries++;
 
-			drm_dbg_kms(&dev_priv->drm,
+			drm_dbg_kms(display->drm,
 				    "Connector %s (pin %i) received hotplug event. (retry %d)\n",
 				    connector->base.name, pin,
 				    connector->hotplug_retries);
@@ -495,12 +547,12 @@ static void i915_hotplug_work_func(struct work_struct *work)
 		}
 	}
 	drm_connector_list_iter_end(&conn_iter);
-	mutex_unlock(&dev_priv->drm.mode_config.mutex);
+	mutex_unlock(&display->drm->mode_config.mutex);
 
 	if (changed_connectors == 1)
 		drm_kms_helper_connector_hotplug_event(first_changed_connector);
 	else if (changed_connectors > 0)
-		drm_kms_helper_hotplug_event(&dev_priv->drm);
+		drm_kms_helper_hotplug_event(display->drm);
 
 	if (first_changed_connector)
 		drm_connector_put(first_changed_connector);
@@ -508,20 +560,20 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	/* Remove shared HPD pins that have changed */
 	retry &= ~changed;
 	if (retry) {
-		spin_lock_irq(&dev_priv->irq_lock);
-		dev_priv->display.hotplug.retry_bits |= retry;
+		spin_lock_irq(&display->irq.lock);
+		display->hotplug.retry_bits |= retry;
 
-		mod_delayed_detection_work(dev_priv,
-					   &dev_priv->display.hotplug.hotplug_work,
+		mod_delayed_detection_work(display,
+					   &display->hotplug.hotplug_work,
 					   msecs_to_jiffies(HPD_RETRY_DELAY));
-		spin_unlock_irq(&dev_priv->irq_lock);
+		spin_unlock_irq(&display->irq.lock);
 	}
 }
 
 
 /**
  * intel_hpd_irq_handler - main hotplug irq handler
- * @dev_priv: drm_i915_private
+ * @display: display device
  * @pin_mask: a mask of hpd pins that have triggered the irq
  * @long_mask: a mask of hpd pins that may be long hpd pulses
  *
@@ -535,7 +587,7 @@ static void i915_hotplug_work_func(struct work_struct *work)
  * Here, we do hotplug irq storm detection and mitigation, and pass further
  * processing to appropriate bottom halves.
  */
-void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
+void intel_hpd_irq_handler(struct intel_display *display,
 			   u32 pin_mask, u32 long_mask)
 {
 	struct intel_encoder *encoder;
@@ -548,7 +600,7 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 	if (!pin_mask)
 		return;
 
-	spin_lock(&dev_priv->irq_lock);
+	spin_lock(&display->irq.lock);
 
 	/*
 	 * Determine whether ->hpd_pulse() exists for each pin, and
@@ -556,8 +608,7 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 	 * as each pin may have up to two encoders (HDMI and DP) and
 	 * only the one of them (DP) will have ->hpd_pulse().
 	 */
-	for_each_intel_encoder(&dev_priv->drm, encoder) {
-		enum port port = encoder->port;
+	for_each_intel_encoder(display->drm, encoder) {
 		bool long_hpd;
 
 		pin = encoder->hpd_pin;
@@ -569,18 +620,20 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 
 		long_hpd = long_mask & BIT(pin);
 
-		drm_dbg(&dev_priv->drm,
+		drm_dbg(display->drm,
 			"digital hpd on [ENCODER:%d:%s] - %s\n",
 			encoder->base.base.id, encoder->base.name,
 			long_hpd ? "long" : "short");
-		queue_dig = true;
+
+		if (!hpd_pin_is_blocked(display, pin))
+			queue_dig = true;
 
 		if (long_hpd) {
 			long_hpd_pulse_mask |= BIT(pin);
-			dev_priv->display.hotplug.long_port_mask |= BIT(port);
+			display->hotplug.long_hpd_pin_mask |= BIT(pin);
 		} else {
 			short_hpd_pulse_mask |= BIT(pin);
-			dev_priv->display.hotplug.short_port_mask |= BIT(port);
+			display->hotplug.short_hpd_pin_mask |= BIT(pin);
 		}
 	}
 
@@ -591,20 +644,20 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 		if (!(BIT(pin) & pin_mask))
 			continue;
 
-		if (dev_priv->display.hotplug.stats[pin].state == HPD_DISABLED) {
+		if (display->hotplug.stats[pin].state == HPD_DISABLED) {
 			/*
 			 * On GMCH platforms the interrupt mask bits only
 			 * prevent irq generation, not the setting of the
 			 * hotplug bits itself. So only WARN about unexpected
 			 * interrupts on saner platforms.
 			 */
-			drm_WARN_ONCE(&dev_priv->drm, !HAS_GMCH(dev_priv),
+			drm_WARN_ONCE(display->drm, !HAS_GMCH(display),
 				      "Received HPD interrupt on pin %d although disabled\n",
 				      pin);
 			continue;
 		}
 
-		if (dev_priv->display.hotplug.stats[pin].state != HPD_ENABLED)
+		if (display->hotplug.stats[pin].state != HPD_ENABLED)
 			continue;
 
 		/*
@@ -615,13 +668,15 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 		if (((short_hpd_pulse_mask | long_hpd_pulse_mask) & BIT(pin))) {
 			long_hpd = long_hpd_pulse_mask & BIT(pin);
 		} else {
-			dev_priv->display.hotplug.event_bits |= BIT(pin);
+			display->hotplug.event_bits |= BIT(pin);
 			long_hpd = true;
-			queue_hp = true;
+
+			if (!hpd_pin_is_blocked(display, pin))
+				queue_hp = true;
 		}
 
-		if (intel_hpd_irq_storm_detect(dev_priv, pin, long_hpd)) {
-			dev_priv->display.hotplug.event_bits &= ~BIT(pin);
+		if (intel_hpd_irq_storm_detect(display, pin, long_hpd)) {
+			display->hotplug.event_bits &= ~BIT(pin);
 			storm_detected = true;
 			queue_hp = true;
 		}
@@ -632,7 +687,7 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 	 * happens later in our hotplug work.
 	 */
 	if (storm_detected)
-		intel_hpd_irq_setup(dev_priv);
+		intel_hpd_irq_setup(display);
 
 	/*
 	 * Our hotplug handler can grab modeset locks (by calling down into the
@@ -641,17 +696,17 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 	 * deadlock.
 	 */
 	if (queue_dig)
-		queue_work(dev_priv->display.hotplug.dp_wq, &dev_priv->display.hotplug.dig_port_work);
+		queue_work(display->hotplug.dp_wq, &display->hotplug.dig_port_work);
 	if (queue_hp)
-		queue_delayed_detection_work(dev_priv,
-					     &dev_priv->display.hotplug.hotplug_work, 0);
+		queue_delayed_detection_work(display,
+					     &display->hotplug.hotplug_work, 0);
 
-	spin_unlock(&dev_priv->irq_lock);
+	spin_unlock(&display->irq.lock);
 }
 
 /**
  * intel_hpd_init - initializes and enables hpd support
- * @dev_priv: i915 device instance
+ * @display: display device instance
  *
  * This function enables the hotplug support. It requires that interrupts have
  * already been enabled with intel_irq_init_hw(). From this point on hotplug and
@@ -663,40 +718,40 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
  *
  * Also see: intel_hpd_poll_enable() and intel_hpd_poll_disable().
  */
-void intel_hpd_init(struct drm_i915_private *dev_priv)
+void intel_hpd_init(struct intel_display *display)
 {
 	int i;
 
-	if (!HAS_DISPLAY(dev_priv))
+	if (!HAS_DISPLAY(display))
 		return;
 
 	for_each_hpd_pin(i) {
-		dev_priv->display.hotplug.stats[i].count = 0;
-		dev_priv->display.hotplug.stats[i].state = HPD_ENABLED;
+		display->hotplug.stats[i].count = 0;
+		display->hotplug.stats[i].state = HPD_ENABLED;
 	}
 
 	/*
 	 * Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked checks happy.
 	 */
-	spin_lock_irq(&dev_priv->irq_lock);
-	intel_hpd_irq_setup(dev_priv);
-	spin_unlock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&display->irq.lock);
+	intel_hpd_irq_setup(display);
+	spin_unlock_irq(&display->irq.lock);
 }
 
-static void i915_hpd_poll_detect_connectors(struct drm_i915_private *i915)
+static void i915_hpd_poll_detect_connectors(struct intel_display *display)
 {
 	struct drm_connector_list_iter conn_iter;
 	struct intel_connector *connector;
 	struct intel_connector *first_changed_connector = NULL;
 	int changed = 0;
 
-	mutex_lock(&i915->drm.mode_config.mutex);
+	mutex_lock(&display->drm->mode_config.mutex);
 
-	if (!i915->drm.mode_config.poll_enabled)
+	if (!display->drm->mode_config.poll_enabled)
 		goto out;
 
-	drm_connector_list_iter_begin(&i915->drm, &conn_iter);
+	drm_connector_list_iter_begin(display->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		if (!(connector->base.polled & DRM_CONNECTOR_POLL_HPD))
 			continue;
@@ -714,7 +769,7 @@ static void i915_hpd_poll_detect_connectors(struct drm_i915_private *i915)
 	drm_connector_list_iter_end(&conn_iter);
 
 out:
-	mutex_unlock(&i915->drm.mode_config.mutex);
+	mutex_unlock(&display->drm->mode_config.mutex);
 
 	if (!changed)
 		return;
@@ -722,25 +777,23 @@ out:
 	if (changed == 1)
 		drm_kms_helper_connector_hotplug_event(&first_changed_connector->base);
 	else
-		drm_kms_helper_hotplug_event(&i915->drm);
+		drm_kms_helper_hotplug_event(display->drm);
 
 	drm_connector_put(&first_changed_connector->base);
 }
 
 static void i915_hpd_poll_init_work(struct work_struct *work)
 {
-	struct drm_i915_private *dev_priv =
-		container_of(work, struct drm_i915_private,
-			     display.hotplug.poll_init_work);
-	struct intel_display *display = &dev_priv->display;
+	struct intel_display *display =
+		container_of(work, typeof(*display), hotplug.poll_init_work);
 	struct drm_connector_list_iter conn_iter;
 	struct intel_connector *connector;
 	intel_wakeref_t wakeref;
 	bool enabled;
 
-	mutex_lock(&dev_priv->drm.mode_config.mutex);
+	mutex_lock(&display->drm->mode_config.mutex);
 
-	enabled = READ_ONCE(dev_priv->display.hotplug.poll_enabled);
+	enabled = READ_ONCE(display->hotplug.poll_enabled);
 	/*
 	 * Prevent taking a power reference from this sequence of
 	 * i915_hpd_poll_init_work() -> drm_helper_hpd_irq_event() ->
@@ -750,14 +803,14 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 	if (!enabled) {
 		wakeref = intel_display_power_get(display,
 						  POWER_DOMAIN_DISPLAY_CORE);
-		drm_WARN_ON(&dev_priv->drm,
-			    READ_ONCE(dev_priv->display.hotplug.poll_enabled));
-		cancel_work(&dev_priv->display.hotplug.poll_init_work);
+		drm_WARN_ON(display->drm,
+			    READ_ONCE(display->hotplug.poll_enabled));
+		cancel_work(&display->hotplug.poll_init_work);
 	}
 
-	spin_lock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 
-	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
+	drm_connector_list_iter_begin(display->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		enum hpd_pin pin;
 
@@ -765,7 +818,7 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 		if (pin == HPD_NONE)
 			continue;
 
-		if (dev_priv->display.hotplug.stats[pin].state == HPD_DISABLED)
+		if (display->hotplug.stats[pin].state == HPD_DISABLED)
 			continue;
 
 		connector->base.polled = connector->polled;
@@ -776,19 +829,19 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
-	spin_unlock_irq(&dev_priv->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 
 	if (enabled)
-		drm_kms_helper_poll_reschedule(&dev_priv->drm);
+		drm_kms_helper_poll_reschedule(display->drm);
 
-	mutex_unlock(&dev_priv->drm.mode_config.mutex);
+	mutex_unlock(&display->drm->mode_config.mutex);
 
 	/*
 	 * We might have missed any hotplugs that happened while we were
 	 * in the middle of disabling polling
 	 */
 	if (!enabled) {
-		i915_hpd_poll_detect_connectors(dev_priv);
+		i915_hpd_poll_detect_connectors(display);
 
 		intel_display_power_put(display,
 					POWER_DOMAIN_DISPLAY_CORE,
@@ -798,7 +851,7 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 
 /**
  * intel_hpd_poll_enable - enable polling for connectors with hpd
- * @dev_priv: i915 device instance
+ * @display: display device instance
  *
  * This function enables polling for all connectors which support HPD.
  * Under certain conditions HPD may not be functional. On most Intel GPUs,
@@ -812,15 +865,12 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
  *
  * Also see: intel_hpd_init() and intel_hpd_poll_disable().
  */
-void intel_hpd_poll_enable(struct drm_i915_private *dev_priv)
+void intel_hpd_poll_enable(struct intel_display *display)
 {
-	struct intel_display *display = &dev_priv->display;
-
-	if (!HAS_DISPLAY(dev_priv) ||
-	    !intel_display_device_enabled(display))
+	if (!HAS_DISPLAY(display) || !intel_display_device_enabled(display))
 		return;
 
-	WRITE_ONCE(dev_priv->display.hotplug.poll_enabled, true);
+	WRITE_ONCE(display->hotplug.poll_enabled, true);
 
 	/*
 	 * We might already be holding dev->mode_config.mutex, so do this in a
@@ -828,15 +878,15 @@ void intel_hpd_poll_enable(struct drm_i915_private *dev_priv)
 	 * As well, there's no issue if we race here since we always reschedule
 	 * this worker anyway
 	 */
-	spin_lock_irq(&dev_priv->irq_lock);
-	queue_detection_work(dev_priv,
-			     &dev_priv->display.hotplug.poll_init_work);
-	spin_unlock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&display->irq.lock);
+	queue_detection_work(display,
+			     &display->hotplug.poll_init_work);
+	spin_unlock_irq(&display->irq.lock);
 }
 
 /**
  * intel_hpd_poll_disable - disable polling for connectors with hpd
- * @dev_priv: i915 device instance
+ * @display: display device instance
  *
  * This function disables polling for all connectors which support HPD.
  * Under certain conditions HPD may not be functional. On most Intel GPUs,
@@ -853,26 +903,26 @@ void intel_hpd_poll_enable(struct drm_i915_private *dev_priv)
  *
  * Also see: intel_hpd_init() and intel_hpd_poll_enable().
  */
-void intel_hpd_poll_disable(struct drm_i915_private *dev_priv)
+void intel_hpd_poll_disable(struct intel_display *display)
 {
-	if (!HAS_DISPLAY(dev_priv))
+	if (!HAS_DISPLAY(display))
 		return;
 
-	WRITE_ONCE(dev_priv->display.hotplug.poll_enabled, false);
+	WRITE_ONCE(display->hotplug.poll_enabled, false);
 
-	spin_lock_irq(&dev_priv->irq_lock);
-	queue_detection_work(dev_priv,
-			     &dev_priv->display.hotplug.poll_init_work);
-	spin_unlock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&display->irq.lock);
+	queue_detection_work(display,
+			     &display->hotplug.poll_init_work);
+	spin_unlock_irq(&display->irq.lock);
 }
 
-void intel_hpd_poll_fini(struct drm_i915_private *i915)
+void intel_hpd_poll_fini(struct intel_display *display)
 {
 	struct intel_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 
 	/* Kill all the work that may have been queued by hpd. */
-	drm_connector_list_iter_begin(&i915->drm, &conn_iter);
+	drm_connector_list_iter_begin(display->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		intel_connector_cancel_modeset_retry_work(connector);
 		intel_hdcp_cancel_works(connector);
@@ -880,157 +930,261 @@ void intel_hpd_poll_fini(struct drm_i915_private *i915)
 	drm_connector_list_iter_end(&conn_iter);
 }
 
-void intel_hpd_init_early(struct drm_i915_private *i915)
+void intel_hpd_init_early(struct intel_display *display)
 {
-	INIT_DELAYED_WORK(&i915->display.hotplug.hotplug_work,
+	INIT_DELAYED_WORK(&display->hotplug.hotplug_work,
 			  i915_hotplug_work_func);
-	INIT_WORK(&i915->display.hotplug.dig_port_work, i915_digport_work_func);
-	INIT_WORK(&i915->display.hotplug.poll_init_work, i915_hpd_poll_init_work);
-	INIT_DELAYED_WORK(&i915->display.hotplug.reenable_work,
+	INIT_WORK(&display->hotplug.dig_port_work, i915_digport_work_func);
+	INIT_WORK(&display->hotplug.poll_init_work, i915_hpd_poll_init_work);
+	INIT_DELAYED_WORK(&display->hotplug.reenable_work,
 			  intel_hpd_irq_storm_reenable_work);
 
-	i915->display.hotplug.hpd_storm_threshold = HPD_STORM_DEFAULT_THRESHOLD;
+	display->hotplug.hpd_storm_threshold = HPD_STORM_DEFAULT_THRESHOLD;
 	/* If we have MST support, we want to avoid doing short HPD IRQ storm
 	 * detection, as short HPD storms will occur as a natural part of
 	 * sideband messaging with MST.
 	 * On older platforms however, IRQ storms can occur with both long and
 	 * short pulses, as seen on some G4x systems.
 	 */
-	i915->display.hotplug.hpd_short_storm_enabled = !HAS_DP_MST(i915);
+	display->hotplug.hpd_short_storm_enabled = !HAS_DP_MST(display);
 }
 
-static bool cancel_all_detection_work(struct drm_i915_private *i915)
+static bool cancel_all_detection_work(struct intel_display *display)
 {
 	bool was_pending = false;
 
-	if (cancel_delayed_work_sync(&i915->display.hotplug.hotplug_work))
+	if (cancel_delayed_work_sync(&display->hotplug.hotplug_work))
 		was_pending = true;
-	if (cancel_work_sync(&i915->display.hotplug.poll_init_work))
+	if (cancel_work_sync(&display->hotplug.poll_init_work))
 		was_pending = true;
-	if (cancel_delayed_work_sync(&i915->display.hotplug.reenable_work))
+	if (cancel_delayed_work_sync(&display->hotplug.reenable_work))
 		was_pending = true;
 
 	return was_pending;
 }
 
-void intel_hpd_cancel_work(struct drm_i915_private *dev_priv)
+void intel_hpd_cancel_work(struct intel_display *display)
 {
-	if (!HAS_DISPLAY(dev_priv))
+	if (!HAS_DISPLAY(display))
 		return;
 
-	spin_lock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 
-	dev_priv->display.hotplug.long_port_mask = 0;
-	dev_priv->display.hotplug.short_port_mask = 0;
-	dev_priv->display.hotplug.event_bits = 0;
-	dev_priv->display.hotplug.retry_bits = 0;
+	drm_WARN_ON(display->drm, get_blocked_hpd_pin_mask(display));
 
-	spin_unlock_irq(&dev_priv->irq_lock);
+	display->hotplug.long_hpd_pin_mask = 0;
+	display->hotplug.short_hpd_pin_mask = 0;
+	display->hotplug.event_bits = 0;
+	display->hotplug.retry_bits = 0;
 
-	cancel_work_sync(&dev_priv->display.hotplug.dig_port_work);
+	spin_unlock_irq(&display->irq.lock);
+
+	cancel_work_sync(&display->hotplug.dig_port_work);
 
 	/*
 	 * All other work triggered by hotplug events should be canceled by
 	 * now.
 	 */
-	if (cancel_all_detection_work(dev_priv))
-		drm_dbg_kms(&dev_priv->drm, "Hotplug detection work still active\n");
+	if (cancel_all_detection_work(display))
+		drm_dbg_kms(display->drm, "Hotplug detection work still active\n");
 }
 
-bool intel_hpd_disable(struct drm_i915_private *dev_priv, enum hpd_pin pin)
+static void queue_work_for_missed_irqs(struct intel_display *display)
 {
-	bool ret = false;
-
-	if (pin == HPD_NONE)
-		return false;
-
-	spin_lock_irq(&dev_priv->irq_lock);
-	if (dev_priv->display.hotplug.stats[pin].state == HPD_ENABLED) {
-		dev_priv->display.hotplug.stats[pin].state = HPD_DISABLED;
-		ret = true;
-	}
-	spin_unlock_irq(&dev_priv->irq_lock);
-
-	return ret;
-}
-
-void intel_hpd_enable(struct drm_i915_private *dev_priv, enum hpd_pin pin)
-{
-	if (pin == HPD_NONE)
-		return;
-
-	spin_lock_irq(&dev_priv->irq_lock);
-	dev_priv->display.hotplug.stats[pin].state = HPD_ENABLED;
-	spin_unlock_irq(&dev_priv->irq_lock);
-}
-
-static void queue_work_for_missed_irqs(struct drm_i915_private *i915)
-{
-	bool queue_work = false;
+	struct intel_hotplug *hotplug = &display->hotplug;
+	bool queue_hp_work = false;
+	u32 blocked_hpd_pin_mask;
 	enum hpd_pin pin;
 
-	lockdep_assert_held(&i915->irq_lock);
+	lockdep_assert_held(&display->irq.lock);
 
-	if (i915->display.hotplug.event_bits ||
-	    i915->display.hotplug.retry_bits)
-		queue_work = true;
+	blocked_hpd_pin_mask = get_blocked_hpd_pin_mask(display);
+	if ((hotplug->event_bits | hotplug->retry_bits) & ~blocked_hpd_pin_mask)
+		queue_hp_work = true;
 
 	for_each_hpd_pin(pin) {
-		switch (i915->display.hotplug.stats[pin].state) {
+		switch (display->hotplug.stats[pin].state) {
 		case HPD_MARK_DISABLED:
-			queue_work = true;
+			queue_hp_work = true;
 			break;
+		case HPD_DISABLED:
 		case HPD_ENABLED:
 			break;
 		default:
-			MISSING_CASE(i915->display.hotplug.stats[pin].state);
+			MISSING_CASE(display->hotplug.stats[pin].state);
 		}
 	}
 
-	if (queue_work)
-		queue_delayed_detection_work(i915, &i915->display.hotplug.hotplug_work, 0);
+	if ((hotplug->long_hpd_pin_mask | hotplug->short_hpd_pin_mask) & ~blocked_hpd_pin_mask)
+		queue_work(hotplug->dp_wq, &hotplug->dig_port_work);
+
+	if (queue_hp_work)
+		queue_delayed_detection_work(display, &display->hotplug.hotplug_work, 0);
 }
 
-void intel_hpd_enable_detection_work(struct drm_i915_private *i915)
+static bool block_hpd_pin(struct intel_display *display, enum hpd_pin pin)
 {
-	spin_lock_irq(&i915->irq_lock);
-	i915->display.hotplug.detection_work_enabled = true;
-	queue_work_for_missed_irqs(i915);
-	spin_unlock_irq(&i915->irq_lock);
+	struct intel_hotplug *hotplug = &display->hotplug;
+
+	lockdep_assert_held(&display->irq.lock);
+
+	hotplug->stats[pin].blocked_count++;
+
+	return hotplug->stats[pin].blocked_count == 1;
 }
 
-void intel_hpd_disable_detection_work(struct drm_i915_private *i915)
+static bool unblock_hpd_pin(struct intel_display *display, enum hpd_pin pin)
 {
-	spin_lock_irq(&i915->irq_lock);
-	i915->display.hotplug.detection_work_enabled = false;
-	spin_unlock_irq(&i915->irq_lock);
+	struct intel_hotplug *hotplug = &display->hotplug;
 
-	cancel_all_detection_work(i915);
+	lockdep_assert_held(&display->irq.lock);
+
+	if (drm_WARN_ON(display->drm, hotplug->stats[pin].blocked_count == 0))
+		return true;
+
+	hotplug->stats[pin].blocked_count--;
+
+	return hotplug->stats[pin].blocked_count == 0;
 }
 
-bool intel_hpd_schedule_detection(struct drm_i915_private *i915)
+/**
+ * intel_hpd_block - Block handling of HPD IRQs on an HPD pin
+ * @encoder: Encoder to block the HPD handling for
+ *
+ * Blocks the handling of HPD IRQs on the HPD pin of @encoder.
+ *
+ * On return:
+ *
+ * - It's guaranteed that the blocked encoders' HPD pulse handler
+ *   (via intel_digital_port::hpd_pulse()) is not running.
+ * - The hotplug event handling (via intel_encoder::hotplug()) of an
+ *   HPD IRQ pending at the time this function is called may be still
+ *   running.
+ * - Detection on the encoder's connector (via
+ *   drm_connector_helper_funcs::detect_ctx(),
+ *   drm_connector_funcs::detect()) remains allowed, for instance as part of
+ *   userspace connector probing, or DRM core's connector polling.
+ *
+ * The call must be followed by calling intel_hpd_unblock(), or
+ * intel_hpd_clear_and_unblock().
+ *
+ * Note that the handling of HPD IRQs for another encoder using the same HPD
+ * pin as that of @encoder will be also blocked.
+ */
+void intel_hpd_block(struct intel_encoder *encoder)
+{
+	struct intel_display *display = to_intel_display(encoder);
+	struct intel_hotplug *hotplug = &display->hotplug;
+	bool do_flush = false;
+
+	if (encoder->hpd_pin == HPD_NONE)
+		return;
+
+	spin_lock_irq(&display->irq.lock);
+
+	if (block_hpd_pin(display, encoder->hpd_pin))
+		do_flush = true;
+
+	spin_unlock_irq(&display->irq.lock);
+
+	if (do_flush && hpd_pin_has_pulse(display, encoder->hpd_pin))
+		flush_work(&hotplug->dig_port_work);
+}
+
+/**
+ * intel_hpd_unblock - Unblock handling of HPD IRQs on an HPD pin
+ * @encoder: Encoder to unblock the HPD handling for
+ *
+ * Unblock the handling of HPD IRQs on the HPD pin of @encoder, which was
+ * previously blocked by intel_hpd_block(). Any HPD IRQ raised on the
+ * HPD pin while it was blocked will be handled for @encoder and for any
+ * other encoder sharing the same HPD pin.
+ */
+void intel_hpd_unblock(struct intel_encoder *encoder)
+{
+	struct intel_display *display = to_intel_display(encoder);
+
+	if (encoder->hpd_pin == HPD_NONE)
+		return;
+
+	spin_lock_irq(&display->irq.lock);
+
+	if (unblock_hpd_pin(display, encoder->hpd_pin))
+		queue_work_for_missed_irqs(display);
+
+	spin_unlock_irq(&display->irq.lock);
+}
+
+/**
+ * intel_hpd_clear_and_unblock - Unblock handling of new HPD IRQs on an HPD pin
+ * @encoder: Encoder to unblock the HPD handling for
+ *
+ * Unblock the handling of HPD IRQs on the HPD pin of @encoder, which was
+ * previously blocked by intel_hpd_block(). Any HPD IRQ raised on the
+ * HPD pin while it was blocked will be cleared, handling only new IRQs.
+ */
+void intel_hpd_clear_and_unblock(struct intel_encoder *encoder)
+{
+	struct intel_display *display = to_intel_display(encoder);
+	struct intel_hotplug *hotplug = &display->hotplug;
+	enum hpd_pin pin = encoder->hpd_pin;
+
+	if (pin == HPD_NONE)
+		return;
+
+	spin_lock_irq(&display->irq.lock);
+
+	if (unblock_hpd_pin(display, pin)) {
+		hotplug->event_bits &= ~BIT(pin);
+		hotplug->retry_bits &= ~BIT(pin);
+		hotplug->short_hpd_pin_mask &= ~BIT(pin);
+		hotplug->long_hpd_pin_mask &= ~BIT(pin);
+	}
+
+	spin_unlock_irq(&display->irq.lock);
+}
+
+void intel_hpd_enable_detection_work(struct intel_display *display)
+{
+	spin_lock_irq(&display->irq.lock);
+	display->hotplug.detection_work_enabled = true;
+	queue_work_for_missed_irqs(display);
+	spin_unlock_irq(&display->irq.lock);
+}
+
+void intel_hpd_disable_detection_work(struct intel_display *display)
+{
+	spin_lock_irq(&display->irq.lock);
+	display->hotplug.detection_work_enabled = false;
+	spin_unlock_irq(&display->irq.lock);
+
+	cancel_all_detection_work(display);
+}
+
+bool intel_hpd_schedule_detection(struct intel_display *display)
 {
 	unsigned long flags;
 	bool ret;
 
-	spin_lock_irqsave(&i915->irq_lock, flags);
-	ret = queue_delayed_detection_work(i915, &i915->display.hotplug.hotplug_work, 0);
-	spin_unlock_irqrestore(&i915->irq_lock, flags);
+	spin_lock_irqsave(&display->irq.lock, flags);
+	ret = queue_delayed_detection_work(display, &display->hotplug.hotplug_work, 0);
+	spin_unlock_irqrestore(&display->irq.lock, flags);
 
 	return ret;
 }
 
 static int i915_hpd_storm_ctl_show(struct seq_file *m, void *data)
 {
-	struct drm_i915_private *dev_priv = m->private;
-	struct intel_hotplug *hotplug = &dev_priv->display.hotplug;
+	struct intel_display *display = m->private;
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
+	struct intel_hotplug *hotplug = &display->hotplug;
 
 	/* Synchronize with everything first in case there's been an HPD
 	 * storm, but we haven't finished handling it in the kernel yet
 	 */
 	intel_synchronize_irq(dev_priv);
-	flush_work(&dev_priv->display.hotplug.dig_port_work);
-	flush_delayed_work(&dev_priv->display.hotplug.hotplug_work);
+	flush_work(&display->hotplug.dig_port_work);
+	flush_delayed_work(&display->hotplug.hotplug_work);
 
 	seq_printf(m, "Threshold: %d\n", hotplug->hpd_storm_threshold);
 	seq_printf(m, "Detected: %s\n",
@@ -1044,8 +1198,8 @@ static ssize_t i915_hpd_storm_ctl_write(struct file *file,
 					loff_t *offp)
 {
 	struct seq_file *m = file->private_data;
-	struct drm_i915_private *dev_priv = m->private;
-	struct intel_hotplug *hotplug = &dev_priv->display.hotplug;
+	struct intel_display *display = m->private;
+	struct intel_hotplug *hotplug = &display->hotplug;
 	unsigned int new_threshold;
 	int i;
 	char *newline;
@@ -1070,21 +1224,21 @@ static ssize_t i915_hpd_storm_ctl_write(struct file *file,
 		return -EINVAL;
 
 	if (new_threshold > 0)
-		drm_dbg_kms(&dev_priv->drm,
+		drm_dbg_kms(display->drm,
 			    "Setting HPD storm detection threshold to %d\n",
 			    new_threshold);
 	else
-		drm_dbg_kms(&dev_priv->drm, "Disabling HPD storm detection\n");
+		drm_dbg_kms(display->drm, "Disabling HPD storm detection\n");
 
-	spin_lock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 	hotplug->hpd_storm_threshold = new_threshold;
 	/* Reset the HPD storm stats so we don't accidentally trigger a storm */
 	for_each_hpd_pin(i)
 		hotplug->stats[i].count = 0;
-	spin_unlock_irq(&dev_priv->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 
 	/* Re-enable hpd immediately if we were in an irq storm */
-	flush_delayed_work(&dev_priv->display.hotplug.reenable_work);
+	flush_delayed_work(&display->hotplug.reenable_work);
 
 	return len;
 }
@@ -1105,10 +1259,10 @@ static const struct file_operations i915_hpd_storm_ctl_fops = {
 
 static int i915_hpd_short_storm_ctl_show(struct seq_file *m, void *data)
 {
-	struct drm_i915_private *dev_priv = m->private;
+	struct intel_display *display = m->private;
 
 	seq_printf(m, "Enabled: %s\n",
-		   str_yes_no(dev_priv->display.hotplug.hpd_short_storm_enabled));
+		   str_yes_no(display->hotplug.hpd_short_storm_enabled));
 
 	return 0;
 }
@@ -1125,8 +1279,8 @@ static ssize_t i915_hpd_short_storm_ctl_write(struct file *file,
 					      size_t len, loff_t *offp)
 {
 	struct seq_file *m = file->private_data;
-	struct drm_i915_private *dev_priv = m->private;
-	struct intel_hotplug *hotplug = &dev_priv->display.hotplug;
+	struct intel_display *display = m->private;
+	struct intel_hotplug *hotplug = &display->hotplug;
 	char *newline;
 	char tmp[16];
 	int i;
@@ -1147,22 +1301,22 @@ static ssize_t i915_hpd_short_storm_ctl_write(struct file *file,
 
 	/* Reset to the "default" state for this system */
 	if (strcmp(tmp, "reset") == 0)
-		new_state = !HAS_DP_MST(dev_priv);
+		new_state = !HAS_DP_MST(display);
 	else if (kstrtobool(tmp, &new_state) != 0)
 		return -EINVAL;
 
-	drm_dbg_kms(&dev_priv->drm, "%sabling HPD short storm detection\n",
+	drm_dbg_kms(display->drm, "%sabling HPD short storm detection\n",
 		    new_state ? "En" : "Dis");
 
-	spin_lock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 	hotplug->hpd_short_storm_enabled = new_state;
 	/* Reset the HPD storm stats so we don't accidentally trigger a storm */
 	for_each_hpd_pin(i)
 		hotplug->stats[i].count = 0;
-	spin_unlock_irq(&dev_priv->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 
 	/* Re-enable hpd immediately if we were in an irq storm */
-	flush_delayed_work(&dev_priv->display.hotplug.reenable_work);
+	flush_delayed_work(&display->hotplug.reenable_work);
 
 	return len;
 }
@@ -1176,14 +1330,14 @@ static const struct file_operations i915_hpd_short_storm_ctl_fops = {
 	.write = i915_hpd_short_storm_ctl_write,
 };
 
-void intel_hpd_debugfs_register(struct drm_i915_private *i915)
+void intel_hpd_debugfs_register(struct intel_display *display)
 {
-	struct drm_minor *minor = i915->drm.primary;
+	struct drm_minor *minor = display->drm->primary;
 
 	debugfs_create_file("i915_hpd_storm_ctl", 0644, minor->debugfs_root,
-			    i915, &i915_hpd_storm_ctl_fops);
+			    display, &i915_hpd_storm_ctl_fops);
 	debugfs_create_file("i915_hpd_short_storm_ctl", 0644, minor->debugfs_root,
-			    i915, &i915_hpd_short_storm_ctl_fops);
+			    display, &i915_hpd_short_storm_ctl_fops);
 	debugfs_create_bool("i915_ignore_long_hpd", 0644, minor->debugfs_root,
-			    &i915->display.hotplug.ignore_long_hpd);
+			    &display->hotplug.ignore_long_hpd);
 }

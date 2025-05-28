@@ -36,6 +36,9 @@
 //<DMUB_TYPES>==================================================================
 /* Basic type definitions. */
 
+#ifdef __forceinline
+#undef __forceinline
+#endif
 #define __forceinline inline
 
 /**
@@ -547,6 +550,11 @@ union replay_hw_flags {
 		 * @is_alpm_initialized: Indicates whether ALPM is initialized
 		 */
 		uint32_t is_alpm_initialized : 1;
+
+		/**
+		 * @alpm_mode: Indicates ALPM mode selected
+		 */
+		uint32_t alpm_mode : 2;
 	} bitfields;
 
 	uint32_t u32All;
@@ -739,6 +747,14 @@ enum dmub_ips_disable_type {
 	DMUB_IPS_DISABLE_IPS2_Z10 = 4,
 	DMUB_IPS_DISABLE_DYNAMIC = 5,
 	DMUB_IPS_RCG_IN_ACTIVE_IPS2_IN_OFF = 6,
+	DMUB_IPS_DISABLE_Z8_RETENTION = 7,
+};
+
+enum dmub_ips_rcg_disable_type {
+	DMUB_IPS_RCG_ENABLE = 0,
+	DMUB_IPS0_RCG_DISABLE = 1,
+	DMUB_IPS1_RCG_DISABLE = 2,
+	DMUB_IPS_RCG_DISABLE = 3
 };
 
 #define DMUB_IPS1_ALLOW_MASK 0x00000001
@@ -817,11 +833,12 @@ enum dmub_shared_state_feature_id {
  */
 union dmub_shared_state_ips_fw_signals {
 	struct {
-		uint32_t ips1_commit : 1;  /**< 1 if in IPS1 */
+		uint32_t ips1_commit : 1;  /**< 1 if in IPS1 or IPS0 RCG */
 		uint32_t ips2_commit : 1; /**< 1 if in IPS2 */
 		uint32_t in_idle : 1; /**< 1 if DMCUB is in idle */
 		uint32_t detection_required : 1; /**< 1 if detection is required */
-		uint32_t reserved_bits : 28; /**< Reversed */
+		uint32_t ips1z8_commit: 1; /**< 1 if in IPS1 Z8 Retention */
+		uint32_t reserved_bits : 27; /**< Reversed */
 	} bits;
 	uint32_t all;
 };
@@ -836,7 +853,10 @@ union dmub_shared_state_ips_driver_signals {
 		uint32_t allow_ips2 : 1; /**< 1 is IPS1 is allowed */
 		uint32_t allow_z10 : 1; /**< 1 if Z10 is allowed */
 		uint32_t allow_idle: 1; /**< 1 if driver is allowing idle */
-		uint32_t reserved_bits : 27; /**< Reversed bits */
+		uint32_t allow_ips0_rcg : 1; /**< 1 is IPS0 RCG is allowed */
+		uint32_t allow_ips1_rcg : 1; /**< 1 is IPS1 RCG is allowed */
+		uint32_t allow_ips1z8 : 1; /**< 1 is IPS1 Z8 Retention is allowed */
+		uint32_t reserved_bits : 24; /**< Reversed bits */
 	} bits;
 	uint32_t all;
 };
@@ -865,7 +885,9 @@ struct dmub_shared_state_ips_fw {
 	uint32_t ips1_exit_count; /**< Exit counter for IPS1 */
 	uint32_t ips2_entry_count; /**< Entry counter for IPS2 */
 	uint32_t ips2_exit_count; /**< Exit counter for IPS2 */
-	uint32_t reserved[55]; /**< Reversed, to be updated when adding new fields. */
+	uint32_t ips1_z8ret_entry_count; /**< Entry counter for IPS1 Z8 Retention */
+	uint32_t ips1_z8ret_exit_count; /**< Exit counter for IPS1 Z8 Retention */
+	uint32_t reserved[53]; /**< Reversed, to be updated when adding new fields. */
 }; /* 248-bytes, fixed */
 
 /**
@@ -1253,6 +1275,10 @@ enum dmub_gpint_command {
 	 * DESC: Setup debug configs.
 	 */
 	DMUB_GPINT__SETUP_DEBUG_MODE = 136,
+	/**
+	 * DESC: Initiates IPS wake sequence.
+	 */
+	DMUB_GPINT__IPS_DEBUG_WAKE = 137,
 };
 
 /**
@@ -2113,12 +2139,33 @@ union dmub_cmd_fams2_config {
 	} stream_v1; //v1
 };
 
+struct dmub_fams2_config_v2 {
+	struct dmub_cmd_fams2_global_config global;
+	struct dmub_fams2_stream_static_state_v1 stream_v1[DMUB_MAX_STREAMS]; //v1
+};
+
 /**
  * DMUB rb command definition for FAMS2 (merged SubVP, FPO, Legacy)
  */
 struct dmub_rb_cmd_fams2 {
 	struct dmub_cmd_header header;
 	union dmub_cmd_fams2_config config;
+};
+
+/**
+ * Indirect buffer descriptor
+ */
+struct dmub_ib_data {
+	union dmub_addr src; // location of indirect buffer in memory
+	uint16_t size; // indirect buffer size in bytes
+};
+
+/**
+ * DMUB rb command definition for commands passed over indirect buffer
+ */
+struct dmub_rb_cmd_ib {
+	struct dmub_cmd_header header;
+	struct dmub_ib_data ib_data;
 };
 
 /**
@@ -2144,6 +2191,11 @@ enum dmub_cmd_idle_opt_type {
 	 * DCN hardware notify power state.
 	 */
 	DMUB_CMD__IDLE_OPT_SET_DC_POWER_STATE = 3,
+
+	/**
+	 * DCN notify to release HW.
+	 */
+	 DMUB_CMD__IDLE_OPT_RELEASE_HW = 4,
 };
 
 /**
@@ -2636,7 +2688,11 @@ enum dp_hpd_type {
 	/**
 	 * DP HPD short pulse
 	 */
-	DP_IRQ
+	DP_IRQ = 1,
+	/**
+	 * Failure to acquire DP HPD state
+	 */
+	DP_NONE_HPD = 2
 };
 
 /**
@@ -2901,8 +2957,9 @@ enum dmub_cmd_fams_type {
 	 */
 	DMUB_CMD__FAMS_SET_MANUAL_TRIGGER = 3,
 	DMUB_CMD__FAMS2_CONFIG = 4,
-	DMUB_CMD__FAMS2_DRR_UPDATE = 5,
-	DMUB_CMD__FAMS2_FLIP = 6,
+	DMUB_CMD__FAMS2_IB_CONFIG = 5,
+	DMUB_CMD__FAMS2_DRR_UPDATE = 6,
+	DMUB_CMD__FAMS2_FLIP = 7,
 };
 
 /**
@@ -3609,6 +3666,12 @@ struct dmub_rb_cmd_psr_set_power_opt {
 	struct dmub_cmd_psr_set_power_opt_data psr_set_power_opt_data;
 };
 
+enum dmub_alpm_mode {
+	ALPM_AUXWAKE = 0,
+	ALPM_AUXLESS = 1,
+	ALPM_UNSUPPORTED = 2,
+};
+
 /**
  * Definition of Replay Residency GPINT command.
  * Bit[0] - Residency mode for Revision 0
@@ -3742,6 +3805,15 @@ enum dmub_cmd_replay_general_subtype {
 	REPLAY_GENERAL_CMD_SET_LOW_RR_ACTIVATE,
 };
 
+struct dmub_alpm_auxless_data {
+	uint16_t lfps_setup_ns;
+	uint16_t lfps_period_ns;
+	uint16_t lfps_silence_ns;
+	uint16_t lfps_t1_t2_override_us;
+	short lfps_t1_t2_offset_us;
+	uint8_t lttpr_count;
+};
+
 /**
  * Data passed from driver to FW in a DMUB_CMD__REPLAY_COPY_SETTINGS command.
  */
@@ -3812,6 +3884,10 @@ struct dmub_cmd_replay_copy_settings_data {
 	 * Use FSM state for Replay power up/down
 	 */
 	uint8_t use_phy_fsm;
+	/**
+	 * Use for AUX-less ALPM LFPS wake operation
+	 */
+	struct dmub_alpm_auxless_data auxless_alpm_data;
 };
 
 /**
@@ -4360,6 +4436,11 @@ enum dmub_cmd_abm_type {
 	 * Get the current ACE curve.
 	 */
 	DMUB_CMD__ABM_GET_ACE_CURVE = 10,
+
+	/**
+	 * Get current histogram data
+	 */
+	DMUB_CMD__ABM_GET_HISTOGRAM_DATA = 11,
 };
 
 struct abm_ace_curve {
@@ -4954,6 +5035,20 @@ enum dmub_abm_ace_curve_type {
 };
 
 /**
+ * enum dmub_abm_histogram_type - Histogram type.
+ */
+enum dmub_abm_histogram_type {
+	/**
+	 * ACE curve as defined by the SW layer.
+	 */
+	ABM_HISTOGRAM_TYPE__SW = 0,
+	/**
+	 * ACE curve as defined by the SW to HW translation interface layer.
+	 */
+	ABM_HISTOGRAM_TYPE__SW_IF = 1,
+};
+
+/**
  * Definition of a DMUB_CMD__ABM_GET_ACE_CURVE command.
  */
 struct dmub_rb_cmd_abm_get_ace_curve {
@@ -4971,6 +5066,41 @@ struct dmub_rb_cmd_abm_get_ace_curve {
 	 * Type of ACE curve being queried.
 	 */
 	enum dmub_abm_ace_curve_type ace_type;
+
+	/**
+	 * Indirect buffer length.
+	 */
+	uint16_t bytes;
+
+	/**
+	 * eDP panel instance.
+	 */
+	uint8_t panel_inst;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad;
+};
+
+/**
+ * Definition of a DMUB_CMD__ABM_GET_HISTOGRAM command.
+ */
+struct dmub_rb_cmd_abm_get_histogram {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * Address where Histogram should be copied.
+	 */
+	union dmub_addr dest;
+
+	/**
+	 * Type of Histogram being queried.
+	 */
+	enum dmub_abm_histogram_type histogram_type;
 
 	/**
 	 * Indirect buffer length.
@@ -5389,7 +5519,8 @@ struct dmub_cmd_fused_request {
 		struct dmub_cmd_fused_request_location_i2c {
 			uint8_t is_aux : 1;  // False
 			uint8_t ddc_line : 3;
-			uint8_t _reserved0 : 4;
+			uint8_t over_aux : 1;
+			uint8_t _reserved0 : 3;
 			uint8_t address;
 			uint8_t offset;
 			uint8_t length;
@@ -5687,6 +5818,11 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_abm_get_ace_curve abm_get_ace_curve;
 
 	/**
+	 * Definition of a DMUB_CMD__ABM_GET_HISTOGRAM command.
+	 */
+	struct dmub_rb_cmd_abm_get_histogram abm_get_histogram;
+
+	/**
 	 * Definition of a DMUB_CMD__ABM_SET_EVENT command.
 	 */
 	struct dmub_rb_cmd_abm_set_event abm_set_event;
@@ -5817,7 +5953,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__PSP_ASSR_ENABLE command.
 	 */
 	struct dmub_rb_cmd_assr_enable assr_enable;
+
 	struct dmub_rb_cmd_fams2 fams2_config;
+
+	struct dmub_rb_cmd_ib ib_fams2_config;
 
 	struct dmub_rb_cmd_fams2_drr_update fams2_drr_update;
 
@@ -5934,6 +6073,9 @@ static inline uint32_t dmub_rb_num_free(struct dmub_rb *rb)
 	else
 		data_count = rb->capacity - (rb->rptr - rb->wrpt);
 
+	/* +1 because 1 entry is always unusable */
+	data_count += DMUB_RB_CMD_SIZE;
+
 	return (rb->capacity - data_count) / DMUB_RB_CMD_SIZE;
 }
 
@@ -5953,6 +6095,7 @@ static inline bool dmub_rb_full(struct dmub_rb *rb)
 	else
 		data_count = rb->capacity - (rb->rptr - rb->wrpt);
 
+	/* -1 because 1 entry is always unusable */
 	return (data_count == (rb->capacity - DMUB_RB_CMD_SIZE));
 }
 

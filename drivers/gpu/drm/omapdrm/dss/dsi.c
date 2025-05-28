@@ -4617,6 +4617,7 @@ static const struct component_ops dsi_component_ops = {
  */
 
 static int dsi_bridge_attach(struct drm_bridge *bridge,
+			     struct drm_encoder *encoder,
 			     enum drm_bridge_attach_flags flags)
 {
 	struct dsi_data *dsi = drm_bridge_to_dsi(bridge);
@@ -4624,7 +4625,7 @@ static int dsi_bridge_attach(struct drm_bridge *bridge,
 	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
 		return -EINVAL;
 
-	return drm_bridge_attach(bridge->encoder, dsi->output.next_bridge,
+	return drm_bridge_attach(encoder, dsi->output.next_bridge,
 				 bridge, flags);
 }
 

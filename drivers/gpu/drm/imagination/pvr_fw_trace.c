@@ -21,7 +21,6 @@ tracebuf_ctrl_init(void *cpu_ptr, void *priv)
 {
 	struct rogue_fwif_tracebuf *tracebuf_ctrl = cpu_ptr;
 	struct pvr_fw_trace *fw_trace = priv;
-	u32 thread_nr;
 
 	tracebuf_ctrl->tracebuf_size_in_dwords = ROGUE_FW_TRACE_BUF_DEFAULT_SIZE_IN_DWORDS;
 	tracebuf_ctrl->tracebuf_flags = 0;
@@ -31,7 +30,7 @@ tracebuf_ctrl_init(void *cpu_ptr, void *priv)
 	else
 		tracebuf_ctrl->log_type = ROGUE_FWIF_LOG_TYPE_NONE;
 
-	for (thread_nr = 0; thread_nr < ARRAY_SIZE(fw_trace->buffers); thread_nr++) {
+	for (u32 thread_nr = 0; thread_nr < ARRAY_SIZE(fw_trace->buffers); thread_nr++) {
 		struct rogue_fwif_tracebuf_space *tracebuf_space =
 			&tracebuf_ctrl->tracebuf[thread_nr];
 		struct pvr_fw_trace_buffer *trace_buffer = &fw_trace->buffers[thread_nr];
@@ -48,10 +47,9 @@ int pvr_fw_trace_init(struct pvr_device *pvr_dev)
 {
 	struct pvr_fw_trace *fw_trace = &pvr_dev->fw_dev.fw_trace;
 	struct drm_device *drm_dev = from_pvr_device(pvr_dev);
-	u32 thread_nr;
 	int err;
 
-	for (thread_nr = 0; thread_nr < ARRAY_SIZE(fw_trace->buffers); thread_nr++) {
+	for (u32 thread_nr = 0; thread_nr < ARRAY_SIZE(fw_trace->buffers); thread_nr++) {
 		struct pvr_fw_trace_buffer *trace_buffer = &fw_trace->buffers[thread_nr];
 
 		trace_buffer->buf =
@@ -88,7 +86,7 @@ int pvr_fw_trace_init(struct pvr_device *pvr_dev)
 	BUILD_BUG_ON(ARRAY_SIZE(fw_trace->tracebuf_ctrl->tracebuf) !=
 		     ARRAY_SIZE(fw_trace->buffers));
 
-	for (thread_nr = 0; thread_nr < ARRAY_SIZE(fw_trace->buffers); thread_nr++) {
+	for (u32 thread_nr = 0; thread_nr < ARRAY_SIZE(fw_trace->buffers); thread_nr++) {
 		struct rogue_fwif_tracebuf_space *tracebuf_space =
 			&fw_trace->tracebuf_ctrl->tracebuf[thread_nr];
 		struct pvr_fw_trace_buffer *trace_buffer = &fw_trace->buffers[thread_nr];
@@ -99,7 +97,7 @@ int pvr_fw_trace_init(struct pvr_device *pvr_dev)
 	return 0;
 
 err_free_buf:
-	for (thread_nr = 0; thread_nr < ARRAY_SIZE(fw_trace->buffers); thread_nr++) {
+	for (u32 thread_nr = 0; thread_nr < ARRAY_SIZE(fw_trace->buffers); thread_nr++) {
 		struct pvr_fw_trace_buffer *trace_buffer = &fw_trace->buffers[thread_nr];
 
 		if (trace_buffer->buf)
@@ -112,17 +110,14 @@ err_free_buf:
 void pvr_fw_trace_fini(struct pvr_device *pvr_dev)
 {
 	struct pvr_fw_trace *fw_trace = &pvr_dev->fw_dev.fw_trace;
-	u32 thread_nr;
 
-	for (thread_nr = 0; thread_nr < ARRAY_SIZE(fw_trace->buffers); thread_nr++) {
+	for (u32 thread_nr = 0; thread_nr < ARRAY_SIZE(fw_trace->buffers); thread_nr++) {
 		struct pvr_fw_trace_buffer *trace_buffer = &fw_trace->buffers[thread_nr];
 
 		pvr_fw_object_unmap_and_destroy(trace_buffer->buf_obj);
 	}
 	pvr_fw_object_unmap_and_destroy(fw_trace->tracebuf_ctrl_obj);
 }
-
-#if defined(CONFIG_DEBUG_FS)
 
 /**
  * update_logtype() - Send KCCB command to trigger FW to update logtype
@@ -184,9 +179,7 @@ struct pvr_fw_trace_seq_data {
 
 static u32 find_sfid(u32 id)
 {
-	u32 i;
-
-	for (i = 0; i < ARRAY_SIZE(stid_fmts); i++) {
+	for (u32 i = 0; i < ARRAY_SIZE(stid_fmts); i++) {
 		if (stid_fmts[i].id == id)
 			return i;
 	}
@@ -285,12 +278,11 @@ static void fw_trace_get_first(struct pvr_fw_trace_seq_data *trace_seq_data)
 static void *fw_trace_seq_start(struct seq_file *s, loff_t *pos)
 {
 	struct pvr_fw_trace_seq_data *trace_seq_data = s->private;
-	u32 i;
 
 	/* Reset trace index, then advance to *pos. */
 	fw_trace_get_first(trace_seq_data);
 
-	for (i = 0; i < *pos; i++) {
+	for (u32 i = 0; i < *pos; i++) {
 		if (!fw_trace_get_next(trace_seq_data))
 			return NULL;
 	}
@@ -447,7 +439,7 @@ static const struct file_operations pvr_fw_trace_fops = {
 void
 pvr_fw_trace_mask_update(struct pvr_device *pvr_dev, u32 old_mask, u32 new_mask)
 {
-	if (old_mask != new_mask)
+	if (IS_ENABLED(CONFIG_DEBUG_FS) && old_mask != new_mask)
 		update_logtype(pvr_dev, new_mask);
 }
 
@@ -455,12 +447,14 @@ void
 pvr_fw_trace_debugfs_init(struct pvr_device *pvr_dev, struct dentry *dir)
 {
 	struct pvr_fw_trace *fw_trace = &pvr_dev->fw_dev.fw_trace;
-	u32 thread_nr;
+
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return;
 
 	static_assert(ARRAY_SIZE(fw_trace->buffers) <= 10,
 		      "The filename buffer is only large enough for a single-digit thread count");
 
-	for (thread_nr = 0; thread_nr < ARRAY_SIZE(fw_trace->buffers); ++thread_nr) {
+	for (u32 thread_nr = 0; thread_nr < ARRAY_SIZE(fw_trace->buffers); ++thread_nr) {
 		char filename[8];
 
 		snprintf(filename, ARRAY_SIZE(filename), "trace_%u", thread_nr);
@@ -469,4 +463,3 @@ pvr_fw_trace_debugfs_init(struct pvr_device *pvr_dev, struct dentry *dir)
 				    &pvr_fw_trace_fops);
 	}
 }
-#endif

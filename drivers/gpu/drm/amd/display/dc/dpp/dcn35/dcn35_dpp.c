@@ -138,7 +138,7 @@ bool dpp35_construct(
 	dpp->base.funcs = &dcn35_dpp_funcs;
 
 	// w/a for cursor memory stuck in LS by programming DISPCLK_R_GATE_DISABLE, limit w/a to some ASIC revs
-	if (dpp->base.ctx->asic_id.hw_internal_rev <= 0x10)
+	if (dpp->base.ctx->asic_id.hw_internal_rev < 0x40)
 		dpp->dispclk_r_gate_disable = true;
 	return ret;
 }

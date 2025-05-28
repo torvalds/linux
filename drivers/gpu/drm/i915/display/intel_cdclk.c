@@ -1972,9 +1972,7 @@ int intel_mdclk_cdclk_ratio(struct intel_display *display,
 static void xe2lpd_mdclk_cdclk_ratio_program(struct intel_display *display,
 					     const struct intel_cdclk_config *cdclk_config)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	intel_dbuf_mdclk_cdclk_ratio_update(i915,
+	intel_dbuf_mdclk_cdclk_ratio_update(display,
 					    intel_mdclk_cdclk_ratio(display, cdclk_config),
 					    cdclk_config->joined_mbus);
 }
@@ -2808,7 +2806,6 @@ static int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_stat
 static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 {
 	struct intel_display *display = to_intel_display(state);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_cdclk_state *cdclk_state =
 		intel_atomic_get_new_cdclk_state(state);
 	const struct intel_bw_state *bw_state;
@@ -2836,7 +2833,7 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 
 	bw_state = intel_atomic_get_new_bw_state(state);
 	if (bw_state) {
-		min_cdclk = intel_bw_min_cdclk(dev_priv, bw_state);
+		min_cdclk = intel_bw_min_cdclk(display, bw_state);
 
 		if (cdclk_state->bw_min_cdclk != min_cdclk) {
 			int ret;
@@ -3342,6 +3339,8 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 
 void intel_cdclk_update_hw_state(struct intel_display *display)
 {
+	const struct intel_bw_state *bw_state =
+		to_intel_bw_state(display->bw.obj.state);
 	struct intel_cdclk_state *cdclk_state =
 		to_intel_cdclk_state(display->cdclk.obj.state);
 	struct intel_crtc *crtc;
@@ -3359,6 +3358,8 @@ void intel_cdclk_update_hw_state(struct intel_display *display)
 		cdclk_state->min_cdclk[pipe] = intel_crtc_compute_min_cdclk(crtc_state);
 		cdclk_state->min_voltage_level[pipe] = crtc_state->min_voltage_level;
 	}
+
+	cdclk_state->bw_min_cdclk = intel_bw_min_cdclk(display, bw_state);
 }
 
 void intel_cdclk_crtc_disable_noatomic(struct intel_crtc *crtc)
@@ -3493,7 +3494,6 @@ static int dg1_rawclk(struct intel_display *display)
 
 static int cnp_rawclk(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	int divider, fraction;
 	u32 rawclk;
 
@@ -3513,7 +3513,7 @@ static int cnp_rawclk(struct intel_display *display)
 
 		rawclk |= CNP_RAWCLK_DEN(DIV_ROUND_CLOSEST(numerator * 1000,
 							   fraction) - 1);
-		if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+		if (INTEL_PCH_TYPE(display) >= PCH_ICP)
 			rawclk |= ICP_RAWCLK_NUM(numerator);
 	}
 
@@ -3552,21 +3552,20 @@ static int i9xx_hrawclk(struct intel_display *display)
  */
 u32 intel_read_rawclk(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 freq;
 
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_MTL)
+	if (INTEL_PCH_TYPE(display) >= PCH_MTL)
 		/*
 		 * MTL always uses a 38.4 MHz rawclk.  The bspec tells us
 		 * "RAWCLK_FREQ defaults to the values for 38.4 and does
 		 * not need to be programmed."
 		 */
 		freq = 38400;
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1)
+	else if (INTEL_PCH_TYPE(display) >= PCH_DG1)
 		freq = dg1_rawclk(display);
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_CNP)
+	else if (INTEL_PCH_TYPE(display) >= PCH_CNP)
 		freq = cnp_rawclk(display);
-	else if (HAS_PCH_SPLIT(dev_priv))
+	else if (HAS_PCH_SPLIT(display))
 		freq = pch_rawclk(display);
 	else if (display->platform.valleyview || display->platform.cherryview)
 		freq = vlv_hrawclk(display);

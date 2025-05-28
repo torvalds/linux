@@ -776,7 +776,7 @@ static enum scl_mode spl_get_dscl_mode(const struct spl_in *spl_in,
 	 * Do not bypass UV at 1:1 for cositing to be applied
 	 */
 	if (!enable_isharp) {
-		if (data->ratios.horz.value == one && data->ratios.vert.value == one)
+		if (data->ratios.horz.value == one && data->ratios.vert.value == one && !spl_in->basic_out.always_scale)
 			return SCL_MODE_SCALING_420_LUMA_BYPASS;
 	}
 
@@ -884,7 +884,7 @@ static bool spl_get_isharp_en(struct spl_in *spl_in,
 
 /* Calculate number of tap with adaptive scaling off */
 static void spl_get_taps_non_adaptive_scaler(
-	  struct spl_scratch *spl_scratch, const struct spl_taps *in_taps)
+	  struct spl_scratch *spl_scratch, const struct spl_taps *in_taps, bool always_scale)
 {
 	bool check_max_downscale = false;
 
@@ -944,15 +944,15 @@ static void spl_get_taps_non_adaptive_scaler(
 		spl_fixpt_from_fraction(6, 1));
 	SPL_ASSERT(check_max_downscale);
 
-	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz))
-		spl_scratch->scl_data.taps.h_taps = 1;
-	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert))
-		spl_scratch->scl_data.taps.v_taps = 1;
-	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c))
-		spl_scratch->scl_data.taps.h_taps_c = 1;
-	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c))
-		spl_scratch->scl_data.taps.v_taps_c = 1;
 
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz) && !always_scale)
+		spl_scratch->scl_data.taps.h_taps = 1;
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert) && !always_scale)
+		spl_scratch->scl_data.taps.v_taps = 1;
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c) && !always_scale)
+		spl_scratch->scl_data.taps.h_taps_c = 1;
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c) && !always_scale)
+		spl_scratch->scl_data.taps.v_taps_c = 1;
 }
 
 /* Calculate optimal number of taps */
@@ -965,13 +965,15 @@ static bool spl_get_optimal_number_of_taps(
 	unsigned int max_taps_y, max_taps_c;
 	unsigned int min_taps_y, min_taps_c;
 	enum lb_memory_config lb_config;
-	bool skip_easf = false;
+	bool skip_easf     = false;
+	bool always_scale  = spl_in->basic_out.always_scale;
 	bool is_subsampled = spl_is_subsampled_format(spl_in->basic_in.format);
+
 
 	if (spl_scratch->scl_data.viewport.width > spl_scratch->scl_data.h_active &&
 		max_downscale_src_width != 0 &&
 		spl_scratch->scl_data.viewport.width > max_downscale_src_width) {
-		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps);
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps, always_scale);
 		*enable_easf_v = false;
 		*enable_easf_h = false;
 		*enable_isharp = false;
@@ -980,7 +982,7 @@ static bool spl_get_optimal_number_of_taps(
 
 	/* Disable adaptive scaler and sharpener when integer scaling is enabled */
 	if (spl_in->scaling_quality.integer_scaling) {
-		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps);
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps, always_scale);
 		*enable_easf_v = false;
 		*enable_easf_h = false;
 		*enable_isharp = false;
@@ -996,7 +998,7 @@ static bool spl_get_optimal_number_of_taps(
 	 * taps = 4 for upscaling
 	 */
 	if (skip_easf)
-		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps);
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps, always_scale);
 	else {
 		if (spl_is_video_format(spl_in->basic_in.format)) {
 			spl_scratch->scl_data.taps.h_taps = 6;
@@ -1297,7 +1299,7 @@ static void spl_set_easf_data(struct spl_scratch *spl_scratch, struct spl_out *s
 	if (enable_easf_v) {
 		dscl_prog_data->easf_v_en = true;
 		dscl_prog_data->easf_v_ring = 0;
-		dscl_prog_data->easf_v_sharp_factor = 0;
+		dscl_prog_data->easf_v_sharp_factor = 1;
 		dscl_prog_data->easf_v_bf1_en = 1;	// 1-bit, BF1 calculation enable, 0=disable, 1=enable
 		dscl_prog_data->easf_v_bf2_mode = 0xF;	// 4-bit, BF2 calculation mode
 		/* 2-bit, BF3 chroma mode correction calculation mode */
@@ -1461,7 +1463,7 @@ static void spl_set_easf_data(struct spl_scratch *spl_scratch, struct spl_out *s
 	if (enable_easf_h) {
 		dscl_prog_data->easf_h_en = true;
 		dscl_prog_data->easf_h_ring = 0;
-		dscl_prog_data->easf_h_sharp_factor = 0;
+		dscl_prog_data->easf_h_sharp_factor = 1;
 		dscl_prog_data->easf_h_bf1_en =
 			1;	// 1-bit, BF1 calculation enable, 0=disable, 1=enable
 		dscl_prog_data->easf_h_bf2_mode =
@@ -1898,3 +1900,4 @@ bool SPL_NAMESPACE(spl_get_number_of_taps(struct spl_in *spl_in, struct spl_out 
 	spl_set_taps_data(dscl_prog_data, data);
 	return res;
 }
+

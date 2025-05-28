@@ -30,6 +30,12 @@
 #include "amdgpu_ucode.h"
 #include "sislands_smc.h"
 
+#include "smu/smu_6_0_d.h"
+#include "smu/smu_6_0_sh_mask.h"
+
+#include "gca/gfx_6_0_d.h"
+#include "gca/gfx_6_0_sh_mask.h"
+
 static int si_set_smc_sram_address(struct amdgpu_device *adev,
 				   u32 smc_address, u32 limit)
 {
@@ -38,8 +44,8 @@ static int si_set_smc_sram_address(struct amdgpu_device *adev,
 	if ((smc_address + 3) > limit)
 		return -EINVAL;
 
-	WREG32(SMC_IND_INDEX_0, smc_address);
-	WREG32_P(SMC_IND_ACCESS_CNTL, 0, ~AUTO_INCREMENT_IND_0);
+	WREG32(mmSMC_IND_INDEX_0, smc_address);
+	WREG32_P(mmSMC_IND_ACCESS_CNTL, 0, ~SMC_IND_ACCESS_CNTL__AUTO_INCREMENT_IND_0_MASK);
 
 	return 0;
 }
@@ -68,7 +74,7 @@ int amdgpu_si_copy_bytes_to_smc(struct amdgpu_device *adev,
 		if (ret)
 			goto done;
 
-		WREG32(SMC_IND_DATA_0, data);
+		WREG32(mmSMC_IND_DATA_0, data);
 
 		src += 4;
 		byte_count -= 4;
@@ -83,7 +89,7 @@ int amdgpu_si_copy_bytes_to_smc(struct amdgpu_device *adev,
 		if (ret)
 			goto done;
 
-		original_data = RREG32(SMC_IND_DATA_0);
+		original_data = RREG32(mmSMC_IND_DATA_0);
 		extra_shift = 8 * (4 - byte_count);
 
 		while (byte_count > 0) {
@@ -99,7 +105,7 @@ int amdgpu_si_copy_bytes_to_smc(struct amdgpu_device *adev,
 		if (ret)
 			goto done;
 
-		WREG32(SMC_IND_DATA_0, data);
+		WREG32(mmSMC_IND_DATA_0, data);
 	}
 
 done:
@@ -121,10 +127,10 @@ void amdgpu_si_reset_smc(struct amdgpu_device *adev)
 {
 	u32 tmp;
 
-	RREG32(CB_CGTT_SCLK_CTRL);
-	RREG32(CB_CGTT_SCLK_CTRL);
-	RREG32(CB_CGTT_SCLK_CTRL);
-	RREG32(CB_CGTT_SCLK_CTRL);
+	RREG32(mmCB_CGTT_SCLK_CTRL);
+	RREG32(mmCB_CGTT_SCLK_CTRL);
+	RREG32(mmCB_CGTT_SCLK_CTRL);
+	RREG32(mmCB_CGTT_SCLK_CTRL);
 
 	tmp = RREG32_SMC(SMC_SYSCON_RESET_CNTL) |
 	      RST_REG;
@@ -170,16 +176,16 @@ PPSMC_Result amdgpu_si_send_msg_to_smc(struct amdgpu_device *adev,
 	if (!amdgpu_si_is_smc_running(adev))
 		return PPSMC_Result_Failed;
 
-	WREG32(SMC_MESSAGE_0, msg);
+	WREG32(mmSMC_MESSAGE_0, msg);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(SMC_RESP_0);
+		tmp = RREG32(mmSMC_RESP_0);
 		if (tmp != 0)
 			break;
 		udelay(1);
 	}
 
-	return (PPSMC_Result)RREG32(SMC_RESP_0);
+	return (PPSMC_Result)RREG32(mmSMC_RESP_0);
 }
 
 PPSMC_Result amdgpu_si_wait_for_smc_inactive(struct amdgpu_device *adev)
@@ -225,18 +231,18 @@ int amdgpu_si_load_smc_ucode(struct amdgpu_device *adev, u32 limit)
 		return -EINVAL;
 
 	spin_lock_irqsave(&adev->smc_idx_lock, flags);
-	WREG32(SMC_IND_INDEX_0, ucode_start_address);
-	WREG32_P(SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, ~AUTO_INCREMENT_IND_0);
+	WREG32(mmSMC_IND_INDEX_0, ucode_start_address);
+	WREG32_P(mmSMC_IND_ACCESS_CNTL, SMC_IND_ACCESS_CNTL__AUTO_INCREMENT_IND_0_MASK, ~SMC_IND_ACCESS_CNTL__AUTO_INCREMENT_IND_0_MASK);
 	while (ucode_size >= 4) {
 		/* SMC address space is BE */
 		data = (src[0] << 24) | (src[1] << 16) | (src[2] << 8) | src[3];
 
-		WREG32(SMC_IND_DATA_0, data);
+		WREG32(mmSMC_IND_DATA_0, data);
 
 		src += 4;
 		ucode_size -= 4;
 	}
-	WREG32_P(SMC_IND_ACCESS_CNTL, 0, ~AUTO_INCREMENT_IND_0);
+	WREG32_P(mmSMC_IND_ACCESS_CNTL, 0, ~SMC_IND_ACCESS_CNTL__AUTO_INCREMENT_IND_0_MASK);
 	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
 
 	return 0;
@@ -251,7 +257,7 @@ int amdgpu_si_read_smc_sram_dword(struct amdgpu_device *adev, u32 smc_address,
 	spin_lock_irqsave(&adev->smc_idx_lock, flags);
 	ret = si_set_smc_sram_address(adev, smc_address, limit);
 	if (ret == 0)
-		*value = RREG32(SMC_IND_DATA_0);
+		*value = RREG32(mmSMC_IND_DATA_0);
 	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
 
 	return ret;
@@ -266,7 +272,7 @@ int amdgpu_si_write_smc_sram_dword(struct amdgpu_device *adev, u32 smc_address,
 	spin_lock_irqsave(&adev->smc_idx_lock, flags);
 	ret = si_set_smc_sram_address(adev, smc_address, limit);
 	if (ret == 0)
-		WREG32(SMC_IND_DATA_0, value);
+		WREG32(mmSMC_IND_DATA_0, value);
 	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
 
 	return ret;

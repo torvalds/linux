@@ -266,6 +266,8 @@ char *dc_status_to_str(enum dc_status status)
 		return "Fail dp payload allocation";
 	case DC_FAIL_DP_LINK_BANDWIDTH:
 		return "Insufficient DP link bandwidth";
+	case DC_FAIL_HW_CURSOR_SUPPORT:
+		return "HW Cursor not supported";
 	case DC_ERROR_UNEXPECTED:
 		return "Unexpected error";
 	}

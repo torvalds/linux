@@ -57,12 +57,15 @@
 
 #define KEPLER_INLINE_TO_MEMORY_A                                    0x0000a040
 #define KEPLER_INLINE_TO_MEMORY_B                                    0x0000a140
+#define BLACKWELL_INLINE_TO_MEMORY_A                                 0x0000cd40
 
 #define NV04_DISP                                     /* cl0046.h */ 0x00000046
 
 #define VOLTA_USERMODE_A                                             0x0000c361
 #define TURING_USERMODE_A                                            0x0000c461
 #define AMPERE_USERMODE_A                                            0x0000c561
+#define HOPPER_USERMODE_A                                            0x0000c661
+#define BLACKWELL_USERMODE_A                                         0x0000c761
 
 #define MAXWELL_FAULT_BUFFER_A                        /* clb069.h */ 0x0000b069
 #define VOLTA_FAULT_BUFFER_A                          /* clb069.h */ 0x0000c369
@@ -85,6 +88,9 @@
 #define TURING_CHANNEL_GPFIFO_A                       /* if0020.h */ 0x0000c46f
 #define AMPERE_CHANNEL_GPFIFO_A                       /* if0020.h */ 0x0000c56f
 #define AMPERE_CHANNEL_GPFIFO_B                       /* if0020.h */ 0x0000c76f
+#define HOPPER_CHANNEL_GPFIFO_A                                      0x0000c86f
+#define BLACKWELL_CHANNEL_GPFIFO_A                                   0x0000c96f
+#define BLACKWELL_CHANNEL_GPFIFO_B                                   0x0000ca6f
 
 #define NV50_DISP                                     /* if0010.h */ 0x00005070
 #define G82_DISP                                      /* if0010.h */ 0x00008270
@@ -102,8 +108,10 @@
 #define TU102_DISP                                    /* if0010.h */ 0x0000c570
 #define GA102_DISP                                    /* if0010.h */ 0x0000c670
 #define AD102_DISP                                    /* if0010.h */ 0x0000c770
+#define GB202_DISP                                                   0x0000ca70
 
 #define GV100_DISP_CAPS                                              0x0000c373
+#define GB202_DISP_CAPS                                              0x0000ca73
 
 #define NV31_MPEG                                                    0x00003174
 #define G82_MPEG                                                     0x00008274
@@ -118,6 +126,7 @@
 #define GV100_DISP_CURSOR                             /* if0014.h */ 0x0000c37a
 #define TU102_DISP_CURSOR                             /* if0014.h */ 0x0000c57a
 #define GA102_DISP_CURSOR                             /* if0014.h */ 0x0000c67a
+#define GB202_DISP_CURSOR                                            0x0000ca7a
 
 #define NV50_DISP_OVERLAY                             /* if0014.h */ 0x0000507b
 #define G82_DISP_OVERLAY                              /* if0014.h */ 0x0000827b
@@ -128,6 +137,7 @@
 #define GV100_DISP_WINDOW_IMM_CHANNEL_DMA             /* if0014.h */ 0x0000c37b
 #define TU102_DISP_WINDOW_IMM_CHANNEL_DMA             /* if0014.h */ 0x0000c57b
 #define GA102_DISP_WINDOW_IMM_CHANNEL_DMA             /* if0014.h */ 0x0000c67b
+#define GB202_DISP_WINDOW_IMM_CHANNEL_DMA                            0x0000ca7b
 
 #define NV50_DISP_BASE_CHANNEL_DMA                    /* if0014.h */ 0x0000507c
 #define G82_DISP_BASE_CHANNEL_DMA                     /* if0014.h */ 0x0000827c
@@ -153,6 +163,7 @@
 #define TU102_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000c57d
 #define GA102_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000c67d
 #define AD102_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000c77d
+#define GB202_DISP_CORE_CHANNEL_DMA                                  0x0000ca7d
 
 #define NV50_DISP_OVERLAY_CHANNEL_DMA                 /* if0014.h */ 0x0000507e
 #define G82_DISP_OVERLAY_CHANNEL_DMA                  /* if0014.h */ 0x0000827e
@@ -164,6 +175,7 @@
 #define GV100_DISP_WINDOW_CHANNEL_DMA                 /* if0014.h */ 0x0000c37e
 #define TU102_DISP_WINDOW_CHANNEL_DMA                 /* if0014.h */ 0x0000c57e
 #define GA102_DISP_WINDOW_CHANNEL_DMA                 /* if0014.h */ 0x0000c67e
+#define GB202_DISP_WINDOW_CHANNEL_DMA                                0x0000ca7e
 
 #define NV50_TESLA                                                   0x00005097
 #define G82_TESLA                                                    0x00008297
@@ -189,16 +201,25 @@
 
 #define TURING_A                                      /* cl9097.h */ 0x0000c597
 
+#define AMPERE_A                                                     0x0000c697
 #define AMPERE_B                                      /* cl9097.h */ 0x0000c797
 
 #define ADA_A                                         /* cl9097.h */ 0x0000c997
 
+#define HOPPER_A                                                     0x0000cb97
+
+#define BLACKWELL_A                                                  0x0000cd97
+#define BLACKWELL_B                                                  0x0000ce97
+
 #define NV74_BSP                                                     0x000074b0
 
+#define NVB8B0_VIDEO_DECODER                                         0x0000b8b0
 #define NVC4B0_VIDEO_DECODER                                         0x0000c4b0
 #define NVC6B0_VIDEO_DECODER                                         0x0000c6b0
 #define NVC7B0_VIDEO_DECODER                                         0x0000c7b0
 #define NVC9B0_VIDEO_DECODER                                         0x0000c9b0
+#define NVCDB0_VIDEO_DECODER                                         0x0000cdb0
+#define NVCFB0_VIDEO_DECODER                                         0x0000cfb0
 
 #define GT212_MSVLD                                                  0x000085b1
 #define IGT21A_MSVLD                                                 0x000086b1
@@ -227,10 +248,14 @@
 #define TURING_DMA_COPY_A                                            0x0000c5b5
 #define AMPERE_DMA_COPY_A                                            0x0000c6b5
 #define AMPERE_DMA_COPY_B                                            0x0000c7b5
+#define HOPPER_DMA_COPY_A                                            0x0000c8b5
+#define BLACKWELL_DMA_COPY_A                                         0x0000c9b5
+#define BLACKWELL_DMA_COPY_B                                         0x0000cab5
 
 #define NVC4B7_VIDEO_ENCODER                                         0x0000c4b7
 #define NVC7B7_VIDEO_ENCODER                                         0x0000c7b7
 #define NVC9B7_VIDEO_ENCODER                                         0x0000c9b7
+#define NVCFB7_VIDEO_ENCODER                                         0x0000cfb7
 
 #define FERMI_DECOMPRESS                                             0x000090b8
 
@@ -246,15 +271,25 @@
 #define PASCAL_COMPUTE_B                                             0x0000c1c0
 #define VOLTA_COMPUTE_A                                              0x0000c3c0
 #define TURING_COMPUTE_A                                             0x0000c5c0
+#define AMPERE_COMPUTE_A                                             0x0000c6c0
 #define AMPERE_COMPUTE_B                                             0x0000c7c0
 #define ADA_COMPUTE_A                                                0x0000c9c0
+#define HOPPER_COMPUTE_A                                             0x0000cbc0
+#define BLACKWELL_COMPUTE_A                                          0x0000cdc0
+#define BLACKWELL_COMPUTE_B                                          0x0000cec0
 
 #define NV74_CIPHER                                                  0x000074c1
 
+#define NVB8D1_VIDEO_NVJPG                                           0x0000b8d1
 #define NVC4D1_VIDEO_NVJPG                                           0x0000c4d1
 #define NVC9D1_VIDEO_NVJPG                                           0x0000c9d1
+#define NVCDD1_VIDEO_NVJPG                                           0x0000cdd1
+#define NVCFD1_VIDEO_NVJPG                                           0x0000cfd1
 
+#define NVB8FA_VIDEO_OFA                                             0x0000b8fa
 #define NVC6FA_VIDEO_OFA                                             0x0000c6fa
 #define NVC7FA_VIDEO_OFA                                             0x0000c7fa
 #define NVC9FA_VIDEO_OFA                                             0x0000c9fa
+#define NVCDFA_VIDEO_OFA                                             0x0000cdfa
+#define NVCFFA_VIDEO_OFA                                             0x0000cffa
 #endif

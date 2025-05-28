@@ -659,7 +659,7 @@ bool pmo_dcn4_fams2_initialize(struct dml2_pmo_initialize_in_out *in_out)
 	for (i = 1; i <= PMO_DCN4_MAX_DISPLAYS; i++) {
 		switch (i) {
 		case 1:
-			DML2_ASSERT(base_strategy_list_1_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
+			DML_ASSERT(base_strategy_list_1_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
 
 			/* populate list */
 			pmo_dcn4_fams2_expand_base_pstate_strategies(
@@ -670,7 +670,7 @@ bool pmo_dcn4_fams2_initialize(struct dml2_pmo_initialize_in_out *in_out)
 					&pmo->init_data.pmo_dcn4.num_expanded_strategies_per_list[i - 1]);
 			break;
 		case 2:
-			DML2_ASSERT(base_strategy_list_2_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
+			DML_ASSERT(base_strategy_list_2_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
 
 			/* populate list */
 			pmo_dcn4_fams2_expand_base_pstate_strategies(
@@ -681,7 +681,7 @@ bool pmo_dcn4_fams2_initialize(struct dml2_pmo_initialize_in_out *in_out)
 					&pmo->init_data.pmo_dcn4.num_expanded_strategies_per_list[i - 1]);
 			break;
 		case 3:
-			DML2_ASSERT(base_strategy_list_3_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
+			DML_ASSERT(base_strategy_list_3_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
 
 			/* populate list */
 			pmo_dcn4_fams2_expand_base_pstate_strategies(
@@ -692,7 +692,7 @@ bool pmo_dcn4_fams2_initialize(struct dml2_pmo_initialize_in_out *in_out)
 					&pmo->init_data.pmo_dcn4.num_expanded_strategies_per_list[i - 1]);
 			break;
 		case 4:
-			DML2_ASSERT(base_strategy_list_4_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
+			DML_ASSERT(base_strategy_list_4_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
 
 			/* populate list */
 			pmo_dcn4_fams2_expand_base_pstate_strategies(

@@ -1,0 +1,318 @@
+/* SPDX-License-Identifier: MIT */
+
+/* Copyright (c) 2025, NVIDIA CORPORATION. All rights reserved. */
+
+#ifndef __NVRM_ENGINE_H__
+#define __NVRM_ENGINE_H__
+#include <nvrm/nvtypes.h>
+
+/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/570.144 */
+
+#define MC_ENGINE_IDX_NULL                          0 // This must be 0
+#define MC_ENGINE_IDX_TMR                           1
+#define MC_ENGINE_IDX_DISP                          2
+#define MC_ENGINE_IDX_FB                            3
+#define MC_ENGINE_IDX_FIFO                          4
+#define MC_ENGINE_IDX_VIDEO                         5
+#define MC_ENGINE_IDX_MD                            6
+#define MC_ENGINE_IDX_BUS                           7
+#define MC_ENGINE_IDX_PMGR                          8
+#define MC_ENGINE_IDX_VP2                           9
+#define MC_ENGINE_IDX_CIPHER                        10
+#define MC_ENGINE_IDX_BIF                           11
+#define MC_ENGINE_IDX_PPP                           12
+#define MC_ENGINE_IDX_PRIVRING                      13
+#define MC_ENGINE_IDX_PMU                           14
+#define MC_ENGINE_IDX_CE0                           15
+#define MC_ENGINE_IDX_CE1                           16
+#define MC_ENGINE_IDX_CE2                           17
+#define MC_ENGINE_IDX_CE3                           18
+#define MC_ENGINE_IDX_CE4                           19
+#define MC_ENGINE_IDX_CE5                           20
+#define MC_ENGINE_IDX_CE6                           21
+#define MC_ENGINE_IDX_CE7                           22
+#define MC_ENGINE_IDX_CE8                           23
+#define MC_ENGINE_IDX_CE9                           24
+#define MC_ENGINE_IDX_CE10                          25
+#define MC_ENGINE_IDX_CE11                          26
+#define MC_ENGINE_IDX_CE12                          27
+#define MC_ENGINE_IDX_CE13                          28
+#define MC_ENGINE_IDX_CE14                          29
+#define MC_ENGINE_IDX_CE15                          30
+#define MC_ENGINE_IDX_CE16                          31
+#define MC_ENGINE_IDX_CE17                          32
+#define MC_ENGINE_IDX_CE18                          33
+#define MC_ENGINE_IDX_CE19                          34
+#define MC_ENGINE_IDX_CE_MAX                        MC_ENGINE_IDX_CE19
+#define MC_ENGINE_IDX_VIC                           35
+#define MC_ENGINE_IDX_ISOHUB                        36
+#define MC_ENGINE_IDX_VGPU                          37
+#define MC_ENGINE_IDX_NVENC                         38
+#define MC_ENGINE_IDX_NVENC1                        39
+#define MC_ENGINE_IDX_NVENC2                        40
+#define MC_ENGINE_IDX_NVENC3                        41
+#define MC_ENGINE_IDX_C2C                           42
+#define MC_ENGINE_IDX_LTC                           43
+#define MC_ENGINE_IDX_FBHUB                         44
+#define MC_ENGINE_IDX_HDACODEC                      45
+#define MC_ENGINE_IDX_GMMU                          46
+#define MC_ENGINE_IDX_SEC2                          47
+#define MC_ENGINE_IDX_FSP                           48
+#define MC_ENGINE_IDX_NVLINK                        49
+#define MC_ENGINE_IDX_GSP                           50
+#define MC_ENGINE_IDX_NVJPG                         51
+#define MC_ENGINE_IDX_NVJPEG                        MC_ENGINE_IDX_NVJPG
+#define MC_ENGINE_IDX_NVJPEG0                       MC_ENGINE_IDX_NVJPEG
+#define MC_ENGINE_IDX_NVJPEG1                       52
+#define MC_ENGINE_IDX_NVJPEG2                       53
+#define MC_ENGINE_IDX_NVJPEG3                       54
+#define MC_ENGINE_IDX_NVJPEG4                       55
+#define MC_ENGINE_IDX_NVJPEG5                       56
+#define MC_ENGINE_IDX_NVJPEG6                       57
+#define MC_ENGINE_IDX_NVJPEG7                       58
+#define MC_ENGINE_IDX_REPLAYABLE_FAULT              59
+#define MC_ENGINE_IDX_ACCESS_CNTR                   60
+#define MC_ENGINE_IDX_NON_REPLAYABLE_FAULT          61
+#define MC_ENGINE_IDX_REPLAYABLE_FAULT_ERROR        62
+#define MC_ENGINE_IDX_NON_REPLAYABLE_FAULT_ERROR    63
+#define MC_ENGINE_IDX_INFO_FAULT                    64
+#define MC_ENGINE_IDX_BSP                           65
+#define MC_ENGINE_IDX_NVDEC                         MC_ENGINE_IDX_BSP
+#define MC_ENGINE_IDX_NVDEC0                        MC_ENGINE_IDX_NVDEC
+#define MC_ENGINE_IDX_NVDEC1                        66
+#define MC_ENGINE_IDX_NVDEC2                        67
+#define MC_ENGINE_IDX_NVDEC3                        68
+#define MC_ENGINE_IDX_NVDEC4                        69
+#define MC_ENGINE_IDX_NVDEC5                        70
+#define MC_ENGINE_IDX_NVDEC6                        71
+#define MC_ENGINE_IDX_NVDEC7                        72
+#define MC_ENGINE_IDX_CPU_DOORBELL                  73
+#define MC_ENGINE_IDX_PRIV_DOORBELL                 74
+#define MC_ENGINE_IDX_MMU_ECC_ERROR                 75
+#define MC_ENGINE_IDX_BLG                           76
+#define MC_ENGINE_IDX_PERFMON                       77
+#define MC_ENGINE_IDX_BUF_RESET                     78
+#define MC_ENGINE_IDX_XBAR                          79
+#define MC_ENGINE_IDX_ZPW                           80
+#define MC_ENGINE_IDX_OFA0                          81
+#define MC_ENGINE_IDX_OFA1                          82
+#define MC_ENGINE_IDX_TEGRA                         83
+#define MC_ENGINE_IDX_GR                            84
+#define MC_ENGINE_IDX_GR0                           MC_ENGINE_IDX_GR
+#define MC_ENGINE_IDX_GR1                           85
+#define MC_ENGINE_IDX_GR2                           86
+#define MC_ENGINE_IDX_GR3                           87
+#define MC_ENGINE_IDX_GR4                           88
+#define MC_ENGINE_IDX_GR5                           89
+#define MC_ENGINE_IDX_GR6                           90
+#define MC_ENGINE_IDX_GR7                           91
+#define MC_ENGINE_IDX_ESCHED                        92
+#define MC_ENGINE_IDX_ESCHED__SIZE                  64
+#define MC_ENGINE_IDX_GR_FECS_LOG                   156
+#define MC_ENGINE_IDX_GR0_FECS_LOG                  MC_ENGINE_IDX_GR_FECS_LOG
+#define MC_ENGINE_IDX_GR1_FECS_LOG                  157
+#define MC_ENGINE_IDX_GR2_FECS_LOG                  158
+#define MC_ENGINE_IDX_GR3_FECS_LOG                  159
+#define MC_ENGINE_IDX_GR4_FECS_LOG                  160
+#define MC_ENGINE_IDX_GR5_FECS_LOG                  161
+#define MC_ENGINE_IDX_GR6_FECS_LOG                  162
+#define MC_ENGINE_IDX_GR7_FECS_LOG                  163
+#define MC_ENGINE_IDX_TMR_SWRL                      164
+#define MC_ENGINE_IDX_DISP_GSP                      165
+#define MC_ENGINE_IDX_REPLAYABLE_FAULT_CPU          166
+#define MC_ENGINE_IDX_NON_REPLAYABLE_FAULT_CPU      167
+#define MC_ENGINE_IDX_PXUC                          168
+#define MC_ENGINE_IDX_SYSLTC                        169
+#define MC_ENGINE_IDX_LRCC                          170
+#define MC_ENGINE_IDX_GSPLITE                       171
+#define MC_ENGINE_IDX_GSPLITE0                      MC_ENGINE_IDX_GSPLITE
+#define MC_ENGINE_IDX_GSPLITE1                      172
+#define MC_ENGINE_IDX_GSPLITE2                      173
+#define MC_ENGINE_IDX_GSPLITE3                      174
+#define MC_ENGINE_IDX_GSPLITE_MAX                   MC_ENGINE_IDX_GSPLITE3
+#define MC_ENGINE_IDX_DPAUX                         175
+#define MC_ENGINE_IDX_DISP_LOW                      176
+#define MC_ENGINE_IDX_MAX                           177
+
+typedef enum
+{
+    RM_ENGINE_TYPE_NULL                            =       (0x00000000),
+    RM_ENGINE_TYPE_GR0                             =       (0x00000001),
+    RM_ENGINE_TYPE_GR1                             =       (0x00000002),
+    RM_ENGINE_TYPE_GR2                             =       (0x00000003),
+    RM_ENGINE_TYPE_GR3                             =       (0x00000004),
+    RM_ENGINE_TYPE_GR4                             =       (0x00000005),
+    RM_ENGINE_TYPE_GR5                             =       (0x00000006),
+    RM_ENGINE_TYPE_GR6                             =       (0x00000007),
+    RM_ENGINE_TYPE_GR7                             =       (0x00000008),
+    RM_ENGINE_TYPE_COPY0                           =       (0x00000009),
+    RM_ENGINE_TYPE_COPY1                           =       (0x0000000a),
+    RM_ENGINE_TYPE_COPY2                           =       (0x0000000b),
+    RM_ENGINE_TYPE_COPY3                           =       (0x0000000c),
+    RM_ENGINE_TYPE_COPY4                           =       (0x0000000d),
+    RM_ENGINE_TYPE_COPY5                           =       (0x0000000e),
+    RM_ENGINE_TYPE_COPY6                           =       (0x0000000f),
+    RM_ENGINE_TYPE_COPY7                           =       (0x00000010),
+    RM_ENGINE_TYPE_COPY8                           =       (0x00000011),
+    RM_ENGINE_TYPE_COPY9                           =       (0x00000012),
+    RM_ENGINE_TYPE_COPY10                          =       (0x00000013),
+    RM_ENGINE_TYPE_COPY11                          =       (0x00000014),
+    RM_ENGINE_TYPE_COPY12                          =       (0x00000015),
+    RM_ENGINE_TYPE_COPY13                          =       (0x00000016),
+    RM_ENGINE_TYPE_COPY14                          =       (0x00000017),
+    RM_ENGINE_TYPE_COPY15                          =       (0x00000018),
+    RM_ENGINE_TYPE_COPY16                          =       (0x00000019),
+    RM_ENGINE_TYPE_COPY17                          =       (0x0000001a),
+    RM_ENGINE_TYPE_COPY18                          =       (0x0000001b),
+    RM_ENGINE_TYPE_COPY19                          =       (0x0000001c),
+    RM_ENGINE_TYPE_NVDEC0                          =       (0x0000001d),
+    RM_ENGINE_TYPE_NVDEC1                          =       (0x0000001e),
+    RM_ENGINE_TYPE_NVDEC2                          =       (0x0000001f),
+    RM_ENGINE_TYPE_NVDEC3                          =       (0x00000020),
+    RM_ENGINE_TYPE_NVDEC4                          =       (0x00000021),
+    RM_ENGINE_TYPE_NVDEC5                          =       (0x00000022),
+    RM_ENGINE_TYPE_NVDEC6                          =       (0x00000023),
+    RM_ENGINE_TYPE_NVDEC7                          =       (0x00000024),
+    RM_ENGINE_TYPE_NVENC0                          =       (0x00000025),
+    RM_ENGINE_TYPE_NVENC1                          =       (0x00000026),
+    RM_ENGINE_TYPE_NVENC2                          =       (0x00000027),
+    // Bug 4175886 - Use this new value for all chips once GB20X is released
+    RM_ENGINE_TYPE_NVENC3                          =       (0x00000028),
+    RM_ENGINE_TYPE_VP                              =       (0x00000029),
+    RM_ENGINE_TYPE_ME                              =       (0x0000002a),
+    RM_ENGINE_TYPE_PPP                             =       (0x0000002b),
+    RM_ENGINE_TYPE_MPEG                            =       (0x0000002c),
+    RM_ENGINE_TYPE_SW                              =       (0x0000002d),
+    RM_ENGINE_TYPE_TSEC                            =       (0x0000002e),
+    RM_ENGINE_TYPE_VIC                             =       (0x0000002f),
+    RM_ENGINE_TYPE_MP                              =       (0x00000030),
+    RM_ENGINE_TYPE_SEC2                            =       (0x00000031),
+    RM_ENGINE_TYPE_HOST                            =       (0x00000032),
+    RM_ENGINE_TYPE_DPU                             =       (0x00000033),
+    RM_ENGINE_TYPE_PMU                             =       (0x00000034),
+    RM_ENGINE_TYPE_FBFLCN                          =       (0x00000035),
+    RM_ENGINE_TYPE_NVJPEG0                         =       (0x00000036),
+    RM_ENGINE_TYPE_NVJPEG1                         =       (0x00000037),
+    RM_ENGINE_TYPE_NVJPEG2                         =       (0x00000038),
+    RM_ENGINE_TYPE_NVJPEG3                         =       (0x00000039),
+    RM_ENGINE_TYPE_NVJPEG4                         =       (0x0000003a),
+    RM_ENGINE_TYPE_NVJPEG5                         =       (0x0000003b),
+    RM_ENGINE_TYPE_NVJPEG6                         =       (0x0000003c),
+    RM_ENGINE_TYPE_NVJPEG7                         =       (0x0000003d),
+    RM_ENGINE_TYPE_OFA0                            =       (0x0000003e),
+    RM_ENGINE_TYPE_OFA1                            =       (0x0000003f),
+    RM_ENGINE_TYPE_RESERVED40                      =       (0x00000040),
+    RM_ENGINE_TYPE_RESERVED41                      =       (0x00000041),
+    RM_ENGINE_TYPE_RESERVED42                      =       (0x00000042),
+    RM_ENGINE_TYPE_RESERVED43                      =       (0x00000043),
+    RM_ENGINE_TYPE_RESERVED44                      =       (0x00000044),
+    RM_ENGINE_TYPE_RESERVED45                      =       (0x00000045),
+    RM_ENGINE_TYPE_RESERVED46                      =       (0x00000046),
+    RM_ENGINE_TYPE_RESERVED47                      =       (0x00000047),
+    RM_ENGINE_TYPE_RESERVED48                      =       (0x00000048),
+    RM_ENGINE_TYPE_RESERVED49                      =       (0x00000049),
+    RM_ENGINE_TYPE_RESERVED4a                      =       (0x0000004a),
+    RM_ENGINE_TYPE_RESERVED4b                      =       (0x0000004b),
+    RM_ENGINE_TYPE_RESERVED4c                      =       (0x0000004c),
+    RM_ENGINE_TYPE_RESERVED4d                      =       (0x0000004d),
+    RM_ENGINE_TYPE_RESERVED4e                      =       (0x0000004e),
+    RM_ENGINE_TYPE_RESERVED4f                      =       (0x0000004f),
+    RM_ENGINE_TYPE_RESERVED50                      =       (0x00000050),
+    RM_ENGINE_TYPE_RESERVED51                      =       (0x00000051),
+    RM_ENGINE_TYPE_RESERVED52                      =       (0x00000052),
+    RM_ENGINE_TYPE_RESERVED53                      =       (0x00000053),
+    RM_ENGINE_TYPE_LAST                            =       (0x00000054),
+} RM_ENGINE_TYPE;
+
+#define NV2080_ENGINE_TYPE_NULL                       (0x00000000)
+#define NV2080_ENGINE_TYPE_GRAPHICS                   (0x00000001)
+#define NV2080_ENGINE_TYPE_GR0                        NV2080_ENGINE_TYPE_GRAPHICS
+#define NV2080_ENGINE_TYPE_GR1                        (0x00000002)
+#define NV2080_ENGINE_TYPE_GR2                        (0x00000003)
+#define NV2080_ENGINE_TYPE_GR3                        (0x00000004)
+#define NV2080_ENGINE_TYPE_GR4                        (0x00000005)
+#define NV2080_ENGINE_TYPE_GR5                        (0x00000006)
+#define NV2080_ENGINE_TYPE_GR6                        (0x00000007)
+#define NV2080_ENGINE_TYPE_GR7                        (0x00000008)
+#define NV2080_ENGINE_TYPE_COPY0                      (0x00000009)
+#define NV2080_ENGINE_TYPE_COPY1                      (0x0000000a)
+#define NV2080_ENGINE_TYPE_COPY2                      (0x0000000b)
+#define NV2080_ENGINE_TYPE_COPY3                      (0x0000000c)
+#define NV2080_ENGINE_TYPE_COPY4                      (0x0000000d)
+#define NV2080_ENGINE_TYPE_COPY5                      (0x0000000e)
+#define NV2080_ENGINE_TYPE_COPY6                      (0x0000000f)
+#define NV2080_ENGINE_TYPE_COPY7                      (0x00000010)
+#define NV2080_ENGINE_TYPE_COPY8                      (0x00000011)
+#define NV2080_ENGINE_TYPE_COPY9                      (0x00000012)
+#define NV2080_ENGINE_TYPE_BSP                        (0x00000013)
+#define NV2080_ENGINE_TYPE_NVDEC0                     NV2080_ENGINE_TYPE_BSP
+#define NV2080_ENGINE_TYPE_NVDEC1                     (0x00000014)
+#define NV2080_ENGINE_TYPE_NVDEC2                     (0x00000015)
+#define NV2080_ENGINE_TYPE_NVDEC3                     (0x00000016)
+#define NV2080_ENGINE_TYPE_NVDEC4                     (0x00000017)
+#define NV2080_ENGINE_TYPE_NVDEC5                     (0x00000018)
+#define NV2080_ENGINE_TYPE_NVDEC6                     (0x00000019)
+#define NV2080_ENGINE_TYPE_NVDEC7                     (0x0000001a)
+#define NV2080_ENGINE_TYPE_MSENC                      (0x0000001b)
+#define NV2080_ENGINE_TYPE_NVENC0                      NV2080_ENGINE_TYPE_MSENC  /* Mutually exclusive alias */
+#define NV2080_ENGINE_TYPE_NVENC1                     (0x0000001c)
+#define NV2080_ENGINE_TYPE_NVENC2                     (0x0000001d)
+#define NV2080_ENGINE_TYPE_VP                         (0x0000001e)
+#define NV2080_ENGINE_TYPE_ME                         (0x0000001f)
+#define NV2080_ENGINE_TYPE_PPP                        (0x00000020)
+#define NV2080_ENGINE_TYPE_MPEG                       (0x00000021)
+#define NV2080_ENGINE_TYPE_SW                         (0x00000022)
+#define NV2080_ENGINE_TYPE_CIPHER                     (0x00000023)
+#define NV2080_ENGINE_TYPE_TSEC                       NV2080_ENGINE_TYPE_CIPHER
+#define NV2080_ENGINE_TYPE_VIC                        (0x00000024)
+#define NV2080_ENGINE_TYPE_MP                         (0x00000025)
+#define NV2080_ENGINE_TYPE_SEC2                       (0x00000026)
+#define NV2080_ENGINE_TYPE_HOST                       (0x00000027)
+#define NV2080_ENGINE_TYPE_DPU                        (0x00000028)
+#define NV2080_ENGINE_TYPE_PMU                        (0x00000029)
+#define NV2080_ENGINE_TYPE_FBFLCN                     (0x0000002a)
+#define NV2080_ENGINE_TYPE_NVJPG                      (0x0000002b)
+#define NV2080_ENGINE_TYPE_NVJPEG0                     NV2080_ENGINE_TYPE_NVJPG
+#define NV2080_ENGINE_TYPE_NVJPEG1                    (0x0000002c)
+#define NV2080_ENGINE_TYPE_NVJPEG2                    (0x0000002d)
+#define NV2080_ENGINE_TYPE_NVJPEG3                    (0x0000002e)
+#define NV2080_ENGINE_TYPE_NVJPEG4                    (0x0000002f)
+#define NV2080_ENGINE_TYPE_NVJPEG5                    (0x00000030)
+#define NV2080_ENGINE_TYPE_NVJPEG6                    (0x00000031)
+#define NV2080_ENGINE_TYPE_NVJPEG7                    (0x00000032)
+#define NV2080_ENGINE_TYPE_OFA                        (0x00000033)
+#define NV2080_ENGINE_TYPE_OFA0                       NV2080_ENGINE_TYPE_OFA
+#define NV2080_ENGINE_TYPE_COPY10                     (0x00000034)
+#define NV2080_ENGINE_TYPE_COPY11                     (0x00000035)
+#define NV2080_ENGINE_TYPE_COPY12                     (0x00000036)
+#define NV2080_ENGINE_TYPE_COPY13                     (0x00000037)
+#define NV2080_ENGINE_TYPE_COPY14                     (0x00000038)
+#define NV2080_ENGINE_TYPE_COPY15                     (0x00000039)
+#define NV2080_ENGINE_TYPE_COPY16                     (0x0000003a)
+#define NV2080_ENGINE_TYPE_COPY17                     (0x0000003b)
+#define NV2080_ENGINE_TYPE_COPY18                     (0x0000003c)
+#define NV2080_ENGINE_TYPE_COPY19                     (0x0000003d)
+#define NV2080_ENGINE_TYPE_OFA1                       (0x0000003e)
+#define NV2080_ENGINE_TYPE_NVENC3                     (0x0000003f)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY0          (0x00000040)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY1          (0x00000041)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY2          (0x00000042)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY3          (0x00000043)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY4          (0x00000044)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY5          (0x00000045)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY6          (0x00000046)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY7          (0x00000047)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY8          (0x00000048)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY9          (0x00000049)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY10         (0x0000004a)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY11         (0x0000004b)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY12         (0x0000004c)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY13         (0x0000004d)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY14         (0x0000004e)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY15         (0x0000004f)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY16         (0x00000050)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY17         (0x00000051)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY18         (0x00000052)
+#define NV2080_ENGINE_TYPE_COMP_DECOMP_COPY19         (0x00000053)
+#define NV2080_ENGINE_TYPE_LAST                       (0x00000054)
+#endif

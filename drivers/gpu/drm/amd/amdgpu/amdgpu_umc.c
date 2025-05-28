@@ -529,6 +529,7 @@ int amdgpu_umc_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
 		pfns[i] = err_data.err_addr[i].retired_page;
 	}
 	ret = i;
+	adev->umc.err_addr_cnt = err_data.err_addr_cnt;
 
 out:
 	kfree(err_data.err_addr);

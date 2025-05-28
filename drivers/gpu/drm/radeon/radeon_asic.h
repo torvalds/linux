@@ -401,7 +401,6 @@ void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock);
 void r600_hdmi_update_avi_infoframe(struct drm_encoder *encoder, void *buffer,
 				    size_t size);
 void r600_hdmi_update_ACR(struct drm_encoder *encoder, uint32_t clock);
-void r600_hdmi_audio_workaround(struct drm_encoder *encoder);
 int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
 void r600_hdmi_update_audio_settings(struct drm_encoder *encoder);
 u32 r600_get_xclk(struct radeon_device *rdev);

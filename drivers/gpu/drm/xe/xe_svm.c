@@ -4,6 +4,7 @@
  */
 
 #include "xe_bo.h"
+#include "xe_gt_stats.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_migrate.h"
 #include "xe_module.h"
@@ -348,6 +349,8 @@ static void xe_svm_garbage_collector_work_func(struct work_struct *w)
 	up_write(&vm->lock);
 }
 
+#if IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR)
+
 static struct xe_vram_region *page_to_vr(struct page *page)
 {
 	return container_of(page_pgmap(page), struct xe_vram_region, pagemap);
@@ -586,6 +589,8 @@ static const struct drm_gpusvm_devmem_ops gpusvm_devmem_ops = {
 	.copy_to_ram = xe_svm_copy_to_ram,
 };
 
+#endif
+
 static const struct drm_gpusvm_ops gpusvm_ops = {
 	.range_alloc = xe_svm_range_alloc,
 	.range_free = xe_svm_range_free,
@@ -666,6 +671,7 @@ static bool xe_svm_range_is_valid(struct xe_svm_range *range,
 		(!devmem_only || xe_svm_range_in_vram(range));
 }
 
+#if IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR)
 static struct xe_vram_region *tile_to_vr(struct xe_tile *tile)
 {
 	return &tile->mem.vram;
@@ -727,6 +733,14 @@ unlock:
 
 	return err;
 }
+#else
+static int xe_svm_alloc_vram(struct xe_vm *vm, struct xe_tile *tile,
+			     struct xe_svm_range *range,
+			     const struct drm_gpusvm_ctx *ctx)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 static bool supports_4K_migration(struct xe_device *xe)
 {
@@ -762,7 +776,7 @@ static bool xe_svm_range_needs_migrate_to_vram(struct xe_svm_range *range,
  * xe_svm_handle_pagefault() - SVM handle page fault
  * @vm: The VM.
  * @vma: The CPU address mirror VMA.
- * @tile: The tile upon the fault occurred.
+ * @gt: The gt upon the fault occurred.
  * @fault_addr: The GPU fault address.
  * @atomic: The fault atomic access bit.
  *
@@ -772,7 +786,7 @@ static bool xe_svm_range_needs_migrate_to_vram(struct xe_svm_range *range,
  * Return: 0 on success, negative error code on error.
  */
 int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
-			    struct xe_tile *tile, u64 fault_addr,
+			    struct xe_gt *gt, u64 fault_addr,
 			    bool atomic)
 {
 	struct drm_gpusvm_ctx ctx = {
@@ -791,11 +805,14 @@ int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
 	struct drm_exec exec;
 	struct dma_fence *fence;
 	int migrate_try_count = ctx.devmem_only ? 3 : 1;
+	struct xe_tile *tile = gt_to_tile(gt);
 	ktime_t end = 0;
 	int err;
 
 	lockdep_assert_held_write(&vm->lock);
 	xe_assert(vm->xe, xe_vma_is_cpu_addr_mirror(vma));
+
+	xe_gt_stats_incr(gt, XE_GT_STATS_ID_SVM_PAGEFAULT_COUNT, 1);
 
 retry:
 	/* Always process UNMAPs first so view SVM ranges is current */
@@ -930,6 +947,7 @@ int xe_svm_bo_evict(struct xe_bo *bo)
 }
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR)
+
 static struct drm_pagemap_device_addr
 xe_drm_pagemap_device_map(struct drm_pagemap *dpagemap,
 			  struct device *dev,

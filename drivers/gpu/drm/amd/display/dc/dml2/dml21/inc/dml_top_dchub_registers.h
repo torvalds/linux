@@ -156,6 +156,8 @@ struct dml2_dchub_watermark_regs {
 	uint32_t urgent;
 	uint32_t sr_enter;
 	uint32_t sr_exit;
+	uint32_t sr_enter_z8;
+	uint32_t sr_exit_z8;
 	uint32_t uclk_pstate;
 	uint32_t fclk_pstate;
 	uint32_t temp_read_or_ppt;

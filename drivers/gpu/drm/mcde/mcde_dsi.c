@@ -1048,6 +1048,7 @@ void mcde_dsi_disable(struct drm_bridge *bridge)
 }
 
 static int mcde_dsi_bridge_attach(struct drm_bridge *bridge,
+				  struct drm_encoder *encoder,
 				  enum drm_bridge_attach_flags flags)
 {
 	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
@@ -1059,7 +1060,7 @@ static int mcde_dsi_bridge_attach(struct drm_bridge *bridge,
 	}
 
 	/* Attach the DSI bridge to the output (panel etc) bridge */
-	return drm_bridge_attach(bridge->encoder, d->bridge_out, bridge, flags);
+	return drm_bridge_attach(encoder, d->bridge_out, bridge, flags);
 }
 
 static const struct drm_bridge_funcs mcde_dsi_bridge_funcs = {
@@ -1137,7 +1138,6 @@ static int mcde_dsi_bind(struct device *dev, struct device *master,
 	d->bridge_out = bridge;
 
 	/* Create a bridge for this DSI channel */
-	d->bridge.funcs = &mcde_dsi_bridge_funcs;
 	d->bridge.of_node = dev->of_node;
 	drm_bridge_add(&d->bridge);
 
@@ -1173,9 +1173,9 @@ static int mcde_dsi_probe(struct platform_device *pdev)
 	u32 dsi_id;
 	int ret;
 
-	d = devm_kzalloc(dev, sizeof(*d), GFP_KERNEL);
-	if (!d)
-		return -ENOMEM;
+	d = devm_drm_bridge_alloc(dev, struct mcde_dsi, bridge, &mcde_dsi_bridge_funcs);
+	if (IS_ERR(d))
+		return PTR_ERR(d);
 	d->dev = dev;
 	platform_set_drvdata(pdev, d);
 

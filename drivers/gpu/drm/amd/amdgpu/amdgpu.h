@@ -113,6 +113,8 @@
 #include "amdgpu_xcp.h"
 #include "amdgpu_seq64.h"
 #include "amdgpu_reg_state.h"
+#include "amdgpu_userq.h"
+#include "amdgpu_eviction_fence.h"
 #if defined(CONFIG_DRM_AMD_ISP)
 #include "amdgpu_isp.h"
 #endif
@@ -228,7 +230,7 @@ extern int amdgpu_force_asic_type;
 extern int amdgpu_smartshift_bias;
 extern int amdgpu_use_xgmi_p2p;
 extern int amdgpu_mtype_local;
-extern bool enforce_isolation;
+extern int amdgpu_enforce_isolation;
 #ifdef CONFIG_HSA_AMD
 extern int sched_policy;
 extern bool debug_evictions;
@@ -266,8 +268,10 @@ extern int amdgpu_umsch_mm_fwlog;
 
 extern int amdgpu_user_partt_mode;
 extern int amdgpu_agp;
+extern int amdgpu_rebar;
 
 extern int amdgpu_wbrf;
+extern int amdgpu_user_queue;
 
 #define AMDGPU_VM_MAX_NUM_CTX			4096
 #define AMDGPU_SG_THRESHOLD			(256*1024*1024)
@@ -488,7 +492,6 @@ struct amdgpu_flip_work {
 	bool				async;
 };
 
-
 /*
  * file private structure
  */
@@ -501,6 +504,11 @@ struct amdgpu_fpriv {
 	struct mutex		bo_list_lock;
 	struct idr		bo_list_handles;
 	struct amdgpu_ctx_mgr	ctx_mgr;
+	struct amdgpu_userq_mgr	userq_mgr;
+
+	/* Eviction fence infra */
+	struct amdgpu_eviction_fence_mgr evf_mgr;
+
 	/** GPU partition selection */
 	uint32_t		xcp_id;
 };
@@ -512,12 +520,62 @@ int amdgpu_file_to_fpriv(struct file *filp, struct amdgpu_fpriv **fpriv);
  */
 #define AMDGPU_MAX_WB 1024	/* Reserve at most 1024 WB slots for amdgpu-owned rings. */
 
+/**
+ * amdgpu_wb - This struct is used for small GPU memory allocation.
+ *
+ * This struct is used to allocate a small amount of GPU memory that can be
+ * used to shadow certain states into the memory. This is especially useful for
+ * providing easy CPU access to some states without requiring register access
+ * (e.g., if some block is power gated, reading register may be problematic).
+ *
+ * Note: the term writeback was initially used because many of the amdgpu
+ * components had some level of writeback memory, and this struct initially
+ * described those components.
+ */
 struct amdgpu_wb {
+
+	/**
+	 * @wb_obj:
+	 *
+	 * Buffer Object used for the writeback memory.
+	 */
 	struct amdgpu_bo	*wb_obj;
+
+	/**
+	 * @wb:
+	 *
+	 * Pointer to the first writeback slot. In terms of CPU address
+	 * this value can be accessed directly by using the offset as an index.
+	 * For the GPU address, it is necessary to use gpu_addr and the offset.
+	 */
 	volatile uint32_t	*wb;
+
+	/**
+	 * @gpu_addr:
+	 *
+	 * Writeback base address in the GPU.
+	 */
 	uint64_t		gpu_addr;
-	u32			num_wb;	/* Number of wb slots actually reserved for amdgpu. */
+
+	/**
+	 * @num_wb:
+	 *
+	 * Number of writeback slots reserved for amdgpu.
+	 */
+	u32			num_wb;
+
+	/**
+	 * @used:
+	 *
+	 * Track the writeback slot already used.
+	 */
 	unsigned long		used[DIV_ROUND_UP(AMDGPU_MAX_WB, BITS_PER_LONG)];
+
+	/**
+	 * @lock:
+	 *
+	 * Protects read and write of the used field array.
+	 */
 	spinlock_t		lock;
 };
 
@@ -551,6 +609,7 @@ struct amdgpu_allowed_register_entry {
  *                   are reset depends on the ASIC. Notably doesn't reset IPs
  *                   shared with the CPU on APUs or the memory controllers (so
  *                   VRAM is not lost). Not available on all ASICs.
+ * @AMD_RESET_LINK: Triggers SW-UP link reset on other GPUs
  * @AMD_RESET_BACO: BACO (Bus Alive, Chip Off) method powers off and on the card
  *                  but without powering off the PCI bus. Suitable only for
  *                  discrete GPUs.
@@ -568,6 +627,7 @@ enum amd_reset_method {
 	AMD_RESET_METHOD_MODE0,
 	AMD_RESET_METHOD_MODE1,
 	AMD_RESET_METHOD_MODE2,
+	AMD_RESET_METHOD_LINK,
 	AMD_RESET_METHOD_BACO,
 	AMD_RESET_METHOD_PCI,
 	AMD_RESET_METHOD_ON_INIT,
@@ -821,12 +881,23 @@ struct amdgpu_mqd_prop {
 	uint32_t hqd_queue_priority;
 	bool allow_tunneling;
 	bool hqd_active;
+	uint64_t shadow_addr;
+	uint64_t gds_bkup_addr;
+	uint64_t csa_addr;
+	uint64_t fence_address;
+	bool tmz_queue;
 };
 
 struct amdgpu_mqd {
 	unsigned mqd_size;
 	int (*init_mqd)(struct amdgpu_device *adev, void *mqd,
 			struct amdgpu_mqd_prop *p);
+};
+
+struct amdgpu_pcie_reset_ctx {
+	bool in_link_reset;
+	bool occurs_dpc;
+	bool audio_suspended;
 };
 
 /*
@@ -852,6 +923,14 @@ struct amdgpu_init_level {
 #define AMDGPU_MAX_DF_PERFMONS 4
 struct amdgpu_reset_domain;
 struct amdgpu_fru_info;
+
+enum amdgpu_enforce_isolation_mode {
+	AMDGPU_ENFORCE_ISOLATION_DISABLE = 0,
+	AMDGPU_ENFORCE_ISOLATION_ENABLE = 1,
+	AMDGPU_ENFORCE_ISOLATION_ENABLE_LEGACY = 2,
+	AMDGPU_ENFORCE_ISOLATION_NO_CLEANER_SHADER = 3,
+};
+
 
 /*
  * Non-zero (true) if the GPU has VRAM. Zero (false) otherwise.
@@ -1081,6 +1160,13 @@ struct amdgpu_device {
 	bool                            enable_uni_mes;
 	struct amdgpu_mes               mes;
 	struct amdgpu_mqd               mqds[AMDGPU_HW_IP_NUM];
+	const struct amdgpu_userq_funcs *userq_funcs[AMDGPU_HW_IP_NUM];
+
+	/* xarray used to retrieve the user queue fence driver reference
+	 * in the EOP interrupt handler to signal the particular user
+	 * queue fence.
+	 */
+	struct xarray			userq_xa;
 
 	/* df */
 	struct amdgpu_df                df;
@@ -1160,6 +1246,8 @@ struct amdgpu_device {
 	struct pci_saved_state          *pci_state;
 	pci_channel_state_t		pci_channel_state;
 
+	struct amdgpu_pcie_reset_ctx	pcie_reset_ctx;
+
 	/* Track auto wait count on s_barrier settings */
 	bool				barrier_has_auto_waitcnt;
 
@@ -1193,10 +1281,11 @@ struct amdgpu_device {
 	bool                            debug_enable_ras_aca;
 	bool                            debug_exp_resets;
 	bool                            debug_disable_gpu_ring_reset;
+	bool                            debug_vm_userptr;
 
 	/* Protection for the following isolation structure */
 	struct mutex                    enforce_isolation_mutex;
-	bool				enforce_isolation[MAX_XCP];
+	enum amdgpu_enforce_isolation_mode	enforce_isolation[MAX_XCP];
 	struct amdgpu_isolation {
 		void			*owner;
 		struct dma_fence	*spearhead;
@@ -1210,6 +1299,10 @@ struct amdgpu_device {
 	 * in KFD: VRAM or GTT.
 	 */
 	bool                            apu_prefer_gtt;
+
+	struct list_head		userq_mgr_list;
+	struct mutex                    userq_mutex;
+	bool                            userq_halt_for_enforce_isolation;
 };
 
 static inline uint32_t amdgpu_ip_version(const struct amdgpu_device *adev,
@@ -1464,6 +1557,7 @@ void amdgpu_device_program_register_sequence(struct amdgpu_device *adev,
 					     const u32 array_size);
 
 int amdgpu_device_mode1_reset(struct amdgpu_device *adev);
+int amdgpu_device_link_reset(struct amdgpu_device *adev);
 bool amdgpu_device_supports_atpx(struct drm_device *dev);
 bool amdgpu_device_supports_px(struct drm_device *dev);
 bool amdgpu_device_supports_boco(struct drm_device *dev);

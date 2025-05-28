@@ -8,7 +8,7 @@
 #include <drm/intel/i915_drm.h>
 
 #include "display/intel_display.h"
-#include "display/intel_display_irq.h"
+#include "display/intel_display_rps.h"
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
@@ -550,6 +550,7 @@ static unsigned int init_emon(struct intel_uncore *uncore)
 static bool gen5_rps_enable(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
+	struct intel_display *display = &i915->display;
 	struct intel_uncore *uncore = rps_to_uncore(rps);
 	u8 fstart, vstart;
 	u32 rgvmodectl;
@@ -607,9 +608,7 @@ static bool gen5_rps_enable(struct intel_rps *rps)
 	rps->ips.last_count2 = intel_uncore_read(uncore, GFXEC);
 	rps->ips.last_time2 = ktime_get_raw_ns();
 
-	spin_lock(&i915->irq_lock);
-	ilk_enable_display_irq(i915, DE_PCU_EVENT);
-	spin_unlock(&i915->irq_lock);
+	ilk_display_rps_enable(display);
 
 	spin_unlock_irq(&mchdev_lock);
 
@@ -621,14 +620,13 @@ static bool gen5_rps_enable(struct intel_rps *rps)
 static void gen5_rps_disable(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
+	struct intel_display *display = &i915->display;
 	struct intel_uncore *uncore = rps_to_uncore(rps);
 	u16 rgvswctl;
 
 	spin_lock_irq(&mchdev_lock);
 
-	spin_lock(&i915->irq_lock);
-	ilk_disable_display_irq(i915, DE_PCU_EVENT);
-	spin_unlock(&i915->irq_lock);
+	ilk_display_rps_disable(display);
 
 	rgvswctl = intel_uncore_read16(uncore, MEMSWCTL);
 

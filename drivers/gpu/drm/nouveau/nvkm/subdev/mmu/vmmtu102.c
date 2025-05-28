@@ -23,7 +23,7 @@
 
 #include <subdev/timer.h>
 
-static void
+void
 tu102_vmm_flush(struct nvkm_vmm *vmm, int depth)
 {
 	struct nvkm_device *device = vmm->mmu->subdev.device;

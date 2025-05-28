@@ -494,6 +494,7 @@ static void ps8640_atomic_post_disable(struct drm_bridge *bridge,
 }
 
 static int ps8640_bridge_attach(struct drm_bridge *bridge,
+				struct drm_encoder *encoder,
 				enum drm_bridge_attach_flags flags)
 {
 	struct ps8640 *ps_bridge = bridge_to_ps8640(bridge);
@@ -518,7 +519,7 @@ static int ps8640_bridge_attach(struct drm_bridge *bridge,
 	}
 
 	/* Attach the panel-bridge to the dsi bridge */
-	ret = drm_bridge_attach(bridge->encoder, ps_bridge->panel_bridge,
+	ret = drm_bridge_attach(encoder, ps_bridge->panel_bridge,
 				&ps_bridge->bridge, flags);
 	if (ret)
 		goto err_bridge_attach;

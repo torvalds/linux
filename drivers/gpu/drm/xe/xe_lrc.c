@@ -38,6 +38,7 @@
 #define LRC_ENGINE_CLASS			GENMASK_ULL(63, 61)
 #define LRC_ENGINE_INSTANCE			GENMASK_ULL(53, 48)
 
+#define LRC_PPHWSP_SIZE				SZ_4K
 #define LRC_INDIRECT_RING_STATE_SIZE		SZ_4K
 
 static struct xe_device *
@@ -51,19 +52,22 @@ size_t xe_gt_lrc_size(struct xe_gt *gt, enum xe_engine_class class)
 	struct xe_device *xe = gt_to_xe(gt);
 	size_t size;
 
+	/* Per-process HW status page (PPHWSP) */
+	size = LRC_PPHWSP_SIZE;
+
+	/* Engine context image */
 	switch (class) {
 	case XE_ENGINE_CLASS_RENDER:
 		if (GRAPHICS_VER(xe) >= 20)
-			size = 4 * SZ_4K;
+			size += 3 * SZ_4K;
 		else
-			size = 14 * SZ_4K;
+			size += 13 * SZ_4K;
 		break;
 	case XE_ENGINE_CLASS_COMPUTE:
-		/* 14 pages since graphics_ver == 11 */
 		if (GRAPHICS_VER(xe) >= 20)
-			size = 3 * SZ_4K;
+			size += 2 * SZ_4K;
 		else
-			size = 14 * SZ_4K;
+			size += 13 * SZ_4K;
 		break;
 	default:
 		WARN(1, "Unknown engine class: %d", class);
@@ -72,7 +76,7 @@ size_t xe_gt_lrc_size(struct xe_gt *gt, enum xe_engine_class class)
 	case XE_ENGINE_CLASS_VIDEO_DECODE:
 	case XE_ENGINE_CLASS_VIDEO_ENHANCE:
 	case XE_ENGINE_CLASS_OTHER:
-		size = 2 * SZ_4K;
+		size += 1 * SZ_4K;
 	}
 
 	/* Add indirect ring state page */
@@ -652,7 +656,6 @@ u32 xe_lrc_pphwsp_offset(struct xe_lrc *lrc)
 #define LRC_CTX_JOB_TIMESTAMP_OFFSET (LRC_START_SEQNO_PPHWSP_OFFSET + 8)
 #define LRC_PARALLEL_PPHWSP_OFFSET 2048
 #define LRC_ENGINE_ID_PPHWSP_OFFSET 2096
-#define LRC_PPHWSP_SIZE SZ_4K
 
 u32 xe_lrc_regs_offset(struct xe_lrc *lrc)
 {
@@ -997,6 +1000,8 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 
 	bo_flags = XE_BO_FLAG_VRAM_IF_DGFX(tile) | XE_BO_FLAG_GGTT |
 		   XE_BO_FLAG_GGTT_INVALIDATE;
+	if (vm && vm->xef) /* userspace */
+		bo_flags |= XE_BO_FLAG_PINNED_LATE_RESTORE;
 
 	/*
 	 * FIXME: Perma-pinning LRC as we don't yet support moving GGTT address
@@ -1566,6 +1571,7 @@ static int dump_gfxpipe_command(struct drm_printer *p,
 	MATCH3D(3DSTATE_CLIP_MESH);
 	MATCH3D(3DSTATE_SBE_MESH);
 	MATCH3D(3DSTATE_CPSIZE_CONTROL_BUFFER);
+	MATCH3D(3DSTATE_COARSE_PIXEL);
 
 	MATCH3D(3DSTATE_DRAWING_RECTANGLE);
 	MATCH3D(3DSTATE_CHROMA_KEY);

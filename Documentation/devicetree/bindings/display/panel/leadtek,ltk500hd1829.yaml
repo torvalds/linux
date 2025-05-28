@@ -22,6 +22,7 @@ properties:
     maxItems: 1
 
   backlight: true
+  port: true
   reset-gpios: true
   iovcc-supply:
     description: regulator that supplies the iovcc voltage

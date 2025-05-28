@@ -761,7 +761,7 @@ bool dml2_top_mcache_calc_mcache_count_and_offsets(struct top_mcache_calc_mcache
 				total_mcaches_required--;
 		}
 	}
-	dml2_printf("DML_CORE_DCN3::%s: plane_%d, total_mcaches_required=%d\n", __func__, i, total_mcaches_required);
+	DML_LOG_VERBOSE("DML_CORE_DCN3::%s: plane_%d, total_mcaches_required=%d\n", __func__, i, total_mcaches_required);
 
 	if (total_mcaches_required > dml->soc_bbox.num_dcc_mcaches) {
 		result = false;

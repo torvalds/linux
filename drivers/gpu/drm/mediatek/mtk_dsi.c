@@ -807,12 +807,13 @@ static void mtk_output_dsi_disable(struct mtk_dsi *dsi)
 }
 
 static int mtk_dsi_bridge_attach(struct drm_bridge *bridge,
+				 struct drm_encoder *encoder,
 				 enum drm_bridge_attach_flags flags)
 {
 	struct mtk_dsi *dsi = bridge_to_dsi(bridge);
 
 	/* Attach the panel or bridge to the dsi bridge */
-	return drm_bridge_attach(bridge->encoder, dsi->next_bridge,
+	return drm_bridge_attach(encoder, dsi->next_bridge,
 				 &dsi->bridge, flags);
 }
 

@@ -357,11 +357,11 @@ v3d_tfu_job_run(struct drm_sched_job *sched_job)
 	V3D_WRITE(V3D_TFU_ICA(v3d->ver), job->args.ica);
 	V3D_WRITE(V3D_TFU_IUA(v3d->ver), job->args.iua);
 	V3D_WRITE(V3D_TFU_IOA(v3d->ver), job->args.ioa);
-	if (v3d->ver >= 71)
+	if (v3d->ver >= V3D_GEN_71)
 		V3D_WRITE(V3D_V7_TFU_IOC, job->args.v71.ioc);
 	V3D_WRITE(V3D_TFU_IOS(v3d->ver), job->args.ios);
 	V3D_WRITE(V3D_TFU_COEF0(v3d->ver), job->args.coef[0]);
-	if (v3d->ver >= 71 || (job->args.coef[0] & V3D_TFU_COEF0_USECOEF)) {
+	if (v3d->ver >= V3D_GEN_71 || (job->args.coef[0] & V3D_TFU_COEF0_USECOEF)) {
 		V3D_WRITE(V3D_TFU_COEF1(v3d->ver), job->args.coef[1]);
 		V3D_WRITE(V3D_TFU_COEF2(v3d->ver), job->args.coef[2]);
 		V3D_WRITE(V3D_TFU_COEF3(v3d->ver), job->args.coef[3]);
@@ -412,7 +412,7 @@ v3d_csd_job_run(struct drm_sched_job *sched_job)
 	 *
 	 * XXX: Set the CFG7 register
 	 */
-	if (v3d->ver >= 71)
+	if (v3d->ver >= V3D_GEN_71)
 		V3D_CORE_WRITE(0, V3D_V7_CSD_QUEUED_CFG7, 0);
 
 	/* CFG0 write kicks off the job. */

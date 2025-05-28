@@ -36,9 +36,9 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_eld.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
-#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
@@ -214,18 +214,17 @@ intel_sdvo_create_enhance_property(struct intel_sdvo *intel_sdvo,
 static void intel_sdvo_write_sdvox(struct intel_sdvo *intel_sdvo, u32 val)
 {
 	struct intel_display *display = to_intel_display(&intel_sdvo->base);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 bval = val, cval = val;
 	int i;
 
-	if (HAS_PCH_SPLIT(dev_priv)) {
+	if (HAS_PCH_SPLIT(display)) {
 		intel_de_write(display, intel_sdvo->sdvo_reg, val);
 		intel_de_posting_read(display, intel_sdvo->sdvo_reg);
 		/*
 		 * HW workaround, need to write this twice for issue
 		 * that may result in first write getting masked.
 		 */
-		if (HAS_PCH_IBX(dev_priv)) {
+		if (HAS_PCH_IBX(display)) {
 			intel_de_write(display, intel_sdvo->sdvo_reg, val);
 			intel_de_posting_read(display, intel_sdvo->sdvo_reg);
 		}
@@ -1360,14 +1359,13 @@ static int intel_sdvo_compute_config(struct intel_encoder *encoder,
 				     struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 	struct intel_sdvo_connector *intel_sdvo_connector =
 		to_intel_sdvo_connector(conn_state->connector);
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	struct drm_display_mode *mode = &pipe_config->hw.mode;
 
-	if (HAS_PCH_SPLIT(i915)) {
+	if (HAS_PCH_SPLIT(display)) {
 		pipe_config->has_pch_encoder = true;
 		if (!intel_fdi_compute_pipe_bpp(pipe_config))
 			return -EINVAL;
@@ -1527,7 +1525,6 @@ static void intel_sdvo_pre_enable(struct intel_atomic_state *state,
 				  const struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(intel_encoder);
-	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 	const struct intel_sdvo_connector_state *sdvo_state =
@@ -1634,7 +1631,7 @@ static void intel_sdvo_pre_enable(struct intel_atomic_state *state,
 		sdvox |= (9 << 19) | SDVO_BORDER_ENABLE;
 	}
 
-	if (HAS_PCH_CPT(dev_priv))
+	if (HAS_PCH_CPT(display))
 		sdvox |= SDVO_PIPE_SEL_CPT(crtc->pipe);
 	else
 		sdvox |= SDVO_PIPE_SEL(crtc->pipe);
@@ -1670,13 +1667,12 @@ static bool intel_sdvo_connector_get_hw_state(struct intel_connector *connector)
 bool intel_sdvo_port_enabled(struct intel_display *display,
 			     i915_reg_t sdvo_reg, enum pipe *pipe)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 val;
 
 	val = intel_de_read(display, sdvo_reg);
 
 	/* asserts want to know the pipe even if the port is disabled */
-	if (HAS_PCH_CPT(dev_priv))
+	if (HAS_PCH_CPT(display))
 		*pipe = (val & SDVO_PIPE_SEL_MASK_CPT) >> SDVO_PIPE_SEL_SHIFT_CPT;
 	else if (display->platform.cherryview)
 		*pipe = (val & SDVO_PIPE_SEL_MASK_CHV) >> SDVO_PIPE_SEL_SHIFT_CHV;
@@ -1841,7 +1837,6 @@ static void intel_disable_sdvo(struct intel_atomic_state *state,
 			       const struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	u32 temp;
@@ -1861,7 +1856,7 @@ static void intel_disable_sdvo(struct intel_atomic_state *state,
 	 * to transcoder A after disabling it to allow the
 	 * matching DP port to be enabled on transcoder A.
 	 */
-	if (HAS_PCH_IBX(dev_priv) && crtc->pipe == PIPE_B) {
+	if (HAS_PCH_IBX(display) && crtc->pipe == PIPE_B) {
 		/*
 		 * We get CPU/PCH FIFO underruns on the other pipe when
 		 * doing the workaround. Sweep them under the rug.
@@ -2036,7 +2031,7 @@ static u16 intel_sdvo_get_hotplug_support(struct intel_sdvo *intel_sdvo)
 	struct intel_display *display = to_intel_display(&intel_sdvo->base);
 	u16 hotplug;
 
-	if (!I915_HAS_HOTPLUG(display))
+	if (!HAS_HOTPLUG(display))
 		return 0;
 
 	/*
@@ -3367,9 +3362,7 @@ intel_sdvo_init_ddc_proxy(struct intel_sdvo_ddc *ddc,
 
 static bool is_sdvo_port_valid(struct intel_display *display, enum port port)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
-	if (HAS_PCH_SPLIT(dev_priv))
+	if (HAS_PCH_SPLIT(display))
 		return port == PORT_B;
 	else
 		return port == PORT_B || port == PORT_C;
@@ -3384,7 +3377,6 @@ static bool assert_sdvo_port_valid(struct intel_display *display, enum port port
 bool intel_sdvo_init(struct intel_display *display,
 		     i915_reg_t sdvo_reg, enum port port)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_encoder *intel_encoder;
 	struct intel_sdvo *intel_sdvo;
 	int i;
@@ -3427,7 +3419,7 @@ bool intel_sdvo_init(struct intel_display *display,
 	}
 
 	intel_encoder->compute_config = intel_sdvo_compute_config;
-	if (HAS_PCH_SPLIT(dev_priv)) {
+	if (HAS_PCH_SPLIT(display)) {
 		intel_encoder->disable = pch_disable_sdvo;
 		intel_encoder->post_disable = pch_post_disable_sdvo;
 	} else {

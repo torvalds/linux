@@ -134,6 +134,9 @@ int wndwc57e_csc_clr(struct nv50_wndw *);
 int wndwc67e_new(struct nouveau_drm *, enum drm_plane_type, int, s32,
 		 struct nv50_wndw **);
 
+int wndwca7e_new(struct nouveau_drm *, enum drm_plane_type, int, s32,
+		 struct nv50_wndw **);
+
 int nv50_wndw_new(struct nouveau_drm *, enum drm_plane_type, int index,
 		  struct nv50_wndw **);
 #endif

@@ -86,6 +86,9 @@ enum dc_irq_source dal_irq_get_source(
 enum dc_irq_source dal_irq_get_rx_source(
 	const struct gpio *irq);
 
+enum dc_irq_source dal_irq_get_read_request(
+	const struct gpio *irq);
+
 enum gpio_result dal_irq_setup_hpd_filter(
 	struct gpio *irq,
 	struct gpio_hpd_config *config);

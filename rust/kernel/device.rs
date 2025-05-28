@@ -9,7 +9,7 @@ use crate::{
     str::CStr,
     types::{ARef, Opaque},
 };
-use core::{fmt, ptr};
+use core::{fmt, marker::PhantomData, ptr};
 
 #[cfg(CONFIG_PRINTK)]
 use crate::c_str;
@@ -42,7 +42,7 @@ use crate::c_str;
 /// `bindings::device::release` is valid to be called from any thread, hence `ARef<Device>` can be
 /// dropped from any thread.
 #[repr(transparent)]
-pub struct Device(Opaque<bindings::device>);
+pub struct Device<Ctx: DeviceContext = Normal>(Opaque<bindings::device>, PhantomData<Ctx>);
 
 impl Device {
     /// Creates a new reference-counted abstraction instance of an existing `struct device` pointer.
@@ -59,10 +59,31 @@ impl Device {
         // SAFETY: By the safety requirements ptr is valid
         unsafe { Self::as_ref(ptr) }.into()
     }
+}
 
+impl<Ctx: DeviceContext> Device<Ctx> {
     /// Obtain the raw `struct device *`.
     pub(crate) fn as_raw(&self) -> *mut bindings::device {
         self.0.get()
+    }
+
+    /// Returns a reference to the parent device, if any.
+    #[cfg_attr(not(CONFIG_AUXILIARY_BUS), expect(dead_code))]
+    pub(crate) fn parent(&self) -> Option<&Self> {
+        // SAFETY:
+        // - By the type invariant `self.as_raw()` is always valid.
+        // - The parent device is only ever set at device creation.
+        let parent = unsafe { (*self.as_raw()).parent };
+
+        if parent.is_null() {
+            None
+        } else {
+            // SAFETY:
+            // - Since `parent` is not NULL, it must be a valid pointer to a `struct device`.
+            // - `parent` is valid for the lifetime of `self`, since a `struct device` holds a
+            //   reference count of its parent.
+            Some(unsafe { Self::as_ref(parent) })
+        }
     }
 
     /// Convert a raw C `struct device` pointer to a `&'a Device`.
@@ -189,6 +210,11 @@ impl Device {
     }
 }
 
+// SAFETY: `Device` is a transparent wrapper of a type that doesn't depend on `Device`'s generic
+// argument.
+kernel::impl_device_context_deref!(unsafe { Device });
+kernel::impl_device_context_into_aref!(Device);
+
 // SAFETY: Instances of `Device` are always reference-counted.
 unsafe impl crate::types::AlwaysRefCounted for Device {
     fn inc_ref(&self) {
@@ -225,15 +251,94 @@ pub struct Normal;
 /// any of the bus callbacks, such as `probe()`.
 pub struct Core;
 
+/// The [`Bound`] context is the context of a bus specific device reference when it is guaranteed to
+/// be bound for the duration of its lifetime.
+pub struct Bound;
+
 mod private {
     pub trait Sealed {}
 
+    impl Sealed for super::Bound {}
     impl Sealed for super::Core {}
     impl Sealed for super::Normal {}
 }
 
+impl DeviceContext for Bound {}
 impl DeviceContext for Core {}
 impl DeviceContext for Normal {}
+
+/// # Safety
+///
+/// The type given as `$device` must be a transparent wrapper of a type that doesn't depend on the
+/// generic argument of `$device`.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_device_context_deref {
+    (unsafe { $device:ident, $src:ty => $dst:ty }) => {
+        impl ::core::ops::Deref for $device<$src> {
+            type Target = $device<$dst>;
+
+            fn deref(&self) -> &Self::Target {
+                let ptr: *const Self = self;
+
+                // CAST: `$device<$src>` and `$device<$dst>` transparently wrap the same type by the
+                // safety requirement of the macro.
+                let ptr = ptr.cast::<Self::Target>();
+
+                // SAFETY: `ptr` was derived from `&self`.
+                unsafe { &*ptr }
+            }
+        }
+    };
+}
+
+/// Implement [`core::ops::Deref`] traits for allowed [`DeviceContext`] conversions of a (bus
+/// specific) device.
+///
+/// # Safety
+///
+/// The type given as `$device` must be a transparent wrapper of a type that doesn't depend on the
+/// generic argument of `$device`.
+#[macro_export]
+macro_rules! impl_device_context_deref {
+    (unsafe { $device:ident }) => {
+        // SAFETY: This macro has the exact same safety requirement as
+        // `__impl_device_context_deref!`.
+        ::kernel::__impl_device_context_deref!(unsafe {
+            $device,
+            $crate::device::Core => $crate::device::Bound
+        });
+
+        // SAFETY: This macro has the exact same safety requirement as
+        // `__impl_device_context_deref!`.
+        ::kernel::__impl_device_context_deref!(unsafe {
+            $device,
+            $crate::device::Bound => $crate::device::Normal
+        });
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_device_context_into_aref {
+    ($src:ty, $device:tt) => {
+        impl ::core::convert::From<&$device<$src>> for $crate::types::ARef<$device> {
+            fn from(dev: &$device<$src>) -> Self {
+                (&**dev).into()
+            }
+        }
+    };
+}
+
+/// Implement [`core::convert::From`], such that all `&Device<Ctx>` can be converted to an
+/// `ARef<Device>`.
+#[macro_export]
+macro_rules! impl_device_context_into_aref {
+    ($device:tt) => {
+        ::kernel::__impl_device_context_into_aref!($crate::device::Core, $device);
+        ::kernel::__impl_device_context_into_aref!($crate::device::Bound, $device);
+    };
+}
 
 #[doc(hidden)]
 #[macro_export]

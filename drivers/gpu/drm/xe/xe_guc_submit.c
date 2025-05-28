@@ -300,6 +300,8 @@ int xe_guc_submit_init(struct xe_guc *guc, unsigned int num_ids)
 
 	primelockdep(guc);
 
+	guc->submission_state.initialized = true;
+
 	return drmm_add_action_or_reset(&xe->drm, guc_submit_fini, guc);
 }
 
@@ -834,6 +836,13 @@ void xe_guc_submit_wedge(struct xe_guc *guc)
 
 	xe_gt_assert(guc_to_gt(guc), guc_to_xe(guc)->wedged.mode);
 
+	/*
+	 * If device is being wedged even before submission_state is
+	 * initialized, there's nothing to do here.
+	 */
+	if (!guc->submission_state.initialized)
+		return;
+
 	err = devm_add_action_or_reset(guc_to_xe(guc)->drm.dev,
 				       guc_submit_wedged_fini, guc);
 	if (err) {
@@ -1170,9 +1179,12 @@ trigger_reset:
 		process_name = q->vm->xef->process_name;
 		pid = q->vm->xef->pid;
 	}
-	xe_gt_notice(guc_to_gt(guc), "Timedout job: seqno=%u, lrc_seqno=%u, guc_id=%d, flags=0x%lx in %s [%d]",
-		     xe_sched_job_seqno(job), xe_sched_job_lrc_seqno(job),
-		     q->guc->id, q->flags, process_name, pid);
+
+	if (!exec_queue_killed(q))
+		xe_gt_notice(guc_to_gt(guc),
+			     "Timedout job: seqno=%u, lrc_seqno=%u, guc_id=%d, flags=0x%lx in %s [%d]",
+			     xe_sched_job_seqno(job), xe_sched_job_lrc_seqno(job),
+			     q->guc->id, q->flags, process_name, pid);
 
 	trace_xe_sched_job_timedout(job);
 

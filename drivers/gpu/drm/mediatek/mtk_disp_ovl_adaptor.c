@@ -492,11 +492,6 @@ static const struct of_device_id mtk_ovl_adaptor_comp_dt_ids[] = {
 	{ /* sentinel */ }
 };
 
-static int compare_of(struct device *dev, void *data)
-{
-	return dev->of_node == data;
-}
-
 static int ovl_adaptor_of_get_ddp_comp_type(struct device_node *node,
 					    enum mtk_ovl_adaptor_comp_type *ctype)
 {
@@ -567,7 +562,7 @@ static int ovl_adaptor_comp_init(struct device *dev, struct component_match **ma
 
 		priv->ovl_adaptor_comp[id] = &comp_pdev->dev;
 
-		drm_of_component_match_add(dev, match, compare_of, node);
+		drm_of_component_match_add(dev, match, component_compare_of, node);
 		dev_dbg(dev, "Adding component match for %pOF\n", node);
 	}
 

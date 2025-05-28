@@ -18,7 +18,4 @@ extern const struct nvkm_nvenc_fwif gm107_nvenc_fwif[];
 
 int nvkm_nvenc_new_(const struct nvkm_nvenc_fwif *, struct nvkm_device *, enum nvkm_subdev_type,
 		    int, struct nvkm_nvenc **pnvenc);
-
-int r535_nvenc_new(const struct nvkm_engine_func *, struct nvkm_device *,
-		   enum nvkm_subdev_type, int, struct nvkm_nvenc **);
 #endif

@@ -17,36 +17,61 @@
 #include "xe_hw_engine.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
+#include "xe_sriov_pf_helpers.h"
 #include "xe_trace_guc.h"
 
 #define TOTAL_QUANTA 0x8000
 
-static struct iosys_map engine_activity_map(struct xe_guc *guc, struct xe_hw_engine *hwe)
+static struct iosys_map engine_activity_map(struct xe_guc *guc, struct xe_hw_engine *hwe,
+					    unsigned int index)
 {
 	struct xe_guc_engine_activity *engine_activity = &guc->engine_activity;
-	struct engine_activity_buffer *buffer = &engine_activity->device_buffer;
+	struct engine_activity_buffer *buffer;
 	u16 guc_class = xe_engine_class_to_guc_class(hwe->class);
 	size_t offset;
 
-	offset = offsetof(struct guc_engine_activity_data,
+	if (engine_activity->num_functions) {
+		buffer = &engine_activity->function_buffer;
+		offset = sizeof(struct guc_engine_activity_data) * index;
+	} else {
+		buffer = &engine_activity->device_buffer;
+		offset = 0;
+	}
+
+	offset += offsetof(struct guc_engine_activity_data,
 			  engine_activity[guc_class][hwe->logical_instance]);
 
 	return IOSYS_MAP_INIT_OFFSET(&buffer->activity_bo->vmap, offset);
 }
 
-static struct iosys_map engine_metadata_map(struct xe_guc *guc)
+static struct iosys_map engine_metadata_map(struct xe_guc *guc,
+					    unsigned int index)
 {
 	struct xe_guc_engine_activity *engine_activity = &guc->engine_activity;
-	struct engine_activity_buffer *buffer = &engine_activity->device_buffer;
+	struct engine_activity_buffer *buffer;
+	size_t offset;
 
-	return buffer->metadata_bo->vmap;
+	if (engine_activity->num_functions) {
+		buffer = &engine_activity->function_buffer;
+		offset = sizeof(struct guc_engine_activity_metadata) * index;
+	} else {
+		buffer = &engine_activity->device_buffer;
+		offset = 0;
+	}
+
+	return IOSYS_MAP_INIT_OFFSET(&buffer->metadata_bo->vmap, offset);
 }
 
 static int allocate_engine_activity_group(struct xe_guc *guc)
 {
 	struct xe_guc_engine_activity *engine_activity = &guc->engine_activity;
 	struct xe_device *xe = guc_to_xe(guc);
-	u32 num_activity_group = 1; /* Will be modified for VF */
+	u32 num_activity_group;
+
+	/*
+	 * An additional activity group is allocated for PF
+	 */
+	num_activity_group = IS_SRIOV_PF(xe) ? xe_sriov_pf_get_totalvfs(xe) + 1 : 1;
 
 	engine_activity->eag  = drmm_kcalloc(&xe->drm, num_activity_group,
 					     sizeof(struct engine_activity_group), GFP_KERNEL);
@@ -60,10 +85,11 @@ static int allocate_engine_activity_group(struct xe_guc *guc)
 }
 
 static int allocate_engine_activity_buffers(struct xe_guc *guc,
-					    struct engine_activity_buffer *buffer)
+					    struct engine_activity_buffer *buffer,
+					    int count)
 {
-	u32 metadata_size = sizeof(struct guc_engine_activity_metadata);
-	u32 size = sizeof(struct guc_engine_activity_data);
+	u32 metadata_size = sizeof(struct guc_engine_activity_metadata) * count;
+	u32 size = sizeof(struct guc_engine_activity_data) * count;
 	struct xe_gt *gt = guc_to_gt(guc);
 	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_bo *bo, *metadata_bo;
@@ -118,10 +144,11 @@ static bool is_engine_activity_supported(struct xe_guc *guc)
 	return true;
 }
 
-static struct engine_activity *hw_engine_to_engine_activity(struct xe_hw_engine *hwe)
+static struct engine_activity *hw_engine_to_engine_activity(struct xe_hw_engine *hwe,
+							    unsigned int index)
 {
 	struct xe_guc *guc = &hwe->gt->uc.guc;
-	struct engine_activity_group *eag = &guc->engine_activity.eag[0];
+	struct engine_activity_group *eag = &guc->engine_activity.eag[index];
 	u16 guc_class = xe_engine_class_to_guc_class(hwe->class);
 
 	return &eag->engine[guc_class][hwe->logical_instance];
@@ -138,9 +165,10 @@ static u64 cpu_ns_to_guc_tsc_tick(ktime_t ns, u32 freq)
 #define read_metadata_record(xe_, map_, field_) \
 	xe_map_rd_field(xe_, map_, 0, struct guc_engine_activity_metadata, field_)
 
-static u64 get_engine_active_ticks(struct xe_guc *guc, struct xe_hw_engine *hwe)
+static u64 get_engine_active_ticks(struct xe_guc *guc, struct xe_hw_engine *hwe,
+				   unsigned int index)
 {
-	struct engine_activity *ea = hw_engine_to_engine_activity(hwe);
+	struct engine_activity *ea = hw_engine_to_engine_activity(hwe, index);
 	struct guc_engine_activity *cached_activity = &ea->activity;
 	struct guc_engine_activity_metadata *cached_metadata = &ea->metadata;
 	struct xe_guc_engine_activity *engine_activity = &guc->engine_activity;
@@ -151,8 +179,8 @@ static u64 get_engine_active_ticks(struct xe_guc *guc, struct xe_hw_engine *hwe)
 	u64 active_ticks, gpm_ts;
 	u16 change_num;
 
-	activity_map = engine_activity_map(guc, hwe);
-	metadata_map = engine_metadata_map(guc);
+	activity_map = engine_activity_map(guc, hwe, index);
+	metadata_map = engine_metadata_map(guc, index);
 	global_change_num = read_metadata_record(xe, &metadata_map, global_change_num);
 
 	/* GuC has not initialized activity data yet, return 0 */
@@ -194,9 +222,9 @@ update:
 	return ea->total + ea->active;
 }
 
-static u64 get_engine_total_ticks(struct xe_guc *guc, struct xe_hw_engine *hwe)
+static u64 get_engine_total_ticks(struct xe_guc *guc, struct xe_hw_engine *hwe, unsigned int index)
 {
-	struct engine_activity *ea = hw_engine_to_engine_activity(hwe);
+	struct engine_activity *ea = hw_engine_to_engine_activity(hwe, index);
 	struct guc_engine_activity_metadata *cached_metadata = &ea->metadata;
 	struct guc_engine_activity *cached_activity = &ea->activity;
 	struct iosys_map activity_map, metadata_map;
@@ -205,8 +233,8 @@ static u64 get_engine_total_ticks(struct xe_guc *guc, struct xe_hw_engine *hwe)
 	u64 numerator;
 	u16 quanta_ratio;
 
-	activity_map = engine_activity_map(guc, hwe);
-	metadata_map = engine_metadata_map(guc);
+	activity_map = engine_activity_map(guc, hwe, index);
+	metadata_map = engine_metadata_map(guc, index);
 
 	if (!cached_metadata->guc_tsc_frequency_hz)
 		cached_metadata->guc_tsc_frequency_hz = read_metadata_record(xe, &metadata_map,
@@ -245,11 +273,38 @@ static int enable_engine_activity_stats(struct xe_guc *guc)
 	return xe_guc_ct_send_block(&guc->ct, action, ARRAY_SIZE(action));
 }
 
-static void engine_activity_set_cpu_ts(struct xe_guc *guc)
+static int enable_function_engine_activity_stats(struct xe_guc *guc, bool enable)
 {
 	struct xe_guc_engine_activity *engine_activity = &guc->engine_activity;
-	struct engine_activity_group *eag = &engine_activity->eag[0];
+	u32 metadata_ggtt_addr = 0, ggtt_addr = 0, num_functions = 0;
+	struct engine_activity_buffer *buffer = &engine_activity->function_buffer;
+	u32 action[6];
+	int len = 0;
+
+	if (enable) {
+		metadata_ggtt_addr = xe_bo_ggtt_addr(buffer->metadata_bo);
+		ggtt_addr = xe_bo_ggtt_addr(buffer->activity_bo);
+		num_functions = engine_activity->num_functions;
+	}
+
+	action[len++] = XE_GUC_ACTION_SET_FUNCTION_ENGINE_ACTIVITY_BUFFER;
+	action[len++] = num_functions;
+	action[len++] = metadata_ggtt_addr;
+	action[len++] = 0;
+	action[len++] = ggtt_addr;
+	action[len++] = 0;
+
+	/* Blocking here to ensure the buffers are ready before reading them */
+	return xe_guc_ct_send_block(&guc->ct, action, ARRAY_SIZE(action));
+}
+
+static void engine_activity_set_cpu_ts(struct xe_guc *guc, unsigned int index)
+{
+	struct xe_guc_engine_activity *engine_activity = &guc->engine_activity;
+	struct engine_activity_group *eag = &engine_activity->eag[index];
 	int i, j;
+
+	xe_gt_assert(guc_to_gt(guc), index < engine_activity->num_activity_group);
 
 	for (i = 0; i < GUC_MAX_ENGINE_CLASSES; i++)
 		for (j = 0; j < GUC_MAX_INSTANCES_PER_CLASS; j++)
@@ -265,34 +320,107 @@ static u32 gpm_timestamp_shift(struct xe_gt *gt)
 	return 3 - REG_FIELD_GET(RPM_CONFIG0_CTC_SHIFT_PARAMETER_MASK, reg);
 }
 
+static bool is_function_valid(struct xe_guc *guc, unsigned int fn_id)
+{
+	struct xe_device *xe = guc_to_xe(guc);
+	struct xe_guc_engine_activity *engine_activity = &guc->engine_activity;
+
+	if (!IS_SRIOV_PF(xe) && fn_id)
+		return false;
+
+	if (engine_activity->num_functions && fn_id >= engine_activity->num_functions)
+		return false;
+
+	return true;
+}
+
+static int engine_activity_disable_function_stats(struct xe_guc *guc)
+{
+	struct xe_guc_engine_activity *engine_activity = &guc->engine_activity;
+	struct engine_activity_buffer *buffer = &engine_activity->function_buffer;
+	int ret;
+
+	if (!engine_activity->num_functions)
+		return 0;
+
+	ret = enable_function_engine_activity_stats(guc, false);
+	if (ret)
+		return ret;
+
+	free_engine_activity_buffers(buffer);
+	engine_activity->num_functions = 0;
+
+	return 0;
+}
+
+static int engine_activity_enable_function_stats(struct xe_guc *guc, int num_vfs)
+{
+	struct xe_guc_engine_activity *engine_activity = &guc->engine_activity;
+	struct engine_activity_buffer *buffer = &engine_activity->function_buffer;
+	int ret, i;
+
+	if (!num_vfs)
+		return 0;
+
+	/* This includes 1 PF and num_vfs */
+	engine_activity->num_functions = num_vfs + 1;
+
+	ret = allocate_engine_activity_buffers(guc, buffer, engine_activity->num_functions);
+	if (ret)
+		return ret;
+
+	ret = enable_function_engine_activity_stats(guc, true);
+	if (ret) {
+		free_engine_activity_buffers(buffer);
+		engine_activity->num_functions = 0;
+		return ret;
+	}
+
+	/* skip PF as it was already setup */
+	for (i = 1; i < engine_activity->num_functions; i++)
+		engine_activity_set_cpu_ts(guc, i);
+
+	return 0;
+}
+
 /**
  * xe_guc_engine_activity_active_ticks - Get engine active ticks
  * @guc: The GuC object
  * @hwe: The hw_engine object
+ * @fn_id: function id to report on
  *
  * Return: accumulated ticks @hwe was active since engine activity stats were enabled.
  */
-u64 xe_guc_engine_activity_active_ticks(struct xe_guc *guc, struct xe_hw_engine *hwe)
+u64 xe_guc_engine_activity_active_ticks(struct xe_guc *guc, struct xe_hw_engine *hwe,
+					unsigned int fn_id)
 {
 	if (!xe_guc_engine_activity_supported(guc))
 		return 0;
 
-	return get_engine_active_ticks(guc, hwe);
+	if (!is_function_valid(guc, fn_id))
+		return 0;
+
+	return get_engine_active_ticks(guc, hwe, fn_id);
 }
 
 /**
  * xe_guc_engine_activity_total_ticks - Get engine total ticks
  * @guc: The GuC object
  * @hwe: The hw_engine object
+ * @fn_id: function id to report on
  *
  * Return: accumulated quanta of ticks allocated for the engine
  */
-u64 xe_guc_engine_activity_total_ticks(struct xe_guc *guc, struct xe_hw_engine *hwe)
+u64 xe_guc_engine_activity_total_ticks(struct xe_guc *guc, struct xe_hw_engine *hwe,
+				       unsigned int fn_id)
 {
 	if (!xe_guc_engine_activity_supported(guc))
 		return 0;
 
-	return get_engine_total_ticks(guc, hwe);
+	if (!is_function_valid(guc, fn_id))
+		return 0;
+
+	return get_engine_total_ticks(guc, hwe, fn_id);
 }
 
 /**
@@ -308,6 +436,25 @@ bool xe_guc_engine_activity_supported(struct xe_guc *guc)
 	struct xe_guc_engine_activity *engine_activity = &guc->engine_activity;
 
 	return engine_activity->supported;
+}
+
+/**
+ * xe_guc_engine_activity_function_stats - Enable/Disable per-function engine activity stats
+ * @guc: The GuC object
+ * @num_vfs: number of vfs
+ * @enable: true to enable, false otherwise
+ *
+ * Return: 0 on success, negative error code otherwise
+ */
+int xe_guc_engine_activity_function_stats(struct xe_guc *guc, int num_vfs, bool enable)
+{
+	if (!xe_guc_engine_activity_supported(guc))
+		return 0;
+
+	if (enable)
+		return engine_activity_enable_function_stats(guc, num_vfs);
+
+	return engine_activity_disable_function_stats(guc);
 }
 
 /**
@@ -327,7 +474,7 @@ void xe_guc_engine_activity_enable_stats(struct xe_guc *guc)
 	if (ret)
 		xe_gt_err(guc_to_gt(guc), "failed to enable activity stats%d\n", ret);
 	else
-		engine_activity_set_cpu_ts(guc);
+		engine_activity_set_cpu_ts(guc, 0);
 }
 
 static void engine_activity_fini(void *arg)
@@ -360,7 +507,7 @@ int xe_guc_engine_activity_init(struct xe_guc *guc)
 		return ret;
 	}
 
-	ret = allocate_engine_activity_buffers(guc, &engine_activity->device_buffer);
+	ret = allocate_engine_activity_buffers(guc, &engine_activity->device_buffer, 1);
 	if (ret) {
 		xe_gt_err(gt, "failed to allocate engine activity buffers (%pe)\n", ERR_PTR(ret));
 		return ret;
