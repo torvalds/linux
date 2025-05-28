@@ -736,7 +736,6 @@ svm_migrate_vma_to_ram(struct kfd_node *node, struct svm_range *prange,
 	if (!cpages) {
 		pr_debug("failed collect migrate device pages [0x%lx 0x%lx]\n",
 			 prange->start, prange->last);
-		upages = svm_migrate_unsuccessful_pages(&migrate);
 		goto out_free;
 	}
 	if (cpages != npages)
