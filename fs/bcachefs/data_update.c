@@ -821,13 +821,24 @@ int bch2_data_update_init(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	int ret = 0;
 
-	/*
-	 * fs is corrupt  we have a key for a snapshot node that doesn't exist,
-	 * and we have to check for this because we go rw before repairing the
-	 * snapshots table - just skip it, we can move it later.
-	 */
-	if (unlikely(k.k->p.snapshot && !bch2_snapshot_exists(c, k.k->p.snapshot)))
-		return -BCH_ERR_data_update_done_no_snapshot;
+	if (k.k->p.snapshot) {
+		/*
+		 * We'll go ERO if we see a key for a missing snapshot, and if
+		 * we're still in recovery we want to give that a chance to
+		 * repair:
+		 */
+		if (unlikely(test_bit(BCH_FS_in_recovery, &c->flags) &&
+			     bch2_snapshot_id_state(c, k.k->p.snapshot) == SNAPSHOT_ID_empty))
+			return -BCH_ERR_data_update_done_no_snapshot;
+
+		ret = bch2_check_key_has_snapshot(trans, iter, k);
+		if (ret < 0)
+			return ret;
+		if (ret) /* key was deleted */
+			return bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc) ?:
+				-BCH_ERR_data_update_done_no_snapshot;
+		ret = 0;
+	}
 
 	bch2_bkey_buf_init(&m->k);
 	bch2_bkey_buf_reassemble(&m->k, c, k);
