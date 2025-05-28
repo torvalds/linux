@@ -19,7 +19,7 @@
 /*
  * Set the completion state on an aborted connection.
  */
-static bool rxrpc_set_conn_aborted(struct rxrpc_connection *conn, struct sk_buff *skb,
+static bool rxrpc_set_conn_aborted(struct rxrpc_connection *conn,
 				   s32 abort_code, int err,
 				   enum rxrpc_call_completion compl)
 {
@@ -49,12 +49,20 @@ static bool rxrpc_set_conn_aborted(struct rxrpc_connection *conn, struct sk_buff
 int rxrpc_abort_conn(struct rxrpc_connection *conn, struct sk_buff *skb,
 		     s32 abort_code, int err, enum rxrpc_abort_reason why)
 {
-	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 
-	if (rxrpc_set_conn_aborted(conn, skb, abort_code, err,
+	u32 cid = conn->proto.cid, call = 0, seq = 0;
+
+	if (skb) {
+		struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+
+		cid  = sp->hdr.cid;
+		call = sp->hdr.callNumber;
+		seq  = sp->hdr.seq;
+	}
+
+	if (rxrpc_set_conn_aborted(conn, abort_code, err,
 				   RXRPC_CALL_LOCALLY_ABORTED)) {
-		trace_rxrpc_abort(0, why, sp->hdr.cid, sp->hdr.callNumber,
-				  sp->hdr.seq, abort_code, err);
+		trace_rxrpc_abort(0, why, cid, call, seq, abort_code, err);
 		rxrpc_poke_conn(conn, rxrpc_conn_get_poke_abort);
 	}
 	return -EPROTO;
@@ -67,7 +75,7 @@ static void rxrpc_input_conn_abort(struct rxrpc_connection *conn,
 				   struct sk_buff *skb)
 {
 	trace_rxrpc_rx_conn_abort(conn, skb);
-	rxrpc_set_conn_aborted(conn, skb, skb->priority, -ECONNABORTED,
+	rxrpc_set_conn_aborted(conn, skb->priority, -ECONNABORTED,
 			       RXRPC_CALL_REMOTELY_ABORTED);
 }
 
@@ -248,7 +256,10 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 
 	switch (sp->hdr.type) {
 	case RXRPC_PACKET_TYPE_CHALLENGE:
-		return conn->security->respond_to_challenge(conn, skb);
+		ret = conn->security->respond_to_challenge(conn, skb);
+		sp->chall.conn = NULL;
+		rxrpc_put_connection(conn, rxrpc_conn_put_challenge_input);
+		return ret;
 
 	case RXRPC_PACKET_TYPE_RESPONSE:
 		ret = conn->security->verify_response(conn, skb);
@@ -270,7 +281,8 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 			 * we've already received the packet, put it on the
 			 * front of the queue.
 			 */
-			sp->conn = rxrpc_get_connection(conn, rxrpc_conn_get_poke_secured);
+			sp->poke_conn = rxrpc_get_connection(
+				conn, rxrpc_conn_get_poke_secured);
 			skb->mark = RXRPC_SKB_MARK_SERVICE_CONN_SECURED;
 			rxrpc_get_skb(skb, rxrpc_skb_get_conn_secured);
 			skb_queue_head(&conn->local->rx_queue, skb);
@@ -392,6 +404,61 @@ static void rxrpc_post_packet_to_conn(struct rxrpc_connection *conn,
 }
 
 /*
+ * Post a CHALLENGE packet to the socket of one of a connection's calls so that
+ * it can get application data to include in the packet, possibly querying
+ * userspace.
+ */
+static bool rxrpc_post_challenge(struct rxrpc_connection *conn,
+				 struct sk_buff *skb)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+	struct rxrpc_call *call = NULL;
+	struct rxrpc_sock *rx;
+	bool respond = false;
+
+	sp->chall.conn =
+		rxrpc_get_connection(conn, rxrpc_conn_get_challenge_input);
+
+	if (!conn->security->challenge_to_recvmsg) {
+		rxrpc_post_packet_to_conn(conn, skb);
+		return true;
+	}
+
+	rcu_read_lock();
+
+	for (int i = 0; i < ARRAY_SIZE(conn->channels); i++) {
+		if (conn->channels[i].call) {
+			call = conn->channels[i].call;
+			rx = rcu_dereference(call->socket);
+			if (!rx) {
+				call = NULL;
+				continue;
+			}
+
+			respond = true;
+			if (test_bit(RXRPC_SOCK_MANAGE_RESPONSE, &rx->flags))
+				break;
+			call = NULL;
+		}
+	}
+
+	if (!respond) {
+		rcu_read_unlock();
+		rxrpc_put_connection(conn, rxrpc_conn_put_challenge_input);
+		sp->chall.conn = NULL;
+		return false;
+	}
+
+	if (call)
+		rxrpc_notify_socket_oob(call, skb);
+	rcu_read_unlock();
+
+	if (!call)
+		rxrpc_post_packet_to_conn(conn, skb);
+	return true;
+}
+
+/*
  * Input a connection-level packet.
  */
 bool rxrpc_input_conn_packet(struct rxrpc_connection *conn, struct sk_buff *skb)
@@ -411,6 +478,16 @@ bool rxrpc_input_conn_packet(struct rxrpc_connection *conn, struct sk_buff *skb)
 		return true;
 
 	case RXRPC_PACKET_TYPE_CHALLENGE:
+		rxrpc_see_skb(skb, rxrpc_skb_see_oob_challenge);
+		if (rxrpc_is_conn_aborted(conn)) {
+			if (conn->completion == RXRPC_CALL_LOCALLY_ABORTED)
+				rxrpc_send_conn_abort(conn);
+			return true;
+		}
+		if (!conn->security->validate_challenge(conn, skb))
+			return false;
+		return rxrpc_post_challenge(conn, skb);
+
 	case RXRPC_PACKET_TYPE_RESPONSE:
 		if (rxrpc_is_conn_aborted(conn)) {
 			if (conn->completion == RXRPC_CALL_LOCALLY_ABORTED)
@@ -436,6 +513,19 @@ void rxrpc_input_conn_event(struct rxrpc_connection *conn, struct sk_buff *skb)
 	if (test_and_clear_bit(RXRPC_CONN_EV_ABORT_CALLS, &conn->events))
 		rxrpc_abort_calls(conn);
 
+	if (conn->tx_response) {
+		struct sk_buff *skb;
+
+		spin_lock_irq(&conn->local->lock);
+		skb = conn->tx_response;
+		conn->tx_response = NULL;
+		spin_unlock_irq(&conn->local->lock);
+
+		if (conn->state != RXRPC_CONN_ABORTED)
+			rxrpc_send_response(conn, skb);
+		rxrpc_free_skb(skb, rxrpc_skb_put_response);
+	}
+
 	if (skb) {
 		switch (skb->mark) {
 		case RXRPC_SKB_MARK_SERVICE_CONN_SECURED:
@@ -451,4 +541,32 @@ void rxrpc_input_conn_event(struct rxrpc_connection *conn, struct sk_buff *skb)
 	/* Process delayed ACKs whose time has come. */
 	if (conn->flags & RXRPC_CONN_FINAL_ACK_MASK)
 		rxrpc_process_delayed_final_acks(conn, false);
+}
+
+/*
+ * Post a RESPONSE message to the I/O thread for transmission.
+ */
+void rxrpc_post_response(struct rxrpc_connection *conn, struct sk_buff *skb)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+	struct rxrpc_local *local = conn->local;
+	struct sk_buff *old;
+
+	_enter("%x", sp->resp.challenge_serial);
+
+	spin_lock_irq(&local->lock);
+	old = conn->tx_response;
+	if (old) {
+		struct rxrpc_skb_priv *osp = rxrpc_skb(skb);
+
+		/* Always go with the response to the most recent challenge. */
+		if (after(sp->resp.challenge_serial, osp->resp.challenge_serial))
+			conn->tx_response = old;
+		else
+			old = skb;
+	} else {
+		conn->tx_response = skb;
+	}
+	spin_unlock_irq(&local->lock);
+	rxrpc_poke_conn(conn, rxrpc_conn_get_poke_response);
 }

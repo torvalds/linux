@@ -11,6 +11,7 @@ struct packet_mclist {
 	unsigned short		type;
 	unsigned short		alen;
 	unsigned char		addr[MAX_ADDR_LEN];
+	struct list_head	remove_list;
 };
 
 /* kbdq - kernel block descriptor queue */

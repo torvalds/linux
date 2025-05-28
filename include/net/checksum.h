@@ -99,12 +99,6 @@ csum_block_add(__wsum csum, __wsum csum2, int offset)
 }
 
 static __always_inline __wsum
-csum_block_add_ext(__wsum csum, __wsum csum2, int offset, int len)
-{
-	return csum_block_add(csum, csum2, offset);
-}
-
-static __always_inline __wsum
 csum_block_sub(__wsum csum, __wsum csum2, int offset)
 {
 	return csum_block_add(csum, ~csum2, offset);
@@ -113,12 +107,6 @@ csum_block_sub(__wsum csum, __wsum csum2, int offset)
 static __always_inline __wsum csum_unfold(__sum16 n)
 {
 	return (__force __wsum)n;
-}
-
-static __always_inline
-__wsum csum_partial_ext(const void *buff, int len, __wsum sum)
-{
-	return csum_partial(buff, len, sum);
 }
 
 #define CSUM_MANGLED_0 ((__force __sum16)0xffff)

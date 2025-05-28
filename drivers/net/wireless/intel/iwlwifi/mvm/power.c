@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2019, 2021-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2019, 2021-2025 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -375,6 +375,9 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 
 	if (!vif->cfg.ps || !mvmvif->pm_enabled)
 		return;
+
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, MAC_PM_POWER_TABLE, 0) >= 2)
+		cmd->flags |= cpu_to_le16(POWER_FLAGS_ENABLE_SMPS_MSK);
 
 	if (iwl_mvm_vif_low_latency(mvmvif) && vif->p2p &&
 	    (!fw_has_capa(&mvm->fw->ucode_capa,

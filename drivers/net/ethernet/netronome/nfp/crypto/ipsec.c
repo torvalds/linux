@@ -266,17 +266,17 @@ static void set_sha2_512hmac(struct nfp_ipsec_cfg_add_sa *cfg, int *trunc_len)
 	}
 }
 
-static int nfp_net_xfrm_add_state(struct xfrm_state *x,
+static int nfp_net_xfrm_add_state(struct net_device *dev,
+				  struct xfrm_state *x,
 				  struct netlink_ext_ack *extack)
 {
-	struct net_device *netdev = x->xso.real_dev;
 	struct nfp_ipsec_cfg_mssg msg = {};
 	int i, key_len, trunc_len, err = 0;
 	struct nfp_ipsec_cfg_add_sa *cfg;
 	struct nfp_net *nn;
 	unsigned int saidx;
 
-	nn = netdev_priv(netdev);
+	nn = netdev_priv(dev);
 	cfg = &msg.cfg_add_sa;
 
 	/* General */
@@ -546,17 +546,16 @@ static int nfp_net_xfrm_add_state(struct xfrm_state *x,
 	return 0;
 }
 
-static void nfp_net_xfrm_del_state(struct xfrm_state *x)
+static void nfp_net_xfrm_del_state(struct net_device *dev, struct xfrm_state *x)
 {
 	struct nfp_ipsec_cfg_mssg msg = {
 		.cmd = NFP_IPSEC_CFG_MSSG_INV_SA,
 		.sa_idx = x->xso.offload_handle - 1,
 	};
-	struct net_device *netdev = x->xso.real_dev;
 	struct nfp_net *nn;
 	int err;
 
-	nn = netdev_priv(netdev);
+	nn = netdev_priv(dev);
 	err = nfp_net_sched_mbox_amsg_work(nn, NFP_NET_CFG_MBOX_CMD_IPSEC, &msg,
 					   sizeof(msg), nfp_net_ipsec_cfg);
 	if (err)

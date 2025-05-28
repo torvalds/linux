@@ -581,7 +581,6 @@ static int mediatek_dwmac_common_data(struct platform_device *pdev,
 	int i;
 
 	priv_plat->phy_mode = plat->phy_interface;
-	plat->mac_interface = priv_plat->phy_mode;
 	if (priv_plat->mac_wol)
 		plat->flags &= ~STMMAC_FLAG_USE_PHY_WOL;
 	else

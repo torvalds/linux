@@ -643,13 +643,6 @@ static int mlx5_extts_configure(struct ptp_clock_info *ptp,
 	int pin = -1;
 	int err = 0;
 
-	/* Reject requests with unsupported flags */
-	if (rq->extts.flags & ~(PTP_ENABLE_FEATURE |
-				PTP_RISING_EDGE |
-				PTP_FALLING_EDGE |
-				PTP_STRICT_FLAGS))
-		return -EOPNOTSUPP;
-
 	/* Reject requests to enable time stamping on both edges. */
 	if ((rq->extts.flags & PTP_STRICT_FLAGS) &&
 	    (rq->extts.flags & PTP_ENABLE_FEATURE) &&
@@ -820,12 +813,6 @@ static int perout_conf_npps_real_time(struct mlx5_core_dev *mdev, struct ptp_clo
 	return 0;
 }
 
-static bool mlx5_perout_verify_flags(struct mlx5_core_dev *mdev, unsigned int flags)
-{
-	return ((!mlx5_npps_real_time_supported(mdev) && flags) ||
-		(mlx5_npps_real_time_supported(mdev) && flags & ~PTP_PEROUT_DUTY_CYCLE));
-}
-
 static int mlx5_perout_configure(struct ptp_clock_info *ptp,
 				 struct ptp_clock_request *rq,
 				 int on)
@@ -857,12 +844,6 @@ static int mlx5_perout_configure(struct ptp_clock_info *ptp,
 	rt_mode = mlx5_real_time_mode(mdev);
 
 	if (!MLX5_PPS_CAP(mdev)) {
-		err = -EOPNOTSUPP;
-		goto unlock;
-	}
-
-	/* Reject requests with unsupported flags */
-	if (mlx5_perout_verify_flags(mdev, rq->perout.flags)) {
 		err = -EOPNOTSUPP;
 		goto unlock;
 	}
@@ -1033,6 +1014,13 @@ static void mlx5_init_pin_config(struct mlx5_core_dev *mdev)
 	clock->ptp_info.enable = mlx5_ptp_enable;
 	clock->ptp_info.verify = mlx5_ptp_verify;
 	clock->ptp_info.pps = 1;
+
+	clock->ptp_info.supported_extts_flags = PTP_RISING_EDGE |
+						PTP_FALLING_EDGE |
+						PTP_STRICT_FLAGS;
+
+	if (mlx5_npps_real_time_supported(mdev))
+		clock->ptp_info.supported_perout_flags = PTP_PEROUT_DUTY_CYCLE;
 
 	for (i = 0; i < clock->ptp_info.n_pins; i++) {
 		snprintf(clock->ptp_info.pin_config[i].name,

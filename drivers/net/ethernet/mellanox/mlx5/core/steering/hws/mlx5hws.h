@@ -119,6 +119,8 @@ struct mlx5hws_matcher_attr {
 	};
 	/* Optional AT attach configuration - Max number of additional AT */
 	u8 max_num_of_at_attach;
+	/* Optional end FT (miss FT ID) for match RTC (for isolated matcher) */
+	u32 isolated_matcher_end_ft_id;
 };
 
 struct mlx5hws_rule_attr {
@@ -500,6 +502,15 @@ int mlx5hws_rule_action_update(struct mlx5hws_rule *rule,
  */
 enum mlx5hws_action_type
 mlx5hws_action_get_type(struct mlx5hws_action *action);
+
+/**
+ * mlx5hws_action_get_dev - Get mlx5 core device.
+ *
+ * @action: The action to get the device from.
+ *
+ * Return: mlx5 core device.
+ */
+struct mlx5_core_dev *mlx5hws_action_get_dev(struct mlx5hws_action *action);
 
 /**
  * mlx5hws_action_create_dest_drop - Create a direct rule drop action.

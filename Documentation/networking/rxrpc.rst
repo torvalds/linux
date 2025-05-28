@@ -1062,30 +1062,6 @@ The kernel interface functions are as follows:
      first function to change.  Note that this must be called in TASK_RUNNING
      state.
 
- (#) Get remote client epoch::
-
-	u32 rxrpc_kernel_get_epoch(struct socket *sock,
-				   struct rxrpc_call *call)
-
-     This allows the epoch that's contained in packets of an incoming client
-     call to be queried.  This value is returned.  The function always
-     successful if the call is still in progress.  It shouldn't be called once
-     the call has expired.  Note that calling this on a local client call only
-     returns the local epoch.
-
-     This value can be used to determine if the remote client has been
-     restarted as it shouldn't change otherwise.
-
- (#) Set the maximum lifespan on a call::
-
-	void rxrpc_kernel_set_max_life(struct socket *sock,
-				       struct rxrpc_call *call,
-				       unsigned long hard_timeout)
-
-     This sets the maximum lifespan on a call to hard_timeout (which is in
-     jiffies).  In the event of the timeout occurring, the call will be
-     aborted and -ETIME or -ETIMEDOUT will be returned.
-
  (#) Apply the RXRPC_MIN_SECURITY_LEVEL sockopt to a socket from within in the
      kernel::
 
@@ -1172,3 +1148,18 @@ adjusted through sysctls in /proc/net/rxrpc/:
      header plus exactly 1412 bytes of data.  The terminal packet must contain
      a four byte header plus any amount of data.  In any event, a jumbo packet
      may not exceed rxrpc_rx_mtu in size.
+
+
+API Function Reference
+======================
+
+.. kernel-doc:: net/rxrpc/af_rxrpc.c
+.. kernel-doc:: net/rxrpc/call_object.c
+.. kernel-doc:: net/rxrpc/key.c
+.. kernel-doc:: net/rxrpc/oob.c
+.. kernel-doc:: net/rxrpc/peer_object.c
+.. kernel-doc:: net/rxrpc/recvmsg.c
+.. kernel-doc:: net/rxrpc/rxgk.c
+.. kernel-doc:: net/rxrpc/rxkad.c
+.. kernel-doc:: net/rxrpc/sendmsg.c
+.. kernel-doc:: net/rxrpc/server_key.c

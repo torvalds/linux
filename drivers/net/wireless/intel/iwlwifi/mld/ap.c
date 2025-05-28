@@ -11,6 +11,7 @@
 #include "tx.h"
 #include "power.h"
 #include "key.h"
+#include "phy.h"
 #include "iwl-utils.h"
 
 #include "fw/api/sta.h"
@@ -269,6 +270,7 @@ int iwl_mld_start_ap_ibss(struct ieee80211_hw *hw,
 {
 	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
 	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	struct ieee80211_chanctx_conf *ctx;
 	int ret;
 
 	if (vif->type == NL80211_IFTYPE_AP)
@@ -313,6 +315,13 @@ int iwl_mld_start_ap_ibss(struct ieee80211_hw *hw,
 	if (vif->p2p && mld->p2p_device_vif)
 		return iwl_mld_mac_fw_action(mld, mld->p2p_device_vif,
 					     FW_CTXT_ACTION_MODIFY);
+
+	/* When the channel context was added, the link is not yet active, so
+	 * min_def is always used. Update the PHY again here in case def should
+	 * actually be used.
+	 */
+	ctx = wiphy_dereference(mld->wiphy, link->chanctx_conf);
+	iwl_mld_update_phy_chandef(mld, ctx);
 
 	return 0;
 rm_bcast:

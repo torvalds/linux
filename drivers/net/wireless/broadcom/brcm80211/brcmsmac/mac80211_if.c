@@ -48,9 +48,9 @@
 	FIF_BCN_PRBRESP_PROMISC | \
 	FIF_PSPOLL)
 
-#define CHAN2GHZ(channel, freqency, chflags)  { \
+#define CHAN2GHZ(channel, frequency, chflags)  { \
 	.band = NL80211_BAND_2GHZ, \
-	.center_freq = (freqency), \
+	.center_freq = (frequency), \
 	.hw_value = (channel), \
 	.flags = chflags, \
 	.max_antenna_gain = 0, \

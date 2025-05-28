@@ -506,9 +506,16 @@ err:
 					  start_utc, coredump.total_segs + 1,
 					  rc);
 	kfree(coredump.data);
-	*dump_len += sizeof(struct bnxt_coredump_record);
-	if (rc == -ENOBUFS)
+	if (!rc) {
+		*dump_len += sizeof(struct bnxt_coredump_record);
+		/* The actual coredump length can be smaller than the FW
+		 * reported length earlier.  Use the ethtool provided length.
+		 */
+		if (buf_len)
+			*dump_len = buf_len;
+	} else if (rc == -ENOBUFS) {
 		netdev_err(bp->dev, "Firmware returned large coredump buffer\n");
+	}
 	return rc;
 }
 

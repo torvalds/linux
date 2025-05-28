@@ -21,7 +21,6 @@ TRACE_DEFINE_ENUM(SOCK_DGRAM);
 TRACE_DEFINE_ENUM(SOCK_RAW);
 TRACE_DEFINE_ENUM(SOCK_RDM);
 TRACE_DEFINE_ENUM(SOCK_SEQPACKET);
-TRACE_DEFINE_ENUM(SOCK_DCCP);
 TRACE_DEFINE_ENUM(SOCK_PACKET);
 
 #define show_socket_type(type)					\
@@ -31,7 +30,6 @@ TRACE_DEFINE_ENUM(SOCK_PACKET);
 		{ SOCK_RAW,		"RAW" },		\
 		{ SOCK_RDM,		"RDM" },		\
 		{ SOCK_SEQPACKET,	"SEQPACKET" },		\
-		{ SOCK_DCCP,		"DCCP" },		\
 		{ SOCK_PACKET,		"PACKET" })
 
 /* This list is known to be incomplete, add new enums as needed. */

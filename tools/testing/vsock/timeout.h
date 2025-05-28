@@ -11,5 +11,6 @@ void sigalrm(int signo);
 void timeout_begin(unsigned int seconds);
 void timeout_check(const char *operation);
 void timeout_end(void);
+int timeout_usleep(useconds_t usec);
 
 #endif /* TIMEOUT_H */

@@ -1735,7 +1735,7 @@ bnad_iocpf_sem_timeout(struct timer_list *t)
  *	Time	CPU m	CPU n
  *	0       1 = test_bit
  *	1			clear_bit
- *	2			del_timer_sync
+ *	2			timer_delete_sync
  *	3	mod_timer
  */
 

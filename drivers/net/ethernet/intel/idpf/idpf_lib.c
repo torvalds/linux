@@ -3,6 +3,7 @@
 
 #include "idpf.h"
 #include "idpf_virtchnl.h"
+#include "idpf_ptp.h"
 
 static const struct net_device_ops idpf_netdev_ops;
 
@@ -141,22 +142,6 @@ static int idpf_mb_intr_req_irq(struct idpf_adapter *adapter)
 	set_bit(IDPF_MB_INTR_MODE, adapter->flags);
 
 	return 0;
-}
-
-/**
- * idpf_set_mb_vec_id - Set vector index for mailbox
- * @adapter: adapter structure to access the vector chunks
- *
- * The first vector id in the requested vector chunks from the CP is for
- * the mailbox
- */
-static void idpf_set_mb_vec_id(struct idpf_adapter *adapter)
-{
-	if (adapter->req_vec_chunks)
-		adapter->mb_vector.v_idx =
-			le16_to_cpu(adapter->caps.mailbox_vector_id);
-	else
-		adapter->mb_vector.v_idx = 0;
 }
 
 /**
@@ -349,7 +334,7 @@ int idpf_intr_req(struct idpf_adapter *adapter)
 		goto free_irq;
 	}
 
-	idpf_set_mb_vec_id(adapter);
+	adapter->mb_vector.v_idx = le16_to_cpu(adapter->caps.mailbox_vector_id);
 
 	vecids = kcalloc(total_vecs, sizeof(u16), GFP_KERNEL);
 	if (!vecids) {
@@ -2344,6 +2329,60 @@ void idpf_free_dma_mem(struct idpf_hw *hw, struct idpf_dma_mem *mem)
 	mem->pa = 0;
 }
 
+static int idpf_hwtstamp_set(struct net_device *netdev,
+			     struct kernel_hwtstamp_config *config,
+			     struct netlink_ext_ack *extack)
+{
+	struct idpf_vport *vport;
+	int err;
+
+	idpf_vport_ctrl_lock(netdev);
+	vport = idpf_netdev_to_vport(netdev);
+
+	if (!vport->link_up) {
+		idpf_vport_ctrl_unlock(netdev);
+		return -EPERM;
+	}
+
+	if (!idpf_ptp_is_vport_tx_tstamp_ena(vport) &&
+	    !idpf_ptp_is_vport_rx_tstamp_ena(vport)) {
+		idpf_vport_ctrl_unlock(netdev);
+		return -EOPNOTSUPP;
+	}
+
+	err = idpf_ptp_set_timestamp_mode(vport, config);
+
+	idpf_vport_ctrl_unlock(netdev);
+
+	return err;
+}
+
+static int idpf_hwtstamp_get(struct net_device *netdev,
+			     struct kernel_hwtstamp_config *config)
+{
+	struct idpf_vport *vport;
+
+	idpf_vport_ctrl_lock(netdev);
+	vport = idpf_netdev_to_vport(netdev);
+
+	if (!vport->link_up) {
+		idpf_vport_ctrl_unlock(netdev);
+		return -EPERM;
+	}
+
+	if (!idpf_ptp_is_vport_tx_tstamp_ena(vport) &&
+	    !idpf_ptp_is_vport_rx_tstamp_ena(vport)) {
+		idpf_vport_ctrl_unlock(netdev);
+		return 0;
+	}
+
+	*config = vport->tstamp_config;
+
+	idpf_vport_ctrl_unlock(netdev);
+
+	return 0;
+}
+
 static const struct net_device_ops idpf_netdev_ops = {
 	.ndo_open = idpf_open,
 	.ndo_stop = idpf_stop,
@@ -2356,4 +2395,6 @@ static const struct net_device_ops idpf_netdev_ops = {
 	.ndo_get_stats64 = idpf_get_stats64,
 	.ndo_set_features = idpf_set_features,
 	.ndo_tx_timeout = idpf_tx_timeout,
+	.ndo_hwtstamp_get = idpf_hwtstamp_get,
+	.ndo_hwtstamp_set = idpf_hwtstamp_set,
 };

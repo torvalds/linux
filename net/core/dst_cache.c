@@ -17,6 +17,7 @@
 struct dst_cache_pcpu {
 	unsigned long refresh_ts;
 	struct dst_entry *dst;
+	local_lock_t bh_lock;
 	u32 cookie;
 	union {
 		struct in_addr in_saddr;
@@ -65,10 +66,15 @@ fail:
 
 struct dst_entry *dst_cache_get(struct dst_cache *dst_cache)
 {
+	struct dst_entry *dst;
+
 	if (!dst_cache->cache)
 		return NULL;
 
-	return dst_cache_per_cpu_get(dst_cache, this_cpu_ptr(dst_cache->cache));
+	local_lock_nested_bh(&dst_cache->cache->bh_lock);
+	dst = dst_cache_per_cpu_get(dst_cache, this_cpu_ptr(dst_cache->cache));
+	local_unlock_nested_bh(&dst_cache->cache->bh_lock);
+	return dst;
 }
 EXPORT_SYMBOL_GPL(dst_cache_get);
 
@@ -80,12 +86,16 @@ struct rtable *dst_cache_get_ip4(struct dst_cache *dst_cache, __be32 *saddr)
 	if (!dst_cache->cache)
 		return NULL;
 
+	local_lock_nested_bh(&dst_cache->cache->bh_lock);
 	idst = this_cpu_ptr(dst_cache->cache);
 	dst = dst_cache_per_cpu_get(dst_cache, idst);
-	if (!dst)
+	if (!dst) {
+		local_unlock_nested_bh(&dst_cache->cache->bh_lock);
 		return NULL;
+	}
 
 	*saddr = idst->in_saddr.s_addr;
+	local_unlock_nested_bh(&dst_cache->cache->bh_lock);
 	return dst_rtable(dst);
 }
 EXPORT_SYMBOL_GPL(dst_cache_get_ip4);
@@ -98,9 +108,11 @@ void dst_cache_set_ip4(struct dst_cache *dst_cache, struct dst_entry *dst,
 	if (!dst_cache->cache)
 		return;
 
+	local_lock_nested_bh(&dst_cache->cache->bh_lock);
 	idst = this_cpu_ptr(dst_cache->cache);
 	dst_cache_per_cpu_dst_set(idst, dst, 0);
 	idst->in_saddr.s_addr = saddr;
+	local_unlock_nested_bh(&dst_cache->cache->bh_lock);
 }
 EXPORT_SYMBOL_GPL(dst_cache_set_ip4);
 
@@ -113,10 +125,13 @@ void dst_cache_set_ip6(struct dst_cache *dst_cache, struct dst_entry *dst,
 	if (!dst_cache->cache)
 		return;
 
+	local_lock_nested_bh(&dst_cache->cache->bh_lock);
+
 	idst = this_cpu_ptr(dst_cache->cache);
 	dst_cache_per_cpu_dst_set(idst, dst,
 				  rt6_get_cookie(dst_rt6_info(dst)));
 	idst->in6_saddr = *saddr;
+	local_unlock_nested_bh(&dst_cache->cache->bh_lock);
 }
 EXPORT_SYMBOL_GPL(dst_cache_set_ip6);
 
@@ -129,12 +144,17 @@ struct dst_entry *dst_cache_get_ip6(struct dst_cache *dst_cache,
 	if (!dst_cache->cache)
 		return NULL;
 
+	local_lock_nested_bh(&dst_cache->cache->bh_lock);
+
 	idst = this_cpu_ptr(dst_cache->cache);
 	dst = dst_cache_per_cpu_get(dst_cache, idst);
-	if (!dst)
+	if (!dst) {
+		local_unlock_nested_bh(&dst_cache->cache->bh_lock);
 		return NULL;
+	}
 
 	*saddr = idst->in6_saddr;
+	local_unlock_nested_bh(&dst_cache->cache->bh_lock);
 	return dst;
 }
 EXPORT_SYMBOL_GPL(dst_cache_get_ip6);
@@ -142,10 +162,14 @@ EXPORT_SYMBOL_GPL(dst_cache_get_ip6);
 
 int dst_cache_init(struct dst_cache *dst_cache, gfp_t gfp)
 {
+	unsigned int i;
+
 	dst_cache->cache = alloc_percpu_gfp(struct dst_cache_pcpu,
 					    gfp | __GFP_ZERO);
 	if (!dst_cache->cache)
 		return -ENOMEM;
+	for_each_possible_cpu(i)
+		local_lock_init(&per_cpu_ptr(dst_cache->cache, i)->bh_lock);
 
 	dst_cache_reset(dst_cache);
 	return 0;

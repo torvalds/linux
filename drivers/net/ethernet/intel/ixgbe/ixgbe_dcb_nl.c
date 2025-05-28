@@ -118,14 +118,14 @@ static int ixgbe_copy_dcb_cfg(struct ixgbe_adapter *adapter, int tc_max)
 
 static u8 ixgbe_dcbnl_get_state(struct net_device *netdev)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 
 	return !!(adapter->flags & IXGBE_FLAG_DCB_ENABLED);
 }
 
 static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 
 	/* Fail command if not in CEE mode */
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
@@ -142,7 +142,7 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 static void ixgbe_dcbnl_get_perm_hw_addr(struct net_device *netdev,
 					 u8 *perm_addr)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 	int i, j;
 
 	memset(perm_addr, 0xff, MAX_ADDR_LEN);
@@ -167,7 +167,7 @@ static void ixgbe_dcbnl_set_pg_tc_cfg_tx(struct net_device *netdev, int tc,
 					 u8 prio, u8 bwg_id, u8 bw_pct,
 					 u8 up_map)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 
 	if (prio != DCB_ATTR_VALUE_UNDEFINED)
 		adapter->temp_dcb_cfg.tc_config[tc].path[0].prio_type = prio;
@@ -184,7 +184,7 @@ static void ixgbe_dcbnl_set_pg_tc_cfg_tx(struct net_device *netdev, int tc,
 static void ixgbe_dcbnl_set_pg_bwg_cfg_tx(struct net_device *netdev, int bwg_id,
 					  u8 bw_pct)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 
 	adapter->temp_dcb_cfg.bw_percentage[0][bwg_id] = bw_pct;
 }
@@ -193,7 +193,7 @@ static void ixgbe_dcbnl_set_pg_tc_cfg_rx(struct net_device *netdev, int tc,
 					 u8 prio, u8 bwg_id, u8 bw_pct,
 					 u8 up_map)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 
 	if (prio != DCB_ATTR_VALUE_UNDEFINED)
 		adapter->temp_dcb_cfg.tc_config[tc].path[1].prio_type = prio;
@@ -210,7 +210,7 @@ static void ixgbe_dcbnl_set_pg_tc_cfg_rx(struct net_device *netdev, int tc,
 static void ixgbe_dcbnl_set_pg_bwg_cfg_rx(struct net_device *netdev, int bwg_id,
 					  u8 bw_pct)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 
 	adapter->temp_dcb_cfg.bw_percentage[1][bwg_id] = bw_pct;
 }
@@ -219,7 +219,7 @@ static void ixgbe_dcbnl_get_pg_tc_cfg_tx(struct net_device *netdev, int tc,
 					 u8 *prio, u8 *bwg_id, u8 *bw_pct,
 					 u8 *up_map)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 
 	*prio = adapter->dcb_cfg.tc_config[tc].path[0].prio_type;
 	*bwg_id = adapter->dcb_cfg.tc_config[tc].path[0].bwg_id;
@@ -230,7 +230,7 @@ static void ixgbe_dcbnl_get_pg_tc_cfg_tx(struct net_device *netdev, int tc,
 static void ixgbe_dcbnl_get_pg_bwg_cfg_tx(struct net_device *netdev, int bwg_id,
 					  u8 *bw_pct)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 
 	*bw_pct = adapter->dcb_cfg.bw_percentage[0][bwg_id];
 }
@@ -239,7 +239,7 @@ static void ixgbe_dcbnl_get_pg_tc_cfg_rx(struct net_device *netdev, int tc,
 					 u8 *prio, u8 *bwg_id, u8 *bw_pct,
 					 u8 *up_map)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 
 	*prio = adapter->dcb_cfg.tc_config[tc].path[1].prio_type;
 	*bwg_id = adapter->dcb_cfg.tc_config[tc].path[1].bwg_id;
@@ -250,7 +250,7 @@ static void ixgbe_dcbnl_get_pg_tc_cfg_rx(struct net_device *netdev, int tc,
 static void ixgbe_dcbnl_get_pg_bwg_cfg_rx(struct net_device *netdev, int bwg_id,
 					  u8 *bw_pct)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 
 	*bw_pct = adapter->dcb_cfg.bw_percentage[1][bwg_id];
 }
@@ -258,7 +258,7 @@ static void ixgbe_dcbnl_get_pg_bwg_cfg_rx(struct net_device *netdev, int bwg_id,
 static void ixgbe_dcbnl_set_pfc_cfg(struct net_device *netdev, int priority,
 				    u8 setting)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 
 	adapter->temp_dcb_cfg.tc_config[priority].dcb_pfc = setting;
 	if (adapter->temp_dcb_cfg.tc_config[priority].dcb_pfc !=
@@ -269,14 +269,14 @@ static void ixgbe_dcbnl_set_pfc_cfg(struct net_device *netdev, int priority,
 static void ixgbe_dcbnl_get_pfc_cfg(struct net_device *netdev, int priority,
 				    u8 *setting)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 
 	*setting = adapter->dcb_cfg.tc_config[priority].dcb_pfc;
 }
 
 static void ixgbe_dcbnl_devreset(struct net_device *dev)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(dev);
 
 	while (test_and_set_bit(__IXGBE_RESETTING, &adapter->state))
 		usleep_range(1000, 2000);
@@ -295,7 +295,7 @@ static void ixgbe_dcbnl_devreset(struct net_device *dev)
 
 static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 	struct ixgbe_dcb_config *dcb_cfg = &adapter->dcb_cfg;
 	struct ixgbe_hw *hw = &adapter->hw;
 	int ret = DCB_NO_HW_CHG;
@@ -383,7 +383,7 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 
 static u8 ixgbe_dcbnl_getcap(struct net_device *netdev, int capid, u8 *cap)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 
 	switch (capid) {
 	case DCB_CAP_ATTR_PG:
@@ -420,7 +420,7 @@ static u8 ixgbe_dcbnl_getcap(struct net_device *netdev, int capid, u8 *cap)
 
 static int ixgbe_dcbnl_getnumtcs(struct net_device *netdev, int tcid, u8 *num)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 
 	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
 		switch (tcid) {
@@ -447,14 +447,14 @@ static int ixgbe_dcbnl_setnumtcs(struct net_device *netdev, int tcid, u8 num)
 
 static u8 ixgbe_dcbnl_getpfcstate(struct net_device *netdev)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 
 	return adapter->dcb_cfg.pfc_mode_enable;
 }
 
 static void ixgbe_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 
 	adapter->temp_dcb_cfg.pfc_mode_enable = state;
 }
@@ -471,7 +471,7 @@ static void ixgbe_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
  */
 static int ixgbe_dcbnl_getapp(struct net_device *netdev, u8 idtype, u16 id)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
 	struct dcb_app app = {
 				.selector = idtype,
 				.protocol = id,
@@ -486,7 +486,7 @@ static int ixgbe_dcbnl_getapp(struct net_device *netdev, u8 idtype, u16 id)
 static int ixgbe_dcbnl_ieee_getets(struct net_device *dev,
 				   struct ieee_ets *ets)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(dev);
 	struct ieee_ets *my_ets = adapter->ixgbe_ieee_ets;
 
 	ets->ets_cap = adapter->dcb_cfg.num_tcs.pg_tcs;
@@ -506,7 +506,7 @@ static int ixgbe_dcbnl_ieee_getets(struct net_device *dev,
 static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 				   struct ieee_ets *ets)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(dev);
 	int max_frame = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	int i, err;
 	__u8 max_tc = 0;
@@ -559,7 +559,7 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 static int ixgbe_dcbnl_ieee_getpfc(struct net_device *dev,
 				   struct ieee_pfc *pfc)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(dev);
 	struct ieee_pfc *my_pfc = adapter->ixgbe_ieee_pfc;
 	int i;
 
@@ -584,7 +584,7 @@ static int ixgbe_dcbnl_ieee_getpfc(struct net_device *dev,
 static int ixgbe_dcbnl_ieee_setpfc(struct net_device *dev,
 				   struct ieee_pfc *pfc)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(dev);
 	struct ixgbe_hw *hw = &adapter->hw;
 	u8 *prio_tc;
 	int err;
@@ -616,7 +616,7 @@ static int ixgbe_dcbnl_ieee_setpfc(struct net_device *dev,
 static int ixgbe_dcbnl_ieee_setapp(struct net_device *dev,
 				   struct dcb_app *app)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(dev);
 	int err;
 
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
@@ -661,7 +661,7 @@ static int ixgbe_dcbnl_ieee_setapp(struct net_device *dev,
 static int ixgbe_dcbnl_ieee_delapp(struct net_device *dev,
 				   struct dcb_app *app)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(dev);
 	int err;
 
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
@@ -705,13 +705,13 @@ static int ixgbe_dcbnl_ieee_delapp(struct net_device *dev,
 
 static u8 ixgbe_dcbnl_getdcbx(struct net_device *dev)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(dev);
 	return adapter->dcbx_cap;
 }
 
 static u8 ixgbe_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(dev);
 	struct ieee_ets ets = {0};
 	struct ieee_pfc pfc = {0};
 	int err = 0;

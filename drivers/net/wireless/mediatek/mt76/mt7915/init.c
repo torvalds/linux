@@ -285,7 +285,7 @@ static void __mt7915_init_txpower(struct mt7915_phy *phy,
 {
 	struct mt7915_dev *dev = phy->dev;
 	int i, n_chains = hweight16(phy->mt76->chainmask);
-	int nss_delta = mt76_tx_power_nss_delta(n_chains);
+	int path_delta = mt76_tx_power_path_delta(n_chains);
 	int pwr_delta = mt7915_eeprom_get_power_delta(dev, sband->band);
 	struct mt76_power_limits limits;
 
@@ -305,7 +305,7 @@ static void __mt7915_init_txpower(struct mt7915_phy *phy,
 		target_power = mt76_get_rate_power_limits(phy->mt76, chan,
 							  &limits,
 							  target_power);
-		target_power += nss_delta;
+		target_power += path_delta;
 		target_power = DIV_ROUND_UP(target_power, 2);
 		chan->max_power = min_t(int, chan->max_reg_power,
 					target_power);
@@ -392,9 +392,10 @@ mt7915_init_wiphy(struct mt7915_phy *phy)
 	if (!is_mt7915(&dev->mt76))
 		wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_STA_TX_PWR);
 
-	if (!mdev->dev->of_node ||
-	    !of_property_read_bool(mdev->dev->of_node,
-				   "mediatek,disable-radar-background"))
+	if (mt7915_eeprom_has_background_radar(phy->dev) &&
+	    (!mdev->dev->of_node ||
+	     !of_property_read_bool(mdev->dev->of_node,
+				    "mediatek,disable-radar-background")))
 		wiphy_ext_feature_set(wiphy,
 				      NL80211_EXT_FEATURE_RADAR_BACKGROUND);
 
@@ -924,8 +925,7 @@ mt7915_set_stream_he_txbf_caps(struct mt7915_phy *phy,
 
 	c = IEEE80211_HE_PHY_CAP2_NDP_4x_LTF_AND_3_2US;
 	if (!is_mt7915(&dev->mt76))
-		c |= IEEE80211_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO |
-		     IEEE80211_HE_PHY_CAP2_UL_MU_PARTIAL_MU_MIMO;
+		c |= IEEE80211_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO;
 	elem->phy_cap_info[2] |= c;
 
 	c = IEEE80211_HE_PHY_CAP4_SU_BEAMFORMEE |

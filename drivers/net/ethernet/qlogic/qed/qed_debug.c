@@ -7614,31 +7614,6 @@ enum dbg_status qed_print_mcp_trace_results(struct qed_hwfn *p_hwfn,
 					results_buf, &parsed_buf_size, true);
 }
 
-enum dbg_status qed_print_mcp_trace_results_cont(struct qed_hwfn *p_hwfn,
-						 u32 *dump_buf,
-						 char *results_buf)
-{
-	u32 parsed_buf_size;
-
-	return qed_parse_mcp_trace_dump(p_hwfn, dump_buf, results_buf,
-					&parsed_buf_size, false);
-}
-
-enum dbg_status qed_print_mcp_trace_line(struct qed_hwfn *p_hwfn,
-					 u8 *dump_buf,
-					 u32 num_dumped_bytes,
-					 char *results_buf)
-{
-	u32 parsed_results_bytes;
-
-	return qed_parse_mcp_trace_buf(p_hwfn,
-				       dump_buf,
-				       num_dumped_bytes,
-				       0,
-				       num_dumped_bytes,
-				       results_buf, &parsed_results_bytes);
-}
-
 /* Frees the specified MCP Trace meta data */
 void qed_mcp_trace_free_meta_data(struct qed_hwfn *p_hwfn)
 {

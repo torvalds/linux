@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -417,10 +417,10 @@ static void iwl_fwrt_dump_iml_error_log(struct iwl_fw_runtime *fwrt)
 	struct iwl_trans *trans = fwrt->trans;
 	u32 error, data1;
 
-	if (fwrt->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
+	if (fwrt->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
 		error = UMAG_SB_CPU_2_STATUS;
 		data1 = UMAG_SB_CPU_1_STATUS;
-	} else if (fwrt->trans->trans_cfg->device_family >=
+	} else if (fwrt->trans->mac_cfg->device_family >=
 		   IWL_DEVICE_FAMILY_8000) {
 		error = SB_CPU_2_STATUS;
 		data1 = SB_CPU_1_STATUS;
@@ -439,7 +439,7 @@ static void iwl_fwrt_dump_iml_error_log(struct iwl_fw_runtime *fwrt)
 	IWL_ERR(fwrt, "0x%08X | IML/ROM data1\n",
 		iwl_read_umac_prph(trans, data1));
 
-	if (fwrt->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000)
+	if (fwrt->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_22000)
 		IWL_ERR(fwrt, "0x%08X | IML/ROM WFPM_AUTH_KEY_0\n",
 			iwl_read_umac_prph(trans, SB_MODIFY_CFG_FLAG));
 }
@@ -508,7 +508,7 @@ void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt)
 		iwl_fwrt_dump_rcm_error_log(fwrt, 1);
 	iwl_fwrt_dump_iml_error_log(fwrt);
 	iwl_fwrt_dump_fseq_regs(fwrt);
-	if (fwrt->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
+	if (fwrt->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
 		pc_data = fwrt->trans->dbg.pc_data;
 
 		if (!iwl_trans_grab_nic_access(fwrt->trans))
@@ -522,7 +522,7 @@ void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt)
 		iwl_trans_release_nic_access(fwrt->trans);
 	}
 
-	if (fwrt->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
+	if (fwrt->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
 		u32 scratch = iwl_read32(fwrt->trans, CSR_FUNC_SCRATCH);
 
 		IWL_ERR(fwrt, "Function Scratch status:\n");

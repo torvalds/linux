@@ -176,12 +176,6 @@ static int ravb_ptp_extts(struct ptp_clock_info *ptp,
 	struct net_device *ndev = priv->ndev;
 	unsigned long flags;
 
-	/* Reject requests with unsupported flags */
-	if (req->flags & ~(PTP_ENABLE_FEATURE |
-			   PTP_RISING_EDGE |
-			   PTP_FALLING_EDGE))
-		return -EOPNOTSUPP;
-
 	if (req->index)
 		return -EINVAL;
 
@@ -211,10 +205,6 @@ static int ravb_ptp_perout(struct ptp_clock_info *ptp,
 	struct ravb_ptp_perout *perout;
 	unsigned long flags;
 	int error = 0;
-
-	/* Reject requests with unsupported flags */
-	if (req->flags)
-		return -EOPNOTSUPP;
 
 	if (req->index)
 		return -EINVAL;
@@ -287,6 +277,7 @@ static const struct ptp_clock_info ravb_ptp_info = {
 	.max_adj	= 50000000,
 	.n_ext_ts	= N_EXT_TS,
 	.n_per_out	= N_PER_OUT,
+	.supported_extts_flags = PTP_RISING_EDGE | PTP_FALLING_EDGE,
 	.adjfine	= ravb_ptp_adjfine,
 	.adjtime	= ravb_ptp_adjtime,
 	.gettime64	= ravb_ptp_gettime64,

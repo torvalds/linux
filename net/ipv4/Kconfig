@@ -425,7 +425,7 @@ config INET_DIAG
 	tristate "INET: socket monitoring interface"
 	default y
 	help
-	  Support for INET (TCP, DCCP, etc) socket monitoring interface used by
+	  Support for INET (TCP, UDP, etc) socket monitoring interface used by
 	  native Linux tools such as ss. ss is included in iproute2, currently
 	  downloadable at:
 

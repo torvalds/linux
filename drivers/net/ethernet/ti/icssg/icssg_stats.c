@@ -11,7 +11,6 @@
 
 #define ICSSG_TX_PACKET_OFFSET	0xA0
 #define ICSSG_TX_BYTE_OFFSET	0xEC
-#define ICSSG_FW_STATS_BASE	0x0248
 
 static u32 stats_base[] = {	0x54c,	/* Slice 0 stats start */
 				0xb18,	/* Slice 1 stats start */
@@ -46,9 +45,8 @@ void emac_update_hardware_stats(struct prueth_emac *emac)
 
 	if (prueth->pa_stats) {
 		for (i = 0; i < ARRAY_SIZE(icssg_all_pa_stats); i++) {
-			reg = ICSSG_FW_STATS_BASE +
-			      icssg_all_pa_stats[i].offset *
-			      PRUETH_NUM_MACS + slice * sizeof(u32);
+			reg = icssg_all_pa_stats[i].offset +
+			      slice * sizeof(u32);
 			regmap_read(prueth->pa_stats, reg, &val);
 			emac->pa_stats[i] += val;
 		}
@@ -80,7 +78,7 @@ int emac_get_stat_by_name(struct prueth_emac *emac, char *stat_name)
 	if (emac->prueth->pa_stats) {
 		for (i = 0; i < ARRAY_SIZE(icssg_all_pa_stats); i++) {
 			if (!strcmp(icssg_all_pa_stats[i].name, stat_name))
-				return emac->pa_stats[icssg_all_pa_stats[i].offset / sizeof(u32)];
+				return emac->pa_stats[i];
 		}
 	}
 

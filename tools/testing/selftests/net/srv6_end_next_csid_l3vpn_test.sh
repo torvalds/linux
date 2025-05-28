@@ -245,10 +245,8 @@
 # that adopted in the use cases already examined (of course, it is necessary to
 # consider the different SIDs/C-SIDs).
 
-# Kselftest framework requirement - SKIP code is 4.
-readonly ksft_skip=4
+source lib.sh
 
-readonly RDMSUFF="$(mktemp -u XXXXXXXX)"
 readonly DUMMY_DEVNAME="dum0"
 readonly VRF_TID=100
 readonly VRF_DEVNAME="vrf-${VRF_TID}"
@@ -376,32 +374,18 @@ test_command_or_ksft_skip()
 	fi
 }
 
-get_nodename()
-{
-	local name="$1"
-
-	echo "${name}-${RDMSUFF}"
-}
-
 get_rtname()
 {
 	local rtid="$1"
 
-	get_nodename "rt-${rtid}"
+	echo "rt_${rtid}"
 }
 
 get_hsname()
 {
 	local hsid="$1"
 
-	get_nodename "hs-${hsid}"
-}
-
-__create_namespace()
-{
-	local name="$1"
-
-	ip netns add "${name}"
+	echo "hs_${hsid}"
 }
 
 create_router()
@@ -410,8 +394,7 @@ create_router()
 	local nsname
 
 	nsname="$(get_rtname "${rtid}")"
-
-	__create_namespace "${nsname}"
+	setup_ns "${nsname}"
 }
 
 create_host()
@@ -420,28 +403,12 @@ create_host()
 	local nsname
 
 	nsname="$(get_hsname "${hsid}")"
-
-	__create_namespace "${nsname}"
+	setup_ns "${nsname}"
 }
 
 cleanup()
 {
-	local nsname
-	local i
-
-	# destroy routers
-	for i in ${ROUTERS}; do
-		nsname="$(get_rtname "${i}")"
-
-		ip netns del "${nsname}" &>/dev/null || true
-	done
-
-	# destroy hosts
-	for i in ${HOSTS}; do
-		nsname="$(get_hsname "${i}")"
-
-		ip netns del "${nsname}" &>/dev/null || true
-	done
+	cleanup_all_ns
 
 	# check whether the setup phase was completed successfully or not. In
 	# case of an error during the setup phase of the testing environment,
@@ -462,10 +429,10 @@ add_link_rt_pairs()
 	local nsname
 	local neigh_nsname
 
-	nsname="$(get_rtname "${rt}")"
+	eval nsname=\${$(get_rtname "${rt}")}
 
 	for neigh in ${rt_neighs}; do
-		neigh_nsname="$(get_rtname "${neigh}")"
+		eval neigh_nsname=\${$(get_rtname "${neigh}")}
 
 		ip link add "veth-rt-${rt}-${neigh}" netns "${nsname}" \
 			type veth peer name "veth-rt-${neigh}-${rt}" \
@@ -497,7 +464,7 @@ setup_rt_networking()
 	local devname
 	local neigh
 
-	nsname="$(get_rtname "${rt}")"
+	eval nsname=\${$(get_rtname "${rt}")}
 
 	for neigh in ${rt_neighs}; do
 		devname="veth-rt-${rt}-${neigh}"
@@ -518,9 +485,6 @@ setup_rt_networking()
 	ip netns exec "${nsname}" sysctl -wq net.ipv6.conf.all.accept_dad=0
 	ip netns exec "${nsname}" sysctl -wq net.ipv6.conf.default.accept_dad=0
 	ip netns exec "${nsname}" sysctl -wq net.ipv6.conf.all.forwarding=1
-
-	ip netns exec "${nsname}" sysctl -wq net.ipv4.conf.all.rp_filter=0
-	ip netns exec "${nsname}" sysctl -wq net.ipv4.conf.default.rp_filter=0
 	ip netns exec "${nsname}" sysctl -wq net.ipv4.ip_forward=1
 }
 
@@ -596,7 +560,7 @@ setup_rt_local_sids()
 	local lcnode_func_prefix
 	local lcblock_prefix
 
-	nsname="$(get_rtname "${rt}")"
+	eval nsname=\${$(get_rtname "${rt}")}
 
 	for neigh in ${rt_neighs}; do
 		devname="veth-rt-${rt}-${neigh}"
@@ -668,8 +632,8 @@ __setup_l3vpn()
 	local rtsrc_nsname
 	local rtdst_nsname
 
-	rtsrc_nsname="$(get_rtname "${src}")"
-	rtdst_nsname="$(get_rtname "${dst}")"
+	eval rtsrc_nsname=\${$(get_rtname "${src}")}
+	eval rtdst_nsname=\${$(get_rtname "${dst}")}
 
 	container="${LCBLOCK_ADDR}"
 
@@ -744,8 +708,8 @@ setup_hs()
 	local hsname
 	local rtname
 
-	hsname="$(get_hsname "${hs}")"
-	rtname="$(get_rtname "${rt}")"
+	eval hsname=\${$(get_hsname "${hs}")}
+	eval rtname=\${$(get_rtname "${rt}")}
 
 	ip netns exec "${hsname}" sysctl -wq net.ipv6.conf.all.accept_dad=0
 	ip netns exec "${hsname}" sysctl -wq net.ipv6.conf.default.accept_dad=0
@@ -790,11 +754,6 @@ setup_hs()
 		sysctl -wq net.ipv6.conf."${RT2HS_DEVNAME}".proxy_ndp=1
 	ip netns exec "${rtname}" \
 		sysctl -wq net.ipv4.conf."${RT2HS_DEVNAME}".proxy_arp=1
-
-	# disable the rp_filter otherwise the kernel gets confused about how
-	# to route decap ipv4 packets.
-	ip netns exec "${rtname}" \
-		sysctl -wq net.ipv4.conf."${RT2HS_DEVNAME}".rp_filter=0
 
 	ip netns exec "${rtname}" sh -c "echo 1 > /proc/sys/net/vrf/strict_mode"
 }
@@ -880,7 +839,7 @@ check_rt_connectivity()
 	local prefix
 	local rtsrc_nsname
 
-	rtsrc_nsname="$(get_rtname "${rtsrc}")"
+	eval rtsrc_nsname=\${$(get_rtname "${rtsrc}")}
 
 	prefix="$(get_network_prefix "${rtsrc}" "${rtdst}")"
 
@@ -903,7 +862,7 @@ check_hs_ipv6_connectivity()
 	local hsdst="$2"
 	local hssrc_nsname
 
-	hssrc_nsname="$(get_hsname "${hssrc}")"
+	eval hssrc_nsname=\${$(get_hsname "${hssrc}")}
 
 	ip netns exec "${hssrc_nsname}" ping -c 1 -W "${PING_TIMEOUT_SEC}" \
 		"${IPv6_HS_NETWORK}::${hsdst}" >/dev/null 2>&1
@@ -915,7 +874,7 @@ check_hs_ipv4_connectivity()
 	local hsdst="$2"
 	local hssrc_nsname
 
-	hssrc_nsname="$(get_hsname "${hssrc}")"
+	eval hssrc_nsname=\${$(get_hsname "${hssrc}")}
 
 	ip netns exec "${hssrc_nsname}" ping -c 1 -W "${PING_TIMEOUT_SEC}" \
 		"${IPv4_HS_NETWORK}.${hsdst}" >/dev/null 2>&1
@@ -1025,7 +984,7 @@ rt_x_nextcsid_end_behavior_test()
 	local nsname
 	local ret
 
-	nsname="$(get_rtname "${rt}")"
+	eval nsname=\${$(get_rtname "${rt}")}
 
 	__nextcsid_end_behavior_test "${nsname}" "add" "${blen}" "${flen}"
 	ret="$?"

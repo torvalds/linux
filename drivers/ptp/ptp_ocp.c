@@ -2376,7 +2376,7 @@ ptp_ocp_attr_group_add(struct ptp_ocp *bp,
 		if (attr_tbl[i].cap & bp->fw_cap)
 			count++;
 
-	bp->attr_group = kcalloc(count + 1, sizeof(struct attribute_group *),
+	bp->attr_group = kcalloc(count + 1, sizeof(*bp->attr_group),
 				 GFP_KERNEL);
 	if (!bp->attr_group)
 		return -ENOMEM;

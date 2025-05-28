@@ -32,47 +32,15 @@ static struct mt753x_pcs *pcs_to_mt753x_pcs(struct phylink_pcs *pcs)
 
 /* String, offset, and register size in bytes if different from 4 bytes */
 static const struct mt7530_mib_desc mt7530_mib[] = {
-	MIB_DESC(1, 0x00, "TxDrop"),
-	MIB_DESC(1, 0x04, "TxCrcErr"),
-	MIB_DESC(1, 0x08, "TxUnicast"),
-	MIB_DESC(1, 0x0c, "TxMulticast"),
-	MIB_DESC(1, 0x10, "TxBroadcast"),
-	MIB_DESC(1, 0x14, "TxCollision"),
-	MIB_DESC(1, 0x18, "TxSingleCollision"),
-	MIB_DESC(1, 0x1c, "TxMultipleCollision"),
-	MIB_DESC(1, 0x20, "TxDeferred"),
-	MIB_DESC(1, 0x24, "TxLateCollision"),
-	MIB_DESC(1, 0x28, "TxExcessiveCollistion"),
-	MIB_DESC(1, 0x2c, "TxPause"),
-	MIB_DESC(1, 0x30, "TxPktSz64"),
-	MIB_DESC(1, 0x34, "TxPktSz65To127"),
-	MIB_DESC(1, 0x38, "TxPktSz128To255"),
-	MIB_DESC(1, 0x3c, "TxPktSz256To511"),
-	MIB_DESC(1, 0x40, "TxPktSz512To1023"),
-	MIB_DESC(1, 0x44, "Tx1024ToMax"),
-	MIB_DESC(2, 0x48, "TxBytes"),
-	MIB_DESC(1, 0x60, "RxDrop"),
-	MIB_DESC(1, 0x64, "RxFiltering"),
-	MIB_DESC(1, 0x68, "RxUnicast"),
-	MIB_DESC(1, 0x6c, "RxMulticast"),
-	MIB_DESC(1, 0x70, "RxBroadcast"),
-	MIB_DESC(1, 0x74, "RxAlignErr"),
-	MIB_DESC(1, 0x78, "RxCrcErr"),
-	MIB_DESC(1, 0x7c, "RxUnderSizeErr"),
-	MIB_DESC(1, 0x80, "RxFragErr"),
-	MIB_DESC(1, 0x84, "RxOverSzErr"),
-	MIB_DESC(1, 0x88, "RxJabberErr"),
-	MIB_DESC(1, 0x8c, "RxPause"),
-	MIB_DESC(1, 0x90, "RxPktSz64"),
-	MIB_DESC(1, 0x94, "RxPktSz65To127"),
-	MIB_DESC(1, 0x98, "RxPktSz128To255"),
-	MIB_DESC(1, 0x9c, "RxPktSz256To511"),
-	MIB_DESC(1, 0xa0, "RxPktSz512To1023"),
-	MIB_DESC(1, 0xa4, "RxPktSz1024ToMax"),
-	MIB_DESC(2, 0xa8, "RxBytes"),
-	MIB_DESC(1, 0xb0, "RxCtrlDrop"),
-	MIB_DESC(1, 0xb4, "RxIngressDrop"),
-	MIB_DESC(1, 0xb8, "RxArlDrop"),
+	MIB_DESC(1, MT7530_PORT_MIB_TX_DROP, "TxDrop"),
+	MIB_DESC(1, MT7530_PORT_MIB_TX_CRC_ERR, "TxCrcErr"),
+	MIB_DESC(1, MT7530_PORT_MIB_TX_COLLISION, "TxCollision"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_DROP, "RxDrop"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_FILTERING, "RxFiltering"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_CRC_ERR, "RxCrcErr"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_CTRL_DROP, "RxCtrlDrop"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_INGRESS_DROP, "RxIngressDrop"),
+	MIB_DESC(1, MT7530_PORT_MIB_RX_ARL_DROP, "RxArlDrop"),
 };
 
 static void
@@ -790,23 +758,33 @@ mt7530_get_strings(struct dsa_switch *ds, int port, u32 stringset,
 }
 
 static void
+mt7530_read_port_stats(struct mt7530_priv *priv, int port,
+		       u32 offset, u8 size, uint64_t *data)
+{
+	u32 val, reg = MT7530_PORT_MIB_COUNTER(port) + offset;
+
+	val = mt7530_read(priv, reg);
+	*data = val;
+
+	if (size == 2) {
+		val = mt7530_read(priv, reg + 4);
+		*data |= (u64)val << 32;
+	}
+}
+
+static void
 mt7530_get_ethtool_stats(struct dsa_switch *ds, int port,
 			 uint64_t *data)
 {
 	struct mt7530_priv *priv = ds->priv;
 	const struct mt7530_mib_desc *mib;
-	u32 reg, i;
-	u64 hi;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mt7530_mib); i++) {
 		mib = &mt7530_mib[i];
-		reg = MT7530_PORT_MIB_COUNTER(port) + mib->offset;
 
-		data[i] = mt7530_read(priv, reg);
-		if (mib->size == 2) {
-			hi = mt7530_read(priv, reg + 4);
-			data[i] |= hi << 32;
-		}
+		mt7530_read_port_stats(priv, port, mib->offset, mib->size,
+				       data + i);
 	}
 }
 
@@ -817,6 +795,172 @@ mt7530_get_sset_count(struct dsa_switch *ds, int port, int sset)
 		return 0;
 
 	return ARRAY_SIZE(mt7530_mib);
+}
+
+static void mt7530_get_eth_mac_stats(struct dsa_switch *ds, int port,
+				     struct ethtool_eth_mac_stats *mac_stats)
+{
+	struct mt7530_priv *priv = ds->priv;
+
+	/* MIB counter doesn't provide a FramesTransmittedOK but instead
+	 * provide stats for Unicast, Broadcast and Multicast frames separately.
+	 * To simulate a global frame counter, read Unicast and addition Multicast
+	 * and Broadcast later
+	 */
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_UNICAST, 1,
+			       &mac_stats->FramesTransmittedOK);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_SINGLE_COLLISION, 1,
+			       &mac_stats->SingleCollisionFrames);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_MULTIPLE_COLLISION, 1,
+			       &mac_stats->MultipleCollisionFrames);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_UNICAST, 1,
+			       &mac_stats->FramesReceivedOK);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_BYTES, 2,
+			       &mac_stats->OctetsTransmittedOK);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_ALIGN_ERR, 1,
+			       &mac_stats->AlignmentErrors);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_DEFERRED, 1,
+			       &mac_stats->FramesWithDeferredXmissions);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_LATE_COLLISION, 1,
+			       &mac_stats->LateCollisions);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_EXCESSIVE_COLLISION, 1,
+			       &mac_stats->FramesAbortedDueToXSColls);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_BYTES, 2,
+			       &mac_stats->OctetsReceivedOK);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_MULTICAST, 1,
+			       &mac_stats->MulticastFramesXmittedOK);
+	mac_stats->FramesTransmittedOK += mac_stats->MulticastFramesXmittedOK;
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_BROADCAST, 1,
+			       &mac_stats->BroadcastFramesXmittedOK);
+	mac_stats->FramesTransmittedOK += mac_stats->BroadcastFramesXmittedOK;
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_MULTICAST, 1,
+			       &mac_stats->MulticastFramesReceivedOK);
+	mac_stats->FramesReceivedOK += mac_stats->MulticastFramesReceivedOK;
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_BROADCAST, 1,
+			       &mac_stats->BroadcastFramesReceivedOK);
+	mac_stats->FramesReceivedOK += mac_stats->BroadcastFramesReceivedOK;
+}
+
+static const struct ethtool_rmon_hist_range mt7530_rmon_ranges[] = {
+	{ 0, 64 },
+	{ 65, 127 },
+	{ 128, 255 },
+	{ 256, 511 },
+	{ 512, 1023 },
+	{ 1024, MT7530_MAX_MTU },
+	{}
+};
+
+static void mt7530_get_rmon_stats(struct dsa_switch *ds, int port,
+				  struct ethtool_rmon_stats *rmon_stats,
+				  const struct ethtool_rmon_hist_range **ranges)
+{
+	struct mt7530_priv *priv = ds->priv;
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_UNDER_SIZE_ERR, 1,
+			       &rmon_stats->undersize_pkts);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_OVER_SZ_ERR, 1,
+			       &rmon_stats->oversize_pkts);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_FRAG_ERR, 1,
+			       &rmon_stats->fragments);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_JABBER_ERR, 1,
+			       &rmon_stats->jabbers);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_PKT_SZ_64, 1,
+			       &rmon_stats->hist[0]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_PKT_SZ_65_TO_127, 1,
+			       &rmon_stats->hist[1]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_PKT_SZ_128_TO_255, 1,
+			       &rmon_stats->hist[2]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_PKT_SZ_256_TO_511, 1,
+			       &rmon_stats->hist[3]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_PKT_SZ_512_TO_1023, 1,
+			       &rmon_stats->hist[4]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_PKT_SZ_1024_TO_MAX, 1,
+			       &rmon_stats->hist[5]);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_PKT_SZ_64, 1,
+			       &rmon_stats->hist_tx[0]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_PKT_SZ_65_TO_127, 1,
+			       &rmon_stats->hist_tx[1]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_PKT_SZ_128_TO_255, 1,
+			       &rmon_stats->hist_tx[2]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_PKT_SZ_256_TO_511, 1,
+			       &rmon_stats->hist_tx[3]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_PKT_SZ_512_TO_1023, 1,
+			       &rmon_stats->hist_tx[4]);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_PKT_SZ_1024_TO_MAX, 1,
+			       &rmon_stats->hist_tx[5]);
+
+	*ranges = mt7530_rmon_ranges;
+}
+
+static void mt7530_get_stats64(struct dsa_switch *ds, int port,
+			       struct rtnl_link_stats64 *storage)
+{
+	struct mt7530_priv *priv = ds->priv;
+	uint64_t data;
+
+	/* MIB counter doesn't provide a FramesTransmittedOK but instead
+	 * provide stats for Unicast, Broadcast and Multicast frames separately.
+	 * To simulate a global frame counter, read Unicast and addition Multicast
+	 * and Broadcast later
+	 */
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_UNICAST, 1,
+			       &storage->rx_packets);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_MULTICAST, 1,
+			       &storage->multicast);
+	storage->rx_packets += storage->multicast;
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_BROADCAST, 1,
+			       &data);
+	storage->rx_packets += data;
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_UNICAST, 1,
+			       &storage->tx_packets);
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_MULTICAST, 1,
+			       &data);
+	storage->tx_packets += data;
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_BROADCAST, 1,
+			       &data);
+	storage->tx_packets += data;
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_BYTES, 2,
+			       &storage->rx_bytes);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_BYTES, 2,
+			       &storage->tx_bytes);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_DROP, 1,
+			       &storage->rx_dropped);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_DROP, 1,
+			       &storage->tx_dropped);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_CRC_ERR, 1,
+			       &storage->rx_crc_errors);
+}
+
+static void mt7530_get_eth_ctrl_stats(struct dsa_switch *ds, int port,
+				      struct ethtool_eth_ctrl_stats *ctrl_stats)
+{
+	struct mt7530_priv *priv = ds->priv;
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_TX_PAUSE, 1,
+			       &ctrl_stats->MACControlFramesTransmitted);
+
+	mt7530_read_port_stats(priv, port, MT7530_PORT_MIB_RX_PAUSE, 1,
+			       &ctrl_stats->MACControlFramesReceived);
 }
 
 static int
@@ -1154,7 +1298,7 @@ mt753x_cpu_port_enable(struct dsa_switch *ds, int port)
 	 * is affine to the inbound user port.
 	 */
 	if (priv->id == ID_MT7531 || priv->id == ID_MT7988 ||
-	    priv->id == ID_EN7581)
+	    priv->id == ID_EN7581 || priv->id == ID_AN7583)
 		mt7530_set(priv, MT7531_CFC, MT7531_CPU_PMAP(BIT(port)));
 
 	/* CPU port gets connected to all user ports of
@@ -2468,7 +2612,7 @@ mt7531_setup_common(struct dsa_switch *ds)
 	mt7530_set(priv, MT753X_AGC, LOCAL_EN);
 
 	/* Enable Special Tag for rx frames */
-	if (priv->id == ID_EN7581)
+	if (priv->id == ID_EN7581 || priv->id == ID_AN7583)
 		mt7530_write(priv, MT753X_CPORT_SPTAG_CFG,
 			     CPORT_SW2FE_STAG_EN | CPORT_FE2SW_STAG_EN);
 
@@ -3092,6 +3236,16 @@ static int mt7988_setup(struct dsa_switch *ds)
 	reset_control_deassert(priv->rstc);
 	usleep_range(20, 50);
 
+	/* AN7583 require additional tweak to CONN_CFG */
+	if (priv->id == ID_AN7583)
+		mt7530_rmw(priv, AN7583_GEPHY_CONN_CFG,
+			   AN7583_CSR_DPHY_CKIN_SEL |
+			   AN7583_CSR_PHY_CORE_REG_CLK_SEL |
+			   AN7583_CSR_ETHER_AFE_PWD,
+			   AN7583_CSR_DPHY_CKIN_SEL |
+			   AN7583_CSR_PHY_CORE_REG_CLK_SEL |
+			   FIELD_PREP(AN7583_CSR_ETHER_AFE_PWD, 0));
+
 	/* Reset the switch PHYs */
 	mt7530_write(priv, MT7530_SYS_CTRL, SYS_CTRL_PHY_RST);
 
@@ -3105,6 +3259,10 @@ const struct dsa_switch_ops mt7530_switch_ops = {
 	.get_strings		= mt7530_get_strings,
 	.get_ethtool_stats	= mt7530_get_ethtool_stats,
 	.get_sset_count		= mt7530_get_sset_count,
+	.get_eth_mac_stats	= mt7530_get_eth_mac_stats,
+	.get_rmon_stats		= mt7530_get_rmon_stats,
+	.get_eth_ctrl_stats	= mt7530_get_eth_ctrl_stats,
+	.get_stats64		= mt7530_get_stats64,
 	.set_ageing_time	= mt7530_set_ageing_time,
 	.port_enable		= mt7530_port_enable,
 	.port_disable		= mt7530_port_disable,
@@ -3188,6 +3346,16 @@ const struct mt753x_info mt753x_table[] = {
 	},
 	[ID_EN7581] = {
 		.id = ID_EN7581,
+		.pcs_ops = &mt7530_pcs_ops,
+		.sw_setup = mt7988_setup,
+		.phy_read_c22 = mt7531_ind_c22_phy_read,
+		.phy_write_c22 = mt7531_ind_c22_phy_write,
+		.phy_read_c45 = mt7531_ind_c45_phy_read,
+		.phy_write_c45 = mt7531_ind_c45_phy_write,
+		.mac_port_get_caps = en7581_mac_port_get_caps,
+	},
+	[ID_AN7583] = {
+		.id = ID_AN7583,
 		.pcs_ops = &mt7530_pcs_ops,
 		.sw_setup = mt7988_setup,
 		.phy_read_c22 = mt7531_ind_c22_phy_read,

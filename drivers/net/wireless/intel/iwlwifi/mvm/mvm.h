@@ -126,7 +126,7 @@ struct iwl_mvm_time_event_data {
  /* Power management */
 
 /**
- * enum iwl_power_scheme
+ * enum iwl_power_scheme - iwl power schemes
  * @IWL_POWER_SCHEME_CAM: Continuously Active Mode
  * @IWL_POWER_SCHEME_BPS: Balanced Power Save (default)
  * @IWL_POWER_SCHEME_LP: Low Power
@@ -664,6 +664,8 @@ enum iwl_mvm_sched_scan_pass_all_states {
  * @min_backoff: The minimal tx backoff due to power restrictions
  * @params: Parameters to configure the thermal throttling algorithm.
  * @throttle: Is thermal throttling is active?
+ * @power_budget_mw: maximum cTDP power budget as defined for this system and
+ *	device
  */
 struct iwl_mvm_tt_mgmt {
 	struct delayed_work ct_kill_exit;
@@ -672,6 +674,8 @@ struct iwl_mvm_tt_mgmt {
 	u32 min_backoff;
 	struct iwl_tt_params params;
 	bool throttle;
+
+	u32 power_budget_mw;
 };
 
 #ifdef CONFIG_THERMAL
@@ -999,7 +1003,7 @@ struct iwl_mvm {
 
 	struct iwl_trans *trans;
 	const struct iwl_fw *fw;
-	const struct iwl_cfg *cfg;
+	const struct iwl_rf_cfg *cfg;
 	struct iwl_phy_db *phy_db;
 	struct ieee80211_hw *hw;
 
@@ -1032,6 +1036,8 @@ struct iwl_mvm {
 	bool rfkill_safe_init_done;
 
 	u8 cca_40mhz_workaround;
+
+	u8 fw_rates_ver;
 
 	u32 ampdu_ref;
 	bool ampdu_toggle;
@@ -1246,11 +1252,6 @@ struct iwl_mvm {
 
 	struct iwl_time_quota_cmd last_quota_cmd;
 
-#ifdef CONFIG_NL80211_TESTMODE
-	u32 noa_duration;
-	struct ieee80211_vif *noa_vif;
-#endif
-
 	/* Tx queues */
 	u16 aux_queue;
 	u16 snif_queue;
@@ -1347,10 +1348,6 @@ struct iwl_mvm {
 	/* sniffer data to include in radiotap */
 	__le16 cur_aid;
 	u8 cur_bssid[ETH_ALEN];
-
-#ifdef CONFIG_ACPI
-	struct iwl_phy_specific_cfg phy_filters;
-#endif
 
 	/* report rx timestamp in ptp clock time */
 	bool rx_ts_ptp;
@@ -1562,7 +1559,7 @@ static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)
 	 * Enable LAR only if it is supported by the FW (TLV) &&
 	 * enabled in the NVM
 	 */
-	if (mvm->cfg->nvm_type == IWL_NVM_EXT)
+	if (mvm->trans->cfg->nvm_type == IWL_NVM_EXT)
 		return nvm_lar && tlv_lar;
 	else
 		return tlv_lar;
@@ -1626,13 +1623,13 @@ static inline bool iwl_mvm_has_new_station_api(const struct iwl_fw *fw)
 static inline bool iwl_mvm_has_new_tx_api(struct iwl_mvm *mvm)
 {
 	/* TODO - replace with TLV once defined */
-	return mvm->trans->trans_cfg->gen2;
+	return mvm->trans->mac_cfg->gen2;
 }
 
 static inline bool iwl_mvm_has_unified_ucode(struct iwl_mvm *mvm)
 {
 	/* TODO - better define this */
-	return mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000;
+	return mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_22000;
 }
 
 static inline bool iwl_mvm_is_cdb_supported(struct iwl_mvm *mvm)
@@ -1657,7 +1654,7 @@ static inline bool iwl_mvm_cdb_scan_api(struct iwl_mvm *mvm)
 	 * but then there's a little bit of code in scan that won't make
 	 * any sense...
 	 */
-	return mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000;
+	return mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_22000;
 }
 
 static inline bool iwl_mvm_is_scan_ext_chan_supported(struct iwl_mvm *mvm)
@@ -1732,13 +1729,13 @@ static inline bool iwl_mvm_is_ctdp_supported(struct iwl_mvm *mvm)
 
 static inline bool iwl_mvm_is_esr_supported(struct iwl_trans *trans)
 {
-	if (CSR_HW_RFID_IS_CDB(trans->hw_rf_id))
+	if (CSR_HW_RFID_IS_CDB(trans->info.hw_rf_id))
 		return false;
 
-	switch (CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
+	switch (CSR_HW_RFID_TYPE(trans->info.hw_rf_id)) {
 	case IWL_CFG_RF_TYPE_FM:
 		/* Step A doesn't support eSR */
-		return CSR_HW_RFID_STEP(trans->hw_rf_id);
+		return CSR_HW_RFID_STEP(trans->info.hw_rf_id);
 	case IWL_CFG_RF_TYPE_WH:
 	case IWL_CFG_RF_TYPE_PE:
 		return true;
@@ -1757,8 +1754,8 @@ static inline int iwl_mvm_max_active_links(struct iwl_mvm *mvm,
 
 	/* Check if HW supports eSR or STR */
 	if (iwl_mvm_is_esr_supported(trans) ||
-	    (CSR_HW_RFID_TYPE(trans->hw_rf_id) == IWL_CFG_RF_TYPE_FM &&
-	     CSR_HW_RFID_IS_CDB(trans->hw_rf_id)))
+	    (CSR_HW_RFID_TYPE(trans->info.hw_rf_id) == IWL_CFG_RF_TYPE_FM &&
+	     CSR_HW_RFID_IS_CDB(trans->info.hw_rf_id)))
 		return IWL_FW_MAX_ACTIVE_LINKS_NUM;
 
 	return 1;
@@ -1771,7 +1768,7 @@ extern const u8 iwl_mvm_ac_to_bz_tx_fifo[];
 static inline u8 iwl_mvm_mac_ac_to_tx_fifo(struct iwl_mvm *mvm,
 					   enum ieee80211_ac_numbers ac)
 {
-	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+	if (mvm->trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
 		return iwl_mvm_ac_to_bz_tx_fifo[ac];
 	if (iwl_mvm_has_new_tx_api(mvm))
 		return iwl_mvm_ac_to_gen2_tx_fifo[ac];
@@ -1810,9 +1807,6 @@ int iwl_mvm_legacy_rate_to_mac80211_idx(u32 rate_n_flags,
 void iwl_mvm_hwrate_to_tx_rate(u32 rate_n_flags,
 			       enum nl80211_band band,
 			       struct ieee80211_tx_rate *r);
-void iwl_mvm_hwrate_to_tx_rate_v1(u32 rate_n_flags,
-				  enum nl80211_band band,
-				  struct ieee80211_tx_rate *r);
 u8 iwl_mvm_mac80211_idx_to_hwrate(const struct iwl_fw *fw, int rate_idx);
 u8 iwl_mvm_mac80211_ac_to_ucode_ac(enum ieee80211_ac_numbers ac);
 bool iwl_mvm_is_nic_ack_enabled(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
@@ -1843,9 +1837,9 @@ int iwl_mvm_tx_skb_sta(struct iwl_mvm *mvm, struct sk_buff *skb,
 		       struct ieee80211_sta *sta);
 int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb);
 void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
-			struct iwl_tx_cmd *tx_cmd,
+			struct iwl_tx_cmd_v6 *tx_cmd,
 			struct ieee80211_tx_info *info, u8 sta_id);
-void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd *tx_cmd,
+void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd_v6 *tx_cmd,
 			    struct ieee80211_tx_info *info,
 			    struct ieee80211_sta *sta, __le16 fc);
 void iwl_mvm_mac_itxq_xmit(struct ieee80211_hw *hw, struct ieee80211_txq *txq);
@@ -1876,7 +1870,7 @@ int iwl_mvm_set_sta_pkt_ext(struct iwl_mvm *mvm,
 void iwl_mvm_async_handlers_purge(struct iwl_mvm *mvm);
 
 static inline void iwl_mvm_set_tx_cmd_ccmp(struct ieee80211_tx_info *info,
-					   struct iwl_tx_cmd *tx_cmd)
+					   struct iwl_tx_cmd_v6 *tx_cmd)
 {
 	struct ieee80211_key_conf *keyconf = info->control.hw_key;
 
@@ -2138,6 +2132,10 @@ bool iwl_mvm_mld_valid_link_pair(struct ieee80211_vif *vif,
 				 const struct iwl_mvm_link_sel_data *b);
 
 s8 iwl_mvm_average_dbm_values(const struct iwl_umac_scan_channel_survey_notif *notif);
+
+
+extern const struct iwl_hcmd_arr iwl_mvm_groups[];
+extern const unsigned int iwl_mvm_groups_size;
 #endif
 
 /* AP and IBSS */
@@ -2459,7 +2457,7 @@ void iwl_mvm_vif_set_low_latency(struct iwl_mvm_vif *mvmvif, bool set,
  */
 static inline u32 iwl_mvm_flushable_queues(struct iwl_mvm *mvm)
 {
-	return ((BIT(mvm->trans->trans_cfg->base_params->num_of_queues) - 1) &
+	return ((BIT(mvm->trans->mac_cfg->base->num_of_queues) - 1) &
 		~BIT(IWL_MVM_DQA_CMD_QUEUE));
 }
 

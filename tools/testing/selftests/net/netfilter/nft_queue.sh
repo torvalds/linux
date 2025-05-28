@@ -10,6 +10,8 @@ source lib.sh
 ret=0
 timeout=5
 
+SCTP_TEST_TIMEOUT=60
+
 cleanup()
 {
 	ip netns pids "$ns1" | xargs kill 2>/dev/null
@@ -40,7 +42,7 @@ TMPFILE3=$(mktemp)
 
 TMPINPUT=$(mktemp)
 COUNT=200
-[ "$KSFT_MACHINE_SLOW" = "yes" ] && COUNT=25
+[ "$KSFT_MACHINE_SLOW" = "yes" ] && COUNT=$((COUNT/8))
 dd conv=sparse status=none if=/dev/zero bs=1M count=$COUNT of="$TMPINPUT"
 
 if ! ip link add veth0 netns "$nsrouter" type veth peer name eth0 netns "$ns1" > /dev/null 2>&1; then
@@ -275,9 +277,11 @@ test_tcp_forward()
 	busywait "$BUSYWAIT_TIMEOUT" listener_ready "$ns2"
 	busywait "$BUSYWAIT_TIMEOUT" nf_queue_wait "$nsrouter" 2
 
+	local tthen=$(date +%s)
+
 	ip netns exec "$ns1" socat -u STDIN TCP:10.0.2.99:12345 <"$TMPINPUT" >/dev/null
 
-	wait "$rpid" && echo "PASS: tcp and nfqueue in forward chain"
+	wait_and_check_retval "$rpid" "tcp and nfqueue in forward chain" "$tthen"
 	kill "$nfqpid"
 }
 
@@ -288,13 +292,14 @@ test_tcp_localhost()
 
 	ip netns exec "$nsrouter" ./nf_queue -q 3 &
 	local nfqpid=$!
+	local tthen=$(date +%s)
 
 	busywait "$BUSYWAIT_TIMEOUT" listener_ready "$nsrouter"
 	busywait "$BUSYWAIT_TIMEOUT" nf_queue_wait "$nsrouter" 3
 
 	ip netns exec "$nsrouter" socat -u STDIN TCP:127.0.0.1:12345 <"$TMPINPUT" >/dev/null
 
-	wait "$rpid" && echo "PASS: tcp via loopback"
+	wait_and_check_retval "$rpid" "tcp via loopback" "$tthen"
 	kill "$nfqpid"
 }
 
@@ -417,6 +422,23 @@ check_output_files()
 	fi
 }
 
+wait_and_check_retval()
+{
+	local rpid="$1"
+	local msg="$2"
+	local tthen="$3"
+	local tnow=$(date +%s)
+
+	if wait "$rpid";then
+		echo -n "PASS: "
+	else
+		echo -n "FAIL: "
+		ret=1
+	fi
+
+	printf "%s (duration: %ds)\n" "$msg" $((tnow-tthen))
+}
+
 test_sctp_forward()
 {
 	ip netns exec "$nsrouter" nft -f /dev/stdin <<EOF
@@ -428,13 +450,14 @@ table inet sctpq {
         }
 }
 EOF
-	timeout 60 ip netns exec "$ns2" socat -u SCTP-LISTEN:12345 STDOUT > "$TMPFILE1" &
+	timeout "$SCTP_TEST_TIMEOUT" ip netns exec "$ns2" socat -u SCTP-LISTEN:12345 STDOUT > "$TMPFILE1" &
 	local rpid=$!
 
 	busywait "$BUSYWAIT_TIMEOUT" sctp_listener_ready "$ns2"
 
 	ip netns exec "$nsrouter" ./nf_queue -q 10 -G &
 	local nfqpid=$!
+	local tthen=$(date +%s)
 
 	ip netns exec "$ns1" socat -u STDIN SCTP:10.0.2.99:12345 <"$TMPINPUT" >/dev/null
 
@@ -443,7 +466,7 @@ EOF
 		exit 1
 	fi
 
-	wait "$rpid" && echo "PASS: sctp and nfqueue in forward chain"
+	wait_and_check_retval "$rpid" "sctp and nfqueue in forward chain" "$tthen"
 	kill "$nfqpid"
 
 	check_output_files "$TMPINPUT" "$TMPFILE1" "sctp forward"
@@ -462,13 +485,14 @@ EOF
 	# reduce test file size, software segmentation causes sk wmem increase.
 	dd conv=sparse status=none if=/dev/zero bs=1M count=$((COUNT/2)) of="$TMPINPUT"
 
-	timeout 60 ip netns exec "$ns2" socat -u SCTP-LISTEN:12345 STDOUT > "$TMPFILE1" &
+	timeout "$SCTP_TEST_TIMEOUT" ip netns exec "$ns2" socat -u SCTP-LISTEN:12345 STDOUT > "$TMPFILE1" &
 	local rpid=$!
 
 	busywait "$BUSYWAIT_TIMEOUT" sctp_listener_ready "$ns2"
 
 	ip netns exec "$ns1" ./nf_queue -q 11 &
 	local nfqpid=$!
+	local tthen=$(date +%s)
 
 	ip netns exec "$ns1" socat -u STDIN SCTP:10.0.2.99:12345 <"$TMPINPUT" >/dev/null
 
@@ -478,7 +502,7 @@ EOF
 	fi
 
 	# must wait before checking completeness of output file.
-	wait "$rpid" && echo "PASS: sctp and nfqueue in output chain with GSO"
+	wait_and_check_retval "$rpid" "sctp and nfqueue in output chain with GSO" "$tthen"
 	kill "$nfqpid"
 
 	check_output_files "$TMPINPUT" "$TMPFILE1" "sctp output"

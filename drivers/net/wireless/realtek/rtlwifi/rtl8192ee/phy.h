@@ -119,7 +119,6 @@ void rtl92ee_phy_set_bw_mode(struct ieee80211_hw *hw,
 void rtl92ee_phy_sw_chnl_callback(struct ieee80211_hw *hw);
 u8 rtl92ee_phy_sw_chnl(struct ieee80211_hw *hw);
 void rtl92ee_phy_iq_calibrate(struct ieee80211_hw *hw, bool b_recovery);
-void rtl92ee_phy_ap_calibrate(struct ieee80211_hw *hw, s8 delta);
 void rtl92ee_phy_lc_calibrate(struct ieee80211_hw *hw);
 void rtl92ee_phy_set_rfpath_switch(struct ieee80211_hw *hw, bool bmain);
 bool rtl92ee_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,

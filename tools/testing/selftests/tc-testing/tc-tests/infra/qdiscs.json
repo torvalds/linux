@@ -600,5 +600,40 @@
         "matchPattern": "qdisc hfsc",
         "matchCount": "1",
         "teardown": ["$TC qdisc del dev $DEV1 root handle 1: drr"]
+    },
+    {
+        "id": "309e",
+        "name": "Test HFSC eltree double add with reentrant enqueue behaviour on netem",
+        "category": [
+            "qdisc",
+            "hfsc"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.11.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY root handle 1: tbf rate 8bit burst 100b latency 1s",
+            "$TC qdisc add dev $DUMMY parent 1:0 handle 2:0 hfsc",
+            "ping -I $DUMMY -f -c10 -s48 -W0.001 10.10.11.1 || true",
+            "$TC class add dev $DUMMY parent 2:0 classid 2:1 hfsc rt m2 20Kbit",
+            "$TC qdisc add dev $DUMMY parent 2:1 handle 3:0 netem duplicate 100%",
+            "$TC class add dev $DUMMY parent 2:0 classid 2:2 hfsc rt m2 20Kbit",
+            "$TC filter add dev $DUMMY parent 2:0 protocol ip prio 1 u32 match ip dst 10.10.11.2/32 flowid 2:1",
+            "$TC filter add dev $DUMMY parent 2:0 protocol ip prio 2 u32 match ip dst 10.10.11.3/32 flowid 2:2",
+            "ping -c 1 10.10.11.2 -I$DUMMY > /dev/null || true",
+            "$TC filter del dev $DUMMY parent 2:0 protocol ip prio 1",
+            "$TC class del dev $DUMMY classid 2:1",
+            "ping -c 1 10.10.11.3 -I$DUMMY > /dev/null || true"
+        ],
+        "cmdUnderTest": "$TC class change dev $DUMMY parent 2:0 classid 2:2 hfsc sc m2 20Kbit",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j class ls dev $DUMMY classid 2:1",
+        "matchJSON": [],
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1:0 root",
+            "$IP addr del 10.10.10.10/24 dev $DUMMY || true"
+        ]
     }
 ]

@@ -1348,7 +1348,7 @@ static void prep_ampdu_frame(struct dma_info *di, struct sk_buff *p)
 	ret = brcms_c_ampdu_add_frame(session, p);
 	if (ret == -ENOSPC) {
 		/*
-		 * AMPDU cannot accomodate this frame. Close out the in-
+		 * AMPDU cannot accommodate this frame. Close out the in-
 		 * progress AMPDU session and start a new one.
 		 */
 		ampdu_finalize(di);

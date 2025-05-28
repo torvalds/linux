@@ -468,7 +468,7 @@ static int sis900_probe(struct pci_dev *pci_dev,
 	SET_NETDEV_DEV(net_dev, &pci_dev->dev);
 
 	/* We do a request_region() to register /proc/ioports info. */
-	ret = pci_request_regions(pci_dev, "sis900");
+	ret = pcim_request_all_regions(pci_dev, "sis900");
 	if (ret)
 		goto err_out;
 

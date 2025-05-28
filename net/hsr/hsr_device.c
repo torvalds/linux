@@ -761,6 +761,11 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	if (res)
 		goto err_unregister;
 
+	if (protocol_version == PRP_V1) {
+		eth_hw_addr_set(slave[1], slave[0]->dev_addr);
+		call_netdevice_notifiers(NETDEV_CHANGEADDR, slave[1]);
+	}
+
 	if (interlink) {
 		res = hsr_add_port(hsr, interlink, HSR_PT_INTERLINK, extack);
 		if (res)

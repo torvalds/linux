@@ -89,6 +89,7 @@ int crypto_shash_update_sg(struct shash_desc *desc, struct scatterlist *sg,
 
 	sg_miter_start(&miter, sg, sg_nents(sg),
 		       SG_MITER_FROM_SG | SG_MITER_LOCAL);
+	sg_miter_skip(&miter, offset);
 	for (i = 0; i < len; i += n) {
 		sg_miter_next(&miter);
 		n = min(miter.length, len - i);

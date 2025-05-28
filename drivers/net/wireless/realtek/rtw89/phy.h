@@ -164,6 +164,7 @@ enum rtw89_phy_c2h_dm_func {
 	RTW89_PHY_C2H_DM_FUNC_SIGB,
 	RTW89_PHY_C2H_DM_FUNC_LOWRT_RTY,
 	RTW89_PHY_C2H_DM_FUNC_MCC_DIG,
+	RTW89_PHY_C2H_DM_FUNC_FW_SCAN = 0xc,
 	RTW89_PHY_C2H_DM_FUNC_NUM,
 };
 
@@ -933,6 +934,20 @@ static inline s8 rtw89_phy_txpwr_dbm_to_mac(struct rtw89_dev *rtwdev, s8 dbm)
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
 	return clamp_t(s16, dbm << chip->txpwr_factor_mac, -64, 63);
+}
+
+static inline s16 rtw89_phy_txpwr_mac_to_rf(struct rtw89_dev *rtwdev, s8 txpwr_mac)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	return txpwr_mac << (chip->txpwr_factor_rf - chip->txpwr_factor_mac);
+}
+
+static inline s16 rtw89_phy_txpwr_mac_to_bb(struct rtw89_dev *rtwdev, s8 txpwr_mac)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	return txpwr_mac << (chip->txpwr_factor_bb - chip->txpwr_factor_mac);
 }
 
 void rtw89_phy_ra_assoc(struct rtw89_dev *rtwdev, struct rtw89_sta_link *rtwsta_link);

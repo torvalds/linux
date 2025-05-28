@@ -1415,7 +1415,7 @@ struct flash_section_entry {
 } __packed;
 
 struct flash_section_info {
-	u8 cookie[32];
+	u8 cookie[32] __nonstring;
 	struct flash_section_hdr fsec_hdr;
 	struct flash_section_entry fsec_entry[32];
 } __packed;

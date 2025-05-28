@@ -220,6 +220,13 @@
 #define   BRCM_HDR_P5_EN		BIT(1) /* Enable tagging on port 5 */
 #define   BRCM_HDR_P7_EN		BIT(2) /* Enable tagging on port 7 */
 
+/* Aging Time control register (32 bit) */
+#define B53_AGING_TIME_CONTROL		0x06
+#define B53_AGING_TIME_CONTROL_63XX	0x08
+#define  AGE_CHANGE			BIT(20)
+#define  AGE_TIME_MASK			0x7ffff
+#define  AGE_TIME_MAX			1048575
+
 /* Mirror capture control register (16 bit) */
 #define B53_MIR_CAP_CTL			0x10
 #define  CAP_PORT_MASK			0xf

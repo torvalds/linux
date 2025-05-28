@@ -65,7 +65,6 @@
 #include <net/netlink.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
-#include <linux/dccp.h>
 #include <linux/sctp.h>
 #include <net/sctp/structs.h>
 #include <linux/quota.h>
@@ -1199,8 +1198,6 @@ static inline u16 socket_type_to_security_class(int family, int type, int protoc
 				return SECCLASS_ICMP_SOCKET;
 			else
 				return SECCLASS_RAWIP_SOCKET;
-		case SOCK_DCCP:
-			return SECCLASS_DCCP_SOCKET;
 		default:
 			return SECCLASS_RAWIP_SOCKET;
 		}
@@ -4509,22 +4506,6 @@ static int selinux_parse_skb_ipv4(struct sk_buff *skb,
 		break;
 	}
 
-	case IPPROTO_DCCP: {
-		struct dccp_hdr _dccph, *dh;
-
-		if (ntohs(ih->frag_off) & IP_OFFSET)
-			break;
-
-		offset += ihlen;
-		dh = skb_header_pointer(skb, offset, sizeof(_dccph), &_dccph);
-		if (dh == NULL)
-			break;
-
-		ad->u.net->sport = dh->dccph_sport;
-		ad->u.net->dport = dh->dccph_dport;
-		break;
-	}
-
 #if IS_ENABLED(CONFIG_IP_SCTP)
 	case IPPROTO_SCTP: {
 		struct sctphdr _sctph, *sh;
@@ -4600,18 +4581,6 @@ static int selinux_parse_skb_ipv6(struct sk_buff *skb,
 
 		ad->u.net->sport = uh->source;
 		ad->u.net->dport = uh->dest;
-		break;
-	}
-
-	case IPPROTO_DCCP: {
-		struct dccp_hdr _dccph, *dh;
-
-		dh = skb_header_pointer(skb, offset, sizeof(_dccph), &_dccph);
-		if (dh == NULL)
-			break;
-
-		ad->u.net->sport = dh->dccph_sport;
-		ad->u.net->dport = dh->dccph_dport;
 		break;
 	}
 
@@ -4966,10 +4935,6 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 			node_perm = UDP_SOCKET__NODE_BIND;
 			break;
 
-		case SECCLASS_DCCP_SOCKET:
-			node_perm = DCCP_SOCKET__NODE_BIND;
-			break;
-
 		case SECCLASS_SCTP_SOCKET:
 			node_perm = SCTP_SOCKET__NODE_BIND;
 			break;
@@ -5025,11 +4990,10 @@ static int selinux_socket_connect_helper(struct socket *sock,
 		return 0;
 
 	/*
-	 * If a TCP, DCCP or SCTP socket, check name_connect permission
+	 * If a TCP or SCTP socket, check name_connect permission
 	 * for the port.
 	 */
 	if (sksec->sclass == SECCLASS_TCP_SOCKET ||
-	    sksec->sclass == SECCLASS_DCCP_SOCKET ||
 	    sksec->sclass == SECCLASS_SCTP_SOCKET) {
 		struct common_audit_data ad;
 		struct lsm_network_audit net = {0,};
@@ -5073,9 +5037,6 @@ static int selinux_socket_connect_helper(struct socket *sock,
 		switch (sksec->sclass) {
 		case SECCLASS_TCP_SOCKET:
 			perm = TCP_SOCKET__NAME_CONNECT;
-			break;
-		case SECCLASS_DCCP_SOCKET:
-			perm = DCCP_SOCKET__NAME_CONNECT;
 			break;
 		case SECCLASS_SCTP_SOCKET:
 			perm = SCTP_SOCKET__NAME_CONNECT;

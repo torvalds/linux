@@ -50,6 +50,16 @@ def _test_tcp(cfg) -> None:
         cmd(f"echo {test_string} | socat -t 2 -u STDIN TCP:{cfg.remote_baddr}:{port}", shell=True)
     ksft_eq(nc.stdout.strip(), test_string)
 
+def _schedule_checksum_reset(cfg, netnl) -> None:
+    features = ethtool(f"-k {cfg.ifname}", json=True)
+    setting = ""
+    for side in ["tx", "rx"]:
+        f = features[0][side + "-checksumming"]
+        if not f["fixed"]:
+            setting += " " + side
+            setting += " " + ("on" if f["requested"] or f["active"] else "off")
+    defer(ethtool, f" -K {cfg.ifname} " + setting)
+
 def _set_offload_checksum(cfg, netnl, on) -> None:
     try:
         ethtool(f" -K {cfg.ifname} rx {on} tx {on} ")
@@ -139,6 +149,7 @@ def set_interface_init(cfg) -> None:
 def test_default_v4(cfg, netnl) -> None:
     cfg.require_ipver("4")
 
+    _schedule_checksum_reset(cfg, netnl)
     _set_offload_checksum(cfg, netnl, "off")
     _test_v4(cfg)
     _test_tcp(cfg)
@@ -149,6 +160,7 @@ def test_default_v4(cfg, netnl) -> None:
 def test_default_v6(cfg, netnl) -> None:
     cfg.require_ipver("6")
 
+    _schedule_checksum_reset(cfg, netnl)
     _set_offload_checksum(cfg, netnl, "off")
     _test_v6(cfg)
     _test_tcp(cfg)
@@ -157,6 +169,7 @@ def test_default_v6(cfg, netnl) -> None:
     _test_tcp(cfg)
 
 def test_xdp_generic_sb(cfg, netnl) -> None:
+    _schedule_checksum_reset(cfg, netnl)
     _set_xdp_generic_sb_on(cfg)
     _set_offload_checksum(cfg, netnl, "off")
     _test_v4(cfg)
@@ -168,6 +181,7 @@ def test_xdp_generic_sb(cfg, netnl) -> None:
     _test_tcp(cfg)
 
 def test_xdp_generic_mb(cfg, netnl) -> None:
+    _schedule_checksum_reset(cfg, netnl)
     _set_xdp_generic_mb_on(cfg)
     _set_offload_checksum(cfg, netnl, "off")
     _test_v4(cfg)
@@ -179,6 +193,7 @@ def test_xdp_generic_mb(cfg, netnl) -> None:
     _test_tcp(cfg)
 
 def test_xdp_native_sb(cfg, netnl) -> None:
+    _schedule_checksum_reset(cfg, netnl)
     _set_xdp_native_sb_on(cfg)
     _set_offload_checksum(cfg, netnl, "off")
     _test_v4(cfg)
@@ -190,6 +205,7 @@ def test_xdp_native_sb(cfg, netnl) -> None:
     _test_tcp(cfg)
 
 def test_xdp_native_mb(cfg, netnl) -> None:
+    _schedule_checksum_reset(cfg, netnl)
     _set_xdp_native_mb_on(cfg)
     _set_offload_checksum(cfg, netnl, "off")
     _test_v4(cfg)

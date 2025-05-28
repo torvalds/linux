@@ -34,6 +34,9 @@
 #include <net/bluetooth/bluetooth.h>
 #include <linux/proc_fs.h>
 
+#include <linux/ethtool.h>
+#include <linux/sockios.h>
+
 #include "leds.h"
 #include "selftest.h"
 
@@ -563,6 +566,86 @@ __poll_t bt_sock_poll(struct file *file, struct socket *sock,
 }
 EXPORT_SYMBOL(bt_sock_poll);
 
+static int bt_ethtool_get_ts_info(struct sock *sk, unsigned int index,
+				  void __user *useraddr)
+{
+	struct ethtool_ts_info info;
+	struct kernel_ethtool_ts_info ts_info = {};
+	int ret;
+
+	ret = hci_ethtool_ts_info(index, sk->sk_protocol, &ts_info);
+	if (ret == -ENODEV)
+		return ret;
+	else if (ret < 0)
+		return -EIO;
+
+	memset(&info, 0, sizeof(info));
+
+	info.cmd = ETHTOOL_GET_TS_INFO;
+	info.so_timestamping = ts_info.so_timestamping;
+	info.phc_index = ts_info.phc_index;
+	info.tx_types = ts_info.tx_types;
+	info.rx_filters = ts_info.rx_filters;
+
+	if (copy_to_user(useraddr, &info, sizeof(info)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int bt_ethtool(struct sock *sk, const struct ifreq *ifr,
+		      void __user *useraddr)
+{
+	unsigned int index;
+	u32 ethcmd;
+	int n;
+
+	if (copy_from_user(&ethcmd, useraddr, sizeof(ethcmd)))
+		return -EFAULT;
+
+	if (sscanf(ifr->ifr_name, "hci%u%n", &index, &n) != 1 ||
+	    n != strlen(ifr->ifr_name))
+		return -ENODEV;
+
+	switch (ethcmd) {
+	case ETHTOOL_GET_TS_INFO:
+		return bt_ethtool_get_ts_info(sk, index, useraddr);
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int bt_dev_ioctl(struct socket *sock, unsigned int cmd, void __user *arg)
+{
+	struct sock *sk = sock->sk;
+	struct ifreq ifr = {};
+	void __user *data;
+	char *colon;
+	int ret = -ENOIOCTLCMD;
+
+	if (get_user_ifreq(&ifr, &data, arg))
+		return -EFAULT;
+
+	ifr.ifr_name[IFNAMSIZ - 1] = 0;
+	colon = strchr(ifr.ifr_name, ':');
+	if (colon)
+		*colon = 0;
+
+	switch (cmd) {
+	case SIOCETHTOOL:
+		ret = bt_ethtool(sk, &ifr, data);
+		break;
+	}
+
+	if (colon)
+		*colon = ':';
+
+	if (put_user_ifreq(&ifr, arg))
+		return -EFAULT;
+
+	return ret;
+}
+
 int bt_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct sock *sk = sock->sk;
@@ -593,6 +676,10 @@ int bt_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		spin_unlock(&sk->sk_receive_queue.lock);
 
 		err = put_user(amount, (int __user *)arg);
+		break;
+
+	case SIOCETHTOOL:
+		err = bt_dev_ioctl(sock, cmd, (void __user *)arg);
 		break;
 
 	default:

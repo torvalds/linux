@@ -3089,15 +3089,25 @@ static int dpaa_xdp_xmit(struct net_device *net_dev, int n,
 	return nxmit;
 }
 
-static int dpaa_ts_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+static int dpaa_hwtstamp_get(struct net_device *dev,
+			     struct kernel_hwtstamp_config *config)
 {
 	struct dpaa_priv *priv = netdev_priv(dev);
-	struct hwtstamp_config config;
 
-	if (copy_from_user(&config, rq->ifr_data, sizeof(config)))
-		return -EFAULT;
+	config->tx_type = priv->tx_tstamp ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+	config->rx_filter = priv->rx_tstamp ? HWTSTAMP_FILTER_ALL :
+			    HWTSTAMP_FILTER_NONE;
 
-	switch (config.tx_type) {
+	return 0;
+}
+
+static int dpaa_hwtstamp_set(struct net_device *dev,
+			     struct kernel_hwtstamp_config *config,
+			     struct netlink_ext_ack *extack)
+{
+	struct dpaa_priv *priv = netdev_priv(dev);
+
+	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
 		/* Couldn't disable rx/tx timestamping separately.
 		 * Do nothing here.
@@ -3112,7 +3122,7 @@ static int dpaa_ts_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		return -ERANGE;
 	}
 
-	if (config.rx_filter == HWTSTAMP_FILTER_NONE) {
+	if (config->rx_filter == HWTSTAMP_FILTER_NONE) {
 		/* Couldn't disable rx/tx timestamping separately.
 		 * Do nothing here.
 		 */
@@ -3121,28 +3131,17 @@ static int dpaa_ts_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		priv->mac_dev->set_tstamp(priv->mac_dev->fman_mac, true);
 		priv->rx_tstamp = true;
 		/* TS is set for all frame types, not only those requested */
-		config.rx_filter = HWTSTAMP_FILTER_ALL;
+		config->rx_filter = HWTSTAMP_FILTER_ALL;
 	}
 
-	return copy_to_user(rq->ifr_data, &config, sizeof(config)) ?
-			-EFAULT : 0;
+	return 0;
 }
 
 static int dpaa_ioctl(struct net_device *net_dev, struct ifreq *rq, int cmd)
 {
-	int ret = -EINVAL;
 	struct dpaa_priv *priv = netdev_priv(net_dev);
 
-	if (cmd == SIOCGMIIREG) {
-		if (net_dev->phydev)
-			return phylink_mii_ioctl(priv->mac_dev->phylink, rq,
-						 cmd);
-	}
-
-	if (cmd == SIOCSHWTSTAMP)
-		return dpaa_ts_ioctl(net_dev, rq, cmd);
-
-	return ret;
+	return phylink_mii_ioctl(priv->mac_dev->phylink, rq, cmd);
 }
 
 static const struct net_device_ops dpaa_ops = {
@@ -3160,6 +3159,8 @@ static const struct net_device_ops dpaa_ops = {
 	.ndo_change_mtu = dpaa_change_mtu,
 	.ndo_bpf = dpaa_xdp,
 	.ndo_xdp_xmit = dpaa_xdp_xmit,
+	.ndo_hwtstamp_get = dpaa_hwtstamp_get,
+	.ndo_hwtstamp_set = dpaa_hwtstamp_set,
 };
 
 static int dpaa_napi_add(struct net_device *net_dev)

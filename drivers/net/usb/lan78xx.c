@@ -1554,10 +1554,12 @@ static void lan78xx_set_multicast(struct net_device *netdev)
 	schedule_work(&pdata->set_multicast);
 }
 
+static int lan78xx_configure_flowcontrol(struct lan78xx_net *dev,
+					 bool tx_pause, bool rx_pause);
+
 static int lan78xx_update_flowcontrol(struct lan78xx_net *dev, u8 duplex,
 				      u16 lcladv, u16 rmtadv)
 {
-	u32 flow = 0, fct_flow = 0;
 	u8 cap;
 
 	if (dev->fc_autoneg)
@@ -1565,27 +1567,13 @@ static int lan78xx_update_flowcontrol(struct lan78xx_net *dev, u8 duplex,
 	else
 		cap = dev->fc_request_control;
 
-	if (cap & FLOW_CTRL_TX)
-		flow |= (FLOW_CR_TX_FCEN_ | 0xFFFF);
-
-	if (cap & FLOW_CTRL_RX)
-		flow |= FLOW_CR_RX_FCEN_;
-
-	if (dev->udev->speed == USB_SPEED_SUPER)
-		fct_flow = FLOW_CTRL_THRESHOLD(FLOW_ON_SS, FLOW_OFF_SS);
-	else if (dev->udev->speed == USB_SPEED_HIGH)
-		fct_flow = FLOW_CTRL_THRESHOLD(FLOW_ON_HS, FLOW_OFF_HS);
-
 	netif_dbg(dev, link, dev->net, "rx pause %s, tx pause %s",
 		  (cap & FLOW_CTRL_RX ? "enabled" : "disabled"),
 		  (cap & FLOW_CTRL_TX ? "enabled" : "disabled"));
 
-	lan78xx_write_reg(dev, FCT_FLOW, fct_flow);
-
-	/* threshold value should be set before enabling flow */
-	lan78xx_write_reg(dev, FLOW, flow);
-
-	return 0;
+	return lan78xx_configure_flowcontrol(dev,
+					     cap & FLOW_CTRL_TX,
+					     cap & FLOW_CTRL_RX);
 }
 
 static void lan78xx_rx_urb_submit_all(struct lan78xx_net *dev);
@@ -1636,15 +1624,30 @@ exit_unlock:
 	return ret;
 }
 
+/**
+ * lan78xx_phy_int_ack - Acknowledge PHY interrupt
+ * @dev: pointer to the LAN78xx device structure
+ *
+ * This function acknowledges the PHY interrupt by setting the
+ * INT_STS_PHY_INT_ bit in the interrupt status register (INT_STS).
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+static int lan78xx_phy_int_ack(struct lan78xx_net *dev)
+{
+	return lan78xx_write_reg(dev, INT_STS, INT_STS_PHY_INT_);
+}
+
+static int lan78xx_configure_usb(struct lan78xx_net *dev, int speed);
+
 static int lan78xx_link_reset(struct lan78xx_net *dev)
 {
 	struct phy_device *phydev = dev->net->phydev;
 	struct ethtool_link_ksettings ecmd;
 	int ladv, radv, ret, link;
-	u32 buf;
 
 	/* clear LAN78xx interrupt status */
-	ret = lan78xx_write_reg(dev, INT_STS, INT_STS_PHY_INT_);
+	ret = lan78xx_phy_int_ack(dev);
 	if (unlikely(ret < 0))
 		return ret;
 
@@ -1667,36 +1670,9 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 
 		phy_ethtool_ksettings_get(phydev, &ecmd);
 
-		if (dev->udev->speed == USB_SPEED_SUPER) {
-			if (ecmd.base.speed == 1000) {
-				/* disable U2 */
-				ret = lan78xx_read_reg(dev, USB_CFG1, &buf);
-				if (ret < 0)
-					return ret;
-				buf &= ~USB_CFG1_DEV_U2_INIT_EN_;
-				ret = lan78xx_write_reg(dev, USB_CFG1, buf);
-				if (ret < 0)
-					return ret;
-				/* enable U1 */
-				ret = lan78xx_read_reg(dev, USB_CFG1, &buf);
-				if (ret < 0)
-					return ret;
-				buf |= USB_CFG1_DEV_U1_INIT_EN_;
-				ret = lan78xx_write_reg(dev, USB_CFG1, buf);
-				if (ret < 0)
-					return ret;
-			} else {
-				/* enable U1 & U2 */
-				ret = lan78xx_read_reg(dev, USB_CFG1, &buf);
-				if (ret < 0)
-					return ret;
-				buf |= USB_CFG1_DEV_U2_INIT_EN_;
-				buf |= USB_CFG1_DEV_U1_INIT_EN_;
-				ret = lan78xx_write_reg(dev, USB_CFG1, buf);
-				if (ret < 0)
-					return ret;
-			}
-		}
+		ret = lan78xx_configure_usb(dev, ecmd.base.speed);
+		if (ret < 0)
+			return ret;
 
 		ladv = phy_read(phydev, MII_ADVERTISE);
 		if (ladv < 0)
@@ -2507,48 +2483,323 @@ static void lan78xx_remove_irq_domain(struct lan78xx_net *dev)
 	dev->domain_data.irqdomain = NULL;
 }
 
-static struct phy_device *lan7801_phy_init(struct lan78xx_net *dev)
+/**
+ * lan78xx_configure_usb - Configure USB link power settings
+ * @dev: pointer to the LAN78xx device structure
+ * @speed: negotiated Ethernet link speed (in Mbps)
+ *
+ * This function configures U1/U2 link power management for SuperSpeed
+ * USB devices based on the current Ethernet link speed. It uses the
+ * USB_CFG1 register to enable or disable U1 and U2 low-power states.
+ *
+ * Note: Only LAN7800 and LAN7801 support SuperSpeed (USB 3.x).
+ *       LAN7850 is a High-Speed-only (USB 2.0) device and is skipped.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+static int lan78xx_configure_usb(struct lan78xx_net *dev, int speed)
 {
-	u32 buf;
+	u32 mask, val;
 	int ret;
+
+	/* Only configure USB settings for SuperSpeed devices */
+	if (dev->udev->speed != USB_SPEED_SUPER)
+		return 0;
+
+	/* LAN7850 does not support USB 3.x */
+	if (dev->chipid == ID_REV_CHIP_ID_7850_) {
+		netdev_warn_once(dev->net, "Unexpected SuperSpeed for LAN7850 (USB 2.0 only)\n");
+		return 0;
+	}
+
+	switch (speed) {
+	case SPEED_1000:
+		/* Disable U2, enable U1 */
+		ret = lan78xx_update_reg(dev, USB_CFG1,
+					 USB_CFG1_DEV_U2_INIT_EN_, 0);
+		if (ret < 0)
+			return ret;
+
+		return lan78xx_update_reg(dev, USB_CFG1,
+					  USB_CFG1_DEV_U1_INIT_EN_,
+					  USB_CFG1_DEV_U1_INIT_EN_);
+
+	case SPEED_100:
+	case SPEED_10:
+		/* Enable both U1 and U2 */
+		mask = USB_CFG1_DEV_U1_INIT_EN_ | USB_CFG1_DEV_U2_INIT_EN_;
+		val = mask;
+		return lan78xx_update_reg(dev, USB_CFG1, mask, val);
+
+	default:
+		netdev_warn(dev->net, "Unsupported link speed: %d\n", speed);
+		return -EINVAL;
+	}
+}
+
+/**
+ * lan78xx_configure_flowcontrol - Set MAC and FIFO flow control configuration
+ * @dev: pointer to the LAN78xx device structure
+ * @tx_pause: enable transmission of pause frames
+ * @rx_pause: enable reception of pause frames
+ *
+ * This function configures the LAN78xx flow control settings by writing
+ * to the FLOW and FCT_FLOW registers. The pause time is set to the
+ * maximum allowed value (65535 quanta). FIFO thresholds are selected
+ * based on USB speed.
+ *
+ * The Pause Time field is measured in units of 512-bit times (quanta):
+ *   - At 1 Gbps: 1 quanta = 512 ns → max ~33.6 ms pause
+ *   - At 100 Mbps: 1 quanta = 5.12 µs → max ~335 ms pause
+ *   - At 10 Mbps: 1 quanta = 51.2 µs → max ~3.3 s pause
+ *
+ * Flow control thresholds (FCT_FLOW) are used to trigger pause/resume:
+ *   - RXUSED is the number of bytes used in the RX FIFO
+ *   - Flow is turned ON when RXUSED ≥ FLOW_ON threshold
+ *   - Flow is turned OFF when RXUSED ≤ FLOW_OFF threshold
+ *   - Both thresholds are encoded in units of 512 bytes (rounded up)
+ *
+ * Thresholds differ by USB speed because available USB bandwidth
+ * affects how fast packets can be drained from the RX FIFO:
+ *   - USB 3.x (SuperSpeed):
+ *       FLOW_ON  = 9216 bytes → 18 units
+ *       FLOW_OFF = 4096 bytes →  8 units
+ *   - USB 2.0 (High-Speed):
+ *       FLOW_ON  = 8704 bytes → 17 units
+ *       FLOW_OFF = 1024 bytes →  2 units
+ *
+ * Note: The FCT_FLOW register must be configured before enabling TX pause
+ *       (i.e., before setting FLOW_CR_TX_FCEN_), as required by the hardware.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+static int lan78xx_configure_flowcontrol(struct lan78xx_net *dev,
+					 bool tx_pause, bool rx_pause)
+{
+	/* Use maximum pause time: 65535 quanta (512-bit times) */
+	const u32 pause_time_quanta = 65535;
+	u32 fct_flow = 0;
+	u32 flow = 0;
+	int ret;
+
+	/* Prepare MAC flow control bits */
+	if (tx_pause)
+		flow |= FLOW_CR_TX_FCEN_ | pause_time_quanta;
+
+	if (rx_pause)
+		flow |= FLOW_CR_RX_FCEN_;
+
+	/* Select RX FIFO thresholds based on USB speed
+	 *
+	 * FCT_FLOW layout:
+	 *   bits [6:0]   FLOW_ON threshold (RXUSED ≥ ON → assert pause)
+	 *   bits [14:8]  FLOW_OFF threshold (RXUSED ≤ OFF → deassert pause)
+	 *   thresholds are expressed in units of 512 bytes
+	 */
+	switch (dev->udev->speed) {
+	case USB_SPEED_SUPER:
+		fct_flow = FLOW_CTRL_THRESHOLD(FLOW_ON_SS, FLOW_OFF_SS);
+		break;
+	case USB_SPEED_HIGH:
+		fct_flow = FLOW_CTRL_THRESHOLD(FLOW_ON_HS, FLOW_OFF_HS);
+		break;
+	default:
+		netdev_warn(dev->net, "Unsupported USB speed: %d\n",
+			    dev->udev->speed);
+		return -EINVAL;
+	}
+
+	/* Step 1: Write FIFO thresholds before enabling pause frames */
+	ret = lan78xx_write_reg(dev, FCT_FLOW, fct_flow);
+	if (ret < 0)
+		return ret;
+
+	/* Step 2: Enable MAC pause functionality */
+	return lan78xx_write_reg(dev, FLOW, flow);
+}
+
+/**
+ * lan78xx_register_fixed_phy() - Register a fallback fixed PHY
+ * @dev: LAN78xx device
+ *
+ * Registers a fixed PHY with 1 Gbps full duplex. This is used in special cases
+ * like EVB-KSZ9897-1, where LAN7801 acts as a USB-to-Ethernet interface to a
+ * switch without a visible PHY.
+ *
+ * Return: pointer to the registered fixed PHY, or ERR_PTR() on error.
+ */
+static struct phy_device *lan78xx_register_fixed_phy(struct lan78xx_net *dev)
+{
 	struct fixed_phy_status fphy_status = {
 		.link = 1,
 		.speed = SPEED_1000,
 		.duplex = DUPLEX_FULL,
 	};
+
+	netdev_info(dev->net,
+		    "No PHY found on LAN7801 – registering fixed PHY (e.g. EVB-KSZ9897-1)\n");
+
+	return fixed_phy_register(&fphy_status, NULL);
+}
+
+/**
+ * lan78xx_get_phy() - Probe or register PHY device and set interface mode
+ * @dev: LAN78xx device structure
+ *
+ * This function attempts to find a PHY on the MDIO bus. If no PHY is found
+ * and the chip is LAN7801, it registers a fixed PHY as fallback. It also
+ * sets dev->interface based on chip ID and detected PHY type.
+ *
+ * Return: a valid PHY device pointer, or ERR_PTR() on failure.
+ */
+static struct phy_device *lan78xx_get_phy(struct lan78xx_net *dev)
+{
 	struct phy_device *phydev;
 
+	/* Attempt to locate a PHY on the MDIO bus */
 	phydev = phy_find_first(dev->mdiobus);
-	if (!phydev) {
-		netdev_dbg(dev->net, "PHY Not Found!! Registering Fixed PHY\n");
-		phydev = fixed_phy_register(PHY_POLL, &fphy_status, NULL);
-		if (IS_ERR(phydev)) {
-			netdev_err(dev->net, "No PHY/fixed_PHY found\n");
-			return NULL;
+
+	switch (dev->chipid) {
+	case ID_REV_CHIP_ID_7801_:
+		if (phydev) {
+			/* External RGMII PHY detected */
+			dev->interface = PHY_INTERFACE_MODE_RGMII_ID;
+			phydev->is_internal = false;
+
+			if (!phydev->drv)
+				netdev_warn(dev->net,
+					    "PHY driver not found – assuming RGMII delays are on PCB or strapped for the PHY\n");
+
+			return phydev;
 		}
-		netdev_dbg(dev->net, "Registered FIXED PHY\n");
+
 		dev->interface = PHY_INTERFACE_MODE_RGMII;
+		/* No PHY found – fallback to fixed PHY (e.g. KSZ switch board) */
+		return lan78xx_register_fixed_phy(dev);
+
+	case ID_REV_CHIP_ID_7800_:
+	case ID_REV_CHIP_ID_7850_:
+		if (!phydev)
+			return ERR_PTR(-ENODEV);
+
+		/* These use internal GMII-connected PHY */
+		dev->interface = PHY_INTERFACE_MODE_GMII;
+		phydev->is_internal = true;
+		return phydev;
+
+	default:
+		netdev_err(dev->net, "Unknown CHIP ID: 0x%08x\n", dev->chipid);
+		return ERR_PTR(-ENODEV);
+	}
+}
+
+/**
+ * lan78xx_mac_prepare_for_phy() - Preconfigure MAC-side interface settings
+ * @dev: LAN78xx device
+ *
+ * Configure MAC-side registers according to dev->interface, which should be
+ * set by lan78xx_get_phy().
+ *
+ * - For PHY_INTERFACE_MODE_RGMII:
+ *   Enable MAC-side TXC delay. This mode seems to be used in a special setup
+ *   without a real PHY, likely on EVB-KSZ9897-1. In that design, LAN7801 is
+ *   connected to the KSZ9897 switch, and the link timing is expected to be
+ *   hardwired (e.g. via strapping or board layout). No devicetree support is
+ *   assumed here.
+ *
+ * - For PHY_INTERFACE_MODE_RGMII_ID:
+ *   Disable MAC-side delay and rely on the PHY driver to provide delay.
+ *
+ * - For GMII, no MAC-specific config is needed.
+ *
+ * Return: 0 on success or a negative error code.
+ */
+static int lan78xx_mac_prepare_for_phy(struct lan78xx_net *dev)
+{
+	int ret;
+
+	switch (dev->interface) {
+	case PHY_INTERFACE_MODE_RGMII:
+		/* Enable MAC-side TX clock delay */
 		ret = lan78xx_write_reg(dev, MAC_RGMII_ID,
 					MAC_RGMII_ID_TXC_DELAY_EN_);
-		ret = lan78xx_write_reg(dev, RGMII_TX_BYP_DLL, 0x3D00);
-		ret = lan78xx_read_reg(dev, HW_CFG, &buf);
-		buf |= HW_CFG_CLK125_EN_;
-		buf |= HW_CFG_REFCLK25_EN_;
-		ret = lan78xx_write_reg(dev, HW_CFG, buf);
-	} else {
-		if (!phydev->drv) {
-			netdev_err(dev->net, "no PHY driver found\n");
-			return NULL;
-		}
-		dev->interface = PHY_INTERFACE_MODE_RGMII_ID;
-		/* The PHY driver is responsible to configure proper RGMII
-		 * interface delays. Disable RGMII delays on MAC side.
-		 */
-		lan78xx_write_reg(dev, MAC_RGMII_ID, 0);
+		if (ret < 0)
+			return ret;
 
-		phydev->is_internal = false;
+		ret = lan78xx_write_reg(dev, RGMII_TX_BYP_DLL, 0x3D00);
+		if (ret < 0)
+			return ret;
+
+		ret = lan78xx_update_reg(dev, HW_CFG,
+					 HW_CFG_CLK125_EN_ | HW_CFG_REFCLK25_EN_,
+					 HW_CFG_CLK125_EN_ | HW_CFG_REFCLK25_EN_);
+		if (ret < 0)
+			return ret;
+
+		break;
+
+	case PHY_INTERFACE_MODE_RGMII_ID:
+		/* Disable MAC-side TXC delay, PHY provides it */
+		ret = lan78xx_write_reg(dev, MAC_RGMII_ID, 0);
+		if (ret < 0)
+			return ret;
+
+		break;
+
+	case PHY_INTERFACE_MODE_GMII:
+		/* No MAC-specific configuration required */
+		break;
+
+	default:
+		netdev_warn(dev->net, "Unsupported interface mode: %d\n",
+			    dev->interface);
+		break;
 	}
-	return phydev;
+
+	return 0;
+}
+
+/**
+ * lan78xx_configure_leds_from_dt() - Configure LED enables based on DT
+ * @dev: LAN78xx device
+ * @phydev: PHY device (must be valid)
+ *
+ * Reads "microchip,led-modes" property from the PHY's DT node and enables
+ * the corresponding number of LEDs by writing to HW_CFG.
+ *
+ * This helper preserves the original logic, enabling up to 4 LEDs.
+ * If the property is not present, this function does nothing.
+ *
+ * Return: 0 on success or a negative error code.
+ */
+static int lan78xx_configure_leds_from_dt(struct lan78xx_net *dev,
+					  struct phy_device *phydev)
+{
+	struct device_node *np = phydev->mdio.dev.of_node;
+	u32 reg;
+	int len, ret;
+
+	if (!np)
+		return 0;
+
+	len = of_property_count_elems_of_size(np, "microchip,led-modes",
+					      sizeof(u32));
+	if (len < 0)
+		return 0;
+
+	ret = lan78xx_read_reg(dev, HW_CFG, &reg);
+	if (ret < 0)
+		return ret;
+
+	reg &= ~(HW_CFG_LED0_EN_ | HW_CFG_LED1_EN_ |
+		 HW_CFG_LED2_EN_ | HW_CFG_LED3_EN_);
+
+	reg |= (len > 0) * HW_CFG_LED0_EN_ |
+	       (len > 1) * HW_CFG_LED1_EN_ |
+	       (len > 2) * HW_CFG_LED2_EN_ |
+	       (len > 3) * HW_CFG_LED3_EN_;
+
+	return lan78xx_write_reg(dev, HW_CFG, reg);
 }
 
 static int lan78xx_phy_init(struct lan78xx_net *dev)
@@ -2558,30 +2809,13 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 	u32 mii_adv;
 	struct phy_device *phydev;
 
-	switch (dev->chipid) {
-	case ID_REV_CHIP_ID_7801_:
-		phydev = lan7801_phy_init(dev);
-		if (!phydev) {
-			netdev_err(dev->net, "lan7801: PHY Init Failed");
-			return -EIO;
-		}
-		break;
+	phydev = lan78xx_get_phy(dev);
+	if (IS_ERR(phydev))
+		return PTR_ERR(phydev);
 
-	case ID_REV_CHIP_ID_7800_:
-	case ID_REV_CHIP_ID_7850_:
-		phydev = phy_find_first(dev->mdiobus);
-		if (!phydev) {
-			netdev_err(dev->net, "no PHY found\n");
-			return -EIO;
-		}
-		phydev->is_internal = true;
-		dev->interface = PHY_INTERFACE_MODE_GMII;
-		break;
-
-	default:
-		netdev_err(dev->net, "Unknown CHIP ID found\n");
-		return -EIO;
-	}
+	ret = lan78xx_mac_prepare_for_phy(dev);
+	if (ret < 0)
+		goto free_phy;
 
 	/* if phyirq is not set, use polling mode in phylib */
 	if (dev->domain_data.phyirq > 0)
@@ -2623,33 +2857,23 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 
 	phy_support_eee(phydev);
 
-	if (phydev->mdio.dev.of_node) {
-		u32 reg;
-		int len;
-
-		len = of_property_count_elems_of_size(phydev->mdio.dev.of_node,
-						      "microchip,led-modes",
-						      sizeof(u32));
-		if (len >= 0) {
-			/* Ensure the appropriate LEDs are enabled */
-			lan78xx_read_reg(dev, HW_CFG, &reg);
-			reg &= ~(HW_CFG_LED0_EN_ |
-				 HW_CFG_LED1_EN_ |
-				 HW_CFG_LED2_EN_ |
-				 HW_CFG_LED3_EN_);
-			reg |= (len > 0) * HW_CFG_LED0_EN_ |
-				(len > 1) * HW_CFG_LED1_EN_ |
-				(len > 2) * HW_CFG_LED2_EN_ |
-				(len > 3) * HW_CFG_LED3_EN_;
-			lan78xx_write_reg(dev, HW_CFG, reg);
-		}
-	}
+	ret = lan78xx_configure_leds_from_dt(dev, phydev);
+	if (ret)
+		goto free_phy;
 
 	genphy_config_aneg(phydev);
 
 	dev->fc_autoneg = phydev->autoneg;
 
 	return 0;
+
+free_phy:
+	if (phy_is_pseudo_fixed_link(phydev)) {
+		fixed_phy_unregister(phydev);
+		phy_device_free(phydev);
+	}
+
+	return ret;
 }
 
 static int lan78xx_set_rx_max_frame_length(struct lan78xx_net *dev, int size)

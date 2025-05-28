@@ -34,10 +34,11 @@ void mlxsw_sp1_ptp_got_timestamp(struct mlxsw_sp *mlxsw_sp, bool ingress,
 				 u64 timestamp);
 
 int mlxsw_sp1_ptp_hwtstamp_get(struct mlxsw_sp_port *mlxsw_sp_port,
-			       struct hwtstamp_config *config);
+			       struct kernel_hwtstamp_config *config);
 
 int mlxsw_sp1_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
-			       struct hwtstamp_config *config);
+			       struct kernel_hwtstamp_config *config,
+			       struct netlink_ext_ack *extack);
 
 void mlxsw_sp1_ptp_shaper_work(struct work_struct *work);
 
@@ -65,10 +66,11 @@ void mlxsw_sp2_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
 			       struct sk_buff *skb, u16 local_port);
 
 int mlxsw_sp2_ptp_hwtstamp_get(struct mlxsw_sp_port *mlxsw_sp_port,
-			       struct hwtstamp_config *config);
+			       struct kernel_hwtstamp_config *config);
 
 int mlxsw_sp2_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
-			       struct hwtstamp_config *config);
+			       struct kernel_hwtstamp_config *config,
+			       struct netlink_ext_ack *extack);
 
 int mlxsw_sp2_ptp_get_ts_info(struct mlxsw_sp *mlxsw_sp,
 			      struct kernel_ethtool_ts_info *info);
@@ -117,14 +119,15 @@ mlxsw_sp1_ptp_got_timestamp(struct mlxsw_sp *mlxsw_sp, bool ingress,
 
 static inline int
 mlxsw_sp1_ptp_hwtstamp_get(struct mlxsw_sp_port *mlxsw_sp_port,
-			   struct hwtstamp_config *config)
+			   struct kernel_hwtstamp_config *config)
 {
 	return -EOPNOTSUPP;
 }
 
 static inline int
 mlxsw_sp1_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
-			   struct hwtstamp_config *config)
+			   struct kernel_hwtstamp_config *config,
+			   struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }
@@ -181,14 +184,15 @@ static inline void mlxsw_sp2_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
 
 static inline int
 mlxsw_sp2_ptp_hwtstamp_get(struct mlxsw_sp_port *mlxsw_sp_port,
-			   struct hwtstamp_config *config)
+			   struct kernel_hwtstamp_config *config)
 {
 	return -EOPNOTSUPP;
 }
 
 static inline int
 mlxsw_sp2_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
-			   struct hwtstamp_config *config)
+			   struct kernel_hwtstamp_config *config,
+			   struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }

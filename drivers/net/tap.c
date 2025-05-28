@@ -923,7 +923,7 @@ static long tap_ioctl(struct file *file, unsigned int cmd,
 	unsigned int __user *up = argp;
 	unsigned short u;
 	int __user *sp = argp;
-	struct sockaddr sa;
+	struct sockaddr_storage ss;
 	int s;
 	int ret;
 
@@ -1000,16 +1000,17 @@ static long tap_ioctl(struct file *file, unsigned int cmd,
 			return -ENOLINK;
 		}
 		ret = 0;
-		dev_get_mac_address(&sa, dev_net(tap->dev), tap->dev->name);
+		dev_get_mac_address((struct sockaddr *)&ss, dev_net(tap->dev),
+				    tap->dev->name);
 		if (copy_to_user(&ifr->ifr_name, tap->dev->name, IFNAMSIZ) ||
-		    copy_to_user(&ifr->ifr_hwaddr, &sa, sizeof(sa)))
+		    copy_to_user(&ifr->ifr_hwaddr, &ss, sizeof(ifr->ifr_hwaddr)))
 			ret = -EFAULT;
 		tap_put_tap_dev(tap);
 		rtnl_unlock();
 		return ret;
 
 	case SIOCSIFHWADDR:
-		if (copy_from_user(&sa, &ifr->ifr_hwaddr, sizeof(sa)))
+		if (copy_from_user(&ss, &ifr->ifr_hwaddr, sizeof(ifr->ifr_hwaddr)))
 			return -EFAULT;
 		rtnl_lock();
 		tap = tap_get_tap_dev(q);
@@ -1017,7 +1018,10 @@ static long tap_ioctl(struct file *file, unsigned int cmd,
 			rtnl_unlock();
 			return -ENOLINK;
 		}
-		ret = dev_set_mac_address_user(tap->dev, &sa, NULL);
+		if (tap->dev->addr_len > sizeof(ifr->ifr_hwaddr))
+			ret = -EINVAL;
+		else
+			ret = dev_set_mac_address_user(tap->dev, &ss, NULL);
 		tap_put_tap_dev(tap);
 		rtnl_unlock();
 		return ret;

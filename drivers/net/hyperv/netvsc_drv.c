@@ -1371,7 +1371,7 @@ static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 	struct net_device_context *ndc = netdev_priv(ndev);
 	struct net_device *vf_netdev = rtnl_dereference(ndc->vf_netdev);
 	struct netvsc_device *nvdev = rtnl_dereference(ndc->nvdev);
-	struct sockaddr *addr = p;
+	struct sockaddr_storage *addr = p;
 	int err;
 
 	err = eth_prepare_mac_addr_change(ndev, p);
@@ -1387,12 +1387,12 @@ static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 			return err;
 	}
 
-	err = rndis_filter_set_device_mac(nvdev, addr->sa_data);
+	err = rndis_filter_set_device_mac(nvdev, addr->__data);
 	if (!err) {
 		eth_commit_mac_addr_change(ndev, p);
 	} else if (vf_netdev) {
 		/* rollback change on VF */
-		memcpy(addr->sa_data, ndev->dev_addr, ETH_ALEN);
+		memcpy(addr->__data, ndev->dev_addr, ETH_ALEN);
 		dev_set_mac_address(vf_netdev, addr, NULL);
 	}
 

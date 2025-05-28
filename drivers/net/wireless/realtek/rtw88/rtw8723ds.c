@@ -25,7 +25,7 @@ static const struct sdio_device_id rtw_8723ds_id_table[] =  {
 MODULE_DEVICE_TABLE(sdio, rtw_8723ds_id_table);
 
 static struct sdio_driver rtw_8723ds_driver = {
-	.name = "rtw_8723ds",
+	.name = KBUILD_MODNAME,
 	.probe = rtw_sdio_probe,
 	.remove = rtw_sdio_remove,
 	.id_table = rtw_8723ds_id_table,

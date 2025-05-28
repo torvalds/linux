@@ -183,47 +183,6 @@ static void iwl_mld_handle_mu_mimo_grp_notif(struct iwl_mld *mld,
 }
 
 static void
-iwl_mld_handle_stored_beacon_notif(struct iwl_mld *mld,
-				   struct iwl_rx_packet *pkt)
-{
-	unsigned int pkt_len = iwl_rx_packet_payload_len(pkt);
-	struct iwl_stored_beacon_notif *sb = (void *)pkt->data;
-	struct ieee80211_rx_status rx_status = {};
-	struct sk_buff *skb;
-	u32 size = le32_to_cpu(sb->common.byte_count);
-
-	if (size == 0)
-		return;
-
-	if (pkt_len < struct_size(sb, data, size))
-		return;
-
-	skb = alloc_skb(size, GFP_ATOMIC);
-	if (!skb) {
-		IWL_ERR(mld, "alloc_skb failed\n");
-		return;
-	}
-
-	/* update rx_status according to the notification's metadata */
-	rx_status.mactime = le64_to_cpu(sb->common.tsf);
-	/* TSF as indicated by the firmware  is at INA time */
-	rx_status.flag |= RX_FLAG_MACTIME_PLCP_START;
-	rx_status.device_timestamp = le32_to_cpu(sb->common.system_time);
-	rx_status.band =
-		iwl_mld_phy_band_to_nl80211(le16_to_cpu(sb->common.band));
-	rx_status.freq =
-		ieee80211_channel_to_frequency(le16_to_cpu(sb->common.channel),
-					       rx_status.band);
-
-	/* copy the data */
-	skb_put_data(skb, sb->data, size);
-	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
-
-	/* pass it as regular rx to mac80211 */
-	ieee80211_rx_napi(mld->hw, NULL, skb, NULL);
-}
-
-static void
 iwl_mld_handle_channel_switch_start_notif(struct iwl_mld *mld,
 					  struct iwl_rx_packet *pkt)
 {
@@ -345,12 +304,15 @@ CMD_VERSIONS(session_prot_notif,
 CMD_VERSIONS(missed_beacon_notif,
 	     CMD_VER_ENTRY(5, iwl_missed_beacons_notif))
 CMD_VERSIONS(tx_resp_notif,
-	     CMD_VER_ENTRY(8, iwl_tx_resp))
+	     CMD_VER_ENTRY(8, iwl_tx_resp)
+	     CMD_VER_ENTRY(9, iwl_tx_resp))
 CMD_VERSIONS(compressed_ba_notif,
 	     CMD_VER_ENTRY(5, iwl_compressed_ba_notif)
-	     CMD_VER_ENTRY(6, iwl_compressed_ba_notif))
+	     CMD_VER_ENTRY(6, iwl_compressed_ba_notif)
+	     CMD_VER_ENTRY(7, iwl_compressed_ba_notif))
 CMD_VERSIONS(tlc_notif,
-	     CMD_VER_ENTRY(3, iwl_tlc_update_notif))
+	     CMD_VER_ENTRY(3, iwl_tlc_update_notif)
+	     CMD_VER_ENTRY(4, iwl_tlc_update_notif))
 CMD_VERSIONS(mu_mimo_grp_notif,
 	     CMD_VER_ENTRY(1, iwl_mu_group_mgmt_notif))
 CMD_VERSIONS(channel_switch_start_notif,
@@ -361,8 +323,6 @@ CMD_VERSIONS(ct_kill_notif,
 	     CMD_VER_ENTRY(2, ct_kill_notif))
 CMD_VERSIONS(temp_notif,
 	     CMD_VER_ENTRY(2, iwl_dts_measurement_notif))
-CMD_VERSIONS(stored_beacon_notif,
-	     CMD_VER_ENTRY(4, iwl_stored_beacon_notif))
 CMD_VERSIONS(roc_notif,
 	     CMD_VER_ENTRY(1, iwl_roc_notif))
 CMD_VERSIONS(probe_resp_data_notif,
@@ -378,7 +338,8 @@ CMD_VERSIONS(bt_coex_notif,
 CMD_VERSIONS(beacon_notification,
 	     CMD_VER_ENTRY(6, iwl_extended_beacon_notif))
 CMD_VERSIONS(emlsr_mode_notif,
-	     CMD_VER_ENTRY(1, iwl_esr_mode_notif))
+	     CMD_VER_ENTRY(1, iwl_esr_mode_notif_v1)
+	     CMD_VER_ENTRY(2, iwl_esr_mode_notif))
 CMD_VERSIONS(emlsr_trans_fail_notif,
 	     CMD_VER_ENTRY(1, iwl_esr_trans_fail_notif))
 CMD_VERSIONS(uapsd_misbehaving_ap_notif,
@@ -473,8 +434,6 @@ const struct iwl_rx_handler iwl_mld_rx_handlers[] = {
 	RX_HANDLER_OF_ROC(MAC_CONF_GROUP, ROC_NOTIF, roc_notif)
 	RX_HANDLER_NO_OBJECT(DATA_PATH_GROUP, MU_GROUP_MGMT_NOTIF,
 			     mu_mimo_grp_notif, RX_HANDLER_SYNC)
-	RX_HANDLER_NO_OBJECT(PROT_OFFLOAD_GROUP, STORED_BEACON_NTF,
-			     stored_beacon_notif, RX_HANDLER_SYNC)
 	RX_HANDLER_OF_VIF(MAC_CONF_GROUP, PROBE_RESPONSE_DATA_NOTIF,
 			  probe_resp_data_notif)
 	RX_HANDLER_NO_OBJECT(PHY_OPS_GROUP, CT_KILL_NOTIFICATION,
@@ -646,7 +605,7 @@ void iwl_mld_rx_rss(struct iwl_op_mode *op_mode, struct napi_struct *napi,
 	struct iwl_mld *mld = IWL_OP_MODE_GET_MLD(op_mode);
 	u16 cmd_id = WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd);
 
-	if (unlikely(queue >= mld->trans->num_rx_queues))
+	if (unlikely(queue >= mld->trans->info.num_rxqs))
 		return;
 
 	if (likely(cmd_id == WIDE_ID(LEGACY_GROUP, REPLY_RX_MPDU_CMD)))
@@ -707,9 +666,13 @@ void iwl_mld_async_handlers_wk(struct wiphy *wiphy, struct wiphy_work *wk)
 	}
 }
 
-void iwl_mld_purge_async_handlers_list(struct iwl_mld *mld)
+void iwl_mld_cancel_async_notifications(struct iwl_mld *mld)
 {
 	struct iwl_async_handler_entry *entry, *tmp;
+
+	lockdep_assert_wiphy(mld->wiphy);
+
+	wiphy_work_cancel(mld->wiphy, &mld->async_handlers_wk);
 
 	spin_lock_bh(&mld->async_handlers_lock);
 	list_for_each_entry_safe(entry, tmp, &mld->async_handlers_list, list) {

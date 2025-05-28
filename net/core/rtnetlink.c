@@ -2390,12 +2390,12 @@ static int rtnl_valid_dump_ifinfo_req(const struct nlmsghdr *nlh,
 	if (strict_check) {
 		struct ifinfomsg *ifm;
 
-		if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifm))) {
+		ifm = nlmsg_payload(nlh, sizeof(*ifm));
+		if (!ifm) {
 			NL_SET_ERR_MSG(extack, "Invalid header for link dump");
 			return -EINVAL;
 		}
 
-		ifm = nlmsg_data(nlh);
 		if (ifm->__ifi_pad || ifm->ifi_type || ifm->ifi_flags ||
 		    ifm->ifi_change) {
 			NL_SET_ERR_MSG(extack, "Invalid values in header for link dump request");
@@ -3080,17 +3080,7 @@ static int do_setlink(const struct sk_buff *skb, struct net_device *dev,
 	}
 
 	if (tb[IFLA_ADDRESS]) {
-		struct sockaddr *sa;
-		int len;
-
-		len = sizeof(sa_family_t) + max_t(size_t, dev->addr_len,
-						  sizeof(*sa));
-		sa = kmalloc(len, GFP_KERNEL);
-		if (!sa) {
-			err = -ENOMEM;
-			goto errout;
-		}
-		sa->sa_family = dev->type;
+		struct sockaddr_storage ss = { };
 
 		netdev_unlock_ops(dev);
 
@@ -3098,10 +3088,9 @@ static int do_setlink(const struct sk_buff *skb, struct net_device *dev,
 		down_write(&dev_addr_sem);
 		netdev_lock_ops(dev);
 
-		memcpy(sa->sa_data, nla_data(tb[IFLA_ADDRESS]),
-		       dev->addr_len);
-		err = netif_set_mac_address(dev, sa, extack);
-		kfree(sa);
+		ss.ss_family = dev->type;
+		memcpy(ss.__data, nla_data(tb[IFLA_ADDRESS]), dev->addr_len);
+		err = netif_set_mac_address(dev, &ss, extack);
 		if (err) {
 			up_write(&dev_addr_sem);
 			goto errout;
@@ -3580,7 +3569,7 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh,
 int rtnl_configure_link(struct net_device *dev, const struct ifinfomsg *ifm,
 			u32 portid, const struct nlmsghdr *nlh)
 {
-	unsigned int old_flags;
+	unsigned int old_flags, changed;
 	int err;
 
 	old_flags = dev->flags;
@@ -3591,12 +3580,13 @@ int rtnl_configure_link(struct net_device *dev, const struct ifinfomsg *ifm,
 			return err;
 	}
 
-	if (dev->rtnl_link_state == RTNL_LINK_INITIALIZED) {
-		__dev_notify_flags(dev, old_flags, (old_flags ^ dev->flags), portid, nlh);
-	} else {
-		dev->rtnl_link_state = RTNL_LINK_INITIALIZED;
-		__dev_notify_flags(dev, old_flags, ~0U, portid, nlh);
+	changed = old_flags ^ dev->flags;
+	if (dev->rtnl_link_initializing) {
+		dev->rtnl_link_initializing = false;
+		changed = ~0U;
 	}
+
+	__dev_notify_flags(dev, old_flags, changed, portid, nlh);
 	return 0;
 }
 EXPORT_SYMBOL(rtnl_configure_link);
@@ -3654,7 +3644,7 @@ struct net_device *rtnl_create_link(struct net *net, const char *ifname,
 
 	dev_net_set(dev, net);
 	dev->rtnl_link_ops = ops;
-	dev->rtnl_link_state = RTNL_LINK_INITIALIZING;
+	dev->rtnl_link_initializing = true;
 
 	if (tb[IFLA_MTU]) {
 		u32 mtu = nla_get_u32(tb[IFLA_MTU]);
@@ -4083,7 +4073,8 @@ static int rtnl_valid_getlink_req(struct sk_buff *skb,
 	struct ifinfomsg *ifm;
 	int i, err;
 
-	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifm))) {
+	ifm = nlmsg_payload(nlh, sizeof(*ifm));
+	if (!ifm) {
 		NL_SET_ERR_MSG(extack, "Invalid header for get link");
 		return -EINVAL;
 	}
@@ -4092,7 +4083,6 @@ static int rtnl_valid_getlink_req(struct sk_buff *skb,
 		return nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFLA_MAX,
 					      ifla_policy, extack);
 
-	ifm = nlmsg_data(nlh);
 	if (ifm->__ifi_pad || ifm->ifi_type || ifm->ifi_flags ||
 	    ifm->ifi_change) {
 		NL_SET_ERR_MSG(extack, "Invalid values in header for get link request");
@@ -4883,12 +4873,12 @@ static int valid_fdb_dump_strict(const struct nlmsghdr *nlh,
 	struct ndmsg *ndm;
 	int err, i;
 
-	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ndm))) {
+	ndm = nlmsg_payload(nlh, sizeof(*ndm));
+	if (!ndm) {
 		NL_SET_ERR_MSG(extack, "Invalid header for fdb dump request");
 		return -EINVAL;
 	}
 
-	ndm = nlmsg_data(nlh);
 	if (ndm->ndm_pad1  || ndm->ndm_pad2  || ndm->ndm_state ||
 	    ndm->ndm_flags || ndm->ndm_type) {
 		NL_SET_ERR_MSG(extack, "Invalid values in header for fdb dump request");
@@ -5051,12 +5041,12 @@ static int valid_fdb_get_strict(const struct nlmsghdr *nlh,
 	struct ndmsg *ndm;
 	int err, i;
 
-	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ndm))) {
+	ndm = nlmsg_payload(nlh, sizeof(*ndm));
+	if (!ndm) {
 		NL_SET_ERR_MSG(extack, "Invalid header for fdb get request");
 		return -EINVAL;
 	}
 
-	ndm = nlmsg_data(nlh);
 	if (ndm->ndm_pad1  || ndm->ndm_pad2  || ndm->ndm_state ||
 	    ndm->ndm_type) {
 		NL_SET_ERR_MSG(extack, "Invalid values in header for fdb get request");
@@ -5323,12 +5313,12 @@ static int valid_bridge_getlink_req(const struct nlmsghdr *nlh,
 	if (strict_check) {
 		struct ifinfomsg *ifm;
 
-		if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifm))) {
+		ifm = nlmsg_payload(nlh, sizeof(*ifm));
+		if (!ifm) {
 			NL_SET_ERR_MSG(extack, "Invalid header for bridge link dump");
 			return -EINVAL;
 		}
 
-		ifm = nlmsg_data(nlh);
 		if (ifm->__ifi_pad || ifm->ifi_type || ifm->ifi_flags ||
 		    ifm->ifi_change || ifm->ifi_index) {
 			NL_SET_ERR_MSG(extack, "Invalid values in header for bridge link dump request");
@@ -6220,15 +6210,14 @@ static int rtnl_valid_stats_req(const struct nlmsghdr *nlh, bool strict_check,
 {
 	struct if_stats_msg *ifsm;
 
-	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifsm))) {
+	ifsm = nlmsg_payload(nlh, sizeof(*ifsm));
+	if (!ifsm) {
 		NL_SET_ERR_MSG(extack, "Invalid header for stats dump");
 		return -EINVAL;
 	}
 
 	if (!strict_check)
 		return 0;
-
-	ifsm = nlmsg_data(nlh);
 
 	/* only requests using strict checks can pass data to influence
 	 * the dump. The legacy exception is filter_mask.
@@ -6457,12 +6446,12 @@ static int rtnl_mdb_valid_dump_req(const struct nlmsghdr *nlh,
 {
 	struct br_port_msg *bpm;
 
-	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*bpm))) {
+	bpm = nlmsg_payload(nlh, sizeof(*bpm));
+	if (!bpm) {
 		NL_SET_ERR_MSG(extack, "Invalid header for mdb dump request");
 		return -EINVAL;
 	}
 
-	bpm = nlmsg_data(nlh);
 	if (bpm->ifindex) {
 		NL_SET_ERR_MSG(extack, "Filtering by device index is not supported for mdb dump request");
 		return -EINVAL;

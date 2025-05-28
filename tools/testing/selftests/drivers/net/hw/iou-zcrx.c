@@ -37,8 +37,8 @@
 
 #include <liburing.h>
 
-#define PAGE_SIZE (4096)
-#define AREA_SIZE (8192 * PAGE_SIZE)
+static long page_size;
+#define AREA_SIZE (8192 * page_size)
 #define SEND_SIZE (512 * 4096)
 #define min(a, b) \
 	({ \
@@ -66,7 +66,7 @@ static int cfg_oneshot_recvs;
 static int cfg_send_size = SEND_SIZE;
 static struct sockaddr_in6 cfg_addr;
 
-static char payload[SEND_SIZE] __attribute__((aligned(PAGE_SIZE)));
+static char *payload;
 static void *area_ptr;
 static void *ring_ptr;
 static size_t ring_size;
@@ -114,8 +114,8 @@ static inline size_t get_refill_ring_size(unsigned int rq_entries)
 
 	ring_size = rq_entries * sizeof(struct io_uring_zcrx_rqe);
 	/* add space for the header (head/tail/etc.) */
-	ring_size += PAGE_SIZE;
-	return ALIGN_UP(ring_size, 4096);
+	ring_size += page_size;
+	return ALIGN_UP(ring_size, page_size);
 }
 
 static void setup_zcrx(struct io_uring *ring)
@@ -219,7 +219,7 @@ static void process_accept(struct io_uring *ring, struct io_uring_cqe *cqe)
 
 	connfd = cqe->res;
 	if (cfg_oneshot)
-		add_recvzc_oneshot(ring, connfd, PAGE_SIZE);
+		add_recvzc_oneshot(ring, connfd, page_size);
 	else
 		add_recvzc(ring, connfd);
 }
@@ -245,7 +245,7 @@ static void process_recvzc(struct io_uring *ring, struct io_uring_cqe *cqe)
 
 	if (cfg_oneshot) {
 		if (cqe->res == 0 && cqe->flags == 0 && cfg_oneshot_recvs) {
-			add_recvzc_oneshot(ring, connfd, PAGE_SIZE);
+			add_recvzc_oneshot(ring, connfd, page_size);
 			cfg_oneshot_recvs--;
 		}
 	} else if (!(cqe->flags & IORING_CQE_F_MORE)) {
@@ -260,7 +260,7 @@ static void process_recvzc(struct io_uring *ring, struct io_uring_cqe *cqe)
 
 	for (i = 0; i < n; i++) {
 		if (*(data + i) != payload[(received + i)])
-			error(1, 0, "payload mismatch at ", i);
+			error(1, 0, "payload mismatch at %d", i);
 	}
 	received += n;
 
@@ -354,7 +354,7 @@ static void run_client(void)
 		chunk = min_t(ssize_t, cfg_payload_len, to_send);
 		res = send(fd, src, chunk, 0);
 		if (res < 0)
-			error(1, 0, "send(): %d", sent);
+			error(1, 0, "send(): %zd", sent);
 		sent += res;
 		to_send -= res;
 	}
@@ -370,7 +370,7 @@ static void usage(const char *filepath)
 
 static void parse_opts(int argc, char **argv)
 {
-	const int max_payload_len = sizeof(payload) -
+	const int max_payload_len = SEND_SIZE -
 				    sizeof(struct ipv6hdr) -
 				    sizeof(struct tcphdr) -
 				    40 /* max tcp options */;
@@ -442,6 +442,13 @@ int main(int argc, char **argv)
 {
 	const char *cfg_test = argv[argc - 1];
 	int i;
+
+	page_size = sysconf(_SC_PAGESIZE);
+	if (page_size < 0)
+		return 1;
+
+	if (posix_memalign((void **)&payload, page_size, SEND_SIZE))
+		return 1;
 
 	parse_opts(argc, argv);
 

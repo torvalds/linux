@@ -16,8 +16,7 @@
 static DEFINE_SPINLOCK(mptcp_sched_list_lock);
 static LIST_HEAD(mptcp_sched_list);
 
-static int mptcp_sched_default_get_send(struct mptcp_sock *msk,
-					struct mptcp_sched_data *data)
+static int mptcp_sched_default_get_send(struct mptcp_sock *msk)
 {
 	struct sock *ssk;
 
@@ -29,8 +28,7 @@ static int mptcp_sched_default_get_send(struct mptcp_sock *msk,
 	return 0;
 }
 
-static int mptcp_sched_default_get_retrans(struct mptcp_sock *msk,
-					   struct mptcp_sched_data *data)
+static int mptcp_sched_default_get_retrans(struct mptcp_sock *msk)
 {
 	struct sock *ssk;
 
@@ -84,10 +82,23 @@ void mptcp_get_available_schedulers(char *buf, size_t maxlen)
 	rcu_read_unlock();
 }
 
+int mptcp_validate_scheduler(struct mptcp_sched_ops *sched)
+{
+	if (!sched->get_send) {
+		pr_err("%s does not implement required ops\n", sched->name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int mptcp_register_scheduler(struct mptcp_sched_ops *sched)
 {
-	if (!sched->get_send)
-		return -EINVAL;
+	int ret;
+
+	ret = mptcp_validate_scheduler(sched);
+	if (ret)
+		return ret;
 
 	spin_lock(&mptcp_sched_list_lock);
 	if (mptcp_sched_find(sched->name)) {
@@ -157,7 +168,6 @@ void mptcp_subflow_set_scheduled(struct mptcp_subflow_context *subflow,
 int mptcp_sched_get_send(struct mptcp_sock *msk)
 {
 	struct mptcp_subflow_context *subflow;
-	struct mptcp_sched_data *data = NULL;
 
 	msk_owned_by_me(msk);
 
@@ -178,14 +188,13 @@ int mptcp_sched_get_send(struct mptcp_sock *msk)
 	}
 
 	if (msk->sched == &mptcp_sched_default || !msk->sched)
-		return mptcp_sched_default_get_send(msk, data);
-	return msk->sched->get_send(msk, data);
+		return mptcp_sched_default_get_send(msk);
+	return msk->sched->get_send(msk);
 }
 
 int mptcp_sched_get_retrans(struct mptcp_sock *msk)
 {
 	struct mptcp_subflow_context *subflow;
-	struct mptcp_sched_data *data = NULL;
 
 	msk_owned_by_me(msk);
 
@@ -199,8 +208,8 @@ int mptcp_sched_get_retrans(struct mptcp_sock *msk)
 	}
 
 	if (msk->sched == &mptcp_sched_default || !msk->sched)
-		return mptcp_sched_default_get_retrans(msk, data);
+		return mptcp_sched_default_get_retrans(msk);
 	if (msk->sched->get_retrans)
-		return msk->sched->get_retrans(msk, data);
-	return msk->sched->get_send(msk, data);
+		return msk->sched->get_retrans(msk);
+	return msk->sched->get_send(msk);
 }

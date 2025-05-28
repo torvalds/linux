@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2021, 2023-2024 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2021, 2023-2025 Intel Corporation
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fh_h__
@@ -71,7 +71,7 @@
 static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 					     unsigned int chnl)
 {
-	if (trans->trans_cfg->gen2) {
+	if (trans->mac_cfg->gen2) {
 		WARN_ON_ONCE(chnl >= 64);
 		return TFH_TFDQ_CBB_TABLE + 8 * chnl;
 	}
@@ -378,14 +378,14 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  * Once the RXF-to-DRAM DMA is active, this flag is immediately turned off.
  */
 #define RFH_GEN_STATUS		0xA09808
-#define RFH_GEN_STATUS_GEN3	0xA07824
+#define RFH_GEN_STATUS_AX210	0xA07824
 #define RBD_FETCH_IDLE	BIT(29)
 #define SRAM_DMA_IDLE	BIT(30)
 #define RXF_DMA_IDLE	BIT(31)
 
 /* DMA configuration */
 #define RFH_RXF_DMA_CFG		0xA09820
-#define RFH_RXF_DMA_CFG_GEN3	0xA07880
+#define RFH_RXF_DMA_CFG_AX210	0xA07880
 /* RB size */
 #define RFH_RXF_DMA_RB_SIZE_MASK (0x000F0000) /* bits 16-19 */
 #define RFH_RXF_DMA_RB_SIZE_POS 16
@@ -588,13 +588,12 @@ struct iwl_rb_status {
 
 
 #define TFD_QUEUE_SIZE_MAX      (256)
-#define TFD_QUEUE_SIZE_MAX_GEN3 (65536)
 /* cb size is the exponent - 3 */
 #define TFD_QUEUE_CB_SIZE(x)	(ilog2(x) - 3)
 #define TFD_QUEUE_SIZE_BC_DUP	(64)
 #define TFD_QUEUE_BC_SIZE	(TFD_QUEUE_SIZE_MAX + TFD_QUEUE_SIZE_BC_DUP)
-#define TFD_QUEUE_BC_SIZE_GEN3_AX210	1024
-#define TFD_QUEUE_BC_SIZE_GEN3_BZ	(1024 * 4)
+#define TFD_QUEUE_BC_SIZE_AX210	1024
+#define TFD_QUEUE_BC_SIZE_BZ	(1024 * 4)
 #define IWL_TX_DMA_MASK        DMA_BIT_MASK(36)
 #define IWL_NUM_OF_TBS		20
 #define IWL_TFH_NUM_TBS		25
@@ -717,30 +716,19 @@ struct iwl_tfh_tfd {
 /* Fixed (non-configurable) rx data from phy */
 
 /**
- * struct iwlagn_scd_bc_tbl - scheduler byte count table
+ * struct iwl_bc_tbl_entry - scheduler byte count table entry
  *	base physical address provided by SCD_DRAM_BASE_ADDR
  * For devices up to 22000:
  * @tfd_offset:
  *	For devices up to 22000:
  *		 0-12 - tx command byte count
  *		12-16 - station index
- *	For 22000:
+ *	For 22000 and on:
  *		 0-12 - tx command byte count
  *		12-13 - number of 64 byte chunks
  *		14-16 - reserved
  */
-struct iwlagn_scd_bc_tbl {
-	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];
-} __packed;
-
-/**
- * struct iwl_gen3_bc_tbl_entry - scheduler byte count table entry gen3
- * For AX210 and on:
- * @tfd_offset: 0-12 - tx command byte count
- *		12-13 - number of 64 byte chunks
- *		14-16 - reserved
- */
-struct iwl_gen3_bc_tbl_entry {
+struct iwl_bc_tbl_entry {
 	__le16 tfd_offset;
 } __packed;
 

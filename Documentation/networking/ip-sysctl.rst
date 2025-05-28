@@ -37,8 +37,8 @@ ip_no_pmtu_disc - INTEGER
 	Mode 3 is a hardened pmtu discover mode. The kernel will only
 	accept fragmentation-needed errors if the underlying protocol
 	can verify them besides a plain socket lookup. Current
-	protocols for which pmtu events will be honored are TCP, SCTP
-	and DCCP as they verify e.g. the sequence number or the
+	protocols for which pmtu events will be honored are TCP and
+	SCTP as they verify e.g. the sequence number or the
 	association. This mode should not be enabled globally but is
 	only intended to secure e.g. name servers in namespaces where
 	TCP path mtu must still work but path MTU information of other
@@ -735,7 +735,7 @@ tcp_rmem - vector of 3 INTEGERs: min, default, max
 	net.core.rmem_max.  Calling setsockopt() with SO_RCVBUF disables
 	automatic tuning of that socket's receive buffer size, in which
 	case this value is ignored.
-	Default: between 131072 and 6MB, depending on RAM size.
+	Default: between 131072 and 32MB, depending on RAM size.
 
 tcp_sack - BOOLEAN
 	Enable select acknowledgments (SACKS).
@@ -1099,7 +1099,7 @@ tcp_limit_output_bytes - INTEGER
 	limits the number of bytes on qdisc or device to reduce artificial
 	RTT/cwnd and reduce bufferbloat.
 
-	Default: 1048576 (16 * 65536)
+	Default: 4194304 (4 MB)
 
 tcp_challenge_ack_limit - INTEGER
 	Limits number of Challenge ACK sent per second, as recommended

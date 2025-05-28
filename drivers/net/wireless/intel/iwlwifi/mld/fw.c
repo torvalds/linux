@@ -8,10 +8,10 @@
 #include "fw/api/alive.h"
 #include "fw/api/scan.h"
 #include "fw/api/rx.h"
+#include "phy.h"
 #include "fw/dbg.h"
 #include "fw/pnvm.h"
 #include "hcmd.h"
-#include "iwl-nvm-parse.h"
 #include "power.h"
 #include "mcc.h"
 #include "led.h"
@@ -49,7 +49,7 @@ static int iwl_mld_send_rss_cfg_cmd(struct iwl_mld *mld)
 	/* Do not direct RSS traffic to Q 0 which is our fallback queue */
 	for (int i = 0; i < ARRAY_SIZE(cmd.indirection_table); i++)
 		cmd.indirection_table[i] =
-			1 + (i % (mld->trans->num_rx_queues - 1));
+			1 + (i % (mld->trans->info.num_rxqs - 1));
 	netdev_rss_key_fill(cmd.secret_key, sizeof(cmd.secret_key));
 
 	return iwl_mld_send_cmd_pdu(mld, RSS_CONFIG_CMD, &cmd);
@@ -99,17 +99,23 @@ static void iwl_mld_alive_imr_data(struct iwl_trans *trans,
 	}
 }
 
+struct iwl_mld_alive_data {
+	__le32 sku_id[3];
+	bool valid;
+};
+
 static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 			 struct iwl_rx_packet *pkt, void *data)
 {
 	unsigned int pkt_len = iwl_rx_packet_payload_len(pkt);
+	unsigned int expected_sz;
 	struct iwl_mld *mld =
 		container_of(notif_wait, struct iwl_mld, notif_wait);
 	struct iwl_trans *trans = mld->trans;
 	u32 version = iwl_fw_lookup_notif_ver(mld->fw, LEGACY_GROUP,
 					      UCODE_ALIVE_NTFY, 0);
-	struct iwl_alive_ntf_v6 *palive;
-	bool *alive_valid = data;
+	struct iwl_mld_alive_data *alive_data = data;
+	struct iwl_alive_ntf *palive;
 	struct iwl_umac_alive *umac;
 	struct iwl_lmac_alive *lmac1;
 	struct iwl_lmac_alive *lmac2 = NULL;
@@ -117,7 +123,19 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	u32 umac_error_table;
 	u16 status;
 
-	if (version < 6 || version > 7 || pkt_len != sizeof(*palive))
+	switch (version) {
+	case 6:
+	case 7:
+		expected_sz = sizeof(struct iwl_alive_ntf_v6);
+		break;
+	case 8:
+		expected_sz = sizeof(struct iwl_alive_ntf);
+		break;
+	default:
+		return false;
+	}
+
+	if (pkt_len != expected_sz)
 		return false;
 
 	palive = (void *)pkt->data;
@@ -129,12 +147,15 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	lmac2 = &palive->lmac_data[1];
 	status = le16_to_cpu(palive->status);
 
-	trans->sku_id[0] = le32_to_cpu(palive->sku_id.data[0]);
-	trans->sku_id[1] = le32_to_cpu(palive->sku_id.data[1]);
-	trans->sku_id[2] = le32_to_cpu(palive->sku_id.data[2]);
+	BUILD_BUG_ON(sizeof(alive_data->sku_id) !=
+		     sizeof(palive->sku_id.data));
+	memcpy(alive_data->sku_id, palive->sku_id.data,
+	       sizeof(palive->sku_id.data));
 
 	IWL_DEBUG_FW(mld, "Got sku_id: 0x0%x 0x0%x 0x0%x\n",
-		     trans->sku_id[0], trans->sku_id[1], trans->sku_id[2]);
+		     le32_to_cpu(alive_data->sku_id[0]),
+		     le32_to_cpu(alive_data->sku_id[1]),
+		     le32_to_cpu(alive_data->sku_id[2]));
 
 	lmac_error_event_table =
 		le32_to_cpu(lmac1->dbg_ptrs.error_event_table_ptr);
@@ -147,13 +168,13 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	umac_error_table = le32_to_cpu(umac->dbg_ptrs.error_info_addr) &
 		~FW_ADDR_CACHE_CONTROL;
 
-	if (umac_error_table >= trans->cfg->min_umac_error_event_table)
+	if (umac_error_table >= trans->mac_cfg->base->min_umac_error_event_table)
 		iwl_fw_umac_set_alive_err_table(trans, umac_error_table);
 	else
 		IWL_ERR(mld, "Not valid error log pointer 0x%08X\n",
 			umac_error_table);
 
-	*alive_valid = status == IWL_ALIVE_STATUS_OK;
+	alive_data->valid = status == IWL_ALIVE_STATUS_OK;
 
 	IWL_DEBUG_FW(mld,
 		     "Alive ucode status 0x%04x revision 0x%01X 0x%01X\n",
@@ -170,6 +191,10 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	if (version >= 7)
 		IWL_DEBUG_FW(mld, "FW alive flags 0x%x\n",
 			     le16_to_cpu(palive->flags));
+
+	if (version >= 8)
+		IWL_DEBUG_FW(mld, "platform_id 0x%llx\n",
+			     le64_to_cpu(palive->platform_id));
 
 	iwl_fwrt_update_fw_versions(&mld->fwrt, lmac1, umac);
 
@@ -208,24 +233,22 @@ static void iwl_mld_print_alive_notif_timeout(struct iwl_mld *mld)
 			pc_data->pc_address);
 }
 
-static int iwl_mld_load_fw_wait_alive(struct iwl_mld *mld)
+static int iwl_mld_load_fw_wait_alive(struct iwl_mld *mld,
+				      struct iwl_mld_alive_data *alive_data)
 {
-	const struct fw_img *fw =
-		iwl_get_ucode_image(mld->fw, IWL_UCODE_REGULAR);
 	static const u16 alive_cmd[] = { UCODE_ALIVE_NTFY };
 	struct iwl_notification_wait alive_wait;
-	bool alive_valid = false;
 	int ret;
 
 	lockdep_assert_wiphy(mld->wiphy);
 
 	iwl_init_notification_wait(&mld->notif_wait, &alive_wait,
 				   alive_cmd, ARRAY_SIZE(alive_cmd),
-				   iwl_alive_fn, &alive_valid);
+				   iwl_alive_fn, alive_data);
 
 	iwl_dbg_tlv_time_point(&mld->fwrt, IWL_FW_INI_TIME_POINT_EARLY, NULL);
 
-	ret = iwl_trans_start_fw(mld->trans, fw, true);
+	ret = iwl_trans_start_fw(mld->trans, mld->fw, IWL_UCODE_REGULAR, true);
 	if (ret) {
 		iwl_remove_notification(&mld->notif_wait, &alive_wait);
 		return ret;
@@ -239,28 +262,26 @@ static int iwl_mld_load_fw_wait_alive(struct iwl_mld *mld)
 			iwl_fw_dbg_error_collect(&mld->fwrt,
 						 FW_DBG_TRIGGER_ALIVE_TIMEOUT);
 		iwl_mld_print_alive_notif_timeout(mld);
-		goto alive_failure;
+		return ret;
 	}
 
-	if (!alive_valid) {
+	if (!alive_data->valid) {
 		IWL_ERR(mld, "Loaded firmware is not valid!\n");
-		ret = -EIO;
-		goto alive_failure;
+		return -EIO;
 	}
 
-	iwl_trans_fw_alive(mld->trans, 0);
+	iwl_trans_fw_alive(mld->trans);
 
 	return 0;
-
-alive_failure:
-	iwl_trans_stop_device(mld->trans);
-	return ret;
 }
 
 static int iwl_mld_run_fw_init_sequence(struct iwl_mld *mld)
 {
 	struct iwl_notification_wait init_wait;
-	struct iwl_init_extended_cfg_cmd init_cfg = {};
+	struct iwl_init_extended_cfg_cmd init_cfg = {
+		.init_flags = cpu_to_le32(BIT(IWL_INIT_PHY)),
+	};
+	struct iwl_mld_alive_data alive_data = {};
 	static const u16 init_complete[] = {
 		INIT_COMPLETE_NOTIF,
 	};
@@ -268,19 +289,15 @@ static int iwl_mld_run_fw_init_sequence(struct iwl_mld *mld)
 
 	lockdep_assert_wiphy(mld->wiphy);
 
-	ret = iwl_mld_load_fw_wait_alive(mld);
+	ret = iwl_mld_load_fw_wait_alive(mld, &alive_data);
 	if (ret)
 		return ret;
 
-	mld->trans->step_urm =
-		!!(iwl_read_umac_prph(mld->trans, CNVI_PMU_STEP_FLOW) &
-		   CNVI_PMU_STEP_FLOW_FORCE_URM);
-
 	ret = iwl_pnvm_load(mld->trans, &mld->notif_wait,
-			    &mld->fw->ucode_capa);
+			    &mld->fw->ucode_capa, alive_data.sku_id);
 	if (ret) {
 		IWL_ERR(mld, "Timeout waiting for PNVM load %d\n", ret);
-		goto init_failure;
+		return ret;
 	}
 
 	iwl_dbg_tlv_time_point(&mld->fwrt, IWL_FW_INI_TIME_POINT_AFTER_ALIVE,
@@ -298,31 +315,24 @@ static int iwl_mld_run_fw_init_sequence(struct iwl_mld *mld)
 	if (ret) {
 		IWL_ERR(mld, "Failed to send init config command: %d\n", ret);
 		iwl_remove_notification(&mld->notif_wait, &init_wait);
-		goto init_failure;
+		return ret;
+	}
+
+	ret = iwl_mld_send_phy_cfg_cmd(mld);
+	if (ret) {
+		IWL_ERR(mld, "Failed to send PHY config command: %d\n", ret);
+		iwl_remove_notification(&mld->notif_wait, &init_wait);
+		return ret;
 	}
 
 	ret = iwl_wait_notification(&mld->notif_wait, &init_wait,
 				    MLD_INIT_COMPLETE_TIMEOUT);
 	if (ret) {
 		IWL_ERR(mld, "Failed to get INIT_COMPLETE %d\n", ret);
-		goto init_failure;
-	}
-
-	if (!mld->nvm_data) {
-		mld->nvm_data = iwl_get_nvm(mld->trans, mld->fw, 0, 0);
-		if (IS_ERR(mld->nvm_data)) {
-			ret = PTR_ERR(mld->nvm_data);
-			mld->nvm_data = NULL;
-			IWL_ERR(mld, "Failed to read NVM: %d\n", ret);
-			goto init_failure;
-		}
+		return ret;
 	}
 
 	return 0;
-
-init_failure:
-	iwl_trans_stop_device(mld->trans);
-	return ret;
 }
 
 int iwl_mld_load_fw(struct iwl_mld *mld)
@@ -333,7 +343,7 @@ int iwl_mld_load_fw(struct iwl_mld *mld)
 
 	ret = iwl_trans_start_hw(mld->trans);
 	if (ret)
-		goto err;
+		return ret;
 
 	ret = iwl_mld_run_fw_init_sequence(mld);
 	if (ret)
@@ -361,9 +371,10 @@ void iwl_mld_stop_fw(struct iwl_mld *mld)
 
 	iwl_trans_stop_device(mld->trans);
 
-	wiphy_work_cancel(mld->wiphy, &mld->async_handlers_wk);
-
-	iwl_mld_purge_async_handlers_list(mld);
+	/* HW is stopped, no more coming RX. Cancel all notifications in
+	 * case they were sent just before stopping the HW.
+	 */
+	iwl_mld_cancel_async_notifications(mld);
 
 	mld->fw_status.running = false;
 }
@@ -526,7 +537,7 @@ int iwl_mld_start_fw(struct iwl_mld *mld)
 	ret = iwl_mld_load_fw(mld);
 	if (IWL_FW_CHECK(mld, ret, "Failed to start firmware %d\n", ret)) {
 		iwl_fw_dbg_error_collect(&mld->fwrt, FW_DBG_TRIGGER_DRIVER);
-		goto error;
+		return ret;
 	}
 
 	IWL_DEBUG_INFO(mld, "uCode started.\n");

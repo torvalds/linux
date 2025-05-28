@@ -152,6 +152,8 @@ int rxrpc_server_keyring(struct rxrpc_sock *rx, sockptr_t optval, int optlen)
  *
  * Set the server security keyring on an rxrpc socket.  This is used to provide
  * the encryption keys for a kernel service.
+ *
+ * Return: %0 if successful and a negative error code otherwise.
  */
 int rxrpc_sock_set_security_keyring(struct sock *sk, struct key *keyring)
 {
@@ -169,3 +171,43 @@ int rxrpc_sock_set_security_keyring(struct sock *sk, struct key *keyring)
 	return ret;
 }
 EXPORT_SYMBOL(rxrpc_sock_set_security_keyring);
+
+/**
+ * rxrpc_sock_set_manage_response - Set the manage-response flag for a kernel service
+ * @sk: The socket to set the keyring on
+ * @set: True to set, false to clear the flag
+ *
+ * Set the flag on an rxrpc socket to say that the caller wants to manage the
+ * RESPONSE packet and the user-defined data it may contain.  Setting this
+ * means that recvmsg() will return messages with RXRPC_CHALLENGED in the
+ * control message buffer containing information about the challenge.
+ *
+ * The user should respond to the challenge by passing RXRPC_RESPOND or
+ * RXRPC_RESPOND_ABORT control messages with sendmsg() to the same call.
+ * Supplementary control messages, such as RXRPC_RESP_RXGK_APPDATA, may be
+ * included to indicate the parts the user wants to supply.
+ *
+ * The server will be passed the response data with a RXRPC_RESPONDED control
+ * message when it gets the first data from each call.
+ *
+ * Note that this is only honoured by security classes that need auxiliary data
+ * (e.g. RxGK).  Those that don't offer the facility (e.g. RxKAD) respond
+ * without consulting userspace.
+ *
+ * Return: The previous setting.
+ */
+int rxrpc_sock_set_manage_response(struct sock *sk, bool set)
+{
+	struct rxrpc_sock *rx = rxrpc_sk(sk);
+	int ret;
+
+	lock_sock(sk);
+	ret = !!test_bit(RXRPC_SOCK_MANAGE_RESPONSE, &rx->flags);
+	if (set)
+		set_bit(RXRPC_SOCK_MANAGE_RESPONSE, &rx->flags);
+	else
+		clear_bit(RXRPC_SOCK_MANAGE_RESPONSE, &rx->flags);
+	release_sock(sk);
+	return ret;
+}
+EXPORT_SYMBOL(rxrpc_sock_set_manage_response);

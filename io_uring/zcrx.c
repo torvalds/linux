@@ -426,6 +426,7 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 		niov->owner = &area->nia;
 		area->freelist[i] = i;
 		atomic_set(&area->user_refs[i], 0);
+		niov->type = NET_IOV_IOURING;
 	}
 
 	area->free_count = nr_iovs;
@@ -1017,7 +1018,7 @@ static int io_zcrx_recv_frag(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 		return io_zcrx_copy_frag(req, ifq, frag, off, len);
 
 	niov = netmem_to_net_iov(frag->netmem);
-	if (niov->pp->mp_ops != &io_uring_pp_zc_ops ||
+	if (!niov->pp || niov->pp->mp_ops != &io_uring_pp_zc_ops ||
 	    io_pp_to_ifq(niov->pp) != ifq)
 		return -EFAULT;
 

@@ -70,7 +70,6 @@ struct mlx5hws_cmd_rtc_create_attr {
 	u32 pd;
 	u32 stc_base;
 	u32 ste_base;
-	u32 ste_offset;
 	u32 miss_ft_id;
 	bool fw_gen_wqe;
 	u8 update_index_mode;

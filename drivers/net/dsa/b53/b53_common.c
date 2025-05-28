@@ -21,6 +21,7 @@
 #include <linux/export.h>
 #include <linux/gpio.h>
 #include <linux/kernel.h>
+#include <linux/math.h>
 #include <linux/module.h>
 #include <linux/platform_data/b53.h>
 #include <linux/phy.h>
@@ -1201,6 +1202,10 @@ static int b53_setup(struct dsa_switch *ds)
 	 * packets, so keep the CPU port always tagged.
 	 */
 	ds->untag_vlan_aware_bridge_pvid = true;
+
+	/* Ageing time is set in seconds */
+	ds->ageing_time_min = 1 * 1000;
+	ds->ageing_time_max = AGE_TIME_MAX * 1000;
 
 	ret = b53_reset_switch(dev);
 	if (ret) {
@@ -2406,6 +2411,28 @@ static int b53_get_max_mtu(struct dsa_switch *ds, int port)
 	return B53_MAX_MTU;
 }
 
+int b53_set_ageing_time(struct dsa_switch *ds, unsigned int msecs)
+{
+	struct b53_device *dev = ds->priv;
+	u32 atc;
+	int reg;
+
+	if (is63xx(dev))
+		reg = B53_AGING_TIME_CONTROL_63XX;
+	else
+		reg = B53_AGING_TIME_CONTROL;
+
+	atc = DIV_ROUND_CLOSEST(msecs, 1000);
+
+	if (!is5325(dev) && !is5365(dev))
+		atc |= AGE_CHANGE;
+
+	b53_write32(dev, B53_MGMT_PAGE, reg, atc);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(b53_set_ageing_time);
+
 static const struct phylink_mac_ops b53_phylink_mac_ops = {
 	.mac_select_pcs	= b53_phylink_mac_select_pcs,
 	.mac_config	= b53_phylink_mac_config,
@@ -2429,6 +2456,7 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.port_disable		= b53_disable_port,
 	.support_eee		= b53_support_eee,
 	.set_mac_eee		= b53_set_mac_eee,
+	.set_ageing_time	= b53_set_ageing_time,
 	.port_bridge_join	= b53_br_join,
 	.port_bridge_leave	= b53_br_leave,
 	.port_pre_bridge_flags	= b53_br_flags_pre,
