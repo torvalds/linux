@@ -387,7 +387,7 @@ static void bq256xx_usb_work(struct work_struct *data)
 	}
 }
 
-static struct reg_default bq2560x_reg_defs[] = {
+static const struct reg_default bq2560x_reg_defs[] = {
 	{BQ256XX_INPUT_CURRENT_LIMIT, 0x17},
 	{BQ256XX_CHARGER_CONTROL_0, 0x1a},
 	{BQ256XX_CHARGE_CURRENT_LIMIT, 0xa2},
@@ -398,7 +398,7 @@ static struct reg_default bq2560x_reg_defs[] = {
 	{BQ256XX_CHARGER_CONTROL_3, 0x4c},
 };
 
-static struct reg_default bq25611d_reg_defs[] = {
+static const struct reg_default bq25611d_reg_defs[] = {
 	{BQ256XX_INPUT_CURRENT_LIMIT, 0x17},
 	{BQ256XX_CHARGER_CONTROL_0, 0x1a},
 	{BQ256XX_CHARGE_CURRENT_LIMIT, 0x91},
@@ -411,7 +411,7 @@ static struct reg_default bq25611d_reg_defs[] = {
 	{BQ256XX_CHARGER_CONTROL_4, 0x75},
 };
 
-static struct reg_default bq25618_619_reg_defs[] = {
+static const struct reg_default bq25618_619_reg_defs[] = {
 	{BQ256XX_INPUT_CURRENT_LIMIT, 0x17},
 	{BQ256XX_CHARGER_CONTROL_0, 0x1a},
 	{BQ256XX_CHARGE_CURRENT_LIMIT, 0x91},
