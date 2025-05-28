@@ -258,6 +258,25 @@ static inline int bch2_check_key_has_snapshot(struct btree_trans *trans,
 		: __bch2_check_key_has_snapshot(trans, iter, k);
 }
 
+int __bch2_get_snapshot_overwrites(struct btree_trans *,
+				   enum btree_id, struct bpos,
+				   snapshot_id_list *);
+
+/*
+ * Get a list of snapshot IDs that have overwritten a given key:
+ */
+static inline int bch2_get_snapshot_overwrites(struct btree_trans *trans,
+					       enum btree_id btree, struct bpos pos,
+					       snapshot_id_list *s)
+{
+	darray_init(s);
+
+	return bch2_snapshot_has_children(trans->c, pos.snapshot)
+		? __bch2_get_snapshot_overwrites(trans, btree, pos, s)
+		: 0;
+
+}
+
 int bch2_snapshot_node_set_deleted(struct btree_trans *, u32);
 
 int __bch2_key_has_snapshot_overwrites(struct btree_trans *, enum btree_id, struct bpos);

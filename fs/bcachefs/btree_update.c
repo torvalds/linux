@@ -180,8 +180,19 @@ int __bch2_insert_snapshot_whiteouts(struct btree_trans *trans,
 	}
 	bch2_trans_iter_exit(trans, &new_iter);
 	bch2_trans_iter_exit(trans, &old_iter);
-	darray_exit(&s);
 
+	snapshot_id_list s2;
+	ret = bch2_get_snapshot_overwrites(trans, id, old_pos, &s2);
+	if (ret) {
+		darray_exit(&s);
+		return ret;
+	}
+
+	BUG_ON(s.nr != s2.nr);
+	BUG_ON(memcmp(s.data, s2.data, sizeof(s.data[0]) * s.nr));
+
+	darray_exit(&s2);
+	darray_exit(&s);
 	return ret;
 }
 
