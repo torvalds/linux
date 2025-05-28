@@ -95,6 +95,19 @@ trace_io_move_pred2(struct bch_fs *c, struct bkey_s_c k,
 	printbuf_exit(&buf);
 }
 
+static noinline void
+trace_io_move_evacuate_bucket2(struct bch_fs *c, struct bpos bucket, int gen)
+{
+	struct printbuf buf = PRINTBUF;
+
+	prt_printf(&buf, "bucket: ");
+	bch2_bpos_to_text(&buf, bucket);
+	prt_printf(&buf, " gen: %i\n", gen);
+
+	trace_io_move_evacuate_bucket(c, buf.buf);
+	printbuf_exit(&buf);
+}
+
 struct moving_io {
 	struct list_head		read_list;
 	struct list_head		io_list;
@@ -1059,7 +1072,12 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 			 struct bpos bucket, int gen,
 			 struct data_update_opts data_opts)
 {
+	struct bch_fs *c = ctxt->trans->c;
 	struct evacuate_bucket_arg arg = { bucket, gen, data_opts, };
+
+	count_event(c, io_move_evacuate_bucket);
+	if (trace_io_move_evacuate_bucket_enabled())
+		trace_io_move_evacuate_bucket2(c, bucket, gen);
 
 	return __bch2_move_data_phys(ctxt, bucket_in_flight,
 				   bucket.inode,

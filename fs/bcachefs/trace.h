@@ -1441,6 +1441,11 @@ DEFINE_EVENT(fs_str, io_move_created_rebalance,
 	TP_ARGS(c, str)
 );
 
+DEFINE_EVENT(fs_str, io_move_evacuate_bucket,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
+);
+
 TRACE_EVENT(error_downcast,
 	TP_PROTO(int bch_err, int std_err, unsigned long ip),
 	TP_ARGS(bch_err, std_err, ip),
