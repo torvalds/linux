@@ -8,6 +8,7 @@
 #ifndef __ASSEMBLY__
 
 #include <asm/alternative.h>
+#include <asm/arch_timer.h>
 #include <asm/barrier.h>
 #include <asm/unistd.h>
 #include <asm/sysreg.h>
@@ -69,8 +70,6 @@ int clock_getres_fallback(clockid_t _clkid, struct __kernel_timespec *_ts)
 static __always_inline u64 __arch_get_hw_counter(s32 clock_mode,
 						 const struct vdso_time_data *vd)
 {
-	u64 res;
-
 	/*
 	 * Core checks for mode already, so this raced against a concurrent
 	 * update. Return something. Core will do another round and then
@@ -79,24 +78,7 @@ static __always_inline u64 __arch_get_hw_counter(s32 clock_mode,
 	if (clock_mode == VDSO_CLOCKMODE_NONE)
 		return 0;
 
-	/*
-	 * If FEAT_ECV is available, use the self-synchronizing counter.
-	 * Otherwise the isb is required to prevent that the counter value
-	 * is speculated.
-	*/
-	asm volatile(
-	ALTERNATIVE("isb\n"
-		    "mrs %0, cntvct_el0",
-		    "nop\n"
-		    __mrs_s("%0", SYS_CNTVCTSS_EL0),
-		    ARM64_HAS_ECV)
-	: "=r" (res)
-	:
-	: "memory");
-
-	arch_counter_enforce_ordering(res);
-
-	return res;
+	return __arch_counter_get_cntvct();
 }
 
 #if IS_ENABLED(CONFIG_CC_IS_GCC) && IS_ENABLED(CONFIG_PAGE_SIZE_64KB)

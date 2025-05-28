@@ -69,8 +69,8 @@ model features for SME is included in Appendix A.
   vectors from 0 to VL/8-1 stored in the same endianness invariant format as is
   used for SVE vectors.
 
-* On thread creation TPIDR2_EL0 is preserved unless CLONE_SETTLS is specified,
-  in which case it is set to 0.
+* On thread creation PSTATE.ZA and TPIDR2_EL0 are preserved unless CLONE_VM
+  is specified, in which case PSTATE.ZA is set to 0 and TPIDR2_EL0 is set to 0.
 
 2.  Vector lengths
 ------------------
@@ -115,7 +115,7 @@ be zeroed.
 5.  Signal handling
 -------------------
 
-* Signal handlers are invoked with streaming mode and ZA disabled.
+* Signal handlers are invoked with PSTATE.SM=0, PSTATE.ZA=0, and TPIDR2_EL0=0.
 
 * A new signal frame record TPIDR2_MAGIC is added formatted as a struct
   tpidr2_context to allow access to TPIDR2_EL0 from signal handlers.
@@ -241,7 +241,7 @@ prctl(PR_SME_SET_VL, unsigned long arg)
       length, or calling PR_SME_SET_VL with the PR_SME_SET_VL_ONEXEC flag,
       does not constitute a change to the vector length for this purpose.
 
-    * Changing the vector length causes PSTATE.ZA and PSTATE.SM to be cleared.
+    * Changing the vector length causes PSTATE.ZA to be cleared.
       Calling PR_SME_SET_VL with vl equal to the thread's current vector
       length, or calling PR_SME_SET_VL with the PR_SME_SET_VL_ONEXEC flag,
       does not constitute a change to the vector length for this purpose.

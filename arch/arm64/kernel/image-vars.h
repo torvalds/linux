@@ -10,6 +10,12 @@
 #error This file should only be included in vmlinux.lds.S
 #endif
 
+#define PI_EXPORT_SYM(sym)		\
+	__PI_EXPORT_SYM(sym, __pi_ ## sym, Cannot export BSS symbol sym to startup code)
+#define __PI_EXPORT_SYM(sym, pisym, msg)\
+	PROVIDE(pisym = sym);		\
+	ASSERT((sym - KIMAGE_VADDR) < (__bss_start - KIMAGE_VADDR), #msg)
+
 PROVIDE(__efistub_primary_entry		= primary_entry);
 
 /*
@@ -36,37 +42,30 @@ PROVIDE(__pi___memcpy			= __pi_memcpy);
 PROVIDE(__pi___memmove			= __pi_memmove);
 PROVIDE(__pi___memset			= __pi_memset);
 
-PROVIDE(__pi_id_aa64isar1_override	= id_aa64isar1_override);
-PROVIDE(__pi_id_aa64isar2_override	= id_aa64isar2_override);
-PROVIDE(__pi_id_aa64mmfr0_override	= id_aa64mmfr0_override);
-PROVIDE(__pi_id_aa64mmfr1_override	= id_aa64mmfr1_override);
-PROVIDE(__pi_id_aa64mmfr2_override	= id_aa64mmfr2_override);
-PROVIDE(__pi_id_aa64pfr0_override	= id_aa64pfr0_override);
-PROVIDE(__pi_id_aa64pfr1_override	= id_aa64pfr1_override);
-PROVIDE(__pi_id_aa64smfr0_override	= id_aa64smfr0_override);
-PROVIDE(__pi_id_aa64zfr0_override	= id_aa64zfr0_override);
-PROVIDE(__pi_arm64_sw_feature_override	= arm64_sw_feature_override);
-PROVIDE(__pi_arm64_use_ng_mappings	= arm64_use_ng_mappings);
-PROVIDE(__pi__ctype			= _ctype);
-PROVIDE(__pi_memstart_offset_seed	= memstart_offset_seed);
+PI_EXPORT_SYM(id_aa64isar1_override);
+PI_EXPORT_SYM(id_aa64isar2_override);
+PI_EXPORT_SYM(id_aa64mmfr0_override);
+PI_EXPORT_SYM(id_aa64mmfr1_override);
+PI_EXPORT_SYM(id_aa64mmfr2_override);
+PI_EXPORT_SYM(id_aa64pfr0_override);
+PI_EXPORT_SYM(id_aa64pfr1_override);
+PI_EXPORT_SYM(id_aa64smfr0_override);
+PI_EXPORT_SYM(id_aa64zfr0_override);
+PI_EXPORT_SYM(arm64_sw_feature_override);
+PI_EXPORT_SYM(arm64_use_ng_mappings);
+PI_EXPORT_SYM(_ctype);
 
-PROVIDE(__pi_init_idmap_pg_dir		= init_idmap_pg_dir);
-PROVIDE(__pi_init_idmap_pg_end		= init_idmap_pg_end);
-PROVIDE(__pi_init_pg_dir		= init_pg_dir);
-PROVIDE(__pi_init_pg_end		= init_pg_end);
-PROVIDE(__pi_swapper_pg_dir		= swapper_pg_dir);
+PI_EXPORT_SYM(swapper_pg_dir);
 
-PROVIDE(__pi__text			= _text);
-PROVIDE(__pi__stext               	= _stext);
-PROVIDE(__pi__etext               	= _etext);
-PROVIDE(__pi___start_rodata       	= __start_rodata);
-PROVIDE(__pi___inittext_begin     	= __inittext_begin);
-PROVIDE(__pi___inittext_end       	= __inittext_end);
-PROVIDE(__pi___initdata_begin     	= __initdata_begin);
-PROVIDE(__pi___initdata_end       	= __initdata_end);
-PROVIDE(__pi__data                	= _data);
-PROVIDE(__pi___bss_start		= __bss_start);
-PROVIDE(__pi__end			= _end);
+PI_EXPORT_SYM(_text);
+PI_EXPORT_SYM(_stext);
+PI_EXPORT_SYM(_etext);
+PI_EXPORT_SYM(__start_rodata);
+PI_EXPORT_SYM(__inittext_begin);
+PI_EXPORT_SYM(__inittext_end);
+PI_EXPORT_SYM(__initdata_begin);
+PI_EXPORT_SYM(__initdata_end);
+PI_EXPORT_SYM(_data);
 
 #ifdef CONFIG_KVM
 

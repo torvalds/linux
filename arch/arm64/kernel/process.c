@@ -344,53 +344,62 @@ void arch_release_task_struct(struct task_struct *tsk)
 
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
-	if (current->mm)
-		fpsimd_preserve_current_state();
+	/*
+	 * The current/src task's FPSIMD state may or may not be live, and may
+	 * have been altered by ptrace after entry to the kernel. Save the
+	 * effective FPSIMD state so that this will be copied into dst.
+	 */
+	fpsimd_save_and_flush_current_state();
+	fpsimd_sync_from_effective_state(src);
+
 	*dst = *src;
 
 	/*
-	 * Detach src's sve_state (if any) from dst so that it does not
-	 * get erroneously used or freed prematurely.  dst's copies
-	 * will be allocated on demand later on if dst uses SVE.
-	 * For consistency, also clear TIF_SVE here: this could be done
-	 * later in copy_process(), but to avoid tripping up future
-	 * maintainers it is best not to leave TIF flags and buffers in
-	 * an inconsistent state, even temporarily.
+	 * Drop stale reference to src's sve_state and convert dst to
+	 * non-streaming FPSIMD mode.
 	 */
+	dst->thread.fp_type = FP_STATE_FPSIMD;
 	dst->thread.sve_state = NULL;
 	clear_tsk_thread_flag(dst, TIF_SVE);
+	task_smstop_sm(dst);
 
 	/*
-	 * In the unlikely event that we create a new thread with ZA
-	 * enabled we should retain the ZA and ZT state so duplicate
-	 * it here.  This may be shortly freed if we exec() or if
-	 * CLONE_SETTLS but it's simpler to do it here. To avoid
-	 * confusing the rest of the code ensure that we have a
-	 * sve_state allocated whenever sme_state is allocated.
+	 * Drop stale reference to src's sme_state and ensure dst has ZA
+	 * disabled.
+	 *
+	 * When necessary, ZA will be inherited later in copy_thread_za().
 	 */
-	if (thread_za_enabled(&src->thread)) {
-		dst->thread.sve_state = kzalloc(sve_state_size(src),
-						GFP_KERNEL);
-		if (!dst->thread.sve_state)
-			return -ENOMEM;
-
-		dst->thread.sme_state = kmemdup(src->thread.sme_state,
-						sme_state_size(src),
-						GFP_KERNEL);
-		if (!dst->thread.sme_state) {
-			kfree(dst->thread.sve_state);
-			dst->thread.sve_state = NULL;
-			return -ENOMEM;
-		}
-	} else {
-		dst->thread.sme_state = NULL;
-		clear_tsk_thread_flag(dst, TIF_SME);
-	}
-
-	dst->thread.fp_type = FP_STATE_FPSIMD;
+	dst->thread.sme_state = NULL;
+	clear_tsk_thread_flag(dst, TIF_SME);
+	dst->thread.svcr &= ~SVCR_ZA_MASK;
 
 	/* clear any pending asynchronous tag fault raised by the parent */
 	clear_tsk_thread_flag(dst, TIF_MTE_ASYNC_FAULT);
+
+	return 0;
+}
+
+static int copy_thread_za(struct task_struct *dst, struct task_struct *src)
+{
+	if (!thread_za_enabled(&src->thread))
+		return 0;
+
+	dst->thread.sve_state = kzalloc(sve_state_size(src),
+					GFP_KERNEL);
+	if (!dst->thread.sve_state)
+		return -ENOMEM;
+
+	dst->thread.sme_state = kmemdup(src->thread.sme_state,
+					sme_state_size(src),
+					GFP_KERNEL);
+	if (!dst->thread.sme_state) {
+		kfree(dst->thread.sve_state);
+		dst->thread.sve_state = NULL;
+		return -ENOMEM;
+	}
+
+	set_tsk_thread_flag(dst, TIF_SME);
+	dst->thread.svcr |= SVCR_ZA_MASK;
 
 	return 0;
 }
@@ -427,8 +436,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		 * out-of-sync with the saved value.
 		 */
 		*task_user_tls(p) = read_sysreg(tpidr_el0);
-		if (system_supports_tpidr2())
-			p->thread.tpidr2_el0 = read_sysreg_s(SYS_TPIDR2_EL0);
 
 		if (system_supports_poe())
 			p->thread.por_el0 = read_sysreg_s(SYS_POR_EL0);
@@ -441,13 +448,39 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		}
 
 		/*
-		 * If a TLS pointer was passed to clone, use it for the new
-		 * thread.  We also reset TPIDR2 if it's in use.
+		 * Due to the AAPCS64 "ZA lazy saving scheme", PSTATE.ZA and
+		 * TPIDR2 need to be manipulated as a pair, and either both
+		 * need to be inherited or both need to be reset.
+		 *
+		 * Within a process, child threads must not inherit their
+		 * parent's TPIDR2 value or they may clobber their parent's
+		 * stack at some later point.
+		 *
+		 * When a process is fork()'d, the child must inherit ZA and
+		 * TPIDR2 from its parent in case there was dormant ZA state.
+		 *
+		 * Use CLONE_VM to determine when the child will share the
+		 * address space with the parent, and cannot safely inherit the
+		 * state.
 		 */
-		if (clone_flags & CLONE_SETTLS) {
-			p->thread.uw.tp_value = tls;
-			p->thread.tpidr2_el0 = 0;
+		if (system_supports_sme()) {
+			if (!(clone_flags & CLONE_VM)) {
+				p->thread.tpidr2_el0 = read_sysreg_s(SYS_TPIDR2_EL0);
+				ret = copy_thread_za(p, current);
+				if (ret)
+					return ret;
+			} else {
+				p->thread.tpidr2_el0 = 0;
+				WARN_ON_ONCE(p->thread.svcr & SVCR_ZA_MASK);
+			}
 		}
+
+		/*
+		 * If a TLS pointer was passed to clone, use it for the new
+		 * thread.
+		 */
+		if (clone_flags & CLONE_SETTLS)
+			p->thread.uw.tp_value = tls;
 
 		ret = copy_thread_gcs(p, args);
 		if (ret != 0)
@@ -680,10 +713,11 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	gcs_thread_switch(next);
 
 	/*
-	 * Complete any pending TLB or cache maintenance on this CPU in case
-	 * the thread migrates to a different CPU.
-	 * This full barrier is also required by the membarrier system
-	 * call.
+	 * Complete any pending TLB or cache maintenance on this CPU in case the
+	 * thread migrates to a different CPU. This full barrier is also
+	 * required by the membarrier system call. Additionally it makes any
+	 * in-progress pgtable writes visible to the table walker; See
+	 * emit_pte_barriers().
 	 */
 	dsb(ish);
 

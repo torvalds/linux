@@ -544,6 +544,7 @@ What:		/sys/devices/system/cpu/cpuX/regs/
 		/sys/devices/system/cpu/cpuX/regs/identification/
 		/sys/devices/system/cpu/cpuX/regs/identification/midr_el1
 		/sys/devices/system/cpu/cpuX/regs/identification/revidr_el1
+		/sys/devices/system/cpu/cpuX/regs/identification/aidr_el1
 		/sys/devices/system/cpu/cpuX/regs/identification/smidr_el1
 Date:		June 2016
 Contact:	Linux ARM Kernel Mailing list <linux-arm-kernel@lists.infradead.org>
