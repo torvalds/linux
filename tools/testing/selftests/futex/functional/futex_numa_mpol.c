@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
 	struct futex32_numa *futex_numa;
 	int mem_size, i;
 	void *futex_ptr;
-	char c;
+	int c;
 
 	while ((c = getopt(argc, argv, "chv:")) != -1) {
 		switch (c) {
