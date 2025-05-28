@@ -308,6 +308,9 @@ int kvm_s390_pv_dump_stor_state(struct kvm *kvm, void __user *buff_user,
 				u64 *gaddr, u64 buff_user_len, u16 *rc, u16 *rrc);
 int kvm_s390_pv_dump_complete(struct kvm *kvm, void __user *buff_user,
 			      u16 *rc, u16 *rrc);
+int kvm_s390_pv_destroy_page(struct kvm *kvm, unsigned long gaddr);
+int kvm_s390_pv_convert_to_secure(struct kvm *kvm, unsigned long gaddr);
+int kvm_s390_pv_make_secure(struct kvm *kvm, unsigned long gaddr, void *uvcb);
 
 static inline u64 kvm_s390_pv_get_handle(struct kvm *kvm)
 {
@@ -317,6 +320,41 @@ static inline u64 kvm_s390_pv_get_handle(struct kvm *kvm)
 static inline u64 kvm_s390_pv_cpu_get_handle(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.pv.handle;
+}
+
+/**
+ * __kvm_s390_pv_destroy_page() - Destroy a guest page.
+ * @page: the page to destroy
+ *
+ * An attempt will be made to destroy the given guest page. If the attempt
+ * fails, an attempt is made to export the page. If both attempts fail, an
+ * appropriate error is returned.
+ *
+ * Context: must be called holding the mm lock for gmap->mm
+ */
+static inline int __kvm_s390_pv_destroy_page(struct page *page)
+{
+	struct folio *folio = page_folio(page);
+	int rc;
+
+	/* Large folios cannot be secure. Small folio implies FW_LEVEL_PTE. */
+	if (folio_test_large(folio))
+		return -EFAULT;
+
+	rc = uv_destroy_folio(folio);
+	/*
+	 * Fault handlers can race; it is possible that two CPUs will fault
+	 * on the same secure page. One CPU can destroy the page, reboot,
+	 * re-enter secure mode and import it, while the second CPU was
+	 * stuck at the beginning of the handler. At some point the second
+	 * CPU will be able to progress, and it will not be able to destroy
+	 * the page. In that case we do not want to terminate the process,
+	 * we instead try to export the page.
+	 */
+	if (rc)
+		rc = uv_convert_from_secure_folio(folio);
+
+	return rc;
 }
 
 /* implemented in interrupt.c */
@@ -398,6 +436,10 @@ void kvm_s390_vsie_gmap_notifier(struct gmap *gmap, unsigned long start,
 				 unsigned long end);
 void kvm_s390_vsie_init(struct kvm *kvm);
 void kvm_s390_vsie_destroy(struct kvm *kvm);
+int gmap_shadow_valid(struct gmap *sg, unsigned long asce, int edat_level);
+
+/* implemented in gmap-vsie.c */
+struct gmap *gmap_shadow(struct gmap *parent, unsigned long asce, int edat_level);
 
 /* implemented in sigp.c */
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);
