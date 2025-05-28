@@ -2650,6 +2650,18 @@ bool cfg80211_does_bw_fit_range(const struct ieee80211_freq_range *freq_range,
 	return false;
 }
 
+int cfg80211_link_sinfo_alloc_tid_stats(struct link_station_info *link_sinfo,
+					gfp_t gfp)
+{
+	link_sinfo->pertid = kcalloc(IEEE80211_NUM_TIDS + 1,
+				     sizeof(*link_sinfo->pertid), gfp);
+	if (!link_sinfo->pertid)
+		return -ENOMEM;
+
+	return 0;
+}
+EXPORT_SYMBOL(cfg80211_link_sinfo_alloc_tid_stats);
+
 int cfg80211_sinfo_alloc_tid_stats(struct station_info *sinfo, gfp_t gfp)
 {
 	sinfo->pertid = kcalloc(IEEE80211_NUM_TIDS + 1,

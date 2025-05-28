@@ -8567,6 +8567,17 @@ void cfg80211_tx_mgmt_expired(struct wireless_dev *wdev, u64 cookie,
 int cfg80211_sinfo_alloc_tid_stats(struct station_info *sinfo, gfp_t gfp);
 
 /**
+ * cfg80211_link_sinfo_alloc_tid_stats - allocate per-tid statistics.
+ *
+ * @link_sinfo: the link station information
+ * @gfp: allocation flags
+ *
+ * Return: 0 on success. Non-zero on error.
+ */
+int cfg80211_link_sinfo_alloc_tid_stats(struct link_station_info *link_sinfo,
+					gfp_t gfp);
+
+/**
  * cfg80211_sinfo_release_content - release contents of station info
  * @sinfo: the station information
  *
