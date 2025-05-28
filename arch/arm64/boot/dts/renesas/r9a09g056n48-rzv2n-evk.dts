@@ -72,6 +72,11 @@
 	clock-frequency = <22579200>;
 };
 
+&ehci0 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
 &eth0 {
 	pinctrl-0 = <&eth0_pins>;
 	pinctrl-names = "default";
@@ -91,6 +96,11 @@
 &gpu {
 	status = "okay";
 	mali-supply = <&reg_0p8v>;
+};
+
+&hsusb {
+	dr_mode = "otg";
+	status = "okay";
 };
 
 &i2c0 {
@@ -178,6 +188,11 @@
 		txd2-skew-psec = <0>;
 		txd3-skew-psec = <0>;
 	};
+};
+
+&ohci0 {
+	dr_mode = "otg";
+	status = "okay";
 };
 
 &ostm0 {
@@ -292,6 +307,16 @@
 			slew-rate = <0>;
 		};
 	};
+
+	usb20_pins: usb20 {
+		ovc {
+			pinmux =  <RZV2N_PORT_PINMUX(9, 6, 14)>; /* OVC */
+		};
+
+		vbus {
+			pinmux = <RZV2N_PORT_PINMUX(9, 5, 14)>; /* VBUS */
+		};
+	};
 };
 
 &qextal_clk {
@@ -317,6 +342,17 @@
 	bus-width = <4>;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
+	status = "okay";
+};
+
+&usb20phyrst {
+	status = "okay";
+};
+
+&usb2_phy0 {
+	pinctrl-0 = <&usb20_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };
 
