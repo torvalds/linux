@@ -95,7 +95,7 @@ u64 bch2_dirent_lookup(struct bch_fs *, subvol_inum,
 
 int bch2_empty_dir_snapshot(struct btree_trans *, u64, u32, u32);
 int bch2_empty_dir_trans(struct btree_trans *, subvol_inum);
-int bch2_readdir(struct bch_fs *, subvol_inum, struct dir_context *);
+int bch2_readdir(struct bch_fs *, subvol_inum, struct bch_hash_info *, struct dir_context *);
 
 int bch2_fsck_remove_dirent(struct btree_trans *, struct bpos);
 

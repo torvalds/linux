@@ -692,7 +692,9 @@ static int bch2_dir_emit(struct dir_context *ctx, struct bkey_s_c_dirent d, subv
 	return !ret;
 }
 
-int bch2_readdir(struct bch_fs *c, subvol_inum inum, struct dir_context *ctx)
+int bch2_readdir(struct bch_fs *c, subvol_inum inum,
+		 struct bch_hash_info *hash_info,
+		 struct dir_context *ctx)
 {
 	struct bkey_buf sk;
 	bch2_bkey_buf_init(&sk);
@@ -710,7 +712,10 @@ int bch2_readdir(struct bch_fs *c, subvol_inum inum, struct dir_context *ctx)
 			struct bkey_s_c_dirent dirent = bkey_i_to_s_c_dirent(sk.k);
 
 			subvol_inum target;
-			int ret2 = bch2_dirent_read_target(trans, inum, dirent, &target);
+
+			int ret2 = bch2_str_hash_check_key(trans, NULL, &bch2_dirent_hash_desc,
+							   hash_info, &iter, k) ?:
+				bch2_dirent_read_target(trans, inum, dirent, &target);
 			if (ret2 > 0)
 				continue;
 

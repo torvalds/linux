@@ -1573,11 +1573,12 @@ static int bch2_vfs_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct bch_hash_info hash = bch2_hash_info_init(c, &inode->ei_inode);
 
 	if (!dir_emit_dots(file, ctx))
 		return 0;
 
-	int ret = bch2_readdir(c, inode_inum(inode), ctx);
+	int ret = bch2_readdir(c, inode_inum(inode), &hash, ctx);
 
 	bch_err_fn(c, ret);
 	return bch2_err_class(ret);
