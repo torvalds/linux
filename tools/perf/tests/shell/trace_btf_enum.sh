@@ -5,7 +5,7 @@
 err=0
 
 syscall="landlock_add_rule"
-non_syscall="timer:hrtimer_setup,timer:hrtimer_start"
+non_syscall="timer:hrtimer_start"
 
 TESTPROG="perf test -w landlock"
 
