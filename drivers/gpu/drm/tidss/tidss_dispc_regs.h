@@ -226,18 +226,21 @@ enum dispc_common_regs {
 #define DISPC_VP_DSS_DMA_THREADSIZE		0x170 /* J721E */
 #define DISPC_VP_DSS_DMA_THREADSIZE_STATUS	0x174 /* J721E */
 
+/* LVDS Format values for OLDI_MAP field in DISPC_VP_OLDI_CFG register */
+enum oldi_mode_reg_val { SPWG_18 = 0, JEIDA_24 = 1, SPWG_24 = 2 };
+
 /*
  * OLDI IO_CTRL register offsets. On AM654 the registers are found
  * from CTRL_MMR0, there the syscon regmap should map 0x14 bytes from
  * CTRLMMR0P1_OLDI_DAT0_IO_CTRL to CTRLMMR0P1_OLDI_CLK_IO_CTRL
  * register range.
  */
-#define OLDI_DAT0_IO_CTRL			0x00
-#define OLDI_DAT1_IO_CTRL			0x04
-#define OLDI_DAT2_IO_CTRL			0x08
-#define OLDI_DAT3_IO_CTRL			0x0C
-#define OLDI_CLK_IO_CTRL			0x10
+#define AM65X_OLDI_DAT0_IO_CTRL		0x00
+#define AM65X_OLDI_DAT1_IO_CTRL		0x04
+#define AM65X_OLDI_DAT2_IO_CTRL		0x08
+#define AM65X_OLDI_DAT3_IO_CTRL		0x0C
+#define AM65X_OLDI_CLK_IO_CTRL		0x10
 
-#define OLDI_PWRDN_TX				BIT(8)
+#define AM65X_OLDI_PWRDN_TX		BIT(8)
 
 #endif /* __TIDSS_DISPC_REGS_H */
