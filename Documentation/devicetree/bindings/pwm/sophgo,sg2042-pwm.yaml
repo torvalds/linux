@@ -17,7 +17,9 @@ allOf:
 
 properties:
   compatible:
-    const: sophgo,sg2042-pwm
+    enum:
+      - sophgo,sg2042-pwm
+      - sophgo,sg2044-pwm
 
   reg:
     maxItems: 1
