@@ -414,7 +414,7 @@ int update_hw_load_avg(u64 now, struct rq *rq, u64 capacity)
 
 	return 0;
 }
-#endif
+#endif /* CONFIG_SCHED_HW_PRESSURE */
 
 #ifdef CONFIG_HAVE_SCHED_AVG_IRQ
 /*
@@ -467,7 +467,7 @@ int update_irq_load_avg(struct rq *rq, u64 running)
 
 	return ret;
 }
-#endif
+#endif /* CONFIG_HAVE_SCHED_AVG_IRQ */
 
 /*
  * Load avg and utiliztion metrics need to be updated periodically and before
