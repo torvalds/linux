@@ -4,6 +4,12 @@
 
 #include "str_hash.h"
 
+/* recoverds snapshot IDs of overwrites at @pos */
+struct snapshots_seen {
+	struct bpos			pos;
+	snapshot_id_list		ids;
+};
+
 int bch2_fsck_update_backpointers(struct btree_trans *,
 				  struct snapshots_seen *,
 				  const struct bch_hash_desc,

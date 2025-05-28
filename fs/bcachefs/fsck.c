@@ -643,11 +643,6 @@ static int reconstruct_inode(struct btree_trans *trans, enum btree_id btree, u32
 	return __bch2_fsck_write_inode(trans, &new_inode);
 }
 
-struct snapshots_seen {
-	struct bpos			pos;
-	snapshot_id_list		ids;
-};
-
 static inline void snapshots_seen_exit(struct snapshots_seen *s)
 {
 	darray_exit(&s->ids);
