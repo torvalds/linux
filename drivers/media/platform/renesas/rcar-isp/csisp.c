@@ -159,7 +159,7 @@ enum rcar_isp_pads {
 
 struct rcar_isp {
 	struct device *dev;
-	void __iomem *base;
+	void __iomem *csbase;
 	struct reset_control *rstc;
 
 	enum rcar_isp_input csi_input;
@@ -184,14 +184,14 @@ static inline struct rcar_isp *notifier_to_isp(struct v4l2_async_notifier *n)
 	return container_of(n, struct rcar_isp, notifier);
 }
 
-static void risp_write(struct rcar_isp *isp, u32 offset, u32 value)
+static void risp_write_cs(struct rcar_isp *isp, u32 offset, u32 value)
 {
-	iowrite32(value, isp->base + offset);
+	iowrite32(value, isp->csbase + offset);
 }
 
-static u32 risp_read(struct rcar_isp *isp, u32 offset)
+static u32 risp_read_cs(struct rcar_isp *isp, u32 offset)
 {
-	return ioread32(isp->base + offset);
+	return ioread32(isp->csbase + offset);
 }
 
 static int risp_power_on(struct rcar_isp *isp)
@@ -245,31 +245,31 @@ static int risp_start(struct rcar_isp *isp, struct v4l2_subdev_state *state)
 	if (isp->csi_input == RISP_CSI_INPUT1)
 		sel_csi = ISPINPUTSEL0_SEL_CSI0;
 
-	risp_write(isp, ISPINPUTSEL0_REG,
-		   risp_read(isp, ISPINPUTSEL0_REG) | sel_csi);
+	risp_write_cs(isp, ISPINPUTSEL0_REG,
+		      risp_read_cs(isp, ISPINPUTSEL0_REG) | sel_csi);
 
 	/* Configure Channel Selector. */
 	for (vc = 0; vc < 4; vc++) {
 		u8 ch = vc + 4;
 		u8 dt = format->datatype;
 
-		risp_write(isp, ISPCS_FILTER_ID_CH_REG(ch), BIT(vc));
-		risp_write(isp, ISPCS_DT_CODE03_CH_REG(ch),
-			   ISPCS_DT_CODE03_EN3 | ISPCS_DT_CODE03_DT3(dt) |
-			   ISPCS_DT_CODE03_EN2 | ISPCS_DT_CODE03_DT2(dt) |
-			   ISPCS_DT_CODE03_EN1 | ISPCS_DT_CODE03_DT1(dt) |
-			   ISPCS_DT_CODE03_EN0 | ISPCS_DT_CODE03_DT0(dt));
+		risp_write_cs(isp, ISPCS_FILTER_ID_CH_REG(ch), BIT(vc));
+		risp_write_cs(isp, ISPCS_DT_CODE03_CH_REG(ch),
+			      ISPCS_DT_CODE03_EN3 | ISPCS_DT_CODE03_DT3(dt) |
+			      ISPCS_DT_CODE03_EN2 | ISPCS_DT_CODE03_DT2(dt) |
+			      ISPCS_DT_CODE03_EN1 | ISPCS_DT_CODE03_DT1(dt) |
+			      ISPCS_DT_CODE03_EN0 | ISPCS_DT_CODE03_DT0(dt));
 	}
 
 	/* Setup processing method. */
-	risp_write(isp, ISPPROCMODE_DT_REG(format->datatype),
-		   ISPPROCMODE_DT_PROC_MODE_VC3(format->procmode) |
-		   ISPPROCMODE_DT_PROC_MODE_VC2(format->procmode) |
-		   ISPPROCMODE_DT_PROC_MODE_VC1(format->procmode) |
-		   ISPPROCMODE_DT_PROC_MODE_VC0(format->procmode));
+	risp_write_cs(isp, ISPPROCMODE_DT_REG(format->datatype),
+		      ISPPROCMODE_DT_PROC_MODE_VC3(format->procmode) |
+		      ISPPROCMODE_DT_PROC_MODE_VC2(format->procmode) |
+		      ISPPROCMODE_DT_PROC_MODE_VC1(format->procmode) |
+		      ISPPROCMODE_DT_PROC_MODE_VC0(format->procmode));
 
 	/* Start ISP. */
-	risp_write(isp, ISPSTART_REG, ISPSTART_START);
+	risp_write_cs(isp, ISPSTART_REG, ISPSTART_START);
 
 	ret = v4l2_subdev_enable_streams(isp->remote, isp->remote_pad,
 					 BIT_ULL(0));
@@ -284,7 +284,7 @@ static void risp_stop(struct rcar_isp *isp)
 	v4l2_subdev_disable_streams(isp->remote, isp->remote_pad, BIT_ULL(0));
 
 	/* Stop ISP. */
-	risp_write(isp, ISPSTART_REG, ISPSTART_STOP);
+	risp_write_cs(isp, ISPSTART_REG, ISPSTART_STOP);
 
 	risp_power_off(isp);
 }
@@ -465,9 +465,20 @@ static const struct media_entity_operations risp_entity_ops = {
 static int risp_probe_resources(struct rcar_isp *isp,
 				struct platform_device *pdev)
 {
-	isp->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
-	if (IS_ERR(isp->base))
-		return PTR_ERR(isp->base);
+	struct resource *res;
+
+	/*
+	 * For backward compatibility allow cs base to be the only reg if no
+	 * reg-names are set in DT.
+	 */
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cs");
+	if (!res)
+		isp->csbase = devm_platform_ioremap_resource(pdev, 0);
+	else
+		isp->csbase = devm_ioremap_resource(&pdev->dev, res);
+
+	if (IS_ERR(isp->csbase))
+		return PTR_ERR(isp->csbase);
 
 	isp->rstc = devm_reset_control_get(&pdev->dev, NULL);
 

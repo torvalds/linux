@@ -210,7 +210,6 @@ int ccs_read_addr_noconv(struct ccs_sensor *sensor, u32 reg, u32 *val)
  */
 int ccs_write_addr(struct ccs_sensor *sensor, u32 reg, u32 val)
 {
-	unsigned int retries = 10;
 	int rval;
 
 	rval = ccs_call_quirk(sensor, reg_access, true, &reg, &val);
@@ -219,13 +218,7 @@ int ccs_write_addr(struct ccs_sensor *sensor, u32 reg, u32 val)
 	if (rval < 0)
 		return rval;
 
-	rval = 0;
-	do {
-		if (cci_write(sensor->regmap, reg, val, &rval))
-			fsleep(1000);
-	} while (rval && --retries);
-
-	return rval;
+	return cci_write(sensor->regmap, reg, val, NULL);
 }
 
 #define MAX_WRITE_LEN	32U

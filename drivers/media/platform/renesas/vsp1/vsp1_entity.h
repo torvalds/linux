@@ -28,6 +28,7 @@ enum vsp1_entity_type {
 	VSP1_ENTITY_HGT,
 	VSP1_ENTITY_HSI,
 	VSP1_ENTITY_HST,
+	VSP1_ENTITY_IIF,
 	VSP1_ENTITY_LIF,
 	VSP1_ENTITY_LUT,
 	VSP1_ENTITY_RPF,
@@ -169,6 +170,8 @@ void vsp1_entity_configure_partition(struct vsp1_entity *entity,
 				     const struct vsp1_partition *partition,
 				     struct vsp1_dl_list *dl,
 				     struct vsp1_dl_body *dlb);
+
+void vsp1_entity_adjust_color_space(struct v4l2_mbus_framefmt *format);
 
 struct media_pad *vsp1_entity_remote_pad(struct media_pad *pad);
 

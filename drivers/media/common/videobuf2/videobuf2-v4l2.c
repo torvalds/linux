@@ -903,6 +903,11 @@ EXPORT_SYMBOL_GPL(vb2_expbuf);
 
 int vb2_queue_init_name(struct vb2_queue *q, const char *name)
 {
+	/* vb2_memory should match with v4l2_memory */
+	BUILD_BUG_ON(VB2_MEMORY_MMAP != (int)V4L2_MEMORY_MMAP);
+	BUILD_BUG_ON(VB2_MEMORY_USERPTR != (int)V4L2_MEMORY_USERPTR);
+	BUILD_BUG_ON(VB2_MEMORY_DMABUF != (int)V4L2_MEMORY_DMABUF);
+
 	/*
 	 * Sanity check
 	 */
@@ -915,12 +920,6 @@ int vb2_queue_init_name(struct vb2_queue *q, const char *name)
 	/* Warn that the driver should choose an appropriate timestamp type */
 	WARN_ON((q->timestamp_flags & V4L2_BUF_FLAG_TIMESTAMP_MASK) ==
 		V4L2_BUF_FLAG_TIMESTAMP_UNKNOWN);
-
-	/* Warn that vb2_memory should match with v4l2_memory */
-	if (WARN_ON(VB2_MEMORY_MMAP != (int)V4L2_MEMORY_MMAP)
-		|| WARN_ON(VB2_MEMORY_USERPTR != (int)V4L2_MEMORY_USERPTR)
-		|| WARN_ON(VB2_MEMORY_DMABUF != (int)V4L2_MEMORY_DMABUF))
-		return -EINVAL;
 
 	if (q->buf_struct_size == 0)
 		q->buf_struct_size = sizeof(struct vb2_v4l2_buffer);

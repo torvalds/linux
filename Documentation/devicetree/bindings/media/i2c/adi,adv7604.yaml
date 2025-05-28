@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/media/i2c/adv7604.yaml#
+$id: http://devicetree.org/schemas/media/i2c/adi,adv7604.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Analog Devices ADV7604/10/11/12 video decoder with HDMI receiver

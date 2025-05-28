@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+source "drivers/media/platform/amlogic/c3/isp/Kconfig"
+source "drivers/media/platform/amlogic/c3/mipi-adapter/Kconfig"
+source "drivers/media/platform/amlogic/c3/mipi-csi2/Kconfig"
