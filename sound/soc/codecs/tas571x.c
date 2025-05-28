@@ -834,7 +834,7 @@ static const struct tas571x_chip tas5733_chip = {
 	.supply_names                   = tas5733_supply_names,
 	.num_supply_names               = ARRAY_SIZE(tas5733_supply_names),
 	.controls                       = tas5733_controls,
-	.num_controls                   = ARRAY_SIZE(tas5717_controls),
+	.num_controls                   = ARRAY_SIZE(tas5733_controls),
 	.regmap_config                  = &tas5733_regmap_config,
 	.vol_reg_size                   = 2,
 };
