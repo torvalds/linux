@@ -396,7 +396,7 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
  * @name: Name for a variable to define.
  * @member: Name of the array member.
  * @count: Number of elements in the array; must be compile-time const.
- * @initializer: initializer expression (could be empty for no init).
+ * @initializer: Initializer expression (e.g., pass `= { }` at minimum).
  */
 #define _DEFINE_FLEX(type, name, member, count, initializer...)			\
 	_Static_assert(__builtin_constant_p(count),				\
@@ -404,7 +404,7 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
 	union {									\
 		u8 bytes[struct_size_t(type, member, count)];			\
 		type obj;							\
-	} name##_u initializer;							\
+	} name##_u = { .obj initializer };					\
 	type *name = (type *)&name##_u
 
 /**
@@ -419,6 +419,9 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
  * Define a zeroed, on-stack, instance of @type structure with a trailing
  * flexible array member.
  * Use __struct_size(@name) to get compile-time size of it afterwards.
+ * Use __member_size(@name->member) to get compile-time size of @name members.
+ * Use STACK_FLEX_ARRAY_SIZE(@name, @member) to get compile-time number of
+ * elements in array @member.
  */
 #define DEFINE_RAW_FLEX(type, name, member, count)	\
 	_DEFINE_FLEX(type, name, member, count, = {})
@@ -436,8 +439,22 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
  * Define a zeroed, on-stack, instance of @TYPE structure with a trailing
  * flexible array member.
  * Use __struct_size(@NAME) to get compile-time size of it afterwards.
+ * Use __member_size(@NAME->member) to get compile-time size of @NAME members.
+ * Use STACK_FLEX_ARRAY_SIZE(@name, @member) to get compile-time number of
+ * elements in array @member.
  */
 #define DEFINE_FLEX(TYPE, NAME, MEMBER, COUNTER, COUNT)	\
-	_DEFINE_FLEX(TYPE, NAME, MEMBER, COUNT, = { .obj.COUNTER = COUNT, })
+	_DEFINE_FLEX(TYPE, NAME, MEMBER, COUNT, = { .COUNTER = COUNT, })
+
+/**
+ * STACK_FLEX_ARRAY_SIZE() - helper macro for DEFINE_FLEX() family.
+ * Returns the number of elements in @array.
+ *
+ * @name: Name for a variable defined in DEFINE_RAW_FLEX()/DEFINE_FLEX().
+ * @array: Name of the array member.
+ */
+#define STACK_FLEX_ARRAY_SIZE(name, array)						\
+	(__member_size((name)->array) / sizeof(*(name)->array) +			\
+						__must_be_array((name)->array))
 
 #endif /* __LINUX_OVERFLOW_H */

@@ -296,6 +296,19 @@ $(foreach m, $1, \
 	$(addprefix $(obj)/, $(call suffix-search, $(patsubst $(obj)/%,%,$m), $2, $3))))
 endef
 
+# Remove ".." and "." from a path, without using "realpath"
+# Usage:
+#   $(call normalize_path,path/to/../file)
+define normalize_path
+$(strip $(eval elements :=) \
+$(foreach elem,$(subst /, ,$1), \
+	$(if $(filter-out .,$(elem)), \
+	     $(if $(filter ..,$(elem)), \
+		  $(eval elements := $(wordlist 2,$(words $(elements)),x $(elements))), \
+		  $(eval elements := $(elements) $(elem))))) \
+$(subst $(space),/,$(elements)))
+endef
+
 # Build commands
 # ===========================================================================
 # These are shared by some Makefile.* files.
@@ -342,6 +355,11 @@ quiet_cmd_copy = COPY    $@
 
 $(obj)/%: $(src)/%_shipped
 	$(call cmd,copy)
+
+# Touch a file
+# ===========================================================================
+quiet_cmd_touch = TOUCH   $(call normalize_path,$@)
+      cmd_touch = touch $@
 
 # Commands useful for building a boot image
 # ===========================================================================
