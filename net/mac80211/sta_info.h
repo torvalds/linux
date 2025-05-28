@@ -569,6 +569,58 @@ struct link_sta_info {
 };
 
 /**
+ * struct ieee80211_sta_removed_link_stats - Removed link sta data
+ *
+ * keep required accumulated removed link data for stats
+ *
+ * @rx_packets: accumulated packets (MSDUs & MMPDUs) received from
+ *	this station for removed links
+ * @tx_packets: accumulated packets (MSDUs & MMPDUs) transmitted to
+ *	this station for removed links
+ * @rx_bytes: accumulated bytes (size of MPDUs) received from this
+ *	station for removed links
+ * @tx_bytes: accumulated bytes (size of MPDUs) transmitted to this
+ *	station for removed links
+ * @tx_retries: cumulative retry counts (MPDUs) for removed links
+ * @tx_failed: accumulated number of failed transmissions (MPDUs)
+ *	(retries exceeded, no ACK) for removed links
+ * @rx_dropped_misc: accumulated dropped packets for un-specified reason
+ *	from this station for removed links
+ * @beacon_loss_count: Number of times beacon loss event has triggered
+ *	from this station for removed links.
+ * @expected_throughput: expected throughput in kbps (including 802.11
+ *	headers) towards this station for removed links
+ * @pertid_stats: accumulated per-TID statistics for removed link of
+ *	station
+ * @pertid_stats.rx_msdu : accumulated number of received MSDUs towards
+ *	this station for removed links.
+ * @pertid_stats.tx_msdu: accumulated number of (attempted) transmitted
+ *	MSDUs towards this station for removed links
+ * @pertid_stats.tx_msdu_retries: accumulated number of retries (not
+ *	counting the first) for transmitted MSDUs towards this station
+ *	for removed links
+ * @pertid_stats.tx_msdu_failed: accumulated number of failed transmitted
+ *	MSDUs towards this station for removed links
+ */
+struct ieee80211_sta_removed_link_stats {
+	u32 rx_packets;
+	u32 tx_packets;
+	u64 rx_bytes;
+	u64 tx_bytes;
+	u32 tx_retries;
+	u32 tx_failed;
+	u32 rx_dropped_misc;
+	u32 beacon_loss_count;
+	u32 expected_throughput;
+	struct {
+		u64 rx_msdu;
+		u64 tx_msdu;
+		u64 tx_msdu_retries;
+		u64 tx_msdu_failed;
+	} pertid_stats;
+};
+
+/**
  * struct sta_info - STA information
  *
  * This structure collects information about a station that
@@ -644,6 +696,7 @@ struct link_sta_info {
  *	@deflink address and remaining would be allocated and the address
  *	would be assigned to link[link_id] where link_id is the id assigned
  *	by the AP.
+ * @rem_link_stats: accumulated removed link stats
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -718,6 +771,7 @@ struct sta_info {
 	struct ieee80211_sta_aggregates cur;
 	struct link_sta_info deflink;
 	struct link_sta_info __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
+	struct ieee80211_sta_removed_link_stats rem_link_stats;
 
 	/* keep last! */
 	struct ieee80211_sta sta;
@@ -921,6 +975,9 @@ void sta_set_rate_info_tx(struct sta_info *sta,
 			  struct rate_info *rinfo);
 void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 		   bool tidstats);
+
+void sta_set_accumulated_removed_links_sinfo(struct sta_info *sta,
+					     struct station_info *sinfo);
 
 u32 sta_get_expected_throughput(struct sta_info *sta);
 

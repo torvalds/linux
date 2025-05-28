@@ -355,6 +355,50 @@ static void sta_info_free_link(struct link_sta_info *link_sta)
 	free_percpu(link_sta->pcpu_rx_stats);
 }
 
+static void sta_accumulate_removed_link_stats(struct sta_info *sta, int link_id)
+{
+	struct link_sta_info *link_sta = wiphy_dereference(sta->local->hw.wiphy,
+							   sta->link[link_id]);
+	struct ieee80211_link_data *link;
+	int ac, tid;
+	u32 thr;
+
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		sta->rem_link_stats.tx_packets +=
+			link_sta->tx_stats.packets[ac];
+		sta->rem_link_stats.tx_bytes += link_sta->tx_stats.bytes[ac];
+	}
+
+	sta->rem_link_stats.rx_packets += link_sta->rx_stats.packets;
+	sta->rem_link_stats.rx_bytes += link_sta->rx_stats.bytes;
+	sta->rem_link_stats.tx_retries += link_sta->status_stats.retry_count;
+	sta->rem_link_stats.tx_failed += link_sta->status_stats.retry_failed;
+	sta->rem_link_stats.rx_dropped_misc += link_sta->rx_stats.dropped;
+
+	thr = sta_get_expected_throughput(sta);
+	if (thr != 0)
+		sta->rem_link_stats.expected_throughput += thr;
+
+	for (tid = 0; tid < IEEE80211_NUM_TIDS; tid++) {
+		sta->rem_link_stats.pertid_stats.rx_msdu +=
+			link_sta->rx_stats.msdu[tid];
+		sta->rem_link_stats.pertid_stats.tx_msdu +=
+			link_sta->tx_stats.msdu[tid];
+		sta->rem_link_stats.pertid_stats.tx_msdu_retries +=
+			link_sta->status_stats.msdu_retries[tid];
+		sta->rem_link_stats.pertid_stats.tx_msdu_failed +=
+			link_sta->status_stats.msdu_failed[tid];
+	}
+
+	if (sta->sdata->vif.type == NL80211_IFTYPE_STATION) {
+		link = wiphy_dereference(sta->sdata->local->hw.wiphy,
+					 sta->sdata->link[link_id]);
+		if (link)
+			sta->rem_link_stats.beacon_loss_count +=
+				link->u.mgd.beacon_loss_count;
+	}
+}
+
 static void sta_remove_link(struct sta_info *sta, unsigned int link_id,
 			    bool unhash)
 {
@@ -377,6 +421,10 @@ static void sta_remove_link(struct sta_info *sta, unsigned int link_id,
 		alloc = container_of(link_sta, typeof(*alloc), info);
 
 	sta->sta.valid_links &= ~BIT(link_id);
+
+	/* store removed link info for accumulated stats consistency */
+	sta_accumulate_removed_link_stats(sta, link_id);
+
 	RCU_INIT_POINTER(sta->link[link_id], NULL);
 	RCU_INIT_POINTER(sta->sta.link[link_id], NULL);
 	if (alloc) {
@@ -2644,6 +2692,32 @@ static void sta_set_mesh_sinfo(struct sta_info *sta,
 	sinfo->airtime_link_metric = airtime_link_metric_get(local, sta);
 }
 #endif
+
+void sta_set_accumulated_removed_links_sinfo(struct sta_info *sta,
+					     struct station_info *sinfo)
+{
+	/* Accumulating the removed link statistics. */
+	sinfo->tx_packets = sta->rem_link_stats.tx_packets;
+	sinfo->rx_packets = sta->rem_link_stats.rx_packets;
+	sinfo->tx_bytes = sta->rem_link_stats.tx_bytes;
+	sinfo->rx_bytes = sta->rem_link_stats.rx_bytes;
+	sinfo->tx_retries = sta->rem_link_stats.tx_retries;
+	sinfo->tx_failed = sta->rem_link_stats.tx_failed;
+	sinfo->rx_dropped_misc = sta->rem_link_stats.rx_dropped_misc;
+	sinfo->beacon_loss_count = sta->rem_link_stats.beacon_loss_count;
+	sinfo->expected_throughput = sta->rem_link_stats.expected_throughput;
+
+	if (sinfo->pertid) {
+		sinfo->pertid->rx_msdu =
+			sta->rem_link_stats.pertid_stats.rx_msdu;
+		sinfo->pertid->tx_msdu =
+			sta->rem_link_stats.pertid_stats.tx_msdu;
+		sinfo->pertid->tx_msdu_retries =
+			sta->rem_link_stats.pertid_stats.tx_msdu_retries;
+		sinfo->pertid->tx_msdu_failed =
+			sta->rem_link_stats.pertid_stats.tx_msdu_failed;
+	}
+}
 
 void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 		   bool tidstats)
