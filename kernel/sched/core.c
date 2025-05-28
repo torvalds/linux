@@ -8582,9 +8582,7 @@ void __init sched_init(void)
 
 	calc_load_update = jiffies + LOAD_FREQ;
 
-#ifdef CONFIG_SMP
 	idle_thread_set_boot_cpu();
-#endif
 
 	balance_push_set(smp_processor_id(), false);
 	init_sched_fair_class();
