@@ -1301,11 +1301,7 @@ static inline int cpu_of(struct rq *rq)
 
 static inline bool is_migration_disabled(struct task_struct *p)
 {
-#ifdef CONFIG_SMP
 	return p->migration_disabled;
-#else
-	return false;
-#endif
 }
 
 DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
