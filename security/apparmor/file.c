@@ -604,7 +604,7 @@ int aa_file_perm(const char *op, const struct cred *subj_cred,
 	rcu_read_unlock();
 	/* TODO: label cross check */
 
-	if (file->f_path.mnt && path_mediated_fs(file->f_path.dentry))
+	if (path_mediated_fs(file->f_path.dentry))
 		error = __file_path_perm(op, subj_cred, label, flabel, file,
 					 request, denied, in_atomic);
 
