@@ -3299,7 +3299,7 @@ static unsigned long gup_fast(unsigned long start, unsigned long end,
 	 * include/asm-generic/tlb.h for more details.
 	 *
 	 * We do not adopt an rcu_read_lock() here as we also want to block IPIs
-	 * that come from THPs splitting.
+	 * that come from callers of tlb_remove_table_sync_one().
 	 */
 	local_irq_save(flags);
 	gup_fast_pgd_range(start, end, gup_flags, pages, &nr_pinned);
