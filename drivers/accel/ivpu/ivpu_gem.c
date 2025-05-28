@@ -33,6 +33,16 @@ static inline void ivpu_dbg_bo(struct ivpu_device *vdev, struct ivpu_bo *bo, con
 		 (bool)bo->base.base.import_attach);
 }
 
+static inline int ivpu_bo_lock(struct ivpu_bo *bo)
+{
+	return dma_resv_lock(bo->base.base.resv, NULL);
+}
+
+static inline void ivpu_bo_unlock(struct ivpu_bo *bo)
+{
+	dma_resv_unlock(bo->base.base.resv);
+}
+
 /*
  * ivpu_bo_pin() - pin the backing physical pages and map them to VPU.
  *
@@ -43,22 +53,22 @@ static inline void ivpu_dbg_bo(struct ivpu_device *vdev, struct ivpu_bo *bo, con
 int __must_check ivpu_bo_pin(struct ivpu_bo *bo)
 {
 	struct ivpu_device *vdev = ivpu_bo_to_vdev(bo);
+	struct sg_table *sgt;
 	int ret = 0;
 
-	mutex_lock(&bo->lock);
-
 	ivpu_dbg_bo(vdev, bo, "pin");
-	drm_WARN_ON(&vdev->drm, !bo->ctx);
+
+	sgt = drm_gem_shmem_get_pages_sgt(&bo->base);
+	if (IS_ERR(sgt)) {
+		ret = PTR_ERR(sgt);
+		ivpu_err(vdev, "Failed to map BO in IOMMU: %d\n", ret);
+		return ret;
+	}
+
+	ivpu_bo_lock(bo);
 
 	if (!bo->mmu_mapped) {
-		struct sg_table *sgt = drm_gem_shmem_get_pages_sgt(&bo->base);
-
-		if (IS_ERR(sgt)) {
-			ret = PTR_ERR(sgt);
-			ivpu_err(vdev, "Failed to map BO in IOMMU: %d\n", ret);
-			goto unlock;
-		}
-
+		drm_WARN_ON(&vdev->drm, !bo->ctx);
 		ret = ivpu_mmu_context_map_sgt(vdev, bo->ctx, bo->vpu_addr, sgt,
 					       ivpu_bo_is_snooped(bo));
 		if (ret) {
@@ -69,7 +79,7 @@ int __must_check ivpu_bo_pin(struct ivpu_bo *bo)
 	}
 
 unlock:
-	mutex_unlock(&bo->lock);
+	ivpu_bo_unlock(bo);
 
 	return ret;
 }
@@ -84,7 +94,7 @@ ivpu_bo_alloc_vpu_addr(struct ivpu_bo *bo, struct ivpu_mmu_context *ctx,
 	if (!drm_dev_enter(&vdev->drm, &idx))
 		return -ENODEV;
 
-	mutex_lock(&bo->lock);
+	ivpu_bo_lock(bo);
 
 	ret = ivpu_mmu_context_insert_node(ctx, range, ivpu_bo_size(bo), &bo->mm_node);
 	if (!ret) {
@@ -94,7 +104,7 @@ ivpu_bo_alloc_vpu_addr(struct ivpu_bo *bo, struct ivpu_mmu_context *ctx,
 		ivpu_err(vdev, "Failed to add BO to context %u: %d\n", ctx->id, ret);
 	}
 
-	mutex_unlock(&bo->lock);
+	ivpu_bo_unlock(bo);
 
 	drm_dev_exit(idx);
 
@@ -105,7 +115,7 @@ static void ivpu_bo_unbind_locked(struct ivpu_bo *bo)
 {
 	struct ivpu_device *vdev = ivpu_bo_to_vdev(bo);
 
-	lockdep_assert(lockdep_is_held(&bo->lock) || !kref_read(&bo->base.base.refcount));
+	lockdep_assert(dma_resv_held(bo->base.base.resv) || !kref_read(&bo->base.base.refcount));
 
 	if (bo->mmu_mapped) {
 		drm_WARN_ON(&vdev->drm, !bo->ctx);
@@ -123,14 +133,12 @@ static void ivpu_bo_unbind_locked(struct ivpu_bo *bo)
 	if (bo->base.base.import_attach)
 		return;
 
-	dma_resv_lock(bo->base.base.resv, NULL);
 	if (bo->base.sgt) {
 		dma_unmap_sgtable(vdev->drm.dev, bo->base.sgt, DMA_BIDIRECTIONAL, 0);
 		sg_free_table(bo->base.sgt);
 		kfree(bo->base.sgt);
 		bo->base.sgt = NULL;
 	}
-	dma_resv_unlock(bo->base.base.resv);
 }
 
 void ivpu_bo_unbind_all_bos_from_context(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx)
@@ -142,12 +150,12 @@ void ivpu_bo_unbind_all_bos_from_context(struct ivpu_device *vdev, struct ivpu_m
 
 	mutex_lock(&vdev->bo_list_lock);
 	list_for_each_entry(bo, &vdev->bo_list, bo_list_node) {
-		mutex_lock(&bo->lock);
+		ivpu_bo_lock(bo);
 		if (bo->ctx == ctx) {
 			ivpu_dbg_bo(vdev, bo, "unbind");
 			ivpu_bo_unbind_locked(bo);
 		}
-		mutex_unlock(&bo->lock);
+		ivpu_bo_unlock(bo);
 	}
 	mutex_unlock(&vdev->bo_list_lock);
 }
@@ -167,7 +175,6 @@ struct drm_gem_object *ivpu_gem_create_object(struct drm_device *dev, size_t siz
 	bo->base.pages_mark_dirty_on_put = true; /* VPU can dirty a BO anytime */
 
 	INIT_LIST_HEAD(&bo->bo_list_node);
-	mutex_init(&bo->lock);
 
 	return &bo->base.base;
 }
@@ -286,8 +293,6 @@ static void ivpu_gem_bo_free(struct drm_gem_object *obj)
 	drm_WARN_ON(&vdev->drm, bo->mmu_mapped);
 	drm_WARN_ON(&vdev->drm, bo->ctx);
 
-	mutex_destroy(&bo->lock);
-
 	drm_WARN_ON(obj->dev, bo->base.pages_use_count > 1);
 	drm_gem_shmem_free(&bo->base);
 }
@@ -370,9 +375,9 @@ ivpu_bo_create(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 		goto err_put;
 
 	if (flags & DRM_IVPU_BO_MAPPABLE) {
-		dma_resv_lock(bo->base.base.resv, NULL);
+		ivpu_bo_lock(bo);
 		ret = drm_gem_shmem_vmap(&bo->base, &map);
-		dma_resv_unlock(bo->base.base.resv);
+		ivpu_bo_unlock(bo);
 
 		if (ret)
 			goto err_put;
@@ -395,9 +400,9 @@ void ivpu_bo_free(struct ivpu_bo *bo)
 	struct iosys_map map = IOSYS_MAP_INIT_VADDR(bo->base.vaddr);
 
 	if (bo->flags & DRM_IVPU_BO_MAPPABLE) {
-		dma_resv_lock(bo->base.base.resv, NULL);
+		ivpu_bo_lock(bo);
 		drm_gem_shmem_vunmap(&bo->base, &map);
-		dma_resv_unlock(bo->base.base.resv);
+		ivpu_bo_unlock(bo);
 	}
 
 	drm_gem_object_put(&bo->base.base);
@@ -416,12 +421,12 @@ int ivpu_bo_info_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 
 	bo = to_ivpu_bo(obj);
 
-	mutex_lock(&bo->lock);
+	ivpu_bo_lock(bo);
 	args->flags = bo->flags;
 	args->mmap_offset = drm_vma_node_offset_addr(&obj->vma_node);
 	args->vpu_addr = bo->vpu_addr;
 	args->size = obj->size;
-	mutex_unlock(&bo->lock);
+	ivpu_bo_unlock(bo);
 
 	drm_gem_object_put(obj);
 	return ret;
@@ -458,7 +463,7 @@ int ivpu_bo_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 
 static void ivpu_bo_print_info(struct ivpu_bo *bo, struct drm_printer *p)
 {
-	mutex_lock(&bo->lock);
+	ivpu_bo_lock(bo);
 
 	drm_printf(p, "%-9p %-3u 0x%-12llx %-10lu 0x%-8x %-4u",
 		   bo, bo->ctx_id, bo->vpu_addr, bo->base.base.size,
@@ -475,7 +480,7 @@ static void ivpu_bo_print_info(struct ivpu_bo *bo, struct drm_printer *p)
 
 	drm_printf(p, "\n");
 
-	mutex_unlock(&bo->lock);
+	ivpu_bo_unlock(bo);
 }
 
 void ivpu_bo_list(struct drm_device *dev, struct drm_printer *p)
