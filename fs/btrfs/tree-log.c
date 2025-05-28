@@ -3514,7 +3514,8 @@ void btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
 	}
 
 	ret = join_running_log_trans(root);
-	if (ret)
+	ASSERT(ret == 0, "join_running_log_trans() ret=%d", ret);
+	if (WARN_ON(ret))
 		return;
 	log = root->log_root;
 	mutex_lock(&inode->log_mutex);
