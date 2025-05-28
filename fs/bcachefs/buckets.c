@@ -270,6 +270,9 @@ int bch2_check_fix_ptrs(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
+	/* We don't yet do btree key updates correctly for when we're RW */
+	BUG_ON(test_bit(BCH_FS_rw, &c->flags));
+
 	bkey_for_each_ptr_decode(k.k, ptrs_c, p, entry_c) {
 		ret = bch2_check_fix_ptr(trans, k, p, entry_c, &do_update);
 		if (ret)
@@ -277,12 +280,6 @@ int bch2_check_fix_ptrs(struct btree_trans *trans,
 	}
 
 	if (do_update) {
-		if (flags & BTREE_TRIGGER_is_root) {
-			bch_err(c, "cannot update btree roots yet");
-			ret = -EINVAL;
-			goto err;
-		}
-
 		struct bkey_i *new = bch2_bkey_make_mut_noupdate(trans, k);
 		ret = PTR_ERR_OR_ZERO(new);
 		if (ret)
@@ -370,19 +367,41 @@ found:
 			bch_info(c, "new key %s", buf.buf);
 		}
 
-		struct btree_iter iter;
-		bch2_trans_node_iter_init(trans, &iter, btree, new->k.p, 0, level,
-					  BTREE_ITER_intent|BTREE_ITER_all_snapshots);
-		ret =   bch2_btree_iter_traverse(trans, &iter) ?:
-			bch2_trans_update(trans, &iter, new,
-					  BTREE_UPDATE_internal_snapshot_node|
-					  BTREE_TRIGGER_norun);
-		bch2_trans_iter_exit(trans, &iter);
-		if (ret)
-			goto err;
+		if (!(flags & BTREE_TRIGGER_is_root)) {
+			struct btree_iter iter;
+			bch2_trans_node_iter_init(trans, &iter, btree, new->k.p, 0, level,
+						  BTREE_ITER_intent|BTREE_ITER_all_snapshots);
+			ret =   bch2_btree_iter_traverse(trans, &iter) ?:
+				bch2_trans_update(trans, &iter, new,
+						  BTREE_UPDATE_internal_snapshot_node|
+						  BTREE_TRIGGER_norun);
+			bch2_trans_iter_exit(trans, &iter);
+			if (ret)
+				goto err;
 
-		if (level)
-			bch2_btree_node_update_key_early(trans, btree, level - 1, k, new);
+			if (level)
+				bch2_btree_node_update_key_early(trans, btree, level - 1, k, new);
+		} else {
+			struct jset_entry *e = bch2_trans_jset_entry_alloc(trans,
+					       jset_u64s(new->k.u64s));
+			ret = PTR_ERR_OR_ZERO(e);
+			if (ret)
+				goto err;
+
+			journal_entry_set(e,
+					  BCH_JSET_ENTRY_btree_root,
+					  btree, level - 1,
+					  new, new->k.u64s);
+
+			/*
+			 * no locking, we're single threaded and not rw yet, see
+			 * the big assertino above that we repeat here:
+			 */
+			BUG_ON(test_bit(BCH_FS_rw, &c->flags));
+
+			struct btree *b = bch2_btree_id_root(c, btree)->b;
+			bkey_copy(&b->key, new);
+		}
 	}
 err:
 	printbuf_exit(&buf);

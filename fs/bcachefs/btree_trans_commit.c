@@ -966,13 +966,26 @@ do_bch2_trans_commit_to_journal_replay(struct btree_trans *trans)
 
 	for (struct jset_entry *i = btree_trans_journal_entries_start(trans);
 	     i != btree_trans_journal_entries_top(trans);
-	     i = vstruct_next(i))
+	     i = vstruct_next(i)) {
 		if (i->type == BCH_JSET_ENTRY_btree_keys ||
 		    i->type == BCH_JSET_ENTRY_write_buffer_keys) {
-			int ret = bch2_journal_key_insert(c, i->btree_id, i->level, i->start);
-			if (ret)
-				return ret;
+			jset_entry_for_each_key(i, k) {
+				int ret = bch2_journal_key_insert(c, i->btree_id, i->level, k);
+				if (ret)
+					return ret;
+			}
 		}
+
+		if (i->type == BCH_JSET_ENTRY_btree_root) {
+			guard(mutex)(&c->btree_root_lock);
+
+			struct btree_root *r = bch2_btree_id_root(c, i->btree_id);
+
+			bkey_copy(&r->key, i->start);
+			r->level = i->level;
+			r->alive = true;
+		}
+	}
 
 	for (struct bkey_i *i = btree_trans_subbuf_base(trans, &trans->accounting);
 	     i != btree_trans_subbuf_top(trans, &trans->accounting);
