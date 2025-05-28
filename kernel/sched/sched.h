@@ -1294,11 +1294,7 @@ static inline struct rq *rq_of(struct cfs_rq *cfs_rq)
 
 static inline int cpu_of(struct rq *rq)
 {
-#ifdef CONFIG_SMP
 	return rq->cpu;
-#else
-	return 0;
-#endif
 }
 
 #define MDF_PUSH		0x01
