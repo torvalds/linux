@@ -36,6 +36,15 @@
 		enable-active-high;
 	};
 
+	reg_audio_pwr: regulator-wm8962-pwr {
+		compatible = "regulator-fixed";
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "audio-pwr";
+		gpio = <&pcal6416_i2c3_u171 12 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	reserved-memory {
 		ranges;
 		#address-cells = <2>;
@@ -48,6 +57,21 @@
 			size = <0 0x10000000>;
 			linux,cma-default;
 		};
+	};
+
+	sound-wm8962 {
+		compatible = "fsl,imx-audio-wm8962";
+		audio-codec = <&wm8962>;
+		audio-cpu = <&sai1>;
+		audio-routing = "Headphone Jack", "HPOUTL",
+			"Headphone Jack", "HPOUTR",
+			"Ext Spk", "SPKOUTL",
+			"Ext Spk", "SPKOUTR",
+			"AMIC", "MICBIAS",
+			"IN3R", "AMIC",
+			"IN1R", "AMIC";
+		hp-det-gpio = <&pcal6416_i2c3_u48 14 GPIO_ACTIVE_HIGH>;
+		model = "wm8962-audio";
 	};
 
 	memory@80000000 {
@@ -103,6 +127,28 @@
 			reg = <4>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			wm8962: codec@1a {
+				compatible = "wlf,wm8962";
+				reg = <0x1a>;
+				clocks = <&scmi_clk IMX94_CLK_SAI1>;
+				AVDD-supply = <&reg_audio_pwr>;
+				CPVDD-supply = <&reg_audio_pwr>;
+				DBVDD-supply = <&reg_audio_pwr>;
+				DCVDD-supply = <&reg_audio_pwr>;
+				gpio-cfg = <
+					0x0000 /* 0:Default */
+					0x0000 /* 1:Default */
+					0x0000 /* 2:FN_DMICCLK */
+					0x0000 /* 3:Default */
+					0x0000 /* 4:FN_DMICCDAT */
+					0x0000 /* 5:Default */
+				>;
+				MICVDD-supply = <&reg_audio_pwr>;
+				PLLVDD-supply = <&reg_audio_pwr>;
+				SPKVDD1-supply = <&reg_audio_pwr>;
+				SPKVDD2-supply = <&reg_audio_pwr>;
+			};
 		};
 
 		i2c@5 {
@@ -128,6 +174,12 @@
 				reg = <0x21>;
 				#gpio-cells = <2>;
 				gpio-controller;
+
+				audio-pwren-hog {
+					gpios = <12 GPIO_ACTIVE_HIGH>;
+					gpio-hog;
+					output-high;
+				};
 			};
 		};
 
@@ -262,6 +314,23 @@
 	status = "okay";
 };
 
+&sai1 {
+	assigned-clocks = <&scmi_clk IMX94_CLK_AUDIOPLL1_VCO>,
+			  <&scmi_clk IMX94_CLK_AUDIOPLL2_VCO>,
+			  <&scmi_clk IMX94_CLK_AUDIOPLL1>,
+			  <&scmi_clk IMX94_CLK_AUDIOPLL2>,
+			  <&scmi_clk IMX94_CLK_SAI1>;
+	assigned-clock-parents = <0>, <0>, <0>, <0>,
+				 <&scmi_clk IMX94_CLK_AUDIOPLL1>;
+	assigned-clock-rates = <3932160000>,
+			       <3612672000>, <393216000>,
+			       <361267200>, <12288000>;
+	pinctrl-0 = <&pinctrl_sai1>;
+	pinctrl-names = "default";
+	fsl,sai-mclk-direction-output;
+	status = "okay";
+};
+
 &scmi_iomuxc {
 
 	pinctrl_ioexpander_int2: ioexpanderint2grp {
@@ -294,6 +363,16 @@
 		fsl,pins = <
 			IMX94_PAD_GPIO_IO29__LPI2C6_SDA		0x40000b9e
 			IMX94_PAD_GPIO_IO28__LPI2C6_SCL		0x40000b9e
+		>;
+	};
+
+	pinctrl_sai1: sai1grp {
+		fsl,pins = <
+			IMX94_PAD_SAI1_TXFS__SAI1_TX_SYNC	0x31e
+			IMX94_PAD_SAI1_TXC__SAI1_TX_BCLK	0x31e
+			IMX94_PAD_SAI1_TXD0__SAI1_TX_DATA0	0x31e
+			IMX94_PAD_SAI1_RXD0__SAI1_RX_DATA0	0x31e
+			IMX94_PAD_I2C2_SDA__SAI1_MCLK		0x31e
 		>;
 	};
 
