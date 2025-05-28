@@ -37,6 +37,7 @@
 #include "rebalance.h"
 #include "recovery_passes.h"
 #include "replicas.h"
+#include "sb-errors.h"
 #include "super-io.h"
 #include "tests.h"
 
@@ -172,6 +173,7 @@ read_attribute(btree_write_stats);
 
 read_attribute(btree_cache_size);
 read_attribute(compression_stats);
+read_attribute(errors);
 read_attribute(journal_debug);
 read_attribute(btree_cache);
 read_attribute(btree_key_cache);
@@ -353,6 +355,9 @@ SHOW(bch2_fs)
 	if (attr == &sysfs_compression_stats)
 		bch2_compression_stats_to_text(out, c);
 
+	if (attr == &sysfs_errors)
+		bch2_fs_errors_to_text(out, c);
+
 	if (attr == &sysfs_new_stripes)
 		bch2_new_stripes_to_text(out, c);
 
@@ -483,6 +488,7 @@ struct attribute *bch2_fs_files[] = {
 	&sysfs_recovery_status,
 
 	&sysfs_compression_stats,
+	&sysfs_errors,
 
 #ifdef CONFIG_BCACHEFS_TESTS
 	&sysfs_perf_test,
