@@ -432,7 +432,6 @@ void cpu_startup_entry(enum cpuhp_state state)
  * idle-task scheduling class.
  */
 
-#ifdef CONFIG_SMP
 static int
 select_task_rq_idle(struct task_struct *p, int cpu, int flags)
 {
@@ -444,7 +443,6 @@ balance_idle(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 {
 	return WARN_ON_ONCE(1);
 }
-#endif /* CONFIG_SMP */
 
 /*
  * Idle tasks are unconditionally rescheduled:
@@ -531,11 +529,9 @@ DEFINE_SCHED_CLASS(idle) = {
 	.put_prev_task		= put_prev_task_idle,
 	.set_next_task          = set_next_task_idle,
 
-#ifdef CONFIG_SMP
 	.balance		= balance_idle,
 	.select_task_rq		= select_task_rq_idle,
 	.set_cpus_allowed	= set_cpus_allowed_common,
-#endif
 
 	.task_tick		= task_tick_idle,
 
