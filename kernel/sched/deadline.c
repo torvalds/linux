@@ -55,7 +55,7 @@ static int __init sched_dl_sysctl_init(void)
 	return 0;
 }
 late_initcall(sched_dl_sysctl_init);
-#endif
+#endif /* CONFIG_SYSCTL */
 
 static bool dl_server(struct sched_dl_entity *dl_se)
 {
@@ -103,7 +103,7 @@ static inline bool is_dl_boosted(struct sched_dl_entity *dl_se)
 {
 	return pi_of(dl_se) != dl_se;
 }
-#else
+#else /* !CONFIG_RT_MUTEXES: */
 static inline struct sched_dl_entity *pi_of(struct sched_dl_entity *dl_se)
 {
 	return dl_se;
@@ -113,7 +113,7 @@ static inline bool is_dl_boosted(struct sched_dl_entity *dl_se)
 {
 	return false;
 }
-#endif
+#endif /* !CONFIG_RT_MUTEXES */
 
 #ifdef CONFIG_SMP
 static inline struct dl_bw *dl_bw_of(int i)
@@ -195,7 +195,7 @@ void __dl_update(struct dl_bw *dl_b, s64 bw)
 		rq->dl.extra_bw += bw;
 	}
 }
-#else
+#else /* !CONFIG_SMP: */
 static inline struct dl_bw *dl_bw_of(int i)
 {
 	return &cpu_rq(i)->dl.dl_bw;
@@ -223,7 +223,7 @@ void __dl_update(struct dl_bw *dl_b, s64 bw)
 
 	dl->extra_bw += bw;
 }
-#endif
+#endif /* !CONFIG_SMP */
 
 static inline
 void __dl_sub(struct dl_bw *dl_b, u64 tsk_bw, int cpus)
@@ -757,7 +757,7 @@ static struct rq *dl_task_offline_migration(struct rq *rq, struct task_struct *p
 	return later_rq;
 }
 
-#else
+#else /* !CONFIG_SMP: */
 
 static inline
 void enqueue_pushable_dl_task(struct rq *rq, struct task_struct *p)
@@ -786,7 +786,7 @@ static inline void deadline_queue_push_tasks(struct rq *rq)
 static inline void deadline_queue_pull_task(struct rq *rq)
 {
 }
-#endif /* CONFIG_SMP */
+#endif /* !CONFIG_SMP */
 
 static void
 enqueue_dl_entity(struct sched_dl_entity *dl_se, int flags);
@@ -1213,7 +1213,7 @@ static void __push_dl_task(struct rq *rq, struct rq_flags *rf)
 		push_dl_task(rq);
 		rq_repin_lock(rq, rf);
 	}
-#endif
+#endif /* CONFIG_SMP */
 }
 
 /* a defer timer will not be reset if the runtime consumed was < dl_server_min_res */
@@ -1360,7 +1360,7 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 		 * there.
 		 */
 	}
-#endif
+#endif /* CONFIG_SMP */
 
 	enqueue_task_dl(rq, p, ENQUEUE_REPLENISH);
 	if (dl_task(rq->donor))
@@ -1602,7 +1602,7 @@ throttle:
 			rt_rq->rt_time += delta_exec;
 		raw_spin_unlock(&rt_rq->rt_runtime_lock);
 	}
-#endif
+#endif /* CONFIG_RT_GROUP_SCHED */
 }
 
 /*
@@ -1885,12 +1885,12 @@ static void dec_dl_deadline(struct dl_rq *dl_rq, u64 deadline)
 	}
 }
 
-#else
+#else /* !CONFIG_SMP: */
 
 static inline void inc_dl_deadline(struct dl_rq *dl_rq, u64 deadline) {}
 static inline void dec_dl_deadline(struct dl_rq *dl_rq, u64 deadline) {}
 
-#endif /* CONFIG_SMP */
+#endif /* !CONFIG_SMP */
 
 static inline
 void inc_dl_tasks(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
@@ -2379,11 +2379,11 @@ static void start_hrtick_dl(struct rq *rq, struct sched_dl_entity *dl_se)
 {
 	hrtick_start(rq, dl_se->runtime);
 }
-#else /* !CONFIG_SCHED_HRTICK */
+#else /* !CONFIG_SCHED_HRTICK: */
 static void start_hrtick_dl(struct rq *rq, struct sched_dl_entity *dl_se)
 {
 }
-#endif
+#endif /* !CONFIG_SCHED_HRTICK */
 
 static void set_next_task_dl(struct rq *rq, struct task_struct *p, bool first)
 {
@@ -3125,13 +3125,13 @@ static void prio_changed_dl(struct rq *rq, struct task_struct *p,
 		    dl_time_before(p->dl.deadline, rq->curr->dl.deadline))
 			resched_curr(rq);
 	}
-#else
+#else /* !CONFIG_SMP: */
 	/*
 	 * We don't know if p has a earlier or later deadline, so let's blindly
 	 * set a (maybe not needed) rescheduling point.
 	 */
 	resched_curr(rq);
-#endif
+#endif /* !CONFIG_SMP */
 }
 
 #ifdef CONFIG_SCHED_CORE
@@ -3162,7 +3162,7 @@ DEFINE_SCHED_CLASS(dl) = {
 	.rq_offline             = rq_offline_dl,
 	.task_woken		= task_woken_dl,
 	.find_lock_rq		= find_lock_later_rq,
-#endif
+#endif /* CONFIG_SMP */
 
 	.task_tick		= task_tick_dl,
 	.task_fork              = task_fork_dl,
@@ -3574,7 +3574,7 @@ void dl_bw_free(int cpu, u64 dl_bw)
 {
 	dl_bw_manage(dl_bw_req_free, cpu, dl_bw);
 }
-#endif
+#endif /* CONFIG_SMP */
 
 void print_dl_stats(struct seq_file *m, int cpu)
 {
