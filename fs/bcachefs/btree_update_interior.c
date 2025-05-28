@@ -1244,7 +1244,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 		if (bch2_err_matches(ret, ENOSPC) &&
 		    (flags & BCH_TRANS_COMMIT_journal_reclaim) &&
 		    watermark < BCH_WATERMARK_reclaim) {
-			ret = -BCH_ERR_journal_reclaim_would_deadlock;
+			ret = bch_err_throw(c, journal_reclaim_would_deadlock);
 			goto err;
 		}
 
@@ -2177,7 +2177,7 @@ static int get_iter_to_node(struct btree_trans *trans, struct btree_iter *iter,
 	if (btree_iter_path(trans, iter)->l[b->c.level].b != b) {
 		/* node has been freed: */
 		BUG_ON(!btree_node_dying(b));
-		ret = -BCH_ERR_btree_node_dying;
+		ret = bch_err_throw(trans->c, btree_node_dying);
 		goto err;
 	}
 
@@ -2791,16 +2791,16 @@ int bch2_fs_btree_interior_update_init(struct bch_fs *c)
 	c->btree_interior_update_worker =
 		alloc_workqueue("btree_update", WQ_UNBOUND|WQ_MEM_RECLAIM, 8);
 	if (!c->btree_interior_update_worker)
-		return -BCH_ERR_ENOMEM_btree_interior_update_worker_init;
+		return bch_err_throw(c, ENOMEM_btree_interior_update_worker_init);
 
 	c->btree_node_rewrite_worker =
 		alloc_ordered_workqueue("btree_node_rewrite", WQ_UNBOUND);
 	if (!c->btree_node_rewrite_worker)
-		return -BCH_ERR_ENOMEM_btree_interior_update_worker_init;
+		return bch_err_throw(c, ENOMEM_btree_interior_update_worker_init);
 
 	if (mempool_init_kmalloc_pool(&c->btree_interior_update_pool, 1,
 				      sizeof(struct btree_update)))
-		return -BCH_ERR_ENOMEM_btree_interior_update_pool_init;
+		return bch_err_throw(c, ENOMEM_btree_interior_update_pool_init);
 
 	return 0;
 }

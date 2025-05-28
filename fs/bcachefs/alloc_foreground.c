@@ -227,7 +227,7 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c,
 
 		track_event_change(&c->times[BCH_TIME_blocked_allocate_open_bucket], true);
 		spin_unlock(&c->freelist_lock);
-		return ERR_PTR(-BCH_ERR_open_buckets_empty);
+		return ERR_PTR(bch_err_throw(c, open_buckets_empty));
 	}
 
 	/* Recheck under lock: */
@@ -533,7 +533,7 @@ again:
 
 		track_event_change(&c->times[BCH_TIME_blocked_allocate], true);
 
-		ob = ERR_PTR(-BCH_ERR_freelist_empty);
+		ob = ERR_PTR(bch_err_throw(c, freelist_empty));
 		goto err;
 	}
 
@@ -558,7 +558,7 @@ alloc:
 	}
 err:
 	if (!ob)
-		ob = ERR_PTR(-BCH_ERR_no_buckets_found);
+		ob = ERR_PTR(bch_err_throw(c, no_buckets_found));
 
 	if (!IS_ERR(ob))
 		ob->data_type = req->data_type;
@@ -709,7 +709,7 @@ inline int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 				       struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
-	int ret = -BCH_ERR_insufficient_devices;
+	int ret = 0;
 
 	BUG_ON(req->nr_effective >= req->nr_replicas);
 
@@ -738,13 +738,16 @@ inline int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 			continue;
 		}
 
-		if (add_new_bucket(c, req, ob)) {
-			ret = 0;
+		ret = add_new_bucket(c, req, ob);
+		if (ret)
 			break;
-		}
 	}
 
-	return ret;
+	if (ret == 1)
+		return 0;
+	if (ret)
+		return ret;
+	return bch_err_throw(c, insufficient_devices);
 }
 
 /* Allocate from stripes: */
@@ -1373,11 +1376,11 @@ err:
 		goto retry;
 
 	if (cl && bch2_err_matches(ret, BCH_ERR_open_buckets_empty))
-		ret = -BCH_ERR_bucket_alloc_blocked;
+		ret = bch_err_throw(c, bucket_alloc_blocked);
 
 	if (cl && !(flags & BCH_WRITE_alloc_nowait) &&
 	    bch2_err_matches(ret, BCH_ERR_freelist_empty))
-		ret = -BCH_ERR_bucket_alloc_blocked;
+		ret = bch_err_throw(c, bucket_alloc_blocked);
 
 	return ret;
 }

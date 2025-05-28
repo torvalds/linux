@@ -443,7 +443,7 @@ static int do_rebalance_extent(struct moving_context *ctxt,
 		if (bch2_err_matches(ret, ENOMEM)) {
 			/* memory allocation failure, wait for some IO to finish */
 			bch2_move_ctxt_wait_for_io(ctxt);
-			ret = -BCH_ERR_transaction_restart_nested;
+			ret = bch_err_throw(c, transaction_restart_nested);
 		}
 
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
@@ -795,7 +795,7 @@ static int check_rebalance_work_one(struct btree_trans *trans,
 				     BTREE_ID_extents, POS_MIN,
 				     BTREE_ITER_prefetch|
 				     BTREE_ITER_all_snapshots);
-		return -BCH_ERR_transaction_restart_nested;
+		return bch_err_throw(c, transaction_restart_nested);
 	}
 
 	if (!extent_k.k && !rebalance_k.k)

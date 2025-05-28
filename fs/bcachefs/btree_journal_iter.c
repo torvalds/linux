@@ -292,7 +292,7 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 		if (!new_keys.data) {
 			bch_err(c, "%s: error allocating new key array (size %zu)",
 				__func__, new_keys.size);
-			return -BCH_ERR_ENOMEM_journal_key_insert;
+			return bch_err_throw(c, ENOMEM_journal_key_insert);
 		}
 
 		/* Since @keys was full, there was no gap: */
@@ -331,7 +331,7 @@ int bch2_journal_key_insert(struct bch_fs *c, enum btree_id id,
 
 	n = kmalloc(bkey_bytes(&k->k), GFP_KERNEL);
 	if (!n)
-		return -BCH_ERR_ENOMEM_journal_key_insert;
+		return bch_err_throw(c, ENOMEM_journal_key_insert);
 
 	bkey_copy(n, k);
 	ret = bch2_journal_key_insert_take(c, id, level, n);
@@ -736,7 +736,7 @@ int bch2_journal_keys_sort(struct bch_fs *c)
 				if (keys->nr * 8 > keys->size * 7) {
 					bch_err(c, "Too many journal keys for slowpath; have %zu compacted, buf size %zu, processed %zu keys at seq %llu",
 						keys->nr, keys->size, nr_read, le64_to_cpu(i->j.seq));
-					return -BCH_ERR_ENOMEM_journal_keys_sort;
+					return bch_err_throw(c, ENOMEM_journal_keys_sort);
 				}
 
 				BUG_ON(darray_push(keys, n));

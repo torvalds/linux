@@ -193,7 +193,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 	bool have_dirty_ptrs = false, have_pick = false;
 
 	if (k.k->type == KEY_TYPE_error)
-		return -BCH_ERR_key_type_error;
+		return bch_err_throw(c, key_type_error);
 
 	rcu_read_lock();
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
@@ -286,17 +286,17 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 	if (!have_dirty_ptrs)
 		return 0;
 	if (have_missing_devs)
-		return -BCH_ERR_no_device_to_read_from;
+		return bch_err_throw(c, no_device_to_read_from);
 	if (have_csum_errors)
-		return -BCH_ERR_data_read_csum_err;
+		return bch_err_throw(c, data_read_csum_err);
 	if (have_io_errors)
-		return -BCH_ERR_data_read_io_err;
+		return bch_err_throw(c, data_read_io_err);
 
 	/*
 	 * If we get here, we have pointers (bkey_ptrs_validate() ensures that),
 	 * but they don't point to valid devices:
 	 */
-	return -BCH_ERR_no_devices_valid;
+	return bch_err_throw(c, no_devices_valid);
 }
 
 /* KEY_TYPE_btree_ptr: */
@@ -1515,7 +1515,7 @@ int bch2_bkey_ptrs_validate(struct bch_fs *c, struct bkey_s_c k,
 				struct bch_compression_opt opt = __bch2_compression_decode(r->compression);
 				prt_printf(err, "invalid compression opt %u:%u",
 					   opt.type, opt.level);
-				return -BCH_ERR_invalid_bkey;
+				return bch_err_throw(c, invalid_bkey);
 			}
 #endif
 			break;

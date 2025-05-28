@@ -100,10 +100,10 @@ int __bch2_topology_error(struct bch_fs *c, struct printbuf *out)
 	set_bit(BCH_FS_topology_error, &c->flags);
 	if (!test_bit(BCH_FS_in_recovery, &c->flags)) {
 		__bch2_inconsistent_error(c, out);
-		return -BCH_ERR_btree_need_topology_repair;
+		return bch_err_throw(c, btree_need_topology_repair);
 	} else {
 		return bch2_run_explicit_recovery_pass(c, out, BCH_RECOVERY_PASS_check_topology, 0) ?:
-			-BCH_ERR_btree_node_read_validate_error;
+			bch_err_throw(c, btree_node_read_validate_error);
 	}
 }
 
@@ -403,23 +403,23 @@ int bch2_fsck_err_opt(struct bch_fs *c,
 
 	if (test_bit(BCH_FS_in_fsck, &c->flags)) {
 		if (!(flags & (FSCK_CAN_FIX|FSCK_CAN_IGNORE)))
-			return -BCH_ERR_fsck_repair_unimplemented;
+			return bch_err_throw(c, fsck_repair_unimplemented);
 
 		switch (c->opts.fix_errors) {
 		case FSCK_FIX_exit:
-			return -BCH_ERR_fsck_errors_not_fixed;
+			return bch_err_throw(c, fsck_errors_not_fixed);
 		case FSCK_FIX_yes:
 			if (flags & FSCK_CAN_FIX)
-				return -BCH_ERR_fsck_fix;
+				return bch_err_throw(c, fsck_fix);
 			fallthrough;
 		case FSCK_FIX_no:
 			if (flags & FSCK_CAN_IGNORE)
-				return -BCH_ERR_fsck_ignore;
-			return -BCH_ERR_fsck_errors_not_fixed;
+				return bch_err_throw(c, fsck_ignore);
+			return bch_err_throw(c, fsck_errors_not_fixed);
 		case FSCK_FIX_ask:
 			if (flags & FSCK_AUTOFIX)
-				return -BCH_ERR_fsck_fix;
-			return -BCH_ERR_fsck_ask;
+				return bch_err_throw(c, fsck_fix);
+			return bch_err_throw(c, fsck_ask);
 		default:
 			BUG();
 		}
@@ -427,12 +427,12 @@ int bch2_fsck_err_opt(struct bch_fs *c,
 		if ((flags & FSCK_AUTOFIX) &&
 		    (c->opts.errors == BCH_ON_ERROR_continue ||
 		     c->opts.errors == BCH_ON_ERROR_fix_safe))
-			return -BCH_ERR_fsck_fix;
+			return bch_err_throw(c, fsck_fix);
 
 		if (c->opts.errors == BCH_ON_ERROR_continue &&
 		    (flags & FSCK_CAN_IGNORE))
-			return -BCH_ERR_fsck_ignore;
-		return -BCH_ERR_fsck_errors_not_fixed;
+			return bch_err_throw(c, fsck_ignore);
+		return bch_err_throw(c, fsck_errors_not_fixed);
 	}
 }
 
@@ -474,8 +474,8 @@ int __bch2_fsck_err(struct bch_fs *c,
 
 	if (test_bit(err, c->sb.errors_silent))
 		return flags & FSCK_CAN_FIX
-			? -BCH_ERR_fsck_fix
-			: -BCH_ERR_fsck_ignore;
+			? bch_err_throw(c, fsck_fix)
+			: bch_err_throw(c, fsck_ignore);
 
 	printbuf_indent_add_nextline(out, 2);
 
@@ -517,10 +517,10 @@ int __bch2_fsck_err(struct bch_fs *c,
 		prt_str(out, ", ");
 		if (flags & FSCK_CAN_FIX) {
 			prt_actioning(out, action);
-			ret = -BCH_ERR_fsck_fix;
+			ret = bch_err_throw(c, fsck_fix);
 		} else {
 			prt_str(out, ", continuing");
-			ret = -BCH_ERR_fsck_ignore;
+			ret = bch_err_throw(c, fsck_ignore);
 		}
 
 		goto print;
@@ -532,18 +532,18 @@ int __bch2_fsck_err(struct bch_fs *c,
 					 "run fsck, and forward to devs so error can be marked for self-healing");
 			inconsistent = true;
 			print = true;
-			ret = -BCH_ERR_fsck_errors_not_fixed;
+			ret = bch_err_throw(c, fsck_errors_not_fixed);
 		} else if (flags & FSCK_CAN_FIX) {
 			prt_str(out, ", ");
 			prt_actioning(out, action);
-			ret = -BCH_ERR_fsck_fix;
+			ret = bch_err_throw(c, fsck_fix);
 		} else {
 			prt_str(out, ", continuing");
-			ret = -BCH_ERR_fsck_ignore;
+			ret = bch_err_throw(c, fsck_ignore);
 		}
 	} else if (c->opts.fix_errors == FSCK_FIX_exit) {
 		prt_str(out, ", exiting");
-		ret = -BCH_ERR_fsck_errors_not_fixed;
+		ret = bch_err_throw(c, fsck_errors_not_fixed);
 	} else if (flags & FSCK_CAN_FIX) {
 		int fix = s && s->fix
 			? s->fix
@@ -562,33 +562,33 @@ int __bch2_fsck_err(struct bch_fs *c,
 					: FSCK_FIX_yes;
 
 			ret = ret & 1
-				? -BCH_ERR_fsck_fix
-				: -BCH_ERR_fsck_ignore;
+				? bch_err_throw(c, fsck_fix)
+				: bch_err_throw(c, fsck_ignore);
 		} else if (fix == FSCK_FIX_yes ||
 			   (c->opts.nochanges &&
 			    !(flags & FSCK_CAN_IGNORE))) {
 			prt_str(out, ", ");
 			prt_actioning(out, action);
-			ret = -BCH_ERR_fsck_fix;
+			ret = bch_err_throw(c, fsck_fix);
 		} else {
 			prt_str(out, ", not ");
 			prt_actioning(out, action);
-			ret = -BCH_ERR_fsck_ignore;
+			ret = bch_err_throw(c, fsck_ignore);
 		}
 	} else {
 		if (flags & FSCK_CAN_IGNORE) {
 			prt_str(out, ", continuing");
-			ret = -BCH_ERR_fsck_ignore;
+			ret = bch_err_throw(c, fsck_ignore);
 		} else {
 			prt_str(out, " (repair unimplemented)");
-			ret = -BCH_ERR_fsck_repair_unimplemented;
+			ret = bch_err_throw(c, fsck_repair_unimplemented);
 		}
 	}
 
 	if (bch2_err_matches(ret, BCH_ERR_fsck_ignore) &&
 	    (c->opts.fix_errors == FSCK_FIX_exit ||
 	     !(flags & FSCK_CAN_IGNORE)))
-		ret = -BCH_ERR_fsck_errors_not_fixed;
+		ret = bch_err_throw(c, fsck_errors_not_fixed);
 
 	if (test_bit(BCH_FS_in_fsck, &c->flags) &&
 	    (!bch2_err_matches(ret, BCH_ERR_fsck_fix) &&
@@ -657,12 +657,12 @@ int __bch2_bkey_fsck_err(struct bch_fs *c,
 			 const char *fmt, ...)
 {
 	if (from.flags & BCH_VALIDATE_silent)
-		return -BCH_ERR_fsck_delete_bkey;
+		return bch_err_throw(c, fsck_delete_bkey);
 
 	unsigned fsck_flags = 0;
 	if (!(from.flags & (BCH_VALIDATE_write|BCH_VALIDATE_commit))) {
 		if (test_bit(err, c->sb.errors_silent))
-			return -BCH_ERR_fsck_delete_bkey;
+			return bch_err_throw(c, fsck_delete_bkey);
 
 		fsck_flags |= FSCK_AUTOFIX|FSCK_CAN_FIX;
 	}

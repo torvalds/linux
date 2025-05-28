@@ -417,7 +417,7 @@ int bch2_sb_downgrade_update(struct bch_fs *c)
 
 	d = bch2_sb_field_resize(&c->disk_sb, downgrade, sb_u64s);
 	if (!d) {
-		ret = -BCH_ERR_ENOSPC_sb_downgrade;
+		ret = bch_err_throw(c, ENOSPC_sb_downgrade);
 		goto out;
 	}
 

@@ -150,7 +150,7 @@ static int set_node_min(struct bch_fs *c, struct btree *b, struct bpos new_min)
 
 	new = kmalloc_array(BKEY_BTREE_PTR_U64s_MAX, sizeof(u64), GFP_KERNEL);
 	if (!new)
-		return -BCH_ERR_ENOMEM_gc_repair_key;
+		return bch_err_throw(c, ENOMEM_gc_repair_key);
 
 	btree_ptr_to_v2(b, new);
 	b->data->min_key	= new_min;
@@ -190,7 +190,7 @@ static int set_node_max(struct bch_fs *c, struct btree *b, struct bpos new_max)
 
 	new = kmalloc_array(BKEY_BTREE_PTR_U64s_MAX, sizeof(u64), GFP_KERNEL);
 	if (!new)
-		return -BCH_ERR_ENOMEM_gc_repair_key;
+		return bch_err_throw(c, ENOMEM_gc_repair_key);
 
 	btree_ptr_to_v2(b, new);
 	b->data->max_key	= new_max;
@@ -935,7 +935,7 @@ static int bch2_gc_alloc_start(struct bch_fs *c)
 		ret = genradix_prealloc(&ca->buckets_gc, ca->mi.nbuckets, GFP_KERNEL);
 		if (ret) {
 			bch2_dev_put(ca);
-			ret = -BCH_ERR_ENOMEM_gc_alloc_start;
+			ret = bch_err_throw(c, ENOMEM_gc_alloc_start);
 			break;
 		}
 	}
@@ -1180,7 +1180,7 @@ int bch2_gc_gens(struct bch_fs *c)
 		ca->oldest_gen = kvmalloc(gens->nbuckets, GFP_KERNEL);
 		if (!ca->oldest_gen) {
 			bch2_dev_put(ca);
-			ret = -BCH_ERR_ENOMEM_gc_gens;
+			ret = bch_err_throw(c, ENOMEM_gc_gens);
 			goto err;
 		}
 

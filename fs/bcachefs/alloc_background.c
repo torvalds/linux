@@ -21,7 +21,6 @@
 #include "error.h"
 #include "lru.h"
 #include "recovery.h"
-#include "trace.h"
 #include "varint.h"
 
 #include <linux/kthread.h>
@@ -866,7 +865,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 
 	struct bch_dev *ca = bch2_dev_bucket_tryget(c, new.k->p);
 	if (!ca)
-		return -BCH_ERR_trigger_alloc;
+		return bch_err_throw(c, trigger_alloc);
 
 	struct bch_alloc_v4 old_a_convert;
 	const struct bch_alloc_v4 *old_a = bch2_alloc_to_v4(old, &old_a_convert);
@@ -1045,7 +1044,7 @@ fsck_err:
 invalid_bucket:
 	bch2_fs_inconsistent(c, "reference to invalid bucket\n%s",
 			     (bch2_bkey_val_to_text(&buf, c, new.s_c), buf.buf));
-	ret = -BCH_ERR_trigger_alloc;
+	ret = bch_err_throw(c, trigger_alloc);
 	goto err;
 }
 
@@ -1459,7 +1458,7 @@ delete:
 		ret =   bch2_btree_bit_mod_iter(trans, iter, false) ?:
 			bch2_trans_commit(trans, NULL, NULL,
 				BCH_TRANS_COMMIT_no_enospc) ?:
-			-BCH_ERR_transaction_restart_commit;
+			bch_err_throw(c, transaction_restart_commit);
 		goto out;
 	} else {
 		/*
@@ -1782,13 +1781,14 @@ int bch2_check_alloc_to_lru_refs(struct bch_fs *c)
 
 static int discard_in_flight_add(struct bch_dev *ca, u64 bucket, bool in_progress)
 {
+	struct bch_fs *c = ca->fs;
 	int ret;
 
 	mutex_lock(&ca->discard_buckets_in_flight_lock);
 	struct discard_in_flight *i =
 		darray_find_p(ca->discard_buckets_in_flight, i, i->bucket == bucket);
 	if (i) {
-		ret = -BCH_ERR_EEXIST_discard_in_flight_add;
+		ret = bch_err_throw(c, EEXIST_discard_in_flight_add);
 		goto out;
 	}
 

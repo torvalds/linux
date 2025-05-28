@@ -261,6 +261,7 @@ struct bkey_s_c bch2_hash_set_or_get_in_snapshot(struct btree_trans *trans,
 			   struct bkey_i *insert,
 			   enum btree_iter_update_trigger_flags flags)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_iter slot = {};
 	struct bkey_s_c k;
 	bool found = false;
@@ -288,7 +289,7 @@ struct bkey_s_c bch2_hash_set_or_get_in_snapshot(struct btree_trans *trans,
 	}
 
 	if (!ret)
-		ret = -BCH_ERR_ENOSPC_str_hash_create;
+		ret = bch_err_throw(c, ENOSPC_str_hash_create);
 out:
 	bch2_trans_iter_exit(trans, &slot);
 	bch2_trans_iter_exit(trans, iter);
@@ -300,7 +301,7 @@ not_found:
 		bch2_trans_iter_exit(trans, &slot);
 		return k;
 	} else if (!found && (flags & STR_HASH_must_replace)) {
-		ret = -BCH_ERR_ENOENT_str_hash_set_must_replace;
+		ret = bch_err_throw(c, ENOENT_str_hash_set_must_replace);
 	} else {
 		if (!found && slot.path)
 			swap(*iter, slot);
@@ -328,7 +329,7 @@ int bch2_hash_set_in_snapshot(struct btree_trans *trans,
 		return ret;
 	if (k.k) {
 		bch2_trans_iter_exit(trans, &iter);
-		return -BCH_ERR_EEXIST_str_hash_set;
+		return bch_err_throw(trans->c, EEXIST_str_hash_set);
 	}
 
 	return 0;

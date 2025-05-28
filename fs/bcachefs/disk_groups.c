@@ -130,7 +130,7 @@ int bch2_sb_disk_groups_to_cpu(struct bch_fs *c)
 
 	cpu_g = kzalloc(struct_size(cpu_g, entries, nr_groups), GFP_KERNEL);
 	if (!cpu_g)
-		return -BCH_ERR_ENOMEM_disk_groups_to_cpu;
+		return bch_err_throw(c, ENOMEM_disk_groups_to_cpu);
 
 	cpu_g->nr = nr_groups;
 

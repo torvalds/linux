@@ -938,7 +938,7 @@ static noinline_for_stack int btree_node_missing_err(struct btree_trans *trans,
 
 	bch2_fs_fatal_error(c, "%s", buf.buf);
 	printbuf_exit(&buf);
-	return -BCH_ERR_btree_need_topology_repair;
+	return bch_err_throw(c, btree_need_topology_repair);
 }
 
 static __always_inline int btree_path_down(struct btree_trans *trans,
@@ -1006,7 +1006,7 @@ static int bch2_btree_path_traverse_all(struct btree_trans *trans)
 	int ret = 0;
 
 	if (trans->in_traverse_all)
-		return -BCH_ERR_transaction_restart_in_traverse_all;
+		return bch_err_throw(c, transaction_restart_in_traverse_all);
 
 	trans->in_traverse_all = true;
 retry_all:

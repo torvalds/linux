@@ -593,7 +593,7 @@ int bch2_subvolume_create(struct btree_trans *trans, u64 inode,
 	ret = bch2_bkey_get_empty_slot(trans, &dst_iter,
 				BTREE_ID_subvolumes, POS(0, U32_MAX));
 	if (ret == -BCH_ERR_ENOSPC_btree_slot)
-		ret = -BCH_ERR_ENOSPC_subvolume_create;
+		ret = bch_err_throw(c, ENOSPC_subvolume_create);
 	if (ret)
 		return ret;
 
@@ -699,8 +699,9 @@ static int __bch2_fs_upgrade_for_subvolumes(struct btree_trans *trans)
 		return ret;
 
 	if (!bkey_is_inode(k.k)) {
-		bch_err(trans->c, "root inode not found");
-		ret = -BCH_ERR_ENOENT_inode;
+		struct bch_fs *c = trans->c;
+		bch_err(c, "root inode not found");
+		ret = bch_err_throw(c, ENOENT_inode);
 		goto err;
 	}
 

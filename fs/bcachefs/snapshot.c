@@ -54,7 +54,7 @@ int bch2_snapshot_tree_lookup(struct btree_trans *trans, u32 id,
 					  BTREE_ITER_with_updates, snapshot_tree, s);
 
 	if (bch2_err_matches(ret, ENOENT))
-		ret = -BCH_ERR_ENOENT_snapshot_tree;
+		ret = bch_err_throw(trans->c, ENOENT_snapshot_tree);
 	return ret;
 }
 
@@ -67,7 +67,7 @@ __bch2_snapshot_tree_create(struct btree_trans *trans)
 	struct bkey_i_snapshot_tree *s_t;
 
 	if (ret == -BCH_ERR_ENOSPC_btree_slot)
-		ret = -BCH_ERR_ENOSPC_snapshot_tree;
+		ret = bch_err_throw(trans->c, ENOSPC_snapshot_tree);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -285,7 +285,7 @@ static int bch2_snapshot_table_make_room(struct bch_fs *c, u32 id)
 	mutex_lock(&c->snapshot_table_lock);
 	int ret = snapshot_t_mut(c, id)
 		? 0
-		: -BCH_ERR_ENOMEM_mark_snapshot;
+		: bch_err_throw(c, ENOMEM_mark_snapshot);
 	mutex_unlock(&c->snapshot_table_lock);
 	return ret;
 }
@@ -304,7 +304,7 @@ static int __bch2_mark_snapshot(struct btree_trans *trans,
 
 	t = snapshot_t_mut(c, id);
 	if (!t) {
-		ret = -BCH_ERR_ENOMEM_mark_snapshot;
+		ret = bch_err_throw(c, ENOMEM_mark_snapshot);
 		goto err;
 	}
 
@@ -1006,7 +1006,7 @@ int bch2_reconstruct_snapshots(struct bch_fs *c)
 					"snapshot node %u from tree %s missing, recreate?", *id, buf.buf)) {
 				if (t->nr > 1) {
 					bch_err(c, "cannot reconstruct snapshot trees with multiple nodes");
-					ret = -BCH_ERR_fsck_repair_unimplemented;
+					ret = bch_err_throw(c, fsck_repair_unimplemented);
 					goto err;
 				}
 
@@ -1276,7 +1276,7 @@ static int create_snapids(struct btree_trans *trans, u32 parent, u32 tree,
 			goto err;
 
 		if (!k.k || !k.k->p.offset) {
-			ret = -BCH_ERR_ENOSPC_snapshot_create;
+			ret = bch_err_throw(c, ENOSPC_snapshot_create);
 			goto err;
 		}
 

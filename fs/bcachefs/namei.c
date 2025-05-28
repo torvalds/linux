@@ -287,7 +287,7 @@ int bch2_unlink_trans(struct btree_trans *trans,
 	}
 
 	if (deleting_subvol && !inode_u->bi_subvol) {
-		ret = -BCH_ERR_ENOENT_not_subvol;
+		ret = bch_err_throw(c, ENOENT_not_subvol);
 		goto err;
 	}
 
@@ -633,7 +633,7 @@ static int __bch2_inum_to_path(struct btree_trans *trans,
 			break;
 
 		if (!inode.bi_dir && !inode.bi_dir_offset) {
-			ret = -BCH_ERR_ENOENT_inode_no_backpointer;
+			ret = bch_err_throw(trans->c, ENOENT_inode_no_backpointer);
 			goto disconnected;
 		}
 

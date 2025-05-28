@@ -971,7 +971,7 @@ static int __bch2_move_data_phys(struct moving_context *ctxt,
 		if (data_opts.scrub &&
 		    !bch2_dev_idx_is_online(c, data_opts.read_dev)) {
 			bch2_trans_iter_exit(trans, &iter);
-			ret = -BCH_ERR_device_offline;
+			ret = bch_err_throw(c, device_offline);
 			break;
 		}
 

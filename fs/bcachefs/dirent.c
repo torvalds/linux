@@ -648,7 +648,7 @@ int bch2_empty_dir_snapshot(struct btree_trans *trans, u64 dir, u32 subvol, u32 
 			struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
 			if (d.v->d_type == DT_SUBVOL && le32_to_cpu(d.v->d_parent_subvol) != subvol)
 				continue;
-			ret = -BCH_ERR_ENOTEMPTY_dir_not_empty;
+			ret = bch_err_throw(trans->c, ENOTEMPTY_dir_not_empty);
 			break;
 		}
 	bch2_trans_iter_exit(trans, &iter);
@@ -737,7 +737,7 @@ static int lookup_first_inode(struct btree_trans *trans, u64 inode_nr,
 		ret = bch2_inode_unpack(k, inode);
 		goto found;
 	}
-	ret = -BCH_ERR_ENOENT_inode;
+	ret = bch_err_throw(trans->c, ENOENT_inode);
 found:
 	bch_err_msg(trans->c, ret, "fetching inode %llu", inode_nr);
 	bch2_trans_iter_exit(trans, &iter);

@@ -618,7 +618,7 @@ static long bch2_ioctl_disk_get_idx(struct bch_fs *c,
 		if (ca->dev == dev)
 			return ca->dev_idx;
 
-	return -BCH_ERR_ENOENT_dev_idx_not_found;
+	return bch_err_throw(c, ENOENT_dev_idx_not_found);
 }
 
 static long bch2_ioctl_disk_resize(struct bch_fs *c,

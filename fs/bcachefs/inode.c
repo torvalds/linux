@@ -1041,7 +1041,7 @@ again:
 		goto found_slot;
 
 	if (!ret && start == min)
-		ret = -BCH_ERR_ENOSPC_inode_create;
+		ret = bch_err_throw(trans->c, ENOSPC_inode_create);
 
 	if (ret) {
 		bch2_trans_iter_exit(trans, iter);
@@ -1161,7 +1161,7 @@ retry:
 		bch2_fs_inconsistent(c,
 				     "inode %llu:%u not found when deleting",
 				     inum.inum, snapshot);
-		ret = -BCH_ERR_ENOENT_inode;
+		ret = bch_err_throw(c, ENOENT_inode);
 		goto err;
 	}
 
@@ -1328,7 +1328,7 @@ retry:
 		bch2_fs_inconsistent(c,
 				     "inode %llu:%u not found when deleting",
 				     inum, snapshot);
-		ret = -BCH_ERR_ENOENT_inode;
+		ret = bch_err_throw(c, ENOENT_inode);
 		goto err;
 	}
 

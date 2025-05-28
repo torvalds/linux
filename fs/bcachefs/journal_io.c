@@ -199,7 +199,7 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 				journal_entry_radix_idx(c, le64_to_cpu(j->seq)),
 				GFP_KERNEL);
 	if (!_i)
-		return -BCH_ERR_ENOMEM_journal_entry_add;
+		return bch_err_throw(c, ENOMEM_journal_entry_add);
 
 	/*
 	 * Duplicate journal entries? If so we want the one that didn't have a
@@ -242,7 +242,7 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 replace:
 	i = kvmalloc(offsetof(struct journal_replay, j) + bytes, GFP_KERNEL);
 	if (!i)
-		return -BCH_ERR_ENOMEM_journal_entry_add;
+		return bch_err_throw(c, ENOMEM_journal_entry_add);
 
 	darray_init(&i->ptrs);
 	i->csum_good		= entry_ptr.csum_good;
@@ -322,7 +322,7 @@ static void journal_entry_err_msg(struct printbuf *out,
 		bch2_sb_error_count(c, BCH_FSCK_ERR_##_err);		\
 		if (bch2_fs_inconsistent(c,				\
 				"corrupt metadata before write: %s\n", _buf.buf)) {\
-			ret = -BCH_ERR_fsck_errors_not_fixed;		\
+			ret = bch_err_throw(c, fsck_errors_not_fixed);		\
 			goto fsck_err;					\
 		}							\
 		break;							\
@@ -1020,19 +1020,19 @@ struct journal_read_buf {
 	size_t		size;
 };
 
-static int journal_read_buf_realloc(struct journal_read_buf *b,
+static int journal_read_buf_realloc(struct bch_fs *c, struct journal_read_buf *b,
 				    size_t new_size)
 {
 	void *n;
 
 	/* the bios are sized for this many pages, max: */
 	if (new_size > JOURNAL_ENTRY_SIZE_MAX)
-		return -BCH_ERR_ENOMEM_journal_read_buf_realloc;
+		return bch_err_throw(c, ENOMEM_journal_read_buf_realloc);
 
 	new_size = roundup_pow_of_two(new_size);
 	n = kvmalloc(new_size, GFP_KERNEL);
 	if (!n)
-		return -BCH_ERR_ENOMEM_journal_read_buf_realloc;
+		return bch_err_throw(c, ENOMEM_journal_read_buf_realloc);
 
 	kvfree(b->data);
 	b->data = n;
@@ -1067,7 +1067,7 @@ reread:
 
 			bio = bio_kmalloc(nr_bvecs, GFP_KERNEL);
 			if (!bio)
-				return -BCH_ERR_ENOMEM_journal_read_bucket;
+				return bch_err_throw(c, ENOMEM_journal_read_bucket);
 			bio_init(bio, ca->disk_sb.bdev, bio->bi_inline_vecs, nr_bvecs, REQ_OP_READ);
 
 			bio->bi_iter.bi_sector = offset;
@@ -1078,7 +1078,7 @@ reread:
 			kfree(bio);
 
 			if (!ret && bch2_meta_read_fault("journal"))
-				ret = -BCH_ERR_EIO_fault_injected;
+				ret = bch_err_throw(c, EIO_fault_injected);
 
 			bch2_account_io_completion(ca, BCH_MEMBER_ERROR_read,
 						   submit_time, !ret);
@@ -1106,7 +1106,7 @@ reread:
 			break;
 		case JOURNAL_ENTRY_REREAD:
 			if (vstruct_bytes(j) > buf->size) {
-				ret = journal_read_buf_realloc(buf,
+				ret = journal_read_buf_realloc(c, buf,
 							vstruct_bytes(j));
 				if (ret)
 					return ret;
@@ -1206,7 +1206,7 @@ static CLOSURE_CALLBACK(bch2_journal_read_device)
 	if (!ja->nr)
 		goto out;
 
-	ret = journal_read_buf_realloc(&buf, PAGE_SIZE);
+	ret = journal_read_buf_realloc(c, &buf, PAGE_SIZE);
 	if (ret)
 		goto err;
 
@@ -1691,7 +1691,7 @@ static CLOSURE_CALLBACK(journal_write_done)
 			       : j->noflush_write_time, j->write_start_time);
 
 	if (!w->devs_written.nr) {
-		err = -BCH_ERR_journal_write_err;
+		err = bch_err_throw(c, journal_write_err);
 	} else {
 		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_journal,
 					 w->devs_written);

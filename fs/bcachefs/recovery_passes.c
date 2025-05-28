@@ -329,7 +329,7 @@ int __bch2_run_explicit_recovery_pass(struct bch_fs *c,
 	    (!in_recovery || r->curr_pass >= BCH_RECOVERY_PASS_set_may_go_rw)) {
 		prt_printf(out, "need recovery pass %s (%u), but already rw\n",
 			   bch2_recovery_passes[pass], pass);
-		ret = -BCH_ERR_cannot_rewind_recovery;
+		ret = bch_err_throw(c, cannot_rewind_recovery);
 		goto out;
 	}
 
@@ -349,7 +349,7 @@ int __bch2_run_explicit_recovery_pass(struct bch_fs *c,
 		if (rewind) {
 			r->next_pass = pass;
 			r->passes_complete &= (1ULL << pass) >> 1;
-			ret = -BCH_ERR_restart_recovery;
+			ret = bch_err_throw(c, restart_recovery);
 		}
 	} else {
 		prt_printf(out, "scheduling recovery pass %s (%u)%s\n",

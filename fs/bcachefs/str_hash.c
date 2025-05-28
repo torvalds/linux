@@ -191,7 +191,7 @@ int bch2_repair_inode_hash_info(struct btree_trans *trans,
 #endif
 		bch2_print_str(c, KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
-		ret = -BCH_ERR_fsck_repair_unimplemented;
+		ret = bch_err_throw(c, fsck_repair_unimplemented);
 		goto err;
 	}
 

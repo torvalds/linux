@@ -101,7 +101,7 @@ static int sb_members_v2_resize_entries(struct bch_fs *c)
 
 		mi = bch2_sb_field_resize(&c->disk_sb, members_v2, u64s);
 		if (!mi)
-			return -BCH_ERR_ENOSPC_sb_members_v2;
+			return bch_err_throw(c, ENOSPC_sb_members_v2);
 
 		for (int i = c->disk_sb.sb->nr_devices - 1; i >= 0; --i) {
 			void *dst = (void *) mi->_members + (i * sizeof(struct bch_member));

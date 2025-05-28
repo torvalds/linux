@@ -587,7 +587,7 @@ int bch2_bkey_get_empty_slot(struct btree_trans *trans, struct btree_iter *iter,
 	BUG_ON(k.k->type != KEY_TYPE_deleted);
 
 	if (bkey_gt(k.k->p, end)) {
-		ret = -BCH_ERR_ENOSPC_btree_slot;
+		ret = bch_err_throw(trans->c, ENOSPC_btree_slot);
 		goto err;
 	}
 

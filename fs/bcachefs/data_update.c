@@ -255,7 +255,7 @@ static int data_update_invalid_bkey(struct data_update *m,
 	bch2_print_str(c, KERN_ERR, buf.buf);
 	printbuf_exit(&buf);
 
-	return -BCH_ERR_invalid_bkey;
+	return bch_err_throw(c, invalid_bkey);
 }
 
 static int __bch2_data_update_index_update(struct btree_trans *trans,
@@ -772,7 +772,7 @@ static int can_write_extent(struct bch_fs *c, struct data_update *m)
 {
 	if ((m->op.flags & BCH_WRITE_alloc_nowait) &&
 	    unlikely(c->open_buckets_nr_free <= bch2_open_buckets_reserved(m->op.watermark)))
-		return -BCH_ERR_data_update_done_would_block;
+		return bch_err_throw(c, data_update_done_would_block);
 
 	unsigned target = m->op.flags & BCH_WRITE_only_specified_devs
 		? m->op.target
@@ -802,9 +802,9 @@ static int can_write_extent(struct bch_fs *c, struct data_update *m)
 	}
 
 	if (!nr_replicas)
-		return -BCH_ERR_data_update_done_no_rw_devs;
+		return bch_err_throw(c, data_update_done_no_rw_devs);
 	if (nr_replicas < m->op.nr_replicas)
-		return -BCH_ERR_insufficient_devices;
+		return bch_err_throw(c, insufficient_devices);
 	return 0;
 }
 
@@ -829,14 +829,14 @@ int bch2_data_update_init(struct btree_trans *trans,
 		 */
 		if (unlikely(test_bit(BCH_FS_in_recovery, &c->flags) &&
 			     bch2_snapshot_id_state(c, k.k->p.snapshot) == SNAPSHOT_ID_empty))
-			return -BCH_ERR_data_update_done_no_snapshot;
+			return bch_err_throw(c, data_update_done_no_snapshot);
 
 		ret = bch2_check_key_has_snapshot(trans, iter, k);
 		if (ret < 0)
 			return ret;
 		if (ret) /* key was deleted */
 			return bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc) ?:
-				-BCH_ERR_data_update_done_no_snapshot;
+				bch_err_throw(c, data_update_done_no_snapshot);
 		ret = 0;
 	}
 
@@ -943,7 +943,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 		if (iter)
 			ret = bch2_extent_drop_ptrs(trans, iter, k, io_opts, &m->data_opts);
 		if (!ret)
-			ret = -BCH_ERR_data_update_done_no_writes_needed;
+			ret = bch_err_throw(c, data_update_done_no_writes_needed);
 		goto out_bkey_buf_exit;
 	}
 
@@ -974,19 +974,19 @@ int bch2_data_update_init(struct btree_trans *trans,
 	}
 
 	if (!bkey_get_dev_refs(c, k)) {
-		ret = -BCH_ERR_data_update_done_no_dev_refs;
+		ret = bch_err_throw(c, data_update_done_no_dev_refs);
 		goto out_put_disk_res;
 	}
 
 	if (c->opts.nocow_enabled &&
 	    !bkey_nocow_lock(c, ctxt, ptrs)) {
-		ret = -BCH_ERR_nocow_lock_blocked;
+		ret = bch_err_throw(c, nocow_lock_blocked);
 		goto out_put_dev_refs;
 	}
 
 	if (unwritten) {
 		ret = bch2_update_unwritten_extent(trans, m) ?:
-			-BCH_ERR_data_update_done_unwritten;
+			bch_err_throw(c, data_update_done_unwritten);
 		goto out_nocow_unlock;
 	}
 

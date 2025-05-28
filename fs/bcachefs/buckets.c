@@ -224,7 +224,7 @@ static int bch2_check_fix_ptr(struct btree_trans *trans,
 			switch (g->data_type) {
 			case BCH_DATA_sb:
 				bch_err(c, "btree and superblock in the same bucket - cannot repair");
-				ret = -BCH_ERR_fsck_repair_unimplemented;
+				ret = bch_err_throw(c, fsck_repair_unimplemented);
 				goto out;
 			case BCH_DATA_journal:
 				ret = bch2_dev_journal_bucket_delete(ca, PTR_BUCKET_NR(ca, &p.ptr));
@@ -440,7 +440,7 @@ static int bucket_ref_update_err(struct btree_trans *trans, struct printbuf *buf
 		 * us an error code for rewinding recovery
 		 */
 		if (!ret)
-			ret = -BCH_ERR_bucket_ref_update;
+			ret = bch_err_throw(c, bucket_ref_update);
 	} else {
 		/* Always ignore overwrite errors, so that deletion works */
 		ret = 0;
@@ -632,7 +632,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 	struct bch_dev *ca = bch2_dev_tryget(c, p.ptr.dev);
 	if (unlikely(!ca)) {
 		if (insert && p.ptr.dev != BCH_SB_MEMBER_INVALID)
-			ret = -BCH_ERR_trigger_pointer;
+			ret = bch_err_throw(c, trigger_pointer);
 		goto err;
 	}
 
@@ -640,7 +640,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 	if (!bucket_valid(ca, bucket.offset)) {
 		if (insert) {
 			bch2_dev_bucket_missing(ca, bucket.offset);
-			ret = -BCH_ERR_trigger_pointer;
+			ret = bch_err_throw(c, trigger_pointer);
 		}
 		goto err;
 	}
@@ -662,7 +662,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 		if (bch2_fs_inconsistent_on(!g, c, "reference to invalid bucket on device %u\n  %s",
 					    p.ptr.dev,
 					    (bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
-			ret = -BCH_ERR_trigger_pointer;
+			ret = bch_err_throw(c, trigger_pointer);
 			goto err;
 		}
 
@@ -688,6 +688,8 @@ static int bch2_trigger_stripe_ptr(struct btree_trans *trans,
 				s64 sectors,
 				enum btree_iter_update_trigger_flags flags)
 {
+	struct bch_fs *c = trans->c;
+
 	if (flags & BTREE_TRIGGER_transactional) {
 		struct btree_iter iter;
 		struct bkey_i_stripe *s = bch2_bkey_get_mut_typed(trans, &iter,
@@ -705,7 +707,7 @@ static int bch2_trigger_stripe_ptr(struct btree_trans *trans,
 			bch2_trans_inconsistent(trans,
 				"stripe pointer doesn't match stripe %llu",
 				(u64) p.ec.idx);
-			ret = -BCH_ERR_trigger_stripe_pointer;
+			ret = bch_err_throw(c, trigger_stripe_pointer);
 			goto err;
 		}
 
@@ -725,13 +727,11 @@ err:
 	}
 
 	if (flags & BTREE_TRIGGER_gc) {
-		struct bch_fs *c = trans->c;
-
 		struct gc_stripe *m = genradix_ptr_alloc(&c->gc_stripes, p.ec.idx, GFP_KERNEL);
 		if (!m) {
 			bch_err(c, "error allocating memory for gc_stripes, idx %llu",
 				(u64) p.ec.idx);
-			return -BCH_ERR_ENOMEM_mark_stripe_ptr;
+			return bch_err_throw(c, ENOMEM_mark_stripe_ptr);
 		}
 
 		gc_stripe_lock(m);
@@ -746,7 +746,7 @@ err:
 			__bch2_inconsistent_error(c, &buf);
 			bch2_print_str(c, KERN_ERR, buf.buf);
 			printbuf_exit(&buf);
-			return -BCH_ERR_trigger_stripe_pointer;
+			return bch_err_throw(c, trigger_stripe_pointer);
 		}
 
 		m->block_sectors[p.ec.block] += sectors;
@@ -1014,7 +1014,7 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 		bch2_print_str(c, KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
 		if (!ret)
-			ret = -BCH_ERR_metadata_bucket_inconsistency;
+			ret = bch_err_throw(c, metadata_bucket_inconsistency);
 		goto err;
 	}
 
@@ -1067,7 +1067,7 @@ static int bch2_mark_metadata_bucket(struct btree_trans *trans, struct bch_dev *
 err_unlock:
 	bucket_unlock(g);
 err:
-	return -BCH_ERR_metadata_bucket_inconsistency;
+	return bch_err_throw(c, metadata_bucket_inconsistency);
 }
 
 int bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
@@ -1282,7 +1282,7 @@ recalculate:
 		ret = 0;
 	} else {
 		atomic64_set(&c->sectors_available, sectors_available);
-		ret = -BCH_ERR_ENOSPC_disk_reservation;
+		ret = bch_err_throw(c, ENOSPC_disk_reservation);
 	}
 
 	mutex_unlock(&c->sectors_available_lock);
@@ -1311,7 +1311,7 @@ int bch2_buckets_nouse_alloc(struct bch_fs *c)
 					    GFP_KERNEL|__GFP_ZERO);
 		if (!ca->buckets_nouse) {
 			bch2_dev_put(ca);
-			return -BCH_ERR_ENOMEM_buckets_nouse;
+			return bch_err_throw(c, ENOMEM_buckets_nouse);
 		}
 	}
 
@@ -1336,12 +1336,12 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 		lockdep_assert_held(&c->state_lock);
 
 	if (resize && ca->buckets_nouse)
-		return -BCH_ERR_no_resize_with_buckets_nouse;
+		return bch_err_throw(c, no_resize_with_buckets_nouse);
 
 	bucket_gens = bch2_kvmalloc(struct_size(bucket_gens, b, nbuckets),
 				    GFP_KERNEL|__GFP_ZERO);
 	if (!bucket_gens) {
-		ret = -BCH_ERR_ENOMEM_bucket_gens;
+		ret = bch_err_throw(c, ENOMEM_bucket_gens);
 		goto err;
 	}
 
@@ -1360,9 +1360,9 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 		       sizeof(bucket_gens->b[0]) * copy);
 	}
 
-	ret =   bch2_bucket_bitmap_resize(&ca->bucket_backpointer_mismatch,
+	ret =   bch2_bucket_bitmap_resize(ca, &ca->bucket_backpointer_mismatch,
 					  ca->mi.nbuckets, nbuckets) ?:
-		bch2_bucket_bitmap_resize(&ca->bucket_backpointer_empty,
+		bch2_bucket_bitmap_resize(ca, &ca->bucket_backpointer_empty,
 					  ca->mi.nbuckets, nbuckets);
 
 	rcu_assign_pointer(ca->bucket_gens, bucket_gens);
@@ -1389,7 +1389,7 @@ int bch2_dev_buckets_alloc(struct bch_fs *c, struct bch_dev *ca)
 {
 	ca->usage = alloc_percpu(struct bch_dev_usage_full);
 	if (!ca->usage)
-		return -BCH_ERR_ENOMEM_usage_init;
+		return bch_err_throw(c, ENOMEM_usage_init);
 
 	return bch2_dev_buckets_resize(c, ca, ca->mi.nbuckets);
 }

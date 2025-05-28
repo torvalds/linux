@@ -142,7 +142,7 @@ static noinline int backpointer_mod_err(struct btree_trans *trans,
 	}
 
 	if (!will_check && __bch2_inconsistent_error(c, &buf))
-		ret = -BCH_ERR_erofs_unfixed_errors;
+		ret = bch_err_throw(c, erofs_unfixed_errors);
 
 	bch_err(c, "%s", buf.buf);
 	printbuf_exit(&buf);
@@ -295,7 +295,7 @@ static struct btree *__bch2_backpointer_get_node(struct btree_trans *trans,
 		return b;
 
 	if (btree_node_will_make_reachable(b)) {
-		b = ERR_PTR(-BCH_ERR_backpointer_to_overwritten_btree_node);
+		b = ERR_PTR(bch_err_throw(c, backpointer_to_overwritten_btree_node));
 	} else {
 		int ret = backpointer_target_not_found(trans, bp, bkey_i_to_s_c(&b->key),
 						       last_flushed, commit);
@@ -353,7 +353,7 @@ static struct bkey_s_c __bch2_backpointer_get_key(struct btree_trans *trans,
 		return ret ? bkey_s_c_err(ret) : bkey_s_c_null;
 	} else {
 		struct btree *b = __bch2_backpointer_get_node(trans, bp, iter, last_flushed, commit);
-		if (b == ERR_PTR(-BCH_ERR_backpointer_to_overwritten_btree_node))
+		if (b == ERR_PTR(bch_err_throw(c, backpointer_to_overwritten_btree_node)))
 			return bkey_s_c_null;
 		if (IS_ERR_OR_NULL(b))
 			return ((struct bkey_s_c) { .k = ERR_CAST(b) });
@@ -651,7 +651,7 @@ check_existing_bp:
 	prt_newline(&buf);
 	bch2_bkey_val_to_text(&buf, c, other_extent);
 	bch_err(c, "%s", buf.buf);
-	ret = -BCH_ERR_fsck_repair_unimplemented;
+	ret = bch_err_throw(c, fsck_repair_unimplemented);
 	goto err;
 missing:
 	printbuf_reset(&buf);
@@ -953,7 +953,7 @@ static int check_bucket_backpointer_mismatch(struct btree_trans *trans, struct b
 		    sectors[ALLOC_cached] > a->cached_sectors ||
 		    sectors[ALLOC_stripe] > a->stripe_sectors) {
 			ret = check_bucket_backpointers_to_extents(trans, ca, alloc_k.k->p) ?:
-				-BCH_ERR_transaction_restart_nested;
+				bch_err_throw(c, transaction_restart_nested);
 			goto err;
 		}
 
@@ -1351,7 +1351,7 @@ static int bch2_bucket_bitmap_set(struct bch_dev *ca, struct bucket_bitmap *b, u
 			b->buckets = kvcalloc(BITS_TO_LONGS(ca->mi.nbuckets),
 					      sizeof(unsigned long), GFP_KERNEL);
 			if (!b->buckets)
-				return -BCH_ERR_ENOMEM_backpointer_mismatches_bitmap;
+				return bch_err_throw(ca->fs, ENOMEM_backpointer_mismatches_bitmap);
 		}
 
 		b->nr += !__test_and_set_bit(bit, b->buckets);
@@ -1360,7 +1360,8 @@ static int bch2_bucket_bitmap_set(struct bch_dev *ca, struct bucket_bitmap *b, u
 	return 0;
 }
 
-int bch2_bucket_bitmap_resize(struct bucket_bitmap *b, u64 old_size, u64 new_size)
+int bch2_bucket_bitmap_resize(struct bch_dev *ca, struct bucket_bitmap *b,
+			      u64 old_size, u64 new_size)
 {
 	scoped_guard(mutex, &b->lock) {
 		if (!b->buckets)
@@ -1369,7 +1370,7 @@ int bch2_bucket_bitmap_resize(struct bucket_bitmap *b, u64 old_size, u64 new_siz
 		unsigned long *n = kvcalloc(BITS_TO_LONGS(new_size),
 					    sizeof(unsigned long), GFP_KERNEL);
 		if (!n)
-			return -BCH_ERR_ENOMEM_backpointer_mismatches_bitmap;
+			return bch_err_throw(ca->fs, ENOMEM_backpointer_mismatches_bitmap);
 
 		memcpy(n, b->buckets,
 		       BITS_TO_LONGS(min(old_size, new_size)) * sizeof(unsigned long));
