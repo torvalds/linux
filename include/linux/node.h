@@ -128,14 +128,7 @@ extern void unregister_node(struct node *node);
 #ifdef CONFIG_NUMA
 extern void node_dev_init(void);
 /* Core of the node registration - only memory hotplug should use this */
-extern int __register_one_node(int nid);
-
-/* Registers an online node */
-static inline int register_one_node(int nid)
-{
-	return __register_one_node(nid);
-}
-
+extern int register_one_node(int nid);
 extern void unregister_one_node(int nid);
 extern int register_cpu_under_node(unsigned int cpu, unsigned int nid);
 extern int unregister_cpu_under_node(unsigned int cpu, unsigned int nid);
@@ -147,10 +140,6 @@ extern int register_memory_node_under_compute_node(unsigned int mem_nid,
 #else
 static inline void node_dev_init(void)
 {
-}
-static inline int __register_one_node(int nid)
-{
-	return 0;
 }
 static inline int register_one_node(int nid)
 {
