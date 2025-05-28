@@ -286,7 +286,6 @@ static const struct file_operations sched_dynamic_fops = {
 
 __read_mostly bool sched_debug_verbose;
 
-#ifdef CONFIG_SMP
 static struct dentry           *sd_dentry;
 
 
@@ -314,9 +313,6 @@ static ssize_t sched_verbose_write(struct file *filp, const char __user *ubuf,
 
 	return result;
 }
-#else /* !CONFIG_SMP: */
-# define sched_verbose_write debugfs_write_file_bool
-#endif /* !CONFIG_SMP */
 
 static const struct file_operations sched_verbose_fops = {
 	.read =         debugfs_read_file_bool,
@@ -543,8 +539,6 @@ static __init int sched_init_debug(void)
 }
 late_initcall(sched_init_debug);
 
-#ifdef CONFIG_SMP
-
 static cpumask_var_t		sd_sysctl_cpus;
 
 static int sd_flags_show(struct seq_file *m, void *v)
@@ -654,8 +648,6 @@ void dirty_sched_domain_sysctl(int cpu)
 	if (cpumask_available(sd_sysctl_cpus))
 		__cpumask_set_cpu(cpu, sd_sysctl_cpus);
 }
-
-#endif /* CONFIG_SMP */
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 static void print_cfs_group_stats(struct seq_file *m, int cpu, struct task_group *tg)
@@ -932,11 +924,7 @@ void print_dl_rq(struct seq_file *m, int cpu, struct dl_rq *dl_rq)
 	SEQ_printf(m, "  .%-30s: %lu\n", #x, (unsigned long)(dl_rq->x))
 
 	PU(dl_nr_running);
-#ifdef CONFIG_SMP
 	dl_bw = &cpu_rq(cpu)->rd->dl_bw;
-#else
-	dl_bw = &dl_rq->dl_bw;
-#endif
 	SEQ_printf(m, "  .%-30s: %lld\n", "dl_bw->bw", dl_bw->bw);
 	SEQ_printf(m, "  .%-30s: %lld\n", "dl_bw->total_bw", dl_bw->total_bw);
 

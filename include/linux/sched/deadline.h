@@ -29,14 +29,10 @@ static inline bool dl_time_before(u64 a, u64 b)
 	return (s64)(a - b) < 0;
 }
 
-#ifdef CONFIG_SMP
-
 struct root_domain;
 extern void dl_add_task_root_domain(struct task_struct *p);
 extern void dl_clear_root_domain(struct root_domain *rd);
 extern void dl_clear_root_domain_cpu(int cpu);
-
-#endif /* CONFIG_SMP */
 
 extern u64 dl_cookie;
 extern bool dl_bw_visited(int cpu, u64 cookie);

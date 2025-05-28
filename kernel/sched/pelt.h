@@ -3,7 +3,6 @@
 #define _KERNEL_SCHED_PELT_H
 #include "sched.h"
 
-#ifdef CONFIG_SMP
 #include "sched-pelt.h"
 
 int __update_load_avg_blocked_se(u64 now, struct sched_entity *se);
@@ -186,56 +185,5 @@ static inline u64 cfs_rq_clock_pelt(struct cfs_rq *cfs_rq)
 	return rq_clock_pelt(rq_of(cfs_rq));
 }
 #endif /* !CONFIG_CFS_BANDWIDTH */
-
-#else /* !CONFIG_SMP: */
-
-static inline int
-update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
-{
-	return 0;
-}
-
-static inline int
-update_rt_rq_load_avg(u64 now, struct rq *rq, int running)
-{
-	return 0;
-}
-
-static inline int
-update_dl_rq_load_avg(u64 now, struct rq *rq, int running)
-{
-	return 0;
-}
-
-static inline int
-update_hw_load_avg(u64 now, struct rq *rq, u64 capacity)
-{
-	return 0;
-}
-
-static inline u64 hw_load_avg(struct rq *rq)
-{
-	return 0;
-}
-
-static inline int
-update_irq_load_avg(struct rq *rq, u64 running)
-{
-	return 0;
-}
-
-static inline u64 rq_clock_pelt(struct rq *rq)
-{
-	return rq_clock_task(rq);
-}
-
-static inline void
-update_rq_clock_pelt(struct rq *rq, s64 delta) { }
-
-static inline void
-update_idle_rq_clock_pelt(struct rq *rq) { }
-
-static inline void update_idle_cfs_rq_clock_pelt(struct cfs_rq *cfs_rq) { }
-#endif /* !CONFIG_SMP */
 
 #endif /* _KERNEL_SCHED_PELT_H */

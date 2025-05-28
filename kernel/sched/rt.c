@@ -2454,7 +2454,11 @@ void __init init_sched_rt_class(void)
 					GFP_KERNEL, cpu_to_node(i));
 	}
 }
-#endif /* CONFIG_SMP */
+#else /* !CONFIG_SMP: */
+void __init init_sched_rt_class(void)
+{
+}
+#endif /* !CONFIG_SMP */
 
 /*
  * When switching a task to RT, we may overload the runqueue

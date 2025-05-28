@@ -115,7 +115,6 @@ static inline bool is_dl_boosted(struct sched_dl_entity *dl_se)
 }
 #endif /* !CONFIG_RT_MUTEXES */
 
-#ifdef CONFIG_SMP
 static inline struct dl_bw *dl_bw_of(int i)
 {
 	RCU_LOCKDEP_WARN(!rcu_read_lock_sched_held(),
@@ -195,35 +194,6 @@ void __dl_update(struct dl_bw *dl_b, s64 bw)
 		rq->dl.extra_bw += bw;
 	}
 }
-#else /* !CONFIG_SMP: */
-static inline struct dl_bw *dl_bw_of(int i)
-{
-	return &cpu_rq(i)->dl.dl_bw;
-}
-
-static inline int dl_bw_cpus(int i)
-{
-	return 1;
-}
-
-static inline unsigned long dl_bw_capacity(int i)
-{
-	return SCHED_CAPACITY_SCALE;
-}
-
-bool dl_bw_visited(int cpu, u64 cookie)
-{
-	return false;
-}
-
-static inline
-void __dl_update(struct dl_bw *dl_b, s64 bw)
-{
-	struct dl_rq *dl = container_of(dl_b, struct dl_rq, dl_bw);
-
-	dl->extra_bw += bw;
-}
-#endif /* !CONFIG_SMP */
 
 static inline
 void __dl_sub(struct dl_bw *dl_b, u64 tsk_bw, int cpus)
@@ -556,22 +526,16 @@ void init_dl_rq(struct dl_rq *dl_rq)
 {
 	dl_rq->root = RB_ROOT_CACHED;
 
-#ifdef CONFIG_SMP
 	/* zero means no -deadline tasks */
 	dl_rq->earliest_dl.curr = dl_rq->earliest_dl.next = 0;
 
 	dl_rq->overloaded = 0;
 	dl_rq->pushable_dl_tasks_root = RB_ROOT_CACHED;
-#else
-	init_dl_bw(&dl_rq->dl_bw);
-#endif
 
 	dl_rq->running_bw = 0;
 	dl_rq->this_bw = 0;
 	init_dl_rq_bw_ratio(dl_rq);
 }
-
-#ifdef CONFIG_SMP
 
 static inline int dl_overloaded(struct rq *rq)
 {
@@ -756,37 +720,6 @@ static struct rq *dl_task_offline_migration(struct rq *rq, struct task_struct *p
 
 	return later_rq;
 }
-
-#else /* !CONFIG_SMP: */
-
-static inline
-void enqueue_pushable_dl_task(struct rq *rq, struct task_struct *p)
-{
-}
-
-static inline
-void dequeue_pushable_dl_task(struct rq *rq, struct task_struct *p)
-{
-}
-
-static inline
-void inc_dl_migration(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
-{
-}
-
-static inline
-void dec_dl_migration(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
-{
-}
-
-static inline void deadline_queue_push_tasks(struct rq *rq)
-{
-}
-
-static inline void deadline_queue_pull_task(struct rq *rq)
-{
-}
-#endif /* !CONFIG_SMP */
 
 static void
 enqueue_dl_entity(struct sched_dl_entity *dl_se, int flags);
@@ -1199,7 +1132,6 @@ static int start_dl_timer(struct sched_dl_entity *dl_se)
 
 static void __push_dl_task(struct rq *rq, struct rq_flags *rf)
 {
-#ifdef CONFIG_SMP
 	/*
 	 * Queueing this task back might have overloaded rq, check if we need
 	 * to kick someone away.
@@ -1213,7 +1145,6 @@ static void __push_dl_task(struct rq *rq, struct rq_flags *rf)
 		push_dl_task(rq);
 		rq_repin_lock(rq, rf);
 	}
-#endif /* CONFIG_SMP */
 }
 
 /* a defer timer will not be reset if the runtime consumed was < dl_server_min_res */
@@ -1343,7 +1274,6 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 		goto unlock;
 	}
 
-#ifdef CONFIG_SMP
 	if (unlikely(!rq->online)) {
 		/*
 		 * If the runqueue is no longer available, migrate the
@@ -1360,7 +1290,6 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 		 * there.
 		 */
 	}
-#endif /* CONFIG_SMP */
 
 	enqueue_task_dl(rq, p, ENQUEUE_REPLENISH);
 	if (dl_task(rq->donor))
@@ -1848,8 +1777,6 @@ static void init_dl_inactive_task_timer(struct sched_dl_entity *dl_se)
 #define __node_2_dle(node) \
 	rb_entry((node), struct sched_dl_entity, rb_node)
 
-#ifdef CONFIG_SMP
-
 static void inc_dl_deadline(struct dl_rq *dl_rq, u64 deadline)
 {
 	struct rq *rq = rq_of_dl_rq(dl_rq);
@@ -1884,13 +1811,6 @@ static void dec_dl_deadline(struct dl_rq *dl_rq, u64 deadline)
 		cpudl_set(&rq->rd->cpudl, rq->cpu, entry->deadline);
 	}
 }
-
-#else /* !CONFIG_SMP: */
-
-static inline void inc_dl_deadline(struct dl_rq *dl_rq, u64 deadline) {}
-static inline void dec_dl_deadline(struct dl_rq *dl_rq, u64 deadline) {}
-
-#endif /* !CONFIG_SMP */
 
 static inline
 void inc_dl_tasks(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
@@ -2218,8 +2138,6 @@ static void yield_task_dl(struct rq *rq)
 	rq_clock_skip_update(rq);
 }
 
-#ifdef CONFIG_SMP
-
 static inline bool dl_task_is_earliest_deadline(struct task_struct *p,
 						 struct rq *rq)
 {
@@ -2349,7 +2267,6 @@ static int balance_dl(struct rq *rq, struct task_struct *p, struct rq_flags *rf)
 
 	return sched_stop_runnable(rq) || sched_dl_runnable(rq);
 }
-#endif /* CONFIG_SMP */
 
 /*
  * Only called when both the current and waking task are -deadline
@@ -2363,7 +2280,6 @@ static void wakeup_preempt_dl(struct rq *rq, struct task_struct *p,
 		return;
 	}
 
-#ifdef CONFIG_SMP
 	/*
 	 * In the unlikely case current and p have the same deadline
 	 * let us try to decide what's the best thing to do...
@@ -2371,7 +2287,6 @@ static void wakeup_preempt_dl(struct rq *rq, struct task_struct *p,
 	if ((p->dl.deadline == rq->donor->dl.deadline) &&
 	    !test_tsk_need_resched(rq->curr))
 		check_preempt_equal_dl(rq, p);
-#endif /* CONFIG_SMP */
 }
 
 #ifdef CONFIG_SCHED_HRTICK
@@ -2503,8 +2418,6 @@ static void task_fork_dl(struct task_struct *p)
 	 * sched_fork()
 	 */
 }
-
-#ifdef CONFIG_SMP
 
 /* Only try algorithms three times */
 #define DL_MAX_TRIES 3
@@ -2999,8 +2912,6 @@ void dl_clear_root_domain_cpu(int cpu)
 	dl_clear_root_domain(cpu_rq(cpu)->rd);
 }
 
-#endif /* CONFIG_SMP */
-
 static void switched_from_dl(struct rq *rq, struct task_struct *p)
 {
 	/*
@@ -3073,10 +2984,8 @@ static void switched_to_dl(struct rq *rq, struct task_struct *p)
 	}
 
 	if (rq->donor != p) {
-#ifdef CONFIG_SMP
 		if (p->nr_cpus_allowed > 1 && rq->dl.overloaded)
 			deadline_queue_push_tasks(rq);
-#endif
 		if (dl_task(rq->donor))
 			wakeup_preempt_dl(rq, p, 0);
 		else
@@ -3153,7 +3062,6 @@ DEFINE_SCHED_CLASS(dl) = {
 	.put_prev_task		= put_prev_task_dl,
 	.set_next_task		= set_next_task_dl,
 
-#ifdef CONFIG_SMP
 	.balance		= balance_dl,
 	.select_task_rq		= select_task_rq_dl,
 	.migrate_task_rq	= migrate_task_rq_dl,
@@ -3162,7 +3070,6 @@ DEFINE_SCHED_CLASS(dl) = {
 	.rq_offline             = rq_offline_dl,
 	.task_woken		= task_woken_dl,
 	.find_lock_rq		= find_lock_later_rq,
-#endif /* CONFIG_SMP */
 
 	.task_tick		= task_tick_dl,
 	.task_fork              = task_fork_dl,
@@ -3462,7 +3369,6 @@ bool dl_param_changed(struct task_struct *p, const struct sched_attr *attr)
 	return false;
 }
 
-#ifdef CONFIG_SMP
 int dl_cpuset_cpumask_can_shrink(const struct cpumask *cur,
 				 const struct cpumask *trial)
 {
@@ -3574,7 +3480,6 @@ void dl_bw_free(int cpu, u64 dl_bw)
 {
 	dl_bw_manage(dl_bw_req_free, cpu, dl_bw);
 }
-#endif /* CONFIG_SMP */
 
 void print_dl_stats(struct seq_file *m, int cpu)
 {
