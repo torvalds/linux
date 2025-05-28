@@ -7366,7 +7366,7 @@ static int nl80211_dump_station(struct sk_buff *skb,
 	struct wireless_dev *wdev;
 	u8 mac_addr[ETH_ALEN];
 	int sta_idx = cb->args[2];
-	int err;
+	int err, i;
 
 	err = nl80211_prepare_wdev_dump(cb, &rdev, &wdev, NULL);
 	if (err)
@@ -7386,6 +7386,16 @@ static int nl80211_dump_station(struct sk_buff *skb,
 
 	while (1) {
 		memset(&sinfo, 0, sizeof(sinfo));
+
+		for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
+			sinfo.links[i] =
+				kzalloc(sizeof(*sinfo.links[0]), GFP_KERNEL);
+			if (!sinfo.links[i]) {
+				err = -ENOMEM;
+				goto out_err;
+			}
+		}
+
 		err = rdev_dump_station(rdev, wdev->netdev, sta_idx,
 					mac_addr, &sinfo);
 		if (err == -ENOENT)
@@ -7410,6 +7420,7 @@ static int nl80211_dump_station(struct sk_buff *skb,
 	cb->args[2] = sta_idx;
 	err = skb->len;
  out_err:
+	cfg80211_sinfo_release_content(&sinfo);
 	wiphy_unlock(&rdev->wiphy);
 
 	return err;
@@ -7422,7 +7433,7 @@ static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
 	struct station_info sinfo;
 	struct sk_buff *msg;
 	u8 *mac_addr = NULL;
-	int err;
+	int err, i;
 
 	memset(&sinfo, 0, sizeof(sinfo));
 
@@ -7434,9 +7445,19 @@ static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
 	if (!rdev->ops->get_station)
 		return -EOPNOTSUPP;
 
+	for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
+		sinfo.links[i] = kzalloc(sizeof(*sinfo.links[0]), GFP_KERNEL);
+		if (!sinfo.links[i]) {
+			cfg80211_sinfo_release_content(&sinfo);
+			return -ENOMEM;
+		}
+	}
+
 	err = rdev_get_station(rdev, dev, mac_addr, &sinfo);
-	if (err)
+	if (err) {
+		cfg80211_sinfo_release_content(&sinfo);
 		return err;
+	}
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
