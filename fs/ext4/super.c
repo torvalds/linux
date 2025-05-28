@@ -286,14 +286,12 @@ static int ext4_verify_csum_type(struct super_block *sb,
 	return es->s_checksum_type == EXT4_CRC32C_CHKSUM;
 }
 
-__le32 ext4_superblock_csum(struct super_block *sb,
-			    struct ext4_super_block *es)
+__le32 ext4_superblock_csum(struct ext4_super_block *es)
 {
-	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	int offset = offsetof(struct ext4_super_block, s_checksum);
 	__u32 csum;
 
-	csum = ext4_chksum(sbi, ~0, (char *)es, offset);
+	csum = ext4_chksum(~0, (char *)es, offset);
 
 	return cpu_to_le32(csum);
 }
@@ -304,7 +302,7 @@ static int ext4_superblock_csum_verify(struct super_block *sb,
 	if (!ext4_has_feature_metadata_csum(sb))
 		return 1;
 
-	return es->s_checksum == ext4_superblock_csum(sb, es);
+	return es->s_checksum == ext4_superblock_csum(es);
 }
 
 void ext4_superblock_csum_set(struct super_block *sb)
@@ -314,7 +312,7 @@ void ext4_superblock_csum_set(struct super_block *sb)
 	if (!ext4_has_feature_metadata_csum(sb))
 		return;
 
-	es->s_checksum = ext4_superblock_csum(sb, es);
+	es->s_checksum = ext4_superblock_csum(es);
 }
 
 ext4_fsblk_t ext4_block_bitmap(struct super_block *sb,
@@ -508,21 +506,9 @@ static void ext4_journal_commit_callback(journal_t *journal, transaction_t *txn)
 	ext4_maybe_update_superblock(sb);
 }
 
-/*
- * This writepage callback for write_cache_pages()
- * takes care of a few cases after page cleaning.
- *
- * write_cache_pages() already checks for dirty pages
- * and calls clear_page_dirty_for_io(), which we want,
- * to write protect the pages.
- *
- * However, we may have to redirty a page (see below.)
- */
-static int ext4_journalled_writepage_callback(struct folio *folio,
-					      struct writeback_control *wbc,
-					      void *data)
+static bool ext4_journalled_writepage_needs_redirty(struct jbd2_inode *jinode,
+		struct folio *folio)
 {
-	transaction_t *transaction = (transaction_t *) data;
 	struct buffer_head *bh, *head;
 	struct journal_head *jh;
 
@@ -543,15 +529,12 @@ static int ext4_journalled_writepage_callback(struct folio *folio,
 		 */
 		jh = bh2jh(bh);
 		if (buffer_dirty(bh) ||
-		    (jh && (jh->b_transaction != transaction ||
-			    jh->b_next_transaction))) {
-			folio_redirty_for_writepage(wbc, folio);
-			goto out;
-		}
+		    (jh && (jh->b_transaction != jinode->i_transaction ||
+			    jh->b_next_transaction)))
+			return true;
 	} while ((bh = bh->b_this_page) != head);
 
-out:
-	return AOP_WRITEPAGE_ACTIVATE;
+	return false;
 }
 
 static int ext4_journalled_submit_inode_data_buffers(struct jbd2_inode *jinode)
@@ -563,10 +546,23 @@ static int ext4_journalled_submit_inode_data_buffers(struct jbd2_inode *jinode)
 		.range_start = jinode->i_dirty_start,
 		.range_end = jinode->i_dirty_end,
         };
+	struct folio *folio = NULL;
+	int error;
 
-	return write_cache_pages(mapping, &wbc,
-				 ext4_journalled_writepage_callback,
-				 jinode->i_transaction);
+	/*
+	 * writeback_iter() already checks for dirty pages and calls
+	 * folio_clear_dirty_for_io(), which we want to write protect the
+	 * folios.
+	 *
+	 * However, we may have to redirty a folio sometimes.
+	 */
+	while ((folio = writeback_iter(mapping, &wbc, folio, &error))) {
+		if (ext4_journalled_writepage_needs_redirty(jinode, folio))
+			folio_redirty_for_writepage(&wbc, folio);
+		folio_unlock(folio);
+	}
+
+	return error;
 }
 
 static int ext4_journal_submit_inode_data_buffers(struct jbd2_inode *jinode)
@@ -1415,7 +1411,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	ei->i_datasync_tid = 0;
 	INIT_WORK(&ei->i_rsv_conversion_work, ext4_end_io_rsv_work);
 	ext4_fc_init_inode(&ei->vfs_inode);
-	mutex_init(&ei->i_fc_lock);
+	spin_lock_init(&ei->i_fc_lock);
 	return &ei->vfs_inode;
 }
 
@@ -1809,7 +1805,6 @@ static const struct fs_parameter_spec ext4_param_specs[] = {
 	{}
 };
 
-#define DEFAULT_JOURNAL_IOPRIO (IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, 3))
 
 #define MOPT_SET	0x0001
 #define MOPT_CLEAR	0x0002
@@ -3209,14 +3204,14 @@ static __le16 ext4_group_desc_csum(struct super_block *sb, __u32 block_group,
 		__u32 csum32;
 		__u16 dummy_csum = 0;
 
-		csum32 = ext4_chksum(sbi, sbi->s_csum_seed, (__u8 *)&le_group,
+		csum32 = ext4_chksum(sbi->s_csum_seed, (__u8 *)&le_group,
 				     sizeof(le_group));
-		csum32 = ext4_chksum(sbi, csum32, (__u8 *)gdp, offset);
-		csum32 = ext4_chksum(sbi, csum32, (__u8 *)&dummy_csum,
+		csum32 = ext4_chksum(csum32, (__u8 *)gdp, offset);
+		csum32 = ext4_chksum(csum32, (__u8 *)&dummy_csum,
 				     sizeof(dummy_csum));
 		offset += sizeof(dummy_csum);
 		if (offset < sbi->s_desc_size)
-			csum32 = ext4_chksum(sbi, csum32, (__u8 *)gdp + offset,
+			csum32 = ext4_chksum(csum32, (__u8 *)gdp + offset,
 					     sbi->s_desc_size - offset);
 
 		crc = csum32 & 0xFFFF;
@@ -4441,13 +4436,16 @@ static int ext4_handle_clustersize(struct super_block *sb)
 
 /*
  * ext4_atomic_write_init: Initializes filesystem min & max atomic write units.
+ * With non-bigalloc filesystem awu will be based upon filesystem blocksize
+ * & bdev awu units.
+ * With bigalloc it will be based upon bigalloc cluster size & bdev awu units.
  * @sb: super block
- * TODO: Later add support for bigalloc
  */
 static void ext4_atomic_write_init(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct block_device *bdev = sb->s_bdev;
+	unsigned int clustersize = EXT4_CLUSTER_SIZE(sb);
 
 	if (!bdev_can_atomic_write(bdev))
 		return;
@@ -4457,7 +4455,7 @@ static void ext4_atomic_write_init(struct super_block *sb)
 
 	sbi->s_awu_min = max(sb->s_blocksize,
 			      bdev_atomic_write_unit_min_bytes(bdev));
-	sbi->s_awu_max = min(sb->s_blocksize,
+	sbi->s_awu_max = min(clustersize,
 			      bdev_atomic_write_unit_max_bytes(bdev));
 	if (sbi->s_awu_min && sbi->s_awu_max &&
 	    sbi->s_awu_min <= sbi->s_awu_max) {
@@ -4482,7 +4480,7 @@ static void ext4_fast_commit_init(struct super_block *sb)
 	sbi->s_fc_bytes = 0;
 	ext4_clear_mount_flag(sb, EXT4_MF_FC_INELIGIBLE);
 	sbi->s_fc_ineligible_tid = 0;
-	spin_lock_init(&sbi->s_fc_lock);
+	mutex_init(&sbi->s_fc_lock);
 	memset(&sbi->s_fc_stats, 0, sizeof(sbi->s_fc_stats));
 	sbi->s_fc_replay_state.fc_regions = NULL;
 	sbi->s_fc_replay_state.fc_regions_size = 0;
@@ -4644,7 +4642,7 @@ static int ext4_init_metadata_csum(struct super_block *sb, struct ext4_super_blo
 		sbi->s_csum_seed = le32_to_cpu(es->s_checksum_seed);
 	else if (ext4_has_feature_metadata_csum(sb) ||
 		 ext4_has_feature_ea_inode(sb))
-		sbi->s_csum_seed = ext4_chksum(sbi, ~0, es->s_uuid,
+		sbi->s_csum_seed = ext4_chksum(~0, es->s_uuid,
 					       sizeof(es->s_uuid));
 	return 0;
 }
@@ -5255,7 +5253,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 
 	/* Set defaults for the variables that will be set during parsing */
 	if (!(ctx->spec & EXT4_SPEC_JOURNAL_IOPRIO))
-		ctx->journal_ioprio = DEFAULT_JOURNAL_IOPRIO;
+		ctx->journal_ioprio = EXT4_DEF_JOURNAL_IOPRIO;
 
 	sbi->s_inode_readahead_blks = EXT4_DEF_INODE_READAHEAD_BLKS;
 	sbi->s_sectors_written_start =
@@ -5916,7 +5914,7 @@ static struct file *ext4_get_journal_blkdev(struct super_block *sb,
 
 	if ((le32_to_cpu(es->s_feature_ro_compat) &
 	     EXT4_FEATURE_RO_COMPAT_METADATA_CSUM) &&
-	    es->s_checksum != ext4_superblock_csum(sb, es)) {
+	    es->s_checksum != ext4_superblock_csum(es)) {
 		ext4_msg(sb, KERN_ERR, "external journal has corrupt superblock");
 		errno = -EFSCORRUPTED;
 		goto out_bh;
@@ -6495,7 +6493,7 @@ static int __ext4_remount(struct fs_context *fc, struct super_block *sb)
 			ctx->journal_ioprio =
 				sbi->s_journal->j_task->io_context->ioprio;
 		else
-			ctx->journal_ioprio = DEFAULT_JOURNAL_IOPRIO;
+			ctx->journal_ioprio = EXT4_DEF_JOURNAL_IOPRIO;
 
 	}
 

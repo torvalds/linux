@@ -83,7 +83,7 @@ EXPORT_SYMBOL(jbd2_log_wait_commit);
 EXPORT_SYMBOL(jbd2_journal_start_commit);
 EXPORT_SYMBOL(jbd2_journal_force_commit_nested);
 EXPORT_SYMBOL(jbd2_journal_wipe);
-EXPORT_SYMBOL(jbd2_journal_blocks_per_page);
+EXPORT_SYMBOL(jbd2_journal_blocks_per_folio);
 EXPORT_SYMBOL(jbd2_journal_invalidate_folio);
 EXPORT_SYMBOL(jbd2_journal_try_to_free_buffers);
 EXPORT_SYMBOL(jbd2_journal_force_commit);
@@ -115,14 +115,14 @@ void __jbd2_debug(int level, const char *file, const char *func,
 #endif
 
 /* Checksumming functions */
-static __be32 jbd2_superblock_csum(journal_t *j, journal_superblock_t *sb)
+static __be32 jbd2_superblock_csum(journal_superblock_t *sb)
 {
 	__u32 csum;
 	__be32 old_csum;
 
 	old_csum = sb->s_checksum;
 	sb->s_checksum = 0;
-	csum = jbd2_chksum(j, ~0, (char *)sb, sizeof(journal_superblock_t));
+	csum = jbd2_chksum(~0, (char *)sb, sizeof(journal_superblock_t));
 	sb->s_checksum = old_csum;
 
 	return cpu_to_be32(csum);
@@ -728,7 +728,6 @@ int jbd2_fc_begin_commit(journal_t *journal, tid_t tid)
 	}
 	journal->j_flags |= JBD2_FAST_COMMIT_ONGOING;
 	write_unlock(&journal->j_state_lock);
-	jbd2_journal_lock_updates(journal);
 
 	return 0;
 }
@@ -742,7 +741,6 @@ static int __jbd2_fc_end_commit(journal_t *journal, tid_t tid, bool fallback)
 {
 	if (journal->j_fc_cleanup_callback)
 		journal->j_fc_cleanup_callback(journal, 0, tid);
-	jbd2_journal_unlock_updates(journal);
 	write_lock(&journal->j_state_lock);
 	journal->j_flags &= ~JBD2_FAST_COMMIT_ONGOING;
 	if (fallback)
@@ -1002,7 +1000,7 @@ void jbd2_descriptor_block_csum_set(journal_t *j, struct buffer_head *bh)
 	tail = (struct jbd2_journal_block_tail *)(bh->b_data + j->j_blocksize -
 			sizeof(struct jbd2_journal_block_tail));
 	tail->t_checksum = 0;
-	csum = jbd2_chksum(j, j->j_csum_seed, bh->b_data, j->j_blocksize);
+	csum = jbd2_chksum(j->j_csum_seed, bh->b_data, j->j_blocksize);
 	tail->t_checksum = cpu_to_be32(csum);
 }
 
@@ -1386,7 +1384,7 @@ static int journal_check_superblock(journal_t *journal)
 		}
 
 		/* Check superblock checksum */
-		if (sb->s_checksum != jbd2_superblock_csum(journal, sb)) {
+		if (sb->s_checksum != jbd2_superblock_csum(sb)) {
 			printk(KERN_ERR "JBD2: journal checksum error\n");
 			err = -EFSBADCRC;
 			return err;
@@ -1492,7 +1490,7 @@ static int journal_load_superblock(journal_t *journal)
 		journal->j_total_len = be32_to_cpu(sb->s_maxlen);
 	/* Precompute checksum seed for all metadata */
 	if (jbd2_journal_has_csum_v2or3(journal))
-		journal->j_csum_seed = jbd2_chksum(journal, ~0, sb->s_uuid,
+		journal->j_csum_seed = jbd2_chksum(~0, sb->s_uuid,
 						   sizeof(sb->s_uuid));
 	/* After journal features are set, we can compute transaction limits */
 	jbd2_journal_init_transaction_limits(journal);
@@ -1821,7 +1819,7 @@ static int jbd2_write_superblock(journal_t *journal, blk_opf_t write_flags)
 		set_buffer_uptodate(bh);
 	}
 	if (jbd2_journal_has_csum_v2or3(journal))
-		sb->s_checksum = jbd2_superblock_csum(journal, sb);
+		sb->s_checksum = jbd2_superblock_csum(sb);
 	get_bh(bh);
 	bh->b_end_io = end_buffer_write_sync;
 	submit_bh(REQ_OP_WRITE | write_flags, bh);
@@ -2338,7 +2336,7 @@ int jbd2_journal_set_features(journal_t *journal, unsigned long compat,
 		sb->s_checksum_type = JBD2_CRC32C_CHKSUM;
 		sb->s_feature_compat &=
 			~cpu_to_be32(JBD2_FEATURE_COMPAT_CHECKSUM);
-		journal->j_csum_seed = jbd2_chksum(journal, ~0, sb->s_uuid,
+		journal->j_csum_seed = jbd2_chksum(~0, sb->s_uuid,
 						   sizeof(sb->s_uuid));
 	}
 
@@ -2657,9 +2655,10 @@ void jbd2_journal_ack_err(journal_t *journal)
 	write_unlock(&journal->j_state_lock);
 }
 
-int jbd2_journal_blocks_per_page(struct inode *inode)
+int jbd2_journal_blocks_per_folio(struct inode *inode)
 {
-	return 1 << (PAGE_SHIFT - inode->i_sb->s_blocksize_bits);
+	return 1 << (PAGE_SHIFT + mapping_max_folio_order(inode->i_mapping) -
+		     inode->i_sb->s_blocksize_bits);
 }
 
 /*
