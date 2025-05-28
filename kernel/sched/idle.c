@@ -52,7 +52,7 @@ static int __init cpu_idle_nopoll_setup(char *__unused)
 	return 1;
 }
 __setup("hlt", cpu_idle_nopoll_setup);
-#endif
+#endif /* CONFIG_GENERIC_IDLE_POLL_SETUP */
 
 static noinline int __cpuidle cpu_idle_poll(void)
 {
@@ -100,10 +100,10 @@ static inline void cond_tick_broadcast_exit(void)
 	if (static_branch_unlikely(&arch_needs_tick_broadcast))
 		tick_broadcast_exit();
 }
-#else
+#else /* !CONFIG_GENERIC_CLOCKEVENTS_BROADCAST_IDLE: */
 static inline void cond_tick_broadcast_enter(void) { }
 static inline void cond_tick_broadcast_exit(void) { }
-#endif
+#endif /* !CONFIG_GENERIC_CLOCKEVENTS_BROADCAST_IDLE */
 
 /**
  * default_idle_call - Default CPU idle routine.
@@ -444,7 +444,7 @@ balance_idle(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 {
 	return WARN_ON_ONCE(1);
 }
-#endif
+#endif /* CONFIG_SMP */
 
 /*
  * Idle tasks are unconditionally rescheduled:
