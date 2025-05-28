@@ -1304,6 +1304,66 @@ int bch2_set_nr_journal_buckets(struct bch_fs *c, struct bch_dev *ca,
 	return ret;
 }
 
+int bch2_dev_journal_bucket_delete(struct bch_dev *ca, u64 b)
+{
+	struct bch_fs *c = ca->fs;
+	struct journal *j = &c->journal;
+	struct journal_device *ja = &ca->journal;
+
+	guard(mutex)(&c->sb_lock);
+	unsigned pos;
+	for (pos = 0; pos < ja->nr; pos++)
+		if (ja->buckets[pos] == b)
+			break;
+
+	if (pos == ja->nr) {
+		bch_err(ca, "journal bucket %llu not found when deleting", b);
+		return -EINVAL;
+	}
+
+	u64 *new_buckets = kcalloc(ja->nr, sizeof(u64), GFP_KERNEL);;
+	if (!new_buckets)
+		return -BCH_ERR_ENOMEM_set_nr_journal_buckets;
+
+	memcpy(new_buckets, ja->buckets, ja->nr * sizeof(u64));
+	memmove(&new_buckets[pos],
+		&new_buckets[pos + 1],
+		(ja->nr - 1 - pos) * sizeof(new_buckets[0]));
+
+	int ret = bch2_journal_buckets_to_sb(c, ca, ja->buckets, ja->nr - 1) ?:
+		bch2_write_super(c);
+	if (ret) {
+		kfree(new_buckets);
+		return ret;
+	}
+
+	scoped_guard(spinlock, &j->lock) {
+		if (pos < ja->discard_idx)
+			--ja->discard_idx;
+		if (pos < ja->dirty_idx_ondisk)
+			--ja->dirty_idx_ondisk;
+		if (pos < ja->dirty_idx)
+			--ja->dirty_idx;
+		if (pos < ja->cur_idx)
+			--ja->cur_idx;
+
+		ja->nr--;
+
+		memmove(&ja->buckets[pos],
+			&ja->buckets[pos + 1],
+			(ja->nr - pos) * sizeof(ja->buckets[0]));
+
+		memmove(&ja->bucket_seq[pos],
+			&ja->bucket_seq[pos + 1],
+			(ja->nr - pos) * sizeof(ja->bucket_seq[0]));
+
+		bch2_journal_space_available(j);
+	}
+
+	kfree(new_buckets);
+	return 0;
+}
+
 int bch2_dev_journal_alloc(struct bch_dev *ca, bool new_fs)
 {
 	struct bch_fs *c = ca->fs;

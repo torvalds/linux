@@ -239,7 +239,8 @@ int __bch2_str_hash_check_key(struct btree_trans *trans,
 
 	for_each_btree_key_norestart(trans, iter, desc->btree_id,
 				     SPOS(hash_k.k->p.inode, hash, hash_k.k->p.snapshot),
-				     BTREE_ITER_slots, k, ret) {
+				     BTREE_ITER_slots|
+				     BTREE_ITER_with_updates, k, ret) {
 		if (bkey_eq(k.k->p, hash_k.k->p))
 			break;
 
@@ -286,10 +287,11 @@ bad_hash:
 			goto duplicate_entries;
 
 		ret =   bch2_hash_delete_at(trans, *desc, hash_info, k_iter,
+					    BTREE_ITER_with_updates|
 					    BTREE_UPDATE_internal_snapshot_node) ?:
 			bch2_fsck_update_backpointers(trans, s, *desc, hash_info, new) ?:
 			bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc) ?:
-			-BCH_ERR_transaction_restart_nested;
+			-BCH_ERR_transaction_restart_commit;
 		goto out;
 	}
 fsck_err:
@@ -323,6 +325,6 @@ duplicate_entries:
 	}
 
 	ret = bch2_trans_commit(trans, NULL, NULL, 0) ?:
-		-BCH_ERR_transaction_restart_nested;
+		-BCH_ERR_transaction_restart_commit;
 	goto out;
 }

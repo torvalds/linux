@@ -221,6 +221,20 @@ static int bch2_check_fix_ptr(struct btree_trans *trans,
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 		if (!p.ptr.cached &&
 		    data_type == BCH_DATA_btree) {
+			switch (g->data_type) {
+			case BCH_DATA_sb:
+				bch_err(c, "btree and superblock in the same bucket - cannot repair");
+				ret = -BCH_ERR_fsck_repair_unimplemented;
+				goto out;
+			case BCH_DATA_journal:
+				ret = bch2_dev_journal_bucket_delete(ca, PTR_BUCKET_NR(ca, &p.ptr));
+				bch_err_msg(c, ret, "error deleting journal bucket %zu",
+					    PTR_BUCKET_NR(ca, &p.ptr));
+				if (ret)
+					goto out;
+				break;
+			}
+
 			g->data_type		= data_type;
 			g->stripe_sectors	= 0;
 			g->dirty_sectors	= 0;
