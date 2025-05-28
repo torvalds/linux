@@ -1635,6 +1635,16 @@ retry_alloc:
 done:
 	BUG_ON(bkey_val_u64s(&w->key.k) > BCH_REPLICAS_MAX);
 
+#if 0
+	/*
+	 * XXX: we need a way to alert the user when we go degraded for any
+	 * reason
+	 */
+	if (*replicas < min(replicas_want,
+			    dev_mask_nr(&c->rw_devs[BCH_DATA_free]))) {
+	}
+#endif
+
 	return *replicas >= replicas_need ? 0 : -BCH_ERR_insufficient_journal_devices;
 }
 
@@ -2112,7 +2122,7 @@ CLOSURE_CALLBACK(bch2_journal_write)
 	struct journal *j = container_of(w, struct journal, buf[w->idx]);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	union bch_replicas_padded replicas;
-	unsigned nr_rw_members = dev_mask_nr(&c->rw_devs[BCH_DATA_journal]);
+	unsigned nr_rw_members = dev_mask_nr(&c->rw_devs[BCH_DATA_free]);
 	int ret;
 
 	BUG_ON(BCH_SB_CLEAN(c->disk_sb.sb));
