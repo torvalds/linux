@@ -15,6 +15,7 @@
 #include <rdma/rdma_cm.h>
 #include <linux/mempool.h>
 
+#include "../common/smbdirect/smbdirect.h"
 #include "../common/smbdirect/smbdirect_socket.h"
 
 extern int rdma_readwrite_threshold;

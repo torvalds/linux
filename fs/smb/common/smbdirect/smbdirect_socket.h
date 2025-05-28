@@ -36,6 +36,8 @@ struct smbdirect_socket {
 		struct ib_qp *qp;
 		struct ib_device *dev;
 	} ib;
+
+	struct smbdirect_socket_parameters parameters;
 };
 
 #endif /* __FS_SMB_COMMON_SMBDIRECT_SMBDIRECT_SOCKET_H__ */
