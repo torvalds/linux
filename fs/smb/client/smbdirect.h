@@ -15,6 +15,8 @@
 #include <rdma/rdma_cm.h>
 #include <linux/mempool.h>
 
+#include "../common/smbdirect/smbdirect_socket.h"
+
 extern int rdma_readwrite_threshold;
 extern int smbd_max_frmr_depth;
 extern int smbd_keep_alive_interval;
@@ -50,14 +52,8 @@ enum smbd_connection_status {
  * 5. mempools for allocating packets
  */
 struct smbd_connection {
-	enum smbd_connection_status transport_status;
+	struct smbdirect_socket socket;
 
-	/* RDMA related */
-	struct rdma_cm_id *id;
-	struct ib_qp_init_attr qp_attr;
-	struct ib_pd *pd;
-	struct ib_cq *send_cq, *recv_cq;
-	struct ib_device_attr dev_attr;
 	int ri_rc;
 	struct completion ri_done;
 	wait_queue_head_t conn_wait;
