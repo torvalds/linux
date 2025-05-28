@@ -83,18 +83,20 @@ static struct journal_space
 journal_dev_space_available(struct journal *j, struct bch_dev *ca,
 			    enum journal_space_from from)
 {
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct journal_device *ja = &ca->journal;
 	unsigned sectors, buckets, unwritten;
+	unsigned bucket_size_aligned = round_down(ca->mi.bucket_size, block_sectors(c));
 	u64 seq;
 
 	if (from == journal_space_total)
 		return (struct journal_space) {
-			.next_entry	= ca->mi.bucket_size,
-			.total		= ca->mi.bucket_size * ja->nr,
+			.next_entry	= bucket_size_aligned,
+			.total		= bucket_size_aligned * ja->nr,
 		};
 
 	buckets = bch2_journal_dev_buckets_available(j, ja, from);
-	sectors = ja->sectors_free;
+	sectors = round_down(ja->sectors_free, block_sectors(c));
 
 	/*
 	 * We that we don't allocate the space for a journal entry
@@ -109,7 +111,7 @@ journal_dev_space_available(struct journal *j, struct bch_dev *ca,
 			continue;
 
 		/* entry won't fit on this device, skip: */
-		if (unwritten > ca->mi.bucket_size)
+		if (unwritten > bucket_size_aligned)
 			continue;
 
 		if (unwritten >= sectors) {
@@ -119,7 +121,7 @@ journal_dev_space_available(struct journal *j, struct bch_dev *ca,
 			}
 
 			buckets--;
-			sectors = ca->mi.bucket_size;
+			sectors = bucket_size_aligned;
 		}
 
 		sectors -= unwritten;
@@ -127,12 +129,12 @@ journal_dev_space_available(struct journal *j, struct bch_dev *ca,
 
 	if (sectors < ca->mi.bucket_size && buckets) {
 		buckets--;
-		sectors = ca->mi.bucket_size;
+		sectors = bucket_size_aligned;
 	}
 
 	return (struct journal_space) {
 		.next_entry	= sectors,
-		.total		= sectors + buckets * ca->mi.bucket_size,
+		.total		= sectors + buckets * bucket_size_aligned,
 	};
 }
 
@@ -256,8 +258,7 @@ void bch2_journal_space_available(struct journal *j)
 	bch2_journal_set_watermark(j);
 out:
 	j->cur_entry_sectors	= !ret
-		? round_down(j->space[journal_space_discarded].next_entry,
-			     block_sectors(c))
+		? j->space[journal_space_discarded].next_entry
 		: 0;
 	j->cur_entry_error	= ret;
 
