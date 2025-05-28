@@ -449,12 +449,13 @@ int perf_event__exit_del_thread(const struct perf_tool *tool __maybe_unused,
 
 size_t perf_event__fprintf_aux(union perf_event *event, FILE *fp)
 {
-	return fprintf(fp, " offset: %#"PRI_lx64" size: %#"PRI_lx64" flags: %#"PRI_lx64" [%s%s%s]\n",
+	return fprintf(fp, " offset: %#"PRI_lx64" size: %#"PRI_lx64" flags: %#"PRI_lx64" [%s%s%s%s]\n",
 		       event->aux.aux_offset, event->aux.aux_size,
 		       event->aux.flags,
 		       event->aux.flags & PERF_AUX_FLAG_TRUNCATED ? "T" : "",
 		       event->aux.flags & PERF_AUX_FLAG_OVERWRITE ? "O" : "",
-		       event->aux.flags & PERF_AUX_FLAG_PARTIAL   ? "P" : "");
+		       event->aux.flags & PERF_AUX_FLAG_PARTIAL   ? "P" : "",
+		       event->aux.flags & PERF_AUX_FLAG_COLLISION ? "C" : "");
 }
 
 size_t perf_event__fprintf_itrace_start(union perf_event *event, FILE *fp)
