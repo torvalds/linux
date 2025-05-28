@@ -174,7 +174,7 @@ SYSCALL_DEFINE1(nice, int, increment)
 	return 0;
 }
 
-#endif
+#endif /* __ARCH_WANT_SYS_NICE */
 
 /**
  * task_prio - return the priority value of a given task.
@@ -255,8 +255,7 @@ int sched_core_idle_cpu(int cpu)
 
 	return idle_cpu(cpu);
 }
-
-#endif
+#endif /* CONFIG_SCHED_CORE */
 
 /**
  * find_process_by_pid - find a process with a matching PID value.
@@ -448,7 +447,7 @@ static inline int uclamp_validate(struct task_struct *p,
 }
 static void __setscheduler_uclamp(struct task_struct *p,
 				  const struct sched_attr *attr) { }
-#endif
+#endif /* !CONFIG_UCLAMP_TASK */
 
 /*
  * Allow unprivileged RT tasks to decrease priority.
@@ -658,7 +657,7 @@ change:
 				goto unlock;
 			}
 		}
-#endif
+#endif /* CONFIG_SMP */
 	}
 
 	/* Re-check policy now with rq lock held: */
