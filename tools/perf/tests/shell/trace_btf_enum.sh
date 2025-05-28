@@ -17,7 +17,7 @@ skip_if_no_perf_trace || exit 2
 
 check_vmlinux() {
   echo "Checking if vmlinux exists"
-  if ! ls /sys/kernel/btf/vmlinux 1>/dev/null 2>&1
+  if [ ! -f /sys/kernel/btf/vmlinux ]
   then
     echo "trace+enum test [Skipped missing vmlinux BTF support]"
     err=2
