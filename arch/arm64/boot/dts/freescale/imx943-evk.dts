@@ -62,6 +62,13 @@
 	pinctrl-names = "default";
 	status = "okay";
 
+	pca9670_i2c3: gpio@23 {
+		compatible = "nxp,pca9670";
+		reg = <0x23>;
+		#gpio-cells = <2>;
+		gpio-controller;
+	};
+
 	pca9548_i2c3: i2c-mux@77 {
 		compatible = "nxp,pca9548";
 		reg = <0x77>;
@@ -102,18 +109,63 @@
 			reg = <5>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			pcal6416_i2c3_u46: gpio@20 {
+				compatible = "nxp,pcal6416";
+				reg = <0x20>;
+				#gpio-cells = <2>;
+				gpio-controller;
+
+				sd-card-on-hog {
+					gpios = <13 GPIO_ACTIVE_HIGH>;
+					gpio-hog;
+					output-high;
+				};
+			};
+
+			pcal6416_i2c3_u171: gpio@21 {
+				compatible = "nxp,pcal6416";
+				reg = <0x21>;
+				#gpio-cells = <2>;
+				gpio-controller;
+			};
 		};
 
 		i2c@6 {
 			reg = <6>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			pcal6416_i2c3_u48: gpio@20 {
+				compatible = "nxp,pcal6416";
+				reg = <0x20>;
+				#interrupt-cells = <2>;
+				interrupt-controller;
+				interrupt-parent = <&gpio3>;
+				interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
+				#gpio-cells = <2>;
+				gpio-controller;
+				pinctrl-0 = <&pinctrl_ioexpander_int>;
+				pinctrl-names = "default";
+			};
 		};
 
 		i2c@7 {
 			reg = <7>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			pcal6408_i2c3_u172: gpio@20 {
+				compatible = "nxp,pcal6408";
+				reg = <0x20>;
+				#interrupt-cells = <2>;
+				interrupt-controller;
+				interrupt-parent = <&gpio3>;
+				/* shared int pin with u48 */
+				interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
+				#gpio-cells = <2>;
+				gpio-controller;
+			};
 		};
 	};
 };
@@ -147,18 +199,59 @@
 			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			pcal6416_i2c6_u50: gpio@21 {
+				compatible = "nxp,pcal6416";
+				reg = <0x21>;
+				#gpio-cells = <2>;
+				gpio-controller;
+			};
 		};
 
 		i2c@2 {
 			reg = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			pcal6408_i2c6_u170: gpio@20 {
+				compatible = "nxp,pcal6408";
+				reg = <0x20>;
+				#interrupt-cells = <2>;
+				interrupt-controller;
+				interrupt-parent = <&gpio4>;
+				interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+				#gpio-cells = <2>;
+				gpio-controller;
+				pinctrl-0 = <&pinctrl_ioexpander_int2>;
+				pinctrl-names = "default";
+			};
 		};
 
 		i2c@3 {
 			reg = <3>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			pcal6416_i2c6_u44: gpio@20 {
+				compatible = "nxp,pcal6416";
+				reg = <0x20>;
+				#gpio-cells = <2>;
+				gpio-controller;
+
+				/* eMMC IOMUX selection */
+				sd1-sel-hog {
+					gpios = <0 GPIO_ACTIVE_HIGH>;
+					gpio-hog;
+					output-high;
+				};
+
+				/* SD card IOMUX selection */
+				sd2-sel-hog {
+					gpios = <1 GPIO_ACTIVE_HIGH>;
+					gpio-hog;
+					output-high;
+				};
+			};
 		};
 	};
 };
@@ -170,6 +263,18 @@
 };
 
 &scmi_iomuxc {
+
+	pinctrl_ioexpander_int2: ioexpanderint2grp {
+		fsl,pins = <
+			IMX94_PAD_CCM_CLKO4__GPIO4_IO3		0x31e
+		>;
+	};
+
+	pinctrl_ioexpander_int: ioexpanderintgrp {
+		fsl,pins = <
+			IMX94_PAD_GPIO_IO45__GPIO3_IO13		0x31e
+		>;
+	};
 
 	pinctrl_lpi2c3: lpi2c3grp {
 		fsl,pins = <
