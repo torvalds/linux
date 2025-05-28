@@ -3,6 +3,8 @@
 #ifndef BTRFS_ACL_H
 #define BTRFS_ACL_H
 
+#include <linux/types.h>
+
 struct posix_acl;
 struct inode;
 struct btrfs_trans_handle;

@@ -40,6 +40,7 @@
 #include <drm/drm_cache.h>
 #include <drm/drm_device.h>
 #include <drm/drm_util.h>
+#include <drm/ttm/ttm_backup.h>
 #include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_tt.h>
 
@@ -158,6 +159,8 @@ static void ttm_tt_init_fields(struct ttm_tt *ttm,
 	ttm->swap_storage = NULL;
 	ttm->sg = bo->sg;
 	ttm->caching = caching;
+	ttm->restore = NULL;
+	ttm->backup = NULL;
 }
 
 int ttm_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
@@ -181,6 +184,13 @@ void ttm_tt_fini(struct ttm_tt *ttm)
 	if (ttm->swap_storage)
 		fput(ttm->swap_storage);
 	ttm->swap_storage = NULL;
+
+	if (ttm_tt_is_backed_up(ttm))
+		ttm_pool_drop_backed_up(ttm);
+	if (ttm->backup) {
+		ttm_backup_fini(ttm->backup);
+		ttm->backup = NULL;
+	}
 
 	if (ttm->pages)
 		kvfree(ttm->pages);
@@ -252,6 +262,49 @@ out_err:
 	return ret;
 }
 EXPORT_SYMBOL_FOR_TESTS_ONLY(ttm_tt_swapin);
+
+/**
+ * ttm_tt_backup() - Helper to back up a struct ttm_tt.
+ * @bdev: The TTM device.
+ * @tt: The struct ttm_tt.
+ * @flags: Flags that govern the backup behaviour.
+ *
+ * Update the page accounting and call ttm_pool_shrink_tt to free pages
+ * or back them up.
+ *
+ * Return: Number of pages freed or swapped out, or negative error code on
+ * error.
+ */
+long ttm_tt_backup(struct ttm_device *bdev, struct ttm_tt *tt,
+		   const struct ttm_backup_flags flags)
+{
+	long ret;
+
+	if (WARN_ON(IS_ERR_OR_NULL(tt->backup)))
+		return 0;
+
+	ret = ttm_pool_backup(&bdev->pool, tt, &flags);
+	if (ret > 0) {
+		tt->page_flags &= ~TTM_TT_FLAG_PRIV_POPULATED;
+		tt->page_flags |= TTM_TT_FLAG_BACKED_UP;
+	}
+
+	return ret;
+}
+
+int ttm_tt_restore(struct ttm_device *bdev, struct ttm_tt *tt,
+		   const struct ttm_operation_ctx *ctx)
+{
+	int ret = ttm_pool_restore_and_alloc(&bdev->pool, tt, ctx);
+
+	if (ret)
+		return ret;
+
+	tt->page_flags &= ~TTM_TT_FLAG_BACKED_UP;
+
+	return 0;
+}
+EXPORT_SYMBOL(ttm_tt_restore);
 
 /**
  * ttm_tt_swapout - swap out tt object
@@ -348,6 +401,7 @@ int ttm_tt_populate(struct ttm_device *bdev,
 		goto error;
 
 	ttm->page_flags |= TTM_TT_FLAG_PRIV_POPULATED;
+	ttm->page_flags &= ~TTM_TT_FLAG_BACKED_UP;
 	if (unlikely(ttm->page_flags & TTM_TT_FLAG_SWAPPED)) {
 		ret = ttm_tt_swapin(ttm);
 		if (unlikely(ret != 0)) {
@@ -477,3 +531,32 @@ unsigned long ttm_tt_pages_limit(void)
 	return ttm_pages_limit;
 }
 EXPORT_SYMBOL(ttm_tt_pages_limit);
+
+/**
+ * ttm_tt_setup_backup() - Allocate and assign a backup structure for a ttm_tt
+ * @tt: The ttm_tt for wich to allocate and assign a backup structure.
+ *
+ * Assign a backup structure to be used for tt backup. This should
+ * typically be done at bo creation, to avoid allocations at shrinking
+ * time.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int ttm_tt_setup_backup(struct ttm_tt *tt)
+{
+	struct ttm_backup *backup =
+		ttm_backup_shmem_create(((loff_t)tt->num_pages) << PAGE_SHIFT);
+
+	if (WARN_ON_ONCE(!(tt->page_flags & TTM_TT_FLAG_EXTERNAL_MAPPABLE)))
+		return -EINVAL;
+
+	if (IS_ERR(backup))
+		return PTR_ERR(backup);
+
+	if (tt->backup)
+		ttm_backup_fini(tt->backup);
+
+	tt->backup = backup;
+	return 0;
+}
+EXPORT_SYMBOL(ttm_tt_setup_backup);

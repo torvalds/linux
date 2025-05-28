@@ -603,7 +603,7 @@ int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 		 * sequence, where at the end we can do the move for real.
 		 *
 		 * The special case here is when the dst_mem is TTM_PL_SYSTEM,
-		 * which doens't require any kind of move, so it should be safe
+		 * which doesn't require any kind of move, so it should be safe
 		 * to skip all the below and call ttm_bo_move_null() here, where
 		 * the caller in __i915_ttm_get_pages() will take care of the
 		 * rest, since we should have a valid ttm_tt.

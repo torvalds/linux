@@ -23,6 +23,9 @@ properties:
 
       - description: Armada 7040 SoC
         items:
+          - enum:
+              - globalscale,mochabin
+              - marvell,armada7040-db
           - const: marvell,armada7040
           - const: marvell,armada-ap806-quad
           - const: marvell,armada-ap806
@@ -35,9 +38,31 @@ properties:
 
       - description: Armada 8040 SoC
         items:
+          - enum:
+              - iei,puzzle-m801
+              - marvell,armada8040-db
+              - solidrun,clearfog-gt-8k
           - const: marvell,armada8040
           - const: marvell,armada-ap806-quad
           - const: marvell,armada-ap806
+
+      - description: Armada 8040 SoC MACCHIATOBin Boards
+        items:
+          - enum:
+              - marvell,armada8040-mcbin-doubleshot
+              - marvell,armada8040-mcbin-singleshot
+          - const: marvell,armada8040-mcbin
+          - const: marvell,armada8040
+          - const: marvell,armada-ap806-quad
+          - const: marvell,armada-ap806
+
+      - description: Armada 8080 SoC
+        items:
+          - enum:
+              - marvell,armada-8080-db
+          - const: marvell,armada-8080
+          - const: marvell,armada-ap810-octa
+          - const: marvell,armada-ap810
 
       - description: Armada CN9130 SoC with no external CP
         items:

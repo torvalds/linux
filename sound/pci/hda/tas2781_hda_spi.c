@@ -52,7 +52,7 @@
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
 		SNDRV_CTL_ELEM_ACCESS_READWRITE, \
 	.tlv.p = (tlv_array), \
-	.info = snd_soc_info_volsw_range, \
+	.info = snd_soc_info_volsw, \
 	.get = xhandler_get, .put = xhandler_put, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) { \
 		.reg = xreg, .rreg = xreg, \
@@ -802,7 +802,6 @@ static int tas2781_save_calibration(struct tasdevice_priv *tas_priv)
 	static efi_char16_t efi_name[] = TASDEVICE_CALIBRATION_DATA_NAME;
 	unsigned char data[TASDEVICE_CALIBRATION_DATA_SIZE], *buf;
 	unsigned int attr, crc, offset, *tmp_val;
-	struct tm *tm = &tas_priv->tm;
 	unsigned long total_sz = 0;
 	efi_status_t status;
 
@@ -849,7 +848,6 @@ static int tas2781_save_calibration(struct tasdevice_priv *tas_priv)
 		if (crc != tmp_val[3 + tmp_val[1] * 6])
 			return 0;
 
-		time64_to_tm(tmp_val[2], 0, tm);
 		for (int j = 0; j < tmp_val[1]; j++) {
 			offset = j * 6 + 3;
 			if (tmp_val[offset] == tas_priv->index) {
@@ -882,7 +880,6 @@ static int tas2781_save_calibration(struct tasdevice_priv *tas_priv)
 		 */
 		crc = crc32(~0, data, 84) ^ ~0;
 		if (crc == tmp_val[21]) {
-			time64_to_tm(tmp_val[20], 0, tm);
 			for (int i = 0; i < CALIB_MAX; i++)
 				tas_priv->cali_data[i] =
 					tmp_val[tas_priv->index * 5 + i];
@@ -912,7 +909,7 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 	struct tasdevice_priv *tas_priv = context;
 	struct tas2781_hda *tas_hda = dev_get_drvdata(tas_priv->dev);
 	struct hda_codec *codec = tas_priv->codec;
-	int i, j, ret;
+	int i, j, ret, val;
 
 	pm_runtime_get_sync(tas_priv->dev);
 	guard(mutex)(&tas_priv->codec_lock);
@@ -981,13 +978,16 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 
 	/* Perform AMP reset before firmware download. */
 	tas_priv->rcabin.profile_cfg_id = TAS2781_PRE_POST_RESET_CFG;
-	tasdevice_spi_tuning_switch(tas_priv, 0);
 	tas2781_spi_reset(tas_priv);
 	tas_priv->rcabin.profile_cfg_id = 0;
-	tasdevice_spi_tuning_switch(tas_priv, 1);
 
 	tas_priv->fw_state = TASDEVICE_DSP_FW_ALL_OK;
-	ret = tasdevice_spi_prmg_load(tas_priv, 0);
+	ret = tasdevice_spi_dev_read(tas_priv, TAS2781_REG_CLK_CONFIG, &val);
+	if (ret < 0)
+		goto out;
+
+	if (val == TAS2781_REG_CLK_CONFIG_RESET)
+		ret = tasdevice_spi_prmg_load(tas_priv, 0);
 	if (ret < 0) {
 		dev_err(tas_priv->dev, "FW download failed = %d\n", ret);
 		goto out;
@@ -1001,11 +1001,9 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 	 * If calibrated data occurs error, dsp will still works with default
 	 * calibrated data inside algo.
 	 */
-	tas_priv->save_calibration(tas_priv);
 
 out:
-	if (fmw)
-		release_firmware(fmw);
+	release_firmware(fmw);
 	pm_runtime_mark_last_busy(tas_hda->priv->dev);
 	pm_runtime_put_autosuspend(tas_hda->priv->dev);
 }
@@ -1160,7 +1158,8 @@ static int tas2781_runtime_suspend(struct device *dev)
 
 	guard(mutex)(&tas_hda->priv->codec_lock);
 
-	tasdevice_spi_tuning_switch(tas_hda->priv, 1);
+	if (tas_hda->priv->playback_started)
+		tasdevice_spi_tuning_switch(tas_hda->priv, 1);
 
 	tas_hda->priv->cur_book = -1;
 	tas_hda->priv->cur_conf = -1;
@@ -1174,7 +1173,8 @@ static int tas2781_runtime_resume(struct device *dev)
 
 	guard(mutex)(&tas_hda->priv->codec_lock);
 
-	tasdevice_spi_tuning_switch(tas_hda->priv, 0);
+	if (tas_hda->priv->playback_started)
+		tasdevice_spi_tuning_switch(tas_hda->priv, 0);
 
 	return 0;
 }
@@ -1189,12 +1189,9 @@ static int tas2781_system_suspend(struct device *dev)
 		return ret;
 
 	/* Shutdown chip before system suspend */
-	tasdevice_spi_tuning_switch(tas_hda->priv, 1);
-	tas2781_spi_reset(tas_hda->priv);
-	/*
-	 * Reset GPIO may be shared, so cannot reset here.
-	 * However beyond this point, amps may be powered down.
-	 */
+	if (tas_hda->priv->playback_started)
+		tasdevice_spi_tuning_switch(tas_hda->priv, 1);
+
 	return 0;
 }
 

@@ -4,8 +4,9 @@
  */
 
 #include <drm/drm_mipi_dsi.h>
+#include <drm/drm_print.h>
 
-#include "i915_drv.h"
+#include "intel_display_core.h"
 #include "intel_dsi.h"
 #include "intel_panel.h"
 
@@ -58,16 +59,16 @@ int intel_dsi_get_modes(struct drm_connector *connector)
 }
 
 enum drm_mode_status intel_dsi_mode_valid(struct drm_connector *connector,
-					  struct drm_display_mode *mode)
+					  const struct drm_display_mode *mode)
 {
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
+	struct intel_display *display = to_intel_display(connector->dev);
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	const struct drm_display_mode *fixed_mode =
 		intel_panel_fixed_mode(intel_connector, mode);
-	int max_dotclk = to_i915(connector->dev)->display.cdclk.max_dotclk_freq;
+	int max_dotclk = display->cdclk.max_dotclk_freq;
 	enum drm_mode_status status;
 
-	drm_dbg_kms(&dev_priv->drm, "\n");
+	drm_dbg_kms(display->drm, "\n");
 
 	status = intel_panel_mode_valid(intel_connector, mode);
 	if (status != MODE_OK)
@@ -76,7 +77,7 @@ enum drm_mode_status intel_dsi_mode_valid(struct drm_connector *connector,
 	if (fixed_mode->clock > max_dotclk)
 		return MODE_CLOCK_HIGH;
 
-	return intel_mode_valid_max_plane_size(dev_priv, mode, 1);
+	return intel_mode_valid_max_plane_size(display, mode, 1);
 }
 
 struct intel_dsi_host *intel_dsi_host_init(struct intel_dsi *intel_dsi,
@@ -116,14 +117,14 @@ struct intel_dsi_host *intel_dsi_host_init(struct intel_dsi *intel_dsi,
 enum drm_panel_orientation
 intel_dsi_get_panel_orientation(struct intel_connector *connector)
 {
-	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	enum drm_panel_orientation orientation;
 
 	orientation = connector->panel.vbt.dsi.orientation;
 	if (orientation != DRM_MODE_PANEL_ORIENTATION_UNKNOWN)
 		return orientation;
 
-	orientation = dev_priv->display.vbt.orientation;
+	orientation = display->vbt.orientation;
 	if (orientation != DRM_MODE_PANEL_ORIENTATION_UNKNOWN)
 		return orientation;
 

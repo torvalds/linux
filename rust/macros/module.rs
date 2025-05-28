@@ -56,7 +56,7 @@ impl<'a> ModInfoBuilder<'a> {
             "
                 {cfg}
                 #[doc(hidden)]
-                #[link_section = \".modinfo\"]
+                #[cfg_attr(not(target_os = \"macos\"), link_section = \".modinfo\")]
                 #[used]
                 pub static __{module}_{counter}: [u8; {length}] = *{string};
             ",
@@ -95,6 +95,7 @@ struct ModuleInfo {
     license: String,
     name: String,
     author: Option<String>,
+    authors: Option<Vec<String>>,
     description: Option<String>,
     alias: Option<Vec<String>>,
     firmware: Option<Vec<String>>,
@@ -108,6 +109,7 @@ impl ModuleInfo {
             "type",
             "name",
             "author",
+            "authors",
             "description",
             "license",
             "alias",
@@ -136,6 +138,7 @@ impl ModuleInfo {
                 "type" => info.type_ = expect_ident(it),
                 "name" => info.name = expect_string_ascii(it),
                 "author" => info.author = Some(expect_string(it)),
+                "authors" => info.authors = Some(expect_string_array(it)),
                 "description" => info.description = Some(expect_string(it)),
                 "license" => info.license = expect_string_ascii(it),
                 "alias" => info.alias = Some(expect_string_array(it)),
@@ -186,6 +189,11 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
     if let Some(author) = info.author {
         modinfo.emit("author", &author);
     }
+    if let Some(authors) = info.authors {
+        for author in authors {
+            modinfo.emit("author", &author);
+        }
+    }
     if let Some(description) = info.description {
         modinfo.emit("description", &description);
     }
@@ -228,6 +236,10 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
                 kernel::ThisModule::from_ptr(core::ptr::null_mut())
             }};
 
+            /// The `LocalModule` type is the type of the module created by `module!`,
+            /// `module_pci_driver!`, `module_platform_driver!`, etc.
+            type LocalModule = {type_};
+
             impl kernel::ModuleMetadata for {type_} {{
                 const NAME: &'static kernel::str::CStr = kernel::c_str!(\"{name}\");
             }}
@@ -236,7 +248,7 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
             mod __module_init {{
                 mod __module_init {{
                     use super::super::{type_};
-                    use kernel::init::PinInit;
+                    use pin_init::PinInit;
 
                     /// The \"Rust loadable module\" mark.
                     //

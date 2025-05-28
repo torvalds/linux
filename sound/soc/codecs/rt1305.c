@@ -697,11 +697,11 @@ static int rt1305_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	unsigned int reg_val = 0, reg1_val = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		reg_val |= RT1305_SEL_I2S_OUT_MODE_M;
 		rt1305->master = 1;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		reg_val |= RT1305_SEL_I2S_OUT_MODE_S;
 		rt1305->master = 0;
 		break;
@@ -966,16 +966,16 @@ static const struct regmap_config rt1305_regmap = {
 static const struct of_device_id rt1305_of_match[] = {
 	{ .compatible = "realtek,rt1305", },
 	{ .compatible = "realtek,rt1306", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rt1305_of_match);
 #endif
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt1305_acpi_match[] = {
-	{"10EC1305", 0,},
-	{"10EC1306", 0,},
-	{},
+	{ "10EC1305" },
+	{ "10EC1306" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt1305_acpi_match);
 #endif

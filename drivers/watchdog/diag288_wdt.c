@@ -27,6 +27,7 @@
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/watchdog.h>
+#include <asm/machine.h>
 #include <asm/ebcdic.h>
 #include <asm/diag.h>
 #include <linux/io.h>
@@ -110,7 +111,7 @@ static int wdt_start(struct watchdog_device *dev)
 	int ret;
 	unsigned int func;
 
-	if (MACHINE_IS_VM) {
+	if (machine_is_vm()) {
 		func = conceal_on ? (WDT_FUNC_INIT | WDT_FUNC_CONCEAL)
 			: WDT_FUNC_INIT;
 		ret = diag288_str(func, dev->timeout, wdt_cmd);
@@ -136,7 +137,7 @@ static int wdt_ping(struct watchdog_device *dev)
 	int ret;
 	unsigned int func;
 
-	if (MACHINE_IS_VM) {
+	if (machine_is_vm()) {
 		/*
 		 * It seems to be ok to z/VM to use the init function to
 		 * retrigger the watchdog. On LPAR WDT_FUNC_CHANGE must
@@ -192,7 +193,7 @@ static int __init diag288_init(void)
 
 	watchdog_set_nowayout(&wdt_dev, nowayout_info);
 
-	if (MACHINE_IS_VM) {
+	if (machine_is_vm()) {
 		cmd_buf = kmalloc(MAX_CMDLEN, GFP_KERNEL);
 		if (!cmd_buf) {
 			pr_err("The watchdog cannot be initialized\n");

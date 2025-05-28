@@ -794,8 +794,8 @@ static inline void init_brg(struct scc_channel *scc)
  
 static void init_channel(struct scc_channel *scc)
 {
-	del_timer(&scc->tx_t);
-	del_timer(&scc->tx_wdog);
+	timer_delete(&scc->tx_t);
+	timer_delete(&scc->tx_wdog);
 
 	disable_irq(scc->irq);
 
@@ -999,7 +999,7 @@ static void __scc_start_tx_timer(struct scc_channel *scc,
 				 void (*handler)(struct timer_list *t),
 				 unsigned long when)
 {
-	del_timer(&scc->tx_t);
+	timer_delete(&scc->tx_t);
 
 	if (when == 0)
 	{
@@ -1029,7 +1029,7 @@ static void scc_start_defer(struct scc_channel *scc)
 	unsigned long flags;
 	
 	spin_lock_irqsave(&scc->lock, flags);
-	del_timer(&scc->tx_wdog);
+	timer_delete(&scc->tx_wdog);
 	
 	if (scc->kiss.maxdefer != 0 && scc->kiss.maxdefer != TIMER_OFF)
 	{
@@ -1045,7 +1045,7 @@ static void scc_start_maxkeyup(struct scc_channel *scc)
 	unsigned long flags;
 	
 	spin_lock_irqsave(&scc->lock, flags);
-	del_timer(&scc->tx_wdog);
+	timer_delete(&scc->tx_wdog);
 	
 	if (scc->kiss.maxkeyup != 0 && scc->kiss.maxkeyup != TIMER_OFF)
 	{
@@ -1194,7 +1194,7 @@ static void t_tail(struct timer_list *t)
 	unsigned long flags;
 	
 	spin_lock_irqsave(&scc->lock, flags); 
-	del_timer(&scc->tx_wdog);
+	timer_delete(&scc->tx_wdog);
 	scc_key_trx(scc, TX_OFF);
 	spin_unlock_irqrestore(&scc->lock, flags);
 
@@ -1219,7 +1219,7 @@ static void t_busy(struct timer_list *t)
 {
 	struct scc_channel *scc = from_timer(scc, t, tx_wdog);
 
-	del_timer(&scc->tx_t);
+	timer_delete(&scc->tx_t);
 	netif_stop_queue(scc->dev);	/* don't pile on the wabbit! */
 
 	scc_discard_buffers(scc);
@@ -1248,7 +1248,7 @@ static void t_maxkeyup(struct timer_list *t)
 	netif_stop_queue(scc->dev);
 	scc_discard_buffers(scc);
 
-	del_timer(&scc->tx_t);
+	timer_delete(&scc->tx_t);
 
 	cl(scc, R1, TxINT_ENAB);	/* force an ABORT, but don't */
 	cl(scc, R15, TxUIE);		/* count it. */
@@ -1272,7 +1272,7 @@ static void t_idle(struct timer_list *t)
 {
 	struct scc_channel *scc = from_timer(scc, t, tx_t);
 	
-	del_timer(&scc->tx_wdog);
+	timer_delete(&scc->tx_wdog);
 
 	scc_key_trx(scc, TX_OFF);
 	if(scc->kiss.mintime)
@@ -1407,7 +1407,7 @@ static void scc_stop_calibrate(struct timer_list *t)
 	unsigned long flags;
 	
 	spin_lock_irqsave(&scc->lock, flags);
-	del_timer(&scc->tx_wdog);
+	timer_delete(&scc->tx_wdog);
 	scc_key_trx(scc, TX_OFF);
 	wr(scc, R6, 0);
 	wr(scc, R7, FLAG);
@@ -1428,7 +1428,7 @@ scc_start_calibrate(struct scc_channel *scc, int duration, unsigned char pattern
 	netif_stop_queue(scc->dev);
 	scc_discard_buffers(scc);
 
-	del_timer(&scc->tx_wdog);
+	timer_delete(&scc->tx_wdog);
 
 	scc->tx_wdog.function = scc_stop_calibrate;
 	scc->tx_wdog.expires = jiffies + HZ*duration;
@@ -1609,8 +1609,8 @@ static int scc_net_close(struct net_device *dev)
 	wr(scc,R3,0);
 	spin_unlock_irqrestore(&scc->lock, flags);
 
-	del_timer_sync(&scc->tx_t);
-	del_timer_sync(&scc->tx_wdog);
+	timer_delete_sync(&scc->tx_t);
+	timer_delete_sync(&scc->tx_wdog);
 	
 	scc_discard_buffers(scc);
 

@@ -703,7 +703,7 @@ lld_ioctl(mraid_mmadp_t *adp, uioc_t *kioc)
 	 */
 	wait_event(wait_q, (kioc->status != -ENODATA));
 	if (timeout.timer.function) {
-		del_timer_sync(&timeout.timer);
+		timer_delete_sync(&timeout.timer);
 		destroy_timer_on_stack(&timeout.timer);
 	}
 

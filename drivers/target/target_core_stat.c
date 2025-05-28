@@ -117,9 +117,9 @@ static ssize_t target_stat_tgt_status_show(struct config_item *item,
 		char *page)
 {
 	if (to_stat_tgt_dev(item)->export_count)
-		return snprintf(page, PAGE_SIZE, "activated");
+		return snprintf(page, PAGE_SIZE, "activated\n");
 	else
-		return snprintf(page, PAGE_SIZE, "deactivated");
+		return snprintf(page, PAGE_SIZE, "deactivated\n");
 }
 
 static ssize_t target_stat_tgt_non_access_lus_show(struct config_item *item,

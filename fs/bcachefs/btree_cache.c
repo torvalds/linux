@@ -203,7 +203,7 @@ struct btree *__bch2_btree_node_mem_alloc(struct bch_fs *c)
 		return NULL;
 	}
 
-	bch2_btree_lock_init(&b->c, 0);
+	bch2_btree_lock_init(&b->c, 0, GFP_KERNEL);
 
 	__bch2_btree_node_to_freelist(bc, b);
 	return b;
@@ -610,6 +610,7 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 		       btree_node_write_in_flight(b));
 
 		btree_node_data_free(bc, b);
+		cond_resched();
 	}
 
 	BUG_ON(!bch2_journal_error(&c->journal) &&
@@ -795,16 +796,17 @@ struct btree *bch2_btree_node_mem_alloc(struct btree_trans *trans, bool pcpu_rea
 		}
 
 	b = __btree_node_mem_alloc(c, GFP_NOWAIT|__GFP_NOWARN);
-	if (!b) {
+	if (b) {
+		bch2_btree_lock_init(&b->c, pcpu_read_locks ? SIX_LOCK_INIT_PCPU : 0, GFP_NOWAIT);
+	} else {
 		mutex_unlock(&bc->lock);
 		bch2_trans_unlock(trans);
 		b = __btree_node_mem_alloc(c, GFP_KERNEL);
 		if (!b)
 			goto err;
+		bch2_btree_lock_init(&b->c, pcpu_read_locks ? SIX_LOCK_INIT_PCPU : 0, GFP_KERNEL);
 		mutex_lock(&bc->lock);
 	}
-
-	bch2_btree_lock_init(&b->c, pcpu_read_locks ? SIX_LOCK_INIT_PCPU : 0);
 
 	BUG_ON(!six_trylock_intent(&b->c.lock));
 	BUG_ON(!six_trylock_write(&b->c.lock));
@@ -1415,7 +1417,7 @@ void __bch2_btree_pos_to_text(struct printbuf *out, struct bch_fs *c,
 		prt_printf(out, "%u", r->level);
 	else
 		prt_printf(out, "(unknown)");
-	prt_printf(out, "\n  ");
+	prt_newline(out);
 
 	bch2_bkey_val_to_text(out, c, k);
 }

@@ -16,7 +16,7 @@
 #include "amdxdna_mailbox_helper.h"
 #include "amdxdna_pci_drv.h"
 
-int xdna_msg_cb(void *handle, const u32 *data, size_t size)
+int xdna_msg_cb(void *handle, void __iomem *data, size_t size)
 {
 	struct xdna_notify *cb_arg = handle;
 	int ret;
@@ -29,9 +29,9 @@ int xdna_msg_cb(void *handle, const u32 *data, size_t size)
 		goto out;
 	}
 
+	memcpy_fromio(cb_arg->data, data, cb_arg->size);
 	print_hex_dump_debug("resp data: ", DUMP_PREFIX_OFFSET,
-			     16, 4, data, cb_arg->size, true);
-	memcpy(cb_arg->data, data, cb_arg->size);
+			     16, 4, cb_arg->data, cb_arg->size, true);
 out:
 	ret = cb_arg->error;
 	complete(&cb_arg->comp);

@@ -412,7 +412,7 @@ static void snd_mtpav_add_output_timer(struct mtpav *chip)
 /* spinlock held! */
 static void snd_mtpav_remove_output_timer(struct mtpav *chip)
 {
-	del_timer(&chip->timer);
+	timer_delete(&chip->timer);
 }
 
 /*

@@ -97,7 +97,7 @@ TEST_GEN_FILES += hugetlb_fault_after_madv
 TEST_GEN_FILES += hugetlb_madv_vs_map
 TEST_GEN_FILES += hugetlb_dio
 TEST_GEN_FILES += droppable
-TEST_GEN_FILES += guard-pages
+TEST_GEN_FILES += guard-regions
 
 ifneq ($(ARCH),arm64)
 TEST_GEN_FILES += soft-dirty

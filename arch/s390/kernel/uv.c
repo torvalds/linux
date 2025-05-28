@@ -19,19 +19,6 @@
 #include <asm/sections.h>
 #include <asm/uv.h>
 
-#if !IS_ENABLED(CONFIG_KVM)
-unsigned long __gmap_translate(struct gmap *gmap, unsigned long gaddr)
-{
-	return 0;
-}
-
-int gmap_fault(struct gmap *gmap, unsigned long gaddr,
-	       unsigned int fault_flags)
-{
-	return 0;
-}
-#endif
-
 /* the bootdata_preserved fields come from ones in arch/s390/boot/uv.c */
 int __bootdata_preserved(prot_virt_guest);
 EXPORT_SYMBOL(prot_virt_guest);
@@ -159,6 +146,7 @@ int uv_destroy_folio(struct folio *folio)
 	folio_put(folio);
 	return rc;
 }
+EXPORT_SYMBOL(uv_destroy_folio);
 
 /*
  * The present PTE still indirectly holds a folio reference through the mapping.
@@ -175,7 +163,7 @@ int uv_destroy_pte(pte_t pte)
  *
  * @paddr: Absolute host address of page to be exported
  */
-static int uv_convert_from_secure(unsigned long paddr)
+int uv_convert_from_secure(unsigned long paddr)
 {
 	struct uv_cb_cfs uvcb = {
 		.header.cmd = UVC_CMD_CONV_FROM_SEC_STOR,
@@ -187,11 +175,12 @@ static int uv_convert_from_secure(unsigned long paddr)
 		return -EINVAL;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(uv_convert_from_secure);
 
 /*
  * The caller must already hold a reference to the folio.
  */
-static int uv_convert_from_secure_folio(struct folio *folio)
+int uv_convert_from_secure_folio(struct folio *folio)
 {
 	int rc;
 
@@ -206,6 +195,7 @@ static int uv_convert_from_secure_folio(struct folio *folio)
 	folio_put(folio);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(uv_convert_from_secure_folio);
 
 /*
  * The present PTE still indirectly holds a folio reference through the mapping.
@@ -214,58 +204,6 @@ int uv_convert_from_secure_pte(pte_t pte)
 {
 	VM_WARN_ON(!pte_present(pte));
 	return uv_convert_from_secure_folio(pfn_folio(pte_pfn(pte)));
-}
-
-/*
- * Calculate the expected ref_count for a folio that would otherwise have no
- * further pins. This was cribbed from similar functions in other places in
- * the kernel, but with some slight modifications. We know that a secure
- * folio can not be a large folio, for example.
- */
-static int expected_folio_refs(struct folio *folio)
-{
-	int res;
-
-	res = folio_mapcount(folio);
-	if (folio_test_swapcache(folio)) {
-		res++;
-	} else if (folio_mapping(folio)) {
-		res++;
-		if (folio->private)
-			res++;
-	}
-	return res;
-}
-
-static int make_folio_secure(struct folio *folio, struct uv_cb_header *uvcb)
-{
-	int expected, cc = 0;
-
-	if (folio_test_writeback(folio))
-		return -EAGAIN;
-	expected = expected_folio_refs(folio);
-	if (!folio_ref_freeze(folio, expected))
-		return -EBUSY;
-	set_bit(PG_arch_1, &folio->flags);
-	/*
-	 * If the UVC does not succeed or fail immediately, we don't want to
-	 * loop for long, or we might get stall notifications.
-	 * On the other hand, this is a complex scenario and we are holding a lot of
-	 * locks, so we can't easily sleep and reschedule. We try only once,
-	 * and if the UVC returned busy or partial completion, we return
-	 * -EAGAIN and we let the callers deal with it.
-	 */
-	cc = __uv_call(0, (u64)uvcb);
-	folio_ref_unfreeze(folio, expected);
-	/*
-	 * Return -ENXIO if the folio was not mapped, -EINVAL for other errors.
-	 * If busy or partially completed, return -EAGAIN.
-	 */
-	if (cc == UVC_CC_OK)
-		return 0;
-	else if (cc == UVC_CC_BUSY || cc == UVC_CC_PARTIAL)
-		return -EAGAIN;
-	return uvcb->rc == 0x10a ? -ENXIO : -EINVAL;
 }
 
 /**
@@ -302,216 +240,166 @@ static bool should_export_before_import(struct uv_cb_header *uvcb, struct mm_str
 }
 
 /*
- * Drain LRU caches: the local one on first invocation and the ones of all
- * CPUs on successive invocations. Returns "true" on the first invocation.
+ * Calculate the expected ref_count for a folio that would otherwise have no
+ * further pins. This was cribbed from similar functions in other places in
+ * the kernel, but with some slight modifications. We know that a secure
+ * folio can not be a large folio, for example.
  */
-static bool drain_lru(bool *drain_lru_called)
+static int expected_folio_refs(struct folio *folio)
 {
-	/*
-	 * If we have tried a local drain and the folio refcount
-	 * still does not match our expected safe value, try with a
-	 * system wide drain. This is needed if the pagevecs holding
-	 * the page are on a different CPU.
-	 */
-	if (*drain_lru_called) {
-		lru_add_drain_all();
-		/* We give up here, don't retry immediately. */
-		return false;
+	int res;
+
+	res = folio_mapcount(folio);
+	if (folio_test_swapcache(folio)) {
+		res++;
+	} else if (folio_mapping(folio)) {
+		res++;
+		if (folio->private)
+			res++;
 	}
-	/*
-	 * We are here if the folio refcount does not match the
-	 * expected safe value. The main culprits are usually
-	 * pagevecs. With lru_add_drain() we drain the pagevecs
-	 * on the local CPU so that hopefully the refcount will
-	 * reach the expected safe value.
-	 */
-	lru_add_drain();
-	*drain_lru_called = true;
-	/* The caller should try again immediately */
-	return true;
+	return res;
 }
 
-/*
- * Requests the Ultravisor to make a page accessible to a guest.
- * If it's brought in the first time, it will be cleared. If
- * it has been exported before, it will be decrypted and integrity
- * checked.
+/**
+ * __make_folio_secure() - make a folio secure
+ * @folio: the folio to make secure
+ * @uvcb: the uvcb that describes the UVC to be used
+ *
+ * The folio @folio will be made secure if possible, @uvcb will be passed
+ * as-is to the UVC.
+ *
+ * Return: 0 on success;
+ *         -EBUSY if the folio is in writeback or has too many references;
+ *         -EAGAIN if the UVC needs to be attempted again;
+ *         -ENXIO if the address is not mapped;
+ *         -EINVAL if the UVC failed for other reasons.
+ *
+ * Context: The caller must hold exactly one extra reference on the folio
+ *          (it's the same logic as split_folio()), and the folio must be
+ *          locked.
  */
-int gmap_make_secure(struct gmap *gmap, unsigned long gaddr, void *uvcb)
+static int __make_folio_secure(struct folio *folio, struct uv_cb_header *uvcb)
 {
-	struct vm_area_struct *vma;
-	bool drain_lru_called = false;
-	spinlock_t *ptelock;
-	unsigned long uaddr;
-	struct folio *folio;
-	pte_t *ptep;
+	int expected, cc = 0;
+
+	if (folio_test_writeback(folio))
+		return -EBUSY;
+	expected = expected_folio_refs(folio) + 1;
+	if (!folio_ref_freeze(folio, expected))
+		return -EBUSY;
+	set_bit(PG_arch_1, &folio->flags);
+	/*
+	 * If the UVC does not succeed or fail immediately, we don't want to
+	 * loop for long, or we might get stall notifications.
+	 * On the other hand, this is a complex scenario and we are holding a lot of
+	 * locks, so we can't easily sleep and reschedule. We try only once,
+	 * and if the UVC returned busy or partial completion, we return
+	 * -EAGAIN and we let the callers deal with it.
+	 */
+	cc = __uv_call(0, (u64)uvcb);
+	folio_ref_unfreeze(folio, expected);
+	/*
+	 * Return -ENXIO if the folio was not mapped, -EINVAL for other errors.
+	 * If busy or partially completed, return -EAGAIN.
+	 */
+	if (cc == UVC_CC_OK)
+		return 0;
+	else if (cc == UVC_CC_BUSY || cc == UVC_CC_PARTIAL)
+		return -EAGAIN;
+	return uvcb->rc == 0x10a ? -ENXIO : -EINVAL;
+}
+
+static int make_folio_secure(struct mm_struct *mm, struct folio *folio, struct uv_cb_header *uvcb)
+{
 	int rc;
 
-again:
-	rc = -EFAULT;
-	mmap_read_lock(gmap->mm);
+	if (!folio_trylock(folio))
+		return -EAGAIN;
+	if (should_export_before_import(uvcb, mm))
+		uv_convert_from_secure(folio_to_phys(folio));
+	rc = __make_folio_secure(folio, uvcb);
+	folio_unlock(folio);
 
-	uaddr = __gmap_translate(gmap, gaddr);
-	if (IS_ERR_VALUE(uaddr))
-		goto out;
-	vma = vma_lookup(gmap->mm, uaddr);
-	if (!vma)
-		goto out;
-	/*
-	 * Secure pages cannot be huge and userspace should not combine both.
-	 * In case userspace does it anyway this will result in an -EFAULT for
-	 * the unpack. The guest is thus never reaching secure mode. If
-	 * userspace is playing dirty tricky with mapping huge pages later
-	 * on this will result in a segmentation fault.
-	 */
-	if (is_vm_hugetlb_page(vma))
-		goto out;
+	return rc;
+}
 
-	rc = -ENXIO;
-	ptep = get_locked_pte(gmap->mm, uaddr, &ptelock);
-	if (!ptep)
-		goto out;
-	if (pte_present(*ptep) && !(pte_val(*ptep) & _PAGE_INVALID) && pte_write(*ptep)) {
-		folio = page_folio(pte_page(*ptep));
-		rc = -EAGAIN;
-		if (folio_test_large(folio)) {
-			rc = -E2BIG;
-		} else if (folio_trylock(folio)) {
-			if (should_export_before_import(uvcb, gmap->mm))
-				uv_convert_from_secure(PFN_PHYS(folio_pfn(folio)));
-			rc = make_folio_secure(folio, uvcb);
-			folio_unlock(folio);
-		}
+/**
+ * s390_wiggle_split_folio() - try to drain extra references to a folio and optionally split.
+ * @mm:    the mm containing the folio to work on
+ * @folio: the folio
+ * @split: whether to split a large folio
+ *
+ * Context: Must be called while holding an extra reference to the folio;
+ *          the mm lock should not be held.
+ * Return: 0 if the folio was split successfully;
+ *         -EAGAIN if the folio was not split successfully but another attempt
+ *                 can be made, or if @split was set to false;
+ *         -EINVAL in case of other errors. See split_folio().
+ */
+static int s390_wiggle_split_folio(struct mm_struct *mm, struct folio *folio, bool split)
+{
+	int rc;
 
-		/*
-		 * Once we drop the PTL, the folio may get unmapped and
-		 * freed immediately. We need a temporary reference.
-		 */
-		if (rc == -EAGAIN || rc == -E2BIG)
-			folio_get(folio);
-	}
-	pte_unmap_unlock(ptep, ptelock);
-out:
-	mmap_read_unlock(gmap->mm);
-
-	switch (rc) {
-	case -E2BIG:
+	lockdep_assert_not_held(&mm->mmap_lock);
+	folio_wait_writeback(folio);
+	lru_add_drain_all();
+	if (split) {
 		folio_lock(folio);
 		rc = split_folio(folio);
 		folio_unlock(folio);
-		folio_put(folio);
 
-		switch (rc) {
-		case 0:
-			/* Splitting succeeded, try again immediately. */
-			goto again;
-		case -EAGAIN:
-			/* Additional folio references. */
-			if (drain_lru(&drain_lru_called))
-				goto again;
-			return -EAGAIN;
-		case -EBUSY:
-			/* Unexpected race. */
-			return -EAGAIN;
-		}
-		WARN_ON_ONCE(1);
-		return -ENXIO;
-	case -EAGAIN:
-		/*
-		 * If we are here because the UVC returned busy or partial
-		 * completion, this is just a useless check, but it is safe.
-		 */
-		folio_wait_writeback(folio);
-		folio_put(folio);
-		return -EAGAIN;
-	case -EBUSY:
-		/* Additional folio references. */
-		if (drain_lru(&drain_lru_called))
-			goto again;
-		return -EAGAIN;
-	case -ENXIO:
-		if (gmap_fault(gmap, gaddr, FAULT_FLAG_WRITE))
-			return -EFAULT;
-		return -EAGAIN;
+		if (rc != -EBUSY)
+			return rc;
 	}
-	return rc;
+	return -EAGAIN;
 }
-EXPORT_SYMBOL_GPL(gmap_make_secure);
 
-int gmap_convert_to_secure(struct gmap *gmap, unsigned long gaddr)
-{
-	struct uv_cb_cts uvcb = {
-		.header.cmd = UVC_CMD_CONV_TO_SEC_STOR,
-		.header.len = sizeof(uvcb),
-		.guest_handle = gmap->guest_handle,
-		.gaddr = gaddr,
-	};
-
-	return gmap_make_secure(gmap, gaddr, &uvcb);
-}
-EXPORT_SYMBOL_GPL(gmap_convert_to_secure);
-
-/**
- * gmap_destroy_page - Destroy a guest page.
- * @gmap: the gmap of the guest
- * @gaddr: the guest address to destroy
- *
- * An attempt will be made to destroy the given guest page. If the attempt
- * fails, an attempt is made to export the page. If both attempts fail, an
- * appropriate error is returned.
- */
-int gmap_destroy_page(struct gmap *gmap, unsigned long gaddr)
+int make_hva_secure(struct mm_struct *mm, unsigned long hva, struct uv_cb_header *uvcb)
 {
 	struct vm_area_struct *vma;
 	struct folio_walk fw;
-	unsigned long uaddr;
 	struct folio *folio;
 	int rc;
 
-	rc = -EFAULT;
-	mmap_read_lock(gmap->mm);
+	mmap_read_lock(mm);
+	vma = vma_lookup(mm, hva);
+	if (!vma) {
+		mmap_read_unlock(mm);
+		return -EFAULT;
+	}
+	folio = folio_walk_start(&fw, vma, hva, 0);
+	if (!folio) {
+		mmap_read_unlock(mm);
+		return -ENXIO;
+	}
 
-	uaddr = __gmap_translate(gmap, gaddr);
-	if (IS_ERR_VALUE(uaddr))
-		goto out;
-	vma = vma_lookup(gmap->mm, uaddr);
-	if (!vma)
-		goto out;
+	folio_get(folio);
 	/*
-	 * Huge pages should not be able to become secure
+	 * Secure pages cannot be huge and userspace should not combine both.
+	 * In case userspace does it anyway this will result in an -EFAULT for
+	 * the unpack. The guest is thus never reaching secure mode.
+	 * If userspace plays dirty tricks and decides to map huge pages at a
+	 * later point in time, it will receive a segmentation fault or
+	 * KVM_RUN will return -EFAULT.
 	 */
-	if (is_vm_hugetlb_page(vma))
-		goto out;
-
-	rc = 0;
-	folio = folio_walk_start(&fw, vma, uaddr, 0);
-	if (!folio)
-		goto out;
-	/*
-	 * See gmap_make_secure(): large folios cannot be secure. Small
-	 * folio implies FW_LEVEL_PTE.
-	 */
-	if (folio_test_large(folio) || !pte_write(fw.pte))
-		goto out_walk_end;
-	rc = uv_destroy_folio(folio);
-	/*
-	 * Fault handlers can race; it is possible that two CPUs will fault
-	 * on the same secure page. One CPU can destroy the page, reboot,
-	 * re-enter secure mode and import it, while the second CPU was
-	 * stuck at the beginning of the handler. At some point the second
-	 * CPU will be able to progress, and it will not be able to destroy
-	 * the page. In that case we do not want to terminate the process,
-	 * we instead try to export the page.
-	 */
-	if (rc)
-		rc = uv_convert_from_secure_folio(folio);
-out_walk_end:
+	if (folio_test_hugetlb(folio))
+		rc = -EFAULT;
+	else if (folio_test_large(folio))
+		rc = -E2BIG;
+	else if (!pte_write(fw.pte) || (pte_val(fw.pte) & _PAGE_INVALID))
+		rc = -ENXIO;
+	else
+		rc = make_folio_secure(mm, folio, uvcb);
 	folio_walk_end(&fw, vma);
-out:
-	mmap_read_unlock(gmap->mm);
+	mmap_read_unlock(mm);
+
+	if (rc == -E2BIG || rc == -EBUSY)
+		rc = s390_wiggle_split_folio(mm, folio, rc == -E2BIG);
+	folio_put(folio);
+
 	return rc;
 }
-EXPORT_SYMBOL_GPL(gmap_destroy_page);
+EXPORT_SYMBOL_GPL(make_hva_secure);
 
 /*
  * To be called with the folio locked or with an extra reference! This will

@@ -224,7 +224,7 @@ msm_gem_assert_locked(struct drm_gem_object *obj)
 /* imported/exported objects are not purgeable: */
 static inline bool is_unpurgeable(struct msm_gem_object *msm_obj)
 {
-	return msm_obj->base.import_attach || msm_obj->pin_count;
+	return drm_gem_is_imported(&msm_obj->base) || msm_obj->pin_count;
 }
 
 static inline bool is_purgeable(struct msm_gem_object *msm_obj)

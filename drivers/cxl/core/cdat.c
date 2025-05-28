@@ -258,27 +258,29 @@ static void update_perf_entry(struct device *dev, struct dsmas_entry *dent,
 static void cxl_memdev_set_qos_class(struct cxl_dev_state *cxlds,
 				     struct xarray *dsmas_xa)
 {
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 	struct device *dev = cxlds->dev;
-	struct range pmem_range = {
-		.start = cxlds->pmem_res.start,
-		.end = cxlds->pmem_res.end,
-	};
-	struct range ram_range = {
-		.start = cxlds->ram_res.start,
-		.end = cxlds->ram_res.end,
-	};
 	struct dsmas_entry *dent;
 	unsigned long index;
 
 	xa_for_each(dsmas_xa, index, dent) {
-		if (resource_size(&cxlds->ram_res) &&
-		    range_contains(&ram_range, &dent->dpa_range))
-			update_perf_entry(dev, dent, &mds->ram_perf);
-		else if (resource_size(&cxlds->pmem_res) &&
-			 range_contains(&pmem_range, &dent->dpa_range))
-			update_perf_entry(dev, dent, &mds->pmem_perf);
-		else
+		bool found = false;
+
+		for (int i = 0; i < cxlds->nr_partitions; i++) {
+			struct resource *res = &cxlds->part[i].res;
+			struct range range = {
+				.start = res->start,
+				.end = res->end,
+			};
+
+			if (range_contains(&range, &dent->dpa_range)) {
+				update_perf_entry(dev, dent,
+						  &cxlds->part[i].perf);
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
 			dev_dbg(dev, "no partition for dsmas dpa: %pra\n",
 				&dent->dpa_range);
 	}
@@ -343,36 +345,46 @@ static int match_cxlrd_hb(struct device *dev, void *data)
 	return 0;
 }
 
-static int cxl_qos_class_verify(struct cxl_memdev *cxlmd)
+static void cxl_qos_class_verify(struct cxl_memdev *cxlmd)
 {
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 	struct cxl_port *root_port;
-	int rc;
 
 	struct cxl_root *cxl_root __free(put_cxl_root) =
 		find_cxl_root(cxlmd->endpoint);
 
+	/*
+	 * No need to reset_dpa_perf() here as find_cxl_root() is guaranteed to
+	 * succeed when called in the cxl_endpoint_port_probe() path.
+	 */
 	if (!cxl_root)
-		return -ENODEV;
+		return;
 
 	root_port = &cxl_root->port;
 
-	/* Check that the QTG IDs are all sane between end device and root decoders */
-	if (!cxl_qos_match(root_port, &mds->ram_perf))
-		reset_dpa_perf(&mds->ram_perf);
-	if (!cxl_qos_match(root_port, &mds->pmem_perf))
-		reset_dpa_perf(&mds->pmem_perf);
+	/*
+	 * Save userspace from needing to check if a qos class has any matches
+	 * by hiding qos class info if the memdev is not mapped by a root
+	 * decoder, or the partition class does not match any root decoder
+	 * class.
+	 */
+	if (!device_for_each_child(&root_port->dev,
+				   cxlmd->endpoint->host_bridge,
+				   match_cxlrd_hb)) {
+		for (int i = 0; i < cxlds->nr_partitions; i++) {
+			struct cxl_dpa_perf *perf = &cxlds->part[i].perf;
 
-	/* Check to make sure that the device's host bridge is under a root decoder */
-	rc = device_for_each_child(&root_port->dev,
-				   cxlmd->endpoint->host_bridge, match_cxlrd_hb);
-	if (!rc) {
-		reset_dpa_perf(&mds->ram_perf);
-		reset_dpa_perf(&mds->pmem_perf);
+			reset_dpa_perf(perf);
+		}
+		return;
 	}
 
-	return rc;
+	for (int i = 0; i < cxlds->nr_partitions; i++) {
+		struct cxl_dpa_perf *perf = &cxlds->part[i].perf;
+
+		if (!cxl_qos_match(root_port, perf))
+			reset_dpa_perf(perf);
+	}
 }
 
 static void discard_dsmas(struct xarray *xa)
@@ -570,23 +582,18 @@ static bool dpa_perf_contains(struct cxl_dpa_perf *perf,
 	return range_contains(&perf->dpa_range, &dpa);
 }
 
-static struct cxl_dpa_perf *cxled_get_dpa_perf(struct cxl_endpoint_decoder *cxled,
-					       enum cxl_decoder_mode mode)
+static struct cxl_dpa_perf *cxled_get_dpa_perf(struct cxl_endpoint_decoder *cxled)
 {
 	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_dpa_perf *perf;
 
-	switch (mode) {
-	case CXL_DECODER_RAM:
-		perf = &mds->ram_perf;
-		break;
-	case CXL_DECODER_PMEM:
-		perf = &mds->pmem_perf;
-		break;
-	default:
+	if (cxled->part < 0)
 		return ERR_PTR(-EINVAL);
-	}
+	perf = &cxlds->part[cxled->part].perf;
+
+	if (!perf)
+		return ERR_PTR(-EINVAL);
 
 	if (!dpa_perf_contains(perf, cxled->dpa_res))
 		return ERR_PTR(-EINVAL);
@@ -647,11 +654,10 @@ static int cxl_endpoint_gather_bandwidth(struct cxl_region *cxlr,
 	if (cxlds->rcd)
 		return -ENODEV;
 
-	perf = cxled_get_dpa_perf(cxled, cxlr->mode);
+	perf = cxled_get_dpa_perf(cxled);
 	if (IS_ERR(perf))
 		return PTR_ERR(perf);
 
-	gp_port = to_cxl_port(parent_port->dev.parent);
 	*gp_is_root = is_cxl_root(gp_port);
 
 	/*
@@ -1053,7 +1059,7 @@ void cxl_region_perf_data_calculate(struct cxl_region *cxlr,
 
 	lockdep_assert_held(&cxl_dpa_rwsem);
 
-	perf = cxled_get_dpa_perf(cxled, cxlr->mode);
+	perf = cxled_get_dpa_perf(cxled);
 	if (IS_ERR(perf))
 		return;
 

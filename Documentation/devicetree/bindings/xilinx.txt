@@ -102,28 +102,12 @@
                                            Default is <d#1024 d#480>.
        - rotate-display (empty) : rotate display 180 degrees.
 
-      ii) Xilinx SystemACE
-
-      The Xilinx SystemACE device is used to program FPGAs from an FPGA
-      bitstream stored on a CF card.  It can also be used as a generic CF
-      interface device.
-
-      Optional properties:
-       - 8-bit (empty) : Set this property for SystemACE in 8 bit mode
-
       iii) Xilinx EMAC and Xilinx TEMAC
 
       Xilinx Ethernet devices.  In addition to general xilinx properties
       listed above, nodes for these devices should include a phy-handle
       property, and may include other common network device properties
       like local-mac-address.
-
-      iv) Xilinx Uartlite
-
-      Xilinx uartlite devices are simple fixed speed serial ports.
-
-      Required properties:
-       - current-speed : Baud rate of uartlite
 
       v) Xilinx hwicap
 
@@ -140,16 +124,6 @@
                       'virtex2p', 'virtex4', or 'virtex5'.
 		- compatible : should contain "xlnx,xps-hwicap-1.00.a" or
 				"xlnx,opb-hwicap-1.00.b".
-
-      vi) Xilinx Uart 16550
-
-      Xilinx UART 16550 devices are very similar to the NS16550 but with
-      different register spacing and an offset from the base address.
-
-      Required properties:
-       - clock-frequency : Frequency of the clock input
-       - reg-offset : A value of 3 is required
-       - reg-shift : A value of 2 is required
 
       vii) Xilinx USB Host controller
 

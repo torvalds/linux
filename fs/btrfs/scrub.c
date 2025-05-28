@@ -1380,11 +1380,11 @@ static int find_first_extent_item(struct btrfs_root *extent_root,
 	if (path->nodes[0])
 		goto search_forward;
 
+	key.objectid = search_start;
 	if (btrfs_fs_incompat(fs_info, SKINNY_METADATA))
 		key.type = BTRFS_METADATA_ITEM_KEY;
 	else
 		key.type = BTRFS_EXTENT_ITEM_KEY;
-	key.objectid = search_start;
 	key.offset = (u64)-1;
 
 	ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);
@@ -2497,8 +2497,8 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 	path->skip_locking = 1;
 
 	key.objectid = scrub_dev->devid;
-	key.offset = 0ull;
 	key.type = BTRFS_DEV_EXTENT_KEY;
+	key.offset = 0ull;
 
 	while (1) {
 		u64 dev_extent_len;

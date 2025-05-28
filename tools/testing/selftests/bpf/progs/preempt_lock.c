@@ -134,11 +134,77 @@ int __noinline preempt_global_subprog(void)
 }
 
 SEC("?tc")
-__failure __msg("global function calls are not allowed with preemption disabled")
+__success
 int preempt_global_subprog_test(struct __sk_buff *ctx)
 {
 	preempt_disable();
 	preempt_global_subprog();
+	preempt_enable();
+	return 0;
+}
+
+int __noinline
+global_subprog(int i)
+{
+	if (i)
+		bpf_printk("%p", &i);
+	return i;
+}
+
+int __noinline
+global_sleepable_helper_subprog(int i)
+{
+	if (i)
+		bpf_copy_from_user(&i, sizeof(i), NULL);
+	return i;
+}
+
+int __noinline
+global_sleepable_kfunc_subprog(int i)
+{
+	if (i)
+		bpf_copy_from_user_str(&i, sizeof(i), NULL, 0);
+	global_subprog(i);
+	return i;
+}
+
+int __noinline
+global_subprog_calling_sleepable_global(int i)
+{
+	if (!i)
+		global_sleepable_kfunc_subprog(i);
+	return i;
+}
+
+SEC("?syscall")
+__failure __msg("global functions that may sleep are not allowed in non-sleepable context")
+int preempt_global_sleepable_helper_subprog(struct __sk_buff *ctx)
+{
+	preempt_disable();
+	if (ctx->mark)
+		global_sleepable_helper_subprog(ctx->mark);
+	preempt_enable();
+	return 0;
+}
+
+SEC("?syscall")
+__failure __msg("global functions that may sleep are not allowed in non-sleepable context")
+int preempt_global_sleepable_kfunc_subprog(struct __sk_buff *ctx)
+{
+	preempt_disable();
+	if (ctx->mark)
+		global_sleepable_kfunc_subprog(ctx->mark);
+	preempt_enable();
+	return 0;
+}
+
+SEC("?syscall")
+__failure __msg("global functions that may sleep are not allowed in non-sleepable context")
+int preempt_global_sleepable_subprog_indirect(struct __sk_buff *ctx)
+{
+	preempt_disable();
+	if (ctx->mark)
+		global_subprog_calling_sleepable_global(ctx->mark);
 	preempt_enable();
 	return 0;
 }

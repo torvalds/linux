@@ -15,8 +15,11 @@ static enum scx_test_status setup(void **ctx)
 {
 	struct ddsp_bogus_dsq_fail *skel;
 
-	skel = ddsp_bogus_dsq_fail__open_and_load();
-	SCX_FAIL_IF(!skel, "Failed to open and load skel");
+	skel = ddsp_bogus_dsq_fail__open();
+	SCX_FAIL_IF(!skel, "Failed to open");
+	SCX_ENUM_INIT(skel);
+	SCX_FAIL_IF(ddsp_bogus_dsq_fail__load(skel), "Failed to load skel");
+
 	*ctx = skel;
 
 	return SCX_TEST_PASS;

@@ -2136,8 +2136,8 @@ qla2x00_write_flash_byte(struct qla_hw_data *ha, uint32_t addr, uint8_t data)
  * @flash_id: Flash ID
  *
  * This function polls the device until bit 7 of what is read matches data
- * bit 7 or until data bit 5 becomes a 1.  If that hapens, the flash ROM timed
- * out (a fatal error).  The flash book recommeds reading bit 7 again after
+ * bit 7 or until data bit 5 becomes a 1.  If that happens, the flash ROM timed
+ * out (a fatal error).  The flash book recommends reading bit 7 again after
  * reading bit 5 as a 1.
  *
  * Returns 0 on success, else non-zero.

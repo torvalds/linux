@@ -139,27 +139,22 @@ config TRACE_MMIO_ACCESS
 source "lib/crypto/Kconfig"
 
 config CRC_CCITT
-	tristate "CRC-CCITT functions"
+	tristate
 	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC-CCITT functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC-CCITT
-	  functions require M here.
+	  The CRC-CCITT library functions.  Select this if your module uses any
+	  of the functions from <linux/crc-ccitt.h>.
 
 config CRC16
-	tristate "CRC16 functions"
+	tristate
 	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC16 functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC16
-	  functions require M here.
+	  The CRC16 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc16.h>.
 
 config CRC_T10DIF
-	tristate "CRC calculation for the T10 Data Integrity Field"
+	tristate
 	help
-	  This option is only needed if a module that's not in the
-	  kernel tree needs to calculate CRC checks for use with the
-	  SCSI data integrity subsystem.
+	  The CRC-T10DIF library functions.  Select this if your module uses
+	  any of the functions from <linux/crc-t10dif.h>.
 
 config ARCH_HAS_CRC_T10DIF
 	bool
@@ -168,32 +163,18 @@ config CRC_T10DIF_ARCH
 	tristate
 	default CRC_T10DIF if ARCH_HAS_CRC_T10DIF && CRC_OPTIMIZATIONS
 
-config CRC64_ROCKSOFT
-	tristate "CRC calculation for the Rocksoft model CRC64"
-	select CRC64
-	select CRYPTO
-	select CRYPTO_CRC64_ROCKSOFT
-	help
-	  This option provides a CRC64 API to a registered crypto driver.
-	  This is used with the block layer's data integrity subsystem.
-
 config CRC_ITU_T
-	tristate "CRC ITU-T V.41 functions"
+	tristate
 	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC ITU-T V.41 functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC ITU-T V.41
-	  functions require M here.
+	  The CRC-ITU-T library functions.  Select this if your module uses
+	  any of the functions from <linux/crc-itu-t.h>.
 
 config CRC32
-	tristate "CRC32/CRC32c functions"
-	default y
+	tristate
 	select BITREVERSE
 	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC32/CRC32c functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC32/CRC32c
-	  functions require M here.
+	  The CRC32 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc32.h> or <linux/crc32c.h>.
 
 config ARCH_HAS_CRC32
 	bool
@@ -203,42 +184,35 @@ config CRC32_ARCH
 	default CRC32 if ARCH_HAS_CRC32 && CRC_OPTIMIZATIONS
 
 config CRC64
-	tristate "CRC64 functions"
+	tristate
 	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC64 functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC64
-	  functions require M here.
+	  The CRC64 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc64.h>.
+
+config ARCH_HAS_CRC64
+	bool
+
+config CRC64_ARCH
+	tristate
+	default CRC64 if ARCH_HAS_CRC64 && CRC_OPTIMIZATIONS
 
 config CRC4
-	tristate "CRC4 functions"
+	tristate
 	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC4 functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC4
-	  functions require M here.
+	  The CRC4 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc4.h>.
 
 config CRC7
-	tristate "CRC7 functions"
+	tristate
 	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC7 functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC7
-	  functions require M here.
-
-config LIBCRC32C
-	tristate "CRC32c (Castagnoli, et al) Cyclic Redundancy-Check"
-	select CRC32
-	help
-	  This option just selects CRC32 and is provided for compatibility
-	  purposes until the users are updated to select CRC32 directly.
+	  The CRC7 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc7.h>.
 
 config CRC8
-	tristate "CRC8 function"
+	tristate
 	help
-	  This option provides CRC8 function. Drivers may select this
-	  when they need to do cyclic redundancy check according CRC8
-	  algorithm. Module will be called crc8.
+	  The CRC8 library functions.  Select this if your module uses any of
+	  the functions from <linux/crc8.h>.
 
 config CRC_OPTIMIZATIONS
 	bool "Enable optimized CRC implementations" if EXPERT

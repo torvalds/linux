@@ -73,10 +73,9 @@ __ioremap_29bit(phys_addr_t offset, unsigned long size, pgprot_t prot)
 #endif /* CONFIG_29BIT */
 
 void __iomem __ref *ioremap_prot(phys_addr_t phys_addr, size_t size,
-				 unsigned long prot)
+				 pgprot_t pgprot)
 {
 	void __iomem *mapped;
-	pgprot_t pgprot = __pgprot(prot);
 
 	mapped = __ioremap_trapped(phys_addr, size);
 	if (mapped)

@@ -360,7 +360,6 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 	if (!chip)
 		return -ENOMEM;
 
-	dev_set_drvdata(&pdev->dev, chip);
 	chip->dev = &pdev->dev;
 
 	mutex_init(&chip->lock);

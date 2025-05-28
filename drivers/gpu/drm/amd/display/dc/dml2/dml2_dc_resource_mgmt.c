@@ -532,26 +532,6 @@ static void calculate_odm_slices(const struct dc_stream_state *stream, unsigned 
 	odm_slice_end_x[odm_factor - 1] = stream->src.width - 1;
 }
 
-static bool is_plane_in_odm_slice(const struct dc_plane_state *plane, unsigned int slice_index, unsigned int *odm_slice_end_x, unsigned int num_slices)
-{
-	unsigned int slice_start_x, slice_end_x;
-
-	if (slice_index == 0)
-		slice_start_x = 0;
-	else
-		slice_start_x = odm_slice_end_x[slice_index - 1] + 1;
-
-	slice_end_x = odm_slice_end_x[slice_index];
-
-	if (plane->clip_rect.x + plane->clip_rect.width < slice_start_x)
-		return false;
-
-	if (plane->clip_rect.x > slice_end_x)
-		return false;
-
-	return true;
-}
-
 static void add_odm_slice_to_odm_tree(struct dml2_context *ctx,
 		struct dc_state *state,
 		struct dc_pipe_mapping_scratch *scratch,
@@ -791,12 +771,6 @@ static void map_pipes_for_plane(struct dml2_context *ctx, struct dc_state *state
 	sort_pipes_for_splitting(&scratch->pipe_pool);
 
 	for (odm_slice_index = 0; odm_slice_index < scratch->odm_info.odm_factor; odm_slice_index++) {
-		// We build the tree for one ODM slice at a time.
-		// Each ODM slice shares a common OPP
-		if (!is_plane_in_odm_slice(plane, odm_slice_index, scratch->odm_info.odm_slice_end_x, scratch->odm_info.odm_factor)) {
-			continue;
-		}
-
 		// Now we have a list of all pipes to be used for this plane/stream, now setup the tree.
 		scratch->odm_info.next_higher_pipe_for_odm_slice[odm_slice_index] = add_plane_to_blend_tree(ctx, state,
 				plane,
@@ -1108,22 +1082,22 @@ bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const s
 		if (stream_disp_cfg_index >= disp_cfg_index_max)
 			continue;
 
-		if (ODMMode[stream_disp_cfg_index] == dml_odm_mode_bypass) {
-			scratch.odm_info.odm_factor = 1;
-		} else if (ODMMode[stream_disp_cfg_index] == dml_odm_mode_combine_2to1) {
-			scratch.odm_info.odm_factor = 2;
-		} else if (ODMMode[stream_disp_cfg_index] == dml_odm_mode_combine_4to1) {
-			scratch.odm_info.odm_factor = 4;
-		} else {
-			ASSERT(false);
-			scratch.odm_info.odm_factor = 1;
-		}
-
+		if (ctx->architecture == dml2_architecture_20) {
+			if (ODMMode[stream_disp_cfg_index] == dml_odm_mode_bypass) {
+				scratch.odm_info.odm_factor = 1;
+			} else if (ODMMode[stream_disp_cfg_index] == dml_odm_mode_combine_2to1) {
+				scratch.odm_info.odm_factor = 2;
+			} else if (ODMMode[stream_disp_cfg_index] == dml_odm_mode_combine_4to1) {
+				scratch.odm_info.odm_factor = 4;
+			} else {
+				ASSERT(false);
+				scratch.odm_info.odm_factor = 1;
+			}
+		} else if (ctx->architecture == dml2_architecture_21) {
 		/* After DML2.1 update, ODM interpretation needs to change and is no longer same as for DML2.0.
 		 * This is not an issue with new resource management logic. This block ensure backcompat
 		 * with legacy pipe management with updated DML.
 		 * */
-		if (ctx->architecture == dml2_architecture_21) {
 			if (ODMMode[stream_disp_cfg_index] == 1) {
 				scratch.odm_info.odm_factor = 1;
 			} else if (ODMMode[stream_disp_cfg_index] == 2) {

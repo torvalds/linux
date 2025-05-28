@@ -83,8 +83,8 @@ static inline int bpf_prog_get_map_ids(int prog_fd, __u32 *nr_map_ids, __u32 *ma
 	int err;
 
 	memset(&info, 0, len);
-	info.nr_map_ids = *nr_map_ids,
-	info.map_ids = ptr_to_u64(map_ids),
+	info.nr_map_ids = *nr_map_ids;
+	info.map_ids = ptr_to_u64(map_ids);
 
 	err = bpf_prog_get_info_by_fd(prog_fd, &info, &len);
 	if (!ASSERT_OK(err, "bpf_prog_get_info_by_fd"))

@@ -140,6 +140,7 @@ config VIDEO_IMX214
 	tristate "Sony IMX214 sensor support"
 	depends on GPIOLIB
 	select REGMAP_I2C
+	select V4L2_CCI_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
 	  IMX214 camera.
@@ -1145,6 +1146,17 @@ config VIDEO_ISL7998X
 	help
 	  Support for Intersil ISL7998x analog to MIPI-CSI2 or
 	  BT.656 decoder.
+
+config VIDEO_LT6911UXE
+	tristate "Lontium LT6911UXE decoder"
+	depends on ACPI && VIDEO_DEV
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor-level driver for the Lontium
+	  LT6911UXE HDMI to MIPI CSI-2 bridge.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lt6911uxe.
 
 config VIDEO_KS0127
 	tristate "KS0127 video decoder"

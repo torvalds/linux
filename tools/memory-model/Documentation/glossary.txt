@@ -15,14 +15,14 @@ Address Dependency:  When the address of a later memory access is computed
 	 3 do_something(p->a);
 	 4 rcu_read_unlock();
 
-	 In this case, because the address of "p->a" on line 3 is computed
-	 from the value returned by the rcu_dereference() on line 2, the
-	 address dependency extends from that rcu_dereference() to that
-	 "p->a".  In rare cases, optimizing compilers can destroy address
-	 dependencies.	Please see Documentation/RCU/rcu_dereference.rst
-	 for more information.
+	In this case, because the address of "p->a" on line 3 is computed
+	from the value returned by the rcu_dereference() on line 2, the
+	address dependency extends from that rcu_dereference() to that
+	"p->a".  In rare cases, optimizing compilers can destroy address
+	dependencies.	Please see Documentation/RCU/rcu_dereference.rst
+	for more information.
 
-	 See also "Control Dependency" and "Data Dependency".
+	See also "Control Dependency" and "Data Dependency".
 
 Acquire:  With respect to a lock, acquiring that lock, for example,
 	using spin_lock().  With respect to a non-lock shared variable,
@@ -59,12 +59,12 @@ Control Dependency:  When a later store's execution depends on a test
 	 1 if (READ_ONCE(x))
 	 2   WRITE_ONCE(y, 1);
 
-	 Here, the control dependency extends from the READ_ONCE() on
-	 line 1 to the WRITE_ONCE() on line 2.	Control dependencies are
-	 fragile, and can be easily destroyed by optimizing compilers.
-	 Please see control-dependencies.txt for more information.
+	Here, the control dependency extends from the READ_ONCE() on
+	line 1 to the WRITE_ONCE() on line 2.	Control dependencies are
+	fragile, and can be easily destroyed by optimizing compilers.
+	Please see control-dependencies.txt for more information.
 
-	 See also "Address Dependency" and "Data Dependency".
+	See also "Address Dependency" and "Data Dependency".
 
 Cycle:	Memory-barrier pairing is restricted to a pair of CPUs, as the
 	name suggests.	And in a great many cases, a pair of CPUs is all
@@ -72,10 +72,10 @@ Cycle:	Memory-barrier pairing is restricted to a pair of CPUs, as the
 	extended to additional CPUs, and the result is called a "cycle".
 	In a cycle, each CPU's ordering interacts with that of the next:
 
-	CPU 0                CPU 1                CPU 2
-	WRITE_ONCE(x, 1);    WRITE_ONCE(y, 1);    WRITE_ONCE(z, 1);
-	smp_mb();            smp_mb();            smp_mb();
-	r0 = READ_ONCE(y);   r1 = READ_ONCE(z);   r2 = READ_ONCE(x);
+	 CPU 0                CPU 1                CPU 2
+	 WRITE_ONCE(x, 1);    WRITE_ONCE(y, 1);    WRITE_ONCE(z, 1);
+	 smp_mb();            smp_mb();            smp_mb();
+	 r0 = READ_ONCE(y);   r1 = READ_ONCE(z);   r2 = READ_ONCE(x);
 
 	CPU 0's smp_mb() interacts with that of CPU 1, which interacts
 	with that of CPU 2, which in turn interacts with that of CPU 0

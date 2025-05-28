@@ -23,7 +23,7 @@ extern const struct sysfs_ops bch2_fs_opts_dir_sysfs_ops;
 extern const struct sysfs_ops bch2_fs_time_stats_sysfs_ops;
 extern const struct sysfs_ops bch2_dev_sysfs_ops;
 
-int bch2_opts_create_sysfs_files(struct kobject *);
+int bch2_opts_create_sysfs_files(struct kobject *, unsigned);
 
 #else
 
@@ -41,7 +41,8 @@ static const struct sysfs_ops bch2_fs_opts_dir_sysfs_ops;
 static const struct sysfs_ops bch2_fs_time_stats_sysfs_ops;
 static const struct sysfs_ops bch2_dev_sysfs_ops;
 
-static inline int bch2_opts_create_sysfs_files(struct kobject *kobj) { return 0; }
+static inline int bch2_opts_create_sysfs_files(struct kobject *kobj, unsigned type)
+{ return 0; }
 
 #endif /* NO_BCACHEFS_SYSFS */
 

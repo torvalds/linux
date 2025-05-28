@@ -263,23 +263,3 @@ void fsl_mc_portal_free(struct fsl_mc_io *mc_io)
 	dpmcp_dev->consumer_link = NULL;
 }
 EXPORT_SYMBOL_GPL(fsl_mc_portal_free);
-
-/**
- * fsl_mc_portal_reset - Resets the dpmcp object for a given fsl_mc_io object
- *
- * @mc_io: Pointer to the fsl_mc_io object that wraps the MC portal to free
- */
-int fsl_mc_portal_reset(struct fsl_mc_io *mc_io)
-{
-	int error;
-	struct fsl_mc_device *dpmcp_dev = mc_io->dpmcp_dev;
-
-	error = dpmcp_reset(mc_io, 0, dpmcp_dev->mc_handle);
-	if (error < 0) {
-		dev_err(&dpmcp_dev->dev, "dpmcp_reset() failed: %d\n", error);
-		return error;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(fsl_mc_portal_reset);

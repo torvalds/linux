@@ -19,7 +19,6 @@
 #include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_of.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
@@ -419,6 +418,7 @@ static void ps8622_post_disable(struct drm_bridge *bridge)
 }
 
 static int ps8622_attach(struct drm_bridge *bridge,
+			 struct drm_encoder *encoder,
 			 enum drm_bridge_attach_flags flags)
 {
 	struct ps8622_bridge *ps8622 = bridge_to_ps8622(bridge);

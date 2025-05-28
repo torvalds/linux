@@ -1175,7 +1175,7 @@ static int pxa168_eth_stop(struct net_device *dev)
 	/* Write to ICR to clear interrupts. */
 	wrl(pep, INT_W_CLEAR, 0);
 	napi_disable(&pep->napi);
-	del_timer_sync(&pep->timeout);
+	timer_delete_sync(&pep->timeout);
 	netif_carrier_off(dev);
 	free_irq(dev->irq, dev);
 	rxq_deinit(dev);

@@ -2572,7 +2572,7 @@ qla24xx_tm_iocb(srb_t *sp, struct tsk_mgmt_entry *tsk)
 static void
 qla2x00_async_done(struct srb *sp, int res)
 {
-	if (del_timer(&sp->u.iocb_cmd.timer)) {
+	if (timer_delete(&sp->u.iocb_cmd.timer)) {
 		/*
 		 * Successfully cancelled the timeout handler
 		 * ref: TMR
@@ -2645,7 +2645,7 @@ static void qla2x00_els_dcmd_sp_free(srb_t *sp)
 		    elsio->u.els_logo.els_logo_pyld,
 		    elsio->u.els_logo.els_logo_pyld_dma);
 
-	del_timer(&elsio->timer);
+	timer_delete(&elsio->timer);
 	qla2x00_rel_sp(sp);
 }
 

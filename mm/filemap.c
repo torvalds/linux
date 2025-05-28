@@ -47,7 +47,7 @@
 #include <linux/splice.h>
 #include <linux/rcupdate_wait.h>
 #include <linux/sched/mm.h>
-#include <linux/fsnotify.h>
+#include <linux/sysctl.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include "internal.h"
@@ -227,15 +227,12 @@ void __filemap_remove_folio(struct folio *folio, void *shadow)
 void filemap_free_folio(struct address_space *mapping, struct folio *folio)
 {
 	void (*free_folio)(struct folio *);
-	int refs = 1;
 
 	free_folio = mapping->a_ops->free_folio;
 	if (free_folio)
 		free_folio(folio);
 
-	if (folio_test_large(folio))
-		refs = folio_nr_pages(folio);
-	folio_put_refs(folio, refs);
+	folio_put_refs(folio, folio_nr_pages(folio));
 }
 
 /**
@@ -445,7 +442,7 @@ EXPORT_SYMBOL(filemap_fdatawrite_range);
  * filemap_fdatawrite_range_kick - start writeback on a range
  * @mapping:	target address_space
  * @start:	index to start writeback on
- * @end:	last (non-inclusive) index for writeback
+ * @end:	last (inclusive) index for writeback
  *
  * This is a non-integrity writeback helper, to start writing back folios
  * for the indicated range.
@@ -860,11 +857,10 @@ EXPORT_SYMBOL_GPL(replace_page_cache_folio);
 noinline int __filemap_add_folio(struct address_space *mapping,
 		struct folio *folio, pgoff_t index, gfp_t gfp, void **shadowp)
 {
-	XA_STATE(xas, &mapping->i_pages, index);
-	void *alloced_shadow = NULL;
-	int alloced_order = 0;
+	XA_STATE_ORDER(xas, &mapping->i_pages, index, folio_order(folio));
 	bool huge;
 	long nr;
+	unsigned int forder = folio_order(folio);
 
 	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
 	VM_BUG_ON_FOLIO(folio_test_swapbacked(folio), folio);
@@ -873,7 +869,6 @@ noinline int __filemap_add_folio(struct address_space *mapping,
 	mapping_set_update(&xas, mapping);
 
 	VM_BUG_ON_FOLIO(index & (folio_nr_pages(folio) - 1), folio);
-	xas_set_order(&xas, index, folio_order(folio));
 	huge = folio_test_hugetlb(folio);
 	nr = folio_nr_pages(folio);
 
@@ -883,7 +878,7 @@ noinline int __filemap_add_folio(struct address_space *mapping,
 	folio->index = xas.xa_index;
 
 	for (;;) {
-		int order = -1, split_order = 0;
+		int order = -1;
 		void *entry, *old = NULL;
 
 		xas_lock_irq(&xas);
@@ -901,21 +896,25 @@ noinline int __filemap_add_folio(struct address_space *mapping,
 				order = xas_get_order(&xas);
 		}
 
-		/* entry may have changed before we re-acquire the lock */
-		if (alloced_order && (old != alloced_shadow || order != alloced_order)) {
-			xas_destroy(&xas);
-			alloced_order = 0;
-		}
-
 		if (old) {
-			if (order > 0 && order > folio_order(folio)) {
+			if (order > 0 && order > forder) {
+				unsigned int split_order = max(forder,
+						xas_try_split_min_order(order));
+
 				/* How to handle large swap entries? */
 				BUG_ON(shmem_mapping(mapping));
-				if (!alloced_order) {
-					split_order = order;
-					goto unlock;
+
+				while (order > forder) {
+					xas_set_order(&xas, index, split_order);
+					xas_try_split(&xas, old, order);
+					if (xas_error(&xas))
+						goto unlock;
+					order = split_order;
+					split_order =
+						max(xas_try_split_min_order(
+							    split_order),
+						    forder);
 				}
-				xas_split(&xas, old, order);
 				xas_reset(&xas);
 			}
 			if (shadowp)
@@ -938,17 +937,6 @@ noinline int __filemap_add_folio(struct address_space *mapping,
 
 unlock:
 		xas_unlock_irq(&xas);
-
-		/* split needed, alloc here and retry. */
-		if (split_order) {
-			xas_split_alloc(&xas, old, split_order, gfp);
-			if (xas_error(&xas))
-				goto error;
-			alloced_shadow = old;
-			alloced_order = split_order;
-			xas_reset(&xas);
-			continue;
-		}
 
 		if (!xas_nomem(&xas, gfp))
 			break;
@@ -1078,6 +1066,19 @@ static wait_queue_head_t *folio_waitqueue(struct folio *folio)
 	return &folio_wait_table[hash_ptr(folio, PAGE_WAIT_TABLE_BITS)];
 }
 
+/* How many times do we accept lock stealing from under a waiter? */
+static int sysctl_page_lock_unfairness = 5;
+static const struct ctl_table filemap_sysctl_table[] = {
+	{
+		.procname	= "page_lock_unfairness",
+		.data		= &sysctl_page_lock_unfairness,
+		.maxlen		= sizeof(sysctl_page_lock_unfairness),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+	}
+};
+
 void __init pagecache_init(void)
 {
 	int i;
@@ -1086,6 +1087,7 @@ void __init pagecache_init(void)
 		init_waitqueue_head(&folio_wait_table[i]);
 
 	page_writeback_init();
+	register_sysctl_init("vm", filemap_sysctl_table);
 }
 
 /*
@@ -1233,9 +1235,6 @@ static inline bool folio_trylock_flag(struct folio *folio, int bit_nr,
 	return true;
 }
 
-/* How many times do we accept lock stealing from under a waiter? */
-int sysctl_page_lock_unfairness = 5;
-
 static inline int folio_wait_bit_common(struct folio *folio, int bit_nr,
 		int state, enum behavior behavior)
 {
@@ -1379,7 +1378,7 @@ repeat:
  * @ptl: already locked ptl. This function will drop the lock.
  *
  * Wait for a migration entry referencing the given page to be removed. This is
- * equivalent to put_and_wait_on_page_locked(page, TASK_UNINTERRUPTIBLE) except
+ * equivalent to folio_put_wait_locked(folio, TASK_UNINTERRUPTIBLE) except
  * this can be called without taking a reference on the page. Instead this
  * should be called while holding the ptl for the migration entry referencing
  * the page.
@@ -1986,8 +1985,19 @@ no_page:
 
 		if (err == -EEXIST)
 			goto repeat;
-		if (err)
+		if (err) {
+			/*
+			 * When NOWAIT I/O fails to allocate folios this could
+			 * be due to a nonblocking memory allocation and not
+			 * because the system actually is out of memory.
+			 * Return -EAGAIN so that there caller retries in a
+			 * blocking fashion instead of propagating -ENOMEM
+			 * to the application.
+			 */
+			if ((fgp_flags & FGP_NOWAIT) && err == -ENOMEM)
+				err = -EAGAIN;
 			return ERR_PTR(err);
+		}
 		/*
 		 * filemap_add_folio locks the page, and for mmap
 		 * we expect an unlocked page.
@@ -2234,6 +2244,7 @@ unsigned filemap_get_folios_contig(struct address_space *mapping,
 			*start = folio->index + nr;
 			goto out;
 		}
+		xas_advance(&xas, folio_next_index(folio) - 1);
 		continue;
 put_folio:
 		folio_put(folio);
@@ -2897,8 +2908,7 @@ size_t splice_folio_into_pipe(struct pipe_inode_info *pipe,
 	size = min(size, folio_size(folio) - offset);
 	offset %= PAGE_SIZE;
 
-	while (spliced < size &&
-	       !pipe_full(pipe->head, pipe->tail, pipe->max_usage)) {
+	while (spliced < size && !pipe_is_full(pipe)) {
 		struct pipe_buffer *buf = pipe_head_buf(pipe);
 		size_t part = min_t(size_t, PAGE_SIZE - offset, size - spliced);
 
@@ -2955,7 +2965,7 @@ ssize_t filemap_splice_read(struct file *in, loff_t *ppos,
 	iocb.ki_pos = *ppos;
 
 	/* Work out how much data we can actually add into the pipe */
-	used = pipe_occupancy(pipe->head, pipe->tail);
+	used = pipe_buf_usage(pipe);
 	npages = max_t(ssize_t, pipe->max_usage - used, 0);
 	len = min_t(size_t, len, npages * PAGE_SIZE);
 
@@ -3015,7 +3025,7 @@ ssize_t filemap_splice_read(struct file *in, loff_t *ppos,
 			total_spliced += n;
 			*ppos += n;
 			in->f_ra.prev_pos = *ppos;
-			if (pipe_full(pipe->head, pipe->tail, pipe->max_usage))
+			if (pipe_is_full(pipe))
 				goto out;
 		}
 
@@ -3199,14 +3209,6 @@ static struct file *do_sync_mmap_readahead(struct vm_fault *vmf)
 	unsigned long vm_flags = vmf->vma->vm_flags;
 	unsigned int mmap_miss;
 
-	/*
-	 * If we have pre-content watches we need to disable readahead to make
-	 * sure that we don't populate our mapping with 0 filled pages that we
-	 * never emitted an event for.
-	 */
-	if (unlikely(FMODE_FSNOTIFY_HSM(file->f_mode)))
-		return fpin;
-
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	/* Use the readahead code, even if readahead is disabled */
 	if ((vm_flags & VM_HUGEPAGE) && HPAGE_PMD_ORDER <= MAX_PAGECACHE_ORDER) {
@@ -3275,10 +3277,6 @@ static struct file *do_async_mmap_readahead(struct vm_fault *vmf,
 	struct file *fpin = NULL;
 	unsigned int mmap_miss;
 
-	/* See comment in do_sync_mmap_readahead. */
-	if (unlikely(FMODE_FSNOTIFY_HSM(file->f_mode)))
-		return fpin;
-
 	/* If we don't want any read-ahead, don't bother */
 	if (vmf->vma->vm_flags & VM_RAND_READ || !ra->ra_pages)
 		return fpin;
@@ -3336,48 +3334,6 @@ static vm_fault_t filemap_fault_recheck_pte_none(struct vm_fault *vmf)
 	pte_unmap(ptep);
 	return ret;
 }
-
-/**
- * filemap_fsnotify_fault - maybe emit a pre-content event.
- * @vmf:	struct vm_fault containing details of the fault.
- *
- * If we have a pre-content watch on this file we will emit an event for this
- * range.  If we return anything the fault caller should return immediately, we
- * will return VM_FAULT_RETRY if we had to emit an event, which will trigger the
- * fault again and then the fault handler will run the second time through.
- *
- * Return: a bitwise-OR of %VM_FAULT_ codes, 0 if nothing happened.
- */
-vm_fault_t filemap_fsnotify_fault(struct vm_fault *vmf)
-{
-	struct file *fpin = NULL;
-	int mask = (vmf->flags & FAULT_FLAG_WRITE) ? MAY_WRITE : MAY_ACCESS;
-	loff_t pos = vmf->pgoff >> PAGE_SHIFT;
-	size_t count = PAGE_SIZE;
-	int err;
-
-	/*
-	 * We already did this and now we're retrying with everything locked,
-	 * don't emit the event and continue.
-	 */
-	if (vmf->flags & FAULT_FLAG_TRIED)
-		return 0;
-
-	/* No watches, we're done. */
-	if (likely(!FMODE_FSNOTIFY_HSM(vmf->vma->vm_file->f_mode)))
-		return 0;
-
-	fpin = maybe_unlock_mmap_for_io(vmf, fpin);
-	if (!fpin)
-		return VM_FAULT_SIGBUS;
-
-	err = fsnotify_file_area_perm(fpin, mask, &pos, count);
-	fput(fpin);
-	if (err)
-		return VM_FAULT_SIGBUS;
-	return VM_FAULT_RETRY;
-}
-EXPORT_SYMBOL_GPL(filemap_fsnotify_fault);
 
 /**
  * filemap_fault - read in file data for page fault handling
@@ -3482,37 +3438,6 @@ retry_find:
 	 * or because readahead was otherwise unable to retrieve it.
 	 */
 	if (unlikely(!folio_test_uptodate(folio))) {
-		/*
-		 * If this is a precontent file we have can now emit an event to
-		 * try and populate the folio.
-		 */
-		if (!(vmf->flags & FAULT_FLAG_TRIED) &&
-		    unlikely(FMODE_FSNOTIFY_HSM(file->f_mode))) {
-			loff_t pos = folio_pos(folio);
-			size_t count = folio_size(folio);
-
-			/* We're NOWAIT, we have to retry. */
-			if (vmf->flags & FAULT_FLAG_RETRY_NOWAIT) {
-				folio_unlock(folio);
-				goto out_retry;
-			}
-
-			if (mapping_locked)
-				filemap_invalidate_unlock_shared(mapping);
-			mapping_locked = false;
-
-			folio_unlock(folio);
-			fpin = maybe_unlock_mmap_for_io(vmf, fpin);
-			if (!fpin)
-				goto out_retry;
-
-			error = fsnotify_file_area_perm(fpin, MAY_ACCESS, &pos,
-							count);
-			if (error)
-				ret = VM_FAULT_SIGBUS;
-			goto out_retry;
-		}
-
 		/*
 		 * If the invalidate lock is not held, the folio was in cache
 		 * and uptodate and now it is not. Strange but possible since we
@@ -4170,17 +4095,6 @@ retry:
 		bytes = min(chunk - offset, bytes);
 		balance_dirty_pages_ratelimited(mapping);
 
-		/*
-		 * Bring in the user page that we will copy from _first_.
-		 * Otherwise there's a nasty deadlock on copying from the
-		 * same page as we're writing to, without it being marked
-		 * up-to-date.
-		 */
-		if (unlikely(fault_in_iov_iter_readable(i, bytes) == bytes)) {
-			status = -EFAULT;
-			break;
-		}
-
 		if (fatal_signal_pending(current)) {
 			status = -EINTR;
 			break;
@@ -4198,6 +4112,12 @@ retry:
 		if (mapping_writably_mapped(mapping))
 			flush_dcache_folio(folio);
 
+		/*
+		 * Faults here on mmap()s can recurse into arbitrary
+		 * filesystem code. Lots of locks are held that can
+		 * deadlock. Use an atomic copy to avoid deadlocking
+		 * in page fault handling.
+		 */
 		copied = copy_folio_from_iter_atomic(folio, offset, bytes, i);
 		flush_dcache_folio(folio);
 
@@ -4222,6 +4142,16 @@ retry:
 			if (copied) {
 				bytes = copied;
 				goto retry;
+			}
+
+			/*
+			 * 'folio' is now unlocked and faults on it can be
+			 * handled. Ensure forward progress by trying to
+			 * fault it in now.
+			 */
+			if (fault_in_iov_iter_readable(i, bytes) == bytes) {
+				status = -EFAULT;
+				break;
 			}
 		} else {
 			pos += status;

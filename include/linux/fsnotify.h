@@ -129,7 +129,7 @@ static inline int fsnotify_file(struct file *file, __u32 mask)
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 
-void file_set_fsnotify_mode(struct file *file);
+void file_set_fsnotify_mode_from_watchers(struct file *file);
 
 /*
  * fsnotify_file_area_perm - permission hook before access to file range
@@ -168,6 +168,21 @@ static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,
 	 * scanners can inspect the content filled by pre-content event.
 	 */
 	return fsnotify_path(&file->f_path, FS_ACCESS_PERM);
+}
+
+/*
+ * fsnotify_mmap_perm - permission hook before mmap of file range
+ */
+static inline int fsnotify_mmap_perm(struct file *file, int prot,
+				     const loff_t off, size_t len)
+{
+	/*
+	 * mmap() generates only pre-content events.
+	 */
+	if (!file || likely(!FMODE_FSNOTIFY_HSM(file->f_mode)))
+		return 0;
+
+	return fsnotify_pre_content(&file->f_path, &off, len);
 }
 
 /*
@@ -213,12 +228,18 @@ static inline int fsnotify_open_perm(struct file *file)
 }
 
 #else
-static inline void file_set_fsnotify_mode(struct file *file)
+static inline void file_set_fsnotify_mode_from_watchers(struct file *file)
 {
 }
 
 static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,
 					  const loff_t *ppos, size_t count)
+{
+	return 0;
+}
+
+static inline int fsnotify_mmap_perm(struct file *file, int prot,
+				     const loff_t off, size_t len)
 {
 	return 0;
 }
@@ -297,6 +318,11 @@ static inline void fsnotify_inode_delete(struct inode *inode)
 static inline void fsnotify_vfsmount_delete(struct vfsmount *mnt)
 {
 	__fsnotify_vfsmount_delete(mnt);
+}
+
+static inline void fsnotify_mntns_delete(struct mnt_namespace *mntns)
+{
+	__fsnotify_mntns_delete(mntns);
 }
 
 /*
@@ -505,6 +531,21 @@ static inline int fsnotify_sb_error(struct super_block *sb, struct inode *inode,
 
 	return fsnotify(FS_ERROR, &report, FSNOTIFY_EVENT_ERROR,
 			NULL, NULL, NULL, 0);
+}
+
+static inline void fsnotify_mnt_attach(struct mnt_namespace *ns, struct vfsmount *mnt)
+{
+	fsnotify_mnt(FS_MNT_ATTACH, ns, mnt);
+}
+
+static inline void fsnotify_mnt_detach(struct mnt_namespace *ns, struct vfsmount *mnt)
+{
+	fsnotify_mnt(FS_MNT_DETACH, ns, mnt);
+}
+
+static inline void fsnotify_mnt_move(struct mnt_namespace *ns, struct vfsmount *mnt)
+{
+	fsnotify_mnt(FS_MNT_MOVE, ns, mnt);
 }
 
 #endif	/* _LINUX_FS_NOTIFY_H */

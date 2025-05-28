@@ -484,7 +484,7 @@ bool rtl92d_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 	 * pathA or mac1 has to set phy0&phy1 pathA */
 	if ((content == radiob_txt) && (rfpath == RF90_PATH_A)) {
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
-			" ===> althougth Path A, we load radiob.txt\n");
+			" ===> although Path A, we load radiob.txt\n");
 		radioa_arraylen = radiob_arraylen;
 		radioa_array_table = radiob_array_table;
 	}
@@ -750,7 +750,7 @@ static void _rtl92d_phy_switch_rf_setting(struct ieee80211_hw *hw, u8 channel)
 		    && rtlhal->interfaceindex == 1) {
 			need_pwr_down = rtl92d_phy_enable_anotherphy(hw, false);
 			rtlhal->during_mac1init_radioa = true;
-			/* asume no this case */
+			/* assume no this case */
 			if (need_pwr_down)
 				rtl92d_phy_enable_rf_env(hw, path,
 							 &u4regvalue);
@@ -1885,7 +1885,7 @@ static void _rtl92d_phy_reload_lck_setting(struct ieee80211_hw *hw,
 			bneed_powerdown_radio =
 				rtl92d_phy_enable_anotherphy(hw, false);
 			rtlpriv->rtlhal.during_mac1init_radioa = true;
-			/* asume no this case */
+			/* assume no this case */
 			if (bneed_powerdown_radio)
 				rtl92d_phy_enable_rf_env(hw, erfpath,
 							 &u4regvalue);

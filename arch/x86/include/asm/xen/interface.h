@@ -72,7 +72,7 @@
 #endif
 #endif
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /* Explicitly size integers that represent pfns in the public interface
  * with Xen so that on ARM we can have one ABI that works for 32 and 64
  * bit guests. */
@@ -137,7 +137,7 @@ DEFINE_GUEST_HANDLE(xen_ulong_t);
 #define TI_SET_DPL(_ti, _dpl)	((_ti)->flags |= (_dpl))
 #define TI_SET_IF(_ti, _if)	((_ti)->flags |= ((!!(_if))<<2))
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 struct trap_info {
     uint8_t       vector;  /* exception vector                              */
     uint8_t       flags;   /* 0-3: privilege level; 4: clear event enable?  */
@@ -186,7 +186,7 @@ struct arch_shared_info {
 	uint32_t wc_sec_hi;
 #endif
 };
-#endif	/* !__ASSEMBLY__ */
+#endif	/* !__ASSEMBLER__ */
 
 #ifdef CONFIG_X86_32
 #include <asm/xen/interface_32.h>
@@ -196,7 +196,7 @@ struct arch_shared_info {
 
 #include <asm/pvclock-abi.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /*
  * The following is all CPU context. Note that the fpu_ctxt block is filled
  * in by FXSAVE if the CPU has feature FXSR; otherwise FSAVE is used.
@@ -376,7 +376,7 @@ struct xen_pmu_arch {
 	} c;
 };
 
-#endif	/* !__ASSEMBLY__ */
+#endif	/* !__ASSEMBLER__ */
 
 /*
  * Prefix forces emulation of some non-trapping instructions.

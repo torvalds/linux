@@ -27,7 +27,6 @@ AMDKFD_FILES	:= $(AMDKFD_PATH)/kfd_module.o \
 		$(AMDKFD_PATH)/kfd_device.o \
 		$(AMDKFD_PATH)/kfd_chardev.o \
 		$(AMDKFD_PATH)/kfd_topology.o \
-		$(AMDKFD_PATH)/kfd_pasid.o \
 		$(AMDKFD_PATH)/kfd_doorbell.o \
 		$(AMDKFD_PATH)/kfd_flat_memory.o \
 		$(AMDKFD_PATH)/kfd_process.o \

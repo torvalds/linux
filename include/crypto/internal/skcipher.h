@@ -56,15 +56,31 @@ struct crypto_lskcipher_spawn {
 
 struct skcipher_walk {
 	union {
+		/* Virtual address of the source. */
 		struct {
-			void *addr;
-		} virt;
-	} src, dst;
+			struct {
+				const void *const addr;
+			} virt;
+		} src;
 
-	struct scatter_walk in;
+		/* Private field for the API, do not use. */
+		struct scatter_walk in;
+	};
+
 	unsigned int nbytes;
 
-	struct scatter_walk out;
+	union {
+		/* Virtual address of the destination. */
+		struct {
+			struct {
+				void *const addr;
+			} virt;
+		} dst;
+
+		/* Private field for the API, do not use. */
+		struct scatter_walk out;
+	};
+
 	unsigned int total;
 
 	u8 *page;
@@ -197,13 +213,15 @@ int lskcipher_register_instance(struct crypto_template *tmpl,
 				struct lskcipher_instance *inst);
 
 int skcipher_walk_done(struct skcipher_walk *walk, int res);
-int skcipher_walk_virt(struct skcipher_walk *walk,
-		       struct skcipher_request *req,
+int skcipher_walk_virt(struct skcipher_walk *__restrict walk,
+		       struct skcipher_request *__restrict req,
 		       bool atomic);
-int skcipher_walk_aead_encrypt(struct skcipher_walk *walk,
-			       struct aead_request *req, bool atomic);
-int skcipher_walk_aead_decrypt(struct skcipher_walk *walk,
-			       struct aead_request *req, bool atomic);
+int skcipher_walk_aead_encrypt(struct skcipher_walk *__restrict walk,
+			       struct aead_request *__restrict req,
+			       bool atomic);
+int skcipher_walk_aead_decrypt(struct skcipher_walk *__restrict walk,
+			       struct aead_request *__restrict req,
+			       bool atomic);
 
 static inline void skcipher_walk_abort(struct skcipher_walk *walk)
 {

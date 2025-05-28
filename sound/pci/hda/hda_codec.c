@@ -2470,7 +2470,9 @@ int snd_hda_create_dig_out_ctls(struct hda_codec *codec,
 				break;
 			id = kctl->id;
 			id.index = spdif_index;
-			snd_ctl_rename_id(codec->card, &kctl->id, &id);
+			err = snd_ctl_rename_id(codec->card, &kctl->id, &id);
+			if (err < 0)
+				return err;
 		}
 		bus->primary_dig_out_type = HDA_PCM_TYPE_HDMI;
 	}
@@ -3037,8 +3039,7 @@ const struct dev_pm_ops hda_codec_driver_pm = {
 	.thaw = pm_sleep_ptr(hda_codec_pm_thaw),
 	.poweroff = pm_sleep_ptr(hda_codec_pm_suspend),
 	.restore = pm_sleep_ptr(hda_codec_pm_restore),
-	.runtime_suspend = pm_ptr(hda_codec_runtime_suspend),
-	.runtime_resume = pm_ptr(hda_codec_runtime_resume),
+	RUNTIME_PM_OPS(hda_codec_runtime_suspend, hda_codec_runtime_resume, NULL)
 };
 
 /* suspend the codec at shutdown; called from driver's shutdown callback */

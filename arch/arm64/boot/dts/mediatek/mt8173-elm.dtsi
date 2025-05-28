@@ -925,8 +925,6 @@
 &pwrap {
 	pmic: pmic {
 		compatible = "mediatek,mt6397";
-		#address-cells = <1>;
-		#size-cells = <1>;
 		interrupts-extended = <&pio 11 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-controller;
 		#interrupt-cells = <2>;

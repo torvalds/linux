@@ -6,6 +6,7 @@
 
 /* Support for NVIDIA specific attributes. */
 
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/topology.h>
 
@@ -183,6 +184,24 @@ static u32 nv_cspmu_event_filter(const struct perf_event *event)
 	return filter_val;
 }
 
+static void nv_cspmu_set_ev_filter(struct arm_cspmu *cspmu,
+				   const struct perf_event *event)
+{
+	u32 filter = nv_cspmu_event_filter(event);
+	u32 offset = PMEVFILTR + (4 * event->hw.idx);
+
+	writel(filter, cspmu->base0 + offset);
+}
+
+static void nv_cspmu_set_cc_filter(struct arm_cspmu *cspmu,
+				   const struct perf_event *event)
+{
+	u32 filter = nv_cspmu_event_filter(event);
+
+	writel(filter, cspmu->base0 + PMCCFILTR);
+}
+
+
 enum nv_cspmu_name_fmt {
 	NAME_FMT_GENERIC,
 	NAME_FMT_SOCKET
@@ -322,7 +341,8 @@ static int nv_cspmu_init_ops(struct arm_cspmu *cspmu)
 	cspmu->impl.ctx = ctx;
 
 	/* NVIDIA specific callbacks. */
-	impl_ops->event_filter			= nv_cspmu_event_filter;
+	impl_ops->set_cc_filter			= nv_cspmu_set_cc_filter;
+	impl_ops->set_ev_filter			= nv_cspmu_set_ev_filter;
 	impl_ops->get_event_attrs		= nv_cspmu_get_event_attrs;
 	impl_ops->get_format_attrs		= nv_cspmu_get_format_attrs;
 	impl_ops->get_name			= nv_cspmu_get_name;

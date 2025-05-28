@@ -148,7 +148,7 @@ static inline int suspend_disable_secondary_cpus(void)
 }
 static inline void suspend_enable_secondary_cpus(void)
 {
-	return thaw_secondary_cpus();
+	thaw_secondary_cpus();
 }
 
 #else /* !CONFIG_PM_SLEEP_SMP */

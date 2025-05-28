@@ -21,6 +21,11 @@
 
 #define AMDXDNA_AUTOSUSPEND_DELAY	5000 /* milliseconds */
 
+MODULE_FIRMWARE("amdnpu/1502_00/npu.sbin");
+MODULE_FIRMWARE("amdnpu/17f0_10/npu.sbin");
+MODULE_FIRMWARE("amdnpu/17f0_11/npu.sbin");
+MODULE_FIRMWARE("amdnpu/17f0_20/npu.sbin");
+
 /*
  * Bind the driver base on (vendor_id, device_id) pair and later use the
  * (device_id, rev_id) pair as a key to select the devices. The devices with
@@ -221,6 +226,7 @@ const struct drm_driver amdxdna_drm_drv = {
 	.num_ioctls = ARRAY_SIZE(amdxdna_drm_ioctls),
 
 	.gem_create_object = amdxdna_gem_create_object_cb,
+	.gem_prime_import = amdxdna_gem_prime_import,
 };
 
 static const struct amdxdna_dev_info *
@@ -261,12 +267,16 @@ static int amdxdna_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		fs_reclaim_release(GFP_KERNEL);
 	}
 
+	xdna->notifier_wq = alloc_ordered_workqueue("notifier_wq", 0);
+	if (!xdna->notifier_wq)
+		return -ENOMEM;
+
 	mutex_lock(&xdna->dev_lock);
 	ret = xdna->dev_info->ops->init(xdna);
 	mutex_unlock(&xdna->dev_lock);
 	if (ret) {
 		XDNA_ERR(xdna, "Hardware init failed, ret %d", ret);
-		return ret;
+		goto destroy_notifier_wq;
 	}
 
 	ret = amdxdna_sysfs_init(xdna);
@@ -296,6 +306,8 @@ failed_dev_fini:
 	mutex_lock(&xdna->dev_lock);
 	xdna->dev_info->ops->fini(xdna);
 	mutex_unlock(&xdna->dev_lock);
+destroy_notifier_wq:
+	destroy_workqueue(xdna->notifier_wq);
 	return ret;
 }
 
@@ -304,6 +316,8 @@ static void amdxdna_remove(struct pci_dev *pdev)
 	struct amdxdna_dev *xdna = pci_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
 	struct amdxdna_client *client;
+
+	destroy_workqueue(xdna->notifier_wq);
 
 	pm_runtime_get_noresume(dev);
 	pm_runtime_forbid(dev);

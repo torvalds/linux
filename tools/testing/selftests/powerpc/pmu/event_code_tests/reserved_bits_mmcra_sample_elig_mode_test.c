@@ -21,6 +21,7 @@
 static int reserved_bits_mmcra_sample_elig_mode(void)
 {
 	struct event event;
+	int pvr = PVR_VER(mfspr(SPRN_PVR));
 
 	/* Check for platform support for the test */
 	SKIP_IF(platform_check_for_tests());
@@ -56,10 +57,10 @@ static int reserved_bits_mmcra_sample_elig_mode(void)
 
 	/*
 	 * MMCRA Random Sampling Mode (SM) value 0x10
-	 * is reserved in power10 and 0xC is reserved in
+	 * is reserved in power10/power11 and 0xC is reserved in
 	 * power9.
 	 */
-	if (PVR_VER(mfspr(SPRN_PVR)) == POWER10) {
+	if ((pvr == POWER10) || (pvr == POWER11)) {
 		event_init(&event, 0x100401e0);
 		FAIL_IF(!event_open(&event));
 	} else if (PVR_VER(mfspr(SPRN_PVR)) == POWER9) {

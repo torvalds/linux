@@ -201,7 +201,7 @@
         "PerPkg": "1",
         "PortMask": "0x0001",
         "PublicDescription": "PCIe Completion Buffer Inserts of completions with data : Part 0 : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
-        "UMask": "0x7001004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -214,7 +214,7 @@
         "PerPkg": "1",
         "PortMask": "0x0002",
         "PublicDescription": "PCIe Completion Buffer Inserts of completions with data : Part 1 : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 1",
-        "UMask": "0x7002004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -227,7 +227,7 @@
         "PerPkg": "1",
         "PortMask": "0x0004",
         "PublicDescription": "PCIe Completion Buffer Inserts of completions with data : Part 2 : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 2",
-        "UMask": "0x7004004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -240,7 +240,7 @@
         "PerPkg": "1",
         "PortMask": "0x0008",
         "PublicDescription": "PCIe Completion Buffer Inserts of completions with data : Part 2 : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 3",
-        "UMask": "0x7008004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -253,7 +253,7 @@
         "PerPkg": "1",
         "PortMask": "0x0010",
         "PublicDescription": "PCIe Completion Buffer Inserts of completions with data : Part 0 : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 4",
-        "UMask": "0x7010004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -266,7 +266,7 @@
         "PerPkg": "1",
         "PortMask": "0x0020",
         "PublicDescription": "PCIe Completion Buffer Inserts of completions with data : Part 1 : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 5",
-        "UMask": "0x7020004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -279,7 +279,7 @@
         "PerPkg": "1",
         "PortMask": "0x0040",
         "PublicDescription": "PCIe Completion Buffer Inserts of completions with data : Part 2 : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 6",
-        "UMask": "0x7040004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -292,7 +292,7 @@
         "PerPkg": "1",
         "PortMask": "0x0080",
         "PublicDescription": "PCIe Completion Buffer Inserts of completions with data : Part 2 : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 7",
-        "UMask": "0x7080004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -316,7 +316,7 @@
         "PerPkg": "1",
         "PortMask": "0x0000",
         "PublicDescription": "x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
-        "UMask": "0x7000001",
+        "UMask": "0x1",
         "Unit": "IIO"
     },
     {
@@ -329,7 +329,7 @@
         "PerPkg": "1",
         "PortMask": "0x0000",
         "PublicDescription": "x4 card is plugged in to slot 1",
-        "UMask": "0x7000002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -342,7 +342,7 @@
         "PerPkg": "1",
         "PortMask": "0x0000",
         "PublicDescription": "x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
-        "UMask": "0x7000004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -355,7 +355,7 @@
         "PerPkg": "1",
         "PortMask": "0x0000",
         "PublicDescription": "x4 card is plugged in to slot 3",
-        "UMask": "0x7000008",
+        "UMask": "0x8",
         "Unit": "IIO"
     },
     {
@@ -368,7 +368,7 @@
         "PerPkg": "1",
         "PortMask": "0x0000",
         "PublicDescription": "x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
-        "UMask": "0x7000010",
+        "UMask": "0x10",
         "Unit": "IIO"
     },
     {
@@ -381,7 +381,7 @@
         "PerPkg": "1",
         "PortMask": "0x0000",
         "PublicDescription": "x4 card is plugged in to slot 1",
-        "UMask": "0x7000020",
+        "UMask": "0x20",
         "Unit": "IIO"
     },
     {
@@ -394,7 +394,7 @@
         "PerPkg": "1",
         "PortMask": "0x0000",
         "PublicDescription": "x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
-        "UMask": "0x7000040",
+        "UMask": "0x40",
         "Unit": "IIO"
     },
     {
@@ -407,7 +407,7 @@
         "PerPkg": "1",
         "PortMask": "0x0000",
         "PublicDescription": "x4 card is plugged in to slot 3",
-        "UMask": "0x7000080",
+        "UMask": "0x80",
         "Unit": "IIO"
     },
     {
@@ -431,7 +431,7 @@
         "PerPkg": "1",
         "PortMask": "0x0001",
         "PublicDescription": "Data requested by the CPU : Core reading from Card's MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
-        "UMask": "0x7001004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -443,7 +443,7 @@
         "PerPkg": "1",
         "PortMask": "0x0002",
         "PublicDescription": "Data requested by the CPU : Core reading from Card's MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
-        "UMask": "0x7002004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -455,7 +455,7 @@
         "PerPkg": "1",
         "PortMask": "0x0004",
         "PublicDescription": "Data requested by the CPU : Core reading from Card's MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
-        "UMask": "0x7004004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -467,7 +467,7 @@
         "PerPkg": "1",
         "PortMask": "0x0008",
         "PublicDescription": "Data requested by the CPU : Core reading from Card's MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
-        "UMask": "0x7008004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -479,7 +479,7 @@
         "PerPkg": "1",
         "PortMask": "0x0010",
         "PublicDescription": "Data requested by the CPU : Core reading from Cards MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
-        "UMask": "0x7010004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -491,7 +491,7 @@
         "PerPkg": "1",
         "PortMask": "0x0020",
         "PublicDescription": "Data requested by the CPU : Core reading from Cards MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
-        "UMask": "0x7020004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -503,7 +503,7 @@
         "PerPkg": "1",
         "PortMask": "0x0040",
         "PublicDescription": "Data requested by the CPU : Core reading from Cards MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
-        "UMask": "0x7040004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -515,7 +515,7 @@
         "PerPkg": "1",
         "PortMask": "0x0080",
         "PublicDescription": "Data requested by the CPU : Core reading from Cards MMIO space : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
-        "UMask": "0x7080004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -662,7 +662,7 @@
         "PerPkg": "1",
         "PortMask": "0x0001",
         "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
-        "UMask": "0x7001008",
+        "UMask": "0x8",
         "Unit": "IIO"
     },
     {
@@ -675,7 +675,7 @@
         "PerPkg": "1",
         "PortMask": "0x0002",
         "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
-        "UMask": "0x7002008",
+        "UMask": "0x8",
         "Unit": "IIO"
     },
     {
@@ -688,7 +688,7 @@
         "PerPkg": "1",
         "PortMask": "0x0004",
         "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
-        "UMask": "0x7004008",
+        "UMask": "0x8",
         "Unit": "IIO"
     },
     {
@@ -701,7 +701,7 @@
         "PerPkg": "1",
         "PortMask": "0x0008",
         "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
-        "UMask": "0x7008008",
+        "UMask": "0x8",
         "Unit": "IIO"
     },
     {
@@ -714,7 +714,7 @@
         "PerPkg": "1",
         "PortMask": "0x0010",
         "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
-        "UMask": "0x7010008",
+        "UMask": "0x8",
         "Unit": "IIO"
     },
     {
@@ -727,7 +727,7 @@
         "PerPkg": "1",
         "PortMask": "0x0020",
         "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
-        "UMask": "0x7020008",
+        "UMask": "0x8",
         "Unit": "IIO"
     },
     {
@@ -740,7 +740,7 @@
         "PerPkg": "1",
         "PortMask": "0x0040",
         "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
-        "UMask": "0x7040008",
+        "UMask": "0x8",
         "Unit": "IIO"
     },
     {
@@ -753,7 +753,7 @@
         "PerPkg": "1",
         "PortMask": "0x0080",
         "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
-        "UMask": "0x7080008",
+        "UMask": "0x8",
         "Unit": "IIO"
     },
     {
@@ -766,7 +766,7 @@
         "PerPkg": "1",
         "PortMask": "0x0001",
         "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
-        "UMask": "0x7001002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -779,7 +779,7 @@
         "PerPkg": "1",
         "PortMask": "0x0002",
         "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
-        "UMask": "0x7002002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -792,7 +792,7 @@
         "PerPkg": "1",
         "PortMask": "0x0004",
         "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
-        "UMask": "0x7004002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -805,7 +805,7 @@
         "PerPkg": "1",
         "PortMask": "0x0008",
         "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
-        "UMask": "0x7008002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -818,7 +818,7 @@
         "PerPkg": "1",
         "PortMask": "0x0010",
         "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x16 card plugged in to stack, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
-        "UMask": "0x7010002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -831,7 +831,7 @@
         "PerPkg": "1",
         "PortMask": "0x0020",
         "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
-        "UMask": "0x7020002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -844,7 +844,7 @@
         "PerPkg": "1",
         "PortMask": "0x0040",
         "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 1",
-        "UMask": "0x7040002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -857,7 +857,7 @@
         "PerPkg": "1",
         "PortMask": "0x0080",
         "PublicDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card. : Number of DWs (4 bytes) requested by the main die.  Includes all requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
-        "UMask": "0x7080002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -974,7 +974,6 @@
         "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.ALL_PARTS",
-        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x00ff",
@@ -1082,7 +1081,6 @@
         "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.ALL_PARTS",
-        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x00ff",
@@ -1299,7 +1297,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "Incoming arbitration requests : Passing data to be written : How often different queues (e.g. channel / fc) ask to send request into pipeline : Only for posted requests",
-        "UMask": "0x70ff020",
+        "UMask": "0x20",
         "Unit": "IIO"
     },
     {
@@ -1351,7 +1349,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "Incoming arbitration requests : Request Ownership : How often different queues (e.g. channel / fc) ask to send request into pipeline : Only for posted requests",
-        "UMask": "0x70ff004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -1364,7 +1362,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "Incoming arbitration requests : Writing line : How often different queues (e.g. channel / fc) ask to send request into pipeline : Only for posted requests",
-        "UMask": "0x70ff010",
+        "UMask": "0x10",
         "Unit": "IIO"
     },
     {
@@ -1377,7 +1375,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "Incoming arbitration requests granted : Passing data to be written : How often different queues (e.g. channel / fc) are allowed to send request into pipeline : Only for posted requests",
-        "UMask": "0x70ff020",
+        "UMask": "0x20",
         "Unit": "IIO"
     },
     {
@@ -1390,7 +1388,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "Incoming arbitration requests granted : Issuing final read or write of line : How often different queues (e.g. channel / fc) are allowed to send request into pipeline",
-        "UMask": "0x70ff008",
+        "UMask": "0x8",
         "Unit": "IIO"
     },
     {
@@ -1403,7 +1401,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "Incoming arbitration requests granted : Processing response from IOMMU : How often different queues (e.g. channel / fc) are allowed to send request into pipeline",
-        "UMask": "0x70ff002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -1416,7 +1414,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "Incoming arbitration requests granted : Issuing to IOMMU : How often different queues (e.g. channel / fc) are allowed to send request into pipeline",
-        "UMask": "0x70ff001",
+        "UMask": "0x1",
         "Unit": "IIO"
     },
     {
@@ -1429,7 +1427,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "Incoming arbitration requests granted : Request Ownership : How often different queues (e.g. channel / fc) are allowed to send request into pipeline : Only for posted requests",
-        "UMask": "0x70ff004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -1442,7 +1440,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "Incoming arbitration requests granted : Writing line : How often different queues (e.g. channel / fc) are allowed to send request into pipeline : Only for posted requests",
-        "UMask": "0x70ff010",
+        "UMask": "0x10",
         "Unit": "IIO"
     },
     {
@@ -1962,7 +1960,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "Request Ownership : PCIe Request complete : Only for posted requests : Each PCIe request is broken down into a series of cacheline granular requests and each cacheline size request may need to make multiple passes through the pipeline (e.g. for posted interrupts or multi-cast).   Each time a single PCIe request completes all its cacheline granular requests, it advances pointer.",
-        "UMask": "0x70ff020",
+        "UMask": "0x20",
         "Unit": "IIO"
     },
     {
@@ -1975,7 +1973,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "Request Ownership : Writing line : Only for posted requests : Only for posted requests",
-        "UMask": "0x70ff008",
+        "UMask": "0x8",
         "Unit": "IIO"
     },
     {
@@ -1988,7 +1986,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "Request Ownership : Issuing final read or write of line : Only for posted requests",
-        "UMask": "0x70ff004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -2001,7 +1999,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "Request Ownership : Passing data to be written : Only for posted requests : Only for posted requests",
-        "UMask": "0x70ff010",
+        "UMask": "0x10",
         "Unit": "IIO"
     },
     {
@@ -2014,7 +2012,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "Processing response from IOMMU : Passing data to be written : Only for posted requests",
-        "UMask": "0x70ff008",
+        "UMask": "0x8",
         "Unit": "IIO"
     },
     {
@@ -2026,7 +2024,7 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x00FF",
-        "UMask": "0x70ff002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -2039,7 +2037,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "Processing response from IOMMU : Request Ownership : Only for posted requests",
-        "UMask": "0x70ff001",
+        "UMask": "0x1",
         "Unit": "IIO"
     },
     {
@@ -2052,7 +2050,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "Processing response from IOMMU : Writing line : Only for posted requests",
-        "UMask": "0x70ff004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -2065,7 +2063,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "PCIe Request - pass complete : Passing data to be written : Each PCIe request is broken down into a series of cacheline granular requests and each cacheline size request may need to make multiple passes through the pipeline (e.g. for posted interrupts or multi-cast).   Each time a cacheline completes a single pass (e.g. posts a write to single multi-cast target) it advances state : Only for posted requests",
-        "UMask": "0x70ff020",
+        "UMask": "0x20",
         "Unit": "IIO"
     },
     {
@@ -2091,7 +2089,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "PCIe Request - pass complete : Request Ownership : Each PCIe request is broken down into a series of cacheline granular requests and each cacheline size request may need to make multiple passes through the pipeline (e.g. for posted interrupts or multi-cast).   Each time a cacheline completes a single pass (e.g. posts a write to single multi-cast target) it advances state : Only for posted requests",
-        "UMask": "0x70ff004",
+        "UMask": "0x4",
         "Unit": "IIO"
     },
     {
@@ -2104,7 +2102,7 @@
         "PerPkg": "1",
         "PortMask": "0x00FF",
         "PublicDescription": "PCIe Request - pass complete : Writing line : Each PCIe request is broken down into a series of cacheline granular requests and each cacheline size request may need to make multiple passes through the pipeline (e.g. for posted interrupts or multi-cast).   Each time a cacheline completes a single pass (e.g. posts a write to single multi-cast target) it advances state : Only for posted requests",
-        "UMask": "0x70ff010",
+        "UMask": "0x10",
         "Unit": "IIO"
     },
     {
@@ -2309,7 +2307,7 @@
         "PerPkg": "1",
         "PortMask": "0x0001",
         "PublicDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card. : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x16 card plugged in to Lane 0/1/2/3, Or x8 card plugged in to Lane 0/1, Or x4 card is plugged in to slot 0",
-        "UMask": "0x7001002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -2322,7 +2320,7 @@
         "PerPkg": "1",
         "PortMask": "0x0002",
         "PublicDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card. : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 1",
-        "UMask": "0x7002002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -2335,7 +2333,7 @@
         "PerPkg": "1",
         "PortMask": "0x0004",
         "PublicDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card. : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 2/3, Or x4 card is plugged in to slot 2",
-        "UMask": "0x7004002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -2348,7 +2346,7 @@
         "PerPkg": "1",
         "PortMask": "0x0008",
         "PublicDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card. : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 3",
-        "UMask": "0x7008002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -2361,7 +2359,7 @@
         "PerPkg": "1",
         "PortMask": "0x0010",
         "PublicDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card. : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x16 card plugged in to Lane 4/5/6/7, Or x8 card plugged in to Lane 4/5, Or x4 card is plugged in to slot 4",
-        "UMask": "0x7010002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -2374,7 +2372,7 @@
         "PerPkg": "1",
         "PortMask": "0x0020",
         "PublicDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card. : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 5",
-        "UMask": "0x7020002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -2387,7 +2385,7 @@
         "PerPkg": "1",
         "PortMask": "0x0040",
         "PublicDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card. : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x8 card plugged in to Lane 6/7, Or x4 card is plugged in to slot 6",
-        "UMask": "0x7040002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {
@@ -2400,7 +2398,7 @@
         "PerPkg": "1",
         "PortMask": "0x0080",
         "PublicDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card. : Also known as Outbound.  Number of requests initiated by the main die, including reads and writes. : x4 card is plugged in to slot 7",
-        "UMask": "0x7080002",
+        "UMask": "0x2",
         "Unit": "IIO"
     },
     {

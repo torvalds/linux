@@ -103,8 +103,7 @@ static int snd_card_pcsp_probe(int devnum, struct device *dev)
 	if (devnum != 0)
 		return -EINVAL;
 
-	hrtimer_init(&pcsp_chip.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	pcsp_chip.timer.function = pcsp_do_timer;
+	hrtimer_setup(&pcsp_chip.timer, pcsp_do_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	err = snd_devm_card_new(dev, index, id, THIS_MODULE, 0, &card);
 	if (err < 0)

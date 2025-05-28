@@ -146,6 +146,11 @@ integrity:<bytes>:<type>
     integrity for the encrypted device. The additional space is then
     used for storing authentication tag (and persistent IV if needed).
 
+integrity_key_size:<bytes>
+    Optionally set the integrity key size if it differs from the digest size.
+    It allows the use of wrapped key algorithms where the key size is
+    independent of the cryptographic key size.
+
 sector_size:<bytes>
     Use <bytes> as the encryption unit instead of 512 bytes sectors.
     This option can be in range 512 - 4096 bytes and must be power of two.

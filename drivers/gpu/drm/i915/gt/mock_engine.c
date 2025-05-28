@@ -297,7 +297,7 @@ static void mock_reset_cancel(struct intel_engine_cs *engine)
 	struct i915_request *rq;
 	unsigned long flags;
 
-	del_timer_sync(&mock->hw_delay);
+	timer_delete_sync(&mock->hw_delay);
 
 	spin_lock_irqsave(&engine->sched_engine->lock, flags);
 
@@ -432,7 +432,7 @@ void mock_engine_flush(struct intel_engine_cs *engine)
 		container_of(engine, typeof(*mock), base);
 	struct i915_request *request, *rn;
 
-	del_timer_sync(&mock->hw_delay);
+	timer_delete_sync(&mock->hw_delay);
 
 	spin_lock_irq(&mock->hw_lock);
 	list_for_each_entry_safe(request, rn, &mock->hw_queue, mock.link)

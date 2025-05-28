@@ -178,110 +178,116 @@ struct iavf_hw {
 	char err_str[16];
 };
 
-/* RX Descriptors */
-union iavf_16byte_rx_desc {
-	struct {
-		__le64 pkt_addr; /* Packet buffer address */
-		__le64 hdr_addr; /* Header buffer address */
-	} read;
-	struct {
-		struct {
-			struct {
-				union {
-					__le16 mirroring_status;
-					__le16 fcoe_ctx_id;
-				} mirr_fcoe;
-				__le16 l2tag1;
-			} lo_dword;
-			union {
-				__le32 rss; /* RSS Hash */
-				__le32 fd_id; /* Flow director filter id */
-				__le32 fcoe_param; /* FCoE DDP Context id */
-			} hi_dword;
-		} qword0;
-		struct {
-			/* ext status/error/pktype/length */
-			__le64 status_error_len;
-		} qword1;
-	} wb;  /* writeback */
-};
+/**
+ * struct iavf_rx_desc - Receive descriptor (both legacy and flexible)
+ * @qw0: quad word 0 fields:
+ *	 Legacy: Descriptor Type; Mirror ID; L2TAG1P (S-TAG); Filter Status
+ *	 Flex: Descriptor Type; Mirror ID; UMBCAST; Packet Type; Flexible Flags
+ *	       Section 0; Packet Length; Header Length; Split Header Flag;
+ *	       Flexible Flags section 1 / Extended Status
+ * @qw1: quad word 1 fields:
+ *	 Legacy: Status Field; Error Field; Packet Type; Packet Length (packet,
+ *		 header, Split Header Flag)
+ *	 Flex: Status / Error 0 Field; L2TAG1P (S-TAG); Flexible Metadata
+ *	       Container #0; Flexible Metadata Container #1
+ * @qw2: quad word 2 fields:
+ *	 Legacy: Extended Status; 1st L2TAG2P (C-TAG); 2nd L2TAG2P (C-TAG)
+ *	 Flex: Status / Error 1 Field; Flexible Flags section 2; Timestamp Low;
+ *	       1st L2TAG2 (C-TAG); 2nd L2TAG2 (C-TAG)
+ * @qw3: quad word 3 fields:
+ *	 Legacy: FD Filter ID / Flexible Bytes
+ *	 Flex: Flexible Metadata Container #2; Flexible Metadata Container #3;
+ *	       Flexible Metadata Container #4 / Timestamp High 0; Flexible
+ *	       Metadata Container #5 / Timestamp High 1;
+ */
+struct iavf_rx_desc {
+	aligned_le64 qw0;
+/* The hash signature (RSS) */
+#define IAVF_RXD_LEGACY_RSS_M			GENMASK_ULL(63, 32)
+/* Stripped C-TAG VLAN from the receive packet */
+#define IAVF_RXD_LEGACY_L2TAG1_M		GENMASK_ULL(33, 16)
+/* Packet type */
+#define IAVF_RXD_FLEX_PTYPE_M			GENMASK_ULL(25, 16)
+/* Packet length */
+#define IAVF_RXD_FLEX_PKT_LEN_M			GENMASK_ULL(45, 32)
 
-union iavf_32byte_rx_desc {
-	struct {
-		__le64  pkt_addr; /* Packet buffer address */
-		__le64  hdr_addr; /* Header buffer address */
-			/* bit 0 of hdr_buffer_addr is DD bit */
-		__le64  rsvd1;
-		__le64  rsvd2;
-	} read;
-	struct {
-		struct {
-			struct {
-				union {
-					__le16 mirroring_status;
-					__le16 fcoe_ctx_id;
-				} mirr_fcoe;
-				__le16 l2tag1;
-			} lo_dword;
-			union {
-				__le32 rss; /* RSS Hash */
-				__le32 fcoe_param; /* FCoE DDP Context id */
-				/* Flow director filter id in case of
-				 * Programming status desc WB
-				 */
-				__le32 fd_id;
-			} hi_dword;
-		} qword0;
-		struct {
-			/* status/error/pktype/length */
-			__le64 status_error_len;
-		} qword1;
-		struct {
-			__le16 ext_status; /* extended status */
-			__le16 rsvd;
-			__le16 l2tag2_1;
-			__le16 l2tag2_2;
-		} qword2;
-		struct {
-			union {
-				__le32 flex_bytes_lo;
-				__le32 pe_status;
-			} lo_dword;
-			union {
-				__le32 flex_bytes_hi;
-				__le32 fd_id;
-			} hi_dword;
-		} qword3;
-	} wb;  /* writeback */
-};
+	aligned_le64 qw1;
+/* Descriptor done indication flag. */
+#define IAVF_RXD_LEGACY_DD_M			BIT(0)
+/* End of packet. Set to 1 if this descriptor is the last one of the packet */
+#define IAVF_RXD_LEGACY_EOP_M			BIT(1)
+/* L2 TAG 1 presence indication */
+#define IAVF_RXD_LEGACY_L2TAG1P_M		BIT(2)
+/* Detectable L3 and L4 integrity check is processed by the HW */
+#define IAVF_RXD_LEGACY_L3L4P_M			BIT(3)
+/* Set when an IPv6 packet contains a Destination Options Header or a Routing
+ * Header.
+ */
+#define IAVF_RXD_LEGACY_IPV6EXADD_M		BIT(15)
+/* Receive MAC Errors: CRC; Alignment; Oversize; Undersizes; Length error */
+#define IAVF_RXD_LEGACY_RXE_M			BIT(19)
+/* Checksum reports:
+ * - IPE: IP checksum error
+ * - L4E: L4 integrity error
+ * - EIPE: External IP header (tunneled packets)
+ */
+#define IAVF_RXD_LEGACY_IPE_M			BIT(22)
+#define IAVF_RXD_LEGACY_L4E_M			BIT(23)
+#define IAVF_RXD_LEGACY_EIPE_M			BIT(24)
+/* Set for packets that skip checksum calculation in pre-parser */
+#define IAVF_RXD_LEGACY_PPRS_M			BIT(26)
+/* Indicates the content in the Filter Status field */
+#define IAVF_RXD_LEGACY_FLTSTAT_M		GENMASK_ULL(13, 12)
+/* Packet type */
+#define IAVF_RXD_LEGACY_PTYPE_M			GENMASK_ULL(37, 30)
+/* Packet length */
+#define IAVF_RXD_LEGACY_LENGTH_M		GENMASK_ULL(51, 38)
+/* Descriptor done indication flag */
+#define IAVF_RXD_FLEX_DD_M			BIT(0)
+/* End of packet. Set to 1 if this descriptor is the last one of the packet */
+#define IAVF_RXD_FLEX_EOP_M			BIT(1)
+/* Detectable L3 and L4 integrity check is processed by the HW */
+#define IAVF_RXD_FLEX_L3L4P_M			BIT(3)
+/* Checksum reports:
+ * - IPE: IP checksum error
+ * - L4E: L4 integrity error
+ * - EIPE: External IP header (tunneled packets)
+ * - EUDPE: External UDP checksum error (tunneled packets)
+ */
+#define IAVF_RXD_FLEX_XSUM_IPE_M		BIT(4)
+#define IAVF_RXD_FLEX_XSUM_L4E_M		BIT(5)
+#define IAVF_RXD_FLEX_XSUM_EIPE_M		BIT(6)
+#define IAVF_RXD_FLEX_XSUM_EUDPE_M		BIT(7)
+/* Set when an IPv6 packet contains a Destination Options Header or a Routing
+ * Header.
+ */
+#define IAVF_RXD_FLEX_IPV6EXADD_M		BIT(9)
+/* Receive MAC Errors: CRC; Alignment; Oversize; Undersizes; Length error */
+#define IAVF_RXD_FLEX_RXE_M			BIT(10)
+/* Indicates that the RSS/HASH result is valid */
+#define IAVF_RXD_FLEX_RSS_VALID_M		BIT(12)
+/* L2 TAG 1 presence indication */
+#define IAVF_RXD_FLEX_L2TAG1P_M			BIT(13)
+/* Stripped L2 Tag from the receive packet */
+#define IAVF_RXD_FLEX_L2TAG1_M			GENMASK_ULL(31, 16)
+/* The hash signature (RSS) */
+#define IAVF_RXD_FLEX_RSS_HASH_M		GENMASK_ULL(63, 32)
 
-enum iavf_rx_desc_status_bits {
-	/* Note: These are predefined bit offsets */
-	IAVF_RX_DESC_STATUS_DD_SHIFT		= 0,
-	IAVF_RX_DESC_STATUS_EOF_SHIFT		= 1,
-	IAVF_RX_DESC_STATUS_L2TAG1P_SHIFT	= 2,
-	IAVF_RX_DESC_STATUS_L3L4P_SHIFT		= 3,
-	IAVF_RX_DESC_STATUS_CRCP_SHIFT		= 4,
-	IAVF_RX_DESC_STATUS_TSYNINDX_SHIFT	= 5, /* 2 BITS */
-	IAVF_RX_DESC_STATUS_TSYNVALID_SHIFT	= 7,
-	/* Note: Bit 8 is reserved in X710 and XL710 */
-	IAVF_RX_DESC_STATUS_EXT_UDP_0_SHIFT	= 8,
-	IAVF_RX_DESC_STATUS_UMBCAST_SHIFT	= 9, /* 2 BITS */
-	IAVF_RX_DESC_STATUS_FLM_SHIFT		= 11,
-	IAVF_RX_DESC_STATUS_FLTSTAT_SHIFT	= 12, /* 2 BITS */
-	IAVF_RX_DESC_STATUS_LPBK_SHIFT		= 14,
-	IAVF_RX_DESC_STATUS_IPV6EXADD_SHIFT	= 15,
-	IAVF_RX_DESC_STATUS_RESERVED_SHIFT	= 16, /* 2 BITS */
-	/* Note: For non-tunnel packets INT_UDP_0 is the right status for
-	 * UDP header
-	 */
-	IAVF_RX_DESC_STATUS_INT_UDP_0_SHIFT	= 18,
-	IAVF_RX_DESC_STATUS_LAST /* this entry must be last!!! */
-};
-
-#define IAVF_RXD_QW1_STATUS_SHIFT	0
-#define IAVF_RXD_QW1_STATUS_MASK	((BIT(IAVF_RX_DESC_STATUS_LAST) - 1) \
-					 << IAVF_RXD_QW1_STATUS_SHIFT)
+	aligned_le64 qw2;
+/* L2 Tag 2 Presence */
+#define IAVF_RXD_LEGACY_L2TAG2P_M		BIT(0)
+/* Stripped S-TAG VLAN from the receive packet */
+#define IAVF_RXD_LEGACY_L2TAG2_M		GENMASK_ULL(63, 32)
+/* Stripped S-TAG VLAN from the receive packet */
+#define IAVF_RXD_FLEX_L2TAG2_2_M		GENMASK_ULL(63, 48)
+/* The packet is a UDP tunneled packet */
+#define IAVF_RXD_FLEX_NAT_M			BIT(4)
+/* L2 Tag 2 Presence */
+#define IAVF_RXD_FLEX_L2TAG2P_M			BIT(11)
+	aligned_le64 qw3;
+#define IAVF_RXD_FLEX_QW3_TSTAMP_HIGH_M		GENMASK_ULL(63, 32)
+} __aligned(4 * sizeof(__le64));
+static_assert(sizeof(struct iavf_rx_desc) == 32);
 
 #define IAVF_RXD_QW1_STATUS_TSYNINDX_SHIFT IAVF_RX_DESC_STATUS_TSYNINDX_SHIFT
 #define IAVF_RXD_QW1_STATUS_TSYNINDX_MASK  (0x3UL << \
@@ -298,22 +304,6 @@ enum iavf_rx_desc_fltstat_values {
 	IAVF_RX_DESC_FLTSTAT_RSS_HASH	= 3,
 };
 
-#define IAVF_RXD_QW1_ERROR_SHIFT	19
-#define IAVF_RXD_QW1_ERROR_MASK		(0xFFUL << IAVF_RXD_QW1_ERROR_SHIFT)
-
-enum iavf_rx_desc_error_bits {
-	/* Note: These are predefined bit offsets */
-	IAVF_RX_DESC_ERROR_RXE_SHIFT		= 0,
-	IAVF_RX_DESC_ERROR_RECIPE_SHIFT		= 1,
-	IAVF_RX_DESC_ERROR_HBO_SHIFT		= 2,
-	IAVF_RX_DESC_ERROR_L3L4E_SHIFT		= 3, /* 3 BITS */
-	IAVF_RX_DESC_ERROR_IPE_SHIFT		= 3,
-	IAVF_RX_DESC_ERROR_L4E_SHIFT		= 4,
-	IAVF_RX_DESC_ERROR_EIPE_SHIFT		= 5,
-	IAVF_RX_DESC_ERROR_OVERSIZE_SHIFT	= 6,
-	IAVF_RX_DESC_ERROR_PPRS_SHIFT		= 7
-};
-
 enum iavf_rx_desc_error_l3l4e_fcoe_masks {
 	IAVF_RX_DESC_ERROR_L3L4E_NONE		= 0,
 	IAVF_RX_DESC_ERROR_L3L4E_PROT		= 1,
@@ -321,13 +311,6 @@ enum iavf_rx_desc_error_l3l4e_fcoe_masks {
 	IAVF_RX_DESC_ERROR_L3L4E_DMAC_ERR	= 3,
 	IAVF_RX_DESC_ERROR_L3L4E_DMAC_WARN	= 4
 };
-
-#define IAVF_RXD_QW1_PTYPE_SHIFT	30
-#define IAVF_RXD_QW1_PTYPE_MASK		(0xFFULL << IAVF_RXD_QW1_PTYPE_SHIFT)
-
-#define IAVF_RXD_QW1_LENGTH_PBUF_SHIFT	38
-#define IAVF_RXD_QW1_LENGTH_PBUF_MASK	(0x3FFFULL << \
-					 IAVF_RXD_QW1_LENGTH_PBUF_SHIFT)
 
 #define IAVF_RXD_QW1_LENGTH_HBUF_SHIFT	52
 #define IAVF_RXD_QW1_LENGTH_HBUF_MASK	(0x7FFULL << \
@@ -346,6 +329,8 @@ enum iavf_rx_desc_ext_status_bits {
 	IAVF_RX_DESC_EXT_STATUS_FCOELONGB_SHIFT	= 10,
 	IAVF_RX_DESC_EXT_STATUS_PELONGB_SHIFT	= 11,
 };
+
+#define IAVF_RX_DESC_EXT_STATUS_L2TAG2P_M	BIT(IAVF_RX_DESC_EXT_STATUS_L2TAG2P_SHIFT)
 
 enum iavf_rx_desc_pe_status_bits {
 	/* Note: These are predefined bit offsets */

@@ -428,13 +428,13 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
 static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call,
 					   struct rxrpc_send_data_req *req,
 					   struct rxrpc_txbuf *txb,
+					   struct rxrpc_wire_header *whdr,
 					   rxrpc_serial_t serial, int subpkt)
 {
-	struct rxrpc_wire_header *whdr = txb->kvec[0].iov_base;
-	struct rxrpc_jumbo_header *jumbo = (void *)(whdr + 1) - sizeof(*jumbo);
+	struct rxrpc_jumbo_header *jumbo = txb->data - sizeof(*jumbo);
 	enum rxrpc_req_ack_trace why;
 	struct rxrpc_connection *conn = call->conn;
-	struct kvec *kv = &call->local->kvec[subpkt];
+	struct kvec *kv = &call->local->kvec[1 + subpkt];
 	size_t len = txb->pkt_len;
 	bool last;
 	u8 flags;
@@ -491,18 +491,15 @@ static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call,
 	}
 dont_set_request_ack:
 
-	/* The jumbo header overlays the wire header in the txbuf. */
+	/* There's a jumbo header prepended to the data if we need it. */
 	if (subpkt < req->n - 1)
 		flags |= RXRPC_JUMBO_PACKET;
 	else
 		flags &= ~RXRPC_JUMBO_PACKET;
 	if (subpkt == 0) {
 		whdr->flags	= flags;
-		whdr->serial	= htonl(txb->serial);
 		whdr->cksum	= txb->cksum;
-		whdr->serviceId	= htons(conn->service_id);
-		kv->iov_base	= whdr;
-		len += sizeof(*whdr);
+		kv->iov_base	= txb->data;
 	} else {
 		jumbo->flags	= flags;
 		jumbo->pad	= 0;
@@ -535,7 +532,9 @@ static unsigned int rxrpc_prepare_txqueue(struct rxrpc_txqueue *tq,
 /*
  * Prepare a (jumbo) packet for transmission.
  */
-static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_send_data_req *req)
+static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call,
+					struct rxrpc_send_data_req *req,
+					struct rxrpc_wire_header *whdr)
 {
 	struct rxrpc_txqueue *tq = req->tq;
 	rxrpc_serial_t serial;
@@ -548,6 +547,18 @@ static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_se
 
 	/* Each transmission of a Tx packet needs a new serial number */
 	serial = rxrpc_get_next_serials(call->conn, req->n);
+
+	whdr->epoch		= htonl(call->conn->proto.epoch);
+	whdr->cid		= htonl(call->cid);
+	whdr->callNumber	= htonl(call->call_id);
+	whdr->seq		= htonl(seq);
+	whdr->serial		= htonl(serial);
+	whdr->type		= RXRPC_PACKET_TYPE_DATA;
+	whdr->flags		= 0;
+	whdr->userStatus	= 0;
+	whdr->securityIndex	= call->security_ix;
+	whdr->_rsvd		= 0;
+	whdr->serviceId		= htons(call->conn->service_id);
 
 	call->tx_last_serial = serial + req->n - 1;
 	call->tx_last_sent = req->now;
@@ -576,7 +587,7 @@ static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_se
 		if (i + 1 == req->n)
 			/* Only sample the last subpacket in a jumbo. */
 			__set_bit(ix, &tq->rtt_samples);
-		len += rxrpc_prepare_data_subpacket(call, req, txb, serial, i);
+		len += rxrpc_prepare_data_subpacket(call, req, txb, whdr, serial, i);
 		serial++;
 		seq++;
 		i++;
@@ -618,6 +629,7 @@ static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_se
 	}
 
 	rxrpc_set_keepalive(call, req->now);
+	page_frag_free(whdr);
 	return len;
 }
 
@@ -626,25 +638,33 @@ static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_se
  */
 void rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_send_data_req *req)
 {
+	struct rxrpc_wire_header *whdr;
 	struct rxrpc_connection *conn = call->conn;
 	enum rxrpc_tx_point frag;
 	struct rxrpc_txqueue *tq = req->tq;
 	struct rxrpc_txbuf *txb;
 	struct msghdr msg;
 	rxrpc_seq_t seq = req->seq;
-	size_t len;
+	size_t len = sizeof(*whdr);
 	bool new_call = test_bit(RXRPC_CALL_BEGAN_RX_TIMER, &call->flags);
 	int ret, stat_ix;
 
 	_enter("%x,%x-%x", tq->qbase, seq, seq + req->n - 1);
 
+	whdr = page_frag_alloc(&call->local->tx_alloc, sizeof(*whdr), GFP_NOFS);
+	if (!whdr)
+		return; /* Drop the packet if no memory. */
+
+	call->local->kvec[0].iov_base = whdr;
+	call->local->kvec[0].iov_len = sizeof(*whdr);
+
 	stat_ix = umin(req->n, ARRAY_SIZE(call->rxnet->stat_tx_jumbo)) - 1;
 	atomic_inc(&call->rxnet->stat_tx_jumbo[stat_ix]);
 
-	len = rxrpc_prepare_data_packet(call, req);
+	len += rxrpc_prepare_data_packet(call, req, whdr);
 	txb = tq->bufs[seq & RXRPC_TXQ_MASK];
 
-	iov_iter_kvec(&msg.msg_iter, WRITE, call->local->kvec, req->n, len);
+	iov_iter_kvec(&msg.msg_iter, WRITE, call->local->kvec, 1 + req->n, len);
 
 	msg.msg_name	= &call->peer->srx.transport;
 	msg.msg_namelen	= call->peer->srx.transport_len;
@@ -695,13 +715,13 @@ void rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_send_data_req 
 
 	if (ret == -EMSGSIZE) {
 		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_msgsize);
-		trace_rxrpc_tx_packet(call->debug_id, call->local->kvec[0].iov_base, frag);
+		trace_rxrpc_tx_packet(call->debug_id, whdr, frag);
 		ret = 0;
 	} else if (ret < 0) {
 		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_fail);
 		trace_rxrpc_tx_fail(call->debug_id, txb->serial, ret, frag);
 	} else {
-		trace_rxrpc_tx_packet(call->debug_id, call->local->kvec[0].iov_base, frag);
+		trace_rxrpc_tx_packet(call->debug_id, whdr, frag);
 	}
 
 	rxrpc_tx_backoff(call, ret);

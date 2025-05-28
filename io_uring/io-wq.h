@@ -54,9 +54,14 @@ int io_wq_cpu_affinity(struct io_uring_task *tctx, cpumask_var_t mask);
 int io_wq_max_workers(struct io_wq *wq, int *new_count);
 bool io_wq_worker_stopped(void);
 
+static inline bool __io_wq_is_hashed(unsigned int work_flags)
+{
+	return work_flags & IO_WQ_WORK_HASHED;
+}
+
 static inline bool io_wq_is_hashed(struct io_wq_work *work)
 {
-	return atomic_read(&work->flags) & IO_WQ_WORK_HASHED;
+	return __io_wq_is_hashed(atomic_read(&work->flags));
 }
 
 typedef bool (work_cancel_fn)(struct io_wq_work *, void *);

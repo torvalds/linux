@@ -340,7 +340,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			nfc: nand@b8000000 {
+			nfc: nand-controller@b8000000 {
 				compatible = "fsl,imx31-nand", "fsl,imx27-nand";
 				reg = <0xb8000000 0x1000>;
 				interrupts = <33>;

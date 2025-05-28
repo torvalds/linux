@@ -34,7 +34,7 @@ TRACE_EVENT(batadv_dbg,
 	    TP_ARGS(bat_priv, vaf),
 
 	    TP_STRUCT__entry(
-		    __string(device, bat_priv->soft_iface->name)
+		    __string(device, bat_priv->mesh_iface->name)
 		    __string(driver, KBUILD_MODNAME)
 		    __vstring(msg, vaf->fmt, vaf->va)
 	    ),

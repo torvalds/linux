@@ -603,7 +603,7 @@ release_fw:
 	return ret;
 }
 
-int avs_dsp_boot_firmware(struct avs_dev *adev, bool purge)
+static int avs_load_firmware(struct avs_dev *adev, bool purge)
 {
 	struct avs_soc_component *acomp;
 	int ret, i;
@@ -657,28 +657,33 @@ reenable_gating:
 	return 0;
 }
 
-int avs_dsp_first_boot_firmware(struct avs_dev *adev)
+static int avs_config_basefw(struct avs_dev *adev)
+{
+	int ret;
+
+	if (adev->spec->dsp_ops->config_basefw) {
+		ret = avs_dsp_op(adev, config_basefw);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+int avs_dsp_boot_firmware(struct avs_dev *adev, bool purge)
+{
+	int ret;
+
+	ret = avs_load_firmware(adev, purge);
+	if (ret)
+		return ret;
+
+	return avs_config_basefw(adev);
+}
+
+static int avs_dsp_alloc_resources(struct avs_dev *adev)
 {
 	int ret, i;
-
-	if (avs_platattr_test(adev, CLDMA)) {
-		ret = hda_cldma_init(&code_loader, &adev->base.core,
-				     adev->dsp_ba, AVS_CL_DEFAULT_BUFFER_SIZE);
-		if (ret < 0) {
-			dev_err(adev->dev, "cldma init failed: %d\n", ret);
-			return ret;
-		}
-	}
-
-	ret = avs_dsp_core_disable(adev, AVS_MAIN_CORE_MASK);
-	if (ret < 0)
-		return ret;
-
-	ret = avs_dsp_boot_firmware(adev, true);
-	if (ret < 0) {
-		dev_err(adev->dev, "firmware boot failed: %d\n", ret);
-		return ret;
-	}
 
 	ret = avs_ipc_get_hw_config(adev, &adev->hw_cfg);
 	if (ret)
@@ -705,6 +710,31 @@ int avs_dsp_first_boot_firmware(struct avs_dev *adev)
 	strscpy(adev->lib_names[0], "BASEFW", AVS_LIB_NAME_SIZE);
 
 	ida_init(&adev->ppl_ida);
-
 	return 0;
+}
+
+int avs_dsp_first_boot_firmware(struct avs_dev *adev)
+{
+	int ret;
+
+	if (avs_platattr_test(adev, CLDMA)) {
+		ret = hda_cldma_init(&code_loader, &adev->base.core,
+				     adev->dsp_ba, AVS_CL_DEFAULT_BUFFER_SIZE);
+		if (ret < 0) {
+			dev_err(adev->dev, "cldma init failed: %d\n", ret);
+			return ret;
+		}
+	}
+
+	ret = avs_dsp_core_disable(adev, AVS_MAIN_CORE_MASK);
+	if (ret < 0)
+		return ret;
+
+	ret = avs_dsp_boot_firmware(adev, true);
+	if (ret < 0) {
+		dev_err(adev->dev, "firmware boot failed: %d\n", ret);
+		return ret;
+	}
+
+	return avs_dsp_alloc_resources(adev);
 }

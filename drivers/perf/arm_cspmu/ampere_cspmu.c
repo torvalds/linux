@@ -10,10 +10,10 @@
 
 #include "arm_cspmu.h"
 
-#define PMAUXR0		0xD80
-#define PMAUXR1		0xD84
-#define PMAUXR2		0xD88
-#define PMAUXR3		0xD8C
+#define PMAUXR0		PMIMPDEF
+#define PMAUXR1		(PMIMPDEF + 0x4)
+#define PMAUXR2		(PMIMPDEF + 0x8)
+#define PMAUXR3		(PMIMPDEF + 0xC)
 
 #define to_ampere_cspmu_ctx(cspmu)	((struct ampere_cspmu_ctx *)(cspmu->impl.ctx))
 
@@ -132,31 +132,19 @@ ampere_cspmu_get_name(const struct arm_cspmu *cspmu)
 	return ctx->name;
 }
 
-static u32 ampere_cspmu_event_filter(const struct perf_event *event)
+static void ampere_cspmu_set_cc_filter(struct arm_cspmu *cspmu,
+				       const struct perf_event *event)
 {
 	/*
-	 * PMEVFILTR or PMCCFILTR aren't used in Ampere SoC PMU but are marked
-	 * as RES0. Make sure, PMCCFILTR is written zero.
+	 * PMCCFILTR is RES0, so this is just a dummy callback to override
+	 * the default implementation and avoid writing to it.
 	 */
-	return 0;
 }
 
 static void ampere_cspmu_set_ev_filter(struct arm_cspmu *cspmu,
-				       struct hw_perf_event *hwc,
-				       u32 filter)
+				       const struct perf_event *event)
 {
-	struct perf_event *event;
-	unsigned int idx;
 	u32 threshold, rank, bank;
-
-	/*
-	 * At this point, all the events have the same filter settings.
-	 * Therefore, take the first event and use its configuration.
-	 */
-	idx = find_first_bit(cspmu->hw_events.used_ctrs,
-			     cspmu->cycle_counter_logical_idx);
-
-	event = cspmu->hw_events.events[idx];
 
 	threshold	= get_threshold(event);
 	rank		= get_rank(event);
@@ -233,7 +221,7 @@ static int ampere_cspmu_init_ops(struct arm_cspmu *cspmu)
 
 	cspmu->impl.ctx = ctx;
 
-	impl_ops->event_filter		= ampere_cspmu_event_filter;
+	impl_ops->set_cc_filter		= ampere_cspmu_set_cc_filter;
 	impl_ops->set_ev_filter		= ampere_cspmu_set_ev_filter;
 	impl_ops->validate_event	= ampere_cspmu_validate_event;
 	impl_ops->get_name		= ampere_cspmu_get_name;

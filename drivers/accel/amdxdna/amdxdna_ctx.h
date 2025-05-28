@@ -87,6 +87,9 @@ struct amdxdna_hwctx {
 	struct amdxdna_qos_info		     qos;
 	struct amdxdna_hwctx_param_config_cu *cus;
 	u32				syncobj_hdl;
+
+	atomic64_t			job_submit_cnt;
+	atomic64_t			job_free_cnt ____cacheline_aligned_in_smp;
 };
 
 #define drm_job_to_xdna_job(j) \

@@ -179,7 +179,7 @@ u32 *gen5_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 	return __gen2_emit_breadcrumb(rq, cs, 8, 8);
 }
 
-/* Just userspace ABI convention to limit the wa batch bo to a resonable size */
+/* Just userspace ABI convention to limit the wa batch bo to a reasonable size */
 #define I830_BATCH_LIMIT SZ_256K
 #define I830_TLB_ENTRIES (2)
 #define I830_WA_SIZE max(I830_TLB_ENTRIES * SZ_4K, I830_BATCH_LIMIT)

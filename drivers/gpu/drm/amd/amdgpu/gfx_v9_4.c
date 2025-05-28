@@ -27,7 +27,6 @@
 #include "amdgpu_gfx.h"
 #include "soc15.h"
 #include "soc15d.h"
-#include "amdgpu_atomfirmware.h"
 #include "amdgpu_pm.h"
 
 #include "gc/gc_9_4_1_offset.h"

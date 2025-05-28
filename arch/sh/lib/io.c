@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/io.h>
 
-void __raw_readsl(const void __iomem *addr, void *datap, int len)
+void __raw_readsl(const volatile void __iomem *addr, void *datap, int len)
 {
 	u32 *data;
 
@@ -60,7 +60,7 @@ void __raw_readsl(const void __iomem *addr, void *datap, int len)
 }
 EXPORT_SYMBOL(__raw_readsl);
 
-void __raw_writesl(void __iomem *addr, const void *data, int len)
+void __raw_writesl(volatile void __iomem *addr, const void *data, int len)
 {
 	if (likely(len != 0)) {
 		int tmp1;

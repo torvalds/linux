@@ -16,6 +16,8 @@
 #include <linux/string.h>
 #include <linux/dma-direct.h> /* for bus_dma_region */
 
+#include <kunit/visibility.h>
+
 /* Uncomment me to enable of_dump_addr() debugging output */
 // #define DEBUG
 
@@ -183,7 +185,7 @@ static u64 of_bus_pci_map(__be32 *addr, const __be32 *range, int na, int ns,
 
 #endif /* CONFIG_PCI */
 
-static int __of_address_resource_bounds(struct resource *r, u64 start, u64 size)
+VISIBLE_IF_KUNIT int __of_address_resource_bounds(struct resource *r, u64 start, u64 size)
 {
 	if (overflows_type(start, r->start))
 		return -EOVERFLOW;
@@ -197,6 +199,7 @@ static int __of_address_resource_bounds(struct resource *r, u64 start, u64 size)
 
 	return 0;
 }
+EXPORT_SYMBOL_IF_KUNIT(__of_address_resource_bounds);
 
 /*
  * of_pci_range_to_resource - Create a resource from an of_pci_range
@@ -1028,20 +1031,15 @@ EXPORT_SYMBOL_GPL(of_dma_is_coherent);
  *
  * Returns true if the "nonposted-mmio" property was found for
  * the device's bus.
- *
- * This is currently only enabled on builds that support Apple ARM devices, as
- * an optimization.
  */
 static bool of_mmio_is_nonposted(const struct device_node *np)
 {
-	if (!IS_ENABLED(CONFIG_ARCH_APPLE))
-		return false;
-
 	struct device_node *parent __free(device_node) = of_get_parent(np);
-	if (!parent)
-		return false;
 
-	return of_property_read_bool(parent, "nonposted-mmio");
+	if (of_property_read_bool(np, "nonposted-mmio"))
+		return true;
+
+	return parent && of_property_read_bool(parent, "nonposted-mmio");
 }
 
 static int __of_address_to_resource(struct device_node *dev, int index, int bar_no,

@@ -25,6 +25,7 @@ properties:
       - samsung,s2mps14-pmic
       - samsung,s2mps15-pmic
       - samsung,s2mpu02-pmic
+      - samsung,s2mpu05-pmic
 
   clocks:
     $ref: /schemas/clock/samsung,s2mps11.yaml
@@ -122,6 +123,18 @@ allOf:
       properties:
         regulators:
           $ref: /schemas/regulator/samsung,s2mpu02.yaml
+        samsung,s2mps11-acokb-ground: false
+        samsung,s2mps11-wrstbi-ground: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,s2mpu05-pmic
+    then:
+      properties:
+        regulators:
+          $ref: /schemas/regulator/samsung,s2mpu05.yaml
         samsung,s2mps11-acokb-ground: false
         samsung,s2mps11-wrstbi-ground: false
 

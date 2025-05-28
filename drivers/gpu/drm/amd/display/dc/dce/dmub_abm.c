@@ -28,6 +28,8 @@
 #include "dc.h"
 #include "core_types.h"
 #include "dmub_cmd.h"
+#include "dc_dmub_srv.h"
+#include "dmub/dmub_srv.h"
 
 #define TO_DMUB_ABM(abm)\
 	container_of(abm, struct dce_abm, base)

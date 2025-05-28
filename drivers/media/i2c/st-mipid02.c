@@ -301,8 +301,9 @@ static int mipid02_detect(struct mipid02_dev *bridge)
 static int mipid02_configure_from_rx_speed(struct mipid02_dev *bridge,
 					   struct v4l2_mbus_framefmt *fmt)
 {
+	struct media_pad *remote =
+		&bridge->s_subdev->entity.pads[bridge->s_subdev_pad_id];
 	struct i2c_client *client = bridge->i2c_client;
-	struct v4l2_subdev *subdev = bridge->s_subdev;
 	struct v4l2_fwnode_endpoint *ep = &bridge->rx;
 	u32 bpp = bpp_from_code(fmt->code);
 	/*
@@ -312,7 +313,7 @@ static int mipid02_configure_from_rx_speed(struct mipid02_dev *bridge,
 	u64 ui_4 = 2000000000;
 	s64 link_freq;
 
-	link_freq = v4l2_get_link_freq(subdev->ctrl_handler, bpp,
+	link_freq = v4l2_get_link_freq(remote, bpp,
 				       2 * ep->bus.mipi_csi2.num_data_lanes);
 	if (link_freq < 0) {
 		dev_err(&client->dev, "Failed to get link frequency");

@@ -51,6 +51,8 @@ properties:
       - const: core
       - const: reg
 
+  dma-coherent: true
+
   power-domains:
     maxItems: 1
 

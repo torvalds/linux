@@ -7,6 +7,7 @@
 #define BTRFS_VOLUMES_H
 
 #include <linux/blk_types.h>
+#include <linux/blkdev.h>
 #include <linux/sizes.h>
 #include <linux/atomic.h>
 #include <linux/sort.h>
@@ -18,14 +19,17 @@
 #include <linux/completion.h>
 #include <linux/rbtree.h>
 #include <uapi/linux/btrfs.h>
+#include <uapi/linux/btrfs_tree.h>
 #include "messages.h"
 #include "rcu-string.h"
+#include "extent-io-tree.h"
 
 struct block_device;
 struct bdev_handle;
 struct btrfs_fs_info;
 struct btrfs_block_group;
 struct btrfs_trans_handle;
+struct btrfs_transaction;
 struct btrfs_zoned_device_info;
 
 #define BTRFS_MAX_DATA_CHUNK_SIZE	(10ULL * SZ_1G)

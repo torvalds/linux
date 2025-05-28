@@ -40,6 +40,14 @@ properties:
       hardware that provides additional audio functionalities if present.
       The AFE will link to ADSP when the phandle is provided.
 
+  mediatek,accdet:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      The phandle to the MT6359 accessory detection block, which detects audio
+      jack insertion and removal. This property should only be present if the
+      accdet block is actually wired to the audio jack pins and to be used for
+      jack detection.
+
 patternProperties:
   "^dai-link-[0-9]+$":
     type: object
@@ -62,6 +70,7 @@ patternProperties:
             - PCM1_BE
             - DL_SRC_BE
             - UL_SRC_BE
+            - DMIC_BE
 
       codec:
         description: Holds subnode which indicates codec dai.

@@ -200,7 +200,7 @@ while. Example use::
 
   setsockopt(kcmfd, SOL_KCM, KCM_RECV_DISABLE, &val, sizeof(val))
 
-BFP programs for message delineation
+BPF programs for message delineation
 ------------------------------------
 
 BPF programs can be compiled using the BPF LLVM backend. For example,

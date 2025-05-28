@@ -151,8 +151,9 @@ int scsi_complete_async_scans(void)
 	struct async_scan_data *data;
 
 	do {
-		if (list_empty(&scanning_hosts))
-			return 0;
+		scoped_guard(spinlock, &async_scan_lock)
+			if (list_empty(&scanning_hosts))
+				return 0;
 		/* If we can't get memory immediately, that's OK.  Just
 		 * sleep a little.  Even if we never get memory, the async
 		 * scans will finish eventually.
@@ -246,7 +247,7 @@ static int scsi_realloc_sdev_budget_map(struct scsi_device *sdev,
 	}
 	ret = sbitmap_init_node(&sdev->budget_map,
 				scsi_device_max_queue_depth(sdev),
-				new_shift, GFP_KERNEL,
+				new_shift, GFP_NOIO,
 				sdev->request_queue->node, false, true);
 	if (!ret)
 		sbitmap_resize(&sdev->budget_map, depth);

@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 ABI testing symbols
 ===================
 
@@ -16,5 +18,5 @@ Programs that use these interfaces are strongly encouraged to add their
 name to the description of these interfaces, so that the kernel
 developers can easily notify them if any changes occur.
 
-.. kernel-abi:: ABI/testing
-   :rst:
+.. kernel-abi:: testing
+   :no-files:

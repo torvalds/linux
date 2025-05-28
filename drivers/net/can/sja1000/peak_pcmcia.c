@@ -167,7 +167,7 @@ static void pcan_start_led_timer(struct pcan_pccard *card)
  */
 static void pcan_stop_led_timer(struct pcan_pccard *card)
 {
-	del_timer_sync(&card->led_timer);
+	timer_delete_sync(&card->led_timer);
 }
 
 /*

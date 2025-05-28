@@ -612,7 +612,7 @@ static void speedtch_handle_int(struct urb *int_urb)
 	}
 
 	if ((count == 6) && !memcmp(up_int, instance->int_data, 6)) {
-		del_timer(&instance->status_check_timer);
+		timer_delete(&instance->status_check_timer);
 		atm_info(usbatm, "DSL line goes up\n");
 	} else if ((count == 6) && !memcmp(down_int, instance->int_data, 6)) {
 		atm_info(usbatm, "DSL line goes down\n");
@@ -688,7 +688,7 @@ static void speedtch_atm_stop(struct usbatm_data *usbatm, struct atm_dev *atm_de
 
 	atm_dbg(usbatm, "%s entered\n", __func__);
 
-	del_timer_sync(&instance->status_check_timer);
+	timer_delete_sync(&instance->status_check_timer);
 
 	/*
 	 * Since resubmit_timer and int_urb can schedule themselves and
@@ -697,14 +697,14 @@ static void speedtch_atm_stop(struct usbatm_data *usbatm, struct atm_dev *atm_de
 	instance->int_urb = NULL; /* signal shutdown */
 	mb();
 	usb_kill_urb(int_urb);
-	del_timer_sync(&instance->resubmit_timer);
+	timer_delete_sync(&instance->resubmit_timer);
 	/*
 	 * At this point, speedtch_handle_int and speedtch_resubmit_int
 	 * can run or be running, but instance->int_urb == NULL means that
 	 * they will not reschedule
 	 */
 	usb_kill_urb(int_urb);
-	del_timer_sync(&instance->resubmit_timer);
+	timer_delete_sync(&instance->resubmit_timer);
 	usb_free_urb(int_urb);
 
 	flush_work(&instance->status_check_work);

@@ -386,10 +386,8 @@ static int raid0_set_limits(struct mddev *mddev)
 	lim.io_opt = lim.io_min * mddev->raid_disks;
 	lim.features |= BLK_FEAT_ATOMIC_WRITES;
 	err = mddev_stack_rdev_limits(mddev, &lim, MDDEV_STACK_INTEGRITY);
-	if (err) {
-		queue_limits_cancel_update(mddev->gendisk->queue);
+	if (err)
 		return err;
-	}
 	return queue_limits_set(mddev->gendisk->queue, &lim);
 }
 
@@ -811,9 +809,13 @@ static void raid0_quiesce(struct mddev *mddev, int quiesce)
 
 static struct md_personality raid0_personality=
 {
-	.name		= "raid0",
-	.level		= 0,
-	.owner		= THIS_MODULE,
+	.head = {
+		.type	= MD_PERSONALITY,
+		.id	= ID_RAID0,
+		.name	= "raid0",
+		.owner	= THIS_MODULE,
+	},
+
 	.make_request	= raid0_make_request,
 	.run		= raid0_run,
 	.free		= raid0_free,
@@ -824,14 +826,14 @@ static struct md_personality raid0_personality=
 	.error_handler	= raid0_error,
 };
 
-static int __init raid0_init (void)
+static int __init raid0_init(void)
 {
-	return register_md_personality (&raid0_personality);
+	return register_md_submodule(&raid0_personality.head);
 }
 
-static void raid0_exit (void)
+static void __exit raid0_exit(void)
 {
-	unregister_md_personality (&raid0_personality);
+	unregister_md_submodule(&raid0_personality.head);
 }
 
 module_init(raid0_init);

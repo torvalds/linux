@@ -72,4 +72,9 @@ static inline u64 mul_u64_u64_div64(u64 a, u64 b, u64 c)
 }
 #endif
 
+static inline u64 div_u64(u64 dividend, u32 divisor)
+{
+	return dividend / divisor;
+}
+
 #endif /* _LINUX_MATH64_H */

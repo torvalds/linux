@@ -138,6 +138,7 @@ enum numa_stat_item {
 enum zone_stat_item {
 	/* First 128 byte cacheline (assuming 64 bit words) */
 	NR_FREE_PAGES,
+	NR_FREE_PAGES_BLOCKS,
 	NR_ZONE_LRU_BASE, /* Used only for compaction and reclaim retry */
 	NR_ZONE_INACTIVE_ANON = NR_ZONE_LRU_BASE,
 	NR_ZONE_ACTIVE_ANON,
@@ -220,9 +221,11 @@ enum node_stat_item {
 	PGDEMOTE_KSWAPD,
 	PGDEMOTE_DIRECT,
 	PGDEMOTE_KHUGEPAGED,
+	PGDEMOTE_PROACTIVE,
 #ifdef CONFIG_HUGETLB_PAGE
 	NR_HUGETLB,
 #endif
+	NR_BALLOON_PAGES,
 	NR_VM_NODE_STAT_ITEMS
 };
 
@@ -964,6 +967,9 @@ struct zone {
 #ifdef CONFIG_UNACCEPTED_MEMORY
 	/* Pages to be accepted. All pages on the list are MAX_PAGE_ORDER */
 	struct list_head	unaccepted_pages;
+
+	/* To be called once the last page in the zone is accepted */
+	struct work_struct	unaccepted_cleanup;
 #endif
 
 	/* zone flags, see below */
@@ -971,6 +977,9 @@ struct zone {
 
 	/* Primarily protects free_area */
 	spinlock_t		lock;
+
+	/* Pages to be freed when next trylock succeeds */
+	struct llist_head	trylock_free_pages;
 
 	/* Write-intensive fields used by compaction and vmstats. */
 	CACHELINE_PADDING(_pad2_);
@@ -1158,6 +1167,12 @@ static inline bool is_zone_device_page(const struct page *page)
 	return page_zonenum(page) == ZONE_DEVICE;
 }
 
+static inline struct dev_pagemap *page_pgmap(const struct page *page)
+{
+	VM_WARN_ON_ONCE_PAGE(!is_zone_device_page(page), page);
+	return page_folio(page)->pgmap;
+}
+
 /*
  * Consecutive zone device pages should not be merged into the same sgl
  * or bvec segment with other types of pages or if they belong to different
@@ -1173,7 +1188,7 @@ static inline bool zone_device_pages_have_same_pgmap(const struct page *a,
 		return false;
 	if (!is_zone_device_page(a))
 		return true;
-	return a->pgmap == b->pgmap;
+	return page_pgmap(a) == page_pgmap(b);
 }
 
 extern void memmap_init_zone_device(struct zone *, unsigned long,
@@ -1187,6 +1202,10 @@ static inline bool zone_device_pages_have_same_pgmap(const struct page *a,
 						     const struct page *b)
 {
 	return true;
+}
+static inline struct dev_pagemap *page_pgmap(const struct page *page)
+{
+	return NULL;
 }
 #endif
 
@@ -1483,8 +1502,6 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
 bool zone_watermark_ok(struct zone *z, unsigned int order,
 		unsigned long mark, int highest_zoneidx,
 		unsigned int alloc_flags);
-bool zone_watermark_ok_safe(struct zone *z, unsigned int order,
-		unsigned long mark, int highest_zoneidx);
 /*
  * Memory initialization context, use to differentiate memory added by
  * the platform statically or via memory hotplug interface.
@@ -1934,6 +1951,9 @@ enum {
 #ifdef CONFIG_ZONE_DEVICE
 	SECTION_TAINT_ZONE_DEVICE_BIT,
 #endif
+#ifdef CONFIG_SPARSEMEM_VMEMMAP_PREINIT
+	SECTION_IS_VMEMMAP_PREINIT_BIT,
+#endif
 	SECTION_MAP_LAST_BIT,
 };
 
@@ -1943,6 +1963,9 @@ enum {
 #define SECTION_IS_EARLY		BIT(SECTION_IS_EARLY_BIT)
 #ifdef CONFIG_ZONE_DEVICE
 #define SECTION_TAINT_ZONE_DEVICE	BIT(SECTION_TAINT_ZONE_DEVICE_BIT)
+#endif
+#ifdef CONFIG_SPARSEMEM_VMEMMAP_PREINIT
+#define SECTION_IS_VMEMMAP_PREINIT	BIT(SECTION_IS_VMEMMAP_PREINIT_BIT)
 #endif
 #define SECTION_MAP_MASK		(~(BIT(SECTION_MAP_LAST_BIT) - 1))
 #define SECTION_NID_SHIFT		SECTION_MAP_LAST_BIT
@@ -1998,6 +2021,30 @@ static inline int online_device_section(struct mem_section *section)
 }
 #endif
 
+#ifdef CONFIG_SPARSEMEM_VMEMMAP_PREINIT
+static inline int preinited_vmemmap_section(struct mem_section *section)
+{
+	return (section &&
+		(section->section_mem_map & SECTION_IS_VMEMMAP_PREINIT));
+}
+
+void sparse_vmemmap_init_nid_early(int nid);
+void sparse_vmemmap_init_nid_late(int nid);
+
+#else
+static inline int preinited_vmemmap_section(struct mem_section *section)
+{
+	return 0;
+}
+static inline void sparse_vmemmap_init_nid_early(int nid)
+{
+}
+
+static inline void sparse_vmemmap_init_nid_late(int nid)
+{
+}
+#endif
+
 static inline int online_section_nr(unsigned long nr)
 {
 	return online_section(__nr_to_section(nr));
@@ -2034,6 +2081,9 @@ static inline int pfn_section_valid(struct mem_section *ms, unsigned long pfn)
 	return 1;
 }
 #endif
+
+void sparse_init_early_section(int nid, struct page *map, unsigned long pnum,
+			       unsigned long flags);
 
 #ifndef CONFIG_HAVE_ARCH_PFN_VALID
 /**
@@ -2097,6 +2147,11 @@ static inline unsigned long next_present_section_nr(unsigned long section_nr)
 	return -1;
 }
 
+#define for_each_present_section_nr(start, section_nr)		\
+	for (section_nr = next_present_section_nr(start - 1);	\
+	     section_nr != -1;					\
+	     section_nr = next_present_section_nr(section_nr))
+
 /*
  * These are _only_ used during initialisation, therefore they
  * can use __initdata ...  They could have names to indicate
@@ -2116,6 +2171,8 @@ void sparse_init(void);
 #else
 #define sparse_init()	do {} while (0)
 #define sparse_index_init(_sec, _nid)  do {} while (0)
+#define sparse_vmemmap_init_nid_early(_nid, _use) do {} while (0)
+#define sparse_vmemmap_init_nid_late(_nid) do {} while (0)
 #define pfn_in_present_section pfn_valid
 #define subsection_map_init(_pfn, _nr_pages) do {} while (0)
 #endif /* CONFIG_SPARSEMEM */

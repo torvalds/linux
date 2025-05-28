@@ -49,6 +49,7 @@ struct ttc_params {
 	struct mlx5_flow_destination tunnel_dests[MLX5_NUM_TUNNEL_TT];
 };
 
+const char *mlx5_ttc_get_name(enum mlx5_traffic_types tt);
 struct mlx5_flow_table *mlx5_get_ttc_flow_table(struct mlx5_ttc_table *ttc);
 
 struct mlx5_ttc_table *mlx5_create_ttc_table(struct mlx5_core_dev *dev,

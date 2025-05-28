@@ -411,6 +411,20 @@ enum dc_irq_source dal_irq_get_rx_source(
 	}
 }
 
+enum dc_irq_source dal_irq_get_read_request(
+	const struct gpio *irq)
+{
+	enum gpio_id id = dal_gpio_get_id(irq);
+
+	switch (id) {
+	case GPIO_ID_HPD:
+		return (enum dc_irq_source)(DC_IRQ_SOURCE_DCI2C_RR_DDC1 +
+			dal_gpio_get_enum(irq));
+	default:
+		return DC_IRQ_SOURCE_INVALID;
+	}
+}
+
 enum gpio_result dal_irq_setup_hpd_filter(
 	struct gpio *irq,
 	struct gpio_hpd_config *config)

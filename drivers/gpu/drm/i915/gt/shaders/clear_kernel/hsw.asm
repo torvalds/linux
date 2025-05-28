@@ -24,7 +24,7 @@ mov(1)          f0.1<1>UW       g1.2<0,1,0>UW                   { align1 1N };
  * DW 1.4 - Rsvd (intended for context ID)
  * DW 1.5 - [31:16]:SliceCount, [15:0]:SubSlicePerSliceCount
  * DW 1.6 - Rsvd MBZ (intended for Enable Wait on Total Thread Count)
- * DW 1.7 - Rsvd MBZ (inteded for Total Thread Count)
+ * DW 1.7 - Rsvd MBZ (intended for Total Thread Count)
  *
  * Binding Table
  *

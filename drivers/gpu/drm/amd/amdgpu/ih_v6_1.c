@@ -631,7 +631,7 @@ static int ih_v6_1_resume(struct amdgpu_ip_block *ip_block)
 	return ih_v6_1_hw_init(ip_block);
 }
 
-static bool ih_v6_1_is_idle(void *handle)
+static bool ih_v6_1_is_idle(struct amdgpu_ip_block *ip_block)
 {
 	/* todo */
 	return true;
@@ -749,9 +749,9 @@ static int ih_v6_1_set_powergating_state(struct amdgpu_ip_block *ip_block,
 	return 0;
 }
 
-static void ih_v6_1_get_clockgating_state(void *handle, u64 *flags)
+static void ih_v6_1_get_clockgating_state(struct amdgpu_ip_block *ip_block, u64 *flags)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (!RREG32_SOC15(OSSSYS, 0, regIH_CLK_CTRL))
 		*flags |= AMD_CG_SUPPORT_IH_CG;

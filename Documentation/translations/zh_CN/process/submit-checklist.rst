@@ -82,8 +82,8 @@ Linux内核补丁提交检查单
 17) 所有新的模块参数都记录在 ``MODULE_PARM_DESC()``
 
 18) 所有新的用户空间接口都记录在 ``Documentation/ABI/`` 中。有关详细信息，
-    请参阅 ``Documentation/ABI/README`` 。更改用户空间接口的补丁应该抄送
-    linux-api@vger.kernel.org。
+    请参阅 Documentation/admin-guide/abi.rst (或 ``Documentation/ABI/README``)。
+    更改用户空间接口的补丁应该抄送 linux-api@vger.kernel.org\ 。
 
 19) 已通过至少注入slab和page分配失败进行检查。请参阅 ``Documentation/fault-injection/`` 。
     如果新代码是实质性的，那么添加子系统特定的故障注入可能是合适的。

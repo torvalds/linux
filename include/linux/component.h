@@ -3,7 +3,7 @@
 #define COMPONENT_H
 
 #include <linux/stddef.h>
-
+#include <linux/types.h>
 
 struct device;
 
@@ -90,6 +90,8 @@ int component_compare_dev_name(struct device *dev, void *data);
 
 void component_master_del(struct device *,
 	const struct component_master_ops *);
+bool component_master_is_bound(struct device *parent,
+	const struct component_master_ops *ops);
 
 struct component_match;
 

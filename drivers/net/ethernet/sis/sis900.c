@@ -1983,7 +1983,7 @@ static int sis900_close(struct net_device *net_dev)
 	/* Stop the chip's Tx and Rx Status Machine */
 	sw32(cr, RxDIS | TxDIS | sr32(cr));
 
-	del_timer(&sis_priv->timer);
+	timer_delete(&sis_priv->timer);
 
 	free_irq(pdev->irq, net_dev);
 

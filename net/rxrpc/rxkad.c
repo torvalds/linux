@@ -257,8 +257,7 @@ static int rxkad_secure_packet_auth(const struct rxrpc_call *call,
 				    struct rxrpc_txbuf *txb,
 				    struct skcipher_request *req)
 {
-	struct rxrpc_wire_header *whdr = txb->kvec[0].iov_base;
-	struct rxkad_level1_hdr *hdr = (void *)(whdr + 1);
+	struct rxkad_level1_hdr *hdr = txb->data;
 	struct rxrpc_crypt iv;
 	struct scatterlist sg;
 	size_t pad;
@@ -274,7 +273,7 @@ static int rxkad_secure_packet_auth(const struct rxrpc_call *call,
 	pad = RXKAD_ALIGN - pad;
 	pad &= RXKAD_ALIGN - 1;
 	if (pad) {
-		memset(txb->kvec[0].iov_base + txb->offset, 0, pad);
+		memset(txb->data + txb->offset, 0, pad);
 		txb->pkt_len += pad;
 	}
 
@@ -300,8 +299,7 @@ static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
 				       struct skcipher_request *req)
 {
 	const struct rxrpc_key_token *token;
-	struct rxrpc_wire_header *whdr = txb->kvec[0].iov_base;
-	struct rxkad_level2_hdr *rxkhdr = (void *)(whdr + 1);
+	struct rxkad_level2_hdr *rxkhdr = txb->data;
 	struct rxrpc_crypt iv;
 	struct scatterlist sg;
 	size_t content, pad;
@@ -319,7 +317,7 @@ static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
 	txb->pkt_len = round_up(content, RXKAD_ALIGN);
 	pad = txb->pkt_len - content;
 	if (pad)
-		memset(txb->kvec[0].iov_base + txb->offset, 0, pad);
+		memset(txb->data + txb->offset, 0, pad);
 
 	/* encrypt from the session key */
 	token = call->conn->key->payload.data[0];
@@ -407,9 +405,8 @@ static int rxkad_secure_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 
 	/* Clear excess space in the packet */
 	if (txb->pkt_len < txb->alloc_size) {
-		struct rxrpc_wire_header *whdr = txb->kvec[0].iov_base;
 		size_t gap = txb->alloc_size - txb->pkt_len;
-		void *p = whdr + 1;
+		void *p = txb->data;
 
 		memset(p + txb->pkt_len, 0, gap);
 	}

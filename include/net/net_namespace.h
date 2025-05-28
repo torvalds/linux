@@ -83,6 +83,9 @@ struct net {
 	struct llist_node	defer_free_list;
 	struct llist_node	cleanup_list;	/* namespaces on death row */
 
+	struct list_head ptype_all;
+	struct list_head ptype_specific;
+
 #ifdef CONFIG_KEYS
 	struct key_tag		*key_domain;	/* Key domain of operation tag */
 #endif
@@ -297,6 +300,7 @@ static inline int check_net(const struct net *net)
 }
 
 void net_drop_ns(void *);
+void net_passive_dec(struct net *net);
 
 #else
 
@@ -326,7 +330,17 @@ static inline int check_net(const struct net *net)
 }
 
 #define net_drop_ns NULL
+
+static inline void net_passive_dec(struct net *net)
+{
+	refcount_dec(&net->passive);
+}
 #endif
+
+static inline void net_passive_inc(struct net *net)
+{
+	refcount_inc(&net->passive);
+}
 
 /* Returns true if the netns initialization is completed successfully */
 static inline bool net_initialized(const struct net *net)
@@ -398,7 +412,7 @@ static inline struct net *read_pnet(const possible_net_t *pnet)
 #endif
 }
 
-static inline struct net *read_pnet_rcu(possible_net_t *pnet)
+static inline struct net *read_pnet_rcu(const possible_net_t *pnet)
 {
 #ifdef CONFIG_NET_NS
 	return rcu_dereference(pnet->net);

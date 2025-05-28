@@ -12,6 +12,7 @@
 #include <linux/iommu.h>
 #include <linux/if_vlan.h>
 #include <net/xdp.h>
+#include <net/xdp_sock_drv.h>
 
 #define LBK_CHAN_BASE	0x000
 #define SDP_CHAN_BASE	0x700
@@ -76,6 +77,7 @@ struct otx2_rcv_queue {
 
 struct sg_list {
 	u16	num_segs;
+	u16	flags;
 	u64	skb;
 	u64	size[OTX2_MAX_FRAGS_IN_SQE];
 	u64	dma_addr[OTX2_MAX_FRAGS_IN_SQE];
@@ -104,6 +106,8 @@ struct otx2_snd_queue {
 	/* SQE ring and CPT response queue for Inline IPSEC */
 	struct qmem		*sqe_ring;
 	struct qmem		*cpt_resp;
+	/* Buffer pool for af_xdp zero-copy */
+	struct xsk_buff_pool    *xsk_pool;
 } ____cacheline_aligned_in_smp;
 
 enum cq_type {
@@ -127,7 +131,11 @@ struct otx2_pool {
 	struct qmem		*stack;
 	struct qmem		*fc_addr;
 	struct page_pool	*page_pool;
+	struct xsk_buff_pool	*xsk_pool;
+	struct xdp_buff		**xdp;
+	u16			xdp_cnt;
 	u16			rbsize;
+	u16			xdp_top;
 };
 
 struct otx2_cq_queue {
@@ -144,6 +152,7 @@ struct otx2_cq_queue {
 	void			*cqe_base;
 	struct qmem		*cqe;
 	struct otx2_pool	*rbpool;
+	bool			xsk_zc_en;
 	struct xdp_rxq_info xdp_rxq;
 } ____cacheline_aligned_in_smp;
 

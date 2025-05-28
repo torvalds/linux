@@ -612,7 +612,8 @@ static int smu_sys_set_pp_table(void *handle,
 		return -EIO;
 	}
 
-	if (!smu_table->hardcode_pptable) {
+	if (!smu_table->hardcode_pptable || smu_table->power_play_table_size < size) {
+		kfree(smu_table->hardcode_pptable);
 		smu_table->hardcode_pptable = kzalloc(size, GFP_KERNEL);
 		if (!smu_table->hardcode_pptable)
 			return -ENOMEM;
@@ -693,6 +694,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		renoir_set_ppt_funcs(smu);
 		break;
 	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(11, 5, 2):
 		vangogh_set_ppt_funcs(smu);
 		break;
 	case IP_VERSION(13, 0, 1):
@@ -738,6 +740,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 	case IP_VERSION(14, 0, 0):
 	case IP_VERSION(14, 0, 1):
 	case IP_VERSION(14, 0, 4):
+	case IP_VERSION(14, 0, 5):
 		smu_v14_0_0_set_ppt_funcs(smu);
 		break;
 	case IP_VERSION(14, 0, 2):
@@ -1024,7 +1027,10 @@ static int smu_alloc_memory_pool(struct smu_context *smu)
 
 	memory_pool->size = pool_size;
 	memory_pool->align = PAGE_SIZE;
-	memory_pool->domain = AMDGPU_GEM_DOMAIN_GTT;
+	memory_pool->domain =
+		(adev->pm.smu_debug_mask & SMU_DEBUG_POOL_USE_VRAM) ?
+			AMDGPU_GEM_DOMAIN_VRAM :
+			AMDGPU_GEM_DOMAIN_GTT;
 
 	switch (pool_size) {
 	case SMU_MEMORY_POOL_SIZE_256_MB:
@@ -1251,26 +1257,11 @@ static void smu_init_xgmi_plpd_mode(struct smu_context *smu)
 	}
 }
 
-static bool smu_is_workload_profile_available(struct smu_context *smu,
-					      u32 profile)
-{
-	if (profile >= PP_SMC_POWER_PROFILE_COUNT)
-		return false;
-	return smu->workload_map && smu->workload_map[profile].valid_mapping;
-}
-
 static void smu_init_power_profile(struct smu_context *smu)
 {
-	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_UNKNOWN) {
-		if (smu->is_apu ||
-		    !smu_is_workload_profile_available(
-			    smu, PP_SMC_POWER_PROFILE_FULLSCREEN3D))
-			smu->power_profile_mode =
-				PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
-		else
-			smu->power_profile_mode =
-				PP_SMC_POWER_PROFILE_FULLSCREEN3D;
-	}
+	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_UNKNOWN)
+		smu->power_profile_mode =
+			PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
 	smu_power_profile_mode_get(smu, smu->power_profile_mode);
 }
 
@@ -1579,6 +1570,7 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 	case IP_VERSION(11, 0, 7):
 	case IP_VERSION(11, 0, 11):
 	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(11, 5, 2):
 	case IP_VERSION(11, 0, 12):
 		if (adev->in_suspend && smu_is_dpm_running(smu)) {
 			dev_info(adev->dev, "dpm has been enabled\n");
@@ -1825,7 +1817,7 @@ static int smu_hw_init(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 	struct smu_context *smu = adev->powerplay.pp_handle;
 
-	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev)) {
+	if (amdgpu_sriov_multi_vf_mode(adev)) {
 		smu->pm_enabled = false;
 		return 0;
 	}
@@ -1932,6 +1924,7 @@ static int smu_disable_dpms(struct smu_context *smu)
 		case IP_VERSION(11, 0, 7):
 		case IP_VERSION(11, 0, 11):
 		case IP_VERSION(11, 5, 0):
+		case IP_VERSION(11, 5, 2):
 		case IP_VERSION(11, 0, 12):
 		case IP_VERSION(11, 0, 13):
 			return 0;
@@ -2048,17 +2041,17 @@ static int smu_hw_fini(struct amdgpu_ip_block *ip_block)
 	struct smu_context *smu = adev->powerplay.pp_handle;
 	int i, ret;
 
-	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
+	if (amdgpu_sriov_multi_vf_mode(adev))
 		return 0;
 
-	for (i = 0; i < adev->vcn.num_vcn_inst; i++)
+	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
 		smu_dpm_set_vcn_enable(smu, false, i);
+		adev->vcn.inst[i].cur_state = AMD_PG_STATE_GATE;
+	}
 	smu_dpm_set_jpeg_enable(smu, false);
+	adev->jpeg.cur_state = AMD_PG_STATE_GATE;
 	smu_dpm_set_vpe_enable(smu, false);
 	smu_dpm_set_umsch_mm_enable(smu, false);
-
-	adev->vcn.cur_state = AMD_PG_STATE_GATE;
-	adev->jpeg.cur_state = AMD_PG_STATE_GATE;
 
 	if (!smu->pm_enabled)
 		return 0;
@@ -2116,7 +2109,7 @@ static int smu_suspend(struct amdgpu_ip_block *ip_block)
 	int ret;
 	uint64_t count;
 
-	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
+	if (amdgpu_sriov_multi_vf_mode(adev))
 		return 0;
 
 	if (!smu->pm_enabled)
@@ -2152,7 +2145,7 @@ static int smu_resume(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 	struct smu_context *smu = adev->powerplay.pp_handle;
 
-	if (amdgpu_sriov_vf(adev)&& !amdgpu_sriov_is_pp_one_vf(adev))
+	if (amdgpu_sriov_multi_vf_mode(adev))
 		return 0;
 
 	if (!smu->pm_enabled)
@@ -2325,7 +2318,12 @@ static int smu_adjust_power_state_dynamic(struct smu_context *smu,
 	if (smu_dpm_ctx->dpm_level != level) {
 		ret = smu_asic_set_performance_level(smu, level);
 		if (ret) {
-			dev_err(smu->adev->dev, "Failed to set performance level!");
+			if (ret == -EOPNOTSUPP)
+				dev_info(smu->adev->dev, "set performance level %d not supported",
+						level);
+			else
+				dev_err(smu->adev->dev, "Failed to set performance level %d",
+						level);
 			return ret;
 		}
 
@@ -2400,7 +2398,11 @@ static int smu_switch_power_profile(void *handle,
 			smu_power_profile_mode_get(smu, type);
 		else
 			smu_power_profile_mode_put(smu, type);
-		ret = smu_bump_power_profile_mode(smu, NULL, 0);
+		/* don't switch the active workload when paused */
+		if (smu->pause_workload)
+			ret = 0;
+		else
+			ret = smu_bump_power_profile_mode(smu, NULL, 0);
 		if (ret) {
 			if (enable)
 				smu_power_profile_mode_put(smu, type);
@@ -2408,6 +2410,35 @@ static int smu_switch_power_profile(void *handle,
 				smu_power_profile_mode_get(smu, type);
 			return ret;
 		}
+	}
+
+	return 0;
+}
+
+static int smu_pause_power_profile(void *handle,
+				   bool pause)
+{
+	struct smu_context *smu = handle;
+	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+	u32 workload_mask = 1 << PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
+	int ret;
+
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+		return -EOPNOTSUPP;
+
+	if (smu_dpm_ctx->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL &&
+	    smu_dpm_ctx->dpm_level != AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM) {
+		smu->pause_workload = pause;
+
+		/* force to bootup default profile */
+		if (smu->pause_workload && smu->ppt_funcs->set_power_profile_mode)
+			ret = smu->ppt_funcs->set_power_profile_mode(smu,
+								     workload_mask,
+								     NULL,
+								     0);
+		else
+			ret = smu_bump_power_profile_mode(smu, NULL, 0);
+		return ret;
 	}
 
 	return 0;
@@ -2801,6 +2832,7 @@ int smu_get_power_limit(void *handle,
 			switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
 			case IP_VERSION(13, 0, 2):
 			case IP_VERSION(13, 0, 6):
+			case IP_VERSION(13, 0, 12):
 			case IP_VERSION(13, 0, 14):
 			case IP_VERSION(11, 0, 7):
 			case IP_VERSION(11, 0, 11):
@@ -3400,15 +3432,15 @@ bool smu_mode1_reset_is_support(struct smu_context *smu)
 	return ret;
 }
 
-bool smu_mode2_reset_is_support(struct smu_context *smu)
+bool smu_link_reset_is_support(struct smu_context *smu)
 {
 	bool ret = false;
 
 	if (!smu->pm_enabled)
 		return false;
 
-	if (smu->ppt_funcs && smu->ppt_funcs->mode2_reset_is_support)
-		ret = smu->ppt_funcs->mode2_reset_is_support(smu);
+	if (smu->ppt_funcs && smu->ppt_funcs->link_reset_is_support)
+		ret = smu->ppt_funcs->link_reset_is_support(smu);
 
 	return ret;
 }
@@ -3439,6 +3471,19 @@ static int smu_mode2_reset(void *handle)
 
 	if (ret)
 		dev_err(smu->adev->dev, "Mode2 reset failed!\n");
+
+	return ret;
+}
+
+int smu_link_reset(struct smu_context *smu)
+{
+	int ret = 0;
+
+	if (!smu->pm_enabled)
+		return -EOPNOTSUPP;
+
+	if (smu->ppt_funcs->link_reset)
+		ret = smu->ppt_funcs->link_reset(smu);
 
 	return ret;
 }
@@ -3734,6 +3779,7 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.get_pp_table            = smu_sys_get_pp_table,
 	.set_pp_table            = smu_sys_set_pp_table,
 	.switch_power_profile    = smu_switch_power_profile,
+	.pause_power_profile     = smu_pause_power_profile,
 	/* export to amdgpu */
 	.dispatch_tasks          = smu_handle_dpm_task,
 	.load_firmware           = smu_load_microcode,
@@ -3916,6 +3962,23 @@ int smu_send_rma_reason(struct smu_context *smu)
 	return ret;
 }
 
+/**
+ * smu_reset_sdma_is_supported - Check if SDMA reset is supported by SMU
+ * @smu: smu_context pointer
+ *
+ * This function checks if the SMU supports resetting the SDMA engine.
+ * It returns true if supported, false otherwise.
+ */
+bool smu_reset_sdma_is_supported(struct smu_context *smu)
+{
+	bool ret = false;
+
+	if (smu->ppt_funcs && smu->ppt_funcs->reset_sdma_is_supported)
+		ret = smu->ppt_funcs->reset_sdma_is_supported(smu);
+
+	return ret;
+}
+
 int smu_reset_sdma(struct smu_context *smu, uint32_t inst_mask)
 {
 	int ret = 0;
@@ -3924,4 +3987,12 @@ int smu_reset_sdma(struct smu_context *smu, uint32_t inst_mask)
 		ret = smu->ppt_funcs->reset_sdma(smu, inst_mask);
 
 	return ret;
+}
+
+int smu_reset_vcn(struct smu_context *smu, uint32_t inst_mask)
+{
+	if (smu->ppt_funcs && smu->ppt_funcs->dpm_reset_vcn)
+		smu->ppt_funcs->dpm_reset_vcn(smu, inst_mask);
+
+	return 0;
 }

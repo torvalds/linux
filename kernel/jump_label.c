@@ -653,13 +653,12 @@ static int __jump_label_mod_text_reserved(void *start, void *end)
 	struct module *mod;
 	int ret;
 
-	preempt_disable();
-	mod = __module_text_address((unsigned long)start);
-	WARN_ON_ONCE(__module_text_address((unsigned long)end) != mod);
-	if (!try_module_get(mod))
-		mod = NULL;
-	preempt_enable();
-
+	scoped_guard(rcu) {
+		mod = __module_text_address((unsigned long)start);
+		WARN_ON_ONCE(__module_text_address((unsigned long)end) != mod);
+		if (!try_module_get(mod))
+			mod = NULL;
+	}
 	if (!mod)
 		return 0;
 
@@ -746,9 +745,9 @@ static int jump_label_add_module(struct module *mod)
 				kfree(jlm);
 				return -ENOMEM;
 			}
-			preempt_disable();
-			jlm2->mod = __module_address((unsigned long)key);
-			preempt_enable();
+			scoped_guard(rcu)
+				jlm2->mod = __module_address((unsigned long)key);
+
 			jlm2->entries = static_key_entries(key);
 			jlm2->next = NULL;
 			static_key_set_mod(key, jlm2);
@@ -906,13 +905,13 @@ static void jump_label_update(struct static_key *key)
 		return;
 	}
 
-	preempt_disable();
-	mod = __module_address((unsigned long)key);
-	if (mod) {
-		stop = mod->jump_entries + mod->num_jump_entries;
-		init = mod->state == MODULE_STATE_COMING;
+	scoped_guard(rcu) {
+		mod = __module_address((unsigned long)key);
+		if (mod) {
+			stop = mod->jump_entries + mod->num_jump_entries;
+			init = mod->state == MODULE_STATE_COMING;
+		}
 	}
-	preempt_enable();
 #endif
 	entry = static_key_entries(key);
 	/* if there are no users, entry can be NULL */

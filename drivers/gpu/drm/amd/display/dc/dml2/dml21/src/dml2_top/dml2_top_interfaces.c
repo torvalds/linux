@@ -47,4 +47,3 @@ bool dml2_build_mcache_programming(struct dml2_build_mcache_programming_in_out *
 
 	return in_out->dml2_instance->funcs.build_mcache_programming(in_out);
 }
-

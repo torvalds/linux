@@ -35,7 +35,7 @@ static void lapb_t2timer_expiry(struct timer_list *);
 
 void lapb_start_t1timer(struct lapb_cb *lapb)
 {
-	del_timer(&lapb->t1timer);
+	timer_delete(&lapb->t1timer);
 
 	lapb->t1timer.function = lapb_t1timer_expiry;
 	lapb->t1timer.expires  = jiffies + lapb->t1;
@@ -46,7 +46,7 @@ void lapb_start_t1timer(struct lapb_cb *lapb)
 
 void lapb_start_t2timer(struct lapb_cb *lapb)
 {
-	del_timer(&lapb->t2timer);
+	timer_delete(&lapb->t2timer);
 
 	lapb->t2timer.function = lapb_t2timer_expiry;
 	lapb->t2timer.expires  = jiffies + lapb->t2;
@@ -58,13 +58,13 @@ void lapb_start_t2timer(struct lapb_cb *lapb)
 void lapb_stop_t1timer(struct lapb_cb *lapb)
 {
 	lapb->t1timer_running = false;
-	del_timer(&lapb->t1timer);
+	timer_delete(&lapb->t1timer);
 }
 
 void lapb_stop_t2timer(struct lapb_cb *lapb)
 {
 	lapb->t2timer_running = false;
-	del_timer(&lapb->t2timer);
+	timer_delete(&lapb->t2timer);
 }
 
 int lapb_t1timer_running(struct lapb_cb *lapb)

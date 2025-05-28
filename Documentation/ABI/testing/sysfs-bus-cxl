@@ -1,5 +1,5 @@
 What:		/sys/bus/cxl/flush
-Date:		Januarry, 2022
+Date:		January, 2022
 KernelVersion:	v5.18
 Contact:	linux-cxl@vger.kernel.org
 Description:
@@ -18,6 +18,24 @@ Description:
 		specification.
 
 
+What:		/sys/bus/cxl/devices/memX/payload_max
+Date:		December, 2020
+KernelVersion:	v5.12
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) Maximum size (in bytes) of the mailbox command payload
+		registers. Linux caps this at 1MB if the device reports a
+		larger size.
+
+
+What:		/sys/bus/cxl/devices/memX/label_storage_size
+Date:		May, 2021
+KernelVersion:	v5.13
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) Size (in bytes) of the Label Storage Area (LSA).
+
+
 What:		/sys/bus/cxl/devices/memX/ram/size
 Date:		December, 2020
 KernelVersion:	v5.12
@@ -33,7 +51,7 @@ Date:		May, 2023
 KernelVersion:	v6.8
 Contact:	linux-cxl@vger.kernel.org
 Description:
-		(RO) For CXL host platforms that support "QoS Telemmetry"
+		(RO) For CXL host platforms that support "QoS Telemetry"
 		this attribute conveys a comma delimited list of platform
 		specific cookies that identifies a QoS performance class
 		for the volatile partition of the CXL mem device. These
@@ -60,7 +78,7 @@ Date:		May, 2023
 KernelVersion:	v6.8
 Contact:	linux-cxl@vger.kernel.org
 Description:
-		(RO) For CXL host platforms that support "QoS Telemmetry"
+		(RO) For CXL host platforms that support "QoS Telemetry"
 		this attribute conveys a comma delimited list of platform
 		specific cookies that identifies a QoS performance class
 		for the persistent partition of the CXL mem device. These
@@ -321,14 +339,13 @@ KernelVersion:	v6.0
 Contact:	linux-cxl@vger.kernel.org
 Description:
 		(RW) When a CXL decoder is of devtype "cxl_decoder_endpoint" it
-		translates from a host physical address range, to a device local
-		address range. Device-local address ranges are further split
-		into a 'ram' (volatile memory) range and 'pmem' (persistent
-		memory) range. The 'mode' attribute emits one of 'ram', 'pmem',
-		'mixed', or 'none'. The 'mixed' indication is for error cases
-		when a decoder straddles the volatile/persistent partition
-		boundary, and 'none' indicates the decoder is not actively
-		decoding, or no DPA allocation policy has been set.
+		translates from a host physical address range, to a device
+		local address range. Device-local address ranges are further
+		split into a 'ram' (volatile memory) range and 'pmem'
+		(persistent memory) range. The 'mode' attribute emits one of
+		'ram', 'pmem', or 'none'. The 'none' indicates the decoder is
+		not actively decoding, or no DPA allocation policy has been
+		set.
 
 		'mode' can be written, when the decoder is in the 'disabled'
 		state, with either 'ram' or 'pmem' to set the boundaries for the
@@ -423,7 +440,7 @@ Date:		May, 2023
 KernelVersion:	v6.5
 Contact:	linux-cxl@vger.kernel.org
 Description:
-		(RO) For CXL host platforms that support "QoS Telemmetry" this
+		(RO) For CXL host platforms that support "QoS Telemetry" this
 		root-decoder-only attribute conveys a platform specific cookie
 		that identifies a QoS performance class for the CXL Window.
 		This class-id can be compared against a similar "qos_class"
@@ -586,3 +603,15 @@ Description:
 		See Documentation/ABI/stable/sysfs-devices-node. access0 provides
 		the number to the closest initiator and access1 provides the
 		number to the closest CPU.
+
+
+What:		/sys/bus/cxl/devices/nvdimm-bridge0/ndbusX/nmemY/cxl/dirty_shutdown
+Date:		Feb, 2025
+KernelVersion:	v6.15
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) The device dirty shutdown count value, which is the number
+		of times the device could have incurred in potential data loss.
+		The count is persistent across power loss and wraps back to 0
+		upon overflow. If this file is not present, the device does not
+		have the necessary support for dirty tracking.

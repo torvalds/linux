@@ -16,7 +16,15 @@
 
 /* platform specific devices */
 #include "hda.h"
-#include "mtl.h"
+#include "ptl.h"
+
+/* PantherLake ops */
+static struct snd_sof_dsp_ops sof_ptl_ops;
+
+static int sof_ptl_ops_init(struct snd_sof_dev *sdev)
+{
+	return sof_ptl_set_ops(sdev, &sof_ptl_ops);
+}
 
 static const struct sof_dev_desc ptl_desc = {
 	.use_acpi_target_states	= true,
@@ -43,13 +51,14 @@ static const struct sof_dev_desc ptl_desc = {
 		[SOF_IPC_TYPE_4] = "sof-ptl.ri",
 	},
 	.nocodec_tplg_filename = "sof-ptl-nocodec.tplg",
-	.ops = &sof_lnl_ops,
-	.ops_init = sof_lnl_ops_init,
+	.ops = &sof_ptl_ops,
+	.ops_init = sof_ptl_ops_init,
 };
 
 /* PCI IDs */
 static const struct pci_device_id sof_pci_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, HDA_PTL, &ptl_desc) }, /* PTL */
+	{ PCI_DEVICE_DATA(INTEL, HDA_PTL_H, &ptl_desc) }, /* PTL-H */
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, sof_pci_ids);
@@ -62,7 +71,7 @@ static struct pci_driver snd_sof_pci_intel_ptl_driver = {
 	.remove = sof_pci_remove,
 	.shutdown = sof_pci_shutdown,
 	.driver = {
-		.pm = &sof_pci_pm,
+		.pm = pm_ptr(&sof_pci_pm),
 	},
 };
 module_pci_driver(snd_sof_pci_intel_ptl_driver);
@@ -71,7 +80,4 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SOF support for PantherLake platforms");
 MODULE_IMPORT_NS("SND_SOC_SOF_INTEL_HDA_GENERIC");
 MODULE_IMPORT_NS("SND_SOC_SOF_INTEL_HDA_COMMON");
-MODULE_IMPORT_NS("SND_SOC_SOF_INTEL_LNL");
-MODULE_IMPORT_NS("SND_SOC_SOF_INTEL_MTL");
-MODULE_IMPORT_NS("SND_SOC_SOF_HDA_MLINK");
 MODULE_IMPORT_NS("SND_SOC_SOF_PCI_DEV");

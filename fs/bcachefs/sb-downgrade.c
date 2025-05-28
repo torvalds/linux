@@ -20,6 +20,10 @@
  * x(version, recovery_passes, errors...)
  */
 #define UPGRADE_TABLE()						\
+	x(snapshot_2,						\
+	  RECOVERY_PASS_ALL_FSCK,				\
+	  BCH_FSCK_ERR_subvol_root_wrong_bi_subvol,		\
+	  BCH_FSCK_ERR_subvol_not_master_and_not_snapshot)	\
 	x(backpointers,						\
 	  RECOVERY_PASS_ALL_FSCK)				\
 	x(inode_v3,						\
@@ -91,9 +95,12 @@
 	  BCH_FSCK_ERR_accounting_mismatch,			\
 	  BCH_FSCK_ERR_accounting_key_replicas_nr_devs_0,	\
 	  BCH_FSCK_ERR_accounting_key_junk_at_end)		\
-	x(directory_size,					\
-	  BIT_ULL(BCH_RECOVERY_PASS_check_inodes),		\
-	  BCH_FSCK_ERR_directory_size_mismatch)			\
+	x(cached_backpointers,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_extents_to_backpointers),\
+	  BCH_FSCK_ERR_ptr_to_missing_backpointer)		\
+	x(stripe_backpointers,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_extents_to_backpointers),\
+	  BCH_FSCK_ERR_ptr_to_missing_backpointer)
 
 #define DOWNGRADE_TABLE()					\
 	x(bucket_stripe_sectors,				\

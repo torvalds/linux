@@ -41,7 +41,6 @@ bcachefs-y		:=	\
 	extent_update.o		\
 	eytzinger.o		\
 	fs.o			\
-	fs-common.o		\
 	fs-ioctl.o		\
 	fs-io.o			\
 	fs-io-buffered.o	\
@@ -64,9 +63,11 @@ bcachefs-y		:=	\
 	migrate.o		\
 	move.o			\
 	movinggc.o		\
+	namei.o			\
 	nocow_locking.o		\
 	opts.o			\
 	printbuf.o		\
+	progress.o		\
 	quota.o			\
 	rebalance.o		\
 	rcu_pending.o		\

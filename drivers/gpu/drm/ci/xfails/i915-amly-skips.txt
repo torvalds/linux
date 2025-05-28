@@ -11,6 +11,7 @@ nouveau_.*
 ^v3d.*
 ^vc4.*
 ^vmwgfx*
+^xe.*
 
 # GEM tests takes ~1000 hours, so skip it
 gem_.*
@@ -20,6 +21,7 @@ i915_pm_rc6_residency.*
 i915_suspend.*
 kms_scaling_modes.*
 i915_pm_rpm.*
+i915_module_load@reload-with-fault-injection
 
 # Kernel panic
 drm_fdinfo.*

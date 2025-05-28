@@ -173,10 +173,6 @@ void mpc1_update_stereo_mix(
 	struct mpcc_sm_cfg *sm_cfg,
 	int mpcc_id);
 
-bool mpc1_is_mpcc_idle(
-	struct mpc *mpc,
-	int mpcc_id);
-
 void mpc1_assert_mpcc_idle_before_connect(
 	struct mpc *mpc,
 	int mpcc_id);

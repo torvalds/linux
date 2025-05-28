@@ -5,8 +5,7 @@ menu "USB HID support"
 config USB_HID
 	tristate "USB HID transport layer"
 	default y
-	depends on USB && INPUT
-	select HID
+	depends on HID
 	help
 	  Say Y here if you want to connect USB keyboards,
 	  mice, joysticks, graphic tablets, or any other HID based devices

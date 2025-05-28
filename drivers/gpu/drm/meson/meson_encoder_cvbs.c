@@ -83,12 +83,13 @@ meson_cvbs_get_mode(const struct drm_display_mode *req_mode)
 }
 
 static int meson_encoder_cvbs_attach(struct drm_bridge *bridge,
+				     struct drm_encoder *encoder,
 				     enum drm_bridge_attach_flags flags)
 {
 	struct meson_encoder_cvbs *meson_encoder_cvbs =
 					bridge_to_meson_encoder_cvbs(bridge);
 
-	return drm_bridge_attach(bridge->encoder, meson_encoder_cvbs->next_bridge,
+	return drm_bridge_attach(encoder, meson_encoder_cvbs->next_bridge,
 				 &meson_encoder_cvbs->bridge, flags);
 }
 
@@ -139,10 +140,9 @@ static int meson_encoder_cvbs_atomic_check(struct drm_bridge *bridge,
 }
 
 static void meson_encoder_cvbs_atomic_enable(struct drm_bridge *bridge,
-					     struct drm_bridge_state *bridge_state)
+					     struct drm_atomic_state *state)
 {
 	struct meson_encoder_cvbs *encoder_cvbs = bridge_to_meson_encoder_cvbs(bridge);
-	struct drm_atomic_state *state = bridge_state->base.state;
 	struct meson_drm *priv = encoder_cvbs->priv;
 	const struct meson_cvbs_mode *meson_mode;
 	struct drm_connector_state *conn_state;
@@ -191,7 +191,7 @@ static void meson_encoder_cvbs_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void meson_encoder_cvbs_atomic_disable(struct drm_bridge *bridge,
-					      struct drm_bridge_state *bridge_state)
+					      struct drm_atomic_state *state)
 {
 	struct meson_encoder_cvbs *meson_encoder_cvbs =
 					bridge_to_meson_encoder_cvbs(bridge);

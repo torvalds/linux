@@ -43,11 +43,12 @@ static inline struct thc63_dev *to_thc63(struct drm_bridge *bridge)
 }
 
 static int thc63_attach(struct drm_bridge *bridge,
+			struct drm_encoder *encoder,
 			enum drm_bridge_attach_flags flags)
 {
 	struct thc63_dev *thc63 = to_thc63(bridge);
 
-	return drm_bridge_attach(bridge->encoder, thc63->next, bridge, flags);
+	return drm_bridge_attach(encoder, thc63->next, bridge, flags);
 }
 
 static enum drm_mode_status thc63_mode_valid(struct drm_bridge *bridge,

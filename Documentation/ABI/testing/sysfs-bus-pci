@@ -583,3 +583,32 @@ Description:
 		enclosure-specific indications "specific0" to "specific7",
 		hence the corresponding led class devices are unavailable if
 		the DSM interface is used.
+
+What:		/sys/bus/pci/devices/.../doe_features
+Date:		March 2025
+Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Description:
+		This directory contains a list of the supported Data Object
+		Exchange (DOE) features. The features are the file name.
+		The contents of each file is the raw Vendor ID and data
+		object feature values.
+
+		The value comes from the device and specifies the vendor and
+		data object type supported. The lower (RHS of the colon) is
+		the data object type in hex. The upper (LHS of the colon)
+		is the vendor ID.
+
+		As all DOE devices must support the DOE discovery feature,
+		if DOE is supported you will at least see the doe_discovery
+		file, with this contents:
+
+		  # cat doe_features/doe_discovery
+		  0001:00
+
+		If the device supports other features you will see other
+		files as well. For example if CMA/SPDM and secure CMA/SPDM
+		are supported the doe_features directory will look like
+		this:
+
+		  # ls doe_features
+		  0001:01        0001:02        doe_discovery

@@ -964,7 +964,7 @@
 			status = "disabled";
 		};
 
-		usb0: ohci@700000 {
+		usb0: usb@700000 {
 			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 			reg = <0x00700000 0x100000>;
 			interrupts = <22 IRQ_TYPE_LEVEL_HIGH 2>;
@@ -973,7 +973,7 @@
 			status = "disabled";
 		};
 
-		usb1: ehci@800000 {
+		usb1: usb@800000 {
 			compatible = "atmel,at91sam9g45-ehci", "usb-ehci";
 			reg = <0x00800000 0x100000>;
 			interrupts = <22 IRQ_TYPE_LEVEL_HIGH 2>;

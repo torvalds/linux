@@ -190,7 +190,7 @@ static void ssp_enable_wdt_timer(struct ssp_data *data)
 
 static void ssp_disable_wdt_timer(struct ssp_data *data)
 {
-	del_timer_sync(&data->wdt_timer);
+	timer_delete_sync(&data->wdt_timer);
 	cancel_work_sync(&data->work_wdt);
 }
 
@@ -589,7 +589,7 @@ static void ssp_remove(struct spi_device *spi)
 
 	free_irq(data->spi->irq, data);
 
-	del_timer_sync(&data->wdt_timer);
+	timer_delete_sync(&data->wdt_timer);
 	cancel_work_sync(&data->work_wdt);
 
 	mutex_destroy(&data->comm_lock);

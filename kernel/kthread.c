@@ -859,7 +859,7 @@ int kthread_affine_preferred(struct task_struct *p, const struct cpumask *mask)
 	struct kthread *kthread = to_kthread(p);
 	cpumask_var_t affinity;
 	unsigned long flags;
-	int ret;
+	int ret = 0;
 
 	if (!wait_task_inactive(p, TASK_UNINTERRUPTIBLE) || kthread->started) {
 		WARN_ON(1);
@@ -892,7 +892,7 @@ int kthread_affine_preferred(struct task_struct *p, const struct cpumask *mask)
 out:
 	free_cpumask_var(affinity);
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -1362,14 +1362,14 @@ static void kthread_cancel_delayed_work_timer(struct kthread_work *work,
 	struct kthread_worker *worker = work->worker;
 
 	/*
-	 * del_timer_sync() must be called to make sure that the timer
+	 * timer_delete_sync() must be called to make sure that the timer
 	 * callback is not running. The lock must be temporary released
 	 * to avoid a deadlock with the callback. In the meantime,
 	 * any queuing is blocked by setting the canceling counter.
 	 */
 	work->canceling++;
 	raw_spin_unlock_irqrestore(&worker->lock, *flags);
-	del_timer_sync(&dwork->timer);
+	timer_delete_sync(&dwork->timer);
 	raw_spin_lock_irqsave(&worker->lock, *flags);
 	work->canceling--;
 }

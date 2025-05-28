@@ -115,7 +115,7 @@ void
 ccw_device_set_timeout(struct ccw_device *cdev, int expires)
 {
 	if (expires == 0)
-		del_timer(&cdev->private->timer);
+		timer_delete(&cdev->private->timer);
 	else
 		mod_timer(&cdev->private->timer, jiffies + expires);
 }

@@ -1138,7 +1138,7 @@ static int sbs_probe(struct i2c_client *client)
 
 	chip->flags = (uintptr_t)i2c_get_match_data(client);
 	chip->client = client;
-	psy_cfg.of_node = client->dev.of_node;
+	psy_cfg.fwnode = dev_fwnode(&client->dev);
 	psy_cfg.drv_data = chip;
 	chip->last_state = POWER_SUPPLY_STATUS_UNKNOWN;
 	sbs_invalidate_cached_props(chip);

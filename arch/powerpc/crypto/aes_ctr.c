@@ -69,9 +69,9 @@ static int p8_aes_ctr_setkey(struct crypto_skcipher *tfm, const u8 *key,
 static void p8_aes_ctr_final(const struct p8_aes_ctr_ctx *ctx,
 			     struct skcipher_walk *walk)
 {
+	const u8 *src = walk->src.virt.addr;
 	u8 *ctrblk = walk->iv;
 	u8 keystream[AES_BLOCK_SIZE];
-	u8 *src = walk->src.virt.addr;
 	u8 *dst = walk->dst.virt.addr;
 	unsigned int nbytes = walk->nbytes;
 

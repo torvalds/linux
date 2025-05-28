@@ -60,7 +60,7 @@ struct i915_power_well_instance {
 	/* unique identifier for this power well */
 	enum i915_power_well_id id;
 	/*
-	 * Arbitraty data associated with this power well. Platform and power
+	 * Arbitrary data associated with this power well. Platform and power
 	 * well specific.
 	 */
 	union {
@@ -77,7 +77,7 @@ struct i915_power_well_instance {
 		struct {
 			/*
 			 * request/status flag index in the power well
-			 * constrol/status registers.
+			 * control/status registers.
 			 */
 			u8 idx;
 		} hsw;

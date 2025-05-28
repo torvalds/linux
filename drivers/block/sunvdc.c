@@ -485,7 +485,7 @@ static int __send_request(struct request *req)
 	}
 
 	sg_init_table(sg, port->ring_cookies);
-	nsg = blk_rq_map_sg(req->q, req, sg);
+	nsg = blk_rq_map_sg(req, sg);
 
 	len = 0;
 	for (i = 0; i < nsg; i++)
@@ -1070,7 +1070,7 @@ static void vdc_port_remove(struct vio_dev *vdev)
 
 		flush_work(&port->ldc_reset_work);
 		cancel_delayed_work_sync(&port->ldc_reset_timer_work);
-		del_timer_sync(&port->vio.timer);
+		timer_delete_sync(&port->vio.timer);
 
 		del_gendisk(port->disk);
 		put_disk(port->disk);
@@ -1127,8 +1127,8 @@ static void vdc_queue_drain(struct vdc_port *port)
 
 	spin_lock_irq(&port->vio.lock);
 	port->drain = 0;
-	blk_mq_unquiesce_queue(q, memflags);
-	blk_mq_unfreeze_queue(q);
+	blk_mq_unquiesce_queue(q);
+	blk_mq_unfreeze_queue(q, memflags);
 }
 
 static void vdc_ldc_reset_timer_work(struct work_struct *work)

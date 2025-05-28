@@ -28,7 +28,7 @@ typedef enum rq_end_io_ret (rq_end_io_fn)(struct request *, blk_status_t);
 typedef __u32 __bitwise req_flags_t;
 
 /* Keep rqf_name[] in sync with the definitions below */
-enum {
+enum rqf_flags {
 	/* drive already may have started this one */
 	__RQF_STARTED,
 	/* request for flush sequence */
@@ -852,21 +852,39 @@ static inline bool blk_mq_is_reserved_rq(struct request *rq)
 	return rq->rq_flags & RQF_RESV;
 }
 
-/*
+/**
+ * blk_mq_add_to_batch() - add a request to the completion batch
+ * @req: The request to add to batch
+ * @iob: The batch to add the request
+ * @is_error: Specify true if the request failed with an error
+ * @complete: The completaion handler for the request
+ *
  * Batched completions only work when there is no I/O error and no special
  * ->end_io handler.
+ *
+ * Return: true when the request was added to the batch, otherwise false
  */
 static inline bool blk_mq_add_to_batch(struct request *req,
-				       struct io_comp_batch *iob, int ioerror,
+				       struct io_comp_batch *iob, bool is_error,
 				       void (*complete)(struct io_comp_batch *))
 {
 	/*
-	 * blk_mq_end_request_batch() can't end request allocated from
-	 * sched tags
+	 * Check various conditions that exclude batch processing:
+	 * 1) No batch container
+	 * 2) Has scheduler data attached
+	 * 3) Not a passthrough request and end_io set
+	 * 4) Not a passthrough request and failed with an error
 	 */
-	if (!iob || (req->rq_flags & RQF_SCHED_TAGS) || ioerror ||
-			(req->end_io && !blk_rq_is_passthrough(req)))
+	if (!iob)
 		return false;
+	if (req->rq_flags & RQF_SCHED_TAGS)
+		return false;
+	if (!blk_rq_is_passthrough(req)) {
+		if (req->end_io)
+			return false;
+		if (is_error)
+			return false;
+	}
 
 	if (!iob->complete)
 		iob->complete = complete;
@@ -1155,14 +1173,13 @@ static inline unsigned short blk_rq_nr_discard_segments(struct request *rq)
 	return max_t(unsigned short, rq->nr_phys_segments, 1);
 }
 
-int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
-		struct scatterlist *sglist, struct scatterlist **last_sg);
-static inline int blk_rq_map_sg(struct request_queue *q, struct request *rq,
-		struct scatterlist *sglist)
+int __blk_rq_map_sg(struct request *rq, struct scatterlist *sglist,
+		struct scatterlist **last_sg);
+static inline int blk_rq_map_sg(struct request *rq, struct scatterlist *sglist)
 {
 	struct scatterlist *last_sg = NULL;
 
-	return __blk_rq_map_sg(q, rq, sglist, &last_sg);
+	return __blk_rq_map_sg(rq, sglist, &last_sg);
 }
 void blk_dump_rq_flags(struct request *, char *);
 

@@ -128,14 +128,11 @@ static void panthor_device_reset_work(struct work_struct *work)
 	struct panthor_device *ptdev = container_of(work, struct panthor_device, reset.work);
 	int ret = 0, cookie;
 
-	if (atomic_read(&ptdev->pm.state) != PANTHOR_DEVICE_PM_STATE_ACTIVE) {
-		/*
-		 * No need for a reset as the device has been (or will be)
-		 * powered down
-		 */
-		atomic_set(&ptdev->reset.pending, 0);
+	/* If the device is entering suspend, we don't reset. A slow reset will
+	 * be forced at resume time instead.
+	 */
+	if (atomic_read(&ptdev->pm.state) != PANTHOR_DEVICE_PM_STATE_ACTIVE)
 		return;
-	}
 
 	if (!drm_dev_enter(&ptdev->base, &cookie))
 		return;
@@ -174,10 +171,6 @@ int panthor_device_init(struct panthor_device *ptdev)
 	struct page *p;
 	int ret;
 
-	ret = panthor_gpu_coherency_init(ptdev);
-	if (ret)
-		return ret;
-
 	init_completion(&ptdev->unplug.done);
 	ret = drmm_mutex_init(&ptdev->base, &ptdev->unplug.lock);
 	if (ret)
@@ -186,6 +179,11 @@ int panthor_device_init(struct panthor_device *ptdev)
 	ret = drmm_mutex_init(&ptdev->base, &ptdev->pm.mmio_lock);
 	if (ret)
 		return ret;
+
+#ifdef CONFIG_DEBUG_FS
+	drmm_mutex_init(&ptdev->base, &ptdev->gems.lock);
+	INIT_LIST_HEAD(&ptdev->gems.node);
+#endif
 
 	atomic_set(&ptdev->pm.state, PANTHOR_DEVICE_PM_STATE_SUSPENDED);
 	p = alloc_page(GFP_KERNEL | __GFP_ZERO);
@@ -249,6 +247,10 @@ int panthor_device_init(struct panthor_device *ptdev)
 	ret = panthor_gpu_init(ptdev);
 	if (ret)
 		goto err_rpm_put;
+
+	ret = panthor_gpu_coherency_init(ptdev);
+	if (ret)
+		goto err_unplug_gpu;
 
 	ret = panthor_mmu_init(ptdev);
 	if (ret)
@@ -477,6 +479,14 @@ int panthor_device_resume(struct device *dev)
 
 	if (panthor_device_is_initialized(ptdev) &&
 	    drm_dev_enter(&ptdev->base, &cookie)) {
+		/* If there was a reset pending at the time we suspended the
+		 * device, we force a slow reset.
+		 */
+		if (atomic_read(&ptdev->reset.pending)) {
+			ptdev->reset.fast = false;
+			atomic_set(&ptdev->reset.pending, 0);
+		}
+
 		ret = panthor_device_resume_hw_components(ptdev);
 		if (ret && ptdev->reset.fast) {
 			drm_err(&ptdev->base, "Fast reset failed, trying a slow reset");
@@ -492,9 +502,6 @@ int panthor_device_resume(struct device *dev)
 		if (ret)
 			goto err_suspend_devfreq;
 	}
-
-	if (atomic_read(&ptdev->reset.pending))
-		queue_work(ptdev->reset.wq, &ptdev->reset.work);
 
 	/* Clear all IOMEM mappings pointing to this device after we've
 	 * resumed. This way the fake mappings pointing to the dummy pages

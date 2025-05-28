@@ -1,13 +1,6 @@
 # Board Name: acer-cb317-1h-c3z6-dedede
-# Bug Report: https://gitlab.freedesktop.org/drm/i915/kernel/-/issues/12475
+# Bug Report: https://gitlab.freedesktop.org/drm/i915/kernel/-/issues/13349
 # Failure Rate: 100
-# IGT Version: 1.28-ga73311079
-# Linux Version: 6.12.0-rc1
-kms_flip@flip-vs-panning-interruptible
-
-# Board Name: acer-cb317-1h-c3z6-dedede
-# Bug Report: https://gitlab.freedesktop.org/drm/i915/kernel/-/issues/12476
-# Failure Rate: 100
-# IGT Version: 1.28-ga73311079
-# Linux Version: 6.12.0-rc1
-kms_universal_plane@cursor-fb-leak
+# IGT Version: 1.29-g33adea9eb
+# Linux Version: 6.13.0-rc2
+kms_flip@flip-vs-fences-interruptible

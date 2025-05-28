@@ -254,7 +254,6 @@ static struct cpufreq_driver qoriq_cpufreq_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= qoriq_cpufreq_target,
 	.get		= cpufreq_generic_get,
-	.attr		= cpufreq_generic_attr,
 };
 
 static const struct of_device_id qoriq_cpufreq_blacklist[] = {

@@ -467,59 +467,82 @@ static int ad7779_set_calibbias(struct ad7779_state *st, int channel, int val)
 				calibbias[2]);
 }
 
-static int ad7779_read_raw(struct iio_dev *indio_dev,
-			   struct iio_chan_spec const *chan, int *val,
-			   int *val2, long mask)
+static int __ad7779_read_raw(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan, int *val,
+			     int *val2, long mask)
 {
 	struct ad7779_state *st = iio_priv(indio_dev);
 	int ret;
 
-	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-		switch (mask) {
-		case IIO_CHAN_INFO_CALIBSCALE:
-			ret = ad7779_get_calibscale(st, chan->channel);
-			if (ret < 0)
-				return ret;
-			*val = ret;
-			*val2 = GAIN_REL;
-			return IIO_VAL_FRACTIONAL;
-		case IIO_CHAN_INFO_CALIBBIAS:
-			ret = ad7779_get_calibbias(st, chan->channel);
-			if (ret < 0)
-				return ret;
-			*val = ret;
-			return IIO_VAL_INT;
-		case IIO_CHAN_INFO_SAMP_FREQ:
-			*val = st->sampling_freq;
-			if (*val < 0)
-				return -EINVAL;
-			return IIO_VAL_INT;
-		default:
+	switch (mask) {
+	case IIO_CHAN_INFO_CALIBSCALE:
+		ret = ad7779_get_calibscale(st, chan->channel);
+		if (ret < 0)
+			return ret;
+		*val = ret;
+		*val2 = GAIN_REL;
+		return IIO_VAL_FRACTIONAL;
+	case IIO_CHAN_INFO_CALIBBIAS:
+		ret = ad7779_get_calibbias(st, chan->channel);
+		if (ret < 0)
+			return ret;
+		*val = ret;
+		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		*val = st->sampling_freq;
+		if (*val < 0)
 			return -EINVAL;
-		}
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
 	}
-	unreachable();
+}
+
+static int ad7779_read_raw(struct iio_dev *indio_dev,
+			   struct iio_chan_spec const *chan, int *val,
+			   int *val2, long mask)
+{
+	int ret;
+
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	ret = __ad7779_read_raw(indio_dev, chan, val, val2, mask);
+	iio_device_release_direct(indio_dev);
+	return ret;
+}
+
+static int __ad7779_write_raw(struct iio_dev *indio_dev,
+			      struct iio_chan_spec const *chan,
+			      int val, int val2,
+			      long mask)
+{
+	struct ad7779_state *st = iio_priv(indio_dev);
+
+	switch (mask) {
+	case IIO_CHAN_INFO_CALIBSCALE:
+		return ad7779_set_calibscale(st, chan->channel, val2);
+	case IIO_CHAN_INFO_CALIBBIAS:
+		return ad7779_set_calibbias(st, chan->channel, val);
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		return ad7779_set_sampling_frequency(st, val);
+	default:
+		return -EINVAL;
+	}
 }
 
 static int ad7779_write_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan, int val, int val2,
 			    long mask)
 {
-	struct ad7779_state *st = iio_priv(indio_dev);
+	int ret;
 
-	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-		switch (mask) {
-		case IIO_CHAN_INFO_CALIBSCALE:
-			return ad7779_set_calibscale(st, chan->channel, val2);
-		case IIO_CHAN_INFO_CALIBBIAS:
-			return ad7779_set_calibbias(st, chan->channel, val);
-		case IIO_CHAN_INFO_SAMP_FREQ:
-			return ad7779_set_sampling_frequency(st, val);
-		default:
-			return -EINVAL;
-		}
-	}
-	unreachable();
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	ret = __ad7779_write_raw(indio_dev, chan, val, val2, mask);
+	iio_device_release_direct(indio_dev);
+	return ret;
 }
 
 static int ad7779_buffer_preenable(struct iio_dev *indio_dev)

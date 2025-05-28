@@ -46,7 +46,7 @@
 
 #define DCN35_CRB_SEGMENT_SIZE_KB 64
 
-static void dcn35_init_crb(struct hubbub *hubbub)
+void dcn35_init_crb(struct hubbub *hubbub)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 
@@ -71,7 +71,7 @@ static void dcn35_init_crb(struct hubbub *hubbub)
 	REG_UPDATE(DCHUBBUB_DEBUG_CTRL_0, DET_DEPTH, 0x5FF);
 }
 
-static void dcn35_program_compbuf_size(struct hubbub *hubbub, unsigned int compbuf_size_kb, bool safe_to_increase)
+void dcn35_program_compbuf_size(struct hubbub *hubbub, unsigned int compbuf_size_kb, bool safe_to_increase)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 	unsigned int compbuf_size_segments = (compbuf_size_kb + DCN35_CRB_SEGMENT_SIZE_KB - 1) / DCN35_CRB_SEGMENT_SIZE_KB;
@@ -255,7 +255,7 @@ static bool hubbub35_program_stutter_z8_watermarks(
 	return wm_pending;
 }
 
-static void hubbub35_get_dchub_ref_freq(struct hubbub *hubbub,
+void hubbub35_get_dchub_ref_freq(struct hubbub *hubbub,
 		unsigned int dccg_ref_freq_inKhz,
 		unsigned int *dchub_ref_freq_inKhz)
 {
@@ -295,7 +295,7 @@ static void hubbub35_get_dchub_ref_freq(struct hubbub *hubbub,
 }
 
 
-static bool hubbub35_program_watermarks(
+bool hubbub35_program_watermarks(
 		struct hubbub *hubbub,
 		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
@@ -326,7 +326,8 @@ static bool hubbub35_program_watermarks(
 			DCHUBBUB_ARB_MIN_REQ_OUTSTAND_COMMIT_THRESHOLD, 0xA);/*hw delta*/
 	REG_UPDATE(DCHUBBUB_ARB_HOSTVM_CNTL, DCHUBBUB_ARB_MAX_QOS_COMMIT_THRESHOLD, 0xF);
 
-	hubbub1_allow_self_refresh_control(hubbub, !hubbub->ctx->dc->debug.disable_stutter);
+	if (safe_to_lower || hubbub->ctx->dc->debug.disable_stutter)
+		hubbub1_allow_self_refresh_control(hubbub, !hubbub->ctx->dc->debug.disable_stutter);
 
 	hubbub32_force_usr_retraining_allow(hubbub, hubbub->ctx->dc->debug.force_usr_allow);
 
@@ -334,7 +335,7 @@ static bool hubbub35_program_watermarks(
 }
 
 /* Copy values from WM set A to all other sets */
-static void hubbub35_init_watermarks(struct hubbub *hubbub)
+void hubbub35_init_watermarks(struct hubbub *hubbub)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 	uint32_t reg;
@@ -396,7 +397,7 @@ static void hubbub35_init_watermarks(struct hubbub *hubbub)
 
 }
 
-static void hubbub35_wm_read_state(struct hubbub *hubbub,
+void hubbub35_wm_read_state(struct hubbub *hubbub,
 		struct dcn_hubbub_wm *wm)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
@@ -513,7 +514,7 @@ static void hubbub35_set_fgcg(struct dcn20_hubbub *hubbub2, bool enable)
 	REG_UPDATE(DCHUBBUB_CLOCK_CNTL, DCHUBBUB_FGCG_REP_DIS, !enable);
 }
 
-static void hubbub35_init(struct hubbub *hubbub)
+void hubbub35_init(struct hubbub *hubbub)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 	/*Enable clock gaters*/

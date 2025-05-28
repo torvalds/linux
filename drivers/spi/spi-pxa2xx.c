@@ -399,7 +399,7 @@ static void lpss_ssp_cs_control(struct spi_device *spi, bool enable)
 		lpss_ssp_select_cs(spi, config);
 
 	mask = LPSS_CS_CONTROL_CS_HIGH;
-	__lpss_ssp_update_priv(drv_data, config->reg_cs_ctrl, mask, enable ? mask : 0);
+	__lpss_ssp_update_priv(drv_data, config->reg_cs_ctrl, mask, enable ? 0 : mask);
 	if (config->cs_clk_stays_gated) {
 		/*
 		 * Changing CS alone when dynamic clock gating is on won't

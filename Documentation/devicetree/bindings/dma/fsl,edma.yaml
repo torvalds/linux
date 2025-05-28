@@ -28,6 +28,14 @@ properties:
           - fsl,imx95-edma5
           - nxp,s32g2-edma
       - items:
+          - enum:
+              - fsl,imx94-edma3
+          - const: fsl,imx93-edma3
+      - items:
+          - enum:
+              - fsl,imx94-edma5
+          - const: fsl,imx95-edma5
+      - items:
           - const: fsl,ls1028a-edma
           - const: fsl,vf610-edma
       - items:

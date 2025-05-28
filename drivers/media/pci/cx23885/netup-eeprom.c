@@ -49,35 +49,6 @@ int netup_eeprom_read(struct i2c_adapter *i2c_adap, u8 addr)
 	return buf[1];
 };
 
-int netup_eeprom_write(struct i2c_adapter *i2c_adap, u8 addr, u8 data)
-{
-	int ret;
-	unsigned char bufw[2];
-
-	/* Write into EEPROM */
-	struct i2c_msg msg[] = {
-		{
-			.addr	= EEPROM_I2C_ADDR,
-			.flags	= 0,
-			.buf	= &bufw[0],
-			.len	= 2
-		}
-	};
-
-	bufw[0] = addr;
-	bufw[1] = data;
-
-	ret = i2c_transfer(i2c_adap, msg, 1);
-
-	if (ret != 1) {
-		pr_err("eeprom i2c write error, status=%d\n", ret);
-		return -1;
-	}
-
-	mdelay(10); /* prophylactic delay, datasheet write cycle time = 5 ms */
-	return 0;
-};
-
 void netup_get_card_info(struct i2c_adapter *i2c_adap,
 				struct netup_card_info *cinfo)
 {

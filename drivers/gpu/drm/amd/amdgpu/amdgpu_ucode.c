@@ -767,6 +767,7 @@ FW_VERSION_ATTR(vcn_fw_version, 0444, vcn.fw_version);
 FW_VERSION_ATTR(dmcu_fw_version, 0444, dm.dmcu_fw_version);
 FW_VERSION_ATTR(mes_fw_version, 0444, mes.sched_version & AMDGPU_MES_VERSION_MASK);
 FW_VERSION_ATTR(mes_kiq_fw_version, 0444, mes.kiq_version & AMDGPU_MES_VERSION_MASK);
+FW_VERSION_ATTR(pldm_fw_version, 0444, firmware.pldm_version);
 
 static struct attribute *fw_attrs[] = {
 	&dev_attr_vce_fw_version.attr, &dev_attr_uvd_fw_version.attr,
@@ -781,7 +782,7 @@ static struct attribute *fw_attrs[] = {
 	&dev_attr_sdma2_fw_version.attr, &dev_attr_vcn_fw_version.attr,
 	&dev_attr_dmcu_fw_version.attr, &dev_attr_imu_fw_version.attr,
 	&dev_attr_mes_fw_version.attr, &dev_attr_mes_kiq_fw_version.attr,
-	NULL
+	&dev_attr_pldm_fw_version.attr, NULL
 };
 
 #define to_dev_attr(x) container_of(x, struct device_attribute, attr)
@@ -1216,6 +1217,7 @@ static const char *amdgpu_ucode_legacy_naming(struct amdgpu_device *adev, int bl
 		case IP_VERSION(11, 0, 13):
 			return "beige_goby";
 		case IP_VERSION(11, 5, 0):
+		case IP_VERSION(11, 5, 2):
 			return "vangogh";
 		case IP_VERSION(12, 0, 1):
 			return "green_sardine";

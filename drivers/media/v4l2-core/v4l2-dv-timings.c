@@ -764,7 +764,7 @@ bool v4l2_detect_gtf(unsigned int frame_height,
 		u64 num;
 		u32 den;
 
-		num = ((image_width * GTF_D_C_PRIME * (u64)hfreq) -
+		num = (((u64)image_width * GTF_D_C_PRIME * hfreq) -
 		      ((u64)image_width * GTF_D_M_PRIME * 1000));
 		den = (hfreq * (100 - GTF_D_C_PRIME) + GTF_D_M_PRIME * 1000) *
 		      (2 * GTF_CELL_GRAN);
@@ -774,7 +774,7 @@ bool v4l2_detect_gtf(unsigned int frame_height,
 		u64 num;
 		u32 den;
 
-		num = ((image_width * GTF_S_C_PRIME * (u64)hfreq) -
+		num = (((u64)image_width * GTF_S_C_PRIME * hfreq) -
 		      ((u64)image_width * GTF_S_M_PRIME * 1000));
 		den = (hfreq * (100 - GTF_S_C_PRIME) + GTF_S_M_PRIME * 1000) *
 		      (2 * GTF_CELL_GRAN);
@@ -1016,6 +1016,42 @@ v4l2_hdmi_rx_colorimetry(const struct hdmi_avi_infoframe *avi,
 	return c;
 }
 EXPORT_SYMBOL_GPL(v4l2_hdmi_rx_colorimetry);
+
+/**
+ * v4l2_num_edid_blocks() - return the number of EDID blocks
+ *
+ * @edid:	pointer to the EDID data
+ * @max_blocks:	maximum number of supported EDID blocks
+ *
+ * Return: the number of EDID blocks based on the contents of the EDID.
+ *	   This supports the HDMI Forum EDID Extension Override Data Block.
+ */
+unsigned int v4l2_num_edid_blocks(const u8 *edid, unsigned int max_blocks)
+{
+	unsigned int blocks;
+
+	if (!edid || !max_blocks)
+		return 0;
+
+	// The number of extension blocks is recorded at byte 126 of the
+	// first 128-byte block in the EDID.
+	//
+	// If there is an HDMI Forum EDID Extension Override Data Block
+	// present, then it is in bytes 4-6 of the first CTA-861 extension
+	// block of the EDID.
+	blocks = edid[126] + 1;
+	// Check for HDMI Forum EDID Extension Override Data Block
+	if (blocks >= 2 &&	// The EDID must be at least 2 blocks
+	    max_blocks >= 3 &&  // The caller supports at least 3 blocks
+	    edid[128] == 2 &&	// The first extension block is type CTA-861
+	    edid[133] == 0x78 && // Identifier for the EEODB
+	    (edid[132] & 0xe0) == 0xe0 && // Tag Code == 7
+	    (edid[132] & 0x1f) >= 2 &&	// Length >= 2
+	    edid[134] > 1)	// Number of extension blocks is sane
+		blocks = edid[134] + 1;
+	return blocks > max_blocks ? max_blocks : blocks;
+}
+EXPORT_SYMBOL_GPL(v4l2_num_edid_blocks);
 
 /**
  * v4l2_get_edid_phys_addr() - find and return the physical address

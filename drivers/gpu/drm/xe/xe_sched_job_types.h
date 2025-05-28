@@ -18,9 +18,9 @@ struct dma_fence_chain;
  * struct xe_job_ptrs - Per hw engine instance data
  */
 struct xe_job_ptrs {
-	/** @lrc_fence: Pre-allocated uinitialized lrc fence.*/
+	/** @lrc_fence: Pre-allocated uninitialized lrc fence.*/
 	struct dma_fence *lrc_fence;
-	/** @chain_fence: Pre-allocated ninitialized fence chain node. */
+	/** @chain_fence: Pre-allocated uninitialized fence chain node. */
 	struct dma_fence_chain *chain_fence;
 	/** @batch_addr: Batch buffer address. */
 	u64 batch_addr;

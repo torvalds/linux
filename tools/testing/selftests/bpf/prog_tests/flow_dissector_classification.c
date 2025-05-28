@@ -542,8 +542,12 @@ static void detach_program(struct bpf_flow *skel, int prog_fd)
 
 static int set_port_drop(int pf, bool multi_port)
 {
+	char dst_port[16];
+
+	snprintf(dst_port, sizeof(dst_port), "%d", CFG_PORT_INNER);
+
 	SYS(fail, "tc qdisc add dev lo ingress");
-	SYS(fail_delete_qdisc, "tc filter add %s %s %s %s %s %s %s %s %s %s",
+	SYS(fail_delete_qdisc, "tc filter add %s %s %s %s %s %s %s %s %s %s %s %s",
 	    "dev lo",
 	    "parent FFFF:",
 	    "protocol", pf == PF_INET6 ? "ipv6" : "ip",
@@ -551,6 +555,7 @@ static int set_port_drop(int pf, bool multi_port)
 	    "flower",
 	    "ip_proto udp",
 	    "src_port", multi_port ? "8-10" : "9",
+	    "dst_port", dst_port,
 	    "action drop");
 	return 0;
 

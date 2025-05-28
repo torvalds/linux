@@ -233,6 +233,8 @@ struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 	__set_bit(NFS_CS_NO_RETRANS_TIMEOUT, &clp->cl_flags);
 	if (test_bit(NFS_CS_PNFS, &cl_init->init_flags))
 		__set_bit(NFS_CS_PNFS, &clp->cl_flags);
+	if (test_bit(NFS_CS_NETUNREACH_FATAL, &cl_init->init_flags))
+		__set_bit(NFS_CS_NETUNREACH_FATAL, &clp->cl_flags);
 	/*
 	 * Set up the connection to the server before we add add to the
 	 * global list.
@@ -937,6 +939,9 @@ static int nfs4_set_client(struct nfs_server *server,
 		__set_bit(NFS_CS_TSM_POSSIBLE, &cl_init.init_flags);
 	server->port = rpc_get_port((struct sockaddr *)addr);
 
+	if (server->flags & NFS_MOUNT_NETUNREACH_FATAL)
+		__set_bit(NFS_CS_NETUNREACH_FATAL, &cl_init.init_flags);
+
 	/* Allocate or find a client reference we can use */
 	clp = nfs_get_client(&cl_init);
 	if (IS_ERR(clp))
@@ -1011,6 +1016,8 @@ struct nfs_client *nfs4_set_ds_client(struct nfs_server *mds_srv,
 
 	if (mds_srv->flags & NFS_MOUNT_NORESVPORT)
 		__set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
+	if (test_bit(NFS_CS_NETUNREACH_FATAL, &mds_clp->cl_flags))
+		__set_bit(NFS_CS_NETUNREACH_FATAL, &cl_init.init_flags);
 
 	__set_bit(NFS_CS_PNFS, &cl_init.init_flags);
 	cl_init.max_connect = NFS_MAX_TRANSPORTS;

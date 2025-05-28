@@ -761,7 +761,7 @@ bool dml2_top_mcache_calc_mcache_count_and_offsets(struct top_mcache_calc_mcache
 				total_mcaches_required--;
 		}
 	}
-	dml2_printf("DML_CORE_DCN3::%s: plane_%d, total_mcaches_required=%d\n", __func__, i, total_mcaches_required);
+	DML_LOG_VERBOSE("DML_CORE_DCN3::%s: plane_%d, total_mcaches_required=%d\n", __func__, i, total_mcaches_required);
 
 	if (total_mcaches_required > dml->soc_bbox.num_dcc_mcaches) {
 		result = false;
@@ -831,7 +831,6 @@ static bool dml2_top_soc15_build_mode_programming(struct dml2_build_mode_program
 	bool uclk_pstate_success = false;
 	bool vmin_success = false;
 	bool stutter_success = false;
-	unsigned int i;
 
 	memset(l, 0, sizeof(struct dml2_build_mode_programming_locals));
 	memset(in_out->programming, 0, sizeof(struct dml2_display_cfg_programming));
@@ -974,13 +973,6 @@ static bool dml2_top_soc15_build_mode_programming(struct dml2_build_mode_program
 	if (stutter_success) {
 		memcpy(&l->base_display_config_with_meta, &l->optimized_display_config_with_meta, sizeof(struct display_configuation_with_meta));
 		l->base_display_config_with_meta.stage5.success = true;
-	}
-
-	/*
-	* Populate mcache programming
-	*/
-	for (i = 0; i < in_out->display_config->num_planes; i++) {
-		in_out->programming->plane_programming[i].mcache_allocation = l->base_display_config_with_meta.stage2.mcache_allocations[i];
 	}
 
 	/*

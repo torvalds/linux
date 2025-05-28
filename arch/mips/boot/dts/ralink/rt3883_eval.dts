@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
-/include/ "rt3883.dtsi"
+#include "rt3883.dtsi"
 
 / {
 	compatible = "ralink,rt3883-eval-board", "ralink,rt3883-soc";

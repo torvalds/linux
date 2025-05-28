@@ -29,10 +29,14 @@ int mlx5_esw_devlink_rate_node_new(struct devlink_rate *rate_node, void **priv,
 				   struct netlink_ext_ack *extack);
 int mlx5_esw_devlink_rate_node_del(struct devlink_rate *rate_node, void *priv,
 				   struct netlink_ext_ack *extack);
-int mlx5_esw_devlink_rate_parent_set(struct devlink_rate *devlink_rate,
-				     struct devlink_rate *parent,
-				     void *priv, void *parent_priv,
-				     struct netlink_ext_ack *extack);
+int mlx5_esw_devlink_rate_leaf_parent_set(struct devlink_rate *devlink_rate,
+					  struct devlink_rate *parent,
+					  void *priv, void *parent_priv,
+					  struct netlink_ext_ack *extack);
+int mlx5_esw_devlink_rate_node_parent_set(struct devlink_rate *devlink_rate,
+					  struct devlink_rate *parent,
+					  void *priv, void *parent_priv,
+					  struct netlink_ext_ack *extack);
 #endif
 
 #endif

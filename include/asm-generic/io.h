@@ -1111,7 +1111,7 @@ void __iomem *generic_ioremap_prot(phys_addr_t phys_addr, size_t size,
 				   pgprot_t prot);
 
 void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size,
-			   unsigned long prot);
+			   pgprot_t prot);
 void iounmap(volatile void __iomem *addr);
 void generic_iounmap(volatile void __iomem *addr);
 
@@ -1120,7 +1120,7 @@ void generic_iounmap(volatile void __iomem *addr);
 static inline void __iomem *ioremap(phys_addr_t addr, size_t size)
 {
 	/* _PAGE_IOREMAP needs to be supplied by the architecture */
-	return ioremap_prot(addr, size, _PAGE_IOREMAP);
+	return ioremap_prot(addr, size, __pgprot(_PAGE_IOREMAP));
 }
 #endif
 #endif /* !CONFIG_MMU || CONFIG_GENERIC_IOREMAP */
@@ -1212,7 +1212,7 @@ static inline void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
 
 #ifndef memset_io
 /**
- * memset_io	Set a range of I/O memory to a constant value
+ * memset_io -	Set a range of I/O memory to a constant value
  * @addr:	The beginning of the I/O-memory range to set
  * @val:	The value to set the memory to
  * @count:	The number of bytes to set
@@ -1224,7 +1224,7 @@ void memset_io(volatile void __iomem *addr, int val, size_t count);
 
 #ifndef memcpy_fromio
 /**
- * memcpy_fromio	Copy a block of data from I/O memory
+ * memcpy_fromio -	Copy a block of data from I/O memory
  * @dst:		The (RAM) destination for the copy
  * @src:		The (I/O memory) source for the data
  * @count:		The number of bytes to copy
@@ -1236,7 +1236,7 @@ void memcpy_fromio(void *dst, const volatile void __iomem *src, size_t count);
 
 #ifndef memcpy_toio
 /**
- * memcpy_toio		Copy a block of data into I/O memory
+ * memcpy_toio -	Copy a block of data into I/O memory
  * @dst:		The (I/O memory) destination for the copy
  * @src:		The (RAM) source for the data
  * @count:		The number of bytes to copy

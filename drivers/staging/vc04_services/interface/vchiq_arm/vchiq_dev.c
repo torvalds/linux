@@ -270,7 +270,7 @@ static int vchiq_ioc_dequeue_message(struct vchiq_instance *instance,
 		}
 	} else {
 		dev_err(service->state->dev,
-			"arm: header %pK: bufsize %x < size %x\n",
+			"arm: header %p: bufsize %x < size %x\n",
 			header, args->bufsize, header->size);
 		WARN(1, "invalid size\n");
 		ret = -EMSGSIZE;
@@ -328,7 +328,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 			ret = -ESRCH;
 			goto out;
 		}
-		dev_dbg(service->state->dev, "arm: found bulk_waiter %pK for pid %d\n",
+		dev_dbg(service->state->dev, "arm: found bulk_waiter %p for pid %d\n",
 			waiter, current->pid);
 
 		status = vchiq_bulk_xfer_waiting(instance, args->handle,
@@ -366,7 +366,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		mutex_lock(&instance->bulk_waiter_list_mutex);
 		list_add(&waiter->list, &instance->bulk_waiter_list);
 		mutex_unlock(&instance->bulk_waiter_list_mutex);
-		dev_dbg(service->state->dev, "arm: saved bulk_waiter %pK for pid %d\n",
+		dev_dbg(service->state->dev, "arm: saved bulk_waiter %p for pid %d\n",
 			waiter, current->pid);
 
 		ret = put_user(mode_waiting, mode);
@@ -512,7 +512,7 @@ static int vchiq_ioc_await_completion(struct vchiq_instance *instance,
 			/* This must be a VCHIQ-style service */
 			if (args->msgbufsize < msglen) {
 				dev_err(service->state->dev,
-					"arm: header %pK: msgbufsize %x < msglen %x\n",
+					"arm: header %p: msgbufsize %x < msglen %x\n",
 					header, args->msgbufsize, msglen);
 				WARN(1, "invalid message size\n");
 				if (ret == 0)
@@ -588,7 +588,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	long ret = 0;
 	int i, rc;
 
-	dev_dbg(instance->state->dev, "arm: instance %pK, cmd %s, arg %lx\n", instance,
+	dev_dbg(instance->state->dev, "arm: instance %p, cmd %s, arg %lx\n", instance,
 		((_IOC_TYPE(cmd) == VCHIQ_IOC_MAGIC) && (_IOC_NR(cmd) <= VCHIQ_IOC_MAX)) ?
 		ioctl_names[_IOC_NR(cmd)] : "<invalid>", arg);
 
@@ -874,12 +874,12 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	if (!status && (ret < 0) && (ret != -EINTR) && (ret != -EWOULDBLOCK)) {
 		dev_dbg(instance->state->dev,
-			"arm: ioctl instance %pK, cmd %s -> status %d, %ld\n",
+			"arm: ioctl instance %p, cmd %s -> status %d, %ld\n",
 			instance, (_IOC_NR(cmd) <= VCHIQ_IOC_MAX) ?
 			ioctl_names[_IOC_NR(cmd)] : "<invalid>", status, ret);
 	} else {
 		dev_dbg(instance->state->dev,
-			"arm: ioctl instance %pK, cmd %s -> status %d\n, %ld\n",
+			"arm: ioctl instance %p, cmd %s -> status %d\n, %ld\n",
 			instance, (_IOC_NR(cmd) <= VCHIQ_IOC_MAX) ?
 			ioctl_names[_IOC_NR(cmd)] : "<invalid>", status, ret);
 	}

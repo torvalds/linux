@@ -325,10 +325,6 @@
 	};
 };
 
-&i2c3 {
-	status = "okay";
-};
-
 &i2s0_8ch {
 	rockchip,trcm-sync-tx-only;
 
@@ -394,6 +390,12 @@
 
 &u2phy_host {
 	status = "okay";
+};
+
+&uart5 {
+	/delete-property/ dmas;
+	/delete-property/ dma-names;
+	pinctrl-0 = <&uart5_xfer>;
 };
 
 /* Mule UCAN */

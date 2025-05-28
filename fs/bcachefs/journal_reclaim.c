@@ -226,7 +226,7 @@ void bch2_journal_space_available(struct journal *j)
 
 		bch_err(c, "%s", buf.buf);
 		printbuf_exit(&buf);
-		ret = JOURNAL_ERR_insufficient_devices;
+		ret = -BCH_ERR_insufficient_journal_devices;
 		goto out;
 	}
 
@@ -240,7 +240,7 @@ void bch2_journal_space_available(struct journal *j)
 	total		= j->space[journal_space_total].total;
 
 	if (!j->space[journal_space_discarded].next_entry)
-		ret = JOURNAL_ERR_journal_full;
+		ret = -BCH_ERR_journal_full;
 
 	if ((j->space[journal_space_clean_ondisk].next_entry <
 	     j->space[journal_space_clean_ondisk].total) &&
@@ -252,7 +252,10 @@ void bch2_journal_space_available(struct journal *j)
 
 	bch2_journal_set_watermark(j);
 out:
-	j->cur_entry_sectors	= !ret ? j->space[journal_space_discarded].next_entry : 0;
+	j->cur_entry_sectors	= !ret
+		? round_down(j->space[journal_space_discarded].next_entry,
+			     block_sectors(c))
+		: 0;
 	j->cur_entry_error	= ret;
 
 	if (!ret)
@@ -384,12 +387,16 @@ void bch2_journal_pin_drop(struct journal *j,
 	spin_unlock(&j->lock);
 }
 
-static enum journal_pin_type journal_pin_type(journal_pin_flush_fn fn)
+static enum journal_pin_type journal_pin_type(struct journal_entry_pin *pin,
+					      journal_pin_flush_fn fn)
 {
 	if (fn == bch2_btree_node_flush0 ||
-	    fn == bch2_btree_node_flush1)
-		return JOURNAL_PIN_TYPE_btree;
-	else if (fn == bch2_btree_key_cache_journal_flush)
+	    fn == bch2_btree_node_flush1) {
+		unsigned idx = fn == bch2_btree_node_flush1;
+		struct btree *b = container_of(pin, struct btree, writes[idx].journal);
+
+		return JOURNAL_PIN_TYPE_btree0 - b->c.level;
+	} else if (fn == bch2_btree_key_cache_journal_flush)
 		return JOURNAL_PIN_TYPE_key_cache;
 	else
 		return JOURNAL_PIN_TYPE_other;
@@ -441,7 +448,7 @@ void bch2_journal_pin_copy(struct journal *j,
 
 	bool reclaim = __journal_pin_drop(j, dst);
 
-	bch2_journal_pin_set_locked(j, seq, dst, flush_fn, journal_pin_type(flush_fn));
+	bch2_journal_pin_set_locked(j, seq, dst, flush_fn, journal_pin_type(dst, flush_fn));
 
 	if (reclaim)
 		bch2_journal_reclaim_fast(j);
@@ -465,7 +472,7 @@ void bch2_journal_pin_set(struct journal *j, u64 seq,
 
 	bool reclaim = __journal_pin_drop(j, pin);
 
-	bch2_journal_pin_set_locked(j, seq, pin, flush_fn, journal_pin_type(flush_fn));
+	bch2_journal_pin_set_locked(j, seq, pin, flush_fn, journal_pin_type(pin, flush_fn));
 
 	if (reclaim)
 		bch2_journal_reclaim_fast(j);
@@ -587,7 +594,7 @@ static size_t journal_flush_pins(struct journal *j,
 		spin_lock(&j->lock);
 		/* Pin might have been dropped or rearmed: */
 		if (likely(!err && !j->flush_in_progress_dropped))
-			list_move(&pin->list, &journal_seq_pin(j, seq)->flushed[journal_pin_type(flush_fn)]);
+			list_move(&pin->list, &journal_seq_pin(j, seq)->flushed[journal_pin_type(pin, flush_fn)]);
 		j->flush_in_progress = NULL;
 		j->flush_in_progress_dropped = false;
 		spin_unlock(&j->lock);
@@ -641,7 +648,6 @@ static u64 journal_seq_to_flush(struct journal *j)
  * @j:		journal object
  * @direct:	direct or background reclaim?
  * @kicked:	requested to run since we last ran?
- * Returns:	0 on success, or -EIO if the journal has been shutdown
  *
  * Background journal reclaim writes out btree nodes. It should be run
  * early enough so that we never completely run out of journal buckets.
@@ -681,10 +687,9 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct, bool kicked)
 		if (kthread && kthread_should_stop())
 			break;
 
-		if (bch2_journal_error(j)) {
-			ret = -EIO;
+		ret = bch2_journal_error(j);
+		if (ret)
 			break;
-		}
 
 		bch2_journal_do_discards(j);
 
@@ -869,18 +874,13 @@ static int journal_flush_done(struct journal *j, u64 seq_to_flush,
 
 	mutex_lock(&j->reclaim_lock);
 
-	if (journal_flush_pins_or_still_flushing(j, seq_to_flush,
-			       BIT(JOURNAL_PIN_TYPE_key_cache)|
-			       BIT(JOURNAL_PIN_TYPE_other))) {
-		*did_work = true;
-		goto unlock;
-	}
-
-	if (journal_flush_pins_or_still_flushing(j, seq_to_flush,
-			       BIT(JOURNAL_PIN_TYPE_btree))) {
-		*did_work = true;
-		goto unlock;
-	}
+	for (int type = JOURNAL_PIN_TYPE_NR - 1;
+	     type >= 0;
+	     --type)
+		if (journal_flush_pins_or_still_flushing(j, seq_to_flush, BIT(type))) {
+			*did_work = true;
+			goto unlock;
+		}
 
 	if (seq_to_flush > journal_cur_seq(j))
 		bch2_journal_entry_close(j);

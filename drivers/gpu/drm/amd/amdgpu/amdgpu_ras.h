@@ -47,7 +47,7 @@ struct amdgpu_iv_entry;
 #define AMDGPU_RAS_GPU_ERR_AID_ID(x)			AMDGPU_GET_REG_FIELD(x, 12, 11)
 #define AMDGPU_RAS_GPU_ERR_HBM_ID(x)			AMDGPU_GET_REG_FIELD(x, 14, 13)
 #define AMDGPU_RAS_GPU_ERR_DATA_ABORT(x)		AMDGPU_GET_REG_FIELD(x, 29, 29)
-#define AMDGPU_RAS_GPU_ERR_UNKNOWN(x)			AMDGPU_GET_REG_FIELD(x, 30, 30)
+#define AMDGPU_RAS_GPU_ERR_GENERIC(x)			AMDGPU_GET_REG_FIELD(x, 30, 30)
 
 #define AMDGPU_RAS_BOOT_STATUS_POLLING_LIMIT	100
 #define AMDGPU_RAS_BOOT_STEADY_STATUS		0xBA
@@ -65,7 +65,7 @@ struct amdgpu_iv_entry;
 
 /* Reserve 8 physical dram row for possible retirement.
  * In worst cases, it will lose 8 * 2MB memory in vram domain */
-#define AMDGPU_RAS_RESERVED_VRAM_SIZE	(16ULL << 20)
+#define AMDGPU_RAS_RESERVED_VRAM_SIZE_DEFAULT	(16ULL << 20)
 /* The high three bits indicates socketid */
 #define AMDGPU_RAS_GET_FEATURES(val)  ((val) & ~AMDGPU_RAS_FEATURES_SOCKETID_MASK)
 
@@ -98,6 +98,7 @@ enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__JPEG,
 	AMDGPU_RAS_BLOCK__IH,
 	AMDGPU_RAS_BLOCK__MPIO,
+	AMDGPU_RAS_BLOCK__MMSCH,
 
 	AMDGPU_RAS_BLOCK__LAST,
 	AMDGPU_RAS_BLOCK__ANY = -1
@@ -795,6 +796,12 @@ amdgpu_ras_block_to_ta(enum amdgpu_ras_block block) {
 		return TA_RAS_BLOCK__VCN;
 	case AMDGPU_RAS_BLOCK__JPEG:
 		return TA_RAS_BLOCK__JPEG;
+	case AMDGPU_RAS_BLOCK__IH:
+		return TA_RAS_BLOCK__IH;
+	case AMDGPU_RAS_BLOCK__MPIO:
+		return TA_RAS_BLOCK__MPIO;
+	case AMDGPU_RAS_BLOCK__MMSCH:
+		return TA_RAS_BLOCK__MMSCH;
 	default:
 		WARN_ONCE(1, "RAS ERROR: unexpected block id %d\n", block);
 		return TA_RAS_BLOCK__UMC;

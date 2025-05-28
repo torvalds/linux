@@ -128,6 +128,7 @@ static void sdi_config_lcd_manager(struct sdi_device *sdi)
  */
 
 static int sdi_bridge_attach(struct drm_bridge *bridge,
+			     struct drm_encoder *encoder,
 			     enum drm_bridge_attach_flags flags)
 {
 	struct sdi_device *sdi = drm_bridge_to_sdi(bridge);
@@ -135,7 +136,7 @@ static int sdi_bridge_attach(struct drm_bridge *bridge,
 	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
 		return -EINVAL;
 
-	return drm_bridge_attach(bridge->encoder, sdi->output.next_bridge,
+	return drm_bridge_attach(encoder, sdi->output.next_bridge,
 				 bridge, flags);
 }
 

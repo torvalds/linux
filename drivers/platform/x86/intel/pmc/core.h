@@ -285,6 +285,14 @@ enum ppfear_regs {
 #define LNL_PPFEAR_NUM_ENTRIES			12
 #define LNL_S0IX_BLOCKER_OFFSET			0x2004
 
+/* Panther Lake Power Management Controller register offsets */
+#define PTL_LPM_NUM_MAPS			14
+#define PTL_PMC_LTR_SATA2			0x1B90
+#define PTL_PMC_LTR_PMC				0x1BA8
+#define PTL_PMC_LTR_CUR_ASLT			0x1C28
+#define PTL_PMC_LTR_CUR_PLT			0x1C2C
+#define PTL_PCD_PMC_MMIO_REG_LEN		0x31A8
+
 extern const char *pmc_lpm_modes[];
 
 struct pmc_bit_map {
@@ -430,178 +438,77 @@ struct pmc_dev {
 
 enum pmc_index {
 	PMC_IDX_MAIN,
-	PMC_IDX_SOC = PMC_IDX_MAIN,
 	PMC_IDX_IOE,
 	PMC_IDX_PCH,
 	PMC_IDX_MAX
 };
 
+/**
+ * struct pmc_dev_info - Structure to keep PMC device info
+ * @pci_func:		Function number of the primary PMC
+ * @dmu_guid:		Die Management Unit GUID
+ * @regmap_list:	Pointer to a list of pmc_info structure that could be
+ *			available for the platform. When set, this field implies
+ *			SSRAM support.
+ * @map:		Pointer to a pmc_reg_map struct that contains platform
+ *			specific attributes of the primary PMC
+ * @suspend:		Function to perform platform specific suspend
+ * @resume:		Function to perform platform specific resume
+ * @init:		Function to perform platform specific init action
+ */
+struct pmc_dev_info {
+	u8 pci_func;
+	u32 dmu_guid;
+	struct pmc_info *regmap_list;
+	const struct pmc_reg_map *map;
+	void (*suspend)(struct pmc_dev *pmcdev);
+	int (*resume)(struct pmc_dev *pmcdev);
+	int (*init)(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info);
+};
+
 extern const struct pmc_bit_map msr_map[];
-extern const struct pmc_bit_map spt_pll_map[];
-extern const struct pmc_bit_map spt_mphy_map[];
-extern const struct pmc_bit_map spt_pfear_map[];
-extern const struct pmc_bit_map *ext_spt_pfear_map[];
-extern const struct pmc_bit_map spt_ltr_show_map[];
-extern const struct pmc_reg_map spt_reg_map;
 extern const struct pmc_bit_map cnp_pfear_map[];
-extern const struct pmc_bit_map *ext_cnp_pfear_map[];
-extern const struct pmc_bit_map cnp_slps0_dbg0_map[];
-extern const struct pmc_bit_map cnp_slps0_dbg1_map[];
-extern const struct pmc_bit_map cnp_slps0_dbg2_map[];
 extern const struct pmc_bit_map *cnp_slps0_dbg_maps[];
 extern const struct pmc_bit_map cnp_ltr_show_map[];
 extern const struct pmc_reg_map cnp_reg_map;
-extern const struct pmc_bit_map icl_pfear_map[];
-extern const struct pmc_bit_map *ext_icl_pfear_map[];
-extern const struct pmc_reg_map icl_reg_map;
-extern const struct pmc_bit_map tgl_pfear_map[];
-extern const struct pmc_bit_map *ext_tgl_pfear_map[];
-extern const struct pmc_bit_map tgl_clocksource_status_map[];
-extern const struct pmc_bit_map tgl_power_gating_status_map[];
-extern const struct pmc_bit_map tgl_d3_status_map[];
-extern const struct pmc_bit_map tgl_vnn_req_status_map[];
-extern const struct pmc_bit_map tgl_vnn_misc_status_map[];
 extern const struct pmc_bit_map tgl_signal_status_map[];
-extern const struct pmc_bit_map *tgl_lpm_maps[];
-extern const struct pmc_reg_map tgl_reg_map;
-extern const struct pmc_reg_map tgl_h_reg_map;
-extern const struct pmc_bit_map adl_pfear_map[];
-extern const struct pmc_bit_map *ext_adl_pfear_map[];
-extern const struct pmc_bit_map adl_ltr_show_map[];
-extern const struct pmc_bit_map adl_clocksource_status_map[];
-extern const struct pmc_bit_map adl_power_gating_status_0_map[];
-extern const struct pmc_bit_map adl_power_gating_status_1_map[];
-extern const struct pmc_bit_map adl_power_gating_status_2_map[];
-extern const struct pmc_bit_map adl_d3_status_0_map[];
-extern const struct pmc_bit_map adl_d3_status_1_map[];
-extern const struct pmc_bit_map adl_d3_status_2_map[];
-extern const struct pmc_bit_map adl_d3_status_3_map[];
-extern const struct pmc_bit_map adl_vnn_req_status_0_map[];
-extern const struct pmc_bit_map adl_vnn_req_status_1_map[];
-extern const struct pmc_bit_map adl_vnn_req_status_2_map[];
-extern const struct pmc_bit_map adl_vnn_req_status_3_map[];
-extern const struct pmc_bit_map adl_vnn_misc_status_map[];
-extern const struct pmc_bit_map *adl_lpm_maps[];
 extern const struct pmc_reg_map adl_reg_map;
 extern const struct pmc_bit_map mtl_socm_pfear_map[];
-extern const struct pmc_bit_map *ext_mtl_socm_pfear_map[];
-extern const struct pmc_bit_map mtl_socm_ltr_show_map[];
-extern const struct pmc_bit_map mtl_socm_clocksource_status_map[];
-extern const struct pmc_bit_map mtl_socm_power_gating_status_0_map[];
-extern const struct pmc_bit_map mtl_socm_power_gating_status_1_map[];
-extern const struct pmc_bit_map mtl_socm_power_gating_status_2_map[];
 extern const struct pmc_bit_map mtl_socm_d3_status_0_map[];
 extern const struct pmc_bit_map mtl_socm_d3_status_1_map[];
-extern const struct pmc_bit_map mtl_socm_d3_status_2_map[];
-extern const struct pmc_bit_map mtl_socm_d3_status_3_map[];
 extern const struct pmc_bit_map mtl_socm_vnn_req_status_0_map[];
 extern const struct pmc_bit_map mtl_socm_vnn_req_status_1_map[];
 extern const struct pmc_bit_map mtl_socm_vnn_req_status_2_map[];
-extern const struct pmc_bit_map mtl_socm_vnn_req_status_3_map[];
 extern const struct pmc_bit_map mtl_socm_vnn_misc_status_map[];
 extern const struct pmc_bit_map mtl_socm_signal_status_map[];
-extern const struct pmc_bit_map *mtl_socm_lpm_maps[];
 extern const struct pmc_reg_map mtl_socm_reg_map;
-extern const struct pmc_bit_map mtl_ioep_pfear_map[];
-extern const struct pmc_bit_map *ext_mtl_ioep_pfear_map[];
-extern const struct pmc_bit_map mtl_ioep_ltr_show_map[];
-extern const struct pmc_bit_map mtl_ioep_clocksource_status_map[];
-extern const struct pmc_bit_map mtl_ioep_power_gating_status_0_map[];
-extern const struct pmc_bit_map mtl_ioep_power_gating_status_1_map[];
-extern const struct pmc_bit_map mtl_ioep_power_gating_status_2_map[];
-extern const struct pmc_bit_map mtl_ioep_d3_status_0_map[];
-extern const struct pmc_bit_map mtl_ioep_d3_status_1_map[];
-extern const struct pmc_bit_map mtl_ioep_d3_status_2_map[];
-extern const struct pmc_bit_map mtl_ioep_d3_status_3_map[];
-extern const struct pmc_bit_map mtl_ioep_vnn_req_status_0_map[];
-extern const struct pmc_bit_map mtl_ioep_vnn_req_status_1_map[];
-extern const struct pmc_bit_map mtl_ioep_vnn_req_status_2_map[];
-extern const struct pmc_bit_map mtl_ioep_vnn_req_status_3_map[];
-extern const struct pmc_bit_map mtl_ioep_vnn_misc_status_map[];
-extern const struct pmc_bit_map *mtl_ioep_lpm_maps[];
 extern const struct pmc_reg_map mtl_ioep_reg_map;
-extern const struct pmc_bit_map mtl_ioem_pfear_map[];
-extern const struct pmc_bit_map *ext_mtl_ioem_pfear_map[];
-extern const struct pmc_bit_map mtl_ioem_power_gating_status_1_map[];
-extern const struct pmc_bit_map mtl_ioem_vnn_req_status_1_map[];
-extern const struct pmc_bit_map *mtl_ioem_lpm_maps[];
-extern const struct pmc_reg_map mtl_ioem_reg_map;
-extern const struct pmc_reg_map lnl_socm_reg_map;
 
-/* LNL */
-extern const struct pmc_bit_map lnl_ltr_show_map[];
-extern const struct pmc_bit_map lnl_clocksource_status_map[];
-extern const struct pmc_bit_map lnl_power_gating_status_0_map[];
-extern const struct pmc_bit_map lnl_power_gating_status_1_map[];
-extern const struct pmc_bit_map lnl_power_gating_status_2_map[];
-extern const struct pmc_bit_map lnl_d3_status_0_map[];
-extern const struct pmc_bit_map lnl_d3_status_1_map[];
-extern const struct pmc_bit_map lnl_d3_status_2_map[];
-extern const struct pmc_bit_map lnl_d3_status_3_map[];
-extern const struct pmc_bit_map lnl_vnn_req_status_0_map[];
-extern const struct pmc_bit_map lnl_vnn_req_status_1_map[];
-extern const struct pmc_bit_map lnl_vnn_req_status_2_map[];
-extern const struct pmc_bit_map lnl_vnn_req_status_3_map[];
-extern const struct pmc_bit_map lnl_vnn_misc_status_map[];
-extern const struct pmc_bit_map *lnl_lpm_maps[];
-extern const struct pmc_bit_map *lnl_blk_maps[];
-extern const struct pmc_bit_map lnl_pfear_map[];
-extern const struct pmc_bit_map *ext_lnl_pfear_map[];
-extern const struct pmc_bit_map lnl_signal_status_map[];
-
-/* ARL */
-extern const struct pmc_bit_map arl_socs_ltr_show_map[];
-extern const struct pmc_bit_map arl_socs_clocksource_status_map[];
-extern const struct pmc_bit_map arl_socs_power_gating_status_0_map[];
-extern const struct pmc_bit_map arl_socs_power_gating_status_1_map[];
-extern const struct pmc_bit_map arl_socs_power_gating_status_2_map[];
-extern const struct pmc_bit_map arl_socs_d3_status_2_map[];
-extern const struct pmc_bit_map arl_socs_d3_status_3_map[];
-extern const struct pmc_bit_map arl_socs_vnn_req_status_3_map[];
-extern const struct pmc_bit_map *arl_socs_lpm_maps[];
-extern const struct pmc_bit_map arl_socs_pfear_map[];
-extern const struct pmc_bit_map *ext_arl_socs_pfear_map[];
-extern const struct pmc_reg_map arl_socs_reg_map;
-extern const struct pmc_bit_map arl_pchs_ltr_show_map[];
-extern const struct pmc_bit_map arl_pchs_clocksource_status_map[];
-extern const struct pmc_bit_map arl_pchs_power_gating_status_0_map[];
-extern const struct pmc_bit_map arl_pchs_power_gating_status_1_map[];
-extern const struct pmc_bit_map arl_pchs_power_gating_status_2_map[];
-extern const struct pmc_bit_map arl_pchs_d3_status_0_map[];
-extern const struct pmc_bit_map arl_pchs_d3_status_1_map[];
-extern const struct pmc_bit_map arl_pchs_d3_status_2_map[];
-extern const struct pmc_bit_map arl_pchs_d3_status_3_map[];
-extern const struct pmc_bit_map arl_pchs_vnn_req_status_0_map[];
-extern const struct pmc_bit_map arl_pchs_vnn_req_status_1_map[];
-extern const struct pmc_bit_map arl_pchs_vnn_req_status_2_map[];
-extern const struct pmc_bit_map arl_pchs_vnn_req_status_3_map[];
-extern const struct pmc_bit_map arl_pchs_vnn_misc_status_map[];
-extern const struct pmc_bit_map arl_pchs_signal_status_map[];
-extern const struct pmc_bit_map *arl_pchs_lpm_maps[];
-extern const struct pmc_reg_map arl_pchs_reg_map;
-
-extern void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev);
-extern int pmc_core_ssram_get_lpm_reqs(struct pmc_dev *pmcdev);
+void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev);
+int pmc_core_ssram_get_lpm_reqs(struct pmc_dev *pmcdev);
 int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value, int ignore);
 
 int pmc_core_resume_common(struct pmc_dev *pmcdev);
 int get_primary_reg_base(struct pmc *pmc);
-extern void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev);
-extern void pmc_core_punit_pmt_init(struct pmc_dev *pmcdev, u32 guid);
-extern void pmc_core_set_device_d3(unsigned int device);
+void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev);
+void pmc_core_punit_pmt_init(struct pmc_dev *pmcdev, u32 guid);
+void pmc_core_set_device_d3(unsigned int device);
 
-extern int pmc_core_ssram_init(struct pmc_dev *pmcdev, int func);
+int pmc_core_ssram_init(struct pmc_dev *pmcdev, int func);
 
-int spt_core_init(struct pmc_dev *pmcdev);
-int cnp_core_init(struct pmc_dev *pmcdev);
-int icl_core_init(struct pmc_dev *pmcdev);
-int tgl_core_init(struct pmc_dev *pmcdev);
-int tgl_l_core_init(struct pmc_dev *pmcdev);
-int tgl_core_generic_init(struct pmc_dev *pmcdev, int pch_tp);
-int adl_core_init(struct pmc_dev *pmcdev);
-int mtl_core_init(struct pmc_dev *pmcdev);
-int arl_core_init(struct pmc_dev *pmcdev);
-int lnl_core_init(struct pmc_dev *pmcdev);
+int generic_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info);
+
+extern struct pmc_dev_info spt_pmc_dev;
+extern struct pmc_dev_info cnp_pmc_dev;
+extern struct pmc_dev_info icl_pmc_dev;
+extern struct pmc_dev_info tgl_l_pmc_dev;
+extern struct pmc_dev_info tgl_pmc_dev;
+extern struct pmc_dev_info adl_pmc_dev;
+extern struct pmc_dev_info mtl_pmc_dev;
+extern struct pmc_dev_info arl_pmc_dev;
+extern struct pmc_dev_info arl_h_pmc_dev;
+extern struct pmc_dev_info lnl_pmc_dev;
+extern struct pmc_dev_info ptl_pmc_dev;
 
 void cnl_suspend(struct pmc_dev *pmcdev);
 int cnl_resume(struct pmc_dev *pmcdev);

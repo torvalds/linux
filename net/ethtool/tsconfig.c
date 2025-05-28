@@ -54,7 +54,7 @@ static int tsconfig_prepare_data(const struct ethnl_req_info *req_base,
 
 	data->hwtst_config.tx_type = BIT(cfg.tx_type);
 	data->hwtst_config.rx_filter = BIT(cfg.rx_filter);
-	data->hwtst_config.flags = BIT(cfg.flags);
+	data->hwtst_config.flags = cfg.flags;
 
 	data->hwprov_desc.index = -1;
 	hwprov = rtnl_dereference(dev->hwprov);
@@ -91,10 +91,16 @@ static int tsconfig_reply_size(const struct ethnl_req_info *req_base,
 
 	BUILD_BUG_ON(__HWTSTAMP_TX_CNT > 32);
 	BUILD_BUG_ON(__HWTSTAMP_FILTER_CNT > 32);
+	BUILD_BUG_ON(__HWTSTAMP_FLAG_CNT > 32);
 
-	if (data->hwtst_config.flags)
-		/* _TSCONFIG_HWTSTAMP_FLAGS */
-		len += nla_total_size(sizeof(u32));
+	if (data->hwtst_config.flags) {
+		ret = ethnl_bitset32_size(&data->hwtst_config.flags,
+					  NULL, __HWTSTAMP_FLAG_CNT,
+					  ts_flags_names, compact);
+		if (ret < 0)
+			return ret;
+		len += ret;	/* _TSCONFIG_HWTSTAMP_FLAGS */
+	}
 
 	if (data->hwtst_config.tx_type) {
 		ret = ethnl_bitset32_size(&data->hwtst_config.tx_type,
@@ -130,8 +136,10 @@ static int tsconfig_fill_reply(struct sk_buff *skb,
 	int ret;
 
 	if (data->hwtst_config.flags) {
-		ret = nla_put_u32(skb, ETHTOOL_A_TSCONFIG_HWTSTAMP_FLAGS,
-				  data->hwtst_config.flags);
+		ret = ethnl_put_bitset32(skb, ETHTOOL_A_TSCONFIG_HWTSTAMP_FLAGS,
+					 &data->hwtst_config.flags, NULL,
+					 __HWTSTAMP_FLAG_CNT,
+					 ts_flags_names, compact);
 		if (ret < 0)
 			return ret;
 	}
@@ -180,7 +188,7 @@ const struct nla_policy ethnl_tsconfig_set_policy[ETHTOOL_A_TSCONFIG_MAX + 1] = 
 	[ETHTOOL_A_TSCONFIG_HEADER] = NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_TSCONFIG_HWTSTAMP_PROVIDER] =
 		NLA_POLICY_NESTED(ethnl_ts_hwtst_prov_policy),
-	[ETHTOOL_A_TSCONFIG_HWTSTAMP_FLAGS] = { .type = NLA_U32 },
+	[ETHTOOL_A_TSCONFIG_HWTSTAMP_FLAGS] = { .type = NLA_NESTED },
 	[ETHTOOL_A_TSCONFIG_RX_FILTERS] = { .type = NLA_NESTED },
 	[ETHTOOL_A_TSCONFIG_TX_TYPES] = { .type = NLA_NESTED },
 };
@@ -296,6 +304,7 @@ static int ethnl_set_tsconfig(struct ethnl_req_info *req_base,
 
 	BUILD_BUG_ON(__HWTSTAMP_TX_CNT >= 32);
 	BUILD_BUG_ON(__HWTSTAMP_FILTER_CNT >= 32);
+	BUILD_BUG_ON(__HWTSTAMP_FLAG_CNT > 32);
 
 	if (!netif_device_present(dev))
 		return -ENODEV;
@@ -377,9 +386,13 @@ static int ethnl_set_tsconfig(struct ethnl_req_info *req_base,
 	}
 
 	if (tb[ETHTOOL_A_TSCONFIG_HWTSTAMP_FLAGS]) {
-		ethnl_update_u32(&hwtst_config.flags,
-				 tb[ETHTOOL_A_TSCONFIG_HWTSTAMP_FLAGS],
-				 &config_mod);
+		ret = ethnl_update_bitset32(&hwtst_config.flags,
+					    __HWTSTAMP_FLAG_CNT,
+					    tb[ETHTOOL_A_TSCONFIG_HWTSTAMP_FLAGS],
+					    ts_flags_names, info->extack,
+					    &config_mod);
+		if (ret < 0)
+			goto err_free_hwprov;
 	}
 
 	ret = net_hwtstamp_validate(&hwtst_config);

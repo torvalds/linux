@@ -270,7 +270,7 @@ static bool bvec_split_segs(const struct queue_limits *lim,
 		const struct bio_vec *bv, unsigned *nsegs, unsigned *bytes,
 		unsigned max_segs, unsigned max_bytes)
 {
-	unsigned max_len = min(max_bytes, UINT_MAX) - *bytes;
+	unsigned max_len = max_bytes - *bytes;
 	unsigned len = min(bv->bv_len, max_len);
 	unsigned total_len = 0;
 	unsigned seg_size = 0;
@@ -329,7 +329,7 @@ int bio_split_rw_at(struct bio *bio, const struct queue_limits *lim,
 
 		if (nsegs < lim->max_segments &&
 		    bytes + bv.bv_len <= max_bytes &&
-		    bv.bv_offset + bv.bv_len <= PAGE_SIZE) {
+		    bv.bv_offset + bv.bv_len <= lim->min_segment_size) {
 			nsegs++;
 			bytes += bv.bv_len;
 		} else {
@@ -551,15 +551,18 @@ static inline struct scatterlist *blk_next_sg(struct scatterlist **sg,
  * Map a request to scatterlist, return number of sg entries setup. Caller
  * must make sure sg can hold rq->nr_phys_segments entries.
  */
-int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
-		struct scatterlist *sglist, struct scatterlist **last_sg)
+int __blk_rq_map_sg(struct request *rq, struct scatterlist *sglist,
+		    struct scatterlist **last_sg)
 {
 	struct req_iterator iter = {
 		.bio	= rq->bio,
-		.iter	= rq->bio->bi_iter,
 	};
 	struct phys_vec vec;
 	int nsegs = 0;
+
+	/* the internal flush request may not have bio attached */
+	if (iter.bio)
+		iter.iter = iter.bio->bi_iter;
 
 	while (blk_map_iter_next(rq, &iter, &vec)) {
 		*last_sg = blk_next_sg(last_sg, sglist);

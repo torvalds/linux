@@ -532,7 +532,7 @@ static void ivtv_irq_dma_read(struct ivtv *itv)
 
 	IVTV_DEBUG_HI_IRQ("DEC DMA READ\n");
 
-	del_timer(&itv->dma_timer);
+	timer_delete(&itv->dma_timer);
 
 	if (!test_bit(IVTV_F_I_UDMA, &itv->i_flags) && itv->cur_dma_stream < 0)
 		return;
@@ -597,7 +597,7 @@ static void ivtv_irq_enc_dma_complete(struct ivtv *itv)
 	ivtv_api_get_data(&itv->enc_mbox, IVTV_MBOX_DMA_END, 2, data);
 	IVTV_DEBUG_HI_IRQ("ENC DMA COMPLETE %x %d (%d)\n", data[0], data[1], itv->cur_dma_stream);
 
-	del_timer(&itv->dma_timer);
+	timer_delete(&itv->dma_timer);
 
 	if (itv->cur_dma_stream < 0)
 		return;
@@ -670,7 +670,7 @@ static void ivtv_irq_dma_err(struct ivtv *itv)
 	u32 data[CX2341X_MBOX_MAX_DATA];
 	u32 status;
 
-	del_timer(&itv->dma_timer);
+	timer_delete(&itv->dma_timer);
 
 	ivtv_api_get_data(&itv->enc_mbox, IVTV_MBOX_DMA_END, 2, data);
 	status = read_reg(IVTV_REG_DMASTATUS);

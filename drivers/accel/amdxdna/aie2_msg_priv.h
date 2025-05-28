@@ -319,18 +319,16 @@ struct async_event_msg_resp {
 } __packed;
 
 #define MAX_CHAIN_CMDBUF_SIZE SZ_4K
-#define slot_cf_has_space(offset, payload_size) \
-	(MAX_CHAIN_CMDBUF_SIZE - ((offset) + (payload_size)) > \
-	 offsetof(struct cmd_chain_slot_execbuf_cf, args[0]))
+#define slot_has_space(slot, offset, payload_size)		\
+	(MAX_CHAIN_CMDBUF_SIZE >= (offset) + (payload_size) +	\
+	 sizeof(typeof(slot)))
+
 struct cmd_chain_slot_execbuf_cf {
 	__u32 cu_idx;
 	__u32 arg_cnt;
 	__u32 args[] __counted_by(arg_cnt);
 };
 
-#define slot_dpu_has_space(offset, payload_size) \
-	(MAX_CHAIN_CMDBUF_SIZE - ((offset) + (payload_size)) > \
-	 offsetof(struct cmd_chain_slot_dpu, args[0]))
 struct cmd_chain_slot_dpu {
 	__u64 inst_buf_addr;
 	__u32 inst_size;

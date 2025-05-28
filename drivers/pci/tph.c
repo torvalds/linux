@@ -360,7 +360,7 @@ int pcie_tph_set_st_entry(struct pci_dev *pdev, unsigned int index, u16 tag)
 		return err;
 	}
 
-	set_ctrl_reg_req_en(pdev, pdev->tph_mode);
+	set_ctrl_reg_req_en(pdev, pdev->tph_req_type);
 
 	pci_dbg(pdev, "set steering tag: %s table, index=%d, tag=%#04x\n",
 		(loc == PCI_TPH_LOC_MSIX) ? "MSI-X" : "ST", index, tag);

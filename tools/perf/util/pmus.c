@@ -3,10 +3,10 @@
 #include <linux/list_sort.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
+#include <api/io_dir.h>
 #include <subcmd/pager.h>
 #include <sys/types.h>
 #include <ctype.h>
-#include <dirent.h>
 #include <pthread.h>
 #include <string.h>
 #include <unistd.h>
@@ -37,10 +37,25 @@
  */
 static LIST_HEAD(core_pmus);
 static LIST_HEAD(other_pmus);
-static bool read_sysfs_core_pmus;
-static bool read_sysfs_all_pmus;
+enum perf_tool_pmu_type {
+	PERF_TOOL_PMU_TYPE_PE_CORE,
+	PERF_TOOL_PMU_TYPE_PE_OTHER,
+	PERF_TOOL_PMU_TYPE_TOOL,
+	PERF_TOOL_PMU_TYPE_HWMON,
 
-static void pmu_read_sysfs(bool core_only);
+#define PERF_TOOL_PMU_TYPE_PE_CORE_MASK (1 << PERF_TOOL_PMU_TYPE_PE_CORE)
+#define PERF_TOOL_PMU_TYPE_PE_OTHER_MASK (1 << PERF_TOOL_PMU_TYPE_PE_OTHER)
+#define PERF_TOOL_PMU_TYPE_TOOL_MASK (1 << PERF_TOOL_PMU_TYPE_TOOL)
+#define PERF_TOOL_PMU_TYPE_HWMON_MASK (1 << PERF_TOOL_PMU_TYPE_HWMON)
+
+#define PERF_TOOL_PMU_TYPE_ALL_MASK (PERF_TOOL_PMU_TYPE_PE_CORE_MASK |	\
+					PERF_TOOL_PMU_TYPE_PE_OTHER_MASK | \
+					PERF_TOOL_PMU_TYPE_TOOL_MASK |	\
+					PERF_TOOL_PMU_TYPE_HWMON_MASK)
+};
+static unsigned int read_pmu_types;
+
+static void pmu_read_sysfs(unsigned int to_read_pmus);
 
 size_t pmu_name_len_no_suffix(const char *str)
 {
@@ -102,8 +117,7 @@ void perf_pmus__destroy(void)
 
 		perf_pmu__delete(pmu);
 	}
-	read_sysfs_core_pmus = false;
-	read_sysfs_all_pmus = false;
+	read_pmu_types = 0;
 }
 
 static struct perf_pmu *pmu_find(const char *name)
@@ -129,6 +143,7 @@ struct perf_pmu *perf_pmus__find(const char *name)
 	struct perf_pmu *pmu;
 	int dirfd;
 	bool core_pmu;
+	unsigned int to_read_pmus = 0;
 
 	/*
 	 * Once PMU is loaded it stays in the list,
@@ -139,11 +154,11 @@ struct perf_pmu *perf_pmus__find(const char *name)
 	if (pmu)
 		return pmu;
 
-	if (read_sysfs_all_pmus)
+	if (read_pmu_types == PERF_TOOL_PMU_TYPE_ALL_MASK)
 		return NULL;
 
 	core_pmu = is_pmu_core(name);
-	if (core_pmu && read_sysfs_core_pmus)
+	if (core_pmu && (read_pmu_types & PERF_TOOL_PMU_TYPE_PE_CORE_MASK))
 		return NULL;
 
 	dirfd = perf_pmu__event_source_devices_fd();
@@ -151,15 +166,27 @@ struct perf_pmu *perf_pmus__find(const char *name)
 			       /*eager_load=*/false);
 	close(dirfd);
 
-	if (!pmu) {
-		/*
-		 * Looking up an inidividual PMU failed. This may mean name is
-		 * an alias, so read the PMUs from sysfs and try to find again.
-		 */
-		pmu_read_sysfs(core_pmu);
+	if (pmu)
+		return pmu;
+
+	/* Looking up an individual perf event PMU failed, check if a tool PMU should be read. */
+	if (!strncmp(name, "hwmon_", 6))
+		to_read_pmus |= PERF_TOOL_PMU_TYPE_HWMON_MASK;
+	else if (!strcmp(name, "tool"))
+		to_read_pmus |= PERF_TOOL_PMU_TYPE_TOOL_MASK;
+
+	if (to_read_pmus) {
+		pmu_read_sysfs(to_read_pmus);
 		pmu = pmu_find(name);
+		if (pmu)
+			return pmu;
 	}
-	return pmu;
+	/* Read all necessary PMUs from sysfs and see if the PMU is found. */
+	to_read_pmus = PERF_TOOL_PMU_TYPE_PE_CORE_MASK;
+	if (!core_pmu)
+		to_read_pmus |= PERF_TOOL_PMU_TYPE_PE_OTHER_MASK;
+	pmu_read_sysfs(to_read_pmus);
+	return pmu_find(name);
 }
 
 static struct perf_pmu *perf_pmu__find2(int dirfd, const char *name)
@@ -176,11 +203,11 @@ static struct perf_pmu *perf_pmu__find2(int dirfd, const char *name)
 	if (pmu)
 		return pmu;
 
-	if (read_sysfs_all_pmus)
+	if (read_pmu_types == PERF_TOOL_PMU_TYPE_ALL_MASK)
 		return NULL;
 
 	core_pmu = is_pmu_core(name);
-	if (core_pmu && read_sysfs_core_pmus)
+	if (core_pmu && (read_pmu_types & PERF_TOOL_PMU_TYPE_PE_CORE_MASK))
 		return NULL;
 
 	return perf_pmu__lookup(core_pmu ? &core_pmus : &other_pmus, dirfd, name,
@@ -197,52 +224,57 @@ static int pmus_cmp(void *priv __maybe_unused,
 }
 
 /* Add all pmus in sysfs to pmu list: */
-static void pmu_read_sysfs(bool core_only)
+static void pmu_read_sysfs(unsigned int to_read_types)
 {
-	int fd;
-	DIR *dir;
-	struct dirent *dent;
 	struct perf_pmu *tool_pmu;
 
-	if (read_sysfs_all_pmus || (core_only && read_sysfs_core_pmus))
+	if ((read_pmu_types & to_read_types) == to_read_types) {
+		/* All requested PMU types have been read. */
 		return;
+	}
 
-	fd = perf_pmu__event_source_devices_fd();
-	if (fd < 0)
-		return;
+	if (to_read_types & (PERF_TOOL_PMU_TYPE_PE_CORE_MASK | PERF_TOOL_PMU_TYPE_PE_OTHER_MASK)) {
+		int fd = perf_pmu__event_source_devices_fd();
+		struct io_dir dir;
+		struct io_dirent64 *dent;
+		bool core_only = (to_read_types & PERF_TOOL_PMU_TYPE_PE_OTHER_MASK) == 0;
 
-	dir = fdopendir(fd);
-	if (!dir) {
+		if (fd < 0)
+			goto skip_pe_pmus;
+
+		io_dir__init(&dir, fd);
+
+		while ((dent = io_dir__readdir(&dir)) != NULL) {
+			if (!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, ".."))
+				continue;
+			if (core_only && !is_pmu_core(dent->d_name))
+				continue;
+			/* add to static LIST_HEAD(core_pmus) or LIST_HEAD(other_pmus): */
+			perf_pmu__find2(fd, dent->d_name);
+		}
+
 		close(fd);
-		return;
 	}
-
-	while ((dent = readdir(dir))) {
-		if (!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, ".."))
-			continue;
-		if (core_only && !is_pmu_core(dent->d_name))
-			continue;
-		/* add to static LIST_HEAD(core_pmus) or LIST_HEAD(other_pmus): */
-		perf_pmu__find2(fd, dent->d_name);
-	}
-
-	closedir(dir);
-	if (list_empty(&core_pmus)) {
+skip_pe_pmus:
+	if ((to_read_types & PERF_TOOL_PMU_TYPE_PE_CORE_MASK) && list_empty(&core_pmus)) {
 		if (!perf_pmu__create_placeholder_core_pmu(&core_pmus))
 			pr_err("Failure to set up any core PMUs\n");
 	}
 	list_sort(NULL, &core_pmus, pmus_cmp);
-	if (!core_only) {
-		tool_pmu = perf_pmus__tool_pmu();
-		list_add_tail(&tool_pmu->list, &other_pmus);
+
+	if ((to_read_types & PERF_TOOL_PMU_TYPE_TOOL_MASK) != 0 &&
+	    (read_pmu_types & PERF_TOOL_PMU_TYPE_TOOL_MASK) == 0) {
+		tool_pmu = tool_pmu__new();
+		if (tool_pmu)
+			list_add_tail(&tool_pmu->list, &other_pmus);
+	}
+	if ((to_read_types & PERF_TOOL_PMU_TYPE_HWMON_MASK) != 0 &&
+	    (read_pmu_types & PERF_TOOL_PMU_TYPE_HWMON_MASK) == 0)
 		perf_pmus__read_hwmon_pmus(&other_pmus);
-	}
+
 	list_sort(NULL, &other_pmus, pmus_cmp);
-	if (!list_empty(&core_pmus)) {
-		read_sysfs_core_pmus = true;
-		if (!core_only)
-			read_sysfs_all_pmus = true;
-	}
+
+	read_pmu_types |= to_read_types;
 }
 
 static struct perf_pmu *__perf_pmus__find_by_type(unsigned int type)
@@ -263,12 +295,21 @@ static struct perf_pmu *__perf_pmus__find_by_type(unsigned int type)
 
 struct perf_pmu *perf_pmus__find_by_type(unsigned int type)
 {
+	unsigned int to_read_pmus;
 	struct perf_pmu *pmu = __perf_pmus__find_by_type(type);
 
-	if (pmu || read_sysfs_all_pmus)
+	if (pmu || (read_pmu_types == PERF_TOOL_PMU_TYPE_ALL_MASK))
 		return pmu;
 
-	pmu_read_sysfs(/*core_only=*/false);
+	if (type >= PERF_PMU_TYPE_PE_START && type <= PERF_PMU_TYPE_PE_END) {
+		to_read_pmus = PERF_TOOL_PMU_TYPE_PE_CORE_MASK |
+			PERF_TOOL_PMU_TYPE_PE_OTHER_MASK;
+	} else if (type >= PERF_PMU_TYPE_HWMON_START && type <= PERF_PMU_TYPE_HWMON_END) {
+		to_read_pmus = PERF_TOOL_PMU_TYPE_HWMON_MASK;
+	} else {
+		to_read_pmus = PERF_TOOL_PMU_TYPE_TOOL_MASK;
+	}
+	pmu_read_sysfs(to_read_pmus);
 	pmu = __perf_pmus__find_by_type(type);
 	return pmu;
 }
@@ -282,7 +323,7 @@ struct perf_pmu *perf_pmus__scan(struct perf_pmu *pmu)
 	bool use_core_pmus = !pmu || pmu->is_core;
 
 	if (!pmu) {
-		pmu_read_sysfs(/*core_only=*/false);
+		pmu_read_sysfs(PERF_TOOL_PMU_TYPE_ALL_MASK);
 		pmu = list_prepare_entry(pmu, &core_pmus, list);
 	}
 	if (use_core_pmus) {
@@ -300,7 +341,7 @@ struct perf_pmu *perf_pmus__scan(struct perf_pmu *pmu)
 struct perf_pmu *perf_pmus__scan_core(struct perf_pmu *pmu)
 {
 	if (!pmu) {
-		pmu_read_sysfs(/*core_only=*/true);
+		pmu_read_sysfs(PERF_TOOL_PMU_TYPE_PE_CORE_MASK);
 		return list_first_entry_or_null(&core_pmus, typeof(*pmu), list);
 	}
 	list_for_each_entry_continue(pmu, &core_pmus, list)
@@ -316,7 +357,7 @@ static struct perf_pmu *perf_pmus__scan_skip_duplicates(struct perf_pmu *pmu)
 	const char *last_pmu_name = (pmu && pmu->name) ? pmu->name : "";
 
 	if (!pmu) {
-		pmu_read_sysfs(/*core_only=*/false);
+		pmu_read_sysfs(PERF_TOOL_PMU_TYPE_ALL_MASK);
 		pmu = list_prepare_entry(pmu, &core_pmus, list);
 	} else
 		last_pmu_name_len = pmu_name_len_no_suffix(pmu->name ?: "");
@@ -674,47 +715,28 @@ bool perf_pmus__supports_extended_type(void)
 	return perf_pmus__do_support_extended_type;
 }
 
-char *perf_pmus__default_pmu_name(void)
-{
-	int fd;
-	DIR *dir;
-	struct dirent *dent;
-	char *result = NULL;
-
-	if (!list_empty(&core_pmus))
-		return strdup(list_first_entry(&core_pmus, struct perf_pmu, list)->name);
-
-	fd = perf_pmu__event_source_devices_fd();
-	if (fd < 0)
-		return strdup("cpu");
-
-	dir = fdopendir(fd);
-	if (!dir) {
-		close(fd);
-		return strdup("cpu");
-	}
-
-	while ((dent = readdir(dir))) {
-		if (!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, ".."))
-			continue;
-		if (is_pmu_core(dent->d_name)) {
-			result = strdup(dent->d_name);
-			break;
-		}
-	}
-
-	closedir(dir);
-	return result ?: strdup("cpu");
-}
-
 struct perf_pmu *evsel__find_pmu(const struct evsel *evsel)
 {
 	struct perf_pmu *pmu = evsel->pmu;
+	bool legacy_core_type;
 
-	if (!pmu) {
-		pmu = perf_pmus__find_by_type(evsel->core.attr.type);
-		((struct evsel *)evsel)->pmu = pmu;
+	if (pmu)
+		return pmu;
+
+	pmu = perf_pmus__find_by_type(evsel->core.attr.type);
+	legacy_core_type =
+		evsel->core.attr.type == PERF_TYPE_HARDWARE ||
+		evsel->core.attr.type == PERF_TYPE_HW_CACHE;
+	if (!pmu && legacy_core_type) {
+		if (perf_pmus__supports_extended_type()) {
+			u32 type = evsel->core.attr.config >> PERF_PMU_TYPE_SHIFT;
+
+			pmu = perf_pmus__find_by_type(type);
+		} else {
+			pmu = perf_pmus__find_core_pmu();
+		}
 	}
+	((struct evsel *)evsel)->pmu = pmu;
 	return pmu;
 }
 

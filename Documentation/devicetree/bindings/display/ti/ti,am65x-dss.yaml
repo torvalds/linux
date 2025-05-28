@@ -23,7 +23,7 @@ properties:
   compatible:
     enum:
       - ti,am625-dss
-      - ti,am62a7,dss
+      - ti,am62a7-dss
       - ti,am65x-dss
 
   reg:

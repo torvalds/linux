@@ -340,26 +340,49 @@ static void ast_init_dram_reg(struct ast_device *ast)
 	} while ((j & 0x40) == 0);
 }
 
-void ast_post_gpu(struct ast_device *ast)
+int ast_post_gpu(struct ast_device *ast)
 {
+	int ret;
+
 	ast_set_def_ext_reg(ast);
 
-	if (IS_AST_GEN7(ast)) {
-		if (ast->tx_chip == AST_TX_ASTDP)
-			ast_dp_launch(ast);
-	} else if (ast->config_mode == ast_use_p2a) {
-		if (IS_AST_GEN6(ast))
+	if (AST_GEN(ast) >= 7) {
+		if (ast->tx_chip == AST_TX_ASTDP) {
+			ret = ast_dp_launch(ast);
+			if (ret)
+				return ret;
+		}
+	} else if (AST_GEN(ast) >= 6) {
+		if (ast->config_mode == ast_use_p2a) {
 			ast_post_chip_2500(ast);
-		else if (IS_AST_GEN5(ast) || IS_AST_GEN4(ast))
+		} else {
+			if (ast->tx_chip == AST_TX_SIL164) {
+				/* Enable DVO */
+				ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xcf, 0x80);
+			}
+		}
+	} else if (AST_GEN(ast) >= 4) {
+		if (ast->config_mode == ast_use_p2a) {
 			ast_post_chip_2300(ast);
-		else
+			ast_init_3rdtx(ast);
+		} else {
+			if (ast->tx_chip == AST_TX_SIL164) {
+				/* Enable DVO */
+				ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xcf, 0x80);
+			}
+		}
+	} else  {
+		if (ast->config_mode == ast_use_p2a) {
 			ast_init_dram_reg(ast);
-
-		ast_init_3rdtx(ast);
-	} else {
-		if (ast->tx_chip == AST_TX_SIL164)
-			ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xcf, 0x80);	/* Enable DVO */
+		} else {
+			if (ast->tx_chip == AST_TX_SIL164) {
+				/* Enable DVO */
+				ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xcf, 0x80);
+			}
+		}
 	}
+
+	return 0;
 }
 
 /* AST 2300 DRAM settings */
@@ -1052,16 +1075,16 @@ static void get_ddr3_info(struct ast_device *ast, struct ast2300_dram_param *par
 
 	switch (param->vram_size) {
 	default:
-	case AST_VIDMEM_SIZE_8M:
+	case SZ_8M:
 		param->dram_config |= 0x00;
 		break;
-	case AST_VIDMEM_SIZE_16M:
+	case SZ_16M:
 		param->dram_config |= 0x04;
 		break;
-	case AST_VIDMEM_SIZE_32M:
+	case SZ_32M:
 		param->dram_config |= 0x08;
 		break;
-	case AST_VIDMEM_SIZE_64M:
+	case SZ_64M:
 		param->dram_config |= 0x0c;
 		break;
 	}
@@ -1423,16 +1446,16 @@ static void get_ddr2_info(struct ast_device *ast, struct ast2300_dram_param *par
 
 	switch (param->vram_size) {
 	default:
-	case AST_VIDMEM_SIZE_8M:
+	case SZ_8M:
 		param->dram_config |= 0x00;
 		break;
-	case AST_VIDMEM_SIZE_16M:
+	case SZ_16M:
 		param->dram_config |= 0x04;
 		break;
-	case AST_VIDMEM_SIZE_32M:
+	case SZ_32M:
 		param->dram_config |= 0x08;
 		break;
-	case AST_VIDMEM_SIZE_64M:
+	case SZ_64M:
 		param->dram_config |= 0x0c;
 		break;
 	}
@@ -1612,19 +1635,19 @@ static void ast_post_chip_2300(struct ast_device *ast)
                 switch (temp & 0x0c) {
                 default:
 		case 0x00:
-			param.vram_size = AST_VIDMEM_SIZE_8M;
+			param.vram_size = SZ_8M;
 			break;
 
 		case 0x04:
-			param.vram_size = AST_VIDMEM_SIZE_16M;
+			param.vram_size = SZ_16M;
 			break;
 
 		case 0x08:
-			param.vram_size = AST_VIDMEM_SIZE_32M;
+			param.vram_size = SZ_32M;
 			break;
 
 		case 0x0c:
-			param.vram_size = AST_VIDMEM_SIZE_64M;
+			param.vram_size = SZ_64M;
 			break;
 		}
 
@@ -2039,7 +2062,7 @@ void ast_post_chip_2500(struct ast_device *ast)
 	u8 reg;
 
 	reg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd0, 0xff);
-	if ((reg & AST_VRAM_INIT_STATUS_MASK) == 0) {/* vga only */
+	if ((reg & AST_IO_VGACRD0_VRAM_INIT_STATUS_MASK) == 0) {/* vga only */
 		/* Clear bus lock condition */
 		ast_patch_ahb_2500(ast->regs);
 

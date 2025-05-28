@@ -2815,9 +2815,7 @@ struct il_lq_sta {
 	struct il_scale_tbl_info lq_info[LQ_SIZE];	/* "active", "search" */
 	struct il_traffic_load load[TID_MAX_LOAD_COUNT];
 	u8 tx_agg_tid_en;
-#ifdef CONFIG_MAC80211_DEBUGFS
 	u32 dbg_fixed_rate;
-#endif
 	struct il_priv *drv;
 
 	/* used to be in sta_info */

@@ -11,6 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/string_choices.h>
 
 #include "util.h"
 #include "spu.h"
@@ -999,7 +1000,7 @@ u32 spu2_create_request(u8 *spu_hdr,
 		 req_opts->is_inbound, req_opts->auth_first);
 	flow_log("  cipher alg:%u mode:%u type %u\n", cipher_parms->alg,
 		 cipher_parms->mode, cipher_parms->type);
-	flow_log("  is_esp: %s\n", req_opts->is_esp ? "yes" : "no");
+	flow_log("  is_esp: %s\n", str_yes_no(req_opts->is_esp));
 	flow_log("    key: %d\n", cipher_parms->key_len);
 	flow_dump("    key: ", cipher_parms->key_buf, cipher_parms->key_len);
 	flow_log("    iv: %d\n", cipher_parms->iv_len);

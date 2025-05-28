@@ -14,6 +14,7 @@
 
 #include <linux/sched.h>
 #include <linux/mm_types.h>
+#include <linux/cpufeature.h>
 #include <linux/page-flags.h>
 #include <linux/radix-tree.h>
 #include <linux/atomic.h>
@@ -420,9 +421,10 @@ void setup_protection_map(void);
 #define PGSTE_HC_BIT	0x0020000000000000UL
 #define PGSTE_GR_BIT	0x0004000000000000UL
 #define PGSTE_GC_BIT	0x0002000000000000UL
-#define PGSTE_UC_BIT	0x0000800000000000UL	/* user dirty (migration) */
-#define PGSTE_IN_BIT	0x0000400000000000UL	/* IPTE notify bit */
-#define PGSTE_VSIE_BIT	0x0000200000000000UL	/* ref'd in a shadow table */
+#define PGSTE_ST2_MASK	0x0000ffff00000000UL
+#define PGSTE_UC_BIT	0x0000000000008000UL	/* user dirty (migration) */
+#define PGSTE_IN_BIT	0x0000000000004000UL	/* IPTE notify bit */
+#define PGSTE_VSIE_BIT	0x0000000000002000UL	/* ref'd in a shadow table */
 
 /* Guest Page State used for virtualization */
 #define _PGSTE_GPS_ZERO			0x0000000080000000UL
@@ -582,13 +584,14 @@ static inline int mm_is_protected(struct mm_struct *mm)
 	return 0;
 }
 
-static inline int mm_alloc_pgste(struct mm_struct *mm)
+static inline pgste_t clear_pgste_bit(pgste_t pgste, unsigned long mask)
 {
-#ifdef CONFIG_PGSTE
-	if (unlikely(mm->context.alloc_pgste))
-		return 1;
-#endif
-	return 0;
+	return __pgste(pgste_val(pgste) & ~mask);
+}
+
+static inline pgste_t set_pgste_bit(pgste_t pgste, unsigned long mask)
+{
+	return __pgste(pgste_val(pgste) | mask);
 }
 
 static inline pte_t clear_pte_bit(pte_t pte, pgprot_t prot)
@@ -1338,7 +1341,7 @@ static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
 	 * PTE does not have _PAGE_PROTECT set, to avoid unnecessary overhead.
 	 * A local RDP can be used to do the flush.
 	 */
-	if (MACHINE_HAS_RDP && !(pte_val(*ptep) & _PAGE_PROTECT))
+	if (cpu_has_rdp() && !(pte_val(*ptep) & _PAGE_PROTECT))
 		__ptep_rdp(address, ptep, 0, 0, 1);
 }
 #define flush_tlb_fix_spurious_fault flush_tlb_fix_spurious_fault
@@ -1353,7 +1356,7 @@ static inline int ptep_set_access_flags(struct vm_area_struct *vma,
 {
 	if (pte_same(*ptep, entry))
 		return 0;
-	if (MACHINE_HAS_RDP && !mm_has_pgste(vma->vm_mm) && pte_allow_rdp(*ptep, entry))
+	if (cpu_has_rdp() && !mm_has_pgste(vma->vm_mm) && pte_allow_rdp(*ptep, entry))
 		ptep_reset_dat_prot(vma->vm_mm, addr, ptep, entry);
 	else
 		ptep_xchg_direct(vma->vm_mm, addr, ptep, entry);
@@ -1400,9 +1403,6 @@ void gmap_pmdp_idte_global(struct mm_struct *mm, unsigned long vmaddr);
 
 #define pgprot_writecombine	pgprot_writecombine
 pgprot_t pgprot_writecombine(pgprot_t prot);
-
-#define pgprot_writethrough	pgprot_writethrough
-pgprot_t pgprot_writethrough(pgprot_t prot);
 
 #define PFN_PTE_SHIFT		PAGE_SHIFT
 
@@ -1889,7 +1889,7 @@ static inline int pmd_trans_huge(pmd_t pmd)
 #define has_transparent_hugepage has_transparent_hugepage
 static inline int has_transparent_hugepage(void)
 {
-	return MACHINE_HAS_EDAT1 ? 1 : 0;
+	return cpu_has_edat1() ? 1 : 0;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
@@ -2006,5 +2006,19 @@ extern void s390_reset_cmma(struct mm_struct *mm);
 
 #define pmd_pgtable(pmd) \
 	((pgtable_t)__va(pmd_val(pmd) & -sizeof(pte_t)*PTRS_PER_PTE))
+
+static inline unsigned long gmap_pgste_get_pgt_addr(unsigned long *pgt)
+{
+	unsigned long *pgstes, res;
+
+	pgstes = pgt + _PAGE_ENTRIES;
+
+	res = (pgstes[0] & PGSTE_ST2_MASK) << 16;
+	res |= pgstes[1] & PGSTE_ST2_MASK;
+	res |= (pgstes[2] & PGSTE_ST2_MASK) >> 16;
+	res |= (pgstes[3] & PGSTE_ST2_MASK) >> 32;
+
+	return res;
+}
 
 #endif /* _S390_PAGE_H */

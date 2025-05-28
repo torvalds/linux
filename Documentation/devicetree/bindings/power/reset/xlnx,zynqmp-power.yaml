@@ -46,7 +46,6 @@ properties:
 
 required:
   - compatible
-  - interrupts
 
 additionalProperties: false
 

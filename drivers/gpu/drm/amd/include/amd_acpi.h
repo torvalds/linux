@@ -61,7 +61,7 @@ struct atif_qbtc_arguments {
 
 struct atif_qbtc_data_point {
 	u8 luminance;		/* luminance in percent */
-	u8 ipnut_signal;	/* input signal in range 0-255 */
+	u8 input_signal;	/* input signal in range 0-255 */
 } __packed;
 
 struct atif_qbtc_output {
@@ -75,6 +75,8 @@ struct atif_qbtc_output {
 	u8 number_of_points;	/* number of data points */
 	struct atif_qbtc_data_point data_points[ATIF_QBTC_MAX_DATA_POINTS];
 } __packed;
+static_assert(ATIF_QBTC_MAX_DATA_POINTS == MAX_LUMINANCE_DATA_POINTS);
+static_assert(sizeof(struct atif_qbtc_data_point) == sizeof(struct amdgpu_dm_luminance_data));
 
 #define ATIF_NOTIFY_MASK	0x3
 #define ATIF_NOTIFY_NONE	0

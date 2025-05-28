@@ -1122,7 +1122,7 @@ static int img_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 
 		time_left = wait_for_completion_timeout(&i2c->msg_complete,
 						      IMG_I2C_TIMEOUT);
-		del_timer_sync(&i2c->check_timer);
+		timer_delete_sync(&i2c->check_timer);
 
 		if (time_left == 0)
 			i2c->msg_status = -ETIMEDOUT;

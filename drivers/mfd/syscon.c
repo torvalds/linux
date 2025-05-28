@@ -47,6 +47,7 @@ static struct syscon *of_syscon_register(struct device_node *np, bool check_res)
 	struct regmap_config syscon_config = syscon_regmap_config;
 	struct resource res;
 	struct reset_control *reset;
+	resource_size_t res_size;
 
 	WARN_ON(!mutex_is_locked(&syscon_list_lock));
 
@@ -96,6 +97,12 @@ static struct syscon *of_syscon_register(struct device_node *np, bool check_res)
 		}
 	}
 
+	res_size = resource_size(&res);
+	if (res_size < reg_io_width) {
+		ret = -EFAULT;
+		goto err_regmap;
+	}
+
 	syscon_config.name = kasprintf(GFP_KERNEL, "%pOFn@%pa", np, &res.start);
 	if (!syscon_config.name) {
 		ret = -ENOMEM;
@@ -103,7 +110,7 @@ static struct syscon *of_syscon_register(struct device_node *np, bool check_res)
 	}
 	syscon_config.reg_stride = reg_io_width;
 	syscon_config.val_bits = reg_io_width * 8;
-	syscon_config.max_register = resource_size(&res) - reg_io_width;
+	syscon_config.max_register = res_size - reg_io_width;
 	if (!syscon_config.max_register)
 		syscon_config.max_register_is_0 = true;
 
@@ -159,6 +166,7 @@ err_regmap:
 }
 
 static struct regmap *device_node_get_regmap(struct device_node *np,
+					     bool create_regmap,
 					     bool check_res)
 {
 	struct syscon *entry, *syscon = NULL;
@@ -172,7 +180,7 @@ static struct regmap *device_node_get_regmap(struct device_node *np,
 		}
 
 	if (!syscon) {
-		if (of_device_is_compatible(np, "syscon"))
+		if (create_regmap)
 			syscon = of_syscon_register(np, check_res);
 		else
 			syscon = ERR_PTR(-EINVAL);
@@ -233,15 +241,37 @@ err_unlock:
 }
 EXPORT_SYMBOL_GPL(of_syscon_register_regmap);
 
+/**
+ * device_node_to_regmap() - Get or create a regmap for specified device node
+ * @np: Device tree node
+ *
+ * Get a regmap for the specified device node. If there's not an existing
+ * regmap, then one is instantiated. This function should not be used if the
+ * device node has a custom regmap driver or has resources (clocks, resets) to
+ * be managed. Use syscon_node_to_regmap() instead for those cases.
+ *
+ * Return: regmap ptr on success, negative error code on failure.
+ */
 struct regmap *device_node_to_regmap(struct device_node *np)
 {
-	return device_node_get_regmap(np, false);
+	return device_node_get_regmap(np, true, false);
 }
 EXPORT_SYMBOL_GPL(device_node_to_regmap);
 
+/**
+ * syscon_node_to_regmap() - Get or create a regmap for specified syscon device node
+ * @np: Device tree node
+ *
+ * Get a regmap for the specified device node. If there's not an existing
+ * regmap, then one is instantiated if the node is a generic "syscon". This
+ * function is safe to use for a syscon registered with
+ * of_syscon_register_regmap().
+ *
+ * Return: regmap ptr on success, negative error code on failure.
+ */
 struct regmap *syscon_node_to_regmap(struct device_node *np)
 {
-	return device_node_get_regmap(np, true);
+	return device_node_get_regmap(np, of_device_is_compatible(np, "syscon"), true);
 }
 EXPORT_SYMBOL_GPL(syscon_node_to_regmap);
 

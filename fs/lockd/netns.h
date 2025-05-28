@@ -10,6 +10,9 @@ struct lockd_net {
 	unsigned int nlmsvc_users;
 	unsigned long next_gc;
 	unsigned long nrhosts;
+	u32 gracetime;
+	u16 tcp_port;
+	u16 udp_port;
 
 	struct delayed_work grace_period_end;
 	struct lock_manager lockd_manager;

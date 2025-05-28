@@ -1735,27 +1735,27 @@ static int snd_es18xx_new_device(struct snd_card *card,
 	chip->active = 0;
 
 	if (!devm_request_region(card->dev, port, 16, "ES18xx")) {
-		dev_err(card->dev, "unable to grap ports 0x%lx-0x%lx\n", port, port + 16 - 1);
+		dev_err(card->dev, "unable to grab ports 0x%lx-0x%lx\n", port, port + 16 - 1);
 		return -EBUSY;
 	}
 
 	if (devm_request_irq(card->dev, irq, snd_es18xx_interrupt, 0, "ES18xx",
 			     (void *) card)) {
-		dev_err(card->dev, "unable to grap IRQ %d\n", irq);
+		dev_err(card->dev, "unable to grab IRQ %d\n", irq);
 		return -EBUSY;
 	}
 	chip->irq = irq;
 	card->sync_irq = chip->irq;
 
 	if (snd_devm_request_dma(card->dev, dma1, "ES18xx DMA 1")) {
-		dev_err(card->dev, "unable to grap DMA1 %d\n", dma1);
+		dev_err(card->dev, "unable to grab DMA1 %d\n", dma1);
 		return -EBUSY;
 	}
 	chip->dma1 = dma1;
 
 	if (dma2 != dma1 &&
 	    snd_devm_request_dma(card->dev, dma2, "ES18xx DMA 2")) {
-		dev_err(card->dev, "unable to grap DMA2 %d\n", dma2);
+		dev_err(card->dev, "unable to grab DMA2 %d\n", dma2);
 		return -EBUSY;
 	}
 	chip->dma2 = dma2;

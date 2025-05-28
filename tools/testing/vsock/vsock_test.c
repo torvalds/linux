@@ -1788,6 +1788,42 @@ static void test_stream_connect_retry_server(const struct test_opts *opts)
 	close(fd);
 }
 
+static void test_stream_linger_client(const struct test_opts *opts)
+{
+	struct linger optval = {
+		.l_onoff = 1,
+		.l_linger = 1
+	};
+	int fd;
+
+	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &optval, sizeof(optval))) {
+		perror("setsockopt(SO_LINGER)");
+		exit(EXIT_FAILURE);
+	}
+
+	close(fd);
+}
+
+static void test_stream_linger_server(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	vsock_wait_remote_close(fd);
+	close(fd);
+}
+
 static struct test_case test_cases[] = {
 	{
 		.name = "SOCK_STREAM connection reset",
@@ -1942,6 +1978,11 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_STREAM retry failed connect()",
 		.run_client = test_stream_connect_retry_client,
 		.run_server = test_stream_connect_retry_server,
+	},
+	{
+		.name = "SOCK_STREAM SO_LINGER null-ptr-deref",
+		.run_client = test_stream_linger_client,
+		.run_server = test_stream_linger_server,
 	},
 	{},
 };

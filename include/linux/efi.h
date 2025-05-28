@@ -114,21 +114,22 @@ typedef	struct {
 #define EFI_MAX_MEMORY_TYPE		16
 
 /* Attribute values: */
-#define EFI_MEMORY_UC		((u64)0x0000000000000001ULL)	/* uncached */
-#define EFI_MEMORY_WC		((u64)0x0000000000000002ULL)	/* write-coalescing */
-#define EFI_MEMORY_WT		((u64)0x0000000000000004ULL)	/* write-through */
-#define EFI_MEMORY_WB		((u64)0x0000000000000008ULL)	/* write-back */
-#define EFI_MEMORY_UCE		((u64)0x0000000000000010ULL)	/* uncached, exported */
-#define EFI_MEMORY_WP		((u64)0x0000000000001000ULL)	/* write-protect */
-#define EFI_MEMORY_RP		((u64)0x0000000000002000ULL)	/* read-protect */
-#define EFI_MEMORY_XP		((u64)0x0000000000004000ULL)	/* execute-protect */
-#define EFI_MEMORY_NV		((u64)0x0000000000008000ULL)	/* non-volatile */
-#define EFI_MEMORY_MORE_RELIABLE \
-				((u64)0x0000000000010000ULL)	/* higher reliability */
-#define EFI_MEMORY_RO		((u64)0x0000000000020000ULL)	/* read-only */
-#define EFI_MEMORY_SP		((u64)0x0000000000040000ULL)	/* soft reserved */
-#define EFI_MEMORY_CPU_CRYPTO	((u64)0x0000000000080000ULL)	/* supports encryption */
-#define EFI_MEMORY_RUNTIME	((u64)0x8000000000000000ULL)	/* range requires runtime mapping */
+#define EFI_MEMORY_UC			BIT_ULL(0)	/* uncached */
+#define EFI_MEMORY_WC			BIT_ULL(1)	/* write-coalescing */
+#define EFI_MEMORY_WT			BIT_ULL(2)	/* write-through */
+#define EFI_MEMORY_WB			BIT_ULL(3)	/* write-back */
+#define EFI_MEMORY_UCE			BIT_ULL(4)	/* uncached, exported */
+#define EFI_MEMORY_WP			BIT_ULL(12)	/* write-protect */
+#define EFI_MEMORY_RP			BIT_ULL(13)	/* read-protect */
+#define EFI_MEMORY_XP			BIT_ULL(14)	/* execute-protect */
+#define EFI_MEMORY_NV			BIT_ULL(15)	/* non-volatile */
+#define EFI_MEMORY_MORE_RELIABLE	BIT_ULL(16)	/* higher reliability */
+#define EFI_MEMORY_RO			BIT_ULL(17)	/* read-only */
+#define EFI_MEMORY_SP			BIT_ULL(18)	/* soft reserved */
+#define EFI_MEMORY_CPU_CRYPTO		BIT_ULL(19)	/* supports encryption */
+#define EFI_MEMORY_HOT_PLUGGABLE	BIT_ULL(20)	/* supports unplugging at runtime */
+#define EFI_MEMORY_RUNTIME		BIT_ULL(63)	/* range requires runtime mapping */
+
 #define EFI_MEMORY_DESCRIPTOR_VERSION	1
 
 #define EFI_PAGE_SHIFT		12

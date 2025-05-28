@@ -160,9 +160,9 @@ static int ufs_sprd_common_init(struct ufs_hba *hba)
 }
 
 static int sprd_ufs_pwr_change_notify(struct ufs_hba *hba,
-				      enum ufs_notify_change_status status,
-				      struct ufs_pa_layer_attr *dev_max_params,
-				      struct ufs_pa_layer_attr *dev_req_params)
+				enum ufs_notify_change_status status,
+				const struct ufs_pa_layer_attr *dev_max_params,
+				struct ufs_pa_layer_attr *dev_req_params)
 {
 	struct ufs_sprd_host *host = ufshcd_get_variant(hba);
 

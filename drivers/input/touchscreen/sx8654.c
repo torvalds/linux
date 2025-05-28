@@ -290,7 +290,7 @@ static void sx8654_close(struct input_dev *dev)
 	disable_irq(client->irq);
 
 	if (!sx8654->data->has_irq_penrelease)
-		del_timer_sync(&sx8654->timer);
+		timer_delete_sync(&sx8654->timer);
 
 	/* enable manual mode mode */
 	error = i2c_smbus_write_byte(client, sx8654->data->cmd_manual);

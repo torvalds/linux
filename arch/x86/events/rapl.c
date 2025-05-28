@@ -274,8 +274,7 @@ static void rapl_hrtimer_init(struct rapl_pmu *rapl_pmu)
 {
 	struct hrtimer *hr = &rapl_pmu->hrtimer;
 
-	hrtimer_init(hr, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	hr->function = rapl_hrtimer_handle;
+	hrtimer_setup(hr, rapl_hrtimer_handle, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 }
 
 static void __rapl_pmu_event_start(struct rapl_pmu *rapl_pmu,
@@ -370,6 +369,10 @@ static int rapl_pmu_event_init(struct perf_event *event)
 	unsigned int rapl_pmu_idx;
 	struct rapl_pmus *rapl_pmus;
 
+	/* only look at RAPL events */
+	if (event->attr.type != event->pmu->type)
+		return -ENOENT;
+
 	/* unsupported modes and filters */
 	if (event->attr.sample_period) /* no sampling */
 		return -EINVAL;
@@ -387,10 +390,6 @@ static int rapl_pmu_event_init(struct perf_event *event)
 	rapl_pmus_scope = rapl_pmus->pmu.scope;
 
 	if (rapl_pmus_scope == PERF_PMU_SCOPE_PKG || rapl_pmus_scope == PERF_PMU_SCOPE_DIE) {
-		/* only look at RAPL package events */
-		if (event->attr.type != rapl_pmus_pkg->pmu.type)
-			return -ENOENT;
-
 		cfg = array_index_nospec((long)cfg, NR_RAPL_PKG_DOMAINS + 1);
 		if (!cfg || cfg >= NR_RAPL_PKG_DOMAINS + 1)
 			return -EINVAL;
@@ -398,10 +397,6 @@ static int rapl_pmu_event_init(struct perf_event *event)
 		bit = cfg - 1;
 		event->hw.event_base = rapl_model->rapl_pkg_msrs[bit].msr;
 	} else if (rapl_pmus_scope == PERF_PMU_SCOPE_CORE) {
-		/* only look at RAPL core events */
-		if (event->attr.type != rapl_pmus_core->pmu.type)
-			return -ENOENT;
-
 		cfg = array_index_nospec((long)cfg, NR_RAPL_CORE_DOMAINS + 1);
 		if (!cfg || cfg >= NR_RAPL_PKG_DOMAINS + 1)
 			return -EINVAL;
@@ -734,6 +729,7 @@ static int __init init_rapl_pmus(struct rapl_pmus **rapl_pmus_ptr, int rapl_pmu_
 {
 	int nr_rapl_pmu = topology_max_packages();
 	struct rapl_pmus *rapl_pmus;
+	int ret;
 
 	/*
 	 * rapl_pmu_scope must be either PKG, DIE or CORE
@@ -765,7 +761,11 @@ static int __init init_rapl_pmus(struct rapl_pmus **rapl_pmus_ptr, int rapl_pmu_
 	rapl_pmus->pmu.module		= THIS_MODULE;
 	rapl_pmus->pmu.capabilities	= PERF_PMU_CAP_NO_EXCLUDE;
 
-	return init_rapl_pmu(rapl_pmus);
+	ret = init_rapl_pmu(rapl_pmus);
+	if (ret)
+		kfree(rapl_pmus);
+
+	return ret;
 }
 
 static struct rapl_model model_snb = {
@@ -883,6 +883,7 @@ static const struct x86_cpu_id rapl_model_match[] __initconst = {
 	X86_MATCH_VFM(INTEL_METEORLAKE_L,	&model_skl),
 	X86_MATCH_VFM(INTEL_ARROWLAKE_H,	&model_skl),
 	X86_MATCH_VFM(INTEL_ARROWLAKE,		&model_skl),
+	X86_MATCH_VFM(INTEL_ARROWLAKE_U,	&model_skl),
 	X86_MATCH_VFM(INTEL_LUNARLAKE_M,	&model_skl),
 	{},
 };

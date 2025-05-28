@@ -24,6 +24,9 @@
 #ifndef __VCN_v5_0_1_H__
 #define __VCN_v5_0_1_H__
 
+#define regVCN_RRMT_CNTL                          0x0940
+#define regVCN_RRMT_CNTL_BASE_IDX                 1
+
 extern const struct amdgpu_ip_block_version vcn_v5_0_1_ip_block;
 
 #endif /* __VCN_v5_0_1_H__ */

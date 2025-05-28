@@ -399,9 +399,9 @@ static int ctr_encrypt(struct skcipher_request *req)
 	}
 	if (walk.nbytes) {
 		u8 __aligned(8) tail[AES_BLOCK_SIZE];
+		const u8 *tsrc = walk.src.virt.addr;
 		unsigned int nbytes = walk.nbytes;
 		u8 *tdst = walk.dst.virt.addr;
-		u8 *tsrc = walk.src.virt.addr;
 
 		/*
 		 * Tell aes_ctr_encrypt() to process a tail block.

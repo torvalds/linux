@@ -46,6 +46,9 @@ mlx5_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 	u32 running_fw, stored_fw;
 	int err;
 
+	if (!mlx5_core_is_pf(dev))
+		return 0;
+
 	err = devlink_info_version_fixed_put(req, "fw.psid", dev->board_id);
 	if (err)
 		return err;
@@ -324,7 +327,8 @@ static const struct devlink_ops mlx5_devlink_ops = {
 	.rate_node_tx_max_set = mlx5_esw_devlink_rate_node_tx_max_set,
 	.rate_node_new = mlx5_esw_devlink_rate_node_new,
 	.rate_node_del = mlx5_esw_devlink_rate_node_del,
-	.rate_leaf_parent_set = mlx5_esw_devlink_rate_parent_set,
+	.rate_leaf_parent_set = mlx5_esw_devlink_rate_leaf_parent_set,
+	.rate_node_parent_set = mlx5_esw_devlink_rate_node_parent_set,
 #endif
 #ifdef CONFIG_MLX5_SF_MANAGER
 	.port_new = mlx5_devlink_sf_port_new,

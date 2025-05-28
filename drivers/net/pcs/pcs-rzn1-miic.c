@@ -268,17 +268,6 @@ static void miic_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 		     (MIIC_CONVCTRL_CONV_SPEED | MIIC_CONVCTRL_FULLD), val);
 }
 
-static int miic_validate(struct phylink_pcs *pcs, unsigned long *supported,
-			 const struct phylink_link_state *state)
-{
-	if (phy_interface_mode_is_rgmii(state->interface) ||
-	    state->interface == PHY_INTERFACE_MODE_RMII ||
-	    state->interface == PHY_INTERFACE_MODE_MII)
-		return 1;
-
-	return -EINVAL;
-}
-
 static int miic_pre_init(struct phylink_pcs *pcs)
 {
 	struct miic_port *miic_port = phylink_pcs_to_miic_port(pcs);
@@ -307,7 +296,6 @@ static int miic_pre_init(struct phylink_pcs *pcs)
 }
 
 static const struct phylink_pcs_ops miic_phylink_ops = {
-	.pcs_validate = miic_validate,
 	.pcs_config = miic_config,
 	.pcs_link_up = miic_link_up,
 	.pcs_pre_init = miic_pre_init,
@@ -361,7 +349,10 @@ struct phylink_pcs *miic_create(struct device *dev, struct device_node *np)
 	miic_port->miic = miic;
 	miic_port->port = port - 1;
 	miic_port->pcs.ops = &miic_phylink_ops;
-	miic_port->pcs.neg_mode = true;
+
+	phy_interface_set_rgmii(miic_port->pcs.supported_interfaces);
+	__set_bit(PHY_INTERFACE_MODE_RMII, miic_port->pcs.supported_interfaces);
+	__set_bit(PHY_INTERFACE_MODE_MII, miic_port->pcs.supported_interfaces);
 
 	return &miic_port->pcs;
 }
@@ -472,11 +463,8 @@ static int miic_parse_dt(struct device *dev, u32 *mode_cfg)
 	if (of_property_read_u32(np, "renesas,miic-switch-portin", &conf) == 0)
 		dt_val[0] = conf;
 
-	for_each_child_of_node(np, conv) {
+	for_each_available_child_of_node(np, conv) {
 		if (of_property_read_u32(conv, "reg", &port))
-			continue;
-
-		if (!of_device_is_available(conv))
 			continue;
 
 		if (of_property_read_u32(conv, "renesas,miic-input", &conf) == 0)

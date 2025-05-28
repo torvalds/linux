@@ -826,6 +826,8 @@ static int _ad74413r_get_single_adc_result(struct ad74413r_state *st,
 	unsigned int uval;
 	int ret;
 
+	guard(mutex)(&st->lock);
+
 	reinit_completion(&st->adc_data_completion);
 
 	ret = ad74413r_set_adc_channel_enable(st, channel, true);
@@ -865,12 +867,14 @@ static int ad74413r_get_single_adc_result(struct iio_dev *indio_dev,
 					  unsigned int channel, int *val)
 {
 	struct ad74413r_state *st = iio_priv(indio_dev);
+	int ret;
 
-	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-		guard(mutex)(&st->lock);
-		return _ad74413r_get_single_adc_result(st, channel, val);
-	}
-	unreachable();
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	ret = _ad74413r_get_single_adc_result(st, channel, val);
+	iio_device_release_direct(indio_dev);
+	return ret;
 }
 
 static void ad74413r_adc_to_resistance_result(int adc_result, int *val)

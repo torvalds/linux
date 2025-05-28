@@ -656,7 +656,7 @@ static int uli526x_stop(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	/* deleted timer */
-	del_timer_sync(&db->timer);
+	timer_delete_sync(&db->timer);
 
 	/* Reset & stop ULI526X board */
 	uw32(DCR0, ULI526X_RESET);

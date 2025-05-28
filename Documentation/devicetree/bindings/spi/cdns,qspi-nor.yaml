@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/spi/cdns,qspi-nor.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Cadence Quad SPI controller
+title: Cadence Quad/Octal SPI controller
 
 maintainers:
   - Vaishnav Achath <vaishnav.a@ti.com>
@@ -76,8 +76,12 @@ properties:
               - ti,am654-ospi
               - ti,k2g-qspi
               - xlnx,versal-ospi-1.0
+          # The compatible is qspi-nor for historical reasons but such
+          # controllers are meant to be used with flashes of all kinds,
+          # ie. also NAND flashes, not only NOR flashes.
           - const: cdns,qspi-nor
       - const: cdns,qspi-nor
+        deprecated: true
 
   reg:
     items:
@@ -142,6 +146,18 @@ properties:
     items:
       enum: [ qspi, qspi-ocp, rstc_ref ]
 
+patternProperties:
+  "^flash@[0-9a-f]+$":
+    type: object
+    $ref: cdns,qspi-nor-peripheral-props.yaml
+    additionalProperties: true
+    required:
+      - cdns,read-delay
+      - cdns,tshsl-ns
+      - cdns,tsd2d-ns
+      - cdns,tchsh-ns
+      - cdns,tslch-ns
+
 required:
   - compatible
   - reg
@@ -157,7 +173,7 @@ unevaluatedProperties: false
 examples:
   - |
     qspi: spi@ff705000 {
-        compatible = "cdns,qspi-nor";
+        compatible = "intel,socfpga-qspi", "cdns,qspi-nor";
         #address-cells = <1>;
         #size-cells = <0>;
         reg = <0xff705000 0x1000>,
@@ -173,5 +189,10 @@ examples:
         flash@0 {
             compatible = "jedec,spi-nor";
             reg = <0x0>;
+            cdns,read-delay = <4>;
+            cdns,tshsl-ns = <60>;
+            cdns,tsd2d-ns = <60>;
+            cdns,tchsh-ns = <60>;
+            cdns,tslch-ns = <60>;
         };
     };

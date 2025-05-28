@@ -42,6 +42,24 @@ static void cros_typec_role_switch_quirk(struct fwnode_handle *fwnode)
 #endif
 }
 
+static int cros_typec_enter_usb_mode(struct typec_port *tc_port, enum usb_mode mode)
+{
+	struct cros_typec_port *port = typec_get_drvdata(tc_port);
+	struct ec_params_typec_control req = {
+		.port = port->port_num,
+		.command = (mode == USB_MODE_USB4) ?
+			TYPEC_CONTROL_COMMAND_ENTER_MODE : TYPEC_CONTROL_COMMAND_EXIT_MODES,
+		.mode_to_enter = CROS_EC_ALTMODE_USB4
+	};
+
+	return cros_ec_cmd(port->typec_data->ec, 0, EC_CMD_TYPEC_CONTROL,
+			  &req, sizeof(req), NULL, 0);
+}
+
+static const struct typec_operations cros_typec_usb_mode_ops = {
+	.enter_usb_mode = cros_typec_enter_usb_mode
+};
+
 static int cros_typec_parse_port_props(struct typec_capability *cap,
 				       struct fwnode_handle *fwnode,
 				       struct device *dev)
@@ -83,6 +101,13 @@ static int cros_typec_parse_port_props(struct typec_capability *cap,
 			return ret;
 		cap->prefer_role = ret;
 	}
+
+	if (fwnode_property_present(fwnode, "usb2-port"))
+		cap->usb_capability |= USB_CAPABILITY_USB2;
+	if (fwnode_property_present(fwnode, "usb3-port"))
+		cap->usb_capability |= USB_CAPABILITY_USB3;
+	if (fwnode_property_present(fwnode, "usb4-port"))
+		cap->usb_capability |= USB_CAPABILITY_USB4;
 
 	cros_typec_role_switch_quirk(fwnode);
 
@@ -378,6 +403,9 @@ static int cros_typec_init_ports(struct cros_typec_data *typec)
 		ret = cros_typec_parse_port_props(cap, fwnode, dev);
 		if (ret < 0)
 			goto unregister_ports;
+
+		cap->driver_data = cros_port;
+		cap->ops = &cros_typec_usb_mode_ops;
 
 		cros_port->port = typec_register_port(dev, cap);
 		if (IS_ERR(cros_port->port)) {

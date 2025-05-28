@@ -8,6 +8,14 @@
 	SCX_ENUM_SET(skel, scx_public_consts, SCX_OPS_NAME_LEN); \
 	SCX_ENUM_SET(skel, scx_public_consts, SCX_SLICE_DFL); \
 	SCX_ENUM_SET(skel, scx_public_consts, SCX_SLICE_INF); \
+	SCX_ENUM_SET(skel, scx_rq_flags, SCX_RQ_ONLINE); \
+	SCX_ENUM_SET(skel, scx_rq_flags, SCX_RQ_CAN_STOP_TICK); \
+	SCX_ENUM_SET(skel, scx_rq_flags, SCX_RQ_BAL_PENDING); \
+	SCX_ENUM_SET(skel, scx_rq_flags, SCX_RQ_BAL_KEEP); \
+	SCX_ENUM_SET(skel, scx_rq_flags, SCX_RQ_BYPASSING); \
+	SCX_ENUM_SET(skel, scx_rq_flags, SCX_RQ_CLK_VALID); \
+	SCX_ENUM_SET(skel, scx_rq_flags, SCX_RQ_IN_WAKEUP); \
+	SCX_ENUM_SET(skel, scx_rq_flags, SCX_RQ_IN_BALANCE); \
 	SCX_ENUM_SET(skel, scx_dsq_id_flags, SCX_DSQ_FLAG_BUILTIN); \
 	SCX_ENUM_SET(skel, scx_dsq_id_flags, SCX_DSQ_FLAG_LOCAL_ON); \
 	SCX_ENUM_SET(skel, scx_dsq_id_flags, SCX_DSQ_INVALID); \

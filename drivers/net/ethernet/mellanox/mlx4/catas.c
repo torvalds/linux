@@ -305,7 +305,7 @@ void mlx4_stop_catas_poll(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
-	del_timer_sync(&priv->catas_err.timer);
+	timer_delete_sync(&priv->catas_err.timer);
 
 	if (priv->catas_err.map) {
 		iounmap(priv->catas_err.map);

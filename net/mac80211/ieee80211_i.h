@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 
 #ifndef IEEE80211_I_H
@@ -200,7 +200,6 @@ enum ieee80211_packet_rx_flags {
 /**
  * enum ieee80211_rx_flags - RX data flags
  *
- * @IEEE80211_RX_CMNTR: received on cooked monitor already
  * @IEEE80211_RX_BEACON_REPORTED: This frame was already reported
  *	to cfg80211_report_obss_beacon().
  *
@@ -208,8 +207,7 @@ enum ieee80211_packet_rx_flags {
  * for a single frame.
  */
 enum ieee80211_rx_flags {
-	IEEE80211_RX_CMNTR		= BIT(0),
-	IEEE80211_RX_BEACON_REPORTED	= BIT(1),
+	IEEE80211_RX_BEACON_REPORTED	= BIT(0),
 };
 
 struct ieee80211_rx_data {
@@ -446,8 +444,6 @@ struct ieee80211_mgd_assoc_data {
 	const u8 *supp_rates;
 	u8 supp_rates_len;
 
-	unsigned long userspace_selectors[BITS_TO_LONGS(128)];
-
 	unsigned long timeout;
 	int tries;
 
@@ -462,7 +458,9 @@ struct ieee80211_mgd_assoc_data {
 	bool s1g;
 	bool spp_amsdu;
 
-	unsigned int assoc_link_id;
+	s8 assoc_link_id;
+
+	__le16 ext_mld_capa_ops;
 
 	u8 fils_nonces[2 * FILS_NONCE_LEN];
 	u8 fils_kek[FILS_MAX_KEK_LEN];
@@ -523,6 +521,8 @@ struct ieee80211_if_managed {
 
 	struct ieee80211_mgd_auth_data *auth_data;
 	struct ieee80211_mgd_assoc_data *assoc_data;
+
+	unsigned long userspace_selectors[BITS_TO_LONGS(128)];
 
 	bool powersave; /* powersave requested for this iface */
 	bool broken_ap; /* AP is broken -- turn off powersave */
@@ -615,6 +615,12 @@ struct ieee80211_if_managed {
 		u16 added_links;
 		u8 dialog_token;
 	} reconf;
+
+	/* Support for epcs */
+	struct {
+		bool enabled;
+		u8 dialog_token;
+	} epcs;
 };
 
 struct ieee80211_if_ibss {
@@ -1380,7 +1386,7 @@ struct ieee80211_local {
 	spinlock_t queue_stop_reason_lock;
 
 	int open_count;
-	int monitors, cooked_mntrs, tx_mntrs;
+	int monitors, virt_monitors, tx_mntrs;
 	/* number of interfaces with corresponding FIF_ flags */
 	int fif_fcsfail, fif_plcpfail, fif_control, fif_other_bss, fif_pspoll,
 	    fif_probe_req;
@@ -1492,7 +1498,7 @@ struct ieee80211_local {
 
 	/* see iface.c */
 	struct list_head interfaces;
-	struct list_head mon_list; /* only that are IFF_UP && !cooked */
+	struct list_head mon_list; /* only that are IFF_UP */
 	struct mutex iflist_mtx;
 
 	/* Scanning and BSS list */
@@ -2090,8 +2096,7 @@ struct sk_buff *
 ieee80211_build_data_template(struct ieee80211_sub_if_data *sdata,
 			      struct sk_buff *skb, u32 info_flags);
 void ieee80211_tx_monitor(struct ieee80211_local *local, struct sk_buff *skb,
-			  int retry_count, bool send_to_cooked,
-			  struct ieee80211_tx_status *status);
+			  int retry_count, struct ieee80211_tx_status *status);
 
 void ieee80211_check_fast_xmit(struct sta_info *sta);
 void ieee80211_check_fast_xmit_all(struct ieee80211_local *local);
@@ -2774,14 +2779,19 @@ void ieee80211_process_neg_ttlm_res(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_mgmt *mgmt, size_t len);
 int ieee80211_req_neg_ttlm(struct ieee80211_sub_if_data *sdata,
 			   struct cfg80211_ttlm_params *params);
+void ieee80211_process_ttlm_teardown(struct ieee80211_sub_if_data *sdata);
 
 void ieee80211_check_wbrf_support(struct ieee80211_local *local);
 void ieee80211_add_wbrf(struct ieee80211_local *local, struct cfg80211_chan_def *chandef);
 void ieee80211_remove_wbrf(struct ieee80211_local *local, struct cfg80211_chan_def *chandef);
+int ieee80211_mgd_set_epcs(struct ieee80211_sub_if_data *sdata, bool enable);
+void ieee80211_process_epcs_ena_resp(struct ieee80211_sub_if_data *sdata,
+				     struct ieee80211_mgmt *mgmt, size_t len);
+void ieee80211_process_epcs_teardown(struct ieee80211_sub_if_data *sdata,
+				     struct ieee80211_mgmt *mgmt, size_t len);
 
 int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
-				  struct cfg80211_assoc_link *add_links,
-				  u16 rem_links);
+				  struct cfg80211_ml_reconf_req *req);
 
 void ieee80211_process_ml_reconf_resp(struct ieee80211_sub_if_data *sdata,
 				      struct ieee80211_mgmt *mgmt, size_t len);
@@ -2795,6 +2805,13 @@ int ieee80211_calc_chandef_subchan_offset(const struct cfg80211_chan_def *ap,
 void ieee80211_rearrange_tpe_psd(struct ieee80211_parsed_tpe_psd *psd,
 				 const struct cfg80211_chan_def *ap,
 				 const struct cfg80211_chan_def *used);
+struct ieee802_11_elems *
+ieee80211_determine_chan_mode(struct ieee80211_sub_if_data *sdata,
+			      struct ieee80211_conn_settings *conn,
+			      struct cfg80211_bss *cbss, int link_id,
+			      struct ieee80211_chan_req *chanreq,
+			      struct cfg80211_chan_def *ap_chandef,
+			      unsigned long *userspace_selectors);
 #else
 #define EXPORT_SYMBOL_IF_MAC80211_KUNIT(sym)
 #define VISIBLE_IF_MAC80211_KUNIT static

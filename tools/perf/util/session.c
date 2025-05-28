@@ -950,7 +950,12 @@ static void regs__printf(const char *type, struct regs_dump *regs, const char *a
 
 static void regs_user__printf(struct perf_sample *sample, const char *arch)
 {
-	struct regs_dump *user_regs = &sample->user_regs;
+	struct regs_dump *user_regs;
+
+	if (!sample->user_regs)
+		return;
+
+	user_regs = perf_sample__user_regs(sample);
 
 	if (user_regs->regs)
 		regs__printf("user", user_regs, arch);
@@ -958,7 +963,12 @@ static void regs_user__printf(struct perf_sample *sample, const char *arch)
 
 static void regs_intr__printf(struct perf_sample *sample, const char *arch)
 {
-	struct regs_dump *intr_regs = &sample->intr_regs;
+	struct regs_dump *intr_regs;
+
+	if (!sample->intr_regs)
+		return;
+
+	intr_regs = perf_sample__intr_regs(sample);
 
 	if (intr_regs->regs)
 		regs__printf("intr", intr_regs, arch);
@@ -1351,25 +1361,30 @@ static int perf_session__deliver_event(struct perf_session *session,
 				       const char *file_path)
 {
 	struct perf_sample sample;
-	int ret = evlist__parse_sample(session->evlist, event, &sample);
+	int ret;
 
+	perf_sample__init(&sample, /*all=*/false);
+	ret = evlist__parse_sample(session->evlist, event, &sample);
 	if (ret) {
 		pr_err("Can't parse sample, err = %d\n", ret);
-		return ret;
+		goto out;
 	}
 
 	ret = auxtrace__process_event(session, event, &sample, tool);
 	if (ret < 0)
-		return ret;
-	if (ret > 0)
-		return 0;
+		goto out;
+	if (ret > 0) {
+		ret = 0;
+		goto out;
+	}
 
 	ret = machines__deliver_event(&session->machines, session->evlist,
 				      event, &sample, tool, file_offset, file_path);
 
 	if (dump_trace && sample.aux_sample.size)
 		auxtrace__dump_auxtrace_sample(session, &sample);
-
+out:
+	perf_sample__exit(&sample);
 	return ret;
 }
 
@@ -1380,10 +1395,11 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 {
 	struct ordered_events *oe = &session->ordered_events;
 	const struct perf_tool *tool = session->tool;
-	struct perf_sample sample = { .time = 0, };
+	struct perf_sample sample;
 	int fd = perf_data__fd(session->data);
 	int err;
 
+	perf_sample__init(&sample, /*all=*/true);
 	if (event->header.type != PERF_RECORD_COMPRESSED || perf_tool__compressed_is_stub(tool))
 		dump_event(session->evlist, event, file_offset, &sample, file_path);
 
@@ -1395,15 +1411,17 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 			perf_session__set_id_hdr_size(session);
 			perf_session__set_comm_exec(session);
 		}
-		return err;
+		break;
 	case PERF_RECORD_EVENT_UPDATE:
-		return tool->event_update(tool, event, &session->evlist);
+		err = tool->event_update(tool, event, &session->evlist);
+		break;
 	case PERF_RECORD_HEADER_EVENT_TYPE:
 		/*
 		 * Deprecated, but we need to handle it for sake
 		 * of old data files create in pipe mode.
 		 */
-		return 0;
+		err = 0;
+		break;
 	case PERF_RECORD_HEADER_TRACING_DATA:
 		/*
 		 * Setup for reading amidst mmap, but only when we
@@ -1412,15 +1430,20 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		 */
 		if (!perf_data__is_pipe(session->data))
 			lseek(fd, file_offset, SEEK_SET);
-		return tool->tracing_data(session, event);
+		err = tool->tracing_data(session, event);
+		break;
 	case PERF_RECORD_HEADER_BUILD_ID:
-		return tool->build_id(session, event);
+		err = tool->build_id(session, event);
+		break;
 	case PERF_RECORD_FINISHED_ROUND:
-		return tool->finished_round(tool, event, oe);
+		err = tool->finished_round(tool, event, oe);
+		break;
 	case PERF_RECORD_ID_INDEX:
-		return tool->id_index(session, event);
+		err = tool->id_index(session, event);
+		break;
 	case PERF_RECORD_AUXTRACE_INFO:
-		return tool->auxtrace_info(session, event);
+		err = tool->auxtrace_info(session, event);
+		break;
 	case PERF_RECORD_AUXTRACE:
 		/*
 		 * Setup for reading amidst mmap, but only when we
@@ -1429,35 +1452,48 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		 */
 		if (!perf_data__is_pipe(session->data))
 			lseek(fd, file_offset + event->header.size, SEEK_SET);
-		return tool->auxtrace(session, event);
+		err = tool->auxtrace(session, event);
+		break;
 	case PERF_RECORD_AUXTRACE_ERROR:
 		perf_session__auxtrace_error_inc(session, event);
-		return tool->auxtrace_error(session, event);
+		err = tool->auxtrace_error(session, event);
+		break;
 	case PERF_RECORD_THREAD_MAP:
-		return tool->thread_map(session, event);
+		err = tool->thread_map(session, event);
+		break;
 	case PERF_RECORD_CPU_MAP:
-		return tool->cpu_map(session, event);
+		err = tool->cpu_map(session, event);
+		break;
 	case PERF_RECORD_STAT_CONFIG:
-		return tool->stat_config(session, event);
+		err = tool->stat_config(session, event);
+		break;
 	case PERF_RECORD_STAT:
-		return tool->stat(session, event);
+		err = tool->stat(session, event);
+		break;
 	case PERF_RECORD_STAT_ROUND:
-		return tool->stat_round(session, event);
+		err = tool->stat_round(session, event);
+		break;
 	case PERF_RECORD_TIME_CONV:
 		session->time_conv = event->time_conv;
-		return tool->time_conv(session, event);
+		err = tool->time_conv(session, event);
+		break;
 	case PERF_RECORD_HEADER_FEATURE:
-		return tool->feature(session, event);
+		err = tool->feature(session, event);
+		break;
 	case PERF_RECORD_COMPRESSED:
 		err = tool->compressed(session, event, file_offset, file_path);
 		if (err)
 			dump_event(session->evlist, event, file_offset, &sample, file_path);
-		return err;
+		break;
 	case PERF_RECORD_FINISHED_INIT:
-		return tool->finished_init(session, event);
+		err = tool->finished_init(session, event);
+		break;
 	default:
-		return -EINVAL;
+		err = -EINVAL;
+		break;
 	}
+	perf_sample__exit(&sample);
+	return err;
 }
 
 int perf_session__deliver_synth_event(struct perf_session *session,
@@ -2400,6 +2436,18 @@ bool perf_session__has_traces(struct perf_session *session, const char *msg)
 	}
 
 	pr_err("No trace sample to read. Did you call 'perf %s'?\n", msg);
+	return false;
+}
+
+bool perf_session__has_switch_events(struct perf_session *session)
+{
+	struct evsel *evsel;
+
+	evlist__for_each_entry(session->evlist, evsel) {
+		if (evsel->core.attr.context_switch)
+			return true;
+	}
+
 	return false;
 }
 

@@ -90,6 +90,9 @@
  * This driver also supports NE1618 from Philips. It is similar to NE1617
  * but supports 11 bit external temperature values.
  *
+ * This driver also supports NCT7716, NCT7717 and NCT7718 from Nuvoton.
+ * The NCT7716 is similar to NCT7717 but has one more address support.
+ *
  * Since the LM90 was the first chipset supported by this driver, most
  * comments will refer to this chipset, but are actually general and
  * concern all supported chipsets, unless mentioned otherwise.
@@ -119,13 +122,15 @@
  * Address is fully defined internally and cannot be changed except for
  * MAX6659, MAX6680 and MAX6681.
  * LM86, LM89, LM90, LM99, ADM1032, ADM1032-1, ADT7461, ADT7461A, MAX6649,
- * MAX6657, MAX6658, NCT1008 and W83L771 have address 0x4c.
+ * MAX6657, MAX6658, NCT1008, NCT7718 and W83L771 have address 0x4c.
  * ADM1032-2, ADT7461-2, ADT7461A-2, LM89-1, LM99-1, MAX6646, and NCT1008D
  * have address 0x4d.
  * MAX6647 has address 0x4e.
  * MAX6659 can have address 0x4c, 0x4d or 0x4e.
  * MAX6654, MAX6680, and MAX6681 can have address 0x18, 0x19, 0x1a, 0x29,
  * 0x2a, 0x2b, 0x4c, 0x4d or 0x4e.
+ * NCT7716 can have address 0x48 or 0x49.
+ * NCT7717 has address 0x48.
  * SA56004 can have address 0x48 through 0x4F.
  */
 
@@ -136,7 +141,7 @@ static const unsigned short normal_i2c[] = {
 enum chips { adm1023, adm1032, adt7461, adt7461a, adt7481,
 	g781, lm84, lm90, lm99,
 	max1617, max6642, max6646, max6648, max6654, max6657, max6659, max6680, max6696,
-	nct210, nct72, ne1618, sa56004, tmp451, tmp461, w83l771,
+	nct210, nct72, nct7716, nct7717, nct7718, ne1618, sa56004, tmp451, tmp461, w83l771,
 };
 
 /*
@@ -190,6 +195,9 @@ enum chips { adm1023, adm1032, adt7461, adt7461a, adt7481,
 
 #define ADT7481_REG_MAN_ID		0x3e
 #define ADT7481_REG_CHIP_ID		0x3d
+
+/* NCT7716/7717/7718 registers */
+#define NCT7716_REG_CHIP_ID		0xFD
 
 /* Device features */
 #define LM90_HAVE_EXTENDED_TEMP	BIT(0)	/* extended temperature support	*/
@@ -275,6 +283,9 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "nct214", nct72 },
 	{ "nct218", nct72 },
 	{ "nct72", nct72 },
+	{ "nct7716", nct7716 },
+	{ "nct7717", nct7717 },
+	{ "nct7718", nct7718 },
 	{ "ne1618", ne1618 },
 	{ "w83l771", w83l771 },
 	{ "sa56004", sa56004 },
@@ -381,6 +392,18 @@ static const struct of_device_id __maybe_unused lm90_of_match[] = {
 	{
 		.compatible = "onnn,nct72",
 		.data = (void *)nct72
+	},
+	{
+		.compatible = "nuvoton,nct7716",
+		.data = (void *)nct7716
+	},
+	{
+		.compatible = "nuvoton,nct7717",
+		.data = (void *)nct7717
+	},
+	{
+		.compatible = "nuvoton,nct7718",
+		.data = (void *)nct7718
 	},
 	{
 		.compatible = "winbond,w83l771",
@@ -600,6 +623,26 @@ static const struct lm90_params lm90_params[] = {
 		.alert_alarms = 0x7c,
 		.resolution = 11,
 		.max_convrate = 7,
+	},
+	[nct7716] = {
+		.flags = LM90_HAVE_ALARMS | LM90_HAVE_CONVRATE,
+		.alert_alarms = 0x40,
+		.resolution = 8,
+		.max_convrate = 8,
+	},
+	[nct7717] = {
+		.flags = LM90_HAVE_ALARMS | LM90_HAVE_CONVRATE,
+		.alert_alarms = 0x40,
+		.resolution = 8,
+		.max_convrate = 8,
+	},
+	[nct7718] = {
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT | LM90_HAVE_CRIT
+		  | LM90_HAVE_ALARMS | LM90_HAVE_LOW | LM90_HAVE_CONVRATE
+		  | LM90_HAVE_REMOTE_EXT,
+		.alert_alarms = 0x7c,
+		.resolution = 11,
+		.max_convrate = 8,
 	},
 	[ne1618] = {
 		.flags = LM90_PAUSE_FOR_CONFIG | LM90_HAVE_BROKEN_ALERT
@@ -2300,6 +2343,38 @@ static const char *lm90_detect_nuvoton(struct i2c_client *client, int chip_id,
 	return name;
 }
 
+static const char *lm90_detect_nuvoton_50(struct i2c_client *client, int chip_id,
+					  int config1, int convrate)
+{
+	int chip_id2 = i2c_smbus_read_byte_data(client, NCT7716_REG_CHIP_ID);
+	int config2 = i2c_smbus_read_byte_data(client, LM90_REG_CONFIG2);
+	int address = client->addr;
+	const char *name = NULL;
+
+	if (chip_id2 < 0 || config2 < 0)
+		return NULL;
+
+	if (chip_id2 != 0x50 || convrate > 0x08)
+		return NULL;
+
+	switch (chip_id) {
+	case 0x90:
+		if (address == 0x48 && !(config1 & 0x3e) && !(config2 & 0xfe))
+			name = "nct7717";
+		break;
+	case 0x91:
+		if ((address == 0x48 || address == 0x49) && !(config1 & 0x3e) &&
+		    !(config2 & 0xfe))
+			name = "nct7716";
+		else if (address == 0x4c && !(config1 & 0x38) && !(config2 & 0xf8))
+			name = "nct7718";
+		break;
+	default:
+		break;
+	}
+	return name;
+}
+
 static const char *lm90_detect_nxp(struct i2c_client *client, bool common_address,
 				   int chip_id, int config1, int convrate)
 {
@@ -2483,6 +2558,9 @@ static int lm90_detect(struct i2c_client *client, struct i2c_board_info *info)
 	case 0x4d:	/* Maxim Integrated */
 		name = lm90_detect_maxim(client, common_address, chip_id,
 					 config1, convrate);
+		break;
+	case 0x50:
+		name = lm90_detect_nuvoton_50(client, chip_id, config1, convrate);
 		break;
 	case 0x54:	/* ON MC1066, Microchip TC1068, TCM1617 (originally TelCom) */
 		if (common_address && !(config1 & 0x3f) && !(convrate & 0xf8))

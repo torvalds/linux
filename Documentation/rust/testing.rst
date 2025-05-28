@@ -97,7 +97,7 @@ operator are also supported as usual, e.g.:
 
 	/// ```
 	/// # use kernel::{spawn_work_item, workqueue};
-	/// spawn_work_item!(workqueue::system(), || pr_info!("x"))?;
+	/// spawn_work_item!(workqueue::system(), || pr_info!("x\n"))?;
 	/// # Ok::<(), Error>(())
 	/// ```
 
@@ -122,6 +122,13 @@ addition, it may allow us to test third-party code more easily in the future.
 A current limitation is that KUnit does not support assertions in other tasks.
 Thus, we presently simply print an error to the kernel log if an assertion
 actually failed. Additionally, doctests are not run for nonpublic functions.
+
+Since these tests are examples, i.e. they are part of the documentation, they
+should generally be written like "real code". Thus, for example, instead of
+using ``unwrap()`` or ``expect()``, use the ``?`` operator. For more background,
+please see:
+
+	https://rust.docs.kernel.org/kernel/error/type.Result.html#error-codes-in-c-and-rust
 
 The ``#[test]`` tests
 ---------------------

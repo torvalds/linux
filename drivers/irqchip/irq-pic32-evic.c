@@ -291,7 +291,7 @@ static int __init pic32_of_init(struct device_node *node,
 		gc->private = &priv[i];
 	}
 
-	irq_set_default_host(evic_irq_domain);
+	irq_set_default_domain(evic_irq_domain);
 
 	/*
 	 * External interrupts have software configurable edge polarity. These

@@ -11,3 +11,10 @@ core_hotunplug@unplug-rescan
 # IGT Version: 1.28-g0df7b9b97
 # Linux Version: 6.9.0-rc7
 kms_fb_coherency@memset-crc
+
+# Board Name: hp-x360-12b-ca0010nr-n4020-octopus
+# Bug Report: https://gitlab.freedesktop.org/drm/i915/kernel/-/issues/13348
+# Failure Rate: 100
+# IGT Version: 1.29-g33adea9eb
+# Linux Version: 6.13.0-rc2
+kms_flip@dpms-off-confusion-interruptible

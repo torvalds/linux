@@ -287,7 +287,7 @@ void ath10k_htt_rx_free(struct ath10k_htt *htt)
 	if (htt->ar->bus_param.dev_type == ATH10K_DEV_TYPE_HL)
 		return;
 
-	del_timer_sync(&htt->rx_ring.refill_retry_timer);
+	timer_delete_sync(&htt->rx_ring.refill_retry_timer);
 
 	skb_queue_purge(&htt->rx_msdus_q);
 	skb_queue_purge(&htt->rx_in_ord_compl_q);

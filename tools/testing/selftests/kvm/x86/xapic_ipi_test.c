@@ -106,7 +106,8 @@ static void halter_guest_code(struct test_data_page *data)
 		data->halter_tpr = xapic_read_reg(APIC_TASKPRI);
 		data->halter_ppr = xapic_read_reg(APIC_PROCPRI);
 		data->hlt_count++;
-		asm volatile("sti; hlt; cli");
+		safe_halt();
+		cli();
 		data->wake_count++;
 	}
 }
@@ -464,6 +465,19 @@ int main(int argc, char *argv[])
 	 */
 	cancel_join_vcpu_thread(threads[0], params[0].vcpu);
 	cancel_join_vcpu_thread(threads[1], params[1].vcpu);
+
+	/*
+	 * If the host support Idle HLT, i.e. KVM *might* be using Idle HLT,
+	 * then the number of HLT exits may be less than the number of HLTs
+	 * that were executed, as Idle HLT elides the exit if the vCPU has an
+	 * unmasked, pending IRQ (or NMI).
+	 */
+	if (this_cpu_has(X86_FEATURE_IDLE_HLT))
+		TEST_ASSERT(data->hlt_count >= vcpu_get_stat(params[0].vcpu, halt_exits),
+			    "HLT insns = %lu, HLT exits = %lu",
+			    data->hlt_count, vcpu_get_stat(params[0].vcpu, halt_exits));
+	else
+		TEST_ASSERT_EQ(data->hlt_count, vcpu_get_stat(params[0].vcpu, halt_exits));
 
 	fprintf(stderr,
 		"Test successful after running for %d seconds.\n"

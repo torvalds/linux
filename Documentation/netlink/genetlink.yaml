@@ -14,9 +14,10 @@ $defs:
     pattern: ^[0-9A-Za-z_-]+( - 1)?$
     minimum: 0
   len-or-limit:
-    # literal int or limit based on fixed-width type e.g. u8-min, u16-max, etc.
+    # literal int, const name, or limit based on fixed-width type
+    # e.g. u8-min, u16-max, etc.
     type: [ string, integer ]
-    pattern: ^[su](8|16|32|64)-(min|max)$
+    pattern: ^[0-9A-Za-z_-]+$
     minimum: 0
 
 # Schema for specs
@@ -123,7 +124,7 @@ properties:
                 type: string
               type: &attr-type
                 enum: [ unused, pad, flag, binary,
-                        uint, sint, u8, u16, u32, u64, s32, s64,
+                        uint, sint, u8, u16, u32, u64, s8, s16, s32, s64,
                         string, nest, indexed-array, nest-type-value ]
               doc:
                 description: Documentation of the attribute.

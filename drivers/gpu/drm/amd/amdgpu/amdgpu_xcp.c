@@ -709,10 +709,10 @@ void amdgpu_xcp_cfg_sysfs_fini(struct amdgpu_device *adev)
 	struct amdgpu_xcp_cfg *xcp_cfg;
 	int i;
 
-	if (!adev->xcp_mgr)
+	if (!adev->xcp_mgr || !adev->xcp_mgr->xcp_cfg)
 		return;
 
-	xcp_cfg =  adev->xcp_mgr->xcp_cfg;
+	xcp_cfg = adev->xcp_mgr->xcp_cfg;
 	for (i = 0; i < xcp_cfg->num_res; i++) {
 		xcp_res = &xcp_cfg->xcp_res[i];
 		kobject_put(&xcp_res->kobj);

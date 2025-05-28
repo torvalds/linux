@@ -22,23 +22,21 @@ static void bucket_table_init(struct buckets_waiting_for_journal_table *t, size_
 	memset(t->d, 0, sizeof(t->d[0]) << t->bits);
 }
 
-bool bch2_bucket_needs_journal_commit(struct buckets_waiting_for_journal *b,
-				      u64 flushed_seq,
-				      unsigned dev, u64 bucket)
+u64 bch2_bucket_journal_seq_ready(struct buckets_waiting_for_journal *b,
+				  unsigned dev, u64 bucket)
 {
 	struct buckets_waiting_for_journal_table *t;
 	u64 dev_bucket = (u64) dev << 56 | bucket;
-	bool ret = false;
-	unsigned i;
+	u64 ret = 0;
 
 	mutex_lock(&b->lock);
 	t = b->t;
 
-	for (i = 0; i < ARRAY_SIZE(t->hash_seeds); i++) {
+	for (unsigned i = 0; i < ARRAY_SIZE(t->hash_seeds); i++) {
 		struct bucket_hashed *h = bucket_hash(t, i, dev_bucket);
 
 		if (h->dev_bucket == dev_bucket) {
-			ret = h->journal_seq > flushed_seq;
+			ret = h->journal_seq;
 			break;
 		}
 	}

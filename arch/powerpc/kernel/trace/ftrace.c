@@ -115,10 +115,8 @@ static unsigned long ftrace_lookup_module_stub(unsigned long ip, unsigned long a
 {
 	struct module *mod = NULL;
 
-	preempt_disable();
-	mod = __module_text_address(ip);
-	preempt_enable();
-
+	scoped_guard(rcu)
+		mod = __module_text_address(ip);
 	if (!mod)
 		pr_err("No module loaded at addr=%lx\n", ip);
 

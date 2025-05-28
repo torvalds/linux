@@ -86,7 +86,7 @@ enum {
 	HANFTEK_UMT_010_WARM,
 };
 
-static struct usb_device_id umt_table[] = {
+static const struct usb_device_id umt_table[] = {
 	DVB_USB_DEV(HANFTEK, HANFTEK_UMT_010_COLD),
 	DVB_USB_DEV(HANFTEK, HANFTEK_UMT_010_WARM),
 	{ }

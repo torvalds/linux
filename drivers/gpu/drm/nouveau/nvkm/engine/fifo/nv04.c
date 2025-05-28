@@ -154,7 +154,7 @@ nv04_chan_ramfc = {
 
 const struct nvkm_chan_func_userd
 nv04_chan_userd = {
-	.bar = 0,
+	.bar = NVKM_BAR0_PRI,
 	.base = 0x800000,
 	.size = 0x010000,
 };

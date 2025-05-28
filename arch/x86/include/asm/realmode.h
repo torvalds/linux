@@ -9,7 +9,7 @@
 #define TH_FLAGS_SME_ACTIVE_BIT		0
 #define TH_FLAGS_SME_ACTIVE		BIT(TH_FLAGS_SME_ACTIVE_BIT)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 #include <asm/io.h>
@@ -95,6 +95,6 @@ void reserve_real_mode(void);
 void load_trampoline_pgtable(void);
 void init_real_mode(void);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ARCH_X86_REALMODE_H */

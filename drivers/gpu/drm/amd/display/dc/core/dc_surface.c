@@ -109,7 +109,8 @@ struct dc_plane_state *dc_create_plane_state(const struct dc *dc)
  *****************************************************************************
  */
 const struct dc_plane_status *dc_plane_get_status(
-		const struct dc_plane_state *plane_state)
+		const struct dc_plane_state *plane_state,
+		union dc_plane_status_update_flags flags)
 {
 	const struct dc_plane_status *plane_status;
 	struct dc  *dc;
@@ -136,7 +137,7 @@ const struct dc_plane_status *dc_plane_get_status(
 		if (pipe_ctx->plane_state != plane_state)
 			continue;
 
-		if (pipe_ctx->plane_state)
+		if (pipe_ctx->plane_state && flags.bits.address)
 			pipe_ctx->plane_state->status.is_flip_pending = false;
 
 		break;
@@ -151,7 +152,8 @@ const struct dc_plane_status *dc_plane_get_status(
 		if (pipe_ctx->plane_state != plane_state)
 			continue;
 
-		dc->hwss.update_pending_status(pipe_ctx);
+		if (flags.bits.address)
+			dc->hwss.update_pending_status(pipe_ctx);
 	}
 
 	return plane_status;
@@ -270,8 +272,8 @@ void dc_3dlut_func_retain(struct dc_3dlut *lut)
 	kref_get(&lut->refcount);
 }
 
-void dc_plane_force_update_for_panic(struct dc_plane_state *plane_state,
-				     bool clear_tiling)
+void dc_plane_force_dcc_and_tiling_disable(struct dc_plane_state *plane_state,
+					   bool clear_tiling)
 {
 	struct dc *dc;
 	int i;
@@ -290,30 +292,21 @@ void dc_plane_force_update_for_panic(struct dc_plane_state *plane_state,
 		if (!pipe_ctx)
 			continue;
 
-		if (dc->ctx->dce_version >= DCE_VERSION_MAX) {
-			struct hubp *hubp = pipe_ctx->plane_res.hubp;
-			if (!hubp)
-				continue;
-			/* if framebuffer is tiled, disable tiling */
-			if (clear_tiling && hubp->funcs->hubp_clear_tiling)
-				hubp->funcs->hubp_clear_tiling(hubp);
-
-			/* force page flip to see the new content of the framebuffer */
-			hubp->funcs->hubp_program_surface_flip_and_addr(hubp,
-									&plane_state->address,
-									true);
-		} else {
-			struct mem_input *mi = pipe_ctx->plane_res.mi;
-			if (!mi)
-				continue;
-			/* if framebuffer is tiled, disable tiling */
-			if (clear_tiling && mi->funcs->mem_input_clear_tiling)
-				mi->funcs->mem_input_clear_tiling(mi);
-
-			/* force page flip to see the new content of the framebuffer */
-			mi->funcs->mem_input_program_surface_flip_and_addr(mi,
-									   &plane_state->address,
-									   true);
-		}
+		if (dc->hwss.clear_surface_dcc_and_tiling)
+			dc->hwss.clear_surface_dcc_and_tiling(pipe_ctx, plane_state, clear_tiling);
 	}
+}
+
+void dc_plane_copy_config(struct dc_plane_state *dst, const struct dc_plane_state *src)
+{
+	struct kref temp_refcount;
+
+	/* backup persistent info */
+	memcpy(&temp_refcount, &dst->refcount, sizeof(struct kref));
+
+	/* copy all configuration information */
+	memcpy(dst, src, sizeof(struct dc_plane_state));
+
+	/* restore persistent info */
+	memcpy(&dst->refcount, &temp_refcount, sizeof(struct kref));
 }

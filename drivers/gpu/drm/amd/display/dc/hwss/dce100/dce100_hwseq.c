@@ -138,5 +138,35 @@ void dce100_hw_sequencer_construct(struct dc *dc)
 	dc->hwseq->funcs.enable_display_power_gating = dce100_enable_display_power_gating;
 	dc->hwss.prepare_bandwidth = dce100_prepare_bandwidth;
 	dc->hwss.optimize_bandwidth = dce100_optimize_bandwidth;
+	dc->hwss.clear_surface_dcc_and_tiling = dce100_reset_surface_dcc_and_tiling;
+}
+
+/**
+ * dce100_reset_surface_dcc_and_tiling - Set DCC and tiling in DCE to their disable mode.
+ *
+ * @pipe_ctx: Pointer to the pipe context structure.
+ * @plane_state: Surface state
+ * @clear_tiling: If true set tiling to Linear, otherwise does not change tiling
+ *
+ * This function is responsible for call the HUBP block to disable DCC and set
+ * tiling to the linear mode.
+ */
+void dce100_reset_surface_dcc_and_tiling(struct pipe_ctx *pipe_ctx,
+					struct dc_plane_state *plane_state,
+					bool clear_tiling)
+{
+	struct mem_input *mi = pipe_ctx->plane_res.mi;
+
+	if (!mi)
+		return;
+
+	/* if framebuffer is tiled, disable tiling */
+	if (clear_tiling && mi->funcs->mem_input_clear_tiling)
+		mi->funcs->mem_input_clear_tiling(mi);
+
+	/* force page flip to see the new content of the framebuffer */
+	mi->funcs->mem_input_program_surface_flip_and_addr(mi,
+							   &plane_state->address,
+							   true);
 }
 

@@ -659,7 +659,7 @@ bool pmo_dcn4_fams2_initialize(struct dml2_pmo_initialize_in_out *in_out)
 	for (i = 1; i <= PMO_DCN4_MAX_DISPLAYS; i++) {
 		switch (i) {
 		case 1:
-			DML2_ASSERT(base_strategy_list_1_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
+			DML_ASSERT(base_strategy_list_1_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
 
 			/* populate list */
 			pmo_dcn4_fams2_expand_base_pstate_strategies(
@@ -670,7 +670,7 @@ bool pmo_dcn4_fams2_initialize(struct dml2_pmo_initialize_in_out *in_out)
 					&pmo->init_data.pmo_dcn4.num_expanded_strategies_per_list[i - 1]);
 			break;
 		case 2:
-			DML2_ASSERT(base_strategy_list_2_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
+			DML_ASSERT(base_strategy_list_2_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
 
 			/* populate list */
 			pmo_dcn4_fams2_expand_base_pstate_strategies(
@@ -681,7 +681,7 @@ bool pmo_dcn4_fams2_initialize(struct dml2_pmo_initialize_in_out *in_out)
 					&pmo->init_data.pmo_dcn4.num_expanded_strategies_per_list[i - 1]);
 			break;
 		case 3:
-			DML2_ASSERT(base_strategy_list_3_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
+			DML_ASSERT(base_strategy_list_3_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
 
 			/* populate list */
 			pmo_dcn4_fams2_expand_base_pstate_strategies(
@@ -692,7 +692,7 @@ bool pmo_dcn4_fams2_initialize(struct dml2_pmo_initialize_in_out *in_out)
 					&pmo->init_data.pmo_dcn4.num_expanded_strategies_per_list[i - 1]);
 			break;
 		case 4:
-			DML2_ASSERT(base_strategy_list_4_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
+			DML_ASSERT(base_strategy_list_4_display_size <= PMO_DCN4_MAX_BASE_STRATEGIES);
 
 			/* populate list */
 			pmo_dcn4_fams2_expand_base_pstate_strategies(
@@ -1082,12 +1082,21 @@ static bool all_timings_support_svp(const struct dml2_pmo_instance *pmo,
 	const struct dml2_fams2_meta *stream_fams2_meta;
 	unsigned int microschedule_vlines;
 	unsigned int i;
+	unsigned int mcaches_per_plane;
+	unsigned int total_mcaches_required = 0;
 
 	unsigned int num_planes_per_stream[DML2_MAX_PLANES] = { 0 };
 
 	/* confirm timing it is not a centered timing */
 	for (i = 0; i < display_config->display_config.num_planes; i++) {
 		plane_descriptor = &display_config->display_config.plane_descriptors[i];
+		mcaches_per_plane = 0;
+
+		if (plane_descriptor->surface.dcc.enable) {
+			mcaches_per_plane += display_config->stage2.mcache_allocations[i].num_mcaches_plane0 +
+				display_config->stage2.mcache_allocations[i].num_mcaches_plane1 -
+				(display_config->stage2.mcache_allocations[i].last_slice_sharing.plane0_plane1 ? 1 : 0);
+		}
 
 		if (is_bit_set_in_bitfield(mask, (unsigned char)plane_descriptor->stream_index)) {
 			num_planes_per_stream[plane_descriptor->stream_index]++;
@@ -1098,7 +1107,18 @@ static bool all_timings_support_svp(const struct dml2_pmo_instance *pmo,
 					plane_descriptor->composition.rotation_angle != dml2_rotation_0) {
 				return false;
 			}
+
+			/* phantom requires same number of mcaches as main */
+			if (plane_descriptor->surface.dcc.enable) {
+				mcaches_per_plane *= 2;
+			}
 		}
+		total_mcaches_required += mcaches_per_plane;
+	}
+
+	if (total_mcaches_required > pmo->soc_bb->num_dcc_mcaches) {
+		/* too many mcaches required */
+		return false;
 	}
 
 	for (i = 0; i < DML2_MAX_PLANES; i++) {

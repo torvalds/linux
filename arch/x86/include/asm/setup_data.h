@@ -4,7 +4,7 @@
 
 #include <uapi/asm/setup_data.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct pci_setup_rom {
 	struct setup_data data;
@@ -27,6 +27,6 @@ struct efi_setup_data {
 	u64 reserved[8];
 };
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_X86_SETUP_DATA_H */

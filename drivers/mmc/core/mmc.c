@@ -11,6 +11,7 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
+#include <linux/string.h>
 #include <linux/pm_runtime.h>
 #include <linux/random.h>
 #include <linux/sysfs.h>
@@ -66,7 +67,7 @@ static int mmc_decode_cid(struct mmc_card *card)
 
 	/*
 	 * The selection of the format here is based upon published
-	 * specs from sandisk and from what people have reported.
+	 * specs from SanDisk and from what people have reported.
 	 */
 	switch (card->csd.mmca_vsn) {
 	case 0: /* MMC v1.0 - v1.2 */
@@ -108,6 +109,9 @@ static int mmc_decode_cid(struct mmc_card *card)
 			mmc_hostname(card->host), card->csd.mmca_vsn);
 		return -EINVAL;
 	}
+
+	/* some product names include trailing whitespace */
+	strim(card->cid.prod_name);
 
 	return 0;
 }

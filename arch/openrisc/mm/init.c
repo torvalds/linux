@@ -35,6 +35,7 @@
 #include <asm/fixmap.h>
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
+#include <asm/cacheflush.h>
 
 int mem_init_done;
 
@@ -176,8 +177,8 @@ void __init paging_init(void)
 	barrier();
 
 	/* Invalidate instruction caches after code modification */
-	mtspr(SPR_ICBIR, 0x900);
-	mtspr(SPR_ICBIR, 0xa00);
+	local_icache_block_inv(0x900);
+	local_icache_block_inv(0xa00);
 
 	/* New TLB miss handlers and kernel page tables are in now place.
 	 * Make sure that page flags get updated for all pages in TLB by
@@ -193,14 +194,8 @@ void __init mem_init(void)
 {
 	BUG_ON(!mem_map);
 
-	max_mapnr = max_low_pfn;
-	high_memory = (void *)__va(max_low_pfn * PAGE_SIZE);
-
 	/* clear the zero-page */
 	memset((void *)empty_zero_page, 0, PAGE_SIZE);
-
-	/* this will put all low memory onto the freelists */
-	memblock_free_all();
 
 	printk("mem_init_done ...........................................\n");
 	mem_init_done = 1;

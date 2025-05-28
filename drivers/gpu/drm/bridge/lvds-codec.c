@@ -34,11 +34,12 @@ static inline struct lvds_codec *to_lvds_codec(struct drm_bridge *bridge)
 }
 
 static int lvds_codec_attach(struct drm_bridge *bridge,
+			     struct drm_encoder *encoder,
 			     enum drm_bridge_attach_flags flags)
 {
 	struct lvds_codec *lvds_codec = to_lvds_codec(bridge);
 
-	return drm_bridge_attach(bridge->encoder, lvds_codec->panel_bridge,
+	return drm_bridge_attach(encoder, lvds_codec->panel_bridge,
 				 bridge, flags);
 }
 

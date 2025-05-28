@@ -365,6 +365,34 @@ Supported chips:
 
     Datasheet: Not publicly available, can be requested from Nuvoton
 
+  * Nuvoton NCT7716
+
+    Prefix: 'nct7716'
+
+    Addresses scanned: I2C 0x48, 0x49
+
+    Datasheet: Not publicly available, can be requested from Nuvoton
+
+  * Nuvoton NCT7717
+
+    Prefix: 'nct7717'
+
+    Addresses scanned: I2C 0x48
+
+    Datasheet: Publicly available at Nuvoton website
+
+               https://www.nuvoton.com/resource-files/Nuvoton_NCT7717U_Datasheet_V111.pdf
+
+  * Nuvoton NCT7718
+
+    Prefix: 'nct7718'
+
+    Addresses scanned: I2C 0x4c
+
+    Datasheet: Publicly available at Nuvoton website
+
+               https://www.nuvoton.com/resource-files/Nuvoton_NCT7718W_Datasheet_V11.pdf
+
   * Philips/NXP SA56004X
 
     Prefix: 'sa56004'
@@ -572,6 +600,21 @@ W83L771AWG/ASG
   * Successor of the W83L771W/G, same features.
   * The AWG and ASG variants only differ in package format.
   * Diode ideality factor configuration (remote sensor) at 0xE3
+
+NCT7716:
+  * 8 bit sensor resolution
+  * Selectable address
+  * Configurable conversion rate
+
+NCT7717:
+  * 8 bit sensor resolution
+  * Configurable conversion rate
+
+NCT7718:
+  * Temperature offset register for remote temperature sensor
+  * 11 bit resolution for remote temperature sensor
+  * Low temperature limits
+  * Configurable conversion rate
 
 SA56004X:
   * Better local resolution

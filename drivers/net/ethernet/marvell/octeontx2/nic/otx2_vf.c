@@ -722,15 +722,27 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_shutdown_tc;
 
+	vf->af_xdp_zc_qidx = bitmap_zalloc(qcount, GFP_KERNEL);
+	if (!vf->af_xdp_zc_qidx) {
+		err = -ENOMEM;
+		goto err_unreg_devlink;
+	}
+
 #ifdef CONFIG_DCB
 	err = otx2_dcbnl_set_ops(netdev);
 	if (err)
-		goto err_shutdown_tc;
+		goto err_free_zc_bmap;
 #endif
 	otx2_qos_init(vf, qos_txqs);
 
 	return 0;
 
+#ifdef CONFIG_DCB
+err_free_zc_bmap:
+	bitmap_free(vf->af_xdp_zc_qidx);
+#endif
+err_unreg_devlink:
+	otx2_unregister_dl(vf);
 err_shutdown_tc:
 	otx2_shutdown_tc(vf);
 err_unreg_netdev:

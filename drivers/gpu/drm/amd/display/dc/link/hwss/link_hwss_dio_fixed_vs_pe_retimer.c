@@ -127,7 +127,10 @@ static void set_dio_fixed_vs_pe_retimer_dp_link_test_pattern(struct dc_link *lin
 		const struct link_resource *link_res,
 		struct encoder_set_dp_phy_pattern_param *tp_params)
 {
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+	struct link_encoder *link_enc = link_res->dio_link_enc;
+
+	if (!link->dc->config.unify_link_enc_assignment)
+		link_enc = link_enc_cfg_get_link_enc(link);
 
 	if (!set_dio_fixed_vs_pe_retimer_dp_link_test_pattern_override(
 			link, link_res, tp_params, get_dio_link_hwss())) {

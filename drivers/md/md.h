@@ -18,10 +18,36 @@
 #include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/raid/md_u.h>
 #include <trace/events/block.h>
-#include "md-cluster.h"
 
 #define MaxSector (~(sector_t)0)
+
+enum md_submodule_type {
+	MD_PERSONALITY = 0,
+	MD_CLUSTER,
+	MD_BITMAP, /* TODO */
+};
+
+enum md_submodule_id {
+	ID_LINEAR	= LEVEL_LINEAR,
+	ID_RAID0	= 0,
+	ID_RAID1	= 1,
+	ID_RAID4	= 4,
+	ID_RAID5	= 5,
+	ID_RAID6	= 6,
+	ID_RAID10	= 10,
+	ID_CLUSTER,
+	ID_BITMAP,	/* TODO */
+	ID_LLBITMAP,	/* TODO */
+};
+
+struct md_submodule_head {
+	enum md_submodule_type	type;
+	enum md_submodule_id	id;
+	const char		*name;
+	struct module		*owner;
+};
 
 /*
  * These flags should really be called "NO_RETRY" rather than
@@ -266,8 +292,8 @@ enum flag_bits {
 	Nonrot,			/* non-rotational device (SSD) */
 };
 
-static inline int is_badblock(struct md_rdev *rdev, sector_t s, int sectors,
-			      sector_t *first_bad, int *bad_sectors)
+static inline int is_badblock(struct md_rdev *rdev, sector_t s, sector_t sectors,
+			      sector_t *first_bad, sector_t *bad_sectors)
 {
 	if (unlikely(rdev->badblocks.count)) {
 		int rv = badblocks_check(&rdev->badblocks, rdev->data_offset + s,
@@ -284,16 +310,17 @@ static inline int rdev_has_badblock(struct md_rdev *rdev, sector_t s,
 				    int sectors)
 {
 	sector_t first_bad;
-	int bad_sectors;
+	sector_t bad_sectors;
 
 	return is_badblock(rdev, s, sectors, &first_bad, &bad_sectors);
 }
 
-extern int rdev_set_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
-			      int is_new);
-extern int rdev_clear_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
-				int is_new);
+extern bool rdev_set_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
+			       int is_new);
+extern void rdev_clear_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
+				 int is_new);
 struct md_cluster_info;
+struct md_cluster_operations;
 
 /**
  * enum mddev_flags - md device flags.
@@ -576,6 +603,7 @@ struct mddev {
 	mempool_t *serial_info_pool;
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
 	struct md_cluster_info		*cluster_info;
+	struct md_cluster_operations *cluster_ops;
 	unsigned int			good_device_nr;	/* good device num within cluster raid */
 	unsigned int			noio_flag; /* for memalloc scope API */
 
@@ -699,10 +727,8 @@ static inline void md_sync_acct_bio(struct bio *bio, unsigned long nr_sectors)
 
 struct md_personality
 {
-	char *name;
-	int level;
-	struct list_head list;
-	struct module *owner;
+	struct md_submodule_head head;
+
 	bool __must_check (*make_request)(struct mddev *mddev, struct bio *bio);
 	/*
 	 * start up works that do NOT require md_thread. tasks that
@@ -843,13 +869,9 @@ static inline void safe_put_page(struct page *p)
 	if (p) put_page(p);
 }
 
-extern int register_md_personality(struct md_personality *p);
-extern int unregister_md_personality(struct md_personality *p);
-extern int register_md_cluster_operations(const struct md_cluster_operations *ops,
-		struct module *module);
-extern int unregister_md_cluster_operations(void);
-extern int md_setup_cluster(struct mddev *mddev, int nodes);
-extern void md_cluster_stop(struct mddev *mddev);
+int register_md_submodule(struct md_submodule_head *msh);
+void unregister_md_submodule(struct md_submodule_head *msh);
+
 extern struct md_thread *md_register_thread(
 	void (*run)(struct md_thread *thread),
 	struct mddev *mddev,
@@ -906,7 +928,6 @@ extern void md_idle_sync_thread(struct mddev *mddev);
 extern void md_frozen_sync_thread(struct mddev *mddev);
 extern void md_unfrozen_sync_thread(struct mddev *mddev);
 
-extern void md_reload_sb(struct mddev *mddev, int raid_disk);
 extern void md_update_sb(struct mddev *mddev, int force);
 extern void mddev_create_serial_pool(struct mddev *mddev, struct md_rdev *rdev);
 extern void mddev_destroy_serial_pool(struct mddev *mddev,
@@ -928,7 +949,6 @@ static inline void rdev_dec_pending(struct md_rdev *rdev, struct mddev *mddev)
 	}
 }
 
-extern const struct md_cluster_operations *md_cluster_ops;
 static inline int mddev_is_clustered(struct mddev *mddev)
 {
 	return mddev->cluster_info && mddev->bitmap_info.nodes > 1;

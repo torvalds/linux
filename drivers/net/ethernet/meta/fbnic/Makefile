@@ -20,6 +20,7 @@ fbnic-y := fbnic_csr.o \
 	   fbnic_pci.o \
 	   fbnic_phylink.o \
 	   fbnic_rpc.o \
+	   fbnic_time.o \
 	   fbnic_tlv.o \
 	   fbnic_txrx.o \
-	   fbnic_time.o
+# End of objects

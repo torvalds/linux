@@ -15,6 +15,7 @@
 #define _LINUX_FOLIO_QUEUE_H
 
 #include <linux/pagevec.h>
+#include <linux/mm.h>
 
 /*
  * Segment in a queue of running buffers.  Each segment can hold a number of
@@ -216,13 +217,6 @@ static inline void folioq_unmark3(struct folio_queue *folioq, unsigned int slot)
 	clear_bit(slot, &folioq->marks3);
 }
 
-static inline unsigned int __folio_order(struct folio *folio)
-{
-	if (!folio_test_large(folio))
-		return 0;
-	return folio->_flags_1 & 0xff;
-}
-
 /**
  * folioq_append: Add a folio to a folio queue segment
  * @folioq: The segment to add to
@@ -241,7 +235,7 @@ static inline unsigned int folioq_append(struct folio_queue *folioq, struct foli
 	unsigned int slot = folioq->vec.nr++;
 
 	folioq->vec.folios[slot] = folio;
-	folioq->orders[slot] = __folio_order(folio);
+	folioq->orders[slot] = folio_order(folio);
 	return slot;
 }
 
@@ -263,7 +257,7 @@ static inline unsigned int folioq_append_mark(struct folio_queue *folioq, struct
 	unsigned int slot = folioq->vec.nr++;
 
 	folioq->vec.folios[slot] = folio;
-	folioq->orders[slot] = __folio_order(folio);
+	folioq->orders[slot] = folio_order(folio);
 	folioq_mark(folioq, slot);
 	return slot;
 }

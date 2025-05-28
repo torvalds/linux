@@ -246,12 +246,12 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 	if (bd == NULL) {
 		gfs2_log_unlock(sdp);
 		unlock_buffer(bh);
-		lock_page(bh->b_page);
+		folio_lock(bh->b_folio);
 		if (bh->b_private == NULL)
 			bd = gfs2_alloc_bufdata(gl, bh);
 		else
 			bd = bh->b_private;
-		unlock_page(bh->b_page);
+		folio_unlock(bh->b_folio);
 		lock_buffer(bh);
 		gfs2_log_lock(sdp);
 	}

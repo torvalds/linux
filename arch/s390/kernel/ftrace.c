@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/kmsan-checks.h>
+#include <linux/cpufeature.h>
 #include <linux/kprobes.h>
 #include <linux/execmem.h>
 #include <trace/syscall.h>
@@ -69,7 +70,7 @@ static const char *ftrace_shared_hotpatch_trampoline(const char **end)
 
 bool ftrace_need_init_nop(void)
 {
-	return !MACHINE_HAS_SEQ_INSN;
+	return !cpu_has_seq_insn();
 }
 
 int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
@@ -189,7 +190,7 @@ static int ftrace_modify_trampoline_call(struct dyn_ftrace *rec,
 int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 		       unsigned long addr)
 {
-	if (MACHINE_HAS_SEQ_INSN)
+	if (cpu_has_seq_insn())
 		return ftrace_patch_branch_insn(rec->ip, old_addr, addr);
 	else
 		return ftrace_modify_trampoline_call(rec, old_addr, addr);
@@ -213,8 +214,8 @@ static int ftrace_patch_branch_mask(void *addr, u16 expected, bool enable)
 int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
 {
-	/* Expect brcl 0xf,... for the !MACHINE_HAS_SEQ_INSN case */
-	if (MACHINE_HAS_SEQ_INSN)
+	/* Expect brcl 0xf,... for the !cpu_has_seq_insn() case */
+	if (cpu_has_seq_insn())
 		return ftrace_patch_branch_insn(rec->ip, addr, 0);
 	else
 		return ftrace_patch_branch_mask((void *)rec->ip, 0xc0f4, false);
@@ -234,7 +235,7 @@ static int ftrace_make_trampoline_call(struct dyn_ftrace *rec, unsigned long add
 
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
-	if (MACHINE_HAS_SEQ_INSN)
+	if (cpu_has_seq_insn())
 		return ftrace_patch_branch_insn(rec->ip, 0, addr);
 	else
 		return ftrace_make_trampoline_call(rec, addr);
@@ -266,12 +267,13 @@ void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
 		       struct ftrace_ops *op, struct ftrace_regs *fregs)
 {
 	unsigned long *parent = &arch_ftrace_regs(fregs)->regs.gprs[14];
+	unsigned long sp = arch_ftrace_regs(fregs)->regs.gprs[15];
 
 	if (unlikely(ftrace_graph_is_dead()))
 		return;
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;
-	if (!function_graph_enter_regs(*parent, ip, 0, parent, fregs))
+	if (!function_graph_enter_regs(*parent, ip, 0, (unsigned long *)sp, fregs))
 		*parent = (unsigned long)&return_to_handler;
 }
 

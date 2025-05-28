@@ -129,6 +129,14 @@ config CC_HAS_COUNTED_BY
 	# https://github.com/llvm/llvm-project/pull/112636
 	depends on !(CC_IS_CLANG && CLANG_VERSION < 190103)
 
+config CC_HAS_MULTIDIMENSIONAL_NONSTRING
+	def_bool $(success,echo 'char tag[][4] __attribute__((__nonstring__)) = { };' | $(CC) $(CLANG_FLAGS) -x c - -c -o /dev/null -Werror)
+
+config LD_CAN_USE_KEEP_IN_OVERLAY
+	# ld.lld prior to 21.0.0 did not support KEEP within an overlay description
+	# https://github.com/llvm/llvm-project/pull/130661
+	def_bool LD_IS_BFD || LLD_VERSION >= 210000
+
 config RUSTC_HAS_COERCE_POINTEE
 	def_bool RUSTC_VERSION >= 108400
 
@@ -706,7 +714,7 @@ endmenu # "CPU/Task time and stats accounting"
 
 config CPU_ISOLATION
 	bool "CPU isolation"
-	depends on SMP || COMPILE_TEST
+	depends on SMP
 	default y
 	help
 	  Make sure that CPUs running critical tasks are not disturbed by
@@ -1195,7 +1203,8 @@ config CPUSETS_V1
 	help
 	  Legacy cgroup v1 cpusets controller which has been deprecated by
 	  cgroup v2 implementation. The v1 is there for legacy applications
-	  which haven't migrated to the new cgroup v2 interface yet. If you
+	  which haven't migrated to the new cgroup v2 interface yet. Legacy
+	  interface includes cpuset filesystem and /proc/<pid>/cpuset. If you
 	  do not have any such application then you are completely fine leaving
 	  this option disabled.
 
@@ -1203,7 +1212,7 @@ config CPUSETS_V1
 
 config PROC_PID_CPUSET
 	bool "Include legacy /proc/<pid>/cpuset file"
-	depends on CPUSETS
+	depends on CPUSETS_V1
 	default y
 
 config CGROUP_DEVICE
@@ -1454,6 +1463,13 @@ config INITRAMFS_PRESERVE_MTIME
 
 	  If unsure, say Y.
 
+config INITRAMFS_TEST
+	bool "Test initramfs cpio archive extraction" if !KUNIT_ALL_TESTS
+	depends on BLK_DEV_INITRD && KUNIT=y
+	default KUNIT_ALL_TESTS
+	help
+	  Build KUnit tests for initramfs. See Documentation/dev-tools/kunit
+
 choice
 	prompt "Compiler optimization level"
 	default CC_OPTIMIZE_FOR_PERFORMANCE
@@ -1539,6 +1555,16 @@ config SYSCTL_ARCH_UNALIGN_ALLOW
 	  the unaligned access emulation.
 	  see arch/parisc/kernel/unaligned.c for reference
 
+config SYSFS_SYSCALL
+	bool "Sysfs syscall support"
+	default n
+	help
+	  sys_sysfs is an obsolete system call no longer supported in libc.
+	  Note that disabling this option is more secure but might break
+	  compatibility with some systems.
+
+	  If unsure say N here.
+
 config HAVE_PCSPKR_PLATFORM
 	bool
 
@@ -1582,16 +1608,6 @@ config SGETMASK_SYSCALL
 	  architectures.
 
 	  If unsure, leave the default option here.
-
-config SYSFS_SYSCALL
-	bool "Sysfs syscall support" if EXPERT
-	default y
-	help
-	  sys_sysfs is an obsolete system call no longer supported in libc.
-	  Note that disabling this option is more secure but might break
-	  compatibility with some systems.
-
-	  If unsure say Y here.
 
 config FHANDLE
 	bool "open by fhandle syscalls" if EXPERT
@@ -1869,11 +1885,6 @@ config KALLSYMS_ALL
 
 	  Say N unless you really need all symbols, or kernel live patching.
 
-config KALLSYMS_ABSOLUTE_PERCPU
-	bool
-	depends on KALLSYMS
-	default X86_64 && SMP
-
 # end of the "standard kernel features (expert users)" menu
 
 config ARCH_HAS_MEMBARRIER_CALLBACKS
@@ -1881,6 +1892,28 @@ config ARCH_HAS_MEMBARRIER_CALLBACKS
 
 config ARCH_HAS_MEMBARRIER_SYNC_CORE
 	bool
+
+config ARCH_SUPPORTS_MSEAL_SYSTEM_MAPPINGS
+	bool
+	help
+	  Control MSEAL_SYSTEM_MAPPINGS access based on architecture.
+
+	  A 64-bit kernel is required for the memory sealing feature.
+	  No specific hardware features from the CPU are needed.
+
+	  To enable this feature, the architecture needs to update their
+	  special mappings calls to include the sealing flag and confirm
+	  that it doesn't unmap/remap system mappings during the life
+	  time of the process. The existence of this flag for an architecture
+	  implies that it does not require the remapping of the system
+	  mappings during process lifetime, so sealing these mappings is safe
+	  from a kernel perspective.
+
+	  After the architecture enables this, a distribution can set
+	  CONFIG_MSEAL_SYSTEM_MAPPING to manage access to the feature.
+
+	  For complete descriptions of memory sealing, please see
+	  Documentation/userspace-api/mseal.rst
 
 config HAVE_PERF_EVENTS
 	bool
@@ -1973,7 +2006,7 @@ config RUST
 	depends on !MODVERSIONS || GENDWARFKSYMS
 	depends on !GCC_PLUGIN_RANDSTRUCT
 	depends on !RANDSTRUCT
-	depends on !DEBUG_INFO_BTF || PAHOLE_HAS_LANG_EXCLUDE
+	depends on !DEBUG_INFO_BTF || (PAHOLE_HAS_LANG_EXCLUDE && !LTO)
 	depends on !CFI_CLANG || HAVE_CFI_ICALL_NORMALIZE_INTEGERS_RUSTC
 	select CFI_ICALL_NORMALIZE_INTEGERS if CFI_CLANG
 	depends on !CALL_PADDING || RUSTC_VERSION >= 108100

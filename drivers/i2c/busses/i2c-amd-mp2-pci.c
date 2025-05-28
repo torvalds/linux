@@ -327,13 +327,11 @@ static int amd_mp2_pci_init(struct amd_mp2_dev *privdata,
 			      amd_mp2_irq_isr, irq_flag, dev_name(&pci_dev->dev), privdata);
 	if (rc) {
 		pci_err(pci_dev, "Failure requesting irq %i: %d\n", privdata->dev_irq, rc);
-		goto free_irq_vectors;
+		goto err_dma_mask;
 	}
 
 	return rc;
 
-free_irq_vectors:
-	free_irq(privdata->dev_irq, privdata);
 err_dma_mask:
 	pci_clear_master(pci_dev);
 err_pci_enable:
@@ -376,7 +374,6 @@ static void amd_mp2_pci_remove(struct pci_dev *pci_dev)
 	pm_runtime_forbid(&pci_dev->dev);
 	pm_runtime_get_noresume(&pci_dev->dev);
 
-	free_irq(privdata->dev_irq, privdata);
 	pci_clear_master(pci_dev);
 
 	amd_mp2_clear_reg(privdata);

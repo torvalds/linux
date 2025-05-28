@@ -470,7 +470,8 @@ void netfs_read_collection_worker(struct work_struct *work)
  */
 void netfs_wake_read_collector(struct netfs_io_request *rreq)
 {
-	if (test_bit(NETFS_RREQ_OFFLOAD_COLLECTION, &rreq->flags)) {
+	if (test_bit(NETFS_RREQ_OFFLOAD_COLLECTION, &rreq->flags) &&
+	    !test_bit(NETFS_RREQ_RETRYING, &rreq->flags)) {
 		if (!work_pending(&rreq->work)) {
 			netfs_get_request(rreq, netfs_rreq_trace_get_work);
 			if (!queue_work(system_unbound_wq, &rreq->work))
@@ -586,7 +587,8 @@ void netfs_read_subreq_terminated(struct netfs_io_subrequest *subreq)
 	smp_mb__after_atomic(); /* Clear IN_PROGRESS before task state */
 
 	/* If we are at the head of the queue, wake up the collector. */
-	if (list_is_first(&subreq->rreq_link, &stream->subrequests))
+	if (list_is_first(&subreq->rreq_link, &stream->subrequests) ||
+	    test_bit(NETFS_RREQ_RETRYING, &rreq->flags))
 		netfs_wake_read_collector(rreq);
 
 	netfs_put_subrequest(subreq, true, netfs_sreq_trace_put_terminated);
@@ -680,14 +682,16 @@ void netfs_wait_for_pause(struct netfs_io_request *rreq)
 		trace_netfs_rreq(rreq, netfs_rreq_trace_wait_queue);
 		prepare_to_wait(&rreq->waitq, &myself, TASK_UNINTERRUPTIBLE);
 
-		subreq = list_first_entry_or_null(&stream->subrequests,
-						  struct netfs_io_subrequest, rreq_link);
-		if (subreq &&
-		    (!test_bit(NETFS_SREQ_IN_PROGRESS, &subreq->flags) ||
-		     test_bit(NETFS_SREQ_MADE_PROGRESS, &subreq->flags))) {
-			__set_current_state(TASK_RUNNING);
-			netfs_read_collection(rreq);
-			continue;
+		if (!test_bit(NETFS_RREQ_OFFLOAD_COLLECTION, &rreq->flags)) {
+			subreq = list_first_entry_or_null(&stream->subrequests,
+							  struct netfs_io_subrequest, rreq_link);
+			if (subreq &&
+			    (!test_bit(NETFS_SREQ_IN_PROGRESS, &subreq->flags) ||
+			     test_bit(NETFS_SREQ_MADE_PROGRESS, &subreq->flags))) {
+				__set_current_state(TASK_RUNNING);
+				netfs_read_collection(rreq);
+				continue;
+			}
 		}
 
 		if (!test_bit(NETFS_RREQ_IN_PROGRESS, &rreq->flags) ||

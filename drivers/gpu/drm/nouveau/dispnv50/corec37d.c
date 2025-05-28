@@ -105,7 +105,7 @@ int corec37d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
 	int ret;
 
 	ret = nvif_object_ctor(&disp->disp->object, "dispCaps", 0,
-			       GV100_DISP_CAPS, NULL, 0, &disp->caps);
+			       disp->core->func->caps_class, NULL, 0, &disp->caps);
 	if (ret) {
 		NV_ERROR(drm,
 			 "Failed to init notifier caps region: %d\n",
@@ -162,6 +162,7 @@ corec37d = {
 	.init = corec37d_init,
 	.ntfy_init = corec37d_ntfy_init,
 	.caps_init = corec37d_caps_init,
+	.caps_class = GV100_DISP_CAPS,
 	.ntfy_wait_done = corec37d_ntfy_wait_done,
 	.update = corec37d_update,
 	.wndw.owner = corec37d_wndw_owner,

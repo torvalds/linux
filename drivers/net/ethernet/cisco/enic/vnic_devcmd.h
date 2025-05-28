@@ -436,6 +436,25 @@ enum vnic_devcmd_cmd {
 	 * in: (u16) a2 = unsigned short int port information
 	 */
 	CMD_OVERLAY_OFFLOAD_CFG = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 73),
+
+	/*
+	 * Set extended CQ field in MREGS of RQ (or all RQs)
+	 * for given vNIC
+	 * in: (u64) a0 = RQ selection (VNIC_RQ_ALL for all RQs)
+	 *     (u32) a1 = CQ entry size
+	 *         VNIC_RQ_CQ_ENTRY_SIZE_16 --> 16 bytes
+	 *         VNIC_RQ_CQ_ENTRY_SIZE_32 --> 32 bytes
+	 *         VNIC_RQ_CQ_ENTRY_SIZE_64 --> 64 bytes
+	 *
+	 * Capability query:
+	 * out: (u32) a0 = errno, 0:valid cmd
+	 *      (u32) a1 = value consisting of supported entries
+	 *         bit 0: 16 bytes
+	 *         bit 1: 32 bytes
+	 *         bit 2: 64 bytes
+	 */
+	CMD_CQ_ENTRY_SIZE_SET = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 90),
+
 };
 
 /* CMD_ENABLE2 flags */

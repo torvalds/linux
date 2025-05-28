@@ -47,6 +47,11 @@ properties:
     $ref: /schemas/types.yaml#/definitions/string
     deprecated: true
 
+  mux-states:
+    description:
+      mux controller node to route the I2C signals from SoC to clients.
+    maxItems: 1
+
 required:
   - compatible
   - reg
@@ -87,4 +92,5 @@ examples:
         interrupts = <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>;
         #address-cells = <1>;
         #size-cells = <0>;
+        mux-states = <&i2c_mux 1>;
     };

@@ -183,7 +183,7 @@ void mac_mksound( unsigned int freq, unsigned int length )
 
 	local_irq_save(flags);
 
-	del_timer( &mac_sound_timer );
+	timer_delete(&mac_sound_timer);
 
 	for ( i = 0; i < 0x800; i++ )
 		mac_asc_regs[ i ] = 0;
@@ -277,7 +277,7 @@ static void mac_quadra_ring_bell(struct timer_list *unused)
 
 	local_irq_save(flags);
 
-	del_timer( &mac_sound_timer );
+	timer_delete(&mac_sound_timer);
 
 	if ( mac_bell_duration-- > 0 )
 	{

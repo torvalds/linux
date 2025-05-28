@@ -557,20 +557,19 @@ static int quicki2c_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	ret = pcim_iomap_regions(pdev, BIT(0), KBUILD_MODNAME);
+	mem_addr = pcim_iomap_region(pdev, 0, KBUILD_MODNAME);
+	ret = PTR_ERR_OR_ZERO(mem_addr);
 	if (ret) {
 		dev_err_once(&pdev->dev, "Failed to get PCI regions, ret = %d.\n", ret);
 		goto disable_pci_device;
 	}
-
-	mem_addr = pcim_iomap_table(pdev)[0];
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret) {
 		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret) {
 			dev_err_once(&pdev->dev, "No usable DMA configuration %d\n", ret);
-			goto unmap_io_region;
+			goto disable_pci_device;
 		}
 	}
 
@@ -578,7 +577,7 @@ static int quicki2c_probe(struct pci_dev *pdev,
 	if (ret < 0) {
 		dev_err_once(&pdev->dev,
 			     "Failed to allocate IRQ vectors. ret = %d\n", ret);
-		goto unmap_io_region;
+		goto disable_pci_device;
 	}
 
 	pdev->irq = pci_irq_vector(pdev, 0);
@@ -587,7 +586,7 @@ static int quicki2c_probe(struct pci_dev *pdev,
 	if (IS_ERR(qcdev)) {
 		dev_err_once(&pdev->dev, "QuickI2C device init failed\n");
 		ret = PTR_ERR(qcdev);
-		goto unmap_io_region;
+		goto disable_pci_device;
 	}
 
 	pci_set_drvdata(pdev, qcdev);
@@ -666,8 +665,6 @@ dma_deinit:
 	quicki2c_dma_deinit(qcdev);
 dev_deinit:
 	quicki2c_dev_deinit(qcdev);
-unmap_io_region:
-	pcim_iounmap_regions(pdev, BIT(0));
 disable_pci_device:
 	pci_clear_master(pdev);
 
@@ -697,7 +694,6 @@ static void quicki2c_remove(struct pci_dev *pdev)
 
 	quicki2c_dev_deinit(qcdev);
 
-	pcim_iounmap_regions(pdev, BIT(0));
 	pci_clear_master(pdev);
 }
 

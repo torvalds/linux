@@ -32,9 +32,7 @@
 #include <linux/leds.h>
 #include <linux/workqueue.h>
 
-#if IS_ENABLED(CONFIG_ACPI_PLATFORM_PROFILE)
 #include <linux/platform_profile.h>
-#endif /* CONFIG_ACPI_PLATFORM_PROFILE */
 
 #include "hid-ids.h"
 
@@ -731,13 +729,8 @@ static int lenovo_raw_event_TP_X12_tab(struct hid_device *hdev, u32 raw_data)
 				report_key_event(input, KEY_RFKILL);
 				return 1;
 			}
-#if IS_ENABLED(CONFIG_ACPI_PLATFORM_PROFILE)
-			else {
-				platform_profile_cycle();
-				return 1;
-			}
-#endif /* CONFIG_ACPI_PLATFORM_PROFILE */
-			return 0;
+			platform_profile_cycle();
+			return 1;
 		case TP_X12_RAW_HOTKEY_FN_F10:
 			/* TAB1 has PICKUP Phone and TAB2 use Snipping tool*/
 			(hdev->product == USB_DEVICE_ID_LENOVO_X12_TAB) ?
@@ -783,7 +776,7 @@ static int lenovo_raw_event(struct hid_device *hdev,
 	if (unlikely((hdev->product == USB_DEVICE_ID_LENOVO_X12_TAB
 			|| hdev->product == USB_DEVICE_ID_LENOVO_X12_TAB2)
 			&& size >= 3 && report->id == 0x03))
-		return lenovo_raw_event_TP_X12_tab(hdev, le32_to_cpu(*(u32 *)data));
+		return lenovo_raw_event_TP_X12_tab(hdev, le32_to_cpu(*(__le32 *)data));
 
 	return 0;
 }

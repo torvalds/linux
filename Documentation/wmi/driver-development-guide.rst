@@ -96,6 +96,10 @@ on a given machine.
 Because of this, WMI drivers should use the state container design pattern as described in
 Documentation/driver-api/driver-model/design-patterns.rst.
 
+.. warning:: Using both GUID-based and non-GUID-based functions for querying WMI data blocks and
+             handling WMI events simultaneously on the same device is guaranteed to corrupt the
+             WMI device state and might lead to erratic behaviour.
+
 WMI method drivers
 ------------------
 

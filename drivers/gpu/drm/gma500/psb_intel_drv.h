@@ -182,7 +182,6 @@ struct gma_i2c_chan *gma_i2c_create(struct drm_device *dev, const u32 reg,
 void gma_i2c_destroy(struct gma_i2c_chan *chan);
 int psb_intel_ddc_get_modes(struct drm_connector *connector,
 			    struct i2c_adapter *adapter);
-extern bool psb_intel_ddc_probe(struct i2c_adapter *adapter);
 
 extern void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 			    struct psb_intel_mode_device *mode_dev);
@@ -212,7 +211,7 @@ extern bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 				      const struct drm_display_mode *mode,
 				      struct drm_display_mode *adjusted_mode);
 extern enum drm_mode_status psb_intel_lvds_mode_valid(struct drm_connector *connector,
-				     struct drm_display_mode *mode);
+				     const struct drm_display_mode *mode);
 extern int psb_intel_lvds_set_property(struct drm_connector *connector,
 					struct drm_property *property,
 					uint64_t value);

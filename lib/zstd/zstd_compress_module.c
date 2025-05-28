@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause
 /*
- * Copyright (c) Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -16,6 +16,7 @@
 
 #include "common/zstd_deps.h"
 #include "common/zstd_internal.h"
+#include "compress/zstd_compress_internal.h"
 
 #define ZSTD_FORWARD_IF_ERR(ret)            \
 	do {                                \
@@ -92,11 +93,63 @@ zstd_compression_parameters zstd_get_cparams(int level,
 }
 EXPORT_SYMBOL(zstd_get_cparams);
 
+size_t zstd_cctx_set_param(zstd_cctx *cctx, ZSTD_cParameter param, int value)
+{
+	return ZSTD_CCtx_setParameter(cctx, param, value);
+}
+EXPORT_SYMBOL(zstd_cctx_set_param);
+
 size_t zstd_cctx_workspace_bound(const zstd_compression_parameters *cparams)
 {
 	return ZSTD_estimateCCtxSize_usingCParams(*cparams);
 }
 EXPORT_SYMBOL(zstd_cctx_workspace_bound);
+
+// Used by zstd_cctx_workspace_bound_with_ext_seq_prod()
+static size_t dummy_external_sequence_producer(
+	void *sequenceProducerState,
+	ZSTD_Sequence *outSeqs, size_t outSeqsCapacity,
+	const void *src, size_t srcSize,
+	const void *dict, size_t dictSize,
+	int compressionLevel,
+	size_t windowSize)
+{
+	(void)sequenceProducerState;
+	(void)outSeqs; (void)outSeqsCapacity;
+	(void)src; (void)srcSize;
+	(void)dict; (void)dictSize;
+	(void)compressionLevel;
+	(void)windowSize;
+	return ZSTD_SEQUENCE_PRODUCER_ERROR;
+}
+
+static void init_cctx_params_from_compress_params(
+	ZSTD_CCtx_params *cctx_params,
+	const zstd_compression_parameters *compress_params)
+{
+	ZSTD_parameters zstd_params;
+	memset(&zstd_params, 0, sizeof(zstd_params));
+	zstd_params.cParams = *compress_params;
+	ZSTD_CCtxParams_init_advanced(cctx_params, zstd_params);
+}
+
+size_t zstd_cctx_workspace_bound_with_ext_seq_prod(const zstd_compression_parameters *compress_params)
+{
+	ZSTD_CCtx_params cctx_params;
+	init_cctx_params_from_compress_params(&cctx_params, compress_params);
+	ZSTD_CCtxParams_registerSequenceProducer(&cctx_params, NULL, dummy_external_sequence_producer);
+	return ZSTD_estimateCCtxSize_usingCCtxParams(&cctx_params);
+}
+EXPORT_SYMBOL(zstd_cctx_workspace_bound_with_ext_seq_prod);
+
+size_t zstd_cstream_workspace_bound_with_ext_seq_prod(const zstd_compression_parameters *compress_params)
+{
+	ZSTD_CCtx_params cctx_params;
+	init_cctx_params_from_compress_params(&cctx_params, compress_params);
+	ZSTD_CCtxParams_registerSequenceProducer(&cctx_params, NULL, dummy_external_sequence_producer);
+	return ZSTD_estimateCStreamSize_usingCCtxParams(&cctx_params);
+}
+EXPORT_SYMBOL(zstd_cstream_workspace_bound_with_ext_seq_prod);
 
 zstd_cctx *zstd_init_cctx(void *workspace, size_t workspace_size)
 {
@@ -208,6 +261,26 @@ size_t zstd_end_stream(zstd_cstream *cstream, zstd_out_buffer *output)
 	return ZSTD_endStream(cstream, output);
 }
 EXPORT_SYMBOL(zstd_end_stream);
+
+void zstd_register_sequence_producer(
+  zstd_cctx *cctx,
+  void* sequence_producer_state,
+  zstd_sequence_producer_f sequence_producer
+) {
+	ZSTD_registerSequenceProducer(cctx, sequence_producer_state, sequence_producer);
+}
+EXPORT_SYMBOL(zstd_register_sequence_producer);
+
+size_t zstd_compress_sequences_and_literals(zstd_cctx *cctx, void* dst, size_t dst_capacity,
+					    const zstd_sequence *in_seqs, size_t in_seqs_size,
+					    const void* literals, size_t lit_size, size_t lit_capacity,
+					    size_t decompressed_size)
+{
+	return ZSTD_compressSequencesAndLiterals(cctx, dst, dst_capacity, in_seqs,
+						 in_seqs_size, literals, lit_size,
+						 lit_capacity, decompressed_size);
+}
+EXPORT_SYMBOL(zstd_compress_sequences_and_literals);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("Zstd Compressor");

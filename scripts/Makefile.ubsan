@@ -14,5 +14,11 @@ ubsan-cflags-$(CONFIG_UBSAN_TRAP)		+= $(call cc-option,-fsanitize-trap=undefined
 
 export CFLAGS_UBSAN := $(ubsan-cflags-y)
 
-ubsan-signed-wrap-cflags-$(CONFIG_UBSAN_SIGNED_WRAP)     += -fsanitize=signed-integer-overflow
-export CFLAGS_UBSAN_SIGNED_WRAP := $(ubsan-signed-wrap-cflags-y)
+ubsan-integer-wrap-cflags-$(CONFIG_UBSAN_INTEGER_WRAP)     +=	\
+	-fsanitize-undefined-ignore-overflow-pattern=all	\
+	-fsanitize=signed-integer-overflow			\
+	-fsanitize=unsigned-integer-overflow			\
+	-fsanitize=implicit-signed-integer-truncation		\
+	-fsanitize=implicit-unsigned-integer-truncation		\
+	-fsanitize-ignorelist=$(srctree)/scripts/integer-wrap-ignore.scl
+export CFLAGS_UBSAN_INTEGER_WRAP := $(ubsan-integer-wrap-cflags-y)

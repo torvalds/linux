@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause */
 /*
- * Copyright (c) Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -160,7 +160,6 @@ typedef ZSTD_parameters zstd_parameters;
 zstd_parameters zstd_get_params(int level,
 	unsigned long long estimated_src_size);
 
-
 /**
  * zstd_get_cparams() - returns zstd_compression_parameters for selected level
  * @level:              The compression level
@@ -173,9 +172,20 @@ zstd_parameters zstd_get_params(int level,
 zstd_compression_parameters zstd_get_cparams(int level,
 	unsigned long long estimated_src_size, size_t dict_size);
 
-/* ======   Single-pass Compression   ====== */
-
 typedef ZSTD_CCtx zstd_cctx;
+typedef ZSTD_cParameter zstd_cparameter;
+
+/**
+ * zstd_cctx_set_param() - sets a compression parameter
+ * @cctx:         The context. Must have been initialized with zstd_init_cctx().
+ * @param:        The parameter to set.
+ * @value:        The value to set the parameter to.
+ *
+ * Return:        Zero or an error, which can be checked using zstd_is_error().
+ */
+size_t zstd_cctx_set_param(zstd_cctx *cctx, zstd_cparameter param, int value);
+
+/* ======   Single-pass Compression   ====== */
 
 /**
  * zstd_cctx_workspace_bound() - max memory needed to initialize a zstd_cctx
@@ -189,6 +199,20 @@ typedef ZSTD_CCtx zstd_cctx;
  *              zstd_init_cctx().
  */
 size_t zstd_cctx_workspace_bound(const zstd_compression_parameters *parameters);
+
+/**
+ * zstd_cctx_workspace_bound_with_ext_seq_prod() - max memory needed to
+ * initialize a zstd_cctx when using the block-level external sequence
+ * producer API.
+ * @parameters: The compression parameters to be used.
+ *
+ * If multiple compression parameters might be used, the caller must call
+ * this function for each set of parameters and use the maximum size.
+ *
+ * Return:      A lower bound on the size of the workspace that is passed to
+ *              zstd_init_cctx().
+ */
+size_t zstd_cctx_workspace_bound_with_ext_seq_prod(const zstd_compression_parameters *parameters);
 
 /**
  * zstd_init_cctx() - initialize a zstd compression context
@@ -425,6 +449,16 @@ typedef ZSTD_CStream zstd_cstream;
 size_t zstd_cstream_workspace_bound(const zstd_compression_parameters *cparams);
 
 /**
+ * zstd_cstream_workspace_bound_with_ext_seq_prod() - memory needed to initialize
+ * a zstd_cstream when using the block-level external sequence producer API.
+ * @cparams: The compression parameters to be used for compression.
+ *
+ * Return:   A lower bound on the size of the workspace that is passed to
+ *           zstd_init_cstream().
+ */
+size_t zstd_cstream_workspace_bound_with_ext_seq_prod(const zstd_compression_parameters *cparams);
+
+/**
  * zstd_init_cstream() - initialize a zstd streaming compression context
  * @parameters        The zstd parameters to use for compression.
  * @pledged_src_size: If params.fParams.contentSizeFlag == 1 then the caller
@@ -584,6 +618,18 @@ size_t zstd_decompress_stream(zstd_dstream *dstream, zstd_out_buffer *output,
 size_t zstd_find_frame_compressed_size(const void *src, size_t src_size);
 
 /**
+ * zstd_register_sequence_producer() - exposes the zstd library function
+ * ZSTD_registerSequenceProducer(). This is used for the block-level external
+ * sequence producer API. See upstream zstd.h for detailed documentation.
+ */
+typedef ZSTD_sequenceProducer_F zstd_sequence_producer_f;
+void zstd_register_sequence_producer(
+  zstd_cctx *cctx,
+  void* sequence_producer_state,
+  zstd_sequence_producer_f sequence_producer
+);
+
+/**
  * struct zstd_frame_params - zstd frame parameters stored in the frame header
  * @frameContentSize: The frame content size, or ZSTD_CONTENTSIZE_UNKNOWN if not
  *                    present.
@@ -596,7 +642,7 @@ size_t zstd_find_frame_compressed_size(const void *src, size_t src_size);
  *
  * See zstd_lib.h.
  */
-typedef ZSTD_frameHeader zstd_frame_header;
+typedef ZSTD_FrameHeader zstd_frame_header;
 
 /**
  * zstd_get_frame_header() - extracts parameters from a zstd or skippable frame
@@ -610,5 +656,36 @@ typedef ZSTD_frameHeader zstd_frame_header;
  */
 size_t zstd_get_frame_header(zstd_frame_header *params, const void *src,
 	size_t src_size);
+
+/**
+ * struct zstd_sequence - a sequence of literals or a match
+ *
+ * @offset: The offset of the match
+ * @litLength: The literal length of the sequence
+ * @matchLength: The match length of the sequence
+ * @rep: Represents which repeat offset is used
+ */
+typedef ZSTD_Sequence zstd_sequence;
+
+/**
+ * zstd_compress_sequences_and_literals() - compress an array of zstd_sequence and literals
+ *
+ * @cctx: The zstd compression context.
+ * @dst: The buffer to compress the data into.
+ * @dst_capacity: The size of the destination buffer.
+ * @in_seqs: The array of zstd_sequence to compress.
+ * @in_seqs_size: The number of sequences in in_seqs.
+ * @literals: The literals associated to the sequences to be compressed.
+ * @lit_size: The size of the literals in the literals buffer.
+ * @lit_capacity: The size of the literals buffer.
+ * @decompressed_size: The size of the input data
+ *
+ * Return: The compressed size or an error, which can be checked using
+ * 	   zstd_is_error().
+ */
+size_t zstd_compress_sequences_and_literals(zstd_cctx *cctx, void* dst, size_t dst_capacity,
+					    const zstd_sequence *in_seqs, size_t in_seqs_size,
+					    const void* literals, size_t lit_size, size_t lit_capacity,
+					    size_t decompressed_size);
 
 #endif  /* LINUX_ZSTD_H */

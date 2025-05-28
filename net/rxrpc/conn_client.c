@@ -818,7 +818,7 @@ void rxrpc_clean_up_local_conns(struct rxrpc_local *local)
 
 	local->kill_all_client_conns = true;
 
-	del_timer_sync(&local->client_conn_reap_timer);
+	timer_delete_sync(&local->client_conn_reap_timer);
 
 	while ((conn = list_first_entry_or_null(&local->idle_client_conns,
 						struct rxrpc_connection, cache_link))) {

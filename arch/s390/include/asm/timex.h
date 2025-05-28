@@ -13,6 +13,7 @@
 #include <linux/preempt.h>
 #include <linux/time64.h>
 #include <asm/lowcore.h>
+#include <asm/machine.h>
 #include <asm/asm.h>
 
 /* The value of the TOD clock for 1.1.1970. */
@@ -267,7 +268,7 @@ static __always_inline u128 eitod_to_ns(u128 todval)
  */
 static inline int tod_after(unsigned long a, unsigned long b)
 {
-	if (MACHINE_HAS_SCC)
+	if (machine_has_scc())
 		return (long) a > (long) b;
 	return a > b;
 }
@@ -281,7 +282,7 @@ static inline int tod_after(unsigned long a, unsigned long b)
  */
 static inline int tod_after_eq(unsigned long a, unsigned long b)
 {
-	if (MACHINE_HAS_SCC)
+	if (machine_has_scc())
 		return (long) a >= (long) b;
 	return a >= b;
 }

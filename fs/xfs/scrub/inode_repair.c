@@ -710,7 +710,9 @@ xrep_dinode_extsize_hints(
 					      XFS_DIFLAG_EXTSZINHERIT);
 	}
 
-	if (dip->di_version < 3)
+	if (dip->di_version < 3 ||
+	    (xfs_has_zoned(sc->mp) &&
+	     dip->di_metatype == cpu_to_be16(XFS_METAFILE_RTRMAP)))
 		return;
 
 	fa = xfs_inode_validate_cowextsize(mp, be32_to_cpu(dip->di_cowextsize),
@@ -1055,9 +1057,17 @@ xrep_dinode_check_dfork(
 			return true;
 		break;
 	case S_IFREG:
-		if (fmt == XFS_DINODE_FMT_LOCAL)
+		switch (fmt) {
+		case XFS_DINODE_FMT_LOCAL:
 			return true;
-		fallthrough;
+		case XFS_DINODE_FMT_EXTENTS:
+		case XFS_DINODE_FMT_BTREE:
+		case XFS_DINODE_FMT_META_BTREE:
+			break;
+		default:
+			return true;
+		}
+		break;
 	case S_IFLNK:
 	case S_IFDIR:
 		switch (fmt) {
@@ -1550,8 +1560,7 @@ xrep_dinode_core(
 
 	/* Read the inode cluster buffer. */
 	error = xfs_trans_read_buf(sc->mp, sc->tp, sc->mp->m_ddev_targp,
-			ri->imap.im_blkno, ri->imap.im_len, XBF_UNMAPPED, &bp,
-			NULL);
+			ri->imap.im_blkno, ri->imap.im_len, 0, &bp, NULL);
 	if (error)
 		return error;
 

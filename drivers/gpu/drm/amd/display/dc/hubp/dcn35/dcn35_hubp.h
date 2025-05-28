@@ -72,4 +72,5 @@ void hubp35_program_surface_config(
 	bool horizontal_mirror,
 	unsigned int compat_level);
 
+void hubp35_init(struct hubp *hubp);
 #endif /* __DC_HUBP_DCN35_H__ */

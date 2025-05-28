@@ -107,7 +107,7 @@ On the target machine, running the tests will use netdevsim by default::
   1..1
   # timeout set to 45
   # selftests: drivers/net: ping.py
-  # KTAP version 1
+  # TAP version 13
   # 1..3
   # ok 1 ping.test_v4
   # ok 2 ping.test_v6
@@ -128,7 +128,7 @@ Create a config with remote info::
 Run the test::
 
   [/root] # ./ksft-net-drv/drivers/net/ping.py
-  KTAP version 1
+  TAP version 13
   1..3
   ok 1 ping.test_v4
   ok 2 ping.test_v6 # SKIP Test requires IPv6 connectivity

@@ -6,6 +6,7 @@
 #include "for_each_array_map_elem.skel.h"
 #include "for_each_map_elem_write_key.skel.h"
 #include "for_each_multi_maps.skel.h"
+#include "for_each_hash_modify.skel.h"
 
 static unsigned int duration;
 
@@ -203,6 +204,40 @@ out:
 	for_each_multi_maps__destroy(skel);
 }
 
+static void test_hash_modify(void)
+{
+	struct for_each_hash_modify *skel;
+	int max_entries, i, err;
+	__u64 key, val;
+
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = &pkt_v4,
+		.data_size_in = sizeof(pkt_v4),
+		.repeat = 1
+	);
+
+	skel = for_each_hash_modify__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "for_each_hash_modify__open_and_load"))
+		return;
+
+	max_entries = bpf_map__max_entries(skel->maps.hashmap);
+	for (i = 0; i < max_entries; i++) {
+		key = i;
+		val = i;
+		err = bpf_map__update_elem(skel->maps.hashmap, &key, sizeof(key),
+					   &val, sizeof(val), BPF_ANY);
+		if (!ASSERT_OK(err, "map_update"))
+			goto out;
+	}
+
+	err = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_pkt_access), &topts);
+	ASSERT_OK(err, "bpf_prog_test_run_opts");
+	ASSERT_OK(topts.retval, "retval");
+
+out:
+	for_each_hash_modify__destroy(skel);
+}
+
 void test_for_each(void)
 {
 	if (test__start_subtest("hash_map"))
@@ -213,4 +248,6 @@ void test_for_each(void)
 		test_write_map_key();
 	if (test__start_subtest("multi_maps"))
 		test_multi_maps();
+	if (test__start_subtest("hash_modify"))
+		test_hash_modify();
 }

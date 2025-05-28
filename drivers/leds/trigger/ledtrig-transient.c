@@ -66,7 +66,7 @@ static ssize_t transient_activate_store(struct device *dev,
 
 	/* cancel the running timer */
 	if (state == 0 && transient_data->activate == 1) {
-		del_timer(&transient_data->timer);
+		timer_delete(&transient_data->timer);
 		transient_data->activate = state;
 		led_set_brightness_nosleep(led_cdev,
 					transient_data->restore_state);

@@ -2,6 +2,8 @@
 #ifndef __CPUPOWER_CPUPOWER_H__
 #define __CPUPOWER_CPUPOWER_H__
 
+#define CPULIST_BUFFER 5
+
 struct cpupower_topology {
 	/* Amount of CPU cores, packages and threads per core in the system */
 	unsigned int cores;
@@ -16,6 +18,7 @@ struct cpuid_core_info {
 	int pkg;
 	int core;
 	int cpu;
+	char core_cpu_list[CPULIST_BUFFER];
 
 	/* flags */
 	unsigned int is_online:1;

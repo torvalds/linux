@@ -72,4 +72,17 @@ void
 mlx5e_tc_meter_get_stats(struct mlx5e_flow_meter_handle *meter,
 			 u64 *bytes, u64 *packets, u64 *drops, u64 *lastuse);
 
+#if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
+
+int mlx5e_flow_meter_get_base_id(struct mlx5e_flow_meter_handle *meter);
+
+#else /* CONFIG_MLX5_CLS_ACT */
+
+static inline int
+mlx5e_flow_meter_get_base_id(struct mlx5e_flow_meter_handle *meter)
+{
+	return 0;
+}
+#endif /* CONFIG_MLX5_CLS_ACT */
+
 #endif /* __MLX5_EN_FLOW_METER_H__ */

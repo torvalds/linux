@@ -22,6 +22,8 @@
 #include <sys/mman.h>
 #include <assert.h>
 
+#include "helpers.h"
+
 /*
  * These items are in clang_helpers_64.S, in order to avoid clang inline asm
  * limitations:
@@ -30,28 +32,6 @@ void test_syscall_ins(void);
 extern const char test_page[];
 
 static void const *current_test_page_addr = test_page;
-
-static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
-		       int flags)
-{
-	struct sigaction sa;
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_sigaction = handler;
-	sa.sa_flags = SA_SIGINFO | flags;
-	sigemptyset(&sa.sa_mask);
-	if (sigaction(sig, &sa, 0))
-		err(1, "sigaction");
-}
-
-static void clearhandler(int sig)
-{
-	struct sigaction sa;
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = SIG_DFL;
-	sigemptyset(&sa.sa_mask);
-	if (sigaction(sig, &sa, 0))
-		err(1, "sigaction");
-}
 
 /* State used by our signal handlers. */
 static gregset_t initial_regs;

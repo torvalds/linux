@@ -79,6 +79,7 @@ struct bch_member {
 
 #define BCH_MEMBER_V1_BYTES	56
 
+LE16_BITMASK(BCH_MEMBER_BUCKET_SIZE,	struct bch_member, bucket_size,  0, 16)
 LE64_BITMASK(BCH_MEMBER_STATE,		struct bch_member, flags,  0,  4)
 /* 4-14 unused, was TIER, HAS_(META)DATA, REPLACEMENT */
 LE64_BITMASK(BCH_MEMBER_DISCARD,	struct bch_member, flags, 14, 15)

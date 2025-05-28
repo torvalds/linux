@@ -123,10 +123,6 @@ static inline void writel(u32 value, volatile void __iomem *addr)
 #define PCI_IO_SIZE	0x00010000		/* 64k */
 #define PCI_IO_MASK	(PCI_IO_SIZE - 1)
 
-#define HAVE_ARCH_PIO_SIZE
-#define PIO_OFFSET	0
-#define PIO_MASK	0xffff
-#define PIO_RESERVED	0x10000
 #define PCI_IOBASE	((void __iomem *) PCI_IO_PA)
 #define PCI_SPACE_LIMIT	PCI_IO_MASK
 #endif /* CONFIG_PCI */

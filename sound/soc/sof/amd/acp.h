@@ -197,7 +197,6 @@ struct acp_dsp_stream {
 
 struct sof_amd_acp_desc {
 	const char *name;
-	unsigned int host_bridge_id;
 	u32 pgfsm_base;
 	u32 ext_intr_enb;
 	u32 ext_intr_cntl;
@@ -220,6 +219,7 @@ struct sof_amd_acp_desc {
 struct acp_quirk_entry {
 	bool signed_fw_image;
 	bool skip_iram_dram_size_mod;
+	bool post_fw_run_delay;
 };
 
 /* Common device data struct for ACP devices */
@@ -255,7 +255,6 @@ struct acp_dev_data {
 	struct dma_descriptor dscr_info[ACP_MAX_DESC];
 	struct acp_dsp_stream stream_buf[ACP_MAX_STREAM];
 	struct acp_dsp_stream *dtrace_stream;
-	struct pci_dev *smn_dev;
 	struct acp_dsp_stream *probe_stream;
 	bool enable_fw_debug;
 	bool is_dram_in_use;

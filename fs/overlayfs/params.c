@@ -59,6 +59,7 @@ enum ovl_opt {
 	Opt_metacopy,
 	Opt_verity,
 	Opt_volatile,
+	Opt_override_creds,
 };
 
 static const struct constant_table ovl_parameter_bool[] = {
@@ -155,6 +156,7 @@ const struct fs_parameter_spec ovl_parameter_spec[] = {
 	fsparam_enum("metacopy",            Opt_metacopy, ovl_parameter_bool),
 	fsparam_enum("verity",              Opt_verity, ovl_parameter_verity),
 	fsparam_flag("volatile",            Opt_volatile),
+	fsparam_flag_no("override_creds",   Opt_override_creds),
 	{}
 };
 
@@ -662,6 +664,29 @@ static int ovl_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case Opt_userxattr:
 		config->userxattr = true;
 		break;
+	case Opt_override_creds: {
+		const struct cred *cred = NULL;
+
+		if (result.negated) {
+			swap(cred, ofs->creator_cred);
+			put_cred(cred);
+			break;
+		}
+
+		if (!current_in_userns(fc->user_ns)) {
+			err = -EINVAL;
+			break;
+		}
+
+		cred = prepare_creds();
+		if (cred)
+			swap(cred, ofs->creator_cred);
+		else
+			err = -ENOMEM;
+
+		put_cred(cred);
+		break;
+	}
 	default:
 		pr_err("unrecognized mount option \"%s\" or missing value\n",
 		       param->key);

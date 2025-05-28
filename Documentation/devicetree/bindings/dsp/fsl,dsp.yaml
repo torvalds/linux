@@ -82,6 +82,15 @@ properties:
     description:
       Phandle to syscon block which provide access for processor enablement
 
+  resets:
+    minItems: 1
+
+  reset-names:
+    minItems: 1
+    items:
+      - const: runstall
+      - const: softreset
+
 required:
   - compatible
   - reg
@@ -164,6 +173,17 @@ allOf:
             - const: txdb1
             - const: rxdb0
             - const: rxdb1
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx8mp-dsp
+              - fsl,imx8mp-hifi4
+    then:
+      required:
+        - resets
+        - reset-names
 
 additionalProperties: false
 
@@ -186,6 +206,7 @@ examples:
     };
   - |
     #include <dt-bindings/clock/imx8mp-clock.h>
+    #include <dt-bindings/reset/imx8mp-reset-audiomix.h>
     dsp_reserved: dsp@92400000 {
       reg = <0x92400000 0x1000000>;
       no-map;
@@ -220,5 +241,6 @@ examples:
                <&mu2 3 0>;
       memory-region = <&dsp_vdev0buffer>, <&dsp_vdev0vring0>,
                       <&dsp_vdev0vring1>, <&dsp_reserved>;
-      fsl,dsp-ctrl = <&audio_blk_ctrl>;
+      resets = <&audio_blk_ctrl IMX8MP_AUDIOMIX_DSP_RUNSTALL>;
+      reset-names = "runstall";
     };

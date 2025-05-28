@@ -52,6 +52,16 @@ config SUN50I_H6_R_CCU
 	default y
 	depends on ARM64 || COMPILE_TEST
 
+config SUN55I_A523_CCU
+	tristate "Support for the Allwinner A523/T527 CCU"
+	default y
+	depends on ARM64 || COMPILE_TEST
+
+config SUN55I_A523_R_CCU
+	tristate "Support for the Allwinner A523/T527 PRCM CCU"
+	default y
+	depends on ARM64 || COMPILE_TEST
+
 config SUN4I_A10_CCU
 	tristate "Support for the Allwinner A10/A20 CCU"
 	default y

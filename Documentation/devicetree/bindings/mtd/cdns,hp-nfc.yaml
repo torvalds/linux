@@ -33,6 +33,10 @@ properties:
   clocks:
     maxItems: 1
 
+  clock-names:
+    items:
+      - const: nf_clk
+
   dmas:
     maxItems: 1
 
@@ -51,6 +55,7 @@ required:
   - reg-names
   - interrupts
   - clocks
+  - clock-names
 
 unevaluatedProperties: false
 
@@ -66,7 +71,8 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
         interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
-        clocks = <&nf_clk>;
+        clocks = <&clk>;
+        clock-names = "nf_clk";
         cdns,board-delay-ps = <4830>;
 
         nand@0 {

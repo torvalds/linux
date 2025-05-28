@@ -1047,7 +1047,7 @@ static int pd692x0_pi_get_pw_limit(struct pse_controller_dev *pcdev,
 	if (ret < 0)
 		return ret;
 
-	return pd692x0_pi_get_pw_from_table(buf.data[2], buf.data[3]);
+	return pd692x0_pi_get_pw_from_table(buf.data[0], buf.data[1]);
 }
 
 static int pd692x0_pi_set_pw_limit(struct pse_controller_dev *pcdev,

@@ -29,7 +29,7 @@
  * I/O memory mapping functions.
  */
 void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size,
-			   unsigned long prot);
+			   pgprot_t prot);
 #define ioremap_prot ioremap_prot
 #define iounmap iounmap
 
@@ -40,7 +40,7 @@ static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 		return (void*)(offset-XCHAL_KIO_PADDR+XCHAL_KIO_BYPASS_VADDR);
 	else
 		return ioremap_prot(offset, size,
-			pgprot_val(pgprot_noncached(PAGE_KERNEL)));
+				    pgprot_noncached(PAGE_KERNEL));
 }
 #define ioremap ioremap
 
@@ -51,7 +51,7 @@ static inline void __iomem *ioremap_cache(unsigned long offset,
 	    && offset - XCHAL_KIO_PADDR < XCHAL_KIO_SIZE)
 		return (void*)(offset-XCHAL_KIO_PADDR+XCHAL_KIO_CACHED_VADDR);
 	else
-		return ioremap_prot(offset, size, pgprot_val(PAGE_KERNEL));
+		return ioremap_prot(offset, size, PAGE_KERNEL);
 
 }
 #define ioremap_cache ioremap_cache

@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: MIT
+#
+# Copyright (c) 2025, NVIDIA CORPORATION. All rights reserved.
+nvkm-y += nvkm/subdev/gsp/rm/client.o
+nvkm-y += nvkm/subdev/gsp/rm/engine.o
+nvkm-y += nvkm/subdev/gsp/rm/gr.o
+nvkm-y += nvkm/subdev/gsp/rm/nvdec.o
+nvkm-y += nvkm/subdev/gsp/rm/nvenc.o
+
+nvkm-y += nvkm/subdev/gsp/rm/tu1xx.o
+nvkm-y += nvkm/subdev/gsp/rm/ga100.o
+nvkm-y += nvkm/subdev/gsp/rm/ga1xx.o
+nvkm-y += nvkm/subdev/gsp/rm/ad10x.o
+nvkm-y += nvkm/subdev/gsp/rm/gh100.o
+nvkm-y += nvkm/subdev/gsp/rm/gb10x.o
+nvkm-y += nvkm/subdev/gsp/rm/gb20x.o
+
+include $(src)/nvkm/subdev/gsp/rm/r535/Kbuild
+include $(src)/nvkm/subdev/gsp/rm/r570/Kbuild

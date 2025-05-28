@@ -470,23 +470,22 @@ inval:
 
 int __bch2_dev_group_set(struct bch_fs *c, struct bch_dev *ca, const char *name)
 {
-	struct bch_member *mi;
-	int ret, v = -1;
+	lockdep_assert_held(&c->sb_lock);
 
-	if (!strlen(name) || !strcmp(name, "none"))
-		return 0;
 
-	v = bch2_disk_path_find_or_create(&c->disk_sb, name);
-	if (v < 0)
-		return v;
+	if (!strlen(name) || !strcmp(name, "none")) {
+		struct bch_member *mi = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
+		SET_BCH_MEMBER_GROUP(mi, 0);
+	} else {
+		int v = bch2_disk_path_find_or_create(&c->disk_sb, name);
+		if (v < 0)
+			return v;
 
-	ret = bch2_sb_disk_groups_to_cpu(c);
-	if (ret)
-		return ret;
+		struct bch_member *mi = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
+		SET_BCH_MEMBER_GROUP(mi, v + 1);
+	}
 
-	mi = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
-	SET_BCH_MEMBER_GROUP(mi, v + 1);
-	return 0;
+	return bch2_sb_disk_groups_to_cpu(c);
 }
 
 int bch2_dev_group_set(struct bch_fs *c, struct bch_dev *ca, const char *name)
@@ -555,9 +554,9 @@ void bch2_target_to_text(struct printbuf *out, struct bch_fs *c, unsigned v)
 			? rcu_dereference(c->devs[t.dev])
 			: NULL;
 
-		if (ca && percpu_ref_tryget(&ca->io_ref)) {
+		if (ca && percpu_ref_tryget(&ca->io_ref[READ])) {
 			prt_printf(out, "/dev/%s", ca->name);
-			percpu_ref_put(&ca->io_ref);
+			percpu_ref_put(&ca->io_ref[READ]);
 		} else if (ca) {
 			prt_printf(out, "offline device %u", t.dev);
 		} else {

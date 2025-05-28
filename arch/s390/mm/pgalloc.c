@@ -16,31 +16,6 @@
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 
-#ifdef CONFIG_PGSTE
-
-int page_table_allocate_pgste = 0;
-EXPORT_SYMBOL(page_table_allocate_pgste);
-
-static const struct ctl_table page_table_sysctl[] = {
-	{
-		.procname	= "allocate_pgste",
-		.data		= &page_table_allocate_pgste,
-		.maxlen		= sizeof(int),
-		.mode		= S_IRUGO | S_IWUSR,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-	},
-};
-
-static int __init page_table_register_sysctl(void)
-{
-	return register_sysctl("vm", page_table_sysctl) ? 0 : -ENOMEM;
-}
-__initcall(page_table_register_sysctl);
-
-#endif /* CONFIG_PGSTE */
-
 unsigned long *crst_table_alloc(struct mm_struct *mm)
 {
 	struct ptdesc *ptdesc = pagetable_alloc(GFP_KERNEL, CRST_ALLOC_ORDER);
@@ -176,8 +151,6 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 	}
 	table = ptdesc_to_virt(ptdesc);
 	__arch_set_page_dat(table, 1);
-	/* pt_list is used by gmap only */
-	INIT_LIST_HEAD(&ptdesc->pt_list);
 	memset64((u64 *)table, _PAGE_INVALID, PTRS_PER_PTE);
 	memset64((u64 *)table + PTRS_PER_PTE, 0, PTRS_PER_PTE);
 	return table;

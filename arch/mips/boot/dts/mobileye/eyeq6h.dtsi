@@ -32,6 +32,10 @@
 		#interrupt-cells = <1>;
 	};
 
+	coherency-manager {
+		compatible = "mobileye,eyeq6-cm";
+	};
+
 	xtal: clock-30000000 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;

@@ -376,7 +376,6 @@ static struct cpufreq_driver eps_driver = {
 	.exit		= eps_cpu_exit,
 	.get		= eps_get,
 	.name		= "e_powersaver",
-	.attr		= cpufreq_generic_attr,
 };
 
 

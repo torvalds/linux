@@ -13,15 +13,15 @@
 enum port;
 struct drm_atomic_state;
 struct drm_connector;
-struct drm_i915_private;
+struct intel_display;
 
 #ifdef I915
-bool g4x_hdmi_init(struct drm_i915_private *dev_priv,
+bool g4x_hdmi_init(struct intel_display *display,
 		   i915_reg_t hdmi_reg, enum port port);
 int g4x_hdmi_connector_atomic_check(struct drm_connector *connector,
 				    struct drm_atomic_state *state);
 #else
-static inline bool g4x_hdmi_init(struct drm_i915_private *dev_priv,
+static inline bool g4x_hdmi_init(struct intel_display *display,
 				 i915_reg_t hdmi_reg, int port)
 {
 	return false;

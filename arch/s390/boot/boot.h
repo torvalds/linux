@@ -11,11 +11,6 @@
 #include <linux/printk.h>
 #include <asm/physmem_info.h>
 
-struct machine_info {
-	unsigned char has_edat1 : 1;
-	unsigned char has_edat2 : 1;
-};
-
 struct vmlinux_info {
 	unsigned long entry;
 	unsigned long image_size;	/* does not include .bss */
@@ -69,7 +64,8 @@ void parse_boot_command_line(void);
 void verify_facilities(void);
 void print_missing_facilities(void);
 void sclp_early_setup_buffer(void);
-void print_pgm_check_info(void);
+void alt_debug_setup(char *str);
+void do_pgm_check(struct pt_regs *regs);
 unsigned long randomize_within_range(unsigned long size, unsigned long align,
 				     unsigned long min, unsigned long max);
 void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned long asce_limit);

@@ -31,6 +31,7 @@
 #include <linux/lockdep.h>
 #include <linux/list_sort.h>
 
+#include <asm/machine.h>
 #include <asm/isc.h>
 #include <asm/airq.h>
 #include <asm/facility.h>
@@ -124,14 +125,13 @@ int zpci_register_ioat(struct zpci_dev *zdev, u8 dmaas,
 	struct zpci_fib fib = {0};
 	u8 cc;
 
-	WARN_ON_ONCE(iota & 0x3fff);
 	fib.pba = base;
 	/* Work around off by one in ISM virt device */
 	if (zdev->pft == PCI_FUNC_TYPE_ISM && limit > base)
 		fib.pal = limit + (1 << 12);
 	else
 		fib.pal = limit;
-	fib.iota = iota | ZPCI_IOTA_RTTO_FLAG;
+	fib.iota = iota;
 	fib.gd = zdev->gisa;
 	cc = zpci_mod_fc(req, &fib, status);
 	if (cc)
@@ -255,7 +255,7 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 }
 
 void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size,
-			   unsigned long prot)
+			   pgprot_t prot)
 {
 	/*
 	 * When PCI MIO instructions are unavailable the "physical" address
@@ -265,7 +265,7 @@ void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size,
 	if (!static_branch_unlikely(&have_mio))
 		return (void __iomem *)phys_addr;
 
-	return generic_ioremap_prot(phys_addr, size, __pgprot(prot));
+	return generic_ioremap_prot(phys_addr, size, prot);
 }
 EXPORT_SYMBOL(ioremap_prot);
 
@@ -690,6 +690,23 @@ int zpci_enable_device(struct zpci_dev *zdev)
 }
 EXPORT_SYMBOL_GPL(zpci_enable_device);
 
+int zpci_reenable_device(struct zpci_dev *zdev)
+{
+	u8 status;
+	int rc;
+
+	rc = zpci_enable_device(zdev);
+	if (rc)
+		return rc;
+
+	rc = zpci_iommu_register_ioat(zdev, &status);
+	if (rc)
+		zpci_disable_device(zdev);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(zpci_reenable_device);
+
 int zpci_disable_device(struct zpci_dev *zdev)
 {
 	u32 fh = zdev->fh;
@@ -739,7 +756,6 @@ EXPORT_SYMBOL_GPL(zpci_disable_device);
  */
 int zpci_hot_reset_device(struct zpci_dev *zdev)
 {
-	u8 status;
 	int rc;
 
 	lockdep_assert_held(&zdev->state_lock);
@@ -758,19 +774,9 @@ int zpci_hot_reset_device(struct zpci_dev *zdev)
 			return rc;
 	}
 
-	rc = zpci_enable_device(zdev);
-	if (rc)
-		return rc;
+	rc = zpci_reenable_device(zdev);
 
-	if (zdev->dma_table)
-		rc = zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
-					virt_to_phys(zdev->dma_table), &status);
-	if (rc) {
-		zpci_disable_device(zdev);
-		return rc;
-	}
-
-	return 0;
+	return rc;
 }
 
 /**
@@ -1073,7 +1079,7 @@ char * __init pcibios_setup(char *str)
 		return NULL;
 	}
 	if (!strcmp(str, "nomio")) {
-		get_lowcore()->machine_flags &= ~MACHINE_FLAG_PCI_MIO;
+		clear_machine_feature(MFEATURE_PCI_MIO);
 		return NULL;
 	}
 	if (!strcmp(str, "force_floating")) {
@@ -1148,7 +1154,7 @@ static int __init pci_base_init(void)
 		return 0;
 	}
 
-	if (MACHINE_HAS_PCI_MIO) {
+	if (test_machine_feature(MFEATURE_PCI_MIO)) {
 		static_branch_enable(&have_mio);
 		system_ctl_set_bit(2, CR2_MIO_ADDRESSING_BIT);
 	}

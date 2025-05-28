@@ -198,8 +198,10 @@ static struct pt_dma_desc *pt_handle_active_desc(struct pt_dma_chan *chan,
 {
 	struct dma_async_tx_descriptor *tx_desc;
 	struct virt_dma_desc *vd;
+	struct pt_device *pt;
 	unsigned long flags;
 
+	pt = chan->pt;
 	/* Loop over descriptors until one is found with commands */
 	do {
 		if (desc) {
@@ -217,7 +219,7 @@ static struct pt_dma_desc *pt_handle_active_desc(struct pt_dma_chan *chan,
 
 		spin_lock_irqsave(&chan->vc.lock, flags);
 
-		if (desc) {
+		if (pt->ver != AE4_DMA_VERSION && desc) {
 			if (desc->status != DMA_COMPLETE) {
 				if (desc->status != DMA_ERROR)
 					desc->status = DMA_COMPLETE;
@@ -235,7 +237,7 @@ static struct pt_dma_desc *pt_handle_active_desc(struct pt_dma_chan *chan,
 
 		spin_unlock_irqrestore(&chan->vc.lock, flags);
 
-		if (tx_desc) {
+		if (pt->ver != AE4_DMA_VERSION && tx_desc) {
 			dmaengine_desc_get_callback_invoke(tx_desc, NULL);
 			dma_run_dependencies(tx_desc);
 			vchan_vdesc_fini(vd);
@@ -245,11 +247,25 @@ static struct pt_dma_desc *pt_handle_active_desc(struct pt_dma_chan *chan,
 	return NULL;
 }
 
+static inline bool ae4_core_queue_full(struct pt_cmd_queue *cmd_q)
+{
+	u32 front_wi = readl(cmd_q->reg_control + AE4_WR_IDX_OFF);
+	u32 rear_ri = readl(cmd_q->reg_control + AE4_RD_IDX_OFF);
+
+	if (((MAX_CMD_QLEN + front_wi - rear_ri) % MAX_CMD_QLEN)  >= (MAX_CMD_QLEN - 1))
+		return true;
+
+	return false;
+}
+
 static void pt_cmd_callback(void *data, int err)
 {
 	struct pt_dma_desc *desc = data;
+	struct ae4_cmd_queue *ae4cmd_q;
 	struct dma_chan *dma_chan;
 	struct pt_dma_chan *chan;
+	struct ae4_device *ae4;
+	struct pt_device *pt;
 	int ret;
 
 	if (err == -EINPROGRESS)
@@ -257,11 +273,32 @@ static void pt_cmd_callback(void *data, int err)
 
 	dma_chan = desc->vd.tx.chan;
 	chan = to_pt_chan(dma_chan);
+	pt = chan->pt;
 
 	if (err)
 		desc->status = DMA_ERROR;
 
 	while (true) {
+		if (pt->ver == AE4_DMA_VERSION) {
+			ae4 = container_of(pt, struct ae4_device, pt);
+			ae4cmd_q = &ae4->ae4cmd_q[chan->id];
+
+			if (ae4cmd_q->q_cmd_count >= (CMD_Q_LEN - 1) ||
+			    ae4_core_queue_full(&ae4cmd_q->cmd_q)) {
+				wake_up(&ae4cmd_q->q_w);
+
+				if (wait_for_completion_timeout(&ae4cmd_q->cmp,
+								msecs_to_jiffies(AE4_TIME_OUT))
+								== 0) {
+					dev_err(pt->dev, "TIMEOUT %d:\n", ae4cmd_q->id);
+					break;
+				}
+
+				reinit_completion(&ae4cmd_q->cmp);
+				continue;
+			}
+		}
+
 		/* Check for DMA descriptor completion */
 		desc = pt_handle_active_desc(chan, desc);
 
@@ -296,6 +333,49 @@ static struct pt_dma_desc *pt_alloc_dma_desc(struct pt_dma_chan *chan,
 	return desc;
 }
 
+static void pt_cmd_callback_work(void *data, int err)
+{
+	struct dma_async_tx_descriptor *tx_desc;
+	struct pt_dma_desc *desc = data;
+	struct dma_chan *dma_chan;
+	struct virt_dma_desc *vd;
+	struct pt_dma_chan *chan;
+	unsigned long flags;
+
+	dma_chan = desc->vd.tx.chan;
+	chan = to_pt_chan(dma_chan);
+
+	if (err == -EINPROGRESS)
+		return;
+
+	tx_desc = &desc->vd.tx;
+	vd = &desc->vd;
+
+	if (err)
+		desc->status = DMA_ERROR;
+
+	spin_lock_irqsave(&chan->vc.lock, flags);
+	if (desc) {
+		if (desc->status != DMA_COMPLETE) {
+			if (desc->status != DMA_ERROR)
+				desc->status = DMA_COMPLETE;
+
+			dma_cookie_complete(tx_desc);
+			dma_descriptor_unmap(tx_desc);
+		} else {
+			tx_desc = NULL;
+		}
+	}
+	spin_unlock_irqrestore(&chan->vc.lock, flags);
+
+	if (tx_desc) {
+		dmaengine_desc_get_callback_invoke(tx_desc, NULL);
+		dma_run_dependencies(tx_desc);
+		list_del(&desc->vd.node);
+		vchan_vdesc_fini(vd);
+	}
+}
+
 static struct pt_dma_desc *pt_create_desc(struct dma_chan *dma_chan,
 					  dma_addr_t dst,
 					  dma_addr_t src,
@@ -327,6 +407,7 @@ static struct pt_dma_desc *pt_create_desc(struct dma_chan *dma_chan,
 	desc->len = len;
 
 	if (pt->ver == AE4_DMA_VERSION) {
+		pt_cmd->pt_cmd_callback = pt_cmd_callback_work;
 		ae4 = container_of(pt, struct ae4_device, pt);
 		ae4cmd_q = &ae4->ae4cmd_q[chan->id];
 		mutex_lock(&ae4cmd_q->cmd_lock);
@@ -367,13 +448,16 @@ static void pt_issue_pending(struct dma_chan *dma_chan)
 {
 	struct pt_dma_chan *chan = to_pt_chan(dma_chan);
 	struct pt_dma_desc *desc;
+	struct pt_device *pt;
 	unsigned long flags;
 	bool engine_is_idle = true;
+
+	pt = chan->pt;
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
 
 	desc = pt_next_dma_desc(chan);
-	if (desc)
+	if (desc && pt->ver != AE4_DMA_VERSION)
 		engine_is_idle = false;
 
 	vchan_issue_pending(&chan->vc);

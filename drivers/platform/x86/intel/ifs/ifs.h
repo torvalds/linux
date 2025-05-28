@@ -23,12 +23,14 @@
  * IFS Image
  * ---------
  *
- * Intel provides a firmware file containing the scan tests via
- * github [#f1]_.  Similar to microcode there is a separate file for each
+ * Intel provides firmware files containing the scan tests via the webpage [#f1]_.
+ * Look under "In-Field Scan Test Images Download" section towards the
+ * end of the page. Similar to microcode, there are separate files for each
  * family-model-stepping. IFS Images are not applicable for some test types.
  * Wherever applicable the sysfs directory would provide a "current_batch" file
  * (see below) for loading the image.
  *
+ * .. [#f1] https://intel.com/InFieldScan
  *
  * IFS Image Loading
  * -----------------
@@ -124,9 +126,6 @@
  *
  * 2) Hardware allows for some number of cores to be tested in parallel.
  * The driver does not make use of this, it only tests one core at a time.
- *
- * .. [#f1] https://github.com/intel/TBD
- *
  *
  * Structural Based Functional Test at Field (SBAF):
  * -------------------------------------------------

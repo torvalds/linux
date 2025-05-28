@@ -313,6 +313,16 @@ gfxhub_v1_2_xcc_disable_identity_aperture(struct amdgpu_device *adev,
 	}
 }
 
+static inline bool
+gfxhub_v1_2_per_process_xnack_support(struct amdgpu_device *adev)
+{
+	/*
+	 * TODO: Check if this function is really needed, so far only 9.4.3
+	 * variants use GFXHUB 1.2
+	 */
+	return !!adev->aid_mask;
+}
+
 static void gfxhub_v1_2_xcc_setup_vmid_config(struct amdgpu_device *adev,
 					      uint32_t xcc_mask)
 {
@@ -355,7 +365,7 @@ static void gfxhub_v1_2_xcc_setup_vmid_config(struct amdgpu_device *adev,
 					    PAGE_TABLE_BLOCK_SIZE,
 					    block_size);
 			/* Send no-retry XNACK on fault to suppress VM fault storm.
-			 * On 9.4.2 and 9.4.3, XNACK can be enabled in
+			 * On 9.4.3 variants, XNACK can be enabled in
 			 * the SQ per-process.
 			 * Retry faults need to be enabled for that to work.
 			 */
@@ -363,14 +373,8 @@ static void gfxhub_v1_2_xcc_setup_vmid_config(struct amdgpu_device *adev,
 				tmp, VM_CONTEXT1_CNTL,
 				RETRY_PERMISSION_OR_INVALID_PAGE_FAULT,
 				!adev->gmc.noretry ||
-					amdgpu_ip_version(adev, GC_HWIP, 0) ==
-						IP_VERSION(9, 4, 2) ||
-					amdgpu_ip_version(adev, GC_HWIP, 0) ==
-						IP_VERSION(9, 4, 3) ||
-					amdgpu_ip_version(adev, GC_HWIP, 0) ==
-						IP_VERSION(9, 4, 4) ||
-					amdgpu_ip_version(adev, GC_HWIP, 0) ==
-						IP_VERSION(9, 5, 0));
+					gfxhub_v1_2_per_process_xnack_support(
+						adev));
 			WREG32_SOC15_OFFSET(GC, GET_INST(GC, j), regVM_CONTEXT1_CNTL,
 					    i * hub->ctx_distance, tmp);
 			WREG32_SOC15_OFFSET(GC, GET_INST(GC, j),

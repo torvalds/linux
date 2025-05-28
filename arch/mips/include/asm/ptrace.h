@@ -27,8 +27,8 @@
  */
 struct pt_regs {
 #ifdef CONFIG_32BIT
-	/* Pad bytes for argument save space on the stack. */
-	unsigned long pad0[8];
+	/* Saved syscall stack arguments; entries 0-3 unused. */
+	unsigned long args[8];
 #endif
 
 	/* Saved main processor registers. */

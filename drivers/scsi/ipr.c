@@ -873,7 +873,7 @@ static void ipr_fail_all_ops(struct ipr_ioa_cfg *ioa_cfg)
 
 			ipr_trc_hook(ipr_cmd, IPR_TRACE_FINISH,
 				     IPR_IOASC_IOA_WAS_RESET);
-			del_timer(&ipr_cmd->timer);
+			timer_delete(&ipr_cmd->timer);
 			ipr_cmd->done(ipr_cmd);
 		}
 		spin_unlock(&hrrq->_lock);
@@ -5347,7 +5347,7 @@ static irqreturn_t ipr_handle_other_interrupt(struct ipr_ioa_cfg *ioa_cfg,
 				writel(IPR_PCII_IPL_STAGE_CHANGE, ioa_cfg->regs.clr_interrupt_reg);
 				int_reg = readl(ioa_cfg->regs.sense_interrupt_reg) & ~int_mask_reg;
 				list_del(&ioa_cfg->reset_cmd->queue);
-				del_timer(&ioa_cfg->reset_cmd->timer);
+				timer_delete(&ioa_cfg->reset_cmd->timer);
 				ipr_reset_ioa_job(ioa_cfg->reset_cmd);
 				return IRQ_HANDLED;
 			}
@@ -5362,7 +5362,7 @@ static irqreturn_t ipr_handle_other_interrupt(struct ipr_ioa_cfg *ioa_cfg,
 		int_reg = readl(ioa_cfg->regs.sense_interrupt_reg);
 
 		list_del(&ioa_cfg->reset_cmd->queue);
-		del_timer(&ioa_cfg->reset_cmd->timer);
+		timer_delete(&ioa_cfg->reset_cmd->timer);
 		ipr_reset_ioa_job(ioa_cfg->reset_cmd);
 	} else if ((int_reg & IPR_PCII_HRRQ_UPDATED) == int_reg) {
 		if (ioa_cfg->clear_isr) {
@@ -5481,7 +5481,7 @@ static int ipr_iopoll(struct irq_poll *iop, int budget)
 
 	list_for_each_entry_safe(ipr_cmd, temp, &doneq, queue) {
 		list_del(&ipr_cmd->queue);
-		del_timer(&ipr_cmd->timer);
+		timer_delete(&ipr_cmd->timer);
 		ipr_cmd->fast_done(ipr_cmd);
 	}
 
@@ -5550,7 +5550,7 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 	spin_unlock_irqrestore(hrrq->lock, hrrq_flags);
 	list_for_each_entry_safe(ipr_cmd, temp, &doneq, queue) {
 		list_del(&ipr_cmd->queue);
-		del_timer(&ipr_cmd->timer);
+		timer_delete(&ipr_cmd->timer);
 		ipr_cmd->fast_done(ipr_cmd);
 	}
 	return rc;
@@ -5600,7 +5600,7 @@ static irqreturn_t ipr_isr_mhrrq(int irq, void *devp)
 
 	list_for_each_entry_safe(ipr_cmd, temp, &doneq, queue) {
 		list_del(&ipr_cmd->queue);
-		del_timer(&ipr_cmd->timer);
+		timer_delete(&ipr_cmd->timer);
 		ipr_cmd->fast_done(ipr_cmd);
 	}
 	return rc;

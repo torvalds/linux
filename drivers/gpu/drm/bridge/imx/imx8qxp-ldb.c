@@ -44,7 +44,7 @@ struct imx8qxp_ldb_channel {
 struct imx8qxp_ldb {
 	struct ldb base;
 	struct device *dev;
-	struct imx8qxp_ldb_channel channel[MAX_LDB_CHAN_NUM];
+	struct imx8qxp_ldb_channel *channel[MAX_LDB_CHAN_NUM];
 	struct clk *clk_pixel;
 	struct clk *clk_bypass;
 	struct drm_bridge *companion;
@@ -203,9 +203,8 @@ imx8qxp_ldb_bridge_mode_set(struct drm_bridge *bridge,
 		companion->funcs->mode_set(companion, mode, adjusted_mode);
 }
 
-static void
-imx8qxp_ldb_bridge_atomic_pre_enable(struct drm_bridge *bridge,
-				     struct drm_bridge_state *old_bridge_state)
+static void imx8qxp_ldb_bridge_atomic_pre_enable(struct drm_bridge *bridge,
+						 struct drm_atomic_state *state)
 {
 	struct ldb_channel *ldb_ch = bridge->driver_private;
 	struct ldb *ldb = ldb_ch->ldb;
@@ -217,12 +216,11 @@ imx8qxp_ldb_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 	clk_prepare_enable(imx8qxp_ldb->clk_bypass);
 
 	if (is_split && companion)
-		companion->funcs->atomic_pre_enable(companion, old_bridge_state);
+		companion->funcs->atomic_pre_enable(companion, state);
 }
 
-static void
-imx8qxp_ldb_bridge_atomic_enable(struct drm_bridge *bridge,
-				 struct drm_bridge_state *old_bridge_state)
+static void imx8qxp_ldb_bridge_atomic_enable(struct drm_bridge *bridge,
+					     struct drm_atomic_state *state)
 {
 	struct ldb_channel *ldb_ch = bridge->driver_private;
 	struct ldb *ldb = ldb_ch->ldb;
@@ -252,12 +250,11 @@ imx8qxp_ldb_bridge_atomic_enable(struct drm_bridge *bridge,
 		DRM_DEV_ERROR(dev, "failed to power on PHY: %d\n", ret);
 
 	if (is_split && companion)
-		companion->funcs->atomic_enable(companion, old_bridge_state);
+		companion->funcs->atomic_enable(companion, state);
 }
 
-static void
-imx8qxp_ldb_bridge_atomic_disable(struct drm_bridge *bridge,
-				  struct drm_bridge_state *old_bridge_state)
+static void imx8qxp_ldb_bridge_atomic_disable(struct drm_bridge *bridge,
+					      struct drm_atomic_state *state)
 {
 	struct ldb_channel *ldb_ch = bridge->driver_private;
 	struct ldb *ldb = ldb_ch->ldb;
@@ -283,7 +280,7 @@ imx8qxp_ldb_bridge_atomic_disable(struct drm_bridge *bridge,
 	clk_disable_unprepare(imx8qxp_ldb->clk_pixel);
 
 	if (is_split && companion)
-		companion->funcs->atomic_disable(companion, old_bridge_state);
+		companion->funcs->atomic_disable(companion, state);
 
 	ret = pm_runtime_put(dev);
 	if (ret < 0)
@@ -413,7 +410,7 @@ static const struct drm_bridge_funcs imx8qxp_ldb_bridge_funcs = {
 static int imx8qxp_ldb_set_di_id(struct imx8qxp_ldb *imx8qxp_ldb)
 {
 	struct imx8qxp_ldb_channel *imx8qxp_ldb_ch =
-			 &imx8qxp_ldb->channel[imx8qxp_ldb->active_chno];
+			 imx8qxp_ldb->channel[imx8qxp_ldb->active_chno];
 	struct ldb_channel *ldb_ch = &imx8qxp_ldb_ch->base;
 	struct device_node *ep, *remote;
 	struct device *dev = imx8qxp_ldb->dev;
@@ -459,7 +456,7 @@ imx8qxp_ldb_check_chno_and_dual_link(struct ldb_channel *ldb_ch, int link)
 static int imx8qxp_ldb_parse_dt_companion(struct imx8qxp_ldb *imx8qxp_ldb)
 {
 	struct imx8qxp_ldb_channel *imx8qxp_ldb_ch =
-			 &imx8qxp_ldb->channel[imx8qxp_ldb->active_chno];
+			 imx8qxp_ldb->channel[imx8qxp_ldb->active_chno];
 	struct ldb_channel *ldb_ch = &imx8qxp_ldb_ch->base;
 	struct ldb_channel *companion_ldb_ch;
 	struct device_node *companion;
@@ -589,6 +586,14 @@ static int imx8qxp_ldb_probe(struct platform_device *pdev)
 	if (!imx8qxp_ldb)
 		return -ENOMEM;
 
+	for (i = 0; i < MAX_LDB_CHAN_NUM; i++) {
+		imx8qxp_ldb->channel[i] =
+			devm_drm_bridge_alloc(dev, struct imx8qxp_ldb_channel, base.bridge,
+					      &imx8qxp_ldb_bridge_funcs);
+		if (IS_ERR(imx8qxp_ldb->channel[i]))
+			return PTR_ERR(imx8qxp_ldb->channel[i]);
+	}
+
 	imx8qxp_ldb->clk_pixel = devm_clk_get(dev, "pixel");
 	if (IS_ERR(imx8qxp_ldb->clk_pixel)) {
 		ret = PTR_ERR(imx8qxp_ldb->clk_pixel);
@@ -614,7 +619,7 @@ static int imx8qxp_ldb_probe(struct platform_device *pdev)
 	ldb->ctrl_reg = 0xe0;
 
 	for (i = 0; i < MAX_LDB_CHAN_NUM; i++)
-		ldb->channel[i] = &imx8qxp_ldb->channel[i].base;
+		ldb->channel[i] = &imx8qxp_ldb->channel[i]->base;
 
 	ret = ldb_init_helper(ldb);
 	if (ret)
@@ -630,7 +635,7 @@ static int imx8qxp_ldb_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < MAX_LDB_CHAN_NUM; i++) {
-		imx8qxp_ldb_ch = &imx8qxp_ldb->channel[i];
+		imx8qxp_ldb_ch = imx8qxp_ldb->channel[i];
 		ldb_ch = &imx8qxp_ldb_ch->base;
 
 		if (ldb_ch->is_available) {
@@ -663,9 +668,9 @@ static int imx8qxp_ldb_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, imx8qxp_ldb);
 	pm_runtime_enable(dev);
 
-	ldb_add_bridge_helper(ldb, &imx8qxp_ldb_bridge_funcs);
+	ldb_add_bridge_helper(ldb);
 
-	return ret;
+	return 0;
 }
 
 static void imx8qxp_ldb_remove(struct platform_device *pdev)

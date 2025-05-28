@@ -1391,7 +1391,7 @@ static void ag71xx_hw_disable(struct ag71xx *ag)
 	ag71xx_dma_reset(ag);
 
 	napi_disable(&ag->napi);
-	del_timer_sync(&ag->oom_timer);
+	timer_delete_sync(&ag->oom_timer);
 
 	ag71xx_rings_cleanup(ag);
 }
