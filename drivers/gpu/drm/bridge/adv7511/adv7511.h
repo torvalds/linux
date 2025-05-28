@@ -415,14 +415,13 @@ int adv7511_cec_irq_process(struct adv7511 *adv7511, unsigned int irq1);
 
 void adv7533_dsi_power_on(struct adv7511 *adv);
 void adv7533_dsi_power_off(struct adv7511 *adv);
+void adv7533_dsi_config_timing_gen(struct adv7511 *adv);
 enum drm_mode_status adv7533_mode_valid(struct adv7511 *adv,
 					const struct drm_display_mode *mode);
 int adv7533_patch_registers(struct adv7511 *adv);
 int adv7533_patch_cec_registers(struct adv7511 *adv);
 int adv7533_attach_dsi(struct adv7511 *adv);
 int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv);
-
-void adv7511_dsi_config_timing_gen(struct adv7511 *adv);
 
 #ifdef CONFIG_DRM_I2C_ADV7511_AUDIO
 int adv7511_hdmi_audio_startup(struct drm_connector *connector,

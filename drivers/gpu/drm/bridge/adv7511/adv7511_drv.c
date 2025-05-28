@@ -740,7 +740,7 @@ static void adv7511_mode_set(struct adv7511 *adv7511,
 
 	/* Update horizontal/vertical porch params */
 	if (adv7511->info->has_dsi && adv7511->use_timing_gen)
-		adv7511_dsi_config_timing_gen(adv7511);
+		adv7533_dsi_config_timing_gen(adv7511);
 
 	/*
 	 * TODO Test first order 4:2:2 to 4:4:4 up conversion method, which is
