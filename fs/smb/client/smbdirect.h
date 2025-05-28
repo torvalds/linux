@@ -69,15 +69,7 @@ struct smbd_connection {
 	spinlock_t lock_new_credits_offered;
 	int new_credits_offered;
 
-	/* Connection parameters defined in [MS-SMBD] 3.1.1.1 */
-	int receive_credit_max;
-	int send_credit_target;
-	int max_send_size;
-	int max_fragmented_recv_size;
-	int max_fragmented_send_size;
-	int max_receive_size;
-	int keep_alive_interval;
-	int max_readwrite_size;
+	/* dynamic connection parameters defined in [MS-SMBD] 3.1.1.1 */
 	enum keep_alive_status keep_alive_requested;
 	int protocol;
 	atomic_t send_credits;
