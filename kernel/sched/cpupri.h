@@ -29,4 +29,4 @@ int  cpupri_find_fitness(struct cpupri *cp, struct task_struct *p,
 void cpupri_set(struct cpupri *cp, int cpu, int pri);
 int  cpupri_init(struct cpupri *cp);
 void cpupri_cleanup(struct cpupri *cp);
-#endif
+#endif /* CONFIG_SMP */
