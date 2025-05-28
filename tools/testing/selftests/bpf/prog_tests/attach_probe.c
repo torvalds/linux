@@ -122,6 +122,85 @@ cleanup:
 	test_attach_probe_manual__destroy(skel);
 }
 
+/* attach uprobe/uretprobe long event name testings */
+static void test_attach_uprobe_long_event_name(void)
+{
+	DECLARE_LIBBPF_OPTS(bpf_uprobe_opts, uprobe_opts);
+	struct bpf_link *uprobe_link, *uretprobe_link;
+	struct test_attach_probe_manual *skel;
+	ssize_t uprobe_offset;
+	char path[PATH_MAX] = {0};
+
+	skel = test_attach_probe_manual__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_kprobe_manual_open_and_load"))
+		return;
+
+	uprobe_offset = get_uprobe_offset(&trigger_func);
+	if (!ASSERT_GE(uprobe_offset, 0, "uprobe_offset"))
+		goto cleanup;
+
+	if (!ASSERT_GT(readlink("/proc/self/exe", path, PATH_MAX - 1), 0, "readlink"))
+		goto cleanup;
+
+	/* manual-attach uprobe/uretprobe */
+	uprobe_opts.attach_mode = PROBE_ATTACH_MODE_LEGACY;
+	uprobe_opts.ref_ctr_offset = 0;
+	uprobe_opts.retprobe = false;
+	uprobe_link = bpf_program__attach_uprobe_opts(skel->progs.handle_uprobe,
+						      0 /* self pid */,
+						      path,
+						      uprobe_offset,
+						      &uprobe_opts);
+	if (!ASSERT_OK_PTR(uprobe_link, "attach_uprobe_long_event_name"))
+		goto cleanup;
+	skel->links.handle_uprobe = uprobe_link;
+
+	uprobe_opts.retprobe = true;
+	uretprobe_link = bpf_program__attach_uprobe_opts(skel->progs.handle_uretprobe,
+							 -1 /* any pid */,
+							 path,
+							 uprobe_offset, &uprobe_opts);
+	if (!ASSERT_OK_PTR(uretprobe_link, "attach_uretprobe_long_event_name"))
+		goto cleanup;
+	skel->links.handle_uretprobe = uretprobe_link;
+
+cleanup:
+	test_attach_probe_manual__destroy(skel);
+}
+
+/* attach kprobe/kretprobe long event name testings */
+static void test_attach_kprobe_long_event_name(void)
+{
+	DECLARE_LIBBPF_OPTS(bpf_kprobe_opts, kprobe_opts);
+	struct bpf_link *kprobe_link, *kretprobe_link;
+	struct test_attach_probe_manual *skel;
+
+	skel = test_attach_probe_manual__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_kprobe_manual_open_and_load"))
+		return;
+
+	/* manual-attach kprobe/kretprobe */
+	kprobe_opts.attach_mode = PROBE_ATTACH_MODE_LEGACY;
+	kprobe_opts.retprobe = false;
+	kprobe_link = bpf_program__attach_kprobe_opts(skel->progs.handle_kprobe,
+						      "bpf_testmod_looooooooooooooooooooooooooooooong_name",
+						      &kprobe_opts);
+	if (!ASSERT_OK_PTR(kprobe_link, "attach_kprobe_long_event_name"))
+		goto cleanup;
+	skel->links.handle_kprobe = kprobe_link;
+
+	kprobe_opts.retprobe = true;
+	kretprobe_link = bpf_program__attach_kprobe_opts(skel->progs.handle_kretprobe,
+							 "bpf_testmod_looooooooooooooooooooooooooooooong_name",
+							 &kprobe_opts);
+	if (!ASSERT_OK_PTR(kretprobe_link, "attach_kretprobe_long_event_name"))
+		goto cleanup;
+	skel->links.handle_kretprobe = kretprobe_link;
+
+cleanup:
+	test_attach_probe_manual__destroy(skel);
+}
+
 static void test_attach_probe_auto(struct test_attach_probe *skel)
 {
 	struct bpf_link *uprobe_err_link;
@@ -322,6 +401,11 @@ void test_attach_probe(void)
 		test_uprobe_sleepable(skel);
 	if (test__start_subtest("uprobe-ref_ctr"))
 		test_uprobe_ref_ctr(skel);
+
+	if (test__start_subtest("uprobe-long_name"))
+		test_attach_uprobe_long_event_name();
+	if (test__start_subtest("kprobe-long_name"))
+		test_attach_kprobe_long_event_name();
 
 cleanup:
 	test_attach_probe__destroy(skel);

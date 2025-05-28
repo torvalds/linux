@@ -19,6 +19,13 @@ struct {
 	__type(value, __u32);
 } prog_arr SEC(".maps");
 
+struct {
+	__uint(type, BPF_MAP_TYPE_DEVMAP);
+	__uint(key_size, sizeof(__u32));
+	__uint(value_size, sizeof(struct bpf_devmap_val));
+	__uint(max_entries, 1);
+} dev_map SEC(".maps");
+
 extern int bpf_xdp_metadata_rx_timestamp(const struct xdp_md *ctx,
 					 __u64 *timestamp) __ksym;
 extern int bpf_xdp_metadata_rx_hash(const struct xdp_md *ctx, __u32 *hash,
@@ -93,6 +100,12 @@ int rx(struct xdp_md *ctx)
 				     &meta->rx_vlan_tci);
 
 	return bpf_redirect_map(&xsk, ctx->rx_queue_index, XDP_PASS);
+}
+
+SEC("xdp")
+int redirect(struct xdp_md *ctx)
+{
+	return bpf_redirect_map(&dev_map, ctx->rx_queue_index, XDP_PASS);
 }
 
 char _license[] SEC("license") = "GPL";

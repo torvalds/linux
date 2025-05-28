@@ -5791,21 +5791,8 @@ static int bpf_scx_btf_struct_access(struct bpf_verifier_log *log,
 	return -EACCES;
 }
 
-static const struct bpf_func_proto *
-bpf_scx_get_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
-{
-	switch (func_id) {
-	case BPF_FUNC_task_storage_get:
-		return &bpf_task_storage_get_proto;
-	case BPF_FUNC_task_storage_delete:
-		return &bpf_task_storage_delete_proto;
-	default:
-		return bpf_base_func_proto(func_id, prog);
-	}
-}
-
 static const struct bpf_verifier_ops bpf_scx_verifier_ops = {
-	.get_func_proto = bpf_scx_get_func_proto,
+	.get_func_proto = bpf_base_func_proto,
 	.is_valid_access = bpf_scx_is_valid_access,
 	.btf_struct_access = bpf_scx_btf_struct_access,
 };

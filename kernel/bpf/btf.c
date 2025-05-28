@@ -26,6 +26,7 @@
 #include <linux/bsearch.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
+#include <linux/overflow.h>
 
 #include <net/netfilter/nf_bpf_link.h>
 
@@ -3957,7 +3958,7 @@ struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type
 	/* This needs to be kzalloc to zero out padding and unused fields, see
 	 * comment in btf_record_equal.
 	 */
-	rec = kzalloc(offsetof(struct btf_record, fields[cnt]), GFP_KERNEL | __GFP_NOWARN);
+	rec = kzalloc(struct_size(rec, fields, cnt), GFP_KERNEL | __GFP_NOWARN);
 	if (!rec)
 		return ERR_PTR(-ENOMEM);
 
@@ -5583,7 +5584,7 @@ btf_parse_struct_metas(struct bpf_verifier_log *log, struct btf *btf)
 		if (id < 0)
 			continue;
 
-		new_aof = krealloc(aof, offsetof(struct btf_id_set, ids[aof->cnt + 1]),
+		new_aof = krealloc(aof, struct_size(new_aof, ids, aof->cnt + 1),
 				   GFP_KERNEL | __GFP_NOWARN);
 		if (!new_aof) {
 			ret = -ENOMEM;
@@ -5610,7 +5611,7 @@ btf_parse_struct_metas(struct bpf_verifier_log *log, struct btf *btf)
 		if (ret != BTF_FIELD_FOUND)
 			continue;
 
-		new_aof = krealloc(aof, offsetof(struct btf_id_set, ids[aof->cnt + 1]),
+		new_aof = krealloc(aof, struct_size(new_aof, ids, aof->cnt + 1),
 				   GFP_KERNEL | __GFP_NOWARN);
 		if (!new_aof) {
 			ret = -ENOMEM;
@@ -5647,7 +5648,7 @@ btf_parse_struct_metas(struct bpf_verifier_log *log, struct btf *btf)
 		continue;
 	parse:
 		tab_cnt = tab ? tab->cnt : 0;
-		new_tab = krealloc(tab, offsetof(struct btf_struct_metas, types[tab_cnt + 1]),
+		new_tab = krealloc(tab, struct_size(new_tab, types, tab_cnt + 1),
 				   GFP_KERNEL | __GFP_NOWARN);
 		if (!new_tab) {
 			ret = -ENOMEM;
@@ -6383,12 +6384,11 @@ struct btf *bpf_prog_get_target_btf(const struct bpf_prog *prog)
 		return prog->aux->attach_btf;
 }
 
-static bool is_int_ptr(struct btf *btf, const struct btf_type *t)
+static bool is_void_or_int_ptr(struct btf *btf, const struct btf_type *t)
 {
 	/* skip modifiers */
 	t = btf_type_skip_modifiers(btf, t->type, NULL);
-
-	return btf_type_is_int(t);
+	return btf_type_is_void(t) || btf_type_is_int(t);
 }
 
 u32 btf_ctx_arg_idx(struct btf *btf, const struct btf_type *func_proto,
@@ -6777,14 +6777,11 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		}
 	}
 
-	if (t->type == 0)
-		/* This is a pointer to void.
-		 * It is the same as scalar from the verifier safety pov.
-		 * No further pointer walking is allowed.
-		 */
-		return true;
-
-	if (is_int_ptr(btf, t))
+	/*
+	 * If it's a pointer to void, it's the same as scalar from the verifier
+	 * safety POV. Either way, no futher pointer walking is allowed.
+	 */
+	if (is_void_or_int_ptr(btf, t))
 		return true;
 
 	/* this is a pointer to another type */
@@ -6830,10 +6827,10 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 			/* Is this a func with potential NULL args? */
 			if (strcmp(tname, raw_tp_null_args[i].func))
 				continue;
-			if (raw_tp_null_args[i].mask & (0x1 << (arg * 4)))
+			if (raw_tp_null_args[i].mask & (0x1ULL << (arg * 4)))
 				info->reg_type |= PTR_MAYBE_NULL;
 			/* Is the current arg IS_ERR? */
-			if (raw_tp_null_args[i].mask & (0x2 << (arg * 4)))
+			if (raw_tp_null_args[i].mask & (0x2ULL << (arg * 4)))
 				ptr_err_raw_tp = true;
 			break;
 		}
@@ -7663,7 +7660,7 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 		return 0;
 
 	if (!prog->aux->func_info) {
-		bpf_log(log, "Verifier bug\n");
+		verifier_bug(env, "func_info undefined");
 		return -EFAULT;
 	}
 
@@ -7687,7 +7684,7 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 	tname = btf_name_by_offset(btf, fn_t->name_off);
 
 	if (prog->aux->func_info_aux[subprog].unreliable) {
-		bpf_log(log, "Verifier bug in function %s()\n", tname);
+		verifier_bug(env, "unreliable BTF for function %s()", tname);
 		return -EFAULT;
 	}
 	if (prog_type == BPF_PROG_TYPE_EXT)
@@ -8564,7 +8561,7 @@ static int btf_populate_kfunc_set(struct btf *btf, enum btf_kfunc_hook hook,
 
 	/* Grow set */
 	set = krealloc(tab->sets[hook],
-		       offsetof(struct btf_id_set8, pairs[set_cnt + add_set->cnt]),
+		       struct_size(set, pairs, set_cnt + add_set->cnt),
 		       GFP_KERNEL | __GFP_NOWARN);
 	if (!set) {
 		ret = -ENOMEM;
@@ -8850,7 +8847,7 @@ int register_btf_id_dtor_kfuncs(const struct btf_id_dtor_kfunc *dtors, u32 add_c
 	}
 
 	tab = krealloc(btf->dtor_kfunc_tab,
-		       offsetof(struct btf_id_dtor_kfunc_tab, dtors[tab_cnt + add_cnt]),
+		       struct_size(tab, dtors, tab_cnt + add_cnt),
 		       GFP_KERNEL | __GFP_NOWARN);
 	if (!tab) {
 		ret = -ENOMEM;
@@ -9408,8 +9405,7 @@ btf_add_struct_ops(struct btf *btf, struct bpf_struct_ops *st_ops,
 
 	tab = btf->struct_ops_tab;
 	if (!tab) {
-		tab = kzalloc(offsetof(struct btf_struct_ops_tab, ops[4]),
-			      GFP_KERNEL);
+		tab = kzalloc(struct_size(tab, ops, 4), GFP_KERNEL);
 		if (!tab)
 			return -ENOMEM;
 		tab->capacity = 4;
@@ -9422,8 +9418,7 @@ btf_add_struct_ops(struct btf *btf, struct bpf_struct_ops *st_ops,
 
 	if (tab->cnt == tab->capacity) {
 		new_tab = krealloc(tab,
-				   offsetof(struct btf_struct_ops_tab,
-					    ops[tab->capacity * 2]),
+				   struct_size(tab, ops, tab->capacity * 2),
 				   GFP_KERNEL);
 		if (!new_tab)
 			return -ENOMEM;

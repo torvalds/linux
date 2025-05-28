@@ -8023,10 +8023,6 @@ sock_filter_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	if (func_proto)
 		return func_proto;
 
-	func_proto = cgroup_current_func_proto(func_id, prog);
-	if (func_proto)
-		return func_proto;
-
 	switch (func_id) {
 	case BPF_FUNC_get_socket_cookie:
 		return &bpf_get_socket_cookie_sock_proto;
@@ -8049,10 +8045,6 @@ sock_addr_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	const struct bpf_func_proto *func_proto;
 
 	func_proto = cgroup_common_func_proto(func_id, prog);
-	if (func_proto)
-		return func_proto;
-
-	func_proto = cgroup_current_func_proto(func_id, prog);
 	if (func_proto)
 		return func_proto;
 
@@ -8489,18 +8481,12 @@ sk_msg_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_msg_pop_data_proto;
 	case BPF_FUNC_perf_event_output:
 		return &bpf_event_output_data_proto;
-	case BPF_FUNC_get_current_uid_gid:
-		return &bpf_get_current_uid_gid_proto;
 	case BPF_FUNC_sk_storage_get:
 		return &bpf_sk_storage_get_proto;
 	case BPF_FUNC_sk_storage_delete:
 		return &bpf_sk_storage_delete_proto;
 	case BPF_FUNC_get_netns_cookie:
 		return &bpf_get_netns_cookie_sk_msg_proto;
-#ifdef CONFIG_CGROUP_NET_CLASSID
-	case BPF_FUNC_get_cgroup_classid:
-		return &bpf_get_cgroup_classid_curr_proto;
-#endif
 	default:
 		return bpf_sk_base_func_proto(func_id, prog);
 	}

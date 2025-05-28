@@ -32,6 +32,7 @@ extern unsigned long CONFIG_NR_CPUS __kconfig;
 struct __qspinlock {
 	union {
 		atomic_t val;
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 		struct {
 			u8 locked;
 			u8 pending;
@@ -40,6 +41,17 @@ struct __qspinlock {
 			u16 locked_pending;
 			u16 tail;
 		};
+#else
+		struct {
+			u16 tail;
+			u16 locked_pending;
+		};
+		struct {
+			u8 reserved[2];
+			u8 pending;
+			u8 locked;
+		};
+#endif
 	};
 };
 
@@ -94,9 +106,6 @@ struct arena_qnode {
 
 #define _Q_LOCKED_VAL		(1U << _Q_LOCKED_OFFSET)
 #define _Q_PENDING_VAL		(1U << _Q_PENDING_OFFSET)
-
-#define likely(x) __builtin_expect(!!(x), 1)
-#define unlikely(x) __builtin_expect(!!(x), 0)
 
 struct arena_qnode __arena qnodes[_Q_MAX_CPUS][_Q_MAX_NODES];
 
