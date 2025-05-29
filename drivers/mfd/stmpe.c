@@ -1219,8 +1219,8 @@ static int stmpe_irq_init(struct stmpe *stmpe, struct device_node *np)
 	int base = 0;
 	int num_irqs = stmpe->variant->num_irqs;
 
-	stmpe->domain = irq_domain_add_simple(np, num_irqs, base,
-					      &stmpe_irq_ops, stmpe);
+	stmpe->domain = irq_domain_create_simple(of_fwnode_handle(np), num_irqs,
+						 base, &stmpe_irq_ops, stmpe);
 	if (!stmpe->domain) {
 		dev_err(stmpe->dev, "Failed to create irqdomain\n");
 		return -ENOSYS;

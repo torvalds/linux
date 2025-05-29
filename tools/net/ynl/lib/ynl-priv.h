@@ -25,6 +25,7 @@ enum ynl_policy_type {
 	YNL_PT_UINT,
 	YNL_PT_NUL_STR,
 	YNL_PT_BITFIELD32,
+	YNL_PT_SUBMSG,
 };
 
 enum ynl_parse_result {
@@ -42,7 +43,10 @@ typedef int (*ynl_parse_cb_t)(const struct nlmsghdr *nlh,
 			      struct ynl_parse_arg *yarg);
 
 struct ynl_policy_attr {
-	enum ynl_policy_type type;
+	enum ynl_policy_type type:8;
+	__u8 is_submsg:1;
+	__u8 is_selector:1;
+	__u16 selector_type;
 	unsigned int len;
 	const char *name;
 	const struct ynl_policy_nest *nest;
@@ -94,12 +98,17 @@ struct ynl_ntf_base_type {
 	unsigned char data[] __attribute__((aligned(8)));
 };
 
+struct nlmsghdr *ynl_msg_start_req(struct ynl_sock *ys, __u32 id, __u16 flags);
+struct nlmsghdr *ynl_msg_start_dump(struct ynl_sock *ys, __u32 id);
+
 struct nlmsghdr *
 ynl_gemsg_start_req(struct ynl_sock *ys, __u32 id, __u8 cmd, __u8 version);
 struct nlmsghdr *
 ynl_gemsg_start_dump(struct ynl_sock *ys, __u32 id, __u8 cmd, __u8 version);
 
 int ynl_attr_validate(struct ynl_parse_arg *yarg, const struct nlattr *attr);
+int ynl_submsg_failed(struct ynl_parse_arg *yarg, const char *field_name,
+		      const char *sel_name);
 
 /* YNL specific helpers used by the auto-generated code */
 
@@ -204,10 +213,14 @@ static inline void *ynl_attr_data_end(const struct nlattr *attr)
 				     NLMSG_HDRLEN + fixed_hdr_sz); attr; \
 	     (attr) = ynl_attr_next(ynl_nlmsg_end_addr(nlh), attr))
 
-#define ynl_attr_for_each_nested(attr, outer)				\
+#define ynl_attr_for_each_nested_off(attr, outer, offset)		\
 	for ((attr) = ynl_attr_first(outer, outer->nla_len,		\
-				     sizeof(struct nlattr)); attr;	\
+				     sizeof(struct nlattr) + offset);	\
+	     attr;							\
 	     (attr) = ynl_attr_next(ynl_attr_data_end(outer), attr))
+
+#define ynl_attr_for_each_nested(attr, outer)				\
+	ynl_attr_for_each_nested_off(attr, outer, 0)
 
 #define ynl_attr_for_each_payload(start, len, attr)			\
 	for ((attr) = ynl_attr_first(start, len, 0); attr;		\

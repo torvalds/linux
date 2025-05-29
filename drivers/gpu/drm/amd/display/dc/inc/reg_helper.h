@@ -508,6 +508,10 @@ uint32_t generic_indirect_reg_update_ex(const struct dc_context *ctx,
 				initial_val, \
 				n, __VA_ARGS__)
 
+#define IX_REG_SET_SYNC(index, init_value, f1, v1)	\
+		IX_REG_SET_N_SYNC(index, 1, init_value, \
+				FN(reg, f1), v1)
+
 #define IX_REG_SET_2_SYNC(index, init_value, f1, v1, f2, v2)	\
 		IX_REG_SET_N_SYNC(index, 2, init_value, \
 				FN(reg, f1), v1,\

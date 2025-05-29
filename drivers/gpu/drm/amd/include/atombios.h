@@ -4308,7 +4308,7 @@ typedef struct _ATOM_DPCD_INFO
 // note2: From RV770, the memory is more than 32bit addressable, so we will change
 //        ucTableFormatRevision=1,ucTableContentRevision=4, the strcuture remains
 //        exactly same as 1.1 and 1.2 (1.3 is never in use), but ulStartAddrUsedByFirmware
-//        (in offset to start of memory address) is KB aligned instead of byte aligend.
+//        (in offset to start of memory address) is KB aligned instead of byte aligned.
 // Note3:
 /* If we change usReserved to "usFBUsedbyDrvInKB", then to VBIOS this usFBUsedbyDrvInKB is a predefined, unchanged
 constant across VGA or non VGA adapter,

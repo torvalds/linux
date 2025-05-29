@@ -137,9 +137,9 @@ static void __intel_pmu_lbr_enable(bool pmi)
 	if (cpuc->lbr_sel)
 		lbr_select = cpuc->lbr_sel->config & x86_pmu.lbr_sel_mask;
 	if (!static_cpu_has(X86_FEATURE_ARCH_LBR) && !pmi && cpuc->lbr_sel)
-		wrmsrl(MSR_LBR_SELECT, lbr_select);
+		wrmsrq(MSR_LBR_SELECT, lbr_select);
 
-	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
+	rdmsrq(MSR_IA32_DEBUGCTLMSR, debugctl);
 	orig_debugctl = debugctl;
 
 	if (!static_cpu_has(X86_FEATURE_ARCH_LBR))
@@ -155,10 +155,10 @@ static void __intel_pmu_lbr_enable(bool pmi)
 		debugctl |= DEBUGCTLMSR_FREEZE_LBRS_ON_PMI;
 
 	if (orig_debugctl != debugctl)
-		wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
+		wrmsrq(MSR_IA32_DEBUGCTLMSR, debugctl);
 
 	if (static_cpu_has(X86_FEATURE_ARCH_LBR))
-		wrmsrl(MSR_ARCH_LBR_CTL, lbr_select | ARCH_LBR_CTL_LBREN);
+		wrmsrq(MSR_ARCH_LBR_CTL, lbr_select | ARCH_LBR_CTL_LBREN);
 }
 
 void intel_pmu_lbr_reset_32(void)
@@ -166,7 +166,7 @@ void intel_pmu_lbr_reset_32(void)
 	int i;
 
 	for (i = 0; i < x86_pmu.lbr_nr; i++)
-		wrmsrl(x86_pmu.lbr_from + i, 0);
+		wrmsrq(x86_pmu.lbr_from + i, 0);
 }
 
 void intel_pmu_lbr_reset_64(void)
@@ -174,17 +174,17 @@ void intel_pmu_lbr_reset_64(void)
 	int i;
 
 	for (i = 0; i < x86_pmu.lbr_nr; i++) {
-		wrmsrl(x86_pmu.lbr_from + i, 0);
-		wrmsrl(x86_pmu.lbr_to   + i, 0);
+		wrmsrq(x86_pmu.lbr_from + i, 0);
+		wrmsrq(x86_pmu.lbr_to   + i, 0);
 		if (x86_pmu.lbr_has_info)
-			wrmsrl(x86_pmu.lbr_info + i, 0);
+			wrmsrq(x86_pmu.lbr_info + i, 0);
 	}
 }
 
 static void intel_pmu_arch_lbr_reset(void)
 {
 	/* Write to ARCH_LBR_DEPTH MSR, all LBR entries are reset to 0 */
-	wrmsrl(MSR_ARCH_LBR_DEPTH, x86_pmu.lbr_nr);
+	wrmsrq(MSR_ARCH_LBR_DEPTH, x86_pmu.lbr_nr);
 }
 
 void intel_pmu_lbr_reset(void)
@@ -199,7 +199,7 @@ void intel_pmu_lbr_reset(void)
 	cpuc->last_task_ctx = NULL;
 	cpuc->last_log_id = 0;
 	if (!static_cpu_has(X86_FEATURE_ARCH_LBR) && cpuc->lbr_select)
-		wrmsrl(MSR_LBR_SELECT, 0);
+		wrmsrq(MSR_LBR_SELECT, 0);
 }
 
 /*
@@ -209,7 +209,7 @@ static inline u64 intel_pmu_lbr_tos(void)
 {
 	u64 tos;
 
-	rdmsrl(x86_pmu.lbr_tos, tos);
+	rdmsrq(x86_pmu.lbr_tos, tos);
 	return tos;
 }
 
@@ -282,17 +282,17 @@ static u64 lbr_from_signext_quirk_rd(u64 val)
 static __always_inline void wrlbr_from(unsigned int idx, u64 val)
 {
 	val = lbr_from_signext_quirk_wr(val);
-	wrmsrl(x86_pmu.lbr_from + idx, val);
+	wrmsrq(x86_pmu.lbr_from + idx, val);
 }
 
 static __always_inline void wrlbr_to(unsigned int idx, u64 val)
 {
-	wrmsrl(x86_pmu.lbr_to + idx, val);
+	wrmsrq(x86_pmu.lbr_to + idx, val);
 }
 
 static __always_inline void wrlbr_info(unsigned int idx, u64 val)
 {
-	wrmsrl(x86_pmu.lbr_info + idx, val);
+	wrmsrq(x86_pmu.lbr_info + idx, val);
 }
 
 static __always_inline u64 rdlbr_from(unsigned int idx, struct lbr_entry *lbr)
@@ -302,7 +302,7 @@ static __always_inline u64 rdlbr_from(unsigned int idx, struct lbr_entry *lbr)
 	if (lbr)
 		return lbr->from;
 
-	rdmsrl(x86_pmu.lbr_from + idx, val);
+	rdmsrq(x86_pmu.lbr_from + idx, val);
 
 	return lbr_from_signext_quirk_rd(val);
 }
@@ -314,7 +314,7 @@ static __always_inline u64 rdlbr_to(unsigned int idx, struct lbr_entry *lbr)
 	if (lbr)
 		return lbr->to;
 
-	rdmsrl(x86_pmu.lbr_to + idx, val);
+	rdmsrq(x86_pmu.lbr_to + idx, val);
 
 	return val;
 }
@@ -326,7 +326,7 @@ static __always_inline u64 rdlbr_info(unsigned int idx, struct lbr_entry *lbr)
 	if (lbr)
 		return lbr->info;
 
-	rdmsrl(x86_pmu.lbr_info + idx, val);
+	rdmsrq(x86_pmu.lbr_info + idx, val);
 
 	return val;
 }
@@ -380,10 +380,10 @@ void intel_pmu_lbr_restore(void *ctx)
 			wrlbr_info(lbr_idx, 0);
 	}
 
-	wrmsrl(x86_pmu.lbr_tos, tos);
+	wrmsrq(x86_pmu.lbr_tos, tos);
 
 	if (cpuc->lbr_select)
-		wrmsrl(MSR_LBR_SELECT, task_ctx->lbr_sel);
+		wrmsrq(MSR_LBR_SELECT, task_ctx->lbr_sel);
 }
 
 static void intel_pmu_arch_lbr_restore(void *ctx)
@@ -475,7 +475,7 @@ void intel_pmu_lbr_save(void *ctx)
 	task_ctx->tos = tos;
 
 	if (cpuc->lbr_select)
-		rdmsrl(MSR_LBR_SELECT, task_ctx->lbr_sel);
+		rdmsrq(MSR_LBR_SELECT, task_ctx->lbr_sel);
 }
 
 static void intel_pmu_arch_lbr_save(void *ctx)
@@ -752,7 +752,7 @@ void intel_pmu_lbr_read_32(struct cpu_hw_events *cpuc)
 			u64     lbr;
 		} msr_lastbranch;
 
-		rdmsrl(x86_pmu.lbr_from + lbr_idx, msr_lastbranch.lbr);
+		rdmsrq(x86_pmu.lbr_from + lbr_idx, msr_lastbranch.lbr);
 
 		perf_clear_branch_entry_bitfields(br);
 
@@ -1602,7 +1602,7 @@ void __init intel_pmu_arch_lbr_init(void)
 		goto clear_arch_lbr;
 
 	/* Apply the max depth of Arch LBR */
-	if (wrmsrl_safe(MSR_ARCH_LBR_DEPTH, lbr_nr))
+	if (wrmsrq_safe(MSR_ARCH_LBR_DEPTH, lbr_nr))
 		goto clear_arch_lbr;
 
 	x86_pmu.lbr_depth_mask = eax.split.lbr_depth_mask;
@@ -1618,7 +1618,7 @@ void __init intel_pmu_arch_lbr_init(void)
 	x86_pmu.lbr_nr = lbr_nr;
 
 	if (!!x86_pmu.lbr_counters)
-		x86_pmu.flags |= PMU_FL_BR_CNTR;
+		x86_pmu.flags |= PMU_FL_BR_CNTR | PMU_FL_DYN_CONSTRAINT;
 
 	if (x86_pmu.lbr_mispred)
 		static_branch_enable(&x86_lbr_mispred);

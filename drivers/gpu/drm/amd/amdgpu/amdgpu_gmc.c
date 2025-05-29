@@ -1230,6 +1230,10 @@ static ssize_t current_memory_partition_show(
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	enum amdgpu_memory_partition mode;
 
+	/* Only minimal precaution taken to reject requests while in reset */
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+
 	mode = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
 	if ((mode >= ARRAY_SIZE(nps_desc)) ||
 	    (BIT(mode) & AMDGPU_ALL_NPS_MASK) != BIT(mode))

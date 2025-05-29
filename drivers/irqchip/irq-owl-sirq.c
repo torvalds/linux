@@ -323,8 +323,8 @@ static int __init owl_sirq_init(const struct owl_sirq_params *params,
 		owl_sirq_clear_set_extctl(chip_data, 0, INTC_EXTCTL_CLK_SEL, i);
 	}
 
-	domain = irq_domain_add_hierarchy(parent_domain, 0, NUM_SIRQ, node,
-					  &owl_sirq_domain_ops, chip_data);
+	domain = irq_domain_create_hierarchy(parent_domain, 0, NUM_SIRQ, of_fwnode_handle(node),
+					     &owl_sirq_domain_ops, chip_data);
 	if (!domain) {
 		pr_err("%pOF: failed to add domain\n", node);
 		ret = -ENOMEM;

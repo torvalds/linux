@@ -34,14 +34,14 @@
  *     (https://csrc.nist.gov/publications/detail/sp/800-38d/final)
  */
 
-#include <crypto/algapi.h>
 #include <crypto/gf128mul.h>
 #include <crypto/ghash.h>
 #include <crypto/internal/hash.h>
-#include <linux/crypto.h>
-#include <linux/init.h>
+#include <crypto/utils.h>
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/string.h>
 
 static int ghash_init(struct shash_desc *desc)
 {
@@ -82,59 +82,36 @@ static int ghash_update(struct shash_desc *desc,
 	struct ghash_ctx *ctx = crypto_shash_ctx(desc->tfm);
 	u8 *dst = dctx->buffer;
 
-	if (dctx->bytes) {
-		int n = min(srclen, dctx->bytes);
-		u8 *pos = dst + (GHASH_BLOCK_SIZE - dctx->bytes);
-
-		dctx->bytes -= n;
-		srclen -= n;
-
-		while (n--)
-			*pos++ ^= *src++;
-
-		if (!dctx->bytes)
-			gf128mul_4k_lle((be128 *)dst, ctx->gf128);
-	}
-
-	while (srclen >= GHASH_BLOCK_SIZE) {
+	do {
 		crypto_xor(dst, src, GHASH_BLOCK_SIZE);
 		gf128mul_4k_lle((be128 *)dst, ctx->gf128);
 		src += GHASH_BLOCK_SIZE;
 		srclen -= GHASH_BLOCK_SIZE;
-	}
+	} while (srclen >= GHASH_BLOCK_SIZE);
 
-	if (srclen) {
-		dctx->bytes = GHASH_BLOCK_SIZE - srclen;
-		while (srclen--)
-			*dst++ ^= *src++;
-	}
-
-	return 0;
+	return srclen;
 }
 
-static void ghash_flush(struct ghash_ctx *ctx, struct ghash_desc_ctx *dctx)
+static void ghash_flush(struct shash_desc *desc, const u8 *src,
+			unsigned int len)
 {
+	struct ghash_ctx *ctx = crypto_shash_ctx(desc->tfm);
+	struct ghash_desc_ctx *dctx = shash_desc_ctx(desc);
 	u8 *dst = dctx->buffer;
 
-	if (dctx->bytes) {
-		u8 *tmp = dst + (GHASH_BLOCK_SIZE - dctx->bytes);
-
-		while (dctx->bytes--)
-			*tmp++ ^= 0;
-
+	if (len) {
+		crypto_xor(dst, src, len);
 		gf128mul_4k_lle((be128 *)dst, ctx->gf128);
 	}
-
-	dctx->bytes = 0;
 }
 
-static int ghash_final(struct shash_desc *desc, u8 *dst)
+static int ghash_finup(struct shash_desc *desc, const u8 *src,
+		       unsigned int len, u8 *dst)
 {
 	struct ghash_desc_ctx *dctx = shash_desc_ctx(desc);
-	struct ghash_ctx *ctx = crypto_shash_ctx(desc->tfm);
 	u8 *buf = dctx->buffer;
 
-	ghash_flush(ctx, dctx);
+	ghash_flush(desc, src, len);
 	memcpy(dst, buf, GHASH_BLOCK_SIZE);
 
 	return 0;
@@ -151,13 +128,14 @@ static struct shash_alg ghash_alg = {
 	.digestsize	= GHASH_DIGEST_SIZE,
 	.init		= ghash_init,
 	.update		= ghash_update,
-	.final		= ghash_final,
+	.finup		= ghash_finup,
 	.setkey		= ghash_setkey,
 	.descsize	= sizeof(struct ghash_desc_ctx),
 	.base		= {
 		.cra_name		= "ghash",
 		.cra_driver_name	= "ghash-generic",
 		.cra_priority		= 100,
+		.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY,
 		.cra_blocksize		= GHASH_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct ghash_ctx),
 		.cra_module		= THIS_MODULE,
@@ -175,7 +153,7 @@ static void __exit ghash_mod_exit(void)
 	crypto_unregister_shash(&ghash_alg);
 }
 
-subsys_initcall(ghash_mod_init);
+module_init(ghash_mod_init);
 module_exit(ghash_mod_exit);
 
 MODULE_LICENSE("GPL");

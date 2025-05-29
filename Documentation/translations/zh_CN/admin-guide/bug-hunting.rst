@@ -188,7 +188,7 @@ objdump
 编行。如果没有调试符号，您将看到所示例程的汇编程序代码，但是如果内核有调试
 符号，C代码也将可见（调试符号可以在内核配置菜单的hacking项中启用）。例如::
 
-    $ objdump -r -S -l --disassemble net/dccp/ipv4.o
+    $ objdump -r -S -l --disassemble net/ipv4/tcp.o
 
 .. note::
 

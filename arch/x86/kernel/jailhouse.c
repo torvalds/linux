@@ -49,7 +49,7 @@ static uint32_t jailhouse_cpuid_base(void)
 	    !boot_cpu_has(X86_FEATURE_HYPERVISOR))
 		return 0;
 
-	return hypervisor_cpuid_base("Jailhouse\0\0\0", 0);
+	return cpuid_base_hypervisor("Jailhouse\0\0\0", 0);
 }
 
 static uint32_t __init jailhouse_detect(void)

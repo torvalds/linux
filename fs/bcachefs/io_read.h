@@ -4,6 +4,7 @@
 
 #include "bkey_buf.h"
 #include "btree_iter.h"
+#include "extents_types.h"
 #include "reflink.h"
 
 struct bch_read_bio {
@@ -48,6 +49,9 @@ struct bch_read_bio {
 	u16			_state;
 	};
 	s16			ret;
+#ifdef CONFIG_BCACHEFS_ASYNC_OBJECT_LISTS
+	unsigned		list_idx;
+#endif
 
 	struct extent_ptr_decoded pick;
 
@@ -144,7 +148,8 @@ static inline void bch2_read_extent(struct btree_trans *trans,
 }
 
 int __bch2_read(struct btree_trans *, struct bch_read_bio *, struct bvec_iter,
-		subvol_inum, struct bch_io_failures *, unsigned flags);
+		subvol_inum,
+		struct bch_io_failures *, struct bkey_buf *, unsigned flags);
 
 static inline void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 			     subvol_inum inum)
@@ -154,7 +159,7 @@ static inline void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 	rbio->subvol = inum.subvol;
 
 	bch2_trans_run(c,
-		__bch2_read(trans, rbio, rbio->bio.bi_iter, inum, NULL,
+		__bch2_read(trans, rbio, rbio->bio.bi_iter, inum, NULL, NULL,
 			    BCH_READ_retry_if_stale|
 			    BCH_READ_may_promote|
 			    BCH_READ_user_mapped));
@@ -172,6 +177,9 @@ static inline struct bch_read_bio *rbio_init_fragment(struct bio *bio,
 	rbio->split		= true;
 	rbio->parent		= orig;
 	rbio->opts		= orig->opts;
+#ifdef CONFIG_BCACHEFS_ASYNC_OBJECT_LISTS
+	rbio->list_idx	= 0;
+#endif
 	return rbio;
 }
 
@@ -189,8 +197,15 @@ static inline struct bch_read_bio *rbio_init(struct bio *bio,
 	rbio->ret		= 0;
 	rbio->opts		= opts;
 	rbio->bio.bi_end_io	= end_io;
+#ifdef CONFIG_BCACHEFS_ASYNC_OBJECT_LISTS
+	rbio->list_idx	= 0;
+#endif
 	return rbio;
 }
+
+struct promote_op;
+void bch2_promote_op_to_text(struct printbuf *, struct promote_op *);
+void bch2_read_bio_to_text(struct printbuf *, struct bch_read_bio *);
 
 void bch2_fs_io_read_exit(struct bch_fs *);
 int bch2_fs_io_read_init(struct bch_fs *);

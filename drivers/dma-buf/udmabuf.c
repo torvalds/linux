@@ -285,7 +285,6 @@ static int end_cpu_udmabuf(struct dma_buf *buf,
 }
 
 static const struct dma_buf_ops udmabuf_ops = {
-	.cache_sgt_mapping = true,
 	.map_dma_buf	   = map_udmabuf,
 	.unmap_dma_buf	   = unmap_udmabuf,
 	.release	   = release_udmabuf,

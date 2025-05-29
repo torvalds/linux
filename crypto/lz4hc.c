@@ -10,10 +10,6 @@
 #include <linux/vmalloc.h>
 #include <linux/lz4.h>
 
-struct lz4hc_ctx {
-	void *lz4hc_comp_mem;
-};
-
 static void *lz4hc_alloc_ctx(void)
 {
 	void *ctx;
@@ -91,7 +87,7 @@ static void __exit lz4hc_mod_fini(void)
 	crypto_unregister_scomp(&scomp);
 }
 
-subsys_initcall(lz4hc_mod_init);
+module_init(lz4hc_mod_init);
 module_exit(lz4hc_mod_fini);
 
 MODULE_LICENSE("GPL");

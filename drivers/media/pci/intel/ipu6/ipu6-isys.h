@@ -29,8 +29,6 @@ struct ipu6_bus_device;
 				 IPU6_ISYS_UNISPART_IRQ_CSI0 |	\
 				 IPU6_ISYS_UNISPART_IRQ_CSI1)
 
-#define IPU6_ISYS_2600_MEM_LINE_ALIGN	64
-
 /*
  * Current message queue configuration. These must be big enough
  * so that they never gets full. Queues are located in system memory
@@ -118,7 +116,6 @@ struct sensor_async_sd {
  * @streams: streams per firmware stream ID
  * @fwcom: fw communication layer private pointer
  *         or optional external library private pointer
- * @line_align: line alignment in memory
  * @phy_termcal_val: the termination calibration value, only used for DWC PHY
  * @need_reset: Isys requires d0i0->i3 transition
  * @ref_count: total number of callers fw open
@@ -140,7 +137,6 @@ struct ipu6_isys {
 	struct ipu6_isys_stream streams[IPU6_ISYS_MAX_STREAMS];
 	int streams_ref_count[IPU6_ISYS_MAX_STREAMS];
 	void *fwcom;
-	unsigned int line_align;
 	u32 phy_termcal_val;
 	bool need_reset;
 	bool icache_prefetch;

@@ -74,10 +74,11 @@
  * arbitrary, since it's serialized on rename_lock
  */
 static int sysctl_vfs_cache_pressure __read_mostly = 100;
+static int sysctl_vfs_cache_pressure_denom __read_mostly = 100;
 
 unsigned long vfs_pressure_ratio(unsigned long val)
 {
-	return mult_frac(val, sysctl_vfs_cache_pressure, 100);
+	return mult_frac(val, sysctl_vfs_cache_pressure, sysctl_vfs_cache_pressure_denom);
 }
 EXPORT_SYMBOL_GPL(vfs_pressure_ratio);
 
@@ -224,6 +225,14 @@ static const struct ctl_table vm_dcache_sysctls[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
+	},
+	{
+		.procname	= "vfs_cache_pressure_denom",
+		.data		= &sysctl_vfs_cache_pressure_denom,
+		.maxlen		= sizeof(sysctl_vfs_cache_pressure_denom),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ONE_HUNDRED,
 	},
 };
 
@@ -2412,7 +2421,6 @@ struct dentry *d_hash_and_lookup(struct dentry *dir, struct qstr *name)
 	}
 	return d_lookup(dir, name);
 }
-EXPORT_SYMBOL(d_hash_and_lookup);
 
 /*
  * When a file is deleted, we have two options:

@@ -18,19 +18,40 @@
 #define CCS_PLL_BUS_TYPE_CSI2_DPHY				0x00
 #define CCS_PLL_BUS_TYPE_CSI2_CPHY				0x01
 
-/* Old SMIA and implementation specific flags */
-/* op pix clock is for all lanes in total normally */
+/* Old SMIA and implementation specific flags. */
+/* OP PIX clock is for all lanes in total normally. */
 #define CCS_PLL_FLAG_OP_PIX_CLOCK_PER_LANE			BIT(0)
-#define CCS_PLL_FLAG_NO_OP_CLOCKS				BIT(1)
+/* If set, the PLL multipliers are required to be even. */
+#define CCS_PLL_FLAG_EVEN_PLL_MULTIPLIER			BIT(3)
+
 /* CCS PLL flags */
+
+/* The sensor doesn't have OP clocks at all. */
+#define CCS_PLL_FLAG_NO_OP_CLOCKS				BIT(1)
+/* System speed model if this flag is unset. */
 #define CCS_PLL_FLAG_LANE_SPEED_MODEL				BIT(2)
-#define CCS_PLL_FLAG_LINK_DECOUPLED				BIT(3)
+/* If set, the pre-PLL divider may have odd values, too. */
 #define CCS_PLL_FLAG_EXT_IP_PLL_DIVIDER				BIT(4)
+/*
+ * If set, the OP PIX clock doesn't have to exactly match with data rate, it may
+ * be higher. See "OP Domain Formulas" in MIPI CCS 1.1 spec.
+ */
 #define CCS_PLL_FLAG_FLEXIBLE_OP_PIX_CLK_DIV			BIT(5)
+/* If set, the VT domain may run faster than the OP domain. */
 #define CCS_PLL_FLAG_FIFO_DERATING				BIT(6)
+/* If set, the VT domain may run slower than the OP domain. */
 #define CCS_PLL_FLAG_FIFO_OVERRATING				BIT(7)
+/* If set, the PLL tree has two PLLs instead of one. */
 #define CCS_PLL_FLAG_DUAL_PLL					BIT(8)
+/*
+ * If set, the OP SYS clock is a dual data rate clock, transferring two bits per
+ * cycle instead of one.
+ */
 #define CCS_PLL_FLAG_OP_SYS_DDR					BIT(9)
+/*
+ * If set, the OP PIX clock is a dual data rate clock, transferring two pixels
+ * per cycle instead of one.
+ */
 #define CCS_PLL_FLAG_OP_PIX_DDR					BIT(10)
 
 /**

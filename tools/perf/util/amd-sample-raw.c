@@ -9,7 +9,7 @@
 #include <inttypes.h>
 
 #include <linux/string.h>
-#include "../../arch/x86/include/asm/amd-ibs.h"
+#include "../../arch/x86/include/asm/amd/ibs.h"
 
 #include "debug.h"
 #include "session.h"

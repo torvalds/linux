@@ -69,17 +69,6 @@ int qed_ptt_pool_alloc(struct qed_hwfn *p_hwfn)
 	return 0;
 }
 
-void qed_ptt_invalidate(struct qed_hwfn *p_hwfn)
-{
-	struct qed_ptt *p_ptt;
-	int i;
-
-	for (i = 0; i < PXP_EXTERNAL_BAR_PF_WINDOW_NUM; i++) {
-		p_ptt = &p_hwfn->p_ptt_pool->ptts[i];
-		p_ptt->pxp.offset = QED_BAR_INVALID_OFFSET;
-	}
-}
-
 void qed_ptt_pool_free(struct qed_hwfn *p_hwfn)
 {
 	kfree(p_hwfn->p_ptt_pool);

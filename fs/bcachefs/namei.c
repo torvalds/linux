@@ -11,6 +11,14 @@
 
 #include <linux/posix_acl.h>
 
+static inline subvol_inum parent_inum(subvol_inum inum, struct bch_inode_unpacked *inode)
+{
+	return (subvol_inum) {
+		.subvol	= inode->bi_parent_subvol ?: inum.subvol,
+		.inum	= inode->bi_dir,
+	};
+}
+
 static inline int is_subdir_for_nlink(struct bch_inode_unpacked *inode)
 {
 	return S_ISDIR(inode->bi_mode) && !inode->bi_subvol;
@@ -49,7 +57,7 @@ int bch2_create_trans(struct btree_trans *trans,
 
 	if (!(flags & BCH_CREATE_SNAPSHOT)) {
 		/* Normal create path - allocate a new inode: */
-		bch2_inode_init_late(new_inode, now, uid, gid, mode, rdev, dir_u);
+		bch2_inode_init_late(c, new_inode, now, uid, gid, mode, rdev, dir_u);
 
 		if (flags & BCH_CREATE_TMPFILE)
 			new_inode->bi_flags |= BCH_INODE_unlinked;
@@ -158,7 +166,6 @@ int bch2_create_trans(struct btree_trans *trans,
 					   name,
 					   dir_target,
 					   &dir_offset,
-					   &dir_u->bi_size,
 					   STR_HASH_must_create|BTREE_ITER_with_updates) ?:
 			bch2_inode_write(trans, &dir_iter, dir_u);
 		if (ret)
@@ -225,7 +232,6 @@ int bch2_link_trans(struct btree_trans *trans,
 				 mode_to_type(inode_u->bi_mode),
 				 name, inum.inum,
 				 &dir_offset,
-				 &dir_u->bi_size,
 				 STR_HASH_must_create);
 	if (ret)
 		goto err;
@@ -406,8 +412,7 @@ int bch2_rename_trans(struct btree_trans *trans,
 
 	src_hash = bch2_hash_info_init(c, src_dir_u);
 
-	if (dst_dir.inum	!= src_dir.inum ||
-	    dst_dir.subvol	!= src_dir.subvol) {
+	if (!subvol_inum_eq(dst_dir, src_dir)) {
 		ret = bch2_inode_peek(trans, &dst_dir_iter, dst_dir_u, dst_dir,
 				      BTREE_ITER_intent);
 		if (ret)
@@ -499,32 +504,41 @@ int bch2_rename_trans(struct btree_trans *trans,
 		}
 	}
 
-	if (bch2_reinherit_attrs(src_inode_u, dst_dir_u) &&
-	    S_ISDIR(src_inode_u->bi_mode)) {
-		ret = -EXDEV;
-		goto err;
+	if (!subvol_inum_eq(dst_dir, src_dir)) {
+		if (bch2_reinherit_attrs(src_inode_u, dst_dir_u) &&
+		    S_ISDIR(src_inode_u->bi_mode)) {
+			ret = -EXDEV;
+			goto err;
+		}
+
+		if (mode == BCH_RENAME_EXCHANGE &&
+		    bch2_reinherit_attrs(dst_inode_u, src_dir_u) &&
+		    S_ISDIR(dst_inode_u->bi_mode)) {
+			ret = -EXDEV;
+			goto err;
+		}
+
+		ret =   bch2_maybe_propagate_has_case_insensitive(trans, src_inum, src_inode_u) ?:
+			(mode == BCH_RENAME_EXCHANGE
+			 ? bch2_maybe_propagate_has_case_insensitive(trans, dst_inum, dst_inode_u)
+			 : 0);
+		if (ret)
+			goto err;
+
+		if (is_subdir_for_nlink(src_inode_u)) {
+			src_dir_u->bi_nlink--;
+			dst_dir_u->bi_nlink++;
+		}
+
+		if (S_ISDIR(src_inode_u->bi_mode) &&
+		    !src_inode_u->bi_subvol)
+			src_inode_u->bi_depth = dst_dir_u->bi_depth + 1;
+
+		if (mode == BCH_RENAME_EXCHANGE &&
+		    S_ISDIR(dst_inode_u->bi_mode) &&
+		    !dst_inode_u->bi_subvol)
+			dst_inode_u->bi_depth = src_dir_u->bi_depth + 1;
 	}
-
-	if (mode == BCH_RENAME_EXCHANGE &&
-	    bch2_reinherit_attrs(dst_inode_u, src_dir_u) &&
-	    S_ISDIR(dst_inode_u->bi_mode)) {
-		ret = -EXDEV;
-		goto err;
-	}
-
-	if (is_subdir_for_nlink(src_inode_u)) {
-		src_dir_u->bi_nlink--;
-		dst_dir_u->bi_nlink++;
-	}
-
-	if (S_ISDIR(src_inode_u->bi_mode) &&
-	    !src_inode_u->bi_subvol)
-		src_inode_u->bi_depth = dst_dir_u->bi_depth + 1;
-
-	if (mode == BCH_RENAME_EXCHANGE &&
-	    S_ISDIR(dst_inode_u->bi_mode) &&
-	    !dst_inode_u->bi_subvol)
-		dst_inode_u->bi_depth = src_dir_u->bi_depth + 1;
 
 	if (dst_inum.inum && is_subdir_for_nlink(dst_inode_u)) {
 		dst_dir_u->bi_nlink--;
@@ -595,31 +609,39 @@ static inline void reverse_bytes(void *b, size_t n)
 	}
 }
 
-/* XXX: we don't yet attempt to print paths when we don't know the subvol */
-int bch2_inum_to_path(struct btree_trans *trans, subvol_inum inum, struct printbuf *path)
+static int __bch2_inum_to_path(struct btree_trans *trans,
+			       u32 subvol, u64 inum, u32 snapshot,
+			       struct printbuf *path)
 {
 	unsigned orig_pos = path->pos;
 	int ret = 0;
 
-	while (!(inum.subvol == BCACHEFS_ROOT_SUBVOL &&
-		 inum.inum   == BCACHEFS_ROOT_INO)) {
+	while (true) {
+		if (!snapshot) {
+			ret = bch2_subvolume_get_snapshot(trans, subvol, &snapshot);
+			if (ret)
+				goto disconnected;
+		}
+
 		struct bch_inode_unpacked inode;
-		ret = bch2_inode_find_by_inum_trans(trans, inum, &inode);
+		ret = bch2_inode_find_by_inum_snapshot(trans, inum, snapshot, &inode, 0);
 		if (ret)
 			goto disconnected;
+
+		if (inode.bi_subvol == BCACHEFS_ROOT_SUBVOL &&
+		    inode.bi_inum == BCACHEFS_ROOT_INO)
+			break;
 
 		if (!inode.bi_dir && !inode.bi_dir_offset) {
 			ret = -BCH_ERR_ENOENT_inode_no_backpointer;
 			goto disconnected;
 		}
 
-		inum.subvol	= inode.bi_parent_subvol ?: inum.subvol;
-		inum.inum	= inode.bi_dir;
-
-		u32 snapshot;
-		ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
-		if (ret)
-			goto disconnected;
+		inum = inode.bi_dir;
+		if (inode.bi_parent_subvol) {
+			subvol = inode.bi_parent_subvol;
+			snapshot = 0;
+		}
 
 		struct btree_iter d_iter;
 		struct bkey_s_c_dirent d = bch2_bkey_get_iter_typed(trans, &d_iter,
@@ -654,6 +676,20 @@ disconnected:
 
 	prt_str_reversed(path, "(disconnected)");
 	goto out;
+}
+
+int bch2_inum_to_path(struct btree_trans *trans,
+		      subvol_inum inum,
+		      struct printbuf *path)
+{
+	return __bch2_inum_to_path(trans, inum.subvol, inum.inum, 0, path);
+}
+
+int bch2_inum_snapshot_to_path(struct btree_trans *trans, u64 inum, u32 snapshot,
+			       snapshot_id_list *snapshot_overwrites,
+			       struct printbuf *path)
+{
+	return __bch2_inum_to_path(trans, 0, inum, snapshot, path);
 }
 
 /* fsck */
@@ -830,4 +866,150 @@ fsck_err:
 	printbuf_exit(&buf);
 	bch_err_fn(c, ret);
 	return ret;
+}
+
+/*
+ * BCH_INODE_has_case_insensitive:
+ * We have to track whether directories have any descendent directory that is
+ * casefolded - for overlayfs:
+ */
+
+static int bch2_propagate_has_case_insensitive(struct btree_trans *trans, subvol_inum inum)
+{
+	struct btree_iter iter = {};
+	int ret = 0;
+
+	while (true) {
+		struct bch_inode_unpacked inode;
+		ret = bch2_inode_peek(trans, &iter, &inode, inum,
+				      BTREE_ITER_intent|BTREE_ITER_with_updates);
+		if (ret)
+			break;
+
+		if (inode.bi_flags & BCH_INODE_has_case_insensitive)
+			break;
+
+		inode.bi_flags |= BCH_INODE_has_case_insensitive;
+		ret = bch2_inode_write(trans, &iter, &inode);
+		if (ret)
+			break;
+
+		bch2_trans_iter_exit(trans, &iter);
+		if (subvol_inum_eq(inum, BCACHEFS_ROOT_SUBVOL_INUM))
+			break;
+
+		inum = parent_inum(inum, &inode);
+	}
+
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+int bch2_maybe_propagate_has_case_insensitive(struct btree_trans *trans, subvol_inum inum,
+					      struct bch_inode_unpacked *inode)
+{
+	if (!bch2_inode_casefold(trans->c, inode))
+		return 0;
+
+	inode->bi_flags |= BCH_INODE_has_case_insensitive;
+
+	return bch2_propagate_has_case_insensitive(trans, parent_inum(inum, inode));
+}
+
+int bch2_check_inode_has_case_insensitive(struct btree_trans *trans,
+					  struct bch_inode_unpacked *inode,
+					  snapshot_id_list *snapshot_overwrites,
+					  bool *do_update)
+{
+	struct printbuf buf = PRINTBUF;
+	bool repairing_parents = false;
+	int ret = 0;
+
+	if (!S_ISDIR(inode->bi_mode)) {
+		/*
+		 * Old versions set bi_casefold for non dirs, but that's
+		 * unnecessary and wasteful
+		 */
+		if (inode->bi_casefold) {
+			inode->bi_casefold = 0;
+			*do_update = true;
+		}
+		return 0;
+	}
+
+	if (trans->c->sb.version < bcachefs_metadata_version_inode_has_case_insensitive)
+		return 0;
+
+	if (bch2_inode_casefold(trans->c, inode) &&
+	    !(inode->bi_flags & BCH_INODE_has_case_insensitive)) {
+		prt_printf(&buf, "casefolded dir with has_case_insensitive not set\ninum %llu:%u ",
+			   inode->bi_inum, inode->bi_snapshot);
+
+		ret = bch2_inum_snapshot_to_path(trans, inode->bi_inum, inode->bi_snapshot,
+						 snapshot_overwrites, &buf);
+		if (ret)
+			goto err;
+
+		if (fsck_err(trans, inode_has_case_insensitive_not_set, "%s", buf.buf)) {
+			inode->bi_flags |= BCH_INODE_has_case_insensitive;
+			*do_update = true;
+		}
+	}
+
+	if (!(inode->bi_flags & BCH_INODE_has_case_insensitive))
+		goto out;
+
+	struct bch_inode_unpacked dir = *inode;
+	u32 snapshot = dir.bi_snapshot;
+
+	while (!(dir.bi_inum	== BCACHEFS_ROOT_INO &&
+		 dir.bi_subvol	== BCACHEFS_ROOT_SUBVOL)) {
+		if (dir.bi_parent_subvol) {
+			ret = bch2_subvolume_get_snapshot(trans, dir.bi_parent_subvol, &snapshot);
+			if (ret)
+				goto err;
+
+			snapshot_overwrites = NULL;
+		}
+
+		ret = bch2_inode_find_by_inum_snapshot(trans, dir.bi_dir, snapshot, &dir, 0);
+		if (ret)
+			goto err;
+
+		if (!(dir.bi_flags & BCH_INODE_has_case_insensitive)) {
+			prt_printf(&buf, "parent of casefolded dir with has_case_insensitive not set\n");
+
+			ret = bch2_inum_snapshot_to_path(trans, dir.bi_inum, dir.bi_snapshot,
+							 snapshot_overwrites, &buf);
+			if (ret)
+				goto err;
+
+			if (fsck_err(trans, inode_parent_has_case_insensitive_not_set, "%s", buf.buf)) {
+				dir.bi_flags |= BCH_INODE_has_case_insensitive;
+				ret = __bch2_fsck_write_inode(trans, &dir);
+				if (ret)
+					goto err;
+			}
+		}
+
+		/*
+		 * We only need to check the first parent, unless we find an
+		 * inconsistency
+		 */
+		if (!repairing_parents)
+			break;
+	}
+out:
+err:
+fsck_err:
+	printbuf_exit(&buf);
+	if (ret)
+		return ret;
+
+	if (repairing_parents) {
+		return bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc) ?:
+			-BCH_ERR_transaction_restart_nested;
+	}
+
+	return 0;
 }

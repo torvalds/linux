@@ -27,9 +27,10 @@
 #include <asm/smp.h>
 #include <asm/cpu.h>
 #include <asm/apic.h>
-#include <asm/cpuid.h>
+#include <asm/cpuid/api.h>
 #include <asm/cmdline.h>
 #include <asm/iommu.h>
+#include <asm/msr.h>
 
 /*
  * The RMP entry information as returned by the RMPREAD instruction.
@@ -136,11 +137,11 @@ static int __mfd_enable(unsigned int cpu)
 	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
 		return 0;
 
-	rdmsrl(MSR_AMD64_SYSCFG, val);
+	rdmsrq(MSR_AMD64_SYSCFG, val);
 
 	val |= MSR_AMD64_SYSCFG_MFDM;
 
-	wrmsrl(MSR_AMD64_SYSCFG, val);
+	wrmsrq(MSR_AMD64_SYSCFG, val);
 
 	return 0;
 }
@@ -157,12 +158,12 @@ static int __snp_enable(unsigned int cpu)
 	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
 		return 0;
 
-	rdmsrl(MSR_AMD64_SYSCFG, val);
+	rdmsrq(MSR_AMD64_SYSCFG, val);
 
 	val |= MSR_AMD64_SYSCFG_SNP_EN;
 	val |= MSR_AMD64_SYSCFG_SNP_VMPL_EN;
 
-	wrmsrl(MSR_AMD64_SYSCFG, val);
+	wrmsrq(MSR_AMD64_SYSCFG, val);
 
 	return 0;
 }
@@ -522,7 +523,7 @@ int __init snp_rmptable_init(void)
 	 * Check if SEV-SNP is already enabled, this can happen in case of
 	 * kexec boot.
 	 */
-	rdmsrl(MSR_AMD64_SYSCFG, val);
+	rdmsrq(MSR_AMD64_SYSCFG, val);
 	if (val & MSR_AMD64_SYSCFG_SNP_EN)
 		goto skip_enable;
 
@@ -576,8 +577,8 @@ static bool probe_contiguous_rmptable_info(void)
 {
 	u64 rmp_sz, rmp_base, rmp_end;
 
-	rdmsrl(MSR_AMD64_RMP_BASE, rmp_base);
-	rdmsrl(MSR_AMD64_RMP_END, rmp_end);
+	rdmsrq(MSR_AMD64_RMP_BASE, rmp_base);
+	rdmsrq(MSR_AMD64_RMP_END, rmp_end);
 
 	if (!(rmp_base & RMP_ADDR_MASK) || !(rmp_end & RMP_ADDR_MASK)) {
 		pr_err("Memory for the RMP table has not been reserved by BIOS\n");
@@ -610,13 +611,13 @@ static bool probe_segmented_rmptable_info(void)
 	unsigned int eax, ebx, segment_shift, segment_shift_min, segment_shift_max;
 	u64 rmp_base, rmp_end;
 
-	rdmsrl(MSR_AMD64_RMP_BASE, rmp_base);
+	rdmsrq(MSR_AMD64_RMP_BASE, rmp_base);
 	if (!(rmp_base & RMP_ADDR_MASK)) {
 		pr_err("Memory for the RMP table has not been reserved by BIOS\n");
 		return false;
 	}
 
-	rdmsrl(MSR_AMD64_RMP_END, rmp_end);
+	rdmsrq(MSR_AMD64_RMP_END, rmp_end);
 	WARN_ONCE(rmp_end & RMP_ADDR_MASK,
 		  "Segmented RMP enabled but RMP_END MSR is non-zero\n");
 
@@ -652,7 +653,7 @@ static bool probe_segmented_rmptable_info(void)
 bool snp_probe_rmptable_info(void)
 {
 	if (cpu_feature_enabled(X86_FEATURE_SEGMENTED_RMP))
-		rdmsrl(MSR_AMD64_RMP_CFG, rmp_cfg);
+		rdmsrq(MSR_AMD64_RMP_CFG, rmp_cfg);
 
 	if (rmp_cfg & MSR_AMD64_SEG_RMP_ENABLED)
 		return probe_segmented_rmptable_info();

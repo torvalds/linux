@@ -1119,7 +1119,7 @@ static inline void ext4_set_block_group_nr(struct super_block *sb, char *data,
 
 	es->s_block_group_nr = cpu_to_le16(group);
 	if (ext4_has_feature_metadata_csum(sb))
-		es->s_checksum = ext4_superblock_csum(sb, es);
+		es->s_checksum = ext4_superblock_csum(es);
 }
 
 /*

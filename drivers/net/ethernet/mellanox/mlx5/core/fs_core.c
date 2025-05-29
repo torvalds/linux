@@ -1830,14 +1830,35 @@ static int create_auto_flow_group(struct mlx5_flow_table *ft,
 	return err;
 }
 
+int mlx5_fs_get_packet_reformat_id(struct mlx5_pkt_reformat *pkt_reformat,
+				   u32 *id)
+{
+	switch (pkt_reformat->owner) {
+	case MLX5_FLOW_RESOURCE_OWNER_FW:
+		*id = pkt_reformat->id;
+		return 0;
+	case MLX5_FLOW_RESOURCE_OWNER_SW:
+		return mlx5_fs_dr_action_get_pkt_reformat_id(pkt_reformat, id);
+	case MLX5_FLOW_RESOURCE_OWNER_HWS:
+		return mlx5_fs_hws_action_get_pkt_reformat_id(pkt_reformat, id);
+	default:
+		return -EINVAL;
+	}
+}
+
 static bool mlx5_pkt_reformat_cmp(struct mlx5_pkt_reformat *p1,
 				  struct mlx5_pkt_reformat *p2)
 {
-	return p1->owner == p2->owner &&
-		(p1->owner == MLX5_FLOW_RESOURCE_OWNER_FW ?
-		 p1->id == p2->id :
-		 mlx5_fs_dr_action_get_pkt_reformat_id(p1) ==
-		 mlx5_fs_dr_action_get_pkt_reformat_id(p2));
+	int err1, err2;
+	u32 id1, id2;
+
+	if (p1->owner != p2->owner)
+		return false;
+
+	err1 = mlx5_fs_get_packet_reformat_id(p1, &id1);
+	err2 = mlx5_fs_get_packet_reformat_id(p2, &id2);
+
+	return !err1 && !err2 && id1 == id2;
 }
 
 static bool mlx5_flow_dests_cmp(struct mlx5_flow_destination *d1,

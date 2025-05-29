@@ -15,12 +15,11 @@ TEST_PROGS = \
 	iou-zcrx.py \
 	irq.py \
 	loopback.sh \
-	nic_link_layer.py \
-	nic_performance.py \
 	pp_alloc_fail.py \
 	rss_ctx.py \
 	rss_input_xfrm.py \
 	tso.py \
+	xsk_reconfig.py \
 	#
 
 TEST_FILES := \

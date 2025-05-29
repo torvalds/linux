@@ -401,6 +401,7 @@ fastopen:
 				}
 				NET_INC_STATS(sock_net(sk),
 					      LINUX_MIB_TCPFASTOPENPASSIVE);
+				tcp_sk(child)->syn_fastopen_child = 1;
 				return child;
 			}
 			NET_INC_STATS(sock_net(sk),

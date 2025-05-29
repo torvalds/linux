@@ -17,3 +17,8 @@ void rust_helper_mutex_assert_is_held(struct mutex *mutex)
 {
 	lockdep_assert_held(mutex);
 }
+
+void rust_helper_mutex_destroy(struct mutex *lock)
+{
+	mutex_destroy(lock);
+}

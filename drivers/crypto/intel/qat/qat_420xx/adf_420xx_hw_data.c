@@ -9,15 +9,14 @@
 #include <adf_common_drv.h>
 #include <adf_fw_config.h>
 #include <adf_gen4_config.h>
-#include <adf_gen4_dc.h>
 #include <adf_gen4_hw_csr_data.h>
 #include <adf_gen4_hw_data.h>
 #include <adf_gen4_pfvf.h>
 #include <adf_gen4_pm.h>
 #include <adf_gen4_ras.h>
-#include <adf_gen4_timer.h>
 #include <adf_gen4_tl.h>
 #include <adf_gen4_vf_mig.h>
+#include <adf_timer.h>
 #include "adf_420xx_hw_data.h"
 #include "icp_qat_hw.h"
 
@@ -93,7 +92,6 @@ static const struct adf_fw_config adf_fw_dcc_config[] = {
 static struct adf_hw_device_class adf_420xx_class = {
 	.name = ADF_420XX_DEVICE_NAME,
 	.type = DEV_420XX,
-	.instances = 0,
 };
 
 static u32 get_ae_mask(struct adf_hw_device_data *self)
@@ -469,8 +467,8 @@ void adf_init_hw_data_420xx(struct adf_hw_device_data *hw_data, u32 dev_id)
 	hw_data->enable_pm = adf_gen4_enable_pm;
 	hw_data->handle_pm_interrupt = adf_gen4_handle_pm_interrupt;
 	hw_data->dev_config = adf_gen4_dev_config;
-	hw_data->start_timer = adf_gen4_timer_start;
-	hw_data->stop_timer = adf_gen4_timer_stop;
+	hw_data->start_timer = adf_timer_start;
+	hw_data->stop_timer = adf_timer_stop;
 	hw_data->get_hb_clock = adf_gen4_get_heartbeat_clock;
 	hw_data->num_hb_ctrs = ADF_NUM_HB_CNT_PER_AE;
 	hw_data->clock_frequency = ADF_420XX_AE_FREQ;

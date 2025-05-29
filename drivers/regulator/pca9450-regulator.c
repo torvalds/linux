@@ -9,6 +9,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/reboot.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -33,6 +34,7 @@ struct pca9450 {
 	struct device *dev;
 	struct regmap *regmap;
 	struct gpio_desc *sd_vsel_gpio;
+	struct notifier_block restart_nb;
 	enum pca9450_chip_type type;
 	unsigned int rcnt;
 	int irq;
@@ -965,6 +967,25 @@ static irqreturn_t pca9450_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static int pca9450_i2c_restart_handler(struct notifier_block *nb,
+				unsigned long action, void *data)
+{
+	struct pca9450 *pca9450 = container_of(nb, struct pca9450, restart_nb);
+	struct i2c_client *i2c = container_of(pca9450->dev, struct i2c_client, dev);
+
+	dev_dbg(&i2c->dev, "Restarting device..\n");
+	if (i2c_smbus_write_byte_data(i2c, PCA9450_REG_SWRST, SW_RST_COMMAND) == 0) {
+		/* tRESTART is 250ms, so 300 should be enough to make sure it happened */
+		mdelay(300);
+		/* When we get here, the PMIC didn't power cycle for some reason. so warn.*/
+		dev_warn(&i2c->dev, "Device didn't respond to restart command\n");
+	} else {
+		dev_err(&i2c->dev, "Restart command failed\n");
+	}
+
+	return 0;
+}
+
 static int pca9450_i2c_probe(struct i2c_client *i2c)
 {
 	enum pca9450_chip_type type = (unsigned int)(uintptr_t)
@@ -1106,6 +1127,12 @@ static int pca9450_i2c_probe(struct i2c_client *i2c)
 
 	pca9450->sd_vsel_fixed_low =
 		of_property_read_bool(ldo5->dev.of_node, "nxp,sd-vsel-fixed-low");
+
+	pca9450->restart_nb.notifier_call = pca9450_i2c_restart_handler;
+	pca9450->restart_nb.priority = PCA9450_RESTART_HANDLER_PRIORITY;
+
+	if (register_restart_handler(&pca9450->restart_nb))
+		dev_warn(&i2c->dev, "Failed to register restart handler\n");
 
 	dev_info(&i2c->dev, "%s probed.\n",
 		type == PCA9450_TYPE_PCA9450A ? "pca9450a" :

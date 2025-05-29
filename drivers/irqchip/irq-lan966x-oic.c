@@ -71,14 +71,12 @@ static unsigned int lan966x_oic_irq_startup(struct irq_data *data)
 	struct lan966x_oic_chip_regs *chip_regs = gc->private;
 	u32 map;
 
-	irq_gc_lock(gc);
-
-	/* Map the source interrupt to the destination */
-	map = irq_reg_readl(gc, chip_regs->reg_off_map);
-	map |= data->mask;
-	irq_reg_writel(gc, map, chip_regs->reg_off_map);
-
-	irq_gc_unlock(gc);
+	scoped_guard (raw_spinlock, &gc->lock) {
+		/* Map the source interrupt to the destination */
+		map = irq_reg_readl(gc, chip_regs->reg_off_map);
+		map |= data->mask;
+		irq_reg_writel(gc, map, chip_regs->reg_off_map);
+	}
 
 	ct->chip.irq_ack(data);
 	ct->chip.irq_unmask(data);
@@ -95,14 +93,12 @@ static void lan966x_oic_irq_shutdown(struct irq_data *data)
 
 	ct->chip.irq_mask(data);
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 
 	/* Unmap the interrupt */
 	map = irq_reg_readl(gc, chip_regs->reg_off_map);
 	map &= ~data->mask;
 	irq_reg_writel(gc, map, chip_regs->reg_off_map);
-
-	irq_gc_unlock(gc);
 }
 
 static int lan966x_oic_irq_set_type(struct irq_data *data,
@@ -224,7 +220,7 @@ static int lan966x_oic_probe(struct platform_device *pdev)
 		.exit		= lan966x_oic_chip_exit,
 	};
 	struct irq_domain_info d_info = {
-		.fwnode		= of_node_to_fwnode(pdev->dev.of_node),
+		.fwnode		= of_fwnode_handle(pdev->dev.of_node),
 		.domain_flags	= IRQ_DOMAIN_FLAG_DESTROY_GC,
 		.size		= LAN966X_OIC_NR_IRQ,
 		.hwirq_max	= LAN966X_OIC_NR_IRQ,

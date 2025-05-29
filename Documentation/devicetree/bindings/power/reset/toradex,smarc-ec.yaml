@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/reset/toradex,smarc-ec.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Toradex Embedded Controller
+
+maintainers:
+  - Emanuele Ghidoli <emanuele.ghidoli@toradex.com>
+  - Francesco Dolcini <francesco.dolcini@toradex.com>
+
+description: |
+  The Toradex Embedded Controller (EC) is used on Toradex SMARC modules,
+  primarily to manage power and reset functionalities.
+
+  The EC provides the following functions:
+    - Reads the SMARC POWER_BTN# and RESET_IN# signals and controls the PMIC accordingly.
+    - Controls the SoC boot mode signals based on the SMARC BOOT_SEL# and FORCE_RECOV# inputs.
+    - Manages the CARRIER_STDBY# signal in response to relevant SoC signals.
+
+  The EC runs a small firmware, factory programmed into its internal flash, and communicates over I2C.
+  It allows software to control power-off and reset functionalities of the module.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - toradex,smarc-imx95-ec
+          - toradex,smarc-imx8mp-ec
+      - const: toradex,smarc-ec
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        reset-controller@28 {
+            compatible = "toradex,smarc-imx95-ec", "toradex,smarc-ec";
+            reg = <0x28>;
+        };
+    };

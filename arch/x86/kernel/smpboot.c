@@ -64,7 +64,7 @@
 
 #include <asm/acpi.h>
 #include <asm/cacheinfo.h>
-#include <asm/cpuid.h>
+#include <asm/cpuid/api.h>
 #include <asm/desc.h>
 #include <asm/nmi.h>
 #include <asm/irq.h>
@@ -1187,6 +1187,12 @@ void cpu_disable_common(void)
 	int cpu = smp_processor_id();
 
 	remove_siblinginfo(cpu);
+
+	/*
+	 * Stop allowing kernel-mode FPU. This is needed so that if the CPU is
+	 * brought online again, the initial state is not allowed:
+	 */
+	this_cpu_write(kernel_fpu_allowed, false);
 
 	/* It's now safe to remove this processor from the online map */
 	lock_vector_lock();

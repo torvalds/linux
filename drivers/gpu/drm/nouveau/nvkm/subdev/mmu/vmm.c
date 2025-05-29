@@ -19,7 +19,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#define NVKM_VMM_LEVELS_MAX 5
+#define NVKM_VMM_LEVELS_MAX 6
 #include "vmm.h"
 
 #include <subdev/fb.h>
@@ -1030,12 +1030,8 @@ nvkm_vmm_dtor(struct nvkm_vmm *vmm)
 	struct nvkm_vma *vma;
 	struct rb_node *node;
 
-	if (vmm->rm.client.gsp) {
-		nvkm_gsp_rm_free(&vmm->rm.object);
-		nvkm_gsp_device_dtor(&vmm->rm.device);
-		nvkm_gsp_client_dtor(&vmm->rm.client);
-		nvkm_vmm_put(vmm, &vmm->rm.rsvd);
-	}
+	if (vmm->rm.client.gsp)
+		r535_mmu_vaspace_del(vmm);
 
 	if (0)
 		nvkm_vmm_dump(vmm);

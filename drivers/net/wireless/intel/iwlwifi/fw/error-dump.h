@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2014, 2018-2025 Intel Corporation
  * Copyright (C) 2014-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -372,10 +372,7 @@ struct iwl_fw_ini_dump_cfg_name {
 	u8 cfg_name[IWL_FW_INI_MAX_CFG_NAME];
 } __packed;
 
-/* AX210's HW type */
-#define IWL_AX210_HW_TYPE 0x42
-/* How many bits to roll when adding to the HW type of AX210 HW */
-#define IWL_AX210_HW_TYPE_ADDITION_SHIFT 12
+#define IWL_JACKET_CDB_SHIFT 12
 
 /* struct iwl_fw_ini_dump_info - ini dump information
  * @version: dump version

@@ -3,6 +3,7 @@
 #include "bkey_buf.h"
 #include "btree_update.h"
 #include "buckets.h"
+#include "enumerated_ref.h"
 #include "error.h"
 #include "extents.h"
 #include "inode.h"
@@ -610,7 +611,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 		!bch2_request_incompat_feature(c, bcachefs_metadata_version_reflink_p_may_update_opts);
 	int ret = 0, ret2 = 0;
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_reflink))
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_reflink))
 		return -BCH_ERR_erofs_no_writes;
 
 	bch2_check_set_feature(c, BCH_FEATURE_reflink);
@@ -761,7 +762,7 @@ err:
 	bch2_bkey_buf_exit(&new_src, c);
 	bch2_bkey_buf_exit(&new_dst, c);
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_reflink);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_reflink);
 
 	return dst_done ?: ret ?: ret2;
 }

@@ -39,6 +39,7 @@
 
 #define CTX dc_dmub_srv->ctx
 #define DC_LOGGER CTX->logger
+#define GPINT_RETRY_NUM 20
 
 static void dc_dmub_srv_construct(struct dc_dmub_srv *dc_srv, struct dc *dc,
 				  struct dmub_srv *dmub)
@@ -70,20 +71,28 @@ void dc_dmub_srv_destroy(struct dc_dmub_srv **dmub_srv)
 	}
 }
 
-void dc_dmub_srv_wait_idle(struct dc_dmub_srv *dc_dmub_srv)
+bool dc_dmub_srv_wait_for_pending(struct dc_dmub_srv *dc_dmub_srv)
 {
-	struct dmub_srv *dmub = dc_dmub_srv->dmub;
-	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
+	struct dmub_srv *dmub;
+	struct dc_context *dc_ctx;
 	enum dmub_status status;
 
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return false;
+
+	dc_ctx = dc_dmub_srv->ctx;
+	dmub = dc_dmub_srv->dmub;
+
 	do {
-		status = dmub_srv_wait_for_idle(dmub, 100000);
+		status = dmub_srv_wait_for_pending(dmub, 100000);
 	} while (dc_dmub_srv->ctx->dc->debug.disable_timeout && status != DMUB_STATUS_OK);
 
 	if (status != DMUB_STATUS_OK) {
 		DC_ERROR("Error waiting for DMUB idle: status=%d\n", status);
 		dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
 	}
+
+	return status == DMUB_STATUS_OK;
 }
 
 void dc_dmub_srv_clear_inbox0_ack(struct dc_dmub_srv *dc_dmub_srv)
@@ -126,7 +135,49 @@ void dc_dmub_srv_send_inbox0_cmd(struct dc_dmub_srv *dc_dmub_srv,
 	}
 }
 
-bool dc_dmub_srv_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_srv,
+static bool dc_dmub_srv_reg_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_srv,
+		unsigned int count,
+		union dmub_rb_cmd *cmd_list)
+{
+	struct dc_context *dc_ctx;
+	struct dmub_srv *dmub;
+	enum dmub_status status = DMUB_STATUS_OK;
+	int i;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return false;
+
+	dc_ctx = dc_dmub_srv->ctx;
+	dmub = dc_dmub_srv->dmub;
+
+	for (i = 0 ; i < count; i++) {
+		/* confirm no messages pending */
+		do {
+			status = dmub_srv_wait_for_idle(dmub, 100000);
+		} while (dc_dmub_srv->ctx->dc->debug.disable_timeout && status != DMUB_STATUS_OK);
+
+		/* queue command */
+		if (status == DMUB_STATUS_OK)
+			status = dmub_srv_reg_cmd_execute(dmub, &cmd_list[i]);
+
+		/* check for errors */
+		if (status != DMUB_STATUS_OK) {
+			break;
+		}
+	}
+
+	if (status != DMUB_STATUS_OK) {
+		if (status != DMUB_STATUS_POWER_STATE_D3) {
+			DC_ERROR("Error starting DMUB execution: status=%d\n", status);
+			dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+		}
+		return false;
+	}
+
+	return true;
+}
+
+static bool dc_dmub_srv_fb_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_srv,
 		unsigned int count,
 		union dmub_rb_cmd *cmd_list)
 {
@@ -143,20 +194,25 @@ bool dc_dmub_srv_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_srv,
 
 	for (i = 0 ; i < count; i++) {
 		// Queue command
-		status = dmub_srv_cmd_queue(dmub, &cmd_list[i]);
+		if (!cmd_list[i].cmd_common.header.multi_cmd_pending ||
+				dmub_rb_num_free(&dmub->inbox1.rb) >= count - i) {
+			status = dmub_srv_fb_cmd_queue(dmub, &cmd_list[i]);
+		} else {
+			status = DMUB_STATUS_QUEUE_FULL;
+		}
 
 		if (status == DMUB_STATUS_QUEUE_FULL) {
 			/* Execute and wait for queue to become empty again. */
-			status = dmub_srv_cmd_execute(dmub);
+			status = dmub_srv_fb_cmd_execute(dmub);
 			if (status == DMUB_STATUS_POWER_STATE_D3)
 				return false;
 
 			do {
-				status = dmub_srv_wait_for_idle(dmub, 100000);
+					status = dmub_srv_wait_for_inbox_free(dmub, 100000, count - i);
 			} while (dc_dmub_srv->ctx->dc->debug.disable_timeout && status != DMUB_STATUS_OK);
 
 			/* Requeue the command. */
-			status = dmub_srv_cmd_queue(dmub, &cmd_list[i]);
+			status = dmub_srv_fb_cmd_queue(dmub, &cmd_list[i]);
 		}
 
 		if (status != DMUB_STATUS_OK) {
@@ -168,7 +224,7 @@ bool dc_dmub_srv_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_srv,
 		}
 	}
 
-	status = dmub_srv_cmd_execute(dmub);
+	status = dmub_srv_fb_cmd_execute(dmub);
 	if (status != DMUB_STATUS_OK) {
 		if (status != DMUB_STATUS_POWER_STATE_D3) {
 			DC_ERROR("Error starting DMUB execution: status=%d\n", status);
@@ -178,6 +234,26 @@ bool dc_dmub_srv_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_srv,
 	}
 
 	return true;
+}
+
+bool dc_dmub_srv_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_srv,
+		unsigned int count,
+		union dmub_rb_cmd *cmd_list)
+{
+	bool res = false;
+
+	if (dc_dmub_srv && dc_dmub_srv->dmub) {
+		if (dc_dmub_srv->dmub->inbox_type == DMUB_CMD_INTERFACE_REG) {
+			res = dc_dmub_srv_reg_cmd_list_queue_execute(dc_dmub_srv, count, cmd_list);
+		} else {
+			res = dc_dmub_srv_fb_cmd_list_queue_execute(dc_dmub_srv, count, cmd_list);
+		}
+
+		if (res)
+			res = dmub_srv_update_inbox_status(dc_dmub_srv->dmub) == DMUB_STATUS_OK;
+	}
+
+	return res;
 }
 
 bool dc_dmub_srv_wait_for_idle(struct dc_dmub_srv *dc_dmub_srv,
@@ -202,7 +278,8 @@ bool dc_dmub_srv_wait_for_idle(struct dc_dmub_srv *dc_dmub_srv,
 			DC_LOG_DEBUG("No reply for DMUB command: status=%d\n", status);
 			if (!dmub->debug.timeout_info.timeout_occured) {
 				dmub->debug.timeout_info.timeout_occured = true;
-				dmub->debug.timeout_info.timeout_cmd = *cmd_list;
+				if (cmd_list)
+					dmub->debug.timeout_info.timeout_cmd = *cmd_list;
 				dmub->debug.timeout_info.timestamp = dm_get_timestamp(dc_dmub_srv->ctx);
 			}
 			dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
@@ -210,8 +287,9 @@ bool dc_dmub_srv_wait_for_idle(struct dc_dmub_srv *dc_dmub_srv,
 		}
 
 		// Copy data back from ring buffer into command
-		if (wait_type == DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY)
-			dmub_rb_get_return_data(&dmub->inbox1_rb, cmd_list);
+		if (wait_type == DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY && cmd_list) {
+			dmub_srv_cmd_get_response(dc_dmub_srv->dmub, cmd_list);
+		}
 	}
 
 	return true;
@@ -224,74 +302,10 @@ bool dc_dmub_srv_cmd_run(struct dc_dmub_srv *dc_dmub_srv, union dmub_rb_cmd *cmd
 
 bool dc_dmub_srv_cmd_run_list(struct dc_dmub_srv *dc_dmub_srv, unsigned int count, union dmub_rb_cmd *cmd_list, enum dm_dmub_wait_type wait_type)
 {
-	struct dc_context *dc_ctx;
-	struct dmub_srv *dmub;
-	enum dmub_status status;
-	int i;
-
-	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+	if (!dc_dmub_srv_cmd_list_queue_execute(dc_dmub_srv, count, cmd_list))
 		return false;
 
-	dc_ctx = dc_dmub_srv->ctx;
-	dmub = dc_dmub_srv->dmub;
-
-	for (i = 0 ; i < count; i++) {
-		// Queue command
-		status = dmub_srv_cmd_queue(dmub, &cmd_list[i]);
-
-		if (status == DMUB_STATUS_QUEUE_FULL) {
-			/* Execute and wait for queue to become empty again. */
-			status = dmub_srv_cmd_execute(dmub);
-			if (status == DMUB_STATUS_POWER_STATE_D3)
-				return false;
-
-			status = dmub_srv_wait_for_idle(dmub, 100000);
-			if (status != DMUB_STATUS_OK)
-				return false;
-
-			/* Requeue the command. */
-			status = dmub_srv_cmd_queue(dmub, &cmd_list[i]);
-		}
-
-		if (status != DMUB_STATUS_OK) {
-			if (status != DMUB_STATUS_POWER_STATE_D3) {
-				DC_ERROR("Error queueing DMUB command: status=%d\n", status);
-				dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
-			}
-			return false;
-		}
-	}
-
-	status = dmub_srv_cmd_execute(dmub);
-	if (status != DMUB_STATUS_OK) {
-		if (status != DMUB_STATUS_POWER_STATE_D3) {
-			DC_ERROR("Error starting DMUB execution: status=%d\n", status);
-			dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
-		}
-		return false;
-	}
-
-	// Wait for DMUB to process command
-	if (wait_type != DM_DMUB_WAIT_TYPE_NO_WAIT) {
-		if (dc_dmub_srv->ctx->dc->debug.disable_timeout) {
-			do {
-				status = dmub_srv_wait_for_idle(dmub, 100000);
-			} while (status != DMUB_STATUS_OK);
-		} else
-			status = dmub_srv_wait_for_idle(dmub, 100000);
-
-		if (status != DMUB_STATUS_OK) {
-			DC_LOG_DEBUG("No reply for DMUB command: status=%d\n", status);
-			dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
-			return false;
-		}
-
-		// Copy data back from ring buffer into command
-		if (wait_type == DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY)
-			dmub_rb_get_return_data(&dmub->inbox1_rb, cmd_list);
-	}
-
-	return true;
+	return dc_dmub_srv_wait_for_idle(dc_dmub_srv, wait_type, cmd_list);
 }
 
 bool dc_dmub_srv_optimized_init_done(struct dc_dmub_srv *dc_dmub_srv)
@@ -1243,7 +1257,7 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 			ips_fw->signals.bits.ips1_commit,
 			ips_fw->signals.bits.ips2_commit);
 
-		dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
+		dc_dmub_srv_wait_for_idle(dc->ctx->dmub_srv, DM_DMUB_WAIT_TYPE_WAIT, NULL);
 
 		memset(&new_signals, 0, sizeof(new_signals));
 
@@ -1355,14 +1369,15 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 			if (!dc->debug.optimize_ips_handshake || !ips_fw->signals.bits.ips2_commit)
 				udelay(dc->debug.ips2_eval_delay_us);
 
-			if (ips_fw->signals.bits.ips2_commit) {
-				DC_LOG_IPS(
-					"exit IPS2 #1 (ips1_commit=%u ips2_commit=%u)",
-					ips_fw->signals.bits.ips1_commit,
-					ips_fw->signals.bits.ips2_commit);
+			DC_LOG_IPS(
+				"exit IPS2 #1 (ips1_commit=%u ips2_commit=%u)",
+				ips_fw->signals.bits.ips1_commit,
+				ips_fw->signals.bits.ips2_commit);
 
-				// Tell PMFW to exit low power state
-				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
+			// Tell PMFW to exit low power state
+			dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
+
+			if (ips_fw->signals.bits.ips2_commit) {
 
 				DC_LOG_IPS(
 					"wait IPS2 entry delay (ips1_commit=%u ips2_commit=%u)",
@@ -1400,7 +1415,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 					ips_fw->signals.bits.ips1_commit,
 					ips_fw->signals.bits.ips2_commit);
 
-				dmub_srv_sync_inbox1(dc->ctx->dmub_srv->dmub);
+				dmub_srv_sync_inboxes(dc->ctx->dmub_srv->dmub);
 			}
 		}
 
@@ -1654,7 +1669,8 @@ void dc_dmub_srv_fams2_update_config(struct dc *dc,
 	/* fill in generic command header */
 	global_cmd->header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
 	global_cmd->header.sub_type = DMUB_CMD__FAMS2_CONFIG;
-	global_cmd->header.payload_bytes = sizeof(struct dmub_rb_cmd_fams2) - sizeof(struct dmub_cmd_header);
+	global_cmd->header.payload_bytes =
+			sizeof(struct dmub_rb_cmd_fams2) - sizeof(struct dmub_cmd_header);
 
 	if (enable) {
 		/* send global configuration parameters */
@@ -1673,11 +1689,13 @@ void dc_dmub_srv_fams2_update_config(struct dc *dc,
 			/* configure command header */
 			stream_base_cmd->header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
 			stream_base_cmd->header.sub_type = DMUB_CMD__FAMS2_CONFIG;
-			stream_base_cmd->header.payload_bytes = sizeof(struct dmub_rb_cmd_fams2) - sizeof(struct dmub_cmd_header);
+			stream_base_cmd->header.payload_bytes =
+					sizeof(struct dmub_rb_cmd_fams2) - sizeof(struct dmub_cmd_header);
 			stream_base_cmd->header.multi_cmd_pending = 1;
 			stream_sub_state_cmd->header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
 			stream_sub_state_cmd->header.sub_type = DMUB_CMD__FAMS2_CONFIG;
-			stream_sub_state_cmd->header.payload_bytes = sizeof(struct dmub_rb_cmd_fams2) - sizeof(struct dmub_cmd_header);
+			stream_sub_state_cmd->header.payload_bytes =
+					sizeof(struct dmub_rb_cmd_fams2) - sizeof(struct dmub_cmd_header);
 			stream_sub_state_cmd->header.multi_cmd_pending = 1;
 			/* copy stream static base state */
 			memcpy(&stream_base_cmd->config,
@@ -1723,7 +1741,8 @@ void dc_dmub_srv_fams2_drr_update(struct dc *dc,
 	cmd.fams2_drr_update.dmub_optc_state_req.v_total_mid_frame_num = vtotal_mid_frame_num;
 	cmd.fams2_drr_update.dmub_optc_state_req.program_manual_trigger = program_manual_trigger;
 
-	cmd.fams2_drr_update.header.payload_bytes = sizeof(cmd.fams2_drr_update) - sizeof(cmd.fams2_drr_update.header);
+	cmd.fams2_drr_update.header.payload_bytes =
+			sizeof(cmd.fams2_drr_update) - sizeof(cmd.fams2_drr_update.header);
 
 	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
@@ -1759,7 +1778,8 @@ void dc_dmub_srv_fams2_passthrough_flip(
 		/* build command header */
 		cmds[num_cmds].fams2_flip.header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
 		cmds[num_cmds].fams2_flip.header.sub_type = DMUB_CMD__FAMS2_FLIP;
-		cmds[num_cmds].fams2_flip.header.payload_bytes = sizeof(struct dmub_rb_cmd_fams2_flip);
+		cmds[num_cmds].fams2_flip.header.payload_bytes =
+				sizeof(struct dmub_rb_cmd_fams2_flip) - sizeof(struct dmub_cmd_header);
 
 		/* for chaining multiple commands, all but last command should set to 1 */
 		cmds[num_cmds].fams2_flip.header.multi_cmd_pending = 1;
@@ -1869,11 +1889,14 @@ void dc_dmub_srv_ips_query_residency_info(struct dc_dmub_srv *dc_dmub_srv, struc
 	if (command_code == DMUB_GPINT__INVALID_COMMAND)
 		return;
 
-	// send gpint commands and wait for ack
-	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_PERCENT,
-				      (uint16_t)(output->ips_mode),
-				       &output->residency_percent, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-		output->residency_percent = 0;
+	for (i = 0; i < GPINT_RETRY_NUM; i++) {
+		// false could mean GPINT timeout, in which case we should retry
+		if (dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_PERCENT,
+					      (uint16_t)(output->ips_mode), &output->residency_percent,
+					      DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
+			break;
+		udelay(100);
+	}
 
 	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_ENTRY_COUNTER,
 				      (uint16_t)(output->ips_mode),

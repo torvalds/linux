@@ -575,48 +575,6 @@ int radeon_fence_wait(struct radeon_fence *fence, bool intr)
 }
 
 /**
- * radeon_fence_wait_any - wait for a fence to signal on any ring
- *
- * @rdev: radeon device pointer
- * @fences: radeon fence object(s)
- * @intr: use interruptable sleep
- *
- * Wait for any requested fence to signal (all asics).  Fence
- * array is indexed by ring id.  @intr selects whether to use
- * interruptable (true) or non-interruptable (false) sleep when
- * waiting for the fences. Used by the suballocator.
- * Returns 0 if any fence has passed, error for all other cases.
- */
-int radeon_fence_wait_any(struct radeon_device *rdev,
-			  struct radeon_fence **fences,
-			  bool intr)
-{
-	uint64_t seq[RADEON_NUM_RINGS];
-	unsigned int i, num_rings = 0;
-	long r;
-
-	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
-		seq[i] = 0;
-
-		if (!fences[i])
-			continue;
-
-		seq[i] = fences[i]->seq;
-		++num_rings;
-	}
-
-	/* nothing to wait for ? */
-	if (num_rings == 0)
-		return -ENOENT;
-
-	r = radeon_fence_wait_seq_timeout(rdev, seq, intr, MAX_SCHEDULE_TIMEOUT);
-	if (r < 0)
-		return r;
-
-	return 0;
-}
-
-/**
  * radeon_fence_wait_next - wait for the next fence to signal
  *
  * @rdev: radeon device pointer

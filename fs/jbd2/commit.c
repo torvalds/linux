@@ -99,7 +99,7 @@ static void jbd2_commit_block_csum_set(journal_t *j, struct buffer_head *bh)
 	h->h_chksum_type = 0;
 	h->h_chksum_size = 0;
 	h->h_chksum[0] = 0;
-	csum = jbd2_chksum(j, j->j_csum_seed, bh->b_data, j->j_blocksize);
+	csum = jbd2_chksum(j->j_csum_seed, bh->b_data, j->j_blocksize);
 	h->h_chksum[0] = cpu_to_be32(csum);
 }
 
@@ -330,8 +330,8 @@ static void jbd2_block_tag_csum_set(journal_t *j, journal_block_tag_t *tag,
 
 	seq = cpu_to_be32(sequence);
 	addr = kmap_local_folio(bh->b_folio, bh_offset(bh));
-	csum32 = jbd2_chksum(j, j->j_csum_seed, (__u8 *)&seq, sizeof(seq));
-	csum32 = jbd2_chksum(j, csum32, addr, bh->b_size);
+	csum32 = jbd2_chksum(j->j_csum_seed, (__u8 *)&seq, sizeof(seq));
+	csum32 = jbd2_chksum(csum32, addr, bh->b_size);
 	kunmap_local(addr);
 
 	if (jbd2_has_feature_csum3(j))

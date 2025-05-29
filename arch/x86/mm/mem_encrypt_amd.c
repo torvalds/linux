@@ -40,7 +40,9 @@
  * section is later cleared.
  */
 u64 sme_me_mask __section(".data") = 0;
+SYM_PIC_ALIAS(sme_me_mask);
 u64 sev_status __section(".data") = 0;
+SYM_PIC_ALIAS(sev_status);
 u64 sev_check_data __section(".data") = 0;
 EXPORT_SYMBOL(sme_me_mask);
 

@@ -44,6 +44,7 @@ enum icp_qat_fw_comp_20_cmd_id {
 #define ICP_QAT_FW_COMP_RET_DISABLE_TYPE0_HEADER_DATA_MASK 0x1
 #define ICP_QAT_FW_COMP_DISABLE_SECURE_RAM_AS_INTMD_BUF_BITPOS 7
 #define ICP_QAT_FW_COMP_DISABLE_SECURE_RAM_AS_INTMD_BUF_MASK 0x1
+#define ICP_QAT_FW_COMP_AUTO_SELECT_BEST_MAX_VALUE 0xFFFFFFFF
 
 #define ICP_QAT_FW_COMP_FLAGS_BUILD(sesstype, autoselect, enhanced_asb, \
 	ret_uncomp, secure_ram) \
@@ -117,7 +118,7 @@ struct icp_qat_fw_comp_req_params {
 #define ICP_QAT_FW_COMP_REQ_PARAM_FLAGS_BUILD(sop, eop, bfinal, cnv, cnvnr, \
 					      cnvdfx, crc, xxhash_acc, \
 					      cnv_error_type, append_crc, \
-					      drop_data) \
+					      drop_data, partial_decomp) \
 	((((sop) & ICP_QAT_FW_COMP_SOP_MASK) << \
 	ICP_QAT_FW_COMP_SOP_BITPOS) | \
 	(((eop) & ICP_QAT_FW_COMP_EOP_MASK) << \
@@ -139,7 +140,9 @@ struct icp_qat_fw_comp_req_params {
 	(((append_crc) & ICP_QAT_FW_COMP_APPEND_CRC_MASK) \
 	<< ICP_QAT_FW_COMP_APPEND_CRC_BITPOS) | \
 	(((drop_data) & ICP_QAT_FW_COMP_DROP_DATA_MASK) \
-	<< ICP_QAT_FW_COMP_DROP_DATA_BITPOS))
+	<< ICP_QAT_FW_COMP_DROP_DATA_BITPOS) | \
+	(((partial_decomp) & ICP_QAT_FW_COMP_PARTIAL_DECOMP_MASK) \
+	<< ICP_QAT_FW_COMP_PARTIAL_DECOMP_BITPOS))
 
 #define ICP_QAT_FW_COMP_NOT_SOP 0
 #define ICP_QAT_FW_COMP_SOP 1
@@ -161,6 +164,8 @@ struct icp_qat_fw_comp_req_params {
 #define ICP_QAT_FW_COMP_NO_APPEND_CRC 0
 #define ICP_QAT_FW_COMP_DROP_DATA 1
 #define ICP_QAT_FW_COMP_NO_DROP_DATA 0
+#define ICP_QAT_FW_COMP_PARTIAL_DECOMPRESS 1
+#define ICP_QAT_FW_COMP_NO_PARTIAL_DECOMPRESS 0
 #define ICP_QAT_FW_COMP_SOP_BITPOS 0
 #define ICP_QAT_FW_COMP_SOP_MASK 0x1
 #define ICP_QAT_FW_COMP_EOP_BITPOS 1
@@ -189,6 +194,8 @@ struct icp_qat_fw_comp_req_params {
 #define ICP_QAT_FW_COMP_APPEND_CRC_MASK 0x1
 #define ICP_QAT_FW_COMP_DROP_DATA_BITPOS 25
 #define ICP_QAT_FW_COMP_DROP_DATA_MASK 0x1
+#define ICP_QAT_FW_COMP_PARTIAL_DECOMP_BITPOS 27
+#define ICP_QAT_FW_COMP_PARTIAL_DECOMP_MASK 0x1
 
 #define ICP_QAT_FW_COMP_SOP_GET(flags) \
 	QAT_FIELD_GET(flags, ICP_QAT_FW_COMP_SOP_BITPOS, \
@@ -281,8 +288,18 @@ struct icp_qat_fw_comp_req {
 	union {
 		struct icp_qat_fw_xlt_req_params xlt_pars;
 		__u32 resrvd1[ICP_QAT_FW_NUM_LONGWORDS_2];
+		struct {
+			__u32 partial_decompress_length;
+			__u32 partial_decompress_offset;
+		} partial_decompress;
 	} u1;
-	__u32 resrvd2[ICP_QAT_FW_NUM_LONGWORDS_2];
+	union {
+		__u32 resrvd2[ICP_QAT_FW_NUM_LONGWORDS_2];
+		struct {
+			__u32 asb_value;
+			__u32 reserved;
+		} asb_threshold;
+	} u3;
 	struct icp_qat_fw_comp_cd_hdr comp_cd_ctrl;
 	union {
 		struct icp_qat_fw_xlt_cd_hdr xlt_cd_ctrl;

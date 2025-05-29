@@ -408,6 +408,7 @@ struct mana_context {
 	struct gdma_dev *gdma_dev;
 
 	u16 num_ports;
+	u8 bm_hostmode;
 
 	struct mana_eq *eqs;
 	struct dentry *mana_eqs_debugfs;
@@ -557,7 +558,8 @@ struct mana_query_device_cfg_resp {
 	u64 pf_cap_flags4;
 
 	u16 max_num_vports;
-	u16 reserved;
+	u8 bm_hostmode; /* response v3: Bare Metal Host Mode */
+	u8 reserved;
 	u32 max_num_eqs;
 
 	/* response v2: */

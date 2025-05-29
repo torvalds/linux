@@ -14,6 +14,7 @@
 #include <linux/fpga/adi-axi-common.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/of.h>
 #include <linux/module.h>
 #include <linux/overflow.h>
@@ -140,6 +141,8 @@ struct spi_engine_offload {
 	struct spi_engine *spi_engine;
 	unsigned long flags;
 	unsigned int offload_num;
+	unsigned int spi_mode_config;
+	u8 bits_per_word;
 };
 
 struct spi_engine {
@@ -159,6 +162,7 @@ struct spi_engine {
 	unsigned int offload_sdo_mem_size;
 	struct spi_offload *offload;
 	u32 offload_caps;
+	bool offload_requires_sync;
 };
 
 static void spi_engine_program_add_cmd(struct spi_engine_program *p,
@@ -265,6 +269,8 @@ static int spi_engine_precompile_message(struct spi_message *msg)
 {
 	unsigned int clk_div, max_hz = msg->spi->controller->max_speed_hz;
 	struct spi_transfer *xfer;
+	u8 min_bits_per_word = U8_MAX;
+	u8 max_bits_per_word = 0;
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		/* If we have an offload transfer, we can't rx to buffer */
@@ -273,6 +279,24 @@ static int spi_engine_precompile_message(struct spi_message *msg)
 
 		clk_div = DIV_ROUND_UP(max_hz, xfer->speed_hz);
 		xfer->effective_speed_hz = max_hz / min(clk_div, 256U);
+
+		if (xfer->len) {
+			min_bits_per_word = min(min_bits_per_word, xfer->bits_per_word);
+			max_bits_per_word = max(max_bits_per_word, xfer->bits_per_word);
+		}
+	}
+
+	/*
+	 * If all xfers in the message use the same bits_per_word, we can
+	 * provide some optimization when using SPI offload.
+	 */
+	if (msg->offload) {
+		struct spi_engine_offload *priv = msg->offload->priv;
+
+		if (min_bits_per_word == max_bits_per_word)
+			priv->bits_per_word = min_bits_per_word;
+		else
+			priv->bits_per_word = 0;
 	}
 
 	return 0;
@@ -283,6 +307,7 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 {
 	struct spi_device *spi = msg->spi;
 	struct spi_controller *host = spi->controller;
+	struct spi_engine_offload *priv;
 	struct spi_transfer *xfer;
 	int clk_div, new_clk_div, inst_ns;
 	bool keep_cs = false;
@@ -296,9 +321,24 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 
 	clk_div = 1;
 
-	spi_engine_program_add_cmd(p, dry,
-		SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
-			spi_engine_get_config(spi)));
+	/*
+	 * As an optimization, SPI offload sets once this when the offload is
+	 * enabled instead of repeating the instruction in each message.
+	 */
+	if (msg->offload) {
+		priv = msg->offload->priv;
+		priv->spi_mode_config = spi_engine_get_config(spi);
+
+		/*
+		 * If all xfers use the same bits_per_word, it can be optimized
+		 * in the same way.
+		 */
+		bits_per_word = priv->bits_per_word;
+	} else {
+		spi_engine_program_add_cmd(p, dry,
+			SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
+				spi_engine_get_config(spi)));
+	}
 
 	xfer = list_first_entry(&msg->transfers, struct spi_transfer, transfer_list);
 	spi_engine_gen_cs(p, dry, spi, !xfer->cs_off);
@@ -663,6 +703,8 @@ static void spi_engine_offload_unprepare(struct spi_offload *offload)
 
 static int spi_engine_optimize_message(struct spi_message *msg)
 {
+	struct spi_controller *host = msg->spi->controller;
+	struct spi_engine *spi_engine = spi_controller_get_devdata(host);
 	struct spi_engine_program p_dry, *p;
 	int ret;
 
@@ -679,8 +721,13 @@ static int spi_engine_optimize_message(struct spi_message *msg)
 
 	spi_engine_compile_message(msg, false, p);
 
-	spi_engine_program_add_cmd(p, false, SPI_ENGINE_CMD_SYNC(
-		msg->offload ? 0 : AXI_SPI_ENGINE_CUR_MSG_SYNC_ID));
+	/*
+	 * Non-offload needs SYNC for completion interrupt. Older versions of
+	 * the IP core also need SYNC for offload to work properly.
+	 */
+	if (!msg->offload || spi_engine->offload_requires_sync)
+		spi_engine_program_add_cmd(p, false, SPI_ENGINE_CMD_SYNC(
+			msg->offload ? 0 : AXI_SPI_ENGINE_CUR_MSG_SYNC_ID));
 
 	msg->opt_state = p;
 
@@ -739,11 +786,15 @@ static int spi_engine_setup(struct spi_device *device)
 {
 	struct spi_controller *host = device->controller;
 	struct spi_engine *spi_engine = spi_controller_get_devdata(host);
+	unsigned int reg;
 
 	if (device->mode & SPI_CS_HIGH)
 		spi_engine->cs_inv |= BIT(spi_get_chipselect(device, 0));
 	else
 		spi_engine->cs_inv &= ~BIT(spi_get_chipselect(device, 0));
+
+	writel_relaxed(SPI_ENGINE_CMD_SYNC(0),
+		       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
 
 	writel_relaxed(SPI_ENGINE_CMD_CS_INV(spi_engine->cs_inv),
 		       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
@@ -755,7 +806,11 @@ static int spi_engine_setup(struct spi_device *device)
 	writel_relaxed(SPI_ENGINE_CMD_ASSERT(0, 0xff),
 		       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
 
-	return 0;
+	writel_relaxed(SPI_ENGINE_CMD_SYNC(1),
+		       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
+
+	return readl_relaxed_poll_timeout(spi_engine->base + SPI_ENGINE_REG_SYNC_ID,
+					  reg, reg == 1, 1, 1000);
 }
 
 static int spi_engine_transfer_one_message(struct spi_controller *host,
@@ -833,6 +888,27 @@ static int spi_engine_trigger_enable(struct spi_offload *offload)
 	struct spi_engine_offload *priv = offload->priv;
 	struct spi_engine *spi_engine = priv->spi_engine;
 	unsigned int reg;
+	int ret;
+
+	writel_relaxed(SPI_ENGINE_CMD_SYNC(0),
+		spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
+
+	writel_relaxed(SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
+					    priv->spi_mode_config),
+		       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
+
+	if (priv->bits_per_word)
+		writel_relaxed(SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_XFER_BITS,
+						    priv->bits_per_word),
+			       spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
+
+	writel_relaxed(SPI_ENGINE_CMD_SYNC(1),
+		spi_engine->base + SPI_ENGINE_REG_CMD_FIFO);
+
+	ret = readl_relaxed_poll_timeout(spi_engine->base + SPI_ENGINE_REG_SYNC_ID,
+					 reg, reg == 1, 1, 1000);
+	if (ret)
+		return ret;
 
 	reg = readl_relaxed(spi_engine->base +
 			    SPI_ENGINE_REG_OFFLOAD_CTRL(priv->offload_num));
@@ -986,6 +1062,9 @@ static int spi_engine_probe(struct platform_device *pdev)
 		spi_engine->offload_ctrl_mem_size = SPI_ENGINE_OFFLOAD_CMD_FIFO_SIZE;
 		spi_engine->offload_sdo_mem_size = SPI_ENGINE_OFFLOAD_SDO_FIFO_SIZE;
 	}
+
+	/* IP v1.5 dropped the requirement for SYNC in offload messages. */
+	spi_engine->offload_requires_sync = ADI_AXI_PCORE_VER_MINOR(version) < 5;
 
 	writel_relaxed(0x00, spi_engine->base + SPI_ENGINE_REG_RESET);
 	writel_relaxed(0xff, spi_engine->base + SPI_ENGINE_REG_INT_PENDING);

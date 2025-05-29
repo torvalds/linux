@@ -728,6 +728,9 @@ pldm_send_package_data(struct pldmfw_priv *data)
 	struct pldmfw_record *record = data->matching_record;
 	const struct pldmfw_ops *ops = data->context->ops;
 
+	if (!ops->send_package_data)
+		return 0;
+
 	return ops->send_package_data(data->context, record->package_data,
 				      record->package_data_len);
 }
@@ -753,6 +756,9 @@ pldm_send_component_tables(struct pldmfw_priv *data)
 
 		/* Skip components which are not intended for this device */
 		if (!test_bit(index, bitmap))
+			continue;
+
+		if (!data->context->ops->send_component_table)
 			continue;
 
 		/* determine whether this is the start, middle, end, or both

@@ -700,7 +700,7 @@ static void fimc_capture_try_selection(struct fimc_ctx *ctx,
 	r->top  = clamp_t(u32, r->top, 0, sink->f_height - r->height);
 	r->left = round_down(r->left, var->hor_offs_align);
 
-	dbg("target %#x: (%d,%d)/%dx%d, sink fmt: %dx%d",
+	dbg("target %#x: (%d,%d)/%ux%u, sink fmt: %dx%d",
 	    target, r->left, r->top, r->width, r->height,
 	    sink->f_width, sink->f_height);
 }
@@ -1622,7 +1622,7 @@ static int fimc_subdev_get_selection(struct v4l2_subdev *sd,
 		r->height = f->height;
 	}
 
-	dbg("target %#x: l:%d, t:%d, %dx%d, f_w: %d, f_h: %d",
+	dbg("target %#x: (%d,%d)/%ux%u, f_w: %d, f_h: %d",
 	    sel->pad, r->left, r->top, r->width, r->height,
 	    f->f_width, f->f_height);
 
@@ -1671,7 +1671,7 @@ static int fimc_subdev_set_selection(struct v4l2_subdev *sd,
 		spin_unlock_irqrestore(&fimc->slock, flags);
 	}
 
-	dbg("target %#x: (%d,%d)/%dx%d", sel->target, r->left, r->top,
+	dbg("target %#x: (%d,%d)/%ux%u", sel->target, r->left, r->top,
 	    r->width, r->height);
 
 	mutex_unlock(&fimc->lock);

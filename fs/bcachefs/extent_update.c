@@ -37,16 +37,17 @@ static unsigned bch2_bkey_nr_alloc_ptrs(struct bkey_s_c k)
 	return lru + ret * 2;
 }
 
+#define EXTENT_ITERS_MAX	64
+
 static int count_iters_for_insert(struct btree_trans *trans,
 				  struct bkey_s_c k,
 				  unsigned offset,
 				  struct bpos *end,
-				  unsigned *nr_iters,
-				  unsigned max_iters)
+				  unsigned *nr_iters)
 {
 	int ret = 0, ret2 = 0;
 
-	if (*nr_iters >= max_iters) {
+	if (*nr_iters >= EXTENT_ITERS_MAX) {
 		*end = bpos_min(*end, k.k->p);
 		ret = 1;
 	}
@@ -56,7 +57,7 @@ static int count_iters_for_insert(struct btree_trans *trans,
 	case KEY_TYPE_reflink_v:
 		*nr_iters += bch2_bkey_nr_alloc_ptrs(k);
 
-		if (*nr_iters >= max_iters) {
+		if (*nr_iters >= EXTENT_ITERS_MAX) {
 			*end = bpos_min(*end, k.k->p);
 			ret = 1;
 		}
@@ -81,7 +82,7 @@ static int count_iters_for_insert(struct btree_trans *trans,
 
 			*nr_iters += 1 + bch2_bkey_nr_alloc_ptrs(r_k);
 
-			if (*nr_iters >= max_iters) {
+			if (*nr_iters >= EXTENT_ITERS_MAX) {
 				struct bpos pos = bkey_start_pos(k.k);
 				pos.offset += min_t(u64, k.k->size,
 						    r_k.k->p.offset - idx);
@@ -100,59 +101,31 @@ static int count_iters_for_insert(struct btree_trans *trans,
 	return ret2 ?: ret;
 }
 
-#define EXTENT_ITERS_MAX	(BTREE_ITER_INITIAL / 3)
-
 int bch2_extent_atomic_end(struct btree_trans *trans,
 			   struct btree_iter *iter,
-			   struct bkey_i *insert,
 			   struct bpos *end)
 {
-	struct btree_iter copy;
-	struct bkey_s_c k;
 	unsigned nr_iters = 0;
-	int ret;
 
-	ret = bch2_btree_iter_traverse(trans, iter);
-	if (ret)
-		return ret;
-
-	*end = insert->k.p;
-
-	/* extent_update_to_keys(): */
-	nr_iters += 1;
-
-	ret = count_iters_for_insert(trans, bkey_i_to_s_c(insert), 0, end,
-				     &nr_iters, EXTENT_ITERS_MAX / 2);
-	if (ret < 0)
-		return ret;
-
+	struct btree_iter copy;
 	bch2_trans_copy_iter(trans, &copy, iter);
 
-	for_each_btree_key_max_continue_norestart(trans, copy, insert->k.p, 0, k, ret) {
+	int ret = bch2_btree_iter_traverse(trans, &copy);
+	if (ret)
+		goto err;
+
+	struct bkey_s_c k;
+	for_each_btree_key_max_continue_norestart(trans, copy, *end, 0, k, ret) {
 		unsigned offset = 0;
 
-		if (bkey_gt(bkey_start_pos(&insert->k), bkey_start_pos(k.k)))
-			offset = bkey_start_offset(&insert->k) -
-				bkey_start_offset(k.k);
+		if (bkey_gt(iter->pos, bkey_start_pos(k.k)))
+			offset = iter->pos.offset - bkey_start_offset(k.k);
 
-		/* extent_handle_overwrites(): */
-		switch (bch2_extent_overlap(&insert->k, k.k)) {
-		case BCH_EXTENT_OVERLAP_ALL:
-		case BCH_EXTENT_OVERLAP_FRONT:
-			nr_iters += 1;
-			break;
-		case BCH_EXTENT_OVERLAP_BACK:
-		case BCH_EXTENT_OVERLAP_MIDDLE:
-			nr_iters += 2;
-			break;
-		}
-
-		ret = count_iters_for_insert(trans, k, offset, end,
-					&nr_iters, EXTENT_ITERS_MAX);
+		ret = count_iters_for_insert(trans, k, offset, end, &nr_iters);
 		if (ret)
 			break;
 	}
-
+err:
 	bch2_trans_iter_exit(trans, &copy);
 	return ret < 0 ? ret : 0;
 }
@@ -161,10 +134,8 @@ int bch2_extent_trim_atomic(struct btree_trans *trans,
 			    struct btree_iter *iter,
 			    struct bkey_i *k)
 {
-	struct bpos end;
-	int ret;
-
-	ret = bch2_extent_atomic_end(trans, iter, k, &end);
+	struct bpos end = k->k.p;
+	int ret = bch2_extent_atomic_end(trans, iter, &end);
 	if (ret)
 		return ret;
 

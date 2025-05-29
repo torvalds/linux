@@ -1,0 +1,2449 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+
+name: rt-link
+protocol: netlink-raw
+uapi-header: linux/rtnetlink.h
+protonum: 0
+
+doc:
+  Link configuration over rtnetlink.
+
+definitions:
+  -
+    name: ifinfo-flags
+    type: flags
+    header: linux/if.h
+    enum-name: net-device-flags
+    name-prefix: iff-
+    entries:
+      -
+        name: up
+      -
+        name: broadcast
+      -
+        name: debug
+      -
+        name: loopback
+      -
+        name: point-to-point
+      -
+        name: no-trailers
+      -
+        name: running
+      -
+        name: no-arp
+      -
+        name: promisc
+      -
+        name: all-multi
+      -
+        name: master
+      -
+        name: slave
+      -
+        name: multicast
+      -
+        name: portsel
+      -
+        name: auto-media
+      -
+        name: dynamic
+      -
+        name: lower-up
+      -
+        name: dormant
+      -
+        name: echo
+  -
+    name: vlan-protocols
+    type: enum
+    enum-name:
+    entries:
+      -
+        name: 8021q
+        value: 33024
+      -
+        name: 8021ad
+        value: 34984
+  -
+    name: rtgenmsg
+    type: struct
+    members:
+      -
+        name: family
+        type: u8
+  -
+    name: ifinfomsg
+    type: struct
+    members:
+      -
+        name: ifi-family
+        type: u8
+      -
+        name: pad
+        type: pad
+        len: 1
+      -
+        name: ifi-type
+        type: u16
+      -
+        name: ifi-index
+        type: s32
+      -
+        name: ifi-flags
+        type: u32
+        enum: ifinfo-flags
+        enum-as-flags: true
+      -
+        name: ifi-change
+        type: u32
+  -
+    name: ifla-bridge-id
+    type: struct
+    members:
+      -
+        name: prio
+        type: u16
+      -
+        name: addr
+        type: binary
+        len: 6
+        display-hint: mac
+  -
+    name: ifla-cacheinfo
+    type: struct
+    members:
+      -
+        name: max-reasm-len
+        type: u32
+      -
+        name: tstamp
+        type: u32
+      -
+        name: reachable-time
+        type: s32
+      -
+        name: retrans-time
+        type: u32
+  -
+    name: rtnl-link-stats
+    type: struct
+    members:
+      -
+        name: rx-packets
+        type: u32
+      -
+        name: tx-packets
+        type: u32
+      -
+        name: rx-bytes
+        type: u32
+      -
+        name: tx-bytes
+        type: u32
+      -
+        name: rx-errors
+        type: u32
+      -
+        name: tx-errors
+        type: u32
+      -
+        name: rx-dropped
+        type: u32
+      -
+        name: tx-dropped
+        type: u32
+      -
+        name: multicast
+        type: u32
+      -
+        name: collisions
+        type: u32
+      -
+        name: rx-length-errors
+        type: u32
+      -
+        name: rx-over-errors
+        type: u32
+      -
+        name: rx-crc-errors
+        type: u32
+      -
+        name: rx-frame-errors
+        type: u32
+      -
+        name: rx-fifo-errors
+        type: u32
+      -
+        name: rx-missed-errors
+        type: u32
+      -
+        name: tx-aborted-errors
+        type: u32
+      -
+        name: tx-carrier-errors
+        type: u32
+      -
+        name: tx-fifo-errors
+        type: u32
+      -
+        name: tx-heartbeat-errors
+        type: u32
+      -
+        name: tx-window-errors
+        type: u32
+      -
+        name: rx-compressed
+        type: u32
+      -
+        name: tx-compressed
+        type: u32
+      -
+        name: rx-nohandler
+        type: u32
+  -
+    name: rtnl-link-stats64
+    type: struct
+    members:
+      -
+        name: rx-packets
+        type: u64
+      -
+        name: tx-packets
+        type: u64
+      -
+        name: rx-bytes
+        type: u64
+      -
+        name: tx-bytes
+        type: u64
+      -
+        name: rx-errors
+        type: u64
+      -
+        name: tx-errors
+        type: u64
+      -
+        name: rx-dropped
+        type: u64
+      -
+        name: tx-dropped
+        type: u64
+      -
+        name: multicast
+        type: u64
+      -
+        name: collisions
+        type: u64
+      -
+        name: rx-length-errors
+        type: u64
+      -
+        name: rx-over-errors
+        type: u64
+      -
+        name: rx-crc-errors
+        type: u64
+      -
+        name: rx-frame-errors
+        type: u64
+      -
+        name: rx-fifo-errors
+        type: u64
+      -
+        name: rx-missed-errors
+        type: u64
+      -
+        name: tx-aborted-errors
+        type: u64
+      -
+        name: tx-carrier-errors
+        type: u64
+      -
+        name: tx-fifo-errors
+        type: u64
+      -
+        name: tx-heartbeat-errors
+        type: u64
+      -
+        name: tx-window-errors
+        type: u64
+      -
+        name: rx-compressed
+        type: u64
+      -
+        name: tx-compressed
+        type: u64
+      -
+        name: rx-nohandler
+        type: u64
+      -
+        name: rx-otherhost-dropped
+        type: u64
+  -
+    name: rtnl-link-ifmap
+    type: struct
+    members:
+      -
+        name: mem-start
+        type: u64
+      -
+        name: mem-end
+        type: u64
+      -
+        name: base-addr
+        type: u64
+      -
+        name: irq
+        type: u16
+      -
+        name: dma
+        type: u8
+      -
+        name: port
+        type: u8
+  -
+    name: ipv4-devconf
+    enum-name:
+    type: enum
+    entries:
+      -
+        name: forwarding
+      -
+        name: mc-forwarding
+      -
+        name: proxy-arp
+      -
+        name: accept-redirects
+      -
+        name: secure-redirects
+      -
+        name: send-redirects
+      -
+        name: shared-media
+      -
+        name: rp-filter
+      -
+        name: accept-source-route
+      -
+        name: bootp-relay
+      -
+        name: log-martians
+      -
+        name: tag
+      -
+        name: arpfilter
+      -
+        name: medium-id
+      -
+        name: noxfrm
+      -
+        name: nopolicy
+      -
+        name: force-igmp-version
+      -
+        name: arp-announce
+      -
+        name: arp-ignore
+      -
+        name: promote-secondaries
+      -
+        name: arp-accept
+      -
+        name: arp-notify
+      -
+        name: accept-local
+      -
+        name: src-vmark
+      -
+        name: proxy-arp-pvlan
+      -
+        name: route-localnet
+      -
+        name: igmpv2-unsolicited-report-interval
+      -
+        name: igmpv3-unsolicited-report-interval
+      -
+        name: ignore-routes-with-linkdown
+      -
+        name: drop-unicast-in-l2-multicast
+      -
+        name: drop-gratuitous-arp
+      -
+        name: bc-forwarding
+      -
+        name: arp-evict-nocarrier
+  -
+    name: ipv6-devconf
+    enum-name:
+    type: enum
+    entries:
+      -
+        name: forwarding
+      -
+        name: hoplimit
+      -
+        name: mtu6
+      -
+        name: accept-ra
+      -
+        name: accept-redirects
+      -
+        name: autoconf
+      -
+        name: dad-transmits
+      -
+        name: rtr-solicits
+      -
+        name: rtr-solicit-interval
+      -
+        name: rtr-solicit-delay
+      -
+        name: use-tempaddr
+      -
+        name: temp-valid-lft
+      -
+        name: temp-prefered-lft
+      -
+        name: regen-max-retry
+      -
+        name: max-desync-factor
+      -
+        name: max-addresses
+      -
+        name: force-mld-version
+      -
+        name: accept-ra-defrtr
+      -
+        name: accept-ra-pinfo
+      -
+        name: accept-ra-rtr-pref
+      -
+        name: rtr-probe-interval
+      -
+        name: accept-ra-rt-info-max-plen
+      -
+        name: proxy-ndp
+      -
+        name: optimistic-dad
+      -
+        name: accept-source-route
+      -
+        name: mc-forwarding
+      -
+        name: disable-ipv6
+      -
+        name: accept-dad
+      -
+        name: force-tllao
+      -
+        name: ndisc-notify
+      -
+        name: mldv1-unsolicited-report-interval
+      -
+        name: mldv2-unsolicited-report-interval
+      -
+        name: suppress-frag-ndisc
+      -
+        name: accept-ra-from-local
+      -
+        name: use-optimistic
+      -
+        name: accept-ra-mtu
+      -
+        name: stable-secret
+      -
+        name: use-oif-addrs-only
+      -
+        name: accept-ra-min-hop-limit
+      -
+        name: ignore-routes-with-linkdown
+      -
+        name: drop-unicast-in-l2-multicast
+      -
+        name: drop-unsolicited-na
+      -
+        name: keep-addr-on-down
+      -
+        name: rtr-solicit-max-interval
+      -
+        name: seg6-enabled
+      -
+        name: seg6-require-hmac
+      -
+        name: enhanced-dad
+      -
+        name: addr-gen-mode
+      -
+        name: disable-policy
+      -
+        name: accept-ra-rt-info-min-plen
+      -
+        name: ndisc-tclass
+      -
+        name: rpl-seg-enabled
+      -
+        name: ra-defrtr-metric
+      -
+        name: ioam6-enabled
+      -
+        name: ioam6-id
+      -
+        name: ioam6-id-wide
+      -
+        name: ndisc-evict-nocarrier
+      -
+        name: accept-untracked-na
+  -
+    name: ifla-icmp6-stats
+    enum-name:
+    type: enum
+    entries:
+      -
+        name: num
+      -
+        name: inmsgs
+      -
+        name: inerrors
+      -
+        name: outmsgs
+      -
+        name: outerrors
+      -
+        name: csumerrors
+      -
+        name: ratelimithost
+  -
+    name: ifla-inet6-stats
+    enum-name:
+    type: enum
+    entries:
+      -
+        name: num
+      -
+        name: inpkts
+      -
+        name: inoctets
+      -
+        name: indelivers
+      -
+        name: outforwdatagrams
+      -
+        name: outpkts
+      -
+        name: outoctets
+      -
+        name: inhdrerrors
+      -
+        name: intoobigerrors
+      -
+        name: innoroutes
+      -
+        name: inaddrerrors
+      -
+        name: inunknownprotos
+      -
+        name: intruncatedpkts
+      -
+        name: indiscards
+      -
+        name: outdiscards
+      -
+        name: outnoroutes
+      -
+        name: reasmtimeout
+      -
+        name: reasmreqds
+      -
+        name: reasmoks
+      -
+        name: reasmfails
+      -
+        name: fragoks
+      -
+        name: fragfails
+      -
+        name: fragcreates
+      -
+        name: inmcastpkts
+      -
+        name: outmcastpkts
+      -
+        name: inbcastpkts
+      -
+        name: outbcastpkts
+      -
+        name: inmcastoctets
+      -
+        name: outmcastoctets
+      -
+        name: inbcastoctets
+      -
+        name: outbcastoctets
+      -
+        name: csumerrors
+      -
+        name: noectpkts
+      -
+        name: ect1-pkts
+      -
+        name: ect0-pkts
+      -
+        name: cepkts
+      -
+        name: reasm-overlaps
+  - name: br-boolopt-multi
+    type: struct
+    header: linux/if_bridge.h
+    members:
+      -
+        name: optval
+        type: u32
+      -
+        name: optmask
+        type: u32
+  -
+    name: if_stats_msg
+    type: struct
+    members:
+      -
+        name: family
+        type: u8
+      -
+        name: pad
+        type: pad
+        len: 3
+      -
+        name: ifindex
+        type: u32
+      -
+        name: filter-mask
+        type: u32
+  -
+    name: ifla-vlan-flags
+    type: struct
+    members:
+      -
+        name: flags
+        type: u32
+        enum: vlan-flags
+        enum-as-flags: true
+      -
+        name: mask
+        type: u32
+        display-hint: hex
+  -
+    name: vlan-flags
+    type: flags
+    enum-name:
+    entries:
+      - reorder-hdr
+      - gvrp
+      - loose-binding
+      - mvrp
+      - bridge-binding
+  -
+    name: ifla-vlan-qos-mapping
+    type: struct
+    members:
+      -
+        name: from
+        type: u32
+      -
+        name: to
+        type: u32
+  -
+    name: ifla-geneve-port-range
+    type: struct
+    members:
+      -
+        name: low
+        type: u16
+        byte-order: big-endian
+      -
+        name: high
+        type: u16
+        byte-order: big-endian
+  -
+    name: ifla-vf-mac
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: mac
+        type: binary
+        len: 32
+  -
+    name: ifla-vf-vlan
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: vlan
+        type: u32
+      -
+        name: qos
+        type: u32
+  -
+    name: ifla-vf-tx-rate
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: rate
+        type: u32
+  -
+    name: ifla-vf-spoofchk
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: setting
+        type: u32
+  -
+    name: ifla-vf-link-state
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: link-state
+        type: u32
+        enum: ifla-vf-link-state-enum
+  -
+    name: ifla-vf-link-state-enum
+    type: enum
+    enum-name:
+    entries:
+      - auto
+      - enable
+      - disable
+  -
+    name: ifla-vf-rate
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: min-tx-rate
+        type: u32
+      -
+        name: max-tx-rate
+        type: u32
+  -
+    name: ifla-vf-rss-query-en
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: setting
+        type: u32
+  -
+    name: ifla-vf-trust
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: setting
+        type: u32
+  -
+    name: ifla-vf-guid
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: guid
+        type: u64
+  -
+    name: ifla-vf-vlan-info
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: vlan
+        type: u32
+      -
+        name: qos
+        type: u32
+      -
+        name: vlan-proto
+        type: u32
+  -
+    name: rtext-filter
+    type: flags
+    enum-name:
+    entries:
+      - vf
+      - brvlan
+      - brvlan-compressed
+      - skip-stats
+      - mrp
+      - cfm-config
+      - cfm-status
+      - mst
+  -
+    name: netkit-policy
+    type: enum
+    enum-name:
+    entries:
+      -
+        name: forward
+        value: 0
+      -
+        name: blackhole
+        value: 2
+  -
+    name: netkit-mode
+    type: enum
+    enum-name: netkit-mode
+    entries:
+      - name: l2
+      - name: l3
+
+  -
+    name: netkit-scrub
+    type: enum
+    enum-name:
+    entries:
+      - name: none
+      - name: default
+  -
+    name: ovpn-mode
+    enum-name: ovpn-mode
+    name-prefix: ovpn-mode
+    type: enum
+    entries:
+      - p2p
+      - mp
+
+attribute-sets:
+  -
+    name: link-attrs
+    name-prefix: ifla-
+    attributes:
+      -
+        name: address
+        type: binary
+        display-hint: mac
+      -
+        name: broadcast
+        type: binary
+        display-hint: mac
+      -
+        name: ifname
+        type: string
+      -
+        name: mtu
+        type: u32
+      -
+        name: link
+        type: u32
+      -
+        name: qdisc
+        type: string
+      -
+        name: stats
+        type: binary
+        struct: rtnl-link-stats
+      -
+        name: cost
+        type: string
+      -
+        name: priority
+        type: string
+      -
+        name: master
+        type: u32
+      -
+        name: wireless
+        type: string
+      -
+        name: protinfo
+        type: string
+      -
+        name: txqlen
+        type: u32
+      -
+        name: map
+        type: binary
+        struct: rtnl-link-ifmap
+      -
+        name: weight
+        type: u32
+      -
+        name: operstate
+        type: u8
+      -
+        name: linkmode
+        type: u8
+      -
+        name: linkinfo
+        type: nest
+        nested-attributes: linkinfo-attrs
+      -
+        name: net-ns-pid
+        type: u32
+      -
+        name: ifalias
+        type: string
+      -
+        name: num-vf
+        type: u32
+      -
+        name: vfinfo-list
+        type: nest
+        nested-attributes: vfinfo-list-attrs
+      -
+        name: stats64
+        type: binary
+        struct: rtnl-link-stats64
+      -
+        name: vf-ports
+        type: nest
+        nested-attributes: vf-ports-attrs
+      -
+        name: port-self
+        type: nest
+        nested-attributes: port-self-attrs
+      -
+        name: af-spec
+        type: nest
+        nested-attributes: af-spec-attrs
+      -
+        name: group
+        type: u32
+      -
+        name: net-ns-fd
+        type: u32
+      -
+        name: ext-mask
+        type: u32
+        enum: rtext-filter
+        enum-as-flags: true
+      -
+        name: promiscuity
+        type: u32
+      -
+        name: num-tx-queues
+        type: u32
+      -
+        name: num-rx-queues
+        type: u32
+      -
+        name: carrier
+        type: u8
+      -
+        name: phys-port-id
+        type: binary
+      -
+        name: carrier-changes
+        type: u32
+      -
+        name: phys-switch-id
+        type: binary
+      -
+        name: link-netnsid
+        type: s32
+      -
+        name: phys-port-name
+        type: string
+      -
+        name: proto-down
+        type: u8
+      -
+        name: gso-max-segs
+        type: u32
+      -
+        name: gso-max-size
+        type: u32
+      -
+        name: pad
+        type: pad
+      -
+        name: xdp
+        type: nest
+        nested-attributes: xdp-attrs
+      -
+        name: event
+        type: u32
+      -
+        name: new-netnsid
+        type: s32
+      -
+        name: target-netnsid
+        type: s32
+      -
+        name: carrier-up-count
+        type: u32
+      -
+        name: carrier-down-count
+        type: u32
+      -
+        name: new-ifindex
+        type: s32
+      -
+        name: min-mtu
+        type: u32
+      -
+        name: max-mtu
+        type: u32
+      -
+        name: prop-list
+        type: nest
+        nested-attributes: prop-list-link-attrs
+      -
+        name: alt-ifname
+        type: string
+      -
+        name: perm-address
+        type: binary
+        display-hint: mac
+      -
+        name: proto-down-reason
+        type: string
+      -
+        name: parent-dev-name
+        type: string
+      -
+        name: parent-dev-bus-name
+        type: string
+      -
+        name: gro-max-size
+        type: u32
+      -
+        name: tso-max-size
+        type: u32
+      -
+        name: tso-max-segs
+        type: u32
+      -
+        name: allmulti
+        type: u32
+      -
+        name: devlink-port
+        type: binary
+      -
+        name: gso-ipv4-max-size
+        type: u32
+      -
+        name: gro-ipv4-max-size
+        type: u32
+      -
+        name: dpll-pin
+        type: nest
+        nested-attributes: link-dpll-pin-attrs
+      -
+        name: max-pacing-offload-horizon
+        type: uint
+        doc: EDT offload horizon supported by the device (in nsec).
+      -
+        name: netns-immutable
+        type: u8
+  -
+    name: prop-list-link-attrs
+    subset-of: link-attrs
+    attributes:
+      -
+        name: alt-ifname
+        multi-attr: true
+  -
+    name: af-spec-attrs
+    name-prefix: af-
+    attr-max-name: af-max
+    attributes:
+      -
+        name: inet
+        type: nest
+        value: 2
+        nested-attributes: ifla-attrs
+      -
+        name: inet6
+        type: nest
+        value: 10
+        nested-attributes: ifla6-attrs
+      -
+        name: mctp
+        type: nest
+        value: 45
+        nested-attributes: mctp-attrs
+  -
+    name: vfinfo-list-attrs
+    name-prefix: ifla-vf-
+    attributes:
+      -
+        name: info
+        type: nest
+        nested-attributes: vfinfo-attrs
+        multi-attr: true
+  -
+    name: vfinfo-attrs
+    name-prefix: ifla-vf-
+    attributes:
+      -
+        name: mac
+        type: binary
+        struct: ifla-vf-mac
+      -
+        name: vlan
+        type: binary
+        struct: ifla-vf-vlan
+      -
+        name: tx-rate
+        type: binary
+        struct: ifla-vf-tx-rate
+      -
+        name: spoofchk
+        type: binary
+        struct: ifla-vf-spoofchk
+      -
+        name: link-state
+        type: binary
+        struct: ifla-vf-link-state
+      -
+        name: rate
+        type: binary
+        struct: ifla-vf-rate
+      -
+        name: rss-query-en
+        type: binary
+        struct: ifla-vf-rss-query-en
+      -
+        name: stats
+        type: nest
+        nested-attributes: vf-stats-attrs
+      -
+        name: trust
+        type: binary
+        struct: ifla-vf-trust
+      -
+        name: ib-node-guid
+        type: binary
+        struct: ifla-vf-guid
+      -
+        name: ib-port-guid
+        type: binary
+        struct: ifla-vf-guid
+      -
+        name: vlan-list
+        type: nest
+        nested-attributes: vf-vlan-attrs
+      -
+        name: broadcast
+        type: binary
+  -
+    name: vf-stats-attrs
+    name-prefix: ifla-vf-stats-
+    attributes:
+      -
+        name: rx-packets
+        type: u64
+        value: 0
+      -
+        name: tx-packets
+        type: u64
+      -
+        name: rx-bytes
+        type: u64
+      -
+        name: tx-bytes
+        type: u64
+      -
+        name: broadcast
+        type: u64
+      -
+        name: multicast
+        type: u64
+      -
+        name: pad
+        type: pad
+      -
+        name: rx-dropped
+        type: u64
+      -
+        name: tx-dropped
+        type: u64
+  -
+    name: vf-vlan-attrs
+    name-prefix: ifla-vf-vlan-
+    attr-max-name: ifla-vf-vlan-info-max
+    attributes:
+      -
+        name: info
+        type: binary
+        struct: ifla-vf-vlan-info
+        multi-attr: true
+  -
+    name: vf-ports-attrs
+    name-prefix: ifla-
+    attributes: []
+  -
+    name: port-self-attrs
+    name-prefix: ifla-
+    attributes: []
+  -
+    name: linkinfo-attrs
+    name-prefix: ifla-info-
+    attributes:
+      -
+        name: kind
+        type: string
+      -
+        name: data
+        type: sub-message
+        sub-message: linkinfo-data-msg
+        selector: kind
+      -
+        name: xstats
+        type: binary
+      -
+        name: slave-kind
+        type: string
+      -
+        name: slave-data
+        type: sub-message
+        sub-message: linkinfo-member-data-msg
+        selector: slave-kind
+  -
+    name: linkinfo-bond-attrs
+    name-prefix: ifla-bond-
+    attributes:
+      -
+        name: mode
+        type: u8
+      -
+        name: active-slave
+        type: u32
+      -
+        name: miimon
+        type: u32
+      -
+        name: updelay
+        type: u32
+      -
+        name: downdelay
+        type: u32
+      -
+        name: use-carrier
+        type: u8
+      -
+        name: arp-interval
+        type: u32
+      -
+        name: arp-ip-target
+        type: indexed-array
+        sub-type: u32
+        byte-order: big-endian
+        display-hint: ipv4
+      -
+        name: arp-validate
+        type: u32
+      -
+        name: arp-all-targets
+        type: u32
+      -
+        name: primary
+        type: u32
+      -
+        name: primary-reselect
+        type: u8
+      -
+        name: fail-over-mac
+        type: u8
+      -
+        name: xmit-hash-policy
+        type: u8
+      -
+        name: resend-igmp
+        type: u32
+      -
+        name: num-peer-notif
+        type: u8
+      -
+        name: all-slaves-active
+        type: u8
+      -
+        name: min-links
+        type: u32
+      -
+        name: lp-interval
+        type: u32
+      -
+        name: packets-per-slave
+        type: u32
+      -
+        name: ad-lacp-rate
+        type: u8
+      -
+        name: ad-select
+        type: u8
+      -
+        name: ad-info
+        type: nest
+        nested-attributes: bond-ad-info-attrs
+      -
+        name: ad-actor-sys-prio
+        type: u16
+      -
+        name: ad-user-port-key
+        type: u16
+      -
+        name: ad-actor-system
+        type: binary
+        display-hint: mac
+      -
+        name: tlb-dynamic-lb
+        type: u8
+      -
+        name: peer-notif-delay
+        type: u32
+      -
+        name: ad-lacp-active
+        type: u8
+      -
+        name: missed-max
+        type: u8
+      -
+        name: ns-ip6-target
+        type: indexed-array
+        sub-type: binary
+        display-hint: ipv6
+        checks:
+          exact-len: 16
+      -
+        name: coupled-control
+        type: u8
+  -
+    name: bond-ad-info-attrs
+    name-prefix: ifla-bond-ad-info-
+    attributes:
+      -
+        name: aggregator
+        type: u16
+      -
+        name: num-ports
+        type: u16
+      -
+        name: actor-key
+        type: u16
+      -
+        name: partner-key
+        type: u16
+      -
+        name: partner-mac
+        type: binary
+        display-hint: mac
+  -
+    name: bond-slave-attrs
+    name-prefix: ifla-bond-slave-
+    attributes:
+      -
+        name: state
+        type: u8
+      -
+        name: mii-status
+        type: u8
+      -
+        name: link-failure-count
+        type: u32
+      -
+        name: perm-hwaddr
+        type: binary
+        display-hint: mac
+      -
+        name: queue-id
+        type: u16
+      -
+        name: ad-aggregator-id
+        type: u16
+      -
+        name: ad-actor-oper-port-state
+        type: u8
+      -
+        name: ad-partner-oper-port-state
+        type: u16
+      -
+        name: prio
+        type: u32
+  -
+    name: linkinfo-bridge-attrs
+    name-prefix: ifla-br-
+    attributes:
+      -
+        name: forward-delay
+        type: u32
+      -
+        name: hello-time
+        type: u32
+      -
+        name: max-age
+        type: u32
+      -
+        name: ageing-time
+        type: u32
+      -
+        name: stp-state
+        type: u32
+      -
+        name: priority
+        type: u16
+      -
+        name: vlan-filtering
+        type: u8
+      -
+        name: vlan-protocol
+        type: u16
+      -
+        name: group-fwd-mask
+        type: u16
+      -
+        name: root-id
+        type: binary
+        struct: ifla-bridge-id
+      -
+        name: bridge-id
+        type: binary
+        struct: ifla-bridge-id
+      -
+        name: root-port
+        type: u16
+      -
+        name: root-path-cost
+        type: u32
+      -
+        name: topology-change
+        type: u8
+      -
+        name: topology-change-detected
+        type: u8
+      -
+        name: hello-timer
+        type: u64
+      -
+        name: tcn-timer
+        type: u64
+      -
+        name: topology-change-timer
+        type: u64
+      -
+        name: gc-timer
+        type: u64
+      -
+        name: group-addr
+        type: binary
+        display-hint: mac
+      -
+        name: fdb-flush
+        type: binary
+      -
+        name: mcast-router
+        type: u8
+      -
+        name: mcast-snooping
+        type: u8
+      -
+        name: mcast-query-use-ifaddr
+        type: u8
+      -
+        name: mcast-querier
+        type: u8
+      -
+        name: mcast-hash-elasticity
+        type: u32
+      -
+        name: mcast-hash-max
+        type: u32
+      -
+        name: mcast-last-member-cnt
+        type: u32
+      -
+        name: mcast-startup-query-cnt
+        type: u32
+      -
+        name: mcast-last-member-intvl
+        type: u64
+      -
+        name: mcast-membership-intvl
+        type: u64
+      -
+        name: mcast-querier-intvl
+        type: u64
+      -
+        name: mcast-query-intvl
+        type: u64
+      -
+        name: mcast-query-response-intvl
+        type: u64
+      -
+        name: mcast-startup-query-intvl
+        type: u64
+      -
+        name: nf-call-iptables
+        type: u8
+      -
+        name: nf-call-ip6tables
+        type: u8
+      -
+        name: nf-call-arptables
+        type: u8
+      -
+        name: vlan-default-pvid
+        type: u16
+      -
+        name: pad
+        type: pad
+      -
+        name: vlan-stats-enabled
+        type: u8
+      -
+        name: mcast-stats-enabled
+        type: u8
+      -
+        name: mcast-igmp-version
+        type: u8
+      -
+        name: mcast-mld-version
+        type: u8
+      -
+        name: vlan-stats-per-port
+        type: u8
+      -
+        name: multi-boolopt
+        type: binary
+        struct: br-boolopt-multi
+      -
+        name: mcast-querier-state
+        type: binary
+      -
+        name: fdb-n-learned
+        type: u32
+      -
+        name: fdb-max-learned
+        type: u32
+  -
+    name: linkinfo-brport-attrs
+    name-prefix: ifla-brport-
+    attributes:
+      -
+        name: state
+        type: u8
+      -
+        name: priority
+        type: u16
+      -
+        name: cost
+        type: u32
+      -
+        name: mode
+        type: flag
+      -
+        name: guard
+        type: flag
+      -
+        name: protect
+        type: flag
+      -
+        name: fast-leave
+        type: flag
+      -
+        name: learning
+        type: flag
+      -
+        name: unicast-flood
+        type: flag
+      -
+        name: proxyarp
+        type: flag
+      -
+        name: learning-sync
+        type: flag
+      -
+        name: proxyarp-wifi
+        type: flag
+      -
+        name: root-id
+        type: binary
+        struct: ifla-bridge-id
+      -
+        name: bridge-id
+        type: binary
+        struct: ifla-bridge-id
+      -
+        name: designated-port
+        type: u16
+      -
+        name: designated-cost
+        type: u16
+      -
+        name: id
+        type: u16
+      -
+        name: "no"
+        type: u16
+      -
+        name: topology-change-ack
+        type: u8
+      -
+        name: config-pending
+        type: u8
+      -
+        name: message-age-timer
+        type: u64
+      -
+        name: forward-delay-timer
+        type: u64
+      -
+        name: hold-timer
+        type: u64
+      -
+        name: flush
+        type: flag
+      -
+        name: multicast-router
+        type: u8
+      -
+        name: pad
+        type: pad
+      -
+        name: mcast-flood
+        type: flag
+      -
+        name: mcast-to-ucast
+        type: flag
+      -
+        name: vlan-tunnel
+        type: flag
+      -
+        name: bcast-flood
+        type: flag
+      -
+        name: group-fwd-mask
+        type: u16
+      -
+        name: neigh-suppress
+        type: flag
+      -
+        name: isolated
+        type: flag
+      -
+        name: backup-port
+        type: u32
+      -
+        name: mrp-ring-open
+        type: flag
+      -
+        name: mrp-in-open
+        type: flag
+      -
+        name: mcast-eht-hosts-limit
+        type: u32
+      -
+        name: mcast-eht-hosts-cnt
+        type: u32
+      -
+        name: locked
+        type: flag
+      -
+        name: mab
+        type: flag
+      -
+        name: mcast-n-groups
+        type: u32
+      -
+        name: mcast-max-groups
+        type: u32
+      -
+        name: neigh-vlan-suppress
+        type: flag
+      -
+        name: backup-nhid
+        type: u32
+  -
+    name: linkinfo-gre-attrs
+    name-prefix: ifla-gre-
+    attributes:
+      -
+        name: link
+        type: u32
+      -
+        name: iflags
+        type: u16
+      -
+        name: oflags
+        type: u16
+      -
+        name: ikey
+        type: u32
+      -
+        name: okey
+        type: u32
+      -
+        name: local
+        type: binary
+        display-hint: ipv4
+      -
+        name: remote
+        type: binary
+        display-hint: ipv4
+      -
+        name: ttl
+        type: u8
+      -
+        name: tos
+        type: u8
+      -
+        name: pmtudisc
+        type: u8
+      -
+        name: encap-limit
+        type: u32
+      -
+        name: flowinfo
+        type: u32
+      -
+        name: flags
+        type: u32
+      -
+        name: encap-type
+        type: u16
+      -
+        name: encap-flags
+        type: u16
+      -
+        name: encap-sport
+        type: u16
+      -
+        name: encap-dport
+        type: u16
+      -
+        name: collect-metadata
+        type: flag
+      -
+        name: ignore-df
+        type: u8
+      -
+        name: fwmark
+        type: u32
+      -
+        name: erspan-index
+        type: u32
+      -
+        name: erspan-ver
+        type: u8
+      -
+        name: erspan-dir
+        type: u8
+      -
+        name: erspan-hwid
+        type: u16
+  -
+    name: linkinfo-vti-attrs
+    name-prefix: ifla-vti-
+    header: linux/if_tunnel.h
+    attributes:
+      -
+        name: link
+        type: u32
+      -
+        name: ikey
+        type: u32
+      -
+        name: okey
+        type: u32
+      -
+        name: local
+        type: binary
+        display-hint: ipv4
+      -
+        name: remote
+        type: binary
+        display-hint: ipv4
+      -
+        name: fwmark
+        type: u32
+  -
+    name: linkinfo-vti6-attrs
+    subset-of: linkinfo-vti-attrs
+    attributes:
+      -
+        name: link
+      -
+        name: ikey
+      -
+        name: okey
+      -
+        name: local
+        display-hint: ipv6
+      -
+        name: remote
+        display-hint: ipv6
+      -
+        name: fwmark
+  -
+    name: linkinfo-geneve-attrs
+    name-prefix: ifla-geneve-
+    attributes:
+      -
+        name: id
+        type: u32
+      -
+        name: remote
+        type: binary
+        display-hint: ipv4
+      -
+        name: ttl
+        type: u8
+      -
+        name: tos
+        type: u8
+      -
+        name: port
+        type: u16
+      -
+        name: collect-metadata
+        type: flag
+      -
+        name: remote6
+        type: binary
+        display-hint: ipv6
+      -
+        name: udp-csum
+        type: u8
+      -
+        name: udp-zero-csum6-tx
+        type: u8
+      -
+        name: udp-zero-csum6-rx
+        type: u8
+      -
+        name: label
+        type: u32
+      -
+        name: ttl-inherit
+        type: u8
+      -
+        name: df
+        type: u8
+      -
+        name: inner-proto-inherit
+        type: flag
+      -
+        name: port-range
+        type: binary
+        struct: ifla-geneve-port-range
+  -
+    name: linkinfo-iptun-attrs
+    name-prefix: ifla-iptun-
+    attributes:
+      -
+        name: link
+        type: u32
+      -
+        name: local
+        type: binary
+        display-hint: ipv4
+      -
+        name: remote
+        type: binary
+        display-hint: ipv4
+      -
+        name: ttl
+        type: u8
+      -
+        name: tos
+        type: u8
+      -
+        name: encap-limit
+        type: u8
+      -
+        name: flowinfo
+        type: u32
+      -
+        name: flags
+        type: u16
+      -
+        name: proto
+        type: u8
+      -
+        name: pmtudisc
+        type: u8
+      -
+        name: 6rd-prefix
+        type: binary
+        display-hint: ipv6
+      -
+        name: 6rd-relay-prefix
+        type: binary
+        display-hint: ipv4
+      -
+        name: 6rd-prefixlen
+        type: u16
+      -
+        name: 6rd-relay-prefixlen
+        type: u16
+      -
+        name: encap-type
+        type: u16
+      -
+        name: encap-flags
+        type: u16
+      -
+        name: encap-sport
+        type: u16
+      -
+        name: encap-dport
+        type: u16
+      -
+        name: collect-metadata
+        type: flag
+      -
+        name: fwmark
+        type: u32
+  -
+    name: linkinfo-ip6tnl-attrs
+    subset-of: linkinfo-iptun-attrs
+    attributes:
+      -
+        name: link
+      -
+        name: local
+        display-hint: ipv6
+      -
+        name: remote
+        display-hint: ipv6
+      -
+        name: ttl
+      -
+        name: encap-limit
+      -
+        name: flowinfo
+      -
+        name: flags
+        # ip6tnl unlike ipip and sit has 32b flags
+        type: u32
+      -
+        name: proto
+      -
+        name: encap-type
+      -
+        name: encap-flags
+      -
+        name: encap-sport
+      -
+        name: encap-dport
+      -
+        name: collect-metadata
+      -
+        name: fwmark
+  -
+    name: linkinfo-tun-attrs
+    name-prefix: ifla-tun-
+    attributes:
+      -
+        name: owner
+        type: u32
+      -
+        name: group
+        type: u32
+      -
+        name: type
+        type: u8
+      -
+        name: pi
+        type: u8
+      -
+        name: vnet-hdr
+        type: u8
+      -
+        name: persist
+        type: u8
+      -
+        name: multi-queue
+        type: u8
+      -
+        name: num-queues
+        type: u32
+      -
+        name: num-disabled-queues
+        type: u32
+  -
+    name: linkinfo-vlan-attrs
+    name-prefix: ifla-vlan-
+    attributes:
+      -
+        name: id
+        type: u16
+      -
+        name: flags
+        type: binary
+        struct: ifla-vlan-flags
+      -
+        name: egress-qos
+        type: nest
+        nested-attributes: ifla-vlan-qos
+      -
+        name: ingress-qos
+        type: nest
+        nested-attributes: ifla-vlan-qos
+      -
+        name: protocol
+        type: u16
+        enum: vlan-protocols
+        byte-order: big-endian
+  -
+    name: ifla-vlan-qos
+    name-prefix: ifla-vlan-qos-
+    attributes:
+      -
+        name: mapping
+        type: binary
+        multi-attr: true
+        struct: ifla-vlan-qos-mapping
+  -
+    name: linkinfo-vrf-attrs
+    name-prefix: ifla-vrf-
+    attributes:
+      -
+        name: table
+        type: u32
+  -
+    name: xdp-attrs
+    name-prefix: ifla-xdp-
+    attributes:
+      -
+        name: fd
+        type: s32
+      -
+        name: attached
+        type: u8
+      -
+        name: flags
+        type: u32
+      -
+        name: prog-id
+        type: u32
+      -
+        name: drv-prog-id
+        type: u32
+      -
+        name: skb-prog-id
+        type: u32
+      -
+        name: hw-prog-id
+        type: u32
+      -
+        name: expected-fd
+        type: s32
+  -
+    name: ifla-attrs
+    name-prefix: ifla-inet-
+    attributes:
+      -
+        name: conf
+        type: binary
+        sub-type: u32
+        doc: u32 indexed by ipv4-devconf - 1 on output, on input it's a nest
+  -
+    name: ifla6-attrs
+    name-prefix: ifla-inet6-
+    attributes:
+      -
+        name: flags
+        type: u32
+      -
+        name: conf
+        type: binary
+        sub-type: u32
+        doc: u32 indexed by ipv6-devconf - 1 on output, on input it's a nest
+      -
+        name: stats
+        type: binary
+        sub-type: u64
+      -
+        name: mcast
+        type: binary
+      -
+        name: cacheinfo
+        type: binary
+        struct: ifla-cacheinfo
+      -
+        name: icmp6stats
+        type: binary
+        sub-type: u64
+      -
+        name: token
+        type: binary
+      -
+        name: addr-gen-mode
+        type: u8
+      -
+        name: ra-mtu
+        type: u32
+  -
+    name: mctp-attrs
+    name-prefix: ifla-mctp-
+    attributes:
+      -
+        name: net
+        type: u32
+      -
+        name: phys-binding
+        type: u8
+  -
+    name: stats-attrs
+    name-prefix: ifla-stats-
+    attributes:
+      -
+        name: link-64
+        type: binary
+        struct: rtnl-link-stats64
+      -
+        name: link-xstats
+        type: binary
+      -
+        name: link-xstats-slave
+        type: binary
+      -
+        name: link-offload-xstats
+        type: nest
+        nested-attributes: link-offload-xstats
+      -
+        name: af-spec
+        type: binary
+  -
+    name: link-offload-xstats
+    name-prefix: ifla-offload-xstats-
+    attributes:
+      -
+        name: cpu-hit
+        type: binary
+      -
+        name: hw-s-info
+        type: indexed-array
+        sub-type: nest
+        nested-attributes: hw-s-info-one
+      -
+        name: l3-stats
+        type: binary
+  -
+    name: hw-s-info-one
+    name-prefix: ifla-offload-xstats-hw-s-info-
+    attributes:
+      -
+        name: request
+        type: u8
+      -
+        name: used
+        type: u8
+  -
+    name: link-dpll-pin-attrs
+    name-prefix: dpll-a-
+    header: linux/dpll.h
+    attributes:
+      -
+        name: id
+        type: u32
+  -
+    name: linkinfo-netkit-attrs
+    name-prefix: ifla-netkit-
+    attributes:
+      -
+        name: peer-info
+        type: binary
+      -
+        name: primary
+        type: u8
+      -
+        name: policy
+        type: u32
+        enum: netkit-policy
+      -
+        name: peer-policy
+        type: u32
+        enum: netkit-policy
+      -
+        name: mode
+        type: u32
+        enum: netkit-mode
+      -
+        name: scrub
+        type: u32
+        enum: netkit-scrub
+      -
+        name: peer-scrub
+        type: u32
+        enum: netkit-scrub
+      -
+        name: headroom
+        type: u16
+      -
+        name: tailroom
+        type: u16
+  -
+    name: linkinfo-ovpn-attrs
+    name-prefix: ifla-ovpn-
+    attributes:
+      -
+        name: mode
+        type: u8
+        enum: ovpn-mode
+
+sub-messages:
+  -
+    name: linkinfo-data-msg
+    formats:
+      -
+        value: bond
+        attribute-set: linkinfo-bond-attrs
+      -
+        value: bridge
+        attribute-set: linkinfo-bridge-attrs
+      -
+        value: erspan
+        attribute-set: linkinfo-gre-attrs
+      -
+        value: gre
+        attribute-set: linkinfo-gre-attrs
+      -
+        value: gretap
+        attribute-set: linkinfo-gre-attrs
+      -
+        value: geneve
+        attribute-set: linkinfo-geneve-attrs
+      -
+        value: ipip
+        attribute-set: linkinfo-iptun-attrs
+      -
+        value: ip6tnl
+        attribute-set: linkinfo-ip6tnl-attrs
+      -
+        value: sit
+        attribute-set: linkinfo-iptun-attrs
+      -
+        value: tun
+        attribute-set: linkinfo-tun-attrs
+      -
+        value: vlan
+        attribute-set: linkinfo-vlan-attrs
+      -
+        value: vrf
+        attribute-set: linkinfo-vrf-attrs
+      -
+        value: vti
+        attribute-set: linkinfo-vti-attrs
+      -
+        value: vti6
+        attribute-set: linkinfo-vti6-attrs
+      -
+        value: netkit
+        attribute-set: linkinfo-netkit-attrs
+      -
+        value: ovpn
+        attribute-set: linkinfo-ovpn-attrs
+  -
+    name: linkinfo-member-data-msg
+    formats:
+      -
+        value: bridge
+        attribute-set: linkinfo-brport-attrs
+      -
+        value: bond
+        attribute-set: bond-slave-attrs
+
+operations:
+  enum-model: directional
+  name-prefix: rtm-
+  list:
+    -
+      name: newlink
+      doc: Create a new link.
+      attribute-set: link-attrs
+      fixed-header: ifinfomsg
+      do:
+        request:
+          value: 16
+          attributes: &link-new-attrs
+            - ifname
+            - net-ns-pid
+            - net-ns-fd
+            - target-netnsid
+            - link-netnsid
+            - linkinfo
+            - group
+            - num-tx-queues
+            - num-rx-queues
+            - address
+            - broadcast
+            - mtu
+            - txqlen
+            - operstate
+            - linkmode
+            - gso-max-size
+            - gso-max-segs
+            - gro-max-size
+            - gso-ipv4-max-size
+            - gro-ipv4-max-size
+            - af-spec
+    -
+      name: newlink-ntf
+      doc: Notify that a link has been created
+      value: 16
+      notify: getlink
+      fixed-header: ifinfomsg
+    -
+      name: dellink
+      doc: Delete an existing link.
+      attribute-set: link-attrs
+      fixed-header: ifinfomsg
+      do:
+        request:
+          value: 17
+          attributes:
+            - ifname
+    -
+      name: getlink
+      doc: Get / dump information about a link.
+      attribute-set: link-attrs
+      fixed-header: ifinfomsg
+      do:
+        request:
+          value: 18
+          attributes:
+            - ifname
+            - alt-ifname
+            - ext-mask
+            - target-netnsid
+        reply:
+          value: 16
+          attributes: &link-all-attrs
+            - address
+            - broadcast
+            - ifname
+            - mtu
+            - link
+            - qdisc
+            - stats
+            - cost
+            - priority
+            - master
+            - wireless
+            - protinfo
+            - txqlen
+            - map
+            - weight
+            - operstate
+            - linkmode
+            - linkinfo
+            - net-ns-pid
+            - ifalias
+            - num-vf
+            - vfinfo-list
+            - stats64
+            - vf-ports
+            - port-self
+            - af-spec
+            - group
+            - net-ns-fd
+            - ext-mask
+            - promiscuity
+            - num-tx-queues
+            - num-rx-queues
+            - carrier
+            - phys-port-id
+            - carrier-changes
+            - phys-switch-id
+            - link-netnsid
+            - phys-port-name
+            - proto-down
+            - gso-max-segs
+            - gso-max-size
+            - pad
+            - xdp
+            - event
+            - new-netnsid
+            - target-netnsid
+            - carrier-up-count
+            - carrier-down-count
+            - new-ifindex
+            - min-mtu
+            - max-mtu
+            - prop-list
+            - perm-address
+            - proto-down-reason
+            - parent-dev-name
+            - parent-dev-bus-name
+            - gro-max-size
+            - tso-max-size
+            - tso-max-segs
+            - allmulti
+            - devlink-port
+            - gso-ipv4-max-size
+            - gro-ipv4-max-size
+      dump:
+        request:
+          value: 18
+          attributes:
+            - target-netnsid
+            - ext-mask
+            - master
+            - linkinfo
+        reply:
+          value: 16
+          attributes: *link-all-attrs
+    -
+      name: setlink
+      doc: Set information about a link.
+      attribute-set: link-attrs
+      fixed-header: ifinfomsg
+      do:
+        request:
+          value: 19
+          attributes: *link-all-attrs
+    -
+      name: getstats
+      doc: Get / dump link stats.
+      attribute-set: stats-attrs
+      fixed-header: if_stats_msg
+      do:
+        request:
+          value: 94
+        reply:
+          value: 92
+          attributes: &link-stats-attrs
+            - link-64
+            - link-xstats
+            - link-xstats-slave
+            - link-offload-xstats
+            - af-spec
+      dump:
+        request:
+          value: 94
+        reply:
+          value: 92
+          attributes: *link-stats-attrs
+
+mcast-groups:
+  list:
+    -
+      name: rtnlgrp-link
+      value: 1
+    -
+      name: rtnlgrp-stats
+      value: 36

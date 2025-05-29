@@ -407,4 +407,23 @@ config BLKDEV_UBLK_LEGACY_OPCODES
 
 source "drivers/block/rnbd/Kconfig"
 
+config BLK_DEV_ZONED_LOOP
+	tristate "Zoned loopback device support"
+	depends on BLK_DEV_ZONED
+	help
+	  Saying Y here will allow you to use create a zoned block device using
+	  regular files for zones (one file per zones). This is useful to test
+	  file systems, device mapper and applications that support zoned block
+	  devices. To create a zoned loop device, no user utility is needed, a
+	  zoned loop device can be created (or re-started) using a command
+	  like:
+
+	  echo "add id=0,zone_size_mb=256,capacity_mb=16384,conv_zones=11" > \
+		/dev/zloop-control
+
+	  See Documentation/admin-guide/blockdev/zoned_loop.rst for usage
+	  details.
+
+	  If unsure, say N.
+
 endif # BLK_DEV

@@ -316,7 +316,7 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 #define __INIT_DELAYED_WORK(_work, _func, _tflags)			\
 	do {								\
 		INIT_WORK(&(_work)->work, (_func));			\
-		__init_timer(&(_work)->timer,				\
+		__timer_init(&(_work)->timer,				\
 			     delayed_work_timer_fn,			\
 			     (_tflags) | TIMER_IRQSAFE);		\
 	} while (0)
@@ -324,7 +324,7 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 #define __INIT_DELAYED_WORK_ONSTACK(_work, _func, _tflags)		\
 	do {								\
 		INIT_WORK_ONSTACK(&(_work)->work, (_func));		\
-		__init_timer_on_stack(&(_work)->timer,			\
+		__timer_init_on_stack(&(_work)->timer,			\
 				      delayed_work_timer_fn,		\
 				      (_tflags) | TIMER_IRQSAFE);	\
 	} while (0)
@@ -480,7 +480,7 @@ void workqueue_softirq_dead(unsigned int cpu);
  * executing at most one work item for the workqueue.
  *
  * For unbound workqueues, @max_active limits the number of in-flight work items
- * for the whole system. e.g. @max_active of 16 indicates that that there can be
+ * for the whole system. e.g. @max_active of 16 indicates that there can be
  * at most 16 work items executing for the workqueue in the whole system.
  *
  * As sharing the same active counter for an unbound workqueue across multiple

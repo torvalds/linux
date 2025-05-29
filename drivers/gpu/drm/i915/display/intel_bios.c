@@ -37,6 +37,7 @@
 
 #include "i915_drv.h"
 #include "intel_display.h"
+#include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_gmbus.h"
 
@@ -2244,28 +2245,27 @@ static const u8 adlp_ddc_pin_map[] = {
 
 static u8 map_ddc_pin(struct intel_display *display, u8 vbt_pin)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	const u8 *ddc_pin_map;
 	int i, n_entries;
 
-	if (INTEL_PCH_TYPE(i915) >= PCH_MTL || display->platform.alderlake_p) {
+	if (INTEL_PCH_TYPE(display) >= PCH_MTL || display->platform.alderlake_p) {
 		ddc_pin_map = adlp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(adlp_ddc_pin_map);
 	} else if (display->platform.alderlake_s) {
 		ddc_pin_map = adls_ddc_pin_map;
 		n_entries = ARRAY_SIZE(adls_ddc_pin_map);
-	} else if (INTEL_PCH_TYPE(i915) >= PCH_DG1) {
+	} else if (INTEL_PCH_TYPE(display) >= PCH_DG1) {
 		return vbt_pin;
-	} else if (display->platform.rocketlake && INTEL_PCH_TYPE(i915) == PCH_TGP) {
+	} else if (display->platform.rocketlake && INTEL_PCH_TYPE(display) == PCH_TGP) {
 		ddc_pin_map = rkl_pch_tgp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(rkl_pch_tgp_ddc_pin_map);
-	} else if (HAS_PCH_TGP(i915) && DISPLAY_VER(display) == 9) {
+	} else if (HAS_PCH_TGP(display) && DISPLAY_VER(display) == 9) {
 		ddc_pin_map = gen9bc_tgp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(gen9bc_tgp_ddc_pin_map);
-	} else if (INTEL_PCH_TYPE(i915) >= PCH_ICP) {
+	} else if (INTEL_PCH_TYPE(display) >= PCH_ICP) {
 		ddc_pin_map = icp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(icp_ddc_pin_map);
-	} else if (HAS_PCH_CNP(i915)) {
+	} else if (HAS_PCH_CNP(display)) {
 		ddc_pin_map = cnp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(cnp_ddc_pin_map);
 	} else {
@@ -2864,8 +2864,6 @@ parse_general_definitions(struct intel_display *display)
 static void
 init_vbt_defaults(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	display->vbt.crt_ddc_pin = GMBUS_PIN_VGADDC;
 
 	/* general features */
@@ -2882,7 +2880,7 @@ init_vbt_defaults(struct intel_display *display)
 	 * clock for LVDS.
 	 */
 	display->vbt.lvds_ssc_freq = intel_bios_ssc_frequency(display,
-							      !HAS_PCH_SPLIT(i915));
+							      !HAS_PCH_SPLIT(display));
 	drm_dbg_kms(display->drm, "Set default to SSC at %d kHz\n",
 		    display->vbt.lvds_ssc_freq);
 }
@@ -3115,7 +3113,6 @@ static const struct vbt_header *intel_bios_get_vbt(struct intel_display *display
 {
 	struct drm_i915_private *i915 = to_i915(display->drm);
 	const struct vbt_header *vbt = NULL;
-	intel_wakeref_t wakeref;
 
 	vbt = firmware_get_vbt(display, sizep);
 
@@ -3126,12 +3123,12 @@ static const struct vbt_header *intel_bios_get_vbt(struct intel_display *display
 	 * If the OpRegion does not have VBT, look in SPI flash
 	 * through MMIO or PCI mapping
 	 */
-	if (!vbt && IS_DGFX(i915))
-		with_intel_runtime_pm(&i915->runtime_pm, wakeref)
+	if (!vbt && display->platform.dgfx)
+		with_intel_display_rpm(display)
 			vbt = oprom_get_vbt(display, intel_rom_spi(i915), sizep, "SPI flash");
 
 	if (!vbt)
-		with_intel_runtime_pm(&i915->runtime_pm, wakeref)
+		with_intel_display_rpm(display)
 			vbt = oprom_get_vbt(display, intel_rom_pci(i915), sizep, "PCI ROM");
 
 	return vbt;

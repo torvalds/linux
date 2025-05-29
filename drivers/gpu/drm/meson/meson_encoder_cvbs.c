@@ -83,12 +83,13 @@ meson_cvbs_get_mode(const struct drm_display_mode *req_mode)
 }
 
 static int meson_encoder_cvbs_attach(struct drm_bridge *bridge,
+				     struct drm_encoder *encoder,
 				     enum drm_bridge_attach_flags flags)
 {
 	struct meson_encoder_cvbs *meson_encoder_cvbs =
 					bridge_to_meson_encoder_cvbs(bridge);
 
-	return drm_bridge_attach(bridge->encoder, meson_encoder_cvbs->next_bridge,
+	return drm_bridge_attach(encoder, meson_encoder_cvbs->next_bridge,
 				 &meson_encoder_cvbs->bridge, flags);
 }
 

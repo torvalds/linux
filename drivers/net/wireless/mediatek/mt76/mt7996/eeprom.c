@@ -13,10 +13,12 @@ static int mt7996_check_eeprom(struct mt7996_dev *dev)
 	u16 val = get_unaligned_le16(eeprom);
 
 	switch (val) {
-	case 0x7990:
+	case MT7996_DEVICE_ID:
 		return is_mt7996(&dev->mt76) ? 0 : -EINVAL;
-	case 0x7992:
+	case MT7992_DEVICE_ID:
 		return is_mt7992(&dev->mt76) ? 0 : -EINVAL;
+	case MT7990_DEVICE_ID:
+		return is_mt7990(&dev->mt76) ? 0 : -EINVAL;
 	default:
 		return -EINVAL;
 	}
@@ -25,7 +27,7 @@ static int mt7996_check_eeprom(struct mt7996_dev *dev)
 static char *mt7996_eeprom_name(struct mt7996_dev *dev)
 {
 	switch (mt76_chip(&dev->mt76)) {
-	case 0x7992:
+	case MT7992_DEVICE_ID:
 		switch (dev->var.type) {
 		case MT7992_VAR_TYPE_23:
 			if (dev->var.fem == MT7996_FEM_INT)
@@ -39,7 +41,11 @@ static char *mt7996_eeprom_name(struct mt7996_dev *dev)
 				return MT7992_EEPROM_DEFAULT_MIX;
 			return MT7992_EEPROM_DEFAULT;
 		}
-	case 0x7990:
+	case MT7990_DEVICE_ID:
+		if (dev->var.fem == MT7996_FEM_INT)
+			return MT7990_EEPROM_DEFAULT_INT;
+		return MT7990_EEPROM_DEFAULT;
+	case MT7996_DEVICE_ID:
 	default:
 		switch (dev->var.type) {
 		case MT7996_VAR_TYPE_233:
@@ -304,6 +310,7 @@ int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy)
 		phy->has_aux_rx = true;
 
 	mphy->antenna_mask = BIT(nss) - 1;
+	phy->orig_antenna_mask = mphy->antenna_mask;
 	mphy->chainmask = (BIT(path) - 1) << dev->chainshift[band_idx];
 	phy->orig_chainmask = mphy->chainmask;
 	dev->chainmask |= mphy->chainmask;
@@ -369,4 +376,31 @@ s8 mt7996_eeprom_get_power_delta(struct mt7996_dev *dev, int band)
 	delta = FIELD_GET(MT_EE_RATE_DELTA_MASK, val);
 
 	return val & MT_EE_RATE_DELTA_SIGN ? delta : -delta;
+}
+
+bool mt7996_eeprom_has_background_radar(struct mt7996_dev *dev)
+{
+	switch (mt76_chip(&dev->mt76)) {
+	case MT7996_DEVICE_ID:
+		if (dev->var.type == MT7996_VAR_TYPE_233)
+			return false;
+		break;
+	case MT7992_DEVICE_ID:
+		if (dev->var.type == MT7992_VAR_TYPE_23)
+			return false;
+		break;
+	case MT7990_DEVICE_ID: {
+		u8 path, rx_path, nss, *eeprom = dev->mt76.eeprom.data;
+
+		mt7996_eeprom_parse_stream(eeprom, MT_BAND1, &path, &rx_path, &nss);
+		/* Disable background radar capability in 3T3R */
+		if (path == 3 || rx_path == 3)
+			return false;
+		break;
+		}
+	default:
+		return false;
+	}
+
+	return true;
 }

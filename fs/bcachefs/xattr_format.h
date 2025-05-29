@@ -16,10 +16,10 @@ struct bch_xattr {
 	/*
 	 * x_name contains the name and value counted by
 	 * x_name_len + x_val_len. The introduction of
-	 * __counted_by(x_name_len) caused a false positive
+	 * __counted_by(x_name_len) previously caused a false positive
 	 * detection of an out of bounds write.
 	 */
-	__u8			x_name[];
+	__u8			x_name_and_value[];
 } __packed __aligned(8);
 
 #endif /* _BCACHEFS_XATTR_FORMAT_H */

@@ -4,6 +4,9 @@
  * Copyright (C) 2017-2021 Willy Tarreau <w@1wt.eu>
  */
 
+/* make sure to include all global symbols */
+#include "nolibc.h"
+
 #ifndef _NOLIBC_STRING_H
 #define _NOLIBC_STRING_H
 
@@ -289,7 +292,40 @@ char *strrchr(const char *s, int c)
 	return (char *)ret;
 }
 
-/* make sure to include all global symbols */
-#include "nolibc.h"
+static __attribute__((unused))
+char *strstr(const char *haystack, const char *needle)
+{
+	size_t len_haystack, len_needle;
+
+	len_needle = strlen(needle);
+	if (!len_needle)
+		return NULL;
+
+	len_haystack = strlen(haystack);
+	while (len_haystack >= len_needle) {
+		if (!memcmp(haystack, needle, len_needle))
+			return (char *)haystack;
+		haystack++;
+		len_haystack--;
+	}
+
+	return NULL;
+}
+
+static __attribute__((unused))
+int tolower(int c)
+{
+	if (c >= 'A' && c <= 'Z')
+		return c - 'A' + 'a';
+	return c;
+}
+
+static __attribute__((unused))
+int toupper(int c)
+{
+	if (c >= 'a' && c <= 'z')
+		return c - 'a' + 'A';
+	return c;
+}
 
 #endif /* _NOLIBC_STRING_H */

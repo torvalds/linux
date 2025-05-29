@@ -61,7 +61,6 @@ struct btrfs_path {
 	/* if there is real range locking, this locks field will change */
 	u8 locks[BTRFS_MAX_LEVEL];
 	u8 reada;
-	/* keep some upper locks as we walk down */
 	u8 lowest_level;
 
 	/*
@@ -69,6 +68,7 @@ struct btrfs_path {
 	 * and to force calls to keep space in the nodes
 	 */
 	unsigned int search_for_split:1;
+	/* Keep some upper locks as we walk down. */
 	unsigned int keep_locks:1;
 	unsigned int skip_locking:1;
 	unsigned int search_commit_root:1;

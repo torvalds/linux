@@ -19,6 +19,10 @@
 #include "sof-audio.h"
 #include "ops.h"
 
+static bool disable_function_topology;
+module_param(disable_function_topology, bool, 0444);
+MODULE_PARM_DESC(disable_function_topology, "Disable function topology loading");
+
 #define COMP_ID_UNASSIGNED		0xffffffff
 /*
  * Constants used in the computation of linear volume gain
@@ -571,7 +575,11 @@ static int sof_copy_tuples(struct snd_sof_dev *sdev, struct snd_soc_tplg_vendor_
 						continue;
 
 					tuples[*num_copied_tuples].token = tokens[j].token;
-					tuples[*num_copied_tuples].value.s = elem->string;
+					tuples[*num_copied_tuples].value.s =
+						devm_kasprintf(sdev->dev, GFP_KERNEL,
+							       "%s", elem->string);
+					if (!tuples[*num_copied_tuples].value.s)
+						return -ENOMEM;
 				} else {
 					struct snd_soc_tplg_vendor_value_elem *elem;
 
@@ -1063,7 +1071,7 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 				  struct snd_sof_dai *dai)
 {
 	struct snd_soc_card *card = scomp->card;
-	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_pcm_runtime *rtd, *full, *partial;
 	struct snd_soc_dai *cpu_dai;
 	int stream;
 	int i;
@@ -1080,12 +1088,22 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 	else
 		goto end;
 
+	full = NULL;
+	partial = NULL;
 	list_for_each_entry(rtd, &card->rtd_list, list) {
 		/* does stream match DAI link ? */
-		if (!rtd->dai_link->stream_name ||
-		    !strstr(rtd->dai_link->stream_name, w->sname))
-			continue;
+		if (rtd->dai_link->stream_name) {
+			if (!strcmp(rtd->dai_link->stream_name, w->sname)) {
+				full = rtd;
+				break;
+			} else if (strstr(rtd->dai_link->stream_name, w->sname)) {
+				partial = rtd;
+			}
+		}
+	}
 
+	rtd = full ? full : partial;
+	if (rtd) {
 		for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
 			/*
 			 * Please create DAI widget in the right order
@@ -2306,8 +2324,10 @@ static const struct snd_soc_tplg_ops sof_tplg_ops = {
 	.link_load	= sof_link_load,
 	.link_unload	= sof_link_unload,
 
-	/* completion - called at completion of firmware loading */
-	.complete	= sof_complete,
+	/*
+	 * No need to set the complete callback. sof_complete will be called explicitly after
+	 * topology loading is complete.
+	 */
 
 	/* manifest - optional to inform component of manifest */
 	.manifest	= sof_manifest,
@@ -2463,35 +2483,82 @@ static const struct snd_soc_tplg_ops sof_dspless_tplg_ops = {
 int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_sof_pdata *sof_pdata = sdev->pdata;
+	const char *tplg_filename_prefix = sof_pdata->tplg_filename_prefix;
 	const struct firmware *fw;
+	const char **tplg_files;
+	int tplg_cnt = 0;
 	int ret;
+	int i;
 
-	dev_dbg(scomp->dev, "loading topology:%s\n", file);
+	tplg_files = kcalloc(scomp->card->num_links, sizeof(char *), GFP_KERNEL);
+	if (!tplg_files)
+		return -ENOMEM;
 
-	ret = request_firmware(&fw, file, scomp->dev);
-	if (ret < 0) {
-		dev_err(scomp->dev, "error: tplg request firmware %s failed err: %d\n",
-			file, ret);
-		dev_err(scomp->dev,
-			"you may need to download the firmware from https://github.com/thesofproject/sof-bin/\n");
-		return ret;
+	if (!sof_pdata->disable_function_topology && !disable_function_topology &&
+	    sof_pdata->machine && sof_pdata->machine->get_function_tplg_files) {
+		tplg_cnt = sof_pdata->machine->get_function_tplg_files(scomp->card,
+								       sof_pdata->machine,
+								       tplg_filename_prefix,
+								       &tplg_files);
+		if (tplg_cnt < 0) {
+			kfree(tplg_files);
+			return tplg_cnt;
+		}
 	}
 
-	if (sdev->dspless_mode_selected)
-		ret = snd_soc_tplg_component_load(scomp, &sof_dspless_tplg_ops, fw);
-	else
-		ret = snd_soc_tplg_component_load(scomp, &sof_tplg_ops, fw);
-
-	if (ret < 0) {
-		dev_err(scomp->dev, "error: tplg component load failed %d\n",
-			ret);
-		ret = -EINVAL;
+	/*
+	 * The monolithic topology will be used if there is no get_function_tplg_files
+	 * callback or the callback returns 0.
+	 */
+	if (!tplg_cnt) {
+		tplg_files[0] = file;
+		tplg_cnt = 1;
+		dev_dbg(scomp->dev, "loading topology: %s\n", file);
+	} else {
+		dev_info(scomp->dev, "Using function topologies instead %s\n", file);
 	}
 
-	release_firmware(fw);
+	for (i = 0; i < tplg_cnt; i++) {
+		/* Only print the file names if the function topologies are used */
+		if (tplg_files[0] != file)
+			dev_info(scomp->dev, "loading topology %d: %s\n", i, tplg_files[i]);
 
+		ret = request_firmware(&fw, tplg_files[i], scomp->dev);
+		if (ret < 0) {
+			/*
+			 * snd_soc_tplg_component_remove(scomp) will be called
+			 * if snd_soc_tplg_component_load(scomp) failed and all
+			 * objects in the scomp will be removed. No need to call
+			 * snd_soc_tplg_component_remove(scomp) here.
+			 */
+			dev_err(scomp->dev, "tplg request firmware %s failed err: %d\n",
+				tplg_files[i], ret);
+			goto out;
+		}
+
+		if (sdev->dspless_mode_selected)
+			ret = snd_soc_tplg_component_load(scomp, &sof_dspless_tplg_ops, fw);
+		else
+			ret = snd_soc_tplg_component_load(scomp, &sof_tplg_ops, fw);
+
+		release_firmware(fw);
+
+		if (ret < 0) {
+			dev_err(scomp->dev, "tplg %s component load failed %d\n",
+				tplg_files[i], ret);
+			goto out;
+		}
+	}
+
+	/* call sof_complete when topologies are loaded successfully */
+	ret = sof_complete(scomp);
+
+out:
 	if (ret >= 0 && sdev->led_present)
 		ret = snd_ctl_led_request();
+
+	kfree(tplg_files);
 
 	return ret;
 }

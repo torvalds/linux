@@ -78,6 +78,7 @@ struct amdgpu_job {
 
 	/* enforce isolation */
 	bool			enforce_isolation;
+	bool			run_cleaner_shader;
 
 	uint32_t		num_ibs;
 	struct amdgpu_ib	ibs[];

@@ -119,7 +119,7 @@ static int __io_import_rw_buffer(int ddir, struct io_kiocb *req,
 		return io_import_vec(ddir, req, io, buf, sqe_len);
 
 	if (io_do_buffer_select(req)) {
-		buf = io_buffer_select(req, &sqe_len, issue_flags);
+		buf = io_buffer_select(req, &sqe_len, io->buf_group, issue_flags);
 		if (!buf)
 			return -ENOBUFS;
 		rw->addr = (unsigned long) buf;
@@ -253,16 +253,19 @@ static int __io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			int ddir)
 {
 	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
+	struct io_async_rw *io;
 	unsigned ioprio;
 	u64 attr_type_mask;
 	int ret;
 
 	if (io_rw_alloc_async(req))
 		return -ENOMEM;
+	io = req->async_data;
 
 	rw->kiocb.ki_pos = READ_ONCE(sqe->off);
 	/* used for fixed read/write too - just read unconditionally */
 	req->buf_index = READ_ONCE(sqe->buf_index);
+	io->buf_group = req->buf_index;
 
 	ioprio = READ_ONCE(sqe->ioprio);
 	if (ioprio) {
@@ -276,6 +279,7 @@ static int __io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	}
 	rw->kiocb.dio_complete = NULL;
 	rw->kiocb.ki_flags = 0;
+	rw->kiocb.ki_write_stream = READ_ONCE(sqe->write_stream);
 
 	if (req->ctx->flags & IORING_SETUP_IOPOLL)
 		rw->kiocb.ki_complete = io_complete_rw_iopoll;
@@ -657,7 +661,7 @@ static int kiocb_done(struct io_kiocb *req, ssize_t ret,
 		io_req_io_end(req);
 		io_req_set_res(req, final_ret, io_put_kbuf(req, ret, issue_flags));
 		io_req_rw_cleanup(req, issue_flags);
-		return IOU_OK;
+		return IOU_COMPLETE;
 	} else {
 		io_rw_done(req, ret);
 	}

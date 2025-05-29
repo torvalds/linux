@@ -312,6 +312,7 @@ static void hdmi_core_disable(struct omap_hdmi *hdmi)
  */
 
 static int hdmi5_bridge_attach(struct drm_bridge *bridge,
+			       struct drm_encoder *encoder,
 			       enum drm_bridge_attach_flags flags)
 {
 	struct omap_hdmi *hdmi = drm_bridge_to_hdmi(bridge);
@@ -319,7 +320,7 @@ static int hdmi5_bridge_attach(struct drm_bridge *bridge,
 	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
 		return -EINVAL;
 
-	return drm_bridge_attach(bridge->encoder, hdmi->output.next_bridge,
+	return drm_bridge_attach(encoder, hdmi->output.next_bridge,
 				 bridge, flags);
 }
 

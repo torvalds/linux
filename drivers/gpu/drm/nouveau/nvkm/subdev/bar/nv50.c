@@ -127,7 +127,7 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 
 	/* BAR2 */
 	start = 0x0100000000ULL;
-	size = device->func->resource_size(device, 3);
+	size = device->func->resource_size(device, NVKM_BAR2_INST);
 	if (!size)
 		return -ENOMEM;
 	limit = start + size;
@@ -167,7 +167,7 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 
 	/* BAR1 */
 	start = 0x0000000000ULL;
-	size = device->func->resource_size(device, 1);
+	size = device->func->resource_size(device, NVKM_BAR1_FB);
 	if (!size)
 		return -ENOMEM;
 	limit = start + size;

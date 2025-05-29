@@ -51,9 +51,11 @@ static void test_arena_spin_lock_size(int size)
 	struct arena_spin_lock *skel;
 	pthread_t thread_id[16];
 	int prog_fd, i, err;
+	int nthreads;
 	void *ret;
 
-	if (get_nprocs() < 2) {
+	nthreads = MIN(get_nprocs(), ARRAY_SIZE(thread_id));
+	if (nthreads < 2) {
 		test__skip();
 		return;
 	}
@@ -66,25 +68,25 @@ static void test_arena_spin_lock_size(int size)
 		goto end;
 	}
 	skel->bss->cs_count = size;
-	skel->bss->limit = repeat * 16;
+	skel->bss->limit = repeat * nthreads;
 
-	ASSERT_OK(pthread_barrier_init(&barrier, NULL, 16), "barrier init");
+	ASSERT_OK(pthread_barrier_init(&barrier, NULL, nthreads), "barrier init");
 
 	prog_fd = bpf_program__fd(skel->progs.prog);
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < nthreads; i++) {
 		err = pthread_create(&thread_id[i], NULL, &spin_lock_thread, &prog_fd);
 		if (!ASSERT_OK(err, "pthread_create"))
 			goto end_barrier;
 	}
 
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < nthreads; i++) {
 		if (!ASSERT_OK(pthread_join(thread_id[i], &ret), "pthread_join"))
 			goto end_barrier;
 		if (!ASSERT_EQ(ret, &prog_fd, "ret == prog_fd"))
 			goto end_barrier;
 	}
 
-	ASSERT_EQ(skel->bss->counter, repeat * 16, "check counter value");
+	ASSERT_EQ(skel->bss->counter, repeat * nthreads, "check counter value");
 
 end_barrier:
 	pthread_barrier_destroy(&barrier);

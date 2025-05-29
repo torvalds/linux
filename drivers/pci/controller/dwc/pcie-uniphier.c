@@ -279,7 +279,7 @@ static int uniphier_pcie_config_intx_irq(struct dw_pcie_rp *pp)
 		goto out_put_node;
 	}
 
-	pcie->intx_irq_domain = irq_domain_add_linear(np_intc, PCI_NUM_INTX,
+	pcie->intx_irq_domain = irq_domain_create_linear(of_fwnode_handle(np_intc), PCI_NUM_INTX,
 						&uniphier_intx_domain_ops, pp);
 	if (!pcie->intx_irq_domain) {
 		dev_err(pci->dev, "Failed to get INTx domain\n");

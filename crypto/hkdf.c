@@ -543,7 +543,7 @@ static int __init crypto_hkdf_module_init(void)
 {
 	int ret = 0, i;
 
-	if (IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS))
+	if (!IS_ENABLED(CONFIG_CRYPTO_SELFTESTS))
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(hkdf_sha256_tv); i++) {

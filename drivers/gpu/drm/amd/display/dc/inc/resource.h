@@ -32,6 +32,7 @@
 
 #define MEMORY_TYPE_MULTIPLIER_CZ 4
 #define MEMORY_TYPE_HBM 2
+#define MAX_MCACHES 8
 
 
 #define IS_PIPE_SYNCD_VALID(pipe) ((((pipe)->pipe_idx_syncd) & 0x80)?1:0)
@@ -63,6 +64,13 @@ struct resource_straps {
 	uint32_t hdmi_disable;
 	uint32_t dc_pinstraps_audio;
 	uint32_t audio_stream_number;
+};
+
+struct dc_mcache_allocations {
+	int global_mcache_ids_plane0[MAX_MCACHES + 1];
+	int global_mcache_ids_plane1[MAX_MCACHES + 1];
+	int global_mcache_ids_mall_plane0[MAX_MCACHES + 1];
+	int global_mcache_ids_mall_plane1[MAX_MCACHES + 1];
 };
 
 struct resource_create_funcs {
@@ -627,8 +635,6 @@ bool dc_resource_acquire_secondary_pipe_for_mpc_odm_legacy(
 enum dc_status update_dp_encoder_resources_for_test_harness(const struct dc *dc,
 		struct dc_state *context,
 		struct pipe_ctx *pipe_ctx);
-
-bool check_subvp_sw_cursor_fallback_req(const struct dc *dc, struct dc_stream_state *stream);
 
 /* Get hw programming parameters container from pipe context
  * @pipe_ctx: pipe context

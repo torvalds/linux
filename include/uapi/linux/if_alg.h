@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef _LINUX_IF_ALG_H
-#define _LINUX_IF_ALG_H
+#ifndef _UAPI_LINUX_IF_ALG_H
+#define _UAPI_LINUX_IF_ALG_H
 
 #include <linux/types.h>
 
@@ -58,4 +58,4 @@ struct af_alg_iv {
 #define ALG_OP_DECRYPT			0
 #define ALG_OP_ENCRYPT			1
 
-#endif	/* _LINUX_IF_ALG_H */
+#endif	/* _UAPI_LINUX_IF_ALG_H */

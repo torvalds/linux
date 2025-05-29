@@ -44,6 +44,13 @@ Work items:
   to a machine description such as device tree, ACPI or fwnode that
   implicitly does not use global GPIO numbers.
 
+- Fix drivers to not read back struct gpio_chip::base. Some drivers do
+  that and would be broken by attempts to poison it or make it dynamic.
+  Example in AT91 pinctrl driver:
+  https://lore.kernel.org/all/1d00c056-3d61-4c22-bedd-3bae0bf1ddc4@pengutronix.de/
+  This particular driver is also DT-only, so with the above fixed, the
+  base can be made dynamic (set to -1) if CONFIG_GPIO_SYSFS is disabled.
+
 - When this work is complete (will require some of the items in the
   following ongoing work as well) we can delete the old global
   numberspace accessors from <linux/gpio.h> and eventually delete

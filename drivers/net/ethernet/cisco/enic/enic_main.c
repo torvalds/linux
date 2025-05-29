@@ -2296,7 +2296,8 @@ static int enic_adjust_resources(struct enic *enic)
 		 * used based on which resource is the most constrained
 		 */
 		wq_avail = min(enic->wq_avail, ENIC_WQ_MAX);
-		rq_default = netif_get_num_default_rss_queues();
+		rq_default = max(netif_get_num_default_rss_queues(),
+				 ENIC_RQ_MIN_DEFAULT);
 		rq_avail = min3(enic->rq_avail, ENIC_RQ_MAX, rq_default);
 		max_queues = min(enic->cq_avail,
 				 enic->intr_avail - ENIC_MSIX_RESERVED_INTR);

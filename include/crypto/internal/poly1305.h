@@ -6,9 +6,8 @@
 #ifndef _CRYPTO_INTERNAL_POLY1305_H
 #define _CRYPTO_INTERNAL_POLY1305_H
 
-#include <linux/unaligned.h>
-#include <linux/types.h>
 #include <crypto/poly1305.h>
+#include <linux/types.h>
 
 /*
  * Poly1305 core functions.  These only accept whole blocks; the caller must
@@ -30,5 +29,30 @@ void poly1305_core_blocks(struct poly1305_state *state,
 			  unsigned int nblocks, u32 hibit);
 void poly1305_core_emit(const struct poly1305_state *state, const u32 nonce[4],
 			void *dst);
+
+void poly1305_block_init_arch(struct poly1305_block_state *state,
+			      const u8 raw_key[POLY1305_BLOCK_SIZE]);
+void poly1305_block_init_generic(struct poly1305_block_state *state,
+				 const u8 raw_key[POLY1305_BLOCK_SIZE]);
+void poly1305_blocks_arch(struct poly1305_block_state *state, const u8 *src,
+			  unsigned int len, u32 padbit);
+
+static inline void poly1305_blocks_generic(struct poly1305_block_state *state,
+					   const u8 *src, unsigned int len,
+					   u32 padbit)
+{
+	poly1305_core_blocks(&state->h, &state->core_r, src,
+			     len / POLY1305_BLOCK_SIZE, padbit);
+}
+
+void poly1305_emit_arch(const struct poly1305_state *state,
+			u8 digest[POLY1305_DIGEST_SIZE], const u32 nonce[4]);
+
+static inline void poly1305_emit_generic(const struct poly1305_state *state,
+					 u8 digest[POLY1305_DIGEST_SIZE],
+					 const u32 nonce[4])
+{
+	poly1305_core_emit(state, nonce, digest);
+}
 
 #endif

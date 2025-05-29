@@ -1032,7 +1032,7 @@ static struct hubp_funcs dcn401_hubp_funcs = {
 	.hubp_program_3dlut_fl_tmz_protected = hubp401_program_3dlut_fl_tmz_protected,
 	.hubp_program_3dlut_fl_crossbar = hubp401_program_3dlut_fl_crossbar,
 	.hubp_get_3dlut_fl_done = hubp401_get_3dlut_fl_done,
-	.hubp_clear_tiling = hubp2_clear_tiling,
+	.hubp_clear_tiling = hubp401_clear_tiling,
 };
 
 bool hubp401_construct(

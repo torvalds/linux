@@ -23,7 +23,7 @@ struct cirrus_amp_cal_data {
 struct cirrus_amp_efi_data {
 	u32 size;
 	u32 count;
-	struct cirrus_amp_cal_data data[];
+	struct cirrus_amp_cal_data data[] __counted_by(count);
 } __packed;
 
 /**

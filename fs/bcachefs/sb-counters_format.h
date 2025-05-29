@@ -16,6 +16,7 @@ enum counters_flags {
 	x(io_read_split,				33,	TYPE_COUNTER)	\
 	x(io_read_reuse_race,				34,	TYPE_COUNTER)	\
 	x(io_read_retry,				32,	TYPE_COUNTER)	\
+	x(io_read_fail_and_poison,			82,	TYPE_COUNTER)	\
 	x(io_write,					1,	TYPE_SECTORS)	\
 	x(io_move,					2,	TYPE_SECTORS)	\
 	x(io_move_read,					35,	TYPE_SECTORS)	\
@@ -24,6 +25,7 @@ enum counters_flags {
 	x(io_move_fail,					38,	TYPE_COUNTER)	\
 	x(io_move_write_fail,				82,	TYPE_COUNTER)	\
 	x(io_move_start_fail,				39,	TYPE_COUNTER)	\
+	x(io_move_created_rebalance,			83,	TYPE_COUNTER)	\
 	x(bucket_invalidate,				3,	TYPE_COUNTER)	\
 	x(bucket_discard,				4,	TYPE_COUNTER)	\
 	x(bucket_discard_fast,				79,	TYPE_COUNTER)	\

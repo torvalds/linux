@@ -17,7 +17,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
-#include "irq-msi-lib.h"
+#include <linux/irqchip/irq-msi-lib.h>
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
@@ -161,7 +161,7 @@ static const struct irq_domain_ops gicp_domain_ops = {
 static const struct msi_parent_ops gicp_msi_parent_ops = {
 	.supported_flags	= GICP_MSI_FLAGS_SUPPORTED,
 	.required_flags		= GICP_MSI_FLAGS_REQUIRED,
-	.chip_flags		= MSI_CHIP_FLAG_SET_EOI | MSI_CHIP_FLAG_SET_ACK,
+	.chip_flags		= MSI_CHIP_FLAG_SET_EOI,
 	.bus_select_token       = DOMAIN_BUS_GENERIC_MSI,
 	.bus_select_mask	= MATCH_PLATFORM_MSI,
 	.prefix			= "GICP-",
@@ -170,9 +170,12 @@ static const struct msi_parent_ops gicp_msi_parent_ops = {
 
 static int mvebu_gicp_probe(struct platform_device *pdev)
 {
-	struct irq_domain *inner_domain, *parent_domain;
 	struct device_node *node = pdev->dev.of_node;
 	struct device_node *irq_parent_dn;
+	struct irq_domain_info info = {
+		.fwnode	= of_fwnode_handle(node),
+		.ops	= &gicp_domain_ops,
+	};
 	struct mvebu_gicp *gicp;
 	int ret, i;
 
@@ -217,30 +220,23 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 	if (!gicp->spi_bitmap)
 		return -ENOMEM;
 
+	info.size = gicp->spi_cnt;
+	info.host_data = gicp;
+
 	irq_parent_dn = of_irq_find_parent(node);
 	if (!irq_parent_dn) {
 		dev_err(&pdev->dev, "failed to find parent IRQ node\n");
 		return -ENODEV;
 	}
 
-	parent_domain = irq_find_host(irq_parent_dn);
+	info.parent = irq_find_host(irq_parent_dn);
 	of_node_put(irq_parent_dn);
-	if (!parent_domain) {
+	if (!info.parent) {
 		dev_err(&pdev->dev, "failed to find parent IRQ domain\n");
 		return -ENODEV;
 	}
 
-	inner_domain = irq_domain_create_hierarchy(parent_domain, 0,
-						   gicp->spi_cnt,
-						   of_node_to_fwnode(node),
-						   &gicp_domain_ops, gicp);
-	if (!inner_domain)
-		return -ENOMEM;
-
-	irq_domain_update_bus_token(inner_domain, DOMAIN_BUS_GENERIC_MSI);
-	inner_domain->flags |= IRQ_DOMAIN_FLAG_MSI_PARENT;
-	inner_domain->msi_parent_ops = &gicp_msi_parent_ops;
-	return 0;
+	return msi_create_parent_irq_domain(&info, &gicp_msi_parent_ops) ? 0 : -ENOMEM;
 }
 
 static const struct of_device_id mvebu_gicp_of_match[] = {

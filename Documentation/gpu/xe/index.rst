@@ -25,3 +25,4 @@ DG2, etc is provided to prototype the driver.
    xe_debugging
    xe_devcoredump
    xe-drm-usage-stats.rst
+   xe_configfs

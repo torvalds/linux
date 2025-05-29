@@ -144,7 +144,6 @@ static int qat_compression_create_instances(struct adf_accel_dev *accel_dev)
 		inst->id = i;
 		atomic_set(&inst->refctr, 0);
 		inst->accel_dev = accel_dev;
-		inst->build_deflate_ctx = GET_DC_OPS(accel_dev)->build_deflate_ctx;
 
 		snprintf(key, sizeof(key), ADF_DC "%d" ADF_RING_DC_BANK_NUM, i);
 		ret = adf_cfg_get_param_value(accel_dev, SEC, key, val);

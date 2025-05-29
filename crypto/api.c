@@ -31,8 +31,7 @@ EXPORT_SYMBOL_GPL(crypto_alg_sem);
 BLOCKING_NOTIFIER_HEAD(crypto_chain);
 EXPORT_SYMBOL_GPL(crypto_chain);
 
-#if IS_BUILTIN(CONFIG_CRYPTO_ALGAPI) && \
-    !IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+#if IS_BUILTIN(CONFIG_CRYPTO_ALGAPI) && IS_ENABLED(CONFIG_CRYPTO_SELFTESTS)
 DEFINE_STATIC_KEY_FALSE(__crypto_boot_test_finished);
 #endif
 
@@ -220,10 +219,19 @@ again:
 		if (crypto_is_test_larval(larval))
 			crypto_larval_kill(larval);
 		alg = ERR_PTR(-ETIMEDOUT);
-	} else if (!alg) {
+	} else if (!alg || PTR_ERR(alg) == -EEXIST) {
+		int err = alg ? -EEXIST : -EAGAIN;
+
+		/*
+		 * EEXIST is expected because two probes can be scheduled
+		 * at the same time with one using alg_name and the other
+		 * using driver_name.  Do a re-lookup but do not retry in
+		 * case we hit a quirk like gcm_base(ctr(aes),...) which
+		 * will never match.
+		 */
 		alg = &larval->alg;
 		alg = crypto_alg_lookup(alg->cra_name, type, mask) ?:
-		      ERR_PTR(-EAGAIN);
+		      ERR_PTR(err);
 	} else if (IS_ERR(alg))
 		;
 	else if (crypto_is_test_larval(larval) &&
@@ -528,6 +536,7 @@ void *crypto_create_tfm_node(struct crypto_alg *alg,
 		goto out;
 
 	tfm = (struct crypto_tfm *)(mem + frontend->tfmsize);
+	tfm->fb = tfm;
 
 	err = frontend->init_tfm(tfm);
 	if (err)
@@ -569,7 +578,7 @@ void *crypto_clone_tfm(const struct crypto_type *frontend,
 
 	tfm = (struct crypto_tfm *)(mem + frontend->tfmsize);
 	tfm->crt_flags = otfm->crt_flags;
-	tfm->exit = otfm->exit;
+	tfm->fb = tfm;
 
 out:
 	return mem;
@@ -707,11 +716,27 @@ void crypto_destroy_alg(struct crypto_alg *alg)
 {
 	if (alg->cra_type && alg->cra_type->destroy)
 		alg->cra_type->destroy(alg);
-
 	if (alg->cra_destroy)
 		alg->cra_destroy(alg);
 }
 EXPORT_SYMBOL_GPL(crypto_destroy_alg);
+
+struct crypto_async_request *crypto_request_clone(
+	struct crypto_async_request *req, size_t total, gfp_t gfp)
+{
+	struct crypto_tfm *tfm = req->tfm;
+	struct crypto_async_request *nreq;
+
+	nreq = kmemdup(req, total, gfp);
+	if (!nreq) {
+		req->tfm = tfm->fb;
+		return req;
+	}
+
+	nreq->flags &= ~CRYPTO_TFM_REQ_ON_STACK;
+	return nreq;
+}
+EXPORT_SYMBOL_GPL(crypto_request_clone);
 
 MODULE_DESCRIPTION("Cryptographic core API");
 MODULE_LICENSE("GPL");

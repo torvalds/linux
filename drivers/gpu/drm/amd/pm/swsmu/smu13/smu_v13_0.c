@@ -709,18 +709,6 @@ int smu_v13_0_notify_memory_pool_location(struct smu_context *smu)
 	return ret;
 }
 
-int smu_v13_0_set_min_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk)
-{
-	int ret;
-
-	ret = smu_cmn_send_smc_msg_with_param(smu,
-					      SMU_MSG_SetMinDeepSleepDcefclk, clk, NULL);
-	if (ret)
-		dev_err(smu->adev->dev, "SMU13 attempt to set divider for DCEFCLK Failed!");
-
-	return ret;
-}
-
 int smu_v13_0_set_driver_table_location(struct smu_context *smu)
 {
 	struct smu_table *driver_table = &smu->smu_table.driver_table;
@@ -757,18 +745,6 @@ int smu_v13_0_set_tool_table_location(struct smu_context *smu)
 							      lower_32_bits(tool_table->mc_address),
 							      NULL);
 	}
-
-	return ret;
-}
-
-int smu_v13_0_init_display_count(struct smu_context *smu, uint32_t count)
-{
-	int ret = 0;
-
-	if (!smu->pm_enabled)
-		return ret;
-
-	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, count, NULL);
 
 	return ret;
 }
@@ -1071,56 +1047,6 @@ int smu_v13_0_get_gfx_vdd(struct smu_context *smu, uint32_t *value)
 
 	return 0;
 
-}
-
-int
-smu_v13_0_display_clock_voltage_request(struct smu_context *smu,
-					struct pp_display_clock_request
-					*clock_req)
-{
-	enum amd_pp_clock_type clk_type = clock_req->clock_type;
-	int ret = 0;
-	enum smu_clk_type clk_select = 0;
-	uint32_t clk_freq = clock_req->clock_freq_in_khz / 1000;
-
-	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) ||
-	    smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
-		switch (clk_type) {
-		case amd_pp_dcef_clock:
-			clk_select = SMU_DCEFCLK;
-			break;
-		case amd_pp_disp_clock:
-			clk_select = SMU_DISPCLK;
-			break;
-		case amd_pp_pixel_clock:
-			clk_select = SMU_PIXCLK;
-			break;
-		case amd_pp_phy_clock:
-			clk_select = SMU_PHYCLK;
-			break;
-		case amd_pp_mem_clock:
-			clk_select = SMU_UCLK;
-			break;
-		default:
-			dev_info(smu->adev->dev, "[%s] Invalid Clock Type!", __func__);
-			ret = -EINVAL;
-			break;
-		}
-
-		if (ret)
-			goto failed;
-
-		if (clk_select == SMU_UCLK && smu->disable_uclk_switch)
-			return 0;
-
-		ret = smu_v13_0_set_hard_freq_limited_range(smu, clk_select, clk_freq, 0);
-
-		if (clk_select == SMU_UCLK)
-			smu->hard_min_uclk_req_from_dal = clk_freq;
-	}
-
-failed:
-	return ret;
 }
 
 uint32_t smu_v13_0_get_fan_control_mode(struct smu_context *smu)
@@ -1644,45 +1570,6 @@ int smu_v13_0_set_soft_freq_limited_range(struct smu_context *smu,
 	}
 
 out:
-	return ret;
-}
-
-int smu_v13_0_set_hard_freq_limited_range(struct smu_context *smu,
-					  enum smu_clk_type clk_type,
-					  uint32_t min,
-					  uint32_t max)
-{
-	int ret = 0, clk_id = 0;
-	uint32_t param;
-
-	if (min <= 0 && max <= 0)
-		return -EINVAL;
-
-	if (!smu_cmn_clk_dpm_is_enabled(smu, clk_type))
-		return 0;
-
-	clk_id = smu_cmn_to_asic_specific_index(smu,
-						CMN2ASIC_MAPPING_CLK,
-						clk_type);
-	if (clk_id < 0)
-		return clk_id;
-
-	if (max > 0) {
-		param = (uint32_t)((clk_id << 16) | (max & 0xffff));
-		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetHardMaxByFreq,
-						      param, NULL);
-		if (ret)
-			return ret;
-	}
-
-	if (min > 0) {
-		param = (uint32_t)((clk_id << 16) | (min & 0xffff));
-		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinByFreq,
-						      param, NULL);
-		if (ret)
-			return ret;
-	}
-
 	return ret;
 }
 
@@ -2594,4 +2481,14 @@ int smu_v13_0_set_wbrf_exclusion_ranges(struct smu_context *smu,
 		dev_warn(smu->adev->dev, "Failed to set wifiband!");
 
 	return ret;
+}
+
+void smu_v13_0_reset_custom_level(struct smu_context *smu)
+{
+	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
+
+	pstate_table->uclk_pstate.custom.min = 0;
+	pstate_table->uclk_pstate.custom.max = 0;
+	pstate_table->gfxclk_pstate.custom.min = 0;
+	pstate_table->gfxclk_pstate.custom.max = 0;
 }

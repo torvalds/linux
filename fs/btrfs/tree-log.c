@@ -860,9 +860,9 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 				struct btrfs_ordered_sum *sums;
 				struct btrfs_root *csum_root;
 
-				sums = list_entry(ordered_sums.next,
-						struct btrfs_ordered_sum,
-						list);
+				sums = list_first_entry(&ordered_sums,
+							struct btrfs_ordered_sum,
+							list);
 				csum_root = btrfs_csum_root(fs_info,
 							    sums->logical);
 				if (!ret)
@@ -3251,8 +3251,8 @@ static void free_log_tree(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	extent_io_tree_release(&log->dirty_log_pages);
-	extent_io_tree_release(&log->log_csum_range);
+	btrfs_extent_io_tree_release(&log->dirty_log_pages);
+	btrfs_extent_io_tree_release(&log->log_csum_range);
 
 	btrfs_put_root(log);
 }
@@ -4300,8 +4300,8 @@ static int log_csums(struct btrfs_trans_handle *trans,
 	 * file which happens to refer to the same extent as well. Such races
 	 * can leave checksum items in the log with overlapping ranges.
 	 */
-	ret = lock_extent(&log_root->log_csum_range, sums->logical, lock_end,
-			  &cached_state);
+	ret = btrfs_lock_extent(&log_root->log_csum_range, sums->logical, lock_end,
+				&cached_state);
 	if (ret)
 		return ret;
 	/*
@@ -4317,8 +4317,8 @@ static int log_csums(struct btrfs_trans_handle *trans,
 	if (!ret)
 		ret = btrfs_csum_file_blocks(trans, log_root, sums);
 
-	unlock_extent(&log_root->log_csum_range, sums->logical, lock_end,
-		      &cached_state);
+	btrfs_unlock_extent(&log_root->log_csum_range, sums->logical, lock_end,
+			    &cached_state);
 
 	return ret;
 }
@@ -4648,7 +4648,7 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 		return 0;
 
 	/* If we're compressed we have to save the entire range of csums. */
-	if (extent_map_is_compressed(em)) {
+	if (btrfs_extent_map_is_compressed(em)) {
 		csum_offset = 0;
 		csum_len = em->disk_num_bytes;
 	} else {
@@ -4657,7 +4657,7 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 	}
 
 	/* block start is already adjusted for the file extent offset. */
-	block_start = extent_map_block_start(em);
+	block_start = btrfs_extent_map_block_start(em);
 	csum_root = btrfs_csum_root(trans->fs_info, block_start);
 	ret = btrfs_lookup_csums_list(csum_root, block_start + csum_offset,
 				      block_start + csum_offset + csum_len - 1,
@@ -4667,9 +4667,9 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 	ret = 0;
 
 	while (!list_empty(&ordered_sums)) {
-		struct btrfs_ordered_sum *sums = list_entry(ordered_sums.next,
-						   struct btrfs_ordered_sum,
-						   list);
+		struct btrfs_ordered_sum *sums = list_first_entry(&ordered_sums,
+								  struct btrfs_ordered_sum,
+								  list);
 		if (!ret)
 			ret = log_csums(trans, inode, log_root, sums);
 		list_del(&sums->list);
@@ -4692,7 +4692,7 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_key key;
 	enum btrfs_compression_type compress_type;
 	u64 extent_offset = em->offset;
-	u64 block_start = extent_map_block_start(em);
+	u64 block_start = btrfs_extent_map_block_start(em);
 	u64 block_len;
 	int ret;
 
@@ -4703,7 +4703,7 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 		btrfs_set_stack_file_extent_type(&fi, BTRFS_FILE_EXTENT_REG);
 
 	block_len = em->disk_num_bytes;
-	compress_type = extent_map_compression(em);
+	compress_type = btrfs_extent_map_compression(em);
 	if (compress_type != BTRFS_COMPRESS_NONE) {
 		btrfs_set_stack_file_extent_disk_bytenr(&fi, block_start);
 		btrfs_set_stack_file_extent_disk_num_bytes(&fi, block_len);
@@ -4947,7 +4947,7 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 	list_sort(NULL, &extents, extent_cmp);
 process:
 	while (!list_empty(&extents)) {
-		em = list_entry(extents.next, struct extent_map, list);
+		em = list_first_entry(&extents, struct extent_map, list);
 
 		list_del_init(&em->list);
 
@@ -4956,8 +4956,8 @@ process:
 		 * private list.
 		 */
 		if (ret) {
-			clear_em_logging(inode, em);
-			free_extent_map(em);
+			btrfs_clear_em_logging(inode, em);
+			btrfs_free_extent_map(em);
 			continue;
 		}
 
@@ -4965,8 +4965,8 @@ process:
 
 		ret = log_one_extent(trans, inode, em, path, ctx);
 		write_lock(&tree->lock);
-		clear_em_logging(inode, em);
-		free_extent_map(em);
+		btrfs_clear_em_logging(inode, em);
+		btrfs_free_extent_map(em);
 	}
 	WARN_ON(!list_empty(&extents));
 	write_unlock(&tree->lock);
@@ -6583,6 +6583,19 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 		btrfs_log_get_delayed_items(inode, &delayed_ins_list,
 					    &delayed_del_list);
 
+	/*
+	 * If we are fsyncing a file with 0 hard links, then commit the delayed
+	 * inode because the last inode ref (or extref) item may still be in the
+	 * subvolume tree and if we log it the file will still exist after a log
+	 * replay. So commit the delayed inode to delete that last ref and we
+	 * skip logging it.
+	 */
+	if (inode->vfs_inode.i_nlink == 0) {
+		ret = btrfs_commit_inode_delayed_inode(inode);
+		if (ret)
+			goto out_unlock;
+	}
+
 	ret = copy_inode_items_to_log(trans, inode, &min_key, &max_key,
 				      path, dst_path, logged_isize,
 				      inode_only, ctx,
@@ -7051,14 +7064,9 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	if (btrfs_root_generation(&root->root_item) == trans->transid)
 		return BTRFS_LOG_FORCE_COMMIT;
 
-	/*
-	 * Skip already logged inodes or inodes corresponding to tmpfiles
-	 * (since logging them is pointless, a link count of 0 means they
-	 * will never be accessible).
-	 */
-	if ((btrfs_inode_in_log(inode, trans->transid) &&
-	     list_empty(&ctx->ordered_extents)) ||
-	    inode->vfs_inode.i_nlink == 0)
+	/* Skip already logged inodes and without new extents. */
+	if (btrfs_inode_in_log(inode, trans->transid) &&
+	    list_empty(&ctx->ordered_extents))
 		return BTRFS_NO_LOG_SYNC;
 
 	ret = start_log_trans(trans, root, ctx);

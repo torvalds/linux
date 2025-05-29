@@ -191,6 +191,27 @@ ABI.
 	User space can specify any one of the available workload type using
 	this interface.
 
+:file:`/sys/bus/pci/devices/0000\:00\:04.0/ptc_0_control`
+:file:`/sys/bus/pci/devices/0000\:00\:04.0/ptc_1_control`
+:file:`/sys/bus/pci/devices/0000\:00\:04.0/ptc_2_control`
+
+All these controls needs admin privilege to update.
+
+``enable`` (RW)
+	1 for enable, 0 for disable. Shows the current enable status of
+	platform temperature control feature. User space can enable/disable
+	hardware controls.
+
+``temperature_target`` (RW)
+	Update a new temperature target in milli degree celsius for hardware to
+	use for the temperature control.
+
+Given that this is platform temperature control, it is expected that a
+single user-level manager owns and manages the controls. If multiple
+user-level software applications attempt to write different targets, it
+can lead to unexpected behavior.
+
+
 DPTF Processor thermal RFIM interface
 --------------------------------------------
 

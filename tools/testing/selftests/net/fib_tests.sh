@@ -11,7 +11,7 @@ TESTS="unregister down carrier nexthop suppress ipv6_notify ipv4_notify \
        ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics \
        ipv4_route_metrics ipv4_route_v6_gw rp_filter ipv4_del_addr \
        ipv6_del_addr ipv4_mangle ipv6_mangle ipv4_bcast_neigh fib6_gc_test \
-       ipv4_mpath_list ipv6_mpath_list"
+       ipv4_mpath_list ipv6_mpath_list ipv4_mpath_balance ipv6_mpath_balance"
 
 VERBOSE=0
 PAUSE_ON_FAIL=no
@@ -1083,6 +1083,35 @@ route_setup()
 	ip -netns $ns2 addr add 172.16.104.1/24 dev dummy1
 
 	set +e
+}
+
+forwarding_cleanup()
+{
+	cleanup_ns $ns3
+
+	route_cleanup
+}
+
+# extend route_setup with an ns3 reachable through ns2 over both devices
+forwarding_setup()
+{
+	forwarding_cleanup
+
+	route_setup
+
+	setup_ns ns3
+
+	ip link add veth5 netns $ns3 type veth peer name veth6 netns $ns2
+	ip -netns $ns3 link set veth5 up
+	ip -netns $ns2 link set veth6 up
+
+	ip -netns $ns3 -4 addr add dev veth5 172.16.105.1/24
+	ip -netns $ns2 -4 addr add dev veth6 172.16.105.2/24
+	ip -netns $ns3 -4 route add 172.16.100.0/22 via 172.16.105.2
+
+	ip -netns $ns3 -6 addr add dev veth5 2001:db8:105::1/64 nodad
+	ip -netns $ns2 -6 addr add dev veth6 2001:db8:105::2/64 nodad
+	ip -netns $ns3 -6 route add 2001:db8:101::/33 via 2001:db8:105::2
 }
 
 # assumption is that basic add of a single path route works
@@ -2531,9 +2560,6 @@ ipv4_mpath_list_test()
 	run_cmd "ip -n $ns2 route add 203.0.113.0/24
 		nexthop via 172.16.201.2 nexthop via 172.16.202.2"
 	run_cmd "ip netns exec $ns2 sysctl -qw net.ipv4.fib_multipath_hash_policy=1"
-	run_cmd "ip netns exec $ns2 sysctl -qw net.ipv4.conf.veth2.rp_filter=0"
-	run_cmd "ip netns exec $ns2 sysctl -qw net.ipv4.conf.all.rp_filter=0"
-	run_cmd "ip netns exec $ns2 sysctl -qw net.ipv4.conf.default.rp_filter=0"
 	set +e
 
 	local dmac=$(ip -n $ns2 -j link show dev veth2 | jq -r '.[]["address"]')
@@ -2598,6 +2624,93 @@ ipv6_mpath_list_test()
 
 	rm $tmp_file
 	route_cleanup
+}
+
+tc_set_flower_counter__saddr_syn() {
+	tc_set_flower_counter $1 $2 $3 "src_ip $4 ip_proto tcp tcp_flags 0x2"
+}
+
+ip_mpath_balance_dep_check()
+{
+	if [ ! -x "$(command -v socat)" ]; then
+		echo "socat command not found. Skipping test"
+		return 1
+	fi
+
+	if [ ! -x "$(command -v jq)" ]; then
+		echo "jq command not found. Skipping test"
+		return 1
+	fi
+}
+
+ip_mpath_balance() {
+	local -r ipver=$1
+	local -r daddr=$2
+	local -r num_conn=20
+
+	for i in $(seq 1 $num_conn); do
+		ip netns exec $ns3 socat $ipver TCP-LISTEN:8000 STDIO >/dev/null &
+		sleep 0.02
+		echo -n a | ip netns exec $ns1 socat $ipver STDIO TCP:$daddr:8000
+	done
+
+	local -r syn0="$(tc_get_flower_counter $ns1 veth1)"
+	local -r syn1="$(tc_get_flower_counter $ns1 veth3)"
+	local -r syns=$((syn0+syn1))
+
+	[ "$VERBOSE" = "1" ] && echo "multipath: syns seen: ($syn0,$syn1)"
+
+	[[ $syns -ge $num_conn ]] && [[ $syn0 -gt 0 ]] && [[ $syn1 -gt 0 ]]
+}
+
+ipv4_mpath_balance_test()
+{
+	echo
+	echo "IPv4 multipath load balance test"
+
+	ip_mpath_balance_dep_check || return 1
+	forwarding_setup
+
+	$IP route add 172.16.105.1 \
+		nexthop via 172.16.101.2 \
+		nexthop via 172.16.103.2
+
+	ip netns exec $ns1 \
+		sysctl -q -w net.ipv4.fib_multipath_hash_policy=1
+
+	tc_set_flower_counter__saddr_syn $ns1 4 veth1 172.16.101.1
+	tc_set_flower_counter__saddr_syn $ns1 4 veth3 172.16.103.1
+
+	ip_mpath_balance -4 172.16.105.1
+
+	log_test $? 0 "IPv4 multipath loadbalance"
+
+	forwarding_cleanup
+}
+
+ipv6_mpath_balance_test()
+{
+	echo
+	echo "IPv6 multipath load balance test"
+
+	ip_mpath_balance_dep_check || return 1
+	forwarding_setup
+
+	$IP route add 2001:db8:105::1\
+		nexthop via 2001:db8:101::2 \
+		nexthop via 2001:db8:103::2
+
+	ip netns exec $ns1 \
+		sysctl -q -w net.ipv6.fib_multipath_hash_policy=1
+
+	tc_set_flower_counter__saddr_syn $ns1 6 veth1 2001:db8:101::1
+	tc_set_flower_counter__saddr_syn $ns1 6 veth3 2001:db8:103::1
+
+	ip_mpath_balance -6 "[2001:db8:105::1]"
+
+	log_test $? 0 "IPv6 multipath loadbalance"
+
+	forwarding_cleanup
 }
 
 ################################################################################
@@ -2683,6 +2796,8 @@ do
 	fib6_gc_test|ipv6_gc)		fib6_gc_test;;
 	ipv4_mpath_list)		ipv4_mpath_list_test;;
 	ipv6_mpath_list)		ipv6_mpath_list_test;;
+	ipv4_mpath_balance)		ipv4_mpath_balance_test;;
+	ipv6_mpath_balance)		ipv6_mpath_balance_test;;
 
 	help) echo "Test names: $TESTS"; exit 0;;
 	esac

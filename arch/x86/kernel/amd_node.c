@@ -9,7 +9,7 @@
  */
 
 #include <linux/debugfs.h>
-#include <asm/amd_node.h>
+#include <asm/amd/node.h>
 
 /*
  * AMD Nodes are a physical collection of I/O devices within an SoC. There can be one

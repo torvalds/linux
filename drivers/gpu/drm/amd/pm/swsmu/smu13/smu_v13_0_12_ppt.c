@@ -187,26 +187,6 @@ int smu_v13_0_12_get_max_metrics_size(void)
 	return max(sizeof(StaticMetricsTable_t), sizeof(MetricsTable_t));
 }
 
-static int smu_v13_0_12_get_static_metrics_table(struct smu_context *smu)
-{
-	struct smu_table_context *smu_table = &smu->smu_table;
-	uint32_t table_size = smu_table->tables[SMU_TABLE_SMU_METRICS].size;
-	struct smu_table *table = &smu_table->driver_table;
-	int ret;
-
-	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetStaticMetricsTable, NULL);
-	if (ret) {
-		dev_info(smu->adev->dev,
-			 "Failed to export static metrics table!\n");
-		return ret;
-	}
-
-	amdgpu_asic_invalidate_hdp(smu->adev, NULL);
-	memcpy(smu_table->metrics_table, table->cpu_addr, table_size);
-
-	return 0;
-}
-
 int smu_v13_0_12_setup_driver_pptable(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
@@ -217,7 +197,7 @@ int smu_v13_0_12_setup_driver_pptable(struct smu_context *smu)
 	int ret, i;
 
 	if (!pptable->Init) {
-		ret = smu_v13_0_12_get_static_metrics_table(smu);
+		ret = smu_v13_0_6_get_static_metrics_table(smu);
 		if (ret)
 			return ret;
 
@@ -345,8 +325,8 @@ int smu_v13_0_12_get_smu_metrics_data(struct smu_context *smu,
 ssize_t smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	struct gpu_metrics_v1_7 *gpu_metrics =
-		(struct gpu_metrics_v1_7 *)smu_table->gpu_metrics_table;
+	struct gpu_metrics_v1_8 *gpu_metrics =
+		(struct gpu_metrics_v1_8 *)smu_table->gpu_metrics_table;
 	int ret = 0, xcc_id, inst, i, j, k, idx;
 	struct amdgpu_device *adev = smu->adev;
 	u8 num_jpeg_rings_gpu_metrics;
@@ -357,7 +337,7 @@ ssize_t smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table)
 	metrics = kzalloc(sizeof(MetricsTable_t), GFP_KERNEL);
 	memcpy(metrics, smu_table->metrics_table, sizeof(MetricsTable_t));
 
-	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 7);
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 8);
 
 	gpu_metrics->temperature_hotspot =
 		SMUQ10_ROUND(metrics->MaxSocketTemperature);
@@ -474,6 +454,16 @@ ssize_t smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table)
 				SMUQ10_ROUND(metrics->GfxBusy[inst]);
 			gpu_metrics->xcp_stats[i].gfx_busy_acc[idx] =
 				SMUQ10_ROUND(metrics->GfxBusyAcc[inst]);
+			if (smu_v13_0_6_cap_supported(smu, SMU_CAP(HST_LIMIT_METRICS))) {
+				gpu_metrics->xcp_stats[i].gfx_below_host_limit_ppt_acc[idx] =
+					SMUQ10_ROUND(metrics->GfxclkBelowHostLimitPptAcc[inst]);
+				gpu_metrics->xcp_stats[i].gfx_below_host_limit_thm_acc[idx] =
+					SMUQ10_ROUND(metrics->GfxclkBelowHostLimitThmAcc[inst]);
+				gpu_metrics->xcp_stats[i].gfx_low_utilization_acc[idx] =
+					SMUQ10_ROUND(metrics->GfxclkLowUtilizationAcc[inst]);
+				gpu_metrics->xcp_stats[i].gfx_below_host_limit_total_acc[idx] =
+					SMUQ10_ROUND(metrics->GfxclkBelowHostLimitTotalAcc[inst]);
+			}
 			idx++;
 		}
 	}

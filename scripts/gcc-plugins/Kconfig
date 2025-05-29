@@ -46,8 +46,4 @@ config GCC_PLUGIN_LATENT_ENTROPY
 	   * https://grsecurity.net/
 	   * https://pax.grsecurity.net/
 
-config GCC_PLUGIN_ARM_SSP_PER_TASK
-	bool
-	depends on GCC_PLUGINS && ARM
-
 endif

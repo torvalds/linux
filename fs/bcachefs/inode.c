@@ -14,6 +14,7 @@
 #include "extent_update.h"
 #include "fs.h"
 #include "inode.h"
+#include "namei.h"
 #include "opts.h"
 #include "str_hash.h"
 #include "snapshot.h"
@@ -240,6 +241,7 @@ static int bch2_inode_unpack_v3(struct bkey_s_c k,
 	u64 v[2];
 
 	unpacked->bi_inum	= inode.k->p.offset;
+	unpacked->bi_snapshot	= inode.k->p.snapshot;
 	unpacked->bi_journal_seq= le64_to_cpu(inode.v->bi_journal_seq);
 	unpacked->bi_hash_seed	= inode.v->bi_hash_seed;
 	unpacked->bi_flags	= le64_to_cpu(inode.v->bi_flags);
@@ -284,13 +286,12 @@ static noinline int bch2_inode_unpack_slowpath(struct bkey_s_c k,
 {
 	memset(unpacked, 0, sizeof(*unpacked));
 
-	unpacked->bi_snapshot = k.k->p.snapshot;
-
 	switch (k.k->type) {
 	case KEY_TYPE_inode: {
 		struct bkey_s_c_inode inode = bkey_s_c_to_inode(k);
 
 		unpacked->bi_inum	= inode.k->p.offset;
+		unpacked->bi_snapshot	= inode.k->p.snapshot;
 		unpacked->bi_journal_seq= 0;
 		unpacked->bi_hash_seed	= inode.v->bi_hash_seed;
 		unpacked->bi_flags	= le32_to_cpu(inode.v->bi_flags);
@@ -309,6 +310,7 @@ static noinline int bch2_inode_unpack_slowpath(struct bkey_s_c k,
 		struct bkey_s_c_inode_v2 inode = bkey_s_c_to_inode_v2(k);
 
 		unpacked->bi_inum	= inode.k->p.offset;
+		unpacked->bi_snapshot	= inode.k->p.snapshot;
 		unpacked->bi_journal_seq= le64_to_cpu(inode.v->bi_journal_seq);
 		unpacked->bi_hash_seed	= inode.v->bi_hash_seed;
 		unpacked->bi_flags	= le64_to_cpu(inode.v->bi_flags);
@@ -326,8 +328,6 @@ static noinline int bch2_inode_unpack_slowpath(struct bkey_s_c k,
 int bch2_inode_unpack(struct bkey_s_c k,
 		      struct bch_inode_unpacked *unpacked)
 {
-	unpacked->bi_snapshot = k.k->p.snapshot;
-
 	return likely(k.k->type == KEY_TYPE_inode_v3)
 		? bch2_inode_unpack_v3(k, unpacked)
 		: bch2_inode_unpack_slowpath(k, unpacked);
@@ -364,6 +364,82 @@ err:
 	if (warn)
 		bch_err_msg(trans->c, ret, "looking up inum %llu:%llu:", inum.subvol, inum.inum);
 	bch2_trans_iter_exit(trans, iter);
+	return ret;
+}
+
+int bch2_inode_find_by_inum_snapshot(struct btree_trans *trans,
+					    u64 inode_nr, u32 snapshot,
+					    struct bch_inode_unpacked *inode,
+					    unsigned flags)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes,
+					       SPOS(0, inode_nr, snapshot), flags);
+	int ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	ret = bkey_is_inode(k.k)
+		? bch2_inode_unpack(k, inode)
+		: -BCH_ERR_ENOENT_inode;
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+int bch2_inode_find_by_inum_nowarn_trans(struct btree_trans *trans,
+				  subvol_inum inum,
+				  struct bch_inode_unpacked *inode)
+{
+	struct btree_iter iter;
+	int ret;
+
+	ret = bch2_inode_peek_nowarn(trans, &iter, inode, inum, 0);
+	if (!ret)
+		bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+int bch2_inode_find_by_inum_trans(struct btree_trans *trans,
+				  subvol_inum inum,
+				  struct bch_inode_unpacked *inode)
+{
+	struct btree_iter iter;
+	int ret;
+
+	ret = bch2_inode_peek(trans, &iter, inode, inum, 0);
+	if (!ret)
+		bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+int bch2_inode_find_by_inum(struct bch_fs *c, subvol_inum inum,
+			    struct bch_inode_unpacked *inode)
+{
+	return bch2_trans_do(c, bch2_inode_find_by_inum_trans(trans, inum, inode));
+}
+
+int bch2_inode_find_snapshot_root(struct btree_trans *trans, u64 inum,
+				  struct bch_inode_unpacked *root)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret = 0;
+
+	for_each_btree_key_reverse_norestart(trans, iter, BTREE_ID_inodes,
+					     SPOS(0, inum, U32_MAX),
+					     BTREE_ITER_all_snapshots, k, ret) {
+		if (k.k->p.offset != inum)
+			break;
+		if (bkey_is_inode(k.k)) {
+			ret = bch2_inode_unpack(k, root);
+			goto out;
+		}
+	}
+	/* We're only called when we know we have an inode for @inum */
+	BUG_ON(!ret);
+out:
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -832,7 +908,8 @@ void bch2_inode_init_early(struct bch_fs *c,
 	get_random_bytes(&inode_u->bi_hash_seed, sizeof(inode_u->bi_hash_seed));
 }
 
-void bch2_inode_init_late(struct bch_inode_unpacked *inode_u, u64 now,
+void bch2_inode_init_late(struct bch_fs *c,
+			  struct bch_inode_unpacked *inode_u, u64 now,
 			  uid_t uid, gid_t gid, umode_t mode, dev_t rdev,
 			  struct bch_inode_unpacked *parent)
 {
@@ -856,6 +933,12 @@ void bch2_inode_init_late(struct bch_inode_unpacked *inode_u, u64 now,
 		BCH_INODE_OPTS()
 #undef x
 	}
+
+	if (!S_ISDIR(mode))
+		inode_u->bi_casefold = 0;
+
+	if (bch2_inode_casefold(c, inode_u))
+		inode_u->bi_flags |= BCH_INODE_has_case_insensitive;
 }
 
 void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
@@ -863,7 +946,7 @@ void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
 		     struct bch_inode_unpacked *parent)
 {
 	bch2_inode_init_early(c, inode_u);
-	bch2_inode_init_late(inode_u, bch2_current_time(c),
+	bch2_inode_init_late(c, inode_u, bch2_current_time(c),
 			     uid, gid, mode, rdev, parent);
 }
 
@@ -1099,38 +1182,6 @@ err2:
 	return ret;
 }
 
-int bch2_inode_find_by_inum_nowarn_trans(struct btree_trans *trans,
-				  subvol_inum inum,
-				  struct bch_inode_unpacked *inode)
-{
-	struct btree_iter iter;
-	int ret;
-
-	ret = bch2_inode_peek_nowarn(trans, &iter, inode, inum, 0);
-	if (!ret)
-		bch2_trans_iter_exit(trans, &iter);
-	return ret;
-}
-
-int bch2_inode_find_by_inum_trans(struct btree_trans *trans,
-				  subvol_inum inum,
-				  struct bch_inode_unpacked *inode)
-{
-	struct btree_iter iter;
-	int ret;
-
-	ret = bch2_inode_peek(trans, &iter, inode, inum, 0);
-	if (!ret)
-		bch2_trans_iter_exit(trans, &iter);
-	return ret;
-}
-
-int bch2_inode_find_by_inum(struct bch_fs *c, subvol_inum inum,
-			    struct bch_inode_unpacked *inode)
-{
-	return bch2_trans_do(c, bch2_inode_find_by_inum_trans(trans, inum, inode));
-}
-
 int bch2_inode_nlink_inc(struct bch_inode_unpacked *bi)
 {
 	if (bi->bi_flags & BCH_INODE_unlinked)
@@ -1202,6 +1253,41 @@ int bch2_inum_opts_get(struct btree_trans *trans, subvol_inum inum, struct bch_i
 
 	bch2_inode_opts_get(opts, trans->c, &inode);
 	return 0;
+}
+
+int bch2_inode_set_casefold(struct btree_trans *trans, subvol_inum inum,
+			    struct bch_inode_unpacked *bi, unsigned v)
+{
+	struct bch_fs *c = trans->c;
+
+#ifdef CONFIG_UNICODE
+	int ret = 0;
+	/* Not supported on individual files. */
+	if (!S_ISDIR(bi->bi_mode))
+		return -EOPNOTSUPP;
+
+	/*
+	 * Make sure the dir is empty, as otherwise we'd need to
+	 * rehash everything and update the dirent keys.
+	 */
+	ret = bch2_empty_dir_trans(trans, inum);
+	if (ret < 0)
+		return ret;
+
+	ret = bch2_request_incompat_feature(c, bcachefs_metadata_version_casefolding);
+	if (ret)
+		return ret;
+
+	bch2_check_set_feature(c, BCH_FEATURE_casefolding);
+
+	bi->bi_casefold = v + 1;
+	bi->bi_fields_set |= BIT(Inode_opt_casefold);
+
+	return bch2_maybe_propagate_has_case_insensitive(trans, inum, bi);
+#else
+	bch_err(c, "Cannot use casefolding on a kernel without CONFIG_UNICODE");
+	return -EOPNOTSUPP;
+#endif
 }
 
 static noinline int __bch2_inode_rm_snapshot(struct btree_trans *trans, u64 inum, u32 snapshot)

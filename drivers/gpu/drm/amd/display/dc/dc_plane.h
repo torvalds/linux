@@ -28,13 +28,24 @@
 
 #include "dc_hw_types.h"
 
+union dc_plane_status_update_flags {
+	struct {
+		uint32_t address : 1;
+	} bits;
+	uint32_t raw;
+};
+
 struct dc_plane_state *dc_create_plane_state(const struct dc *dc);
 const struct dc_plane_status *dc_plane_get_status(
-		const struct dc_plane_state *plane_state);
+		const struct dc_plane_state *plane_state,
+		union dc_plane_status_update_flags flags);
 void dc_plane_state_retain(struct dc_plane_state *plane_state);
 void dc_plane_state_release(struct dc_plane_state *plane_state);
 
 void dc_plane_force_dcc_and_tiling_disable(struct dc_plane_state *plane_state,
 					   bool clear_tiling);
+
+
+void dc_plane_copy_config(struct dc_plane_state *dst, const struct dc_plane_state *src);
 
 #endif /* _DC_PLANE_H_ */

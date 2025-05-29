@@ -66,6 +66,8 @@ struct xe_devcoredump_snapshot {
 	struct {
 		/** @read.size: size of devcoredump in human readable format */
 		ssize_t size;
+		/** @read.chunk_position: position of devcoredump chunk */
+		ssize_t chunk_position;
 		/** @read.buffer: buffer of devcoredump in human readable format */
 		char *buffer;
 	} read;

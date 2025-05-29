@@ -77,8 +77,8 @@ config NFSD_V4
 	select FS_POSIX_ACL
 	select RPCSEC_GSS_KRB5
 	select CRYPTO
+	select CRYPTO_LIB_SHA256
 	select CRYPTO_MD5
-	select CRYPTO_SHA256
 	select GRACE_PERIOD
 	select NFS_V4_2_SSC_HELPER if NFS_V4_2
 	help

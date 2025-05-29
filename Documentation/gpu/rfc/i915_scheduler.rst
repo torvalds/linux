@@ -26,7 +26,7 @@ i915 with the DRM scheduler is:
 	  which configures a slot with N contexts
 	* After I915_CONTEXT_ENGINES_EXT_PARALLEL a user can submit N batches to
 	  a slot in a single execbuf IOCTL and the batches run on the GPU in
-	  paralllel
+	  parallel
 	* Initially only for GuC submission but execlists can be supported if
 	  needed
 * Convert the i915 to use the DRM scheduler

@@ -1777,7 +1777,7 @@ static void ena_init_napi_in_range(struct ena_adapter *adapter,
 		if (ENA_IS_XDP_INDEX(adapter, i))
 			napi_handler = ena_xdp_io_poll;
 
-		netif_napi_add(adapter->netdev, &napi->napi, napi_handler);
+		netif_napi_add_config(adapter->netdev, &napi->napi, napi_handler, i);
 
 		if (!ENA_IS_XDP_INDEX(adapter, i))
 			napi->rx_ring = rx_ring;

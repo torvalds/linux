@@ -28,6 +28,8 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_de.h"
+#include "intel_display_rpm.h"
+#include "intel_display_power_well.h"
 #include "intel_dmc.h"
 #include "intel_dmc_regs.h"
 #include "intel_step.h"
@@ -57,6 +59,10 @@ struct intel_dmc {
 	const char *fw_path;
 	u32 max_fw_size; /* bytes */
 	u32 version;
+	struct {
+		u32 dc5_start;
+		u32 count;
+	} dc6_allowed;
 	struct dmc_fw_info {
 		u32 mmio_count;
 		i915_reg_t mmioaddr[20];
@@ -167,7 +173,6 @@ MODULE_FIRMWARE(BXT_DMC_PATH);
 
 static const char *dmc_firmware_default(struct intel_display *display, u32 *size)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	const char *fw_path = NULL;
 	u32 max_fw_size = 0;
 
@@ -183,39 +188,39 @@ static const char *dmc_firmware_default(struct intel_display *display, u32 *size
 	} else if (DISPLAY_VERx100(display) == 1400) {
 		fw_path = MTL_DMC_PATH;
 		max_fw_size = XELPDP_DMC_MAX_FW_SIZE;
-	} else if (IS_DG2(i915)) {
+	} else if (display->platform.dg2) {
 		fw_path = DG2_DMC_PATH;
 		max_fw_size = DISPLAY_VER13_DMC_MAX_FW_SIZE;
-	} else if (IS_ALDERLAKE_P(i915)) {
+	} else if (display->platform.alderlake_p) {
 		fw_path = ADLP_DMC_PATH;
 		max_fw_size = DISPLAY_VER13_DMC_MAX_FW_SIZE;
-	} else if (IS_ALDERLAKE_S(i915)) {
+	} else if (display->platform.alderlake_s) {
 		fw_path = ADLS_DMC_PATH;
 		max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
-	} else if (IS_DG1(i915)) {
+	} else if (display->platform.dg1) {
 		fw_path = DG1_DMC_PATH;
 		max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
-	} else if (IS_ROCKETLAKE(i915)) {
+	} else if (display->platform.rocketlake) {
 		fw_path = RKL_DMC_PATH;
 		max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
-	} else if (IS_TIGERLAKE(i915)) {
+	} else if (display->platform.tigerlake) {
 		fw_path = TGL_DMC_PATH;
 		max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
 	} else if (DISPLAY_VER(display) == 11) {
 		fw_path = ICL_DMC_PATH;
 		max_fw_size = ICL_DMC_MAX_FW_SIZE;
-	} else if (IS_GEMINILAKE(i915)) {
+	} else if (display->platform.geminilake) {
 		fw_path = GLK_DMC_PATH;
 		max_fw_size = GLK_DMC_MAX_FW_SIZE;
-	} else if (IS_KABYLAKE(i915) ||
-		   IS_COFFEELAKE(i915) ||
-		   IS_COMETLAKE(i915)) {
+	} else if (display->platform.kabylake ||
+		   display->platform.coffeelake ||
+		   display->platform.cometlake) {
 		fw_path = KBL_DMC_PATH;
 		max_fw_size = KBL_DMC_MAX_FW_SIZE;
-	} else if (IS_SKYLAKE(i915)) {
+	} else if (display->platform.skylake) {
 		fw_path = SKL_DMC_PATH;
 		max_fw_size = SKL_DMC_MAX_FW_SIZE;
-	} else if (IS_BROXTON(i915)) {
+	} else if (display->platform.broxton) {
 		fw_path = BXT_DMC_PATH;
 		max_fw_size = BXT_DMC_MAX_FW_SIZE;
 	}
@@ -511,6 +516,54 @@ void intel_dmc_disable_pipe(struct intel_display *display, enum pipe pipe)
 		intel_de_rmw(display, PIPEDMC_CONTROL(pipe), PIPEDMC_ENABLE, 0);
 }
 
+/**
+ * intel_dmc_block_pkgc() - block PKG C-state
+ * @display: display instance
+ * @pipe: pipe which register use to block
+ * @block: block/unblock
+ *
+ * This interface is target for Wa_16025596647 usage. I.e. to set/clear
+ * PIPEDMC_BLOCK_PKGC_SW_BLOCK_PKGC_ALWAYS bit in PIPEDMC_BLOCK_PKGC_SW register.
+ */
+void intel_dmc_block_pkgc(struct intel_display *display, enum pipe pipe,
+			  bool block)
+{
+	intel_de_rmw(display, PIPEDMC_BLOCK_PKGC_SW(pipe),
+		     PIPEDMC_BLOCK_PKGC_SW_BLOCK_PKGC_ALWAYS, block ?
+		     PIPEDMC_BLOCK_PKGC_SW_BLOCK_PKGC_ALWAYS : 0);
+}
+
+/**
+ * intel_dmc_start_pkgc_exit_at_start_of_undelayed_vblank() - start of PKG
+ * C-state exit
+ * @display: display instance
+ * @pipe: pipe which register use to block
+ * @enable: enable/disable
+ *
+ * This interface is target for Wa_16025596647 usage. I.e. start the package C
+ * exit at the start of the undelayed vblank
+ */
+void intel_dmc_start_pkgc_exit_at_start_of_undelayed_vblank(struct intel_display *display,
+							    enum pipe pipe, bool enable)
+{
+	u32 val;
+
+	if (enable)
+		val = DMC_EVT_CTL_ENABLE | DMC_EVT_CTL_RECURRING |
+			REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
+				       DMC_EVT_CTL_TYPE_EDGE_0_1) |
+			REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
+				       DMC_EVT_CTL_EVENT_ID_VBLANK_A);
+	else
+		val = REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
+				     DMC_EVT_CTL_EVENT_ID_FALSE) |
+			REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
+				       DMC_EVT_CTL_TYPE_EDGE_0_1);
+
+	intel_de_write(display, MTL_PIPEDMC_EVT_CTL_4(pipe),
+		       val);
+}
+
 static bool is_dmc_evt_ctl_reg(struct intel_display *display,
 			       enum intel_dmc_id dmc_id, i915_reg_t reg)
 {
@@ -535,8 +588,6 @@ static bool disable_dmc_evt(struct intel_display *display,
 			    enum intel_dmc_id dmc_id,
 			    i915_reg_t reg, u32 data)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	if (!is_dmc_evt_ctl_reg(display, dmc_id, reg))
 		return false;
 
@@ -545,12 +596,12 @@ static bool disable_dmc_evt(struct intel_display *display,
 		return true;
 
 	/* also disable the flip queue event on the main DMC on TGL */
-	if (IS_TIGERLAKE(i915) &&
+	if (display->platform.tigerlake &&
 	    REG_FIELD_GET(DMC_EVT_CTL_EVENT_ID_MASK, data) == DMC_EVT_CTL_EVENT_ID_CLK_MSEC)
 		return true;
 
 	/* also disable the HRR event on the main DMC on TGL/ADLS */
-	if ((IS_TIGERLAKE(i915) || IS_ALDERLAKE_S(i915)) &&
+	if ((display->platform.tigerlake || display->platform.alderlake_s) &&
 	    REG_FIELD_GET(DMC_EVT_CTL_EVENT_ID_MASK, data) == DMC_EVT_CTL_EVENT_ID_VBLANK_A)
 		return true;
 
@@ -582,7 +633,6 @@ static u32 dmc_mmiodata(struct intel_display *display,
  */
 void intel_dmc_load_program(struct intel_display *display)
 {
-	struct drm_i915_private *i915 __maybe_unused = to_i915(display->drm);
 	struct i915_power_domains *power_domains = &display->power.domains;
 	struct intel_dmc *dmc = display_to_dmc(display);
 	enum intel_dmc_id dmc_id;
@@ -595,7 +645,7 @@ void intel_dmc_load_program(struct intel_display *display)
 
 	disable_all_event_handlers(display);
 
-	assert_rpm_wakelock_held(&i915->runtime_pm);
+	assert_display_rpm_held(display);
 
 	preempt_disable();
 
@@ -1006,9 +1056,7 @@ static void intel_dmc_runtime_pm_put(struct intel_display *display)
 
 static const char *dmc_fallback_path(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	if (IS_ALDERLAKE_P(i915))
+	if (display->platform.alderlake_p)
 		return ADLP_DMC_FALLBACK_PATH;
 
 	return NULL;
@@ -1232,18 +1280,56 @@ void intel_dmc_snapshot_print(const struct intel_dmc_snapshot *snapshot, struct 
 			   DMC_VERSION_MINOR(snapshot->version));
 }
 
+void intel_dmc_update_dc6_allowed_count(struct intel_display *display,
+					bool start_tracking)
+{
+	struct intel_dmc *dmc = display_to_dmc(display);
+	u32 dc5_cur_count;
+
+	if (DISPLAY_VER(dmc->display) < 14)
+		return;
+
+	dc5_cur_count = intel_de_read(dmc->display, DG1_DMC_DEBUG_DC5_COUNT);
+
+	if (!start_tracking)
+		dmc->dc6_allowed.count += dc5_cur_count - dmc->dc6_allowed.dc5_start;
+
+	dmc->dc6_allowed.dc5_start = dc5_cur_count;
+}
+
+static bool intel_dmc_get_dc6_allowed_count(struct intel_display *display, u32 *count)
+{
+	struct i915_power_domains *power_domains = &display->power.domains;
+	struct intel_dmc *dmc = display_to_dmc(display);
+	bool dc6_enabled;
+
+	if (DISPLAY_VER(display) < 14)
+		return false;
+
+	mutex_lock(&power_domains->lock);
+	dc6_enabled = intel_de_read(display, DC_STATE_EN) &
+		      DC_STATE_EN_UPTO_DC6;
+	if (dc6_enabled)
+		intel_dmc_update_dc6_allowed_count(display, false);
+
+	*count = dmc->dc6_allowed.count;
+	mutex_unlock(&power_domains->lock);
+
+	return true;
+}
+
 static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)
 {
 	struct intel_display *display = m->private;
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_dmc *dmc = display_to_dmc(display);
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	i915_reg_t dc5_reg, dc6_reg = INVALID_MMIO_REG;
+	u32 dc6_allowed_count;
 
 	if (!HAS_DMC(display))
 		return -ENODEV;
 
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+	wakeref = intel_display_rpm_get(display);
 
 	seq_printf(m, "DMC initialized: %s\n", str_yes_no(dmc));
 	seq_printf(m, "fw loaded: %s\n",
@@ -1254,7 +1340,7 @@ static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)
 	seq_printf(m, "Pipe A fw loaded: %s\n",
 		   str_yes_no(has_dmc_id_fw(display, DMC_FW_PIPEA)));
 	seq_printf(m, "Pipe B fw needed: %s\n",
-		   str_yes_no(IS_ALDERLAKE_P(i915) ||
+		   str_yes_no(display->platform.alderlake_p ||
 			      DISPLAY_VER(display) >= 14));
 	seq_printf(m, "Pipe B fw loaded: %s\n",
 		   str_yes_no(has_dmc_id_fw(display, DMC_FW_PIPEB)));
@@ -1268,7 +1354,7 @@ static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)
 	if (DISPLAY_VER(display) >= 12) {
 		i915_reg_t dc3co_reg;
 
-		if (IS_DGFX(i915) || DISPLAY_VER(display) >= 14) {
+		if (display->platform.dgfx || DISPLAY_VER(display) >= 14) {
 			dc3co_reg = DG1_DMC_DEBUG3;
 			dc5_reg = DG1_DMC_DEBUG_DC5_COUNT;
 		} else {
@@ -1280,14 +1366,18 @@ static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)
 		seq_printf(m, "DC3CO count: %d\n",
 			   intel_de_read(display, dc3co_reg));
 	} else {
-		dc5_reg = IS_BROXTON(i915) ? BXT_DMC_DC3_DC5_COUNT :
+		dc5_reg = display->platform.broxton ? BXT_DMC_DC3_DC5_COUNT :
 			SKL_DMC_DC3_DC5_COUNT;
-		if (!IS_GEMINILAKE(i915) && !IS_BROXTON(i915))
+		if (!display->platform.geminilake && !display->platform.broxton)
 			dc6_reg = SKL_DMC_DC5_DC6_COUNT;
 	}
 
 	seq_printf(m, "DC3 -> DC5 count: %d\n", intel_de_read(display, dc5_reg));
-	if (i915_mmio_reg_valid(dc6_reg))
+
+	if (intel_dmc_get_dc6_allowed_count(display, &dc6_allowed_count))
+		seq_printf(m, "DC5 -> DC6 allowed count: %d\n",
+			   dc6_allowed_count);
+	else if (i915_mmio_reg_valid(dc6_reg))
 		seq_printf(m, "DC5 -> DC6 count: %d\n",
 			   intel_de_read(display, dc6_reg));
 
@@ -1299,7 +1389,7 @@ out:
 		   intel_de_read(display, DMC_SSP_BASE));
 	seq_printf(m, "htp: 0x%08x\n", intel_de_read(display, DMC_HTP_SKL));
 
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+	intel_display_rpm_put(display, wakeref);
 
 	return 0;
 }

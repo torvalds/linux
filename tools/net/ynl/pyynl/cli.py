@@ -144,16 +144,17 @@ def main():
             ops = [ (item[0], json.loads(item[1]), args.flags or []) for item in args.multi ]
             reply = ynl.do_multi(ops)
             output(reply)
+
+        if args.ntf:
+            for msg in ynl.poll_ntf(duration=args.duration):
+                output(msg)
     except NlError as e:
         print(e)
         exit(1)
-
-    if args.ntf:
-        try:
-            for msg in ynl.poll_ntf(duration=args.duration):
-                output(msg)
-        except KeyboardInterrupt:
-            pass
+    except KeyboardInterrupt:
+        pass
+    except BrokenPipeError:
+        pass
 
 
 if __name__ == "__main__":

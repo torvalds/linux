@@ -2080,7 +2080,7 @@ static int vc6_plane_mode_set(struct drm_plane *plane,
 			/* HPPF plane 1 */
 			vc4_dlist_write(vc4_state, kernel);
 			/* VPPF plane 1 */
-				vc4_dlist_write(vc4_state, kernel);
+			vc4_dlist_write(vc4_state, kernel);
 		}
 	}
 

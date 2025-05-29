@@ -4,6 +4,7 @@
 
 #include "darray.h"
 #include "bkey_types.h"
+#include "enumerated_ref.h"
 
 extern char * const bch2_member_error_strs[];
 
@@ -20,7 +21,7 @@ struct bch_member bch2_sb_member_get(struct bch_sb *sb, int i);
 
 static inline bool bch2_dev_is_online(struct bch_dev *ca)
 {
-	return !percpu_ref_is_zero(&ca->io_ref[READ]);
+	return !enumerated_ref_is_zero(&ca->io_ref[READ]);
 }
 
 static inline struct bch_dev *bch2_dev_rcu(struct bch_fs *, unsigned);
@@ -104,6 +105,12 @@ static inline struct bch_dev *__bch2_next_dev(struct bch_fs *c, struct bch_dev *
 	for (struct bch_dev *_ca = NULL;				\
 	     (_ca = __bch2_next_dev((_c), _ca, (_mask)));)
 
+#define for_each_online_member_rcu(_c, _ca)				\
+	for_each_member_device_rcu(_c, _ca, &(_c)->online_devs)
+
+#define for_each_rw_member_rcu(_c, _ca)					\
+	for_each_member_device_rcu(_c, _ca, &(_c)->rw_devs[BCH_DATA_free])
+
 static inline void bch2_dev_get(struct bch_dev *ca)
 {
 #ifdef CONFIG_BCACHEFS_DEBUG
@@ -157,33 +164,33 @@ static inline struct bch_dev *bch2_get_next_dev(struct bch_fs *c, struct bch_dev
 static inline struct bch_dev *bch2_get_next_online_dev(struct bch_fs *c,
 						       struct bch_dev *ca,
 						       unsigned state_mask,
-						       int rw)
+						       int rw, unsigned ref_idx)
 {
 	rcu_read_lock();
 	if (ca)
-		percpu_ref_put(&ca->io_ref[rw]);
+		enumerated_ref_put(&ca->io_ref[rw], ref_idx);
 
 	while ((ca = __bch2_next_dev(c, ca, NULL)) &&
 	       (!((1 << ca->mi.state) & state_mask) ||
-		!percpu_ref_tryget(&ca->io_ref[rw])))
+		!enumerated_ref_tryget(&ca->io_ref[rw], ref_idx)))
 		;
 	rcu_read_unlock();
 
 	return ca;
 }
 
-#define __for_each_online_member(_c, _ca, state_mask, rw)		\
+#define __for_each_online_member(_c, _ca, state_mask, rw, ref_idx)	\
 	for (struct bch_dev *_ca = NULL;				\
-	     (_ca = bch2_get_next_online_dev(_c, _ca, state_mask, rw));)
+	     (_ca = bch2_get_next_online_dev(_c, _ca, state_mask, rw, ref_idx));)
 
-#define for_each_online_member(c, ca)					\
-	__for_each_online_member(c, ca, ~0, READ)
+#define for_each_online_member(c, ca, ref_idx)				\
+	__for_each_online_member(c, ca, ~0, READ, ref_idx)
 
-#define for_each_rw_member(c, ca)					\
-	__for_each_online_member(c, ca, BIT(BCH_MEMBER_STATE_rw), WRITE)
+#define for_each_rw_member(c, ca, ref_idx)					\
+	__for_each_online_member(c, ca, BIT(BCH_MEMBER_STATE_rw), WRITE, ref_idx)
 
-#define for_each_readable_member(c, ca)				\
-	__for_each_online_member(c, ca,	BIT( BCH_MEMBER_STATE_rw)|BIT(BCH_MEMBER_STATE_ro), READ)
+#define for_each_readable_member(c, ca, ref_idx)				\
+	__for_each_online_member(c, ca,	BIT( BCH_MEMBER_STATE_rw)|BIT(BCH_MEMBER_STATE_ro), READ, ref_idx)
 
 static inline bool bch2_dev_exists(const struct bch_fs *c, unsigned dev)
 {
@@ -218,13 +225,15 @@ static inline struct bch_dev *bch2_dev_rcu_noerror(struct bch_fs *c, unsigned de
 		: NULL;
 }
 
-void bch2_dev_missing(struct bch_fs *, unsigned);
+int bch2_dev_missing_bkey(struct bch_fs *, struct bkey_s_c, unsigned);
+
+void bch2_dev_missing_atomic(struct bch_fs *, unsigned);
 
 static inline struct bch_dev *bch2_dev_rcu(struct bch_fs *c, unsigned dev)
 {
 	struct bch_dev *ca = bch2_dev_rcu_noerror(c, dev);
 	if (unlikely(!ca))
-		bch2_dev_missing(c, dev);
+		bch2_dev_missing_atomic(c, dev);
 	return ca;
 }
 
@@ -242,7 +251,7 @@ static inline struct bch_dev *bch2_dev_tryget(struct bch_fs *c, unsigned dev)
 {
 	struct bch_dev *ca = bch2_dev_tryget_noerror(c, dev);
 	if (unlikely(!ca))
-		bch2_dev_missing(c, dev);
+		bch2_dev_missing_atomic(c, dev);
 	return ca;
 }
 
@@ -285,13 +294,14 @@ static inline struct bch_dev *bch2_dev_iterate(struct bch_fs *c, struct bch_dev 
 	return bch2_dev_tryget(c, dev_idx);
 }
 
-static inline struct bch_dev *bch2_dev_get_ioref(struct bch_fs *c, unsigned dev, int rw)
+static inline struct bch_dev *bch2_dev_get_ioref(struct bch_fs *c, unsigned dev,
+						 int rw, unsigned ref_idx)
 {
 	might_sleep();
 
 	rcu_read_lock();
 	struct bch_dev *ca = bch2_dev_rcu(c, dev);
-	if (ca && !percpu_ref_tryget(&ca->io_ref[rw]))
+	if (ca && !enumerated_ref_tryget(&ca->io_ref[rw], ref_idx))
 		ca = NULL;
 	rcu_read_unlock();
 
@@ -301,19 +311,8 @@ static inline struct bch_dev *bch2_dev_get_ioref(struct bch_fs *c, unsigned dev,
 		return ca;
 
 	if (ca)
-		percpu_ref_put(&ca->io_ref[rw]);
+		enumerated_ref_put(&ca->io_ref[rw], ref_idx);
 	return NULL;
-}
-
-/* XXX kill, move to struct bch_fs */
-static inline struct bch_devs_mask bch2_online_devs(struct bch_fs *c)
-{
-	struct bch_devs_mask devs;
-
-	memset(&devs, 0, sizeof(devs));
-	for_each_online_member(c, ca)
-		__set_bit(ca->dev_idx, devs.d);
-	return devs;
 }
 
 extern const struct bch_sb_field_ops bch_sb_field_ops_members_v1;
@@ -321,7 +320,8 @@ extern const struct bch_sb_field_ops bch_sb_field_ops_members_v2;
 
 static inline bool bch2_member_alive(struct bch_member *m)
 {
-	return !bch2_is_zero(&m->uuid, sizeof(m->uuid));
+	return  !bch2_is_zero(&m->uuid, sizeof(m->uuid)) &&
+		!uuid_equal(&m->uuid, &BCH_SB_MEMBER_DELETED_UUID);
 }
 
 static inline bool bch2_member_exists(struct bch_sb *sb, unsigned dev)
@@ -351,6 +351,7 @@ static inline struct bch_member_cpu bch2_mi_to_cpu(struct bch_member *mi)
 			? BCH_MEMBER_DURABILITY(mi) - 1
 			: 1,
 		.freespace_initialized = BCH_MEMBER_FREESPACE_INITIALIZED(mi),
+		.resize_on_mount	= BCH_MEMBER_RESIZE_ON_MOUNT(mi),
 		.valid		= bch2_member_alive(mi),
 		.btree_bitmap_shift	= mi->btree_bitmap_shift,
 		.btree_allocated_bitmap = le64_to_cpu(mi->btree_allocated_bitmap),
@@ -381,5 +382,6 @@ bool bch2_dev_btree_bitmap_marked(struct bch_fs *, struct bkey_s_c);
 void bch2_dev_btree_bitmap_mark(struct bch_fs *, struct bkey_s_c);
 
 int bch2_sb_member_alloc(struct bch_fs *);
+void bch2_sb_members_clean_deleted(struct bch_fs *);
 
 #endif /* _BCACHEFS_SB_MEMBERS_H */

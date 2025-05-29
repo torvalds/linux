@@ -388,9 +388,9 @@ static void dcmi_set_crop(struct stm32_dcmi *dcmi)
 		 ((dcmi->crop.left << 1));
 	reg_write(dcmi->regs, DCMI_CWSTRT, start);
 
-	dev_dbg(dcmi->dev, "Cropping to %ux%u@%u:%u\n",
-		dcmi->crop.width, dcmi->crop.height,
-		dcmi->crop.left, dcmi->crop.top);
+	dev_dbg(dcmi->dev, "Cropping to (%d,%d)/%ux%u\n",
+		dcmi->crop.left, dcmi->crop.top,
+		dcmi->crop.width, dcmi->crop.height);
 
 	/* Enable crop */
 	reg_set(dcmi->regs, DCMI_CR, CR_CROP);
@@ -1292,8 +1292,8 @@ static int dcmi_s_selection(struct file *file, void *priv,
 		/* Crop if request is different than sensor resolution */
 		dcmi->do_crop = true;
 		dcmi->crop = r;
-		dev_dbg(dcmi->dev, "s_selection: crop %ux%u@(%u,%u) from %ux%u\n",
-			r.width, r.height, r.left, r.top,
+		dev_dbg(dcmi->dev, "s_selection: crop (%d,%d)/%ux%u from %ux%u\n",
+			r.left, r.top, r.width, r.height,
 			pix.width, pix.height);
 	} else {
 		/* Disable crop */
@@ -1682,18 +1682,14 @@ static int dcmi_formats_init(struct stm32_dcmi *dcmi)
 		return -ENXIO;
 
 	dcmi->num_of_sd_formats = num_fmts;
-	dcmi->sd_formats = devm_kcalloc(dcmi->dev,
-					num_fmts, sizeof(struct dcmi_format *),
-					GFP_KERNEL);
+	dcmi->sd_formats = devm_kmemdup_array(dcmi->dev, sd_fmts, num_fmts,
+					      sizeof(*sd_fmts), GFP_KERNEL);
 	if (!dcmi->sd_formats) {
 		dev_err(dcmi->dev, "Could not allocate memory\n");
 		return -ENOMEM;
 	}
 
-	memcpy(dcmi->sd_formats, sd_fmts,
-	       num_fmts * sizeof(struct dcmi_format *));
 	dcmi->sd_format = dcmi->sd_formats[0];
-
 	return 0;
 }
 

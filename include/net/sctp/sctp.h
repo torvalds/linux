@@ -364,8 +364,6 @@ sctp_assoc_to_state(const struct sctp_association *asoc)
 /* Look up the association by its id.  */
 struct sctp_association *sctp_id2assoc(struct sock *sk, sctp_assoc_t id);
 
-int sctp_do_peeloff(struct sock *sk, sctp_assoc_t id, struct socket **sockp);
-
 /* A macro to walk a list of skbs.  */
 #define sctp_skb_for_each(pos, head, tmp) \
 	skb_queue_walk_safe(head, pos, tmp)

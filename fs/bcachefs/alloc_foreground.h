@@ -3,8 +3,10 @@
 #define _BCACHEFS_ALLOC_FOREGROUND_H
 
 #include "bcachefs.h"
+#include "buckets.h"
 #include "alloc_types.h"
 #include "extents.h"
+#include "io_write_types.h"
 #include "sb-members.h"
 
 #include <linux/hash.h>
@@ -21,6 +23,52 @@ void bch2_reset_alloc_cursors(struct bch_fs *);
 struct dev_alloc_list {
 	unsigned	nr;
 	u8		data[BCH_SB_MEMBERS_MAX];
+};
+
+struct alloc_request {
+	unsigned		nr_replicas;
+	unsigned		target;
+	bool			ec;
+	enum bch_watermark	watermark;
+	enum bch_write_flags	flags;
+	enum bch_data_type	data_type;
+	struct bch_devs_list	*devs_have;
+	struct write_point	*wp;
+
+	/* These fields are used primarily by open_bucket_add_buckets */
+	struct open_buckets	ptrs;
+	unsigned		nr_effective;	/* sum of @ptrs durability */
+	bool			have_cache;	/* have we allocated from a 0 durability dev */
+	struct bch_devs_mask	devs_may_alloc;
+
+	/* bch2_bucket_alloc_set_trans(): */
+	struct bch_dev_usage	usage;
+
+	/* bch2_bucket_alloc_trans(): */
+	struct bch_dev		*ca;
+
+	enum {
+				BTREE_BITMAP_NO,
+				BTREE_BITMAP_YES,
+				BTREE_BITMAP_ANY,
+	}			btree_bitmap;
+
+	struct {
+		u64		buckets_seen;
+		u64		skipped_open;
+		u64		skipped_need_journal_commit;
+		u64		need_journal_commit;
+		u64		skipped_nocow;
+		u64		skipped_nouse;
+		u64		skipped_mi_btree_bitmap;
+	} counters;
+
+	unsigned		scratch_nr_replicas;
+	unsigned		scratch_nr_effective;
+	bool			scratch_have_cache;
+	enum bch_data_type	scratch_data_type;
+	struct open_buckets	scratch_ptrs;
+	struct bch_devs_mask	scratch_devs_may_alloc;
 };
 
 struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *,
@@ -173,11 +221,8 @@ static inline bool bch2_bucket_is_open_safe(struct bch_fs *c, unsigned dev, u64 
 }
 
 enum bch_write_flags;
-int bch2_bucket_alloc_set_trans(struct btree_trans *, struct open_buckets *,
-		      struct dev_stripe_state *, struct bch_devs_mask *,
-		      unsigned, unsigned *, bool *, enum bch_write_flags,
-		      enum bch_data_type, enum bch_watermark,
-		      struct closure *);
+int bch2_bucket_alloc_set_trans(struct btree_trans *, struct alloc_request *,
+				struct dev_stripe_state *, struct closure *);
 
 int bch2_alloc_sectors_start_trans(struct btree_trans *,
 				   unsigned, unsigned,
@@ -189,7 +234,19 @@ int bch2_alloc_sectors_start_trans(struct btree_trans *,
 				   struct closure *,
 				   struct write_point **);
 
-struct bch_extent_ptr bch2_ob_ptr(struct bch_fs *, struct open_bucket *);
+static inline struct bch_extent_ptr bch2_ob_ptr(struct bch_fs *c, struct open_bucket *ob)
+{
+	struct bch_dev *ca = ob_dev(c, ob);
+
+	return (struct bch_extent_ptr) {
+		.type	= 1 << BCH_EXTENT_ENTRY_ptr,
+		.gen	= ob->gen,
+		.dev	= ob->dev,
+		.offset	= bucket_to_sector(ca, ob->bucket) +
+			ca->mi.bucket_size -
+			ob->sectors_free,
+	};
+}
 
 /*
  * Append pointers to the space we just allocated to @k, and mark @sectors space

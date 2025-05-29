@@ -42,6 +42,7 @@ struct lpc18xx_gpio_pin_ic {
 	void __iomem *base;
 	struct irq_domain *domain;
 	struct raw_spinlock lock;
+	struct gpio_chip *gpio;
 };
 
 struct lpc18xx_gpio_chip {
@@ -74,6 +75,7 @@ static void lpc18xx_gpio_pin_ic_mask(struct irq_data *d)
 {
 	struct lpc18xx_gpio_pin_ic *ic = d->chip_data;
 	u32 type = irqd_get_trigger_type(d);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
 	raw_spin_lock(&ic->lock);
 
@@ -88,12 +90,17 @@ static void lpc18xx_gpio_pin_ic_mask(struct irq_data *d)
 	raw_spin_unlock(&ic->lock);
 
 	irq_chip_mask_parent(d);
+
+	gpiochip_disable_irq(ic->gpio, hwirq);
 }
 
 static void lpc18xx_gpio_pin_ic_unmask(struct irq_data *d)
 {
 	struct lpc18xx_gpio_pin_ic *ic = d->chip_data;
 	u32 type = irqd_get_trigger_type(d);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+
+	gpiochip_enable_irq(ic->gpio, hwirq);
 
 	raw_spin_lock(&ic->lock);
 
@@ -149,13 +156,14 @@ static int lpc18xx_gpio_pin_ic_set_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
-static struct irq_chip lpc18xx_gpio_pin_ic = {
+static const struct irq_chip lpc18xx_gpio_pin_ic = {
 	.name		= "LPC18xx GPIO pin",
 	.irq_mask	= lpc18xx_gpio_pin_ic_mask,
 	.irq_unmask	= lpc18xx_gpio_pin_ic_unmask,
 	.irq_eoi	= lpc18xx_gpio_pin_ic_eoi,
 	.irq_set_type	= lpc18xx_gpio_pin_ic_set_type,
-	.flags		= IRQCHIP_SET_TYPE_MASKED,
+	.flags		= IRQCHIP_IMMUTABLE | IRQCHIP_SET_TYPE_MASKED,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static int lpc18xx_gpio_pin_ic_domain_alloc(struct irq_domain *domain,
@@ -240,17 +248,16 @@ static int lpc18xx_gpio_pin_ic_probe(struct lpc18xx_gpio_chip *gc)
 
 	raw_spin_lock_init(&ic->lock);
 
-	ic->domain = irq_domain_add_hierarchy(parent_domain, 0,
-					      NR_LPC18XX_GPIO_PIN_IC_IRQS,
-					      dev->of_node,
-					      &lpc18xx_gpio_pin_ic_domain_ops,
-					      ic);
+	ic->domain = irq_domain_create_hierarchy(parent_domain, 0, NR_LPC18XX_GPIO_PIN_IC_IRQS,
+						 of_fwnode_handle(dev->of_node),
+						 &lpc18xx_gpio_pin_ic_domain_ops, ic);
 	if (!ic->domain) {
 		pr_err("unable to add irq domain\n");
 		ret = -ENODEV;
 		goto free_iomap;
 	}
 
+	ic->gpio = &gc->gpio;
 	gc->pin_ic = ic;
 
 	return 0;
@@ -263,10 +270,14 @@ free_ic:
 	return ret;
 }
 
-static void lpc18xx_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static int lpc18xx_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			    int value)
 {
 	struct lpc18xx_gpio_chip *gc = gpiochip_get_data(chip);
+
 	writeb(value ? 1 : 0, gc->base + offset);
+
+	return 0;
 }
 
 static int lpc18xx_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -316,7 +327,7 @@ static const struct gpio_chip lpc18xx_chip = {
 	.free			= gpiochip_generic_free,
 	.direction_input	= lpc18xx_gpio_direction_input,
 	.direction_output	= lpc18xx_gpio_direction_output,
-	.set			= lpc18xx_gpio_set,
+	.set_rv			= lpc18xx_gpio_set,
 	.get			= lpc18xx_gpio_get,
 	.ngpio			= LPC18XX_MAX_PORTS * LPC18XX_PINS_PER_PORT,
 	.owner			= THIS_MODULE,

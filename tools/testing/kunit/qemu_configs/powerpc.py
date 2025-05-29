@@ -3,6 +3,7 @@ from ..qemu_config import QemuArchParams
 QEMU_ARCH = QemuArchParams(linux_arch='powerpc',
 			   kconfig='''
 CONFIG_PPC64=y
+CONFIG_CPU_BIG_ENDIAN=y
 CONFIG_SERIAL_8250=y
 CONFIG_SERIAL_8250_CONSOLE=y
 CONFIG_HVC_CONSOLE=y''',

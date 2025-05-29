@@ -69,27 +69,27 @@ struct meson_ee_pwrc_domain_desc {
 	char *name;
 	unsigned int reset_names_count;
 	unsigned int clk_names_count;
-	struct meson_ee_pwrc_top_domain *top_pd;
+	const struct meson_ee_pwrc_top_domain *top_pd;
 	unsigned int mem_pd_count;
-	struct meson_ee_pwrc_mem_domain *mem_pd;
+	const struct meson_ee_pwrc_mem_domain *mem_pd;
 	bool (*is_powered_off)(struct meson_ee_pwrc_domain *pwrc_domain);
 };
 
 struct meson_ee_pwrc_domain_data {
 	unsigned int count;
-	struct meson_ee_pwrc_domain_desc *domains;
+	const struct meson_ee_pwrc_domain_desc *domains;
 };
 
 /* TOP Power Domains */
 
-static struct meson_ee_pwrc_top_domain gx_pwrc_vpu = {
+static const struct meson_ee_pwrc_top_domain gx_pwrc_vpu = {
 	.sleep_reg = GX_AO_RTI_GEN_PWR_SLEEP0,
 	.sleep_mask = BIT(8),
 	.iso_reg = GX_AO_RTI_GEN_PWR_SLEEP0,
 	.iso_mask = BIT(9),
 };
 
-static struct meson_ee_pwrc_top_domain meson8_pwrc_vpu = {
+static const struct meson_ee_pwrc_top_domain meson8_pwrc_vpu = {
 	.sleep_reg = MESON8_AO_RTI_GEN_PWR_SLEEP0,
 	.sleep_mask = BIT(8),
 	.iso_reg = MESON8_AO_RTI_GEN_PWR_SLEEP0,
@@ -104,20 +104,20 @@ static struct meson_ee_pwrc_top_domain meson8_pwrc_vpu = {
 		.iso_mask = BIT(__bit), 			\
 	}
 
-static struct meson_ee_pwrc_top_domain sm1_pwrc_vpu = SM1_EE_PD(8);
-static struct meson_ee_pwrc_top_domain sm1_pwrc_nna = SM1_EE_PD(16);
-static struct meson_ee_pwrc_top_domain sm1_pwrc_usb = SM1_EE_PD(17);
-static struct meson_ee_pwrc_top_domain sm1_pwrc_pci = SM1_EE_PD(18);
-static struct meson_ee_pwrc_top_domain sm1_pwrc_ge2d = SM1_EE_PD(19);
+static const struct meson_ee_pwrc_top_domain sm1_pwrc_vpu = SM1_EE_PD(8);
+static const struct meson_ee_pwrc_top_domain sm1_pwrc_nna = SM1_EE_PD(16);
+static const struct meson_ee_pwrc_top_domain sm1_pwrc_usb = SM1_EE_PD(17);
+static const struct meson_ee_pwrc_top_domain sm1_pwrc_pci = SM1_EE_PD(18);
+static const struct meson_ee_pwrc_top_domain sm1_pwrc_ge2d = SM1_EE_PD(19);
 
-static struct meson_ee_pwrc_top_domain g12a_pwrc_nna = {
+static const struct meson_ee_pwrc_top_domain g12a_pwrc_nna = {
 	.sleep_reg = GX_AO_RTI_GEN_PWR_SLEEP0,
 	.sleep_mask = BIT(16) | BIT(17),
 	.iso_reg = GX_AO_RTI_GEN_PWR_ISO0,
 	.iso_mask = BIT(16) | BIT(17),
 };
 
-static struct meson_ee_pwrc_top_domain g12a_pwrc_isp = {
+static const struct meson_ee_pwrc_top_domain g12a_pwrc_isp = {
 	.sleep_reg = GX_AO_RTI_GEN_PWR_SLEEP0,
 	.sleep_mask = BIT(18) | BIT(19),
 	.iso_reg = GX_AO_RTI_GEN_PWR_ISO0,
@@ -154,39 +154,39 @@ static struct meson_ee_pwrc_top_domain g12a_pwrc_isp = {
 	{ __reg, BIT(14) },					\
 	{ __reg, BIT(15) }
 
-static struct meson_ee_pwrc_mem_domain axg_pwrc_mem_vpu[] = {
+static const struct meson_ee_pwrc_mem_domain axg_pwrc_mem_vpu[] = {
 	VPU_MEMPD(HHI_VPU_MEM_PD_REG0),
 	VPU_HHI_MEMPD(HHI_MEM_PD_REG0),
 };
 
-static struct meson_ee_pwrc_mem_domain g12a_pwrc_mem_vpu[] = {
+static const struct meson_ee_pwrc_mem_domain g12a_pwrc_mem_vpu[] = {
 	VPU_MEMPD(HHI_VPU_MEM_PD_REG0),
 	VPU_MEMPD(HHI_VPU_MEM_PD_REG1),
 	VPU_MEMPD(HHI_VPU_MEM_PD_REG2),
 	VPU_HHI_MEMPD(HHI_MEM_PD_REG0),
 };
 
-static struct meson_ee_pwrc_mem_domain gxbb_pwrc_mem_vpu[] = {
+static const struct meson_ee_pwrc_mem_domain gxbb_pwrc_mem_vpu[] = {
 	VPU_MEMPD(HHI_VPU_MEM_PD_REG0),
 	VPU_MEMPD(HHI_VPU_MEM_PD_REG1),
 	VPU_HHI_MEMPD(HHI_MEM_PD_REG0),
 };
 
-static struct meson_ee_pwrc_mem_domain meson_pwrc_mem_eth[] = {
+static const struct meson_ee_pwrc_mem_domain meson_pwrc_mem_eth[] = {
 	{ HHI_MEM_PD_REG0, GENMASK(3, 2) },
 };
 
-static struct meson_ee_pwrc_mem_domain meson8_pwrc_audio_dsp_mem[] = {
+static const struct meson_ee_pwrc_mem_domain meson8_pwrc_audio_dsp_mem[] = {
 	{ HHI_MEM_PD_REG0, GENMASK(1, 0) },
 };
 
-static struct meson_ee_pwrc_mem_domain meson8_pwrc_mem_vpu[] = {
+static const struct meson_ee_pwrc_mem_domain meson8_pwrc_mem_vpu[] = {
 	VPU_MEMPD(HHI_VPU_MEM_PD_REG0),
 	VPU_MEMPD(HHI_VPU_MEM_PD_REG1),
 	VPU_HHI_MEMPD(HHI_MEM_PD_REG0),
 };
 
-static struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_vpu[] = {
+static const struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_vpu[] = {
 	VPU_MEMPD(HHI_VPU_MEM_PD_REG0),
 	VPU_MEMPD(HHI_VPU_MEM_PD_REG1),
 	VPU_MEMPD(HHI_VPU_MEM_PD_REG2),
@@ -198,28 +198,28 @@ static struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_vpu[] = {
 	VPU_HHI_MEMPD(HHI_MEM_PD_REG0),
 };
 
-static struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_nna[] = {
+static const struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_nna[] = {
 	{ HHI_NANOQ_MEM_PD_REG0, 0xff },
 	{ HHI_NANOQ_MEM_PD_REG1, 0xff },
 };
 
-static struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_usb[] = {
+static const struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_usb[] = {
 	{ HHI_MEM_PD_REG0, GENMASK(31, 30) },
 };
 
-static struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_pcie[] = {
+static const struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_pcie[] = {
 	{ HHI_MEM_PD_REG0, GENMASK(29, 26) },
 };
 
-static struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_ge2d[] = {
+static const struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_ge2d[] = {
 	{ HHI_MEM_PD_REG0, GENMASK(25, 18) },
 };
 
-static struct meson_ee_pwrc_mem_domain axg_pwrc_mem_audio[] = {
+static const struct meson_ee_pwrc_mem_domain axg_pwrc_mem_audio[] = {
 	{ HHI_MEM_PD_REG0, GENMASK(5, 4) },
 };
 
-static struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_audio[] = {
+static const struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_audio[] = {
 	{ HHI_MEM_PD_REG0, GENMASK(5, 4) },
 	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(1, 0) },
 	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(3, 2) },
@@ -235,12 +235,12 @@ static struct meson_ee_pwrc_mem_domain sm1_pwrc_mem_audio[] = {
 	{ HHI_AUDIO_MEM_PD_REG0, GENMASK(27, 26) },
 };
 
-static struct meson_ee_pwrc_mem_domain g12a_pwrc_mem_nna[] = {
+static const struct meson_ee_pwrc_mem_domain g12a_pwrc_mem_nna[] = {
 	{ G12A_HHI_NANOQ_MEM_PD_REG0, GENMASK(31, 0) },
 	{ G12A_HHI_NANOQ_MEM_PD_REG1, GENMASK(31, 0) },
 };
 
-static struct meson_ee_pwrc_mem_domain g12a_pwrc_mem_isp[] = {
+static const struct meson_ee_pwrc_mem_domain g12a_pwrc_mem_isp[] = {
 	{ G12A_HHI_ISP_MEM_PD_REG0, GENMASK(31, 0) },
 	{ G12A_HHI_ISP_MEM_PD_REG1, GENMASK(31, 0) },
 };
@@ -270,14 +270,14 @@ static struct meson_ee_pwrc_mem_domain g12a_pwrc_mem_isp[] = {
 
 static bool pwrc_ee_is_powered_off(struct meson_ee_pwrc_domain *pwrc_domain);
 
-static struct meson_ee_pwrc_domain_desc axg_pwrc_domains[] = {
+static const struct meson_ee_pwrc_domain_desc axg_pwrc_domains[] = {
 	[PWRC_AXG_VPU_ID]  = VPU_PD("VPU", &gx_pwrc_vpu, axg_pwrc_mem_vpu,
 				     pwrc_ee_is_powered_off, 5, 2),
 	[PWRC_AXG_ETHERNET_MEM_ID] = MEM_PD("ETH", meson_pwrc_mem_eth),
 	[PWRC_AXG_AUDIO_ID] = MEM_PD("AUDIO", axg_pwrc_mem_audio),
 };
 
-static struct meson_ee_pwrc_domain_desc g12a_pwrc_domains[] = {
+static const struct meson_ee_pwrc_domain_desc g12a_pwrc_domains[] = {
 	[PWRC_G12A_VPU_ID]  = VPU_PD("VPU", &gx_pwrc_vpu, g12a_pwrc_mem_vpu,
 				     pwrc_ee_is_powered_off, 11, 2),
 	[PWRC_G12A_ETH_ID] = MEM_PD("ETH", meson_pwrc_mem_eth),
@@ -287,13 +287,13 @@ static struct meson_ee_pwrc_domain_desc g12a_pwrc_domains[] = {
 				    pwrc_ee_is_powered_off),
 };
 
-static struct meson_ee_pwrc_domain_desc gxbb_pwrc_domains[] = {
+static const struct meson_ee_pwrc_domain_desc gxbb_pwrc_domains[] = {
 	[PWRC_GXBB_VPU_ID]  = VPU_PD("VPU", &gx_pwrc_vpu, gxbb_pwrc_mem_vpu,
 				     pwrc_ee_is_powered_off, 12, 2),
 	[PWRC_GXBB_ETHERNET_MEM_ID] = MEM_PD("ETH", meson_pwrc_mem_eth),
 };
 
-static struct meson_ee_pwrc_domain_desc meson8_pwrc_domains[] = {
+static const struct meson_ee_pwrc_domain_desc meson8_pwrc_domains[] = {
 	[PWRC_MESON8_VPU_ID]  = VPU_PD("VPU", &meson8_pwrc_vpu,
 				       meson8_pwrc_mem_vpu,
 				       pwrc_ee_is_powered_off, 0, 1),
@@ -303,7 +303,7 @@ static struct meson_ee_pwrc_domain_desc meson8_pwrc_domains[] = {
 						meson8_pwrc_audio_dsp_mem),
 };
 
-static struct meson_ee_pwrc_domain_desc meson8b_pwrc_domains[] = {
+static const struct meson_ee_pwrc_domain_desc meson8b_pwrc_domains[] = {
 	[PWRC_MESON8_VPU_ID]  = VPU_PD("VPU", &meson8_pwrc_vpu,
 				       meson8_pwrc_mem_vpu,
 				       pwrc_ee_is_powered_off, 11, 1),
@@ -313,7 +313,7 @@ static struct meson_ee_pwrc_domain_desc meson8b_pwrc_domains[] = {
 						meson8_pwrc_audio_dsp_mem),
 };
 
-static struct meson_ee_pwrc_domain_desc sm1_pwrc_domains[] = {
+static const struct meson_ee_pwrc_domain_desc sm1_pwrc_domains[] = {
 	[PWRC_SM1_VPU_ID]  = VPU_PD("VPU", &sm1_pwrc_vpu, sm1_pwrc_mem_vpu,
 				    pwrc_ee_is_powered_off, 11, 2),
 	[PWRC_SM1_NNA_ID]  = TOP_PD("NNA", &sm1_pwrc_nna, sm1_pwrc_mem_nna,
@@ -576,32 +576,32 @@ static void meson_ee_pwrc_shutdown(struct platform_device *pdev)
 	}
 }
 
-static struct meson_ee_pwrc_domain_data meson_ee_g12a_pwrc_data = {
+static const struct meson_ee_pwrc_domain_data meson_ee_g12a_pwrc_data = {
 	.count = ARRAY_SIZE(g12a_pwrc_domains),
 	.domains = g12a_pwrc_domains,
 };
 
-static struct meson_ee_pwrc_domain_data meson_ee_axg_pwrc_data = {
+static const struct meson_ee_pwrc_domain_data meson_ee_axg_pwrc_data = {
 	.count = ARRAY_SIZE(axg_pwrc_domains),
 	.domains = axg_pwrc_domains,
 };
 
-static struct meson_ee_pwrc_domain_data meson_ee_gxbb_pwrc_data = {
+static const struct meson_ee_pwrc_domain_data meson_ee_gxbb_pwrc_data = {
 	.count = ARRAY_SIZE(gxbb_pwrc_domains),
 	.domains = gxbb_pwrc_domains,
 };
 
-static struct meson_ee_pwrc_domain_data meson_ee_m8_pwrc_data = {
+static const struct meson_ee_pwrc_domain_data meson_ee_m8_pwrc_data = {
 	.count = ARRAY_SIZE(meson8_pwrc_domains),
 	.domains = meson8_pwrc_domains,
 };
 
-static struct meson_ee_pwrc_domain_data meson_ee_m8b_pwrc_data = {
+static const struct meson_ee_pwrc_domain_data meson_ee_m8b_pwrc_data = {
 	.count = ARRAY_SIZE(meson8b_pwrc_domains),
 	.domains = meson8b_pwrc_domains,
 };
 
-static struct meson_ee_pwrc_domain_data meson_ee_sm1_pwrc_data = {
+static const struct meson_ee_pwrc_domain_data meson_ee_sm1_pwrc_data = {
 	.count = ARRAY_SIZE(sm1_pwrc_domains),
 	.domains = sm1_pwrc_domains,
 };

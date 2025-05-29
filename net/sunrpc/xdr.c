@@ -213,6 +213,7 @@ bvec_overflow:
 	pr_warn_once("%s: bio_vec array overflow\n", __func__);
 	return count - 1;
 }
+EXPORT_SYMBOL_GPL(xdr_buf_to_bvec);
 
 /**
  * xdr_inline_pages - Prepare receive buffer for a large reply

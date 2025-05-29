@@ -8,4 +8,4 @@ irqreturn_t txgbe_link_irq_handler(int irq, void *data);
 int txgbe_init_phy(struct txgbe *txgbe);
 void txgbe_remove_phy(struct txgbe *txgbe);
 
-#endif /* _TXGBE_NODE_H_ */
+#endif /* _TXGBE_PHY_H_ */

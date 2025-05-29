@@ -256,20 +256,15 @@ nouveau_dmem_chunk_alloc(struct nouveau_drm *drm, struct page **ppage)
 	chunk->pagemap.ops = &nouveau_dmem_pagemap_ops;
 	chunk->pagemap.owner = drm->dev;
 
-	ret = nouveau_bo_new(&drm->client, DMEM_CHUNK_SIZE, 0,
-			     NOUVEAU_GEM_DOMAIN_VRAM, 0, 0, NULL, NULL,
-			     &chunk->bo);
+	ret = nouveau_bo_new_pin(&drm->client, NOUVEAU_GEM_DOMAIN_VRAM, DMEM_CHUNK_SIZE,
+				 &chunk->bo);
 	if (ret)
 		goto out_release;
-
-	ret = nouveau_bo_pin(chunk->bo, NOUVEAU_GEM_DOMAIN_VRAM, false);
-	if (ret)
-		goto out_bo_free;
 
 	ptr = memremap_pages(&chunk->pagemap, numa_node_id());
 	if (IS_ERR(ptr)) {
 		ret = PTR_ERR(ptr);
-		goto out_bo_unpin;
+		goto out_bo_free;
 	}
 
 	mutex_lock(&drm->dmem->mutex);
@@ -292,10 +287,8 @@ nouveau_dmem_chunk_alloc(struct nouveau_drm *drm, struct page **ppage)
 
 	return 0;
 
-out_bo_unpin:
-	nouveau_bo_unpin(chunk->bo);
 out_bo_free:
-	nouveau_bo_fini(chunk->bo);
+	nouveau_bo_unpin_del(&chunk->bo);
 out_release:
 	release_mem_region(chunk->pagemap.range.start, range_len(&chunk->pagemap.range));
 out_free:
@@ -426,8 +419,7 @@ nouveau_dmem_fini(struct nouveau_drm *drm)
 
 	list_for_each_entry_safe(chunk, tmp, &drm->dmem->chunks, list) {
 		nouveau_dmem_evict_chunk(chunk);
-		nouveau_bo_unpin(chunk->bo);
-		nouveau_bo_fini(chunk->bo);
+		nouveau_bo_unpin_del(&chunk->bo);
 		WARN_ON(chunk->callocated);
 		list_del(&chunk->list);
 		memunmap_pages(&chunk->pagemap);

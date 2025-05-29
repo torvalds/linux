@@ -813,11 +813,43 @@ void nvmet_req_complete(struct nvmet_req *req, u16 status)
 }
 EXPORT_SYMBOL_GPL(nvmet_req_complete);
 
+void nvmet_cq_init(struct nvmet_cq *cq)
+{
+	refcount_set(&cq->ref, 1);
+}
+EXPORT_SYMBOL_GPL(nvmet_cq_init);
+
+bool nvmet_cq_get(struct nvmet_cq *cq)
+{
+	return refcount_inc_not_zero(&cq->ref);
+}
+EXPORT_SYMBOL_GPL(nvmet_cq_get);
+
+void nvmet_cq_put(struct nvmet_cq *cq)
+{
+	if (refcount_dec_and_test(&cq->ref))
+		nvmet_cq_destroy(cq);
+}
+EXPORT_SYMBOL_GPL(nvmet_cq_put);
+
 void nvmet_cq_setup(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq,
 		u16 qid, u16 size)
 {
 	cq->qid = qid;
 	cq->size = size;
+
+	ctrl->cqs[qid] = cq;
+}
+
+void nvmet_cq_destroy(struct nvmet_cq *cq)
+{
+	struct nvmet_ctrl *ctrl = cq->ctrl;
+
+	if (ctrl) {
+		ctrl->cqs[cq->qid] = NULL;
+		nvmet_ctrl_put(cq->ctrl);
+		cq->ctrl = NULL;
+	}
 }
 
 void nvmet_sq_setup(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq,
@@ -837,37 +869,47 @@ static void nvmet_confirm_sq(struct percpu_ref *ref)
 	complete(&sq->confirm_done);
 }
 
-u16 nvmet_check_cqid(struct nvmet_ctrl *ctrl, u16 cqid)
+u16 nvmet_check_cqid(struct nvmet_ctrl *ctrl, u16 cqid, bool create)
 {
-	if (!ctrl->sqs)
+	if (!ctrl->cqs)
 		return NVME_SC_INTERNAL | NVME_STATUS_DNR;
 
 	if (cqid > ctrl->subsys->max_qid)
 		return NVME_SC_QID_INVALID | NVME_STATUS_DNR;
 
-	/*
-	 * Note: For PCI controllers, the NVMe specifications allows multiple
-	 * SQs to share a single CQ. However, we do not support this yet, so
-	 * check that there is no SQ defined for a CQ. If one exist, then the
-	 * CQ ID is invalid for creation as well as when the CQ is being
-	 * deleted (as that would mean that the SQ was not deleted before the
-	 * CQ).
-	 */
-	if (ctrl->sqs[cqid])
+	if ((create && ctrl->cqs[cqid]) || (!create && !ctrl->cqs[cqid]))
 		return NVME_SC_QID_INVALID | NVME_STATUS_DNR;
 
 	return NVME_SC_SUCCESS;
 }
+
+u16 nvmet_check_io_cqid(struct nvmet_ctrl *ctrl, u16 cqid, bool create)
+{
+	if (!cqid)
+		return NVME_SC_QID_INVALID | NVME_STATUS_DNR;
+	return nvmet_check_cqid(ctrl, cqid, create);
+}
+
+bool nvmet_cq_in_use(struct nvmet_cq *cq)
+{
+	return refcount_read(&cq->ref) > 1;
+}
+EXPORT_SYMBOL_GPL(nvmet_cq_in_use);
 
 u16 nvmet_cq_create(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq,
 		    u16 qid, u16 size)
 {
 	u16 status;
 
-	status = nvmet_check_cqid(ctrl, qid);
+	status = nvmet_check_cqid(ctrl, qid, true);
 	if (status != NVME_SC_SUCCESS)
 		return status;
 
+	if (!kref_get_unless_zero(&ctrl->ref))
+		return NVME_SC_INTERNAL | NVME_STATUS_DNR;
+	cq->ctrl = ctrl;
+
+	nvmet_cq_init(cq);
 	nvmet_cq_setup(ctrl, cq, qid, size);
 
 	return NVME_SC_SUCCESS;
@@ -891,7 +933,7 @@ u16 nvmet_check_sqid(struct nvmet_ctrl *ctrl, u16 sqid,
 }
 
 u16 nvmet_sq_create(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq,
-		    u16 sqid, u16 size)
+		    struct nvmet_cq *cq, u16 sqid, u16 size)
 {
 	u16 status;
 	int ret;
@@ -903,7 +945,7 @@ u16 nvmet_sq_create(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq,
 	if (status != NVME_SC_SUCCESS)
 		return status;
 
-	ret = nvmet_sq_init(sq);
+	ret = nvmet_sq_init(sq, cq);
 	if (ret) {
 		status = NVME_SC_INTERNAL | NVME_STATUS_DNR;
 		goto ctrl_put;
@@ -935,6 +977,7 @@ void nvmet_sq_destroy(struct nvmet_sq *sq)
 	wait_for_completion(&sq->free_done);
 	percpu_ref_exit(&sq->ref);
 	nvmet_auth_sq_free(sq);
+	nvmet_cq_put(sq->cq);
 
 	/*
 	 * we must reference the ctrl again after waiting for inflight IO
@@ -967,18 +1010,23 @@ static void nvmet_sq_free(struct percpu_ref *ref)
 	complete(&sq->free_done);
 }
 
-int nvmet_sq_init(struct nvmet_sq *sq)
+int nvmet_sq_init(struct nvmet_sq *sq, struct nvmet_cq *cq)
 {
 	int ret;
+
+	if (!nvmet_cq_get(cq))
+		return -EINVAL;
 
 	ret = percpu_ref_init(&sq->ref, nvmet_sq_free, 0, GFP_KERNEL);
 	if (ret) {
 		pr_err("percpu_ref init failed!\n");
+		nvmet_cq_put(cq);
 		return ret;
 	}
 	init_completion(&sq->free_done);
 	init_completion(&sq->confirm_done);
 	nvmet_auth_sq_init(sq);
+	sq->cq = cq;
 
 	return 0;
 }
@@ -1108,13 +1156,13 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 	return ret;
 }
 
-bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
-		struct nvmet_sq *sq, const struct nvmet_fabrics_ops *ops)
+bool nvmet_req_init(struct nvmet_req *req, struct nvmet_sq *sq,
+		const struct nvmet_fabrics_ops *ops)
 {
 	u8 flags = req->cmd->common.flags;
 	u16 status;
 
-	req->cq = cq;
+	req->cq = sq->cq;
 	req->sq = sq;
 	req->ops = ops;
 	req->sg = NULL;
@@ -1612,12 +1660,17 @@ struct nvmet_ctrl *nvmet_alloc_ctrl(struct nvmet_alloc_ctrl_args *args)
 	if (!ctrl->sqs)
 		goto out_free_changed_ns_list;
 
+	ctrl->cqs = kcalloc(subsys->max_qid + 1, sizeof(struct nvmet_cq *),
+			   GFP_KERNEL);
+	if (!ctrl->cqs)
+		goto out_free_sqs;
+
 	ret = ida_alloc_range(&cntlid_ida,
 			     subsys->cntlid_min, subsys->cntlid_max,
 			     GFP_KERNEL);
 	if (ret < 0) {
 		args->status = NVME_SC_CONNECT_CTRL_BUSY | NVME_STATUS_DNR;
-		goto out_free_sqs;
+		goto out_free_cqs;
 	}
 	ctrl->cntlid = ret;
 
@@ -1676,6 +1729,8 @@ init_pr_fail:
 	mutex_unlock(&subsys->lock);
 	nvmet_stop_keep_alive_timer(ctrl);
 	ida_free(&cntlid_ida, ctrl->cntlid);
+out_free_cqs:
+	kfree(ctrl->cqs);
 out_free_sqs:
 	kfree(ctrl->sqs);
 out_free_changed_ns_list:
@@ -1712,6 +1767,7 @@ static void nvmet_ctrl_free(struct kref *ref)
 
 	nvmet_async_events_free(ctrl);
 	kfree(ctrl->sqs);
+	kfree(ctrl->cqs);
 	kfree(ctrl->changed_ns_list);
 	kfree(ctrl);
 

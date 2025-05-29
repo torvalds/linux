@@ -216,6 +216,19 @@ config POWER_RESET_ST
 	help
 	  Reset support for STMicroelectronics boards.
 
+config POWER_RESET_TORADEX_EC
+	tristate "Toradex Embedded Controller power-off and reset driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports power-off and reset for SMARC Toradex SoMs,
+	  for example the SMARC iMX8MP and SMARC iMX95, using Toradex
+	  Embedded Controller (EC).
+
+	  Say Y here if you have a Toradex SMARC SoM.
+
+	  If unsure, say N.
+
 config POWER_RESET_TPS65086
 	bool "TPS65086 restart driver"
 	depends on MFD_TPS65086

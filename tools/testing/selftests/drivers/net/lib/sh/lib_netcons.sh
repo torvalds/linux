@@ -33,7 +33,6 @@ NSIM_DEV_SYS_NEW="/sys/bus/netdevsim/new_device"
 
 # Used to create and delete namespaces
 source "${LIBDIR}"/../../../../net/lib.sh
-source "${LIBDIR}"/../../../../net/net_helper.sh
 
 # Create netdevsim interfaces
 create_ifaces() {

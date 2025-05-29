@@ -577,6 +577,7 @@ nv50_head_create(struct drm_device *dev, int index)
 		return ERR_PTR(-ENOMEM);
 
 	head->func = disp->core->func->head;
+	head->disp = disp;
 	head->base.index = index;
 
 	if (disp->disp->object.oclass < GF110_DISP)

@@ -2034,18 +2034,9 @@ static s8 rtw89_phy_ant_gain_query(struct rtw89_dev *rtwdev,
 		   ant_gain->offset[path][subband_h]);
 }
 
-static s8 rtw89_phy_ant_gain_offset(struct rtw89_dev *rtwdev, u8 band, u32 center_freq)
+static s8 rtw89_phy_ant_gain_offset(struct rtw89_dev *rtwdev, u32 center_freq)
 {
-	struct rtw89_ant_gain_info *ant_gain = &rtwdev->ant_gain;
-	const struct rtw89_chip_info *chip = rtwdev->chip;
-	u8 regd = rtw89_regd_get(rtwdev, band);
 	s8 offset_patha, offset_pathb;
-
-	if (!chip->support_ant_gain)
-		return 0;
-
-	if (ant_gain->block_country || !(ant_gain->regd_enabled & BIT(regd)))
-		return 0;
 
 	offset_patha = rtw89_phy_ant_gain_query(rtwdev, RF_PATH_A, center_freq);
 	offset_pathb = rtw89_phy_ant_gain_query(rtwdev, RF_PATH_B, center_freq);
@@ -2056,18 +2047,31 @@ static s8 rtw89_phy_ant_gain_offset(struct rtw89_dev *rtwdev, u8 band, u32 cente
 	return max(offset_patha, offset_pathb);
 }
 
+static bool rtw89_can_apply_ant_gain(struct rtw89_dev *rtwdev, u8 band)
+{
+	const struct rtw89_rfe_parms *rfe_parms = rtwdev->rfe_parms;
+	struct rtw89_ant_gain_info *ant_gain = &rtwdev->ant_gain;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u8 regd = rtw89_regd_get(rtwdev, band);
+
+	if (!chip->support_ant_gain)
+		return false;
+
+	if (ant_gain->block_country || !(ant_gain->regd_enabled & BIT(regd)))
+		return false;
+
+	if (!rfe_parms->has_da)
+		return false;
+
+	return true;
+}
+
 s16 rtw89_phy_ant_gain_pwr_offset(struct rtw89_dev *rtwdev,
 				  const struct rtw89_chan *chan)
 {
-	struct rtw89_ant_gain_info *ant_gain = &rtwdev->ant_gain;
-	const struct rtw89_chip_info *chip = rtwdev->chip;
-	u8 regd = rtw89_regd_get(rtwdev, chan->band_type);
 	s8 offset_patha, offset_pathb;
 
-	if (!chip->support_ant_gain)
-		return 0;
-
-	if (ant_gain->block_country || !(ant_gain->regd_enabled & BIT(regd)))
+	if (!rtw89_can_apply_ant_gain(rtwdev, chan->band_type))
 		return 0;
 
 	if (RTW89_CHK_FW_FEATURE(NO_POWER_DIFFERENCE, &rtwdev->fw))
@@ -2083,14 +2087,10 @@ EXPORT_SYMBOL(rtw89_phy_ant_gain_pwr_offset);
 int rtw89_print_ant_gain(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
 			 const struct rtw89_chan *chan)
 {
-	struct rtw89_ant_gain_info *ant_gain = &rtwdev->ant_gain;
-	const struct rtw89_chip_info *chip = rtwdev->chip;
-	u8 regd = rtw89_regd_get(rtwdev, chan->band_type);
 	char *p = buf, *end = buf + bufsz;
 	s8 offset_patha, offset_pathb;
 
-	if (!(chip->support_ant_gain && (ant_gain->regd_enabled & BIT(regd))) ||
-	    ant_gain->block_country) {
+	if (!rtw89_can_apply_ant_gain(rtwdev, chan->band_type)) {
 		p += scnprintf(p, end - p, "no DAG is applied\n");
 		goto out;
 	}
@@ -2255,20 +2255,31 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 			      u8 bw, u8 ntx, u8 rs, u8 bf, u8 ch)
 {
 	const struct rtw89_rfe_parms *rfe_parms = rtwdev->rfe_parms;
+	const struct rtw89_txpwr_rule_2ghz *rule_da_2ghz = &rfe_parms->rule_da_2ghz;
+	const struct rtw89_txpwr_rule_5ghz *rule_da_5ghz = &rfe_parms->rule_da_5ghz;
+	const struct rtw89_txpwr_rule_6ghz *rule_da_6ghz = &rfe_parms->rule_da_6ghz;
 	const struct rtw89_txpwr_rule_2ghz *rule_2ghz = &rfe_parms->rule_2ghz;
 	const struct rtw89_txpwr_rule_5ghz *rule_5ghz = &rfe_parms->rule_5ghz;
 	const struct rtw89_txpwr_rule_6ghz *rule_6ghz = &rfe_parms->rule_6ghz;
 	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
 	enum nl80211_band nl_band = rtw89_hw_to_nl80211_band(band);
+	bool has_ant_gain = rtw89_can_apply_ant_gain(rtwdev, band);
 	u32 freq = ieee80211_channel_to_frequency(ch, nl_band);
 	u8 ch_idx = rtw89_channel_to_idx(rtwdev, band, ch);
+	s8 lmt = 0, da_lmt = S8_MAX, sar, offset = 0;
 	u8 regd = rtw89_regd_get(rtwdev, band);
 	u8 reg6 = regulatory->reg_6ghz_power;
-	s8 lmt = 0, sar, offset;
+	struct rtw89_sar_parm sar_parm = {
+		.center_freq = freq,
+		.ntx = ntx,
+	};
 	s8 cstr;
 
 	switch (band) {
 	case RTW89_BAND_2G:
+		if (has_ant_gain)
+			da_lmt = (*rule_da_2ghz->lmt)[bw][ntx][rs][bf][regd][ch_idx];
+
 		lmt = (*rule_2ghz->lmt)[bw][ntx][rs][bf][regd][ch_idx];
 		if (lmt)
 			break;
@@ -2276,6 +2287,9 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 		lmt = (*rule_2ghz->lmt)[bw][ntx][rs][bf][RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_5G:
+		if (has_ant_gain)
+			da_lmt = (*rule_da_5ghz->lmt)[bw][ntx][rs][bf][regd][ch_idx];
+
 		lmt = (*rule_5ghz->lmt)[bw][ntx][rs][bf][regd][ch_idx];
 		if (lmt)
 			break;
@@ -2283,6 +2297,9 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 		lmt = (*rule_5ghz->lmt)[bw][ntx][rs][bf][RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_6G:
+		if (has_ant_gain)
+			da_lmt = (*rule_da_6ghz->lmt)[bw][ntx][rs][bf][regd][reg6][ch_idx];
+
 		lmt = (*rule_6ghz->lmt)[bw][ntx][rs][bf][regd][reg6][ch_idx];
 		if (lmt)
 			break;
@@ -2296,9 +2313,12 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 		return 0;
 	}
 
-	offset = rtw89_phy_ant_gain_offset(rtwdev, band, freq);
-	lmt = rtw89_phy_txpwr_rf_to_mac(rtwdev, lmt + offset);
-	sar = rtw89_query_sar(rtwdev, freq);
+	da_lmt = da_lmt ?: S8_MAX;
+	if (da_lmt != S8_MAX)
+		offset = rtw89_phy_ant_gain_offset(rtwdev, freq);
+
+	lmt = rtw89_phy_txpwr_rf_to_mac(rtwdev, min(lmt + offset, da_lmt));
+	sar = rtw89_query_sar(rtwdev, &sar_parm);
 	cstr = rtw89_phy_get_tpe_constraint(rtwdev, band);
 
 	return min3(lmt, sar, cstr);
@@ -2515,20 +2535,31 @@ s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev, u8 band,
 				 u8 ru, u8 ntx, u8 ch)
 {
 	const struct rtw89_rfe_parms *rfe_parms = rtwdev->rfe_parms;
+	const struct rtw89_txpwr_rule_2ghz *rule_da_2ghz = &rfe_parms->rule_da_2ghz;
+	const struct rtw89_txpwr_rule_5ghz *rule_da_5ghz = &rfe_parms->rule_da_5ghz;
+	const struct rtw89_txpwr_rule_6ghz *rule_da_6ghz = &rfe_parms->rule_da_6ghz;
 	const struct rtw89_txpwr_rule_2ghz *rule_2ghz = &rfe_parms->rule_2ghz;
 	const struct rtw89_txpwr_rule_5ghz *rule_5ghz = &rfe_parms->rule_5ghz;
 	const struct rtw89_txpwr_rule_6ghz *rule_6ghz = &rfe_parms->rule_6ghz;
 	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
 	enum nl80211_band nl_band = rtw89_hw_to_nl80211_band(band);
+	bool has_ant_gain = rtw89_can_apply_ant_gain(rtwdev, band);
 	u32 freq = ieee80211_channel_to_frequency(ch, nl_band);
 	u8 ch_idx = rtw89_channel_to_idx(rtwdev, band, ch);
+	s8 lmt_ru = 0, da_lmt_ru = S8_MAX, sar, offset = 0;
 	u8 regd = rtw89_regd_get(rtwdev, band);
 	u8 reg6 = regulatory->reg_6ghz_power;
-	s8 lmt_ru = 0, sar, offset;
+	struct rtw89_sar_parm sar_parm = {
+		.center_freq = freq,
+		.ntx = ntx,
+	};
 	s8 cstr;
 
 	switch (band) {
 	case RTW89_BAND_2G:
+		if (has_ant_gain)
+			da_lmt_ru = (*rule_da_2ghz->lmt_ru)[ru][ntx][regd][ch_idx];
+
 		lmt_ru = (*rule_2ghz->lmt_ru)[ru][ntx][regd][ch_idx];
 		if (lmt_ru)
 			break;
@@ -2536,6 +2567,9 @@ s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev, u8 band,
 		lmt_ru = (*rule_2ghz->lmt_ru)[ru][ntx][RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_5G:
+		if (has_ant_gain)
+			da_lmt_ru = (*rule_da_5ghz->lmt_ru)[ru][ntx][regd][ch_idx];
+
 		lmt_ru = (*rule_5ghz->lmt_ru)[ru][ntx][regd][ch_idx];
 		if (lmt_ru)
 			break;
@@ -2543,6 +2577,9 @@ s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev, u8 band,
 		lmt_ru = (*rule_5ghz->lmt_ru)[ru][ntx][RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_6G:
+		if (has_ant_gain)
+			da_lmt_ru = (*rule_da_6ghz->lmt_ru)[ru][ntx][regd][reg6][ch_idx];
+
 		lmt_ru = (*rule_6ghz->lmt_ru)[ru][ntx][regd][reg6][ch_idx];
 		if (lmt_ru)
 			break;
@@ -2556,9 +2593,12 @@ s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev, u8 band,
 		return 0;
 	}
 
-	offset = rtw89_phy_ant_gain_offset(rtwdev, band, freq);
-	lmt_ru = rtw89_phy_txpwr_rf_to_mac(rtwdev, lmt_ru + offset);
-	sar = rtw89_query_sar(rtwdev, freq);
+	da_lmt_ru = da_lmt_ru ?: S8_MAX;
+	if (da_lmt_ru != S8_MAX)
+		offset = rtw89_phy_ant_gain_offset(rtwdev, freq);
+
+	lmt_ru = rtw89_phy_txpwr_rf_to_mac(rtwdev, min(lmt_ru + offset, da_lmt_ru));
+	sar = rtw89_query_sar(rtwdev, &sar_parm);
 	cstr = rtw89_phy_get_tpe_constraint(rtwdev, band);
 
 	return min3(lmt_ru, sar, cstr);
@@ -3013,6 +3053,35 @@ void (* const rtw89_phy_c2h_ra_handler[])(struct rtw89_dev *rtwdev,
 	[RTW89_PHY_C2H_FUNC_STS_RPT] = rtw89_phy_c2h_ra_rpt,
 	[RTW89_PHY_C2H_FUNC_MU_GPTBL_RPT] = NULL,
 	[RTW89_PHY_C2H_FUNC_TXSTS] = NULL,
+};
+
+static void
+rtw89_phy_c2h_lowrt_rty(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+}
+
+static void
+rtw89_phy_c2h_fw_scan_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+	const struct rtw89_c2h_fw_scan_rpt *c2h_rpt =
+		(const struct rtw89_c2h_fw_scan_rpt *)c2h->data;
+
+	rtw89_debug(rtwdev, RTW89_DBG_DIG,
+		    "%s: band: %u, op_chan: %u, PD_low_bd(ofdm, cck): (-%d, %d), phy_idx: %u\n",
+		    __func__, c2h_rpt->band, c2h_rpt->center_ch,
+		    PD_LOWER_BOUND_BASE - (c2h_rpt->ofdm_pd_idx << 1),
+		    c2h_rpt->cck_pd_idx, c2h_rpt->phy_idx);
+}
+
+static
+void (* const rtw89_phy_c2h_dm_handler[])(struct rtw89_dev *rtwdev,
+					  struct sk_buff *c2h, u32 len) = {
+	[RTW89_PHY_C2H_DM_FUNC_FW_TEST] = NULL,
+	[RTW89_PHY_C2H_DM_FUNC_FW_TRIG_TX_RPT] = NULL,
+	[RTW89_PHY_C2H_DM_FUNC_SIGB] = NULL,
+	[RTW89_PHY_C2H_DM_FUNC_LOWRT_RTY] = rtw89_phy_c2h_lowrt_rty,
+	[RTW89_PHY_C2H_DM_FUNC_MCC_DIG] = NULL,
+	[RTW89_PHY_C2H_DM_FUNC_FW_SCAN] = rtw89_phy_c2h_fw_scan_rpt,
 };
 
 static void rtw89_phy_c2h_rfk_rpt_log(struct rtw89_dev *rtwdev,
@@ -3550,9 +3619,9 @@ void rtw89_phy_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 			handler = rtw89_phy_c2h_rfk_report_handler[func];
 		break;
 	case RTW89_PHY_C2H_CLASS_DM:
-		if (func == RTW89_PHY_C2H_DM_FUNC_LOWRT_RTY)
-			return;
-		fallthrough;
+		if (func < ARRAY_SIZE(rtw89_phy_c2h_dm_handler))
+			handler = rtw89_phy_c2h_dm_handler[func];
+		break;
 	default:
 		rtw89_info(rtwdev, "PHY c2h class %d not support\n", class);
 		return;

@@ -26,6 +26,11 @@ menuconfig DRM
 	  details.  You should also select and configure AGP
 	  (/dev/agpgart) support if it is available for your platform.
 
+menu "DRM debugging options"
+depends on DRM
+source "drivers/gpu/drm/Kconfig.debug"
+endmenu
+
 if DRM
 
 config DRM_MIPI_DBI
@@ -36,65 +41,6 @@ config DRM_MIPI_DBI
 config DRM_MIPI_DSI
 	bool
 	depends on DRM
-
-config DRM_DEBUG_MM
-	bool "Insert extra checks and debug info into the DRM range managers"
-	default n
-	depends on DRM
-	depends on STACKTRACE_SUPPORT
-	select STACKDEPOT
-	help
-	  Enable allocation tracking of memory manager and leak detection on
-	  shutdown.
-
-	  Recommended for driver developers only.
-
-	  If in doubt, say "N".
-
-config DRM_USE_DYNAMIC_DEBUG
-	bool "use dynamic debug to implement drm.debug"
-	default n
-	depends on BROKEN
-	depends on DRM
-	depends on DYNAMIC_DEBUG || DYNAMIC_DEBUG_CORE
-	depends on JUMP_LABEL
-	help
-	  Use dynamic-debug to avoid drm_debug_enabled() runtime overheads.
-	  Due to callsite counts in DRM drivers (~4k in amdgpu) and 56
-	  bytes per callsite, the .data costs can be substantial, and
-	  are therefore configurable.
-
-config DRM_KUNIT_TEST_HELPERS
-	tristate
-	depends on DRM && KUNIT
-	select DRM_KMS_HELPER
-	help
-	  KUnit Helpers for KMS drivers.
-
-config DRM_KUNIT_TEST
-	tristate "KUnit tests for DRM" if !KUNIT_ALL_TESTS
-	depends on DRM && KUNIT && MMU
-	select DRM_BUDDY
-	select DRM_DISPLAY_DP_HELPER
-	select DRM_DISPLAY_HDMI_STATE_HELPER
-	select DRM_DISPLAY_HELPER
-	select DRM_EXEC
-	select DRM_EXPORT_FOR_TESTS if m
-	select DRM_GEM_SHMEM_HELPER
-	select DRM_KUNIT_TEST_HELPERS
-	select DRM_LIB_RANDOM
-	select PRIME_NUMBERS
-	default KUNIT_ALL_TESTS
-	help
-	  This builds unit tests for DRM. This option is not useful for
-	  distributions or general kernels, but only for kernel
-	  developers working on DRM and associated drivers.
-
-	  For more information on KUnit and unit tests in general,
-	  please refer to the KUnit documentation in
-	  Documentation/dev-tools/kunit/.
-
-	  If in doubt, say "N".
 
 config DRM_KMS_HELPER
 	tristate
@@ -247,23 +193,6 @@ config DRM_TTM
 	  GPU memory types. Will be enabled automatically if a device driver
 	  uses it.
 
-config DRM_TTM_KUNIT_TEST
-        tristate "KUnit tests for TTM" if !KUNIT_ALL_TESTS
-        default n
-        depends on DRM && KUNIT && MMU && (UML || COMPILE_TEST)
-        select DRM_TTM
-        select DRM_BUDDY
-        select DRM_EXPORT_FOR_TESTS if m
-        select DRM_KUNIT_TEST_HELPERS
-        default KUNIT_ALL_TESTS
-        help
-          Enables unit tests for TTM, a GPU memory manager subsystem used
-          to manage memory buffers. This option is mostly useful for kernel
-          developers. It depends on (UML || COMPILE_TEST) since no other driver
-          which uses TTM can be loaded while running the tests.
-
-          If in doubt, say "N".
-
 config DRM_EXEC
 	tristate
 	depends on DRM
@@ -335,6 +264,8 @@ config DRM_SCHED
 	tristate
 	depends on DRM
 
+source "drivers/gpu/drm/sysfb/Kconfig"
+
 source "drivers/gpu/drm/arm/Kconfig"
 
 source "drivers/gpu/drm/radeon/Kconfig"
@@ -342,6 +273,8 @@ source "drivers/gpu/drm/radeon/Kconfig"
 source "drivers/gpu/drm/amd/amdgpu/Kconfig"
 
 source "drivers/gpu/drm/nouveau/Kconfig"
+
+source "drivers/gpu/drm/nova/Kconfig"
 
 source "drivers/gpu/drm/i915/Kconfig"
 
@@ -454,6 +387,8 @@ source "drivers/gpu/drm/xlnx/Kconfig"
 
 source "drivers/gpu/drm/gud/Kconfig"
 
+source "drivers/gpu/drm/sitronix/Kconfig"
+
 source "drivers/gpu/drm/solomon/Kconfig"
 
 source "drivers/gpu/drm/sprd/Kconfig"
@@ -474,9 +409,6 @@ config DRM_HYPERV
 
 	 If M is selected the module will be called hyperv_drm.
 
-config DRM_EXPORT_FOR_TESTS
-	bool
-
 # Separate option as not all DRM drivers use it
 config DRM_PANEL_BACKLIGHT_QUIRKS
 	tristate
@@ -488,31 +420,6 @@ config DRM_LIB_RANDOM
 config DRM_PRIVACY_SCREEN
 	bool
 	default n
-
-config DRM_WERROR
-	bool "Compile the drm subsystem with warnings as errors"
-	depends on DRM && EXPERT
-	depends on !WERROR
-	default n
-	help
-	  A kernel build should not cause any compiler warnings, and this
-	  enables the '-Werror' flag to enforce that rule in the drm subsystem.
-
-	  The drm subsystem enables more warnings than the kernel default, so
-	  this config option is disabled by default.
-
-	  If in doubt, say N.
-
-config DRM_HEADER_TEST
-	bool "Ensure DRM headers are self-contained and pass kernel-doc"
-	depends on DRM && EXPERT && BROKEN
-	default n
-	help
-	  Ensure the DRM subsystem headers both under drivers/gpu/drm and
-	  include/drm compile, are self-contained, have header guards, and have
-	  no kernel-doc warnings.
-
-	  If in doubt, say N.
 
 endif
 

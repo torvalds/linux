@@ -530,13 +530,6 @@ source "drivers/crypto/cavium/nitrox/Kconfig"
 source "drivers/crypto/marvell/Kconfig"
 source "drivers/crypto/intel/Kconfig"
 
-config CRYPTO_DEV_CAVIUM_ZIP
-	tristate "Cavium ZIP driver"
-	depends on PCI && 64BIT && (ARM64 || COMPILE_TEST)
-	help
-	  Select this option if you want to enable compression/decompression
-	  acceleration on Cavium's ARM based SoCs
-
 config CRYPTO_DEV_QCE
 	tristate "Qualcomm crypto engine accelerator"
 	depends on ARCH_QCOM || COMPILE_TEST

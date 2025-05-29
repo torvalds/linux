@@ -380,13 +380,6 @@ out:									\
 
 /* Iterate over pointers in KEY_TYPE_extent: */
 
-#define extent_for_each_entry_from(_e, _entry, _start)			\
-	__bkey_extent_entry_for_each_from(_start,			\
-				extent_entry_last(_e), _entry)
-
-#define extent_for_each_entry(_e, _entry)				\
-	extent_for_each_entry_from(_e, _entry, (_e).v->start)
-
 #define extent_ptr_next(_e, _ptr)					\
 	__bkey_ptr_next(_ptr, extent_entry_last(_e))
 
@@ -399,10 +392,13 @@ out:									\
 
 /* utility code common to all keys with pointers: */
 
+void bch2_io_failures_to_text(struct printbuf *, struct bch_fs *,
+			      struct bch_io_failures *);
 struct bch_dev_io_failures *bch2_dev_io_failures(struct bch_io_failures *,
 						 unsigned);
 void bch2_mark_io_failure(struct bch_io_failures *,
 			  struct extent_ptr_decoded *, bool);
+void bch2_mark_btree_validate_failure(struct bch_io_failures *, unsigned);
 int bch2_bkey_pick_read_device(struct bch_fs *, struct bkey_s_c,
 			       struct bch_io_failures *,
 			       struct extent_ptr_decoded *, int);

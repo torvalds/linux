@@ -396,7 +396,6 @@ static int tls_strp_read_copy(struct tls_strparser *strp, bool qshort)
 		return 0;
 
 	shinfo = skb_shinfo(strp->anchor);
-	shinfo->frag_list = NULL;
 
 	/* If we don't know the length go max plus page for cipher overhead */
 	need_spc = strp->stm.full_len ?: TLS_MAX_PAYLOAD_SIZE + PAGE_SIZE;
@@ -411,6 +410,8 @@ static int tls_strp_read_copy(struct tls_strparser *strp, bool qshort)
 		skb_fill_page_desc(strp->anchor, shinfo->nr_frags++,
 				   page, 0, 0);
 	}
+
+	shinfo->frag_list = NULL;
 
 	strp->copy_mode = 1;
 	strp->stm.offset = 0;

@@ -366,7 +366,7 @@ static int virtio_gpu_plane_prepare_fb(struct drm_plane *plane,
 		return 0;
 
 	obj = new_state->fb->obj[0];
-	if (bo->dumb || obj->import_attach) {
+	if (bo->dumb || drm_gem_is_imported(obj)) {
 		vgplane_st->fence = virtio_gpu_fence_alloc(vgdev,
 						     vgdev->fence_drv.context,
 						     0);
@@ -374,7 +374,7 @@ static int virtio_gpu_plane_prepare_fb(struct drm_plane *plane,
 			return -ENOMEM;
 	}
 
-	if (obj->import_attach) {
+	if (drm_gem_is_imported(obj)) {
 		ret = virtio_gpu_prepare_imported_obj(plane, new_state, obj);
 		if (ret)
 			goto err_fence;
@@ -417,7 +417,7 @@ static void virtio_gpu_plane_cleanup_fb(struct drm_plane *plane,
 	}
 
 	obj = state->fb->obj[0];
-	if (obj->import_attach)
+	if (drm_gem_is_imported(obj))
 		virtio_gpu_cleanup_imported_obj(obj);
 }
 
@@ -508,11 +508,19 @@ static int virtio_drm_get_scanout_buffer(struct drm_plane *plane,
 
 	bo = gem_to_virtio_gpu_obj(plane->state->fb->obj[0]);
 
-	/* Only support mapped shmem bo */
-	if (virtio_gpu_is_vram(bo) || bo->base.base.import_attach || !bo->base.vaddr)
+	if (virtio_gpu_is_vram(bo) || drm_gem_is_imported(&bo->base.base))
 		return -ENODEV;
 
-	iosys_map_set_vaddr(&sb->map[0], bo->base.vaddr);
+	if (bo->base.vaddr) {
+		iosys_map_set_vaddr(&sb->map[0], bo->base.vaddr);
+	} else {
+		struct drm_gem_shmem_object *shmem = &bo->base;
+
+		if (!shmem->pages)
+			return -ENODEV;
+		/* map scanout buffer later */
+		sb->pages = shmem->pages;
+	}
 
 	sb->format = plane->state->fb->format;
 	sb->height = plane->state->fb->height;

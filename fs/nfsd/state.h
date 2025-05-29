@@ -64,6 +64,21 @@ typedef struct {
 	refcount_t		cs_count;
 } copy_stateid_t;
 
+struct nfsd4_referring_call {
+	struct list_head	__list;
+
+	u32			rc_sequenceid;
+	u32			rc_slotid;
+};
+
+struct nfsd4_referring_call_list {
+	struct list_head	__list;
+
+	struct nfs4_sessionid	rcl_sessionid;
+	int			__nr_referring_calls;
+	struct list_head	rcl_referring_calls;
+};
+
 struct nfsd4_callback {
 	struct nfs4_client *cb_clp;
 	struct rpc_message cb_msg;
@@ -76,6 +91,9 @@ struct nfsd4_callback {
 	int cb_seq_status;
 	int cb_status;
 	int cb_held_slot;
+
+	int cb_nr_referring_call_list;
+	struct list_head cb_referring_call_list;
 };
 
 struct nfsd4_callback_ops {
@@ -260,6 +278,7 @@ struct nfsd4_slot {
 	u32	sl_seqid;
 	__be32	sl_status;
 	struct svc_cred sl_cred;
+	u32	sl_index;
 	u32	sl_datalen;
 	u16	sl_opcnt;
 	u16	sl_generation;
@@ -774,6 +793,10 @@ extern __be32 nfs4_check_open_reclaim(struct nfs4_client *);
 extern void nfsd4_probe_callback(struct nfs4_client *clp);
 extern void nfsd4_probe_callback_sync(struct nfs4_client *clp);
 extern void nfsd4_change_callback(struct nfs4_client *clp, struct nfs4_cb_conn *);
+extern void nfsd41_cb_referring_call(struct nfsd4_callback *cb,
+				     struct nfs4_sessionid *sessionid,
+				     u32 slotid, u32 seqno);
+extern void nfsd41_cb_destroy_referring_call_list(struct nfsd4_callback *cb);
 extern void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
 		const struct nfsd4_callback_ops *ops, enum nfsd4_cb_op op);
 extern bool nfsd4_run_cb(struct nfsd4_callback *cb);

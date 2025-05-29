@@ -734,7 +734,7 @@ static __u32 btf_raw_types[] = {
 	BTF_MEMBER_ENC(71, 13, 128), /* struct prog_test_member __kptr *ptr; */
 };
 
-static char bpf_vlog[UINT_MAX >> 8];
+static char bpf_vlog[UINT_MAX >> 5];
 
 static int load_btf_spec(__u32 *types, int types_len,
 			 const char *strings, int strings_len)
@@ -1559,10 +1559,10 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 		       test->errstr_unpriv : test->errstr;
 
 	opts.expected_attach_type = test->expected_attach_type;
-	if (verbose)
-		opts.log_level = verif_log_level | 4; /* force stats */
-	else if (expected_ret == VERBOSE_ACCEPT)
+	if (expected_ret == VERBOSE_ACCEPT)
 		opts.log_level = 2;
+	else if (verbose)
+		opts.log_level = verif_log_level | 4; /* force stats */
 	else
 		opts.log_level = DEFAULT_LIBBPF_LOG_LEVEL;
 	opts.prog_flags = pflags;

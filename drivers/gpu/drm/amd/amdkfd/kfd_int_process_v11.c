@@ -148,44 +148,69 @@ enum SQ_INTERRUPT_ERROR_TYPE {
 #define KFD_CTXID0_DOORBELL_ID(ctxid0)		((ctxid0) & \
 				KFD_CTXID0_DOORBELL_ID_MASK)
 
-static void print_sq_intr_info_auto(uint32_t context_id0, uint32_t context_id1)
+static void print_sq_intr_info_auto(struct kfd_node *dev, uint32_t context_id0,
+				    uint32_t context_id1)
 {
-	pr_debug_ratelimited(
+	dev_dbg_ratelimited(
+		dev->adev->dev,
 		"sq_intr: auto, ttrace %d, wlt %d, ttrace_buf_full %d, reg_tms %d, cmd_tms %d, host_cmd_ovf %d, host_reg_ovf %d, immed_ovf %d, ttrace_utc_err %d\n",
-		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0, THREAD_TRACE),
+		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0,
+			      THREAD_TRACE),
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0, WLT),
-		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0, THREAD_TRACE_BUF_FULL),
-		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0, REG_TIMESTAMP),
-		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0, CMD_TIMESTAMP),
-		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0, HOST_CMD_OVERFLOW),
-		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0, HOST_REG_OVERFLOW),
-		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0, IMMED_OVERFLOW),
-		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0, THREAD_TRACE_UTC_ERROR));
+		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0,
+			      THREAD_TRACE_BUF_FULL),
+		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0,
+			      REG_TIMESTAMP),
+		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0,
+			      CMD_TIMESTAMP),
+		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0,
+			      HOST_CMD_OVERFLOW),
+		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0,
+			      HOST_REG_OVERFLOW),
+		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0,
+			      IMMED_OVERFLOW),
+		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0,
+			      THREAD_TRACE_UTC_ERROR));
 }
 
-static void print_sq_intr_info_inst(uint32_t context_id0, uint32_t context_id1)
+static void print_sq_intr_info_inst(struct kfd_node *dev, uint32_t context_id0,
+				    uint32_t context_id1)
 {
-	pr_debug_ratelimited(
+	dev_dbg_ratelimited(
+		dev->adev->dev,
 		"sq_intr: inst, data 0x%08x, sh %d, priv %d, wave_id %d, simd_id %d, wgp_id %d\n",
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID0, DATA),
-		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID0, SH_ID),
+		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID0,
+			      SH_ID),
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID0, PRIV),
-		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID0, WAVE_ID),
-		REG_GET_FIELD(context_id1, SQ_INTERRUPT_WORD_WAVE_CTXID1, SIMD_ID),
-		REG_GET_FIELD(context_id1, SQ_INTERRUPT_WORD_WAVE_CTXID1, WGP_ID));
+		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID0,
+			      WAVE_ID),
+		REG_GET_FIELD(context_id1, SQ_INTERRUPT_WORD_WAVE_CTXID1,
+			      SIMD_ID),
+		REG_GET_FIELD(context_id1, SQ_INTERRUPT_WORD_WAVE_CTXID1,
+			      WGP_ID));
 }
 
-static void print_sq_intr_info_error(uint32_t context_id0, uint32_t context_id1)
+static void print_sq_intr_info_error(struct kfd_node *dev, uint32_t context_id0,
+				     uint32_t context_id1)
 {
-	pr_warn_ratelimited(
+	dev_warn_ratelimited(
+		dev->adev->dev,
 		"sq_intr: error, detail 0x%08x, type %d, sh %d, priv %d, wave_id %d, simd_id %d, wgp_id %d\n",
-		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID0, DETAIL),
-		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID0, TYPE),
-		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID0, SH_ID),
-		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID0, PRIV),
-		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID0, WAVE_ID),
-		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID1, SIMD_ID),
-		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID1, WGP_ID));
+		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID0,
+			      DETAIL),
+		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID0,
+			      TYPE),
+		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID0,
+			      SH_ID),
+		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID0,
+			      PRIV),
+		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID0,
+			      WAVE_ID),
+		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID1,
+			      SIMD_ID),
+		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID1,
+			      WGP_ID));
 }
 
 static void event_interrupt_poison_consumption_v11(struct kfd_node *dev,
@@ -255,14 +280,14 @@ static bool event_interrupt_isr_v11(struct kfd_node *dev,
 	    (context_id0 & AMDGPU_FENCE_MES_QUEUE_FLAG))
 		return false;
 
-	pr_debug("client id 0x%x, source id %d, vmid %d, pasid 0x%x. raw data:\n",
-		 client_id, source_id, vmid, pasid);
-	pr_debug("%8X, %8X, %8X, %8X, %8X, %8X, %8X, %8X.\n",
-		 data[0], data[1], data[2], data[3],
-		 data[4], data[5], data[6], data[7]);
+	dev_dbg(dev->adev->dev,
+		"client id 0x%x, source id %d, vmid %d, pasid 0x%x. raw data:\n",
+		client_id, source_id, vmid, pasid);
+	dev_dbg(dev->adev->dev, "%8X, %8X, %8X, %8X, %8X, %8X, %8X, %8X.\n",
+		data[0], data[1], data[2], data[3], data[4], data[5], data[6],
+		data[7]);
 
-	/* If there is no valid PASID, it's likely a bug */
-	if (WARN_ONCE(pasid == 0, "Bug: No PASID in KFD interrupt"))
+	if (pasid == 0)
 		return false;
 
 	/* Interrupt types we care about: various signals and faults.
@@ -353,10 +378,10 @@ static void event_interrupt_wq_v11(struct kfd_node *dev,
 					SQ_INTERRUPT_WORD_WAVE_CTXID1, ENCODING);
 			switch (sq_int_enc) {
 			case SQ_INTERRUPT_WORD_ENCODING_AUTO:
-				print_sq_intr_info_auto(context_id0, context_id1);
+				print_sq_intr_info_auto(dev, context_id0, context_id1);
 				break;
 			case SQ_INTERRUPT_WORD_ENCODING_INST:
-				print_sq_intr_info_inst(context_id0, context_id1);
+				print_sq_intr_info_inst(dev, context_id0, context_id1);
 				sq_int_priv = REG_GET_FIELD(context_id0,
 						SQ_INTERRUPT_WORD_WAVE_CTXID0, PRIV);
 				if (sq_int_priv && (kfd_set_dbg_ev_from_interrupt(dev, pasid,
@@ -366,7 +391,7 @@ static void event_interrupt_wq_v11(struct kfd_node *dev,
 					return;
 				break;
 			case SQ_INTERRUPT_WORD_ENCODING_ERROR:
-				print_sq_intr_info_error(context_id0, context_id1);
+				print_sq_intr_info_error(dev, context_id0, context_id1);
 				sq_int_errtype = REG_GET_FIELD(context_id0,
 						SQ_INTERRUPT_WORD_ERROR_CTXID0, TYPE);
 				if (sq_int_errtype != SQ_INTERRUPT_ERROR_TYPE_ILLEGAL_INST &&

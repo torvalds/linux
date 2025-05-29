@@ -18,8 +18,8 @@
  *		as published by the Free Software Foundation; either version
  *		2 of the License, or (at your option) any later version.
  */
-#ifndef _LINUX_IF_FC_H
-#define _LINUX_IF_FC_H
+#ifndef _UAPI_LINUX_IF_FC_H
+#define _UAPI_LINUX_IF_FC_H
 
 #include <linux/types.h>
 
@@ -49,4 +49,4 @@ struct fcllc {
 	__be16 ethertype;		/* ether type field */
 };
 
-#endif	/* _LINUX_IF_FC_H */
+#endif	/* _UAPI_LINUX_IF_FC_H */

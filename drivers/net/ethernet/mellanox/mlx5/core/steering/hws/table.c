@@ -342,10 +342,10 @@ int mlx5hws_table_ft_set_next_rtc(struct mlx5hws_context *ctx,
 	return mlx5hws_cmd_flow_table_modify(ctx->mdev, &ft_attr, ft_id);
 }
 
-static int hws_table_ft_set_next_ft(struct mlx5hws_context *ctx,
-				    u32 ft_id,
-				    u32 fw_ft_type,
-				    u32 next_ft_id)
+int mlx5hws_table_ft_set_next_ft(struct mlx5hws_context *ctx,
+				 u32 ft_id,
+				 u32 fw_ft_type,
+				 u32 next_ft_id)
 {
 	struct mlx5hws_cmd_ft_modify_attr ft_attr = {0};
 
@@ -389,10 +389,10 @@ int mlx5hws_table_connect_to_miss_table(struct mlx5hws_table *src_tbl,
 	if (dst_tbl) {
 		if (list_empty(&dst_tbl->matchers_list)) {
 			/* Connect src_tbl last_ft to dst_tbl start anchor */
-			ret = hws_table_ft_set_next_ft(src_tbl->ctx,
-						       last_ft_id,
-						       src_tbl->fw_ft_type,
-						       dst_tbl->ft_id);
+			ret = mlx5hws_table_ft_set_next_ft(src_tbl->ctx,
+							   last_ft_id,
+							   src_tbl->fw_ft_type,
+							   dst_tbl->ft_id);
 			if (ret)
 				return ret;
 

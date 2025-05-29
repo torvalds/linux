@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <linux/tcp.h>
+#include <arpa/inet.h>
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -18,6 +19,15 @@
 #ifndef IPPROTO_MPTCP
 #define IPPROTO_MPTCP 262
 #endif
+
+#define parse_rtattr_nested(tb, max, rta) \
+	(parse_rtattr_flags((tb), (max), RTA_DATA(rta), RTA_PAYLOAD(rta), \
+			    NLA_F_NESTED))
+
+struct params {
+	__u32 target_token;
+	char subflow_addrs[1024];
+};
 
 struct mptcp_info {
 	__u8	mptcpi_subflows;
@@ -46,6 +56,37 @@ struct mptcp_info {
 	__u32	mptcpi_last_ack_recv;
 };
 
+enum {
+	MPTCP_SUBFLOW_ATTR_UNSPEC,
+	MPTCP_SUBFLOW_ATTR_TOKEN_REM,
+	MPTCP_SUBFLOW_ATTR_TOKEN_LOC,
+	MPTCP_SUBFLOW_ATTR_RELWRITE_SEQ,
+	MPTCP_SUBFLOW_ATTR_MAP_SEQ,
+	MPTCP_SUBFLOW_ATTR_MAP_SFSEQ,
+	MPTCP_SUBFLOW_ATTR_SSN_OFFSET,
+	MPTCP_SUBFLOW_ATTR_MAP_DATALEN,
+	MPTCP_SUBFLOW_ATTR_FLAGS,
+	MPTCP_SUBFLOW_ATTR_ID_REM,
+	MPTCP_SUBFLOW_ATTR_ID_LOC,
+	MPTCP_SUBFLOW_ATTR_PAD,
+
+	__MPTCP_SUBFLOW_ATTR_MAX
+};
+
+#define MPTCP_SUBFLOW_ATTR_MAX (__MPTCP_SUBFLOW_ATTR_MAX - 1)
+
+#define MPTCP_SUBFLOW_FLAG_MCAP_REM		_BITUL(0)
+#define MPTCP_SUBFLOW_FLAG_MCAP_LOC		_BITUL(1)
+#define MPTCP_SUBFLOW_FLAG_JOIN_REM		_BITUL(2)
+#define MPTCP_SUBFLOW_FLAG_JOIN_LOC		_BITUL(3)
+#define MPTCP_SUBFLOW_FLAG_BKUP_REM		_BITUL(4)
+#define MPTCP_SUBFLOW_FLAG_BKUP_LOC		_BITUL(5)
+#define MPTCP_SUBFLOW_FLAG_FULLY_ESTABLISHED	_BITUL(6)
+#define MPTCP_SUBFLOW_FLAG_CONNECTED		_BITUL(7)
+#define MPTCP_SUBFLOW_FLAG_MAPVALID		_BITUL(8)
+
+#define rta_getattr(type, value)		(*(type *)RTA_DATA(value))
+
 static void die_perror(const char *msg)
 {
 	perror(msg);
@@ -54,11 +95,13 @@ static void die_perror(const char *msg)
 
 static void die_usage(int r)
 {
-	fprintf(stderr, "Usage: mptcp_diag -t\n");
+	fprintf(stderr, "Usage:\n"
+			"mptcp_diag -t <token>\n"
+			"mptcp_diag -s \"<saddr>:<sport> <daddr>:<dport>\"\n");
 	exit(r);
 }
 
-static void send_query(int fd, __u32 token)
+static void send_query(int fd, struct inet_diag_req_v2 *r, __u32 proto)
 {
 	struct sockaddr_nl nladdr = {
 		.nl_family = AF_NETLINK
@@ -72,31 +115,26 @@ static void send_query(int fd, __u32 token)
 			.nlmsg_type = SOCK_DIAG_BY_FAMILY,
 			.nlmsg_flags = NLM_F_REQUEST
 		},
-		.r = {
-			.sdiag_family = AF_INET,
-			/* Real proto is set via INET_DIAG_REQ_PROTOCOL */
-			.sdiag_protocol = IPPROTO_TCP,
-			.id.idiag_cookie[0] = token,
-		}
+		.r = *r
 	};
 	struct rtattr rta_proto;
 	struct iovec iov[6];
-	int iovlen = 1;
-	__u32 proto;
+	int iovlen = 0;
 
-	req.r.idiag_ext |= (1 << (INET_DIAG_INFO - 1));
-	proto = IPPROTO_MPTCP;
-	rta_proto.rta_type = INET_DIAG_REQ_PROTOCOL;
-	rta_proto.rta_len = RTA_LENGTH(sizeof(proto));
-
-	iov[0] = (struct iovec) {
+	iov[iovlen++] = (struct iovec) {
 		.iov_base = &req,
 		.iov_len = sizeof(req)
 	};
-	iov[iovlen] = (struct iovec){ &rta_proto, sizeof(rta_proto)};
-	iov[iovlen + 1] = (struct iovec){ &proto, sizeof(proto)};
-	req.nlh.nlmsg_len += RTA_LENGTH(sizeof(proto));
-	iovlen += 2;
+
+	if (proto == IPPROTO_MPTCP) {
+		rta_proto.rta_type = INET_DIAG_REQ_PROTOCOL;
+		rta_proto.rta_len = RTA_LENGTH(sizeof(proto));
+
+		iov[iovlen++] = (struct iovec){ &rta_proto, sizeof(rta_proto)};
+		iov[iovlen++] = (struct iovec){ &proto, sizeof(proto)};
+		req.nlh.nlmsg_len += RTA_LENGTH(sizeof(proto));
+	}
+
 	struct msghdr msg = {
 		.msg_name = &nladdr,
 		.msg_namelen = sizeof(nladdr),
@@ -160,7 +198,67 @@ static void print_info_msg(struct mptcp_info *info)
 	printf("bytes_acked:      %llu\n", info->mptcpi_bytes_acked);
 }
 
-static void parse_nlmsg(struct nlmsghdr *nlh)
+/*
+ * 'print_subflow_info' is from 'mptcp_subflow_info'
+ * which is a function in 'misc/ss.c' of iproute2.
+ */
+static void print_subflow_info(struct rtattr *tb[])
+{
+	u_int32_t flags = 0;
+
+	printf("It's a mptcp subflow, the subflow info:\n");
+	if (tb[MPTCP_SUBFLOW_ATTR_FLAGS]) {
+		char caps[32 + 1] = { 0 }, *cap = &caps[0];
+
+		flags = rta_getattr(__u32, tb[MPTCP_SUBFLOW_ATTR_FLAGS]);
+
+		if (flags & MPTCP_SUBFLOW_FLAG_MCAP_REM)
+			*cap++ = 'M';
+		if (flags & MPTCP_SUBFLOW_FLAG_MCAP_LOC)
+			*cap++ = 'm';
+		if (flags & MPTCP_SUBFLOW_FLAG_JOIN_REM)
+			*cap++ = 'J';
+		if (flags & MPTCP_SUBFLOW_FLAG_JOIN_LOC)
+			*cap++ = 'j';
+		if (flags & MPTCP_SUBFLOW_FLAG_BKUP_REM)
+			*cap++ = 'B';
+		if (flags & MPTCP_SUBFLOW_FLAG_BKUP_LOC)
+			*cap++ = 'b';
+		if (flags & MPTCP_SUBFLOW_FLAG_FULLY_ESTABLISHED)
+			*cap++ = 'e';
+		if (flags & MPTCP_SUBFLOW_FLAG_CONNECTED)
+			*cap++ = 'c';
+		if (flags & MPTCP_SUBFLOW_FLAG_MAPVALID)
+			*cap++ = 'v';
+
+		if (flags)
+			printf(" flags:%s", caps);
+	}
+	if (tb[MPTCP_SUBFLOW_ATTR_TOKEN_REM] &&
+	    tb[MPTCP_SUBFLOW_ATTR_TOKEN_LOC] &&
+	    tb[MPTCP_SUBFLOW_ATTR_ID_REM] &&
+	    tb[MPTCP_SUBFLOW_ATTR_ID_LOC])
+		printf(" token:%04x(id:%u)/%04x(id:%u)",
+		       rta_getattr(__u32, tb[MPTCP_SUBFLOW_ATTR_TOKEN_REM]),
+		       rta_getattr(__u8, tb[MPTCP_SUBFLOW_ATTR_ID_REM]),
+		       rta_getattr(__u32, tb[MPTCP_SUBFLOW_ATTR_TOKEN_LOC]),
+		       rta_getattr(__u8, tb[MPTCP_SUBFLOW_ATTR_ID_LOC]));
+	if (tb[MPTCP_SUBFLOW_ATTR_MAP_SEQ])
+		printf(" seq:%llu",
+		       rta_getattr(__u64, tb[MPTCP_SUBFLOW_ATTR_MAP_SEQ]));
+	if (tb[MPTCP_SUBFLOW_ATTR_MAP_SFSEQ])
+		printf(" sfseq:%u",
+		       rta_getattr(__u32, tb[MPTCP_SUBFLOW_ATTR_MAP_SFSEQ]));
+	if (tb[MPTCP_SUBFLOW_ATTR_SSN_OFFSET])
+		printf(" ssnoff:%u",
+		       rta_getattr(__u32, tb[MPTCP_SUBFLOW_ATTR_SSN_OFFSET]));
+	if (tb[MPTCP_SUBFLOW_ATTR_MAP_DATALEN])
+		printf(" maplen:%u",
+		       rta_getattr(__u32, tb[MPTCP_SUBFLOW_ATTR_MAP_DATALEN]));
+	printf("\n");
+}
+
+static void parse_nlmsg(struct nlmsghdr *nlh, __u32 proto)
 {
 	struct inet_diag_msg *r = NLMSG_DATA(nlh);
 	struct rtattr *tb[INET_DIAG_MAX + 1];
@@ -169,7 +267,7 @@ static void parse_nlmsg(struct nlmsghdr *nlh)
 			   nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*r)),
 			   NLA_F_NESTED);
 
-	if (tb[INET_DIAG_INFO]) {
+	if (proto == IPPROTO_MPTCP && tb[INET_DIAG_INFO]) {
 		int len = RTA_PAYLOAD(tb[INET_DIAG_INFO]);
 		struct mptcp_info *info;
 
@@ -183,11 +281,28 @@ static void parse_nlmsg(struct nlmsghdr *nlh)
 		}
 		print_info_msg(info);
 	}
+	if (proto == IPPROTO_TCP && tb[INET_DIAG_ULP_INFO]) {
+		struct rtattr *ulpinfo[INET_ULP_INFO_MAX + 1] = { 0 };
+
+		parse_rtattr_nested(ulpinfo, INET_ULP_INFO_MAX,
+				    tb[INET_DIAG_ULP_INFO]);
+
+		if (ulpinfo[INET_ULP_INFO_MPTCP]) {
+			struct rtattr *sfinfo[MPTCP_SUBFLOW_ATTR_MAX + 1] = { 0 };
+
+			parse_rtattr_nested(sfinfo, MPTCP_SUBFLOW_ATTR_MAX,
+					    ulpinfo[INET_ULP_INFO_MPTCP]);
+			print_subflow_info(sfinfo);
+		} else {
+			printf("It's a normal TCP!\n");
+		}
+	}
 }
 
-static void recv_nlmsg(int fd, struct nlmsghdr *nlh)
+static void recv_nlmsg(int fd, __u32 proto)
 {
 	char rcv_buff[8192];
+	struct nlmsghdr *nlh = (struct nlmsghdr *)rcv_buff;
 	struct sockaddr_nl rcv_nladdr = {
 		.nl_family = AF_NETLINK
 	};
@@ -204,7 +319,6 @@ static void recv_nlmsg(int fd, struct nlmsghdr *nlh)
 	int len;
 
 	len = recvmsg(fd, &rcv_msg, 0);
-	nlh = (struct nlmsghdr *)rcv_buff;
 
 	while (NLMSG_OK(nlh, len)) {
 		if (nlh->nlmsg_type == NLMSG_DONE) {
@@ -218,40 +332,84 @@ static void recv_nlmsg(int fd, struct nlmsghdr *nlh)
 			       -(err->error), strerror(-(err->error)));
 			break;
 		}
-		parse_nlmsg(nlh);
+		parse_nlmsg(nlh, proto);
 		nlh = NLMSG_NEXT(nlh, len);
 	}
 }
 
 static void get_mptcpinfo(__u32 token)
 {
-	struct nlmsghdr *nlh = NULL;
+	struct inet_diag_req_v2 r = {
+		.sdiag_family           = AF_INET,
+		/* Real proto is set via INET_DIAG_REQ_PROTOCOL */
+		.sdiag_protocol         = IPPROTO_TCP,
+		.idiag_ext              = 1 << (INET_DIAG_INFO - 1),
+		.id.idiag_cookie[0]     = token,
+	};
+	__u32 proto = IPPROTO_MPTCP;
 	int fd;
 
 	fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_SOCK_DIAG);
 	if (fd < 0)
 		die_perror("Netlink socket");
 
-	send_query(fd, token);
-	recv_nlmsg(fd, nlh);
+	send_query(fd, &r, proto);
+	recv_nlmsg(fd, proto);
 
 	close(fd);
 }
 
-static void parse_opts(int argc, char **argv, __u32 *target_token)
+static void get_subflow_info(char *subflow_addrs)
+{
+	struct inet_diag_req_v2 r = {
+		.sdiag_family           = AF_INET,
+		.sdiag_protocol         = IPPROTO_TCP,
+		.idiag_ext              = 1 << (INET_DIAG_INFO - 1),
+		.id.idiag_cookie[0]     = INET_DIAG_NOCOOKIE,
+		.id.idiag_cookie[1]     = INET_DIAG_NOCOOKIE,
+	};
+	char saddr[64], daddr[64];
+	int sport, dport;
+	int ret;
+	int fd;
+
+	ret = sscanf(subflow_addrs, "%[^:]:%d %[^:]:%d", saddr, &sport, daddr, &dport);
+	if (ret != 4)
+		die_perror("IP PORT Pairs has style problems!");
+
+	printf("%s:%d -> %s:%d\n", saddr, sport, daddr, dport);
+
+	fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_SOCK_DIAG);
+	if (fd < 0)
+		die_perror("Netlink socket");
+
+	r.id.idiag_sport = htons(sport);
+	r.id.idiag_dport = htons(dport);
+
+	inet_pton(AF_INET, saddr, &r.id.idiag_src);
+	inet_pton(AF_INET, daddr, &r.id.idiag_dst);
+	send_query(fd, &r, IPPROTO_TCP);
+	recv_nlmsg(fd, IPPROTO_TCP);
+}
+
+static void parse_opts(int argc, char **argv, struct params *p)
 {
 	int c;
 
 	if (argc < 2)
 		die_usage(1);
 
-	while ((c = getopt(argc, argv, "ht:")) != -1) {
+	while ((c = getopt(argc, argv, "ht:s:")) != -1) {
 		switch (c) {
 		case 'h':
 			die_usage(0);
 			break;
 		case 't':
-			sscanf(optarg, "%x", target_token);
+			sscanf(optarg, "%x", &p->target_token);
+			break;
+		case 's':
+			strncpy(p->subflow_addrs, optarg,
+				sizeof(p->subflow_addrs) - 1);
 			break;
 		default:
 			die_usage(1);
@@ -262,10 +420,15 @@ static void parse_opts(int argc, char **argv, __u32 *target_token)
 
 int main(int argc, char *argv[])
 {
-	__u32 target_token;
+	struct params p = { 0 };
 
-	parse_opts(argc, argv, &target_token);
-	get_mptcpinfo(target_token);
+	parse_opts(argc, argv, &p);
+
+	if (p.target_token)
+		get_mptcpinfo(p.target_token);
+
+	if (p.subflow_addrs[0] != '\0')
+		get_subflow_info(p.subflow_addrs);
 
 	return 0;
 }

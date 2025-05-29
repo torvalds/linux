@@ -213,6 +213,79 @@ DEFINE_EVENT(tcp_event_sk, tcp_rcv_space_adjust,
 	TP_ARGS(sk)
 );
 
+TRACE_EVENT(tcp_rcvbuf_grow,
+
+	TP_PROTO(struct sock *sk, int time),
+
+	TP_ARGS(sk, time),
+
+	TP_STRUCT__entry(
+		__field(int, time)
+		__field(__u32, rtt_us)
+		__field(__u32, copied)
+		__field(__u32, inq)
+		__field(__u32, space)
+		__field(__u32, ooo_space)
+		__field(__u32, rcvbuf)
+		__field(__u8, scaling_ratio)
+		__field(__u16, sport)
+		__field(__u16, dport)
+		__field(__u16, family)
+		__array(__u8, saddr, 4)
+		__array(__u8, daddr, 4)
+		__array(__u8, saddr_v6, 16)
+		__array(__u8, daddr_v6, 16)
+		__field(const void *, skaddr)
+		__field(__u64, sock_cookie)
+	),
+
+	TP_fast_assign(
+		struct inet_sock *inet = inet_sk(sk);
+		struct tcp_sock *tp = tcp_sk(sk);
+		__be32 *p32;
+
+		__entry->time = time;
+		__entry->rtt_us = tp->rcv_rtt_est.rtt_us >> 3;
+		__entry->copied = tp->copied_seq - tp->rcvq_space.seq;
+		__entry->inq = tp->rcv_nxt - tp->copied_seq;
+		__entry->space = tp->rcvq_space.space;
+		__entry->ooo_space = RB_EMPTY_ROOT(&tp->out_of_order_queue) ? 0 :
+				     TCP_SKB_CB(tp->ooo_last_skb)->end_seq -
+				     tp->rcv_nxt;
+
+		__entry->rcvbuf = sk->sk_rcvbuf;
+		__entry->scaling_ratio = tp->scaling_ratio;
+		__entry->sport = ntohs(inet->inet_sport);
+		__entry->dport = ntohs(inet->inet_dport);
+		__entry->family = sk->sk_family;
+
+		p32 = (__be32 *) __entry->saddr;
+		*p32 = inet->inet_saddr;
+
+		p32 = (__be32 *) __entry->daddr;
+		*p32 = inet->inet_daddr;
+
+		TP_STORE_ADDRS(__entry, inet->inet_saddr, inet->inet_daddr,
+			       sk->sk_v6_rcv_saddr, sk->sk_v6_daddr);
+
+		__entry->skaddr = sk;
+		__entry->sock_cookie = sock_gen_cookie(sk);
+	),
+
+	TP_printk("time=%u rtt_us=%u copied=%u inq=%u space=%u ooo=%u scaling_ratio=%u rcvbuf=%u "
+		  "family=%s sport=%hu dport=%hu saddr=%pI4 daddr=%pI4 "
+		  "saddrv6=%pI6c daddrv6=%pI6c skaddr=%p sock_cookie=%llx",
+		  __entry->time, __entry->rtt_us, __entry->copied,
+		  __entry->inq, __entry->space, __entry->ooo_space,
+		  __entry->scaling_ratio, __entry->rcvbuf,
+		  show_family_name(__entry->family),
+		  __entry->sport, __entry->dport,
+		  __entry->saddr, __entry->daddr,
+		  __entry->saddr_v6, __entry->daddr_v6,
+		  __entry->skaddr,
+		  __entry->sock_cookie)
+);
+
 TRACE_EVENT(tcp_retransmit_synack,
 
 	TP_PROTO(const struct sock *sk, const struct request_sock *req),
@@ -259,6 +332,30 @@ TRACE_EVENT(tcp_retransmit_synack,
 		  __entry->saddr_v6, __entry->daddr_v6)
 );
 
+TRACE_EVENT(tcp_sendmsg_locked,
+	TP_PROTO(const struct sock *sk, const struct msghdr *msg,
+		 const struct sk_buff *skb, int size_goal),
+
+	TP_ARGS(sk, msg, skb, size_goal),
+
+	TP_STRUCT__entry(
+		__field(const void *, skb_addr)
+		__field(int, skb_len)
+		__field(int, msg_left)
+		__field(int, size_goal)
+	),
+
+	TP_fast_assign(
+		__entry->skb_addr = skb;
+		__entry->skb_len = skb ? skb->len : 0;
+		__entry->msg_left = msg_data_left(msg);
+		__entry->size_goal = size_goal;
+	),
+
+	TP_printk("skb_addr %p skb_len %d msg_left %d size_goal %d",
+		  __entry->skb_addr, __entry->skb_len, __entry->msg_left,
+		  __entry->size_goal));
+
 DECLARE_TRACE(tcp_cwnd_reduction_tp,
 	TP_PROTO(const struct sock *sk, int newly_acked_sacked,
 		 int newly_lost, int flag),
@@ -269,7 +366,7 @@ DECLARE_TRACE(tcp_cwnd_reduction_tp,
 
 TRACE_EVENT(tcp_probe,
 
-	TP_PROTO(struct sock *sk, struct sk_buff *skb),
+	TP_PROTO(struct sock *sk, const struct sk_buff *skb),
 
 	TP_ARGS(sk, skb),
 

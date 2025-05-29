@@ -209,6 +209,7 @@ enum bch_fsck_flags {
 	x(subvol_to_missing_root,				188,	0)		\
 	x(subvol_root_wrong_bi_subvol,				189,	FSCK_AUTOFIX)	\
 	x(bkey_in_missing_snapshot,				190,	0)		\
+	x(bkey_in_deleted_snapshot,				315,	FSCK_AUTOFIX)	\
 	x(inode_pos_inode_nonzero,				191,	0)		\
 	x(inode_pos_blockdev_range,				192,	0)		\
 	x(inode_alloc_cursor_inode_bad,				301,	0)		\
@@ -216,6 +217,7 @@ enum bch_fsck_flags {
 	x(inode_str_hash_invalid,				194,	0)		\
 	x(inode_v3_fields_start_bad,				195,	0)		\
 	x(inode_snapshot_mismatch,				196,	0)		\
+	x(snapshot_key_missing_inode_snapshot,			314,	0)		\
 	x(inode_unlinked_but_clean,				197,	0)		\
 	x(inode_unlinked_but_nlink_nonzero,			198,	0)		\
 	x(inode_unlinked_and_not_open,				281,	0)		\
@@ -237,6 +239,8 @@ enum bch_fsck_flags {
 	x(inode_unreachable,					210,	FSCK_AUTOFIX)	\
 	x(inode_journal_seq_in_future,				299,	FSCK_AUTOFIX)	\
 	x(inode_i_sectors_underflow,				312,	FSCK_AUTOFIX)	\
+	x(inode_has_case_insensitive_not_set,			316,	FSCK_AUTOFIX)	\
+	x(inode_parent_has_case_insensitive_not_set,		317,	FSCK_AUTOFIX)	\
 	x(vfs_inode_i_blocks_underflow,				311,	FSCK_AUTOFIX)	\
 	x(vfs_inode_i_blocks_not_zero_at_truncate,		313,	FSCK_AUTOFIX)	\
 	x(deleted_inode_but_clean,				211,	FSCK_AUTOFIX)	\
@@ -262,6 +266,7 @@ enum bch_fsck_flags {
 	x(dirent_to_overwritten_inode,				302,	0)		\
 	x(dirent_to_missing_subvol,				230,	0)		\
 	x(dirent_to_itself,					231,	0)		\
+	x(dirent_casefold_mismatch,				318,	FSCK_AUTOFIX)	\
 	x(quota_type_invalid,					232,	0)		\
 	x(xattr_val_size_too_small,				233,	0)		\
 	x(xattr_val_size_too_big,				234,	0)		\
@@ -301,6 +306,7 @@ enum bch_fsck_flags {
 	x(btree_ptr_v2_written_0,				268,	0)		\
 	x(subvol_snapshot_bad,					269,	0)		\
 	x(subvol_inode_bad,					270,	0)		\
+	x(subvol_missing,					308,	FSCK_AUTOFIX)	\
 	x(alloc_key_stripe_sectors_wrong,			271,	FSCK_AUTOFIX)	\
 	x(accounting_mismatch,					272,	FSCK_AUTOFIX)	\
 	x(accounting_replicas_not_marked,			273,	0)		\
@@ -322,7 +328,7 @@ enum bch_fsck_flags {
 	x(dirent_stray_data_after_cf_name,			305,	0)		\
 	x(rebalance_work_incorrectly_set,			309,	FSCK_AUTOFIX)	\
 	x(rebalance_work_incorrectly_unset,			310,	FSCK_AUTOFIX)	\
-	x(MAX,							314,	0)
+	x(MAX,							319,	0)
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,

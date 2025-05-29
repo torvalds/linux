@@ -128,13 +128,8 @@ def note_failure(target):
 # own C role, but both match the same regex, so we try both.
 #
 def markup_func_ref_sphinx3(docname, app, match):
-    cdom = app.env.domains['c']
-    #
-    # Go through the dance of getting an xref out of the C domain
-    #
     base_target = match.group(2)
     target_text = nodes.Text(match.group(0))
-    xref = None
     possible_targets = [base_target]
     # Check if this document has a namespace, and if so, try
     # cross-referencing inside it first.
@@ -146,22 +141,8 @@ def markup_func_ref_sphinx3(docname, app, match):
             if (target not in Skipfuncs) and not failure_seen(target):
                 lit_text = nodes.literal(classes=['xref', 'c', 'c-func'])
                 lit_text += target_text
-                pxref = addnodes.pending_xref('', refdomain = 'c',
-                                              reftype = 'function',
-                                              reftarget = target,
-                                              modname = None,
-                                              classname = None)
-                #
-                # XXX The Latex builder will throw NoUri exceptions here,
-                # work around that by ignoring them.
-                #
-                try:
-                    xref = cdom.resolve_xref(app.env, docname, app.builder,
-                                             'function', target, pxref,
-                                             lit_text)
-                except NoUri:
-                    xref = None
-
+                xref = add_and_resolve_xref(app, docname, 'c', 'function',
+                                            target, contnode=lit_text)
                 if xref:
                     return xref
                 note_failure(target)
@@ -188,13 +169,8 @@ def markup_c_ref(docname, app, match):
                    RE_typedef: 'type',
                    }
 
-    cdom = app.env.domains['c']
-    #
-    # Go through the dance of getting an xref out of the C domain
-    #
     base_target = match.group(2)
     target_text = nodes.Text(match.group(0))
-    xref = None
     possible_targets = [base_target]
     # Check if this document has a namespace, and if so, try
     # cross-referencing inside it first.
@@ -206,21 +182,9 @@ def markup_c_ref(docname, app, match):
             if not (match.re == RE_function and target in Skipfuncs):
                 lit_text = nodes.literal(classes=['xref', 'c', class_str[match.re]])
                 lit_text += target_text
-                pxref = addnodes.pending_xref('', refdomain = 'c',
-                                              reftype = reftype_str[match.re],
-                                              reftarget = target, modname = None,
-                                              classname = None)
-                #
-                # XXX The Latex builder will throw NoUri exceptions here,
-                # work around that by ignoring them.
-                #
-                try:
-                    xref = cdom.resolve_xref(app.env, docname, app.builder,
-                                             reftype_str[match.re], target, pxref,
-                                             lit_text)
-                except NoUri:
-                    xref = None
-
+                xref = add_and_resolve_xref(app, docname, 'c',
+                                            reftype_str[match.re], target,
+                                            contnode=lit_text)
                 if xref:
                     return xref
 
@@ -231,30 +195,12 @@ def markup_c_ref(docname, app, match):
 # cross reference to that page
 #
 def markup_doc_ref(docname, app, match):
-    stddom = app.env.domains['std']
-    #
-    # Go through the dance of getting an xref out of the std domain
-    #
     absolute = match.group(1)
     target = match.group(2)
     if absolute:
        target = "/" + target
-    xref = None
-    pxref = addnodes.pending_xref('', refdomain = 'std', reftype = 'doc',
-                                  reftarget = target, modname = None,
-                                  classname = None, refexplicit = False)
-    #
-    # XXX The Latex builder will throw NoUri exceptions here,
-    # work around that by ignoring them.
-    #
-    try:
-        xref = stddom.resolve_xref(app.env, docname, app.builder, 'doc',
-                                   target, pxref, None)
-    except NoUri:
-        xref = None
-    #
-    # Return the xref if we got it; otherwise just return the plain text.
-    #
+
+    xref = add_and_resolve_xref(app, docname, 'std', 'doc', target)
     if xref:
         return xref
     else:
@@ -265,10 +211,6 @@ def markup_doc_ref(docname, app, match):
 # with a cross reference to that page
 #
 def markup_abi_ref(docname, app, match, warning=False):
-    stddom = app.env.domains['std']
-    #
-    # Go through the dance of getting an xref out of the std domain
-    #
     kernel_abi = get_kernel_abi()
 
     fname = match.group(1)
@@ -280,7 +222,18 @@ def markup_abi_ref(docname, app, match, warning=False):
             kernel_abi.log.warning("%s not found", fname)
         return nodes.Text(match.group(0))
 
-    pxref = addnodes.pending_xref('', refdomain = 'std', reftype = 'ref',
+    xref = add_and_resolve_xref(app, docname, 'std', 'ref', target)
+    if xref:
+        return xref
+    else:
+        return nodes.Text(match.group(0))
+
+def add_and_resolve_xref(app, docname, domain, reftype, target, contnode=None):
+    #
+    # Go through the dance of getting an xref out of the corresponding domain
+    #
+    dom_obj = app.env.domains[domain]
+    pxref = addnodes.pending_xref('', refdomain = domain, reftype = reftype,
                                   reftarget = target, modname = None,
                                   classname = None, refexplicit = False)
 
@@ -289,17 +242,15 @@ def markup_abi_ref(docname, app, match, warning=False):
     # work around that by ignoring them.
     #
     try:
-        xref = stddom.resolve_xref(app.env, docname, app.builder, 'ref',
-                                   target, pxref, None)
+        xref = dom_obj.resolve_xref(app.env, docname, app.builder, reftype,
+                                    target, pxref, contnode)
     except NoUri:
         xref = None
-    #
-    # Return the xref if we got it; otherwise just return the plain text.
-    #
+
     if xref:
         return xref
-    else:
-        return nodes.Text(match.group(0))
+
+    return None
 
 #
 # Variant of markup_abi_ref() that warns whan a reference is not found

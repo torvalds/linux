@@ -134,9 +134,20 @@ static inline int bch2_inode_peek(struct btree_trans *trans,
 				  subvol_inum inum, unsigned flags)
 {
 	return __bch2_inode_peek(trans, iter, inode, inum, flags, true);
-	int ret = bch2_inode_peek_nowarn(trans, iter, inode, inum, flags);
-	return ret;
 }
+
+int bch2_inode_find_by_inum_snapshot(struct btree_trans *, u64, u32,
+				     struct bch_inode_unpacked *, unsigned);
+int bch2_inode_find_by_inum_nowarn_trans(struct btree_trans *,
+				  subvol_inum,
+				  struct bch_inode_unpacked *);
+int bch2_inode_find_by_inum_trans(struct btree_trans *, subvol_inum,
+				  struct bch_inode_unpacked *);
+int bch2_inode_find_by_inum(struct bch_fs *, subvol_inum,
+			    struct bch_inode_unpacked *);
+
+int bch2_inode_find_snapshot_root(struct btree_trans *trans, u64 inum,
+				  struct bch_inode_unpacked *root);
 
 int bch2_inode_write_flags(struct btree_trans *, struct btree_iter *,
 		     struct bch_inode_unpacked *, enum btree_iter_update_trigger_flags);
@@ -153,7 +164,7 @@ int bch2_fsck_write_inode(struct btree_trans *, struct bch_inode_unpacked *);
 
 void bch2_inode_init_early(struct bch_fs *,
 			   struct bch_inode_unpacked *);
-void bch2_inode_init_late(struct bch_inode_unpacked *, u64,
+void bch2_inode_init_late(struct bch_fs *, struct bch_inode_unpacked *, u64,
 			  uid_t, gid_t, umode_t, dev_t,
 			  struct bch_inode_unpacked *);
 void bch2_inode_init(struct bch_fs *, struct bch_inode_unpacked *,
@@ -164,14 +175,6 @@ int bch2_inode_create(struct btree_trans *, struct btree_iter *,
 		      struct bch_inode_unpacked *, u32, u64);
 
 int bch2_inode_rm(struct bch_fs *, subvol_inum);
-
-int bch2_inode_find_by_inum_nowarn_trans(struct btree_trans *,
-				  subvol_inum,
-				  struct bch_inode_unpacked *);
-int bch2_inode_find_by_inum_trans(struct btree_trans *, subvol_inum,
-				  struct bch_inode_unpacked *);
-int bch2_inode_find_by_inum(struct bch_fs *, subvol_inum,
-			    struct bch_inode_unpacked *);
 
 #define inode_opt_get(_c, _inode, _name)			\
 	((_inode)->bi_##_name ? (_inode)->bi_##_name - 1 : (_c)->opts._name)
@@ -245,7 +248,7 @@ static inline unsigned bkey_inode_mode(struct bkey_s_c k)
 
 static inline bool bch2_inode_casefold(struct bch_fs *c, const struct bch_inode_unpacked *bi)
 {
-	/* inode apts are stored with a +1 bias: 0 means "unset, use fs opt" */
+	/* inode opts are stored with a +1 bias: 0 means "unset, use fs opt" */
 	return bi->bi_casefold
 		? bi->bi_casefold - 1
 		: c->opts.casefold;
@@ -292,7 +295,9 @@ static inline bool bch2_inode_should_have_single_bp(struct bch_inode_unpacked *i
 struct bch_opts bch2_inode_opts_to_opts(struct bch_inode_unpacked *);
 void bch2_inode_opts_get(struct bch_io_opts *, struct bch_fs *,
 			 struct bch_inode_unpacked *);
-int bch2_inum_opts_get(struct btree_trans*, subvol_inum, struct bch_io_opts *);
+int bch2_inum_opts_get(struct btree_trans *, subvol_inum, struct bch_io_opts *);
+int bch2_inode_set_casefold(struct btree_trans *, subvol_inum,
+			    struct bch_inode_unpacked *, unsigned);
 
 #include "rebalance.h"
 
@@ -302,6 +307,14 @@ bch2_inode_rebalance_opts_get(struct bch_fs *c, struct bch_inode_unpacked *inode
 	struct bch_io_opts io_opts;
 	bch2_inode_opts_get(&io_opts, c, inode);
 	return io_opts_to_rebalance_opts(c, &io_opts);
+}
+
+#define BCACHEFS_ROOT_SUBVOL_INUM					\
+	((subvol_inum) { BCACHEFS_ROOT_SUBVOL,	BCACHEFS_ROOT_INO })
+
+static inline bool subvol_inum_eq(subvol_inum a, subvol_inum b)
+{
+	return a.subvol == b.subvol && a.inum == b.inum;
 }
 
 int bch2_inode_rm_snapshot(struct btree_trans *, u64, u32);

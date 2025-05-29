@@ -1676,7 +1676,7 @@ static const char *fuse_get_link(struct dentry *dentry, struct inode *inode,
 		goto out_err;
 	}
 
-	set_delayed_call(callback, page_put_link, &folio->page);
+	set_delayed_call(callback, page_put_link, folio);
 
 	return folio_address(folio);
 

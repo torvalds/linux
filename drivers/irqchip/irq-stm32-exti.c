@@ -169,22 +169,18 @@ static int stm32_irq_set_type(struct irq_data *d, unsigned int type)
 	u32 rtsr, ftsr;
 	int err;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 
 	rtsr = irq_reg_readl(gc, stm32_bank->rtsr_ofst);
 	ftsr = irq_reg_readl(gc, stm32_bank->ftsr_ofst);
 
 	err = stm32_exti_set_type(d, type, &rtsr, &ftsr);
 	if (err)
-		goto unlock;
+		return err;
 
 	irq_reg_writel(gc, rtsr, stm32_bank->rtsr_ofst);
 	irq_reg_writel(gc, ftsr, stm32_bank->ftsr_ofst);
-
-unlock:
-	irq_gc_unlock(gc);
-
-	return err;
+	return 0;
 }
 
 static void stm32_chip_suspend(struct stm32_exti_chip_data *chip_data,
@@ -217,18 +213,16 @@ static void stm32_irq_suspend(struct irq_chip_generic *gc)
 {
 	struct stm32_exti_chip_data *chip_data = gc->private;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	stm32_chip_suspend(chip_data, gc->wake_active);
-	irq_gc_unlock(gc);
 }
 
 static void stm32_irq_resume(struct irq_chip_generic *gc)
 {
 	struct stm32_exti_chip_data *chip_data = gc->private;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	stm32_chip_resume(chip_data, gc->mask_cache);
-	irq_gc_unlock(gc);
 }
 
 static int stm32_exti_alloc(struct irq_domain *d, unsigned int virq,
@@ -265,11 +259,8 @@ static void stm32_irq_ack(struct irq_data *d)
 	struct stm32_exti_chip_data *chip_data = gc->private;
 	const struct stm32_exti_bank *stm32_bank = chip_data->reg_bank;
 
-	irq_gc_lock(gc);
-
+	guard(raw_spinlock)(&gc->lock);
 	irq_reg_writel(gc, d->mask, stm32_bank->rpr_ofst);
-
-	irq_gc_unlock(gc);
 }
 
 static struct
@@ -344,8 +335,8 @@ static int __init stm32_exti_init(const struct stm32_exti_drv_data *drv_data,
 	if (!host_data)
 		return -ENOMEM;
 
-	domain = irq_domain_add_linear(node, drv_data->bank_nr * IRQS_PER_BANK,
-				       &irq_exti_domain_ops, NULL);
+	domain = irq_domain_create_linear(of_fwnode_handle(node), drv_data->bank_nr * IRQS_PER_BANK,
+					  &irq_exti_domain_ops, NULL);
 	if (!domain) {
 		pr_err("%pOFn: Could not register interrupt domain.\n",
 		       node);

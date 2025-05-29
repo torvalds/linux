@@ -258,7 +258,7 @@ nvkm_uchan_map(struct nvkm_object *object, void *argv, u32 argc,
 	struct nvkm_chan *chan = nvkm_uchan(object)->chan;
 	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
 
-	if (chan->func->userd->bar < 0)
+	if (!chan->func->userd->bar)
 		return -ENOSYS;
 
 	*type = NVKM_OBJECT_MAP_IO;

@@ -99,7 +99,13 @@ static inline const struct iovec *iter_iov(const struct iov_iter *iter)
 }
 
 #define iter_iov_addr(iter)	(iter_iov(iter)->iov_base + (iter)->iov_offset)
-#define iter_iov_len(iter)	(iter_iov(iter)->iov_len - (iter)->iov_offset)
+
+static inline size_t iter_iov_len(const struct iov_iter *i)
+{
+	if (i->iter_type == ITER_UBUF)
+		return i->count;
+	return iter_iov(i)->iov_len - i->iov_offset;
+}
 
 static inline enum iter_type iov_iter_type(const struct iov_iter *i)
 {

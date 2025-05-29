@@ -390,15 +390,59 @@ void v4l_bound_align_image(unsigned int *width, unsigned int wmin,
 			   unsigned int salign);
 
 /**
- * v4l2_find_nearest_size - Find the nearest size among a discrete
- *	set of resolutions contained in an array of a driver specific struct.
+ * v4l2_find_nearest_size_conditional - Find the nearest size among a discrete
+ *	set of resolutions contained in an array of a driver specific struct,
+ *	with conditionally exlusion of certain modes
  *
  * @array: a driver specific array of image sizes
  * @array_size: the length of the driver specific array of image sizes
  * @width_field: the name of the width field in the driver specific struct
  * @height_field: the name of the height field in the driver specific struct
- * @width: desired width.
- * @height: desired height.
+ * @width: desired width
+ * @height: desired height
+ * @func: ignores mode if returns false
+ * @context: context for the function
+ *
+ * Finds the closest resolution to minimize the width and height differences
+ * between what requested and the supported resolutions. The size of the width
+ * and height fields in the driver specific must equal to that of u32, i.e. four
+ * bytes. @func is called for each mode considered, a mode is ignored if @func
+ * returns false for it.
+ *
+ * Returns the best match or NULL if the length of the array is zero.
+ */
+#define v4l2_find_nearest_size_conditional(array, array_size, width_field, \
+					   height_field, width, height, \
+					   func, context) \
+	({								\
+		BUILD_BUG_ON(sizeof((array)->width_field) != sizeof(u32) || \
+			     sizeof((array)->height_field) != sizeof(u32)); \
+		(typeof(&(array)[0]))__v4l2_find_nearest_size_conditional( \
+			(array), array_size, sizeof(*(array)),		\
+			offsetof(typeof(*(array)), width_field),	\
+			offsetof(typeof(*(array)), height_field),	\
+			width, height, func, context);			\
+	})
+const void *
+__v4l2_find_nearest_size_conditional(const void *array, size_t array_size,
+				     size_t entry_size, size_t width_offset,
+				     size_t height_offset, s32 width,
+				     s32 height,
+				     bool (*func)(const void *array,
+						  size_t index,
+						  const void *context),
+				     const void *context);
+
+/**
+ * v4l2_find_nearest_size - Find the nearest size among a discrete set of
+ *	resolutions contained in an array of a driver specific struct
+ *
+ * @array: a driver specific array of image sizes
+ * @array_size: the length of the driver specific array of image sizes
+ * @width_field: the name of the width field in the driver specific struct
+ * @height_field: the name of the height field in the driver specific struct
+ * @width: desired width
+ * @height: desired height
  *
  * Finds the closest resolution to minimize the width and height differences
  * between what requested and the supported resolutions. The size of the width
@@ -407,21 +451,11 @@ void v4l_bound_align_image(unsigned int *width, unsigned int wmin,
  *
  * Returns the best match or NULL if the length of the array is zero.
  */
-#define v4l2_find_nearest_size(array, array_size, width_field, height_field, \
-			       width, height)				\
-	({								\
-		BUILD_BUG_ON(sizeof((array)->width_field) != sizeof(u32) || \
-			     sizeof((array)->height_field) != sizeof(u32)); \
-		(typeof(&(array)[0]))__v4l2_find_nearest_size(		\
-			(array), array_size, sizeof(*(array)),		\
-			offsetof(typeof(*(array)), width_field),	\
-			offsetof(typeof(*(array)), height_field),	\
-			width, height);					\
-	})
-const void *
-__v4l2_find_nearest_size(const void *array, size_t array_size,
-			 size_t entry_size, size_t width_offset,
-			 size_t height_offset, s32 width, s32 height);
+#define v4l2_find_nearest_size(array, array_size, width_field,		\
+			       height_field, width, height)		\
+	v4l2_find_nearest_size_conditional(array, array_size, width_field, \
+					   height_field, width, height, NULL, \
+					   NULL)
 
 /**
  * v4l2_g_parm_cap - helper routine for vidioc_g_parm to fill this in by

@@ -50,6 +50,21 @@ struct data_update {
 	struct bio_vec		*bvecs;
 };
 
+struct promote_op {
+	struct rcu_head		rcu;
+	u64			start_time;
+#ifdef CONFIG_BCACHEFS_ASYNC_OBJECT_LISTS
+	unsigned		list_idx;
+#endif
+
+	struct rhash_head	hash;
+	struct bpos		pos;
+
+	struct work_struct	work;
+	struct data_update	write;
+	struct bio_vec		bi_inline_vecs[]; /* must be last */
+};
+
 void bch2_data_update_to_text(struct printbuf *, struct data_update *);
 void bch2_data_update_inflight_to_text(struct printbuf *, struct data_update *);
 

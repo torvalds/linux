@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/cs5535.h>
 #include <linux/slab.h>
+#include <asm/msr.h>
 
 #define DRV_NAME "cs5535-mfgpt"
 

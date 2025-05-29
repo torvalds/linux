@@ -13,7 +13,6 @@
 #include <linux/crypto.h>
 #include <linux/err.h>
 #include <crypto/algapi.h>
-#include <crypto/internal/simd.h>
 #include <crypto/twofish.h>
 
 #include "twofish.h"
@@ -74,10 +73,9 @@ static int cbc_decrypt(struct skcipher_request *req)
 
 static struct skcipher_alg twofish_algs[] = {
 	{
-		.base.cra_name		= "__ecb(twofish)",
-		.base.cra_driver_name	= "__ecb-twofish-avx",
+		.base.cra_name		= "ecb(twofish)",
+		.base.cra_driver_name	= "ecb-twofish-avx",
 		.base.cra_priority	= 400,
-		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
 		.base.cra_blocksize	= TF_BLOCK_SIZE,
 		.base.cra_ctxsize	= sizeof(struct twofish_ctx),
 		.base.cra_module	= THIS_MODULE,
@@ -87,10 +85,9 @@ static struct skcipher_alg twofish_algs[] = {
 		.encrypt		= ecb_encrypt,
 		.decrypt		= ecb_decrypt,
 	}, {
-		.base.cra_name		= "__cbc(twofish)",
-		.base.cra_driver_name	= "__cbc-twofish-avx",
+		.base.cra_name		= "cbc(twofish)",
+		.base.cra_driver_name	= "cbc-twofish-avx",
 		.base.cra_priority	= 400,
-		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
 		.base.cra_blocksize	= TF_BLOCK_SIZE,
 		.base.cra_ctxsize	= sizeof(struct twofish_ctx),
 		.base.cra_module	= THIS_MODULE,
@@ -103,8 +100,6 @@ static struct skcipher_alg twofish_algs[] = {
 	},
 };
 
-static struct simd_skcipher_alg *twofish_simd_algs[ARRAY_SIZE(twofish_algs)];
-
 static int __init twofish_init(void)
 {
 	const char *feature_name;
@@ -114,15 +109,13 @@ static int __init twofish_init(void)
 		return -ENODEV;
 	}
 
-	return simd_register_skciphers_compat(twofish_algs,
-					      ARRAY_SIZE(twofish_algs),
-					      twofish_simd_algs);
+	return crypto_register_skciphers(twofish_algs,
+					 ARRAY_SIZE(twofish_algs));
 }
 
 static void __exit twofish_exit(void)
 {
-	simd_unregister_skciphers(twofish_algs, ARRAY_SIZE(twofish_algs),
-				  twofish_simd_algs);
+	crypto_unregister_skciphers(twofish_algs, ARRAY_SIZE(twofish_algs));
 }
 
 module_init(twofish_init);

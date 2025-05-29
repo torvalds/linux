@@ -33,6 +33,7 @@ enum xfeature {
 	XFEATURE_RSRVD_COMP_16,
 	XFEATURE_XTILECFG,
 	XFEATURE_XTILEDATA,
+	XFEATURE_APX,
 
 	XFEATURE_MAX,
 };
@@ -59,6 +60,7 @@ static const char *xfeature_names[] =
 	"unknown xstate feature",
 	"AMX Tile config",
 	"AMX Tile data",
+	"APX registers",
 	"unknown xstate feature",
 };
 

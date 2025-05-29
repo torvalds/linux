@@ -278,7 +278,7 @@ static int isp_set_selection(struct v4l2_subdev *sd,
 		isp_set_format(sd, state, &fmt);
 	}
 
-	dev_dbg(isp_dev->stfcamss->dev, "pad: %d sel(%d,%d)/%dx%d\n",
+	dev_dbg(isp_dev->stfcamss->dev, "pad: %d sel(%d,%d)/%ux%u\n",
 		sel->pad, sel->r.left, sel->r.top, sel->r.width, sel->r.height);
 
 	return 0;

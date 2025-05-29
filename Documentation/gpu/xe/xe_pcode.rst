@@ -12,3 +12,10 @@ Internal API
 
 .. kernel-doc:: drivers/gpu/drm/xe/xe_pcode.c
    :internal:
+
+==================
+Boot Survivability
+==================
+
+.. kernel-doc:: drivers/gpu/drm/xe/xe_survivability_mode.c
+   :doc: Xe Boot Survivability

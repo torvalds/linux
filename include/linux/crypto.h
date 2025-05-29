@@ -14,8 +14,7 @@
 
 #include <linux/completion.h>
 #include <linux/errno.h>
-#include <linux/list.h>
-#include <linux/refcount.h>
+#include <linux/refcount_types.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
@@ -49,6 +48,15 @@
  * algorithm of the same type to handle corner cases.
  */
 #define CRYPTO_ALG_NEED_FALLBACK	0x00000100
+
+/*
+ * Set if the algorithm data structure should be duplicated into
+ * kmalloc memory before registration.  This is useful for hardware
+ * that can be disconnected at will.  Do not use this if the data
+ * structure is embedded into a bigger one.  Duplicate the overall
+ * data structure in the driver in that case.
+ */
+#define CRYPTO_ALG_DUP_FIRST		0x00000200
 
 /*
  * Set if the algorithm has passed automated run-time testing.  Note that
@@ -125,8 +133,10 @@
  */
 #define CRYPTO_ALG_FIPS_INTERNAL	0x00020000
 
-/* Set if the algorithm supports request chains and virtual addresses. */
-#define CRYPTO_ALG_REQ_CHAIN		0x00040000
+/* Set if the algorithm supports virtual addresses. */
+#define CRYPTO_ALG_REQ_VIRT		0x00040000
+
+/* The high bits 0xff000000 are reserved for type-specific flags. */
 
 /*
  * Transform masks and values (for crt_flags).
@@ -179,7 +189,6 @@ struct crypto_async_request {
 	struct crypto_tfm *tfm;
 
 	u32 flags;
-	int err;
 };
 
 /**
@@ -278,6 +287,7 @@ struct cipher_alg {
  *		   to the alignmask of the algorithm being used, in order to
  *		   avoid the API having to realign them.  Note: the alignmask is
  *		   not supported for hash algorithms and is always 0 for them.
+ * @cra_reqsize: Size of the request context for this algorithm.
  * @cra_priority: Priority of this transformation implementation. In case
  *		  multiple transformations with same @cra_name are available to
  *		  the Crypto API, the kernel will use the one with highest
@@ -302,17 +312,8 @@ struct cipher_alg {
  *	   by @cra_type and @cra_flags above, the associated structure must be
  *	   filled with callbacks. This field might be empty. This is the case
  *	   for ahash, shash.
- * @cra_init: Initialize the cryptographic transformation object. This function
- *	      is used to initialize the cryptographic transformation object.
- *	      This function is called only once at the instantiation time, right
- *	      after the transformation context was allocated. In case the
- *	      cryptographic hardware has some special requirements which need to
- *	      be handled by software, this function shall check for the precise
- *	      requirement of the transformation and put any software fallbacks
- *	      in place.
- * @cra_exit: Deinitialize the cryptographic transformation object. This is a
- *	      counterpart to @cra_init, used to remove various changes set in
- *	      @cra_init.
+ * @cra_init: Deprecated, do not use.
+ * @cra_exit: Deprecated, do not use.
  * @cra_u.cipher: Union member which contains a single-block symmetric cipher
  *		  definition. See @struct @cipher_alg.
  * @cra_module: Owner of this transformation implementation. Set to THIS_MODULE
@@ -333,6 +334,7 @@ struct crypto_alg {
 	unsigned int cra_blocksize;
 	unsigned int cra_ctxsize;
 	unsigned int cra_alignmask;
+	unsigned int cra_reqsize;
 
 	int cra_priority;
 	refcount_t cra_refcnt;
@@ -409,9 +411,11 @@ struct crypto_tfm {
 	u32 crt_flags;
 
 	int node;
-	
+
+	struct crypto_tfm *fb;
+
 	void (*exit)(struct crypto_tfm *tfm);
-	
+
 	struct crypto_alg *__crt_alg;
 
 	void *__crt_ctx[] CRYPTO_MINALIGN_ATTR;
@@ -452,6 +456,11 @@ static inline unsigned int crypto_tfm_alg_alignmask(struct crypto_tfm *tfm)
 	return tfm->__crt_alg->cra_alignmask;
 }
 
+static inline unsigned int crypto_tfm_alg_reqsize(struct crypto_tfm *tfm)
+{
+	return tfm->__crt_alg->cra_reqsize;
+}
+
 static inline u32 crypto_tfm_get_flags(struct crypto_tfm *tfm)
 {
 	return tfm->crt_flags;
@@ -473,22 +482,44 @@ static inline unsigned int crypto_tfm_ctx_alignment(void)
 	return __alignof__(tfm->__crt_ctx);
 }
 
-static inline void crypto_reqchain_init(struct crypto_async_request *req)
-{
-	req->err = -EINPROGRESS;
-	INIT_LIST_HEAD(&req->list);
-}
-
-static inline void crypto_request_chain(struct crypto_async_request *req,
-					struct crypto_async_request *head)
-{
-	req->err = -EINPROGRESS;
-	list_add_tail(&req->list, &head->list);
-}
-
 static inline bool crypto_tfm_is_async(struct crypto_tfm *tfm)
 {
 	return tfm->__crt_alg->cra_flags & CRYPTO_ALG_ASYNC;
+}
+
+static inline bool crypto_req_on_stack(struct crypto_async_request *req)
+{
+	return req->flags & CRYPTO_TFM_REQ_ON_STACK;
+}
+
+static inline void crypto_request_set_callback(
+	struct crypto_async_request *req, u32 flags,
+	crypto_completion_t compl, void *data)
+{
+	u32 keep = CRYPTO_TFM_REQ_ON_STACK;
+
+	req->complete = compl;
+	req->data = data;
+	req->flags &= keep;
+	req->flags |= flags & ~keep;
+}
+
+static inline void crypto_request_set_tfm(struct crypto_async_request *req,
+					  struct crypto_tfm *tfm)
+{
+	req->tfm = tfm;
+	req->flags &= ~CRYPTO_TFM_REQ_ON_STACK;
+}
+
+struct crypto_async_request *crypto_request_clone(
+	struct crypto_async_request *req, size_t total, gfp_t gfp);
+
+static inline void crypto_stack_request_init(struct crypto_async_request *req,
+					     struct crypto_tfm *tfm)
+{
+	req->flags = 0;
+	crypto_request_set_tfm(req, tfm);
+	req->flags |= CRYPTO_TFM_REQ_ON_STACK;
 }
 
 #endif	/* _LINUX_CRYPTO_H */

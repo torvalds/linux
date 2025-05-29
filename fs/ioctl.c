@@ -396,8 +396,8 @@ static int ioctl_fsfreeze(struct file *filp)
 
 	/* Freeze */
 	if (sb->s_op->freeze_super)
-		return sb->s_op->freeze_super(sb, FREEZE_HOLDER_USERSPACE);
-	return freeze_super(sb, FREEZE_HOLDER_USERSPACE);
+		return sb->s_op->freeze_super(sb, FREEZE_HOLDER_USERSPACE, NULL);
+	return freeze_super(sb, FREEZE_HOLDER_USERSPACE, NULL);
 }
 
 static int ioctl_fsthaw(struct file *filp)
@@ -409,8 +409,8 @@ static int ioctl_fsthaw(struct file *filp)
 
 	/* Thaw */
 	if (sb->s_op->thaw_super)
-		return sb->s_op->thaw_super(sb, FREEZE_HOLDER_USERSPACE);
-	return thaw_super(sb, FREEZE_HOLDER_USERSPACE);
+		return sb->s_op->thaw_super(sb, FREEZE_HOLDER_USERSPACE, NULL);
+	return thaw_super(sb, FREEZE_HOLDER_USERSPACE, NULL);
 }
 
 static int ioctl_file_dedupe_range(struct file *file,
@@ -821,7 +821,8 @@ static int do_vfs_ioctl(struct file *filp, unsigned int fd,
 		return ioctl_fioasync(fd, filp, argp);
 
 	case FIOQSIZE:
-		if (S_ISDIR(inode->i_mode) || S_ISREG(inode->i_mode) ||
+		if (S_ISDIR(inode->i_mode) ||
+		    (S_ISREG(inode->i_mode) && !IS_ANON_FILE(inode)) ||
 		    S_ISLNK(inode->i_mode)) {
 			loff_t res = inode_get_bytes(inode);
 			return copy_to_user(argp, &res, sizeof(res)) ?
@@ -856,7 +857,7 @@ static int do_vfs_ioctl(struct file *filp, unsigned int fd,
 		return ioctl_file_dedupe_range(filp, argp);
 
 	case FIONREAD:
-		if (!S_ISREG(inode->i_mode))
+		if (!S_ISREG(inode->i_mode) || IS_ANON_FILE(inode))
 			return vfs_ioctl(filp, cmd, arg);
 
 		return put_user(i_size_read(inode) - filp->f_pos,
@@ -881,7 +882,7 @@ static int do_vfs_ioctl(struct file *filp, unsigned int fd,
 		return ioctl_get_fs_sysfs_path(filp, argp);
 
 	default:
-		if (S_ISREG(inode->i_mode))
+		if (S_ISREG(inode->i_mode) && !IS_ANON_FILE(inode))
 			return file_ioctl(filp, cmd, argp);
 		break;
 	}

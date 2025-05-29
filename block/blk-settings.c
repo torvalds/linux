@@ -124,11 +124,6 @@ static int blk_validate_integrity_limits(struct queue_limits *lim)
 		return 0;
 	}
 
-	if (lim->features & BLK_FEAT_BOUNCE_HIGH) {
-		pr_warn("no bounce buffer support for integrity metadata\n");
-		return -EINVAL;
-	}
-
 	if (!IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY)) {
 		pr_warn("integrity support disabled.\n");
 		return -EINVAL;

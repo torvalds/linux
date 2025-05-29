@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-#ifndef _IP6_TUNNEL_H
-#define _IP6_TUNNEL_H
+#ifndef _UAPI_IP6_TUNNEL_H
+#define _UAPI_IP6_TUNNEL_H
 
 #include <linux/types.h>
 #include <linux/if.h>		/* For IFNAMSIZ. */

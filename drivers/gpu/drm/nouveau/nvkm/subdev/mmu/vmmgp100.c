@@ -436,6 +436,9 @@ gp100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 		return ret;
 	}
 
+	if (vmm->func->valid2)
+		return vmm->func->valid2(vmm, ro, priv, kind, 0, map);
+
 	aper = vmm->func->aper(target);
 	if (WARN_ON(aper < 0))
 		return aper;

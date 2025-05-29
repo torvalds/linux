@@ -20,7 +20,6 @@
 #include "hda_generic.h"
 #include "hda_component.h"
 #include "cs35l41_hda.h"
-#include "hda_cs_dsp_ctl.h"
 #include "cs35l41_hda_property.h"
 
 #define CS35L41_PART "cs35l41"
@@ -72,6 +71,21 @@ static const struct cirrus_amp_cal_controls cs35l41_calibration_controls = {
 	.calr =		CAL_R_DSP_CTL_NAME,
 	.status =	CAL_STATUS_DSP_CTL_NAME,
 	.checksum =	CAL_CHECKSUM_DSP_CTL_NAME,
+};
+
+enum cs35l41_hda_fw_id {
+	CS35L41_HDA_FW_SPK_PROT,
+	CS35L41_HDA_FW_SPK_CALI,
+	CS35L41_HDA_FW_SPK_DIAG,
+	CS35L41_HDA_FW_MISC,
+	CS35L41_HDA_NUM_FW
+};
+
+static const char * const cs35l41_hda_fw_ids[CS35L41_HDA_NUM_FW] = {
+	[CS35L41_HDA_FW_SPK_PROT] = "spk-prot",
+	[CS35L41_HDA_FW_SPK_CALI] = "spk-cali",
+	[CS35L41_HDA_FW_SPK_DIAG] = "spk-diag",
+	[CS35L41_HDA_FW_MISC] =     "misc",
 };
 
 static bool firmware_autostart = 1;
@@ -169,23 +183,23 @@ static int cs35l41_request_firmware_file(struct cs35l41_hda *cs35l41,
 
 	if (spkid > -1 && ssid && amp_name)
 		*filename = kasprintf(GFP_KERNEL, "cirrus/%s-%s-%s-%s-spkid%d-%s.%s", CS35L41_PART,
-				      dsp_name, hda_cs_dsp_fw_ids[cs35l41->firmware_type],
+				      dsp_name, cs35l41_hda_fw_ids[cs35l41->firmware_type],
 				      ssid, spkid, amp_name, filetype);
 	else if (spkid > -1 && ssid)
 		*filename = kasprintf(GFP_KERNEL, "cirrus/%s-%s-%s-%s-spkid%d.%s", CS35L41_PART,
-				      dsp_name, hda_cs_dsp_fw_ids[cs35l41->firmware_type],
+				      dsp_name, cs35l41_hda_fw_ids[cs35l41->firmware_type],
 				      ssid, spkid, filetype);
 	else if (ssid && amp_name)
 		*filename = kasprintf(GFP_KERNEL, "cirrus/%s-%s-%s-%s-%s.%s", CS35L41_PART,
-				      dsp_name, hda_cs_dsp_fw_ids[cs35l41->firmware_type],
+				      dsp_name, cs35l41_hda_fw_ids[cs35l41->firmware_type],
 				      ssid, amp_name, filetype);
 	else if (ssid)
 		*filename = kasprintf(GFP_KERNEL, "cirrus/%s-%s-%s-%s.%s", CS35L41_PART,
-				      dsp_name, hda_cs_dsp_fw_ids[cs35l41->firmware_type],
+				      dsp_name, cs35l41_hda_fw_ids[cs35l41->firmware_type],
 				      ssid, filetype);
 	else
 		*filename = kasprintf(GFP_KERNEL, "cirrus/%s-%s-%s.%s", CS35L41_PART,
-				      dsp_name, hda_cs_dsp_fw_ids[cs35l41->firmware_type],
+				      dsp_name, cs35l41_hda_fw_ids[cs35l41->firmware_type],
 				      filetype);
 
 	if (*filename == NULL)
@@ -588,7 +602,7 @@ static int cs35l41_init_dsp(struct cs35l41_hda *cs35l41)
 	}
 
 	ret = cs_dsp_power_up(dsp, wmfw_firmware, wmfw_filename, coeff_firmware, coeff_filename,
-			      hda_cs_dsp_fw_ids[cs35l41->firmware_type]);
+			      cs35l41_hda_fw_ids[cs35l41->firmware_type]);
 	if (ret)
 		goto err;
 
@@ -1108,6 +1122,18 @@ err:
 	return ret;
 }
 
+static int cs35l41_hda_read_ctl(struct cs_dsp *dsp, const char *name, int type,
+				unsigned int alg, void *buf, size_t len)
+{
+	int ret;
+
+	mutex_lock(&dsp->pwr_lock);
+	ret = cs_dsp_coeff_read_ctrl(cs_dsp_get_ctl(dsp, name, type, alg), 0, buf, len);
+	mutex_unlock(&dsp->pwr_lock);
+
+	return ret;
+}
+
 static int cs35l41_smart_amp(struct cs35l41_hda *cs35l41)
 {
 	unsigned int fw_status;
@@ -1137,7 +1163,7 @@ static int cs35l41_smart_amp(struct cs35l41_hda *cs35l41)
 		goto clean_dsp;
 	}
 
-	ret = read_poll_timeout(hda_cs_dsp_read_ctl, ret,
+	ret = read_poll_timeout(cs35l41_hda_read_ctl, ret,
 				be32_to_cpu(halo_sts) == HALO_STATE_CODE_RUN,
 				1000, 15000, false, &cs35l41->cs_dsp, HALO_STATE_DSP_CTL_NAME,
 				HALO_STATE_DSP_CTL_TYPE, HALO_STATE_DSP_CTL_ALG,
@@ -1174,7 +1200,7 @@ static int cs35l41_smart_amp(struct cs35l41_hda *cs35l41)
 	}
 
 	dev_info(cs35l41->dev, "Firmware Loaded - Type: %s, Gain: %d\n",
-		 hda_cs_dsp_fw_ids[cs35l41->firmware_type], cs35l41->tuning_gain);
+		 cs35l41_hda_fw_ids[cs35l41->firmware_type], cs35l41->tuning_gain);
 
 	return 0;
 
@@ -1276,7 +1302,7 @@ static int cs35l41_fw_type_ctl_put(struct snd_kcontrol *kcontrol,
 {
 	struct cs35l41_hda *cs35l41 = snd_kcontrol_chip(kcontrol);
 
-	if (ucontrol->value.enumerated.item[0] < HDA_CS_DSP_NUM_FW) {
+	if (ucontrol->value.enumerated.item[0] < CS35L41_HDA_NUM_FW) {
 		if (cs35l41->firmware_type != ucontrol->value.enumerated.item[0]) {
 			cs35l41->firmware_type = ucontrol->value.enumerated.item[0];
 			return 1;
@@ -1290,7 +1316,7 @@ static int cs35l41_fw_type_ctl_put(struct snd_kcontrol *kcontrol,
 
 static int cs35l41_fw_type_ctl_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	return snd_ctl_enum_info(uinfo, 1, ARRAY_SIZE(hda_cs_dsp_fw_ids), hda_cs_dsp_fw_ids);
+	return snd_ctl_enum_info(uinfo, 1, ARRAY_SIZE(cs35l41_hda_fw_ids), cs35l41_hda_fw_ids);
 }
 
 static int cs35l41_create_controls(struct cs35l41_hda *cs35l41)
@@ -1430,7 +1456,7 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 
 	strscpy(comp->name, dev_name(dev), sizeof(comp->name));
 
-	cs35l41->firmware_type = HDA_CS_DSP_FW_SPK_PROT;
+	cs35l41->firmware_type = CS35L41_HDA_FW_SPK_PROT;
 
 	if (firmware_autostart) {
 		dev_dbg(cs35l41->dev, "Firmware Autostart.\n");
@@ -2055,7 +2081,6 @@ const struct dev_pm_ops cs35l41_hda_pm_ops = {
 EXPORT_SYMBOL_NS_GPL(cs35l41_hda_pm_ops, "SND_HDA_SCODEC_CS35L41");
 
 MODULE_DESCRIPTION("CS35L41 HDA Driver");
-MODULE_IMPORT_NS("SND_HDA_CS_DSP_CONTROLS");
 MODULE_IMPORT_NS("SND_SOC_CS_AMP_LIB");
 MODULE_AUTHOR("Lucas Tanure, Cirrus Logic Inc, <tanureal@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");

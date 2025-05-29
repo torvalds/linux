@@ -141,7 +141,7 @@ void bcmasp_flush_rx_port(struct bcmasp_intf *intf)
 		return;
 	}
 
-	rx_ctrl_core_wl(priv, mask, priv->hw_info->rx_ctrl_flush);
+	rx_ctrl_core_wl(priv, mask, ASP_RX_CTRL_FLUSH);
 }
 
 static void bcmasp_netfilt_hw_en_wake(struct bcmasp_priv *priv,
@@ -518,7 +518,7 @@ void bcmasp_netfilt_suspend(struct bcmasp_intf *intf)
 	int ret, i;
 
 	/* Write all filters to HW */
-	for (i = 0; i < NUM_NET_FILTERS; i++) {
+	for (i = 0; i < priv->num_net_filters; i++) {
 		/* If the filter does not match the port, skip programming. */
 		if (!priv->net_filters[i].claimed ||
 		    priv->net_filters[i].port != intf->port)
@@ -551,7 +551,7 @@ int bcmasp_netfilt_get_all_active(struct bcmasp_intf *intf, u32 *rule_locs,
 	struct bcmasp_priv *priv = intf->parent;
 	int j = 0, i;
 
-	for (i = 0; i < NUM_NET_FILTERS; i++) {
+	for (i = 0; i < priv->num_net_filters; i++) {
 		if (!priv->net_filters[i].claimed ||
 		    priv->net_filters[i].port != intf->port)
 			continue;
@@ -577,7 +577,7 @@ int bcmasp_netfilt_get_active(struct bcmasp_intf *intf)
 	struct bcmasp_priv *priv = intf->parent;
 	int cnt = 0, i;
 
-	for (i = 0; i < NUM_NET_FILTERS; i++) {
+	for (i = 0; i < priv->num_net_filters; i++) {
 		if (!priv->net_filters[i].claimed ||
 		    priv->net_filters[i].port != intf->port)
 			continue;
@@ -602,7 +602,7 @@ bool bcmasp_netfilt_check_dup(struct bcmasp_intf *intf,
 	size_t fs_size = 0;
 	int i;
 
-	for (i = 0; i < NUM_NET_FILTERS; i++) {
+	for (i = 0; i < priv->num_net_filters; i++) {
 		if (!priv->net_filters[i].claimed ||
 		    priv->net_filters[i].port != intf->port)
 			continue;
@@ -670,7 +670,7 @@ struct bcmasp_net_filter *bcmasp_netfilt_get_init(struct bcmasp_intf *intf,
 	int i, open_index = -1;
 
 	/* Check whether we exceed the filter table capacity */
-	if (loc != RX_CLS_LOC_ANY && loc >= NUM_NET_FILTERS)
+	if (loc != RX_CLS_LOC_ANY && loc >= priv->num_net_filters)
 		return ERR_PTR(-EINVAL);
 
 	/* If the filter location is busy (already claimed) and we are initializing
@@ -686,7 +686,7 @@ struct bcmasp_net_filter *bcmasp_netfilt_get_init(struct bcmasp_intf *intf,
 	/* Initialize the loop index based on the desired location or from 0 */
 	i = loc == RX_CLS_LOC_ANY ? 0 : loc;
 
-	for ( ; i < NUM_NET_FILTERS; i++) {
+	for ( ; i < priv->num_net_filters; i++) {
 		/* Found matching network filter */
 		if (!init &&
 		    priv->net_filters[i].claimed &&
@@ -779,7 +779,7 @@ static void bcmasp_en_mda_filter(struct bcmasp_intf *intf, bool en,
 	priv->mda_filters[i].en = en;
 	priv->mda_filters[i].port = intf->port;
 
-	rx_filter_core_wl(priv, ((intf->channel + 8) |
+	rx_filter_core_wl(priv, ((intf->channel + priv->tx_chan_offset) |
 			  (en << ASP_RX_FILTER_MDA_CFG_EN_SHIFT) |
 			  ASP_RX_FILTER_MDA_CFG_UMC_SEL(intf->port)),
 			  ASP_RX_FILTER_MDA_CFG(i));
@@ -865,7 +865,7 @@ void bcmasp_disable_all_filters(struct bcmasp_intf *intf)
 	res_count = bcmasp_total_res_mda_cnt(intf->parent);
 
 	/* Disable all filters held by this port */
-	for (i = res_count; i < NUM_MDA_FILTERS; i++) {
+	for (i = res_count; i < priv->num_mda_filters; i++) {
 		if (priv->mda_filters[i].en &&
 		    priv->mda_filters[i].port == intf->port)
 			bcmasp_en_mda_filter(intf, 0, i);
@@ -909,7 +909,7 @@ int bcmasp_set_en_mda_filter(struct bcmasp_intf *intf, unsigned char *addr,
 
 	res_count = bcmasp_total_res_mda_cnt(intf->parent);
 
-	for (i = res_count; i < NUM_MDA_FILTERS; i++) {
+	for (i = res_count; i < priv->num_mda_filters; i++) {
 		/* If filter not enabled or belongs to another port skip */
 		if (!priv->mda_filters[i].en ||
 		    priv->mda_filters[i].port != intf->port)
@@ -924,7 +924,7 @@ int bcmasp_set_en_mda_filter(struct bcmasp_intf *intf, unsigned char *addr,
 	}
 
 	/* Create new filter if possible */
-	for (i = res_count; i < NUM_MDA_FILTERS; i++) {
+	for (i = res_count; i < priv->num_mda_filters; i++) {
 		if (priv->mda_filters[i].en)
 			continue;
 
@@ -944,12 +944,12 @@ static void bcmasp_core_init_filters(struct bcmasp_priv *priv)
 	/* Disable all filters and reset software view since the HW
 	 * can lose context while in deep sleep suspend states
 	 */
-	for (i = 0; i < NUM_MDA_FILTERS; i++) {
+	for (i = 0; i < priv->num_mda_filters; i++) {
 		rx_filter_core_wl(priv, 0x0, ASP_RX_FILTER_MDA_CFG(i));
 		priv->mda_filters[i].en = 0;
 	}
 
-	for (i = 0; i < NUM_NET_FILTERS; i++)
+	for (i = 0; i < priv->num_net_filters; i++)
 		rx_filter_core_wl(priv, 0x0, ASP_RX_FILTER_NET_CFG(i));
 
 	/* Top level filter enable bit should be enabled at all times, set
@@ -966,18 +966,8 @@ static void bcmasp_core_init_filters(struct bcmasp_priv *priv)
 /* ASP core initialization */
 static void bcmasp_core_init(struct bcmasp_priv *priv)
 {
-	tx_analytics_core_wl(priv, 0x0, ASP_TX_ANALYTICS_CTRL);
-	rx_analytics_core_wl(priv, 0x4, ASP_RX_ANALYTICS_CTRL);
-
-	rx_edpkt_core_wl(priv, (ASP_EDPKT_HDR_SZ_128 << ASP_EDPKT_HDR_SZ_SHIFT),
-			 ASP_EDPKT_HDR_CFG);
-	rx_edpkt_core_wl(priv,
-			 (ASP_EDPKT_ENDI_BT_SWP_WD << ASP_EDPKT_ENDI_DESC_SHIFT),
-			 ASP_EDPKT_ENDI);
-
 	rx_edpkt_core_wl(priv, 0x1b, ASP_EDPKT_BURST_BUF_PSCAL_TOUT);
 	rx_edpkt_core_wl(priv, 0x3e8, ASP_EDPKT_BURST_BUF_WRITE_TOUT);
-	rx_edpkt_core_wl(priv, 0x3e8, ASP_EDPKT_BURST_BUF_READ_TOUT);
 
 	rx_edpkt_core_wl(priv, ASP_EDPKT_ENABLE_EN, ASP_EDPKT_ENABLE);
 
@@ -1018,6 +1008,18 @@ static void bcmasp_core_clock_select_one(struct bcmasp_priv *priv, bool slow)
 	else
 		reg |= ASP_CTRL_CORE_CLOCK_SELECT_MAIN;
 	ctrl_core_wl(priv, reg, ASP_CTRL_CORE_CLOCK_SELECT);
+}
+
+static void bcmasp_core_clock_select_one_ctrl2(struct bcmasp_priv *priv, bool slow)
+{
+	u32 reg;
+
+	reg = ctrl2_core_rl(priv, ASP_CTRL2_CORE_CLOCK_SELECT);
+	if (slow)
+		reg &= ~ASP_CTRL2_CORE_CLOCK_SELECT_MAIN;
+	else
+		reg |= ASP_CTRL2_CORE_CLOCK_SELECT_MAIN;
+	ctrl2_core_wl(priv, reg, ASP_CTRL2_CORE_CLOCK_SELECT);
 }
 
 static void bcmasp_core_clock_set_ll(struct bcmasp_priv *priv, u32 clr, u32 set)
@@ -1108,7 +1110,7 @@ static int bcmasp_get_and_request_irq(struct bcmasp_priv *priv, int i)
 	return irq;
 }
 
-static void bcmasp_init_wol_shared(struct bcmasp_priv *priv)
+static void bcmasp_init_wol(struct bcmasp_priv *priv)
 {
 	struct platform_device *pdev = priv->pdev;
 	struct device *dev = &pdev->dev;
@@ -1125,7 +1127,7 @@ static void bcmasp_init_wol_shared(struct bcmasp_priv *priv)
 	device_set_wakeup_capable(&pdev->dev, 1);
 }
 
-static void bcmasp_enable_wol_shared(struct bcmasp_intf *intf, bool en)
+void bcmasp_enable_wol(struct bcmasp_intf *intf, bool en)
 {
 	struct bcmasp_priv *priv = intf->parent;
 	struct device *dev = &priv->pdev->dev;
@@ -1154,52 +1156,10 @@ static void bcmasp_enable_wol_shared(struct bcmasp_intf *intf, bool en)
 	}
 }
 
-static void bcmasp_wol_irq_destroy_shared(struct bcmasp_priv *priv)
+static void bcmasp_wol_irq_destroy(struct bcmasp_priv *priv)
 {
 	if (priv->wol_irq > 0)
 		free_irq(priv->wol_irq, priv);
-}
-
-static void bcmasp_init_wol_per_intf(struct bcmasp_priv *priv)
-{
-	struct platform_device *pdev = priv->pdev;
-	struct device *dev = &pdev->dev;
-	struct bcmasp_intf *intf;
-	int irq;
-
-	list_for_each_entry(intf, &priv->intfs, list) {
-		irq = bcmasp_get_and_request_irq(priv, intf->port + 1);
-		if (irq < 0) {
-			dev_warn(dev, "Failed to init WoL irq(port %d): %d\n",
-				 intf->port, irq);
-			continue;
-		}
-
-		intf->wol_irq = irq;
-		intf->wol_irq_enabled = false;
-		device_set_wakeup_capable(&pdev->dev, 1);
-	}
-}
-
-static void bcmasp_enable_wol_per_intf(struct bcmasp_intf *intf, bool en)
-{
-	struct device *dev = &intf->parent->pdev->dev;
-
-	if (en ^ intf->wol_irq_enabled)
-		irq_set_irq_wake(intf->wol_irq, en);
-
-	intf->wol_irq_enabled = en;
-	device_set_wakeup_enable(dev, en);
-}
-
-static void bcmasp_wol_irq_destroy_per_intf(struct bcmasp_priv *priv)
-{
-	struct bcmasp_intf *intf;
-
-	list_for_each_entry(intf, &priv->intfs, list) {
-		if (intf->wol_irq > 0)
-			free_irq(intf->wol_irq, priv);
-	}
 }
 
 static void bcmasp_eee_fixup(struct bcmasp_intf *intf, bool en)
@@ -1220,70 +1180,53 @@ static void bcmasp_eee_fixup(struct bcmasp_intf *intf, bool en)
 	usleep_range(50, 100);
 }
 
-static struct bcmasp_hw_info v20_hw_info = {
-	.rx_ctrl_flush = ASP_RX_CTRL_FLUSH,
-	.umac2fb = UMAC2FB_OFFSET,
-	.rx_ctrl_fb_out_frame_count = ASP_RX_CTRL_FB_OUT_FRAME_COUNT,
-	.rx_ctrl_fb_filt_out_frame_count = ASP_RX_CTRL_FB_FILT_OUT_FRAME_COUNT,
-	.rx_ctrl_fb_rx_fifo_depth = ASP_RX_CTRL_FB_RX_FIFO_DEPTH,
-};
-
-static const struct bcmasp_plat_data v20_plat_data = {
-	.init_wol = bcmasp_init_wol_per_intf,
-	.enable_wol = bcmasp_enable_wol_per_intf,
-	.destroy_wol = bcmasp_wol_irq_destroy_per_intf,
-	.core_clock_select = bcmasp_core_clock_select_one,
-	.hw_info = &v20_hw_info,
-};
-
-static struct bcmasp_hw_info v21_hw_info = {
-	.rx_ctrl_flush = ASP_RX_CTRL_FLUSH_2_1,
-	.umac2fb = UMAC2FB_OFFSET_2_1,
-	.rx_ctrl_fb_out_frame_count = ASP_RX_CTRL_FB_OUT_FRAME_COUNT_2_1,
-	.rx_ctrl_fb_filt_out_frame_count =
-		ASP_RX_CTRL_FB_FILT_OUT_FRAME_COUNT_2_1,
-	.rx_ctrl_fb_rx_fifo_depth = ASP_RX_CTRL_FB_RX_FIFO_DEPTH_2_1,
-};
-
 static const struct bcmasp_plat_data v21_plat_data = {
-	.init_wol = bcmasp_init_wol_shared,
-	.enable_wol = bcmasp_enable_wol_shared,
-	.destroy_wol = bcmasp_wol_irq_destroy_shared,
 	.core_clock_select = bcmasp_core_clock_select_one,
-	.hw_info = &v21_hw_info,
+	.num_mda_filters = 32,
+	.num_net_filters = 32,
+	.tx_chan_offset = 8,
+	.rx_ctrl_offset = 0x0,
 };
 
 static const struct bcmasp_plat_data v22_plat_data = {
-	.init_wol = bcmasp_init_wol_shared,
-	.enable_wol = bcmasp_enable_wol_shared,
-	.destroy_wol = bcmasp_wol_irq_destroy_shared,
 	.core_clock_select = bcmasp_core_clock_select_many,
-	.hw_info = &v21_hw_info,
 	.eee_fixup = bcmasp_eee_fixup,
+	.num_mda_filters = 32,
+	.num_net_filters = 32,
+	.tx_chan_offset = 8,
+	.rx_ctrl_offset = 0x0,
+};
+
+static const struct bcmasp_plat_data v30_plat_data = {
+	.core_clock_select = bcmasp_core_clock_select_one_ctrl2,
+	.num_mda_filters = 20,
+	.num_net_filters = 16,
+	.tx_chan_offset = 0,
+	.rx_ctrl_offset = 0x10000,
 };
 
 static void bcmasp_set_pdata(struct bcmasp_priv *priv, const struct bcmasp_plat_data *pdata)
 {
-	priv->init_wol = pdata->init_wol;
-	priv->enable_wol = pdata->enable_wol;
-	priv->destroy_wol = pdata->destroy_wol;
 	priv->core_clock_select = pdata->core_clock_select;
 	priv->eee_fixup = pdata->eee_fixup;
-	priv->hw_info = pdata->hw_info;
+	priv->num_mda_filters = pdata->num_mda_filters;
+	priv->num_net_filters = pdata->num_net_filters;
+	priv->tx_chan_offset = pdata->tx_chan_offset;
+	priv->rx_ctrl_offset = pdata->rx_ctrl_offset;
 }
 
 static const struct of_device_id bcmasp_of_match[] = {
-	{ .compatible = "brcm,asp-v2.0", .data = &v20_plat_data },
 	{ .compatible = "brcm,asp-v2.1", .data = &v21_plat_data },
 	{ .compatible = "brcm,asp-v2.2", .data = &v22_plat_data },
+	{ .compatible = "brcm,asp-v3.0", .data = &v30_plat_data },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, bcmasp_of_match);
 
 static const struct of_device_id bcmasp_mdio_of_match[] = {
-	{ .compatible = "brcm,asp-v2.2-mdio", },
 	{ .compatible = "brcm,asp-v2.1-mdio", },
-	{ .compatible = "brcm,asp-v2.0-mdio", },
+	{ .compatible = "brcm,asp-v2.2-mdio", },
+	{ .compatible = "brcm,asp-v3.0-mdio", },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, bcmasp_mdio_of_match);
@@ -1365,6 +1308,17 @@ static int bcmasp_probe(struct platform_device *pdev)
 	 * how many interfaces come up.
 	 */
 	bcmasp_core_init(priv);
+
+	priv->mda_filters = devm_kcalloc(dev, priv->num_mda_filters,
+					 sizeof(*priv->mda_filters), GFP_KERNEL);
+	if (!priv->mda_filters)
+		return -ENOMEM;
+
+	priv->net_filters = devm_kcalloc(dev, priv->num_net_filters,
+					 sizeof(*priv->net_filters), GFP_KERNEL);
+	if (!priv->net_filters)
+		return -ENOMEM;
+
 	bcmasp_core_init_filters(priv);
 
 	ports_node = of_find_node_by_name(dev->of_node, "ethernet-ports");
@@ -1387,7 +1341,7 @@ static int bcmasp_probe(struct platform_device *pdev)
 	}
 
 	/* Check and enable WoL */
-	priv->init_wol(priv);
+	bcmasp_init_wol(priv);
 
 	/* Drop the clock reference count now and let ndo_open()/ndo_close()
 	 * manage it for us from now on.
@@ -1404,7 +1358,7 @@ static int bcmasp_probe(struct platform_device *pdev)
 		if (ret) {
 			netdev_err(intf->ndev,
 				   "failed to register net_device: %d\n", ret);
-			priv->destroy_wol(priv);
+			bcmasp_wol_irq_destroy(priv);
 			bcmasp_remove_intfs(priv);
 			goto of_put_exit;
 		}
@@ -1425,7 +1379,7 @@ static void bcmasp_remove(struct platform_device *pdev)
 	if (!priv)
 		return;
 
-	priv->destroy_wol(priv);
+	bcmasp_wol_irq_destroy(priv);
 	bcmasp_remove_intfs(priv);
 }
 

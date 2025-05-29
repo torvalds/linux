@@ -214,7 +214,7 @@ static const struct regmap_config pf9453_regmap_config = {
 	.val_bits = 8,
 	.volatile_table = &pf9453_volatile_regs,
 	.max_register = PF9453_MAX_REG - 1,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 /*
@@ -412,6 +412,7 @@ static int find_closest_bigger(unsigned int target, const unsigned int *table,
  * pf9453_regulator_set_ramp_delay_regmap
  *
  * @rdev: regulator to operate on
+ * @ramp_delay: desired ramp delay value in microseconds
  *
  * Regulators that use regmap for their register I/O can set the ramp_reg
  * and ramp_mask fields in their descriptor and then use this as their

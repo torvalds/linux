@@ -78,10 +78,9 @@ gf100_pcie_set_link(struct nvkm_pci *pci, enum nvkm_pcie_speed speed, u8 width)
 
 static const struct nvkm_pci_func
 gf100_pci_func = {
+	.cfg = { .addr = 0x088000, .size = 0x1000 },
+
 	.init = g84_pci_init,
-	.rd32 = nv40_pci_rd32,
-	.wr08 = nv40_pci_wr08,
-	.wr32 = nv40_pci_wr32,
 	.msi_rearm = gf100_pci_msi_rearm,
 
 	.pcie.init = gf100_pcie_init,

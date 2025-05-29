@@ -209,80 +209,79 @@ static const char *const compat_hwcap2_str[] = {
 
 static int c_show(struct seq_file *m, void *v)
 {
-	int i, j;
+	int j;
+	int cpu = m->index;
 	bool compat = personality(current->personality) == PER_LINUX32;
+	struct cpuinfo_arm64 *cpuinfo = v;
+	u32 midr = cpuinfo->reg_midr;
 
-	for_each_online_cpu(i) {
-		struct cpuinfo_arm64 *cpuinfo = &per_cpu(cpu_data, i);
-		u32 midr = cpuinfo->reg_midr;
+	/*
+	 * glibc reads /proc/cpuinfo to determine the number of
+	 * online processors, looking for lines beginning with
+	 * "processor".  Give glibc what it expects.
+	 */
+	seq_printf(m, "processor\t: %d\n", cpu);
+	if (compat)
+		seq_printf(m, "model name\t: ARMv8 Processor rev %d (%s)\n",
+			   MIDR_REVISION(midr), COMPAT_ELF_PLATFORM);
 
-		/*
-		 * glibc reads /proc/cpuinfo to determine the number of
-		 * online processors, looking for lines beginning with
-		 * "processor".  Give glibc what it expects.
-		 */
-		seq_printf(m, "processor\t: %d\n", i);
-		if (compat)
-			seq_printf(m, "model name\t: ARMv8 Processor rev %d (%s)\n",
-				   MIDR_REVISION(midr), COMPAT_ELF_PLATFORM);
+	seq_printf(m, "BogoMIPS\t: %lu.%02lu\n",
+		   loops_per_jiffy / (500000UL/HZ),
+		   loops_per_jiffy / (5000UL/HZ) % 100);
 
-		seq_printf(m, "BogoMIPS\t: %lu.%02lu\n",
-			   loops_per_jiffy / (500000UL/HZ),
-			   loops_per_jiffy / (5000UL/HZ) % 100);
-
-		/*
-		 * Dump out the common processor features in a single line.
-		 * Userspace should read the hwcaps with getauxval(AT_HWCAP)
-		 * rather than attempting to parse this, but there's a body of
-		 * software which does already (at least for 32-bit).
-		 */
-		seq_puts(m, "Features\t:");
-		if (compat) {
+	/*
+	 * Dump out the common processor features in a single line.
+	 * Userspace should read the hwcaps with getauxval(AT_HWCAP)
+	 * rather than attempting to parse this, but there's a body of
+	 * software which does already (at least for 32-bit).
+	 */
+	seq_puts(m, "Features\t:");
+	if (compat) {
 #ifdef CONFIG_COMPAT
-			for (j = 0; j < ARRAY_SIZE(compat_hwcap_str); j++) {
-				if (compat_elf_hwcap & (1 << j)) {
-					/*
-					 * Warn once if any feature should not
-					 * have been present on arm64 platform.
-					 */
-					if (WARN_ON_ONCE(!compat_hwcap_str[j]))
-						continue;
+		for (j = 0; j < ARRAY_SIZE(compat_hwcap_str); j++) {
+			if (compat_elf_hwcap & (1 << j)) {
+				/*
+				 * Warn once if any feature should not
+				 * have been present on arm64 platform.
+				 */
+				if (WARN_ON_ONCE(!compat_hwcap_str[j]))
+					continue;
 
-					seq_printf(m, " %s", compat_hwcap_str[j]);
-				}
+				seq_printf(m, " %s", compat_hwcap_str[j]);
 			}
-
-			for (j = 0; j < ARRAY_SIZE(compat_hwcap2_str); j++)
-				if (compat_elf_hwcap2 & (1 << j))
-					seq_printf(m, " %s", compat_hwcap2_str[j]);
-#endif /* CONFIG_COMPAT */
-		} else {
-			for (j = 0; j < ARRAY_SIZE(hwcap_str); j++)
-				if (cpu_have_feature(j))
-					seq_printf(m, " %s", hwcap_str[j]);
 		}
-		seq_puts(m, "\n");
 
-		seq_printf(m, "CPU implementer\t: 0x%02x\n",
-			   MIDR_IMPLEMENTOR(midr));
-		seq_printf(m, "CPU architecture: 8\n");
-		seq_printf(m, "CPU variant\t: 0x%x\n", MIDR_VARIANT(midr));
-		seq_printf(m, "CPU part\t: 0x%03x\n", MIDR_PARTNUM(midr));
-		seq_printf(m, "CPU revision\t: %d\n\n", MIDR_REVISION(midr));
+		for (j = 0; j < ARRAY_SIZE(compat_hwcap2_str); j++)
+			if (compat_elf_hwcap2 & (1 << j))
+				seq_printf(m, " %s", compat_hwcap2_str[j]);
+#endif /* CONFIG_COMPAT */
+	} else {
+		for (j = 0; j < ARRAY_SIZE(hwcap_str); j++)
+			if (cpu_have_feature(j))
+				seq_printf(m, " %s", hwcap_str[j]);
 	}
+	seq_puts(m, "\n");
+
+	seq_printf(m, "CPU implementer\t: 0x%02x\n",
+		   MIDR_IMPLEMENTOR(midr));
+	seq_puts(m, "CPU architecture: 8\n");
+	seq_printf(m, "CPU variant\t: 0x%x\n", MIDR_VARIANT(midr));
+	seq_printf(m, "CPU part\t: 0x%03x\n", MIDR_PARTNUM(midr));
+	seq_printf(m, "CPU revision\t: %d\n\n", MIDR_REVISION(midr));
 
 	return 0;
 }
 
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
-	return *pos < 1 ? (void *)1 : NULL;
+	*pos = cpumask_next(*pos - 1, cpu_online_mask);
+	return *pos < nr_cpu_ids ? &per_cpu(cpu_data, *pos) : NULL;
 }
 
 static void *c_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	++*pos;
-	return NULL;
+	return c_start(m, pos);
 }
 
 static void c_stop(struct seq_file *m, void *v)
@@ -328,11 +327,13 @@ static const struct kobj_type cpuregs_kobj_type = {
 
 CPUREGS_ATTR_RO(midr_el1, midr);
 CPUREGS_ATTR_RO(revidr_el1, revidr);
+CPUREGS_ATTR_RO(aidr_el1, aidr);
 CPUREGS_ATTR_RO(smidr_el1, smidr);
 
 static struct attribute *cpuregs_id_attrs[] = {
 	&cpuregs_attr_midr_el1.attr,
 	&cpuregs_attr_revidr_el1.attr,
+	&cpuregs_attr_aidr_el1.attr,
 	NULL
 };
 
@@ -469,6 +470,7 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	info->reg_dczid = read_cpuid(DCZID_EL0);
 	info->reg_midr = read_cpuid_id();
 	info->reg_revidr = read_cpuid(REVIDR_EL1);
+	info->reg_aidr = read_cpuid(AIDR_EL1);
 
 	info->reg_id_aa64dfr0 = read_cpuid(ID_AA64DFR0_EL1);
 	info->reg_id_aa64dfr1 = read_cpuid(ID_AA64DFR1_EL1);

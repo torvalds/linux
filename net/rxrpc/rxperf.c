@@ -8,6 +8,7 @@
 #define pr_fmt(fmt) "rxperf: " fmt
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <crypto/krb5.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #define RXRPC_TRACE_ONLY_DEFINE_ENUMS
@@ -136,6 +137,12 @@ static void rxperf_notify_end_reply_tx(struct sock *sock,
 			      RXPERF_CALL_SV_AWAIT_ACK);
 }
 
+static const struct rxrpc_kernel_ops rxperf_rxrpc_callback_ops = {
+	.notify_new_call	= rxperf_rx_new_call,
+	.discard_new_call	= rxperf_rx_discard_new_call,
+	.user_attach_call	= rxperf_rx_attach,
+};
+
 /*
  * Charge the incoming call preallocation.
  */
@@ -161,7 +168,6 @@ static void rxperf_charge_preallocation(struct work_struct *work)
 
 		if (rxrpc_kernel_charge_accept(rxperf_socket,
 					       rxperf_notify_rx,
-					       rxperf_rx_attach,
 					       (unsigned long)call,
 					       GFP_KERNEL,
 					       call->debug_id) < 0)
@@ -209,8 +215,7 @@ static int rxperf_open_socket(void)
 	if (ret < 0)
 		goto error_2;
 
-	rxrpc_kernel_new_call_notification(socket, rxperf_rx_new_call,
-					   rxperf_rx_discard_new_call);
+	rxrpc_kernel_set_notifications(socket, &rxperf_rxrpc_callback_ops);
 
 	ret = kernel_listen(socket, INT_MAX);
 	if (ret < 0)
@@ -546,9 +551,9 @@ static int rxperf_process_call(struct rxperf_call *call)
 }
 
 /*
- * Add a key to the security keyring.
+ * Add an rxkad key to the security keyring.
  */
-static int rxperf_add_key(struct key *keyring)
+static int rxperf_add_rxkad_key(struct key *keyring)
 {
 	key_ref_t kref;
 	int ret;
@@ -573,6 +578,47 @@ static int rxperf_add_key(struct key *keyring)
 	key_ref_put(kref);
 	return ret;
 }
+
+#ifdef CONFIG_RXGK
+/*
+ * Add a yfs-rxgk key to the security keyring.
+ */
+static int rxperf_add_yfs_rxgk_key(struct key *keyring, u32 enctype)
+{
+	const struct krb5_enctype *krb5 = crypto_krb5_find_enctype(enctype);
+	key_ref_t kref;
+	char name[64];
+	int ret;
+	u8 key[32];
+
+	if (!krb5 || krb5->key_len > sizeof(key))
+		return 0;
+
+	/* The key is just { 0, 1, 2, 3, 4, ... } */
+	for (int i = 0; i < krb5->key_len; i++)
+		key[i] = i;
+
+	sprintf(name, "%u:6:1:%u", RX_PERF_SERVICE, enctype);
+
+	kref = key_create_or_update(make_key_ref(keyring, true),
+				    "rxrpc_s", name,
+				    key, krb5->key_len,
+				    KEY_POS_VIEW | KEY_POS_READ | KEY_POS_SEARCH |
+				    KEY_USR_VIEW,
+				    KEY_ALLOC_NOT_IN_QUOTA);
+
+	if (IS_ERR(kref)) {
+		pr_err("Can't allocate rxperf server key: %ld\n", PTR_ERR(kref));
+		return PTR_ERR(kref);
+	}
+
+	ret = key_link(keyring, key_ref_to_ptr(kref));
+	if (ret < 0)
+		pr_err("Can't link rxperf server key: %d\n", ret);
+	key_ref_put(kref);
+	return ret;
+}
+#endif
 
 /*
  * Initialise the rxperf server.
@@ -603,9 +649,29 @@ static int __init rxperf_init(void)
 		goto error_keyring;
 	}
 	rxperf_sec_keyring = keyring;
-	ret = rxperf_add_key(keyring);
+	ret = rxperf_add_rxkad_key(keyring);
 	if (ret < 0)
 		goto error_key;
+#ifdef CONFIG_RXGK
+	ret = rxperf_add_yfs_rxgk_key(keyring, KRB5_ENCTYPE_AES128_CTS_HMAC_SHA1_96);
+	if (ret < 0)
+		goto error_key;
+	ret = rxperf_add_yfs_rxgk_key(keyring, KRB5_ENCTYPE_AES256_CTS_HMAC_SHA1_96);
+	if (ret < 0)
+		goto error_key;
+	ret = rxperf_add_yfs_rxgk_key(keyring, KRB5_ENCTYPE_AES128_CTS_HMAC_SHA256_128);
+	if (ret < 0)
+		goto error_key;
+	ret = rxperf_add_yfs_rxgk_key(keyring, KRB5_ENCTYPE_AES256_CTS_HMAC_SHA384_192);
+	if (ret < 0)
+		goto error_key;
+	ret = rxperf_add_yfs_rxgk_key(keyring, KRB5_ENCTYPE_CAMELLIA128_CTS_CMAC);
+	if (ret < 0)
+		goto error_key;
+	ret = rxperf_add_yfs_rxgk_key(keyring, KRB5_ENCTYPE_CAMELLIA256_CTS_CMAC);
+	if (ret < 0)
+		goto error_key;
+#endif
 
 	ret = rxperf_open_socket();
 	if (ret < 0)

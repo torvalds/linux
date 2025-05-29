@@ -14,11 +14,29 @@ void bch2_btree_node_ondisk_to_text(struct printbuf *, struct bch_fs *,
 
 static inline void bch2_btree_verify(struct bch_fs *c, struct btree *b)
 {
-	if (bch2_verify_btree_ondisk)
+	if (static_branch_unlikely(&bch2_verify_btree_ondisk))
 		__bch2_btree_verify(c, b);
 }
 
 #ifdef CONFIG_DEBUG_FS
+struct dump_iter {
+	struct bch_fs		*c;
+	struct async_obj_list	*list;
+	enum btree_id		id;
+	struct bpos		from;
+	struct bpos		prev_node;
+	u64			iter;
+
+	struct printbuf		buf;
+
+	char __user		*ubuf;	/* destination user buffer */
+	size_t			size;	/* size of requested read */
+	ssize_t			ret;	/* bytes read so far */
+};
+
+ssize_t bch2_debugfs_flush_buf(struct dump_iter *);
+int bch2_dump_release(struct inode *, struct file *);
+
 void bch2_fs_debug_exit(struct bch_fs *);
 void bch2_fs_debug_init(struct bch_fs *);
 #else

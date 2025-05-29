@@ -91,7 +91,7 @@ static void bch2_checksum_update(struct bch2_checksum_state *state, const void *
 	}
 }
 
-static void bch2_chacha20_init(u32 state[CHACHA_STATE_WORDS],
+static void bch2_chacha20_init(struct chacha_state *state,
 			       const struct bch_key *key, struct nonce nonce)
 {
 	u32 key_words[CHACHA_KEY_SIZE / sizeof(u32)];
@@ -106,14 +106,14 @@ static void bch2_chacha20_init(u32 state[CHACHA_STATE_WORDS],
 	memzero_explicit(key_words, sizeof(key_words));
 }
 
-static void bch2_chacha20(const struct bch_key *key, struct nonce nonce,
-			  void *data, size_t len)
+void bch2_chacha20(const struct bch_key *key, struct nonce nonce,
+		   void *data, size_t len)
 {
-	u32 state[CHACHA_STATE_WORDS];
+	struct chacha_state state;
 
-	bch2_chacha20_init(state, key, nonce);
-	chacha20_crypt(state, data, data, len);
-	memzero_explicit(state, sizeof(state));
+	bch2_chacha20_init(&state, key, nonce);
+	chacha20_crypt(&state, data, data, len);
+	chacha_zeroize_state(&state);
 }
 
 static void bch2_poly1305_init(struct poly1305_desc_ctx *desc,
@@ -257,14 +257,14 @@ int __bch2_encrypt_bio(struct bch_fs *c, unsigned type,
 {
 	struct bio_vec bv;
 	struct bvec_iter iter;
-	u32 chacha_state[CHACHA_STATE_WORDS];
+	struct chacha_state chacha_state;
 	int ret = 0;
 
 	if (bch2_fs_inconsistent_on(!c->chacha20_key_set,
 				    c, "attempting to encrypt without encryption key"))
 		return -BCH_ERR_no_encryption_key;
 
-	bch2_chacha20_init(chacha_state, &c->chacha20_key, nonce);
+	bch2_chacha20_init(&chacha_state, &c->chacha20_key, nonce);
 
 	bio_for_each_segment(bv, bio, iter) {
 		void *p;
@@ -280,10 +280,10 @@ int __bch2_encrypt_bio(struct bch_fs *c, unsigned type,
 		}
 
 		p = bvec_kmap_local(&bv);
-		chacha20_crypt(chacha_state, p, p, bv.bv_len);
+		chacha20_crypt(&chacha_state, p, p, bv.bv_len);
 		kunmap_local(p);
 	}
-	memzero_explicit(chacha_state, sizeof(chacha_state));
+	chacha_zeroize_state(&chacha_state);
 	return ret;
 }
 

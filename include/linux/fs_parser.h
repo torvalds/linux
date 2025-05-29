@@ -87,14 +87,9 @@ extern int lookup_constant(const struct constant_table tbl[], const char *name, 
 extern const struct constant_table bool_names[];
 
 #ifdef CONFIG_VALIDATE_FS_PARSER
-extern bool validate_constant_table(const struct constant_table *tbl, size_t tbl_size,
-				    int low, int high, int special);
 extern bool fs_validate_description(const char *name,
 				    const struct fs_parameter_spec *desc);
 #else
-static inline bool validate_constant_table(const struct constant_table *tbl, size_t tbl_size,
-					   int low, int high, int special)
-{ return true; }
 static inline bool fs_validate_description(const char *name,
 					   const struct fs_parameter_spec *desc)
 { return true; }
@@ -125,8 +120,6 @@ static inline bool fs_validate_description(const char *name,
 #define fsparam_u32(NAME, OPT)	__fsparam(fs_param_is_u32, NAME, OPT, 0, NULL)
 #define fsparam_u32oct(NAME, OPT) \
 			__fsparam(fs_param_is_u32, NAME, OPT, 0, (void *)8)
-#define fsparam_u32hex(NAME, OPT) \
-			__fsparam(fs_param_is_u32_hex, NAME, OPT, 0, (void *)16)
 #define fsparam_s32(NAME, OPT)	__fsparam(fs_param_is_s32, NAME, OPT, 0, NULL)
 #define fsparam_u64(NAME, OPT)	__fsparam(fs_param_is_u64, NAME, OPT, 0, NULL)
 #define fsparam_enum(NAME, OPT, array)	__fsparam(fs_param_is_enum, NAME, OPT, 0, array)

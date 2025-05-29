@@ -14,7 +14,7 @@
 
 struct mtk_eth_muxc {
 	const char	*name;
-	int		cap_bit;
+	u64		cap_bit;
 	int		(*set_path)(struct mtk_eth *eth, u64 path);
 };
 
@@ -31,6 +31,8 @@ static const char *mtk_eth_path_name(u64 path)
 		return "gmac2_rgmii";
 	case MTK_ETH_PATH_GMAC2_SGMII:
 		return "gmac2_sgmii";
+	case MTK_ETH_PATH_GMAC2_2P5GPHY:
+		return "gmac2_2p5gphy";
 	case MTK_ETH_PATH_GMAC2_GEPHY:
 		return "gmac2_gephy";
 	case MTK_ETH_PATH_GDM1_ESW:
@@ -127,6 +129,29 @@ static int set_mux_u3_gmac2_to_qphy(struct mtk_eth *eth, u64 path)
 	return 0;
 }
 
+static int set_mux_gmac2_to_2p5gphy(struct mtk_eth *eth, u64 path)
+{
+	int ret;
+
+	if (path == MTK_ETH_PATH_GMAC2_2P5GPHY) {
+		ret = regmap_clear_bits(eth->ethsys, ETHSYS_SYSCFG0,
+					SYSCFG0_SGMII_GMAC2_V2);
+		if (ret)
+			return ret;
+
+		/* Setup mux to 2p5g PHY */
+		ret = regmap_clear_bits(eth->infra, TOP_MISC_NETSYS_PCS_MUX,
+					MUX_G2_USXGMII_SEL);
+		if (ret)
+			return ret;
+
+		dev_dbg(eth->dev, "path %s in %s updated\n",
+			mtk_eth_path_name(path), __func__);
+	}
+
+	return 0;
+}
+
 static int set_mux_gmac1_gmac2_to_sgmii_rgmii(struct mtk_eth *eth, u64 path)
 {
 	unsigned int val = 0;
@@ -210,6 +235,10 @@ static const struct mtk_eth_muxc mtk_eth_muxc[] = {
 		.cap_bit = MTK_ETH_MUX_U3_GMAC2_TO_QPHY,
 		.set_path = set_mux_u3_gmac2_to_qphy,
 	}, {
+		.name = "mux_gmac2_to_2p5gphy",
+		.cap_bit = MTK_ETH_MUX_GMAC2_TO_2P5GPHY,
+		.set_path = set_mux_gmac2_to_2p5gphy,
+	}, {
 		.name = "mux_gmac1_gmac2_to_sgmii_rgmii",
 		.cap_bit = MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII,
 		.set_path = set_mux_gmac1_gmac2_to_sgmii_rgmii,
@@ -255,6 +284,20 @@ int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id)
 
 	path = (mac_id == 0) ?  MTK_ETH_PATH_GMAC1_SGMII :
 				MTK_ETH_PATH_GMAC2_SGMII;
+
+	/* Setup proper MUXes along the path */
+	return mtk_eth_mux_setup(eth, path);
+}
+
+int mtk_gmac_2p5gphy_path_setup(struct mtk_eth *eth, int mac_id)
+{
+	u64 path = 0;
+
+	if (mac_id == MTK_GMAC2_ID)
+		path = MTK_ETH_PATH_GMAC2_2P5GPHY;
+
+	if (!path)
+		return -EINVAL;
 
 	/* Setup proper MUXes along the path */
 	return mtk_eth_mux_setup(eth, path);

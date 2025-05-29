@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -109,16 +109,12 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
  *	the response. The caller needs to call iwl_free_resp when done.
  * @CMD_SEND_IN_RFKILL: Send the command even if the NIC is in RF-kill.
  * @CMD_BLOCK_TXQS: Block TXQs while the comment is executing.
- * @CMD_SEND_IN_D3: Allow the command to be sent in D3 mode, relevant to
- *	SUSPEND and RESUME commands. We are in D3 mode when we set
- *	trans->system_pm_mode to IWL_PLAT_PM_MODE_D3.
  */
 enum CMD_MODE {
 	CMD_ASYNC		= BIT(0),
 	CMD_WANT_SKB		= BIT(1),
 	CMD_SEND_IN_RFKILL	= BIT(2),
 	CMD_BLOCK_TXQS		= BIT(3),
-	CMD_SEND_IN_D3          = BIT(4),
 };
 #define CMD_MODE_BITS 5
 
@@ -304,6 +300,10 @@ enum iwl_d3_status {
  *	via iwl_trans_finish_sw_reset()
  * @STATUS_RESET_PENDING: reset worker was scheduled, but didn't dump
  *	the firmware state yet
+ * @STATUS_TRANS_RESET_IN_PROGRESS: reset is still in progress, don't
+ *	attempt another reset yet
+ * @STATUS_SUSPENDED: device is suspended, don't send commands that
+ *	aren't marked accordingly
  */
 enum iwl_trans_status {
 	STATUS_SYNC_HCMD_ACTIVE,
@@ -317,6 +317,8 @@ enum iwl_trans_status {
 	STATUS_SUPPRESS_CMD_ERROR_ONCE,
 	STATUS_IN_SW_RESET,
 	STATUS_RESET_PENDING,
+	STATUS_TRANS_RESET_IN_PROGRESS,
+	STATUS_SUSPENDED,
 };
 
 static inline int
@@ -328,6 +330,7 @@ iwl_trans_get_rb_size_order(enum iwl_amsdu_size rb_size)
 	case IWL_AMSDU_4K:
 		return get_order(4 * 1024);
 	case IWL_AMSDU_8K:
+		return get_order(8 * 1024);
 	case IWL_AMSDU_12K:
 		return get_order(16 * 1024);
 	default:
@@ -387,7 +390,8 @@ struct iwl_dump_sanitize_ops {
 /**
  * struct iwl_trans_config - transport configuration
  *
- * @op_mode: pointer to the upper layer.
+ * These values should be set before iwl_trans_op_mode_enter().
+ *
  * @cmd_queue: the index of the command queue.
  *	Must be set before start_fw.
  * @cmd_fifo: the fifo for host commands
@@ -398,8 +402,6 @@ struct iwl_dump_sanitize_ops {
  * @n_no_reclaim_cmds: # of commands in list
  * @rx_buf_size: RX buffer size needed for A-MSDUs
  *	if unset 4k will be the RX buffer size
- * @bc_table_dword: set to true if the BC table expects the byte count to be
- *	in DWORD (as opposed to bytes)
  * @scd_set_active: should the transport configure the SCD for HCMD queue
  * @command_groups: array of command groups, each member is an array of the
  *	commands in the group; for debugging only
@@ -410,17 +412,24 @@ struct iwl_dump_sanitize_ops {
  * @queue_alloc_cmd_ver: queue allocation command version, set to 0
  *	for using the older SCD_QUEUE_CFG, set to the version of
  *	SCD_QUEUE_CONFIG_CMD otherwise.
+ * @wide_cmd_header: true when ucode supports wide command header format
+ * @rx_mpdu_cmd: MPDU RX command ID, must be assigned by opmode before
+ *	starting the firmware, used for tracing
+ * @rx_mpdu_cmd_hdr_size: used for tracing, amount of data before the
+ *	start of the 802.11 header in the @rx_mpdu_cmd
+ * @dsbr_urm_fw_dependent: switch to URM based on fw settings
+ * @dsbr_urm_permanent: switch to URM permanently
+ * @mbx_addr_0_step: step address data 0
+ * @mbx_addr_1_step: step address data 1
+ * @ext_32khz_clock_valid: if true, the external 32 KHz clock can be used
  */
 struct iwl_trans_config {
-	struct iwl_op_mode *op_mode;
-
 	u8 cmd_queue;
 	u8 cmd_fifo;
-	const u8 *no_reclaim_cmds;
-	unsigned int n_no_reclaim_cmds;
+	u8 n_no_reclaim_cmds;
+	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
 
 	enum iwl_amsdu_size rx_buf_size;
-	bool bc_table_dword;
 	bool scd_set_active;
 	const struct iwl_hcmd_arr *command_groups;
 	int command_groups_size;
@@ -428,6 +437,16 @@ struct iwl_trans_config {
 	u8 cb_data_offs;
 	bool fw_reset_handshake;
 	u8 queue_alloc_cmd_ver;
+
+	bool wide_cmd_header;
+	u8 rx_mpdu_cmd, rx_mpdu_cmd_hdr_size;
+
+	u8 dsbr_urm_fw_dependent:1,
+	   dsbr_urm_permanent:1,
+	   ext_32khz_clock_valid:1;
+
+	u32 mbx_addr_0_step;
+	u32 mbx_addr_1_step;
 };
 
 struct iwl_trans_dump_data {
@@ -511,23 +530,6 @@ enum iwl_trans_state {
  * These terms reflect the power modes in the firmware and are not to
  * be confused with the physical device power state.
  */
-
-/**
- * enum iwl_plat_pm_mode - platform power management mode
- *
- * This enumeration describes the device's platform power management
- * behavior when in system-wide suspend (i.e WoWLAN).
- *
- * @IWL_PLAT_PM_MODE_DISABLED: power management is disabled for this
- *	device.  In system-wide suspend mode, it means that the all
- *	connections will be closed automatically by mac80211 before
- *	the platform is suspended.
- * @IWL_PLAT_PM_MODE_D3: the device goes into D3 mode (i.e. WoWLAN).
- */
-enum iwl_plat_pm_mode {
-	IWL_PLAT_PM_MODE_DISABLED,
-	IWL_PLAT_PM_MODE_D3,
-};
 
 /**
  * enum iwl_ini_cfg_state
@@ -819,87 +821,25 @@ struct iwl_txq {
 };
 
 /**
- * struct iwl_trans - transport common data
- *
- * @csme_own: true if we couldn't get ownership on the device
- * @op_mode: pointer to the op_mode
- * @trans_cfg: the trans-specific configuration part
- * @cfg: pointer to the configuration
- * @drv: pointer to iwl_drv
- * @state: current device state
- * @status: a bit-mask of transport status flags
- * @dev: pointer to struct device * that represents the device
+ * struct iwl_trans_info - transport info for outside use
+ * @name: the device name
  * @max_skb_frags: maximum number of fragments an SKB can have when transmitted.
  *	0 indicates that frag SKBs (NETIF_F_SG) aren't supported.
- * @hw_rf_id: a u32 with the device RF ID
- * @hw_cnv_id: a u32 with the device CNV ID
- * @hw_crf_id: a u32 with the device CRF ID
- * @hw_wfpm_id: a u32 with the device wfpm ID
- * @hw_id: a u32 with the ID of the device / sub-device.
- *	Set during transport allocation.
- * @hw_id_str: a string with info about HW ID. Set during transport allocation.
- * @sku_id: the SKU identifier (for PNVM matching)
- * @pnvm_loaded: indicates PNVM was loaded
  * @hw_rev: the revision data of the HW
  * @hw_rev_step: The mac step of the HW
- * @pm_support: set to true in start_hw if link pm is supported
- * @ltr_enabled: set to true if the LTR is enabled
- * @fail_to_parse_pnvm_image: set to true if pnvm parsing failed
- * @reduce_power_loaded: indicates reduced power section was loaded
- * @failed_to_load_reduce_power_image: set to true if pnvm loading failed
- * @command_groups: pointer to command group name list array
- * @command_groups_size: array size of @command_groups
- * @wide_cmd_header: true when ucode supports wide command header format
- * @wait_command_queue: wait queue for sync commands
- * @num_rx_queues: number of RX queues allocated by the transport;
- *	the transport must set this before calling iwl_drv_start()
- * @iml_len: the length of the image loader
- * @iml: a pointer to the image loader itself
- * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
- *	The user should use iwl_trans_{alloc,free}_tx_cmd.
- * @dev_cmd_pool_name: name for the TX command allocation pool
- * @dbgfs_dir: iwlwifi debugfs base dir for this device
- * @sync_cmd_lockdep_map: lockdep map for checking sync commands
- * @rx_mpdu_cmd: MPDU RX command ID, must be assigned by opmode before
- *	starting the firmware, used for tracing
- * @rx_mpdu_cmd_hdr_size: used for tracing, amount of data before the
- *	start of the 802.11 header in the @rx_mpdu_cmd
- * @dbg: additional debug data, see &struct iwl_trans_debug
- * @init_dram: FW initialization DMA data
- * @system_pm_mode: the system-wide power management mode in use.
- *	This mode is set dynamically, depending on the WoWLAN values
- *	configured from the userspace at runtime.
- * @name: the device name
- * @mbx_addr_0_step: step address data 0
- * @mbx_addr_1_step: step address data 1
+ * @hw_rf_id: the device RF ID
+ * @hw_cnv_id: the device CNV ID
+ * @hw_crf_id: the device CRF ID
+ * @hw_wfpm_id: the device wfpm ID
+ * @hw_id: the ID of the device / sub-device
+ *	Bits 0:15 represent the sub-device ID
+ *	Bits 16:31 represent the device ID.
  * @pcie_link_speed: current PCIe link speed (%PCI_EXP_LNKSTA_CLS_*),
  *	only valid for discrete (not integrated) NICs
- * @invalid_tx_cmd: invalid TX command buffer
- * @reduced_cap_sku: reduced capability supported SKU
- * @no_160: device not supporting 160 MHz
- * @step_urm: STEP is in URM, no support for MCS>9 in 320 MHz
- * @restart: restart worker data
- * @restart.wk: restart worker
- * @restart.mode: reset/restart error mode information
- * @restart.during_reset: error occurred during previous software reset
- * @me_recheck_wk: worker to recheck WiAMT/CSME presence
- * @me_present: WiAMT/CSME is detected as present (1), not present (0)
- *	or unknown (-1, so can still use it as a boolean safely)
- * @trans_specific: data for the specific transport this is allocated for/with
- * @dsbr_urm_fw_dependent: switch to URM based on fw settings
- * @dsbr_urm_permanent: switch to URM permanently
- * @ext_32khz_clock_valid: if true, the external 32 KHz clock can be used
+ * @num_rxqs: number of RX queues allocated by the transport
  */
-struct iwl_trans {
-	bool csme_own;
-	struct iwl_op_mode *op_mode;
-	const struct iwl_cfg_trans_params *trans_cfg;
-	const struct iwl_cfg *cfg;
-	struct iwl_drv *drv;
-	enum iwl_trans_state state;
-	unsigned long status;
-
-	struct device *dev;
+struct iwl_trans_info {
+	const char *name;
 	u32 max_skb_frags;
 	u32 hw_rev;
 	u32 hw_rev_step;
@@ -908,17 +848,63 @@ struct iwl_trans {
 	u32 hw_cnv_id;
 	u32 hw_wfpm_id;
 	u32 hw_id;
-	char hw_id_str[52];
-	u32 sku_id[3];
+	u8 pcie_link_speed;
+	u8 num_rxqs;
+};
+
+/**
+ * struct iwl_trans - transport common data
+ *
+ * @csme_own: true if we couldn't get ownership on the device
+ * @op_mode: pointer to the op_mode
+ * @mac_cfg: the trans-specific configuration part
+ * @cfg: pointer to the configuration
+ * @drv: pointer to iwl_drv
+ * @conf: configuration set by the opmode before enter
+ * @state: current device state
+ * @status: a bit-mask of transport status flags
+ * @dev: pointer to struct device * that represents the device
+ * @info: device information for use by other layers
+ * @pnvm_loaded: indicates PNVM was loaded
+ * @pm_support: set to true in start_hw if link pm is supported
+ * @ltr_enabled: set to true if the LTR is enabled
+ * @fail_to_parse_pnvm_image: set to true if pnvm parsing failed
+ * @reduce_power_loaded: indicates reduced power section was loaded
+ * @failed_to_load_reduce_power_image: set to true if pnvm loading failed
+ * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
+ *	The user should use iwl_trans_{alloc,free}_tx_cmd.
+ * @dev_cmd_pool_name: name for the TX command allocation pool
+ * @dbgfs_dir: iwlwifi debugfs base dir for this device
+ * @sync_cmd_lockdep_map: lockdep map for checking sync commands
+ * @dbg: additional debug data, see &struct iwl_trans_debug
+ * @init_dram: FW initialization DMA data
+ * @reduced_cap_sku: reduced capability supported SKU
+ * @step_urm: STEP is in URM, no support for MCS>9 in 320 MHz
+ * @restart: restart worker data
+ * @restart.wk: restart worker
+ * @restart.mode: reset/restart error mode information
+ * @restart.during_reset: error occurred during previous software reset
+ * @trans_specific: data for the specific transport this is allocated for/with
+ * @request_top_reset: TOP reset was requested, used by the reset
+ *	worker that should be scheduled (with appropriate reason)
+ * @do_top_reset: indication to the (PCIe) transport/context-info
+ *	to do the TOP reset
+ */
+struct iwl_trans {
+	bool csme_own;
+	struct iwl_op_mode *op_mode;
+	const struct iwl_mac_cfg *mac_cfg;
+	const struct iwl_rf_cfg *cfg;
+	struct iwl_drv *drv;
+	struct iwl_trans_config conf;
+	enum iwl_trans_state state;
+	unsigned long status;
+
+	struct device *dev;
+
+	const struct iwl_trans_info info;
 	bool reduced_cap_sku;
-	u8 no_160:1, step_urm:1;
-
-	u8 dsbr_urm_fw_dependent:1,
-	   dsbr_urm_permanent:1;
-
-	bool ext_32khz_clock_valid;
-
-	u8 rx_mpdu_cmd, rx_mpdu_cmd_hdr_size;
+	bool step_urm;
 
 	bool pm_support;
 	bool ltr_enabled;
@@ -926,16 +912,6 @@ struct iwl_trans {
 	u8 fail_to_parse_pnvm_image:1;
 	u8 reduce_power_loaded:1;
 	u8 failed_to_load_reduce_power_image:1;
-
-	const struct iwl_hcmd_arr *command_groups;
-	int command_groups_size;
-	bool wide_cmd_header;
-
-	wait_queue_head_t wait_command_queue;
-	u8 num_rx_queues;
-
-	size_t iml_len;
-	u8 *iml;
 
 	/* The following fields are internal only */
 	struct kmem_cache *dev_cmd_pool;
@@ -950,24 +926,14 @@ struct iwl_trans {
 	struct iwl_trans_debug dbg;
 	struct iwl_self_init_dram init_dram;
 
-	enum iwl_plat_pm_mode system_pm_mode;
-
-	const char *name;
-	u32 mbx_addr_0_step;
-	u32 mbx_addr_1_step;
-
-	u8 pcie_link_speed;
-
-	struct iwl_dma_ptr invalid_tx_cmd;
-
 	struct {
 		struct delayed_work wk;
 		struct iwl_fw_error_dump_mode mode;
 		bool during_reset;
 	} restart;
 
-	struct delayed_work me_recheck_wk;
-	s8 me_present;
+	u8 request_top_reset:1,
+	   do_top_reset:1;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
@@ -975,19 +941,18 @@ struct iwl_trans {
 };
 
 const char *iwl_get_cmd_string(struct iwl_trans *trans, u32 id);
-int iwl_cmd_groups_verify_sorted(const struct iwl_trans_config *trans);
 
-void iwl_trans_configure(struct iwl_trans *trans,
-			 const struct iwl_trans_config *trans_cfg);
+void iwl_trans_op_mode_enter(struct iwl_trans *trans,
+			     struct iwl_op_mode *op_mode);
 
 int iwl_trans_start_hw(struct iwl_trans *trans);
 
 void iwl_trans_op_mode_leave(struct iwl_trans *trans);
 
-void iwl_trans_fw_alive(struct iwl_trans *trans, u32 scd_addr);
+void iwl_trans_fw_alive(struct iwl_trans *trans);
 
-int iwl_trans_start_fw(struct iwl_trans *trans, const struct fw_img *fw,
-		       bool run_in_rfkill);
+int iwl_trans_start_fw(struct iwl_trans *trans, const struct iwl_fw *fw,
+		       enum iwl_ucode_type ucode_type, bool run_in_rfkill);
 
 void iwl_trans_stop_device(struct iwl_trans *trans);
 
@@ -1150,6 +1115,9 @@ static inline void iwl_trans_schedule_reset(struct iwl_trans *trans,
 {
 	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
 		return;
+	/* clear this on device init, not cleared on any unbind/reprobe */
+	if (test_and_set_bit(STATUS_TRANS_RESET_IN_PROGRESS, &trans->status))
+		return;
 
 	trans->restart.mode.type = type;
 	trans->restart.mode.context = IWL_ERR_CONTEXT_WORKER;
@@ -1186,6 +1154,9 @@ static inline void iwl_trans_opmode_sw_reset(struct iwl_trans *trans,
 		return;
 
 	set_bit(STATUS_IN_SW_RESET, &trans->status);
+
+	if (WARN_ON(type == IWL_ERR_TYPE_TOP_RESET_BY_BT))
+		return;
 
 	if (!trans->op_mode->ops->sw_reset ||
 	    !trans->op_mode->ops->sw_reset(trans->op_mode, type))
@@ -1234,7 +1205,7 @@ static inline void iwl_trans_finish_sw_reset(struct iwl_trans *trans)
  *****************************************************/
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 			  struct device *dev,
-			  const struct iwl_cfg_trans_params *cfg_trans);
+			  const struct iwl_mac_cfg *cfg_trans);
 int iwl_trans_init(struct iwl_trans *trans);
 void iwl_trans_free(struct iwl_trans *trans);
 
@@ -1244,6 +1215,19 @@ static inline bool iwl_trans_is_hw_error_value(u32 val)
 }
 
 void iwl_trans_free_restart_list(void);
+
+static inline u16 iwl_trans_get_num_rbds(struct iwl_trans *trans)
+{
+	u16 result = trans->cfg->num_rbds;
+
+	/*
+	 * Since AX210 family (So/Ty) the device cannot put mutliple
+	 * frames into the same buffer, so double the value for them.
+	 */
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+		return 2 * result;
+	return result;
+}
 
 /*****************************************************
  * PCIe handling
@@ -1256,6 +1240,8 @@ enum iwl_reset_mode {
 	/* upper level modes: */
 	IWL_RESET_MODE_SW_RESET,
 	IWL_RESET_MODE_REPROBE,
+	/* TOP reset doesn't require PCIe remove */
+	IWL_RESET_MODE_TOP_RESET,
 	/* PCIE level modes: */
 	IWL_RESET_MODE_REMOVE_ONLY,
 	IWL_RESET_MODE_RESCAN,
@@ -1271,5 +1257,20 @@ void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans);
 
 int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans,
 			     struct iwl_host_cmd *cmd);
+
+/* Internal helper */
+static inline void iwl_trans_set_info(struct iwl_trans *trans,
+				      struct iwl_trans_info *info)
+{
+	struct iwl_trans_info *write;
+
+	write = (void *)(uintptr_t)&trans->info;
+	*write = *info;
+}
+
+static inline u16 iwl_trans_get_device_id(struct iwl_trans *trans)
+{
+	return u32_get_bits(trans->info.hw_id, GENMASK(31, 16));
+}
 
 #endif /* __iwl_trans_h__ */

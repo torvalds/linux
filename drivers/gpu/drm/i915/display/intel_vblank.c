@@ -224,12 +224,13 @@ int intel_crtc_scanline_offset(const struct intel_crtc_state *crtc_state)
 	 */
 	if (DISPLAY_VER(display) >= 20 || display->platform.battlemage)
 		return 1;
-	else if (DISPLAY_VER(display) == 2)
-		return -1;
-	else if (HAS_DDI(display) && intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
-		return 2;
-	else
+	else if (DISPLAY_VER(display) >= 9 ||
+		 display->platform.broadwell || display->platform.haswell)
+		return intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI) ? 2 : 1;
+	else if (DISPLAY_VER(display) >= 3)
 		return 1;
+	else
+		return -1;
 }
 
 /*

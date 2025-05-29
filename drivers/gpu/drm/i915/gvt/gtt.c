@@ -220,9 +220,11 @@ static u64 read_pte64(struct i915_ggtt *ggtt, unsigned long index)
 
 static void ggtt_invalidate(struct intel_gt *gt)
 {
-	mmio_hw_access_pre(gt);
+	intel_wakeref_t wakeref;
+
+	wakeref = mmio_hw_access_pre(gt);
 	intel_uncore_write(gt->uncore, GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
-	mmio_hw_access_post(gt);
+	mmio_hw_access_post(gt, wakeref);
 }
 
 static void write_pte64(struct i915_ggtt *ggtt, unsigned long index, u64 pte)

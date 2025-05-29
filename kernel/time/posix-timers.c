@@ -30,8 +30,6 @@
 #include "timekeeping.h"
 #include "posix-timers.h"
 
-static struct kmem_cache *posix_timers_cache;
-
 /*
  * Timers are managed in a hash table for lockless lookup. The hash key is
  * constructed from current::signal and the timer ID and the timer is
@@ -49,10 +47,12 @@ struct timer_hash_bucket {
 static struct {
 	struct timer_hash_bucket	*buckets;
 	unsigned long			mask;
-} __timer_data __ro_after_init __aligned(2*sizeof(long));
+	struct kmem_cache		*cache;
+} __timer_data __ro_after_init __aligned(4*sizeof(long));
 
-#define timer_buckets	(__timer_data.buckets)
-#define timer_hashmask	(__timer_data.mask)
+#define timer_buckets		(__timer_data.buckets)
+#define timer_hashmask		(__timer_data.mask)
+#define posix_timers_cache	(__timer_data.cache)
 
 static const struct k_clock * const posix_clocks[];
 static const struct k_clock *clockid_to_kclock(const clockid_t id);
@@ -282,14 +282,6 @@ static int posix_get_hrtimer_res(clockid_t which_clock, struct timespec64 *tp)
 	tp->tv_nsec = hrtimer_resolution;
 	return 0;
 }
-
-static __init int init_posix_timers(void)
-{
-	posix_timers_cache = kmem_cache_create("posix_timers_cache", sizeof(struct k_itimer),
-					       __alignof__(struct k_itimer), SLAB_ACCOUNT, NULL);
-	return 0;
-}
-__initcall(init_posix_timers);
 
 /*
  * The siginfo si_overrun field and the return value of timer_getoverrun(2)
@@ -1555,6 +1547,11 @@ static int __init posixtimer_init(void)
 {
 	unsigned long i, size;
 	unsigned int shift;
+
+	posix_timers_cache = kmem_cache_create("posix_timers_cache",
+					       sizeof(struct k_itimer),
+					       __alignof__(struct k_itimer),
+					       SLAB_ACCOUNT, NULL);
 
 	if (IS_ENABLED(CONFIG_BASE_SMALL))
 		size = 512;

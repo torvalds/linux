@@ -18,8 +18,10 @@
 #include <linux/statfs.h>
 #include <linux/notifier.h>
 #include <linux/printk.h>
+#include <linux/namei.h>
 
 #include "internal.h"
+#include "../internal.h"
 
 static int efivarfs_ops_notifier(struct notifier_block *nb, unsigned long event,
 				 void *data)
@@ -119,12 +121,18 @@ static int efivarfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	return 0;
 }
+
+static int efivarfs_freeze_fs(struct super_block *sb);
+static int efivarfs_unfreeze_fs(struct super_block *sb);
+
 static const struct super_operations efivarfs_ops = {
 	.statfs = efivarfs_statfs,
 	.drop_inode = generic_delete_inode,
 	.alloc_inode = efivarfs_alloc_inode,
 	.free_inode = efivarfs_free_inode,
 	.show_options = efivarfs_show_options,
+	.freeze_fs = efivarfs_freeze_fs,
+	.unfreeze_fs = efivarfs_unfreeze_fs,
 };
 
 /*
@@ -204,7 +212,6 @@ bool efivarfs_variable_is_present(efi_char16_t *variable_name,
 	char *name = efivar_get_utf8name(variable_name, vendor);
 	struct super_block *sb = data;
 	struct dentry *dentry;
-	struct qstr qstr;
 
 	if (!name)
 		/*
@@ -217,9 +224,7 @@ bool efivarfs_variable_is_present(efi_char16_t *variable_name,
 		 */
 		return true;
 
-	qstr.name = name;
-	qstr.len = strlen(name);
-	dentry = d_hash_and_lookup(sb->s_root, &qstr);
+	dentry = try_lookup_noperm(&QSTR(name), sb->s_root);
 	kfree(name);
 	if (!IS_ERR_OR_NULL(dentry))
 		dput(dentry);
@@ -367,8 +372,6 @@ static int efivarfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (err)
 		return err;
 
-	register_pm_notifier(&sfi->pm_nb);
-
 	return efivar_init(efivarfs_callback, sb, true);
 }
 
@@ -393,55 +396,12 @@ static const struct fs_context_operations efivarfs_context_ops = {
 	.reconfigure	= efivarfs_reconfigure,
 };
 
-struct efivarfs_ctx {
-	struct dir_context ctx;
-	struct super_block *sb;
-	struct dentry *dentry;
-};
-
-static bool efivarfs_actor(struct dir_context *ctx, const char *name, int len,
-			   loff_t offset, u64 ino, unsigned mode)
-{
-	unsigned long size;
-	struct efivarfs_ctx *ectx = container_of(ctx, struct efivarfs_ctx, ctx);
-	struct qstr qstr = { .name = name, .len = len };
-	struct dentry *dentry = d_hash_and_lookup(ectx->sb->s_root, &qstr);
-	struct inode *inode;
-	struct efivar_entry *entry;
-	int err;
-
-	if (IS_ERR_OR_NULL(dentry))
-		return true;
-
-	inode = d_inode(dentry);
-	entry = efivar_entry(inode);
-
-	err = efivar_entry_size(entry, &size);
-	size += sizeof(__u32);	/* attributes */
-	if (err)
-		size = 0;
-
-	inode_lock_nested(inode, I_MUTEX_CHILD);
-	i_size_write(inode, size);
-	inode_unlock(inode);
-
-	if (!size) {
-		ectx->dentry = dentry;
-		return false;
-	}
-
-	dput(dentry);
-
-	return true;
-}
-
 static int efivarfs_check_missing(efi_char16_t *name16, efi_guid_t vendor,
 				  unsigned long name_size, void *data)
 {
 	char *name;
 	struct super_block *sb = data;
 	struct dentry *dentry;
-	struct qstr qstr;
 	int err;
 
 	if (guid_equal(&vendor, &LINUX_EFI_RANDOM_SEED_TABLE_GUID))
@@ -451,9 +411,7 @@ static int efivarfs_check_missing(efi_char16_t *name16, efi_guid_t vendor,
 	if (!name)
 		return -ENOMEM;
 
-	qstr.name = name;
-	qstr.len = strlen(name);
-	dentry = d_hash_and_lookup(sb->s_root, &qstr);
+	dentry = try_lookup_noperm(&QSTR(name), sb->s_root);
 	if (IS_ERR(dentry)) {
 		err = PTR_ERR(dentry);
 		goto out;
@@ -474,111 +432,59 @@ static int efivarfs_check_missing(efi_char16_t *name16, efi_guid_t vendor,
 	return err;
 }
 
-static void efivarfs_deactivate_super_work(struct work_struct *work)
-{
-	struct super_block *s = container_of(work, struct super_block,
-					     destroy_work);
-	/*
-	 * note: here s->destroy_work is free for reuse (which
-	 * will happen in deactivate_super)
-	 */
-	deactivate_super(s);
-}
-
 static struct file_system_type efivarfs_type;
 
-static int efivarfs_pm_notify(struct notifier_block *nb, unsigned long action,
-			      void *ptr)
+static int efivarfs_freeze_fs(struct super_block *sb)
 {
-	struct efivarfs_fs_info *sfi = container_of(nb, struct efivarfs_fs_info,
-						    pm_nb);
-	struct path path;
-	struct efivarfs_ctx ectx = {
-		.ctx = {
-			.actor	= efivarfs_actor,
-		},
-		.sb = sfi->sb,
-	};
-	struct file *file;
-	struct super_block *s = sfi->sb;
-	static bool rescan_done = true;
+	/* Nothing for us to do. */
+	return 0;
+}
 
-	if (action == PM_HIBERNATION_PREPARE) {
-		rescan_done = false;
-		return NOTIFY_OK;
-	} else if (action != PM_POST_HIBERNATION) {
-		return NOTIFY_DONE;
-	}
+static int efivarfs_unfreeze_fs(struct super_block *sb)
+{
+	struct dentry *child = NULL;
 
-	if (rescan_done)
-		return NOTIFY_DONE;
-
-	/* ensure single superblock is alive and pin it */
-	if (!atomic_inc_not_zero(&s->s_active))
-		return NOTIFY_DONE;
-
+	/*
+	 * Unconditionally resync the variable state on a thaw request.
+	 * Given the size of efivarfs it really doesn't matter to simply
+	 * iterate through all of the entries and resync. Freeze/thaw
+	 * requests are rare enough for that to not matter and the
+	 * number of entries is pretty low too. So we really don't care.
+	 */
 	pr_info("efivarfs: resyncing variable state\n");
+	for (;;) {
+		int err;
+		unsigned long size = 0;
+		struct inode *inode;
+		struct efivar_entry *entry;
 
-	path.dentry = sfi->sb->s_root;
+		child = find_next_child(sb->s_root, child);
+		if (!child)
+			break;
 
-	/*
-	 * do not add SB_KERNMOUNT which a single superblock could
-	 * expose to userspace and which also causes MNT_INTERNAL, see
-	 * below
-	 */
-	path.mnt = vfs_kern_mount(&efivarfs_type, 0,
-				  efivarfs_type.name, NULL);
-	if (IS_ERR(path.mnt)) {
-		pr_err("efivarfs: internal mount failed\n");
-		/*
-		 * We may be the last pinner of the superblock but
-		 * calling efivarfs_kill_sb from within the notifier
-		 * here would deadlock trying to unregister it
-		 */
-		INIT_WORK(&s->destroy_work, efivarfs_deactivate_super_work);
-		schedule_work(&s->destroy_work);
-		return PTR_ERR(path.mnt);
+		inode = d_inode(child);
+		entry = efivar_entry(inode);
+
+		err = efivar_entry_size(entry, &size);
+		if (err)
+			size = 0;
+		else
+			size += sizeof(__u32);
+
+		inode_lock(inode);
+		i_size_write(inode, size);
+		inode_unlock(inode);
+
+		/* The variable doesn't exist anymore, delete it. */
+		if (!size) {
+			pr_info("efivarfs: removing variable %pd\n", child);
+			simple_recursive_removal(child, NULL);
+		}
 	}
 
-	/* path.mnt now has pin on superblock, so this must be above one */
-	atomic_dec(&s->s_active);
-
-	file = kernel_file_open(&path, O_RDONLY | O_DIRECTORY | O_NOATIME,
-				current_cred());
-	/*
-	 * safe even if last put because no MNT_INTERNAL means this
-	 * will do delayed deactivate_super and not deadlock
-	 */
-	mntput(path.mnt);
-	if (IS_ERR(file))
-		return NOTIFY_DONE;
-
-	rescan_done = true;
-
-	/*
-	 * First loop over the directory and verify each entry exists,
-	 * removing it if it doesn't
-	 */
-	file->f_pos = 2;	/* skip . and .. */
-	do {
-		ectx.dentry = NULL;
-		iterate_dir(file, &ectx.ctx);
-		if (ectx.dentry) {
-			pr_info("efivarfs: removing variable %pd\n",
-				ectx.dentry);
-			simple_recursive_removal(ectx.dentry, NULL);
-			dput(ectx.dentry);
-		}
-	} while (ectx.dentry);
-	fput(file);
-
-	/*
-	 * then loop over variables, creating them if there's no matching
-	 * dentry
-	 */
-	efivar_init(efivarfs_check_missing, sfi->sb, false);
-
-	return NOTIFY_OK;
+	efivar_init(efivarfs_check_missing, sb, false);
+	pr_info("efivarfs: finished resyncing variable state\n");
+	return 0;
 }
 
 static int efivarfs_init_fs_context(struct fs_context *fc)
@@ -598,9 +504,6 @@ static int efivarfs_init_fs_context(struct fs_context *fc)
 	fc->s_fs_info = sfi;
 	fc->ops = &efivarfs_context_ops;
 
-	sfi->pm_nb.notifier_call = efivarfs_pm_notify;
-	sfi->pm_nb.priority = 0;
-
 	return 0;
 }
 
@@ -610,7 +513,6 @@ static void efivarfs_kill_sb(struct super_block *sb)
 
 	blocking_notifier_chain_unregister(&efivar_ops_nh, &sfi->nb);
 	kill_litter_super(sb);
-	unregister_pm_notifier(&sfi->pm_nb);
 
 	kfree(sfi);
 }

@@ -490,8 +490,8 @@ hws_action_modify_get_target_fields(u8 action_type, __be64 *pattern,
 	switch (action_type) {
 	case MLX5_ACTION_TYPE_SET:
 	case MLX5_ACTION_TYPE_ADD:
-		*src_field = MLX5_GET(set_action_in, pattern, field);
-		*dst_field = INVALID_FIELD;
+		*src_field = INVALID_FIELD;
+		*dst_field = MLX5_GET(set_action_in, pattern, field);
 		break;
 	case MLX5_ACTION_TYPE_COPY:
 		*src_field = MLX5_GET(copy_action_in, pattern, src_field);
@@ -522,57 +522,59 @@ bool mlx5hws_pat_verify_actions(struct mlx5hws_context *ctx, __be64 pattern[], s
 	return true;
 }
 
-void mlx5hws_pat_calc_nope(__be64 *pattern, size_t num_actions,
-			   size_t max_actions, size_t *new_size,
-			   u32 *nope_location, __be64 *new_pat)
+int mlx5hws_pat_calc_nop(__be64 *pattern, size_t num_actions,
+			 size_t max_actions, size_t *new_size,
+			 u32 *nop_locations, __be64 *new_pat)
 {
-	u16 prev_src_field = 0, prev_dst_field = 0;
+	u16 prev_src_field = INVALID_FIELD, prev_dst_field = INVALID_FIELD;
 	u16 src_field, dst_field;
 	u8 action_type;
+	bool dependent;
 	size_t i, j;
 
 	*new_size = num_actions;
-	*nope_location = 0;
+	*nop_locations = 0;
 
 	if (num_actions == 1)
-		return;
+		return 0;
 
 	for (i = 0, j = 0; i < num_actions; i++, j++) {
-		action_type = MLX5_GET(set_action_in, &pattern[i], action_type);
+		if (j >= max_actions)
+			return -EINVAL;
 
+		action_type = MLX5_GET(set_action_in, &pattern[i], action_type);
 		hws_action_modify_get_target_fields(action_type, &pattern[i],
 						    &src_field, &dst_field);
-		if (i % 2) {
-			if (action_type == MLX5_ACTION_TYPE_COPY &&
-			    (prev_src_field == src_field ||
-			     prev_dst_field == dst_field)) {
-				/* need Nope */
-				*new_size += 1;
-				*nope_location |= BIT(i);
-				memset(&new_pat[j], 0, MLX5HWS_MODIFY_ACTION_SIZE);
-				MLX5_SET(set_action_in, &new_pat[j],
-					 action_type,
-					 MLX5_MODIFICATION_TYPE_NOP);
-				j++;
-			} else if (prev_src_field == src_field) {
-				/* need Nope*/
-				*new_size += 1;
-				*nope_location |= BIT(i);
-				MLX5_SET(set_action_in, &new_pat[j],
-					 action_type,
-					 MLX5_MODIFICATION_TYPE_NOP);
-				j++;
-			}
-		}
-		memcpy(&new_pat[j], &pattern[i], MLX5HWS_MODIFY_ACTION_SIZE);
-		/* check if no more space */
-		if (j > max_actions) {
-			*new_size = num_actions;
-			*nope_location = 0;
-			return;
+
+		/* For every action, look at it and the previous one. The two
+		 * actions are dependent if:
+		 */
+		dependent =
+			(i > 0) &&
+			/* At least one of the actions is a write and */
+			(dst_field != INVALID_FIELD ||
+			 prev_dst_field != INVALID_FIELD) &&
+			/* One reads from the other's source */
+			(dst_field == prev_src_field ||
+			 src_field == prev_dst_field ||
+			 /* Or both write to the same destination */
+			 dst_field == prev_dst_field);
+
+		if (dependent) {
+			*new_size += 1;
+			*nop_locations |= BIT(i);
+			memset(&new_pat[j], 0, MLX5HWS_MODIFY_ACTION_SIZE);
+			MLX5_SET(set_action_in, &new_pat[j], action_type,
+				 MLX5_MODIFICATION_TYPE_NOP);
+			j++;
+			if (j >= max_actions)
+				return -EINVAL;
 		}
 
+		memcpy(&new_pat[j], &pattern[i], MLX5HWS_MODIFY_ACTION_SIZE);
 		prev_src_field = src_field;
 		prev_dst_field = dst_field;
 	}
+
+	return 0;
 }

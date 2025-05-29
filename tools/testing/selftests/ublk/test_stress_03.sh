@@ -32,6 +32,13 @@ _create_backfile 2 128M
 ublk_io_and_remove 8G -t null -q 4 -z &
 ublk_io_and_remove 256M -t loop -q 4 -z "${UBLK_BACKFILES[0]}" &
 ublk_io_and_remove 256M -t stripe -q 4 -z "${UBLK_BACKFILES[1]}" "${UBLK_BACKFILES[2]}" &
+
+if _have_feature "AUTO_BUF_REG"; then
+	ublk_io_and_remove 8G -t null -q 4 --auto_zc &
+	ublk_io_and_remove 256M -t loop -q 4 --auto_zc "${UBLK_BACKFILES[0]}" &
+	ublk_io_and_remove 256M -t stripe -q 4 --auto_zc "${UBLK_BACKFILES[1]}" "${UBLK_BACKFILES[2]}" &
+	ublk_io_and_remove 8G -t null -q 4 -z --auto_zc --auto_zc_fallback &
+fi
 wait
 
 _cleanup_test "stress"

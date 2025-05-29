@@ -86,7 +86,7 @@ static const char *guc_name(struct xe_guc *guc)
  *   This object needs to be 4KiB aligned.
  *
  * - _`Interrupt Source Report Page`: this is the equivalent of the
- *   GEN11_GT_INTR_DWx registers, with each bit in those registers being
+ *   GT_INTR_DWx registers, with each bit in those registers being
  *   mapped to a byte here. The offsets are the same, just bytes instead
  *   of bits. This object needs to be cacheline aligned.
  *

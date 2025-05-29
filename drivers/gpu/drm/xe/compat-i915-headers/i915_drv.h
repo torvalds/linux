@@ -13,7 +13,6 @@
 #include <drm/drm_drv.h>
 
 #include "i915_utils.h"
-#include "intel_runtime_pm.h"
 #include "xe_device.h" /* for xe_device_has_flat_ccs() */
 #include "xe_device_types.h"
 
@@ -22,28 +21,12 @@ static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 	return container_of(dev, struct drm_i915_private, drm);
 }
 
+/* compat platform checks only for soc/ usage */
 #define IS_PLATFORM(xe, x) ((xe)->info.platform == x)
-#define INTEL_INFO(dev_priv)	(&((dev_priv)->info))
-#define IS_I830(dev_priv)	(dev_priv && 0)
-#define IS_I845G(dev_priv)	(dev_priv && 0)
-#define IS_I85X(dev_priv)	(dev_priv && 0)
-#define IS_I865G(dev_priv)	(dev_priv && 0)
 #define IS_I915G(dev_priv)	(dev_priv && 0)
 #define IS_I915GM(dev_priv)	(dev_priv && 0)
-#define IS_I945G(dev_priv)	(dev_priv && 0)
-#define IS_I945GM(dev_priv)	(dev_priv && 0)
-#define IS_I965G(dev_priv)	(dev_priv && 0)
-#define IS_I965GM(dev_priv)	(dev_priv && 0)
-#define IS_G45(dev_priv)	(dev_priv && 0)
-#define IS_GM45(dev_priv)	(dev_priv && 0)
-#define IS_G4X(dev_priv)	(dev_priv && 0)
 #define IS_PINEVIEW(dev_priv)	(dev_priv && 0)
-#define IS_G33(dev_priv)	(dev_priv && 0)
-#define IS_IRONLAKE(dev_priv)	(dev_priv && 0)
-#define IS_IRONLAKE_M(dev_priv) (dev_priv && 0)
-#define IS_SANDYBRIDGE(dev_priv)	(dev_priv && 0)
 #define IS_IVYBRIDGE(dev_priv)	(dev_priv && 0)
-#define IS_IVB_GT1(dev_priv)	(dev_priv && 0)
 #define IS_VALLEYVIEW(dev_priv)	(dev_priv && 0)
 #define IS_CHERRYVIEW(dev_priv)	(dev_priv && 0)
 #define IS_HASWELL(dev_priv)	(dev_priv && 0)
@@ -71,39 +54,10 @@ static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 
 #define IS_HASWELL_ULT(dev_priv) (dev_priv && 0)
 #define IS_BROADWELL_ULT(dev_priv) (dev_priv && 0)
-#define IS_BROADWELL_ULX(dev_priv) (dev_priv && 0)
 
 #define IS_MOBILE(xe) (xe && 0)
 
-#define IS_TIGERLAKE_UY(xe) (xe && 0)
-#define IS_COMETLAKE_ULX(xe) (xe && 0)
-#define IS_COFFEELAKE_ULX(xe) (xe && 0)
-#define IS_KABYLAKE_ULX(xe) (xe && 0)
-#define IS_SKYLAKE_ULX(xe) (xe && 0)
-#define IS_HASWELL_ULX(xe) (xe && 0)
-#define IS_COMETLAKE_ULT(xe) (xe && 0)
-#define IS_COFFEELAKE_ULT(xe) (xe && 0)
-#define IS_KABYLAKE_ULT(xe) (xe && 0)
-#define IS_SKYLAKE_ULT(xe) (xe && 0)
-
-#define IS_DG2_G10(xe) ((xe)->info.subplatform == XE_SUBPLATFORM_DG2_G10)
-#define IS_DG2_G11(xe) ((xe)->info.subplatform == XE_SUBPLATFORM_DG2_G11)
-#define IS_DG2_G12(xe) ((xe)->info.subplatform == XE_SUBPLATFORM_DG2_G12)
-#define IS_RAPTORLAKE_U(xe) ((xe)->info.subplatform == XE_SUBPLATFORM_ALDERLAKE_P_RPLU)
-#define IS_ICL_WITH_PORT_F(xe) (xe && 0)
 #define HAS_FLAT_CCS(xe) (xe_device_has_flat_ccs(xe))
-
 #define HAS_128_BYTE_Y_TILING(xe) (xe || 1)
-
-#ifdef CONFIG_ARM64
-/*
- * arm64 indirectly includes linux/rtc.h,
- * which defines a irq_lock, so include it
- * here before #define-ing it
- */
-#include <linux/rtc.h>
-#endif
-
-#define irq_lock irq.lock
 
 #endif

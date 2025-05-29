@@ -18,7 +18,6 @@
 #include <linux/err.h>
 #include <crypto/algapi.h>
 #include <crypto/b128ops.h>
-#include <crypto/internal/simd.h>
 #include <crypto/serpent.h>
 
 #include "serpent-sse2.h"
@@ -74,10 +73,9 @@ static int cbc_decrypt(struct skcipher_request *req)
 
 static struct skcipher_alg serpent_algs[] = {
 	{
-		.base.cra_name		= "__ecb(serpent)",
-		.base.cra_driver_name	= "__ecb-serpent-sse2",
+		.base.cra_name		= "ecb(serpent)",
+		.base.cra_driver_name	= "ecb-serpent-sse2",
 		.base.cra_priority	= 400,
-		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
 		.base.cra_blocksize	= SERPENT_BLOCK_SIZE,
 		.base.cra_ctxsize	= sizeof(struct serpent_ctx),
 		.base.cra_module	= THIS_MODULE,
@@ -87,10 +85,9 @@ static struct skcipher_alg serpent_algs[] = {
 		.encrypt		= ecb_encrypt,
 		.decrypt		= ecb_decrypt,
 	}, {
-		.base.cra_name		= "__cbc(serpent)",
-		.base.cra_driver_name	= "__cbc-serpent-sse2",
+		.base.cra_name		= "cbc(serpent)",
+		.base.cra_driver_name	= "cbc-serpent-sse2",
 		.base.cra_priority	= 400,
-		.base.cra_flags		= CRYPTO_ALG_INTERNAL,
 		.base.cra_blocksize	= SERPENT_BLOCK_SIZE,
 		.base.cra_ctxsize	= sizeof(struct serpent_ctx),
 		.base.cra_module	= THIS_MODULE,
@@ -103,8 +100,6 @@ static struct skcipher_alg serpent_algs[] = {
 	},
 };
 
-static struct simd_skcipher_alg *serpent_simd_algs[ARRAY_SIZE(serpent_algs)];
-
 static int __init serpent_sse2_init(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_XMM2)) {
@@ -112,15 +107,13 @@ static int __init serpent_sse2_init(void)
 		return -ENODEV;
 	}
 
-	return simd_register_skciphers_compat(serpent_algs,
-					      ARRAY_SIZE(serpent_algs),
-					      serpent_simd_algs);
+	return crypto_register_skciphers(serpent_algs,
+					 ARRAY_SIZE(serpent_algs));
 }
 
 static void __exit serpent_sse2_exit(void)
 {
-	simd_unregister_skciphers(serpent_algs, ARRAY_SIZE(serpent_algs),
-				  serpent_simd_algs);
+	crypto_unregister_skciphers(serpent_algs, ARRAY_SIZE(serpent_algs));
 }
 
 module_init(serpent_sse2_init);

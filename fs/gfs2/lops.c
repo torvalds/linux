@@ -204,9 +204,11 @@ static void gfs2_end_log_write(struct bio *bio)
 	struct bvec_iter_all iter_all;
 
 	if (bio->bi_status) {
-		if (!cmpxchg(&sdp->sd_log_error, 0, (int)bio->bi_status))
+		int err = blk_status_to_errno(bio->bi_status);
+
+		if (!cmpxchg(&sdp->sd_log_error, 0, err))
 			fs_err(sdp, "Error %d writing to journal, jid=%u\n",
-			       bio->bi_status, sdp->sd_jdesc->jd_jid);
+			       err, sdp->sd_jdesc->jd_jid);
 		gfs2_withdraw_delayed(sdp);
 		/* prevent more writes to the journal */
 		clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
@@ -449,7 +451,7 @@ static bool gfs2_jhead_folio_search(struct gfs2_jdesc *jd,
  * Find the folio with 'index' in the journal's mapping. Search the folio for
  * the journal head if requested (cleanup == false). Release refs on the
  * folio so the page cache can reclaim it. We grabbed a
- * reference on this folio twice, first when we did a grab_cache_page()
+ * reference on this folio twice, first when we did a filemap_grab_folio()
  * to obtain the folio to add it to the bio and second when we do a
  * filemap_get_folio() here to get the folio to wait on while I/O on it is being
  * completed.
@@ -474,7 +476,7 @@ static void gfs2_jhead_process_page(struct gfs2_jdesc *jd, unsigned long index,
 	if (!*done)
 		*done = gfs2_jhead_folio_search(jd, head, folio);
 
-	/* filemap_get_folio() and the earlier grab_cache_page() */
+	/* filemap_get_folio() and the earlier filemap_grab_folio() */
 	folio_put_refs(folio, 2);
 }
 
@@ -494,15 +496,13 @@ static struct bio *gfs2_chain_bio(struct bio *prev, unsigned int nr_iovecs)
  * gfs2_find_jhead - find the head of a log
  * @jd: The journal descriptor
  * @head: The log descriptor for the head of the log is returned here
- * @keep_cache: If set inode pages will not be truncated
  *
  * Do a search of a journal by reading it in large chunks using bios and find
  * the valid log entry with the highest sequence number.  (i.e. the log head)
  *
  * Returns: 0 on success, errno otherwise
  */
-int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head,
-		    bool keep_cache)
+int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 	struct address_space *mapping = jd->jd_inode->i_mapping;
@@ -591,8 +591,7 @@ out:
 	if (!ret)
 		ret = filemap_check_wb_err(mapping, since);
 
-	if (!keep_cache)
-		truncate_inode_pages(mapping, 0);
+	truncate_inode_pages(mapping, 0);
 
 	return ret;
 }

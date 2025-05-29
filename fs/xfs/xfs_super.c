@@ -111,7 +111,7 @@ enum {
 	Opt_prjquota, Opt_uquota, Opt_gquota, Opt_pquota,
 	Opt_uqnoenforce, Opt_gqnoenforce, Opt_pqnoenforce, Opt_qnoenforce,
 	Opt_discard, Opt_nodiscard, Opt_dax, Opt_dax_enum, Opt_max_open_zones,
-	Opt_lifetime, Opt_nolifetime,
+	Opt_lifetime, Opt_nolifetime, Opt_max_atomic_write,
 };
 
 static const struct fs_parameter_spec xfs_fs_parameters[] = {
@@ -159,6 +159,7 @@ static const struct fs_parameter_spec xfs_fs_parameters[] = {
 	fsparam_u32("max_open_zones",	Opt_max_open_zones),
 	fsparam_flag("lifetime",	Opt_lifetime),
 	fsparam_flag("nolifetime",	Opt_nolifetime),
+	fsparam_string("max_atomic_write",	Opt_max_atomic_write),
 	{}
 };
 
@@ -241,6 +242,9 @@ xfs_fs_show_options(
 
 	if (mp->m_max_open_zones)
 		seq_printf(m, ",max_open_zones=%u", mp->m_max_open_zones);
+	if (mp->m_awu_max_bytes)
+		seq_printf(m, ",max_atomic_write=%lluk",
+				mp->m_awu_max_bytes >> 10);
 
 	return 0;
 }
@@ -380,10 +384,11 @@ xfs_blkdev_get(
 	struct file		**bdev_filep)
 {
 	int			error = 0;
+	blk_mode_t		mode;
 
-	*bdev_filep = bdev_file_open_by_path(name,
-		BLK_OPEN_READ | BLK_OPEN_WRITE | BLK_OPEN_RESTRICT_WRITES,
-		mp->m_super, &fs_holder_ops);
+	mode = sb_open_mode(mp->m_super->s_flags);
+	*bdev_filep = bdev_file_open_by_path(name, mode,
+			mp->m_super, &fs_holder_ops);
 	if (IS_ERR(*bdev_filep)) {
 		error = PTR_ERR(*bdev_filep);
 		*bdev_filep = NULL;
@@ -481,21 +486,29 @@ xfs_open_devices(
 	/*
 	 * Setup xfs_mount buffer target pointers
 	 */
-	error = -ENOMEM;
 	mp->m_ddev_targp = xfs_alloc_buftarg(mp, sb->s_bdev_file);
-	if (!mp->m_ddev_targp)
+	if (IS_ERR(mp->m_ddev_targp)) {
+		error = PTR_ERR(mp->m_ddev_targp);
+		mp->m_ddev_targp = NULL;
 		goto out_close_rtdev;
+	}
 
 	if (rtdev_file) {
 		mp->m_rtdev_targp = xfs_alloc_buftarg(mp, rtdev_file);
-		if (!mp->m_rtdev_targp)
+		if (IS_ERR(mp->m_rtdev_targp)) {
+			error = PTR_ERR(mp->m_rtdev_targp);
+			mp->m_rtdev_targp = NULL;
 			goto out_free_ddev_targ;
+		}
 	}
 
 	if (logdev_file && file_bdev(logdev_file) != ddev) {
 		mp->m_logdev_targp = xfs_alloc_buftarg(mp, logdev_file);
-		if (!mp->m_logdev_targp)
+		if (IS_ERR(mp->m_logdev_targp)) {
+			error = PTR_ERR(mp->m_logdev_targp);
+			mp->m_logdev_targp = NULL;
 			goto out_free_rtdev_targ;
+		}
 	} else {
 		mp->m_logdev_targp = mp->m_ddev_targp;
 		/* Handle won't be used, drop it */
@@ -528,7 +541,7 @@ xfs_setup_devices(
 {
 	int			error;
 
-	error = xfs_setsize_buftarg(mp->m_ddev_targp, mp->m_sb.sb_sectsize);
+	error = xfs_configure_buftarg(mp->m_ddev_targp, mp->m_sb.sb_sectsize);
 	if (error)
 		return error;
 
@@ -537,7 +550,7 @@ xfs_setup_devices(
 
 		if (xfs_has_sector(mp))
 			log_sector_size = mp->m_sb.sb_logsectsize;
-		error = xfs_setsize_buftarg(mp->m_logdev_targp,
+		error = xfs_configure_buftarg(mp->m_logdev_targp,
 					    log_sector_size);
 		if (error)
 			return error;
@@ -551,7 +564,7 @@ xfs_setup_devices(
 		}
 		mp->m_rtdev_targp = mp->m_ddev_targp;
 	} else if (mp->m_rtname) {
-		error = xfs_setsize_buftarg(mp->m_rtdev_targp,
+		error = xfs_configure_buftarg(mp->m_rtdev_targp,
 					    mp->m_sb.sb_sectsize);
 		if (error)
 			return error;
@@ -1149,7 +1162,7 @@ xfs_init_percpu_counters(
 	return 0;
 
 free_freecounters:
-	while (--i > 0)
+	while (--i >= 0)
 		percpu_counter_destroy(&mp->m_free[i].count);
 	percpu_counter_destroy(&mp->m_delalloc_rtextents);
 free_delalloc:
@@ -1328,6 +1341,42 @@ suffix_kstrtoint(
 	}
 
 	if (kstrtoint(value, base, &_res))
+		ret = -EINVAL;
+	kfree(value);
+	*res = _res << shift_left_factor;
+	return ret;
+}
+
+static int
+suffix_kstrtoull(
+	const char		*s,
+	unsigned int		base,
+	unsigned long long	*res)
+{
+	int			last, shift_left_factor = 0;
+	unsigned long long	_res;
+	char			*value;
+	int			ret = 0;
+
+	value = kstrdup(s, GFP_KERNEL);
+	if (!value)
+		return -ENOMEM;
+
+	last = strlen(value) - 1;
+	if (value[last] == 'K' || value[last] == 'k') {
+		shift_left_factor = 10;
+		value[last] = '\0';
+	}
+	if (value[last] == 'M' || value[last] == 'm') {
+		shift_left_factor = 20;
+		value[last] = '\0';
+	}
+	if (value[last] == 'G' || value[last] == 'g') {
+		shift_left_factor = 30;
+		value[last] = '\0';
+	}
+
+	if (kstrtoull(value, base, &_res))
 		ret = -EINVAL;
 	kfree(value);
 	*res = _res << shift_left_factor;
@@ -1517,6 +1566,14 @@ xfs_fs_parse_param(
 		return 0;
 	case Opt_nolifetime:
 		parsing_mp->m_features |= XFS_FEAT_NOLIFETIME;
+		return 0;
+	case Opt_max_atomic_write:
+		if (suffix_kstrtoull(param->string, 10,
+				     &parsing_mp->m_awu_max_bytes)) {
+			xfs_warn(parsing_mp,
+ "max atomic write size must be positive integer");
+			return -EINVAL;
+		}
 		return 0;
 	default:
 		xfs_warn(parsing_mp, "unknown mount option [%s].", param->key);
@@ -1897,13 +1954,6 @@ xfs_fs_fill_super(
 		}
 	}
 
-
-	if (xfs_has_exchange_range(mp))
-		xfs_warn_experimental(mp, XFS_EXPERIMENTAL_EXCHRANGE);
-
-	if (xfs_has_parent(mp))
-		xfs_warn_experimental(mp, XFS_EXPERIMENTAL_PPTR);
-
 	/*
 	 * If no quota mount options were provided, maybe we'll try to pick
 	 * up the quota accounting and enforcement flags from the ondisk sb.
@@ -1968,6 +2018,20 @@ xfs_remount_rw(
 {
 	struct xfs_sb		*sbp = &mp->m_sb;
 	int error;
+
+	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp &&
+	    bdev_read_only(mp->m_logdev_targp->bt_bdev)) {
+		xfs_warn(mp,
+			"ro->rw transition prohibited by read-only logdev");
+		return -EACCES;
+	}
+
+	if (mp->m_rtdev_targp &&
+	    bdev_read_only(mp->m_rtdev_targp->bt_bdev)) {
+		xfs_warn(mp,
+			"ro->rw transition prohibited by read-only rtdev");
+		return -EACCES;
+	}
 
 	if (xfs_has_norecovery(mp)) {
 		xfs_warn(mp,
@@ -2114,6 +2178,29 @@ xfs_fs_reconfigure(
 	if (error)
 		return error;
 
+	/* attr2 -> noattr2 */
+	if (xfs_has_noattr2(new_mp)) {
+		if (xfs_has_crc(mp)) {
+			xfs_warn(mp,
+			"attr2 is always enabled for a V5 filesystem - can't be changed.");
+			return -EINVAL;
+		}
+		mp->m_features &= ~XFS_FEAT_ATTR2;
+		mp->m_features |= XFS_FEAT_NOATTR2;
+	} else if (xfs_has_attr2(new_mp)) {
+		/* noattr2 -> attr2 */
+		mp->m_features &= ~XFS_FEAT_NOATTR2;
+		mp->m_features |= XFS_FEAT_ATTR2;
+	}
+
+	/* Validate new max_atomic_write option before making other changes */
+	if (mp->m_awu_max_bytes != new_mp->m_awu_max_bytes) {
+		error = xfs_set_max_atomic_write_opt(mp,
+				new_mp->m_awu_max_bytes);
+		if (error)
+			return error;
+	}
+
 	/* inode32 -> inode64 */
 	if (xfs_has_small_inums(mp) && !xfs_has_small_inums(new_mp)) {
 		mp->m_features &= ~XFS_FEAT_SMALL_INUMS;
@@ -2125,6 +2212,17 @@ xfs_fs_reconfigure(
 		mp->m_features |= XFS_FEAT_SMALL_INUMS;
 		mp->m_maxagi = xfs_set_inode_alloc(mp, mp->m_sb.sb_agcount);
 	}
+
+	/*
+	 * Now that mp has been modified according to the remount options, we
+	 * do a final option validation with xfs_finish_flags() just like it is
+	 * just like it is done during mount. We cannot use
+	 * done during mount. We cannot use xfs_finish_flags() on new_mp as it
+	 * contains only the user given options.
+	 */
+	error = xfs_finish_flags(mp);
+	if (error)
+		return error;
 
 	/* ro -> rw */
 	if (xfs_is_readonly(mp) && !(flags & SB_RDONLY)) {

@@ -609,7 +609,7 @@ static int __oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	if (err < 0)
 		return err;
 
-	err = pci_request_regions(pci, DRIVER);
+	err = pcim_request_all_regions(pci, DRIVER);
 	if (err < 0) {
 		dev_err(card->dev, "cannot reserve PCI resources\n");
 		return err;

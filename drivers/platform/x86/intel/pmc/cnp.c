@@ -10,6 +10,7 @@
 
 #include <linux/smp.h>
 #include <linux/suspend.h>
+#include <asm/msr.h>
 #include "core.h"
 
 /* Cannon Lake: PGD PFET Enable Ack Status Register(s) bitmap */
@@ -227,10 +228,10 @@ static void disable_c1_auto_demote(void *unused)
 	int cpunum = smp_processor_id();
 	u64 val;
 
-	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, val);
+	rdmsrq(MSR_PKG_CST_CONFIG_CONTROL, val);
 	per_cpu(pkg_cst_config, cpunum) = val;
 	val &= ~NHM_C1_AUTO_DEMOTE;
-	wrmsrl(MSR_PKG_CST_CONFIG_CONTROL, val);
+	wrmsrq(MSR_PKG_CST_CONFIG_CONTROL, val);
 
 	pr_debug("%s: cpu:%d cst %llx\n", __func__, cpunum, val);
 }
@@ -239,7 +240,7 @@ static void restore_c1_auto_demote(void *unused)
 {
 	int cpunum = smp_processor_id();
 
-	wrmsrl(MSR_PKG_CST_CONFIG_CONTROL, per_cpu(pkg_cst_config, cpunum));
+	wrmsrq(MSR_PKG_CST_CONFIG_CONTROL, per_cpu(pkg_cst_config, cpunum));
 
 	pr_debug("%s: cpu:%d cst %llx\n", __func__, cpunum,
 		 per_cpu(pkg_cst_config, cpunum));

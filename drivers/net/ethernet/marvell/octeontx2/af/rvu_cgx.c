@@ -34,7 +34,7 @@ static struct _req_type __maybe_unused					\
 		return NULL;						\
 	req->hdr.sig = OTX2_MBOX_REQ_SIG;				\
 	req->hdr.id = _id;						\
-	trace_otx2_msg_alloc(rvu->pdev, _id, sizeof(*req));		\
+	trace_otx2_msg_alloc(rvu->pdev, _id, sizeof(*req), 0);		\
 	return req;							\
 }
 
@@ -271,6 +271,8 @@ static void cgx_notify_pfs(struct cgx_link_event *event, struct rvu *rvu)
 		otx2_mbox_wait_for_zero(&rvu->afpf_wq_info.mbox_up, pfid);
 
 		otx2_mbox_msg_send_up(&rvu->afpf_wq_info.mbox_up, pfid);
+
+		otx2_mbox_wait_for_rsp(&rvu->afpf_wq_info.mbox_up, pfid);
 
 		mutex_unlock(&rvu->mbox_lock);
 	} while (pfmap);

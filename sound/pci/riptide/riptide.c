@@ -1831,7 +1831,7 @@ snd_riptide_create(struct snd_card *card, struct pci_dev *pci)
 	chip->cif = NULL;
 	card->private_free = snd_riptide_free;
 
-	err = pci_request_regions(pci, "RIPTIDE");
+	err = pcim_request_all_regions(pci, "RIPTIDE");
 	if (err < 0)
 		return err;
 	hwport = (struct riptideport *)chip->port;

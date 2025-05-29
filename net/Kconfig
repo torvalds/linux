@@ -68,12 +68,16 @@ config SKB_EXTENSIONS
 
 config NET_DEVMEM
 	def_bool y
+	select GENERIC_ALLOCATOR
 	depends on DMA_SHARED_BUFFER
-	depends on GENERIC_ALLOCATOR
 	depends on PAGE_POOL
 
 config NET_SHAPER
 	bool
+
+config NET_CRC32C
+	bool
+	select CRC32
 
 menu "Networking options"
 
@@ -245,7 +249,6 @@ source "net/bridge/netfilter/Kconfig"
 
 endif
 
-source "net/dccp/Kconfig"
 source "net/sctp/Kconfig"
 source "net/rds/Kconfig"
 source "net/tipc/Kconfig"

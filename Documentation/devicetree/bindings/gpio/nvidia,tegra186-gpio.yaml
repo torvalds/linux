@@ -111,6 +111,9 @@ properties:
 
   gpio-controller: true
 
+  gpio-ranges:
+    maxItems: 1
+
   "#gpio-cells":
     description: |
       Indicates how many cells are used in a consumer's GPIO specifier. In the

@@ -759,6 +759,17 @@ int __devm_add_action(struct device *dev, void (*action)(void *), void *data, co
 }
 EXPORT_SYMBOL_GPL(__devm_add_action);
 
+bool devm_is_action_added(struct device *dev, void (*action)(void *), void *data)
+{
+	struct action_devres devres = {
+		.data = data,
+		.action = action,
+	};
+
+	return devres_find(dev, devm_action_release, devm_action_match, &devres);
+}
+EXPORT_SYMBOL_GPL(devm_is_action_added);
+
 /**
  * devm_remove_action_nowarn() - removes previously added custom action
  * @dev: Device that owns the action

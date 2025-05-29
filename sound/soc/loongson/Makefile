@@ -8,6 +8,8 @@ obj-$(CONFIG_SND_SOC_LOONGSON_I2S_PLATFORM) += snd-soc-loongson-i2s-plat.o snd-s
 
 snd-soc-loongson-i2s-y := loongson_i2s.o
 
+obj-$(CONFIG_SND_LOONGSON1_AC97) += loongson1_ac97.o
+
 #Machine Support
 snd-soc-loongson-card-y := loongson_card.o
 obj-$(CONFIG_SND_SOC_LOONGSON_CARD) += snd-soc-loongson-card.o

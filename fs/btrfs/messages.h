@@ -4,6 +4,7 @@
 #define BTRFS_MESSAGES_H
 
 #include <linux/types.h>
+#include <linux/types.h>
 #include <linux/printk.h>
 #include <linux/bug.h>
 
@@ -170,15 +171,83 @@ do {								\
 
 #ifdef CONFIG_BTRFS_ASSERT
 
-#define btrfs_assertfail(expr, file, line)	({				\
-	pr_err("assertion failed: %s, in %s:%d\n", (expr), (file), (line));	\
-	BUG();								\
-})
+__printf(1, 2)
+static inline void verify_assert_printk_format(const char *fmt, ...) {
+	/* Stub to verify the assertion format string. */
+}
 
-#define ASSERT(expr)						\
-	(likely(expr) ? (void)0 : btrfs_assertfail(#expr, __FILE__, __LINE__))
+/* Take the first token if any. */
+#define __FIRST_ARG(_, ...) _
+/*
+ * Skip the first token and return the rest, if it's empty the comma is dropped.
+ * As ##__VA_ARGS__ cannot be at the beginning of the macro the __VA_OPT__ is needed
+ * and supported since GCC 8 and Clang 12.
+ */
+#define __REST_ARGS(_, ... ) __VA_OPT__(,) __VA_ARGS__
+
+#if defined(CONFIG_CC_IS_CLANG) || GCC_VERSION >= 80000
+/*
+ * Assertion with optional printk() format.
+ *
+ * Accepted syntax:
+ * ASSERT(condition);
+ * ASSERT(condition, "string");
+ * ASSERT(condition, "variable=%d", variable);
+ *
+ * How it works:
+ * - if there's no format string, ""[0] evaluates at compile time to 0 and the
+ *   true branch is executed
+ * - any non-empty format string with the "" prefix evaluates to != 0 at
+ *   compile time and the false branch is executed
+ * - stringified condition is printed as %s so we don't accidentally mix format
+ *   strings (the % operator)
+ * - there can be only one printk() call, so the format strings and arguments are
+ *   spliced together:
+ *   DEFAULT_FMT [USER_FMT], DEFAULT_ARGS [, USER_ARGS]
+ * - comma between DEFAULT_ARGS and USER_ARGS is handled by preprocessor
+ *   (requires __VA_OPT__ support)
+ * - otherwise we could use __VA_OPT(,) __VA_ARGS__ for the 2nd+ argument of args,
+ */
+#define ASSERT(cond, args...)							\
+do {										\
+	verify_assert_printk_format("check the format string" args);		\
+	if (!likely(cond)) {							\
+		if (("" __FIRST_ARG(args) [0]) == 0) {				\
+			pr_err("assertion failed: %s :: %ld, in %s:%d\n",	\
+				#cond, (long)(cond), __FILE__, __LINE__);	\
+		} else {							\
+			pr_err("assertion failed: %s :: %ld, in %s:%d (" __FIRST_ARG(args) ")\n", \
+				#cond, (long)(cond), __FILE__, __LINE__ __REST_ARGS(args)); \
+		}								\
+		BUG();								\
+	}									\
+} while(0)
+
 #else
-#define ASSERT(expr)	(void)(expr)
+
+/* For GCC < 8.x only the simple output. */
+
+#define ASSERT(cond, args...)							\
+do {										\
+	verify_assert_printk_format("check the format string" args);		\
+	if (!likely(cond)) {							\
+		pr_err("assertion failed: %s :: %ld, in %s:%d\n",		\
+			#cond, (long)(cond), __FILE__, __LINE__);		\
+		BUG();								\
+	}									\
+} while(0)
+
+#endif
+
+#else
+#define ASSERT(cond, args...)			(void)(cond)
+#endif
+
+#ifdef CONFIG_BTRFS_DEBUG
+/* Verbose warning only under debug build. */
+#define DEBUG_WARN(args...)			WARN(1, KERN_ERR args)
+#else
+#define DEBUG_WARN(...)				do {} while(0)
 #endif
 
 __printf(5, 6)

@@ -264,7 +264,7 @@ static void em28xx_capture_area_set(struct em28xx *dev, u8 hstart, u8 vstart,
 	u8 overflow = (height >> 9 & 0x02) | (width >> 10 & 0x01);
 	/* NOTE: size limit: 2047x1023 = 2MPix */
 
-	em28xx_videodbg("capture area set to (%d,%d): %dx%d\n",
+	em28xx_videodbg("capture area set to (%u,%u)/%ux%u\n",
 			hstart, vstart,
 		       ((overflow & 2) << 9 | cwidth << 2),
 		       ((overflow & 1) << 10 | cheight << 2));

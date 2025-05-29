@@ -3,6 +3,7 @@
 config DRM_APPLETBDRM
 	tristate "DRM support for Apple Touch Bars"
 	depends on DRM && USB && MMU
+	depends on X86 || COMPILE_TEST
 	select DRM_GEM_SHMEM_HELPER
 	select DRM_KMS_HELPER
 	help
@@ -65,20 +66,6 @@ config DRM_GM12U320
 	 This is a KMS driver for projectors which use the GM12U320 chipset
 	 for video transfer over USB2/3, such as the Acer C120 mini projector.
 
-config DRM_OFDRM
-	tristate "Open Firmware display driver"
-	depends on DRM && MMU && OF && (PPC || COMPILE_TEST)
-	select APERTURE_HELPERS
-	select DRM_CLIENT_SELECTION
-	select DRM_GEM_SHMEM_HELPER
-	select DRM_KMS_HELPER
-	help
-	  DRM driver for Open Firmware framebuffers.
-
-	  This driver assumes that the display hardware has been initialized
-	  by the Open Firmware before the kernel boots. Scanout buffer, size,
-	  and display format must be provided via device tree.
-
 config DRM_PANEL_MIPI_DBI
 	tristate "DRM support for MIPI DBI compatible panels"
 	depends on DRM && SPI
@@ -94,24 +81,6 @@ config DRM_PANEL_MIPI_DBI
 	  firmware file. For more information see
 	  https://github.com/notro/panel-mipi-dbi/wiki.
 	  To compile this driver as a module, choose M here.
-
-config DRM_SIMPLEDRM
-	tristate "Simple framebuffer driver"
-	depends on DRM && MMU
-	select APERTURE_HELPERS
-	select DRM_CLIENT_SELECTION
-	select DRM_GEM_SHMEM_HELPER
-	select DRM_KMS_HELPER
-	help
-	  DRM driver for simple platform-provided framebuffers.
-
-	  This driver assumes that the display hardware has been initialized
-	  by the firmware or bootloader before the kernel boots. Scanout
-	  buffer, size, and display format must be provided via device tree,
-	  UEFI, VESA, etc.
-
-	  On x86 BIOS or UEFI systems, you should also select SYSFB_SIMPLEFB
-	  to use UEFI and VESA framebuffers.
 
 config TINYDRM_HX8357D
 	tristate "DRM support for HX8357D display panels"
@@ -230,32 +199,3 @@ config TINYDRM_SHARP_MEMORY
 	  * 4.40" Sharp Memory LCD (LS044Q7DH01)
 
 	  If M is selected the module will be called sharp_memory.
-
-config TINYDRM_ST7586
-	tristate "DRM support for Sitronix ST7586 display panels"
-	depends on DRM && SPI
-	select DRM_CLIENT_SELECTION
-	select DRM_KMS_HELPER
-	select DRM_GEM_DMA_HELPER
-	select DRM_MIPI_DBI
-	help
-	  DRM driver for the following Sitronix ST7586 panels:
-	  * LEGO MINDSTORMS EV3
-
-	  If M is selected the module will be called st7586.
-
-config TINYDRM_ST7735R
-	tristate "DRM support for Sitronix ST7715R/ST7735R display panels"
-	depends on DRM && SPI
-	select DRM_CLIENT_SELECTION
-	select DRM_KMS_HELPER
-	select DRM_GEM_DMA_HELPER
-	select DRM_MIPI_DBI
-	select BACKLIGHT_CLASS_DEVICE
-	help
-	  DRM driver for Sitronix ST7715R/ST7735R with one of the following
-	  LCDs:
-	  * Jianda JD-T18003-T01 1.8" 128x160 TFT
-	  * Okaya RH128128T 1.44" 128x128 TFT
-
-	  If M is selected the module will be called st7735r.

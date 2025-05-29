@@ -88,7 +88,8 @@ static void drm_test_pick_cmdline_res_1920_1080_60(struct kunit *test)
 	struct drm_device *drm = priv->drm;
 	struct drm_connector *connector = &priv->connector;
 	struct drm_cmdline_mode *cmdline_mode = &connector->cmdline_mode;
-	struct drm_display_mode *expected_mode, *mode;
+	struct drm_display_mode *expected_mode;
+	const struct drm_display_mode *mode;
 	const char *cmdline = "1920x1080@60";
 	int ret;
 

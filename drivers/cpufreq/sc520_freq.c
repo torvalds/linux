@@ -21,7 +21,6 @@
 #include <linux/io.h>
 
 #include <asm/cpu_device_id.h>
-#include <asm/msr.h>
 
 #define MMCR_BASE	0xfffef000	/* The default base address */
 #define OFFS_CPUCTL	0x2   /* CPU Control Register */

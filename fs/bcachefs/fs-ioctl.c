@@ -172,7 +172,10 @@ static int bch2_ioc_goingdown(struct bch_fs *c, u32 __user *arg)
 	if (get_user(flags, arg))
 		return -EFAULT;
 
-	bch_notice(c, "shutdown by ioctl type %u", flags);
+	struct printbuf buf = PRINTBUF;
+	bch2_log_msg_start(c, &buf);
+
+	prt_printf(&buf, "shutdown by ioctl type %u", flags);
 
 	switch (flags) {
 	case FSOP_GOING_FLAGS_DEFAULT:
@@ -180,20 +183,23 @@ static int bch2_ioc_goingdown(struct bch_fs *c, u32 __user *arg)
 		if (ret)
 			break;
 		bch2_journal_flush(&c->journal);
-		bch2_fs_emergency_read_only(c);
+		bch2_fs_emergency_read_only2(c, &buf);
 		bdev_thaw(c->vfs_sb->s_bdev);
 		break;
 	case FSOP_GOING_FLAGS_LOGFLUSH:
 		bch2_journal_flush(&c->journal);
 		fallthrough;
 	case FSOP_GOING_FLAGS_NOLOGFLUSH:
-		bch2_fs_emergency_read_only(c);
+		bch2_fs_emergency_read_only2(c, &buf);
 		break;
 	default:
 		ret = -EINVAL;
-		break;
+		goto noprint;
 	}
 
+	bch2_print_str(c, KERN_ERR, buf.buf);
+noprint:
+	printbuf_exit(&buf);
 	return ret;
 }
 

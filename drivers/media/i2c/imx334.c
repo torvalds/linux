@@ -12,77 +12,125 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 
+#include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
 /* Streaming Mode */
-#define IMX334_REG_MODE_SELECT	0x3000
-#define IMX334_MODE_STANDBY	0x01
-#define IMX334_MODE_STREAMING	0x00
+#define IMX334_REG_MODE_SELECT		CCI_REG8(0x3000)
+#define IMX334_MODE_STANDBY		0x01
+#define IMX334_MODE_STREAMING		0x00
 
 /* Lines per frame */
-#define IMX334_REG_LPFR		0x3030
+#define IMX334_REG_VMAX			CCI_REG24_LE(0x3030)
+
+#define IMX334_REG_HMAX			CCI_REG16_LE(0x3034)
+
+#define IMX334_REG_OPB_SIZE_V		CCI_REG8(0x304c)
+#define IMX334_REG_ADBIT		CCI_REG8(0x3050)
+#define IMX334_REG_MDBIT		CCI_REG8(0x319d)
+#define IMX334_REG_ADBIT1		CCI_REG16_LE(0x341c)
+#define IMX334_REG_Y_OUT_SIZE		CCI_REG16_LE(0x3308)
+#define IMX334_REG_XVS_XHS_OUTSEL	CCI_REG8(0x31a0)
+#define IMX334_REG_XVS_XHS_DRV		CCI_REG8(0x31a1)
 
 /* Chip ID */
-#define IMX334_REG_ID		0x3044
-#define IMX334_ID		0x1e
+#define IMX334_REG_ID			CCI_REG8(0x3044)
+#define IMX334_ID			0x1e
 
 /* Exposure control */
-#define IMX334_REG_SHUTTER	0x3058
-#define IMX334_EXPOSURE_MIN	1
-#define IMX334_EXPOSURE_OFFSET	5
-#define IMX334_EXPOSURE_STEP	1
-#define IMX334_EXPOSURE_DEFAULT	0x0648
+#define IMX334_REG_SHUTTER		CCI_REG24_LE(0x3058)
+#define IMX334_EXPOSURE_MIN		1
+#define IMX334_EXPOSURE_OFFSET		5
+#define IMX334_EXPOSURE_STEP		1
+#define IMX334_EXPOSURE_DEFAULT		0x0648
+
+#define IMX334_REG_LANEMODE		CCI_REG8(0x3a01)
+#define IMX334_CSI_4_LANE_MODE		3
+#define IMX334_CSI_8_LANE_MODE		7
+
+/* Window cropping Settings */
+#define IMX334_REG_AREA3_ST_ADR_1	CCI_REG16_LE(0x3074)
+#define IMX334_REG_AREA3_ST_ADR_2	CCI_REG16_LE(0x308e)
+#define IMX334_REG_UNREAD_PARAM5	CCI_REG16_LE(0x30b6)
+#define IMX334_REG_AREA3_WIDTH_1	CCI_REG16_LE(0x3076)
+#define IMX334_REG_AREA3_WIDTH_2	CCI_REG16_LE(0x3090)
+#define IMX334_REG_BLACK_OFSET_ADR	CCI_REG16_LE(0x30c6)
+#define IMX334_REG_UNRD_LINE_MAX	CCI_REG16_LE(0x30ce)
+#define IMX334_REG_UNREAD_ED_ADR	CCI_REG16_LE(0x30d8)
+#define IMX334_REG_UNREAD_PARAM6	CCI_REG16_LE(0x3116)
+
+#define IMX334_REG_VREVERSE		CCI_REG8(0x304f)
+#define IMX334_REG_HREVERSE		CCI_REG8(0x304e)
+
+/* Binning Settings */
+#define IMX334_REG_HADD_VADD		CCI_REG8(0x3199)
+#define IMX334_REG_VALID_EXPAND		CCI_REG8(0x31dd)
+#define IMX334_REG_TCYCLE		CCI_REG8(0x3300)
 
 /* Analog gain control */
-#define IMX334_REG_AGAIN	0x30e8
-#define IMX334_AGAIN_MIN	0
-#define IMX334_AGAIN_MAX	240
-#define IMX334_AGAIN_STEP	1
-#define IMX334_AGAIN_DEFAULT	0
+#define IMX334_REG_AGAIN		CCI_REG16_LE(0x30e8)
+#define IMX334_AGAIN_MIN		0
+#define IMX334_AGAIN_MAX		240
+#define IMX334_AGAIN_STEP		1
+#define IMX334_AGAIN_DEFAULT		0
 
 /* Group hold register */
-#define IMX334_REG_HOLD		0x3001
+#define IMX334_REG_HOLD			CCI_REG8(0x3001)
+
+#define IMX334_REG_MASTER_MODE		CCI_REG8(0x3002)
+#define IMX334_REG_WINMODE		CCI_REG8(0x3018)
+#define IMX334_REG_HTRIMMING_START	CCI_REG16_LE(0x302c)
+#define IMX334_REG_HNUM			CCI_REG16_LE(0x302e)
 
 /* Input clock rate */
-#define IMX334_INCLK_RATE	24000000
+#define IMX334_INCLK_RATE		24000000
+
+/* INCK Setting Register */
+#define IMX334_REG_BCWAIT_TIME		CCI_REG8(0x300c)
+#define IMX334_REG_CPWAIT_TIME		CCI_REG8(0x300d)
+#define IMX334_REG_INCKSEL1		CCI_REG16_LE(0x314c)
+#define IMX334_REG_INCKSEL2		CCI_REG8(0x315a)
+#define IMX334_REG_INCKSEL3		CCI_REG8(0x3168)
+#define IMX334_REG_INCKSEL4		CCI_REG8(0x316a)
+#define IMX334_REG_SYS_MODE		CCI_REG8(0x319e)
+
+#define IMX334_REG_TCLKPOST		CCI_REG16_LE(0x3a18)
+#define IMX334_REG_TCLKPREPARE		CCI_REG16_LE(0x3a1a)
+#define IMX334_REG_TCLKTRAIL		CCI_REG16_LE(0x3a1c)
+#define IMX334_REG_TCLKZERO		CCI_REG16_LE(0x3a1e)
+#define IMX334_REG_THSPREPARE		CCI_REG16_LE(0x3a20)
+#define IMX334_REG_THSZERO		CCI_REG16_LE(0x3a22)
+#define IMX334_REG_THSTRAIL		CCI_REG16_LE(0x3a24)
+#define IMX334_REG_THSEXIT		CCI_REG16_LE(0x3a26)
+#define IMX334_REG_TPLX			CCI_REG16_LE(0x3a28)
 
 /* CSI2 HW configuration */
-#define IMX334_LINK_FREQ_891M	891000000
-#define IMX334_LINK_FREQ_445M	445500000
-#define IMX334_NUM_DATA_LANES	4
+#define IMX334_LINK_FREQ_891M		891000000
+#define IMX334_LINK_FREQ_445M		445500000
+#define IMX334_NUM_DATA_LANES		4
 
-#define IMX334_REG_MIN		0x00
-#define IMX334_REG_MAX		0xfffff
+#define IMX334_REG_MIN			0x00
+#define IMX334_REG_MAX			0xfffff
 
 /* Test Pattern Control */
-#define IMX334_REG_TP		0x329e
-#define IMX334_TP_COLOR_HBARS	0xA
-#define IMX334_TP_COLOR_VBARS	0xB
+#define IMX334_REG_TP			CCI_REG8(0x329e)
+#define IMX334_TP_COLOR_HBARS		0xa
+#define IMX334_TP_COLOR_VBARS		0xb
 
-#define IMX334_TPG_EN_DOUT	0x329c
-#define IMX334_TP_ENABLE	0x1
-#define IMX334_TP_DISABLE	0x0
+#define IMX334_TPG_EN_DOUT		CCI_REG8(0x329c)
+#define IMX334_TP_ENABLE		0x1
+#define IMX334_TP_DISABLE		0x0
 
-#define IMX334_TPG_COLORW	0x32a0
-#define IMX334_TPG_COLORW_120P	0x13
+#define IMX334_TPG_COLORW		CCI_REG8(0x32a0)
+#define IMX334_TPG_COLORW_120P		0x13
 
-#define IMX334_TP_CLK_EN	0x3148
-#define IMX334_TP_CLK_EN_VAL	0x10
-#define IMX334_TP_CLK_DIS_VAL	0x0
+#define IMX334_TP_CLK_EN		CCI_REG8(0x3148)
+#define IMX334_TP_CLK_EN_VAL		0x10
+#define IMX334_TP_CLK_DIS_VAL		0x0
 
-#define IMX334_DIG_CLP_MODE	0x3280
-
-/**
- * struct imx334_reg - imx334 sensor register
- * @address: Register address
- * @val: Register value
- */
-struct imx334_reg {
-	u16 address;
-	u8 val;
-};
+#define IMX334_DIG_CLP_MODE		CCI_REG8(0x3280)
 
 /**
  * struct imx334_reg_list - imx334 sensor register list
@@ -91,7 +139,7 @@ struct imx334_reg {
  */
 struct imx334_reg_list {
 	u32 num_of_regs;
-	const struct imx334_reg *regs;
+	const struct cci_reg_sequence *regs;
 };
 
 /**
@@ -121,6 +169,7 @@ struct imx334_mode {
 /**
  * struct imx334 - imx334 sensor device structure
  * @dev: Pointer to generic device
+ * @cci: CCI register map
  * @client: Pointer to i2c client
  * @sd: V4L2 sub-device
  * @pad: Media pad. Only one pad supported
@@ -135,12 +184,12 @@ struct imx334_mode {
  * @again_ctrl: Pointer to analog gain control
  * @vblank: Vertical blanking in lines
  * @cur_mode: Pointer to current selected sensor mode
- * @mutex: Mutex for serializing sensor controls
  * @link_freq_bitmap: Menu bitmap for link_freq_ctrl
  * @cur_code: current selected format code
  */
 struct imx334 {
 	struct device *dev;
+	struct regmap *cci;
 	struct i2c_client *client;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
@@ -157,7 +206,6 @@ struct imx334 {
 	};
 	u32 vblank;
 	const struct imx334_mode *cur_mode;
-	struct mutex mutex;
 	unsigned long link_freq_bitmap;
 	u32 cur_code;
 };
@@ -167,283 +215,183 @@ static const s64 link_freq[] = {
 	IMX334_LINK_FREQ_445M,
 };
 
+/* Sensor common mode registers values */
+static const struct cci_reg_sequence common_mode_regs[] = {
+	{ IMX334_REG_MODE_SELECT, IMX334_MODE_STANDBY },
+	{ IMX334_REG_WINMODE,		0x04 },
+	{ IMX334_REG_VMAX,		0x0008ca },
+	{ IMX334_REG_HMAX,		0x044c },
+	{ IMX334_REG_BLACK_OFSET_ADR,	0x0000 },
+	{ IMX334_REG_UNRD_LINE_MAX,	0x0000 },
+	{ IMX334_REG_OPB_SIZE_V,	0x00 },
+	{ IMX334_REG_HREVERSE,		0x00 },
+	{ IMX334_REG_VREVERSE,		0x00 },
+	{ IMX334_REG_UNREAD_PARAM5,	0x0000 },
+	{ IMX334_REG_UNREAD_PARAM6,	0x0008 },
+	{ IMX334_REG_XVS_XHS_OUTSEL,	0x20 },
+	{ IMX334_REG_XVS_XHS_DRV,	0x0f },
+	{ IMX334_REG_BCWAIT_TIME,	0x3b },
+	{ IMX334_REG_CPWAIT_TIME,	0x2a },
+	{ IMX334_REG_INCKSEL1,		0x0129 },
+	{ IMX334_REG_INCKSEL2,		0x06 },
+	{ IMX334_REG_INCKSEL3,		0xa0 },
+	{ IMX334_REG_INCKSEL4,		0x7e },
+	{ IMX334_REG_SYS_MODE,		0x02 },
+	{ IMX334_REG_HADD_VADD,		0x00 },
+	{ IMX334_REG_VALID_EXPAND,	0x03 },
+	{ IMX334_REG_TCYCLE,		0x00 },
+	{ IMX334_REG_TCLKPOST,		0x007f },
+	{ IMX334_REG_TCLKPREPARE,	0x0037 },
+	{ IMX334_REG_TCLKTRAIL,		0x0037 },
+	{ IMX334_REG_TCLKZERO,		0xf7 },
+	{ IMX334_REG_THSPREPARE,	0x002f },
+	{ CCI_REG8(0x3078), 0x02 },
+	{ CCI_REG8(0x3079), 0x00 },
+	{ CCI_REG8(0x307a), 0x00 },
+	{ CCI_REG8(0x307b), 0x00 },
+	{ CCI_REG8(0x3080), 0x02 },
+	{ CCI_REG8(0x3081), 0x00 },
+	{ CCI_REG8(0x3082), 0x00 },
+	{ CCI_REG8(0x3083), 0x00 },
+	{ CCI_REG8(0x3088), 0x02 },
+	{ CCI_REG8(0x3094), 0x00 },
+	{ CCI_REG8(0x3095), 0x00 },
+	{ CCI_REG8(0x3096), 0x00 },
+	{ CCI_REG8(0x309b), 0x02 },
+	{ CCI_REG8(0x309c), 0x00 },
+	{ CCI_REG8(0x309d), 0x00 },
+	{ CCI_REG8(0x309e), 0x00 },
+	{ CCI_REG8(0x30a4), 0x00 },
+	{ CCI_REG8(0x30a5), 0x00 },
+	{ CCI_REG8(0x3288), 0x21 },
+	{ CCI_REG8(0x328a), 0x02 },
+	{ CCI_REG8(0x3414), 0x05 },
+	{ CCI_REG8(0x3416), 0x18 },
+	{ CCI_REG8(0x35Ac), 0x0e },
+	{ CCI_REG8(0x3648), 0x01 },
+	{ CCI_REG8(0x364a), 0x04 },
+	{ CCI_REG8(0x364c), 0x04 },
+	{ CCI_REG8(0x3678), 0x01 },
+	{ CCI_REG8(0x367c), 0x31 },
+	{ CCI_REG8(0x367e), 0x31 },
+	{ CCI_REG8(0x3708), 0x02 },
+	{ CCI_REG8(0x3714), 0x01 },
+	{ CCI_REG8(0x3715), 0x02 },
+	{ CCI_REG8(0x3716), 0x02 },
+	{ CCI_REG8(0x3717), 0x02 },
+	{ CCI_REG8(0x371c), 0x3d },
+	{ CCI_REG8(0x371d), 0x3f },
+	{ CCI_REG8(0x372c), 0x00 },
+	{ CCI_REG8(0x372d), 0x00 },
+	{ CCI_REG8(0x372e), 0x46 },
+	{ CCI_REG8(0x372f), 0x00 },
+	{ CCI_REG8(0x3730), 0x89 },
+	{ CCI_REG8(0x3731), 0x00 },
+	{ CCI_REG8(0x3732), 0x08 },
+	{ CCI_REG8(0x3733), 0x01 },
+	{ CCI_REG8(0x3734), 0xfe },
+	{ CCI_REG8(0x3735), 0x05 },
+	{ CCI_REG8(0x375d), 0x00 },
+	{ CCI_REG8(0x375e), 0x00 },
+	{ CCI_REG8(0x375f), 0x61 },
+	{ CCI_REG8(0x3760), 0x06 },
+	{ CCI_REG8(0x3768), 0x1b },
+	{ CCI_REG8(0x3769), 0x1b },
+	{ CCI_REG8(0x376a), 0x1a },
+	{ CCI_REG8(0x376b), 0x19 },
+	{ CCI_REG8(0x376c), 0x18 },
+	{ CCI_REG8(0x376d), 0x14 },
+	{ CCI_REG8(0x376e), 0x0f },
+	{ CCI_REG8(0x3776), 0x00 },
+	{ CCI_REG8(0x3777), 0x00 },
+	{ CCI_REG8(0x3778), 0x46 },
+	{ CCI_REG8(0x3779), 0x00 },
+	{ CCI_REG8(0x377a), 0x08 },
+	{ CCI_REG8(0x377b), 0x01 },
+	{ CCI_REG8(0x377c), 0x45 },
+	{ CCI_REG8(0x377d), 0x01 },
+	{ CCI_REG8(0x377e), 0x23 },
+	{ CCI_REG8(0x377f), 0x02 },
+	{ CCI_REG8(0x3780), 0xd9 },
+	{ CCI_REG8(0x3781), 0x03 },
+	{ CCI_REG8(0x3782), 0xf5 },
+	{ CCI_REG8(0x3783), 0x06 },
+	{ CCI_REG8(0x3784), 0xa5 },
+	{ CCI_REG8(0x3788), 0x0f },
+	{ CCI_REG8(0x378a), 0xd9 },
+	{ CCI_REG8(0x378b), 0x03 },
+	{ CCI_REG8(0x378c), 0xeb },
+	{ CCI_REG8(0x378d), 0x05 },
+	{ CCI_REG8(0x378e), 0x87 },
+	{ CCI_REG8(0x378f), 0x06 },
+	{ CCI_REG8(0x3790), 0xf5 },
+	{ CCI_REG8(0x3792), 0x43 },
+	{ CCI_REG8(0x3794), 0x7a },
+	{ CCI_REG8(0x3796), 0xa1 },
+	{ CCI_REG8(0x37b0), 0x37 },
+	{ CCI_REG8(0x3e04), 0x0e },
+	{ IMX334_REG_AGAIN, 0x0050 },
+	{ IMX334_REG_MASTER_MODE, 0x00 },
+};
+
+/* Sensor mode registers for 640x480@30fps */
+static const struct cci_reg_sequence mode_640x480_regs[] = {
+	{ IMX334_REG_HTRIMMING_START,	0x0670 },
+	{ IMX334_REG_HNUM,		0x0280 },
+	{ IMX334_REG_AREA3_ST_ADR_1,	0x0748 },
+	{ IMX334_REG_AREA3_ST_ADR_2,	0x0749 },
+	{ IMX334_REG_AREA3_WIDTH_1,	0x01e0 },
+	{ IMX334_REG_AREA3_WIDTH_2,	0x01e0 },
+	{ IMX334_REG_Y_OUT_SIZE,	0x01e0 },
+	{ IMX334_REG_UNREAD_ED_ADR,	0x0b30 },
+};
+
+/* Sensor mode registers for 1280x720@30fps */
+static const struct cci_reg_sequence mode_1280x720_regs[] = {
+	{ IMX334_REG_HTRIMMING_START,	0x0530 },
+	{ IMX334_REG_HNUM,		0x0500 },
+	{ IMX334_REG_AREA3_ST_ADR_1,	0x0384 },
+	{ IMX334_REG_AREA3_ST_ADR_2,	0x0385 },
+	{ IMX334_REG_AREA3_WIDTH_1,	0x02d0 },
+	{ IMX334_REG_AREA3_WIDTH_2,	0x02d0 },
+	{ IMX334_REG_Y_OUT_SIZE,	0x02d0 },
+	{ IMX334_REG_UNREAD_ED_ADR,	0x0b30 },
+};
+
 /* Sensor mode registers for 1920x1080@30fps */
-static const struct imx334_reg mode_1920x1080_regs[] = {
-	{0x3000, 0x01},
-	{0x3018, 0x04},
-	{0x3030, 0xca},
-	{0x3031, 0x08},
-	{0x3032, 0x00},
-	{0x3034, 0x4c},
-	{0x3035, 0x04},
-	{0x302c, 0xf0},
-	{0x302d, 0x03},
-	{0x302e, 0x80},
-	{0x302f, 0x07},
-	{0x3074, 0xcc},
-	{0x3075, 0x02},
-	{0x308e, 0xcd},
-	{0x308f, 0x02},
-	{0x3076, 0x38},
-	{0x3077, 0x04},
-	{0x3090, 0x38},
-	{0x3091, 0x04},
-	{0x3308, 0x38},
-	{0x3309, 0x04},
-	{0x30C6, 0x00},
-	{0x30c7, 0x00},
-	{0x30ce, 0x00},
-	{0x30cf, 0x00},
-	{0x30d8, 0x18},
-	{0x30d9, 0x0a},
-	{0x304c, 0x00},
-	{0x304e, 0x00},
-	{0x304f, 0x00},
-	{0x3050, 0x00},
-	{0x30b6, 0x00},
-	{0x30b7, 0x00},
-	{0x3116, 0x08},
-	{0x3117, 0x00},
-	{0x31a0, 0x20},
-	{0x31a1, 0x0f},
-	{0x300c, 0x3b},
-	{0x300d, 0x29},
-	{0x314c, 0x29},
-	{0x314d, 0x01},
-	{0x315a, 0x06},
-	{0x3168, 0xa0},
-	{0x316a, 0x7e},
-	{0x319e, 0x02},
-	{0x3199, 0x00},
-	{0x319d, 0x00},
-	{0x31dd, 0x03},
-	{0x3300, 0x00},
-	{0x341c, 0xff},
-	{0x341d, 0x01},
-	{0x3a01, 0x03},
-	{0x3a18, 0x7f},
-	{0x3a19, 0x00},
-	{0x3a1a, 0x37},
-	{0x3a1b, 0x00},
-	{0x3a1c, 0x37},
-	{0x3a1d, 0x00},
-	{0x3a1e, 0xf7},
-	{0x3a1f, 0x00},
-	{0x3a20, 0x3f},
-	{0x3a21, 0x00},
-	{0x3a20, 0x6f},
-	{0x3a21, 0x00},
-	{0x3a20, 0x3f},
-	{0x3a21, 0x00},
-	{0x3a20, 0x5f},
-	{0x3a21, 0x00},
-	{0x3a20, 0x2f},
-	{0x3a21, 0x00},
-	{0x3078, 0x02},
-	{0x3079, 0x00},
-	{0x307a, 0x00},
-	{0x307b, 0x00},
-	{0x3080, 0x02},
-	{0x3081, 0x00},
-	{0x3082, 0x00},
-	{0x3083, 0x00},
-	{0x3088, 0x02},
-	{0x3094, 0x00},
-	{0x3095, 0x00},
-	{0x3096, 0x00},
-	{0x309b, 0x02},
-	{0x309c, 0x00},
-	{0x309d, 0x00},
-	{0x309e, 0x00},
-	{0x30a4, 0x00},
-	{0x30a5, 0x00},
-	{0x3288, 0x21},
-	{0x328a, 0x02},
-	{0x3414, 0x05},
-	{0x3416, 0x18},
-	{0x35Ac, 0x0e},
-	{0x3648, 0x01},
-	{0x364a, 0x04},
-	{0x364c, 0x04},
-	{0x3678, 0x01},
-	{0x367c, 0x31},
-	{0x367e, 0x31},
-	{0x3708, 0x02},
-	{0x3714, 0x01},
-	{0x3715, 0x02},
-	{0x3716, 0x02},
-	{0x3717, 0x02},
-	{0x371c, 0x3d},
-	{0x371d, 0x3f},
-	{0x372c, 0x00},
-	{0x372d, 0x00},
-	{0x372e, 0x46},
-	{0x372f, 0x00},
-	{0x3730, 0x89},
-	{0x3731, 0x00},
-	{0x3732, 0x08},
-	{0x3733, 0x01},
-	{0x3734, 0xfe},
-	{0x3735, 0x05},
-	{0x375d, 0x00},
-	{0x375e, 0x00},
-	{0x375f, 0x61},
-	{0x3760, 0x06},
-	{0x3768, 0x1b},
-	{0x3769, 0x1b},
-	{0x376a, 0x1a},
-	{0x376b, 0x19},
-	{0x376c, 0x18},
-	{0x376d, 0x14},
-	{0x376e, 0x0f},
-	{0x3776, 0x00},
-	{0x3777, 0x00},
-	{0x3778, 0x46},
-	{0x3779, 0x00},
-	{0x377a, 0x08},
-	{0x377b, 0x01},
-	{0x377c, 0x45},
-	{0x377d, 0x01},
-	{0x377e, 0x23},
-	{0x377f, 0x02},
-	{0x3780, 0xd9},
-	{0x3781, 0x03},
-	{0x3782, 0xf5},
-	{0x3783, 0x06},
-	{0x3784, 0xa5},
-	{0x3788, 0x0f},
-	{0x378a, 0xd9},
-	{0x378b, 0x03},
-	{0x378c, 0xeb},
-	{0x378d, 0x05},
-	{0x378e, 0x87},
-	{0x378f, 0x06},
-	{0x3790, 0xf5},
-	{0x3792, 0x43},
-	{0x3794, 0x7a},
-	{0x3796, 0xa1},
-	{0x37b0, 0x37},
-	{0x3e04, 0x0e},
-	{0x30e8, 0x50},
-	{0x30e9, 0x00},
-	{0x3e04, 0x0e},
-	{0x3002, 0x00},
+static const struct cci_reg_sequence mode_1920x1080_regs[] = {
+	{ IMX334_REG_HTRIMMING_START,	0x03f0 },
+	{ IMX334_REG_HNUM,		0x0780 },
+	{ IMX334_REG_AREA3_ST_ADR_1,	0x02cc },
+	{ IMX334_REG_AREA3_ST_ADR_2,	0x02cd },
+	{ IMX334_REG_AREA3_WIDTH_1,	0x0438 },
+	{ IMX334_REG_AREA3_WIDTH_2,	0x0438 },
+	{ IMX334_REG_Y_OUT_SIZE,	0x0438 },
+	{ IMX334_REG_UNREAD_ED_ADR,	0x0a18 },
 };
 
 /* Sensor mode registers for 3840x2160@30fps */
-static const struct imx334_reg mode_3840x2160_regs[] = {
-	{0x3000, 0x01},
-	{0x3002, 0x00},
-	{0x3018, 0x04},
-	{0x37b0, 0x36},
-	{0x304c, 0x00},
-	{0x300c, 0x3b},
-	{0x300d, 0x2a},
-	{0x3034, 0x26},
-	{0x3035, 0x02},
-	{0x314c, 0x29},
-	{0x314d, 0x01},
-	{0x315a, 0x02},
-	{0x3168, 0xa0},
-	{0x316a, 0x7e},
-	{0x3288, 0x21},
-	{0x328a, 0x02},
-	{0x302c, 0x3c},
-	{0x302d, 0x00},
-	{0x302e, 0x00},
-	{0x302f, 0x0f},
-	{0x3076, 0x70},
-	{0x3077, 0x08},
-	{0x3090, 0x70},
-	{0x3091, 0x08},
-	{0x30d8, 0x20},
-	{0x30d9, 0x12},
-	{0x3308, 0x70},
-	{0x3309, 0x08},
-	{0x3414, 0x05},
-	{0x3416, 0x18},
-	{0x35ac, 0x0e},
-	{0x3648, 0x01},
-	{0x364a, 0x04},
-	{0x364c, 0x04},
-	{0x3678, 0x01},
-	{0x367c, 0x31},
-	{0x367e, 0x31},
-	{0x3708, 0x02},
-	{0x3714, 0x01},
-	{0x3715, 0x02},
-	{0x3716, 0x02},
-	{0x3717, 0x02},
-	{0x371c, 0x3d},
-	{0x371d, 0x3f},
-	{0x372c, 0x00},
-	{0x372d, 0x00},
-	{0x372e, 0x46},
-	{0x372f, 0x00},
-	{0x3730, 0x89},
-	{0x3731, 0x00},
-	{0x3732, 0x08},
-	{0x3733, 0x01},
-	{0x3734, 0xfe},
-	{0x3735, 0x05},
-	{0x375d, 0x00},
-	{0x375e, 0x00},
-	{0x375f, 0x61},
-	{0x3760, 0x06},
-	{0x3768, 0x1b},
-	{0x3769, 0x1b},
-	{0x376a, 0x1a},
-	{0x376b, 0x19},
-	{0x376c, 0x18},
-	{0x376d, 0x14},
-	{0x376e, 0x0f},
-	{0x3776, 0x00},
-	{0x3777, 0x00},
-	{0x3778, 0x46},
-	{0x3779, 0x00},
-	{0x377a, 0x08},
-	{0x377b, 0x01},
-	{0x377c, 0x45},
-	{0x377d, 0x01},
-	{0x377e, 0x23},
-	{0x377f, 0x02},
-	{0x3780, 0xd9},
-	{0x3781, 0x03},
-	{0x3782, 0xf5},
-	{0x3783, 0x06},
-	{0x3784, 0xa5},
-	{0x3788, 0x0f},
-	{0x378a, 0xd9},
-	{0x378b, 0x03},
-	{0x378c, 0xeb},
-	{0x378d, 0x05},
-	{0x378e, 0x87},
-	{0x378f, 0x06},
-	{0x3790, 0xf5},
-	{0x3792, 0x43},
-	{0x3794, 0x7a},
-	{0x3796, 0xa1},
-	{0x3e04, 0x0e},
-	{0x319e, 0x00},
-	{0x3a00, 0x01},
-	{0x3a18, 0xbf},
-	{0x3a19, 0x00},
-	{0x3a1a, 0x67},
-	{0x3a1b, 0x00},
-	{0x3a1c, 0x6f},
-	{0x3a1d, 0x00},
-	{0x3a1e, 0xd7},
-	{0x3a1f, 0x01},
-	{0x3a20, 0x6f},
-	{0x3a21, 0x00},
-	{0x3a22, 0xcf},
-	{0x3a23, 0x00},
-	{0x3a24, 0x6f},
-	{0x3a25, 0x00},
-	{0x3a26, 0xb7},
-	{0x3a27, 0x00},
-	{0x3a28, 0x5f},
-	{0x3a29, 0x00},
+static const struct cci_reg_sequence mode_3840x2160_regs[] = {
+	{ IMX334_REG_HMAX,		0x0226 },
+	{ IMX334_REG_INCKSEL2,		0x02 },
+	{ IMX334_REG_HTRIMMING_START,	0x003c },
+	{ IMX334_REG_HNUM,		0x0f00 },
+	{ IMX334_REG_AREA3_ST_ADR_1,	0x00b0 },
+	{ IMX334_REG_AREA3_ST_ADR_2,	0x00b1 },
+	{ IMX334_REG_UNREAD_ED_ADR,	0x1220 },
+	{ IMX334_REG_AREA3_WIDTH_1,	0x0870 },
+	{ IMX334_REG_AREA3_WIDTH_2,	0x0870 },
+	{ IMX334_REG_Y_OUT_SIZE,	0x0870 },
+	{ IMX334_REG_SYS_MODE,		0x0100 },
+	{ IMX334_REG_TCLKPOST,		0x00bf },
+	{ IMX334_REG_TCLKPREPARE,	0x0067 },
+	{ IMX334_REG_TCLKTRAIL,		0x006f },
+	{ IMX334_REG_TCLKZERO,		0x1d7 },
+	{ IMX334_REG_THSPREPARE,	0x006f },
+	{ IMX334_REG_THSZERO,		0x00cf },
+	{ IMX334_REG_THSTRAIL,		0x006f },
+	{ IMX334_REG_THSEXIT,		0x00b7 },
+	{ IMX334_REG_TPLX,		0x005f },
 };
 
 static const char * const imx334_test_pattern_menu[] = {
@@ -458,18 +406,16 @@ static const int imx334_test_pattern_val[] = {
 	IMX334_TP_COLOR_VBARS,
 };
 
-static const struct imx334_reg raw10_framefmt_regs[] = {
-	{0x3050, 0x00},
-	{0x319d, 0x00},
-	{0x341c, 0xff},
-	{0x341d, 0x01},
+static const struct cci_reg_sequence raw10_framefmt_regs[] = {
+	{ IMX334_REG_ADBIT,  0x00 },
+	{ IMX334_REG_MDBIT,  0x00 },
+	{ IMX334_REG_ADBIT1, 0x01ff },
 };
 
-static const struct imx334_reg raw12_framefmt_regs[] = {
-	{0x3050, 0x01},
-	{0x319d, 0x01},
-	{0x341c, 0x47},
-	{0x341d, 0x00},
+static const struct cci_reg_sequence raw12_framefmt_regs[] = {
+	{ IMX334_REG_ADBIT,  0x01 },
+	{ IMX334_REG_MDBIT,  0x01 },
+	{ IMX334_REG_ADBIT1, 0x0047 },
 };
 
 static const u32 imx334_mbus_codes[] = {
@@ -505,6 +451,32 @@ static const struct imx334_mode supported_modes[] = {
 			.num_of_regs = ARRAY_SIZE(mode_1920x1080_regs),
 			.regs = mode_1920x1080_regs,
 		},
+	}, {
+		.width = 1280,
+		.height = 720,
+		.hblank = 2480,
+		.vblank = 1170,
+		.vblank_min = 45,
+		.vblank_max = 132840,
+		.pclk = 297000000,
+		.link_freq_idx = 1,
+		.reg_list = {
+			.num_of_regs = ARRAY_SIZE(mode_1280x720_regs),
+			.regs = mode_1280x720_regs,
+		},
+	}, {
+		.width = 640,
+		.height = 480,
+		.hblank = 2480,
+		.vblank = 1170,
+		.vblank_min = 45,
+		.vblank_max = 132840,
+		.pclk = 297000000,
+		.link_freq_idx = 1,
+		.reg_list = {
+			.num_of_regs = ARRAY_SIZE(mode_640x480_regs),
+			.regs = mode_640x480_regs,
+		},
 	},
 };
 
@@ -517,101 +489,6 @@ static const struct imx334_mode supported_modes[] = {
 static inline struct imx334 *to_imx334(struct v4l2_subdev *subdev)
 {
 	return container_of(subdev, struct imx334, sd);
-}
-
-/**
- * imx334_read_reg() - Read registers.
- * @imx334: pointer to imx334 device
- * @reg: register address
- * @len: length of bytes to read. Max supported bytes is 4
- * @val: pointer to register value to be filled.
- *
- * Big endian register addresses with little endian values.
- *
- * Return: 0 if successful, error code otherwise.
- */
-static int imx334_read_reg(struct imx334 *imx334, u16 reg, u32 len, u32 *val)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&imx334->sd);
-	struct i2c_msg msgs[2] = {0};
-	u8 addr_buf[2] = {0};
-	u8 data_buf[4] = {0};
-	int ret;
-
-	if (WARN_ON(len > 4))
-		return -EINVAL;
-
-	put_unaligned_be16(reg, addr_buf);
-
-	/* Write register address */
-	msgs[0].addr = client->addr;
-	msgs[0].flags = 0;
-	msgs[0].len = ARRAY_SIZE(addr_buf);
-	msgs[0].buf = addr_buf;
-
-	/* Read data from register */
-	msgs[1].addr = client->addr;
-	msgs[1].flags = I2C_M_RD;
-	msgs[1].len = len;
-	msgs[1].buf = data_buf;
-
-	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
-	if (ret != ARRAY_SIZE(msgs))
-		return -EIO;
-
-	*val = get_unaligned_le32(data_buf);
-
-	return 0;
-}
-
-/**
- * imx334_write_reg() - Write register
- * @imx334: pointer to imx334 device
- * @reg: register address
- * @len: length of bytes. Max supported bytes is 4
- * @val: register value
- *
- * Big endian register addresses with little endian values.
- *
- * Return: 0 if successful, error code otherwise.
- */
-static int imx334_write_reg(struct imx334 *imx334, u16 reg, u32 len, u32 val)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&imx334->sd);
-	u8 buf[6] = {0};
-
-	if (WARN_ON(len > 4))
-		return -EINVAL;
-
-	put_unaligned_be16(reg, buf);
-	put_unaligned_le32(val, buf + 2);
-	if (i2c_master_send(client, buf, len + 2) != len + 2)
-		return -EIO;
-
-	return 0;
-}
-
-/**
- * imx334_write_regs() - Write a list of registers
- * @imx334: pointer to imx334 device
- * @regs: list of registers to be written
- * @len: length of registers array
- *
- * Return: 0 if successful, error code otherwise.
- */
-static int imx334_write_regs(struct imx334 *imx334,
-			     const struct imx334_reg *regs, u32 len)
-{
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < len; i++) {
-		ret = imx334_write_reg(imx334, regs[i].address, 1, regs[i].val);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
 }
 
 /**
@@ -659,30 +536,23 @@ static int imx334_update_controls(struct imx334 *imx334,
 static int imx334_update_exp_gain(struct imx334 *imx334, u32 exposure, u32 gain)
 {
 	u32 lpfr, shutter;
-	int ret;
+	int ret_hold;
+	int ret = 0;
 
 	lpfr = imx334->vblank + imx334->cur_mode->height;
 	shutter = lpfr - exposure;
 
-	dev_dbg(imx334->dev, "Set long exp %u analog gain %u sh0 %u lpfr %u",
+	dev_dbg(imx334->dev, "Set long exp %u analog gain %u sh0 %u lpfr %u\n",
 		exposure, gain, shutter, lpfr);
 
-	ret = imx334_write_reg(imx334, IMX334_REG_HOLD, 1, 1);
-	if (ret)
-		return ret;
+	cci_write(imx334->cci, IMX334_REG_HOLD, 1, &ret);
+	cci_write(imx334->cci, IMX334_REG_VMAX, lpfr, &ret);
+	cci_write(imx334->cci, IMX334_REG_SHUTTER, shutter, &ret);
+	cci_write(imx334->cci, IMX334_REG_AGAIN, gain, &ret);
 
-	ret = imx334_write_reg(imx334, IMX334_REG_LPFR, 3, lpfr);
-	if (ret)
-		goto error_release_group_hold;
-
-	ret = imx334_write_reg(imx334, IMX334_REG_SHUTTER, 3, shutter);
-	if (ret)
-		goto error_release_group_hold;
-
-	ret = imx334_write_reg(imx334, IMX334_REG_AGAIN, 1, gain);
-
-error_release_group_hold:
-	imx334_write_reg(imx334, IMX334_REG_HOLD, 1, 0);
+	ret_hold = cci_write(imx334->cci, IMX334_REG_HOLD, 0, NULL);
+	if (ret_hold)
+		return ret_hold;
 
 	return ret;
 }
@@ -707,11 +577,10 @@ static int imx334_set_ctrl(struct v4l2_ctrl *ctrl)
 	u32 exposure;
 	int ret;
 
-	switch (ctrl->id) {
-	case V4L2_CID_VBLANK:
+	if (ctrl->id == V4L2_CID_VBLANK) {
 		imx334->vblank = imx334->vblank_ctrl->val;
 
-		dev_dbg(imx334->dev, "Received vblank %u, new lpfr %u",
+		dev_dbg(imx334->dev, "Received vblank %u, new lpfr %u\n",
 			imx334->vblank,
 			imx334->vblank + imx334->cur_mode->height);
 
@@ -721,22 +590,31 @@ static int imx334_set_ctrl(struct v4l2_ctrl *ctrl)
 					       imx334->cur_mode->height -
 					       IMX334_EXPOSURE_OFFSET,
 					       1, IMX334_EXPOSURE_DEFAULT);
+		if (ret)
+			return ret;
+	}
+
+	/* Set controls only if sensor is in power on state */
+	if (!pm_runtime_get_if_in_use(imx334->dev))
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_VBLANK:
+		exposure = imx334->exp_ctrl->val;
+		analog_gain = imx334->again_ctrl->val;
+
+		ret = imx334_update_exp_gain(imx334, exposure, analog_gain);
+
 		break;
 	case V4L2_CID_EXPOSURE:
-
-		/* Set controls only if sensor is in power on state */
-		if (!pm_runtime_get_if_in_use(imx334->dev))
-			return 0;
 
 		exposure = ctrl->val;
 		analog_gain = imx334->again_ctrl->val;
 
-		dev_dbg(imx334->dev, "Received exp %u analog gain %u",
+		dev_dbg(imx334->dev, "Received exp %u analog gain %u\n",
 			exposure, analog_gain);
 
 		ret = imx334_update_exp_gain(imx334, exposure, analog_gain);
-
-		pm_runtime_put(imx334->dev);
 
 		break;
 	case V4L2_CID_PIXEL_RATE:
@@ -746,28 +624,30 @@ static int imx334_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		if (ctrl->val) {
-			imx334_write_reg(imx334, IMX334_TP_CLK_EN, 1,
-					 IMX334_TP_CLK_EN_VAL);
-			imx334_write_reg(imx334, IMX334_DIG_CLP_MODE, 1, 0x0);
-			imx334_write_reg(imx334, IMX334_TPG_COLORW, 1,
-					 IMX334_TPG_COLORW_120P);
-			imx334_write_reg(imx334, IMX334_REG_TP, 1,
-					 imx334_test_pattern_val[ctrl->val]);
-			imx334_write_reg(imx334, IMX334_TPG_EN_DOUT, 1,
-					 IMX334_TP_ENABLE);
+			cci_write(imx334->cci, IMX334_TP_CLK_EN,
+				  IMX334_TP_CLK_EN_VAL, NULL);
+			cci_write(imx334->cci, IMX334_DIG_CLP_MODE, 0x0, NULL);
+			cci_write(imx334->cci, IMX334_TPG_COLORW,
+				  IMX334_TPG_COLORW_120P, NULL);
+			cci_write(imx334->cci, IMX334_REG_TP,
+				  imx334_test_pattern_val[ctrl->val], NULL);
+			cci_write(imx334->cci, IMX334_TPG_EN_DOUT,
+				  IMX334_TP_ENABLE, NULL);
 		} else {
-			imx334_write_reg(imx334, IMX334_DIG_CLP_MODE, 1, 0x1);
-			imx334_write_reg(imx334, IMX334_TP_CLK_EN, 1,
-					 IMX334_TP_CLK_DIS_VAL);
-			imx334_write_reg(imx334, IMX334_TPG_EN_DOUT, 1,
-					 IMX334_TP_DISABLE);
+			cci_write(imx334->cci, IMX334_DIG_CLP_MODE, 0x1, NULL);
+			cci_write(imx334->cci, IMX334_TP_CLK_EN,
+				  IMX334_TP_CLK_DIS_VAL, NULL);
+			cci_write(imx334->cci, IMX334_TPG_EN_DOUT,
+				  IMX334_TP_DISABLE, NULL);
 		}
 		ret = 0;
 		break;
 	default:
-		dev_err(imx334->dev, "Invalid control %d", ctrl->id);
+		dev_err(imx334->dev, "Invalid control %d\n", ctrl->id);
 		ret = -EINVAL;
 	}
+
+	pm_runtime_put(imx334->dev);
 
 	return ret;
 }
@@ -874,8 +754,6 @@ static int imx334_get_pad_format(struct v4l2_subdev *sd,
 {
 	struct imx334 *imx334 = to_imx334(sd);
 
-	mutex_lock(&imx334->mutex);
-
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *framefmt;
 
@@ -885,8 +763,6 @@ static int imx334_get_pad_format(struct v4l2_subdev *sd,
 		fmt->format.code = imx334->cur_code;
 		imx334_fill_pad_format(imx334, imx334->cur_mode, fmt);
 	}
-
-	mutex_unlock(&imx334->mutex);
 
 	return 0;
 }
@@ -906,8 +782,6 @@ static int imx334_set_pad_format(struct v4l2_subdev *sd,
 	struct imx334 *imx334 = to_imx334(sd);
 	const struct imx334_mode *mode;
 	int ret = 0;
-
-	mutex_lock(&imx334->mutex);
 
 	mode = v4l2_find_nearest_size(supported_modes,
 				      ARRAY_SIZE(supported_modes),
@@ -929,8 +803,6 @@ static int imx334_set_pad_format(struct v4l2_subdev *sd,
 			imx334->cur_mode = mode;
 	}
 
-	mutex_unlock(&imx334->mutex);
-
 	return ret;
 }
 
@@ -949,16 +821,12 @@ static int imx334_init_state(struct v4l2_subdev *sd,
 
 	fmt.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
 
-	mutex_lock(&imx334->mutex);
-
 	imx334_fill_pad_format(imx334, imx334->cur_mode, &fmt);
 
 	__v4l2_ctrl_modify_range(imx334->link_freq_ctrl, 0,
 				 __fls(imx334->link_freq_bitmap),
 				 ~(imx334->link_freq_bitmap),
 				 __ffs(imx334->link_freq_bitmap));
-
-	mutex_unlock(&imx334->mutex);
 
 	return imx334_set_pad_format(sd, sd_state, &fmt);
 }
@@ -967,109 +835,113 @@ static int imx334_set_framefmt(struct imx334 *imx334)
 {
 	switch (imx334->cur_code) {
 	case MEDIA_BUS_FMT_SRGGB10_1X10:
-		return imx334_write_regs(imx334, raw10_framefmt_regs,
-					 ARRAY_SIZE(raw10_framefmt_regs));
+		return cci_multi_reg_write(imx334->cci, raw10_framefmt_regs,
+					ARRAY_SIZE(raw10_framefmt_regs), NULL);
+
 
 	case MEDIA_BUS_FMT_SRGGB12_1X12:
-		return imx334_write_regs(imx334, raw12_framefmt_regs,
-					 ARRAY_SIZE(raw12_framefmt_regs));
+		return cci_multi_reg_write(imx334->cci, raw12_framefmt_regs,
+					ARRAY_SIZE(raw12_framefmt_regs), NULL);
 	}
 
 	return -EINVAL;
 }
 
 /**
- * imx334_start_streaming() - Start sensor stream
- * @imx334: pointer to imx334 device
+ * imx334_enable_streams() - Enable specified streams for the sensor
+ * @sd: pointer to the V4L2 subdevice
+ * @state: pointer to the subdevice state
+ * @pad: pad number for which streams are enabled
+ * @streams_mask: bitmask specifying the streams to enable
  *
  * Return: 0 if successful, error code otherwise.
  */
-static int imx334_start_streaming(struct imx334 *imx334)
+static int imx334_enable_streams(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *state, u32 pad,
+				 u64 streams_mask)
 {
+	struct imx334 *imx334 = to_imx334(sd);
 	const struct imx334_reg_list *reg_list;
 	int ret;
 
+	ret = pm_runtime_resume_and_get(imx334->dev);
+	if (ret < 0)
+		return ret;
+
+	ret = cci_multi_reg_write(imx334->cci, common_mode_regs,
+				  ARRAY_SIZE(common_mode_regs), NULL);
+	if (ret) {
+		dev_err(imx334->dev, "fail to write common registers\n");
+		goto err_rpm_put;
+	}
+
 	/* Write sensor mode registers */
 	reg_list = &imx334->cur_mode->reg_list;
-	ret = imx334_write_regs(imx334, reg_list->regs,
-				reg_list->num_of_regs);
+	ret = cci_multi_reg_write(imx334->cci, reg_list->regs,
+				  reg_list->num_of_regs, NULL);
 	if (ret) {
-		dev_err(imx334->dev, "fail to write initial registers");
-		return ret;
+		dev_err(imx334->dev, "fail to write initial registers\n");
+		goto err_rpm_put;
+	}
+
+	ret = cci_write(imx334->cci, IMX334_REG_LANEMODE,
+			IMX334_CSI_4_LANE_MODE, NULL);
+	if (ret) {
+		dev_err(imx334->dev, "failed to configure lanes\n");
+		goto err_rpm_put;
 	}
 
 	ret = imx334_set_framefmt(imx334);
 	if (ret) {
 		dev_err(imx334->dev, "%s failed to set frame format: %d\n",
 			__func__, ret);
-		return ret;
+		goto err_rpm_put;
 	}
 
 	/* Setup handler will write actual exposure and gain */
 	ret =  __v4l2_ctrl_handler_setup(imx334->sd.ctrl_handler);
 	if (ret) {
-		dev_err(imx334->dev, "fail to setup handler");
-		return ret;
+		dev_err(imx334->dev, "fail to setup handler\n");
+		goto err_rpm_put;
 	}
 
 	/* Start streaming */
-	ret = imx334_write_reg(imx334, IMX334_REG_MODE_SELECT,
-			       1, IMX334_MODE_STREAMING);
+	ret = cci_write(imx334->cci, IMX334_REG_MODE_SELECT,
+			IMX334_MODE_STREAMING, NULL);
 	if (ret) {
-		dev_err(imx334->dev, "fail to start streaming");
-		return ret;
+		dev_err(imx334->dev, "fail to start streaming\n");
+		goto err_rpm_put;
 	}
 
 	return 0;
+
+err_rpm_put:
+	pm_runtime_put(imx334->dev);
+	return ret;
 }
 
 /**
- * imx334_stop_streaming() - Stop sensor stream
- * @imx334: pointer to imx334 device
+ * imx334_disable_streams() - Enable specified streams for the sensor
+ * @sd: pointer to the V4L2 subdevice
+ * @state: pointer to the subdevice state
+ * @pad: pad number for which streams are disabled
+ * @streams_mask: bitmask specifying the streams to disable
  *
  * Return: 0 if successful, error code otherwise.
  */
-static int imx334_stop_streaming(struct imx334 *imx334)
-{
-	return imx334_write_reg(imx334, IMX334_REG_MODE_SELECT,
-				1, IMX334_MODE_STANDBY);
-}
-
-/**
- * imx334_set_stream() - Enable sensor streaming
- * @sd: pointer to imx334 subdevice
- * @enable: set to enable sensor streaming
- *
- * Return: 0 if successful, error code otherwise.
- */
-static int imx334_set_stream(struct v4l2_subdev *sd, int enable)
+static int imx334_disable_streams(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state, u32 pad,
+				  u64 streams_mask)
 {
 	struct imx334 *imx334 = to_imx334(sd);
 	int ret;
 
-	mutex_lock(&imx334->mutex);
+	ret = cci_write(imx334->cci, IMX334_REG_MODE_SELECT,
+			IMX334_MODE_STANDBY, NULL);
+	if (ret)
+		dev_err(imx334->dev, "%s failed to stop stream\n", __func__);
 
-	if (enable) {
-		ret = pm_runtime_resume_and_get(imx334->dev);
-		if (ret < 0)
-			goto error_unlock;
-
-		ret = imx334_start_streaming(imx334);
-		if (ret)
-			goto error_power_off;
-	} else {
-		imx334_stop_streaming(imx334);
-		pm_runtime_put(imx334->dev);
-	}
-
-	mutex_unlock(&imx334->mutex);
-
-	return 0;
-
-error_power_off:
 	pm_runtime_put(imx334->dev);
-error_unlock:
-	mutex_unlock(&imx334->mutex);
 
 	return ret;
 }
@@ -1083,14 +955,14 @@ error_unlock:
 static int imx334_detect(struct imx334 *imx334)
 {
 	int ret;
-	u32 val;
+	u64 val;
 
-	ret = imx334_read_reg(imx334, IMX334_REG_ID, 2, &val);
+	ret = cci_read(imx334->cci, IMX334_REG_ID, &val, NULL);
 	if (ret)
 		return ret;
 
 	if (val != IMX334_ID) {
-		dev_err(imx334->dev, "chip id mismatch: %x!=%x",
+		dev_err(imx334->dev, "chip id mismatch: %x!=%llx\n",
 			IMX334_ID, val);
 		return -ENXIO;
 	}
@@ -1120,24 +992,20 @@ static int imx334_parse_hw_config(struct imx334 *imx334)
 	/* Request optional reset pin */
 	imx334->reset_gpio = devm_gpiod_get_optional(imx334->dev, "reset",
 						     GPIOD_OUT_LOW);
-	if (IS_ERR(imx334->reset_gpio)) {
-		dev_err(imx334->dev, "failed to get reset gpio %ld",
-			PTR_ERR(imx334->reset_gpio));
-		return PTR_ERR(imx334->reset_gpio);
-	}
+	if (IS_ERR(imx334->reset_gpio))
+		return dev_err_probe(imx334->dev, PTR_ERR(imx334->reset_gpio),
+				     "failed to get reset gpio\n");
 
 	/* Get sensor input clock */
 	imx334->inclk = devm_clk_get(imx334->dev, NULL);
-	if (IS_ERR(imx334->inclk)) {
-		dev_err(imx334->dev, "could not get inclk");
-		return PTR_ERR(imx334->inclk);
-	}
+	if (IS_ERR(imx334->inclk))
+		return dev_err_probe(imx334->dev, PTR_ERR(imx334->inclk),
+					 "could not get inclk\n");
 
 	rate = clk_get_rate(imx334->inclk);
-	if (rate != IMX334_INCLK_RATE) {
-		dev_err(imx334->dev, "inclk frequency mismatch");
-		return -EINVAL;
-	}
+	if (rate != IMX334_INCLK_RATE)
+		return dev_err_probe(imx334->dev, -EINVAL,
+					 "inclk frequency mismatch\n");
 
 	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
 	if (!ep)
@@ -1150,7 +1018,7 @@ static int imx334_parse_hw_config(struct imx334 *imx334)
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != IMX334_NUM_DATA_LANES) {
 		dev_err(imx334->dev,
-			"number of CSI2 data lanes %d is not supported",
+			"number of CSI2 data lanes %d is not supported\n",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto done_endpoint_free;
@@ -1169,7 +1037,7 @@ done_endpoint_free:
 
 /* V4l2 subdevice ops */
 static const struct v4l2_subdev_video_ops imx334_video_ops = {
-	.s_stream = imx334_set_stream,
+	.s_stream = v4l2_subdev_s_stream_helper,
 };
 
 static const struct v4l2_subdev_pad_ops imx334_pad_ops = {
@@ -1177,6 +1045,8 @@ static const struct v4l2_subdev_pad_ops imx334_pad_ops = {
 	.enum_frame_size = imx334_enum_frame_size,
 	.get_fmt = imx334_get_pad_format,
 	.set_fmt = imx334_set_pad_format,
+	.enable_streams = imx334_enable_streams,
+	.disable_streams = imx334_disable_streams,
 };
 
 static const struct v4l2_subdev_ops imx334_subdev_ops = {
@@ -1204,7 +1074,7 @@ static int imx334_power_on(struct device *dev)
 
 	ret = clk_prepare_enable(imx334->inclk);
 	if (ret) {
-		dev_err(imx334->dev, "fail to enable inclk");
+		dev_err(imx334->dev, "fail to enable inclk\n");
 		goto error_reset;
 	}
 
@@ -1252,9 +1122,6 @@ static int imx334_init_controls(struct imx334 *imx334)
 	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 7);
 	if (ret)
 		return ret;
-
-	/* Serialize controls with sensor device */
-	ctrl_hdlr->lock = &imx334->mutex;
 
 	/* Initialize exposure and gain */
 	lpfr = mode->vblank + mode->height;
@@ -1342,29 +1209,31 @@ static int imx334_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	imx334->dev = &client->dev;
+	imx334->cci = devm_cci_regmap_init_i2c(client, 16);
+	if (IS_ERR(imx334->cci)) {
+		dev_err(imx334->dev, "Unable to initialize I2C\n");
+		return -ENODEV;
+	}
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx334->sd, client, &imx334_subdev_ops);
 	imx334->sd.internal_ops = &imx334_internal_ops;
 
 	ret = imx334_parse_hw_config(imx334);
-	if (ret) {
-		dev_err(imx334->dev, "HW configuration is not supported");
-		return ret;
-	}
-
-	mutex_init(&imx334->mutex);
+	if (ret)
+		return dev_err_probe(imx334->dev, ret,
+					"HW configuration is not supported\n");
 
 	ret = imx334_power_on(imx334->dev);
 	if (ret) {
-		dev_err(imx334->dev, "failed to power-on the sensor");
-		goto error_mutex_destroy;
+		dev_err_probe(imx334->dev, ret, "failed to power-on the sensor\n");
+		return ret;
 	}
 
 	/* Check module identity */
 	ret = imx334_detect(imx334);
 	if (ret) {
-		dev_err(imx334->dev, "failed to find sensor: %d", ret);
+		dev_err(imx334->dev, "failed to find sensor: %d\n", ret);
 		goto error_power_off;
 	}
 
@@ -1375,7 +1244,7 @@ static int imx334_probe(struct i2c_client *client)
 
 	ret = imx334_init_controls(imx334);
 	if (ret) {
-		dev_err(imx334->dev, "failed to init controls: %d", ret);
+		dev_err(imx334->dev, "failed to init controls: %d\n", ret);
 		goto error_power_off;
 	}
 
@@ -1387,31 +1256,44 @@ static int imx334_probe(struct i2c_client *client)
 	imx334->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&imx334->sd.entity, 1, &imx334->pad);
 	if (ret) {
-		dev_err(imx334->dev, "failed to init entity pads: %d", ret);
+		dev_err(imx334->dev, "failed to init entity pads: %d\n", ret);
 		goto error_handler_free;
 	}
 
-	ret = v4l2_async_register_subdev_sensor(&imx334->sd);
+	imx334->sd.state_lock = imx334->ctrl_handler.lock;
+	ret = v4l2_subdev_init_finalize(&imx334->sd);
 	if (ret < 0) {
-		dev_err(imx334->dev,
-			"failed to register async subdev: %d", ret);
+		dev_err(imx334->dev, "subdev init error: %d\n", ret);
 		goto error_media_entity;
 	}
 
 	pm_runtime_set_active(imx334->dev);
 	pm_runtime_enable(imx334->dev);
+
+	ret = v4l2_async_register_subdev_sensor(&imx334->sd);
+	if (ret < 0) {
+		dev_err(imx334->dev,
+			"failed to register async subdev: %d\n", ret);
+		goto error_subdev_cleanup;
+	}
+
 	pm_runtime_idle(imx334->dev);
 
 	return 0;
 
+error_subdev_cleanup:
+	v4l2_subdev_cleanup(&imx334->sd);
+	pm_runtime_disable(imx334->dev);
+	pm_runtime_set_suspended(imx334->dev);
+
 error_media_entity:
 	media_entity_cleanup(&imx334->sd.entity);
+
 error_handler_free:
 	v4l2_ctrl_handler_free(imx334->sd.ctrl_handler);
+
 error_power_off:
 	imx334_power_off(imx334->dev);
-error_mutex_destroy:
-	mutex_destroy(&imx334->mutex);
 
 	return ret;
 }
@@ -1425,16 +1307,17 @@ error_mutex_destroy:
 static void imx334_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct imx334 *imx334 = to_imx334(sd);
 
 	v4l2_async_unregister_subdev(sd);
+	v4l2_subdev_cleanup(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 
 	pm_runtime_disable(&client->dev);
-	pm_runtime_suspended(&client->dev);
-
-	mutex_destroy(&imx334->mutex);
+	if (!pm_runtime_status_suspended(&client->dev)) {
+		imx334_power_off(&client->dev);
+		pm_runtime_set_suspended(&client->dev);
+	}
 }
 
 static const struct dev_pm_ops imx334_pm_ops = {

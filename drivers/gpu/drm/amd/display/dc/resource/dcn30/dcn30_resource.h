@@ -56,7 +56,7 @@ unsigned int dcn30_calc_max_scaled_time(
 		enum mmhubbub_wbif_mode mode,
 		unsigned int urgent_watermark);
 
-bool dcn30_validate_bandwidth(struct dc *dc, struct dc_state *context,
+enum dc_status dcn30_validate_bandwidth(struct dc *dc, struct dc_state *context,
 		bool fast_validate);
 bool dcn30_internal_validate_bw(
 		struct dc *dc,

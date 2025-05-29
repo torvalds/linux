@@ -1025,6 +1025,7 @@
 #define DP_EDP_GENERAL_CAP_2		    0x703
 # define DP_EDP_OVERDRIVE_ENGINE_ENABLED		(1 << 0)
 # define DP_EDP_PANEL_LUMINANCE_CONTROL_CAPABLE		(1 << 4)
+# define DP_EDP_SMOOTH_BRIGHTNESS_CAPABLE		(1 << 6) /* eDP 2.0 */
 
 #define DP_EDP_GENERAL_CAP_3		    0x704    /* eDP 1.4 */
 # define DP_EDP_X_REGION_CAP_MASK			(0xf << 0)

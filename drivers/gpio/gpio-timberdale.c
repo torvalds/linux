@@ -103,19 +103,25 @@ static void timbgpio_irq_disable(struct irq_data *d)
 {
 	struct timbgpio *tgpio = irq_data_get_irq_chip_data(d);
 	int offset = d->irq - tgpio->irq_base;
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 	unsigned long flags;
 
 	spin_lock_irqsave(&tgpio->lock, flags);
 	tgpio->last_ier &= ~(1UL << offset);
 	iowrite32(tgpio->last_ier, tgpio->membase + TGPIO_IER);
 	spin_unlock_irqrestore(&tgpio->lock, flags);
+
+	gpiochip_disable_irq(&tgpio->gpio, hwirq);
 }
 
 static void timbgpio_irq_enable(struct irq_data *d)
 {
 	struct timbgpio *tgpio = irq_data_get_irq_chip_data(d);
 	int offset = d->irq - tgpio->irq_base;
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 	unsigned long flags;
+
+	gpiochip_enable_irq(&tgpio->gpio, hwirq);
 
 	spin_lock_irqsave(&tgpio->lock, flags);
 	tgpio->last_ier |= 1UL << offset;
@@ -205,11 +211,13 @@ static void timbgpio_irq(struct irq_desc *desc)
 	iowrite32(tgpio->last_ier, tgpio->membase + TGPIO_IER);
 }
 
-static struct irq_chip timbgpio_irqchip = {
+static const struct irq_chip timbgpio_irqchip = {
 	.name		= "GPIO",
 	.irq_enable	= timbgpio_irq_enable,
 	.irq_disable	= timbgpio_irq_disable,
 	.irq_set_type	= timbgpio_irq_type,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static int timbgpio_probe(struct platform_device *pdev)

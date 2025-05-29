@@ -485,19 +485,6 @@ int strp_init(struct strparser *strp, struct sock *sk,
 }
 EXPORT_SYMBOL_GPL(strp_init);
 
-/* Sock process lock held (lock_sock) */
-void __strp_unpause(struct strparser *strp)
-{
-	strp->paused = 0;
-
-	if (strp->need_bytes) {
-		if (strp_peek_len(strp) < strp->need_bytes)
-			return;
-	}
-	strp_read_sock(strp);
-}
-EXPORT_SYMBOL_GPL(__strp_unpause);
-
 void strp_unpause(struct strparser *strp)
 {
 	strp->paused = 0;

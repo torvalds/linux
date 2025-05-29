@@ -197,7 +197,7 @@ static noinline void switch_commit_roots(struct btrfs_trans_handle *trans)
 		list_del_init(&root->dirty_list);
 		free_extent_buffer(root->commit_root);
 		root->commit_root = btrfs_root_node(root);
-		extent_io_tree_release(&root->dirty_log_pages);
+		btrfs_extent_io_tree_release(&root->dirty_log_pages);
 		btrfs_qgroup_clean_swapped_blocks(root);
 	}
 
@@ -383,10 +383,10 @@ loop:
 	INIT_LIST_HEAD(&cur_trans->deleted_bgs);
 	spin_lock_init(&cur_trans->dropped_roots_lock);
 	list_add_tail(&cur_trans->list, &fs_info->trans_list);
-	extent_io_tree_init(fs_info, &cur_trans->dirty_pages,
-			IO_TREE_TRANS_DIRTY_PAGES);
-	extent_io_tree_init(fs_info, &cur_trans->pinned_extents,
-			IO_TREE_FS_PINNED_EXTENTS);
+	btrfs_extent_io_tree_init(fs_info, &cur_trans->dirty_pages,
+				  IO_TREE_TRANS_DIRTY_PAGES);
+	btrfs_extent_io_tree_init(fs_info, &cur_trans->pinned_extents,
+				  IO_TREE_FS_PINNED_EXTENTS);
 	btrfs_set_fs_generation(fs_info, fs_info->generation + 1);
 	cur_trans->transid = fs_info->generation;
 	fs_info->running_transaction = cur_trans;
@@ -538,15 +538,15 @@ static void wait_current_trans(struct btrfs_fs_info *fs_info)
 	}
 }
 
-static int may_wait_transaction(struct btrfs_fs_info *fs_info, int type)
+static bool may_wait_transaction(struct btrfs_fs_info *fs_info, int type)
 {
 	if (test_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags))
-		return 0;
+		return false;
 
 	if (type == TRANS_START)
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
 static inline bool need_reserve_reloc_root(struct btrfs_root *root)
@@ -761,9 +761,10 @@ got_it:
 	 * value here.
 	 */
 	if (do_chunk_alloc && num_bytes) {
-		u64 flags = h->block_rsv->space_info->flags;
+		struct btrfs_space_info *space_info = h->block_rsv->space_info;
+		u64 flags = space_info->flags;
 
-		btrfs_chunk_alloc(h, btrfs_get_alloc_profile(fs_info, flags),
+		btrfs_chunk_alloc(h, space_info, btrfs_get_alloc_profile(fs_info, flags),
 				  CHUNK_ALLOC_NO_FORCE);
 	}
 
@@ -1128,13 +1129,13 @@ int btrfs_write_marked_extents(struct btrfs_fs_info *fs_info,
 	u64 start = 0;
 	u64 end;
 
-	while (find_first_extent_bit(dirty_pages, start, &start, &end,
-				     mark, &cached_state)) {
+	while (btrfs_find_first_extent_bit(dirty_pages, start, &start, &end,
+					   mark, &cached_state)) {
 		bool wait_writeback = false;
 
-		ret = convert_extent_bit(dirty_pages, start, end,
-					 EXTENT_NEED_WAIT,
-					 mark, &cached_state);
+		ret = btrfs_convert_extent_bit(dirty_pages, start, end,
+					       EXTENT_NEED_WAIT,
+					       mark, &cached_state);
 		/*
 		 * convert_extent_bit can return -ENOMEM, which is most of the
 		 * time a temporary error. So when it happens, ignore the error
@@ -1155,8 +1156,8 @@ int btrfs_write_marked_extents(struct btrfs_fs_info *fs_info,
 		if (!ret)
 			ret = filemap_fdatawrite_range(mapping, start, end);
 		if (!ret && wait_writeback)
-			ret = filemap_fdatawait_range(mapping, start, end);
-		free_extent_state(cached_state);
+			btrfs_btree_wait_writeback_range(fs_info, start, end);
+		btrfs_free_extent_state(cached_state);
 		if (ret)
 			break;
 		cached_state = NULL;
@@ -1175,14 +1176,13 @@ int btrfs_write_marked_extents(struct btrfs_fs_info *fs_info,
 static int __btrfs_wait_marked_extents(struct btrfs_fs_info *fs_info,
 				       struct extent_io_tree *dirty_pages)
 {
-	struct address_space *mapping = fs_info->btree_inode->i_mapping;
 	struct extent_state *cached_state = NULL;
 	u64 start = 0;
 	u64 end;
 	int ret = 0;
 
-	while (find_first_extent_bit(dirty_pages, start, &start, &end,
-				     EXTENT_NEED_WAIT, &cached_state)) {
+	while (btrfs_find_first_extent_bit(dirty_pages, start, &start, &end,
+					   EXTENT_NEED_WAIT, &cached_state)) {
 		/*
 		 * Ignore -ENOMEM errors returned by clear_extent_bit().
 		 * When committing the transaction, we'll remove any entries
@@ -1191,13 +1191,13 @@ static int __btrfs_wait_marked_extents(struct btrfs_fs_info *fs_info,
 		 * concurrently - we do it only at transaction commit time when
 		 * it's safe to do it (through extent_io_tree_release()).
 		 */
-		ret = clear_extent_bit(dirty_pages, start, end,
-				       EXTENT_NEED_WAIT, &cached_state);
+		ret = btrfs_clear_extent_bit(dirty_pages, start, end,
+					     EXTENT_NEED_WAIT, &cached_state);
 		if (ret == -ENOMEM)
 			ret = 0;
 		if (!ret)
-			ret = filemap_fdatawait_range(mapping, start, end);
-		free_extent_state(cached_state);
+			btrfs_btree_wait_writeback_range(fs_info, start, end);
+		btrfs_free_extent_state(cached_state);
 		if (ret)
 			break;
 		cached_state = NULL;
@@ -1265,7 +1265,7 @@ static int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans)
 	blk_finish_plug(&plug);
 	ret2 = btrfs_wait_extents(fs_info, dirty_pages);
 
-	extent_io_tree_release(&trans->transaction->dirty_pages);
+	btrfs_extent_io_tree_release(&trans->transaction->dirty_pages);
 
 	if (ret)
 		return ret;
@@ -1327,7 +1327,6 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans)
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct list_head *dirty_bgs = &trans->transaction->dirty_bgs;
 	struct list_head *io_bgs = &trans->transaction->io_bgs;
-	struct list_head *next;
 	struct extent_buffer *eb;
 	int ret;
 
@@ -1363,13 +1362,13 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans)
 again:
 	while (!list_empty(&fs_info->dirty_cowonly_roots)) {
 		struct btrfs_root *root;
-		next = fs_info->dirty_cowonly_roots.next;
-		list_del_init(next);
-		root = list_entry(next, struct btrfs_root, dirty_list);
-		clear_bit(BTRFS_ROOT_DIRTY, &root->state);
 
-		list_add_tail(&root->dirty_list,
-			      &trans->transaction->switch_commits);
+		root = list_first_entry(&fs_info->dirty_cowonly_roots,
+					struct btrfs_root, dirty_list);
+		clear_bit(BTRFS_ROOT_DIRTY, &root->state);
+		list_move_tail(&root->dirty_list,
+			       &trans->transaction->switch_commits);
+
 		ret = update_cowonly_root(trans, root);
 		if (ret)
 			return ret;
@@ -2271,14 +2270,13 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	wake_up(&fs_info->transaction_blocked_wait);
 	btrfs_trans_state_lockdep_release(fs_info, BTRFS_LOCKDEP_TRANS_COMMIT_PREP);
 
-	if (cur_trans->list.prev != &fs_info->trans_list) {
+	if (!list_is_first(&cur_trans->list, &fs_info->trans_list)) {
 		enum btrfs_trans_state want_state = TRANS_STATE_COMPLETED;
 
 		if (trans->in_fsync)
 			want_state = TRANS_STATE_SUPER_COMMITTED;
 
-		prev_trans = list_entry(cur_trans->list.prev,
-					struct btrfs_transaction, list);
+		prev_trans = list_prev_entry(cur_trans, list);
 		if (prev_trans->state < want_state) {
 			refcount_inc(&prev_trans->use_count);
 			spin_unlock(&fs_info->trans_lock);
@@ -2555,7 +2553,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	wake_up(&cur_trans->commit_wait);
 	btrfs_trans_state_lockdep_release(fs_info, BTRFS_LOCKDEP_TRANS_SUPER_COMMITTED);
 
-	btrfs_finish_extent_commit(trans);
+	ret = btrfs_finish_extent_commit(trans);
+	if (ret)
+		goto scrub_continue;
 
 	if (test_bit(BTRFS_TRANS_HAVE_FREE_BGS, &cur_trans->flags))
 		btrfs_clear_space_info_full(fs_info);

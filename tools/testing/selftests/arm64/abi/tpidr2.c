@@ -169,8 +169,10 @@ static int sys_clone(unsigned long clone_flags, unsigned long newsp,
 			   child_tidptr);
 }
 
+#define __STACK_SIZE (8 * 1024 * 1024)
+
 /*
- * If we clone with CLONE_SETTLS then the value in the parent should
+ * If we clone with CLONE_VM then the value in the parent should
  * be unchanged and the child should start with zero and be able to
  * set its own value.
  */
@@ -179,11 +181,19 @@ static int write_clone_read(void)
 	int parent_tid, child_tid;
 	pid_t parent, waiting;
 	int ret, status;
+	void *stack;
 
 	parent = getpid();
 	set_tpidr2(parent);
 
-	ret = sys_clone(CLONE_SETTLS, 0, &parent_tid, 0, &child_tid);
+	stack = malloc(__STACK_SIZE);
+	if (!stack) {
+		putstr("# malloc() failed\n");
+		return 0;
+	}
+
+	ret = sys_clone(CLONE_VM, (unsigned long)stack + __STACK_SIZE,
+			&parent_tid, 0, &child_tid);
 	if (ret == -1) {
 		putstr("# clone() failed\n");
 		putnum(errno);

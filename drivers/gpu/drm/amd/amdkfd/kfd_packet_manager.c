@@ -31,6 +31,7 @@
 #define OVER_SUBSCRIPTION_PROCESS_COUNT (1 << 0)
 #define OVER_SUBSCRIPTION_COMPUTE_QUEUE_COUNT (1 << 1)
 #define OVER_SUBSCRIPTION_GWS_QUEUE_COUNT (1 << 2)
+#define OVER_SUBSCRIPTION_XNACK_CONFLICT (1 << 3)
 
 static inline void inc_wptr(unsigned int *wptr, unsigned int increment_bytes,
 				unsigned int buffer_size_bytes)
@@ -44,7 +45,8 @@ static inline void inc_wptr(unsigned int *wptr, unsigned int increment_bytes,
 
 static void pm_calc_rlib_size(struct packet_manager *pm,
 				unsigned int *rlib_size,
-				int *over_subscription)
+				int *over_subscription,
+				int xnack_conflict)
 {
 	unsigned int process_count, queue_count, compute_queue_count, gws_queue_count;
 	unsigned int map_queue_size;
@@ -73,6 +75,8 @@ static void pm_calc_rlib_size(struct packet_manager *pm,
 		*over_subscription |= OVER_SUBSCRIPTION_COMPUTE_QUEUE_COUNT;
 	if (gws_queue_count > 1)
 		*over_subscription |= OVER_SUBSCRIPTION_GWS_QUEUE_COUNT;
+	if (xnack_conflict && (node->adev->gmc.xnack_flags & AMDGPU_GMC_XNACK_FLAG_CHAIN))
+		*over_subscription |= OVER_SUBSCRIPTION_XNACK_CONFLICT;
 
 	if (*over_subscription)
 		dev_dbg(dev, "Over subscribed runlist\n");
@@ -96,7 +100,8 @@ static int pm_allocate_runlist_ib(struct packet_manager *pm,
 				unsigned int **rl_buffer,
 				uint64_t *rl_gpu_buffer,
 				unsigned int *rl_buffer_size,
-				int *is_over_subscription)
+				int *is_over_subscription,
+				int xnack_conflict)
 {
 	struct kfd_node *node = pm->dqm->dev;
 	struct device *dev = node->adev->dev;
@@ -105,7 +110,8 @@ static int pm_allocate_runlist_ib(struct packet_manager *pm,
 	if (WARN_ON(pm->allocated))
 		return -EINVAL;
 
-	pm_calc_rlib_size(pm, rl_buffer_size, is_over_subscription);
+	pm_calc_rlib_size(pm, rl_buffer_size, is_over_subscription,
+				xnack_conflict);
 
 	mutex_lock(&pm->lock);
 
@@ -142,11 +148,27 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 	struct queue *q;
 	struct kernel_queue *kq;
 	int is_over_subscription;
+	int xnack_enabled = -1;
+	bool xnack_conflict = 0;
 
 	rl_wptr = retval = processes_mapped = 0;
 
+	/* Check if processes set different xnack modes */
+	list_for_each_entry(cur, queues, list) {
+		qpd = cur->qpd;
+		if (xnack_enabled < 0)
+			/* First process */
+			xnack_enabled = qpd->pqm->process->xnack_enabled;
+		else if (qpd->pqm->process->xnack_enabled != xnack_enabled) {
+			/* Found a process with a different xnack mode */
+			xnack_conflict = 1;
+			break;
+		}
+	}
+
 	retval = pm_allocate_runlist_ib(pm, &rl_buffer, rl_gpu_addr,
-				&alloc_size_bytes, &is_over_subscription);
+				&alloc_size_bytes, &is_over_subscription,
+				xnack_conflict);
 	if (retval)
 		return retval;
 
@@ -156,9 +178,13 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 	dev_dbg(dev, "Building runlist ib process count: %d queues count %d\n",
 		pm->dqm->processes_count, pm->dqm->active_queue_count);
 
+build_runlist_ib:
 	/* build the run list ib packet */
 	list_for_each_entry(cur, queues, list) {
 		qpd = cur->qpd;
+		/* group processes with the same xnack mode together */
+		if (qpd->pqm->process->xnack_enabled != xnack_enabled)
+			continue;
 		/* build map process packet */
 		if (processes_mapped >= pm->dqm->processes_count) {
 			dev_dbg(dev, "Not enough space left in runlist IB\n");
@@ -215,18 +241,26 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 				alloc_size_bytes);
 		}
 	}
+	if (xnack_conflict) {
+		/* pick up processes with the other xnack mode */
+		xnack_enabled = !xnack_enabled;
+		xnack_conflict = 0;
+		goto build_runlist_ib;
+	}
 
 	dev_dbg(dev, "Finished map process and queues to runlist\n");
 
 	if (is_over_subscription) {
 		if (!pm->is_over_subscription)
-			dev_warn(dev, "Runlist is getting oversubscribed due to%s%s%s. Expect reduced ROCm performance.\n",
-				 is_over_subscription & OVER_SUBSCRIPTION_PROCESS_COUNT ?
-				 " too many processes." : "",
-				 is_over_subscription & OVER_SUBSCRIPTION_COMPUTE_QUEUE_COUNT ?
-				 " too many queues." : "",
-				 is_over_subscription & OVER_SUBSCRIPTION_GWS_QUEUE_COUNT ?
-				 " multiple processes using cooperative launch." : "");
+			dev_warn(dev, "Runlist is getting oversubscribed due to%s%s%s%s. Expect reduced ROCm performance.\n",
+				is_over_subscription & OVER_SUBSCRIPTION_PROCESS_COUNT ?
+				" too many processes" : "",
+				is_over_subscription & OVER_SUBSCRIPTION_COMPUTE_QUEUE_COUNT ?
+				" too many queues" : "",
+				is_over_subscription & OVER_SUBSCRIPTION_GWS_QUEUE_COUNT ?
+				" multiple processes using cooperative launch" : "",
+				is_over_subscription & OVER_SUBSCRIPTION_XNACK_CONFLICT ?
+				" xnack on/off processes mixed on gfx9" : "");
 
 		retval = pm->pmf->runlist(pm, &rl_buffer[rl_wptr],
 					*rl_gpu_addr,

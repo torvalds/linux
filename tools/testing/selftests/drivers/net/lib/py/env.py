@@ -12,7 +12,7 @@ from .remote import Remote
 
 class NetDrvEnvBase:
     """
-    Base class for a NIC / host envirnoments
+    Base class for a NIC / host environments
 
     Attributes:
       test_dir: Path to the source directory of the test

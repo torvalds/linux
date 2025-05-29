@@ -328,7 +328,7 @@ done:
 		req_set_fail(req);
 	}
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 int io_uring_sync_msg_ring(struct io_uring_sqe *sqe)

@@ -22,6 +22,7 @@
 #include "debug.h"
 #include "disk_accounting.h"
 #include "ec.h"
+#include "enumerated_ref.h"
 #include "error.h"
 #include "extents.h"
 #include "journal.h"
@@ -370,18 +371,11 @@ again:
 		prt_char(&buf, ' ');
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(cur_k.k));
 
-		if (mustfix_fsck_err_on(bch2_err_matches(ret, EIO),
-				trans, btree_node_read_error,
-				"Topology repair: unreadable btree node at\n%s",
-				buf.buf)) {
+		if (bch2_err_matches(ret, EIO)) {
 			bch2_btree_node_evict(trans, cur_k.k);
 			cur = NULL;
 			ret = bch2_journal_key_delete(c, b->c.btree_id,
 						      b->c.level, cur_k.k->k.p);
-			if (ret)
-				break;
-
-			ret = bch2_btree_lost_data(c, b->c.btree_id);
 			if (ret)
 				break;
 			continue;
@@ -545,9 +539,6 @@ int bch2_check_topology(struct bch_fs *c)
 		bch2_btree_id_to_text(&buf, i);
 
 		if (r->error) {
-			ret = bch2_btree_lost_data(c, i);
-			if (ret)
-				break;
 reconstruct_root:
 			bch_info(c, "btree root %s unreadable, must recover from scan", buf.buf);
 
@@ -628,7 +619,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 	deleted.p = k.k->p;
 
 	if (initial) {
-		BUG_ON(bch2_journal_seq_verify &&
+		BUG_ON(static_branch_unlikely(&bch2_journal_seq_verify) &&
 		       k.k->bversion.lo > atomic64_read(&c->journal.seq));
 
 		if (fsck_err_on(btree_id != BTREE_ID_accounting &&
@@ -1088,6 +1079,10 @@ out:
 	 * allocator thread - issue wakeup in case they blocked on gc_lock:
 	 */
 	closure_wake_up(&c->freelist_wait);
+
+	if (!ret && !test_bit(BCH_FS_errors_not_fixed, &c->flags))
+		bch2_sb_members_clean_deleted(c);
+
 	bch_err_fn(c, ret);
 	return ret;
 }
@@ -1256,26 +1251,21 @@ static void bch2_gc_gens_work(struct work_struct *work)
 {
 	struct bch_fs *c = container_of(work, struct bch_fs, gc_gens_work);
 	bch2_gc_gens(c);
-	bch2_write_ref_put(c, BCH_WRITE_REF_gc_gens);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_gc_gens);
 }
 
 void bch2_gc_gens_async(struct bch_fs *c)
 {
-	if (bch2_write_ref_tryget(c, BCH_WRITE_REF_gc_gens) &&
+	if (enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_gc_gens) &&
 	    !queue_work(c->write_ref_wq, &c->gc_gens_work))
-		bch2_write_ref_put(c, BCH_WRITE_REF_gc_gens);
+		enumerated_ref_put(&c->writes, BCH_WRITE_REF_gc_gens);
 }
 
-void bch2_fs_btree_gc_exit(struct bch_fs *c)
-{
-}
-
-int bch2_fs_btree_gc_init(struct bch_fs *c)
+void bch2_fs_btree_gc_init_early(struct bch_fs *c)
 {
 	seqcount_init(&c->gc_pos_lock);
 	INIT_WORK(&c->gc_gens_work, bch2_gc_gens_work);
 
 	init_rwsem(&c->gc_lock);
 	mutex_init(&c->gc_gens_lock);
-	return 0;
 }

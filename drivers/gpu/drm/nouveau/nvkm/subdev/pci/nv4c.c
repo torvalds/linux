@@ -25,9 +25,7 @@
 
 static const struct nvkm_pci_func
 nv4c_pci_func = {
-	.rd32 = nv40_pci_rd32,
-	.wr08 = nv40_pci_wr08,
-	.wr32 = nv40_pci_wr32,
+	.cfg = { .addr = 0x088000, .size = 0x1000 },
 };
 
 int

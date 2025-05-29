@@ -1080,12 +1080,10 @@ static int __maybe_unused rvin_suspend(struct device *dev)
 {
 	struct rvin_dev *vin = dev_get_drvdata(dev);
 
-	if (vin->state != RUNNING)
+	if (!vin->running)
 		return 0;
 
 	rvin_stop_streaming(vin);
-
-	vin->state = SUSPENDED;
 
 	return 0;
 }
@@ -1094,7 +1092,7 @@ static int __maybe_unused rvin_resume(struct device *dev)
 {
 	struct rvin_dev *vin = dev_get_drvdata(dev);
 
-	if (vin->state != SUSPENDED)
+	if (!vin->running)
 		return 0;
 
 	/*
@@ -1275,7 +1273,7 @@ static const struct rvin_info rcar_info_r8a77995 = {
 };
 
 static const struct rvin_info rcar_info_gen4 = {
-	.model = RCAR_GEN3,
+	.model = RCAR_GEN4,
 	.use_mc = true,
 	.use_isp = true,
 	.nv12 = true,

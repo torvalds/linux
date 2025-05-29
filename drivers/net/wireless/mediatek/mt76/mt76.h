@@ -162,6 +162,16 @@ enum mt76_dfs_state {
 	MT_DFS_STATE_ACTIVE,
 };
 
+#define MT76_RNR_SCAN_MAX_BSSIDS       16
+struct mt76_scan_rnr_param {
+	u8 bssid[MT76_RNR_SCAN_MAX_BSSIDS][ETH_ALEN];
+	u8 channel[MT76_RNR_SCAN_MAX_BSSIDS];
+	u8 random_mac[ETH_ALEN];
+	u8 seq_num;
+	u8 bssid_num;
+	u32 sreq_flag;
+};
+
 struct mt76_queue_buf {
 	dma_addr_t addr;
 	u16 len:15,
@@ -941,6 +951,8 @@ struct mt76_dev {
 	char alpha2[3];
 	enum nl80211_dfs_regions region;
 
+	struct mt76_scan_rnr_param rnr;
+
 	u32 debugfs_reg;
 
 	u8 csa_complete;
@@ -1386,12 +1398,12 @@ static inline bool mt76_is_skb_pktid(u8 pktid)
 	return pktid >= MT_PACKET_ID_FIRST;
 }
 
-static inline u8 mt76_tx_power_nss_delta(u8 nss)
+static inline u8 mt76_tx_power_path_delta(u8 path)
 {
-	static const u8 nss_delta[4] = { 0, 6, 9, 12 };
-	u8 idx = nss - 1;
+	static const u8 path_delta[5] = { 0, 6, 9, 12, 14 };
+	u8 idx = path - 1;
 
-	return (idx < ARRAY_SIZE(nss_delta)) ? nss_delta[idx] : 0;
+	return (idx < ARRAY_SIZE(path_delta)) ? path_delta[idx] : 0;
 }
 
 static inline bool mt76_testmode_enabled(struct mt76_phy *phy)

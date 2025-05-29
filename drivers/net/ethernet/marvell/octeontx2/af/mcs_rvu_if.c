@@ -143,6 +143,8 @@ static int mcs_notify_pfvf(struct mcs_intr_event *event, struct rvu *rvu)
 
 	otx2_mbox_msg_send_up(&rvu->afpf_wq_info.mbox_up, pf);
 
+	otx2_mbox_wait_for_rsp(&rvu->afpf_wq_info.mbox_up, pf);
+
 	mutex_unlock(&rvu->mbox_lock);
 
 	return 0;

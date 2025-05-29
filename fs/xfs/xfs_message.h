@@ -91,13 +91,9 @@ void xfs_buf_alert_ratelimited(struct xfs_buf *bp, const char *rlmsg,
 			       const char *fmt, ...);
 
 enum xfs_experimental_feat {
-	XFS_EXPERIMENTAL_PNFS,
-	XFS_EXPERIMENTAL_SCRUB,
 	XFS_EXPERIMENTAL_SHRINK,
 	XFS_EXPERIMENTAL_LARP,
 	XFS_EXPERIMENTAL_LBS,
-	XFS_EXPERIMENTAL_EXCHRANGE,
-	XFS_EXPERIMENTAL_PPTR,
 	XFS_EXPERIMENTAL_METADIR,
 	XFS_EXPERIMENTAL_ZONED,
 

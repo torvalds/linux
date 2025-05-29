@@ -17,6 +17,7 @@
 #include <linux/writeback.h>
 #include <linux/uio.h>
 #include <linux/uaccess.h>
+#include <linux/fs_context.h>
 #include "bfs.h"
 
 MODULE_AUTHOR("Tigran Aivazian <aivazian.tigran@gmail.com>");
@@ -305,7 +306,7 @@ void bfs_dump_imap(const char *prefix, struct super_block *s)
 #endif
 }
 
-static int bfs_fill_super(struct super_block *s, void *data, int silent)
+static int bfs_fill_super(struct super_block *s, struct fs_context *fc)
 {
 	struct buffer_head *bh, *sbh;
 	struct bfs_super_block *bfs_sb;
@@ -314,6 +315,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	struct bfs_sb_info *info;
 	int ret = -EINVAL;
 	unsigned long i_sblock, i_eblock, i_eoff, s_size;
+	int silent = fc->sb_flags & SB_SILENT;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -446,18 +448,28 @@ out:
 	return ret;
 }
 
-static struct dentry *bfs_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int bfs_get_tree(struct fs_context *fc)
 {
-	return mount_bdev(fs_type, flags, dev_name, data, bfs_fill_super);
+	return get_tree_bdev(fc, bfs_fill_super);
+}
+
+static const struct fs_context_operations bfs_context_ops = {
+	.get_tree = bfs_get_tree,
+};
+
+static int bfs_init_fs_context(struct fs_context *fc)
+{
+	fc->ops = &bfs_context_ops;
+
+	return 0;
 }
 
 static struct file_system_type bfs_fs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "bfs",
-	.mount		= bfs_mount,
-	.kill_sb	= kill_block_super,
-	.fs_flags	= FS_REQUIRES_DEV,
+	.owner			= THIS_MODULE,
+	.name			= "bfs",
+	.init_fs_context	= bfs_init_fs_context,
+	.kill_sb		= kill_block_super,
+	.fs_flags		= FS_REQUIRES_DEV,
 };
 MODULE_ALIAS_FS("bfs");
 

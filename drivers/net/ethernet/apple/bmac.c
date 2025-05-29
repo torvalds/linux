@@ -20,7 +20,6 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/crc32.h>
-#include <linux/crc32poly.h>
 #include <linux/bitrev.h>
 #include <linux/ethtool.h>
 #include <linux/slab.h>
@@ -796,59 +795,6 @@ static irqreturn_t bmac_txdma_intr(int irq, void *dev_id)
 }
 
 #ifndef SUNHME_MULTICAST
-/* Real fast bit-reversal algorithm, 6-bit values */
-static int reverse6[64] = {
-	0x0,0x20,0x10,0x30,0x8,0x28,0x18,0x38,
-	0x4,0x24,0x14,0x34,0xc,0x2c,0x1c,0x3c,
-	0x2,0x22,0x12,0x32,0xa,0x2a,0x1a,0x3a,
-	0x6,0x26,0x16,0x36,0xe,0x2e,0x1e,0x3e,
-	0x1,0x21,0x11,0x31,0x9,0x29,0x19,0x39,
-	0x5,0x25,0x15,0x35,0xd,0x2d,0x1d,0x3d,
-	0x3,0x23,0x13,0x33,0xb,0x2b,0x1b,0x3b,
-	0x7,0x27,0x17,0x37,0xf,0x2f,0x1f,0x3f
-};
-
-static unsigned int
-crc416(unsigned int curval, unsigned short nxtval)
-{
-	unsigned int counter, cur = curval, next = nxtval;
-	int high_crc_set, low_data_set;
-
-	/* Swap bytes */
-	next = ((next & 0x00FF) << 8) | (next >> 8);
-
-	/* Compute bit-by-bit */
-	for (counter = 0; counter < 16; ++counter) {
-		/* is high CRC bit set? */
-		if ((cur & 0x80000000) == 0) high_crc_set = 0;
-		else high_crc_set = 1;
-
-		cur = cur << 1;
-
-		if ((next & 0x0001) == 0) low_data_set = 0;
-		else low_data_set = 1;
-
-		next = next >> 1;
-
-		/* do the XOR */
-		if (high_crc_set ^ low_data_set) cur = cur ^ CRC32_POLY_BE;
-	}
-	return cur;
-}
-
-static unsigned int
-bmac_crc(unsigned short *address)
-{
-	unsigned int newcrc;
-
-	XXDEBUG(("bmac_crc: addr=%#04x, %#04x, %#04x\n", *address, address[1], address[2]));
-	newcrc = crc416(0xffffffff, *address);	/* address bits 47 - 32 */
-	newcrc = crc416(newcrc, address[1]);	/* address bits 31 - 16 */
-	newcrc = crc416(newcrc, address[2]);	/* address bits 15 - 0  */
-
-	return(newcrc);
-}
-
 /*
  * Add requested mcast addr to BMac's hash table filter.
  *
@@ -861,8 +807,7 @@ bmac_addhash(struct bmac_data *bp, unsigned char *addr)
 	unsigned short	 mask;
 
 	if (!(*addr)) return;
-	crc = bmac_crc((unsigned short *)addr) & 0x3f; /* Big-endian alert! */
-	crc = reverse6[crc];	/* Hyperfast bit-reversing algorithm */
+	crc = crc32(~0, addr, ETH_ALEN) >> 26;
 	if (bp->hash_use_count[crc]++) return; /* This bit is already set */
 	mask = crc % 16;
 	mask = (unsigned char)1 << mask;
@@ -876,8 +821,7 @@ bmac_removehash(struct bmac_data *bp, unsigned char *addr)
 	unsigned char mask;
 
 	/* Now, delete the address from the filter copy, as indicated */
-	crc = bmac_crc((unsigned short *)addr) & 0x3f; /* Big-endian alert! */
-	crc = reverse6[crc];	/* Hyperfast bit-reversing algorithm */
+	crc = crc32(~0, addr, ETH_ALEN) >> 26;
 	if (bp->hash_use_count[crc] == 0) return; /* That bit wasn't in use! */
 	if (--bp->hash_use_count[crc]) return; /* That bit is still in use */
 	mask = crc % 16;

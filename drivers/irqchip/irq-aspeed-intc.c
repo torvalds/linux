@@ -102,7 +102,7 @@ static int __init aspeed_intc_ic_of_init(struct device_node *node,
 	writel(0xffffffff, intc_ic->base + INTC_INT_STATUS_REG);
 	writel(0x0, intc_ic->base + INTC_INT_ENABLE_REG);
 
-	intc_ic->irq_domain = irq_domain_add_linear(node, INTC_IRQS_PER_WORD,
+	intc_ic->irq_domain = irq_domain_create_linear(of_fwnode_handle(node), INTC_IRQS_PER_WORD,
 						    &aspeed_intc_ic_irq_domain_ops, intc_ic);
 	if (!intc_ic->irq_domain) {
 		ret = -ENOMEM;

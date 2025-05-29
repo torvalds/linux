@@ -1987,26 +1987,30 @@ reduce_session_slots(struct nfsd4_session *ses, int dec)
 	return ret;
 }
 
-/*
- * We don't actually need to cache the rpc and session headers, so we
- * can allocate a little less for each slot:
- */
-static inline u32 slot_bytes(struct nfsd4_channel_attrs *ca)
+static struct nfsd4_slot *nfsd4_alloc_slot(struct nfsd4_channel_attrs *fattrs,
+					   int index, gfp_t gfp)
 {
-	u32 size;
+	struct nfsd4_slot *slot;
+	size_t size;
 
-	if (ca->maxresp_cached < NFSD_MIN_HDR_SEQ_SZ)
-		size = 0;
-	else
-		size = ca->maxresp_cached - NFSD_MIN_HDR_SEQ_SZ;
-	return size + sizeof(struct nfsd4_slot);
+	/*
+	 * The RPC and NFS session headers are never saved in
+	 * the slot reply cache buffer.
+	 */
+	size = fattrs->maxresp_cached < NFSD_MIN_HDR_SEQ_SZ ?
+		0 : fattrs->maxresp_cached - NFSD_MIN_HDR_SEQ_SZ;
+
+	slot = kzalloc(struct_size(slot, sl_data, size), gfp);
+	if (!slot)
+		return NULL;
+	slot->sl_index = index;
+	return slot;
 }
 
 static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fattrs,
 					   struct nfsd4_channel_attrs *battrs)
 {
 	int numslots = fattrs->maxreqs;
-	int slotsize = slot_bytes(fattrs);
 	struct nfsd4_session *new;
 	struct nfsd4_slot *slot;
 	int i;
@@ -2015,14 +2019,14 @@ static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fattrs,
 	if (!new)
 		return NULL;
 	xa_init(&new->se_slots);
-	/* allocate each struct nfsd4_slot and data cache in one piece */
-	slot = kzalloc(slotsize, GFP_KERNEL);
+
+	slot = nfsd4_alloc_slot(fattrs, 0, GFP_KERNEL);
 	if (!slot || xa_is_err(xa_store(&new->se_slots, 0, slot, GFP_KERNEL)))
 		goto out_free;
 
 	for (i = 1; i < numslots; i++) {
 		const gfp_t gfp = GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN;
-		slot = kzalloc(slotsize, gfp);
+		slot = nfsd4_alloc_slot(fattrs, i, gfp);
 		if (!slot)
 			break;
 		if (xa_is_err(xa_store(&new->se_slots, i, slot, gfp))) {
@@ -4402,7 +4406,7 @@ nfsd4_sequence(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				    nfserr_rep_too_big;
 	if (xdr_restrict_buflen(xdr, buflen - rqstp->rq_auth_slack))
 		goto out_put_session;
-	svc_reserve(rqstp, buflen);
+	svc_reserve_auth(rqstp, buflen);
 
 	status = nfs_ok;
 	/* Success! accept new slot seqid */
@@ -4438,8 +4442,8 @@ nfsd4_sequence(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			 * spinlock, and only succeeds if there is
 			 * plenty of memory.
 			 */
-			slot = kzalloc(slot_bytes(&session->se_fchannel),
-				       GFP_NOWAIT);
+			slot = nfsd4_alloc_slot(&session->se_fchannel, s,
+						GFP_NOWAIT);
 			prev_slot = xa_load(&session->se_slots, s);
 			if (xa_is_value(prev_slot) && slot) {
 				slot->sl_seqid = xa_to_value(prev_slot);

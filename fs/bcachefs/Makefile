@@ -35,11 +35,13 @@ bcachefs-y		:=	\
 	disk_accounting.o	\
 	disk_groups.o		\
 	ec.o			\
+	enumerated_ref.o	\
 	errcode.o		\
 	error.o			\
 	extents.o		\
 	extent_update.o		\
 	eytzinger.o		\
+	fast_list.o		\
 	fs.o			\
 	fs-ioctl.o		\
 	fs-io.o			\
@@ -96,6 +98,8 @@ bcachefs-y		:=	\
 	util.o			\
 	varint.o		\
 	xattr.o
+
+bcachefs-$(CONFIG_BCACHEFS_ASYNC_OBJECT_LISTS)   += async_objs.o
 
 obj-$(CONFIG_MEAN_AND_VARIANCE_UNIT_TEST)   += mean_and_variance_test.o
 

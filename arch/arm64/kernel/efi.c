@@ -169,14 +169,14 @@ static DEFINE_RAW_SPINLOCK(efi_rt_lock);
 void arch_efi_call_virt_setup(void)
 {
 	efi_virtmap_load();
-	__efi_fpsimd_begin();
 	raw_spin_lock(&efi_rt_lock);
+	__efi_fpsimd_begin();
 }
 
 void arch_efi_call_virt_teardown(void)
 {
-	raw_spin_unlock(&efi_rt_lock);
 	__efi_fpsimd_end();
+	raw_spin_unlock(&efi_rt_lock);
 	efi_virtmap_unload();
 }
 

@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * arch/x86/kernel/nmi-selftest.c
- *
  * Testsuite for NMI: IPIs
  *
  * Started by Don Zickus:
@@ -30,7 +28,6 @@ static DECLARE_BITMAP(nmi_ipi_mask, NR_CPUS) __initdata;
 
 static int __initdata testcase_total;
 static int __initdata testcase_successes;
-static int __initdata expected_testcase_failures;
 static int __initdata unexpected_testcase_failures;
 static int __initdata unexpected_testcase_unknowns;
 
@@ -120,24 +117,20 @@ static void __init dotest(void (*testcase_fn)(void), int expected)
 		unexpected_testcase_failures++;
 
 		if (nmi_fail == FAILURE)
-			printk(KERN_CONT "FAILED |");
+			pr_cont("FAILED |");
 		else if (nmi_fail == TIMEOUT)
-			printk(KERN_CONT "TIMEOUT|");
+			pr_cont("TIMEOUT|");
 		else
-			printk(KERN_CONT "ERROR  |");
+			pr_cont("ERROR  |");
 		dump_stack();
 	} else {
 		testcase_successes++;
-		printk(KERN_CONT "  ok  |");
+		pr_cont("  ok  |");
 	}
+	pr_cont("\n");
+
 	testcase_total++;
-
 	reset_nmi();
-}
-
-static inline void __init print_testname(const char *testname)
-{
-	printk("%12s:", testname);
 }
 
 void __init nmi_selftest(void)
@@ -147,38 +140,25 @@ void __init nmi_selftest(void)
         /*
 	 * Run the testsuite:
 	 */
-	printk("----------------\n");
-	printk("| NMI testsuite:\n");
-	printk("--------------------\n");
+	pr_info("----------------\n");
+	pr_info("| NMI testsuite:\n");
+	pr_info("--------------------\n");
 
-	print_testname("remote IPI");
+	pr_info("%12s:", "remote IPI");
 	dotest(remote_ipi, SUCCESS);
-	printk(KERN_CONT "\n");
-	print_testname("local IPI");
+
+	pr_info("%12s:", "local IPI");
 	dotest(local_ipi, SUCCESS);
-	printk(KERN_CONT "\n");
 
 	cleanup_nmi_testsuite();
 
+	pr_info("--------------------\n");
 	if (unexpected_testcase_failures) {
-		printk("--------------------\n");
-		printk("BUG: %3d unexpected failures (out of %3d) - debugging disabled! |\n",
+		pr_info("BUG: %3d unexpected failures (out of %3d) - debugging disabled! |\n",
 			unexpected_testcase_failures, testcase_total);
-		printk("-----------------------------------------------------------------\n");
-	} else if (expected_testcase_failures && testcase_successes) {
-		printk("--------------------\n");
-		printk("%3d out of %3d testcases failed, as expected. |\n",
-			expected_testcase_failures, testcase_total);
-		printk("----------------------------------------------------\n");
-	} else if (expected_testcase_failures && !testcase_successes) {
-		printk("--------------------\n");
-		printk("All %3d testcases failed, as expected. |\n",
-			expected_testcase_failures);
-		printk("----------------------------------------\n");
 	} else {
-		printk("--------------------\n");
-		printk("Good, all %3d testcases passed! |\n",
+		pr_info("Good, all %3d testcases passed! |\n",
 			testcase_successes);
-		printk("---------------------------------\n");
 	}
+	pr_info("-----------------------------------------------------------------\n");
 }

@@ -370,7 +370,7 @@ static void ips_cpu_raise(struct ips_driver *ips)
 	if (!ips->cpu_turbo_enabled)
 		return;
 
-	rdmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_override);
+	rdmsrq(TURBO_POWER_CURRENT_LIMIT, turbo_override);
 
 	cur_tdp_limit = turbo_override & TURBO_TDP_MASK;
 	new_tdp_limit = cur_tdp_limit + 8; /* 1W increase */
@@ -382,12 +382,12 @@ static void ips_cpu_raise(struct ips_driver *ips)
 	thm_writew(THM_MPCPC, (new_tdp_limit * 10) / 8);
 
 	turbo_override |= TURBO_TDC_OVR_EN | TURBO_TDP_OVR_EN;
-	wrmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_override);
+	wrmsrq(TURBO_POWER_CURRENT_LIMIT, turbo_override);
 
 	turbo_override &= ~TURBO_TDP_MASK;
 	turbo_override |= new_tdp_limit;
 
-	wrmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_override);
+	wrmsrq(TURBO_POWER_CURRENT_LIMIT, turbo_override);
 }
 
 /**
@@ -405,7 +405,7 @@ static void ips_cpu_lower(struct ips_driver *ips)
 	u64 turbo_override;
 	u16 cur_limit, new_limit;
 
-	rdmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_override);
+	rdmsrq(TURBO_POWER_CURRENT_LIMIT, turbo_override);
 
 	cur_limit = turbo_override & TURBO_TDP_MASK;
 	new_limit = cur_limit - 8; /* 1W decrease */
@@ -417,12 +417,12 @@ static void ips_cpu_lower(struct ips_driver *ips)
 	thm_writew(THM_MPCPC, (new_limit * 10) / 8);
 
 	turbo_override |= TURBO_TDC_OVR_EN | TURBO_TDP_OVR_EN;
-	wrmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_override);
+	wrmsrq(TURBO_POWER_CURRENT_LIMIT, turbo_override);
 
 	turbo_override &= ~TURBO_TDP_MASK;
 	turbo_override |= new_limit;
 
-	wrmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_override);
+	wrmsrq(TURBO_POWER_CURRENT_LIMIT, turbo_override);
 }
 
 /**
@@ -437,10 +437,10 @@ static void do_enable_cpu_turbo(void *data)
 {
 	u64 perf_ctl;
 
-	rdmsrl(IA32_PERF_CTL, perf_ctl);
+	rdmsrq(IA32_PERF_CTL, perf_ctl);
 	if (perf_ctl & IA32_PERF_TURBO_DIS) {
 		perf_ctl &= ~IA32_PERF_TURBO_DIS;
-		wrmsrl(IA32_PERF_CTL, perf_ctl);
+		wrmsrq(IA32_PERF_CTL, perf_ctl);
 	}
 }
 
@@ -475,10 +475,10 @@ static void do_disable_cpu_turbo(void *data)
 {
 	u64 perf_ctl;
 
-	rdmsrl(IA32_PERF_CTL, perf_ctl);
+	rdmsrq(IA32_PERF_CTL, perf_ctl);
 	if (!(perf_ctl & IA32_PERF_TURBO_DIS)) {
 		perf_ctl |= IA32_PERF_TURBO_DIS;
-		wrmsrl(IA32_PERF_CTL, perf_ctl);
+		wrmsrq(IA32_PERF_CTL, perf_ctl);
 	}
 }
 
@@ -1215,7 +1215,7 @@ static int cpu_clamp_show(struct seq_file *m, void *data)
 	u64 turbo_override;
 	int tdp, tdc;
 
-	rdmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_override);
+	rdmsrq(TURBO_POWER_CURRENT_LIMIT, turbo_override);
 
 	tdp = (int)(turbo_override & TURBO_TDP_MASK);
 	tdc = (int)((turbo_override & TURBO_TDC_MASK) >> TURBO_TDC_SHIFT);
@@ -1290,7 +1290,7 @@ static struct ips_mcp_limits *ips_detect_cpu(struct ips_driver *ips)
 		return NULL;
 	}
 
-	rdmsrl(IA32_MISC_ENABLE, misc_en);
+	rdmsrq(IA32_MISC_ENABLE, misc_en);
 	/*
 	 * If the turbo enable bit isn't set, we shouldn't try to enable/disable
 	 * turbo manually or we'll get an illegal MSR access, even though
@@ -1312,7 +1312,7 @@ static struct ips_mcp_limits *ips_detect_cpu(struct ips_driver *ips)
 		return NULL;
 	}
 
-	rdmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_power);
+	rdmsrq(TURBO_POWER_CURRENT_LIMIT, turbo_power);
 	tdp = turbo_power & TURBO_TDP_MASK;
 
 	/* Sanity check TDP against CPU */
@@ -1496,7 +1496,7 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	 * Check PLATFORM_INFO MSR to make sure this chip is
 	 * turbo capable.
 	 */
-	rdmsrl(PLATFORM_INFO, platform_info);
+	rdmsrq(PLATFORM_INFO, platform_info);
 	if (!(platform_info & PLATFORM_TDP)) {
 		dev_err(&dev->dev, "platform indicates TDP override unavailable, aborting\n");
 		return -ENODEV;
@@ -1529,7 +1529,7 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	ips->mgta_val = thm_readw(THM_MGTA);
 
 	/* Save turbo limits & ratios */
-	rdmsrl(TURBO_POWER_CURRENT_LIMIT, ips->orig_turbo_limit);
+	rdmsrq(TURBO_POWER_CURRENT_LIMIT, ips->orig_turbo_limit);
 
 	ips_disable_cpu_turbo(ips);
 	ips->cpu_turbo_enabled = false;
@@ -1596,10 +1596,10 @@ static void ips_remove(struct pci_dev *dev)
 	if (ips->gpu_turbo_disable)
 		symbol_put(i915_gpu_turbo_disable);
 
-	rdmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_override);
+	rdmsrq(TURBO_POWER_CURRENT_LIMIT, turbo_override);
 	turbo_override &= ~(TURBO_TDC_OVR_EN | TURBO_TDP_OVR_EN);
-	wrmsrl(TURBO_POWER_CURRENT_LIMIT, turbo_override);
-	wrmsrl(TURBO_POWER_CURRENT_LIMIT, ips->orig_turbo_limit);
+	wrmsrq(TURBO_POWER_CURRENT_LIMIT, turbo_override);
+	wrmsrq(TURBO_POWER_CURRENT_LIMIT, ips->orig_turbo_limit);
 
 	free_irq(ips->irq, ips);
 	pci_free_irq_vectors(dev);

@@ -83,7 +83,7 @@ static void ocelot_irq_unmask(struct irq_data *data)
 	unsigned int mask = data->mask;
 	u32 val;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	/*
 	 * Clear sticky bits for edge mode interrupts.
 	 * Serval has only one trigger register replication, but the adjacent
@@ -97,7 +97,6 @@ static void ocelot_irq_unmask(struct irq_data *data)
 
 	*ct->mask_cache &= ~mask;
 	irq_reg_writel(gc, mask, p->reg_off_ena_set);
-	irq_gc_unlock(gc);
 }
 
 static void ocelot_irq_handler(struct irq_desc *desc)
@@ -132,8 +131,8 @@ static int __init vcoreiii_irq_init(struct device_node *node,
 	if (!parent_irq)
 		return -EINVAL;
 
-	domain = irq_domain_add_linear(node, p->n_irq,
-				       &irq_generic_chip_ops, NULL);
+	domain = irq_domain_create_linear(of_fwnode_handle(node), p->n_irq,
+					  &irq_generic_chip_ops, NULL);
 	if (!domain) {
 		pr_err("%pOFn: unable to add irq domain\n", node);
 		return -ENOMEM;

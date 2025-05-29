@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2015, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2015, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -791,10 +791,10 @@ static int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 sta_id,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (WARN(maxq >= mvm->trans->trans_cfg->base_params->num_of_queues,
+	if (WARN(maxq >= mvm->trans->mac_cfg->base->num_of_queues,
 		 "max queue %d >= num_of_queues (%d)", maxq,
-		 mvm->trans->trans_cfg->base_params->num_of_queues))
-		maxq = mvm->trans->trans_cfg->base_params->num_of_queues - 1;
+		 mvm->trans->mac_cfg->base->num_of_queues))
+		maxq = mvm->trans->mac_cfg->base->num_of_queues - 1;
 
 	/* This should not be hit with new TX path */
 	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
@@ -852,7 +852,7 @@ int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 	if (tid == IWL_MAX_TID_COUNT) {
 		tid = IWL_MGMT_TID;
 		size = max_t(u32, IWL_MGMT_QUEUE_SIZE,
-			     mvm->trans->cfg->min_txq_size);
+			     mvm->trans->mac_cfg->base->min_txq_size);
 	} else {
 		size = iwl_mvm_get_queue_size(sta);
 	}
@@ -1765,7 +1765,7 @@ int iwl_mvm_sta_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		mvm_sta->deflink.sta_id = sta_id;
 		rcu_assign_pointer(mvm_sta->link[0], &mvm_sta->deflink);
 
-		if (!mvm->trans->trans_cfg->gen2)
+		if (!mvm->trans->mac_cfg->gen2)
 			mvm_sta->deflink.lq_sta.rs_drv.pers.max_agg_bufsize =
 				LINK_QUAL_AGG_FRAME_LIMIT_DEF;
 		else
@@ -1798,7 +1798,7 @@ int iwl_mvm_sta_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (iwl_mvm_has_new_rx_api(mvm)) {
 		int q;
 
-		dup_data = kcalloc(mvm->trans->num_rx_queues,
+		dup_data = kcalloc(mvm->trans->info.num_rxqs,
 				   sizeof(*dup_data), GFP_KERNEL);
 		if (!dup_data)
 			return -ENOMEM;
@@ -1811,7 +1811,7 @@ int iwl_mvm_sta_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		 * This thus allows receiving a packet with seqno 0 and the
 		 * retry bit set as the very first packet on a new TID.
 		 */
-		for (q = 0; q < mvm->trans->num_rx_queues; q++)
+		for (q = 0; q < mvm->trans->info.num_rxqs; q++)
 			memset(dup_data[q].last_seq, 0xff,
 			       sizeof(dup_data[q].last_seq));
 		mvm_sta->dup_data = dup_data;
@@ -1839,11 +1839,11 @@ int iwl_mvm_sta_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
 	    !sta->tdls && ieee80211_vif_is_mld(vif)) {
 		mvm_sta->mpdu_counters =
-			kcalloc(mvm->trans->num_rx_queues,
+			kcalloc(mvm->trans->info.num_rxqs,
 				sizeof(*mvm_sta->mpdu_counters),
 				GFP_KERNEL);
 		if (mvm_sta->mpdu_counters)
-			for (int q = 0; q < mvm->trans->num_rx_queues; q++)
+			for (int q = 0; q < mvm->trans->info.num_rxqs; q++)
 				spin_lock_init(&mvm_sta->mpdu_counters[q].lock);
 	}
 
@@ -2189,7 +2189,7 @@ static void iwl_mvm_enable_aux_snif_queue(struct iwl_mvm *mvm, u16 queue,
 					  u8 sta_id, u8 fifo)
 {
 	unsigned int wdg_timeout =
-		mvm->trans->trans_cfg->base_params->wd_timeout;
+		mvm->trans->mac_cfg->base->wd_timeout;
 	struct iwl_trans_txq_scd_cfg cfg = {
 		.fifo = fifo,
 		.sta_id = sta_id,
@@ -2206,7 +2206,7 @@ static void iwl_mvm_enable_aux_snif_queue(struct iwl_mvm *mvm, u16 queue,
 static int iwl_mvm_enable_aux_snif_queue_tvqm(struct iwl_mvm *mvm, u8 sta_id)
 {
 	unsigned int wdg_timeout =
-		mvm->trans->trans_cfg->base_params->wd_timeout;
+		mvm->trans->mac_cfg->base->wd_timeout;
 
 	WARN_ON(!iwl_mvm_has_new_tx_api(mvm));
 
@@ -2717,7 +2717,7 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 
 	iwl_mvm_sync_rxq_del_ba(mvm, data->baid);
 
-	for (i = 0; i < mvm->trans->num_rx_queues; i++) {
+	for (i = 0; i < mvm->trans->info.num_rxqs; i++) {
 		int j;
 		struct iwl_mvm_reorder_buffer *reorder_buf =
 			&data->reorder_buf[i];
@@ -2750,7 +2750,7 @@ static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 {
 	int i;
 
-	for (i = 0; i < mvm->trans->num_rx_queues; i++) {
+	for (i = 0; i < mvm->trans->info.num_rxqs; i++) {
 		struct iwl_mvm_reorder_buffer *reorder_buf =
 			&data->reorder_buf[i];
 		struct iwl_mvm_reorder_buf_entry *entries =
@@ -2925,7 +2925,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		 * before starting the BA session in the firmware
 		 */
 		baid_data = kzalloc(sizeof(*baid_data) +
-				    mvm->trans->num_rx_queues *
+				    mvm->trans->info.num_rxqs *
 				    reorder_buf_size,
 				    GFP_KERNEL);
 		if (!baid_data)
@@ -3177,7 +3177,7 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * to align the wrap around of ssn so we compare relevant values.
 	 */
 	normalized_ssn = tid_data->ssn;
-	if (mvm->trans->trans_cfg->gen2)
+	if (mvm->trans->mac_cfg->gen2)
 		normalized_ssn &= 0xff;
 
 	if (normalized_ssn == tid_data->next_reclaimed) {
@@ -4305,7 +4305,7 @@ u16 iwl_mvm_tid_queued(struct iwl_mvm *mvm, struct iwl_mvm_tid_data *tid_data)
 	 * In 22000 HW, the next_reclaimed index is only 8 bit, so we'll need
 	 * to align the wrap around of ssn so we compare relevant values.
 	 */
-	if (mvm->trans->trans_cfg->gen2)
+	if (mvm->trans->mac_cfg->gen2)
 		sn &= 0xff;
 
 	return ieee80211_sn_sub(sn, tid_data->next_reclaimed);

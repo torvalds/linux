@@ -538,5 +538,102 @@
             "$TC qdisc del dev $DUMMY handle 1:0 root",
             "$IP addr del 10.10.10.10/24 dev $DUMMY || true"
         ]
+    },
+    {
+        "id": "62c4",
+        "name": "Test HTB with FQ_CODEL - basic functionality",
+        "category": [
+            "qdisc",
+            "htb",
+            "fq_codel"
+        ],
+        "plugins": {
+            "requires": [
+                "nsPlugin",
+                "scapyPlugin"
+            ]
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 root handle 1: htb default 11",
+            "$TC class add dev $DEV1 parent 1: classid 1:1 htb rate 10kbit",
+            "$TC class add dev $DEV1 parent 1:1 classid 1:11 htb rate 10kbit prio 0 quantum 1486",
+            "$TC qdisc add dev $DEV1 parent 1:11 fq_codel quantum 300 noecn",
+            "sleep 0.5"
+        ],
+        "scapy": {
+            "iface": "$DEV0",
+            "count": 5,
+            "packet": "Ether()/IP(dst='10.10.10.1', src='10.10.10.10')/TCP(sport=12345, dport=80)"
+        },
+        "cmdUnderTest": "$TC -s qdisc show dev $DEV1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -s qdisc show dev $DEV1 | grep -A 5 'qdisc fq_codel'",
+        "matchPattern": "Sent [0-9]+ bytes [0-9]+ pkt",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 handle 1: root"
+        ]
+    },
+    {
+        "id": "831d",
+        "name": "Test HFSC qlen accounting with DRR/NETEM/BLACKHOLE chain",
+        "category": ["qdisc", "hfsc", "drr", "netem", "blackhole"],
+        "plugins": { "requires": ["nsPlugin", "scapyPlugin"] },
+        "setup": [
+            "$IP link set dev $DEV1 up || true",
+            "$TC qdisc add dev $DEV1 root handle 1: drr",
+            "$TC filter add dev $DEV1 parent 1: basic classid 1:1",
+            "$TC class add dev $DEV1 parent 1: classid 1:1 drr",
+            "$TC qdisc add dev $DEV1 parent 1:1 handle 2: hfsc def 1",
+            "$TC class add dev $DEV1 parent 2: classid 2:1 hfsc rt m1 8 d 1 m2 0",
+            "$TC qdisc add dev $DEV1 parent 2:1 handle 3: netem",
+            "$TC qdisc add dev $DEV1 parent 3:1 handle 4: blackhole"
+        ],
+        "scapy": {
+            "iface": "$DEV0",
+            "count": 5,
+            "packet": "Ether()/IP(dst='10.10.10.1', src='10.10.10.10')/ICMP()"
+        },
+        "cmdUnderTest": "$TC -s qdisc show dev $DEV1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -s qdisc show dev $DEV1",
+        "matchPattern": "qdisc hfsc",
+        "matchCount": "1",
+        "teardown": ["$TC qdisc del dev $DEV1 root handle 1: drr"]
+    },
+    {
+        "id": "309e",
+        "name": "Test HFSC eltree double add with reentrant enqueue behaviour on netem",
+        "category": [
+            "qdisc",
+            "hfsc"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.11.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY root handle 1: tbf rate 8bit burst 100b latency 1s",
+            "$TC qdisc add dev $DUMMY parent 1:0 handle 2:0 hfsc",
+            "ping -I $DUMMY -f -c10 -s48 -W0.001 10.10.11.1 || true",
+            "$TC class add dev $DUMMY parent 2:0 classid 2:1 hfsc rt m2 20Kbit",
+            "$TC qdisc add dev $DUMMY parent 2:1 handle 3:0 netem duplicate 100%",
+            "$TC class add dev $DUMMY parent 2:0 classid 2:2 hfsc rt m2 20Kbit",
+            "$TC filter add dev $DUMMY parent 2:0 protocol ip prio 1 u32 match ip dst 10.10.11.2/32 flowid 2:1",
+            "$TC filter add dev $DUMMY parent 2:0 protocol ip prio 2 u32 match ip dst 10.10.11.3/32 flowid 2:2",
+            "ping -c 1 10.10.11.2 -I$DUMMY > /dev/null || true",
+            "$TC filter del dev $DUMMY parent 2:0 protocol ip prio 1",
+            "$TC class del dev $DUMMY classid 2:1",
+            "ping -c 1 10.10.11.3 -I$DUMMY > /dev/null || true"
+        ],
+        "cmdUnderTest": "$TC class change dev $DUMMY parent 2:0 classid 2:2 hfsc sc m2 20Kbit",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j class ls dev $DUMMY classid 2:1",
+        "matchJSON": [],
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1:0 root",
+            "$IP addr del 10.10.10.10/24 dev $DUMMY || true"
+        ]
     }
 ]

@@ -9,6 +9,7 @@
 #include "bcachefs.h"
 #include "alloc_background.h"
 #include "alloc_foreground.h"
+#include "async_objs.h"
 #include "btree_update.h"
 #include "buckets.h"
 #include "checksum.h"
@@ -17,6 +18,7 @@
 #include "data_update.h"
 #include "disk_groups.h"
 #include "ec.h"
+#include "enumerated_ref.h"
 #include "error.h"
 #include "io_read.h"
 #include "io_misc.h"
@@ -25,6 +27,7 @@
 #include "subvolume.h"
 #include "trace.h"
 
+#include <linux/moduleparam.h>
 #include <linux/random.h>
 #include <linux/sched/mm.h>
 
@@ -33,6 +36,12 @@ static unsigned bch2_read_corrupt_ratio;
 module_param_named(read_corrupt_ratio, bch2_read_corrupt_ratio, uint, 0644);
 MODULE_PARM_DESC(read_corrupt_ratio, "");
 #endif
+
+static bool bch2_poison_extents_on_checksum_error;
+module_param_named(poison_extents_on_checksum_error,
+		   bch2_poison_extents_on_checksum_error, bool, 0644);
+MODULE_PARM_DESC(poison_extents_on_checksum_error,
+		 "Extents with checksum errors are marked as poisoned - unsafe without read fua support");
 
 #ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
 
@@ -79,18 +88,6 @@ static bool bch2_target_congested(struct bch_fs *c, u16 target)
 #endif
 
 /* Cache promotion on read */
-
-struct promote_op {
-	struct rcu_head		rcu;
-	u64			start_time;
-
-	struct rhash_head	hash;
-	struct bpos		pos;
-
-	struct work_struct	work;
-	struct data_update	write;
-	struct bio_vec		bi_inline_vecs[]; /* must be last */
-};
 
 static const struct rhashtable_params bch_promote_params = {
 	.head_offset		= offsetof(struct promote_op, hash),
@@ -169,9 +166,11 @@ static noinline void promote_free(struct bch_read_bio *rbio)
 					 bch_promote_params);
 	BUG_ON(ret);
 
+	async_object_list_del(c, promote, op->list_idx);
+
 	bch2_data_update_exit(&op->write);
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_promote);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_promote);
 	kfree_rcu(op, rcu);
 }
 
@@ -236,7 +235,7 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 			return NULL;
 	}
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_promote))
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_promote))
 		return ERR_PTR(-BCH_ERR_nopromote_no_writes);
 
 	struct promote_op *op = kzalloc(sizeof(*op), GFP_KERNEL);
@@ -254,6 +253,10 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 		goto err;
 	}
 
+	ret = async_object_list_add(c, promote, op, &op->list_idx);
+	if (ret < 0)
+		goto err_remove_hash;
+
 	ret = bch2_data_update_init(trans, NULL, NULL, &op->write,
 			writepoint_hashed((unsigned long) current),
 			&orig->opts,
@@ -265,7 +268,7 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 	 * -BCH_ERR_ENOSPC_disk_reservation:
 	 */
 	if (ret)
-		goto err_remove_hash;
+		goto err_remove_list;
 
 	rbio_init_fragment(&op->write.rbio.bio, orig);
 	op->write.rbio.bounce	= true;
@@ -273,6 +276,8 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 	op->write.op.end_io = promote_done;
 
 	return &op->write.rbio;
+err_remove_list:
+	async_object_list_del(c, promote, op->list_idx);
 err_remove_hash:
 	BUG_ON(rhashtable_remove_fast(&c->promote_table, &op->hash,
 				      bch_promote_params));
@@ -281,7 +286,7 @@ err:
 	/* We may have added to the rhashtable and thus need rcu freeing: */
 	kfree_rcu(op, rcu);
 err_put:
-	bch2_write_ref_put(c, BCH_WRITE_REF_promote);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_promote);
 	return ERR_PTR(ret);
 }
 
@@ -296,6 +301,13 @@ static struct bch_read_bio *promote_alloc(struct btree_trans *trans,
 					bool *read_full,
 					struct bch_io_failures *failed)
 {
+	/*
+	 * We're in the retry path, but we don't know what to repair yet, and we
+	 * don't want to do a promote here:
+	 */
+	if (failed && !failed->nr)
+		return NULL;
+
 	struct bch_fs *c = trans->c;
 	/*
 	 * if failed != NULL we're not actually doing a promote, we're
@@ -336,6 +348,18 @@ static struct bch_read_bio *promote_alloc(struct btree_trans *trans,
 nopromote:
 	trace_io_read_nopromote(c, ret);
 	return NULL;
+}
+
+void bch2_promote_op_to_text(struct printbuf *out, struct promote_op *op)
+{
+	if (!op->write.read_done) {
+		prt_printf(out, "parent read: %px\n", op->write.rbio.parent);
+		printbuf_indent_add(out, 2);
+		bch2_read_bio_to_text(out, op->write.rbio.parent);
+		printbuf_indent_sub(out, 2);
+	}
+
+	bch2_data_update_to_text(out, &op->write);
 }
 
 /* Read */
@@ -394,7 +418,7 @@ static inline struct bch_read_bio *bch2_rbio_free(struct bch_read_bio *rbio)
 
 	if (rbio->have_ioref) {
 		struct bch_dev *ca = bch2_dev_have_ref(rbio->c, rbio->pick.ptr.dev);
-		percpu_ref_put(&ca->io_ref[READ]);
+		enumerated_ref_put(&ca->io_ref[READ], BCH_DEV_READ_REF_io_read);
 	}
 
 	if (rbio->split) {
@@ -406,6 +430,8 @@ static inline struct bch_read_bio *bch2_rbio_free(struct bch_read_bio *rbio)
 			else
 				promote_free(rbio);
 		} else {
+			async_object_list_del(rbio->c, rbio, rbio->list_idx);
+
 			if (rbio->bounce)
 				bch2_bio_free_pages_pool(rbio->c, &rbio->bio);
 
@@ -428,6 +454,74 @@ static void bch2_rbio_done(struct bch_read_bio *rbio)
 		bch2_time_stats_update(&rbio->c->times[BCH_TIME_data_read],
 				       rbio->start_time);
 	bio_endio(&rbio->bio);
+}
+
+static void get_rbio_extent(struct btree_trans *trans,
+			    struct bch_read_bio *rbio,
+			    struct bkey_buf *sk)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret = lockrestart_do(trans,
+			bkey_err(k = bch2_bkey_get_iter(trans, &iter,
+						rbio->data_btree, rbio->data_pos, 0)));
+	if (ret)
+		return;
+
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	bkey_for_each_ptr(ptrs, ptr)
+		if (bch2_extent_ptr_eq(*ptr, rbio->pick.ptr)) {
+			bch2_bkey_buf_reassemble(sk, trans->c, k);
+			break;
+		}
+
+	bch2_trans_iter_exit(trans, &iter);
+}
+
+static noinline int maybe_poison_extent(struct btree_trans *trans, struct bch_read_bio *rbio,
+					enum btree_id btree, struct bkey_s_c read_k)
+{
+	if (!bch2_poison_extents_on_checksum_error)
+		return 0;
+
+	struct bch_fs *c = trans->c;
+
+	struct data_update *u = rbio_data_update(rbio);
+	if (u)
+		read_k = bkey_i_to_s_c(u->k.k);
+
+	u64 flags = bch2_bkey_extent_flags(read_k);
+	if (flags & BIT_ULL(BCH_EXTENT_FLAG_poisoned))
+		return 0;
+
+	struct btree_iter iter;
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, btree, bkey_start_pos(read_k.k),
+					       BTREE_ITER_intent);
+	int ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	if (!bkey_and_val_eq(k, read_k))
+		goto out;
+
+	struct bkey_i *new = bch2_trans_kmalloc(trans,
+					bkey_bytes(k.k) + sizeof(struct bch_extent_flags));
+	ret =   PTR_ERR_OR_ZERO(new) ?:
+		(bkey_reassemble(new, k), 0) ?:
+		bch2_bkey_extent_flags_set(c, new, flags|BIT_ULL(BCH_EXTENT_FLAG_poisoned)) ?:
+		bch2_trans_update(trans, &iter, new, BTREE_UPDATE_internal_snapshot_node) ?:
+		bch2_trans_commit(trans, NULL, NULL, 0);
+
+	/*
+	 * Propagate key change back to data update path, in particular so it
+	 * knows the extent has been poisoned and it's safe to change the
+	 * checksum
+	 */
+	if (u && !ret)
+		bch2_bkey_buf_copy(&u->k, c, new);
+out:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
 }
 
 static noinline int bch2_read_retry_nodecode(struct btree_trans *trans,
@@ -463,7 +557,8 @@ retry:
 err:
 	bch2_trans_iter_exit(trans, &iter);
 
-	if (bch2_err_matches(ret, BCH_ERR_data_read_retry))
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
+	    bch2_err_matches(ret, BCH_ERR_data_read_retry))
 		goto retry;
 
 	if (ret) {
@@ -487,15 +582,21 @@ static void bch2_rbio_retry(struct work_struct *work)
 		.inum	= rbio->read_pos.inode,
 	};
 	struct bch_io_failures failed = { .nr = 0 };
-	int orig_error = rbio->ret;
 
 	struct btree_trans *trans = bch2_trans_get(c);
+
+	struct bkey_buf sk;
+	bch2_bkey_buf_init(&sk);
+	bkey_init(&sk.k->k);
 
 	trace_io_read_retry(&rbio->bio);
 	this_cpu_add(c->counters[BCH_COUNTER_io_read_retry],
 		     bvec_iter_sectors(rbio->bvec_iter));
 
-	if (bch2_err_matches(rbio->ret, BCH_ERR_data_read_retry_avoid))
+	get_rbio_extent(trans, rbio, &sk);
+
+	if (!bkey_deleted(&sk.k->k) &&
+	    bch2_err_matches(rbio->ret, BCH_ERR_data_read_retry_avoid))
 		bch2_mark_io_failure(&failed, &rbio->pick,
 				     rbio->ret == -BCH_ERR_data_read_retry_csum_err);
 
@@ -516,15 +617,16 @@ static void bch2_rbio_retry(struct work_struct *work)
 
 	int ret = rbio->data_update
 		? bch2_read_retry_nodecode(trans, rbio, iter, &failed, flags)
-		: __bch2_read(trans, rbio, iter, inum, &failed, flags);
+		: __bch2_read(trans, rbio, iter, inum, &failed, &sk, flags);
 
 	if (ret) {
 		rbio->ret = ret;
 		rbio->bio.bi_status = BLK_STS_IOERR;
-	} else if (orig_error != -BCH_ERR_data_read_retry_csum_err_maybe_userspace &&
-		   orig_error != -BCH_ERR_data_read_ptr_stale_race &&
-		   !failed.nr) {
+	}
+
+	if (failed.nr || ret) {
 		struct printbuf buf = PRINTBUF;
+		bch2_log_msg_start(c, &buf);
 
 		lockrestart_do(trans,
 			bch2_inum_offset_err_msg_trans(trans, &buf,
@@ -532,13 +634,27 @@ static void bch2_rbio_retry(struct work_struct *work)
 					read_pos.offset << 9));
 		if (rbio->data_update)
 			prt_str(&buf, "(internal move) ");
-		prt_str(&buf, "successful retry");
 
-		bch_err_ratelimited(c, "%s", buf.buf);
+		prt_str(&buf, "data read error, ");
+		if (!ret)
+			prt_str(&buf, "successful retry");
+		else
+			prt_str(&buf, bch2_err_str(ret));
+		prt_newline(&buf);
+
+		if (!bkey_deleted(&sk.k->k)) {
+			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(sk.k));
+			prt_newline(&buf);
+		}
+
+		bch2_io_failures_to_text(&buf, c, &failed);
+
+		bch2_print_str_ratelimited(c, KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
 	}
 
 	bch2_rbio_done(rbio);
+	bch2_bkey_buf_exit(&sk, c);
 	bch2_trans_put(trans);
 }
 
@@ -566,27 +682,6 @@ static void bch2_rbio_error(struct bch_read_bio *rbio,
 
 		bch2_rbio_done(rbio);
 	}
-}
-
-static void bch2_read_io_err(struct work_struct *work)
-{
-	struct bch_read_bio *rbio =
-		container_of(work, struct bch_read_bio, work);
-	struct bio *bio = &rbio->bio;
-	struct bch_fs *c	= rbio->c;
-	struct bch_dev *ca = rbio->have_ioref ? bch2_dev_have_ref(c, rbio->pick.ptr.dev) : NULL;
-	struct printbuf buf = PRINTBUF;
-
-	bch2_read_err_msg(c, &buf, rbio, rbio->read_pos);
-	prt_printf(&buf, "data read error: %s", bch2_blk_status_to_str(bio->bi_status));
-
-	if (ca)
-		bch_err_ratelimited(ca, "%s", buf.buf);
-	else
-		bch_err_ratelimited(c, "%s", buf.buf);
-
-	printbuf_exit(&buf);
-	bch2_rbio_error(rbio, -BCH_ERR_data_read_retry_io_err, bio->bi_status);
 }
 
 static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
@@ -650,31 +745,6 @@ static noinline void bch2_rbio_narrow_crcs(struct bch_read_bio *rbio)
 {
 	bch2_trans_commit_do(rbio->c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			     __bch2_rbio_narrow_crcs(trans, rbio));
-}
-
-static void bch2_read_csum_err(struct work_struct *work)
-{
-	struct bch_read_bio *rbio =
-		container_of(work, struct bch_read_bio, work);
-	struct bch_fs *c	= rbio->c;
-	struct bio *src		= &rbio->bio;
-	struct bch_extent_crc_unpacked crc = rbio->pick.crc;
-	struct nonce nonce = extent_nonce(rbio->version, crc);
-	struct bch_csum csum = bch2_checksum_bio(c, crc.csum_type, nonce, src);
-	struct printbuf buf = PRINTBUF;
-
-	bch2_read_err_msg(c, &buf, rbio, rbio->read_pos);
-	prt_str(&buf, "data ");
-	bch2_csum_err_msg(&buf, crc.csum_type, rbio->pick.crc.csum, csum);
-
-	struct bch_dev *ca = rbio->have_ioref ? bch2_dev_have_ref(c, rbio->pick.ptr.dev) : NULL;
-	if (ca)
-		bch_err_ratelimited(ca, "%s", buf.buf);
-	else
-		bch_err_ratelimited(c, "%s", buf.buf);
-
-	bch2_rbio_error(rbio, -BCH_ERR_data_read_retry_csum_err, BLK_STS_IOERR);
-	printbuf_exit(&buf);
 }
 
 static void bch2_read_decompress_err(struct work_struct *work)
@@ -837,7 +907,7 @@ out:
 	memalloc_nofs_restore(nofs_flags);
 	return;
 csum_err:
-	bch2_rbio_punt(rbio, bch2_read_csum_err, RBIO_CONTEXT_UNBOUND, system_unbound_wq);
+	bch2_rbio_error(rbio, -BCH_ERR_data_read_retry_csum_err, BLK_STS_IOERR);
 	goto out;
 decompression_err:
 	bch2_rbio_punt(rbio, bch2_read_decompress_err, RBIO_CONTEXT_UNBOUND, system_unbound_wq);
@@ -863,7 +933,7 @@ static void bch2_read_endio(struct bio *bio)
 		rbio->bio.bi_end_io = rbio->end_io;
 
 	if (unlikely(bio->bi_status)) {
-		bch2_rbio_punt(rbio, bch2_read_io_err, RBIO_CONTEXT_UNBOUND, system_unbound_wq);
+		bch2_rbio_error(rbio, -BCH_ERR_data_read_retry_io_err, bio->bi_status);
 		return;
 	}
 
@@ -963,6 +1033,10 @@ int __bch2_read_extent(struct btree_trans *trans, struct bch_read_bio *orig,
 			     bvec_iter_sectors(iter));
 		goto out_read_done;
 	}
+
+	if ((bch2_bkey_extent_flags(k) & BIT_ULL(BCH_EXTENT_FLAG_poisoned)) &&
+	    !orig->data_update)
+		return -BCH_ERR_extent_poisoned;
 retry_pick:
 	ret = bch2_bkey_pick_read_device(c, k, failed, &pick, dev);
 
@@ -971,6 +1045,16 @@ retry_pick:
 		goto hole;
 
 	if (unlikely(ret < 0)) {
+		if (ret == -BCH_ERR_data_read_csum_err) {
+			int ret2 = maybe_poison_extent(trans, orig, data_btree, k);
+			if (ret2) {
+				ret = ret2;
+				goto err;
+			}
+
+			trace_and_count(c, io_read_fail_and_poison, &orig->bio);
+		}
+
 		struct printbuf buf = PRINTBUF;
 		bch2_read_err_msg_trans(trans, &buf, orig, read_pos);
 		prt_printf(&buf, "%s\n  ", bch2_err_str(ret));
@@ -994,7 +1078,8 @@ retry_pick:
 		goto err;
 	}
 
-	struct bch_dev *ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ);
+	struct bch_dev *ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ,
+					BCH_DEV_READ_REF_io_read);
 
 	/*
 	 * Stale dirty pointers are treated as IO errors, but @failed isn't
@@ -1008,7 +1093,7 @@ retry_pick:
 	    unlikely(dev_ptr_stale(ca, &pick.ptr))) {
 		read_from_stale_dirty_pointer(trans, ca, k, pick.ptr);
 		bch2_mark_io_failure(failed, &pick, false);
-		percpu_ref_put(&ca->io_ref[READ]);
+		enumerated_ref_put(&ca->io_ref[READ], BCH_DEV_READ_REF_io_read);
 		goto retry_pick;
 	}
 
@@ -1041,7 +1126,8 @@ retry_pick:
 		 */
 		if (pick.crc.compressed_size > u->op.wbio.bio.bi_iter.bi_size) {
 			if (ca)
-				percpu_ref_put(&ca->io_ref[READ]);
+				enumerated_ref_put(&ca->io_ref[READ],
+					BCH_DEV_READ_REF_io_read);
 			rbio->ret = -BCH_ERR_data_read_buffer_too_small;
 			goto out_read_done;
 		}
@@ -1138,6 +1224,8 @@ retry_pick:
 	rbio->bio.bi_iter.bi_sector = pick.ptr.offset;
 	rbio->bio.bi_end_io	= bch2_read_endio;
 
+	async_object_list_add(c, rbio, rbio, &rbio->list_idx);
+
 	if (rbio->bounce)
 		trace_and_count(c, io_read_bounce, &rbio->bio);
 
@@ -1171,14 +1259,6 @@ retry_pick:
 
 	if (likely(!rbio->pick.do_ec_reconstruct)) {
 		if (unlikely(!rbio->have_ioref)) {
-			struct printbuf buf = PRINTBUF;
-			bch2_read_err_msg_trans(trans, &buf, rbio, read_pos);
-			prt_printf(&buf, "no device to read from:\n  ");
-			bch2_bkey_val_to_text(&buf, c, k);
-
-			bch_err_ratelimited(c, "%s", buf.buf);
-			printbuf_exit(&buf);
-
 			bch2_rbio_error(rbio,
 					-BCH_ERR_data_read_retry_device_offline,
 					BLK_STS_IOERR);
@@ -1265,12 +1345,15 @@ out_read_done:
 
 int __bch2_read(struct btree_trans *trans, struct bch_read_bio *rbio,
 		struct bvec_iter bvec_iter, subvol_inum inum,
-		struct bch_io_failures *failed, unsigned flags)
+		struct bch_io_failures *failed,
+		struct bkey_buf *prev_read,
+		unsigned flags)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_buf sk;
 	struct bkey_s_c k;
+	enum btree_id data_btree;
 	int ret;
 
 	EBUG_ON(rbio->data_update);
@@ -1281,7 +1364,7 @@ int __bch2_read(struct btree_trans *trans, struct bch_read_bio *rbio,
 			     BTREE_ITER_slots);
 
 	while (1) {
-		enum btree_id data_btree = BTREE_ID_extents;
+		data_btree = BTREE_ID_extents;
 
 		bch2_trans_begin(trans);
 
@@ -1312,6 +1395,12 @@ int __bch2_read(struct btree_trans *trans, struct bch_read_bio *rbio,
 			goto err;
 
 		k = bkey_i_to_s_c(sk.k);
+
+		if (unlikely(flags & BCH_READ_in_retry)) {
+			if (!bkey_and_val_eq(k, bkey_i_to_s_c(prev_read->k)))
+				failed->nr = 0;
+			bch2_bkey_buf_copy(prev_read, c, sk.k);
+		}
 
 		/*
 		 * With indirect extents, the amount of data to read is the min
@@ -1347,8 +1436,6 @@ err:
 			break;
 	}
 
-	bch2_trans_iter_exit(trans, &iter);
-
 	if (unlikely(ret)) {
 		if (ret != -BCH_ERR_extent_poisoned) {
 			struct printbuf buf = PRINTBUF;
@@ -1367,8 +1454,44 @@ err:
 			bch2_rbio_done(rbio);
 	}
 
+	bch2_trans_iter_exit(trans, &iter);
 	bch2_bkey_buf_exit(&sk, c);
 	return ret;
+}
+
+static const char * const bch2_read_bio_flags[] = {
+#define x(n)	#n,
+	BCH_READ_FLAGS()
+#undef x
+	NULL
+};
+
+void bch2_read_bio_to_text(struct printbuf *out, struct bch_read_bio *rbio)
+{
+	u64 now = local_clock();
+	prt_printf(out, "start_time:\t%llu\n", rbio->start_time ? now - rbio->start_time : 0);
+	prt_printf(out, "submit_time:\t%llu\n", rbio->submit_time ? now - rbio->submit_time : 0);
+
+	if (!rbio->split)
+		prt_printf(out, "end_io:\t%ps\n", rbio->end_io);
+	else
+		prt_printf(out, "parent:\t%px\n", rbio->parent);
+
+	prt_printf(out, "bi_end_io:\t%ps\n", rbio->bio.bi_end_io);
+
+	prt_printf(out, "promote:\t%u\n",	rbio->promote);
+	prt_printf(out, "bounce:\t%u\n",	rbio->bounce);
+	prt_printf(out, "split:\t%u\n",		rbio->split);
+	prt_printf(out, "have_ioref:\t%u\n",	rbio->have_ioref);
+	prt_printf(out, "narrow_crcs:\t%u\n",	rbio->narrow_crcs);
+	prt_printf(out, "context:\t%u\n",	rbio->context);
+	prt_printf(out, "ret:\t%s\n",		bch2_err_str(rbio->ret));
+
+	prt_printf(out, "flags:\t");
+	bch2_prt_bitflags(out, bch2_read_bio_flags, rbio->flags);
+	prt_newline(out);
+
+	bch2_bio_to_text(out, &rbio->bio);
 }
 
 void bch2_fs_io_read_exit(struct bch_fs *c)
@@ -1377,10 +1500,18 @@ void bch2_fs_io_read_exit(struct bch_fs *c)
 		rhashtable_destroy(&c->promote_table);
 	bioset_exit(&c->bio_read_split);
 	bioset_exit(&c->bio_read);
+	mempool_exit(&c->bio_bounce_pages);
 }
 
 int bch2_fs_io_read_init(struct bch_fs *c)
 {
+	if (mempool_init_page_pool(&c->bio_bounce_pages,
+				   max_t(unsigned,
+					 c->opts.btree_node_size,
+					 c->opts.encoded_extent_max) /
+				   PAGE_SIZE, 0))
+		return -BCH_ERR_ENOMEM_bio_bounce_pages_init;
+
 	if (bioset_init(&c->bio_read, 1, offsetof(struct bch_read_bio, bio),
 			BIOSET_NEED_BVECS))
 		return -BCH_ERR_ENOMEM_bio_read_init;

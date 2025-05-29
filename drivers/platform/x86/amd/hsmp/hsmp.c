@@ -7,7 +7,7 @@
  * This file provides a device implementation for HSMP interface
  */
 
-#include <asm/amd_hsmp.h>
+#include <asm/amd/hsmp.h>
 
 #include <linux/acpi.h>
 #include <linux/delay.h>

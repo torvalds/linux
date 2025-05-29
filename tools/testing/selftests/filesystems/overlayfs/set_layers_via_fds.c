@@ -16,7 +16,7 @@
 #include "../../pidfd/pidfd.h"
 #include "log.h"
 #include "../utils.h"
-#include "wrappers.h"
+#include "../wrappers.h"
 
 FIXTURE(set_layers_via_fds) {
 	int pidfd;

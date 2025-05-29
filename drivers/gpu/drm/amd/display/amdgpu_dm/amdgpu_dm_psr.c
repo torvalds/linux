@@ -87,14 +87,6 @@ void amdgpu_dm_set_psr_caps(struct dc_link *link)
 
 		link->psr_settings.psr_feature_enabled = true;
 	}
-
-	DRM_INFO("PSR support %d, DC PSR ver %d, sink PSR ver %d DPCD caps 0x%x su_y_granularity %d\n",
-		link->psr_settings.psr_feature_enabled,
-		link->psr_settings.psr_version,
-		link->dpcd_caps.psr_info.psr_version,
-		link->dpcd_caps.psr_info.psr_dpcd_caps.raw,
-		link->dpcd_caps.psr_info.psr2_su_y_granularity_cap);
-
 }
 
 /*

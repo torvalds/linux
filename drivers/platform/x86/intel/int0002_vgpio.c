@@ -23,7 +23,7 @@
  * ACPI mechanisms, this is not a real GPIO at all.
  *
  * This driver will bind to the INT0002 device, and register as a GPIO
- * controller, letting gpiolib-acpi.c call the _L02 handler as it would
+ * controller, letting gpiolib-acpi call the _L02 handler as it would
  * for a real GPIO controller.
  */
 

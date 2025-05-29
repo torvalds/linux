@@ -252,8 +252,18 @@ void bch2_prt_u64_base2(struct printbuf *out, u64 v)
 	bch2_prt_u64_base2_nbits(out, v, fls64(v) ?: 1);
 }
 
-static void __bch2_print_string_as_lines(const char *prefix, const char *lines,
-					 bool nonblocking)
+static bool string_is_spaces(const char *str)
+{
+	while (*str) {
+		if (*str != ' ')
+			return false;
+		str++;
+	}
+	return true;
+}
+
+void bch2_print_string_as_lines(const char *prefix, const char *lines,
+				bool nonblocking)
 {
 	bool locked = false;
 	const char *p;
@@ -272,6 +282,9 @@ static void __bch2_print_string_as_lines(const char *prefix, const char *lines,
 
 	while (*lines) {
 		p = strchrnul(lines, '\n');
+		if (!*p && string_is_spaces(lines))
+			break;
+
 		printk("%s%.*s\n", prefix, (int) (p - lines), lines);
 		if (!*p)
 			break;
@@ -279,16 +292,6 @@ static void __bch2_print_string_as_lines(const char *prefix, const char *lines,
 	}
 	if (locked)
 		console_unlock();
-}
-
-void bch2_print_string_as_lines(const char *prefix, const char *lines)
-{
-	return __bch2_print_string_as_lines(prefix, lines, false);
-}
-
-void bch2_print_string_as_lines_nonblocking(const char *prefix, const char *lines)
-{
-	return __bch2_print_string_as_lines(prefix, lines, true);
 }
 
 int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *task, unsigned skipnr,
@@ -725,6 +728,16 @@ void bch2_corrupt_bio(struct bio *bio)
 }
 #endif
 
+void bch2_bio_to_text(struct printbuf *out, struct bio *bio)
+{
+	prt_printf(out, "bi_remaining:\t%u\n",
+		   atomic_read(&bio->__bi_remaining));
+	prt_printf(out, "bi_end_io:\t%ps\n",
+		   bio->bi_end_io);
+	prt_printf(out, "bi_status:\t%u\n",
+		   bio->bi_status);
+}
+
 #if 0
 void eytzinger1_test(void)
 {
@@ -1003,14 +1016,14 @@ u64 *bch2_acc_percpu_u64s(u64 __percpu *p, unsigned nr)
 	return ret;
 }
 
-void bch2_darray_str_exit(darray_str *d)
+void bch2_darray_str_exit(darray_const_str *d)
 {
 	darray_for_each(*d, i)
 		kfree(*i);
 	darray_exit(d);
 }
 
-int bch2_split_devs(const char *_dev_name, darray_str *ret)
+int bch2_split_devs(const char *_dev_name, darray_const_str *ret)
 {
 	darray_init(ret);
 

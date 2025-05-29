@@ -240,6 +240,7 @@ enum {
 	AZX_DRIVER_CTHDA,
 	AZX_DRIVER_CMEDIA,
 	AZX_DRIVER_ZHAOXIN,
+	AZX_DRIVER_ZHAOXINHDMI,
 	AZX_DRIVER_LOONGSON,
 	AZX_DRIVER_GENERIC,
 	AZX_NUM_DRIVERS, /* keep this as last entry */
@@ -355,6 +356,7 @@ static const char * const driver_short_names[] = {
 	[AZX_DRIVER_CTHDA] = "HDA Creative",
 	[AZX_DRIVER_CMEDIA] = "HDA C-Media",
 	[AZX_DRIVER_ZHAOXIN] = "HDA Zhaoxin",
+	[AZX_DRIVER_ZHAOXINHDMI] = "HDA Zhaoxin HDMI",
 	[AZX_DRIVER_LOONGSON] = "HDA Loongson",
 	[AZX_DRIVER_GENERIC] = "HD-Audio Generic",
 };
@@ -1750,6 +1752,8 @@ static int default_bdl_pos_adj(struct azx *chip)
 	case AZX_DRIVER_ICH:
 	case AZX_DRIVER_PCH:
 		return 1;
+	case AZX_DRIVER_ZHAOXINHDMI:
+		return 128;
 	default:
 		return 32;
 	}
@@ -1877,12 +1881,14 @@ static int azx_first_init(struct azx *chip)
 			chip->jackpoll_interval = msecs_to_jiffies(1500);
 	}
 
-	err = pcim_iomap_regions(pci, 1 << 0, "ICH HD audio");
-	if (err < 0)
-		return err;
+	if (chip->driver_type == AZX_DRIVER_ZHAOXINHDMI)
+		bus->polling_mode = 1;
+
+	bus->remap_addr = pcim_iomap_region(pci, 0, "ICH HD audio");
+	if (IS_ERR(bus->remap_addr))
+		return PTR_ERR(bus->remap_addr);
 
 	bus->addr = pci_resource_start(pci, 0);
-	bus->remap_addr = pcim_iomap_table(pci)[0];
 
 	if (chip->driver_type == AZX_DRIVER_SKL)
 		snd_hdac_bus_parse_capabilities(bus);
@@ -1974,6 +1980,7 @@ static int azx_first_init(struct azx *chip)
 			chip->capture_streams = ATIHDMI_NUM_CAPTURE;
 			break;
 		case AZX_DRIVER_GFHDMI:
+		case AZX_DRIVER_ZHAOXINHDMI:
 		case AZX_DRIVER_GENERIC:
 		default:
 			chip->playback_streams = ICH6_NUM_PLAYBACK;
@@ -2542,6 +2549,8 @@ static const struct pci_device_id azx_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, HDA_PTL, AZX_DRIVER_SKL | AZX_DCAPS_INTEL_LNL) },
 	/* Panther Lake-H */
 	{ PCI_DEVICE_DATA(INTEL, HDA_PTL_H, AZX_DRIVER_SKL | AZX_DCAPS_INTEL_LNL) },
+	/* Wildcat Lake */
+	{ PCI_DEVICE_DATA(INTEL, HDA_WCL, AZX_DRIVER_SKL | AZX_DCAPS_INTEL_LNL) },
 	/* Apollolake (Broxton-P) */
 	{ PCI_DEVICE_DATA(INTEL, HDA_APL, AZX_DRIVER_SKL | AZX_DCAPS_INTEL_BROXTON) },
 	/* Gemini-Lake */
@@ -2782,6 +2791,21 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_GENERIC | AZX_DCAPS_PRESET_ATI_HDMI },
 	/* Zhaoxin */
 	{ PCI_VDEVICE(ZHAOXIN, 0x3288), .driver_data = AZX_DRIVER_ZHAOXIN },
+	{ PCI_VDEVICE(ZHAOXIN, 0x9141),
+	 .driver_data = AZX_DRIVER_ZHAOXINHDMI | AZX_DCAPS_POSFIX_LPIB |
+	 AZX_DCAPS_NO_MSI | AZX_DCAPS_NO_64BIT },
+	{ PCI_VDEVICE(ZHAOXIN, 0x9142),
+	 .driver_data = AZX_DRIVER_ZHAOXINHDMI | AZX_DCAPS_POSFIX_LPIB |
+	 AZX_DCAPS_NO_MSI | AZX_DCAPS_NO_64BIT },
+	{ PCI_VDEVICE(ZHAOXIN, 0x9144),
+	 .driver_data = AZX_DRIVER_ZHAOXINHDMI | AZX_DCAPS_POSFIX_LPIB |
+	 AZX_DCAPS_NO_MSI | AZX_DCAPS_NO_64BIT },
+	{ PCI_VDEVICE(ZHAOXIN, 0x9145),
+	 .driver_data = AZX_DRIVER_ZHAOXINHDMI | AZX_DCAPS_POSFIX_LPIB |
+	 AZX_DCAPS_NO_MSI | AZX_DCAPS_NO_64BIT },
+	{ PCI_VDEVICE(ZHAOXIN, 0x9146),
+	 .driver_data = AZX_DRIVER_ZHAOXINHDMI | AZX_DCAPS_POSFIX_LPIB |
+	 AZX_DCAPS_NO_MSI | AZX_DCAPS_NO_64BIT },
 	/* Loongson HDAudio*/
 	{ PCI_VDEVICE(LOONGSON, PCI_DEVICE_ID_LOONGSON_HDA),
 	  .driver_data = AZX_DRIVER_LOONGSON | AZX_DCAPS_NO_TCSEL },

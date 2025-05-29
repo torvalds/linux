@@ -1364,7 +1364,7 @@ static void use_bio(struct dm_buffer *b, enum req_op op, sector_t sector,
 	ptr = (char *)b->data + offset;
 	len = n_sectors << SECTOR_SHIFT;
 
-	__bio_add_page(bio, virt_to_page(ptr), len, offset_in_page(ptr));
+	bio_add_virt_nofail(bio, ptr, len);
 
 	submit_bio(bio);
 }

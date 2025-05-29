@@ -739,6 +739,20 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 		ctx->state = MFCINST_RUNNING;
 		goto irq_cleanup_hw;
 
+	case S5P_MFC_R2H_CMD_ENC_BUFFER_FUL_RET:
+		ctx->state = MFCINST_NAL_ABORT;
+		s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
+		set_work_bit(ctx);
+		WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
+		s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
+		break;
+
+	case S5P_MFC_R2H_CMD_NAL_ABORT_RET:
+		ctx->state = MFCINST_ERROR;
+		s5p_mfc_cleanup_queue(&ctx->dst_queue, &ctx->vq_dst);
+		s5p_mfc_cleanup_queue(&ctx->src_queue, &ctx->vq_src);
+		goto irq_cleanup_hw;
+
 	default:
 		mfc_debug(2, "Unknown int reason\n");
 		s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);

@@ -19,6 +19,7 @@
 #include <linux/kernfs.h>
 #include <linux/jump_label.h>
 #include <linux/types.h>
+#include <linux/notifier.h>
 #include <linux/ns_common.h>
 #include <linux/nsproxy.h>
 #include <linux/user_namespace.h>
@@ -40,7 +41,7 @@ struct kernel_clone_args;
 
 #ifdef CONFIG_CGROUPS
 
-enum {
+enum css_task_iter_flags {
 	CSS_TASK_ITER_PROCS    = (1U << 0),  /* walk only threadgroup leaders */
 	CSS_TASK_ITER_THREADED = (1U << 1),  /* walk all threaded css_sets in the domain */
 	CSS_TASK_ITER_SKIPPED  = (1U << 16), /* internal flags */
@@ -66,10 +67,16 @@ struct css_task_iter {
 	struct list_head		iters_node;	/* css_set->task_iters */
 };
 
+enum cgroup_lifetime_events {
+	CGROUP_LIFETIME_ONLINE,
+	CGROUP_LIFETIME_OFFLINE,
+};
+
 extern struct file_system_type cgroup_fs_type;
 extern struct cgroup_root cgrp_dfl_root;
 extern struct css_set init_css_set;
 extern spinlock_t css_set_lock;
+extern struct blocking_notifier_head cgroup_lifetime_notifier;
 
 #define SUBSYS(_x) extern struct cgroup_subsys _x ## _cgrp_subsys;
 #include <linux/cgroup_subsys.h>
@@ -345,6 +352,17 @@ static inline u64 cgroup_id(const struct cgroup *cgrp)
 static inline bool css_is_dying(struct cgroup_subsys_state *css)
 {
 	return css->flags & CSS_DYING;
+}
+
+static inline bool css_is_self(struct cgroup_subsys_state *css)
+{
+	if (css == &css->cgroup->self) {
+		/* cgroup::self should not have subsystem association */
+		WARN_ON(css->ss != NULL);
+		return true;
+	}
+
+	return false;
 }
 
 static inline void cgroup_get(struct cgroup *cgrp)
@@ -688,8 +706,8 @@ static inline void cgroup_path_from_kernfs_id(u64 id, char *buf, size_t buflen)
 /*
  * cgroup scalable recursive statistics.
  */
-void cgroup_rstat_updated(struct cgroup *cgrp, int cpu);
-void cgroup_rstat_flush(struct cgroup *cgrp);
+void css_rstat_updated(struct cgroup_subsys_state *css, int cpu);
+void css_rstat_flush(struct cgroup_subsys_state *css);
 
 /*
  * Basic resource stats.
@@ -785,6 +803,17 @@ struct cgroup_namespace *copy_cgroup_ns(unsigned long flags,
 int cgroup_path_ns(struct cgroup *cgrp, char *buf, size_t buflen,
 		   struct cgroup_namespace *ns);
 
+static inline void get_cgroup_ns(struct cgroup_namespace *ns)
+{
+	refcount_inc(&ns->ns.count);
+}
+
+static inline void put_cgroup_ns(struct cgroup_namespace *ns)
+{
+	if (refcount_dec_and_test(&ns->ns.count))
+		free_cgroup_ns(ns);
+}
+
 #else /* !CONFIG_CGROUPS */
 
 static inline void free_cgroup_ns(struct cgroup_namespace *ns) { }
@@ -795,19 +824,10 @@ copy_cgroup_ns(unsigned long flags, struct user_namespace *user_ns,
 	return old_ns;
 }
 
+static inline void get_cgroup_ns(struct cgroup_namespace *ns) { }
+static inline void put_cgroup_ns(struct cgroup_namespace *ns) { }
+
 #endif /* !CONFIG_CGROUPS */
-
-static inline void get_cgroup_ns(struct cgroup_namespace *ns)
-{
-	if (ns)
-		refcount_inc(&ns->ns.count);
-}
-
-static inline void put_cgroup_ns(struct cgroup_namespace *ns)
-{
-	if (ns && refcount_dec_and_test(&ns->ns.count))
-		free_cgroup_ns(ns);
-}
 
 #ifdef CONFIG_CGROUPS
 
