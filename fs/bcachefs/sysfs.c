@@ -26,6 +26,7 @@
 #include "disk_groups.h"
 #include "ec.h"
 #include "enumerated_ref.h"
+#include "error.h"
 #include "inode.h"
 #include "journal.h"
 #include "journal_reclaim.h"
@@ -152,6 +153,7 @@ write_attribute(trigger_btree_updates);
 write_attribute(trigger_freelist_wakeup);
 write_attribute(trigger_recalc_capacity);
 write_attribute(trigger_delete_dead_snapshots);
+write_attribute(trigger_emergency_read_only);
 read_attribute(gc_gens_pos);
 
 read_attribute(uuid);
@@ -453,6 +455,16 @@ STORE(bch2_fs)
 	if (attr == &sysfs_trigger_delete_dead_snapshots)
 		__bch2_delete_dead_snapshots(c);
 
+	if (attr == &sysfs_trigger_emergency_read_only) {
+		struct printbuf buf = PRINTBUF;
+		bch2_log_msg_start(c, &buf);
+
+		prt_printf(&buf, "shutdown by sysfs\n");
+		bch2_fs_emergency_read_only2(c, &buf);
+		bch2_print_str(c, KERN_ERR, buf.buf);
+		printbuf_exit(&buf);
+	}
+
 #ifdef CONFIG_BCACHEFS_TESTS
 	if (attr == &sysfs_perf_test) {
 		char *tmp = kstrdup(buf, GFP_KERNEL), *p = tmp;
@@ -585,6 +597,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_trigger_freelist_wakeup,
 	&sysfs_trigger_recalc_capacity,
 	&sysfs_trigger_delete_dead_snapshots,
+	&sysfs_trigger_emergency_read_only,
 
 	&sysfs_gc_gens_pos,
 
