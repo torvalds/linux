@@ -1033,8 +1033,8 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 	pcc->handle = device->handle;
 	pcc->num_sifr = num_sifr;
 	device->driver_data = pcc;
-	strcpy(acpi_device_name(device), ACPI_PCC_DEVICE_NAME);
-	strcpy(acpi_device_class(device), ACPI_PCC_CLASS);
+	strscpy(acpi_device_name(device), ACPI_PCC_DEVICE_NAME);
+	strscpy(acpi_device_class(device), ACPI_PCC_CLASS);
 
 	result = acpi_pcc_init_input(pcc);
 	if (result) {

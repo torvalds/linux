@@ -375,6 +375,30 @@ struct isst_perf_level_data_info {
 	__u16 trl_freq_mhz[TRL_MAX_LEVELS][TRL_MAX_BUCKETS];
 };
 
+#define MAX_FABRIC_COUNT	8
+
+/**
+ * struct isst_perf_level_fabric_info - Structure to get SST-PP fabric details
+ * @socket_id:		Socket/package id
+ * @power_domain_id:	Power Domain id
+ * @level:		SST-PP level for which caller wants to get information
+ * @max_fabrics:	Count of fabrics in resonse
+ * @p0_fabric_freq_mhz: Fabric (Uncore) maximum frequency
+ * @p1_fabric_freq_mhz: Fabric (Uncore) TDP frequency
+ * @pm_fabric_freq_mhz: Fabric (Uncore) minimum frequency
+ *
+ * Structure used to get information on frequencies for fabrics.
+ */
+struct isst_perf_level_fabric_info {
+	__u8 socket_id;
+	__u8 power_domain_id;
+	__u16 level;
+	__u16 max_fabrics;
+	__u16 p0_fabric_freq_mhz[MAX_FABRIC_COUNT];
+	__u16 p1_fabric_freq_mhz[MAX_FABRIC_COUNT];
+	__u16 pm_fabric_freq_mhz[MAX_FABRIC_COUNT];
+};
+
 /**
  * struct isst_perf_level_cpu_mask - Structure to get SST-PP level CPU mask
  * @socket_id:	Socket/package id
@@ -471,5 +495,7 @@ struct isst_turbo_freq_info {
 #define ISST_IF_GET_BASE_FREQ_INFO	_IOR(ISST_IF_MAGIC, 14, struct isst_base_freq_info *)
 #define ISST_IF_GET_BASE_FREQ_CPU_MASK	_IOR(ISST_IF_MAGIC, 15, struct isst_perf_level_cpu_mask *)
 #define ISST_IF_GET_TURBO_FREQ_INFO	_IOR(ISST_IF_MAGIC, 16, struct isst_turbo_freq_info *)
+#define ISST_IF_GET_PERF_LEVEL_FABRIC_INFO _IOR(ISST_IF_MAGIC, 17,\
+						struct isst_perf_level_fabric_info *)
 
 #endif

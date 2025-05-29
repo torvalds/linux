@@ -157,9 +157,28 @@
 #define ASUS_WMI_DSTS_MAX_BRIGTH_MASK	0x0000FF00
 #define ASUS_WMI_DSTS_LIGHTBAR_MASK	0x0000000F
 
+enum asus_ally_mcu_hack {
+	ASUS_WMI_ALLY_MCU_HACK_INIT,
+	ASUS_WMI_ALLY_MCU_HACK_ENABLED,
+	ASUS_WMI_ALLY_MCU_HACK_DISABLED,
+};
+
 #if IS_REACHABLE(CONFIG_ASUS_WMI)
+void set_ally_mcu_hack(enum asus_ally_mcu_hack status);
+void set_ally_mcu_powersave(bool enabled);
+int asus_wmi_set_devstate(u32 dev_id, u32 ctrl_param, u32 *retval);
 int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1, u32 *retval);
 #else
+static inline void set_ally_mcu_hack(enum asus_ally_mcu_hack status)
+{
+}
+static inline void set_ally_mcu_powersave(bool enabled)
+{
+}
+static inline int asus_wmi_set_devstate(u32 dev_id, u32 ctrl_param, u32 *retval)
+{
+	return -ENODEV;
+}
 static inline int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1,
 					   u32 *retval)
 {

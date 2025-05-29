@@ -147,6 +147,9 @@ struct isst_pkg_ctdp_level_info {
 	int uncore_p0;
 	int uncore_p1;
 	int uncore_pm;
+	int uncore1_p0;
+	int uncore1_p1;
+	int uncore1_pm;
 	int sse_p1;
 	int avx2_p1;
 	int avx512_p1;

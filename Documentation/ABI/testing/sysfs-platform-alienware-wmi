@@ -1,0 +1,14 @@
+What:		/sys/class/hwmon/hwmonX/fanY_boost
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	Kurt Borja <kuurtb@gmail.com>
+Description:
+		This file exposes fan boost control for Dell gaming laptops with
+		the AWCC WMI interface.
+
+		See Documentation/admin-guide/laptops/alienware-wmi.rst for
+		details.
+
+		Integer value in the range 0 to 255
+
+		RW

@@ -35,7 +35,7 @@
 
 /* Supported SST hardware version by this driver */
 #define ISST_MAJOR_VERSION	0
-#define ISST_MINOR_VERSION	1
+#define ISST_MINOR_VERSION	2
 
 /*
  * Used to indicate if value read from MMIO needs to get multiplied
@@ -381,7 +381,7 @@ static int sst_main(struct auxiliary_device *auxdev, struct tpmi_per_power_domai
 		return -ENODEV;
 	}
 
-	if (TPMI_MINOR_VERSION(pd_info->sst_header.interface_version) != ISST_MINOR_VERSION)
+	if (TPMI_MINOR_VERSION(pd_info->sst_header.interface_version) > ISST_MINOR_VERSION)
 		dev_info(dev, "SST: Ignore: Unsupported minor version:%lx\n",
 			 TPMI_MINOR_VERSION(pd_info->sst_header.interface_version));
 
@@ -1017,6 +1017,7 @@ static int isst_if_set_perf_feature(void __user *argp)
 
 #define SST_PP_INFO_10_OFFSET	80
 #define SST_PP_INFO_11_OFFSET	88
+#define SST_PP_INFO_12_OFFSET	96
 
 #define SST_PP_P1_SSE_START	0
 #define SST_PP_P1_SSE_WIDTH	8
@@ -1068,6 +1069,15 @@ static int isst_if_set_perf_feature(void __user *argp)
 
 #define SST_PP_CORE_RATIO_PM_FABRIC_START	48
 #define SST_PP_CORE_RATIO_PM_FABRIC_WIDTH	8
+
+#define SST_PP_CORE_RATIO_P0_FABRIC_1_START	0
+#define SST_PP_CORE_RATIO_P0_FABRIC_1_WIDTH	8
+
+#define SST_PP_CORE_RATIO_P1_FABRIC_1_START	8
+#define SST_PP_CORE_RATIO_P1_FABRIC_1_WIDTH	8
+
+#define SST_PP_CORE_RATIO_PM_FABRIC_1_START	16
+#define SST_PP_CORE_RATIO_PM_FABRIC_1_WIDTH	8
 
 static int isst_if_get_perf_level_info(void __user *argp)
 {
@@ -1163,6 +1173,59 @@ static int isst_if_get_perf_level_info(void __user *argp)
 			    SST_PP_CORE_RATIO_PM_FABRIC_WIDTH, SST_MUL_FACTOR_FREQ)
 
 	if (copy_to_user(argp, &perf_level, sizeof(perf_level)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int isst_if_get_perf_level_fabric_info(void __user *argp)
+{
+	struct isst_perf_level_fabric_info perf_level_fabric;
+	struct tpmi_per_power_domain_info *power_domain_info;
+	int start = SST_PP_CORE_RATIO_P0_FABRIC_START;
+	int width = SST_PP_CORE_RATIO_P0_FABRIC_WIDTH;
+	int offset = SST_PP_INFO_11_OFFSET;
+	int i;
+
+	if (copy_from_user(&perf_level_fabric, argp, sizeof(perf_level_fabric)))
+		return -EFAULT;
+
+	power_domain_info = get_instance(perf_level_fabric.socket_id,
+					 perf_level_fabric.power_domain_id);
+	if (!power_domain_info)
+		return -EINVAL;
+
+	if (perf_level_fabric.level > power_domain_info->max_level)
+		return -EINVAL;
+
+	if (power_domain_info->pp_header.feature_rev < 2)
+		return -EINVAL;
+
+	if (!(power_domain_info->pp_header.level_en_mask & BIT(perf_level_fabric.level)))
+		return -EINVAL;
+
+	/* For revision 2, maximum number of fabrics is 2 */
+	perf_level_fabric.max_fabrics = 2;
+
+	for (i = 0; i < perf_level_fabric.max_fabrics; i++) {
+		_read_pp_level_info("p0_fabric_freq_mhz", perf_level_fabric.p0_fabric_freq_mhz[i],
+				    perf_level_fabric.level, offset, start, width,
+				    SST_MUL_FACTOR_FREQ)
+		start += width;
+
+		_read_pp_level_info("p1_fabric_freq_mhz", perf_level_fabric.p1_fabric_freq_mhz[i],
+				    perf_level_fabric.level, offset, start, width,
+				    SST_MUL_FACTOR_FREQ)
+		start += width;
+
+		_read_pp_level_info("pm_fabric_freq_mhz", perf_level_fabric.pm_fabric_freq_mhz[i],
+				    perf_level_fabric.level, offset, start, width,
+				    SST_MUL_FACTOR_FREQ)
+		offset = SST_PP_INFO_12_OFFSET;
+		start = SST_PP_CORE_RATIO_P0_FABRIC_1_START;
+	}
+
+	if (copy_to_user(argp, &perf_level_fabric, sizeof(perf_level_fabric)))
 		return -EFAULT;
 
 	return 0;
@@ -1329,8 +1392,13 @@ static int isst_if_get_tpmi_instance_count(void __user *argp)
 #define SST_TF_INFO_0_OFFSET	0
 #define SST_TF_INFO_1_OFFSET	8
 #define SST_TF_INFO_2_OFFSET	16
+#define SST_TF_INFO_8_OFFSET	64
+#define SST_TF_INFO_8_BUCKETS	3
 
 #define SST_TF_MAX_LP_CLIP_RATIOS	TRL_MAX_LEVELS
+
+#define SST_TF_FEATURE_REV_START	4
+#define SST_TF_FEATURE_REV_WIDTH	8
 
 #define SST_TF_LP_CLIP_RATIO_0_START	16
 #define SST_TF_LP_CLIP_RATIO_0_WIDTH	8
@@ -1341,10 +1409,14 @@ static int isst_if_get_tpmi_instance_count(void __user *argp)
 #define SST_TF_NUM_CORE_0_START 0
 #define SST_TF_NUM_CORE_0_WIDTH 8
 
+#define SST_TF_NUM_MOD_0_START	0
+#define SST_TF_NUM_MOD_0_WIDTH	16
+
 static int isst_if_get_turbo_freq_info(void __user *argp)
 {
 	static struct isst_turbo_freq_info turbo_freq;
 	struct tpmi_per_power_domain_info *power_domain_info;
+	u8 feature_rev;
 	int i, j;
 
 	if (copy_from_user(&turbo_freq, argp, sizeof(turbo_freq)))
@@ -1360,6 +1432,10 @@ static int isst_if_get_turbo_freq_info(void __user *argp)
 	turbo_freq.max_buckets = TRL_MAX_BUCKETS;
 	turbo_freq.max_trl_levels = TRL_MAX_LEVELS;
 	turbo_freq.max_clip_freqs = SST_TF_MAX_LP_CLIP_RATIOS;
+
+	_read_tf_level_info("feature_rev", feature_rev, turbo_freq.level,
+			    SST_TF_INFO_0_OFFSET, SST_TF_FEATURE_REV_START,
+			    SST_TF_FEATURE_REV_WIDTH, SST_MUL_FACTOR_NONE);
 
 	for (i = 0; i < turbo_freq.max_clip_freqs; ++i)
 		_read_tf_level_info("lp_clip*", turbo_freq.lp_clip_freq_mhz[i],
@@ -1377,11 +1453,31 @@ static int isst_if_get_turbo_freq_info(void __user *argp)
 					    SST_MUL_FACTOR_FREQ)
 	}
 
+	if (feature_rev >= 2) {
+		bool has_tf_info_8 = false;
+
+		for (i = 0; i < SST_TF_INFO_8_BUCKETS; ++i) {
+			_read_tf_level_info("bucket_*_mod_count", turbo_freq.bucket_core_counts[i],
+					    turbo_freq.level, SST_TF_INFO_8_OFFSET,
+					    SST_TF_NUM_MOD_0_WIDTH * i, SST_TF_NUM_MOD_0_WIDTH,
+					    SST_MUL_FACTOR_NONE)
+
+			if (turbo_freq.bucket_core_counts[i])
+				has_tf_info_8 = true;
+		}
+
+		if (has_tf_info_8)
+			goto done_core_count;
+	}
+
 	for (i = 0; i < TRL_MAX_BUCKETS; ++i)
 		_read_tf_level_info("bucket_*_core_count", turbo_freq.bucket_core_counts[i],
 				    turbo_freq.level, SST_TF_INFO_1_OFFSET,
 				    SST_TF_NUM_CORE_0_WIDTH * i, SST_TF_NUM_CORE_0_WIDTH,
 				    SST_MUL_FACTOR_NONE)
+
+
+done_core_count:
 
 	if (copy_to_user(argp, &turbo_freq, sizeof(turbo_freq)))
 		return -EFAULT;
@@ -1420,6 +1516,9 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case ISST_IF_GET_PERF_LEVEL_INFO:
 		ret = isst_if_get_perf_level_info(argp);
+		break;
+	case ISST_IF_GET_PERF_LEVEL_FABRIC_INFO:
+		ret = isst_if_get_perf_level_fabric_info(argp);
 		break;
 	case ISST_IF_GET_PERF_LEVEL_CPU_MASK:
 		ret = isst_if_get_perf_level_mask(argp);

@@ -2,9 +2,8 @@
 /* Author: Dan Scally <djrscally@gmail.com> */
 
 #include <linux/acpi.h>
+#include <linux/platform_data/x86/int3472.h>
 #include <linux/slab.h>
-
-#include "common.h"
 
 union acpi_object *skl_int3472_get_acpi_buffer(struct acpi_device *adev, char *id)
 {
@@ -29,7 +28,7 @@ union acpi_object *skl_int3472_get_acpi_buffer(struct acpi_device *adev, char *i
 
 	return obj;
 }
-EXPORT_SYMBOL_GPL(skl_int3472_get_acpi_buffer);
+EXPORT_SYMBOL_NS_GPL(skl_int3472_get_acpi_buffer, "INTEL_INT3472");
 
 int skl_int3472_fill_cldb(struct acpi_device *adev, struct int3472_cldb *cldb)
 {
@@ -53,7 +52,7 @@ out_free_obj:
 	kfree(obj);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(skl_int3472_fill_cldb);
+EXPORT_SYMBOL_NS_GPL(skl_int3472_fill_cldb, "INTEL_INT3472");
 
 /* sensor_adev_ret may be NULL, name_ret must not be NULL */
 int skl_int3472_get_sensor_adev_and_name(struct device *dev,
@@ -84,7 +83,7 @@ int skl_int3472_get_sensor_adev_and_name(struct device *dev,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(skl_int3472_get_sensor_adev_and_name);
+EXPORT_SYMBOL_NS_GPL(skl_int3472_get_sensor_adev_and_name, "INTEL_INT3472");
 
 MODULE_DESCRIPTION("Intel SkyLake INT3472 ACPI Device Driver library");
 MODULE_AUTHOR("Daniel Scally <djrscally@gmail.com>");

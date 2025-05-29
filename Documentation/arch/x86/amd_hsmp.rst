@@ -71,6 +71,28 @@ Note: lseek() is not supported as entire metrics table is read.
 Metrics table definitions will be documented as part of Public PPR.
 The same is defined in the amd_hsmp.h header.
 
+2. HSMP telemetry sysfs files
+
+Following sysfs files are available at /sys/devices/platform/AMDI0097:0X/.
+
+* c0_residency_input: Percentage of cores in C0 state.
+* prochot_status: Reports 1 if the processor is at thermal threshold value,
+  0 otherwise.
+* smu_fw_version: SMU firmware version.
+* protocol_version: HSMP interface version.
+* ddr_max_bw: Theoretical maximum DDR bandwidth in GB/s.
+* ddr_utilised_bw_input: Current utilized DDR bandwidth in GB/s.
+* ddr_utilised_bw_perc_input(%): Percentage of current utilized DDR bandwidth.
+* mclk_input: Memory clock in MHz.
+* fclk_input: Fabric clock in MHz.
+* clk_fmax: Maximum frequency of socket in MHz.
+* clk_fmin: Minimum frequency of socket in MHz.
+* cclk_freq_limit_input: Core clock frequency limit per socket in MHz.
+* pwr_current_active_freq_limit: Current active frequency limit of socket
+  in MHz.
+* pwr_current_active_freq_limit_source: Source of current active frequency
+  limit.
+
 ACPI device object format
 =========================
 The ACPI object format expected from the amd_hsmp driver
@@ -116,6 +138,14 @@ for socket with ID00 is given below::
 			})
 		}
 
+HSMP HWMON interface
+====================
+HSMP power sensors are registered with the hwmon interface. A separate hwmon
+directory is created for each socket and the following files are generated
+within the hwmon directory.
+- power1_input (read only)
+- power1_cap_max (read only)
+- power1_cap (read, write)
 
 An example
 ==========

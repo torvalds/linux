@@ -22,6 +22,7 @@ config ALIENWARE_WMI
 	depends on DMI
 	depends on LEDS_CLASS
 	depends on NEW_LEDS
+	depends on HWMON
 	help
 	 This is a driver for controlling Alienware WMI driven features.
 
@@ -171,7 +172,7 @@ config DELL_SMBIOS_SMM
 
 config DELL_SMO8800
 	tristate "Dell Latitude freefall driver (ACPI SMO88XX)"
-	default m
+	default m if ACPI
 	depends on I2C
 	depends on ACPI || COMPILE_TEST
 	help
