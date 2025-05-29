@@ -3472,27 +3472,27 @@ void btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 		return;
 	}
 
+	path = btrfs_alloc_path();
+	if (!path) {
+		btrfs_set_log_full_commit(trans);
+		return;
+	}
+
 	ret = join_running_log_trans(root);
 	ASSERT(ret == 0, "join_running_log_trans() ret=%d", ret);
 	if (WARN_ON(ret))
-		return;
+		goto out;
 
 	mutex_lock(&dir->log_mutex);
 
-	path = btrfs_alloc_path();
-	if (!path) {
-		ret = -ENOMEM;
-		goto out_unlock;
-	}
-
 	ret = del_logged_dentry(trans, root->log_root, path, btrfs_ino(dir),
 				name, index);
-	btrfs_free_path(path);
-out_unlock:
 	mutex_unlock(&dir->log_mutex);
 	if (ret < 0)
 		btrfs_set_log_full_commit(trans);
 	btrfs_end_log_trans(root);
+out:
+	btrfs_free_path(path);
 }
 
 /* see comments for btrfs_del_dir_entries_in_log */
