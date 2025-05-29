@@ -3432,7 +3432,7 @@ static int del_logged_dentry(struct btrfs_trans_handle *trans,
 	 * inode item because on log replay we update the field to reflect
 	 * all existing entries in the directory (see overwrite_item()).
 	 */
-	return btrfs_delete_one_dir_name(trans, log, path, di);
+	return btrfs_del_item(trans, log, path);
 }
 
 /*
