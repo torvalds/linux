@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/microchip,pic32mzda-evic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip PIC32 EVIC Interrupt Controller
+
+maintainers:
+  - Cristian Birsan <cristian.birsan@microchip.com>
+
+description: >
+  The Microchip PIC32 contains an Enhanced Vectored Interrupt Controller (EVIC).
+  It handles all internal and external interrupts. This controller exists
+  outside of the CPU and is the arbitrator of all interrupts (including
+  interrupts from the CPU itself) before they are presented to the CPU.
+
+  External interrupts have a software configurable edge polarity. Non external
+  interrupts have a type and polarity that is determined by the source of the
+  interrupt.
+
+properties:
+  compatible:
+    items:
+      - const: microchip,pic32mzda-evic
+
+  reg:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+  interrupts:
+    maxItems: 1
+
+  microchip,external-irqs:
+    description:
+      External interrupts with software polarity configuration corresponding to
+      the INTCON SFR bits.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+required:
+  - compatible
+  - reg
+  - interrupt-controller
+  - '#interrupt-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+      interrupt-controller@1f810000 {
+          compatible = "microchip,pic32mzda-evic";
+          reg = <0x1f810000 0x1000>;
+          interrupt-controller;
+          #interrupt-cells = <2>;
+          microchip,external-irqs = <3 8 13 18 23>;
+      };

@@ -117,9 +117,14 @@ additionalProperties / unevaluatedProperties
       should be allowed.
 
   * additionalProperties: true
-      Rare case, used for schemas implementing common set of properties. Such
-      schemas are supposed to be referenced by other schemas, which then use
-      'unevaluatedProperties: false'.  Typically bus or common-part schemas.
+      - Top-level part:
+        Rare case, used for schemas implementing common set of properties. Such
+        schemas are supposed to be referenced by other schemas, which then use
+        'unevaluatedProperties: false'.  Typically bus or common-part schemas.
+      - Nested node:
+        When listing only the expected compatible of the nested node and there
+        is an another schema matching that compatible which ends with one of
+        two above cases ('false').
 
 examples
   Optional. A list of one or more DTS hunks implementing this binding only.

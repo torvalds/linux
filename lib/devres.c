@@ -206,6 +206,7 @@ void __iomem *devm_ioremap_resource_wc(struct device *dev,
 {
 	return __devm_ioremap_resource(dev, res, DEVM_IOREMAP_WC);
 }
+EXPORT_SYMBOL(devm_ioremap_resource_wc);
 
 /*
  * devm_of_iomap - Requests a resource and maps the memory mapped IO

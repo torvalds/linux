@@ -173,6 +173,8 @@ properties:
           - maxim,ds3502
             # Temperature Sensor, I2C interface
           - maxim,max1619
+            # Digital temperature sensor with 0.1°C accuracy
+          - maxim,max30208
             # 3-Channel Remote Temperature Sensor
           - maxim,max31730
             # 10-bit 10 kOhm linear programmable voltage divider
@@ -343,6 +345,8 @@ properties:
           - sensortek,stk8ba50
             # SGX Sensortech VZ89X Sensors
           - sgx,vz89x
+            # SGX Sensortech VZ89TE Sensors
+          - sgx,vz89te
             # Silicon Labs EM3581 Zigbee SoC with SPI interface
           - silabs,em3581
             # Silicon Labs SI3210 Programmable CMOS SLIC/CODEC with SPI interface

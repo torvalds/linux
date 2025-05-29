@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/marvell,ap806-sei.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell SEI (System Error Interrupt) Controller
+
+maintainers:
+  - Miquel Raynal <miquel.raynal@bootlin.com>
+
+description: >
+  Marvell SEI (System Error Interrupt) controller is an interrupt aggregator. It
+  receives interrupts from several sources and aggregates them to a single
+  interrupt line (an SPI) on the parent interrupt controller.
+
+  This interrupt controller can handle up to 64 SEIs, a set comes from the AP
+  and is wired while a second set comes from the CPs by the mean of MSIs.
+
+properties:
+  compatible:
+    const: marvell,ap806-sei
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  '#interrupt-cells':
+    const: 1
+
+  interrupt-controller: true
+
+  msi-controller: true
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - '#interrupt-cells'
+  - interrupt-controller
+  - msi-controller
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    interrupt-controller@3f0200 {
+        compatible = "marvell,ap806-sei";
+        reg = <0x3f0200 0x40>;
+        interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
+        #interrupt-cells = <1>;
+        interrupt-controller;
+        msi-controller;
+    };
