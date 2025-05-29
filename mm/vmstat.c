@@ -1869,7 +1869,7 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
 	if (*pos >= NR_VMSTAT_ITEMS)
 		return NULL;
 
-	BUILD_BUG_ON(ARRAY_SIZE(vmstat_text) < NR_VMSTAT_ITEMS);
+	BUILD_BUG_ON(ARRAY_SIZE(vmstat_text) != NR_VMSTAT_ITEMS);
 	fold_vm_numa_events();
 	v = kmalloc_array(NR_VMSTAT_ITEMS, sizeof(unsigned long), GFP_KERNEL);
 	m->private = v;
