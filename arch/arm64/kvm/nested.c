@@ -8,6 +8,7 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 
+#include <asm/fixmap.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_mmu.h>
@@ -15,6 +16,24 @@
 #include <asm/sysreg.h>
 
 #include "sys_regs.h"
+
+struct vncr_tlb {
+	/* The guest's VNCR_EL2 */
+	u64			gva;
+	struct s1_walk_info	wi;
+	struct s1_walk_result	wr;
+
+	u64			hpa;
+
+	/* -1 when not mapped on a CPU */
+	int			cpu;
+
+	/*
+	 * true if the TLB is valid. Can only be changed with the
+	 * mmu_lock held.
+	 */
+	bool			valid;
+};
 
 /*
  * Ratio of live shadow S2 MMU per vcpu. This is a trade-off between
@@ -28,6 +47,7 @@ void kvm_init_nested(struct kvm *kvm)
 {
 	kvm->arch.nested_mmus = NULL;
 	kvm->arch.nested_mmus_size = 0;
+	atomic_set(&kvm->arch.vncr_map_count, 0);
 }
 
 static int init_nested_s2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu)
@@ -54,6 +74,13 @@ int kvm_vcpu_init_nested(struct kvm_vcpu *vcpu)
 	if (test_bit(KVM_ARM_VCPU_HAS_EL2_E2H0, kvm->arch.vcpu_features) &&
 	    !cpus_have_final_cap(ARM64_HAS_HCR_NV1))
 		return -EINVAL;
+
+	if (!vcpu->arch.ctxt.vncr_array)
+		vcpu->arch.ctxt.vncr_array = (u64 *)__get_free_page(GFP_KERNEL_ACCOUNT |
+								    __GFP_ZERO);
+
+	if (!vcpu->arch.ctxt.vncr_array)
+		return -ENOMEM;
 
 	/*
 	 * Let's treat memory allocation failures as benign: If we fail to
@@ -84,6 +111,9 @@ int kvm_vcpu_init_nested(struct kvm_vcpu *vcpu)
 	if (ret) {
 		for (int i = kvm->arch.nested_mmus_size; i < num_mmus; i++)
 			kvm_free_stage2_pgd(&kvm->arch.nested_mmus[i]);
+
+		free_page((unsigned long)vcpu->arch.ctxt.vncr_array);
+		vcpu->arch.ctxt.vncr_array = NULL;
 
 		return ret;
 	}
@@ -405,6 +435,30 @@ static unsigned int ttl_to_size(u8 ttl)
 	return max_size;
 }
 
+static u8 pgshift_level_to_ttl(u16 shift, u8 level)
+{
+	u8 ttl;
+
+	switch(shift) {
+	case 12:
+		ttl = TLBI_TTL_TG_4K;
+		break;
+	case 14:
+		ttl = TLBI_TTL_TG_16K;
+		break;
+	case 16:
+		ttl = TLBI_TTL_TG_64K;
+		break;
+	default:
+		BUG();
+	}
+
+	ttl <<= 2;
+	ttl |= level & 3;
+
+	return ttl;
+}
+
 /*
  * Compute the equivalent of the TTL field by parsing the shadow PT.  The
  * granule size is extracted from the cached VTCR_EL2.TG0 while the level is
@@ -676,23 +730,36 @@ void kvm_init_nested_s2_mmu(struct kvm_s2_mmu *mmu)
 void kvm_vcpu_load_hw_mmu(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * The vCPU kept its reference on the MMU after the last put, keep
-	 * rolling with it.
+	 * If the vCPU kept its reference on the MMU after the last put,
+	 * keep rolling with it.
 	 */
-	if (vcpu->arch.hw_mmu)
-		return;
-
 	if (is_hyp_ctxt(vcpu)) {
-		vcpu->arch.hw_mmu = &vcpu->kvm->arch.mmu;
+		if (!vcpu->arch.hw_mmu)
+			vcpu->arch.hw_mmu = &vcpu->kvm->arch.mmu;
 	} else {
-		write_lock(&vcpu->kvm->mmu_lock);
-		vcpu->arch.hw_mmu = get_s2_mmu_nested(vcpu);
-		write_unlock(&vcpu->kvm->mmu_lock);
+		if (!vcpu->arch.hw_mmu) {
+			scoped_guard(write_lock, &vcpu->kvm->mmu_lock)
+				vcpu->arch.hw_mmu = get_s2_mmu_nested(vcpu);
+		}
+
+		if (__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_NV)
+			kvm_make_request(KVM_REQ_MAP_L1_VNCR_EL2, vcpu);
 	}
 }
 
 void kvm_vcpu_put_hw_mmu(struct kvm_vcpu *vcpu)
 {
+	/* Unconditionally drop the VNCR mapping if we have one */
+	if (host_data_test_flag(L1_VNCR_MAPPED)) {
+		BUG_ON(vcpu->arch.vncr_tlb->cpu != smp_processor_id());
+		BUG_ON(is_hyp_ctxt(vcpu));
+
+		clear_fixmap(vncr_fixmap(vcpu->arch.vncr_tlb->cpu));
+		vcpu->arch.vncr_tlb->cpu = -1;
+		host_data_clear_flag(L1_VNCR_MAPPED);
+		atomic_dec(&vcpu->kvm->arch.vncr_map_count);
+	}
+
 	/*
 	 * Keep a reference on the associated stage-2 MMU if the vCPU is
 	 * scheduling out and not in WFI emulation, suggesting it is likely to
@@ -743,6 +810,245 @@ int kvm_inject_s2_fault(struct kvm_vcpu *vcpu, u64 esr_el2)
 	return kvm_inject_nested_sync(vcpu, esr_el2);
 }
 
+static void invalidate_vncr(struct vncr_tlb *vt)
+{
+	vt->valid = false;
+	if (vt->cpu != -1)
+		clear_fixmap(vncr_fixmap(vt->cpu));
+}
+
+static void kvm_invalidate_vncr_ipa(struct kvm *kvm, u64 start, u64 end)
+{
+	struct kvm_vcpu *vcpu;
+	unsigned long i;
+
+	lockdep_assert_held_write(&kvm->mmu_lock);
+
+	if (!kvm_has_feat(kvm, ID_AA64MMFR4_EL1, NV_frac, NV2_ONLY))
+		return;
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		struct vncr_tlb *vt = vcpu->arch.vncr_tlb;
+		u64 ipa_start, ipa_end, ipa_size;
+
+		/*
+		 * Careful here: We end-up here from an MMU notifier,
+		 * and this can race against a vcpu not being onlined
+		 * yet, without the pseudo-TLB being allocated.
+		 *
+		 * Skip those, as they obviously don't participate in
+		 * the invalidation at this stage.
+		 */
+		if (!vt)
+			continue;
+
+		if (!vt->valid)
+			continue;
+
+		ipa_size = ttl_to_size(pgshift_level_to_ttl(vt->wi.pgshift,
+							    vt->wr.level));
+		ipa_start = vt->wr.pa & (ipa_size - 1);
+		ipa_end = ipa_start + ipa_size;
+
+		if (ipa_end <= start || ipa_start >= end)
+			continue;
+
+		invalidate_vncr(vt);
+	}
+}
+
+struct s1e2_tlbi_scope {
+	enum {
+		TLBI_ALL,
+		TLBI_VA,
+		TLBI_VAA,
+		TLBI_ASID,
+	} type;
+
+	u16 asid;
+	u64 va;
+	u64 size;
+};
+
+static void invalidate_vncr_va(struct kvm *kvm,
+			       struct s1e2_tlbi_scope *scope)
+{
+	struct kvm_vcpu *vcpu;
+	unsigned long i;
+
+	lockdep_assert_held_write(&kvm->mmu_lock);
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		struct vncr_tlb *vt = vcpu->arch.vncr_tlb;
+		u64 va_start, va_end, va_size;
+
+		if (!vt->valid)
+			continue;
+
+		va_size = ttl_to_size(pgshift_level_to_ttl(vt->wi.pgshift,
+							   vt->wr.level));
+		va_start = vt->gva & (va_size - 1);
+		va_end = va_start + va_size;
+
+		switch (scope->type) {
+		case TLBI_ALL:
+			break;
+
+		case TLBI_VA:
+			if (va_end <= scope->va ||
+			    va_start >= (scope->va + scope->size))
+				continue;
+			if (vt->wr.nG && vt->wr.asid != scope->asid)
+				continue;
+			break;
+
+		case TLBI_VAA:
+			if (va_end <= scope->va ||
+			    va_start >= (scope->va + scope->size))
+				continue;
+			break;
+
+		case TLBI_ASID:
+			if (!vt->wr.nG || vt->wr.asid != scope->asid)
+				continue;
+			break;
+		}
+
+		invalidate_vncr(vt);
+	}
+}
+
+static void compute_s1_tlbi_range(struct kvm_vcpu *vcpu, u32 inst, u64 val,
+				  struct s1e2_tlbi_scope *scope)
+{
+	switch (inst) {
+	case OP_TLBI_ALLE2:
+	case OP_TLBI_ALLE2IS:
+	case OP_TLBI_ALLE2OS:
+	case OP_TLBI_VMALLE1:
+	case OP_TLBI_VMALLE1IS:
+	case OP_TLBI_VMALLE1OS:
+	case OP_TLBI_ALLE2NXS:
+	case OP_TLBI_ALLE2ISNXS:
+	case OP_TLBI_ALLE2OSNXS:
+	case OP_TLBI_VMALLE1NXS:
+	case OP_TLBI_VMALLE1ISNXS:
+	case OP_TLBI_VMALLE1OSNXS:
+		scope->type = TLBI_ALL;
+		break;
+	case OP_TLBI_VAE2:
+	case OP_TLBI_VAE2IS:
+	case OP_TLBI_VAE2OS:
+	case OP_TLBI_VAE1:
+	case OP_TLBI_VAE1IS:
+	case OP_TLBI_VAE1OS:
+	case OP_TLBI_VAE2NXS:
+	case OP_TLBI_VAE2ISNXS:
+	case OP_TLBI_VAE2OSNXS:
+	case OP_TLBI_VAE1NXS:
+	case OP_TLBI_VAE1ISNXS:
+	case OP_TLBI_VAE1OSNXS:
+	case OP_TLBI_VALE2:
+	case OP_TLBI_VALE2IS:
+	case OP_TLBI_VALE2OS:
+	case OP_TLBI_VALE1:
+	case OP_TLBI_VALE1IS:
+	case OP_TLBI_VALE1OS:
+	case OP_TLBI_VALE2NXS:
+	case OP_TLBI_VALE2ISNXS:
+	case OP_TLBI_VALE2OSNXS:
+	case OP_TLBI_VALE1NXS:
+	case OP_TLBI_VALE1ISNXS:
+	case OP_TLBI_VALE1OSNXS:
+		scope->type = TLBI_VA;
+		scope->size = ttl_to_size(FIELD_GET(TLBI_TTL_MASK, val));
+		if (!scope->size)
+			scope->size = SZ_1G;
+		scope->va = (val << 12) & ~(scope->size - 1);
+		scope->asid = FIELD_GET(TLBIR_ASID_MASK, val);
+		break;
+	case OP_TLBI_ASIDE1:
+	case OP_TLBI_ASIDE1IS:
+	case OP_TLBI_ASIDE1OS:
+	case OP_TLBI_ASIDE1NXS:
+	case OP_TLBI_ASIDE1ISNXS:
+	case OP_TLBI_ASIDE1OSNXS:
+		scope->type = TLBI_ASID;
+		scope->asid = FIELD_GET(TLBIR_ASID_MASK, val);
+		break;
+	case OP_TLBI_VAAE1:
+	case OP_TLBI_VAAE1IS:
+	case OP_TLBI_VAAE1OS:
+	case OP_TLBI_VAAE1NXS:
+	case OP_TLBI_VAAE1ISNXS:
+	case OP_TLBI_VAAE1OSNXS:
+	case OP_TLBI_VAALE1:
+	case OP_TLBI_VAALE1IS:
+	case OP_TLBI_VAALE1OS:
+	case OP_TLBI_VAALE1NXS:
+	case OP_TLBI_VAALE1ISNXS:
+	case OP_TLBI_VAALE1OSNXS:
+		scope->type = TLBI_VAA;
+		scope->size = ttl_to_size(FIELD_GET(TLBI_TTL_MASK, val));
+		if (!scope->size)
+			scope->size = SZ_1G;
+		scope->va = (val << 12) & ~(scope->size - 1);
+		break;
+	case OP_TLBI_RVAE2:
+	case OP_TLBI_RVAE2IS:
+	case OP_TLBI_RVAE2OS:
+	case OP_TLBI_RVAE1:
+	case OP_TLBI_RVAE1IS:
+	case OP_TLBI_RVAE1OS:
+	case OP_TLBI_RVAE2NXS:
+	case OP_TLBI_RVAE2ISNXS:
+	case OP_TLBI_RVAE2OSNXS:
+	case OP_TLBI_RVAE1NXS:
+	case OP_TLBI_RVAE1ISNXS:
+	case OP_TLBI_RVAE1OSNXS:
+	case OP_TLBI_RVALE2:
+	case OP_TLBI_RVALE2IS:
+	case OP_TLBI_RVALE2OS:
+	case OP_TLBI_RVALE1:
+	case OP_TLBI_RVALE1IS:
+	case OP_TLBI_RVALE1OS:
+	case OP_TLBI_RVALE2NXS:
+	case OP_TLBI_RVALE2ISNXS:
+	case OP_TLBI_RVALE2OSNXS:
+	case OP_TLBI_RVALE1NXS:
+	case OP_TLBI_RVALE1ISNXS:
+	case OP_TLBI_RVALE1OSNXS:
+		scope->type = TLBI_VA;
+		scope->va = decode_range_tlbi(val, &scope->size, &scope->asid);
+		break;
+	case OP_TLBI_RVAAE1:
+	case OP_TLBI_RVAAE1IS:
+	case OP_TLBI_RVAAE1OS:
+	case OP_TLBI_RVAAE1NXS:
+	case OP_TLBI_RVAAE1ISNXS:
+	case OP_TLBI_RVAAE1OSNXS:
+	case OP_TLBI_RVAALE1:
+	case OP_TLBI_RVAALE1IS:
+	case OP_TLBI_RVAALE1OS:
+	case OP_TLBI_RVAALE1NXS:
+	case OP_TLBI_RVAALE1ISNXS:
+	case OP_TLBI_RVAALE1OSNXS:
+		scope->type = TLBI_VAA;
+		scope->va = decode_range_tlbi(val, &scope->size, NULL);
+		break;
+	}
+}
+
+void kvm_handle_s1e2_tlbi(struct kvm_vcpu *vcpu, u32 inst, u64 val)
+{
+	struct s1e2_tlbi_scope scope = {};
+
+	compute_s1_tlbi_range(vcpu, inst, val, &scope);
+
+	guard(write_lock)(&vcpu->kvm->mmu_lock);
+	invalidate_vncr_va(vcpu->kvm, &scope);
+}
+
 void kvm_nested_s2_wp(struct kvm *kvm)
 {
 	int i;
@@ -755,6 +1061,8 @@ void kvm_nested_s2_wp(struct kvm *kvm)
 		if (kvm_s2_mmu_valid(mmu))
 			kvm_stage2_wp_range(mmu, 0, kvm_phys_size(mmu));
 	}
+
+	kvm_invalidate_vncr_ipa(kvm, 0, BIT(kvm->arch.mmu.pgt->ia_bits));
 }
 
 void kvm_nested_s2_unmap(struct kvm *kvm, bool may_block)
@@ -769,6 +1077,8 @@ void kvm_nested_s2_unmap(struct kvm *kvm, bool may_block)
 		if (kvm_s2_mmu_valid(mmu))
 			kvm_stage2_unmap_range(mmu, 0, kvm_phys_size(mmu), may_block);
 	}
+
+	kvm_invalidate_vncr_ipa(kvm, 0, BIT(kvm->arch.mmu.pgt->ia_bits));
 }
 
 void kvm_nested_s2_flush(struct kvm *kvm)
@@ -799,6 +1109,295 @@ void kvm_arch_flush_shadow_all(struct kvm *kvm)
 	kvm->arch.nested_mmus = NULL;
 	kvm->arch.nested_mmus_size = 0;
 	kvm_uninit_stage2_mmu(kvm);
+}
+
+/*
+ * Dealing with VNCR_EL2 exposed by the *guest* is a complicated matter:
+ *
+ * - We introduce an internal representation of a vcpu-private TLB,
+ *   representing the mapping between the guest VA contained in VNCR_EL2,
+ *   the IPA the guest's EL2 PTs point to, and the actual PA this lives at.
+ *
+ * - On translation fault from a nested VNCR access, we create such a TLB.
+ *   If there is no mapping to describe, the guest inherits the fault.
+ *   Crucially, no actual mapping is done at this stage.
+ *
+ * - On vcpu_load() in a non-HYP context with HCR_EL2.NV==1, if the above
+ *   TLB exists, we map it in the fixmap for this CPU, and run with it. We
+ *   have to respect the permissions dictated by the guest, but not the
+ *   memory type (FWB is a must).
+ *
+ * - Note that we usually don't do a vcpu_load() on the back of a fault
+ *   (unless we are preempted), so the resolution of a translation fault
+ *   must go via a request that will map the VNCR page in the fixmap.
+ *   vcpu_load() might as well use the same mechanism.
+ *
+ * - On vcpu_put() in a non-HYP context with HCR_EL2.NV==1, if the TLB was
+ *   mapped, we unmap it. Yes it is that simple. The TLB still exists
+ *   though, and may be reused at a later load.
+ *
+ * - On permission fault, we simply forward the fault to the guest's EL2.
+ *   Get out of my way.
+ *
+ * - On any TLBI for the EL2&0 translation regime, we must find any TLB that
+ *   intersects with the TLBI request, invalidate it, and unmap the page
+ *   from the fixmap. Because we need to look at all the vcpu-private TLBs,
+ *   this requires some wide-ranging locking to ensure that nothing races
+ *   against it. This may require some refcounting to avoid the search when
+ *   no such TLB is present.
+ *
+ * - On MMU notifiers, we must invalidate our TLB in a similar way, but
+ *   looking at the IPA instead. The funny part is that there may not be a
+ *   stage-2 mapping for this page if L1 hasn't accessed it using LD/ST
+ *   instructions.
+ */
+
+int kvm_vcpu_allocate_vncr_tlb(struct kvm_vcpu *vcpu)
+{
+	if (!kvm_has_feat(vcpu->kvm, ID_AA64MMFR4_EL1, NV_frac, NV2_ONLY))
+		return 0;
+
+	vcpu->arch.vncr_tlb = kzalloc(sizeof(*vcpu->arch.vncr_tlb),
+				      GFP_KERNEL_ACCOUNT);
+	if (!vcpu->arch.vncr_tlb)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static u64 read_vncr_el2(struct kvm_vcpu *vcpu)
+{
+	return (u64)sign_extend64(__vcpu_sys_reg(vcpu, VNCR_EL2), 48);
+}
+
+static int kvm_translate_vncr(struct kvm_vcpu *vcpu)
+{
+	bool write_fault, writable;
+	unsigned long mmu_seq;
+	struct vncr_tlb *vt;
+	struct page *page;
+	u64 va, pfn, gfn;
+	int ret;
+
+	vt = vcpu->arch.vncr_tlb;
+
+	/*
+	 * If we're about to walk the EL2 S1 PTs, we must invalidate the
+	 * current TLB, as it could be sampled from another vcpu doing a
+	 * TLBI *IS. A real CPU wouldn't do that, but we only keep a single
+	 * translation, so not much of a choice.
+	 *
+	 * We also prepare the next walk wilst we're at it.
+	 */
+	scoped_guard(write_lock, &vcpu->kvm->mmu_lock) {
+		invalidate_vncr(vt);
+
+		vt->wi = (struct s1_walk_info) {
+			.regime	= TR_EL20,
+			.as_el0	= false,
+			.pan	= false,
+		};
+		vt->wr = (struct s1_walk_result){};
+	}
+
+	guard(srcu)(&vcpu->kvm->srcu);
+
+	va =  read_vncr_el2(vcpu);
+
+	ret = __kvm_translate_va(vcpu, &vt->wi, &vt->wr, va);
+	if (ret)
+		return ret;
+
+	write_fault = kvm_is_write_fault(vcpu);
+
+	mmu_seq = vcpu->kvm->mmu_invalidate_seq;
+	smp_rmb();
+
+	gfn = vt->wr.pa >> PAGE_SHIFT;
+	pfn = kvm_faultin_pfn(vcpu, gfn, write_fault, &writable, &page);
+	if (is_error_noslot_pfn(pfn) || (write_fault && !writable))
+		return -EFAULT;
+
+	scoped_guard(write_lock, &vcpu->kvm->mmu_lock) {
+		if (mmu_invalidate_retry(vcpu->kvm, mmu_seq))
+			return -EAGAIN;
+
+		vt->gva = va;
+		vt->hpa = pfn << PAGE_SHIFT;
+		vt->valid = true;
+		vt->cpu = -1;
+
+		kvm_make_request(KVM_REQ_MAP_L1_VNCR_EL2, vcpu);
+		kvm_release_faultin_page(vcpu->kvm, page, false, vt->wr.pw);
+	}
+
+	if (vt->wr.pw)
+		mark_page_dirty(vcpu->kvm, gfn);
+
+	return 0;
+}
+
+static void inject_vncr_perm(struct kvm_vcpu *vcpu)
+{
+	struct vncr_tlb *vt = vcpu->arch.vncr_tlb;
+	u64 esr = kvm_vcpu_get_esr(vcpu);
+
+	/* Adjust the fault level to reflect that of the guest's */
+	esr &= ~ESR_ELx_FSC;
+	esr |= FIELD_PREP(ESR_ELx_FSC,
+			  ESR_ELx_FSC_PERM_L(vt->wr.level));
+
+	kvm_inject_nested_sync(vcpu, esr);
+}
+
+static bool kvm_vncr_tlb_lookup(struct kvm_vcpu *vcpu)
+{
+	struct vncr_tlb *vt = vcpu->arch.vncr_tlb;
+
+	lockdep_assert_held_read(&vcpu->kvm->mmu_lock);
+
+	if (!vt->valid)
+		return false;
+
+	if (read_vncr_el2(vcpu) != vt->gva)
+		return false;
+
+	if (vt->wr.nG) {
+		u64 tcr = vcpu_read_sys_reg(vcpu, TCR_EL2);
+		u64 ttbr = ((tcr & TCR_A1) ?
+			    vcpu_read_sys_reg(vcpu, TTBR1_EL2) :
+			    vcpu_read_sys_reg(vcpu, TTBR0_EL2));
+		u16 asid;
+
+		asid = FIELD_GET(TTBR_ASID_MASK, ttbr);
+		if (!kvm_has_feat_enum(vcpu->kvm, ID_AA64MMFR0_EL1, ASIDBITS, 16) ||
+		    !(tcr & TCR_ASID16))
+			asid &= GENMASK(7, 0);
+
+		return asid != vt->wr.asid;
+	}
+
+	return true;
+}
+
+int kvm_handle_vncr_abort(struct kvm_vcpu *vcpu)
+{
+	struct vncr_tlb *vt = vcpu->arch.vncr_tlb;
+	u64 esr = kvm_vcpu_get_esr(vcpu);
+
+	BUG_ON(!(esr & ESR_ELx_VNCR_SHIFT));
+
+	if (esr_fsc_is_permission_fault(esr)) {
+		inject_vncr_perm(vcpu);
+	} else if (esr_fsc_is_translation_fault(esr)) {
+		bool valid;
+		int ret;
+
+		scoped_guard(read_lock, &vcpu->kvm->mmu_lock)
+			valid = kvm_vncr_tlb_lookup(vcpu);
+
+		if (!valid)
+			ret = kvm_translate_vncr(vcpu);
+		else
+			ret = -EPERM;
+
+		switch (ret) {
+		case -EAGAIN:
+		case -ENOMEM:
+			/* Let's try again... */
+			break;
+		case -EFAULT:
+		case -EINVAL:
+		case -ENOENT:
+		case -EACCES:
+			/*
+			 * Translation failed, inject the corresponding
+			 * exception back to EL2.
+			 */
+			BUG_ON(!vt->wr.failed);
+
+			esr &= ~ESR_ELx_FSC;
+			esr |= FIELD_PREP(ESR_ELx_FSC, vt->wr.fst);
+
+			kvm_inject_nested_sync(vcpu, esr);
+			break;
+		case -EPERM:
+			/* Hack to deal with POE until we get kernel support */
+			inject_vncr_perm(vcpu);
+			break;
+		case 0:
+			break;
+		}
+	} else {
+		WARN_ONCE(1, "Unhandled VNCR abort, ESR=%llx\n", esr);
+	}
+
+	return 1;
+}
+
+static void kvm_map_l1_vncr(struct kvm_vcpu *vcpu)
+{
+	struct vncr_tlb *vt = vcpu->arch.vncr_tlb;
+	pgprot_t prot;
+
+	guard(preempt)();
+	guard(read_lock)(&vcpu->kvm->mmu_lock);
+
+	/*
+	 * The request to map VNCR may have raced against some other
+	 * event, such as an interrupt, and may not be valid anymore.
+	 */
+	if (is_hyp_ctxt(vcpu))
+		return;
+
+	/*
+	 * Check that the pseudo-TLB is valid and that VNCR_EL2 still
+	 * contains the expected value. If it doesn't, we simply bail out
+	 * without a mapping -- a transformed MSR/MRS will generate the
+	 * fault and allows us to populate the pseudo-TLB.
+	 */
+	if (!vt->valid)
+		return;
+
+	if (read_vncr_el2(vcpu) != vt->gva)
+		return;
+
+	if (vt->wr.nG) {
+		u64 tcr = vcpu_read_sys_reg(vcpu, TCR_EL2);
+		u64 ttbr = ((tcr & TCR_A1) ?
+			    vcpu_read_sys_reg(vcpu, TTBR1_EL2) :
+			    vcpu_read_sys_reg(vcpu, TTBR0_EL2));
+		u16 asid;
+
+		asid = FIELD_GET(TTBR_ASID_MASK, ttbr);
+		if (!kvm_has_feat_enum(vcpu->kvm, ID_AA64MMFR0_EL1, ASIDBITS, 16) ||
+		    !(tcr & TCR_ASID16))
+			asid &= GENMASK(7, 0);
+
+		if (asid != vt->wr.asid)
+			return;
+	}
+
+	vt->cpu = smp_processor_id();
+
+	if (vt->wr.pw && vt->wr.pr)
+		prot = PAGE_KERNEL;
+	else if (vt->wr.pr)
+		prot = PAGE_KERNEL_RO;
+	else
+		prot = PAGE_NONE;
+
+	/*
+	 * We can't map write-only (or no permission at all) in the kernel,
+	 * but the guest can do it if using POE, so we'll have to turn a
+	 * translation fault into a permission fault at runtime.
+	 * FIXME: WO doesn't work at all, need POE support in the kernel.
+	 */
+	if (pgprot_val(prot) != pgprot_val(PAGE_NONE)) {
+		__set_fixmap(vncr_fixmap(vt->cpu), vt->hpa, prot);
+		host_data_set_flag(L1_VNCR_MAPPED);
+		atomic_inc(&vcpu->kvm->arch.vncr_map_count);
+	}
 }
 
 /*
@@ -1018,215 +1617,48 @@ int kvm_init_nv_sysregs(struct kvm_vcpu *vcpu)
 	set_sysreg_masks(kvm, VMPIDR_EL2, res0, res1);
 
 	/* HCR_EL2 */
-	res0 = BIT(48);
-	res1 = HCR_RW;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, TWED, IMP))
-		res0 |= GENMASK(63, 59);
-	if (!kvm_has_feat(kvm, ID_AA64PFR1_EL1, MTE, MTE2))
-		res0 |= (HCR_TID5 | HCR_DCT | HCR_ATA);
-	if (!kvm_has_feat(kvm, ID_AA64MMFR2_EL1, EVT, TTLBxS))
-		res0 |= (HCR_TTLBIS | HCR_TTLBOS);
-	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, CSV2, CSV2_2) &&
-	    !kvm_has_feat(kvm, ID_AA64PFR1_EL1, CSV2_frac, CSV2_1p2))
-		res0 |= HCR_ENSCXT;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR2_EL1, EVT, IMP))
-		res0 |= (HCR_TOCU | HCR_TICAB | HCR_TID4);
-	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, AMU, V1P1))
-		res0 |= HCR_AMVOFFEN;
-	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, RAS, V1P1))
-		res0 |= HCR_FIEN;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR2_EL1, FWB, IMP))
-		res0 |= HCR_FWB;
-	/* Implementation choice: NV2 is the only supported config */
-	if (!kvm_has_feat(kvm, ID_AA64MMFR4_EL1, NV_frac, NV2_ONLY))
-		res0 |= (HCR_NV2 | HCR_NV | HCR_AT);
-	if (!kvm_has_feat(kvm, ID_AA64MMFR4_EL1, E2H0, NI))
-		res0 |= HCR_NV1;
-	if (!(kvm_vcpu_has_feature(kvm, KVM_ARM_VCPU_PTRAUTH_ADDRESS) &&
-	      kvm_vcpu_has_feature(kvm, KVM_ARM_VCPU_PTRAUTH_GENERIC)))
-		res0 |= (HCR_API | HCR_APK);
-	if (!kvm_has_feat(kvm, ID_AA64ISAR0_EL1, TME, IMP))
-		res0 |= BIT(39);
-	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, RAS, IMP))
-		res0 |= (HCR_TEA | HCR_TERR);
-	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, LO, IMP))
-		res0 |= HCR_TLOR;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, VH, IMP))
-		res0 |= HCR_E2H;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR4_EL1, E2H0, IMP))
-		res1 |= HCR_E2H;
+	get_reg_fixed_bits(kvm, HCR_EL2, &res0, &res1);
 	set_sysreg_masks(kvm, HCR_EL2, res0, res1);
 
 	/* HCRX_EL2 */
-	res0 = HCRX_EL2_RES0;
-	res1 = HCRX_EL2_RES1;
-	if (!kvm_has_feat(kvm, ID_AA64ISAR3_EL1, PACM, TRIVIAL_IMP))
-		res0 |= HCRX_EL2_PACMEn;
-	if (!kvm_has_feat(kvm, ID_AA64PFR2_EL1, FPMR, IMP))
-		res0 |= HCRX_EL2_EnFPM;
-	if (!kvm_has_feat(kvm, ID_AA64PFR1_EL1, GCS, IMP))
-		res0 |= HCRX_EL2_GCSEn;
-	if (!kvm_has_feat(kvm, ID_AA64ISAR2_EL1, SYSREG_128, IMP))
-		res0 |= HCRX_EL2_EnIDCP128;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, ADERR, DEV_ASYNC))
-		res0 |= (HCRX_EL2_EnSDERR | HCRX_EL2_EnSNERR);
-	if (!kvm_has_feat(kvm, ID_AA64PFR1_EL1, DF2, IMP))
-		res0 |= HCRX_EL2_TMEA;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, D128, IMP))
-		res0 |= HCRX_EL2_D128En;
-	if (!kvm_has_feat(kvm, ID_AA64PFR1_EL1, THE, IMP))
-		res0 |= HCRX_EL2_PTTWI;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, SCTLRX, IMP))
-		res0 |= HCRX_EL2_SCTLR2En;
-	if (!kvm_has_tcr2(kvm))
-		res0 |= HCRX_EL2_TCR2En;
-	if (!kvm_has_feat(kvm, ID_AA64ISAR2_EL1, MOPS, IMP))
-		res0 |= (HCRX_EL2_MSCEn | HCRX_EL2_MCE2);
-	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, CMOW, IMP))
-		res0 |= HCRX_EL2_CMOW;
-	if (!kvm_has_feat(kvm, ID_AA64PFR1_EL1, NMI, IMP))
-		res0 |= (HCRX_EL2_VFNMI | HCRX_EL2_VINMI | HCRX_EL2_TALLINT);
-	if (!kvm_has_feat(kvm, ID_AA64PFR1_EL1, SME, IMP) ||
-	    !(read_sysreg_s(SYS_SMIDR_EL1) & SMIDR_EL1_SMPS))
-		res0 |= HCRX_EL2_SMPME;
-	if (!kvm_has_feat(kvm, ID_AA64ISAR1_EL1, XS, IMP))
-		res0 |= (HCRX_EL2_FGTnXS | HCRX_EL2_FnXS);
-	if (!kvm_has_feat(kvm, ID_AA64ISAR1_EL1, LS64, LS64_V))
-		res0 |= HCRX_EL2_EnASR;
-	if (!kvm_has_feat(kvm, ID_AA64ISAR1_EL1, LS64, LS64))
-		res0 |= HCRX_EL2_EnALS;
-	if (!kvm_has_feat(kvm, ID_AA64ISAR1_EL1, LS64, LS64_ACCDATA))
-		res0 |= HCRX_EL2_EnAS0;
+	get_reg_fixed_bits(kvm, HCRX_EL2, &res0, &res1);
 	set_sysreg_masks(kvm, HCRX_EL2, res0, res1);
 
 	/* HFG[RW]TR_EL2 */
-	res0 = res1 = 0;
-	if (!(kvm_vcpu_has_feature(kvm, KVM_ARM_VCPU_PTRAUTH_ADDRESS) &&
-	      kvm_vcpu_has_feature(kvm, KVM_ARM_VCPU_PTRAUTH_GENERIC)))
-		res0 |= (HFGxTR_EL2_APDAKey | HFGxTR_EL2_APDBKey |
-			 HFGxTR_EL2_APGAKey | HFGxTR_EL2_APIAKey |
-			 HFGxTR_EL2_APIBKey);
-	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, LO, IMP))
-		res0 |= (HFGxTR_EL2_LORC_EL1 | HFGxTR_EL2_LOREA_EL1 |
-			 HFGxTR_EL2_LORID_EL1 | HFGxTR_EL2_LORN_EL1 |
-			 HFGxTR_EL2_LORSA_EL1);
-	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, CSV2, CSV2_2) &&
-	    !kvm_has_feat(kvm, ID_AA64PFR1_EL1, CSV2_frac, CSV2_1p2))
-		res0 |= (HFGxTR_EL2_SCXTNUM_EL1 | HFGxTR_EL2_SCXTNUM_EL0);
-	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, GIC, IMP))
-		res0 |= HFGxTR_EL2_ICC_IGRPENn_EL1;
-	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, RAS, IMP))
-		res0 |= (HFGxTR_EL2_ERRIDR_EL1 | HFGxTR_EL2_ERRSELR_EL1 |
-			 HFGxTR_EL2_ERXFR_EL1 | HFGxTR_EL2_ERXCTLR_EL1 |
-			 HFGxTR_EL2_ERXSTATUS_EL1 | HFGxTR_EL2_ERXMISCn_EL1 |
-			 HFGxTR_EL2_ERXPFGF_EL1 | HFGxTR_EL2_ERXPFGCTL_EL1 |
-			 HFGxTR_EL2_ERXPFGCDN_EL1 | HFGxTR_EL2_ERXADDR_EL1);
-	if (!kvm_has_feat(kvm, ID_AA64ISAR1_EL1, LS64, LS64_ACCDATA))
-		res0 |= HFGxTR_EL2_nACCDATA_EL1;
-	if (!kvm_has_feat(kvm, ID_AA64PFR1_EL1, GCS, IMP))
-		res0 |= (HFGxTR_EL2_nGCS_EL0 | HFGxTR_EL2_nGCS_EL1);
-	if (!kvm_has_feat(kvm, ID_AA64PFR1_EL1, SME, IMP))
-		res0 |= (HFGxTR_EL2_nSMPRI_EL1 | HFGxTR_EL2_nTPIDR2_EL0);
-	if (!kvm_has_feat(kvm, ID_AA64PFR1_EL1, THE, IMP))
-		res0 |= HFGxTR_EL2_nRCWMASK_EL1;
-	if (!kvm_has_s1pie(kvm))
-		res0 |= (HFGxTR_EL2_nPIRE0_EL1 | HFGxTR_EL2_nPIR_EL1);
-	if (!kvm_has_s1poe(kvm))
-		res0 |= (HFGxTR_EL2_nPOR_EL0 | HFGxTR_EL2_nPOR_EL1);
-	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, S2POE, IMP))
-		res0 |= HFGxTR_EL2_nS2POR_EL1;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, AIE, IMP))
-		res0 |= (HFGxTR_EL2_nMAIR2_EL1 | HFGxTR_EL2_nAMAIR2_EL1);
-	set_sysreg_masks(kvm, HFGRTR_EL2, res0 | __HFGRTR_EL2_RES0, res1);
-	set_sysreg_masks(kvm, HFGWTR_EL2, res0 | __HFGWTR_EL2_RES0, res1);
+	get_reg_fixed_bits(kvm, HFGRTR_EL2, &res0, &res1);
+	set_sysreg_masks(kvm, HFGRTR_EL2, res0, res1);
+	get_reg_fixed_bits(kvm, HFGWTR_EL2, &res0, &res1);
+	set_sysreg_masks(kvm, HFGWTR_EL2, res0, res1);
 
 	/* HDFG[RW]TR_EL2 */
-	res0 = res1 = 0;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, DoubleLock, IMP))
-		res0 |= HDFGRTR_EL2_OSDLR_EL1;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMUVer, IMP))
-		res0 |= (HDFGRTR_EL2_PMEVCNTRn_EL0 | HDFGRTR_EL2_PMEVTYPERn_EL0 |
-			 HDFGRTR_EL2_PMCCFILTR_EL0 | HDFGRTR_EL2_PMCCNTR_EL0 |
-			 HDFGRTR_EL2_PMCNTEN | HDFGRTR_EL2_PMINTEN |
-			 HDFGRTR_EL2_PMOVS | HDFGRTR_EL2_PMSELR_EL0 |
-			 HDFGRTR_EL2_PMMIR_EL1 | HDFGRTR_EL2_PMUSERENR_EL0 |
-			 HDFGRTR_EL2_PMCEIDn_EL0);
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMSVer, IMP))
-		res0 |= (HDFGRTR_EL2_PMBLIMITR_EL1 | HDFGRTR_EL2_PMBPTR_EL1 |
-			 HDFGRTR_EL2_PMBSR_EL1 | HDFGRTR_EL2_PMSCR_EL1 |
-			 HDFGRTR_EL2_PMSEVFR_EL1 | HDFGRTR_EL2_PMSFCR_EL1 |
-			 HDFGRTR_EL2_PMSICR_EL1 | HDFGRTR_EL2_PMSIDR_EL1 |
-			 HDFGRTR_EL2_PMSIRR_EL1 | HDFGRTR_EL2_PMSLATFR_EL1 |
-			 HDFGRTR_EL2_PMBIDR_EL1);
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, TraceVer, IMP))
-		res0 |= (HDFGRTR_EL2_TRC | HDFGRTR_EL2_TRCAUTHSTATUS |
-			 HDFGRTR_EL2_TRCAUXCTLR | HDFGRTR_EL2_TRCCLAIM |
-			 HDFGRTR_EL2_TRCCNTVRn | HDFGRTR_EL2_TRCID |
-			 HDFGRTR_EL2_TRCIMSPECn | HDFGRTR_EL2_TRCOSLSR |
-			 HDFGRTR_EL2_TRCPRGCTLR | HDFGRTR_EL2_TRCSEQSTR |
-			 HDFGRTR_EL2_TRCSSCSRn | HDFGRTR_EL2_TRCSTATR |
-			 HDFGRTR_EL2_TRCVICTLR);
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, TraceBuffer, IMP))
-		res0 |= (HDFGRTR_EL2_TRBBASER_EL1 | HDFGRTR_EL2_TRBIDR_EL1 |
-			 HDFGRTR_EL2_TRBLIMITR_EL1 | HDFGRTR_EL2_TRBMAR_EL1 |
-			 HDFGRTR_EL2_TRBPTR_EL1 | HDFGRTR_EL2_TRBSR_EL1 |
-			 HDFGRTR_EL2_TRBTRG_EL1);
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, BRBE, IMP))
-		res0 |= (HDFGRTR_EL2_nBRBIDR | HDFGRTR_EL2_nBRBCTL |
-			 HDFGRTR_EL2_nBRBDATA);
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMSVer, V1P2))
-		res0 |= HDFGRTR_EL2_nPMSNEVFR_EL1;
-	set_sysreg_masks(kvm, HDFGRTR_EL2, res0 | HDFGRTR_EL2_RES0, res1);
-
-	/* Reuse the bits from the read-side and add the write-specific stuff */
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMUVer, IMP))
-		res0 |= (HDFGWTR_EL2_PMCR_EL0 | HDFGWTR_EL2_PMSWINC_EL0);
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, TraceVer, IMP))
-		res0 |= HDFGWTR_EL2_TRCOSLAR;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, TraceFilt, IMP))
-		res0 |= HDFGWTR_EL2_TRFCR_EL1;
-	set_sysreg_masks(kvm, HFGWTR_EL2, res0 | HDFGWTR_EL2_RES0, res1);
+	get_reg_fixed_bits(kvm, HDFGRTR_EL2, &res0, &res1);
+	set_sysreg_masks(kvm, HDFGRTR_EL2, res0, res1);
+	get_reg_fixed_bits(kvm, HDFGWTR_EL2, &res0, &res1);
+	set_sysreg_masks(kvm, HDFGWTR_EL2, res0, res1);
 
 	/* HFGITR_EL2 */
-	res0 = HFGITR_EL2_RES0;
-	res1 = HFGITR_EL2_RES1;
-	if (!kvm_has_feat(kvm, ID_AA64ISAR1_EL1, DPB, DPB2))
-		res0 |= HFGITR_EL2_DCCVADP;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, PAN, PAN2))
-		res0 |= (HFGITR_EL2_ATS1E1RP | HFGITR_EL2_ATS1E1WP);
-	if (!kvm_has_feat(kvm, ID_AA64ISAR0_EL1, TLB, OS))
-		res0 |= (HFGITR_EL2_TLBIRVAALE1OS | HFGITR_EL2_TLBIRVALE1OS |
-			 HFGITR_EL2_TLBIRVAAE1OS | HFGITR_EL2_TLBIRVAE1OS |
-			 HFGITR_EL2_TLBIVAALE1OS | HFGITR_EL2_TLBIVALE1OS |
-			 HFGITR_EL2_TLBIVAAE1OS | HFGITR_EL2_TLBIASIDE1OS |
-			 HFGITR_EL2_TLBIVAE1OS | HFGITR_EL2_TLBIVMALLE1OS);
-	if (!kvm_has_feat(kvm, ID_AA64ISAR0_EL1, TLB, RANGE))
-		res0 |= (HFGITR_EL2_TLBIRVAALE1 | HFGITR_EL2_TLBIRVALE1 |
-			 HFGITR_EL2_TLBIRVAAE1 | HFGITR_EL2_TLBIRVAE1 |
-			 HFGITR_EL2_TLBIRVAALE1IS | HFGITR_EL2_TLBIRVALE1IS |
-			 HFGITR_EL2_TLBIRVAAE1IS | HFGITR_EL2_TLBIRVAE1IS |
-			 HFGITR_EL2_TLBIRVAALE1OS | HFGITR_EL2_TLBIRVALE1OS |
-			 HFGITR_EL2_TLBIRVAAE1OS | HFGITR_EL2_TLBIRVAE1OS);
-	if (!kvm_has_feat(kvm, ID_AA64ISAR1_EL1, SPECRES, IMP))
-		res0 |= (HFGITR_EL2_CFPRCTX | HFGITR_EL2_DVPRCTX |
-			 HFGITR_EL2_CPPRCTX);
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, BRBE, IMP))
-		res0 |= (HFGITR_EL2_nBRBINJ | HFGITR_EL2_nBRBIALL);
-	if (!kvm_has_feat(kvm, ID_AA64PFR1_EL1, GCS, IMP))
-		res0 |= (HFGITR_EL2_nGCSPUSHM_EL1 | HFGITR_EL2_nGCSSTR_EL1 |
-			 HFGITR_EL2_nGCSEPP);
-	if (!kvm_has_feat(kvm, ID_AA64ISAR1_EL1, SPECRES, COSP_RCTX))
-		res0 |= HFGITR_EL2_COSPRCTX;
-	if (!kvm_has_feat(kvm, ID_AA64ISAR2_EL1, ATS1A, IMP))
-		res0 |= HFGITR_EL2_ATS1E1A;
+	get_reg_fixed_bits(kvm, HFGITR_EL2, &res0, &res1);
 	set_sysreg_masks(kvm, HFGITR_EL2, res0, res1);
 
 	/* HAFGRTR_EL2 - not a lot to see here */
-	res0 = HAFGRTR_EL2_RES0;
-	res1 = HAFGRTR_EL2_RES1;
-	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, AMU, V1P1))
-		res0 |= ~(res0 | res1);
+	get_reg_fixed_bits(kvm, HAFGRTR_EL2, &res0, &res1);
 	set_sysreg_masks(kvm, HAFGRTR_EL2, res0, res1);
+
+	/* HFG[RW]TR2_EL2 */
+	get_reg_fixed_bits(kvm, HFGRTR2_EL2, &res0, &res1);
+	set_sysreg_masks(kvm, HFGRTR2_EL2, res0, res1);
+	get_reg_fixed_bits(kvm, HFGWTR2_EL2, &res0, &res1);
+	set_sysreg_masks(kvm, HFGWTR2_EL2, res0, res1);
+
+	/* HDFG[RW]TR2_EL2 */
+	get_reg_fixed_bits(kvm, HDFGRTR2_EL2, &res0, &res1);
+	set_sysreg_masks(kvm, HDFGRTR2_EL2, res0, res1);
+	get_reg_fixed_bits(kvm, HDFGWTR2_EL2, &res0, &res1);
+	set_sysreg_masks(kvm, HDFGWTR2_EL2, res0, res1);
+
+	/* HFGITR2_EL2 */
+	get_reg_fixed_bits(kvm, HFGITR2_EL2, &res0, &res1);
+	set_sysreg_masks(kvm, HFGITR2_EL2, res0, res1);
 
 	/* TCR2_EL2 */
 	res0 = TCR2_EL2_RES0;
@@ -1318,6 +1750,9 @@ int kvm_init_nv_sysregs(struct kvm_vcpu *vcpu)
 	res0 |= ICH_HCR_EL2_DVIM | ICH_HCR_EL2_vSGIEOICount;
 	set_sysreg_masks(kvm, ICH_HCR_EL2, res0, res1);
 
+	/* VNCR_EL2 */
+	set_sysreg_masks(kvm, VNCR_EL2, VNCR_EL2_RES0, VNCR_EL2_RES1);
+
 out:
 	for (enum vcpu_sysreg sr = __SANITISED_REG_START__; sr < NR_SYS_REGS; sr++)
 		(void)__vcpu_sys_reg(vcpu, sr);
@@ -1337,6 +1772,9 @@ void check_nested_vcpu_requests(struct kvm_vcpu *vcpu)
 		}
 		write_unlock(&vcpu->kvm->mmu_lock);
 	}
+
+	if (kvm_check_request(KVM_REQ_MAP_L1_VNCR_EL2, vcpu))
+		kvm_map_l1_vncr(vcpu);
 
 	/* Must be last, as may switch context! */
 	if (kvm_check_request(KVM_REQ_GUEST_HYP_IRQ_PENDING, vcpu))

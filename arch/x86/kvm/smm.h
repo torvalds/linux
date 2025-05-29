@@ -142,6 +142,9 @@ union kvm_smram {
 
 static inline int kvm_inject_smi(struct kvm_vcpu *vcpu)
 {
+	if (!kvm_x86_call(has_emulated_msr)(vcpu->kvm, MSR_IA32_SMBASE))
+		return -ENOTTY;
+
 	kvm_make_request(KVM_REQ_SMI, vcpu);
 	return 0;
 }

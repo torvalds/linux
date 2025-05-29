@@ -446,7 +446,7 @@ u64 __vgic_v3_get_gic_config(void)
 	if (has_vhe()) {
 		flags = local_daif_save();
 	} else {
-		sysreg_clear_set(hcr_el2, 0, HCR_AMO | HCR_FMO | HCR_IMO);
+		sysreg_clear_set_hcr(0, HCR_AMO | HCR_FMO | HCR_IMO);
 		isb();
 	}
 
@@ -461,7 +461,7 @@ u64 __vgic_v3_get_gic_config(void)
 	if (has_vhe()) {
 		local_daif_restore(flags);
 	} else {
-		sysreg_clear_set(hcr_el2, HCR_AMO | HCR_FMO | HCR_IMO, 0);
+		sysreg_clear_set_hcr(HCR_AMO | HCR_FMO | HCR_IMO, 0);
 		isb();
 	}
 
@@ -1058,11 +1058,11 @@ static bool __vgic_v3_check_trap_forwarding(struct kvm_vcpu *vcpu,
 	switch (sysreg) {
 	case SYS_ICC_IGRPEN0_EL1:
 		if (is_read &&
-		    (__vcpu_sys_reg(vcpu, HFGRTR_EL2) & HFGxTR_EL2_ICC_IGRPENn_EL1))
+		    (__vcpu_sys_reg(vcpu, HFGRTR_EL2) & HFGRTR_EL2_ICC_IGRPENn_EL1))
 			return true;
 
 		if (!is_read &&
-		    (__vcpu_sys_reg(vcpu, HFGWTR_EL2) & HFGxTR_EL2_ICC_IGRPENn_EL1))
+		    (__vcpu_sys_reg(vcpu, HFGWTR_EL2) & HFGWTR_EL2_ICC_IGRPENn_EL1))
 			return true;
 
 		fallthrough;
@@ -1079,11 +1079,11 @@ static bool __vgic_v3_check_trap_forwarding(struct kvm_vcpu *vcpu,
 
 	case SYS_ICC_IGRPEN1_EL1:
 		if (is_read &&
-		    (__vcpu_sys_reg(vcpu, HFGRTR_EL2) & HFGxTR_EL2_ICC_IGRPENn_EL1))
+		    (__vcpu_sys_reg(vcpu, HFGRTR_EL2) & HFGRTR_EL2_ICC_IGRPENn_EL1))
 			return true;
 
 		if (!is_read &&
-		    (__vcpu_sys_reg(vcpu, HFGWTR_EL2) & HFGxTR_EL2_ICC_IGRPENn_EL1))
+		    (__vcpu_sys_reg(vcpu, HFGWTR_EL2) & HFGWTR_EL2_ICC_IGRPENn_EL1))
 			return true;
 
 		fallthrough;

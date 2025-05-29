@@ -38,7 +38,7 @@
 
 	orr	x0, x0, #HCR_E2H
 .LnVHE_\@:
-	msr	hcr_el2, x0
+	msr_hcr_el2 x0
 	isb
 .endm
 
@@ -215,8 +215,8 @@
 	cbz	x1, .Lskip_sme_fgt_\@
 
 	/* Disable nVHE traps of TPIDR2 and SMPRI */
-	orr	x0, x0, #HFGxTR_EL2_nSMPRI_EL1_MASK
-	orr	x0, x0, #HFGxTR_EL2_nTPIDR2_EL0_MASK
+	orr	x0, x0, #HFGRTR_EL2_nSMPRI_EL1_MASK
+	orr	x0, x0, #HFGRTR_EL2_nTPIDR2_EL0_MASK
 
 .Lskip_sme_fgt_\@:
 	mrs_s	x1, SYS_ID_AA64MMFR3_EL1
@@ -224,8 +224,8 @@
 	cbz	x1, .Lskip_pie_fgt_\@
 
 	/* Disable trapping of PIR_EL1 / PIRE0_EL1 */
-	orr	x0, x0, #HFGxTR_EL2_nPIR_EL1
-	orr	x0, x0, #HFGxTR_EL2_nPIRE0_EL1
+	orr	x0, x0, #HFGRTR_EL2_nPIR_EL1
+	orr	x0, x0, #HFGRTR_EL2_nPIRE0_EL1
 
 .Lskip_pie_fgt_\@:
 	mrs_s	x1, SYS_ID_AA64MMFR3_EL1
@@ -233,7 +233,7 @@
 	cbz	x1, .Lskip_poe_fgt_\@
 
 	/* Disable trapping of POR_EL0 */
-	orr	x0, x0, #HFGxTR_EL2_nPOR_EL0
+	orr	x0, x0, #HFGRTR_EL2_nPOR_EL0
 
 .Lskip_poe_fgt_\@:
 	/* GCS depends on PIE so we don't check it if PIE is absent */
@@ -242,8 +242,8 @@
 	cbz	x1, .Lskip_gce_fgt_\@
 
 	/* Disable traps of access to GCS registers at EL0 and EL1 */
-	orr	x0, x0, #HFGxTR_EL2_nGCS_EL1_MASK
-	orr	x0, x0, #HFGxTR_EL2_nGCS_EL0_MASK
+	orr	x0, x0, #HFGRTR_EL2_nGCS_EL1_MASK
+	orr	x0, x0, #HFGRTR_EL2_nGCS_EL0_MASK
 
 .Lskip_gce_fgt_\@:
 
