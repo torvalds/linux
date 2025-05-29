@@ -2134,9 +2134,6 @@ static int snp_launch_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (!(params.policy & SNP_POLICY_MASK_RSVD_MBO))
 		return -EINVAL;
 
-	if (params.policy & SNP_POLICY_MASK_SINGLE_SOCKET)
-		return -EINVAL;
-
 	sev->policy = params.policy;
 
 	sev->snp_context = snp_context_create(kvm, argp);
