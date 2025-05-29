@@ -133,6 +133,11 @@ struct vhost_scsi_cmd {
 	struct se_cmd tvc_se_cmd;
 	/* Sense buffer that will be mapped into outgoing status */
 	unsigned char tvc_sense_buf[TRANSPORT_SENSE_BUFFER];
+	/*
+	 * Dirty write descriptors of this command.
+	 */
+	struct vhost_log *tvc_log;
+	unsigned int tvc_log_num;
 	/* Completed commands list, serviced from vhost worker thread */
 	struct llist_node tvc_completion_list;
 	/* Used to track inflight cmd */
@@ -258,6 +263,12 @@ struct vhost_scsi_tmf {
 	struct iovec resp_iov;
 	int in_iovs;
 	int vq_desc;
+
+	/*
+	 * Dirty write descriptors of this command.
+	 */
+	struct vhost_log *tmf_log;
+	unsigned int tmf_log_num;
 };
 
 /*
@@ -362,6 +373,45 @@ static int vhost_scsi_check_prot_fabric_only(struct se_portal_group *se_tpg)
 	return tpg->tv_fabric_prot_type;
 }
 
+static int vhost_scsi_copy_cmd_log(struct vhost_virtqueue *vq,
+				   struct vhost_scsi_cmd *cmd,
+				   struct vhost_log *log,
+				   unsigned int log_num)
+{
+	if (!cmd->tvc_log)
+		cmd->tvc_log = kmalloc_array(vq->dev->iov_limit,
+					     sizeof(*cmd->tvc_log),
+					     GFP_KERNEL);
+
+	if (unlikely(!cmd->tvc_log)) {
+		vq_err(vq, "Failed to alloc tvc_log\n");
+		return -ENOMEM;
+	}
+
+	memcpy(cmd->tvc_log, log, sizeof(*cmd->tvc_log) * log_num);
+	cmd->tvc_log_num = log_num;
+
+	return 0;
+}
+
+static void vhost_scsi_log_write(struct vhost_virtqueue *vq,
+				 struct vhost_log *log,
+				 unsigned int log_num)
+{
+	if (likely(!vhost_has_feature(vq, VHOST_F_LOG_ALL)))
+		return;
+
+	if (likely(!log_num || !log))
+		return;
+
+	/*
+	 * vhost-scsi doesn't support VIRTIO_F_ACCESS_PLATFORM.
+	 * No requirement for vq->iotlb case.
+	 */
+	WARN_ON_ONCE(unlikely(vq->iotlb));
+	vhost_log_write(vq, log, log_num, U64_MAX, NULL, 0);
+}
+
 static void vhost_scsi_release_cmd_res(struct se_cmd *se_cmd)
 {
 	struct vhost_scsi_cmd *tv_cmd = container_of(se_cmd,
@@ -408,6 +458,10 @@ static void vhost_scsi_release_tmf_res(struct vhost_scsi_tmf *tmf)
 {
 	struct vhost_scsi_inflight *inflight = tmf->inflight;
 
+	/*
+	 * tmf->tmf_log is default NULL unless VHOST_F_LOG_ALL is set.
+	 */
+	kfree(tmf->tmf_log);
 	kfree(tmf);
 	vhost_scsi_put_inflight(inflight);
 }
@@ -517,6 +571,8 @@ vhost_scsi_do_evt_work(struct vhost_scsi *vs, struct vhost_scsi_evt *evt)
 	struct vhost_virtqueue *vq = &vs->vqs[VHOST_SCSI_VQ_EVT].vq;
 	struct virtio_scsi_event *event = &evt->event;
 	struct virtio_scsi_event __user *eventp;
+	struct vhost_log *vq_log;
+	unsigned int log_num;
 	unsigned out, in;
 	int head, ret;
 
@@ -527,9 +583,19 @@ vhost_scsi_do_evt_work(struct vhost_scsi *vs, struct vhost_scsi_evt *evt)
 
 again:
 	vhost_disable_notify(&vs->dev, vq);
+
+	vq_log = unlikely(vhost_has_feature(vq, VHOST_F_LOG_ALL)) ?
+		vq->log : NULL;
+
+	/*
+	 * Reset 'log_num' since vhost_get_vq_desc() may reset it only
+	 * after certain condition checks.
+	 */
+	log_num = 0;
+
 	head = vhost_get_vq_desc(vq, vq->iov,
 			ARRAY_SIZE(vq->iov), &out, &in,
-			NULL, NULL);
+			vq_log, &log_num);
 	if (head < 0) {
 		vs->vs_events_missed = true;
 		return;
@@ -559,6 +625,8 @@ again:
 		vhost_add_used_and_signal(&vs->dev, vq, head, 0);
 	else
 		vq_err(vq, "Faulted on vhost_scsi_send_event\n");
+
+	vhost_scsi_log_write(vq, vq_log, log_num);
 }
 
 static void vhost_scsi_complete_events(struct vhost_scsi *vs, bool drop)
@@ -660,6 +728,9 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 		} else
 			pr_err("Faulted on virtio_scsi_cmd_resp\n");
 
+		vhost_scsi_log_write(cmd->tvc_vq, cmd->tvc_log,
+				     cmd->tvc_log_num);
+
 		vhost_scsi_release_cmd_res(se_cmd);
 	}
 
@@ -676,6 +747,7 @@ vhost_scsi_get_cmd(struct vhost_virtqueue *vq, u64 scsi_tag)
 					struct vhost_scsi_virtqueue, vq);
 	struct vhost_scsi_cmd *cmd;
 	struct scatterlist *sgl, *prot_sgl;
+	struct vhost_log *log;
 	int tag;
 
 	tag = sbitmap_get(&svq->scsi_tags);
@@ -687,9 +759,11 @@ vhost_scsi_get_cmd(struct vhost_virtqueue *vq, u64 scsi_tag)
 	cmd = &svq->scsi_cmds[tag];
 	sgl = cmd->sgl;
 	prot_sgl = cmd->prot_sgl;
+	log = cmd->tvc_log;
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->sgl = sgl;
 	cmd->prot_sgl = prot_sgl;
+	cmd->tvc_log = log;
 	cmd->tvc_se_cmd.map_tag = tag;
 	cmd->inflight = vhost_scsi_get_inflight(vq);
 
@@ -1063,13 +1137,17 @@ vhost_scsi_send_bad_target(struct vhost_scsi *vs,
 
 static int
 vhost_scsi_get_desc(struct vhost_scsi *vs, struct vhost_virtqueue *vq,
-		    struct vhost_scsi_ctx *vc)
+		    struct vhost_scsi_ctx *vc,
+		    struct vhost_log *log, unsigned int *log_num)
 {
 	int ret = -ENXIO;
 
+	if (likely(log_num))
+		*log_num = 0;
+
 	vc->head = vhost_get_vq_desc(vq, vq->iov,
 				     ARRAY_SIZE(vq->iov), &vc->out, &vc->in,
-				     NULL, NULL);
+				     log, log_num);
 
 	pr_debug("vhost_get_vq_desc: head: %d, out: %u in: %u\n",
 		 vc->head, vc->out, vc->in);
@@ -1221,6 +1299,8 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 	u8 task_attr;
 	bool t10_pi = vhost_has_feature(vq, VIRTIO_SCSI_F_T10_PI);
 	u8 *cdb;
+	struct vhost_log *vq_log;
+	unsigned int log_num;
 
 	mutex_lock(&vq->mutex);
 	/*
@@ -1236,8 +1316,11 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 
 	vhost_disable_notify(&vs->dev, vq);
 
+	vq_log = unlikely(vhost_has_feature(vq, VHOST_F_LOG_ALL)) ?
+		vq->log : NULL;
+
 	do {
-		ret = vhost_scsi_get_desc(vs, vq, &vc);
+		ret = vhost_scsi_get_desc(vs, vq, &vc, vq_log, &log_num);
 		if (ret)
 			goto err;
 
@@ -1386,6 +1469,14 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			goto err;
 		}
 
+		if (unlikely(vq_log && log_num)) {
+			ret = vhost_scsi_copy_cmd_log(vq, cmd, vq_log, log_num);
+			if (unlikely(ret)) {
+				vhost_scsi_release_cmd_res(&cmd->tvc_se_cmd);
+				goto err;
+			}
+		}
+
 		pr_debug("vhost_scsi got command opcode: %#02x, lun: %d\n",
 			 cdb[0], lun);
 		pr_debug("cmd: %p exp_data_len: %d, prot_bytes: %d data_direction:"
@@ -1421,11 +1512,14 @@ err:
 		 */
 		if (ret == -ENXIO)
 			break;
-		else if (ret == -EIO)
+		else if (ret == -EIO) {
 			vhost_scsi_send_bad_target(vs, vq, &vc, TYPE_IO_CMD);
-		else if (ret == -ENOMEM)
+			vhost_scsi_log_write(vq, vq_log, log_num);
+		} else if (ret == -ENOMEM) {
 			vhost_scsi_send_status(vs, vq, &vc,
 					       SAM_STAT_TASK_SET_FULL);
+			vhost_scsi_log_write(vq, vq_log, log_num);
+		}
 	} while (likely(!vhost_exceeds_weight(vq, ++c, 0)));
 out:
 	mutex_unlock(&vq->mutex);
@@ -1467,6 +1561,8 @@ static void vhost_scsi_tmf_resp_work(struct vhost_work *work)
 	mutex_lock(&tmf->svq->vq.mutex);
 	vhost_scsi_send_tmf_resp(tmf->vhost, &tmf->svq->vq, tmf->in_iovs,
 				 tmf->vq_desc, &tmf->resp_iov, resp_code);
+	vhost_scsi_log_write(&tmf->svq->vq, tmf->tmf_log,
+			     tmf->tmf_log_num);
 	mutex_unlock(&tmf->svq->vq.mutex);
 
 	vhost_scsi_release_tmf_res(tmf);
@@ -1490,7 +1586,8 @@ static void
 vhost_scsi_handle_tmf(struct vhost_scsi *vs, struct vhost_scsi_tpg *tpg,
 		      struct vhost_virtqueue *vq,
 		      struct virtio_scsi_ctrl_tmf_req *vtmf,
-		      struct vhost_scsi_ctx *vc)
+		      struct vhost_scsi_ctx *vc,
+		      struct vhost_log *log, unsigned int log_num)
 {
 	struct vhost_scsi_virtqueue *svq = container_of(vq,
 					struct vhost_scsi_virtqueue, vq);
@@ -1518,6 +1615,19 @@ vhost_scsi_handle_tmf(struct vhost_scsi *vs, struct vhost_scsi_tpg *tpg,
 	tmf->in_iovs = vc->in;
 	tmf->inflight = vhost_scsi_get_inflight(vq);
 
+	if (unlikely(log && log_num)) {
+		tmf->tmf_log = kmalloc_array(log_num, sizeof(*tmf->tmf_log),
+					     GFP_KERNEL);
+		if (tmf->tmf_log) {
+			memcpy(tmf->tmf_log, log, sizeof(*tmf->tmf_log) * log_num);
+			tmf->tmf_log_num = log_num;
+		} else {
+			pr_err("vhost_scsi tmf log allocation error\n");
+			vhost_scsi_release_tmf_res(tmf);
+			goto send_reject;
+		}
+	}
+
 	if (target_submit_tmr(&tmf->se_cmd, tpg->tpg_nexus->tvn_se_sess, NULL,
 			      vhost_buf_to_lun(vtmf->lun), NULL,
 			      TMR_LUN_RESET, GFP_KERNEL, 0,
@@ -1531,6 +1641,7 @@ vhost_scsi_handle_tmf(struct vhost_scsi *vs, struct vhost_scsi_tpg *tpg,
 send_reject:
 	vhost_scsi_send_tmf_resp(vs, vq, vc->in, vc->head, &vq->iov[vc->out],
 				 VIRTIO_SCSI_S_FUNCTION_REJECTED);
+	vhost_scsi_log_write(vq, log, log_num);
 }
 
 static void
@@ -1567,6 +1678,8 @@ vhost_scsi_ctl_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 	struct vhost_scsi_ctx vc;
 	size_t typ_size;
 	int ret, c = 0;
+	struct vhost_log *vq_log;
+	unsigned int log_num;
 
 	mutex_lock(&vq->mutex);
 	/*
@@ -1580,8 +1693,11 @@ vhost_scsi_ctl_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 
 	vhost_disable_notify(&vs->dev, vq);
 
+	vq_log = unlikely(vhost_has_feature(vq, VHOST_F_LOG_ALL)) ?
+		vq->log : NULL;
+
 	do {
-		ret = vhost_scsi_get_desc(vs, vq, &vc);
+		ret = vhost_scsi_get_desc(vs, vq, &vc, vq_log, &log_num);
 		if (ret)
 			goto err;
 
@@ -1645,9 +1761,12 @@ vhost_scsi_ctl_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			goto err;
 
 		if (v_req.type == VIRTIO_SCSI_T_TMF)
-			vhost_scsi_handle_tmf(vs, tpg, vq, &v_req.tmf, &vc);
-		else
+			vhost_scsi_handle_tmf(vs, tpg, vq, &v_req.tmf, &vc,
+					      vq_log, log_num);
+		else {
 			vhost_scsi_send_an_resp(vs, vq, &vc);
+			vhost_scsi_log_write(vq, vq_log, log_num);
+		}
 err:
 		/*
 		 * ENXIO:  No more requests, or read error, wait for next kick
@@ -1657,11 +1776,13 @@ err:
 		 */
 		if (ret == -ENXIO)
 			break;
-		else if (ret == -EIO)
+		else if (ret == -EIO) {
 			vhost_scsi_send_bad_target(vs, vq, &vc,
 						   v_req.type == VIRTIO_SCSI_T_TMF ?
 						   TYPE_CTRL_TMF :
 						   TYPE_CTRL_AN);
+			vhost_scsi_log_write(vq, vq_log, log_num);
+		}
 	} while (likely(!vhost_exceeds_weight(vq, ++c, 0)));
 out:
 	mutex_unlock(&vq->mutex);
@@ -1756,6 +1877,24 @@ static void vhost_scsi_flush(struct vhost_scsi *vs)
 		wait_for_completion(&vs->old_inflight[i]->comp);
 }
 
+static void vhost_scsi_destroy_vq_log(struct vhost_virtqueue *vq)
+{
+	struct vhost_scsi_virtqueue *svq = container_of(vq,
+					struct vhost_scsi_virtqueue, vq);
+	struct vhost_scsi_cmd *tv_cmd;
+	unsigned int i;
+
+	if (!svq->scsi_cmds)
+		return;
+
+	for (i = 0; i < svq->max_cmds; i++) {
+		tv_cmd = &svq->scsi_cmds[i];
+		kfree(tv_cmd->tvc_log);
+		tv_cmd->tvc_log = NULL;
+		tv_cmd->tvc_log_num = 0;
+	}
+}
+
 static void vhost_scsi_destroy_vq_cmds(struct vhost_virtqueue *vq)
 {
 	struct vhost_scsi_virtqueue *svq = container_of(vq,
@@ -1775,6 +1914,7 @@ static void vhost_scsi_destroy_vq_cmds(struct vhost_virtqueue *vq)
 
 	sbitmap_free(&svq->scsi_tags);
 	kfree(svq->upages);
+	vhost_scsi_destroy_vq_log(vq);
 	kfree(svq->scsi_cmds);
 	svq->scsi_cmds = NULL;
 }
@@ -2084,6 +2224,7 @@ err_dev:
 static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 {
 	struct vhost_virtqueue *vq;
+	bool is_log, was_log;
 	int i;
 
 	if (features & ~VHOST_SCSI_FEATURES)
@@ -2096,12 +2237,39 @@ static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 		return -EFAULT;
 	}
 
+	if (!vs->dev.nvqs)
+		goto out;
+
+	is_log = features & (1 << VHOST_F_LOG_ALL);
+	/*
+	 * All VQs should have same feature.
+	 */
+	was_log = vhost_has_feature(&vs->vqs[0].vq, VHOST_F_LOG_ALL);
+
 	for (i = 0; i < vs->dev.nvqs; i++) {
 		vq = &vs->vqs[i].vq;
 		mutex_lock(&vq->mutex);
 		vq->acked_features = features;
 		mutex_unlock(&vq->mutex);
 	}
+
+	/*
+	 * If VHOST_F_LOG_ALL is removed, free tvc_log after
+	 * vq->acked_features is committed.
+	 */
+	if (!is_log && was_log) {
+		for (i = VHOST_SCSI_VQ_IO; i < vs->dev.nvqs; i++) {
+			if (!vs->vqs[i].scsi_cmds)
+				continue;
+
+			vq = &vs->vqs[i].vq;
+			mutex_lock(&vq->mutex);
+			vhost_scsi_destroy_vq_log(vq);
+			mutex_unlock(&vq->mutex);
+		}
+	}
+
+out:
 	mutex_unlock(&vs->dev.mutex);
 	return 0;
 }
