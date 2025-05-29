@@ -44,27 +44,12 @@ DEFINE_EVENT(x86_fpu, x86_fpu_after_save,
 	TP_ARGS(fpu)
 );
 
-DEFINE_EVENT(x86_fpu, x86_fpu_before_restore,
-	TP_PROTO(struct fpu *fpu),
-	TP_ARGS(fpu)
-);
-
-DEFINE_EVENT(x86_fpu, x86_fpu_after_restore,
-	TP_PROTO(struct fpu *fpu),
-	TP_ARGS(fpu)
-);
-
 DEFINE_EVENT(x86_fpu, x86_fpu_regs_activated,
 	TP_PROTO(struct fpu *fpu),
 	TP_ARGS(fpu)
 );
 
 DEFINE_EVENT(x86_fpu, x86_fpu_regs_deactivated,
-	TP_PROTO(struct fpu *fpu),
-	TP_ARGS(fpu)
-);
-
-DEFINE_EVENT(x86_fpu, x86_fpu_init_state,
 	TP_PROTO(struct fpu *fpu),
 	TP_ARGS(fpu)
 );
