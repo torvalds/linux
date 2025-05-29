@@ -2900,6 +2900,7 @@ static void intel_pmu_config_acr(int idx, u64 mask, u32 reload)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	int msr_b, msr_c;
+	int msr_offset;
 
 	if (!mask && !cpuc->acr_cfg_b[idx])
 		return;
@@ -2907,19 +2908,20 @@ static void intel_pmu_config_acr(int idx, u64 mask, u32 reload)
 	if (idx < INTEL_PMC_IDX_FIXED) {
 		msr_b = MSR_IA32_PMC_V6_GP0_CFG_B;
 		msr_c = MSR_IA32_PMC_V6_GP0_CFG_C;
+		msr_offset = x86_pmu.addr_offset(idx, false);
 	} else {
 		msr_b = MSR_IA32_PMC_V6_FX0_CFG_B;
 		msr_c = MSR_IA32_PMC_V6_FX0_CFG_C;
-		idx -= INTEL_PMC_IDX_FIXED;
+		msr_offset = x86_pmu.addr_offset(idx - INTEL_PMC_IDX_FIXED, false);
 	}
 
 	if (cpuc->acr_cfg_b[idx] != mask) {
-		wrmsrl(msr_b + x86_pmu.addr_offset(idx, false), mask);
+		wrmsrl(msr_b + msr_offset, mask);
 		cpuc->acr_cfg_b[idx] = mask;
 	}
 	/* Only need to update the reload value when there is a valid config value. */
 	if (mask && cpuc->acr_cfg_c[idx] != reload) {
-		wrmsrl(msr_c + x86_pmu.addr_offset(idx, false), reload);
+		wrmsrl(msr_c + msr_offset, reload);
 		cpuc->acr_cfg_c[idx] = reload;
 	}
 }
