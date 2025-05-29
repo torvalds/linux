@@ -190,10 +190,7 @@ static inline bool bch2_snapshot_has_children(struct bch_fs *c, u32 id)
 
 static inline bool snapshot_list_has_id(snapshot_id_list *s, u32 id)
 {
-	darray_for_each(*s, i)
-		if (*i == id)
-			return true;
-	return false;
+	return darray_find(*s, id) != NULL;
 }
 
 static inline bool snapshot_list_has_ancestor(struct bch_fs *c, snapshot_id_list *s, u32 id)

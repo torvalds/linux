@@ -885,14 +885,11 @@ lookup_inode_for_snapshot(struct btree_trans *trans, struct inode_walker *w, str
 {
 	struct bch_fs *c = trans->c;
 
-	struct inode_walker_entry *i;
-	__darray_for_each(w->inodes, i)
-		if (bch2_snapshot_is_ancestor(c, k.k->p.snapshot, i->inode.bi_snapshot))
-			goto found;
+	struct inode_walker_entry *i = darray_find_p(w->inodes, i,
+		    bch2_snapshot_is_ancestor(c, k.k->p.snapshot, i->inode.bi_snapshot));
 
-	return NULL;
-found:
-	BUG_ON(k.k->p.snapshot > i->inode.bi_snapshot);
+	if (!i)
+		return NULL;
 
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;

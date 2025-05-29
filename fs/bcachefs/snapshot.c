@@ -947,10 +947,7 @@ static inline bool same_snapshot(struct snapshot_tree_reconstruct *r, struct bpo
 
 static inline bool snapshot_id_lists_have_common(snapshot_id_list *l, snapshot_id_list *r)
 {
-	darray_for_each(*l, i)
-		if (snapshot_list_has_id(r, *i))
-			return true;
-	return false;
+	return darray_find_p(*l, i, snapshot_list_has_id(r, *i)) != NULL;
 }
 
 static void snapshot_id_list_to_text(struct printbuf *out, snapshot_id_list *s)
@@ -1428,10 +1425,8 @@ int bch2_snapshot_node_create(struct btree_trans *trans, u32 parent,
 
 static inline u32 interior_delete_has_id(interior_delete_list *l, u32 id)
 {
-	darray_for_each(*l, i)
-		if (i->id == id)
-			return i->live_child;
-	return 0;
+	struct snapshot_interior_delete *i = darray_find_p(*l, i, i->id == id);
+	return i ? i->live_child : 0;
 }
 
 static unsigned __live_child(struct snapshot_table *t, u32 id,

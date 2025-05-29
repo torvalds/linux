@@ -87,7 +87,23 @@ int __bch2_darray_resize_noprof(darray_char *, size_t, size_t, gfp_t);
 #define darray_remove_item(_d, _pos)					\
 	array_remove_item((_d)->data, (_d)->nr, (_pos) - (_d)->data)
 
-#define __darray_for_each(_d, _i)						\
+#define darray_find_p(_d, _i, cond)					\
+({									\
+	typeof((_d).data) _ret = NULL;					\
+									\
+	darray_for_each(_d, _i)						\
+		if (cond) {						\
+			_ret = _i;					\
+			break;						\
+		}							\
+	_ret;								\
+})
+
+#define darray_find(_d, _item)	darray_find_p(_d, _i, *_i == _item)
+
+/* Iteration: */
+
+#define __darray_for_each(_d, _i)					\
 	for ((_i) = (_d).data; _i < (_d).data + (_d).nr; _i++)
 
 #define darray_for_each(_d, _i)						\

@@ -1792,11 +1792,12 @@ static int discard_in_flight_add(struct bch_dev *ca, u64 bucket, bool in_progres
 	int ret;
 
 	mutex_lock(&ca->discard_buckets_in_flight_lock);
-	darray_for_each(ca->discard_buckets_in_flight, i)
-		if (i->bucket == bucket) {
-			ret = -BCH_ERR_EEXIST_discard_in_flight_add;
-			goto out;
-		}
+	struct discard_in_flight *i =
+		darray_find_p(ca->discard_buckets_in_flight, i, i->bucket == bucket);
+	if (i) {
+		ret = -BCH_ERR_EEXIST_discard_in_flight_add;
+		goto out;
+	}
 
 	ret = darray_push(&ca->discard_buckets_in_flight, ((struct discard_in_flight) {
 			   .in_progress = in_progress,
@@ -1810,14 +1811,11 @@ out:
 static void discard_in_flight_remove(struct bch_dev *ca, u64 bucket)
 {
 	mutex_lock(&ca->discard_buckets_in_flight_lock);
-	darray_for_each(ca->discard_buckets_in_flight, i)
-		if (i->bucket == bucket) {
-			BUG_ON(!i->in_progress);
-			darray_remove_item(&ca->discard_buckets_in_flight, i);
-			goto found;
-		}
-	BUG();
-found:
+	struct discard_in_flight *i =
+		darray_find_p(ca->discard_buckets_in_flight, i, i->bucket == bucket);
+	BUG_ON(!i || !i->in_progress);
+
+	darray_remove_item(&ca->discard_buckets_in_flight, i);
 	mutex_unlock(&ca->discard_buckets_in_flight_lock);
 }
 
