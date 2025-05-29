@@ -2871,7 +2871,7 @@ void dcn20_reset_back_end_for_pipe(
 			link->phy_state.symclk_state = SYMCLK_OFF_TX_OFF;
 		}
 		if (dc->link_srv->dp_is_128b_132b_signal(pipe_ctx) && dccg
-			&& dc->ctx->dce_version != DCN_VERSION_3_15) {
+			&& dc->ctx->dce_version >= DCN_VERSION_3_5) {
 			dto_params.otg_inst = pipe_ctx->stream_res.tg->inst;
 			dto_params.timing = &pipe_ctx->stream->timing;
 			if (dccg && dccg->funcs->set_dtbclk_dto)

@@ -1186,7 +1186,7 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 		if (dccg) {
 			dccg->funcs->disable_symclk32_se(dccg, dp_hpo_inst);
 			dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst, dp_hpo_inst);
-			if (dc->ctx->dce_version == DCN_VERSION_3_15) {
+			if (!(dc->ctx->dce_version >= DCN_VERSION_3_5)) {
 				if (dccg && dccg->funcs->set_dtbclk_dto)
 					dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
 			}
