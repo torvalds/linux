@@ -1543,7 +1543,7 @@ static int pcf2127_spi_probe(struct spi_device *spi)
 		config.write_flag_mask = 0x0;
 	}
 
-	config.max_register = variant->max_register,
+	config.max_register = variant->max_register;
 
 	regmap = devm_regmap_init_spi(spi, &config);
 	if (IS_ERR(regmap)) {
