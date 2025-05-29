@@ -9,11 +9,6 @@ define set_autoconf_var
   export LKL_HOST_CONFIG_$(1)=$(2)
 endef
 
-define set_kernel_config_h
-$(shell echo "#define $(1) $(2)" \
-	  >> $(OUTPUT)/include/kernel_config.h)
-endef
-
 define set_kernel_config
 $(shell echo "CONFIG_$(1)=$(2)" >> $(OUTPUT)/kernel.config)
 endef
@@ -119,12 +114,10 @@ define nt_host
 endef
 
 define s390_host
-  $(call set_kernel_config_h,LKL_CONFIG_CPU_BIG_ENDIAN,1)
   $(call set_kernel_config,CPU_BIG_ENDIAN,y)
 endef
 
 define 64bit_host
-  $(call set_kernel_config_h,LKL_CONFIG_64BIT,1)
   $(call set_kernel_config,64BIT,y)
 endef
 
@@ -310,7 +303,6 @@ $(OUTPUT)Makefile.conf: Makefile.autoconf
 	$(shell mkdir -p $(OUTPUT)/include)
 	$(shell mkdir -p $(OUTPUT)/tests)
 	$(shell echo -n "" > $(OUTPUT)/include/lkl_autoconf.h)
-	$(shell echo -n "" > $(OUTPUT)/include/kernel_config.h)
 	$(shell echo -n "" > $(OUTPUT)/kernel.config)
 	$(shell echo -n "" > $(OUTPUT)/tests/autoconf.sh)
 	@echo "$$do_autoconf" > $(OUTPUT)/Makefile.conf

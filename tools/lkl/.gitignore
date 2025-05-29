@@ -13,7 +13,6 @@ tests/config
 tests/test-dlmopen
 Makefile.conf
 include/lkl_autoconf.h
-include/kernel_config.h
 tests/autoconf.sh
 *.pyc
 bin/stat
