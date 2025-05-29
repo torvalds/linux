@@ -3503,7 +3503,6 @@ void btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
 				struct btrfs_inode *inode, u64 dirid)
 {
 	struct btrfs_root *log;
-	u64 index;
 	int ret;
 
 	ret = inode_logged(trans, inode, NULL);
@@ -3521,8 +3520,7 @@ void btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
 	log = root->log_root;
 	mutex_lock(&inode->log_mutex);
 
-	ret = btrfs_del_inode_ref(trans, log, name, btrfs_ino(inode),
-				  dirid, &index);
+	ret = btrfs_del_inode_ref(trans, log, name, btrfs_ino(inode), dirid, NULL);
 	mutex_unlock(&inode->log_mutex);
 	if (ret < 0 && ret != -ENOENT)
 		btrfs_set_log_full_commit(trans);
