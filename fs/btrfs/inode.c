@@ -6711,10 +6711,9 @@ fail_dir_item:
 		if (ret2)
 			btrfs_abort_transaction(trans, ret2);
 	} else if (add_backref) {
-		u64 local_index;
 		int ret2;
 
-		ret2 = btrfs_del_inode_ref(trans, root, name, ino, parent_ino, &local_index);
+		ret2 = btrfs_del_inode_ref(trans, root, name, ino, parent_ino, NULL);
 		if (ret2)
 			btrfs_abort_transaction(trans, ret2);
 	}
