@@ -506,7 +506,7 @@ out:
  * On error, the caller must call put_device on &@dev->dev (and not kfree),
  * as another code path may have obtained a reference to @dev.
  *
- * Returns: 0 on suceess, -error on failure
+ * Returns: 0 on success, -error on failure
  */
 int register_virtio_device(struct virtio_device *dev)
 {
