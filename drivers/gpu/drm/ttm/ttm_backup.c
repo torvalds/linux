@@ -8,20 +8,6 @@
 #include <linux/swap.h>
 
 /*
- * Casting from randomized struct file * to struct ttm_backup * is fine since
- * struct ttm_backup is never defined nor dereferenced.
- */
-static struct file *ttm_backup_to_file(struct ttm_backup *backup)
-{
-	return (void *)backup;
-}
-
-static struct ttm_backup *ttm_file_to_backup(struct file *file)
-{
-	return (void *)file;
-}
-
-/*
  * Need to map shmem indices to handle since a handle value
  * of 0 means error, following the swp_entry_t convention.
  */
@@ -40,12 +26,12 @@ static pgoff_t ttm_backup_handle_to_shmem_idx(pgoff_t handle)
  * @backup: The struct backup pointer used to obtain the handle
  * @handle: The handle obtained from the @backup_page function.
  */
-void ttm_backup_drop(struct ttm_backup *backup, pgoff_t handle)
+void ttm_backup_drop(struct file *backup, pgoff_t handle)
 {
 	loff_t start = ttm_backup_handle_to_shmem_idx(handle);
 
 	start <<= PAGE_SHIFT;
-	shmem_truncate_range(file_inode(ttm_backup_to_file(backup)), start,
+	shmem_truncate_range(file_inode(backup), start,
 			     start + PAGE_SIZE - 1);
 }
 
@@ -55,16 +41,15 @@ void ttm_backup_drop(struct ttm_backup *backup, pgoff_t handle)
  * @backup: The struct backup pointer used to back up the page.
  * @dst: The struct page to copy into.
  * @handle: The handle returned when the page was backed up.
- * @intr: Try to perform waits interruptable or at least killable.
+ * @intr: Try to perform waits interruptible or at least killable.
  *
  * Return: 0 on success, Negative error code on failure, notably
  * -EINTR if @intr was set to true and a signal is pending.
  */
-int ttm_backup_copy_page(struct ttm_backup *backup, struct page *dst,
+int ttm_backup_copy_page(struct file *backup, struct page *dst,
 			 pgoff_t handle, bool intr)
 {
-	struct file *filp = ttm_backup_to_file(backup);
-	struct address_space *mapping = filp->f_mapping;
+	struct address_space *mapping = backup->f_mapping;
 	struct folio *from_folio;
 	pgoff_t idx = ttm_backup_handle_to_shmem_idx(handle);
 
@@ -106,12 +91,11 @@ int ttm_backup_copy_page(struct ttm_backup *backup, struct page *dst,
  * the folio size- and usage.
  */
 s64
-ttm_backup_backup_page(struct ttm_backup *backup, struct page *page,
+ttm_backup_backup_page(struct file *backup, struct page *page,
 		       bool writeback, pgoff_t idx, gfp_t page_gfp,
 		       gfp_t alloc_gfp)
 {
-	struct file *filp = ttm_backup_to_file(backup);
-	struct address_space *mapping = filp->f_mapping;
+	struct address_space *mapping = backup->f_mapping;
 	unsigned long handle = 0;
 	struct folio *to_folio;
 	int ret;
@@ -161,9 +145,9 @@ ttm_backup_backup_page(struct ttm_backup *backup, struct page *page,
  *
  * After a call to this function, it's illegal to use the @backup pointer.
  */
-void ttm_backup_fini(struct ttm_backup *backup)
+void ttm_backup_fini(struct file *backup)
 {
-	fput(ttm_backup_to_file(backup));
+	fput(backup);
 }
 
 /**
@@ -194,14 +178,10 @@ EXPORT_SYMBOL_GPL(ttm_backup_bytes_avail);
  *
  * Create a backup utilizing shmem objects.
  *
- * Return: A pointer to a struct ttm_backup on success,
+ * Return: A pointer to a struct file on success,
  * an error pointer on error.
  */
-struct ttm_backup *ttm_backup_shmem_create(loff_t size)
+struct file *ttm_backup_shmem_create(loff_t size)
 {
-	struct file *filp;
-
-	filp = shmem_file_setup("ttm shmem backup", size, 0);
-
-	return ttm_file_to_backup(filp);
+	return shmem_file_setup("ttm shmem backup", size, 0);
 }

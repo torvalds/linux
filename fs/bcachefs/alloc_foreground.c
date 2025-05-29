@@ -1422,10 +1422,30 @@ alloc_done:
 
 	wp->sectors_free = UINT_MAX;
 
-	open_bucket_for_each(c, &wp->ptrs, ob, i)
+	open_bucket_for_each(c, &wp->ptrs, ob, i) {
+		/*
+		 * Ensure proper write alignment - either due to misaligned
+		 * bucket sizes (from buggy bcachefs-tools), or writes that mix
+		 * logical/physical alignment:
+		 */
+		struct bch_dev *ca = ob_dev(c, ob);
+		u64 offset = bucket_to_sector(ca, ob->bucket) +
+			ca->mi.bucket_size -
+			ob->sectors_free;
+		unsigned align = round_up(offset, block_sectors(c)) - offset;
+
+		ob->sectors_free = max_t(int, 0, ob->sectors_free - align);
+
 		wp->sectors_free = min(wp->sectors_free, ob->sectors_free);
+	}
 
 	wp->sectors_free = rounddown(wp->sectors_free, block_sectors(c));
+
+	/* Did alignment use up space in an open_bucket? */
+	if (unlikely(!wp->sectors_free)) {
+		bch2_alloc_sectors_done(c, wp);
+		goto retry;
+	}
 
 	BUG_ON(!wp->sectors_free || wp->sectors_free == UINT_MAX);
 

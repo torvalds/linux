@@ -4034,9 +4034,12 @@ static long demote_free_hugetlb_folios(struct hstate *src, struct hstate *dst,
 
 	list_for_each_entry_safe(folio, next, src_list, lru) {
 		int i;
+		bool cma;
 
 		if (folio_test_hugetlb_vmemmap_optimized(folio))
 			continue;
+
+		cma = folio_test_hugetlb_cma(folio);
 
 		list_del(&folio->lru);
 
@@ -4053,6 +4056,9 @@ static long demote_free_hugetlb_folios(struct hstate *src, struct hstate *dst,
 
 			new_folio->mapping = NULL;
 			init_new_hugetlb_folio(dst, new_folio);
+			/* Copy the CMA flag so that it is freed correctly */
+			if (cma)
+				folio_set_hugetlb_cma(new_folio);
 			list_add(&new_folio->lru, &dst_list);
 		}
 	}

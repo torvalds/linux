@@ -104,6 +104,9 @@ void kvm_mmu_track_write(struct kvm_vcpu *vcpu, gpa_t gpa, const u8 *new,
 
 static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
 {
+	if (kvm_check_request(KVM_REQ_MMU_FREE_OBSOLETE_ROOTS, vcpu))
+		kvm_mmu_free_obsolete_roots(vcpu);
+
 	/*
 	 * Checking root.hpa is sufficient even when KVM has mirror root.
 	 * We can have either:
