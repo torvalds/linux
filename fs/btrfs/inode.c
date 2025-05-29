@@ -4215,20 +4215,22 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 	u64 dir_ino = btrfs_ino(dir);
 
 	path = btrfs_alloc_path();
-	if (!path) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!path)
+		return -ENOMEM;
 
 	di = btrfs_lookup_dir_item(trans, root, path, dir_ino, name, -1);
 	if (IS_ERR_OR_NULL(di)) {
-		ret = di ? PTR_ERR(di) : -ENOENT;
-		goto err;
+		btrfs_free_path(path);
+		return di ? PTR_ERR(di) : -ENOENT;
 	}
 	ret = btrfs_delete_one_dir_name(trans, root, path, di);
+	/*
+	 * Down the call chains below we'll also need to allocate a path, so no
+	 * need to hold on to this one for longer than necessary.
+	 */
+	btrfs_free_path(path);
 	if (ret)
-		goto err;
-	btrfs_release_path(path);
+		return ret;
 
 	/*
 	 * If we don't have dir index, we have to get it by looking up
@@ -4254,7 +4256,7 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 	   "failed to delete reference to %.*s, root %llu inode %llu parent %llu",
 			   name->len, name->name, btrfs_root_id(root), ino, dir_ino);
 		btrfs_abort_transaction(trans, ret);
-		goto err;
+		return ret;
 	}
 skip_backref:
 	if (rename_ctx)
@@ -4263,7 +4265,7 @@ skip_backref:
 	ret = btrfs_delete_delayed_dir_index(trans, dir, index);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
-		goto err;
+		return ret;
 	}
 
 	/*
@@ -4287,19 +4289,14 @@ skip_backref:
 	 * holding.
 	 */
 	btrfs_run_delayed_iput(fs_info, inode);
-err:
-	btrfs_free_path(path);
-	if (ret)
-		goto out;
 
 	btrfs_i_size_write(dir, dir->vfs_inode.i_size - name->len * 2);
 	inode_inc_iversion(&inode->vfs_inode);
 	inode_set_ctime_current(&inode->vfs_inode);
 	inode_inc_iversion(&dir->vfs_inode);
  	inode_set_mtime_to_ts(&dir->vfs_inode, inode_set_ctime_current(&dir->vfs_inode));
-	ret = btrfs_update_inode(trans, dir);
-out:
-	return ret;
+
+	return btrfs_update_inode(trans, dir);
 }
 
 int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
