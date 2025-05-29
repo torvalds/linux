@@ -115,10 +115,8 @@ static unsigned int pack_and_call_dml_mode_support_ex(struct dml2_context *dml2,
 static bool optimize_configuration(struct dml2_context *dml2, struct dml2_wrapper_optimize_configuration_params *p)
 {
 	int unused_dpps = p->ip_params->max_num_dpp;
-	int i, j;
-	int odms_needed, refresh_rate_hz, dpps_needed, subvp_height, pstate_width_fw_delay_lines, surface_count;
-	int subvp_timing_to_add, new_timing_index, subvp_surface_to_add, new_surface_index;
-	float frame_time_sec, max_frame_time_sec;
+	int i;
+	int odms_needed;
 	int largest_blend_and_timing = 0;
 	bool optimization_done = false;
 
@@ -133,79 +131,6 @@ static bool optimize_configuration(struct dml2_context *dml2, struct dml2_wrappe
 	if (p->new_display_config != p->cur_display_config)
 		*p->new_display_config = *p->cur_display_config;
 
-	// Optimize P-State Support
-	if (dml2->config.use_native_pstate_optimization) {
-		if (p->cur_mode_support_info->DRAMClockChangeSupport[0] == dml_dram_clock_change_unsupported) {
-			// Find a display with < 120Hz refresh rate with maximal refresh rate that's not already subvp
-			subvp_timing_to_add = -1;
-			subvp_surface_to_add = -1;
-			max_frame_time_sec = 0;
-			surface_count = 0;
-			for (i = 0; i < (int) p->cur_display_config->num_timings; i++) {
-				refresh_rate_hz = (int)div_u64((unsigned long long) p->cur_display_config->timing.PixelClock[i] * 1000 * 1000,
-					(p->cur_display_config->timing.HTotal[i] * p->cur_display_config->timing.VTotal[i]));
-				if (refresh_rate_hz < 120) {
-					// Check its upstream surfaces to see if this one could be converted to subvp.
-					dpps_needed = 0;
-				for (j = 0; j < (int) p->cur_display_config->num_surfaces; j++) {
-					if (p->cur_display_config->plane.BlendingAndTiming[j] == i &&
-						p->cur_display_config->plane.UseMALLForPStateChange[j] == dml_use_mall_pstate_change_disable) {
-						dpps_needed += p->cur_mode_support_info->DPPPerSurface[j];
-						subvp_surface_to_add = j;
-						surface_count++;
-					}
-				}
-
-				if (surface_count == 1 && dpps_needed > 0 && dpps_needed <= unused_dpps) {
-					frame_time_sec = (float)1 / refresh_rate_hz;
-					if (frame_time_sec > max_frame_time_sec) {
-						max_frame_time_sec = frame_time_sec;
-						subvp_timing_to_add = i;
-						}
-					}
-				}
-			}
-			if (subvp_timing_to_add >= 0) {
-				new_timing_index = p->new_display_config->num_timings++;
-				new_surface_index = p->new_display_config->num_surfaces++;
-				// Add a phantom pipe reflecting the main pipe's timing
-				dml2_util_copy_dml_timing(&p->new_display_config->timing, new_timing_index, subvp_timing_to_add);
-
-				pstate_width_fw_delay_lines = (int)(((double)(p->config->svp_pstate.subvp_fw_processing_delay_us +
-					p->config->svp_pstate.subvp_pstate_allow_width_us) / 1000000) *
-				(p->new_display_config->timing.PixelClock[subvp_timing_to_add] * 1000 * 1000) /
-				(double)p->new_display_config->timing.HTotal[subvp_timing_to_add]);
-
-				subvp_height = p->cur_mode_support_info->SubViewportLinesNeededInMALL[subvp_timing_to_add] + pstate_width_fw_delay_lines;
-
-				p->new_display_config->timing.VActive[new_timing_index] = subvp_height;
-				p->new_display_config->timing.VTotal[new_timing_index] = subvp_height +
-				p->new_display_config->timing.VTotal[subvp_timing_to_add] - p->new_display_config->timing.VActive[subvp_timing_to_add];
-
-				p->new_display_config->output.OutputDisabled[new_timing_index] = true;
-
-				p->new_display_config->plane.UseMALLForPStateChange[subvp_surface_to_add] = dml_use_mall_pstate_change_sub_viewport;
-
-				dml2_util_copy_dml_plane(&p->new_display_config->plane, new_surface_index, subvp_surface_to_add);
-				dml2_util_copy_dml_surface(&p->new_display_config->surface, new_surface_index, subvp_surface_to_add);
-
-				p->new_display_config->plane.ViewportHeight[new_surface_index] = subvp_height;
-				p->new_display_config->plane.ViewportHeightChroma[new_surface_index] = subvp_height;
-				p->new_display_config->plane.ViewportStationary[new_surface_index] = false;
-
-				p->new_display_config->plane.UseMALLForStaticScreen[new_surface_index] = dml_use_mall_static_screen_disable;
-				p->new_display_config->plane.UseMALLForPStateChange[new_surface_index] = dml_use_mall_pstate_change_phantom_pipe;
-
-				p->new_display_config->plane.NumberOfCursors[new_surface_index] = 0;
-
-				p->new_policy->ImmediateFlipRequirement[new_surface_index] = dml_immediate_flip_not_required;
-
-				p->new_display_config->plane.BlendingAndTiming[new_surface_index] = new_timing_index;
-
-				optimization_done = true;
-			}
-		}
-	}
 
 	// Optimize Clocks
 	if (!optimization_done) {
@@ -428,119 +353,6 @@ static bool dml_mode_support_wrapper(struct dml2_context *dml2,
 	return result;
 }
 
-static int find_drr_eligible_stream(struct dc_state *display_state)
-{
-	int i;
-
-	for (i = 0; i < display_state->stream_count; i++) {
-		if (dc_state_get_stream_subvp_type(display_state, display_state->streams[i]) == SUBVP_NONE
-			&& display_state->streams[i]->ignore_msa_timing_param) {
-			// Use ignore_msa_timing_param flag to identify as DRR
-			return i;
-		}
-	}
-
-	return -1;
-}
-
-static bool optimize_pstate_with_svp_and_drr(struct dml2_context *dml2, struct dc_state *display_state,
-		enum dc_validate_mode validate_mode)
-{
-	struct dml2_wrapper_scratch *s = &dml2->v20.scratch;
-	bool pstate_optimization_done = false;
-	bool pstate_optimization_success = false;
-	bool result = false;
-	int drr_display_index = 0, non_svp_streams = 0;
-	bool force_svp = dml2->config.svp_pstate.force_enable_subvp;
-
-	display_state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
-	display_state->bw_ctx.bw.dcn.legacy_svp_drr_stream_index_valid = false;
-
-	result = dml_mode_support_wrapper(dml2, display_state, validate_mode);
-
-	if (!result) {
-		pstate_optimization_done = true;
-	} else if (s->mode_support_info.DRAMClockChangeSupport[0] != dml_dram_clock_change_unsupported && !force_svp) {
-		pstate_optimization_success = true;
-		pstate_optimization_done = true;
-	}
-
-	if (display_state->stream_count == 1 && dml2->config.callbacks.can_support_mclk_switch_using_fw_based_vblank_stretch(dml2->config.callbacks.dc, display_state)) {
-			display_state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = true;
-
-			result = dml_mode_support_wrapper(dml2, display_state, validate_mode);
-	} else {
-		non_svp_streams = display_state->stream_count;
-
-		while (!pstate_optimization_done) {
-			result = dml_mode_programming(&dml2->v20.dml_core_ctx, s->mode_support_params.out_lowest_state_idx, &s->cur_display_config, true);
-
-			// Always try adding SVP first
-			if (result)
-				result = dml2_svp_add_phantom_pipe_to_dc_state(dml2, display_state, &s->mode_support_info);
-			else
-				pstate_optimization_done = true;
-
-
-			if (result) {
-				result = dml_mode_support_wrapper(dml2, display_state, validate_mode);
-			} else {
-				pstate_optimization_done = true;
-			}
-
-			if (result) {
-				non_svp_streams--;
-
-				if (s->mode_support_info.DRAMClockChangeSupport[0] != dml_dram_clock_change_unsupported) {
-					if (dml2_svp_validate_static_schedulability(dml2, display_state, s->mode_support_info.DRAMClockChangeSupport[0])) {
-						pstate_optimization_success = true;
-						pstate_optimization_done = true;
-					} else {
-						pstate_optimization_success = false;
-						pstate_optimization_done = false;
-					}
-				} else {
-					drr_display_index = find_drr_eligible_stream(display_state);
-
-					// If there is only 1 remaining non SubVP pipe that is DRR, check static
-					// schedulability for SubVP + DRR.
-					if (non_svp_streams == 1 && drr_display_index >= 0) {
-						if (dml2_svp_drr_schedulable(dml2, display_state, &display_state->streams[drr_display_index]->timing)) {
-							display_state->bw_ctx.bw.dcn.legacy_svp_drr_stream_index_valid = true;
-							display_state->bw_ctx.bw.dcn.legacy_svp_drr_stream_index = drr_display_index;
-							result = dml_mode_support_wrapper(dml2, display_state,
-										validate_mode);
-						}
-
-						if (result && s->mode_support_info.DRAMClockChangeSupport[0] != dml_dram_clock_change_unsupported) {
-							pstate_optimization_success = true;
-							pstate_optimization_done = true;
-						} else {
-							pstate_optimization_success = false;
-							pstate_optimization_done = false;
-						}
-					}
-
-					if (pstate_optimization_success) {
-						pstate_optimization_done = true;
-					} else {
-						pstate_optimization_done = false;
-					}
-				}
-			}
-		}
-	}
-
-	if (!pstate_optimization_success) {
-		dml2_svp_remove_all_phantom_pipes(dml2, display_state);
-		display_state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
-		display_state->bw_ctx.bw.dcn.legacy_svp_drr_stream_index_valid = false;
-		result = dml_mode_support_wrapper(dml2, display_state, validate_mode);
-	}
-
-	return result;
-}
-
 static bool call_dml_mode_support_and_programming(struct dc_state *context, enum dc_validate_mode validate_mode)
 {
 	unsigned int result = 0;
@@ -561,11 +373,7 @@ static bool call_dml_mode_support_and_programming(struct dc_state *context, enum
 		ASSERT(min_state_for_g6_temp_read >= 0);
 	}
 
-	if (!dml2->config.use_native_pstate_optimization) {
-		result = optimize_pstate_with_svp_and_drr(dml2, context, validate_mode);
-	} else {
-		result = dml_mode_support_wrapper(dml2, context, validate_mode);
-	}
+	result = dml_mode_support_wrapper(dml2, context, validate_mode);
 
 	/* Upon trying to sett certain frequencies in FRL, min_state_for_g6_temp_read is reported as -1. This leads to an invalid value of min_state causing crashes later on.
 	 * Use the default logic for min_state only when min_state_for_g6_temp_read is a valid value. In other cases, use the value calculated by the DML directly.
