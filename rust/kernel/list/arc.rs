@@ -74,7 +74,7 @@ pub unsafe trait TryNewListArc<const ID: u64 = 0>: ListArcSafe<ID> {
 ///
 /// * The `untracked` strategy does not actually keep track of whether a [`ListArc`] exists. When
 ///   using this strategy, the only way to create a [`ListArc`] is using a [`UniqueArc`].
-/// * The `tracked_by` strategy defers the tracking to a field of the struct. The user much specify
+/// * The `tracked_by` strategy defers the tracking to a field of the struct. The user must specify
 ///   which field to defer the tracking to. The field must implement [`ListArcSafe`]. If the field
 ///   implements [`TryNewListArc`], then the type will also implement [`TryNewListArc`].
 ///
