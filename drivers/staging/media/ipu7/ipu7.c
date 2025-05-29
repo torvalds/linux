@@ -2745,10 +2745,8 @@ static int ipu7_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops ipu7_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(&ipu7_suspend, &ipu7_resume)
-	SET_RUNTIME_PM_OPS(&ipu7_suspend,	/* Same as in suspend flow */
-			   &ipu7_runtime_resume,
-			   NULL)
+	SYSTEM_SLEEP_PM_OPS(&ipu7_suspend, &ipu7_resume)
+	RUNTIME_PM_OPS(&ipu7_suspend, &ipu7_runtime_resume, NULL)
 };
 
 static const struct pci_device_id ipu7_pci_tbl[] = {
