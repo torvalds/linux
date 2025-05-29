@@ -92,13 +92,15 @@ fn find_real_path<'a>(srctree: &Path, valid_paths: &'a mut Vec<PathBuf>, file: &
         ),
         [valid_path] => valid_path.to_str().unwrap(),
         valid_paths => {
-            eprintln!("Several path candidates found:");
+            use std::fmt::Write;
+
+            let mut candidates = String::new();
             for path in valid_paths {
-                eprintln!("    {path:?}");
+                writeln!(&mut candidates, "    {path:?}").unwrap();
             }
             panic!(
                 "Several path candidates found for `{file}`, please resolve the ambiguity by \
-                renaming a file or folder."
+                renaming a file or folder. Candidates:\n{candidates}",
             );
         }
     }
