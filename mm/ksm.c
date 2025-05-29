@@ -677,26 +677,31 @@ static int break_ksm(struct vm_area_struct *vma, unsigned long addr, bool lock_v
 	return (ret & VM_FAULT_OOM) ? -ENOMEM : 0;
 }
 
-static bool vma_ksm_compatible(struct vm_area_struct *vma)
+static bool ksm_compatible(const struct file *file, vm_flags_t vm_flags)
 {
-	if (vma->vm_flags & (VM_SHARED  | VM_MAYSHARE   | VM_PFNMAP  |
-			     VM_IO      | VM_DONTEXPAND | VM_HUGETLB |
-			     VM_MIXEDMAP| VM_DROPPABLE))
+	if (vm_flags & (VM_SHARED   | VM_MAYSHARE   | VM_PFNMAP  |
+			VM_IO       | VM_DONTEXPAND | VM_HUGETLB |
+			VM_MIXEDMAP | VM_DROPPABLE))
 		return false;		/* just ignore the advice */
 
-	if (vma_is_dax(vma))
+	if (file_is_dax(file))
 		return false;
 
 #ifdef VM_SAO
-	if (vma->vm_flags & VM_SAO)
+	if (vm_flags & VM_SAO)
 		return false;
 #endif
 #ifdef VM_SPARC_ADI
-	if (vma->vm_flags & VM_SPARC_ADI)
+	if (vm_flags & VM_SPARC_ADI)
 		return false;
 #endif
 
 	return true;
+}
+
+static bool vma_ksm_compatible(struct vm_area_struct *vma)
+{
+	return ksm_compatible(vma->vm_file, vma->vm_flags);
 }
 
 static struct vm_area_struct *find_mergeable_vma(struct mm_struct *mm,
@@ -2696,14 +2701,17 @@ static int ksm_scan_thread(void *nothing)
 	return 0;
 }
 
+static bool __ksm_should_add_vma(const struct file *file, vm_flags_t vm_flags)
+{
+	if (vm_flags & VM_MERGEABLE)
+		return false;
+
+	return ksm_compatible(file, vm_flags);
+}
+
 static void __ksm_add_vma(struct vm_area_struct *vma)
 {
-	unsigned long vm_flags = vma->vm_flags;
-
-	if (vm_flags & VM_MERGEABLE)
-		return;
-
-	if (vma_ksm_compatible(vma))
+	if (__ksm_should_add_vma(vma->vm_file, vma->vm_flags))
 		vm_flags_set(vma, VM_MERGEABLE);
 }
 
