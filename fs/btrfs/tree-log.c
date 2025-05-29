@@ -112,7 +112,7 @@ static noinline int replay_dir_deletes(struct btrfs_trans_handle *trans,
 				       struct btrfs_root *root,
 				       struct btrfs_root *log,
 				       struct btrfs_path *path,
-				       u64 dirid, int del_all);
+				       u64 dirid, bool del_all);
 static void wait_log_commit(struct btrfs_root *root, int transid);
 
 /*
@@ -1633,8 +1633,7 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 
 	if (inode->vfs_inode.i_nlink == 0) {
 		if (S_ISDIR(inode->vfs_inode.i_mode)) {
-			ret = replay_dir_deletes(trans, root, NULL, path,
-						 ino, 1);
+			ret = replay_dir_deletes(trans, root, NULL, path, ino, true);
 			if (ret)
 				goto out;
 		}
@@ -2285,7 +2284,7 @@ static noinline int replay_dir_deletes(struct btrfs_trans_handle *trans,
 				       struct btrfs_root *root,
 				       struct btrfs_root *log,
 				       struct btrfs_path *path,
-				       u64 dirid, int del_all)
+				       u64 dirid, bool del_all)
 {
 	u64 range_start;
 	u64 range_end;
@@ -2444,8 +2443,8 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 				break;
 			mode = btrfs_inode_mode(eb, inode_item);
 			if (S_ISDIR(mode)) {
-				ret = replay_dir_deletes(wc->trans,
-					 root, log, path, key.objectid, 0);
+				ret = replay_dir_deletes(wc->trans, root, log, path,
+							 key.objectid, false);
 				if (ret)
 					break;
 			}
