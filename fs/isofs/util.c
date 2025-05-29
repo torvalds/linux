@@ -16,29 +16,44 @@
  * to GMT.  Thus  we should always be correct.
  */
 
-int iso_date(u8 *p, int flag)
+struct timespec64 iso_date(u8 *p, int flags)
 {
 	int year, month, day, hour, minute, second, tz;
-	int crtime;
+	struct timespec64 ts;
 
-	year = p[0];
-	month = p[1];
-	day = p[2];
-	hour = p[3];
-	minute = p[4];
-	second = p[5];
-	if (flag == 0) tz = p[6]; /* High sierra has no time zone */
-	else tz = 0;
-	
-	if (year < 0) {
-		crtime = 0;
+	if (flags & ISO_DATE_LONG_FORM) {
+		year = (p[0] - '0') * 1000 +
+		       (p[1] - '0') * 100 +
+		       (p[2] - '0') * 10 +
+		       (p[3] - '0') - 1900;
+		month = ((p[4] - '0') * 10 + (p[5] - '0'));
+		day = ((p[6] - '0') * 10 + (p[7] - '0'));
+		hour = ((p[8] - '0') * 10 + (p[9] - '0'));
+		minute = ((p[10] - '0') * 10 + (p[11] - '0'));
+		second = ((p[12] - '0') * 10 + (p[13] - '0'));
+		ts.tv_nsec = ((p[14] - '0') * 10 + (p[15] - '0')) * 10000000;
+		tz = p[16];
 	} else {
-		crtime = mktime64(year+1900, month, day, hour, minute, second);
+		year = p[0];
+		month = p[1];
+		day = p[2];
+		hour = p[3];
+		minute = p[4];
+		second = p[5];
+		ts.tv_nsec = 0;
+		/* High sierra has no time zone */
+		tz = flags & ISO_DATE_HIGH_SIERRA ? 0 : p[6];
+	}
+
+	if (year < 0) {
+		ts.tv_sec = 0;
+	} else {
+		ts.tv_sec = mktime64(year+1900, month, day, hour, minute, second);
 
 		/* sign extend */
 		if (tz & 0x80)
 			tz |= (-1 << 8);
-		
+
 		/* 
 		 * The timezone offset is unreliable on some disks,
 		 * so we make a sanity check.  In no case is it ever
@@ -65,7 +80,7 @@ int iso_date(u8 *p, int flag)
 		 * for pointing out the sign error.
 		 */
 		if (-52 <= tz && tz <= 52)
-			crtime -= tz * 15 * 60;
+			ts.tv_sec -= tz * 15 * 60;
 	}
-	return crtime;
-}		
+	return ts;
+}
