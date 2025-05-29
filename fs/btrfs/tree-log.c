@@ -3473,7 +3473,8 @@ void btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 	}
 
 	ret = join_running_log_trans(root);
-	if (ret)
+	ASSERT(ret == 0, "join_running_log_trans() ret=%d", ret);
+	if (WARN_ON(ret))
 		return;
 
 	mutex_lock(&dir->log_mutex);
