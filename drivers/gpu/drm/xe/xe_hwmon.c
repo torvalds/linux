@@ -298,16 +298,6 @@ static void xe_hwmon_power_max_read(struct xe_hwmon *hwmon, u32 attr, int channe
 	} else {
 		rapl_limit = xe_hwmon_get_reg(hwmon, REG_PKG_RAPL_LIMIT, channel);
 		pkg_power_sku = xe_hwmon_get_reg(hwmon, REG_PKG_POWER_SKU, channel);
-
-		/*
-		 * Valid check of REG_PKG_RAPL_LIMIT is already done in xe_hwmon_power_is_visible.
-		 * So not checking it again here.
-		 */
-		if (!xe_reg_is_valid(pkg_power_sku)) {
-			drm_warn(&xe->drm, "pkg_power_sku invalid\n");
-			*value = 0;
-			goto unlock;
-		}
 		reg_val = xe_mmio_read32(mmio, rapl_limit);
 	}
 
@@ -652,17 +642,20 @@ static umode_t xe_hwmon_attributes_visible(struct kobject *kobj,
 	int ret = 0;
 	int channel = (index % 2) ? CHANNEL_PKG : CHANNEL_CARD;
 	u32 power_attr = (index > 1) ? PL2_HWMON_ATTR : PL1_HWMON_ATTR;
-	u32 uval;
+	u32 uval = 0;
+	struct xe_reg rapl_limit;
+	struct xe_mmio *mmio = xe_root_tile_mmio(hwmon->xe);
 
 	xe_pm_runtime_get(hwmon->xe);
 
 	if (hwmon->xe->info.has_mbx_power_limits) {
 		xe_hwmon_pcode_read_power_limit(hwmon, power_attr, channel, &uval);
-		ret = (uval & PWR_LIM_EN) ? attr->mode : 0;
 	} else if (power_attr != PL2_HWMON_ATTR) {
-		ret = xe_reg_is_valid(xe_hwmon_get_reg(hwmon, REG_PKG_RAPL_LIMIT,
-						       channel)) ? attr->mode : 0;
+		rapl_limit = xe_hwmon_get_reg(hwmon, REG_PKG_RAPL_LIMIT, channel);
+		if (xe_reg_is_valid(rapl_limit))
+			uval = xe_mmio_read32(mmio, rapl_limit);
 	}
+	ret = (uval & PWR_LIM_EN) ? attr->mode : 0;
 
 	xe_pm_runtime_put(hwmon->xe);
 
@@ -806,24 +799,20 @@ static umode_t
 xe_hwmon_power_is_visible(struct xe_hwmon *hwmon, u32 attr, int channel)
 {
 	u32 uval = 0;
-	struct xe_reg rapl_limit;
+	struct xe_reg reg;
 	struct xe_mmio *mmio = xe_root_tile_mmio(hwmon->xe);
 
 	switch (attr) {
 	case hwmon_power_max:
 	case hwmon_power_cap:
-	case hwmon_power_label:
 		if (hwmon->xe->info.has_mbx_power_limits) {
 			xe_hwmon_pcode_read_power_limit(hwmon, attr, channel, &uval);
 		} else if (attr != PL2_HWMON_ATTR) {
-			rapl_limit = xe_hwmon_get_reg(hwmon, REG_PKG_RAPL_LIMIT, channel);
-			if (xe_reg_is_valid(rapl_limit))
-				uval = xe_mmio_read32(mmio, rapl_limit);
+			reg = xe_hwmon_get_reg(hwmon, REG_PKG_RAPL_LIMIT, channel);
+			if (xe_reg_is_valid(reg))
+				uval = xe_mmio_read32(mmio, reg);
 		}
 		if (uval & PWR_LIM_EN) {
-			if (attr == hwmon_power_label)
-				return 0444;
-
 			drm_info(&hwmon->xe->drm, "%s is supported on channel %d\n",
 				 PWR_ATTR_TO_STR(attr), channel);
 			return 0664;
@@ -832,17 +821,39 @@ xe_hwmon_power_is_visible(struct xe_hwmon *hwmon, u32 attr, int channel)
 			PWR_ATTR_TO_STR(attr), channel);
 		return 0;
 	case hwmon_power_rated_max:
-		if (hwmon->xe->info.has_mbx_power_limits)
+		if (hwmon->xe->info.has_mbx_power_limits) {
 			return 0;
-		else
-			return xe_reg_is_valid(xe_hwmon_get_reg(hwmon, REG_PKG_POWER_SKU,
-					       channel)) ? 0444 : 0;
+		} else {
+			reg = xe_hwmon_get_reg(hwmon, REG_PKG_POWER_SKU, channel);
+			if (xe_reg_is_valid(reg))
+				uval = xe_mmio_read32(mmio, reg);
+			return uval ? 0444 : 0;
+		}
 	case hwmon_power_crit:
 		if (channel == CHANNEL_CARD) {
 			xe_hwmon_pcode_read_i1(hwmon, &uval);
 			return (uval & POWER_SETUP_I1_WATTS) ? 0644 : 0;
 		}
 		break;
+	case hwmon_power_label:
+		if (hwmon->xe->info.has_mbx_power_limits) {
+			xe_hwmon_pcode_read_power_limit(hwmon, attr, channel, &uval);
+		} else {
+			reg = xe_hwmon_get_reg(hwmon, REG_PKG_POWER_SKU, channel);
+			if (xe_reg_is_valid(reg))
+				uval = xe_mmio_read32(mmio, reg);
+
+			if (!uval) {
+				reg = xe_hwmon_get_reg(hwmon, REG_PKG_RAPL_LIMIT, channel);
+				if (xe_reg_is_valid(reg))
+					uval = xe_mmio_read32(mmio, reg);
+			}
+		}
+		if ((!(uval & PWR_LIM_EN)) && channel == CHANNEL_CARD) {
+			xe_hwmon_pcode_read_i1(hwmon, &uval);
+			return (uval & POWER_SETUP_I1_WATTS) ? 0444 : 0;
+		}
+		return (uval) ? 0444 : 0;
 	default:
 		return 0;
 	}
