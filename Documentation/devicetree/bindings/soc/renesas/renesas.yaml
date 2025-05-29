@@ -551,6 +551,21 @@ properties:
               - renesas,r9a09g047e58 # Quad Cortex-A55 + Cortex-M33 + Ethos-U55 (21mm BGA)
           - const: renesas,r9a09g047
 
+      - description: RZ/V2N (R9A09G056)
+        items:
+          - enum:
+              - renesas,rzv2n-evk # RZ/V2N EVK (RTK0EF0186C03000BJ)
+          - enum:
+              - renesas,r9a09g056n41 # RZ/V2N
+              - renesas,r9a09g056n42 # RZ/V2N with Mali-G31 support
+              - renesas,r9a09g056n43 # RZ/V2N with Mali-C55 support
+              - renesas,r9a09g056n44 # RZ/V2N with Mali-G31 + Mali-C55 support
+              - renesas,r9a09g056n45 # RZ/V2N with cryptographic extension support
+              - renesas,r9a09g056n46 # RZ/V2N with Mali-G31 + cryptographic extension support
+              - renesas,r9a09g056n47 # RZ/V2N with Mali-C55 + cryptographic extension support
+              - renesas,r9a09g056n48 # RZ/V2N with Mali-G31 + Mali-C55 + cryptographic extension support
+          - const: renesas,r9a09g056
+
       - description: RZ/V2H(P) (R9A09G057)
         items:
           - enum:
