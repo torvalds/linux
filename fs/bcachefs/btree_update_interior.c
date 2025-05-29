@@ -57,8 +57,6 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 	struct bkey_buf prev;
 	int ret = 0;
 
-	printbuf_indent_add_nextline(&buf, 2);
-
 	BUG_ON(b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
 	       !bpos_eq(bkey_i_to_btree_ptr_v2(&b->key)->v.min_key,
 			b->data->min_key));
@@ -69,20 +67,23 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 
 	if (b == btree_node_root(c, b)) {
 		if (!bpos_eq(b->data->min_key, POS_MIN)) {
-			ret = __bch2_topology_error(c, &buf);
-
+			bch2_log_msg_start(c, &buf);
+			prt_printf(&buf, "btree root with incorrect min_key: ");
 			bch2_bpos_to_text(&buf, b->data->min_key);
-			log_fsck_err(trans, btree_root_bad_min_key,
-				      "btree root with incorrect min_key: %s", buf.buf);
-			goto out;
+			prt_newline(&buf);
+
+			bch2_count_fsck_err(c, btree_root_bad_min_key, &buf);
+			goto err;
 		}
 
 		if (!bpos_eq(b->data->max_key, SPOS_MAX)) {
-			ret = __bch2_topology_error(c, &buf);
+			bch2_log_msg_start(c, &buf);
+			prt_printf(&buf, "btree root with incorrect max_key: ");
 			bch2_bpos_to_text(&buf, b->data->max_key);
-			log_fsck_err(trans, btree_root_bad_max_key,
-				      "btree root with incorrect max_key: %s", buf.buf);
-			goto out;
+			prt_newline(&buf);
+
+			bch2_count_fsck_err(c, btree_root_bad_max_key, &buf);
+			goto err;
 		}
 	}
 
@@ -100,19 +101,15 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 			: bpos_successor(prev.k->k.p);
 
 		if (!bpos_eq(expected_min, bp.v->min_key)) {
-			ret = __bch2_topology_error(c, &buf);
-
-			prt_str(&buf, "end of prev node doesn't match start of next node\nin ");
-			bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
-			prt_str(&buf, " node ");
-			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
+			prt_str(&buf, "end of prev node doesn't match start of next node");
 			prt_str(&buf, "\nprev ");
 			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(prev.k));
 			prt_str(&buf, "\nnext ");
 			bch2_bkey_val_to_text(&buf, c, k);
+			prt_newline(&buf);
 
-			log_fsck_err(trans, btree_node_topology_bad_min_key, "%s", buf.buf);
-			goto out;
+			bch2_count_fsck_err(c, btree_node_topology_bad_min_key, &buf);
+			goto err;
 		}
 
 		bch2_bkey_buf_reassemble(&prev, c, k);
@@ -120,32 +117,34 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 	}
 
 	if (bkey_deleted(&prev.k->k)) {
-		ret = __bch2_topology_error(c, &buf);
+		prt_printf(&buf, "empty interior node\n");
+		bch2_count_fsck_err(c, btree_node_topology_empty_interior_node, &buf);
+		goto err;
+	}
 
-		prt_str(&buf, "empty interior node\nin ");
-		bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
-		prt_str(&buf, " node ");
-		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
-
-		log_fsck_err(trans, btree_node_topology_empty_interior_node, "%s", buf.buf);
-	} else if (!bpos_eq(prev.k->k.p, b->key.k.p)) {
-		ret = __bch2_topology_error(c, &buf);
-
-		prt_str(&buf, "last child node doesn't end at end of parent node\nin ");
-		bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
-		prt_str(&buf, " node ");
-		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
-		prt_str(&buf, "\nlast key ");
+	if (!bpos_eq(prev.k->k.p, b->key.k.p)) {
+		prt_str(&buf, "last child node doesn't end at end of parent node\nchild: ");
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(prev.k));
+		prt_newline(&buf);
 
-		log_fsck_err(trans, btree_node_topology_bad_max_key, "%s", buf.buf);
+		bch2_count_fsck_err(c, btree_node_topology_bad_max_key, &buf);
+		goto err;
 	}
 out:
-fsck_err:
 	bch2_btree_and_journal_iter_exit(&iter);
 	bch2_bkey_buf_exit(&prev, c);
 	printbuf_exit(&buf);
 	return ret;
+err:
+	bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
+	prt_char(&buf, ' ');
+	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
+	prt_newline(&buf);
+
+	ret = __bch2_topology_error(c, &buf);
+	bch2_print_str(c, KERN_ERR, buf.buf);
+	BUG_ON(!ret);
+	goto out;
 }
 
 /* Calculate ideal packed bkey format for new btree nodes: */
