@@ -768,6 +768,7 @@ static int bch2_check_dirent_inode_dirent(struct btree_trans *trans,
 			ret = __bch2_fsck_write_inode(trans, target);
 		}
 	} else {
+		printbuf_reset(&buf);
 		bch2_bkey_val_to_text(&buf, c, d.s_c);
 		prt_newline(&buf);
 		bch2_bkey_val_to_text(&buf, c, bp_dirent.s_c);
