@@ -17,7 +17,6 @@
 
 #include "kernfs-internal.h"
 
-DEFINE_RWLOCK(kernfs_rename_lock);	/* kn->parent and ->name */
 /*
  * Don't use rename_lock to piggy back on pr_cont_buf. We don't want to
  * call pr_cont() while holding rename_lock. Because sometimes pr_cont()
@@ -27,7 +26,6 @@ DEFINE_RWLOCK(kernfs_rename_lock);	/* kn->parent and ->name */
  */
 static DEFINE_SPINLOCK(kernfs_pr_cont_lock);
 static char kernfs_pr_cont_buf[PATH_MAX];	/* protected by pr_cont_lock */
-static DEFINE_SPINLOCK(kernfs_idr_lock);	/* root->ino_idr */
 
 #define rb_to_kn(X) rb_entry((X), struct kernfs_node, rb)
 
@@ -229,7 +227,7 @@ int kernfs_path_from_node(struct kernfs_node *to, struct kernfs_node *from,
 	if (to) {
 		root = kernfs_root(to);
 		if (!(root->flags & KERNFS_ROOT_INVARIANT_PARENT)) {
-			guard(read_lock_irqsave)(&kernfs_rename_lock);
+			guard(read_lock_irqsave)(&root->kernfs_rename_lock);
 			return kernfs_path_from_node_locked(to, from, buf, buflen);
 		}
 	}
@@ -296,12 +294,14 @@ out:
 struct kernfs_node *kernfs_get_parent(struct kernfs_node *kn)
 {
 	struct kernfs_node *parent;
+	struct kernfs_root *root;
 	unsigned long flags;
 
-	read_lock_irqsave(&kernfs_rename_lock, flags);
+	root = kernfs_root(kn);
+	read_lock_irqsave(&root->kernfs_rename_lock, flags);
 	parent = kernfs_parent(kn);
 	kernfs_get(parent);
-	read_unlock_irqrestore(&kernfs_rename_lock, flags);
+	read_unlock_irqrestore(&root->kernfs_rename_lock, flags);
 
 	return parent;
 }
@@ -584,9 +584,9 @@ void kernfs_put(struct kernfs_node *kn)
 	if (kernfs_type(kn) == KERNFS_LINK)
 		kernfs_put(kn->symlink.target_kn);
 
-	spin_lock(&kernfs_idr_lock);
+	spin_lock(&root->kernfs_idr_lock);
 	idr_remove(&root->ino_idr, (u32)kernfs_ino(kn));
-	spin_unlock(&kernfs_idr_lock);
+	spin_unlock(&root->kernfs_idr_lock);
 
 	call_rcu(&kn->rcu, kernfs_free_rcu);
 
@@ -639,13 +639,13 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 		goto err_out1;
 
 	idr_preload(GFP_KERNEL);
-	spin_lock(&kernfs_idr_lock);
+	spin_lock(&root->kernfs_idr_lock);
 	ret = idr_alloc_cyclic(&root->ino_idr, kn, 1, 0, GFP_ATOMIC);
 	if (ret >= 0 && ret < root->last_id_lowbits)
 		root->id_highbits++;
 	id_highbits = root->id_highbits;
 	root->last_id_lowbits = ret;
-	spin_unlock(&kernfs_idr_lock);
+	spin_unlock(&root->kernfs_idr_lock);
 	idr_preload_end();
 	if (ret < 0)
 		goto err_out2;
@@ -681,9 +681,9 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	return kn;
 
  err_out3:
-	spin_lock(&kernfs_idr_lock);
+	spin_lock(&root->kernfs_idr_lock);
 	idr_remove(&root->ino_idr, (u32)kernfs_ino(kn));
-	spin_unlock(&kernfs_idr_lock);
+	spin_unlock(&root->kernfs_idr_lock);
  err_out2:
 	kmem_cache_free(kernfs_node_cache, kn);
  err_out1:
@@ -989,10 +989,12 @@ struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
 		return ERR_PTR(-ENOMEM);
 
 	idr_init(&root->ino_idr);
+	spin_lock_init(&root->kernfs_idr_lock);
 	init_rwsem(&root->kernfs_rwsem);
 	init_rwsem(&root->kernfs_iattr_rwsem);
 	init_rwsem(&root->kernfs_supers_rwsem);
 	INIT_LIST_HEAD(&root->supers);
+	rwlock_init(&root->kernfs_rename_lock);
 
 	/*
 	 * On 64bit ino setups, id is ino.  On 32bit, low 32bits are ino.
@@ -1580,8 +1582,9 @@ void kernfs_break_active_protection(struct kernfs_node *kn)
  * invoked before finishing the kernfs operation.  Note that while this
  * function restores the active reference, it doesn't and can't actually
  * restore the active protection - @kn may already or be in the process of
- * being removed.  Once kernfs_break_active_protection() is invoked, that
- * protection is irreversibly gone for the kernfs operation instance.
+ * being drained and removed.  Once kernfs_break_active_protection() is
+ * invoked, that protection is irreversibly gone for the kernfs operation
+ * instance.
  *
  * While this function may be called at any point after
  * kernfs_break_active_protection() is invoked, its most useful location
@@ -1789,7 +1792,7 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 	/* rename_lock protects ->parent accessors */
 	if (old_parent != new_parent) {
 		kernfs_get(new_parent);
-		write_lock_irq(&kernfs_rename_lock);
+		write_lock_irq(&root->kernfs_rename_lock);
 
 		rcu_assign_pointer(kn->__parent, new_parent);
 
@@ -1797,7 +1800,7 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 		if (new_name)
 			rcu_assign_pointer(kn->name, new_name);
 
-		write_unlock_irq(&kernfs_rename_lock);
+		write_unlock_irq(&root->kernfs_rename_lock);
 		kernfs_put(old_parent);
 	} else {
 		/* name assignment is RCU protected, parent is the same */

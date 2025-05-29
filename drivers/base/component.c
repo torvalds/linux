@@ -586,7 +586,8 @@ EXPORT_SYMBOL_GPL(component_master_is_bound);
 static void component_unbind(struct component *component,
 	struct aggregate_device *adev, void *data)
 {
-	WARN_ON(!component->bound);
+	if (WARN_ON(!component->bound))
+		return;
 
 	dev_dbg(adev->parent, "unbinding %s component %p (ops %ps)\n",
 		dev_name(component->dev), component, component->ops);

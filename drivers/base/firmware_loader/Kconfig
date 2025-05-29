@@ -3,8 +3,7 @@ menu "Firmware loader"
 
 config FW_LOADER
 	tristate "Firmware loading facility" if EXPERT
-	select CRYPTO_HASH if FW_LOADER_DEBUG
-	select CRYPTO_SHA256 if FW_LOADER_DEBUG
+	select CRYPTO_LIB_SHA256 if FW_LOADER_DEBUG
 	default y
 	help
 	  This enables the firmware loading facility in the kernel. The kernel
@@ -28,7 +27,6 @@ config FW_LOADER
 
 config FW_LOADER_DEBUG
 	bool "Log filenames and checksums for loaded firmware"
-	depends on CRYPTO = FW_LOADER || CRYPTO=y
 	depends on DYNAMIC_DEBUG
 	depends on FW_LOADER
 	default FW_LOADER

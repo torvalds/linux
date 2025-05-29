@@ -155,7 +155,7 @@ The general idea is:
     ``my_variable``
 
 - Clean up the directory when removing the device
-  (``debugfs_remove_recursive(parent);``)
+  (``debugfs_remove(parent);``)
 
 For the full documentation see :doc:`/filesystems/debugfs`.
 
