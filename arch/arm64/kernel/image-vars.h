@@ -10,6 +10,10 @@
 #error This file should only be included in vmlinux.lds.S
 #endif
 
+#if defined(CONFIG_LD_IS_LLD) && CONFIG_LLD_VERSION < 210000
+#define ASSERT(...)
+#endif
+
 #define PI_EXPORT_SYM(sym)		\
 	__PI_EXPORT_SYM(sym, __pi_ ## sym, Cannot export BSS symbol sym to startup code)
 #define __PI_EXPORT_SYM(sym, pisym, msg)\
@@ -141,5 +145,7 @@ KVM_NVHE_ALIAS(kvm_protected_mode_initialized);
 #ifdef CONFIG_EFI_ZBOOT
 _kernel_codesize = ABSOLUTE(__inittext_end - _text);
 #endif
+
+#undef ASSERT
 
 #endif /* __ARM64_KERNEL_IMAGE_VARS_H */
