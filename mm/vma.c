@@ -32,6 +32,9 @@ struct mmap_state {
 	struct vma_munmap_struct vms;
 	struct ma_state mas_detach;
 	struct maple_tree mt_detach;
+
+	/* Determine if we can check KSM flags early in mmap() logic. */
+	bool check_ksm_early;
 };
 
 #define MMAP_STATE(name, mm_, vmi_, addr_, len_, pgoff_, flags_, file_) \
@@ -2320,6 +2323,11 @@ static void vms_abort_munmap_vmas(struct vma_munmap_struct *vms,
 	vms_complete_munmap_vmas(vms, mas_detach);
 }
 
+static void update_ksm_flags(struct mmap_state *map)
+{
+	map->flags = ksm_vma_flags(map->mm, map->file, map->flags);
+}
+
 /*
  * __mmap_prepare() - Prepare to gather any overlapping VMAs that need to be
  * unmapped once the map operation is completed, check limits, account mapping
@@ -2424,6 +2432,7 @@ static int __mmap_new_file_vma(struct mmap_state *map,
 			!(map->flags & VM_MAYWRITE) &&
 			(vma->vm_flags & VM_MAYWRITE));
 
+	map->file = vma->vm_file;
 	map->flags = vma->vm_flags;
 
 	return 0;
@@ -2473,6 +2482,11 @@ static int __mmap_new_vma(struct mmap_state *map, struct vm_area_struct **vmap)
 	if (error)
 		goto free_iter_vma;
 
+	if (!map->check_ksm_early) {
+		update_ksm_flags(map);
+		vm_flags_init(vma, map->flags);
+	}
+
 #ifdef CONFIG_SPARC64
 	/* TODO: Fix SPARC ADI! */
 	WARN_ON_ONCE(!arch_validate_flags(map->flags));
@@ -2490,7 +2504,6 @@ static int __mmap_new_vma(struct mmap_state *map, struct vm_area_struct **vmap)
 	 */
 	if (!vma_is_anonymous(vma))
 		khugepaged_enter_vma(vma, map->flags);
-	ksm_add_vma(vma);
 	*vmap = vma;
 	return 0;
 
@@ -2593,6 +2606,35 @@ static void set_vma_user_defined_fields(struct vm_area_struct *vma,
 	vma->vm_private_data = map->vm_private_data;
 }
 
+/*
+ * Are we guaranteed no driver can change state such as to preclude KSM merging?
+ * If so, let's set the KSM mergeable flag early so we don't break VMA merging.
+ */
+static bool can_set_ksm_flags_early(struct mmap_state *map)
+{
+	struct file *file = map->file;
+
+	/* Anonymous mappings have no driver which can change them. */
+	if (!file)
+		return true;
+
+	/*
+	 * If .mmap_prepare() is specified, then the driver will have already
+	 * manipulated state prior to updating KSM flags. So no need to worry
+	 * about mmap callbacks modifying VMA flags after the KSM flag has been
+	 * updated here, which could otherwise affect KSM eligibility.
+	 */
+	if (file->f_op->mmap_prepare)
+		return true;
+
+	/* shmem is safe. */
+	if (shmem_file(file))
+		return true;
+
+	/* Any other .mmap callback is not safe. */
+	return false;
+}
+
 static unsigned long __mmap_region(struct file *file, unsigned long addr,
 		unsigned long len, vm_flags_t vm_flags, unsigned long pgoff,
 		struct list_head *uf)
@@ -2604,11 +2646,16 @@ static unsigned long __mmap_region(struct file *file, unsigned long addr,
 	VMA_ITERATOR(vmi, mm, addr);
 	MMAP_STATE(map, mm, &vmi, addr, len, pgoff, vm_flags, file);
 
+	map.check_ksm_early = can_set_ksm_flags_early(&map);
+
 	error = __mmap_prepare(&map, uf);
 	if (!error && have_mmap_prepare)
 		error = call_mmap_prepare(&map);
 	if (error)
 		goto abort_munmap;
+
+	if (map.check_ksm_early)
+		update_ksm_flags(&map);
 
 	/* Attempt to merge with adjacent VMAs... */
 	if (map.prev || map.next) {
@@ -2721,6 +2768,7 @@ int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	 * Note: This happens *after* clearing old mappings in some code paths.
 	 */
 	flags |= VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
+	flags = ksm_vma_flags(mm, NULL, flags);
 	if (!may_expand_vm(mm, flags, len >> PAGE_SHIFT))
 		return -ENOMEM;
 
@@ -2764,7 +2812,6 @@ int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *vma,
 
 	mm->map_count++;
 	validate_mm(mm);
-	ksm_add_vma(vma);
 out:
 	perf_event_mmap(vma);
 	mm->total_vm += len >> PAGE_SHIFT;
