@@ -10,11 +10,13 @@
 #include <linux/platform_device.h>
 #include <linux/syscore_ops.h>
 #include <linux/mfd/syscon.h>
+#include <linux/slab.h>
 #include <dt-bindings/clock/rockchip,rk3576-cru.h>
 #include "clk.h"
 
 #define RK3576_GRF_SOC_STATUS0		0x600
 #define RK3576_PMU0_GRF_OSC_CON6	0x18
+#define RK3576_VCCIO_IOC_MISC_CON0	0x6400
 
 enum rk3576_plls {
 	bpll, lpll, vpll, aupll, cpll, gpll, ppll,
@@ -1481,6 +1483,14 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 			RK3576_CLKGATE_CON(10), 0, GFLAGS),
 	GATE(CLK_SAI0_MCLKOUT, "clk_sai0_mclkout", "mclk_sai0_8ch", 0,
 			RK3576_CLKGATE_CON(10), 1, GFLAGS),
+	GATE_GRF(CLK_SAI0_MCLKOUT_TO_IO, "mclk_sai0_to_io", "clk_sai0_mclkout",
+			0, RK3576_VCCIO_IOC_MISC_CON0, 0, GFLAGS, grf_type_ioc),
+	GATE_GRF(CLK_SAI1_MCLKOUT_TO_IO, "mclk_sai1_to_io", "clk_sai1_mclkout",
+			0, RK3576_VCCIO_IOC_MISC_CON0, 1, GFLAGS, grf_type_ioc),
+	GATE_GRF(CLK_SAI2_MCLKOUT_TO_IO, "mclk_sai2_to_io", "clk_sai2_mclkout",
+			0, RK3576_VCCIO_IOC_MISC_CON0, 2, GFLAGS, grf_type_ioc),
+	GATE_GRF(CLK_SAI3_MCLKOUT_TO_IO, "mclk_sai3_to_io", "clk_sai3_mclkout",
+			0, RK3576_VCCIO_IOC_MISC_CON0, 3, GFLAGS, grf_type_ioc),
 
 	/* sdgmac */
 	COMPOSITE_NODIV(HCLK_SDGMAC_ROOT, "hclk_sdgmac_root", mux_200m_100m_50m_24m_p, 0,
@@ -1678,13 +1688,13 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 
 	/* phy ref */
 	MUXGRF(CLK_PHY_REF_SRC, "clk_phy_ref_src", clk_phy_ref_src_p,  0,
-			RK3576_PMU0_GRF_OSC_CON6, 4, 1, MFLAGS),
+			RK3576_PMU0_GRF_OSC_CON6, 4, 1, MFLAGS, grf_type_pmu0),
 	MUXGRF(CLK_USBPHY_REF_SRC, "clk_usbphy_ref_src", clk_usbphy_ref_src_p,  0,
-			RK3576_PMU0_GRF_OSC_CON6, 2, 1, MFLAGS),
+			RK3576_PMU0_GRF_OSC_CON6, 2, 1, MFLAGS, grf_type_pmu0),
 	MUXGRF(CLK_CPLL_REF_SRC, "clk_cpll_ref_src", clk_cpll_ref_src_p,  0,
-			RK3576_PMU0_GRF_OSC_CON6, 1, 1, MFLAGS),
+			RK3576_PMU0_GRF_OSC_CON6, 1, 1, MFLAGS, grf_type_pmu0),
 	MUXGRF(CLK_AUPLL_REF_SRC, "clk_aupll_ref_src", clk_aupll_ref_src_p,  0,
-			RK3576_PMU0_GRF_OSC_CON6, 0, 1, MFLAGS),
+			RK3576_PMU0_GRF_OSC_CON6, 0, 1, MFLAGS, grf_type_pmu0),
 
 	/* secure ns */
 	COMPOSITE_NODIV(ACLK_SECURE_NS, "aclk_secure_ns", mux_350m_175m_116m_24m_p, CLK_IS_CRITICAL,
@@ -1727,14 +1737,23 @@ static void __init rk3576_clk_init(struct device_node *np)
 	struct rockchip_clk_provider *ctx;
 	unsigned long clk_nr_clks;
 	void __iomem *reg_base;
-	struct regmap *grf;
+	struct rockchip_aux_grf *ioc_grf_e;
+	struct rockchip_aux_grf *pmu0_grf_e;
+	struct regmap *ioc_grf;
+	struct regmap *pmu0_grf;
 
 	clk_nr_clks = rockchip_clk_find_max_clk_id(rk3576_clk_branches,
 					ARRAY_SIZE(rk3576_clk_branches)) + 1;
 
-	grf = syscon_regmap_lookup_by_compatible("rockchip,rk3576-pmu0-grf");
-	if (IS_ERR(grf)) {
+	pmu0_grf = syscon_regmap_lookup_by_compatible("rockchip,rk3576-pmu0-grf");
+	if (IS_ERR(pmu0_grf)) {
 		pr_err("%s: could not get PMU0 GRF syscon\n", __func__);
+		return;
+	}
+
+	ioc_grf = syscon_regmap_lookup_by_compatible("rockchip,rk3576-ioc-grf");
+	if (IS_ERR(ioc_grf)) {
+		pr_err("%s: could not get IOC GRF syscon\n", __func__);
 		return;
 	}
 
@@ -1747,11 +1766,24 @@ static void __init rk3576_clk_init(struct device_node *np)
 	ctx = rockchip_clk_init(np, reg_base, clk_nr_clks);
 	if (IS_ERR(ctx)) {
 		pr_err("%s: rockchip clk init failed\n", __func__);
-		iounmap(reg_base);
-		return;
+		goto err_unmap;
 	}
 
-	ctx->grf = grf;
+	pmu0_grf_e = kzalloc(sizeof(*pmu0_grf_e), GFP_KERNEL);
+	if (!pmu0_grf_e)
+		goto err_unmap;
+
+	pmu0_grf_e->grf = pmu0_grf;
+	pmu0_grf_e->type = grf_type_pmu0;
+	hash_add(ctx->aux_grf_table, &pmu0_grf_e->node, grf_type_pmu0);
+
+	ioc_grf_e = kzalloc(sizeof(*ioc_grf_e), GFP_KERNEL);
+	if (!ioc_grf_e)
+		goto err_free_pmu0;
+
+	ioc_grf_e->grf = ioc_grf;
+	ioc_grf_e->type = grf_type_ioc;
+	hash_add(ctx->aux_grf_table, &ioc_grf_e->node, grf_type_ioc);
 
 	rockchip_clk_register_plls(ctx, rk3576_pll_clks,
 				   ARRAY_SIZE(rk3576_pll_clks),
@@ -1774,6 +1806,14 @@ static void __init rk3576_clk_init(struct device_node *np)
 	rockchip_register_restart_notifier(ctx, RK3576_GLB_SRST_FST, NULL);
 
 	rockchip_clk_of_add_provider(np, ctx);
+
+	return;
+
+err_free_pmu0:
+	kfree(pmu0_grf_e);
+err_unmap:
+	iounmap(reg_base);
+	return;
 }
 
 CLK_OF_DECLARE(rk3576_cru, "rockchip,rk3576-cru", rk3576_clk_init);
