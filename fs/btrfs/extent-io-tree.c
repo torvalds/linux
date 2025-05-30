@@ -1882,12 +1882,11 @@ int btrfs_clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 e
 bool btrfs_try_lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 				u32 bits, struct extent_state **cached)
 {
-	int err;
+	int ret;
 	u64 failed_start;
 
-	err = set_extent_bit(tree, start, end, bits, &failed_start, NULL,
-			     cached, NULL);
-	if (err == -EEXIST) {
+	ret = set_extent_bit(tree, start, end, bits, &failed_start, NULL, cached, NULL);
+	if (ret == -EEXIST) {
 		if (failed_start > start)
 			btrfs_clear_extent_bit(tree, start, failed_start - 1,
 					       bits, cached);
