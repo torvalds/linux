@@ -436,7 +436,7 @@ xe_hwmon_energy_get(struct xe_hwmon *hwmon, int channel, long *energy)
 {
 	struct xe_mmio *mmio = xe_root_tile_mmio(hwmon->xe);
 	struct xe_hwmon_energy_info *ei = &hwmon->ei[channel];
-	u64 reg_val;
+	u32 reg_val;
 	int ret = 0;
 
 	/* Energy is supported only for card and pkg */
@@ -446,29 +446,27 @@ xe_hwmon_energy_get(struct xe_hwmon *hwmon, int channel, long *energy)
 	}
 
 	if (hwmon->xe->info.platform == XE_BATTLEMAGE) {
+		u64 pmt_val;
+
 		ret = xe_pmt_telem_read(to_pci_dev(hwmon->xe->drm.dev),
 					xe_mmio_read32(mmio, PUNIT_TELEMETRY_GUID),
-					&reg_val, BMG_ENERGY_STATUS_PMT_OFFSET,	sizeof(reg_val));
-		if (ret != sizeof(reg_val)) {
+					&pmt_val, BMG_ENERGY_STATUS_PMT_OFFSET,	sizeof(pmt_val));
+		if (ret != sizeof(pmt_val)) {
 			drm_warn(&hwmon->xe->drm, "energy read from pmt failed, ret %d\n", ret);
 			*energy = 0;
 			return;
 		}
 
 		if (channel == CHANNEL_PKG)
-			reg_val = REG_FIELD_GET64(ENERGY_PKG, reg_val);
+			reg_val = REG_FIELD_GET64(ENERGY_PKG, pmt_val);
 		else
-			reg_val = REG_FIELD_GET64(ENERGY_CARD, reg_val);
+			reg_val = REG_FIELD_GET64(ENERGY_CARD, pmt_val);
 	} else {
 		reg_val = xe_mmio_read32(mmio, xe_hwmon_get_reg(hwmon, REG_PKG_ENERGY_STATUS,
 								channel));
 	}
 
-	if (reg_val >= ei->reg_val_prev)
-		ei->accum_energy += reg_val - ei->reg_val_prev;
-	else
-		ei->accum_energy += UINT_MAX - ei->reg_val_prev + reg_val;
-
+	ei->accum_energy += reg_val - ei->reg_val_prev;
 	ei->reg_val_prev = reg_val;
 
 	*energy = mul_u64_u32_shr(ei->accum_energy, SF_ENERGY,
