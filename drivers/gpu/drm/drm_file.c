@@ -1017,8 +1017,10 @@ void drm_file_err(struct drm_file *file_priv, const char *fmt, ...)
 	pid = rcu_dereference(file_priv->pid);
 	task = pid_task(pid, PIDTYPE_TGID);
 
-	drm_err(dev, "comm: %s pid: %d client: %s ... %pV", task ? task->comm : "Unset",
-		task ? task->pid : 0, file_priv->client_name ?: "Unset", &vaf);
+	drm_err(dev, "comm: %s pid: %d client-id:%llu client: %s ... %pV",
+		task ? task->comm : "Unset",
+		task ? task->pid : 0, file_priv->client_id,
+		file_priv->client_name ?: "Unset", &vaf);
 
 	va_end(args);
 	rcu_read_unlock();
