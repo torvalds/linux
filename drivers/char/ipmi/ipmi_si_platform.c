@@ -163,9 +163,13 @@ static int platform_ipmi_probe(struct platform_device *pdev)
 
 	switch (type) {
 	case SI_KCS:
+		io.si_info = &ipmi_kcs_si_info;
+		break;
 	case SI_SMIC:
+		io.si_info = &ipmi_smic_si_info;
+		break;
 	case SI_BT:
-		io.si_type = type;
+		io.si_info = &ipmi_bt_si_info;
 		break;
 	case SI_TYPE_INVALID: /* User disabled this in hardcode. */
 		return -ENODEV;
@@ -213,13 +217,10 @@ static int platform_ipmi_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id of_ipmi_match[] = {
-	{ .type = "ipmi", .compatible = "ipmi-kcs",
-	  .data = (void *)(unsigned long) SI_KCS },
-	{ .type = "ipmi", .compatible = "ipmi-smic",
-	  .data = (void *)(unsigned long) SI_SMIC },
-	{ .type = "ipmi", .compatible = "ipmi-bt",
-	  .data = (void *)(unsigned long) SI_BT },
-	{},
+	{ .type = "ipmi", .compatible = "ipmi-kcs", .data = &ipmi_kcs_si_info },
+	{ .type = "ipmi", .compatible = "ipmi-smic", .data = &ipmi_smic_si_info },
+	{ .type = "ipmi", .compatible = "ipmi-bt", .data = &ipmi_bt_si_info },
+	{}
 };
 MODULE_DEVICE_TABLE(of, of_ipmi_match);
 
@@ -265,7 +266,7 @@ static int of_ipmi_probe(struct platform_device *pdev)
 	}
 
 	memset(&io, 0, sizeof(io));
-	io.si_type	= (enum si_type)device_get_match_data(&pdev->dev);
+	io.si_info	= device_get_match_data(&pdev->dev);
 	io.addr_source	= SI_DEVICETREE;
 	io.irq_setup	= ipmi_std_irq_setup;
 
@@ -296,7 +297,7 @@ static int find_slave_address(struct si_sm_io *io, int slave_addr)
 {
 #ifdef CONFIG_IPMI_DMI_DECODE
 	if (!slave_addr)
-		slave_addr = ipmi_dmi_get_slave_addr(io->si_type,
+		slave_addr = ipmi_dmi_get_slave_addr(io->si_info->type,
 						     io->addr_space,
 						     io->addr_data);
 #endif
@@ -335,13 +336,13 @@ static int acpi_ipmi_probe(struct platform_device *pdev)
 
 	switch (tmp) {
 	case 1:
-		io.si_type = SI_KCS;
+		io.si_info = &ipmi_kcs_si_info;
 		break;
 	case 2:
-		io.si_type = SI_SMIC;
+		io.si_info = &ipmi_smic_si_info;
 		break;
 	case 3:
-		io.si_type = SI_BT;
+		io.si_info = &ipmi_bt_si_info;
 		break;
 	case 4: /* SSIF, just ignore */
 		return -ENODEV;

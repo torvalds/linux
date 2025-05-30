@@ -26,6 +26,14 @@ enum si_type {
 /* Array is defined in the ipmi_si_intf.c */
 extern const char *const si_to_str[];
 
+struct ipmi_match_info {
+	enum si_type type;
+};
+
+extern const struct ipmi_match_info ipmi_kcs_si_info;
+extern const struct ipmi_match_info ipmi_smic_si_info;
+extern const struct ipmi_match_info ipmi_bt_si_info;
+
 enum ipmi_addr_space {
 	IPMI_IO_ADDR_SPACE, IPMI_MEM_ADDR_SPACE
 };
@@ -64,7 +72,7 @@ struct si_sm_io {
 	void (*irq_cleanup)(struct si_sm_io *io);
 
 	u8 slave_addr;
-	enum si_type si_type;
+	const struct ipmi_match_info *si_info;
 	struct device *dev;
 };
 

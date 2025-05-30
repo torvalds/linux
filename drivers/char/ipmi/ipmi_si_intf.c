@@ -73,6 +73,10 @@ enum si_intf_state {
 /* 'invalid' to allow a firmware-specified interface to be disabled */
 const char *const si_to_str[] = { "invalid", "kcs", "smic", "bt", NULL };
 
+const struct ipmi_match_info ipmi_kcs_si_info = { .type = SI_KCS };
+const struct ipmi_match_info ipmi_smic_si_info = { .type = SI_SMIC };
+const struct ipmi_match_info ipmi_bt_si_info = { .type = SI_BT };
+
 static bool initialized;
 
 /*
@@ -692,7 +696,7 @@ static void handle_transaction_done(struct smi_info *smi_info)
 			break;
 		}
 		enables = current_global_enables(smi_info, 0, &irq_on);
-		if (smi_info->io.si_type == SI_BT)
+		if (smi_info->io.si_info->type == SI_BT)
 			/* BT has its own interrupt enable bit. */
 			check_bt_irq(smi_info, irq_on);
 		if (enables != (msg[3] & GLOBAL_ENABLES_MASK)) {
@@ -1119,7 +1123,7 @@ irqreturn_t ipmi_si_irq_handler(int irq, void *data)
 	struct smi_info *smi_info = data;
 	unsigned long   flags;
 
-	if (smi_info->io.si_type == SI_BT)
+	if (smi_info->io.si_info->type == SI_BT)
 		/* We need to clear the IRQ flag for the BT interface. */
 		smi_info->io.outputb(&smi_info->io, IPMI_BT_INTMASK_REG,
 				     IPMI_BT_INTMASK_CLEAR_IRQ_BIT
@@ -1164,7 +1168,7 @@ static int smi_start_processing(void            *send_info,
 	 * The BT interface is efficient enough to not need a thread,
 	 * and there is no need for a thread if we have interrupts.
 	 */
-	else if ((new_smi->io.si_type != SI_BT) && (!new_smi->io.irq))
+	else if (new_smi->io.si_info->type != SI_BT && !new_smi->io.irq)
 		enable = 1;
 
 	if (enable) {
@@ -1235,7 +1239,7 @@ MODULE_PARM_DESC(kipmid_max_busy_us,
 
 void ipmi_irq_finish_setup(struct si_sm_io *io)
 {
-	if (io->si_type == SI_BT)
+	if (io->si_info->type == SI_BT)
 		/* Enable the interrupt in the BT interface. */
 		io->outputb(io, IPMI_BT_INTMASK_REG,
 			    IPMI_BT_INTMASK_ENABLE_IRQ_BIT);
@@ -1243,7 +1247,7 @@ void ipmi_irq_finish_setup(struct si_sm_io *io)
 
 void ipmi_irq_start_cleanup(struct si_sm_io *io)
 {
-	if (io->si_type == SI_BT)
+	if (io->si_info->type == SI_BT)
 		/* Disable the interrupt in the BT interface. */
 		io->outputb(io, IPMI_BT_INTMASK_REG, 0);
 }
@@ -1614,7 +1618,7 @@ static ssize_t type_show(struct device *dev,
 {
 	struct smi_info *smi_info = dev_get_drvdata(dev);
 
-	return sysfs_emit(buf, "%s\n", si_to_str[smi_info->io.si_type]);
+	return sysfs_emit(buf, "%s\n", si_to_str[smi_info->io.si_info->type]);
 }
 static DEVICE_ATTR_RO(type);
 
@@ -1649,7 +1653,7 @@ static ssize_t params_show(struct device *dev,
 
 	return sysfs_emit(buf,
 			"%s,%s,0x%lx,rsp=%d,rsi=%d,rsh=%d,irq=%d,ipmb=%d\n",
-			si_to_str[smi_info->io.si_type],
+			si_to_str[smi_info->io.si_info->type],
 			addr_space_to_str[smi_info->io.addr_space],
 			smi_info->io.addr_data,
 			smi_info->io.regspacing,
@@ -1803,7 +1807,7 @@ setup_dell_poweredge_bt_xaction_handler(struct smi_info *smi_info)
 {
 	struct ipmi_device_id *id = &smi_info->device_id;
 	if (id->manufacturer_id == DELL_IANA_MFR_ID &&
-	    smi_info->io.si_type == SI_BT)
+	    smi_info->io.si_info->type == SI_BT)
 		register_xaction_notifier(&dell_poweredge_bt_xaction_notifier);
 }
 
@@ -1907,13 +1911,13 @@ int ipmi_si_add_smi(struct si_sm_io *io)
 			/* We prefer ACPI over SMBIOS. */
 			dev_info(dup->io.dev,
 				 "Removing SMBIOS-specified %s state machine in favor of ACPI\n",
-				 si_to_str[new_smi->io.si_type]);
+				 si_to_str[new_smi->io.si_info->type]);
 			cleanup_one_si(dup);
 		} else {
 			dev_info(new_smi->io.dev,
 				 "%s-specified %s state machine: duplicate\n",
 				 ipmi_addr_src_to_str(new_smi->io.addr_source),
-				 si_to_str[new_smi->io.si_type]);
+				 si_to_str[new_smi->io.si_info->type]);
 			rv = -EBUSY;
 			kfree(new_smi);
 			goto out_err;
@@ -1922,7 +1926,7 @@ int ipmi_si_add_smi(struct si_sm_io *io)
 
 	pr_info("Adding %s-specified %s state machine\n",
 		ipmi_addr_src_to_str(new_smi->io.addr_source),
-		si_to_str[new_smi->io.si_type]);
+		si_to_str[new_smi->io.si_info->type]);
 
 	list_add_tail(&new_smi->link, &smi_infos);
 
@@ -1945,12 +1949,12 @@ static int try_smi_init(struct smi_info *new_smi)
 
 	pr_info("Trying %s-specified %s state machine at %s address 0x%lx, slave address 0x%x, irq %d\n",
 		ipmi_addr_src_to_str(new_smi->io.addr_source),
-		si_to_str[new_smi->io.si_type],
+		si_to_str[new_smi->io.si_info->type],
 		addr_space_to_str[new_smi->io.addr_space],
 		new_smi->io.addr_data,
 		new_smi->io.slave_addr, new_smi->io.irq);
 
-	switch (new_smi->io.si_type) {
+	switch (new_smi->io.si_info->type) {
 	case SI_KCS:
 		new_smi->handlers = &kcs_smi_handlers;
 		break;
@@ -2073,7 +2077,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	smi_num++;
 
 	dev_info(new_smi->io.dev, "IPMI %s interface initialized\n",
-		 si_to_str[new_smi->io.si_type]);
+		 si_to_str[new_smi->io.si_info->type]);
 
 	WARN_ON(new_smi->io.dev->init_name != NULL);
 
@@ -2091,9 +2095,18 @@ static int try_smi_init(struct smi_info *new_smi)
 	return rv;
 }
 
+/*
+ * Devices in the same address space at the same address are the same.
+ */
+static bool __init ipmi_smi_info_same(struct smi_info *e1, struct smi_info *e2)
+{
+	return (e1->io.addr_space == e2->io.addr_space &&
+		e1->io.addr_data == e2->io.addr_data);
+}
+
 static int __init init_ipmi_si(void)
 {
-	struct smi_info *e;
+	struct smi_info *e, *e2;
 	enum ipmi_addr_src type = SI_INVALID;
 
 	if (initialized)
@@ -2109,37 +2122,70 @@ static int __init init_ipmi_si(void)
 
 	ipmi_si_parisc_init();
 
-	/* We prefer devices with interrupts, but in the case of a machine
-	   with multiple BMCs we assume that there will be several instances
-	   of a given type so if we succeed in registering a type then also
-	   try to register everything else of the same type */
 	mutex_lock(&smi_infos_lock);
+
+	/*
+	 * Scan through all the devices.  We prefer devices with
+	 * interrupts, so go through those first in case there are any
+	 * duplicates that don't have the interrupt set.
+	 */
 	list_for_each_entry(e, &smi_infos, link) {
-		/* Try to register a device if it has an IRQ and we either
-		   haven't successfully registered a device yet or this
-		   device has the same type as one we successfully registered */
-		if (e->io.irq && (!type || e->io.addr_source == type)) {
-			if (!try_smi_init(e)) {
-				type = e->io.addr_source;
+		bool dup = false;
+
+		/* Register ones with interrupts first. */
+		if (!e->io.irq)
+			continue;
+
+		/*
+		 * Go through the ones we have already seen to see if this
+		 * is a dup.
+		 */
+		list_for_each_entry(e2, &smi_infos, link) {
+			if (e2 == e)
+				break;
+			if (e2->io.irq && ipmi_smi_info_same(e, e2)) {
+				dup = true;
+				break;
 			}
 		}
+		if (!dup)
+			try_smi_init(e);
 	}
 
-	/* type will only have been set if we successfully registered an si */
-	if (type)
-		goto skip_fallback_noirq;
-
-	/* Fall back to the preferred device */
-
+	/*
+	 * Now try devices without interrupts.
+	 */
 	list_for_each_entry(e, &smi_infos, link) {
-		if (!e->io.irq && (!type || e->io.addr_source == type)) {
-			if (!try_smi_init(e)) {
-				type = e->io.addr_source;
+		bool dup = false;
+
+		if (e->io.irq)
+			continue;
+
+		/*
+		 * Go through the ones we have already seen to see if
+		 * this is a dup.  We have already looked at the ones
+		 * with interrupts.
+		 */
+		list_for_each_entry(e2, &smi_infos, link) {
+			if (!e2->io.irq)
+				continue;
+			if (ipmi_smi_info_same(e, e2)) {
+				dup = true;
+				break;
 			}
 		}
+		list_for_each_entry(e2, &smi_infos, link) {
+			if (e2 == e)
+				break;
+			if (ipmi_smi_info_same(e, e2)) {
+				dup = true;
+				break;
+			}
+		}
+		if (!dup)
+			try_smi_init(e);
 	}
 
-skip_fallback_noirq:
 	initialized = true;
 	mutex_unlock(&smi_infos_lock);
 
@@ -2267,7 +2313,7 @@ struct device *ipmi_si_remove_by_data(int addr_space, enum si_type si_type,
 	list_for_each_entry_safe(e, tmp_e, &smi_infos, link) {
 		if (e->io.addr_space != addr_space)
 			continue;
-		if (e->io.si_type != si_type)
+		if (e->io.si_info->type != si_type)
 			continue;
 		if (e->io.addr_data == addr) {
 			dev = get_device(e->io.dev);
