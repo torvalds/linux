@@ -83,10 +83,8 @@ void avs_period_elapsed(struct snd_pcm_substream *substream)
 static int hw_rule_param_size(struct snd_pcm_hw_params *params, struct snd_pcm_hw_rule *rule);
 static int avs_hw_constraints_init(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_pcm_hw_constraint_list *r, *c, *s;
-	struct avs_tplg_path_template *template;
 	struct avs_dma_data *data;
 	int ret;
 
@@ -99,8 +97,7 @@ static int avs_hw_constraints_init(struct snd_pcm_substream *substream, struct s
 	c = &(data->channels_list);
 	s = &(data->sample_bits_list);
 
-	template = avs_dai_find_path_template(dai, !rtd->dai_link->no_pcm, substream->stream);
-	ret = avs_path_set_constraint(data->adev, template, r, c, s);
+	ret = avs_path_set_constraint(data->adev, data->template, r, c, s);
 	if (ret <= 0)
 		return ret;
 
