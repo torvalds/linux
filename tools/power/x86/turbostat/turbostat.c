@@ -7404,6 +7404,160 @@ void print_power_limit_msr(int cpu, unsigned long long msr, char *label)
 	return;
 }
 
+static int fread_int(char *path, int *val)
+{
+	FILE *filep;
+	int ret;
+
+	filep = fopen (path, "r");
+	if (!filep)
+		return -1;
+
+	ret = fscanf(filep, "%d", val);
+	fclose(filep);
+	return ret;
+}
+
+static int fread_ull(char *path, unsigned long long *val)
+{
+	FILE *filep;
+	int ret;
+
+	filep = fopen (path, "r");
+	if (!filep)
+		return -1;
+
+	ret = fscanf(filep, "%llu", val);
+	fclose(filep);
+	return ret;
+}
+
+static int fread_str(char *path, char *buf, int size)
+{
+	FILE *filep;
+	int ret;
+	char *cp;
+
+	filep = fopen (path, "r");
+	if (!filep)
+		return -1;
+
+	ret = fread(buf, 1, size, filep);
+	fclose(filep);
+
+	/* replace '\n' with '\0' */
+	cp = strchr(buf, '\n');
+	if (cp != NULL)
+		*cp = '\0';
+
+	return ret;
+}
+
+#define PATH_RAPL_SYSFS	"/sys/class/powercap"
+
+static int dump_one_domain(char *domain_path)
+{
+	char path[PATH_MAX];
+	char str[PATH_MAX];
+	unsigned long long val;
+	int constraint;
+	int enable;
+	int ret;
+
+	snprintf(path, PATH_MAX, "%s/name", domain_path);
+	ret = fread_str(path, str, PATH_MAX);
+	if (ret <= 0)
+		return -1;
+
+	fprintf(outf, "%s: %s", domain_path + strlen(PATH_RAPL_SYSFS) + 1, str);
+
+	snprintf(path, PATH_MAX, "%s/enabled", domain_path);
+	ret = fread_int(path, &enable);
+	if (ret <= 0)
+		return -1;
+
+	if (!enable) {
+		fputs(" disabled\n", outf);
+		return 0;
+	}
+
+	for (constraint = 0;; constraint++)
+	{
+		snprintf(path, PATH_MAX, "%s/constraint_%d_time_window_us", domain_path, constraint);
+		ret = fread_ull(path, &val);
+		if (ret <= 0)
+			break;
+
+		if (val > 1000000)
+			fprintf(outf, " %0.1fs", (double)val/1000000);
+		else if (val > 1000)
+			fprintf(outf, " %0.1fms", (double)val/1000);
+		else
+			fprintf(outf, " %0.1fus", (double)val);
+
+		snprintf(path, PATH_MAX, "%s/constraint_%d_power_limit_uw", domain_path, constraint);
+		ret = fread_ull(path, &val);
+		if (ret > 0 && val)
+			fprintf(outf, ":%lluW", val / 1000000);
+
+		snprintf(path, PATH_MAX, "%s/constraint_%d_max_power_uw", domain_path, constraint);
+		ret = fread_ull(path, &val);
+		if (ret > 0 && val)
+			fprintf(outf, ",max:%lluW", val / 1000000);
+	}
+	fputc('\n', outf);
+
+	return 0;
+}
+
+static int print_rapl_sysfs(void)
+{
+	DIR *dir, *cdir;
+	struct dirent *entry, *centry;
+	char path[PATH_MAX];
+	char str[PATH_MAX];
+
+	if ((dir = opendir(PATH_RAPL_SYSFS)) == NULL) {
+		warn("open %s failed", PATH_RAPL_SYSFS);
+		return 1;
+	}
+
+	while ((entry = readdir (dir)) != NULL) {
+		if (strlen(entry->d_name) > 100)
+                        continue;
+
+		if (strncmp(entry->d_name, "intel-rapl", strlen("intel-rapl")))
+                        continue;
+
+		snprintf(path, PATH_MAX, "%s/%s/name", PATH_RAPL_SYSFS, entry->d_name);
+
+		/* Parse top level domains first, including package and psys */
+		fread_str(path, str, PATH_MAX);
+		if (strncmp(str, "package", strlen("package")) &&
+		    strncmp(str, "psys", strlen("psys")))
+			continue;
+
+		snprintf(path, PATH_MAX, "%s/%s", PATH_RAPL_SYSFS, entry->d_name);
+		if ((cdir = opendir(path)) == NULL) {
+			perror ("opendir() error");
+			return 1;
+		}
+
+		dump_one_domain(path);
+
+		while ((centry = readdir (cdir)) != NULL) {
+			if (strncmp(centry->d_name, "intel-rapl", strlen("intel-rapl")))
+				continue;
+			snprintf(path, PATH_MAX, "%s/%s/%s", PATH_RAPL_SYSFS, entry->d_name, centry->d_name);
+			dump_one_domain(path);
+		}
+		closedir(cdir);
+	}
+
+	closedir(dir);
+	return 0;
+}
+
 int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	unsigned long long msr;
@@ -7537,6 +7691,8 @@ void probe_rapl(void)
 
 	if (quiet)
 		return;
+
+	print_rapl_sysfs();
 
 	if (!platform->rapl_msrs || no_msr)
 		return;
