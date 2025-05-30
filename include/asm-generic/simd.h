@@ -4,6 +4,7 @@
 
 #include <linux/compiler_attributes.h>
 #include <linux/preempt.h>
+#include <linux/sched.h>
 #include <linux/types.h>
 
 /*
