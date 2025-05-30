@@ -152,18 +152,15 @@ static int sdhci_pci_runtime_suspend_host(struct sdhci_pci_chip *chip)
 {
 	struct sdhci_pci_slot *slot;
 	struct sdhci_host *host;
-	int i, ret;
 
-	for (i = 0; i < chip->num_slots; i++) {
+	for (int i = 0; i < chip->num_slots; i++) {
 		slot = chip->slots[i];
 		if (!slot)
 			continue;
 
 		host = slot->host;
 
-		ret = sdhci_runtime_suspend_host(host);
-		if (ret)
-			goto err_pci_runtime_suspend;
+		sdhci_runtime_suspend_host(host);
 
 		if (chip->rpm_retune &&
 		    host->tuning_mode != SDHCI_TUNING_MODE_3)
@@ -171,26 +168,18 @@ static int sdhci_pci_runtime_suspend_host(struct sdhci_pci_chip *chip)
 	}
 
 	return 0;
-
-err_pci_runtime_suspend:
-	while (--i >= 0)
-		sdhci_runtime_resume_host(chip->slots[i]->host, 0);
-	return ret;
 }
 
 static int sdhci_pci_runtime_resume_host(struct sdhci_pci_chip *chip)
 {
 	struct sdhci_pci_slot *slot;
-	int i, ret;
 
-	for (i = 0; i < chip->num_slots; i++) {
+	for (int i = 0; i < chip->num_slots; i++) {
 		slot = chip->slots[i];
 		if (!slot)
 			continue;
 
-		ret = sdhci_runtime_resume_host(slot->host, 0);
-		if (ret)
-			return ret;
+		sdhci_runtime_resume_host(slot->host, 0);
 	}
 
 	return 0;

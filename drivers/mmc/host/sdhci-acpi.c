@@ -1028,14 +1028,11 @@ static int sdhci_acpi_runtime_suspend(struct device *dev)
 {
 	struct sdhci_acpi_host *c = dev_get_drvdata(dev);
 	struct sdhci_host *host = c->host;
-	int ret;
 
 	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
 		mmc_retune_needed(host->mmc);
 
-	ret = sdhci_runtime_suspend_host(host);
-	if (ret)
-		return ret;
+	sdhci_runtime_suspend_host(host);
 
 	sdhci_acpi_reset_signal_voltage_if_needed(dev);
 	return 0;
@@ -1047,7 +1044,8 @@ static int sdhci_acpi_runtime_resume(struct device *dev)
 
 	sdhci_acpi_byt_setting(&c->pdev->dev);
 
-	return sdhci_runtime_resume_host(c->host, 0);
+	sdhci_runtime_resume_host(c->host, 0);
+	return 0;
 }
 
 #endif

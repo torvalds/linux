@@ -714,9 +714,8 @@ static int sdhci_s3c_runtime_suspend(struct device *dev)
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_s3c *ourhost = to_s3c(host);
 	struct clk *busclk = ourhost->clk_io;
-	int ret;
 
-	ret = sdhci_runtime_suspend_host(host);
+	sdhci_runtime_suspend_host(host);
 
 	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
 		mmc_retune_needed(host->mmc);
@@ -724,7 +723,7 @@ static int sdhci_s3c_runtime_suspend(struct device *dev)
 	if (ourhost->cur_clk >= 0)
 		clk_disable_unprepare(ourhost->clk_bus[ourhost->cur_clk]);
 	clk_disable_unprepare(busclk);
-	return ret;
+	return 0;
 }
 
 static int sdhci_s3c_runtime_resume(struct device *dev)
@@ -732,13 +731,12 @@ static int sdhci_s3c_runtime_resume(struct device *dev)
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_s3c *ourhost = to_s3c(host);
 	struct clk *busclk = ourhost->clk_io;
-	int ret;
 
 	clk_prepare_enable(busclk);
 	if (ourhost->cur_clk >= 0)
 		clk_prepare_enable(ourhost->clk_bus[ourhost->cur_clk]);
-	ret = sdhci_runtime_resume_host(host, 0);
-	return ret;
+	sdhci_runtime_resume_host(host, 0);
+	return 0;
 }
 #endif
 

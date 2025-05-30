@@ -2132,9 +2132,7 @@ static int sdhci_esdhc_runtime_suspend(struct device *dev)
 			return ret;
 	}
 
-	ret = sdhci_runtime_suspend_host(host);
-	if (ret)
-		return ret;
+	sdhci_runtime_suspend_host(host);
 
 	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
 		mmc_retune_needed(host->mmc);
@@ -2148,7 +2146,7 @@ static int sdhci_esdhc_runtime_suspend(struct device *dev)
 	if (imx_data->socdata->flags & ESDHC_FLAG_PMQOS)
 		cpu_latency_qos_remove_request(&imx_data->pm_qos_req);
 
-	return ret;
+	return 0;
 }
 
 static int sdhci_esdhc_runtime_resume(struct device *dev)
@@ -2178,17 +2176,13 @@ static int sdhci_esdhc_runtime_resume(struct device *dev)
 
 	esdhc_pltfm_set_clock(host, imx_data->actual_clock);
 
-	err = sdhci_runtime_resume_host(host, 0);
-	if (err)
-		goto disable_ipg_clk;
+	sdhci_runtime_resume_host(host, 0);
 
 	if (host->mmc->caps2 & MMC_CAP2_CQE)
 		err = cqhci_resume(host->mmc);
 
 	return err;
 
-disable_ipg_clk:
-	clk_disable_unprepare(imx_data->clk_ipg);
 disable_per_clk:
 	clk_disable_unprepare(imx_data->clk_per);
 disable_ahb_clk:

@@ -1082,9 +1082,7 @@ static int sdhci_am654_runtime_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	ret = sdhci_runtime_suspend_host(host);
-	if (ret)
-		return ret;
+	sdhci_runtime_suspend_host(host);
 
 	/* disable the clock */
 	clk_disable_unprepare(pltfm_host->clk);
@@ -1106,9 +1104,7 @@ static int sdhci_am654_runtime_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	ret = sdhci_runtime_resume_host(host, 0);
-	if (ret)
-		return ret;
+	sdhci_runtime_resume_host(host, 0);
 
 	ret = cqhci_resume(host->mmc);
 	if (ret)

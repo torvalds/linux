@@ -3863,7 +3863,7 @@ int sdhci_resume_host(struct sdhci_host *host)
 
 EXPORT_SYMBOL_GPL(sdhci_resume_host);
 
-int sdhci_runtime_suspend_host(struct sdhci_host *host)
+void sdhci_runtime_suspend_host(struct sdhci_host *host)
 {
 	unsigned long flags;
 
@@ -3880,12 +3880,10 @@ int sdhci_runtime_suspend_host(struct sdhci_host *host)
 	spin_lock_irqsave(&host->lock, flags);
 	host->runtime_suspended = true;
 	spin_unlock_irqrestore(&host->lock, flags);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(sdhci_runtime_suspend_host);
 
-int sdhci_runtime_resume_host(struct sdhci_host *host, int soft_reset)
+void sdhci_runtime_resume_host(struct sdhci_host *host, int soft_reset)
 {
 	struct mmc_host *mmc = host->mmc;
 	unsigned long flags;
@@ -3931,8 +3929,6 @@ int sdhci_runtime_resume_host(struct sdhci_host *host, int soft_reset)
 	sdhci_enable_card_detection(host);
 
 	spin_unlock_irqrestore(&host->lock, flags);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(sdhci_runtime_resume_host);
 

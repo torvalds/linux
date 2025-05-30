@@ -879,8 +879,8 @@ bool sdhci_enable_irq_wakeups(struct sdhci_host *host);
 void sdhci_disable_irq_wakeups(struct sdhci_host *host);
 int sdhci_suspend_host(struct sdhci_host *host);
 int sdhci_resume_host(struct sdhci_host *host);
-int sdhci_runtime_suspend_host(struct sdhci_host *host);
-int sdhci_runtime_resume_host(struct sdhci_host *host, int soft_reset);
+void sdhci_runtime_suspend_host(struct sdhci_host *host);
+void sdhci_runtime_resume_host(struct sdhci_host *host, int soft_reset);
 #endif
 
 void sdhci_cqe_enable(struct mmc_host *mmc);
