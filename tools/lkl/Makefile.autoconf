@@ -120,7 +120,6 @@ endef
 
 define s390_host
   $(call set_kernel_config_h,LKL_CONFIG_CPU_BIG_ENDIAN,1)
-  $(call set_kernel_config,BIG_ENDIAN,y)
   $(call set_kernel_config,CPU_BIG_ENDIAN,y)
 endef
 
