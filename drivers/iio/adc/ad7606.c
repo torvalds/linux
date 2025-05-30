@@ -1335,6 +1335,11 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		return dev_err_probe(dev, ret,
 				     "Failed to enable Vdrive supply\n");
 
+	ret = devm_regulator_get_enable_optional(dev, "refin");
+	if (ret && ret != -ENODEV)
+		return dev_err_probe(dev, ret,
+				     "Failed to enable REFIN supply\n");
+
 	st->chip_info = chip_info;
 
 	if (st->chip_info->oversampling_num) {
