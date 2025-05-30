@@ -1490,6 +1490,17 @@ static void imon_pad_to_keys(struct imon_context *ictx, unsigned char *buf)
 			scancode = be32_to_cpu(*((__be32 *)buf));
 		} else {
 			/*
+			 * For users without stabilized, just ignore any value getting
+			 * to close to the diagonal.
+			 */
+			if ((abs(rel_y) < 2 && abs(rel_x) < 2) ||
+				abs(abs(rel_y) - abs(rel_x)) < 2 ) {
+				spin_lock_irqsave(&ictx->kc_lock, flags);
+				ictx->kc = KEY_UNKNOWN;
+				spin_unlock_irqrestore(&ictx->kc_lock, flags);
+				return;
+			}
+			/*
 			 * Hack alert: instead of using keycodes, we have
 			 * to use hard-coded scancodes here...
 			 */
