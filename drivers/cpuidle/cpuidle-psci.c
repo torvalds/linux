@@ -456,14 +456,13 @@ static struct faux_device_ops psci_cpuidle_ops = {
 
 static bool __init dt_idle_state_present(void)
 {
-	struct device_node *cpu_node __free(device_node);
-	struct device_node *state_node __free(device_node);
-
-	cpu_node = of_cpu_device_node_get(cpumask_first(cpu_possible_mask));
+	struct device_node *cpu_node __free(device_node) =
+			of_cpu_device_node_get(cpumask_first(cpu_possible_mask));
 	if (!cpu_node)
 		return false;
 
-	state_node = of_get_cpu_state_node(cpu_node, 0);
+	struct device_node *state_node __free(device_node) =
+			of_get_cpu_state_node(cpu_node, 0);
 	if (!state_node)
 		return false;
 
