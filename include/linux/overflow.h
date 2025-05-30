@@ -389,6 +389,25 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
 	struct_size((type *)NULL, member, count)
 
 /**
+ * __DEFINE_FLEX() - helper macro for DEFINE_FLEX() family.
+ * Enables caller macro to pass arbitrary trailing expressions
+ *
+ * @type: structure type name, including "struct" keyword.
+ * @name: Name for a variable to define.
+ * @member: Name of the array member.
+ * @count: Number of elements in the array; must be compile-time const.
+ * @trailer: Trailing expressions for attributes and/or initializers.
+ */
+#define __DEFINE_FLEX(type, name, member, count, trailer...)			\
+	_Static_assert(__builtin_constant_p(count),				\
+		       "onstack flex array members require compile-time const count"); \
+	union {									\
+		u8 bytes[struct_size_t(type, member, count)];			\
+		type obj;							\
+	} name##_u trailer;							\
+	type *name = (type *)&name##_u
+
+/**
  * _DEFINE_FLEX() - helper macro for DEFINE_FLEX() family.
  * Enables caller macro to pass (different) initializer.
  *
@@ -399,13 +418,7 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
  * @initializer: Initializer expression (e.g., pass `= { }` at minimum).
  */
 #define _DEFINE_FLEX(type, name, member, count, initializer...)			\
-	_Static_assert(__builtin_constant_p(count),				\
-		       "onstack flex array members require compile-time const count"); \
-	union {									\
-		u8 bytes[struct_size_t(type, member, count)];			\
-		type obj;							\
-	} name##_u = { .obj initializer };					\
-	type *name = (type *)&name##_u
+	__DEFINE_FLEX(type, name, member, count, = { .obj initializer })
 
 /**
  * DEFINE_RAW_FLEX() - Define an on-stack instance of structure with a trailing
@@ -424,7 +437,7 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
  * elements in array @member.
  */
 #define DEFINE_RAW_FLEX(type, name, member, count)	\
-	_DEFINE_FLEX(type, name, member, count, = {})
+	__DEFINE_FLEX(type, name, member, count, = { })
 
 /**
  * DEFINE_FLEX() - Define an on-stack instance of structure with a trailing
