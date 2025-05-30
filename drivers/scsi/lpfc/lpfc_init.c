@@ -1907,6 +1907,9 @@ lpfc_sli4_port_sta_fn_reset(struct lpfc_hba *phba, int mbx_action,
 	uint32_t intr_mode;
 	LPFC_MBOXQ_t *mboxq;
 
+	/* Notifying the transport that the targets are going offline. */
+	lpfc_scsi_dev_block(phba);
+
 	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) >=
 	    LPFC_SLI_INTF_IF_TYPE_2) {
 		/*

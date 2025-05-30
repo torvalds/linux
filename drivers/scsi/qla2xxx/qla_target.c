@@ -1454,50 +1454,6 @@ static struct fc_port *qlt_create_sess(
 	return sess;
 }
 
-/*
- * max_gen - specifies maximum session generation
- * at which this deletion requestion is still valid
- */
-void
-qlt_fc_port_deleted(struct scsi_qla_host *vha, fc_port_t *fcport, int max_gen)
-{
-	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
-	struct fc_port *sess = fcport;
-	unsigned long flags;
-
-	if (!vha->hw->tgt.tgt_ops)
-		return;
-
-	if (!tgt)
-		return;
-
-	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
-	if (tgt->tgt_stop) {
-		spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
-		return;
-	}
-	if (!sess->se_sess) {
-		spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
-		return;
-	}
-
-	if (max_gen - sess->generation < 0) {
-		spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
-		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf092,
-		    "Ignoring stale deletion request for se_sess %p / sess %p"
-		    " for port %8phC, req_gen %d, sess_gen %d\n",
-		    sess->se_sess, sess, sess->port_name, max_gen,
-		    sess->generation);
-		return;
-	}
-
-	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf008, "qla_tgt_fc_port_deleted %p", sess);
-
-	sess->local = 1;
-	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
-	qlt_schedule_sess_for_deletion(sess);
-}
-
 static inline int test_tgt_sess_count(struct qla_tgt *tgt)
 {
 	struct qla_hw_data *ha = tgt->ha;
@@ -5539,81 +5495,6 @@ qlt_alloc_qfull_cmd(struct scsi_qla_host *vha,
 	spin_unlock_irqrestore(&vha->hw->tgt.q_full_lock, flags);
 }
 
-int
-qlt_free_qfull_cmds(struct qla_qpair *qpair)
-{
-	struct scsi_qla_host *vha = qpair->vha;
-	struct qla_hw_data *ha = vha->hw;
-	unsigned long flags;
-	struct qla_tgt_cmd *cmd, *tcmd;
-	struct list_head free_list, q_full_list;
-	int rc = 0;
-
-	if (list_empty(&ha->tgt.q_full_list))
-		return 0;
-
-	INIT_LIST_HEAD(&free_list);
-	INIT_LIST_HEAD(&q_full_list);
-
-	spin_lock_irqsave(&vha->hw->tgt.q_full_lock, flags);
-	if (list_empty(&ha->tgt.q_full_list)) {
-		spin_unlock_irqrestore(&vha->hw->tgt.q_full_lock, flags);
-		return 0;
-	}
-
-	list_splice_init(&vha->hw->tgt.q_full_list, &q_full_list);
-	spin_unlock_irqrestore(&vha->hw->tgt.q_full_lock, flags);
-
-	spin_lock_irqsave(qpair->qp_lock_ptr, flags);
-	list_for_each_entry_safe(cmd, tcmd, &q_full_list, cmd_list) {
-		if (cmd->q_full)
-			/* cmd->state is a borrowed field to hold status */
-			rc = __qlt_send_busy(qpair, &cmd->atio, cmd->state);
-		else if (cmd->term_exchg)
-			rc = __qlt_send_term_exchange(qpair, NULL, &cmd->atio);
-
-		if (rc == -ENOMEM)
-			break;
-
-		if (cmd->q_full)
-			ql_dbg(ql_dbg_io, vha, 0x3006,
-			    "%s: busy sent for ox_id[%04x]\n", __func__,
-			    be16_to_cpu(cmd->atio.u.isp24.fcp_hdr.ox_id));
-		else if (cmd->term_exchg)
-			ql_dbg(ql_dbg_io, vha, 0x3007,
-			    "%s: Term exchg sent for ox_id[%04x]\n", __func__,
-			    be16_to_cpu(cmd->atio.u.isp24.fcp_hdr.ox_id));
-		else
-			ql_dbg(ql_dbg_io, vha, 0x3008,
-			    "%s: Unexpected cmd in QFull list %p\n", __func__,
-			    cmd);
-
-		list_move_tail(&cmd->cmd_list, &free_list);
-
-		/* piggy back on hardware_lock for protection */
-		vha->hw->tgt.num_qfull_cmds_alloc--;
-	}
-	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
-
-	cmd = NULL;
-
-	list_for_each_entry_safe(cmd, tcmd, &free_list, cmd_list) {
-		list_del(&cmd->cmd_list);
-		/* This cmd was never sent to TCM.  There is no need
-		 * to schedule free or call free_cmd
-		 */
-		qlt_free_cmd(cmd);
-	}
-
-	if (!list_empty(&q_full_list)) {
-		spin_lock_irqsave(&vha->hw->tgt.q_full_lock, flags);
-		list_splice(&q_full_list, &vha->hw->tgt.q_full_list);
-		spin_unlock_irqrestore(&vha->hw->tgt.q_full_lock, flags);
-	}
-
-	return rc;
-}
-
 static void
 qlt_send_busy(struct qla_qpair *qpair, struct atio_from_isp *atio,
     uint16_t status)
@@ -7089,16 +6970,6 @@ qlt_81xx_config_nvram_stage2(struct scsi_qla_host *vha,
 		icb->firmware_options_1 |= cpu_to_le32(BIT_14);
 	}
 }
-
-void
-qlt_83xx_iospace_config(struct qla_hw_data *ha)
-{
-	if (!QLA_TGT_MODE_ENABLED())
-		return;
-
-	ha->msix_count += 1; /* For ATIO Q */
-}
-
 
 void
 qlt_modify_vp_config(struct scsi_qla_host *vha,

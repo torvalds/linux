@@ -2771,7 +2771,7 @@ static irqreturn_t int_phy_updown_v2_hw(int irq_no, void *p)
 	irq_msk = (hisi_sas_read32(hisi_hba, HGC_INVLD_DQE_INFO)
 		   >> HGC_INVLD_DQE_INFO_FB_CH0_OFF) & 0x1ff;
 	while (irq_msk) {
-		if (irq_msk  & 1) {
+		if (irq_msk & 1) {
 			u32 reg_value = hisi_sas_phy_read32(hisi_hba, phy_no,
 					    CHL_INT0);
 
@@ -3111,7 +3111,7 @@ static irqreturn_t fatal_axi_int_v2_hw(int irq_no, void *p)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
+static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 {
 	struct hisi_sas_cq *cq = p;
 	struct hisi_hba *hisi_hba = cq->hisi_hba;
@@ -3499,7 +3499,7 @@ static int write_gpio_v2_hw(struct hisi_hba *hisi_hba, u8 reg_type,
 			 * numbered drive in the fourth byte.
 			 * See SFF-8485 Rev. 0.7 Table 24.
 			 */
-			void __iomem  *reg_addr = hisi_hba->sgpio_regs +
+			void __iomem *reg_addr = hisi_hba->sgpio_regs +
 					reg_index * 4 + phy_no;
 			int data_idx = phy_no + 3 - (phy_no % 4) * 2;
 

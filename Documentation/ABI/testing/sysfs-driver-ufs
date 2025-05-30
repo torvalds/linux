@@ -1636,3 +1636,52 @@ Description:
 		attribute value.
 
 		The attribute is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/wb_resize_enable
+What:		/sys/bus/platform/devices/*.ufs/wb_resize_enable
+Date:		April 2025
+Contact:	Huan Tang <tanghuan@vivo.com>
+Description:
+		The host can enable the WriteBooster buffer resize by setting this
+		attribute.
+
+		========  ======================================
+		idle      There is no resize operation
+		decrease  Decrease WriteBooster buffer size
+		increase  Increase WriteBooster buffer size
+		========  ======================================
+
+		The file is write only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/wb_resize_hint
+What:		/sys/bus/platform/devices/*.ufs/attributes/wb_resize_hint
+Date:		April 2025
+Contact:	Huan Tang <tanghuan@vivo.com>
+Description:
+		wb_resize_hint indicates hint information about which type of resize
+		for WriteBooster buffer is recommended by the device.
+
+		=========  ======================================
+		keep       Recommend keep the buffer size
+		decrease   Recommend to decrease the buffer size
+		increase   Recommend to increase the buffer size
+		=========  ======================================
+
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/wb_resize_status
+What:		/sys/bus/platform/devices/*.ufs/attributes/wb_resize_status
+Date:		April 2025
+Contact:	Huan Tang <tanghuan@vivo.com>
+Description:
+		The host can check the resize operation status of the WriteBooster
+		buffer by reading this attribute.
+
+		================  ========================================
+		idle              Resize operation is not issued
+		in_progress       Resize operation in progress
+		complete_success  Resize operation completed successfully
+		general_failure   Resize operation general failure
+		================  ========================================
+
+		The file is read only.

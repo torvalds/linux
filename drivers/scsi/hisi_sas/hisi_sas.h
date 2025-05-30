@@ -46,6 +46,13 @@
 #define HISI_SAS_IOST_ITCT_CACHE_DW_SZ 10
 #define HISI_SAS_FIFO_DATA_DW_SIZE 32
 
+#define HISI_SAS_REG_MEM_SIZE 4
+#define HISI_SAS_MAX_CDB_LEN 16
+#define HISI_SAS_BLK_QUEUE_DEPTH 64
+
+#define BYTE_TO_DW 4
+#define BYTE_TO_DDW 8
+
 #define HISI_SAS_STATUS_BUF_SZ (sizeof(struct hisi_sas_status_buffer))
 #define HISI_SAS_COMMAND_TABLE_SZ (sizeof(union hisi_sas_command_table))
 
@@ -92,6 +99,8 @@
 
 #define HISI_SAS_WAIT_PHYUP_TIMEOUT	(30 * HZ)
 #define HISI_SAS_CLEAR_ITCT_TIMEOUT	(20 * HZ)
+#define HISI_SAS_DELAY_FOR_PHY_DISABLE 100
+#define NAME_BUF_SIZE 256
 
 struct hisi_hba;
 
@@ -167,6 +176,8 @@ struct hisi_sas_debugfs_fifo {
 	u32 rd_data[HISI_SAS_FIFO_DATA_DW_SIZE];
 };
 
+#define FRAME_RCVD_BUF 32
+#define SAS_PHY_RESV_SIZE 2
 struct hisi_sas_phy {
 	struct work_struct	works[HISI_PHYES_NUM];
 	struct hisi_hba	*hisi_hba;
@@ -178,10 +189,10 @@ struct hisi_sas_phy {
 	spinlock_t lock;
 	u64		port_id; /* from hw */
 	u64		frame_rcvd_size;
-	u8		frame_rcvd[32];
+	u8		frame_rcvd[FRAME_RCVD_BUF];
 	u8		phy_attached;
 	u8		in_reset;
-	u8		reserved[2];
+	u8		reserved[SAS_PHY_RESV_SIZE];
 	u32		phy_type;
 	u32		code_violation_err_count;
 	enum sas_linkrate	minimum_linkrate;
@@ -348,7 +359,8 @@ struct hisi_sas_hw {
 	const struct scsi_host_template *sht;
 };
 
-#define HISI_SAS_MAX_DEBUGFS_DUMP (50)
+#define HISI_SAS_MAX_DEBUGFS_DUMP 50
+#define HISI_SAS_DEFAULT_DEBUGFS_DUMP 1
 
 struct hisi_sas_debugfs_cq {
 	struct hisi_sas_cq *cq;
@@ -448,12 +460,12 @@ struct hisi_hba {
 	dma_addr_t sata_breakpoint_dma;
 	struct hisi_sas_slot	*slot_info;
 	unsigned long flags;
-	const struct hisi_sas_hw *hw;	/* Low level hw interface */
+	const struct hisi_sas_hw *hw; /* Low level hw interface */
 	unsigned long sata_dev_bitmap[BITS_TO_LONGS(HISI_SAS_MAX_DEVICES)];
 	struct work_struct rst_work;
 	u32 phy_state;
-	u32 intr_coal_ticks;	/* Time of interrupt coalesce in us */
-	u32 intr_coal_count;	/* Interrupt count to coalesce */
+	u32 intr_coal_ticks; /* Time of interrupt coalesce in us */
+	u32 intr_coal_count; /* Interrupt count to coalesce */
 
 	int cq_nvecs;
 
@@ -528,12 +540,13 @@ struct hisi_sas_cmd_hdr {
 	__le64 dif_prd_table_addr;
 };
 
+#define ITCT_RESV_DDW 12
 struct hisi_sas_itct {
 	__le64 qw0;
 	__le64 sas_addr;
 	__le64 qw2;
 	__le64 qw3;
-	__le64 qw4_15[12];
+	__le64 qw4_15[ITCT_RESV_DDW];
 };
 
 struct hisi_sas_iost {
@@ -543,22 +556,26 @@ struct hisi_sas_iost {
 	__le64 qw3;
 };
 
+#define ERROR_RECORD_BUF_DW 4
 struct hisi_sas_err_record {
-	u32	data[4];
+	u32	data[ERROR_RECORD_BUF_DW];
 };
 
+#define FIS_RESV_DW 3
 struct hisi_sas_initial_fis {
 	struct hisi_sas_err_record err_record;
 	struct dev_to_host_fis fis;
-	u32 rsvd[3];
+	u32 rsvd[FIS_RESV_DW];
 };
 
+#define BREAKPOINT_DATA_SIZE 128
 struct hisi_sas_breakpoint {
-	u8	data[128];
+	u8	data[BREAKPOINT_DATA_SIZE];
 };
 
+#define BREAKPOINT_TAG_NUM 32
 struct hisi_sas_sata_breakpoint {
-	struct hisi_sas_breakpoint tag[32];
+	struct hisi_sas_breakpoint tag[BREAKPOINT_TAG_NUM];
 };
 
 struct hisi_sas_sge {
@@ -569,13 +586,15 @@ struct hisi_sas_sge {
 	__le32 data_off;
 };
 
+#define SMP_CMD_TABLE_SIZE 44
 struct hisi_sas_command_table_smp {
-	u8 bytes[44];
+	u8 bytes[SMP_CMD_TABLE_SIZE];
 };
 
+#define DUMMY_BUF_SIZE 12
 struct hisi_sas_command_table_stp {
 	struct	host_to_dev_fis command_fis;
-	u8	dummy[12];
+	u8	dummy[DUMMY_BUF_SIZE];
 	u8	atapi_cdb[ATAPI_CDB_LEN];
 };
 
@@ -589,12 +608,13 @@ struct hisi_sas_sge_dif_page {
 	struct hisi_sas_sge sge[HISI_SAS_SGE_DIF_PAGE_CNT];
 }  __aligned(16);
 
+#define PROT_BUF_SIZE 7
 struct hisi_sas_command_table_ssp {
 	struct ssp_frame_hdr hdr;
 	union {
 		struct {
 			struct ssp_command_iu task;
-			u32 prot[7];
+			u32 prot[PROT_BUF_SIZE];
 		};
 		struct ssp_tmf_iu ssp_task;
 		struct xfer_rdy_iu xfer_rdy;
@@ -608,9 +628,10 @@ union hisi_sas_command_table {
 	struct hisi_sas_command_table_stp stp;
 }  __aligned(16);
 
+#define IU_BUF_SIZE 1024
 struct hisi_sas_status_buffer {
 	struct hisi_sas_err_record err;
-	u8	iu[1024];
+	u8	iu[IU_BUF_SIZE];
 }  __aligned(16);
 
 struct hisi_sas_slot_buf_table {

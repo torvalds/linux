@@ -505,7 +505,7 @@ lpfc_send_npiv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		wait_event_timeout(waitq,
 				   !test_bit(NLP_WAIT_FOR_LOGO,
 					     &ndlp->save_flags),
-				   msecs_to_jiffies(phba->fc_ratov * 2000));
+				   secs_to_jiffies(phba->fc_ratov * 2));
 
 		if (!test_bit(NLP_WAIT_FOR_LOGO, &ndlp->save_flags))
 			goto logo_cmpl;
@@ -703,7 +703,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 				wait_event_timeout(waitq,
 				   !test_bit(NLP_WAIT_FOR_DA_ID,
 					     &ndlp->save_flags),
-				   msecs_to_jiffies(phba->fc_ratov * 2000));
+				   secs_to_jiffies(phba->fc_ratov * 2));
 			}
 
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_VPORT | LOG_ELS,

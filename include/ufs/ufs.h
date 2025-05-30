@@ -182,6 +182,9 @@ enum attr_idn {
 	QUERY_ATTR_IDN_CURR_WB_BUFF_SIZE        = 0x1F,
 	QUERY_ATTR_IDN_TIMESTAMP		= 0x30,
 	QUERY_ATTR_IDN_DEV_LVL_EXCEPTION_ID     = 0x34,
+	QUERY_ATTR_IDN_WB_BUF_RESIZE_HINT	= 0x3C,
+	QUERY_ATTR_IDN_WB_BUF_RESIZE_EN		= 0x3D,
+	QUERY_ATTR_IDN_WB_BUF_RESIZE_STATUS	= 0x3E,
 };
 
 /* Descriptor idn for Query requests */
@@ -290,6 +293,7 @@ enum device_desc_param {
 	DEVICE_DESC_PARAM_PRDCT_REV		= 0x2A,
 	DEVICE_DESC_PARAM_HPB_VER		= 0x40,
 	DEVICE_DESC_PARAM_HPB_CONTROL		= 0x42,
+	DEVICE_DESC_PARAM_EXT_WB_SUP		= 0x4D,
 	DEVICE_DESC_PARAM_EXT_UFS_FEATURE_SUP	= 0x4F,
 	DEVICE_DESC_PARAM_WB_PRESRV_USRSPC_EN	= 0x53,
 	DEVICE_DESC_PARAM_WB_TYPE		= 0x54,
@@ -384,6 +388,11 @@ enum {
 	UFSHCD_AMP		= 3,
 };
 
+/* Possible values for wExtendedWriteBoosterSupport */
+enum {
+	UFS_DEV_WB_BUF_RESIZE	= BIT(0),
+};
+
 /* Possible values for dExtendedUFSFeaturesSupport */
 enum {
 	UFS_DEV_HIGH_TEMP_NOTIF		= BIT(4),
@@ -455,6 +464,28 @@ enum ufs_ref_clk_freq {
 	REF_CLK_FREQ_38_4_MHZ	= 2,
 	REF_CLK_FREQ_52_MHZ	= 3,
 	REF_CLK_FREQ_INVAL	= -1,
+};
+
+/* bWriteBoosterBufferResizeEn attribute */
+enum wb_resize_en {
+	WB_RESIZE_EN_IDLE	= 0,
+	WB_RESIZE_EN_DECREASE	= 1,
+	WB_RESIZE_EN_INCREASE	= 2,
+};
+
+/* bWriteBoosterBufferResizeHint attribute */
+enum wb_resize_hint {
+	WB_RESIZE_HINT_KEEP	= 0,
+	WB_RESIZE_HINT_DECREASE	= 1,
+	WB_RESIZE_HINT_INCREASE	= 2,
+};
+
+/* bWriteBoosterBufferResizeStatus attribute */
+enum wb_resize_status {
+	WB_RESIZE_STATUS_IDLE	= 0,
+	WB_RESIZE_STATUS_IN_PROGRESS	= 1,
+	WB_RESIZE_STATUS_COMPLETE_SUCCESS	= 2,
+	WB_RESIZE_STATUS_GENERAL_FAILURE	= 3,
 };
 
 /* Query response result code */
@@ -581,6 +612,7 @@ struct ufs_dev_info {
 	bool    wb_buf_flush_enabled;
 	u8	wb_dedicated_lu;
 	u8      wb_buffer_type;
+	u16	ext_wb_sup;
 
 	bool	b_rpm_dev_flush_capable;
 	u8	b_presrv_uspc_en;

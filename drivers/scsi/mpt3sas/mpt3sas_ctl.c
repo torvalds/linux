@@ -2869,8 +2869,9 @@ _ctl_get_mpt_mctp_passthru_adapter(int dev_index)
 		if (ioc->facts.IOCCapabilities & MPI26_IOCFACTS_CAPABILITY_MCTP_PASSTHRU) {
 			if (count == dev_index) {
 				spin_unlock(&gioc_lock);
-				return 0;
+				return ioc;
 			}
+			count++;
 		}
 	}
 	spin_unlock(&gioc_lock);

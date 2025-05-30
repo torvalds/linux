@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2025 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -287,6 +287,138 @@ buffer_done:
 				PAGE_SIZE);
 		strscpy(buf + PAGE_SIZE - 1 - sizeof(LPFC_INFO_MORE_STR),
 			LPFC_INFO_MORE_STR, sizeof(LPFC_INFO_MORE_STR) + 1);
+	}
+	return len;
+}
+
+static ssize_t
+lpfc_vmid_info_show(struct device *dev, struct device_attribute *attr,
+		    char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	struct lpfc_vmid  *vmp;
+	int  len = 0, i, j, k, cpu;
+	char hxstr[LPFC_MAX_VMID_SIZE * 3] = {0};
+	struct timespec64 curr_tm;
+	struct lpfc_vmid_priority_range *vr;
+	u64 *lta, rct_acc = 0, max_lta = 0;
+	struct tm tm_val;
+
+	ktime_get_ts64(&curr_tm);
+
+	len += scnprintf(buf + len, PAGE_SIZE - len, "Key 'vmid':\n");
+
+	/* if enabled continue, else return */
+	if (lpfc_is_vmid_enabled(phba)) {
+		len += scnprintf(buf + len, PAGE_SIZE - len,
+				 "lpfc VMID Page: ON\n\n");
+	} else {
+		len += scnprintf(buf + len, PAGE_SIZE - len,
+				 "lpfc VMID Page: OFF\n\n");
+		return len;
+	}
+
+	/* if using priority tagging */
+	if (vport->phba->pport->vmid_flag & LPFC_VMID_TYPE_PRIO) {
+		len += scnprintf(buf + len, PAGE_SIZE - len,
+				"VMID priority ranges:\n");
+		vr = vport->vmid_priority.vmid_range;
+		for (i = 0; i < vport->vmid_priority.num_descriptors; ++i) {
+			len += scnprintf(buf + len, PAGE_SIZE - len,
+					"\t[x%x - x%x], qos: x%x\n",
+					vr->low, vr->high, vr->qos);
+			vr++;
+		}
+	}
+
+	for (i = 0; i < phba->cfg_max_vmid; i++) {
+		vmp = &vport->vmid[i];
+		max_lta = 0;
+
+		/* only if the slot is used */
+		if (!(vmp->flag & LPFC_VMID_SLOT_USED) ||
+		    !(vmp->flag & LPFC_VMID_REGISTERED))
+			continue;
+
+		/* if using priority tagging */
+		if (vport->phba->pport->vmid_flag & LPFC_VMID_TYPE_PRIO) {
+			len += scnprintf(buf + len, PAGE_SIZE - len,
+					"VEM ID: %02x:%02x:%02x:%02x:"
+					"%02x:%02x:%02x:%02x:%02x:%02x:"
+					"%02x:%02x:%02x:%02x:%02x:%02x\n",
+					vport->lpfc_vmid_host_uuid[0],
+					vport->lpfc_vmid_host_uuid[1],
+					vport->lpfc_vmid_host_uuid[2],
+					vport->lpfc_vmid_host_uuid[3],
+					vport->lpfc_vmid_host_uuid[4],
+					vport->lpfc_vmid_host_uuid[5],
+					vport->lpfc_vmid_host_uuid[6],
+					vport->lpfc_vmid_host_uuid[7],
+					vport->lpfc_vmid_host_uuid[8],
+					vport->lpfc_vmid_host_uuid[9],
+					vport->lpfc_vmid_host_uuid[10],
+					vport->lpfc_vmid_host_uuid[11],
+					vport->lpfc_vmid_host_uuid[12],
+					vport->lpfc_vmid_host_uuid[13],
+					vport->lpfc_vmid_host_uuid[14],
+					vport->lpfc_vmid_host_uuid[15]);
+		}
+
+		/* IO stats */
+		len += scnprintf(buf + len, PAGE_SIZE - len,
+				"ID00 READs:%llx WRITEs:%llx\n",
+				vmp->io_rd_cnt,
+				vmp->io_wr_cnt);
+		for (j = 0, k = 0; j < strlen(vmp->host_vmid); j++, k += 3)
+			sprintf((char *)(hxstr + k), "%2x ", vmp->host_vmid[j]);
+		/* UUIDs */
+		len += scnprintf(buf + len, PAGE_SIZE - len, "UUID:\n");
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%s\n", hxstr);
+
+		len += scnprintf(buf + len, PAGE_SIZE - len, "String (%s)\n",
+				vmp->host_vmid);
+
+		if (vport->phba->pport->vmid_flag & LPFC_VMID_TYPE_PRIO)
+			len += scnprintf(buf + len, PAGE_SIZE - len,
+					"CS_CTL VMID: 0x%x\n",
+					vmp->un.cs_ctl_vmid);
+		else
+			len += scnprintf(buf + len, PAGE_SIZE - len,
+					"Application id: 0x%x\n",
+					vmp->un.app_id);
+
+		/* calculate the last access time */
+		for_each_possible_cpu(cpu) {
+			lta = per_cpu_ptr(vmp->last_io_time, cpu);
+			if (!lta)
+				continue;
+
+			/* if last access time is less than timeout */
+			if (time_after((unsigned long)*lta, jiffies))
+				continue;
+
+			if (*lta > max_lta)
+				max_lta = *lta;
+		}
+
+		rct_acc = jiffies_to_msecs(jiffies - max_lta) / 1000;
+		/* current time */
+		time64_to_tm(ktime_get_real_seconds(),
+			     -(sys_tz.tz_minuteswest * 60) - rct_acc, &tm_val);
+
+		len += scnprintf(buf + len, PAGE_SIZE - len,
+				 "Last Access Time :"
+				 "%ld-%d-%dT%02d:%02d:%02d\n\n",
+				 1900 + tm_val.tm_year, tm_val.tm_mon + 1,
+				 tm_val.tm_mday, tm_val.tm_hour,
+				 tm_val.tm_min, tm_val.tm_sec);
+
+		if (len >= PAGE_SIZE)
+			return len;
+
+		memset(hxstr, 0, LPFC_MAX_VMID_SIZE * 3);
 	}
 	return len;
 }
@@ -3011,6 +3143,7 @@ static DEVICE_ATTR(protocol, S_IRUGO, lpfc_sli4_protocol_show, NULL);
 static DEVICE_ATTR(lpfc_xlane_supported, S_IRUGO, lpfc_oas_supported_show,
 		   NULL);
 static DEVICE_ATTR(cmf_info, 0444, lpfc_cmf_info_show, NULL);
+static DEVICE_ATTR_RO(lpfc_vmid_info);
 
 #define WWN_SZ 8
 /**
@@ -6117,6 +6250,7 @@ static struct attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_vmid_inactivity_timeout.attr,
 	&dev_attr_lpfc_vmid_app_header.attr,
 	&dev_attr_lpfc_vmid_priority_tagging.attr,
+	&dev_attr_lpfc_vmid_info.attr,
 	NULL,
 };
 
