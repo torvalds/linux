@@ -1227,11 +1227,11 @@ int btrfs_wait_tree_log_extents(struct btrfs_root *log_root, int mark)
 	struct btrfs_fs_info *fs_info = log_root->fs_info;
 	struct extent_io_tree *dirty_pages = &log_root->dirty_log_pages;
 	bool errors = false;
-	int err;
+	int ret;
 
 	ASSERT(btrfs_root_id(log_root) == BTRFS_TREE_LOG_OBJECTID);
 
-	err = __btrfs_wait_marked_extents(fs_info, dirty_pages);
+	ret = __btrfs_wait_marked_extents(fs_info, dirty_pages);
 	if ((mark & EXTENT_DIRTY) &&
 	    test_and_clear_bit(BTRFS_FS_LOG1_ERR, &fs_info->flags))
 		errors = true;
@@ -1240,9 +1240,9 @@ int btrfs_wait_tree_log_extents(struct btrfs_root *log_root, int mark)
 	    test_and_clear_bit(BTRFS_FS_LOG2_ERR, &fs_info->flags))
 		errors = true;
 
-	if (errors && !err)
-		err = -EIO;
-	return err;
+	if (errors && !ret)
+		ret = -EIO;
+	return ret;
 }
 
 /*
