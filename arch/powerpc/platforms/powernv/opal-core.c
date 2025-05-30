@@ -208,7 +208,7 @@ static ssize_t read_opalcore(struct file *file, struct kobject *kobj,
 
 static struct bin_attribute opal_core_attr __ro_after_init = {
 	.attr = {.name = "core", .mode = 0400},
-	.read_new = read_opalcore
+	.read = read_opalcore
 };
 
 /*

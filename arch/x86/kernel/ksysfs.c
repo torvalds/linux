@@ -40,7 +40,7 @@ static const struct bin_attribute boot_params_data_attr = {
 		.name = "data",
 		.mode = S_IRUGO,
 	},
-	.read_new = boot_params_data_read,
+	.read = boot_params_data_read,
 	.size = sizeof(boot_params),
 };
 
@@ -250,7 +250,7 @@ static struct bin_attribute data_attr __ro_after_init = {
 		.name = "data",
 		.mode = S_IRUGO,
 	},
-	.read_new = setup_data_data_read,
+	.read = setup_data_data_read,
 };
 
 static struct attribute *setup_data_type_attrs[] = {

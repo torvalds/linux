@@ -2227,7 +2227,7 @@ static const struct bin_attribute edid1_attr = {
 		.mode	= 0444,
 	},
 	.size	= EDID_LENGTH,
-	.read_new	= radeon_show_edid1,
+	.read	= radeon_show_edid1,
 };
 
 static const struct bin_attribute edid2_attr = {
@@ -2236,7 +2236,7 @@ static const struct bin_attribute edid2_attr = {
 		.mode	= 0444,
 	},
 	.size	= EDID_LENGTH,
-	.read_new	= radeon_show_edid2,
+	.read	= radeon_show_edid2,
 };
 
 static int radeonfb_pci_register(struct pci_dev *pdev,

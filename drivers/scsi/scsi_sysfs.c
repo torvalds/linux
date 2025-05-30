@@ -917,7 +917,7 @@ show_vpd_##_page(struct file *filp, struct kobject *kobj,	\
 static const struct bin_attribute dev_attr_vpd_##_page = {		\
 	.attr =	{.name = __stringify(vpd_##_page), .mode = S_IRUGO },	\
 	.size = 0,							\
-	.read_new = show_vpd_##_page,					\
+	.read = show_vpd_##_page,					\
 };
 
 sdev_vpd_pg_attr(pg83);
@@ -949,7 +949,7 @@ static const struct bin_attribute dev_attr_inquiry = {
 		.mode = S_IRUGO,
 	},
 	.size = 0,
-	.read_new = show_inquiry,
+	.read = show_inquiry,
 };
 
 static ssize_t

@@ -655,8 +655,8 @@ static const struct bin_attribute pch_bin_attr = {
 		.mode = S_IRUGO | S_IWUSR,
 	},
 	.size = PCH_PHUB_OROM_SIZE + 1,
-	.read_new = pch_phub_bin_read,
-	.write_new = pch_phub_bin_write,
+	.read = pch_phub_bin_read,
+	.write = pch_phub_bin_write,
 };
 
 static int pch_phub_probe(struct pci_dev *pdev,

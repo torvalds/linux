@@ -45,7 +45,7 @@ static int btf_sysfs_vmlinux_mmap(struct file *filp, struct kobject *kobj,
 
 static struct bin_attribute bin_attr_btf_vmlinux __ro_after_init = {
 	.attr = { .name = "vmlinux", .mode = 0444, },
-	.read_new = sysfs_bin_attr_simple_read,
+	.read = sysfs_bin_attr_simple_read,
 	.mmap = btf_sysfs_vmlinux_mmap,
 };
 

@@ -104,7 +104,7 @@ static const struct bin_attribute zorro_config_attr = {
 		.mode = S_IRUGO,
 	},
 	.size = sizeof(struct ConfigDev),
-	.read_new = zorro_read_config,
+	.read = zorro_read_config,
 };
 
 static const struct bin_attribute *const zorro_device_bin_attrs[] = {

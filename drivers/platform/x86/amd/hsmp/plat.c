@@ -91,7 +91,7 @@ static_assert(MAX_AMD_NUM_NODES == 8);
 static const struct bin_attribute attr##index = {			\
 	.attr = { .name = HSMP_METRICS_TABLE_NAME, .mode = 0444},	\
 	.private = (void *)index,					\
-	.read_new = hsmp_metric_tbl_plat_read,				\
+	.read = hsmp_metric_tbl_plat_read,				\
 	.size = sizeof(struct hsmp_metric_table),			\
 };									\
 static const struct bin_attribute _list[] = {				\

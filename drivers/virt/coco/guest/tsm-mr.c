@@ -209,12 +209,12 @@ tsm_mr_create_attribute_group(const struct tsm_measurements *tm)
 
 		if (tm->mrs[i].mr_flags & TSM_MR_F_READABLE) {
 			bap->attr.mode |= 0444;
-			bap->read_new = tm_digest_read;
+			bap->read = tm_digest_read;
 		}
 
 		if (tm->mrs[i].mr_flags & TSM_MR_F_WRITABLE) {
 			bap->attr.mode |= 0200;
-			bap->write_new = tm_digest_write;
+			bap->write = tm_digest_write;
 		}
 
 		bap->size = tm->mrs[i].mr_size;

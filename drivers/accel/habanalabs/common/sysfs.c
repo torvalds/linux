@@ -446,7 +446,7 @@ static DEVICE_ATTR_RO(parent_device);
 static const struct bin_attribute bin_attr_eeprom = {
 	.attr = {.name = "eeprom", .mode = (0444)},
 	.size = PAGE_SIZE,
-	.read_new = eeprom_read_handler
+	.read = eeprom_read_handler
 };
 
 static struct attribute *hl_dev_attrs[] = {

@@ -509,7 +509,7 @@ static int init_acpi(struct device *dev)
 
 static const struct bin_attribute  hsmp_metric_tbl_attr = {
 	.attr = { .name = HSMP_METRICS_TABLE_NAME, .mode = 0444},
-	.read_new = hsmp_metric_tbl_acpi_read,
+	.read = hsmp_metric_tbl_acpi_read,
 	.size = sizeof(struct hsmp_metric_table),
 };
 

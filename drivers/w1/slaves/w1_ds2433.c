@@ -276,15 +276,15 @@ out_up:
 
 static const struct bin_attribute bin_attr_f23_eeprom = {
 	.attr = { .name = "eeprom", .mode = 0644 },
-	.read_new = eeprom_read,
-	.write_new = eeprom_write,
+	.read = eeprom_read,
+	.write = eeprom_write,
 	.size = W1_EEPROM_DS2433_SIZE,
 };
 
 static const struct bin_attribute bin_attr_f43_eeprom = {
 	.attr = { .name = "eeprom", .mode = 0644 },
-	.read_new = eeprom_read,
-	.write_new = eeprom_write,
+	.read = eeprom_read,
+	.write = eeprom_write,
 	.size = W1_EEPROM_DS28EC20_SIZE,
 };
 

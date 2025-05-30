@@ -3389,7 +3389,7 @@ static const struct bin_attribute ipr_trace_attr = {
 		.mode = S_IRUGO,
 	},
 	.size = 0,
-	.read_new = ipr_read_trace,
+	.read = ipr_read_trace,
 };
 #endif
 
@@ -4140,8 +4140,8 @@ static const struct bin_attribute ipr_ioa_async_err_log = {
 		.mode =		S_IRUGO | S_IWUSR,
 	},
 	.size = 0,
-	.read_new = ipr_read_async_err_log,
-	.write_new = ipr_next_async_err_log
+	.read = ipr_read_async_err_log,
+	.write = ipr_next_async_err_log
 };
 
 static struct attribute *ipr_ioa_attrs[] = {
@@ -4391,8 +4391,8 @@ static const struct bin_attribute ipr_dump_attr = {
 		.mode = S_IRUSR | S_IWUSR,
 	},
 	.size = 0,
-	.read_new = ipr_read_dump,
-	.write_new = ipr_write_dump
+	.read = ipr_read_dump,
+	.write = ipr_write_dump
 };
 #else
 static int ipr_free_dump(struct ipr_ioa_cfg *ioa_cfg) { return 0; };

@@ -247,8 +247,8 @@ static const struct bin_attribute rio_config_attr = {
 		 .mode = S_IRUGO | S_IWUSR,
 		 },
 	.size = RIO_MAINT_SPACE_SZ,
-	.read_new = rio_read_config,
-	.write_new = rio_write_config,
+	.read = rio_read_config,
+	.write = rio_write_config,
 };
 
 static const struct bin_attribute *const rio_dev_bin_attrs[] = {

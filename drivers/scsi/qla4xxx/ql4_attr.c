@@ -110,8 +110,8 @@ static const struct bin_attribute sysfs_fw_dump_attr = {
 		.mode = S_IRUSR | S_IWUSR,
 	},
 	.size = 0,
-	.read_new = qla4_8xxx_sysfs_read_fw_dump,
-	.write_new = qla4_8xxx_sysfs_write_fw_dump,
+	.read = qla4_8xxx_sysfs_read_fw_dump,
+	.write = qla4_8xxx_sysfs_write_fw_dump,
 };
 
 static struct sysfs_entry {
