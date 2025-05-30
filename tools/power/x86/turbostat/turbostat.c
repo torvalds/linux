@@ -7302,6 +7302,9 @@ void rapl_probe_intel(void)
 	else
 		bic_enabled &= ~bic_joules_bits;
 
+	if (!platform->rapl_msrs || no_msr)
+		return;
+
 	if (!(platform->rapl_msrs & RAPL_PKG_PERF_STATUS))
 		bic_enabled &= ~BIC_PKG__;
 	if (!(platform->rapl_msrs & RAPL_DRAM_PERF_STATUS))
@@ -7351,6 +7354,9 @@ void rapl_probe_amd(void)
 		bic_enabled &= ~bic_watt_bits;
 	else
 		bic_enabled &= ~bic_joules_bits;
+
+	if (!platform->rapl_msrs || no_msr)
+		return;
 
 	if (get_msr(base_cpu, MSR_RAPL_PWR_UNIT, &msr))
 		return;
@@ -7504,15 +7510,15 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
  */
 void probe_rapl(void)
 {
-	if (!platform->rapl_msrs || no_msr)
-		return;
-
 	if (genuine_intel)
 		rapl_probe_intel();
 	if (authentic_amd || hygon_genuine)
 		rapl_probe_amd();
 
 	if (quiet)
+		return;
+
+	if (!platform->rapl_msrs || no_msr)
 		return;
 
 	for_all_cpus(print_rapl, ODD_COUNTERS);
