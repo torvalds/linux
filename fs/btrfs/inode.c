@@ -6707,20 +6707,19 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 fail_dir_item:
 	if (unlikely(ino == BTRFS_FIRST_FREE_OBJECTID)) {
 		u64 local_index;
-		int err;
-		err = btrfs_del_root_ref(trans, key.objectid,
-					 btrfs_root_id(root), parent_ino,
-					 &local_index, name);
-		if (err)
-			btrfs_abort_transaction(trans, err);
+		int ret2;
+
+		ret2 = btrfs_del_root_ref(trans, key.objectid, btrfs_root_id(root),
+					  parent_ino, &local_index, name);
+		if (ret2)
+			btrfs_abort_transaction(trans, ret2);
 	} else if (add_backref) {
 		u64 local_index;
-		int err;
+		int ret2;
 
-		err = btrfs_del_inode_ref(trans, root, name, ino, parent_ino,
-					  &local_index);
-		if (err)
-			btrfs_abort_transaction(trans, err);
+		ret2 = btrfs_del_inode_ref(trans, root, name, ino, parent_ino, &local_index);
+		if (ret2)
+			btrfs_abort_transaction(trans, ret2);
 	}
 
 	/* Return the original error code */
