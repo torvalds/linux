@@ -5279,31 +5279,31 @@ static int btrfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 {
 	struct inode *inode = d_inode(dentry);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	int err;
+	int ret;
 
 	if (btrfs_root_readonly(root))
 		return -EROFS;
 
-	err = setattr_prepare(idmap, dentry, attr);
-	if (err)
-		return err;
+	ret = setattr_prepare(idmap, dentry, attr);
+	if (ret)
+		return ret;
 
 	if (S_ISREG(inode->i_mode) && (attr->ia_valid & ATTR_SIZE)) {
-		err = btrfs_setsize(inode, attr);
-		if (err)
-			return err;
+		ret = btrfs_setsize(inode, attr);
+		if (ret)
+			return ret;
 	}
 
 	if (attr->ia_valid) {
 		setattr_copy(idmap, inode, attr);
 		inode_inc_iversion(inode);
-		err = btrfs_dirty_inode(BTRFS_I(inode));
+		ret = btrfs_dirty_inode(BTRFS_I(inode));
 
-		if (!err && attr->ia_valid & ATTR_MODE)
-			err = posix_acl_chmod(idmap, dentry, inode->i_mode);
+		if (!ret && attr->ia_valid & ATTR_MODE)
+			ret = posix_acl_chmod(idmap, dentry, inode->i_mode);
 	}
 
-	return err;
+	return ret;
 }
 
 /*
