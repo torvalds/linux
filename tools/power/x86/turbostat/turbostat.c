@@ -7991,6 +7991,21 @@ void rapl_perf_init(void)
 
 			struct rapl_counter_info_t *rci = &rapl_counter_info_perdomain[next_domain];
 
+			/*
+			 * rapl_counter_arch_infos[] can have multiple entries describing the same
+			 * counter, due to the difference from different platforms/Vendors.
+			 * E.g. rapl_counter_arch_infos[0] and rapl_counter_arch_infos[1] share the
+			 * same perf_subsys and perf_name, but with different MSR address.
+			 * rapl_counter_arch_infos[0] is for Intel and rapl_counter_arch_infos[1]
+			 * is for AMD.
+			 * In this case, it is possible that multiple rapl_counter_arch_infos[]
+			 * entries are probed just because their perf/msr is duplicate and valid.
+			 *
+			 * Thus need a check to avoid re-probe the same counters.
+			 */
+			if (rci->source[cai->rci_index] != COUNTER_SOURCE_NONE)
+				break;
+
 			/* Use perf API for this counter */
 			if (add_rapl_perf_counter(cpu, rci, cai, &scale, &unit) != -1) {
 				rci->source[cai->rci_index] = COUNTER_SOURCE_PERF;
