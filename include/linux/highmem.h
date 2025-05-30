@@ -404,6 +404,33 @@ static inline void memcpy_page(struct page *dst_page, size_t dst_off,
 	kunmap_local(dst);
 }
 
+static inline void memcpy_folio(struct folio *dst_folio, size_t dst_off,
+		struct folio *src_folio, size_t src_off, size_t len)
+{
+	VM_BUG_ON(dst_off + len > folio_size(dst_folio));
+	VM_BUG_ON(src_off + len > folio_size(src_folio));
+
+	do {
+		char *dst = kmap_local_folio(dst_folio, dst_off);
+		const char *src = kmap_local_folio(src_folio, src_off);
+		size_t chunk = len;
+
+		if (folio_test_highmem(dst_folio) &&
+		    chunk > PAGE_SIZE - offset_in_page(dst_off))
+			chunk = PAGE_SIZE - offset_in_page(dst_off);
+		if (folio_test_highmem(src_folio) &&
+		    chunk > PAGE_SIZE - offset_in_page(src_off))
+			chunk = PAGE_SIZE - offset_in_page(src_off);
+		memcpy(dst, src, chunk);
+		kunmap_local(src);
+		kunmap_local(dst);
+
+		dst_off += chunk;
+		src_off += chunk;
+		len -= chunk;
+	} while (len > 0);
+}
+
 static inline void memset_page(struct page *page, size_t offset, int val,
 			       size_t len)
 {

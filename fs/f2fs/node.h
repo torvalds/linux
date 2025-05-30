@@ -268,9 +268,9 @@ static inline __u64 cpver_of_node(struct page *node_page)
 	return le64_to_cpu(rn->footer.cp_ver);
 }
 
-static inline block_t next_blkaddr_of_node(struct page *node_page)
+static inline block_t next_blkaddr_of_node(struct folio *node_folio)
 {
-	struct f2fs_node *rn = F2FS_NODE(node_page);
+	struct f2fs_node *rn = F2FS_NODE(&node_folio->page);
 	return le32_to_cpu(rn->footer.next_blkaddr);
 }
 
@@ -367,17 +367,17 @@ static inline bool IS_DNODE(const struct page *node_page)
 	return true;
 }
 
-static inline int set_nid(struct page *p, int off, nid_t nid, bool i)
+static inline int set_nid(struct folio *folio, int off, nid_t nid, bool i)
 {
-	struct f2fs_node *rn = F2FS_NODE(p);
+	struct f2fs_node *rn = F2FS_NODE(&folio->page);
 
-	f2fs_wait_on_page_writeback(p, NODE, true, true);
+	f2fs_folio_wait_writeback(folio, NODE, true, true);
 
 	if (i)
 		rn->i.i_nid[off - NODE_DIR1_BLOCK] = cpu_to_le32(nid);
 	else
 		rn->in.nid[off] = cpu_to_le32(nid);
-	return set_page_dirty(p);
+	return folio_mark_dirty(folio);
 }
 
 static inline nid_t get_nid(struct page *p, int off, bool i)
