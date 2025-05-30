@@ -8826,7 +8826,7 @@ static int btrfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		.dentry = dentry,
 	};
 	unsigned int trans_num_items;
-	int err;
+	int ret;
 	int name_len;
 	int datasize;
 	unsigned long ptr;
@@ -8853,26 +8853,26 @@ static int btrfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	inode_set_bytes(inode, name_len);
 
 	new_inode_args.inode = inode;
-	err = btrfs_new_inode_prepare(&new_inode_args, &trans_num_items);
-	if (err)
+	ret = btrfs_new_inode_prepare(&new_inode_args, &trans_num_items);
+	if (ret)
 		goto out_inode;
 	/* 1 additional item for the inline extent */
 	trans_num_items++;
 
 	trans = btrfs_start_transaction(root, trans_num_items);
 	if (IS_ERR(trans)) {
-		err = PTR_ERR(trans);
+		ret = PTR_ERR(trans);
 		goto out_new_inode_args;
 	}
 
-	err = btrfs_create_new_inode(trans, &new_inode_args);
-	if (err)
+	ret = btrfs_create_new_inode(trans, &new_inode_args);
+	if (ret)
 		goto out;
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		err = -ENOMEM;
-		btrfs_abort_transaction(trans, err);
+		ret = -ENOMEM;
+		btrfs_abort_transaction(trans, ret);
 		discard_new_inode(inode);
 		inode = NULL;
 		goto out;
@@ -8881,10 +8881,9 @@ static int btrfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	key.type = BTRFS_EXTENT_DATA_KEY;
 	key.offset = 0;
 	datasize = btrfs_file_extent_calc_inline_size(name_len);
-	err = btrfs_insert_empty_item(trans, root, path, &key,
-				      datasize);
-	if (err) {
-		btrfs_abort_transaction(trans, err);
+	ret = btrfs_insert_empty_item(trans, root, path, &key, datasize);
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
 		btrfs_free_path(path);
 		discard_new_inode(inode);
 		inode = NULL;
@@ -8906,16 +8905,16 @@ static int btrfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	btrfs_free_path(path);
 
 	d_instantiate_new(dentry, inode);
-	err = 0;
+	ret = 0;
 out:
 	btrfs_end_transaction(trans);
 	btrfs_btree_balance_dirty(fs_info);
 out_new_inode_args:
 	btrfs_new_inode_args_destroy(&new_inode_args);
 out_inode:
-	if (err)
+	if (ret)
 		iput(inode);
-	return err;
+	return ret;
 }
 
 static struct btrfs_trans_handle *insert_prealloc_file_extent(
