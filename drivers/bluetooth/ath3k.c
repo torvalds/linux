@@ -52,6 +52,7 @@ static const struct usb_device_id ath3k_table[] = {
 	{ USB_DEVICE(0x04F2, 0xAFF1) },
 	{ USB_DEVICE(0x0930, 0x0215) },
 	{ USB_DEVICE(0x0CF3, 0x3002) },
+	{ USB_DEVICE(0x0CF3, 0x3000) },
 	{ USB_DEVICE(0x0CF3, 0xE019) },
 	{ USB_DEVICE(0x13d3, 0x3304) },
 
