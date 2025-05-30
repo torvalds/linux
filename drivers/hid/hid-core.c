@@ -114,7 +114,7 @@ EXPORT_SYMBOL_GPL(hid_register_report);
  * Register a new field for this report.
  */
 
-static struct hid_field *hid_register_field(struct hid_report *report, unsigned usages)
+static struct hid_field *hid_register_field(struct hid_report *report, unsigned usages, unsigned report_count)
 {
 	struct hid_field *field;
 
@@ -125,16 +125,16 @@ static struct hid_field *hid_register_field(struct hid_report *report, unsigned 
 
 	field = kvzalloc((sizeof(struct hid_field) +
 			  usages * sizeof(struct hid_usage) +
-			  3 * usages * sizeof(unsigned int)), GFP_KERNEL);
+			  usages * sizeof(unsigned int) + 2 * sizeof(unsigned int) * report_count  ), GFP_KERNEL);
 	if (!field)
 		return NULL;
-
+	k
 	field->index = report->maxfield++;
 	report->field[field->index] = field;
 	field->usage = (struct hid_usage *)(field + 1);
 	field->value = (s32 *)(field->usage + usages);
-	field->new_value = (s32 *)(field->value + usages);
-	field->usages_priorities = (s32 *)(field->new_value + usages);
+	field->new_value = (s32 *)(field->value + report_count);
+	field->usages_priorities = (s32 *)(field->new_value + report_count);
 	field->report = report;
 
 	return field;
@@ -330,7 +330,7 @@ static int hid_add_field(struct hid_parser *parser, unsigned report_type, unsign
 	usages = max_t(unsigned, parser->local.usage_index,
 				 parser->global.report_count);
 
-	field = hid_register_field(report, usages);
+	field = hid_register_field(report, usages, parser->global.report_count);
 	if (!field)
 		return 0;
 
