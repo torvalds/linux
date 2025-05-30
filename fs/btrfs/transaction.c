@@ -1211,15 +1211,15 @@ static int btrfs_wait_extents(struct btrfs_fs_info *fs_info,
 		       struct extent_io_tree *dirty_pages)
 {
 	bool errors = false;
-	int err;
+	int ret;
 
-	err = __btrfs_wait_marked_extents(fs_info, dirty_pages);
+	ret = __btrfs_wait_marked_extents(fs_info, dirty_pages);
 	if (test_and_clear_bit(BTRFS_FS_BTREE_ERR, &fs_info->flags))
 		errors = true;
 
-	if (errors && !err)
-		err = -EIO;
-	return err;
+	if (errors && !ret)
+		ret = -EIO;
+	return ret;
 }
 
 int btrfs_wait_tree_log_extents(struct btrfs_root *log_root, int mark)
