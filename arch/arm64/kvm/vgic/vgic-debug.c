@@ -490,6 +490,9 @@ static int vgic_its_debug_show(struct seq_file *s, void *v)
 	struct its_device *dev = iter->dev;
 	struct its_ite *ite = iter->ite;
 
+	if (!ite)
+		return 0;
+
 	if (list_is_first(&ite->ite_list, &dev->itt_head)) {
 		seq_printf(s, "\n");
 		seq_printf(s, "Device ID: 0x%x, Event ID Range: [0 - %llu]\n",
@@ -498,7 +501,7 @@ static int vgic_its_debug_show(struct seq_file *s, void *v)
 		seq_printf(s, "-----------------------------------------------\n");
 	}
 
-	if (ite && ite->irq && ite->collection) {
+	if (ite->irq && ite->collection) {
 		seq_printf(s, "%8u %8u %8u %8u %8u %2d\n",
 			   ite->event_id, ite->irq->intid, ite->irq->hwintid,
 			   ite->collection->target_addr,
