@@ -194,6 +194,9 @@ static const struct edid_quirk {
 	/* Lenovo G50 */
 	EDID_QUIRK('S', 'D', 'C', 18514, EDID_QUIRK_FORCE_6BPC),
 
+	/*Panel in Lenovo G50-XX notebook reports 6bpc */
+	{ "SDC", 18514, EDID_QUIRK_FORCE_6BPC},
+	
 	/* Panel in Samsung NP700G7A-S01PL notebook reports 6bpc */
 	EDID_QUIRK('S', 'E', 'C', 0xd033, EDID_QUIRK_FORCE_8BPC),
 
