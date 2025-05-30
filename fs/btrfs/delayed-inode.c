@@ -1618,7 +1618,8 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	 */
 	if (ret < 0) {
 		btrfs_err(trans->fs_info,
-"metadata reservation failed for delayed dir item deltiona, should have been reserved");
+"metadata reservation failed for delayed dir item deletion, index: %llu, root: %llu, inode: %llu, error: %d",
+			  index, btrfs_root_id(node->root), node->inode_id, ret);
 		btrfs_release_delayed_item(item);
 		goto end;
 	}
@@ -1627,9 +1628,8 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	ret = __btrfs_add_delayed_item(node, item);
 	if (unlikely(ret)) {
 		btrfs_err(trans->fs_info,
-			  "err add delayed dir index item(index: %llu) into the deletion tree of the delayed node(root id: %llu, inode id: %llu, errno: %d)",
-			  index, btrfs_root_id(node->root),
-			  node->inode_id, ret);
+"failed to add delayed dir index item, root: %llu, inode: %llu, index: %llu, error: %d",
+			  index, btrfs_root_id(node->root), node->inode_id, ret);
 		btrfs_delayed_item_release_metadata(dir->root, item);
 		btrfs_release_delayed_item(item);
 	}
