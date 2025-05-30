@@ -5256,7 +5256,7 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 
 		ret = btrfs_truncate(BTRFS_I(inode), newsize == oldsize);
 		if (ret && inode->i_nlink) {
-			int err;
+			int ret2;
 
 			/*
 			 * Truncate failed, so fix up the in-memory size. We
@@ -5264,9 +5264,9 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 			 * wait for disk_i_size to be stable and then update the
 			 * in-memory size to match.
 			 */
-			err = btrfs_wait_ordered_range(BTRFS_I(inode), 0, (u64)-1);
-			if (err)
-				return err;
+			ret2 = btrfs_wait_ordered_range(BTRFS_I(inode), 0, (u64)-1);
+			if (ret2)
+				return ret2;
 			i_size_write(inode, BTRFS_I(inode)->disk_i_size);
 		}
 	}
