@@ -4373,6 +4373,42 @@ static inline int print_rec(struct seq_file *m, unsigned long ip)
 }
 #endif
 
+static void print_subops(struct seq_file *m, struct ftrace_ops *ops, struct dyn_ftrace *rec)
+{
+	struct ftrace_ops *subops;
+	bool first = true;
+
+	list_for_each_entry(subops, &ops->subop_list, list) {
+		if (!((subops->flags & FTRACE_OPS_FL_ENABLED) &&
+		      hash_contains_ip(rec->ip, subops->func_hash)))
+			continue;
+		if (first) {
+			seq_printf(m, "\tsubops:");
+			first = false;
+		}
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+		if (subops->flags & FTRACE_OPS_FL_GRAPH) {
+			struct fgraph_ops *gops;
+
+			gops = container_of(subops, struct fgraph_ops, ops);
+			seq_printf(m, " {ent:%pS ret:%pS}",
+				   (void *)gops->entryfunc,
+				   (void *)gops->retfunc);
+			continue;
+		}
+#endif
+		if (subops->trampoline) {
+			seq_printf(m, " {%pS (%pS)}",
+				   (void *)subops->trampoline,
+				   (void *)subops->func);
+			add_trampoline_func(m, subops, rec);
+		} else {
+			seq_printf(m, " {%pS}",
+				   (void *)subops->func);
+		}
+	}
+}
+
 static int t_show(struct seq_file *m, void *v)
 {
 	struct ftrace_iterator *iter = m->private;
@@ -4425,6 +4461,7 @@ static int t_show(struct seq_file *m, void *v)
 						   (void *)ops->trampoline,
 						   (void *)ops->func);
 					add_trampoline_func(m, ops, rec);
+					print_subops(m, ops, rec);
 					ops = ftrace_find_tramp_ops_next(rec, ops);
 				} while (ops);
 			} else
@@ -4437,6 +4474,7 @@ static int t_show(struct seq_file *m, void *v)
 			if (ops) {
 				seq_printf(m, "\tops: %pS (%pS)",
 					   ops, ops->func);
+				print_subops(m, ops, rec);
 			} else {
 				seq_puts(m, "\tops: ERROR!");
 			}
@@ -5170,8 +5208,12 @@ struct ftrace_func_map {
 	void				*data;
 };
 
+/*
+ * Note, ftrace_func_mapper is freed by free_ftrace_hash(&mapper->hash).
+ * The hash field must be the first field.
+ */
 struct ftrace_func_mapper {
-	struct ftrace_hash		hash;
+	struct ftrace_hash		hash;	/* Must be first! */
 };
 
 /**
@@ -5306,6 +5348,7 @@ void free_ftrace_func_mapper(struct ftrace_func_mapper *mapper,
 			}
 		}
 	}
+	/* This also frees the mapper itself */
 	free_ftrace_hash(&mapper->hash);
 }
 

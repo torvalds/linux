@@ -417,7 +417,7 @@ bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 
 	(void)bpf_testmod_test_arg_ptr_to_struct(&struct_arg1_2);
 
-	(void)trace_bpf_testmod_test_raw_tp_null(NULL);
+	(void)trace_bpf_testmod_test_raw_tp_null_tp(NULL);
 
 	bpf_testmod_test_struct_ops3();
 
@@ -435,14 +435,14 @@ bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 	if (bpf_testmod_loop_test(101) > 100)
 		trace_bpf_testmod_test_read(current, &ctx);
 
-	trace_bpf_testmod_test_nullable_bare(NULL);
+	trace_bpf_testmod_test_nullable_bare_tp(NULL);
 
 	/* Magic number to enable writable tp */
 	if (len == 64) {
 		struct bpf_testmod_test_writable_ctx writable = {
 			.val = 1024,
 		};
-		trace_bpf_testmod_test_writable_bare(&writable);
+		trace_bpf_testmod_test_writable_bare_tp(&writable);
 		if (writable.early_ret)
 			return snprintf(buf, len, "%d\n", writable.val);
 	}
@@ -474,7 +474,7 @@ bpf_testmod_test_write(struct file *file, struct kobject *kobj,
 		.len = len,
 	};
 
-	trace_bpf_testmod_test_write_bare(current, &ctx);
+	trace_bpf_testmod_test_write_bare_tp(current, &ctx);
 
 	return -EIO; /* always fail */
 }

@@ -356,7 +356,7 @@ TRACE_EVENT(tcp_sendmsg_locked,
 		  __entry->skb_addr, __entry->skb_len, __entry->msg_left,
 		  __entry->size_goal));
 
-DECLARE_TRACE(tcp_cwnd_reduction_tp,
+DECLARE_TRACE(tcp_cwnd_reduction,
 	TP_PROTO(const struct sock *sk, int newly_acked_sacked,
 		 int newly_lost, int flag),
 	TP_ARGS(sk, newly_acked_sacked, newly_lost, flag)
