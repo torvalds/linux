@@ -733,7 +733,6 @@ static int resolve_indirect_refs(struct btrfs_backref_walk_ctx *ctx,
 				 struct preftrees *preftrees,
 				 struct share_check *sc)
 {
-	int err;
 	int ret = 0;
 	struct ulist *parents;
 	struct ulist_node *node;
@@ -752,6 +751,7 @@ static int resolve_indirect_refs(struct btrfs_backref_walk_ctx *ctx,
 	 */
 	while ((rnode = rb_first_cached(&preftrees->indirect.root))) {
 		struct prelim_ref *ref;
+		int ret2;
 
 		ref = rb_entry(rnode, struct prelim_ref, rbnode);
 		if (WARN(ref->parent,
@@ -773,18 +773,18 @@ static int resolve_indirect_refs(struct btrfs_backref_walk_ctx *ctx,
 			ret = BACKREF_FOUND_SHARED;
 			goto out;
 		}
-		err = resolve_indirect_ref(ctx, path, preftrees, ref, parents);
+		ret2 = resolve_indirect_ref(ctx, path, preftrees, ref, parents);
 		/*
 		 * we can only tolerate ENOENT,otherwise,we should catch error
 		 * and return directly.
 		 */
-		if (err == -ENOENT) {
+		if (ret2 == -ENOENT) {
 			prelim_ref_insert(ctx->fs_info, &preftrees->direct, ref,
 					  NULL);
 			continue;
-		} else if (err) {
+		} else if (ret2) {
 			free_pref(ref);
-			ret = err;
+			ret = ret2;
 			goto out;
 		}
 
