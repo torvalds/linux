@@ -1243,3 +1243,9 @@ arguments in the opposite order but is otherwise identical.
 
 Using try_lookup_noperm() will require linux/namei.h to be included.
 
+---
+
+**mandatory**
+
+Calling conventions for ->d_automount() have changed; we should *not* grab
+an extra reference to new mount - it should be returned with refcount 1.

@@ -1390,9 +1390,7 @@ defined:
 
 	If a vfsmount is returned, the caller will attempt to mount it
 	on the mountpoint and will remove the vfsmount from its
-	expiration list in the case of failure.  The vfsmount should be
-	returned with 2 refs on it to prevent automatic expiration - the
-	caller will clean up the additional ref.
+	expiration list in the case of failure.
 
 	This function is only used if DCACHE_NEED_AUTOMOUNT is set on
 	the dentry.  This is set by __d_instantiate() if S_AUTOMOUNT is
