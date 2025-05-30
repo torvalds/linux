@@ -432,24 +432,25 @@ static int sx150x_gpio_oscio_set(struct sx150x_pinctrl *pctl,
 			    (value ? 0x1f : 0x10));
 }
 
-static void sx150x_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			    int value)
+static int sx150x_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			   int value)
 {
 	struct sx150x_pinctrl *pctl = gpiochip_get_data(chip);
 
 	if (sx150x_pin_is_oscio(pctl, offset))
-		sx150x_gpio_oscio_set(pctl, value);
-	else
-		__sx150x_gpio_set(pctl, offset, value);
+		return sx150x_gpio_oscio_set(pctl, value);
+
+	return __sx150x_gpio_set(pctl, offset, value);
 }
 
-static void sx150x_gpio_set_multiple(struct gpio_chip *chip,
-				     unsigned long *mask,
-				     unsigned long *bits)
+static int sx150x_gpio_set_multiple(struct gpio_chip *chip,
+				    unsigned long *mask,
+				    unsigned long *bits)
 {
 	struct sx150x_pinctrl *pctl = gpiochip_get_data(chip);
 
-	regmap_write_bits(pctl->regmap, pctl->data->reg_data, *mask, *bits);
+	return regmap_write_bits(pctl->regmap, pctl->data->reg_data, *mask,
+				 *bits);
 }
 
 static int sx150x_gpio_direction_input(struct gpio_chip *chip,
@@ -1175,7 +1176,7 @@ static int sx150x_probe(struct i2c_client *client)
 	pctl->gpio.direction_input = sx150x_gpio_direction_input;
 	pctl->gpio.direction_output = sx150x_gpio_direction_output;
 	pctl->gpio.get = sx150x_gpio_get;
-	pctl->gpio.set = sx150x_gpio_set;
+	pctl->gpio.set_rv = sx150x_gpio_set;
 	pctl->gpio.set_config = gpiochip_generic_config;
 	pctl->gpio.parent = dev;
 	pctl->gpio.can_sleep = true;
@@ -1190,7 +1191,7 @@ static int sx150x_probe(struct i2c_client *client)
 	 * would require locking that is not in place at this time.
 	 */
 	if (pctl->data->model != SX150X_789)
-		pctl->gpio.set_multiple = sx150x_gpio_set_multiple;
+		pctl->gpio.set_multiple_rv = sx150x_gpio_set_multiple;
 
 	/* Add Interrupt support if an irq is specified */
 	if (client->irq > 0) {

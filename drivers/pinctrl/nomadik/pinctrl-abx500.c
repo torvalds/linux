@@ -167,14 +167,10 @@ out:
 	return bit;
 }
 
-static void abx500_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
+static int abx500_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			   int val)
 {
-	struct abx500_pinctrl *pct = gpiochip_get_data(chip);
-	int ret;
-
-	ret = abx500_gpio_set_bits(chip, AB8500_GPIO_OUT1_REG, offset, val);
-	if (ret < 0)
-		dev_err(pct->dev, "%s write failed (%d)\n", __func__, ret);
+	return abx500_gpio_set_bits(chip, AB8500_GPIO_OUT1_REG, offset, val);
 }
 
 static int abx500_gpio_direction_output(struct gpio_chip *chip,
@@ -540,7 +536,7 @@ static const struct gpio_chip abx500gpio_chip = {
 	.direction_input	= abx500_gpio_direction_input,
 	.get			= abx500_gpio_get,
 	.direction_output	= abx500_gpio_direction_output,
-	.set			= abx500_gpio_set,
+	.set_rv			= abx500_gpio_set,
 	.to_irq			= abx500_gpio_to_irq,
 	.dbg_show		= abx500_gpio_dbg_show,
 };

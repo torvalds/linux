@@ -327,14 +327,14 @@ static int lpi_gpio_get(struct gpio_chip *chip, unsigned int pin)
 		LPI_GPIO_VALUE_IN_MASK;
 }
 
-static void lpi_gpio_set(struct gpio_chip *chip, unsigned int pin, int value)
+static int lpi_gpio_set(struct gpio_chip *chip, unsigned int pin, int value)
 {
 	struct lpi_pinctrl *state = gpiochip_get_data(chip);
 	unsigned long config;
 
 	config = pinconf_to_config_packed(PIN_CONFIG_OUTPUT, value);
 
-	lpi_config_set(state->ctrl, pin, &config, 1);
+	return lpi_config_set(state->ctrl, pin, &config, 1);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -398,7 +398,7 @@ static const struct gpio_chip lpi_gpio_template = {
 	.direction_input	= lpi_gpio_direction_input,
 	.direction_output	= lpi_gpio_direction_output,
 	.get			= lpi_gpio_get,
-	.set			= lpi_gpio_set,
+	.set_rv			= lpi_gpio_set,
 	.request		= gpiochip_generic_request,
 	.free			= gpiochip_generic_free,
 	.dbg_show		= lpi_gpio_dbg_show,

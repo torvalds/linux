@@ -635,7 +635,7 @@ static int msm_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return !!(val & BIT(g->in_bit));
 }
 
-static void msm_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static int msm_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	const struct msm_pingroup *g;
 	struct msm_pinctrl *pctrl = gpiochip_get_data(chip);
@@ -654,6 +654,8 @@ static void msm_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	msm_writel_io(val, pctrl, g);
 
 	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+
+	return 0;
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -790,7 +792,7 @@ static const struct gpio_chip msm_gpio_template = {
 	.direction_output = msm_gpio_direction_output,
 	.get_direction    = msm_gpio_get_direction,
 	.get              = msm_gpio_get,
-	.set              = msm_gpio_set,
+	.set_rv           = msm_gpio_set,
 	.request          = gpiochip_generic_request,
 	.free             = gpiochip_generic_free,
 	.dbg_show         = msm_gpio_dbg_show,

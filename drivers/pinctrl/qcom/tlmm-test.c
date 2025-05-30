@@ -547,6 +547,7 @@ static int tlmm_test_init(struct kunit *test)
 	struct tlmm_test_priv *priv;
 
 	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv);
 
 	atomic_set(&priv->intr_count, 0);
 	atomic_set(&priv->thread_count, 0);

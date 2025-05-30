@@ -142,4 +142,21 @@ int pinconf_generic_parse_dt_config(struct device_node *np,
 int pinconf_generic_parse_dt_pinmux(struct device_node *np, struct device *dev,
 				    unsigned int **pid, unsigned int **pmux,
 				    unsigned int *npins);
+#else
+static inline int
+pinconf_generic_parse_dt_config(struct device_node *np,
+				struct pinctrl_dev *pctldev,
+				unsigned long **configs,
+				unsigned int *nconfigs)
+{
+	return -ENOTSUPP;
+}
+
+static inline int
+pinconf_generic_parse_dt_pinmux(struct device_node *np, struct device *dev,
+				unsigned int **pid, unsigned int **pmux,
+				unsigned int *npins)
+{
+	return -ENOTSUPP;
+}
 #endif

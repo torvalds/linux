@@ -3,7 +3,7 @@ menuconfig PINCTRL_UNIPHIER
 	bool "UniPhier SoC pinctrl drivers"
 	depends on ARCH_UNIPHIER || COMPILE_TEST
 	depends on OF && MFD_SYSCON
-	default y
+	default ARCH_UNIPHIER
 	select PINMUX
 	select GENERIC_PINCONF
 
