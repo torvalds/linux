@@ -86,7 +86,7 @@ vmw_fence_obj_reference(struct vmw_fence_obj *fence)
 	return fence;
 }
 
-extern void vmw_fences_update(struct vmw_fence_manager *fman);
+u32 vmw_fences_update(struct vmw_fence_manager *fman);
 
 extern bool vmw_fence_obj_signaled(struct vmw_fence_obj *fence);
 

@@ -123,26 +123,17 @@ static bool vmw_fifo_idle(struct vmw_private *dev_priv, uint32_t seqno)
 	return (vmw_read(dev_priv, SVGA_REG_BUSY) == 0);
 }
 
-void vmw_update_seqno(struct vmw_private *dev_priv)
-{
-	uint32_t seqno = vmw_fence_read(dev_priv);
-
-	if (dev_priv->last_read_seqno != seqno) {
-		dev_priv->last_read_seqno = seqno;
-		vmw_fences_update(dev_priv->fman);
-	}
-}
-
 bool vmw_seqno_passed(struct vmw_private *dev_priv,
 			 uint32_t seqno)
 {
 	bool ret;
+	u32 last_read_seqno = atomic_read_acquire(&dev_priv->last_read_seqno);
 
-	if (likely(dev_priv->last_read_seqno - seqno < VMW_FENCE_WRAP))
+	if (last_read_seqno - seqno < VMW_FENCE_WRAP)
 		return true;
 
-	vmw_update_seqno(dev_priv);
-	if (likely(dev_priv->last_read_seqno - seqno < VMW_FENCE_WRAP))
+	last_read_seqno = vmw_fences_update(dev_priv->fman);
+	if (last_read_seqno - seqno < VMW_FENCE_WRAP)
 		return true;
 
 	if (!vmw_has_fences(dev_priv) && vmw_fifo_idle(dev_priv, seqno))

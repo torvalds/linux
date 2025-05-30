@@ -172,7 +172,7 @@ vmwgfx_wait_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
 	wake_up_process(wait->task);
 }
 
-static void __vmw_fences_update(struct vmw_fence_manager *fman);
+static u32 __vmw_fences_update(struct vmw_fence_manager *fman);
 
 static long vmw_fence_wait(struct dma_fence *f, bool intr, signed long timeout)
 {
@@ -457,7 +457,7 @@ static bool vmw_fence_goal_check_locked(struct vmw_fence_obj *fence)
 	return true;
 }
 
-static void __vmw_fences_update(struct vmw_fence_manager *fman)
+static u32 __vmw_fences_update(struct vmw_fence_manager *fman)
 {
 	struct vmw_fence_obj *fence, *next_fence;
 	struct list_head action_list;
@@ -495,13 +495,17 @@ rerun:
 
 	if (!list_empty(&fman->cleanup_list))
 		(void) schedule_work(&fman->work);
+	atomic_set_release(&fman->dev_priv->last_read_seqno, seqno);
+	return seqno;
 }
 
-void vmw_fences_update(struct vmw_fence_manager *fman)
+u32 vmw_fences_update(struct vmw_fence_manager *fman)
 {
+	u32 seqno;
 	spin_lock(&fman->lock);
-	__vmw_fences_update(fman);
+	seqno = __vmw_fences_update(fman);
 	spin_unlock(&fman->lock);
+	return seqno;
 }
 
 bool vmw_fence_obj_signaled(struct vmw_fence_obj *fence)
@@ -778,7 +782,6 @@ int vmw_fence_obj_signaled_ioctl(struct drm_device *dev, void *data,
 		(struct drm_vmw_fence_signaled_arg *) data;
 	struct ttm_base_object *base;
 	struct vmw_fence_obj *fence;
-	struct vmw_fence_manager *fman;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 	struct vmw_private *dev_priv = vmw_priv(dev);
 
@@ -787,14 +790,11 @@ int vmw_fence_obj_signaled_ioctl(struct drm_device *dev, void *data,
 		return PTR_ERR(base);
 
 	fence = &(container_of(base, struct vmw_user_fence, base)->fence);
-	fman = fman_from_fence(fence);
 
 	arg->signaled = vmw_fence_obj_signaled(fence);
 
 	arg->signaled_flags = arg->flags;
-	spin_lock(&fman->lock);
-	arg->passed_seqno = dev_priv->last_read_seqno;
-	spin_unlock(&fman->lock);
+	arg->passed_seqno = atomic_read_acquire(&dev_priv->last_read_seqno);
 
 	ttm_base_object_unref(&base);
 
