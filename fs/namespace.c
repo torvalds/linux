@@ -3649,7 +3649,7 @@ static int do_move_mount(struct path *old_path,
 	if (!(attached ? check_mnt(old) : is_anon_ns(ns)))
 		goto out;
 
-	if (is_anon_ns(ns)) {
+	if (is_anon_ns(ns) && ns == p->mnt_ns) {
 		/*
 		 * Ending up with two files referring to the root of the
 		 * same anonymous mount namespace would cause an error
@@ -3657,16 +3657,7 @@ static int do_move_mount(struct path *old_path,
 		 * twice into the mount tree which would be rejected
 		 * later. But be explicit about it right here.
 		 */
-		if ((is_anon_ns(p->mnt_ns) && ns == p->mnt_ns))
-			goto out;
-
-		/*
-		 * If this is an anonymous mount tree ensure that mount
-		 * propagation can detect mounts that were just
-		 * propagated to the target mount tree so we don't
-		 * propagate onto them.
-		 */
-		ns->mntns_flags |= MNTNS_PROPAGATING;
+		goto out;
 	} else if (is_anon_ns(p->mnt_ns)) {
 		/*
 		 * Don't allow moving an attached mount tree to an
@@ -3723,8 +3714,6 @@ static int do_move_mount(struct path *old_path,
 	if (attached)
 		put_mountpoint(old_mp);
 out:
-	if (is_anon_ns(ns))
-		ns->mntns_flags &= ~MNTNS_PROPAGATING;
 	unlock_mount(mp);
 	if (!err) {
 		if (attached) {
