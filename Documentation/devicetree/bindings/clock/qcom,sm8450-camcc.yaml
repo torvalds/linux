@@ -15,7 +15,6 @@ description: |
   domains on SM8450.
 
   See also:
-    include/dt-bindings/clock/qcom,sc8280xp-camcc.h
     include/dt-bindings/clock/qcom,sm8450-camcc.h
     include/dt-bindings/clock/qcom,sm8550-camcc.h
     include/dt-bindings/clock/qcom,sm8650-camcc.h
@@ -23,7 +22,6 @@ description: |
 properties:
   compatible:
     enum:
-      - qcom,sc8280xp-camcc
       - qcom,sm8450-camcc
       - qcom,sm8475-camcc
       - qcom,sm8550-camcc
