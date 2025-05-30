@@ -450,9 +450,10 @@ static int avs_dai_hda_be_hw_free(struct snd_pcm_substream *substream, struct sn
 
 static int avs_dai_hda_be_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_soc_pcm_runtime *be = snd_soc_substream_to_rtd(substream);
 	const struct snd_soc_pcm_stream *stream_info;
 	struct hdac_ext_stream *link_stream;
+	const struct snd_pcm_hw_params *p;
 	struct avs_dma_data *data;
 	unsigned int format_val;
 	unsigned int bits;
@@ -460,14 +461,15 @@ static int avs_dai_hda_be_prepare(struct snd_pcm_substream *substream, struct sn
 
 	data = snd_soc_dai_get_dma_data(dai, substream);
 	link_stream = data->link_stream;
+	p = &be->dpcm[substream->stream].hw_params;
 
 	if (link_stream->link_prepared)
 		return 0;
 
 	stream_info = snd_soc_dai_get_pcm_stream(dai, substream->stream);
-	bits = snd_hdac_stream_format_bits(runtime->format, runtime->subformat,
+	bits = snd_hdac_stream_format_bits(params_format(p), params_subformat(p),
 					   stream_info->sig_bits);
-	format_val = snd_hdac_stream_format(runtime->channels, bits, runtime->rate);
+	format_val = snd_hdac_stream_format(params_channels(p), bits, params_rate(p));
 
 	snd_hdac_ext_stream_decouple(&data->adev->base.core, link_stream, true);
 	snd_hdac_ext_stream_reset(link_stream);
