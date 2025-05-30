@@ -1457,8 +1457,8 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 	u64 blocknr;
 	struct extent_buffer *tmp = NULL;
 	int ret = 0;
+	int ret2;
 	int parent_level;
-	int err;
 	bool read_tmp = false;
 	bool tmp_locked = false;
 	bool path_released = false;
@@ -1516,9 +1516,9 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 		}
 
 		/* Now we're allowed to do a blocking uptodate check. */
-		err = btrfs_read_extent_buffer(tmp, &check);
-		if (err) {
-			ret = err;
+		ret2 = btrfs_read_extent_buffer(tmp, &check);
+		if (ret2) {
+			ret = ret2;
 			goto out;
 		}
 
@@ -1559,9 +1559,9 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 	}
 
 	/* Now we're allowed to do a blocking uptodate check. */
-	err = btrfs_read_extent_buffer(tmp, &check);
-	if (err) {
-		ret = err;
+	ret2 = btrfs_read_extent_buffer(tmp, &check);
+	if (ret2) {
+		ret = ret2;
 		goto out;
 	}
 
