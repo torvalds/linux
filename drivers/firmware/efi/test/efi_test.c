@@ -361,6 +361,10 @@ static long efi_runtime_get_waketime(unsigned long arg)
 						getwakeuptime.enabled))
 		return -EFAULT;
 
+	if (getwakeuptime.pending && put_user(pending,
+						getwakeuptime.pending))
+		return -EFAULT;
+
 	if (getwakeuptime.time) {
 		if (copy_to_user(getwakeuptime.time, &efi_time,
 				sizeof(efi_time_t)))
