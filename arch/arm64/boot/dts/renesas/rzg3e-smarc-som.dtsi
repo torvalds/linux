@@ -85,7 +85,7 @@
 &i2c2 {
 	pinctrl-0 = <&i2c2_pins>;
 	pinctrl-names = "default";
-	clock-frequency = <1000000>;
+	clock-frequency = <400000>;
 	status = "okay";
 
 	raa215300: pmic@12 {
