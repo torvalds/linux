@@ -73,6 +73,7 @@ SYM_CODE_START(handle_syscall)
 	move		a0, sp
 	bl		do_syscall
 
+	STACKLEAK_ERASE
 	RESTORE_ALL_AND_RET
 SYM_CODE_END(handle_syscall)
 _ASM_NOKPROBE(handle_syscall)
@@ -81,6 +82,7 @@ SYM_CODE_START(ret_from_fork_asm)
 	UNWIND_HINT_REGS
 	move		a1, sp
 	bl 		ret_from_fork
+	STACKLEAK_ERASE
 	RESTORE_STATIC
 	RESTORE_SOME
 	RESTORE_SP_AND_RET
@@ -92,6 +94,7 @@ SYM_CODE_START(ret_from_kernel_thread_asm)
 	move		a2, s0
 	move		a3, s1
 	bl		ret_from_kernel_thread
+	STACKLEAK_ERASE
 	RESTORE_STATIC
 	RESTORE_SOME
 	RESTORE_SP_AND_RET
