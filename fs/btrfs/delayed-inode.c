@@ -1540,8 +1540,8 @@ release_node:
 	return ret;
 }
 
-static int btrfs_delete_delayed_insertion_item(struct btrfs_delayed_node *node,
-					       u64 index)
+static bool btrfs_delete_delayed_insertion_item(struct btrfs_delayed_node *node,
+						u64 index)
 {
 	struct btrfs_delayed_item *item;
 
@@ -1549,7 +1549,7 @@ static int btrfs_delete_delayed_insertion_item(struct btrfs_delayed_node *node,
 	item = __btrfs_lookup_delayed_item(&node->ins_root.rb_root, index);
 	if (!item) {
 		mutex_unlock(&node->mutex);
-		return 1;
+		return false;
 	}
 
 	/*
@@ -1584,7 +1584,7 @@ static int btrfs_delete_delayed_insertion_item(struct btrfs_delayed_node *node,
 	}
 
 	mutex_unlock(&node->mutex);
-	return 0;
+	return true;
 }
 
 int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
@@ -1598,9 +1598,10 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	if (IS_ERR(node))
 		return PTR_ERR(node);
 
-	ret = btrfs_delete_delayed_insertion_item(node, index);
-	if (!ret)
+	if (btrfs_delete_delayed_insertion_item(node, index)) {
+		ret = 0;
 		goto end;
+	}
 
 	item = btrfs_alloc_delayed_item(0, node, BTRFS_DELAYED_DELETION_ITEM);
 	if (!item) {
