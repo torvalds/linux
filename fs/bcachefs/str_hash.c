@@ -61,14 +61,19 @@ static noinline int fsck_rename_dirent(struct btree_trans *trans,
 						(subvol_inum) { 0, old.k->p.inode },
 						old.k->p.snapshot, &new->k_i,
 						BTREE_UPDATE_internal_snapshot_node);
-		if (!bch2_err_matches(ret, EEXIST))
+		if (ret && !bch2_err_matches(ret, EEXIST))
+			goto err;
+		if (!ret)
 			break;
 	}
 
 	if (ret)
-		return ret;
+		goto err;
 
-	return bch2_fsck_update_backpointers(trans, s, desc, hash_info, &new->k_i);
+	ret = bch2_fsck_update_backpointers(trans, s, desc, hash_info, &new->k_i);
+err:
+	bch_err_fn(trans->c, ret);
+	return ret;
 }
 
 static noinline int hash_pick_winner(struct btree_trans *trans,
