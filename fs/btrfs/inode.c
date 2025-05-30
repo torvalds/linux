@@ -6802,7 +6802,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	struct fscrypt_name fname;
 	u64 index;
-	int err;
+	int ret;
 	int drop_inode = 0;
 
 	/* do not allow sys_link's with other subvols of the same device */
@@ -6812,12 +6812,12 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	if (inode->i_nlink >= BTRFS_LINK_MAX)
 		return -EMLINK;
 
-	err = fscrypt_setup_filename(dir, &dentry->d_name, 0, &fname);
-	if (err)
+	ret = fscrypt_setup_filename(dir, &dentry->d_name, 0, &fname);
+	if (ret)
 		goto fail;
 
-	err = btrfs_set_inode_index(BTRFS_I(dir), &index);
-	if (err)
+	ret = btrfs_set_inode_index(BTRFS_I(dir), &index);
+	if (ret)
 		goto fail;
 
 	/*
@@ -6828,7 +6828,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	 */
 	trans = btrfs_start_transaction(root, inode->i_nlink ? 5 : 6);
 	if (IS_ERR(trans)) {
-		err = PTR_ERR(trans);
+		ret = PTR_ERR(trans);
 		trans = NULL;
 		goto fail;
 	}
@@ -6841,24 +6841,24 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	ihold(inode);
 	set_bit(BTRFS_INODE_COPY_EVERYTHING, &BTRFS_I(inode)->runtime_flags);
 
-	err = btrfs_add_link(trans, BTRFS_I(dir), BTRFS_I(inode),
+	ret = btrfs_add_link(trans, BTRFS_I(dir), BTRFS_I(inode),
 			     &fname.disk_name, 1, index);
 
-	if (err) {
+	if (ret) {
 		drop_inode = 1;
 	} else {
 		struct dentry *parent = dentry->d_parent;
 
-		err = btrfs_update_inode(trans, BTRFS_I(inode));
-		if (err)
+		ret = btrfs_update_inode(trans, BTRFS_I(inode));
+		if (ret)
 			goto fail;
 		if (inode->i_nlink == 1) {
 			/*
 			 * If new hard link count is 1, it's a file created
 			 * with open(2) O_TMPFILE flag.
 			 */
-			err = btrfs_orphan_del(trans, BTRFS_I(inode));
-			if (err)
+			ret = btrfs_orphan_del(trans, BTRFS_I(inode));
+			if (ret)
 				goto fail;
 		}
 		d_instantiate(dentry, inode);
@@ -6874,7 +6874,7 @@ fail:
 		iput(inode);
 	}
 	btrfs_btree_balance_dirty(fs_info);
-	return err;
+	return ret;
 }
 
 static struct dentry *btrfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
