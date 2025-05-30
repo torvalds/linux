@@ -13,8 +13,6 @@
 #include "arm-smmu-v3.h"
 #include "../../io-pgtable-arm.h"
 
-static DEFINE_MUTEX(sva_lock);
-
 static void __maybe_unused
 arm_smmu_update_s1_domain_cd_entry(struct arm_smmu_domain *smmu_domain)
 {
@@ -257,84 +255,6 @@ bool arm_smmu_sva_supported(struct arm_smmu_device *smmu)
 	return true;
 }
 
-bool arm_smmu_master_iopf_supported(struct arm_smmu_master *master)
-{
-	/* We're not keeping track of SIDs in fault events */
-	if (master->num_streams != 1)
-		return false;
-
-	return master->stall_enabled;
-}
-
-bool arm_smmu_master_sva_supported(struct arm_smmu_master *master)
-{
-	if (!(master->smmu->features & ARM_SMMU_FEAT_SVA))
-		return false;
-
-	/* SSID support is mandatory for the moment */
-	return master->ssid_bits;
-}
-
-bool arm_smmu_master_sva_enabled(struct arm_smmu_master *master)
-{
-	bool enabled;
-
-	mutex_lock(&sva_lock);
-	enabled = master->sva_enabled;
-	mutex_unlock(&sva_lock);
-	return enabled;
-}
-
-static int arm_smmu_master_sva_enable_iopf(struct arm_smmu_master *master)
-{
-	struct device *dev = master->dev;
-
-	/*
-	 * Drivers for devices supporting PRI or stall should enable IOPF first.
-	 * Others have device-specific fault handlers and don't need IOPF.
-	 */
-	if (!arm_smmu_master_iopf_supported(master))
-		return 0;
-
-	if (!master->iopf_enabled)
-		return -EINVAL;
-
-	return iopf_queue_add_device(master->smmu->evtq.iopf, dev);
-}
-
-static void arm_smmu_master_sva_disable_iopf(struct arm_smmu_master *master)
-{
-	struct device *dev = master->dev;
-
-	if (!master->iopf_enabled)
-		return;
-
-	iopf_queue_remove_device(master->smmu->evtq.iopf, dev);
-}
-
-int arm_smmu_master_enable_sva(struct arm_smmu_master *master)
-{
-	int ret;
-
-	mutex_lock(&sva_lock);
-	ret = arm_smmu_master_sva_enable_iopf(master);
-	if (!ret)
-		master->sva_enabled = true;
-	mutex_unlock(&sva_lock);
-
-	return ret;
-}
-
-int arm_smmu_master_disable_sva(struct arm_smmu_master *master)
-{
-	mutex_lock(&sva_lock);
-	arm_smmu_master_sva_disable_iopf(master);
-	master->sva_enabled = false;
-	mutex_unlock(&sva_lock);
-
-	return 0;
-}
-
 void arm_smmu_sva_notifier_synchronize(void)
 {
 	/*
@@ -352,6 +272,9 @@ static int arm_smmu_sva_set_dev_pasid(struct iommu_domain *domain,
 	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
 	struct arm_smmu_cd target;
 	int ret;
+
+	if (!(master->smmu->features & ARM_SMMU_FEAT_SVA))
+		return -EOPNOTSUPP;
 
 	/* Prevent arm_smmu_mm_release from being called while we are attaching */
 	if (!mmget_not_zero(domain->mm))
@@ -405,6 +328,9 @@ struct iommu_domain *arm_smmu_sva_domain_alloc(struct device *dev,
 	struct arm_smmu_domain *smmu_domain;
 	u32 asid;
 	int ret;
+
+	if (!(master->smmu->features & ARM_SMMU_FEAT_SVA))
+		return ERR_PTR(-EOPNOTSUPP);
 
 	smmu_domain = arm_smmu_domain_alloc();
 	if (IS_ERR(smmu_domain))

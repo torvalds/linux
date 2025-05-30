@@ -60,14 +60,14 @@ int intel_pasid_alloc_table(struct device *dev)
 
 	size = max_pasid >> (PASID_PDE_SHIFT - 3);
 	order = size ? get_order(size) : 0;
-	dir = iommu_alloc_pages_node(info->iommu->node, GFP_KERNEL, order);
+	dir = iommu_alloc_pages_node_sz(info->iommu->node, GFP_KERNEL,
+					1 << (order + PAGE_SHIFT));
 	if (!dir) {
 		kfree(pasid_table);
 		return -ENOMEM;
 	}
 
 	pasid_table->table = dir;
-	pasid_table->order = order;
 	pasid_table->max_pasid = 1 << (order + PAGE_SHIFT + 3);
 	info->pasid_table = pasid_table;
 
@@ -97,10 +97,10 @@ void intel_pasid_free_table(struct device *dev)
 	max_pde = pasid_table->max_pasid >> PASID_PDE_SHIFT;
 	for (i = 0; i < max_pde; i++) {
 		table = get_pasid_table_from_pde(&dir[i]);
-		iommu_free_page(table);
+		iommu_free_pages(table);
 	}
 
-	iommu_free_pages(pasid_table->table, pasid_table->order);
+	iommu_free_pages(pasid_table->table);
 	kfree(pasid_table);
 }
 
@@ -148,7 +148,8 @@ retry:
 	if (!entries) {
 		u64 tmp;
 
-		entries = iommu_alloc_page_node(info->iommu->node, GFP_ATOMIC);
+		entries = iommu_alloc_pages_node_sz(info->iommu->node,
+						    GFP_ATOMIC, SZ_4K);
 		if (!entries)
 			return NULL;
 
@@ -161,7 +162,7 @@ retry:
 		tmp = 0ULL;
 		if (!try_cmpxchg64(&dir[dir_index].val, &tmp,
 				   (u64)virt_to_phys(entries) | PASID_PTE_PRESENT)) {
-			iommu_free_page(entries);
+			iommu_free_pages(entries);
 			goto retry;
 		}
 		if (!ecap_coherent(info->iommu->ecap)) {

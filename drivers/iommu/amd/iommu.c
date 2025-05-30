@@ -241,7 +241,9 @@ static inline int get_acpihid_device_id(struct device *dev,
 					struct acpihid_map_entry **entry)
 {
 	struct acpi_device *adev = ACPI_COMPANION(dev);
-	struct acpihid_map_entry *p;
+	struct acpihid_map_entry *p, *p1 = NULL;
+	int hid_count = 0;
+	bool fw_bug;
 
 	if (!adev)
 		return -ENODEV;
@@ -249,12 +251,33 @@ static inline int get_acpihid_device_id(struct device *dev,
 	list_for_each_entry(p, &acpihid_map, list) {
 		if (acpi_dev_hid_uid_match(adev, p->hid,
 					   p->uid[0] ? p->uid : NULL)) {
-			if (entry)
-				*entry = p;
-			return p->devid;
+			p1 = p;
+			fw_bug = false;
+			hid_count = 1;
+			break;
+		}
+
+		/*
+		 * Count HID matches w/o UID, raise FW_BUG but allow exactly one match
+		 */
+		if (acpi_dev_hid_match(adev, p->hid)) {
+			p1 = p;
+			hid_count++;
+			fw_bug = true;
 		}
 	}
-	return -EINVAL;
+
+	if (!p1)
+		return -EINVAL;
+	if (fw_bug)
+		dev_err_once(dev, FW_BUG "No ACPI device matched UID, but %d device%s matched HID.\n",
+			     hid_count, hid_count > 1 ? "s" : "");
+	if (hid_count > 1)
+		return -EINVAL;
+	if (entry)
+		*entry = p1;
+
+	return p1->devid;
 }
 
 static inline int get_device_sbdf_id(struct device *dev)
@@ -981,6 +1004,14 @@ static int (*iommu_ga_log_notifier)(u32);
 int amd_iommu_register_ga_log_notifier(int (*notifier)(u32))
 {
 	iommu_ga_log_notifier = notifier;
+
+	/*
+	 * Ensure all in-flight IRQ handlers run to completion before returning
+	 * to the caller, e.g. to ensure module code isn't unloaded while it's
+	 * being executed in the IRQ handler.
+	 */
+	if (!notifier)
+		synchronize_rcu();
 
 	return 0;
 }
@@ -1812,7 +1843,7 @@ static void free_gcr3_tbl_level1(u64 *tbl)
 
 		ptr = iommu_phys_to_virt(tbl[i] & PAGE_MASK);
 
-		iommu_free_page(ptr);
+		iommu_free_pages(ptr);
 	}
 }
 
@@ -1845,7 +1876,7 @@ static void free_gcr3_table(struct gcr3_tbl_info *gcr3_info)
 	/* Free per device domain ID */
 	pdom_id_free(gcr3_info->domid);
 
-	iommu_free_page(gcr3_info->gcr3_tbl);
+	iommu_free_pages(gcr3_info->gcr3_tbl);
 	gcr3_info->gcr3_tbl = NULL;
 }
 
@@ -1884,7 +1915,7 @@ static int setup_gcr3_table(struct gcr3_tbl_info *gcr3_info,
 		return -ENOSPC;
 	gcr3_info->domid = domid;
 
-	gcr3_info->gcr3_tbl = iommu_alloc_page_node(nid, GFP_ATOMIC);
+	gcr3_info->gcr3_tbl = iommu_alloc_pages_node_sz(nid, GFP_ATOMIC, SZ_4K);
 	if (gcr3_info->gcr3_tbl == NULL) {
 		pdom_id_free(domid);
 		return -ENOMEM;
@@ -2908,6 +2939,9 @@ static void amd_iommu_get_resv_regions(struct device *dev,
 		return;
 	list_add_tail(&region->list, head);
 
+	if (amd_iommu_ht_range_ignore())
+		return;
+
 	region = iommu_alloc_resv_region(HT_RANGE_START,
 					 HT_RANGE_END - HT_RANGE_START + 1,
 					 0, IOMMU_RESV_RESERVED, GFP_KERNEL);
@@ -2984,38 +3018,6 @@ static const struct iommu_dirty_ops amd_dirty_ops = {
 	.read_and_clear_dirty = amd_iommu_read_and_clear_dirty,
 };
 
-static int amd_iommu_dev_enable_feature(struct device *dev,
-					enum iommu_dev_features feat)
-{
-	int ret = 0;
-
-	switch (feat) {
-	case IOMMU_DEV_FEAT_IOPF:
-	case IOMMU_DEV_FEAT_SVA:
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
-}
-
-static int amd_iommu_dev_disable_feature(struct device *dev,
-					 enum iommu_dev_features feat)
-{
-	int ret = 0;
-
-	switch (feat) {
-	case IOMMU_DEV_FEAT_IOPF:
-	case IOMMU_DEV_FEAT_SVA:
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
-}
-
 const struct iommu_ops amd_iommu_ops = {
 	.capable = amd_iommu_capable,
 	.blocked_domain = &blocked_domain,
@@ -3029,8 +3031,6 @@ const struct iommu_ops amd_iommu_ops = {
 	.get_resv_regions = amd_iommu_get_resv_regions,
 	.is_attach_deferred = amd_iommu_is_attach_deferred,
 	.def_domain_type = amd_iommu_def_domain_type,
-	.dev_enable_feat = amd_iommu_dev_enable_feature,
-	.dev_disable_feat = amd_iommu_dev_disable_feature,
 	.page_response = amd_iommu_page_response,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= amd_iommu_attach_device,
@@ -3129,7 +3129,7 @@ static struct irq_remap_table *get_irq_table(struct amd_iommu *iommu, u16 devid)
 	return table;
 }
 
-static struct irq_remap_table *__alloc_irq_table(int nid, int order)
+static struct irq_remap_table *__alloc_irq_table(int nid, size_t size)
 {
 	struct irq_remap_table *table;
 
@@ -3137,7 +3137,8 @@ static struct irq_remap_table *__alloc_irq_table(int nid, int order)
 	if (!table)
 		return NULL;
 
-	table->table = iommu_alloc_pages_node(nid, GFP_KERNEL, order);
+	table->table = iommu_alloc_pages_node_sz(
+		nid, GFP_KERNEL, max(DTE_INTTAB_ALIGNMENT, size));
 	if (!table->table) {
 		kfree(table);
 		return NULL;
@@ -3191,7 +3192,6 @@ static struct irq_remap_table *alloc_irq_table(struct amd_iommu *iommu,
 	struct irq_remap_table *new_table = NULL;
 	struct amd_iommu_pci_seg *pci_seg;
 	unsigned long flags;
-	int order = get_order(get_irq_table_size(max_irqs));
 	int nid = iommu && iommu->dev ? dev_to_node(&iommu->dev->dev) : NUMA_NO_NODE;
 	u16 alias;
 
@@ -3211,7 +3211,7 @@ static struct irq_remap_table *alloc_irq_table(struct amd_iommu *iommu,
 	spin_unlock_irqrestore(&iommu_table_lock, flags);
 
 	/* Nothing there yet, allocate new irq remapping table */
-	new_table = __alloc_irq_table(nid, order);
+	new_table = __alloc_irq_table(nid, get_irq_table_size(max_irqs));
 	if (!new_table)
 		return NULL;
 
@@ -3246,7 +3246,7 @@ out_unlock:
 	spin_unlock_irqrestore(&iommu_table_lock, flags);
 
 	if (new_table) {
-		iommu_free_pages(new_table->table, order);
+		iommu_free_pages(new_table->table);
 		kfree(new_table);
 	}
 	return table;

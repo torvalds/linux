@@ -121,10 +121,10 @@ static void free_pgtable(u64 *pt, int level)
 		if (level > 2)
 			free_pgtable(p, level - 1);
 		else
-			iommu_free_page(p);
+			iommu_free_pages(p);
 	}
 
-	iommu_free_page(pt);
+	iommu_free_pages(pt);
 }
 
 /* Allocate page table */
@@ -152,14 +152,14 @@ static u64 *v2_alloc_pte(int nid, u64 *pgd, unsigned long iova,
 		}
 
 		if (!IOMMU_PTE_PRESENT(__pte)) {
-			page = iommu_alloc_page_node(nid, gfp);
+			page = iommu_alloc_pages_node_sz(nid, gfp, SZ_4K);
 			if (!page)
 				return NULL;
 
 			__npte = set_pgtable_attr(page);
 			/* pte could have been changed somewhere. */
 			if (!try_cmpxchg64(pte, &__pte, __npte))
-				iommu_free_page(page);
+				iommu_free_pages(page);
 			else if (IOMMU_PTE_PRESENT(__pte))
 				*updated = true;
 
@@ -181,7 +181,7 @@ static u64 *v2_alloc_pte(int nid, u64 *pgd, unsigned long iova,
 		if (pg_size == IOMMU_PAGE_SIZE_1G)
 			free_pgtable(__pte, end_level - 1);
 		else if (pg_size == IOMMU_PAGE_SIZE_2M)
-			iommu_free_page(__pte);
+			iommu_free_pages(__pte);
 	}
 
 	return pte;
@@ -346,7 +346,7 @@ static struct io_pgtable *v2_alloc_pgtable(struct io_pgtable_cfg *cfg, void *coo
 	struct amd_io_pgtable *pgtable = io_pgtable_cfg_to_data(cfg);
 	int ias = IOMMU_IN_ADDR_BIT_SIZE;
 
-	pgtable->pgd = iommu_alloc_page_node(cfg->amd.nid, GFP_KERNEL);
+	pgtable->pgd = iommu_alloc_pages_node_sz(cfg->amd.nid, GFP_KERNEL, SZ_4K);
 	if (!pgtable->pgd)
 		return NULL;
 

@@ -316,23 +316,6 @@ struct iommu_iort_rmr_data {
 	u32 num_sids;
 };
 
-/**
- * enum iommu_dev_features - Per device IOMMU features
- * @IOMMU_DEV_FEAT_SVA: Shared Virtual Addresses
- * @IOMMU_DEV_FEAT_IOPF: I/O Page Faults such as PRI or Stall. Generally
- *			 enabling %IOMMU_DEV_FEAT_SVA requires
- *			 %IOMMU_DEV_FEAT_IOPF, but some devices manage I/O Page
- *			 Faults themselves instead of relying on the IOMMU. When
- *			 supported, this feature must be enabled before and
- *			 disabled after %IOMMU_DEV_FEAT_SVA.
- *
- * Device drivers enable a feature using iommu_dev_enable_feature().
- */
-enum iommu_dev_features {
-	IOMMU_DEV_FEAT_SVA,
-	IOMMU_DEV_FEAT_IOPF,
-};
-
 #define IOMMU_NO_PASID	(0U) /* Reserved for DMA w/o PASID */
 #define IOMMU_FIRST_GLOBAL_PASID	(1U) /*starting range for allocation */
 #define IOMMU_PASID_INVALID	(-1U)
@@ -340,6 +323,18 @@ typedef unsigned int ioasid_t;
 
 /* Read but do not clear any dirty bits */
 #define IOMMU_DIRTY_NO_CLEAR (1 << 0)
+
+/*
+ * Pages allocated through iommu_alloc_pages_node_sz() can be placed on this
+ * list using iommu_pages_list_add(). Note: ONLY pages from
+ * iommu_alloc_pages_node_sz() can be used this way!
+ */
+struct iommu_pages_list {
+	struct list_head pages;
+};
+
+#define IOMMU_PAGES_LIST_INIT(name) \
+	((struct iommu_pages_list){ .pages = LIST_HEAD_INIT(name.pages) })
 
 #ifdef CONFIG_IOMMU_API
 
@@ -363,7 +358,7 @@ struct iommu_iotlb_gather {
 	unsigned long		start;
 	unsigned long		end;
 	size_t			pgsize;
-	struct list_head	freelist;
+	struct iommu_pages_list	freelist;
 	bool			queued;
 };
 
@@ -569,9 +564,10 @@ iommu_copy_struct_from_full_user_array(void *kdst, size_t kdst_entry_size,
  *           op is allocated in the iommu driver and freed by the caller after
  *           use. The information type is one of enum iommu_hw_info_type defined
  *           in include/uapi/linux/iommufd.h.
- * @domain_alloc: allocate and return an iommu domain if success. Otherwise
- *                NULL is returned. The domain is not fully initialized until
- *                the caller iommu_domain_alloc() returns.
+ * @domain_alloc: Do not use in new drivers
+ * @domain_alloc_identity: allocate an IDENTITY domain. Drivers should prefer to
+ *                         use identity_domain instead. This should only be used
+ *                         if dynamic logic is necessary.
  * @domain_alloc_paging_flags: Allocate an iommu domain corresponding to the
  *                     input parameters as defined in
  *                     include/uapi/linux/iommufd.h. The @user_data can be
@@ -594,8 +590,6 @@ iommu_copy_struct_from_full_user_array(void *kdst, size_t kdst_entry_size,
  * @of_xlate: add OF master IDs to iommu grouping
  * @is_attach_deferred: Check if domain attach should be deferred from iommu
  *                      driver init to device driver init (default no)
- * @dev_enable/disable_feat: per device entries to enable/disable
- *                               iommu specific features.
  * @page_response: handle page request response
  * @def_domain_type: device default domain type, return value:
  *		- IOMMU_DOMAIN_IDENTITY: must use an identity domain
@@ -629,7 +623,10 @@ struct iommu_ops {
 	void *(*hw_info)(struct device *dev, u32 *length, u32 *type);
 
 	/* Domain allocation and freeing by the iommu driver */
+#if IS_ENABLED(CONFIG_FSL_PAMU)
 	struct iommu_domain *(*domain_alloc)(unsigned iommu_domain_type);
+#endif
+	struct iommu_domain *(*domain_alloc_identity)(struct device *dev);
 	struct iommu_domain *(*domain_alloc_paging_flags)(
 		struct device *dev, u32 flags,
 		const struct iommu_user_data *user_data);
@@ -652,9 +649,6 @@ struct iommu_ops {
 	bool (*is_attach_deferred)(struct device *dev);
 
 	/* Per device IOMMU features */
-	int (*dev_enable_feat)(struct device *dev, enum iommu_dev_features f);
-	int (*dev_disable_feat)(struct device *dev, enum iommu_dev_features f);
-
 	void (*page_response)(struct device *dev, struct iopf_fault *evt,
 			      struct iommu_page_response *msg);
 
@@ -750,6 +744,7 @@ struct iommu_domain_ops {
  * @dev: struct device for sysfs handling
  * @singleton_group: Used internally for drivers that have only one group
  * @max_pasids: number of supported PASIDs
+ * @ready: set once iommu_device_register() has completed successfully
  */
 struct iommu_device {
 	struct list_head list;
@@ -758,6 +753,7 @@ struct iommu_device {
 	struct device *dev;
 	struct iommu_group *singleton_group;
 	u32 max_pasids;
+	bool ready;
 };
 
 /**
@@ -852,7 +848,7 @@ static inline void iommu_iotlb_gather_init(struct iommu_iotlb_gather *gather)
 {
 	*gather = (struct iommu_iotlb_gather) {
 		.start	= ULONG_MAX,
-		.freelist = LIST_HEAD_INIT(gather->freelist),
+		.freelist = IOMMU_PAGES_LIST_INIT(gather->freelist),
 	};
 }
 
@@ -1126,9 +1122,6 @@ void dev_iommu_priv_set(struct device *dev, void *priv);
 
 extern struct mutex iommu_probe_device_lock;
 int iommu_probe_device(struct device *dev);
-
-int iommu_dev_enable_feature(struct device *dev, enum iommu_dev_features f);
-int iommu_dev_disable_feature(struct device *dev, enum iommu_dev_features f);
 
 int iommu_device_use_default_domain(struct device *dev);
 void iommu_device_unuse_default_domain(struct device *dev);
@@ -1410,18 +1403,6 @@ static inline int iommu_fwspec_init(struct device *dev,
 
 static inline int iommu_fwspec_add_ids(struct device *dev, u32 *ids,
 				       int num_ids)
-{
-	return -ENODEV;
-}
-
-static inline int
-iommu_dev_enable_feature(struct device *dev, enum iommu_dev_features feat)
-{
-	return -ENODEV;
-}
-
-static inline int
-iommu_dev_disable_feature(struct device *dev, enum iommu_dev_features feat)
 {
 	return -ENODEV;
 }

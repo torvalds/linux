@@ -2720,6 +2720,7 @@ static void arm_smmu_disable_pasid(struct arm_smmu_master *master)
 
 static struct arm_smmu_master_domain *
 arm_smmu_find_master_domain(struct arm_smmu_domain *smmu_domain,
+			    struct iommu_domain *domain,
 			    struct arm_smmu_master *master,
 			    ioasid_t ssid, bool nested_ats_flush)
 {
@@ -2730,6 +2731,7 @@ arm_smmu_find_master_domain(struct arm_smmu_domain *smmu_domain,
 	list_for_each_entry(master_domain, &smmu_domain->devices,
 			    devices_elm) {
 		if (master_domain->master == master &&
+		    master_domain->domain == domain &&
 		    master_domain->ssid == ssid &&
 		    master_domain->nested_ats_flush == nested_ats_flush)
 			return master_domain;
@@ -2756,6 +2758,58 @@ to_smmu_domain_devices(struct iommu_domain *domain)
 	return NULL;
 }
 
+static int arm_smmu_enable_iopf(struct arm_smmu_master *master,
+				struct arm_smmu_master_domain *master_domain)
+{
+	int ret;
+
+	iommu_group_mutex_assert(master->dev);
+
+	if (!IS_ENABLED(CONFIG_ARM_SMMU_V3_SVA))
+		return -EOPNOTSUPP;
+
+	/*
+	 * Drivers for devices supporting PRI or stall require iopf others have
+	 * device-specific fault handlers and don't need IOPF, so this is not a
+	 * failure.
+	 */
+	if (!master->stall_enabled)
+		return 0;
+
+	/* We're not keeping track of SIDs in fault events */
+	if (master->num_streams != 1)
+		return -EOPNOTSUPP;
+
+	if (master->iopf_refcount) {
+		master->iopf_refcount++;
+		master_domain->using_iopf = true;
+		return 0;
+	}
+
+	ret = iopf_queue_add_device(master->smmu->evtq.iopf, master->dev);
+	if (ret)
+		return ret;
+	master->iopf_refcount = 1;
+	master_domain->using_iopf = true;
+	return 0;
+}
+
+static void arm_smmu_disable_iopf(struct arm_smmu_master *master,
+				  struct arm_smmu_master_domain *master_domain)
+{
+	iommu_group_mutex_assert(master->dev);
+
+	if (!IS_ENABLED(CONFIG_ARM_SMMU_V3_SVA))
+		return;
+
+	if (!master_domain || !master_domain->using_iopf)
+		return;
+
+	master->iopf_refcount--;
+	if (master->iopf_refcount == 0)
+		iopf_queue_remove_device(master->smmu->evtq.iopf, master->dev);
+}
+
 static void arm_smmu_remove_master_domain(struct arm_smmu_master *master,
 					  struct iommu_domain *domain,
 					  ioasid_t ssid)
@@ -2772,15 +2826,17 @@ static void arm_smmu_remove_master_domain(struct arm_smmu_master *master,
 		nested_ats_flush = to_smmu_nested_domain(domain)->enable_ats;
 
 	spin_lock_irqsave(&smmu_domain->devices_lock, flags);
-	master_domain = arm_smmu_find_master_domain(smmu_domain, master, ssid,
-						    nested_ats_flush);
+	master_domain = arm_smmu_find_master_domain(smmu_domain, domain, master,
+						    ssid, nested_ats_flush);
 	if (master_domain) {
 		list_del(&master_domain->devices_elm);
-		kfree(master_domain);
 		if (master->ats_enabled)
 			atomic_dec(&smmu_domain->nr_ats_masters);
 	}
 	spin_unlock_irqrestore(&smmu_domain->devices_lock, flags);
+
+	arm_smmu_disable_iopf(master, master_domain);
+	kfree(master_domain);
 }
 
 /*
@@ -2853,11 +2909,18 @@ int arm_smmu_attach_prepare(struct arm_smmu_attach_state *state,
 			kfree(state->vmaster);
 			return -ENOMEM;
 		}
+		master_domain->domain = new_domain;
 		master_domain->master = master;
 		master_domain->ssid = state->ssid;
 		if (new_domain->type == IOMMU_DOMAIN_NESTED)
 			master_domain->nested_ats_flush =
 				to_smmu_nested_domain(new_domain)->enable_ats;
+
+		if (new_domain->iopf_handler) {
+			ret = arm_smmu_enable_iopf(master, master_domain);
+			if (ret)
+				goto err_free_master_domain;
+		}
 
 		/*
 		 * During prepare we want the current smmu_domain and new
@@ -2878,9 +2941,9 @@ int arm_smmu_attach_prepare(struct arm_smmu_attach_state *state,
 		    !arm_smmu_master_canwbs(master)) {
 			spin_unlock_irqrestore(&smmu_domain->devices_lock,
 					       flags);
-			kfree(master_domain);
 			kfree(state->vmaster);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_iopf;
 		}
 
 		if (state->ats_enabled)
@@ -2899,6 +2962,12 @@ int arm_smmu_attach_prepare(struct arm_smmu_attach_state *state,
 		wmb();
 	}
 	return 0;
+
+err_iopf:
+	arm_smmu_disable_iopf(master, master_domain);
+err_free_master_domain:
+	kfree(master_domain);
+	return ret;
 }
 
 /*
@@ -2953,7 +3022,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	smmu = master->smmu;
 
 	if (smmu_domain->smmu != smmu)
-		return ret;
+		return -EINVAL;
 
 	if (smmu_domain->stage == ARM_SMMU_DOMAIN_S1) {
 		cdptr = arm_smmu_alloc_cd_ptr(master, IOMMU_NO_PASID);
@@ -3510,8 +3579,7 @@ static void arm_smmu_release_device(struct device *dev)
 {
 	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
 
-	if (WARN_ON(arm_smmu_master_sva_enabled(master)))
-		iopf_queue_remove_device(master->smmu->evtq.iopf, dev);
+	WARN_ON(master->iopf_refcount);
 
 	/* Put the STE back to what arm_smmu_init_strtab() sets */
 	if (dev->iommu->require_direct)
@@ -3586,58 +3654,6 @@ static void arm_smmu_get_resv_regions(struct device *dev,
 	iommu_dma_get_resv_regions(dev, head);
 }
 
-static int arm_smmu_dev_enable_feature(struct device *dev,
-				       enum iommu_dev_features feat)
-{
-	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
-
-	if (!master)
-		return -ENODEV;
-
-	switch (feat) {
-	case IOMMU_DEV_FEAT_IOPF:
-		if (!arm_smmu_master_iopf_supported(master))
-			return -EINVAL;
-		if (master->iopf_enabled)
-			return -EBUSY;
-		master->iopf_enabled = true;
-		return 0;
-	case IOMMU_DEV_FEAT_SVA:
-		if (!arm_smmu_master_sva_supported(master))
-			return -EINVAL;
-		if (arm_smmu_master_sva_enabled(master))
-			return -EBUSY;
-		return arm_smmu_master_enable_sva(master);
-	default:
-		return -EINVAL;
-	}
-}
-
-static int arm_smmu_dev_disable_feature(struct device *dev,
-					enum iommu_dev_features feat)
-{
-	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
-
-	if (!master)
-		return -EINVAL;
-
-	switch (feat) {
-	case IOMMU_DEV_FEAT_IOPF:
-		if (!master->iopf_enabled)
-			return -EINVAL;
-		if (master->sva_enabled)
-			return -EBUSY;
-		master->iopf_enabled = false;
-		return 0;
-	case IOMMU_DEV_FEAT_SVA:
-		if (!arm_smmu_master_sva_enabled(master))
-			return -EINVAL;
-		return arm_smmu_master_disable_sva(master);
-	default:
-		return -EINVAL;
-	}
-}
-
 /*
  * HiSilicon PCIe tune and trace device can be used to trace TLP headers on the
  * PCIe link and save the data to memory by DMA. The hardware is restricted to
@@ -3670,8 +3686,6 @@ static struct iommu_ops arm_smmu_ops = {
 	.device_group		= arm_smmu_device_group,
 	.of_xlate		= arm_smmu_of_xlate,
 	.get_resv_regions	= arm_smmu_get_resv_regions,
-	.dev_enable_feat	= arm_smmu_dev_enable_feature,
-	.dev_disable_feat	= arm_smmu_dev_disable_feature,
 	.page_response		= arm_smmu_page_response,
 	.def_domain_type	= arm_smmu_def_domain_type,
 	.viommu_alloc		= arm_vsmmu_alloc,

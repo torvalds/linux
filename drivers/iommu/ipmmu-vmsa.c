@@ -1090,7 +1090,8 @@ static int ipmmu_probe(struct platform_device *pdev)
 	if (mmu->features->has_cache_leaf_nodes && ipmmu_is_root(mmu))
 		return 0;
 
-	ret = iommu_device_sysfs_add(&mmu->iommu, &pdev->dev, NULL, dev_name(&pdev->dev));
+	ret = iommu_device_sysfs_add(&mmu->iommu, &pdev->dev, NULL, "%s",
+				     dev_name(&pdev->dev));
 	if (ret)
 		return ret;
 

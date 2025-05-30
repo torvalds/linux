@@ -147,6 +147,8 @@ static inline int get_pci_sbdf_id(struct pci_dev *pdev)
 	return PCI_SEG_DEVID_TO_SBDF(seg, devid);
 }
 
+bool amd_iommu_ht_range_ignore(void);
+
 /*
  * This must be called after device probe completes. During probe
  * use rlookup_amd_iommu() get the iommu.
