@@ -1356,11 +1356,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 				return -EINVAL;
 			}
 
-			/*
-			 * In device-mapper, we specify things in sectors, but
-			 * MD records this value in kB
-			 */
-			if (value < 0 || value / 2 > COUNTER_MAX) {
+			if (value < 0) {
 				rs->ti->error = "Max write-behind limit out of range";
 				return -EINVAL;
 			}
