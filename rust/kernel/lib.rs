@@ -44,8 +44,13 @@ pub mod auxiliary;
 pub mod block;
 #[doc(hidden)]
 pub mod build_assert;
+pub mod clk;
 #[cfg(CONFIG_CONFIGFS_FS)]
 pub mod configfs;
+pub mod cpu;
+#[cfg(CONFIG_CPU_FREQ)]
+pub mod cpufreq;
+pub mod cpumask;
 pub mod cred;
 pub mod device;
 pub mod device_id;
@@ -70,6 +75,8 @@ pub mod miscdevice;
 #[cfg(CONFIG_NET)]
 pub mod net;
 pub mod of;
+#[cfg(CONFIG_PM_OPP)]
+pub mod opp;
 pub mod page;
 #[cfg(CONFIG_PCI)]
 pub mod pci;
