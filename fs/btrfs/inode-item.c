@@ -720,13 +720,12 @@ delete:
 	}
 out:
 	if (ret >= 0 && pending_del_nr) {
-		int err;
+		int ret2;
 
-		err = btrfs_del_items(trans, root, path, pending_del_slot,
-				      pending_del_nr);
-		if (err) {
-			btrfs_abort_transaction(trans, err);
-			ret = err;
+		ret2 = btrfs_del_items(trans, root, path, pending_del_slot, pending_del_nr);
+		if (ret2) {
+			btrfs_abort_transaction(trans, ret2);
+			ret = ret2;
 		}
 	}
 
