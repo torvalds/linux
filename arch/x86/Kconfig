@@ -1858,8 +1858,7 @@ endchoice
 config X86_SGX
 	bool "Software Guard eXtensions (SGX)"
 	depends on X86_64 && CPU_SUP_INTEL && X86_X2APIC
-	depends on CRYPTO=y
-	depends on CRYPTO_SHA256=y
+	select CRYPTO_LIB_SHA256
 	select MMU_NOTIFIER
 	select NUMA_KEEP_MEMINFO if NUMA
 	select XARRAY_MULTI
