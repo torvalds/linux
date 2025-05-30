@@ -1806,7 +1806,7 @@ static void scrub_submit_extent_sector_read(struct scrub_stripe *stripe)
 			struct btrfs_io_context *bioc = NULL;
 			const u64 logical = stripe->logical +
 					    (i << fs_info->sectorsize_bits);
-			int err;
+			int ret;
 
 			io_stripe.rst_search_commit_root = true;
 			stripe_len = (nr_sectors - i) << fs_info->sectorsize_bits;
@@ -1814,11 +1814,11 @@ static void scrub_submit_extent_sector_read(struct scrub_stripe *stripe)
 			 * For RST cases, we need to manually split the bbio to
 			 * follow the RST boundary.
 			 */
-			err = btrfs_map_block(fs_info, BTRFS_MAP_READ, logical,
+			ret = btrfs_map_block(fs_info, BTRFS_MAP_READ, logical,
 					      &stripe_len, &bioc, &io_stripe, &mirror);
 			btrfs_put_bioc(bioc);
-			if (err < 0) {
-				if (err != -ENODATA) {
+			if (ret < 0) {
+				if (ret != -ENODATA) {
 					/*
 					 * Earlier btrfs_get_raid_extent_offset()
 					 * returned -ENODATA, which means there's
