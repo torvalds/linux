@@ -6738,20 +6738,20 @@ static int btrfs_create_common(struct inode *dir, struct dentry *dentry,
 	};
 	unsigned int trans_num_items;
 	struct btrfs_trans_handle *trans;
-	int err;
+	int ret;
 
-	err = btrfs_new_inode_prepare(&new_inode_args, &trans_num_items);
-	if (err)
+	ret = btrfs_new_inode_prepare(&new_inode_args, &trans_num_items);
+	if (ret)
 		goto out_inode;
 
 	trans = btrfs_start_transaction(root, trans_num_items);
 	if (IS_ERR(trans)) {
-		err = PTR_ERR(trans);
+		ret = PTR_ERR(trans);
 		goto out_new_inode_args;
 	}
 
-	err = btrfs_create_new_inode(trans, &new_inode_args);
-	if (!err)
+	ret = btrfs_create_new_inode(trans, &new_inode_args);
+	if (!ret)
 		d_instantiate_new(dentry, inode);
 
 	btrfs_end_transaction(trans);
@@ -6759,9 +6759,9 @@ static int btrfs_create_common(struct inode *dir, struct dentry *dentry,
 out_new_inode_args:
 	btrfs_new_inode_args_destroy(&new_inode_args);
 out_inode:
-	if (err)
+	if (ret)
 		iput(inode);
-	return err;
+	return ret;
 }
 
 static int btrfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
