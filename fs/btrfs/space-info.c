@@ -1973,13 +1973,13 @@ u64 btrfs_account_ro_block_groups_free_space(struct btrfs_space_info *sinfo)
 
 static u64 calc_pct_ratio(u64 x, u64 y)
 {
-	int err;
+	int ret;
 
 	if (!y)
 		return 0;
 again:
-	err = check_mul_overflow(100, x, &x);
-	if (err)
+	ret = check_mul_overflow(100, x, &x);
+	if (ret)
 		goto lose_precision;
 	return div64_u64(x, y);
 lose_precision:
