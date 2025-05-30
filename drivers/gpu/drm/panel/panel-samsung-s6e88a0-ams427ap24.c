@@ -687,9 +687,11 @@ static int s6e88a0_ams427ap24_probe(struct mipi_dsi_device *dsi)
 	struct s6e88a0_ams427ap24 *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	ctx = devm_drm_panel_alloc(dev, struct s6e88a0_ams427ap24, panel,
+				   &s6e88a0_ams427ap24_panel_funcs,
+				   DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	ret = devm_regulator_bulk_get_const(dev,
 				      ARRAY_SIZE(s6e88a0_ams427ap24_supplies),
@@ -711,8 +713,6 @@ static int s6e88a0_ams427ap24_probe(struct mipi_dsi_device *dsi)
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 			  MIPI_DSI_MODE_NO_EOT_PACKET | MIPI_DSI_MODE_VIDEO_NO_HFP;
 
-	drm_panel_init(&ctx->panel, dev, &s6e88a0_ams427ap24_panel_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
 	ctx->panel.prepare_prev_first = true;
 
 	ctx->flip_horizontal = device_property_read_bool(dev, "flip-horizontal");
