@@ -1939,15 +1939,14 @@ static int search_leaf(struct btrfs_trans_handle *trans,
 		ASSERT(leaf_free_space >= 0);
 
 		if (leaf_free_space < ins_len) {
-			int err;
+			int ret2;
 
-			err = split_leaf(trans, root, key, path, ins_len,
-					 (ret == 0));
-			ASSERT(err <= 0);
-			if (WARN_ON(err > 0))
-				err = -EUCLEAN;
-			if (err)
-				ret = err;
+			ret2 = split_leaf(trans, root, key, path, ins_len, (ret == 0));
+			ASSERT(ret2 <= 0);
+			if (WARN_ON(ret2 > 0))
+				ret2 = -EUCLEAN;
+			if (ret2)
+				ret = ret2;
 		}
 	}
 
