@@ -46,7 +46,6 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 #define CMA_CM_RESPONSE_TIMEOUT 20
 #define CMA_MAX_CM_RETRIES 15
-#define CMA_CM_MRA_SETTING (IB_CM_MRA_FLAG_DELAY | 24)
 #define CMA_IBOE_PACKET_LIFETIME 16
 #define CMA_PREFERRED_ROCE_GID_TYPE IB_GID_TYPE_ROCE_UDP_ENCAP
 
@@ -145,19 +144,6 @@ struct iw_cm_id *rdma_iw_cm_id(struct rdma_cm_id *id)
 	return NULL;
 }
 EXPORT_SYMBOL(rdma_iw_cm_id);
-
-/**
- * rdma_res_to_id() - return the rdma_cm_id pointer for this restrack.
- * @res: rdma resource tracking entry pointer
- */
-struct rdma_cm_id *rdma_res_to_id(struct rdma_restrack_entry *res)
-{
-	struct rdma_id_private *id_priv =
-		container_of(res, struct rdma_id_private, res);
-
-	return &id_priv->id;
-}
-EXPORT_SYMBOL(rdma_res_to_id);
 
 static int cma_add_one(struct ib_device *device);
 static void cma_remove_one(struct ib_device *device, void *client_data);
@@ -2214,8 +2200,8 @@ static int cma_ib_handler(struct ib_cm_id *cm_id,
 	case IB_CM_REP_RECEIVED:
 		if (state == RDMA_CM_CONNECT &&
 		    (id_priv->id.qp_type != IB_QPT_UD)) {
-			trace_cm_send_mra(id_priv);
-			ib_send_cm_mra(cm_id, CMA_CM_MRA_SETTING, NULL, 0);
+			trace_cm_prepare_mra(id_priv);
+			ib_prepare_cm_mra(cm_id);
 		}
 		if (id_priv->id.qp) {
 			event.status = cma_rep_recv(id_priv);
@@ -2476,8 +2462,8 @@ static int cma_ib_req_handler(struct ib_cm_id *cm_id,
 
 	if (READ_ONCE(conn_id->state) == RDMA_CM_CONNECT &&
 	    conn_id->id.qp_type != IB_QPT_UD) {
-		trace_cm_send_mra(cm_id->context);
-		ib_send_cm_mra(cm_id, CMA_CM_MRA_SETTING, NULL, 0);
+		trace_cm_prepare_mra(cm_id->context);
+		ib_prepare_cm_mra(cm_id);
 	}
 	mutex_unlock(&conn_id->handler_mutex);
 
@@ -5245,7 +5231,8 @@ static int cma_netevent_callback(struct notifier_block *self,
 			   neigh->ha, ETH_ALEN))
 			continue;
 		cma_id_get(current_id);
-		queue_work(cma_wq, &current_id->id.net_work);
+		if (!queue_work(cma_wq, &current_id->id.net_work))
+			cma_id_put(current_id);
 	}
 out:
 	spin_unlock_irqrestore(&id_table_lock, flags);

@@ -1645,11 +1645,6 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 	return _create_flow_rule(dev, ft_prio, flow_attr, dst, 0, NULL);
 }
 
-enum {
-	LEFTOVERS_MC,
-	LEFTOVERS_UC,
-};
-
 static struct mlx5_ib_flow_handler *create_leftovers_rule(struct mlx5_ib_dev *dev,
 							  struct mlx5_ib_flow_prio *ft_prio,
 							  struct ib_flow_attr *flow_attr,
@@ -1659,43 +1654,32 @@ static struct mlx5_ib_flow_handler *create_leftovers_rule(struct mlx5_ib_dev *de
 	struct mlx5_ib_flow_handler *handler = NULL;
 
 	static struct {
-		struct ib_flow_attr	flow_attr;
 		struct ib_flow_spec_eth eth_flow;
-	} leftovers_specs[] = {
-		[LEFTOVERS_MC] = {
-			.flow_attr = {
-				.num_of_specs = 1,
-				.size = sizeof(leftovers_specs[0])
-			},
-			.eth_flow = {
-				.type = IB_FLOW_SPEC_ETH,
-				.size = sizeof(struct ib_flow_spec_eth),
-				.mask = {.dst_mac = {0x1} },
-				.val =  {.dst_mac = {0x1} }
-			}
-		},
-		[LEFTOVERS_UC] = {
-			.flow_attr = {
-				.num_of_specs = 1,
-				.size = sizeof(leftovers_specs[0])
-			},
-			.eth_flow = {
-				.type = IB_FLOW_SPEC_ETH,
-				.size = sizeof(struct ib_flow_spec_eth),
-				.mask = {.dst_mac = {0x1} },
-				.val = {.dst_mac = {} }
-			}
-		}
-	};
+		struct ib_flow_attr	flow_attr;
+	} leftovers_wc = { .flow_attr = { .num_of_specs = 1,
+					  .size = sizeof(leftovers_wc) },
+			   .eth_flow = {
+				   .type = IB_FLOW_SPEC_ETH,
+				   .size = sizeof(struct ib_flow_spec_eth),
+				   .mask = { .dst_mac = { 0x1 } },
+				   .val = { .dst_mac = { 0x1 } } } };
 
-	handler = create_flow_rule(dev, ft_prio,
-				   &leftovers_specs[LEFTOVERS_MC].flow_attr,
-				   dst);
+	static struct {
+		struct ib_flow_spec_eth eth_flow;
+		struct ib_flow_attr	flow_attr;
+	} leftovers_uc = { .flow_attr = { .num_of_specs = 1,
+					  .size = sizeof(leftovers_uc) },
+			   .eth_flow = {
+				   .type = IB_FLOW_SPEC_ETH,
+				   .size = sizeof(struct ib_flow_spec_eth),
+				   .mask = { .dst_mac = { 0x1 } },
+				   .val = { .dst_mac = {} } } };
+
+	handler = create_flow_rule(dev, ft_prio, &leftovers_wc.flow_attr, dst);
 	if (!IS_ERR(handler) &&
 	    flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT) {
 		handler_ucast = create_flow_rule(dev, ft_prio,
-						 &leftovers_specs[LEFTOVERS_UC].flow_attr,
-						 dst);
+						 &leftovers_uc.flow_attr, dst);
 		if (IS_ERR(handler_ucast)) {
 			mlx5_del_flow_rules(handler->rule);
 			ft_prio->refcount--;

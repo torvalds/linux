@@ -49,6 +49,15 @@ union hwc_init_type_data {
 	};
 }; /* HW DATA */
 
+union hwc_init_soc_service_type {
+	u32 as_uint32;
+
+	struct {
+		u32 value	: 28;
+		u32 type	:  4;
+	};
+}; /* HW DATA */
+
 struct hwc_rx_oob {
 	u32 type	: 6;
 	u32 eom		: 1;
