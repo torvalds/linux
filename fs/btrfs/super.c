@@ -961,7 +961,7 @@ static int btrfs_fill_super(struct super_block *sb,
 {
 	struct btrfs_inode *inode;
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
-	int err;
+	int ret;
 
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_magic = BTRFS_SUPER_MAGIC;
@@ -975,28 +975,28 @@ static int btrfs_fill_super(struct super_block *sb,
 	sb->s_time_gran = 1;
 	sb->s_iflags |= SB_I_CGROUPWB | SB_I_ALLOW_HSM;
 
-	err = super_setup_bdi(sb);
-	if (err) {
+	ret = super_setup_bdi(sb);
+	if (ret) {
 		btrfs_err(fs_info, "super_setup_bdi failed");
-		return err;
+		return ret;
 	}
 
-	err = open_ctree(sb, fs_devices);
-	if (err) {
-		btrfs_err(fs_info, "open_ctree failed: %d", err);
-		return err;
+	ret = open_ctree(sb, fs_devices);
+	if (ret) {
+		btrfs_err(fs_info, "open_ctree failed: %d", ret);
+		return ret;
 	}
 
 	inode = btrfs_iget(BTRFS_FIRST_FREE_OBJECTID, fs_info->fs_root);
 	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
-		btrfs_handle_fs_error(fs_info, err, NULL);
+		ret = PTR_ERR(inode);
+		btrfs_handle_fs_error(fs_info, ret, NULL);
 		goto fail_close;
 	}
 
 	sb->s_root = d_make_root(&inode->vfs_inode);
 	if (!sb->s_root) {
-		err = -ENOMEM;
+		ret = -ENOMEM;
 		goto fail_close;
 	}
 
@@ -1005,7 +1005,7 @@ static int btrfs_fill_super(struct super_block *sb,
 
 fail_close:
 	close_ctree(fs_info);
-	return err;
+	return ret;
 }
 
 int btrfs_sync_fs(struct super_block *sb, int wait)
