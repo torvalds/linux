@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * linux/ipc/msgutil.c
- * Copyright (C) 1999, 2004 Manfred Spraul
- */
-
 #include <linux/spinlock.h>
 #include <linux/init.h>
 #include <linux/security.h>
@@ -20,11 +14,6 @@
 
 DEFINE_SPINLOCK(mq_lock);
 
-/*
- * The next 2 defines are here bc this is the only file
- * compiled when either CONFIG_SYSVIPC and CONFIG_POSIX_MQUEUE
- * and not CONFIG_IPC_NS.
- */
 struct ipc_namespace init_ipc_ns = {
 	.ns.count = REFCOUNT_INIT(1),
 	.user_ns = &init_user_ns,
@@ -36,7 +25,6 @@ struct ipc_namespace init_ipc_ns = {
 
 struct msg_msgseg {
 	struct msg_msgseg *next;
-	/* the next part of the message follows immediately */
 };
 
 #define DATALEN_MSG	((size_t)PAGE_SIZE-sizeof(struct msg_msg))
@@ -85,6 +73,8 @@ static struct msg_msg *alloc_msg(size_t len)
 		len -= alen;
 	}
 
+	audit_log_msg("Message allocated");
+
 	return msg;
 
 out_err:
@@ -119,13 +109,15 @@ struct msg_msg *load_msg(const void __user *src, size_t len)
 	if (err)
 		goto out_err;
 
+	audit_log_msg("Message loaded");
+
 	return msg;
 
 out_err:
 	free_msg(msg);
 	return ERR_PTR(err);
 }
-#ifdef CONFIG_CHECKPOINT_RESTORE
+
 struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst)
 {
 	struct msg_msgseg *dst_pseg, *src_pseg;
@@ -150,14 +142,11 @@ struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst)
 	dst->m_type = src->m_type;
 	dst->m_ts = src->m_ts;
 
+	audit_log_msg("Message copied");
+
 	return dst;
 }
-#else
-struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst)
-{
-	return ERR_PTR(-ENOSYS);
-}
-#endif
+
 int store_msg(void __user *dest, struct msg_msg *msg, size_t len)
 {
 	size_t alen;
@@ -174,6 +163,9 @@ int store_msg(void __user *dest, struct msg_msg *msg, size_t len)
 		if (copy_to_user(dest, seg + 1, alen))
 			return -1;
 	}
+
+	audit_log_msg("Message stored");
+
 	return 0;
 }
 
