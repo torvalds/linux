@@ -39,27 +39,10 @@ struct drm_pending_event;
 struct vmw_private;
 struct vmw_fence_manager;
 
-/**
- *
- *
- */
-enum vmw_action_type {
-	VMW_ACTION_EVENT = 0,
-	VMW_ACTION_MAX
-};
-
-struct vmw_fence_action {
-	struct list_head head;
-	enum vmw_action_type type;
-	void (*seq_passed) (struct vmw_fence_action *action);
-	void (*cleanup) (struct vmw_fence_action *action);
-};
-
 struct vmw_fence_obj {
 	struct dma_fence base;
-
+	bool   waiter_added;
 	struct list_head head;
-	struct list_head seq_passed_actions;
 	void (*destroy)(struct vmw_fence_obj *fence);
 };
 
