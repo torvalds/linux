@@ -423,18 +423,18 @@ static int btrfs_dirty_inode(struct btrfs_inode *inode);
 static int btrfs_init_inode_security(struct btrfs_trans_handle *trans,
 				     struct btrfs_new_inode_args *args)
 {
-	int err;
+	int ret;
 
 	if (args->default_acl) {
-		err = __btrfs_set_acl(trans, args->inode, args->default_acl,
+		ret = __btrfs_set_acl(trans, args->inode, args->default_acl,
 				      ACL_TYPE_DEFAULT);
-		if (err)
-			return err;
+		if (ret)
+			return ret;
 	}
 	if (args->acl) {
-		err = __btrfs_set_acl(trans, args->inode, args->acl, ACL_TYPE_ACCESS);
-		if (err)
-			return err;
+		ret = __btrfs_set_acl(trans, args->inode, args->acl, ACL_TYPE_ACCESS);
+		if (ret)
+			return ret;
 	}
 	if (!args->default_acl && !args->acl)
 		cache_no_acl(args->inode);
