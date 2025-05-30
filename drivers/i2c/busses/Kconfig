@@ -592,6 +592,17 @@ config I2C_DESIGNWARE_PLATFORM
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-designware-platform.
 
+config I2C_DESIGNWARE_AMDISP
+	tristate "Synopsys DesignWare Platform for AMDISP"
+	depends on DRM_AMD_ISP || COMPILE_TEST
+	depends on I2C_DESIGNWARE_CORE
+	help
+	  If you say yes to this option, support will be included for the
+	  AMDISP Synopsys DesignWare I2C adapter.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called amd_isp_i2c_designware.
+
 config I2C_DESIGNWARE_AMDPSP
 	bool "AMD PSP I2C semaphore support"
 	depends on ACPI
@@ -845,7 +856,7 @@ config I2C_LS2X
 
 config I2C_MLXBF
         tristate "Mellanox BlueField I2C controller"
-        depends on MELLANOX_PLATFORM && ARM64
+        depends on (MELLANOX_PLATFORM && ARM64) || COMPILE_TEST
 	depends on ACPI
 	select I2C_SLAVE
         help

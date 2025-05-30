@@ -707,6 +707,7 @@ static int ub913_i2c_master_init(struct ub913_data *priv)
 static int ub913_add_i2c_adapter(struct ub913_data *priv)
 {
 	struct device *dev = &priv->client->dev;
+	struct i2c_atr_adap_desc desc = { };
 	struct fwnode_handle *i2c_handle;
 	int ret;
 
@@ -714,8 +715,12 @@ static int ub913_add_i2c_adapter(struct ub913_data *priv)
 	if (!i2c_handle)
 		return 0;
 
-	ret = i2c_atr_add_adapter(priv->plat_data->atr, priv->plat_data->port,
-				  dev, i2c_handle);
+	desc.chan_id = priv->plat_data->port;
+	desc.parent = dev;
+	desc.bus_handle = i2c_handle;
+	desc.num_aliases = 0;
+
+	ret = i2c_atr_add_adapter(priv->plat_data->atr, &desc);
 
 	fwnode_handle_put(i2c_handle);
 

@@ -1180,7 +1180,7 @@ static void i801_probe_optional_targets(struct i801_priv *priv)
 #ifdef CONFIG_I2C_I801_MUX
 	if (!priv->mux_pdev)
 #endif
-		i2c_register_spd(&priv->adapter);
+		i2c_register_spd_write_enable(&priv->adapter);
 }
 #else
 static void __init input_apanel_init(void) {}
@@ -1283,7 +1283,7 @@ static int i801_notifier_call(struct notifier_block *nb, unsigned long action,
 		return NOTIFY_DONE;
 
 	/* Call i2c_register_spd for muxed child segments */
-	i2c_register_spd(to_i2c_adapter(dev));
+	i2c_register_spd_write_enable(to_i2c_adapter(dev));
 
 	return NOTIFY_OK;
 }
