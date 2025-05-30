@@ -1150,9 +1150,10 @@ static int st7701_probe(struct device *dev, int connector_type)
 	struct st7701 *st7701;
 	int ret;
 
-	st7701 = devm_kzalloc(dev, sizeof(*st7701), GFP_KERNEL);
-	if (!st7701)
-		return -ENOMEM;
+	st7701 = devm_drm_panel_alloc(dev, struct st7701, panel, &st7701_funcs,
+				      connector_type);
+	if (IS_ERR(st7701))
+		return PTR_ERR(st7701);
 
 	desc = of_device_get_match_data(dev);
 	if (!desc)
@@ -1176,7 +1177,6 @@ static int st7701_probe(struct device *dev, int connector_type)
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Failed to get orientation\n");
 
-	drm_panel_init(&st7701->panel, dev, &st7701_funcs, connector_type);
 	st7701->panel.prepare_prev_first = true;
 
 	/**
