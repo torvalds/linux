@@ -1903,21 +1903,21 @@ int btrfs_lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 
 			   struct extent_state **cached_state)
 {
 	struct extent_state *failed_state = NULL;
-	int err;
+	int ret;
 	u64 failed_start;
 
-	err = set_extent_bit(tree, start, end, bits, &failed_start,
+	ret = set_extent_bit(tree, start, end, bits, &failed_start,
 			     &failed_state, cached_state, NULL);
-	while (err == -EEXIST) {
+	while (ret == -EEXIST) {
 		if (failed_start != start)
 			btrfs_clear_extent_bit(tree, start, failed_start - 1,
 					       bits, cached_state);
 
 		wait_extent_bit(tree, failed_start, end, bits, &failed_state);
-		err = set_extent_bit(tree, start, end, bits, &failed_start,
+		ret = set_extent_bit(tree, start, end, bits, &failed_start,
 				     &failed_state, cached_state, NULL);
 	}
-	return err;
+	return ret;
 }
 
 /*
