@@ -33,7 +33,7 @@ static inline bool acpi_has_cpu_in_madt(void)
 	return true;
 }
 
-#define MAX_CORE_PIC 256
+#define MAX_CORE_PIC 2048
 
 extern struct list_head acpi_wakeup_device_list;
 extern struct acpi_madt_core_pic acpi_core_pic[MAX_CORE_PIC];

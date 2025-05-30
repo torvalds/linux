@@ -496,10 +496,10 @@ config HOTPLUG_CPU
 	  Say N if you want to disable CPU hotplug.
 
 config NR_CPUS
-	int "Maximum number of CPUs (2-256)"
-	range 2 256
+	int "Maximum number of CPUs (2-2048)"
+	range 2 2048
+	default "2048"
 	depends on SMP
-	default "64"
 	help
 	  This allows you to specify the maximum number of CPUs which this
 	  kernel will support.
