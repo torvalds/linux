@@ -294,7 +294,7 @@ static const struct bin_attribute *const w1_f23_bin_attributes[] = {
 };
 
 static const struct attribute_group w1_f23_group = {
-	.bin_attrs_new = w1_f23_bin_attributes,
+	.bin_attrs = w1_f23_bin_attributes,
 };
 
 static const struct attribute_group *w1_f23_groups[] = {
@@ -308,7 +308,7 @@ static const struct bin_attribute *const w1_f43_bin_attributes[] = {
 };
 
 static const struct attribute_group w1_f43_group = {
-	.bin_attrs_new = w1_f43_bin_attributes,
+	.bin_attrs = w1_f43_bin_attributes,
 };
 
 static const struct attribute_group *w1_f43_groups[] = {

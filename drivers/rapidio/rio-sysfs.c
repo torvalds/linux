@@ -278,7 +278,7 @@ static umode_t rio_dev_is_attr_visible(struct kobject *kobj,
 static const struct attribute_group rio_dev_group = {
 	.attrs		= rio_dev_attrs,
 	.is_visible	= rio_dev_is_attr_visible,
-	.bin_attrs_new	= rio_dev_bin_attrs,
+	.bin_attrs	= rio_dev_bin_attrs,
 };
 
 const struct attribute_group *rio_dev_groups[] = {

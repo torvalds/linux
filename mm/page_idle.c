@@ -208,7 +208,7 @@ static const struct bin_attribute *const page_idle_bin_attrs[] = {
 };
 
 static const struct attribute_group page_idle_attr_group = {
-	.bin_attrs_new = page_idle_bin_attrs,
+	.bin_attrs = page_idle_bin_attrs,
 	.name = "page_idle",
 };
 

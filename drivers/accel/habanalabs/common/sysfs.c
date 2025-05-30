@@ -479,7 +479,7 @@ static const struct bin_attribute *const hl_dev_bin_attrs[] = {
 
 static struct attribute_group hl_dev_attr_group = {
 	.attrs = hl_dev_attrs,
-	.bin_attrs_new = hl_dev_bin_attrs,
+	.bin_attrs = hl_dev_bin_attrs,
 };
 
 static struct attribute_group hl_dev_clks_attr_group;

@@ -636,7 +636,7 @@ static const struct bin_attribute *const rbu_bin_attrs[] = {
 };
 
 static const struct attribute_group rbu_group = {
-	.bin_attrs_new = rbu_bin_attrs,
+	.bin_attrs = rbu_bin_attrs,
 };
 
 static int __init dcdrbu_init(void)

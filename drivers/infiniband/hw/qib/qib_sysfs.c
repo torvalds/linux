@@ -295,7 +295,7 @@ static umode_t qib_ccmgta_is_bin_visible(struct kobject *kobj,
 static const struct attribute_group port_ccmgta_attribute_group = {
 	.name = "CCMgtA",
 	.is_bin_visible = qib_ccmgta_is_bin_visible,
-	.bin_attrs_new = port_ccmgta_attributes,
+	.bin_attrs = port_ccmgta_attributes,
 };
 
 /* Start sl2vl */

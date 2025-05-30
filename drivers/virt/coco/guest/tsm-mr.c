@@ -228,7 +228,7 @@ tsm_mr_create_attribute_group(const struct tsm_measurements *tm)
 
 	init_rwsem(&ctx->rwsem);
 	ctx->agrp.name = "measurements";
-	ctx->agrp.bin_attrs_new = no_free_ptr(attrs);
+	ctx->agrp.bin_attrs = no_free_ptr(attrs);
 	ctx->tm = tm;
 	return &no_free_ptr(ctx)->agrp;
 }
@@ -244,7 +244,7 @@ EXPORT_SYMBOL_GPL(tsm_mr_create_attribute_group);
 void tsm_mr_free_attribute_group(const struct attribute_group *attr_grp)
 {
 	if (!IS_ERR_OR_NULL(attr_grp)) {
-		kfree(attr_grp->bin_attrs_new);
+		kfree(attr_grp->bin_attrs);
 		kfree(container_of(attr_grp, struct tm_context, agrp));
 	}
 }

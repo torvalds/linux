@@ -381,7 +381,7 @@ static const struct bin_attribute *const fw_dev_bin_attrs[] = {
 
 static const struct attribute_group fw_dev_attr_group = {
 	.attrs = fw_dev_attrs,
-	.bin_attrs_new = fw_dev_bin_attrs,
+	.bin_attrs = fw_dev_bin_attrs,
 #ifdef CONFIG_FW_UPLOAD
 	.is_visible = fw_upload_is_visible,
 #endif

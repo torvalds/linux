@@ -646,7 +646,7 @@ static const struct bin_attribute *const kone_bin_attributes[] = {
 
 static const struct attribute_group kone_group = {
 	.attrs = kone_attrs,
-	.bin_attrs_new = kone_bin_attributes,
+	.bin_attrs = kone_bin_attributes,
 };
 
 static const struct attribute_group *kone_groups[] = {

@@ -114,7 +114,7 @@ static const struct bin_attribute *const zorro_device_bin_attrs[] = {
 
 static const struct attribute_group zorro_device_attr_group = {
 	.attrs		= zorro_device_attrs,
-	.bin_attrs_new	= zorro_device_bin_attrs,
+	.bin_attrs	= zorro_device_bin_attrs,
 };
 
 const struct attribute_group *zorro_device_attribute_groups[] = {

@@ -238,7 +238,7 @@ static const struct bin_attribute *const isku_bin_attributes[] = {
 
 static const struct attribute_group isku_group = {
 	.attrs = isku_attrs,
-	.bin_attrs_new = isku_bin_attributes,
+	.bin_attrs = isku_bin_attributes,
 };
 
 static const struct attribute_group *isku_groups[] = {

@@ -1141,7 +1141,7 @@ static struct attribute *if_attrs[] = {
 
 static const struct attribute_group if_group = {
 	.name = "interface",
-	.bin_attrs_new = if_bin_attrs,
+	.bin_attrs = if_bin_attrs,
 	.attrs = if_attrs,
 };
 

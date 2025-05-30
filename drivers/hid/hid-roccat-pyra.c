@@ -355,7 +355,7 @@ static const struct bin_attribute *const pyra_bin_attributes[] = {
 
 static const struct attribute_group pyra_group = {
 	.attrs = pyra_attrs,
-	.bin_attrs_new = pyra_bin_attributes,
+	.bin_attrs = pyra_bin_attributes,
 };
 
 static const struct attribute_group *pyra_groups[] = {

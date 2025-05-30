@@ -399,7 +399,7 @@ static const struct bin_attribute *const kovaplus_bin_attributes[] = {
 
 static const struct attribute_group kovaplus_group = {
 	.attrs = kovaplus_attrs,
-	.bin_attrs_new = kovaplus_bin_attributes,
+	.bin_attrs = kovaplus_bin_attributes,
 };
 
 static const struct attribute_group *kovaplus_groups[] = {

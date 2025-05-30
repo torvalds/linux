@@ -607,7 +607,7 @@ static const struct bin_attribute *const mpipl_bin_attr[] = {
 
 static const struct attribute_group mpipl_group = {
 	.attrs = mpipl_attr,
-	.bin_attrs_new =  mpipl_bin_attr,
+	.bin_attrs =  mpipl_bin_attr,
 };
 
 static int __init opalcore_init(void)

@@ -386,7 +386,7 @@ static const struct bin_attribute *const nvmem_bin_attributes[] = {
 };
 
 static const struct attribute_group nvmem_bin_group = {
-	.bin_attrs_new	= nvmem_bin_attributes,
+	.bin_attrs	= nvmem_bin_attributes,
 	.attrs		= nvmem_attrs,
 	.is_bin_visible = nvmem_bin_attr_is_visible,
 	.bin_size	= nvmem_bin_attr_size,
@@ -503,7 +503,7 @@ static int nvmem_populate_sysfs_cells(struct nvmem_device *nvmem)
 		i++;
 	}
 
-	group.bin_attrs_new = pattrs;
+	group.bin_attrs = pattrs;
 
 	ret = device_add_group(&nvmem->dev, &group);
 	if (ret)

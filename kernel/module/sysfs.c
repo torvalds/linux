@@ -56,9 +56,9 @@ static void free_sect_attrs(struct module_sect_attrs *sect_attrs)
 {
 	const struct bin_attribute *const *bin_attr;
 
-	for (bin_attr = sect_attrs->grp.bin_attrs_new; *bin_attr; bin_attr++)
+	for (bin_attr = sect_attrs->grp.bin_attrs; *bin_attr; bin_attr++)
 		kfree((*bin_attr)->attr.name);
-	kfree(sect_attrs->grp.bin_attrs_new);
+	kfree(sect_attrs->grp.bin_attrs);
 	kfree(sect_attrs);
 }
 
@@ -86,7 +86,7 @@ static int add_sect_attrs(struct module *mod, const struct load_info *info)
 
 	/* Setup section attributes. */
 	sect_attrs->grp.name = "sections";
-	sect_attrs->grp.bin_attrs_new = gattr;
+	sect_attrs->grp.bin_attrs = gattr;
 
 	sattr = &sect_attrs->attrs[0];
 	for (i = 0; i < info->hdr->e_shnum; i++) {
@@ -144,7 +144,7 @@ struct module_notes_attrs {
 
 static void free_notes_attrs(struct module_notes_attrs *notes_attrs)
 {
-	kfree(notes_attrs->grp.bin_attrs_new);
+	kfree(notes_attrs->grp.bin_attrs);
 	kfree(notes_attrs);
 }
 
@@ -178,7 +178,7 @@ static int add_notes_attrs(struct module *mod, const struct load_info *info)
 	}
 
 	notes_attrs->grp.name = "notes";
-	notes_attrs->grp.bin_attrs_new = gattr;
+	notes_attrs->grp.bin_attrs = gattr;
 
 	nattr = &notes_attrs->attrs[0];
 	for (loaded = i = 0; i < info->hdr->e_shnum; ++i) {

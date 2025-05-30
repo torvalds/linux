@@ -336,7 +336,7 @@ static umode_t vpd_attr_is_visible(struct kobject *kobj,
 }
 
 const struct attribute_group pci_dev_vpd_attr_group = {
-	.bin_attrs_new = vpd_attrs,
+	.bin_attrs = vpd_attrs,
 	.is_bin_visible = vpd_attr_is_visible,
 };
 

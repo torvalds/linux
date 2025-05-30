@@ -734,7 +734,7 @@ static const struct bin_attribute *const ds2780_sysfs_bin_attrs[] = {
 
 static const struct attribute_group ds2780_sysfs_group = {
 	.attrs = ds2780_sysfs_attrs,
-	.bin_attrs_new = ds2780_sysfs_bin_attrs,
+	.bin_attrs = ds2780_sysfs_bin_attrs,
 };
 
 static const struct attribute_group *ds2780_sysfs_groups[] = {

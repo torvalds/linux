@@ -591,7 +591,7 @@ static const struct bin_attribute *const olpc_bat_sysfs_bin_attrs[] = {
 
 static const struct attribute_group olpc_bat_sysfs_group = {
 	.attrs = olpc_bat_sysfs_attrs,
-	.bin_attrs_new = olpc_bat_sysfs_bin_attrs,
+	.bin_attrs = olpc_bat_sysfs_bin_attrs,
 };
 
 static const struct attribute_group *olpc_bat_sysfs_groups[] = {
