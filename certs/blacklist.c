@@ -1,8 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+ // SPDX-License-Identifier: GPL-2.0-or-later
 /* System hash blacklist.
  *
  * Copyright (C) 2016 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
+ *
+ * This file implements the system hash blacklist functionality, including functions to mark hashes as blacklisted, check if a hash is blacklisted, and manage the blacklist keyring.
  */
 
 #define pr_fmt(fmt) "blacklist: "fmt
@@ -43,6 +45,8 @@ extern __initconst const unsigned long revocation_certificate_list_size;
  * The description must be a type prefix, a colon and then an even number of
  * hex digits.  The hash is kept in the description.
  */
+
+/* This function vets the description of a blacklist key to ensure it follows the correct format. */
 static int blacklist_vet_description(const char *desc)
 {
 	int i, prefix_len, tbs_step = 0, bin_step = 0;
@@ -83,6 +87,7 @@ found_colon:
 	return 0;
 }
 
+/* This function instantiates a blacklist key, setting its permissions and verifying its signature if necessary. */
 static int blacklist_key_instantiate(struct key *key,
 		struct key_preparsed_payload *prep)
 {
@@ -178,6 +183,8 @@ static char *get_raw_hash(const u8 *hash, size_t hash_len,
 /**
  * mark_raw_hash_blacklisted - Add a hash to the system blacklist
  * @hash: The hash as a hex string with a type prefix (eg. "tbs:23aa429783")
+ *
+ * This function adds a raw hash to the system blacklist keyring.
  */
 static int mark_raw_hash_blacklisted(const char *hash)
 {
@@ -220,6 +227,8 @@ int mark_hash_blacklisted(const u8 *hash, size_t hash_len,
  * @hash: The hash to be checked as a binary blob
  * @hash_len: The length of the binary hash
  * @hash_type: Type of hash
+ *
+ * This function checks if a given hash is present in the system blacklist.
  */
 int is_hash_blacklisted(const u8 *hash, size_t hash_len,
 		enum blacklist_hash_type hash_type)
