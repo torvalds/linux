@@ -12,6 +12,7 @@
 #include "regs/xe_gt_regs.h"
 #include "xe_assert.h"
 #include "xe_gt.h"
+#include "xe_gt_printk.h"
 #include "xe_mmio.h"
 #include "xe_wa.h"
 
@@ -243,8 +244,7 @@ xe_gt_topology_init(struct xe_gt *gt)
 	load_eu_mask(gt, gt->fuse_topo.eu_mask_per_dss, &gt->fuse_topo.eu_type);
 	load_l3_bank_mask(gt, gt->fuse_topo.l3_bank_mask);
 
-	p = drm_dbg_printer(&gt_to_xe(gt)->drm, DRM_UT_DRIVER, "GT topology");
-
+	p = xe_gt_dbg_printer(gt);
 	xe_gt_topology_dump(gt, &p);
 }
 
