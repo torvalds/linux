@@ -962,6 +962,7 @@ static int rcsi2_set_phypll(struct rcar_csi2 *priv, unsigned int mbps)
 static int rcsi2_calc_mbps(struct rcar_csi2 *priv, unsigned int bpp,
 			   unsigned int lanes)
 {
+	struct media_pad *remote_pad;
 	struct v4l2_subdev *source;
 	s64 freq;
 	u64 mbps;
@@ -970,8 +971,9 @@ static int rcsi2_calc_mbps(struct rcar_csi2 *priv, unsigned int bpp,
 		return -ENODEV;
 
 	source = priv->remote;
+	remote_pad = &source->entity.pads[priv->remote_pad];
 
-	freq = v4l2_get_link_freq(source->ctrl_handler, bpp, 2 * lanes);
+	freq = v4l2_get_link_freq(remote_pad, bpp, 2 * lanes);
 	if (freq < 0) {
 		int ret = (int)freq;
 
