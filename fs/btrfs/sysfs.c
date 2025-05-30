@@ -1210,7 +1210,7 @@ static ssize_t quota_override_store(struct kobject *kobj,
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
 	unsigned long knob;
-	int err;
+	int ret;
 
 	if (!fs_info)
 		return -EPERM;
@@ -1218,9 +1218,9 @@ static ssize_t quota_override_store(struct kobject *kobj,
 	if (!capable(CAP_SYS_RESOURCE))
 		return -EPERM;
 
-	err = kstrtoul(buf, 10, &knob);
-	if (err)
-		return err;
+	ret = kstrtoul(buf, 10, &knob);
+	if (ret)
+		return ret;
 	if (knob > 1)
 		return -EINVAL;
 
