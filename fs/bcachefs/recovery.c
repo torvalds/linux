@@ -1093,10 +1093,6 @@ use_clean:
 out:
 	bch2_flush_fsck_errs(c);
 
-	if (!c->opts.retain_recovery_info) {
-		bch2_journal_keys_put_initial(c);
-		bch2_find_btree_nodes_exit(&c->found_btree_nodes);
-	}
 	if (!IS_ERR(clean))
 		kfree(clean);
 
