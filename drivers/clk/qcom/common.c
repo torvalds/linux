@@ -14,6 +14,8 @@
 #include <linux/of.h>
 
 #include "common.h"
+#include "clk-alpha-pll.h"
+#include "clk-branch.h"
 #include "clk-rcg.h"
 #include "clk-regmap.h"
 #include "reset.h"
@@ -285,6 +287,40 @@ static int qcom_cc_icc_register(struct device *dev,
 						     desc->num_icc_hws, icd);
 }
 
+static int qcom_cc_clk_pll_configure(const struct qcom_cc_driver_data *data,
+				     struct regmap *regmap)
+{
+	const struct clk_init_data *init;
+	struct clk_alpha_pll *pll;
+	int i;
+
+	for (i = 0; i < data->num_alpha_plls; i++) {
+		pll = data->alpha_plls[i];
+		init = pll->clkr.hw.init;
+
+		if (!pll->config || !pll->regs) {
+			pr_err("%s: missing pll config or regs\n", init->name);
+			return -EINVAL;
+		}
+
+		qcom_clk_alpha_pll_configure(pll, regmap);
+	}
+
+	return 0;
+}
+
+static void qcom_cc_clk_regs_configure(struct device *dev, const struct qcom_cc_driver_data *data,
+				       struct regmap *regmap)
+{
+	int i;
+
+	for (i = 0; i < data->num_clk_cbcrs; i++)
+		qcom_branch_set_clk_en(regmap, data->clk_cbcrs[i]);
+
+	if (data->clk_regs_configure)
+		data->clk_regs_configure(dev, regmap);
+}
+
 int qcom_cc_really_probe(struct device *dev,
 			 const struct qcom_cc_desc *desc, struct regmap *regmap)
 {
@@ -313,6 +349,14 @@ int qcom_cc_really_probe(struct device *dev,
 		ret = pm_runtime_resume_and_get(dev);
 		if (ret)
 			return ret;
+	}
+
+	if (desc->driver_data) {
+		ret = qcom_cc_clk_pll_configure(desc->driver_data, regmap);
+		if (ret)
+			goto put_rpm;
+
+		qcom_cc_clk_regs_configure(dev, desc->driver_data, regmap);
 	}
 
 	reset = &cc->reset;
