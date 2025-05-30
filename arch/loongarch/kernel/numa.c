@@ -11,6 +11,7 @@
 #include <linux/mmzone.h>
 #include <linux/export.h>
 #include <linux/nodemask.h>
+#include <linux/numa_memblks.h>
 #include <linux/swap.h>
 #include <linux/memblock.h>
 #include <linux/pfn.h>
@@ -27,10 +28,6 @@
 #include <asm/time.h>
 
 int numa_off;
-unsigned char node_distances[MAX_NUMNODES][MAX_NUMNODES];
-EXPORT_SYMBOL(node_distances);
-
-static struct numa_meminfo numa_meminfo;
 cpumask_t cpus_on_node[MAX_NUMNODES];
 cpumask_t phys_cpus_on_node[MAX_NUMNODES];
 EXPORT_SYMBOL(cpus_on_node);
@@ -42,8 +39,6 @@ s16 __cpuid_to_node[CONFIG_NR_CPUS] = {
 	[0 ... CONFIG_NR_CPUS - 1] = NUMA_NO_NODE
 };
 EXPORT_SYMBOL(__cpuid_to_node);
-
-nodemask_t numa_nodes_parsed __initdata;
 
 #ifdef CONFIG_HAVE_SETUP_PER_CPU_AREA
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
@@ -145,48 +140,6 @@ void numa_remove_cpu(unsigned int cpu)
 	cpumask_clear_cpu(cpu, &cpus_on_node[nid]);
 }
 
-static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
-				     struct numa_meminfo *mi)
-{
-	/* ignore zero length blks */
-	if (start == end)
-		return 0;
-
-	/* whine about and ignore invalid blks */
-	if (start > end || nid < 0 || nid >= MAX_NUMNODES) {
-		pr_warn("NUMA: Warning: invalid memblk node %d [mem %#010Lx-%#010Lx]\n",
-			   nid, start, end - 1);
-		return 0;
-	}
-
-	if (mi->nr_blks >= NR_NODE_MEMBLKS) {
-		pr_err("NUMA: too many memblk ranges\n");
-		return -EINVAL;
-	}
-
-	mi->blk[mi->nr_blks].start = PFN_ALIGN(start);
-	mi->blk[mi->nr_blks].end = PFN_ALIGN(end - PAGE_SIZE + 1);
-	mi->blk[mi->nr_blks].nid = nid;
-	mi->nr_blks++;
-	return 0;
-}
-
-/**
- * numa_add_memblk - Add one numa_memblk to numa_meminfo
- * @nid: NUMA node ID of the new memblk
- * @start: Start address of the new memblk
- * @end: End address of the new memblk
- *
- * Add a new memblk to the default numa_meminfo.
- *
- * RETURNS:
- * 0 on success, -errno on failure.
- */
-int __init numa_add_memblk(int nid, u64 start, u64 end)
-{
-	return numa_add_memblk_to(nid, start, end, &numa_meminfo);
-}
-
 static void __init node_mem_init(unsigned int node)
 {
 	unsigned long start_pfn, end_pfn;
@@ -205,18 +158,6 @@ static void __init node_mem_init(unsigned int node)
 
 #ifdef CONFIG_ACPI_NUMA
 
-static void __init add_node_intersection(u32 node, u64 start, u64 size, u32 type)
-{
-	static unsigned long num_physpages;
-
-	num_physpages += (size >> PAGE_SHIFT);
-	pr_info("Node%d: mem_type:%d, mem_start:0x%llx, mem_size:0x%llx Bytes\n",
-		node, type, start, size);
-	pr_info("       start_pfn:0x%llx, end_pfn:0x%llx, num_physpages:0x%lx\n",
-		start >> PAGE_SHIFT, (start + size) >> PAGE_SHIFT, num_physpages);
-	memblock_set_node(start, size, &memblock.memory, node);
-}
-
 /*
  * add_numamem_region
  *
@@ -228,28 +169,21 @@ static void __init add_node_intersection(u32 node, u64 start, u64 size, u32 type
  */
 static void __init add_numamem_region(u64 start, u64 end, u32 type)
 {
-	u32 i;
-	u64 ofs = start;
+	u32 node = pa_to_nid(start);
+	u64 size = end - start;
+	static unsigned long num_physpages;
 
 	if (start >= end) {
 		pr_debug("Invalid region: %016llx-%016llx\n", start, end);
 		return;
 	}
 
-	for (i = 0; i < numa_meminfo.nr_blks; i++) {
-		struct numa_memblk *mb = &numa_meminfo.blk[i];
-
-		if (ofs > mb->end)
-			continue;
-
-		if (end > mb->end) {
-			add_node_intersection(mb->nid, ofs, mb->end - ofs, type);
-			ofs = mb->end;
-		} else {
-			add_node_intersection(mb->nid, ofs, end - ofs, type);
-			break;
-		}
-	}
+	num_physpages += (size >> PAGE_SHIFT);
+	pr_info("Node%d: mem_type:%d, mem_start:0x%llx, mem_size:0x%llx Bytes\n",
+		node, type, start, size);
+	pr_info("       start_pfn:0x%llx, end_pfn:0x%llx, num_physpages:0x%lx\n",
+		start >> PAGE_SHIFT, end >> PAGE_SHIFT, num_physpages);
+	memblock_set_node(start, size, &memblock.memory, node);
 }
 
 static void __init init_node_memblock(void)
@@ -291,24 +225,6 @@ static void __init init_node_memblock(void)
 	}
 }
 
-static void __init numa_default_distance(void)
-{
-	int row, col;
-
-	for (row = 0; row < MAX_NUMNODES; row++)
-		for (col = 0; col < MAX_NUMNODES; col++) {
-			if (col == row)
-				node_distances[row][col] = LOCAL_DISTANCE;
-			else
-				/* We assume that one node per package here!
-				 *
-				 * A SLIT should be used for multiple nodes
-				 * per package to override default setting.
-				 */
-				node_distances[row][col] = REMOTE_DISTANCE;
-	}
-}
-
 /*
  * fake_numa_init() - For Non-ACPI systems
  * Return: 0 on success, -errno on failure.
@@ -333,11 +249,11 @@ int __init init_numa_memory(void)
 	for (i = 0; i < NR_CPUS; i++)
 		set_cpuid_to_node(i, NUMA_NO_NODE);
 
-	numa_default_distance();
+	numa_reset_distance();
 	nodes_clear(numa_nodes_parsed);
 	nodes_clear(node_possible_map);
 	nodes_clear(node_online_map);
-	memset(&numa_meminfo, 0, sizeof(numa_meminfo));
+	WARN_ON(memblock_clear_hotplug(0, PHYS_ADDR_MAX));
 
 	/* Parse SRAT and SLIT if provided by firmware. */
 	ret = acpi_disabled ? fake_numa_init() : acpi_numa_init();
