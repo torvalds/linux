@@ -145,6 +145,7 @@ do {									\
 write_attribute(trigger_gc);
 write_attribute(trigger_discards);
 write_attribute(trigger_invalidates);
+write_attribute(trigger_journal_commit);
 write_attribute(trigger_journal_flush);
 write_attribute(trigger_journal_writes);
 write_attribute(trigger_btree_cache_shrink);
@@ -435,6 +436,9 @@ STORE(bch2_fs)
 	if (attr == &sysfs_trigger_invalidates)
 		bch2_do_invalidates(c);
 
+	if (attr == &sysfs_trigger_journal_commit)
+		bch2_journal_flush(&c->journal);
+
 	if (attr == &sysfs_trigger_journal_flush) {
 		bch2_journal_flush_all_pins(&c->journal);
 		bch2_journal_meta(&c->journal);
@@ -589,6 +593,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_trigger_gc,
 	&sysfs_trigger_discards,
 	&sysfs_trigger_invalidates,
+	&sysfs_trigger_journal_commit,
 	&sysfs_trigger_journal_flush,
 	&sysfs_trigger_journal_writes,
 	&sysfs_trigger_btree_cache_shrink,
