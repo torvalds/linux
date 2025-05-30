@@ -178,6 +178,7 @@ static int ieee80211_set_ap_mbssid_options(struct ieee80211_sub_if_data *sdata,
 
 		link_conf->nontransmitted = true;
 		link_conf->bssid_index = params->index;
+		link_conf->bssid_indicator = tx_bss_conf->bssid_indicator;
 	}
 	if (params->ema)
 		link_conf->ema_ap = true;
@@ -1218,8 +1219,11 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 			ieee80211_copy_rnr_beacon(pos, new->rnr_ies, rnr);
 		}
 		/* update bssid_indicator */
-		link_conf->bssid_indicator =
-			ilog2(__roundup_pow_of_two(mbssid->cnt + 1));
+		if (new->mbssid_ies->cnt && new->mbssid_ies->elem[0].len > 2)
+			link_conf->bssid_indicator =
+					*(new->mbssid_ies->elem[0].data + 2);
+		else
+			link_conf->bssid_indicator = 0;
 	}
 
 	if (csa) {
