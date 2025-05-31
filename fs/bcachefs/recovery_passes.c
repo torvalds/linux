@@ -384,6 +384,35 @@ int bch2_run_explicit_recovery_pass(struct bch_fs *c,
 	return ret;
 }
 
+/*
+ * Returns 0 if @pass has run recently, otherwise one of
+ * -BCH_ERR_restart_recovery
+ * -BCH_ERR_recovery_pass_will_run
+ */
+int bch2_require_recovery_pass(struct bch_fs *c,
+			       struct printbuf *out,
+			       enum bch_recovery_pass pass)
+{
+	if (test_bit(BCH_FS_in_recovery, &c->flags) &&
+	    c->recovery.passes_complete & BIT_ULL(pass))
+		return 0;
+
+	guard(mutex)(&c->sb_lock);
+
+	if (bch2_recovery_pass_want_ratelimit(c, pass))
+		return 0;
+
+	enum bch_run_recovery_pass_flags flags = 0;
+	int ret = 0;
+
+	if (recovery_pass_needs_set(c, pass, &flags)) {
+		ret = __bch2_run_explicit_recovery_pass(c, out, pass, flags);
+		bch2_write_super(c);
+	}
+
+	return ret ?: bch_err_throw(c, recovery_pass_will_run);
+}
+
 int bch2_run_print_explicit_recovery_pass(struct bch_fs *c, enum bch_recovery_pass pass)
 {
 	enum bch_run_recovery_pass_flags flags = RUN_RECOVERY_PASS_nopersistent;

@@ -24,6 +24,9 @@ int bch2_run_explicit_recovery_pass(struct bch_fs *, struct printbuf *,
 				    enum bch_recovery_pass,
 				    enum bch_run_recovery_pass_flags);
 
+int bch2_require_recovery_pass(struct bch_fs *, struct printbuf *,
+			       enum bch_recovery_pass);
+
 int bch2_run_online_recovery_passes(struct bch_fs *, u64);
 int bch2_run_recovery_passes(struct bch_fs *, enum bch_recovery_pass);
 

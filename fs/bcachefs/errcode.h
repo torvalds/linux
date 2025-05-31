@@ -182,9 +182,12 @@
 	x(BCH_ERR_fsck,			fsck_errors_not_fixed)			\
 	x(BCH_ERR_fsck,			fsck_repair_unimplemented)		\
 	x(BCH_ERR_fsck,			fsck_repair_impossible)			\
-	x(EINVAL,			restart_recovery)			\
-	x(EINVAL,			cannot_rewind_recovery)			\
+	x(EINVAL,			recovery_will_run)			\
+	x(BCH_ERR_recovery_will_run,	restart_recovery)			\
+	x(BCH_ERR_recovery_will_run,	cannot_rewind_recovery)			\
+	x(BCH_ERR_recovery_will_run,	recovery_pass_will_run)			\
 	x(0,				data_update_done)			\
+	x(0,				bkey_was_deleted)			\
 	x(BCH_ERR_data_update_done,	data_update_done_would_block)		\
 	x(BCH_ERR_data_update_done,	data_update_done_unwritten)		\
 	x(BCH_ERR_data_update_done,	data_update_done_no_writes_needed)	\
