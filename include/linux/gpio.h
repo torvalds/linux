@@ -45,19 +45,6 @@ static inline bool gpio_is_valid(int number)
  * extra memory (for code and for per-GPIO table entries).
  */
 
-/*
- * At the end we want all GPIOs to be dynamically allocated from 0.
- * However, some legacy drivers still perform fixed allocation.
- * Until they are all fixed, leave 0-512 space for them.
- */
-#define GPIO_DYNAMIC_BASE	512
-/*
- * Define the maximum of the possible GPIO in the global numberspace.
- * While the GPIO base and numbers are positive, we limit it with signed
- * maximum as a lot of code is using negative values for special cases.
- */
-#define GPIO_DYNAMIC_MAX	INT_MAX
-
 /* Always use the library code for GPIO management calls,
  * or when sleeping may be involved.
  */

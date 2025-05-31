@@ -75,6 +75,19 @@ static const struct bus_type gpio_bus_type = {
 };
 
 /*
+ * At the end we want all GPIOs to be dynamically allocated from 0.
+ * However, some legacy drivers still perform fixed allocation.
+ * Until they are all fixed, leave 0-512 space for them.
+ */
+#define GPIO_DYNAMIC_BASE	512
+/*
+ * Define the maximum of the possible GPIO in the global numberspace.
+ * While the GPIO base and numbers are positive, we limit it with signed
+ * maximum as a lot of code is using negative values for special cases.
+ */
+#define GPIO_DYNAMIC_MAX	INT_MAX
+
+/*
  * Number of GPIOs to use for the fast path in set array
  */
 #define FASTPATH_NGPIO CONFIG_GPIOLIB_FASTPATH_LIMIT
