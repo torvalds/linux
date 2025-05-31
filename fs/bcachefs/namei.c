@@ -733,15 +733,6 @@ static int bch2_check_dirent_inode_dirent(struct btree_trans *trans,
 		return __bch2_fsck_write_inode(trans, target);
 	}
 
-	if (bch2_inode_should_have_single_bp(target) &&
-	    !fsck_err(trans, inode_wrong_backpointer,
-		      "dirent points to inode that does not point back:\n%s",
-		      (bch2_bkey_val_to_text(&buf, c, d.s_c),
-		       prt_newline(&buf),
-		       bch2_inode_unpacked_to_text(&buf, target),
-		       buf.buf)))
-		goto err;
-
 	struct bkey_s_c_dirent bp_dirent =
 		bch2_bkey_get_iter_typed(trans, &bp_iter, BTREE_ID_dirents,
 			      SPOS(target->bi_dir, target->bi_dir_offset, target->bi_snapshot),
