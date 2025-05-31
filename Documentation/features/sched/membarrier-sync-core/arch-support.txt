@@ -7,8 +7,8 @@
 #
 # * arm/arm64/powerpc/s390
 #
-# Rely on implicit context synchronization as a result of exception return
-# when returning from IPI handler, and when returning to user-space.
+#Relies on implicit context synchronization during exception return, 
+#both when exiting the IPI handler and when transitioning to user-space.
 #
 # * riscv
 #
@@ -32,7 +32,7 @@
 # However, it uses both IRET and SYSEXIT to go back to user-space. The IRET
 # instruction is core serializing, but not SYSEXIT.
 #
-# x86-64 uses IRET as return from interrupt, which takes care of the IPI.
+# On x86-32, IRET is used to return from interrupts, which takes care of the IPI.
 # However, it can return to user-space through either SYSRETL (compat code),
 # SYSRETQ, or IRET.
 #
