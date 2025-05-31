@@ -121,7 +121,6 @@ static __always_inline void kmsan_leave_runtime(void)
 	KMSAN_WARN_ON(--ctx->kmsan_in_runtime);
 }
 
-depot_stack_handle_t kmsan_save_stack(void);
 depot_stack_handle_t kmsan_save_stack_with_flags(gfp_t flags,
 						 unsigned int extra_bits);
 

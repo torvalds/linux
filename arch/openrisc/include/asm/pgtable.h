@@ -299,8 +299,6 @@ static inline pte_t __mk_pte(void *page, pgprot_t pgprot)
 	return pte;
 }
 
-#define mk_pte(page, pgprot) __mk_pte(page_address(page), (pgprot))
-
 #define mk_pte_phys(physpage, pgprot) \
 ({                                                                      \
 	pte_t __pte;                                                    \

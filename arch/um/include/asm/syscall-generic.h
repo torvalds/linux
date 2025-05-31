@@ -21,6 +21,11 @@ static inline int syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 	return PT_REGS_SYSCALL_NR(regs);
 }
 
+static inline void syscall_set_nr(struct task_struct *task, struct pt_regs *regs, int nr)
+{
+	PT_REGS_SYSCALL_NR(regs) = nr;
+}
+
 static inline void syscall_rollback(struct task_struct *task,
 				    struct pt_regs *regs)
 {
@@ -60,6 +65,20 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	*args++ = UPT_SYSCALL_ARG4(r);
 	*args++ = UPT_SYSCALL_ARG5(r);
 	*args   = UPT_SYSCALL_ARG6(r);
+}
+
+static inline void syscall_set_arguments(struct task_struct *task,
+					 struct pt_regs *regs,
+					 const unsigned long *args)
+{
+	struct uml_pt_regs *r = &regs->regs;
+
+	UPT_SYSCALL_ARG1(r) = *args++;
+	UPT_SYSCALL_ARG2(r) = *args++;
+	UPT_SYSCALL_ARG3(r) = *args++;
+	UPT_SYSCALL_ARG4(r) = *args++;
+	UPT_SYSCALL_ARG5(r) = *args++;
+	UPT_SYSCALL_ARG6(r) = *args;
 }
 
 /* See arch/x86/um/asm/syscall.h for syscall_get_arch() definition. */

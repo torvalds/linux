@@ -338,10 +338,6 @@ static inline pte_t pte_mkspecial(pte_t pte)	{ pte_val(pte) |= _PAGE_SPECIAL; re
 #endif
 
 
-/*
- * Conversion functions: convert a page and protection to a page entry,
- * and a page entry and page directory to the page they refer to.
- */
 #define __mk_pte(addr,pgprot) \
 ({									\
 	pte_t __pte;							\
@@ -350,8 +346,6 @@ static inline pte_t pte_mkspecial(pte_t pte)	{ pte_val(pte) |= _PAGE_SPECIAL; re
 									\
 	__pte;								\
 })
-
-#define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
 
 static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
 {

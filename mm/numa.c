@@ -13,7 +13,6 @@ void __init alloc_node_data(int nid)
 {
 	const size_t nd_size = roundup(sizeof(pg_data_t), SMP_CACHE_BYTES);
 	u64 nd_pa;
-	void *nd;
 	int tnid;
 
 	/* Allocate node data.  Try node-local memory and then any node. */
@@ -21,7 +20,6 @@ void __init alloc_node_data(int nid)
 	if (!nd_pa)
 		panic("Cannot allocate %zu bytes for node %d data\n",
 		      nd_size, nid);
-	nd = __va(nd_pa);
 
 	/* report and initialize */
 	pr_info("NODE_DATA(%d) allocated [mem %#010Lx-%#010Lx]\n", nid,
@@ -30,7 +28,7 @@ void __init alloc_node_data(int nid)
 	if (tnid != nid)
 		pr_info("    NODE_DATA(%d) on node %d\n", nid, tnid);
 
-	node_data[nid] = nd;
+	node_data[nid] = __va(nd_pa);
 	memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
 }
 

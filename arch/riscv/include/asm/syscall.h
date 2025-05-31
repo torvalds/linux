@@ -30,6 +30,13 @@ static inline int syscall_get_nr(struct task_struct *task,
 	return regs->a7;
 }
 
+static inline void syscall_set_nr(struct task_struct *task,
+				  struct pt_regs *regs,
+				  int nr)
+{
+	regs->a7 = nr;
+}
+
 static inline void syscall_rollback(struct task_struct *task,
 				    struct pt_regs *regs)
 {
@@ -67,6 +74,18 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	args[3] = regs->a3;
 	args[4] = regs->a4;
 	args[5] = regs->a5;
+}
+
+static inline void syscall_set_arguments(struct task_struct *task,
+					 struct pt_regs *regs,
+					 const unsigned long *args)
+{
+	regs->orig_a0 = args[0];
+	regs->a1 = args[1];
+	regs->a2 = args[2];
+	regs->a3 = args[3];
+	regs->a4 = args[4];
+	regs->a5 = args[5];
 }
 
 static inline int syscall_get_arch(struct task_struct *task)

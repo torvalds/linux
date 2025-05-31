@@ -420,11 +420,16 @@ class Kdamond:
                 tried_regions = []
                 tried_regions_dir = os.path.join(
                         scheme.sysfs_dir(), 'tried_regions')
+                region_indices = []
                 for filename in os.listdir(
                         os.path.join(scheme.sysfs_dir(), 'tried_regions')):
                     tried_region_dir = os.path.join(tried_regions_dir, filename)
                     if not os.path.isdir(tried_region_dir):
                         continue
+                    region_indices.append(int(filename))
+                for region_idx in sorted(region_indices):
+                    tried_region_dir = os.path.join(tried_regions_dir,
+                                                    '%d' % region_idx)
                     region_values = []
                     for f in ['start', 'end', 'nr_accesses', 'age']:
                         content, err = read_file(

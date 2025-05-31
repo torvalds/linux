@@ -7,7 +7,7 @@
  *
  *  zoned VM statistics
  *  Copyright (C) 2006 Silicon Graphics, Inc.,
- *		Christoph Lameter <christoph@lameter.com>
+ *		Christoph Lameter <cl@gentwo.org>
  *  Copyright (C) 2008-2014 Christoph Lameter
  */
 #include <linux/fs.h>

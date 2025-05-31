@@ -285,14 +285,6 @@ static inline pte_t mk_pte_phys(phys_addr_t physpage, pgprot_t pgprot)
 	return pte;
 }
 
-#define mk_pte(page, pgprot) \
-({									   \
-	pte_t pte;							   \
-	pte_val(pte) = (((page - mem_map) << PAGE_SHIFT) + memory_start) |  \
-			pgprot_val(pgprot);				   \
-	pte;								   \
-})
-
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	pte_val(pte) = (pte_val(pte) & _PAGE_CHG_MASK) | pgprot_val(newprot);

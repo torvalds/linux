@@ -2336,7 +2336,7 @@ D: Author of the dialog utility, foundation
 D: for Menuconfig's lxdialog.
 
 N: Christoph Lameter
-E: christoph@lameter.com
+E: cl@gentwo.org
 D: Digiboard PC/Xe and PC/Xi, Digiboard EPCA
 D: NUMA support, Slab allocators, Page migration
 D: Scalability, Time subsystem

@@ -17,9 +17,13 @@ struct mmap_state {
 	unsigned long pglen;
 	unsigned long flags;
 	struct file *file;
+	pgprot_t page_prot;
+
+	/* User-defined fields, perhaps updated by .mmap_prepare(). */
+	const struct vm_operations_struct *vm_ops;
+	void *vm_private_data;
 
 	unsigned long charged;
-	bool retry_merge;
 
 	struct vm_area_struct *prev;
 	struct vm_area_struct *next;
@@ -40,6 +44,7 @@ struct mmap_state {
 		.pglen = PHYS_PFN(len_),				\
 		.flags = flags_,					\
 		.file = file_,						\
+		.page_prot = vm_get_page_prot(flags_),			\
 	}
 
 #define VMG_MMAP_STATE(name, map_, vma_)				\
@@ -56,6 +61,22 @@ struct mmap_state {
 		.next = (vma_) ? NULL : (map_)->next,			\
 		.state = VMA_MERGE_START,				\
 	}
+
+/*
+ * If, at any point, the VMA had unCoW'd mappings from parents, it will maintain
+ * more than one anon_vma_chain connecting it to more than one anon_vma. A merge
+ * would mean a wider range of folios sharing the root anon_vma lock, and thus
+ * potential lock contention, we do not wish to encourage merging such that this
+ * scales to a problem.
+ */
+static bool vma_had_uncowed_parents(struct vm_area_struct *vma)
+{
+	/*
+	 * The list_is_singular() test is to avoid merging VMA cloned from
+	 * parents. This can improve scalability caused by anon_vma lock.
+	 */
+	return vma && vma->anon_vma && !list_is_singular(&vma->anon_vma_chain);
+}
 
 static inline bool is_mergeable_vma(struct vma_merge_struct *vmg, bool merge_next)
 {
@@ -82,24 +103,28 @@ static inline bool is_mergeable_vma(struct vma_merge_struct *vmg, bool merge_nex
 	return true;
 }
 
-static inline bool is_mergeable_anon_vma(struct anon_vma *anon_vma1,
-		 struct anon_vma *anon_vma2, struct vm_area_struct *vma)
+static bool is_mergeable_anon_vma(struct vma_merge_struct *vmg, bool merge_next)
 {
-	/*
-	 * The list_is_singular() test is to avoid merging VMA cloned from
-	 * parents. This can improve scalability caused by anon_vma lock.
-	 */
-	if ((!anon_vma1 || !anon_vma2) && (!vma ||
-		list_is_singular(&vma->anon_vma_chain)))
-		return true;
-	return anon_vma1 == anon_vma2;
-}
+	struct vm_area_struct *tgt = merge_next ? vmg->next : vmg->prev;
+	struct vm_area_struct *src = vmg->middle; /* exisitng merge case. */
+	struct anon_vma *tgt_anon = tgt->anon_vma;
+	struct anon_vma *src_anon = vmg->anon_vma;
 
-/* Are the anon_vma's belonging to each VMA compatible with one another? */
-static inline bool are_anon_vmas_compatible(struct vm_area_struct *vma1,
-					    struct vm_area_struct *vma2)
-{
-	return is_mergeable_anon_vma(vma1->anon_vma, vma2->anon_vma, NULL);
+	/*
+	 * We _can_ have !src, vmg->anon_vma via copy_vma(). In this instance we
+	 * will remove the existing VMA's anon_vma's so there's no scalability
+	 * concerns.
+	 */
+	VM_WARN_ON(src && src_anon != src->anon_vma);
+
+	/* Case 1 - we will dup_anon_vma() from src into tgt. */
+	if (!tgt_anon && src_anon)
+		return !vma_had_uncowed_parents(src);
+	/* Case 2 - we will simply use tgt's anon_vma. */
+	if (tgt_anon && !src_anon)
+		return !vma_had_uncowed_parents(tgt);
+	/* Case 3 - the anon_vma's are already shared. */
+	return src_anon == tgt_anon;
 }
 
 /*
@@ -164,7 +189,7 @@ static bool can_vma_merge_before(struct vma_merge_struct *vmg)
 	pgoff_t pglen = PHYS_PFN(vmg->end - vmg->start);
 
 	if (is_mergeable_vma(vmg, /* merge_next = */ true) &&
-	    is_mergeable_anon_vma(vmg->anon_vma, vmg->next->anon_vma, vmg->next)) {
+	    is_mergeable_anon_vma(vmg, /* merge_next = */ true)) {
 		if (vmg->next->vm_pgoff == vmg->pgoff + pglen)
 			return true;
 	}
@@ -184,7 +209,7 @@ static bool can_vma_merge_before(struct vma_merge_struct *vmg)
 static bool can_vma_merge_after(struct vma_merge_struct *vmg)
 {
 	if (is_mergeable_vma(vmg, /* merge_next = */ false) &&
-	    is_mergeable_anon_vma(vmg->anon_vma, vmg->prev->anon_vma, vmg->prev)) {
+	    is_mergeable_anon_vma(vmg, /* merge_next = */ false)) {
 		if (vmg->prev->vm_pgoff + vma_pages(vmg->prev) == vmg->pgoff)
 			return true;
 	}
@@ -400,8 +425,10 @@ static bool can_vma_merge_left(struct vma_merge_struct *vmg)
 static bool can_vma_merge_right(struct vma_merge_struct *vmg,
 				bool can_merge_left)
 {
-	if (!vmg->next || vmg->end != vmg->next->vm_start ||
-	    !can_vma_merge_before(vmg))
+	struct vm_area_struct *next = vmg->next;
+	struct vm_area_struct *prev;
+
+	if (!next || vmg->end != next->vm_start || !can_vma_merge_before(vmg))
 		return false;
 
 	if (!can_merge_left)
@@ -414,7 +441,9 @@ static bool can_vma_merge_right(struct vma_merge_struct *vmg,
 	 *
 	 * We therefore check this in addition to mergeability to either side.
 	 */
-	return are_anon_vmas_compatible(vmg->prev, vmg->next);
+	prev = vmg->prev;
+	return !prev->anon_vma || !next->anon_vma ||
+		prev->anon_vma == next->anon_vma;
 }
 
 /*
@@ -554,7 +583,9 @@ static int split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
 }
 
 /*
- * dup_anon_vma() - Helper function to duplicate anon_vma
+ * dup_anon_vma() - Helper function to duplicate anon_vma on VMA merge in the
+ * instance that the destination VMA has no anon_vma but the source does.
+ *
  * @dst: The destination VMA
  * @src: The source VMA
  * @dup: Pointer to the destination VMA when successful.
@@ -565,9 +596,18 @@ static int dup_anon_vma(struct vm_area_struct *dst,
 			struct vm_area_struct *src, struct vm_area_struct **dup)
 {
 	/*
-	 * Easily overlooked: when mprotect shifts the boundary, make sure the
-	 * expanding vma has anon_vma set if the shrinking vma had, to cover any
-	 * anon pages imported.
+	 * There are three cases to consider for correctly propagating
+	 * anon_vma's on merge.
+	 *
+	 * The first is trivial - neither VMA has anon_vma, we need not do
+	 * anything.
+	 *
+	 * The second where both have anon_vma is also a no-op, as they must
+	 * then be the same, so there is simply nothing to copy.
+	 *
+	 * Here we cover the third - if the destination VMA has no anon_vma,
+	 * that is it is unfaulted, we need to ensure that the newly merged
+	 * range is referenced by the anon_vma's of the source.
 	 */
 	if (src->anon_vma && !dst->anon_vma) {
 		int ret;
@@ -2351,6 +2391,10 @@ static int __mmap_new_file_vma(struct mmap_state *map,
 	int error;
 
 	vma->vm_file = get_file(map->file);
+
+	if (!map->file->f_op->mmap)
+		return 0;
+
 	error = mmap_file(vma->vm_file, vma);
 	if (error) {
 		fput(vma->vm_file);
@@ -2373,8 +2417,6 @@ static int __mmap_new_file_vma(struct mmap_state *map,
 			!(map->flags & VM_MAYWRITE) &&
 			(vma->vm_flags & VM_MAYWRITE));
 
-	/* If the flags change (and are mergeable), let's retry later. */
-	map->retry_merge = vma->vm_flags != map->flags && !(vma->vm_flags & VM_SPECIAL);
 	map->flags = vma->vm_flags;
 
 	return 0;
@@ -2407,7 +2449,7 @@ static int __mmap_new_vma(struct mmap_state *map, struct vm_area_struct **vmap)
 	vma_iter_config(vmi, map->addr, map->end);
 	vma_set_range(vma, map->addr, map->end, map->pgoff);
 	vm_flags_init(vma, map->flags);
-	vma->vm_page_prot = vm_get_page_prot(map->flags);
+	vma->vm_page_prot = map->page_prot;
 
 	if (vma_iter_prealloc(vmi, vma)) {
 		error = -ENOMEM;
@@ -2494,6 +2536,56 @@ static void __mmap_complete(struct mmap_state *map, struct vm_area_struct *vma)
 	vma_set_page_prot(vma);
 }
 
+/*
+ * Invoke the f_op->mmap_prepare() callback for a file-backed mapping that
+ * specifies it.
+ *
+ * This is called prior to any merge attempt, and updates whitelisted fields
+ * that are permitted to be updated by the caller.
+ *
+ * All but user-defined fields will be pre-populated with original values.
+ *
+ * Returns 0 on success, or an error code otherwise.
+ */
+static int call_mmap_prepare(struct mmap_state *map)
+{
+	int err;
+	struct vm_area_desc desc = {
+		.mm = map->mm,
+		.start = map->addr,
+		.end = map->end,
+
+		.pgoff = map->pgoff,
+		.file = map->file,
+		.vm_flags = map->flags,
+		.page_prot = map->page_prot,
+	};
+
+	/* Invoke the hook. */
+	err = __call_mmap_prepare(map->file, &desc);
+	if (err)
+		return err;
+
+	/* Update fields permitted to be changed. */
+	map->pgoff = desc.pgoff;
+	map->file = desc.file;
+	map->flags = desc.vm_flags;
+	map->page_prot = desc.page_prot;
+	/* User-defined fields. */
+	map->vm_ops = desc.vm_ops;
+	map->vm_private_data = desc.private_data;
+
+	return 0;
+}
+
+static void set_vma_user_defined_fields(struct vm_area_struct *vma,
+		struct mmap_state *map)
+{
+	if (map->vm_ops)
+		vma->vm_ops = map->vm_ops;
+	vma->vm_private_data = map->vm_private_data;
+}
+
 static unsigned long __mmap_region(struct file *file, unsigned long addr,
 		unsigned long len, vm_flags_t vm_flags, unsigned long pgoff,
 		struct list_head *uf)
@@ -2501,10 +2593,13 @@ static unsigned long __mmap_region(struct file *file, unsigned long addr,
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma = NULL;
 	int error;
+	bool have_mmap_prepare = file && file->f_op->mmap_prepare;
 	VMA_ITERATOR(vmi, mm, addr);
 	MMAP_STATE(map, mm, &vmi, addr, len, pgoff, vm_flags, file);
 
 	error = __mmap_prepare(&map, uf);
+	if (!error && have_mmap_prepare)
+		error = call_mmap_prepare(&map);
 	if (error)
 		goto abort_munmap;
 
@@ -2522,16 +2617,8 @@ static unsigned long __mmap_region(struct file *file, unsigned long addr,
 			goto unacct_error;
 	}
 
-	/* If flags changed, we might be able to merge, so try again. */
-	if (map.retry_merge) {
-		struct vm_area_struct *merged;
-		VMG_MMAP_STATE(vmg, &map, vma);
-
-		vma_iter_config(map.vmi, map.addr, map.end);
-		merged = vma_merge_existing_range(&vmg);
-		if (merged)
-			vma = merged;
-	}
+	if (have_mmap_prepare)
+		set_vma_user_defined_fields(vma, &map);
 
 	__mmap_complete(&map, vma);
 
@@ -3017,4 +3104,47 @@ int __vm_munmap(unsigned long start, size_t len, bool unlock)
 
 	userfaultfd_unmap_complete(mm, &uf);
 	return ret;
+}
+
+
+/* Insert vm structure into process list sorted by address
+ * and into the inode's i_mmap tree.  If vm_file is non-NULL
+ * then i_mmap_rwsem is taken here.
+ */
+int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
+{
+	unsigned long charged = vma_pages(vma);
+
+
+	if (find_vma_intersection(mm, vma->vm_start, vma->vm_end))
+		return -ENOMEM;
+
+	if ((vma->vm_flags & VM_ACCOUNT) &&
+	     security_vm_enough_memory_mm(mm, charged))
+		return -ENOMEM;
+
+	/*
+	 * The vm_pgoff of a purely anonymous vma should be irrelevant
+	 * until its first write fault, when page's anon_vma and index
+	 * are set.  But now set the vm_pgoff it will almost certainly
+	 * end up with (unless mremap moves it elsewhere before that
+	 * first wfault), so /proc/pid/maps tells a consistent story.
+	 *
+	 * By setting it to reflect the virtual start address of the
+	 * vma, merges and splits can happen in a seamless way, just
+	 * using the existing file pgoff checks and manipulations.
+	 * Similarly in do_mmap and in do_brk_flags.
+	 */
+	if (vma_is_anonymous(vma)) {
+		BUG_ON(vma->anon_vma);
+		vma->vm_pgoff = vma->vm_start >> PAGE_SHIFT;
+	}
+
+	if (vma_link(mm, vma)) {
+		if (vma->vm_flags & VM_ACCOUNT)
+			vm_unacct_memory(charged);
+		return -ENOMEM;
+	}
+
+	return 0;
 }

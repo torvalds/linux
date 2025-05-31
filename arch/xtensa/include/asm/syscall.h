@@ -28,6 +28,13 @@ static inline long syscall_get_nr(struct task_struct *task,
 	return regs->syscall;
 }
 
+static inline void syscall_set_nr(struct task_struct *task,
+				  struct pt_regs *regs,
+				  int nr)
+{
+	regs->syscall = nr;
+}
+
 static inline void syscall_rollback(struct task_struct *task,
 				    struct pt_regs *regs)
 {
@@ -66,6 +73,17 @@ static inline void syscall_get_arguments(struct task_struct *task,
 
 	for (i = 0; i < 6; ++i)
 		args[i] = regs->areg[reg[i]];
+}
+
+static inline void syscall_set_arguments(struct task_struct *task,
+					 struct pt_regs *regs,
+					 const unsigned long *args)
+{
+	static const unsigned int reg[] = XTENSA_SYSCALL_ARGUMENT_REGS;
+	unsigned int i;
+
+	for (i = 0; i < 6; ++i)
+		regs->areg[reg[i]] = args[i];
 }
 
 asmlinkage long xtensa_rt_sigreturn(void);
