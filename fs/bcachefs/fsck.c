@@ -984,7 +984,8 @@ int bch2_fsck_update_backpointers(struct btree_trans *trans,
 	int ret = 0;
 
 	if (d->v.d_type == DT_SUBVOL) {
-		BUG();
+		bch_err(trans->c, "%s does not support DT_SUBVOL", __func__);
+		ret = -BCH_ERR_fsck_repair_unimplemented;
 	} else {
 		ret = get_visible_inodes(trans, &target, s, le64_to_cpu(d->v.d_inum));
 		if (ret)
