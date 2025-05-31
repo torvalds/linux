@@ -624,6 +624,12 @@ static const struct hi556_mode supported_modes[] = {
 	},
 };
 
+static const char * const hi556_supply_names[] = {
+	"dovdd",	/* Digital I/O power */
+	"avdd",		/* Analog power */
+	"dvdd",		/* Digital core power */
+};
+
 struct hi556 {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
@@ -639,7 +645,7 @@ struct hi556 {
 	/* GPIOs, clocks, etc. */
 	struct gpio_desc *reset_gpio;
 	struct clk *clk;
-	struct regulator *avdd;
+	struct regulator_bulk_data supplies[ARRAY_SIZE(hi556_supply_names)];
 
 	/* Current mode */
 	const struct hi556_mode *cur_mode;
@@ -1289,17 +1295,10 @@ static int hi556_suspend(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct hi556 *hi556 = to_hi556(sd);
-	int ret;
 
 	gpiod_set_value_cansleep(hi556->reset_gpio, 1);
-
-	ret = regulator_disable(hi556->avdd);
-	if (ret) {
-		dev_err(dev, "failed to disable avdd: %d\n", ret);
-		gpiod_set_value_cansleep(hi556->reset_gpio, 0);
-		return ret;
-	}
-
+	regulator_bulk_disable(ARRAY_SIZE(hi556_supply_names),
+			       hi556->supplies);
 	clk_disable_unprepare(hi556->clk);
 	return 0;
 }
@@ -1314,9 +1313,10 @@ static int hi556_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	ret = regulator_enable(hi556->avdd);
+	ret = regulator_bulk_enable(ARRAY_SIZE(hi556_supply_names),
+				    hi556->supplies);
 	if (ret) {
-		dev_err(dev, "failed to enable avdd: %d\n", ret);
+		dev_err(dev, "failed to enable regulators: %d", ret);
 		clk_disable_unprepare(hi556->clk);
 		return ret;
 	}
@@ -1335,7 +1335,7 @@ static int hi556_probe(struct i2c_client *client)
 {
 	struct hi556 *hi556;
 	bool full_power;
-	int ret;
+	int i, ret;
 
 	ret = hi556_check_hwcfg(&client->dev);
 	if (ret)
@@ -1358,11 +1358,15 @@ static int hi556_probe(struct i2c_client *client)
 		return dev_err_probe(&client->dev, PTR_ERR(hi556->clk),
 				     "failed to get clock\n");
 
-	/* The regulator core will provide a "dummy" regulator if necessary */
-	hi556->avdd = devm_regulator_get(&client->dev, "avdd");
-	if (IS_ERR(hi556->avdd))
-		return dev_err_probe(&client->dev, PTR_ERR(hi556->avdd),
-				     "failed to get avdd regulator\n");
+	for (i = 0; i < ARRAY_SIZE(hi556_supply_names); i++)
+		hi556->supplies[i].supply = hi556_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&client->dev,
+				      ARRAY_SIZE(hi556_supply_names),
+				      hi556->supplies);
+	if (ret)
+		return dev_err_probe(&client->dev, ret,
+				     "failed to get regulators\n");
 
 	full_power = acpi_dev_state_d0(&client->dev);
 	if (full_power) {
