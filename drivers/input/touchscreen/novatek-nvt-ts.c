@@ -245,7 +245,7 @@ static int nvt_ts_probe(struct i2c_client *client)
 	}
 
 	/* Wait for controller to come out of reset before params read */
-	msleep(100);
+	msleep(200);
 	error = nvt_ts_read_data(data->client, NVT_TS_PARAMETERS_START,
 				 data->buf, NVT_TS_PARAMS_SIZE);
 	gpiod_set_value_cansleep(data->reset_gpio, 1); /* Put back in reset */
