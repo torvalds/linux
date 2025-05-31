@@ -2667,12 +2667,6 @@ static void __init report_meminit(void)
 		stack = "all(pattern)";
 	else if (IS_ENABLED(CONFIG_INIT_STACK_ALL_ZERO))
 		stack = "all(zero)";
-	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL))
-		stack = "byref_all(zero)";
-	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF))
-		stack = "byref(zero)";
-	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_USER))
-		stack = "__user(zero)";
 	else
 		stack = "off";
 

@@ -60,7 +60,7 @@ cc-option-yn = $(if $(call cc-option,$1),y,n)
 cc-disable-warning = $(call cc-option,-Wno-$(strip $1))
 
 # gcc-min-version
-# Usage: cflags-$(call gcc-min-version, 70100) += -foo
+# Usage: cflags-$(call gcc-min-version, 110100) += -foo
 gcc-min-version = $(call test-ge, $(CONFIG_GCC_VERSION), $1)
 
 # clang-min-version

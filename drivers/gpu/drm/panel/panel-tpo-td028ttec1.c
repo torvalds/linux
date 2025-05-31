@@ -86,11 +86,7 @@ struct td028ttec1_panel {
 
 #define to_td028ttec1_device(p) container_of(p, struct td028ttec1_panel, panel)
 
-/*
- * noinline_for_stack so we don't get multiple copies of tx_buf
- * on the stack in case of gcc-plugin-structleak
- */
-static int noinline_for_stack
+static int
 jbt_ret_write_0(struct td028ttec1_panel *lcd, u8 reg, int *err)
 {
 	struct spi_device *spi = lcd->spi;

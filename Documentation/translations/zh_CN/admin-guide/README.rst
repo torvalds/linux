@@ -224,7 +224,7 @@ Linux内核6.x版本 <http://kernel.org/>
 编译内核
 ---------
 
- - 确保您至少有gcc 5.1可用。
+ - 确保您至少有gcc 8.1可用。
    有关更多信息，请参阅 :ref:`Documentation/process/changes.rst <changes>` 。
 
  - 执行 ``make`` 来创建压缩内核映像。如果您安装了lilo以适配内核makefile，

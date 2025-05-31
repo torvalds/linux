@@ -659,9 +659,6 @@ config ARM64_ERRATUM_843419
 
 	  If unsure, say Y.
 
-config ARM64_LD_HAS_FIX_ERRATUM_843419
-	def_bool $(ld-option,--fix-cortex-a53-843419)
-
 config ARM64_ERRATUM_1024718
 	bool "Cortex-A55: 1024718: Update of DBM/AP bits without break before make might result in incorrect update"
 	default y
@@ -1907,13 +1904,9 @@ config ARM64_PAN
 	  The feature is detected at runtime, and will remain as a 'nop'
 	  instruction if the cpu does not implement the feature.
 
-config AS_HAS_LSE_ATOMICS
-	def_bool $(as-instr,.arch_extension lse)
-
 config ARM64_LSE_ATOMICS
 	bool
 	default ARM64_USE_LSE_ATOMICS
-	depends on AS_HAS_LSE_ATOMICS
 
 config ARM64_USE_LSE_ATOMICS
 	bool "Atomic instructions"
@@ -1925,19 +1918,11 @@ config ARM64_USE_LSE_ATOMICS
 
 	  Say Y here to make use of these instructions for the in-kernel
 	  atomic routines. This incurs a small overhead on CPUs that do
-	  not support these instructions and requires the kernel to be
-	  built with binutils >= 2.25 in order for the new instructions
-	  to be used.
+	  not support these instructions.
 
 endmenu # "ARMv8.1 architectural features"
 
 menu "ARMv8.2 architectural features"
-
-config AS_HAS_ARMV8_2
-	def_bool $(cc-option,-Wa$(comma)-march=armv8.2-a)
-
-config AS_HAS_SHA3
-	def_bool $(as-instr,.arch armv8.2-a+sha3)
 
 config ARM64_PMEM
 	bool "Enable support for persistent memory"
@@ -2012,7 +1997,6 @@ config ARM64_PTR_AUTH_KERNEL
 	bool "Use pointer authentication for kernel"
 	default y
 	depends on ARM64_PTR_AUTH
-	depends on (CC_HAS_SIGN_RETURN_ADDRESS || CC_HAS_BRANCH_PROT_PAC_RET) && AS_HAS_ARMV8_3
 	# Modern compilers insert a .note.gnu.property section note for PAC
 	# which is only understood by binutils starting with version 2.33.1.
 	depends on LD_IS_LLD || LD_VERSION >= 23301 || (CC_IS_GCC && GCC_VERSION < 90100)
@@ -2033,18 +2017,9 @@ config CC_HAS_BRANCH_PROT_PAC_RET
 	# GCC 9 or later, clang 8 or later
 	def_bool $(cc-option,-mbranch-protection=pac-ret+leaf)
 
-config CC_HAS_SIGN_RETURN_ADDRESS
-	# GCC 7, 8
-	def_bool $(cc-option,-msign-return-address=all)
-
-config AS_HAS_ARMV8_3
-	def_bool $(cc-option,-Wa$(comma)-march=armv8.3-a)
-
 config AS_HAS_CFI_NEGATE_RA_STATE
+	# binutils 2.34+
 	def_bool $(as-instr,.cfi_startproc\n.cfi_negate_ra_state\n.cfi_endproc\n)
-
-config AS_HAS_LDAPR
-	def_bool $(as-instr,.arch_extension rcpc)
 
 endmenu # "ARMv8.3 architectural features"
 
@@ -2073,19 +2048,12 @@ config ARM64_AMU_EXTN
 	  correctly reflect reality. Most commonly, the value read will be 0,
 	  indicating that the counter is not enabled.
 
-config AS_HAS_ARMV8_4
-	def_bool $(cc-option,-Wa$(comma)-march=armv8.4-a)
-
 config ARM64_TLB_RANGE
 	bool "Enable support for tlbi range feature"
 	default y
-	depends on AS_HAS_ARMV8_4
 	help
 	  ARMv8.4-TLBI provides TLBI invalidation instruction that apply to a
 	  range of input addresses.
-
-	  The feature introduces new assembly instructions, and they were
-	  support when binutils >= 2.30.
 
 endmenu # "ARMv8.4 architectural features"
 
@@ -2162,7 +2130,6 @@ config ARM64_MTE
 	default y
 	depends on ARM64_AS_HAS_MTE && ARM64_TAGGED_ADDR_ABI
 	depends on AS_HAS_ARMV8_5
-	depends on AS_HAS_LSE_ATOMICS
 	# Required for tag checking in the uaccess routines
 	select ARM64_PAN
 	select ARCH_HAS_SUBPAGE_FAULTS

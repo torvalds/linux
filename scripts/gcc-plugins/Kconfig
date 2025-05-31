@@ -19,16 +19,6 @@ menuconfig GCC_PLUGINS
 
 if GCC_PLUGINS
 
-config GCC_PLUGIN_SANCOV
-	bool
-	# Plugin can be removed once the kernel only supports GCC 6+
-	depends on !CC_HAS_SANCOV_TRACE_PC
-	help
-	  This plugin inserts a __sanitizer_cov_trace_pc() call at the start of
-	  basic blocks. It supports all gcc versions with plugin support (from
-	  gcc-4.5 on). It is based on the commit "Add fuzzing coverage support"
-	  by Dmitry Vyukov <dvyukov@google.com>.
-
 config GCC_PLUGIN_LATENT_ENTROPY
 	bool "Generate some entropy during boot and runtime"
 	help

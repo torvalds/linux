@@ -6,8 +6,6 @@
  * Author: Megha Dey <megha.dey@linux.intel.com>
  */
 
-#ifdef CONFIG_AS_AVX512
-
 #include <linux/raid/pq.h>
 #include "x86.h"
 
@@ -377,7 +375,3 @@ const struct raid6_recov_calls raid6_recov_avx512 = {
 #endif
 	.priority = 3,
 };
-
-#else
-#warning "your version of binutils lacks AVX512 support"
-#endif
