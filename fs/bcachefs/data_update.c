@@ -822,16 +822,11 @@ int bch2_data_update_init(struct btree_trans *trans,
 	int ret = 0;
 
 	if (k.k->p.snapshot) {
-		/*
-		 * We'll go ERO if we see a key for a missing snapshot, and if
-		 * we're still in recovery we want to give that a chance to
-		 * repair:
-		 */
-		if (unlikely(test_bit(BCH_FS_in_recovery, &c->flags) &&
-			     bch2_snapshot_id_state(c, k.k->p.snapshot) == SNAPSHOT_ID_empty))
-			return bch_err_throw(c, data_update_done_no_snapshot);
-
 		ret = bch2_check_key_has_snapshot(trans, iter, k);
+		if (bch2_err_matches(ret, BCH_ERR_recovery_will_run)) {
+			/* Can't repair yet, waiting on other recovery passes */
+			return bch_err_throw(c, data_update_done_no_snapshot);
+		}
 		if (ret < 0)
 			return ret;
 		if (ret) /* key was deleted */

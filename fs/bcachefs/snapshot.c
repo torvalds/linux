@@ -1045,19 +1045,39 @@ int __bch2_check_key_has_snapshot(struct btree_trans *trans,
 		ret = bch2_btree_delete_at(trans, iter,
 					   BTREE_UPDATE_internal_snapshot_node) ?: 1;
 
-	/*
-	 * Snapshot missing: we should have caught this with btree_lost_data and
-	 * kicked off reconstruct_snapshots, so if we end up here we have no
-	 * idea what happened:
-	 */
-	if (fsck_err_on(state == SNAPSHOT_ID_empty,
-			trans, bkey_in_missing_snapshot,
-			"key in missing snapshot %s, delete?",
-			(bch2_btree_id_to_text(&buf, iter->btree_id),
-			 prt_char(&buf, ' '),
-			 bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
-		ret = bch2_btree_delete_at(trans, iter,
-					   BTREE_UPDATE_internal_snapshot_node) ?: 1;
+	if (state == SNAPSHOT_ID_empty) {
+		/*
+		 * Snapshot missing: we should have caught this with btree_lost_data and
+		 * kicked off reconstruct_snapshots, so if we end up here we have no
+		 * idea what happened.
+		 *
+		 * Do not delete unless we know that subvolumes and snapshots
+		 * are consistent:
+		 *
+		 * XXX:
+		 *
+		 * We could be smarter here, and instead of using the generic
+		 * recovery pass ratelimiting, track if there have been any
+		 * changes to the snapshots or inodes btrees since those passes
+		 * last ran.
+		 */
+		ret = bch2_require_recovery_pass(c, &buf, BCH_RECOVERY_PASS_check_snapshots) ?: ret;
+		ret = bch2_require_recovery_pass(c, &buf, BCH_RECOVERY_PASS_check_subvols) ?: ret;
+
+		if (c->sb.btrees_lost_data & BIT_ULL(BTREE_ID_snapshots))
+			ret = bch2_require_recovery_pass(c, &buf, BCH_RECOVERY_PASS_reconstruct_snapshots) ?: ret;
+
+		unsigned repair_flags = FSCK_CAN_IGNORE | (!ret ? FSCK_CAN_FIX : 0);
+
+		if (__fsck_err(trans, repair_flags, bkey_in_missing_snapshot,
+			     "key in missing snapshot %s, delete?",
+			     (bch2_btree_id_to_text(&buf, iter->btree_id),
+			      prt_char(&buf, ' '),
+			      bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
+			ret = bch2_btree_delete_at(trans, iter,
+						   BTREE_UPDATE_internal_snapshot_node) ?: 1;
+		}
+	}
 fsck_err:
 	printbuf_exit(&buf);
 	return ret;
