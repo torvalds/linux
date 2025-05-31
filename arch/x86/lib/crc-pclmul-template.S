@@ -561,7 +561,6 @@
 	RET
 .endm
 
-#ifdef CONFIG_AS_VPCLMULQDQ
 #define DEFINE_CRC_PCLMUL_FUNCS(prefix, bits, lsb)			\
 SYM_FUNC_START(prefix##_pclmul_sse);					\
 	_crc_pclmul	n=bits, lsb_crc=lsb, vl=16, avx_level=0;	\
@@ -574,9 +573,3 @@ SYM_FUNC_END(prefix##_vpclmul_avx2);					\
 SYM_FUNC_START(prefix##_vpclmul_avx512);				\
 	_crc_pclmul	n=bits, lsb_crc=lsb, vl=64, avx_level=512;	\
 SYM_FUNC_END(prefix##_vpclmul_avx512);
-#else
-#define DEFINE_CRC_PCLMUL_FUNCS(prefix, bits, lsb)			\
-SYM_FUNC_START(prefix##_pclmul_sse);					\
-	_crc_pclmul	n=bits, lsb_crc=lsb, vl=16, avx_level=0;	\
-SYM_FUNC_END(prefix##_pclmul_sse);
-#endif // !CONFIG_AS_VPCLMULQDQ
