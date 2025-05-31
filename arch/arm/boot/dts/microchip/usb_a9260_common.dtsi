@@ -6,6 +6,11 @@
  */
 
 / {
+	chosen {
+		bootargs = "mem=64M root=/dev/mtdblock5 rw rootfstype=ubifs";
+		stdout-path = "serial0:115200n8";
+	};
+
 	clocks {
 		slow_xtal {
 			clock-frequency = <32768>;
@@ -14,6 +19,10 @@
 		main_xtal {
 			clock-frequency = <12000000>;
 		};
+	};
+
+	memory@20000000 {
+		reg = <0x20000000 0x4000000>;
 	};
 
 	ahb {

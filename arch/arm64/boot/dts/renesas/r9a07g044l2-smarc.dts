@@ -27,6 +27,13 @@
 #error "Cannot set 1 to MTU3_COUNTER_Z_PHASE_SIGNAL as PMOD_MTU3=0"
 #endif
 
+/*
+ * To enable the GPT pins GTIOC4A(PMOD0_PIN7) and GTIOC4B(PMOD0_PIN10) on the
+ * PMOD0 connector (J1), enable PMOD0_GPT by setting "#define PMOD0_GPT	1"
+ * below.
+ */
+#define PMOD0_GPT	0
+
 #include "r9a07g044l2.dtsi"
 #include "rzg2l-smarc-som.dtsi"
 #include "rzg2l-smarc-pinfunction.dtsi"

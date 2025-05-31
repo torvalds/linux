@@ -5,7 +5,8 @@
  *  Copyright (C) 2013 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
  */
 /dts-v1/;
-#include "usb_a9g20_common.dtsi"
+#include "at91sam9g20.dtsi"
+#include "usb_a9260_common.dtsi"
 
 / {
 	model = "Calao USB A9G20 Low Power";
@@ -25,6 +26,13 @@
 					interrupts = <4 IRQ_TYPE_EDGE_BOTH>;
 				};
 			};
+		};
+	};
+
+	i2c-gpio-0 {
+		rtc@56 {
+			compatible = "microcrystal,rv3029";
+			reg = <0x56>;
 		};
 	};
 };

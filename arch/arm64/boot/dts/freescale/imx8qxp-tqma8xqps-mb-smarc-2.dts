@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
+/*
+ * Copyright (c) 2018-2025 TQ-Systems GmbH <linux@ew.tq-group.com>,
+ * D-82229 Seefeld, Germany.
+ * Author: Alexander Stein
+ */
+
+/dts-v1/;
+
+#include "imx8qxp-tqma8xqps.dtsi"
+#include "tqma8xxs-mb-smarc-2.dtsi"
+
+/ {
+	model = "TQ-Systems i.MX8QXP TQMa8XQPS on MB-SMARC-2";
+	compatible = "tq,imx8qxp-tqma8xqps-mb-smarc-2", "tq,imx8qxp-tqma8xqps", "fsl,imx8qxp";
+};

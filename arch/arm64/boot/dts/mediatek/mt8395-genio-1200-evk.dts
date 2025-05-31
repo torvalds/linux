@@ -91,13 +91,12 @@
 		};
 	};
 
-	backlight_lcd0: backlight-lcd0 {
+	backlight_lcm0: backlight-lcm0 {
 		compatible = "pwm-backlight";
-		pwms = <&disp_pwm0 0 500000>;
-		enable-gpios = <&pio 47 GPIO_ACTIVE_HIGH>;
 		brightness-levels = <0 1023>;
-		num-interpolated-steps = <1023>;
 		default-brightness-level = <576>;
+		num-interpolated-steps = <1023>;
+		pwms = <&disp_pwm0 0 500000>;
 	};
 
 	backlight_lcd1: backlight-lcd1 {
@@ -107,6 +106,7 @@
 		brightness-levels = <0 1023>;
 		num-interpolated-steps = <1023>;
 		default-brightness-level = <576>;
+		status = "disabled";
 	};
 
 	can_clk: can-clk {
@@ -150,6 +150,24 @@
 		};
 	};
 
+	lcm0_iovcc: regulator-vio18-lcm0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vio18_lcm0";
+		enable-active-high;
+		gpio = <&pio 47 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&dsi0_vreg_en_pins>;
+		vin-supply = <&mt6360_ldo2>;
+	};
+
+	lcm0_vddp: regulator-vsys-lcm0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vsys_lcm0";
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&mt6360_ldo1>;
+	};
+
 	wifi_fixed_3v3: regulator-2 {
 		compatible = "regulator-fixed";
 		regulator-name = "wifi_3v3";
@@ -163,12 +181,63 @@
 
 &disp_pwm0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pwm0_default_pins>;
+	pinctrl-0 = <&disp_pwm0_pins>;
 	status = "okay";
+};
+
+&dither0_in {
+	remote-endpoint = <&gamma0_out>;
+};
+
+&dither0_out {
+	remote-endpoint = <&dsi0_in>;
 };
 
 &dmic_codec {
 	wakeup-delay-ms = <200>;
+};
+
+&dsi0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	panel@0 {
+		compatible = "startek,kd070fhfid078", "himax,hx8279";
+		reg = <0>;
+		backlight = <&backlight_lcm0>;
+		enable-gpios = <&pio 48 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&pio 108 GPIO_ACTIVE_HIGH>;
+		iovcc-supply = <&lcm0_iovcc>;
+		vdd-supply = <&lcm0_vddp>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&panel_default_pins>;
+
+		port {
+			dsi_panel_in: endpoint {
+				remote-endpoint = <&dsi0_out>;
+			};
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			dsi0_in: endpoint {
+				remote-endpoint = <&dither0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			dsi0_out: endpoint {
+				remote-endpoint = <&dsi_panel_in>;
+			};
+		};
+	};
 };
 
 &eth {
@@ -192,6 +261,10 @@
 			reg = <0x1>;
 		};
 	};
+};
+
+&gamma0_out {
+	remote-endpoint = <&dither0_in>;
 };
 
 &gpu {
@@ -418,6 +491,10 @@
 	domain-supply = <&mt6359_vsram_others_ldo_reg>;
 };
 
+&mipi_tx0 {
+	status = "okay";
+};
+
 &mmc0 {
 	status = "okay";
 	pinctrl-names = "default", "state_uhs";
@@ -498,6 +575,10 @@
 	mediatek,mic-type-0 = <1>; /* ACC */
 	mediatek,mic-type-1 = <3>; /* DCC */
 	mediatek,mic-type-2 = <1>; /* ACC */
+};
+
+&ovl0_in {
+	remote-endpoint = <&vdosys0_ep_main>;
 };
 
 &pcie0 {
@@ -777,6 +858,25 @@
 		};
 	};
 
+	dsi0_vreg_en_pins: dsi0-vreg-en-pins {
+		pins-pwr-en {
+			pinmux = <PINMUX_GPIO47__FUNC_GPIO47>;
+			output-low;
+		};
+	};
+
+	panel_default_pins: panel-default-pins {
+		pins-rst {
+			pinmux = <PINMUX_GPIO108__FUNC_GPIO108>;
+			output-high;
+		};
+
+		pins-en {
+			pinmux = <PINMUX_GPIO48__FUNC_GPIO48>;
+			output-low;
+		};
+	};
+
 	pcie0_default_pins: pcie0-default-pins {
 		pins {
 			pinmux = <PINMUX_GPIO19__FUNC_WAKEN>,
@@ -803,8 +903,8 @@
 		};
 	};
 
-	pwm0_default_pins: pwm0-default-pins {
-		pins-cmd-dat {
+	disp_pwm0_pins: disp-pwm0-pins {
+		pins-disp-pwm {
 			pinmux = <PINMUX_GPIO97__FUNC_DISP_PWM0>;
 		};
 	};
@@ -872,6 +972,7 @@
 
 &scp {
 	memory-region = <&scp_mem>;
+	firmware-name = "mediatek/mt8195/scp.img";
 	status = "okay";
 };
 
@@ -1012,6 +1113,18 @@
 &ssusb3 {
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
 	status = "okay";
+};
+
+&vdosys0 {
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		vdosys0_ep_main: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&ovl0_in>;
+		};
+	};
 };
 
 &xhci0 {

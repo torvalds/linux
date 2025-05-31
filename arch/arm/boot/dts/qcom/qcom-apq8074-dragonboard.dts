@@ -149,7 +149,7 @@
 };
 
 &pm8941_gpios {
-        msm_keys_default: pm8941-gpio-keys-state {
+	msm_keys_default: pm8941-gpio-keys-state {
 		pins = "gpio5", "gpio23";
 		function = "normal";
 		input-enable;
@@ -157,7 +157,7 @@
 		bias-pull-up;
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 		power-source = <PM8941_GPIO_S3>; /* 1.8V */
-        };
+	};
 };
 
 &pm8941_lpg {
