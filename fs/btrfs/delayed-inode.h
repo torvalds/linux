@@ -151,8 +151,8 @@ void btrfs_readdir_put_delayed_items(struct btrfs_inode *inode,
 				     struct list_head *ins_list,
 				     struct list_head *del_list);
 bool btrfs_should_delete_dir_index(const struct list_head *del_list, u64 index);
-int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
-				    const struct list_head *ins_list);
+bool btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
+				     const struct list_head *ins_list);
 
 /* Used during directory logging. */
 void btrfs_log_get_delayed_items(struct btrfs_inode *inode,

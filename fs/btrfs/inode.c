@@ -6170,8 +6170,7 @@ again:
 	if (ret)
 		goto nopos;
 
-	ret = btrfs_readdir_delayed_dir_index(ctx, &ins_list);
-	if (ret)
+	if (btrfs_readdir_delayed_dir_index(ctx, &ins_list))
 		goto nopos;
 
 	/*
