@@ -1734,17 +1734,16 @@ void btrfs_readdir_put_delayed_items(struct btrfs_inode *inode,
 	downgrade_write(&inode->vfs_inode.i_rwsem);
 }
 
-int btrfs_should_delete_dir_index(const struct list_head *del_list,
-				  u64 index)
+bool btrfs_should_delete_dir_index(const struct list_head *del_list, u64 index)
 {
 	struct btrfs_delayed_item *curr;
-	int ret = 0;
+	bool ret = false;
 
 	list_for_each_entry(curr, del_list, readdir_list) {
 		if (curr->index > index)
 			break;
 		if (curr->index == index) {
-			ret = 1;
+			ret = true;
 			break;
 		}
 	}
