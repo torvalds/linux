@@ -1753,15 +1753,14 @@ bool btrfs_should_delete_dir_index(const struct list_head *del_list, u64 index)
 /*
  * Read dir info stored in the delayed tree.
  */
-int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
-				    const struct list_head *ins_list)
+bool btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
+				     const struct list_head *ins_list)
 {
 	struct btrfs_dir_item *di;
 	struct btrfs_delayed_item *curr, *next;
 	struct btrfs_key location;
 	char *name;
 	int name_len;
-	int over = 0;
 	unsigned char d_type;
 
 	/*
@@ -1770,6 +1769,8 @@ int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 	 * directory, nobody can delete any directory indexes now.
 	 */
 	list_for_each_entry_safe(curr, next, ins_list, readdir_list) {
+		bool over;
+
 		list_del(&curr->readdir_list);
 
 		if (curr->index < ctx->pos) {
@@ -1787,17 +1788,16 @@ int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 		d_type = fs_ftype_to_dtype(btrfs_dir_flags_to_ftype(di->type));
 		btrfs_disk_key_to_cpu(&location, &di->location);
 
-		over = !dir_emit(ctx, name, name_len,
-			       location.objectid, d_type);
+		over = !dir_emit(ctx, name, name_len, location.objectid, d_type);
 
 		if (refcount_dec_and_test(&curr->refs))
 			kfree(curr);
 
 		if (over)
-			return 1;
+			return true;
 		ctx->pos++;
 	}
-	return 0;
+	return false;
 }
 
 static void fill_stack_inode_item(struct btrfs_trans_handle *trans,
