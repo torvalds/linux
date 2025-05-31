@@ -232,11 +232,6 @@ static inline void qe_ic_write(__be32  __iomem *base, unsigned int reg,
 	iowrite32be(value, base + (reg >> 2));
 }
 
-static inline struct qe_ic *qe_ic_from_irq(unsigned int virq)
-{
-	return irq_get_chip_data(virq);
-}
-
 static inline struct qe_ic *qe_ic_from_irq_data(struct irq_data *d)
 {
 	return irq_data_get_irq_chip_data(d);
@@ -455,13 +450,11 @@ static int qe_ic_init(struct platform_device *pdev)
 
 	qe_ic_write(qe_ic->regs, QEIC_CICR, 0);
 
-	irq_set_handler_data(qe_ic->virq_low, qe_ic);
-	irq_set_chained_handler(qe_ic->virq_low, low_handler);
+	irq_set_chained_handler_and_data(qe_ic->virq_low, low_handler, qe_ic);
 
-	if (high_handler) {
-		irq_set_handler_data(qe_ic->virq_high, qe_ic);
-		irq_set_chained_handler(qe_ic->virq_high, high_handler);
-	}
+	if (high_handler)
+		irq_set_chained_handler_and_data(qe_ic->virq_high,
+						 high_handler, qe_ic);
 	return 0;
 }
 static const struct of_device_id qe_ic_ids[] = {

@@ -36,7 +36,7 @@ config FSL_MC_DPIO
 config DPAA2_CONSOLE
 	tristate "QorIQ DPAA2 console driver"
 	depends on OF && (ARCH_LAYERSCAPE || COMPILE_TEST)
-	default y
+	default ARCH_LAYERSCAPE
 	help
 	  Console driver for DPAA2 platforms. Exports 2 char devices,
 	  /dev/dpaa2_mc_console and /dev/dpaa2_aiop_console,

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config TEGRA_MC
 	bool "NVIDIA Tegra Memory Controller support"
-	default y
+	default ARCH_TEGRA
 	depends on ARCH_TEGRA || (COMPILE_TEST && COMMON_CLK)
 	select INTERCONNECT
 	help
@@ -12,7 +12,7 @@ if TEGRA_MC
 
 config TEGRA20_EMC
 	tristate "NVIDIA Tegra20 External Memory Controller driver"
-	default y
+	default ARCH_TEGRA_2x_SOC
 	depends on ARCH_TEGRA_2x_SOC || COMPILE_TEST
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	select PM_DEVFREQ
@@ -25,7 +25,7 @@ config TEGRA20_EMC
 
 config TEGRA30_EMC
 	tristate "NVIDIA Tegra30 External Memory Controller driver"
-	default y
+	default ARCH_TEGRA_3x_SOC
 	depends on ARCH_TEGRA_3x_SOC || COMPILE_TEST
 	select PM_OPP
 	select DDR
@@ -37,7 +37,7 @@ config TEGRA30_EMC
 
 config TEGRA124_EMC
 	tristate "NVIDIA Tegra124 External Memory Controller driver"
-	default y
+	default ARCH_TEGRA_124_SOC
 	depends on ARCH_TEGRA_124_SOC || COMPILE_TEST
 	select TEGRA124_CLK_EMC if ARCH_TEGRA
 	select PM_OPP
