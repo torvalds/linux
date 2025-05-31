@@ -86,44 +86,6 @@ static void devm_gpio_release(struct device *dev, void *res)
 }
 
 /**
- * devm_gpio_request - request a GPIO for a managed device
- * @dev: device to request the GPIO for
- * @gpio: GPIO to allocate
- * @label: the name of the requested GPIO
- *
- * Except for the extra @dev argument, this function takes the
- * same arguments and performs the same function as gpio_request().
- * GPIOs requested with this function will be automatically freed
- * on driver detach.
- *
- * **DEPRECATED** This function is deprecated and must not be used in new code.
- *
- * Returns:
- * 0 on success, or negative errno on failure.
- */
-int devm_gpio_request(struct device *dev, unsigned gpio, const char *label)
-{
-	unsigned *dr;
-	int rc;
-
-	dr = devres_alloc(devm_gpio_release, sizeof(unsigned), GFP_KERNEL);
-	if (!dr)
-		return -ENOMEM;
-
-	rc = gpio_request(gpio, label);
-	if (rc) {
-		devres_free(dr);
-		return rc;
-	}
-
-	*dr = gpio;
-	devres_add(dev, dr);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(devm_gpio_request);
-
-/**
  * devm_gpio_request_one - request a single GPIO with initial setup
  * @dev: device to request for
  * @gpio: the GPIO number

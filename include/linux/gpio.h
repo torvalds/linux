@@ -110,7 +110,6 @@ static inline int gpio_to_irq(unsigned gpio)
 
 int gpio_request_one(unsigned gpio, unsigned long flags, const char *label);
 
-int devm_gpio_request(struct device *dev, unsigned gpio, const char *label);
 int devm_gpio_request_one(struct device *dev, unsigned gpio,
 			  unsigned long flags, const char *label);
 
@@ -184,13 +183,6 @@ static inline void gpio_set_value_cansleep(unsigned gpio, int value)
 static inline int gpio_to_irq(unsigned gpio)
 {
 	/* GPIO can never have been requested or set as input */
-	WARN_ON(1);
-	return -EINVAL;
-}
-
-static inline int devm_gpio_request(struct device *dev, unsigned gpio,
-				    const char *label)
-{
 	WARN_ON(1);
 	return -EINVAL;
 }
