@@ -289,14 +289,8 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv,
 			return 1;
 		}
 
-		if (unlikely(sreq->digest == CONTEXT_CONTROL_DIGEST_XCM &&
-			     ctx->alg == CONTEXT_CONTROL_CRYPTO_ALG_CRC32)) {
-			/* Undo final XOR with 0xffffffff ...*/
-			*(__le32 *)areq->result = ~sreq->state[0];
-		} else {
-			memcpy(areq->result, sreq->state,
-			       crypto_ahash_digestsize(ahash));
-		}
+		memcpy(areq->result, sreq->state,
+		       crypto_ahash_digestsize(ahash));
 	}
 
 	cache_len = safexcel_queued_len(sreq);
@@ -1874,88 +1868,6 @@ struct safexcel_alg_template safexcel_alg_hmac_md5 = {
 				.cra_blocksize = MD5_HMAC_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct safexcel_ahash_ctx),
 				.cra_init = safexcel_ahash_cra_init,
-				.cra_exit = safexcel_ahash_cra_exit,
-				.cra_module = THIS_MODULE,
-			},
-		},
-	},
-};
-
-static int safexcel_crc32_cra_init(struct crypto_tfm *tfm)
-{
-	struct safexcel_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
-	int ret = safexcel_ahash_cra_init(tfm);
-
-	/* Default 'key' is all zeroes */
-	memset(&ctx->base.ipad, 0, sizeof(u32));
-	return ret;
-}
-
-static int safexcel_crc32_init(struct ahash_request *areq)
-{
-	struct safexcel_ahash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(areq));
-	struct safexcel_ahash_req *req = ahash_request_ctx_dma(areq);
-
-	memset(req, 0, sizeof(*req));
-
-	/* Start from loaded key */
-	req->state[0]	= cpu_to_le32(~ctx->base.ipad.word[0]);
-	/* Set processed to non-zero to enable invalidation detection */
-	req->len	= sizeof(u32);
-	req->processed	= sizeof(u32);
-
-	ctx->alg = CONTEXT_CONTROL_CRYPTO_ALG_CRC32;
-	req->digest = CONTEXT_CONTROL_DIGEST_XCM;
-	req->state_sz = sizeof(u32);
-	req->digest_sz = sizeof(u32);
-	req->block_sz = sizeof(u32);
-
-	return 0;
-}
-
-static int safexcel_crc32_setkey(struct crypto_ahash *tfm, const u8 *key,
-				 unsigned int keylen)
-{
-	struct safexcel_ahash_ctx *ctx = crypto_tfm_ctx(crypto_ahash_tfm(tfm));
-
-	if (keylen != sizeof(u32))
-		return -EINVAL;
-
-	memcpy(&ctx->base.ipad, key, sizeof(u32));
-	return 0;
-}
-
-static int safexcel_crc32_digest(struct ahash_request *areq)
-{
-	return safexcel_crc32_init(areq) ?: safexcel_ahash_finup(areq);
-}
-
-struct safexcel_alg_template safexcel_alg_crc32 = {
-	.type = SAFEXCEL_ALG_TYPE_AHASH,
-	.algo_mask = 0,
-	.alg.ahash = {
-		.init = safexcel_crc32_init,
-		.update = safexcel_ahash_update,
-		.final = safexcel_ahash_final,
-		.finup = safexcel_ahash_finup,
-		.digest = safexcel_crc32_digest,
-		.setkey = safexcel_crc32_setkey,
-		.export = safexcel_ahash_export,
-		.import = safexcel_ahash_import,
-		.halg = {
-			.digestsize = sizeof(u32),
-			.statesize = sizeof(struct safexcel_ahash_export_state),
-			.base = {
-				.cra_name = "crc32",
-				.cra_driver_name = "safexcel-crc32",
-				.cra_priority = SAFEXCEL_CRA_PRIORITY,
-				.cra_flags = CRYPTO_ALG_OPTIONAL_KEY |
-					     CRYPTO_ALG_ASYNC |
-					     CRYPTO_ALG_ALLOCATES_MEMORY |
-					     CRYPTO_ALG_KERN_DRIVER_ONLY,
-				.cra_blocksize = 1,
-				.cra_ctxsize = sizeof(struct safexcel_ahash_ctx),
-				.cra_init = safexcel_crc32_cra_init,
 				.cra_exit = safexcel_ahash_cra_exit,
 				.cra_module = THIS_MODULE,
 			},
