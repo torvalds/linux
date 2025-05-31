@@ -15,6 +15,10 @@ if sysfs_root is None:
     print('Seems sysfs not mounted?')
     exit(ksft_skip)
 
+if not os.path.exists(sysfs_root):
+    print('Seems DAMON disabled?')
+    exit(ksft_skip)
+
 def write_file(path, string):
     "Returns error string if failed, or None otherwise"
     string = '%s' % string
