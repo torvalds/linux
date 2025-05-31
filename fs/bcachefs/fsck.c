@@ -1167,6 +1167,14 @@ static int check_inode(struct btree_trans *trans,
 		ret = 0;
 	}
 
+	if (fsck_err_on(S_ISDIR(u.bi_mode) && u.bi_size,
+			trans, inode_dir_has_nonzero_i_size,
+			"directory %llu:%u with nonzero i_size %lli",
+			u.bi_inum, u.bi_snapshot, u.bi_size)) {
+		u.bi_size = 0;
+		do_update = true;
+	}
+
 	ret = bch2_inode_has_child_snapshots(trans, k.k->p);
 	if (ret < 0)
 		goto err;
