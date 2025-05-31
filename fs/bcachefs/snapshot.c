@@ -1878,6 +1878,8 @@ err:
 	d->running = false;
 	mutex_unlock(&d->progress_lock);
 	bch2_trans_put(trans);
+
+	bch2_recovery_pass_set_no_ratelimit(c, BCH_RECOVERY_PASS_check_snapshots);
 out_unlock:
 	mutex_unlock(&d->lock);
 	if (!bch2_err_matches(ret, EROFS))

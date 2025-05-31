@@ -482,9 +482,12 @@ err:
 
 static int bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
 {
-	return bch2_subvolumes_reparent(trans, subvolid) ?:
+	int ret = bch2_subvolumes_reparent(trans, subvolid) ?:
 		commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			  __bch2_subvolume_delete(trans, subvolid));
+
+	bch2_recovery_pass_set_no_ratelimit(trans->c, BCH_RECOVERY_PASS_check_subvols);
+	return ret;
 }
 
 static void bch2_subvolume_wait_for_pagecache_and_delete(struct work_struct *work)

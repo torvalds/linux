@@ -103,20 +103,20 @@ static void bch2_sb_recovery_passes_to_text(struct printbuf *out,
 		prt_tab(out);
 
 		bch2_pr_time_units(out, le32_to_cpu(i->last_runtime) * NSEC_PER_SEC);
+
+		if (BCH_RECOVERY_PASS_NO_RATELIMIT(i))
+			prt_str(out, " (no ratelimit)");
+
 		prt_newline(out);
 	}
 }
 
-static void bch2_sb_recovery_pass_complete(struct bch_fs *c,
-					   enum bch_recovery_pass pass,
-					   s64 start_time)
+static struct recovery_pass_entry *bch2_sb_recovery_pass_entry(struct bch_fs *c,
+							       enum bch_recovery_pass pass)
 {
 	enum bch_recovery_pass_stable stable = bch2_recovery_pass_to_stable(pass);
-	s64 end_time = ktime_get_real_seconds();
 
-	mutex_lock(&c->sb_lock);
-	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
-	__clear_bit_le64(stable, ext->recovery_passes_required);
+	lockdep_assert_held(&c->sb_lock);
 
 	struct bch_sb_field_recovery_passes *r =
 		bch2_sb_field_get(c->disk_sb.sb, recovery_passes);
@@ -127,15 +127,43 @@ static void bch2_sb_recovery_pass_complete(struct bch_fs *c,
 		r = bch2_sb_field_resize(&c->disk_sb, recovery_passes, u64s);
 		if (!r) {
 			bch_err(c, "error creating recovery_passes sb section");
-			goto out;
+			return NULL;
 		}
 	}
 
-	r->start[stable].last_run	= cpu_to_le64(end_time);
-	r->start[stable].last_runtime	= cpu_to_le32(max(0, end_time - start_time));
-out:
+	return r->start + stable;
+}
+
+static void bch2_sb_recovery_pass_complete(struct bch_fs *c,
+					   enum bch_recovery_pass pass,
+					   s64 start_time)
+{
+	guard(mutex)(&c->sb_lock);
+	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
+	__clear_bit_le64(bch2_recovery_pass_to_stable(pass),
+			 ext->recovery_passes_required);
+
+	struct recovery_pass_entry *e = bch2_sb_recovery_pass_entry(c, pass);
+	if (e) {
+		s64 end_time	= ktime_get_real_seconds();
+		e->last_run	= cpu_to_le64(end_time);
+		e->last_runtime	= cpu_to_le32(max(0, end_time - start_time));
+		SET_BCH_RECOVERY_PASS_NO_RATELIMIT(e, false);
+	}
+
 	bch2_write_super(c);
-	mutex_unlock(&c->sb_lock);
+}
+
+void bch2_recovery_pass_set_no_ratelimit(struct bch_fs *c,
+					 enum bch_recovery_pass pass)
+{
+	guard(mutex)(&c->sb_lock);
+
+	struct recovery_pass_entry *e = bch2_sb_recovery_pass_entry(c, pass);
+	if (e && !BCH_RECOVERY_PASS_NO_RATELIMIT(e)) {
+		SET_BCH_RECOVERY_PASS_NO_RATELIMIT(e, false);
+		bch2_write_super(c);
+	}
 }
 
 static bool bch2_recovery_pass_want_ratelimit(struct bch_fs *c, enum bch_recovery_pass pass)
@@ -157,6 +185,9 @@ static bool bch2_recovery_pass_want_ratelimit(struct bch_fs *c, enum bch_recover
 		 */
 		ret = (u64) le32_to_cpu(i->last_runtime) * 100 >
 			ktime_get_real_seconds() - le64_to_cpu(i->last_run);
+
+		if (BCH_RECOVERY_PASS_NO_RATELIMIT(i))
+			ret = false;
 	}
 
 	return ret;
