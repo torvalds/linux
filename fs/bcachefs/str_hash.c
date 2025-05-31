@@ -39,7 +39,7 @@ static noinline int fsck_rename_dirent(struct btree_trans *trans,
 				       bool *updated_before_k_pos)
 {
 	struct qstr old_name = bch2_dirent_get_name(old);
-	struct bkey_i_dirent *new = bch2_trans_kmalloc(trans, bkey_bytes(old.k) + 32);
+	struct bkey_i_dirent *new = bch2_trans_kmalloc(trans, BKEY_U64s_MAX * sizeof(u64));
 	int ret = PTR_ERR_OR_ZERO(new);
 	if (ret)
 		return ret;
@@ -48,20 +48,27 @@ static noinline int fsck_rename_dirent(struct btree_trans *trans,
 	dirent_copy_target(new, old);
 	new->k.p = old.k->p;
 
+	char *renamed_buf = bch2_trans_kmalloc(trans, old_name.len + 20);
+	ret = PTR_ERR_OR_ZERO(renamed_buf);
+	if (ret)
+		return ret;
+
 	for (unsigned i = 0; i < 1000; i++) {
-		unsigned len = sprintf(new->v.d_name, "%.*s.fsck_renamed-%u",
-				       old_name.len, old_name.name, i);
-		unsigned u64s = BKEY_U64s + dirent_val_u64s(len, 0);
+		new->k.u64s = BKEY_U64s_MAX;
 
-		if (u64s > U8_MAX)
-			return -EINVAL;
+		struct qstr renamed_name = (struct qstr) QSTR_INIT(renamed_buf,
+					sprintf(renamed_buf, "%.*s.fsck_renamed-%u",
+						old_name.len, old_name.name, i));
 
-		new->k.u64s = u64s;
+		ret = bch2_dirent_init_name(new, hash_info, &renamed_name, NULL);
+		if (ret)
+			return ret;
 
 		ret = bch2_hash_set_in_snapshot(trans, bch2_dirent_hash_desc, hash_info,
 						(subvol_inum) { 0, old.k->p.inode },
 						old.k->p.snapshot, &new->k_i,
-						BTREE_UPDATE_internal_snapshot_node);
+						BTREE_UPDATE_internal_snapshot_node|
+						STR_HASH_must_create);
 		if (ret && !bch2_err_matches(ret, EEXIST))
 			break;
 		if (!ret) {

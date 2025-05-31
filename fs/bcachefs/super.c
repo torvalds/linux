@@ -1148,11 +1148,12 @@ int bch2_fs_start(struct bch_fs *c)
 
 	print_mount_opts(c);
 
-	if (IS_ENABLED(CONFIG_UNICODE))
-		bch_info(c, "Using encoding defined by superblock: utf8-%u.%u.%u",
-			 unicode_major(BCH_FS_DEFAULT_UTF8_ENCODING),
-			 unicode_minor(BCH_FS_DEFAULT_UTF8_ENCODING),
-			 unicode_rev(BCH_FS_DEFAULT_UTF8_ENCODING));
+#ifdef CONFIG_UNICODE
+	bch_info(c, "Using encoding defined by superblock: utf8-%u.%u.%u",
+		 unicode_major(BCH_FS_DEFAULT_UTF8_ENCODING),
+		 unicode_minor(BCH_FS_DEFAULT_UTF8_ENCODING),
+		 unicode_rev(BCH_FS_DEFAULT_UTF8_ENCODING));
+#endif
 
 	if (!bch2_fs_may_start(c))
 		return bch_err_throw(c, insufficient_devices_to_start);
