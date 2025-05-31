@@ -27,8 +27,7 @@ DEFINE_STATIC_CALL(prefix##_pclmul, prefix##_pclmul_sse)
 
 #define INIT_CRC_PCLMUL(prefix)						\
 do {									\
-	if (IS_ENABLED(CONFIG_AS_VPCLMULQDQ) &&				\
-	    boot_cpu_has(X86_FEATURE_VPCLMULQDQ) &&			\
+	if (boot_cpu_has(X86_FEATURE_VPCLMULQDQ) &&			\
 	    boot_cpu_has(X86_FEATURE_AVX2) &&				\
 	    cpu_has_xfeatures(XFEATURE_MASK_YMM, NULL)) {		\
 		if (boot_cpu_has(X86_FEATURE_AVX512BW) &&		\
