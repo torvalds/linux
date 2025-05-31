@@ -705,8 +705,9 @@ int bch2_readdir(struct bch_fs *c, subvol_inum inum,
 
 			subvol_inum target;
 
+			bool need_second_pass = false;
 			int ret2 = bch2_str_hash_check_key(trans, NULL, &bch2_dirent_hash_desc,
-							   hash_info, &iter, k) ?:
+							   hash_info, &iter, k, &need_second_pass) ?:
 				bch2_dirent_read_target(trans, inum, dirent, &target);
 			if (ret2 > 0)
 				continue;

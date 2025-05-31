@@ -35,7 +35,8 @@ static noinline int fsck_rename_dirent(struct btree_trans *trans,
 				       struct snapshots_seen *s,
 				       const struct bch_hash_desc desc,
 				       struct bch_hash_info *hash_info,
-				       struct bkey_s_c_dirent old)
+				       struct bkey_s_c_dirent old,
+				       bool *updated_before_k_pos)
 {
 	struct qstr old_name = bch2_dirent_get_name(old);
 	struct bkey_i_dirent *new = bch2_trans_kmalloc(trans, bkey_bytes(old.k) + 32);
@@ -62,16 +63,15 @@ static noinline int fsck_rename_dirent(struct btree_trans *trans,
 						old.k->p.snapshot, &new->k_i,
 						BTREE_UPDATE_internal_snapshot_node);
 		if (ret && !bch2_err_matches(ret, EEXIST))
-			goto err;
-		if (!ret)
 			break;
+		if (!ret) {
+			if (bpos_lt(new->k.p, old.k->p))
+				*updated_before_k_pos = true;
+			break;
+		}
 	}
 
-	if (ret)
-		goto err;
-
-	ret = bch2_fsck_update_backpointers(trans, s, desc, hash_info, &new->k_i);
-err:
+	ret = ret ?: bch2_fsck_update_backpointers(trans, s, desc, hash_info, &new->k_i);
 	bch_err_fn(trans->c, ret);
 	return ret;
 }
@@ -230,7 +230,8 @@ int __bch2_str_hash_check_key(struct btree_trans *trans,
 			      struct snapshots_seen *s,
 			      const struct bch_hash_desc *desc,
 			      struct bch_hash_info *hash_info,
-			      struct btree_iter *k_iter, struct bkey_s_c hash_k)
+			      struct btree_iter *k_iter, struct bkey_s_c hash_k,
+			      bool *updated_before_k_pos)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter = {};
@@ -310,6 +311,9 @@ bad_hash:
 		if (k.k)
 			goto duplicate_entries;
 
+		if (bpos_lt(new->k.p, k.k->p))
+			*updated_before_k_pos = true;
+
 		ret =   bch2_insert_snapshot_whiteouts(trans, desc->btree_id,
 						       k_iter->pos, new->k.p) ?:
 			bch2_hash_delete_at(trans, *desc, hash_info, k_iter,
@@ -345,7 +349,8 @@ duplicate_entries:
 		ret = bch2_hash_delete_at(trans, *desc, hash_info, &iter, 0);
 		break;
 	case 2:
-		ret = fsck_rename_dirent(trans, s, *desc, hash_info, bkey_s_c_to_dirent(hash_k)) ?:
+		ret = fsck_rename_dirent(trans, s, *desc, hash_info, bkey_s_c_to_dirent(hash_k),
+					 updated_before_k_pos) ?:
 			bch2_hash_delete_at(trans, *desc, hash_info, k_iter, 0);
 		goto out;
 	}

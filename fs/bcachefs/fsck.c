@@ -2141,7 +2141,8 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 			struct bch_hash_info *hash_info,
 			struct inode_walker *dir,
 			struct inode_walker *target,
-			struct snapshots_seen *s)
+			struct snapshots_seen *s,
+			bool *need_second_pass)
 {
 	struct bch_fs *c = trans->c;
 	struct inode_walker_entry *i;
@@ -2183,7 +2184,8 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 		*hash_info = bch2_hash_info_init(c, &i->inode);
 	dir->first_this_inode = false;
 
-	ret = bch2_str_hash_check_key(trans, s, &bch2_dirent_hash_desc, hash_info, iter, k);
+	ret = bch2_str_hash_check_key(trans, s, &bch2_dirent_hash_desc, hash_info,
+				      iter, k, need_second_pass);
 	if (ret < 0)
 		goto err;
 	if (ret) {
@@ -2228,7 +2230,8 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 						    STR_HASH_must_create) ?:
 			bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
 
-		/* might need another check_dirents pass */
+		if (dir_offset < k.k->p.offset)
+			*need_second_pass = true;
 		goto out;
 	}
 
@@ -2296,7 +2299,6 @@ out:
 err:
 fsck_err:
 	printbuf_exit(&buf);
-	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -2310,16 +2312,29 @@ int bch2_check_dirents(struct bch_fs *c)
 	struct inode_walker target = inode_walker_init();
 	struct snapshots_seen s;
 	struct bch_hash_info hash_info;
+	bool need_second_pass = false, did_second_pass = false;
 
 	snapshots_seen_init(&s);
-
+again:
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_dirents,
 				POS(BCACHEFS_ROOT_INO, 0),
 				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-			check_dirent(trans, &iter, k, &hash_info, &dir, &target, &s)) ?:
+			check_dirent(trans, &iter, k, &hash_info, &dir, &target, &s,
+				     &need_second_pass)) ?:
 		check_subdir_count_notnested(trans, &dir));
+
+	if (!ret && need_second_pass && !did_second_pass) {
+		bch_info(c, "check_dirents requires second pass");
+		swap(did_second_pass, need_second_pass);
+		goto again;
+	}
+
+	if (!ret && need_second_pass) {
+		bch_err(c, "dirents not repairing");
+		ret = -EINVAL;
+	}
 
 	snapshots_seen_exit(&s);
 	inode_walker_exit(&dir);
@@ -2334,16 +2349,14 @@ static int check_xattr(struct btree_trans *trans, struct btree_iter *iter,
 		       struct inode_walker *inode)
 {
 	struct bch_fs *c = trans->c;
-	struct inode_walker_entry *i;
-	int ret;
 
-	ret = bch2_check_key_has_snapshot(trans, iter, k);
+	int ret = bch2_check_key_has_snapshot(trans, iter, k);
 	if (ret < 0)
 		return ret;
 	if (ret)
 		return 0;
 
-	i = walk_inode(trans, inode, k);
+	struct inode_walker_entry *i = walk_inode(trans, inode, k);
 	ret = PTR_ERR_OR_ZERO(i);
 	if (ret)
 		return ret;
@@ -2359,9 +2372,9 @@ static int check_xattr(struct btree_trans *trans, struct btree_iter *iter,
 		*hash_info = bch2_hash_info_init(c, &i->inode);
 	inode->first_this_inode = false;
 
-	ret = bch2_str_hash_check_key(trans, NULL, &bch2_xattr_hash_desc, hash_info, iter, k);
-	bch_err_fn(c, ret);
-	return ret;
+	bool need_second_pass = false;
+	return bch2_str_hash_check_key(trans, NULL, &bch2_xattr_hash_desc, hash_info,
+				      iter, k, &need_second_pass);
 }
 
 /*
