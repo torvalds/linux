@@ -7545,6 +7545,14 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 					     &old_dentry->d_name, 0, &fname);
 		if (ret)
 			goto out;
+
+		path = btrfs_alloc_path();
+		if (!path) {
+			ret = -ENOMEM;
+			fscrypt_free_filename(&fname);
+			goto out;
+		}
+
 		/*
 		 * We have two inodes to update in the log, the old directory and
 		 * the inode that got renamed, so we must pin the log to prevent
@@ -7558,18 +7566,12 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 		 * mark the log for a full commit.
 		 */
 		if (WARN_ON_ONCE(ret < 0)) {
+			btrfs_free_path(path);
 			fscrypt_free_filename(&fname);
 			goto out;
 		}
 
 		log_pinned = true;
-
-		path = btrfs_alloc_path();
-		if (!path) {
-			ret = -ENOMEM;
-			fscrypt_free_filename(&fname);
-			goto out;
-		}
 
 		/*
 		 * Other concurrent task might be logging the old directory,
