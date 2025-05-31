@@ -63,6 +63,9 @@ int bch2_dirent_init_name(struct bkey_i_dirent *,
 			  const struct bch_hash_info *,
 			  const struct qstr *,
 			  const struct qstr *);
+struct bkey_i_dirent *bch2_dirent_create_key(struct btree_trans *,
+				const struct bch_hash_info *, subvol_inum, u8,
+				const struct qstr *, const struct qstr *, u64);
 
 int bch2_dirent_create_snapshot(struct btree_trans *, u32, u64, u32,
 			const struct bch_hash_info *, u8,

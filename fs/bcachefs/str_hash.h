@@ -398,6 +398,14 @@ int bch2_hash_delete(struct btree_trans *trans,
 int bch2_repair_inode_hash_info(struct btree_trans *, struct bch_inode_unpacked *);
 
 struct snapshots_seen;
+int bch2_str_hash_repair_key(struct btree_trans *,
+			     struct snapshots_seen *,
+			     const struct bch_hash_desc *,
+			     struct bch_hash_info *,
+			     struct btree_iter *, struct bkey_s_c,
+			     struct btree_iter *, struct bkey_s_c,
+			     bool *);
+
 int __bch2_str_hash_check_key(struct btree_trans *,
 			      struct snapshots_seen *,
 			      const struct bch_hash_desc *,

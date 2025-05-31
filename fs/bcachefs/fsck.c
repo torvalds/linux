@@ -2210,32 +2210,34 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k),
 			 buf.buf))) {
-		struct qstr name = bch2_dirent_get_name(d);
-		u32 subvol = d.v->d_type == DT_SUBVOL
-			? le32_to_cpu(d.v->d_parent_subvol)
-			: 0;
+		subvol_inum dir_inum = { .subvol = d.v->d_type == DT_SUBVOL
+				? le32_to_cpu(d.v->d_parent_subvol)
+				: 0,
+		};
 		u64 target = d.v->d_type == DT_SUBVOL
 			? le32_to_cpu(d.v->d_child_subvol)
 			: le64_to_cpu(d.v->d_inum);
-		u64 dir_offset;
+		struct qstr name = bch2_dirent_get_name(d);
 
-		ret =   bch2_hash_delete_at(trans,
+		struct bkey_i_dirent *new_d =
+			bch2_dirent_create_key(trans, hash_info, dir_inum,
+					       d.v->d_type, &name, NULL, target);
+		ret = PTR_ERR_OR_ZERO(new_d);
+		if (ret)
+			goto out;
+
+		new_d->k.p.inode	= d.k->p.inode;
+		new_d->k.p.snapshot	= d.k->p.snapshot;
+
+		struct btree_iter dup_iter = {};
+		ret =	bch2_hash_delete_at(trans,
 					    bch2_dirent_hash_desc, hash_info, iter,
 					    BTREE_UPDATE_internal_snapshot_node) ?:
-			bch2_dirent_create_snapshot(trans, subvol,
-						    d.k->p.inode, d.k->p.snapshot,
-						    hash_info,
-						    d.v->d_type,
-						    &name,
-						    target,
-						    &dir_offset,
-						    BTREE_ITER_with_updates|
-						    BTREE_UPDATE_internal_snapshot_node|
-						    STR_HASH_must_create) ?:
-			bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
-
-		if (dir_offset < k.k->p.offset)
-			*need_second_pass = true;
+			bch2_str_hash_repair_key(trans, s,
+						 &bch2_dirent_hash_desc, hash_info,
+						 iter, bkey_i_to_s_c(&new_d->k_i),
+						 &dup_iter, bkey_s_c_null,
+						 need_second_pass);
 		goto out;
 	}
 

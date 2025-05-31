@@ -288,7 +288,7 @@ int bch2_dirent_init_name(struct bkey_i_dirent *dirent,
 	return 0;
 }
 
-static struct bkey_i_dirent *dirent_create_key(struct btree_trans *trans,
+struct bkey_i_dirent *bch2_dirent_create_key(struct btree_trans *trans,
 				const struct bch_hash_info *hash_info,
 				subvol_inum dir,
 				u8 type,
@@ -332,7 +332,7 @@ int bch2_dirent_create_snapshot(struct btree_trans *trans,
 	struct bkey_i_dirent *dirent;
 	int ret;
 
-	dirent = dirent_create_key(trans, hash_info, dir_inum, type, name, NULL, dst_inum);
+	dirent = bch2_dirent_create_key(trans, hash_info, dir_inum, type, name, NULL, dst_inum);
 	ret = PTR_ERR_OR_ZERO(dirent);
 	if (ret)
 		return ret;
@@ -356,7 +356,7 @@ int bch2_dirent_create(struct btree_trans *trans, subvol_inum dir,
 	struct bkey_i_dirent *dirent;
 	int ret;
 
-	dirent = dirent_create_key(trans, hash_info, dir, type, name, NULL, dst_inum);
+	dirent = bch2_dirent_create_key(trans, hash_info, dir, type, name, NULL, dst_inum);
 	ret = PTR_ERR_OR_ZERO(dirent);
 	if (ret)
 		return ret;
@@ -461,8 +461,8 @@ int bch2_dirent_rename(struct btree_trans *trans,
 		*src_offset = dst_iter.pos.offset;
 
 	/* Create new dst key: */
-	new_dst = dirent_create_key(trans, dst_hash, dst_dir, 0, dst_name,
-				    dst_hash->cf_encoding ? &dst_name_lookup : NULL, 0);
+	new_dst = bch2_dirent_create_key(trans, dst_hash, dst_dir, 0, dst_name,
+					 dst_hash->cf_encoding ? &dst_name_lookup : NULL, 0);
 	ret = PTR_ERR_OR_ZERO(new_dst);
 	if (ret)
 		goto out;
@@ -472,8 +472,8 @@ int bch2_dirent_rename(struct btree_trans *trans,
 
 	/* Create new src key: */
 	if (mode == BCH_RENAME_EXCHANGE) {
-		new_src = dirent_create_key(trans, src_hash, src_dir, 0, src_name,
-					    src_hash->cf_encoding ? &src_name_lookup : NULL, 0);
+		new_src = bch2_dirent_create_key(trans, src_hash, src_dir, 0, src_name,
+						 src_hash->cf_encoding ? &src_name_lookup : NULL, 0);
 		ret = PTR_ERR_OR_ZERO(new_src);
 		if (ret)
 			goto out;
