@@ -620,6 +620,9 @@ print:
 
 	if (s)
 		s->ret = ret;
+
+	if (trans)
+		ret = bch2_trans_log_str(trans, bch2_sb_error_strs[err]) ?: ret;
 err_unlock:
 	mutex_unlock(&c->fsck_error_msgs_lock);
 err:
