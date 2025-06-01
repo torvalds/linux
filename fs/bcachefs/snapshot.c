@@ -1935,7 +1935,7 @@ void bch2_delete_dead_snapshots_async(struct bch_fs *c)
 
 	BUG_ON(!test_bit(BCH_FS_may_go_rw, &c->flags));
 
-	if (!queue_work(c->write_ref_wq, &c->snapshot_delete.work))
+	if (!queue_work(system_long_wq, &c->snapshot_delete.work))
 		enumerated_ref_put(&c->writes, BCH_WRITE_REF_delete_dead_snapshots);
 }
 
