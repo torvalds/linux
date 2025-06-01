@@ -91,7 +91,8 @@ config COREDUMP
        def_bool n
 
 config CPU_BIG_ENDIAN
-       def_bool n
+       bool "Big-endian kernel"
+       default n
 
 config GENERIC_CSUM
        def_bool y
