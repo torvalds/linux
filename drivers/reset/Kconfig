@@ -296,7 +296,7 @@ config RESET_SUNXI
 	  This enables the reset driver for Allwinner SoCs.
 
 config RESET_TH1520
-	tristate "T-HEAD 1520 reset controller"
+	tristate "T-HEAD TH1520 reset controller"
 	depends on ARCH_THEAD || COMPILE_TEST
 	select REGMAP_MMIO
 	help
