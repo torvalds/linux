@@ -7497,6 +7497,9 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	bool log_pinned = false;
 	int ret;
 
+	btrfs_init_log_ctx(&ctx, inode);
+	ctx.logging_new_name = true;
+
 	/*
 	 * this will force the logging code to walk the dentry chain
 	 * up for the file
@@ -7526,6 +7529,13 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 			return;
 	}
 	ret = 0;
+
+	/*
+	 * Now that we know we need to update the log, allocate the scratch eb
+	 * for the context before joining a log transaction below, as this can
+	 * take time and therefore we could delay log commits from other tasks.
+	 */
+	btrfs_init_log_ctx_scratch_eb(&ctx);
 
 	/*
 	 * If we are doing a rename (old_dir is not NULL) from a directory that
@@ -7604,9 +7614,6 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 			goto out;
 	}
 
-	btrfs_init_log_ctx(&ctx, inode);
-	ctx.logging_new_name = true;
-	btrfs_init_log_ctx_scratch_eb(&ctx);
 	/*
 	 * We don't care about the return value. If we fail to log the new name
 	 * then we know the next attempt to sync the log will fallback to a full
@@ -7615,7 +7622,6 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	 * inconsistent state after a rename operation.
 	 */
 	btrfs_log_inode_parent(trans, inode, parent, LOG_INODE_EXISTS, &ctx);
-	free_extent_buffer(ctx.scratch_eb);
 	ASSERT(list_empty(&ctx.conflict_inodes));
 out:
 	/*
@@ -7628,5 +7634,6 @@ out:
 		btrfs_set_log_full_commit(trans);
 	if (log_pinned)
 		btrfs_end_log_trans(root);
+	free_extent_buffer(ctx.scratch_eb);
 }
 
