@@ -5,7 +5,7 @@ set -e
 
 # Detect files that are tracked but ignored by git.
 check_tracked_ignored_files () {
-	git -C ${srctree:-.} ls-files -i -c --exclude-per-directory=.gitignore 2>/dev/null |
+	git -C "${srctree:-.}" ls-files -i -c --exclude-per-directory=.gitignore 2>/dev/null |
 		sed 's/$/: warning: ignored by one of the .gitignore files/' >&2
 }
 
