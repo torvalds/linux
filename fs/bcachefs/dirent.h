@@ -38,7 +38,7 @@ static inline int bch2_maybe_casefold(struct btree_trans *trans,
 	}
 }
 
-struct qstr bch2_dirent_get_name(struct bkey_s_c_dirent d);
+struct qstr bch2_dirent_get_name(struct bkey_s_c_dirent);
 
 static inline unsigned dirent_val_u64s(unsigned len, unsigned cf_len)
 {
@@ -58,6 +58,11 @@ static inline void dirent_copy_target(struct bkey_i_dirent *dst,
 	dst->v.d_inum = src.v->d_inum;
 	dst->v.d_type = src.v->d_type;
 }
+
+int bch2_dirent_init_name(struct bkey_i_dirent *,
+			  const struct bch_hash_info *,
+			  const struct qstr *,
+			  const struct qstr *);
 
 int bch2_dirent_create_snapshot(struct btree_trans *, u32, u64, u32,
 			const struct bch_hash_info *, u8,
