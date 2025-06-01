@@ -14,7 +14,7 @@
 #define KEXEC_ARCH KEXEC_ARCH_PARISC
 #define ARCH_HAS_KIMAGE_ARCH
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct kimage_arch {
 	unsigned long initrd_start;
@@ -28,6 +28,6 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 	/* Dummy implementation for now */
 }
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_PARISC_KEXEC_H */

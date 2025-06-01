@@ -12,7 +12,7 @@
 
 #include <asm/fixmap.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /*
  * we simulate an x86-style page table for the linux mm code
  */
@@ -73,7 +73,7 @@ extern void __update_cache(pte_t pte);
 		mb();				\
 	} while(0)
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
@@ -226,7 +226,7 @@ extern void __update_cache(pte_t pte);
 #define PxD_FLAG_SHIFT    (4)
 #define PxD_VALUE_SHIFT   (PFN_PTE_SHIFT-PxD_FLAG_SHIFT)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_USER)
 #define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_WRITE)
@@ -471,7 +471,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, 
 
 #define pte_same(A,B)	(pte_val(A) == pte_val(B))
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 
 /* TLB page size encoding - see table 3-1 in parisc20.pdf */

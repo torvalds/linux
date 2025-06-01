@@ -2,7 +2,7 @@
 #ifndef _ASM_PARISC_JUMP_LABEL_H
 #define _ASM_PARISC_JUMP_LABEL_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 #include <linux/stringify.h>
@@ -44,5 +44,5 @@ l_yes:
 	return true;
 }
 
-#endif  /* __ASSEMBLY__ */
+#endif  /* __ASSEMBLER__ */
 #endif
