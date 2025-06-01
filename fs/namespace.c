@@ -2222,7 +2222,6 @@ struct mount *copy_tree(struct mount *src_root, struct dentry *dentry,
 		return dst_mnt;
 
 	src_parent = src_root;
-	dst_mnt->mnt_mountpoint = src_root->mnt_mountpoint;
 
 	list_for_each_entry(src_root_child, &src_root->mnt_mounts, mnt_child) {
 		if (!is_subdir(src_root_child->mnt_mountpoint, dentry))
