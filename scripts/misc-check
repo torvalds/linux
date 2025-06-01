@@ -51,5 +51,17 @@ check_missing_include_linux_export_h () {
 	xargs -r printf "%s: warning: EXPORT_SYMBOL() is used, but #include <linux/export.h> is missing\n" >&2
 }
 
+# If you do not use EXPORT_SYMBOL(), please do not include <linux/export.h>.
+# Currently, this is checked for *.c files, but not for *.h files, because some
+# *.c files rely on <linux/export.h> being included indirectly.
+check_unnecessary_include_linux_export_h () {
+
+	git -C "${srctree:-.}" grep --files-with-matches '#include[[:space:]]*<linux/export\.h>' \
+	    -- '*.[c]' :^tools/ |
+	xargs -r git -C "${srctree:-.}" grep --files-without-match -E 'EXPORT_SYMBOL((_NS)?(_GPL)?|_GPL_FOR_MODULES)\(.*\)' |
+	xargs -r printf "%s: warning: EXPORT_SYMBOL() is not used, but #include <linux/export.h> is present\n" >&2
+}
+
 check_tracked_ignored_files
 check_missing_include_linux_export_h
+check_unnecessary_include_linux_export_h
