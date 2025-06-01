@@ -1,0 +1,7 @@
+What:		/sys/kernel/hardlockup_count
+Date:		May 2025
+KernelVersion:	6.16
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:
+		Shows how many times the system has detected a hard lockup since last boot.
+		Available only if CONFIG_HARDLOCKUP_DETECTOR is enabled.

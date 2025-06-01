@@ -200,7 +200,7 @@ def get_gdbserver_type():
 
     def probe_kgdb():
         try:
-            thread_info = gdb.execute("info thread 2", to_string=True)
+            thread_info = gdb.execute("info thread 1", to_string=True)
             return "shadowCPU" in thread_info
         except gdb.error:
             return False
@@ -251,3 +251,23 @@ def parse_vmcore(s):
     else:
         kerneloffset = int(match.group(1), 16)
     return VmCore(kerneloffset=kerneloffset)
+
+
+def get_vmlinux():
+    vmlinux = 'vmlinux'
+    for obj in gdb.objfiles():
+        if (obj.filename.endswith('vmlinux') or
+            obj.filename.endswith('vmlinux.debug')):
+            vmlinux = obj.filename
+    return vmlinux
+
+
+@contextlib.contextmanager
+def pagination_off():
+    show_pagination = gdb.execute("show pagination", to_string=True)
+    pagination = show_pagination.endswith("on.\n")
+    gdb.execute("set pagination off")
+    try:
+        yield
+    finally:
+        gdb.execute("set pagination %s" % ("on" if pagination else "off"))

@@ -38,8 +38,7 @@ config KEXEC
 config KEXEC_FILE
 	bool "Enable kexec file based system call"
 	depends on ARCH_SUPPORTS_KEXEC_FILE
-	select CRYPTO
-	select CRYPTO_SHA256
+	select CRYPTO_LIB_SHA256
 	select KEXEC_CORE
 	help
 	  This is new version of kexec system call. This system call is
@@ -129,6 +128,23 @@ config CRASH_DUMP
 
 	  For s390, this option also enables zfcpdump.
 	  See also <file:Documentation/arch/s390/zfcpdump.rst>
+
+config CRASH_DM_CRYPT
+	bool "Support saving crash dump to dm-crypt encrypted volume"
+	depends on KEXEC_FILE
+	depends on CRASH_DUMP
+	depends on DM_CRYPT
+	help
+	  With this option enabled, user space can intereact with
+	  /sys/kernel/config/crash_dm_crypt_keys to make the dm crypt keys
+	  persistent for the dump-capture kernel.
+
+config CRASH_DM_CRYPT_CONFIGS
+	def_tristate CRASH_DM_CRYPT
+	select CONFIGFS_FS
+	help
+	  CRASH_DM_CRYPT cannot directly select CONFIGFS_FS, because that
+	  is required to be built-in.
 
 config CRASH_HOTPLUG
 	bool "Update the crash elfcorehdr on system configuration changes"

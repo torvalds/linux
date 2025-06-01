@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm's SPMI PMIC Round Robin ADC
 
 maintainers:
-  - Caleb Connolly <caleb.connolly@linaro.org>
+  - Casey Connolly <casey.connolly@linaro.org>
 
 description: |
   The Qualcomm SPMI Round Robin ADC (RRADC) provides interface to clients to

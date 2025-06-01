@@ -83,6 +83,72 @@
 })
 
 /**
+ * PTR_IF - evaluate to @ptr if @cond is true, or to NULL otherwise.
+ * @cond: A conditional, usually in a form of IS_ENABLED(CONFIG_FOO)
+ * @ptr: A pointer to assign if @cond is true.
+ *
+ * PTR_IF(IS_ENABLED(CONFIG_FOO), ptr) evaluates to @ptr if CONFIG_FOO is set
+ * to 'y' or 'm', or to NULL otherwise. The @ptr argument must be a pointer.
+ *
+ * The macro can be very useful to help compiler dropping dead code.
+ *
+ * For instance, consider the following::
+ *
+ *     #ifdef CONFIG_FOO_SUSPEND
+ *     static int foo_suspend(struct device *dev)
+ *     {
+ *        ...
+ *     }
+ *     #endif
+ *
+ *     static struct pm_ops foo_ops = {
+ *     #ifdef CONFIG_FOO_SUSPEND
+ *         .suspend = foo_suspend,
+ *     #endif
+ *     };
+ *
+ * While this works, the foo_suspend() macro is compiled conditionally,
+ * only when CONFIG_FOO_SUSPEND is set. This is problematic, as there could
+ * be a build bug in this function, we wouldn't have a way to know unless
+ * the configuration option is set.
+ *
+ * An alternative is to declare foo_suspend() always, but mark it
+ * as __maybe_unused. This works, but the __maybe_unused attribute
+ * is required to instruct the compiler that the function may not
+ * be referenced anywhere, and is safe to remove without making
+ * a fuss about it. This makes the programmer responsible for tagging
+ * the functions that can be garbage-collected.
+ *
+ * With the macro it is possible to write the following:
+ *
+ *     static int foo_suspend(struct device *dev)
+ *     {
+ *        ...
+ *     }
+ *
+ *     static struct pm_ops foo_ops = {
+ *         .suspend = PTR_IF(IS_ENABLED(CONFIG_FOO_SUSPEND), foo_suspend),
+ *     };
+ *
+ * The foo_suspend() function will now be automatically dropped by the
+ * compiler, and it does not require any specific attribute.
+ */
+#define PTR_IF(cond, ptr)	((cond) ? (ptr) : NULL)
+
+/**
+ * to_user_ptr - cast a pointer passed as u64 from user space to void __user *
+ * @x: The u64 value from user space, usually via IOCTL
+ *
+ * to_user_ptr() simply casts a pointer passed as u64 from user space to void
+ * __user * correctly. Using this lets us get rid of all the tiresome casts.
+ */
+#define u64_to_user_ptr(x)		\
+({					\
+	typecheck(u64, (x));		\
+	(void __user *)(uintptr_t)(x);	\
+})
+
+/**
  * is_insidevar - check if the @ptr points inside the @var memory range.
  * @ptr:	the pointer to a memory address.
  * @var:	the variable which address and size identify the memory range.

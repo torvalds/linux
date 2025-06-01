@@ -17,6 +17,7 @@
 #include <linux/random.h>
 #include <linux/ratelimit.h>
 #include <linux/slab.h>
+#include <linux/sort.h>
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
 
@@ -671,8 +672,6 @@ static inline void percpu_memset(void __percpu *p, int c, size_t bytes)
 }
 
 u64 *bch2_acc_percpu_u64s(u64 __percpu *, unsigned);
-
-#define cmp_int(l, r)		((l > r) - (l < r))
 
 static inline int u8_cmp(u8 l, u8 r)
 {
