@@ -9,6 +9,7 @@
  */
 
 #include <linux/kernel_stat.h>
+#include <linux/cpufeature.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/entry-common.h>
@@ -45,7 +46,7 @@ static DEFINE_PER_CPU(struct mcck_struct, cpu_mcck);
 
 static inline int nmi_needs_mcesa(void)
 {
-	return cpu_has_vx() || MACHINE_HAS_GS;
+	return cpu_has_vx() || cpu_has_gs();
 }
 
 /*
@@ -61,7 +62,7 @@ void __init nmi_alloc_mcesa_early(u64 *mcesad)
 	if (!nmi_needs_mcesa())
 		return;
 	*mcesad = __pa(&boot_mcesa);
-	if (MACHINE_HAS_GS)
+	if (cpu_has_gs())
 		*mcesad |= ilog2(MCESA_MAX_SIZE);
 }
 
@@ -73,14 +74,14 @@ int nmi_alloc_mcesa(u64 *mcesad)
 	*mcesad = 0;
 	if (!nmi_needs_mcesa())
 		return 0;
-	size = MACHINE_HAS_GS ? MCESA_MAX_SIZE : MCESA_MIN_SIZE;
+	size = cpu_has_gs() ? MCESA_MAX_SIZE : MCESA_MIN_SIZE;
 	origin = kmalloc(size, GFP_KERNEL);
 	if (!origin)
 		return -ENOMEM;
 	/* The pointer is stored with mcesa_bits ORed in */
 	kmemleak_not_leak(origin);
 	*mcesad = __pa(origin);
-	if (MACHINE_HAS_GS)
+	if (cpu_has_gs())
 		*mcesad |= ilog2(MCESA_MAX_SIZE);
 	return 0;
 }

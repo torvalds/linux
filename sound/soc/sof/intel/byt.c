@@ -467,7 +467,7 @@ static struct platform_driver snd_sof_acpi_intel_byt_driver = {
 	.remove = sof_acpi_remove,
 	.driver = {
 		.name = "sof-audio-acpi-intel-byt",
-		.pm = &sof_acpi_pm,
+		.pm = pm_ptr(&sof_acpi_pm),
 		.acpi_match_table = sof_baytrail_match,
 	},
 };
@@ -475,7 +475,6 @@ module_platform_driver(snd_sof_acpi_intel_byt_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SOF support for Baytrail/Cherrytrail");
-MODULE_IMPORT_NS("SND_SOC_SOF_INTEL_HIFI_EP_IPC");
 MODULE_IMPORT_NS("SND_SOC_SOF_XTENSA");
 MODULE_IMPORT_NS("SND_SOC_SOF_ACPI_DEV");
 MODULE_IMPORT_NS("SND_SOC_SOF_INTEL_ATOM_HIFI_EP");

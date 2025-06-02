@@ -500,7 +500,8 @@ hws_definer_check_match_flags(struct mlx5hws_definer_conv_data *cd)
 	return 0;
 
 err_conflict:
-	mlx5hws_err(cd->ctx, "Invalid definer fields combination\n");
+	mlx5hws_err(cd->ctx, "Invalid definer fields combination: match_flags = 0x%08x\n",
+		    cd->match_flags);
 	return -EINVAL;
 }
 
@@ -1985,8 +1986,7 @@ int mlx5hws_definer_get_obj(struct mlx5hws_context *ctx,
 			continue;
 
 		/* Reuse definer and set LRU (move to be first in the list) */
-		list_del_init(&cached_definer->list_node);
-		list_add(&cached_definer->list_node, &cache->list_head);
+		list_move(&cached_definer->list_node, &cache->list_head);
 		cached_definer->refcount++;
 		return cached_definer->definer.obj_id;
 	}

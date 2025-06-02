@@ -5576,7 +5576,7 @@ static int init_rcverr(struct hfi1_devdata *dd)
 static void free_rcverr(struct hfi1_devdata *dd)
 {
 	if (dd->rcverr_timer.function)
-		del_timer_sync(&dd->rcverr_timer);
+		timer_delete_sync(&dd->rcverr_timer);
 }
 
 static void handle_rxe_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
@@ -12308,7 +12308,7 @@ static void free_cntrs(struct hfi1_devdata *dd)
 	int i;
 
 	if (dd->synth_stats_timer.function)
-		del_timer_sync(&dd->synth_stats_timer);
+		timer_delete_sync(&dd->synth_stats_timer);
 	cancel_work_sync(&dd->update_cntr_work);
 	ppd = (struct hfi1_pportdata *)(dd + 1);
 	for (i = 0; i < dd->num_pports; i++, ppd++) {
@@ -12882,22 +12882,6 @@ u32 chip_to_opa_pstate(struct hfi1_devdata *dd, u32 chip_pstate)
 	}
 }
 
-/* return the OPA port logical state name */
-const char *opa_lstate_name(u32 lstate)
-{
-	static const char * const port_logical_names[] = {
-		"PORT_NOP",
-		"PORT_DOWN",
-		"PORT_INIT",
-		"PORT_ARMED",
-		"PORT_ACTIVE",
-		"PORT_ACTIVE_DEFER",
-	};
-	if (lstate < ARRAY_SIZE(port_logical_names))
-		return port_logical_names[lstate];
-	return "unknown";
-}
-
 /* return the OPA port physical state name */
 const char *opa_pstate_name(u32 pstate)
 {
@@ -12956,8 +12940,6 @@ static void update_statusp(struct hfi1_pportdata *ppd, u32 state)
 			break;
 		}
 	}
-	dd_dev_info(ppd->dd, "logical state changed to %s (0x%x)\n",
-		    opa_lstate_name(state), state);
 }
 
 /**

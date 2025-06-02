@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -145,7 +145,7 @@ static void iwl_mvm_rx_esr_mode_notif(struct iwl_mvm *mvm,
 				      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_mvm_esr_mode_notif *notif = (void *)pkt->data;
+	struct iwl_esr_mode_notif *notif = (void *)pkt->data;
 	struct ieee80211_vif *vif = iwl_mvm_get_bss_vif(mvm);
 
 	/* FW recommendations is only for entering EMLSR */
@@ -495,7 +495,7 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER_GRP(DATA_PATH_GROUP, ESR_MODE_NOTIF,
 		       iwl_mvm_rx_esr_mode_notif,
 		       RX_HANDLER_ASYNC_LOCKED_WIPHY,
-		       struct iwl_mvm_esr_mode_notif),
+		       struct iwl_esr_mode_notif),
 
 	RX_HANDLER_GRP(DATA_PATH_GROUP, MONITOR_NOTIF,
 		       iwl_mvm_rx_monitor_notif, RX_HANDLER_ASYNC_LOCKED,

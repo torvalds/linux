@@ -301,7 +301,7 @@ static int imx_rpmsg_pcm_close(struct snd_soc_component *component,
 
 	info->send_message(msg, info);
 
-	del_timer(&info->stream_timer[substream->stream].timer);
+	timer_delete(&info->stream_timer[substream->stream].timer);
 
 	rtd->dai_link->ignore_suspend = 0;
 
@@ -452,7 +452,7 @@ static int imx_rpmsg_terminate_all(struct snd_soc_component *component,
 		info->msg[RX_POINTER].r_msg.param.buffer_offset = 0;
 	}
 
-	del_timer(&info->stream_timer[substream->stream].timer);
+	timer_delete(&info->stream_timer[substream->stream].timer);
 
 	return imx_rpmsg_insert_workqueue(substream, msg, info);
 }

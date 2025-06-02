@@ -714,8 +714,8 @@ static void disconnect(struct usb_interface *intf)
 	mac = plfxlc_hw_mac(hw);
 	usb = &mac->chip.usb;
 
-	del_timer_sync(&usb->tx.tx_retry_timer);
-	del_timer_sync(&usb->sta_queue_cleanup);
+	timer_delete_sync(&usb->tx.tx_retry_timer);
+	timer_delete_sync(&usb->sta_queue_cleanup);
 
 	ieee80211_unregister_hw(hw);
 

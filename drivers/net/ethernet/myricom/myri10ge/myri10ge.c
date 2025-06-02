@@ -2482,7 +2482,7 @@ static int myri10ge_close(struct net_device *dev)
 	if (mgp->ss[0].tx.req_bytes == NULL)
 		return 0;
 
-	del_timer_sync(&mgp->watchdog_timer);
+	timer_delete_sync(&mgp->watchdog_timer);
 	mgp->running = MYRI10GE_ETH_STOPPING;
 	for (i = 0; i < mgp->num_slices; i++)
 		napi_disable(&mgp->ss[i].napi);

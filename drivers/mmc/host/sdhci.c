@@ -517,9 +517,9 @@ EXPORT_SYMBOL_GPL(sdhci_mod_timer);
 static void sdhci_del_timer(struct sdhci_host *host, struct mmc_request *mrq)
 {
 	if (sdhci_data_line_cmd(mrq->cmd))
-		del_timer(&host->data_timer);
+		timer_delete(&host->data_timer);
 	else
-		del_timer(&host->timer);
+		timer_delete(&host->timer);
 }
 
 static inline bool sdhci_has_requests(struct sdhci_host *host)
@@ -2065,10 +2065,15 @@ void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	host->mmc->actual_clock = 0;
 
-	sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
+	clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+	if (clk & SDHCI_CLOCK_CARD_EN)
+		sdhci_writew(host, clk & ~SDHCI_CLOCK_CARD_EN,
+			SDHCI_CLOCK_CONTROL);
 
-	if (clock == 0)
+	if (clock == 0) {
+		sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
 		return;
+	}
 
 	clk = sdhci_calc_clk(host, clock, &host->mmc->actual_clock);
 	sdhci_enable_clk(host, clk);
@@ -4971,8 +4976,8 @@ void sdhci_remove_host(struct sdhci_host *host, int dead)
 	sdhci_writel(host, 0, SDHCI_SIGNAL_ENABLE);
 	free_irq(host->irq, host);
 
-	del_timer_sync(&host->timer);
-	del_timer_sync(&host->data_timer);
+	timer_delete_sync(&host->timer);
+	timer_delete_sync(&host->data_timer);
 
 	destroy_workqueue(host->complete_wq);
 

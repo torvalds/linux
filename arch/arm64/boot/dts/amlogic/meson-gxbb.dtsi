@@ -739,6 +739,31 @@
 	};
 };
 
+&pwm_ab {
+	clocks = <&xtal>,
+		 <>, /* unknown/untested, the datasheet calls it "vid_pll" */
+		 <&clkc CLKID_FCLK_DIV4>,
+		 <&clkc CLKID_FCLK_DIV3>;
+};
+
+&pwm_AO_ab {
+	clocks = <&xtal>, <&clkc CLKID_CLK81>;
+};
+
+&pwm_cd {
+	clocks = <&xtal>,
+		 <>, /* unknown/untested, the datasheet calls it "vid_pll" */
+		 <&clkc CLKID_FCLK_DIV4>,
+		 <&clkc CLKID_FCLK_DIV3>;
+};
+
+&pwm_ef {
+	clocks = <&xtal>,
+		 <>, /* unknown/untested, the datasheet calls it "vid_pll" */
+		 <&clkc CLKID_FCLK_DIV4>,
+		 <&clkc CLKID_FCLK_DIV3>;
+};
+
 &pwrc {
 	resets = <&reset RESET_VIU>,
 		 <&reset RESET_VENC>,

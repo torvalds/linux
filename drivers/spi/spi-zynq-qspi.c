@@ -540,10 +540,6 @@ static int zynq_qspi_exec_mem_op(struct spi_mem *mem,
 	int err = 0, i;
 	u8 *tmpbuf;
 
-	dev_dbg(xqspi->dev, "cmd:%#x mode:%d.%d.%d.%d\n",
-		op->cmd.opcode, op->cmd.buswidth, op->addr.buswidth,
-		op->dummy.buswidth, op->data.buswidth);
-
 	zynq_qspi_chipselect(mem->spi, true);
 	zynq_qspi_config_op(xqspi, mem->spi, op);
 

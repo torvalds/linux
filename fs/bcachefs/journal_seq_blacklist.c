@@ -231,15 +231,14 @@ bool bch2_blacklist_entries_gc(struct bch_fs *c)
 	struct journal_seq_blacklist_table *t = c->journal_seq_blacklist_table;
 	BUG_ON(nr != t->nr);
 
-	unsigned i;
-	for (src = bl->start, i = t->nr == 0 ? 0 : eytzinger0_first(t->nr);
-	     src < bl->start + nr;
-	     src++, i = eytzinger0_next(i, nr)) {
+	src = bl->start;
+	eytzinger0_for_each(i, nr) {
 		BUG_ON(t->entries[i].start	!= le64_to_cpu(src->start));
 		BUG_ON(t->entries[i].end	!= le64_to_cpu(src->end));
 
 		if (t->entries[i].dirty || t->entries[i].end >= c->journal.oldest_seq_found_ondisk)
 			*dst++ = *src;
+		src++;
 	}
 
 	unsigned new_nr = dst - bl->start;

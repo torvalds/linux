@@ -19,7 +19,7 @@ int cap_enable_effective(__u64 caps, __u64 *old_caps)
 
 	err = capget(&hdr, data);
 	if (err)
-		return err;
+		return -errno;
 
 	if (old_caps)
 		*old_caps = (__u64)(data[1].effective) << 32 | data[0].effective;
@@ -32,7 +32,7 @@ int cap_enable_effective(__u64 caps, __u64 *old_caps)
 	data[1].effective |= cap1;
 	err = capset(&hdr, data);
 	if (err)
-		return err;
+		return -errno;
 
 	return 0;
 }
@@ -49,7 +49,7 @@ int cap_disable_effective(__u64 caps, __u64 *old_caps)
 
 	err = capget(&hdr, data);
 	if (err)
-		return err;
+		return -errno;
 
 	if (old_caps)
 		*old_caps = (__u64)(data[1].effective) << 32 | data[0].effective;
@@ -61,7 +61,7 @@ int cap_disable_effective(__u64 caps, __u64 *old_caps)
 	data[1].effective &= ~cap1;
 	err = capset(&hdr, data);
 	if (err)
-		return err;
+		return -errno;
 
 	return 0;
 }

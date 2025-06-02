@@ -333,7 +333,7 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	charger_desc->property_is_writeable =
 					gpio_charger_property_is_writeable;
 
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.fwnode = dev_fwnode(dev);
 	psy_cfg.drv_data = gpio_charger;
 
 	if (pdata) {

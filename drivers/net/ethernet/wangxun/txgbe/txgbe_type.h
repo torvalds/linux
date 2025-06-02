@@ -10,6 +10,12 @@
 /* Device IDs */
 #define TXGBE_DEV_ID_SP1000                     0x1001
 #define TXGBE_DEV_ID_WX1820                     0x2001
+#define TXGBE_DEV_ID_AML5010                    0x5010
+#define TXGBE_DEV_ID_AML5110                    0x5110
+#define TXGBE_DEV_ID_AML5025                    0x5025
+#define TXGBE_DEV_ID_AML5125                    0x5125
+#define TXGBE_DEV_ID_AML5040                    0x5040
+#define TXGBE_DEV_ID_AML5140                    0x5140
 
 /* Subsystem IDs */
 /* SFP */
@@ -136,6 +142,14 @@
 #define TXGBE_RDB_FDIR_FLEX_CFG_BASE_MAC        FIELD_PREP(GENMASK(1, 0), 0)
 #define TXGBE_RDB_FDIR_FLEX_CFG_MSK             BIT(2)
 #define TXGBE_RDB_FDIR_FLEX_CFG_OFST(v)         FIELD_PREP(GENMASK(7, 3), v)
+
+/*************************** Amber Lite Registers ****************************/
+#define TXGBE_PX_PF_BME                         0x4B8
+#define TXGBE_AML_MAC_TX_CFG                    0x11000
+#define TXGBE_AML_MAC_TX_CFG_SPEED_MASK         GENMASK(30, 27)
+#define TXGBE_AML_MAC_TX_CFG_SPEED_25G          BIT(28)
+#define TXGBE_RDM_RSC_CTL                       0x1200C
+#define TXGBE_RDM_RSC_CTL_FREE_CTL              BIT(7)
 
 /* Checksum and EEPROM pointers */
 #define TXGBE_EEPROM_LAST_WORD                  0x800

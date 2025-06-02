@@ -1,8 +1,7 @@
 .build:
   extends:
-    - .build-rules
     - .container+build-rules
-  stage: build
+  stage: build-only
   artifacts:
     paths:
       - artifacts
@@ -110,3 +109,104 @@ build-nodebugfs:arm64:
 
 build:x86_64:
   extends: .build:x86_64
+
+# Disable build jobs that we won't use
+alpine-build-testing:
+  rules:
+    - when: never
+
+debian-android:
+  rules:
+    - when: never
+
+debian-arm32:
+  rules:
+    - when: never
+
+debian-arm32-asan:
+  rules:
+    - when: never
+
+debian-arm64:
+  rules:
+    - when: never
+
+debian-arm64-asan:
+  rules:
+    - when: never
+
+debian-arm64-build-test:
+  rules:
+    - when: never
+
+debian-arm64-release:
+  rules:
+    - when: never
+
+debian-build-testing:
+  rules:
+    - when: never
+
+debian-clang:
+  rules:
+    - when: never
+
+debian-clang-release:
+  rules:
+    - when: never
+
+debian-no-libdrm:
+  rules:
+    - when: never
+
+debian-ppc64el:
+  rules:
+    - when: never
+
+debian-release:
+  rules:
+    - when: never
+
+debian-s390x:
+  rules:
+    - when: never
+
+debian-testing:
+  rules:
+    - when: never
+
+debian-testing-asan:
+  rules:
+    - when: never
+
+debian-testing-msan:
+  rules:
+    - when: never
+
+debian-vulkan:
+  rules:
+    - when: never
+
+debian-x86_32:
+  rules:
+    - when: never
+
+fedora-release:
+  rules:
+    - when: never
+
+rustfmt:
+  rules:
+    - when: never
+
+shader-db:
+  rules:
+    - when: never
+
+windows-msvc:
+  rules:
+    - when: never
+
+yaml-toml-shell-py-test:
+  rules:
+    - when: never

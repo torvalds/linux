@@ -153,8 +153,7 @@ mlx5hws_pat_get_existing_cached_pattern(struct mlx5hws_pattern_cache *cache,
 	cached_pattern = mlx5hws_pat_find_cached_pattern(cache, num_of_actions, actions);
 	if (cached_pattern) {
 		/* LRU: move it to be first in the list */
-		list_del_init(&cached_pattern->ptrn_list_node);
-		list_add(&cached_pattern->ptrn_list_node, &cache->ptrn_list);
+		list_move(&cached_pattern->ptrn_list_node, &cache->ptrn_list);
 		cached_pattern->refcount++;
 	}
 

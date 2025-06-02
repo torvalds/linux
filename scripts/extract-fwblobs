@@ -1,0 +1,30 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
+#
+# -----------------------------------------------------------------------------
+# Extracts the vmlinux built-in firmware blobs - requires a non-stripped image
+# -----------------------------------------------------------------------------
+
+if [ -z "$1" ]; then
+	echo "Must provide a non-stripped vmlinux as argument"
+	exit 1
+fi
+
+read -r RD_ADDR_HEX RD_OFF_HEX <<< "$( readelf -SW "$1" |\
+grep -w rodata | awk '{print "0x"$5" 0x"$6}' )"
+
+FW_SYMS="$(readelf -sW "$1" |\
+awk -n '/fw_end/ { end=$2 ; print name " 0x" start " 0x" end; } { start=$2; name=$8; }')"
+
+while IFS= read -r entry; do
+	read -r FW_NAME FW_ADDR_ST_HEX FW_ADDR_END_HEX <<< "$entry"
+
+	# Notice kernel prepends _fw_ and appends _bin to the FW name
+	# in rodata; hence we hereby filter that out.
+	FW_NAME=${FW_NAME:4:-4}
+
+	FW_OFFSET="$(printf "%d" $((FW_ADDR_ST_HEX - RD_ADDR_HEX + RD_OFF_HEX)))"
+	FW_SIZE="$(printf "%d" $((FW_ADDR_END_HEX - FW_ADDR_ST_HEX)))"
+
+	dd if="$1" of="./${FW_NAME}" bs="${FW_SIZE}" count=1 iflag=skip_bytes skip="${FW_OFFSET}"
+done <<< "${FW_SYMS}"

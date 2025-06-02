@@ -686,8 +686,8 @@ void rmnet_map_update_ul_agg_config(struct rmnet_port *port, u32 size,
 
 void rmnet_map_tx_aggregate_init(struct rmnet_port *port)
 {
-	hrtimer_init(&port->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	port->hrtimer.function = rmnet_map_flush_tx_packet_queue;
+	hrtimer_setup(&port->hrtimer, rmnet_map_flush_tx_packet_queue, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 	spin_lock_init(&port->agg_lock);
 	rmnet_map_update_ul_agg_config(port, 4096, 1, 800);
 	INIT_WORK(&port->agg_wq, rmnet_map_flush_tx_packet_work);

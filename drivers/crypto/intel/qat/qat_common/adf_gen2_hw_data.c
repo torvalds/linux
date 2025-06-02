@@ -115,8 +115,8 @@ u32 adf_gen2_get_accel_cap(struct adf_accel_dev *accel_dev)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct pci_dev *pdev = accel_dev->accel_pci_dev.pci_dev;
+	u32 fuses = hw_data->fuses[ADF_FUSECTL0];
 	u32 straps = hw_data->straps;
-	u32 fuses = hw_data->fuses;
 	u32 legfuses;
 	u32 capabilities = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC |
 			   ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |

@@ -59,8 +59,14 @@ static const struct drm_sched_backend_ops msm_sched_ops = {
 struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int id,
 		void *memptrs, uint64_t memptrs_iova)
 {
+	struct drm_sched_init_args args = {
+		.ops = &msm_sched_ops,
+		.num_rqs = DRM_SCHED_PRIORITY_COUNT,
+		.credit_limit = num_hw_submissions,
+		.timeout = MAX_SCHEDULE_TIMEOUT,
+		.dev = gpu->dev->dev,
+	};
 	struct msm_ringbuffer *ring;
-	long sched_timeout;
 	char name[32];
 	int ret;
 
@@ -87,6 +93,7 @@ struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int id,
 	}
 
 	msm_gem_object_set_name(ring->bo, "ring%d", id);
+	args.name = to_msm_bo(ring->bo)->name,
 
 	ring->end   = ring->start + (MSM_GPU_RINGBUFFER_SZ >> 2);
 	ring->next  = ring->start;
@@ -95,13 +102,7 @@ struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int id,
 	ring->memptrs = memptrs;
 	ring->memptrs_iova = memptrs_iova;
 
-	 /* currently managing hangcheck ourselves: */
-	sched_timeout = MAX_SCHEDULE_TIMEOUT;
-
-	ret = drm_sched_init(&ring->sched, &msm_sched_ops, NULL,
-			     DRM_SCHED_PRIORITY_COUNT,
-			     num_hw_submissions, 0, sched_timeout,
-			     NULL, NULL, to_msm_bo(ring->bo)->name, gpu->dev->dev);
+	ret = drm_sched_init(&ring->sched, &args);
 	if (ret) {
 		goto fail;
 	}

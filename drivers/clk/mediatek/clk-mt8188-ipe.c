@@ -20,6 +20,8 @@ static const struct mtk_gate_regs ipe_cg_regs = {
 #define GATE_IPE(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &ipe_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
+#define IPE_SYS_SMI_LARB_RST_OFF	(0xC)
+
 static const struct mtk_gate ipe_clks[] = {
 	GATE_IPE(CLK_IPE_DPE, "ipe_dpe", "top_ipe", 0),
 	GATE_IPE(CLK_IPE_FDVT, "ipe_fdvt", "top_ipe", 1),
@@ -28,9 +30,21 @@ static const struct mtk_gate ipe_clks[] = {
 	GATE_IPE(CLK_IPE_SMI_LARB12, "ipe_smi_larb12", "top_ipe", 4),
 };
 
+/* Reset for SMI larb 12 */
+static u16 ipe_sys_rst_ofs[] = {
+	IPE_SYS_SMI_LARB_RST_OFF,
+};
+
+static const struct mtk_clk_rst_desc ipe_sys_rst_desc = {
+	.version = MTK_RST_SIMPLE,
+	.rst_bank_ofs = ipe_sys_rst_ofs,
+	.rst_bank_nr = ARRAY_SIZE(ipe_sys_rst_ofs),
+};
+
 static const struct mtk_clk_desc ipe_desc = {
 	.clks = ipe_clks,
 	.num_clks = ARRAY_SIZE(ipe_clks),
+	.rst_desc = &ipe_sys_rst_desc,
 };
 
 static const struct of_device_id of_match_clk_mt8188_ipe[] = {

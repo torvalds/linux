@@ -86,6 +86,49 @@ void sdw_compute_slave_ports(struct sdw_master_runtime *m_rt,
 }
 EXPORT_SYMBOL(sdw_compute_slave_ports);
 
+static void sdw_compute_dp0_slave_ports(struct sdw_master_runtime *m_rt)
+{
+	struct sdw_bus *bus = m_rt->bus;
+	struct sdw_slave_runtime *s_rt;
+	struct sdw_port_runtime *p_rt;
+
+	list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
+		list_for_each_entry(p_rt, &s_rt->port_list, port_node) {
+			sdw_fill_xport_params(&p_rt->transport_params, p_rt->num, false,
+					      SDW_BLK_GRP_CNT_1, bus->params.col, 0, 0, 1,
+					      bus->params.col - 1, SDW_BLK_PKG_PER_PORT, 0x0);
+
+			sdw_fill_port_params(&p_rt->port_params, p_rt->num, bus->params.col - 1,
+					     SDW_PORT_FLOW_MODE_ISOCH, SDW_PORT_DATA_MODE_NORMAL);
+		}
+	}
+}
+
+static void sdw_compute_dp0_master_ports(struct sdw_master_runtime *m_rt)
+{
+	struct sdw_port_runtime *p_rt;
+	struct sdw_bus *bus = m_rt->bus;
+
+	list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
+		sdw_fill_xport_params(&p_rt->transport_params, p_rt->num, false,
+				      SDW_BLK_GRP_CNT_1, bus->params.col, 0, 0, 1,
+				      bus->params.col - 1, SDW_BLK_PKG_PER_PORT, 0x0);
+
+		sdw_fill_port_params(&p_rt->port_params, p_rt->num, bus->params.col - 1,
+				     SDW_PORT_FLOW_MODE_ISOCH, SDW_PORT_DATA_MODE_NORMAL);
+	}
+}
+
+static void sdw_compute_dp0_port_params(struct sdw_bus *bus)
+{
+	struct sdw_master_runtime *m_rt;
+
+	list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
+		sdw_compute_dp0_master_ports(m_rt);
+		sdw_compute_dp0_slave_ports(m_rt);
+	}
+}
+
 static void sdw_compute_master_ports(struct sdw_master_runtime *m_rt,
 				     struct sdw_group_params *params,
 				     int *port_bo, int hstop)
@@ -194,10 +237,11 @@ static int sdw_compute_group_params(struct sdw_bus *bus,
 				continue;
 		} else {
 			/*
-			 * Include runtimes with running (ENABLED state) and paused (DISABLED state)
-			 * streams
+			 * Include runtimes with running (ENABLED/PREPARED state) and
+			 * paused (DISABLED state) streams
 			 */
 			if (m_rt->stream->state != SDW_STREAM_ENABLED &&
+			    m_rt->stream->state != SDW_STREAM_PREPARED &&
 			    m_rt->stream->state != SDW_STREAM_DISABLED)
 				continue;
 		}
@@ -617,6 +661,11 @@ int sdw_compute_params(struct sdw_bus *bus, struct sdw_stream_runtime *stream)
 	ret = sdw_compute_bus_params(bus);
 	if (ret < 0)
 		return ret;
+
+	if (stream->type == SDW_STREAM_BPT) {
+		sdw_compute_dp0_port_params(bus);
+		return 0;
+	}
 
 	/* Compute transport and port params */
 	ret = sdw_compute_port_params(bus, stream);

@@ -2,7 +2,7 @@
 #ifndef _ASM_X86_ASM_H
 #define _ASM_X86_ASM_H
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 # define __ASM_FORM(x, ...)		x,## __VA_ARGS__
 # define __ASM_FORM_RAW(x, ...)		x,## __VA_ARGS__
 # define __ASM_FORM_COMMA(x, ...)	x,## __VA_ARGS__,
@@ -123,7 +123,7 @@
 #ifdef __KERNEL__
 
 /* Exception table entry */
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 # define _ASM_EXTABLE_HANDLE(from, to, handler)			\
 	.pushsection "__ex_table","a" ;				\
 	.balign 4 ;						\
@@ -154,7 +154,7 @@
 #  define _ASM_NOKPROBE(entry)
 # endif
 
-#else /* ! __ASSEMBLY__ */
+#else /* ! __ASSEMBLER__ */
 # define _EXPAND_EXTABLE_HANDLE(x) #x
 # define _ASM_EXTABLE_HANDLE(from, to, handler)			\
 	" .pushsection \"__ex_table\",\"a\"\n"			\
@@ -186,7 +186,7 @@
  */
 register unsigned long current_stack_pointer asm(_ASM_SP);
 #define ASM_CALL_CONSTRAINT "+r" (current_stack_pointer)
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* __KERNEL__ */
 

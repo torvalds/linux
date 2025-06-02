@@ -17,6 +17,9 @@ description:
 maintainers:
   - Neeraj Sanjay Kale <neeraj.sanjaykale@nxp.com>
 
+allOf:
+  - $ref: bluetooth-controller.yaml#
+
 properties:
   compatible:
     enum:
@@ -40,10 +43,20 @@ properties:
       Host-To-Chip power save mechanism is driven by this GPIO
       connected to BT_WAKE_IN pin of the NXP chipset.
 
+  nxp,wakein-pin:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description:
+      The GPIO number of the NXP chipset used for BT_WAKE_IN.
+
+  nxp,wakeout-pin:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description:
+      The GPIO number of the NXP chipset used for BT_WAKE_OUT.
+
 required:
   - compatible
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
@@ -54,5 +67,8 @@ examples:
             fw-init-baudrate = <3000000>;
             firmware-name = "uartuart8987_bt_v0.bin";
             device-wakeup-gpios = <&gpio 11 GPIO_ACTIVE_HIGH>;
+            nxp,wakein-pin = /bits/ 8 <18>;
+            nxp,wakeout-pin = /bits/ 8 <19>;
+            local-bd-address = [66 55 44 33 22 11];
         };
     };

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2020 Intel Corporation */
+#include <linux/bitops.h>
 #include <linux/iopoll.h>
 #include <asm/div64.h>
 #include "adf_accel_devices.h"
@@ -134,36 +135,18 @@ int adf_gen4_init_device(struct adf_accel_dev *accel_dev)
 }
 EXPORT_SYMBOL_GPL(adf_gen4_init_device);
 
-static inline void adf_gen4_unpack_ssm_wdtimer(u64 value, u32 *upper,
-					       u32 *lower)
-{
-	*lower = lower_32_bits(value);
-	*upper = upper_32_bits(value);
-}
-
 void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev)
 {
 	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	u64 timer_val_pke = ADF_SSM_WDT_PKE_DEFAULT_VALUE;
 	u64 timer_val = ADF_SSM_WDT_DEFAULT_VALUE;
-	u32 ssm_wdt_pke_high = 0;
-	u32 ssm_wdt_pke_low = 0;
-	u32 ssm_wdt_high = 0;
-	u32 ssm_wdt_low = 0;
 
-	/* Convert 64bit WDT timer value into 32bit values for
-	 * mmio write to 32bit CSRs.
-	 */
-	adf_gen4_unpack_ssm_wdtimer(timer_val, &ssm_wdt_high, &ssm_wdt_low);
-	adf_gen4_unpack_ssm_wdtimer(timer_val_pke, &ssm_wdt_pke_high,
-				    &ssm_wdt_pke_low);
+	/* Enable watchdog timer for sym and dc */
+	ADF_CSR_WR64_LO_HI(pmisc_addr, ADF_SSMWDTL_OFFSET, ADF_SSMWDTH_OFFSET, timer_val);
 
-	/* Enable WDT for sym and dc */
-	ADF_CSR_WR(pmisc_addr, ADF_SSMWDTL_OFFSET, ssm_wdt_low);
-	ADF_CSR_WR(pmisc_addr, ADF_SSMWDTH_OFFSET, ssm_wdt_high);
-	/* Enable WDT for pke */
-	ADF_CSR_WR(pmisc_addr, ADF_SSMWDTPKEL_OFFSET, ssm_wdt_pke_low);
-	ADF_CSR_WR(pmisc_addr, ADF_SSMWDTPKEH_OFFSET, ssm_wdt_pke_high);
+	/* Enable watchdog timer for pke */
+	ADF_CSR_WR64_LO_HI(pmisc_addr, ADF_SSMWDTPKEL_OFFSET, ADF_SSMWDTPKEH_OFFSET,
+			   timer_val_pke);
 }
 EXPORT_SYMBOL_GPL(adf_gen4_set_ssm_wdtimer);
 
@@ -265,17 +248,28 @@ static bool is_single_service(int service_id)
 	case SVC_SYM:
 	case SVC_ASYM:
 		return true;
-	case SVC_CY:
-	case SVC_CY2:
-	case SVC_DCC:
-	case SVC_ASYM_DC:
-	case SVC_DC_ASYM:
-	case SVC_SYM_DC:
-	case SVC_DC_SYM:
 	default:
 		return false;
 	}
 }
+
+bool adf_gen4_services_supported(unsigned long mask)
+{
+	unsigned long num_svc = hweight_long(mask);
+
+	if (mask >= BIT(SVC_BASE_COUNT))
+		return false;
+
+	switch (num_svc) {
+	case ADF_ONE_SERVICE:
+		return true;
+	case ADF_TWO_SERVICES:
+		return !test_bit(SVC_DCC, &mask);
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL_GPL(adf_gen4_services_supported);
 
 int adf_gen4_init_thd2arb_map(struct adf_accel_dev *accel_dev)
 {

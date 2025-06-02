@@ -7,43 +7,20 @@
  * Copyright 2024 Google LLC
  */
 
-#include <asm/cpufeatures.h>
-#include <asm/simd.h>
-#include <crypto/internal/simd.h>
 #include <linux/crc32.h>
-#include <linux/linkage.h>
 #include <linux/module.h>
-
-/* minimum size of buffer for crc32_pclmul_le_16 */
-#define CRC32_PCLMUL_MIN_LEN	64
+#include "crc-pclmul-template.h"
 
 static DEFINE_STATIC_KEY_FALSE(have_crc32);
 static DEFINE_STATIC_KEY_FALSE(have_pclmulqdq);
 
-u32 crc32_pclmul_le_16(u32 crc, const u8 *buffer, size_t len);
+DECLARE_CRC_PCLMUL_FUNCS(crc32_lsb, u32);
 
 u32 crc32_le_arch(u32 crc, const u8 *p, size_t len)
 {
-	if (len >= CRC32_PCLMUL_MIN_LEN + 15 &&
-	    static_branch_likely(&have_pclmulqdq) && crypto_simd_usable()) {
-		size_t n = -(uintptr_t)p & 15;
-
-		/* align p to 16-byte boundary */
-		if (n) {
-			crc = crc32_le_base(crc, p, n);
-			p += n;
-			len -= n;
-		}
-		n = round_down(len, 16);
-		kernel_fpu_begin();
-		crc = crc32_pclmul_le_16(crc, p, n);
-		kernel_fpu_end();
-		p += n;
-		len -= n;
-	}
-	if (len)
-		crc = crc32_le_base(crc, p, len);
-	return crc;
+	CRC_PCLMUL(crc, p, len, crc32_lsb, crc32_lsb_0xedb88320_consts,
+		   have_pclmulqdq);
+	return crc32_le_base(crc, p, len);
 }
 EXPORT_SYMBOL(crc32_le_arch);
 
@@ -61,12 +38,12 @@ EXPORT_SYMBOL(crc32_le_arch);
 
 asmlinkage u32 crc32c_x86_3way(u32 crc, const u8 *buffer, size_t len);
 
-u32 crc32c_le_arch(u32 crc, const u8 *p, size_t len)
+u32 crc32c_arch(u32 crc, const u8 *p, size_t len)
 {
 	size_t num_longs;
 
 	if (!static_branch_likely(&have_crc32))
-		return crc32c_le_base(crc, p, len);
+		return crc32c_base(crc, p, len);
 
 	if (IS_ENABLED(CONFIG_X86_64) && len >= CRC32C_PCLMUL_BREAKEVEN &&
 	    static_branch_likely(&have_pclmulqdq) && crypto_simd_usable()) {
@@ -78,14 +55,22 @@ u32 crc32c_le_arch(u32 crc, const u8 *p, size_t len)
 
 	for (num_longs = len / sizeof(unsigned long);
 	     num_longs != 0; num_longs--, p += sizeof(unsigned long))
-		asm(CRC32_INST : "+r" (crc) : "rm" (*(unsigned long *)p));
+		asm(CRC32_INST : "+r" (crc) : ASM_INPUT_RM (*(unsigned long *)p));
 
-	for (len %= sizeof(unsigned long); len; len--, p++)
-		asm("crc32b %1, %0" : "+r" (crc) : "rm" (*p));
+	if (sizeof(unsigned long) > 4 && (len & 4)) {
+		asm("crc32l %1, %0" : "+r" (crc) : ASM_INPUT_RM (*(u32 *)p));
+		p += 4;
+	}
+	if (len & 2) {
+		asm("crc32w %1, %0" : "+r" (crc) : ASM_INPUT_RM (*(u16 *)p));
+		p += 2;
+	}
+	if (len & 1)
+		asm("crc32b %1, %0" : "+r" (crc) : ASM_INPUT_RM (*p));
 
 	return crc;
 }
-EXPORT_SYMBOL(crc32c_le_arch);
+EXPORT_SYMBOL(crc32c_arch);
 
 u32 crc32_be_arch(u32 crc, const u8 *p, size_t len)
 {
@@ -97,8 +82,10 @@ static int __init crc32_x86_init(void)
 {
 	if (boot_cpu_has(X86_FEATURE_XMM4_2))
 		static_branch_enable(&have_crc32);
-	if (boot_cpu_has(X86_FEATURE_PCLMULQDQ))
+	if (boot_cpu_has(X86_FEATURE_PCLMULQDQ)) {
 		static_branch_enable(&have_pclmulqdq);
+		INIT_CRC_PCLMUL(crc32_lsb);
+	}
 	return 0;
 }
 arch_initcall(crc32_x86_init);

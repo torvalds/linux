@@ -221,20 +221,19 @@ static void tsnep_phy_link_status_change(struct net_device *netdev)
 
 static int tsnep_phy_loopback(struct tsnep_adapter *adapter, bool enable)
 {
-	int retval;
+	int speed;
 
-	retval = phy_loopback(adapter->phydev, enable);
-
-	/* PHY link state change is not signaled if loopback is enabled, it
-	 * would delay a working loopback anyway, let's ensure that loopback
-	 * is working immediately by setting link mode directly
-	 */
-	if (!retval && enable) {
-		netif_carrier_on(adapter->netdev);
-		tsnep_set_link_mode(adapter);
+	if (enable) {
+		if (adapter->phydev->autoneg == AUTONEG_DISABLE &&
+		    adapter->phydev->speed == SPEED_100)
+			speed = SPEED_100;
+		else
+			speed = SPEED_1000;
+	} else {
+		speed = 0;
 	}
 
-	return retval;
+	return phy_loopback(adapter->phydev, enable, speed);
 }
 
 static int tsnep_phy_open(struct tsnep_adapter *adapter)
@@ -852,8 +851,8 @@ static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 			struct skb_shared_hwtstamps hwtstamps;
 			u64 timestamp;
 
-			if (skb_shinfo(entry->skb)->tx_flags &
-			    SKBTX_HW_TSTAMP_USE_CYCLES)
+			if (entry->skb->sk &&
+			    READ_ONCE(entry->skb->sk->sk_tsflags) & SOF_TIMESTAMPING_BIND_PHC)
 				timestamp =
 					__le64_to_cpu(entry->desc_wb->counter);
 			else

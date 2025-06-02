@@ -17,14 +17,27 @@
  * Alignment fixed up by hardware.
  */
 
-	.p2align 4
-	// Alignment is for the loop, but since the prologue (including BTI)
-	// is also 16 bytes we can keep any padding outside the function
 SYM_FUNC_START(__arch_clear_user)
 	add	x2, x0, x1
+
+#ifdef CONFIG_AS_HAS_MOPS
+	.arch_extension mops
+alternative_if_not ARM64_HAS_MOPS
+	b	.Lno_mops
+alternative_else_nop_endif
+
+USER(9f, setpt	[x0]!, x1!, xzr)
+USER(6f, setmt	[x0]!, x1!, xzr)
+USER(6f, setet	[x0]!, x1!, xzr)
+	mov	x0, #0
+	ret
+.Lno_mops:
+#endif
+
 	subs	x1, x1, #8
 	b.mi	2f
-1:
+
+1:	.p2align 4
 USER(9f, sttr	xzr, [x0])
 	add	x0, x0, #8
 	subs	x1, x1, #8
@@ -47,6 +60,10 @@ USER(7f, sttrb	wzr, [x2, #-1])
 	ret
 
 	// Exception fixups
+6:	b.cs	9f
+	// Registers are in Option A format
+	add	x0, x0, x1
+	b	9f
 7:	sub	x0, x2, #5	// Adjust for faulting on the final byte...
 8:	add	x0, x0, #4	// ...or the second word of the 4-7 byte case
 9:	sub	x0, x2, x0

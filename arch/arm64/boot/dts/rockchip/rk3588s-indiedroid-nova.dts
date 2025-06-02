@@ -278,7 +278,7 @@
 	};
 };
 
-&hdptxphy_hdmi0 {
+&hdptxphy0 {
 	status = "okay";
 };
 
@@ -412,7 +412,7 @@
 	status = "okay";
 
 	es8388: audio-codec@11 {
-		compatible = "everest,es8388";
+		compatible = "everest,es8388", "everest,es8328";
 		reg = <0x11>;
 		assigned-clock-rates = <12288000>;
 		assigned-clocks = <&cru I2S0_8CH_MCLKOUT>;
@@ -453,6 +453,10 @@
 	pinctrl-0 = <&rtl8111_perstb>;
 	pinctrl-names = "default";
 	status = "okay";
+};
+
+&pd_gpu {
+	domain-supply = <&vdd_gpu_s0>;
 };
 
 &pinctrl {

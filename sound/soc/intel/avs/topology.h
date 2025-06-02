@@ -74,9 +74,16 @@ struct avs_tplg_modcfg_ext {
 			union avs_virtual_index vindex;
 			u32 dma_type;
 			u32 dma_buffer_size;
-			u32 config_length;
-			/* config_data part of priv data */
 		} copier;
+		struct {
+			struct avs_audio_format *ref_fmt;
+			struct avs_audio_format *out_fmt;
+			u32 wake_tick_period;
+			union avs_virtual_index vindex;
+			u32 dma_type;
+			u32 dma_buffer_size;
+			struct avs_audio_format *blob_fmt; /* optional override */
+		} whm;
 		struct {
 			u32 out_channel_config;
 			u32 coefficients_select;
@@ -106,6 +113,11 @@ struct avs_tplg_modcfg_ext {
 		struct {
 			struct avs_audio_format *out_fmt;
 		} micsel;
+		struct {
+			u32 target_volume;
+			u32 curve_type;
+			u32 curve_duration;
+		} peakvol;
 	};
 };
 

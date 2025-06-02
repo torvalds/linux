@@ -925,7 +925,6 @@ void rvu_mcs_exit(struct rvu *rvu)
 	if (!rvu->mcs_intr_wq)
 		return;
 
-	flush_workqueue(rvu->mcs_intr_wq);
 	destroy_workqueue(rvu->mcs_intr_wq);
 	rvu->mcs_intr_wq = NULL;
 }

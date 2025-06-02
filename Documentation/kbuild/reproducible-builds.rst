@@ -46,21 +46,6 @@ The kernel embeds the building user and host names in
 `KBUILD_BUILD_USER and KBUILD_BUILD_HOST`_ variables.  If you are
 building from a git commit, you could use its committer address.
 
-Absolute filenames
-------------------
-
-When the kernel is built out-of-tree, debug information may include
-absolute filenames for the source files.  This must be overridden by
-including the ``-fdebug-prefix-map`` option in the `KCFLAGS`_ variable.
-
-Depending on the compiler used, the ``__FILE__`` macro may also expand
-to an absolute filename in an out-of-tree build.  Kbuild automatically
-uses the ``-fmacro-prefix-map`` option to prevent this, if it is
-supported.
-
-The Reproducible Builds web site has more information about these
-`prefix-map options`_.
-
 Generated files in source packages
 ----------------------------------
 
@@ -131,7 +116,5 @@ See ``scripts/setlocalversion`` for details.
 
 .. _KBUILD_BUILD_TIMESTAMP: kbuild.html#kbuild-build-timestamp
 .. _KBUILD_BUILD_USER and KBUILD_BUILD_HOST: kbuild.html#kbuild-build-user-kbuild-build-host
-.. _KCFLAGS: kbuild.html#kcflags
-.. _prefix-map options: https://reproducible-builds.org/docs/build-path/
 .. _Reproducible Builds project: https://reproducible-builds.org/
 .. _SOURCE_DATE_EPOCH: https://reproducible-builds.org/docs/source-date-epoch/

@@ -842,10 +842,12 @@ void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, u64 nr,
 /*
  * Start IO and wait for a given ordered extent to finish.
  *
- * Wait on page writeback for all the pages in the extent and the IO completion
- * code to insert metadata into the btree corresponding to the extent.
+ * Wait on page writeback for all the pages in the extent but not in
+ * [@nowriteback_start, @nowriteback_start + @nowriteback_len) and the
+ * IO completion code to insert metadata into the btree corresponding to the extent.
  */
-void btrfs_start_ordered_extent(struct btrfs_ordered_extent *entry)
+void btrfs_start_ordered_extent_nowriteback(struct btrfs_ordered_extent *entry,
+					    u64 nowriteback_start, u32 nowriteback_len)
 {
 	u64 start = entry->file_offset;
 	u64 end = start + entry->num_bytes - 1;
@@ -865,8 +867,19 @@ void btrfs_start_ordered_extent(struct btrfs_ordered_extent *entry)
 	 * start IO on any dirty ones so the wait doesn't stall waiting
 	 * for the flusher thread to find them
 	 */
-	if (!test_bit(BTRFS_ORDERED_DIRECT, &entry->flags))
-		filemap_fdatawrite_range(inode->vfs_inode.i_mapping, start, end);
+	if (!test_bit(BTRFS_ORDERED_DIRECT, &entry->flags)) {
+		if (!nowriteback_len) {
+			filemap_fdatawrite_range(inode->vfs_inode.i_mapping, start, end);
+		} else {
+			if (start < nowriteback_start)
+				filemap_fdatawrite_range(inode->vfs_inode.i_mapping, start,
+							 nowriteback_start - 1);
+			if (nowriteback_start + nowriteback_len < end)
+				filemap_fdatawrite_range(inode->vfs_inode.i_mapping,
+							 nowriteback_start + nowriteback_len,
+							 end);
+		}
+	}
 
 	if (!freespace_inode)
 		btrfs_might_wait_for_event(inode->root->fs_info, btrfs_ordered_extent);

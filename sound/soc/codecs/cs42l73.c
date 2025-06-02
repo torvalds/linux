@@ -943,11 +943,11 @@ static int cs42l73_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	mmcc = snd_soc_component_read(component, CS42L73_MMCC(id));
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		mmcc |= CS42L73_MS_MASTER;
 		break;
 
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		mmcc &= ~CS42L73_MS_MASTER;
 		break;
 

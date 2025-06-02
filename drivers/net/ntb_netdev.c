@@ -291,7 +291,7 @@ static int ntb_netdev_close(struct net_device *ndev)
 	while ((skb = ntb_transport_rx_remove(dev->qp, &len)))
 		dev_kfree_skb(skb);
 
-	del_timer_sync(&dev->tx_timer);
+	timer_delete_sync(&dev->tx_timer);
 
 	return 0;
 }

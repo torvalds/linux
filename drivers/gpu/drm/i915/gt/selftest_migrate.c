@@ -660,7 +660,7 @@ static int live_emit_pte_full_ring(void *arg)
 
 out_rq:
 	i915_request_add(rq); /* GEM_BUG_ON(rq->reserved_space > ring->space)? */
-	del_timer_sync(&st.timer);
+	timer_delete_sync(&st.timer);
 	destroy_timer_on_stack(&st.timer);
 out_unpin:
 	intel_context_unpin(ce);

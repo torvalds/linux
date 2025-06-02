@@ -1009,6 +1009,7 @@ int btrfs_test_delayed_refs(u32 sectorsize, u32 nodesize)
 	if (!ret)
 		ret = select_delayed_refs_test(&trans);
 
+	kfree(transaction);
 out_free_fs_info:
 	btrfs_free_dummy_fs_info(fs_info);
 	return ret;

@@ -27,7 +27,7 @@ __description("Private stack, single prog")
 __success
 __arch_x86_64
 __jited("	movabsq	$0x{{.*}}, %r9")
-__jited("	addq	%gs:0x{{.*}}, %r9")
+__jited("	addq	%gs:{{.*}}, %r9")
 __jited("	movl	$0x2a, %edi")
 __jited("	movq	%rdi, -0x100(%r9)")
 __naked void private_stack_single_prog(void)
@@ -74,7 +74,7 @@ __success
 __arch_x86_64
 /* private stack fp for the main prog */
 __jited("	movabsq	$0x{{.*}}, %r9")
-__jited("	addq	%gs:0x{{.*}}, %r9")
+__jited("	addq	%gs:{{.*}}, %r9")
 __jited("	movl	$0x2a, %edi")
 __jited("	movq	%rdi, -0x200(%r9)")
 __jited("	pushq	%r9")
@@ -122,7 +122,7 @@ __jited("	pushq	%rbp")
 __jited("	movq	%rsp, %rbp")
 __jited("	endbr64")
 __jited("	movabsq	$0x{{.*}}, %r9")
-__jited("	addq	%gs:0x{{.*}}, %r9")
+__jited("	addq	%gs:{{.*}}, %r9")
 __jited("	pushq	%r9")
 __jited("	callq")
 __jited("	popq	%r9")

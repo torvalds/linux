@@ -2,7 +2,6 @@
 
 //! Kernel types.
 
-use crate::init::{self, PinInit};
 use core::{
     cell::UnsafeCell,
     marker::{PhantomData, PhantomPinned},
@@ -10,6 +9,7 @@ use core::{
     ops::{Deref, DerefMut},
     ptr::NonNull,
 };
+use pin_init::{PinInit, Zeroable};
 
 /// Used to transfer ownership to and from foreign (non-Rust) languages.
 ///
@@ -77,7 +77,7 @@ pub trait ForeignOwnable: Sized {
     ///
     /// The provided pointer must have been returned by a previous call to [`into_foreign`], and if
     /// the pointer is ever passed to [`from_foreign`], then that call must happen after the end of
-    /// the lifetime 'a.
+    /// the lifetime `'a`.
     ///
     /// [`into_foreign`]: Self::into_foreign
     /// [`from_foreign`]: Self::from_foreign
@@ -100,9 +100,9 @@ pub trait ForeignOwnable: Sized {
     ///
     /// The provided pointer must have been returned by a previous call to [`into_foreign`], and if
     /// the pointer is ever passed to [`from_foreign`], then that call must happen after the end of
-    /// the lifetime 'a.
+    /// the lifetime `'a`.
     ///
-    /// The lifetime 'a must not overlap with the lifetime of any other call to [`borrow`] or
+    /// The lifetime `'a` must not overlap with the lifetime of any other call to [`borrow`] or
     /// `borrow_mut` on the same object.
     ///
     /// [`into_foreign`]: Self::into_foreign
@@ -251,7 +251,7 @@ impl<T, F: FnOnce(T)> Drop for ScopeGuard<T, F> {
 
 /// Stores an opaque value.
 ///
-/// `Opaque<T>` is meant to be used with FFI objects that are never interpreted by Rust code.
+/// [`Opaque<T>`] is meant to be used with FFI objects that are never interpreted by Rust code.
 ///
 /// It is used to wrap structs from the C side, like for example `Opaque<bindings::mutex>`.
 /// It gets rid of all the usual assumptions that Rust has for a value:
@@ -266,7 +266,7 @@ impl<T, F: FnOnce(T)> Drop for ScopeGuard<T, F> {
 /// This has to be used for all values that the C side has access to, because it can't be ensured
 /// that the C side is adhering to the usual constraints that Rust needs.
 ///
-/// Using `Opaque<T>` allows to continue to use references on the Rust side even for values shared
+/// Using [`Opaque<T>`] allows to continue to use references on the Rust side even for values shared
 /// with C.
 ///
 /// # Examples
@@ -309,6 +309,9 @@ pub struct Opaque<T> {
     _pin: PhantomPinned,
 }
 
+// SAFETY: `Opaque<T>` allows the inner value to be any bit pattern, including all zeros.
+unsafe impl<T> Zeroable for Opaque<T> {}
+
 impl<T> Opaque<T> {
     /// Creates a new opaque value.
     pub const fn new(value: T) -> Self {
@@ -333,7 +336,7 @@ impl<T> Opaque<T> {
             //   - `ptr` is a valid pointer to uninitialized memory,
             //   - `slot` is not accessed on error; the call is infallible,
             //   - `slot` is pinned in memory.
-            let _ = unsafe { init::PinInit::<T>::__pinned_init(slot, ptr) };
+            let _ = unsafe { PinInit::<T>::__pinned_init(slot, ptr) };
         })
     }
 
@@ -349,7 +352,7 @@ impl<T> Opaque<T> {
         // SAFETY: We contain a `MaybeUninit`, so it is OK for the `init_func` to not fully
         // initialize the `T`.
         unsafe {
-            init::pin_init_from_closure::<_, ::core::convert::Infallible>(move |slot| {
+            pin_init::pin_init_from_closure::<_, ::core::convert::Infallible>(move |slot| {
                 init_func(Self::raw_get(slot));
                 Ok(())
             })
@@ -369,7 +372,9 @@ impl<T> Opaque<T> {
     ) -> impl PinInit<Self, E> {
         // SAFETY: We contain a `MaybeUninit`, so it is OK for the `init_func` to not fully
         // initialize the `T`.
-        unsafe { init::pin_init_from_closure::<_, E>(move |slot| init_func(Self::raw_get(slot))) }
+        unsafe {
+            pin_init::pin_init_from_closure::<_, E>(move |slot| init_func(Self::raw_get(slot)))
+        }
     }
 
     /// Returns a raw pointer to the opaque data.

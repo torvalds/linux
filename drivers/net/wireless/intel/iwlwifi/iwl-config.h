@@ -534,7 +534,6 @@ extern const char iwl9560_killer_1550i_name[];
 extern const char iwl9560_killer_1550s_name[];
 extern const char iwl_ax200_name[];
 extern const char iwl_ax203_name[];
-extern const char iwl_ax204_name[];
 extern const char iwl_ax201_name[];
 extern const char iwl_ax101_name[];
 extern const char iwl_ax200_killer_1650w_name[];
@@ -550,17 +549,12 @@ extern const char iwl_ax211_killer_1675i_name[];
 extern const char iwl_ax411_killer_1690s_name[];
 extern const char iwl_ax411_killer_1690i_name[];
 extern const char iwl_ax211_name[];
-extern const char iwl_ax221_name[];
 extern const char iwl_ax231_name[];
 extern const char iwl_ax411_name[];
-extern const char iwl_bz_name[];
 extern const char iwl_fm_name[];
 extern const char iwl_wh_name[];
 extern const char iwl_gl_name[];
 extern const char iwl_mtp_name[];
-extern const char iwl_sc_name[];
-extern const char iwl_sc2_name[];
-extern const char iwl_sc2f_name[];
 extern const char iwl_dr_name[];
 extern const char iwl_br_name[];
 #if IS_ENABLED(CONFIG_IWLDVM)
@@ -662,6 +656,12 @@ extern const struct iwl_cfg iwl_cfg_ma;
 
 extern const struct iwl_cfg iwl_cfg_so_a0_hr_a0;
 extern const struct iwl_cfg iwl_cfg_quz_a0_hr_b0;
+#endif /* CONFIG_IWLMVM */
+
+#if IS_ENABLED(CONFIG_IWLMLD)
+extern const struct iwl_ht_params iwl_bz_ht_params;
+
+extern const struct iwl_ht_params iwl_bz_ht_params;
 
 extern const struct iwl_cfg iwl_cfg_bz;
 extern const struct iwl_cfg iwl_cfg_gl;
@@ -671,6 +671,6 @@ extern const struct iwl_cfg iwl_cfg_sc2;
 extern const struct iwl_cfg iwl_cfg_sc2f;
 extern const struct iwl_cfg iwl_cfg_dr;
 extern const struct iwl_cfg iwl_cfg_br;
-#endif /* CONFIG_IWLMVM */
+#endif /* CONFIG_IWLMLD */
 
 #endif /* __IWL_CONFIG_H__ */

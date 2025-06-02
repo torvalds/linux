@@ -31,6 +31,7 @@
 
 */
 
+#include <linux/cleanup.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
@@ -69,10 +70,9 @@ MODULE_PARM_DESC(gpiobase, "The GPIO number base. -1 means dynamic, which is the
 static int bt8xxgpio_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 {
 	struct bt8xxgpio *bg = gpiochip_get_data(gpio);
-	unsigned long flags;
 	u32 outen, data;
 
-	spin_lock_irqsave(&bg->lock, flags);
+	guard(spinlock_irqsave)(&bg->lock);
 
 	data = bgread(BT848_GPIO_DATA);
 	data &= ~(1 << nr);
@@ -82,20 +82,17 @@ static int bt8xxgpio_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 	outen &= ~(1 << nr);
 	bgwrite(outen, BT848_GPIO_OUT_EN);
 
-	spin_unlock_irqrestore(&bg->lock, flags);
-
 	return 0;
 }
 
 static int bt8xxgpio_gpio_get(struct gpio_chip *gpio, unsigned nr)
 {
 	struct bt8xxgpio *bg = gpiochip_get_data(gpio);
-	unsigned long flags;
 	u32 val;
 
-	spin_lock_irqsave(&bg->lock, flags);
+	guard(spinlock_irqsave)(&bg->lock);
+
 	val = bgread(BT848_GPIO_DATA);
-	spin_unlock_irqrestore(&bg->lock, flags);
 
 	return !!(val & (1 << nr));
 }
@@ -104,10 +101,9 @@ static int bt8xxgpio_gpio_direction_output(struct gpio_chip *gpio,
 					unsigned nr, int val)
 {
 	struct bt8xxgpio *bg = gpiochip_get_data(gpio);
-	unsigned long flags;
 	u32 outen, data;
 
-	spin_lock_irqsave(&bg->lock, flags);
+	guard(spinlock_irqsave)(&bg->lock);
 
 	outen = bgread(BT848_GPIO_OUT_EN);
 	outen |= (1 << nr);
@@ -120,19 +116,15 @@ static int bt8xxgpio_gpio_direction_output(struct gpio_chip *gpio,
 		data &= ~(1 << nr);
 	bgwrite(data, BT848_GPIO_DATA);
 
-	spin_unlock_irqrestore(&bg->lock, flags);
-
 	return 0;
 }
 
-static void bt8xxgpio_gpio_set(struct gpio_chip *gpio,
-			    unsigned nr, int val)
+static int bt8xxgpio_gpio_set(struct gpio_chip *gpio, unsigned int nr, int val)
 {
 	struct bt8xxgpio *bg = gpiochip_get_data(gpio);
-	unsigned long flags;
 	u32 data;
 
-	spin_lock_irqsave(&bg->lock, flags);
+	guard(spinlock_irqsave)(&bg->lock);
 
 	data = bgread(BT848_GPIO_DATA);
 	if (val)
@@ -141,7 +133,7 @@ static void bt8xxgpio_gpio_set(struct gpio_chip *gpio,
 		data &= ~(1 << nr);
 	bgwrite(data, BT848_GPIO_DATA);
 
-	spin_unlock_irqrestore(&bg->lock, flags);
+	return 0;
 }
 
 static void bt8xxgpio_gpio_setup(struct bt8xxgpio *bg)
@@ -153,7 +145,7 @@ static void bt8xxgpio_gpio_setup(struct bt8xxgpio *bg)
 	c->direction_input = bt8xxgpio_gpio_direction_input;
 	c->get = bt8xxgpio_gpio_get;
 	c->direction_output = bt8xxgpio_gpio_direction_output;
-	c->set = bt8xxgpio_gpio_set;
+	c->set_rv = bt8xxgpio_gpio_set;
 	c->dbg_show = NULL;
 	c->base = modparam_gpiobase;
 	c->ngpio = BT8XXGPIO_NR_GPIOS;
@@ -236,18 +228,15 @@ static void bt8xxgpio_remove(struct pci_dev *pdev)
 static int bt8xxgpio_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct bt8xxgpio *bg = pci_get_drvdata(pdev);
-	unsigned long flags;
 
-	spin_lock_irqsave(&bg->lock, flags);
+	scoped_guard(spinlock_irqsave, &bg->lock) {
+		bg->saved_outen = bgread(BT848_GPIO_OUT_EN);
+		bg->saved_data = bgread(BT848_GPIO_DATA);
 
-	bg->saved_outen = bgread(BT848_GPIO_OUT_EN);
-	bg->saved_data = bgread(BT848_GPIO_DATA);
-
-	bgwrite(0, BT848_INT_MASK);
-	bgwrite(~0x0, BT848_INT_STAT);
-	bgwrite(0x0, BT848_GPIO_OUT_EN);
-
-	spin_unlock_irqrestore(&bg->lock, flags);
+		bgwrite(0, BT848_INT_MASK);
+		bgwrite(~0x0, BT848_INT_STAT);
+		bgwrite(0x0, BT848_GPIO_OUT_EN);
+	}
 
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
@@ -259,7 +248,6 @@ static int bt8xxgpio_suspend(struct pci_dev *pdev, pm_message_t state)
 static int bt8xxgpio_resume(struct pci_dev *pdev)
 {
 	struct bt8xxgpio *bg = pci_get_drvdata(pdev);
-	unsigned long flags;
 	int err;
 
 	pci_set_power_state(pdev, PCI_D0);
@@ -268,7 +256,7 @@ static int bt8xxgpio_resume(struct pci_dev *pdev)
 		return err;
 	pci_restore_state(pdev);
 
-	spin_lock_irqsave(&bg->lock, flags);
+	guard(spinlock_irqsave)(&bg->lock);
 
 	bgwrite(0, BT848_INT_MASK);
 	bgwrite(0, BT848_GPIO_DMA_CTL);
@@ -276,8 +264,6 @@ static int bt8xxgpio_resume(struct pci_dev *pdev)
 	bgwrite(bg->saved_outen, BT848_GPIO_OUT_EN);
 	bgwrite(bg->saved_data & bg->saved_outen,
 		BT848_GPIO_DATA);
-
-	spin_unlock_irqrestore(&bg->lock, flags);
 
 	return 0;
 }

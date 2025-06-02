@@ -390,7 +390,7 @@ static void mwifiex_invalidate_lists(struct mwifiex_adapter *adapter)
 static void
 mwifiex_adapter_cleanup(struct mwifiex_adapter *adapter)
 {
-	del_timer(&adapter->wakeup_timer);
+	timer_delete(&adapter->wakeup_timer);
 	cancel_delayed_work_sync(&adapter->devdump_work);
 	mwifiex_cancel_all_pending_cmd(adapter);
 	wake_up_interruptible(&adapter->cmd_wait_q.wait);
@@ -613,7 +613,7 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 	if (adapter->curr_cmd) {
 		mwifiex_dbg(adapter, WARN,
 			    "curr_cmd is still in processing\n");
-		del_timer_sync(&adapter->cmd_timer);
+		timer_delete_sync(&adapter->cmd_timer);
 		mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
 		adapter->curr_cmd = NULL;
 	}

@@ -374,6 +374,7 @@ static void b53_mdio_shutdown(struct mdio_device *mdiodev)
 
 static const struct of_device_id b53_of_match[] = {
 	{ .compatible = "brcm,bcm5325" },
+	{ .compatible = "brcm,bcm53101" },
 	{ .compatible = "brcm,bcm53115" },
 	{ .compatible = "brcm,bcm53125" },
 	{ .compatible = "brcm,bcm53128" },

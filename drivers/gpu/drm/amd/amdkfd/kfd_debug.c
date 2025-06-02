@@ -204,11 +204,12 @@ bool kfd_set_dbg_ev_from_interrupt(struct kfd_node *dev,
 				   size_t exception_data_size)
 {
 	struct kfd_process *p;
+	struct kfd_process_device *pdd = NULL;
 	bool signaled_to_debugger_or_runtime = false;
 
-	p = kfd_lookup_process_by_pasid(pasid);
+	p = kfd_lookup_process_by_pasid(pasid, &pdd);
 
-	if (!p)
+	if (!pdd)
 		return false;
 
 	if (!kfd_dbg_ev_raise(trap_mask, p, dev, doorbell_id, true,
@@ -238,9 +239,8 @@ bool kfd_set_dbg_ev_from_interrupt(struct kfd_node *dev,
 
 			mutex_unlock(&p->mutex);
 		} else if (trap_mask & KFD_EC_MASK(EC_DEVICE_MEMORY_VIOLATION)) {
-			kfd_dqm_evict_pasid(dev->dqm, p->pasid);
-			kfd_signal_vm_fault_event(dev, p->pasid, NULL,
-							exception_data);
+			kfd_evict_process_device(pdd);
+			kfd_signal_vm_fault_event(pdd, NULL, exception_data);
 
 			signaled_to_debugger_or_runtime = true;
 		}
@@ -276,8 +276,8 @@ int kfd_dbg_send_exception_to_runtime(struct kfd_process *p,
 		data = (struct kfd_hsa_memory_exception_data *)
 						pdd->vm_fault_exc_data;
 
-		kfd_dqm_evict_pasid(pdd->dev->dqm, p->pasid);
-		kfd_signal_vm_fault_event(pdd->dev, p->pasid, NULL, data);
+		kfd_evict_process_device(pdd);
+		kfd_signal_vm_fault_event(pdd, NULL, data);
 		error_reason &= ~KFD_EC_MASK(EC_DEVICE_MEMORY_VIOLATION);
 	}
 
@@ -357,12 +357,12 @@ int kfd_dbg_set_mes_debug_mode(struct kfd_process_device *pdd, bool sq_trap_en)
 		return 0;
 
 	if (!pdd->proc_ctx_cpu_ptr) {
-			r = amdgpu_amdkfd_alloc_gtt_mem(adev,
-				AMDGPU_MES_PROC_CTX_SIZE,
-				&pdd->proc_ctx_bo,
-				&pdd->proc_ctx_gpu_addr,
-				&pdd->proc_ctx_cpu_ptr,
-				false);
+		r = amdgpu_amdkfd_alloc_gtt_mem(adev,
+			AMDGPU_MES_PROC_CTX_SIZE,
+			&pdd->proc_ctx_bo,
+			&pdd->proc_ctx_gpu_addr,
+			&pdd->proc_ctx_cpu_ptr,
+			false);
 		if (r) {
 			dev_err(adev->dev,
 			"failed to allocate process context bo\n");

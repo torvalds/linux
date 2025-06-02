@@ -65,6 +65,17 @@ properties:
       mode.
     type: boolean
 
+  snps,reserved-endpoints:
+    description:
+      Reserve endpoints for other needs, e.g, for tracing control and output.
+      When set, the driver will avoid using them for the regular USB transfers.
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    minItems: 1
+    maxItems: 30
+    items:
+      minimum: 2
+      maximum: 31
+
   snps,dis-start-transfer-quirk:
     description:
       When set, disable isoc START TRANSFER command failure SW work-around

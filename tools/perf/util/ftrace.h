@@ -24,6 +24,8 @@ struct perf_ftrace {
 	unsigned int		bucket_range;
 	unsigned int		min_latency;
 	unsigned int		max_latency;
+	unsigned int		bucket_num;
+	bool			hide_empty;
 	int			graph_depth;
 	int			func_stack_trace;
 	int			func_irq_info;

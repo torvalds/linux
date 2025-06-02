@@ -162,6 +162,8 @@ struct fib_info {
 	struct fib_nh		fib_nh[] __counted_by(fib_nhs);
 };
 
+int __net_init fib4_semantics_init(struct net *net);
+void __net_exit fib4_semantics_exit(struct net *net);
 
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 struct fib_rule;

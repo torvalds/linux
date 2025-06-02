@@ -860,6 +860,31 @@ struct cx23885_board cx23885_boards[] = {
 			.amux   = CX25840_AUDIO7,
 		} },
 	},
+	[CX23885_BOARD_AVERMEDIA_H789C] = {
+		.name		= "AVerMedia H789-C",
+		.porta		= CX23885_ANALOG_VIDEO,
+		.tuner_type	= TUNER_NXP_TDA18271,
+		.tuner_addr	= 0x63, /* 0xc0 >> 1 */
+		.tuner_bus	= 1,
+		.input		= {{
+			.type   = CX23885_VMUX_TELEVISION,
+			.vmux   = CX25840_VIN7_CH3 |
+				  CX25840_VIN5_CH2 |
+				  CX25840_VIN2_CH1 |
+				  CX25840_DIF_ON,
+			.amux   = CX25840_AUDIO8,
+		}, {
+			.type	= CX23885_VMUX_COMPOSITE1,
+			.vmux	= CX25840_VIN8_CH1,
+			.amux	= CX25840_AUDIO7,
+		}, {
+			.type	= CX23885_VMUX_SVIDEO,
+			.vmux	= CX25840_VIN8_CH1 |
+				  CX25840_VIN7_CH3 |
+				  CX25840_SVIDEO_ON,
+			.amux   = CX25840_AUDIO7,
+		}, },
+	},
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);
 
@@ -1187,6 +1212,10 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x1461,
 		.subdevice = 0x3100,
 		.card      = CX23885_BOARD_AVERMEDIA_CE310B,
+	}, {
+		.subvendor = 0x1461,
+		.subdevice = 0xe139,
+		.card      = CX23885_BOARD_AVERMEDIA_H789C,
 	},
 };
 const unsigned int cx23885_idcount = ARRAY_SIZE(cx23885_subids);
@@ -2413,6 +2442,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_VIEWCAST_260E:
 	case CX23885_BOARD_VIEWCAST_460E:
 	case CX23885_BOARD_AVERMEDIA_CE310B:
+	case CX23885_BOARD_AVERMEDIA_H789C:
 		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_bus[2].i2c_adap,
 				"cx25840", 0x88 >> 1, NULL);

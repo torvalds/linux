@@ -339,7 +339,7 @@ static void altera_uart_shutdown(struct uart_port *port)
 	if (port->irq)
 		free_irq(port->irq, port);
 	else
-		del_timer_sync(&pp->tmr);
+		timer_delete_sync(&pp->tmr);
 }
 
 static const char *altera_uart_type(struct uart_port *port)

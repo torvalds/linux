@@ -164,7 +164,7 @@ int xe_lmtt_init(struct xe_lmtt *lmtt)
 	lmtt_assert(lmtt, IS_SRIOV_PF(xe));
 	lmtt_assert(lmtt, !lmtt->ops);
 
-	if (!IS_DGFX(xe))
+	if (!xe_device_has_lmtt(xe))
 		return 0;
 
 	if (xe_has_multi_level_lmtt(xe))
@@ -486,7 +486,7 @@ u64 xe_lmtt_estimate_pt_size(struct xe_lmtt *lmtt, u64 size)
 	u64 pt_size;
 
 	lmtt_assert(lmtt, IS_SRIOV_PF(lmtt_to_xe(lmtt)));
-	lmtt_assert(lmtt, IS_DGFX(lmtt_to_xe(lmtt)));
+	lmtt_assert(lmtt, xe_device_has_lmtt(lmtt_to_xe(lmtt)));
 	lmtt_assert(lmtt, lmtt->ops);
 
 	pt_size = PAGE_ALIGN(lmtt->ops->lmtt_pte_size(level) *

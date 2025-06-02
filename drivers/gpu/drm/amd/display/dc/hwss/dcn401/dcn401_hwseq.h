@@ -93,6 +93,10 @@ void dcn401_reset_back_end_for_pipe(
 void dcn401_reset_hw_ctx_wrap(
 		struct dc *dc,
 		struct dc_state *context);
+void dcn401_program_pipe(
+	struct dc *dc,
+	struct pipe_ctx *pipe_ctx,
+	struct dc_state *context);
 void dcn401_perform_3dlut_wa_unlock(struct pipe_ctx *pipe_ctx);
 void dcn401_program_front_end_for_ctx(struct dc *dc, struct dc_state *context);
 void dcn401_post_unlock_program_front_end(struct dc *dc, struct dc_state *context);
@@ -102,4 +106,7 @@ void dcn401_detect_pipe_changes(
 	struct dc_state *new_state,
 	struct pipe_ctx *old_pipe,
 	struct pipe_ctx *new_pipe);
+void dcn401_plane_atomic_power_down(struct dc *dc,
+		struct dpp *dpp,
+		struct hubp *hubp);
 #endif /* __DC_HWSS_DCN401_H__ */

@@ -88,7 +88,7 @@
 };
 
 &portd {
-	lcden {
+	lcden-hog {
 		gpio-hog;
 		gpios = <2 GPIO_ACTIVE_HIGH>;
 		output-high;

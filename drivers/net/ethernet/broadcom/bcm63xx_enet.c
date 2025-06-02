@@ -1195,7 +1195,7 @@ static int bcm_enet_stop(struct net_device *dev)
 	napi_disable(&priv->napi);
 	if (priv->has_phy)
 		phy_stop(dev->phydev);
-	del_timer_sync(&priv->rx_timeout);
+	timer_delete_sync(&priv->rx_timeout);
 
 	/* mask all interrupts */
 	enet_writel(priv, 0, ENET_IRMASK_REG);
@@ -2346,10 +2346,10 @@ static int bcm_enetsw_stop(struct net_device *dev)
 	priv = netdev_priv(dev);
 	kdev = &priv->pdev->dev;
 
-	del_timer_sync(&priv->swphy_poll);
+	timer_delete_sync(&priv->swphy_poll);
 	netif_stop_queue(dev);
 	napi_disable(&priv->napi);
-	del_timer_sync(&priv->rx_timeout);
+	timer_delete_sync(&priv->rx_timeout);
 
 	/* mask all interrupts */
 	enet_dmac_writel(priv, 0, ENETDMAC_IRMASK, priv->rx_chan);

@@ -117,7 +117,7 @@ int wl1271_recalc_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	else {
 		ret = wl1271_set_rx_streaming(wl, wlvif, false);
 		/* don't cancel_work_sync since we might deadlock */
-		del_timer_sync(&wlvif->rx_streaming_timer);
+		timer_delete_sync(&wlvif->rx_streaming_timer);
 	}
 out:
 	return ret;
@@ -2841,7 +2841,7 @@ deinit:
 unlock:
 	mutex_unlock(&wl->mutex);
 
-	del_timer_sync(&wlvif->rx_streaming_timer);
+	timer_delete_sync(&wlvif->rx_streaming_timer);
 	cancel_work_sync(&wlvif->rx_streaming_enable_work);
 	cancel_work_sync(&wlvif->rx_streaming_disable_work);
 	cancel_work_sync(&wlvif->rc_update_work);

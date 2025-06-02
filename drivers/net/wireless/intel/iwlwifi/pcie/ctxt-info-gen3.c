@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 #include <linux/dmi.h>
 #include "iwl-trans.h"
@@ -136,6 +136,9 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 
 	if (trans->dsbr_urm_permanent)
 		control_flags_ext |= IWL_PRPH_SCRATCH_EXT_URM_PERM;
+
+	if (trans->ext_32khz_clock_valid)
+		control_flags_ext |= IWL_PRPH_SCRATCH_EXT_32KHZ_CLK_VALID;
 
 	/* Allocate prph scratch */
 	prph_scratch = dma_alloc_coherent(trans->dev, sizeof(*prph_scratch),

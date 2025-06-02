@@ -112,6 +112,7 @@ void bch2_printbuf_tabstop_pop(struct printbuf *);
 int bch2_printbuf_tabstop_push(struct printbuf *, unsigned);
 
 void bch2_printbuf_indent_add(struct printbuf *, unsigned);
+void bch2_printbuf_indent_add_nextline(struct printbuf *, unsigned);
 void bch2_printbuf_indent_sub(struct printbuf *, unsigned);
 
 void bch2_prt_newline(struct printbuf *);

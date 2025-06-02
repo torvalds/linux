@@ -36,7 +36,6 @@ struct vf610_gpio_port {
 	struct clk *clk_port;
 	struct clk *clk_gpio;
 	int irq;
-	spinlock_t lock; /* protect gpio direction registers */
 };
 
 #define GPIO_PDOR		0x00
@@ -92,78 +91,6 @@ static inline void vf610_gpio_writel(u32 val, void __iomem *reg)
 static inline u32 vf610_gpio_readl(void __iomem *reg)
 {
 	return readl_relaxed(reg);
-}
-
-static int vf610_gpio_get(struct gpio_chip *gc, unsigned int gpio)
-{
-	struct vf610_gpio_port *port = gpiochip_get_data(gc);
-	u32 mask = BIT(gpio);
-	unsigned long offset = GPIO_PDIR;
-
-	if (port->sdata->have_paddr) {
-		mask &= vf610_gpio_readl(port->gpio_base + GPIO_PDDR);
-		if (mask)
-			offset = GPIO_PDOR;
-	}
-
-	return !!(vf610_gpio_readl(port->gpio_base + offset) & BIT(gpio));
-}
-
-static void vf610_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
-{
-	struct vf610_gpio_port *port = gpiochip_get_data(gc);
-	u32 mask = BIT(gpio);
-	unsigned long offset = val ? GPIO_PSOR : GPIO_PCOR;
-
-	vf610_gpio_writel(mask, port->gpio_base + offset);
-}
-
-static int vf610_gpio_direction_input(struct gpio_chip *chip, unsigned int gpio)
-{
-	struct vf610_gpio_port *port = gpiochip_get_data(chip);
-	u32 mask = BIT(gpio);
-	u32 val;
-
-	if (port->sdata->have_paddr) {
-		guard(spinlock_irqsave)(&port->lock);
-		val = vf610_gpio_readl(port->gpio_base + GPIO_PDDR);
-		val &= ~mask;
-		vf610_gpio_writel(val, port->gpio_base + GPIO_PDDR);
-	}
-
-	return pinctrl_gpio_direction_input(chip, gpio);
-}
-
-static int vf610_gpio_direction_output(struct gpio_chip *chip, unsigned int gpio,
-				       int value)
-{
-	struct vf610_gpio_port *port = gpiochip_get_data(chip);
-	u32 mask = BIT(gpio);
-	u32 val;
-
-	vf610_gpio_set(chip, gpio, value);
-
-	if (port->sdata->have_paddr) {
-		guard(spinlock_irqsave)(&port->lock);
-		val = vf610_gpio_readl(port->gpio_base + GPIO_PDDR);
-		val |= mask;
-		vf610_gpio_writel(val, port->gpio_base + GPIO_PDDR);
-	}
-
-	return pinctrl_gpio_direction_output(chip, gpio);
-}
-
-static int vf610_gpio_get_direction(struct gpio_chip *gc, unsigned int gpio)
-{
-	struct vf610_gpio_port *port = gpiochip_get_data(gc);
-	u32 mask = BIT(gpio);
-
-	mask &= vf610_gpio_readl(port->gpio_base + GPIO_PDDR);
-
-	if (mask)
-		return GPIO_LINE_DIRECTION_OUT;
-
-	return GPIO_LINE_DIRECTION_IN;
 }
 
 static void vf610_gpio_irq_handler(struct irq_desc *desc)
@@ -291,6 +218,7 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	struct vf610_gpio_port *port;
 	struct gpio_chip *gc;
 	struct gpio_irq_chip *girq;
+	unsigned long flags;
 	int i;
 	int ret;
 	bool dual_base;
@@ -300,7 +228,6 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	port->sdata = device_get_match_data(dev);
-	spin_lock_init(&port->lock);
 
 	dual_base = port->sdata->have_dual_base;
 
@@ -367,23 +294,25 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	}
 
 	gc = &port->gc;
-	gc->parent = dev;
-	gc->label = dev_name(dev);
-	gc->ngpio = VF610_GPIO_PER_PORT;
-	gc->base = -1;
-
-	gc->request = gpiochip_generic_request;
-	gc->free = gpiochip_generic_free;
-	gc->direction_input = vf610_gpio_direction_input;
-	gc->get = vf610_gpio_get;
-	gc->direction_output = vf610_gpio_direction_output;
-	gc->set = vf610_gpio_set;
+	flags = BGPIOF_PINCTRL_BACKEND;
 	/*
-	 * only IP has Port Data Direction Register(PDDR) can
-	 * support get direction
+	 * We only read the output register for current value on output
+	 * lines if the direction register is available so we can switch
+	 * direction.
 	 */
 	if (port->sdata->have_paddr)
-		gc->get_direction = vf610_gpio_get_direction;
+		flags |= BGPIOF_READ_OUTPUT_REG_SET;
+	ret = bgpio_init(gc, dev, 4,
+			 port->gpio_base + GPIO_PDIR,
+			 port->gpio_base + GPIO_PDOR,
+			 NULL,
+			 port->sdata->have_paddr ? port->gpio_base + GPIO_PDDR : NULL,
+			 NULL,
+			 flags);
+	if (ret)
+		return dev_err_probe(dev, ret, "unable to init generic GPIO\n");
+	gc->label = dev_name(dev);
+	gc->base = -1;
 
 	/* Mask all GPIO interrupts */
 	for (i = 0; i < gc->ngpio; i++)

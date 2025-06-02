@@ -6,6 +6,7 @@
 #include "errcode.h"
 #include "error.h"
 #include "fs.h"
+#include "recovery_passes.h"
 #include "snapshot.h"
 #include "subvolume.h"
 
@@ -44,8 +45,8 @@ static int check_subvol(struct btree_trans *trans,
 	ret = bch2_snapshot_lookup(trans, snapid, &snapshot);
 
 	if (bch2_err_matches(ret, ENOENT))
-		bch_err(c, "subvolume %llu points to nonexistent snapshot %u",
-			k.k->p.offset, snapid);
+		return bch2_run_explicit_recovery_pass(c,
+					BCH_RECOVERY_PASS_reconstruct_snapshots) ?: ret;
 	if (ret)
 		return ret;
 
@@ -275,7 +276,7 @@ int bch2_subvol_has_children(struct btree_trans *trans, u32 subvol)
 	struct btree_iter iter;
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_subvolume_children, POS(subvol, 0), 0);
-	struct bkey_s_c k = bch2_btree_iter_peek(&iter);
+	struct bkey_s_c k = bch2_btree_iter_peek(trans, &iter);
 	bch2_trans_iter_exit(trans, &iter);
 
 	return bkey_err(k) ?: k.k && k.k->p.inode == subvol
@@ -561,6 +562,7 @@ int bch2_subvolume_unlink(struct btree_trans *trans, u32 subvolid)
 	}
 
 	SET_BCH_SUBVOLUME_UNLINKED(&n->v, true);
+	n->v.fs_path_parent = 0;
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
@@ -573,7 +575,7 @@ int bch2_subvolume_create(struct btree_trans *trans, u64 inode,
 			  bool ro)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter dst_iter, src_iter = (struct btree_iter) { NULL };
+	struct btree_iter dst_iter, src_iter = {};
 	struct bkey_i_subvolume *new_subvol = NULL;
 	struct bkey_i_subvolume *src_subvol = NULL;
 	u32 parent = 0, new_nodes[2], snapshot_subvols[2];

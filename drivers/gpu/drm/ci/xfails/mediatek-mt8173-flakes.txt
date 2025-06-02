@@ -39,3 +39,10 @@ kms_cursor_legacy@cursor-vs-flip-atomic-transitions
 # IGT Version: 1.28-g0df7b9b97
 # Linux Version: 6.9.0-rc7
 kms_prop_blob@invalid-set-prop
+
+# Board Name: mt8173-elm-hana
+# Bug Report: https://lore.kernel.org/dri-devel/c0b4cded-0971-4abb-9965-2acf4602d7cd@collabora.com/T/#u
+# Failure Rate: 100
+# IGT Version: 1.29-g33adea9eb
+# Linux Version: 6.13.0-rc2
+kms_bw@connected-linear-tiling-1-displays-2160x1440p

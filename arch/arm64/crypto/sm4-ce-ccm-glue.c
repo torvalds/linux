@@ -112,17 +112,12 @@ static void ccm_calculate_auth_mac(struct aead_request *req, u8 mac[])
 	scatterwalk_start(&walk, req->src);
 
 	do {
-		u32 n = scatterwalk_clamp(&walk, assoclen);
-		u8 *p, *ptr;
+		unsigned int n, orig_n;
+		const u8 *p;
 
-		if (!n) {
-			scatterwalk_start(&walk, sg_next(walk.sg));
-			n = scatterwalk_clamp(&walk, assoclen);
-		}
-
-		p = ptr = scatterwalk_map(&walk);
-		assoclen -= n;
-		scatterwalk_advance(&walk, n);
+		orig_n = scatterwalk_next(&walk, assoclen);
+		p = walk.addr;
+		n = orig_n;
 
 		while (n > 0) {
 			unsigned int l, nblocks;
@@ -136,9 +131,9 @@ static void ccm_calculate_auth_mac(struct aead_request *req, u8 mac[])
 				} else {
 					nblocks = n / SM4_BLOCK_SIZE;
 					sm4_ce_cbcmac_update(ctx->rkey_enc,
-							     mac, ptr, nblocks);
+							     mac, p, nblocks);
 
-					ptr += nblocks * SM4_BLOCK_SIZE;
+					p += nblocks * SM4_BLOCK_SIZE;
 					n %= SM4_BLOCK_SIZE;
 
 					continue;
@@ -147,15 +142,15 @@ static void ccm_calculate_auth_mac(struct aead_request *req, u8 mac[])
 
 			l = min(n, SM4_BLOCK_SIZE - len);
 			if (l) {
-				crypto_xor(mac + len, ptr, l);
+				crypto_xor(mac + len, p, l);
 				len += l;
-				ptr += l;
+				p += l;
 				n -= l;
 			}
 		}
 
-		scatterwalk_unmap(p);
-		scatterwalk_done(&walk, 0, assoclen);
+		scatterwalk_done_src(&walk, orig_n);
+		assoclen -= orig_n;
 	} while (assoclen);
 }
 

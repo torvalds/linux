@@ -4901,8 +4901,7 @@ static int hcd_fotg210_init(struct usb_hcd *hcd)
 	 */
 	fotg210->need_io_watchdog = 1;
 
-	hrtimer_init(&fotg210->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	fotg210->hrtimer.function = fotg210_hrtimer_func;
+	hrtimer_setup(&fotg210->hrtimer, fotg210_hrtimer_func, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	fotg210->next_hrtimer_event = FOTG210_HRTIMER_NO_EVENT;
 
 	hcc_params = fotg210_readl(fotg210, &fotg210->caps->hcc_params);

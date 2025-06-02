@@ -187,7 +187,6 @@ A few hard-to-categorize and generally obsolete documents.
 .. toctree::
    :maxdepth: 1
 
-   highuid
    ldm
    unicode
 

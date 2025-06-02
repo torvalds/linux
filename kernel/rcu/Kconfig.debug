@@ -54,7 +54,7 @@ config RCU_TORTURE_TEST
 	  Say N if you are unsure.
 
 config RCU_TORTURE_TEST_CHK_RDR_STATE
-	tristate "Check rcutorture reader state"
+	bool "Check rcutorture reader state"
 	depends on RCU_TORTURE_TEST
 	default n
 	help
@@ -70,7 +70,7 @@ config RCU_TORTURE_TEST_CHK_RDR_STATE
 	  Say N if you are unsure.
 
 config RCU_TORTURE_TEST_LOG_CPU
-	tristate "Log CPU for rcutorture failures"
+	bool "Log CPU for rcutorture failures"
 	depends on RCU_TORTURE_TEST
 	default n
 	help
@@ -82,6 +82,20 @@ config RCU_TORTURE_TEST_LOG_CPU
 	  less probable.
 
 	  Say Y here if you want CPU IDs logged.
+	  Say N if you are unsure.
+
+config RCU_TORTURE_TEST_LOG_GP
+	bool "Log grace-period numbers for rcutorture failures"
+	depends on RCU_TORTURE_TEST
+	default n
+	help
+	  This option causes rcutorture to decorate each entry of its
+	  log of failure/close-call rcutorture reader segments with the
+	  corresponding grace-period sequence numbers.	This information
+	  can be useful, but it does incur additional overhead, overhead
+	  that can make both failures and close calls less probable.
+
+	  Say Y here if you want grace-period sequence numbers logged.
 	  Say N if you are unsure.
 
 config RCU_REF_SCALE_TEST

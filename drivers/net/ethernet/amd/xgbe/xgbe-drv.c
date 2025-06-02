@@ -728,7 +728,7 @@ static void xgbe_stop_timers(struct xgbe_prv_data *pdata)
 	struct xgbe_channel *channel;
 	unsigned int i;
 
-	del_timer_sync(&pdata->service_timer);
+	timer_delete_sync(&pdata->service_timer);
 
 	for (i = 0; i < pdata->channel_count; i++) {
 		channel = pdata->channel[i];
@@ -736,7 +736,7 @@ static void xgbe_stop_timers(struct xgbe_prv_data *pdata)
 			break;
 
 		/* Deactivate the Tx timer */
-		del_timer_sync(&channel->tx_timer);
+		timer_delete_sync(&channel->tx_timer);
 		channel->tx_timer_active = 0;
 	}
 }
@@ -2257,10 +2257,17 @@ static int xgbe_set_features(struct net_device *netdev,
 	if (ret)
 		return ret;
 
-	if ((features & NETIF_F_RXCSUM) && !rxcsum)
+	if ((features & NETIF_F_RXCSUM) && !rxcsum) {
+		hw_if->enable_sph(pdata);
+		hw_if->enable_vxlan(pdata);
 		hw_if->enable_rx_csum(pdata);
-	else if (!(features & NETIF_F_RXCSUM) && rxcsum)
+		schedule_work(&pdata->restart_work);
+	} else if (!(features & NETIF_F_RXCSUM) && rxcsum) {
+		hw_if->disable_sph(pdata);
+		hw_if->disable_vxlan(pdata);
 		hw_if->disable_rx_csum(pdata);
+		schedule_work(&pdata->restart_work);
+	}
 
 	if ((features & NETIF_F_HW_VLAN_CTAG_RX) && !rxvlan)
 		hw_if->enable_rx_vlan_stripping(pdata);

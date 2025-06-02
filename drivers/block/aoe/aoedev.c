@@ -274,7 +274,7 @@ freedev(struct aoedev *d)
 	if (!freeing)
 		return;
 
-	del_timer_sync(&d->timer);
+	timer_delete_sync(&d->timer);
 	if (d->gd) {
 		aoedisk_rm_debugfs(d);
 		del_gendisk(d->gd);

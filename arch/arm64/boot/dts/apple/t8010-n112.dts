@@ -45,3 +45,7 @@
 		};
 	};
 };
+
+&framebuffer0 {
+	power-domains = <&ps_disp0_fe &ps_disp0_be &ps_mipi_dsi>;
+};

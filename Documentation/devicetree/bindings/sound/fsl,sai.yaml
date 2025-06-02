@@ -41,6 +41,10 @@ properties:
               - fsl,imx93-sai
               - fsl,imx95-sai
               - fsl,vf610-sai
+      - items:
+          - enum:
+              - fsl,imx94-sai
+          - const: fsl,imx95-sai
 
   reg:
     maxItems: 1
@@ -92,6 +96,24 @@ properties:
   interrupts:
     items:
       - description: receive and transmit interrupt
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    properties:
+      port@0:
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
+        description: port for TX and RX
+
+      port@1:
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
+        description: port for TX only
+
+      port@2:
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
+        description: port for RX only
 
   big-endian:
     description: |
@@ -204,4 +226,37 @@ examples:
         dma-names = "rx", "tx";
         fsl,dataline = <1 0xff 0xff 2 0xff 0x11>;
         #sound-dai-cells = <0>;
+
+        ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            port@1 {
+                reg = <1>;
+                playback-only;
+
+                sai1_endpoint0: endpoint {
+                   dai-tdm-slot-num = <8>;
+                   dai-tdm-slot-width = <32>;
+                   dai-tdm-slot-width-map = <32 8 32>;
+                   dai-format = "dsp_a";
+                   bitclock-master;
+                   frame-master;
+                   remote-endpoint = <&mcodec01_ep>;
+                };
+            };
+
+            port@2 {
+                reg = <2>;
+                capture-only;
+
+                sai1_endpoint1: endpoint {
+                    dai-tdm-slot-num = <8>;
+                    dai-tdm-slot-width = <32>;
+                    dai-tdm-slot-width-map = <32 8 32>;
+                    dai-format = "dsp_a";
+                    remote-endpoint = <&fe02_ep>;
+                };
+            };
+        };
     };

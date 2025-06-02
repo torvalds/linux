@@ -156,6 +156,10 @@ void dr_ste_v1_set_pop_vlan(u8 *hw_ste_p, u8 *s_action, u8 vlans_num);
 void dr_ste_v1_set_encap_l3(u8 *hw_ste_p, u8 *frst_s_action, u8 *scnd_d_action,
 			    u32 reformat_id, int size);
 void dr_ste_v1_set_rx_decap(u8 *hw_ste_p, u8 *s_action);
+void dr_ste_v1_set_insert_hdr(u8 *hw_ste_p, u8 *d_action, u32 reformat_id,
+			      u8 anchor, u8 offset, int size);
+void dr_ste_v1_set_remove_hdr(u8 *hw_ste_p, u8 *s_action, u8 anchor,
+			      u8 offset, int size);
 void dr_ste_v1_set_actions_tx(struct mlx5dr_ste_ctx *ste_ctx, struct mlx5dr_domain *dmn,
 			      u8 *action_type_set, u32 actions_caps, u8 *last_ste,
 			      struct mlx5dr_ste_actions_attr *attr, u32 *added_stes);

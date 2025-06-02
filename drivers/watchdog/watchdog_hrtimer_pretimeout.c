@@ -23,8 +23,8 @@ void watchdog_hrtimer_pretimeout_init(struct watchdog_device *wdd)
 {
 	struct watchdog_core_data *wd_data = wdd->wd_data;
 
-	hrtimer_init(&wd_data->pretimeout_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	wd_data->pretimeout_timer.function = watchdog_hrtimer_pretimeout;
+	hrtimer_setup(&wd_data->pretimeout_timer, watchdog_hrtimer_pretimeout, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 }
 
 void watchdog_hrtimer_pretimeout_start(struct watchdog_device *wdd)

@@ -2386,7 +2386,7 @@ static void ofdpa_fini(struct rocker *rocker)
 	struct hlist_node *tmp;
 	int bkt;
 
-	del_timer_sync(&ofdpa->fdb_cleanup_timer);
+	timer_delete_sync(&ofdpa->fdb_cleanup_timer);
 	flush_workqueue(rocker->rocker_owq);
 
 	spin_lock_irqsave(&ofdpa->flow_tbl_lock, flags);

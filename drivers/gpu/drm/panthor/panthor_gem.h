@@ -85,11 +85,6 @@ struct panthor_gem_object *to_panthor_bo(struct drm_gem_object *obj)
 
 struct drm_gem_object *panthor_gem_create_object(struct drm_device *ddev, size_t size);
 
-struct drm_gem_object *
-panthor_gem_prime_import_sg_table(struct drm_device *ddev,
-				  struct dma_buf_attachment *attach,
-				  struct sg_table *sgt);
-
 int
 panthor_gem_create_with_handle(struct drm_file *file,
 			       struct drm_device *ddev,

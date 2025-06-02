@@ -850,7 +850,8 @@ void six_lock_exit(struct six_lock *lock)
 EXPORT_SYMBOL_GPL(six_lock_exit);
 
 void __six_lock_init(struct six_lock *lock, const char *name,
-		     struct lock_class_key *key, enum six_lock_init_flags flags)
+		     struct lock_class_key *key, enum six_lock_init_flags flags,
+		     gfp_t gfp)
 {
 	atomic_set(&lock->state, 0);
 	raw_spin_lock_init(&lock->wait_lock);
@@ -873,7 +874,7 @@ void __six_lock_init(struct six_lock *lock, const char *name,
 		 * failure if they wish by checking lock->readers, but generally
 		 * will not want to treat it as an error.
 		 */
-		lock->readers = alloc_percpu(unsigned);
+		lock->readers = alloc_percpu_gfp(unsigned, gfp);
 	}
 #endif
 }

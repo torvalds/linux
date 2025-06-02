@@ -51,8 +51,8 @@ static int cgbc_gpio_get(struct gpio_chip *chip, unsigned int offset)
 		return (int)(val & (u8)BIT(offset));
 }
 
-static void __cgbc_gpio_set(struct gpio_chip *chip,
-			    unsigned int offset, int value)
+static int __cgbc_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			   int value)
 {
 	struct cgbc_gpio_data *gpio = gpiochip_get_data(chip);
 	struct cgbc_device_data *cgbc = gpio->cgbc;
@@ -61,23 +61,23 @@ static void __cgbc_gpio_set(struct gpio_chip *chip,
 
 	ret = cgbc_gpio_cmd(cgbc, CGBC_GPIO_CMD_GET, (offset > 7) ? 1 : 0, 0, &val);
 	if (ret)
-		return;
+		return ret;
 
 	if (value)
 		val |= BIT(offset % 8);
 	else
 		val &= ~(BIT(offset % 8));
 
-	cgbc_gpio_cmd(cgbc, CGBC_GPIO_CMD_SET, (offset > 7) ? 1 : 0, val, &val);
+	return cgbc_gpio_cmd(cgbc, CGBC_GPIO_CMD_SET, (offset > 7) ? 1 : 0, val, &val);
 }
 
-static void cgbc_gpio_set(struct gpio_chip *chip,
-			  unsigned int offset, int value)
+static int cgbc_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct cgbc_gpio_data *gpio = gpiochip_get_data(chip);
 
-	scoped_guard(mutex, &gpio->lock)
-		__cgbc_gpio_set(chip, offset, value);
+	guard(mutex)(&gpio->lock);
+
+	return __cgbc_gpio_set(chip, offset, value);
 }
 
 static int cgbc_gpio_direction_set(struct gpio_chip *chip,
@@ -116,10 +116,14 @@ static int cgbc_gpio_direction_output(struct gpio_chip *chip,
 				      unsigned int offset, int value)
 {
 	struct cgbc_gpio_data *gpio = gpiochip_get_data(chip);
+	int ret;
 
 	guard(mutex)(&gpio->lock);
 
-	__cgbc_gpio_set(chip, offset, value);
+	ret = __cgbc_gpio_set(chip, offset, value);
+	if (ret)
+		return ret;
+
 	return cgbc_gpio_direction_set(chip, offset, GPIO_LINE_DIRECTION_OUT);
 }
 
@@ -167,7 +171,7 @@ static int cgbc_gpio_probe(struct platform_device *pdev)
 	chip->direction_output = cgbc_gpio_direction_output;
 	chip->get_direction = cgbc_gpio_get_direction;
 	chip->get = cgbc_gpio_get;
-	chip->set = cgbc_gpio_set;
+	chip->set_rv = cgbc_gpio_set;
 	chip->ngpio = CGBC_GPIO_NGPIO;
 
 	ret = devm_mutex_init(dev, &gpio->lock);

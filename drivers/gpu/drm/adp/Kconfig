@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-only OR MIT
+config DRM_ADP
+	tristate "DRM Support for pre-DCP Apple display controllers"
+	depends on DRM && OF && ARM64
+	depends on ARCH_APPLE || COMPILE_TEST
+	select DRM_KMS_HELPER
+	select DRM_BRIDGE_CONNECTOR
+	select DRM_DISPLAY_HELPER
+	select DRM_KMS_DMA_HELPER
+	select DRM_GEM_DMA_HELPER
+	select DRM_PANEL_BRIDGE
+	select VIDEOMODE_HELPERS
+	select DRM_MIPI_DSI
+	help
+	  Chose this option if you have an Apple Arm laptop with a touchbar.
+
+	  If M is selected, this module will be called adpdrm.

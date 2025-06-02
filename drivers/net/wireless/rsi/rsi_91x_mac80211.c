@@ -1754,7 +1754,7 @@ void rsi_roc_timeout(struct timer_list *t)
 	ieee80211_remain_on_channel_expired(common->priv->hw);
 
 	if (timer_pending(&common->roc_timer))
-		del_timer(&common->roc_timer);
+		timer_delete(&common->roc_timer);
 
 	rsi_resume_conn_channel(common);
 	mutex_unlock(&common->mutex);
@@ -1776,7 +1776,7 @@ static int rsi_mac80211_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (timer_pending(&common->roc_timer)) {
 		rsi_dbg(INFO_ZONE, "Stop on-going ROC\n");
-		del_timer(&common->roc_timer);
+		timer_delete(&common->roc_timer);
 	}
 	common->roc_timer.expires = msecs_to_jiffies(duration) + jiffies;
 	add_timer(&common->roc_timer);
@@ -1820,7 +1820,7 @@ static int rsi_mac80211_cancel_roc(struct ieee80211_hw *hw,
 		return 0;
 	}
 
-	del_timer(&common->roc_timer);
+	timer_delete(&common->roc_timer);
 
 	rsi_resume_conn_channel(common);
 	mutex_unlock(&common->mutex);

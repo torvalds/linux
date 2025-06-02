@@ -510,7 +510,7 @@ static const struct regmap_config video_cc_sm8350_regmap_config = {
 	.fast_io = true,
 };
 
-static struct qcom_cc_desc video_cc_sm8350_desc = {
+static const struct qcom_cc_desc video_cc_sm8350_desc = {
 	.config = &video_cc_sm8350_regmap_config,
 	.clks = video_cc_sm8350_clocks,
 	.num_clks = ARRAY_SIZE(video_cc_sm8350_clocks),

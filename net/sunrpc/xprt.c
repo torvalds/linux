@@ -1167,7 +1167,7 @@ xprt_request_enqueue_receive(struct rpc_task *task)
 	spin_unlock(&xprt->queue_lock);
 
 	/* Turn off autodisconnect */
-	del_timer_sync(&xprt->timer);
+	timer_delete_sync(&xprt->timer);
 	return 0;
 }
 
@@ -2138,7 +2138,7 @@ static void xprt_destroy(struct rpc_xprt *xprt)
 	 * can only run *before* del_time_sync(), never after.
 	 */
 	spin_lock(&xprt->transport_lock);
-	del_timer_sync(&xprt->timer);
+	timer_delete_sync(&xprt->timer);
 	spin_unlock(&xprt->transport_lock);
 
 	/*

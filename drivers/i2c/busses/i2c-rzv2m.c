@@ -287,20 +287,15 @@ static int rzv2m_i2c_send_address(struct rzv2m_i2c_priv *priv,
 	int ret;
 
 	if (msg->flags & I2C_M_TEN) {
-		/*
-		 * 10-bit address
-		 *   addr_1: 5'b11110 | addr[9:8] | (R/nW)
-		 *   addr_2: addr[7:0]
-		 */
-		addr = 0xf0 | ((msg->addr & GENMASK(9, 8)) >> 7);
-		addr |= !!(msg->flags & I2C_M_RD);
-		/* Send 1st address(extend code) */
+		/* 10-bit address: Send 1st address(extend code) */
+		addr = i2c_10bit_addr_hi_from_msg(msg);
 		ret = rzv2m_i2c_write_with_ack(priv, addr);
 		if (ret)
 			return ret;
 
-		/* Send 2nd address */
-		ret = rzv2m_i2c_write_with_ack(priv, msg->addr & 0xff);
+		/* 10-bit address: Send 2nd address */
+		addr = i2c_10bit_addr_lo_from_msg(msg);
+		ret = rzv2m_i2c_write_with_ack(priv, addr);
 	} else {
 		/* 7-bit address */
 		addr = i2c_8bit_addr_from_msg(msg);

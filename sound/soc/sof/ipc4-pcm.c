@@ -313,7 +313,7 @@ static int sof_ipc4_chain_dma_trigger(struct snd_sof_dev *sdev,
 		set_fifo_size = false;
 		break;
 	default:
-		dev_err(sdev->dev, "Unexpected state %d", state);
+		spcm_err(spcm, direction, "Unexpected pipeline state %d\n", state);
 		return -EINVAL;
 	}
 
@@ -333,8 +333,8 @@ static int sof_ipc4_chain_dma_trigger(struct snd_sof_dev *sdev,
 		struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
 
 		if (!pipeline->use_chain_dma) {
-			dev_err(sdev->dev,
-				"All pipelines in chained DMA stream should have use_chain_dma attribute set.");
+			spcm_err(spcm, direction,
+				 "All pipelines in chained DMA path should have use_chain_dma attribute set.");
 			return -EINVAL;
 		}
 
@@ -389,11 +389,11 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	int ret;
 	int i;
 
-	dev_dbg(sdev->dev, "trigger cmd: %d state: %d\n", cmd, state);
-
 	spcm = snd_sof_find_spcm_dai(component, rtd);
 	if (!spcm)
 		return -EINVAL;
+
+	spcm_dbg(spcm, substream->stream, "cmd: %d, state: %d\n", cmd, state);
 
 	pipeline_list = &spcm->stream[substream->stream].pipeline_list;
 
@@ -465,7 +465,7 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	 */
 	ret = sof_ipc4_set_multi_pipeline_state(sdev, SOF_IPC4_PIPE_PAUSED, trigger_list);
 	if (ret < 0) {
-		dev_err(sdev->dev, "failed to pause all pipelines\n");
+		spcm_err(spcm, substream->stream, "failed to pause all pipelines\n");
 		goto free;
 	}
 
@@ -494,7 +494,9 @@ skip_pause_transition:
 	/* else set the RUNNING/RESET state in the DSP */
 	ret = sof_ipc4_set_multi_pipeline_state(sdev, state, trigger_list);
 	if (ret < 0) {
-		dev_err(sdev->dev, "failed to set final state %d for all pipelines\n", state);
+		spcm_err(spcm, substream->stream,
+			 "failed to set final state %d for all pipelines\n",
+			 state);
 		/*
 		 * workaround: if the firmware is crashed while setting the
 		 * pipelines to reset state we must ignore the error code and
@@ -610,12 +612,11 @@ static int sof_ipc4_pcm_dai_link_fixup_rate(struct snd_sof_dev *sdev,
 	 * Copier does not change sampling rate, so we
 	 * need to only consider the input pin information.
 	 */
+	be_rate = pin_fmts[0].audio_fmt.sampling_frequency;
 	for (i = 0; i < num_input_formats; i++) {
 		unsigned int val = pin_fmts[i].audio_fmt.sampling_frequency;
 
-		if (i == 0)
-			be_rate = val;
-		else if (val != be_rate)
+		if (val != be_rate)
 			single_be_rate = false;
 
 		if (val == fe_rate) {

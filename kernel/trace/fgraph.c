@@ -865,7 +865,7 @@ __ftrace_return_to_handler(struct ftrace_regs *fregs, unsigned long frame_pointe
 }
 
 /*
- * After all architecures have selected HAVE_FUNCTION_GRAPH_FREGS, we can
+ * After all architectures have selected HAVE_FUNCTION_GRAPH_FREGS, we can
  * leave only ftrace_return_to_handler(fregs).
  */
 #ifdef CONFIG_HAVE_FUNCTION_GRAPH_FREGS

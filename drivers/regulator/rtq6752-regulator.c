@@ -105,7 +105,7 @@ static int rtq6752_get_error_flags(struct regulator_dev *rdev,
 				   unsigned int *flags)
 {
 	unsigned int val, events = 0;
-	const unsigned int fault_mask[] = {
+	static const unsigned int fault_mask[] = {
 		RTQ6752_PAVDDF_MASK, RTQ6752_NAVDDF_MASK };
 	int rid = rdev_get_id(rdev), ret;
 

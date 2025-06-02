@@ -832,7 +832,7 @@ net_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	del_timer_sync(&lp->timer);
+	timer_delete_sync(&lp->timer);
 
 	/* Flush the Tx and disable Rx here. */
 	lp->addr_mode = CMR2h_OFF;

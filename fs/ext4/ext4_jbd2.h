@@ -122,90 +122,6 @@
 #define EXT4_HT_EXT_CONVERT     11
 #define EXT4_HT_MAX             12
 
-/**
- *   struct ext4_journal_cb_entry - Base structure for callback information.
- *
- *   This struct is a 'seed' structure for a using with your own callback
- *   structs. If you are using callbacks you must allocate one of these
- *   or another struct of your own definition which has this struct
- *   as it's first element and pass it to ext4_journal_callback_add().
- */
-struct ext4_journal_cb_entry {
-	/* list information for other callbacks attached to the same handle */
-	struct list_head jce_list;
-
-	/*  Function to call with this callback structure */
-	void (*jce_func)(struct super_block *sb,
-			 struct ext4_journal_cb_entry *jce, int error);
-
-	/* user data goes here */
-};
-
-/**
- * ext4_journal_callback_add: add a function to call after transaction commit
- * @handle: active journal transaction handle to register callback on
- * @func: callback function to call after the transaction has committed:
- *        @sb: superblock of current filesystem for transaction
- *        @jce: returned journal callback data
- *        @rc: journal state at commit (0 = transaction committed properly)
- * @jce: journal callback data (internal and function private data struct)
- *
- * The registered function will be called in the context of the journal thread
- * after the transaction for which the handle was created has completed.
- *
- * No locks are held when the callback function is called, so it is safe to
- * call blocking functions from within the callback, but the callback should
- * not block or run for too long, or the filesystem will be blocked waiting for
- * the next transaction to commit. No journaling functions can be used, or
- * there is a risk of deadlock.
- *
- * There is no guaranteed calling order of multiple registered callbacks on
- * the same transaction.
- */
-static inline void _ext4_journal_callback_add(handle_t *handle,
-			struct ext4_journal_cb_entry *jce)
-{
-	/* Add the jce to transaction's private list */
-	list_add_tail(&jce->jce_list, &handle->h_transaction->t_private_list);
-}
-
-static inline void ext4_journal_callback_add(handle_t *handle,
-			void (*func)(struct super_block *sb,
-				     struct ext4_journal_cb_entry *jce,
-				     int rc),
-			struct ext4_journal_cb_entry *jce)
-{
-	struct ext4_sb_info *sbi =
-			EXT4_SB(handle->h_transaction->t_journal->j_private);
-
-	/* Add the jce to transaction's private list */
-	jce->jce_func = func;
-	spin_lock(&sbi->s_md_lock);
-	_ext4_journal_callback_add(handle, jce);
-	spin_unlock(&sbi->s_md_lock);
-}
-
-
-/**
- * ext4_journal_callback_del: delete a registered callback
- * @handle: active journal transaction handle on which callback was registered
- * @jce: registered journal callback entry to unregister
- * Return true if object was successfully removed
- */
-static inline bool ext4_journal_callback_try_del(handle_t *handle,
-					     struct ext4_journal_cb_entry *jce)
-{
-	bool deleted;
-	struct ext4_sb_info *sbi =
-			EXT4_SB(handle->h_transaction->t_journal->j_private);
-
-	spin_lock(&sbi->s_md_lock);
-	deleted = !list_empty(&jce->jce_list);
-	list_del_init(&jce->jce_list);
-	spin_unlock(&sbi->s_md_lock);
-	return deleted;
-}
-
 int
 ext4_mark_iloc_dirty(handle_t *handle,
 		     struct inode *inode,
@@ -511,6 +427,35 @@ static inline int ext4_should_dioread_nolock(struct inode *inode)
 	if (!test_opt(inode->i_sb, DELALLOC))
 		return 0;
 	return 1;
+}
+
+/*
+ * Pass journal explicitly as it may not be cached in the sbi->s_journal in some
+ * cases
+ */
+static inline int ext4_journal_destroy(struct ext4_sb_info *sbi, journal_t *journal)
+{
+	int err = 0;
+
+	/*
+	 * At this point only two things can be operating on the journal.
+	 * JBD2 thread performing transaction commit and s_sb_upd_work
+	 * issuing sb update through the journal. Once we set
+	 * EXT4_JOURNAL_DESTROY, new ext4_handle_error() calls will not
+	 * queue s_sb_upd_work and ext4_force_commit() makes sure any
+	 * ext4_handle_error() calls from the running transaction commit are
+	 * finished. Hence no new s_sb_upd_work can be queued after we
+	 * flush it here.
+	 */
+	ext4_set_mount_flag(sbi->s_sb, EXT4_MF_JOURNAL_DESTROY);
+
+	ext4_force_commit(sbi->s_sb);
+	flush_work(&sbi->s_sb_upd_work);
+
+	err = jbd2_journal_destroy(journal);
+	sbi->s_journal = NULL;
+
+	return err;
 }
 
 #endif	/* _EXT4_JBD2_H */

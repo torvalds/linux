@@ -1704,6 +1704,7 @@ int kfd_get_gpu_cache_info(struct kfd_node *kdev, struct kfd_gpu_cache_info **pc
 		case IP_VERSION(11, 5, 0):
 		case IP_VERSION(11, 5, 1):
 		case IP_VERSION(11, 5, 2):
+		case IP_VERSION(11, 5, 3):
 			/* Cacheline size not available in IP discovery for gc11.
 			 * kfd_fill_gpu_cache_info_from_gfx_config to hard code it
 			 */
@@ -2132,9 +2133,6 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 		bool ext_cpu = KFD_GC_VERSION(kdev) != IP_VERSION(9, 4, 3);
 		int mem_bw = 819200, weight = ext_cpu ? KFD_CRAT_XGMI_WEIGHT :
 							KFD_CRAT_INTRA_SOCKET_WEIGHT;
-		uint32_t bandwidth = ext_cpu ? amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(
-							kdev->adev, NULL, true) : mem_bw;
-
 		/*
 		 * with host gpu xgmi link, host can access gpu memory whether
 		 * or not pcie bar type is large, so always create bidirectional
@@ -2143,8 +2141,16 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 		sub_type_hdr->flags |= CRAT_IOLINK_FLAGS_BI_DIRECTIONAL;
 		sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_XGMI;
 		sub_type_hdr->weight_xgmi = weight;
-		sub_type_hdr->minimum_bandwidth_mbs = bandwidth;
-		sub_type_hdr->maximum_bandwidth_mbs = bandwidth;
+		if (ext_cpu) {
+			amdgpu_xgmi_get_bandwidth(kdev->adev, NULL,
+						  AMDGPU_XGMI_BW_MODE_PER_LINK,
+						  AMDGPU_XGMI_BW_UNIT_MBYTES,
+						  &sub_type_hdr->minimum_bandwidth_mbs,
+						  &sub_type_hdr->maximum_bandwidth_mbs);
+		} else {
+			sub_type_hdr->minimum_bandwidth_mbs = mem_bw;
+			sub_type_hdr->maximum_bandwidth_mbs = mem_bw;
+		}
 	} else {
 		sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_PCIEXPRESS;
 		sub_type_hdr->minimum_bandwidth_mbs =
@@ -2197,12 +2203,12 @@ static int kfd_fill_gpu_xgmi_link_to_gpu(int *avail_size,
 
 	if (use_ta_info) {
 		sub_type_hdr->weight_xgmi = KFD_CRAT_XGMI_WEIGHT *
-			amdgpu_amdkfd_get_xgmi_hops_count(kdev->adev, peer_kdev->adev);
-		sub_type_hdr->maximum_bandwidth_mbs =
-			amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(kdev->adev,
-							peer_kdev->adev, false);
-		sub_type_hdr->minimum_bandwidth_mbs = sub_type_hdr->maximum_bandwidth_mbs ?
-			amdgpu_amdkfd_get_xgmi_bandwidth_mbytes(kdev->adev, NULL, true) : 0;
+			amdgpu_xgmi_get_hops_count(kdev->adev, peer_kdev->adev);
+		amdgpu_xgmi_get_bandwidth(kdev->adev, peer_kdev->adev,
+					  AMDGPU_XGMI_BW_MODE_PER_PEER,
+					  AMDGPU_XGMI_BW_UNIT_MBYTES,
+					  &sub_type_hdr->minimum_bandwidth_mbs,
+					  &sub_type_hdr->maximum_bandwidth_mbs);
 	} else {
 		bool is_single_hop = kdev->kfd == peer_kdev->kfd;
 		int weight = is_single_hop ? KFD_CRAT_INTRA_SOCKET_WEIGHT :

@@ -63,8 +63,10 @@ static void receiver_code(void *hcall_page, vm_vaddr_t pgs_gpa)
 	/* Signal sender vCPU we're ready */
 	ipis_rcvd[vcpu_id] = (u64)-1;
 
-	for (;;)
-		asm volatile("sti; hlt; cli");
+	for (;;) {
+		safe_halt();
+		cli();
+	}
 }
 
 static void guest_ipi_handler(struct ex_regs *regs)

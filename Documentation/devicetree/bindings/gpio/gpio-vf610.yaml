@@ -28,6 +28,7 @@ properties:
       - items:
           - enum:
               - fsl,imx93-gpio
+              - fsl,imx94-gpio
               - fsl,imx95-gpio
           - const: fsl,imx8ulp-gpio
 

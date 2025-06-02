@@ -10,6 +10,8 @@
 	aliases {
 		ethernet0 = &gem0;
 		serial0 = &uart1;
+		spi0 = &qspi;
+		mmc0 = &sdhci0;
 	};
 
 	memory@0 {
@@ -49,15 +51,21 @@
 
 	ethernet_phy: ethernet-phy@0 {
 		reg = <0>;
-		device_type = "ethernet-phy";
 	};
 };
 
+&qspi {
+	bootph-all;
+	status = "okay";
+};
+
 &sdhci0 {
+	bootph-all;
 	status = "okay";
 };
 
 &uart1 {
+	bootph-all;
 	status = "okay";
 };
 

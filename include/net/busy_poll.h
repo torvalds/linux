@@ -24,6 +24,11 @@
  */
 #define MIN_NAPI_ID ((unsigned int)(NR_CPUS + 1))
 
+static inline bool napi_id_valid(unsigned int napi_id)
+{
+	return napi_id >= MIN_NAPI_ID;
+}
+
 #define BUSY_POLL_BUDGET 8
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
@@ -114,7 +119,7 @@ static inline void sk_busy_loop(struct sock *sk, int nonblock)
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned int napi_id = READ_ONCE(sk->sk_napi_id);
 
-	if (napi_id >= MIN_NAPI_ID)
+	if (napi_id_valid(napi_id))
 		napi_busy_loop(napi_id, nonblock ? NULL : sk_busy_loop_end, sk,
 			       READ_ONCE(sk->sk_prefer_busy_poll),
 			       READ_ONCE(sk->sk_busy_poll_budget) ?: BUSY_POLL_BUDGET);
@@ -122,16 +127,22 @@ static inline void sk_busy_loop(struct sock *sk, int nonblock)
 }
 
 /* used in the NIC receive handler to mark the skb */
-static inline void skb_mark_napi_id(struct sk_buff *skb,
-				    struct napi_struct *napi)
+static inline void __skb_mark_napi_id(struct sk_buff *skb,
+				      const struct gro_node *gro)
 {
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	/* If the skb was already marked with a valid NAPI ID, avoid overwriting
 	 * it.
 	 */
-	if (skb->napi_id < MIN_NAPI_ID)
-		skb->napi_id = napi->napi_id;
+	if (!napi_id_valid(skb->napi_id))
+		skb->napi_id = gro->cached_napi_id;
 #endif
+}
+
+static inline void skb_mark_napi_id(struct sk_buff *skb,
+				    const struct napi_struct *napi)
+{
+	__skb_mark_napi_id(skb, &napi->gro);
 }
 
 /* used in the protocol handler to propagate the napi_id to the socket */

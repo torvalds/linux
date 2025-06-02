@@ -516,30 +516,6 @@ def_xa_destroy:
 	return NULL;
 }
 
-/* Assure synchronization of the device steering tables with updates made by SW
- * insertion.
- */
-int mlx5dr_domain_sync(struct mlx5dr_domain *dmn, u32 flags)
-{
-	int ret = 0;
-
-	if (flags & MLX5DR_DOMAIN_SYNC_FLAGS_SW) {
-		mlx5dr_domain_lock(dmn);
-		ret = mlx5dr_send_ring_force_drain(dmn);
-		mlx5dr_domain_unlock(dmn);
-		if (ret) {
-			mlx5dr_err(dmn, "Force drain failed flags: %d, ret: %d\n",
-				   flags, ret);
-			return ret;
-		}
-	}
-
-	if (flags & MLX5DR_DOMAIN_SYNC_FLAGS_HW)
-		ret = mlx5dr_cmd_sync_steering(dmn->mdev);
-
-	return ret;
-}
-
 int mlx5dr_domain_destroy(struct mlx5dr_domain *dmn)
 {
 	if (WARN_ON_ONCE(refcount_read(&dmn->refcount) > 1))

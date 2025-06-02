@@ -252,6 +252,7 @@ v4l2_hdmi_rx_colorimetry(const struct hdmi_avi_infoframe *avi,
 			 const struct hdmi_vendor_infoframe *hdmi,
 			 unsigned int height);
 
+unsigned int v4l2_num_edid_blocks(const u8 *edid, unsigned int max_blocks);
 u16 v4l2_get_edid_phys_addr(const u8 *edid, unsigned int size,
 			    unsigned int *offset);
 void v4l2_set_edid_phys_addr(u8 *edid, unsigned int size, u16 phys_addr);

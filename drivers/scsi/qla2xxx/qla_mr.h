@@ -282,8 +282,8 @@ struct register_host_info {
 #define QLAFX00_TGT_NODE_LIST_SIZE (sizeof(uint32_t) * 32)
 
 struct config_info_data {
-	uint8_t		model_num[16];
-	uint8_t		model_description[80];
+	uint8_t		model_num[16] __nonstring;
+	uint8_t		model_description[80] __nonstring;
 	uint8_t		reserved0[160];
 	uint8_t		symbolic_name[64];
 	uint8_t		serial_num[32];

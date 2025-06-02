@@ -35,6 +35,21 @@ def napi_list_check(nf) -> None:
                         comment=f"queue count after reset queue {q} mode {i}")
 
 
+def nsim_rxq_reset_down(nf) -> None:
+    """
+    Test that the queue API supports resetting a queue
+    while the interface is down. We should convert this
+    test to testing real HW once more devices support
+    queue API.
+    """
+    with NetdevSimDev(queue_count=4) as nsimdev:
+        nsim = nsimdev.nsims[0]
+
+        ip(f"link set dev {nsim.ifname} down")
+        for i in [0, 2, 3]:
+            nsim.dfs_write("queue_reset", f"1 {i}")
+
+
 def page_pool_check(nf) -> None:
     with NetdevSimDev() as nsimdev:
         nsim = nsimdev.nsims[0]
@@ -106,7 +121,8 @@ def page_pool_check(nf) -> None:
 
 def main() -> None:
     nf = NetdevFamily()
-    ksft_run([empty_check, lo_check, page_pool_check, napi_list_check],
+    ksft_run([empty_check, lo_check, page_pool_check, napi_list_check,
+              nsim_rxq_reset_down],
              args=(nf, ))
     ksft_exit()
 

@@ -38,6 +38,82 @@ properties:
   DCVDD-supply: true
   MICVDD-supply: true
 
+  wlf,in1l-as-dmicdat1:
+    type: boolean
+    description:
+      Use IN1L/DMICDAT1 as DMICDAT1, enabling the DMIC input path.
+      Can be used separately or together with wlf,in1r-as-dmicdat2.
+
+  wlf,in1r-as-dmicdat2:
+    type: boolean
+    description:
+      Use IN1R/DMICDAT2 as DMICDAT2, enabling the DMIC input path.
+      Can be used separately or together with wlf,in1l-as-dmicdat1.
+
+  wlf,gpio-cfg:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 4
+    maxItems: 4
+    description:
+      Default register values for R121/122/123/124 (GPIO Control).
+      If any entry has the value 0xFFFF, the related register won't be set.
+    default: [0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF]
+
+  wlf,micbias-cfg:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 2
+    maxItems: 2
+    description:
+      Default register values for R6/R7 (Mic Bias Control).
+    default: [0, 0]
+
+  wlf,drc-cfg-names:
+    $ref: /schemas/types.yaml#/definitions/string-array
+    description:
+      List of strings for the available DRC modes.
+      If absent, DRC is disabled.
+
+  wlf,drc-cfg-regs:
+    $ref: /schemas/types.yaml#/definitions/uint16-matrix
+    description:
+      Sets of default register values for R40/41/42/43 (DRC).
+      Each set corresponds to a DRC mode, so the number of sets should equal
+      the length of wlf,drc-cfg-names.
+      If absent, DRC is disabled.
+    items:
+      minItems: 4
+      maxItems: 4
+
+  wlf,retune-mobile-cfg-names:
+    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    description:
+      List of strings for the available retune modes.
+      If absent, retune is disabled.
+
+  wlf,retune-mobile-cfg-hz:
+    description:
+      The list must be the same length as wlf,retune-mobile-cfg-names.
+      If absent, retune is disabled.
+
+  wlf,retune-mobile-cfg-regs:
+    $ref: /schemas/types.yaml#/definitions/uint16-matrix
+    description:
+      Sets of default register values for R134/.../157 (EQ).
+      Each set corresponds to a retune mode, so the number of sets should equal
+      the length of wlf,retune-mobile-cfg-names.
+      If absent, retune is disabled.
+    items:
+      minItems: 24
+      maxItems: 24
+
+dependencies:
+  wlf,drc-cfg-names: [ 'wlf,drc-cfg-regs' ]
+  wlf,drc-cfg-regs: [ 'wlf,drc-cfg-names' ]
+
+  wlf,retune-mobile-cfg-names: [ 'wlf,retune-mobile-cfg-hz', 'wlf,retune-mobile-cfg-regs' ]
+  wlf,retune-mobile-cfg-regs: [ 'wlf,retune-mobile-cfg-names', 'wlf,retune-mobile-cfg-hz' ]
+  wlf,retune-mobile-cfg-hz: [ 'wlf,retune-mobile-cfg-names', 'wlf,retune-mobile-cfg-regs' ]
+
 required:
   - compatible
   - reg
@@ -70,5 +146,58 @@ examples:
             DBVDD-supply = <&reg_1p8v>;
             DCVDD-supply = <&reg_1p8v>;
             MICVDD-supply = <&reg_1p8v>;
+
+            wlf,drc-cfg-names = "default", "peaklimiter", "tradition", "soft",
+                                "music";
+            /*
+             * Config registers per name, respectively:
+             * KNEE_IP = 0,   KNEE_OP = 0,     HI_COMP = 1,   LO_COMP = 1
+             * KNEE_IP = -24, KNEE_OP = -6,    HI_COMP = 1/4, LO_COMP = 1
+             * KNEE_IP = -42, KNEE_OP = -3,    HI_COMP = 0,   LO_COMP = 1
+             * KNEE_IP = -45, KNEE_OP = -9,    HI_COMP = 1/8, LO_COMP = 1
+             * KNEE_IP = -30, KNEE_OP = -10.5, HI_COMP = 1/4, LO_COMP = 1
+             */
+            wlf,drc-cfg-regs = /bits/ 16 <0x01af 0x3248 0x0000 0x0000>,
+                               /bits/ 16 <0x04af 0x324b 0x0010 0x0408>,
+                               /bits/ 16 <0x04af 0x324b 0x0028 0x0704>,
+                               /bits/ 16 <0x04af 0x324b 0x0018 0x078c>,
+                               /bits/ 16 <0x04af 0x324b 0x0010 0x050e>;
+
+            /* GPIO1 = DMIC_CLK, don't touch others */
+            wlf,gpio-cfg = <0x0018>, <0xffff>, <0xffff>, <0xffff>;
+
+            /* Use IN1R as DMICDAT2, leave IN1L as an analog input path */
+            wlf,in1r-as-dmicdat2;
+
+            wlf,retune-mobile-cfg-names = "bassboost", "bassboost", "treble";
+            wlf,retune-mobile-cfg-hz = <48000>, <44100>, <48000>;
+            /*
+             * Config registers per name, respectively:
+             * EQ_ENA,  100 Hz,  300 Hz,  875 Hz, 2400 Hz, 6900 Hz
+             *      1,   +6 dB,   +3 dB,    0 dB,    0 dB,    0 dB
+             *      1,   +6 dB,   +3 dB,    0 dB,    0 dB,    0 dB
+             *      1,   -2 dB,   -2 dB,    0 dB,    0 dB,   +3 dB
+             * Each one uses the defaults for ReTune Mobile registers 140-157
+             */
+            wlf,retune-mobile-cfg-regs = /bits/ 16 <0x1 0x12 0xf 0xc 0xc 0xc
+                                                    0x0fca 0x0400 0x00d8 0x1eb5
+                                                    0xf145 0x0bd5 0x0075 0x1c58
+                                                    0xf3d3 0x0a54 0x0568 0x168e
+                                                    0xf829 0x07ad 0x1103 0x0564
+                                                    0x0559 0x4000>,
+
+                                         /bits/ 16 <0x1 0x12 0xf 0xc 0xc 0xc
+                                                    0x0fca 0x0400 0x00d8 0x1eb5
+                                                    0xf145 0x0bd5 0x0075 0x1c58
+                                                    0xf3d3 0x0a54 0x0568 0x168e
+                                                    0xf829 0x07ad 0x1103 0x0564
+                                                    0x0559 0x4000>,
+
+                                         /bits/ 16 <0x1 0xa 0xa 0xc 0xc 0xf
+                                                    0x0fca 0x0400 0x00d8 0x1eb5
+                                                    0xf145 0x0bd5 0x0075 0x1c58
+                                                    0xf3d3 0x0a54 0x0568 0x168e
+                                                    0xf829 0x07ad 0x1103 0x0564
+                                                    0x0559 0x4000>;
         };
     };

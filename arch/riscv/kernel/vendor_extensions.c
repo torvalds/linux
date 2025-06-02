@@ -61,6 +61,6 @@ bool __riscv_isa_vendor_extension_available(int cpu, unsigned long vendor, unsig
 	if (bit >= RISCV_ISA_VENDOR_EXT_MAX)
 		return false;
 
-	return test_bit(bit, bmap->isa) ? true : false;
+	return test_bit(bit, bmap->isa);
 }
 EXPORT_SYMBOL_GPL(__riscv_isa_vendor_extension_available);

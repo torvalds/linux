@@ -184,7 +184,7 @@ u8 wil_p2p_stop_discovery(struct wil6210_vif *vif)
 			/* discovery not really started, only pending */
 			p2p->pending_listen_wdev = NULL;
 		} else {
-			del_timer_sync(&p2p->discovery_timer);
+			timer_delete_sync(&p2p->discovery_timer);
 			wmi_stop_discovery(vif);
 		}
 		p2p->discovery_started = 0;

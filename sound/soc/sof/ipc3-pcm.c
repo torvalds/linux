@@ -117,22 +117,23 @@ static int sof_ipc3_pcm_hw_params(struct snd_soc_component *component,
 	if (platform_params->cont_update_posn)
 		pcm.params.cont_update_posn = 1;
 
-	dev_dbg(component->dev, "stream_tag %d", pcm.params.stream_tag);
+	spcm_dbg(spcm, substream->stream, "stream_tag %d\n",
+		 pcm.params.stream_tag);
 
 	/* send hw_params IPC to the DSP */
 	ret = sof_ipc_tx_message(sdev->ipc, &pcm, sizeof(pcm),
 				 &ipc_params_reply, sizeof(ipc_params_reply));
 	if (ret < 0) {
-		dev_err(component->dev, "HW params ipc failed for stream %d\n",
-			pcm.params.stream_tag);
+		spcm_err(spcm, substream->stream,
+			 "STREAM_PCM_PARAMS ipc failed for stream_tag %d\n",
+			 pcm.params.stream_tag);
 		return ret;
 	}
 
 	ret = snd_sof_set_stream_data_offset(sdev, &spcm->stream[substream->stream],
 					     ipc_params_reply.posn_offset);
 	if (ret < 0) {
-		dev_err(component->dev, "%s: invalid stream data offset for PCM %d\n",
-			__func__, spcm->pcm.pcm_id);
+		spcm_err(spcm, substream->stream, "invalid stream data offset\n");
 		return ret;
 	}
 
@@ -171,7 +172,7 @@ static int sof_ipc3_pcm_trigger(struct snd_soc_component *component,
 		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_STOP;
 		break;
 	default:
-		dev_err(component->dev, "Unhandled trigger cmd %d\n", cmd);
+		spcm_err(spcm, substream->stream, "Unhandled trigger cmd %d\n", cmd);
 		return -EINVAL;
 	}
 

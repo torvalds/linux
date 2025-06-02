@@ -535,6 +535,9 @@ static int rt1320_read_prop(struct sdw_slave *slave)
 	/* set the timeout values */
 	prop->clk_stop_timeout = 64;
 
+	/* BIOS may set wake_capable. Make sure it is 0 as wake events are disabled. */
+	prop->wake_capable = 0;
+
 	return 0;
 }
 
@@ -1455,7 +1458,7 @@ static const struct sdw_device_id rt1320_id[] = {
 };
 MODULE_DEVICE_TABLE(sdw, rt1320_id);
 
-static int __maybe_unused rt1320_dev_suspend(struct device *dev)
+static int rt1320_dev_suspend(struct device *dev)
 {
 	struct rt1320_sdw_priv *rt1320 = dev_get_drvdata(dev);
 
@@ -1469,7 +1472,7 @@ static int __maybe_unused rt1320_dev_suspend(struct device *dev)
 
 #define RT1320_PROBE_TIMEOUT 5000
 
-static int __maybe_unused rt1320_dev_resume(struct device *dev)
+static int rt1320_dev_resume(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct rt1320_sdw_priv *rt1320 = dev_get_drvdata(dev);
@@ -1498,14 +1501,14 @@ regmap_sync:
 }
 
 static const struct dev_pm_ops rt1320_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(rt1320_dev_suspend, rt1320_dev_resume)
-	SET_RUNTIME_PM_OPS(rt1320_dev_suspend, rt1320_dev_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(rt1320_dev_suspend, rt1320_dev_resume)
+	RUNTIME_PM_OPS(rt1320_dev_suspend, rt1320_dev_resume, NULL)
 };
 
 static struct sdw_driver rt1320_sdw_driver = {
 	.driver = {
 		.name = "rt1320-sdca",
-		.pm = &rt1320_pm,
+		.pm = pm_ptr(&rt1320_pm),
 	},
 	.probe = rt1320_sdw_probe,
 	.remove = rt1320_sdw_remove,

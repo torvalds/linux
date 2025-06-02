@@ -156,7 +156,7 @@ static const struct kobj_type elog_ktype = {
 #define OPAL_MAX_ERRLOG_SIZE	16384
 
 static ssize_t raw_attr_read(struct file *filep, struct kobject *kobj,
-			     struct bin_attribute *bin_attr,
+			     const struct bin_attribute *bin_attr,
 			     char *buffer, loff_t pos, size_t count)
 {
 	int opal_rc;
@@ -203,7 +203,7 @@ static void create_elog_obj(uint64_t id, size_t size, uint64_t type)
 	elog->raw_attr.attr.name = "raw";
 	elog->raw_attr.attr.mode = 0400;
 	elog->raw_attr.size = size;
-	elog->raw_attr.read = raw_attr_read;
+	elog->raw_attr.read_new = raw_attr_read;
 
 	elog->id = id;
 	elog->size = size;

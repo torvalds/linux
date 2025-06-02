@@ -11,7 +11,6 @@
 #include "errcode.h"
 #include "extents.h"
 #include "fs.h"
-#include "fs-common.h"
 #include "fs-io.h"
 #include "fs-ioctl.h"
 #include "fs-io-buffered.h"
@@ -22,6 +21,7 @@
 #include "io_read.h"
 #include "journal.h"
 #include "keylist.h"
+#include "namei.h"
 #include "quota.h"
 #include "rebalance.h"
 #include "snapshot.h"
@@ -33,6 +33,7 @@
 #include <linux/backing-dev.h>
 #include <linux/exportfs.h>
 #include <linux/fiemap.h>
+#include <linux/fileattr.h>
 #include <linux/fs_context.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
@@ -50,6 +51,24 @@ static void bch2_vfs_inode_init(struct btree_trans *, subvol_inum,
 				struct bch_inode_info *,
 				struct bch_inode_unpacked *,
 				struct bch_subvolume *);
+
+/* Set VFS inode flags from bcachefs inode: */
+static inline void bch2_inode_flags_to_vfs(struct bch_fs *c, struct bch_inode_info *inode)
+{
+	static const __maybe_unused unsigned bch_flags_to_vfs[] = {
+		[__BCH_INODE_sync]		= S_SYNC,
+		[__BCH_INODE_immutable]		= S_IMMUTABLE,
+		[__BCH_INODE_append]		= S_APPEND,
+		[__BCH_INODE_noatime]		= S_NOATIME,
+	};
+
+	set_flags(bch_flags_to_vfs, inode->ei_inode.bi_flags, inode->v.i_flags);
+
+	if (bch2_inode_casefold(c, &inode->ei_inode))
+		inode->v.i_flags |= S_CASEFOLD;
+	else
+		inode->v.i_flags &= ~S_CASEFOLD;
+}
 
 void bch2_inode_update_after_write(struct btree_trans *trans,
 				   struct bch_inode_info *inode,
@@ -79,7 +98,7 @@ void bch2_inode_update_after_write(struct btree_trans *trans,
 
 	inode->ei_inode		= *bi;
 
-	bch2_inode_flags_to_vfs(inode);
+	bch2_inode_flags_to_vfs(c, inode);
 }
 
 int __must_check bch2_write_inode(struct bch_fs *c,
@@ -88,7 +107,7 @@ int __must_check bch2_write_inode(struct bch_fs *c,
 				  void *p, unsigned fields)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter = { NULL };
+	struct btree_iter iter = {};
 	struct bch_inode_unpacked inode_u;
 	int ret;
 retry:
@@ -631,17 +650,24 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 			const struct qstr *name)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter dirent_iter = {};
 	subvol_inum inum = {};
 	struct printbuf buf = PRINTBUF;
 
-	struct bkey_s_c k = bch2_hash_lookup(trans, &dirent_iter, bch2_dirent_hash_desc,
-					     dir_hash_info, dir, name, 0);
-	int ret = bkey_err(k);
+	struct qstr lookup_name;
+	int ret = bch2_maybe_casefold(trans, dir_hash_info, name, &lookup_name);
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = bch2_dirent_read_target(trans, dir, bkey_s_c_to_dirent(k), &inum);
+	struct btree_iter dirent_iter = {};
+	struct bkey_s_c k = bch2_hash_lookup(trans, &dirent_iter, bch2_dirent_hash_desc,
+					     dir_hash_info, dir, &lookup_name, 0);
+	ret = bkey_err(k);
+	if (ret)
+		return ERR_PTR(ret);
+
+	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
+
+	ret = bch2_dirent_read_target(trans, dir, d, &inum);
 	if (ret > 0)
 		ret = -ENOENT;
 	if (ret)
@@ -651,30 +677,30 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 	if (inode)
 		goto out;
 
+	/*
+	 * Note: if check/repair needs it, we commit before
+	 * bch2_inode_hash_init_insert(), as after that point we can't take a
+	 * restart - not in the top level loop with a commit_do(), like we
+	 * usually do:
+	 */
+
 	struct bch_subvolume subvol;
 	struct bch_inode_unpacked inode_u;
 	ret =   bch2_subvolume_get(trans, inum.subvol, true, &subvol) ?:
 		bch2_inode_find_by_inum_nowarn_trans(trans, inum, &inode_u) ?:
+		bch2_check_dirent_target(trans, &dirent_iter, d, &inode_u, false) ?:
+		bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc) ?:
 		PTR_ERR_OR_ZERO(inode = bch2_inode_hash_init_insert(trans, inum, &inode_u, &subvol));
 
+	/*
+	 * don't remove it: check_inodes might find another inode that points
+	 * back to this dirent
+	 */
 	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT),
-				c, "dirent to missing inode:\n  %s",
-				(bch2_bkey_val_to_text(&buf, c, k), buf.buf));
+				c, "dirent to missing inode:\n%s",
+				(bch2_bkey_val_to_text(&buf, c, d.s_c), buf.buf));
 	if (ret)
 		goto err;
-
-	/* regular files may have hardlinks: */
-	if (bch2_fs_inconsistent_on(bch2_inode_should_have_single_bp(&inode_u) &&
-				    !bkey_eq(k.k->p, POS(inode_u.bi_dir, inode_u.bi_dir_offset)),
-				    c,
-				    "dirent points to inode that does not point back:\n  %s",
-				    (bch2_bkey_val_to_text(&buf, c, k),
-				     prt_printf(&buf, "\n  "),
-				     bch2_inode_unpacked_to_text(&buf, &inode_u),
-				     buf.buf))) {
-		ret = -ENOENT;
-		goto err;
-	}
 out:
 	bch2_trans_iter_exit(trans, &dirent_iter);
 	printbuf_exit(&buf);
@@ -697,6 +723,23 @@ static struct dentry *bch2_lookup(struct inode *vdir, struct dentry *dentry,
 							  &hash, &dentry->d_name)));
 	if (IS_ERR(inode))
 		inode = NULL;
+
+#ifdef CONFIG_UNICODE
+	if (!inode && IS_CASEFOLDED(vdir)) {
+		/*
+		 * Do not cache a negative dentry in casefolded directories
+		 * as it would need to be invalidated in the following situation:
+		 * - Lookup file "blAH" in a casefolded directory
+		 * - Creation of file "BLAH" in a casefolded directory
+		 * - Lookup file "blAH" in a casefolded directory
+		 * which would fail if we had a negative dentry.
+		 *
+		 * We should come back to this when VFS has a method to handle
+		 * this edgecase.
+		 */
+		return NULL;
+	}
+#endif
 
 	return d_splice_alias(&inode->v, dentry);
 }
@@ -806,6 +849,9 @@ int __bch2_unlink(struct inode *vdir, struct dentry *dentry,
 		 */
 		set_nlink(&inode->v, 0);
 	}
+
+	if (IS_CASEFOLDED(vdir))
+		d_invalidate(dentry);
 err:
 	bch2_trans_put(trans);
 	bch2_unlock_inodes(INODE_UPDATE_LOCK, dir, inode);
@@ -858,10 +904,10 @@ err:
 	return bch2_err_class(ret);
 }
 
-static int bch2_mkdir(struct mnt_idmap *idmap,
-		      struct inode *vdir, struct dentry *dentry, umode_t mode)
+static struct dentry *bch2_mkdir(struct mnt_idmap *idmap,
+				 struct inode *vdir, struct dentry *dentry, umode_t mode)
 {
-	return bch2_mknod(idmap, vdir, dentry, mode|S_IFDIR, 0);
+	return ERR_PTR(bch2_mknod(idmap, vdir, dentry, mode|S_IFDIR, 0));
 }
 
 static int bch2_rename2(struct mnt_idmap *idmap,
@@ -1056,7 +1102,7 @@ int bch2_setattr_nonsize(struct mnt_idmap *idmap,
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_qid qid;
 	struct btree_trans *trans;
-	struct btree_iter inode_iter = { NULL };
+	struct btree_iter inode_iter = {};
 	struct bch_inode_unpacked inode_u;
 	struct posix_acl *acl = NULL;
 	kuid_t kuid;
@@ -1216,10 +1262,20 @@ static int bch2_tmpfile(struct mnt_idmap *idmap,
 	return finish_open_simple(file, 0);
 }
 
+struct bch_fiemap_extent {
+	struct bkey_buf	kbuf;
+	unsigned	flags;
+};
+
 static int bch2_fill_extent(struct bch_fs *c,
 			    struct fiemap_extent_info *info,
-			    struct bkey_s_c k, unsigned flags)
+			    struct bch_fiemap_extent *fe)
 {
+	struct bkey_s_c k = bkey_i_to_s_c(fe->kbuf.k);
+	unsigned flags = fe->flags;
+
+	BUG_ON(!k.k->size);
+
 	if (bkey_extent_is_direct_data(k.k)) {
 		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 		const union bch_extent_entry *entry;
@@ -1272,110 +1328,223 @@ static int bch2_fill_extent(struct bch_fs *c,
 	}
 }
 
+/*
+ * Scan a range of an inode for data in pagecache.
+ *
+ * Intended to be retryable, so don't modify the output params until success is
+ * imminent.
+ */
+static int
+bch2_fiemap_hole_pagecache(struct inode *vinode, u64 *start, u64 *end,
+			   bool nonblock)
+{
+	loff_t	dstart, dend;
+
+	dstart = bch2_seek_pagecache_data(vinode, *start, *end, 0, nonblock);
+	if (dstart < 0)
+		return dstart;
+
+	if (dstart == *end) {
+		*start = dstart;
+		return 0;
+	}
+
+	dend = bch2_seek_pagecache_hole(vinode, dstart, *end, 0, nonblock);
+	if (dend < 0)
+		return dend;
+
+	/* race */
+	BUG_ON(dstart == dend);
+
+	*start = dstart;
+	*end = dend;
+	return 0;
+}
+
+/*
+ * Scan a range of pagecache that corresponds to a file mapping hole in the
+ * extent btree. If data is found, fake up an extent key so it looks like a
+ * delalloc extent to the rest of the fiemap processing code.
+ */
+static int
+bch2_next_fiemap_pagecache_extent(struct btree_trans *trans, struct bch_inode_info *inode,
+				  u64 start, u64 end, struct bch_fiemap_extent *cur)
+{
+	struct bch_fs		*c = trans->c;
+	struct bkey_i_extent	*delextent;
+	struct bch_extent_ptr	ptr = {};
+	loff_t			dstart = start << 9, dend = end << 9;
+	int			ret;
+
+	/*
+	 * We hold btree locks here so we cannot block on folio locks without
+	 * dropping trans locks first. Run a nonblocking scan for the common
+	 * case of no folios over holes and fall back on failure.
+	 *
+	 * Note that dropping locks like this is technically racy against
+	 * writeback inserting to the extent tree, but a non-sync fiemap scan is
+	 * fundamentally racy with writeback anyways. Therefore, just report the
+	 * range as delalloc regardless of whether we have to cycle trans locks.
+	 */
+	ret = bch2_fiemap_hole_pagecache(&inode->v, &dstart, &dend, true);
+	if (ret == -EAGAIN)
+		ret = drop_locks_do(trans,
+			bch2_fiemap_hole_pagecache(&inode->v, &dstart, &dend, false));
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Create a fake extent key in the buffer. We have to add a dummy extent
+	 * pointer for the fill code to add an extent entry. It's explicitly
+	 * zeroed to reflect delayed allocation (i.e. phys offset 0).
+	 */
+	bch2_bkey_buf_realloc(&cur->kbuf, c, sizeof(*delextent) / sizeof(u64));
+	delextent = bkey_extent_init(cur->kbuf.k);
+	delextent->k.p = POS(inode->ei_inum.inum, dend >> 9);
+	delextent->k.size = (dend - dstart) >> 9;
+	bch2_bkey_append_ptr(&delextent->k_i, ptr);
+
+	cur->flags = FIEMAP_EXTENT_DELALLOC;
+
+	return 0;
+}
+
+static int bch2_next_fiemap_extent(struct btree_trans *trans,
+				   struct bch_inode_info *inode,
+				   u64 start, u64 end,
+				   struct bch_fiemap_extent *cur)
+{
+	u32 snapshot;
+	int ret = bch2_subvolume_get_snapshot(trans, inode->ei_inum.subvol, &snapshot);
+	if (ret)
+		return ret;
+
+	struct btree_iter iter;
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
+			     SPOS(inode->ei_inum.inum, start, snapshot), 0);
+
+	struct bkey_s_c k =
+		bch2_btree_iter_peek_max(trans, &iter, POS(inode->ei_inum.inum, end));
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	ret = bch2_next_fiemap_pagecache_extent(trans, inode, start, end, cur);
+	if (ret)
+		goto err;
+
+	struct bpos pagecache_start = bkey_start_pos(&cur->kbuf.k->k);
+
+	/*
+	 * Does the pagecache or the btree take precedence?
+	 *
+	 * It _should_ be the pagecache, so that we correctly report delalloc
+	 * extents when dirty in the pagecache (we're COW, after all).
+	 *
+	 * But we'd have to add per-sector writeback tracking to
+	 * bch_folio_state, otherwise we report delalloc extents for clean
+	 * cached data in the pagecache.
+	 *
+	 * We should do this, but even then fiemap won't report stable mappings:
+	 * on bcachefs data moves around in the background (copygc, rebalance)
+	 * and we don't provide a way for userspace to lock that out.
+	 */
+	if (k.k &&
+	    bkey_le(bpos_max(iter.pos, bkey_start_pos(k.k)),
+		    pagecache_start)) {
+		bch2_bkey_buf_reassemble(&cur->kbuf, trans->c, k);
+		bch2_cut_front(iter.pos, cur->kbuf.k);
+		bch2_cut_back(POS(inode->ei_inum.inum, end), cur->kbuf.k);
+		cur->flags = 0;
+	} else if (k.k) {
+		bch2_cut_back(bkey_start_pos(k.k), cur->kbuf.k);
+	}
+
+	if (cur->kbuf.k->k.type == KEY_TYPE_reflink_p) {
+		unsigned sectors = cur->kbuf.k->k.size;
+		s64 offset_into_extent = 0;
+		enum btree_id data_btree = BTREE_ID_extents;
+		ret = bch2_read_indirect_extent(trans, &data_btree, &offset_into_extent,
+						&cur->kbuf);
+		if (ret)
+			goto err;
+
+		struct bkey_i *k = cur->kbuf.k;
+		sectors = min_t(unsigned, sectors, k->k.size - offset_into_extent);
+
+		bch2_cut_front(POS(k->k.p.inode,
+				   bkey_start_offset(&k->k) + offset_into_extent),
+			       k);
+		bch2_key_resize(&k->k, sectors);
+		k->k.p = iter.pos;
+		k->k.p.offset += k->k.size;
+	}
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
 static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 		       u64 start, u64 len)
 {
 	struct bch_fs *c = vinode->i_sb->s_fs_info;
 	struct bch_inode_info *ei = to_bch_ei(vinode);
 	struct btree_trans *trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	struct bkey_buf cur, prev;
-	bool have_extent = false;
+	struct bch_fiemap_extent cur, prev;
 	int ret = 0;
 
-	ret = fiemap_prep(&ei->v, info, start, &len, FIEMAP_FLAG_SYNC);
+	ret = fiemap_prep(&ei->v, info, start, &len, 0);
 	if (ret)
 		return ret;
 
-	struct bpos end = POS(ei->v.i_ino, (start + len) >> 9);
 	if (start + len < start)
 		return -EINVAL;
 
 	start >>= 9;
+	u64 end = (start + len) >> 9;
 
-	bch2_bkey_buf_init(&cur);
-	bch2_bkey_buf_init(&prev);
+	bch2_bkey_buf_init(&cur.kbuf);
+	bch2_bkey_buf_init(&prev.kbuf);
+	bkey_init(&prev.kbuf.k->k);
+
 	trans = bch2_trans_get(c);
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
-			     POS(ei->v.i_ino, start), 0);
-
-	while (!ret || bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
-		enum btree_id data_btree = BTREE_ID_extents;
-
-		bch2_trans_begin(trans);
-
-		u32 snapshot;
-		ret = bch2_subvolume_get_snapshot(trans, ei->ei_inum.subvol, &snapshot);
+	while (start < end) {
+		ret = lockrestart_do(trans,
+			bch2_next_fiemap_extent(trans, ei, start, end, &cur));
 		if (ret)
-			continue;
+			goto err;
 
-		bch2_btree_iter_set_snapshot(&iter, snapshot);
+		BUG_ON(bkey_start_offset(&cur.kbuf.k->k) < start);
+		BUG_ON(cur.kbuf.k->k.p.offset > end);
 
-		k = bch2_btree_iter_peek_max(&iter, end);
-		ret = bkey_err(k);
-		if (ret)
-			continue;
-
-		if (!k.k)
+		if (bkey_start_offset(&cur.kbuf.k->k) == end)
 			break;
 
-		if (!bkey_extent_is_data(k.k) &&
-		    k.k->type != KEY_TYPE_reservation) {
-			bch2_btree_iter_advance(&iter);
-			continue;
-		}
+		start = cur.kbuf.k->k.p.offset;
 
-		s64 offset_into_extent	= iter.pos.offset - bkey_start_offset(k.k);
-		unsigned sectors	= k.k->size - offset_into_extent;
-
-		bch2_bkey_buf_reassemble(&cur, c, k);
-
-		ret = bch2_read_indirect_extent(trans, &data_btree,
-					&offset_into_extent, &cur);
-		if (ret)
-			continue;
-
-		k = bkey_i_to_s_c(cur.k);
-		bch2_bkey_buf_realloc(&prev, c, k.k->u64s);
-
-		sectors = min_t(unsigned, sectors, k.k->size - offset_into_extent);
-
-		bch2_cut_front(POS(k.k->p.inode,
-				   bkey_start_offset(k.k) +
-				   offset_into_extent),
-			       cur.k);
-		bch2_key_resize(&cur.k->k, sectors);
-		cur.k->k.p = iter.pos;
-		cur.k->k.p.offset += cur.k->k.size;
-
-		if (have_extent) {
+		if (!bkey_deleted(&prev.kbuf.k->k)) {
 			bch2_trans_unlock(trans);
-			ret = bch2_fill_extent(c, info,
-					bkey_i_to_s_c(prev.k), 0);
+			ret = bch2_fill_extent(c, info, &prev);
 			if (ret)
-				break;
+				goto err;
 		}
 
-		bkey_copy(prev.k, cur.k);
-		have_extent = true;
-
-		bch2_btree_iter_set_pos(&iter,
-			POS(iter.pos.inode, iter.pos.offset + sectors));
+		bch2_bkey_buf_copy(&prev.kbuf, c, cur.kbuf.k);
+		prev.flags = cur.flags;
 	}
-	bch2_trans_iter_exit(trans, &iter);
 
-	if (!ret && have_extent) {
+	if (!bkey_deleted(&prev.kbuf.k->k)) {
 		bch2_trans_unlock(trans);
-		ret = bch2_fill_extent(c, info, bkey_i_to_s_c(prev.k),
-				       FIEMAP_EXTENT_LAST);
+		prev.flags |= FIEMAP_EXTENT_LAST;
+		ret = bch2_fill_extent(c, info, &prev);
 	}
-
+err:
 	bch2_trans_put(trans);
-	bch2_bkey_buf_exit(&cur, c);
-	bch2_bkey_buf_exit(&prev, c);
-	return ret < 0 ? ret : 0;
+	bch2_bkey_buf_exit(&cur.kbuf, c);
+	bch2_bkey_buf_exit(&prev.kbuf, c);
+
+	return bch2_err_class(ret < 0 ? ret : 0);
 }
 
 static const struct vm_operations_struct bch_vm_ops = {
@@ -1430,6 +1599,165 @@ static int bch2_open(struct inode *vinode, struct file *file)
 	return generic_file_open(vinode, file);
 }
 
+/* bcachefs inode flags -> FS_IOC_GETFLAGS: */
+static const __maybe_unused unsigned bch_flags_to_uflags[] = {
+	[__BCH_INODE_sync]		= FS_SYNC_FL,
+	[__BCH_INODE_immutable]		= FS_IMMUTABLE_FL,
+	[__BCH_INODE_append]		= FS_APPEND_FL,
+	[__BCH_INODE_nodump]		= FS_NODUMP_FL,
+	[__BCH_INODE_noatime]		= FS_NOATIME_FL,
+};
+
+/* bcachefs inode flags -> FS_IOC_FSGETXATTR: */
+static const __maybe_unused unsigned bch_flags_to_xflags[] = {
+	[__BCH_INODE_sync]	= FS_XFLAG_SYNC,
+	[__BCH_INODE_immutable]	= FS_XFLAG_IMMUTABLE,
+	[__BCH_INODE_append]	= FS_XFLAG_APPEND,
+	[__BCH_INODE_nodump]	= FS_XFLAG_NODUMP,
+	[__BCH_INODE_noatime]	= FS_XFLAG_NOATIME,
+};
+
+static int bch2_fileattr_get(struct dentry *dentry,
+			     struct fileattr *fa)
+{
+	struct bch_inode_info *inode = to_bch_ei(d_inode(dentry));
+	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+
+	fileattr_fill_xflags(fa, map_flags(bch_flags_to_xflags, inode->ei_inode.bi_flags));
+
+	if (inode->ei_inode.bi_fields_set & (1 << Inode_opt_project))
+		fa->fsx_xflags |= FS_XFLAG_PROJINHERIT;
+
+	if (bch2_inode_casefold(c, &inode->ei_inode))
+		fa->flags |= FS_CASEFOLD_FL;
+
+	fa->fsx_projid = inode->ei_qid.q[QTYP_PRJ];
+	return 0;
+}
+
+struct flags_set {
+	unsigned		mask;
+	unsigned		flags;
+	unsigned		projid;
+	bool			set_project;
+	bool			set_casefold;
+	bool			casefold;
+};
+
+static int fssetxattr_inode_update_fn(struct btree_trans *trans,
+				      struct bch_inode_info *inode,
+				      struct bch_inode_unpacked *bi,
+				      void *p)
+{
+	struct bch_fs *c = trans->c;
+	struct flags_set *s = p;
+
+	/*
+	 * We're relying on btree locking here for exclusion with other ioctl
+	 * calls - use the flags in the btree (@bi), not inode->i_flags:
+	 */
+	if (!S_ISREG(bi->bi_mode) &&
+	    !S_ISDIR(bi->bi_mode) &&
+	    (s->flags & (BCH_INODE_nodump|BCH_INODE_noatime)) != s->flags)
+		return -EINVAL;
+
+	if (s->casefold != bch2_inode_casefold(c, bi)) {
+#ifdef CONFIG_UNICODE
+		int ret = 0;
+		/* Not supported on individual files. */
+		if (!S_ISDIR(bi->bi_mode))
+			return -EOPNOTSUPP;
+
+		/*
+		 * Make sure the dir is empty, as otherwise we'd need to
+		 * rehash everything and update the dirent keys.
+		 */
+		ret = bch2_empty_dir_trans(trans, inode_inum(inode));
+		if (ret < 0)
+			return ret;
+
+		ret = bch2_request_incompat_feature(c, bcachefs_metadata_version_casefolding);
+		if (ret)
+			return ret;
+
+		bch2_check_set_feature(c, BCH_FEATURE_casefolding);
+
+		bi->bi_casefold = s->casefold + 1;
+		bi->bi_fields_set |= BIT(Inode_opt_casefold);
+
+#else
+		printk(KERN_ERR "Cannot use casefolding on a kernel without CONFIG_UNICODE\n");
+		return -EOPNOTSUPP;
+#endif
+	}
+
+	if (s->set_project) {
+		bi->bi_project = s->projid;
+		bi->bi_fields_set |= BIT(Inode_opt_project);
+	}
+
+	bi->bi_flags &= ~s->mask;
+	bi->bi_flags |= s->flags;
+
+	bi->bi_ctime = timespec_to_bch2_time(c, current_time(&inode->v));
+	return 0;
+}
+
+static int bch2_fileattr_set(struct mnt_idmap *idmap,
+			     struct dentry *dentry,
+			     struct fileattr *fa)
+{
+	struct bch_inode_info *inode = to_bch_ei(d_inode(dentry));
+	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct flags_set s = {};
+	int ret;
+
+	if (fa->fsx_valid) {
+		fa->fsx_xflags &= ~FS_XFLAG_PROJINHERIT;
+
+		s.mask = map_defined(bch_flags_to_xflags);
+		s.flags |= map_flags_rev(bch_flags_to_xflags, fa->fsx_xflags);
+		if (fa->fsx_xflags)
+			return -EOPNOTSUPP;
+
+		if (fa->fsx_projid >= U32_MAX)
+			return -EINVAL;
+
+		/*
+		 * inode fields accessible via the xattr interface are stored with a +1
+		 * bias, so that 0 means unset:
+		 */
+		if ((inode->ei_inode.bi_project ||
+		     fa->fsx_projid) &&
+		    inode->ei_inode.bi_project != fa->fsx_projid + 1) {
+			s.projid = fa->fsx_projid + 1;
+			s.set_project = true;
+		}
+	}
+
+	if (fa->flags_valid) {
+		s.mask = map_defined(bch_flags_to_uflags);
+
+		s.set_casefold = true;
+		s.casefold = (fa->flags & FS_CASEFOLD_FL) != 0;
+		fa->flags &= ~FS_CASEFOLD_FL;
+
+		s.flags |= map_flags_rev(bch_flags_to_uflags, fa->flags);
+		if (fa->flags)
+			return -EOPNOTSUPP;
+	}
+
+	mutex_lock(&inode->ei_update_lock);
+	ret   = bch2_subvol_is_ro(c, inode->ei_inum.subvol) ?:
+		(s.set_project
+		 ? bch2_set_projid(c, inode, fa->fsx_projid)
+		 : 0) ?:
+		bch2_write_inode(c, inode, fssetxattr_inode_update_fn, &s,
+			       ATTR_CTIME);
+	mutex_unlock(&inode->ei_update_lock);
+	return ret;
+}
+
 static const struct file_operations bch_file_operations = {
 	.open		= bch2_open,
 	.llseek		= bch2_llseek,
@@ -1457,6 +1785,8 @@ static const struct inode_operations bch_file_inode_operations = {
 	.get_inode_acl	= bch2_get_acl,
 	.set_acl	= bch2_set_acl,
 #endif
+	.fileattr_get	= bch2_fileattr_get,
+	.fileattr_set	= bch2_fileattr_set,
 };
 
 static const struct inode_operations bch_dir_inode_operations = {
@@ -1477,6 +1807,8 @@ static const struct inode_operations bch_dir_inode_operations = {
 	.get_inode_acl	= bch2_get_acl,
 	.set_acl	= bch2_set_acl,
 #endif
+	.fileattr_get	= bch2_fileattr_get,
+	.fileattr_set	= bch2_fileattr_set,
 };
 
 static const struct file_operations bch_dir_file_operations = {
@@ -1499,6 +1831,8 @@ static const struct inode_operations bch_symlink_inode_operations = {
 	.get_inode_acl	= bch2_get_acl,
 	.set_acl	= bch2_set_acl,
 #endif
+	.fileattr_get	= bch2_fileattr_get,
+	.fileattr_set	= bch2_fileattr_set,
 };
 
 static const struct inode_operations bch_special_inode_operations = {
@@ -1509,6 +1843,8 @@ static const struct inode_operations bch_special_inode_operations = {
 	.get_inode_acl	= bch2_get_acl,
 	.set_acl	= bch2_set_acl,
 #endif
+	.fileattr_get	= bch2_fileattr_get,
+	.fileattr_set	= bch2_fileattr_set,
 };
 
 static const struct address_space_operations bch_address_space_operations = {
@@ -1678,17 +2014,17 @@ retry:
 	if (ret)
 		goto err;
 
-	bch2_btree_iter_set_snapshot(&iter1, snapshot);
-	bch2_btree_iter_set_snapshot(&iter2, snapshot);
+	bch2_btree_iter_set_snapshot(trans, &iter1, snapshot);
+	bch2_btree_iter_set_snapshot(trans, &iter2, snapshot);
 
 	ret = bch2_inode_find_by_inum_trans(trans, inode_inum(inode), &inode_u);
 	if (ret)
 		goto err;
 
 	if (inode_u.bi_dir == dir->ei_inode.bi_inum) {
-		bch2_btree_iter_set_pos(&iter1, POS(inode_u.bi_dir, inode_u.bi_dir_offset));
+		bch2_btree_iter_set_pos(trans, &iter1, POS(inode_u.bi_dir, inode_u.bi_dir_offset));
 
-		k = bch2_btree_iter_peek_slot(&iter1);
+		k = bch2_btree_iter_peek_slot(trans, &iter1);
 		ret = bkey_err(k);
 		if (ret)
 			goto err;
@@ -1712,7 +2048,7 @@ retry:
 		 * File with multiple hardlinks and our backref is to the wrong
 		 * directory - linear search:
 		 */
-		for_each_btree_key_continue_norestart(iter2, 0, k, ret) {
+		for_each_btree_key_continue_norestart(trans, iter2, 0, k, ret) {
 			if (k.k->p.inode > dir->ei_inode.bi_inum)
 				break;
 
@@ -1802,7 +2138,8 @@ static void bch2_vfs_inode_init(struct btree_trans *trans,
 		break;
 	}
 
-	mapping_set_large_folios(inode->v.i_mapping);
+	mapping_set_folio_min_order(inode->v.i_mapping,
+				    get_order(trans->c->opts.block_size));
 }
 
 static void bch2_free_inode(struct inode *vinode)
@@ -2008,44 +2345,6 @@ static struct bch_fs *bch2_path_to_fs(const char *path)
 	return c ?: ERR_PTR(-ENOENT);
 }
 
-static int bch2_remount(struct super_block *sb, int *flags,
-			struct bch_opts opts)
-{
-	struct bch_fs *c = sb->s_fs_info;
-	int ret = 0;
-
-	opt_set(opts, read_only, (*flags & SB_RDONLY) != 0);
-
-	if (opts.read_only != c->opts.read_only) {
-		down_write(&c->state_lock);
-
-		if (opts.read_only) {
-			bch2_fs_read_only(c);
-
-			sb->s_flags |= SB_RDONLY;
-		} else {
-			ret = bch2_fs_read_write(c);
-			if (ret) {
-				bch_err(c, "error going rw: %i", ret);
-				up_write(&c->state_lock);
-				ret = -EINVAL;
-				goto err;
-			}
-
-			sb->s_flags &= ~SB_RDONLY;
-		}
-
-		c->opts.read_only = opts.read_only;
-
-		up_write(&c->state_lock);
-	}
-
-	if (opt_defined(opts, errors))
-		c->opts.errors = opts.errors;
-err:
-	return bch2_err_class(ret);
-}
-
 static int bch2_show_devname(struct seq_file *seq, struct dentry *root)
 {
 	struct bch_fs *c = root->d_sb->s_fs_info;
@@ -2192,9 +2491,12 @@ static int bch2_fs_get_tree(struct fs_context *fc)
 	if (ret)
 		goto err;
 
+	if (opt_defined(opts, discard))
+		set_bit(BCH_FS_discard_mount_opt_set, &c->flags);
+
 	/* Some options can't be parsed until after the fs is started: */
 	opts = bch2_opts_empty();
-	ret = bch2_parse_mount_opts(c, &opts, NULL, opts_parse->parse_later.buf);
+	ret = bch2_parse_mount_opts(c, &opts, NULL, opts_parse->parse_later.buf, false);
 	if (ret)
 		goto err_stop_fs;
 
@@ -2251,7 +2553,7 @@ got_sb:
 		/* XXX: create an anonymous device for multi device filesystems */
 		sb->s_bdev	= bdev;
 		sb->s_dev	= bdev->bd_dev;
-		percpu_ref_put(&ca->io_ref);
+		percpu_ref_put(&ca->io_ref[READ]);
 		break;
 	}
 
@@ -2263,6 +2565,11 @@ got_sb:
 #endif
 
 	sb->s_shrink->seeks = 0;
+
+#ifdef CONFIG_UNICODE
+	sb->s_encoding = c->cf_encoding;
+#endif
+	generic_set_sb_d_ops(sb);
 
 	vinode = bch2_vfs_inode_get(c, BCACHEFS_ROOT_SUBVOL_INUM);
 	ret = PTR_ERR_OR_ZERO(vinode);
@@ -2300,7 +2607,8 @@ err_stop_fs:
 	goto err;
 
 err_put_super:
-	__bch2_fs_stop(c);
+	if (!sb->s_root)
+		__bch2_fs_stop(c);
 	deactivate_locked_super(sb);
 	goto err;
 }
@@ -2343,6 +2651,8 @@ static int bch2_fs_parse_param(struct fs_context *fc,
 	int ret = bch2_parse_one_mount_opt(c, &opts->opts,
 					   &opts->parse_later, param->key,
 					   param->string);
+	if (ret)
+		pr_err("Error parsing option %s: %s", param->key, bch2_err_str(ret));
 
 	return bch2_err_class(ret);
 }
@@ -2351,8 +2661,39 @@ static int bch2_fs_reconfigure(struct fs_context *fc)
 {
 	struct super_block *sb = fc->root->d_sb;
 	struct bch2_opts_parse *opts = fc->fs_private;
+	struct bch_fs *c = sb->s_fs_info;
+	int ret = 0;
 
-	return bch2_remount(sb, &fc->sb_flags, opts->opts);
+	opt_set(opts->opts, read_only, (fc->sb_flags & SB_RDONLY) != 0);
+
+	if (opts->opts.read_only != c->opts.read_only) {
+		down_write(&c->state_lock);
+
+		if (opts->opts.read_only) {
+			bch2_fs_read_only(c);
+
+			sb->s_flags |= SB_RDONLY;
+		} else {
+			ret = bch2_fs_read_write(c);
+			if (ret) {
+				bch_err(c, "error going rw: %i", ret);
+				up_write(&c->state_lock);
+				ret = -EINVAL;
+				goto err;
+			}
+
+			sb->s_flags &= ~SB_RDONLY;
+		}
+
+		c->opts.read_only = opts->opts.read_only;
+
+		up_write(&c->state_lock);
+	}
+
+	if (opt_defined(opts->opts, errors))
+		c->opts.errors = opts->opts.errors;
+err:
+	return bch2_err_class(ret);
 }
 
 static const struct fs_context_operations bch2_context_ops = {
@@ -2396,7 +2737,7 @@ static struct file_system_type bcache_fs_type = {
 	.name			= "bcachefs",
 	.init_fs_context	= bch2_init_fs_context,
 	.kill_sb		= bch2_kill_sb,
-	.fs_flags		= FS_REQUIRES_DEV | FS_ALLOW_IDMAP,
+	.fs_flags		= FS_REQUIRES_DEV | FS_ALLOW_IDMAP | FS_LBS,
 };
 
 MODULE_ALIAS_FS("bcachefs");

@@ -167,7 +167,7 @@ int cs42l43_set_jack(struct snd_soc_component *component,
 		autocontrol |= 0x3 << CS42L43_JACKDET_MODE_SHIFT;
 
 	ret = cs42l43_find_index(priv, "cirrus,tip-fall-db-ms", 500,
-				 NULL, cs42l43_accdet_db_ms,
+				 &priv->tip_fall_db_ms, cs42l43_accdet_db_ms,
 				 ARRAY_SIZE(cs42l43_accdet_db_ms));
 	if (ret < 0)
 		goto error;
@@ -175,7 +175,7 @@ int cs42l43_set_jack(struct snd_soc_component *component,
 	tip_deb |= ret << CS42L43_TIPSENSE_FALLING_DB_TIME_SHIFT;
 
 	ret = cs42l43_find_index(priv, "cirrus,tip-rise-db-ms", 500,
-				 NULL, cs42l43_accdet_db_ms,
+				 &priv->tip_rise_db_ms, cs42l43_accdet_db_ms,
 				 ARRAY_SIZE(cs42l43_accdet_db_ms));
 	if (ret < 0)
 		goto error;
@@ -654,6 +654,10 @@ static int cs42l43_run_type_detect(struct cs42l43_codec *priv)
 
 	reinit_completion(&priv->type_detect);
 
+	regmap_update_bits(cs42l43->regmap, CS42L43_STEREO_MIC_CLAMP_CTRL,
+			   CS42L43_SMIC_HPAMP_CLAMP_DIS_FRC_VAL_MASK,
+			   CS42L43_SMIC_HPAMP_CLAMP_DIS_FRC_VAL_MASK);
+
 	cs42l43_start_hs_bias(priv, true);
 	regmap_update_bits(cs42l43->regmap, CS42L43_HS2,
 			   CS42L43_HSDET_MODE_MASK, 0x3 << CS42L43_HSDET_MODE_SHIFT);
@@ -664,6 +668,9 @@ static int cs42l43_run_type_detect(struct cs42l43_codec *priv)
 	regmap_update_bits(cs42l43->regmap, CS42L43_HS2,
 			   CS42L43_HSDET_MODE_MASK, 0x2 << CS42L43_HSDET_MODE_SHIFT);
 	cs42l43_stop_hs_bias(priv);
+
+	regmap_update_bits(cs42l43->regmap, CS42L43_STEREO_MIC_CLAMP_CTRL,
+			   CS42L43_SMIC_HPAMP_CLAMP_DIS_FRC_VAL_MASK, 0);
 
 	if (!time_left)
 		return -ETIMEDOUT;
@@ -702,6 +709,9 @@ static void cs42l43_clear_jack(struct cs42l43_codec *priv)
 			   CS42L43_PGA_WIDESWING_MODE_EN_MASK, 0);
 	regmap_update_bits(cs42l43->regmap, CS42L43_STEREO_MIC_CTRL,
 			   CS42L43_JACK_STEREO_CONFIG_MASK, 0);
+	regmap_update_bits(cs42l43->regmap, CS42L43_STEREO_MIC_CLAMP_CTRL,
+			   CS42L43_SMIC_HPAMP_CLAMP_DIS_FRC_MASK,
+			   CS42L43_SMIC_HPAMP_CLAMP_DIS_FRC_MASK);
 	regmap_update_bits(cs42l43->regmap, CS42L43_HS2,
 			   CS42L43_HSDET_MODE_MASK | CS42L43_HSDET_MANUAL_MODE_MASK,
 			   0x2 << CS42L43_HSDET_MODE_SHIFT);
@@ -764,6 +774,8 @@ void cs42l43_tip_sense_work(struct work_struct *work)
 error:
 	mutex_unlock(&priv->jack_lock);
 
+	priv->suspend_jack_debounce = false;
+
 	pm_runtime_mark_last_busy(priv->dev);
 	pm_runtime_put_autosuspend(priv->dev);
 }
@@ -771,14 +783,19 @@ error:
 irqreturn_t cs42l43_tip_sense(int irq, void *data)
 {
 	struct cs42l43_codec *priv = data;
+	unsigned int db_delay = priv->tip_debounce_ms;
 
 	cancel_delayed_work(&priv->bias_sense_timeout);
 	cancel_delayed_work(&priv->tip_sense_work);
 	cancel_delayed_work(&priv->button_press_work);
 	cancel_work(&priv->button_release_work);
 
+	// Ensure delay after suspend is long enough to avoid false detection
+	if (priv->suspend_jack_debounce)
+		db_delay += priv->tip_fall_db_ms + priv->tip_rise_db_ms;
+
 	queue_delayed_work(system_long_wq, &priv->tip_sense_work,
-			   msecs_to_jiffies(priv->tip_debounce_ms));
+			   msecs_to_jiffies(db_delay));
 
 	return IRQ_HANDLED;
 }

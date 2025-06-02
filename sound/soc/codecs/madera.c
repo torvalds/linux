@@ -2776,7 +2776,7 @@ static int madera_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
 		if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) !=
-		    SND_SOC_DAIFMT_CBM_CFM) {
+		    SND_SOC_DAIFMT_CBP_CFP) {
 			madera_aif_err(dai, "DSP_B not valid in slave mode\n");
 			return -EINVAL;
 		}
@@ -2787,7 +2787,7 @@ static int madera_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
 		if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) !=
-		    SND_SOC_DAIFMT_CBM_CFM) {
+		    SND_SOC_DAIFMT_CBP_CFP) {
 			madera_aif_err(dai, "LEFT_J not valid in slave mode\n");
 			return -EINVAL;
 		}
@@ -2800,15 +2800,15 @@ static int madera_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
-	case SND_SOC_DAIFMT_CBS_CFM:
+	case SND_SOC_DAIFMT_CBC_CFP:
 		lrclk |= MADERA_AIF1TX_LRCLK_MSTR;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFS:
+	case SND_SOC_DAIFMT_CBP_CFC:
 		bclk |= MADERA_AIF1_BCLK_MSTR;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		bclk |= MADERA_AIF1_BCLK_MSTR;
 		lrclk |= MADERA_AIF1TX_LRCLK_MSTR;
 		break;

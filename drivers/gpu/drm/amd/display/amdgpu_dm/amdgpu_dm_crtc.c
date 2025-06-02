@@ -113,6 +113,7 @@ bool amdgpu_dm_crtc_vrr_active(const struct dm_crtc_state *dm_state)
  *
  * Panel Replay and PSR SU
  * - Enable when:
+ *      - VRR is disabled
  *      - vblank counter is disabled
  *      - entry is allowed: usermode demonstrates an adequate number of fast
  *        commits)
@@ -131,19 +132,20 @@ static void amdgpu_dm_crtc_set_panel_sr_feature(
 	bool is_sr_active = (link->replay_settings.replay_allow_active ||
 				 link->psr_settings.psr_allow_active);
 	bool is_crc_window_active = false;
+	bool vrr_active = amdgpu_dm_crtc_vrr_active_irq(vblank_work->acrtc);
 
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
 	is_crc_window_active =
 		amdgpu_dm_crc_window_is_activated(&vblank_work->acrtc->base);
 #endif
 
-	if (link->replay_settings.replay_feature_enabled &&
+	if (link->replay_settings.replay_feature_enabled && !vrr_active &&
 		allow_sr_entry && !is_sr_active && !is_crc_window_active) {
 		amdgpu_dm_replay_enable(vblank_work->stream, true);
 	} else if (vblank_enabled) {
 		if (link->psr_settings.psr_version < DC_PSR_VERSION_SU_1 && is_sr_active)
 			amdgpu_dm_psr_disable(vblank_work->stream, false);
-	} else if (link->psr_settings.psr_feature_enabled &&
+	} else if (link->psr_settings.psr_feature_enabled && !vrr_active &&
 		allow_sr_entry && !is_sr_active && !is_crc_window_active) {
 
 		struct amdgpu_dm_connector *aconn =
@@ -244,6 +246,8 @@ static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 	struct vblank_control_work *vblank_work =
 		container_of(work, struct vblank_control_work, work);
 	struct amdgpu_display_manager *dm = vblank_work->dm;
+	struct amdgpu_device *adev = drm_to_adev(dm->ddev);
+	int r;
 
 	mutex_lock(&dm->dc_lock);
 
@@ -271,8 +275,15 @@ static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 			vblank_work->acrtc->dm_irq_params.allow_sr_entry);
 	}
 
-	if (dm->active_vblank_irq_count == 0)
+	if (dm->active_vblank_irq_count == 0) {
+		r = amdgpu_dpm_pause_power_profile(adev, true);
+		if (r)
+			dev_warn(adev->dev, "failed to set default power profile mode\n");
 		dc_allow_idle_optimizations(dm->dc, true);
+		r = amdgpu_dpm_pause_power_profile(adev, false);
+		if (r)
+			dev_warn(adev->dev, "failed to restore the power profile mode\n");
+	}
 
 	mutex_unlock(&dm->dc_lock);
 

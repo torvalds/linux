@@ -17,6 +17,7 @@ properties:
   compatible:
     enum:
       - allwinner,sun20i-d1-ppu
+      - allwinner,sun8i-v853-ppu
 
   reg:
     maxItems: 1

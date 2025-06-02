@@ -837,10 +837,6 @@ kgdb_handle_exception(int evector, int signo, int ecode, struct pt_regs *regs)
 {
 	struct kgdb_state kgdb_var;
 	struct kgdb_state *ks = &kgdb_var;
-	int ret = 0;
-
-	if (arch_kgdb_ops.enable_nmi)
-		arch_kgdb_ops.enable_nmi(0);
 	/*
 	 * Avoid entering the debugger if we were triggered due to an oops
 	 * but panic_timeout indicates the system should automatically
@@ -858,15 +854,11 @@ kgdb_handle_exception(int evector, int signo, int ecode, struct pt_regs *regs)
 	ks->linux_regs		= regs;
 
 	if (kgdb_reenter_check(ks))
-		goto out; /* Ouch, double exception ! */
+		return 0; /* Ouch, double exception ! */
 	if (kgdb_info[ks->cpu].enter_kgdb != 0)
-		goto out;
+		return 0;
 
-	ret = kgdb_cpu_enter(ks, regs, DCPU_WANT_MASTER);
-out:
-	if (arch_kgdb_ops.enable_nmi)
-		arch_kgdb_ops.enable_nmi(1);
-	return ret;
+	return kgdb_cpu_enter(ks, regs, DCPU_WANT_MASTER);
 }
 NOKPROBE_SYMBOL(kgdb_handle_exception);
 

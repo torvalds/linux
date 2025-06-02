@@ -71,7 +71,7 @@ static struct rv_monitor rv_wip = {
 
 static int __init register_wip(void)
 {
-	rv_register_monitor(&rv_wip);
+	rv_register_monitor(&rv_wip, NULL);
 	return 0;
 }
 

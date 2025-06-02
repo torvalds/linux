@@ -319,7 +319,7 @@ enum {
 	GENPIX_SKYWALKER_CW3K,
 };
 
-static struct usb_device_id gp8psk_usb_table[] = {
+static const struct usb_device_id gp8psk_usb_table[] = {
 	DVB_USB_DEV(GENPIX, GENPIX_8PSK_REV_1_COLD),
 	DVB_USB_DEV(GENPIX, GENPIX_8PSK_REV_1_WARM),
 	DVB_USB_DEV(GENPIX, GENPIX_8PSK_REV_2),

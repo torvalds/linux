@@ -2,7 +2,7 @@
 /*
  * Portions of this file
  * Copyright(c) 2016-2017 Intel Deutschland GmbH
- * Copyright (C) 2018, 2021-2024 Intel Corporation
+ * Copyright (C) 2018, 2021-2025 Intel Corporation
  */
 #ifndef __CFG80211_RDEV_OPS
 #define __CFG80211_RDEV_OPS
@@ -1551,16 +1551,14 @@ rdev_get_radio_mask(struct cfg80211_registered_device *rdev,
 static inline int
 rdev_assoc_ml_reconf(struct cfg80211_registered_device *rdev,
 		     struct net_device *dev,
-		     struct cfg80211_assoc_link *add_links,
-		     u16 rem_links)
+		     struct cfg80211_ml_reconf_req *req)
 {
 	struct wiphy *wiphy = &rdev->wiphy;
 	int ret = -EOPNOTSUPP;
 
-	trace_rdev_assoc_ml_reconf(wiphy, dev, add_links, rem_links);
+	trace_rdev_assoc_ml_reconf(wiphy, dev, req);
 	if (rdev->ops->assoc_ml_reconf)
-		ret = rdev->ops->assoc_ml_reconf(wiphy, dev, add_links,
-						 rem_links);
+		ret = rdev->ops->assoc_ml_reconf(wiphy, dev, req);
 	trace_rdev_return_int(wiphy, ret);
 
 	return ret;

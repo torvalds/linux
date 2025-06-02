@@ -89,8 +89,11 @@ static bool delete_fprobe_node(struct fprobe_hlist_node *node)
 {
 	lockdep_assert_held(&fprobe_mutex);
 
-	WRITE_ONCE(node->fp, NULL);
-	hlist_del_rcu(&node->hlist);
+	/* Avoid double deleting */
+	if (READ_ONCE(node->fp) != NULL) {
+		WRITE_ONCE(node->fp, NULL);
+		hlist_del_rcu(&node->hlist);
+	}
 	return !!find_first_fprobe_node(node->addr);
 }
 
@@ -411,6 +414,102 @@ static void fprobe_graph_remove_ips(unsigned long *addrs, int num)
 		ftrace_set_filter_ips(&fprobe_graph_ops.ops, addrs, num, 1, 0);
 }
 
+#ifdef CONFIG_MODULES
+
+#define FPROBE_IPS_BATCH_INIT 8
+/* instruction pointer address list */
+struct fprobe_addr_list {
+	int index;
+	int size;
+	unsigned long *addrs;
+};
+
+static int fprobe_addr_list_add(struct fprobe_addr_list *alist, unsigned long addr)
+{
+	unsigned long *addrs;
+
+	if (alist->index >= alist->size)
+		return -ENOMEM;
+
+	alist->addrs[alist->index++] = addr;
+	if (alist->index < alist->size)
+		return 0;
+
+	/* Expand the address list */
+	addrs = kcalloc(alist->size * 2, sizeof(*addrs), GFP_KERNEL);
+	if (!addrs)
+		return -ENOMEM;
+
+	memcpy(addrs, alist->addrs, alist->size * sizeof(*addrs));
+	alist->size *= 2;
+	kfree(alist->addrs);
+	alist->addrs = addrs;
+
+	return 0;
+}
+
+static void fprobe_remove_node_in_module(struct module *mod, struct hlist_head *head,
+					struct fprobe_addr_list *alist)
+{
+	struct fprobe_hlist_node *node;
+	int ret = 0;
+
+	hlist_for_each_entry_rcu(node, head, hlist) {
+		if (!within_module(node->addr, mod))
+			continue;
+		if (delete_fprobe_node(node))
+			continue;
+		/*
+		 * If failed to update alist, just continue to update hlist.
+		 * Therefore, at list user handler will not hit anymore.
+		 */
+		if (!ret)
+			ret = fprobe_addr_list_add(alist, node->addr);
+	}
+}
+
+/* Handle module unloading to manage fprobe_ip_table. */
+static int fprobe_module_callback(struct notifier_block *nb,
+				  unsigned long val, void *data)
+{
+	struct fprobe_addr_list alist = {.size = FPROBE_IPS_BATCH_INIT};
+	struct module *mod = data;
+	int i;
+
+	if (val != MODULE_STATE_GOING)
+		return NOTIFY_DONE;
+
+	alist.addrs = kcalloc(alist.size, sizeof(*alist.addrs), GFP_KERNEL);
+	/* If failed to alloc memory, we can not remove ips from hash. */
+	if (!alist.addrs)
+		return NOTIFY_DONE;
+
+	mutex_lock(&fprobe_mutex);
+	for (i = 0; i < FPROBE_IP_TABLE_SIZE; i++)
+		fprobe_remove_node_in_module(mod, &fprobe_ip_table[i], &alist);
+
+	if (alist.index < alist.size && alist.index > 0)
+		ftrace_set_filter_ips(&fprobe_graph_ops.ops,
+				      alist.addrs, alist.index, 1, 0);
+	mutex_unlock(&fprobe_mutex);
+
+	kfree(alist.addrs);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block fprobe_module_nb = {
+	.notifier_call = fprobe_module_callback,
+	.priority = 0,
+};
+
+static int __init init_fprobe_module(void)
+{
+	return register_module_notifier(&fprobe_module_nb);
+}
+early_initcall(init_fprobe_module);
+#endif
+
 static int symbols_cmp(const void *a, const void *b)
 {
 	const char **str_a = (const char **) a;
@@ -445,6 +544,7 @@ struct filter_match_data {
 	size_t index;
 	size_t size;
 	unsigned long *addrs;
+	struct module **mods;
 };
 
 static int filter_match_callback(void *data, const char *name, unsigned long addr)
@@ -458,30 +558,47 @@ static int filter_match_callback(void *data, const char *name, unsigned long add
 	if (!ftrace_location(addr))
 		return 0;
 
-	if (match->addrs)
-		match->addrs[match->index] = addr;
+	if (match->addrs) {
+		struct module *mod = __module_text_address(addr);
 
+		if (mod && !try_module_get(mod))
+			return 0;
+
+		match->mods[match->index] = mod;
+		match->addrs[match->index] = addr;
+	}
 	match->index++;
 	return match->index == match->size;
 }
 
 /*
  * Make IP list from the filter/no-filter glob patterns.
- * Return the number of matched symbols, or -ENOENT.
+ * Return the number of matched symbols, or errno.
+ * If @addrs == NULL, this just counts the number of matched symbols. If @addrs
+ * is passed with an array, we need to pass the an @mods array of the same size
+ * to increment the module refcount for each symbol.
+ * This means we also need to call `module_put` for each element of @mods after
+ * using the @addrs.
  */
-static int ip_list_from_filter(const char *filter, const char *notfilter,
-			       unsigned long *addrs, size_t size)
+static int get_ips_from_filter(const char *filter, const char *notfilter,
+			       unsigned long *addrs, struct module **mods,
+			       size_t size)
 {
 	struct filter_match_data match = { .filter = filter, .notfilter = notfilter,
-		.index = 0, .size = size, .addrs = addrs};
+		.index = 0, .size = size, .addrs = addrs, .mods = mods};
 	int ret;
+
+	if (addrs && !mods)
+		return -EINVAL;
 
 	ret = kallsyms_on_each_symbol(filter_match_callback, &match);
 	if (ret < 0)
 		return ret;
-	ret = module_kallsyms_on_each_symbol(NULL, filter_match_callback, &match);
-	if (ret < 0)
-		return ret;
+	if (IS_ENABLED(CONFIG_MODULES)) {
+		ret = module_kallsyms_on_each_symbol(NULL, filter_match_callback, &match);
+		if (ret < 0)
+			return ret;
+	}
 
 	return match.index ?: -ENOENT;
 }
@@ -543,24 +660,35 @@ static int fprobe_init(struct fprobe *fp, unsigned long *addrs, int num)
  */
 int register_fprobe(struct fprobe *fp, const char *filter, const char *notfilter)
 {
-	unsigned long *addrs;
-	int ret;
+	unsigned long *addrs __free(kfree) = NULL;
+	struct module **mods __free(kfree) = NULL;
+	int ret, num;
 
 	if (!fp || !filter)
 		return -EINVAL;
 
-	ret = ip_list_from_filter(filter, notfilter, NULL, FPROBE_IPS_MAX);
+	num = get_ips_from_filter(filter, notfilter, NULL, NULL, FPROBE_IPS_MAX);
+	if (num < 0)
+		return num;
+
+	addrs = kcalloc(num, sizeof(*addrs), GFP_KERNEL);
+	if (!addrs)
+		return -ENOMEM;
+
+	mods = kcalloc(num, sizeof(*mods), GFP_KERNEL);
+	if (!mods)
+		return -ENOMEM;
+
+	ret = get_ips_from_filter(filter, notfilter, addrs, mods, num);
 	if (ret < 0)
 		return ret;
 
-	addrs = kcalloc(ret, sizeof(unsigned long), GFP_KERNEL);
-	if (!addrs)
-		return -ENOMEM;
-	ret = ip_list_from_filter(filter, notfilter, addrs, ret);
-	if (ret > 0)
-		ret = register_fprobe_ips(fp, addrs, ret);
+	ret = register_fprobe_ips(fp, addrs, ret);
 
-	kfree(addrs);
+	for (int i = 0; i < num; i++) {
+		if (mods[i])
+			module_put(mods[i]);
+	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(register_fprobe);

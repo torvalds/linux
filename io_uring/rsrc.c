@@ -9,6 +9,7 @@
 #include <linux/hugetlb.h>
 #include <linux/compat.h>
 #include <linux/io_uring.h>
+#include <linux/io_uring/cmd.h>
 
 #include <uapi/linux/io_uring.h>
 
@@ -31,6 +32,8 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 /* only define max */
 #define IORING_MAX_FIXED_FILES	(1U << 20)
 #define IORING_MAX_REG_BUFFERS	(1U << 14)
+
+#define IO_CACHED_BVECS_SEGS	32
 
 int __io_account_mem(struct user_struct *user, unsigned long nr_pages)
 {
@@ -77,7 +80,7 @@ static int io_account_mem(struct io_ring_ctx *ctx, unsigned long nr_pages)
 	return 0;
 }
 
-static int io_buffer_validate(struct iovec *iov)
+int io_buffer_validate(struct iovec *iov)
 {
 	unsigned long tmp, acct_len = iov->iov_len + (PAGE_SIZE - 1);
 
@@ -101,36 +104,91 @@ static int io_buffer_validate(struct iovec *iov)
 	return 0;
 }
 
-static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
+static void io_release_ubuf(void *priv)
 {
+	struct io_mapped_ubuf *imu = priv;
 	unsigned int i;
 
-	if (node->buf) {
-		struct io_mapped_ubuf *imu = node->buf;
-
-		if (!refcount_dec_and_test(&imu->refs))
-			return;
-		for (i = 0; i < imu->nr_bvecs; i++)
-			unpin_user_page(imu->bvec[i].bv_page);
-		if (imu->acct_pages)
-			io_unaccount_mem(ctx, imu->acct_pages);
-		kvfree(imu);
-	}
+	for (i = 0; i < imu->nr_bvecs; i++)
+		unpin_user_page(imu->bvec[i].bv_page);
 }
 
-struct io_rsrc_node *io_rsrc_node_alloc(int type)
+static struct io_mapped_ubuf *io_alloc_imu(struct io_ring_ctx *ctx,
+					   int nr_bvecs)
+{
+	if (nr_bvecs <= IO_CACHED_BVECS_SEGS)
+		return io_cache_alloc(&ctx->imu_cache, GFP_KERNEL);
+	return kvmalloc(struct_size_t(struct io_mapped_ubuf, bvec, nr_bvecs),
+			GFP_KERNEL);
+}
+
+static void io_free_imu(struct io_ring_ctx *ctx, struct io_mapped_ubuf *imu)
+{
+	if (imu->nr_bvecs <= IO_CACHED_BVECS_SEGS)
+		io_cache_free(&ctx->imu_cache, imu);
+	else
+		kvfree(imu);
+}
+
+static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf *imu)
+{
+	if (!refcount_dec_and_test(&imu->refs))
+		return;
+
+	if (imu->acct_pages)
+		io_unaccount_mem(ctx, imu->acct_pages);
+	imu->release(imu->priv);
+	io_free_imu(ctx, imu);
+}
+
+struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx, int type)
 {
 	struct io_rsrc_node *node;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	node = io_cache_alloc(&ctx->node_cache, GFP_KERNEL);
 	if (node) {
 		node->type = type;
 		node->refs = 1;
+		node->tag = 0;
+		node->file_ptr = 0;
 	}
 	return node;
 }
 
-__cold void io_rsrc_data_free(struct io_ring_ctx *ctx, struct io_rsrc_data *data)
+bool io_rsrc_cache_init(struct io_ring_ctx *ctx)
+{
+	const int imu_cache_size = struct_size_t(struct io_mapped_ubuf, bvec,
+						 IO_CACHED_BVECS_SEGS);
+	const int node_size = sizeof(struct io_rsrc_node);
+	bool ret;
+
+	ret = io_alloc_cache_init(&ctx->node_cache, IO_ALLOC_CACHE_MAX,
+				  node_size, 0);
+	ret |= io_alloc_cache_init(&ctx->imu_cache, IO_ALLOC_CACHE_MAX,
+				   imu_cache_size, 0);
+	return ret;
+}
+
+void io_rsrc_cache_free(struct io_ring_ctx *ctx)
+{
+	io_alloc_cache_free(&ctx->node_cache, kfree);
+	io_alloc_cache_free(&ctx->imu_cache, kfree);
+}
+
+static void io_clear_table_tags(struct io_rsrc_data *data)
+{
+	int i;
+
+	for (i = 0; i < data->nr; i++) {
+		struct io_rsrc_node *node = data->nodes[i];
+
+		if (node)
+			node->tag = 0;
+	}
+}
+
+__cold void io_rsrc_data_free(struct io_ring_ctx *ctx,
+			      struct io_rsrc_data *data)
 {
 	if (!data->nr)
 		return;
@@ -203,7 +261,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				err = -EBADF;
 				break;
 			}
-			node = io_rsrc_node_alloc(IORING_RSRC_FILE);
+			node = io_rsrc_node_alloc(ctx, IORING_RSRC_FILE);
 			if (!node) {
 				err = -ENOMEM;
 				fput(file);
@@ -449,19 +507,17 @@ void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 
 	switch (node->type) {
 	case IORING_RSRC_FILE:
-		if (io_slot_file(node))
-			fput(io_slot_file(node));
+		fput(io_slot_file(node));
 		break;
 	case IORING_RSRC_BUFFER:
-		if (node->buf)
-			io_buffer_unmap(ctx, node);
+		io_buffer_unmap(ctx, node->buf);
 		break;
 	default:
 		WARN_ON_ONCE(1);
 		break;
 	}
 
-	kfree(node);
+	io_cache_free(&ctx->node_cache, node);
 }
 
 int io_sqe_files_unregister(struct io_ring_ctx *ctx)
@@ -523,7 +579,7 @@ int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 			goto fail;
 		}
 		ret = -ENOMEM;
-		node = io_rsrc_node_alloc(IORING_RSRC_FILE);
+		node = io_rsrc_node_alloc(ctx, IORING_RSRC_FILE);
 		if (!node) {
 			fput(file);
 			goto fail;
@@ -539,6 +595,7 @@ int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	io_file_table_set_alloc_range(ctx, 0, ctx->file_table.data.nr);
 	return 0;
 fail:
+	io_clear_table_tags(&ctx->file_table.data);
 	io_sqe_files_unregister(ctx);
 	return ret;
 }
@@ -728,10 +785,9 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 	if (!iov->iov_base)
 		return NULL;
 
-	node = io_rsrc_node_alloc(IORING_RSRC_BUFFER);
+	node = io_rsrc_node_alloc(ctx, IORING_RSRC_BUFFER);
 	if (!node)
 		return ERR_PTR(-ENOMEM);
-	node->buf = NULL;
 
 	ret = -ENOMEM;
 	pages = io_pin_pages((unsigned long) iov->iov_base, iov->iov_len,
@@ -748,10 +804,11 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 			coalesced = io_coalesce_buffer(&pages, &nr_pages, &data);
 	}
 
-	imu = kvmalloc(struct_size(imu, bvec, nr_pages), GFP_KERNEL);
+	imu = io_alloc_imu(ctx, nr_pages);
 	if (!imu)
 		goto done;
 
+	imu->nr_bvecs = nr_pages;
 	ret = io_buffer_account_pin(ctx, pages, nr_pages, imu, last_hpage);
 	if (ret) {
 		unpin_user_pages(pages, nr_pages);
@@ -762,8 +819,11 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 	/* store original address for later verification */
 	imu->ubuf = (unsigned long) iov->iov_base;
 	imu->len = iov->iov_len;
-	imu->nr_bvecs = nr_pages;
 	imu->folio_shift = PAGE_SHIFT;
+	imu->release = io_release_ubuf;
+	imu->priv = imu;
+	imu->is_kbuf = false;
+	imu->dir = IO_IMU_DEST | IO_IMU_SOURCE;
 	if (coalesced)
 		imu->folio_shift = data.folio_shift;
 	refcount_set(&imu->refs, 1);
@@ -781,9 +841,9 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 	}
 done:
 	if (ret) {
-		kvfree(imu);
-		if (node)
-			io_put_rsrc_node(ctx, node);
+		if (imu)
+			io_free_imu(ctx, imu);
+		io_cache_free(&ctx->node_cache, node);
 		node = ERR_PTR(ret);
 	}
 	kvfree(pages);
@@ -855,68 +915,220 @@ int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 	}
 
 	ctx->buf_table = data;
-	if (ret)
+	if (ret) {
+		io_clear_table_tags(&ctx->buf_table);
 		io_sqe_buffers_unregister(ctx);
+	}
 	return ret;
 }
 
-int io_import_fixed(int ddir, struct iov_iter *iter,
-			   struct io_mapped_ubuf *imu,
-			   u64 buf_addr, size_t len)
+int io_buffer_register_bvec(struct io_uring_cmd *cmd, struct request *rq,
+			    void (*release)(void *), unsigned int index,
+			    unsigned int issue_flags)
+{
+	struct io_ring_ctx *ctx = cmd_to_io_kiocb(cmd)->ctx;
+	struct io_rsrc_data *data = &ctx->buf_table;
+	struct req_iterator rq_iter;
+	struct io_mapped_ubuf *imu;
+	struct io_rsrc_node *node;
+	struct bio_vec bv, *bvec;
+	u16 nr_bvecs;
+	int ret = 0;
+
+	io_ring_submit_lock(ctx, issue_flags);
+	if (index >= data->nr) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+	index = array_index_nospec(index, data->nr);
+
+	if (data->nodes[index]) {
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	node = io_rsrc_node_alloc(ctx, IORING_RSRC_BUFFER);
+	if (!node) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	nr_bvecs = blk_rq_nr_phys_segments(rq);
+	imu = io_alloc_imu(ctx, nr_bvecs);
+	if (!imu) {
+		kfree(node);
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	imu->ubuf = 0;
+	imu->len = blk_rq_bytes(rq);
+	imu->acct_pages = 0;
+	imu->folio_shift = PAGE_SHIFT;
+	imu->nr_bvecs = nr_bvecs;
+	refcount_set(&imu->refs, 1);
+	imu->release = release;
+	imu->priv = rq;
+	imu->is_kbuf = true;
+	imu->dir = 1 << rq_data_dir(rq);
+
+	bvec = imu->bvec;
+	rq_for_each_bvec(bv, rq, rq_iter)
+		*bvec++ = bv;
+
+	node->buf = imu;
+	data->nodes[index] = node;
+unlock:
+	io_ring_submit_unlock(ctx, issue_flags);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(io_buffer_register_bvec);
+
+int io_buffer_unregister_bvec(struct io_uring_cmd *cmd, unsigned int index,
+			      unsigned int issue_flags)
+{
+	struct io_ring_ctx *ctx = cmd_to_io_kiocb(cmd)->ctx;
+	struct io_rsrc_data *data = &ctx->buf_table;
+	struct io_rsrc_node *node;
+	int ret = 0;
+
+	io_ring_submit_lock(ctx, issue_flags);
+	if (index >= data->nr) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+	index = array_index_nospec(index, data->nr);
+
+	node = data->nodes[index];
+	if (!node) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+	if (!node->buf->is_kbuf) {
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	io_put_rsrc_node(ctx, node);
+	data->nodes[index] = NULL;
+unlock:
+	io_ring_submit_unlock(ctx, issue_flags);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(io_buffer_unregister_bvec);
+
+static int validate_fixed_range(u64 buf_addr, size_t len,
+				const struct io_mapped_ubuf *imu)
 {
 	u64 buf_end;
-	size_t offset;
 
-	if (WARN_ON_ONCE(!imu))
-		return -EFAULT;
 	if (unlikely(check_add_overflow(buf_addr, (u64)len, &buf_end)))
 		return -EFAULT;
 	/* not inside the mapped region */
 	if (unlikely(buf_addr < imu->ubuf || buf_end > (imu->ubuf + imu->len)))
 		return -EFAULT;
+	if (unlikely(len > MAX_RW_COUNT))
+		return -EFAULT;
+	return 0;
+}
+
+static int io_import_kbuf(int ddir, struct iov_iter *iter,
+			  struct io_mapped_ubuf *imu, size_t len, size_t offset)
+{
+	size_t count = len + offset;
+
+	iov_iter_bvec(iter, ddir, imu->bvec, imu->nr_bvecs, count);
+	iov_iter_advance(iter, offset);
+
+	if (count < imu->len) {
+		const struct bio_vec *bvec = iter->bvec;
+
+		while (len > bvec->bv_len) {
+			len -= bvec->bv_len;
+			bvec++;
+		}
+		iter->nr_segs = 1 + bvec - iter->bvec;
+	}
+	return 0;
+}
+
+static int io_import_fixed(int ddir, struct iov_iter *iter,
+			   struct io_mapped_ubuf *imu,
+			   u64 buf_addr, size_t len)
+{
+	const struct bio_vec *bvec;
+	size_t folio_mask;
+	unsigned nr_segs;
+	size_t offset;
+	int ret;
+
+	if (WARN_ON_ONCE(!imu))
+		return -EFAULT;
+	ret = validate_fixed_range(buf_addr, len, imu);
+	if (unlikely(ret))
+		return ret;
+	if (!(imu->dir & (1 << ddir)))
+		return -EFAULT;
+
+	offset = buf_addr - imu->ubuf;
+
+	if (imu->is_kbuf)
+		return io_import_kbuf(ddir, iter, imu, len, offset);
 
 	/*
-	 * Might not be a start of buffer, set size appropriately
-	 * and advance us to the beginning.
+	 * Don't use iov_iter_advance() here, as it's really slow for
+	 * using the latter parts of a big fixed buffer - it iterates
+	 * over each segment manually. We can cheat a bit here for user
+	 * registered nodes, because we know that:
+	 *
+	 * 1) it's a BVEC iter, we set it up
+	 * 2) all bvecs are the same in size, except potentially the
+	 *    first and last bvec
 	 */
-	offset = buf_addr - imu->ubuf;
-	iov_iter_bvec(iter, ddir, imu->bvec, imu->nr_bvecs, len);
+	folio_mask = (1UL << imu->folio_shift) - 1;
+	bvec = imu->bvec;
+	if (offset >= bvec->bv_len) {
+		unsigned long seg_skip;
 
-	if (offset) {
-		/*
-		 * Don't use iov_iter_advance() here, as it's really slow for
-		 * using the latter parts of a big fixed buffer - it iterates
-		 * over each segment manually. We can cheat a bit here, because
-		 * we know that:
-		 *
-		 * 1) it's a BVEC iter, we set it up
-		 * 2) all bvecs are the same in size, except potentially the
-		 *    first and last bvec
-		 *
-		 * So just find our index, and adjust the iterator afterwards.
-		 * If the offset is within the first bvec (or the whole first
-		 * bvec, just use iov_iter_advance(). This makes it easier
-		 * since we can just skip the first segment, which may not
-		 * be folio_size aligned.
-		 */
-		const struct bio_vec *bvec = imu->bvec;
-
-		if (offset < bvec->bv_len) {
-			iter->iov_offset = offset;
-		} else {
-			unsigned long seg_skip;
-
-			/* skip first vec */
-			offset -= bvec->bv_len;
-			seg_skip = 1 + (offset >> imu->folio_shift);
-
-			iter->bvec += seg_skip;
-			iter->nr_segs -= seg_skip;
-			iter->iov_offset = offset & ((1UL << imu->folio_shift) - 1);
-		}
+		/* skip first vec */
+		offset -= bvec->bv_len;
+		seg_skip = 1 + (offset >> imu->folio_shift);
+		bvec += seg_skip;
+		offset &= folio_mask;
 	}
-
+	nr_segs = (offset + len + bvec->bv_offset + folio_mask) >> imu->folio_shift;
+	iov_iter_bvec(iter, ddir, bvec, nr_segs, len);
+	iter->iov_offset = offset;
 	return 0;
+}
+
+inline struct io_rsrc_node *io_find_buf_node(struct io_kiocb *req,
+					     unsigned issue_flags)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	struct io_rsrc_node *node;
+
+	if (req->flags & REQ_F_BUF_NODE)
+		return req->buf_node;
+
+	io_ring_submit_lock(ctx, issue_flags);
+	node = io_rsrc_node_lookup(&ctx->buf_table, req->buf_index);
+	if (node)
+		io_req_assign_buf_node(req, node);
+	io_ring_submit_unlock(ctx, issue_flags);
+	return node;
+}
+
+int io_import_reg_buf(struct io_kiocb *req, struct iov_iter *iter,
+			u64 buf_addr, size_t len, int ddir,
+			unsigned issue_flags)
+{
+	struct io_rsrc_node *node;
+
+	node = io_find_buf_node(req, issue_flags);
+	if (!node)
+		return -EFAULT;
+	return io_import_fixed(ddir, iter, node->buf, buf_addr, len);
 }
 
 /* Lock two rings at once. The rings must be different! */
@@ -1002,7 +1214,7 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 		if (!src_node) {
 			dst_node = NULL;
 		} else {
-			dst_node = io_rsrc_node_alloc(IORING_RSRC_BUFFER);
+			dst_node = io_rsrc_node_alloc(ctx, IORING_RSRC_BUFFER);
 			if (!dst_node) {
 				ret = -ENOMEM;
 				goto out_free;
@@ -1079,4 +1291,252 @@ int io_register_clone_buffers(struct io_ring_ctx *ctx, void __user *arg)
 
 	fput(file);
 	return ret;
+}
+
+void io_vec_free(struct iou_vec *iv)
+{
+	if (!iv->iovec)
+		return;
+	kfree(iv->iovec);
+	iv->iovec = NULL;
+	iv->nr = 0;
+}
+
+int io_vec_realloc(struct iou_vec *iv, unsigned nr_entries)
+{
+	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
+	struct iovec *iov;
+
+	iov = kmalloc_array(nr_entries, sizeof(iov[0]), gfp);
+	if (!iov)
+		return -ENOMEM;
+
+	io_vec_free(iv);
+	iv->iovec = iov;
+	iv->nr = nr_entries;
+	return 0;
+}
+
+static int io_vec_fill_bvec(int ddir, struct iov_iter *iter,
+				struct io_mapped_ubuf *imu,
+				struct iovec *iovec, unsigned nr_iovs,
+				struct iou_vec *vec)
+{
+	unsigned long folio_size = 1 << imu->folio_shift;
+	unsigned long folio_mask = folio_size - 1;
+	u64 folio_addr = imu->ubuf & ~folio_mask;
+	struct bio_vec *res_bvec = vec->bvec;
+	size_t total_len = 0;
+	unsigned bvec_idx = 0;
+	unsigned iov_idx;
+
+	for (iov_idx = 0; iov_idx < nr_iovs; iov_idx++) {
+		size_t iov_len = iovec[iov_idx].iov_len;
+		u64 buf_addr = (u64)(uintptr_t)iovec[iov_idx].iov_base;
+		struct bio_vec *src_bvec;
+		size_t offset;
+		int ret;
+
+		ret = validate_fixed_range(buf_addr, iov_len, imu);
+		if (unlikely(ret))
+			return ret;
+
+		if (unlikely(!iov_len))
+			return -EFAULT;
+		if (unlikely(check_add_overflow(total_len, iov_len, &total_len)))
+			return -EOVERFLOW;
+
+		/* by using folio address it also accounts for bvec offset */
+		offset = buf_addr - folio_addr;
+		src_bvec = imu->bvec + (offset >> imu->folio_shift);
+		offset &= folio_mask;
+
+		for (; iov_len; offset = 0, bvec_idx++, src_bvec++) {
+			size_t seg_size = min_t(size_t, iov_len,
+						folio_size - offset);
+
+			bvec_set_page(&res_bvec[bvec_idx],
+				      src_bvec->bv_page, seg_size, offset);
+			iov_len -= seg_size;
+		}
+	}
+	if (total_len > MAX_RW_COUNT)
+		return -EINVAL;
+
+	iov_iter_bvec(iter, ddir, res_bvec, bvec_idx, total_len);
+	return 0;
+}
+
+static int io_estimate_bvec_size(struct iovec *iov, unsigned nr_iovs,
+				 struct io_mapped_ubuf *imu)
+{
+	unsigned shift = imu->folio_shift;
+	size_t max_segs = 0;
+	unsigned i;
+
+	for (i = 0; i < nr_iovs; i++)
+		max_segs += (iov[i].iov_len >> shift) + 2;
+	return max_segs;
+}
+
+static int io_vec_fill_kern_bvec(int ddir, struct iov_iter *iter,
+				 struct io_mapped_ubuf *imu,
+				 struct iovec *iovec, unsigned nr_iovs,
+				 struct iou_vec *vec)
+{
+	const struct bio_vec *src_bvec = imu->bvec;
+	struct bio_vec *res_bvec = vec->bvec;
+	unsigned res_idx = 0;
+	size_t total_len = 0;
+	unsigned iov_idx;
+
+	for (iov_idx = 0; iov_idx < nr_iovs; iov_idx++) {
+		size_t offset = (size_t)(uintptr_t)iovec[iov_idx].iov_base;
+		size_t iov_len = iovec[iov_idx].iov_len;
+		struct bvec_iter bi = {
+			.bi_size        = offset + iov_len,
+		};
+		struct bio_vec bv;
+
+		bvec_iter_advance(src_bvec, &bi, offset);
+		for_each_mp_bvec(bv, src_bvec, bi, bi)
+			res_bvec[res_idx++] = bv;
+		total_len += iov_len;
+	}
+	iov_iter_bvec(iter, ddir, res_bvec, res_idx, total_len);
+	return 0;
+}
+
+static int iov_kern_bvec_size(const struct iovec *iov,
+			      const struct io_mapped_ubuf *imu,
+			      unsigned int *nr_seg)
+{
+	size_t offset = (size_t)(uintptr_t)iov->iov_base;
+	const struct bio_vec *bvec = imu->bvec;
+	int start = 0, i = 0;
+	size_t off = 0;
+	int ret;
+
+	ret = validate_fixed_range(offset, iov->iov_len, imu);
+	if (unlikely(ret))
+		return ret;
+
+	for (i = 0; off < offset + iov->iov_len && i < imu->nr_bvecs;
+			off += bvec[i].bv_len, i++) {
+		if (offset >= off && offset < off + bvec[i].bv_len)
+			start = i;
+	}
+	*nr_seg = i - start;
+	return 0;
+}
+
+static int io_kern_bvec_size(struct iovec *iov, unsigned nr_iovs,
+			     struct io_mapped_ubuf *imu, unsigned *nr_segs)
+{
+	unsigned max_segs = 0;
+	size_t total_len = 0;
+	unsigned i;
+	int ret;
+
+	*nr_segs = 0;
+	for (i = 0; i < nr_iovs; i++) {
+		if (unlikely(!iov[i].iov_len))
+			return -EFAULT;
+		if (unlikely(check_add_overflow(total_len, iov[i].iov_len,
+						&total_len)))
+			return -EOVERFLOW;
+		ret = iov_kern_bvec_size(&iov[i], imu, &max_segs);
+		if (unlikely(ret))
+			return ret;
+		*nr_segs += max_segs;
+	}
+	if (total_len > MAX_RW_COUNT)
+		return -EINVAL;
+	return 0;
+}
+
+int io_import_reg_vec(int ddir, struct iov_iter *iter,
+			struct io_kiocb *req, struct iou_vec *vec,
+			unsigned nr_iovs, unsigned issue_flags)
+{
+	struct io_rsrc_node *node;
+	struct io_mapped_ubuf *imu;
+	unsigned iovec_off;
+	struct iovec *iov;
+	unsigned nr_segs;
+
+	node = io_find_buf_node(req, issue_flags);
+	if (!node)
+		return -EFAULT;
+	imu = node->buf;
+	if (!(imu->dir & (1 << ddir)))
+		return -EFAULT;
+
+	iovec_off = vec->nr - nr_iovs;
+	iov = vec->iovec + iovec_off;
+
+	if (imu->is_kbuf) {
+		int ret = io_kern_bvec_size(iov, nr_iovs, imu, &nr_segs);
+
+		if (unlikely(ret))
+			return ret;
+	} else {
+		nr_segs = io_estimate_bvec_size(iov, nr_iovs, imu);
+	}
+
+	if (sizeof(struct bio_vec) > sizeof(struct iovec)) {
+		size_t bvec_bytes;
+
+		bvec_bytes = nr_segs * sizeof(struct bio_vec);
+		nr_segs = (bvec_bytes + sizeof(*iov) - 1) / sizeof(*iov);
+		nr_segs += nr_iovs;
+	}
+
+	if (nr_segs > vec->nr) {
+		struct iou_vec tmp_vec = {};
+		int ret;
+
+		ret = io_vec_realloc(&tmp_vec, nr_segs);
+		if (ret)
+			return ret;
+
+		iovec_off = tmp_vec.nr - nr_iovs;
+		memcpy(tmp_vec.iovec + iovec_off, iov, sizeof(*iov) * nr_iovs);
+		io_vec_free(vec);
+
+		*vec = tmp_vec;
+		iov = vec->iovec + iovec_off;
+		req->flags |= REQ_F_NEED_CLEANUP;
+	}
+
+	if (imu->is_kbuf)
+		return io_vec_fill_kern_bvec(ddir, iter, imu, iov, nr_iovs, vec);
+
+	return io_vec_fill_bvec(ddir, iter, imu, iov, nr_iovs, vec);
+}
+
+int io_prep_reg_iovec(struct io_kiocb *req, struct iou_vec *iv,
+		      const struct iovec __user *uvec, size_t uvec_segs)
+{
+	struct iovec *iov;
+	int iovec_off, ret;
+	void *res;
+
+	if (uvec_segs > iv->nr) {
+		ret = io_vec_realloc(iv, uvec_segs);
+		if (ret)
+			return ret;
+		req->flags |= REQ_F_NEED_CLEANUP;
+	}
+
+	/* pad iovec to the right */
+	iovec_off = iv->nr - uvec_segs;
+	iov = iv->iovec + iovec_off;
+	res = iovec_from_user(uvec, uvec_segs, uvec_segs, iov,
+			      io_is_compat(req->ctx));
+	if (IS_ERR(res))
+		return PTR_ERR(res);
+
+	req->flags |= REQ_F_IMPORT_BUFFER;
+	return 0;
 }

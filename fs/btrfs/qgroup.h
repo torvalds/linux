@@ -22,6 +22,9 @@ struct btrfs_ioctl_quota_ctl_args;
 struct btrfs_trans_handle;
 struct btrfs_delayed_ref_root;
 struct btrfs_inode;
+struct btrfs_transaction;
+struct btrfs_block_group;
+struct btrfs_qgroup_swapped_blocks;
 
 /*
  * Btrfs qgroup overview

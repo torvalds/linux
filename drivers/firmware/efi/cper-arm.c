@@ -311,7 +311,7 @@ void cper_print_proc_arm(const char *pfx,
 	ctx_info = (struct cper_arm_ctx_info *)err_info;
 	max_ctx_type = ARRAY_SIZE(arm_reg_ctx_strs) - 1;
 	for (i = 0; i < proc->context_info_num; i++) {
-		int size = sizeof(*ctx_info) + ctx_info->size;
+		int size = ALIGN(sizeof(*ctx_info) + ctx_info->size, 16);
 
 		printk("%sContext info structure %d:\n", pfx, i);
 		if (len < size) {

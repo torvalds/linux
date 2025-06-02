@@ -633,8 +633,7 @@ extern struct dentry *hisi_sas_debugfs_dir;
 extern void hisi_sas_stop_phys(struct hisi_hba *hisi_hba);
 extern int hisi_sas_alloc(struct hisi_hba *hisi_hba);
 extern void hisi_sas_free(struct hisi_hba *hisi_hba);
-extern u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis,
-				int direction);
+extern u8 hisi_sas_get_ata_protocol(struct sas_task *task);
 extern struct hisi_sas_port *to_hisi_sas_port(struct asd_sas_port *sas_port);
 extern void hisi_sas_sata_done(struct sas_task *task,
 			    struct hisi_sas_slot *slot);

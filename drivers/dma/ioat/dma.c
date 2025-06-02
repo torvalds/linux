@@ -159,7 +159,7 @@ void ioat_stop(struct ioatdma_chan *ioat_chan)
 	}
 
 	/* flush inflight timers */
-	del_timer_sync(&ioat_chan->timer);
+	timer_delete_sync(&ioat_chan->timer);
 
 	/* flush inflight tasklet runs */
 	tasklet_kill(&ioat_chan->cleanup_task);

@@ -2439,10 +2439,10 @@ static int rt5670_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	unsigned int reg_val = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		rt5670->master[dai->id] = 1;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		reg_val |= RT5670_I2S_MS_S;
 		rt5670->master[dai->id] = 0;
 		break;
@@ -2880,10 +2880,10 @@ MODULE_DEVICE_TABLE(i2c, rt5670_i2c_id);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt5670_acpi_match[] = {
-	{ "10EC5670", 0},
-	{ "10EC5672", 0},
-	{ "10EC5640", 0}, /* quirk */
-	{ },
+	{ "10EC5640" }, /* quirk */
+	{ "10EC5670" },
+	{ "10EC5672" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt5670_acpi_match);
 #endif

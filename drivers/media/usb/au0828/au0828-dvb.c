@@ -143,7 +143,7 @@ static void urb_completion(struct urb *purb)
 		 */
 		dprintk(1, "%s cancelling bulk timeout\n", __func__);
 		dev->bulk_timeout_running = 0;
-		del_timer(&dev->bulk_timeout);
+		timer_delete(&dev->bulk_timeout);
 	}
 
 	/* Feed the transport payload into the kernel demux */
@@ -168,7 +168,7 @@ static int stop_urb_transfer(struct au0828_dev *dev)
 
 	if (dev->bulk_timeout_running == 1) {
 		dev->bulk_timeout_running = 0;
-		del_timer(&dev->bulk_timeout);
+		timer_delete(&dev->bulk_timeout);
 	}
 
 	dev->urb_streaming = false;

@@ -41,7 +41,6 @@
         "EventName": "FRONTEND_RETIRED.ANY_ANT",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x9",
-        "PEBS": "1",
         "PublicDescription": "Always Not Taken (ANT) conditional retired branches (no BTB entry and not mispredicted)",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -53,7 +52,6 @@
         "EventName": "FRONTEND_RETIRED.ANY_DSB_MISS",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x1",
-        "PEBS": "1",
         "PublicDescription": "Counts retired Instructions that experienced DSB (Decode stream buffer i.e. the decoded instruction-cache) miss.",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -65,7 +63,6 @@
         "EventName": "FRONTEND_RETIRED.DSB_MISS",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x11",
-        "PEBS": "1",
         "PublicDescription": "Number of retired Instructions that experienced a critical DSB (Decode stream buffer i.e. the decoded instruction-cache) miss. Critical means stalls were exposed to the back-end as a result of the DSB miss.",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -77,7 +74,6 @@
         "EventName": "FRONTEND_RETIRED.ITLB_MISS",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x14",
-        "PEBS": "1",
         "PublicDescription": "Counts retired Instructions that experienced iTLB (Instruction TLB) true miss.",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -89,7 +85,6 @@
         "EventName": "FRONTEND_RETIRED.L1I_MISS",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x12",
-        "PEBS": "1",
         "PublicDescription": "Counts retired Instructions who experienced Instruction L1 Cache true miss.",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -101,7 +96,6 @@
         "EventName": "FRONTEND_RETIRED.L2_MISS",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x13",
-        "PEBS": "1",
         "PublicDescription": "Counts retired Instructions who experienced Instruction L2 Cache true miss.",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -113,7 +107,6 @@
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_1",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x600106",
-        "PEBS": "1",
         "PublicDescription": "Retired instructions that are fetched after an interval where the front-end delivered no uops for a period of at least 1 cycle which was not interrupted by a back-end stall.",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -125,7 +118,6 @@
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_128",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x608006",
-        "PEBS": "1",
         "PublicDescription": "Counts retired instructions that are fetched after an interval where the front-end delivered no uops for a period of 128 cycles which was not interrupted by a back-end stall.",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -137,7 +129,6 @@
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_16",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x601006",
-        "PEBS": "1",
         "PublicDescription": "Counts retired instructions that are delivered to the back-end after a front-end stall of at least 16 cycles. During this period the front-end delivered no uops.",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -149,7 +140,6 @@
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_2",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x600206",
-        "PEBS": "1",
         "PublicDescription": "Retired instructions that are fetched after an interval where the front-end delivered no uops for a period of at least 2 cycles which was not interrupted by a back-end stall.",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -161,7 +151,6 @@
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_256",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x610006",
-        "PEBS": "1",
         "PublicDescription": "Counts retired instructions that are fetched after an interval where the front-end delivered no uops for a period of 256 cycles which was not interrupted by a back-end stall.",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -173,7 +162,6 @@
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_2_BUBBLES_GE_1",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x100206",
-        "PEBS": "1",
         "PublicDescription": "Counts retired instructions that are delivered to the back-end after the front-end had at least 1 bubble-slot for a period of 2 cycles. A bubble-slot is an empty issue-pipeline slot while there was no RAT stall.",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -185,7 +173,6 @@
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_32",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x602006",
-        "PEBS": "1",
         "PublicDescription": "Counts retired instructions that are delivered to the back-end after a front-end stall of at least 32 cycles. During this period the front-end delivered no uops.",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -197,7 +184,6 @@
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_4",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x600406",
-        "PEBS": "1",
         "PublicDescription": "Counts retired instructions that are fetched after an interval where the front-end delivered no uops for a period of 4 cycles which was not interrupted by a back-end stall.",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -209,7 +195,6 @@
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_512",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x620006",
-        "PEBS": "1",
         "PublicDescription": "Counts retired instructions that are fetched after an interval where the front-end delivered no uops for a period of 512 cycles which was not interrupted by a back-end stall.",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -221,7 +206,6 @@
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_64",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x604006",
-        "PEBS": "1",
         "PublicDescription": "Counts retired instructions that are fetched after an interval where the front-end delivered no uops for a period of 64 cycles which was not interrupted by a back-end stall.",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -233,7 +217,6 @@
         "EventName": "FRONTEND_RETIRED.LATENCY_GE_8",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x600806",
-        "PEBS": "1",
         "PublicDescription": "Counts retired instructions that are delivered to the back-end after a front-end stall of at least 8 cycles. During this period the front-end delivered no uops.",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -244,8 +227,7 @@
         "EventCode": "0xc6",
         "EventName": "FRONTEND_RETIRED.LATE_SWPF",
         "MSRIndex": "0x3F7",
-        "MSRValue": "0x9",
-        "PEBS": "1",
+        "MSRValue": "0xA",
         "PublicDescription": "Number of Instruction Cache demand miss in shadow of an on-going i-fetch cache-line triggered by PREFETCHIT0/1 instructions",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -257,7 +239,6 @@
         "EventName": "FRONTEND_RETIRED.MISP_ANT",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x9",
-        "PEBS": "1",
         "PublicDescription": "ANT retired branches that got just mispredicted",
         "SampleAfterValue": "100007",
         "UMask": "0x2"
@@ -269,7 +250,6 @@
         "EventName": "FRONTEND_RETIRED.MS_FLOWS",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x8",
-        "PEBS": "1",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
     },
@@ -280,7 +260,6 @@
         "EventName": "FRONTEND_RETIRED.STLB_MISS",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x15",
-        "PEBS": "1",
         "PublicDescription": "Counts retired Instructions that experienced STLB (2nd level TLB) true miss.",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
@@ -292,7 +271,6 @@
         "EventName": "FRONTEND_RETIRED.UNKNOWN_BRANCH",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x17",
-        "PEBS": "1",
         "SampleAfterValue": "100007",
         "UMask": "0x3"
     },

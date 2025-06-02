@@ -3,7 +3,14 @@
 .. include:: ../disclaimer-zh_CN.rst
 
 :Original: Documentation/dev-tools/ubsan.rst
-:Translator: Dongliang Mu <dzm91@hust.edu.cn>
+
+:翻译:
+
+ 慕冬亮 Dongliang Mu <dzm91@hust.edu.cn>
+
+:校译:
+
+ 王昱力 WangYuli <wangyuli@uniontech.com>
 
 未定义行为消毒剂 - UBSAN
 ====================================
@@ -55,29 +62,19 @@ GCC自4.9.x [1_] （详见 ``-fsanitize=undefined`` 选项及其子选项）版�
 
 使用如下内核配置启用UBSAN::
 
-	CONFIG_UBSAN=y
+  CONFIG_UBSAN=y
 
-使用如下内核配置检查整个内核::
-
-        CONFIG_UBSAN_SANITIZE_ALL=y
-
-为了在特定文件或目录启动代码插桩，需要在相应的内核Makefile中添加一行类似内容:
-
-- 单文件（如main.o）::
-
-    UBSAN_SANITIZE_main.o := y
-
-- 一个目录中的所有文件::
-
-    UBSAN_SANITIZE := y
-
-即使设置了``CONFIG_UBSAN_SANITIZE_ALL=y``，为了避免文件被插桩，可使用::
+排除要被检测的文件::
 
   UBSAN_SANITIZE_main.o := n
 
-与::
+排除一个目录中的所有文件::
 
   UBSAN_SANITIZE := n
+
+当全部文件都被禁用，可通过如下方式为特定文件启用::
+
+  UBSAN_SANITIZE_main.o := y
 
 未对齐的内存访问检测可通过开启独立选项 - CONFIG_UBSAN_ALIGNMENT 检测。
 该选项在支持未对齐访问的架构上(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS=y)

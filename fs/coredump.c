@@ -63,6 +63,7 @@ static void free_vma_snapshot(struct coredump_params *cprm);
 
 static int core_uses_pid;
 static unsigned int core_pipe_limit;
+static unsigned int core_sort_vma;
 static char core_pattern[CORENAME_MAX_SIZE] = "core";
 static int core_name_size = CORENAME_MAX_SIZE;
 unsigned int core_file_note_size_limit = CORE_FILE_NOTE_SIZE_DEFAULT;
@@ -925,13 +926,22 @@ int dump_user_range(struct coredump_params *cprm, unsigned long start,
 {
 	unsigned long addr;
 	struct page *dump_page;
+	int locked, ret;
 
 	dump_page = dump_page_alloc();
 	if (!dump_page)
 		return 0;
 
+	ret = 0;
+	locked = 0;
 	for (addr = start; addr < start + len; addr += PAGE_SIZE) {
 		struct page *page;
+
+		if (!locked) {
+			if (mmap_read_lock_killable(current->mm))
+				goto out;
+			locked = 1;
+		}
 
 		/*
 		 * To avoid having to allocate page tables for virtual address
@@ -940,21 +950,38 @@ int dump_user_range(struct coredump_params *cprm, unsigned long start,
 		 * NULL when encountering an empty page table entry that would
 		 * otherwise have been filled with the zero page.
 		 */
-		page = get_dump_page(addr);
+		page = get_dump_page(addr, &locked);
 		if (page) {
+			if (locked) {
+				mmap_read_unlock(current->mm);
+				locked = 0;
+			}
 			int stop = !dump_emit_page(cprm, dump_page_copy(page, dump_page));
 			put_page(page);
-			if (stop) {
-				dump_page_free(dump_page);
-				return 0;
-			}
+			if (stop)
+				goto out;
 		} else {
 			dump_skip(cprm, PAGE_SIZE);
 		}
+
+		if (dump_interrupted())
+			goto out;
+
+		if (!need_resched())
+			continue;
+		if (locked) {
+			mmap_read_unlock(current->mm);
+			locked = 0;
+		}
 		cond_resched();
 	}
+	ret = 1;
+out:
+	if (locked)
+		mmap_read_unlock(current->mm);
+
 	dump_page_free(dump_page);
-	return 1;
+	return ret;
 }
 #endif
 
@@ -1015,7 +1042,9 @@ static const struct ctl_table coredump_sysctls[] = {
 		.data		= &core_pipe_limit,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_INT_MAX,
 	},
 	{
 		.procname       = "core_file_note_size_limit",
@@ -1025,6 +1054,15 @@ static const struct ctl_table coredump_sysctls[] = {
 		.proc_handler	= proc_douintvec_minmax,
 		.extra1		= (unsigned int *)&core_file_note_size_min,
 		.extra2		= (unsigned int *)&core_file_note_size_max,
+	},
+	{
+		.procname	= "core_sort_vma",
+		.data		= &core_sort_vma,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_douintvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
 	},
 };
 
@@ -1256,8 +1294,9 @@ static bool dump_vma_snapshot(struct coredump_params *cprm)
 		cprm->vma_data_size += m->dump_size;
 	}
 
-	sort(cprm->vma_meta, cprm->vma_count, sizeof(*cprm->vma_meta),
-		cmp_vma_size, NULL);
+	if (core_sort_vma)
+		sort(cprm->vma_meta, cprm->vma_count, sizeof(*cprm->vma_meta),
+		     cmp_vma_size, NULL);
 
 	return true;
 }

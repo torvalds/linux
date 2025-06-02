@@ -1621,7 +1621,7 @@ static void ath10k_sdio_hif_power_down(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "sdio power off\n");
 
-	del_timer_sync(&ar_sdio->sleep_timer);
+	timer_delete_sync(&ar_sdio->sleep_timer);
 	ath10k_sdio_set_mbox_sleep(ar, true);
 
 	/* Disable the card */

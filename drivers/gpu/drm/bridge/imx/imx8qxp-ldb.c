@@ -203,9 +203,8 @@ imx8qxp_ldb_bridge_mode_set(struct drm_bridge *bridge,
 		companion->funcs->mode_set(companion, mode, adjusted_mode);
 }
 
-static void
-imx8qxp_ldb_bridge_atomic_pre_enable(struct drm_bridge *bridge,
-				     struct drm_bridge_state *old_bridge_state)
+static void imx8qxp_ldb_bridge_atomic_pre_enable(struct drm_bridge *bridge,
+						 struct drm_atomic_state *state)
 {
 	struct ldb_channel *ldb_ch = bridge->driver_private;
 	struct ldb *ldb = ldb_ch->ldb;
@@ -217,12 +216,11 @@ imx8qxp_ldb_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 	clk_prepare_enable(imx8qxp_ldb->clk_bypass);
 
 	if (is_split && companion)
-		companion->funcs->atomic_pre_enable(companion, old_bridge_state);
+		companion->funcs->atomic_pre_enable(companion, state);
 }
 
-static void
-imx8qxp_ldb_bridge_atomic_enable(struct drm_bridge *bridge,
-				 struct drm_bridge_state *old_bridge_state)
+static void imx8qxp_ldb_bridge_atomic_enable(struct drm_bridge *bridge,
+					     struct drm_atomic_state *state)
 {
 	struct ldb_channel *ldb_ch = bridge->driver_private;
 	struct ldb *ldb = ldb_ch->ldb;
@@ -252,12 +250,11 @@ imx8qxp_ldb_bridge_atomic_enable(struct drm_bridge *bridge,
 		DRM_DEV_ERROR(dev, "failed to power on PHY: %d\n", ret);
 
 	if (is_split && companion)
-		companion->funcs->atomic_enable(companion, old_bridge_state);
+		companion->funcs->atomic_enable(companion, state);
 }
 
-static void
-imx8qxp_ldb_bridge_atomic_disable(struct drm_bridge *bridge,
-				  struct drm_bridge_state *old_bridge_state)
+static void imx8qxp_ldb_bridge_atomic_disable(struct drm_bridge *bridge,
+					      struct drm_atomic_state *state)
 {
 	struct ldb_channel *ldb_ch = bridge->driver_private;
 	struct ldb *ldb = ldb_ch->ldb;
@@ -283,7 +280,7 @@ imx8qxp_ldb_bridge_atomic_disable(struct drm_bridge *bridge,
 	clk_disable_unprepare(imx8qxp_ldb->clk_pixel);
 
 	if (is_split && companion)
-		companion->funcs->atomic_disable(companion, old_bridge_state);
+		companion->funcs->atomic_disable(companion, state);
 
 	ret = pm_runtime_put(dev);
 	if (ret < 0)

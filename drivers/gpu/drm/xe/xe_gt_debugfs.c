@@ -30,6 +30,7 @@
 #include "xe_reg_sr.h"
 #include "xe_reg_whitelist.h"
 #include "xe_sriov.h"
+#include "xe_tuning.h"
 #include "xe_uc_debugfs.h"
 #include "xe_wa.h"
 
@@ -91,22 +92,23 @@ static int hw_engines(struct xe_gt *gt, struct drm_printer *p)
 	struct xe_hw_engine *hwe;
 	enum xe_hw_engine_id id;
 	unsigned int fw_ref;
+	int ret = 0;
 
 	xe_pm_runtime_get(xe);
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL)) {
-		xe_pm_runtime_put(xe);
-		xe_force_wake_put(gt_to_fw(gt), fw_ref);
-		return -ETIMEDOUT;
+		ret = -ETIMEDOUT;
+		goto fw_put;
 	}
 
 	for_each_hw_engine(hwe, gt, id)
 		xe_hw_engine_print(hwe, p);
 
+fw_put:
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	xe_pm_runtime_put(xe);
 
-	return 0;
+	return ret;
 }
 
 static int powergate_info(struct xe_gt *gt, struct drm_printer *p)
@@ -217,6 +219,15 @@ static int workarounds(struct xe_gt *gt, struct drm_printer *p)
 	return 0;
 }
 
+static int tunings(struct xe_gt *gt, struct drm_printer *p)
+{
+	xe_pm_runtime_get(gt_to_xe(gt));
+	xe_tuning_dump(gt, p);
+	xe_pm_runtime_put(gt_to_xe(gt));
+
+	return 0;
+}
+
 static int pat(struct xe_gt *gt, struct drm_printer *p)
 {
 	xe_pm_runtime_get(gt_to_xe(gt));
@@ -300,6 +311,7 @@ static const struct drm_info_list debugfs_list[] = {
 	{"powergate_info", .show = xe_gt_debugfs_simple_show, .data = powergate_info},
 	{"register-save-restore", .show = xe_gt_debugfs_simple_show, .data = register_save_restore},
 	{"workarounds", .show = xe_gt_debugfs_simple_show, .data = workarounds},
+	{"tunings", .show = xe_gt_debugfs_simple_show, .data = tunings},
 	{"pat", .show = xe_gt_debugfs_simple_show, .data = pat},
 	{"mocs", .show = xe_gt_debugfs_simple_show, .data = mocs},
 	{"default_lrc_rcs", .show = xe_gt_debugfs_simple_show, .data = rcs_default_lrc},

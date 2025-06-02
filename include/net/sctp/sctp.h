@@ -636,7 +636,7 @@ static inline void sctp_transport_pl_reset(struct sctp_transport *t)
 		}
 	} else {
 		if (t->pl.state != SCTP_PL_DISABLED) {
-			if (del_timer(&t->probe_timer))
+			if (timer_delete(&t->probe_timer))
 				sctp_transport_put(t);
 			t->pl.state = SCTP_PL_DISABLED;
 		}

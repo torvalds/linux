@@ -56,8 +56,8 @@ extern struct list_head mrioc_list;
 extern int prot_mask;
 extern atomic64_t event_counter;
 
-#define MPI3MR_DRIVER_VERSION	"8.12.0.3.50"
-#define MPI3MR_DRIVER_RELDATE	"11-November-2024"
+#define MPI3MR_DRIVER_VERSION	"8.13.0.5.50"
+#define MPI3MR_DRIVER_RELDATE	"20-February-2025"
 
 #define MPI3MR_DRIVER_NAME	"mpi3mr"
 #define MPI3MR_DRIVER_LICENSE	"GPL"
@@ -80,13 +80,14 @@ extern atomic64_t event_counter;
 
 /* Admin queue management definitions */
 #define MPI3MR_ADMIN_REQ_Q_SIZE		(2 * MPI3MR_PAGE_SIZE_4K)
-#define MPI3MR_ADMIN_REPLY_Q_SIZE	(4 * MPI3MR_PAGE_SIZE_4K)
+#define MPI3MR_ADMIN_REPLY_Q_SIZE	(8 * MPI3MR_PAGE_SIZE_4K)
 #define MPI3MR_ADMIN_REQ_FRAME_SZ	128
 #define MPI3MR_ADMIN_REPLY_FRAME_SZ	16
 
 /* Operational queue management definitions */
 #define MPI3MR_OP_REQ_Q_QD		512
 #define MPI3MR_OP_REP_Q_QD		1024
+#define MPI3MR_OP_REP_Q_QD2K		2048
 #define MPI3MR_OP_REP_Q_QD4K		4096
 #define MPI3MR_OP_REQ_Q_SEG_SIZE	4096
 #define MPI3MR_OP_REP_Q_SEG_SIZE	4096
@@ -328,6 +329,7 @@ enum mpi3mr_reset_reason {
 #define MPI3MR_RESET_REASON_OSTYPE_SHIFT	28
 #define MPI3MR_RESET_REASON_IOCNUM_SHIFT	20
 
+
 /* Queue type definitions */
 enum queue_type {
 	MPI3MR_DEFAULT_QUEUE = 0,
@@ -387,6 +389,7 @@ struct mpi3mr_ioc_facts {
 	u16 max_msix_vectors;
 	u8 personality;
 	u8 dma_mask;
+	bool max_req_limit;
 	u8 protocol_flags;
 	u8 sge_mod_mask;
 	u8 sge_mod_value;
@@ -456,6 +459,8 @@ struct op_req_qinfo {
  * @enable_irq_poll: Flag to indicate polling is enabled
  * @in_use: Queue is handled by poll/ISR
  * @qtype: Type of queue (types defined in enum queue_type)
+ * @qfull_watermark: Watermark defined in reply queue to avoid
+ *                    reply queue full
  */
 struct op_reply_qinfo {
 	u16 ci;
@@ -471,6 +476,7 @@ struct op_reply_qinfo {
 	bool enable_irq_poll;
 	atomic_t in_use;
 	enum queue_type qtype;
+	u16 qfull_watermark;
 };
 
 /**
@@ -928,6 +934,8 @@ struct trigger_event_data {
  * @size: Buffer size
  * @addr: Virtual address
  * @dma_addr: Buffer DMA address
+ * @is_segmented: The buffer is segmented or not
+ * @disabled_after_reset: The buffer is disabled after reset
  */
 struct diag_buffer_desc {
 	u8 type;
@@ -937,6 +945,8 @@ struct diag_buffer_desc {
 	u32 size;
 	void *addr;
 	dma_addr_t dma_addr;
+	bool is_segmented;
+	bool disabled_after_reset;
 };
 
 /**
@@ -1022,6 +1032,8 @@ struct scmd_priv {
  * @admin_reply_base: Admin reply queue base virtual address
  * @admin_reply_dma: Admin reply queue base dma address
  * @admin_reply_q_in_use: Queue is handled by poll/ISR
+ * @admin_pend_isr: Count of unprocessed admin ISR/poll calls
+ * due to another thread processing replies
  * @ready_timeout: Controller ready timeout
  * @intr_info: Interrupt cookie pointer
  * @intr_info_count: Number of interrupt cookies
@@ -1090,6 +1102,7 @@ struct scmd_priv {
  * @ts_update_interval: Timestamp update interval
  * @reset_in_progress: Reset in progress flag
  * @unrecoverable: Controller unrecoverable flag
+ * @io_admin_reset_sync: Manage state of I/O ops during an admin reset process
  * @prev_reset_result: Result of previous reset
  * @reset_mutex: Controller reset mutex
  * @reset_waitq: Controller reset  wait queue
@@ -1153,6 +1166,12 @@ struct scmd_priv {
  * @snapdump_trigger_active: Snapdump trigger active flag
  * @pci_err_recovery: PCI error recovery in progress
  * @block_on_pci_err: Block IO during PCI error recovery
+ * @reply_qfull_count: Occurences of reply queue full avoidance kicking-in
+ * @prevent_reply_qfull: Enable reply queue prevention
+ * @seg_tb_support: Segmented trace buffer support
+ * @num_tb_segs: Number of Segments in Trace buffer
+ * @trace_buf_pool: DMA pool for Segmented trace buffer segments
+ * @trace_buf: Trace buffer segments memory descriptor
  */
 struct mpi3mr_ioc {
 	struct list_head list;
@@ -1189,6 +1208,7 @@ struct mpi3mr_ioc {
 	void *admin_reply_base;
 	dma_addr_t admin_reply_dma;
 	atomic_t admin_reply_q_in_use;
+	atomic_t admin_pend_isr;
 
 	u32 ready_timeout;
 
@@ -1276,6 +1296,7 @@ struct mpi3mr_ioc {
 	u16 ts_update_interval;
 	u8 reset_in_progress;
 	u8 unrecoverable;
+	u8 io_admin_reset_sync;
 	int prev_reset_result;
 	struct mutex reset_mutex;
 	wait_queue_head_t reset_waitq;
@@ -1351,6 +1372,13 @@ struct mpi3mr_ioc {
 	bool fw_release_trigger_active;
 	bool pci_err_recovery;
 	bool block_on_pci_err;
+	atomic_t reply_qfull_count;
+	bool prevent_reply_qfull;
+	bool seg_tb_support;
+	u32 num_tb_segs;
+	struct dma_pool *trace_buf_pool;
+	struct segments *trace_buf;
+
 };
 
 /**

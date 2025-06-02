@@ -102,6 +102,9 @@ The system wide settings are configured under the /proc virtual file system:
   * sched_rt_period_us takes values from 1 to INT_MAX.
   * sched_rt_runtime_us takes values from -1 to sched_rt_period_us.
   * A run time of -1 specifies runtime == period, ie. no limit.
+  * sched_rt_runtime_us/sched_rt_period_us > 0.05 inorder to preserve
+    bandwidth for fair dl_server. For accurate value check average of
+    runtime/period in /sys/kernel/debug/sched/fair_server/cpuX/
 
 
 2.2 Default behaviour

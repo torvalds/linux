@@ -29,7 +29,14 @@ properties:
           - enum:
               - fsl,imx8mm-gpmi-nand
               - fsl,imx8mn-gpmi-nand
+              - fsl,imx8mp-gpmi-nand
+              - fsl,imx8mq-gpmi-nand
           - const: fsl,imx7d-gpmi-nand
+      - items:
+          - enum:
+              - fsl,imx8dxl-gpmi-nand
+              - fsl,imx8qm-gpmi-nand
+          - const: fsl,imx8qxp-gpmi-nand
 
   reg:
     items:

@@ -18,8 +18,14 @@ properties:
       - enum:
           # Boe nv110wum-l60 11.0" WUXGA TFT LCD panel
           - boe,nv110wum-l60
+          # CSOT pna957qt1-1 10.95" WUXGA TFT LCD panel
+          - csot,pna957qt1-1
           # IVO t109nw41 11.0" WUXGA TFT LCD panel
           - ivo,t109nw41
+          # KINGDISPLAY KD110N11-51IE 10.95" WUXGA TFT LCD panel
+          - kingdisplay,kd110n11-51ie
+          # STARRY 2082109QFH040022-50E 10.95" WUXGA TFT LCD panel
+          - starry,2082109qfh040022-50e
           # STARRY himax83102-j02 10.51" WUXGA TFT LCD panel
           - starry,himax83102-j02
       - const: himax,hx83102

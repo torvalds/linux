@@ -10,30 +10,105 @@
 #define _CRYPTO_ACOMP_H
 
 #include <linux/atomic.h>
+#include <linux/args.h>
+#include <linux/compiler_types.h>
 #include <linux/container_of.h>
 #include <linux/crypto.h>
+#include <linux/err.h>
+#include <linux/scatterlist.h>
+#include <linux/slab.h>
+#include <linux/spinlock_types.h>
+#include <linux/types.h>
 
-#define CRYPTO_ACOMP_ALLOC_OUTPUT	0x00000001
+/* Set this bit if source is virtual address instead of SG list. */
+#define CRYPTO_ACOMP_REQ_SRC_VIRT	0x00000002
+
+/* Set this bit for if virtual address source cannot be used for DMA. */
+#define CRYPTO_ACOMP_REQ_SRC_NONDMA	0x00000004
+
+/* Set this bit if destination is virtual address instead of SG list. */
+#define CRYPTO_ACOMP_REQ_DST_VIRT	0x00000008
+
+/* Set this bit for if virtual address destination cannot be used for DMA. */
+#define CRYPTO_ACOMP_REQ_DST_NONDMA	0x00000010
+
+/* Set this bit if source is a folio. */
+#define CRYPTO_ACOMP_REQ_SRC_FOLIO	0x00000020
+
+/* Set this bit if destination is a folio. */
+#define CRYPTO_ACOMP_REQ_DST_FOLIO	0x00000040
+
 #define CRYPTO_ACOMP_DST_MAX		131072
+
+#define	MAX_SYNC_COMP_REQSIZE		0
+
+#define ACOMP_REQUEST_ALLOC(name, tfm, gfp) \
+        char __##name##_req[sizeof(struct acomp_req) + \
+                            MAX_SYNC_COMP_REQSIZE] CRYPTO_MINALIGN_ATTR; \
+        struct acomp_req *name = acomp_request_on_stack_init( \
+                __##name##_req, (tfm), (gfp), false)
+
+struct acomp_req;
+struct folio;
+
+struct acomp_req_chain {
+	struct list_head head;
+	struct acomp_req *req0;
+	struct acomp_req *cur;
+	int (*op)(struct acomp_req *req);
+	crypto_completion_t compl;
+	void *data;
+	struct scatterlist ssg;
+	struct scatterlist dsg;
+	union {
+		const u8 *src;
+		struct folio *sfolio;
+	};
+	union {
+		u8 *dst;
+		struct folio *dfolio;
+	};
+	size_t soff;
+	size_t doff;
+	u32 flags;
+};
 
 /**
  * struct acomp_req - asynchronous (de)compression request
  *
  * @base:	Common attributes for asynchronous crypto requests
- * @src:	Source Data
- * @dst:	Destination data
+ * @src:	Source scatterlist
+ * @dst:	Destination scatterlist
+ * @svirt:	Source virtual address
+ * @dvirt:	Destination virtual address
+ * @sfolio:	Source folio
+ * @soff:	Source folio offset
+ * @dfolio:	Destination folio
+ * @doff:	Destination folio offset
  * @slen:	Size of the input buffer
  * @dlen:	Size of the output buffer and number of bytes produced
- * @flags:	Internal flags
+ * @chain:	Private API code data, do not use
  * @__ctx:	Start of private context data
  */
 struct acomp_req {
 	struct crypto_async_request base;
-	struct scatterlist *src;
-	struct scatterlist *dst;
+	union {
+		struct scatterlist *src;
+		const u8 *svirt;
+		struct folio *sfolio;
+	};
+	union {
+		struct scatterlist *dst;
+		u8 *dvirt;
+		struct folio *dfolio;
+	};
+	size_t soff;
+	size_t doff;
 	unsigned int slen;
 	unsigned int dlen;
-	u32 flags;
+
+	struct acomp_req_chain chain;
+
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
@@ -43,21 +118,26 @@ struct acomp_req {
  *
  * @compress:		Function performs a compress operation
  * @decompress:		Function performs a de-compress operation
- * @dst_free:		Frees destination buffer if allocated inside the
- *			algorithm
  * @reqsize:		Context size for (de)compression requests
+ * @fb:			Synchronous fallback tfm
  * @base:		Common crypto API algorithm data structure
  */
 struct crypto_acomp {
 	int (*compress)(struct acomp_req *req);
 	int (*decompress)(struct acomp_req *req);
-	void (*dst_free)(struct scatterlist *dst);
 	unsigned int reqsize;
+	struct crypto_acomp *fb;
 	struct crypto_tfm base;
+};
+
+struct crypto_acomp_stream {
+	spinlock_t lock;
+	void *ctx;
 };
 
 #define COMP_ALG_COMMON {			\
 	struct crypto_alg base;			\
+	struct crypto_acomp_stream __percpu *stream;	\
 }
 struct comp_alg_common COMP_ALG_COMMON;
 
@@ -168,14 +248,67 @@ static inline int crypto_has_acomp(const char *alg_name, u32 type, u32 mask)
 	return crypto_has_alg(alg_name, type, mask);
 }
 
+static inline const char *crypto_acomp_alg_name(struct crypto_acomp *tfm)
+{
+	return crypto_tfm_alg_name(crypto_acomp_tfm(tfm));
+}
+
+static inline const char *crypto_acomp_driver_name(struct crypto_acomp *tfm)
+{
+	return crypto_tfm_alg_driver_name(crypto_acomp_tfm(tfm));
+}
+
 /**
  * acomp_request_alloc() -- allocates asynchronous (de)compression request
  *
  * @tfm:	ACOMPRESS tfm handle allocated with crypto_alloc_acomp()
+ * @gfp:	gfp to pass to kzalloc (defaults to GFP_KERNEL)
  *
  * Return:	allocated handle in case of success or NULL in case of an error
  */
-struct acomp_req *acomp_request_alloc(struct crypto_acomp *tfm);
+static inline struct acomp_req *acomp_request_alloc_extra_noprof(
+	struct crypto_acomp *tfm, size_t extra, gfp_t gfp)
+{
+	struct acomp_req *req;
+	size_t len;
+
+	len = ALIGN(sizeof(*req) + crypto_acomp_reqsize(tfm), CRYPTO_MINALIGN);
+	if (check_add_overflow(len, extra, &len))
+		return NULL;
+
+	req = kzalloc_noprof(len, gfp);
+	if (likely(req))
+		acomp_request_set_tfm(req, tfm);
+	return req;
+}
+#define acomp_request_alloc_noprof(tfm, ...) \
+	CONCATENATE(acomp_request_alloc_noprof_, COUNT_ARGS(__VA_ARGS__))( \
+		tfm, ##__VA_ARGS__)
+#define acomp_request_alloc_noprof_0(tfm) \
+	acomp_request_alloc_noprof_1(tfm, GFP_KERNEL)
+#define acomp_request_alloc_noprof_1(tfm, gfp) \
+	acomp_request_alloc_extra_noprof(tfm, 0, gfp)
+#define acomp_request_alloc(...)	alloc_hooks(acomp_request_alloc_noprof(__VA_ARGS__))
+
+/**
+ * acomp_request_alloc_extra() -- allocate acomp request with extra memory
+ *
+ * @tfm:	ACOMPRESS tfm handle allocated with crypto_alloc_acomp()
+ * @extra:	amount of extra memory
+ * @gfp:	gfp to pass to kzalloc
+ *
+ * Return:	allocated handle in case of success or NULL in case of an error
+ */
+#define acomp_request_alloc_extra(...)	alloc_hooks(acomp_request_alloc_extra_noprof(__VA_ARGS__))
+
+static inline void *acomp_request_extra(struct acomp_req *req)
+{
+	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
+	size_t len;
+
+	len = ALIGN(sizeof(*req) + crypto_acomp_reqsize(tfm), CRYPTO_MINALIGN);
+	return (void *)((char *)req + len);
+}
 
 /**
  * acomp_request_free() -- zeroize and free asynchronous (de)compression
@@ -184,7 +317,12 @@ struct acomp_req *acomp_request_alloc(struct crypto_acomp *tfm);
  *
  * @req:	request to free
  */
-void acomp_request_free(struct acomp_req *req);
+static inline void acomp_request_free(struct acomp_req *req)
+{
+	if (!req || (req->base.flags & CRYPTO_TFM_REQ_ON_STACK))
+		return;
+	kfree_sensitive(req);
+}
 
 /**
  * acomp_request_set_callback() -- Sets an asynchronous callback
@@ -202,10 +340,17 @@ static inline void acomp_request_set_callback(struct acomp_req *req,
 					      crypto_completion_t cmpl,
 					      void *data)
 {
+	u32 keep = CRYPTO_ACOMP_REQ_SRC_VIRT | CRYPTO_ACOMP_REQ_SRC_NONDMA |
+		   CRYPTO_ACOMP_REQ_DST_VIRT | CRYPTO_ACOMP_REQ_DST_NONDMA |
+		   CRYPTO_ACOMP_REQ_SRC_FOLIO | CRYPTO_ACOMP_REQ_DST_FOLIO |
+		   CRYPTO_TFM_REQ_ON_STACK;
+
 	req->base.complete = cmpl;
 	req->base.data = data;
-	req->base.flags &= CRYPTO_ACOMP_ALLOC_OUTPUT;
-	req->base.flags |= flgs & ~CRYPTO_ACOMP_ALLOC_OUTPUT;
+	req->base.flags &= keep;
+	req->base.flags |= flgs & ~keep;
+
+	crypto_reqchain_init(&req->base);
 }
 
 /**
@@ -232,9 +377,191 @@ static inline void acomp_request_set_params(struct acomp_req *req,
 	req->slen = slen;
 	req->dlen = dlen;
 
-	req->flags &= ~CRYPTO_ACOMP_ALLOC_OUTPUT;
-	if (!req->dst)
-		req->flags |= CRYPTO_ACOMP_ALLOC_OUTPUT;
+	req->base.flags &= ~(CRYPTO_ACOMP_REQ_SRC_VIRT |
+			     CRYPTO_ACOMP_REQ_SRC_NONDMA |
+			     CRYPTO_ACOMP_REQ_SRC_FOLIO |
+			     CRYPTO_ACOMP_REQ_DST_FOLIO |
+			     CRYPTO_ACOMP_REQ_DST_VIRT |
+			     CRYPTO_ACOMP_REQ_DST_NONDMA);
+}
+
+/**
+ * acomp_request_set_src_sg() -- Sets source scatterlist
+ *
+ * Sets source scatterlist required by an acomp operation.
+ *
+ * @req:	asynchronous compress request
+ * @src:	pointer to input buffer scatterlist
+ * @slen:	size of the input buffer
+ */
+static inline void acomp_request_set_src_sg(struct acomp_req *req,
+					    struct scatterlist *src,
+					    unsigned int slen)
+{
+	req->src = src;
+	req->slen = slen;
+
+	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_NONDMA;
+	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_VIRT;
+	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_FOLIO;
+}
+
+/**
+ * acomp_request_set_src_dma() -- Sets DMA source virtual address
+ *
+ * Sets source virtual address required by an acomp operation.
+ * The address must be usable for DMA.
+ *
+ * @req:	asynchronous compress request
+ * @src:	virtual address pointer to input buffer
+ * @slen:	size of the input buffer
+ */
+static inline void acomp_request_set_src_dma(struct acomp_req *req,
+					     const u8 *src, unsigned int slen)
+{
+	req->svirt = src;
+	req->slen = slen;
+
+	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_NONDMA;
+	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_FOLIO;
+	req->base.flags |= CRYPTO_ACOMP_REQ_SRC_VIRT;
+}
+
+/**
+ * acomp_request_set_src_nondma() -- Sets non-DMA source virtual address
+ *
+ * Sets source virtual address required by an acomp operation.
+ * The address can not be used for DMA.
+ *
+ * @req:	asynchronous compress request
+ * @src:	virtual address pointer to input buffer
+ * @slen:	size of the input buffer
+ */
+static inline void acomp_request_set_src_nondma(struct acomp_req *req,
+						const u8 *src,
+						unsigned int slen)
+{
+	req->svirt = src;
+	req->slen = slen;
+
+	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_FOLIO;
+	req->base.flags |= CRYPTO_ACOMP_REQ_SRC_NONDMA;
+	req->base.flags |= CRYPTO_ACOMP_REQ_SRC_VIRT;
+}
+
+/**
+ * acomp_request_set_src_folio() -- Sets source folio
+ *
+ * Sets source folio required by an acomp operation.
+ *
+ * @req:	asynchronous compress request
+ * @folio:	pointer to input folio
+ * @off:	input folio offset
+ * @len:	size of the input buffer
+ */
+static inline void acomp_request_set_src_folio(struct acomp_req *req,
+					       struct folio *folio, size_t off,
+					       unsigned int len)
+{
+	req->sfolio = folio;
+	req->soff = off;
+	req->slen = len;
+
+	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_NONDMA;
+	req->base.flags &= ~CRYPTO_ACOMP_REQ_SRC_VIRT;
+	req->base.flags |= CRYPTO_ACOMP_REQ_SRC_FOLIO;
+}
+
+/**
+ * acomp_request_set_dst_sg() -- Sets destination scatterlist
+ *
+ * Sets destination scatterlist required by an acomp operation.
+ *
+ * @req:	asynchronous compress request
+ * @dst:	pointer to output buffer scatterlist
+ * @dlen:	size of the output buffer
+ */
+static inline void acomp_request_set_dst_sg(struct acomp_req *req,
+					    struct scatterlist *dst,
+					    unsigned int dlen)
+{
+	req->dst = dst;
+	req->dlen = dlen;
+
+	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_NONDMA;
+	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_VIRT;
+	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_FOLIO;
+}
+
+/**
+ * acomp_request_set_dst_dma() -- Sets DMA destination virtual address
+ *
+ * Sets destination virtual address required by an acomp operation.
+ * The address must be usable for DMA.
+ *
+ * @req:	asynchronous compress request
+ * @dst:	virtual address pointer to output buffer
+ * @dlen:	size of the output buffer
+ */
+static inline void acomp_request_set_dst_dma(struct acomp_req *req,
+					     u8 *dst, unsigned int dlen)
+{
+	req->dvirt = dst;
+	req->dlen = dlen;
+
+	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_NONDMA;
+	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_FOLIO;
+	req->base.flags |= CRYPTO_ACOMP_REQ_DST_VIRT;
+}
+
+/**
+ * acomp_request_set_dst_nondma() -- Sets non-DMA destination virtual address
+ *
+ * Sets destination virtual address required by an acomp operation.
+ * The address can not be used for DMA.
+ *
+ * @req:	asynchronous compress request
+ * @dst:	virtual address pointer to output buffer
+ * @dlen:	size of the output buffer
+ */
+static inline void acomp_request_set_dst_nondma(struct acomp_req *req,
+						u8 *dst, unsigned int dlen)
+{
+	req->dvirt = dst;
+	req->dlen = dlen;
+
+	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_FOLIO;
+	req->base.flags |= CRYPTO_ACOMP_REQ_DST_NONDMA;
+	req->base.flags |= CRYPTO_ACOMP_REQ_DST_VIRT;
+}
+
+/**
+ * acomp_request_set_dst_folio() -- Sets destination folio
+ *
+ * Sets destination folio required by an acomp operation.
+ *
+ * @req:	asynchronous compress request
+ * @folio:	pointer to input folio
+ * @off:	input folio offset
+ * @len:	size of the input buffer
+ */
+static inline void acomp_request_set_dst_folio(struct acomp_req *req,
+					       struct folio *folio, size_t off,
+					       unsigned int len)
+{
+	req->dfolio = folio;
+	req->doff = off;
+	req->dlen = len;
+
+	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_NONDMA;
+	req->base.flags &= ~CRYPTO_ACOMP_REQ_DST_VIRT;
+	req->base.flags |= CRYPTO_ACOMP_REQ_DST_FOLIO;
+}
+
+static inline void acomp_request_chain(struct acomp_req *req,
+				       struct acomp_req *head)
+{
+	crypto_request_chain(&req->base, &head->base);
 }
 
 /**
@@ -246,10 +573,7 @@ static inline void acomp_request_set_params(struct acomp_req *req,
  *
  * Return:	zero on success; error code in case of error
  */
-static inline int crypto_acomp_compress(struct acomp_req *req)
-{
-	return crypto_acomp_reqtfm(req)->compress(req);
-}
+int crypto_acomp_compress(struct acomp_req *req);
 
 /**
  * crypto_acomp_decompress() -- Invoke asynchronous decompress operation
@@ -260,9 +584,21 @@ static inline int crypto_acomp_compress(struct acomp_req *req)
  *
  * Return:	zero on success; error code in case of error
  */
-static inline int crypto_acomp_decompress(struct acomp_req *req)
+int crypto_acomp_decompress(struct acomp_req *req);
+
+static inline struct acomp_req *acomp_request_on_stack_init(
+	char *buf, struct crypto_acomp *tfm, gfp_t gfp, bool stackonly)
 {
-	return crypto_acomp_reqtfm(req)->decompress(req);
+	struct acomp_req *req;
+
+	if (!stackonly && (req = acomp_request_alloc(tfm, gfp)))
+		return req;
+
+	req = (void *)buf;
+	acomp_request_set_tfm(req, tfm->fb);
+	req->base.flags = CRYPTO_TFM_REQ_ON_STACK;
+
+	return req;
 }
 
 #endif

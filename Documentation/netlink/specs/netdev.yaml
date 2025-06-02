@@ -70,6 +70,10 @@ definitions:
         name: tx-checksum
         doc:
           L3 checksum HW offload is supported by the driver.
+      -
+        name: tx-launch-time-fifo
+        doc:
+          Launch time HW offload is supported by the driver.
   -
     name: queue-type
     type: enum
@@ -114,6 +118,9 @@ attribute-sets:
         doc: Bitmask of enabled AF_XDP features.
         type: u64
         enum: xsk-flags
+  -
+    name: io-uring-provider-info
+    attributes: []
   -
     name: page-pool
     attributes:
@@ -171,6 +178,11 @@ attribute-sets:
         name: dmabuf
         doc: ID of the dmabuf this page-pool is attached to.
         type: u32
+      -
+        name: io-uring
+        doc: io-uring memory provider information.
+        type: nest
+        nested-attributes: io-uring-provider-info
   -
     name: page-pool-info
     subset-of: page-pool
@@ -269,6 +281,9 @@ attribute-sets:
              processing, if event polling finds events
         type: uint
   -
+    name: xsk-info
+    attributes: []
+  -
     name: queue
     attributes:
       -
@@ -286,6 +301,9 @@ attribute-sets:
       -
         name: type
         doc: Queue type as rx, tx. Each queue type defines a separate ID space.
+             XDP TX queues allocated in the kernel are not linked to NAPIs and
+             thus not listed. AF_XDP queues will have more information set in
+             the xsk attribute.
         type: u32
         enum: queue-type
       -
@@ -296,7 +314,16 @@ attribute-sets:
         name: dmabuf
         doc: ID of the dmabuf attached to this queue, if any.
         type: u32
-
+      -
+        name: io-uring
+        doc: io_uring memory provider information.
+        type: nest
+        nested-attributes: io-uring-provider-info
+      -
+        name: xsk
+        doc: XSK information for this queue, if any.
+        type: nest
+        nested-attributes: xsk-info
   -
     name: qstats
     doc: |
@@ -444,6 +471,8 @@ attribute-sets:
         name: tx-needs-csum
         doc: |
           Number of packets that required the device to calculate the checksum.
+          This counter includes the number of GSO wire packets for which device
+          calculated the L4 checksum.
         type: uint
       -
         name: tx-hw-gso-packets
@@ -572,6 +601,7 @@ operations:
             - inflight-mem
             - detach-time
             - dmabuf
+            - io-uring
       dump:
         reply: *pp-reply
       config-cond: page-pool
@@ -637,6 +667,8 @@ operations:
             - napi-id
             - ifindex
             - dmabuf
+            - io-uring
+            - xsk
       dump:
         request:
           attributes:
@@ -713,8 +745,8 @@ operations:
             - irq-suspend-timeout
 
 kernel-family:
-  headers: [ "linux/list.h"]
-  sock-priv: struct list_head
+  headers: [ "net/netdev_netlink.h"]
+  sock-priv: struct netdev_nl_sock
 
 mcast-groups:
   list:

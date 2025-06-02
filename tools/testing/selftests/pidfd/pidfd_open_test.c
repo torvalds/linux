@@ -22,32 +22,6 @@
 #include "pidfd.h"
 #include "../kselftest.h"
 
-#ifndef PIDFS_IOCTL_MAGIC
-#define PIDFS_IOCTL_MAGIC 0xFF
-#endif
-
-#ifndef PIDFD_GET_INFO
-#define PIDFD_GET_INFO _IOWR(PIDFS_IOCTL_MAGIC, 11, struct pidfd_info)
-#define PIDFD_INFO_CGROUPID		(1UL << 0)
-
-struct pidfd_info {
-	__u64 request_mask;
-	__u64 cgroupid;
-	__u32 pid;
-	__u32 tgid;
-	__u32 ppid;
-	__u32 ruid;
-	__u32 rgid;
-	__u32 euid;
-	__u32 egid;
-	__u32 suid;
-	__u32 sgid;
-	__u32 fsuid;
-	__u32 fsgid;
-	__u32 spare0[1];
-};
-#endif
-
 static int safe_int(const char *numstr, int *converted)
 {
 	char *err = NULL;
@@ -148,7 +122,7 @@ out:
 int main(int argc, char **argv)
 {
 	struct pidfd_info info = {
-		.request_mask = PIDFD_INFO_CGROUPID,
+		.mask = PIDFD_INFO_CGROUPID,
 	};
 	int pidfd = -1, ret = 1;
 	pid_t pid;
@@ -227,7 +201,7 @@ int main(int argc, char **argv)
 			       getegid(), info.sgid);
 		goto on_error;
 	}
-	if ((info.request_mask & PIDFD_INFO_CGROUPID) && info.cgroupid == 0) {
+	if ((info.mask & PIDFD_INFO_CGROUPID) && info.cgroupid == 0) {
 		ksft_print_msg("cgroupid should not be 0 when PIDFD_INFO_CGROUPID is set\n");
 		goto on_error;
 	}

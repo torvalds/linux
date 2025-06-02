@@ -3,6 +3,7 @@
 
 #include <linux/device.h>
 #include <linux/sched/clock.h>
+#include <linux/string_choices.h>
 
 #include "hclge_debugfs.h"
 #include "hclge_err.h"
@@ -11,7 +12,6 @@
 #include "hclge_tm.h"
 #include "hnae3.h"
 
-static const char * const state_str[] = { "off", "on" };
 static const char * const hclge_mac_state_str[] = {
 	"TO_ADD", "TO_DEL", "ACTIVE"
 };
@@ -2573,7 +2573,7 @@ static int hclge_dbg_dump_loopback(struct hclge_dev *hdev, char *buf, int len)
 	loopback_en = hnae3_get_bit(le32_to_cpu(req_app->txrx_pad_fcs_loop_en),
 				    HCLGE_MAC_APP_LP_B);
 	pos += scnprintf(buf + pos, len - pos, "app loopback: %s\n",
-			 state_str[loopback_en]);
+			 str_on_off(loopback_en));
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_COMMON_LOOPBACK, true);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -2586,22 +2586,22 @@ static int hclge_dbg_dump_loopback(struct hclge_dev *hdev, char *buf, int len)
 
 	loopback_en = req_common->enable & HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B;
 	pos += scnprintf(buf + pos, len - pos, "serdes serial loopback: %s\n",
-			 state_str[loopback_en]);
+			 str_on_off(loopback_en));
 
 	loopback_en = req_common->enable &
 			HCLGE_CMD_SERDES_PARALLEL_INNER_LOOP_B ? 1 : 0;
 	pos += scnprintf(buf + pos, len - pos, "serdes parallel loopback: %s\n",
-			 state_str[loopback_en]);
+			 str_on_off(loopback_en));
 
 	if (phydev) {
 		loopback_en = phydev->loopback_enabled;
 		pos += scnprintf(buf + pos, len - pos, "phy loopback: %s\n",
-				 state_str[loopback_en]);
+				 str_on_off(loopback_en));
 	} else if (hnae3_dev_phy_imp_supported(hdev)) {
 		loopback_en = req_common->enable &
 			      HCLGE_CMD_GE_PHY_INNER_LOOP_B;
 		pos += scnprintf(buf + pos, len - pos, "phy loopback: %s\n",
-				 state_str[loopback_en]);
+				 str_on_off(loopback_en));
 	}
 
 	return 0;
@@ -2894,9 +2894,9 @@ static int hclge_dbg_dump_vlan_filter_config(struct hclge_dev *hdev, char *buf,
 	egress = vlan_fe & HCLGE_FILTER_FE_NIC_EGRESS_B ? 1 : 0;
 
 	*pos += scnprintf(buf, len, "I_PORT_VLAN_FILTER: %s\n",
-			  state_str[ingress]);
+			  str_on_off(ingress));
 	*pos += scnprintf(buf + *pos, len - *pos, "E_PORT_VLAN_FILTER: %s\n",
-			  state_str[egress]);
+			  str_on_off(egress));
 
 	hclge_dbg_fill_content(content, sizeof(content), vlan_filter_items,
 			       NULL, ARRAY_SIZE(vlan_filter_items));
@@ -2915,11 +2915,11 @@ static int hclge_dbg_dump_vlan_filter_config(struct hclge_dev *hdev, char *buf,
 			return ret;
 		j = 0;
 		result[j++] = hclge_dbg_get_func_id_str(str_id, i);
-		result[j++] = state_str[ingress];
-		result[j++] = state_str[egress];
-		result[j++] =
-			test_bit(HNAE3_DEV_SUPPORT_PORT_VLAN_BYPASS_B,
-				 hdev->ae_dev->caps) ? state_str[bypass] : "NA";
+		result[j++] = str_on_off(ingress);
+		result[j++] = str_on_off(egress);
+		result[j++] = test_bit(HNAE3_DEV_SUPPORT_PORT_VLAN_BYPASS_B,
+				       hdev->ae_dev->caps) ?
+			      str_on_off(bypass) : "NA";
 		hclge_dbg_fill_content(content, sizeof(content),
 				       vlan_filter_items, result,
 				       ARRAY_SIZE(vlan_filter_items));
@@ -2958,19 +2958,19 @@ static int hclge_dbg_dump_vlan_offload_config(struct hclge_dev *hdev, char *buf,
 		j = 0;
 		result[j++] = hclge_dbg_get_func_id_str(str_id, i);
 		result[j++] = str_pvid;
-		result[j++] = state_str[vlan_cfg.accept_tag1];
-		result[j++] = state_str[vlan_cfg.accept_tag2];
-		result[j++] = state_str[vlan_cfg.accept_untag1];
-		result[j++] = state_str[vlan_cfg.accept_untag2];
-		result[j++] = state_str[vlan_cfg.insert_tag1];
-		result[j++] = state_str[vlan_cfg.insert_tag2];
-		result[j++] = state_str[vlan_cfg.shift_tag];
-		result[j++] = state_str[vlan_cfg.strip_tag1];
-		result[j++] = state_str[vlan_cfg.strip_tag2];
-		result[j++] = state_str[vlan_cfg.drop_tag1];
-		result[j++] = state_str[vlan_cfg.drop_tag2];
-		result[j++] = state_str[vlan_cfg.pri_only1];
-		result[j++] = state_str[vlan_cfg.pri_only2];
+		result[j++] = str_on_off(vlan_cfg.accept_tag1);
+		result[j++] = str_on_off(vlan_cfg.accept_tag2);
+		result[j++] = str_on_off(vlan_cfg.accept_untag1);
+		result[j++] = str_on_off(vlan_cfg.accept_untag2);
+		result[j++] = str_on_off(vlan_cfg.insert_tag1);
+		result[j++] = str_on_off(vlan_cfg.insert_tag2);
+		result[j++] = str_on_off(vlan_cfg.shift_tag);
+		result[j++] = str_on_off(vlan_cfg.strip_tag1);
+		result[j++] = str_on_off(vlan_cfg.strip_tag2);
+		result[j++] = str_on_off(vlan_cfg.drop_tag1);
+		result[j++] = str_on_off(vlan_cfg.drop_tag2);
+		result[j++] = str_on_off(vlan_cfg.pri_only1);
+		result[j++] = str_on_off(vlan_cfg.pri_only2);
 
 		hclge_dbg_fill_content(content, sizeof(content),
 				       vlan_offload_items, result,
@@ -3007,14 +3007,13 @@ static int hclge_dbg_dump_ptp_info(struct hclge_dev *hdev, char *buf, int len)
 	pos += scnprintf(buf + pos, len - pos, "phc %s's debug info:\n",
 			 ptp->info.name);
 	pos += scnprintf(buf + pos, len - pos, "ptp enable: %s\n",
-			 test_bit(HCLGE_PTP_FLAG_EN, &ptp->flags) ?
-			 "yes" : "no");
+			 str_yes_no(test_bit(HCLGE_PTP_FLAG_EN, &ptp->flags)));
 	pos += scnprintf(buf + pos, len - pos, "ptp tx enable: %s\n",
-			 test_bit(HCLGE_PTP_FLAG_TX_EN, &ptp->flags) ?
-			 "yes" : "no");
+			 str_yes_no(test_bit(HCLGE_PTP_FLAG_TX_EN,
+					     &ptp->flags)));
 	pos += scnprintf(buf + pos, len - pos, "ptp rx enable: %s\n",
-			 test_bit(HCLGE_PTP_FLAG_RX_EN, &ptp->flags) ?
-			 "yes" : "no");
+			 str_yes_no(test_bit(HCLGE_PTP_FLAG_RX_EN,
+					     &ptp->flags)));
 
 	last_rx = jiffies_to_msecs(ptp->last_rx);
 	pos += scnprintf(buf + pos, len - pos, "last rx time: %lu.%lu\n",

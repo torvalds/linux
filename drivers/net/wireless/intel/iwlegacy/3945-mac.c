@@ -2188,7 +2188,7 @@ __il3945_down(struct il_priv *il)
 
 	/* Stop TX queues watchdog. We need to have S_EXIT_PENDING bit set
 	 * to prevent rearm timer */
-	del_timer_sync(&il->watchdog);
+	timer_delete_sync(&il->watchdog);
 
 	/* Station information will now be cleared in device */
 	il_clear_ucode_stations(il);

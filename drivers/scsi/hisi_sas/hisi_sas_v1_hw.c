@@ -1806,7 +1806,7 @@ static struct platform_driver hisi_sas_v1_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = sas_v1_of_match,
-		.acpi_match_table = ACPI_PTR(sas_v1_acpi_match),
+		.acpi_match_table = sas_v1_acpi_match,
 	},
 };
 

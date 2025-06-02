@@ -182,6 +182,18 @@ attribute-sets:
         type: u32
         byte-order: big-endian
         display-hint: hex
+      -
+        name: sport-mask
+        type: u16
+        display-hint: hex
+      -
+        name: dport-mask
+        type: u16
+        display-hint: hex
+      -
+        name: dscp-mask
+        type: u8
+        display-hint: hex
 
 operations:
   enum-model: directional
@@ -215,6 +227,9 @@ operations:
             - dscp
             - flowlabel
             - flowlabel-mask
+            - sport-mask
+            - dport-mask
+            - dscp-mask
     -
       name: newrule-ntf
       doc: Notify a rule creation

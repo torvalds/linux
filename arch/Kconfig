@@ -1584,6 +1584,10 @@ config HAVE_SPARSE_SYSCALL_NR
 	  entries at 4000, 5000 and 6000 locations. This option turns on syscall
 	  related optimizations for a given architecture.
 
+config ARCH_HAS_VDSO_ARCH_DATA
+	depends on GENERIC_VDSO_DATA_STORE
+	bool
+
 config ARCH_HAS_VDSO_TIME_DATA
 	bool
 
@@ -1694,6 +1698,13 @@ config ARCH_HAS_KERNEL_FPU_SUPPORT
 	help
 	  Architectures that select this option can run floating-point code in
 	  the kernel, as described in Documentation/core-api/floating-point.rst.
+
+config ARCH_VMLINUX_NEEDS_RELOCS
+	bool
+	help
+	  Whether the architecture needs vmlinux to be built with static
+	  relocations preserved. This is used by some architectures to
+	  construct bespoke relocation tables for KASLR.
 
 source "kernel/gcov/Kconfig"
 

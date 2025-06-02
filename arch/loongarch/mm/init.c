@@ -65,23 +65,12 @@ void __init paging_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
 
-#ifdef CONFIG_ZONE_DMA
-	max_zone_pfns[ZONE_DMA] = MAX_DMA_PFN;
-#endif
 #ifdef CONFIG_ZONE_DMA32
 	max_zone_pfns[ZONE_DMA32] = MAX_DMA32_PFN;
 #endif
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 
 	free_area_init(max_zone_pfns);
-}
-
-void __init mem_init(void)
-{
-	max_mapnr = max_low_pfn;
-	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
-
-	memblock_free_all();
 }
 #endif /* !CONFIG_NUMA */
 

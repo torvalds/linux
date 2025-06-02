@@ -47,13 +47,6 @@ static u64 *first_pte_l7(u64 *pte, unsigned long *page_size,
 	return fpte;
 }
 
-/****************************************************************************
- *
- * The functions below are used the create the page table mappings for
- * unity mapped regions.
- *
- ****************************************************************************/
-
 static void free_pt_page(u64 *pt, struct list_head *freelist)
 {
 	struct page *p = virt_to_page(pt);

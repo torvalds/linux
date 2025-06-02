@@ -86,7 +86,19 @@ Memory ordering guarantee changes:
  * none (both fully unordered)
 
 
-case 2) - increment-based ops that return no value
+case 2) - non-"Read/Modify/Write" (RMW) ops with release ordering
+-----------------------------------------------------------------
+
+Function changes:
+
+ * atomic_set_release() --> refcount_set_release()
+
+Memory ordering guarantee changes:
+
+ * none (both provide RELEASE ordering)
+
+
+case 3) - increment-based ops that return no value
 --------------------------------------------------
 
 Function changes:
@@ -98,7 +110,7 @@ Memory ordering guarantee changes:
 
  * none (both fully unordered)
 
-case 3) - decrement-based RMW ops that return no value
+case 4) - decrement-based RMW ops that return no value
 ------------------------------------------------------
 
 Function changes:
@@ -110,7 +122,7 @@ Memory ordering guarantee changes:
  * fully unordered --> RELEASE ordering
 
 
-case 4) - increment-based RMW ops that return a value
+case 5) - increment-based RMW ops that return a value
 -----------------------------------------------------
 
 Function changes:
@@ -126,7 +138,20 @@ Memory ordering guarantees changes:
    result of obtaining pointer to the object!
 
 
-case 5) - generic dec/sub decrement-based RMW ops that return a value
+case 6) - increment-based RMW ops with acquire ordering that return a value
+---------------------------------------------------------------------------
+
+Function changes:
+
+ * atomic_inc_not_zero() --> refcount_inc_not_zero_acquire()
+ * no atomic counterpart --> refcount_add_not_zero_acquire()
+
+Memory ordering guarantees changes:
+
+ * fully ordered --> ACQUIRE ordering on success
+
+
+case 7) - generic dec/sub decrement-based RMW ops that return a value
 ---------------------------------------------------------------------
 
 Function changes:
@@ -139,7 +164,7 @@ Memory ordering guarantees changes:
  * fully ordered --> RELEASE ordering + ACQUIRE ordering on success
 
 
-case 6) other decrement-based RMW ops that return a value
+case 8) other decrement-based RMW ops that return a value
 ---------------------------------------------------------
 
 Function changes:
@@ -154,7 +179,7 @@ Memory ordering guarantees changes:
 .. note:: atomic_add_unless() only provides full order on success.
 
 
-case 7) - lock-based RMW
+case 9) - lock-based RMW
 ------------------------
 
 Function changes:

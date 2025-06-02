@@ -188,7 +188,8 @@ struct nilfs_super_block {
 	__le16	s_segment_usage_size;	/* Size of a segment usage */
 
 /*98*/	__u8	s_uuid[16];		/* 128-bit uuid for volume */
-/*A8*/	char	s_volume_name[80];	/* volume name */
+/*A8*/	char	s_volume_name[80]	/* volume name */
+			__kernel_nonstring;
 
 /*F8*/	__le32  s_c_interval;           /* Commit interval of segment */
 	__le32  s_c_block_max;          /*

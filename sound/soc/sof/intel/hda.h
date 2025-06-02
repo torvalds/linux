@@ -487,6 +487,11 @@ enum sof_hda_D0_substate {
 	SOF_HDA_DSP_PM_D0I3,	/* low power D0 substate */
 };
 
+struct sof_ace3_mic_privacy {
+	bool active;
+	struct work_struct work;
+};
+
 /* represents DSP HDA controller frontend - i.e. host facing control */
 struct sof_intel_hda_dev {
 	bool imrboot_supported;
@@ -541,6 +546,9 @@ struct sof_intel_hda_dev {
 
 	/* Intel NHLT information */
 	struct nhlt_acpi_table *nhlt;
+
+	/* work queue for mic privacy state change notification sending */
+	struct sof_ace3_mic_privacy mic_privacy;
 
 	/*
 	 * Pointing to the IPC message if immediate sending was not possible
@@ -913,10 +921,6 @@ extern struct snd_sof_dsp_ops sof_tgl_ops;
 int sof_tgl_ops_init(struct snd_sof_dev *sdev);
 extern struct snd_sof_dsp_ops sof_icl_ops;
 int sof_icl_ops_init(struct snd_sof_dev *sdev);
-extern struct snd_sof_dsp_ops sof_mtl_ops;
-int sof_mtl_ops_init(struct snd_sof_dev *sdev);
-extern struct snd_sof_dsp_ops sof_lnl_ops;
-int sof_lnl_ops_init(struct snd_sof_dev *sdev);
 
 extern const struct sof_intel_dsp_desc skl_chip_info;
 extern const struct sof_intel_dsp_desc apl_chip_info;

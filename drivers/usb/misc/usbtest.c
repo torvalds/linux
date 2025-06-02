@@ -626,7 +626,7 @@ static int perform_sglist(
 		mod_timer(&timeout.timer, jiffies +
 				msecs_to_jiffies(SIMPLE_IO_TIMEOUT));
 		usb_sg_wait(req);
-		if (!del_timer_sync(&timeout.timer))
+		if (!timer_delete_sync(&timeout.timer))
 			retval = -ETIMEDOUT;
 		else
 			retval = req->status;

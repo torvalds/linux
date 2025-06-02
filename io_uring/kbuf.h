@@ -74,9 +74,12 @@ int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg);
 int io_unregister_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg);
 int io_register_pbuf_status(struct io_ring_ctx *ctx, void __user *arg);
 
-void __io_put_kbuf(struct io_kiocb *req, int len, unsigned issue_flags);
-
 bool io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags);
+void io_kbuf_drop_legacy(struct io_kiocb *req);
+
+unsigned int __io_put_kbufs(struct io_kiocb *req, int len, int nbufs);
+bool io_kbuf_commit(struct io_kiocb *req,
+		    struct io_buffer_list *bl, int len, int nr);
 
 struct io_mapped_region *io_pbuf_get_region(struct io_ring_ctx *ctx,
 					    unsigned int bgid);
@@ -116,100 +119,19 @@ static inline bool io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 	return false;
 }
 
-/* Mapped buffer ring, return io_uring_buf from head */
-#define io_ring_head_to_buf(br, head, mask)	&(br)->bufs[(head) & (mask)]
-
-static inline bool io_kbuf_commit(struct io_kiocb *req,
-				  struct io_buffer_list *bl, int len, int nr)
-{
-	if (unlikely(!(req->flags & REQ_F_BUFFERS_COMMIT)))
-		return true;
-
-	req->flags &= ~REQ_F_BUFFERS_COMMIT;
-
-	if (unlikely(len < 0))
-		return true;
-
-	if (bl->flags & IOBL_INC) {
-		struct io_uring_buf *buf;
-
-		buf = io_ring_head_to_buf(bl->buf_ring, bl->head, bl->mask);
-		if (WARN_ON_ONCE(len > buf->len))
-			len = buf->len;
-		buf->len -= len;
-		if (buf->len) {
-			buf->addr += len;
-			return false;
-		}
-	}
-
-	bl->head += nr;
-	return true;
-}
-
-static inline bool __io_put_kbuf_ring(struct io_kiocb *req, int len, int nr)
-{
-	struct io_buffer_list *bl = req->buf_list;
-	bool ret = true;
-
-	if (bl) {
-		ret = io_kbuf_commit(req, bl, len, nr);
-		req->buf_index = bl->bgid;
-	}
-	req->flags &= ~REQ_F_BUFFER_RING;
-	return ret;
-}
-
-static inline void __io_put_kbuf_list(struct io_kiocb *req, int len,
-				      struct list_head *list)
-{
-	if (req->flags & REQ_F_BUFFER_RING) {
-		__io_put_kbuf_ring(req, len, 1);
-	} else {
-		req->buf_index = req->kbuf->bgid;
-		list_add(&req->kbuf->list, list);
-		req->flags &= ~REQ_F_BUFFER_SELECTED;
-	}
-}
-
-static inline void io_kbuf_drop(struct io_kiocb *req)
-{
-	lockdep_assert_held(&req->ctx->completion_lock);
-
-	if (!(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)))
-		return;
-
-	/* len == 0 is fine here, non-ring will always drop all of it */
-	__io_put_kbuf_list(req, 0, &req->ctx->io_buffers_comp);
-}
-
-static inline unsigned int __io_put_kbufs(struct io_kiocb *req, int len,
-					  int nbufs, unsigned issue_flags)
-{
-	unsigned int ret;
-
-	if (!(req->flags & (REQ_F_BUFFER_RING | REQ_F_BUFFER_SELECTED)))
-		return 0;
-
-	ret = IORING_CQE_F_BUFFER | (req->buf_index << IORING_CQE_BUFFER_SHIFT);
-	if (req->flags & REQ_F_BUFFER_RING) {
-		if (!__io_put_kbuf_ring(req, len, nbufs))
-			ret |= IORING_CQE_F_BUF_MORE;
-	} else {
-		__io_put_kbuf(req, len, issue_flags);
-	}
-	return ret;
-}
-
 static inline unsigned int io_put_kbuf(struct io_kiocb *req, int len,
 				       unsigned issue_flags)
 {
-	return __io_put_kbufs(req, len, 1, issue_flags);
+	if (!(req->flags & (REQ_F_BUFFER_RING | REQ_F_BUFFER_SELECTED)))
+		return 0;
+	return __io_put_kbufs(req, len, 1);
 }
 
 static inline unsigned int io_put_kbufs(struct io_kiocb *req, int len,
 					int nbufs, unsigned issue_flags)
 {
-	return __io_put_kbufs(req, len, nbufs, issue_flags);
+	if (!(req->flags & (REQ_F_BUFFER_RING | REQ_F_BUFFER_SELECTED)))
+		return 0;
+	return __io_put_kbufs(req, len, nbufs);
 }
 #endif

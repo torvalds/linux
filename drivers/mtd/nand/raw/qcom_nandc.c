@@ -165,9 +165,9 @@ static void nandc_set_read_loc_first(struct nand_chip *chip,
 {
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	__le32 locreg_val;
-	u32 val = (((cw_offset) << READ_LOCATION_OFFSET) |
-		  ((read_size) << READ_LOCATION_SIZE) |
-		  ((is_last_read_loc) << READ_LOCATION_LAST));
+	u32 val = FIELD_PREP(READ_LOCATION_OFFSET_MASK, cw_offset) |
+		  FIELD_PREP(READ_LOCATION_SIZE_MASK, read_size) |
+		  FIELD_PREP(READ_LOCATION_LAST_MASK, is_last_read_loc);
 
 	locreg_val = cpu_to_le32(val);
 
@@ -197,9 +197,9 @@ static void nandc_set_read_loc_last(struct nand_chip *chip,
 {
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	__le32 locreg_val;
-	u32 val = (((cw_offset) << READ_LOCATION_OFFSET) |
-		  ((read_size) << READ_LOCATION_SIZE) |
-		  ((is_last_read_loc) << READ_LOCATION_LAST));
+	u32 val = FIELD_PREP(READ_LOCATION_OFFSET_MASK, cw_offset) |
+		  FIELD_PREP(READ_LOCATION_SIZE_MASK, read_size) |
+		  FIELD_PREP(READ_LOCATION_LAST_MASK, is_last_read_loc);
 
 	locreg_val = cpu_to_le32(val);
 
@@ -271,14 +271,14 @@ static void update_rw_regs(struct qcom_nand_host *host, int num_cw, bool read, i
 	}
 
 	if (host->use_ecc) {
-		cfg0 = cpu_to_le32((host->cfg0 & ~(7U << CW_PER_PAGE)) |
-				(num_cw - 1) << CW_PER_PAGE);
+		cfg0 = cpu_to_le32((host->cfg0 & ~CW_PER_PAGE_MASK) |
+				   FIELD_PREP(CW_PER_PAGE_MASK, (num_cw - 1)));
 
 		cfg1 = cpu_to_le32(host->cfg1);
 		ecc_bch_cfg = cpu_to_le32(host->ecc_bch_cfg);
 	} else {
-		cfg0 = cpu_to_le32((host->cfg0_raw & ~(7U << CW_PER_PAGE)) |
-				(num_cw - 1) << CW_PER_PAGE);
+		cfg0 = cpu_to_le32((host->cfg0_raw & ~CW_PER_PAGE_MASK) |
+				   FIELD_PREP(CW_PER_PAGE_MASK, (num_cw - 1)));
 
 		cfg1 = cpu_to_le32(host->cfg1_raw);
 		ecc_bch_cfg = cpu_to_le32(ECC_CFG_ECC_DISABLE);
@@ -882,12 +882,12 @@ static void qcom_nandc_codeword_fixup(struct qcom_nand_host *host, int page)
 			    host->bbm_size - host->cw_data;
 
 	host->cfg0 &= ~(SPARE_SIZE_BYTES_MASK | UD_SIZE_BYTES_MASK);
-	host->cfg0 |= host->spare_bytes << SPARE_SIZE_BYTES |
-		      host->cw_data << UD_SIZE_BYTES;
+	host->cfg0 |= FIELD_PREP(SPARE_SIZE_BYTES_MASK, host->spare_bytes) |
+		      FIELD_PREP(UD_SIZE_BYTES_MASK, host->cw_data);
 
 	host->ecc_bch_cfg &= ~ECC_NUM_DATA_BYTES_MASK;
-	host->ecc_bch_cfg |= host->cw_data << ECC_NUM_DATA_BYTES;
-	host->ecc_buf_cfg = (host->cw_data - 1) << NUM_STEPS;
+	host->ecc_bch_cfg |= FIELD_PREP(ECC_NUM_DATA_BYTES_MASK, host->cw_data);
+	host->ecc_buf_cfg = FIELD_PREP(NUM_STEPS_MASK, host->cw_data - 1);
 }
 
 /* implements ecc->read_page() */
@@ -1531,7 +1531,7 @@ static int qcom_nand_attach_chip(struct nand_chip *chip)
 			    FIELD_PREP(ECC_PARITY_SIZE_BYTES_BCH_MASK, host->ecc_bytes_hw);
 
 	if (!nandc->props->qpic_version2)
-		host->ecc_buf_cfg = 0x203 << NUM_STEPS;
+		host->ecc_buf_cfg = FIELD_PREP(NUM_STEPS_MASK, 0x203);
 
 	host->clrflashstatus = FS_READY_BSY_N;
 	host->clrreadstatus = 0xc0;
@@ -1817,7 +1817,7 @@ static int qcom_misc_cmd_type_exec(struct nand_chip *chip, const struct nand_sub
 		q_op.cmd_reg |= cpu_to_le32(PAGE_ACC | LAST_PAGE);
 		nandc->regs->addr0 = q_op.addr1_reg;
 		nandc->regs->addr1 = q_op.addr2_reg;
-		nandc->regs->cfg0 = cpu_to_le32(host->cfg0_raw & ~(7 << CW_PER_PAGE));
+		nandc->regs->cfg0 = cpu_to_le32(host->cfg0_raw & ~CW_PER_PAGE_MASK);
 		nandc->regs->cfg1 = cpu_to_le32(host->cfg1_raw);
 		instrs = 3;
 	} else if (q_op.cmd_reg != cpu_to_le32(OP_RESET_DEVICE)) {
@@ -1900,8 +1900,8 @@ static int qcom_param_page_type_exec(struct nand_chip *chip,  const struct nand_
 	/* configure CMD1 and VLD for ONFI param probing in QPIC v1 */
 	if (!nandc->props->qpic_version2) {
 		nandc->regs->vld = cpu_to_le32((nandc->vld & ~READ_START_VLD));
-		nandc->regs->cmd1 = cpu_to_le32((nandc->cmd1 & ~(0xFF << READ_ADDR))
-				    | NAND_CMD_PARAM << READ_ADDR);
+		nandc->regs->cmd1 = cpu_to_le32((nandc->cmd1 & ~READ_ADDR_MASK) |
+						FIELD_PREP(READ_ADDR_MASK, NAND_CMD_PARAM));
 	}
 
 	nandc->regs->exec = cpu_to_le32(1);

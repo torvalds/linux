@@ -2383,7 +2383,7 @@ void fib6_run_gc(unsigned long expires, struct net *net, bool force)
 			  round_jiffies(now
 					+ net->ipv6.sysctl.ip6_rt_gc_interval));
 	else
-		del_timer(&net->ipv6.ip6_fib_timer);
+		timer_delete(&net->ipv6.ip6_fib_timer);
 	spin_unlock_bh(&net->ipv6.fib6_gc_lock);
 }
 
@@ -2470,7 +2470,7 @@ static void fib6_net_exit(struct net *net)
 {
 	unsigned int i;
 
-	del_timer_sync(&net->ipv6.ip6_fib_timer);
+	timer_delete_sync(&net->ipv6.ip6_fib_timer);
 
 	for (i = 0; i < FIB6_TABLE_HASHSZ; i++) {
 		struct hlist_head *head = &net->ipv6.fib_table_hash[i];

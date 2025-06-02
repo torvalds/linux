@@ -4,6 +4,7 @@
  *
  * Copyright © 2017-2020 Mickaël Salaün <mic@digikod.net>
  * Copyright © 2019-2020 ANSSI
+ * Copyright © 2024-2025 Microsoft Corporation
  */
 
 #define _GNU_SOURCE
@@ -17,6 +18,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "audit.h"
 #include "common.h"
 
 /* Copied from security/yama/yama_lsm.c */
@@ -432,6 +434,144 @@ TEST_F(hierarchy, trace)
 	if (WIFSIGNALED(status) || !WIFEXITED(status) ||
 	    WEXITSTATUS(status) != EXIT_SUCCESS)
 		_metadata->exit_code = KSFT_FAIL;
+}
+
+static int matches_log_ptrace(struct __test_metadata *const _metadata,
+			      int audit_fd, const pid_t opid)
+{
+	static const char log_template[] = REGEX_LANDLOCK_PREFIX
+		" blockers=ptrace opid=%d ocomm=\"ptrace_test\"$";
+	char log_match[sizeof(log_template) + 10];
+	int log_match_len;
+
+	log_match_len =
+		snprintf(log_match, sizeof(log_match), log_template, opid);
+	if (log_match_len > sizeof(log_match))
+		return -E2BIG;
+
+	return audit_match_record(audit_fd, AUDIT_LANDLOCK_ACCESS, log_match,
+				  NULL);
+}
+
+FIXTURE(audit)
+{
+	struct audit_filter audit_filter;
+	int audit_fd;
+};
+
+FIXTURE_SETUP(audit)
+{
+	disable_caps(_metadata);
+	set_cap(_metadata, CAP_AUDIT_CONTROL);
+	self->audit_fd = audit_init_with_exe_filter(&self->audit_filter);
+	EXPECT_LE(0, self->audit_fd);
+	clear_cap(_metadata, CAP_AUDIT_CONTROL);
+}
+
+FIXTURE_TEARDOWN_PARENT(audit)
+{
+	EXPECT_EQ(0, audit_cleanup(-1, NULL));
+}
+
+/* Test PTRACE_TRACEME and PTRACE_ATTACH for parent and child. */
+TEST_F(audit, trace)
+{
+	pid_t child;
+	int status;
+	int pipe_child[2], pipe_parent[2];
+	int yama_ptrace_scope;
+	char buf_parent;
+	struct audit_records records;
+
+	/* Makes sure there is no superfluous logged records. */
+	EXPECT_EQ(0, audit_count_records(self->audit_fd, &records));
+	EXPECT_EQ(0, records.access);
+	EXPECT_EQ(0, records.domain);
+
+	yama_ptrace_scope = get_yama_ptrace_scope();
+	ASSERT_LE(0, yama_ptrace_scope);
+
+	if (yama_ptrace_scope > YAMA_SCOPE_DISABLED)
+		TH_LOG("Incomplete tests due to Yama restrictions (scope %d)",
+		       yama_ptrace_scope);
+
+	/*
+	 * Removes all effective and permitted capabilities to not interfere
+	 * with cap_ptrace_access_check() in case of PTRACE_MODE_FSCREDS.
+	 */
+	drop_caps(_metadata);
+
+	ASSERT_EQ(0, pipe2(pipe_child, O_CLOEXEC));
+	ASSERT_EQ(0, pipe2(pipe_parent, O_CLOEXEC));
+
+	child = fork();
+	ASSERT_LE(0, child);
+	if (child == 0) {
+		char buf_child;
+
+		ASSERT_EQ(0, close(pipe_parent[1]));
+		ASSERT_EQ(0, close(pipe_child[0]));
+
+		/* Waits for the parent to be in a domain, if any. */
+		ASSERT_EQ(1, read(pipe_parent[0], &buf_child, 1));
+
+		/* Tests child PTRACE_TRACEME. */
+		EXPECT_EQ(-1, ptrace(PTRACE_TRACEME));
+		EXPECT_EQ(EPERM, errno);
+		/* We should see the child process. */
+		EXPECT_EQ(0, matches_log_ptrace(_metadata, self->audit_fd,
+						getpid()));
+
+		EXPECT_EQ(0, audit_count_records(self->audit_fd, &records));
+		EXPECT_EQ(0, records.access);
+		/* Checks for a domain creation. */
+		EXPECT_EQ(1, records.domain);
+
+		/*
+		 * Signals that the PTRACE_ATTACH test is done and the
+		 * PTRACE_TRACEME test is ongoing.
+		 */
+		ASSERT_EQ(1, write(pipe_child[1], ".", 1));
+
+		/* Waits for the parent PTRACE_ATTACH test. */
+		ASSERT_EQ(1, read(pipe_parent[0], &buf_child, 1));
+		_exit(_metadata->exit_code);
+		return;
+	}
+
+	ASSERT_EQ(0, close(pipe_child[1]));
+	ASSERT_EQ(0, close(pipe_parent[0]));
+	create_domain(_metadata);
+
+	/* Signals that the parent is in a domain. */
+	ASSERT_EQ(1, write(pipe_parent[1], ".", 1));
+
+	/*
+	 * Waits for the child to test PTRACE_ATTACH on the parent and start
+	 * testing PTRACE_TRACEME.
+	 */
+	ASSERT_EQ(1, read(pipe_child[0], &buf_parent, 1));
+
+	/* The child should not be traced by the parent. */
+	EXPECT_EQ(-1, ptrace(PTRACE_DETACH, child, NULL, 0));
+	EXPECT_EQ(ESRCH, errno);
+
+	/* Tests PTRACE_ATTACH on the child. */
+	EXPECT_EQ(-1, ptrace(PTRACE_ATTACH, child, NULL, 0));
+	EXPECT_EQ(EPERM, errno);
+	EXPECT_EQ(0, matches_log_ptrace(_metadata, self->audit_fd, child));
+
+	/* Signals that the parent PTRACE_ATTACH test is done. */
+	ASSERT_EQ(1, write(pipe_parent[1], ".", 1));
+	ASSERT_EQ(child, waitpid(child, &status, 0));
+	if (WIFSIGNALED(status) || !WIFEXITED(status) ||
+	    WEXITSTATUS(status) != EXIT_SUCCESS)
+		_metadata->exit_code = KSFT_FAIL;
+
+	/* Makes sure there is no superfluous logged records. */
+	EXPECT_EQ(0, audit_count_records(self->audit_fd, &records));
+	EXPECT_EQ(0, records.access);
+	EXPECT_EQ(0, records.domain);
 }
 
 TEST_HARNESS_MAIN

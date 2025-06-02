@@ -271,6 +271,8 @@ static struct io_mapped_region *io_mmap_get_region(struct io_ring_ctx *ctx,
 		return io_pbuf_get_region(ctx, bgid);
 	case IORING_MAP_OFF_PARAM_REGION:
 		return &ctx->param_region;
+	case IORING_MAP_OFF_ZCRX_REGION:
+		return &ctx->zcrx_region;
 	}
 	return NULL;
 }

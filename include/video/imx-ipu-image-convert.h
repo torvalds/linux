@@ -41,19 +41,6 @@ typedef void (*ipu_image_convert_cb_t)(struct ipu_image_convert_run *run,
 				       void *ctx);
 
 /**
- * ipu_image_convert_enum_format() - enumerate the image converter's
- *	supported input and output pixel formats.
- *
- * @index:	pixel format index
- * @fourcc:	v4l2 fourcc for this index
- *
- * Returns 0 with a valid index and fills in v4l2 fourcc, -EINVAL otherwise.
- *
- * In V4L2, drivers can call ipu_image_enum_format() in .enum_fmt.
- */
-int ipu_image_convert_enum_format(int index, u32 *fourcc);
-
-/**
  * ipu_image_convert_adjust() - adjust input/output images to IPU restrictions.
  *
  * @in:		input image format, adjusted on return
@@ -175,24 +162,5 @@ ipu_image_convert(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 		  enum ipu_rotate_mode rot_mode,
 		  ipu_image_convert_cb_t complete,
 		  void *complete_context);
-
-/**
- * ipu_image_convert_sync() - synchronous single image conversion request
- *
- * @ipu:	the IPU handle to use for the conversion
- * @ic_task:	the IC task to use for the conversion
- * @in:		input image format
- * @out:	output image format
- * @rot_mode:	rotation mode
- *
- * Carry out a single image conversion. Returns when the conversion
- * completes. The input/output formats and rotation mode must already
- * meet IPU retrictions. The created context is automatically unprepared
- * and the run freed on return.
- */
-int ipu_image_convert_sync(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
-			   struct ipu_image *in, struct ipu_image *out,
-			   enum ipu_rotate_mode rot_mode);
-
 
 #endif /* __IMX_IPU_IMAGE_CONVERT_H__ */

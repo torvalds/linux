@@ -60,6 +60,12 @@ struct fbnic_dev {
 	u8 mac_addr_boundary;
 	u8 tce_tcam_last;
 
+	/* IP TCAM */
+	struct fbnic_ip_addr ip_src[FBNIC_RPC_TCAM_IP_ADDR_NUM_ENTRIES];
+	struct fbnic_ip_addr ip_dst[FBNIC_RPC_TCAM_IP_ADDR_NUM_ENTRIES];
+	struct fbnic_ip_addr ipo_src[FBNIC_RPC_TCAM_IP_ADDR_NUM_ENTRIES];
+	struct fbnic_ip_addr ipo_dst[FBNIC_RPC_TCAM_IP_ADDR_NUM_ENTRIES];
+
 	/* Number of TCQs/RCQs available on hardware */
 	u16 max_num_queues;
 
@@ -148,14 +154,14 @@ struct fbnic_dev *fbnic_devlink_alloc(struct pci_dev *pdev);
 void fbnic_devlink_register(struct fbnic_dev *fbd);
 void fbnic_devlink_unregister(struct fbnic_dev *fbd);
 
-int fbnic_fw_enable_mbx(struct fbnic_dev *fbd);
-void fbnic_fw_disable_mbx(struct fbnic_dev *fbd);
+int fbnic_fw_request_mbx(struct fbnic_dev *fbd);
+void fbnic_fw_free_mbx(struct fbnic_dev *fbd);
 
 void fbnic_hwmon_register(struct fbnic_dev *fbd);
 void fbnic_hwmon_unregister(struct fbnic_dev *fbd);
 
-int fbnic_pcs_irq_enable(struct fbnic_dev *fbd);
-void fbnic_pcs_irq_disable(struct fbnic_dev *fbd);
+int fbnic_pcs_request_irq(struct fbnic_dev *fbd);
+void fbnic_pcs_free_irq(struct fbnic_dev *fbd);
 
 void fbnic_napi_name_irqs(struct fbnic_dev *fbd);
 int fbnic_napi_request_irq(struct fbnic_dev *fbd,
@@ -179,6 +185,9 @@ void fbnic_dbg_exit(void);
 
 void fbnic_csr_get_regs(struct fbnic_dev *fbd, u32 *data, u32 *regs_version);
 int fbnic_csr_regs_len(struct fbnic_dev *fbd);
+
+void fbnic_config_txrx_usecs(struct fbnic_napi_vector *nv, u32 arm);
+void fbnic_config_rx_frames(struct fbnic_napi_vector *nv);
 
 enum fbnic_boards {
 	fbnic_board_asic

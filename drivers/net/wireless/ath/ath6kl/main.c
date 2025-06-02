@@ -1027,7 +1027,7 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 
 	aggr_reset_state(vif->aggr_cntxt->aggr_conn);
 
-	del_timer(&vif->disconnect_timer);
+	timer_delete(&vif->disconnect_timer);
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "disconnect reason is %d\n", reason);
 

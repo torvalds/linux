@@ -101,7 +101,6 @@ struct ethtool_cmis_cdb_rpl {
 };
 
 u32 ethtool_cmis_get_max_lpl_size(u8 num_of_byte_octs);
-u32 ethtool_cmis_get_max_epl_size(u8 num_of_byte_octs);
 
 void ethtool_cmis_cdb_compose_args(struct ethtool_cmis_cdb_cmd_args *args,
 				   enum ethtool_cmis_cdb_cmd_id cmd, u8 *lpl,

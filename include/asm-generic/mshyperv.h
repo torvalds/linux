@@ -28,9 +28,15 @@
 
 #define VTPM_BASE_ADDRESS 0xfed40000
 
+enum hv_partition_type {
+	HV_PARTITION_TYPE_GUEST,
+	HV_PARTITION_TYPE_ROOT,
+};
+
 struct ms_hyperv_info {
 	u32 features;
 	u32 priv_high;
+	u32 ext_features;
 	u32 misc_features;
 	u32 hints;
 	u32 nested_features;
@@ -58,14 +64,31 @@ struct ms_hyperv_info {
 };
 extern struct ms_hyperv_info ms_hyperv;
 extern bool hv_nested;
+extern u64 hv_current_partition_id;
+extern enum hv_partition_type hv_curr_partition_type;
 
 extern void * __percpu *hyperv_pcpu_input_arg;
 extern void * __percpu *hyperv_pcpu_output_arg;
 
-extern u64 hv_do_hypercall(u64 control, void *inputaddr, void *outputaddr);
-extern u64 hv_do_fast_hypercall8(u16 control, u64 input8);
+u64 hv_do_hypercall(u64 control, void *inputaddr, void *outputaddr);
+u64 hv_do_fast_hypercall8(u16 control, u64 input8);
+u64 hv_do_fast_hypercall16(u16 control, u64 input1, u64 input2);
+
 bool hv_isolation_type_snp(void);
 bool hv_isolation_type_tdx(void);
+
+/*
+ * On architectures where Hyper-V doesn't support AEOI (e.g., ARM64),
+ * it doesn't provide a recommendation flag and AEOI must be disabled.
+ */
+static inline bool hv_recommend_using_aeoi(void)
+{
+#ifdef HV_DEPRECATING_AEOI_RECOMMENDED
+	return !(ms_hyperv.hints & HV_DEPRECATING_AEOI_RECOMMENDED);
+#else
+	return false;
+#endif
+}
 
 static inline struct hv_proximity_domain_info hv_numa_node_to_pxm_info(int node)
 {
@@ -185,11 +208,10 @@ void hv_setup_kexec_handler(void (*handler)(void));
 void hv_remove_kexec_handler(void);
 void hv_setup_crash_handler(void (*handler)(struct pt_regs *regs));
 void hv_remove_crash_handler(void);
+void hv_setup_mshv_handler(void (*handler)(void));
 
 extern int vmbus_interrupt;
 extern int vmbus_irq;
-
-extern bool hv_root_partition;
 
 #if IS_ENABLED(CONFIG_HYPERV)
 /*
@@ -207,10 +229,12 @@ extern u64 (*hv_read_reference_counter)(void);
 #define VP_INVAL	U32_MAX
 
 int __init hv_common_init(void);
+void __init hv_get_partition_id(void);
 void __init hv_common_free(void);
 void __init ms_hyperv_late_init(void);
 int hv_common_cpu_init(unsigned int cpu);
 int hv_common_cpu_die(unsigned int cpu);
+void hv_identify_partition_type(void);
 
 void *hv_alloc_hyperv_page(void);
 void *hv_alloc_hyperv_zeroed_page(void);
@@ -291,6 +315,20 @@ static inline int cpumask_to_vpset_skip(struct hv_vpset *vpset,
 	return __cpumask_to_vpset(vpset, cpus, func);
 }
 
+#define _hv_status_fmt(fmt) "%s: Hyper-V status: %#x = %s: " fmt
+#define hv_status_printk(level, status, fmt, ...) \
+do { \
+	u64 __status = (status); \
+	pr_##level(_hv_status_fmt(fmt), __func__, hv_result(__status), \
+		   hv_result_to_string(__status), ##__VA_ARGS__); \
+} while (0)
+#define hv_status_err(status, fmt, ...) \
+	hv_status_printk(err, status, fmt, ##__VA_ARGS__)
+#define hv_status_debug(status, fmt, ...) \
+	hv_status_printk(debug, status, fmt, ##__VA_ARGS__)
+
+const char *hv_result_to_string(u64 hv_status);
+int hv_result_to_errno(u64 status);
 void hyperv_report_panic(struct pt_regs *regs, long err, bool in_die);
 bool hv_is_hyperv_initialized(void);
 bool hv_is_hibernation_supported(void);
@@ -303,6 +341,7 @@ void hyperv_cleanup(void);
 bool hv_query_ext_cap(u64 cap_query);
 void hv_setup_dma_ops(struct device *dev, bool coherent);
 #else /* CONFIG_HYPERV */
+static inline void hv_identify_partition_type(void) {}
 static inline bool hv_is_hyperv_initialized(void) { return false; }
 static inline bool hv_is_hibernation_supported(void) { return false; }
 static inline void hyperv_cleanup(void) {}
@@ -313,5 +352,30 @@ static inline enum hv_isolation_type hv_get_isolation_type(void)
 	return HV_ISOLATION_TYPE_NONE;
 }
 #endif /* CONFIG_HYPERV */
+
+#if IS_ENABLED(CONFIG_MSHV_ROOT)
+static inline bool hv_root_partition(void)
+{
+	return hv_curr_partition_type == HV_PARTITION_TYPE_ROOT;
+}
+int hv_call_deposit_pages(int node, u64 partition_id, u32 num_pages);
+int hv_call_add_logical_proc(int node, u32 lp_index, u32 acpi_id);
+int hv_call_create_vp(int node, u64 partition_id, u32 vp_index, u32 flags);
+
+#else /* CONFIG_MSHV_ROOT */
+static inline bool hv_root_partition(void) { return false; }
+static inline int hv_call_deposit_pages(int node, u64 partition_id, u32 num_pages)
+{
+	return -EOPNOTSUPP;
+}
+static inline int hv_call_add_logical_proc(int node, u32 lp_index, u32 acpi_id)
+{
+	return -EOPNOTSUPP;
+}
+static inline int hv_call_create_vp(int node, u64 partition_id, u32 vp_index, u32 flags)
+{
+	return -EOPNOTSUPP;
+}
+#endif /* CONFIG_MSHV_ROOT */
 
 #endif

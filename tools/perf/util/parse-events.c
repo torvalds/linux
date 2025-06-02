@@ -17,6 +17,7 @@
 #include "strbuf.h"
 #include "debug.h"
 #include <api/fs/tracing_path.h>
+#include <api/io_dir.h>
 #include <perf/cpumap.h>
 #include <util/parse-events-bison.h>
 #include <util/parse-events-flex.h>
@@ -554,8 +555,8 @@ static int add_tracepoint_multi_event(struct parse_events_state *parse_state,
 				      struct parse_events_terms *head_config, YYLTYPE *loc)
 {
 	char *evt_path;
-	struct dirent *evt_ent;
-	DIR *evt_dir;
+	struct io_dirent64 *evt_ent;
+	struct io_dir evt_dir;
 	int ret = 0, found = 0;
 
 	evt_path = get_events_file(sys_name);
@@ -563,14 +564,14 @@ static int add_tracepoint_multi_event(struct parse_events_state *parse_state,
 		tracepoint_error(err, errno, sys_name, evt_name, loc->first_column);
 		return -1;
 	}
-	evt_dir = opendir(evt_path);
-	if (!evt_dir) {
+	io_dir__init(&evt_dir, open(evt_path, O_CLOEXEC | O_DIRECTORY | O_RDONLY));
+	if (evt_dir.dirfd < 0) {
 		put_events_file(evt_path);
 		tracepoint_error(err, errno, sys_name, evt_name, loc->first_column);
 		return -1;
 	}
 
-	while (!ret && (evt_ent = readdir(evt_dir))) {
+	while (!ret && (evt_ent = io_dir__readdir(&evt_dir))) {
 		if (!strcmp(evt_ent->d_name, ".")
 		    || !strcmp(evt_ent->d_name, "..")
 		    || !strcmp(evt_ent->d_name, "enable")
@@ -592,7 +593,7 @@ static int add_tracepoint_multi_event(struct parse_events_state *parse_state,
 	}
 
 	put_events_file(evt_path);
-	closedir(evt_dir);
+	close(evt_dir.dirfd);
 	return ret;
 }
 
@@ -615,17 +616,23 @@ static int add_tracepoint_multi_sys(struct parse_events_state *parse_state,
 				    struct parse_events_error *err,
 				    struct parse_events_terms *head_config, YYLTYPE *loc)
 {
-	struct dirent *events_ent;
-	DIR *events_dir;
+	struct io_dirent64 *events_ent;
+	struct io_dir events_dir;
 	int ret = 0;
+	char *events_dir_path = get_tracing_file("events");
 
-	events_dir = tracing_events__opendir();
-	if (!events_dir) {
+	if (!events_dir_path) {
+		tracepoint_error(err, errno, sys_name, evt_name, loc->first_column);
+		return -1;
+	}
+	io_dir__init(&events_dir, open(events_dir_path, O_CLOEXEC | O_DIRECTORY | O_RDONLY));
+	put_events_file(events_dir_path);
+	if (events_dir.dirfd < 0) {
 		tracepoint_error(err, errno, sys_name, evt_name, loc->first_column);
 		return -1;
 	}
 
-	while (!ret && (events_ent = readdir(events_dir))) {
+	while (!ret && (events_ent = io_dir__readdir(&events_dir))) {
 		if (!strcmp(events_ent->d_name, ".")
 		    || !strcmp(events_ent->d_name, "..")
 		    || !strcmp(events_ent->d_name, "enable")
@@ -639,8 +646,7 @@ static int add_tracepoint_multi_sys(struct parse_events_state *parse_state,
 		ret = add_tracepoint_event(parse_state, list, events_ent->d_name,
 					   evt_name, err, head_config, loc);
 	}
-
-	closedir(events_dir);
+	close(events_dir.dirfd);
 	return ret;
 }
 
@@ -1660,7 +1666,7 @@ int parse_events_multi_pmu_add_or_add_pmu(struct parse_events_state *parse_state
 	/* Failed to add, try wildcard expansion of event_or_pmu as a PMU name. */
 	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		if (!parse_events__filter_pmu(parse_state, pmu) &&
-		    perf_pmu__match(pmu, event_or_pmu)) {
+		    perf_pmu__wildcard_match(pmu, event_or_pmu)) {
 			bool auto_merge_stats = perf_pmu__auto_merge_stats(pmu);
 
 			if (!parse_events_add_pmu(parse_state, *listp, pmu,
@@ -1974,48 +1980,55 @@ static int evlist__cmp(void *_fg_idx, const struct list_head *l, const struct li
 	int *force_grouped_idx = _fg_idx;
 	int lhs_sort_idx, rhs_sort_idx, ret;
 	const char *lhs_pmu_name, *rhs_pmu_name;
-	bool lhs_has_group, rhs_has_group;
 
 	/*
-	 * First sort by grouping/leader. Read the leader idx only if the evsel
-	 * is part of a group, by default ungrouped events will be sorted
-	 * relative to grouped events based on where the first ungrouped event
-	 * occurs. If both events don't have a group we want to fall-through to
-	 * the arch specific sorting, that can reorder and fix things like
-	 * Intel's topdown events.
+	 * Get the indexes of the 2 events to sort. If the events are
+	 * in groups then the leader's index is used otherwise the
+	 * event's index is used. An index may be forced for events that
+	 * must be in the same group, namely Intel topdown events.
 	 */
-	if (lhs_core->leader != lhs_core || lhs_core->nr_members > 1) {
-		lhs_has_group = true;
-		lhs_sort_idx = lhs_core->leader->idx;
+	if (*force_grouped_idx != -1 && arch_evsel__must_be_in_group(lhs)) {
+		lhs_sort_idx = *force_grouped_idx;
 	} else {
-		lhs_has_group = false;
-		lhs_sort_idx = *force_grouped_idx != -1 && arch_evsel__must_be_in_group(lhs)
-			? *force_grouped_idx
-			: lhs_core->idx;
+		bool lhs_has_group = lhs_core->leader != lhs_core || lhs_core->nr_members > 1;
+
+		lhs_sort_idx = lhs_has_group ? lhs_core->leader->idx : lhs_core->idx;
 	}
-	if (rhs_core->leader != rhs_core || rhs_core->nr_members > 1) {
-		rhs_has_group = true;
-		rhs_sort_idx = rhs_core->leader->idx;
+	if (*force_grouped_idx != -1 && arch_evsel__must_be_in_group(rhs)) {
+		rhs_sort_idx = *force_grouped_idx;
 	} else {
-		rhs_has_group = false;
-		rhs_sort_idx = *force_grouped_idx != -1 && arch_evsel__must_be_in_group(rhs)
-			? *force_grouped_idx
-			: rhs_core->idx;
+		bool rhs_has_group = rhs_core->leader != rhs_core || rhs_core->nr_members > 1;
+
+		rhs_sort_idx = rhs_has_group ? rhs_core->leader->idx : rhs_core->idx;
 	}
 
+	/* If the indices differ then respect the insertion order. */
 	if (lhs_sort_idx != rhs_sort_idx)
 		return lhs_sort_idx - rhs_sort_idx;
 
-	/* Group by PMU if there is a group. Groups can't span PMUs. */
-	if (lhs_has_group && rhs_has_group) {
-		lhs_pmu_name = lhs->group_pmu_name;
-		rhs_pmu_name = rhs->group_pmu_name;
-		ret = strcmp(lhs_pmu_name, rhs_pmu_name);
-		if (ret)
-			return ret;
-	}
+	/*
+	 * Ignoring forcing, lhs_sort_idx == rhs_sort_idx so lhs and rhs should
+	 * be in the same group. Events in the same group need to be ordered by
+	 * their grouping PMU name as the group will be broken to ensure only
+	 * events on the same PMU are programmed together.
+	 *
+	 * With forcing the lhs_sort_idx == rhs_sort_idx shows that one or both
+	 * events are being forced to be at force_group_index. If only one event
+	 * is being forced then the other event is the group leader of the group
+	 * we're trying to force the event into. Ensure for the force grouped
+	 * case that the PMU name ordering is also respected.
+	 */
+	lhs_pmu_name = lhs->group_pmu_name;
+	rhs_pmu_name = rhs->group_pmu_name;
+	ret = strcmp(lhs_pmu_name, rhs_pmu_name);
+	if (ret)
+		return ret;
 
-	/* Architecture specific sorting. */
+	/*
+	 * Architecture specific sorting, by default sort events in the same
+	 * group with the same PMU by their insertion index. On Intel topdown
+	 * constraints must be adhered to - slots first, etc.
+	 */
 	return arch_evlist__cmp(lhs, rhs);
 }
 
@@ -2024,9 +2037,11 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 	int idx = 0, force_grouped_idx = -1;
 	struct evsel *pos, *cur_leader = NULL;
 	struct perf_evsel *cur_leaders_grp = NULL;
-	bool idx_changed = false, cur_leader_force_grouped = false;
+	bool idx_changed = false;
 	int orig_num_leaders = 0, num_leaders = 0;
 	int ret;
+	struct evsel *force_grouped_leader = NULL;
+	bool last_event_was_forced_leader = false;
 
 	/*
 	 * Compute index to insert ungrouped events at. Place them where the
@@ -2049,10 +2064,13 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 		 */
 		pos->core.idx = idx++;
 
-		/* Remember an index to sort all forced grouped events together to. */
-		if (force_grouped_idx == -1 && pos == pos_leader && pos->core.nr_members < 2 &&
-		    arch_evsel__must_be_in_group(pos))
-			force_grouped_idx = pos->core.idx;
+		/*
+		 * Remember an index to sort all forced grouped events
+		 * together to. Use the group leader as some events
+		 * must appear first within the group.
+		 */
+		if (force_grouped_idx == -1 && arch_evsel__must_be_in_group(pos))
+			force_grouped_idx = pos_leader->core.idx;
 	}
 
 	/* Sort events. */
@@ -2080,31 +2098,66 @@ static int parse_events__sort_events_and_fix_groups(struct list_head *list)
 		 * Set the group leader respecting the given groupings and that
 		 * groups can't span PMUs.
 		 */
-		if (!cur_leader)
+		if (!cur_leader) {
 			cur_leader = pos;
+			cur_leaders_grp = &pos->core;
+			if (pos_force_grouped)
+				force_grouped_leader = pos;
+		}
 
 		cur_leader_pmu_name = cur_leader->group_pmu_name;
-		if ((cur_leaders_grp != pos->core.leader &&
-		     (!pos_force_grouped || !cur_leader_force_grouped)) ||
-		    strcmp(cur_leader_pmu_name, pos_pmu_name)) {
-			/* Event is for a different group/PMU than last. */
+		if (strcmp(cur_leader_pmu_name, pos_pmu_name)) {
+			/* PMU changed so the group/leader must change. */
 			cur_leader = pos;
-			/*
-			 * Remember the leader's group before it is overwritten,
-			 * so that later events match as being in the same
-			 * group.
-			 */
 			cur_leaders_grp = pos->core.leader;
+			if (pos_force_grouped && force_grouped_leader == NULL)
+				force_grouped_leader = pos;
+		} else if (cur_leaders_grp != pos->core.leader) {
+			bool split_even_if_last_leader_was_forced = true;
+
 			/*
-			 * Avoid forcing events into groups with events that
-			 * don't need to be in the group.
+			 * Event is for a different group. If the last event was
+			 * the forced group leader then subsequent group events
+			 * and forced events should be in the same group. If
+			 * there are no other forced group events then the
+			 * forced group leader wasn't really being forced into a
+			 * group, it just set arch_evsel__must_be_in_group, and
+			 * we don't want the group to split here.
 			 */
-			cur_leader_force_grouped = pos_force_grouped;
+			if (force_grouped_idx != -1 && last_event_was_forced_leader) {
+				struct evsel *pos2 = pos;
+				/*
+				 * Search the whole list as the group leaders
+				 * aren't currently valid.
+				 */
+				list_for_each_entry_continue(pos2, list, core.node) {
+					if (pos->core.leader == pos2->core.leader &&
+					    arch_evsel__must_be_in_group(pos2)) {
+						split_even_if_last_leader_was_forced = false;
+						break;
+					}
+				}
+			}
+			if (!last_event_was_forced_leader || split_even_if_last_leader_was_forced) {
+				if (pos_force_grouped) {
+					if (force_grouped_leader) {
+						cur_leader = force_grouped_leader;
+						cur_leaders_grp = force_grouped_leader->core.leader;
+					} else {
+						cur_leader = force_grouped_leader = pos;
+						cur_leaders_grp = &pos->core;
+					}
+				} else {
+					cur_leader = pos;
+					cur_leaders_grp = pos->core.leader;
+				}
+			}
 		}
 		if (pos_leader != cur_leader) {
 			/* The leader changed so update it. */
 			evsel__set_leader(pos, cur_leader);
 		}
+		last_event_was_forced_leader = (force_grouped_leader == pos);
 	}
 	list_for_each_entry(pos, list, core.node) {
 		struct evsel *pos_leader = evsel__leader(pos);

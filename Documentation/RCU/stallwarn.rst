@@ -96,6 +96,13 @@ warnings:
 	the ``rcu_.*timer wakeup didn't happen for`` console-log message,
 	which will include additional debugging information.
 
+-	A timer issue causes time to appear to jump forward, so that RCU
+	believes that the RCU CPU stall-warning timeout has been exceeded
+	when in fact much less time has passed.  This could be due to
+	timer hardware bugs, timer driver bugs, or even corruption of
+	the "jiffies" global variable.	These sorts of timer hardware
+	and driver bugs are not uncommon when testing new hardware.
+
 -	A low-level kernel issue that either fails to invoke one of the
 	variants of rcu_eqs_enter(true), rcu_eqs_exit(true), ct_idle_enter(),
 	ct_idle_exit(), ct_irq_enter(), or ct_irq_exit() on the one

@@ -172,7 +172,7 @@ static int cn_test_init(void)
 
 static void cn_test_fini(void)
 {
-	del_timer_sync(&cn_test_timer);
+	timer_delete_sync(&cn_test_timer);
 	cn_del_callback(&cn_test_id);
 	cn_test_id.val--;
 	cn_del_callback(&cn_test_id);

@@ -30,14 +30,12 @@ static char *tplg_filename;
 module_param(tplg_filename, charp, 0444);
 MODULE_PARM_DESC(tplg_filename, "deprecated - moved to snd-sof module.");
 
-const struct dev_pm_ops sof_of_pm = {
+EXPORT_DEV_PM_OPS(sof_of_pm) = {
 	.prepare = snd_sof_prepare,
 	.complete = snd_sof_complete,
-	SET_SYSTEM_SLEEP_PM_OPS(snd_sof_suspend, snd_sof_resume)
-	SET_RUNTIME_PM_OPS(snd_sof_runtime_suspend, snd_sof_runtime_resume,
-			   NULL)
+	SYSTEM_SLEEP_PM_OPS(snd_sof_suspend, snd_sof_resume)
+	RUNTIME_PM_OPS(snd_sof_runtime_suspend, snd_sof_runtime_resume, NULL)
 };
-EXPORT_SYMBOL(sof_of_pm);
 
 static void sof_of_probe_complete(struct device *dev)
 {

@@ -112,7 +112,7 @@ struct ipq806x_gmac {
 	phy_interface_t phy_mode;
 };
 
-static int get_clk_div_sgmii(struct ipq806x_gmac *gmac, unsigned int speed)
+static int get_clk_div_sgmii(struct ipq806x_gmac *gmac, int speed)
 {
 	struct device *dev = &gmac->pdev->dev;
 	int div;
@@ -138,7 +138,7 @@ static int get_clk_div_sgmii(struct ipq806x_gmac *gmac, unsigned int speed)
 	return div;
 }
 
-static int get_clk_div_rgmii(struct ipq806x_gmac *gmac, unsigned int speed)
+static int get_clk_div_rgmii(struct ipq806x_gmac *gmac, int speed)
 {
 	struct device *dev = &gmac->pdev->dev;
 	int div;
@@ -164,7 +164,7 @@ static int get_clk_div_rgmii(struct ipq806x_gmac *gmac, unsigned int speed)
 	return div;
 }
 
-static int ipq806x_gmac_set_speed(struct ipq806x_gmac *gmac, unsigned int speed)
+static int ipq806x_gmac_set_speed(struct ipq806x_gmac *gmac, int speed)
 {
 	uint32_t clk_bits, val;
 	int div;
@@ -211,16 +211,12 @@ static int ipq806x_gmac_set_speed(struct ipq806x_gmac *gmac, unsigned int speed)
 	return 0;
 }
 
-static int ipq806x_gmac_of_parse(struct ipq806x_gmac *gmac)
+static int ipq806x_gmac_of_parse(struct ipq806x_gmac *gmac,
+				 struct plat_stmmacenet_data *plat_dat)
 {
 	struct device *dev = &gmac->pdev->dev;
-	int ret;
 
-	ret = of_get_phy_mode(dev->of_node, &gmac->phy_mode);
-	if (ret) {
-		dev_err(dev, "missing phy mode property\n");
-		return -EINVAL;
-	}
+	gmac->phy_mode = plat_dat->phy_interface;
 
 	if (of_property_read_u32(dev->of_node, "qcom,id", &gmac->id) < 0) {
 		dev_err(dev, "missing qcom id property\n");
@@ -260,11 +256,12 @@ static int ipq806x_gmac_of_parse(struct ipq806x_gmac *gmac)
 	return PTR_ERR_OR_ZERO(gmac->qsgmii_csr);
 }
 
-static void ipq806x_gmac_fix_mac_speed(void *priv, unsigned int speed, unsigned int mode)
+static int ipq806x_gmac_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
+					phy_interface_t interface, int speed)
 {
-	struct ipq806x_gmac *gmac = priv;
+	struct ipq806x_gmac *gmac = bsp_priv;
 
-	ipq806x_gmac_set_speed(gmac, speed);
+	return ipq806x_gmac_set_speed(gmac, speed);
 }
 
 static int
@@ -397,7 +394,7 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 
 	gmac->pdev = pdev;
 
-	err = ipq806x_gmac_of_parse(gmac);
+	err = ipq806x_gmac_of_parse(gmac, plat_dat);
 	if (err) {
 		dev_err(dev, "device tree parsing error\n");
 		return err;
@@ -478,7 +475,7 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 
 	plat_dat->has_gmac = true;
 	plat_dat->bsp_priv = gmac;
-	plat_dat->fix_mac_speed = ipq806x_gmac_fix_mac_speed;
+	plat_dat->set_clk_tx_rate = ipq806x_gmac_set_clk_tx_rate;
 	plat_dat->multicast_filter_bins = 0;
 	plat_dat->tx_fifo_size = 8192;
 	plat_dat->rx_fifo_size = 8192;

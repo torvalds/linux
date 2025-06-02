@@ -776,15 +776,15 @@ config_source(struct hantro_ctx *ctx, const struct v4l2_ctrl_vp9_frame *dec_para
 	      struct vb2_v4l2_buffer *vb2_src)
 {
 	dma_addr_t stream_base, tmp_addr;
-	unsigned int headres_size;
+	unsigned int headers_size;
 	u32 src_len, start_bit, src_buf_len;
 
-	headres_size = dec_params->uncompressed_header_size
+	headers_size = dec_params->uncompressed_header_size
 		     + dec_params->compressed_header_size;
 
 	stream_base = vb2_dma_contig_plane_dma_addr(&vb2_src->vb2_buf, 0);
 
-	tmp_addr = stream_base + headres_size;
+	tmp_addr = stream_base + headers_size;
 	if (ctx->dev->variant->legacy_regs)
 		hantro_write_addr(ctx->dev, G2_STREAM_ADDR, (tmp_addr & ~0xf));
 	else
@@ -794,7 +794,7 @@ config_source(struct hantro_ctx *ctx, const struct v4l2_ctrl_vp9_frame *dec_para
 	hantro_reg_write(ctx->dev, &g2_start_bit, start_bit);
 
 	src_len = vb2_get_plane_payload(&vb2_src->vb2_buf, 0);
-	src_len += start_bit / 8 - headres_size;
+	src_len += start_bit / 8 - headers_size;
 	hantro_reg_write(ctx->dev, &g2_stream_len, src_len);
 
 	if (!ctx->dev->variant->legacy_regs) {

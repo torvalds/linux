@@ -275,13 +275,9 @@ static int wm9712_hp_mixer_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#define WM9712_HP_MIXER_CTRL(xname, xmixer, xshift) { \
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
-	.info = snd_soc_info_volsw, \
-	.get = wm9712_hp_mixer_get, .put = wm9712_hp_mixer_put, \
-	.private_value = SOC_SINGLE_VALUE(SND_SOC_NOPM, \
-		(xmixer << 8) | xshift, 1, 0, 0) \
-}
+#define WM9712_HP_MIXER_CTRL(xname, xmixer, xshift) \
+	SOC_SINGLE_EXT(xname, SND_SOC_NOPM, ((xmixer) << 8) | (xshift), \
+		       1, 0, wm9712_hp_mixer_get, wm9712_hp_mixer_put)
 
 /* Left Headphone Mixers */
 static const struct snd_kcontrol_new wm9712_hpl_mixer_controls[] = {

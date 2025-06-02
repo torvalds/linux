@@ -493,6 +493,13 @@ properties:
               - renesas,r9a07g044l2 # Dual Cortex-A55 RZ/G2L
           - const: renesas,r9a07g044
 
+      - items:
+          - enum:
+              # MYIR Remi Pi SBC (MYB-YG2LX-REMI)
+              - myir,remi-pi
+          - const: renesas,r9a07g044l2
+          - const: renesas,r9a07g044
+
       - description: RZ/V2L (R9A07G054)
         items:
           - enum:
@@ -552,6 +559,15 @@ properties:
               - renesas,r9a09g057h41 # RZ/V2H
               - renesas,r9a09g057h42 # RZ/V2H with Mali-G31 support
               - renesas,r9a09g057h44 # RZ/V2HP with Mali-G31 + Mali-C55 support
+              - renesas,r9a09g057h45 # RZ/V2H with cryptographic extension support
+              - renesas,r9a09g057h46 # RZ/V2H with Mali-G31 + cryptographic extension support
+              - renesas,r9a09g057h48 # RZ/V2HP with Mali-G31 + Mali-C55 + cryptographic extension support
+          - const: renesas,r9a09g057
+
+      - description: Yuridenki-Shokai RZ/V2H Kakip
+        items:
+          - const: yuridenki,kakip
+          - const: renesas,r9a09g057h48
           - const: renesas,r9a09g057
 
 additionalProperties: true

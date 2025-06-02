@@ -41,7 +41,7 @@
 
 #define ZFCP_BUS_ID_SIZE	20
 
-MODULE_AUTHOR("IBM Deutschland Entwicklung GmbH - linux390@de.ibm.com");
+MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("FCP HBA driver");
 MODULE_LICENSE("GPL");
 

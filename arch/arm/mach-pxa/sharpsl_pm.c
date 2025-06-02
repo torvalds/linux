@@ -913,8 +913,8 @@ static void sharpsl_pm_remove(struct platform_device *pdev)
 	if (sharpsl_pm.machinfo->exit)
 		sharpsl_pm.machinfo->exit();
 
-	del_timer_sync(&sharpsl_pm.chrg_full_timer);
-	del_timer_sync(&sharpsl_pm.ac_timer);
+	timer_delete_sync(&sharpsl_pm.chrg_full_timer);
+	timer_delete_sync(&sharpsl_pm.ac_timer);
 }
 
 static struct platform_driver sharpsl_pm_driver = {

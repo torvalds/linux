@@ -723,7 +723,7 @@ static int rt9471_register_psy(struct rt9471_chip *chip)
 	char *psy_name;
 
 	cfg.drv_data = chip;
-	cfg.of_node = dev->of_node;
+	cfg.fwnode = dev_fwnode(dev);
 	cfg.attr_grp = rt9471_sysfs_groups;
 
 	psy_name = devm_kasprintf(dev, GFP_KERNEL, "rt9471-%s", dev_name(dev));

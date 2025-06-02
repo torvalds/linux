@@ -297,12 +297,29 @@
 	cpu-supply = <&mt6315_6_vbuck1>;
 };
 
+&dither0_out {
+	remote-endpoint = <&dsc0_in>;
+};
+
 &dp_intf0 {
 	status = "okay";
 
-	port {
-		dp_intf0_out: endpoint {
-			remote-endpoint = <&edp_in>;
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			dp_intf0_in: endpoint {
+				remote-endpoint = <&merge0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			dp_intf0_out: endpoint {
+				remote-endpoint = <&edp_in>;
+			};
 		};
 	};
 };
@@ -310,9 +327,51 @@
 &dp_intf1 {
 	status = "okay";
 
-	port {
-		dp_intf1_out: endpoint {
-			remote-endpoint = <&dptx_in>;
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			dp_intf1_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&merge5_out>;
+			};
+		};
+
+		port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			dp_intf1_out: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&dptx_in>;
+			};
+		};
+	};
+};
+
+&dsc0 {
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			dsc0_in: endpoint {
+				remote-endpoint = <&dither0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			dsc0_out: endpoint {
+				remote-endpoint = <&merge0_in>;
+			};
 		};
 	};
 };
@@ -357,6 +416,35 @@
 	};
 };
 
+&ethdr0 {
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			ethdr0_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&vdosys1_ep_ext>;
+			};
+		};
+
+		port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			ethdr0_out: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&merge5_in>;
+			};
+		};
+	};
+};
+
 &disp_pwm0 {
 	status = "okay";
 
@@ -376,8 +464,12 @@
 		#size-cells = <0>;
 
 		port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			reg = <0>;
-			dptx_in: endpoint {
+
+			dptx_in: endpoint@1 {
+				reg = <1>;
 				remote-endpoint = <&dp_intf1_out>;
 			};
 		};
@@ -511,6 +603,56 @@
 	};
 };
 
+&merge0 {
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			merge0_in: endpoint {
+				remote-endpoint = <&dsc0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			merge0_out: endpoint {
+				remote-endpoint = <&dp_intf0_in>;
+			};
+		};
+	};
+};
+
+&merge5 {
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			merge5_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ethdr0_out>;
+			};
+		};
+
+		port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			merge5_out: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&dp_intf1_in>;
+			};
+		};
+	};
+};
+
 &mfg0 {
 	domain-supply = <&mt6315_7_vbuck1>;
 };
@@ -610,6 +752,10 @@
 		spi-rx-bus-width = <2>;
 		spi-tx-bus-width = <2>;
 	};
+};
+
+&ovl0_in {
+	remote-endpoint = <&vdosys0_ep_main>;
 };
 
 &pcie1 {
@@ -1363,6 +1509,18 @@
 	status = "okay";
 };
 
+&vdosys0 {
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		vdosys0_ep_main: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&ovl0_in>;
+		};
+	};
+};
+
 /*
  * For the USB Type-C ports the role and alternate modes switching is
  * done by the EC so we set dr_mode to host to avoid interfering.
@@ -1383,6 +1541,18 @@
 	dr_mode = "host";
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
 	status = "okay";
+};
+
+&vdosys1 {
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		vdosys1_ep_ext: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&ethdr0_in>;
+		};
+	};
 };
 
 &xhci0 {

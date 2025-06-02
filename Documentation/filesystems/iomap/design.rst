@@ -246,6 +246,10 @@ The fields are as follows:
    * **IOMAP_F_PRIVATE**: Starting with this value, the upper bits can
      be set by the filesystem for its own purposes.
 
+   * **IOMAP_F_ANON_WRITE**: Indicates that (write) I/O does not have a target
+     block assigned to it yet and the file system will do that in the bio
+     submission handler, splitting the I/O as needed.
+
    These flags can be set by iomap itself during file operations.
    The filesystem should supply an ``->iomap_end`` function if it needs
    to observe these flags:
@@ -351,6 +355,11 @@ operations:
    start the operation and force the submitting task to block.
    ``IOMAP_NOWAIT`` is often set on behalf of ``IOCB_NOWAIT`` or
    ``RWF_NOWAIT``.
+
+ * ``IOMAP_DONTCACHE`` is set when the caller wishes to perform a
+   buffered file I/O and would like the kernel to drop the pagecache
+   after the I/O completes, if it isn't already being used by another
+   thread.
 
 If it is necessary to read existing file contents from a `different
 <https://lore.kernel.org/all/20191008071527.29304-9-hch@lst.de/>`_

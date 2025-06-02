@@ -628,12 +628,12 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 				else
 					RX_STAT_INC(sc, rx_spectral_sample_err);
 
-				memset(sample_buf, 0, SPECTRAL_SAMPLE_MAX_LEN);
-
 				/* Mix the received bins to the /dev/random
 				 * pool
 				 */
 				add_device_randomness(sample_buf, num_bins);
+
+				memset(sample_buf, 0, SPECTRAL_SAMPLE_MAX_LEN);
 			}
 
 			/* Process a normal frame */

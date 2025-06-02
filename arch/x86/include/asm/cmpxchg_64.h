@@ -38,7 +38,7 @@ union __u128_halves {
 	union __u128_halves o = { .full = (_old), },			\
 			    n = { .full = (_new), };			\
 									\
-	asm volatile(_lock "cmpxchg16b %[ptr]"				\
+	asm_inline volatile(_lock "cmpxchg16b %[ptr]"			\
 		     : [ptr] "+m" (*(_ptr)),				\
 		       "+a" (o.low), "+d" (o.high)			\
 		     : "b" (n.low), "c" (n.high)			\
@@ -65,7 +65,7 @@ static __always_inline u128 arch_cmpxchg128_local(volatile u128 *ptr, u128 old, 
 			    n = { .full = (_new), };			\
 	bool ret;							\
 									\
-	asm volatile(_lock "cmpxchg16b %[ptr]"				\
+	asm_inline volatile(_lock "cmpxchg16b %[ptr]"			\
 		     CC_SET(e)						\
 		     : CC_OUT(e) (ret),					\
 		       [ptr] "+m" (*(_ptr)),				\

@@ -444,7 +444,7 @@ static u8 rtw8723d_iqk_check_tx_failed(struct rtw_dev *rtwdev,
 		rtw_read32(rtwdev, REG_IQK_RES_TX),
 		rtw_read32(rtwdev, REG_IQK_RES_TY));
 	rtw_dbg(rtwdev, RTW_DBG_RFK,
-		"[IQK] 0xe90(before IQK)= 0x%x, 0xe98(afer IQK) = 0x%x\n",
+		"[IQK] 0xe90(before IQK)= 0x%x, 0xe98(after IQK) = 0x%x\n",
 		rtw_read32(rtwdev, 0xe90),
 		rtw_read32(rtwdev, 0xe98));
 
@@ -472,7 +472,7 @@ static u8 rtw8723d_iqk_check_rx_failed(struct rtw_dev *rtwdev,
 		rtw_read32(rtwdev, REG_IQK_RES_RY));
 
 	rtw_dbg(rtwdev, RTW_DBG_RFK,
-		"[IQK] 0xea0(before IQK)= 0x%x, 0xea8(afer IQK) = 0x%x\n",
+		"[IQK] 0xea0(before IQK)= 0x%x, 0xea8(after IQK) = 0x%x\n",
 		rtw_read32(rtwdev, 0xea0),
 		rtw_read32(rtwdev, 0xea8));
 

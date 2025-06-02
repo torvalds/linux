@@ -1041,24 +1041,22 @@ err_free_ck:
 static int mtk_pcie_setup(struct mtk_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
-	struct device_node *node = dev->of_node, *child;
+	struct device_node *node = dev->of_node;
 	struct mtk_pcie_port *port, *tmp;
 	int err, slot;
 
 	slot = of_get_pci_domain_nr(dev->of_node);
 	if (slot < 0) {
-		for_each_available_child_of_node(node, child) {
+		for_each_available_child_of_node_scoped(node, child) {
 			err = of_pci_get_devfn(child);
-			if (err < 0) {
-				dev_err(dev, "failed to get devfn: %d\n", err);
-				goto error_put_node;
-			}
+			if (err < 0)
+				return dev_err_probe(dev, err, "failed to get devfn\n");
 
 			slot = PCI_SLOT(err);
 
 			err = mtk_pcie_parse_port(pcie, child, slot);
 			if (err)
-				goto error_put_node;
+				return err;
 		}
 	} else {
 		err = mtk_pcie_parse_port(pcie, node, slot);
@@ -1079,9 +1077,6 @@ static int mtk_pcie_setup(struct mtk_pcie *pcie)
 		mtk_pcie_subsys_powerdown(pcie);
 
 	return 0;
-error_put_node:
-	of_node_put(child);
-	return err;
 }
 
 static int mtk_pcie_probe(struct platform_device *pdev)

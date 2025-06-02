@@ -28,7 +28,7 @@ static void discover_timer(struct timer_list *t)
 static void __exit
 aoe_exit(void)
 {
-	del_timer_sync(&timer);
+	timer_delete_sync(&timer);
 
 	aoenet_exit();
 	unregister_blkdev(AOE_MAJOR, DEVICE_NAME);

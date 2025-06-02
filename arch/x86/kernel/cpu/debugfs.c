@@ -16,8 +16,8 @@ static int cpu_debug_show(struct seq_file *m, void *p)
 	if (!c->initialized)
 		return 0;
 
-	seq_printf(m, "initial_apicid:      %x\n", c->topo.initial_apicid);
-	seq_printf(m, "apicid:              %x\n", c->topo.apicid);
+	seq_printf(m, "initial_apicid:	    0x%x\n", c->topo.initial_apicid);
+	seq_printf(m, "apicid:		    0x%x\n", c->topo.apicid);
 	seq_printf(m, "pkg_id:              %u\n", c->topo.pkg_id);
 	seq_printf(m, "die_id:              %u\n", c->topo.die_id);
 	seq_printf(m, "cu_id:               %u\n", c->topo.cu_id);

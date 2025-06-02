@@ -105,6 +105,7 @@ static inline u32 bch2_snapshot_nth_parent(struct bch_fs *c, u32 id, u32 n)
 	return id;
 }
 
+u32 bch2_snapshot_tree_oldest_subvol(struct bch_fs *, u32);
 u32 bch2_snapshot_skiplist_get(struct bch_fs *, u32);
 
 static inline u32 bch2_snapshot_root(struct bch_fs *c, u32 id)

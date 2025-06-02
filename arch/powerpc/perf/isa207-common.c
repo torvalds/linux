@@ -319,10 +319,18 @@ void isa207_get_mem_data_src(union perf_mem_data_src *dsrc, u32 flags,
 		return;
 	}
 
-	sier = mfspr(SPRN_SIER);
+	/*
+	 * Use regs-dar for SPRN_SIER which is saved
+	 * during perf_read_regs at the beginning
+	 * of the PMU interrupt handler to avoid multiple
+	 * reads of SPRN_SIER
+	 */
+	sier = regs->dar;
 	val = (sier & ISA207_SIER_TYPE_MASK) >> ISA207_SIER_TYPE_SHIFT;
-	if (val != 1 && val != 2 && !(val == 7 && cpu_has_feature(CPU_FTR_ARCH_31)))
+	if (val != 1 && val != 2 && !(val == 7 && cpu_has_feature(CPU_FTR_ARCH_31))) {
+		dsrc->val = 0;
 		return;
+	}
 
 	idx = (sier & ISA207_SIER_LDST_MASK) >> ISA207_SIER_LDST_SHIFT;
 	sub_idx = (sier & ISA207_SIER_DATA_SRC_MASK) >> ISA207_SIER_DATA_SRC_SHIFT;
@@ -338,8 +346,12 @@ void isa207_get_mem_data_src(union perf_mem_data_src *dsrc, u32 flags,
 		 * to determine the exact instruction type. If the sampling
 		 * criteria is neither load or store, set the type as default
 		 * to NA.
+		 *
+		 * Use regs->dsisr for MMCRA which is saved during perf_read_regs
+		 * at the beginning of the PMU interrupt handler to avoid
+		 * multiple reads of SPRN_MMCRA
 		 */
-		mmcra = mfspr(SPRN_MMCRA);
+		mmcra = regs->dsisr;
 
 		op_type = (mmcra >> MMCRA_SAMP_ELIG_SHIFT) & MMCRA_SAMP_ELIG_MASK;
 		switch (op_type) {

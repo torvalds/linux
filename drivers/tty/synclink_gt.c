@@ -2220,7 +2220,7 @@ static void isr_txeom(struct slgt_info *info, unsigned short status)
 		}
 		info->tx_active = false;
 
-		del_timer(&info->tx_timer);
+		timer_delete(&info->tx_timer);
 
 		if (info->params.mode != MGSL_MODE_ASYNC && info->drop_rts_on_tx_done) {
 			info->signals &= ~SerialSignal_RTS;
@@ -2375,8 +2375,8 @@ static void shutdown(struct slgt_info *info)
 	wake_up_interruptible(&info->status_event_wait_q);
 	wake_up_interruptible(&info->event_wait_q);
 
-	del_timer_sync(&info->tx_timer);
-	del_timer_sync(&info->rx_timer);
+	timer_delete_sync(&info->tx_timer);
+	timer_delete_sync(&info->rx_timer);
 
 	kfree(info->tx_buf);
 	info->tx_buf = NULL;
@@ -3955,7 +3955,7 @@ static void tx_stop(struct slgt_info *info)
 {
 	unsigned short val;
 
-	del_timer(&info->tx_timer);
+	timer_delete(&info->tx_timer);
 
 	tdma_reset(info);
 

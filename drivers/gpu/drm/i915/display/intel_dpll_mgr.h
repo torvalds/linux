@@ -30,12 +30,11 @@
 #include "intel_display_power.h"
 #include "intel_wakeref.h"
 
-#define for_each_shared_dpll(__i915, __pll, __i) \
-	for ((__i) = 0; (__i) < (__i915)->display.dpll.num_shared_dpll && \
-		     ((__pll) = &(__i915)->display.dpll.shared_dplls[(__i)]) ; (__i)++)
+#define for_each_shared_dpll(__display, __pll, __i) \
+	for ((__i) = 0; (__i) < (__display)->dpll.num_shared_dpll && \
+		     ((__pll) = &(__display)->dpll.shared_dplls[(__i)]) ; (__i)++)
 
 enum tc_port;
-struct drm_i915_private;
 struct drm_printer;
 struct intel_atomic_state;
 struct intel_crtc;
@@ -318,7 +317,7 @@ struct dpll_info {
 	const struct intel_shared_dpll_funcs *funcs;
 
 	/**
-	 * @id: unique indentifier for this DPLL
+	 * @id: unique identifier for this DPLL
 	 */
 	enum intel_dpll_id id;
 
@@ -390,9 +389,9 @@ struct intel_shared_dpll {
 
 /* shared dpll functions */
 struct intel_shared_dpll *
-intel_get_shared_dpll_by_id(struct drm_i915_private *i915,
+intel_get_shared_dpll_by_id(struct intel_display *display,
 			    enum intel_dpll_id id);
-void assert_shared_dpll(struct drm_i915_private *i915,
+void assert_shared_dpll(struct intel_display *display,
 			struct intel_shared_dpll *pll,
 			bool state);
 #define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)
@@ -413,24 +412,24 @@ void icl_set_active_port_dpll(struct intel_crtc_state *crtc_state,
 void intel_update_active_dpll(struct intel_atomic_state *state,
 			      struct intel_crtc *crtc,
 			      struct intel_encoder *encoder);
-int intel_dpll_get_freq(struct drm_i915_private *i915,
+int intel_dpll_get_freq(struct intel_display *display,
 			const struct intel_shared_dpll *pll,
 			const struct intel_dpll_hw_state *dpll_hw_state);
-bool intel_dpll_get_hw_state(struct drm_i915_private *i915,
+bool intel_dpll_get_hw_state(struct intel_display *display,
 			     struct intel_shared_dpll *pll,
 			     struct intel_dpll_hw_state *dpll_hw_state);
 void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_shared_dpll_swap_state(struct intel_atomic_state *state);
-void intel_shared_dpll_init(struct drm_i915_private *i915);
-void intel_dpll_update_ref_clks(struct drm_i915_private *i915);
-void intel_dpll_readout_hw_state(struct drm_i915_private *i915);
-void intel_dpll_sanitize_state(struct drm_i915_private *i915);
+void intel_shared_dpll_init(struct intel_display *display);
+void intel_dpll_update_ref_clks(struct intel_display *display);
+void intel_dpll_readout_hw_state(struct intel_display *display);
+void intel_dpll_sanitize_state(struct intel_display *display);
 
-void intel_dpll_dump_hw_state(struct drm_i915_private *i915,
+void intel_dpll_dump_hw_state(struct intel_display *display,
 			      struct drm_printer *p,
 			      const struct intel_dpll_hw_state *dpll_hw_state);
-bool intel_dpll_compare_hw_state(struct drm_i915_private *i915,
+bool intel_dpll_compare_hw_state(struct intel_display *display,
 				 const struct intel_dpll_hw_state *a,
 				 const struct intel_dpll_hw_state *b);
 enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port);

@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/ti,clkctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments clkctrl clock
+
+maintainers:
+  - Tony Lindgren <tony@atomide.com>
+  - Andreas Kemnade <andreas@kemnade.info>
+
+description: |
+  Texas Instruments SoCs can have a clkctrl clock controller for each
+  interconnect target module. The clkctrl clock controller manages functional
+  and interface clocks for each module. Each clkctrl controller can also
+  gate one or more optional functional clocks for a module, and can have one
+  or more clock muxes. There is a clkctrl clock controller typically for each
+  interconnect target module on omap4 and later variants.
+
+  The clock consumers can specify the index of the clkctrl clock using
+  the hardware offset from the clkctrl instance register space. The optional
+  clocks can be specified by clkctrl hardware offset and the index of the
+  optional clock.
+
+properties:
+  compatible:
+    enum:
+      - ti,clkctrl
+      - ti,clkctrl-l4-cfg
+      - ti,clkctrl-l4-per
+      - ti,clkctrl-l4-secure
+      - ti,clkctrl-l4-wkup
+
+  "#clock-cells":
+    const: 2
+
+  clock-output-names:
+    maxItems: 1
+
+  reg:
+    minItems: 1
+    maxItems: 8 # arbitrary, should be enough
+
+required:
+  - compatible
+  - "#clock-cells"
+  - clock-output-names
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    bus {
+      #address-cells = <1>;
+      #size-cells = <1>;
+
+      clock@20 {
+        compatible = "ti,clkctrl";
+        clock-output-names = "l4_per";
+        reg = <0x20 0x1b0>;
+        #clock-cells = <2>;
+      };
+    };

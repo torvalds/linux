@@ -7,11 +7,10 @@
  * Information: https://tools.ietf.org/html/rfc8439
  */
 
-#include <crypto/algapi.h>
 #include <crypto/chacha20poly1305.h>
 #include <crypto/chacha.h>
 #include <crypto/poly1305.h>
-#include <crypto/scatterwalk.h>
+#include <crypto/utils.h>
 
 #include <linux/unaligned.h>
 #include <linux/kernel.h>
@@ -318,8 +317,8 @@ bool chacha20poly1305_crypt_sg_inplace(struct scatterlist *src,
 
 	if (unlikely(sl > -POLY1305_DIGEST_SIZE)) {
 		poly1305_final(&poly1305_state, b.mac[1]);
-		scatterwalk_map_and_copy(b.mac[encrypt], src, src_len,
-					 sizeof(b.mac[1]), encrypt);
+		sg_copy_buffer(src, sg_nents(src), b.mac[encrypt],
+			       sizeof(b.mac[1]), src_len, !encrypt);
 		ret = encrypt ||
 		      !crypto_memneq(b.mac[0], b.mac[1], POLY1305_DIGEST_SIZE);
 	}

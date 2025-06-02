@@ -124,7 +124,7 @@ static void amdgpu_mux_resubmit_chunks(struct amdgpu_ring_mux *mux)
 		}
 	}
 
-	del_timer(&mux->resubmit_timer);
+	timer_delete(&mux->resubmit_timer);
 	mux->s_resubmit = false;
 }
 

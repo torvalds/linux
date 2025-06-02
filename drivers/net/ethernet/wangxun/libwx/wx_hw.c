@@ -112,10 +112,15 @@ static void wx_intr_disable(struct wx *wx, u64 qmask)
 	if (mask)
 		wr32(wx, WX_PX_IMS(0), mask);
 
-	if (wx->mac.type == wx_mac_sp) {
+	switch (wx->mac.type) {
+	case wx_mac_sp:
+	case wx_mac_aml:
 		mask = (qmask >> 32);
 		if (mask)
 			wr32(wx, WX_PX_IMS(1), mask);
+		break;
+	default:
+		break;
 	}
 }
 
@@ -126,10 +131,16 @@ void wx_intr_enable(struct wx *wx, u64 qmask)
 	mask = (qmask & U32_MAX);
 	if (mask)
 		wr32(wx, WX_PX_IMC(0), mask);
-	if (wx->mac.type == wx_mac_sp) {
+
+	switch (wx->mac.type) {
+	case wx_mac_sp:
+	case wx_mac_aml:
 		mask = (qmask >> 32);
 		if (mask)
 			wr32(wx, WX_PX_IMC(1), mask);
+		break;
+	default:
+		break;
 	}
 }
 EXPORT_SYMBOL(wx_intr_enable);
@@ -278,22 +289,8 @@ static int wx_acquire_sw_sync(struct wx *wx, u32 mask)
 	return ret;
 }
 
-/**
- *  wx_host_interface_command - Issue command to manageability block
- *  @wx: pointer to the HW structure
- *  @buffer: contains the command to write and where the return status will
- *   be placed
- *  @length: length of buffer, must be multiple of 4 bytes
- *  @timeout: time in ms to wait for command completion
- *  @return_data: read and return data from the buffer (true) or not (false)
- *   Needed because FW structures are big endian and decoding of
- *   these fields can be 8 bit or 16 bit based on command. Decoding
- *   is not easily understood without making a table of commands.
- *   So we will leave this up to the caller to read back the data
- *   in these cases.
- **/
-int wx_host_interface_command(struct wx *wx, u32 *buffer,
-			      u32 length, u32 timeout, bool return_data)
+static int wx_host_interface_command_s(struct wx *wx, u32 *buffer,
+				       u32 length, u32 timeout, bool return_data)
 {
 	u32 hdr_size = sizeof(struct wx_hic_hdr);
 	u32 hicr, i, bi, buf[64] = {};
@@ -301,21 +298,9 @@ int wx_host_interface_command(struct wx *wx, u32 *buffer,
 	u32 dword_len;
 	u16 buf_len;
 
-	if (length == 0 || length > WX_HI_MAX_BLOCK_BYTE_LENGTH) {
-		wx_err(wx, "Buffer length failure buffersize=%d.\n", length);
-		return -EINVAL;
-	}
-
 	status = wx_acquire_sw_sync(wx, WX_MNG_SWFW_SYNC_SW_MB);
 	if (status != 0)
 		return status;
-
-	/* Calculate length in DWORDs. We must be DWORD aligned */
-	if ((length % (sizeof(u32))) != 0) {
-		wx_err(wx, "Buffer length failure, not aligned to dword");
-		status = -EINVAL;
-		goto rel_out;
-	}
 
 	dword_len = length >> 2;
 
@@ -391,7 +376,159 @@ rel_out:
 	wx_release_sw_sync(wx, WX_MNG_SWFW_SYNC_SW_MB);
 	return status;
 }
+
+static bool wx_poll_fw_reply(struct wx *wx, u32 *buffer, u8 send_cmd)
+{
+	u32 dword_len = sizeof(struct wx_hic_hdr) >> 2;
+	struct wx_hic_hdr *recv_hdr;
+	u32 i;
+
+	/* read hdr */
+	for (i = 0; i < dword_len; i++) {
+		buffer[i] = rd32a(wx, WX_FW2SW_MBOX, i);
+		le32_to_cpus(&buffer[i]);
+	}
+
+	/* check hdr */
+	recv_hdr = (struct wx_hic_hdr *)buffer;
+	if (recv_hdr->cmd == send_cmd &&
+	    recv_hdr->index == wx->swfw_index)
+		return true;
+
+	return false;
+}
+
+static int wx_host_interface_command_r(struct wx *wx, u32 *buffer,
+				       u32 length, u32 timeout, bool return_data)
+{
+	struct wx_hic_hdr *hdr = (struct wx_hic_hdr *)buffer;
+	u32 hdr_size = sizeof(struct wx_hic_hdr);
+	bool busy, reply;
+	u32 dword_len;
+	u16 buf_len;
+	int err = 0;
+	u8 send_cmd;
+	u32 i;
+
+	/* wait to get lock */
+	might_sleep();
+	err = read_poll_timeout(test_and_set_bit, busy, !busy, 1000, timeout * 1000,
+				false, WX_STATE_SWFW_BUSY, wx->state);
+	if (err)
+		return err;
+
+	/* index to unique seq id for each mbox message */
+	hdr->index = wx->swfw_index;
+	send_cmd = hdr->cmd;
+
+	dword_len = length >> 2;
+	/* write data to SW-FW mbox array */
+	for (i = 0; i < dword_len; i++) {
+		wr32a(wx, WX_SW2FW_MBOX, i, (__force u32)cpu_to_le32(buffer[i]));
+		/* write flush */
+		rd32a(wx, WX_SW2FW_MBOX, i);
+	}
+
+	/* generate interrupt to notify FW */
+	wr32m(wx, WX_SW2FW_MBOX_CMD, WX_SW2FW_MBOX_CMD_VLD, 0);
+	wr32m(wx, WX_SW2FW_MBOX_CMD, WX_SW2FW_MBOX_CMD_VLD, WX_SW2FW_MBOX_CMD_VLD);
+
+	/* polling reply from FW */
+	err = read_poll_timeout(wx_poll_fw_reply, reply, reply, 1000, 50000,
+				true, wx, buffer, send_cmd);
+	if (err) {
+		wx_err(wx, "Polling from FW messages timeout, cmd: 0x%x, index: %d\n",
+		       send_cmd, wx->swfw_index);
+		goto rel_out;
+	}
+
+	/* expect no reply from FW then return */
+	if (!return_data)
+		goto rel_out;
+
+	/* If there is any thing in data position pull it in */
+	buf_len = hdr->buf_len;
+	if (buf_len == 0)
+		goto rel_out;
+
+	if (length < buf_len + hdr_size) {
+		wx_err(wx, "Buffer not large enough for reply message.\n");
+		err = -EFAULT;
+		goto rel_out;
+	}
+
+	/* Calculate length in DWORDs, add 3 for odd lengths */
+	dword_len = (buf_len + 3) >> 2;
+	for (i = hdr_size >> 2; i <= dword_len; i++) {
+		buffer[i] = rd32a(wx, WX_FW2SW_MBOX, i);
+		le32_to_cpus(&buffer[i]);
+	}
+
+rel_out:
+	/* index++, index replace wx_hic_hdr.checksum */
+	if (wx->swfw_index == WX_HIC_HDR_INDEX_MAX)
+		wx->swfw_index = 0;
+	else
+		wx->swfw_index++;
+
+	clear_bit(WX_STATE_SWFW_BUSY, wx->state);
+	return err;
+}
+
+/**
+ *  wx_host_interface_command - Issue command to manageability block
+ *  @wx: pointer to the HW structure
+ *  @buffer: contains the command to write and where the return status will
+ *   be placed
+ *  @length: length of buffer, must be multiple of 4 bytes
+ *  @timeout: time in ms to wait for command completion
+ *  @return_data: read and return data from the buffer (true) or not (false)
+ *   Needed because FW structures are big endian and decoding of
+ *   these fields can be 8 bit or 16 bit based on command. Decoding
+ *   is not easily understood without making a table of commands.
+ *   So we will leave this up to the caller to read back the data
+ *   in these cases.
+ **/
+int wx_host_interface_command(struct wx *wx, u32 *buffer,
+			      u32 length, u32 timeout, bool return_data)
+{
+	if (length == 0 || length > WX_HI_MAX_BLOCK_BYTE_LENGTH) {
+		wx_err(wx, "Buffer length failure buffersize=%d.\n", length);
+		return -EINVAL;
+	}
+
+	/* Calculate length in DWORDs. We must be DWORD aligned */
+	if ((length % (sizeof(u32))) != 0) {
+		wx_err(wx, "Buffer length failure, not aligned to dword");
+		return -EINVAL;
+	}
+
+	if (test_bit(WX_FLAG_SWFW_RING, wx->flags))
+		return wx_host_interface_command_r(wx, buffer, length,
+						   timeout, return_data);
+
+	return wx_host_interface_command_s(wx, buffer, length, timeout, return_data);
+}
 EXPORT_SYMBOL(wx_host_interface_command);
+
+int wx_set_pps(struct wx *wx, bool enable, u64 nsec, u64 cycles)
+{
+	struct wx_hic_set_pps pps_cmd;
+
+	pps_cmd.hdr.cmd = FW_PPS_SET_CMD;
+	pps_cmd.hdr.buf_len = FW_PPS_SET_LEN;
+	pps_cmd.hdr.cmd_or_resp.cmd_resv = FW_CEM_CMD_RESERVED;
+	pps_cmd.lan_id = wx->bus.func;
+	pps_cmd.enable = (u8)enable;
+	pps_cmd.nsec = nsec;
+	pps_cmd.cycles = cycles;
+	pps_cmd.hdr.checksum = FW_DEFAULT_CHECKSUM;
+
+	return wx_host_interface_command(wx, (u32 *)&pps_cmd,
+					 sizeof(pps_cmd),
+					 WX_HI_COMMAND_TIMEOUT,
+					 false);
+}
 
 /**
  *  wx_read_ee_hostif_data - Read EEPROM word using a host interface cmd
@@ -423,7 +560,10 @@ static int wx_read_ee_hostif_data(struct wx *wx, u16 offset, u16 *data)
 	if (status != 0)
 		return status;
 
-	*data = (u16)rd32a(wx, WX_MNG_MBOX, FW_NVM_DATA_OFFSET);
+	if (!test_bit(WX_FLAG_SWFW_RING, wx->flags))
+		*data = (u16)rd32a(wx, WX_MNG_MBOX, FW_NVM_DATA_OFFSET);
+	else
+		*data = (u16)rd32a(wx, WX_FW2SW_MBOX, FW_NVM_DATA_OFFSET);
 
 	return status;
 }
@@ -467,6 +607,7 @@ int wx_read_ee_hostif_buffer(struct wx *wx,
 	u16 words_to_read;
 	u32 value = 0;
 	int status;
+	u32 mbox;
 	u32 i;
 
 	/* Take semaphore for the entire operation. */
@@ -499,8 +640,12 @@ int wx_read_ee_hostif_buffer(struct wx *wx,
 			goto out;
 		}
 
+		if (!test_bit(WX_FLAG_SWFW_RING, wx->flags))
+			mbox = WX_MNG_MBOX;
+		else
+			mbox = WX_FW2SW_MBOX;
 		for (i = 0; i < words_to_read; i++) {
-			u32 reg = WX_MNG_MBOX + (FW_NVM_DATA_OFFSET << 2) + 2 * i;
+			u32 reg = mbox + (FW_NVM_DATA_OFFSET << 2) + 2 * i;
 
 			value = rd32(wx, reg);
 			data[current_word] = (u16)(value & 0xffff);
@@ -550,12 +695,17 @@ void wx_init_eeprom_params(struct wx *wx)
 		}
 	}
 
-	if (wx->mac.type == wx_mac_sp) {
+	switch (wx->mac.type) {
+	case wx_mac_sp:
+	case wx_mac_aml:
 		if (wx_read_ee_hostif(wx, WX_SW_REGION_PTR, &data)) {
 			wx_err(wx, "NVM Read Error\n");
 			return;
 		}
 		data = data >> 1;
+		break;
+	default:
+		break;
 	}
 
 	eeprom->sw_region_offset = data;
@@ -616,8 +766,15 @@ static int wx_set_rar(struct wx *wx, u32 index, u8 *addr, u64 pools,
 
 	/* setup VMDq pool mapping */
 	wr32(wx, WX_PSR_MAC_SWC_VM_L, pools & 0xFFFFFFFF);
-	if (wx->mac.type == wx_mac_sp)
+
+	switch (wx->mac.type) {
+	case wx_mac_sp:
+	case wx_mac_aml:
 		wr32(wx, WX_PSR_MAC_SWC_VM_H, pools >> 32);
+		break;
+	default:
+		break;
+	}
 
 	/* HW expects these in little endian so we reverse the byte
 	 * order from network order (big endian) to little endian
@@ -755,9 +912,14 @@ void wx_init_rx_addrs(struct wx *wx)
 
 		wx_set_rar(wx, 0, wx->mac.addr, 0, WX_PSR_MAC_SWC_AD_H_AV);
 
-		if (wx->mac.type == wx_mac_sp) {
+		switch (wx->mac.type) {
+		case wx_mac_sp:
+		case wx_mac_aml:
 			/* clear VMDq pool/queue selection for RAR 0 */
 			wx_clear_vmdq(wx, 0, WX_CLEAR_VMDQ_ALL);
+			break;
+		default:
+			break;
 		}
 	}
 
@@ -1699,7 +1861,7 @@ void wx_configure_rx(struct wx *wx)
 	/* enable hw crc stripping */
 	wr32m(wx, WX_RSC_CTL, WX_RSC_CTL_CRC_STRIP, WX_RSC_CTL_CRC_STRIP);
 
-	if (wx->mac.type == wx_mac_sp) {
+	if (test_bit(WX_FLAG_RSC_CAPABLE, wx->flags)) {
 		u32 psrctl;
 
 		/* RSC Setup */
@@ -2351,7 +2513,7 @@ void wx_update_stats(struct wx *wx)
 	hwstats->b2ogprc += rd32(wx, WX_RDM_BMC2OS_CNT);
 	hwstats->rdmdrop += rd32(wx, WX_RDM_DRP_PKT);
 
-	if (wx->mac.type == wx_mac_sp) {
+	if (test_bit(WX_FLAG_FDIR_CAPABLE, wx->flags)) {
 		hwstats->fdirmatch += rd32(wx, WX_RDB_FDIR_MATCH);
 		hwstats->fdirmiss += rd32(wx, WX_RDB_FDIR_MISS);
 	}

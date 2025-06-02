@@ -11,7 +11,9 @@
 .. toctree::
    :maxdepth: 1
 
+   disclaimer-ja_JP
    process/howto
+   process/submit-checklist
 
 .. raw:: latex
 

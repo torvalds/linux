@@ -161,7 +161,8 @@ mlx5_chains_create_table(struct mlx5_fs_chains *chains,
 		ft_attr.flags |= (MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT |
 				  MLX5_FLOW_TABLE_TUNNEL_EN_DECAP);
 
-	sz = (chain == mlx5_chains_get_nf_ft_chain(chains)) ? FT_TBL_SZ : POOL_NEXT_SIZE;
+	sz = (chain == mlx5_chains_get_nf_ft_chain(chains)) ?
+		FT_TBL_SZ : MLX5_FS_MAX_POOL_SIZE;
 	ft_attr.max_fte = sz;
 
 	/* We use chains_default_ft(chains) as the table's next_ft till
@@ -194,6 +195,11 @@ mlx5_chains_create_table(struct mlx5_fs_chains *chains,
 		 */
 		ft_attr.level = chains->fs_base_level + 1;
 		ns = mlx5_get_flow_namespace(chains->dev, chains->ns);
+	}
+
+	if (!ns) {
+		mlx5_core_warn(chains->dev, "Failed to get flow namespace\n");
+		return ERR_PTR(-EOPNOTSUPP);
 	}
 
 	ft_attr.autogroup.num_reserved_entries = 2;
@@ -699,7 +705,7 @@ mlx5_chains_create_global_table(struct mlx5_fs_chains *chains)
 		goto err_ignore;
 	}
 
-	chain = mlx5_chains_get_chain_range(chains),
+	chain = mlx5_chains_get_chain_range(chains);
 	prio = mlx5_chains_get_prio_range(chains);
 	level = mlx5_chains_get_level_range(chains);
 

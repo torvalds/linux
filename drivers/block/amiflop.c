@@ -457,7 +457,7 @@ static int fd_motor_on(int nr)
 {
 	nr &= 3;
 
-	del_timer(motor_off_timer + nr);
+	timer_delete(motor_off_timer + nr);
 
 	if (!unit[nr].motor) {
 		unit[nr].motor = 1;
@@ -1393,7 +1393,7 @@ static int non_int_flush_track (unsigned long nr)
 
 	nr&=3;
 	writefromint = 0;
-	del_timer(&post_write_timer);
+	timer_delete(&post_write_timer);
 	get_fdc(nr);
 	if (!fd_motor_on(nr)) {
 		writepending = 0;
@@ -1435,7 +1435,7 @@ static int get_track(int drive, int track)
 	}
 
 	if (unit[drive].dirty == 1) {
-		del_timer (flush_track_timer + drive);
+		timer_delete(flush_track_timer + drive);
 		non_int_flush_track (drive);
 	}
 	errcnt = 0;
@@ -1591,7 +1591,7 @@ static int fd_locked_ioctl(struct block_device *bdev, blk_mode_t mode,
 	case FDDEFPRM:
 		return -EINVAL;
 	case FDFLUSH: /* unconditionally, even if not needed */
-		del_timer (flush_track_timer + drive);
+		timer_delete(flush_track_timer + drive);
 		non_int_flush_track(drive);
 		break;
 #ifdef RAW_IOCTL
@@ -1714,7 +1714,7 @@ static void floppy_release(struct gendisk *disk)
 
 	mutex_lock(&amiflop_mutex);
 	if (unit[drive].dirty == 1) {
-		del_timer (flush_track_timer + drive);
+		timer_delete(flush_track_timer + drive);
 		non_int_flush_track (drive);
 	}
   

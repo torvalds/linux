@@ -411,7 +411,8 @@ static ssize_t supported_sectorsizes_show(struct kobject *kobj,
 {
 	ssize_t ret = 0;
 
-	/* An artificial limit to only support 4K and PAGE_SIZE */
+	if (BTRFS_MIN_BLOCKSIZE != SZ_4K && BTRFS_MIN_BLOCKSIZE != PAGE_SIZE)
+		ret += sysfs_emit_at(buf, ret, "%u ", BTRFS_MIN_BLOCKSIZE);
 	if (PAGE_SIZE > SZ_4K)
 		ret += sysfs_emit_at(buf, ret, "%u ", SZ_4K);
 	ret += sysfs_emit_at(buf, ret, "%lu\n", PAGE_SIZE);
@@ -1330,29 +1331,30 @@ MODULE_PARM_DESC(read_policy,
 
 int btrfs_read_policy_to_enum(const char *str, s64 *value_ret)
 {
-	char param[32] = { 0 };
+	char param[32];
 	char __maybe_unused *value_str;
 
 	if (!str || strlen(str) == 0)
 		return 0;
 
-	strncpy(param, str, sizeof(param) - 1);
+	strscpy(param, str);
 
 #ifdef CONFIG_BTRFS_EXPERIMENTAL
 	/* Separate value from input in policy:value format. */
 	value_str = strchr(param, ':');
 	if (value_str) {
-		int ret;
+		char *retptr;
 
 		*value_str = 0;
 		value_str++;
 		if (!value_ret)
 			return -EINVAL;
-		ret = kstrtos64(value_str, 10, value_ret);
-		if (ret)
+
+		*value_ret = memparse(value_str, &retptr);
+		/* There could be any trailing typos after the value. */
+		retptr = skip_spaces(retptr);
+		if (*retptr != 0 || *value_ret <= 0)
 			return -EINVAL;
-		if (*value_ret < 0)
-			return -ERANGE;
 	}
 #endif
 

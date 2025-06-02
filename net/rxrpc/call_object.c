@@ -688,7 +688,7 @@ static void rxrpc_destroy_call(struct work_struct *work)
 {
 	struct rxrpc_call *call = container_of(work, struct rxrpc_call, destroyer);
 
-	del_timer_sync(&call->timer);
+	timer_delete_sync(&call->timer);
 
 	rxrpc_cleanup_tx_buffers(call);
 	rxrpc_cleanup_rx_buffers(call);
@@ -711,7 +711,7 @@ void rxrpc_cleanup_call(struct rxrpc_call *call)
 	ASSERTCMP(__rxrpc_call_state(call), ==, RXRPC_CALL_COMPLETE);
 	ASSERT(test_bit(RXRPC_CALL_RELEASED, &call->flags));
 
-	del_timer(&call->timer);
+	timer_delete(&call->timer);
 
 	if (rcu_read_lock_held())
 		/* Can't use the rxrpc workqueue as we need to cancel/flush

@@ -596,6 +596,7 @@ xfs_inode_to_log_dinode(
 		to->di_changecount = inode_peek_iversion(inode);
 		to->di_crtime = xfs_inode_to_log_dinode_ts(ip, ip->i_crtime);
 		to->di_flags2 = ip->i_diflags2;
+		/* also covers the di_used_blocks union arm: */
 		to->di_cowextsize = ip->i_cowextsize;
 		to->di_ino = ip->i_ino;
 		to->di_lsn = lsn;
@@ -1088,13 +1089,7 @@ xfs_iflush_abort(
 	 * state. Whilst the inode is in the AIL, it should have a valid buffer
 	 * pointer for push operations to access - it is only safe to remove the
 	 * inode from the buffer once it has been removed from the AIL.
-	 *
-	 * We also clear the failed bit before removing the item from the AIL
-	 * as xfs_trans_ail_delete()->xfs_clear_li_failed() will release buffer
-	 * references the inode item owns and needs to hold until we've fully
-	 * aborted the inode log item and detached it from the buffer.
 	 */
-	clear_bit(XFS_LI_FAILED, &iip->ili_item.li_flags);
 	xfs_trans_ail_delete(&iip->ili_item, 0);
 
 	/*

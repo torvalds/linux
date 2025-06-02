@@ -346,3 +346,22 @@ driver can handle these events, it has to set the respective bits in evbit,
 
 This callback routine can be called from an interrupt or a BH (although that
 isn't a rule), and thus must not sleep, and must not take too long to finish.
+
+Polled input devices
+~~~~~~~~~~~~~~~~~~~~
+
+Input polling is set up by passing an input device struct and a callback to
+the function::
+
+    int input_setup_polling(struct input_dev *dev,
+        void (*poll_fn)(struct input_dev *dev))
+
+Within the callback, devices should use the regular input_report_* functions
+and input_sync as is used by other devices.
+
+There is also the function::
+
+    void input_set_poll_interval(struct input_dev *dev, unsigned int interval)
+
+which is used to configure the interval, in milliseconds, that the device will
+be polled at.

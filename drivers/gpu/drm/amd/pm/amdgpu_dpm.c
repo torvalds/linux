@@ -349,6 +349,25 @@ int amdgpu_dpm_switch_power_profile(struct amdgpu_device *adev,
 	return ret;
 }
 
+int amdgpu_dpm_pause_power_profile(struct amdgpu_device *adev,
+				   bool pause)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	int ret = 0;
+
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
+	if (pp_funcs && pp_funcs->pause_power_profile) {
+		mutex_lock(&adev->pm.mutex);
+		ret = pp_funcs->pause_power_profile(
+			adev->powerplay.pp_handle, pause);
+		mutex_unlock(&adev->pm.mutex);
+	}
+
+	return ret;
+}
+
 int amdgpu_dpm_set_xgmi_pstate(struct amdgpu_device *adev,
 			       uint32_t pstate)
 {
@@ -714,6 +733,33 @@ int amdgpu_dpm_send_rma_reason(struct amdgpu_device *adev)
 
 	mutex_lock(&adev->pm.mutex);
 	ret = smu_send_rma_reason(smu);
+	mutex_unlock(&adev->pm.mutex);
+
+	if (adev->cper.enabled)
+		if (amdgpu_cper_generate_bp_threshold_record(adev))
+			dev_warn(adev->dev, "fail to generate bad page threshold cper records\n");
+
+	return ret;
+}
+
+/**
+ * amdgpu_dpm_reset_sdma_is_supported - Check if SDMA reset is supported
+ * @adev: amdgpu_device pointer
+ *
+ * This function checks if the SMU supports resetting the SDMA engine.
+ * It returns false if the hardware does not support software SMU or
+ * if the feature is not supported.
+ */
+bool amdgpu_dpm_reset_sdma_is_supported(struct amdgpu_device *adev)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	bool ret;
+
+	if (!is_support_sw_smu(adev))
+		return false;
+
+	mutex_lock(&adev->pm.mutex);
+	ret = smu_reset_sdma_is_supported(smu);
 	mutex_unlock(&adev->pm.mutex);
 
 	return ret;

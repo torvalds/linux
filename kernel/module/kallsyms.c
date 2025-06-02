@@ -177,19 +177,15 @@ void add_kallsyms(struct module *mod, const struct load_info *info)
 	unsigned long strtab_size;
 	void *data_base = mod->mem[MOD_DATA].base;
 	void *init_data_base = mod->mem[MOD_INIT_DATA].base;
+	struct mod_kallsyms *kallsyms;
 
-	/* Set up to point into init section. */
-	mod->kallsyms = (void __rcu *)init_data_base +
-		info->mod_kallsyms_init_off;
+	kallsyms = init_data_base + info->mod_kallsyms_init_off;
 
-	rcu_read_lock();
-	/* The following is safe since this pointer cannot change */
-	rcu_dereference(mod->kallsyms)->symtab = (void *)symsec->sh_addr;
-	rcu_dereference(mod->kallsyms)->num_symtab = symsec->sh_size / sizeof(Elf_Sym);
+	kallsyms->symtab = (void *)symsec->sh_addr;
+	kallsyms->num_symtab = symsec->sh_size / sizeof(Elf_Sym);
 	/* Make sure we get permanent strtab: don't use info->strtab. */
-	rcu_dereference(mod->kallsyms)->strtab =
-		(void *)info->sechdrs[info->index.str].sh_addr;
-	rcu_dereference(mod->kallsyms)->typetab = init_data_base + info->init_typeoffs;
+	kallsyms->strtab = (void *)info->sechdrs[info->index.str].sh_addr;
+	kallsyms->typetab = init_data_base + info->init_typeoffs;
 
 	/*
 	 * Now populate the cut down core kallsyms for after init
@@ -199,20 +195,19 @@ void add_kallsyms(struct module *mod, const struct load_info *info)
 	mod->core_kallsyms.strtab = s = data_base + info->stroffs;
 	mod->core_kallsyms.typetab = data_base + info->core_typeoffs;
 	strtab_size = info->core_typeoffs - info->stroffs;
-	src = rcu_dereference(mod->kallsyms)->symtab;
-	for (ndst = i = 0; i < rcu_dereference(mod->kallsyms)->num_symtab; i++) {
-		rcu_dereference(mod->kallsyms)->typetab[i] = elf_type(src + i, info);
+	src = kallsyms->symtab;
+	for (ndst = i = 0; i < kallsyms->num_symtab; i++) {
+		kallsyms->typetab[i] = elf_type(src + i, info);
 		if (i == 0 || is_livepatch_module(mod) ||
 		    is_core_symbol(src + i, info->sechdrs, info->hdr->e_shnum,
 				   info->index.pcpu)) {
 			ssize_t ret;
 
 			mod->core_kallsyms.typetab[ndst] =
-			    rcu_dereference(mod->kallsyms)->typetab[i];
+				kallsyms->typetab[i];
 			dst[ndst] = src[i];
 			dst[ndst++].st_name = s - mod->core_kallsyms.strtab;
-			ret = strscpy(s,
-				      &rcu_dereference(mod->kallsyms)->strtab[src[i].st_name],
+			ret = strscpy(s, &kallsyms->strtab[src[i].st_name],
 				      strtab_size);
 			if (ret < 0)
 				break;
@@ -220,7 +215,9 @@ void add_kallsyms(struct module *mod, const struct load_info *info)
 			strtab_size -= ret + 1;
 		}
 	}
-	rcu_read_unlock();
+
+	/* Set up to point into init section. */
+	rcu_assign_pointer(mod->kallsyms, kallsyms);
 	mod->core_kallsyms.num_symtab = ndst;
 }
 
@@ -260,7 +257,7 @@ static const char *find_kallsyms_symbol(struct module *mod,
 {
 	unsigned int i, best = 0;
 	unsigned long nextval, bestval;
-	struct mod_kallsyms *kallsyms = rcu_dereference_sched(mod->kallsyms);
+	struct mod_kallsyms *kallsyms = rcu_dereference(mod->kallsyms);
 	struct module_memory *mod_mem;
 
 	/* At worse, next value is at end of module */
@@ -319,7 +316,7 @@ void * __weak dereference_module_function_descriptor(struct module *mod,
 
 /*
  * For kallsyms to ask for address resolution.  NULL means not found.  Careful
- * not to lock to avoid deadlock on oopses, simply disable preemption.
+ * not to lock to avoid deadlock on oopses, RCU is enough.
  */
 int module_address_lookup(unsigned long addr,
 			  unsigned long *size,
@@ -332,7 +329,7 @@ int module_address_lookup(unsigned long addr,
 	int ret = 0;
 	struct module *mod;
 
-	preempt_disable();
+	guard(rcu)();
 	mod = __module_address(addr);
 	if (mod) {
 		if (modname)
@@ -350,8 +347,6 @@ int module_address_lookup(unsigned long addr,
 		if (sym)
 			ret = strscpy(namebuf, sym, KSYM_NAME_LEN);
 	}
-	preempt_enable();
-
 	return ret;
 }
 
@@ -359,7 +354,7 @@ int lookup_module_symbol_name(unsigned long addr, char *symname)
 {
 	struct module *mod;
 
-	preempt_disable();
+	guard(rcu)();
 	list_for_each_entry_rcu(mod, &modules, list) {
 		if (mod->state == MODULE_STATE_UNFORMED)
 			continue;
@@ -371,12 +366,10 @@ int lookup_module_symbol_name(unsigned long addr, char *symname)
 				goto out;
 
 			strscpy(symname, sym, KSYM_NAME_LEN);
-			preempt_enable();
 			return 0;
 		}
 	}
 out:
-	preempt_enable();
 	return -ERANGE;
 }
 
@@ -385,13 +378,13 @@ int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 {
 	struct module *mod;
 
-	preempt_disable();
+	guard(rcu)();
 	list_for_each_entry_rcu(mod, &modules, list) {
 		struct mod_kallsyms *kallsyms;
 
 		if (mod->state == MODULE_STATE_UNFORMED)
 			continue;
-		kallsyms = rcu_dereference_sched(mod->kallsyms);
+		kallsyms = rcu_dereference(mod->kallsyms);
 		if (symnum < kallsyms->num_symtab) {
 			const Elf_Sym *sym = &kallsyms->symtab[symnum];
 
@@ -400,12 +393,10 @@ int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 			strscpy(name, kallsyms_symbol_name(kallsyms, symnum), KSYM_NAME_LEN);
 			strscpy(module_name, mod->name, MODULE_NAME_LEN);
 			*exported = is_exported(name, *value, mod);
-			preempt_enable();
 			return 0;
 		}
 		symnum -= kallsyms->num_symtab;
 	}
-	preempt_enable();
 	return -ERANGE;
 }
 
@@ -413,7 +404,7 @@ int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 static unsigned long __find_kallsyms_symbol_value(struct module *mod, const char *name)
 {
 	unsigned int i;
-	struct mod_kallsyms *kallsyms = rcu_dereference_sched(mod->kallsyms);
+	struct mod_kallsyms *kallsyms = rcu_dereference(mod->kallsyms);
 
 	for (i = 0; i < kallsyms->num_symtab; i++) {
 		const Elf_Sym *sym = &kallsyms->symtab[i];
@@ -453,23 +444,15 @@ static unsigned long __module_kallsyms_lookup_name(const char *name)
 /* Look for this name: can be of form module:name. */
 unsigned long module_kallsyms_lookup_name(const char *name)
 {
-	unsigned long ret;
-
 	/* Don't lock: we're in enough trouble already. */
-	preempt_disable();
-	ret = __module_kallsyms_lookup_name(name);
-	preempt_enable();
-	return ret;
+	guard(rcu)();
+	return __module_kallsyms_lookup_name(name);
 }
 
 unsigned long find_kallsyms_symbol_value(struct module *mod, const char *name)
 {
-	unsigned long ret;
-
-	preempt_disable();
-	ret = __find_kallsyms_symbol_value(mod, name);
-	preempt_enable();
-	return ret;
+	guard(rcu)();
+	return __find_kallsyms_symbol_value(mod, name);
 }
 
 int module_kallsyms_on_each_symbol(const char *modname,
@@ -490,10 +473,8 @@ int module_kallsyms_on_each_symbol(const char *modname,
 		if (modname && strcmp(modname, mod->name))
 			continue;
 
-		/* Use rcu_dereference_sched() to remain compliant with the sparse tool */
-		preempt_disable();
-		kallsyms = rcu_dereference_sched(mod->kallsyms);
-		preempt_enable();
+		kallsyms = rcu_dereference_check(mod->kallsyms,
+						 lockdep_is_held(&module_mutex));
 
 		for (i = 0; i < kallsyms->num_symtab; i++) {
 			const Elf_Sym *sym = &kallsyms->symtab[i];

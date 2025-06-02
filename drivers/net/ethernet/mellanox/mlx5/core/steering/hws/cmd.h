@@ -258,9 +258,6 @@ int mlx5hws_cmd_flow_table_query(struct mlx5_core_dev *mdev,
 int mlx5hws_cmd_flow_table_destroy(struct mlx5_core_dev *mdev,
 				   u8 fw_ft_type, u32 table_id);
 
-void mlx5hws_cmd_alias_flow_table_destroy(struct mlx5_core_dev *mdev,
-					  u32 table_id);
-
 int mlx5hws_cmd_rtc_create(struct mlx5_core_dev *mdev,
 			   struct mlx5hws_cmd_rtc_create_attr *rtc_attr,
 			   u32 *rtc_id);

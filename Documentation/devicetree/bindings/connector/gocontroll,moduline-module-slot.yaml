@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/connector/gocontroll,moduline-module-slot.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: GOcontroll Moduline Module slot
+
+maintainers:
+  - Maud Spierings <maudspierings@gocontroll.com>
+
+description:
+  The GOcontroll Moduline module slot represents a connector that fullfills the
+  Moduline slot specification, and can thus house any IO module that is also
+  built to this spec.
+
+properties:
+  compatible:
+    const: gocontroll,moduline-module-slot
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    description: indicates readiness, high means busy.
+    maxItems: 1
+  reset-gpios:
+    description: resets the module, active low.
+    maxItems: 1
+  sync-gpios:
+    description: sync line between all module slots.
+    maxItems: 1
+
+  vdd-supply:
+    description: low power 3v3 supply generally for the microcontroller.
+  vddp-supply:
+    description: medium power 5v0 supply for on module low power peripherals.
+  vddhpp-supply:
+    description: high power 6v-8v supply for on module high power peripherals.
+  power-supply:
+    description: high power 6v-30v supply for high power module circuits.
+
+  i2c-bus:
+    description: i2c bus shared between module slots and the SoC
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  slot-number:
+    description:
+      The number of the module slot representing the location of on the pcb.
+      This enables access to the modules based on slot location.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  spi-max-frequency: true
+
+required:
+  - compatible
+  - reg
+  - reset-gpios
+  - interrupts
+  - sync-gpios
+  - i2c-bus
+  - slot-number
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        connector@0 {
+            reg = <0>;
+            compatible = "gocontroll,moduline-module-slot";
+            reset-gpios = <&gpio5 10 GPIO_ACTIVE_LOW>;
+            sync-gpios = <&gpio4 16 GPIO_ACTIVE_HIGH>;
+            interrupt-parent = <&gpio4>;
+            interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
+            vdd-supply = <&reg_3v3_per>;
+            vddp-supply = <&reg_5v0>;
+            vddhpp-supply = <&reg_6v4>;
+            i2c-bus = <&i2c2>;
+            slot-number = <1>;
+        };
+    };

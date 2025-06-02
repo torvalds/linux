@@ -58,6 +58,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_AW87390
 	imply SND_SOC_AW88395
 	imply SND_SOC_AW88081
+	imply SND_SOC_AW88166
 	imply SND_SOC_AW88261
 	imply SND_SOC_AW88399
 	imply SND_SOC_BT_SCO
@@ -678,6 +679,18 @@ config SND_SOC_AW88395
 	  digital Smart K audio amplifier with an integrated 10V
 	  smart boost convert.
 
+config SND_SOC_AW88166
+	tristate "Soc Audio for awinic aw88166"
+	depends on I2C
+	select REGMAP_I2C
+	select GPIOLIB
+	select SND_SOC_AW88395_LIB
+	help
+	  This option enables support for aw88166 Smart PA.
+	  The awinic AW88166 is an I2S/TDM input, high efficiency
+	  digital Smart K audio amplifier with sound quality
+	  enhancement algorithms and speaker protection.
+
 config SND_SOC_AW88261
 	tristate "Soc Audio for awinic aw88261"
 	depends on I2C
@@ -763,10 +776,9 @@ config SND_SOC_CS_AMP_LIB
 	tristate
 
 config SND_SOC_CS_AMP_LIB_TEST
-	tristate "KUnit test for Cirrus Logic cs-amp-lib"
-	depends on KUNIT
+	tristate "KUnit test for Cirrus Logic cs-amp-lib" if !KUNIT_ALL_TESTS
+	depends on SND_SOC_CS_AMP_LIB && KUNIT
 	default KUNIT_ALL_TESTS
-	select SND_SOC_CS_AMP_LIB
 	help
 	  This builds KUnit tests for the Cirrus Logic common
 	  amplifier library.

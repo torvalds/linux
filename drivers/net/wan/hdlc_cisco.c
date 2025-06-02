@@ -285,7 +285,7 @@ static void cisco_stop(struct net_device *dev)
 	struct cisco_state *st = state(hdlc);
 	unsigned long flags;
 
-	del_timer_sync(&st->timer);
+	timer_delete_sync(&st->timer);
 
 	spin_lock_irqsave(&st->lock, flags);
 	netif_dormant_on(dev);

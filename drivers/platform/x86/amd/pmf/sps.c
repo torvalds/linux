@@ -198,9 +198,11 @@ static void amd_pmf_update_slider_v2(struct amd_pmf_dev *dev, int idx)
 	amd_pmf_send_cmd(dev, SET_STT_MIN_LIMIT, false,
 			 apts_config_store.val[idx].stt_min_limit, NULL);
 	amd_pmf_send_cmd(dev, SET_STT_LIMIT_APU, false,
-			 apts_config_store.val[idx].stt_skin_temp_limit_apu, NULL);
+			 fixp_q88_fromint(apts_config_store.val[idx].stt_skin_temp_limit_apu),
+			 NULL);
 	amd_pmf_send_cmd(dev, SET_STT_LIMIT_HS2, false,
-			 apts_config_store.val[idx].stt_skin_temp_limit_hs2, NULL);
+			 fixp_q88_fromint(apts_config_store.val[idx].stt_skin_temp_limit_hs2),
+			 NULL);
 }
 
 void amd_pmf_update_slider(struct amd_pmf_dev *dev, bool op, int idx,
@@ -217,9 +219,11 @@ void amd_pmf_update_slider(struct amd_pmf_dev *dev, bool op, int idx,
 		amd_pmf_send_cmd(dev, SET_STT_MIN_LIMIT, false,
 				 config_store.prop[src][idx].stt_min, NULL);
 		amd_pmf_send_cmd(dev, SET_STT_LIMIT_APU, false,
-				 config_store.prop[src][idx].stt_skin_temp[STT_TEMP_APU], NULL);
+				 fixp_q88_fromint(config_store.prop[src][idx].stt_skin_temp[STT_TEMP_APU]),
+				 NULL);
 		amd_pmf_send_cmd(dev, SET_STT_LIMIT_HS2, false,
-				 config_store.prop[src][idx].stt_skin_temp[STT_TEMP_HS2], NULL);
+				 fixp_q88_fromint(config_store.prop[src][idx].stt_skin_temp[STT_TEMP_HS2]),
+				 NULL);
 	} else if (op == SLIDER_OP_GET) {
 		amd_pmf_send_cmd(dev, GET_SPL, true, ARG_NONE, &table->prop[src][idx].spl);
 		amd_pmf_send_cmd(dev, GET_FPPT, true, ARG_NONE, &table->prop[src][idx].fppt);
@@ -297,12 +301,14 @@ int amd_pmf_get_pprof_modes(struct amd_pmf_dev *pmf)
 
 	switch (pmf->current_profile) {
 	case PLATFORM_PROFILE_PERFORMANCE:
+	case PLATFORM_PROFILE_BALANCED_PERFORMANCE:
 		mode = POWER_MODE_PERFORMANCE;
 		break;
 	case PLATFORM_PROFILE_BALANCED:
 		mode = POWER_MODE_BALANCED_POWER;
 		break;
 	case PLATFORM_PROFILE_LOW_POWER:
+	case PLATFORM_PROFILE_QUIET:
 		mode = POWER_MODE_POWER_SAVER;
 		break;
 	default:
@@ -387,6 +393,14 @@ static int amd_pmf_profile_set(struct device *dev,
 	return 0;
 }
 
+static int amd_pmf_hidden_choices(void *drvdata, unsigned long *choices)
+{
+	set_bit(PLATFORM_PROFILE_QUIET, choices);
+	set_bit(PLATFORM_PROFILE_BALANCED_PERFORMANCE, choices);
+
+	return 0;
+}
+
 static int amd_pmf_profile_probe(void *drvdata, unsigned long *choices)
 {
 	set_bit(PLATFORM_PROFILE_LOW_POWER, choices);
@@ -398,6 +412,7 @@ static int amd_pmf_profile_probe(void *drvdata, unsigned long *choices)
 
 static const struct platform_profile_ops amd_pmf_profile_ops = {
 	.probe = amd_pmf_profile_probe,
+	.hidden_choices = amd_pmf_hidden_choices,
 	.profile_get = amd_pmf_profile_get,
 	.profile_set = amd_pmf_profile_set,
 };

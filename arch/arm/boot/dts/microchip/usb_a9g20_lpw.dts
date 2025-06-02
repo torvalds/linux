@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * usb_a9g20_lpw.dts - Device Tree file for Caloa USB A9G20 Low Power board
+ * usb_a9g20_lpw.dts - Device Tree file for Calao USB A9G20 Low Power board
  *
  *  Copyright (C) 2013 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
  */
@@ -16,7 +16,7 @@
 			spi1: spi@fffcc000 {
 				cs-gpios = <&pioB 3 GPIO_ACTIVE_HIGH>;
 				status = "okay";
-				mmc-slot@0 {
+				mmc@0 {
 					compatible = "mmc-spi-slot";
 					reg = <0>;
 					voltage-ranges = <3200 3400>;

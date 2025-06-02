@@ -575,6 +575,8 @@ int vchiq_send_remote_use(struct vchiq_state *state);
 
 int vchiq_send_remote_use_active(struct vchiq_state *state);
 
+void vchiq_platform_connected(struct vchiq_state *state);
+
 void vchiq_platform_conn_state_changed(struct vchiq_state *state,
 				       enum vchiq_connstate oldstate,
 				  enum vchiq_connstate newstate);

@@ -412,26 +412,26 @@ static const struct trap_bits coarse_trap_bits[] = {
 	},
 	[CGT_ICH_HCR_TC] = {
 		.index		= ICH_HCR_EL2,
-		.value		= ICH_HCR_TC,
-		.mask		= ICH_HCR_TC,
+		.value		= ICH_HCR_EL2_TC,
+		.mask		= ICH_HCR_EL2_TC,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_ICH_HCR_TALL0] = {
 		.index		= ICH_HCR_EL2,
-		.value		= ICH_HCR_TALL0,
-		.mask		= ICH_HCR_TALL0,
+		.value		= ICH_HCR_EL2_TALL0,
+		.mask		= ICH_HCR_EL2_TALL0,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_ICH_HCR_TALL1] = {
 		.index		= ICH_HCR_EL2,
-		.value		= ICH_HCR_TALL1,
-		.mask		= ICH_HCR_TALL1,
+		.value		= ICH_HCR_EL2_TALL1,
+		.mask		= ICH_HCR_EL2_TALL1,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 	[CGT_ICH_HCR_TDIR] = {
 		.index		= ICH_HCR_EL2,
-		.value		= ICH_HCR_TDIR,
-		.mask		= ICH_HCR_TDIR,
+		.value		= ICH_HCR_EL2_TDIR,
+		.mask		= ICH_HCR_EL2_TDIR,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
 };
@@ -2503,6 +2503,7 @@ void kvm_emulate_nested_eret(struct kvm_vcpu *vcpu)
 	}
 
 	preempt_disable();
+	vcpu_set_flag(vcpu, IN_NESTED_ERET);
 	kvm_arch_vcpu_put(vcpu);
 
 	if (!esr_iss_is_eretax(esr))
@@ -2514,9 +2515,11 @@ void kvm_emulate_nested_eret(struct kvm_vcpu *vcpu)
 	*vcpu_cpsr(vcpu) = spsr;
 
 	kvm_arch_vcpu_load(vcpu, smp_processor_id());
+	vcpu_clear_flag(vcpu, IN_NESTED_ERET);
 	preempt_enable();
 
-	kvm_pmu_nested_transition(vcpu);
+	if (kvm_vcpu_has_pmu(vcpu))
+		kvm_pmu_nested_transition(vcpu);
 }
 
 static void kvm_inject_el2_exception(struct kvm_vcpu *vcpu, u64 esr_el2,
@@ -2599,7 +2602,8 @@ static int kvm_inject_nested(struct kvm_vcpu *vcpu, u64 esr_el2,
 	kvm_arch_vcpu_load(vcpu, smp_processor_id());
 	preempt_enable();
 
-	kvm_pmu_nested_transition(vcpu);
+	if (kvm_vcpu_has_pmu(vcpu))
+		kvm_pmu_nested_transition(vcpu);
 
 	return 1;
 }

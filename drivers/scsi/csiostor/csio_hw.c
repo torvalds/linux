@@ -3701,7 +3701,7 @@ csio_mberr_worker(void *data)
 	struct csio_mb *mbp_next;
 	int rv;
 
-	del_timer_sync(&mbm->timer);
+	timer_delete_sync(&mbm->timer);
 
 	spin_lock_irq(&hw->lock);
 	if (list_empty(&mbm->cbfn_q)) {
@@ -4210,7 +4210,7 @@ csio_mgmtm_init(struct csio_mgmtm *mgmtm, struct csio_hw *hw)
 static void
 csio_mgmtm_exit(struct csio_mgmtm *mgmtm)
 {
-	del_timer_sync(&mgmtm->mgmt_timer);
+	timer_delete_sync(&mgmtm->mgmt_timer);
 }
 
 

@@ -1046,6 +1046,7 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 	if (unlikely(l->backlog[imp].len >= l->backlog[imp].limit)) {
 		if (imp == TIPC_SYSTEM_IMPORTANCE) {
 			pr_warn("%s<%s>, link overflow", link_rst_msg, l->name);
+			__skb_queue_purge(list);
 			return -ENOBUFS;
 		}
 		rc = link_schedule_user(l, hdr);
@@ -1951,7 +1952,6 @@ void tipc_link_create_dummy_tnl_msg(struct tipc_link *l,
 void tipc_link_tnl_prepare(struct tipc_link *l, struct tipc_link *tnl,
 			   int mtyp, struct sk_buff_head *xmitq)
 {
-	struct sk_buff_head *fdefq = &tnl->failover_deferdq;
 	struct sk_buff *skb, *tnlskb;
 	struct tipc_msg *hdr, tnlhdr;
 	struct sk_buff_head *queue = &l->transmq;
@@ -2078,6 +2078,8 @@ tnl:
 	tipc_link_xmit(tnl, &tnlq, xmitq);
 
 	if (mtyp == FAILOVER_MSG) {
+		struct sk_buff_head *fdefq = &tnl->failover_deferdq;
+
 		tnl->drop_point = l->rcv_nxt;
 		tnl->failover_reasm_skb = l->reasm_buf;
 		l->reasm_buf = NULL;

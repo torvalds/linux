@@ -59,7 +59,7 @@ static irqreturn_t jz4740_musb_interrupt(int irq, void *__hci)
 	return IRQ_NONE;
 }
 
-static struct musb_fifo_cfg jz4740_musb_fifo_cfg[] = {
+static const struct musb_fifo_cfg jz4740_musb_fifo_cfg[] = {
 	{ .hw_ep_num = 1, .style = FIFO_TX, .maxpacket = 512, },
 	{ .hw_ep_num = 1, .style = FIFO_RX, .maxpacket = 512, },
 	{ .hw_ep_num = 2, .style = FIFO_TX, .maxpacket = 64, },
@@ -205,7 +205,7 @@ static const struct musb_hdrc_platform_data jz4740_musb_pdata = {
 	.platform_ops	= &jz4740_musb_ops,
 };
 
-static struct musb_fifo_cfg jz4770_musb_fifo_cfg[] = {
+static const struct musb_fifo_cfg jz4770_musb_fifo_cfg[] = {
 	{ .hw_ep_num = 1, .style = FIFO_TX, .maxpacket = 512, },
 	{ .hw_ep_num = 1, .style = FIFO_RX, .maxpacket = 512, },
 	{ .hw_ep_num = 2, .style = FIFO_TX, .maxpacket = 512, },

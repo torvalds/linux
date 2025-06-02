@@ -1154,10 +1154,14 @@ static int ff_layout_async_handle_error_v4(struct rpc_task *task,
 		rpc_wake_up(&tbl->slot_tbl_waitq);
 		goto reset;
 	/* RPC connection errors */
+	case -ENETDOWN:
+	case -ENETUNREACH:
+		if (test_bit(NFS_CS_NETUNREACH_FATAL, &clp->cl_flags))
+			return -NFS4ERR_FATAL_IOERROR;
+		fallthrough;
 	case -ECONNREFUSED:
 	case -EHOSTDOWN:
 	case -EHOSTUNREACH:
-	case -ENETUNREACH:
 	case -EIO:
 	case -ETIMEDOUT:
 	case -EPIPE:
@@ -1183,6 +1187,7 @@ reset:
 
 /* Retry all errors through either pNFS or MDS except for -EJUKEBOX */
 static int ff_layout_async_handle_error_v3(struct rpc_task *task,
+					   struct nfs_client *clp,
 					   struct pnfs_layout_segment *lseg,
 					   u32 idx)
 {
@@ -1200,6 +1205,11 @@ static int ff_layout_async_handle_error_v3(struct rpc_task *task,
 	case -EJUKEBOX:
 		nfs_inc_stats(lseg->pls_layout->plh_inode, NFSIOS_DELAY);
 		goto out_retry;
+	case -ENETDOWN:
+	case -ENETUNREACH:
+		if (test_bit(NFS_CS_NETUNREACH_FATAL, &clp->cl_flags))
+			return -NFS4ERR_FATAL_IOERROR;
+		fallthrough;
 	default:
 		dprintk("%s DS connection error %d\n", __func__,
 			task->tk_status);
@@ -1234,7 +1244,7 @@ static int ff_layout_async_handle_error(struct rpc_task *task,
 
 	switch (vers) {
 	case 3:
-		return ff_layout_async_handle_error_v3(task, lseg, idx);
+		return ff_layout_async_handle_error_v3(task, clp, lseg, idx);
 	case 4:
 		return ff_layout_async_handle_error_v4(task, state, clp,
 						       lseg, idx);
@@ -1264,6 +1274,7 @@ static void ff_layout_io_track_ds_error(struct pnfs_layout_segment *lseg,
 		case -ECONNRESET:
 		case -EHOSTDOWN:
 		case -EHOSTUNREACH:
+		case -ENETDOWN:
 		case -ENETUNREACH:
 		case -EADDRINUSE:
 		case -ENOBUFS:
@@ -1337,6 +1348,9 @@ static int ff_layout_read_done_cb(struct rpc_task *task,
 		return task->tk_status;
 	case -EAGAIN:
 		goto out_eagain;
+	case -NFS4ERR_FATAL_IOERROR:
+		task->tk_status = -EIO;
+		return 0;
 	}
 
 	return 0;
@@ -1507,6 +1521,9 @@ static int ff_layout_write_done_cb(struct rpc_task *task,
 		return task->tk_status;
 	case -EAGAIN:
 		return -EAGAIN;
+	case -NFS4ERR_FATAL_IOERROR:
+		task->tk_status = -EIO;
+		return 0;
 	}
 
 	if (hdr->res.verf->committed == NFS_FILE_SYNC ||
@@ -1551,6 +1568,9 @@ static int ff_layout_commit_done_cb(struct rpc_task *task,
 	case -EAGAIN:
 		rpc_restart_call_prepare(task);
 		return -EAGAIN;
+	case -NFS4ERR_FATAL_IOERROR:
+		task->tk_status = -EIO;
+		return 0;
 	}
 
 	ff_layout_set_layoutcommit(data->inode, data->lseg, data->lwb);

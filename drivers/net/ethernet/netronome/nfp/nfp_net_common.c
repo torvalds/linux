@@ -227,7 +227,7 @@ static void nfp_net_reconfig_sync_enter(struct nfp_net *nn)
 	spin_unlock_bh(&nn->reconfig_lock);
 
 	if (cancelled_timer) {
-		del_timer_sync(&nn->reconfig_timer);
+		timer_delete_sync(&nn->reconfig_timer);
 		nfp_net_reconfig_wait(nn, nn->reconfig_timer.expires);
 	}
 

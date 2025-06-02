@@ -17,7 +17,7 @@
 #include <linux/sched.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
-#include <linux/thread_info.h>
+#include <linux/ucopysize.h>
 #include <linux/vmalloc.h>
 #include <linux/atomic.h>
 #include <linux/jump_label.h>
@@ -201,7 +201,9 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
 	}
 }
 
-static DEFINE_STATIC_KEY_FALSE_RO(bypass_usercopy_checks);
+DEFINE_STATIC_KEY_MAYBE_RO(CONFIG_HARDENED_USERCOPY_DEFAULT_ON,
+			   validate_usercopy_range);
+EXPORT_SYMBOL(validate_usercopy_range);
 
 /*
  * Validates that the given object is:
@@ -212,9 +214,6 @@ static DEFINE_STATIC_KEY_FALSE_RO(bypass_usercopy_checks);
  */
 void __check_object_size(const void *ptr, unsigned long n, bool to_user)
 {
-	if (static_branch_unlikely(&bypass_usercopy_checks))
-		return;
-
 	/* Skip all tests if size is zero. */
 	if (!n)
 		return;
@@ -255,7 +254,8 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
 }
 EXPORT_SYMBOL(__check_object_size);
 
-static bool enable_checks __initdata = true;
+static bool enable_checks __initdata =
+		IS_ENABLED(CONFIG_HARDENED_USERCOPY_DEFAULT_ON);
 
 static int __init parse_hardened_usercopy(char *str)
 {
@@ -269,8 +269,10 @@ __setup("hardened_usercopy=", parse_hardened_usercopy);
 
 static int __init set_hardened_usercopy(void)
 {
-	if (enable_checks == false)
-		static_branch_enable(&bypass_usercopy_checks);
+	if (enable_checks)
+		static_branch_enable(&validate_usercopy_range);
+	else
+		static_branch_disable(&validate_usercopy_range);
 	return 1;
 }
 

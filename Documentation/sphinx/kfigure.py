@@ -1,6 +1,6 @@
 # -*- coding: utf-8; mode: python -*-
 # pylint: disable=C0103, R0903, R0912, R0915
-u"""
+"""
     scalable figure and image handling
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -59,11 +59,13 @@ from docutils.parsers.rst import directives
 from docutils.parsers.rst.directives import images
 import sphinx
 from sphinx.util.nodes import clean_astext
-import kernellog
+from sphinx.util import logging
 
 Figure = images.Figure
 
 __version__  = '1.0.0'
+
+logger = logging.getLogger('kfigure')
 
 # simple helper
 # -------------
@@ -163,14 +165,14 @@ def setup(app):
 
 
 def setupTools(app):
-    u"""
+    """
     Check available build tools and log some *verbose* messages.
 
     This function is called once, when the builder is initiated.
     """
     global dot_cmd, dot_Tpdf, convert_cmd, rsvg_convert_cmd   # pylint: disable=W0603
     global inkscape_cmd, inkscape_ver_one  # pylint: disable=W0603
-    kernellog.verbose(app, "kfigure: check installed tools ...")
+    logger.verbose("kfigure: check installed tools ...")
 
     dot_cmd = which('dot')
     convert_cmd = which('convert')
@@ -178,7 +180,7 @@ def setupTools(app):
     inkscape_cmd = which('inkscape')
 
     if dot_cmd:
-        kernellog.verbose(app, "use dot(1) from: " + dot_cmd)
+        logger.verbose("use dot(1) from: " + dot_cmd)
 
         try:
             dot_Thelp_list = subprocess.check_output([dot_cmd, '-Thelp'],
@@ -190,10 +192,11 @@ def setupTools(app):
         dot_Tpdf_ptn = b'pdf'
         dot_Tpdf = re.search(dot_Tpdf_ptn, dot_Thelp_list)
     else:
-        kernellog.warn(app, "dot(1) not found, for better output quality install "
-                       "graphviz from https://www.graphviz.org")
+        logger.warning(
+            "dot(1) not found, for better output quality install graphviz from https://www.graphviz.org"
+        )
     if inkscape_cmd:
-        kernellog.verbose(app, "use inkscape(1) from: " + inkscape_cmd)
+        logger.verbose("use inkscape(1) from: " + inkscape_cmd)
         inkscape_ver = subprocess.check_output([inkscape_cmd, '--version'],
                                                stderr=subprocess.DEVNULL)
         ver_one_ptn = b'Inkscape 1'
@@ -204,26 +207,27 @@ def setupTools(app):
 
     else:
         if convert_cmd:
-            kernellog.verbose(app, "use convert(1) from: " + convert_cmd)
+            logger.verbose("use convert(1) from: " + convert_cmd)
         else:
-            kernellog.verbose(app,
+            logger.verbose(
                 "Neither inkscape(1) nor convert(1) found.\n"
-                "For SVG to PDF conversion, "
-                "install either Inkscape (https://inkscape.org/) (preferred) or\n"
-                "ImageMagick (https://www.imagemagick.org)")
+                "For SVG to PDF conversion, install either Inkscape (https://inkscape.org/) (preferred) or\n"
+                "ImageMagick (https://www.imagemagick.org)"
+            )
 
         if rsvg_convert_cmd:
-            kernellog.verbose(app, "use rsvg-convert(1) from: " + rsvg_convert_cmd)
-            kernellog.verbose(app, "use 'dot -Tsvg' and rsvg-convert(1) for DOT -> PDF conversion")
+            logger.verbose("use rsvg-convert(1) from: " + rsvg_convert_cmd)
+            logger.verbose("use 'dot -Tsvg' and rsvg-convert(1) for DOT -> PDF conversion")
             dot_Tpdf = False
         else:
-            kernellog.verbose(app,
+            logger.verbose(
                 "rsvg-convert(1) not found.\n"
-                "  SVG rendering of convert(1) is done by ImageMagick-native renderer.")
+                "  SVG rendering of convert(1) is done by ImageMagick-native renderer."
+            )
             if dot_Tpdf:
-                kernellog.verbose(app, "use 'dot -Tpdf' for DOT -> PDF conversion")
+                logger.verbose("use 'dot -Tpdf' for DOT -> PDF conversion")
             else:
-                kernellog.verbose(app, "use 'dot -Tsvg' and convert(1) for DOT -> PDF conversion")
+                logger.verbose("use 'dot -Tsvg' and convert(1) for DOT -> PDF conversion")
 
 
 # integrate conversion tools
@@ -257,13 +261,12 @@ def convert_image(img_node, translator, src_fname=None):
 
     # in kernel builds, use 'make SPHINXOPTS=-v' to see verbose messages
 
-    kernellog.verbose(app, 'assert best format for: ' + img_node['uri'])
+    logger.verbose('assert best format for: ' + img_node['uri'])
 
     if in_ext == '.dot':
 
         if not dot_cmd:
-            kernellog.verbose(app,
-                              "dot from graphviz not available / include DOT raw.")
+            logger.verbose("dot from graphviz not available / include DOT raw.")
             img_node.replace_self(file2literal(src_fname))
 
         elif translator.builder.format == 'latex':
@@ -290,10 +293,11 @@ def convert_image(img_node, translator, src_fname=None):
 
         if translator.builder.format == 'latex':
             if not inkscape_cmd and convert_cmd is None:
-                kernellog.warn(app,
-                                  "no SVG to PDF conversion available / include SVG raw."
-                                  "\nIncluding large raw SVGs can cause xelatex error."
-                                  "\nInstall Inkscape (preferred) or ImageMagick.")
+                logger.warning(
+                    "no SVG to PDF conversion available / include SVG raw.\n"
+                    "Including large raw SVGs can cause xelatex error.\n"
+                    "Install Inkscape (preferred) or ImageMagick."
+                )
                 img_node.replace_self(file2literal(src_fname))
             else:
                 dst_fname = path.join(translator.builder.outdir, fname + '.pdf')
@@ -306,15 +310,14 @@ def convert_image(img_node, translator, src_fname=None):
         _name = dst_fname[len(str(translator.builder.outdir)) + 1:]
 
         if isNewer(dst_fname, src_fname):
-            kernellog.verbose(app,
-                              "convert: {out}/%s already exists and is newer" % _name)
+            logger.verbose("convert: {out}/%s already exists and is newer" % _name)
 
         else:
             ok = False
             mkdir(path.dirname(dst_fname))
 
             if in_ext == '.dot':
-                kernellog.verbose(app, 'convert DOT to: {out}/' + _name)
+                logger.verbose('convert DOT to: {out}/' + _name)
                 if translator.builder.format == 'latex' and not dot_Tpdf:
                     svg_fname = path.join(translator.builder.outdir, fname + '.svg')
                     ok1 = dot2format(app, src_fname, svg_fname)
@@ -325,7 +328,7 @@ def convert_image(img_node, translator, src_fname=None):
                     ok = dot2format(app, src_fname, dst_fname)
 
             elif in_ext == '.svg':
-                kernellog.verbose(app, 'convert SVG to: {out}/' + _name)
+                logger.verbose('convert SVG to: {out}/' + _name)
                 ok = svg2pdf(app, src_fname, dst_fname)
 
             if not ok:
@@ -354,7 +357,7 @@ def dot2format(app, dot_fname, out_fname):
     with open(out_fname, "w") as out:
         exit_code = subprocess.call(cmd, stdout = out)
         if exit_code != 0:
-            kernellog.warn(app,
+            logger.warning(
                           "Error #%d when calling: %s" % (exit_code, " ".join(cmd)))
     return bool(exit_code == 0)
 
@@ -388,13 +391,14 @@ def svg2pdf(app, svg_fname, pdf_fname):
         pass
 
     if exit_code != 0:
-        kernellog.warn(app, "Error #%d when calling: %s" % (exit_code, " ".join(cmd)))
+        logger.warning("Error #%d when calling: %s" %
+                            (exit_code, " ".join(cmd)))
         if warning_msg:
-            kernellog.warn(app, "Warning msg from %s: %s"
-                           % (cmd_name, str(warning_msg, 'utf-8')))
+            logger.warning( "Warning msg from %s: %s" %
+                                (cmd_name, str(warning_msg, 'utf-8')))
     elif warning_msg:
-        kernellog.verbose(app, "Warning msg from %s (likely harmless):\n%s"
-                          % (cmd_name, str(warning_msg, 'utf-8')))
+        logger.verbose("Warning msg from %s (likely harmless):\n%s" %
+                            (cmd_name, str(warning_msg, 'utf-8')))
 
     return bool(exit_code == 0)
 
@@ -418,7 +422,8 @@ def svg2pdf_by_rsvg(app, svg_fname, pdf_fname):
         # use stdout and stderr from parent
         exit_code = subprocess.call(cmd)
         if exit_code != 0:
-            kernellog.warn(app, "Error #%d when calling: %s" % (exit_code, " ".join(cmd)))
+            logger.warning("Error #%d when calling: %s" %
+                                (exit_code, " ".join(cmd)))
         ok = bool(exit_code == 0)
 
     return ok
@@ -440,7 +445,7 @@ class kernel_image(nodes.image):
     pass
 
 class KernelImage(images.Image):
-    u"""KernelImage directive
+    """KernelImage directive
 
     Earns everything from ``.. image::`` directive, except *remote URI* and
     *glob* pattern. The KernelImage wraps a image node into a
@@ -476,7 +481,7 @@ class kernel_figure(nodes.figure):
     """Node for ``kernel-figure`` directive."""
 
 class KernelFigure(Figure):
-    u"""KernelImage directive
+    """KernelImage directive
 
     Earns everything from ``.. figure::`` directive, except *remote URI* and
     *glob* pattern.  The KernelFigure wraps a figure node into a kernel_figure
@@ -513,15 +518,15 @@ def visit_kernel_render(self, node):
     app = self.builder.app
     srclang = node.get('srclang')
 
-    kernellog.verbose(app, 'visit kernel-render node lang: "%s"' % (srclang))
+    logger.verbose('visit kernel-render node lang: "%s"' % srclang)
 
     tmp_ext = RENDER_MARKUP_EXT.get(srclang, None)
     if tmp_ext is None:
-        kernellog.warn(app, 'kernel-render: "%s" unknown / include raw.' % (srclang))
+        logger.warning( 'kernel-render: "%s" unknown / include raw.' % srclang)
         return
 
     if not dot_cmd and tmp_ext == '.dot':
-        kernellog.verbose(app, "dot from graphviz not available / include raw.")
+        logger.verbose("dot from graphviz not available / include raw.")
         return
 
     literal_block = node[0]
@@ -552,7 +557,7 @@ class kernel_render(nodes.General, nodes.Inline, nodes.Element):
     pass
 
 class KernelRender(Figure):
-    u"""KernelRender directive
+    """KernelRender directive
 
     Render content by external tool.  Has all the options known from the
     *figure*  directive, plus option ``caption``.  If ``caption`` has a

@@ -15,7 +15,9 @@
  *	(D) CPU3 (2ch)  --/			   (TDM-1 : 2,3ch)
  *	(E) CPU4 (2ch)  --/			   (TDM-2 : 4,5ch)
  *	(F) CPU5 (2ch)  --/			   (TDM-3 : 6,7ch)
- *	(G) CPU6 (6ch) <----  (6ch) (Z) PCM3168A-c
+ *	(G) CPU6 (2ch) <----  (6ch) (Z) PCM3168A-c (TDM-a: 0,1ch)
+ *	(H) CPU7 (2ch) <--/			   (TDM-b: 2,3ch)
+ *	(I) CPU8 (2ch) <--/			   (TDM-c: 4,5ch)
  *
  *	(A) aplay   -D plughw:0,0 xxx.wav (MIX-0)
  *	(B) aplay   -D plughw:0,1 xxx.wav (MIX-1)
@@ -25,7 +27,9 @@
  *	(F) aplay   -D plughw:1,3 xxx.wav (TDM-3)
  *
  *	(A) arecord -D plughw:0,0 xxx.wav
- *	(G) arecord -D plughw:1,4 xxx.wav
+ *	(G) arecord -D plughw:1,4 xxx.wav (TDM-a)
+ *	(H) arecord -D plughw:1,5 xxx.wav (TDM-b)
+ *	(I) arecord -D plughw:1,6 xxx.wav (TDM-c)
  */
 / {
 	sound_card_kf: expand-sound {
@@ -35,13 +39,18 @@
 		routing = "pcm3168a Playback", "DAI2 Playback",
 			  "pcm3168a Playback", "DAI3 Playback",
 			  "pcm3168a Playback", "DAI4 Playback",
-			  "pcm3168a Playback", "DAI5 Playback";
+			  "pcm3168a Playback", "DAI5 Playback",
+			  "DAI6 Capture", "pcm3168a Capture",
+			  "DAI7 Capture", "pcm3168a Capture",
+			  "DAI8 Capture", "pcm3168a Capture";
 
 		dais = <&snd_kf1 /* (C) CPU2 */
 			&snd_kf2 /* (D) CPU3 */
 			&snd_kf3 /* (E) CPU4 */
 			&snd_kf4 /* (F) CPU5 */
-			&snd_kf5 /* (G) GPU6 */
+			&snd_kf5 /* (G) CPU6 */
+			&snd_kf6 /* (H) CPU7 */
+			&snd_kf7 /* (I) CPU8 */
 		>;
 	};
 };
@@ -50,7 +59,9 @@
 	ports {
 		#address-cells = <1>;
 		#size-cells = <0>;
+
 		mclk-fs = <512>;
+		prefix = "pcm3168a";
 
 		/*
 		 * (Y) PCM3168A-p
@@ -59,7 +70,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;
-			prefix = "pcm3168a";
 			convert-channels = <8>; /* to 8ch TDM */
 
 			/* (C) CPU2 -> (Y) PCM3168A-p */
@@ -91,10 +101,28 @@
 		 * (Z) PCM3168A-c
 		 */
 		port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			reg = <1>;
+
+			convert-channels = <6>; /* to 6ch TDM */
+
 			/* (G) CPU6 <- PCM3168A-c */
-			pcm3168a_endpoint_c: endpoint {
-				remote-endpoint = <&rsnd_for_pcm3168a_capture>;
+			pcm3168a_endpoint_c1: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&rsnd_for_pcm3168a_capture1>;
+				clocks = <&clksndsel>;
+			};
+			/* (H) CPU7 <- PCM3168A-c */
+			pcm3168a_endpoint_c2: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&rsnd_for_pcm3168a_capture2>;
+				clocks = <&clksndsel>;
+			};
+			/* (I) CPU8 <- PCM3168A-c */
+			pcm3168a_endpoint_c3: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&rsnd_for_pcm3168a_capture3>;
 				clocks = <&clksndsel>;
 			};
 		};
@@ -160,12 +188,35 @@
 		 */
 		snd_kf5: port@6 {
 			reg = <6>;
-			rsnd_for_pcm3168a_capture: endpoint {
-				remote-endpoint = <&pcm3168a_endpoint_c>;
+			rsnd_for_pcm3168a_capture1: endpoint {
+				remote-endpoint = <&pcm3168a_endpoint_c1>;
 				bitclock-master;
 				frame-master;
-				dai-tdm-slot-num = <6>;
-				capture  = <&ssi4>;
+				capture = <&ssiu40 &ssi4>;
+			};
+		};
+		/*
+		 * (H) CPU7
+		 */
+		snd_kf6: port@7 {
+			reg = <7>;
+			rsnd_for_pcm3168a_capture2: endpoint {
+				remote-endpoint = <&pcm3168a_endpoint_c2>;
+				bitclock-master;
+				frame-master;
+				capture = <&ssiu41 &ssi4>;
+			};
+		};
+		/*
+		 * (I) CPU8
+		 */
+		snd_kf7: port@8 {
+			reg = <8>;
+			rsnd_for_pcm3168a_capture3: endpoint {
+				remote-endpoint = <&pcm3168a_endpoint_c3>;
+				bitclock-master;
+				frame-master;
+				capture = <&ssiu42 &ssi4>;
 			};
 		};
 	};

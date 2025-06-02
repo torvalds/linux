@@ -26,7 +26,6 @@ static const struct regmap_config zpa2326_regmap_spi_config = {
 	.precious_reg   = zpa2326_isreg_precious,
 	.max_register   = ZPA2326_TEMP_OUT_H_REG,
 	.read_flag_mask = BIT(7) | BIT(6),
-	.cache_type     = REGCACHE_NONE,
 };
 
 static int zpa2326_probe_spi(struct spi_device *spi)

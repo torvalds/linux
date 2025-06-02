@@ -5,6 +5,14 @@
  * Copyright (C) 2021 Renesas Electronics Corp.
  */
 
+/ {
+	aliases {
+		ethernet0 = &rswitch_port0;
+		ethernet1 = &rswitch_port1;
+		ethernet2 = &rswitch_port2;
+	};
+};
+
 &eth_serdes {
 	status = "okay";
 };
@@ -42,61 +50,61 @@
 	pinctrl-0 = <&tsn0_pins>, <&tsn1_pins>, <&tsn2_pins>;
 	pinctrl-names = "default";
 	status = "okay";
+};
 
-	ethernet-ports {
+&rswitch_port0 {
+	reg = <0>;
+	phy-handle = <&u101>;
+	phy-mode = "sgmii";
+	phys = <&eth_serdes 0>;
+	status = "okay";
+
+	mdio {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		port@0 {
-			reg = <0>;
-			phy-handle = <&u101>;
-			phy-mode = "sgmii";
-			phys = <&eth_serdes 0>;
-
-			mdio {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				u101: ethernet-phy@1 {
-					reg = <1>;
-					compatible = "ethernet-phy-ieee802.3-c45";
-					interrupts-extended = <&gpio3 10 IRQ_TYPE_LEVEL_LOW>;
-				};
-			};
-		};
-		port@1 {
+		u101: ethernet-phy@1 {
 			reg = <1>;
-			phy-handle = <&u201>;
-			phy-mode = "sgmii";
-			phys = <&eth_serdes 1>;
-
-			mdio {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				u201: ethernet-phy@2 {
-					reg = <2>;
-					compatible = "ethernet-phy-ieee802.3-c45";
-					interrupts-extended = <&gpio3 11 IRQ_TYPE_LEVEL_LOW>;
-				};
-			};
+			compatible = "ethernet-phy-ieee802.3-c45";
+			interrupts-extended = <&gpio3 10 IRQ_TYPE_LEVEL_LOW>;
 		};
-		port@2 {
+	};
+};
+
+&rswitch_port1 {
+	reg = <1>;
+	phy-handle = <&u201>;
+	phy-mode = "sgmii";
+	phys = <&eth_serdes 1>;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		u201: ethernet-phy@2 {
 			reg = <2>;
-			phy-handle = <&u301>;
-			phy-mode = "sgmii";
-			phys = <&eth_serdes 2>;
+			compatible = "ethernet-phy-ieee802.3-c45";
+			interrupts-extended = <&gpio3 11 IRQ_TYPE_LEVEL_LOW>;
+		};
+	};
+};
 
-			mdio {
-				#address-cells = <1>;
-				#size-cells = <0>;
+&rswitch_port2 {
+	reg = <2>;
+	phy-handle = <&u301>;
+	phy-mode = "sgmii";
+	phys = <&eth_serdes 2>;
+	status = "okay";
 
-				u301: ethernet-phy@3 {
-					reg = <3>;
-					compatible = "ethernet-phy-ieee802.3-c45";
-					interrupts-extended = <&gpio3 9 IRQ_TYPE_LEVEL_LOW>;
-				};
-			};
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		u301: ethernet-phy@3 {
+			reg = <3>;
+			compatible = "ethernet-phy-ieee802.3-c45";
+			interrupts-extended = <&gpio3 9 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
 };

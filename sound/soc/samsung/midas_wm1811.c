@@ -537,7 +537,7 @@ static struct snd_soc_dai_link midas_dai[] = {
 		.stream_name = "HiFi Primary",
 		.ops = &midas_aif1_ops,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM,
+			SND_SOC_DAIFMT_CBP_CFP,
 		SND_SOC_DAILINK_REG(wm1811_hifi),
 	}, {
 		.name = "WM1811 Voice",

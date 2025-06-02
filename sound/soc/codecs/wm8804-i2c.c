@@ -56,7 +56,7 @@ MODULE_DEVICE_TABLE(acpi, wm8804_acpi_match);
 static struct i2c_driver wm8804_i2c_driver = {
 	.driver = {
 		.name = "wm8804",
-		.pm = &wm8804_pm,
+		.pm = pm_ptr(&wm8804_pm),
 		.of_match_table = of_match_ptr(wm8804_of_match),
 		.acpi_match_table = ACPI_PTR(wm8804_acpi_match),
 	},

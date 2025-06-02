@@ -163,7 +163,6 @@ struct pnv_phb {
 		unsigned int		*io_segmap;
 
 		/* IRQ chip */
-		int			irq_chip_init;
 		struct irq_chip		irq_chip;
 
 		/* Sorted list of used PE's based
@@ -281,7 +280,6 @@ extern int pnv_eeh_phb_reset(struct pci_controller *hose, int option);
 
 extern struct pnv_ioda_pe *pnv_pci_bdfn_to_pe(struct pnv_phb *phb, u16 bdfn);
 extern struct pnv_ioda_pe *pnv_ioda_get_pe(struct pci_dev *dev);
-extern void pnv_set_msi_irq_chip(struct pnv_phb *phb, unsigned int virq);
 extern unsigned long pnv_pci_ioda2_get_table_size(__u32 page_shift,
 		__u64 window_size, __u32 levels);
 extern int pnv_eeh_post_init(void);

@@ -85,7 +85,7 @@ static int chksum_update(struct shash_desc *desc, const u8 *data,
 {
 	struct chksum_desc_ctx *ctx = shash_desc_ctx(desc);
 
-	ctx->crc = crc32c_le_base(ctx->crc, data, length);
+	ctx->crc = crc32c_base(ctx->crc, data, length);
 	return 0;
 }
 
@@ -94,7 +94,7 @@ static int chksum_update_arch(struct shash_desc *desc, const u8 *data,
 {
 	struct chksum_desc_ctx *ctx = shash_desc_ctx(desc);
 
-	ctx->crc = __crc32c_le(ctx->crc, data, length);
+	ctx->crc = crc32c(ctx->crc, data, length);
 	return 0;
 }
 
@@ -108,14 +108,14 @@ static int chksum_final(struct shash_desc *desc, u8 *out)
 
 static int __chksum_finup(u32 *crcp, const u8 *data, unsigned int len, u8 *out)
 {
-	put_unaligned_le32(~crc32c_le_base(*crcp, data, len), out);
+	put_unaligned_le32(~crc32c_base(*crcp, data, len), out);
 	return 0;
 }
 
 static int __chksum_finup_arch(u32 *crcp, const u8 *data, unsigned int len,
 			       u8 *out)
 {
-	put_unaligned_le32(~__crc32c_le(*crcp, data, len), out);
+	put_unaligned_le32(~crc32c(*crcp, data, len), out);
 	return 0;
 }
 

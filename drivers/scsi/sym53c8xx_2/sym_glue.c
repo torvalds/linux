@@ -1657,7 +1657,7 @@ static int sym_detach(struct Scsi_Host *shost, struct pci_dev *pdev)
 	struct sym_hcb *np = sym_get_hcb(shost);
 	printk("%s: detaching ...\n", sym_name(np));
 
-	del_timer_sync(&np->s.timer);
+	timer_delete_sync(&np->s.timer);
 
 	/*
 	 * Reset NCR chip.

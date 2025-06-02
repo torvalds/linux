@@ -1033,7 +1033,7 @@ static void sccnxp_remove(struct platform_device *pdev)
 	if (!s->poll)
 		devm_free_irq(&pdev->dev, s->irq, s);
 	else
-		del_timer_sync(&s->timer);
+		timer_delete_sync(&s->timer);
 
 	for (i = 0; i < s->uart.nr; i++)
 		uart_remove_one_port(&s->uart, &s->port[i]);

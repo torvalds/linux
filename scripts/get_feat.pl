@@ -512,13 +512,13 @@ print STDERR Data::Dumper->Dump([\%data], [qw(*data)]) if ($debug);
 # Handles the command
 #
 if ($cmd eq "current") {
-	$arch = qx(uname -m | sed 's/x86_64/x86/' | sed 's/i386/x86/');
+	$arch = qx(uname -m | sed 's/x86_64/x86/' | sed 's/i386/x86/' | sed 's/s390x/s390/');
 	$arch =~s/\s+$//;
 }
 
 if ($cmd eq "ls" or $cmd eq "list") {
 	if (!$arch) {
-		$arch = qx(uname -m | sed 's/x86_64/x86/' | sed 's/i386/x86/');
+		$arch = qx(uname -m | sed 's/x86_64/x86/' | sed 's/i386/x86/' | sed 's/s390x/s390/');
 		$arch =~s/\s+$//;
 	}
 

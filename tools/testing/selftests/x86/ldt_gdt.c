@@ -26,6 +26,8 @@
 #include <asm/prctl.h>
 #include <sys/prctl.h>
 
+#include "helpers.h"
+
 #define AR_ACCESSED		(1<<8)
 
 #define AR_TYPE_RODATA		(0 * (1<<9))
@@ -506,20 +508,6 @@ static void fix_sa_restorer(int sig)
 }
 #endif
 
-static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
-		       int flags)
-{
-	struct sigaction sa;
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_sigaction = handler;
-	sa.sa_flags = SA_SIGINFO | flags;
-	sigemptyset(&sa.sa_mask);
-	if (sigaction(sig, &sa, 0))
-		err(1, "sigaction");
-
-	fix_sa_restorer(sig);
-}
-
 static jmp_buf jmpbuf;
 
 static void sigsegv(int sig, siginfo_t *info, void *ctx_void)
@@ -549,9 +537,11 @@ static void do_multicpu_tests(void)
 	}
 
 	sethandler(SIGSEGV, sigsegv, 0);
+	fix_sa_restorer(SIGSEGV);
 #ifdef __i386__
 	/* True 32-bit kernels send SIGILL instead of SIGSEGV on IRET faults. */
 	sethandler(SIGILL, sigsegv, 0);
+	fix_sa_restorer(SIGILL);
 #endif
 
 	printf("[RUN]\tCross-CPU LDT invalidation\n");

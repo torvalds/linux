@@ -2,6 +2,7 @@ dumb_buffer@create-clear,Crash
 kms_atomic_transition@modeset-transition,Fail
 kms_atomic_transition@modeset-transition-fencing,Fail
 kms_atomic_transition@plane-toggle-modeset-transition,Fail
+kms_bw@connected-linear-tiling-1-displays-2160x1440p,Fail
 kms_color@gamma,Fail
 kms_color@legacy-gamma,Fail
 kms_cursor_crc@cursor-alpha-opaque,Fail
@@ -24,6 +25,7 @@ kms_cursor_crc@cursor-rapid-movement-32x32,Fail
 kms_cursor_crc@cursor-rapid-movement-64x21,Fail
 kms_cursor_crc@cursor-rapid-movement-64x64,Fail
 kms_cursor_crc@cursor-size-change,Fail
+kms_cursor_crc@cursor-size-hints,Fail
 kms_cursor_crc@cursor-sliding-32x10,Fail
 kms_cursor_crc@cursor-sliding-32x32,Fail
 kms_cursor_crc@cursor-sliding-64x21,Fail
@@ -32,6 +34,7 @@ kms_cursor_edge_walk@64x64-left-edge,Fail
 kms_cursor_legacy@basic-flip-before-cursor-atomic,Fail
 kms_cursor_legacy@basic-flip-before-cursor-legacy,Fail
 kms_cursor_legacy@cursor-vs-flip-atomic,Fail
+kms_cursor_legacy@cursor-vs-flip-atomic-transitions,Fail
 kms_cursor_legacy@cursor-vs-flip-legacy,Fail
 kms_cursor_legacy@cursor-vs-flip-toggle,Fail
 kms_cursor_legacy@flip-vs-cursor-atomic,Fail
@@ -41,14 +44,11 @@ kms_cursor_legacy@flip-vs-cursor-legacy,Fail
 kms_cursor_legacy@long-nonblocking-modeset-vs-cursor-atomic,Fail
 kms_flip@basic-flip-vs-wf_vblank,Fail
 kms_flip@blocking-wf_vblank,Fail
-kms_flip@flip-vs-absolute-wf_vblank,Fail
-kms_flip@flip-vs-blocking-wf-vblank,Fail
 kms_flip@flip-vs-modeset-vs-hang,Fail
 kms_flip@flip-vs-panning,Fail
 kms_flip@flip-vs-panning-interruptible,Fail
 kms_flip@flip-vs-panning-vs-hang,Fail
 kms_flip@modeset-vs-vblank-race,Fail
-kms_flip@modeset-vs-vblank-race-interruptible,Fail
 kms_flip@plain-flip-fb-recreate,Fail
 kms_flip@plain-flip-fb-recreate-interruptible,Fail
 kms_flip@plain-flip-ts-check,Fail
@@ -64,14 +64,11 @@ kms_pipe_crc_basic@nonblocking-crc,Fail
 kms_pipe_crc_basic@nonblocking-crc-frame-sequence,Fail
 kms_pipe_crc_basic@read-crc,Fail
 kms_pipe_crc_basic@read-crc-frame-sequence,Fail
-kms_plane@pixel-format,Crash
-kms_plane@pixel-format-source-clamping,Crash
+kms_plane@pixel-format,Fail
+kms_plane@pixel-format-source-clamping,Fail
 kms_plane@plane-panning-bottom-right,Fail
 kms_plane@plane-panning-top-left,Fail
 kms_plane@plane-position-covered,Fail
 kms_plane@plane-position-hole,Fail
-kms_plane@plane-position-hole-dpms,Fail
 kms_plane_cursor@primary,Fail
-kms_plane_multiple@tiling-none,Fail
-kms_rmfb@close-fd,Fail
 kms_universal_plane@universal-plane-functional,Fail

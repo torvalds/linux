@@ -683,8 +683,8 @@ static void vcc_remove(struct vio_dev *vdev)
 {
 	struct vcc_port *port = dev_get_drvdata(&vdev->dev);
 
-	del_timer_sync(&port->rx_timer);
-	del_timer_sync(&port->tx_timer);
+	timer_delete_sync(&port->rx_timer);
+	timer_delete_sync(&port->tx_timer);
 
 	/* If there's a process with the device open, do a synchronous
 	 * hangup of the TTY. This *may* cause the process to call close
@@ -700,7 +700,7 @@ static void vcc_remove(struct vio_dev *vdev)
 
 	tty_unregister_device(vcc_tty_driver, port->index);
 
-	del_timer_sync(&port->vio.timer);
+	timer_delete_sync(&port->vio.timer);
 	vio_ldc_free(&port->vio);
 	sysfs_remove_group(&vdev->dev.kobj, &vcc_attribute_group);
 	dev_set_drvdata(&vdev->dev, NULL);

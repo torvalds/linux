@@ -69,7 +69,6 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/power_supply.h>
 #include <linux/sysfs.h>
-#include <linux/fb.h>
 #include <acpi/video.h>
 
 /* ======= */

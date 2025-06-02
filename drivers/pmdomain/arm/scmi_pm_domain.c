@@ -24,8 +24,7 @@ struct scmi_pm_domain {
 
 static int scmi_pd_power(struct generic_pm_domain *domain, bool power_on)
 {
-	int ret;
-	u32 state, ret_state;
+	u32 state;
 	struct scmi_pm_domain *pd = to_scmi_pd(domain);
 
 	if (power_on)
@@ -33,13 +32,7 @@ static int scmi_pd_power(struct generic_pm_domain *domain, bool power_on)
 	else
 		state = SCMI_POWER_STATE_GENERIC_OFF;
 
-	ret = power_ops->state_set(pd->ph, pd->domain, state);
-	if (!ret)
-		ret = power_ops->state_get(pd->ph, pd->domain, &ret_state);
-	if (!ret && state != ret_state)
-		return -EIO;
-
-	return ret;
+	return power_ops->state_set(pd->ph, pd->domain, state);
 }
 
 static int scmi_pd_power_on(struct generic_pm_domain *domain)

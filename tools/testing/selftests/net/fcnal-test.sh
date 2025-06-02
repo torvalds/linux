@@ -3667,7 +3667,7 @@ ipv6_addr_bind_novrf()
 	# when it really should not
 	a=${NSA_LO_IP6}
 	log_start
-	show_hint "Tecnically should fail since address is not on device but kernel allows"
+	show_hint "Technically should fail since address is not on device but kernel allows"
 	run_cmd nettest -6 -s -l ${a} -I ${NSA_DEV} -t1 -b
 	log_test_addr ${a} $? 0 "TCP socket bind to out of scope local address"
 }
@@ -3724,7 +3724,7 @@ ipv6_addr_bind_vrf()
 	# passes when it really should not
 	a=${VRF_IP6}
 	log_start
-	show_hint "Tecnically should fail since address is not on device but kernel allows"
+	show_hint "Technically should fail since address is not on device but kernel allows"
 	run_cmd nettest -6 -s -l ${a} -I ${NSA_DEV} -t1 -b
 	log_test_addr ${a} $? 0 "TCP socket bind to VRF address with device bind"
 

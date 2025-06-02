@@ -3951,7 +3951,7 @@ static void ksz_stop_timer(struct ksz_timer_info *info)
 {
 	if (info->max) {
 		info->max = 0;
-		del_timer_sync(&info->timer);
+		timer_delete_sync(&info->timer);
 	}
 }
 

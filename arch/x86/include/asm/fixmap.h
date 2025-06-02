@@ -31,7 +31,7 @@
 /* fixmap starts downwards from the 507th entry in level2_fixmap_pgt */
 #define FIXMAP_PMD_TOP	507
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/kernel.h>
 #include <asm/apicdef.h>
 #include <asm/page.h>
@@ -196,5 +196,5 @@ void __init *early_memremap_decrypted_wp(resource_size_t phys_addr,
 void __early_set_fixmap(enum fixed_addresses idx,
 			phys_addr_t phys, pgprot_t flags);
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 #endif /* _ASM_X86_FIXMAP_H */

@@ -4,7 +4,6 @@ gpiogpio-hammer
 gpioinclude/
 gpiolsgpio
 kselftest_install/
-tpm2/SpaceTest.log
 
 # Python bytecode and cache
 __pycache__/

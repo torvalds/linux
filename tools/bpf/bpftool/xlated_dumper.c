@@ -199,13 +199,13 @@ static const char *print_imm(void *private_data,
 
 	if (insn->src_reg == BPF_PSEUDO_MAP_FD)
 		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
-			 "map[id:%u]", insn->imm);
+			 "map[id:%d]", insn->imm);
 	else if (insn->src_reg == BPF_PSEUDO_MAP_VALUE)
 		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
-			 "map[id:%u][0]+%u", insn->imm, (insn + 1)->imm);
+			 "map[id:%d][0]+%d", insn->imm, (insn + 1)->imm);
 	else if (insn->src_reg == BPF_PSEUDO_MAP_IDX_VALUE)
 		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
-			 "map[idx:%u]+%u", insn->imm, (insn + 1)->imm);
+			 "map[idx:%d]+%d", insn->imm, (insn + 1)->imm);
 	else if (insn->src_reg == BPF_PSEUDO_FUNC)
 		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
 			 "subprog[%+d]", insn->imm);

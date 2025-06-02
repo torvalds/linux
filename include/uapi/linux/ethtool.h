@@ -2059,6 +2059,24 @@ enum ethtool_link_mode_bit_indices {
 	ETHTOOL_LINK_MODE_10baseT1S_Half_BIT		 = 100,
 	ETHTOOL_LINK_MODE_10baseT1S_P2MP_Half_BIT	 = 101,
 	ETHTOOL_LINK_MODE_10baseT1BRR_Full_BIT		 = 102,
+	ETHTOOL_LINK_MODE_200000baseCR_Full_BIT		 = 103,
+	ETHTOOL_LINK_MODE_200000baseKR_Full_BIT		 = 104,
+	ETHTOOL_LINK_MODE_200000baseDR_Full_BIT		 = 105,
+	ETHTOOL_LINK_MODE_200000baseDR_2_Full_BIT	 = 106,
+	ETHTOOL_LINK_MODE_200000baseSR_Full_BIT		 = 107,
+	ETHTOOL_LINK_MODE_200000baseVR_Full_BIT		 = 108,
+	ETHTOOL_LINK_MODE_400000baseCR2_Full_BIT	 = 109,
+	ETHTOOL_LINK_MODE_400000baseKR2_Full_BIT	 = 110,
+	ETHTOOL_LINK_MODE_400000baseDR2_Full_BIT	 = 111,
+	ETHTOOL_LINK_MODE_400000baseDR2_2_Full_BIT	 = 112,
+	ETHTOOL_LINK_MODE_400000baseSR2_Full_BIT	 = 113,
+	ETHTOOL_LINK_MODE_400000baseVR2_Full_BIT	 = 114,
+	ETHTOOL_LINK_MODE_800000baseCR4_Full_BIT	 = 115,
+	ETHTOOL_LINK_MODE_800000baseKR4_Full_BIT	 = 116,
+	ETHTOOL_LINK_MODE_800000baseDR4_Full_BIT	 = 117,
+	ETHTOOL_LINK_MODE_800000baseDR4_2_Full_BIT	 = 118,
+	ETHTOOL_LINK_MODE_800000baseSR4_Full_BIT	 = 119,
+	ETHTOOL_LINK_MODE_800000baseVR4_Full_BIT	 = 120,
 
 	/* must be last entry */
 	__ETHTOOL_LINK_MODE_MASK_NBITS
@@ -2271,6 +2289,10 @@ static inline int ethtool_validate_duplex(__u8 duplex)
  * be exploited to reduce the RSS queue spread.
  */
 #define	RXH_XFRM_SYM_XOR	(1 << 0)
+/* Similar to SYM_XOR, except that one copy of the XOR'ed fields is replaced by
+ * an OR of the same fields
+ */
+#define	RXH_XFRM_SYM_OR_XOR	(1 << 1)
 #define	RXH_XFRM_NO_CHANGE	0xff
 
 /* L2-L4 network traffic flow types */

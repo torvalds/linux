@@ -13,7 +13,7 @@
 
 / {
 	model = "IEI-Puzzle-M801";
-	compatible = "marvell,armada8040", "marvell,armada-ap806-quad", "marvell,armada-ap806";
+	compatible = "iei,puzzle-m801", "marvell,armada8040", "marvell,armada-ap806-quad", "marvell,armada-ap806";
 
 	aliases {
 		ethernet0 = &cp0_eth0;

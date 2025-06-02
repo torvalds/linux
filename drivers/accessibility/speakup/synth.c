@@ -521,7 +521,7 @@ void synth_release(void)
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	pr_info("releasing synth %s\n", synth->name);
 	synth->alive = 0;
-	del_timer(&thread_timer);
+	timer_delete(&thread_timer);
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	if (synth->attributes.name)
 		sysfs_remove_group(speakup_kobj, &synth->attributes);

@@ -617,7 +617,8 @@ static int rt5677_spi_probe(struct spi_device *spi)
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt5677_spi_acpi_id[] = {
-	{ "RT5677AA", 0 },
+	{ "10EC5677" },
+	{ "RT5677AA" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt5677_spi_acpi_id);

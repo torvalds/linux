@@ -2,62 +2,39 @@
 I/O statistics fields
 =====================
 
-Since 2.4.20 (and some versions before, with patches), and 2.5.45,
-more extensive disk statistics have been introduced to help measure disk
-activity. Tools such as ``sar`` and ``iostat`` typically interpret these and do
-the work for you, but in case you are interested in creating your own
-tools, the fields are explained here.
+The kernel exposes disk statistics via ``/proc/diskstats`` and
+``/sys/block/<device>/stat``. These stats are usually accessed via tools
+such as ``sar`` and ``iostat``.
 
-In 2.4 now, the information is found as additional fields in
-``/proc/partitions``.  In 2.6 and upper, the same information is found in two
-places: one is in the file ``/proc/diskstats``, and the other is within
-the sysfs file system, which must be mounted in order to obtain
-the information. Throughout this document we'll assume that sysfs
-is mounted on ``/sys``, although of course it may be mounted anywhere.
-Both ``/proc/diskstats`` and sysfs use the same source for the information
-and so should not differ.
+Here are examples using a disk with two partitions::
 
-Here are examples of these different formats::
+   /proc/diskstats:
+     259       0 nvme0n1 255999 814 12369153 47919 996852 81 36123024 425995 0 301795 580470 0 0 0 0 60602 106555
+     259       1 nvme0n1p1 492 813 17572 96 848 81 108288 210 0 76 307 0 0 0 0 0 0
+     259       2 nvme0n1p2 255401 1 12343477 47799 996004 0 36014736 425784 0 344336 473584 0 0 0 0 0 0
 
-   2.4:
-      3     0   39082680 hda 446216 784926 9550688 4382310 424847 312726 5922052 19310380 0 3376340 23705160
-      3     1    9221278 hda1 35486 0 35496 38030 0 0 0 0 0 38030 38030
+   /sys/block/nvme0n1/stat:
+     255999 814 12369153 47919 996858 81 36123056 426009 0 301809 580491 0 0 0 0 60605 106562
 
-   2.6+ sysfs:
-      446216 784926 9550688 4382310 424847 312726 5922052 19310380 0 3376340 23705160
-      35486    38030    38030    38030
+   /sys/block/nvme0n1/nvme0n1p1/stat:
+     492 813 17572 96 848 81 108288 210 0 76 307 0 0 0 0 0 0
 
-   2.6+ diskstats:
-      3    0   hda 446216 784926 9550688 4382310 424847 312726 5922052 19310380 0 3376340 23705160
-      3    1   hda1 35486 38030 38030 38030
+Both files contain the same 17 statistics. ``/sys/block/<device>/stat``
+contains the fields for ``<device>``. In ``/proc/diskstats`` the fields
+are prefixed with the major and minor device numbers and the device
+name. In the example above, the first stat value for ``nvme0n1`` is
+255999 in both files.
 
-   4.18+ diskstats:
-      3    0   hda 446216 784926 9550688 4382310 424847 312726 5922052 19310380 0 3376340 23705160 0 0 0 0
+The sysfs ``stat`` file is efficient for monitoring a small, known set
+of disks. If you're tracking a large number of devices,
+``/proc/diskstats`` is often the better choice since it avoids the
+overhead of opening and closing multiple files for each snapshot.
 
-On 2.4 you might execute ``grep 'hda ' /proc/partitions``. On 2.6+, you have
-a choice of ``cat /sys/block/hda/stat`` or ``grep 'hda ' /proc/diskstats``.
-
-The advantage of one over the other is that the sysfs choice works well
-if you are watching a known, small set of disks.  ``/proc/diskstats`` may
-be a better choice if you are watching a large number of disks because
-you'll avoid the overhead of 50, 100, or 500 or more opens/closes with
-each snapshot of your disk statistics.
-
-In 2.4, the statistics fields are those after the device name. In
-the above example, the first field of statistics would be 446216.
-By contrast, in 2.6+ if you look at ``/sys/block/hda/stat``, you'll
-find just the 15 fields, beginning with 446216.  If you look at
-``/proc/diskstats``, the 15 fields will be preceded by the major and
-minor device numbers, and device name.  Each of these formats provides
-15 fields of statistics, each meaning exactly the same things.
-All fields except field 9 are cumulative since boot.  Field 9 should
-go to zero as I/Os complete; all others only increase (unless they
-overflow and wrap). Wrapping might eventually occur on a very busy
-or long-lived system; so applications should be prepared to deal with
-it. Regarding wrapping, the types of the fields are either unsigned
-int (32 bit) or unsigned long (32-bit or 64-bit, depending on your
-machine) as noted per-field below. Unless your observations are very
-spread in time, these fields should not wrap twice before you notice it.
+All fields are cumulative, monotonic counters, except for field 9, which
+resets to zero as I/Os complete. The remaining fields reset at boot, on
+device reattachment or reinitialization, or when the underlying counter
+overflows. Applications reading these counters should detect and handle
+resets when comparing stat snapshots.
 
 Each set of stats only applies to the indicated device; if you want
 system-wide stats you'll have to find all the devices and sum them all up.

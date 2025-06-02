@@ -46,8 +46,6 @@
 
 #include "dmub/inc/dmub_cmd.h"
 
-#include "spl/dc_spl_types.h"
-
 struct abm_save_restore;
 
 /* forward declaration */
@@ -55,9 +53,15 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.316"
+#define DC_VER "3.2.325"
 
+/**
+ * MAX_SURFACES - representative of the upper bound of surfaces that can be piped to a single CRTC
+ */
 #define MAX_SURFACES 4
+/**
+ * MAX_PLANES - representative of the upper bound of planes that are supported by the HW
+ */
 #define MAX_PLANES 6
 #define MAX_STREAMS 6
 #define MIN_VIEWPORT_SIZE 12
@@ -473,6 +477,7 @@ struct dc_config {
 	bool consolidated_dpia_dp_lt;
 	bool set_pipe_unlock_order;
 	bool enable_dpia_pre_training;
+	bool unify_link_enc_assignment;
 };
 
 enum visual_confirm {
@@ -490,6 +495,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_FAMS2 = 19,
 	VISUAL_CONFIRM_HW_CURSOR = 20,
 	VISUAL_CONFIRM_VABC = 21,
+	VISUAL_CONFIRM_DCC = 22,
 };
 
 enum dc_psr_power_opts {
@@ -778,6 +784,7 @@ union dpia_debug_options {
 		uint32_t disable_usb4_pm_support:1; /* bit 5 */
 		uint32_t enable_consolidated_dpia_dp_lt:1; /* bit 6 */
 		uint32_t enable_dpia_pre_training:1; /* bit 7 */
+		uint32_t unify_link_enc_assignment:1; /* bit 8 */
 		uint32_t reserved:24;
 	} bits;
 	uint32_t raw;
@@ -1077,6 +1084,7 @@ struct dc_debug_options {
 	unsigned int enable_oled_edp_power_up_opt;
 	bool enable_hblank_borrow;
 	bool force_subvp_df_throttle;
+	uint32_t acpi_transition_bitmasks[MAX_PIPES];
 };
 
 
@@ -1582,8 +1590,6 @@ bool dc_validate_boot_timing(const struct dc *dc,
 
 enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
 
-void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info);
-
 enum dc_status dc_validate_with_context(struct dc *dc,
 					const struct dc_validation_set set[],
 					int set_count,
@@ -1788,7 +1794,9 @@ struct dc_link {
 		bool dongle_mode_timing_override;
 		bool blank_stream_on_ocs_change;
 		bool read_dpcd204h_on_irq_hpd;
+		bool force_dp_ffe_preset;
 	} wa_flags;
+	union dc_dp_ffe_preset forced_dp_ffe_preset;
 	struct link_mst_stream_allocation_table mst_stream_alloc_table;
 
 	struct dc_link_status link_status;
@@ -1800,6 +1808,7 @@ struct dc_link {
 
 	struct dc_panel_config panel_config;
 	struct phy_state phy_state;
+	uint32_t phy_transition_bitmask;
 	// BW ALLOCATON USB4 ONLY
 	struct dc_dpia_bw_alloc dpia_bw_alloc_config;
 	bool skip_implict_edp_power_control;
@@ -1946,6 +1955,9 @@ enum aux_return_code_type;
 int dc_link_aux_transfer_raw(struct ddc_service *ddc,
 		struct aux_payload *payload,
 		enum aux_return_code_type *operation_result);
+
+struct ddc_service *
+dc_get_oem_i2c_device(struct dc *dc);
 
 bool dc_is_oem_i2c_device_present(
 	struct dc *dc,
@@ -2342,19 +2354,6 @@ unsigned int dc_dp_trace_get_link_loss_count(struct dc_link *link);
 void dc_link_set_usb4_req_bw_req(struct dc_link *link, int req_bw);
 
 /*
- * Handle function for when the status of the Request above is complete.
- * We will find out the result of allocating on CM and update structs.
- *
- * @link: pointer to the dc_link struct instance
- * @bw: Allocated or Estimated BW depending on the result
- * @result: Response type
- *
- * return: none
- */
-void dc_link_handle_usb4_bw_alloc_response(struct dc_link *link,
-		uint8_t bw, uint8_t result);
-
-/*
  * Handle the USB4 BW Allocation related functionality here:
  * Plug => Try to allocate max bw from timing parameters supported by the sink
  * Unplug => de-allocate bw
@@ -2362,9 +2361,8 @@ void dc_link_handle_usb4_bw_alloc_response(struct dc_link *link,
  * @link: pointer to the dc_link struct instance
  * @peak_bw: Peak bw used by the link/sink
  *
- * return: allocated bw else return 0
  */
-int dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(
+void dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(
 		struct dc_link *link, int peak_bw);
 
 /*

@@ -95,9 +95,23 @@ static inline void set_fc(unsigned long val)
 			      "movec %0,%/dfc\n\t"
 			      : /* no outputs */ : "r" (val) : "memory");
 }
+
+static inline unsigned long get_fc(void)
+{
+	unsigned long val;
+
+	__asm__ ("movec %/dfc,%0" : "=r" (val) : );
+
+	return val;
+}
 #else
 static inline void set_fc(unsigned long val)
 {
+}
+
+static inline unsigned long get_fc(void)
+{
+	return USER_DATA;
 }
 #endif /* CONFIG_CPU_HAS_ADDRESS_SPACES */
 

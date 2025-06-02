@@ -1494,7 +1494,10 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 		case BTF_KIND_TYPE_TAG:
 			btf_dump_emit_mods(d, decls);
 			name = btf_name_of(d, t->name_off);
-			btf_dump_printf(d, " __attribute__((btf_type_tag(\"%s\")))", name);
+			if (btf_kflag(t))
+				btf_dump_printf(d, " __attribute__((%s))", name);
+			else
+				btf_dump_printf(d, " __attribute__((btf_type_tag(\"%s\")))", name);
 			break;
 		case BTF_KIND_ARRAY: {
 			const struct btf_array *a = btf_array(t);

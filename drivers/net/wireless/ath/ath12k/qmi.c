@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/elf.h>
@@ -2056,8 +2056,7 @@ static int ath12k_host_cap_parse_mlo(struct ath12k_base *ab,
 	}
 
 	if (!ab->qmi.num_radios || ab->qmi.num_radios == U8_MAX) {
-		ab->single_chip_mlo_supp = false;
-
+		ag->mlo_capable = false;
 		ath12k_dbg(ab, ATH12K_DBG_QMI,
 			   "skip QMI MLO cap due to invalid num_radio %d\n",
 			   ab->qmi.num_radios);
@@ -2265,10 +2264,6 @@ static void ath12k_qmi_phy_cap_send(struct ath12k_base *ab)
 		goto out;
 	}
 
-	if (resp.single_chip_mlo_support_valid &&
-	    resp.single_chip_mlo_support)
-		ab->single_chip_mlo_supp = true;
-
 	if (!resp.num_phy_valid) {
 		ret = -ENODATA;
 		goto out;
@@ -2277,10 +2272,9 @@ static void ath12k_qmi_phy_cap_send(struct ath12k_base *ab)
 	ab->qmi.num_radios = resp.num_phy;
 
 	ath12k_dbg(ab, ATH12K_DBG_QMI,
-		   "phy capability resp valid %d num_phy %d valid %d board_id %d valid %d single_chip_mlo_support %d\n",
+		   "phy capability resp valid %d num_phy %d valid %d board_id %d\n",
 		   resp.num_phy_valid, resp.num_phy,
-		   resp.board_id_valid, resp.board_id,
-		   resp.single_chip_mlo_support_valid, resp.single_chip_mlo_support);
+		   resp.board_id_valid, resp.board_id);
 
 	return;
 
@@ -2739,6 +2733,15 @@ int ath12k_qmi_request_target_cap(struct ath12k_base *ab)
 	r = ath12k_core_check_smbios(ab);
 	if (r)
 		ath12k_dbg(ab, ATH12K_DBG_QMI, "SMBIOS bdf variant name not set.\n");
+
+	r = ath12k_acpi_start(ab);
+	if (r)
+		/* ACPI is optional so continue in case of an error */
+		ath12k_dbg(ab, ATH12K_DBG_BOOT, "acpi failed: %d\n", r);
+
+	r = ath12k_acpi_check_bdf_variant_name(ab);
+	if (r)
+		ath12k_dbg(ab, ATH12K_DBG_BOOT, "ACPI bdf variant name not set.\n");
 
 out:
 	return ret;

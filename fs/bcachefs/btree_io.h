@@ -52,6 +52,7 @@ struct btree_write_bio {
 	void			*data;
 	unsigned		data_bytes;
 	unsigned		sector_offset;
+	u64			start_time;
 	struct bch_write_bio	wbio;
 };
 
@@ -131,6 +132,9 @@ int bch2_btree_node_read_done(struct bch_fs *, struct bch_dev *,
 void bch2_btree_node_read(struct btree_trans *, struct btree *, bool);
 int bch2_btree_root_read(struct bch_fs *, enum btree_id,
 			 const struct bkey_i *, unsigned);
+
+int bch2_btree_node_scrub(struct btree_trans *, enum btree_id, unsigned,
+			  struct bkey_s_c, unsigned);
 
 bool bch2_btree_post_write_cleanup(struct bch_fs *, struct btree *);
 

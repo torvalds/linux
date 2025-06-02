@@ -139,9 +139,9 @@ static void dccp_write_timer(struct timer_list *t)
 	if (sk->sk_state == DCCP_CLOSED || !icsk->icsk_pending)
 		goto out;
 
-	if (time_after(icsk->icsk_timeout, jiffies)) {
+	if (time_after(icsk_timeout(icsk), jiffies)) {
 		sk_reset_timer(sk, &icsk->icsk_retransmit_timer,
-			       icsk->icsk_timeout);
+			       icsk_timeout(icsk));
 		goto out;
 	}
 
@@ -185,9 +185,9 @@ static void dccp_delack_timer(struct timer_list *t)
 	if (sk->sk_state == DCCP_CLOSED ||
 	    !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
 		goto out;
-	if (time_after(icsk->icsk_ack.timeout, jiffies)) {
+	if (time_after(icsk_delack_timeout(icsk), jiffies)) {
 		sk_reset_timer(sk, &icsk->icsk_delack_timer,
-			       icsk->icsk_ack.timeout);
+			       icsk_delack_timeout(icsk));
 		goto out;
 	}
 

@@ -530,9 +530,6 @@ struct ATTRIB *ni_find_attr(struct ntfs_inode *ni, struct ATTRIB *attr,
 struct ATTRIB *ni_enum_attr_ex(struct ntfs_inode *ni, struct ATTRIB *attr,
 			       struct ATTR_LIST_ENTRY **le,
 			       struct mft_inode **mi);
-struct ATTRIB *ni_load_attr(struct ntfs_inode *ni, enum ATTR_TYPE type,
-			    const __le16 *name, u8 name_len, CLST vcn,
-			    struct mft_inode **pmi);
 int ni_load_all_mi(struct ntfs_inode *ni);
 bool ni_add_subrecord(struct ntfs_inode *ni, CLST rno, struct mft_inode **mi);
 int ni_remove_attr(struct ntfs_inode *ni, enum ATTR_TYPE type,
@@ -619,7 +616,6 @@ enum NTFS_DIRTY_FLAGS {
 	NTFS_DIRTY_ERROR = 2,
 };
 int ntfs_set_state(struct ntfs_sb_info *sbi, enum NTFS_DIRTY_FLAGS dirty);
-int ntfs_sb_read(struct super_block *sb, u64 lbo, size_t bytes, void *buffer);
 int ntfs_sb_write(struct super_block *sb, u64 lbo, size_t bytes,
 		  const void *buffer, int wait);
 int ntfs_sb_write_run(struct ntfs_sb_info *sbi, const struct runs_tree *run,
@@ -717,8 +713,6 @@ int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
 		   u32 len, u32 copied, struct folio *folio, void *fsdata);
 int ntfs3_write_inode(struct inode *inode, struct writeback_control *wbc);
 int ntfs_sync_inode(struct inode *inode);
-int ntfs_flush_inodes(struct super_block *sb, struct inode *i1,
-		      struct inode *i2);
 int inode_read_data(struct inode *inode, void *data, size_t bytes);
 int ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, const struct cpu_str *uni,

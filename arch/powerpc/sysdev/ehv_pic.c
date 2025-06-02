@@ -291,5 +291,5 @@ void __init ehv_pic_init(void)
 	ehv_pic->coreint_flag = of_property_read_bool(np, "has-external-proxy");
 
 	global_ehv_pic = ehv_pic;
-	irq_set_default_host(global_ehv_pic->irqhost);
+	irq_set_default_domain(global_ehv_pic->irqhost);
 }

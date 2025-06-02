@@ -24,9 +24,13 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - everest,es8328
-      - everest,es8388
+    oneOf:
+      - enum:
+          - everest,es8328
+      - items:
+          - enum:
+              - everest,es8388
+          - const: everest,es8328
 
   reg:
     maxItems: 1
@@ -56,6 +60,7 @@ properties:
 
 required:
   - compatible
+  - reg
   - clocks
   - DVDD-supply
   - AVDD-supply

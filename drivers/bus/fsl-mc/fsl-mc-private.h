@@ -66,10 +66,6 @@ int dpmcp_close(struct fsl_mc_io *mc_io,
 		u32 cmd_flags,
 		u16 token);
 
-int dpmcp_reset(struct fsl_mc_io *mc_io,
-		u32 cmd_flags,
-		u16 token);
-
 /*
  * Data Path Resource Container (DPRC) API
  */
@@ -630,8 +626,6 @@ int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
 		      bool alloc_interrupts);
 
 int __init fsl_mc_allocator_driver_init(void);
-
-void fsl_mc_allocator_driver_exit(void);
 
 void fsl_mc_init_all_resource_pools(struct fsl_mc_device *mc_bus_dev);
 

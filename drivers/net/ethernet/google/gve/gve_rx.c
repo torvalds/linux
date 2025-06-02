@@ -141,12 +141,15 @@ void gve_rx_free_ring_gqi(struct gve_priv *priv, struct gve_rx_ring *rx,
 	netif_dbg(priv, drv, priv->dev, "freed rx ring %d\n", idx);
 }
 
-static void gve_setup_rx_buffer(struct gve_rx_slot_page_info *page_info,
-			     dma_addr_t addr, struct page *page, __be64 *slot_addr)
+static void gve_setup_rx_buffer(struct gve_rx_ring *rx,
+				struct gve_rx_slot_page_info *page_info,
+				dma_addr_t addr, struct page *page,
+				__be64 *slot_addr)
 {
 	page_info->page = page;
 	page_info->page_offset = 0;
 	page_info->page_address = page_address(page);
+	page_info->buf_size = rx->packet_buffer_size;
 	*slot_addr = cpu_to_be64(addr);
 	/* The page already has 1 ref */
 	page_ref_add(page, INT_MAX - 1);
@@ -171,7 +174,7 @@ static int gve_rx_alloc_buffer(struct gve_priv *priv, struct device *dev,
 		return err;
 	}
 
-	gve_setup_rx_buffer(page_info, dma, page, &data_slot->addr);
+	gve_setup_rx_buffer(rx, page_info, dma, page, &data_slot->addr);
 	return 0;
 }
 
@@ -199,7 +202,8 @@ static int gve_rx_prefill_pages(struct gve_rx_ring *rx,
 			struct page *page = rx->data.qpl->pages[i];
 			dma_addr_t addr = i * PAGE_SIZE;
 
-			gve_setup_rx_buffer(&rx->data.page_info[i], addr, page,
+			gve_setup_rx_buffer(rx, &rx->data.page_info[i], addr,
+					    page,
 					    &rx->data.data_ring[i].qpl_offset);
 			continue;
 		}
@@ -222,6 +226,7 @@ static int gve_rx_prefill_pages(struct gve_rx_ring *rx,
 			rx->qpl_copy_pool[j].page = page;
 			rx->qpl_copy_pool[j].page_offset = 0;
 			rx->qpl_copy_pool[j].page_address = page_address(page);
+			rx->qpl_copy_pool[j].buf_size = rx->packet_buffer_size;
 
 			/* The page already has 1 ref. */
 			page_ref_add(page, INT_MAX - 1);
@@ -283,6 +288,7 @@ int gve_rx_alloc_ring_gqi(struct gve_priv *priv,
 
 	rx->gve = priv;
 	rx->q_num = idx;
+	rx->packet_buffer_size = cfg->packet_buffer_size;
 
 	rx->mask = slots - 1;
 	rx->data.raw_addressing = cfg->raw_addressing;
@@ -351,7 +357,6 @@ int gve_rx_alloc_ring_gqi(struct gve_priv *priv,
 	rx->db_threshold = slots / 2;
 	gve_rx_init_ring_state_gqi(rx);
 
-	rx->packet_buffer_size = GVE_DEFAULT_RX_BUFFER_SIZE;
 	gve_rx_ctx_clear(&rx->ctx);
 
 	return 0;
@@ -385,12 +390,12 @@ int gve_rx_alloc_rings_gqi(struct gve_priv *priv,
 	int err = 0;
 	int i, j;
 
-	rx = kvcalloc(cfg->qcfg->max_queues, sizeof(struct gve_rx_ring),
+	rx = kvcalloc(cfg->qcfg_rx->max_queues, sizeof(struct gve_rx_ring),
 		      GFP_KERNEL);
 	if (!rx)
 		return -ENOMEM;
 
-	for (i = 0; i < cfg->qcfg->num_queues; i++) {
+	for (i = 0; i < cfg->qcfg_rx->num_queues; i++) {
 		err = gve_rx_alloc_ring_gqi(priv, cfg, &rx[i], i);
 		if (err) {
 			netif_err(priv, drv, priv->dev,
@@ -419,7 +424,7 @@ void gve_rx_free_rings_gqi(struct gve_priv *priv,
 	if (!rx)
 		return;
 
-	for (i = 0; i < cfg->qcfg->num_queues;  i++)
+	for (i = 0; i < cfg->qcfg_rx->num_queues;  i++)
 		gve_rx_free_ring_gqi(priv, &rx[i], cfg);
 
 	kvfree(rx);
@@ -590,7 +595,7 @@ static struct sk_buff *gve_rx_copy_to_pool(struct gve_rx_ring *rx,
 	copy_page_info->pad = page_info->pad;
 
 	skb = gve_rx_add_frags(napi, copy_page_info,
-			       rx->packet_buffer_size, len, ctx);
+			       copy_page_info->buf_size, len, ctx);
 	if (unlikely(!skb))
 		return NULL;
 
@@ -630,7 +635,8 @@ gve_rx_qpl(struct device *dev, struct net_device *netdev,
 	 * device.
 	 */
 	if (page_info->can_flip) {
-		skb = gve_rx_add_frags(napi, page_info, rx->packet_buffer_size, len, ctx);
+		skb = gve_rx_add_frags(napi, page_info, page_info->buf_size,
+				       len, ctx);
 		/* No point in recycling if we didn't get the skb */
 		if (skb) {
 			/* Make sure that the page isn't freed. */
@@ -680,7 +686,7 @@ static struct sk_buff *gve_rx_skb(struct gve_priv *priv, struct gve_rx_ring *rx,
 			skb = gve_rx_raw_addressing(&priv->pdev->dev, netdev,
 						    page_info, len, napi,
 						    data_slot,
-						    rx->packet_buffer_size, ctx);
+						    page_info->buf_size, ctx);
 		} else {
 			skb = gve_rx_qpl(&priv->pdev->dev, netdev, rx,
 					 page_info, len, napi, data_slot);
@@ -855,7 +861,7 @@ static void gve_rx(struct gve_rx_ring *rx, netdev_features_t feat,
 		void *old_data;
 		int xdp_act;
 
-		xdp_init_buff(&xdp, rx->packet_buffer_size, &rx->xdp_rxq);
+		xdp_init_buff(&xdp, page_info->buf_size, &rx->xdp_rxq);
 		xdp_prepare_buff(&xdp, page_info->page_address +
 				 page_info->page_offset, GVE_RX_PAD,
 				 len, false);

@@ -825,8 +825,14 @@ static void sof_ipc4_exit(struct snd_sof_dev *sdev)
 
 static int sof_ipc4_post_boot(struct snd_sof_dev *sdev)
 {
-	if (sdev->first_boot)
+	if (sdev->first_boot) {
+		int  ret = sof_ipc4_complete_split_release(sdev);
+
+		if (ret)
+			return ret;
+
 		return sof_ipc4_query_fw_configuration(sdev);
+	}
 
 	return sof_ipc4_reload_fw_libraries(sdev);
 }
@@ -845,3 +851,21 @@ const struct sof_ipc_ops ipc4_ops = {
 	.pcm = &ipc4_pcm_ops,
 	.fw_tracing = &ipc4_mtrace_ops,
 };
+
+void sof_ipc4_mic_privacy_state_change(struct snd_sof_dev *sdev, bool state)
+{
+	struct sof_ipc4_msg msg;
+	u32 data = state;
+
+	msg.primary = SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
+	msg.primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
+	msg.primary |= SOF_IPC4_MOD_ID(SOF_IPC4_MOD_INIT_BASEFW_MOD_ID);
+	msg.primary |= SOF_IPC4_MOD_INSTANCE(SOF_IPC4_MOD_INIT_BASEFW_INSTANCE_ID);
+	msg.extension = SOF_IPC4_MOD_EXT_MSG_PARAM_ID(SOF_IPC4_FW_PARAM_MIC_PRIVACY_STATE_CHANGE);
+
+	msg.data_size = sizeof(data);
+	msg.data_ptr = &data;
+
+	sof_ipc4_set_get_data(sdev, &msg, msg.data_size, true);
+}
+EXPORT_SYMBOL(sof_ipc4_mic_privacy_state_change);

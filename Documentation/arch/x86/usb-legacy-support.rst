@@ -20,11 +20,7 @@ It has several drawbacks, though:
    features (wheel, extra buttons, touchpad mode) of the real PS/2 mouse may
    not be available.
 
-2) If CONFIG_HIGHMEM64G is enabled, the PS/2 mouse emulation can cause
-   system crashes, because the SMM BIOS is not expecting to be in PAE mode.
-   The Intel E7505 is a typical machine where this happens.
-
-3) If AMD64 64-bit mode is enabled, again system crashes often happen,
+2) If AMD64 64-bit mode is enabled, again system crashes often happen,
    because the SMM BIOS isn't expecting the CPU to be in 64-bit mode.  The
    BIOS manufacturers only test with Windows, and Windows doesn't do 64-bit
    yet.
@@ -38,11 +34,6 @@ Problem 1)
   compiled-in, too.
 
 Problem 2)
-  can currently only be solved by either disabling HIGHMEM64G
-  in the kernel config or USB Legacy support in the BIOS. A BIOS update
-  could help, but so far no such update exists.
-
-Problem 3)
   is usually fixed by a BIOS update. Check the board
   manufacturers web site. If an update is not available, disable USB
   Legacy support in the BIOS. If this alone doesn't help, try also adding

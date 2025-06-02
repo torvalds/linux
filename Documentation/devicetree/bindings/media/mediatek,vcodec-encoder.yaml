@@ -41,10 +41,6 @@ properties:
     minItems: 1
     maxItems: 5
 
-  assigned-clocks: true
-
-  assigned-clock-parents: true
-
   iommus:
     minItems: 1
     maxItems: 32
@@ -78,8 +74,6 @@ required:
   - clocks
   - clock-names
   - iommus
-  - assigned-clocks
-  - assigned-clock-parents
 
 allOf:
   - if:

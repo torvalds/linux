@@ -1414,7 +1414,7 @@
 			uart3: serial@0 {
 				compatible = "ti,omap4-uart";
 				reg = <0x0 0x100>;
-				interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts-extended = <&wakeupgen GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
 			};
 		};
@@ -1765,7 +1765,7 @@
 			uart1: serial@0 {
 				compatible = "ti,omap4-uart";
 				reg = <0x0 0x100>;
-				interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts-extended = <&wakeupgen GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
 			};
 		};
@@ -1794,7 +1794,7 @@
 			uart2: serial@0 {
 				compatible = "ti,omap4-uart";
 				reg = <0x0 0x100>;
-				interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts-extended = <&wakeupgen GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
 			};
 		};
@@ -1823,7 +1823,7 @@
 			uart4: serial@0 {
 				compatible = "ti,omap4-uart";
 				reg = <0x0 0x100>;
-				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts-extended = <&wakeupgen GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
 			};
 		};

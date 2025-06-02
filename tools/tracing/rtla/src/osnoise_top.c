@@ -11,43 +11,8 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <time.h>
-#include <sched.h>
 
 #include "osnoise.h"
-#include "utils.h"
-
-enum osnoise_mode {
-	MODE_OSNOISE = 0,
-	MODE_HWNOISE
-};
-
-/*
- * osnoise top parameters
- */
-struct osnoise_top_params {
-	char			*cpus;
-	cpu_set_t		monitored_cpus;
-	char			*trace_output;
-	char			*cgroup_name;
-	unsigned long long	runtime;
-	unsigned long long	period;
-	long long		threshold;
-	long long		stop_us;
-	long long		stop_total_us;
-	int			sleep_time;
-	int			duration;
-	int			quiet;
-	int			set_sched;
-	int			cgroup;
-	int			hk_cpus;
-	int			warmup;
-	int			buffer_size;
-	int			pretty_output;
-	cpu_set_t		hk_cpu_set;
-	struct sched_attr	sched_param;
-	struct trace_events	*events;
-	enum osnoise_mode	mode;
-};
 
 struct osnoise_top_cpu {
 	unsigned long long	sum_runtime;
@@ -158,7 +123,7 @@ osnoise_top_handler(struct trace_seq *s, struct tep_record *record,
  */
 static void osnoise_top_header(struct osnoise_tool *top)
 {
-	struct osnoise_top_params *params = top->params;
+	struct osnoise_params *params = top->params;
 	struct trace_seq *s = top->trace.seq;
 	char duration[26];
 
@@ -218,7 +183,7 @@ static void clear_terminal(struct trace_seq *seq)
  */
 static void osnoise_top_print(struct osnoise_tool *tool, int cpu)
 {
-	struct osnoise_top_params *params = tool->params;
+	struct osnoise_params *params = tool->params;
 	struct trace_seq *s = tool->trace.seq;
 	struct osnoise_top_cpu *cpu_data;
 	struct osnoise_top_data *data;
@@ -258,7 +223,7 @@ static void osnoise_top_print(struct osnoise_tool *tool, int cpu)
  * osnoise_print_stats - print data for all cpus
  */
 static void
-osnoise_print_stats(struct osnoise_top_params *params, struct osnoise_tool *top)
+osnoise_print_stats(struct osnoise_params *params, struct osnoise_tool *top)
 {
 	struct trace_instance *trace = &top->trace;
 	static int nr_cpus = -1;
@@ -286,7 +251,7 @@ osnoise_print_stats(struct osnoise_top_params *params, struct osnoise_tool *top)
 /*
  * osnoise_top_usage - prints osnoise top usage message
  */
-static void osnoise_top_usage(struct osnoise_top_params *params, char *usage)
+static void osnoise_top_usage(struct osnoise_params *params, char *usage)
 {
 	int i;
 
@@ -354,9 +319,9 @@ static void osnoise_top_usage(struct osnoise_top_params *params, char *usage)
 /*
  * osnoise_top_parse_args - allocs, parse and fill the cmd line parameters
  */
-struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
+struct osnoise_params *osnoise_top_parse_args(int argc, char **argv)
 {
-	struct osnoise_top_params *params;
+	struct osnoise_params *params;
 	struct trace_events *tevent;
 	int retval;
 	int c;
@@ -553,54 +518,13 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
  * osnoise_top_apply_config - apply the top configs to the initialized tool
  */
 static int
-osnoise_top_apply_config(struct osnoise_tool *tool, struct osnoise_top_params *params)
+osnoise_top_apply_config(struct osnoise_tool *tool, struct osnoise_params *params)
 {
 	int retval;
 
-	if (!params->sleep_time)
-		params->sleep_time = 1;
-
-	if (params->cpus) {
-		retval = osnoise_set_cpus(tool->context, params->cpus);
-		if (retval) {
-			err_msg("Failed to apply CPUs config\n");
-			goto out_err;
-		}
-	}
-
-	if (params->runtime || params->period) {
-		retval = osnoise_set_runtime_period(tool->context,
-						    params->runtime,
-						    params->period);
-		if (retval) {
-			err_msg("Failed to set runtime and/or period\n");
-			goto out_err;
-		}
-	}
-
-	if (params->stop_us) {
-		retval = osnoise_set_stop_us(tool->context, params->stop_us);
-		if (retval) {
-			err_msg("Failed to set stop us\n");
-			goto out_err;
-		}
-	}
-
-	if (params->stop_total_us) {
-		retval = osnoise_set_stop_total_us(tool->context, params->stop_total_us);
-		if (retval) {
-			err_msg("Failed to set stop total us\n");
-			goto out_err;
-		}
-	}
-
-	if (params->threshold) {
-		retval = osnoise_set_tracing_thresh(tool->context, params->threshold);
-		if (retval) {
-			err_msg("Failed to set tracing_thresh\n");
-			goto out_err;
-		}
-	}
+	retval = osnoise_apply_config(tool, params);
+	if (retval)
+		goto out_err;
 
 	if (params->mode == MODE_HWNOISE) {
 		retval = osnoise_set_irq_disable(tool->context, 1);
@@ -608,24 +532,6 @@ osnoise_top_apply_config(struct osnoise_tool *tool, struct osnoise_top_params *p
 			err_msg("Failed to set OSNOISE_IRQ_DISABLE option\n");
 			goto out_err;
 		}
-	}
-
-	if (params->hk_cpus) {
-		retval = sched_setaffinity(getpid(), sizeof(params->hk_cpu_set),
-					   &params->hk_cpu_set);
-		if (retval == -1) {
-			err_msg("Failed to set rtla to the house keeping CPUs\n");
-			goto out_err;
-		}
-	} else if (params->cpus) {
-		/*
-		 * Even if the user do not set a house-keeping CPU, try to
-		 * move rtla to a CPU set different to the one where the user
-		 * set the workload to run.
-		 *
-		 * No need to check results as this is an automatic attempt.
-		 */
-		auto_house_keeping(&params->monitored_cpus);
 	}
 
 	if (isatty(STDOUT_FILENO) && !params->quiet)
@@ -640,7 +546,7 @@ out_err:
 /*
  * osnoise_init_top - initialize a osnoise top tool with parameters
  */
-struct osnoise_tool *osnoise_init_top(struct osnoise_top_params *params)
+struct osnoise_tool *osnoise_init_top(struct osnoise_params *params)
 {
 	struct osnoise_tool *tool;
 	int nr_cpus;
@@ -674,7 +580,7 @@ static void stop_top(int sig)
 /*
  * osnoise_top_set_signals - handles the signal to stop the tool
  */
-static void osnoise_top_set_signals(struct osnoise_top_params *params)
+static void osnoise_top_set_signals(struct osnoise_params *params)
 {
 	signal(SIGINT, stop_top);
 	if (params->duration) {
@@ -685,7 +591,7 @@ static void osnoise_top_set_signals(struct osnoise_top_params *params)
 
 int osnoise_top_main(int argc, char **argv)
 {
-	struct osnoise_top_params *params;
+	struct osnoise_params *params;
 	struct osnoise_tool *record = NULL;
 	struct osnoise_tool *tool = NULL;
 	struct trace_instance *trace;
@@ -813,10 +719,8 @@ int osnoise_top_main(int argc, char **argv)
 
 	if (osnoise_trace_is_off(tool, record)) {
 		printf("osnoise hit stop tracing\n");
-		if (params->trace_output) {
-			printf("  Saving trace to %s\n", params->trace_output);
-			save_trace_to_file(record->trace.inst, params->trace_output);
-		}
+		save_trace_to_file(record ? record->trace.inst : NULL,
+				   params->trace_output);
 	}
 
 out_top:

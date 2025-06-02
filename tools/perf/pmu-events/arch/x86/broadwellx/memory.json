@@ -68,7 +68,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xc8",
         "EventName": "HLE_RETIRED.START",
-        "PublicDescription": "Number of times we entered an HLE region\n does not count nested transactions.",
+        "PublicDescription": "Number of times we entered an HLE region  does not count nested transactions.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -77,7 +77,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xC3",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
-        "PublicDescription": "This event counts the number of memory ordering Machine Clears detected. Memory Ordering Machine Clears can result from one of the following:\n1. memory disambiguation,\n2. external snoop, or\n3. cross SMT-HW-thread snoop (stores) hitting load buffer.",
+        "PublicDescription": "This event counts the number of memory ordering Machine Clears detected. Memory Ordering Machine Clears can result from one of the following: 1. memory disambiguation, 2. external snoop, or 3. cross SMT-HW-thread snoop (stores) hitting load buffer.",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -470,7 +470,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.START",
-        "PublicDescription": "Number of times we entered an RTM region\n does not count nested transactions.",
+        "PublicDescription": "Number of times we entered an RTM region  does not count nested transactions.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },

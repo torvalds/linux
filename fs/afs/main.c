@@ -76,25 +76,17 @@ static int __net_init afs_net_init(struct net *net_ns)
 	mutex_init(&net->socket_mutex);
 
 	net->cells = RB_ROOT;
+	idr_init(&net->cells_dyn_ino);
 	init_rwsem(&net->cells_lock);
-	INIT_WORK(&net->cells_manager, afs_manage_cells);
-	timer_setup(&net->cells_timer, afs_cells_timer, 0);
-
 	mutex_init(&net->cells_alias_lock);
 	mutex_init(&net->proc_cells_lock);
 	INIT_HLIST_HEAD(&net->proc_cells);
 
 	seqlock_init(&net->fs_lock);
-	net->fs_servers = RB_ROOT;
 	INIT_LIST_HEAD(&net->fs_probe_fast);
 	INIT_LIST_HEAD(&net->fs_probe_slow);
 	INIT_HLIST_HEAD(&net->fs_proc);
 
-	INIT_HLIST_HEAD(&net->fs_addresses);
-	seqlock_init(&net->fs_addr_lock);
-
-	INIT_WORK(&net->fs_manager, afs_manage_servers);
-	timer_setup(&net->fs_timer, afs_servers_timer, 0);
 	INIT_WORK(&net->fs_prober, afs_fs_probe_dispatcher);
 	timer_setup(&net->fs_probe_timer, afs_fs_probe_timer, 0);
 	atomic_set(&net->servers_outstanding, 1);
@@ -130,13 +122,14 @@ error_open_socket:
 	net->live = false;
 	afs_fs_probe_cleanup(net);
 	afs_cell_purge(net);
-	afs_purge_servers(net);
+	afs_wait_for_servers(net);
 error_cell_init:
 	net->live = false;
 	afs_proc_cleanup(net);
 error_proc:
 	afs_put_sysnames(net->sysnames);
 error_sysnames:
+	idr_destroy(&net->cells_dyn_ino);
 	net->live = false;
 	return ret;
 }
@@ -151,10 +144,11 @@ static void __net_exit afs_net_exit(struct net *net_ns)
 	net->live = false;
 	afs_fs_probe_cleanup(net);
 	afs_cell_purge(net);
-	afs_purge_servers(net);
+	afs_wait_for_servers(net);
 	afs_close_socket(net);
 	afs_proc_cleanup(net);
 	afs_put_sysnames(net->sysnames);
+	idr_destroy(&net->cells_dyn_ino);
 	kfree_rcu(rcu_access_pointer(net->address_prefs), rcu);
 }
 

@@ -16,7 +16,7 @@
 #include "waitid.h"
 #include "../kernel/exit.h"
 
-static void io_waitid_cb(struct io_kiocb *req, struct io_tw_state *ts);
+static void io_waitid_cb(struct io_kiocb *req, io_tw_token_t tw);
 
 #define IO_WAITID_CANCEL_FLAG	BIT(31)
 #define IO_WAITID_REF_MASK	GENMASK(30, 0)
@@ -42,7 +42,6 @@ static void io_waitid_free(struct io_kiocb *req)
 	req->flags &= ~REQ_F_ASYNC_DATA;
 }
 
-#ifdef CONFIG_COMPAT
 static bool io_waitid_compat_copy_si(struct io_waitid *iw, int signo)
 {
 	struct compat_siginfo __user *infop;
@@ -67,7 +66,6 @@ Efault:
 	ret = false;
 	goto done;
 }
-#endif
 
 static bool io_waitid_copy_si(struct io_kiocb *req, int signo)
 {
@@ -77,10 +75,8 @@ static bool io_waitid_copy_si(struct io_kiocb *req, int signo)
 	if (!iw->infop)
 		return true;
 
-#ifdef CONFIG_COMPAT
-	if (req->ctx->compat)
+	if (io_is_compat(req->ctx))
 		return io_waitid_compat_copy_si(iw, signo);
-#endif
 
 	if (!user_write_access_begin(iw->infop, sizeof(*iw->infop)))
 		return false;
@@ -132,7 +128,7 @@ static void io_waitid_complete(struct io_kiocb *req, int ret)
 	io_req_set_res(req, ret, 0);
 }
 
-static bool __io_waitid_cancel(struct io_ring_ctx *ctx, struct io_kiocb *req)
+static bool __io_waitid_cancel(struct io_kiocb *req)
 {
 	struct io_waitid *iw = io_kiocb_to_cmd(req, struct io_waitid);
 	struct io_waitid_async *iwa = req->async_data;
@@ -158,49 +154,13 @@ static bool __io_waitid_cancel(struct io_ring_ctx *ctx, struct io_kiocb *req)
 int io_waitid_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 		     unsigned int issue_flags)
 {
-	struct hlist_node *tmp;
-	struct io_kiocb *req;
-	int nr = 0;
-
-	if (cd->flags & (IORING_ASYNC_CANCEL_FD|IORING_ASYNC_CANCEL_FD_FIXED))
-		return -ENOENT;
-
-	io_ring_submit_lock(ctx, issue_flags);
-	hlist_for_each_entry_safe(req, tmp, &ctx->waitid_list, hash_node) {
-		if (req->cqe.user_data != cd->data &&
-		    !(cd->flags & IORING_ASYNC_CANCEL_ANY))
-			continue;
-		if (__io_waitid_cancel(ctx, req))
-			nr++;
-		if (!(cd->flags & IORING_ASYNC_CANCEL_ALL))
-			break;
-	}
-	io_ring_submit_unlock(ctx, issue_flags);
-
-	if (nr)
-		return nr;
-
-	return -ENOENT;
+	return io_cancel_remove(ctx, cd, issue_flags, &ctx->waitid_list, __io_waitid_cancel);
 }
 
 bool io_waitid_remove_all(struct io_ring_ctx *ctx, struct io_uring_task *tctx,
 			  bool cancel_all)
 {
-	struct hlist_node *tmp;
-	struct io_kiocb *req;
-	bool found = false;
-
-	lockdep_assert_held(&ctx->uring_lock);
-
-	hlist_for_each_entry_safe(req, tmp, &ctx->waitid_list, hash_node) {
-		if (!io_match_task_safe(req, tctx, cancel_all))
-			continue;
-		hlist_del_init(&req->hash_node);
-		__io_waitid_cancel(ctx, req);
-		found = true;
-	}
-
-	return found;
+	return io_cancel_remove_all(ctx, tctx, &ctx->waitid_list, cancel_all, __io_waitid_cancel);
 }
 
 static inline bool io_waitid_drop_issue_ref(struct io_kiocb *req)
@@ -221,13 +181,13 @@ static inline bool io_waitid_drop_issue_ref(struct io_kiocb *req)
 	return true;
 }
 
-static void io_waitid_cb(struct io_kiocb *req, struct io_tw_state *ts)
+static void io_waitid_cb(struct io_kiocb *req, io_tw_token_t tw)
 {
 	struct io_waitid_async *iwa = req->async_data;
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
 
-	io_tw_lock(ctx, ts);
+	io_tw_lock(ctx, tw);
 
 	ret = __do_wait(&iwa->wo);
 
@@ -257,7 +217,7 @@ static void io_waitid_cb(struct io_kiocb *req, struct io_tw_state *ts)
 	}
 
 	io_waitid_complete(req, ret);
-	io_req_task_complete(req, ts);
+	io_req_task_complete(req, tw);
 }
 
 static int io_waitid_wait(struct wait_queue_entry *wait, unsigned mode,

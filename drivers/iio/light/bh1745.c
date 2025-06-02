@@ -426,16 +426,16 @@ static int bh1745_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-			ret = regmap_bulk_read(data->regmap, chan->address,
-					       &value, 2);
-			if (ret)
-				return ret;
-			*val = value;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
-			return IIO_VAL_INT;
-		}
-		unreachable();
+		ret = regmap_bulk_read(data->regmap, chan->address, &value, 2);
+		iio_device_release_direct(indio_dev);
+		if (ret)
+			return ret;
+		*val = value;
+
+		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE: {
 			guard(mutex)(&data->lock);

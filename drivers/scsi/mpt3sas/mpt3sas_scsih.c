@@ -2703,7 +2703,7 @@ scsih_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 		ssp_target = 1;
 		if (sas_device->device_info &
 				MPI2_SAS_DEVICE_INFO_SEP) {
-			sdev_printk(KERN_WARNING, sdev,
+			sdev_printk(KERN_INFO, sdev,
 			"set ignore_delay_remove for handle(0x%04x)\n",
 			sas_device_priv_data->sas_target->handle);
 			sas_device_priv_data->ignore_delay_remove = 1;
@@ -12710,7 +12710,7 @@ static const struct pci_device_id mpt3sas_pci_table[] = {
 };
 MODULE_DEVICE_TABLE(pci, mpt3sas_pci_table);
 
-static struct pci_error_handlers _mpt3sas_err_handler = {
+static const struct pci_error_handlers _mpt3sas_err_handler = {
 	.error_detected	= scsih_pci_error_detected,
 	.mmio_enabled	= scsih_pci_mmio_enabled,
 	.slot_reset	= scsih_pci_slot_reset,

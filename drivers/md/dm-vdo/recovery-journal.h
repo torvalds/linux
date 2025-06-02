@@ -43,9 +43,9 @@
  * has a vio which is used to commit that block to disk. The vio's data is the on-disk
  * representation of the journal block. In addition each in-memory block has a buffer which is used
  * to accumulate entries while a partial commit of the block is in progress. In-memory blocks are
- * kept on two rings. Free blocks live on the 'free_tail_blocks' ring. When a block becomes active
- * (see below) it is moved to the 'active_tail_blocks' ring. When a block is fully committed, it is
- * moved back to the 'free_tail_blocks' ring.
+ * kept on two lists. Free blocks live on the 'free_tail_blocks' list. When a block becomes active
+ * (see below) it is moved to the 'active_tail_blocks' list. When a block is fully committed, it is
+ * moved back to the 'free_tail_blocks' list.
  *
  * When entries are added to the journal, they are added to the active in-memory block, as
  * indicated by the 'active_block' field. If the caller wishes to wait for the entry to be

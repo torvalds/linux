@@ -58,7 +58,7 @@ debug
     2 = verbose debug messages);
     This option appears only when ``CONFIG_SND_DEBUG=y``.
     This option can be dynamically changed via sysfs
-    /sys/modules/snd/parameters/debug file.
+    /sys/module/snd/parameters/debug file.
   
 Module snd-pcm-oss
 ------------------

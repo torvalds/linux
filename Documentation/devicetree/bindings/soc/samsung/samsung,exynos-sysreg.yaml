@@ -18,6 +18,11 @@ properties:
               - google,gs101-hsi2-sysreg
               - google,gs101-peric0-sysreg
               - google,gs101-peric1-sysreg
+              - samsung,exynos2200-cmgp-sysreg
+              - samsung,exynos2200-peric0-sysreg
+              - samsung,exynos2200-peric1-sysreg
+              - samsung,exynos2200-peric2-sysreg
+              - samsung,exynos2200-ufs-sysreg
               - samsung,exynos3-sysreg
               - samsung,exynos4-sysreg
               - samsung,exynos5-sysreg

@@ -153,6 +153,7 @@ static int test__perf_time_to_tsc(struct test_suite *test __maybe_unused, int su
 		while ((event = perf_mmap__read_event(&md->core)) != NULL) {
 			struct perf_sample sample;
 
+			perf_sample__init(&sample, /*all=*/false);
 			if (event->header.type != PERF_RECORD_COMM ||
 			    (pid_t)event->comm.pid != getpid() ||
 			    (pid_t)event->comm.tid != getpid())
@@ -170,6 +171,7 @@ static int test__perf_time_to_tsc(struct test_suite *test __maybe_unused, int su
 			}
 next_event:
 			perf_mmap__consume(&md->core);
+			perf_sample__exit(&sample);
 		}
 		perf_mmap__read_done(&md->core);
 	}

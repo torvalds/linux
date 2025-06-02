@@ -73,6 +73,7 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 	struct blk_plug plug;
 	loff_t offset = req->ki_pos;
 	bool sync = is_sync_kiocb(req);
+	bool split = false;
 	size_t shorten;
 	ssize_t ret;
 
@@ -98,8 +99,6 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 			       REQ_OP_READ,
 			       GFP_KERNEL,
 			       &c->dio_read_bioset);
-
-	bio->bi_end_io = bch2_direct_IO_read_endio;
 
 	dio = container_of(bio, struct dio_read, rbio.bio);
 	closure_init(&dio->cl, NULL);
@@ -133,12 +132,13 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 
 	goto start;
 	while (iter->count) {
+		split = true;
+
 		bio = bio_alloc_bioset(NULL,
 				       bio_iov_vecs_to_alloc(iter, BIO_MAX_VECS),
 				       REQ_OP_READ,
 				       GFP_KERNEL,
 				       &c->bio_read);
-		bio->bi_end_io		= bch2_direct_IO_read_split_endio;
 start:
 		bio->bi_opf		= REQ_OP_READ|REQ_SYNC;
 		bio->bi_iter.bi_sector	= offset >> 9;
@@ -160,7 +160,15 @@ start:
 		if (iter->count)
 			closure_get(&dio->cl);
 
-		bch2_read(c, rbio_init(bio, opts), inode_inum(inode));
+		struct bch_read_bio *rbio =
+			rbio_init(bio,
+				  c,
+				  opts,
+				  split
+				  ? bch2_direct_IO_read_split_endio
+				  : bch2_direct_IO_read_endio);
+
+		bch2_read(c, rbio, inode_inum(inode));
 	}
 
 	blk_finish_plug(&plug);
@@ -511,8 +519,8 @@ static __always_inline long bch2_dio_write_loop(struct dio_write *dio)
 		dio->op.devs_need_flush	= &inode->ei_devs_need_flush;
 
 		if (sync)
-			dio->op.flags |= BCH_WRITE_SYNC;
-		dio->op.flags |= BCH_WRITE_CHECK_ENOSPC;
+			dio->op.flags |= BCH_WRITE_sync;
+		dio->op.flags |= BCH_WRITE_check_enospc;
 
 		ret = bch2_quota_reservation_add(c, inode, &dio->quota_res,
 						 bio_sectors(bio), true);

@@ -6,6 +6,7 @@
 echo 0 > events/enable
 echo > dynamic_events
 
+SUBSYSTEM=kmem
 TRACEPOINT1=kmem_cache_alloc
 TRACEPOINT2=kmem_cache_free
 
@@ -23,5 +24,18 @@ grep -q myevent1 dynamic_events
 ! grep -q myevent2 dynamic_events
 
 echo > dynamic_events
+
+# auto naming check
+echo "t $TRACEPOINT1" >> dynamic_events
+
+test -d events/tracepoints/$TRACEPOINT1
+
+echo > dynamic_events
+
+# SUBSYSTEM is not supported
+echo "t $SUBSYSTEM/$TRACEPOINT1" >> dynamic_events && exit_fail ||:
+echo "t $SUBSYSTEM:$TRACEPOINT1" >> dynamic_events && exit_fail ||:
+echo "t:myevent3 $SUBSYSTEM/$TRACEPOINT1" >> dynamic_events && exit_fail ||:
+echo "t:myevent3 $SUBSYSTEM:$TRACEPOINT1" >> dynamic_events && exit_fail ||:
 
 clear_trace

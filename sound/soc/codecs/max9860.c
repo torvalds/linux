@@ -539,7 +539,6 @@ static const struct snd_soc_component_driver max9860_component_driver = {
 	.endianness		= 1,
 };
 
-#ifdef CONFIG_PM
 static int max9860_suspend(struct device *dev)
 {
 	struct max9860_priv *max9860 = dev_get_drvdata(dev);
@@ -584,10 +583,9 @@ static int max9860_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops max9860_pm_ops = {
-	SET_RUNTIME_PM_OPS(max9860_suspend, max9860_resume, NULL)
+	RUNTIME_PM_OPS(max9860_suspend, max9860_resume, NULL)
 };
 
 static int max9860_probe(struct i2c_client *i2c)
@@ -729,7 +727,7 @@ static struct i2c_driver max9860_i2c_driver = {
 	.driver         = {
 		.name           = "max9860",
 		.of_match_table = max9860_of_match,
-		.pm             = &max9860_pm_ops,
+		.pm             = pm_ptr(&max9860_pm_ops),
 	},
 };
 

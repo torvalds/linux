@@ -24,6 +24,8 @@ properties:
           - samsung,exynos5420-dw-mshc-smu
           - samsung,exynos7-dw-mshc
           - samsung,exynos7-dw-mshc-smu
+          - samsung,exynos7870-dw-mshc
+          - samsung,exynos7870-dw-mshc-smu
       - items:
           - enum:
               - samsung,exynos5433-dw-mshc-smu

@@ -508,6 +508,19 @@ void __meminit pgdat_page_ext_init(struct pglist_data *pgdat)
 #endif
 
 /**
+ * page_ext_lookup() - Lookup a page extension for a PFN.
+ * @pfn: PFN of the page we're interested in.
+ *
+ * Must be called with RCU read lock taken and @pfn must be valid.
+ *
+ * Return: NULL if no page_ext exists for this page.
+ */
+struct page_ext *page_ext_lookup(unsigned long pfn)
+{
+	return lookup_page_ext(pfn_to_page(pfn));
+}
+
+/**
  * page_ext_get() - Get the extended information for a page.
  * @page: The page we're interested in.
  *

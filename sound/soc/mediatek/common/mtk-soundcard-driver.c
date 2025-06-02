@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <sound/soc.h>
 
 #include "mtk-dsp-sof-common.h"
@@ -192,7 +193,9 @@ EXPORT_SYMBOL_GPL(mtk_soundcard_common_capture_ops);
 
 int mtk_soundcard_common_probe(struct platform_device *pdev)
 {
-	struct device_node *platform_node, *adsp_node;
+	struct device_node *platform_node, *adsp_node, *accdet_node;
+	struct snd_soc_component *accdet_comp;
+	struct platform_device *accdet_pdev;
 	const struct mtk_soundcard_pdata *pdata;
 	struct mtk_soc_card_data *soc_card_data;
 	struct snd_soc_dai_link *orig_dai_link, *dai_link;
@@ -249,6 +252,20 @@ int mtk_soundcard_common_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	soc_card_data->card_data->jacks = jacks;
+
+	accdet_node = of_parse_phandle(pdev->dev.of_node, "mediatek,accdet", 0);
+	if (accdet_node) {
+		accdet_pdev = of_find_device_by_node(accdet_node);
+		if (accdet_pdev) {
+			accdet_comp = snd_soc_lookup_component(&accdet_pdev->dev, NULL);
+			if (accdet_comp)
+				soc_card_data->accdet = accdet_comp;
+			else
+				dev_err(&pdev->dev, "No sound component found from mediatek,accdet property\n");
+		} else {
+			dev_err(&pdev->dev, "No device found from mediatek,accdet property\n");
+		}
+	}
 
 	platform_node = of_parse_phandle(pdev->dev.of_node, "mediatek,platform", 0);
 	if (!platform_node)

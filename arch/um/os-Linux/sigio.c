@@ -11,6 +11,7 @@
 #include <sched.h>
 #include <signal.h>
 #include <string.h>
+#include <sys/epoll.h>
 #include <kern_util.h>
 #include <init.h>
 #include <os.h>
@@ -21,183 +22,50 @@
  * Protected by sigio_lock(), also used by sigio_cleanup, which is an
  * exitcall.
  */
-static int write_sigio_pid = -1;
-static unsigned long write_sigio_stack;
+static struct os_helper_thread *write_sigio_td;
 
-/*
- * These arrays are initialized before the sigio thread is started, and
- * the descriptors closed after it is killed.  So, it can't see them change.
- * On the UML side, they are changed under the sigio_lock.
- */
-#define SIGIO_FDS_INIT {-1, -1}
+static int epollfd = -1;
 
-static int write_sigio_fds[2] = SIGIO_FDS_INIT;
-static int sigio_private[2] = SIGIO_FDS_INIT;
+#define MAX_EPOLL_EVENTS 64
 
-struct pollfds {
-	struct pollfd *poll;
-	int size;
-	int used;
-};
+static struct epoll_event epoll_events[MAX_EPOLL_EVENTS];
 
-/*
- * Protected by sigio_lock().  Used by the sigio thread, but the UML thread
- * synchronizes with it.
- */
-static struct pollfds current_poll;
-static struct pollfds next_poll;
-static struct pollfds all_sigio_fds;
-
-static int write_sigio_thread(void *unused)
+static void *write_sigio_thread(void *unused)
 {
-	struct pollfds *fds, tmp;
-	struct pollfd *p;
-	int i, n, respond_fd;
-	char c;
+	int pid = getpid();
+	int r;
 
-	os_set_pdeathsig();
-	os_fix_helper_signals();
-	fds = &current_poll;
+	os_fix_helper_thread_signals();
+
 	while (1) {
-		n = poll(fds->poll, fds->used, -1);
-		if (n < 0) {
+		r = epoll_wait(epollfd, epoll_events, MAX_EPOLL_EVENTS, -1);
+		if (r < 0) {
 			if (errno == EINTR)
 				continue;
-			printk(UM_KERN_ERR "write_sigio_thread : poll returned "
-			       "%d, errno = %d\n", n, errno);
+			printk(UM_KERN_ERR "%s: epoll_wait failed, errno = %d\n",
+			       __func__, errno);
 		}
-		for (i = 0; i < fds->used; i++) {
-			p = &fds->poll[i];
-			if (p->revents == 0)
-				continue;
-			if (p->fd == sigio_private[1]) {
-				CATCH_EINTR(n = read(sigio_private[1], &c,
-						     sizeof(c)));
-				if (n != sizeof(c))
-					printk(UM_KERN_ERR
-					       "write_sigio_thread : "
-					       "read on socket failed, "
-					       "err = %d\n", errno);
-				tmp = current_poll;
-				current_poll = next_poll;
-				next_poll = tmp;
-				respond_fd = sigio_private[1];
-			}
-			else {
-				respond_fd = write_sigio_fds[1];
-				fds->used--;
-				memmove(&fds->poll[i], &fds->poll[i + 1],
-					(fds->used - i) * sizeof(*fds->poll));
-			}
 
-			CATCH_EINTR(n = write(respond_fd, &c, sizeof(c)));
-			if (n != sizeof(c))
-				printk(UM_KERN_ERR "write_sigio_thread : "
-				       "write on socket failed, err = %d\n",
-				       errno);
-		}
+		CATCH_EINTR(r = tgkill(pid, pid, SIGIO));
+		if (r < 0)
+			printk(UM_KERN_ERR "%s: tgkill failed, errno = %d\n",
+			       __func__, errno);
 	}
 
-	return 0;
-}
-
-static int need_poll(struct pollfds *polls, int n)
-{
-	struct pollfd *new;
-
-	if (n <= polls->size)
-		return 0;
-
-	new = uml_kmalloc(n * sizeof(struct pollfd), UM_GFP_ATOMIC);
-	if (new == NULL) {
-		printk(UM_KERN_ERR "need_poll : failed to allocate new "
-		       "pollfds\n");
-		return -ENOMEM;
-	}
-
-	memcpy(new, polls->poll, polls->used * sizeof(struct pollfd));
-	kfree(polls->poll);
-
-	polls->poll = new;
-	polls->size = n;
-	return 0;
-}
-
-/*
- * Must be called with sigio_lock held, because it's needed by the marked
- * critical section.
- */
-static void update_thread(void)
-{
-	unsigned long flags;
-	int n;
-	char c;
-
-	flags = um_set_signals_trace(0);
-	CATCH_EINTR(n = write(sigio_private[0], &c, sizeof(c)));
-	if (n != sizeof(c)) {
-		printk(UM_KERN_ERR "update_thread : write failed, err = %d\n",
-		       errno);
-		goto fail;
-	}
-
-	CATCH_EINTR(n = read(sigio_private[0], &c, sizeof(c)));
-	if (n != sizeof(c)) {
-		printk(UM_KERN_ERR "update_thread : read failed, err = %d\n",
-		       errno);
-		goto fail;
-	}
-
-	um_set_signals_trace(flags);
-	return;
- fail:
-	/* Critical section start */
-	if (write_sigio_pid != -1) {
-		os_kill_process(write_sigio_pid, 1);
-		free_stack(write_sigio_stack, 0);
-	}
-	write_sigio_pid = -1;
-	close(sigio_private[0]);
-	close(sigio_private[1]);
-	close(write_sigio_fds[0]);
-	close(write_sigio_fds[1]);
-	/* Critical section end */
-	um_set_signals_trace(flags);
+	return NULL;
 }
 
 int __add_sigio_fd(int fd)
 {
-	struct pollfd *p;
-	int err, i, n;
+	struct epoll_event event = {
+		.data.fd = fd,
+		.events = EPOLLIN | EPOLLET,
+	};
+	int r;
 
-	for (i = 0; i < all_sigio_fds.used; i++) {
-		if (all_sigio_fds.poll[i].fd == fd)
-			break;
-	}
-	if (i == all_sigio_fds.used)
-		return -ENOSPC;
-
-	p = &all_sigio_fds.poll[i];
-
-	for (i = 0; i < current_poll.used; i++) {
-		if (current_poll.poll[i].fd == fd)
-			return 0;
-	}
-
-	n = current_poll.used;
-	err = need_poll(&next_poll, n + 1);
-	if (err)
-		return err;
-
-	memcpy(next_poll.poll, current_poll.poll,
-	       current_poll.used * sizeof(struct pollfd));
-	next_poll.poll[n] = *p;
-	next_poll.used = n + 1;
-	update_thread();
-
-	return 0;
+	CATCH_EINTR(r = epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event));
+	return r < 0 ? -errno : 0;
 }
-
 
 int add_sigio_fd(int fd)
 {
@@ -212,38 +80,11 @@ int add_sigio_fd(int fd)
 
 int __ignore_sigio_fd(int fd)
 {
-	struct pollfd *p;
-	int err, i, n = 0;
+	struct epoll_event event;
+	int r;
 
-	/*
-	 * This is called from exitcalls elsewhere in UML - if
-	 * sigio_cleanup has already run, then update_thread will hang
-	 * or fail because the thread is no longer running.
-	 */
-	if (write_sigio_pid == -1)
-		return -EIO;
-
-	for (i = 0; i < current_poll.used; i++) {
-		if (current_poll.poll[i].fd == fd)
-			break;
-	}
-	if (i == current_poll.used)
-		return -ENOENT;
-
-	err = need_poll(&next_poll, current_poll.used - 1);
-	if (err)
-		return err;
-
-	for (i = 0; i < current_poll.used; i++) {
-		p = &current_poll.poll[i];
-		if (p->fd != fd)
-			next_poll.poll[n++] = *p;
-	}
-	next_poll.used = current_poll.used - 1;
-
-	update_thread();
-
-	return 0;
+	CATCH_EINTR(r = epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, &event));
+	return r < 0 ? -errno : 0;
 }
 
 int ignore_sigio_fd(int fd)
@@ -257,125 +98,37 @@ int ignore_sigio_fd(int fd)
 	return err;
 }
 
-static struct pollfd *setup_initial_poll(int fd)
-{
-	struct pollfd *p;
-
-	p = uml_kmalloc(sizeof(struct pollfd), UM_GFP_KERNEL);
-	if (p == NULL) {
-		printk(UM_KERN_ERR "setup_initial_poll : failed to allocate "
-		       "poll\n");
-		return NULL;
-	}
-	*p = ((struct pollfd) { .fd		= fd,
-				.events 	= POLLIN,
-				.revents 	= 0 });
-	return p;
-}
-
 static void write_sigio_workaround(void)
 {
-	struct pollfd *p;
-	int err;
-	int l_write_sigio_fds[2];
-	int l_sigio_private[2];
-	int l_write_sigio_pid;
-
-	/* We call this *tons* of times - and most ones we must just fail. */
-	sigio_lock();
-	l_write_sigio_pid = write_sigio_pid;
-	sigio_unlock();
-
-	if (l_write_sigio_pid != -1)
-		return;
-
-	err = os_pipe(l_write_sigio_fds, 1, 1);
-	if (err < 0) {
-		printk(UM_KERN_ERR "write_sigio_workaround - os_pipe 1 failed, "
-		       "err = %d\n", -err);
-		return;
-	}
-	err = os_pipe(l_sigio_private, 1, 1);
-	if (err < 0) {
-		printk(UM_KERN_ERR "write_sigio_workaround - os_pipe 2 failed, "
-		       "err = %d\n", -err);
-		goto out_close1;
-	}
-
-	p = setup_initial_poll(l_sigio_private[1]);
-	if (!p)
-		goto out_close2;
-
-	sigio_lock();
-
-	/*
-	 * Did we race? Don't try to optimize this, please, it's not so likely
-	 * to happen, and no more than once at the boot.
-	 */
-	if (write_sigio_pid != -1)
-		goto out_free;
-
-	current_poll = ((struct pollfds) { .poll 	= p,
-					   .used 	= 1,
-					   .size 	= 1 });
-
-	if (write_sigio_irq(l_write_sigio_fds[0]))
-		goto out_clear_poll;
-
-	memcpy(write_sigio_fds, l_write_sigio_fds, sizeof(l_write_sigio_fds));
-	memcpy(sigio_private, l_sigio_private, sizeof(l_sigio_private));
-
-	write_sigio_pid = run_helper_thread(write_sigio_thread, NULL,
-					    CLONE_FILES | CLONE_VM,
-					    &write_sigio_stack);
-
-	if (write_sigio_pid < 0)
-		goto out_clear;
-
-	sigio_unlock();
-	return;
-
-out_clear:
-	write_sigio_pid = -1;
-	write_sigio_fds[0] = -1;
-	write_sigio_fds[1] = -1;
-	sigio_private[0] = -1;
-	sigio_private[1] = -1;
-out_clear_poll:
-	current_poll = ((struct pollfds) { .poll	= NULL,
-					   .size	= 0,
-					   .used	= 0 });
-out_free:
-	sigio_unlock();
-	kfree(p);
-out_close2:
-	close(l_sigio_private[0]);
-	close(l_sigio_private[1]);
-out_close1:
-	close(l_write_sigio_fds[0]);
-	close(l_write_sigio_fds[1]);
-}
-
-void sigio_broken(int fd)
-{
 	int err;
 
-	write_sigio_workaround();
-
 	sigio_lock();
-	err = need_poll(&all_sigio_fds, all_sigio_fds.used + 1);
-	if (err) {
-		printk(UM_KERN_ERR "maybe_sigio_broken - failed to add pollfd "
-		       "for descriptor %d\n", fd);
+	if (write_sigio_td)
+		goto out;
+
+	epollfd = epoll_create(MAX_EPOLL_EVENTS);
+	if (epollfd < 0) {
+		printk(UM_KERN_ERR "%s: epoll_create failed, errno = %d\n",
+		       __func__, errno);
 		goto out;
 	}
 
-	all_sigio_fds.poll[all_sigio_fds.used++] =
-		((struct pollfd) { .fd  	= fd,
-				   .events 	= POLLIN,
-				   .revents 	= 0 });
+	err = os_run_helper_thread(&write_sigio_td, write_sigio_thread, NULL);
+	if (err < 0) {
+		printk(UM_KERN_ERR "%s: os_run_helper_thread failed, errno = %d\n",
+		       __func__, -err);
+		close(epollfd);
+		epollfd = -1;
+		goto out;
+	}
+
 out:
 	sigio_unlock();
+}
+
+void sigio_broken(void)
+{
+	write_sigio_workaround();
 }
 
 /* Changed during early boot */
@@ -389,17 +142,16 @@ void maybe_sigio_broken(int fd)
 	if (pty_output_sigio)
 		return;
 
-	sigio_broken(fd);
+	sigio_broken();
 }
 
 static void sigio_cleanup(void)
 {
-	if (write_sigio_pid == -1)
+	if (!write_sigio_td)
 		return;
 
-	os_kill_process(write_sigio_pid, 1);
-	free_stack(write_sigio_stack, 0);
-	write_sigio_pid = -1;
+	os_kill_helper_thread(write_sigio_td);
+	write_sigio_td = NULL;
 }
 
 __uml_exitcall(sigio_cleanup);

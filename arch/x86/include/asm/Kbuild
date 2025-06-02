@@ -8,6 +8,7 @@ generated-y += syscalls_x32.h
 generated-y += unistd_32_ia32.h
 generated-y += unistd_64_x32.h
 generated-y += xen-hypercalls.h
+generated-y += cpufeaturemasks.h
 
 generic-y += early_ioremap.h
 generic-y += fprobe.h

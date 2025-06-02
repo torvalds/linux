@@ -817,7 +817,6 @@ err_prepare_enable:
 	return retval;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int atmel_ac97c_suspend(struct device *pdev)
 {
 	struct snd_card *card = dev_get_drvdata(pdev);
@@ -836,11 +835,7 @@ static int atmel_ac97c_resume(struct device *pdev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(atmel_ac97c_pm, atmel_ac97c_suspend, atmel_ac97c_resume);
-#define ATMEL_AC97C_PM_OPS	&atmel_ac97c_pm
-#else
-#define ATMEL_AC97C_PM_OPS	NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(atmel_ac97c_pm, atmel_ac97c_suspend, atmel_ac97c_resume);
 
 static void atmel_ac97c_remove(struct platform_device *pdev)
 {
@@ -864,7 +859,7 @@ static struct platform_driver atmel_ac97c_driver = {
 	.remove		= atmel_ac97c_remove,
 	.driver		= {
 		.name	= "atmel_ac97c",
-		.pm	= ATMEL_AC97C_PM_OPS,
+		.pm	= pm_ptr(&atmel_ac97c_pm),
 		.of_match_table = atmel_ac97c_dt_ids,
 	},
 };

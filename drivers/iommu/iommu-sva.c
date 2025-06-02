@@ -310,6 +310,7 @@ static struct iommu_domain *iommu_sva_domain_alloc(struct device *dev,
 	}
 
 	domain->type = IOMMU_DOMAIN_SVA;
+	domain->cookie_type = IOMMU_COOKIE_SVA;
 	mmgrab(mm);
 	domain->mm = mm;
 	domain->owner = ops;

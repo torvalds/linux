@@ -8,8 +8,23 @@
 #ifndef _VIVID_OSD_H_
 #define _VIVID_OSD_H_
 
+#ifdef CONFIG_VIDEO_VIVID_OSD
 int vivid_fb_init(struct vivid_dev *dev);
-void vivid_fb_release_buffers(struct vivid_dev *dev);
-void vivid_clear_fb(struct vivid_dev *dev);
+void vivid_fb_deinit(struct vivid_dev *dev);
+void vivid_fb_clear(struct vivid_dev *dev);
+unsigned int vivid_fb_green_bits(struct vivid_dev *dev);
+#else
+static inline int vivid_fb_init(struct vivid_dev *dev)
+{
+	return -ENODEV;
+}
+
+static inline void vivid_fb_deinit(struct vivid_dev *dev) {}
+static inline void vivid_fb_clear(struct vivid_dev *dev) {}
+static inline unsigned int vivid_fb_green_bits(struct vivid_dev *dev)
+{
+	return 5;
+}
+#endif
 
 #endif

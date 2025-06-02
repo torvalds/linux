@@ -213,10 +213,20 @@ void hbg_hw_fill_buffer(struct hbg_priv *priv, u32 buffer_dma_addr)
 
 void hbg_hw_adjust_link(struct hbg_priv *priv, u32 speed, u32 duplex)
 {
+	hbg_hw_mac_enable(priv, HBG_STATUS_DISABLE);
+
 	hbg_reg_write_field(priv, HBG_REG_PORT_MODE_ADDR,
 			    HBG_REG_PORT_MODE_M, speed);
 	hbg_reg_write_field(priv, HBG_REG_DUPLEX_TYPE_ADDR,
 			    HBG_REG_DUPLEX_B, duplex);
+
+	hbg_hw_event_notify(priv, HBG_HW_EVENT_CORE_RESET);
+
+	hbg_hw_mac_enable(priv, HBG_STATUS_ENABLE);
+
+	if (!hbg_reg_read_field(priv, HBG_REG_AN_NEG_STATE_ADDR,
+				HBG_REG_AN_NEG_STATE_NP_LINK_OK_B))
+		hbg_np_link_fail_task_schedule(priv);
 }
 
 /* only support uc filter */
@@ -224,6 +234,10 @@ void hbg_hw_set_mac_filter_enable(struct hbg_priv *priv, u32 enable)
 {
 	hbg_reg_write_field(priv, HBG_REG_REC_FILT_CTRL_ADDR,
 			    HBG_REG_REC_FILT_CTRL_UC_MATCH_EN_B, enable);
+
+	/* only uc filter is supported, so set all bits of mc mask reg to 1 */
+	hbg_reg_write64(priv, HBG_REG_STATION_ADDR_LOW_MSK_0, U64_MAX);
+	hbg_reg_write64(priv, HBG_REG_STATION_ADDR_LOW_MSK_1, U64_MAX);
 }
 
 void hbg_hw_set_pause_enable(struct hbg_priv *priv, u32 tx_en, u32 rx_en)
@@ -232,6 +246,9 @@ void hbg_hw_set_pause_enable(struct hbg_priv *priv, u32 tx_en, u32 rx_en)
 			    HBG_REG_PAUSE_ENABLE_TX_B, tx_en);
 	hbg_reg_write_field(priv, HBG_REG_PAUSE_ENABLE_ADDR,
 			    HBG_REG_PAUSE_ENABLE_RX_B, rx_en);
+
+	hbg_reg_write_field(priv, HBG_REG_REC_FILT_CTRL_ADDR,
+			    HBG_REG_REC_FILT_CTRL_PAUSE_FRM_PASS_B, rx_en);
 }
 
 void hbg_hw_get_pause_enable(struct hbg_priv *priv, u32 *tx_en, u32 *rx_en)

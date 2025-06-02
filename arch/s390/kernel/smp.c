@@ -18,6 +18,7 @@
 #define KMSG_COMPONENT "cpu"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/cpufeature.h>
 #include <linux/workqueue.h>
 #include <linux/memblock.h>
 #include <linux/export.h>
@@ -38,6 +39,7 @@
 #include <linux/kprobes.h>
 #include <asm/access-regs.h>
 #include <asm/asm-offsets.h>
+#include <asm/machine.h>
 #include <asm/ctlreg.h>
 #include <asm/pfault.h>
 #include <asm/diag.h>
@@ -96,13 +98,6 @@ __vector128 __initdata boot_cpu_vector_save_area[__NUM_VXRS];
 
 static unsigned int smp_max_threads __initdata = -1U;
 cpumask_t cpu_setup_mask;
-
-static int __init early_nosmt(char *s)
-{
-	smp_max_threads = 1;
-	return 0;
-}
-early_param("nosmt", early_nosmt);
 
 static int __init early_smt(char *s)
 {
@@ -263,7 +258,6 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 	lc->percpu_offset = __per_cpu_offset[cpu];
 	lc->kernel_asce = get_lowcore()->kernel_asce;
 	lc->user_asce = s390_invalid_asce;
-	lc->machine_flags = get_lowcore()->machine_flags;
 	lc->user_timer = lc->system_timer =
 		lc->steal_timer = lc->avg_steal_timer = 0;
 	abs_lc = get_abs_lowcore();
@@ -416,7 +410,7 @@ EXPORT_SYMBOL(arch_vcpu_is_preempted);
 
 void notrace smp_yield_cpu(int cpu)
 {
-	if (!MACHINE_HAS_DIAG9C)
+	if (!machine_has_diag9c())
 		return;
 	diag_stat_inc_norecursion(DIAG_STAT_X09C);
 	asm volatile("diag %0,0,0x9c"
@@ -561,10 +555,10 @@ int smp_store_status(int cpu)
 	if (__pcpu_sigp_relax(pcpu->address, SIGP_STORE_STATUS_AT_ADDRESS,
 			      pa) != SIGP_CC_ORDER_CODE_ACCEPTED)
 		return -EIO;
-	if (!cpu_has_vx() && !MACHINE_HAS_GS)
+	if (!cpu_has_vx() && !cpu_has_gs())
 		return 0;
 	pa = lc->mcesad & MCESA_ORIGIN_MASK;
-	if (MACHINE_HAS_GS)
+	if (cpu_has_gs())
 		pa |= lc->mcesad & MCESA_LC_MASK;
 	if (__pcpu_sigp_relax(pcpu->address, SIGP_STORE_ADDITIONAL_STATUS,
 			      pa) != SIGP_CC_ORDER_CODE_ACCEPTED)
@@ -807,6 +801,7 @@ void __init smp_detect_cpus(void)
 	mtid = boot_core_type ? sclp.mtid : sclp.mtid_cp;
 	mtid = (mtid < smp_max_threads) ? mtid : smp_max_threads - 1;
 	pcpu_set_smt(mtid);
+	cpu_smt_set_num_threads(smp_cpu_mtid + 1, smp_cpu_mtid + 1);
 
 	/* Print number of CPUs */
 	c_cpus = s_cpus = 0;

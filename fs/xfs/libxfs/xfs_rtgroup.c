@@ -194,15 +194,17 @@ xfs_rtgroup_lock(
 	ASSERT(!(rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED) ||
 	       !(rtglock_flags & XFS_RTGLOCK_BITMAP));
 
-	if (rtglock_flags & XFS_RTGLOCK_BITMAP) {
-		/*
-		 * Lock both realtime free space metadata inodes for a freespace
-		 * update.
-		 */
-		xfs_ilock(rtg_bitmap(rtg), XFS_ILOCK_EXCL);
-		xfs_ilock(rtg_summary(rtg), XFS_ILOCK_EXCL);
-	} else if (rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED) {
-		xfs_ilock(rtg_bitmap(rtg), XFS_ILOCK_SHARED);
+	if (!xfs_has_zoned(rtg_mount(rtg))) {
+		if (rtglock_flags & XFS_RTGLOCK_BITMAP) {
+			/*
+			 * Lock both realtime free space metadata inodes for a
+			 * freespace update.
+			 */
+			xfs_ilock(rtg_bitmap(rtg), XFS_ILOCK_EXCL);
+			xfs_ilock(rtg_summary(rtg), XFS_ILOCK_EXCL);
+		} else if (rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED) {
+			xfs_ilock(rtg_bitmap(rtg), XFS_ILOCK_SHARED);
+		}
 	}
 
 	if ((rtglock_flags & XFS_RTGLOCK_RMAP) && rtg_rmap(rtg))
@@ -228,11 +230,13 @@ xfs_rtgroup_unlock(
 	if ((rtglock_flags & XFS_RTGLOCK_RMAP) && rtg_rmap(rtg))
 		xfs_iunlock(rtg_rmap(rtg), XFS_ILOCK_EXCL);
 
-	if (rtglock_flags & XFS_RTGLOCK_BITMAP) {
-		xfs_iunlock(rtg_summary(rtg), XFS_ILOCK_EXCL);
-		xfs_iunlock(rtg_bitmap(rtg), XFS_ILOCK_EXCL);
-	} else if (rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED) {
-		xfs_iunlock(rtg_bitmap(rtg), XFS_ILOCK_SHARED);
+	if (!xfs_has_zoned(rtg_mount(rtg))) {
+		if (rtglock_flags & XFS_RTGLOCK_BITMAP) {
+			xfs_iunlock(rtg_summary(rtg), XFS_ILOCK_EXCL);
+			xfs_iunlock(rtg_bitmap(rtg), XFS_ILOCK_EXCL);
+		} else if (rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED) {
+			xfs_iunlock(rtg_bitmap(rtg), XFS_ILOCK_SHARED);
+		}
 	}
 }
 
@@ -249,7 +253,8 @@ xfs_rtgroup_trans_join(
 	ASSERT(!(rtglock_flags & ~XFS_RTGLOCK_ALL_FLAGS));
 	ASSERT(!(rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED));
 
-	if (rtglock_flags & XFS_RTGLOCK_BITMAP) {
+	if (!xfs_has_zoned(rtg_mount(rtg)) &&
+	    (rtglock_flags & XFS_RTGLOCK_BITMAP)) {
 		xfs_trans_ijoin(tp, rtg_bitmap(rtg), XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, rtg_summary(rtg), XFS_ILOCK_EXCL);
 	}
@@ -270,7 +275,7 @@ xfs_rtgroup_get_geometry(
 	/* Fill out form. */
 	memset(rgeo, 0, sizeof(*rgeo));
 	rgeo->rg_number = rtg_rgno(rtg);
-	rgeo->rg_length = rtg_group(rtg)->xg_block_count;
+	rgeo->rg_length = rtg_blocks(rtg);
 	xfs_rtgroup_geom_health(rtg, rgeo);
 	return 0;
 }
@@ -354,6 +359,7 @@ static const struct xfs_rtginode_ops xfs_rtginode_ops[XFS_RTGI_MAX] = {
 		.sick		= XFS_SICK_RG_BITMAP,
 		.fmt_mask	= (1U << XFS_DINODE_FMT_EXTENTS) |
 				  (1U << XFS_DINODE_FMT_BTREE),
+		.enabled	= xfs_has_nonzoned,
 		.create		= xfs_rtbitmap_create,
 	},
 	[XFS_RTGI_SUMMARY] = {
@@ -362,6 +368,7 @@ static const struct xfs_rtginode_ops xfs_rtginode_ops[XFS_RTGI_MAX] = {
 		.sick		= XFS_SICK_RG_SUMMARY,
 		.fmt_mask	= (1U << XFS_DINODE_FMT_EXTENTS) |
 				  (1U << XFS_DINODE_FMT_BTREE),
+		.enabled	= xfs_has_nonzoned,
 		.create		= xfs_rtsummary_create,
 	},
 	[XFS_RTGI_RMAP] = {

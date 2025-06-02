@@ -9,28 +9,23 @@
  *
  * These are all the functions necessary to implement POSIX clocks & timers
  */
-#include <linux/mm.h>
-#include <linux/interrupt.h>
-#include <linux/slab.h>
-#include <linux/time.h>
-#include <linux/mutex.h>
-#include <linux/sched/task.h>
-
-#include <linux/uaccess.h>
-#include <linux/list.h>
-#include <linux/init.h>
+#include <linux/compat.h>
 #include <linux/compiler.h>
-#include <linux/hash.h>
+#include <linux/init.h>
+#include <linux/jhash.h>
+#include <linux/interrupt.h>
+#include <linux/list.h>
+#include <linux/memblock.h>
+#include <linux/nospec.h>
 #include <linux/posix-clock.h>
 #include <linux/posix-timers.h>
+#include <linux/prctl.h>
+#include <linux/sched/task.h>
+#include <linux/slab.h>
 #include <linux/syscalls.h>
-#include <linux/wait.h>
-#include <linux/workqueue.h>
-#include <linux/export.h>
-#include <linux/hashtable.h>
-#include <linux/compat.h>
-#include <linux/nospec.h>
+#include <linux/time.h>
 #include <linux/time_namespace.h>
+#include <linux/uaccess.h>
 
 #include "timekeeping.h"
 #include "posix-timers.h"
@@ -46,12 +41,24 @@ static struct kmem_cache *posix_timers_cache;
  * This allows checkpoint/restore to reconstruct the exact timer IDs for
  * a process.
  */
-static DEFINE_HASHTABLE(posix_timers_hashtable, 9);
-static DEFINE_SPINLOCK(hash_lock);
+struct timer_hash_bucket {
+	spinlock_t		lock;
+	struct hlist_head	head;
+};
+
+static struct {
+	struct timer_hash_bucket	*buckets;
+	unsigned long			mask;
+} __timer_data __ro_after_init __aligned(2*sizeof(long));
+
+#define timer_buckets	(__timer_data.buckets)
+#define timer_hashmask	(__timer_data.mask)
 
 static const struct k_clock * const posix_clocks[];
 static const struct k_clock *clockid_to_kclock(const clockid_t id);
 static const struct k_clock clock_realtime, clock_monotonic;
+
+#define TIMER_ANY_ID		INT_MIN
 
 /* SIGEV_THREAD_ID cannot share a bit with the other SIGEV values. */
 #if SIGEV_THREAD_ID != (SIGEV_THREAD_ID & \
@@ -59,26 +66,40 @@ static const struct k_clock clock_realtime, clock_monotonic;
 #error "SIGEV_THREAD_ID must not share bit with other SIGEV values!"
 #endif
 
-static struct k_itimer *__lock_timer(timer_t timer_id, unsigned long *flags);
+static struct k_itimer *__lock_timer(timer_t timer_id);
 
-#define lock_timer(tid, flags)						   \
-({	struct k_itimer *__timr;					   \
-	__cond_lock(&__timr->it_lock, __timr = __lock_timer(tid, flags));  \
-	__timr;								   \
+#define lock_timer(tid)							\
+({	struct k_itimer *__timr;					\
+	__cond_lock(&__timr->it_lock, __timr = __lock_timer(tid));	\
+	__timr;								\
 })
 
-static int hash(struct signal_struct *sig, unsigned int nr)
+static inline void unlock_timer(struct k_itimer *timr)
 {
-	return hash_32(hash32_ptr(sig) ^ nr, HASH_BITS(posix_timers_hashtable));
+	if (likely((timr)))
+		spin_unlock_irq(&timr->it_lock);
 }
 
-static struct k_itimer *__posix_timers_find(struct hlist_head *head,
-					    struct signal_struct *sig,
-					    timer_t id)
+#define scoped_timer_get_or_fail(_id)					\
+	scoped_cond_guard(lock_timer, return -EINVAL, _id)
+
+#define scoped_timer				(scope)
+
+DEFINE_CLASS(lock_timer, struct k_itimer *, unlock_timer(_T), __lock_timer(id), timer_t id);
+DEFINE_CLASS_IS_COND_GUARD(lock_timer);
+
+static struct timer_hash_bucket *hash_bucket(struct signal_struct *sig, unsigned int nr)
 {
+	return &timer_buckets[jhash2((u32 *)&sig, sizeof(sig) / sizeof(u32), nr) & timer_hashmask];
+}
+
+static struct k_itimer *posix_timer_by_id(timer_t id)
+{
+	struct signal_struct *sig = current->signal;
+	struct timer_hash_bucket *bucket = hash_bucket(sig, id);
 	struct k_itimer *timer;
 
-	hlist_for_each_entry_rcu(timer, head, t_hash, lockdep_is_held(&hash_lock)) {
+	hlist_for_each_entry_rcu(timer, &bucket->head, t_hash) {
 		/* timer->it_signal can be set concurrently */
 		if ((READ_ONCE(timer->it_signal) == sig) && (timer->it_id == id))
 			return timer;
@@ -86,46 +107,88 @@ static struct k_itimer *__posix_timers_find(struct hlist_head *head,
 	return NULL;
 }
 
-static struct k_itimer *posix_timer_by_id(timer_t id)
+static inline struct signal_struct *posix_sig_owner(const struct k_itimer *timer)
 {
-	struct signal_struct *sig = current->signal;
-	struct hlist_head *head = &posix_timers_hashtable[hash(sig, id)];
-
-	return __posix_timers_find(head, sig, id);
-}
-
-static int posix_timer_add(struct k_itimer *timer)
-{
-	struct signal_struct *sig = current->signal;
-	struct hlist_head *head;
-	unsigned int cnt, id;
+	unsigned long val = (unsigned long)timer->it_signal;
 
 	/*
-	 * FIXME: Replace this by a per signal struct xarray once there is
-	 * a plan to handle the resulting CRIU regression gracefully.
+	 * Mask out bit 0, which acts as invalid marker to prevent
+	 * posix_timer_by_id() detecting it as valid.
 	 */
-	for (cnt = 0; cnt <= INT_MAX; cnt++) {
-		spin_lock(&hash_lock);
-		id = sig->next_posix_timer_id;
+	return (struct signal_struct *)(val & ~1UL);
+}
 
-		/* Write the next ID back. Clamp it to the positive space */
-		sig->next_posix_timer_id = (id + 1) & INT_MAX;
+static bool posix_timer_hashed(struct timer_hash_bucket *bucket, struct signal_struct *sig,
+			       timer_t id)
+{
+	struct hlist_head *head = &bucket->head;
+	struct k_itimer *timer;
 
-		head = &posix_timers_hashtable[hash(sig, id)];
-		if (!__posix_timers_find(head, sig, id)) {
-			hlist_add_head_rcu(&timer->t_hash, head);
-			spin_unlock(&hash_lock);
-			return id;
+	hlist_for_each_entry_rcu(timer, head, t_hash, lockdep_is_held(&bucket->lock)) {
+		if ((posix_sig_owner(timer) == sig) && (timer->it_id == id))
+			return true;
+	}
+	return false;
+}
+
+static bool posix_timer_add_at(struct k_itimer *timer, struct signal_struct *sig, unsigned int id)
+{
+	struct timer_hash_bucket *bucket = hash_bucket(sig, id);
+
+	scoped_guard (spinlock, &bucket->lock) {
+		/*
+		 * Validate under the lock as this could have raced against
+		 * another thread ending up with the same ID, which is
+		 * highly unlikely, but possible.
+		 */
+		if (!posix_timer_hashed(bucket, sig, id)) {
+			/*
+			 * Set the timer ID and the signal pointer to make
+			 * it identifiable in the hash table. The signal
+			 * pointer has bit 0 set to indicate that it is not
+			 * yet fully initialized. posix_timer_hashed()
+			 * masks this bit out, but the syscall lookup fails
+			 * to match due to it being set. This guarantees
+			 * that there can't be duplicate timer IDs handed
+			 * out.
+			 */
+			timer->it_id = (timer_t)id;
+			timer->it_signal = (struct signal_struct *)((unsigned long)sig | 1UL);
+			hlist_add_head_rcu(&timer->t_hash, &bucket->head);
+			return true;
 		}
-		spin_unlock(&hash_lock);
+	}
+	return false;
+}
+
+static int posix_timer_add(struct k_itimer *timer, int req_id)
+{
+	struct signal_struct *sig = current->signal;
+
+	if (unlikely(req_id != TIMER_ANY_ID)) {
+		if (!posix_timer_add_at(timer, sig, req_id))
+			return -EBUSY;
+
+		/*
+		 * Move the ID counter past the requested ID, so that after
+		 * switching back to normal mode the IDs are outside of the
+		 * exact allocated region. That avoids ID collisions on the
+		 * next regular timer_create() invocations.
+		 */
+		atomic_set(&sig->next_posix_timer_id, req_id + 1);
+		return req_id;
+	}
+
+	for (unsigned int cnt = 0; cnt <= INT_MAX; cnt++) {
+		/* Get the next timer ID and clamp it to positive space */
+		unsigned int id = atomic_fetch_inc(&sig->next_posix_timer_id) & INT_MAX;
+
+		if (posix_timer_add_at(timer, sig, id))
+			return id;
+		cond_resched();
 	}
 	/* POSIX return code when no timer ID could be allocated */
 	return -EAGAIN;
-}
-
-static inline void unlock_timer(struct k_itimer *timr, unsigned long flags)
-{
-	spin_unlock_irqrestore(&timr->it_lock, flags);
 }
 
 static int posix_get_realtime_timespec(clockid_t which_clock, struct timespec64 *tp)
@@ -222,9 +285,8 @@ static int posix_get_hrtimer_res(clockid_t which_clock, struct timespec64 *tp)
 
 static __init int init_posix_timers(void)
 {
-	posix_timers_cache = kmem_cache_create("posix_timers_cache",
-					sizeof(struct k_itimer), 0,
-					SLAB_PANIC | SLAB_ACCOUNT, NULL);
+	posix_timers_cache = kmem_cache_create("posix_timers_cache", sizeof(struct k_itimer),
+					       __alignof__(struct k_itimer), SLAB_ACCOUNT, NULL);
 	return 0;
 }
 __initcall(init_posix_timers);
@@ -259,7 +321,7 @@ static bool __posixtimer_deliver_signal(struct kernel_siginfo *info, struct k_it
 	 * since the signal was queued. In either case, don't rearm and
 	 * drop the signal.
 	 */
-	if (timr->it_signal_seq != timr->it_sigqueue_seq || WARN_ON_ONCE(!timr->it_signal))
+	if (timr->it_signal_seq != timr->it_sigqueue_seq || WARN_ON_ONCE(!posixtimer_valid(timr)))
 		return false;
 
 	if (!timr->it_interval || WARN_ON_ONCE(timr->it_status != POSIX_TIMER_REQUEUE_PENDING))
@@ -304,6 +366,9 @@ void posix_timer_queue_signal(struct k_itimer *timr)
 {
 	lockdep_assert_held(&timr->it_lock);
 
+	if (!posixtimer_valid(timr))
+		return;
+
 	timr->it_status = timr->it_interval ? POSIX_TIMER_REQUEUE_PENDING : POSIX_TIMER_DISARMED;
 	posixtimer_send_sigqueue(timr);
 }
@@ -322,6 +387,21 @@ static enum hrtimer_restart posix_timer_fn(struct hrtimer *timer)
 	guard(spinlock_irqsave)(&timr->it_lock);
 	posix_timer_queue_signal(timr);
 	return HRTIMER_NORESTART;
+}
+
+long posixtimer_create_prctl(unsigned long ctrl)
+{
+	switch (ctrl) {
+	case PR_TIMER_CREATE_RESTORE_IDS_OFF:
+		current->signal->timer_create_restore_ids = 0;
+		return 0;
+	case PR_TIMER_CREATE_RESTORE_IDS_ON:
+		current->signal->timer_create_restore_ids = 1;
+		return 0;
+	case PR_TIMER_CREATE_RESTORE_IDS_GET:
+		return current->signal->timer_create_restore_ids;
+	}
+	return -EINVAL;
 }
 
 static struct pid *good_sigevent(sigevent_t * event)
@@ -350,8 +430,12 @@ static struct pid *good_sigevent(sigevent_t * event)
 
 static struct k_itimer *alloc_posix_timer(void)
 {
-	struct k_itimer *tmr = kmem_cache_zalloc(posix_timers_cache, GFP_KERNEL);
+	struct k_itimer *tmr;
 
+	if (unlikely(!posix_timers_cache))
+		return NULL;
+
+	tmr = kmem_cache_zalloc(posix_timers_cache, GFP_KERNEL);
 	if (!tmr)
 		return tmr;
 
@@ -373,15 +457,16 @@ void posixtimer_free_timer(struct k_itimer *tmr)
 
 static void posix_timer_unhash_and_free(struct k_itimer *tmr)
 {
-	spin_lock(&hash_lock);
-	hlist_del_rcu(&tmr->t_hash);
-	spin_unlock(&hash_lock);
+	struct timer_hash_bucket *bucket = hash_bucket(posix_sig_owner(tmr), tmr->it_id);
+
+	scoped_guard (spinlock, &bucket->lock)
+		hlist_del_rcu(&tmr->t_hash);
 	posixtimer_putref(tmr);
 }
 
 static int common_timer_create(struct k_itimer *new_timer)
 {
-	hrtimer_init(&new_timer->it.real.timer, new_timer->it_clock, 0);
+	hrtimer_setup(&new_timer->it.real.timer, posix_timer_fn, new_timer->it_clock, 0);
 	return 0;
 }
 
@@ -390,6 +475,7 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 			   timer_t __user *created_timer_id)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
+	timer_t req_id = TIMER_ANY_ID;
 	struct k_itimer *new_timer;
 	int error, new_timer_id;
 
@@ -404,26 +490,32 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 
 	spin_lock_init(&new_timer->it_lock);
 
+	/* Special case for CRIU to restore timers with a given timer ID. */
+	if (unlikely(current->signal->timer_create_restore_ids)) {
+		if (copy_from_user(&req_id, created_timer_id, sizeof(req_id)))
+			return -EFAULT;
+		/* Valid IDs are 0..INT_MAX */
+		if ((unsigned int)req_id > INT_MAX)
+			return -EINVAL;
+	}
+
 	/*
 	 * Add the timer to the hash table. The timer is not yet valid
-	 * because new_timer::it_signal is still NULL. The timer id is also
-	 * not yet visible to user space.
+	 * after insertion, but has a unique ID allocated.
 	 */
-	new_timer_id = posix_timer_add(new_timer);
+	new_timer_id = posix_timer_add(new_timer, req_id);
 	if (new_timer_id < 0) {
 		posixtimer_free_timer(new_timer);
 		return new_timer_id;
 	}
 
-	new_timer->it_id = (timer_t) new_timer_id;
 	new_timer->it_clock = which_clock;
 	new_timer->kclock = kc;
 	new_timer->it_overrun = -1LL;
 
 	if (event) {
-		rcu_read_lock();
-		new_timer->it_pid = get_pid(good_sigevent(event));
-		rcu_read_unlock();
+		scoped_guard (rcu)
+			new_timer->it_pid = get_pid(good_sigevent(event));
 		if (!new_timer->it_pid) {
 			error = -EINVAL;
 			goto out;
@@ -434,7 +526,6 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 	} else {
 		new_timer->it_sigev_notify     = SIGEV_SIGNAL;
 		new_timer->sigq.info.si_signo = SIGALRM;
-		memset(&new_timer->sigq.info.si_value, 0, sizeof(sigval_t));
 		new_timer->sigq.info.si_value.sival_int = new_timer->it_id;
 		new_timer->it_pid = get_pid(task_tgid(current));
 	}
@@ -453,7 +544,7 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 	}
 	/*
 	 * After succesful copy out, the timer ID is visible to user space
-	 * now but not yet valid because new_timer::signal is still NULL.
+	 * now but not yet valid because new_timer::signal low order bit is 1.
 	 *
 	 * Complete the initialization with the clock specific create
 	 * callback.
@@ -462,14 +553,25 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 	if (error)
 		goto out;
 
-	spin_lock_irq(&current->sighand->siglock);
-	/* This makes the timer valid in the hash table */
-	WRITE_ONCE(new_timer->it_signal, current->signal);
-	hlist_add_head(&new_timer->list, &current->signal->posix_timers);
-	spin_unlock_irq(&current->sighand->siglock);
 	/*
-	 * After unlocking sighand::siglock @new_timer is subject to
-	 * concurrent removal and cannot be touched anymore
+	 * timer::it_lock ensures that __lock_timer() observes a fully
+	 * initialized timer when it observes a valid timer::it_signal.
+	 *
+	 * sighand::siglock is required to protect signal::posix_timers.
+	 */
+	scoped_guard (spinlock_irq, &new_timer->it_lock) {
+		guard(spinlock)(&current->sighand->siglock);
+		/*
+		 * new_timer::it_signal contains the signal pointer with
+		 * bit 0 set, which makes it invalid for syscall operations.
+		 * Store the unmodified signal pointer to make it valid.
+		 */
+		WRITE_ONCE(new_timer->it_signal, current->signal);
+		hlist_add_head_rcu(&new_timer->list, &current->signal->posix_timers);
+	}
+	/*
+	 * After unlocking @new_timer is subject to concurrent removal and
+	 * cannot be touched anymore
 	 */
 	return 0;
 out:
@@ -507,7 +609,7 @@ COMPAT_SYSCALL_DEFINE3(timer_create, clockid_t, which_clock,
 }
 #endif
 
-static struct k_itimer *__lock_timer(timer_t timer_id, unsigned long *flags)
+static struct k_itimer *__lock_timer(timer_t timer_id)
 {
 	struct k_itimer *timr;
 
@@ -522,11 +624,11 @@ static struct k_itimer *__lock_timer(timer_t timer_id, unsigned long *flags)
 	 * The hash lookup and the timers are RCU protected.
 	 *
 	 * Timers are added to the hash in invalid state where
-	 * timr::it_signal == NULL. timer::it_signal is only set after the
-	 * rest of the initialization succeeded.
+	 * timr::it_signal is marked invalid. timer::it_signal is only set
+	 * after the rest of the initialization succeeded.
 	 *
 	 * Timer destruction happens in steps:
-	 *  1) Set timr::it_signal to NULL with timr::it_lock held
+	 *  1) Set timr::it_signal marked invalid with timr::it_lock held
 	 *  2) Release timr::it_lock
 	 *  3) Remove from the hash under hash_lock
 	 *  4) Put the reference count.
@@ -543,25 +645,21 @@ static struct k_itimer *__lock_timer(timer_t timer_id, unsigned long *flags)
 	 *
 	 * The lookup validates locklessly that timr::it_signal ==
 	 * current::it_signal and timr::it_id == @timer_id. timr::it_id
-	 * can't change, but timr::it_signal becomes NULL during
-	 * destruction.
+	 * can't change, but timr::it_signal can become invalid during
+	 * destruction, which makes the locked check fail.
 	 */
-	rcu_read_lock();
+	guard(rcu)();
 	timr = posix_timer_by_id(timer_id);
 	if (timr) {
-		spin_lock_irqsave(&timr->it_lock, *flags);
+		spin_lock_irq(&timr->it_lock);
 		/*
 		 * Validate under timr::it_lock that timr::it_signal is
 		 * still valid. Pairs with #1 above.
 		 */
-		if (timr->it_signal == current->signal) {
-			rcu_read_unlock();
+		if (timr->it_signal == current->signal)
 			return timr;
-		}
-		spin_unlock_irqrestore(&timr->it_lock, *flags);
+		spin_unlock_irq(&timr->it_lock);
 	}
-	rcu_read_unlock();
-
 	return NULL;
 }
 
@@ -652,24 +750,10 @@ void common_timer_get(struct k_itimer *timr, struct itimerspec64 *cur_setting)
 
 static int do_timer_gettime(timer_t timer_id,  struct itimerspec64 *setting)
 {
-	const struct k_clock *kc;
-	struct k_itimer *timr;
-	unsigned long flags;
-	int ret = 0;
-
-	timr = lock_timer(timer_id, &flags);
-	if (!timr)
-		return -EINVAL;
-
 	memset(setting, 0, sizeof(*setting));
-	kc = timr->kclock;
-	if (WARN_ON_ONCE(!kc || !kc->timer_get))
-		ret = -EINVAL;
-	else
-		kc->timer_get(timr, setting);
-
-	unlock_timer(timr, flags);
-	return ret;
+	scoped_timer_get_or_fail(timer_id)
+		scoped_timer->kclock->timer_get(scoped_timer, setting);
+	return 0;
 }
 
 /* Get the time remaining on a POSIX.1b interval timer. */
@@ -723,18 +807,8 @@ SYSCALL_DEFINE2(timer_gettime32, timer_t, timer_id,
  */
 SYSCALL_DEFINE1(timer_getoverrun, timer_t, timer_id)
 {
-	struct k_itimer *timr;
-	unsigned long flags;
-	int overrun;
-
-	timr = lock_timer(timer_id, &flags);
-	if (!timr)
-		return -EINVAL;
-
-	overrun = timer_overrun_to_int(timr);
-	unlock_timer(timr, flags);
-
-	return overrun;
+	scoped_timer_get_or_fail(timer_id)
+		return timer_overrun_to_int(scoped_timer);
 }
 
 static void common_hrtimer_arm(struct k_itimer *timr, ktime_t expires,
@@ -747,7 +821,7 @@ static void common_hrtimer_arm(struct k_itimer *timr, ktime_t expires,
 	/*
 	 * Posix magic: Relative CLOCK_REALTIME timers are not affected by
 	 * clock modifications, so they become CLOCK_MONOTONIC based under the
-	 * hood. See hrtimer_init(). Update timr->kclock, so the generic
+	 * hood. See hrtimer_setup(). Update timr->kclock, so the generic
 	 * functions which use timr->kclock->clock_get_*() work.
 	 *
 	 * Note: it_clock stays unmodified, because the next timer_set() might
@@ -756,8 +830,7 @@ static void common_hrtimer_arm(struct k_itimer *timr, ktime_t expires,
 	if (timr->it_clock == CLOCK_REALTIME)
 		timr->kclock = absolute ? &clock_realtime : &clock_monotonic;
 
-	hrtimer_init(&timr->it.real.timer, timr->it_clock, mode);
-	timr->it.real.timer.function = posix_timer_fn;
+	hrtimer_setup(&timr->it.real.timer, posix_timer_fn, timr->it_clock, mode);
 
 	if (!absolute)
 		expires = ktime_add_safe(expires, timer->base->get_time());
@@ -791,26 +864,13 @@ static void common_timer_wait_running(struct k_itimer *timer)
  * when the task which tries to delete or disarm the timer has preempted
  * the task which runs the expiry in task work context.
  */
-static struct k_itimer *timer_wait_running(struct k_itimer *timer,
-					   unsigned long *flags)
+static void timer_wait_running(struct k_itimer *timer)
 {
-	const struct k_clock *kc = READ_ONCE(timer->kclock);
-	timer_t timer_id = READ_ONCE(timer->it_id);
-
-	/* Prevent kfree(timer) after dropping the lock */
-	rcu_read_lock();
-	unlock_timer(timer, *flags);
-
 	/*
 	 * kc->timer_wait_running() might drop RCU lock. So @timer
 	 * cannot be touched anymore after the function returns!
 	 */
-	if (!WARN_ON_ONCE(!kc->timer_wait_running))
-		kc->timer_wait_running(timer);
-
-	rcu_read_unlock();
-	/* Relock the timer. It might be not longer hashed. */
-	return lock_timer(timer_id, flags);
+	timer->kclock->timer_wait_running(timer);
 }
 
 /*
@@ -865,15 +925,9 @@ int common_timer_set(struct k_itimer *timr, int flags,
 	return 0;
 }
 
-static int do_timer_settime(timer_t timer_id, int tmr_flags,
-			    struct itimerspec64 *new_spec64,
+static int do_timer_settime(timer_t timer_id, int tmr_flags, struct itimerspec64 *new_spec64,
 			    struct itimerspec64 *old_spec64)
 {
-	const struct k_clock *kc;
-	struct k_itimer *timr;
-	unsigned long flags;
-	int error;
-
 	if (!timespec64_valid(&new_spec64->it_interval) ||
 	    !timespec64_valid(&new_spec64->it_value))
 		return -EINVAL;
@@ -881,33 +935,28 @@ static int do_timer_settime(timer_t timer_id, int tmr_flags,
 	if (old_spec64)
 		memset(old_spec64, 0, sizeof(*old_spec64));
 
-	timr = lock_timer(timer_id, &flags);
-retry:
-	if (!timr)
-		return -EINVAL;
+	for (; ; old_spec64 = NULL) {
+		struct k_itimer *timr;
 
-	if (old_spec64)
-		old_spec64->it_interval = ktime_to_timespec64(timr->it_interval);
+		scoped_timer_get_or_fail(timer_id) {
+			timr = scoped_timer;
 
-	/* Prevent signal delivery and rearming. */
-	timr->it_signal_seq++;
+			if (old_spec64)
+				old_spec64->it_interval = ktime_to_timespec64(timr->it_interval);
 
-	kc = timr->kclock;
-	if (WARN_ON_ONCE(!kc || !kc->timer_set))
-		error = -EINVAL;
-	else
-		error = kc->timer_set(timr, tmr_flags, new_spec64, old_spec64);
+			/* Prevent signal delivery and rearming. */
+			timr->it_signal_seq++;
 
-	if (error == TIMER_RETRY) {
-		// We already got the old time...
-		old_spec64 = NULL;
-		/* Unlocks and relocks the timer if it still exists */
-		timr = timer_wait_running(timr, &flags);
-		goto retry;
+			int ret = timr->kclock->timer_set(timr, tmr_flags, new_spec64, old_spec64);
+			if (ret != TIMER_RETRY)
+				return ret;
+
+			/* Protect the timer from being freed when leaving the lock scope */
+			rcu_read_lock();
+		}
+		timer_wait_running(timr);
+		rcu_read_unlock();
 	}
-	unlock_timer(timr, flags);
-
-	return error;
 }
 
 /* Set a POSIX.1b interval timer */
@@ -978,107 +1027,55 @@ static inline void posix_timer_cleanup_ignored(struct k_itimer *tmr)
 	}
 }
 
-static inline int timer_delete_hook(struct k_itimer *timer)
+static void posix_timer_delete(struct k_itimer *timer)
 {
-	const struct k_clock *kc = timer->kclock;
-
-	/* Prevent signal delivery and rearming. */
+	/*
+	 * Invalidate the timer, remove it from the linked list and remove
+	 * it from the ignored list if pending.
+	 *
+	 * The invalidation must be written with siglock held so that the
+	 * signal code observes the invalidated timer::it_signal in
+	 * do_sigaction(), which prevents it from moving a pending signal
+	 * of a deleted timer to the ignore list.
+	 *
+	 * The invalidation also prevents signal queueing, signal delivery
+	 * and therefore rearming from the signal delivery path.
+	 *
+	 * A concurrent lookup can still find the timer in the hash, but it
+	 * will check timer::it_signal with timer::it_lock held and observe
+	 * bit 0 set, which invalidates it. That also prevents the timer ID
+	 * from being handed out before this timer is completely gone.
+	 */
 	timer->it_signal_seq++;
 
-	if (WARN_ON_ONCE(!kc || !kc->timer_del))
-		return -EINVAL;
-	return kc->timer_del(timer);
+	scoped_guard (spinlock, &current->sighand->siglock) {
+		unsigned long sig = (unsigned long)timer->it_signal | 1UL;
+
+		WRITE_ONCE(timer->it_signal, (struct signal_struct *)sig);
+		hlist_del_rcu(&timer->list);
+		posix_timer_cleanup_ignored(timer);
+	}
+
+	while (timer->kclock->timer_del(timer) == TIMER_RETRY) {
+		guard(rcu)();
+		spin_unlock_irq(&timer->it_lock);
+		timer_wait_running(timer);
+		spin_lock_irq(&timer->it_lock);
+	}
 }
 
 /* Delete a POSIX.1b interval timer. */
 SYSCALL_DEFINE1(timer_delete, timer_t, timer_id)
 {
 	struct k_itimer *timer;
-	unsigned long flags;
 
-	timer = lock_timer(timer_id, &flags);
-
-retry_delete:
-	if (!timer)
-		return -EINVAL;
-
-	if (unlikely(timer_delete_hook(timer) == TIMER_RETRY)) {
-		/* Unlocks and relocks the timer if it still exists */
-		timer = timer_wait_running(timer, &flags);
-		goto retry_delete;
+	scoped_timer_get_or_fail(timer_id) {
+		timer = scoped_timer;
+		posix_timer_delete(timer);
 	}
-
-	spin_lock(&current->sighand->siglock);
-	hlist_del(&timer->list);
-	posix_timer_cleanup_ignored(timer);
-	/*
-	 * A concurrent lookup could check timer::it_signal lockless. It
-	 * will reevaluate with timer::it_lock held and observe the NULL.
-	 *
-	 * It must be written with siglock held so that the signal code
-	 * observes timer->it_signal == NULL in do_sigaction(SIG_IGN),
-	 * which prevents it from moving a pending signal of a deleted
-	 * timer to the ignore list.
-	 */
-	WRITE_ONCE(timer->it_signal, NULL);
-	spin_unlock(&current->sighand->siglock);
-
-	unlock_timer(timer, flags);
+	/* Remove it from the hash, which frees up the timer ID */
 	posix_timer_unhash_and_free(timer);
 	return 0;
-}
-
-/*
- * Delete a timer if it is armed, remove it from the hash and schedule it
- * for RCU freeing.
- */
-static void itimer_delete(struct k_itimer *timer)
-{
-	unsigned long flags;
-
-	/*
-	 * irqsave is required to make timer_wait_running() work.
-	 */
-	spin_lock_irqsave(&timer->it_lock, flags);
-
-retry_delete:
-	/*
-	 * Even if the timer is not longer accessible from other tasks
-	 * it still might be armed and queued in the underlying timer
-	 * mechanism. Worse, that timer mechanism might run the expiry
-	 * function concurrently.
-	 */
-	if (timer_delete_hook(timer) == TIMER_RETRY) {
-		/*
-		 * Timer is expired concurrently, prevent livelocks
-		 * and pointless spinning on RT.
-		 *
-		 * timer_wait_running() drops timer::it_lock, which opens
-		 * the possibility for another task to delete the timer.
-		 *
-		 * That's not possible here because this is invoked from
-		 * do_exit() only for the last thread of the thread group.
-		 * So no other task can access and delete that timer.
-		 */
-		if (WARN_ON_ONCE(timer_wait_running(timer, &flags) != timer))
-			return;
-
-		goto retry_delete;
-	}
-	hlist_del(&timer->list);
-
-	posix_timer_cleanup_ignored(timer);
-
-	/*
-	 * Setting timer::it_signal to NULL is technically not required
-	 * here as nothing can access the timer anymore legitimately via
-	 * the hash table. Set it to NULL nevertheless so that all deletion
-	 * paths are consistent.
-	 */
-	WRITE_ONCE(timer->it_signal, NULL);
-
-	spin_unlock_irqrestore(&timer->it_lock, flags);
-	posix_timer_unhash_and_free(timer);
 }
 
 /*
@@ -1089,18 +1086,26 @@ retry_delete:
 void exit_itimers(struct task_struct *tsk)
 {
 	struct hlist_head timers;
+	struct hlist_node *next;
+	struct k_itimer *timer;
+
+	/* Clear restore mode for exec() */
+	tsk->signal->timer_create_restore_ids = 0;
 
 	if (hlist_empty(&tsk->signal->posix_timers))
 		return;
 
 	/* Protect against concurrent read via /proc/$PID/timers */
-	spin_lock_irq(&tsk->sighand->siglock);
-	hlist_move_list(&tsk->signal->posix_timers, &timers);
-	spin_unlock_irq(&tsk->sighand->siglock);
+	scoped_guard (spinlock_irq, &tsk->sighand->siglock)
+		hlist_move_list(&tsk->signal->posix_timers, &timers);
 
 	/* The timers are not longer accessible via tsk::signal */
-	while (!hlist_empty(&timers))
-		itimer_delete(hlist_entry(timers.first, struct k_itimer, list));
+	hlist_for_each_entry_safe(timer, next, &timers, list) {
+		scoped_guard (spinlock_irq, &timer->it_lock)
+			posix_timer_delete(timer);
+		posix_timer_unhash_and_free(timer);
+		cond_resched();
+	}
 
 	/*
 	 * There should be no timers on the ignored list. itimer_delete() has
@@ -1545,3 +1550,26 @@ static const struct k_clock *clockid_to_kclock(const clockid_t id)
 
 	return posix_clocks[array_index_nospec(idx, ARRAY_SIZE(posix_clocks))];
 }
+
+static int __init posixtimer_init(void)
+{
+	unsigned long i, size;
+	unsigned int shift;
+
+	if (IS_ENABLED(CONFIG_BASE_SMALL))
+		size = 512;
+	else
+		size = roundup_pow_of_two(512 * num_possible_cpus());
+
+	timer_buckets = alloc_large_system_hash("posixtimers", sizeof(*timer_buckets),
+						size, 0, 0, &shift, NULL, size, size);
+	size = 1UL << shift;
+	timer_hashmask = size - 1;
+
+	for (i = 0; i < size; i++) {
+		spin_lock_init(&timer_buckets[i].lock);
+		INIT_HLIST_HEAD(&timer_buckets[i].head);
+	}
+	return 0;
+}
+core_initcall(posixtimer_init);

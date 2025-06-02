@@ -34,6 +34,7 @@ enum bh_state_bits {
 	BH_Meta,	/* Buffer contains metadata */
 	BH_Prio,	/* Buffer should be submitted with REQ_PRIO */
 	BH_Defer_Completion, /* Defer AIO completion to workqueue */
+	BH_Migrate,     /* Buffer is being migrated (norefs) */
 
 	BH_PrivateStart,/* not a state bit, but the first bit available
 			 * for private allocation by other entities
@@ -182,7 +183,6 @@ static inline unsigned long bh_offset(const struct buffer_head *bh)
 		BUG_ON(!PagePrivate(page));			\
 		((struct buffer_head *)page_private(page));	\
 	})
-#define page_has_buffers(page)	PagePrivate(page)
 #define folio_buffers(folio)		folio_get_private(folio)
 
 void buffer_check_dirty_writeback(struct folio *folio,
@@ -223,6 +223,8 @@ void __wait_on_buffer(struct buffer_head *);
 wait_queue_head_t *bh_waitq_head(struct buffer_head *bh);
 struct buffer_head *__find_get_block(struct block_device *bdev, sector_t block,
 			unsigned size);
+struct buffer_head *__find_get_block_nonatomic(struct block_device *bdev,
+			sector_t block, unsigned size);
 struct buffer_head *bdev_getblk(struct block_device *bdev, sector_t block,
 		unsigned size, gfp_t gfp);
 void __brelse(struct buffer_head *);
@@ -271,7 +273,7 @@ int cont_write_begin(struct file *, struct address_space *, loff_t,
 			unsigned, struct folio **, void **,
 			get_block_t *, loff_t *);
 int generic_cont_expand_simple(struct inode *inode, loff_t size);
-void block_commit_write(struct page *page, unsigned int from, unsigned int to);
+void block_commit_write(struct folio *folio, size_t from, size_t to);
 int block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 				get_block_t get_block);
 sector_t generic_block_bmap(struct address_space *, sector_t, get_block_t *);
@@ -396,6 +398,12 @@ static inline struct buffer_head *
 sb_find_get_block(struct super_block *sb, sector_t block)
 {
 	return __find_get_block(sb->s_bdev, block, sb->s_blocksize);
+}
+
+static inline struct buffer_head *
+sb_find_get_block_nonatomic(struct super_block *sb, sector_t block)
+{
+	return __find_get_block_nonatomic(sb->s_bdev, block, sb->s_blocksize);
 }
 
 static inline void

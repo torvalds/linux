@@ -321,6 +321,10 @@ config ARCH_STM32
 	help
 	  This enables support for ARMv8 based STMicroelectronics
 	  STM32 family, including:
+		- STM32MP21:
+			- STM32MP211, STM32MP213, STM32MP215.
+		- STM32MP23:
+			- STM32MP231, STM32MP233, STM32MP235.
 		- STM32MP25:
 			- STM32MP251, STM32MP253, STM32MP255 and STM32MP257.
 
@@ -374,13 +378,12 @@ config ARCH_UNIPHIER
 	  This enables support for Socionext UniPhier SoC family.
 
 config ARCH_VEXPRESS
-	bool "ARMv8 software model (Versatile Express)"
+	bool "ARM Ltd Platforms"
 	select GPIOLIB
 	select PM
 	select PM_GENERIC_DOMAINS
 	help
-	  This enables support for the ARMv8 software model (Versatile
-	  Express).
+	  This enables support for the ARM Ltd Platforms.
 
 config ARCH_VISCONTI
 	bool "Toshiba Visconti SoC Family"

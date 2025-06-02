@@ -89,8 +89,10 @@ definitions:
           doc: Group of short_detected states
   -
     name: phy-upstream-type
-    enum-name:
+    enum-name: phy-upstream
+    header: linux/ethtool.h
     type: enum
+    name-prefix: phy-upstream
     entries: [ mac, phy ]
   -
     name: tcp-data-split

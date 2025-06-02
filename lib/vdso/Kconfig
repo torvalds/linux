@@ -43,3 +43,8 @@ config VDSO_GETRANDOM
 	bool
 	help
 	  Selected by architectures that support vDSO getrandom().
+
+config GENERIC_VDSO_DATA_STORE
+	bool
+	help
+	  Selected by architectures that use the generic vDSO data store.

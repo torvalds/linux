@@ -380,8 +380,7 @@ config CPU_PM
 
 config ENERGY_MODEL
 	bool "Energy Model for devices with DVFS (CPUs, GPUs, etc)"
-	depends on SMP
-	depends on CPU_FREQ
+	depends on CPU_FREQ || PM_DEVFREQ
 	help
 	  Several subsystems (thermal and/or the task scheduler for example)
 	  can leverage information about the energy consumed by devices to

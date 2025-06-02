@@ -6,8 +6,8 @@
 #define __LINUX_UIO_H
 
 #include <linux/kernel.h>
-#include <linux/thread_info.h>
 #include <linux/mm_types.h>
+#include <linux/ucopysize.h>
 #include <uapi/linux/uio.h>
 
 struct page;

@@ -1166,6 +1166,8 @@ struct netvsc_device {
 	u32 max_chn;
 	u32 num_chn;
 
+	u32 netvsc_gso_max_size;
+
 	atomic_t open_chn;
 	struct work_struct subchan_work;
 	wait_queue_head_t subchan_open;

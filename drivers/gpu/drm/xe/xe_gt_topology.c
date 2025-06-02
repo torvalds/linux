@@ -129,7 +129,8 @@ static void
 load_l3_bank_mask(struct xe_gt *gt, xe_l3_bank_mask_t l3_bank_mask)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	u32 fuse3 = xe_mmio_read32(&gt->mmio, MIRROR_FUSE3);
+	struct xe_mmio *mmio = &gt->mmio;
+	u32 fuse3 = xe_mmio_read32(mmio, MIRROR_FUSE3);
 
 	/*
 	 * PTL platforms with media version 30.00 do not provide proper values
@@ -143,7 +144,16 @@ load_l3_bank_mask(struct xe_gt *gt, xe_l3_bank_mask_t l3_bank_mask)
 	if (XE_WA(gt, no_media_l3))
 		return;
 
-	if (GRAPHICS_VER(xe) >= 20) {
+	if (GRAPHICS_VER(xe) >= 30) {
+		xe_l3_bank_mask_t per_node = {};
+		u32 meml3_en = REG_FIELD_GET(XE2_NODE_ENABLE_MASK, fuse3);
+		u32 mirror_l3bank_enable = xe_mmio_read32(mmio, MIRROR_L3BANK_ENABLE);
+		u32 bank_val = REG_FIELD_GET(XE3_L3BANK_ENABLE, mirror_l3bank_enable);
+
+		bitmap_from_arr32(per_node, &bank_val, 32);
+		gen_l3_mask_from_pattern(xe, l3_bank_mask, per_node, 32,
+					 meml3_en);
+	} else if (GRAPHICS_VER(xe) >= 20) {
 		xe_l3_bank_mask_t per_node = {};
 		u32 meml3_en = REG_FIELD_GET(XE2_NODE_ENABLE_MASK, fuse3);
 		u32 bank_val = REG_FIELD_GET(XE2_GT_L3_MODE_MASK, fuse3);
@@ -155,7 +165,7 @@ load_l3_bank_mask(struct xe_gt *gt, xe_l3_bank_mask_t l3_bank_mask)
 		xe_l3_bank_mask_t per_node = {};
 		xe_l3_bank_mask_t per_mask_bit = {};
 		u32 meml3_en = REG_FIELD_GET(MEML3_EN_MASK, fuse3);
-		u32 fuse4 = xe_mmio_read32(&gt->mmio, XEHP_FUSE4);
+		u32 fuse4 = xe_mmio_read32(mmio, XEHP_FUSE4);
 		u32 bank_val = REG_FIELD_GET(GT_L3_EXC_MASK, fuse4);
 
 		bitmap_set_value8(per_mask_bit, 0x3, 0);

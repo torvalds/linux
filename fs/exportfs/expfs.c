@@ -126,10 +126,8 @@ static struct dentry *reconnect_one(struct vfsmount *mnt,
 	int err;
 
 	parent = ERR_PTR(-EACCES);
-	inode_lock(dentry->d_inode);
 	if (mnt->mnt_sb->s_export_op->get_parent)
 		parent = mnt->mnt_sb->s_export_op->get_parent(dentry);
-	inode_unlock(dentry->d_inode);
 
 	if (IS_ERR(parent)) {
 		dprintk("get_parent of %lu failed, err %ld\n",
@@ -610,4 +608,5 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 }
 EXPORT_SYMBOL_GPL(exportfs_decode_fh);
 
+MODULE_DESCRIPTION("Code mapping from inodes to file handles");
 MODULE_LICENSE("GPL");

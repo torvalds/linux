@@ -68,8 +68,6 @@ extern note_buf_t __percpu *crash_notes;
 #define KEXEC_CRASH_MEM_ALIGN PAGE_SIZE
 #endif
 
-#define KEXEC_CORE_NOTE_NAME	CRASH_CORE_NOTE_NAME
-
 /*
  * This structure is used to hold the arguments that are used when loading
  * kernel binaries.
@@ -202,6 +200,15 @@ arch_kexec_kernel_image_probe(struct kimage *image, void *buf, unsigned long buf
 static inline int arch_kimage_file_post_load_cleanup(struct kimage *image)
 {
 	return kexec_image_post_load_cleanup_default(image);
+}
+#endif
+
+#ifndef arch_check_excluded_range
+static inline int arch_check_excluded_range(struct kimage *image,
+					    unsigned long start,
+					    unsigned long end)
+{
+	return 0;
 }
 #endif
 

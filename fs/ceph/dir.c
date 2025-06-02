@@ -141,17 +141,18 @@ __dcache_find_get_entry(struct dentry *parent, u64 idx,
 	if (ptr_pos >= i_size_read(dir))
 		return NULL;
 
-	if (!cache_ctl->page || ptr_pgoff != cache_ctl->page->index) {
+	if (!cache_ctl->folio || ptr_pgoff != cache_ctl->folio->index) {
 		ceph_readdir_cache_release(cache_ctl);
-		cache_ctl->page = find_lock_page(&dir->i_data, ptr_pgoff);
-		if (!cache_ctl->page) {
-			doutc(cl, " page %lu not found\n", ptr_pgoff);
+		cache_ctl->folio = filemap_lock_folio(&dir->i_data, ptr_pgoff);
+		if (IS_ERR(cache_ctl->folio)) {
+			cache_ctl->folio = NULL;
+			doutc(cl, " folio %lu not found\n", ptr_pgoff);
 			return ERR_PTR(-EAGAIN);
 		}
 		/* reading/filling the cache are serialized by
-		   i_rwsem, no need to use page lock */
-		unlock_page(cache_ctl->page);
-		cache_ctl->dentries = kmap(cache_ctl->page);
+		   i_rwsem, no need to use folio lock */
+		folio_unlock(cache_ctl->folio);
+		cache_ctl->dentries = kmap_local_folio(cache_ctl->folio, 0);
 	}
 
 	cache_ctl->index = idx & idx_mask;
@@ -1092,19 +1093,20 @@ out:
 	return err;
 }
 
-static int ceph_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-		      struct dentry *dentry, umode_t mode)
+static struct dentry *ceph_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+				 struct dentry *dentry, umode_t mode)
 {
 	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(dir->i_sb);
 	struct ceph_client *cl = mdsc->fsc->client;
 	struct ceph_mds_request *req;
 	struct ceph_acl_sec_ctx as_ctx = {};
+	struct dentry *ret;
 	int err;
 	int op;
 
 	err = ceph_wait_on_conflict_unlink(dentry);
 	if (err)
-		return err;
+		return ERR_PTR(err);
 
 	if (ceph_snap(dir) == CEPH_SNAPDIR) {
 		/* mkdir .snap/foo is a MKSNAP */
@@ -1116,32 +1118,32 @@ static int ceph_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		      ceph_vinop(dir), dentry, dentry, mode);
 		op = CEPH_MDS_OP_MKDIR;
 	} else {
-		err = -EROFS;
+		ret = ERR_PTR(-EROFS);
 		goto out;
 	}
 
 	if (op == CEPH_MDS_OP_MKDIR &&
 	    ceph_quota_is_max_files_exceeded(dir)) {
-		err = -EDQUOT;
+		ret = ERR_PTR(-EDQUOT);
 		goto out;
 	}
 	if ((op == CEPH_MDS_OP_MKSNAP) && IS_ENCRYPTED(dir) &&
 	    !fscrypt_has_encryption_key(dir)) {
-		err = -ENOKEY;
+		ret = ERR_PTR(-ENOKEY);
 		goto out;
 	}
 
 
 	req = ceph_mdsc_create_request(mdsc, op, USE_AUTH_MDS);
 	if (IS_ERR(req)) {
-		err = PTR_ERR(req);
+		ret = ERR_CAST(req);
 		goto out;
 	}
 
 	mode |= S_IFDIR;
 	req->r_new_inode = ceph_new_inode(dir, dentry, &mode, &as_ctx);
 	if (IS_ERR(req->r_new_inode)) {
-		err = PTR_ERR(req->r_new_inode);
+		ret = ERR_CAST(req->r_new_inode);
 		req->r_new_inode = NULL;
 		goto out_req;
 	}
@@ -1165,15 +1167,22 @@ static int ceph_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	    !req->r_reply_info.head->is_target &&
 	    !req->r_reply_info.head->is_dentry)
 		err = ceph_handle_notrace_create(dir, dentry);
+	ret = ERR_PTR(err);
 out_req:
+	if (!IS_ERR(ret) && req->r_dentry != dentry)
+		/* Some other dentry was spliced in */
+		ret = dget(req->r_dentry);
 	ceph_mdsc_put_request(req);
 out:
-	if (!err)
+	if (!IS_ERR(ret)) {
+		if (ret)
+			dentry = ret;
 		ceph_init_inode_acls(d_inode(dentry), &as_ctx);
-	else
+	} else {
 		d_drop(dentry);
+	}
 	ceph_release_acl_sec_ctx(&as_ctx);
-	return err;
+	return ret;
 }
 
 static int ceph_link(struct dentry *old_dentry, struct inode *dir,

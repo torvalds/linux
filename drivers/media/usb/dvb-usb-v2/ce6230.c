@@ -154,7 +154,7 @@ static u32 ce6230_i2c_functionality(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm ce6230_i2c_algorithm = {
+static const struct i2c_algorithm ce6230_i2c_algorithm = {
 	.master_xfer   = ce6230_i2c_master_xfer,
 	.functionality = ce6230_i2c_functionality,
 };

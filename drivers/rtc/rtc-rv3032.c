@@ -69,8 +69,7 @@
 #define RV3032_CLKOUT2_FD_MSK		GENMASK(6, 5)
 #define RV3032_CLKOUT2_OS		BIT(7)
 
-#define RV3032_CTRL1_EERD		BIT(3)
-#define RV3032_CTRL1_WADA		BIT(5)
+#define RV3032_CTRL1_EERD		BIT(2)
 
 #define RV3032_CTRL2_STOP		BIT(0)
 #define RV3032_CTRL2_EIE		BIT(2)
@@ -946,11 +945,6 @@ static int rv3032_probe(struct i2c_client *client)
 	}
 	if (!client->irq)
 		clear_bit(RTC_FEATURE_ALARM, rv3032->rtc->features);
-
-	ret = regmap_update_bits(rv3032->regmap, RV3032_CTRL1,
-				 RV3032_CTRL1_WADA, RV3032_CTRL1_WADA);
-	if (ret)
-		return ret;
 
 	rv3032_trickle_charger_setup(&client->dev, rv3032);
 

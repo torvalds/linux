@@ -816,12 +816,12 @@
 						assigned-clocks = <&clk IMX8MP_CLK_ML_CORE>,
 								  <&clk IMX8MP_CLK_ML_AXI>,
 								  <&clk IMX8MP_CLK_ML_AHB>;
-						assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_800M>,
+						assigned-clock-parents = <&clk IMX8MP_SYS_PLL2_1000M>,
 									 <&clk IMX8MP_SYS_PLL1_800M>,
 									 <&clk IMX8MP_SYS_PLL1_800M>;
-						assigned-clock-rates = <800000000>,
+						assigned-clock-rates = <1000000000>,
 								       <800000000>,
-								       <300000000>;
+								       <400000000>;
 					};
 
 					pgc_audio: power-domain@5 {
@@ -834,7 +834,7 @@
 						assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_800M>,
 									 <&clk IMX8MP_SYS_PLL1_800M>;
 						assigned-clock-rates = <400000000>,
-								       <600000000>;
+								       <800000000>;
 					};
 
 					pgc_gpu2d: power-domain@6 {
@@ -1619,10 +1619,11 @@
 					 <&clk IMX8MP_CLK_SAI3>,
 					 <&clk IMX8MP_CLK_SAI5>,
 					 <&clk IMX8MP_CLK_SAI6>,
-					 <&clk IMX8MP_CLK_SAI7>;
+					 <&clk IMX8MP_CLK_SAI7>,
+					 <&clk IMX8MP_CLK_AUDIO_AXI_ROOT>;
 				clock-names = "ahb",
 					      "sai1", "sai2", "sai3",
-					      "sai5", "sai6", "sai7";
+					      "sai5", "sai6", "sai7", "axi";
 				power-domains = <&pgc_audio>;
 				assigned-clocks = <&clk IMX8MP_AUDIO_PLL1>,
 						  <&clk IMX8MP_AUDIO_PLL2>;
@@ -2232,9 +2233,9 @@
 			clock-names = "core", "shader", "bus", "reg";
 			assigned-clocks = <&clk IMX8MP_CLK_GPU3D_CORE>,
 					  <&clk IMX8MP_CLK_GPU3D_SHADER_CORE>;
-			assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_800M>,
-						 <&clk IMX8MP_SYS_PLL1_800M>;
-			assigned-clock-rates = <800000000>, <800000000>;
+			assigned-clock-parents = <&clk IMX8MP_SYS_PLL2_1000M>,
+						 <&clk IMX8MP_SYS_PLL2_1000M>;
+			assigned-clock-rates = <1000000000>, <1000000000>;
 			power-domains = <&pgc_gpu3d>;
 		};
 
@@ -2247,8 +2248,8 @@
 				 <&clk IMX8MP_CLK_GPU_AHB>;
 			clock-names = "core", "bus", "reg";
 			assigned-clocks = <&clk IMX8MP_CLK_GPU2D_CORE>;
-			assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_800M>;
-			assigned-clock-rates = <800000000>;
+			assigned-clock-parents = <&clk IMX8MP_SYS_PLL2_1000M>;
+			assigned-clock-rates = <1000000000>;
 			power-domains = <&pgc_gpu2d>;
 		};
 

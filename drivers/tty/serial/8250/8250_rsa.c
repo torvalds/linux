@@ -16,30 +16,27 @@ static unsigned int probe_rsa_count;
 
 static int rsa8250_request_resource(struct uart_8250_port *up)
 {
-	unsigned long start = UART_RSA_BASE << up->port.regshift;
-	unsigned int size = 8 << up->port.regshift;
 	struct uart_port *port = &up->port;
-	int ret = -EINVAL;
+	unsigned long start = UART_RSA_BASE << port->regshift;
+	unsigned int size = 8 << port->regshift;
 
 	switch (port->iotype) {
 	case UPIO_HUB6:
 	case UPIO_PORT:
 		start += port->iobase;
-		if (request_region(start, size, "serial-rsa"))
-			ret = 0;
-		else
-			ret = -EBUSY;
-		break;
+		if (!request_region(start, size, "serial-rsa"))
+			return -EBUSY;
+		return 0;
+	default:
+		return -EINVAL;
 	}
-
-	return ret;
 }
 
 static void rsa8250_release_resource(struct uart_8250_port *up)
 {
-	unsigned long offset = UART_RSA_BASE << up->port.regshift;
-	unsigned int size = 8 << up->port.regshift;
 	struct uart_port *port = &up->port;
+	unsigned long offset = UART_RSA_BASE << port->regshift;
+	unsigned int size = 8 << port->regshift;
 
 	switch (port->iotype) {
 	case UPIO_HUB6:

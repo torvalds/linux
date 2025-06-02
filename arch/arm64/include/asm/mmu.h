@@ -94,18 +94,6 @@ static inline bool kaslr_requires_kpti(void)
 			return false;
 	}
 
-	/*
-	 * Systems affected by Cavium erratum 24756 are incompatible
-	 * with KPTI.
-	 */
-	if (IS_ENABLED(CONFIG_CAVIUM_ERRATUM_27456)) {
-		extern const struct midr_range cavium_erratum_27456_cpus[];
-
-		if (is_midr_in_range_list(read_cpuid_id(),
-					  cavium_erratum_27456_cpus))
-			return false;
-	}
-
 	return true;
 }
 

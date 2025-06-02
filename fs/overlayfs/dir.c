@@ -138,37 +138,6 @@ kill_whiteout:
 	goto out;
 }
 
-int ovl_mkdir_real(struct ovl_fs *ofs, struct inode *dir,
-		   struct dentry **newdentry, umode_t mode)
-{
-	int err;
-	struct dentry *d, *dentry = *newdentry;
-
-	err = ovl_do_mkdir(ofs, dir, dentry, mode);
-	if (err)
-		return err;
-
-	if (likely(!d_unhashed(dentry)))
-		return 0;
-
-	/*
-	 * vfs_mkdir() may succeed and leave the dentry passed
-	 * to it unhashed and negative. If that happens, try to
-	 * lookup a new hashed and positive dentry.
-	 */
-	d = ovl_lookup_upper(ofs, dentry->d_name.name, dentry->d_parent,
-			     dentry->d_name.len);
-	if (IS_ERR(d)) {
-		pr_warn("failed lookup after mkdir (%pd2, err=%i).\n",
-			dentry, err);
-		return PTR_ERR(d);
-	}
-	dput(dentry);
-	*newdentry = d;
-
-	return 0;
-}
-
 struct dentry *ovl_create_real(struct ovl_fs *ofs, struct inode *dir,
 			       struct dentry *newdentry, struct ovl_cattr *attr)
 {
@@ -191,7 +160,8 @@ struct dentry *ovl_create_real(struct ovl_fs *ofs, struct inode *dir,
 
 		case S_IFDIR:
 			/* mkdir is special... */
-			err =  ovl_mkdir_real(ofs, dir, &newdentry, attr->mode);
+			newdentry =  ovl_do_mkdir(ofs, dir, newdentry, attr->mode);
+			err = PTR_ERR_OR_ZERO(newdentry);
 			break;
 
 		case S_IFCHR:
@@ -219,7 +189,8 @@ struct dentry *ovl_create_real(struct ovl_fs *ofs, struct inode *dir,
 	}
 out:
 	if (err) {
-		dput(newdentry);
+		if (!IS_ERR(newdentry))
+			dput(newdentry);
 		return ERR_PTR(err);
 	}
 	return newdentry;
@@ -282,7 +253,8 @@ static int ovl_instantiate(struct dentry *dentry, struct inode *inode,
 		 * XXX: if we ever use ovl_obtain_alias() to decode directory
 		 * file handles, need to use ovl_get_inode_locked() and
 		 * d_instantiate_new() here to prevent from creating two
-		 * hashed directory inode aliases.
+		 * hashed directory inode aliases.  We then need to return
+		 * the obtained alias to ovl_mkdir().
 		 */
 		inode = ovl_get_inode(dentry->d_sb, &oip);
 		if (IS_ERR(inode))
@@ -687,10 +659,10 @@ static int ovl_create(struct mnt_idmap *idmap, struct inode *dir,
 	return ovl_create_object(dentry, (mode & 07777) | S_IFREG, 0, NULL);
 }
 
-static int ovl_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-		     struct dentry *dentry, umode_t mode)
+static struct dentry *ovl_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+				struct dentry *dentry, umode_t mode)
 {
-	return ovl_create_object(dentry, (mode & 07777) | S_IFDIR, 0, NULL);
+	return ERR_PTR(ovl_create_object(dentry, (mode & 07777) | S_IFDIR, 0, NULL));
 }
 
 static int ovl_mknod(struct mnt_idmap *idmap, struct inode *dir,

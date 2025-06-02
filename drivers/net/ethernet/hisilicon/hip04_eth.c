@@ -934,8 +934,6 @@ static int hip04_mac_probe(struct platform_device *pdev)
 	priv->chan = arg.args[1] * RX_DESC_NUM;
 	priv->group = arg.args[2];
 
-	hrtimer_init(&priv->tx_coalesce_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-
 	/* BQL will try to keep the TX queue as short as possible, but it can't
 	 * be faster than tx_coalesce_usecs, so we need a fast timeout here,
 	 * but also long enough to gather up enough frames to ensure we don't
@@ -944,7 +942,7 @@ static int hip04_mac_probe(struct platform_device *pdev)
 	 */
 	priv->tx_coalesce_frames = TX_DESC_NUM * 3 / 4;
 	priv->tx_coalesce_usecs = 200;
-	priv->tx_coalesce_timer.function = tx_done;
+	hrtimer_setup(&priv->tx_coalesce_timer, tx_done, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	priv->map = syscon_node_to_regmap(arg.np);
 	of_node_put(arg.np);
