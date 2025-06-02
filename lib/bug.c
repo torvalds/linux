@@ -139,6 +139,19 @@ void bug_get_file_line(struct bug_entry *bug, const char **file,
 #endif
 }
 
+static const char *bug_get_format(struct bug_entry *bug)
+{
+	const char *format = NULL;
+#ifdef HAVE_ARCH_BUG_FORMAT
+#ifdef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
+	format = (const char *)&bug->format_disp + bug->format_disp;
+#else
+	format = bug->format;
+#endif
+#endif
+	return format;
+}
+
 struct bug_entry *find_bug(unsigned long bugaddr)
 {
 	struct bug_entry *bug;
@@ -150,11 +163,19 @@ struct bug_entry *find_bug(unsigned long bugaddr)
 	return module_find_bug(bugaddr);
 }
 
+static void __warn_printf(const char *fmt)
+{
+	if (!fmt)
+		return;
+
+	printk("%s", fmt);
+}
+
 static enum bug_trap_type __report_bug(unsigned long bugaddr, struct pt_regs *regs)
 {
-	struct bug_entry *bug;
-	const char *file;
-	unsigned line, warning, once, done;
+	bool warning, once, done, no_cut, has_args;
+	const char *file, *fmt;
+	unsigned line;
 
 	if (!is_valid_bugaddr(bugaddr))
 		return BUG_TRAP_TYPE_NONE;
@@ -166,10 +187,12 @@ static enum bug_trap_type __report_bug(unsigned long bugaddr, struct pt_regs *re
 	disable_trace_on_warning();
 
 	bug_get_file_line(bug, &file, &line);
+	fmt = bug_get_format(bug);
 
-	warning = (bug->flags & BUGFLAG_WARNING) != 0;
-	once = (bug->flags & BUGFLAG_ONCE) != 0;
-	done = (bug->flags & BUGFLAG_DONE) != 0;
+	warning  = bug->flags & BUGFLAG_WARNING;
+	once     = bug->flags & BUGFLAG_ONCE;
+	done     = bug->flags & BUGFLAG_DONE;
+	no_cut   = bug->flags & BUGFLAG_NO_CUT_HERE;
 
 	if (warning && once) {
 		if (done)
@@ -187,8 +210,10 @@ static enum bug_trap_type __report_bug(unsigned long bugaddr, struct pt_regs *re
 	 * "cut here" line now. WARN() issues its own "cut here" before the
 	 * extra debugging message it writes before triggering the handler.
 	 */
-	if ((bug->flags & BUGFLAG_NO_CUT_HERE) == 0)
+	if (!no_cut) {
 		printk(KERN_DEFAULT CUT_HERE);
+		__warn_printf(fmt);
+	}
 
 	if (warning) {
 		/* this is a WARN_ON rather than BUG/BUG_ON */

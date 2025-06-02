@@ -42,6 +42,13 @@ struct bug_entry {
 #else
 	signed int	bug_addr_disp;
 #endif
+#ifdef HAVE_ARCH_BUG_FORMAT
+#ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
+	const char	*format;
+#else
+	signed int	format_disp;
+#endif
+#endif
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 #ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
 	const char	*file;
