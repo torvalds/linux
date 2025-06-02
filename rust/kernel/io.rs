@@ -43,7 +43,7 @@ impl<const SIZE: usize> IoRaw<SIZE> {
     }
 }
 
-/// IO-mapped memory, starting at the base address @addr and spanning @maxlen bytes.
+/// IO-mapped memory region.
 ///
 /// The creator (usually a subsystem / bus such as PCI) is responsible for creating the
 /// mapping, performing an additional region request etc.
