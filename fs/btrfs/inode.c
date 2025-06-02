@@ -7368,13 +7368,13 @@ struct extent_map *btrfs_create_io_em(struct btrfs_inode *inode, u64 start,
 static void wait_subpage_spinlock(struct folio *folio)
 {
 	struct btrfs_fs_info *fs_info = folio_to_fs_info(folio);
-	struct btrfs_subpage *subpage;
+	struct btrfs_folio_state *bfs;
 
 	if (!btrfs_is_subpage(fs_info, folio))
 		return;
 
 	ASSERT(folio_test_private(folio) && folio_get_private(folio));
-	subpage = folio_get_private(folio);
+	bfs = folio_get_private(folio);
 
 	/*
 	 * This may look insane as we just acquire the spinlock and release it,
@@ -7387,8 +7387,8 @@ static void wait_subpage_spinlock(struct folio *folio)
 	 * Here we just acquire the spinlock so that all existing callers
 	 * should exit and we're safe to release/invalidate the page.
 	 */
-	spin_lock_irq(&subpage->lock);
-	spin_unlock_irq(&subpage->lock);
+	spin_lock_irq(&bfs->lock);
+	spin_unlock_irq(&bfs->lock);
 }
 
 static int btrfs_launder_folio(struct folio *folio)
