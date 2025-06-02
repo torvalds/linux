@@ -597,6 +597,10 @@ int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 		udelay(1);
 	}
 
+	dev_err(adev->dev,
+		"psp reg (0x%x) wait timed out, mask: %x, read: %x exp: %x",
+		reg_index, mask, val, reg_val);
+
 	return -ETIME;
 }
 
