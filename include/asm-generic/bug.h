@@ -35,26 +35,20 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 
 #ifdef CONFIG_BUG
 
+#ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
+#define BUG_REL(type, name) type name
+#else
+#define BUG_REL(type, name) signed int name##_disp
+#endif
+
 #ifdef CONFIG_GENERIC_BUG
 struct bug_entry {
-#ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
-	unsigned long	bug_addr;
-#else
-	signed int	bug_addr_disp;
-#endif
+	BUG_REL(unsigned long, bug_addr);
 #ifdef HAVE_ARCH_BUG_FORMAT
-#ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
-	const char	*format;
-#else
-	signed int	format_disp;
-#endif
+	BUG_REL(const char *, format);
 #endif
 #ifdef CONFIG_DEBUG_BUGVERBOSE
-#ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
-	const char	*file;
-#else
-	signed int	file_disp;
-#endif
+	BUG_REL(const char *, file);
 	unsigned short	line;
 #endif
 	unsigned short	flags;
