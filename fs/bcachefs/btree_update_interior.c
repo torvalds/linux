@@ -684,12 +684,31 @@ static void btree_update_nodes_written(struct btree_update *as)
 
 	/*
 	 * Wait for any in flight writes to finish before we free the old nodes
-	 * on disk:
+	 * on disk. But we haven't pinned those old nodes in the btree cache,
+	 * they might have already been evicted.
+	 *
+	 * The update we're completing deleted references to those nodes from the
+	 * btree, so we know if they've been evicted they can't be pulled back in.
+	 * We just have to check if the nodes we have pointers to are still those
+	 * old nodes, and haven't been reused.
+	 *
+	 * This can't be done locklessly because the data buffer might have been
+	 * vmalloc allocated, and they're not RCU freed. We also need the
+	 * __no_kmsan_checks annotation because even with the btree node read
+	 * lock, nothing tells us that the data buffer has been initialized (if
+	 * the btree node has been reused for a different node, and the data
+	 * buffer swapped for a new data buffer).
 	 */
 	for (i = 0; i < as->nr_old_nodes; i++) {
 		b = as->old_nodes[i];
 
-		if (btree_node_seq_matches(b, as->old_nodes_seq[i]))
+		bch2_trans_begin(trans);
+		btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_read);
+		bool seq_matches = btree_node_seq_matches(b, as->old_nodes_seq[i]);
+		six_unlock_read(&b->c.lock);
+		bch2_trans_unlock_long(trans);
+
+		if (seq_matches)
 			wait_on_bit_io(&b->flags, BTREE_NODE_write_in_flight_inner,
 				       TASK_UNINTERRUPTIBLE);
 	}
