@@ -1235,7 +1235,7 @@ int ttm_pool_debugfs(struct ttm_pool *pool, struct seq_file *m)
 {
 	unsigned int i;
 
-	if (!pool->use_dma_alloc) {
+	if (!pool->use_dma_alloc && pool->nid == NUMA_NO_NODE) {
 		seq_puts(m, "unused\n");
 		return 0;
 	}
@@ -1244,7 +1244,12 @@ int ttm_pool_debugfs(struct ttm_pool *pool, struct seq_file *m)
 
 	spin_lock(&shrinker_lock);
 	for (i = 0; i < TTM_NUM_CACHING_TYPES; ++i) {
-		seq_puts(m, "DMA ");
+		if (!ttm_pool_select_type(pool, i, 0))
+			continue;
+		if (pool->use_dma_alloc)
+			seq_puts(m, "DMA ");
+		else
+			seq_printf(m, "N%d ", pool->nid);
 		switch (i) {
 		case ttm_cached:
 			seq_puts(m, "\t:");
