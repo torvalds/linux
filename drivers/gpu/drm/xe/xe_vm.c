@@ -732,7 +732,9 @@ int xe_vm_userptr_pin(struct xe_vm *vm)
 					      DMA_RESV_USAGE_BOOKKEEP,
 					      false, MAX_SCHEDULE_TIMEOUT);
 
+			down_read(&vm->userptr.notifier_lock);
 			err = xe_vm_invalidate_vma(&uvma->vma);
+			up_read(&vm->userptr.notifier_lock);
 			xe_vm_unlock(vm);
 			if (err)
 				break;
@@ -3853,6 +3855,7 @@ void xe_vm_unlock(struct xe_vm *vm)
 int xe_vm_invalidate_vma(struct xe_vma *vma)
 {
 	struct xe_device *xe = xe_vma_vm(vma)->xe;
+	struct xe_vm *vm = xe_vma_vm(vma);
 	struct xe_tile *tile;
 	struct xe_gt_tlb_invalidation_fence
 		fence[XE_MAX_TILES_PER_DEVICE * XE_MAX_GT_PER_TILE];
@@ -3864,17 +3867,24 @@ int xe_vm_invalidate_vma(struct xe_vma *vma)
 	xe_assert(xe, !xe_vma_is_cpu_addr_mirror(vma));
 	trace_xe_vma_invalidate(vma);
 
-	vm_dbg(&xe_vma_vm(vma)->xe->drm,
+	vm_dbg(&vm->xe->drm,
 	       "INVALIDATE: addr=0x%016llx, range=0x%016llx",
 		xe_vma_start(vma), xe_vma_size(vma));
 
-	/* Check that we don't race with page-table updates */
+	/*
+	 * Check that we don't race with page-table updates, tile_invalidated
+	 * update is safe
+	 */
 	if (IS_ENABLED(CONFIG_PROVE_LOCKING)) {
 		if (xe_vma_is_userptr(vma)) {
+			lockdep_assert(lockdep_is_held_type(&vm->userptr.notifier_lock, 0) ||
+				       (lockdep_is_held_type(&vm->userptr.notifier_lock, 1) &&
+					lockdep_is_held(&xe_vm_resv(vm)->lock.base)));
+
 			WARN_ON_ONCE(!mmu_interval_check_retry
 				     (&to_userptr_vma(vma)->userptr.notifier,
 				      to_userptr_vma(vma)->userptr.notifier_seq));
-			WARN_ON_ONCE(!dma_resv_test_signaled(xe_vm_resv(xe_vma_vm(vma)),
+			WARN_ON_ONCE(!dma_resv_test_signaled(xe_vm_resv(vm),
 							     DMA_RESV_USAGE_BOOKKEEP));
 
 		} else {
@@ -3914,7 +3924,8 @@ wait:
 	for (id = 0; id < fence_id; ++id)
 		xe_gt_tlb_invalidation_fence_wait(&fence[id]);
 
-	vma->tile_invalidated = vma->tile_mask;
+	/* WRITE_ONCE pair with READ_ONCE in xe_gt_pagefault.c */
+	WRITE_ONCE(vma->tile_invalidated, vma->tile_mask);
 
 	return ret;
 }
