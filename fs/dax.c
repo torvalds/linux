@@ -257,7 +257,7 @@ static void *wait_entry_unlocked_exclusive(struct xa_state *xas, void *entry)
 		wq = dax_entry_waitqueue(xas, entry, &ewait.key);
 		prepare_to_wait_exclusive(wq, &ewait.wait,
 					TASK_UNINTERRUPTIBLE);
-		xas_pause(xas);
+		xas_reset(xas);
 		xas_unlock_irq(xas);
 		schedule();
 		finish_wait(wq, &ewait.wait);
