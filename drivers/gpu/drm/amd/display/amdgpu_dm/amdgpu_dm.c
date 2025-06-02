@@ -3063,6 +3063,19 @@ static void hpd_rx_irq_work_suspend(struct amdgpu_display_manager *dm)
 	}
 }
 
+static int dm_cache_state(struct amdgpu_device *adev)
+{
+	int r;
+
+	adev->dm.cached_state = drm_atomic_helper_suspend(adev_to_drm(adev));
+	if (IS_ERR(adev->dm.cached_state)) {
+		r = PTR_ERR(adev->dm.cached_state);
+		adev->dm.cached_state = NULL;
+	}
+
+	return adev->dm.cached_state ? 0 : r;
+}
+
 static int dm_prepare_suspend(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
@@ -3071,11 +3084,8 @@ static int dm_prepare_suspend(struct amdgpu_ip_block *ip_block)
 		return 0;
 
 	WARN_ON(adev->dm.cached_state);
-	adev->dm.cached_state = drm_atomic_helper_suspend(adev_to_drm(adev));
-	if (IS_ERR(adev->dm.cached_state))
-		return PTR_ERR(adev->dm.cached_state);
 
-	return 0;
+	return dm_cache_state(adev);
 }
 
 static int dm_suspend(struct amdgpu_ip_block *ip_block)
@@ -3109,9 +3119,10 @@ static int dm_suspend(struct amdgpu_ip_block *ip_block)
 	}
 
 	if (!adev->dm.cached_state) {
-		adev->dm.cached_state = drm_atomic_helper_suspend(adev_to_drm(adev));
-		if (IS_ERR(adev->dm.cached_state))
-			return PTR_ERR(adev->dm.cached_state);
+		int r = dm_cache_state(adev);
+
+		if (r)
+			return r;
 	}
 
 	s3_handle_hdmi_cec(adev_to_drm(adev), true);
