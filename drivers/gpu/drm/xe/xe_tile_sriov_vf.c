@@ -11,6 +11,7 @@
 #include "xe_ggtt.h"
 #include "xe_gt_sriov_vf.h"
 #include "xe_sriov.h"
+#include "xe_sriov_printk.h"
 #include "xe_tile_sriov_vf.h"
 #include "xe_wopcm.h"
 
@@ -44,6 +45,7 @@ int xe_tile_sriov_vf_balloon_ggtt_locked(struct xe_tile *tile)
 	u64 ggtt_base = xe_gt_sriov_vf_ggtt_base(tile->primary_gt);
 	u64 ggtt_size = xe_gt_sriov_vf_ggtt(tile->primary_gt);
 	struct xe_device *xe = tile_to_xe(tile);
+	u64 wopcm = xe_wopcm_size(xe);
 	u64 start, end;
 	int err;
 
@@ -66,7 +68,14 @@ int xe_tile_sriov_vf_balloon_ggtt_locked(struct xe_tile *tile)
 	 *      |<--- balloon[0] --->|<-- VF -->|<-- balloon[1] ->|
 	 */
 
-	start = xe_wopcm_size(xe);
+	if (ggtt_base < wopcm || ggtt_base > GUC_GGTT_TOP ||
+	    ggtt_size > GUC_GGTT_TOP - ggtt_base) {
+		xe_sriov_err(xe, "tile%u: Invalid GGTT configuration: %#llx-%#llx\n",
+			     tile->id, ggtt_base, ggtt_base + ggtt_size - 1);
+		return -ERANGE;
+	}
+
+	start = wopcm;
 	end = ggtt_base;
 	if (end != start) {
 		err = xe_ggtt_node_insert_balloon_locked(tile->sriov.vf.ggtt_balloon[0],
