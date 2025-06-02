@@ -223,7 +223,7 @@ static void print_eb_refs_lock(const struct extent_buffer *eb)
 {
 #ifdef CONFIG_BTRFS_DEBUG
 	btrfs_info(eb->fs_info, "refs %u lock_owner %u current %u",
-		   atomic_read(&eb->refs), eb->lock_owner, current->pid);
+		   refcount_read(&eb->refs), eb->lock_owner, current->pid);
 #endif
 }
 

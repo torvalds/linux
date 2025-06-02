@@ -2485,7 +2485,7 @@ void btrfs_schedule_zone_finish_bg(struct btrfs_block_group *bg,
 
 	/* For the work */
 	btrfs_get_block_group(bg);
-	atomic_inc(&eb->refs);
+	refcount_inc(&eb->refs);
 	bg->last_eb = eb;
 	INIT_WORK(&bg->zone_finish_work, btrfs_zone_finish_endio_workfn);
 	queue_work(system_unbound_wq, &bg->zone_finish_work);
