@@ -660,6 +660,11 @@ airoha_ppe_foe_commit_subflow_entry(struct airoha_ppe *ppe,
 	if (type >= PPE_PKT_TYPE_IPV6_ROUTE_3T) {
 		memcpy(&hwe.ipv6.l2, &e->data.bridge.l2, sizeof(hwe.ipv6.l2));
 		hwe.ipv6.ib2 = e->data.bridge.ib2;
+		/* setting smac_id to 0xf instruct the hw to keep original
+		 * source mac address
+		 */
+		hwe.ipv6.l2.src_mac_hi = FIELD_PREP(AIROHA_FOE_MAC_SMAC_ID,
+						    0xf);
 	} else {
 		memcpy(&hwe.bridge.l2, &e->data.bridge.l2,
 		       sizeof(hwe.bridge.l2));
