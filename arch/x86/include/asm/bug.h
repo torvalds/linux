@@ -50,33 +50,44 @@
 #define __BUG_ENTRY_VERBOSE(file, line)
 #endif
 
-#define __BUG_ENTRY(file, line, flags)					\
+#if defined(CONFIG_X86_64) || defined(CONFIG_DEBUG_BUGVERBOSE_DETAILED)
+#define HAVE_ARCH_BUG_FORMAT
+#define __BUG_ENTRY_FORMAT(format)					\
+	"\t" __BUG_REL(format)	"\t# bug_entry::format\n"
+#else
+#define __BUG_ENTRY_FORMAT(format)
+#endif
+
+#define __BUG_ENTRY(format, file, line, flags)				\
 	__BUG_REL("1b")		"\t# bug_entry::bug_addr\n"		\
+	__BUG_ENTRY_FORMAT(format)					\
 	__BUG_ENTRY_VERBOSE(file, line)					\
 	"\t.word " flags	"\t# bug_entry::flags\n"
 
-#define _BUG_FLAGS_ASM(ins, file, line, flags, size, extra)		\
+#define _BUG_FLAGS_ASM(ins, format, file, line, flags, size, extra)	\
 	"1:\t" ins "\n"							\
 	".pushsection __bug_table,\"aw\"\n\t"				\
 	ANNOTATE_DATA_SPECIAL						\
 	"2:\n\t"							\
-	__BUG_ENTRY(file, line, flags)					\
+	__BUG_ENTRY(format, file, line, flags)				\
 	"\t.org 2b + " size "\n"					\
 	".popsection\n"							\
 	extra
 
 #define _BUG_FLAGS(cond_str, ins, flags, extra)				\
 do {									\
-	asm_inline volatile(_BUG_FLAGS_ASM(ins, "%c0",			\
-					   "%c1", "%c2", "%c3", extra)	\
-		   : : "i" (WARN_CONDITION_STR(cond_str) __FILE__),	\
-		       "i" (__LINE__),					\
-		       "i" (flags),					\
-		       "i" (sizeof(struct bug_entry)));			\
+	asm_inline volatile(_BUG_FLAGS_ASM(ins, "%c[fmt]", "%c[file]",	\
+					   "%c[line]", "%c[fl]",	\
+					   "%c[size]", extra)		\
+		   : : [fmt] "i" (NULL),				\
+		       [file] "i" (WARN_CONDITION_STR(cond_str) __FILE__), \
+		       [line] "i" (__LINE__),				\
+		       [fl] "i" (flags),				\
+		       [size] "i" (sizeof(struct bug_entry)));		\
 } while (0)
 
 #define ARCH_WARN_ASM(file, line, flags, size)				\
-	_BUG_FLAGS_ASM(ASM_UD2, file, line, flags, size, "")
+	_BUG_FLAGS_ASM(ASM_UD2, "0", file, line, flags, size, "")
 
 #else
 
