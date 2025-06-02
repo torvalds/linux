@@ -41,4 +41,4 @@ obj-y					:= idreg-override.pi.o \
 obj-$(CONFIG_RELOCATABLE)		+= relocate.pi.o
 obj-$(CONFIG_RANDOMIZE_BASE)		+= kaslr_early.pi.o
 obj-$(CONFIG_UNWIND_PATCH_PAC_INTO_SCS)	+= patch-scs.pi.o
-extra-y					:= $(patsubst %.pi.o,%.o,$(obj-y))
+targets					:= $(patsubst %.pi.o,%.o,$(obj-y))
