@@ -522,7 +522,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			case INAT_PFX_REPNE:
 				if (modrm == 0xca)
 					/* eretu/erets */
-					insn->type = INSN_CONTEXT_SWITCH;
+					insn->type = INSN_SYSRET;
 				break;
 			default:
 				if (modrm == 0xca)
@@ -535,11 +535,15 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 
 			insn->type = INSN_JUMP_CONDITIONAL;
 
-		} else if (op2 == 0x05 || op2 == 0x07 || op2 == 0x34 ||
-			   op2 == 0x35) {
+		} else if (op2 == 0x05 || op2 == 0x34) {
 
-			/* sysenter, sysret */
-			insn->type = INSN_CONTEXT_SWITCH;
+			/* syscall, sysenter */
+			insn->type = INSN_SYSCALL;
+
+		} else if (op2 == 0x07 || op2 == 0x35) {
+
+			/* sysret, sysexit */
+			insn->type = INSN_SYSRET;
 
 		} else if (op2 == 0x0b || op2 == 0xb9) {
 
@@ -676,7 +680,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 
 	case 0xca: /* retf */
 	case 0xcb: /* retf */
-		insn->type = INSN_CONTEXT_SWITCH;
+		insn->type = INSN_SYSRET;
 		break;
 
 	case 0xe0: /* loopne */
@@ -721,7 +725,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		} else if (modrm_reg == 5) {
 
 			/* jmpf */
-			insn->type = INSN_CONTEXT_SWITCH;
+			insn->type = INSN_SYSRET;
 
 		} else if (modrm_reg == 6) {
 

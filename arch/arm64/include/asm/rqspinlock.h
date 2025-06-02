@@ -86,7 +86,7 @@
 
 #endif
 
-#define res_smp_cond_load_acquire_timewait(v, c) smp_cond_load_acquire_timewait(v, c, 0, 1)
+#define res_smp_cond_load_acquire(v, c) smp_cond_load_acquire_timewait(v, c, 0, 1)
 
 #include <asm-generic/rqspinlock.h>
 

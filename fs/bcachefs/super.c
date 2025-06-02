@@ -70,14 +70,10 @@
 #include <linux/percpu.h>
 #include <linux/random.h>
 #include <linux/sysfs.h>
-#include <crypto/hash.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kent Overstreet <kent.overstreet@gmail.com>");
 MODULE_DESCRIPTION("bcachefs filesystem");
-MODULE_SOFTDEP("pre: chacha20");
-MODULE_SOFTDEP("pre: poly1305");
-MODULE_SOFTDEP("pre: xxhash");
 
 const char * const bch2_fs_flag_strs[] = {
 #define x(n)		#n,
@@ -1001,12 +997,6 @@ static void print_mount_opts(struct bch_fs *c)
 
 	prt_str(&p, "starting version ");
 	bch2_version_to_text(&p, c->sb.version);
-
-	if (c->opts.read_only) {
-		prt_str(&p, " opts=");
-		first = false;
-		prt_printf(&p, "ro");
-	}
 
 	for (i = 0; i < bch2_opts_nr; i++) {
 		const struct bch_option *opt = &bch2_opt_table[i];

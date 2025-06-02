@@ -1081,31 +1081,24 @@ static int ipmmu_probe(struct platform_device *pdev)
 		}
 	}
 
+	platform_set_drvdata(pdev, mmu);
 	/*
 	 * Register the IPMMU to the IOMMU subsystem in the following cases:
 	 * - R-Car Gen2 IPMMU (all devices registered)
 	 * - R-Car Gen3 IPMMU (leaf devices only - skip root IPMMU-MM device)
 	 */
-	if (!mmu->features->has_cache_leaf_nodes || !ipmmu_is_root(mmu)) {
-		ret = iommu_device_sysfs_add(&mmu->iommu, &pdev->dev, NULL,
-					     dev_name(&pdev->dev));
-		if (ret)
-			return ret;
+	if (mmu->features->has_cache_leaf_nodes && ipmmu_is_root(mmu))
+		return 0;
 
-		ret = iommu_device_register(&mmu->iommu, &ipmmu_ops, &pdev->dev);
-		if (ret)
-			return ret;
-	}
+	ret = iommu_device_sysfs_add(&mmu->iommu, &pdev->dev, NULL, dev_name(&pdev->dev));
+	if (ret)
+		return ret;
 
-	/*
-	 * We can't create the ARM mapping here as it requires the bus to have
-	 * an IOMMU, which only happens when bus_set_iommu() is called in
-	 * ipmmu_init() after the probe function returns.
-	 */
+	ret = iommu_device_register(&mmu->iommu, &ipmmu_ops, &pdev->dev);
+	if (ret)
+		iommu_device_sysfs_remove(&mmu->iommu);
 
-	platform_set_drvdata(pdev, mmu);
-
-	return 0;
+	return ret;
 }
 
 static void ipmmu_remove(struct platform_device *pdev)

@@ -16,15 +16,6 @@ u32 ethtool_cmis_get_max_lpl_size(u8 num_of_byte_octs)
 	return 8 * (1 + min_t(u8, num_of_byte_octs, 15));
 }
 
-/* For accessing the EPL field on page 9Fh, the allowable length extension is
- * min(i, 255) byte octets where i specifies the allowable additional number of
- * byte octets in a READ or a WRITE.
- */
-u32 ethtool_cmis_get_max_epl_size(u8 num_of_byte_octs)
-{
-	return 8 * (1 + min_t(u8, num_of_byte_octs, 255));
-}
-
 void ethtool_cmis_cdb_compose_args(struct ethtool_cmis_cdb_cmd_args *args,
 				   enum ethtool_cmis_cdb_cmd_id cmd, u8 *lpl,
 				   u8 lpl_len, u8 *epl, u16 epl_len,
@@ -33,19 +24,16 @@ void ethtool_cmis_cdb_compose_args(struct ethtool_cmis_cdb_cmd_args *args,
 {
 	args->req.id = cpu_to_be16(cmd);
 	args->req.lpl_len = lpl_len;
-	if (lpl) {
+	if (lpl)
 		memcpy(args->req.payload, lpl, args->req.lpl_len);
-		args->read_write_len_ext =
-			ethtool_cmis_get_max_lpl_size(read_write_len_ext);
-	}
 	if (epl) {
 		args->req.epl_len = cpu_to_be16(epl_len);
 		args->req.epl = epl;
-		args->read_write_len_ext =
-			ethtool_cmis_get_max_epl_size(read_write_len_ext);
 	}
 
 	args->max_duration = max_duration;
+	args->read_write_len_ext =
+		ethtool_cmis_get_max_lpl_size(read_write_len_ext);
 	args->msleep_pre_rpl = msleep_pre_rpl;
 	args->rpl_exp_len = rpl_exp_len;
 	args->flags = flags;

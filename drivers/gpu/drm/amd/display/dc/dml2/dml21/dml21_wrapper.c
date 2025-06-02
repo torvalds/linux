@@ -86,6 +86,8 @@ static void dml21_init(const struct dc *in_dc, struct dml2_context **dml_ctx, co
 	/* Store configuration options */
 	(*dml_ctx)->config = *config;
 
+	DC_FP_START();
+
 	/*Initialize SOCBB and DCNIP params */
 	dml21_initialize_soc_bb_params(&(*dml_ctx)->v21.dml_init, config, in_dc);
 	dml21_initialize_ip_params(&(*dml_ctx)->v21.dml_init, config, in_dc);
@@ -96,6 +98,8 @@ static void dml21_init(const struct dc *in_dc, struct dml2_context **dml_ctx, co
 
 	/*Initialize DML21 instance */
 	dml2_initialize_instance(&(*dml_ctx)->v21.dml_init);
+
+	DC_FP_END();
 }
 
 bool dml21_create(const struct dc *in_dc, struct dml2_context **dml_ctx, const struct dml2_configuration_options *config)
@@ -283,11 +287,16 @@ bool dml21_validate(const struct dc *in_dc, struct dc_state *context, struct dml
 {
 	bool out = false;
 
+	DC_FP_START();
+
 	/* Use dml_validate_only for fast_validate path */
-	if (fast_validate) {
+	if (fast_validate)
 		out = dml21_check_mode_support(in_dc, context, dml_ctx);
-	} else
+	else
 		out = dml21_mode_check_and_programming(in_dc, context, dml_ctx);
+
+	DC_FP_END();
+
 	return out;
 }
 
@@ -426,8 +435,12 @@ void dml21_copy(struct dml2_context *dst_dml_ctx,
 
 	dst_dml_ctx->v21.mode_programming.programming = dst_dml2_programming;
 
+	DC_FP_START();
+
 	/* need to initialize copied instance for internal references to be correct */
 	dml2_initialize_instance(&dst_dml_ctx->v21.dml_init);
+
+	DC_FP_END();
 }
 
 bool dml21_create_copy(struct dml2_context **dst_dml_ctx,

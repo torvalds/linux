@@ -25,8 +25,11 @@ static void *spin_lock_thread(void *arg)
 
 	while (!READ_ONCE(skip)) {
 		err = bpf_prog_test_run_opts(prog_fd, &topts);
-		ASSERT_OK(err, "test_run");
-		ASSERT_OK(topts.retval, "test_run retval");
+		if (err || topts.retval) {
+			ASSERT_OK(err, "test_run");
+			ASSERT_OK(topts.retval, "test_run retval");
+			break;
+		}
 	}
 	pthread_exit(arg);
 }

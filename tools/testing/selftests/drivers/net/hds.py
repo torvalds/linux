@@ -6,7 +6,7 @@ import os
 from lib.py import ksft_run, ksft_exit, ksft_eq, ksft_raises, KsftSkipEx
 from lib.py import CmdExitFailure, EthtoolFamily, NlError
 from lib.py import NetDrvEnv
-from lib.py import defer, ethtool, ip
+from lib.py import defer, ethtool, ip, random
 
 
 def _get_hds_mode(cfg, netnl) -> str:
@@ -108,6 +108,36 @@ def set_hds_thresh_zero(cfg, netnl) -> None:
         raise KsftSkipEx('hds-thresh not supported by device')
 
     ksft_eq(0, rings['hds-thresh'])
+
+def set_hds_thresh_random(cfg, netnl) -> None:
+    try:
+        rings = netnl.rings_get({'header': {'dev-index': cfg.ifindex}})
+    except NlError as e:
+        raise KsftSkipEx('ring-get not supported by device')
+    if 'hds-thresh' not in rings:
+        raise KsftSkipEx('hds-thresh not supported by device')
+    if 'hds-thresh-max' not in rings:
+        raise KsftSkipEx('hds-thresh-max not defined by device')
+
+    if rings['hds-thresh-max'] < 2:
+        raise KsftSkipEx('hds-thresh-max is too small')
+    elif rings['hds-thresh-max'] == 2:
+        hds_thresh = 1
+    else:
+        while True:
+            hds_thresh = random.randint(1, rings['hds-thresh-max'] - 1)
+            if hds_thresh != rings['hds-thresh']:
+                break
+
+    try:
+        netnl.rings_set({'header': {'dev-index': cfg.ifindex}, 'hds-thresh': hds_thresh})
+    except NlError as e:
+        if e.error == errno.EINVAL:
+            raise KsftSkipEx("hds-thresh-set not supported by the device")
+        elif e.error == errno.EOPNOTSUPP:
+            raise KsftSkipEx("ring-set not supported by the device")
+    rings = netnl.rings_get({'header': {'dev-index': cfg.ifindex}})
+    ksft_eq(hds_thresh, rings['hds-thresh'])
 
 def set_hds_thresh_max(cfg, netnl) -> None:
     try:
@@ -243,6 +273,7 @@ def main() -> None:
                   get_hds_thresh,
                   set_hds_disable,
                   set_hds_enable,
+                  set_hds_thresh_random,
                   set_hds_thresh_zero,
                   set_hds_thresh_max,
                   set_hds_thresh_gt,

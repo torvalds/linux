@@ -7,17 +7,12 @@
 #include "super-io.h"
 
 #include <linux/crc32c.h>
-#include <linux/crypto.h>
 #include <linux/xxhash.h>
 #include <linux/key.h>
 #include <linux/random.h>
 #include <linux/ratelimit.h>
-#include <linux/scatterlist.h>
-#include <crypto/algapi.h>
 #include <crypto/chacha.h>
-#include <crypto/hash.h>
 #include <crypto/poly1305.h>
-#include <crypto/skcipher.h>
 #include <keys/user-type.h>
 
 /*
@@ -96,116 +91,40 @@ static void bch2_checksum_update(struct bch2_checksum_state *state, const void *
 	}
 }
 
-static inline int do_encrypt_sg(struct crypto_sync_skcipher *tfm,
-				struct nonce nonce,
-				struct scatterlist *sg, size_t len)
+static void bch2_chacha20_init(u32 state[CHACHA_STATE_WORDS],
+			       const struct bch_key *key, struct nonce nonce)
 {
-	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
+	u32 key_words[CHACHA_KEY_SIZE / sizeof(u32)];
 
-	skcipher_request_set_sync_tfm(req, tfm);
-	skcipher_request_set_callback(req, 0, NULL, NULL);
-	skcipher_request_set_crypt(req, sg, sg, len, nonce.d);
+	BUILD_BUG_ON(sizeof(key_words) != sizeof(*key));
+	memcpy(key_words, key, sizeof(key_words));
+	le32_to_cpu_array(key_words, ARRAY_SIZE(key_words));
 
-	int ret = crypto_skcipher_encrypt(req);
-	if (ret)
-		pr_err("got error %i from crypto_skcipher_encrypt()", ret);
+	BUILD_BUG_ON(sizeof(nonce) != CHACHA_IV_SIZE);
+	chacha_init(state, key_words, (const u8 *)nonce.d);
 
-	return ret;
+	memzero_explicit(key_words, sizeof(key_words));
 }
 
-static inline int do_encrypt(struct crypto_sync_skcipher *tfm,
-			      struct nonce nonce,
-			      void *buf, size_t len)
+static void bch2_chacha20(const struct bch_key *key, struct nonce nonce,
+			  void *data, size_t len)
 {
-	if (!is_vmalloc_addr(buf)) {
-		struct scatterlist sg = {};
+	u32 state[CHACHA_STATE_WORDS];
 
-		sg_mark_end(&sg);
-		sg_set_page(&sg, virt_to_page(buf), len, offset_in_page(buf));
-		return do_encrypt_sg(tfm, nonce, &sg, len);
-	} else {
-		DARRAY_PREALLOCATED(struct scatterlist, 4) sgl;
-		size_t sgl_len = 0;
-		int ret;
-
-		darray_init(&sgl);
-
-		while (len) {
-			unsigned offset = offset_in_page(buf);
-			struct scatterlist sg = {
-				.page_link	= (unsigned long) vmalloc_to_page(buf),
-				.offset		= offset,
-				.length		= min(len, PAGE_SIZE - offset),
-			};
-
-			if (darray_push(&sgl, sg)) {
-				sg_mark_end(&darray_last(sgl));
-				ret = do_encrypt_sg(tfm, nonce, sgl.data, sgl_len);
-				if (ret)
-					goto err;
-
-				nonce = nonce_add(nonce, sgl_len);
-				sgl_len = 0;
-				sgl.nr = 0;
-				BUG_ON(darray_push(&sgl, sg));
-			}
-
-			buf += sg.length;
-			len -= sg.length;
-			sgl_len += sg.length;
-		}
-
-		sg_mark_end(&darray_last(sgl));
-		ret = do_encrypt_sg(tfm, nonce, sgl.data, sgl_len);
-err:
-		darray_exit(&sgl);
-		return ret;
-	}
+	bch2_chacha20_init(state, key, nonce);
+	chacha20_crypt(state, data, data, len);
+	memzero_explicit(state, sizeof(state));
 }
 
-int bch2_chacha_encrypt_key(struct bch_key *key, struct nonce nonce,
-			    void *buf, size_t len)
+static void bch2_poly1305_init(struct poly1305_desc_ctx *desc,
+			       struct bch_fs *c, struct nonce nonce)
 {
-	struct crypto_sync_skcipher *chacha20 =
-		crypto_alloc_sync_skcipher("chacha20", 0, 0);
-	int ret;
-
-	ret = PTR_ERR_OR_ZERO(chacha20);
-	if (ret) {
-		pr_err("error requesting chacha20 cipher: %s", bch2_err_str(ret));
-		return ret;
-	}
-
-	ret = crypto_skcipher_setkey(&chacha20->base,
-				     (void *) key, sizeof(*key));
-	if (ret) {
-		pr_err("error from crypto_skcipher_setkey(): %s", bch2_err_str(ret));
-		goto err;
-	}
-
-	ret = do_encrypt(chacha20, nonce, buf, len);
-err:
-	crypto_free_sync_skcipher(chacha20);
-	return ret;
-}
-
-static int gen_poly_key(struct bch_fs *c, struct shash_desc *desc,
-			struct nonce nonce)
-{
-	u8 key[POLY1305_KEY_SIZE];
-	int ret;
+	u8 key[POLY1305_KEY_SIZE] = { 0 };
 
 	nonce.d[3] ^= BCH_NONCE_POLY;
 
-	memset(key, 0, sizeof(key));
-	ret = do_encrypt(c->chacha20, nonce, key, sizeof(key));
-	if (ret)
-		return ret;
-
-	desc->tfm = c->poly1305;
-	crypto_shash_init(desc);
-	crypto_shash_update(desc, key, sizeof(key));
-	return 0;
+	bch2_chacha20(&c->chacha20_key, nonce, key, sizeof(key));
+	poly1305_init(desc, key);
 }
 
 struct bch_csum bch2_checksum(struct bch_fs *c, unsigned type,
@@ -230,14 +149,13 @@ struct bch_csum bch2_checksum(struct bch_fs *c, unsigned type,
 
 	case BCH_CSUM_chacha20_poly1305_80:
 	case BCH_CSUM_chacha20_poly1305_128: {
-		SHASH_DESC_ON_STACK(desc, c->poly1305);
+		struct poly1305_desc_ctx dctx;
 		u8 digest[POLY1305_DIGEST_SIZE];
 		struct bch_csum ret = { 0 };
 
-		gen_poly_key(c, desc, nonce);
-
-		crypto_shash_update(desc, data, len);
-		crypto_shash_final(desc, digest);
+		bch2_poly1305_init(&dctx, c, nonce);
+		poly1305_update(&dctx, data, len);
+		poly1305_final(&dctx, digest);
 
 		memcpy(&ret, digest, bch_crc_bytes[type]);
 		return ret;
@@ -253,11 +171,12 @@ int bch2_encrypt(struct bch_fs *c, unsigned type,
 	if (!bch2_csum_type_is_encryption(type))
 		return 0;
 
-	if (bch2_fs_inconsistent_on(!c->chacha20,
+	if (bch2_fs_inconsistent_on(!c->chacha20_key_set,
 				    c, "attempting to encrypt without encryption key"))
 		return -BCH_ERR_no_encryption_key;
 
-	return do_encrypt(c->chacha20, nonce, data, len);
+	bch2_chacha20(&c->chacha20_key, nonce, data, len);
+	return 0;
 }
 
 static struct bch_csum __bch2_checksum_bio(struct bch_fs *c, unsigned type,
@@ -296,26 +215,26 @@ static struct bch_csum __bch2_checksum_bio(struct bch_fs *c, unsigned type,
 
 	case BCH_CSUM_chacha20_poly1305_80:
 	case BCH_CSUM_chacha20_poly1305_128: {
-		SHASH_DESC_ON_STACK(desc, c->poly1305);
+		struct poly1305_desc_ctx dctx;
 		u8 digest[POLY1305_DIGEST_SIZE];
 		struct bch_csum ret = { 0 };
 
-		gen_poly_key(c, desc, nonce);
+		bch2_poly1305_init(&dctx, c, nonce);
 
 #ifdef CONFIG_HIGHMEM
 		__bio_for_each_segment(bv, bio, *iter, *iter) {
 			void *p = kmap_local_page(bv.bv_page) + bv.bv_offset;
 
-			crypto_shash_update(desc, p, bv.bv_len);
+			poly1305_update(&dctx, p, bv.bv_len);
 			kunmap_local(p);
 		}
 #else
 		__bio_for_each_bvec(bv, bio, *iter, *iter)
-			crypto_shash_update(desc,
+			poly1305_update(&dctx,
 				page_address(bv.bv_page) + bv.bv_offset,
 				bv.bv_len);
 #endif
-		crypto_shash_final(desc, digest);
+		poly1305_final(&dctx, digest);
 
 		memcpy(&ret, digest, bch_crc_bytes[type]);
 		return ret;
@@ -338,43 +257,33 @@ int __bch2_encrypt_bio(struct bch_fs *c, unsigned type,
 {
 	struct bio_vec bv;
 	struct bvec_iter iter;
-	DARRAY_PREALLOCATED(struct scatterlist, 4) sgl;
-	size_t sgl_len = 0;
+	u32 chacha_state[CHACHA_STATE_WORDS];
 	int ret = 0;
 
-	if (bch2_fs_inconsistent_on(!c->chacha20,
+	if (bch2_fs_inconsistent_on(!c->chacha20_key_set,
 				    c, "attempting to encrypt without encryption key"))
 		return -BCH_ERR_no_encryption_key;
 
-	darray_init(&sgl);
+	bch2_chacha20_init(chacha_state, &c->chacha20_key, nonce);
 
 	bio_for_each_segment(bv, bio, iter) {
-		struct scatterlist sg = {
-			.page_link	= (unsigned long) bv.bv_page,
-			.offset		= bv.bv_offset,
-			.length		= bv.bv_len,
-		};
+		void *p;
 
-		if (darray_push(&sgl, sg)) {
-			sg_mark_end(&darray_last(sgl));
-			ret = do_encrypt_sg(c->chacha20, nonce, sgl.data, sgl_len);
-			if (ret)
-				goto err;
-
-			nonce = nonce_add(nonce, sgl_len);
-			sgl_len = 0;
-			sgl.nr = 0;
-
-			BUG_ON(darray_push(&sgl, sg));
+		/*
+		 * chacha_crypt() assumes that the length is a multiple of
+		 * CHACHA_BLOCK_SIZE on any non-final call.
+		 */
+		if (!IS_ALIGNED(bv.bv_len, CHACHA_BLOCK_SIZE)) {
+			bch_err_ratelimited(c, "bio not aligned for encryption");
+			ret = -EIO;
+			break;
 		}
 
-		sgl_len += sg.length;
+		p = bvec_kmap_local(&bv);
+		chacha20_crypt(chacha_state, p, p, bv.bv_len);
+		kunmap_local(p);
 	}
-
-	sg_mark_end(&darray_last(sgl));
-	ret = do_encrypt_sg(c->chacha20, nonce, sgl.data, sgl_len);
-err:
-	darray_exit(&sgl);
+	memzero_explicit(chacha_state, sizeof(chacha_state));
 	return ret;
 }
 
@@ -650,10 +559,7 @@ int bch2_decrypt_sb_key(struct bch_fs *c,
 	}
 
 	/* decrypt real key: */
-	ret = bch2_chacha_encrypt_key(&user_key, bch2_sb_key_nonce(c),
-				      &sb_key, sizeof(sb_key));
-	if (ret)
-		goto err;
+	bch2_chacha20(&user_key, bch2_sb_key_nonce(c), &sb_key, sizeof(sb_key));
 
 	if (bch2_key_is_encrypted(&sb_key)) {
 		bch_err(c, "incorrect encryption key");
@@ -666,31 +572,6 @@ err:
 	memzero_explicit(&sb_key, sizeof(sb_key));
 	memzero_explicit(&user_key, sizeof(user_key));
 	return ret;
-}
-
-static int bch2_alloc_ciphers(struct bch_fs *c)
-{
-	if (c->chacha20)
-		return 0;
-
-	struct crypto_sync_skcipher *chacha20 = crypto_alloc_sync_skcipher("chacha20", 0, 0);
-	int ret = PTR_ERR_OR_ZERO(chacha20);
-	if (ret) {
-		bch_err(c, "error requesting chacha20 module: %s", bch2_err_str(ret));
-		return ret;
-	}
-
-	struct crypto_shash *poly1305 = crypto_alloc_shash("poly1305", 0, 0);
-	ret = PTR_ERR_OR_ZERO(poly1305);
-	if (ret) {
-		bch_err(c, "error requesting poly1305 module: %s", bch2_err_str(ret));
-		crypto_free_sync_skcipher(chacha20);
-		return ret;
-	}
-
-	c->chacha20	= chacha20;
-	c->poly1305	= poly1305;
-	return 0;
 }
 
 #if 0
@@ -797,35 +678,21 @@ err:
 
 void bch2_fs_encryption_exit(struct bch_fs *c)
 {
-	if (c->poly1305)
-		crypto_free_shash(c->poly1305);
-	if (c->chacha20)
-		crypto_free_sync_skcipher(c->chacha20);
+	memzero_explicit(&c->chacha20_key, sizeof(c->chacha20_key));
 }
 
 int bch2_fs_encryption_init(struct bch_fs *c)
 {
 	struct bch_sb_field_crypt *crypt;
-	struct bch_key key;
-	int ret = 0;
+	int ret;
 
 	crypt = bch2_sb_field_get(c->disk_sb.sb, crypt);
 	if (!crypt)
-		goto out;
+		return 0;
 
-	ret = bch2_alloc_ciphers(c);
+	ret = bch2_decrypt_sb_key(c, crypt, &c->chacha20_key);
 	if (ret)
-		goto out;
-
-	ret = bch2_decrypt_sb_key(c, crypt, &key);
-	if (ret)
-		goto out;
-
-	ret = crypto_skcipher_setkey(&c->chacha20->base,
-			(void *) &key.key, sizeof(key.key));
-	if (ret)
-		goto out;
-out:
-	memzero_explicit(&key, sizeof(key));
-	return ret;
+		return ret;
+	c->chacha20_key_set = true;
+	return 0;
 }

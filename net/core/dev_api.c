@@ -327,3 +327,19 @@ int dev_xdp_propagate(struct net_device *dev, struct netdev_bpf *bpf)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_xdp_propagate);
+
+/**
+ * netdev_state_change() - device changes state
+ * @dev: device to cause notification
+ *
+ * Called to indicate a device has changed state. This function calls
+ * the notifier chains for netdev_chain and sends a NEWLINK message
+ * to the routing socket.
+ */
+void netdev_state_change(struct net_device *dev)
+{
+	netdev_lock_ops(dev);
+	netif_state_change(dev);
+	netdev_unlock_ops(dev);
+}
+EXPORT_SYMBOL(netdev_state_change);

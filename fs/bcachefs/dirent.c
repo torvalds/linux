@@ -287,8 +287,8 @@ static void dirent_init_casefolded_name(struct bkey_i_dirent *dirent,
 	EBUG_ON(!dirent->v.d_casefold);
 	EBUG_ON(!cf_name->len);
 
-	dirent->v.d_cf_name_block.d_name_len = name->len;
-	dirent->v.d_cf_name_block.d_cf_name_len = cf_name->len;
+	dirent->v.d_cf_name_block.d_name_len = cpu_to_le16(name->len);
+	dirent->v.d_cf_name_block.d_cf_name_len = cpu_to_le16(cf_name->len);
 	memcpy(&dirent->v.d_cf_name_block.d_names[0], name->name, name->len);
 	memcpy(&dirent->v.d_cf_name_block.d_names[name->len], cf_name->name, cf_name->len);
 	memset(&dirent->v.d_cf_name_block.d_names[name->len + cf_name->len], 0,
