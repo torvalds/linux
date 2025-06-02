@@ -78,6 +78,9 @@ void destroy_context(struct mm_struct *mm)
 		mmu->id.pid = -1;
 	}
 
+	if (using_seccomp && mmu->id.sock)
+		os_close_file(mmu->id.sock);
+
 	free_pages(mmu->id.stack, ilog2(STUB_DATA_PAGES));
 
 	guard(spinlock_irqsave)(&mm_list_lock);

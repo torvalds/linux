@@ -1,5 +1,6 @@
 #include <sys/ptrace.h>
 #include <sys/prctl.h>
+#include <sys/fcntl.h>
 #include <asm/unistd.h>
 #include <sysdep/stub.h>
 #include <stub-data.h>
@@ -45,7 +46,11 @@ noinline static void real_init(void)
 	if (res != sizeof(init_data))
 		stub_syscall1(__NR_exit, 10);
 
-	stub_syscall1(__NR_close, 0);
+	/* In SECCOMP mode, FD 0 is a socket and is later used for FD passing */
+	if (!init_data.seccomp)
+		stub_syscall1(__NR_close, 0);
+	else
+		stub_syscall3(__NR_fcntl, 0, F_SETFL, O_NONBLOCK);
 
 	/* map stub code + data */
 	res = stub_syscall6(STUB_MMAP_NR,
@@ -63,6 +68,13 @@ noinline static void real_init(void)
 	if (res != init_data.stub_start + UM_KERN_PAGE_SIZE)
 		stub_syscall1(__NR_exit, 12);
 
+	/* In SECCOMP mode, we only need the signalling FD from now on */
+	if (init_data.seccomp) {
+		res = stub_syscall3(__NR_close_range, 1, ~0U, 0);
+		if (res != 0)
+			stub_syscall1(__NR_exit, 13);
+	}
+
 	/* setup signal stack inside stub data */
 	stack.ss_sp = (void *)init_data.stub_start + UM_KERN_PAGE_SIZE;
 	stub_syscall2(__NR_sigaltstack, (unsigned long)&stack, 0);
@@ -77,7 +89,7 @@ noinline static void real_init(void)
 		res = stub_syscall4(__NR_rt_sigaction, SIGSEGV,
 				    (unsigned long)&sa, 0, sizeof(sa.sa_mask));
 		if (res != 0)
-			stub_syscall1(__NR_exit, 13);
+			stub_syscall1(__NR_exit, 14);
 	} else {
 		/* SECCOMP mode uses rt_sigreturn, need to mask all signals */
 		sa.sa_mask = ~0ULL;
@@ -85,32 +97,32 @@ noinline static void real_init(void)
 		res = stub_syscall4(__NR_rt_sigaction, SIGSEGV,
 				    (unsigned long)&sa, 0, sizeof(sa.sa_mask));
 		if (res != 0)
-			stub_syscall1(__NR_exit, 14);
+			stub_syscall1(__NR_exit, 15);
 
 		res = stub_syscall4(__NR_rt_sigaction, SIGSYS,
 				    (unsigned long)&sa, 0, sizeof(sa.sa_mask));
 		if (res != 0)
-			stub_syscall1(__NR_exit, 15);
+			stub_syscall1(__NR_exit, 16);
 
 		res = stub_syscall4(__NR_rt_sigaction, SIGALRM,
 				    (unsigned long)&sa, 0, sizeof(sa.sa_mask));
 		if (res != 0)
-			stub_syscall1(__NR_exit, 16);
+			stub_syscall1(__NR_exit, 17);
 
 		res = stub_syscall4(__NR_rt_sigaction, SIGTRAP,
 				    (unsigned long)&sa, 0, sizeof(sa.sa_mask));
 		if (res != 0)
-			stub_syscall1(__NR_exit, 17);
+			stub_syscall1(__NR_exit, 18);
 
 		res = stub_syscall4(__NR_rt_sigaction, SIGILL,
 				    (unsigned long)&sa, 0, sizeof(sa.sa_mask));
 		if (res != 0)
-			stub_syscall1(__NR_exit, 18);
+			stub_syscall1(__NR_exit, 19);
 
 		res = stub_syscall4(__NR_rt_sigaction, SIGFPE,
 				    (unsigned long)&sa, 0, sizeof(sa.sa_mask));
 		if (res != 0)
-			stub_syscall1(__NR_exit, 19);
+			stub_syscall1(__NR_exit, 20);
 	}
 
 	/*
@@ -153,8 +165,12 @@ noinline static void real_init(void)
 			BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
 				 offsetof(struct seccomp_data, nr)),
 
-			/* [10-14] Check against permitted syscalls */
+			/* [10-16] Check against permitted syscalls */
 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_futex,
+				 7, 0),
+			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K,__NR_recvmsg,
+				 6, 0),
+			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K,__NR_close,
 				 5, 0),
 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, STUB_MMAP_NR,
 				 4, 0),
@@ -170,10 +186,10 @@ noinline static void real_init(void)
 			BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_rt_sigreturn,
 				 1, 0),
 
-			/* [15] Not one of the permitted syscalls */
+			/* [17] Not one of the permitted syscalls */
 			BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
 
-			/* [16] Permitted call for the stub */
+			/* [18] Permitted call for the stub */
 			BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
 		};
 		struct sock_fprog prog = {
@@ -184,7 +200,7 @@ noinline static void real_init(void)
 		if (stub_syscall3(__NR_seccomp, SECCOMP_SET_MODE_FILTER,
 				  SECCOMP_FILTER_FLAG_TSYNC,
 				  (unsigned long)&prog) != 0)
-			stub_syscall1(__NR_exit, 20);
+			stub_syscall1(__NR_exit, 21);
 
 		/* Fall through, the exit syscall will cause SIGSYS */
 	} else {

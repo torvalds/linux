@@ -12,6 +12,7 @@
 #include <as-layout.h>
 #include <sysdep/tls.h>
 #include <sysdep/stub-data.h>
+#include <mm_id.h>
 
 #define FUTEX_IN_CHILD 0
 #define FUTEX_IN_KERN 1

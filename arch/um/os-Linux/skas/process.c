@@ -16,6 +16,7 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
 #include <asm/unistd.h>
 #include <as-layout.h>
 #include <init.h>
@@ -152,7 +153,39 @@ void wait_stub_done_seccomp(struct mm_id *mm_idp, int running, int wait_sigsys)
 	int ret;
 
 	do {
+		const char byte = 0;
+		struct iovec iov = {
+			.iov_base = (void *)&byte,
+			.iov_len = sizeof(byte),
+		};
+		union {
+			char data[CMSG_SPACE(sizeof(mm_idp->syscall_fd_map))];
+			struct cmsghdr align;
+		} ctrl;
+		struct msghdr msgh = {
+			.msg_iov = &iov,
+			.msg_iovlen = 1,
+		};
+
 		if (!running) {
+			if (mm_idp->syscall_fd_num) {
+				unsigned int fds_size =
+					sizeof(int) * mm_idp->syscall_fd_num;
+				struct cmsghdr *cmsg;
+
+				msgh.msg_control = ctrl.data;
+				msgh.msg_controllen = CMSG_SPACE(fds_size);
+				cmsg = CMSG_FIRSTHDR(&msgh);
+				cmsg->cmsg_level = SOL_SOCKET;
+				cmsg->cmsg_type = SCM_RIGHTS;
+				cmsg->cmsg_len = CMSG_LEN(fds_size);
+				memcpy(CMSG_DATA(cmsg), mm_idp->syscall_fd_map,
+				       fds_size);
+
+				CATCH_EINTR(syscall(__NR_sendmsg, mm_idp->sock,
+						&msgh, 0));
+			}
+
 			data->signal = 0;
 			data->futex = FUTEX_IN_CHILD;
 			CATCH_EINTR(syscall(__NR_futex, &data->futex,
@@ -246,14 +279,20 @@ extern char __syscall_stub_start[];
 
 static int stub_exe_fd;
 
+struct tramp_data {
+	struct stub_data *stub_data;
+	/* 0 is inherited, 1 is the kernel side */
+	int sockpair[2];
+};
+
 #ifndef CLOSE_RANGE_CLOEXEC
 #define CLOSE_RANGE_CLOEXEC	(1U << 2)
 #endif
 
-static int userspace_tramp(void *stack)
+static int userspace_tramp(void *data)
 {
+	struct tramp_data *tramp_data = data;
 	char *const argv[] = { "uml-userspace", NULL };
-	int pipe_fds[2];
 	unsigned long long offset;
 	struct stub_init_data init_data = {
 		.seccomp = using_seccomp,
@@ -280,7 +319,8 @@ static int userspace_tramp(void *stack)
 					      &offset);
 	init_data.stub_code_offset = MMAP_OFFSET(offset);
 
-	init_data.stub_data_fd = phys_mapping(uml_to_phys(stack), &offset);
+	init_data.stub_data_fd = phys_mapping(uml_to_phys(tramp_data->stub_data),
+					      &offset);
 	init_data.stub_data_offset = MMAP_OFFSET(offset);
 
 	/*
@@ -291,20 +331,21 @@ static int userspace_tramp(void *stack)
 	syscall(__NR_close_range, 0, ~0U, CLOSE_RANGE_CLOEXEC);
 
 	fcntl(init_data.stub_data_fd, F_SETFD, 0);
-	for (iomem = iomem_regions; iomem; iomem = iomem->next)
-		fcntl(iomem->fd, F_SETFD, 0);
 
-	/* Create a pipe for init_data (no CLOEXEC) and dup2 to STDIN */
-	if (pipe(pipe_fds))
-		exit(2);
+	/* In SECCOMP mode, these FDs are passed when needed */
+	if (!using_seccomp) {
+		for (iomem = iomem_regions; iomem; iomem = iomem->next)
+			fcntl(iomem->fd, F_SETFD, 0);
+	}
 
-	if (dup2(pipe_fds[0], 0) < 0)
+	/* dup2 signaling FD/socket to STDIN */
+	if (dup2(tramp_data->sockpair[0], 0) < 0)
 		exit(3);
-	close(pipe_fds[0]);
+	close(tramp_data->sockpair[0]);
 
 	/* Write init_data and close write side */
-	ret = write(pipe_fds[1], &init_data, sizeof(init_data));
-	close(pipe_fds[1]);
+	ret = write(tramp_data->sockpair[1], &init_data, sizeof(init_data));
+	close(tramp_data->sockpair[1]);
 
 	if (ret != sizeof(init_data))
 		exit(4);
@@ -397,7 +438,7 @@ int userspace_pid[NR_CPUS];
 
 /**
  * start_userspace() - prepare a new userspace process
- * @stub_stack:	pointer to the stub stack.
+ * @mm_id: The corresponding struct mm_id
  *
  * Setups a new temporary stack page that is used while userspace_tramp() runs
  * Clones the kernel process into a new userspace process, with FDs only.
@@ -409,9 +450,12 @@ int userspace_pid[NR_CPUS];
 int start_userspace(struct mm_id *mm_id)
 {
 	struct stub_data *proc_data = (void *)mm_id->stack;
+	struct tramp_data tramp_data = {
+		.stub_data = proc_data,
+	};
 	void *stack;
 	unsigned long sp;
-	int pid, status, n, err;
+	int status, n, err;
 
 	/* setup a temporary stack page */
 	stack = mmap(NULL, UM_KERN_PAGE_SIZE,
@@ -427,25 +471,32 @@ int start_userspace(struct mm_id *mm_id)
 	/* set stack pointer to the end of the stack page, so it can grow downwards */
 	sp = (unsigned long)stack + UM_KERN_PAGE_SIZE;
 
+	/* socket pair for init data and SECCOMP FD passing (no CLOEXEC here) */
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, tramp_data.sockpair)) {
+		err = -errno;
+		printk(UM_KERN_ERR "%s : socketpair failed, errno = %d\n",
+		       __func__, errno);
+		return err;
+	}
+
 	if (using_seccomp)
 		proc_data->futex = FUTEX_IN_CHILD;
 
-	/* clone into new userspace process */
-	pid = clone(userspace_tramp, (void *) sp,
+	mm_id->pid = clone(userspace_tramp, (void *) sp,
 		    CLONE_VFORK | CLONE_VM | SIGCHLD,
-		    (void *)mm_id->stack);
-	if (pid < 0) {
+		    (void *)&tramp_data);
+	if (mm_id->pid < 0) {
 		err = -errno;
 		printk(UM_KERN_ERR "%s : clone failed, errno = %d\n",
 		       __func__, errno);
-		return err;
+		goto out_close;
 	}
 
 	if (using_seccomp) {
 		wait_stub_done_seccomp(mm_id, 1, 1);
 	} else {
 		do {
-			CATCH_EINTR(n = waitpid(pid, &status,
+			CATCH_EINTR(n = waitpid(mm_id->pid, &status,
 						WUNTRACED | __WALL));
 			if (n < 0) {
 				err = -errno;
@@ -462,7 +513,7 @@ int start_userspace(struct mm_id *mm_id)
 			goto out_kill;
 		}
 
-		if (ptrace(PTRACE_SETOPTIONS, pid, NULL,
+		if (ptrace(PTRACE_SETOPTIONS, mm_id->pid, NULL,
 			   (void *) PTRACE_O_TRACESYSGOOD) < 0) {
 			err = -errno;
 			printk(UM_KERN_ERR "%s : PTRACE_SETOPTIONS failed, errno = %d\n",
@@ -478,12 +529,22 @@ int start_userspace(struct mm_id *mm_id)
 		goto out_kill;
 	}
 
-	mm_id->pid = pid;
+	close(tramp_data.sockpair[0]);
+	if (using_seccomp)
+		mm_id->sock = tramp_data.sockpair[1];
+	else
+		close(tramp_data.sockpair[1]);
 
-	return pid;
+	return 0;
 
- out_kill:
-	os_kill_ptraced_process(pid, 1);
+out_kill:
+	os_kill_ptraced_process(mm_id->pid, 1);
+out_close:
+	close(tramp_data.sockpair[0]);
+	close(tramp_data.sockpair[1]);
+
+	mm_id->pid = -1;
+
 	return err;
 }
 
@@ -546,17 +607,8 @@ void userspace(struct uml_pt_regs *regs)
 
 			/* Mark pending syscalls for flushing */
 			proc_data->syscall_data_len = mm_id->syscall_data_len;
-			mm_id->syscall_data_len = 0;
 
-			proc_data->signal = 0;
-			proc_data->futex = FUTEX_IN_CHILD;
-			CATCH_EINTR(syscall(__NR_futex, &proc_data->futex,
-					    FUTEX_WAKE, 1, NULL, NULL, 0));
-			do {
-				ret = syscall(__NR_futex, &proc_data->futex,
-					      FUTEX_WAIT, FUTEX_IN_CHILD, NULL, NULL, 0);
-			} while ((ret == -1 && errno == EINTR) ||
-				 proc_data->futex == FUTEX_IN_CHILD);
+			wait_stub_done_seccomp(mm_id, 0, 0);
 
 			sig = proc_data->signal;
 
@@ -564,8 +616,12 @@ void userspace(struct uml_pt_regs *regs)
 				printk(UM_KERN_ERR "%s - Error flushing stub syscalls",
 				       __func__);
 				syscall_stub_dump_error(mm_id);
+				mm_id->syscall_data_len = proc_data->err;
 				fatal_sigsegv();
 			}
+
+			mm_id->syscall_data_len = 0;
+			mm_id->syscall_fd_num = 0;
 
 			ret = get_stub_state(regs, proc_data, NULL);
 			if (ret) {

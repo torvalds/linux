@@ -265,6 +265,10 @@ static int __init seccomp_helper(void *data)
 	};
 	struct sigaction sa;
 
+	/* close_range is needed for the stub */
+	if (stub_syscall3(__NR_close_range, 1, ~0U, 0))
+		exit(1);
+
 	set_sigstack(seccomp_test_stub_data->sigstack,
 			sizeof(seccomp_test_stub_data->sigstack));
 
@@ -272,17 +276,17 @@ static int __init seccomp_helper(void *data)
 	sa.sa_sigaction = (void *) sigsys_handler;
 	sa.sa_restorer = NULL;
 	if (sigaction(SIGSYS, &sa, NULL) < 0)
-		exit(1);
+		exit(2);
 
 	prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	if (syscall(__NR_seccomp, SECCOMP_SET_MODE_FILTER,
 			SECCOMP_FILTER_FLAG_TSYNC, &prog) != 0)
-		exit(2);
+		exit(3);
 
 	sleep(0);
 
 	/* Never reached. */
-	_exit(3);
+	_exit(4);
 }
 
 static bool __init init_seccomp(void)
