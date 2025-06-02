@@ -639,7 +639,6 @@ airoha_ppe_foe_commit_subflow_entry(struct airoha_ppe *ppe,
 	u32 mask = AIROHA_FOE_IB1_BIND_PACKET_TYPE | AIROHA_FOE_IB1_BIND_UDP;
 	struct airoha_foe_entry *hwe_p, hwe;
 	struct airoha_flow_table_entry *f;
-	struct airoha_foe_mac_info *l2;
 	int type;
 
 	hwe_p = airoha_ppe_foe_get_entry(ppe, hash);
@@ -656,18 +655,20 @@ airoha_ppe_foe_commit_subflow_entry(struct airoha_ppe *ppe,
 
 	memcpy(&hwe, hwe_p, sizeof(*hwe_p));
 	hwe.ib1 = (hwe.ib1 & mask) | (e->data.ib1 & ~mask);
-	l2 = &hwe.bridge.l2;
-	memcpy(l2, &e->data.bridge.l2, sizeof(*l2));
 
 	type = FIELD_GET(AIROHA_FOE_IB1_BIND_PACKET_TYPE, hwe.ib1);
-	if (type == PPE_PKT_TYPE_IPV4_HNAPT)
-		memcpy(&hwe.ipv4.new_tuple, &hwe.ipv4.orig_tuple,
-		       sizeof(hwe.ipv4.new_tuple));
-	else if (type >= PPE_PKT_TYPE_IPV6_ROUTE_3T &&
-		 l2->common.etype == ETH_P_IP)
-		l2->common.etype = ETH_P_IPV6;
+	if (type >= PPE_PKT_TYPE_IPV6_ROUTE_3T) {
+		memcpy(&hwe.ipv6.l2, &e->data.bridge.l2, sizeof(hwe.ipv6.l2));
+		hwe.ipv6.ib2 = e->data.bridge.ib2;
+	} else {
+		memcpy(&hwe.bridge.l2, &e->data.bridge.l2,
+		       sizeof(hwe.bridge.l2));
+		hwe.bridge.ib2 = e->data.bridge.ib2;
+		if (type == PPE_PKT_TYPE_IPV4_HNAPT)
+			memcpy(&hwe.ipv4.new_tuple, &hwe.ipv4.orig_tuple,
+			       sizeof(hwe.ipv4.new_tuple));
+	}
 
-	hwe.bridge.ib2 = e->data.bridge.ib2;
 	hwe.bridge.data = e->data.bridge.data;
 	airoha_ppe_foe_commit_entry(ppe, &hwe, hash);
 
