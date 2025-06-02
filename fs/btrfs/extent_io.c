@@ -3493,6 +3493,7 @@ void free_extent_buffer(struct extent_buffer *eb)
 			break;
 		}
 
+		/* Optimization to avoid locking eb->refs_lock. */
 		if (atomic_try_cmpxchg(&eb->refs, &refs, refs - 1))
 			return;
 	}
