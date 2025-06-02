@@ -3703,18 +3703,15 @@ static void wi_state_free(void)
 	struct weighted_interleave_state *old_wi_state;
 
 	mutex_lock(&wi_state_lock);
-
 	old_wi_state = rcu_dereference_protected(wi_state,
 			lockdep_is_held(&wi_state_lock));
-	if (!old_wi_state) {
-		mutex_unlock(&wi_state_lock);
-		return;
-	}
-
 	rcu_assign_pointer(wi_state, NULL);
 	mutex_unlock(&wi_state_lock);
-	synchronize_rcu();
-	kfree(old_wi_state);
+
+	if (old_wi_state) {
+		synchronize_rcu();
+		kfree(old_wi_state);
+	}
 }
 
 static struct kobj_attribute wi_auto_attr =
