@@ -1354,8 +1354,7 @@ static void b53_adjust_531x5_rgmii(struct dsa_switch *ds, int port,
 	 * tx_clk aligned timing (restoring to reset defaults)
 	 */
 	b53_read8(dev, B53_CTRL_PAGE, off, &rgmii_ctrl);
-	rgmii_ctrl &= ~(RGMII_CTRL_DLL_RXC | RGMII_CTRL_DLL_TXC |
-			RGMII_CTRL_TIMING_SEL);
+	rgmii_ctrl &= ~(RGMII_CTRL_DLL_RXC | RGMII_CTRL_DLL_TXC);
 
 	/* PHY_INTERFACE_MODE_RGMII_TXID means TX internal delay, make
 	 * sure that we enable the port TX clock internal delay to
@@ -1375,7 +1374,10 @@ static void b53_adjust_531x5_rgmii(struct dsa_switch *ds, int port,
 		rgmii_ctrl |= RGMII_CTRL_DLL_TXC;
 	if (interface == PHY_INTERFACE_MODE_RGMII)
 		rgmii_ctrl |= RGMII_CTRL_DLL_TXC | RGMII_CTRL_DLL_RXC;
-	rgmii_ctrl |= RGMII_CTRL_TIMING_SEL;
+
+	if (dev->chip_id != BCM53115_DEVICE_ID)
+		rgmii_ctrl |= RGMII_CTRL_TIMING_SEL;
+
 	b53_write8(dev, B53_CTRL_PAGE, off, rgmii_ctrl);
 
 	dev_info(ds->dev, "Configured port %d for %s\n", port,
