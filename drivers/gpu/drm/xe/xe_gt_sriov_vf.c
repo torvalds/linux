@@ -562,6 +562,40 @@ u64 xe_gt_sriov_vf_lmem(struct xe_gt *gt)
 }
 
 /**
+ * xe_gt_sriov_vf_ggtt - VF GGTT configuration.
+ * @gt: the &xe_gt
+ *
+ * This function is for VF use only.
+ *
+ * Return: size of the GGTT assigned to VF.
+ */
+u64 xe_gt_sriov_vf_ggtt(struct xe_gt *gt)
+{
+	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+	xe_gt_assert(gt, gt->sriov.vf.guc_version.major);
+	xe_gt_assert(gt, gt->sriov.vf.self_config.ggtt_size);
+
+	return gt->sriov.vf.self_config.ggtt_size;
+}
+
+/**
+ * xe_gt_sriov_vf_ggtt_base - VF GGTT base offset.
+ * @gt: the &xe_gt
+ *
+ * This function is for VF use only.
+ *
+ * Return: base offset of the GGTT assigned to VF.
+ */
+u64 xe_gt_sriov_vf_ggtt_base(struct xe_gt *gt)
+{
+	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+	xe_gt_assert(gt, gt->sriov.vf.guc_version.major);
+	xe_gt_assert(gt, gt->sriov.vf.self_config.ggtt_size);
+
+	return gt->sriov.vf.self_config.ggtt_base;
+}
+
+/**
  * xe_gt_sriov_vf_ggtt_shift - Return shift in GGTT range due to VF migration
  * @gt: the &xe_gt struct instance
  *
