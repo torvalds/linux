@@ -344,7 +344,7 @@ static struct vesadrm_device *vesadrm_device_create(struct drm_driver *drv,
 #endif
 	}
 
-#ifdef CONFIG_X86
+#if defined(CONFIG_FIRMWARE_EDID)
 	if (drm_edid_header_is_valid(edid_info.dummy) == 8)
 		sysfb->edid = edid_info.dummy;
 #endif

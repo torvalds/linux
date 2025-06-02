@@ -202,7 +202,7 @@ static struct efidrm_device *efidrm_device_create(struct drm_driver *drv,
 	drm_dbg(dev, "framebuffer format=%p4cc, size=%dx%d, stride=%d bytes\n",
 		&format->format, width, height, stride);
 
-#ifdef CONFIG_X86
+#if defined(CONFIG_FIRMWARE_EDID)
 	if (drm_edid_header_is_valid(edid_info.dummy) == 8)
 		sysfb->edid = edid_info.dummy;
 #endif
