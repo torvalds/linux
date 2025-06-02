@@ -38,6 +38,7 @@ static const char * const bch2_inode_flag_strs[] = {
 #undef  x
 
 static int delete_ancestor_snapshot_inodes(struct btree_trans *, struct bpos);
+static int may_delete_deleted_inum(struct btree_trans *, subvol_inum);
 
 static const u8 byte_table[8] = { 1, 2, 3, 4, 6, 8, 10, 13 };
 
@@ -1130,19 +1131,23 @@ int bch2_inode_rm(struct bch_fs *c, subvol_inum inum)
 	u32 snapshot;
 	int ret;
 
+	ret = lockrestart_do(trans, may_delete_deleted_inum(trans, inum));
+	if (ret)
+		goto err2;
+
 	/*
 	 * If this was a directory, there shouldn't be any real dirents left -
 	 * but there could be whiteouts (from hash collisions) that we should
 	 * delete:
 	 *
-	 * XXX: the dirent could ideally would delete whiteouts when they're no
+	 * XXX: the dirent code ideally would delete whiteouts when they're no
 	 * longer needed
 	 */
 	ret   = bch2_inode_delete_keys(trans, inum, BTREE_ID_extents) ?:
 		bch2_inode_delete_keys(trans, inum, BTREE_ID_xattrs) ?:
 		bch2_inode_delete_keys(trans, inum, BTREE_ID_dirents);
 	if (ret)
-		goto err;
+		goto err2;
 retry:
 	bch2_trans_begin(trans);
 
@@ -1392,7 +1397,8 @@ int bch2_inode_rm_snapshot(struct btree_trans *trans, u64 inum, u32 snapshot)
 		delete_ancestor_snapshot_inodes(trans, SPOS(0, inum, snapshot));
 }
 
-static int may_delete_deleted_inode(struct btree_trans *trans, struct bpos pos)
+static int may_delete_deleted_inode(struct btree_trans *trans, struct bpos pos,
+				    bool from_deleted_inodes)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter inode_iter;
@@ -1406,12 +1412,14 @@ static int may_delete_deleted_inode(struct btree_trans *trans, struct bpos pos)
 	if (ret)
 		return ret;
 
-	ret = bkey_is_inode(k.k) ? 0 : -BCH_ERR_ENOENT_inode;
-	if (fsck_err_on(!bkey_is_inode(k.k),
+	ret = bkey_is_inode(k.k) ? 0 : bch_err_throw(c, ENOENT_inode);
+	if (fsck_err_on(from_deleted_inodes && ret,
 			trans, deleted_inode_missing,
 			"nonexistent inode %llu:%u in deleted_inodes btree",
 			pos.offset, pos.snapshot))
 		goto delete;
+	if (ret)
+		goto out;
 
 	ret = bch2_inode_unpack(k, &inode);
 	if (ret)
@@ -1419,7 +1427,8 @@ static int may_delete_deleted_inode(struct btree_trans *trans, struct bpos pos)
 
 	if (S_ISDIR(inode.bi_mode)) {
 		ret = bch2_empty_dir_snapshot(trans, pos.offset, 0, pos.snapshot);
-		if (fsck_err_on(bch2_err_matches(ret, ENOTEMPTY),
+		if (fsck_err_on(from_deleted_inodes &&
+				bch2_err_matches(ret, ENOTEMPTY),
 				trans, deleted_inode_is_dir,
 				"non empty directory %llu:%u in deleted_inodes btree",
 				pos.offset, pos.snapshot))
@@ -1428,17 +1437,25 @@ static int may_delete_deleted_inode(struct btree_trans *trans, struct bpos pos)
 			goto out;
 	}
 
-	if (fsck_err_on(!(inode.bi_flags & BCH_INODE_unlinked),
+	ret = inode.bi_flags & BCH_INODE_unlinked ? 0 : bch_err_throw(c, inode_not_unlinked);
+	if (fsck_err_on(from_deleted_inodes && ret,
 			trans, deleted_inode_not_unlinked,
 			"non-deleted inode %llu:%u in deleted_inodes btree",
 			pos.offset, pos.snapshot))
 		goto delete;
+	if (ret)
+		goto out;
 
-	if (fsck_err_on(inode.bi_flags & BCH_INODE_has_child_snapshot,
+	ret = !(inode.bi_flags & BCH_INODE_has_child_snapshot)
+		? 0 : bch_err_throw(c, inode_has_child_snapshot);
+
+	if (fsck_err_on(from_deleted_inodes && ret,
 			trans, deleted_inode_has_child_snapshots,
 			"inode with child snapshots %llu:%u in deleted_inodes btree",
 			pos.offset, pos.snapshot))
 		goto delete;
+	if (ret)
+		goto out;
 
 	ret = bch2_inode_has_child_snapshots(trans, k.k->p);
 	if (ret < 0)
@@ -1455,19 +1472,28 @@ static int may_delete_deleted_inode(struct btree_trans *trans, struct bpos pos)
 			if (ret)
 				goto out;
 		}
+
+		if (!from_deleted_inodes) {
+			ret =   bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc) ?:
+				bch_err_throw(c, inode_has_child_snapshot);
+			goto out;
+		}
+
 		goto delete;
 
 	}
 
-	if (test_bit(BCH_FS_clean_recovery, &c->flags) &&
-	    !fsck_err(trans, deleted_inode_but_clean,
-		      "filesystem marked as clean but have deleted inode %llu:%u",
-		      pos.offset, pos.snapshot)) {
-		ret = 0;
-		goto out;
-	}
+	if (from_deleted_inodes) {
+		if (test_bit(BCH_FS_clean_recovery, &c->flags) &&
+		    !fsck_err(trans, deleted_inode_but_clean,
+			      "filesystem marked as clean but have deleted inode %llu:%u",
+			      pos.offset, pos.snapshot)) {
+			ret = 0;
+			goto out;
+		}
 
-	ret = 1;
+		ret = 1;
+	}
 out:
 fsck_err:
 	bch2_trans_iter_exit(trans, &inode_iter);
@@ -1476,6 +1502,14 @@ fsck_err:
 delete:
 	ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_deleted_inodes, pos, false);
 	goto out;
+}
+
+static int may_delete_deleted_inum(struct btree_trans *trans, subvol_inum inum)
+{
+	u32 snapshot;
+
+	return bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot) ?:
+		may_delete_deleted_inode(trans, SPOS(0, inum.inum, snapshot), false);
 }
 
 int bch2_delete_dead_inodes(struct bch_fs *c)
@@ -1501,7 +1535,7 @@ int bch2_delete_dead_inodes(struct bch_fs *c)
 	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_deleted_inodes, POS_MIN,
 					BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
 					NULL, NULL, BCH_TRANS_COMMIT_no_enospc, ({
-		ret = may_delete_deleted_inode(trans, k.k->p);
+		ret = may_delete_deleted_inode(trans, k.k->p, true);
 		if (ret > 0) {
 			bch_verbose_ratelimited(c, "deleting unlinked inode %llu:%u",
 						k.k->p.offset, k.k->p.snapshot);

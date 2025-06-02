@@ -2180,7 +2180,13 @@ static void bch2_evict_inode(struct inode *vinode)
 				KEY_TYPE_QUOTA_WARN);
 		bch2_quota_acct(c, inode->ei_qid, Q_INO, -1,
 				KEY_TYPE_QUOTA_WARN);
-		bch2_inode_rm(c, inode_inum(inode));
+		int ret = bch2_inode_rm(c, inode_inum(inode));
+		if (ret && !bch2_err_matches(ret, EROFS)) {
+			bch_err_msg(c, ret, "VFS incorrectly tried to delete inode %llu:%llu",
+				    inode->ei_inum.subvol,
+				    inode->ei_inum.inum);
+			bch2_sb_error_count(c, BCH_FSCK_ERR_vfs_bad_inode_rm);
+		}
 
 		/*
 		 * If we are deleting, we need it present in the vfs hash table
