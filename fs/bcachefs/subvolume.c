@@ -130,10 +130,20 @@ static int check_subvol(struct btree_trans *trans,
 			     "subvolume %llu points to missing subvolume root %llu:%u",
 			     k.k->p.offset, le64_to_cpu(subvol.v->inode),
 			     le32_to_cpu(subvol.v->snapshot))) {
-			ret = bch2_subvolume_delete(trans, iter->pos.offset);
-			bch_err_msg(c, ret, "deleting subvolume %llu", iter->pos.offset);
-			ret = ret ?: -BCH_ERR_transaction_restart_nested;
-			goto err;
+			/*
+			 * Recreate - any contents that are still disconnected
+			 * will then get reattached under lost+found
+			 */
+			bch2_inode_init_early(c, &inode);
+			bch2_inode_init_late(c, &inode, bch2_current_time(c),
+					     0, 0, S_IFDIR|0700, 0, NULL);
+			inode.bi_inum			= le64_to_cpu(subvol.v->inode);
+			inode.bi_snapshot		= le32_to_cpu(subvol.v->snapshot);
+			inode.bi_subvol			= k.k->p.offset;
+			inode.bi_parent_subvol		= le32_to_cpu(subvol.v->fs_path_parent);
+			ret = __bch2_fsck_write_inode(trans, &inode);
+			if (ret)
+				goto err;
 		}
 	} else {
 		goto err;
