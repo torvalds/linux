@@ -38,7 +38,8 @@ config LKL_LINE_COV
 
 config OUTPUT_FORMAT
 	string "Output format"
-	default ""
+	default $(shell,$(LD) -r -print-output-format) if LD_IS_BFD
+	default $(shell,test "$(CROSS_COMPILE)" = "x86_64-linux-gnu" && echo "elf64-x86-64" || echo "unsupported-llvm") if LD_IS_LLD
 
 config ARCH_DMA_ADDR_T_64BIT
 	def_bool 64BIT
@@ -48,7 +49,8 @@ config PHYS_ADDR_T_64BIT
 
 config 64BIT
 	bool "64bit kernel"
-	default n
+	default y if OUTPUT_FORMAT = "pe-x86-64" || OUTPUT_FORMAT = "elf64-x86-64"
+	default $(success,$(LD) -r -print-output-format|grep -q '^elf64-') if LD_IS_BFD && OUTPUT_FORMAT != "pe-x86-64" && OUTPUT_FORMAT != "elf64-x86-64"
 
 config MMU
 	bool "LKL MMU implementation"
@@ -91,7 +93,8 @@ config COREDUMP
 
 config CPU_BIG_ENDIAN
 	bool "Big-endian kernel"
-	default n
+	default y if OUTPUT_FORMAT = "elf64-s390"
+	default n if OUTPUT_FORMAT != "elf64-s390"
 
 config GENERIC_CSUM
 	def_bool y
