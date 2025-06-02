@@ -911,9 +911,10 @@ jump_up:
 		}
 		if (unlikely(IS_ROOT(walker_path.dentry))) {
 			/*
-			 * Stops at disconnected root directories.  Only allows
-			 * access to internal filesystems (e.g. nsfs, which is
-			 * reachable through /proc/<pid>/ns/<namespace>).
+			 * Stops at disconnected root directories.  Allows access to
+			 * internal filesystems (e.g. nsfs, which is reachable through
+			 * /proc/<pid>/ns/<namespace>), in addition to what's already
+			 * allowed.
 			 */
 			if (walker_path.mnt->mnt_flags & MNT_INTERNAL) {
 				allowed_parent1 = true;
