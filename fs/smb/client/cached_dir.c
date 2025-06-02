@@ -524,10 +524,9 @@ void close_all_cached_dirs(struct cifs_sb_info *cifs_sb)
 				spin_unlock(&cifs_sb->tlink_tree_lock);
 				goto done;
 			}
-			spin_lock(&cfid->fid_lock);
+
 			tmp_list->dentry = cfid->dentry;
 			cfid->dentry = NULL;
-			spin_unlock(&cfid->fid_lock);
 
 			list_add_tail(&tmp_list->entry, &entry);
 		}
@@ -610,14 +609,9 @@ static void cached_dir_put_work(struct work_struct *work)
 {
 	struct cached_fid *cfid = container_of(work, struct cached_fid,
 					       put_work);
-	struct dentry *dentry;
-
-	spin_lock(&cfid->fid_lock);
-	dentry = cfid->dentry;
+	dput(cfid->dentry);
 	cfid->dentry = NULL;
-	spin_unlock(&cfid->fid_lock);
 
-	dput(dentry);
 	queue_work(serverclose_wq, &cfid->close_work);
 }
 
@@ -675,7 +669,6 @@ static struct cached_fid *init_cached_dir(const char *path)
 	INIT_LIST_HEAD(&cfid->entry);
 	INIT_LIST_HEAD(&cfid->dirents.entries);
 	mutex_init(&cfid->dirents.de_mutex);
-	spin_lock_init(&cfid->fid_lock);
 	kref_init(&cfid->refcount);
 	return cfid;
 }
@@ -742,7 +735,6 @@ static void cfids_laundromat_worker(struct work_struct *work)
 {
 	struct cached_fids *cfids;
 	struct cached_fid *cfid, *q;
-	struct dentry *dentry;
 	LIST_HEAD(entry);
 
 	cfids = container_of(work, struct cached_fids, laundromat_work.work);
@@ -769,12 +761,9 @@ static void cfids_laundromat_worker(struct work_struct *work)
 	list_for_each_entry_safe(cfid, q, &entry, entry) {
 		list_del(&cfid->entry);
 
-		spin_lock(&cfid->fid_lock);
-		dentry = cfid->dentry;
+		dput(cfid->dentry);
 		cfid->dentry = NULL;
-		spin_unlock(&cfid->fid_lock);
 
-		dput(dentry);
 		if (cfid->is_open) {
 			spin_lock(&cifs_tcp_ses_lock);
 			++cfid->tcon->tc_count;
