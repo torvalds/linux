@@ -1392,10 +1392,7 @@ int bch2_inode_rm_snapshot(struct btree_trans *trans, u64 inum, u32 snapshot)
 		delete_ancestor_snapshot_inodes(trans, SPOS(0, inum, snapshot));
 }
 
-static int may_delete_deleted_inode(struct btree_trans *trans,
-				    struct btree_iter *iter,
-				    struct bpos pos,
-				    bool *need_another_pass)
+static int may_delete_deleted_inode(struct btree_trans *trans, struct bpos pos)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter inode_iter;
@@ -1484,9 +1481,8 @@ delete:
 int bch2_delete_dead_inodes(struct bch_fs *c)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
-	bool need_another_pass;
 	int ret;
-again:
+
 	/*
 	 * if we ran check_inodes() unlinked inodes will have already been
 	 * cleaned up but the write buffer will be out of sync; therefore we
@@ -1495,8 +1491,6 @@ again:
 	ret = bch2_btree_write_buffer_flush_sync(trans);
 	if (ret)
 		goto err;
-
-	need_another_pass = false;
 
 	/*
 	 * Weird transaction restart handling here because on successful delete,
@@ -1507,7 +1501,7 @@ again:
 	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_deleted_inodes, POS_MIN,
 					BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
 					NULL, NULL, BCH_TRANS_COMMIT_no_enospc, ({
-		ret = may_delete_deleted_inode(trans, &iter, k.k->p, &need_another_pass);
+		ret = may_delete_deleted_inode(trans, k.k->p);
 		if (ret > 0) {
 			bch_verbose_ratelimited(c, "deleting unlinked inode %llu:%u",
 						k.k->p.offset, k.k->p.snapshot);
@@ -1528,9 +1522,6 @@ again:
 
 		ret;
 	}));
-
-	if (!ret && need_another_pass)
-		goto again;
 err:
 	bch2_trans_put(trans);
 	bch_err_fn(c, ret);
