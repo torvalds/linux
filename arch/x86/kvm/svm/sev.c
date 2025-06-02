@@ -4449,8 +4449,12 @@ static void sev_es_init_vmcb(struct vcpu_svm *svm)
 	 * the VMSA will be NULL if this vCPU is the destination for intrahost
 	 * migration, and will be copied later.
 	 */
-	if (svm->sev_es.vmsa && !svm->sev_es.snp_has_guest_vmsa)
-		svm->vmcb->control.vmsa_pa = __pa(svm->sev_es.vmsa);
+	if (!svm->sev_es.snp_has_guest_vmsa) {
+		if (svm->sev_es.vmsa)
+			svm->vmcb->control.vmsa_pa = __pa(svm->sev_es.vmsa);
+		else
+			svm->vmcb->control.vmsa_pa = INVALID_PAGE;
+	}
 
 	if (cpu_feature_enabled(X86_FEATURE_ALLOWED_SEV_FEATURES))
 		svm->vmcb->control.allowed_sev_features = sev->vmsa_features |
