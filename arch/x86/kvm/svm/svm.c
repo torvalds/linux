@@ -29,6 +29,7 @@
 #include <linux/cc_platform.h>
 #include <linux/smp.h>
 #include <linux/string_choices.h>
+#include <linux/mutex.h>
 
 #include <asm/apic.h>
 #include <asm/msr.h>
@@ -232,6 +233,8 @@ module_param(tsc_scaling, int, 0444);
 static bool avic;
 module_param(avic, bool, 0444);
 
+module_param(enable_device_posted_irqs, bool, 0444);
+
 bool __read_mostly dump_invalid_vmcb;
 module_param(dump_invalid_vmcb, bool, 0644);
 
@@ -249,6 +252,8 @@ static u8 rsm_ins_bytes[] = "\x0f\xaa";
 static unsigned long iopm_base;
 
 DEFINE_PER_CPU(struct svm_cpu_data, svm_data);
+
+static DEFINE_MUTEX(vmcb_dump_mutex);
 
 /*
  * Only MSR_TSC_AUX is switched via the user return hook.  EFER is switched via
@@ -1369,6 +1374,9 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 		svm->vmcb->control.int_ctl |= V_GIF_ENABLE_MASK;
 	}
 
+	if (vcpu->kvm->arch.bus_lock_detection_enabled)
+		svm_set_intercept(svm, INTERCEPT_BUSLOCK);
+
 	if (sev_guest(vcpu->kvm))
 		sev_init_vmcb(svm);
 
@@ -1478,24 +1486,9 @@ out:
 	return err;
 }
 
-static void svm_clear_current_vmcb(struct vmcb *vmcb)
-{
-	int i;
-
-	for_each_online_cpu(i)
-		cmpxchg(per_cpu_ptr(&svm_data.current_vmcb, i), vmcb, NULL);
-}
-
 static void svm_vcpu_free(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-
-	/*
-	 * The vmcb page can be recycled, causing a false negative in
-	 * svm_vcpu_load(). So, ensure that no logical CPU has this
-	 * vmcb page recorded as its current vmcb.
-	 */
-	svm_clear_current_vmcb(svm->vmcb);
 
 	svm_leave_nested(vcpu);
 	svm_free_nested(svm);
@@ -1610,19 +1603,9 @@ static void svm_prepare_host_switch(struct kvm_vcpu *vcpu)
 
 static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
-	struct vcpu_svm *svm = to_svm(vcpu);
-	struct svm_cpu_data *sd = per_cpu_ptr(&svm_data, cpu);
-
 	if (vcpu->scheduled_out && !kvm_pause_in_guest(vcpu->kvm))
 		shrink_ple_window(vcpu);
 
-	if (sd->current_vmcb != svm->vmcb) {
-		sd->current_vmcb = svm->vmcb;
-
-		if (!cpu_feature_enabled(X86_FEATURE_IBPB_ON_VMEXIT) &&
-		    static_branch_likely(&switch_vcpu_ibpb))
-			indirect_branch_prediction_barrier();
-	}
 	if (kvm_vcpu_apicv_active(vcpu))
 		avic_vcpu_load(vcpu, cpu);
 }
@@ -3221,17 +3204,6 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		}
 
 		/*
-		 * AMD changed the architectural behavior of bits 5:2.  On CPUs
-		 * without BusLockTrap, bits 5:2 control "external pins", but
-		 * on CPUs that support BusLockDetect, bit 2 enables BusLockTrap
-		 * and bits 5:3 are reserved-to-zero.  Sadly, old KVM allowed
-		 * the guest to set bits 5:2 despite not actually virtualizing
-		 * Performance-Monitoring/Breakpoint external pins.  Drop bits
-		 * 5:2 for backwards compatibility.
-		 */
-		data &= ~GENMASK(5, 2);
-
-		/*
 		 * Suppress BTF as KVM doesn't virtualize BTF, but there's no
 		 * way to communicate lack of support to the guest.
 		 */
@@ -3361,6 +3333,37 @@ static int invpcid_interception(struct kvm_vcpu *vcpu)
 	return kvm_handle_invpcid(vcpu, type, gva);
 }
 
+static inline int complete_userspace_buslock(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	/*
+	 * If userspace has NOT changed RIP, then KVM's ABI is to let the guest
+	 * execute the bus-locking instruction.  Set the bus lock counter to '1'
+	 * to effectively step past the bus lock.
+	 */
+	if (kvm_is_linear_rip(vcpu, vcpu->arch.cui_linear_rip))
+		svm->vmcb->control.bus_lock_counter = 1;
+
+	return 1;
+}
+
+static int bus_lock_exit(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	vcpu->run->exit_reason = KVM_EXIT_X86_BUS_LOCK;
+	vcpu->run->flags |= KVM_RUN_X86_BUS_LOCK;
+
+	vcpu->arch.cui_linear_rip = kvm_get_linear_rip(vcpu);
+	vcpu->arch.complete_userspace_io = complete_userspace_buslock;
+
+	if (is_guest_mode(vcpu))
+		svm->nested.ctl.bus_lock_rip = vcpu->arch.cui_linear_rip;
+
+	return 0;
+}
+
 static int (*const svm_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[SVM_EXIT_READ_CR0]			= cr_interception,
 	[SVM_EXIT_READ_CR3]			= cr_interception,
@@ -3430,6 +3433,7 @@ static int (*const svm_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[SVM_EXIT_INVPCID]                      = invpcid_interception,
 	[SVM_EXIT_IDLE_HLT]			= kvm_emulate_halt,
 	[SVM_EXIT_NPF]				= npf_interception,
+	[SVM_EXIT_BUS_LOCK]			= bus_lock_exit,
 	[SVM_EXIT_RSM]                          = rsm_interception,
 	[SVM_EXIT_AVIC_INCOMPLETE_IPI]		= avic_incomplete_ipi_interception,
 	[SVM_EXIT_AVIC_UNACCELERATED_ACCESS]	= avic_unaccelerated_access_interception,
@@ -3444,14 +3448,21 @@ static void dump_vmcb(struct kvm_vcpu *vcpu)
 	struct vmcb_control_area *control = &svm->vmcb->control;
 	struct vmcb_save_area *save = &svm->vmcb->save;
 	struct vmcb_save_area *save01 = &svm->vmcb01.ptr->save;
+	char *vm_type;
 
 	if (!dump_invalid_vmcb) {
 		pr_warn_ratelimited("set kvm_amd.dump_invalid_vmcb=1 to dump internal KVM state.\n");
 		return;
 	}
 
-	pr_err("VMCB %p, last attempted VMRUN on CPU %d\n",
-	       svm->current_vmcb->ptr, vcpu->arch.last_vmentry_cpu);
+	guard(mutex)(&vmcb_dump_mutex);
+
+	vm_type = sev_snp_guest(vcpu->kvm) ? "SEV-SNP" :
+		  sev_es_guest(vcpu->kvm) ? "SEV-ES" :
+		  sev_guest(vcpu->kvm) ? "SEV" : "SVM";
+
+	pr_err("%s vCPU%u VMCB %p, last attempted VMRUN on CPU %d\n",
+	       vm_type, vcpu->vcpu_id, svm->current_vmcb->ptr, vcpu->arch.last_vmentry_cpu);
 	pr_err("VMCB Control Area:\n");
 	pr_err("%-20s%04x\n", "cr_read:", control->intercepts[INTERCEPT_CR] & 0xffff);
 	pr_err("%-20s%04x\n", "cr_write:", control->intercepts[INTERCEPT_CR] >> 16);
@@ -3489,6 +3500,17 @@ static void dump_vmcb(struct kvm_vcpu *vcpu)
 	pr_err("%-20s%016llx\n", "avic_logical_id:", control->avic_logical_id);
 	pr_err("%-20s%016llx\n", "avic_physical_id:", control->avic_physical_id);
 	pr_err("%-20s%016llx\n", "vmsa_pa:", control->vmsa_pa);
+	pr_err("%-20s%016llx\n", "allowed_sev_features:", control->allowed_sev_features);
+	pr_err("%-20s%016llx\n", "guest_sev_features:", control->guest_sev_features);
+
+	if (sev_es_guest(vcpu->kvm)) {
+		save = sev_decrypt_vmsa(vcpu);
+		if (!save)
+			goto no_vmsa;
+
+		save01 = save;
+	}
+
 	pr_err("VMCB State Save Area:\n");
 	pr_err("%-5s s: %04x a: %04x l: %08x b: %016llx\n",
 	       "es:",
@@ -3559,6 +3581,63 @@ static void dump_vmcb(struct kvm_vcpu *vcpu)
 	pr_err("%-15s %016llx %-13s %016llx\n",
 	       "excp_from:", save->last_excp_from,
 	       "excp_to:", save->last_excp_to);
+
+	if (sev_es_guest(vcpu->kvm)) {
+		struct sev_es_save_area *vmsa = (struct sev_es_save_area *)save;
+
+		pr_err("%-15s %016llx\n",
+		       "sev_features", vmsa->sev_features);
+
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "rax:", vmsa->rax, "rbx:", vmsa->rbx);
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "rcx:", vmsa->rcx, "rdx:", vmsa->rdx);
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "rsi:", vmsa->rsi, "rdi:", vmsa->rdi);
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "rbp:", vmsa->rbp, "rsp:", vmsa->rsp);
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "r8:", vmsa->r8, "r9:", vmsa->r9);
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "r10:", vmsa->r10, "r11:", vmsa->r11);
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "r12:", vmsa->r12, "r13:", vmsa->r13);
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "r14:", vmsa->r14, "r15:", vmsa->r15);
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "xcr0:", vmsa->xcr0, "xss:", vmsa->xss);
+	} else {
+		pr_err("%-15s %016llx %-13s %016lx\n",
+		       "rax:", save->rax, "rbx:",
+		       vcpu->arch.regs[VCPU_REGS_RBX]);
+		pr_err("%-15s %016lx %-13s %016lx\n",
+		       "rcx:", vcpu->arch.regs[VCPU_REGS_RCX],
+		       "rdx:", vcpu->arch.regs[VCPU_REGS_RDX]);
+		pr_err("%-15s %016lx %-13s %016lx\n",
+		       "rsi:", vcpu->arch.regs[VCPU_REGS_RSI],
+		       "rdi:", vcpu->arch.regs[VCPU_REGS_RDI]);
+		pr_err("%-15s %016lx %-13s %016llx\n",
+		       "rbp:", vcpu->arch.regs[VCPU_REGS_RBP],
+		       "rsp:", save->rsp);
+#ifdef CONFIG_X86_64
+		pr_err("%-15s %016lx %-13s %016lx\n",
+		       "r8:", vcpu->arch.regs[VCPU_REGS_R8],
+		       "r9:", vcpu->arch.regs[VCPU_REGS_R9]);
+		pr_err("%-15s %016lx %-13s %016lx\n",
+		       "r10:", vcpu->arch.regs[VCPU_REGS_R10],
+		       "r11:", vcpu->arch.regs[VCPU_REGS_R11]);
+		pr_err("%-15s %016lx %-13s %016lx\n",
+		       "r12:", vcpu->arch.regs[VCPU_REGS_R12],
+		       "r13:", vcpu->arch.regs[VCPU_REGS_R13]);
+		pr_err("%-15s %016lx %-13s %016lx\n",
+		       "r14:", vcpu->arch.regs[VCPU_REGS_R14],
+		       "r15:", vcpu->arch.regs[VCPU_REGS_R15]);
+#endif
+	}
+
+no_vmsa:
+	if (sev_es_guest(vcpu->kvm))
+		sev_free_decrypted_vmsa(vcpu, save);
 }
 
 static bool svm_check_exit_valid(u64 exit_code)
@@ -3595,6 +3674,10 @@ int svm_invoke_exit_handler(struct kvm_vcpu *vcpu, u64 exit_code)
 		return kvm_emulate_halt(vcpu);
 	else if (exit_code == SVM_EXIT_NPF)
 		return npf_interception(vcpu);
+#ifdef CONFIG_KVM_AMD_SEV
+	else if (exit_code == SVM_EXIT_VMGEXIT)
+		return sev_handle_vmgexit(vcpu);
+#endif
 #endif
 	return svm_exit_handlers[exit_code](vcpu);
 }
@@ -5355,6 +5438,9 @@ static __init void svm_set_cpu_caps(void)
 		/* Nested VM can receive #VMEXIT instead of triggering #GP */
 		kvm_cpu_cap_set(X86_FEATURE_SVME_ADDR_CHK);
 	}
+
+	if (cpu_feature_enabled(X86_FEATURE_BUS_LOCK_THRESHOLD))
+		kvm_caps.has_bus_lock_exit = true;
 
 	/* CPUID 0x80000008 */
 	if (boot_cpu_has(X86_FEATURE_LS_CFG_SSBD) ||

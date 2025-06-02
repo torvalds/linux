@@ -655,27 +655,29 @@ static u8 count_vectors(void *bitmap)
 	return count;
 }
 
-bool __kvm_apic_update_irr(u32 *pir, void *regs, int *max_irr)
+bool __kvm_apic_update_irr(unsigned long *pir, void *regs, int *max_irr)
 {
+	unsigned long pir_vals[NR_PIR_WORDS];
+	u32 *__pir = (void *)pir_vals;
 	u32 i, vec;
-	u32 pir_val, irr_val, prev_irr_val;
+	u32 irr_val, prev_irr_val;
 	int max_updated_irr;
 
 	max_updated_irr = -1;
 	*max_irr = -1;
 
+	if (!pi_harvest_pir(pir, pir_vals))
+		return false;
+
 	for (i = vec = 0; i <= 7; i++, vec += 32) {
 		u32 *p_irr = (u32 *)(regs + APIC_IRR + i * 0x10);
 
-		irr_val = *p_irr;
-		pir_val = READ_ONCE(pir[i]);
+		irr_val = READ_ONCE(*p_irr);
 
-		if (pir_val) {
-			pir_val = xchg(&pir[i], 0);
-
+		if (__pir[i]) {
 			prev_irr_val = irr_val;
 			do {
-				irr_val = prev_irr_val | pir_val;
+				irr_val = prev_irr_val | __pir[i];
 			} while (prev_irr_val != irr_val &&
 				 !try_cmpxchg(p_irr, &prev_irr_val, irr_val));
 
@@ -691,7 +693,7 @@ bool __kvm_apic_update_irr(u32 *pir, void *regs, int *max_irr)
 }
 EXPORT_SYMBOL_GPL(__kvm_apic_update_irr);
 
-bool kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir, int *max_irr)
+bool kvm_apic_update_irr(struct kvm_vcpu *vcpu, unsigned long *pir, int *max_irr)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 	bool irr_updated = __kvm_apic_update_irr(pir, apic->regs, max_irr);
@@ -1458,6 +1460,14 @@ static void kvm_ioapic_send_eoi(struct kvm_lapic *apic, int vector)
 	/* Eoi the ioapic only if the ioapic doesn't own the vector. */
 	if (!kvm_ioapic_handles_vector(apic, vector))
 		return;
+
+	/*
+	 * If the intercepted EOI is for an IRQ that was pending from previous
+	 * routing, then re-scan the I/O APIC routes as EOIs for the IRQ likely
+	 * no longer need to be intercepted.
+	 */
+	if (apic->vcpu->arch.highest_stale_pending_ioapic_eoi == vector)
+		kvm_make_request(KVM_REQ_SCAN_IOAPIC, apic->vcpu);
 
 	/* Request a KVM exit to inform the userspace IOAPIC. */
 	if (irqchip_split(apic->vcpu->kvm)) {

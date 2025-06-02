@@ -16,8 +16,9 @@
 #include <asm/gmap.h>
 #include <asm/dat-bits.h>
 #include "kvm-s390.h"
-#include "gmap.h"
 #include "gaccess.h"
+
+#define GMAP_SHADOW_FAKE_TABLE 1ULL
 
 /*
  * vaddress union in order to easily decode a virtual address into its

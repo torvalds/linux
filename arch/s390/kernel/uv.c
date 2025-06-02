@@ -15,6 +15,7 @@
 #include <linux/pagemap.h>
 #include <linux/swap.h>
 #include <linux/pagewalk.h>
+#include <linux/backing-dev.h>
 #include <asm/facility.h>
 #include <asm/sections.h>
 #include <asm/uv.h>
@@ -135,7 +136,7 @@ int uv_destroy_folio(struct folio *folio)
 {
 	int rc;
 
-	/* See gmap_make_secure(): large folios cannot be secure */
+	/* Large folios cannot be secure */
 	if (unlikely(folio_test_large(folio)))
 		return 0;
 
@@ -184,7 +185,7 @@ int uv_convert_from_secure_folio(struct folio *folio)
 {
 	int rc;
 
-	/* See gmap_make_secure(): large folios cannot be secure */
+	/* Large folios cannot be secure */
 	if (unlikely(folio_test_large(folio)))
 		return 0;
 
@@ -324,32 +325,87 @@ static int make_folio_secure(struct mm_struct *mm, struct folio *folio, struct u
 }
 
 /**
- * s390_wiggle_split_folio() - try to drain extra references to a folio and optionally split.
+ * s390_wiggle_split_folio() - try to drain extra references to a folio and
+ *			       split the folio if it is large.
  * @mm:    the mm containing the folio to work on
  * @folio: the folio
- * @split: whether to split a large folio
  *
  * Context: Must be called while holding an extra reference to the folio;
  *          the mm lock should not be held.
- * Return: 0 if the folio was split successfully;
- *         -EAGAIN if the folio was not split successfully but another attempt
- *                 can be made, or if @split was set to false;
- *         -EINVAL in case of other errors. See split_folio().
+ * Return: 0 if the operation was successful;
+ *	   -EAGAIN if splitting the large folio was not successful,
+ *		   but another attempt can be made;
+ *	   -EINVAL in case of other folio splitting errors. See split_folio().
  */
-static int s390_wiggle_split_folio(struct mm_struct *mm, struct folio *folio, bool split)
+static int s390_wiggle_split_folio(struct mm_struct *mm, struct folio *folio)
 {
-	int rc;
+	int rc, tried_splits;
 
 	lockdep_assert_not_held(&mm->mmap_lock);
 	folio_wait_writeback(folio);
 	lru_add_drain_all();
-	if (split) {
+
+	if (!folio_test_large(folio))
+		return 0;
+
+	for (tried_splits = 0; tried_splits < 2; tried_splits++) {
+		struct address_space *mapping;
+		loff_t lstart, lend;
+		struct inode *inode;
+
 		folio_lock(folio);
 		rc = split_folio(folio);
+		if (rc != -EBUSY) {
+			folio_unlock(folio);
+			return rc;
+		}
+
+		/*
+		 * Splitting with -EBUSY can fail for various reasons, but we
+		 * have to handle one case explicitly for now: some mappings
+		 * don't allow for splitting dirty folios; writeback will
+		 * mark them clean again, including marking all page table
+		 * entries mapping the folio read-only, to catch future write
+		 * attempts.
+		 *
+		 * While the system should be writing back dirty folios in the
+		 * background, we obtained this folio by looking up a writable
+		 * page table entry. On these problematic mappings, writable
+		 * page table entries imply dirty folios, preventing the
+		 * split in the first place.
+		 *
+		 * To prevent a livelock when trigger writeback manually and
+		 * letting the caller look up the folio again in the page
+		 * table (turning it dirty), immediately try to split again.
+		 *
+		 * This is only a problem for some mappings (e.g., XFS);
+		 * mappings that do not support writeback (e.g., shmem) do not
+		 * apply.
+		 */
+		if (!folio_test_dirty(folio) || folio_test_anon(folio) ||
+		    !folio->mapping || !mapping_can_writeback(folio->mapping)) {
+			folio_unlock(folio);
+			break;
+		}
+
+		/*
+		 * Ideally, we'd only trigger writeback on this exact folio. But
+		 * there is no easy way to do that, so we'll stabilize the
+		 * mapping while we still hold the folio lock, so we can drop
+		 * the folio lock to trigger writeback on the range currently
+		 * covered by the folio instead.
+		 */
+		mapping = folio->mapping;
+		lstart = folio_pos(folio);
+		lend = lstart + folio_size(folio) - 1;
+		inode = igrab(mapping->host);
 		folio_unlock(folio);
 
-		if (rc != -EBUSY)
-			return rc;
+		if (unlikely(!inode))
+			break;
+
+		filemap_write_and_wait_range(mapping, lstart, lend);
+		iput(mapping->host);
 	}
 	return -EAGAIN;
 }
@@ -393,8 +449,11 @@ int make_hva_secure(struct mm_struct *mm, unsigned long hva, struct uv_cb_header
 	folio_walk_end(&fw, vma);
 	mmap_read_unlock(mm);
 
-	if (rc == -E2BIG || rc == -EBUSY)
-		rc = s390_wiggle_split_folio(mm, folio, rc == -E2BIG);
+	if (rc == -E2BIG || rc == -EBUSY) {
+		rc = s390_wiggle_split_folio(mm, folio);
+		if (!rc)
+			rc = -EAGAIN;
+	}
 	folio_put(folio);
 
 	return rc;
@@ -403,15 +462,15 @@ EXPORT_SYMBOL_GPL(make_hva_secure);
 
 /*
  * To be called with the folio locked or with an extra reference! This will
- * prevent gmap_make_secure from touching the folio concurrently. Having 2
- * parallel arch_make_folio_accessible is fine, as the UV calls will become a
- * no-op if the folio is already exported.
+ * prevent kvm_s390_pv_make_secure() from touching the folio concurrently.
+ * Having 2 parallel arch_make_folio_accessible is fine, as the UV calls will
+ * become a no-op if the folio is already exported.
  */
 int arch_make_folio_accessible(struct folio *folio)
 {
 	int rc = 0;
 
-	/* See gmap_make_secure(): large folios cannot be secure */
+	/* Large folios cannot be secure */
 	if (unlikely(folio_test_large(folio)))
 		return 0;
 
