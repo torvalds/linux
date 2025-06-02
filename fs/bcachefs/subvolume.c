@@ -255,6 +255,13 @@ void bch2_subvolume_to_text(struct printbuf *out, struct bch_fs *c,
 		prt_printf(out, " creation_parent %u", le32_to_cpu(s.v->creation_parent));
 		prt_printf(out, " fs_parent %u", le32_to_cpu(s.v->fs_path_parent));
 	}
+
+	if (BCH_SUBVOLUME_RO(s.v))
+		prt_printf(out, " ro");
+	if (BCH_SUBVOLUME_SNAP(s.v))
+		prt_printf(out, " snapshot");
+	if (BCH_SUBVOLUME_UNLINKED(s.v))
+		prt_printf(out, " unlinked");
 }
 
 static int subvolume_children_mod(struct btree_trans *trans, struct bpos pos, bool set)
