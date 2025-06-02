@@ -33,8 +33,22 @@ enum {
 	btrfs_bitmap_nr_uptodate = 0,
 	btrfs_bitmap_nr_dirty,
 	btrfs_bitmap_nr_writeback,
+	/*
+	 * The ordered and checked flags are for COW fixup, already marked
+	 * deprecated, and will be removed eventually.
+	 */
 	btrfs_bitmap_nr_ordered,
 	btrfs_bitmap_nr_checked,
+
+	/*
+	 * The locked bit is for async delalloc range (compression), currently
+	 * async extent is queued with the range locked, until the compression
+	 * is done.
+	 * So an async extent can unlock the range at any random timing.
+	 *
+	 * This will need a rework on the async extent lifespan (mark writeback
+	 * and do compression) before deprecating this flag.
+	 */
 	btrfs_bitmap_nr_locked,
 	btrfs_bitmap_nr_max
 };
