@@ -267,6 +267,56 @@ static inline blk_mode_t btrfs_open_mode(struct fs_context *fc)
 	return sb_open_mode(fc->sb_flags) & ~BLK_OPEN_RESTRICT_WRITES;
 }
 
+static int btrfs_parse_compress(struct btrfs_fs_context *ctx,
+				const struct fs_parameter *param, int opt)
+{
+	/*
+	 * Provide the same semantics as older kernels that don't use fs
+	 * context, specifying the "compress" option clears "force-compress"
+	 * without the need to pass "compress-force=[no|none]" before
+	 * specifying "compress".
+	 */
+	if (opt != Opt_compress_force && opt != Opt_compress_force_type)
+		btrfs_clear_opt(ctx->mount_opt, FORCE_COMPRESS);
+
+	if (opt == Opt_compress || opt == Opt_compress_force) {
+		ctx->compress_type = BTRFS_COMPRESS_ZLIB;
+		ctx->compress_level = BTRFS_ZLIB_DEFAULT_LEVEL;
+		btrfs_set_opt(ctx->mount_opt, COMPRESS);
+		btrfs_clear_opt(ctx->mount_opt, NODATACOW);
+		btrfs_clear_opt(ctx->mount_opt, NODATASUM);
+	} else if (strncmp(param->string, "zlib", 4) == 0) {
+		ctx->compress_type = BTRFS_COMPRESS_ZLIB;
+		ctx->compress_level = btrfs_compress_str2level(BTRFS_COMPRESS_ZLIB,
+							       param->string + 4);
+		btrfs_set_opt(ctx->mount_opt, COMPRESS);
+		btrfs_clear_opt(ctx->mount_opt, NODATACOW);
+		btrfs_clear_opt(ctx->mount_opt, NODATASUM);
+	} else if (strncmp(param->string, "lzo", 3) == 0) {
+		ctx->compress_type = BTRFS_COMPRESS_LZO;
+		ctx->compress_level = 0;
+		btrfs_set_opt(ctx->mount_opt, COMPRESS);
+		btrfs_clear_opt(ctx->mount_opt, NODATACOW);
+		btrfs_clear_opt(ctx->mount_opt, NODATASUM);
+	} else if (strncmp(param->string, "zstd", 4) == 0) {
+		ctx->compress_type = BTRFS_COMPRESS_ZSTD;
+		ctx->compress_level = btrfs_compress_str2level(BTRFS_COMPRESS_ZSTD,
+							       param->string + 4);
+		btrfs_set_opt(ctx->mount_opt, COMPRESS);
+		btrfs_clear_opt(ctx->mount_opt, NODATACOW);
+		btrfs_clear_opt(ctx->mount_opt, NODATASUM);
+	} else if (strncmp(param->string, "no", 2) == 0) {
+		ctx->compress_level = 0;
+		ctx->compress_type = 0;
+		btrfs_clear_opt(ctx->mount_opt, COMPRESS);
+		btrfs_clear_opt(ctx->mount_opt, FORCE_COMPRESS);
+	} else {
+		btrfs_err(NULL, "unrecognized compression value %s", param->string);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
 	struct btrfs_fs_context *ctx = fc->fs_private;
@@ -336,53 +386,8 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		fallthrough;
 	case Opt_compress:
 	case Opt_compress_type:
-		/*
-		 * Provide the same semantics as older kernels that don't use fs
-		 * context, specifying the "compress" option clears
-		 * "force-compress" without the need to pass
-		 * "compress-force=[no|none]" before specifying "compress".
-		 */
-		if (opt != Opt_compress_force && opt != Opt_compress_force_type)
-			btrfs_clear_opt(ctx->mount_opt, FORCE_COMPRESS);
-
-		if (opt == Opt_compress || opt == Opt_compress_force) {
-			ctx->compress_type = BTRFS_COMPRESS_ZLIB;
-			ctx->compress_level = BTRFS_ZLIB_DEFAULT_LEVEL;
-			btrfs_set_opt(ctx->mount_opt, COMPRESS);
-			btrfs_clear_opt(ctx->mount_opt, NODATACOW);
-			btrfs_clear_opt(ctx->mount_opt, NODATASUM);
-		} else if (strncmp(param->string, "zlib", 4) == 0) {
-			ctx->compress_type = BTRFS_COMPRESS_ZLIB;
-			ctx->compress_level =
-				btrfs_compress_str2level(BTRFS_COMPRESS_ZLIB,
-							 param->string + 4);
-			btrfs_set_opt(ctx->mount_opt, COMPRESS);
-			btrfs_clear_opt(ctx->mount_opt, NODATACOW);
-			btrfs_clear_opt(ctx->mount_opt, NODATASUM);
-		} else if (strncmp(param->string, "lzo", 3) == 0) {
-			ctx->compress_type = BTRFS_COMPRESS_LZO;
-			ctx->compress_level = 0;
-			btrfs_set_opt(ctx->mount_opt, COMPRESS);
-			btrfs_clear_opt(ctx->mount_opt, NODATACOW);
-			btrfs_clear_opt(ctx->mount_opt, NODATASUM);
-		} else if (strncmp(param->string, "zstd", 4) == 0) {
-			ctx->compress_type = BTRFS_COMPRESS_ZSTD;
-			ctx->compress_level =
-				btrfs_compress_str2level(BTRFS_COMPRESS_ZSTD,
-							 param->string + 4);
-			btrfs_set_opt(ctx->mount_opt, COMPRESS);
-			btrfs_clear_opt(ctx->mount_opt, NODATACOW);
-			btrfs_clear_opt(ctx->mount_opt, NODATASUM);
-		} else if (strncmp(param->string, "no", 2) == 0) {
-			ctx->compress_level = 0;
-			ctx->compress_type = 0;
-			btrfs_clear_opt(ctx->mount_opt, COMPRESS);
-			btrfs_clear_opt(ctx->mount_opt, FORCE_COMPRESS);
-		} else {
-			btrfs_err(NULL, "unrecognized compression value %s",
-				  param->string);
+		if (btrfs_parse_compress(ctx, param, opt))
 			return -EINVAL;
-		}
 		break;
 	case Opt_ssd:
 		if (result.negated) {
