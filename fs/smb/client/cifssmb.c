@@ -1725,7 +1725,7 @@ cifs_writev_callback(struct mid_q_entry *mid)
 			      server->credits, server->in_flight,
 			      0, cifs_trace_rw_credits_write_response_clear);
 	wdata->credits.value = 0;
-	cifs_write_subrequest_terminated(wdata, result, true);
+	cifs_write_subrequest_terminated(wdata, result);
 	release_mid(mid);
 	trace_smb3_rw_credits(credits.rreq_debug_id, credits.rreq_debug_index, 0,
 			      server->credits, server->in_flight,
@@ -1813,7 +1813,7 @@ async_writev_out:
 out:
 	if (rc) {
 		add_credits_and_wake_if(wdata->server, &wdata->credits, 0);
-		cifs_write_subrequest_terminated(wdata, rc, false);
+		cifs_write_subrequest_terminated(wdata, rc);
 	}
 }
 

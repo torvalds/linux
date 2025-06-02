@@ -4888,7 +4888,7 @@ smb2_writev_callback(struct mid_q_entry *mid)
 			      0, cifs_trace_rw_credits_write_response_clear);
 	wdata->credits.value = 0;
 	trace_netfs_sreq(&wdata->subreq, netfs_sreq_trace_io_progress);
-	cifs_write_subrequest_terminated(wdata, result ?: written, true);
+	cifs_write_subrequest_terminated(wdata, result ?: written);
 	release_mid(mid);
 	trace_smb3_rw_credits(rreq_debug_id, subreq_debug_index, 0,
 			      server->credits, server->in_flight,
@@ -5061,7 +5061,7 @@ out:
 				      -(int)wdata->credits.value,
 				      cifs_trace_rw_credits_write_response_clear);
 		add_credits_and_wake_if(wdata->server, &wdata->credits, 0);
-		cifs_write_subrequest_terminated(wdata, rc, true);
+		cifs_write_subrequest_terminated(wdata, rc);
 	}
 }
 
