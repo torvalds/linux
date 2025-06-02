@@ -358,6 +358,8 @@ void free_pgtables(struct mmu_gather *tlb, struct ma_state *mas,
 {
 	struct unlink_vma_file_batch vb;
 
+	tlb_free_vmas(tlb);
+
 	do {
 		unsigned long addr = vma->vm_start;
 		struct vm_area_struct *next;
@@ -4668,8 +4670,8 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 
 		/*
 		 * KSM sometimes has to copy on read faults, for example, if
-		 * page->index of !PageKSM() pages would be nonlinear inside the
-		 * anon VMA -- PageKSM() is lost on actual swapout.
+		 * folio->index of non-ksm folios would be nonlinear inside the
+		 * anon VMA -- the ksm flag is lost on actual swapout.
 		 */
 		folio = ksm_might_need_to_copy(folio, vma, vmf->address);
 		if (unlikely(!folio)) {

@@ -227,9 +227,9 @@ void __flush_dcache_folio(struct address_space *mapping, struct folio *folio)
 	}
 
 	/*
-	 * If this is a page cache page, and we have an aliasing VIPT cache,
+	 * If this is a page cache folio, and we have an aliasing VIPT cache,
 	 * we only need to do one flush - which would be at the relevant
-	 * userspace colour, which is congruent with page->index.
+	 * userspace colour, which is congruent with folio->index.
 	 */
 	if (mapping && cache_is_vipt_aliasing())
 		flush_pfn_alias(folio_pfn(folio), folio_pos(folio));

@@ -1276,9 +1276,9 @@ vm_fault_t finish_fault(struct vm_fault *vmf);
  * the page's disk buffers. PG_private must be set to tell the VM to call
  * into the filesystem to release these pages.
  *
- * A page may belong to an inode's memory mapping. In this case, page->mapping
- * is the pointer to the inode, and page->index is the file offset of the page,
- * in units of PAGE_SIZE.
+ * A folio may belong to an inode's memory mapping. In this case,
+ * folio->mapping points to the inode, and folio->index is the file
+ * offset of the folio, in units of PAGE_SIZE.
  *
  * If pagecache pages are not associated with an inode, they are said to be
  * anonymous pages. These may become associated with the swapcache, and in that

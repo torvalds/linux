@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdio.h>
+#include <ctype.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <setjmp.h>
@@ -43,14 +45,62 @@ static int test_read_access(char *addr, size_t size, size_t pagesize)
 			/* Force a read that the compiler cannot optimize out. */
 			*((volatile char *)(addr + offs));
 	}
-	if (signal(SIGSEGV, signal_handler) == SIG_ERR)
+	if (signal(SIGSEGV, SIG_DFL) == SIG_ERR)
 		return -EINVAL;
 
 	return ret;
 }
 
+static int find_ram_target(off_t *phys_addr,
+		unsigned long long pagesize)
+{
+	unsigned long long start, end;
+	char line[80], *end_ptr;
+	FILE *file;
+
+	/* Search /proc/iomem for the first suitable "System RAM" range. */
+	file = fopen("/proc/iomem", "r");
+	if (!file)
+		return -errno;
+
+	while (fgets(line, sizeof(line), file)) {
+		/* Ignore any child nodes. */
+		if (!isalnum(line[0]))
+			continue;
+
+		if (!strstr(line, "System RAM\n"))
+			continue;
+
+		start = strtoull(line, &end_ptr, 16);
+		/* Skip over the "-" */
+		end_ptr++;
+		/* Make end "exclusive". */
+		end = strtoull(end_ptr, NULL, 16) + 1;
+
+		/* Actual addresses are not exported */
+		if (!start && !end)
+			break;
+
+		/* We need full pages. */
+		start = (start + pagesize - 1) & ~(pagesize - 1);
+		end &= ~(pagesize - 1);
+
+		if (start != (off_t)start)
+			break;
+
+		/* We need two pages. */
+		if (end > start + 2 * pagesize) {
+			fclose(file);
+			*phys_addr = start;
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
 FIXTURE(pfnmap)
 {
+	off_t phys_addr;
 	size_t pagesize;
 	int dev_mem_fd;
 	char *addr1;
@@ -63,14 +113,17 @@ FIXTURE_SETUP(pfnmap)
 {
 	self->pagesize = getpagesize();
 
+	/* We'll require two physical pages throughout our tests ... */
+	if (find_ram_target(&self->phys_addr, self->pagesize))
+		SKIP(return, "Cannot find ram target in '/proc/iomem'\n");
+
 	self->dev_mem_fd = open("/dev/mem", O_RDONLY);
 	if (self->dev_mem_fd < 0)
 		SKIP(return, "Cannot open '/dev/mem'\n");
 
-	/* We'll require the first two pages throughout our tests ... */
 	self->size1 = self->pagesize * 2;
 	self->addr1 = mmap(NULL, self->size1, PROT_READ, MAP_SHARED,
-			   self->dev_mem_fd, 0);
+			   self->dev_mem_fd, self->phys_addr);
 	if (self->addr1 == MAP_FAILED)
 		SKIP(return, "Cannot mmap '/dev/mem'\n");
 
@@ -129,7 +182,7 @@ TEST_F(pfnmap, munmap_split)
 	 */
 	self->size2 = self->pagesize;
 	self->addr2 = mmap(NULL, self->pagesize, PROT_READ, MAP_SHARED,
-			   self->dev_mem_fd, 0);
+			   self->dev_mem_fd, self->phys_addr);
 	ASSERT_NE(self->addr2, MAP_FAILED);
 }
 
