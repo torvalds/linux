@@ -230,12 +230,25 @@ static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 			     struct dentry **ret, bool drop_negative)
 {
 	struct ovl_fs *ofs = OVL_FS(d->sb);
-	struct dentry *this;
+	struct dentry *this = NULL;
+	const char *warn;
 	struct path path;
 	int err;
 	bool last_element = !post[0];
 	bool is_upper = d->layer->idx == 0;
 	char val;
+
+	/*
+	 * We allow filesystems that are case-folding capable but deny composing
+	 * ovl stack from case-folded directories. If someone has enabled case
+	 * folding on a directory on underlying layer, the warranty of the ovl
+	 * stack is voided.
+	 */
+	if (ovl_dentry_casefolded(base)) {
+		warn = "case folded parent";
+		err = -ESTALE;
+		goto out_warn;
+	}
 
 	this = ovl_lookup_positive_unlocked(d, name, base, namelen, drop_negative);
 	if (IS_ERR(this)) {
@@ -246,10 +259,17 @@ static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 		goto out_err;
 	}
 
+	if (ovl_dentry_casefolded(this)) {
+		warn = "case folded child";
+		err = -EREMOTE;
+		goto out_warn;
+	}
+
 	if (ovl_dentry_weird(this)) {
 		/* Don't support traversing automounts and other weirdness */
+		warn = "unsupported object type";
 		err = -EREMOTE;
-		goto out_err;
+		goto out_warn;
 	}
 
 	path.dentry = this;
@@ -283,8 +303,9 @@ static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 	} else {
 		if (ovl_lookup_trap_inode(d->sb, this)) {
 			/* Caught in a trap of overlapping layers */
+			warn = "overlapping layers";
 			err = -ELOOP;
-			goto out_err;
+			goto out_warn;
 		}
 
 		if (last_element)
@@ -316,6 +337,10 @@ put_and_out:
 	this = NULL;
 	goto out;
 
+out_warn:
+	pr_warn_ratelimited("failed lookup in %s (%pd2, name='%.*s', err=%i): %s\n",
+			    is_upper ? "upper" : "lower", base,
+			    namelen, name, err, warn);
 out_err:
 	dput(this);
 	return err;
