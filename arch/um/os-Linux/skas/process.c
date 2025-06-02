@@ -309,6 +309,7 @@ static int __init init_stub_exe_fd(void)
 }
 __initcall(init_stub_exe_fd);
 
+int using_seccomp;
 int userspace_pid[NR_CPUS];
 
 /**

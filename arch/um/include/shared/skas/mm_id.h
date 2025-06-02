@@ -14,4 +14,6 @@ struct mm_id {
 
 void __switch_mm(struct mm_id *mm_idp);
 
+void notify_mm_kill(int pid);
+
 #endif
