@@ -446,6 +446,12 @@ void ovl_dentry_init_reval(struct dentry *dentry, struct dentry *upperdentry,
 void ovl_dentry_init_flags(struct dentry *dentry, struct dentry *upperdentry,
 			   struct ovl_entry *oe, unsigned int mask);
 bool ovl_dentry_weird(struct dentry *dentry);
+
+static inline bool ovl_dentry_casefolded(struct dentry *dentry)
+{
+	return sb_has_encoding(dentry->d_sb) && IS_CASEFOLDED(d_inode(dentry));
+}
+
 enum ovl_path_type ovl_path_type(struct dentry *dentry);
 void ovl_path_upper(struct dentry *dentry, struct path *path);
 void ovl_path_lower(struct dentry *dentry, struct path *path);

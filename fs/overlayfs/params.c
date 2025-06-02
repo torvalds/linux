@@ -282,13 +282,11 @@ static int ovl_mount_dir_check(struct fs_context *fc, const struct path *path,
 		return invalfc(fc, "%s is not a directory", name);
 
 	/*
-	 * Root dentries of case-insensitive capable filesystems might
-	 * not have the dentry operations set, but still be incompatible
-	 * with overlayfs.  Check explicitly to prevent post-mount
-	 * failures.
+	 * Allow filesystems that are case-folding capable but deny composing
+	 * ovl stack from case-folded directories.
 	 */
-	if (sb_has_encoding(path->mnt->mnt_sb))
-		return invalfc(fc, "case-insensitive capable filesystem on %s not supported", name);
+	if (ovl_dentry_casefolded(path->dentry))
+		return invalfc(fc, "case-insensitive directory on %s not supported", name);
 
 	if (ovl_dentry_weird(path->dentry))
 		return invalfc(fc, "filesystem on %s not supported", name);
