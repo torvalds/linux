@@ -712,7 +712,7 @@ static void __locks_wake_up_blocks(struct file_lock_core *blocker)
 		    fl->fl_lmops && fl->fl_lmops->lm_notify)
 			fl->fl_lmops->lm_notify(fl);
 		else
-			locks_wake_up(fl);
+			locks_wake_up_waiter(waiter);
 
 		/*
 		 * The setting of flc_blocker to NULL marks the "done"
