@@ -22,12 +22,12 @@
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_gt_printk.h"
-#include "xe_gt_sriov_vf.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
 #include "xe_pm.h"
 #include "xe_sriov.h"
+#include "xe_tile_sriov_vf.h"
 #include "xe_wa.h"
 #include "xe_wopcm.h"
 
@@ -258,7 +258,7 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 		return err;
 
 	if (IS_SRIOV_VF(xe)) {
-		err = xe_gt_sriov_vf_prepare_ggtt(xe_tile_get_gt(ggtt->tile, 0));
+		err = xe_tile_sriov_vf_prepare_ggtt(ggtt->tile);
 		if (err)
 			return err;
 	}

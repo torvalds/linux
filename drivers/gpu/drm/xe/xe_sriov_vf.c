@@ -15,6 +15,7 @@
 #include "xe_sriov.h"
 #include "xe_sriov_printk.h"
 #include "xe_sriov_vf.h"
+#include "xe_tile_sriov_vf.h"
 
 /**
  * DOC: VF restore procedure in PF KMD and VF KMD
@@ -211,7 +212,7 @@ static bool vf_post_migration_fixup_ggtt_nodes(struct xe_device *xe)
 		shift = xe_gt_sriov_vf_ggtt_shift(gt);
 		if (shift) {
 			need_fixups = true;
-			xe_gt_sriov_vf_fixup_ggtt_nodes(gt, shift);
+			xe_tile_sriov_vf_fixup_ggtt_nodes(tile, shift);
 		}
 	}
 	return need_fixups;
