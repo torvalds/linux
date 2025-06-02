@@ -32,6 +32,14 @@ SYM_FUNC_END(write_ibpb)
 /* For KVM */
 EXPORT_SYMBOL_GPL(write_ibpb);
 
+SYM_FUNC_START(__WARN_trap)
+	ANNOTATE_NOENDBR
+	ANNOTATE_REACHABLE
+	ud1 (%edx), %_ASM_ARG1
+	RET
+SYM_FUNC_END(__WARN_trap)
+EXPORT_SYMBOL(__WARN_trap)
+
 .popsection
 
 /*
