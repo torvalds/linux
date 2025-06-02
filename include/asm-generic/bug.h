@@ -100,22 +100,8 @@ void warn_slowpath_fmt(const char *file, const int line, unsigned taint,
 		       const char *fmt, ...);
 extern __printf(1, 2) void __warn_printk(const char *fmt, ...);
 
-#ifndef __WARN_FLAGS
-#define __WARN()		__WARN_printf(TAINT_WARN, NULL)
-#define __WARN_printf(taint, arg...) do {				\
-		instrumentation_begin();				\
-		warn_slowpath_fmt(__FILE__, __LINE__, taint, arg);	\
-		instrumentation_end();					\
-	} while (0)
-#else
+#ifdef __WARN_FLAGS
 #define __WARN()		__WARN_FLAGS("", BUGFLAG_TAINT(TAINT_WARN))
-
-#define __WARN_printf(taint, arg...) do {				\
-		instrumentation_begin();				\
-		__warn_printk(arg);					\
-		__WARN_FLAGS("", BUGFLAG_NO_CUT_HERE | BUGFLAG_TAINT(taint));\
-		instrumentation_end();					\
-	} while (0)
 
 #ifndef WARN_ON
 #define WARN_ON(condition) ({						\
@@ -138,6 +124,27 @@ extern __printf(1, 2) void __warn_printk(const char *fmt, ...);
 })
 #endif
 #endif /* __WARN_FLAGS */
+
+#if defined(__WARN_FLAGS) && !defined(__WARN_printf)
+#define __WARN_printf(taint, arg...) do {				\
+		instrumentation_begin();				\
+		__warn_printk(arg);					\
+		__WARN_FLAGS("", BUGFLAG_NO_CUT_HERE | BUGFLAG_TAINT(taint));\
+		instrumentation_end();					\
+	} while (0)
+#endif
+
+#ifndef __WARN_printf
+#define __WARN_printf(taint, arg...) do {				\
+		instrumentation_begin();				\
+		warn_slowpath_fmt(__FILE__, __LINE__, taint, arg);	\
+		instrumentation_end();					\
+	} while (0)
+#endif
+
+#ifndef __WARN
+#define __WARN()		__WARN_printf(TAINT_WARN, NULL)
+#endif
 
 /* used internally by panic.c */
 
