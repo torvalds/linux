@@ -2394,7 +2394,7 @@ static int nvme_tcp_setup_ctrl(struct nvme_ctrl *ctrl, bool new)
 		nvme_tcp_teardown_admin_queue(ctrl, false);
 		ret = nvme_tcp_configure_admin_queue(ctrl, false);
 		if (ret)
-			return ret;
+			goto destroy_admin;
 	}
 
 	if (ctrl->icdoff) {
