@@ -77,7 +77,7 @@ void btrfs_extent_buffer_leak_debug_check(struct btrfs_fs_info *fs_info)
 				      struct extent_buffer, leak_list);
 		pr_err(
 	"BTRFS: buffer leak start %llu len %u refs %d bflags %lu owner %llu\n",
-		       eb->start, eb->len, atomic_read(&eb->refs), eb->bflags,
+		       eb->start, eb->len, refcount_read(&eb->refs), eb->bflags,
 		       btrfs_header_owner(eb));
 		list_del(&eb->leak_list);
 		WARN_ON_ONCE(1);
@@ -1961,7 +1961,7 @@ retry:
 	if (!eb)
 		return NULL;
 
-	if (!atomic_inc_not_zero(&eb->refs)) {
+	if (!refcount_inc_not_zero(&eb->refs)) {
 		xas_reset(xas);
 		goto retry;
 	}
@@ -2012,7 +2012,7 @@ static struct extent_buffer *find_extent_buffer_nolock(
 
 	rcu_read_lock();
 	eb = xa_load(&fs_info->buffer_tree, index);
-	if (eb && !atomic_inc_not_zero(&eb->refs))
+	if (eb && !refcount_inc_not_zero(&eb->refs))
 		eb = NULL;
 	rcu_read_unlock();
 	return eb;
@@ -2842,7 +2842,7 @@ static struct extent_buffer *__alloc_extent_buffer(struct btrfs_fs_info *fs_info
 	btrfs_leak_debug_add_eb(eb);
 
 	spin_lock_init(&eb->refs_lock);
-	atomic_set(&eb->refs, 1);
+	refcount_set(&eb->refs, 1);
 
 	ASSERT(eb->len <= BTRFS_MAX_METADATA_BLOCKSIZE);
 
@@ -2975,13 +2975,13 @@ static void check_buffer_tree_ref(struct extent_buffer *eb)
 	 * once io is initiated, TREE_REF can no longer be cleared, so that is
 	 * the moment at which any such race is best fixed.
 	 */
-	refs = atomic_read(&eb->refs);
+	refs = refcount_read(&eb->refs);
 	if (refs >= 2 && test_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags))
 		return;
 
 	spin_lock(&eb->refs_lock);
 	if (!test_and_set_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags))
-		atomic_inc(&eb->refs);
+		refcount_inc(&eb->refs);
 	spin_unlock(&eb->refs_lock);
 }
 
@@ -3047,7 +3047,7 @@ again:
 		return ERR_PTR(ret);
 	}
 	if (exists) {
-		if (!atomic_inc_not_zero(&exists->refs)) {
+		if (!refcount_inc_not_zero(&exists->refs)) {
 			/* The extent buffer is being freed, retry. */
 			xa_unlock_irq(&fs_info->buffer_tree);
 			goto again;
@@ -3092,7 +3092,7 @@ static struct extent_buffer *grab_extent_buffer(struct btrfs_fs_info *fs_info,
 	 * just overwrite folio private.
 	 */
 	exists = folio_get_private(folio);
-	if (atomic_inc_not_zero(&exists->refs))
+	if (refcount_inc_not_zero(&exists->refs))
 		return exists;
 
 	WARN_ON(folio_test_dirty(folio));
@@ -3363,7 +3363,7 @@ again:
 		goto out;
 	}
 	if (existing_eb) {
-		if (!atomic_inc_not_zero(&existing_eb->refs)) {
+		if (!refcount_inc_not_zero(&existing_eb->refs)) {
 			xa_unlock_irq(&fs_info->buffer_tree);
 			goto again;
 		}
@@ -3392,7 +3392,7 @@ again:
 	return eb;
 
 out:
-	WARN_ON(!atomic_dec_and_test(&eb->refs));
+	WARN_ON(!refcount_dec_and_test(&eb->refs));
 
 	/*
 	 * Any attached folios need to be detached before we unlock them.  This
@@ -3438,8 +3438,7 @@ static int release_extent_buffer(struct extent_buffer *eb)
 {
 	lockdep_assert_held(&eb->refs_lock);
 
-	WARN_ON(atomic_read(&eb->refs) == 0);
-	if (atomic_dec_and_test(&eb->refs)) {
+	if (refcount_dec_and_test(&eb->refs)) {
 		struct btrfs_fs_info *fs_info = eb->fs_info;
 
 		spin_unlock(&eb->refs_lock);
@@ -3485,7 +3484,7 @@ void free_extent_buffer(struct extent_buffer *eb)
 	if (!eb)
 		return;
 
-	refs = atomic_read(&eb->refs);
+	refs = refcount_read(&eb->refs);
 	while (1) {
 		if (test_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags)) {
 			if (refs == 1)
@@ -3495,16 +3494,16 @@ void free_extent_buffer(struct extent_buffer *eb)
 		}
 
 		/* Optimization to avoid locking eb->refs_lock. */
-		if (atomic_try_cmpxchg(&eb->refs, &refs, refs - 1))
+		if (atomic_try_cmpxchg(&eb->refs.refs, &refs, refs - 1))
 			return;
 	}
 
 	spin_lock(&eb->refs_lock);
-	if (atomic_read(&eb->refs) == 2 &&
+	if (refcount_read(&eb->refs) == 2 &&
 	    test_bit(EXTENT_BUFFER_STALE, &eb->bflags) &&
 	    !extent_buffer_under_io(eb) &&
 	    test_and_clear_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags))
-		atomic_dec(&eb->refs);
+		refcount_dec(&eb->refs);
 
 	/*
 	 * I know this is terrible, but it's temporary until we stop tracking
@@ -3521,9 +3520,9 @@ void free_extent_buffer_stale(struct extent_buffer *eb)
 	spin_lock(&eb->refs_lock);
 	set_bit(EXTENT_BUFFER_STALE, &eb->bflags);
 
-	if (atomic_read(&eb->refs) == 2 && !extent_buffer_under_io(eb) &&
+	if (refcount_read(&eb->refs) == 2 && !extent_buffer_under_io(eb) &&
 	    test_and_clear_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags))
-		atomic_dec(&eb->refs);
+		refcount_dec(&eb->refs);
 	release_extent_buffer(eb);
 }
 
@@ -3581,7 +3580,7 @@ void btrfs_clear_buffer_dirty(struct btrfs_trans_handle *trans,
 			btree_clear_folio_dirty_tag(folio);
 		folio_unlock(folio);
 	}
-	WARN_ON(atomic_read(&eb->refs) == 0);
+	WARN_ON(refcount_read(&eb->refs) == 0);
 }
 
 void set_extent_buffer_dirty(struct extent_buffer *eb)
@@ -3592,7 +3591,7 @@ void set_extent_buffer_dirty(struct extent_buffer *eb)
 
 	was_dirty = test_and_set_bit(EXTENT_BUFFER_DIRTY, &eb->bflags);
 
-	WARN_ON(atomic_read(&eb->refs) == 0);
+	WARN_ON(refcount_read(&eb->refs) == 0);
 	WARN_ON(!test_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags));
 	WARN_ON(test_bit(EXTENT_BUFFER_ZONED_ZEROOUT, &eb->bflags));
 
@@ -3718,7 +3717,7 @@ int read_extent_buffer_pages_nowait(struct extent_buffer *eb, int mirror_num,
 
 	eb->read_mirror = 0;
 	check_buffer_tree_ref(eb);
-	atomic_inc(&eb->refs);
+	refcount_inc(&eb->refs);
 
 	bbio = btrfs_bio_alloc(INLINE_EXTENT_BUFFER_PAGES,
 			       REQ_OP_READ | REQ_META, eb->fs_info,
@@ -4313,7 +4312,7 @@ static int try_release_subpage_extent_buffer(struct folio *folio)
 		 * won't disappear out from under us.
 		 */
 		spin_lock(&eb->refs_lock);
-		if (atomic_read(&eb->refs) != 1 || extent_buffer_under_io(eb)) {
+		if (refcount_read(&eb->refs) != 1 || extent_buffer_under_io(eb)) {
 			spin_unlock(&eb->refs_lock);
 			continue;
 		}
@@ -4379,7 +4378,7 @@ int try_release_extent_buffer(struct folio *folio)
 	 * this page.
 	 */
 	spin_lock(&eb->refs_lock);
-	if (atomic_read(&eb->refs) != 1 || extent_buffer_under_io(eb)) {
+	if (refcount_read(&eb->refs) != 1 || extent_buffer_under_io(eb)) {
 		spin_unlock(&eb->refs_lock);
 		spin_unlock(&folio->mapping->i_private_lock);
 		return 0;
