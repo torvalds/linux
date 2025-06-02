@@ -169,8 +169,19 @@ do {								\
 
 #endif /* CONFIG_64BIT */
 
+unsigned long __must_check __asm_copy_to_user_sum_enabled(void __user *to,
+	const void *from, unsigned long n);
+unsigned long __must_check __asm_copy_from_user_sum_enabled(void *to,
+	const void __user *from, unsigned long n);
+
 #define __get_user_nocheck(x, __gu_ptr, label)			\
 do {								\
+	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) &&	\
+	    !IS_ALIGNED((uintptr_t)__gu_ptr, sizeof(*__gu_ptr))) {	\
+		if (__asm_copy_from_user_sum_enabled(&(x), __gu_ptr, sizeof(*__gu_ptr))) \
+			goto label;				\
+		break;						\
+	}							\
 	switch (sizeof(*__gu_ptr)) {				\
 	case 1:							\
 		__get_user_asm("lb", (x), __gu_ptr, label);	\
@@ -297,6 +308,13 @@ do {								\
 
 #define __put_user_nocheck(x, __gu_ptr, label)			\
 do {								\
+	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) &&	\
+	    !IS_ALIGNED((uintptr_t)__gu_ptr, sizeof(*__gu_ptr))) {	\
+		__inttype(x) val = (__inttype(x))x;			\
+		if (__asm_copy_to_user_sum_enabled(__gu_ptr, &(val), sizeof(*__gu_ptr))) \
+			goto label;				\
+		break;						\
+	}							\
 	switch (sizeof(*__gu_ptr)) {				\
 	case 1:							\
 		__put_user_asm("sb", (x), __gu_ptr, label);	\
@@ -449,11 +467,6 @@ static inline void user_access_restore(unsigned long enabled) { }
 	__get_user_nocheck(__gu_val, (ptr), label);			\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
 } while (0)
-
-unsigned long __must_check __asm_copy_to_user_sum_enabled(void __user *to,
-	const void *from, unsigned long n);
-unsigned long __must_check __asm_copy_from_user_sum_enabled(void *to,
-	const void __user *from, unsigned long n);
 
 #define unsafe_copy_to_user(_dst, _src, _len, label)			\
 	if (__asm_copy_to_user_sum_enabled(_dst, _src, _len))		\
