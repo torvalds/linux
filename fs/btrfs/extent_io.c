@@ -782,7 +782,7 @@ static void submit_extent_folio(struct btrfs_bio_ctrl *bio_ctrl,
 
 static int attach_extent_buffer_folio(struct extent_buffer *eb,
 				      struct folio *folio,
-				      struct btrfs_subpage *prealloc)
+				      struct btrfs_folio_state *prealloc)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	int ret = 0;
@@ -806,7 +806,7 @@ static int attach_extent_buffer_folio(struct extent_buffer *eb,
 
 	/* Already mapped, just free prealloc */
 	if (folio_test_private(folio)) {
-		btrfs_free_subpage(prealloc);
+		btrfs_free_folio_state(prealloc);
 		return 0;
 	}
 
@@ -815,7 +815,7 @@ static int attach_extent_buffer_folio(struct extent_buffer *eb,
 		folio_attach_private(folio, prealloc);
 	else
 		/* Do new allocation to attach subpage */
-		ret = btrfs_attach_subpage(fs_info, folio, BTRFS_SUBPAGE_METADATA);
+		ret = btrfs_attach_folio_state(fs_info, folio, BTRFS_SUBPAGE_METADATA);
 	return ret;
 }
 
@@ -831,7 +831,7 @@ int set_folio_extent_mapped(struct folio *folio)
 	fs_info = folio_to_fs_info(folio);
 
 	if (btrfs_is_subpage(fs_info, folio))
-		return btrfs_attach_subpage(fs_info, folio, BTRFS_SUBPAGE_DATA);
+		return btrfs_attach_folio_state(fs_info, folio, BTRFS_SUBPAGE_DATA);
 
 	folio_attach_private(folio, (void *)EXTENT_FOLIO_PRIVATE);
 	return 0;
@@ -848,7 +848,7 @@ void clear_folio_extent_mapped(struct folio *folio)
 
 	fs_info = folio_to_fs_info(folio);
 	if (btrfs_is_subpage(fs_info, folio))
-		return btrfs_detach_subpage(fs_info, folio, BTRFS_SUBPAGE_DATA);
+		return btrfs_detach_folio_state(fs_info, folio, BTRFS_SUBPAGE_DATA);
 
 	folio_detach_private(folio);
 }
@@ -2731,13 +2731,13 @@ static int extent_buffer_under_io(const struct extent_buffer *eb)
 
 static bool folio_range_has_eb(struct folio *folio)
 {
-	struct btrfs_subpage *subpage;
+	struct btrfs_folio_state *bfs;
 
 	lockdep_assert_held(&folio->mapping->i_private_lock);
 
 	if (folio_test_private(folio)) {
-		subpage = folio_get_private(folio);
-		if (atomic_read(&subpage->eb_refs))
+		bfs = folio_get_private(folio);
+		if (atomic_read(&bfs->eb_refs))
 			return true;
 	}
 	return false;
@@ -2787,7 +2787,7 @@ static void detach_extent_buffer_folio(const struct extent_buffer *eb, struct fo
 	 * attached to one dummy eb, no sharing.
 	 */
 	if (!mapped) {
-		btrfs_detach_subpage(fs_info, folio, BTRFS_SUBPAGE_METADATA);
+		btrfs_detach_folio_state(fs_info, folio, BTRFS_SUBPAGE_METADATA);
 		return;
 	}
 
@@ -2798,7 +2798,7 @@ static void detach_extent_buffer_folio(const struct extent_buffer *eb, struct fo
 	 * page range and no unfinished IO.
 	 */
 	if (!folio_range_has_eb(folio))
-		btrfs_detach_subpage(fs_info, folio, BTRFS_SUBPAGE_METADATA);
+		btrfs_detach_folio_state(fs_info, folio, BTRFS_SUBPAGE_METADATA);
 
 	spin_unlock(&mapping->i_private_lock);
 }
@@ -3141,7 +3141,7 @@ static bool check_eb_alignment(struct btrfs_fs_info *fs_info, u64 start)
  * The caller needs to free the existing folios and retry using the same order.
  */
 static int attach_eb_folio_to_filemap(struct extent_buffer *eb, int i,
-				      struct btrfs_subpage *prealloc,
+				      struct btrfs_folio_state *prealloc,
 				      struct extent_buffer **found_eb_ret)
 {
 
@@ -3224,7 +3224,7 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	int attached = 0;
 	struct extent_buffer *eb;
 	struct extent_buffer *existing_eb = NULL;
-	struct btrfs_subpage *prealloc = NULL;
+	struct btrfs_folio_state *prealloc = NULL;
 	u64 lockdep_owner = owner_root;
 	bool page_contig = true;
 	int uptodate = 1;
@@ -3269,7 +3269,8 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	 * manually if we exit earlier.
 	 */
 	if (btrfs_meta_is_subpage(fs_info)) {
-		prealloc = btrfs_alloc_subpage(fs_info, PAGE_SIZE, BTRFS_SUBPAGE_METADATA);
+		prealloc = btrfs_alloc_folio_state(fs_info, PAGE_SIZE,
+						   BTRFS_SUBPAGE_METADATA);
 		if (IS_ERR(prealloc)) {
 			ret = PTR_ERR(prealloc);
 			goto out;
@@ -3280,7 +3281,7 @@ reallocate:
 	/* Allocate all pages first. */
 	ret = alloc_eb_folio_array(eb, true);
 	if (ret < 0) {
-		btrfs_free_subpage(prealloc);
+		btrfs_free_folio_state(prealloc);
 		goto out;
 	}
 

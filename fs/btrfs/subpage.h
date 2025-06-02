@@ -32,7 +32,16 @@ struct folio;
 enum {
 	btrfs_bitmap_nr_uptodate = 0,
 	btrfs_bitmap_nr_dirty,
+
+	/*
+	 * This can be changed to atomic eventually.
+	 * But this change will rely on the async delalloc range rework for
+	 * locked bitmap.
+	 * As async delalloc can unlock its range and mark blocks writeback
+	 * at random timing.
+	 */
 	btrfs_bitmap_nr_writeback,
+
 	/*
 	 * The ordered and checked flags are for COW fixup, already marked
 	 * deprecated, and will be removed eventually.
@@ -57,7 +66,7 @@ enum {
  * Structure to trace status of each sector inside a page, attached to
  * page::private for both data and metadata inodes.
  */
-struct btrfs_subpage {
+struct btrfs_folio_state {
 	/* Common members for both data and metadata pages */
 	spinlock_t lock;
 	union {
@@ -65,7 +74,7 @@ struct btrfs_subpage {
 		 * Structures only used by metadata
 		 *
 		 * @eb_refs should only be operated under private_lock, as it
-		 * manages whether the subpage can be detached.
+		 * manages whether the btrfs_folio_state can be detached.
 		 */
 		atomic_t eb_refs;
 
@@ -79,7 +88,7 @@ struct btrfs_subpage {
 	unsigned long bitmaps[];
 };
 
-enum btrfs_subpage_type {
+enum btrfs_folio_type {
 	BTRFS_SUBPAGE_METADATA,
 	BTRFS_SUBPAGE_DATA,
 };
@@ -119,15 +128,18 @@ static inline bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info,
 }
 #endif
 
-int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
-			 struct folio *folio, enum btrfs_subpage_type type);
-void btrfs_detach_subpage(const struct btrfs_fs_info *fs_info, struct folio *folio,
-			  enum btrfs_subpage_type type);
+int btrfs_attach_folio_state(const struct btrfs_fs_info *fs_info,
+			     struct folio *folio, enum btrfs_folio_type type);
+void btrfs_detach_folio_state(const struct btrfs_fs_info *fs_info, struct folio *folio,
+			      enum btrfs_folio_type type);
 
 /* Allocate additional data where page represents more than one sector */
-struct btrfs_subpage *btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
-				size_t fsize, enum btrfs_subpage_type type);
-void btrfs_free_subpage(struct btrfs_subpage *subpage);
+struct btrfs_folio_state *btrfs_alloc_folio_state(const struct btrfs_fs_info *fs_info,
+						  size_t fsize, enum btrfs_folio_type type);
+static inline void btrfs_free_folio_state(struct btrfs_folio_state *bfs)
+{
+	kfree(bfs);
+}
 
 void btrfs_folio_inc_eb_refs(const struct btrfs_fs_info *fs_info, struct folio *folio);
 void btrfs_folio_dec_eb_refs(const struct btrfs_fs_info *fs_info, struct folio *folio);
