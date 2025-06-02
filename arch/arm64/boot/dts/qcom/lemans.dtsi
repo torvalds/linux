@@ -4417,7 +4417,7 @@
 					 <&dispcc0 MDSS_DISP_CC_MDSS_MDP_LUT_CLK>,
 					 <&dispcc0 MDSS_DISP_CC_MDSS_MDP_CLK>,
 					 <&dispcc0 MDSS_DISP_CC_MDSS_VSYNC_CLK>;
-				clock-names = "bus",
+				clock-names = "nrt_bus",
 					      "iface",
 					      "lut",
 					      "core",
