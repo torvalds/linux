@@ -74,3 +74,5 @@ obj-$(CONFIG_QCOM_IPCC)		+= qcom-ipcc.o
 obj-$(CONFIG_THEAD_TH1520_MBOX)	+= mailbox-th1520.o
 
 obj-$(CONFIG_CIX_MBOX)	+= cix-mailbox.o
+
+obj-$(CONFIG_BCM74110_MAILBOX)	+= bcm74110-mailbox.o
