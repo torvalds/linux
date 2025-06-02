@@ -17,6 +17,8 @@
 #define FUTEX_IN_KERN 1
 
 struct stub_init_data {
+	int seccomp;
+
 	unsigned long stub_start;
 
 	int stub_code_fd;
@@ -24,7 +26,8 @@ struct stub_init_data {
 	int stub_data_fd;
 	unsigned long stub_data_offset;
 
-	unsigned long segv_handler;
+	unsigned long signal_handler;
+	unsigned long signal_restorer;
 };
 
 #define STUB_NEXT_SYSCALL(s) \

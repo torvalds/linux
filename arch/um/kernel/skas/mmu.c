@@ -40,11 +40,9 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 		list_add(&mm->context.list, &mm_list);
 	}
 
-	new_id->pid = start_userspace(stack);
-	if (new_id->pid < 0) {
-		ret = new_id->pid;
+	ret = start_userspace(new_id);
+	if (ret < 0)
 		goto out_free;
-	}
 
 	/* Ensure the new MM is clean and nothing unwanted is mapped */
 	unmap(new_id, 0, STUB_START);

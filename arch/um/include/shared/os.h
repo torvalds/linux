@@ -286,7 +286,7 @@ int unmap(struct mm_id *mm_idp, unsigned long addr, unsigned long len);
 
 /* skas/process.c */
 extern int is_skas_winch(int pid, int fd, void *data);
-extern int start_userspace(unsigned long stub_stack);
+extern int start_userspace(struct mm_id *mm_id);
 extern void userspace(struct uml_pt_regs *regs);
 extern void new_thread(void *stack, jmp_buf *buf, void (*handler)(void));
 extern void switch_threads(jmp_buf *me, jmp_buf *you);
