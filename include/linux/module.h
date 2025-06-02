@@ -249,8 +249,8 @@ struct module_kobject *lookup_or_create_module_kobject(const char *name);
 #ifdef MODULE
 /* Creates an alias so file2alias.c can find device table. */
 #define MODULE_DEVICE_TABLE(type, name)					\
-extern typeof(name) __mod_device_table__##type##__##name		\
-  __attribute__ ((unused, alias(__stringify(name))))
+static typeof(name) __mod_device_table__##type##__##name		\
+  __attribute__ ((used, alias(__stringify(name))))
 #else  /* !MODULE */
 #define MODULE_DEVICE_TABLE(type, name)
 #endif
