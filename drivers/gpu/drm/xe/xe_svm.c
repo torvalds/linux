@@ -858,7 +858,6 @@ int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
 			vm->xe->atomic_svm_timeslice_ms : 0,
 	};
 	struct xe_svm_range *range;
-	struct drm_exec exec;
 	struct dma_fence *fence;
 	struct xe_tile *tile = gt_to_tile(gt);
 	int migrate_try_count = ctx.devmem_only ? 3 : 1;
@@ -933,30 +932,21 @@ retry:
 	range_debug(range, "PAGE FAULT - BIND");
 
 retry_bind:
-	drm_exec_init(&exec, 0, 0);
-	drm_exec_until_all_locked(&exec) {
-		err = drm_exec_lock_obj(&exec, vm->gpuvm.r_obj);
-		drm_exec_retry_on_contention(&exec);
-		if (err) {
-			drm_exec_fini(&exec);
-			goto err_out;
+	xe_vm_lock(vm, false);
+	fence = xe_vm_range_rebind(vm, vma, range, BIT(tile->id));
+	if (IS_ERR(fence)) {
+		xe_vm_unlock(vm);
+		err = PTR_ERR(fence);
+		if (err == -EAGAIN) {
+			ctx.timeslice_ms <<= 1;	/* Double timeslice if we have to retry */
+			range_debug(range, "PAGE FAULT - RETRY BIND");
+			goto retry;
 		}
-
-		fence = xe_vm_range_rebind(vm, vma, range, BIT(tile->id));
-		if (IS_ERR(fence)) {
-			drm_exec_fini(&exec);
-			err = PTR_ERR(fence);
-			if (err == -EAGAIN) {
-				ctx.timeslice_ms <<= 1;	/* Double timeslice if we have to retry */
-				range_debug(range, "PAGE FAULT - RETRY BIND");
-				goto retry;
-			}
-			if (xe_vm_validate_should_retry(&exec, err, &end))
-				goto retry_bind;
-			goto err_out;
-		}
+		if (xe_vm_validate_should_retry(NULL, err, &end))
+			goto retry_bind;
+		goto err_out;
 	}
-	drm_exec_fini(&exec);
+	xe_vm_unlock(vm);
 
 	dma_fence_wait(fence, false);
 	dma_fence_put(fence);
