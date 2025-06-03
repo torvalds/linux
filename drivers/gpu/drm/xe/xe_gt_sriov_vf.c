@@ -82,17 +82,17 @@ int xe_gt_sriov_vf_reset(struct xe_gt *gt)
 }
 
 static int guc_action_match_version(struct xe_guc *guc,
-				    u32 wanted_branch, u32 wanted_major, u32 wanted_minor,
-				    u32 *branch, u32 *major, u32 *minor, u32 *patch)
+				    struct xe_uc_fw_version *wanted,
+				    struct xe_uc_fw_version *found)
 {
 	u32 request[VF2GUC_MATCH_VERSION_REQUEST_MSG_LEN] = {
 		FIELD_PREP(GUC_HXG_MSG_0_ORIGIN, GUC_HXG_ORIGIN_HOST) |
 		FIELD_PREP(GUC_HXG_MSG_0_TYPE, GUC_HXG_TYPE_REQUEST) |
 		FIELD_PREP(GUC_HXG_REQUEST_MSG_0_ACTION,
 			   GUC_ACTION_VF2GUC_MATCH_VERSION),
-		FIELD_PREP(VF2GUC_MATCH_VERSION_REQUEST_MSG_1_BRANCH, wanted_branch) |
-		FIELD_PREP(VF2GUC_MATCH_VERSION_REQUEST_MSG_1_MAJOR, wanted_major) |
-		FIELD_PREP(VF2GUC_MATCH_VERSION_REQUEST_MSG_1_MINOR, wanted_minor),
+		FIELD_PREP(VF2GUC_MATCH_VERSION_REQUEST_MSG_1_BRANCH, wanted->branch) |
+		FIELD_PREP(VF2GUC_MATCH_VERSION_REQUEST_MSG_1_MAJOR, wanted->major) |
+		FIELD_PREP(VF2GUC_MATCH_VERSION_REQUEST_MSG_1_MINOR, wanted->minor),
 	};
 	u32 response[GUC_MAX_MMIO_MSG_LEN];
 	int ret;
@@ -106,120 +106,135 @@ static int guc_action_match_version(struct xe_guc *guc,
 	if (unlikely(FIELD_GET(VF2GUC_MATCH_VERSION_RESPONSE_MSG_0_MBZ, response[0])))
 		return -EPROTO;
 
-	*branch = FIELD_GET(VF2GUC_MATCH_VERSION_RESPONSE_MSG_1_BRANCH, response[1]);
-	*major = FIELD_GET(VF2GUC_MATCH_VERSION_RESPONSE_MSG_1_MAJOR, response[1]);
-	*minor = FIELD_GET(VF2GUC_MATCH_VERSION_RESPONSE_MSG_1_MINOR, response[1]);
-	*patch = FIELD_GET(VF2GUC_MATCH_VERSION_RESPONSE_MSG_1_PATCH, response[1]);
+	memset(found, 0, sizeof(struct xe_uc_fw_version));
+	found->branch = FIELD_GET(VF2GUC_MATCH_VERSION_RESPONSE_MSG_1_BRANCH, response[1]);
+	found->major = FIELD_GET(VF2GUC_MATCH_VERSION_RESPONSE_MSG_1_MAJOR, response[1]);
+	found->minor = FIELD_GET(VF2GUC_MATCH_VERSION_RESPONSE_MSG_1_MINOR, response[1]);
+	found->patch = FIELD_GET(VF2GUC_MATCH_VERSION_RESPONSE_MSG_1_PATCH, response[1]);
 
 	return 0;
 }
 
-static void vf_minimum_guc_version(struct xe_gt *gt, u32 *branch, u32 *major, u32 *minor)
+static int guc_action_match_version_any(struct xe_guc *guc,
+					struct xe_uc_fw_version *found)
+{
+	struct xe_uc_fw_version wanted = {
+		.branch = GUC_VERSION_BRANCH_ANY,
+		.major = GUC_VERSION_MAJOR_ANY,
+		.minor = GUC_VERSION_MINOR_ANY,
+		.patch = 0
+	};
+
+	return guc_action_match_version(guc, &wanted, found);
+}
+
+static void vf_minimum_guc_version(struct xe_gt *gt, struct xe_uc_fw_version *ver)
 {
 	struct xe_device *xe = gt_to_xe(gt);
+
+	memset(ver, 0, sizeof(struct xe_uc_fw_version));
 
 	switch (xe->info.platform) {
 	case XE_TIGERLAKE ... XE_PVC:
 		/* 1.1 this is current baseline for Xe driver */
-		*branch = 0;
-		*major = 1;
-		*minor = 1;
+		ver->branch = 0;
+		ver->major = 1;
+		ver->minor = 1;
 		break;
 	default:
 		/* 1.2 has support for the GMD_ID KLV */
-		*branch = 0;
-		*major = 1;
-		*minor = 2;
+		ver->branch = 0;
+		ver->major = 1;
+		ver->minor = 2;
 		break;
 	}
 }
 
-static void vf_wanted_guc_version(struct xe_gt *gt, u32 *branch, u32 *major, u32 *minor)
+static void vf_wanted_guc_version(struct xe_gt *gt, struct xe_uc_fw_version *ver)
 {
 	/* for now it's the same as minimum */
-	return vf_minimum_guc_version(gt, branch, major, minor);
+	return vf_minimum_guc_version(gt, ver);
 }
 
 static int vf_handshake_with_guc(struct xe_gt *gt)
 {
-	struct xe_gt_sriov_vf_guc_version *guc_version = &gt->sriov.vf.guc_version;
+	struct xe_uc_fw_version *guc_version = &gt->sriov.vf.guc_version;
+	struct xe_uc_fw_version wanted = {0};
 	struct xe_guc *guc = &gt->uc.guc;
-	u32 wanted_branch, wanted_major, wanted_minor;
-	u32 branch, major, minor, patch;
+	bool old = false;
 	int err;
 
 	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
 
 	/* select wanted version - prefer previous (if any) */
 	if (guc_version->major || guc_version->minor) {
-		wanted_branch = guc_version->branch;
-		wanted_major = guc_version->major;
-		wanted_minor = guc_version->minor;
+		wanted = *guc_version;
+		old = true;
 	} else {
-		vf_wanted_guc_version(gt, &wanted_branch, &wanted_major, &wanted_minor);
-		xe_gt_assert(gt, wanted_major != GUC_VERSION_MAJOR_ANY);
+		vf_wanted_guc_version(gt, &wanted);
+		xe_gt_assert(gt, wanted.major != GUC_VERSION_MAJOR_ANY);
 	}
 
-	err = guc_action_match_version(guc, wanted_branch, wanted_major, wanted_minor,
-				       &branch, &major, &minor, &patch);
+	err = guc_action_match_version(guc, &wanted, guc_version);
 	if (unlikely(err))
 		goto fail;
 
-	/* we don't support interface version change */
-	if ((guc_version->major || guc_version->minor) &&
-	    (guc_version->branch != branch || guc_version->major != major ||
-	     guc_version->minor != minor)) {
-		xe_gt_sriov_err(gt, "New GuC interface version detected: %u.%u.%u.%u\n",
-				branch, major, minor, patch);
-		xe_gt_sriov_info(gt, "Previously used version was: %u.%u.%u.%u\n",
-				 guc_version->branch, guc_version->major,
-				 guc_version->minor, guc_version->patch);
-		err = -EREMCHG;
-		goto fail;
+	if (old) {
+		/* we don't support interface version change */
+		if (MAKE_GUC_VER_STRUCT(*guc_version) != MAKE_GUC_VER_STRUCT(wanted)) {
+			xe_gt_sriov_err(gt, "New GuC interface version detected: %u.%u.%u.%u\n",
+					guc_version->branch, guc_version->major,
+					guc_version->minor, guc_version->patch);
+			xe_gt_sriov_info(gt, "Previously used version was: %u.%u.%u.%u\n",
+					 wanted.branch, wanted.major,
+					 wanted.minor, wanted.patch);
+			err = -EREMCHG;
+			goto fail;
+		} else {
+			/* version is unchanged, no need to re-verify it */
+			return 0;
+		}
 	}
 
 	/* illegal */
-	if (major > wanted_major) {
+	if (guc_version->major > wanted.major) {
 		err = -EPROTO;
 		goto unsupported;
 	}
 
 	/* there's no fallback on major version. */
-	if (major != wanted_major) {
+	if (guc_version->major != wanted.major) {
 		err = -ENOPKG;
 		goto unsupported;
 	}
 
 	/* check against minimum version supported by us */
-	vf_minimum_guc_version(gt, &wanted_branch, &wanted_major, &wanted_minor);
-	xe_gt_assert(gt, major != GUC_VERSION_MAJOR_ANY);
-	if (major < wanted_major || (major == wanted_major && minor < wanted_minor)) {
+	vf_minimum_guc_version(gt, &wanted);
+	xe_gt_assert(gt, wanted.major != GUC_VERSION_MAJOR_ANY);
+	if (MAKE_GUC_VER_STRUCT(*guc_version) < MAKE_GUC_VER_STRUCT(wanted)) {
 		err = -ENOKEY;
 		goto unsupported;
 	}
 
 	xe_gt_sriov_dbg(gt, "using GuC interface version %u.%u.%u.%u\n",
-			branch, major, minor, patch);
+			guc_version->branch, guc_version->major,
+			guc_version->minor, guc_version->patch);
 
-	guc_version->branch = branch;
-	guc_version->major = major;
-	guc_version->minor = minor;
-	guc_version->patch = patch;
 	return 0;
 
 unsupported:
 	xe_gt_sriov_err(gt, "Unsupported GuC version %u.%u.%u.%u (%pe)\n",
-			branch, major, minor, patch, ERR_PTR(err));
+			guc_version->branch, guc_version->major,
+			guc_version->minor, guc_version->patch,
+			ERR_PTR(err));
 fail:
 	xe_gt_sriov_err(gt, "Unable to confirm GuC version %u.%u (%pe)\n",
-			wanted_major, wanted_minor, ERR_PTR(err));
+			wanted.major, wanted.minor, ERR_PTR(err));
 
 	/* try again with *any* just to query which version is supported */
-	if (!guc_action_match_version(guc, GUC_VERSION_BRANCH_ANY,
-				      GUC_VERSION_MAJOR_ANY, GUC_VERSION_MINOR_ANY,
-				      &branch, &major, &minor, &patch))
+	if (!guc_action_match_version_any(guc, &wanted))
 		xe_gt_sriov_notice(gt, "GuC reports interface version %u.%u.%u.%u\n",
-				   branch, major, minor, patch);
+				   wanted.branch, wanted.major, wanted.minor, wanted.patch);
 	return err;
 }
 
@@ -1032,19 +1047,19 @@ void xe_gt_sriov_vf_print_runtime(struct xe_gt *gt, struct drm_printer *p)
  */
 void xe_gt_sriov_vf_print_version(struct xe_gt *gt, struct drm_printer *p)
 {
-	struct xe_gt_sriov_vf_guc_version *guc_version = &gt->sriov.vf.guc_version;
+	struct xe_uc_fw_version *guc_version = &gt->sriov.vf.guc_version;
 	struct xe_gt_sriov_vf_relay_version *pf_version = &gt->sriov.vf.pf_version;
-	u32 branch, major, minor;
+	struct xe_uc_fw_version ver;
 
 	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
 
 	drm_printf(p, "GuC ABI:\n");
 
-	vf_minimum_guc_version(gt, &branch, &major, &minor);
-	drm_printf(p, "\tbase:\t%u.%u.%u.*\n", branch, major, minor);
+	vf_minimum_guc_version(gt, &ver);
+	drm_printf(p, "\tbase:\t%u.%u.%u.*\n", ver.branch, ver.major, ver.minor);
 
-	vf_wanted_guc_version(gt, &branch, &major, &minor);
-	drm_printf(p, "\twanted:\t%u.%u.%u.*\n", branch, major, minor);
+	vf_wanted_guc_version(gt, &ver);
+	drm_printf(p, "\twanted:\t%u.%u.%u.*\n", ver.branch, ver.major, ver.minor);
 
 	drm_printf(p, "\thandshake:\t%u.%u.%u.%u\n",
 		   guc_version->branch, guc_version->major,
