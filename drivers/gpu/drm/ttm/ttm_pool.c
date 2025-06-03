@@ -1280,9 +1280,11 @@ static int ttm_pool_debugfs_shrink_show(struct seq_file *m, void *data)
 		.gfp_mask = GFP_NOFS,
 		.nr_to_scan = TTM_SHRINKER_BATCH,
 	};
+	unsigned long count;
 
 	fs_reclaim_acquire(GFP_KERNEL);
-	seq_printf(m, "%lu/%lu\n", ttm_pool_shrinker_count(mm_shrinker, &sc),
+	count = ttm_pool_shrinker_count(mm_shrinker, &sc);
+	seq_printf(m, "%lu/%lu\n", count,
 		   ttm_pool_shrinker_scan(mm_shrinker, &sc));
 	fs_reclaim_release(GFP_KERNEL);
 
