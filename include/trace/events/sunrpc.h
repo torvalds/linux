@@ -1098,7 +1098,7 @@ TRACE_EVENT(xprt_transmit,
 		__entry->client_id = rqst->rq_task->tk_client ?
 			rqst->rq_task->tk_client->cl_clid : -1;
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
-		__entry->seqno = rqst->rq_seqno;
+		__entry->seqno = *rqst->rq_seqnos;
 		__entry->status = status;
 	),
 
