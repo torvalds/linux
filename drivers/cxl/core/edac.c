@@ -103,10 +103,10 @@ static int cxl_scrub_get_attrbs(struct cxl_patrol_scrub_context *cxl_ps_ctx,
 				u8 *cap, u16 *cycle, u8 *flags, u8 *min_cycle)
 {
 	struct cxl_mailbox *cxl_mbox;
-	u8 min_scrub_cycle = U8_MAX;
 	struct cxl_region_params *p;
 	struct cxl_memdev *cxlmd;
 	struct cxl_region *cxlr;
+	u8 min_scrub_cycle = 0;
 	int i, ret;
 
 	if (!cxl_ps_ctx->cxlr) {
@@ -133,8 +133,12 @@ static int cxl_scrub_get_attrbs(struct cxl_patrol_scrub_context *cxl_ps_ctx,
 		if (ret)
 			return ret;
 
+		/*
+		 * The min_scrub_cycle of a region is the max of minimum scrub
+		 * cycles supported by memdevs that back the region.
+		 */
 		if (min_cycle)
-			min_scrub_cycle = min(*min_cycle, min_scrub_cycle);
+			min_scrub_cycle = max(*min_cycle, min_scrub_cycle);
 	}
 
 	if (min_cycle)
