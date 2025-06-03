@@ -316,7 +316,6 @@ struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id)
 int rsnd_ctu_probe(struct rsnd_priv *priv)
 {
 	struct device_node *node;
-	struct device_node *np;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_ctu *ctu;
 	struct clk *clk;
@@ -344,7 +343,7 @@ int rsnd_ctu_probe(struct rsnd_priv *priv)
 
 	i = 0;
 	ret = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_node_scoped(node, np) {
 		ctu = rsnd_ctu_get(priv, i);
 
 		/*
@@ -357,16 +356,13 @@ int rsnd_ctu_probe(struct rsnd_priv *priv)
 		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
-			of_node_put(np);
 			goto rsnd_ctu_probe_done;
 		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(ctu), &rsnd_ctu_ops,
 				    clk, RSND_MOD_CTU, i);
-		if (ret) {
-			of_node_put(np);
+		if (ret)
 			goto rsnd_ctu_probe_done;
-		}
 
 		i++;
 	}
