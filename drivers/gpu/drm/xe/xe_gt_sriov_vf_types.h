@@ -60,6 +60,8 @@ struct xe_gt_sriov_vf_runtime {
  * struct xe_gt_sriov_vf - GT level VF virtualization data.
  */
 struct xe_gt_sriov_vf {
+	/** @wanted_guc_version: minimum wanted GuC ABI version. */
+	struct xe_uc_fw_version wanted_guc_version;
 	/** @guc_version: negotiated GuC ABI version. */
 	struct xe_uc_fw_version guc_version;
 	/** @self_config: resource configurations. */

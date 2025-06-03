@@ -16,6 +16,7 @@
 #include "xe_gsc.h"
 #include "xe_gt.h"
 #include "xe_gt_printk.h"
+#include "xe_gt_sriov_vf.h"
 #include "xe_guc.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
@@ -662,6 +663,33 @@ do { \
 			  ver_->major, ver_->minor, ver_->patch); \
 } while (0)
 
+static void uc_fw_vf_override(struct xe_uc_fw *uc_fw)
+{
+	struct xe_uc_fw_version *compat = &uc_fw->versions.found[XE_UC_FW_VER_COMPATIBILITY];
+	struct xe_uc_fw_version *wanted = &uc_fw->versions.wanted;
+
+	/* Only GuC/HuC are supported */
+	if (uc_fw->type != XE_UC_FW_TYPE_GUC && uc_fw->type != XE_UC_FW_TYPE_HUC)
+		uc_fw->path = NULL;
+
+	/* VF will support only firmwares that driver can autoselect */
+	xe_uc_fw_change_status(uc_fw, uc_fw->path ?
+			       XE_UC_FIRMWARE_PRELOADED :
+			       XE_UC_FIRMWARE_NOT_SUPPORTED);
+
+	if (!xe_uc_fw_is_supported(uc_fw))
+		return;
+
+	/* PF is doing the loading, so we don't need a path on the VF */
+	uc_fw->path = "Loaded by PF";
+
+	/* The GuC versions are set up during the VF bootstrap */
+	if (uc_fw->type == XE_UC_FW_TYPE_GUC) {
+		uc_fw->versions.wanted_type = XE_UC_FW_VER_COMPATIBILITY;
+		xe_gt_sriov_vf_guc_versions(uc_fw_to_gt(uc_fw), wanted, compat);
+	}
+}
+
 static int uc_fw_request(struct xe_uc_fw *uc_fw, const struct firmware **firmware_p)
 {
 	struct xe_device *xe = uc_fw_to_xe(uc_fw);
@@ -681,14 +709,7 @@ static int uc_fw_request(struct xe_uc_fw *uc_fw, const struct firmware **firmwar
 	uc_fw_auto_select(xe, uc_fw);
 
 	if (IS_SRIOV_VF(xe)) {
-		/* Only GuC/HuC are supported */
-		if (uc_fw->type != XE_UC_FW_TYPE_GUC &&
-		    uc_fw->type != XE_UC_FW_TYPE_HUC)
-			uc_fw->path = NULL;
-		/* VF will support only firmwares that driver can autoselect */
-		xe_uc_fw_change_status(uc_fw, uc_fw->path ?
-				       XE_UC_FIRMWARE_PRELOADED :
-				       XE_UC_FIRMWARE_NOT_SUPPORTED);
+		uc_fw_vf_override(uc_fw);
 		return 0;
 	}
 

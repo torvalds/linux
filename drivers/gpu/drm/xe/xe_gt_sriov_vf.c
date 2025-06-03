@@ -173,6 +173,9 @@ static int vf_handshake_with_guc(struct xe_gt *gt)
 	} else {
 		vf_wanted_guc_version(gt, &wanted);
 		xe_gt_assert(gt, wanted.major != GUC_VERSION_MAJOR_ANY);
+
+		/* First time we handshake, so record the minimum wanted */
+		gt->sriov.vf.wanted_guc_version = wanted;
 	}
 
 	err = guc_action_match_version(guc, &wanted, guc_version);
@@ -263,6 +266,29 @@ int xe_gt_sriov_vf_bootstrap(struct xe_gt *gt)
 		return err;
 
 	return 0;
+}
+
+/**
+ * xe_gt_sriov_vf_guc_versions - Minimum required and found GuC ABI versions
+ * @gt: the &xe_gt
+ * @wanted: pointer to the xe_uc_fw_version to be filled with the wanted version
+ * @found: pointer to the xe_uc_fw_version to be filled with the found version
+ *
+ * This function is for VF use only and it can only be used after successful
+ * version handshake with the GuC.
+ */
+void xe_gt_sriov_vf_guc_versions(struct xe_gt *gt,
+				 struct xe_uc_fw_version *wanted,
+				 struct xe_uc_fw_version *found)
+{
+	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+	xe_gt_assert(gt, gt->sriov.vf.guc_version.major);
+
+	if (wanted)
+		*wanted = gt->sriov.vf.wanted_guc_version;
+
+	if (found)
+		*found = gt->sriov.vf.guc_version;
 }
 
 static int guc_action_vf_notify_resfix_done(struct xe_guc *guc)
@@ -1048,6 +1074,7 @@ void xe_gt_sriov_vf_print_runtime(struct xe_gt *gt, struct drm_printer *p)
 void xe_gt_sriov_vf_print_version(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_uc_fw_version *guc_version = &gt->sriov.vf.guc_version;
+	struct xe_uc_fw_version *wanted = &gt->sriov.vf.wanted_guc_version;
 	struct xe_gt_sriov_vf_relay_version *pf_version = &gt->sriov.vf.pf_version;
 	struct xe_uc_fw_version ver;
 
@@ -1058,8 +1085,8 @@ void xe_gt_sriov_vf_print_version(struct xe_gt *gt, struct drm_printer *p)
 	vf_minimum_guc_version(gt, &ver);
 	drm_printf(p, "\tbase:\t%u.%u.%u.*\n", ver.branch, ver.major, ver.minor);
 
-	vf_wanted_guc_version(gt, &ver);
-	drm_printf(p, "\twanted:\t%u.%u.%u.*\n", ver.branch, ver.major, ver.minor);
+	drm_printf(p, "\twanted:\t%u.%u.%u.*\n",
+		   wanted->branch, wanted->major, wanted->minor);
 
 	drm_printf(p, "\thandshake:\t%u.%u.%u.%u\n",
 		   guc_version->branch, guc_version->major,
