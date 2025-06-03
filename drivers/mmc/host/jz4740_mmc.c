@@ -1043,7 +1043,7 @@ static int jz4740_mmc_probe(struct platform_device* pdev)
 	struct mmc_host *mmc;
 	struct jz4740_mmc_host *host;
 
-	mmc = mmc_alloc_host(sizeof(struct jz4740_mmc_host), &pdev->dev);
+	mmc = devm_mmc_alloc_host(&pdev->dev, sizeof(*host));
 	if (!mmc) {
 		dev_err(&pdev->dev, "Failed to alloc mmc host structure\n");
 		return -ENOMEM;
@@ -1055,31 +1055,24 @@ static int jz4740_mmc_probe(struct platform_device* pdev)
 	host->version = (enum jz4740_mmc_version)device_get_match_data(&pdev->dev);
 
 	ret = mmc_of_parse(mmc);
-	if (ret) {
-		dev_err_probe(&pdev->dev, ret, "could not parse device properties\n");
-		goto err_free_host;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "could not parse device properties\n");
 
 	mmc_regulator_get_supply(mmc);
 
 	host->irq = platform_get_irq(pdev, 0);
-	if (host->irq < 0) {
-		ret = host->irq;
-		goto err_free_host;
-	}
+	if (host->irq < 0)
+		return host->irq;
 
 	host->clk = devm_clk_get(&pdev->dev, "mmc");
-	if (IS_ERR(host->clk)) {
-		ret = PTR_ERR(host->clk);
-		dev_err(&pdev->dev, "Failed to get mmc clock\n");
-		goto err_free_host;
-	}
+	if (IS_ERR(host->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(host->clk),
+				     "Failed to get mmc clock\n");
 
 	host->base = devm_platform_get_and_ioremap_resource(pdev, 0, &host->mem_res);
-	if (IS_ERR(host->base)) {
-		ret = PTR_ERR(host->base);
-		goto err_free_host;
-	}
+	if (IS_ERR(host->base))
+		return PTR_ERR(host->base);
 
 	mmc->ops = &jz4740_mmc_ops;
 	if (!mmc->f_max)
@@ -1119,10 +1112,8 @@ static int jz4740_mmc_probe(struct platform_device* pdev)
 
 	ret = request_threaded_irq(host->irq, jz_mmc_irq, jz_mmc_irq_worker, 0,
 			dev_name(&pdev->dev), host);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to request irq: %d\n", ret);
-		goto err_free_host;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "Failed to request irq\n");
 
 	jz4740_mmc_clock_disable(host);
 	timer_setup(&host->timeout_timer, jz4740_mmc_timeout, 0);
@@ -1153,9 +1144,6 @@ err_release_dma:
 		jz4740_mmc_release_dma_channels(host);
 err_free_irq:
 	free_irq(host->irq, host);
-err_free_host:
-	mmc_free_host(mmc);
-
 	return ret;
 }
 
@@ -1173,8 +1161,6 @@ static void jz4740_mmc_remove(struct platform_device *pdev)
 
 	if (host->use_dma)
 		jz4740_mmc_release_dma_channels(host);
-
-	mmc_free_host(host->mmc);
 }
 
 static int jz4740_mmc_suspend(struct device *dev)
