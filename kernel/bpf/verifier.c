@@ -2013,6 +2013,18 @@ static int pop_stack(struct bpf_verifier_env *env, int *prev_insn_idx,
 	return 0;
 }
 
+static bool error_recoverable_with_nospec(int err)
+{
+	/* Should only return true for non-fatal errors that are allowed to
+	 * occur during speculative verification. For these we can insert a
+	 * nospec and the program might still be accepted. Do not include
+	 * something like ENOMEM because it is likely to re-occur for the next
+	 * architectural path once it has been recovered-from in all speculative
+	 * paths.
+	 */
+	return err == -EPERM || err == -EACCES || err == -EINVAL;
+}
+
 static struct bpf_verifier_state *push_stack(struct bpf_verifier_env *env,
 					     int insn_idx, int prev_insn_idx,
 					     bool speculative)
@@ -11147,7 +11159,7 @@ static int check_get_func_ip(struct bpf_verifier_env *env)
 	return -ENOTSUPP;
 }
 
-static struct bpf_insn_aux_data *cur_aux(struct bpf_verifier_env *env)
+static struct bpf_insn_aux_data *cur_aux(const struct bpf_verifier_env *env)
 {
 	return &env->insn_aux_data[env->insn_idx];
 }
@@ -14015,7 +14027,9 @@ static int retrieve_ptr_limit(const struct bpf_reg_state *ptr_reg,
 static bool can_skip_alu_sanitation(const struct bpf_verifier_env *env,
 				    const struct bpf_insn *insn)
 {
-	return env->bypass_spec_v1 || BPF_SRC(insn->code) == BPF_K;
+	return env->bypass_spec_v1 ||
+		BPF_SRC(insn->code) == BPF_K ||
+		cur_aux(env)->nospec;
 }
 
 static int update_alu_sanitation_state(struct bpf_insn_aux_data *aux,
@@ -19732,10 +19746,41 @@ static int do_check(struct bpf_verifier_env *env)
 		sanitize_mark_insn_seen(env);
 		prev_insn_idx = env->insn_idx;
 
+		/* Reduce verification complexity by stopping speculative path
+		 * verification when a nospec is encountered.
+		 */
+		if (state->speculative && cur_aux(env)->nospec)
+			goto process_bpf_exit;
+
 		err = do_check_insn(env, &do_print_state);
-		if (err < 0) {
+		if (state->speculative && error_recoverable_with_nospec(err)) {
+			/* Prevent this speculative path from ever reaching the
+			 * insn that would have been unsafe to execute.
+			 */
+			cur_aux(env)->nospec = true;
+			/* If it was an ADD/SUB insn, potentially remove any
+			 * markings for alu sanitization.
+			 */
+			cur_aux(env)->alu_state = 0;
+			goto process_bpf_exit;
+		} else if (err < 0) {
 			return err;
 		} else if (err == PROCESS_BPF_EXIT) {
+			goto process_bpf_exit;
+		}
+		WARN_ON_ONCE(err);
+
+		if (state->speculative && cur_aux(env)->nospec_result) {
+			/* If we are on a path that performed a jump-op, this
+			 * may skip a nospec patched-in after the jump. This can
+			 * currently never happen because nospec_result is only
+			 * used for the write-ops
+			 * `*(size*)(dst_reg+off)=src_reg|imm32` which must
+			 * never skip the following insn. Still, add a warning
+			 * to document this in case nospec_result is used
+			 * elsewhere in the future.
+			 */
+			WARN_ON_ONCE(env->insn_idx != prev_insn_idx + 1);
 process_bpf_exit:
 			mark_verifier_state_scratched(env);
 			update_branch_counts(env, env->cur_state);
@@ -19753,7 +19798,6 @@ process_bpf_exit:
 				continue;
 			}
 		}
-		WARN_ON_ONCE(err);
 	}
 
 	return 0;
@@ -20881,6 +20925,29 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 		bpf_convert_ctx_access_t convert_ctx_access;
 		u8 mode;
 
+		if (env->insn_aux_data[i + delta].nospec) {
+			WARN_ON_ONCE(env->insn_aux_data[i + delta].alu_state);
+			struct bpf_insn patch[] = {
+				BPF_ST_NOSPEC(),
+				*insn,
+			};
+
+			cnt = ARRAY_SIZE(patch);
+			new_prog = bpf_patch_insn_data(env, i + delta, patch, cnt);
+			if (!new_prog)
+				return -ENOMEM;
+
+			delta    += cnt - 1;
+			env->prog = new_prog;
+			insn      = new_prog->insnsi + i + delta;
+			/* This can not be easily merged with the
+			 * nospec_result-case, because an insn may require a
+			 * nospec before and after itself. Therefore also do not
+			 * 'continue' here but potentially apply further
+			 * patching to insn. *insn should equal patch[1] now.
+			 */
+		}
+
 		if (insn->code == (BPF_LDX | BPF_MEM | BPF_B) ||
 		    insn->code == (BPF_LDX | BPF_MEM | BPF_H) ||
 		    insn->code == (BPF_LDX | BPF_MEM | BPF_W) ||
@@ -20931,6 +20998,9 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 
 		if (type == BPF_WRITE &&
 		    env->insn_aux_data[i + delta].nospec_result) {
+			/* nospec_result is only used to mitigate Spectre v4 and
+			 * to limit verification-time for Spectre v1.
+			 */
 			struct bpf_insn patch[] = {
 				*insn,
 				BPF_ST_NOSPEC(),

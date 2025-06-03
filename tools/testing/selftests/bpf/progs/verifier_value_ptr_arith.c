@@ -398,7 +398,8 @@ l2_%=:	r0 = 1;						\
 
 SEC("socket")
 __description("map access: mixing value pointer and scalar, 1")
-__success __failure_unpriv __msg_unpriv("R2 pointer comparison prohibited")
+__success __failure_unpriv
+__msg_unpriv("R2 tried to add from different maps, paths or scalars, pointer arithmetic with it prohibited for !root")
 __retval(0)
 __naked void value_pointer_and_scalar_1(void)
 {
@@ -433,6 +434,7 @@ l2_%=:	/* common instruction */			\
 l3_%=:	/* branch B */					\
 	r0 = 0x13371337;				\
 	/* verifier follows fall-through */		\
+	/* unpriv: nospec (inserted to prevent `R2 pointer comparison prohibited`) */\
 	if r2 != 0x100000 goto l4_%=;			\
 	r0 = 0;						\
 	exit;						\
@@ -450,7 +452,8 @@ l4_%=:	/* fake-dead code; targeted from branch A to	\
 
 SEC("socket")
 __description("map access: mixing value pointer and scalar, 2")
-__success __failure_unpriv __msg_unpriv("R0 invalid mem access 'scalar'")
+__success __failure_unpriv
+__msg_unpriv("R2 tried to add from different maps, paths or scalars, pointer arithmetic with it prohibited for !root")
 __retval(0)
 __naked void value_pointer_and_scalar_2(void)
 {
@@ -492,6 +495,7 @@ l4_%=:	/* fake-dead code; targeted from branch A to	\
 	 * prevent dead code sanitization, rejected	\
 	 * via branch B however				\
 	 */						\
+	/* unpriv: nospec (inserted to prevent `R0 invalid mem access 'scalar'`) */\
 	r0 = *(u8*)(r0 + 0);				\
 	r0 = 0;						\
 	exit;						\
@@ -1296,9 +1300,13 @@ l0_%=:	r0 = 1;						\
 
 SEC("socket")
 __description("map access: value_ptr -= unknown scalar, 2")
-__success __failure_unpriv
-__msg_unpriv("R0 pointer arithmetic of map value goes out of range")
+__success __success_unpriv
 __retval(1)
+#ifdef SPEC_V1
+__xlated_unpriv("r1 &= 7")
+__xlated_unpriv("nospec") /* inserted to prevent `R0 pointer arithmetic of map value goes out of range` */
+__xlated_unpriv("r0 -= r1")
+#endif
 __naked void value_ptr_unknown_scalar_2_2(void)
 {
 	asm volatile ("					\

@@ -620,8 +620,14 @@ l1_%=:	exit;						\
 
 SEC("socket")
 __description("bounds check mixed 32bit and 64bit arithmetic. test1")
-__success __failure_unpriv __msg_unpriv("R0 invalid mem access 'scalar'")
+__success __success_unpriv
 __retval(0)
+#ifdef SPEC_V1
+__xlated_unpriv("goto pc+2")
+__xlated_unpriv("nospec") /* inserted to prevent `R0 invalid mem access 'scalar'` */
+__xlated_unpriv("goto pc-1") /* sanitized dead code */
+__xlated_unpriv("exit")
+#endif
 __naked void _32bit_and_64bit_arithmetic_test1(void)
 {
 	asm volatile ("					\
@@ -643,8 +649,14 @@ l1_%=:	exit;						\
 
 SEC("socket")
 __description("bounds check mixed 32bit and 64bit arithmetic. test2")
-__success __failure_unpriv __msg_unpriv("R0 invalid mem access 'scalar'")
+__success __success_unpriv
 __retval(0)
+#ifdef SPEC_V1
+__xlated_unpriv("goto pc+2")
+__xlated_unpriv("nospec") /* inserted to prevent `R0 invalid mem access 'scalar'` */
+__xlated_unpriv("goto pc-1") /* sanitized dead code */
+__xlated_unpriv("exit")
+#endif
 __naked void _32bit_and_64bit_arithmetic_test2(void)
 {
 	asm volatile ("					\
@@ -691,9 +703,14 @@ l0_%=:	r0 = 0;						\
 
 SEC("socket")
 __description("bounds check for reg = 0, reg xor 1")
-__success __failure_unpriv
-__msg_unpriv("R0 min value is outside of the allowed memory range")
+__success __success_unpriv
 __retval(0)
+#ifdef SPEC_V1
+__xlated_unpriv("if r1 != 0x0 goto pc+2")
+__xlated_unpriv("nospec") /* inserted to prevent `R0 min value is outside of the allowed memory range` */
+__xlated_unpriv("goto pc-1") /* sanitized dead code */
+__xlated_unpriv("r0 = 0")
+#endif
 __naked void reg_0_reg_xor_1(void)
 {
 	asm volatile ("					\
@@ -719,9 +736,14 @@ l1_%=:	r0 = 0;						\
 
 SEC("socket")
 __description("bounds check for reg32 = 0, reg32 xor 1")
-__success __failure_unpriv
-__msg_unpriv("R0 min value is outside of the allowed memory range")
+__success __success_unpriv
 __retval(0)
+#ifdef SPEC_V1
+__xlated_unpriv("if w1 != 0x0 goto pc+2")
+__xlated_unpriv("nospec") /* inserted to prevent `R0 min value is outside of the allowed memory range` */
+__xlated_unpriv("goto pc-1") /* sanitized dead code */
+__xlated_unpriv("r0 = 0")
+#endif
 __naked void reg32_0_reg32_xor_1(void)
 {
 	asm volatile ("					\
@@ -747,9 +769,14 @@ l1_%=:	r0 = 0;						\
 
 SEC("socket")
 __description("bounds check for reg = 2, reg xor 3")
-__success __failure_unpriv
-__msg_unpriv("R0 min value is outside of the allowed memory range")
+__success __success_unpriv
 __retval(0)
+#ifdef SPEC_V1
+__xlated_unpriv("if r1 > 0x0 goto pc+2")
+__xlated_unpriv("nospec") /* inserted to prevent `R0 min value is outside of the allowed memory range` */
+__xlated_unpriv("goto pc-1") /* sanitized dead code */
+__xlated_unpriv("r0 = 0")
+#endif
 __naked void reg_2_reg_xor_3(void)
 {
 	asm volatile ("					\
@@ -829,9 +856,14 @@ l1_%=:	r0 = 0;						\
 
 SEC("socket")
 __description("bounds check for reg > 0, reg xor 3")
-__success __failure_unpriv
-__msg_unpriv("R0 min value is outside of the allowed memory range")
+__success __success_unpriv
 __retval(0)
+#ifdef SPEC_V1
+__xlated_unpriv("if r1 >= 0x0 goto pc+2")
+__xlated_unpriv("nospec") /* inserted to prevent `R0 min value is outside of the allowed memory range` */
+__xlated_unpriv("goto pc-1") /* sanitized dead code */
+__xlated_unpriv("r0 = 0")
+#endif
 __naked void reg_0_reg_xor_3(void)
 {
 	asm volatile ("					\
@@ -858,9 +890,14 @@ l1_%=:	r0 = 0;						\
 
 SEC("socket")
 __description("bounds check for reg32 > 0, reg32 xor 3")
-__success __failure_unpriv
-__msg_unpriv("R0 min value is outside of the allowed memory range")
+__success __success_unpriv
 __retval(0)
+#ifdef SPEC_V1
+__xlated_unpriv("if w1 >= 0x0 goto pc+2")
+__xlated_unpriv("nospec") /* inserted to prevent `R0 min value is outside of the allowed memory range` */
+__xlated_unpriv("goto pc-1") /* sanitized dead code */
+__xlated_unpriv("r0 = 0")
+#endif
 __naked void reg32_0_reg32_xor_3(void)
 {
 	asm volatile ("					\

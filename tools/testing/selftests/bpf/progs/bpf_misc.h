@@ -231,4 +231,8 @@
 #define CAN_USE_LOAD_ACQ_STORE_REL
 #endif
 
+#if defined(__TARGET_ARCH_arm64) || defined(__TARGET_ARCH_x86)
+#define SPEC_V1
+#endif
+
 #endif
