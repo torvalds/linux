@@ -108,16 +108,16 @@ static void timer_set_ctl(struct arch_timer_context *ctxt, u32 ctl)
 
 	switch(arch_timer_ctx_index(ctxt)) {
 	case TIMER_VTIMER:
-		__vcpu_sys_reg(vcpu, CNTV_CTL_EL0) = ctl;
+		__vcpu_assign_sys_reg(vcpu, CNTV_CTL_EL0, ctl);
 		break;
 	case TIMER_PTIMER:
-		__vcpu_sys_reg(vcpu, CNTP_CTL_EL0) = ctl;
+		__vcpu_assign_sys_reg(vcpu, CNTP_CTL_EL0, ctl);
 		break;
 	case TIMER_HVTIMER:
-		__vcpu_sys_reg(vcpu, CNTHV_CTL_EL2) = ctl;
+		__vcpu_assign_sys_reg(vcpu, CNTHV_CTL_EL2, ctl);
 		break;
 	case TIMER_HPTIMER:
-		__vcpu_sys_reg(vcpu, CNTHP_CTL_EL2) = ctl;
+		__vcpu_assign_sys_reg(vcpu, CNTHP_CTL_EL2, ctl);
 		break;
 	default:
 		WARN_ON(1);
@@ -130,16 +130,16 @@ static void timer_set_cval(struct arch_timer_context *ctxt, u64 cval)
 
 	switch(arch_timer_ctx_index(ctxt)) {
 	case TIMER_VTIMER:
-		__vcpu_sys_reg(vcpu, CNTV_CVAL_EL0) = cval;
+		__vcpu_assign_sys_reg(vcpu, CNTV_CVAL_EL0, cval);
 		break;
 	case TIMER_PTIMER:
-		__vcpu_sys_reg(vcpu, CNTP_CVAL_EL0) = cval;
+		__vcpu_assign_sys_reg(vcpu, CNTP_CVAL_EL0, cval);
 		break;
 	case TIMER_HVTIMER:
-		__vcpu_sys_reg(vcpu, CNTHV_CVAL_EL2) = cval;
+		__vcpu_assign_sys_reg(vcpu, CNTHV_CVAL_EL2, cval);
 		break;
 	case TIMER_HPTIMER:
-		__vcpu_sys_reg(vcpu, CNTHP_CVAL_EL2) = cval;
+		__vcpu_assign_sys_reg(vcpu, CNTHP_CVAL_EL2, cval);
 		break;
 	default:
 		WARN_ON(1);
