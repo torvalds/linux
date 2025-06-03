@@ -1112,7 +1112,7 @@ static int __cmd_dev_add(const struct dev_ctx *ctx)
 	__u64 features;
 	const struct ublk_tgt_ops *ops;
 	struct ublksrv_ctrl_dev_info *info;
-	struct ublk_dev *dev;
+	struct ublk_dev *dev = NULL;
 	int dev_id = ctx->dev_id;
 	int ret, i;
 
@@ -1120,13 +1120,15 @@ static int __cmd_dev_add(const struct dev_ctx *ctx)
 	if (!ops) {
 		ublk_err("%s: no such tgt type, type %s\n",
 				__func__, tgt_type);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto fail;
 	}
 
 	if (nr_queues > UBLK_MAX_QUEUES || depth > UBLK_QUEUE_DEPTH) {
 		ublk_err("%s: invalid nr_queues or depth queues %u depth %u\n",
 				__func__, nr_queues, depth);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fail;
 	}
 
 	/* default to 1:1 threads:queues if nthreads is unspecified */
@@ -1136,30 +1138,37 @@ static int __cmd_dev_add(const struct dev_ctx *ctx)
 	if (nthreads > UBLK_MAX_THREADS) {
 		ublk_err("%s: %u is too many threads (max %u)\n",
 				__func__, nthreads, UBLK_MAX_THREADS);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fail;
 	}
 
 	if (nthreads != nr_queues && !ctx->per_io_tasks) {
 		ublk_err("%s: threads %u must be same as queues %u if "
 			"not using per_io_tasks\n",
 			__func__, nthreads, nr_queues);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fail;
 	}
 
 	dev = ublk_ctrl_init();
 	if (!dev) {
 		ublk_err("%s: can't alloc dev id %d, type %s\n",
 				__func__, dev_id, tgt_type);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail;
 	}
 
 	/* kernel doesn't support get_features */
 	ret = ublk_ctrl_get_features(dev, &features);
-	if (ret < 0)
-		return -EINVAL;
+	if (ret < 0) {
+		ret = -EINVAL;
+		goto fail;
+	}
 
-	if (!(features & UBLK_F_CMD_IOCTL_ENCODE))
-		return -ENOTSUP;
+	if (!(features & UBLK_F_CMD_IOCTL_ENCODE)) {
+		ret = -ENOTSUP;
+		goto fail;
+	}
 
 	info = &dev->dev_info;
 	info->dev_id = ctx->dev_id;
@@ -1200,7 +1209,8 @@ static int __cmd_dev_add(const struct dev_ctx *ctx)
 fail:
 	if (ret < 0)
 		ublk_send_dev_event(ctx, dev, -1);
-	ublk_ctrl_deinit(dev);
+	if (dev)
+		ublk_ctrl_deinit(dev);
 	return ret;
 }
 
@@ -1262,6 +1272,8 @@ run:
 		shmctl(ctx->_shmid, IPC_RMID, NULL);
 		/* wait for child and detach from it */
 		wait(NULL);
+		if (exit_code == EXIT_FAILURE)
+			ublk_err("%s: command failed\n", __func__);
 		exit(exit_code);
 	} else {
 		exit(EXIT_FAILURE);
