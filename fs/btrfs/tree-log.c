@@ -668,7 +668,10 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 		extent_end = ALIGN(start + size,
 				   fs_info->sectorsize);
 	} else {
-		return 0;
+		btrfs_err(fs_info,
+		  "unexpected extent type=%d root=%llu inode=%llu offset=%llu",
+			  found_type, btrfs_root_id(root), key->objectid, key->offset);
+		return -EUCLEAN;
 	}
 
 	inode = read_one_inode(root, key->objectid);
