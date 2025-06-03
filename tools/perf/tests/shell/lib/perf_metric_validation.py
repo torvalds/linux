@@ -35,7 +35,8 @@ class TestError:
 
 
 class Validator:
-    def __init__(self, rulefname, reportfname='', t=5, debug=False, datafname='', fullrulefname='', workload='true', metrics=''):
+    def __init__(self, rulefname, reportfname='', t=5, debug=False, datafname='', fullrulefname='',
+                 workload='true', metrics='', cputype='cpu'):
         self.rulefname = rulefname
         self.reportfname = reportfname
         self.rules = None
@@ -43,6 +44,7 @@ class Validator:
         self.metrics = self.__set_metrics(metrics)
         self.skiplist = set()
         self.tolerance = t
+        self.cputype = cputype
 
         self.workloads = [x for x in workload.split(",") if x]
         self.wlidx = 0  # idx of current workloads
@@ -377,7 +379,7 @@ class Validator:
 
     def _run_perf(self, metric, workload: str):
         tool = 'perf'
-        command = [tool, 'stat', '-j', '-M', f"{metric}", "-a"]
+        command = [tool, 'stat', '--cputype', self.cputype, '-j', '-M', f"{metric}", "-a"]
         wl = workload.split()
         command.extend(wl)
         print(" ".join(command))
@@ -442,6 +444,8 @@ class Validator:
             for m in data:
                 if 'MetricName' not in m:
                     print("Warning: no metric name")
+                    continue
+                if 'Unit' in m and m['Unit'] != self.cputype:
                     continue
                 name = m['MetricName'].lower()
                 self.metrics.add(name)
@@ -578,6 +582,8 @@ def main() -> None:
     parser.add_argument(
         "-wl", help="Workload to run while data collection", default="true")
     parser.add_argument("-m", help="Metric list to validate", default="")
+    parser.add_argument("-cputype", help="Only test metrics for the given CPU/PMU type",
+                        default="cpu")
     args = parser.parse_args()
     outpath = Path(args.output_dir)
     reportf = Path.joinpath(outpath, 'perf_report.json')
@@ -586,7 +592,7 @@ def main() -> None:
 
     validator = Validator(args.rule, reportf, debug=args.debug,
                           datafname=datafile, fullrulefname=fullrule, workload=args.wl,
-                          metrics=args.m)
+                          metrics=args.m, cputype=args.cputype)
     ret = validator.test()
 
     return ret
