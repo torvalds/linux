@@ -29,7 +29,7 @@ struct gpib_open_dev_ioctl {
 	__u32 handle;
 	__u32 pad;
 	__s32 sad;
-	unsigned is_board : 1;
+	__u32 is_board;
 };
 
 struct gpib_close_dev_ioctl {
@@ -40,6 +40,7 @@ struct gpib_serial_poll_ioctl {
 	__u32 pad;
 	__s32 sad;
 	__u8 status_byte;
+	__u8 padding[3];   // align to 32 bit boundary
 };
 
 struct gpib_eos_ioctl {
@@ -79,6 +80,7 @@ struct gpib_board_info_ioctl {
 	__u32 t1_delay;
 	unsigned ist : 1;
 	unsigned no_7_bit_eos : 1;
+	unsigned padding :30; // align to 32 bit boundary
 };
 
 struct gpib_select_pci_ioctl {
@@ -90,6 +92,7 @@ struct gpib_ppoll_config_ioctl {
 	__u8 config;
 	unsigned set_ist : 1;
 	unsigned clear_ist : 1;
+	unsigned padding :22; // align to 32 bit boundary
 };
 
 struct gpib_pad_ioctl {
@@ -110,6 +113,7 @@ struct gpib_select_device_path_ioctl {
 // update status byte and request service
 struct gpib_request_service2 {
 	__u8 status_byte;
+	__u8 padding[3]; // align to 32 bit boundary
 	__s32 new_reason_for_service;
 };
 
