@@ -1265,7 +1265,7 @@ int bch2_inode_set_casefold(struct btree_trans *trans, subvol_inum inum,
 {
 	struct bch_fs *c = trans->c;
 
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	int ret = 0;
 	/* Not supported on individual files. */
 	if (!S_ISDIR(bi->bi_mode))

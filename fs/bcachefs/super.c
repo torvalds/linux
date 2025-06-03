@@ -585,7 +585,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 	for (unsigned i = 0; i < BCH_TIME_STAT_NR; i++)
 		bch2_time_stats_exit(&c->times[i]);
 
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	utf8_unload(c->cf_encoding);
 #endif
 
@@ -1024,7 +1024,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts *opts,
 			goto err;
 	}
 
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	/* Default encoding until we can potentially have more as an option. */
 	c->cf_encoding = utf8_load(BCH_FS_DEFAULT_UTF8_ENCODING);
 	if (IS_ERR(c->cf_encoding)) {
@@ -1160,12 +1160,11 @@ int bch2_fs_start(struct bch_fs *c)
 
 	print_mount_opts(c);
 
-#ifdef CONFIG_UNICODE
-	bch_info(c, "Using encoding defined by superblock: utf8-%u.%u.%u",
-		 unicode_major(BCH_FS_DEFAULT_UTF8_ENCODING),
-		 unicode_minor(BCH_FS_DEFAULT_UTF8_ENCODING),
-		 unicode_rev(BCH_FS_DEFAULT_UTF8_ENCODING));
-#endif
+	if (IS_ENABLED(CONFIG_UNICODE))
+		bch_info(c, "Using encoding defined by superblock: utf8-%u.%u.%u",
+			 unicode_major(BCH_FS_DEFAULT_UTF8_ENCODING),
+			 unicode_minor(BCH_FS_DEFAULT_UTF8_ENCODING),
+			 unicode_rev(BCH_FS_DEFAULT_UTF8_ENCODING));
 
 	if (!bch2_fs_may_start(c))
 		return bch_err_throw(c, insufficient_devices_to_start);

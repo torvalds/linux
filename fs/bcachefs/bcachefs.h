@@ -863,7 +863,7 @@ struct bch_fs {
 	DARRAY(enum bcachefs_metadata_version)
 				incompat_versions_requested;
 
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	struct unicode_map	*cf_encoding;
 #endif
 
