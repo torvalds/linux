@@ -1130,13 +1130,13 @@ u64 kvm_vcpu_apply_reg_masks(const struct kvm_vcpu *, enum vcpu_sysreg, u64);
 	} while (0)
 
 #define __vcpu_sys_reg(v,r)						\
-	(*({								\
+	({								\
 		const struct kvm_cpu_context *ctxt = &(v)->arch.ctxt;	\
-		u64 *__r = __ctxt_sys_reg(ctxt, (r));			\
+		u64 __v = ctxt_sys_reg(ctxt, (r));			\
 		if (vcpu_has_nv((v)) && (r) >= __SANITISED_REG_START__)	\
-			*__r = kvm_vcpu_apply_reg_masks((v), (r), *__r);\
-		__r;							\
-	}))
+			__v = kvm_vcpu_apply_reg_masks((v), (r), __v);	\
+		__v;							\
+	})
 
 u64 vcpu_read_sys_reg(const struct kvm_vcpu *vcpu, int reg);
 void vcpu_write_sys_reg(struct kvm_vcpu *vcpu, u64 val, int reg);
