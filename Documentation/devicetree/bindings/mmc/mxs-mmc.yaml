@@ -17,7 +17,7 @@ description: |
   and the properties used by the mxsmmc driver.
 
 allOf:
-  - $ref: mmc-controller.yaml
+  - $ref: mmc-controller-common.yaml#
 
 properties:
   compatible:
@@ -31,6 +31,9 @@ properties:
   interrupts:
     maxItems: 1
 
+  clocks:
+    maxItems: 1
+
   dmas:
     maxItems: 1
 
@@ -41,6 +44,7 @@ required:
   - compatible
   - reg
   - interrupts
+  - clocks
   - dmas
   - dma-names
 
@@ -52,6 +56,7 @@ examples:
         compatible = "fsl,imx28-mmc";
         reg = <0x80010000 2000>;
         interrupts = <96>;
+        clocks = <&clks 46>;
         dmas = <&dma_apbh 0>;
         dma-names = "rx-tx";
         bus-width = <8>;
