@@ -51,6 +51,7 @@
 #include <net/sock.h>
 #include <uapi/linux/pidfd.h>
 #include <uapi/linux/un.h>
+#include <uapi/linux/coredump.h>
 
 #include <linux/uaccess.h>
 #include <asm/mmu_context.h>
@@ -83,15 +84,17 @@ static int core_name_size = CORENAME_MAX_SIZE;
 unsigned int core_file_note_size_limit = CORE_FILE_NOTE_SIZE_DEFAULT;
 
 enum coredump_type_t {
-	COREDUMP_FILE = 1,
-	COREDUMP_PIPE = 2,
-	COREDUMP_SOCK = 3,
+	COREDUMP_FILE		= 1,
+	COREDUMP_PIPE		= 2,
+	COREDUMP_SOCK		= 3,
+	COREDUMP_SOCK_REQ	= 4,
 };
 
 struct core_name {
 	char *corename;
 	int used, size;
 	enum coredump_type_t core_type;
+	u64 mask;
 };
 
 static int expand_corename(struct core_name *cn, int size)
@@ -235,6 +238,9 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm,
 	int pid_in_pattern = 0;
 	int err = 0;
 
+	cn->mask = COREDUMP_KERNEL;
+	if (core_pipe_limit)
+		cn->mask |= COREDUMP_WAIT;
 	cn->used = 0;
 	cn->corename = NULL;
 	if (*pat_ptr == '|')
@@ -264,6 +270,13 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm,
 		pat_ptr++;
 		if (!(*pat_ptr))
 			return -ENOMEM;
+		if (*pat_ptr == '@') {
+			pat_ptr++;
+			if (!(*pat_ptr))
+				return -ENOMEM;
+
+			cn->core_type = COREDUMP_SOCK_REQ;
+		}
 
 		err = cn_printf(cn, "%s", pat_ptr);
 		if (err)
@@ -632,6 +645,135 @@ static int umh_coredump_setup(struct subprocess_info *info, struct cred *new)
 	return 0;
 }
 
+#ifdef CONFIG_UNIX
+static inline bool coredump_sock_recv(struct file *file, struct coredump_ack *ack, size_t size, int flags)
+{
+	struct msghdr msg = {};
+	struct kvec iov = { .iov_base = ack, .iov_len = size };
+	ssize_t ret;
+
+	memset(ack, 0, size);
+	ret = kernel_recvmsg(sock_from_file(file), &msg, &iov, 1, size, flags);
+	return ret == size;
+}
+
+static inline bool coredump_sock_send(struct file *file, struct coredump_req *req)
+{
+	struct msghdr msg = { .msg_flags = MSG_NOSIGNAL };
+	struct kvec iov = { .iov_base = req, .iov_len = sizeof(*req) };
+	ssize_t ret;
+
+	ret = kernel_sendmsg(sock_from_file(file), &msg, &iov, 1, sizeof(*req));
+	return ret == sizeof(*req);
+}
+
+static_assert(sizeof(enum coredump_mark) == sizeof(__u32));
+
+static inline bool coredump_sock_mark(struct file *file, enum coredump_mark mark)
+{
+	struct msghdr msg = { .msg_flags = MSG_NOSIGNAL };
+	struct kvec iov = { .iov_base = &mark, .iov_len = sizeof(mark) };
+	ssize_t ret;
+
+	ret = kernel_sendmsg(sock_from_file(file), &msg, &iov, 1, sizeof(mark));
+	return ret == sizeof(mark);
+}
+
+static inline void coredump_sock_wait(struct file *file)
+{
+	ssize_t n;
+
+	/*
+	 * We use a simple read to wait for the coredump processing to
+	 * finish. Either the socket is closed or we get sent unexpected
+	 * data. In both cases, we're done.
+	 */
+	n = __kernel_read(file, &(char){ 0 }, 1, NULL);
+	if (n > 0)
+		coredump_report_failure("Coredump socket had unexpected data");
+	else if (n < 0)
+		coredump_report_failure("Coredump socket failed");
+}
+
+static inline void coredump_sock_shutdown(struct file *file)
+{
+	struct socket *socket;
+
+	socket = sock_from_file(file);
+	if (!socket)
+		return;
+
+	/* Let userspace know we're done processing the coredump. */
+	kernel_sock_shutdown(socket, SHUT_WR);
+}
+
+static bool coredump_request(struct core_name *cn, struct coredump_params *cprm)
+{
+	struct coredump_req req = {
+		.size		= sizeof(struct coredump_req),
+		.mask		= COREDUMP_KERNEL | COREDUMP_USERSPACE |
+				  COREDUMP_REJECT | COREDUMP_WAIT,
+		.size_ack	= sizeof(struct coredump_ack),
+	};
+	struct coredump_ack ack = {};
+	ssize_t usize;
+
+	if (cn->core_type != COREDUMP_SOCK_REQ)
+		return true;
+
+	/* Let userspace know what we support. */
+	if (!coredump_sock_send(cprm->file, &req))
+		return false;
+
+	/* Peek the size of the coredump_ack. */
+	if (!coredump_sock_recv(cprm->file, &ack, sizeof(ack.size),
+				MSG_PEEK | MSG_WAITALL))
+		return false;
+
+	/* Refuse unknown coredump_ack sizes. */
+	usize = ack.size;
+	if (usize < COREDUMP_ACK_SIZE_VER0) {
+		coredump_sock_mark(cprm->file, COREDUMP_MARK_MINSIZE);
+		return false;
+	}
+
+	if (usize > sizeof(ack)) {
+		coredump_sock_mark(cprm->file, COREDUMP_MARK_MAXSIZE);
+		return false;
+	}
+
+	/* Now retrieve the coredump_ack. */
+	if (!coredump_sock_recv(cprm->file, &ack, usize, MSG_WAITALL))
+		return false;
+	if (ack.size != usize)
+		return false;
+
+	/* Refuse unknown coredump_ack flags. */
+	if (ack.mask & ~req.mask) {
+		coredump_sock_mark(cprm->file, COREDUMP_MARK_UNSUPPORTED);
+		return false;
+	}
+
+	/* Refuse mutually exclusive options. */
+	if (hweight64(ack.mask & (COREDUMP_USERSPACE | COREDUMP_KERNEL |
+				  COREDUMP_REJECT)) != 1) {
+		coredump_sock_mark(cprm->file, COREDUMP_MARK_CONFLICTING);
+		return false;
+	}
+
+	if (ack.spare) {
+		coredump_sock_mark(cprm->file, COREDUMP_MARK_UNSUPPORTED);
+		return false;
+	}
+
+	cn->mask = ack.mask;
+	return coredump_sock_mark(cprm->file, COREDUMP_MARK_REQACK);
+}
+#else
+static inline void coredump_sock_wait(struct file *file) { }
+static inline void coredump_sock_shutdown(struct file *file) { }
+#endif
+
 void do_coredump(const kernel_siginfo_t *siginfo)
 {
 	struct core_state core_state;
@@ -850,6 +992,8 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		}
 		break;
 	}
+	case COREDUMP_SOCK_REQ:
+		fallthrough;
 	case COREDUMP_SOCK: {
 #ifdef CONFIG_UNIX
 		struct file *file __free(fput) = NULL;
@@ -918,6 +1062,9 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 
 		cprm.limit = RLIM_INFINITY;
 		cprm.file = no_free_ptr(file);
+
+		if (!coredump_request(&cn, &cprm))
+			goto close_fail;
 #else
 		coredump_report_failure("Core dump socket support %s disabled", cn.corename);
 		goto close_fail;
@@ -929,12 +1076,17 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		goto close_fail;
 	}
 
+	/* Don't even generate the coredump. */
+	if (cn.mask & COREDUMP_REJECT)
+		goto close_fail;
+
 	/* get us an unshared descriptor table; almost always a no-op */
 	/* The cell spufs coredump code reads the file descriptor tables */
 	retval = unshare_files();
 	if (retval)
 		goto close_fail;
-	if (!dump_interrupted()) {
+
+	if ((cn.mask & COREDUMP_KERNEL) && !dump_interrupted()) {
 		/*
 		 * umh disabled with CONFIG_STATIC_USERMODEHELPER_PATH="" would
 		 * have this set to NULL.
@@ -962,38 +1114,27 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		free_vma_snapshot(&cprm);
 	}
 
-#ifdef CONFIG_UNIX
-	/* Let userspace know we're done processing the coredump. */
-	if (sock_from_file(cprm.file))
-		kernel_sock_shutdown(sock_from_file(cprm.file), SHUT_WR);
-#endif
+	coredump_sock_shutdown(cprm.file);
+
+	/* Let the parent know that a coredump was generated. */
+	if (cn.mask & COREDUMP_USERSPACE)
+		core_dumped = true;
 
 	/*
 	 * When core_pipe_limit is set we wait for the coredump server
 	 * or usermodehelper to finish before exiting so it can e.g.,
 	 * inspect /proc/<pid>.
 	 */
-	if (core_pipe_limit) {
+	if (cn.mask & COREDUMP_WAIT) {
 		switch (cn.core_type) {
 		case COREDUMP_PIPE:
 			wait_for_dump_helpers(cprm.file);
 			break;
-#ifdef CONFIG_UNIX
-		case COREDUMP_SOCK: {
-			ssize_t n;
-
-			/*
-			 * We use a simple read to wait for the coredump
-			 * processing to finish. Either the socket is
-			 * closed or we get sent unexpected data. In
-			 * both cases, we're done.
-			 */
-			n = __kernel_read(cprm.file, &(char){ 0 }, 1, NULL);
-			if (n != 0)
-				coredump_report_failure("Unexpected data on coredump socket");
+		case COREDUMP_SOCK_REQ:
+			fallthrough;
+		case COREDUMP_SOCK:
+			coredump_sock_wait(cprm.file);
 			break;
-		}
-#endif
 		default:
 			break;
 		}
@@ -1249,8 +1390,8 @@ static inline bool check_coredump_socket(void)
 	if (current->nsproxy->mnt_ns != init_task.nsproxy->mnt_ns)
 		return false;
 
-	/* Must be an absolute path. */
-	if (*(core_pattern + 1) != '/')
+	/* Must be an absolute path or the socket request. */
+	if (*(core_pattern + 1) != '/' && *(core_pattern + 1) != '@')
 		return false;
 
 	return true;
