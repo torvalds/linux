@@ -24,6 +24,8 @@ static void *do_nothing(void *)
 {
 	while (1)
 		pause();
+
+	return NULL;
 }
 
 static void crashing_child(void)
@@ -46,9 +48,7 @@ FIXTURE(coredump)
 
 FIXTURE_SETUP(coredump)
 {
-	char buf[PATH_MAX];
 	FILE *file;
-	char *dir;
 	int ret;
 
 	self->pid_coredump_server = -ESRCH;
@@ -106,7 +106,6 @@ fail:
 
 TEST_F_TIMEOUT(coredump, stackdump, 120)
 {
-	struct sigaction action = {};
 	unsigned long long stack;
 	char *test_dir, *line;
 	size_t line_length;
@@ -171,11 +170,10 @@ TEST_F_TIMEOUT(coredump, stackdump, 120)
 
 TEST_F(coredump, socket)
 {
-	int fd, pidfd, ret, status;
+	int pidfd, ret, status;
 	FILE *file;
 	pid_t pid, pid_coredump_server;
 	struct stat st;
-	char core_file[PATH_MAX];
 	struct pidfd_info info = {};
 	int ipc_sockets[2];
 	char c;
@@ -356,11 +354,10 @@ TEST_F(coredump, socket)
 
 TEST_F(coredump, socket_detect_userspace_client)
 {
-	int fd, pidfd, ret, status;
+	int pidfd, ret, status;
 	FILE *file;
 	pid_t pid, pid_coredump_server;
 	struct stat st;
-	char core_file[PATH_MAX];
 	struct pidfd_info info = {};
 	int ipc_sockets[2];
 	char c;
@@ -384,7 +381,7 @@ TEST_F(coredump, socket_detect_userspace_client)
 	pid_coredump_server = fork();
 	ASSERT_GE(pid_coredump_server, 0);
 	if (pid_coredump_server == 0) {
-		int fd_server, fd_coredump, fd_peer_pidfd, fd_core_file;
+		int fd_server, fd_coredump, fd_peer_pidfd;
 		socklen_t fd_peer_pidfd_len;
 
 		close(ipc_sockets[0]);
@@ -464,7 +461,6 @@ TEST_F(coredump, socket_detect_userspace_client)
 		close(fd_coredump);
 		close(fd_server);
 		close(fd_peer_pidfd);
-		close(fd_core_file);
 		_exit(EXIT_SUCCESS);
 	}
 	self->pid_coredump_server = pid_coredump_server;
@@ -488,7 +484,6 @@ TEST_F(coredump, socket_detect_userspace_client)
 		if (ret < 0)
 			_exit(EXIT_FAILURE);
 
-		(void *)write(fd_socket, &(char){ 0 }, 1);
 		close(fd_socket);
 		_exit(EXIT_SUCCESS);
 	}
@@ -519,7 +514,6 @@ TEST_F(coredump, socket_enoent)
 	int pidfd, ret, status;
 	FILE *file;
 	pid_t pid;
-	char core_file[PATH_MAX];
 
 	file = fopen("/proc/sys/kernel/core_pattern", "w");
 	ASSERT_NE(file, NULL);
@@ -569,7 +563,6 @@ TEST_F(coredump, socket_no_listener)
 	ASSERT_GE(pid_coredump_server, 0);
 	if (pid_coredump_server == 0) {
 		int fd_server;
-		socklen_t fd_peer_pidfd_len;
 
 		close(ipc_sockets[0]);
 
