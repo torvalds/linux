@@ -2233,6 +2233,9 @@ static void v4l2_subdev_collect_streams(struct v4l2_subdev *sd,
 		*found_streams = BIT_ULL(0);
 		*enabled_streams =
 			(sd->enabled_pads & BIT_ULL(pad)) ? BIT_ULL(0) : 0;
+		dev_dbg(sd->dev,
+			"collect_streams: sub-device \"%s\" does not support streams\n",
+			sd->entity.name);
 		return;
 	}
 
@@ -2250,6 +2253,10 @@ static void v4l2_subdev_collect_streams(struct v4l2_subdev *sd,
 		if (cfg->enabled)
 			*enabled_streams |= BIT_ULL(cfg->stream);
 	}
+
+	dev_dbg(sd->dev,
+		"collect_streams: \"%s\":%u: found %#llx enabled %#llx\n",
+		sd->entity.name, pad, *found_streams, *enabled_streams);
 }
 
 static void v4l2_subdev_set_streams_enabled(struct v4l2_subdev *sd,
