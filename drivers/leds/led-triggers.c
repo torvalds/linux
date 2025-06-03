@@ -54,6 +54,11 @@ ssize_t led_trigger_write(struct file *filp, struct kobject *kobj,
 		goto unlock;
 	}
 
+	if (sysfs_streq(buf, "default")) {
+		led_trigger_set_default(led_cdev);
+		goto unlock;
+	}
+
 	down_read(&triggers_list_lock);
 	list_for_each_entry(trig, &trigger_list, next_trig) {
 		if (sysfs_streq(buf, trig->name) && trigger_relevant(led_cdev, trig)) {
@@ -97,6 +102,9 @@ static int led_trigger_format(char *buf, size_t size,
 	struct led_trigger *trig;
 	int len = led_trigger_snprintf(buf, size, "%s",
 				       led_cdev->trigger ? "none" : "[none]");
+
+	if (led_cdev->default_trigger)
+		len += led_trigger_snprintf(buf + len, size - len, " default");
 
 	list_for_each_entry(trig, &trigger_list, next_trig) {
 		bool hit;
@@ -280,6 +288,11 @@ void led_trigger_set_default(struct led_classdev *led_cdev)
 
 	if (!led_cdev->default_trigger)
 		return;
+
+	if (!strcmp(led_cdev->default_trigger, "none")) {
+		led_trigger_remove(led_cdev);
+		return;
+	}
 
 	down_read(&triggers_list_lock);
 	down_write(&led_cdev->trigger_lock);
