@@ -112,6 +112,9 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 
+/* For dup_mmap(). */
+#include "../mm/internal.h"
+
 #include <trace/events/sched.h>
 
 #define CREATE_TRACE_POINTS
@@ -428,87 +431,8 @@ struct kmem_cache *files_cachep;
 /* SLAB cache for fs_struct structures (tsk->fs) */
 struct kmem_cache *fs_cachep;
 
-/* SLAB cache for vm_area_struct structures */
-static struct kmem_cache *vm_area_cachep;
-
 /* SLAB cache for mm_struct structures (tsk->mm) */
 static struct kmem_cache *mm_cachep;
-
-struct vm_area_struct *vm_area_alloc(struct mm_struct *mm)
-{
-	struct vm_area_struct *vma;
-
-	vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
-	if (!vma)
-		return NULL;
-
-	vma_init(vma, mm);
-
-	return vma;
-}
-
-static void vm_area_init_from(const struct vm_area_struct *src,
-			      struct vm_area_struct *dest)
-{
-	dest->vm_mm = src->vm_mm;
-	dest->vm_ops = src->vm_ops;
-	dest->vm_start = src->vm_start;
-	dest->vm_end = src->vm_end;
-	dest->anon_vma = src->anon_vma;
-	dest->vm_pgoff = src->vm_pgoff;
-	dest->vm_file = src->vm_file;
-	dest->vm_private_data = src->vm_private_data;
-	vm_flags_init(dest, src->vm_flags);
-	memcpy(&dest->vm_page_prot, &src->vm_page_prot,
-	       sizeof(dest->vm_page_prot));
-	/*
-	 * src->shared.rb may be modified concurrently when called from
-	 * dup_mmap(), but the clone will reinitialize it.
-	 */
-	data_race(memcpy(&dest->shared, &src->shared, sizeof(dest->shared)));
-	memcpy(&dest->vm_userfaultfd_ctx, &src->vm_userfaultfd_ctx,
-	       sizeof(dest->vm_userfaultfd_ctx));
-#ifdef CONFIG_ANON_VMA_NAME
-	dest->anon_name = src->anon_name;
-#endif
-#ifdef CONFIG_SWAP
-	memcpy(&dest->swap_readahead_info, &src->swap_readahead_info,
-	       sizeof(dest->swap_readahead_info));
-#endif
-#ifndef CONFIG_MMU
-	dest->vm_region = src->vm_region;
-#endif
-#ifdef CONFIG_NUMA
-	dest->vm_policy = src->vm_policy;
-#endif
-}
-
-struct vm_area_struct *vm_area_dup(struct vm_area_struct *orig)
-{
-	struct vm_area_struct *new = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
-
-	if (!new)
-		return NULL;
-
-	ASSERT_EXCLUSIVE_WRITER(orig->vm_flags);
-	ASSERT_EXCLUSIVE_WRITER(orig->vm_file);
-	vm_area_init_from(orig, new);
-	vma_lock_init(new, true);
-	INIT_LIST_HEAD(&new->anon_vma_chain);
-	vma_numab_state_init(new);
-	dup_anon_vma_name(orig, new);
-
-	return new;
-}
-
-void vm_area_free(struct vm_area_struct *vma)
-{
-	/* The vma should be detached while being destroyed. */
-	vma_assert_detached(vma);
-	vma_numab_state_free(vma);
-	free_anon_vma_name(vma);
-	kmem_cache_free(vm_area_cachep, vma);
-}
 
 static void account_kernel_stack(struct task_struct *tsk, int account)
 {
@@ -589,7 +513,7 @@ void free_task(struct task_struct *tsk)
 }
 EXPORT_SYMBOL(free_task);
 
-static void dup_mm_exe_file(struct mm_struct *mm, struct mm_struct *oldmm)
+void dup_mm_exe_file(struct mm_struct *mm, struct mm_struct *oldmm)
 {
 	struct file *exe_file;
 
@@ -604,183 +528,6 @@ static void dup_mm_exe_file(struct mm_struct *mm, struct mm_struct *oldmm)
 }
 
 #ifdef CONFIG_MMU
-static __latent_entropy int dup_mmap(struct mm_struct *mm,
-					struct mm_struct *oldmm)
-{
-	struct vm_area_struct *mpnt, *tmp;
-	int retval;
-	unsigned long charge = 0;
-	LIST_HEAD(uf);
-	VMA_ITERATOR(vmi, mm, 0);
-
-	if (mmap_write_lock_killable(oldmm))
-		return -EINTR;
-	flush_cache_dup_mm(oldmm);
-	uprobe_dup_mmap(oldmm, mm);
-	/*
-	 * Not linked in yet - no deadlock potential:
-	 */
-	mmap_write_lock_nested(mm, SINGLE_DEPTH_NESTING);
-
-	/* No ordering required: file already has been exposed. */
-	dup_mm_exe_file(mm, oldmm);
-
-	mm->total_vm = oldmm->total_vm;
-	mm->data_vm = oldmm->data_vm;
-	mm->exec_vm = oldmm->exec_vm;
-	mm->stack_vm = oldmm->stack_vm;
-
-	/* Use __mt_dup() to efficiently build an identical maple tree. */
-	retval = __mt_dup(&oldmm->mm_mt, &mm->mm_mt, GFP_KERNEL);
-	if (unlikely(retval))
-		goto out;
-
-	mt_clear_in_rcu(vmi.mas.tree);
-	for_each_vma(vmi, mpnt) {
-		struct file *file;
-
-		vma_start_write(mpnt);
-		if (mpnt->vm_flags & VM_DONTCOPY) {
-			retval = vma_iter_clear_gfp(&vmi, mpnt->vm_start,
-						    mpnt->vm_end, GFP_KERNEL);
-			if (retval)
-				goto loop_out;
-
-			vm_stat_account(mm, mpnt->vm_flags, -vma_pages(mpnt));
-			continue;
-		}
-		charge = 0;
-		/*
-		 * Don't duplicate many vmas if we've been oom-killed (for
-		 * example)
-		 */
-		if (fatal_signal_pending(current)) {
-			retval = -EINTR;
-			goto loop_out;
-		}
-		if (mpnt->vm_flags & VM_ACCOUNT) {
-			unsigned long len = vma_pages(mpnt);
-
-			if (security_vm_enough_memory_mm(oldmm, len)) /* sic */
-				goto fail_nomem;
-			charge = len;
-		}
-		tmp = vm_area_dup(mpnt);
-		if (!tmp)
-			goto fail_nomem;
-
-		/* track_pfn_copy() will later take care of copying internal state. */
-		if (unlikely(tmp->vm_flags & VM_PFNMAP))
-			untrack_pfn_clear(tmp);
-
-		retval = vma_dup_policy(mpnt, tmp);
-		if (retval)
-			goto fail_nomem_policy;
-		tmp->vm_mm = mm;
-		retval = dup_userfaultfd(tmp, &uf);
-		if (retval)
-			goto fail_nomem_anon_vma_fork;
-		if (tmp->vm_flags & VM_WIPEONFORK) {
-			/*
-			 * VM_WIPEONFORK gets a clean slate in the child.
-			 * Don't prepare anon_vma until fault since we don't
-			 * copy page for current vma.
-			 */
-			tmp->anon_vma = NULL;
-		} else if (anon_vma_fork(tmp, mpnt))
-			goto fail_nomem_anon_vma_fork;
-		vm_flags_clear(tmp, VM_LOCKED_MASK);
-		/*
-		 * Copy/update hugetlb private vma information.
-		 */
-		if (is_vm_hugetlb_page(tmp))
-			hugetlb_dup_vma_private(tmp);
-
-		/*
-		 * Link the vma into the MT. After using __mt_dup(), memory
-		 * allocation is not necessary here, so it cannot fail.
-		 */
-		vma_iter_bulk_store(&vmi, tmp);
-
-		mm->map_count++;
-
-		if (tmp->vm_ops && tmp->vm_ops->open)
-			tmp->vm_ops->open(tmp);
-
-		file = tmp->vm_file;
-		if (file) {
-			struct address_space *mapping = file->f_mapping;
-
-			get_file(file);
-			i_mmap_lock_write(mapping);
-			if (vma_is_shared_maywrite(tmp))
-				mapping_allow_writable(mapping);
-			flush_dcache_mmap_lock(mapping);
-			/* insert tmp into the share list, just after mpnt */
-			vma_interval_tree_insert_after(tmp, mpnt,
-					&mapping->i_mmap);
-			flush_dcache_mmap_unlock(mapping);
-			i_mmap_unlock_write(mapping);
-		}
-
-		if (!(tmp->vm_flags & VM_WIPEONFORK))
-			retval = copy_page_range(tmp, mpnt);
-
-		if (retval) {
-			mpnt = vma_next(&vmi);
-			goto loop_out;
-		}
-	}
-	/* a new mm has just been created */
-	retval = arch_dup_mmap(oldmm, mm);
-loop_out:
-	vma_iter_free(&vmi);
-	if (!retval) {
-		mt_set_in_rcu(vmi.mas.tree);
-		ksm_fork(mm, oldmm);
-		khugepaged_fork(mm, oldmm);
-	} else {
-
-		/*
-		 * The entire maple tree has already been duplicated. If the
-		 * mmap duplication fails, mark the failure point with
-		 * XA_ZERO_ENTRY. In exit_mmap(), if this marker is encountered,
-		 * stop releasing VMAs that have not been duplicated after this
-		 * point.
-		 */
-		if (mpnt) {
-			mas_set_range(&vmi.mas, mpnt->vm_start, mpnt->vm_end - 1);
-			mas_store(&vmi.mas, XA_ZERO_ENTRY);
-			/* Avoid OOM iterating a broken tree */
-			set_bit(MMF_OOM_SKIP, &mm->flags);
-		}
-		/*
-		 * The mm_struct is going to exit, but the locks will be dropped
-		 * first.  Set the mm_struct as unstable is advisable as it is
-		 * not fully initialised.
-		 */
-		set_bit(MMF_UNSTABLE, &mm->flags);
-	}
-out:
-	mmap_write_unlock(mm);
-	flush_tlb_mm(oldmm);
-	mmap_write_unlock(oldmm);
-	if (!retval)
-		dup_userfaultfd_complete(&uf);
-	else
-		dup_userfaultfd_fail(&uf);
-	return retval;
-
-fail_nomem_anon_vma_fork:
-	mpol_put(vma_policy(tmp));
-fail_nomem_policy:
-	vm_area_free(tmp);
-fail_nomem:
-	retval = -ENOMEM;
-	vm_unacct_memory(charge);
-	goto loop_out;
-}
-
 static inline int mm_alloc_pgd(struct mm_struct *mm)
 {
 	mm->pgd = pgd_alloc(mm);
@@ -794,13 +541,6 @@ static inline void mm_free_pgd(struct mm_struct *mm)
 	pgd_free(mm, mm->pgd);
 }
 #else
-static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
-{
-	mmap_write_lock(oldmm);
-	dup_mm_exe_file(mm, oldmm);
-	mmap_write_unlock(oldmm);
-	return 0;
-}
 #define mm_alloc_pgd(mm)	(0)
 #define mm_free_pgd(mm)
 #endif /* CONFIG_MMU */
@@ -3228,11 +2968,6 @@ void __init mm_cache_init(void)
 
 void __init proc_caches_init(void)
 {
-	struct kmem_cache_args args = {
-		.use_freeptr_offset = true,
-		.freeptr_offset = offsetof(struct vm_area_struct, vm_freeptr),
-	};
-
 	sighand_cachep = kmem_cache_create("sighand_cache",
 			sizeof(struct sighand_struct), 0,
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_TYPESAFE_BY_RCU|
@@ -3249,10 +2984,6 @@ void __init proc_caches_init(void)
 			sizeof(struct fs_struct), 0,
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT,
 			NULL);
-	vm_area_cachep = kmem_cache_create("vm_area_struct",
-			sizeof(struct vm_area_struct), &args,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_TYPESAFE_BY_RCU|
-			SLAB_ACCOUNT);
 	mmap_init();
 	nsproxy_cache_init();
 }

@@ -3432,7 +3432,7 @@ static int ata_eh_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 	struct ata_eh_context *ehc = &link->eh_context;
 	struct ata_device *dev, *link_dev = NULL, *lpm_dev = NULL;
 	enum ata_lpm_policy old_policy = link->lpm_policy;
-	bool no_dipm = link->ap->flags & ATA_FLAG_NO_DIPM;
+	bool host_has_dipm = !(link->ap->flags & ATA_FLAG_NO_DIPM);
 	unsigned int hints = ATA_LPM_EMPTY | ATA_LPM_HIPM;
 	unsigned int err_mask;
 	int rc;
@@ -3443,28 +3443,35 @@ static int ata_eh_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 		return 0;
 
 	/*
-	 * DIPM is enabled only for MIN_POWER as some devices
-	 * misbehave when the host NACKs transition to SLUMBER.  Order
-	 * device and link configurations such that the host always
-	 * allows DIPM requests.
+	 * This function currently assumes that it will never be supplied policy
+	 * ATA_LPM_UNKNOWN.
+	 */
+	if (WARN_ON_ONCE(policy == ATA_LPM_UNKNOWN))
+		return 0;
+
+	/*
+	 * DIPM is enabled only for ATA_LPM_MIN_POWER,
+	 * ATA_LPM_MIN_POWER_WITH_PARTIAL, and ATA_LPM_MED_POWER_WITH_DIPM, as
+	 * some devices misbehave when the host NACKs transition to SLUMBER.
 	 */
 	ata_for_each_dev(dev, link, ENABLED) {
-		bool hipm = ata_id_has_hipm(dev->id);
-		bool dipm = ata_id_has_dipm(dev->id) && !no_dipm;
+		bool dev_has_hipm = ata_id_has_hipm(dev->id);
+		bool dev_has_dipm = ata_id_has_dipm(dev->id);
 
 		/* find the first enabled and LPM enabled devices */
 		if (!link_dev)
 			link_dev = dev;
 
-		if (!lpm_dev && (hipm || dipm))
+		if (!lpm_dev &&
+		    (dev_has_hipm || (dev_has_dipm && host_has_dipm)))
 			lpm_dev = dev;
 
 		hints &= ~ATA_LPM_EMPTY;
-		if (!hipm)
+		if (!dev_has_hipm)
 			hints &= ~ATA_LPM_HIPM;
 
 		/* disable DIPM before changing link config */
-		if (policy < ATA_LPM_MED_POWER_WITH_DIPM && dipm) {
+		if (dev_has_dipm) {
 			err_mask = ata_dev_set_feature(dev,
 					SETFEATURES_SATA_DISABLE, SATA_DIPM);
 			if (err_mask && err_mask != AC_ERR_DEV) {
@@ -3505,10 +3512,16 @@ static int ata_eh_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 	if (ap && ap->slave_link)
 		ap->slave_link->lpm_policy = policy;
 
-	/* host config updated, enable DIPM if transitioning to MIN_POWER */
+	/*
+	 * Host config updated, enable DIPM if transitioning to
+	 * ATA_LPM_MIN_POWER, ATA_LPM_MIN_POWER_WITH_PARTIAL, or
+	 * ATA_LPM_MED_POWER_WITH_DIPM.
+	 */
 	ata_for_each_dev(dev, link, ENABLED) {
-		if (policy >= ATA_LPM_MED_POWER_WITH_DIPM && !no_dipm &&
-		    ata_id_has_dipm(dev->id)) {
+		bool dev_has_dipm = ata_id_has_dipm(dev->id);
+
+		if (policy >= ATA_LPM_MED_POWER_WITH_DIPM && host_has_dipm &&
+		    dev_has_dipm) {
 			err_mask = ata_dev_set_feature(dev,
 					SETFEATURES_SATA_ENABLE, SATA_DIPM);
 			if (err_mask && err_mask != AC_ERR_DEV) {

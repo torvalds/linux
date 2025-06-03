@@ -271,6 +271,8 @@ static int lenovo_se30_wdt_probe(struct platform_device *pdev)
 		return -EBUSY;
 
 	priv->shm_base_addr = devm_ioremap(dev, base_phys, SHM_WIN_SIZE);
+	if (!priv->shm_base_addr)
+		return -ENOMEM;
 
 	priv->wdt_cfg.mod = WDT_MODULE;
 	priv->wdt_cfg.idx = WDT_CFG_INDEX;

@@ -238,6 +238,7 @@ static void finish_netfs_read(struct ceph_osd_request *req)
 		if (sparse && err > 0)
 			err = ceph_sparse_ext_map_end(op);
 		if (err < subreq->len &&
+		    subreq->rreq->origin != NETFS_UNBUFFERED_READ &&
 		    subreq->rreq->origin != NETFS_DIO_READ)
 			__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
 		if (IS_ENCRYPTED(inode) && err > 0) {
@@ -281,7 +282,8 @@ static bool ceph_netfs_issue_op_inline(struct netfs_io_subrequest *subreq)
 	size_t len;
 	int mode;
 
-	if (rreq->origin != NETFS_DIO_READ)
+	if (rreq->origin != NETFS_UNBUFFERED_READ &&
+	    rreq->origin != NETFS_DIO_READ)
 		__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
 	__clear_bit(NETFS_SREQ_COPY_TO_CACHE, &subreq->flags);
 
@@ -539,7 +541,7 @@ static void ceph_set_page_fscache(struct page *page)
 	folio_start_private_2(page_folio(page)); /* [DEPRECATED] */
 }
 
-static void ceph_fscache_write_terminated(void *priv, ssize_t error, bool was_async)
+static void ceph_fscache_write_terminated(void *priv, ssize_t error)
 {
 	struct inode *inode = priv;
 

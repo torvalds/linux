@@ -563,7 +563,7 @@ static int sa1111_gpio_get(struct gpio_chip *gc, unsigned offset)
 	return !!(readl_relaxed(reg + SA1111_GPIO_PXDRR) & mask);
 }
 
-static void sa1111_gpio_set(struct gpio_chip *gc, unsigned offset, int value)
+static int sa1111_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
 {
 	struct sa1111 *sachip = gc_to_sa1111(gc);
 	unsigned long flags;
@@ -574,6 +574,8 @@ static void sa1111_gpio_set(struct gpio_chip *gc, unsigned offset, int value)
 	sa1111_gpio_modify(reg + SA1111_GPIO_PXDWR, mask, value ? mask : 0);
 	sa1111_gpio_modify(reg + SA1111_GPIO_PXSSR, mask, value ? mask : 0);
 	spin_unlock_irqrestore(&sachip->lock, flags);
+
+	return 0;
 }
 
 static void sa1111_gpio_set_multiple(struct gpio_chip *gc, unsigned long *mask,
@@ -613,7 +615,7 @@ static int sa1111_setup_gpios(struct sa1111 *sachip)
 	sachip->gc.direction_input = sa1111_gpio_direction_input;
 	sachip->gc.direction_output = sa1111_gpio_direction_output;
 	sachip->gc.get = sa1111_gpio_get;
-	sachip->gc.set = sa1111_gpio_set;
+	sachip->gc.set_rv = sa1111_gpio_set;
 	sachip->gc.set_multiple = sa1111_gpio_set_multiple;
 	sachip->gc.to_irq = sa1111_gpio_to_irq;
 	sachip->gc.base = -1;

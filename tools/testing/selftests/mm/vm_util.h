@@ -3,9 +3,11 @@
 #include <stdbool.h>
 #include <sys/mman.h>
 #include <err.h>
+#include <stdarg.h>
 #include <strings.h> /* ffsl() */
 #include <unistd.h> /* _SC_PAGESIZE */
 #include "../kselftest.h"
+#include <linux/fs.h>
 
 #define BIT_ULL(nr)                   (1ULL << (nr))
 #define PM_SOFT_DIRTY                 BIT_ULL(55)
@@ -18,6 +20,15 @@
 
 extern unsigned int __page_size;
 extern unsigned int __page_shift;
+
+/*
+ * Represents an open fd and PROCMAP_QUERY state for binary (via ioctl)
+ * /proc/$pid/[s]maps lookup.
+ */
+struct procmap_fd {
+	int fd;
+	struct procmap_query query;
+};
 
 static inline unsigned int psize(void)
 {
@@ -73,6 +84,36 @@ int uffd_register_with_ioctls(int uffd, void *addr, uint64_t len,
 			      bool miss, bool wp, bool minor, uint64_t *ioctls);
 unsigned long get_free_hugepages(void);
 bool check_vmflag_io(void *addr);
+int open_procmap(pid_t pid, struct procmap_fd *procmap_out);
+int query_procmap(struct procmap_fd *procmap);
+bool find_vma_procmap(struct procmap_fd *procmap, void *address);
+int close_procmap(struct procmap_fd *procmap);
+
+static inline int open_self_procmap(struct procmap_fd *procmap_out)
+{
+	pid_t pid = getpid();
+
+	return open_procmap(pid, procmap_out);
+}
+
+/* These helpers need to be inline to match the kselftest.h idiom. */
+static char test_name[1024];
+
+static inline void log_test_start(const char *name, ...)
+{
+	va_list args;
+	va_start(args, name);
+
+	vsnprintf(test_name, sizeof(test_name), name, args);
+	ksft_print_msg("[RUN] %s\n", test_name);
+
+	va_end(args);
+}
+
+static inline void log_test_result(int result)
+{
+	ksft_test_result_report(result, "%s\n", test_name);
+}
 
 /*
  * On ppc64 this will only work with radix 2M hugepage size

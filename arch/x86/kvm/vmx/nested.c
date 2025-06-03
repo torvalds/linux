@@ -302,7 +302,7 @@ static void vmx_switch_vmcs(struct kvm_vcpu *vcpu, struct loaded_vmcs *vmcs)
 	cpu = get_cpu();
 	prev = vmx->loaded_vmcs;
 	vmx->loaded_vmcs = vmcs;
-	vmx_vcpu_load_vmcs(vcpu, cpu, prev);
+	vmx_vcpu_load_vmcs(vcpu, cpu);
 	vmx_sync_vmcs_host_state(vmx, prev);
 	put_cpu();
 
@@ -825,11 +825,29 @@ static int nested_vmx_check_apicv_controls(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static u32 nested_vmx_max_atomic_switch_msrs(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u64 vmx_misc = vmx_control_msr(vmx->nested.msrs.misc_low,
+				       vmx->nested.msrs.misc_high);
+
+	return (vmx_misc_max_msr(vmx_misc) + 1) * VMX_MISC_MSR_LIST_MULTIPLIER;
+}
+
 static int nested_vmx_check_msr_switch(struct kvm_vcpu *vcpu,
 				       u32 count, u64 addr)
 {
 	if (count == 0)
 		return 0;
+
+	/*
+	 * Exceeding the limit results in architecturally _undefined_ behavior,
+	 * i.e. KVM is allowed to do literally anything in response to a bad
+	 * limit.  Immediately generate a consistency check so that code that
+	 * consumes the count doesn't need to worry about extreme edge cases.
+	 */
+	if (count > nested_vmx_max_atomic_switch_msrs(vcpu))
+		return -EINVAL;
 
 	if (!kvm_vcpu_is_legal_aligned_gpa(vcpu, addr, 16) ||
 	    !kvm_vcpu_is_legal_gpa(vcpu, (addr + count * sizeof(struct vmx_msr_entry) - 1)))
@@ -941,15 +959,6 @@ static int nested_vmx_store_msr_check(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-static u32 nested_vmx_max_atomic_switch_msrs(struct kvm_vcpu *vcpu)
-{
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	u64 vmx_misc = vmx_control_msr(vmx->nested.msrs.misc_low,
-				       vmx->nested.msrs.misc_high);
-
-	return (vmx_misc_max_msr(vmx_misc) + 1) * VMX_MISC_MSR_LIST_MULTIPLIER;
-}
-
 /*
  * Load guest's/host's msr at nested entry/exit.
  * return 0 for success, entry index for failure.
@@ -966,7 +975,7 @@ static u32 nested_vmx_load_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 	u32 max_msr_list_size = nested_vmx_max_atomic_switch_msrs(vcpu);
 
 	for (i = 0; i < count; i++) {
-		if (unlikely(i >= max_msr_list_size))
+		if (WARN_ON_ONCE(i >= max_msr_list_size))
 			goto fail;
 
 		if (kvm_vcpu_read_guest(vcpu, gpa + i * sizeof(e),
@@ -1054,7 +1063,7 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 	u32 max_msr_list_size = nested_vmx_max_atomic_switch_msrs(vcpu);
 
 	for (i = 0; i < count; i++) {
-		if (unlikely(i >= max_msr_list_size))
+		if (WARN_ON_ONCE(i >= max_msr_list_size))
 			return -EINVAL;
 
 		if (!read_and_check_msr_entry(vcpu, gpa, i, &e))
@@ -4521,12 +4530,12 @@ static void copy_vmcs02_to_vmcs12_rare(struct kvm_vcpu *vcpu,
 
 	cpu = get_cpu();
 	vmx->loaded_vmcs = &vmx->nested.vmcs02;
-	vmx_vcpu_load_vmcs(vcpu, cpu, &vmx->vmcs01);
+	vmx_vcpu_load_vmcs(vcpu, cpu);
 
 	sync_vmcs02_to_vmcs12_rare(vcpu, vmcs12);
 
 	vmx->loaded_vmcs = &vmx->vmcs01;
-	vmx_vcpu_load_vmcs(vcpu, cpu, &vmx->nested.vmcs02);
+	vmx_vcpu_load_vmcs(vcpu, cpu);
 	put_cpu();
 }
 
@@ -5021,16 +5030,7 @@ void __nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 vm_exit_reason,
 
 	vmx_switch_vmcs(vcpu, &vmx->vmcs01);
 
-	/*
-	 * If IBRS is advertised to the vCPU, KVM must flush the indirect
-	 * branch predictors when transitioning from L2 to L1, as L1 expects
-	 * hardware (KVM in this case) to provide separate predictor modes.
-	 * Bare metal isolates VMX root (host) from VMX non-root (guest), but
-	 * doesn't isolate different VMCSs, i.e. in this case, doesn't provide
-	 * separate modes for L2 vs L1.
-	 */
-	if (guest_cpu_cap_has(vcpu, X86_FEATURE_SPEC_CTRL))
-		indirect_branch_prediction_barrier();
+	kvm_nested_vmexit_handle_ibrs(vcpu);
 
 	/* Update any VMCS fields that might have changed while L2 ran */
 	vmcs_write32(VM_EXIT_MSR_LOAD_COUNT, vmx->msr_autoload.host.nr);

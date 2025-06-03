@@ -41,6 +41,7 @@
 #include <trace/events/writeback.h>
 
 #include "internal.h"
+#include "swap.h"
 
 /*
  * Sleep at most 200ms at a time in balance_dirty_pages().
@@ -520,8 +521,8 @@ static int dirty_ratio_handler(const struct ctl_table *table, int write, void *b
 
 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	if (ret == 0 && write && vm_dirty_ratio != old_ratio) {
-		writeback_set_ratelimit();
 		vm_dirty_bytes = 0;
+		writeback_set_ratelimit();
 	}
 	return ret;
 }
@@ -2564,11 +2565,11 @@ struct folio *writeback_iter(struct address_space *mapping,
 	if (!folio) {
 		/*
 		 * To avoid deadlocks between range_cyclic writeback and callers
-		 * that hold pages in PageWriteback to aggregate I/O until
+		 * that hold folios in writeback to aggregate I/O until
 		 * the writeback iteration finishes, we do not loop back to the
-		 * start of the file.  Doing so causes a page lock/page
+		 * start of the file.  Doing so causes a folio lock/folio
 		 * writeback access order inversion - we should only ever lock
-		 * multiple pages in ascending page->index order, and looping
+		 * multiple folios in ascending folio->index order, and looping
 		 * back to the start of the file violates that rule and causes
 		 * deadlocks.
 		 */

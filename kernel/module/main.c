@@ -1562,12 +1562,11 @@ static void __layout_sections(struct module *mod, struct load_info *info, bool i
 {
 	unsigned int m, i;
 
+	/*
+	 * { Mask of required section header flags,
+	 *   Mask of excluded section header flags }
+	 */
 	static const unsigned long masks[][2] = {
-		/*
-		 * NOTE: all executable code must be the first section
-		 * in this array; otherwise modify the text_size
-		 * finder in the two loops below
-		 */
 		{ SHF_EXECINSTR | SHF_ALLOC, ARCH_SHF_SMALL },
 		{ SHF_ALLOC, SHF_WRITE | ARCH_SHF_SMALL },
 		{ SHF_RO_AFTER_INIT | SHF_ALLOC, ARCH_SHF_SMALL },
@@ -2768,7 +2767,6 @@ core_param(module_blacklist, module_blacklist, charp, 0400);
 static struct module *layout_and_allocate(struct load_info *info, int flags)
 {
 	struct module *mod;
-	unsigned int ndx;
 	int err;
 
 	/* Allow arches to frob section contents and sizes.  */
@@ -2786,22 +2784,11 @@ static struct module *layout_and_allocate(struct load_info *info, int flags)
 	info->sechdrs[info->index.pcpu].sh_flags &= ~(unsigned long)SHF_ALLOC;
 
 	/*
-	 * Mark ro_after_init section with SHF_RO_AFTER_INIT so that
-	 * layout_sections() can put it in the right place.
+	 * Mark relevant sections as SHF_RO_AFTER_INIT so layout_sections() can
+	 * put them in the right place.
 	 * Note: ro_after_init sections also have SHF_{WRITE,ALLOC} set.
 	 */
-	ndx = find_sec(info, ".data..ro_after_init");
-	if (ndx)
-		info->sechdrs[ndx].sh_flags |= SHF_RO_AFTER_INIT;
-	/*
-	 * Mark the __jump_table section as ro_after_init as well: these data
-	 * structures are never modified, with the exception of entries that
-	 * refer to code in the __init section, which are annotated as such
-	 * at module load time.
-	 */
-	ndx = find_sec(info, "__jump_table");
-	if (ndx)
-		info->sechdrs[ndx].sh_flags |= SHF_RO_AFTER_INIT;
+	module_mark_ro_after_init(info->hdr, info->sechdrs, info->secstrings);
 
 	/*
 	 * Determine total sizes, and put offsets in sh_entsize.  For now

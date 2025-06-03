@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2025 Ferass El Hafidi <funderscore@postmarketos.org>
+ */
+
+#include "meson-gxl-s805x.dtsi"
+
+/ {
+	compatible = "amlogic,s805y", "amlogic,meson-gxl";
+};

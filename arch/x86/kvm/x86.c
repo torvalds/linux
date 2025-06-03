@@ -226,6 +226,9 @@ EXPORT_SYMBOL_GPL(allow_smaller_maxphyaddr);
 bool __read_mostly enable_apicv = true;
 EXPORT_SYMBOL_GPL(enable_apicv);
 
+bool __read_mostly enable_device_posted_irqs = true;
+EXPORT_SYMBOL_GPL(enable_device_posted_irqs);
+
 const struct _kvm_stats_desc kvm_vm_stats_desc[] = {
 	KVM_GENERIC_VM_STATS(),
 	STATS_DESC_COUNTER(VM, mmu_shadow_zapped),
@@ -4990,6 +4993,8 @@ static bool need_emulate_wbinvd(struct kvm_vcpu *vcpu)
 	return kvm_arch_has_noncoherent_dma(vcpu->kvm);
 }
 
+static DEFINE_PER_CPU(struct kvm_vcpu *, last_vcpu);
+
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
@@ -5011,6 +5016,19 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	}
 
 	kvm_x86_call(vcpu_load)(vcpu, cpu);
+
+	if (vcpu != per_cpu(last_vcpu, cpu)) {
+		/*
+		 * Flush the branch predictor when switching vCPUs on the same
+		 * physical CPU, as each vCPU needs its own branch prediction
+		 * domain.  No IBPB is needed when switching between L1 and L2
+		 * on the same vCPU unless IBRS is advertised to the vCPU; that
+		 * is handled on the nested VM-Exit path.
+		 */
+		if (static_branch_likely(&switch_vcpu_ibpb))
+			indirect_branch_prediction_barrier();
+		per_cpu(last_vcpu, cpu) = vcpu;
+	}
 
 	/* Save host pkru register if supported */
 	vcpu->arch.host_pkru = read_pkru();
@@ -7326,10 +7344,13 @@ set_pit2_out:
 		r = READ_ONCE(kvm->arch.default_tsc_khz);
 		goto out;
 	}
-	case KVM_MEMORY_ENCRYPT_OP: {
+	case KVM_MEMORY_ENCRYPT_OP:
+		r = -ENOTTY;
+		if (!kvm_x86_ops.mem_enc_ioctl)
+			goto out;
+
 		r = kvm_x86_call(mem_enc_ioctl)(kvm, argp);
 		break;
-	}
 	case KVM_MEMORY_ENCRYPT_REG_REGION: {
 		struct kvm_enc_region region;
 
@@ -8023,7 +8044,7 @@ static int emulator_read_write(struct x86_emulate_ctxt *ctxt,
 		return rc;
 
 	if (!vcpu->mmio_nr_fragments)
-		return rc;
+		return X86EMUL_CONTINUE;
 
 	gpa = vcpu->mmio_fragments[0].gpa;
 
@@ -9361,7 +9382,7 @@ static int complete_fast_pio_out(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.pio.count = 0;
 
-	if (unlikely(!kvm_is_linear_rip(vcpu, vcpu->arch.pio.linear_rip)))
+	if (unlikely(!kvm_is_linear_rip(vcpu, vcpu->arch.cui_linear_rip)))
 		return 1;
 
 	return kvm_skip_emulated_instruction(vcpu);
@@ -9386,7 +9407,7 @@ static int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size,
 			complete_fast_pio_out_port_0x7e;
 		kvm_skip_emulated_instruction(vcpu);
 	} else {
-		vcpu->arch.pio.linear_rip = kvm_get_linear_rip(vcpu);
+		vcpu->arch.cui_linear_rip = kvm_get_linear_rip(vcpu);
 		vcpu->arch.complete_userspace_io = complete_fast_pio_out;
 	}
 	return 0;
@@ -9399,7 +9420,7 @@ static int complete_fast_pio_in(struct kvm_vcpu *vcpu)
 	/* We should only ever be called with arch.pio.count equal to 1 */
 	BUG_ON(vcpu->arch.pio.count != 1);
 
-	if (unlikely(!kvm_is_linear_rip(vcpu, vcpu->arch.pio.linear_rip))) {
+	if (unlikely(!kvm_is_linear_rip(vcpu, vcpu->arch.cui_linear_rip))) {
 		vcpu->arch.pio.count = 0;
 		return 1;
 	}
@@ -9428,7 +9449,7 @@ static int kvm_fast_pio_in(struct kvm_vcpu *vcpu, int size,
 		return ret;
 	}
 
-	vcpu->arch.pio.linear_rip = kvm_get_linear_rip(vcpu);
+	vcpu->arch.cui_linear_rip = kvm_get_linear_rip(vcpu);
 	vcpu->arch.complete_userspace_io = complete_fast_pio_in;
 
 	return 0;
@@ -9810,6 +9831,9 @@ int kvm_x86_vendor_init(struct kvm_x86_init_ops *ops)
 	r = ops->hardware_setup();
 	if (r != 0)
 		goto out_mmu_exit;
+
+	enable_device_posted_irqs &= enable_apicv &&
+				     irq_remapping_cap(IRQ_POSTING_CAP);
 
 	kvm_ops_update(ops);
 
@@ -10694,6 +10718,7 @@ static void vcpu_scan_ioapic(struct kvm_vcpu *vcpu)
 		return;
 
 	bitmap_zero(vcpu->arch.ioapic_handled_vectors, 256);
+	vcpu->arch.highest_stale_pending_ioapic_eoi = -1;
 
 	kvm_x86_call(sync_pir_to_irr)(vcpu);
 
@@ -12419,12 +12444,15 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
-	int idx;
+	int idx, cpu;
 
 	kvm_clear_async_pf_completion_queue(vcpu);
 	kvm_mmu_unload(vcpu);
 
 	kvmclock_reset(vcpu);
+
+	for_each_possible_cpu(cpu)
+		cmpxchg(per_cpu_ptr(&last_vcpu, cpu), vcpu, NULL);
 
 	kvm_x86_call(vcpu_free)(vcpu);
 

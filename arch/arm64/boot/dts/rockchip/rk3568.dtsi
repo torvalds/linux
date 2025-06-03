@@ -152,7 +152,7 @@
 		compatible = "rockchip,rk3568-pcie";
 		#address-cells = <3>;
 		#size-cells = <2>;
-		bus-range = <0x0 0xf>;
+		bus-range = <0x10 0x1f>;
 		clocks = <&cru ACLK_PCIE30X1_MST>, <&cru ACLK_PCIE30X1_SLV>,
 			 <&cru ACLK_PCIE30X1_DBI>, <&cru PCLK_PCIE30X1>,
 			 <&cru CLK_PCIE30X1_AUX_NDFT>;
@@ -175,7 +175,7 @@
 		num-ib-windows = <6>;
 		num-ob-windows = <2>;
 		max-link-speed = <3>;
-		msi-map = <0x0 &gic 0x1000 0x1000>;
+		msi-map = <0x1000 &its 0x1000 0x1000>;
 		num-lanes = <1>;
 		phys = <&pcie30phy>;
 		phy-names = "pcie-phy";
@@ -205,7 +205,7 @@
 		compatible = "rockchip,rk3568-pcie";
 		#address-cells = <3>;
 		#size-cells = <2>;
-		bus-range = <0x0 0xf>;
+		bus-range = <0x20 0x2f>;
 		clocks = <&cru ACLK_PCIE30X2_MST>, <&cru ACLK_PCIE30X2_SLV>,
 			 <&cru ACLK_PCIE30X2_DBI>, <&cru PCLK_PCIE30X2>,
 			 <&cru CLK_PCIE30X2_AUX_NDFT>;
@@ -228,7 +228,7 @@
 		num-ib-windows = <6>;
 		num-ob-windows = <2>;
 		max-link-speed = <3>;
-		msi-map = <0x0 &gic 0x2000 0x1000>;
+		msi-map = <0x2000 &its 0x2000 0x1000>;
 		num-lanes = <2>;
 		phys = <&pcie30phy>;
 		phy-names = "pcie-phy";

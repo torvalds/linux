@@ -531,7 +531,7 @@ static u64 get_inode_sequence_number(struct inode *inode)
  *
  * For shared mappings (when @fshared), the key is:
  *
- *   ( inode->i_sequence, page->index, offset_within_page )
+ *   ( inode->i_sequence, page offset within mapping, offset_within_page )
  *
  * [ also see get_inode_sequence_number() ]
  *

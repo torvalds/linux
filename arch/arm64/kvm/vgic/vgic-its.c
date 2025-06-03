@@ -306,39 +306,34 @@ static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
 		}
 	}
 
-	raw_spin_unlock_irqrestore(&irq->irq_lock, flags);
-
 	if (irq->hw)
-		return its_prop_update_vlpi(irq->host_irq, prop, needs_inv);
+		ret = its_prop_update_vlpi(irq->host_irq, prop, needs_inv);
 
-	return 0;
+	raw_spin_unlock_irqrestore(&irq->irq_lock, flags);
+	return ret;
 }
 
 static int update_affinity(struct vgic_irq *irq, struct kvm_vcpu *vcpu)
 {
-	int ret = 0;
-	unsigned long flags;
+	struct its_vlpi_map map;
+	int ret;
 
-	raw_spin_lock_irqsave(&irq->irq_lock, flags);
+	guard(raw_spinlock_irqsave)(&irq->irq_lock);
 	irq->target_vcpu = vcpu;
-	raw_spin_unlock_irqrestore(&irq->irq_lock, flags);
 
-	if (irq->hw) {
-		struct its_vlpi_map map;
+	if (!irq->hw)
+		return 0;
 
-		ret = its_get_vlpi(irq->host_irq, &map);
-		if (ret)
-			return ret;
+	ret = its_get_vlpi(irq->host_irq, &map);
+	if (ret)
+		return ret;
 
-		if (map.vpe)
-			atomic_dec(&map.vpe->vlpi_count);
-		map.vpe = &vcpu->arch.vgic_cpu.vgic_v3.its_vpe;
-		atomic_inc(&map.vpe->vlpi_count);
+	if (map.vpe)
+		atomic_dec(&map.vpe->vlpi_count);
 
-		ret = its_map_vlpi(irq->host_irq, &map);
-	}
-
-	return ret;
+	map.vpe = &vcpu->arch.vgic_cpu.vgic_v3.its_vpe;
+	atomic_inc(&map.vpe->vlpi_count);
+	return its_map_vlpi(irq->host_irq, &map);
 }
 
 static struct kvm_vcpu *collection_to_vcpu(struct kvm *kvm,
@@ -756,12 +751,17 @@ int vgic_its_inject_msi(struct kvm *kvm, struct kvm_msi *msi)
 /* Requires the its_lock to be held. */
 static void its_free_ite(struct kvm *kvm, struct its_ite *ite)
 {
+	struct vgic_irq *irq = ite->irq;
 	list_del(&ite->ite_list);
 
 	/* This put matches the get in vgic_add_lpi. */
-	if (ite->irq) {
-		if (ite->irq->hw)
-			WARN_ON(its_unmap_vlpi(ite->irq->host_irq));
+	if (irq) {
+		scoped_guard(raw_spinlock_irqsave, &irq->irq_lock) {
+			if (irq->hw)
+				WARN_ON(its_unmap_vlpi(ite->irq->host_irq));
+
+			irq->hw = false;
+		}
 
 		vgic_put_irq(kvm, ite->irq);
 	}
@@ -1971,7 +1971,7 @@ static int vgic_its_attr_regs_access(struct kvm_device *dev,
 
 	mutex_lock(&dev->kvm->lock);
 
-	if (!lock_all_vcpus(dev->kvm)) {
+	if (kvm_trylock_all_vcpus(dev->kvm)) {
 		mutex_unlock(&dev->kvm->lock);
 		return -EBUSY;
 	}
@@ -2006,7 +2006,7 @@ static int vgic_its_attr_regs_access(struct kvm_device *dev,
 	}
 out:
 	mutex_unlock(&dev->kvm->arch.config_lock);
-	unlock_all_vcpus(dev->kvm);
+	kvm_unlock_all_vcpus(dev->kvm);
 	mutex_unlock(&dev->kvm->lock);
 	return ret;
 }
@@ -2676,7 +2676,7 @@ static int vgic_its_ctrl(struct kvm *kvm, struct vgic_its *its, u64 attr)
 
 	mutex_lock(&kvm->lock);
 
-	if (!lock_all_vcpus(kvm)) {
+	if (kvm_trylock_all_vcpus(kvm)) {
 		mutex_unlock(&kvm->lock);
 		return -EBUSY;
 	}
@@ -2698,7 +2698,7 @@ static int vgic_its_ctrl(struct kvm *kvm, struct vgic_its *its, u64 attr)
 
 	mutex_unlock(&its->its_lock);
 	mutex_unlock(&kvm->arch.config_lock);
-	unlock_all_vcpus(kvm);
+	kvm_unlock_all_vcpus(kvm);
 	mutex_unlock(&kvm->lock);
 	return ret;
 }

@@ -18,10 +18,7 @@ quiet_cmd_gen_fortify_log = CAT     $@
 $(obj)/test_fortify.log: $(addprefix $(obj)/, $(logs)) FORCE
 	$(call if_changed,gen_fortify_log)
 
-# GCC<=7 does not always produce *.d files.
-# Run the tests only for GCC>=8 or Clang.
-always-$(call gcc-min-version, 80000) += test_fortify.log
-always-$(CONFIG_CC_IS_CLANG)          += test_fortify.log
+always-y += test_fortify.log
 
 # Some architectures define __NO_FORTIFY if __SANITIZE_ADDRESS__ is undefined.
 # Pass CFLAGS_KASAN to avoid warnings.

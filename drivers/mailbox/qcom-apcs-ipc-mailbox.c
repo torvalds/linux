@@ -116,10 +116,18 @@ static int qcom_apcs_ipc_probe(struct platform_device *pdev)
 	}
 
 	if (apcs_data->clk_name) {
-		apcs->clk = platform_device_register_data(&pdev->dev,
-							  apcs_data->clk_name,
-							  PLATFORM_DEVID_AUTO,
-							  NULL, 0);
+		struct device_node *np = of_get_child_by_name(pdev->dev.of_node,
+							      "clock-controller");
+		struct platform_device_info pdevinfo = {
+			.parent = &pdev->dev,
+			.name = apcs_data->clk_name,
+			.id = PLATFORM_DEVID_AUTO,
+			.fwnode = of_fwnode_handle(np) ?: pdev->dev.fwnode,
+			.of_node_reused = !np,
+		};
+
+		apcs->clk = platform_device_register_full(&pdevinfo);
+		of_node_put(np);
 		if (IS_ERR(apcs->clk))
 			dev_err(&pdev->dev, "failed to register APCS clk\n");
 	}

@@ -315,10 +315,11 @@ config SAMPLE_HUNG_TASK
 	tristate "Hung task detector test code"
 	depends on DETECT_HUNG_TASK && DEBUG_FS
 	help
-	  Build a module which provide a simple debugfs file. If user reads
-	  the file, it will sleep long time (256 seconds) with holding a
-	  mutex. Thus if there are 2 or more processes read this file, it
-	  will be detected by the hung_task watchdog.
+	  Build a module that provides debugfs files (e.g., mutex, semaphore,
+	  etc.) under <debugfs>/hung_task. If user reads one of these files,
+	  it will sleep long time (256 seconds) with holding a lock. Thus,
+	  if 2 or more processes read the same file concurrently, it will
+	  be detected by the hung_task watchdog.
 
 source "samples/rust/Kconfig"
 

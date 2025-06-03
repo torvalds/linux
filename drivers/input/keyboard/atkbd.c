@@ -37,7 +37,7 @@ static int atkbd_set = 2;
 module_param_named(set, atkbd_set, int, 0);
 MODULE_PARM_DESC(set, "Select keyboard code set (2 = default, 3 = PS/2 native)");
 
-#if defined(__i386__) || defined(__x86_64__) || defined(__hppa__)
+#if defined(__i386__) || defined(__x86_64__) || defined(__hppa__) || defined(__loongarch__)
 static bool atkbd_reset;
 #else
 static bool atkbd_reset = true;

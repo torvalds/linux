@@ -32,6 +32,8 @@
 		assigned-clocks = <&k3_clks 279 1>;
 		assigned-clock-parents = <&k3_clks 279 5>;
 
+		status = "disabled";
+
 		serdes0: serdes@f000000 {
 			compatible = "ti,j721e-serdes-10g";
 			reg = <0x0f000000 0x00010000>;
@@ -50,8 +52,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			#clock-cells = <1>;
-
-			status = "disabled"; /* Needs lane config */
 		};
 	};
 
@@ -69,6 +69,8 @@
 
 		assigned-clocks = <&k3_clks 280 1>;
 		assigned-clock-parents = <&k3_clks 280 5>;
+
+		status = "disabled";
 
 		serdes1: serdes@f010000 {
 			compatible = "ti,j721e-serdes-10g";
@@ -88,8 +90,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			#clock-cells = <1>;
-
-			status = "disabled"; /* Needs lane config */
 		};
 	};
 
@@ -98,10 +98,10 @@
 		reg = <0x00 0x0f102000 0x00 0x1000>,
 		      <0x00 0x0f100000 0x00 0x400>,
 		      <0x00 0x0d000000 0x00 0x00800000>,
-		      <0x00 0x68000000 0x00 0x00001000>;
+		      <0x06 0x00000000 0x00 0x00001000>; /* ECAM (4 KB) */
 		reg-names = "intd_cfg", "user_cfg", "reg", "cfg";
-		ranges = <0x01000000 0x00 0x68001000  0x00 0x68001000  0x00 0x0010000>,
-			 <0x02000000 0x00 0x68011000  0x00 0x68011000  0x00 0x7fef000>;
+		ranges = <0x01000000 0x00 0x00001000 0x06 0x00001000 0x00 0x00100000>, /* IO (1 MB) */
+			 <0x02000000 0x00 0x00101000 0x06 0x00101000 0x00 0xffeff000>; /* 32-bit Non-Prefetchable MEM (4 GB - 1 MB - 4 KB) */
 		dma-ranges = <0x02000000 0x0 0x0 0x0 0x0 0x10000 0x0>;
 		interrupt-names = "link_state";
 		interrupts = <GIC_SPI 99 IRQ_TYPE_EDGE_RISING>;

@@ -52,17 +52,14 @@ properties:
               - nvidia,cardhu-a04
           - const: nvidia,cardhu
           - const: nvidia,tegra30
-      - items:
-          - const: asus,tf201
-          - const: nvidia,tegra30
-      - items:
-          - const: asus,tf300t
-          - const: nvidia,tegra30
-      - items:
-          - const: asus,tf300tg
-          - const: nvidia,tegra30
-      - items:
-          - const: asus,tf700t
+      - description: ASUS Transformers Device family
+        items:
+          - enum:
+              - asus,tf201
+              - asus,tf300t
+              - asus,tf300tg
+              - asus,tf300tl
+              - asus,tf700t
           - const: nvidia,tegra30
       - description: LG Optimus 4X P880
         items:

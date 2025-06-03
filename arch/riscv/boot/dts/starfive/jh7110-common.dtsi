@@ -8,6 +8,7 @@
 #include "jh7110.dtsi"
 #include "jh7110-pinfunc.h"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/starfive,jh7110-pinctrl.h>
 
 / {
 	aliases {
@@ -28,6 +29,7 @@
 	memory@40000000 {
 		device_type = "memory";
 		reg = <0x0 0x40000000 0x1 0x0>;
+		bootph-pre-ram;
 	};
 
 	gpio-restart {
@@ -245,6 +247,13 @@
 			};
 		};
 	};
+
+	eeprom@50 {
+		compatible = "atmel,24c04";
+		reg = <0x50>;
+		bootph-pre-ram;
+		pagesize = <16>;
+	};
 };
 
 &i2c6 {
@@ -262,6 +271,7 @@
 	assigned-clocks = <&syscrg JH7110_SYSCLK_SDIO0_SDCARD>;
 	assigned-clock-rates = <50000000>;
 	bus-width = <8>;
+	bootph-pre-ram;
 	cap-mmc-highspeed;
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
@@ -279,6 +289,7 @@
 	assigned-clocks = <&syscrg JH7110_SYSCLK_SDIO1_SDCARD>;
 	assigned-clock-rates = <50000000>;
 	bus-width = <4>;
+	bootph-pre-ram;
 	no-sdio;
 	no-mmc;
 	cd-gpios = <&sysgpio 41 GPIO_ACTIVE_LOW>;
@@ -317,8 +328,9 @@
 	nor_flash: flash@0 {
 		compatible = "jedec,spi-nor";
 		reg = <0>;
-		cdns,read-delay = <5>;
-		spi-max-frequency = <12000000>;
+		bootph-pre-ram;
+		cdns,read-delay = <2>;
+		spi-max-frequency = <100000000>;
 		cdns,tshsl-ns = <1>;
 		cdns,tsd2d-ns = <1>;
 		cdns,tchsh-ns = <1>;
@@ -353,9 +365,17 @@
 };
 
 &syscrg {
-	assigned-clocks = <&syscrg JH7110_SYSCLK_CPU_CORE>,
+	assigned-clocks = <&syscrg JH7110_SYSCLK_CPU_ROOT>,
+			  <&syscrg JH7110_SYSCLK_BUS_ROOT>,
+			  <&syscrg JH7110_SYSCLK_PERH_ROOT>,
+			  <&syscrg JH7110_SYSCLK_QSPI_REF>,
+			  <&syscrg JH7110_SYSCLK_CPU_CORE>,
 			  <&pllclk JH7110_PLLCLK_PLL0_OUT>;
-	assigned-clock-rates = <500000000>, <1500000000>;
+	assigned-clock-parents = <&pllclk JH7110_PLLCLK_PLL0_OUT>,
+				 <&pllclk JH7110_PLLCLK_PLL2_OUT>,
+				 <&pllclk JH7110_PLLCLK_PLL2_OUT>,
+				 <&syscrg JH7110_SYSCLK_QSPI_REF_SRC>;
+	assigned-clock-rates = <0>, <0>, <0>, <0>, <500000000>, <1500000000>;
 };
 
 &sysgpio {
@@ -388,6 +408,8 @@
 	};
 
 	i2c5_pins: i2c5-0 {
+		bootph-pre-ram;
+
 		i2c-pins {
 			pinmux = <GPIOMUX(19, GPOUT_LOW,
 					      GPOEN_SYS_I2C5_CLK,
@@ -396,6 +418,7 @@
 					      GPOEN_SYS_I2C5_DATA,
 					      GPI_SYS_I2C5_DATA)>;
 			bias-disable; /* external pull-up */
+			bootph-pre-ram;
 			input-enable;
 			input-schmitt-enable;
 		};
@@ -428,16 +451,16 @@
 		};
 
 		mmc-pins {
-			pinmux = <PINMUX(64, 0)>,
-				 <PINMUX(65, 0)>,
-				 <PINMUX(66, 0)>,
-				 <PINMUX(67, 0)>,
-				 <PINMUX(68, 0)>,
-				 <PINMUX(69, 0)>,
-				 <PINMUX(70, 0)>,
-				 <PINMUX(71, 0)>,
-				 <PINMUX(72, 0)>,
-				 <PINMUX(73, 0)>;
+			pinmux = <PINMUX(PAD_SD0_CLK, 0)>,
+				 <PINMUX(PAD_SD0_CMD, 0)>,
+				 <PINMUX(PAD_SD0_DATA0, 0)>,
+				 <PINMUX(PAD_SD0_DATA1, 0)>,
+				 <PINMUX(PAD_SD0_DATA2, 0)>,
+				 <PINMUX(PAD_SD0_DATA3, 0)>,
+				 <PINMUX(PAD_SD0_DATA4, 0)>,
+				 <PINMUX(PAD_SD0_DATA5, 0)>,
+				 <PINMUX(PAD_SD0_DATA6, 0)>,
+				 <PINMUX(PAD_SD0_DATA7, 0)>;
 			bias-pull-up;
 			drive-strength = <12>;
 			input-enable;
@@ -624,6 +647,7 @@
 };
 
 &uart0 {
+	bootph-pre-ram;
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins>;
 	status = "okay";

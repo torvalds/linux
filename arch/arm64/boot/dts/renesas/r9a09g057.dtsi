@@ -653,6 +653,13 @@
 			resets = <&cpg 0xa7>;
 			power-domains = <&cpg>;
 			status = "disabled";
+
+			sdhi0_vqmmc: vqmmc-regulator {
+				regulator-name = "SDHI0-VQMMC";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				status = "disabled";
+			};
 		};
 
 		sdhi1: mmc@15c10000 {
@@ -666,6 +673,13 @@
 			resets = <&cpg 0xa8>;
 			power-domains = <&cpg>;
 			status = "disabled";
+
+			sdhi1_vqmmc: vqmmc-regulator {
+				regulator-name = "SDHI1-VQMMC";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				status = "disabled";
+			};
 		};
 
 		sdhi2: mmc@15c20000 {
@@ -679,6 +693,13 @@
 			resets = <&cpg 0xa9>;
 			power-domains = <&cpg>;
 			status = "disabled";
+
+			sdhi2_vqmmc: vqmmc-regulator {
+				regulator-name = "SDHI2-VQMMC";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				status = "disabled";
+			};
 		};
 	};
 

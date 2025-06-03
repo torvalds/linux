@@ -209,7 +209,6 @@
 			/* U12 */
 			cp0_module_expander1: pca9555@21 {
 				compatible = "nxp,pca9555";
-				pinctrl-names = "default";
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x21>;

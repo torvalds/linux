@@ -120,6 +120,18 @@
 						 IRQ_TYPE_LEVEL_LOW)>;
 		};
 
+		gpio0: gpio@4c0000 {
+			compatible = "blaize,blzp1600-gpio";
+			reg = <0x4c0000 0x1000>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <32>;
+			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			status = "disabled";
+		};
+
 		uart0: serial@4d0000 {
 			compatible = "ns16550a";
 			reg = <0x4d0000 0x1000>;

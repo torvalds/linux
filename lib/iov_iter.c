@@ -457,38 +457,35 @@ size_t iov_iter_zero(size_t bytes, struct iov_iter *i)
 }
 EXPORT_SYMBOL(iov_iter_zero);
 
-size_t copy_page_from_iter_atomic(struct page *page, size_t offset,
+size_t copy_folio_from_iter_atomic(struct folio *folio, size_t offset,
 		size_t bytes, struct iov_iter *i)
 {
 	size_t n, copied = 0;
-	bool uses_kmap = IS_ENABLED(CONFIG_DEBUG_KMAP_LOCAL_FORCE_MAP) ||
-			 PageHighMem(page);
 
-	if (!page_copy_sane(page, offset, bytes))
+	if (!page_copy_sane(&folio->page, offset, bytes))
 		return 0;
 	if (WARN_ON_ONCE(!i->data_source))
 		return 0;
 
 	do {
-		char *p;
+		char *to = kmap_local_folio(folio, offset);
 
 		n = bytes - copied;
-		if (uses_kmap) {
-			page += offset / PAGE_SIZE;
-			offset %= PAGE_SIZE;
-			n = min_t(size_t, n, PAGE_SIZE - offset);
-		}
+		if (folio_test_partial_kmap(folio) &&
+		    n > PAGE_SIZE - offset_in_page(offset))
+			n = PAGE_SIZE - offset_in_page(offset);
 
-		p = kmap_atomic(page) + offset;
-		n = __copy_from_iter(p, n, i);
-		kunmap_atomic(p);
+		pagefault_disable();
+		n = __copy_from_iter(to, n, i);
+		pagefault_enable();
+		kunmap_local(to);
 		copied += n;
 		offset += n;
-	} while (uses_kmap && copied != bytes && n > 0);
+	} while (copied != bytes && n > 0);
 
 	return copied;
 }
-EXPORT_SYMBOL(copy_page_from_iter_atomic);
+EXPORT_SYMBOL(copy_folio_from_iter_atomic);
 
 static void iov_iter_bvec_advance(struct iov_iter *i, size_t size)
 {
@@ -1059,22 +1056,22 @@ static ssize_t iter_xarray_populate_pages(struct page **pages, struct xarray *xa
 					  pgoff_t index, unsigned int nr_pages)
 {
 	XA_STATE(xas, xa, index);
-	struct page *page;
+	struct folio *folio;
 	unsigned int ret = 0;
 
 	rcu_read_lock();
-	for (page = xas_load(&xas); page; page = xas_next(&xas)) {
-		if (xas_retry(&xas, page))
+	for (folio = xas_load(&xas); folio; folio = xas_next(&xas)) {
+		if (xas_retry(&xas, folio))
 			continue;
 
-		/* Has the page moved or been split? */
-		if (unlikely(page != xas_reload(&xas))) {
+		/* Has the folio moved or been split? */
+		if (unlikely(folio != xas_reload(&xas))) {
 			xas_reset(&xas);
 			continue;
 		}
 
-		pages[ret] = find_subpage(page, xas.xa_index);
-		get_page(pages[ret]);
+		pages[ret] = folio_file_page(folio, xas.xa_index);
+		folio_get(folio);
 		if (++ret == nr_pages)
 			break;
 	}
@@ -1650,11 +1647,11 @@ static ssize_t iov_iter_extract_xarray_pages(struct iov_iter *i,
 					     iov_iter_extraction_t extraction_flags,
 					     size_t *offset0)
 {
-	struct page *page, **p;
+	struct page **p;
+	struct folio *folio;
 	unsigned int nr = 0, offset;
 	loff_t pos = i->xarray_start + i->iov_offset;
-	pgoff_t index = pos >> PAGE_SHIFT;
-	XA_STATE(xas, i->xarray, index);
+	XA_STATE(xas, i->xarray, pos >> PAGE_SHIFT);
 
 	offset = pos & ~PAGE_MASK;
 	*offset0 = offset;
@@ -1665,17 +1662,17 @@ static ssize_t iov_iter_extract_xarray_pages(struct iov_iter *i,
 	p = *pages;
 
 	rcu_read_lock();
-	for (page = xas_load(&xas); page; page = xas_next(&xas)) {
-		if (xas_retry(&xas, page))
+	for (folio = xas_load(&xas); folio; folio = xas_next(&xas)) {
+		if (xas_retry(&xas, folio))
 			continue;
 
-		/* Has the page moved or been split? */
-		if (unlikely(page != xas_reload(&xas))) {
+		/* Has the folio moved or been split? */
+		if (unlikely(folio != xas_reload(&xas))) {
 			xas_reset(&xas);
 			continue;
 		}
 
-		p[nr++] = find_subpage(page, xas.xa_index);
+		p[nr++] = folio_file_page(folio, xas.xa_index);
 		if (nr == maxpages)
 			break;
 	}

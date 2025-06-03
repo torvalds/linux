@@ -335,6 +335,26 @@ config SENSORS_K10TEMP
 	  This driver can also be built as a module. If so, the module
 	  will be called k10temp.
 
+config SENSORS_KBATT
+	tristate "KEBA battery controller support"
+	depends on KEBA_CP500
+	help
+	  This driver supports the battery monitoring controller found in
+	  KEBA system FPGA devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called kbatt.
+
+config SENSORS_KFAN
+	tristate "KEBA fan controller support"
+	depends on KEBA_CP500
+	help
+	  This driver supports the fan controller found in KEBA system
+	  FPGA devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called kfan.
+
 config SENSORS_FAM15H_POWER
 	tristate "AMD Family 15h processor power"
 	depends on X86 && PCI && CPU_SUP_AMD
@@ -1307,6 +1327,15 @@ config SENSORS_MAX31790
 
 	  This driver can also be built as a module. If so, the module
 	  will be called max31790.
+
+config SENSORS_MAX77705
+	tristate "MAX77705 current and voltage sensor"
+	depends on MFD_MAX77705
+	help
+	  If you say yes here you get support for MAX77705 sensors connected with I2C.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max77705-hwmon.
 
 config SENSORS_MC34VR500
 	tristate "NXP MC34VR500 hardware monitoring driver"

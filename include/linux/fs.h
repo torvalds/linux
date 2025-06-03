@@ -2189,6 +2189,7 @@ struct file_operations {
 	int (*uring_cmd)(struct io_uring_cmd *ioucmd, unsigned int issue_flags);
 	int (*uring_cmd_iopoll)(struct io_uring_cmd *, struct io_comp_batch *,
 				unsigned int poll_flags);
+	int (*mmap_prepare)(struct vm_area_desc *);
 } __randomize_layout;
 
 /* Supports async buffered reads */
@@ -2206,7 +2207,7 @@ struct file_operations {
 /* Supports asynchronous lock callbacks */
 #define FOP_ASYNC_LOCK		((__force fop_flags_t)(1 << 6))
 /* File system supports uncached read/write buffered IO */
-#define FOP_DONTCACHE		0 /* ((__force fop_flags_t)(1 << 7)) */
+#define FOP_DONTCACHE		((__force fop_flags_t)(1 << 7))
 
 /* Wrap a directory iterator that needs exclusive inode access */
 int wrap_directory_iterator(struct file *, struct dir_context *,
@@ -2258,9 +2259,33 @@ struct inode_operations {
 	struct offset_ctx *(*get_offset_ctx)(struct inode *inode);
 } ____cacheline_aligned;
 
+/* Did the driver provide valid mmap hook configuration? */
+static inline bool file_has_valid_mmap_hooks(struct file *file)
+{
+	bool has_mmap = file->f_op->mmap;
+	bool has_mmap_prepare = file->f_op->mmap_prepare;
+
+	/* Hooks are mutually exclusive. */
+	if (WARN_ON_ONCE(has_mmap && has_mmap_prepare))
+		return false;
+	if (!has_mmap && !has_mmap_prepare)
+		return false;
+
+	return true;
+}
+
 static inline int call_mmap(struct file *file, struct vm_area_struct *vma)
 {
+	if (WARN_ON_ONCE(file->f_op->mmap_prepare))
+		return -EINVAL;
+
 	return file->f_op->mmap(file, vma);
+}
+
+static inline int __call_mmap_prepare(struct file *file,
+		struct vm_area_desc *desc)
+{
+	return file->f_op->mmap_prepare(desc);
 }
 
 extern ssize_t vfs_read(struct file *, char __user *, size_t, loff_t *);

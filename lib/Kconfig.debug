@@ -2153,18 +2153,12 @@ config ARCH_HAS_KCOV
 	  build and run with CONFIG_KCOV. This typically requires
 	  disabling instrumentation for some early boot code.
 
-config CC_HAS_SANCOV_TRACE_PC
-	def_bool $(cc-option,-fsanitize-coverage=trace-pc)
-
-
 config KCOV
 	bool "Code coverage for fuzzing"
 	depends on ARCH_HAS_KCOV
-	depends on CC_HAS_SANCOV_TRACE_PC || GCC_PLUGINS
 	depends on !ARCH_WANTS_NO_INSTR || HAVE_NOINSTR_HACK || \
 		   GCC_VERSION >= 120000 || CC_IS_CLANG
 	select DEBUG_FS
-	select GCC_PLUGIN_SANCOV if !CC_HAS_SANCOV_TRACE_PC
 	select OBJTOOL if HAVE_NOINSTR_HACK
 	help
 	  KCOV exposes kernel code coverage information in a form suitable
@@ -2574,8 +2568,7 @@ config TEST_BITOPS
 config TEST_VMALLOC
 	tristate "Test module for stress/performance analysis of vmalloc allocator"
 	default n
-       depends on MMU
-	depends on m
+	depends on MMU
 	help
 	  This builds the "test_vmalloc" module that should be used for
 	  stress and performance analysis. So, any new change for vmalloc
@@ -2878,9 +2871,7 @@ config STACKINIT_KUNIT_TEST
 	help
 	  Test if the kernel is zero-initializing stack variables and
 	  padding. Coverage is controlled by compiler flags,
-	  CONFIG_INIT_STACK_ALL_PATTERN, CONFIG_INIT_STACK_ALL_ZERO,
-	  CONFIG_GCC_PLUGIN_STRUCTLEAK, CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF,
-	  or CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL.
+	  CONFIG_INIT_STACK_ALL_PATTERN or CONFIG_INIT_STACK_ALL_ZERO.
 
 config FORTIFY_KUNIT_TEST
 	tristate "Test fortified str*() and mem*() function internals at runtime" if !KUNIT_ALL_TESTS
@@ -2991,13 +2982,7 @@ config TEST_DYNAMIC_DEBUG
 config TEST_KMOD
 	tristate "kmod stress tester"
 	depends on m
-	depends on NETDEVICES && NET_CORE && INET # for TUN
-	depends on BLOCK
-	depends on PAGE_SIZE_LESS_THAN_256KB # for BTRFS
 	select TEST_LKM
-	select XFS_FS
-	select TUN
-	select BTRFS_FS
 	help
 	  Test the kernel's module loading mechanism: kmod. kmod implements
 	  support to load modules using the Linux kernel's usermode helper.

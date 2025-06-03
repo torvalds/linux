@@ -3020,7 +3020,8 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, struct kvm_memory_slot *slot,
 	}
 
 	if (is_shadow_present_pte(*sptep)) {
-		if (prefetch)
+		if (prefetch && is_last_spte(*sptep, level) &&
+		    pfn == spte_to_pfn(*sptep))
 			return RET_PF_SPURIOUS;
 
 		/*
@@ -3034,7 +3035,7 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, struct kvm_memory_slot *slot,
 			child = spte_to_child_sp(pte);
 			drop_parent_pte(vcpu->kvm, child, sptep);
 			flush = true;
-		} else if (pfn != spte_to_pfn(*sptep)) {
+		} else if (WARN_ON_ONCE(pfn != spte_to_pfn(*sptep))) {
 			drop_spte(vcpu->kvm, sptep);
 			flush = true;
 		} else

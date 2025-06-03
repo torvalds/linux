@@ -7,7 +7,7 @@
  *
  *  zoned VM statistics
  *  Copyright (C) 2006 Silicon Graphics, Inc.,
- *		Christoph Lameter <christoph@lameter.com>
+ *		Christoph Lameter <cl@gentwo.org>
  *  Copyright (C) 2008-2014 Christoph Lameter
  */
 #include <linux/fs.h>
@@ -1347,6 +1347,8 @@ const char * const vmstat_text[] = {
 	"numa_hint_faults",
 	"numa_hint_faults_local",
 	"numa_pages_migrated",
+	"numa_task_migrated",
+	"numa_task_swapped",
 #endif
 #ifdef CONFIG_MIGRATION
 	"pgmigrate_success",
