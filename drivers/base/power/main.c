@@ -638,6 +638,13 @@ static int dpm_async_with_cleanup(struct device *dev, void *fn)
 static void dpm_async_resume_children(struct device *dev, async_func_t func)
 {
 	/*
+	 * Prevent racing with dpm_clear_async_state() during initial list
+	 * walks in dpm_noirq_resume_devices(), dpm_resume_early(), and
+	 * dpm_resume().
+	 */
+	guard(mutex)(&dpm_list_mtx);
+
+	/*
 	 * Start processing "async" children of the device unless it's been
 	 * started already for them.
 	 *
