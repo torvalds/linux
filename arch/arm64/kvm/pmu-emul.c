@@ -510,7 +510,7 @@ static void kvm_pmu_counter_increment(struct kvm_vcpu *vcpu,
 			continue;
 
 		/* Mark overflow */
-		__vcpu_sys_reg(vcpu, PMOVSSET_EL0) |= BIT(i);
+		__vcpu_rmw_sys_reg(vcpu, PMOVSSET_EL0, |=, BIT(i));
 
 		if (kvm_pmu_counter_can_chain(pmc))
 			kvm_pmu_counter_increment(vcpu, BIT(i + 1),
@@ -556,7 +556,7 @@ static void kvm_pmu_perf_overflow(struct perf_event *perf_event,
 	perf_event->attr.sample_period = period;
 	perf_event->hw.sample_period = period;
 
-	__vcpu_sys_reg(vcpu, PMOVSSET_EL0) |= BIT(idx);
+	__vcpu_rmw_sys_reg(vcpu, PMOVSSET_EL0, |=, BIT(idx));
 
 	if (kvm_pmu_counter_can_chain(pmc))
 		kvm_pmu_counter_increment(vcpu, BIT(idx + 1),
@@ -914,9 +914,9 @@ void kvm_vcpu_reload_pmu(struct kvm_vcpu *vcpu)
 {
 	u64 mask = kvm_pmu_implemented_counter_mask(vcpu);
 
-	__vcpu_sys_reg(vcpu, PMOVSSET_EL0) &= mask;
-	__vcpu_sys_reg(vcpu, PMINTENSET_EL1) &= mask;
-	__vcpu_sys_reg(vcpu, PMCNTENSET_EL0) &= mask;
+	__vcpu_rmw_sys_reg(vcpu, PMOVSSET_EL0, &=, mask);
+	__vcpu_rmw_sys_reg(vcpu, PMINTENSET_EL1, &=, mask);
+	__vcpu_rmw_sys_reg(vcpu, PMCNTENSET_EL0, &=, mask);
 
 	kvm_pmu_reprogram_counter_mask(vcpu, mask);
 }

@@ -70,8 +70,8 @@ static void __sysreg_save_vel2_state(struct kvm_vcpu *vcpu)
 		 */
 		val = read_sysreg_el1(SYS_CNTKCTL);
 		val &= CNTKCTL_VALID_BITS;
-		__vcpu_sys_reg(vcpu, CNTHCTL_EL2) &= ~CNTKCTL_VALID_BITS;
-		__vcpu_sys_reg(vcpu, CNTHCTL_EL2) |= val;
+		__vcpu_rmw_sys_reg(vcpu, CNTHCTL_EL2, &=, ~CNTKCTL_VALID_BITS);
+		__vcpu_rmw_sys_reg(vcpu, CNTHCTL_EL2, |=, val);
 	}
 
 	__vcpu_assign_sys_reg(vcpu, SP_EL2,	 read_sysreg(sp_el1));
