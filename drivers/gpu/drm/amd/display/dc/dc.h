@@ -235,6 +235,9 @@ struct lut3d_caps {
  * @shared_3d_lut: shared 3D LUT flag. Can be either DPP or MPC, but single
  * instance
  * @ogam_rom_caps: pre-definied curve caps for regamma 1D LUT
+ * @mcm_3d_lut_caps: HW support cap for MCM LUT memory
+ * @rmcm_3d_lut_caps: HW support cap for RMCM LUT memory
+ * @preblend: whether color manager supports preblend with MPC
  */
 struct mpc_color_caps {
 	uint16_t gamut_remap : 1;
