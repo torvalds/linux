@@ -68,9 +68,11 @@ struct dmub_notification;
 #define MAX_STREAMS 6
 #define MIN_VIEWPORT_SIZE 12
 #define MAX_NUM_EDP 2
-#define MAX_HOST_ROUTERS_NUM 3
-#define MAX_DPIA_PER_HOST_ROUTER 2
 #define MAX_SUPPORTED_FORMATS 7
+
+#define MAX_HOST_ROUTERS_NUM 3
+#define MAX_DPIA_PER_HOST_ROUTER 3
+#define MAX_DPIA_NUM  (MAX_HOST_ROUTERS_NUM * MAX_DPIA_PER_HOST_ROUTER)
 
 /* Display Core Interfaces */
 struct dc_versions {
@@ -2426,6 +2428,14 @@ void dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(
  */
 bool dc_link_dp_dpia_validate(struct dc *dc, const struct dc_stream_state *streams,
 		const unsigned int count);
+
+/*
+ * Calculates the DP tunneling bandwidth required for the stream timing
+ * and aggregates the stream bandwidth for the respective DP tunneling link
+ *
+ * return: dc_status
+ */
+enum dc_status dc_link_validate_dp_tunneling_bandwidth(const struct dc *dc, const struct dc_state *new_ctx);
 
 /* Sink Interfaces - A sink corresponds to a display output device */
 

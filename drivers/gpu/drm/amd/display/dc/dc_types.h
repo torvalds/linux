@@ -1378,4 +1378,11 @@ enum dc_validate_mode {
 	/* validate the mode and get the max state (voltage level) */
 	DC_VALIDATE_MODE_AND_STATE_INDEX = 2,
 };
+
+struct dc_validation_dpia_set {
+	const struct dc_link *link;
+	const struct dc_tunnel_settings *tunnel_settings;
+	uint32_t required_bw;
+};
+
 #endif /* DC_TYPES_H_ */
