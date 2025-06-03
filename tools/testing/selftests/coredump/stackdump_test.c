@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <assert.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <libgen.h>
@@ -19,6 +20,10 @@
 #define STACKDUMP_FILE "stack_values"
 #define STACKDUMP_SCRIPT "stackdump"
 #define NUM_THREAD_SPAWN 128
+
+#ifndef PAGE_SIZE
+#define PAGE_SIZE 4096
+#endif
 
 static void *do_nothing(void *)
 {
@@ -109,7 +114,7 @@ TEST_F_TIMEOUT(coredump, stackdump, 120)
 	unsigned long long stack;
 	char *test_dir, *line;
 	size_t line_length;
-	char buf[PATH_MAX];
+	char buf[PAGE_SIZE];
 	int ret, i, status;
 	FILE *file;
 	pid_t pid;
@@ -168,152 +173,163 @@ TEST_F_TIMEOUT(coredump, stackdump, 120)
 	fclose(file);
 }
 
+static int create_and_listen_unix_socket(const char *path)
+{
+	struct sockaddr_un addr = {
+		.sun_family = AF_UNIX,
+	};
+	assert(strlen(path) < sizeof(addr.sun_path) - 1);
+	strncpy(addr.sun_path, path, sizeof(addr.sun_path) - 1);
+	size_t addr_len =
+		offsetof(struct sockaddr_un, sun_path) + strlen(path) + 1;
+	int fd, ret;
+
+	fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+	if (fd < 0)
+		goto out;
+
+	ret = bind(fd, (const struct sockaddr *)&addr, addr_len);
+	if (ret < 0)
+		goto out;
+
+	ret = listen(fd, 1);
+	if (ret < 0)
+		goto out;
+
+	return fd;
+
+out:
+	if (fd >= 0)
+		close(fd);
+	return -1;
+}
+
+static bool set_core_pattern(const char *pattern)
+{
+	FILE *file;
+	int ret;
+
+	file = fopen("/proc/sys/kernel/core_pattern", "w");
+	if (!file)
+		return false;
+
+	ret = fprintf(file, "%s", pattern);
+	fclose(file);
+
+	return ret == strlen(pattern);
+}
+
+static int get_peer_pidfd(int fd)
+{
+	int fd_peer_pidfd;
+	socklen_t fd_peer_pidfd_len = sizeof(fd_peer_pidfd);
+	int ret = getsockopt(fd, SOL_SOCKET, SO_PEERPIDFD, &fd_peer_pidfd,
+			     &fd_peer_pidfd_len);
+	if (ret < 0) {
+		fprintf(stderr, "%m - Failed to retrieve peer pidfd for coredump socket connection\n");
+		return -1;
+	}
+	return fd_peer_pidfd;
+}
+
+static bool get_pidfd_info(int fd_peer_pidfd, struct pidfd_info *info)
+{
+	memset(info, 0, sizeof(*info));
+	info->mask = PIDFD_INFO_EXIT | PIDFD_INFO_COREDUMP;
+	return ioctl(fd_peer_pidfd, PIDFD_GET_INFO, info) == 0;
+}
+
+static void
+wait_and_check_coredump_server(pid_t pid_coredump_server,
+			       struct __test_metadata *const _metadata,
+			       FIXTURE_DATA(coredump)* self)
+{
+	int status;
+	waitpid(pid_coredump_server, &status, 0);
+	self->pid_coredump_server = -ESRCH;
+	ASSERT_TRUE(WIFEXITED(status));
+	ASSERT_EQ(WEXITSTATUS(status), 0);
+}
+
 TEST_F(coredump, socket)
 {
 	int pidfd, ret, status;
-	FILE *file;
 	pid_t pid, pid_coredump_server;
 	struct stat st;
 	struct pidfd_info info = {};
 	int ipc_sockets[2];
 	char c;
-	const struct sockaddr_un coredump_sk = {
-		.sun_family = AF_UNIX,
-		.sun_path = "/tmp/coredump.socket",
-	};
-	size_t coredump_sk_len = offsetof(struct sockaddr_un, sun_path) +
-				 sizeof("/tmp/coredump.socket");
+
+	ASSERT_TRUE(set_core_pattern("@/tmp/coredump.socket"));
 
 	ret = socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, ipc_sockets);
 	ASSERT_EQ(ret, 0);
 
-	file = fopen("/proc/sys/kernel/core_pattern", "w");
-	ASSERT_NE(file, NULL);
-
-	ret = fprintf(file, "@/tmp/coredump.socket");
-	ASSERT_EQ(ret, strlen("@/tmp/coredump.socket"));
-	ASSERT_EQ(fclose(file), 0);
-
 	pid_coredump_server = fork();
 	ASSERT_GE(pid_coredump_server, 0);
 	if (pid_coredump_server == 0) {
-		int fd_server, fd_coredump, fd_peer_pidfd, fd_core_file;
-		socklen_t fd_peer_pidfd_len;
+		int fd_server = -1, fd_coredump = -1, fd_peer_pidfd = -1, fd_core_file = -1;
+		int exit_code = EXIT_FAILURE;
 
 		close(ipc_sockets[0]);
 
-		fd_server = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+		fd_server = create_and_listen_unix_socket("/tmp/coredump.socket");
 		if (fd_server < 0)
-			_exit(EXIT_FAILURE);
+			goto out;
 
-		ret = bind(fd_server, (const struct sockaddr *)&coredump_sk, coredump_sk_len);
-		if (ret < 0) {
-			fprintf(stderr, "Failed to bind coredump socket\n");
-			close(fd_server);
-			close(ipc_sockets[1]);
-			_exit(EXIT_FAILURE);
-		}
-
-		ret = listen(fd_server, 1);
-		if (ret < 0) {
-			fprintf(stderr, "Failed to listen on coredump socket\n");
-			close(fd_server);
-			close(ipc_sockets[1]);
-			_exit(EXIT_FAILURE);
-		}
-
-		if (write_nointr(ipc_sockets[1], "1", 1) < 0) {
-			close(fd_server);
-			close(ipc_sockets[1]);
-			_exit(EXIT_FAILURE);
-		}
+		if (write_nointr(ipc_sockets[1], "1", 1) < 0)
+			goto out;
 
 		close(ipc_sockets[1]);
 
 		fd_coredump = accept4(fd_server, NULL, NULL, SOCK_CLOEXEC);
-		if (fd_coredump < 0) {
-			fprintf(stderr, "Failed to accept coredump socket connection\n");
-			close(fd_server);
-			_exit(EXIT_FAILURE);
-		}
+		if (fd_coredump < 0)
+			goto out;
 
-		fd_peer_pidfd_len = sizeof(fd_peer_pidfd);
-		ret = getsockopt(fd_coredump, SOL_SOCKET, SO_PEERPIDFD,
-				 &fd_peer_pidfd, &fd_peer_pidfd_len);
-		if (ret < 0) {
-			fprintf(stderr, "%m - Failed to retrieve peer pidfd for coredump socket connection\n");
-			close(fd_coredump);
-			close(fd_server);
-			_exit(EXIT_FAILURE);
-		}
+		fd_peer_pidfd = get_peer_pidfd(fd_coredump);
+		if (fd_peer_pidfd < 0)
+			goto out;
 
-		memset(&info, 0, sizeof(info));
-		info.mask = PIDFD_INFO_EXIT | PIDFD_INFO_COREDUMP;
-		ret = ioctl(fd_peer_pidfd, PIDFD_GET_INFO, &info);
-		if (ret < 0) {
-			fprintf(stderr, "Failed to retrieve pidfd info from peer pidfd for coredump socket connection\n");
-			close(fd_coredump);
-			close(fd_server);
-			close(fd_peer_pidfd);
-			_exit(EXIT_FAILURE);
-		}
+		if (!get_pidfd_info(fd_peer_pidfd, &info))
+			goto out;
 
-		if (!(info.mask & PIDFD_INFO_COREDUMP)) {
-			fprintf(stderr, "Missing coredump information from coredumping task\n");
-			close(fd_coredump);
-			close(fd_server);
-			close(fd_peer_pidfd);
-			_exit(EXIT_FAILURE);
-		}
+		if (!(info.mask & PIDFD_INFO_COREDUMP))
+			goto out;
 
-		if (!(info.coredump_mask & PIDFD_COREDUMPED)) {
-			fprintf(stderr, "Received connection from non-coredumping task\n");
-			close(fd_coredump);
-			close(fd_server);
-			close(fd_peer_pidfd);
-			_exit(EXIT_FAILURE);
-		}
+		if (!(info.coredump_mask & PIDFD_COREDUMPED))
+			goto out;
 
 		fd_core_file = creat("/tmp/coredump.file", 0644);
-		if (fd_core_file < 0) {
-			fprintf(stderr, "Failed to create coredump file\n");
-			close(fd_coredump);
-			close(fd_server);
-			close(fd_peer_pidfd);
-			_exit(EXIT_FAILURE);
-		}
+		if (fd_core_file < 0)
+			goto out;
 
 		for (;;) {
 			char buffer[4096];
 			ssize_t bytes_read, bytes_write;
 
 			bytes_read = read(fd_coredump, buffer, sizeof(buffer));
-			if (bytes_read < 0) {
-				close(fd_coredump);
-				close(fd_server);
-				close(fd_peer_pidfd);
-				close(fd_core_file);
-				_exit(EXIT_FAILURE);
-			}
+			if (bytes_read < 0)
+				goto out;
 
 			if (bytes_read == 0)
 				break;
 
 			bytes_write = write(fd_core_file, buffer, bytes_read);
-			if (bytes_read != bytes_write) {
-				close(fd_coredump);
-				close(fd_server);
-				close(fd_peer_pidfd);
-				close(fd_core_file);
-				_exit(EXIT_FAILURE);
-			}
+			if (bytes_read != bytes_write)
+				goto out;
 		}
 
-		close(fd_coredump);
-		close(fd_server);
-		close(fd_peer_pidfd);
-		close(fd_core_file);
-		_exit(EXIT_SUCCESS);
+		exit_code = EXIT_SUCCESS;
+out:
+		if (fd_core_file >= 0)
+			close(fd_core_file);
+		if (fd_peer_pidfd >= 0)
+			close(fd_peer_pidfd);
+		if (fd_coredump >= 0)
+			close(fd_coredump);
+		if (fd_server >= 0)
+			close(fd_server);
+		_exit(exit_code);
 	}
 	self->pid_coredump_server = pid_coredump_server;
 
@@ -333,47 +349,27 @@ TEST_F(coredump, socket)
 	ASSERT_TRUE(WIFSIGNALED(status));
 	ASSERT_TRUE(WCOREDUMP(status));
 
-	info.mask = PIDFD_INFO_EXIT | PIDFD_INFO_COREDUMP;
-	ASSERT_EQ(ioctl(pidfd, PIDFD_GET_INFO, &info), 0);
+	ASSERT_TRUE(get_pidfd_info(pidfd, &info));
 	ASSERT_GT((info.mask & PIDFD_INFO_COREDUMP), 0);
 	ASSERT_GT((info.coredump_mask & PIDFD_COREDUMPED), 0);
 
-	waitpid(pid_coredump_server, &status, 0);
-	self->pid_coredump_server = -ESRCH;
-	ASSERT_TRUE(WIFEXITED(status));
-	ASSERT_EQ(WEXITSTATUS(status), 0);
+	wait_and_check_coredump_server(pid_coredump_server, _metadata, self);
 
 	ASSERT_EQ(stat("/tmp/coredump.file", &st), 0);
 	ASSERT_GT(st.st_size, 0);
-	/*
-	 * We should somehow validate the produced core file.
-	 * For now just allow for visual inspection
-	 */
 	system("file /tmp/coredump.file");
 }
 
 TEST_F(coredump, socket_detect_userspace_client)
 {
 	int pidfd, ret, status;
-	FILE *file;
 	pid_t pid, pid_coredump_server;
 	struct stat st;
 	struct pidfd_info info = {};
 	int ipc_sockets[2];
 	char c;
-	const struct sockaddr_un coredump_sk = {
-		.sun_family = AF_UNIX,
-		.sun_path = "/tmp/coredump.socket",
-	};
-	size_t coredump_sk_len = offsetof(struct sockaddr_un, sun_path) +
-				 sizeof("/tmp/coredump.socket");
 
-	file = fopen("/proc/sys/kernel/core_pattern", "w");
-	ASSERT_NE(file, NULL);
-
-	ret = fprintf(file, "@/tmp/coredump.socket");
-	ASSERT_EQ(ret, strlen("@/tmp/coredump.socket"));
-	ASSERT_EQ(fclose(file), 0);
+	ASSERT_TRUE(set_core_pattern("@/tmp/coredump.socket"));
 
 	ret = socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, ipc_sockets);
 	ASSERT_EQ(ret, 0);
@@ -381,87 +377,46 @@ TEST_F(coredump, socket_detect_userspace_client)
 	pid_coredump_server = fork();
 	ASSERT_GE(pid_coredump_server, 0);
 	if (pid_coredump_server == 0) {
-		int fd_server, fd_coredump, fd_peer_pidfd;
-		socklen_t fd_peer_pidfd_len;
+		int fd_server = -1, fd_coredump = -1, fd_peer_pidfd = -1;
+		int exit_code = EXIT_FAILURE;
 
 		close(ipc_sockets[0]);
 
-		fd_server = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+		fd_server = create_and_listen_unix_socket("/tmp/coredump.socket");
 		if (fd_server < 0)
-			_exit(EXIT_FAILURE);
+			goto out;
 
-		ret = bind(fd_server, (const struct sockaddr *)&coredump_sk, coredump_sk_len);
-		if (ret < 0) {
-			fprintf(stderr, "Failed to bind coredump socket\n");
-			close(fd_server);
-			close(ipc_sockets[1]);
-			_exit(EXIT_FAILURE);
-		}
-
-		ret = listen(fd_server, 1);
-		if (ret < 0) {
-			fprintf(stderr, "Failed to listen on coredump socket\n");
-			close(fd_server);
-			close(ipc_sockets[1]);
-			_exit(EXIT_FAILURE);
-		}
-
-		if (write_nointr(ipc_sockets[1], "1", 1) < 0) {
-			close(fd_server);
-			close(ipc_sockets[1]);
-			_exit(EXIT_FAILURE);
-		}
+		if (write_nointr(ipc_sockets[1], "1", 1) < 0)
+			goto out;
 
 		close(ipc_sockets[1]);
 
 		fd_coredump = accept4(fd_server, NULL, NULL, SOCK_CLOEXEC);
-		if (fd_coredump < 0) {
-			fprintf(stderr, "Failed to accept coredump socket connection\n");
-			close(fd_server);
-			_exit(EXIT_FAILURE);
-		}
+		if (fd_coredump < 0)
+			goto out;
 
-		fd_peer_pidfd_len = sizeof(fd_peer_pidfd);
-		ret = getsockopt(fd_coredump, SOL_SOCKET, SO_PEERPIDFD,
-				 &fd_peer_pidfd, &fd_peer_pidfd_len);
-		if (ret < 0) {
-			fprintf(stderr, "%m - Failed to retrieve peer pidfd for coredump socket connection\n");
-			close(fd_coredump);
-			close(fd_server);
-			_exit(EXIT_FAILURE);
-		}
+		fd_peer_pidfd = get_peer_pidfd(fd_coredump);
+		if (fd_peer_pidfd < 0)
+			goto out;
 
-		memset(&info, 0, sizeof(info));
-		info.mask = PIDFD_INFO_EXIT | PIDFD_INFO_COREDUMP;
-		ret = ioctl(fd_peer_pidfd, PIDFD_GET_INFO, &info);
-		if (ret < 0) {
-			fprintf(stderr, "Failed to retrieve pidfd info from peer pidfd for coredump socket connection\n");
-			close(fd_coredump);
-			close(fd_server);
+		if (!get_pidfd_info(fd_peer_pidfd, &info))
+			goto out;
+
+		if (!(info.mask & PIDFD_INFO_COREDUMP))
+			goto out;
+
+		if (info.coredump_mask & PIDFD_COREDUMPED)
+			goto out;
+
+		exit_code = EXIT_SUCCESS;
+out:
+		if (fd_peer_pidfd >= 0)
 			close(fd_peer_pidfd);
-			_exit(EXIT_FAILURE);
-		}
-
-		if (!(info.mask & PIDFD_INFO_COREDUMP)) {
-			fprintf(stderr, "Missing coredump information from coredumping task\n");
+		if (fd_coredump >= 0)
 			close(fd_coredump);
+		if (fd_server >= 0)
 			close(fd_server);
-			close(fd_peer_pidfd);
-			_exit(EXIT_FAILURE);
-		}
-
-		if (info.coredump_mask & PIDFD_COREDUMPED) {
-			fprintf(stderr, "Received unexpected connection from coredumping task\n");
-			close(fd_coredump);
-			close(fd_server);
-			close(fd_peer_pidfd);
-			_exit(EXIT_FAILURE);
-		}
-
-		close(fd_coredump);
-		close(fd_server);
-		close(fd_peer_pidfd);
-		_exit(EXIT_SUCCESS);
+		_exit(exit_code);
 	}
 	self->pid_coredump_server = pid_coredump_server;
 
@@ -474,11 +429,17 @@ TEST_F(coredump, socket_detect_userspace_client)
 	if (pid == 0) {
 		int fd_socket;
 		ssize_t ret;
+		const struct sockaddr_un coredump_sk = {
+			.sun_family = AF_UNIX,
+			.sun_path = "/tmp/coredump.socket",
+		};
+		size_t coredump_sk_len =
+			offsetof(struct sockaddr_un, sun_path) +
+			sizeof("/tmp/coredump.socket");
 
 		fd_socket = socket(AF_UNIX, SOCK_STREAM, 0);
 		if (fd_socket < 0)
 			_exit(EXIT_FAILURE);
-
 
 		ret = connect(fd_socket, (const struct sockaddr *)&coredump_sk, coredump_sk_len);
 		if (ret < 0)
@@ -495,15 +456,11 @@ TEST_F(coredump, socket_detect_userspace_client)
 	ASSERT_TRUE(WIFEXITED(status));
 	ASSERT_EQ(WEXITSTATUS(status), 0);
 
-	info.mask = PIDFD_INFO_EXIT | PIDFD_INFO_COREDUMP;
-	ASSERT_EQ(ioctl(pidfd, PIDFD_GET_INFO, &info), 0);
+	ASSERT_TRUE(get_pidfd_info(pidfd, &info));
 	ASSERT_GT((info.mask & PIDFD_INFO_COREDUMP), 0);
 	ASSERT_EQ((info.coredump_mask & PIDFD_COREDUMPED), 0);
 
-	waitpid(pid_coredump_server, &status, 0);
-	self->pid_coredump_server = -ESRCH;
-	ASSERT_TRUE(WIFEXITED(status));
-	ASSERT_EQ(WEXITSTATUS(status), 0);
+	wait_and_check_coredump_server(pid_coredump_server, _metadata, self);
 
 	ASSERT_NE(stat("/tmp/coredump.file", &st), 0);
 	ASSERT_EQ(errno, ENOENT);
@@ -511,16 +468,10 @@ TEST_F(coredump, socket_detect_userspace_client)
 
 TEST_F(coredump, socket_enoent)
 {
-	int pidfd, ret, status;
-	FILE *file;
+	int pidfd, status;
 	pid_t pid;
 
-	file = fopen("/proc/sys/kernel/core_pattern", "w");
-	ASSERT_NE(file, NULL);
-
-	ret = fprintf(file, "@/tmp/coredump.socket");
-	ASSERT_EQ(ret, strlen("@/tmp/coredump.socket"));
-	ASSERT_EQ(fclose(file), 0);
+	ASSERT_TRUE(set_core_pattern("@/tmp/coredump.socket"));
 
 	pid = fork();
 	ASSERT_GE(pid, 0);
@@ -538,7 +489,6 @@ TEST_F(coredump, socket_enoent)
 TEST_F(coredump, socket_no_listener)
 {
 	int pidfd, ret, status;
-	FILE *file;
 	pid_t pid, pid_coredump_server;
 	int ipc_sockets[2];
 	char c;
@@ -549,44 +499,36 @@ TEST_F(coredump, socket_no_listener)
 	size_t coredump_sk_len = offsetof(struct sockaddr_un, sun_path) +
 				 sizeof("/tmp/coredump.socket");
 
+	ASSERT_TRUE(set_core_pattern("@/tmp/coredump.socket"));
+
 	ret = socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, ipc_sockets);
 	ASSERT_EQ(ret, 0);
-
-	file = fopen("/proc/sys/kernel/core_pattern", "w");
-	ASSERT_NE(file, NULL);
-
-	ret = fprintf(file, "@/tmp/coredump.socket");
-	ASSERT_EQ(ret, strlen("@/tmp/coredump.socket"));
-	ASSERT_EQ(fclose(file), 0);
 
 	pid_coredump_server = fork();
 	ASSERT_GE(pid_coredump_server, 0);
 	if (pid_coredump_server == 0) {
-		int fd_server;
+		int fd_server = -1;
+		int exit_code = EXIT_FAILURE;
 
 		close(ipc_sockets[0]);
 
 		fd_server = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 		if (fd_server < 0)
-			_exit(EXIT_FAILURE);
+			goto out;
 
 		ret = bind(fd_server, (const struct sockaddr *)&coredump_sk, coredump_sk_len);
-		if (ret < 0) {
-			fprintf(stderr, "Failed to bind coredump socket\n");
-			close(fd_server);
-			close(ipc_sockets[1]);
-			_exit(EXIT_FAILURE);
-		}
+		if (ret < 0)
+			goto out;
 
-		if (write_nointr(ipc_sockets[1], "1", 1) < 0) {
-			close(fd_server);
-			close(ipc_sockets[1]);
-			_exit(EXIT_FAILURE);
-		}
+		if (write_nointr(ipc_sockets[1], "1", 1) < 0)
+			goto out;
 
-		close(fd_server);
+		exit_code = EXIT_SUCCESS;
+out:
+		if (fd_server >= 0)
+			close(fd_server);
 		close(ipc_sockets[1]);
-		_exit(EXIT_SUCCESS);
+		_exit(exit_code);
 	}
 	self->pid_coredump_server = pid_coredump_server;
 
@@ -606,10 +548,7 @@ TEST_F(coredump, socket_no_listener)
 	ASSERT_TRUE(WIFSIGNALED(status));
 	ASSERT_FALSE(WCOREDUMP(status));
 
-	waitpid(pid_coredump_server, &status, 0);
-	self->pid_coredump_server = -ESRCH;
-	ASSERT_TRUE(WIFEXITED(status));
-	ASSERT_EQ(WEXITSTATUS(status), 0);
+	wait_and_check_coredump_server(pid_coredump_server, _metadata, self);
 }
 
 TEST_HARNESS_MAIN
