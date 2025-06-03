@@ -1427,12 +1427,12 @@ int bch2_journal_read(struct bch_fs *c,
 		return 0;
 	}
 
-	bch_info(c, "journal read done, replaying entries %llu-%llu",
-		 *last_seq, *blacklist_seq - 1);
-
+	printbuf_reset(&buf);
+	prt_printf(&buf, "journal read done, replaying entries %llu-%llu",
+		   *last_seq, *blacklist_seq - 1);
 	if (*start_seq != *blacklist_seq)
-		bch_info(c, "dropped unflushed entries %llu-%llu",
-			 *blacklist_seq, *start_seq - 1);
+		prt_printf(&buf, " (unflushed %llu-%llu)", *blacklist_seq, *start_seq - 1);
+	bch_info(c, "%s", buf.buf);
 
 	/* Drop blacklisted entries and entries older than last_seq: */
 	genradix_for_each(&c->journal_entries, radix_iter, _i) {
