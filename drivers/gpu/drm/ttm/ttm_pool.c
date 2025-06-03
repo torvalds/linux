@@ -1265,10 +1265,16 @@ int ttm_pool_debugfs(struct ttm_pool *pool, struct seq_file *m)
 }
 EXPORT_SYMBOL(ttm_pool_debugfs);
 
+/* Free average pool number of pages.  */
+#define TTM_SHRINKER_BATCH ((1 << (MAX_PAGE_ORDER / 2)) * NR_PAGE_ORDERS)
+
 /* Test the shrinker functions and dump the result */
 static int ttm_pool_debugfs_shrink_show(struct seq_file *m, void *data)
 {
-	struct shrink_control sc = { .gfp_mask = GFP_NOFS };
+	struct shrink_control sc = {
+		.gfp_mask = GFP_NOFS,
+		.nr_to_scan = TTM_SHRINKER_BATCH,
+	};
 
 	fs_reclaim_acquire(GFP_KERNEL);
 	seq_printf(m, "%lu/%lu\n", ttm_pool_shrinker_count(mm_shrinker, &sc),
@@ -1326,6 +1332,7 @@ int ttm_pool_mgr_init(unsigned long num_pages)
 
 	mm_shrinker->count_objects = ttm_pool_shrinker_count;
 	mm_shrinker->scan_objects = ttm_pool_shrinker_scan;
+	mm_shrinker->batch = TTM_SHRINKER_BATCH;
 	mm_shrinker->seeks = 1;
 
 	shrinker_register(mm_shrinker);
