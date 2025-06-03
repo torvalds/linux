@@ -7891,6 +7891,22 @@ static int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
 	int clock, bpp = 0;
 	bool is_y420 = false;
 
+	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+		struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
+		struct drm_display_mode *native_mode = &amdgpu_encoder->native_mode;
+		enum drm_mode_status result;
+
+		result = drm_crtc_helper_mode_valid_fixed(encoder->crtc, adjusted_mode, native_mode);
+		if (result != MODE_OK && dm_new_connector_state->scaling == RMX_OFF) {
+			drm_dbg_driver(encoder->dev,
+				       "mode %dx%d@%dHz is not native, enabling scaling\n",
+				       adjusted_mode->hdisplay, adjusted_mode->vdisplay,
+				       drm_mode_vrefresh(adjusted_mode));
+			dm_new_connector_state->scaling = RMX_FULL;
+		}
+		return 0;
+	}
+
 	if (!aconnector->mst_output_port)
 		return 0;
 
