@@ -1,9 +1,9 @@
 .. SPDX-License-Identifier: GPL-2.0
 .. include:: <isonum.txt>
 
-===================================
-Compute Express Link Memory Devices
-===================================
+===============================================
+Compute Express Link Driver Theory of Operation
+===============================================
 
 A Compute Express Link Memory Device is a CXL component that implements the
 CXL.mem protocol. It contains some amount of volatile memory, persistent memory,
@@ -14,8 +14,8 @@ that optionally define a device's contribution to an interleaved address
 range across multiple devices underneath a host-bridge or interleaved
 across host-bridges.
 
-CXL Bus: Theory of Operation
-============================
+The CXL Bus
+===========
 Similar to how a RAID driver takes disk objects and assembles them into a new
 logical device, the CXL subsystem is tasked to take PCIe and ACPI objects and
 assemble them into a CXL.mem decode topology. The need for runtime configuration
@@ -347,6 +347,9 @@ CXL Core
 .. kernel-doc:: drivers/cxl/cxl.h
    :internal:
 
+.. kernel-doc:: drivers/cxl/acpi.c
+   :identifiers: add_cxl_resources
+
 .. kernel-doc:: drivers/cxl/core/hdm.c
    :doc: cxl core hdm
 
@@ -371,11 +374,25 @@ CXL Core
 .. kernel-doc:: drivers/cxl/core/pmem.c
    :doc: cxl pmem
 
+.. kernel-doc:: drivers/cxl/core/pmem.c
+   :identifiers:
+
 .. kernel-doc:: drivers/cxl/core/regs.c
    :doc: cxl registers
 
+.. kernel-doc:: drivers/cxl/core/regs.c
+   :identifiers:
+
 .. kernel-doc:: drivers/cxl/core/mbox.c
    :doc: cxl mbox
+
+.. kernel-doc:: drivers/cxl/core/mbox.c
+   :identifiers:
+
+.. kernel-doc:: drivers/cxl/core/features.c
+   :doc: cxl features
+
+See :c:func:`devm_cxl_setup_features` for API details.
 
 CXL Regions
 -----------
