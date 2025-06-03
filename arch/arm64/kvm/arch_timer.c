@@ -1036,7 +1036,7 @@ void kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
 	if (vcpu_has_nv(vcpu)) {
 		struct arch_timer_offset *offs = &vcpu_vtimer(vcpu)->offset;
 
-		offs->vcpu_offset = &__vcpu_sys_reg(vcpu, CNTVOFF_EL2);
+		offs->vcpu_offset = __ctxt_sys_reg(&vcpu->arch.ctxt, CNTVOFF_EL2);
 		offs->vm_offset = &vcpu->kvm->arch.timer_data.poffset;
 	}
 
