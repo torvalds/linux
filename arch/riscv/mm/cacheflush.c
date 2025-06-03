@@ -172,7 +172,7 @@ static void set_icache_stale_mask(void)
 	stale_cpu = cpumask_test_cpu(cpu, mask);
 
 	cpumask_setall(mask);
-	cpumask_assign_cpu(cpu, mask, stale_cpu);
+	__assign_cpu(cpu, mask, stale_cpu);
 	put_cpu();
 }
 #endif
