@@ -295,8 +295,6 @@ properties:
           - mps,mp5990
             # Monolithic Power Systems Inc. digital step-down converter mp9941
           - mps,mp9941
-            # Monolithic Power Systems Inc. synchronous step-down converter mpq8785
-          - mps,mpq8785
             # Temperature sensor with integrated fan control
           - national,lm63
             # Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor
