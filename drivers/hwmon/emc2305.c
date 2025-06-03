@@ -28,6 +28,10 @@
 #define EMC2305_TACH_RANGE_MIN		480
 #define EMC2305_DEFAULT_OUTPUT		0x0
 #define EMC2305_DEFAULT_POLARITY	0x0
+#define EMC2305_REG_POLARITY		0x2a
+#define EMC2305_REG_DRIVE_PWM_OUT	0x2b
+#define EMC2305_OPEN_DRAIN		0x0
+#define EMC2305_PUSH_PULL		0x1
 
 #define EMC2305_PWM_DUTY2STATE(duty, max_state, pwm_max) \
 	DIV_ROUND_CLOSEST((duty) * (max_state), (pwm_max))
@@ -685,6 +689,16 @@ static int emc2305_probe(struct i2c_client *client)
 				return ret;
 		}
 	}
+
+	ret = i2c_smbus_write_byte_data(client, EMC2305_REG_DRIVE_PWM_OUT,
+					data->pwm_output_mask);
+	if (ret < 0)
+		dev_err(dev, "Failed to configure pwm output, using default\n");
+
+	ret = i2c_smbus_write_byte_data(client, EMC2305_REG_POLARITY,
+					data->pwm_polarity_mask);
+	if (ret < 0)
+		dev_err(dev, "Failed to configure pwm polarity, using default\n");
 
 	for (i = 0; i < data->pwm_num; i++) {
 		ret = i2c_smbus_write_byte_data(client, EMC2305_REG_FAN_MIN_DRIVE(i),
