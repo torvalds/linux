@@ -1063,7 +1063,7 @@ bool hid_ignore(struct hid_device *hdev)
 	}
 
 	if (hdev->type == HID_TYPE_USBMOUSE &&
-	    hid_match_id(hdev, hid_mouse_ignore_list))
+	    hdev->quirks & HID_QUIRK_IGNORE_MOUSE)
 		return true;
 
 	return !!hid_match_id(hdev, hid_ignore_list);
@@ -1266,6 +1266,9 @@ static unsigned long hid_gets_squirk(const struct hid_device *hdev)
 
 	if (hid_match_id(hdev, hid_ignore_list))
 		quirks |= HID_QUIRK_IGNORE;
+
+	if (hid_match_id(hdev, hid_mouse_ignore_list))
+		quirks |= HID_QUIRK_IGNORE_MOUSE;
 
 	if (hid_match_id(hdev, hid_have_special_driver))
 		quirks |= HID_QUIRK_HAVE_SPECIAL_DRIVER;
