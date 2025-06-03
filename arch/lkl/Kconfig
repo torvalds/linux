@@ -1,111 +1,110 @@
 config LKL
-       def_bool y
-       depends on !SMP && !COREDUMP && !SECCOMP && !UPROBES && !COMPAT && !USER_RETURN_NOTIFIER
-       select ARCH_THREAD_STACK_ALLOCATOR
-       select GENERIC_ATOMIC64
-       select GENERIC_HWEIGHT
-       select FLATMEM
-       select GENERIC_CLOCKEVENTS
-       select GENERIC_CPU_DEVICES
-       select NO_HZ_IDLE
-       select NO_PREEMPT
-       select ARCH_WANT_FRAME_POINTERS
-       select UACCESS_MEMCPY
-       select GENERIC_STRNCPY_FROM_USER
-       select GENERIC_STRNLEN_USER
-       select HAVE_ARCH_KASAN
-       select TRACING
+	def_bool y
+	depends on !SMP && !COREDUMP && !SECCOMP && !UPROBES && !COMPAT && !USER_RETURN_NOTIFIER
+	select ARCH_THREAD_STACK_ALLOCATOR
+	select GENERIC_ATOMIC64
+	select GENERIC_HWEIGHT
+	select FLATMEM
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_CPU_DEVICES
+	select NO_HZ_IDLE
+	select NO_PREEMPT
+	select ARCH_WANT_FRAME_POINTERS
+	select UACCESS_MEMCPY
+	select GENERIC_STRNCPY_FROM_USER
+	select GENERIC_STRNLEN_USER
+	select HAVE_ARCH_KASAN
+	select TRACING
 
 config LKL_FUZZING
-       bool "LLVM fuzzing instrumentation"
-       default n
-       help
-         This configuration option enables fuzzing instrumentation
-         for the Linux kernel source files to enable coverage-guided
-         fuzzing. At the moment LKL supports libFuzzer fuzzing
-         engine only.
+	bool "LLVM fuzzing instrumentation"
+	default n
+	help
+	  This configuration option enables fuzzing instrumentation
+	  for the Linux kernel source files to enable coverage-guided
+	  fuzzing. At the moment LKL supports libFuzzer fuzzing
+	  engine only.
 
 config LKL_LINE_COV
-       bool "Code coverage instrumentation for fuzzers"
-       depends on LKL_FUZZING && CC_IS_CLANG
-       default n
-       help
-         This configuration option enables line code coverage
-         instrumentation for the Linux kernel to generate fuzzing
-         code coverage reports. When this option is enabled the
-         kernel source files are built with LLVM SanitizerCoverage
-         instrumentation.
+	bool "Code coverage instrumentation for fuzzers"
+	depends on LKL_FUZZING && CC_IS_CLANG
+	default n
+	help
+	  This configuration option enables line code coverage
+	  instrumentation for the Linux kernel to generate fuzzing
+	  code coverage reports. When this option is enabled the
+	  kernel source files are built with LLVM SanitizerCoverage
+	  instrumentation.
 
 config OUTPUT_FORMAT
-       string "Output format"
-       default ""
+	string "Output format"
+	default ""
 
 config ARCH_DMA_ADDR_T_64BIT
-       def_bool 64BIT
+	def_bool 64BIT
 
 config PHYS_ADDR_T_64BIT
-       def_bool 64BIT
+	def_bool 64BIT
 
 config 64BIT
-       bool "64bit kernel"
-       default n
+	bool "64bit kernel"
+	default n
 
 config MMU
-       bool "LKL MMU implementation"
-       depends on 64BIT
-       default n
+	bool "LKL MMU implementation"
+	depends on 64BIT
+	default n
 
 if MMU
 config PGTABLE_LEVELS
-       int
-       default 3
+	int
+	default 3
 
 config LKL_MEMORY_START
-       hex
-       default 0x50000000
-       help
-         Base address of kernel virtual address space for LKL. No particular
-         reason for picking this specific value. It is assumed that the host
-         mmap is able to map requested amount of memory at this address.
-         STACK_TOP and VMALLOC_START values depend on it.
-
+	hex
+	default 0x50000000
+	help
+	  Base address of kernel virtual address space for LKL. No particular
+	  reason for picking this specific value. It is assumed that the host
+	  mmap is able to map requested amount of memory at this address.
+	  STACK_TOP and VMALLOC_START values depend on it.
 
 config LKL_TASK_UNMAPPED_BASE
-       hex
-       default 0x100000
-       help
-         Starting virtual address for LKL user-space mmap. It is assumed that
-         the host mmap is able to map requested amount of memory starting from
-         this address.
+	hex
+	default 0x100000
+	help
+	  Starting virtual address for LKL user-space mmap. It is assumed that
+	  the host mmap is able to map requested amount of memory starting from
+	  this address.
 
 config LKL_MMU_KUNIT_TEST
-       bool "Kunit tests for LKL MMU"
-       default n
-       depends on KUNIT
-       help
-         Kunit tests to test correctness of MMU-related kernel interfaces (such
-         as vmalloc, for example) which are difficult to test in user-space.
+	bool "Kunit tests for LKL MMU"
+	default n
+	depends on KUNIT
+	help
+	  Kunit tests to test correctness of MMU-related kernel interfaces (such
+	  as vmalloc, for example) which are difficult to test in user-space.
 endif
 
 config COREDUMP
-       def_bool n
+	def_bool n
 
 config CPU_BIG_ENDIAN
-       bool "Big-endian kernel"
-       default n
+	bool "Big-endian kernel"
+	default n
 
 config GENERIC_CSUM
-       def_bool y
+	def_bool y
 
 config GENERIC_HWEIGHT
-       def_bool y
+	def_bool y
 
 config NO_IOPORT_MAP
-       def_bool y
+	def_bool y
 
 config HZ
-        int
-        default 100
+	int
+	default 100
 
 config CONSOLE_LOGLEVEL_QUIET
 	int "quiet console loglevel (1-15)"
@@ -131,16 +130,16 @@ config RAID6_PQ_BENCHMARK
 	default n
 
 config STACKTRACE_SUPPORT
-       def_bool y
+	def_bool y
 
 if KASAN
 config KASAN_SHADOW_OFFSET
-       hex "KASAN shadow offset"
-       default "0"
+	hex "KASAN shadow offset"
+	default "0"
 
 config KASAN_SHADOW_SIZE
-       hex "KASAN shadow size"
-       default "0"
+	hex "KASAN shadow size"
+	default "0"
 endif
 
 config BUILTIN_CMDLINE
