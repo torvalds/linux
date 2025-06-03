@@ -138,6 +138,7 @@ found:
 		goto retry;
 }
 
+#ifdef CONFIG_NUMA
 /*
  * Tracks nodes that have not yet been visited when searching for an idle
  * CPU across all available nodes.
@@ -186,6 +187,13 @@ static s32 pick_idle_cpu_from_online_nodes(const struct cpumask *cpus_allowed, i
 
 	return cpu;
 }
+#else
+static inline s32
+pick_idle_cpu_from_online_nodes(const struct cpumask *cpus_allowed, int node, u64 flags)
+{
+	return -EBUSY;
+}
+#endif
 
 /*
  * Find an idle CPU in the system, starting from @node.
