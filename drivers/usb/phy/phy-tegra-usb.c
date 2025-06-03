@@ -711,58 +711,6 @@ static int utmi_phy_power_off(struct tegra_usb_phy *phy)
 	return utmip_pad_power_off(phy);
 }
 
-static void utmi_phy_preresume(struct tegra_usb_phy *phy)
-{
-	void __iomem *base = phy->regs;
-	u32 val;
-
-	val = readl_relaxed(base + UTMIP_TX_CFG0);
-	val |= UTMIP_HS_DISCON_DISABLE;
-	writel_relaxed(val, base + UTMIP_TX_CFG0);
-}
-
-static void utmi_phy_postresume(struct tegra_usb_phy *phy)
-{
-	void __iomem *base = phy->regs;
-	u32 val;
-
-	val = readl_relaxed(base + UTMIP_TX_CFG0);
-	val &= ~UTMIP_HS_DISCON_DISABLE;
-	writel_relaxed(val, base + UTMIP_TX_CFG0);
-}
-
-static void utmi_phy_restore_start(struct tegra_usb_phy *phy,
-				   enum tegra_usb_phy_port_speed port_speed)
-{
-	void __iomem *base = phy->regs;
-	u32 val;
-
-	val = readl_relaxed(base + UTMIP_MISC_CFG0);
-	val &= ~UTMIP_DPDM_OBSERVE_SEL(~0);
-	if (port_speed == TEGRA_USB_PHY_PORT_SPEED_LOW)
-		val |= UTMIP_DPDM_OBSERVE_SEL_FS_K;
-	else
-		val |= UTMIP_DPDM_OBSERVE_SEL_FS_J;
-	writel_relaxed(val, base + UTMIP_MISC_CFG0);
-	usleep_range(1, 10);
-
-	val = readl_relaxed(base + UTMIP_MISC_CFG0);
-	val |= UTMIP_DPDM_OBSERVE;
-	writel_relaxed(val, base + UTMIP_MISC_CFG0);
-	usleep_range(10, 100);
-}
-
-static void utmi_phy_restore_end(struct tegra_usb_phy *phy)
-{
-	void __iomem *base = phy->regs;
-	u32 val;
-
-	val = readl_relaxed(base + UTMIP_MISC_CFG0);
-	val &= ~UTMIP_DPDM_OBSERVE;
-	writel_relaxed(val, base + UTMIP_MISC_CFG0);
-	usleep_range(10, 100);
-}
-
 static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 {
 	void __iomem *base = phy->regs;
@@ -1122,43 +1070,6 @@ disable_clk:
 
 	return err;
 }
-
-void tegra_usb_phy_preresume(struct usb_phy *u_phy)
-{
-	struct tegra_usb_phy *phy = to_tegra_usb_phy(u_phy);
-
-	if (!phy->is_ulpi_phy)
-		utmi_phy_preresume(phy);
-}
-EXPORT_SYMBOL_GPL(tegra_usb_phy_preresume);
-
-void tegra_usb_phy_postresume(struct usb_phy *u_phy)
-{
-	struct tegra_usb_phy *phy = to_tegra_usb_phy(u_phy);
-
-	if (!phy->is_ulpi_phy)
-		utmi_phy_postresume(phy);
-}
-EXPORT_SYMBOL_GPL(tegra_usb_phy_postresume);
-
-void tegra_ehci_phy_restore_start(struct usb_phy *u_phy,
-				  enum tegra_usb_phy_port_speed port_speed)
-{
-	struct tegra_usb_phy *phy = to_tegra_usb_phy(u_phy);
-
-	if (!phy->is_ulpi_phy)
-		utmi_phy_restore_start(phy, port_speed);
-}
-EXPORT_SYMBOL_GPL(tegra_ehci_phy_restore_start);
-
-void tegra_ehci_phy_restore_end(struct usb_phy *u_phy)
-{
-	struct tegra_usb_phy *phy = to_tegra_usb_phy(u_phy);
-
-	if (!phy->is_ulpi_phy)
-		utmi_phy_restore_end(phy);
-}
-EXPORT_SYMBOL_GPL(tegra_ehci_phy_restore_end);
 
 static int read_utmi_param(struct platform_device *pdev, const char *param,
 			   u8 *dest)
