@@ -2392,11 +2392,16 @@ static int
 add_lease_context(struct TCP_Server_Info *server,
 		  struct smb2_create_req *req,
 		  struct kvec *iov,
-		  unsigned int *num_iovec, u8 *lease_key, __u8 *oplock)
+		  unsigned int *num_iovec,
+		  u8 *lease_key,
+		  __u8 *oplock,
+		  u8 *parent_lease_key,
+		  __le32 flags)
 {
 	unsigned int num = *num_iovec;
 
-	iov[num].iov_base = server->ops->create_lease_buf(lease_key, *oplock);
+	iov[num].iov_base = server->ops->create_lease_buf(lease_key, *oplock,
+							  parent_lease_key, flags);
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
 	iov[num].iov_len = server->vals->create_lease_size;
@@ -3069,7 +3074,9 @@ SMB2_open_init(struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 		req->RequestedOplockLevel = *oplock; /* no srv lease support */
 	else {
 		rc = add_lease_context(server, req, iov, &n_iov,
-				       oparms->fid->lease_key, oplock);
+				       oparms->fid->lease_key, oplock,
+				       oparms->fid->parent_lease_key,
+				       oparms->lease_flags);
 		if (rc)
 			return rc;
 	}
@@ -5907,71 +5914,6 @@ replay_again:
 		copy_posix_fs_info_to_kstatfs(info, fsdata);
 
 posix_qfsinf_exit:
-	free_rsp_buf(resp_buftype, rsp_iov.iov_base);
-
-	if (is_replayable_error(rc) &&
-	    smb2_should_replay(tcon, &retries, &cur_sleep))
-		goto replay_again;
-
-	return rc;
-}
-
-int
-SMB2_QFS_info(const unsigned int xid, struct cifs_tcon *tcon,
-	      u64 persistent_fid, u64 volatile_fid, struct kstatfs *fsdata)
-{
-	struct smb_rqst rqst;
-	struct smb2_query_info_rsp *rsp = NULL;
-	struct kvec iov;
-	struct kvec rsp_iov;
-	int rc = 0;
-	int resp_buftype;
-	struct cifs_ses *ses = tcon->ses;
-	struct TCP_Server_Info *server;
-	struct smb2_fs_full_size_info *info = NULL;
-	int flags = 0;
-	int retries = 0, cur_sleep = 1;
-
-replay_again:
-	/* reinitialize for possible replay */
-	flags = 0;
-	server = cifs_pick_channel(ses);
-
-	rc = build_qfs_info_req(&iov, tcon, server,
-				FS_FULL_SIZE_INFORMATION,
-				sizeof(struct smb2_fs_full_size_info),
-				persistent_fid, volatile_fid);
-	if (rc)
-		return rc;
-
-	if (smb3_encryption_required(tcon))
-		flags |= CIFS_TRANSFORM_REQ;
-
-	memset(&rqst, 0, sizeof(struct smb_rqst));
-	rqst.rq_iov = &iov;
-	rqst.rq_nvec = 1;
-
-	if (retries)
-		smb2_set_replay(server, &rqst);
-
-	rc = cifs_send_recv(xid, ses, server,
-			    &rqst, &resp_buftype, flags, &rsp_iov);
-	free_qfs_info_req(&iov);
-	if (rc) {
-		cifs_stats_fail_inc(tcon, SMB2_QUERY_INFO_HE);
-		goto qfsinf_exit;
-	}
-	rsp = (struct smb2_query_info_rsp *)rsp_iov.iov_base;
-
-	info = (struct smb2_fs_full_size_info *)(
-		le16_to_cpu(rsp->OutputBufferOffset) + (char *)rsp);
-	rc = smb2_validate_iov(le16_to_cpu(rsp->OutputBufferOffset),
-			       le32_to_cpu(rsp->OutputBufferLength), &rsp_iov,
-			       sizeof(struct smb2_fs_full_size_info));
-	if (!rc)
-		smb2_copy_fs_info_to_kstatfs(info, fsdata);
-
-qfsinf_exit:
 	free_rsp_buf(resp_buftype, rsp_iov.iov_base);
 
 	if (is_replayable_error(rc) &&

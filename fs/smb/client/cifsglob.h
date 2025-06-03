@@ -556,7 +556,7 @@ struct smb_version_operations {
 	void (*set_oplock_level)(struct cifsInodeInfo *cinode, __u32 oplock, __u16 epoch,
 				 bool *purge_cache);
 	/* create lease context buffer for CREATE request */
-	char * (*create_lease_buf)(u8 *lease_key, u8 oplock);
+	char * (*create_lease_buf)(u8 *lease_key, u8 oplock, u8 *parent_lease_key, __le32 le_flags);
 	/* parse lease context buffer and return oplock/epoch info */
 	__u8 (*parse_lease_buf)(void *buf, __u16 *epoch, char *lkey);
 	ssize_t (*copychunk_range)(const unsigned int,
@@ -773,6 +773,7 @@ struct TCP_Server_Info {
 	char workstation_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
 	__u32 sequence_number; /* for signing, protected by srv_mutex */
 	__u32 reconnect_instance; /* incremented on each reconnect */
+	__le32 session_key_id; /* retrieved from negotiate response and send in session setup request */
 	struct session_key session_key;
 	unsigned long lstrp; /* when we got last response from this server */
 	struct cifs_secmech secmech; /* crypto sec mech functs, descriptors */
@@ -1441,6 +1442,7 @@ struct cifs_open_parms {
 	bool reconnect:1;
 	bool replay:1; /* indicates that this open is for a replay */
 	struct kvec *ea_cctx;
+	__le32 lease_flags;
 };
 
 struct cifs_fid {
@@ -1448,6 +1450,7 @@ struct cifs_fid {
 	__u64 persistent_fid;	/* persist file id for smb2 */
 	__u64 volatile_fid;	/* volatile file id for smb2 */
 	__u8 lease_key[SMB2_LEASE_KEY_SIZE];	/* lease key for smb2 */
+	__u8 parent_lease_key[SMB2_LEASE_KEY_SIZE];
 	__u8 create_guid[16];
 	__u32 access;
 	struct cifs_pending_open *pending_open;
@@ -1988,8 +1991,7 @@ require use of the stronger protocol */
  * TCP_Server_Info->		TCP_Server_Info			cifs_get_tcp_session
  * reconnect_mutex
  * TCP_Server_Info->srv_mutex	TCP_Server_Info			cifs_get_tcp_session
- * cifs_ses->session_mutex		cifs_ses		sesInfoAlloc
- *				cifs_tcon
+ * cifs_ses->session_mutex	cifs_ses			sesInfoAlloc
  * cifs_tcon->open_file_lock	cifs_tcon->openFileList		tconInfoAlloc
  *				cifs_tcon->pending_opens
  * cifs_tcon->stat_lock		cifs_tcon->bytes_read		tconInfoAlloc
@@ -2008,21 +2010,25 @@ require use of the stronger protocol */
  *				->oplock_credits
  *				->reconnect_instance
  * cifs_ses->ses_lock		(anything that is not protected by another lock and can change)
+ *								sesInfoAlloc
  * cifs_ses->iface_lock		cifs_ses->iface_list		sesInfoAlloc
  *				->iface_count
  *				->iface_last_update
- * cifs_ses->chan_lock		cifs_ses->chans
+ * cifs_ses->chan_lock		cifs_ses->chans			sesInfoAlloc
  *				->chans_need_reconnect
  *				->chans_in_reconnect
  * cifs_tcon->tc_lock		(anything that is not protected by another lock and can change)
+ *								tcon_info_alloc
  * inode->i_rwsem, taken by fs/netfs/locking.c e.g. should be taken before cifsInodeInfo locks
  * cifsInodeInfo->open_file_lock	cifsInodeInfo->openFileList	cifs_alloc_inode
  * cifsInodeInfo->writers_lock	cifsInodeInfo->writers		cifsInodeInfo_alloc
  * cifsInodeInfo->lock_sem	cifsInodeInfo->llist		cifs_init_once
  *				->can_cache_brlcks
  * cifsInodeInfo->deferred_lock	cifsInodeInfo->deferred_closes	cifsInodeInfo_alloc
- * cached_fids->cfid_list_lock	cifs_tcon->cfids->entries	 init_cached_dirs
- * cifsFileInfo->fh_mutex		cifsFileInfo			cifs_new_fileinfo
+ * cached_fids->cfid_list_lock	cifs_tcon->cfids->entries	init_cached_dirs
+ * cached_fid->fid_lock		(anything that is not protected by another lock and can change)
+ *								init_cached_dir
+ * cifsFileInfo->fh_mutex	cifsFileInfo			cifs_new_fileinfo
  * cifsFileInfo->file_info_lock	cifsFileInfo->count		cifs_new_fileinfo
  *				->invalidHandle			initiate_cifs_search
  *				->oplock_break_cancelled
