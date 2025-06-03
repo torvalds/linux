@@ -6651,6 +6651,8 @@ struct bpf_link_info {
 		struct {
 			__aligned_u64 tp_name; /* in/out: tp_name buffer ptr */
 			__u32 tp_name_len;     /* in/out: tp_name buffer len */
+			__u32 :32;
+			__u64 cookie;
 		} raw_tracepoint;
 		struct {
 			__u32 attach_type;
