@@ -11,7 +11,7 @@ program must enforce its own synchronization with the unprivileged fence.i
 instruction.
 
 CMODX in the Kernel Space
----------------------
+-------------------------
 
 Dynamic ftrace
 ---------------------
@@ -40,7 +40,7 @@ pacthable function. The metadata is resolved at the first trampoline, then the
 execution can be derect to another custom trampoline.
 
 CMODX in the User Space
----------------------
+-----------------------
 
 Though fence.i is an unprivileged instruction, the default Linux ABI prohibits
 the use of fence.i in userspace applications. At any point the scheduler may
