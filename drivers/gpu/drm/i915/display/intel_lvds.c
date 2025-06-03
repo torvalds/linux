@@ -37,9 +37,9 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
-#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_backlight.h"
@@ -87,13 +87,12 @@ static struct intel_lvds_encoder *to_lvds_encoder(struct intel_encoder *encoder)
 bool intel_lvds_port_enabled(struct intel_display *display,
 			     i915_reg_t lvds_reg, enum pipe *pipe)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	u32 val;
 
 	val = intel_de_read(display, lvds_reg);
 
 	/* asserts want to know the pipe even if the port is disabled */
-	if (HAS_PCH_CPT(i915))
+	if (HAS_PCH_CPT(display))
 		*pipe = REG_FIELD_GET(LVDS_PIPE_SEL_MASK_CPT, val);
 	else
 		*pipe = REG_FIELD_GET(LVDS_PIPE_SEL_MASK, val);
@@ -243,13 +242,12 @@ static void intel_pre_enable_lvds(struct intel_atomic_state *state,
 {
 	struct intel_display *display = to_intel_display(state);
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 	enum pipe pipe = crtc->pipe;
 	u32 temp;
 
-	if (HAS_PCH_SPLIT(i915)) {
+	if (HAS_PCH_SPLIT(display)) {
 		assert_fdi_rx_pll_disabled(display, pipe);
 		assert_shared_dpll_disabled(display, crtc_state->shared_dpll);
 	} else {
@@ -261,7 +259,7 @@ static void intel_pre_enable_lvds(struct intel_atomic_state *state,
 	temp = lvds_encoder->init_lvds_val;
 	temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
 
-	if (HAS_PCH_CPT(i915)) {
+	if (HAS_PCH_CPT(display)) {
 		temp &= ~LVDS_PIPE_SEL_MASK_CPT;
 		temp |= LVDS_PIPE_SEL_CPT(pipe);
 	} else {
@@ -421,7 +419,6 @@ static int intel_lvds_compute_config(struct intel_encoder *encoder,
 				     struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
 	struct intel_connector *connector = lvds_encoder->attached_connector;
 	struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
@@ -435,7 +432,7 @@ static int intel_lvds_compute_config(struct intel_encoder *encoder,
 		return -EINVAL;
 	}
 
-	if (HAS_PCH_SPLIT(i915)) {
+	if (HAS_PCH_SPLIT(display)) {
 		crtc_state->has_pch_encoder = true;
 		if (!intel_fdi_compute_pipe_bpp(crtc_state))
 			return -EINVAL;
@@ -798,7 +795,6 @@ bool intel_is_dual_link_lvds(struct intel_display *display)
 static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 {
 	struct intel_display *display = to_intel_display(&lvds_encoder->base);
-	struct drm_i915_private *i915 = to_i915(lvds_encoder->base.base.dev);
 	struct intel_connector *connector = lvds_encoder->attached_connector;
 	const struct drm_display_mode *fixed_mode =
 		intel_panel_preferred_fixed_mode(connector);
@@ -822,7 +818,7 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 	 * register is uninitialized.
 	 */
 	val = intel_de_read(display, lvds_encoder->reg);
-	if (HAS_PCH_CPT(i915))
+	if (HAS_PCH_CPT(display))
 		val &= ~(LVDS_DETECTED | LVDS_PIPE_SEL_MASK_CPT);
 	else
 		val &= ~(LVDS_DETECTED | LVDS_PIPE_SEL_MASK);
@@ -846,7 +842,6 @@ static void intel_lvds_add_properties(struct drm_connector *connector)
  */
 void intel_lvds_init(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_lvds_encoder *lvds_encoder;
 	struct intel_connector *connector;
 	const struct drm_edid *drm_edid;
@@ -868,14 +863,14 @@ void intel_lvds_init(struct intel_display *display)
 		return;
 	}
 
-	if (HAS_PCH_SPLIT(i915))
+	if (HAS_PCH_SPLIT(display))
 		lvds_reg = PCH_LVDS;
 	else
 		lvds_reg = LVDS;
 
 	lvds = intel_de_read(display, lvds_reg);
 
-	if (HAS_PCH_SPLIT(i915)) {
+	if (HAS_PCH_SPLIT(display)) {
 		if ((lvds & LVDS_DETECTED) == 0)
 			return;
 	}
@@ -915,7 +910,7 @@ void intel_lvds_init(struct intel_display *display)
 	encoder->enable = intel_enable_lvds;
 	encoder->pre_enable = intel_pre_enable_lvds;
 	encoder->compute_config = intel_lvds_compute_config;
-	if (HAS_PCH_SPLIT(i915)) {
+	if (HAS_PCH_SPLIT(display)) {
 		encoder->disable = pch_disable_lvds;
 		encoder->post_disable = pch_post_disable_lvds;
 	} else {

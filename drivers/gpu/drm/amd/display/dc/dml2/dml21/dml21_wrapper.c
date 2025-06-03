@@ -12,6 +12,8 @@
 #include "dml21_translation_helper.h"
 #include "dml2_dc_resource_mgmt.h"
 
+#define INVALID -1
+
 static bool dml21_allocate_memory(struct dml2_context **dml_ctx)
 {
 	*dml_ctx = vzalloc(sizeof(struct dml2_context));
@@ -208,10 +210,40 @@ static void dml21_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_sta
 	}
 }
 
+static void dml21_prepare_mcache_params(struct dml2_context *dml_ctx, struct dc_state *context, struct dc_mcache_params *mcache_params)
+{
+	int dc_plane_idx = 0;
+	int dml_prog_idx, stream_idx, plane_idx;
+	struct dml2_per_plane_programming *pln_prog = NULL;
+
+	for (stream_idx = 0; stream_idx < context->stream_count; stream_idx++) {
+		for (plane_idx = 0; plane_idx < context->stream_status[stream_idx].plane_count; plane_idx++) {
+			dml_prog_idx = map_plane_to_dml21_display_cfg(dml_ctx, context->streams[stream_idx]->stream_id, context->stream_status[stream_idx].plane_states[plane_idx], context);
+			if (dml_prog_idx == INVALID) {
+				continue;
+			}
+			pln_prog = &dml_ctx->v21.mode_programming.programming->plane_programming[dml_prog_idx];
+			mcache_params[dc_plane_idx].valid = pln_prog->mcache_allocation.valid;
+			mcache_params[dc_plane_idx].num_mcaches_plane0 = pln_prog->mcache_allocation.num_mcaches_plane0;
+			mcache_params[dc_plane_idx].num_mcaches_plane1 = pln_prog->mcache_allocation.num_mcaches_plane1;
+			mcache_params[dc_plane_idx].requires_dedicated_mall_mcache = pln_prog->mcache_allocation.requires_dedicated_mall_mcache;
+			mcache_params[dc_plane_idx].last_slice_sharing.plane0_plane1 = pln_prog->mcache_allocation.last_slice_sharing.plane0_plane1;
+			memcpy(mcache_params[dc_plane_idx].mcache_x_offsets_plane0,
+				pln_prog->mcache_allocation.mcache_x_offsets_plane0,
+				sizeof(int) * (DML2_MAX_MCACHES + 1));
+			memcpy(mcache_params[dc_plane_idx].mcache_x_offsets_plane1,
+				pln_prog->mcache_allocation.mcache_x_offsets_plane1,
+				sizeof(int) * (DML2_MAX_MCACHES + 1));
+			dc_plane_idx++;
+		}
+	}
+}
+
 static bool dml21_mode_check_and_programming(const struct dc *in_dc, struct dc_state *context, struct dml2_context *dml_ctx)
 {
 	bool result = false;
 	struct dml2_build_mode_programming_in_out *mode_programming = &dml_ctx->v21.mode_programming;
+	struct dc_mcache_params mcache_params[MAX_PLANES] = {0};
 
 	memset(&dml_ctx->v21.display_config, 0, sizeof(struct dml2_display_cfg));
 	memset(&dml_ctx->v21.dml_to_dc_pipe_mapping, 0, sizeof(struct dml2_dml_to_dc_pipe_mapping));
@@ -234,7 +266,9 @@ static bool dml21_mode_check_and_programming(const struct dc *in_dc, struct dc_s
 	if (!result)
 		return false;
 
+	DC_FP_START();
 	result = dml2_build_mode_programming(mode_programming);
+	DC_FP_END();
 	if (!result)
 		return false;
 
@@ -244,6 +278,14 @@ static bool dml21_mode_check_and_programming(const struct dc *in_dc, struct dc_s
 		dml2_map_dc_pipes(dml_ctx, context, NULL, &dml_ctx->v21.dml_to_dc_pipe_mapping, in_dc->current_state);
 		/* if subvp phantoms are present, expand them into dc context */
 		dml21_handle_phantom_streams_planes(in_dc, context, dml_ctx);
+
+		if (in_dc->res_pool->funcs->program_mcache_pipe_config) {
+			//Prepare mcache params for each plane based on mcache output from DML
+			dml21_prepare_mcache_params(dml_ctx, context, mcache_params);
+
+			//populate mcache regs to each pipe
+			dml_ctx->config.callbacks.allocate_mcache(context, mcache_params);
+		}
 	}
 
 	/* Copy DML CLK, WM and REG outputs to bandwidth context */
@@ -277,7 +319,9 @@ static bool dml21_check_mode_support(const struct dc *in_dc, struct dc_state *co
 	mode_support->dml2_instance = dml_init->dml2_instance;
 	dml21_map_dc_state_into_dml_display_cfg(in_dc, context, dml_ctx);
 	dml_ctx->v21.mode_programming.dml2_instance->scratch.build_mode_programming_locals.mode_programming_params.programming = dml_ctx->v21.mode_programming.programming;
+	DC_FP_START();
 	is_supported = dml2_check_mode_supported(mode_support);
+	DC_FP_END();
 	if (!is_supported)
 		return false;
 
@@ -288,15 +332,11 @@ bool dml21_validate(const struct dc *in_dc, struct dc_state *context, struct dml
 {
 	bool out = false;
 
-	DC_FP_START();
-
 	/* Use dml_validate_only for fast_validate path */
 	if (fast_validate)
 		out = dml21_check_mode_support(in_dc, context, dml_ctx);
 	else
 		out = dml21_mode_check_and_programming(in_dc, context, dml_ctx);
-
-	DC_FP_END();
 
 	return out;
 }

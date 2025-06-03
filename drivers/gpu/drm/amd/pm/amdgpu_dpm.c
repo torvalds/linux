@@ -329,6 +329,34 @@ int amdgpu_dpm_mode1_reset(struct amdgpu_device *adev)
 	return ret;
 }
 
+bool amdgpu_dpm_is_link_reset_supported(struct amdgpu_device *adev)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	bool support_link_reset = false;
+
+	if (is_support_sw_smu(adev)) {
+		mutex_lock(&adev->pm.mutex);
+		support_link_reset = smu_link_reset_is_support(smu);
+		mutex_unlock(&adev->pm.mutex);
+	}
+
+	return support_link_reset;
+}
+
+int amdgpu_dpm_link_reset(struct amdgpu_device *adev)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	int ret = -EOPNOTSUPP;
+
+	if (is_support_sw_smu(adev)) {
+		mutex_lock(&adev->pm.mutex);
+		ret = smu_link_reset(smu);
+		mutex_unlock(&adev->pm.mutex);
+	}
+
+	return ret;
+}
+
 int amdgpu_dpm_switch_power_profile(struct amdgpu_device *adev,
 				    enum PP_SMC_POWER_PROFILE type,
 				    bool en)
@@ -775,6 +803,21 @@ int amdgpu_dpm_reset_sdma(struct amdgpu_device *adev, uint32_t inst_mask)
 
 	mutex_lock(&adev->pm.mutex);
 	ret = smu_reset_sdma(smu, inst_mask);
+	mutex_unlock(&adev->pm.mutex);
+
+	return ret;
+}
+
+int amdgpu_dpm_reset_vcn(struct amdgpu_device *adev, uint32_t inst_mask)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	int ret;
+
+	if (!is_support_sw_smu(adev))
+		return -EOPNOTSUPP;
+
+	mutex_lock(&adev->pm.mutex);
+	ret = smu_reset_vcn(smu, inst_mask);
 	mutex_unlock(&adev->pm.mutex);
 
 	return ret;

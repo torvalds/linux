@@ -11,6 +11,7 @@ struct dc_state;
 struct dcn_watermarks;
 union dcn_watermark_set;
 struct pipe_ctx;
+struct dc_plane_state;
 
 struct dml2_context;
 struct dml2_configuration_options;
@@ -25,4 +26,5 @@ void dml21_extract_watermark_sets(const struct dc *in_dc, union dcn_watermark_se
 void dml21_map_hw_resources(struct dml2_context *dml_ctx);
 void dml21_get_pipe_mcache_config(struct dc_state *context, struct pipe_ctx *pipe_ctx, struct dml2_per_plane_programming *pln_prog, struct dml2_pipe_configuration_descriptor *mcache_pipe_config);
 void dml21_set_dc_p_state_type(struct pipe_ctx *pipe_ctx, struct dml2_per_stream_programming *stream_programming, bool sub_vp_enabled);
+unsigned int map_plane_to_dml21_display_cfg(const struct dml2_context *dml_ctx, unsigned int stream_id, const struct dc_plane_state *plane, const struct dc_state *context);
 #endif

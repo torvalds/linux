@@ -24,9 +24,11 @@
 #include <linux/math.h>
 #include <linux/string_helpers.h>
 
+#include <drm/drm_print.h>
+
 #include "bxt_dpio_phy_regs.h"
-#include "i915_drv.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_cx0_phy.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
@@ -38,6 +40,7 @@
 #include "intel_hti.h"
 #include "intel_mg_phy_regs.h"
 #include "intel_pch_refclk.h"
+#include "intel_step.h"
 #include "intel_tc.h"
 
 /**
@@ -609,13 +612,12 @@ static int ibx_get_dpll(struct intel_atomic_state *state,
 			struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(state);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_shared_dpll *pll;
 	enum intel_dpll_id id;
 
-	if (HAS_PCH_IBX(i915)) {
+	if (HAS_PCH_IBX(display)) {
 		/* Ironlake PCH has a fixed PLL->PCH pipe mapping. */
 		id = (enum intel_dpll_id) crtc->pipe;
 		pll = intel_get_shared_dpll_by_id(display, id);
@@ -4305,7 +4307,6 @@ static const struct intel_dpll_mgr adlp_pll_mgr = {
  */
 void intel_shared_dpll_init(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	const struct intel_dpll_mgr *dpll_mgr = NULL;
 	const struct dpll_info *dpll_info;
 	int i;
@@ -4335,7 +4336,7 @@ void intel_shared_dpll_init(struct intel_display *display)
 		dpll_mgr = &skl_pll_mgr;
 	else if (HAS_DDI(display))
 		dpll_mgr = &hsw_pll_mgr;
-	else if (HAS_PCH_IBX(i915) || HAS_PCH_CPT(i915))
+	else if (HAS_PCH_IBX(display) || HAS_PCH_CPT(display))
 		dpll_mgr = &pch_pll_mgr;
 
 	if (!dpll_mgr)

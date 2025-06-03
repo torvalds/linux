@@ -7,9 +7,10 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_print.h>
 
-#include "i915_drv.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "i9xx_plane.h"
 #include "i9xx_plane_regs.h"
 #include "intel_atomic.h"
@@ -631,92 +632,84 @@ static void
 bdw_primary_enable_flip_done(struct intel_plane *plane)
 {
 	struct intel_display *display = to_intel_display(plane);
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
 
-	spin_lock_irq(&i915->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 	bdw_enable_pipe_irq(display, pipe, GEN8_PIPE_PRIMARY_FLIP_DONE);
-	spin_unlock_irq(&i915->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 }
 
 static void
 bdw_primary_disable_flip_done(struct intel_plane *plane)
 {
 	struct intel_display *display = to_intel_display(plane);
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
 
-	spin_lock_irq(&i915->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 	bdw_disable_pipe_irq(display, pipe, GEN8_PIPE_PRIMARY_FLIP_DONE);
-	spin_unlock_irq(&i915->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 }
 
 static void
 ivb_primary_enable_flip_done(struct intel_plane *plane)
 {
 	struct intel_display *display = to_intel_display(plane);
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 
-	spin_lock_irq(&i915->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 	ilk_enable_display_irq(display, DE_PLANE_FLIP_DONE_IVB(plane->i9xx_plane));
-	spin_unlock_irq(&i915->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 }
 
 static void
 ivb_primary_disable_flip_done(struct intel_plane *plane)
 {
 	struct intel_display *display = to_intel_display(plane);
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 
-	spin_lock_irq(&i915->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 	ilk_disable_display_irq(display, DE_PLANE_FLIP_DONE_IVB(plane->i9xx_plane));
-	spin_unlock_irq(&i915->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 }
 
 static void
 ilk_primary_enable_flip_done(struct intel_plane *plane)
 {
 	struct intel_display *display = to_intel_display(plane);
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 
-	spin_lock_irq(&i915->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 	ilk_enable_display_irq(display, DE_PLANE_FLIP_DONE(plane->i9xx_plane));
-	spin_unlock_irq(&i915->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 }
 
 static void
 ilk_primary_disable_flip_done(struct intel_plane *plane)
 {
 	struct intel_display *display = to_intel_display(plane);
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 
-	spin_lock_irq(&i915->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 	ilk_disable_display_irq(display, DE_PLANE_FLIP_DONE(plane->i9xx_plane));
-	spin_unlock_irq(&i915->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 }
 
 static void
 vlv_primary_enable_flip_done(struct intel_plane *plane)
 {
 	struct intel_display *display = to_intel_display(plane);
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
 
-	spin_lock_irq(&i915->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 	i915_enable_pipestat(display, pipe, PLANE_FLIP_DONE_INT_STATUS_VLV);
-	spin_unlock_irq(&i915->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 }
 
 static void
 vlv_primary_disable_flip_done(struct intel_plane *plane)
 {
 	struct intel_display *display = to_intel_display(plane);
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
 
-	spin_lock_irq(&i915->irq_lock);
+	spin_lock_irq(&display->irq.lock);
 	i915_disable_pipestat(display, pipe, PLANE_FLIP_DONE_INT_STATUS_VLV);
-	spin_unlock_irq(&i915->irq_lock);
+	spin_unlock_irq(&display->irq.lock);
 }
 
 static bool i9xx_plane_can_async_flip(u64 modifier)

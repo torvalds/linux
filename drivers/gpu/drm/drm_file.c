@@ -993,6 +993,40 @@ void drm_show_fdinfo(struct seq_file *m, struct file *f)
 EXPORT_SYMBOL(drm_show_fdinfo);
 
 /**
+ * drm_file_err - log process name, pid and client_name associated with a drm_file
+ * @file_priv: context of interest for process name and pid
+ * @fmt: printf() like format string
+ *
+ * Helper function for clients which needs to log process details such
+ * as name and pid etc along with user logs.
+ */
+void drm_file_err(struct drm_file *file_priv, const char *fmt, ...)
+{
+	va_list args;
+	struct va_format vaf;
+	struct pid *pid;
+	struct task_struct *task;
+	struct drm_device *dev = file_priv->minor->dev;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	mutex_lock(&file_priv->client_name_lock);
+	rcu_read_lock();
+	pid = rcu_dereference(file_priv->pid);
+	task = pid_task(pid, PIDTYPE_TGID);
+
+	drm_err(dev, "comm: %s pid: %d client: %s ... %pV", task ? task->comm : "Unset",
+		task ? task->pid : 0, file_priv->client_name ?: "Unset", &vaf);
+
+	va_end(args);
+	rcu_read_unlock();
+	mutex_unlock(&file_priv->client_name_lock);
+}
+EXPORT_SYMBOL(drm_file_err);
+
+/**
  * mock_drm_getfile - Create a new struct file for the drm device
  * @minor: drm minor to wrap (e.g. #drm_device.primary)
  * @flags: file creation mode (O_RDWR etc)

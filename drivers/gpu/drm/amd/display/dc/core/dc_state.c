@@ -22,6 +22,7 @@
  * Authors: AMD
  *
  */
+#include "dc_types.h"
 #include "core_types.h"
 #include "core_status.h"
 #include "dc_state.h"
@@ -812,7 +813,11 @@ enum dc_status dc_state_add_phantom_stream(const struct dc *dc,
 	if (phantom_stream_status) {
 		phantom_stream_status->mall_stream_config.type = SUBVP_PHANTOM;
 		phantom_stream_status->mall_stream_config.paired_stream = main_stream;
+		phantom_stream_status->mall_stream_config.subvp_limit_cursor_size = false;
+		phantom_stream_status->mall_stream_config.cursor_size_limit_subvp = false;
 	}
+
+	dc_state_set_stream_subvp_cursor_limit(main_stream, state, true);
 
 	return res;
 }
@@ -939,13 +944,20 @@ void dc_state_release_phantom_streams_and_planes(
 		const struct dc *dc,
 		struct dc_state *state)
 {
+	unsigned int phantom_count;
+	struct dc_stream_state *phantom_streams[MAX_PHANTOM_PIPES];
+	struct dc_plane_state *phantom_planes[MAX_PHANTOM_PIPES];
 	int i;
 
-	for (i = 0; i < state->phantom_stream_count; i++)
-		dc_state_release_phantom_stream(dc, state, state->phantom_streams[i]);
+	phantom_count = state->phantom_stream_count;
+	memcpy(phantom_streams, state->phantom_streams, sizeof(struct dc_stream_state *) * MAX_PHANTOM_PIPES);
+	for (i = 0; i < phantom_count; i++)
+		dc_state_release_phantom_stream(dc, state, phantom_streams[i]);
 
-	for (i = 0; i < state->phantom_plane_count; i++)
-		dc_state_release_phantom_plane(dc, state, state->phantom_planes[i]);
+	phantom_count = state->phantom_plane_count;
+	memcpy(phantom_planes, state->phantom_planes, sizeof(struct dc_plane_state *) * MAX_PHANTOM_PIPES);
+	for (i = 0; i < phantom_count; i++)
+		dc_state_release_phantom_plane(dc, state, phantom_planes[i]);
 }
 
 struct dc_stream_state *dc_state_get_stream_from_id(const struct dc_state *state, unsigned int id)
@@ -976,4 +988,95 @@ bool dc_state_is_fams2_in_use(
 		is_fams2_in_use |= dc->current_state->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable;
 
 	return is_fams2_in_use;
+}
+
+void dc_state_set_stream_subvp_cursor_limit(const struct dc_stream_state *stream,
+		struct dc_state *state,
+		bool limit)
+{
+	struct dc_stream_status *stream_status;
+
+	stream_status = dc_state_get_stream_status(state, stream);
+
+	if (stream_status) {
+		stream_status->mall_stream_config.subvp_limit_cursor_size = limit;
+	}
+}
+
+bool dc_state_get_stream_subvp_cursor_limit(const struct dc_stream_state *stream,
+		struct dc_state *state)
+{
+	bool limit = false;
+
+	struct dc_stream_status *stream_status;
+
+	stream_status = dc_state_get_stream_status(state, stream);
+
+	if (stream_status) {
+		limit = stream_status->mall_stream_config.subvp_limit_cursor_size;
+	}
+
+	return limit;
+}
+
+void dc_state_set_stream_cursor_subvp_limit(const struct dc_stream_state *stream,
+		struct dc_state *state,
+		bool limit)
+{
+	struct dc_stream_status *stream_status;
+
+	stream_status = dc_state_get_stream_status(state, stream);
+
+	if (stream_status) {
+		stream_status->mall_stream_config.cursor_size_limit_subvp = limit;
+	}
+}
+
+bool dc_state_get_stream_cursor_subvp_limit(const struct dc_stream_state *stream,
+		struct dc_state *state)
+{
+	bool limit = false;
+
+	struct dc_stream_status *stream_status;
+
+	stream_status = dc_state_get_stream_status(state, stream);
+
+	if (stream_status) {
+		limit = stream_status->mall_stream_config.cursor_size_limit_subvp;
+	}
+
+	return limit;
+}
+
+bool dc_state_can_clear_stream_cursor_subvp_limit(const struct dc_stream_state *stream,
+		struct dc_state *state)
+{
+	bool can_clear_limit = false;
+
+	struct dc_stream_status *stream_status;
+
+	stream_status = dc_state_get_stream_status(state, stream);
+
+	if (stream_status) {
+		can_clear_limit = dc_state_get_stream_cursor_subvp_limit(stream, state) &&
+				(stream_status->mall_stream_config.type == SUBVP_PHANTOM ||
+				stream->hw_cursor_req ||
+				!stream_status->mall_stream_config.subvp_limit_cursor_size ||
+				!stream->cursor_position.enable ||
+				dc_stream_check_cursor_attributes(stream, state, &stream->cursor_attributes));
+	}
+
+	return can_clear_limit;
+}
+
+bool dc_state_is_subvp_in_use(struct dc_state *state)
+{
+	uint32_t i;
+
+	for (i = 0; i < state->stream_count; i++) {
+		if (dc_state_get_stream_subvp_type(state, state->streams[i]) != SUBVP_NONE)
+			return true;
+	}
+
+	return false;
 }
