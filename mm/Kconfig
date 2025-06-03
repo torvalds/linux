@@ -1022,7 +1022,7 @@ config PAGE_BLOCK_ORDER
 	  or MAX_PAGE_ORDER.
 
 	  Reducing pageblock order can negatively impact THP generation
-	  success rate. If your workloads uses THP heavily, please use this
+	  success rate. If your workloads use THP heavily, please use this
 	  option with caution.
 
 	  Don't change if unsure.
