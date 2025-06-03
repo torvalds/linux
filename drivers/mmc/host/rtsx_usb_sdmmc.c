@@ -1334,7 +1334,7 @@ static int rtsx_usb_sdmmc_drv_probe(struct platform_device *pdev)
 
 	dev_dbg(&(pdev->dev), ": Realtek USB SD/MMC controller found\n");
 
-	mmc = mmc_alloc_host(sizeof(*host), &pdev->dev);
+	mmc = devm_mmc_alloc_host(&pdev->dev, sizeof(*host));
 	if (!mmc)
 		return -ENOMEM;
 
@@ -1368,7 +1368,6 @@ static int rtsx_usb_sdmmc_drv_probe(struct platform_device *pdev)
 #ifdef RTSX_USB_USE_LEDS_CLASS
 		led_classdev_unregister(&host->led);
 #endif
-		mmc_free_host(mmc);
 		pm_runtime_disable(&pdev->dev);
 		return ret;
 	}
@@ -1406,7 +1405,6 @@ static void rtsx_usb_sdmmc_drv_remove(struct platform_device *pdev)
 	led_classdev_unregister(&host->led);
 #endif
 
-	mmc_free_host(mmc);
 	pm_runtime_disable(&pdev->dev);
 	platform_set_drvdata(pdev, NULL);
 
