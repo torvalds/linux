@@ -344,7 +344,7 @@ TRACE_EVENT(nfsd_exp_find_key,
 		 int status),
 	TP_ARGS(key, status),
 	TP_STRUCT__entry(
-		__field(int, fsidtype)
+		__field(u8, fsidtype)
 		__array(u32, fsid, 6)
 		__string(auth_domain, key->ek_client->name)
 		__field(int, status)
@@ -367,7 +367,7 @@ TRACE_EVENT(nfsd_expkey_update,
 	TP_PROTO(const struct svc_expkey *key, const char *exp_path),
 	TP_ARGS(key, exp_path),
 	TP_STRUCT__entry(
-		__field(int, fsidtype)
+		__field(u8, fsidtype)
 		__array(u32, fsid, 6)
 		__string(auth_domain, key->ek_client->name)
 		__string(path, exp_path)
