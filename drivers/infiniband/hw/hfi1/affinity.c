@@ -337,9 +337,10 @@ static int _dev_comp_vect_cpu_get(struct hfi1_devdata *dd,
 		       &entry->def_intr.used);
 
 	/* If there are non-interrupt CPUs available, use them first */
-	if (!cpumask_empty(non_intr_cpus))
-		cpu = cpumask_first(non_intr_cpus);
-	else /* Otherwise, use interrupt CPUs */
+	cpu = cpumask_first(non_intr_cpus);
+
+	/* Otherwise, use interrupt CPUs */
+	if (cpu >= nr_cpu_ids)
 		cpu = cpumask_first(available_cpus);
 
 	if (cpu >= nr_cpu_ids) { /* empty */
@@ -1080,8 +1081,7 @@ int hfi1_get_proc_affinity(int node)
 		 * loop as the used mask gets reset when
 		 * (set->mask == set->used) before this loop.
 		 */
-		cpumask_andnot(diff, hw_thread_mask, &set->used);
-		if (!cpumask_empty(diff))
+		if (cpumask_andnot(diff, hw_thread_mask, &set->used))
 			break;
 	}
 	hfi1_cdbg(PROC, "Same available HW thread on all physical CPUs: %*pbl",
@@ -1113,8 +1113,7 @@ int hfi1_get_proc_affinity(int node)
 	 *    used for process assignments using the same method as
 	 *    the preferred NUMA node.
 	 */
-	cpumask_andnot(diff, available_mask, intrs_mask);
-	if (!cpumask_empty(diff))
+	if (cpumask_andnot(diff, available_mask, intrs_mask))
 		cpumask_copy(available_mask, diff);
 
 	/* If we don't have CPUs on the preferred node, use other NUMA nodes */
@@ -1130,8 +1129,7 @@ int hfi1_get_proc_affinity(int node)
 		 * At first, we don't want to place processes on the same
 		 * CPUs as interrupt handlers.
 		 */
-		cpumask_andnot(diff, available_mask, intrs_mask);
-		if (!cpumask_empty(diff))
+		if (cpumask_andnot(diff, available_mask, intrs_mask))
 			cpumask_copy(available_mask, diff);
 	}
 	hfi1_cdbg(PROC, "Possible CPUs for process: %*pbl",
