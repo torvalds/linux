@@ -327,9 +327,18 @@
 	};
 };
 
+&can0 {
+	pinctrl-0 = <&can0_pins>;
+	pinctrl-names = "default";
+
+	/* Please only enable canfd or can0 */
+	/* status = "okay"; */
+};
+
 &canfd {
 	pinctrl-0 = <&canfd0_pins>;
 	pinctrl-names = "default";
+	/* Please only enable canfd or can0 */
 	status = "okay";
 
 	channel0 {
@@ -577,6 +586,11 @@
 	avb_pins: avb {
 		groups = "avb_link", "avb_mii";
 		function = "avb";
+	};
+
+	can0_pins: can0 {
+		groups = "can0_data";
+		function = "can0";
 	};
 
 	canfd0_pins: canfd0 {
