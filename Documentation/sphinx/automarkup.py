@@ -235,8 +235,13 @@ def add_and_resolve_xref(app, docname, domain, reftype, target, contnode=None):
 
     if xref:
         return xref
-
-    return None
+    #
+    # We didn't find the xref; if a container node was supplied,
+    # mark it as a broken xref
+    #
+    if contnode:
+        contnode.set_class("broken_xref")
+    return contnode
 
 #
 # Variant of markup_abi_ref() that warns whan a reference is not found
