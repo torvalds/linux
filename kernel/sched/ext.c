@@ -1701,11 +1701,6 @@ static bool scx_tryset_enable_state(enum scx_enable_state to,
 	return atomic_try_cmpxchg(&scx_enable_state_var, &from_v, to);
 }
 
-static bool scx_rq_bypassing(struct rq *rq)
-{
-	return unlikely(rq->scx.flags & SCX_RQ_BYPASSING);
-}
-
 /**
  * wait_ops_state - Busy-wait the specified ops state to end
  * @p: target task

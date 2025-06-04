@@ -13,6 +13,11 @@ static inline bool scx_kf_allowed_if_unlocked(void)
 	return !current->scx.kf_mask;
 }
 
+static inline bool scx_rq_bypassing(struct rq *rq)
+{
+	return unlikely(rq->scx.flags & SCX_RQ_BYPASSING);
+}
+
 DECLARE_STATIC_KEY_FALSE(scx_ops_allow_queued_wakeup);
 
 void scx_tick(struct rq *rq);
