@@ -7606,7 +7606,7 @@ static int btrfs_truncate(struct btrfs_inode *inode, bool skip_writeback)
 	};
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_block_rsv *rsv;
+	struct btrfs_block_rsv rsv;
 	int ret;
 	struct btrfs_trans_handle *trans;
 	u64 mask = fs_info->sectorsize - 1;
@@ -7648,11 +7648,9 @@ static int btrfs_truncate(struct btrfs_inode *inode, bool skip_writeback)
 	 * 2) fs_info->trans_block_rsv - this will have 1 items worth left for
 	 * updating the inode.
 	 */
-	rsv = btrfs_alloc_block_rsv(fs_info, BTRFS_BLOCK_RSV_TEMP);
-	if (!rsv)
-		return -ENOMEM;
-	rsv->size = min_size;
-	rsv->failfast = true;
+	btrfs_init_metadata_block_rsv(fs_info, &rsv, BTRFS_BLOCK_RSV_TEMP);
+	rsv.size = min_size;
+	rsv.failfast = true;
 
 	/*
 	 * 1 for the truncate slack space
@@ -7665,7 +7663,7 @@ static int btrfs_truncate(struct btrfs_inode *inode, bool skip_writeback)
 	}
 
 	/* Migrate the slack space for the truncate to our reserve */
-	ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv, rsv,
+	ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv, &rsv,
 				      min_size, false);
 	/*
 	 * We have reserved 2 metadata units when we started the transaction and
@@ -7677,7 +7675,7 @@ static int btrfs_truncate(struct btrfs_inode *inode, bool skip_writeback)
 		goto out;
 	}
 
-	trans->block_rsv = rsv;
+	trans->block_rsv = &rsv;
 
 	while (1) {
 		struct extent_state *cached_state = NULL;
@@ -7720,9 +7718,9 @@ static int btrfs_truncate(struct btrfs_inode *inode, bool skip_writeback)
 			break;
 		}
 
-		btrfs_block_rsv_release(fs_info, rsv, -1, NULL);
+		btrfs_block_rsv_release(fs_info, &rsv, -1, NULL);
 		ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv,
-					      rsv, min_size, false);
+					      &rsv, min_size, false);
 		/*
 		 * We have reserved 2 metadata units when we started the
 		 * transaction and min_size matches 1 unit, so this should never
@@ -7731,7 +7729,7 @@ static int btrfs_truncate(struct btrfs_inode *inode, bool skip_writeback)
 		if (WARN_ON(ret))
 			break;
 
-		trans->block_rsv = rsv;
+		trans->block_rsv = &rsv;
 	}
 
 	/*
@@ -7770,7 +7768,7 @@ static int btrfs_truncate(struct btrfs_inode *inode, bool skip_writeback)
 		btrfs_btree_balance_dirty(fs_info);
 	}
 out:
-	btrfs_free_block_rsv(fs_info, rsv);
+	btrfs_block_rsv_release(fs_info, &rsv, (u64)-1, NULL);
 	/*
 	 * So if we truncate and then write and fsync we normally would just
 	 * write the extents that changed, which is a problem if we need to
