@@ -5028,27 +5028,6 @@ unsigned long get_zeroed_page_noprof(gfp_t gfp_mask)
 }
 EXPORT_SYMBOL(get_zeroed_page_noprof);
 
-/**
- * ___free_pages - Free pages allocated with alloc_pages().
- * @page: The page pointer returned from alloc_pages().
- * @order: The order of the allocation.
- * @fpi_flags: Free Page Internal flags.
- *
- * This function can free multi-page allocations that are not compound
- * pages.  It does not check that the @order passed in matches that of
- * the allocation, so it is easy to leak memory.  Freeing more memory
- * than was allocated will probably emit a warning.
- *
- * If the last reference to this page is speculative, it will be released
- * by put_page() which only frees the first page of a non-compound
- * allocation.  To prevent the remaining pages from being leaked, we free
- * the subsequent pages here.  If you want to use the page's reference
- * count to decide when to free the allocation, you should allocate a
- * compound page, and use put_page() instead of __free_pages().
- *
- * Context: May be called in interrupt context or while holding a normal
- * spinlock, but not in NMI context or while holding a raw spinlock.
- */
 static void ___free_pages(struct page *page, unsigned int order,
 			  fpi_t fpi_flags)
 {
@@ -5066,6 +5045,27 @@ static void ___free_pages(struct page *page, unsigned int order,
 					    fpi_flags);
 	}
 }
+
+/**
+ * __free_pages - Free pages allocated with alloc_pages().
+ * @page: The page pointer returned from alloc_pages().
+ * @order: The order of the allocation.
+ *
+ * This function can free multi-page allocations that are not compound
+ * pages.  It does not check that the @order passed in matches that of
+ * the allocation, so it is easy to leak memory.  Freeing more memory
+ * than was allocated will probably emit a warning.
+ *
+ * If the last reference to this page is speculative, it will be released
+ * by put_page() which only frees the first page of a non-compound
+ * allocation.  To prevent the remaining pages from being leaked, we free
+ * the subsequent pages here.  If you want to use the page's reference
+ * count to decide when to free the allocation, you should allocate a
+ * compound page, and use put_page() instead of __free_pages().
+ *
+ * Context: May be called in interrupt context or while holding a normal
+ * spinlock, but not in NMI context or while holding a raw spinlock.
+ */
 void __free_pages(struct page *page, unsigned int order)
 {
 	___free_pages(page, order, FPI_NONE);
