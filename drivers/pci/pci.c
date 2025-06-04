@@ -4929,7 +4929,7 @@ int pci_bridge_wait_for_secondary_bus(struct pci_dev *dev, char *reset_type)
 		delay);
 	if (!pcie_wait_for_link_delay(dev, true, delay)) {
 		/* Did not train, no need to wait any further */
-		pci_info(dev, "Data Link Layer Link Active not set in 1000 msec\n");
+		pci_info(dev, "Data Link Layer Link Active not set in %d msec\n", delay);
 		return -ENOTTY;
 	}
 
@@ -6780,11 +6780,6 @@ int __weak pci_ext_cfg_avail(void)
 {
 	return 1;
 }
-
-void __weak pci_fixup_cardbus(struct pci_bus *bus)
-{
-}
-EXPORT_SYMBOL(pci_fixup_cardbus);
 
 static int __init pci_setup(char *str)
 {

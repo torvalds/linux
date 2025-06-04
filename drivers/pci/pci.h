@@ -558,6 +558,7 @@ static inline int pci_dev_set_disconnected(struct pci_dev *dev, void *unused)
 #define PCI_DPC_RECOVERING 2
 #define PCI_DEV_REMOVED 3
 #define PCI_LINK_LBMS_SEEN	6
+#define PCI_DEV_ALLOW_BINDING 7
 
 static inline void pci_dev_assign_added(struct pci_dev *dev)
 {
@@ -579,6 +580,16 @@ static inline bool pci_dev_is_added(const struct pci_dev *dev)
 static inline bool pci_dev_test_and_set_removed(struct pci_dev *dev)
 {
 	return test_and_set_bit(PCI_DEV_REMOVED, &dev->priv_flags);
+}
+
+static inline void pci_dev_allow_binding(struct pci_dev *dev)
+{
+	set_bit(PCI_DEV_ALLOW_BINDING, &dev->priv_flags);
+}
+
+static inline bool pci_dev_binding_disallowed(struct pci_dev *dev)
+{
+	return !test_bit(PCI_DEV_ALLOW_BINDING, &dev->priv_flags);
 }
 
 #ifdef CONFIG_PCIEAER

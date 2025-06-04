@@ -369,7 +369,9 @@ void pci_bus_add_device(struct pci_dev *dev)
 				pdev->name);
 	}
 
-	dev->match_driver = !dn || of_device_is_available(dn);
+	if (!dn || of_device_is_available(dn))
+		pci_dev_allow_binding(dev);
+
 	retval = device_attach(&dev->dev);
 	if (retval < 0 && retval != -EPROBE_DEFER)
 		pci_warn(dev, "device attach failed (%d)\n", retval);
