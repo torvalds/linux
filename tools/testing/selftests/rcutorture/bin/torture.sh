@@ -410,6 +410,7 @@ then
 	echo " --- allmodconfig:" Start `date` | tee -a $T/log
 	amcdir="tools/testing/selftests/rcutorture/res/$ds/allmodconfig"
 	mkdir -p "$amcdir"
+	mktestid.sh "$amcdir"
 	echo " --- make clean" | tee $amcdir/log > "$amcdir/Make.out" 2>&1
 	make -j$MAKE_ALLOTED_CPUS clean >> "$amcdir/Make.out" 2>&1
 	retcode=$?
@@ -516,6 +517,7 @@ then
 	echo " --- do-rcu-rust:" Start `date` | tee -a $T/log
 	rrdir="tools/testing/selftests/rcutorture/res/$ds/results-rcu-rust"
 	mkdir -p "$rrdir"
+	mktestid.sh "$rrdir"
 	echo " --- make LLVM=1 rustavailable " | tee -a $rrdir/log > $rrdir/rustavailable.out
 	make LLVM=1 rustavailable > $T/rustavailable.out 2>&1
 	retcode=$?
