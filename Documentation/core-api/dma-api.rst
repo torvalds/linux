@@ -915,3 +915,9 @@ the driver. When driver does unmap, debug_dma_unmap() checks the flag and if
 this flag is still set, prints warning message that includes call trace that
 leads up to the unmap. This interface can be called from dma_mapping_error()
 routines to enable DMA mapping error check debugging.
+
+Functions and structures
+========================
+
+.. kernel-doc:: include/linux/scatterlist.h
+.. kernel-doc:: lib/scatterlist.c
