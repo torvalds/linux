@@ -39,7 +39,7 @@ def run_one_stream(cfg, ipver, remote_v4, remote_v6, should_lso):
     port = rand_port()
     listen_cmd = f"socat -{ipver} -t 2 -u TCP-LISTEN:{port},reuseport /dev/null,ignoreeof"
 
-    with bkg(listen_cmd, host=cfg.remote) as nc:
+    with bkg(listen_cmd, host=cfg.remote, exit_wait=True) as nc:
         wait_port_listen(port, host=cfg.remote)
 
         if ipver == "4":
