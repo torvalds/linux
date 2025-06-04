@@ -17,7 +17,6 @@ struct io_futex {
 	void __user	*uaddr;
 	unsigned long	futex_val;
 	unsigned long	futex_mask;
-	unsigned long	futexv_owned;
 	u32		futex_flags;
 	unsigned int	futex_nr;
 	bool		futexv_unqueued;
@@ -29,6 +28,7 @@ struct io_futex_data {
 };
 
 struct io_futexv_data {
+	unsigned long		owned;
 	struct futex_vector	futexv[];
 };
 
@@ -82,10 +82,9 @@ static void io_futexv_complete(struct io_tw_req tw_req, io_tw_token_t tw)
 	__io_futex_complete(tw_req, tw);
 }
 
-static bool io_futexv_claim(struct io_futex *iof)
+static bool io_futexv_claim(struct io_futexv_data *ifd)
 {
-	if (test_bit(0, &iof->futexv_owned) ||
-	    test_and_set_bit_lock(0, &iof->futexv_owned))
+	if (test_bit(0, &ifd->owned) || test_and_set_bit_lock(0, &ifd->owned))
 		return false;
 	return true;
 }
@@ -100,9 +99,9 @@ static bool __io_futex_cancel(struct io_kiocb *req)
 			return false;
 		req->io_task_work.func = io_futex_complete;
 	} else {
-		struct io_futex *iof = io_kiocb_to_cmd(req, struct io_futex);
+		struct io_futexv_data *ifd = req->async_data;
 
-		if (!io_futexv_claim(iof))
+		if (!io_futexv_claim(ifd))
 			return false;
 		req->io_task_work.func = io_futexv_complete;
 	}
@@ -158,9 +157,9 @@ int io_futex_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 static void io_futex_wakev_fn(struct wake_q_head *wake_q, struct futex_q *q)
 {
 	struct io_kiocb *req = q->wake_data;
-	struct io_futex *iof = io_kiocb_to_cmd(req, struct io_futex);
+	struct io_futexv_data *ifd = req->async_data;
 
-	if (!io_futexv_claim(iof))
+	if (!io_futexv_claim(ifd))
 		return;
 	if (unlikely(!__futex_wake_mark(q)))
 		return;
@@ -200,7 +199,6 @@ int io_futexv_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	/* Mark as inflight, so file exit cancelation will find it */
 	io_req_track_inflight(req);
-	iof->futexv_owned = 0;
 	iof->futexv_unqueued = 0;
 	req->flags |= REQ_F_ASYNC_DATA;
 	req->async_data = ifd;
