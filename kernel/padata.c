@@ -63,17 +63,6 @@ static inline void padata_put_pd(struct parallel_data *pd)
 	padata_put_pd_cnt(pd, 1);
 }
 
-static int padata_index_to_cpu(struct parallel_data *pd, int cpu_index)
-{
-	int cpu, target_cpu;
-
-	target_cpu = cpumask_first(pd->cpumask.pcpu);
-	for (cpu = 0; cpu < cpu_index; cpu++)
-		target_cpu = cpumask_next(target_cpu, pd->cpumask.pcpu);
-
-	return target_cpu;
-}
-
 static int padata_cpu_hash(struct parallel_data *pd, unsigned int seq_nr)
 {
 	/*
@@ -82,7 +71,7 @@ static int padata_cpu_hash(struct parallel_data *pd, unsigned int seq_nr)
 	 */
 	int cpu_index = seq_nr % cpumask_weight(pd->cpumask.pcpu);
 
-	return padata_index_to_cpu(pd, cpu_index);
+	return cpumask_nth(cpu_index, pd->cpumask.pcpu);
 }
 
 static struct padata_work *padata_work_alloc(void)
@@ -192,9 +181,9 @@ int padata_do_parallel(struct padata_shell *ps,
 		       struct padata_priv *padata, int *cb_cpu)
 {
 	struct padata_instance *pinst = ps->pinst;
-	int i, cpu, cpu_index, err;
 	struct parallel_data *pd;
 	struct padata_work *pw;
+	int cpu_index, err;
 
 	rcu_read_lock_bh();
 
@@ -210,12 +199,7 @@ int padata_do_parallel(struct padata_shell *ps,
 
 		/* Select an alternate fallback CPU and notify the caller. */
 		cpu_index = *cb_cpu % cpumask_weight(pd->cpumask.cbcpu);
-
-		cpu = cpumask_first(pd->cpumask.cbcpu);
-		for (i = 0; i < cpu_index; i++)
-			cpu = cpumask_next(cpu, pd->cpumask.cbcpu);
-
-		*cb_cpu = cpu;
+		*cb_cpu = cpumask_nth(cpu_index, pd->cpumask.cbcpu);
 	}
 
 	err = -EBUSY;
