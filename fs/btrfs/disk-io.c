@@ -4312,8 +4312,8 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 	 *
 	 * So wait for all ongoing ordered extents to complete and then run
 	 * delayed iputs. This works because once we reach this point no one
-	 * can either create new ordered extents nor create delayed iputs
-	 * through some other means.
+	 * can create new ordered extents, but delayed iputs can still be added
+	 * by a reclaim worker (see comments further below).
 	 *
 	 * Also note that btrfs_wait_ordered_roots() is not safe here, because
 	 * it waits for BTRFS_ORDERED_COMPLETE to be set on an ordered extent,
@@ -4324,14 +4324,28 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 	btrfs_flush_workqueue(fs_info->endio_write_workers);
 	/* Ordered extents for free space inodes. */
 	btrfs_flush_workqueue(fs_info->endio_freespace_worker);
+	/*
+	 * Run delayed iputs in case an async reclaim worker is waiting for them
+	 * to be run as mentioned above.
+	 */
 	btrfs_run_delayed_iputs(fs_info);
-	/* There should be no more workload to generate new delayed iputs. */
-	set_bit(BTRFS_FS_STATE_NO_DELAYED_IPUT, &fs_info->fs_state);
 
 	cancel_work_sync(&fs_info->async_reclaim_work);
 	cancel_work_sync(&fs_info->async_data_reclaim_work);
 	cancel_work_sync(&fs_info->preempt_reclaim_work);
 	cancel_work_sync(&fs_info->em_shrinker_work);
+
+	/*
+	 * Run delayed iputs again because an async reclaim worker may have
+	 * added new ones if it was flushing delalloc:
+	 *
+	 * shrink_delalloc() -> btrfs_start_delalloc_roots() ->
+	 *    start_delalloc_inodes() -> btrfs_add_delayed_iput()
+	 */
+	btrfs_run_delayed_iputs(fs_info);
+
+	/* There should be no more workload to generate new delayed iputs. */
+	set_bit(BTRFS_FS_STATE_NO_DELAYED_IPUT, &fs_info->fs_state);
 
 	/* Cancel or finish ongoing discard work */
 	btrfs_discard_cleanup(fs_info);
