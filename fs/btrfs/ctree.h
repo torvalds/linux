@@ -224,16 +224,10 @@ struct btrfs_root {
 
 	struct list_head root_list;
 
-	/*
-	 * Xarray that keeps track of in-memory inodes, protected by the lock
-	 * @inode_lock.
-	 */
+	/* Xarray that keeps track of in-memory inodes. */
 	struct xarray inodes;
 
-	/*
-	 * Xarray that keeps track of delayed nodes of every inode, protected
-	 * by @inode_lock.
-	 */
+	/* Xarray that keeps track of delayed nodes of every inode. */
 	struct xarray delayed_nodes;
 	/*
 	 * right now this just gets used so that a root has its own devid
