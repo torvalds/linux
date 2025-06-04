@@ -22,8 +22,7 @@ static void load_dss_mask(struct xe_gt *gt, xe_dss_mask_t mask, int numregs,
 	u32 fuse_val[XE_MAX_DSS_FUSE_REGS] = {};
 	int i;
 
-	if (drm_WARN_ON(&gt_to_xe(gt)->drm, numregs > XE_MAX_DSS_FUSE_REGS))
-		numregs = XE_MAX_DSS_FUSE_REGS;
+	xe_gt_assert(gt, numregs <= ARRAY_SIZE(fuse_val));
 
 	for (i = 0; i < numregs; i++)
 		fuse_val[i] = xe_mmio_read32(&gt->mmio, regs[i]);
