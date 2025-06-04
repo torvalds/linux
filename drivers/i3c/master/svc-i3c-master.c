@@ -1708,7 +1708,7 @@ static int svc_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 
 	mutex_lock(&master->lock);
 	svc_i3c_master_enqueue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, msecs_to_jiffies(1000)))
+	if (!wait_for_completion_timeout(&xfer->comp, m->i2c.timeout))
 		svc_i3c_master_dequeue_xfer(master, xfer);
 	mutex_unlock(&master->lock);
 
