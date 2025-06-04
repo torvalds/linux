@@ -76,12 +76,13 @@ jobs:
       - name: Install openvpn
         if: runner.os == 'Windows'
         shell: pwsh
+        env:
+          file: "OpenVPN-2.6.14-I001-amd64.msi"
+          log: "install.log"
         run: |
-          curl -L -O https://swupdate.openvpn.org/community/releases/OpenVPN-2.5.3-I601-amd64.msi
-          $file = "OpenVPN-2.5.3-I601-amd64.msi"
-          $log = "install.log"
-          $procMain = Start-Process "msiexec" "/i `"$file`" /qn /l*! `"$log`"" -NoNewWindow -PassThru
-          $procLog = Start-Process "powershell" "Get-Content -Path `"$log`" -Wait" -NoNewWindow -PassThru
+          curl -L -O "https://swupdate.openvpn.org/community/releases/${{ env.file }}"
+          $procMain = Start-Process "msiexec" "/i ${{ env.file }} /qn /l*! ${{ env.log }}" -NoNewWindow -PassThru
+          $procLog = Start-Process "powershell" "Get-Content -Path ${{ env.log }} -Wait" -NoNewWindow -PassThru
           $procMain.WaitForExit()
           $procLog.Kill()
       - name: Partial Clone
