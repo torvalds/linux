@@ -1408,9 +1408,9 @@ static int alps_do_register_bare_ps2_mouse(struct alps_data *priv)
 		return -ENOMEM;
 	}
 
-	snprintf(priv->phys3, sizeof(priv->phys3), "%s/%s",
-		 psmouse->ps2dev.serio->phys,
-		 (priv->dev2 ? "input2" : "input1"));
+	scnprintf(priv->phys3, sizeof(priv->phys3), "%s/%s",
+		  psmouse->ps2dev.serio->phys,
+		  (priv->dev2 ? "input2" : "input1"));
 	dev3->phys = priv->phys3;
 
 	/*
