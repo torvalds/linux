@@ -92,9 +92,7 @@ static void cpu_mask_set_put(struct cpu_mask_set *set, int cpu)
 /* Initialize non-HT cpu cores mask */
 void init_real_cpu_mask(void)
 {
-	int possible, curr_cpu, i, ht;
-
-	cpumask_clear(&node_affinity.real_cpu_mask);
+	int possible, curr_cpu, ht;
 
 	/* Start with cpu online mask as the real cpu mask */
 	cpumask_copy(&node_affinity.real_cpu_mask, cpu_online_mask);
@@ -110,17 +108,10 @@ void init_real_cpu_mask(void)
 	 * "real" cores.  Assumes that HT cores are not enumerated in
 	 * succession (except in the single core case).
 	 */
-	curr_cpu = cpumask_first(&node_affinity.real_cpu_mask);
-	for (i = 0; i < possible / ht; i++)
-		curr_cpu = cpumask_next(curr_cpu, &node_affinity.real_cpu_mask);
-	/*
-	 * Step 2.  Remove the remaining HT siblings.  Use cpumask_next() to
-	 * skip any gaps.
-	 */
-	for (; i < possible; i++) {
-		cpumask_clear_cpu(curr_cpu, &node_affinity.real_cpu_mask);
-		curr_cpu = cpumask_next(curr_cpu, &node_affinity.real_cpu_mask);
-	}
+	curr_cpu = cpumask_nth(possible / ht, &node_affinity.real_cpu_mask) + 1;
+
+	/* Step 2.  Remove the remaining HT siblings. */
+	cpumask_clear_cpus(&node_affinity.real_cpu_mask, curr_cpu, nr_cpu_ids - curr_cpu);
 }
 
 int node_affinity_init(void)
