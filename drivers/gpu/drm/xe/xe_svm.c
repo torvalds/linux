@@ -141,7 +141,9 @@ xe_svm_range_notifier_event_begin(struct xe_vm *vm, struct drm_gpusvm_range *r,
 	for_each_tile(tile, xe, id)
 		if (xe_pt_zap_ptes_range(tile, vm, range)) {
 			tile_mask |= BIT(id);
-			range->tile_invalidated |= BIT(id);
+			/* Pairs with READ_ONCE in xe_svm_range_is_valid */
+			WRITE_ONCE(range->tile_invalidated,
+				   range->tile_invalidated | BIT(id));
 		}
 
 	return tile_mask;
@@ -644,7 +646,8 @@ static bool xe_svm_range_is_valid(struct xe_svm_range *range,
 {
 	/*
 	 * Advisory only check whether the range currently has a valid mapping,
-	 * READ_ONCE pairs with WRITE_ONCE in xe_pt.c
+	 * READ_ONCE pairs with WRITE_ONCE in xe_pt.c,
+	 * xe_svm_range_notifier_event_begin
 	 */
 	return ((READ_ONCE(range->tile_present) &
 		 ~READ_ONCE(range->tile_invalidated)) & BIT(tile->id)) &&
