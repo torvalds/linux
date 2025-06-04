@@ -90,7 +90,6 @@ struct drm_prime_member {
 	uint32_t handle;
 
 	struct rb_node dmabuf_rb;
-	struct rb_node handle_rb;
 };
 
 static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv,
@@ -122,43 +121,7 @@ static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv,
 	rb_link_node(&member->dmabuf_rb, rb, p);
 	rb_insert_color(&member->dmabuf_rb, &prime_fpriv->dmabufs);
 
-	rb = NULL;
-	p = &prime_fpriv->handles.rb_node;
-	while (*p) {
-		struct drm_prime_member *pos;
-
-		rb = *p;
-		pos = rb_entry(rb, struct drm_prime_member, handle_rb);
-		if (handle > pos->handle)
-			p = &rb->rb_right;
-		else
-			p = &rb->rb_left;
-	}
-	rb_link_node(&member->handle_rb, rb, p);
-	rb_insert_color(&member->handle_rb, &prime_fpriv->handles);
-
 	return 0;
-}
-
-static struct dma_buf *drm_prime_lookup_buf_by_handle(struct drm_prime_file_private *prime_fpriv,
-						      uint32_t handle)
-{
-	struct rb_node *rb;
-
-	rb = prime_fpriv->handles.rb_node;
-	while (rb) {
-		struct drm_prime_member *member;
-
-		member = rb_entry(rb, struct drm_prime_member, handle_rb);
-		if (member->handle == handle)
-			return member->dma_buf;
-		else if (member->handle < handle)
-			rb = rb->rb_right;
-		else
-			rb = rb->rb_left;
-	}
-
-	return NULL;
 }
 
 static int drm_prime_lookup_buf_handle(struct drm_prime_file_private *prime_fpriv,
@@ -186,25 +149,28 @@ static int drm_prime_lookup_buf_handle(struct drm_prime_file_private *prime_fpri
 }
 
 void drm_prime_remove_buf_handle(struct drm_prime_file_private *prime_fpriv,
+				 struct dma_buf *dma_buf,
 				 uint32_t handle)
 {
 	struct rb_node *rb;
 
+	if (!dma_buf)
+		return;
+
 	mutex_lock(&prime_fpriv->lock);
 
-	rb = prime_fpriv->handles.rb_node;
+	rb = prime_fpriv->dmabufs.rb_node;
 	while (rb) {
 		struct drm_prime_member *member;
 
-		member = rb_entry(rb, struct drm_prime_member, handle_rb);
-		if (member->handle == handle) {
-			rb_erase(&member->handle_rb, &prime_fpriv->handles);
+		member = rb_entry(rb, struct drm_prime_member, dmabuf_rb);
+		if (member->dma_buf == dma_buf && member->handle == handle) {
 			rb_erase(&member->dmabuf_rb, &prime_fpriv->dmabufs);
 
 			dma_buf_put(member->dma_buf);
 			kfree(member);
 			break;
-		} else if (member->handle < handle) {
+		} else if (member->dma_buf < dma_buf) {
 			rb = rb->rb_right;
 		} else {
 			rb = rb->rb_left;
@@ -444,12 +410,6 @@ struct dma_buf *drm_gem_prime_handle_to_dmabuf(struct drm_device *dev,
 	if (!obj)  {
 		dmabuf = ERR_PTR(-ENOENT);
 		goto out_unlock;
-	}
-
-	dmabuf = drm_prime_lookup_buf_by_handle(&file_priv->prime, handle);
-	if (dmabuf) {
-		get_dma_buf(dmabuf);
-		goto out;
 	}
 
 	mutex_lock(&dev->object_name_lock);
