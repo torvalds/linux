@@ -7502,7 +7502,7 @@ F:	Documentation/devicetree/bindings/display/panel/panel-mipi-dbi-spi.yaml
 F:	drivers/gpu/drm/tiny/panel-mipi-dbi.c
 
 DRM DRIVER for Qualcomm Adreno GPUs
-M:	Rob Clark <robdclark@gmail.com>
+M:	Rob Clark <robin.clark@oss.qualcomm.com>
 R:	Sean Paul <sean@poorly.run>
 R:	Konrad Dybcio <konradybcio@kernel.org>
 L:	linux-arm-msm@vger.kernel.org
@@ -7521,7 +7521,7 @@ F:	drivers/gpu/drm/msm/registers/adreno/
 F:	include/uapi/drm/msm_drm.h
 
 DRM DRIVER for Qualcomm display hardware
-M:	Rob Clark <robdclark@gmail.com>
+M:	Rob Clark <robin.clark@oss.qualcomm.com>
 M:	Dmitry Baryshkov <lumag@kernel.org>
 R:	Abhinav Kumar <abhinav.kumar@linux.dev>
 R:	Jessica Zhang <jessica.zhang@oss.qualcomm.com>
@@ -19932,7 +19932,7 @@ F:	drivers/soc/qcom/icc-bwmon.c
 F:	drivers/soc/qcom/trace_icc-bwmon.h
 
 QUALCOMM IOMMU
-M:	Rob Clark <robdclark@gmail.com>
+M:	Rob Clark <robin.clark@oss.qualcomm.com>
 L:	iommu@lists.linux.dev
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
