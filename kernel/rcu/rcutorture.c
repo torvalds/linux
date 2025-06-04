@@ -1920,10 +1920,10 @@ static void rcutorture_one_extend_check(char *s, int curstate, int new, int old,
 {
 	int mask;
 
-	if (!IS_ENABLED(CONFIG_RCU_TORTURE_TEST_CHK_RDR_STATE))
+	if (!IS_ENABLED(CONFIG_RCU_TORTURE_TEST_CHK_RDR_STATE) || in_nmi())
 		return;
 
-	WARN_ONCE(!(curstate & RCUTORTURE_RDR_IRQ) && irqs_disabled(), ROEC_ARGS);
+	WARN_ONCE(!(curstate & RCUTORTURE_RDR_IRQ) && irqs_disabled() && !in_hardirq(), ROEC_ARGS);
 	WARN_ONCE((curstate & RCUTORTURE_RDR_IRQ) && !irqs_disabled(), ROEC_ARGS);
 
 	// If CONFIG_PREEMPT_COUNT=n, further checks are unreliable.
@@ -1938,9 +1938,9 @@ static void rcutorture_one_extend_check(char *s, int curstate, int new, int old,
 		  (curstate & (RCUTORTURE_RDR_RCU_1 | RCUTORTURE_RDR_RCU_2)) &&
 		  cur_ops->readlock_nesting() == 0, ROEC_ARGS);
 
-	// Timer handlers have all sorts of stuff disabled, so ignore
+	// Interrupt handlers have all sorts of stuff disabled, so ignore
 	// unintended disabling.
-	if (insoftirq)
+	if (in_serving_softirq() || in_hardirq())
 		return;
 
 	WARN_ONCE(cur_ops->extendables &&
