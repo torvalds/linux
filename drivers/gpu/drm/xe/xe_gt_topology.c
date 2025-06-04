@@ -16,20 +16,17 @@
 #include "xe_mmio.h"
 #include "xe_wa.h"
 
-static void
-load_dss_mask(struct xe_gt *gt, xe_dss_mask_t mask, int numregs, ...)
+static void load_dss_mask(struct xe_gt *gt, xe_dss_mask_t mask, int numregs,
+			  const struct xe_reg regs[])
 {
-	va_list argp;
 	u32 fuse_val[XE_MAX_DSS_FUSE_REGS] = {};
 	int i;
 
 	if (drm_WARN_ON(&gt_to_xe(gt)->drm, numregs > XE_MAX_DSS_FUSE_REGS))
 		numregs = XE_MAX_DSS_FUSE_REGS;
 
-	va_start(argp, numregs);
 	for (i = 0; i < numregs; i++)
-		fuse_val[i] = xe_mmio_read32(&gt->mmio, va_arg(argp, struct xe_reg));
-	va_end(argp);
+		fuse_val[i] = xe_mmio_read32(&gt->mmio, regs[i]);
 
 	bitmap_from_arr32(mask, fuse_val, numregs * 32);
 }
@@ -219,9 +216,19 @@ get_num_dss_regs(struct xe_device *xe, int *geometry_regs, int *compute_regs)
 void
 xe_gt_topology_init(struct xe_gt *gt)
 {
+	static const struct xe_reg geometry_regs[] = {
+		XELP_GT_GEOMETRY_DSS_ENABLE,
+		XE2_GT_GEOMETRY_DSS_1,
+		XE2_GT_GEOMETRY_DSS_2,
+	};
+	static const struct xe_reg compute_regs[] = {
+		XEHP_GT_COMPUTE_DSS_ENABLE,
+		XEHPC_GT_COMPUTE_DSS_ENABLE_EXT,
+		XE2_GT_COMPUTE_DSS_2,
+	};
+	int num_geometry_regs, num_compute_regs;
 	struct xe_device *xe = gt_to_xe(gt);
 	struct drm_printer p;
-	int num_geometry_regs, num_compute_regs;
 
 	get_num_dss_regs(xe, &num_geometry_regs, &num_compute_regs);
 
@@ -233,14 +240,10 @@ xe_gt_topology_init(struct xe_gt *gt)
 	drm_WARN_ON(&xe->drm, num_compute_regs > 3);
 
 	load_dss_mask(gt, gt->fuse_topo.g_dss_mask,
-		      num_geometry_regs,
-		      XELP_GT_GEOMETRY_DSS_ENABLE,
-		      XE2_GT_GEOMETRY_DSS_1,
-		      XE2_GT_GEOMETRY_DSS_2);
-	load_dss_mask(gt, gt->fuse_topo.c_dss_mask, num_compute_regs,
-		      XEHP_GT_COMPUTE_DSS_ENABLE,
-		      XEHPC_GT_COMPUTE_DSS_ENABLE_EXT,
-		      XE2_GT_COMPUTE_DSS_2);
+		      num_geometry_regs, geometry_regs);
+	load_dss_mask(gt, gt->fuse_topo.c_dss_mask,
+		      num_compute_regs, compute_regs);
+
 	load_eu_mask(gt, gt->fuse_topo.eu_mask_per_dss, &gt->fuse_topo.eu_type);
 	load_l3_bank_mask(gt, gt->fuse_topo.l3_bank_mask);
 
