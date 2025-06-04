@@ -236,8 +236,8 @@ xe_gt_topology_init(struct xe_gt *gt)
 	 * Register counts returned shouldn't exceed the number of registers
 	 * passed as parameters below.
 	 */
-	drm_WARN_ON(&xe->drm, num_geometry_regs > 3);
-	drm_WARN_ON(&xe->drm, num_compute_regs > 3);
+	xe_gt_assert(gt, num_geometry_regs <= ARRAY_SIZE(geometry_regs));
+	xe_gt_assert(gt, num_compute_regs <= ARRAY_SIZE(compute_regs));
 
 	load_dss_mask(gt, gt->fuse_topo.g_dss_mask,
 		      num_geometry_regs, geometry_regs);
