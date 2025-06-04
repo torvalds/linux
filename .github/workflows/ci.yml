@@ -27,9 +27,9 @@ jobs:
             runs_on: ubuntu-22.04
             shell: bash
             build_options: "MMU=1 MMU_KUNIT=1 kasan=yes"
-          - displayTargetName: windows-2019
+          - displayTargetName: windows-2022
             os: windows
-            runs_on: windows-2019
+            runs_on: windows-2022
             pip_option: --break-system-packages
             shell: msys2 {0}
           - displayTargetName: clang-build
