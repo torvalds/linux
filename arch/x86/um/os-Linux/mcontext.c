@@ -231,7 +231,7 @@ int set_stub_state(struct uml_pt_regs *regs, struct stub_data *data,
 	xstate_size = fp_size;
 #endif
 
-	memcpy(fpstate_stub, &regs->fp, fp_size);
+	memcpy(xstate_stub, &regs->fp, xstate_size);
 
 #ifdef __i386__
 	/*

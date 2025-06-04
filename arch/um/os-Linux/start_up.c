@@ -296,10 +296,6 @@ static bool __init init_seccomp(void)
 	int n;
 	unsigned long sp;
 
-	/* doesn't work on 32-bit right now */
-	if (!IS_ENABLED(CONFIG_64BIT))
-		return false;
-
 	/*
 	 * We check that we can install a seccomp filter and then exit(0)
 	 * from a trapped syscall.
