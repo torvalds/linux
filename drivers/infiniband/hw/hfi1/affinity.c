@@ -1069,22 +1069,20 @@ int hfi1_get_proc_affinity(int node)
 	 * If HT cores are enabled, identify which HW threads within the
 	 * physical cores should be used.
 	 */
-	if (affinity->num_core_siblings > 0) {
-		for (i = 0; i < affinity->num_core_siblings; i++) {
-			find_hw_thread_mask(i, hw_thread_mask, affinity);
+	for (i = 0; i < affinity->num_core_siblings; i++) {
+		find_hw_thread_mask(i, hw_thread_mask, affinity);
 
-			/*
-			 * If there's at least one available core for this HW
-			 * thread number, stop looking for a core.
-			 *
-			 * diff will always be not empty at least once in this
-			 * loop as the used mask gets reset when
-			 * (set->mask == set->used) before this loop.
-			 */
-			cpumask_andnot(diff, hw_thread_mask, &set->used);
-			if (!cpumask_empty(diff))
-				break;
-		}
+		/*
+		 * If there's at least one available core for this HW
+		 * thread number, stop looking for a core.
+		 *
+		 * diff will always be not empty at least once in this
+		 * loop as the used mask gets reset when
+		 * (set->mask == set->used) before this loop.
+		 */
+		cpumask_andnot(diff, hw_thread_mask, &set->used);
+		if (!cpumask_empty(diff))
+			break;
 	}
 	hfi1_cdbg(PROC, "Same available HW thread on all physical CPUs: %*pbl",
 		  cpumask_pr_args(hw_thread_mask));
