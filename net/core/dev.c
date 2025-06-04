@@ -10499,7 +10499,7 @@ static void dev_index_release(struct net *net, int ifindex)
 static bool from_cleanup_net(void)
 {
 #ifdef CONFIG_NET_NS
-	return current == cleanup_net_task;
+	return current == READ_ONCE(cleanup_net_task);
 #else
 	return false;
 #endif
