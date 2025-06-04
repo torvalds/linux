@@ -14,10 +14,7 @@
 
 struct io_futex {
 	struct file	*file;
-	union {
-		u32 __user			*uaddr;
-		struct futex_waitv __user	*uwaitv;
-	};
+	void __user	*uaddr;
 	unsigned long	futex_val;
 	unsigned long	futex_mask;
 	unsigned long	futexv_owned;
@@ -186,7 +183,7 @@ int io_futexv_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (!futexv)
 		return -ENOMEM;
 
-	ret = futex_parse_waitv(futexv, iof->uwaitv, iof->futex_nr,
+	ret = futex_parse_waitv(futexv, iof->uaddr, iof->futex_nr,
 				io_futex_wakev_fn, req);
 	if (ret) {
 		kfree(futexv);
