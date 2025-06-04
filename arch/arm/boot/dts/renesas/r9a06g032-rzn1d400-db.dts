@@ -171,6 +171,10 @@
 	renesas,miic-switch-portin = <MIIC_GMAC2_PORT>;
 };
 
+&ext_rtc_clk {
+	clock-frequency = <32768>;
+};
+
 &gmac2 {
 	status = "okay";
 	phy-mode = "gmii";
