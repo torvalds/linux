@@ -1297,7 +1297,7 @@ spinand_select_op_variant(struct spinand_device *spinand,
 
 			nbytes -= op.data.nbytes;
 
-			op_duration_ns += spi_mem_calc_op_duration(&op);
+			op_duration_ns += spi_mem_calc_op_duration(spinand->spimem, &op);
 		}
 
 		if (!nbytes && op_duration_ns < best_op_duration_ns) {
