@@ -164,11 +164,7 @@ static bool j721e_pcie_link_up(struct cdns_pcie *cdns_pcie)
 	u32 reg;
 
 	reg = j721e_pcie_user_readl(pcie, J721E_PCIE_USER_LINKSTATUS);
-	reg &= LINK_STATUS;
-	if (reg == LINK_UP_DL_COMPLETED)
-		return true;
-
-	return false;
+	return (reg & LINK_STATUS) == LINK_UP_DL_COMPLETED;
 }
 
 static const struct cdns_pcie_ops j721e_pcie_ops = {
