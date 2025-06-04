@@ -64,6 +64,7 @@ struct dev_printk_info;
 
 extern struct printk_ringbuffer *prb;
 extern bool printk_kthreads_running;
+extern bool printk_kthreads_ready;
 extern bool debug_non_panic_cpus;
 
 __printf(4, 0)
@@ -180,6 +181,7 @@ static inline void nbcon_kthread_wake(struct console *con)
 #define PRINTKRB_RECORD_MAX	0
 
 #define printk_kthreads_running (false)
+#define printk_kthreads_ready (false)
 
 /*
  * In !PRINTK builds we still export console_sem
