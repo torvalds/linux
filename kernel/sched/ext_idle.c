@@ -75,7 +75,7 @@ static int scx_cpu_node_if_enabled(int cpu)
 	return cpu_to_node(cpu);
 }
 
-bool scx_idle_test_and_clear_cpu(int cpu)
+static bool scx_idle_test_and_clear_cpu(int cpu)
 {
 	int node = scx_cpu_node_if_enabled(cpu);
 	struct cpumask *idle_cpus = idle_cpumask(node)->cpu;
@@ -198,7 +198,7 @@ pick_idle_cpu_from_online_nodes(const struct cpumask *cpus_allowed, int node, u6
 /*
  * Find an idle CPU in the system, starting from @node.
  */
-s32 scx_pick_idle_cpu(const struct cpumask *cpus_allowed, int node, u64 flags)
+static s32 scx_pick_idle_cpu(const struct cpumask *cpus_allowed, int node, u64 flags)
 {
 	s32 cpu;
 
@@ -794,6 +794,16 @@ static void reset_idle_masks(struct sched_ext_ops *ops)
 		cpumask_and(idle_cpumask(node)->smt, cpu_online_mask, node_mask);
 	}
 }
+#else	/* !CONFIG_SMP */
+static bool scx_idle_test_and_clear_cpu(int cpu)
+{
+	return -EBUSY;
+}
+
+static s32 scx_pick_idle_cpu(const struct cpumask *cpus_allowed, int node, u64 flags)
+{
+	return -EBUSY;
+}
 #endif	/* CONFIG_SMP */
 
 void scx_idle_enable(struct sched_ext_ops *ops)
@@ -860,8 +870,8 @@ static bool check_builtin_idle_enabled(void)
 	return false;
 }
 
-s32 select_cpu_from_kfunc(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
-			  const struct cpumask *allowed, u64 flags)
+static s32 select_cpu_from_kfunc(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
+				 const struct cpumask *allowed, u64 flags)
 {
 	struct rq *rq;
 	struct rq_flags rf;
@@ -1121,10 +1131,10 @@ __bpf_kfunc bool scx_bpf_test_and_clear_cpu_idle(s32 cpu)
 	if (!check_builtin_idle_enabled())
 		return false;
 
-	if (kf_cpu_valid(cpu, NULL))
-		return scx_idle_test_and_clear_cpu(cpu);
-	else
+	if (!kf_cpu_valid(cpu, NULL))
 		return false;
+
+	return scx_idle_test_and_clear_cpu(cpu);
 }
 
 /**
