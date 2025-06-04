@@ -1475,6 +1475,9 @@ static ssize_t reset_method_store(struct device *dev,
 		return count;
 	}
 
+	pm_runtime_get_sync(dev);
+	struct device *pmdev __free(pm_runtime_put) = dev;
+
 	if (sysfs_streq(buf, "default")) {
 		pci_init_reset_methods(pdev);
 		return count;
