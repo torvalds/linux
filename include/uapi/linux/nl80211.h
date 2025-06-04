@@ -1334,7 +1334,11 @@
  *      reconfiguration request results from the driver, this command is also
  *      used as an event to notify userspace about the added links information.
  *      For notifying the removed links information, the existing
- *      %NL80211_CMD_LINKS_REMOVED command is used.
+ *      %NL80211_CMD_LINKS_REMOVED command is used. This command is also used to
+ *      notify userspace about newly added links for the current connection in
+ *      case of AP-initiated link recommendation requests, received via
+ *      a BTM (BSS Transition Management) request or a link reconfig notify
+ *      frame, where the driver handles the link recommendation offload.
  *
  * @NL80211_CMD_EPCS_CFG: EPCS configuration for a station. Used by userland to
  *	control EPCS configuration. Used to notify userland on the current state
