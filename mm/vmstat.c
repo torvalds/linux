@@ -1287,7 +1287,7 @@ const char * const vmstat_text[] = {
 	"nr_memmap_pages",
 	"nr_memmap_boot_pages",
 
-#if defined(CONFIG_VM_EVENT_COUNTERS) || defined(CONFIG_MEMCG)
+#if defined(CONFIG_VM_EVENT_COUNTERS)
 	/* enum vm_event_item counters */
 	"pgpgin",
 	"pgpgout",
@@ -1477,7 +1477,7 @@ const char * const vmstat_text[] = {
 	"kstack_rest",
 #endif
 #endif
-#endif /* CONFIG_VM_EVENT_COUNTERS || CONFIG_MEMCG */
+#endif /* CONFIG_VM_EVENT_COUNTERS */
 };
 #endif /* CONFIG_PROC_FS || CONFIG_SYSFS || CONFIG_NUMA || CONFIG_MEMCG */
 
