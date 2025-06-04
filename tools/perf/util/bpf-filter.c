@@ -52,6 +52,7 @@
 #include <internal/xyarray.h>
 #include <perf/threadmap.h>
 
+#include "util/cap.h"
 #include "util/debug.h"
 #include "util/evsel.h"
 #include "util/target.h"
@@ -618,10 +619,37 @@ struct perf_bpf_filter_expr *perf_bpf_filter_expr__new(enum perf_bpf_filter_term
 	return expr;
 }
 
+static bool check_bpf_filter_capable(void)
+{
+	bool used_root;
+
+	if (perf_cap__capable(CAP_BPF, &used_root))
+		return true;
+
+	if (!used_root) {
+		/* Check if root already pinned the filter programs and maps */
+		int fd = get_pinned_fd("filters");
+
+		if (fd >= 0) {
+			close(fd);
+			return true;
+		}
+	}
+
+	pr_err("Error: BPF filter only works for %s!\n"
+	       "\tPlease run 'perf record --setup-filter pin' as root first.\n",
+	       used_root ? "root" : "users with the CAP_BPF capability");
+
+	return false;
+}
+
 int perf_bpf_filter__parse(struct list_head *expr_head, const char *str)
 {
 	YY_BUFFER_STATE buffer;
 	int ret;
+
+	if (!check_bpf_filter_capable())
+		return -EPERM;
 
 	buffer = perf_bpf_filter__scan_string(str);
 
