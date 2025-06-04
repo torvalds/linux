@@ -11,6 +11,12 @@
 	model = "TQ-Systems i.MX93 TQMa93xxLA/TQMa93xxCA SOM";
 	compatible = "tq,imx93-tqma9352", "fsl,imx93";
 
+	memory@80000000 {
+		device_type = "memory";
+		/* our minimum RAM config will be 1024 MiB */
+		reg = <0x00000000 0x80000000 0 0x40000000>;
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
