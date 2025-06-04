@@ -4,8 +4,11 @@
  *
  * Copyright (C) 2022 Renesas Electronics Corporation
  */
+
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
@@ -23,8 +26,11 @@
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
+#include <video/mipi_display.h>
 
 #include "rzg2l_mipi_dsi_regs.h"
+
+#define RZG2L_DCS_BUF_SIZE	128 /* Maximum DCS buffer size in external memory. */
 
 struct rzg2l_mipi_dsi {
 	struct device *dev;
@@ -44,6 +50,10 @@ struct rzg2l_mipi_dsi {
 	unsigned int num_data_lanes;
 	unsigned int lanes;
 	unsigned long mode_flags;
+
+	/* DCS buffer pointers when using external memory. */
+	dma_addr_t dcs_buf_phys;
+	u8 *dcs_buf_virt;
 };
 
 static inline struct rzg2l_mipi_dsi *
@@ -267,6 +277,7 @@ static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *dsi,
 	u32 clkbfht;
 	u32 clkstpt;
 	u32 golpbkt;
+	u32 dsisetr;
 	int ret;
 
 	/*
@@ -327,6 +338,15 @@ static int rzg2l_mipi_dsi_startup(struct rzg2l_mipi_dsi *dsi,
 
 	lptrnstsetr = LPTRNSTSETR_GOLPBKT(golpbkt);
 	rzg2l_mipi_dsi_link_write(dsi, LPTRNSTSETR, lptrnstsetr);
+
+	/*
+	 * Increase MRPSZ as the default value of 1 will result in long read
+	 * commands payload not being saved to memory.
+	 */
+	dsisetr = rzg2l_mipi_dsi_link_read(dsi, DSISETR);
+	dsisetr &= ~DSISETR_MRPSZ;
+	dsisetr |= FIELD_PREP(DSISETR_MRPSZ, RZG2L_DCS_BUF_SIZE);
+	rzg2l_mipi_dsi_link_write(dsi, DSISETR, dsisetr);
 
 	return 0;
 
@@ -659,9 +679,168 @@ static int rzg2l_mipi_dsi_host_detach(struct mipi_dsi_host *host,
 	return 0;
 }
 
+static ssize_t rzg2l_mipi_dsi_read_response(struct rzg2l_mipi_dsi *dsi,
+					    const struct mipi_dsi_msg *msg)
+{
+	u8 *msg_rx = msg->rx_buf;
+	u8 datatype;
+	u32 result;
+	u16 size;
+
+	result = rzg2l_mipi_dsi_link_read(dsi, RXRSS0R);
+	if (result & RXRSS0R_RXPKTDFAIL) {
+		dev_err(dsi->dev, "packet rx data did not save correctly\n");
+		return -EPROTO;
+	}
+
+	if (result & RXRSS0R_RXFAIL) {
+		dev_err(dsi->dev, "packet rx failure\n");
+		return -EPROTO;
+	}
+
+	if (!(result & RXRSS0R_RXSUC))
+		return -EPROTO;
+
+	datatype = FIELD_GET(RXRSS0R_DT, result);
+
+	switch (datatype) {
+	case 0:
+		dev_dbg(dsi->dev, "ACK\n");
+		return 0;
+	case MIPI_DSI_RX_END_OF_TRANSMISSION:
+		dev_dbg(dsi->dev, "EoTp\n");
+		return 0;
+	case MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT:
+		dev_dbg(dsi->dev, "Acknowledge and error report: $%02x%02x\n",
+			(u8)FIELD_GET(RXRSS0R_DATA1, result),
+			(u8)FIELD_GET(RXRSS0R_DATA0, result));
+		return 0;
+	case MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_1BYTE:
+	case MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_1BYTE:
+		msg_rx[0] = FIELD_GET(RXRSS0R_DATA0, result);
+		return 1;
+	case MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_2BYTE:
+	case MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_2BYTE:
+		msg_rx[0] = FIELD_GET(RXRSS0R_DATA0, result);
+		msg_rx[1] = FIELD_GET(RXRSS0R_DATA1, result);
+		return 2;
+	case MIPI_DSI_RX_GENERIC_LONG_READ_RESPONSE:
+	case MIPI_DSI_RX_DCS_LONG_READ_RESPONSE:
+		size = FIELD_GET(RXRSS0R_WC, result);
+
+		if (size > msg->rx_len) {
+			dev_err(dsi->dev, "rx buffer too small");
+			return -ENOSPC;
+		}
+
+		memcpy(msg_rx, dsi->dcs_buf_virt, size);
+		return size;
+	default:
+		dev_err(dsi->dev, "unhandled response type: %02x\n", datatype);
+		return -EPROTO;
+	}
+}
+
+static ssize_t rzg2l_mipi_dsi_host_transfer(struct mipi_dsi_host *host,
+					    const struct mipi_dsi_msg *msg)
+{
+	struct rzg2l_mipi_dsi *dsi = host_to_rzg2l_mipi_dsi(host);
+	struct mipi_dsi_packet packet;
+	bool need_bta;
+	u32 value;
+	int ret;
+
+	ret = mipi_dsi_create_packet(&packet, msg);
+	if (ret < 0)
+		return ret;
+
+	/* Terminate operation after this descriptor is finished */
+	value = SQCH0DSC0AR_NXACT_TERM;
+
+	if (msg->flags & MIPI_DSI_MSG_REQ_ACK) {
+		need_bta = true; /* Message with explicitly requested ACK */
+		value |= FIELD_PREP(SQCH0DSC0AR_BTA, SQCH0DSC0AR_BTA_NON_READ);
+	} else if (msg->rx_buf && msg->rx_len > 0) {
+		need_bta = true; /* Read request */
+		value |= FIELD_PREP(SQCH0DSC0AR_BTA, SQCH0DSC0AR_BTA_READ);
+	} else {
+		need_bta = false;
+		value |= FIELD_PREP(SQCH0DSC0AR_BTA, SQCH0DSC0AR_BTA_NONE);
+	}
+
+	/* Set transmission speed */
+	if (msg->flags & MIPI_DSI_MSG_USE_LPM)
+		value |= SQCH0DSC0AR_SPD_LOW;
+	else
+		value |= SQCH0DSC0AR_SPD_HIGH;
+
+	/* Write TX packet header */
+	value |= FIELD_PREP(SQCH0DSC0AR_DT, packet.header[0]) |
+		FIELD_PREP(SQCH0DSC0AR_DATA0, packet.header[1]) |
+		FIELD_PREP(SQCH0DSC0AR_DATA1, packet.header[2]);
+
+	if (mipi_dsi_packet_format_is_long(msg->type)) {
+		value |= SQCH0DSC0AR_FMT_LONG;
+
+		if (packet.payload_length > RZG2L_DCS_BUF_SIZE) {
+			dev_err(dsi->dev, "Packet Tx payload size (%d) too large",
+				(unsigned int)packet.payload_length);
+			return -ENOSPC;
+		}
+
+		/* Copy TX packet payload data to memory space */
+		memcpy(dsi->dcs_buf_virt, packet.payload, packet.payload_length);
+	} else {
+		value |= SQCH0DSC0AR_FMT_SHORT;
+	}
+
+	rzg2l_mipi_dsi_link_write(dsi, SQCH0DSC0AR, value);
+
+	/*
+	 * Write: specify payload data source location, only used for
+	 *        long packet.
+	 * Read:  specify payload data storage location of response
+	 *        packet. Note: a read packet is always a short packet.
+	 *        If the response packet is a short packet or a long packet
+	 *        with WC = 0 (no payload), DTSEL is meaningless.
+	 */
+	rzg2l_mipi_dsi_link_write(dsi, SQCH0DSC0BR, SQCH0DSC0BR_DTSEL_MEM_SPACE);
+
+	/*
+	 * Set SQCHxSR.AACTFIN bit when descriptor actions are finished.
+	 * Read: set Rx result save slot number to 0 (ACTCODE).
+	 */
+	rzg2l_mipi_dsi_link_write(dsi, SQCH0DSC0CR, SQCH0DSC0CR_FINACT);
+
+	/* Set rx/tx payload data address, only relevant for long packet. */
+	rzg2l_mipi_dsi_link_write(dsi, SQCH0DSC0DR, (u32)dsi->dcs_buf_phys);
+
+	/* Start sequence 0 operation */
+	value = rzg2l_mipi_dsi_link_read(dsi, SQCH0SET0R);
+	value |= SQCH0SET0R_START;
+	rzg2l_mipi_dsi_link_write(dsi, SQCH0SET0R, value);
+
+	/* Wait for operation to finish */
+	ret = read_poll_timeout(rzg2l_mipi_dsi_link_read,
+				value, value & SQCH0SR_ADESFIN,
+				2000, 20000, false, dsi, SQCH0SR);
+	if (ret == 0) {
+		/* Success: clear status bit */
+		rzg2l_mipi_dsi_link_write(dsi, SQCH0SCR, SQCH0SCR_ADESFIN);
+
+		if (need_bta)
+			ret = rzg2l_mipi_dsi_read_response(dsi, msg);
+		else
+			ret = packet.payload_length;
+	}
+
+	return ret;
+}
+
 static const struct mipi_dsi_host_ops rzg2l_mipi_dsi_host_ops = {
 	.attach = rzg2l_mipi_dsi_host_attach,
 	.detach = rzg2l_mipi_dsi_host_detach,
+	.transfer = rzg2l_mipi_dsi_host_transfer,
 };
 
 /* -----------------------------------------------------------------------------
@@ -779,6 +958,11 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_pm_disable;
 
+	dsi->dcs_buf_virt = dma_alloc_coherent(dsi->host.dev, RZG2L_DCS_BUF_SIZE,
+					       &dsi->dcs_buf_phys, GFP_KERNEL);
+	if (!dsi->dcs_buf_virt)
+		return -ENOMEM;
+
 	return 0;
 
 err_phy:
@@ -793,6 +977,8 @@ static void rzg2l_mipi_dsi_remove(struct platform_device *pdev)
 {
 	struct rzg2l_mipi_dsi *dsi = platform_get_drvdata(pdev);
 
+	dma_free_coherent(dsi->host.dev, RZG2L_DCS_BUF_SIZE, dsi->dcs_buf_virt,
+			  dsi->dcs_buf_phys);
 	mipi_dsi_host_unregister(&dsi->host);
 	pm_runtime_disable(&pdev->dev);
 }
