@@ -6,30 +6,13 @@
 /*
  * On the state of PCI's devres implementation:
  *
- * The older devres API for PCI has two significant problems:
+ * The older PCI devres API has one significant problem:
  *
- * 1. It is very strongly tied to the statically allocated mapping table in
- *    struct pcim_iomap_devres below. This is mostly solved in the sense of the
- *    pcim_ functions in this file providing things like ranged mapping by
- *    bypassing this table, whereas the functions that were present in the old
- *    API still enter the mapping addresses into the table for users of the old
- *    API.
- *
- * 2. The region-request-functions in pci.c do become managed IF the device has
- *    been enabled with pcim_enable_device() instead of pci_enable_device().
- *    This resulted in the API becoming inconsistent: Some functions have an
- *    obviously managed counter-part (e.g., pci_iomap() <-> pcim_iomap()),
- *    whereas some don't and are never managed, while others don't and are
- *    _sometimes_ managed (e.g. pci_request_region()).
- *
- *    Consequently, in the new API, region requests performed by the pcim_
- *    functions are automatically cleaned up through the devres callback
- *    pcim_addr_resource_release().
- *
- *    Users of pcim_enable_device() + pci_*region*() are redirected in
- *    pci.c to the managed functions here in this file. This isn't exactly
- *    perfect, but the only alternative way would be to port ALL drivers
- *    using said combination to pcim_ functions.
+ * It is very strongly tied to the statically allocated mapping table in struct
+ * pcim_iomap_devres below. This is mostly solved in the sense of the pcim_
+ * functions in this file providing things like ranged mapping by bypassing
+ * this table, whereas the functions that were present in the old API still
+ * enter the mapping addresses into the table for users of the old API.
  *
  * TODO:
  * Remove the legacy table entirely once all calls to pcim_iomap_table() in
@@ -87,104 +70,6 @@ static inline void pcim_addr_devres_clear(struct pcim_addr_devres *res)
 	res->bar = -1;
 }
 
-/*
- * The following functions, __pcim_*_region*, exist as counterparts to the
- * versions from pci.c - which, unfortunately, can be in "hybrid mode", i.e.,
- * sometimes managed, sometimes not.
- *
- * To separate the APIs cleanly, we define our own, simplified versions here.
- */
-
-/**
- * __pcim_request_region_range - Request a ranged region
- * @pdev: PCI device the region belongs to
- * @bar: BAR the range is within
- * @offset: offset from the BAR's start address
- * @maxlen: length in bytes, beginning at @offset
- * @name: name of the driver requesting the resource
- * @req_flags: flags for the request, e.g., for kernel-exclusive requests
- *
- * Returns: 0 on success, a negative error code on failure.
- *
- * Request a range within a device's PCI BAR.  Sanity check the input.
- */
-static int __pcim_request_region_range(struct pci_dev *pdev, int bar,
-				       unsigned long offset,
-				       unsigned long maxlen,
-				       const char *name, int req_flags)
-{
-	resource_size_t start = pci_resource_start(pdev, bar);
-	resource_size_t len = pci_resource_len(pdev, bar);
-	unsigned long dev_flags = pci_resource_flags(pdev, bar);
-
-	if (start == 0 || len == 0) /* Unused BAR. */
-		return 0;
-	if (len <= offset)
-		return -EINVAL;
-
-	start += offset;
-	len -= offset;
-
-	if (len > maxlen && maxlen != 0)
-		len = maxlen;
-
-	if (dev_flags & IORESOURCE_IO) {
-		if (!request_region(start, len, name))
-			return -EBUSY;
-	} else if (dev_flags & IORESOURCE_MEM) {
-		if (!__request_mem_region(start, len, name, req_flags))
-			return -EBUSY;
-	} else {
-		/* That's not a device we can request anything on. */
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-static void __pcim_release_region_range(struct pci_dev *pdev, int bar,
-					unsigned long offset,
-					unsigned long maxlen)
-{
-	resource_size_t start = pci_resource_start(pdev, bar);
-	resource_size_t len = pci_resource_len(pdev, bar);
-	unsigned long flags = pci_resource_flags(pdev, bar);
-
-	if (len <= offset || start == 0)
-		return;
-
-	if (len == 0 || maxlen == 0) /* This an unused BAR. Do nothing. */
-		return;
-
-	start += offset;
-	len -= offset;
-
-	if (len > maxlen)
-		len = maxlen;
-
-	if (flags & IORESOURCE_IO)
-		release_region(start, len);
-	else if (flags & IORESOURCE_MEM)
-		release_mem_region(start, len);
-}
-
-static int __pcim_request_region(struct pci_dev *pdev, int bar,
-				 const char *name, int flags)
-{
-	unsigned long offset = 0;
-	unsigned long len = pci_resource_len(pdev, bar);
-
-	return __pcim_request_region_range(pdev, bar, offset, len, name, flags);
-}
-
-static void __pcim_release_region(struct pci_dev *pdev, int bar)
-{
-	unsigned long offset = 0;
-	unsigned long len = pci_resource_len(pdev, bar);
-
-	__pcim_release_region_range(pdev, bar, offset, len);
-}
-
 static void pcim_addr_resource_release(struct device *dev, void *resource_raw)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -192,11 +77,11 @@ static void pcim_addr_resource_release(struct device *dev, void *resource_raw)
 
 	switch (res->type) {
 	case PCIM_ADDR_DEVRES_TYPE_REGION:
-		__pcim_release_region(pdev, res->bar);
+		pci_release_region(pdev, res->bar);
 		break;
 	case PCIM_ADDR_DEVRES_TYPE_REGION_MAPPING:
 		pci_iounmap(pdev, res->baseaddr);
-		__pcim_release_region(pdev, res->bar);
+		pci_release_region(pdev, res->bar);
 		break;
 	case PCIM_ADDR_DEVRES_TYPE_MAPPING:
 		pci_iounmap(pdev, res->baseaddr);
@@ -735,7 +620,7 @@ void __iomem *pcim_iomap_region(struct pci_dev *pdev, int bar,
 	res->type = PCIM_ADDR_DEVRES_TYPE_REGION_MAPPING;
 	res->bar = bar;
 
-	ret = __pcim_request_region(pdev, bar, name, 0);
+	ret = pci_request_region(pdev, bar, name);
 	if (ret != 0)
 		goto err_region;
 
@@ -749,7 +634,7 @@ void __iomem *pcim_iomap_region(struct pci_dev *pdev, int bar,
 	return res->baseaddr;
 
 err_iomap:
-	__pcim_release_region(pdev, bar);
+	pci_release_region(pdev, bar);
 err_region:
 	pcim_addr_devres_free(res);
 
@@ -823,31 +708,6 @@ err:
 }
 EXPORT_SYMBOL(pcim_iomap_regions);
 
-static int _pcim_request_region(struct pci_dev *pdev, int bar, const char *name,
-				int request_flags)
-{
-	int ret;
-	struct pcim_addr_devres *res;
-
-	if (!pci_bar_index_is_valid(bar))
-		return -EINVAL;
-
-	res = pcim_addr_devres_alloc(pdev);
-	if (!res)
-		return -ENOMEM;
-	res->type = PCIM_ADDR_DEVRES_TYPE_REGION;
-	res->bar = bar;
-
-	ret = __pcim_request_region(pdev, bar, name, request_flags);
-	if (ret != 0) {
-		pcim_addr_devres_free(res);
-		return ret;
-	}
-
-	devres_add(&pdev->dev, res);
-	return 0;
-}
-
 /**
  * pcim_request_region - Request a PCI BAR
  * @pdev: PCI device to request region for
@@ -863,27 +723,28 @@ static int _pcim_request_region(struct pci_dev *pdev, int bar, const char *name,
  */
 int pcim_request_region(struct pci_dev *pdev, int bar, const char *name)
 {
-	return _pcim_request_region(pdev, bar, name, 0);
+	int ret;
+	struct pcim_addr_devres *res;
+
+	if (!pci_bar_index_is_valid(bar))
+		return -EINVAL;
+
+	res = pcim_addr_devres_alloc(pdev);
+	if (!res)
+		return -ENOMEM;
+	res->type = PCIM_ADDR_DEVRES_TYPE_REGION;
+	res->bar = bar;
+
+	ret = pci_request_region(pdev, bar, name);
+	if (ret != 0) {
+		pcim_addr_devres_free(res);
+		return ret;
+	}
+
+	devres_add(&pdev->dev, res);
+	return 0;
 }
 EXPORT_SYMBOL(pcim_request_region);
-
-/**
- * pcim_request_region_exclusive - Request a PCI BAR exclusively
- * @pdev: PCI device to request region for
- * @bar: Index of BAR to request
- * @name: Name of the driver requesting the resource
- *
- * Returns: 0 on success, a negative error code on failure.
- *
- * Request region specified by @bar exclusively.
- *
- * The region will automatically be released on driver detach. If desired,
- * release manually only with pcim_release_region().
- */
-int pcim_request_region_exclusive(struct pci_dev *pdev, int bar, const char *name)
-{
-	return _pcim_request_region(pdev, bar, name, IORESOURCE_EXCLUSIVE);
-}
 
 /**
  * pcim_release_region - Release a PCI BAR
@@ -893,7 +754,7 @@ int pcim_request_region_exclusive(struct pci_dev *pdev, int bar, const char *nam
  * Release a region manually that was previously requested by
  * pcim_request_region().
  */
-void pcim_release_region(struct pci_dev *pdev, int bar)
+static void pcim_release_region(struct pci_dev *pdev, int bar)
 {
 	struct pcim_addr_devres res_searched;
 
@@ -954,30 +815,6 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL(pcim_request_all_regions);
-
-/**
- * pcim_iounmap_regions - Unmap and release PCI BARs (DEPRECATED)
- * @pdev: PCI device to map IO resources for
- * @mask: Mask of BARs to unmap and release
- *
- * Unmap and release regions specified by @mask.
- *
- * This function is DEPRECATED. Do not use it in new code.
- * Use pcim_iounmap_region() instead.
- */
-void pcim_iounmap_regions(struct pci_dev *pdev, int mask)
-{
-	int i;
-
-	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
-		if (!mask_contains_bar(mask, i))
-			continue;
-
-		pcim_iounmap_region(pdev, i);
-		pcim_remove_bar_from_legacy_table(pdev, i);
-	}
-}
-EXPORT_SYMBOL(pcim_iounmap_regions);
 
 /**
  * pcim_iomap_range - Create a ranged __iomap mapping within a PCI BAR
