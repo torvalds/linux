@@ -963,7 +963,7 @@ void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
 static void find_hw_thread_mask(uint hw_thread_no, cpumask_var_t hw_thread_mask,
 				struct hfi1_affinity_node_list *affinity)
 {
-	int possible, curr_cpu, i;
+	int curr_cpu;
 	uint num_cores_per_socket;
 
 	cpumask_copy(hw_thread_mask, &affinity->proc.mask);
@@ -976,17 +976,9 @@ static void find_hw_thread_mask(uint hw_thread_no, cpumask_var_t hw_thread_mask,
 						node_affinity.num_online_nodes;
 
 	/* Removing other siblings not needed for now */
-	possible = cpumask_weight(hw_thread_mask);
-	curr_cpu = cpumask_first(hw_thread_mask);
-	for (i = 0;
-	     i < num_cores_per_socket * node_affinity.num_online_nodes;
-	     i++)
-		curr_cpu = cpumask_next(curr_cpu, hw_thread_mask);
-
-	for (; i < possible; i++) {
-		cpumask_clear_cpu(curr_cpu, hw_thread_mask);
-		curr_cpu = cpumask_next(curr_cpu, hw_thread_mask);
-	}
+	curr_cpu = cpumask_cpumask_nth(num_cores_per_socket *
+			node_affinity.num_online_nodes, hw_thread_mask) + 1;
+	cpumask_clear_cpus(hw_thread_mask, curr_cpu, nr_cpu_ids - curr_cpu);
 
 	/* Identifying correct HW threads within physical cores */
 	cpumask_shift_left(hw_thread_mask, hw_thread_mask,
