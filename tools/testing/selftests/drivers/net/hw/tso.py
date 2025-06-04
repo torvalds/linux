@@ -216,7 +216,7 @@ def main() -> None:
             ("",            "6", "tx-tcp6-segmentation",          None),
             ("vxlan",        "", "tx-udp_tnl-segmentation",       ("vxlan",  True,  "id 100 dstport 4789 noudpcsum")),
             ("vxlan_csum",   "", "tx-udp_tnl-csum-segmentation",  ("vxlan",  False, "id 100 dstport 4789 udpcsum")),
-            ("gre",         "4", "tx-gre-segmentation",           ("ipgre",  False,  "")),
+            ("gre",         "4", "tx-gre-segmentation",           ("gre",    False,  "")),
             ("gre",         "6", "tx-gre-segmentation",           ("ip6gre", False,  "")),
         )
 
