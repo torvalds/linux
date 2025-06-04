@@ -914,9 +914,8 @@ static void xe_lrc_finish(struct xe_lrc *lrc)
 }
 
 /*
- * xe_lrc_setup_utilization() - Setup wa bb to assist in calculating active
- * context run ticks.
- * @lrc: Pointer to the lrc.
+ * wa_bb_setup_utilization() - Write commands to wa bb to assist
+ * in calculating active context run ticks.
  *
  * Context Timestamp (CTX_TIMESTAMP) in the LRC accumulates the run ticks of the
  * context, but only gets updated when the context switches out. In order to
@@ -941,18 +940,13 @@ static void xe_lrc_finish(struct xe_lrc *lrc)
  * store it in the PPHSWP.
  */
 #define CONTEXT_ACTIVE 1ULL
-static int xe_lrc_setup_utilization(struct xe_lrc *lrc)
+static ssize_t wa_bb_setup_utilization(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
+				       u32 *batch, size_t max_len)
 {
-	u32 *cmd, *buf = NULL;
+	u32 *cmd = batch;
 
-	if (lrc->bb_per_ctx_bo->vmap.is_iomem) {
-		buf = kmalloc(lrc->bb_per_ctx_bo->size, GFP_KERNEL);
-		if (!buf)
-			return -ENOMEM;
-		cmd = buf;
-	} else {
-		cmd = lrc->bb_per_ctx_bo->vmap.vaddr;
-	}
+	if (xe_gt_WARN_ON(lrc->gt, max_len < 12))
+		return -ENOSPC;
 
 	*cmd++ = MI_STORE_REGISTER_MEM | MI_SRM_USE_GGTT | MI_SRM_ADD_CS_OFFSET;
 	*cmd++ = ENGINE_ID(0).addr;
@@ -971,6 +965,49 @@ static int xe_lrc_setup_utilization(struct xe_lrc *lrc)
 		*cmd++ = upper_32_bits(CONTEXT_ACTIVE);
 	}
 
+	return cmd - batch;
+}
+
+struct wa_bb_setup {
+	ssize_t (*setup)(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
+			 u32 *batch, size_t max_size);
+};
+
+static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
+{
+	const size_t max_size = lrc->bb_per_ctx_bo->size;
+	static const struct wa_bb_setup funcs[] = {
+		{ .setup = wa_bb_setup_utilization },
+	};
+	ssize_t remain;
+	u32 *cmd, *buf = NULL;
+
+	if (lrc->bb_per_ctx_bo->vmap.is_iomem) {
+		buf = kmalloc(max_size, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+		cmd = buf;
+	} else {
+		cmd = lrc->bb_per_ctx_bo->vmap.vaddr;
+	}
+
+	remain = max_size / sizeof(*cmd);
+
+	for (size_t i = 0; i < ARRAY_SIZE(funcs); i++) {
+		ssize_t len = funcs[i].setup(lrc, hwe, cmd, remain);
+
+		remain -= len;
+
+		/*
+		 * There should always be at least 1 additional dword for
+		 * the end marker
+		 */
+		if (len < 0 || xe_gt_WARN_ON(lrc->gt, remain < 1))
+			goto fail;
+
+		cmd += len;
+	}
+
 	*cmd++ = MI_BATCH_BUFFER_END;
 
 	if (buf) {
@@ -983,6 +1020,10 @@ static int xe_lrc_setup_utilization(struct xe_lrc *lrc)
 			     xe_bo_ggtt_addr(lrc->bb_per_ctx_bo) | 1);
 
 	return 0;
+
+fail:
+	kfree(buf);
+	return -ENOSPC;
 }
 
 #define PVC_CTX_ASID		(0x2e + 1)
@@ -1139,7 +1180,7 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	map = __xe_lrc_start_seqno_map(lrc);
 	xe_map_write32(lrc_to_xe(lrc), &map, lrc->fence_ctx.next_seqno - 1);
 
-	err = xe_lrc_setup_utilization(lrc);
+	err = setup_wa_bb(lrc, hwe);
 	if (err)
 		goto err_lrc_finish;
 
