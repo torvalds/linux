@@ -145,6 +145,8 @@ int io_futex_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	    !futex_validate_input(iof->futex_flags, iof->futex_mask))
 		return -EINVAL;
 
+	/* Mark as inflight, so file exit cancelation will find it */
+	io_req_track_inflight(req);
 	return 0;
 }
 
@@ -190,6 +192,8 @@ int io_futexv_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return ret;
 	}
 
+	/* Mark as inflight, so file exit cancelation will find it */
+	io_req_track_inflight(req);
 	iof->futexv_owned = 0;
 	iof->futexv_unqueued = 0;
 	req->flags |= REQ_F_ASYNC_DATA;
