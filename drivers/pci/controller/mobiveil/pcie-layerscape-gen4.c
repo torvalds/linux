@@ -169,8 +169,7 @@ static int ls_g4_pcie_interrupt_init(struct mobiveil_pcie *mv_pci)
 
 static void ls_g4_pcie_reset(struct work_struct *work)
 {
-	struct delayed_work *dwork = container_of(work, struct delayed_work,
-						  work);
+	struct delayed_work *dwork = to_delayed_work(work);
 	struct ls_g4_pcie *pcie = container_of(dwork, struct ls_g4_pcie, dwork);
 	struct mobiveil_pcie *mv_pci = &pcie->pci;
 	u16 ctrl;
