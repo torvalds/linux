@@ -4414,8 +4414,10 @@ void amdgpu_ras_clear_err_state(struct amdgpu_device *adev)
 	struct amdgpu_ras *ras;
 
 	ras = amdgpu_ras_get_context(adev);
-	if (ras)
+	if (ras) {
 		ras->ras_err_state = 0;
+		ras->gpu_reset_flags = 0;
+	}
 }
 
 void amdgpu_ras_set_err_poison(struct amdgpu_device *adev,
