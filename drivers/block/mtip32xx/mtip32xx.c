@@ -3717,7 +3717,7 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 	rv = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (rv) {
 		dev_warn(&pdev->dev, "64-bit DMA enable failed\n");
-		goto setmask_err;
+		goto iomap_err;
 	}
 
 	/* Copy the info we may need later into the private data structure. */
@@ -3733,7 +3733,7 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 	if (!dd->isr_workq) {
 		dev_warn(&pdev->dev, "Can't create wq %d\n", dd->instance);
 		rv = -ENOMEM;
-		goto setmask_err;
+		goto iomap_err;
 	}
 
 	memset(cpu_list, 0, sizeof(cpu_list));
@@ -3830,8 +3830,6 @@ msi_initialize_err:
 		drop_cpu(dd->work[1].cpu_binding);
 		drop_cpu(dd->work[2].cpu_binding);
 	}
-setmask_err:
-	pcim_iounmap_regions(pdev, 1 << MTIP_ABAR);
 
 iomap_err:
 	kfree(dd);
@@ -3907,7 +3905,6 @@ static void mtip_pci_remove(struct pci_dev *pdev)
 
 	pci_disable_msi(pdev);
 
-	pcim_iounmap_regions(pdev, 1 << MTIP_ABAR);
 	pci_set_drvdata(pdev, NULL);
 
 	put_disk(dd->disk);

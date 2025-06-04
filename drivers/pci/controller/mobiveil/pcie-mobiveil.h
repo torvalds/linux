@@ -160,7 +160,7 @@ struct mobiveil_root_port {
 };
 
 struct mobiveil_pab_ops {
-	int (*link_up)(struct mobiveil_pcie *pcie);
+	bool (*link_up)(struct mobiveil_pcie *pcie);
 };
 
 struct mobiveil_pcie {
