@@ -2341,7 +2341,7 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 	u64 min_size = btrfs_calc_insert_metadata_size(fs_info, 1);
 	u64 ino_size = round_up(inode->vfs_inode.i_size, fs_info->sectorsize);
 	struct btrfs_trans_handle *trans = NULL;
-	struct btrfs_block_rsv *rsv;
+	struct btrfs_block_rsv rsv;
 	unsigned int rsv_count;
 	u64 cur_offset;
 	u64 len = end - start;
@@ -2350,13 +2350,9 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 	if (end <= start)
 		return -EINVAL;
 
-	rsv = btrfs_alloc_block_rsv(fs_info, BTRFS_BLOCK_RSV_TEMP);
-	if (!rsv) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	rsv->size = btrfs_calc_insert_metadata_size(fs_info, 1);
-	rsv->failfast = true;
+	btrfs_init_metadata_block_rsv(fs_info, &rsv, BTRFS_BLOCK_RSV_TEMP);
+	rsv.size = btrfs_calc_insert_metadata_size(fs_info, 1);
+	rsv.failfast = true;
 
 	/*
 	 * 1 - update the inode
@@ -2373,14 +2369,14 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
 		trans = NULL;
-		goto out_free;
+		goto out_release;
 	}
 
-	ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv, rsv,
+	ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv, &rsv,
 				      min_size, false);
 	if (WARN_ON(ret))
 		goto out_trans;
-	trans->block_rsv = rsv;
+	trans->block_rsv = &rsv;
 
 	cur_offset = start;
 	drop_args.path = path;
@@ -2496,10 +2492,10 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 		}
 
 		ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv,
-					      rsv, min_size, false);
+					      &rsv, min_size, false);
 		if (WARN_ON(ret))
 			break;
-		trans->block_rsv = rsv;
+		trans->block_rsv = &rsv;
 
 		cur_offset = drop_args.drop_end;
 		len = end - cur_offset;
@@ -2576,16 +2572,15 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 
 out_trans:
 	if (!trans)
-		goto out_free;
+		goto out_release;
 
 	trans->block_rsv = &fs_info->trans_block_rsv;
 	if (ret)
 		btrfs_end_transaction(trans);
 	else
 		*trans_out = trans;
-out_free:
-	btrfs_free_block_rsv(fs_info, rsv);
-out:
+out_release:
+	btrfs_block_rsv_release(fs_info, &rsv, (u64)-1, NULL);
 	return ret;
 }
 
