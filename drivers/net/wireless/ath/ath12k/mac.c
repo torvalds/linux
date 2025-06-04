@@ -1496,11 +1496,13 @@ static int ath12k_mac_remove_vendor_ie(struct sk_buff *skb, unsigned int oui,
 	return 0;
 }
 
-static void ath12k_mac_set_arvif_ies(struct ath12k_link_vif *arvif, struct sk_buff *bcn,
+static void ath12k_mac_set_arvif_ies(struct ath12k_link_vif *arvif,
+				     struct ath12k_link_vif *tx_arvif,
+				     struct sk_buff *bcn,
 				     u8 bssid_index, bool *nontx_profile_found)
 {
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)bcn->data;
-	const struct element *elem, *nontx, *index, *nie;
+	const struct element *elem, *nontx, *index, *nie, *ext_cap_ie;
 	const u8 *start, *tail;
 	u16 rem_len;
 	u8 i;
@@ -1517,6 +1519,11 @@ static void ath12k_mac_set_arvif_ies(struct ath12k_link_vif *arvif, struct sk_bu
 	if (cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT, WLAN_OUI_TYPE_MICROSOFT_WPA,
 				    start, rem_len))
 		arvif->wpaie_present = true;
+
+	ext_cap_ie = cfg80211_find_elem(WLAN_EID_EXT_CAPABILITY, start, rem_len);
+	if (ext_cap_ie && ext_cap_ie->datalen >= 11 &&
+	    (ext_cap_ie->data[10] & WLAN_EXT_CAPA11_BCN_PROTECT))
+		tx_arvif->beacon_prot = true;
 
 	/* Return from here for the transmitted profile */
 	if (!bssid_index)
@@ -1560,6 +1567,19 @@ static void ath12k_mac_set_arvif_ies(struct ath12k_link_vif *arvif, struct sk_bu
 
 			if (index->data[0] == bssid_index) {
 				*nontx_profile_found = true;
+
+				/* Check if nontx BSS has beacon protection enabled */
+				if (!tx_arvif->beacon_prot) {
+					ext_cap_ie =
+					    cfg80211_find_elem(WLAN_EID_EXT_CAPABILITY,
+							       nontx->data,
+							       nontx->datalen);
+					if (ext_cap_ie && ext_cap_ie->datalen >= 11 &&
+					    (ext_cap_ie->data[10] &
+					     WLAN_EXT_CAPA11_BCN_PROTECT))
+						tx_arvif->beacon_prot = true;
+				}
+
 				if (cfg80211_find_ie(WLAN_EID_RSN,
 						     nontx->data,
 						     nontx->datalen)) {
@@ -1608,11 +1628,11 @@ static int ath12k_mac_setup_bcn_tmpl_ema(struct ath12k_link_vif *arvif,
 	}
 
 	if (tx_arvif == arvif)
-		ath12k_mac_set_arvif_ies(arvif, beacons->bcn[0].skb, 0, NULL);
+		ath12k_mac_set_arvif_ies(arvif, tx_arvif, beacons->bcn[0].skb, 0, NULL);
 
 	for (i = 0; i < beacons->cnt; i++) {
 		if (tx_arvif != arvif && !nontx_profile_found)
-			ath12k_mac_set_arvif_ies(arvif, beacons->bcn[i].skb,
+			ath12k_mac_set_arvif_ies(arvif, tx_arvif, beacons->bcn[i].skb,
 						 bssid_index,
 						 &nontx_profile_found);
 
@@ -1681,9 +1701,9 @@ static int ath12k_mac_setup_bcn_tmpl(struct ath12k_link_vif *arvif)
 	}
 
 	if (tx_arvif == arvif) {
-		ath12k_mac_set_arvif_ies(arvif, bcn, 0, NULL);
+		ath12k_mac_set_arvif_ies(arvif, tx_arvif, bcn, 0, NULL);
 	} else {
-		ath12k_mac_set_arvif_ies(arvif, bcn,
+		ath12k_mac_set_arvif_ies(arvif, tx_arvif, bcn,
 					 link_conf->bssid_index,
 					 &nontx_profile_found);
 		if (!nontx_profile_found)
@@ -5305,6 +5325,16 @@ static int ath12k_install_key(struct ath12k_link_vif *arvif,
 		arg.key_cipher = WMI_CIPHER_AES_GCM;
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV_MGMT;
 		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		arg.key_cipher = WMI_CIPHER_AES_CMAC;
+		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		arg.key_cipher = WMI_CIPHER_AES_GMAC;
+		break;
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+		arg.key_cipher = WMI_CIPHER_AES_CMAC;
+		break;
 	default:
 		ath12k_warn(ar->ab, "cipher %d is not supported\n", key->cipher);
 		return -EOPNOTSUPP;
@@ -5599,13 +5629,9 @@ static int ath12k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	lockdep_assert_wiphy(hw->wiphy);
 
-	/* BIP needs to be done in software */
-	if (key->cipher == WLAN_CIPHER_SUITE_AES_CMAC ||
-	    key->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_128 ||
-	    key->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_256 ||
-	    key->cipher == WLAN_CIPHER_SUITE_BIP_CMAC_256) {
+	/* IGTK needs to be done in host software */
+	if (key->keyidx == 4 || key->keyidx == 5)
 		return 1;
-	}
 
 	if (key->keyidx > WMI_MAX_KEY_INDEX)
 		return -ENOSPC;
@@ -13809,6 +13835,8 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 	}
 
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_PUNCT);
+	if (test_bit(WMI_TLV_SERVICE_BEACON_PROTECTION_SUPPORT, ab->wmi_ab.svc_map))
+		wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_BEACON_PROTECTION);
 
 	ath12k_reg_init(hw);
 

@@ -2241,6 +2241,7 @@ enum wmi_tlv_service {
 	WMI_TLV_SERVICE_PER_PEER_HTT_STATS_RESET = 213,
 	WMI_TLV_SERVICE_FREQINFO_IN_METADATA = 219,
 	WMI_TLV_SERVICE_EXT2_MSG = 220,
+	WMI_TLV_SERVICE_BEACON_PROTECTION_SUPPORT = 244,
 	WMI_TLV_SERVICE_MBSS_PARAM_IN_VDEV_START_SUPPORT = 253,
 
 	WMI_MAX_EXT_SERVICE = 256,
@@ -3755,6 +3756,8 @@ struct ath12k_wmi_ftm_event {
 #define WMI_EMA_BEACON_FIRST    GENMASK(23, 16)
 #define WMI_EMA_BEACON_LAST     GENMASK(31, 24)
 
+#define WMI_BEACON_PROTECTION_EN_BIT	BIT(0)
+
 struct ath12k_wmi_bcn_tmpl_ema_arg {
 	u8 bcn_cnt;
 	u8 bcn_index;
@@ -4723,7 +4726,7 @@ enum wmi_ap_ps_peer_param {
 
 #define DISABLE_SIFS_RESPONSE_TRIGGER 0
 
-#define WMI_MAX_KEY_INDEX   3
+#define WMI_MAX_KEY_INDEX   7
 #define WMI_MAX_KEY_LEN     32
 
 enum wmi_key_type {

@@ -316,6 +316,7 @@ struct ath12k_link_vif {
 
 	int bank_id;
 	u8 vdev_id_check_en;
+	bool beacon_prot;
 
 	struct wmi_wmm_params_all_arg wmm_params;
 	struct list_head list;
