@@ -36,9 +36,6 @@ int aa_unix_peer_perm(const struct cred *subj_cred,
 		      struct aa_label *label, const char *op, u32 request,
 		      struct sock *sk, struct sock *peer_sk,
 		      struct aa_label *peer_label);
-int aa_unix_label_sk_perm(const struct cred *subj_cred,
-			  struct aa_label *label, const char *op, u32 request,
-			  struct sock *sk);
 int aa_unix_sock_perm(const char *op, u32 request, struct socket *sock);
 int aa_unix_create_perm(struct aa_label *label, int family, int type,
 			int protocol);
