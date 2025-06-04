@@ -244,7 +244,6 @@ define do_autoconf_fuzzing
   $(eval LLVM := 1)
   $(eval CROSS_COMPILE := x86_64-linux-gnu)
   $(eval kasan := yes)
-  $(call set_kernel_config,LKL_FUZZING,y)
   $(if $(LKL_LINE_COV),$(call set_kernel_config,LKL_LINE_COV,y))
   $(if $(MMU),$(call set_kernel_config,ANDROID_BINDER_IPC,y))
   $(if $(PROTOBUF_MUTATOR_DIR),$(call define_libprotobuf_mutator))
