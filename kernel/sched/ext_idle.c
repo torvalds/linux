@@ -929,14 +929,10 @@ s32 select_cpu_from_kfunc(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
  */
 __bpf_kfunc int scx_bpf_cpu_node(s32 cpu)
 {
-#ifdef CONFIG_NUMA
 	if (!kf_cpu_valid(cpu, NULL))
 		return NUMA_NO_NODE;
 
 	return cpu_to_node(cpu);
-#else
-	return 0;
-#endif
 }
 
 /**
