@@ -347,6 +347,9 @@ static int ahash_do_req_chain(struct ahash_request *req,
 	if (crypto_ahash_statesize(tfm) > HASH_MAX_STATESIZE)
 		return -ENOSYS;
 
+	if (!crypto_ahash_need_fallback(tfm))
+		return -ENOSYS;
+
 	{
 		u8 state[HASH_MAX_STATESIZE];
 
@@ -952,6 +955,10 @@ static int ahash_prepare_alg(struct ahash_alg *alg)
 	    base->cra_reqsize > MAX_SYNC_HASH_REQSIZE)
 		return -EINVAL;
 
+	if (base->cra_flags & CRYPTO_ALG_NEED_FALLBACK &&
+	    base->cra_flags & CRYPTO_ALG_NO_FALLBACK)
+		return -EINVAL;
+
 	err = hash_prepare_alg(&alg->halg);
 	if (err)
 		return err;
@@ -960,7 +967,8 @@ static int ahash_prepare_alg(struct ahash_alg *alg)
 	base->cra_flags |= CRYPTO_ALG_TYPE_AHASH;
 
 	if ((base->cra_flags ^ CRYPTO_ALG_REQ_VIRT) &
-	    (CRYPTO_ALG_ASYNC | CRYPTO_ALG_REQ_VIRT))
+	    (CRYPTO_ALG_ASYNC | CRYPTO_ALG_REQ_VIRT) &&
+	    !(base->cra_flags & CRYPTO_ALG_NO_FALLBACK))
 		base->cra_flags |= CRYPTO_ALG_NEED_FALLBACK;
 
 	if (!alg->setkey)
