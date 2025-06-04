@@ -863,7 +863,7 @@ static int cdns_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 	}
 
 	cdns_i3c_master_queue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, msecs_to_jiffies(1000)))
+	if (!wait_for_completion_timeout(&xfer->comp, m->i2c.timeout))
 		cdns_i3c_master_unqueue_xfer(master, xfer);
 
 	ret = xfer->ret;
