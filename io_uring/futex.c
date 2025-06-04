@@ -28,6 +28,10 @@ struct io_futex_data {
 	struct io_kiocb	*req;
 };
 
+struct io_futexv_data {
+	struct futex_vector	futexv[];
+};
+
 #define IO_FUTEX_ALLOC_CACHE_MAX	32
 
 bool io_futex_cache_init(struct io_ring_ctx *ctx)
@@ -62,14 +66,14 @@ static void io_futexv_complete(struct io_tw_req tw_req, io_tw_token_t tw)
 {
 	struct io_kiocb *req = tw_req.req;
 	struct io_futex *iof = io_kiocb_to_cmd(req, struct io_futex);
-	struct futex_vector *futexv = req->async_data;
+	struct io_futexv_data *ifd = req->async_data;
 
 	io_tw_lock(req->ctx, tw);
 
 	if (!iof->futexv_unqueued) {
 		int res;
 
-		res = futex_unqueue_multiple(futexv, iof->futex_nr);
+		res = futex_unqueue_multiple(ifd->futexv, iof->futex_nr);
 		if (res != -1)
 			io_req_set_res(req, res, 0);
 	}
@@ -169,7 +173,7 @@ static void io_futex_wakev_fn(struct wake_q_head *wake_q, struct futex_q *q)
 int io_futexv_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_futex *iof = io_kiocb_to_cmd(req, struct io_futex);
-	struct futex_vector *futexv;
+	struct io_futexv_data *ifd;
 	int ret;
 
 	/* No flags or mask supported for waitv */
@@ -182,14 +186,15 @@ int io_futexv_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (!iof->futex_nr || iof->futex_nr > FUTEX_WAITV_MAX)
 		return -EINVAL;
 
-	futexv = kcalloc(iof->futex_nr, sizeof(*futexv), GFP_KERNEL);
-	if (!futexv)
+	ifd = kzalloc(struct_size_t(struct io_futexv_data, futexv, iof->futex_nr),
+			GFP_KERNEL);
+	if (!ifd)
 		return -ENOMEM;
 
-	ret = futex_parse_waitv(futexv, iof->uaddr, iof->futex_nr,
+	ret = futex_parse_waitv(ifd->futexv, iof->uaddr, iof->futex_nr,
 				io_futex_wakev_fn, req);
 	if (ret) {
-		kfree(futexv);
+		kfree(ifd);
 		return ret;
 	}
 
@@ -198,7 +203,7 @@ int io_futexv_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	iof->futexv_owned = 0;
 	iof->futexv_unqueued = 0;
 	req->flags |= REQ_F_ASYNC_DATA;
-	req->async_data = futexv;
+	req->async_data = ifd;
 	return 0;
 }
 
@@ -218,13 +223,13 @@ static void io_futex_wake_fn(struct wake_q_head *wake_q, struct futex_q *q)
 int io_futexv_wait(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_futex *iof = io_kiocb_to_cmd(req, struct io_futex);
-	struct futex_vector *futexv = req->async_data;
+	struct io_futexv_data *ifd = req->async_data;
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret, woken = -1;
 
 	io_ring_submit_lock(ctx, issue_flags);
 
-	ret = futex_wait_multiple_setup(futexv, iof->futex_nr, &woken);
+	ret = futex_wait_multiple_setup(ifd->futexv, iof->futex_nr, &woken);
 
 	/*
 	 * Error case, ret is < 0. Mark the request as failed.
