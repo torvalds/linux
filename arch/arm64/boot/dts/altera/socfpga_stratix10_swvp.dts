@@ -103,10 +103,6 @@
 	status = "okay";
 };
 
-&rst {
-	altr,modrst-offset = <0x20>;
-};
-
 &sysmgr {
 	reg = <0xffd12000 0x1000>;
 	interrupts = <0x0 0x10 0x4>;
