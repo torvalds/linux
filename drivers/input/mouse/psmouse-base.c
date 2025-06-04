@@ -1600,7 +1600,7 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 		 psmouse_pre_receive_byte, psmouse_receive_byte);
 	INIT_DELAYED_WORK(&psmouse->resync_work, psmouse_resync);
 	psmouse->dev = input_dev;
-	snprintf(psmouse->phys, sizeof(psmouse->phys), "%s/input0", serio->phys);
+	scnprintf(psmouse->phys, sizeof(psmouse->phys), "%s/input0", serio->phys);
 
 	psmouse_set_state(psmouse, PSMOUSE_INITIALIZING);
 
