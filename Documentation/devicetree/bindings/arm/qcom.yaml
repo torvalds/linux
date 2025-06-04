@@ -87,6 +87,7 @@ description: |
         sm6115
         sm6115p
         sm6125
+        sm6150
         sm6350
         sm6375
         sm7125
@@ -949,6 +950,7 @@ properties:
           - enum:
               - qcom,qcs615-ride
           - const: qcom,qcs615
+          - const: qcom,sm6150
 
       - items:
           - enum:
