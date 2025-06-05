@@ -209,7 +209,7 @@ void dccg401_disable_symclk32_le(
 		struct dccg *dccg,
 		int hpo_le_inst);
 void dccg401_disable_dpstreamclk(struct dccg *dccg, int dp_hpo_inst);
-void dccg401_set_dto_dscclk(struct dccg *dccg, uint32_t inst);
+void dccg401_set_dto_dscclk(struct dccg *dccg, uint32_t inst, uint32_t num_slices_h);
 void dccg401_set_ref_dscclk(struct dccg *dccg,
 				uint32_t dsc_inst);
 void dccg401_set_src_sel(
@@ -230,7 +230,6 @@ void dccg401_set_dp_dto(
 		const struct dp_dto_params *params);
 void dccg401_enable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst);
 void dccg401_disable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst);
-void dccg401_set_dto_dscclk(struct dccg *dccg, uint32_t inst);
 void dccg401_set_dtbclk_p_src(
 		struct dccg *dccg,
 		enum streamclk_source src,
