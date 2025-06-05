@@ -4022,6 +4022,8 @@ static void ath12k_dp_rx_wbm_err(struct ath12k *ar,
 		return;
 	}
 
+	rx_info.rx_status->flag |= RX_FLAG_SKIP_MONITOR;
+
 	ath12k_dp_rx_deliver_msdu(ar, napi, msdu, &rx_info);
 }
 
