@@ -635,7 +635,7 @@ impl Policy {
             None
         } else {
             // SAFETY: The data is earlier set from [`set_data`].
-            Some(unsafe { T::borrow(self.as_ref().driver_data) })
+            Some(unsafe { T::borrow(self.as_ref().driver_data.cast()) })
         }
     }
 
@@ -662,7 +662,7 @@ impl Policy {
             let data = Some(
                 // SAFETY: The data is earlier set by us from [`set_data`]. It is safe to take
                 // back the ownership of the data from the foreign interface.
-                unsafe { <T as ForeignOwnable>::from_foreign(self.as_ref().driver_data) },
+                unsafe { <T as ForeignOwnable>::from_foreign(self.as_ref().driver_data.cast()) },
             );
             self.as_mut_ref().driver_data = ptr::null_mut();
             data

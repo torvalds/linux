@@ -12,20 +12,34 @@
 //! do so first instead of bypassing this crate.
 
 #![no_std]
-#![feature(arbitrary_self_types)]
-#![cfg_attr(CONFIG_RUSTC_HAS_COERCE_POINTEE, feature(derive_coerce_pointee))]
-#![cfg_attr(not(CONFIG_RUSTC_HAS_COERCE_POINTEE), feature(coerce_unsized))]
-#![cfg_attr(not(CONFIG_RUSTC_HAS_COERCE_POINTEE), feature(dispatch_from_dyn))]
-#![cfg_attr(not(CONFIG_RUSTC_HAS_COERCE_POINTEE), feature(unsize))]
+//
+// Please see https://github.com/Rust-for-Linux/linux/issues/2 for details on
+// the unstable features in use.
+//
+// Stable since Rust 1.79.0.
 #![feature(inline_const)]
+//
+// Stable since Rust 1.81.0.
 #![feature(lint_reasons)]
-// Stable in Rust 1.82
+//
+// Stable since Rust 1.82.0.
 #![feature(raw_ref_op)]
-// Stable in Rust 1.83
+//
+// Stable since Rust 1.83.0.
 #![feature(const_maybe_uninit_as_mut_ptr)]
 #![feature(const_mut_refs)]
 #![feature(const_ptr_write)]
 #![feature(const_refs_to_cell)]
+//
+// Expected to become stable.
+#![feature(arbitrary_self_types)]
+//
+// `feature(derive_coerce_pointee)` is expected to become stable. Before Rust
+// 1.84.0, it did not exist, so enable the predecessor features.
+#![cfg_attr(CONFIG_RUSTC_HAS_COERCE_POINTEE, feature(derive_coerce_pointee))]
+#![cfg_attr(not(CONFIG_RUSTC_HAS_COERCE_POINTEE), feature(coerce_unsized))]
+#![cfg_attr(not(CONFIG_RUSTC_HAS_COERCE_POINTEE), feature(dispatch_from_dyn))]
+#![cfg_attr(not(CONFIG_RUSTC_HAS_COERCE_POINTEE), feature(unsize))]
 
 // Ensure conditional compilation based on the kernel configuration works;
 // otherwise we may silently break things like initcall handling.
@@ -102,6 +116,7 @@ pub mod transmute;
 pub mod types;
 pub mod uaccess;
 pub mod workqueue;
+pub mod xarray;
 
 #[doc(hidden)]
 pub use bindings;
@@ -204,7 +219,7 @@ fn panic(info: &core::panic::PanicInfo<'_>) -> ! {
 /// }
 ///
 /// let test = Test { a: 10, b: 20 };
-/// let b_ptr = &test.b;
+/// let b_ptr: *const _ = &test.b;
 /// // SAFETY: The pointer points at the `b` field of a `Test`, so the resulting pointer will be
 /// // in-bounds of the same allocation as `b_ptr`.
 /// let test_alias = unsafe { container_of!(b_ptr, Test, b) };
@@ -212,12 +227,18 @@ fn panic(info: &core::panic::PanicInfo<'_>) -> ! {
 /// ```
 #[macro_export]
 macro_rules! container_of {
-    ($ptr:expr, $type:ty, $($f:tt)*) => {{
-        let ptr = $ptr as *const _ as *const u8;
-        let offset: usize = ::core::mem::offset_of!($type, $($f)*);
-        ptr.sub(offset) as *const $type
+    ($field_ptr:expr, $Container:ty, $($fields:tt)*) => {{
+        let offset: usize = ::core::mem::offset_of!($Container, $($fields)*);
+        let field_ptr = $field_ptr;
+        let container_ptr = field_ptr.byte_sub(offset).cast::<$Container>();
+        $crate::assert_same_type(field_ptr, (&raw const (*container_ptr).$($fields)*).cast_mut());
+        container_ptr
     }}
 }
+
+/// Helper for [`container_of!`].
+#[doc(hidden)]
+pub fn assert_same_type<T>(_: T, _: T) {}
 
 /// Helper for `.rs.S` files.
 #[doc(hidden)]
