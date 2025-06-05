@@ -26,6 +26,7 @@
 #define PCI_DEVICE_ID_ARL	0xad1d
 #define PCI_DEVICE_ID_LNL	0x643e
 #define PCI_DEVICE_ID_PTL_P	0xb03e
+#define PCI_DEVICE_ID_WCL	0xfd3e
 
 #define IVPU_HW_IP_37XX 37
 #define IVPU_HW_IP_40XX 40
@@ -241,6 +242,7 @@ static inline int ivpu_hw_ip_gen(struct ivpu_device *vdev)
 	case PCI_DEVICE_ID_LNL:
 		return IVPU_HW_IP_40XX;
 	case PCI_DEVICE_ID_PTL_P:
+	case PCI_DEVICE_ID_WCL:
 		return IVPU_HW_IP_50XX;
 	default:
 		dump_stack();
@@ -257,6 +259,7 @@ static inline int ivpu_hw_btrs_gen(struct ivpu_device *vdev)
 		return IVPU_HW_BTRS_MTL;
 	case PCI_DEVICE_ID_LNL:
 	case PCI_DEVICE_ID_PTL_P:
+	case PCI_DEVICE_ID_WCL:
 		return IVPU_HW_BTRS_LNL;
 	default:
 		dump_stack();
