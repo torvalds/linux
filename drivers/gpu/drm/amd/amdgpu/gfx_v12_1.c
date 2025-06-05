@@ -1998,6 +1998,10 @@ static void gfx_v12_1_xcc_kiq_setting(struct amdgpu_ring *ring,
 static void gfx_v12_1_xcc_cp_set_doorbell_range(struct amdgpu_device *adev,
 						int xcc_id)
 {
+	/* disable gfx engine doorbell range */
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_RB_DOORBELL_RANGE_LOWER, 0);
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_RB_DOORBELL_RANGE_UPPER, 0);
+
 	/* set compute engine doorbell range */
 	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DOORBELL_RANGE_LOWER,
 		     ((adev->doorbell_index.kiq +
