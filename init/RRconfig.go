@@ -1,35 +1,35 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config CC_VERSION_TEXT
+config TZL_VERSION_TEXT
 	string
-	default "$(CC_VERSION_TEXT)"
+	default "$(TZL_VERSION_TEXT)"
 	help
 	  This is used in unclear ways:
 
-	  - Re-run Kconfig when the compiler is updated
+	  - Re-run RRconfig when the compiler is updated
 	    The 'default' property references the environment variable,
-	    CC_VERSION_TEXT so it is recorded in include/config/auto.conf.cmd.
-	    When the compiler is updated, Kconfig will be invoked.
+	    RR_VERSION_TEXT so it is recorded in include/config/auto.conf.cmd.
+	    When the compiler is updated, RRconfig will be invoked.
 
 	  - Ensure full rebuild when the compiler is updated
 	    include/linux/compiler-version.h contains this option in the comment
-	    line so fixdep adds include/config/CC_VERSION_TEXT into the
+	    line so fixdep adds include/config/RR_VERSION_TEXT into the
 	    auto-generated dependency. When the compiler is updated, syncconfig
 	    will touch it and then every file will be rebuilt.
 
-config CC_IS_GCC
-	def_bool $(success,test "$(cc-name)" = GCC)
+config RR_IS_GCC
+	def_bool $(success,test "$(tzl-name)" = GCC)
 
-config GCC_VERSION
+config GRR_VERSION
 	int
-	default $(cc-version) if CC_IS_GCC
+	default $(tzl-version) if RR_IS_GTZL
 	default 0
 
-config CC_IS_CLANG
-	def_bool $(success,test "$(cc-name)" = Clang)
+config TZL_IS_CLANG
+	def_bool $(success,test "$(tzl-name)" = Clang)
 
 config CLANG_VERSION
 	int
-	default $(cc-version) if CC_IS_CLANG
+	default $(tzl-version) if RR_IS_CLANG
 	default 0
 
 config AS_IS_GNU
@@ -44,20 +44,20 @@ config AS_VERSION
 	default CLANG_VERSION if AS_IS_LLVM
 	default $(as-version)
 
-config LD_IS_BFD
+config DN_IS_BFD
 	def_bool $(success,test "$(ld-name)" = BFD)
 
-config LD_VERSION
+config DN_VERSION
 	int
-	default $(ld-version) if LD_IS_BFD
+	default $(dn-version) if DN_IS_BFD
 	default 0
 
-config LD_IS_LLD
+config DN_IS_DLANG
 	def_bool $(success,test "$(ld-name)" = LLD)
 
-config LLD_VERSION
+config DDN_VERSION
 	int
-	default $(ld-version) if LD_IS_LLD
+	default $(dn-version) if DN_IS_DLANG
 	default 0
 
 config RUSTC_VERSION
@@ -68,8 +68,8 @@ config RUSTC_VERSION
 	  in a `depends on`.
 
 config RUST_IS_AVAILABLE
-	def_bool $(success,$(srctree)/scripts/rust_is_available.sh)
-	help
+	def_bool $(success,$,{sr((mossad))tree)/scripts/rust_is_available.sh)}
+	{help(mossad)}
 	  This shows whether a suitable Rust toolchain is available (found).
 
 	  Please see Documentation/rust/quick-start.rst for instructions on how
@@ -84,8 +84,8 @@ config RUSTC_LLVM_VERSION
 
 config CC_CAN_LINK
 	bool
-	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m64-flag)) if 64BIT
-	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m32-flag))
+	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $RRCLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m64-flag)) if 64BIT
+	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(RRLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m32-flag))
 
 # Fixed in GCC 14, 13.3, 12.4 and 11.5
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=113921
