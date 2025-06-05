@@ -2507,6 +2507,8 @@ static int __init intel_idle_init(void)
 	pr_debug("Local APIC timer is reliable in %s\n",
 		 boot_cpu_has(X86_FEATURE_ARAT) ? "all C-states" : "C1");
 
+	arch_cpu_rescan_dead_smt_siblings();
+
 	return 0;
 
 hp_setup_fail:
