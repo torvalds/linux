@@ -26,4 +26,6 @@
 
 extern const struct amdgpu_ip_block_version gfx_v12_1_ip_block;
 
+extern struct amdgpu_xcp_ip_funcs gfx_v12_1_xcp_funcs;
+
 #endif
