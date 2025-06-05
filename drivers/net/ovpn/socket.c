@@ -24,9 +24,9 @@ static void ovpn_socket_release_kref(struct kref *kref)
 	struct ovpn_socket *sock = container_of(kref, struct ovpn_socket,
 						refcount);
 
-	if (sock->sock->sk->sk_protocol == IPPROTO_UDP)
+	if (sock->sk->sk_protocol == IPPROTO_UDP)
 		ovpn_udp_socket_detach(sock);
-	else if (sock->sock->sk->sk_protocol == IPPROTO_TCP)
+	else if (sock->sk->sk_protocol == IPPROTO_TCP)
 		ovpn_tcp_socket_detach(sock);
 }
 
@@ -75,14 +75,6 @@ void ovpn_socket_release(struct ovpn_peer *peer)
 	if (!sock)
 		return;
 
-	/* sanity check: we should not end up here if the socket
-	 * was already closed
-	 */
-	if (!sock->sock->sk) {
-		DEBUG_NET_WARN_ON_ONCE(1);
-		return;
-	}
-
 	/* Drop the reference while holding the sock lock to avoid
 	 * concurrent ovpn_socket_new call to mess up with a partially
 	 * detached socket.
@@ -90,22 +82,24 @@ void ovpn_socket_release(struct ovpn_peer *peer)
 	 * Holding the lock ensures that a socket with refcnt 0 is fully
 	 * detached before it can be picked by a concurrent reader.
 	 */
-	lock_sock(sock->sock->sk);
+	lock_sock(sock->sk);
 	released = ovpn_socket_put(peer, sock);
-	release_sock(sock->sock->sk);
+	release_sock(sock->sk);
 
 	/* align all readers with sk_user_data being NULL */
 	synchronize_rcu();
 
 	/* following cleanup should happen with lock released */
 	if (released) {
-		if (sock->sock->sk->sk_protocol == IPPROTO_UDP) {
+		if (sock->sk->sk_protocol == IPPROTO_UDP) {
 			netdev_put(sock->ovpn->dev, &sock->dev_tracker);
-		} else if (sock->sock->sk->sk_protocol == IPPROTO_TCP) {
+		} else if (sock->sk->sk_protocol == IPPROTO_TCP) {
 			/* wait for TCP jobs to terminate */
 			ovpn_tcp_socket_wait_finish(sock);
 			ovpn_peer_put(sock->peer);
 		}
+		/* drop reference acquired in ovpn_socket_new() */
+		sock_put(sock->sk);
 		/* we can call plain kfree() because we already waited one RCU
 		 * period due to synchronize_rcu()
 		 */
@@ -118,12 +112,14 @@ static bool ovpn_socket_hold(struct ovpn_socket *sock)
 	return kref_get_unless_zero(&sock->refcount);
 }
 
-static int ovpn_socket_attach(struct ovpn_socket *sock, struct ovpn_peer *peer)
+static int ovpn_socket_attach(struct ovpn_socket *ovpn_sock,
+			      struct socket *sock,
+			      struct ovpn_peer *peer)
 {
-	if (sock->sock->sk->sk_protocol == IPPROTO_UDP)
-		return ovpn_udp_socket_attach(sock, peer->ovpn);
-	else if (sock->sock->sk->sk_protocol == IPPROTO_TCP)
-		return ovpn_tcp_socket_attach(sock, peer);
+	if (sock->sk->sk_protocol == IPPROTO_UDP)
+		return ovpn_udp_socket_attach(ovpn_sock, sock, peer->ovpn);
+	else if (sock->sk->sk_protocol == IPPROTO_TCP)
+		return ovpn_tcp_socket_attach(ovpn_sock, peer);
 
 	return -EOPNOTSUPP;
 }
@@ -138,14 +134,15 @@ static int ovpn_socket_attach(struct ovpn_socket *sock, struct ovpn_peer *peer)
 struct ovpn_socket *ovpn_socket_new(struct socket *sock, struct ovpn_peer *peer)
 {
 	struct ovpn_socket *ovpn_sock;
+	struct sock *sk = sock->sk;
 	int ret;
 
-	lock_sock(sock->sk);
+	lock_sock(sk);
 
 	/* a TCP socket can only be owned by a single peer, therefore there
 	 * can't be any other user
 	 */
-	if (sock->sk->sk_protocol == IPPROTO_TCP && sock->sk->sk_user_data) {
+	if (sk->sk_protocol == IPPROTO_TCP && sk->sk_user_data) {
 		ovpn_sock = ERR_PTR(-EBUSY);
 		goto sock_release;
 	}
@@ -153,8 +150,8 @@ struct ovpn_socket *ovpn_socket_new(struct socket *sock, struct ovpn_peer *peer)
 	/* a UDP socket can be shared across multiple peers, but we must make
 	 * sure it is not owned by something else
 	 */
-	if (sock->sk->sk_protocol == IPPROTO_UDP) {
-		u8 type = READ_ONCE(udp_sk(sock->sk)->encap_type);
+	if (sk->sk_protocol == IPPROTO_UDP) {
+		u8 type = READ_ONCE(udp_sk(sk)->encap_type);
 
 		/* socket owned by other encapsulation module */
 		if (type && type != UDP_ENCAP_OVPNINUDP) {
@@ -163,7 +160,7 @@ struct ovpn_socket *ovpn_socket_new(struct socket *sock, struct ovpn_peer *peer)
 		}
 
 		rcu_read_lock();
-		ovpn_sock = rcu_dereference_sk_user_data(sock->sk);
+		ovpn_sock = rcu_dereference_sk_user_data(sk);
 		if (ovpn_sock) {
 			/* socket owned by another ovpn instance, we can't use it */
 			if (ovpn_sock->ovpn != peer->ovpn) {
@@ -200,11 +197,22 @@ struct ovpn_socket *ovpn_socket_new(struct socket *sock, struct ovpn_peer *peer)
 		goto sock_release;
 	}
 
-	ovpn_sock->sock = sock;
+	ovpn_sock->sk = sk;
 	kref_init(&ovpn_sock->refcount);
 
-	ret = ovpn_socket_attach(ovpn_sock, peer);
+	/* the newly created ovpn_socket is holding reference to sk,
+	 * therefore we increase its refcounter.
+	 *
+	 * This ovpn_socket instance is referenced by all peers
+	 * using the same socket.
+	 *
+	 * ovpn_socket_release() will take care of dropping the reference.
+	 */
+	sock_hold(sk);
+
+	ret = ovpn_socket_attach(ovpn_sock, sock, peer);
 	if (ret < 0) {
+		sock_put(sk);
 		kfree(ovpn_sock);
 		ovpn_sock = ERR_PTR(ret);
 		goto sock_release;
@@ -213,11 +221,11 @@ struct ovpn_socket *ovpn_socket_new(struct socket *sock, struct ovpn_peer *peer)
 	/* TCP sockets are per-peer, therefore they are linked to their unique
 	 * peer
 	 */
-	if (sock->sk->sk_protocol == IPPROTO_TCP) {
+	if (sk->sk_protocol == IPPROTO_TCP) {
 		INIT_WORK(&ovpn_sock->tcp_tx_work, ovpn_tcp_tx_work);
 		ovpn_sock->peer = peer;
 		ovpn_peer_hold(peer);
-	} else if (sock->sk->sk_protocol == IPPROTO_UDP) {
+	} else if (sk->sk_protocol == IPPROTO_UDP) {
 		/* in UDP we only link the ovpn instance since the socket is
 		 * shared among multiple peers
 		 */
@@ -226,8 +234,8 @@ struct ovpn_socket *ovpn_socket_new(struct socket *sock, struct ovpn_peer *peer)
 			    GFP_KERNEL);
 	}
 
-	rcu_assign_sk_user_data(sock->sk, ovpn_sock);
+	rcu_assign_sk_user_data(sk, ovpn_sock);
 sock_release:
-	release_sock(sock->sk);
+	release_sock(sk);
 	return ovpn_sock;
 }
