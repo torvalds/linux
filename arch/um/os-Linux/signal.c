@@ -29,6 +29,7 @@ void (*sig_info[NSIG])(int, struct siginfo *, struct uml_pt_regs *, void *mc) = 
 	[SIGBUS]	= relay_signal,
 	[SIGSEGV]	= segv_handler,
 	[SIGIO]		= sigio_handler,
+	[SIGCHLD]	= sigchld_handler,
 };
 
 static void sig_handler_common(int sig, struct siginfo *si, mcontext_t *mc)
@@ -44,7 +45,7 @@ static void sig_handler_common(int sig, struct siginfo *si, mcontext_t *mc)
 	}
 
 	/* enable signals if sig isn't IRQ signal */
-	if ((sig != SIGIO) && (sig != SIGWINCH))
+	if ((sig != SIGIO) && (sig != SIGWINCH) && (sig != SIGCHLD))
 		unblock_signals_trace();
 
 	(*sig_info[sig])(sig, si, &r, mc);
@@ -63,6 +64,9 @@ static void sig_handler_common(int sig, struct siginfo *si, mcontext_t *mc)
 
 #define SIGALRM_BIT 1
 #define SIGALRM_MASK (1 << SIGALRM_BIT)
+
+#define SIGCHLD_BIT 2
+#define SIGCHLD_MASK (1 << SIGCHLD_BIT)
 
 int signals_enabled;
 #if IS_ENABLED(CONFIG_UML_TIME_TRAVEL_SUPPORT)
@@ -99,6 +103,11 @@ static void sig_handler(int sig, struct siginfo *si, mcontext_t *mc)
 			sigio_run_timetravel_handlers();
 		else
 			signals_pending |= SIGIO_MASK;
+		return;
+	}
+
+	if (!enabled && (sig == SIGCHLD)) {
+		signals_pending |= SIGCHLD_MASK;
 		return;
 	}
 
@@ -181,6 +190,8 @@ static void (*handlers[_NSIG])(int sig, struct siginfo *si, mcontext_t *mc) = {
 
 	[SIGIO] = sig_handler,
 	[SIGWINCH] = sig_handler,
+	/* SIGCHLD is only actually registered in seccomp mode. */
+	[SIGCHLD] = sig_handler,
 	[SIGALRM] = timer_alarm_handler,
 
 	[SIGUSR1] = sigusr1_handler,
@@ -308,6 +319,12 @@ void unblock_signals(void)
 		 */
 		if (save_pending & SIGIO_MASK)
 			sig_handler_common(SIGIO, NULL, NULL);
+
+		if (save_pending & SIGCHLD_MASK) {
+			struct uml_pt_regs regs = {};
+
+			sigchld_handler(SIGCHLD, NULL, &regs, NULL);
+		}
 
 		/* Do not reenter the handler */
 
