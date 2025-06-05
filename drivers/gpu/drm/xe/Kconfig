@@ -31,7 +31,6 @@ config DRM_XE
 	select ACPI_VIDEO if X86 && ACPI
 	select ACPI_WMI if X86 && ACPI
 	select SYNC_FILE
-	select IOSF_MBI
 	select CRC32
 	select SND_HDA_I915 if SND_HDA_CORE
 	select CEC_CORE if CEC_NOTIFIER
