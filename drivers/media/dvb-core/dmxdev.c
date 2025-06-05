@@ -1217,24 +1217,11 @@ static int dvb_demux_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct dmxdev_filter *dmxdevfilter = file->private_data;
 	struct dmxdev *dmxdev = dmxdevfilter->dev;
-	int ret;
 
 	if (!dmxdev->may_do_mmap)
 		return -ENOTTY;
 
-	if (mutex_lock_interruptible(&dmxdev->mutex))
-		return -ERESTARTSYS;
-
-	if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
-		mutex_unlock(&dmxdev->mutex);
-		return -ERESTARTSYS;
-	}
-	ret = dvb_vb2_mmap(&dmxdevfilter->vb2_ctx, vma);
-
-	mutex_unlock(&dmxdevfilter->mutex);
-	mutex_unlock(&dmxdev->mutex);
-
-	return ret;
+	return dvb_vb2_mmap(&dmxdevfilter->vb2_ctx, vma);
 }
 #endif
 
@@ -1367,7 +1354,6 @@ static int dvb_dvr_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dmxdev *dmxdev = dvbdev->priv;
-	int ret;
 
 	if (!dmxdev->may_do_mmap)
 		return -ENOTTY;
@@ -1375,12 +1361,7 @@ static int dvb_dvr_mmap(struct file *file, struct vm_area_struct *vma)
 	if (dmxdev->exit)
 		return -ENODEV;
 
-	if (mutex_lock_interruptible(&dmxdev->mutex))
-		return -ERESTARTSYS;
-
-	ret = dvb_vb2_mmap(&dmxdev->dvr_vb2_ctx, vma);
-	mutex_unlock(&dmxdev->mutex);
-	return ret;
+	return dvb_vb2_mmap(&dmxdev->dvr_vb2_ctx, vma);
 }
 #endif
 
