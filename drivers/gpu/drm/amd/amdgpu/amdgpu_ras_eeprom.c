@@ -476,6 +476,8 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 
 	control->ras_num_recs = 0;
 	control->ras_num_bad_pages = 0;
+	control->ras_num_mca_recs = 0;
+	control->ras_num_pa_recs = 0;
 	control->ras_fri = 0;
 
 	amdgpu_dpm_send_hbm_bad_pages_num(adev, control->ras_num_bad_pages);
