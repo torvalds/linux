@@ -849,16 +849,16 @@ static void guest_code(enum arch_timer timer)
 	GUEST_DONE();
 }
 
+static cpu_set_t default_cpuset;
+
 static uint32_t next_pcpu(void)
 {
 	uint32_t max = get_nprocs();
 	uint32_t cur = sched_getcpu();
 	uint32_t next = cur;
-	cpu_set_t cpuset;
+	cpu_set_t cpuset = default_cpuset;
 
 	TEST_ASSERT(max > 1, "Need at least two physical cpus");
-
-	sched_getaffinity(0, sizeof(cpuset), &cpuset);
 
 	do {
 		next = (next + 1) % CPU_SETSIZE;
@@ -1045,6 +1045,8 @@ int main(int argc, char *argv[])
 
 	if (!parse_args(argc, argv))
 		exit(KSFT_SKIP);
+
+	sched_getaffinity(0, sizeof(default_cpuset), &default_cpuset);
 
 	if (test_args.test_virtual) {
 		test_vm_create(&vm, &vcpu, VIRTUAL);
