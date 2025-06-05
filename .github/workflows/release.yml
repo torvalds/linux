@@ -25,12 +25,13 @@ jobs:
 
     - name: Build kernel
       run: |
-        ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- make
+        ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- make -j"$(nproc)"
 
     - name: Package result
       run: |
         mkdir output
         cp arch/arm64/boot/Image output/
+        cp arch/arm64/boot/dts/freescale/imx93-11x11-frdm.dtb output/
         make INSTALL_MOD_PATH=output modules_install
 
     - name: Upload artifact
