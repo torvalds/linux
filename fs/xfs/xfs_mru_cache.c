@@ -425,10 +425,6 @@ xfs_mru_cache_insert(
 {
 	int			error = -EINVAL;
 
-	ASSERT(mru && mru->lists);
-	if (!mru || !mru->lists)
-		goto out_free;
-
 	error = -ENOMEM;
 	if (radix_tree_preload(GFP_KERNEL))
 		goto out_free;
