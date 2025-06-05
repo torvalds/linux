@@ -1202,7 +1202,7 @@ struct mstop {
 };
 
 /**
- * struct mstp_clock - MSTP gating clock
+ * struct mod_clock - Module clock
  *
  * @hw: handle between common and hardware-specific interfaces
  * @priv: CPG/MSTP private data
@@ -1214,19 +1214,19 @@ struct mstop {
  * @num_shared_mstop_clks: number of the clocks sharing MSTOP with this clock
  * @enabled: soft state of the clock, if it is coupled with another clock
  */
-struct mstp_clock {
+struct mod_clock {
 	struct clk_hw hw;
 	struct rzg2l_cpg_priv *priv;
-	struct mstp_clock *sibling;
+	struct mod_clock *sibling;
 	struct mstop *mstop;
-	struct mstp_clock **shared_mstop_clks;
+	struct mod_clock **shared_mstop_clks;
 	u16 off;
 	u8 bit;
 	u8 num_shared_mstop_clks;
 	bool enabled;
 };
 
-#define to_mod_clock(_hw) container_of(_hw, struct mstp_clock, hw)
+#define to_mod_clock(_hw) container_of(_hw, struct mod_clock, hw)
 
 #define for_each_mod_clock(mod_clock, hw, priv) \
 	for (unsigned int i = 0; (priv) && i < (priv)->num_mod_clks; i++) \
@@ -1236,7 +1236,7 @@ struct mstp_clock {
 			 ((mod_clock) = to_mod_clock(hw)))
 
 /* Need to be called with a lock held to avoid concurrent access to mstop->usecnt. */
-static void rzg2l_mod_clock_module_set_state(struct mstp_clock *clock,
+static void rzg2l_mod_clock_module_set_state(struct mod_clock *clock,
 					     bool standby)
 {
 	struct rzg2l_cpg_priv *priv = clock->priv;
@@ -1253,7 +1253,7 @@ static void rzg2l_mod_clock_module_set_state(struct mstp_clock *clock,
 		unsigned int criticals = 0;
 
 		for (unsigned int i = 0; i < clock->num_shared_mstop_clks; i++) {
-			struct mstp_clock *clk = clock->shared_mstop_clks[i];
+			struct mod_clock *clk = clock->shared_mstop_clks[i];
 
 			if (clk_hw_get_flags(&clk->hw) & CLK_IS_CRITICAL)
 				criticals++;
@@ -1295,7 +1295,7 @@ static void rzg2l_mod_clock_module_set_state(struct mstp_clock *clock,
 static int rzg2l_mod_clock_mstop_show(struct seq_file *s, void *what)
 {
 	struct rzg2l_cpg_priv *priv = s->private;
-	struct mstp_clock *clk;
+	struct mod_clock *clk;
 	struct clk_hw *hw;
 
 	seq_printf(s, "%-20s %-5s %-10s\n", "", "", "MSTOP");
@@ -1330,7 +1330,7 @@ DEFINE_SHOW_ATTRIBUTE(rzg2l_mod_clock_mstop);
 
 static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 {
-	struct mstp_clock *clock = to_mod_clock(hw);
+	struct mod_clock *clock = to_mod_clock(hw);
 	struct rzg2l_cpg_priv *priv = clock->priv;
 	unsigned int reg = clock->off;
 	struct device *dev = priv->dev;
@@ -1377,7 +1377,7 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 
 static int rzg2l_mod_clock_enable(struct clk_hw *hw)
 {
-	struct mstp_clock *clock = to_mod_clock(hw);
+	struct mod_clock *clock = to_mod_clock(hw);
 
 	if (clock->sibling) {
 		struct rzg2l_cpg_priv *priv = clock->priv;
@@ -1397,7 +1397,7 @@ static int rzg2l_mod_clock_enable(struct clk_hw *hw)
 
 static void rzg2l_mod_clock_disable(struct clk_hw *hw)
 {
-	struct mstp_clock *clock = to_mod_clock(hw);
+	struct mod_clock *clock = to_mod_clock(hw);
 
 	if (clock->sibling) {
 		struct rzg2l_cpg_priv *priv = clock->priv;
@@ -1417,7 +1417,7 @@ static void rzg2l_mod_clock_disable(struct clk_hw *hw)
 
 static int rzg2l_mod_clock_is_enabled(struct clk_hw *hw)
 {
-	struct mstp_clock *clock = to_mod_clock(hw);
+	struct mod_clock *clock = to_mod_clock(hw);
 	struct rzg2l_cpg_priv *priv = clock->priv;
 	u32 bitmask = BIT(clock->bit);
 	u32 value;
@@ -1444,11 +1444,11 @@ static const struct clk_ops rzg2l_mod_clock_ops = {
 	.is_enabled = rzg2l_mod_clock_is_enabled,
 };
 
-static struct mstp_clock
-*rzg2l_mod_clock_get_sibling(struct mstp_clock *clock,
+static struct mod_clock
+*rzg2l_mod_clock_get_sibling(struct mod_clock *clock,
 			     struct rzg2l_cpg_priv *priv)
 {
-	struct mstp_clock *clk;
+	struct mod_clock *clk;
 	struct clk_hw *hw;
 
 	for_each_mod_clock(clk, hw, priv) {
@@ -1461,7 +1461,7 @@ static struct mstp_clock
 
 static struct mstop *rzg2l_mod_clock_get_mstop(struct rzg2l_cpg_priv *priv, u32 conf)
 {
-	struct mstp_clock *clk;
+	struct mod_clock *clk;
 	struct clk_hw *hw;
 
 	for_each_mod_clock(clk, hw, priv) {
@@ -1477,7 +1477,7 @@ static struct mstop *rzg2l_mod_clock_get_mstop(struct rzg2l_cpg_priv *priv, u32 
 
 static void rzg2l_mod_clock_init_mstop(struct rzg2l_cpg_priv *priv)
 {
-	struct mstp_clock *clk;
+	struct mod_clock *clk;
 	struct clk_hw *hw;
 
 	for_each_mod_clock(clk, hw, priv) {
@@ -1497,9 +1497,9 @@ static void rzg2l_mod_clock_init_mstop(struct rzg2l_cpg_priv *priv)
 }
 
 static int rzg2l_mod_clock_update_shared_mstop_clks(struct rzg2l_cpg_priv *priv,
-						    struct mstp_clock *clock)
+						    struct mod_clock *clock)
 {
-	struct mstp_clock *clk;
+	struct mod_clock *clk;
 	struct clk_hw *hw;
 
 	if (!clock->mstop)
@@ -1507,7 +1507,7 @@ static int rzg2l_mod_clock_update_shared_mstop_clks(struct rzg2l_cpg_priv *priv,
 
 	for_each_mod_clock(clk, hw, priv) {
 		int num_shared_mstop_clks, incr = 1;
-		struct mstp_clock **new_clks;
+		struct mod_clock **new_clks;
 
 		if (clk->mstop != clock->mstop)
 			continue;
@@ -1541,7 +1541,7 @@ rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
 			   const struct rzg2l_cpg_info *info,
 			   struct rzg2l_cpg_priv *priv)
 {
-	struct mstp_clock *clock = NULL;
+	struct mod_clock *clock = NULL;
 	struct device *dev = priv->dev;
 	unsigned int id = mod->id;
 	struct clk_init_data init;
@@ -1609,7 +1609,7 @@ rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
 	}
 
 	if (mod->is_coupled) {
-		struct mstp_clock *sibling;
+		struct mod_clock *sibling;
 
 		clock->enabled = rzg2l_mod_clock_is_enabled(&clock->hw);
 		sibling = rzg2l_mod_clock_get_sibling(clock, priv);
