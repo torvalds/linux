@@ -256,7 +256,7 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 	unsigned int gsm_size;
 	int err;
 
-	if (IS_SRIOV_VF(xe))
+	if (IS_SRIOV_VF(xe) || GRAPHICS_VERx100(xe) >= 1250)
 		gsm_size = SZ_8M; /* GGTT is expected to be 4GiB */
 	else
 		gsm_size = probe_gsm_size(pdev);
