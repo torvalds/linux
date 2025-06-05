@@ -170,22 +170,26 @@ int rtw89_iterate_entity_chan(struct rtw89_dev *rtwdev,
 
 static void __rtw89_config_entity_chandef(struct rtw89_dev *rtwdev,
 					  enum rtw89_chanctx_idx idx,
-					  const struct cfg80211_chan_def *chandef,
-					  bool from_stack)
+					  const struct cfg80211_chan_def *chandef)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 
 	hal->chanctx[idx].chandef = *chandef;
-
-	if (from_stack)
-		set_bit(idx, hal->entity_map);
 }
 
 void rtw89_config_entity_chandef(struct rtw89_dev *rtwdev,
 				 enum rtw89_chanctx_idx idx,
 				 const struct cfg80211_chan_def *chandef)
 {
-	__rtw89_config_entity_chandef(rtwdev, idx, chandef, true);
+	struct rtw89_hal *hal = &rtwdev->hal;
+
+	if (!chandef) {
+		clear_bit(idx, hal->entity_map);
+		return;
+	}
+
+	__rtw89_config_entity_chandef(rtwdev, idx, chandef);
+	set_bit(idx, hal->entity_map);
 }
 
 void rtw89_config_roc_chandef(struct rtw89_dev *rtwdev,
@@ -227,7 +231,7 @@ static void rtw89_config_default_chandef(struct rtw89_dev *rtwdev)
 	struct cfg80211_chan_def chandef = {0};
 
 	rtw89_get_default_chandef(&chandef);
-	__rtw89_config_entity_chandef(rtwdev, RTW89_CHANCTX_0, &chandef, false);
+	__rtw89_config_entity_chandef(rtwdev, RTW89_CHANCTX_0, &chandef);
 }
 
 void rtw89_entity_init(struct rtw89_dev *rtwdev)
@@ -2782,10 +2786,9 @@ int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,
 void rtw89_chanctx_ops_remove(struct rtw89_dev *rtwdev,
 			      struct ieee80211_chanctx_conf *ctx)
 {
-	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_chanctx_cfg *cfg = (struct rtw89_chanctx_cfg *)ctx->drv_priv;
 
-	clear_bit(cfg->idx, hal->entity_map);
+	rtw89_config_entity_chandef(rtwdev, cfg->idx, NULL);
 }
 
 void rtw89_chanctx_ops_change(struct rtw89_dev *rtwdev,
