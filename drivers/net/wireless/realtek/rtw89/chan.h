@@ -58,6 +58,7 @@ struct rtw89_chanctx_cb_parm {
 };
 
 struct rtw89_entity_weight {
+	unsigned int registered_chanctxs;
 	unsigned int active_chanctxs;
 	unsigned int active_roles;
 };

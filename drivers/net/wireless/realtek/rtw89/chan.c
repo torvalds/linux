@@ -269,6 +269,8 @@ static void rtw89_entity_calculate_weight(struct rtw89_dev *rtwdev,
 	struct rtw89_vif *rtwvif;
 	int idx;
 
+	w->registered_chanctxs = bitmap_weight(hal->entity_map, NUM_OF_RTW89_CHANCTX);
+
 	for_each_set_bit(idx, hal->entity_map, NUM_OF_RTW89_CHANCTX) {
 		cfg = hal->chanctx[idx].cfg;
 		if (!cfg) {
@@ -477,7 +479,8 @@ enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
 		bitmap_zero(recalc_map, NUM_OF_RTW89_CHANCTX);
 		fallthrough;
 	case 0:
-		rtw89_config_default_chandef(rtwdev);
+		if (!w.registered_chanctxs)
+			rtw89_config_default_chandef(rtwdev);
 		set_bit(RTW89_CHANCTX_0, recalc_map);
 		fallthrough;
 	case 1:
