@@ -139,7 +139,8 @@ mod pthread_mtx {
     }
 }
 
-#[cfg_attr(all(test, not(miri)), test)]
+#[cfg_attr(test, test)]
+#[cfg_attr(all(test, miri), ignore)]
 fn main() {
     #[cfg(all(any(feature = "std", feature = "alloc"), not(windows)))]
     {
