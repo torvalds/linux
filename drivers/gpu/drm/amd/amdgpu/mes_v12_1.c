@@ -1228,7 +1228,7 @@ static int mes_v12_1_mqd_init(struct amdgpu_ring *ring)
 	 * doorbell handling. This is a reserved CP internal register can
 	 * not be accesss by others
 	 */
-	//mqd->cp_hqd_gfx_control = BIT(15);
+	mqd->cp_hqd_gfx_control = BIT(15);
 
 	return 0;
 }
