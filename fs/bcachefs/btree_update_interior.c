@@ -1232,6 +1232,15 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	list_add_tail(&as->list, &c->btree_interior_update_list);
 	mutex_unlock(&c->btree_interior_update_lock);
 
+	struct btree *b = btree_path_node(path, path->level);
+	as->node_start	= b->data->min_key;
+	as->node_end	= b->data->max_key;
+	as->node_needed_rewrite = btree_node_need_rewrite(b);
+	as->node_written = b->written;
+	as->node_sectors = btree_buf_bytes(b) >> 9;
+	as->node_remaining = __bch2_btree_u64s_remaining(b,
+				btree_bkey_last(b, bset_tree_last(b)));
+
 	/*
 	 * We don't want to allocate if we're in an error state, that can cause
 	 * deadlock on emergency shutdown due to open buckets getting stuck in
@@ -2108,6 +2117,9 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
+	as->node_start	= prev->data->min_key;
+	as->node_end	= next->data->max_key;
+
 	trace_and_count(c, btree_node_merge, trans, b);
 
 	n = bch2_btree_node_alloc(as, trans, b->c.level);
@@ -2681,9 +2693,19 @@ static void bch2_btree_update_to_text(struct printbuf *out, struct btree_update 
 
 	prt_str(out, " ");
 	bch2_btree_id_to_text(out, as->btree_id);
-	prt_printf(out, " l=%u-%u mode=%s nodes_written=%u cl.remaining=%u journal_seq=%llu\n",
+	prt_printf(out, " l=%u-%u ",
 		   as->update_level_start,
-		   as->update_level_end,
+		   as->update_level_end);
+	bch2_bpos_to_text(out, as->node_start);
+	prt_char(out, ' ');
+	bch2_bpos_to_text(out, as->node_end);
+	prt_printf(out, "\nwritten %u/%u u64s_remaining %u need_rewrite %u",
+		   as->node_written,
+		   as->node_sectors,
+		   as->node_remaining,
+		   as->node_needed_rewrite);
+
+	prt_printf(out, "\nmode=%s nodes_written=%u cl.remaining=%u journal_seq=%llu\n",
 		   bch2_btree_update_modes[as->mode],
 		   as->nodes_written,
 		   closure_nr_remaining(&as->cl),
