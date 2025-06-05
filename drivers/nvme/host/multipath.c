@@ -760,7 +760,7 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 	 * controller's scan_work context. If a path error occurs here, the IO
 	 * will wait until a path becomes available or all paths are torn down,
 	 * but that action also occurs within scan_work, so it would deadlock.
-	 * Defer the partion scan to a different context that does not block
+	 * Defer the partition scan to a different context that does not block
 	 * scan_work.
 	 */
 	set_bit(GD_SUPPRESS_PART_SCAN, &head->disk->state);
