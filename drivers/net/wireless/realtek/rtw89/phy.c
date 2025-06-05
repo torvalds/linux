@@ -5828,13 +5828,19 @@ void rtw89_phy_env_monitor_track(struct rtw89_dev *rtwdev)
 		__rtw89_phy_env_monitor_track(rtwdev, bb);
 }
 
-static bool rtw89_physts_ie_page_valid(enum rtw89_phy_status_bitmap *ie_page)
+static bool rtw89_physts_ie_page_valid(struct rtw89_dev *rtwdev,
+				       enum rtw89_phy_status_bitmap *ie_page)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
 	if (*ie_page >= RTW89_PHYSTS_BITMAP_NUM ||
 	    *ie_page == RTW89_RSVD_9)
 		return false;
-	else if (*ie_page > RTW89_RSVD_9)
+	else if (*ie_page > RTW89_RSVD_9 && *ie_page < RTW89_EHT_PKT)
 		*ie_page -= 1;
+
+	if (*ie_page == RTW89_EHT_PKT && chip->chip_gen == RTW89_CHIP_AX)
+		return false;
 
 	return true;
 }
@@ -5842,6 +5848,9 @@ static bool rtw89_physts_ie_page_valid(enum rtw89_phy_status_bitmap *ie_page)
 static u32 rtw89_phy_get_ie_bitmap_addr(enum rtw89_phy_status_bitmap ie_page)
 {
 	static const u8 ie_page_shift = 2;
+
+	if (ie_page == RTW89_EHT_PKT)
+		return R_PHY_STS_BITMAP_EHT;
 
 	return R_PHY_STS_BITMAP_ADDR_START + (ie_page << ie_page_shift);
 }
@@ -5852,7 +5861,7 @@ static u32 rtw89_physts_get_ie_bitmap(struct rtw89_dev *rtwdev,
 {
 	u32 addr;
 
-	if (!rtw89_physts_ie_page_valid(&ie_page))
+	if (!rtw89_physts_ie_page_valid(rtwdev, &ie_page))
 		return 0;
 
 	addr = rtw89_phy_get_ie_bitmap_addr(ie_page);
@@ -5867,7 +5876,7 @@ static void rtw89_physts_set_ie_bitmap(struct rtw89_dev *rtwdev,
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u32 addr;
 
-	if (!rtw89_physts_ie_page_valid(&ie_page))
+	if (!rtw89_physts_ie_page_valid(rtwdev, &ie_page))
 		return;
 
 	if (chip->chip_id == RTL8852A)
@@ -5875,21 +5884,6 @@ static void rtw89_physts_set_ie_bitmap(struct rtw89_dev *rtwdev,
 
 	addr = rtw89_phy_get_ie_bitmap_addr(ie_page);
 	rtw89_phy_write32_idx(rtwdev, addr, MASKDWORD, val, phy_idx);
-}
-
-static void rtw89_physts_enable_ie_bitmap(struct rtw89_dev *rtwdev,
-					  enum rtw89_phy_status_bitmap bitmap,
-					  enum rtw89_phy_status_ie_type ie,
-					  bool enable, enum rtw89_phy_idx phy_idx)
-{
-	u32 val = rtw89_physts_get_ie_bitmap(rtwdev, bitmap, phy_idx);
-
-	if (enable)
-		val |= BIT(ie);
-	else
-		val &= ~BIT(ie);
-
-	rtw89_physts_set_ie_bitmap(rtwdev, bitmap, val, phy_idx);
 }
 
 static void rtw89_physts_enable_fail_report(struct rtw89_dev *rtwdev,
@@ -5915,30 +5909,37 @@ static void rtw89_physts_enable_fail_report(struct rtw89_dev *rtwdev,
 static void __rtw89_physts_parsing_init(struct rtw89_dev *rtwdev,
 					enum rtw89_phy_idx phy_idx)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u32 val;
 	u8 i;
 
 	rtw89_physts_enable_fail_report(rtwdev, false, phy_idx);
 
 	for (i = 0; i < RTW89_PHYSTS_BITMAP_NUM; i++) {
-		if (i >= RTW89_CCK_PKT)
-			rtw89_physts_enable_ie_bitmap(rtwdev, i,
-						      RTW89_PHYSTS_IE09_FTR_0,
-						      true, phy_idx);
-		if ((i >= RTW89_CCK_BRK && i <= RTW89_VHT_MU) ||
-		    (i >= RTW89_RSVD_9 && i <= RTW89_CCK_PKT))
+		if (i == RTW89_RSVD_9 ||
+		    (i == RTW89_EHT_PKT && chip->chip_gen == RTW89_CHIP_AX))
 			continue;
-		rtw89_physts_enable_ie_bitmap(rtwdev, i,
-					      RTW89_PHYSTS_IE24_OFDM_TD_PATH_A,
-					      true, phy_idx);
-	}
-	rtw89_physts_enable_ie_bitmap(rtwdev, RTW89_VHT_PKT,
-				      RTW89_PHYSTS_IE13_DL_MU_DEF, true, phy_idx);
-	rtw89_physts_enable_ie_bitmap(rtwdev, RTW89_HE_PKT,
-				      RTW89_PHYSTS_IE13_DL_MU_DEF, true, phy_idx);
 
-	/* force IE01 for channel index, only channel field is valid */
-	rtw89_physts_enable_ie_bitmap(rtwdev, RTW89_CCK_PKT,
-				      RTW89_PHYSTS_IE01_CMN_OFDM, true, phy_idx);
+		val = rtw89_physts_get_ie_bitmap(rtwdev, i, phy_idx);
+		if (i == RTW89_HE_MU || i == RTW89_VHT_MU) {
+			val |= BIT(RTW89_PHYSTS_IE13_DL_MU_DEF);
+		} else if (i == RTW89_TRIG_BASE_PPDU) {
+			val |= BIT(RTW89_PHYSTS_IE13_DL_MU_DEF) |
+			       BIT(RTW89_PHYSTS_IE01_CMN_OFDM);
+		} else if (i >= RTW89_CCK_PKT) {
+			val |= BIT(RTW89_PHYSTS_IE09_FTR_0);
+
+			val &= ~(GENMASK(RTW89_PHYSTS_IE07_CMN_EXT_PATH_D,
+					 RTW89_PHYSTS_IE04_CMN_EXT_PATH_A));
+
+			if (i == RTW89_CCK_PKT)
+				val |= BIT(RTW89_PHYSTS_IE01_CMN_OFDM);
+			else if (i >= RTW89_HT_PKT)
+				val |= BIT(RTW89_PHYSTS_IE20_DBG_OFDM_FD_USER_SEG_0);
+		}
+
+		rtw89_physts_set_ie_bitmap(rtwdev, i, val, phy_idx);
+	}
 }
 
 static void rtw89_physts_parsing_init(struct rtw89_dev *rtwdev)
