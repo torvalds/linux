@@ -1905,22 +1905,35 @@ int mt7996_mcu_set_fixed_rate_ctrl(struct mt7996_dev *dev,
 				     MCU_WM_UNI_CMD(RA), true);
 }
 
-int mt7996_mcu_set_fixed_field(struct mt7996_dev *dev,
-			       struct ieee80211_link_sta *link_sta,
-			       struct mt7996_vif_link *link,
-			       struct mt7996_sta_link *msta_link,
-			       void *data, u32 field)
+int mt7996_mcu_set_fixed_field(struct mt7996_dev *dev, struct mt7996_sta *msta,
+			       void *data, u8 link_id, u32 field)
 {
-	struct sta_phy_uni *phy = data;
+	struct mt7996_vif *mvif = msta->vif;
+	struct mt7996_sta_link *msta_link;
 	struct sta_rec_ra_fixed_uni *ra;
+	struct sta_phy_uni *phy = data;
+	struct mt76_vif_link *mlink;
 	struct sk_buff *skb;
+	int err = -ENODEV;
 	struct tlv *tlv;
 
-	skb = __mt76_connac_mcu_alloc_sta_req(&dev->mt76, &link->mt76,
+	rcu_read_lock();
+
+	mlink = rcu_dereference(mvif->mt76.link[link_id]);
+	if (!mlink)
+		goto error_unlock;
+
+	msta_link = rcu_dereference(msta->link[link_id]);
+	if (!msta_link)
+		goto error_unlock;
+
+	skb = __mt76_connac_mcu_alloc_sta_req(&dev->mt76, mlink,
 					      &msta_link->wcid,
 					      MT7996_STA_UPDATE_MAX_SIZE);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
+	if (IS_ERR(skb)) {
+		err = PTR_ERR(skb);
+		goto error_unlock;
+	}
 
 	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_RA_UPDATE, sizeof(*ra));
 	ra = (struct sta_rec_ra_fixed_uni *)tlv;
@@ -1935,27 +1948,45 @@ int mt7996_mcu_set_fixed_field(struct mt7996_dev *dev,
 		if (phy)
 			ra->phy = *phy;
 		break;
-	case RATE_PARAM_MMPS_UPDATE:
+	case RATE_PARAM_MMPS_UPDATE: {
+		struct ieee80211_sta *sta = wcid_to_sta(&msta_link->wcid);
+		struct ieee80211_link_sta *link_sta;
+
+		link_sta = rcu_dereference(sta->link[link_id]);
+		if (!link_sta) {
+			dev_kfree_skb(skb);
+			goto error_unlock;
+		}
+
 		ra->mmps_mode = mt7996_mcu_get_mmps_mode(link_sta->smps_mode);
 		break;
+	}
 	default:
 		break;
 	}
 	ra->field = cpu_to_le32(field);
 
+	rcu_read_unlock();
+
 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
 				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
+error_unlock:
+	rcu_read_unlock();
+
+	return err;
 }
 
 static int
 mt7996_mcu_add_rate_ctrl_fixed(struct mt7996_dev *dev,
 			       struct ieee80211_link_sta *link_sta,
 			       struct mt7996_vif_link *link,
-			       struct mt7996_sta_link *msta_link)
+			       struct mt7996_sta_link *msta_link,
+			       u8 link_id)
 {
 	struct cfg80211_chan_def *chandef = &link->phy->mt76->chandef;
 	struct cfg80211_bitrate_mask *mask = &link->bitrate_mask;
 	enum nl80211_band band = chandef->chan->band;
+	struct mt7996_sta *msta = msta_link->sta;
 	struct sta_phy_uni phy = {};
 	int ret, nrates = 0;
 
@@ -1996,8 +2027,7 @@ mt7996_mcu_add_rate_ctrl_fixed(struct mt7996_dev *dev,
 
 	/* fixed single rate */
 	if (nrates == 1) {
-		ret = mt7996_mcu_set_fixed_field(dev, link_sta, link,
-						 msta_link, &phy,
+		ret = mt7996_mcu_set_fixed_field(dev, msta, &phy, link_id,
 						 RATE_PARAM_FIXED_MCS);
 		if (ret)
 			return ret;
@@ -2018,8 +2048,7 @@ mt7996_mcu_add_rate_ctrl_fixed(struct mt7996_dev *dev,
 		else
 			mt76_rmw_field(dev, addr, GENMASK(15, 12), phy.sgi);
 
-		ret = mt7996_mcu_set_fixed_field(dev, link_sta, link,
-						 msta_link, &phy,
+		ret = mt7996_mcu_set_fixed_field(dev, msta, &phy, link_id,
 						 RATE_PARAM_FIXED_GI);
 		if (ret)
 			return ret;
@@ -2027,8 +2056,7 @@ mt7996_mcu_add_rate_ctrl_fixed(struct mt7996_dev *dev,
 
 	/* fixed HE_LTF */
 	if (mask->control[band].he_ltf != GENMASK(7, 0)) {
-		ret = mt7996_mcu_set_fixed_field(dev, link_sta, link,
-						 msta_link, &phy,
+		ret = mt7996_mcu_set_fixed_field(dev, msta, &phy, link_id,
 						 RATE_PARAM_FIXED_HE_LTF);
 		if (ret)
 			return ret;
@@ -2150,7 +2178,8 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
 			     struct ieee80211_bss_conf *link_conf,
 			     struct ieee80211_link_sta *link_sta,
 			     struct mt7996_vif_link *link,
-			     struct mt7996_sta_link *msta_link, bool changed)
+			     struct mt7996_sta_link *msta_link,
+			     u8 link_id, bool changed)
 {
 	struct sk_buff *skb;
 	int ret;
@@ -2178,7 +2207,8 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
 	if (ret)
 		return ret;
 
-	return mt7996_mcu_add_rate_ctrl_fixed(dev, link_sta, link, msta_link);
+	return mt7996_mcu_add_rate_ctrl_fixed(dev, link_sta, link, msta_link,
+					      link_id);
 }
 
 static int
