@@ -691,14 +691,11 @@ out:
 bool amdgpu_mes_suspend_resume_all_supported(struct amdgpu_device *adev)
 {
 	uint32_t mes_rev = adev->mes.sched_version & AMDGPU_MES_VERSION_MASK;
-	bool is_supported = false;
 
-	if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(11, 0, 0) &&
-	    amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(12, 0, 0) &&
-	    mes_rev >= 0x63)
-		is_supported = true;
-
-	return is_supported;
+	return ((amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(11, 0, 0) &&
+		 amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(12, 0, 0) &&
+		 mes_rev >= 0x63) ||
+		amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(12, 0, 0));
 }
 
 /* Fix me -- node_id is used to identify the correct MES instances in the future */
