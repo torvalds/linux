@@ -5,10 +5,12 @@ on:
     tags:
       - 'lkss-*'
   pull_request:
+    types: [labeled]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.label.name == 'CI test'
 
     steps:
     - name: Checkout repository
