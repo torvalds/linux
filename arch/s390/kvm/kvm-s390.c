@@ -1938,14 +1938,12 @@ static void kvm_s390_update_topology_change_report(struct kvm *kvm, bool val)
 	union sca_utility new, old;
 	struct esca_block *sca;
 
-	read_lock(&kvm->arch.sca_lock);
 	sca = kvm->arch.sca;
 	old = READ_ONCE(sca->utility);
 	do {
 		new = old;
 		new.mtcr = val;
 	} while (!try_cmpxchg(&sca->utility.val, &old.val, new.val));
-	read_unlock(&kvm->arch.sca_lock);
 }
 
 static int kvm_s390_set_topo_change_indication(struct kvm *kvm,
@@ -1966,9 +1964,7 @@ static int kvm_s390_get_topo_change_indication(struct kvm *kvm,
 	if (!test_kvm_facility(kvm, 11))
 		return -ENXIO;
 
-	read_lock(&kvm->arch.sca_lock);
 	topo = kvm->arch.sca->utility.mtcr;
-	read_unlock(&kvm->arch.sca_lock);
 
 	return put_user(topo, (u8 __user *)attr->addr);
 }
@@ -3345,7 +3341,6 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	if (!sclp.has_64bscao)
 		alloc_flags |= GFP_DMA;
-	rwlock_init(&kvm->arch.sca_lock);
 	mutex_lock(&kvm_lock);
 
 	kvm->arch.sca = alloc_pages_exact(sizeof(*kvm->arch.sca), alloc_flags);
@@ -3530,41 +3525,30 @@ static int __kvm_ucontrol_vcpu_init(struct kvm_vcpu *vcpu)
 
 static void sca_del_vcpu(struct kvm_vcpu *vcpu)
 {
-	struct esca_block *sca;
+	struct esca_block *sca = vcpu->kvm->arch.sca;
 
 	if (!kvm_s390_use_sca_entries())
 		return;
-	read_lock(&vcpu->kvm->arch.sca_lock);
-	sca = vcpu->kvm->arch.sca;
 
 	clear_bit_inv(vcpu->vcpu_id, (unsigned long *)sca->mcn);
 	sca->cpu[vcpu->vcpu_id].sda = 0;
-	read_unlock(&vcpu->kvm->arch.sca_lock);
 }
 
 static void sca_add_vcpu(struct kvm_vcpu *vcpu)
 {
-	struct esca_block *sca;
-	phys_addr_t sca_phys;
+	struct esca_block *sca = vcpu->kvm->arch.sca;
+	phys_addr_t sca_phys = virt_to_phys(sca);
 
-	if (!kvm_s390_use_sca_entries()) {
-		sca_phys = virt_to_phys(vcpu->kvm->arch.sca);
-
-		/* we still need the basic sca for the ipte control */
-		vcpu->arch.sie_block->scaoh = sca_phys >> 32;
-		vcpu->arch.sie_block->scaol = sca_phys;
-		return;
-	}
-	read_lock(&vcpu->kvm->arch.sca_lock);
-	sca = vcpu->kvm->arch.sca;
-	sca_phys = virt_to_phys(sca);
-
-	sca->cpu[vcpu->vcpu_id].sda = virt_to_phys(vcpu->arch.sie_block);
+	/* we still need the sca header for the ipte control */
 	vcpu->arch.sie_block->scaoh = sca_phys >> 32;
 	vcpu->arch.sie_block->scaol = sca_phys & ESCA_SCAOL_MASK;
 	vcpu->arch.sie_block->ecb2 |= ECB2_ESCA;
+
+	if (!kvm_s390_use_sca_entries())
+		return;
+
 	set_bit_inv(vcpu->vcpu_id, (unsigned long *)sca->mcn);
-	read_unlock(&vcpu->kvm->arch.sca_lock);
+	sca->cpu[vcpu->vcpu_id].sda = virt_to_phys(vcpu->arch.sie_block);
 }
 
 static int sca_can_add_vcpu(struct kvm *kvm, unsigned int id)

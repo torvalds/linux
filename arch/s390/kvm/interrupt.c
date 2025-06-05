@@ -45,48 +45,34 @@ static struct kvm_s390_gib *gib;
 /* handle external calls via sigp interpretation facility */
 static int sca_ext_call_pending(struct kvm_vcpu *vcpu, int *src_id)
 {
-	union esca_sigp_ctrl sigp_ctrl;
-	struct esca_block *sca;
-	int c, scn;
+	struct esca_block *sca = vcpu->kvm->arch.sca;
+	union esca_sigp_ctrl sigp_ctrl = sca->cpu[vcpu->vcpu_id].sigp_ctrl;
 
 	if (!kvm_s390_test_cpuflags(vcpu, CPUSTAT_ECALL_PEND))
 		return 0;
 
 	BUG_ON(!kvm_s390_use_sca_entries());
-	read_lock(&vcpu->kvm->arch.sca_lock);
-	sca = vcpu->kvm->arch.sca;
-	sigp_ctrl = sca->cpu[vcpu->vcpu_id].sigp_ctrl;
-
-	c = sigp_ctrl.c;
-	scn = sigp_ctrl.scn;
-	read_unlock(&vcpu->kvm->arch.sca_lock);
 
 	if (src_id)
-		*src_id = scn;
+		*src_id = sigp_ctrl.scn;
 
-	return c;
+	return sigp_ctrl.c;
 }
 
 static int sca_inject_ext_call(struct kvm_vcpu *vcpu, int src_id)
 {
-	union esca_sigp_ctrl old_val, new_val = {0};
-	union esca_sigp_ctrl *sigp_ctrl;
-	struct esca_block *sca;
+	struct esca_block *sca = vcpu->kvm->arch.sca;
+	union esca_sigp_ctrl *sigp_ctrl = &sca->cpu[vcpu->vcpu_id].sigp_ctrl;
+	union esca_sigp_ctrl old_val, new_val = {.scn = src_id, .c = 1};
 	int expect, rc;
 
 	BUG_ON(!kvm_s390_use_sca_entries());
-	read_lock(&vcpu->kvm->arch.sca_lock);
-	sca = vcpu->kvm->arch.sca;
-	sigp_ctrl = &sca->cpu[vcpu->vcpu_id].sigp_ctrl;
 
 	old_val = READ_ONCE(*sigp_ctrl);
-	new_val.scn = src_id;
-	new_val.c = 1;
 	old_val.c = 0;
 
 	expect = old_val.value;
 	rc = cmpxchg(&sigp_ctrl->value, old_val.value, new_val.value);
-	read_unlock(&vcpu->kvm->arch.sca_lock);
 
 	if (rc != expect) {
 		/* another external call is pending */
@@ -98,18 +84,14 @@ static int sca_inject_ext_call(struct kvm_vcpu *vcpu, int src_id)
 
 static void sca_clear_ext_call(struct kvm_vcpu *vcpu)
 {
-	union esca_sigp_ctrl *sigp_ctrl;
-	struct esca_block *sca;
+	struct esca_block *sca = vcpu->kvm->arch.sca;
+	union esca_sigp_ctrl *sigp_ctrl = &sca->cpu[vcpu->vcpu_id].sigp_ctrl;
 
 	if (!kvm_s390_use_sca_entries())
 		return;
 	kvm_s390_clear_cpuflags(vcpu, CPUSTAT_ECALL_PEND);
-	read_lock(&vcpu->kvm->arch.sca_lock);
-	sca = vcpu->kvm->arch.sca;
-	sigp_ctrl = &sca->cpu[vcpu->vcpu_id].sigp_ctrl;
 
 	WRITE_ONCE(sigp_ctrl->value, 0);
-	read_unlock(&vcpu->kvm->arch.sca_lock);
 }
 
 int psw_extint_disabled(struct kvm_vcpu *vcpu)

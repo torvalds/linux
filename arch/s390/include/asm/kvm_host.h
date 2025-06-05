@@ -633,7 +633,6 @@ struct kvm_s390_pv {
 
 struct kvm_arch {
 	struct esca_block *sca;
-	rwlock_t sca_lock;
 	debug_info_t *dbf;
 	struct kvm_s390_float_interrupt float_int;
 	struct kvm_device *flic;
