@@ -84,9 +84,6 @@ define posix_host
   $(if $(filter $(1),elf32-i386),$(call set_autoconf_var,I386,y))
   $(if $(strip $(call find_include,jsmn.h)),$(call set_autoconf_var,JSMN,y))
   $(if $(filter %,$(zpoline)),$(call zpoline_conf,$(zpoline)))
-  $(call set_kernel_config,LKL_HOST_MEMCPY,y)
-  $(call set_kernel_config,LKL_HOST_MEMSET,y)
-  $(call set_kernel_config,LKL_HOST_MEMMOVE,y)
 endef
 
 define nt64_host

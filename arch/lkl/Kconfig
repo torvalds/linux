@@ -155,21 +155,22 @@ config BUILTIN_CMDLINE
 
 config LKL_HOST_MEMCPY
 	bool "Host provides memcpy"
-	default n
+	default $(success,$(srctree)/arch/lkl/scripts/cc-objdump-file-format.sh|grep -q '^elf64-') if 64BIT
+	default $(success,$(srctree)/arch/lkl/scripts/cc-objdump-file-format.sh|grep -q '^elf32-') if !64BIT
 	help
-	  This options should be set (in tools/lkl/Makefile.autoconf)
-	  if the host provides a memcpy implementation.
+	  Set to "y" if LKL should call the host memcpy hook instead of
+	  performing memory copies manually.
 
 config LKL_HOST_MEMSET
 	bool "Host provides memset"
-	default n
+	default LKL_HOST_MEMCPY
 	help
-	  This options should be set (in tools/lkl/Makefile.autoconf)
-	  if the host provides a memset implementation.
+	  Set to "y" if LKL should call the host memset hook instead of
+	  performing memory sets manually.
 
 config LKL_HOST_MEMMOVE
 	bool "Host provides memmove"
-	default n
+	default LKL_HOST_MEMCPY
 	help
-	  This options should be set (in tools/lkl/Makefile.autoconf)
-	  if the host provides a memmove implementation.
+	  Set to "y" if LKL should call the host memmove hook instead of
+	  performing memory moves manually.
