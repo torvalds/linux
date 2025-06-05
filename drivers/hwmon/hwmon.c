@@ -19,6 +19,7 @@
 #include <linux/kstrtox.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/property.h>
 #include <linux/slab.h>
@@ -36,6 +37,7 @@ struct hwmon_device {
 	const char *label;
 	struct device dev;
 	const struct hwmon_chip_info *chip;
+	struct mutex lock;
 	struct list_head tzdata;
 	struct attribute_group group;
 	const struct attribute_group **groups;
@@ -165,6 +167,8 @@ static int hwmon_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 	int ret;
 	long t;
 
+	guard(mutex)(&hwdev->lock);
+
 	ret = hwdev->chip->ops->read(tdata->dev, hwmon_temp, hwmon_temp_input,
 				     tdata->index, &t);
 	if (ret < 0)
@@ -192,6 +196,8 @@ static int hwmon_thermal_set_trips(struct thermal_zone_device *tz, int low, int 
 
 	if (!info[i])
 		return 0;
+
+	guard(mutex)(&hwdev->lock);
 
 	if (info[i]->config[tdata->index] & HWMON_T_MIN) {
 		err = chip->ops->write(tdata->dev, hwmon_temp,
@@ -330,8 +336,6 @@ static int hwmon_attr_base(enum hwmon_sensor_types type)
  * attached to an i2c client device.
  */
 
-static DEFINE_MUTEX(hwmon_pec_mutex);
-
 static int hwmon_match_device(struct device *dev, const void *data)
 {
 	return dev->class == &hwmon_class;
@@ -362,17 +366,16 @@ static ssize_t pec_store(struct device *dev, struct device_attribute *devattr,
 	if (!hdev)
 		return -ENODEV;
 
-	mutex_lock(&hwmon_pec_mutex);
-
 	/*
 	 * If there is no write function, we assume that chip specific
 	 * handling is not required.
 	 */
 	hwdev = to_hwmon_device(hdev);
+	guard(mutex)(&hwdev->lock);
 	if (hwdev->chip->ops->write) {
 		err = hwdev->chip->ops->write(hdev, hwmon_chip, hwmon_chip_pec, 0, val);
 		if (err && err != -EOPNOTSUPP)
-			goto unlock;
+			goto put;
 	}
 
 	if (!val)
@@ -381,8 +384,7 @@ static ssize_t pec_store(struct device *dev, struct device_attribute *devattr,
 		client->flags |= I2C_CLIENT_PEC;
 
 	err = count;
-unlock:
-	mutex_unlock(&hwmon_pec_mutex);
+put:
 	put_device(hdev);
 
 	return err;
@@ -426,9 +428,12 @@ static ssize_t hwmon_attr_show(struct device *dev,
 			       struct device_attribute *devattr, char *buf)
 {
 	struct hwmon_device_attribute *hattr = to_hwmon_attr(devattr);
+	struct hwmon_device *hwdev = to_hwmon_device(dev);
 	s64 val64;
 	long val;
 	int ret;
+
+	guard(mutex)(&hwdev->lock);
 
 	ret = hattr->ops->read(dev, hattr->type, hattr->attr, hattr->index,
 			       (hattr->type == hwmon_energy64) ? (long *)&val64 : &val);
@@ -449,9 +454,12 @@ static ssize_t hwmon_attr_show_string(struct device *dev,
 				      char *buf)
 {
 	struct hwmon_device_attribute *hattr = to_hwmon_attr(devattr);
+	struct hwmon_device *hwdev = to_hwmon_device(dev);
 	enum hwmon_sensor_types type = hattr->type;
 	const char *s;
 	int ret;
+
+	guard(mutex)(&hwdev->lock);
 
 	ret = hattr->ops->read_string(dev, hattr->type, hattr->attr,
 				      hattr->index, &s);
@@ -469,12 +477,15 @@ static ssize_t hwmon_attr_store(struct device *dev,
 				const char *buf, size_t count)
 {
 	struct hwmon_device_attribute *hattr = to_hwmon_attr(devattr);
+	struct hwmon_device *hwdev = to_hwmon_device(dev);
 	long val;
 	int ret;
 
 	ret = kstrtol(buf, 10, &val);
 	if (ret < 0)
 		return ret;
+
+	guard(mutex)(&hwdev->lock);
 
 	ret = hattr->ops->write(dev, hattr->type, hattr->attr, hattr->index,
 				val);
@@ -791,6 +802,22 @@ int hwmon_notify_event(struct device *dev, enum hwmon_sensor_types type,
 }
 EXPORT_SYMBOL_GPL(hwmon_notify_event);
 
+void hwmon_lock(struct device *dev)
+{
+	struct hwmon_device *hwdev = to_hwmon_device(dev);
+
+	mutex_lock(&hwdev->lock);
+}
+EXPORT_SYMBOL_GPL(hwmon_lock);
+
+void hwmon_unlock(struct device *dev)
+{
+	struct hwmon_device *hwdev = to_hwmon_device(dev);
+
+	mutex_unlock(&hwdev->lock);
+}
+EXPORT_SYMBOL_GPL(hwmon_unlock);
+
 static int hwmon_num_channel_attrs(const struct hwmon_channel_info *info)
 {
 	int i, n;
@@ -951,6 +978,7 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 		tdev = tdev->parent;
 	hdev->of_node = tdev ? tdev->of_node : NULL;
 	hwdev->chip = chip;
+	mutex_init(&hwdev->lock);
 	dev_set_drvdata(hdev, drvdata);
 	dev_set_name(hdev, HWMON_ID_FORMAT, id);
 	err = device_register(hdev);
