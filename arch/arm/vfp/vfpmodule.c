@@ -877,6 +877,7 @@ void kernel_neon_begin(void)
 	 * the kernel mode NEON register contents never need to be preserved.
 	 */
 	BUG_ON(in_hardirq());
+	BUG_ON(irqs_disabled());
 	cpu = __smp_processor_id();
 
 	fpexc = fmrx(FPEXC) | FPEXC_EN;
