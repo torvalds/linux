@@ -691,8 +691,8 @@ void __init init_IRQ(void)
 	os_setup_epoll();
 }
 
-extern void sigchld_handler(int sig, struct siginfo *unused_si,
-			    struct uml_pt_regs *regs, void *mc)
+void sigchld_handler(int sig, struct siginfo *unused_si,
+		     struct uml_pt_regs *regs, void *mc)
 {
 	do_IRQ(SIGCHLD_IRQ, regs);
 }
