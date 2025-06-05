@@ -125,7 +125,7 @@ void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 			reset_done =
 				inta_hw & MSIX_HW_INT_CAUSES_REG_RESET_DONE;
 		} else {
-			inta_hw = iwl_read32(trans, CSR_INT_MASK);
+			inta_hw = iwl_read32(trans, CSR_INT);
 			reset_done = inta_hw & CSR_INT_BIT_RESET_DONE;
 		}
 
