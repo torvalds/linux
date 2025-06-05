@@ -169,8 +169,19 @@ do {								\
 
 #endif /* CONFIG_64BIT */
 
+unsigned long __must_check __asm_copy_to_user_sum_enabled(void __user *to,
+	const void *from, unsigned long n);
+unsigned long __must_check __asm_copy_from_user_sum_enabled(void *to,
+	const void __user *from, unsigned long n);
+
 #define __get_user_nocheck(x, __gu_ptr, label)			\
 do {								\
+	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) &&	\
+	    !IS_ALIGNED((uintptr_t)__gu_ptr, sizeof(*__gu_ptr))) {	\
+		if (__asm_copy_from_user_sum_enabled(&(x), __gu_ptr, sizeof(*__gu_ptr))) \
+			goto label;				\
+		break;						\
+	}							\
 	switch (sizeof(*__gu_ptr)) {				\
 	case 1:							\
 		__get_user_asm("lb", (x), __gu_ptr, label);	\
@@ -297,6 +308,13 @@ do {								\
 
 #define __put_user_nocheck(x, __gu_ptr, label)			\
 do {								\
+	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) &&	\
+	    !IS_ALIGNED((uintptr_t)__gu_ptr, sizeof(*__gu_ptr))) {	\
+		__inttype(x) val = (__inttype(x))x;			\
+		if (__asm_copy_to_user_sum_enabled(__gu_ptr, &(val), sizeof(*__gu_ptr))) \
+			goto label;				\
+		break;						\
+	}							\
 	switch (sizeof(*__gu_ptr)) {				\
 	case 1:							\
 		__put_user_asm("sb", (x), __gu_ptr, label);	\
@@ -450,35 +468,13 @@ static inline void user_access_restore(unsigned long enabled) { }
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
 } while (0)
 
-#define unsafe_copy_loop(dst, src, len, type, op, label)		\
-	while (len >= sizeof(type)) {					\
-		op(*(type *)(src), (type __user *)(dst), label);	\
-		dst += sizeof(type);					\
-		src += sizeof(type);					\
-		len -= sizeof(type);					\
-	}
-
 #define unsafe_copy_to_user(_dst, _src, _len, label)			\
-do {									\
-	char __user *__ucu_dst = (_dst);				\
-	const char *__ucu_src = (_src);					\
-	size_t __ucu_len = (_len);					\
-	unsafe_copy_loop(__ucu_dst, __ucu_src, __ucu_len, u64, unsafe_put_user, label);	\
-	unsafe_copy_loop(__ucu_dst, __ucu_src, __ucu_len, u32, unsafe_put_user, label);	\
-	unsafe_copy_loop(__ucu_dst, __ucu_src, __ucu_len, u16, unsafe_put_user, label);	\
-	unsafe_copy_loop(__ucu_dst, __ucu_src, __ucu_len, u8, unsafe_put_user, label);	\
-} while (0)
+	if (__asm_copy_to_user_sum_enabled(_dst, _src, _len))		\
+		goto label;
 
 #define unsafe_copy_from_user(_dst, _src, _len, label)			\
-do {									\
-	char *__ucu_dst = (_dst);					\
-	const char __user *__ucu_src = (_src);				\
-	size_t __ucu_len = (_len);					\
-	unsafe_copy_loop(__ucu_src, __ucu_dst, __ucu_len, u64, unsafe_get_user, label);	\
-	unsafe_copy_loop(__ucu_src, __ucu_dst, __ucu_len, u32, unsafe_get_user, label);	\
-	unsafe_copy_loop(__ucu_src, __ucu_dst, __ucu_len, u16, unsafe_get_user, label);	\
-	unsafe_copy_loop(__ucu_src, __ucu_dst, __ucu_len, u8, unsafe_get_user, label);	\
-} while (0)
+	if (__asm_copy_from_user_sum_enabled(_dst, _src, _len))		\
+		goto label;
 
 #else /* CONFIG_MMU */
 #include <asm-generic/uaccess.h>
