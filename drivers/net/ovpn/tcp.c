@@ -124,14 +124,18 @@ static void ovpn_tcp_rcv(struct strparser *strp, struct sk_buff *skb)
 	 * this peer, therefore ovpn_peer_hold() is not expected to fail
 	 */
 	if (WARN_ON(!ovpn_peer_hold(peer)))
-		goto err;
+		goto err_nopeer;
 
 	ovpn_recv(peer, skb);
 	return;
 err:
+	/* take reference for deferred peer deletion. should never fail */
+	if (WARN_ON(!ovpn_peer_hold(peer)))
+		goto err_nopeer;
+	schedule_work(&peer->tcp.defer_del_work);
 	dev_dstats_rx_dropped(peer->ovpn->dev);
+err_nopeer:
 	kfree_skb(skb);
-	ovpn_peer_del(peer, OVPN_DEL_PEER_REASON_TRANSPORT_ERROR);
 }
 
 static int ovpn_tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
@@ -186,18 +190,18 @@ out:
 void ovpn_tcp_socket_detach(struct ovpn_socket *ovpn_sock)
 {
 	struct ovpn_peer *peer = ovpn_sock->peer;
-	struct socket *sock = ovpn_sock->sock;
+	struct sock *sk = ovpn_sock->sk;
 
 	strp_stop(&peer->tcp.strp);
 	skb_queue_purge(&peer->tcp.user_queue);
 
 	/* restore CBs that were saved in ovpn_sock_set_tcp_cb() */
-	sock->sk->sk_data_ready = peer->tcp.sk_cb.sk_data_ready;
-	sock->sk->sk_write_space = peer->tcp.sk_cb.sk_write_space;
-	sock->sk->sk_prot = peer->tcp.sk_cb.prot;
-	sock->sk->sk_socket->ops = peer->tcp.sk_cb.ops;
+	sk->sk_data_ready = peer->tcp.sk_cb.sk_data_ready;
+	sk->sk_write_space = peer->tcp.sk_cb.sk_write_space;
+	sk->sk_prot = peer->tcp.sk_cb.prot;
+	sk->sk_socket->ops = peer->tcp.sk_cb.ops;
 
-	rcu_assign_sk_user_data(sock->sk, NULL);
+	rcu_assign_sk_user_data(sk, NULL);
 }
 
 void ovpn_tcp_socket_wait_finish(struct ovpn_socket *sock)
@@ -283,10 +287,10 @@ void ovpn_tcp_tx_work(struct work_struct *work)
 
 	sock = container_of(work, struct ovpn_socket, tcp_tx_work);
 
-	lock_sock(sock->sock->sk);
+	lock_sock(sock->sk);
 	if (sock->peer)
-		ovpn_tcp_send_sock(sock->peer, sock->sock->sk);
-	release_sock(sock->sock->sk);
+		ovpn_tcp_send_sock(sock->peer, sock->sk);
+	release_sock(sock->sk);
 }
 
 static void ovpn_tcp_send_sock_skb(struct ovpn_peer *peer, struct sock *sk,
@@ -307,15 +311,15 @@ static void ovpn_tcp_send_sock_skb(struct ovpn_peer *peer, struct sock *sk,
 	ovpn_tcp_send_sock(peer, sk);
 }
 
-void ovpn_tcp_send_skb(struct ovpn_peer *peer, struct socket *sock,
+void ovpn_tcp_send_skb(struct ovpn_peer *peer, struct sock *sk,
 		       struct sk_buff *skb)
 {
 	u16 len = skb->len;
 
 	*(__be16 *)__skb_push(skb, sizeof(u16)) = htons(len);
 
-	spin_lock_nested(&sock->sk->sk_lock.slock, OVPN_TCP_DEPTH_NESTING);
-	if (sock_owned_by_user(sock->sk)) {
+	spin_lock_nested(&sk->sk_lock.slock, OVPN_TCP_DEPTH_NESTING);
+	if (sock_owned_by_user(sk)) {
 		if (skb_queue_len(&peer->tcp.out_queue) >=
 		    READ_ONCE(net_hotdata.max_backlog)) {
 			dev_dstats_tx_dropped(peer->ovpn->dev);
@@ -324,10 +328,10 @@ void ovpn_tcp_send_skb(struct ovpn_peer *peer, struct socket *sock,
 		}
 		__skb_queue_tail(&peer->tcp.out_queue, skb);
 	} else {
-		ovpn_tcp_send_sock_skb(peer, sock->sk, skb);
+		ovpn_tcp_send_sock_skb(peer, sk, skb);
 	}
 unlock:
-	spin_unlock(&sock->sk->sk_lock.slock);
+	spin_unlock(&sk->sk_lock.slock);
 }
 
 static void ovpn_tcp_release(struct sock *sk)
@@ -474,7 +478,6 @@ static void ovpn_tcp_peer_del_work(struct work_struct *work)
 int ovpn_tcp_socket_attach(struct ovpn_socket *ovpn_sock,
 			   struct ovpn_peer *peer)
 {
-	struct socket *sock = ovpn_sock->sock;
 	struct strp_callbacks cb = {
 		.rcv_msg = ovpn_tcp_rcv,
 		.parse_msg = ovpn_tcp_parse,
@@ -482,20 +485,20 @@ int ovpn_tcp_socket_attach(struct ovpn_socket *ovpn_sock,
 	int ret;
 
 	/* make sure no pre-existing encapsulation handler exists */
-	if (sock->sk->sk_user_data)
+	if (ovpn_sock->sk->sk_user_data)
 		return -EBUSY;
 
 	/* only a fully connected socket is expected. Connection should be
 	 * handled in userspace
 	 */
-	if (sock->sk->sk_state != TCP_ESTABLISHED) {
+	if (ovpn_sock->sk->sk_state != TCP_ESTABLISHED) {
 		net_err_ratelimited("%s: provided TCP socket is not in ESTABLISHED state: %d\n",
 				    netdev_name(peer->ovpn->dev),
-				    sock->sk->sk_state);
+				    ovpn_sock->sk->sk_state);
 		return -EINVAL;
 	}
 
-	ret = strp_init(&peer->tcp.strp, sock->sk, &cb);
+	ret = strp_init(&peer->tcp.strp, ovpn_sock->sk, &cb);
 	if (ret < 0) {
 		DEBUG_NET_WARN_ON_ONCE(1);
 		return ret;
@@ -503,31 +506,31 @@ int ovpn_tcp_socket_attach(struct ovpn_socket *ovpn_sock,
 
 	INIT_WORK(&peer->tcp.defer_del_work, ovpn_tcp_peer_del_work);
 
-	__sk_dst_reset(sock->sk);
+	__sk_dst_reset(ovpn_sock->sk);
 	skb_queue_head_init(&peer->tcp.user_queue);
 	skb_queue_head_init(&peer->tcp.out_queue);
 
 	/* save current CBs so that they can be restored upon socket release */
-	peer->tcp.sk_cb.sk_data_ready = sock->sk->sk_data_ready;
-	peer->tcp.sk_cb.sk_write_space = sock->sk->sk_write_space;
-	peer->tcp.sk_cb.prot = sock->sk->sk_prot;
-	peer->tcp.sk_cb.ops = sock->sk->sk_socket->ops;
+	peer->tcp.sk_cb.sk_data_ready = ovpn_sock->sk->sk_data_ready;
+	peer->tcp.sk_cb.sk_write_space = ovpn_sock->sk->sk_write_space;
+	peer->tcp.sk_cb.prot = ovpn_sock->sk->sk_prot;
+	peer->tcp.sk_cb.ops = ovpn_sock->sk->sk_socket->ops;
 
 	/* assign our static CBs and prot/ops */
-	sock->sk->sk_data_ready = ovpn_tcp_data_ready;
-	sock->sk->sk_write_space = ovpn_tcp_write_space;
+	ovpn_sock->sk->sk_data_ready = ovpn_tcp_data_ready;
+	ovpn_sock->sk->sk_write_space = ovpn_tcp_write_space;
 
-	if (sock->sk->sk_family == AF_INET) {
-		sock->sk->sk_prot = &ovpn_tcp_prot;
-		sock->sk->sk_socket->ops = &ovpn_tcp_ops;
+	if (ovpn_sock->sk->sk_family == AF_INET) {
+		ovpn_sock->sk->sk_prot = &ovpn_tcp_prot;
+		ovpn_sock->sk->sk_socket->ops = &ovpn_tcp_ops;
 	} else {
-		sock->sk->sk_prot = &ovpn_tcp6_prot;
-		sock->sk->sk_socket->ops = &ovpn_tcp6_ops;
+		ovpn_sock->sk->sk_prot = &ovpn_tcp6_prot;
+		ovpn_sock->sk->sk_socket->ops = &ovpn_tcp6_ops;
 	}
 
 	/* avoid using task_frag */
-	sock->sk->sk_allocation = GFP_ATOMIC;
-	sock->sk->sk_use_task_frag = false;
+	ovpn_sock->sk->sk_allocation = GFP_ATOMIC;
+	ovpn_sock->sk->sk_use_task_frag = false;
 
 	/* enqueue the RX worker */
 	strp_check_rcv(&peer->tcp.strp);
