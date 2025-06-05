@@ -597,6 +597,43 @@ int amdgpu_xcp_update_partition_sched_list(struct amdgpu_device *adev)
 	return amdgpu_xcp_sched_list_update(adev);
 }
 
+void amdgpu_xcp_update_supported_modes(struct amdgpu_xcp_mgr *xcp_mgr)
+{
+	struct amdgpu_device *adev = xcp_mgr->adev;
+
+	xcp_mgr->supp_xcp_modes = 0;
+
+	switch (NUM_XCC(adev->gfx.xcc_mask)) {
+	case 8:
+		xcp_mgr->supp_xcp_modes = BIT(AMDGPU_SPX_PARTITION_MODE) |
+					  BIT(AMDGPU_DPX_PARTITION_MODE) |
+					  BIT(AMDGPU_QPX_PARTITION_MODE) |
+					  BIT(AMDGPU_CPX_PARTITION_MODE);
+		break;
+	case 6:
+		xcp_mgr->supp_xcp_modes = BIT(AMDGPU_SPX_PARTITION_MODE) |
+					  BIT(AMDGPU_TPX_PARTITION_MODE) |
+					  BIT(AMDGPU_CPX_PARTITION_MODE);
+		break;
+	case 4:
+		xcp_mgr->supp_xcp_modes = BIT(AMDGPU_SPX_PARTITION_MODE) |
+					  BIT(AMDGPU_DPX_PARTITION_MODE) |
+					  BIT(AMDGPU_CPX_PARTITION_MODE);
+		break;
+	case 2:
+		xcp_mgr->supp_xcp_modes = BIT(AMDGPU_SPX_PARTITION_MODE) |
+					  BIT(AMDGPU_CPX_PARTITION_MODE);
+		break;
+	case 1:
+		xcp_mgr->supp_xcp_modes = BIT(AMDGPU_SPX_PARTITION_MODE) |
+					  BIT(AMDGPU_CPX_PARTITION_MODE);
+		break;
+
+	default:
+		break;
+	}
+}
+
 /*====================== xcp sysfs - configuration ======================*/
 #define XCP_CFG_SYSFS_RES_ATTR_SHOW(_name)                         \
 	static ssize_t amdgpu_xcp_res_sysfs_##_name##_show(        \

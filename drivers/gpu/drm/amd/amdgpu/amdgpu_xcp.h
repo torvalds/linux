@@ -177,6 +177,7 @@ int amdgpu_xcp_select_scheds(struct amdgpu_device *adev,
 			     struct amdgpu_fpriv *fpriv,
 			     unsigned int *num_scheds,
 			     struct drm_gpu_scheduler ***scheds);
+void amdgpu_xcp_update_supported_modes(struct amdgpu_xcp_mgr *xcp_mgr);
 int amdgpu_xcp_update_partition_sched_list(struct amdgpu_device *adev);
 void amdgpu_xcp_sysfs_init(struct amdgpu_device *adev);
 void amdgpu_xcp_sysfs_fini(struct amdgpu_device *adev);

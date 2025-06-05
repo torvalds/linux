@@ -396,45 +396,6 @@ static int __aqua_vanjaram_post_partition_switch(struct amdgpu_xcp_mgr *xcp_mgr,
 	return ret;
 }
 
-static void
-__aqua_vanjaram_update_supported_modes(struct amdgpu_xcp_mgr *xcp_mgr)
-{
-	struct amdgpu_device *adev = xcp_mgr->adev;
-
-	xcp_mgr->supp_xcp_modes = 0;
-
-	switch (NUM_XCC(adev->gfx.xcc_mask)) {
-	case 8:
-		xcp_mgr->supp_xcp_modes = BIT(AMDGPU_SPX_PARTITION_MODE) |
-					  BIT(AMDGPU_DPX_PARTITION_MODE) |
-					  BIT(AMDGPU_QPX_PARTITION_MODE) |
-					  BIT(AMDGPU_CPX_PARTITION_MODE);
-		break;
-	case 6:
-		xcp_mgr->supp_xcp_modes = BIT(AMDGPU_SPX_PARTITION_MODE) |
-					  BIT(AMDGPU_TPX_PARTITION_MODE) |
-					  BIT(AMDGPU_CPX_PARTITION_MODE);
-		break;
-	case 4:
-		xcp_mgr->supp_xcp_modes = BIT(AMDGPU_SPX_PARTITION_MODE) |
-					  BIT(AMDGPU_DPX_PARTITION_MODE) |
-					  BIT(AMDGPU_CPX_PARTITION_MODE);
-		break;
-	/* this seems only existing in emulation phase */
-	case 2:
-		xcp_mgr->supp_xcp_modes = BIT(AMDGPU_SPX_PARTITION_MODE) |
-					  BIT(AMDGPU_CPX_PARTITION_MODE);
-		break;
-	case 1:
-		xcp_mgr->supp_xcp_modes = BIT(AMDGPU_SPX_PARTITION_MODE) |
-					  BIT(AMDGPU_CPX_PARTITION_MODE);
-		break;
-
-	default:
-		break;
-	}
-}
-
 static void __aqua_vanjaram_update_available_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr)
 {
 	int mode;
@@ -591,7 +552,7 @@ static int aqua_vanjaram_xcp_mgr_init(struct amdgpu_device *adev)
 	if (ret)
 		return ret;
 
-	__aqua_vanjaram_update_supported_modes(adev->xcp_mgr);
+	amdgpu_xcp_update_supported_modes(adev->xcp_mgr);
 	/* TODO: Default memory node affinity init */
 
 	return ret;
