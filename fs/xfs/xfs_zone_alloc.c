@@ -777,26 +777,6 @@ xfs_mark_rtg_boundary(
 		ioend->io_flags |= IOMAP_IOEND_BOUNDARY;
 }
 
-static void
-xfs_submit_zoned_bio(
-	struct iomap_ioend	*ioend,
-	struct xfs_open_zone	*oz,
-	bool			is_seq)
-{
-	ioend->io_bio.bi_iter.bi_sector = ioend->io_sector;
-	ioend->io_private = oz;
-	atomic_inc(&oz->oz_ref); /* for xfs_zoned_end_io */
-
-	if (is_seq) {
-		ioend->io_bio.bi_opf &= ~REQ_OP_WRITE;
-		ioend->io_bio.bi_opf |= REQ_OP_ZONE_APPEND;
-	} else {
-		xfs_mark_rtg_boundary(ioend);
-	}
-
-	submit_bio(&ioend->io_bio);
-}
-
 /*
  * Cache the last zone written to for an inode so that it is considered first
  * for subsequent writes.
@@ -889,6 +869,26 @@ xfs_zone_cache_create_association(
 	}
 	item->oz = oz;
 	xfs_mru_cache_insert(mp->m_zone_cache, ip->i_ino, &item->mru);
+}
+
+static void
+xfs_submit_zoned_bio(
+	struct iomap_ioend	*ioend,
+	struct xfs_open_zone	*oz,
+	bool			is_seq)
+{
+	ioend->io_bio.bi_iter.bi_sector = ioend->io_sector;
+	ioend->io_private = oz;
+	atomic_inc(&oz->oz_ref); /* for xfs_zoned_end_io */
+
+	if (is_seq) {
+		ioend->io_bio.bi_opf &= ~REQ_OP_WRITE;
+		ioend->io_bio.bi_opf |= REQ_OP_ZONE_APPEND;
+	} else {
+		xfs_mark_rtg_boundary(ioend);
+	}
+
+	submit_bio(&ioend->io_bio);
 }
 
 void
