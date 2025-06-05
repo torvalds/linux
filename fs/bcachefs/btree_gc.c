@@ -150,7 +150,7 @@ static int set_node_min(struct bch_fs *c, struct btree *b, struct bpos new_min)
 
 	new = kmalloc_array(BKEY_BTREE_PTR_U64s_MAX, sizeof(u64), GFP_KERNEL);
 	if (!new)
-		return -BCH_ERR_ENOMEM_gc_repair_key;
+		return bch_err_throw(c, ENOMEM_gc_repair_key);
 
 	btree_ptr_to_v2(b, new);
 	b->data->min_key	= new_min;
@@ -190,7 +190,7 @@ static int set_node_max(struct bch_fs *c, struct btree *b, struct bpos new_max)
 
 	new = kmalloc_array(BKEY_BTREE_PTR_U64s_MAX, sizeof(u64), GFP_KERNEL);
 	if (!new)
-		return -BCH_ERR_ENOMEM_gc_repair_key;
+		return bch_err_throw(c, ENOMEM_gc_repair_key);
 
 	btree_ptr_to_v2(b, new);
 	b->data->max_key	= new_max;
@@ -935,7 +935,7 @@ static int bch2_gc_alloc_start(struct bch_fs *c)
 		ret = genradix_prealloc(&ca->buckets_gc, ca->mi.nbuckets, GFP_KERNEL);
 		if (ret) {
 			bch2_dev_put(ca);
-			ret = -BCH_ERR_ENOMEM_gc_alloc_start;
+			ret = bch_err_throw(c, ENOMEM_gc_alloc_start);
 			break;
 		}
 	}
@@ -1093,42 +1093,41 @@ static int gc_btree_gens_key(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	struct bkey_i *u;
-	int ret;
 
 	if (unlikely(test_bit(BCH_FS_going_ro, &c->flags)))
 		return -EROFS;
 
-	rcu_read_lock();
-	bkey_for_each_ptr(ptrs, ptr) {
-		struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
-		if (!ca)
-			continue;
+	bool too_stale = false;
+	scoped_guard(rcu) {
+		bkey_for_each_ptr(ptrs, ptr) {
+			struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
+			if (!ca)
+				continue;
 
-		if (dev_ptr_stale(ca, ptr) > 16) {
-			rcu_read_unlock();
-			goto update;
+			too_stale |= dev_ptr_stale(ca, ptr) > 16;
 		}
+
+		if (!too_stale)
+			bkey_for_each_ptr(ptrs, ptr) {
+				struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
+				if (!ca)
+					continue;
+
+				u8 *gen = &ca->oldest_gen[PTR_BUCKET_NR(ca, ptr)];
+				if (gen_after(*gen, ptr->gen))
+					*gen = ptr->gen;
+			}
 	}
 
-	bkey_for_each_ptr(ptrs, ptr) {
-		struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
-		if (!ca)
-			continue;
+	if (too_stale) {
+		struct bkey_i *u = bch2_bkey_make_mut(trans, iter, &k, 0);
+		int ret = PTR_ERR_OR_ZERO(u);
+		if (ret)
+			return ret;
 
-		u8 *gen = &ca->oldest_gen[PTR_BUCKET_NR(ca, ptr)];
-		if (gen_after(*gen, ptr->gen))
-			*gen = ptr->gen;
+		bch2_extent_normalize(c, bkey_i_to_s(u));
 	}
-	rcu_read_unlock();
-	return 0;
-update:
-	u = bch2_bkey_make_mut(trans, iter, &k, 0);
-	ret = PTR_ERR_OR_ZERO(u);
-	if (ret)
-		return ret;
 
-	bch2_extent_normalize(c, bkey_i_to_s(u));
 	return 0;
 }
 
@@ -1181,7 +1180,7 @@ int bch2_gc_gens(struct bch_fs *c)
 		ca->oldest_gen = kvmalloc(gens->nbuckets, GFP_KERNEL);
 		if (!ca->oldest_gen) {
 			bch2_dev_put(ca);
-			ret = -BCH_ERR_ENOMEM_gc_gens;
+			ret = bch_err_throw(c, ENOMEM_gc_gens);
 			goto err;
 		}
 

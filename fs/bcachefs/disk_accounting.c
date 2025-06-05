@@ -390,7 +390,7 @@ static int __bch2_accounting_mem_insert(struct bch_fs *c, struct bkey_s_c_accoun
 err:
 	free_percpu(n.v[1]);
 	free_percpu(n.v[0]);
-	return -BCH_ERR_ENOMEM_disk_accounting;
+	return bch_err_throw(c, ENOMEM_disk_accounting);
 }
 
 int bch2_accounting_mem_insert(struct bch_fs *c, struct bkey_s_c_accounting a,
@@ -401,7 +401,7 @@ int bch2_accounting_mem_insert(struct bch_fs *c, struct bkey_s_c_accounting a,
 	if (mode != BCH_ACCOUNTING_read &&
 	    accounting_to_replicas(&r.e, a.k->p) &&
 	    !bch2_replicas_marked_locked(c, &r.e))
-		return -BCH_ERR_btree_insert_need_mark_replicas;
+		return bch_err_throw(c, btree_insert_need_mark_replicas);
 
 	percpu_up_read(&c->mark_lock);
 	percpu_down_write(&c->mark_lock);
@@ -419,7 +419,7 @@ int bch2_accounting_mem_insert_locked(struct bch_fs *c, struct bkey_s_c_accounti
 	if (mode != BCH_ACCOUNTING_read &&
 	    accounting_to_replicas(&r.e, a.k->p) &&
 	    !bch2_replicas_marked_locked(c, &r.e))
-		return -BCH_ERR_btree_insert_need_mark_replicas;
+		return bch_err_throw(c, btree_insert_need_mark_replicas);
 
 	return __bch2_accounting_mem_insert(c, a);
 }
@@ -559,7 +559,7 @@ int bch2_gc_accounting_start(struct bch_fs *c)
 					     sizeof(u64), GFP_KERNEL);
 		if (!e->v[1]) {
 			bch2_accounting_free_counters(acc, true);
-			ret = -BCH_ERR_ENOMEM_disk_accounting;
+			ret = bch_err_throw(c, ENOMEM_disk_accounting);
 			break;
 		}
 	}
@@ -737,7 +737,7 @@ invalid_device:
 				bch2_disk_accounting_mod(trans, acc, v, nr, false)) ?:
 			-BCH_ERR_remove_disk_accounting_entry;
 	} else {
-		ret = -BCH_ERR_remove_disk_accounting_entry;
+		ret = bch_err_throw(c, remove_disk_accounting_entry);
 	}
 	goto fsck_err;
 }
@@ -897,8 +897,8 @@ int bch2_accounting_read(struct bch_fs *c)
 		case BCH_DISK_ACCOUNTING_replicas:
 			fs_usage_data_type_to_base(usage, k.replicas.data_type, v[0]);
 			break;
-		case BCH_DISK_ACCOUNTING_dev_data_type:
-			rcu_read_lock();
+		case BCH_DISK_ACCOUNTING_dev_data_type: {
+			guard(rcu)();
 			struct bch_dev *ca = bch2_dev_rcu_noerror(c, k.dev_data_type.dev);
 			if (ca) {
 				struct bch_dev_usage_type __percpu *d = &ca->usage->d[k.dev_data_type.data_type];
@@ -910,8 +910,8 @@ int bch2_accounting_read(struct bch_fs *c)
 				    k.dev_data_type.data_type == BCH_DATA_journal)
 					usage->hidden += v[0] * ca->mi.bucket_size;
 			}
-			rcu_read_unlock();
 			break;
+		}
 		}
 	}
 	preempt_enable();
@@ -1006,18 +1006,17 @@ void bch2_verify_accounting_clean(struct bch_fs *c)
 			case BCH_DISK_ACCOUNTING_replicas:
 				fs_usage_data_type_to_base(&base, acc_k.replicas.data_type, a.v->d[0]);
 				break;
-			case BCH_DISK_ACCOUNTING_dev_data_type: {
-				rcu_read_lock();
-				struct bch_dev *ca = bch2_dev_rcu_noerror(c, acc_k.dev_data_type.dev);
-				if (!ca) {
-					rcu_read_unlock();
-					continue;
-				}
+			case BCH_DISK_ACCOUNTING_dev_data_type:
+				{
+					guard(rcu)(); /* scoped guard is a loop, and doesn't play nicely with continue */
+					struct bch_dev *ca = bch2_dev_rcu_noerror(c, acc_k.dev_data_type.dev);
+					if (!ca)
+						continue;
 
-				v[0] = percpu_u64_get(&ca->usage->d[acc_k.dev_data_type.data_type].buckets);
-				v[1] = percpu_u64_get(&ca->usage->d[acc_k.dev_data_type.data_type].sectors);
-				v[2] = percpu_u64_get(&ca->usage->d[acc_k.dev_data_type.data_type].fragmented);
-				rcu_read_unlock();
+					v[0] = percpu_u64_get(&ca->usage->d[acc_k.dev_data_type.data_type].buckets);
+					v[1] = percpu_u64_get(&ca->usage->d[acc_k.dev_data_type.data_type].sectors);
+					v[2] = percpu_u64_get(&ca->usage->d[acc_k.dev_data_type.data_type].fragmented);
+				}
 
 				if (memcmp(a.v->d, v, 3 * sizeof(u64))) {
 					struct printbuf buf = PRINTBUF;
@@ -1031,7 +1030,6 @@ void bch2_verify_accounting_clean(struct bch_fs *c)
 					printbuf_exit(&buf);
 					mismatch = true;
 				}
-			}
 			}
 
 			0;

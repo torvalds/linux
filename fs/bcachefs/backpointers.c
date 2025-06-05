@@ -48,17 +48,19 @@ void bch2_backpointer_to_text(struct printbuf *out, struct bch_fs *c, struct bke
 {
 	struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(k);
 
-	rcu_read_lock();
-	struct bch_dev *ca = bch2_dev_rcu_noerror(c, bp.k->p.inode);
-	if (ca) {
-		u32 bucket_offset;
-		struct bpos bucket = bp_pos_to_bucket_and_offset(ca, bp.k->p, &bucket_offset);
-		rcu_read_unlock();
-		prt_printf(out, "bucket=%llu:%llu:%u ", bucket.inode, bucket.offset, bucket_offset);
-	} else {
-		rcu_read_unlock();
-		prt_printf(out, "sector=%llu:%llu ", bp.k->p.inode, bp.k->p.offset >> MAX_EXTENT_COMPRESS_RATIO_SHIFT);
+	struct bch_dev *ca;
+	u32 bucket_offset;
+	struct bpos bucket;
+	scoped_guard(rcu) {
+		ca = bch2_dev_rcu_noerror(c, bp.k->p.inode);
+		if (ca)
+			bucket = bp_pos_to_bucket_and_offset(ca, bp.k->p, &bucket_offset);
 	}
+
+	if (ca)
+		prt_printf(out, "bucket=%llu:%llu:%u ", bucket.inode, bucket.offset, bucket_offset);
+	else
+		prt_printf(out, "sector=%llu:%llu ", bp.k->p.inode, bp.k->p.offset >> MAX_EXTENT_COMPRESS_RATIO_SHIFT);
 
 	bch2_btree_id_level_to_text(out, bp.v->btree_id, bp.v->level);
 	prt_str(out, " data_type=");
@@ -140,7 +142,7 @@ static noinline int backpointer_mod_err(struct btree_trans *trans,
 	}
 
 	if (!will_check && __bch2_inconsistent_error(c, &buf))
-		ret = -BCH_ERR_erofs_unfixed_errors;
+		ret = bch_err_throw(c, erofs_unfixed_errors);
 
 	bch_err(c, "%s", buf.buf);
 	printbuf_exit(&buf);
@@ -293,7 +295,7 @@ static struct btree *__bch2_backpointer_get_node(struct btree_trans *trans,
 		return b;
 
 	if (btree_node_will_make_reachable(b)) {
-		b = ERR_PTR(-BCH_ERR_backpointer_to_overwritten_btree_node);
+		b = ERR_PTR(bch_err_throw(c, backpointer_to_overwritten_btree_node));
 	} else {
 		int ret = backpointer_target_not_found(trans, bp, bkey_i_to_s_c(&b->key),
 						       last_flushed, commit);
@@ -351,7 +353,7 @@ static struct bkey_s_c __bch2_backpointer_get_key(struct btree_trans *trans,
 		return ret ? bkey_s_c_err(ret) : bkey_s_c_null;
 	} else {
 		struct btree *b = __bch2_backpointer_get_node(trans, bp, iter, last_flushed, commit);
-		if (b == ERR_PTR(-BCH_ERR_backpointer_to_overwritten_btree_node))
+		if (b == ERR_PTR(bch_err_throw(c, backpointer_to_overwritten_btree_node)))
 			return bkey_s_c_null;
 		if (IS_ERR_OR_NULL(b))
 			return ((struct bkey_s_c) { .k = ERR_CAST(b) });
@@ -591,6 +593,7 @@ check_existing_bp:
 		bkey_for_each_ptr(other_extent_ptrs, ptr)
 			if (ptr->dev == bp->k.p.inode &&
 			    dev_ptr_stale_rcu(ca, ptr)) {
+				rcu_read_unlock();
 				ret = drop_dev_and_update(trans, other_bp.v->btree_id,
 							  other_extent, bp->k.p.inode);
 				if (ret)
@@ -648,7 +651,7 @@ check_existing_bp:
 	prt_newline(&buf);
 	bch2_bkey_val_to_text(&buf, c, other_extent);
 	bch_err(c, "%s", buf.buf);
-	ret = -BCH_ERR_fsck_repair_unimplemented;
+	ret = bch_err_throw(c, fsck_repair_unimplemented);
 	goto err;
 missing:
 	printbuf_reset(&buf);
@@ -679,26 +682,23 @@ static int check_extent_to_backpointers(struct btree_trans *trans,
 		if (p.ptr.dev == BCH_SB_MEMBER_INVALID)
 			continue;
 
-		rcu_read_lock();
-		struct bch_dev *ca = bch2_dev_rcu_noerror(c, p.ptr.dev);
-		if (!ca) {
-			rcu_read_unlock();
-			continue;
-		}
+		bool empty;
+		{
+			/* scoped_guard() is a loop, so it breaks continue */
+			guard(rcu)();
+			struct bch_dev *ca = bch2_dev_rcu_noerror(c, p.ptr.dev);
+			if (!ca)
+				continue;
 
-		if (p.ptr.cached && dev_ptr_stale_rcu(ca, &p.ptr)) {
-			rcu_read_unlock();
-			continue;
-		}
+			if (p.ptr.cached && dev_ptr_stale_rcu(ca, &p.ptr))
+				continue;
 
-		u64 b = PTR_BUCKET_NR(ca, &p.ptr);
-		if (!bch2_bucket_bitmap_test(&ca->bucket_backpointer_mismatch, b)) {
-			rcu_read_unlock();
-			continue;
-		}
+			u64 b = PTR_BUCKET_NR(ca, &p.ptr);
+			if (!bch2_bucket_bitmap_test(&ca->bucket_backpointer_mismatch, b))
+				continue;
 
-		bool empty = bch2_bucket_bitmap_test(&ca->bucket_backpointer_empty, b);
-		rcu_read_unlock();
+			empty = bch2_bucket_bitmap_test(&ca->bucket_backpointer_empty, b);
+		}
 
 		struct bkey_i_backpointer bp;
 		bch2_extent_ptr_to_bp(c, btree, level, k, p, entry, &bp);
@@ -953,7 +953,7 @@ static int check_bucket_backpointer_mismatch(struct btree_trans *trans, struct b
 		    sectors[ALLOC_cached] > a->cached_sectors ||
 		    sectors[ALLOC_stripe] > a->stripe_sectors) {
 			ret = check_bucket_backpointers_to_extents(trans, ca, alloc_k.k->p) ?:
-				-BCH_ERR_transaction_restart_nested;
+				bch_err_throw(c, transaction_restart_nested);
 			goto err;
 		}
 
@@ -981,7 +981,7 @@ static bool backpointer_node_has_missing(struct bch_fs *c, struct bkey_s_c k)
 	case KEY_TYPE_btree_ptr_v2: {
 		bool ret = false;
 
-		rcu_read_lock();
+		guard(rcu)();
 		struct bpos pos = bkey_s_c_to_btree_ptr_v2(k).v->min_key;
 		while (pos.inode <= k.k->p.inode) {
 			if (pos.inode >= c->sb.nr_devices)
@@ -1009,7 +1009,6 @@ static bool backpointer_node_has_missing(struct bch_fs *c, struct bkey_s_c k)
 next:
 			pos = SPOS(pos.inode + 1, 0, 0);
 		}
-		rcu_read_unlock();
 
 		return ret;
 	}
@@ -1352,7 +1351,7 @@ static int bch2_bucket_bitmap_set(struct bch_dev *ca, struct bucket_bitmap *b, u
 			b->buckets = kvcalloc(BITS_TO_LONGS(ca->mi.nbuckets),
 					      sizeof(unsigned long), GFP_KERNEL);
 			if (!b->buckets)
-				return -BCH_ERR_ENOMEM_backpointer_mismatches_bitmap;
+				return bch_err_throw(ca->fs, ENOMEM_backpointer_mismatches_bitmap);
 		}
 
 		b->nr += !__test_and_set_bit(bit, b->buckets);
@@ -1361,7 +1360,8 @@ static int bch2_bucket_bitmap_set(struct bch_dev *ca, struct bucket_bitmap *b, u
 	return 0;
 }
 
-int bch2_bucket_bitmap_resize(struct bucket_bitmap *b, u64 old_size, u64 new_size)
+int bch2_bucket_bitmap_resize(struct bch_dev *ca, struct bucket_bitmap *b,
+			      u64 old_size, u64 new_size)
 {
 	scoped_guard(mutex, &b->lock) {
 		if (!b->buckets)
@@ -1370,7 +1370,7 @@ int bch2_bucket_bitmap_resize(struct bucket_bitmap *b, u64 old_size, u64 new_siz
 		unsigned long *n = kvcalloc(BITS_TO_LONGS(new_size),
 					    sizeof(unsigned long), GFP_KERNEL);
 		if (!n)
-			return -BCH_ERR_ENOMEM_backpointer_mismatches_bitmap;
+			return bch_err_throw(ca->fs, ENOMEM_backpointer_mismatches_bitmap);
 
 		memcpy(n, b->buckets,
 		       BITS_TO_LONGS(min(old_size, new_size)) * sizeof(unsigned long));

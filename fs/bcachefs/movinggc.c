@@ -293,11 +293,9 @@ u64 bch2_copygc_wait_amount(struct bch_fs *c)
 {
 	u64 wait = U64_MAX;
 
-	rcu_read_lock();
+	guard(rcu)();
 	for_each_rw_member_rcu(c, ca)
 		wait = min(wait, bch2_copygc_dev_wait_amount(ca));
-	rcu_read_unlock();
-
 	return wait;
 }
 
@@ -321,21 +319,21 @@ void bch2_copygc_wait_to_text(struct printbuf *out, struct bch_fs *c)
 
 	bch2_printbuf_make_room(out, 4096);
 
-	rcu_read_lock();
+	struct task_struct *t;
 	out->atomic++;
+	scoped_guard(rcu) {
+		prt_printf(out, "Currently calculated wait:\n");
+		for_each_rw_member_rcu(c, ca) {
+			prt_printf(out, "  %s:\t", ca->name);
+			prt_human_readable_u64(out, bch2_copygc_dev_wait_amount(ca));
+			prt_newline(out);
+		}
 
-	prt_printf(out, "Currently calculated wait:\n");
-	for_each_rw_member_rcu(c, ca) {
-		prt_printf(out, "  %s:\t", ca->name);
-		prt_human_readable_u64(out, bch2_copygc_dev_wait_amount(ca));
-		prt_newline(out);
+		t = rcu_dereference(c->copygc_thread);
+		if (t)
+			get_task_struct(t);
 	}
-
-	struct task_struct *t = rcu_dereference(c->copygc_thread);
-	if (t)
-		get_task_struct(t);
 	--out->atomic;
-	rcu_read_unlock();
 
 	if (t) {
 		bch2_prt_task_backtrace(out, t, 0, GFP_KERNEL);

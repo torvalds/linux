@@ -183,6 +183,16 @@
 #define pr_fmt(fmt) "%s() " fmt "\n", __func__
 #endif
 
+#ifdef CONFIG_BCACHEFS_DEBUG
+#define ENUMERATED_REF_DEBUG
+#endif
+
+#ifndef dynamic_fault
+#define dynamic_fault(...)		0
+#endif
+
+#define race_fault(...)			dynamic_fault("bcachefs:race")
+
 #include <linux/backing-dev-defs.h>
 #include <linux/bug.h>
 #include <linux/bio.h>
@@ -219,15 +229,30 @@
 #include "time_stats.h"
 #include "util.h"
 
-#ifdef CONFIG_BCACHEFS_DEBUG
-#define ENUMERATED_REF_DEBUG
-#endif
+#include "alloc_types.h"
+#include "async_objs_types.h"
+#include "btree_gc_types.h"
+#include "btree_types.h"
+#include "btree_node_scan_types.h"
+#include "btree_write_buffer_types.h"
+#include "buckets_types.h"
+#include "buckets_waiting_for_journal_types.h"
+#include "clock_types.h"
+#include "disk_groups_types.h"
+#include "ec_types.h"
+#include "enumerated_ref_types.h"
+#include "journal_types.h"
+#include "keylist_types.h"
+#include "quota_types.h"
+#include "rebalance_types.h"
+#include "recovery_passes_types.h"
+#include "replicas_types.h"
+#include "sb-members_types.h"
+#include "subvolume_types.h"
+#include "super_types.h"
+#include "thread_with_file_types.h"
 
-#ifndef dynamic_fault
-#define dynamic_fault(...)		0
-#endif
-
-#define race_fault(...)			dynamic_fault("bcachefs:race")
+#include "trace.h"
 
 #define count_event(_c, _name)	this_cpu_inc((_c)->counters[BCH_COUNTER_##_name])
 
@@ -380,6 +405,14 @@ do {									\
 		pr_info(fmt, ##__VA_ARGS__);				\
 } while (0)
 
+static inline int __bch2_err_trace(struct bch_fs *c, int err)
+{
+	trace_error_throw(c, err, _THIS_IP_);
+	return err;
+}
+
+#define bch_err_throw(_c, _err) __bch2_err_trace(_c, -BCH_ERR_##_err)
+
 /* Parameters that are useful for debugging, but should always be compiled in: */
 #define BCH_DEBUG_PARAMS_ALWAYS()					\
 	BCH_DEBUG_PARAM(key_merging_disabled,				\
@@ -485,29 +518,6 @@ enum bch_time_stats {
 #undef x
 	BCH_TIME_STAT_NR
 };
-
-#include "alloc_types.h"
-#include "async_objs_types.h"
-#include "btree_gc_types.h"
-#include "btree_types.h"
-#include "btree_node_scan_types.h"
-#include "btree_write_buffer_types.h"
-#include "buckets_types.h"
-#include "buckets_waiting_for_journal_types.h"
-#include "clock_types.h"
-#include "disk_groups_types.h"
-#include "ec_types.h"
-#include "enumerated_ref_types.h"
-#include "journal_types.h"
-#include "keylist_types.h"
-#include "quota_types.h"
-#include "rebalance_types.h"
-#include "recovery_passes_types.h"
-#include "replicas_types.h"
-#include "sb-members_types.h"
-#include "subvolume_types.h"
-#include "super_types.h"
-#include "thread_with_file_types.h"
 
 /* Number of nodes btree coalesce will try to coalesce at once */
 #define GC_MERGE_NODES		4U

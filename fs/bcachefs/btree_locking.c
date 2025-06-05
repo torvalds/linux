@@ -194,6 +194,30 @@ static int btree_trans_abort_preference(struct btree_trans *trans)
 	return 3;
 }
 
+static noinline __noreturn void break_cycle_fail(struct lock_graph *g)
+{
+	struct printbuf buf = PRINTBUF;
+	buf.atomic++;
+
+	prt_printf(&buf, bch2_fmt(g->g->trans->c, "cycle of nofail locks"));
+
+	for (struct trans_waiting_for_lock *i = g->g; i < g->g + g->nr; i++) {
+		struct btree_trans *trans = i->trans;
+
+		bch2_btree_trans_to_text(&buf, trans);
+
+		prt_printf(&buf, "backtrace:\n");
+		printbuf_indent_add(&buf, 2);
+		bch2_prt_task_backtrace(&buf, trans->locking_wait.task, 2, GFP_NOWAIT);
+		printbuf_indent_sub(&buf, 2);
+		prt_newline(&buf);
+	}
+
+	bch2_print_str_nonblocking(g->g->trans->c, KERN_ERR, buf.buf);
+	printbuf_exit(&buf);
+	BUG();
+}
+
 static noinline int break_cycle(struct lock_graph *g, struct printbuf *cycle,
 				struct trans_waiting_for_lock *from)
 {
@@ -219,28 +243,8 @@ static noinline int break_cycle(struct lock_graph *g, struct printbuf *cycle,
 		}
 	}
 
-	if (unlikely(!best)) {
-		struct printbuf buf = PRINTBUF;
-		buf.atomic++;
-
-		prt_printf(&buf, bch2_fmt(g->g->trans->c, "cycle of nofail locks"));
-
-		for (i = g->g; i < g->g + g->nr; i++) {
-			struct btree_trans *trans = i->trans;
-
-			bch2_btree_trans_to_text(&buf, trans);
-
-			prt_printf(&buf, "backtrace:\n");
-			printbuf_indent_add(&buf, 2);
-			bch2_prt_task_backtrace(&buf, trans->locking_wait.task, 2, GFP_NOWAIT);
-			printbuf_indent_sub(&buf, 2);
-			prt_newline(&buf);
-		}
-
-		bch2_print_str_nonblocking(g->g->trans->c, KERN_ERR, buf.buf);
-		printbuf_exit(&buf);
-		BUG();
-	}
+	if (unlikely(!best))
+		break_cycle_fail(g);
 
 	ret = abort_lock(g, abort);
 out:
@@ -255,15 +259,14 @@ static int lock_graph_descend(struct lock_graph *g, struct btree_trans *trans,
 			      struct printbuf *cycle)
 {
 	struct btree_trans *orig_trans = g->g->trans;
-	struct trans_waiting_for_lock *i;
 
-	for (i = g->g; i < g->g + g->nr; i++)
+	for (struct trans_waiting_for_lock *i = g->g; i < g->g + g->nr; i++)
 		if (i->trans == trans) {
 			closure_put(&trans->ref);
 			return break_cycle(g, cycle, i);
 		}
 
-	if (g->nr == ARRAY_SIZE(g->g)) {
+	if (unlikely(g->nr == ARRAY_SIZE(g->g))) {
 		closure_put(&trans->ref);
 
 		if (orig_trans->lock_may_not_fail)
@@ -308,7 +311,7 @@ int bch2_check_for_deadlock(struct btree_trans *trans, struct printbuf *cycle)
 	lock_graph_down(&g, trans);
 
 	/* trans->paths is rcu protected vs. freeing */
-	rcu_read_lock();
+	guard(rcu)();
 	if (cycle)
 		cycle->atomic++;
 next:
@@ -406,7 +409,6 @@ up:
 out:
 	if (cycle)
 		--cycle->atomic;
-	rcu_read_unlock();
 	return ret;
 }
 

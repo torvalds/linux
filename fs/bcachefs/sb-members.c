@@ -101,7 +101,7 @@ static int sb_members_v2_resize_entries(struct bch_fs *c)
 
 		mi = bch2_sb_field_resize(&c->disk_sb, members_v2, u64s);
 		if (!mi)
-			return -BCH_ERR_ENOSPC_sb_members_v2;
+			return bch_err_throw(c, ENOSPC_sb_members_v2);
 
 		for (int i = c->disk_sb.sb->nr_devices - 1; i >= 0; --i) {
 			void *dst = (void *) mi->_members + (i * sizeof(struct bch_member));
@@ -378,14 +378,13 @@ void bch2_sb_members_from_cpu(struct bch_fs *c)
 {
 	struct bch_sb_field_members_v2 *mi = bch2_sb_field_get(c->disk_sb.sb, members_v2);
 
-	rcu_read_lock();
+	guard(rcu)();
 	for_each_member_device_rcu(c, ca, NULL) {
 		struct bch_member *m = __bch2_members_v2_get_mut(mi, ca->dev_idx);
 
 		for (unsigned e = 0; e < BCH_MEMBER_ERROR_NR; e++)
 			m->errors[e] = cpu_to_le64(atomic64_read(&ca->errors[e]));
 	}
-	rcu_read_unlock();
 }
 
 void bch2_dev_io_errors_to_text(struct printbuf *out, struct bch_dev *ca)
@@ -443,20 +442,14 @@ void bch2_dev_errors_reset(struct bch_dev *ca)
 
 bool bch2_dev_btree_bitmap_marked(struct bch_fs *c, struct bkey_s_c k)
 {
-	bool ret = true;
-	rcu_read_lock();
+	guard(rcu)();
 	bkey_for_each_ptr(bch2_bkey_ptrs_c(k), ptr) {
 		struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
-		if (!ca)
-			continue;
-
-		if (!bch2_dev_btree_bitmap_marked_sectors(ca, ptr->offset, btree_sectors(c))) {
-			ret = false;
-			break;
-		}
+		if (ca &&
+		    !bch2_dev_btree_bitmap_marked_sectors(ca, ptr->offset, btree_sectors(c)))
+			return false;
 	}
-	rcu_read_unlock();
-	return ret;
+	return true;
 }
 
 static void __bch2_dev_btree_bitmap_mark(struct bch_sb_field_members_v2 *mi, unsigned dev,

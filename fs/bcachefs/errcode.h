@@ -182,9 +182,12 @@
 	x(BCH_ERR_fsck,			fsck_errors_not_fixed)			\
 	x(BCH_ERR_fsck,			fsck_repair_unimplemented)		\
 	x(BCH_ERR_fsck,			fsck_repair_impossible)			\
-	x(EINVAL,			restart_recovery)			\
-	x(EINVAL,			cannot_rewind_recovery)			\
+	x(EINVAL,			recovery_will_run)			\
+	x(BCH_ERR_recovery_will_run,	restart_recovery)			\
+	x(BCH_ERR_recovery_will_run,	cannot_rewind_recovery)			\
+	x(BCH_ERR_recovery_will_run,	recovery_pass_will_run)			\
 	x(0,				data_update_done)			\
+	x(0,				bkey_was_deleted)			\
 	x(BCH_ERR_data_update_done,	data_update_done_would_block)		\
 	x(BCH_ERR_data_update_done,	data_update_done_unwritten)		\
 	x(BCH_ERR_data_update_done,	data_update_done_no_writes_needed)	\
@@ -211,6 +214,8 @@
 	x(EINVAL,			remove_would_lose_data)			\
 	x(EINVAL,			no_resize_with_buckets_nouse)		\
 	x(EINVAL,			inode_unpack_error)			\
+	x(EINVAL,			inode_not_unlinked)			\
+	x(EINVAL,			inode_has_child_snapshot)		\
 	x(EINVAL,			varint_decode_error)			\
 	x(EINVAL,			erasure_coding_found_btree_node)	\
 	x(EINVAL,			option_negative)			\
@@ -357,9 +362,11 @@ enum bch_errcode {
 	BCH_ERR_MAX
 };
 
-const char *bch2_err_str(int);
-bool __bch2_err_matches(int, int);
+__attribute__((const)) const char *bch2_err_str(int);
 
+__attribute__((const)) bool __bch2_err_matches(int, int);
+
+__attribute__((const))
 static inline bool _bch2_err_matches(int err, int class)
 {
 	return err < 0 && __bch2_err_matches(err, class);

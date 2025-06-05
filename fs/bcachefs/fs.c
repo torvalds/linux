@@ -124,8 +124,9 @@ retry:
 		goto err;
 
 	struct bch_extent_rebalance new_r = bch2_inode_rebalance_opts_get(c, &inode_u);
+	bool rebalance_changed = memcmp(&old_r, &new_r, sizeof(new_r));
 
-	if (memcmp(&old_r, &new_r, sizeof(new_r))) {
+	if (rebalance_changed) {
 		ret = bch2_set_rebalance_needs_scan_trans(trans, inode_u.bi_inum);
 		if (ret)
 			goto err;
@@ -145,6 +146,9 @@ err:
 
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
+
+	if (rebalance_changed)
+		bch2_rebalance_wakeup(c);
 
 	bch2_fs_fatal_err_on(bch2_err_matches(ret, ENOENT), c,
 			     "%s: inode %llu:%llu not found when updating",
@@ -1569,11 +1573,12 @@ static int bch2_vfs_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct bch_hash_info hash = bch2_hash_info_init(c, &inode->ei_inode);
 
 	if (!dir_emit_dots(file, ctx))
 		return 0;
 
-	int ret = bch2_readdir(c, inode_inum(inode), ctx);
+	int ret = bch2_readdir(c, inode_inum(inode), &hash, ctx);
 
 	bch_err_fn(c, ret);
 	return bch2_err_class(ret);
@@ -2002,14 +2007,14 @@ retry:
 			goto err;
 
 		if (k.k->type != KEY_TYPE_dirent) {
-			ret = -BCH_ERR_ENOENT_dirent_doesnt_match_inode;
+			ret = bch_err_throw(c, ENOENT_dirent_doesnt_match_inode);
 			goto err;
 		}
 
 		d = bkey_s_c_to_dirent(k);
 		ret = bch2_dirent_read_target(trans, inode_inum(dir), d, &target);
 		if (ret > 0)
-			ret = -BCH_ERR_ENOENT_dirent_doesnt_match_inode;
+			ret = bch_err_throw(c, ENOENT_dirent_doesnt_match_inode);
 		if (ret)
 			goto err;
 
@@ -2175,7 +2180,13 @@ static void bch2_evict_inode(struct inode *vinode)
 				KEY_TYPE_QUOTA_WARN);
 		bch2_quota_acct(c, inode->ei_qid, Q_INO, -1,
 				KEY_TYPE_QUOTA_WARN);
-		bch2_inode_rm(c, inode_inum(inode));
+		int ret = bch2_inode_rm(c, inode_inum(inode));
+		if (ret && !bch2_err_matches(ret, EROFS)) {
+			bch_err_msg(c, ret, "VFS incorrectly tried to delete inode %llu:%llu",
+				    inode->ei_inum.subvol,
+				    inode->ei_inum.inum);
+			bch2_sb_error_count(c, BCH_FSCK_ERR_vfs_bad_inode_rm);
+		}
 
 		/*
 		 * If we are deleting, we need it present in the vfs hash table
@@ -2322,14 +2333,13 @@ static int bch2_show_devname(struct seq_file *seq, struct dentry *root)
 	struct bch_fs *c = root->d_sb->s_fs_info;
 	bool first = true;
 
-	rcu_read_lock();
+	guard(rcu)();
 	for_each_online_member_rcu(c, ca) {
 		if (!first)
 			seq_putc(seq, ':');
 		first = false;
 		seq_puts(seq, ca->disk_sb.sb_name);
 	}
-	rcu_read_unlock();
 
 	return 0;
 }
@@ -2526,16 +2536,16 @@ got_sb:
 
 	sb->s_bdi->ra_pages		= VM_READAHEAD_PAGES;
 
-	rcu_read_lock();
-	for_each_online_member_rcu(c, ca) {
-		struct block_device *bdev = ca->disk_sb.bdev;
+	scoped_guard(rcu) {
+		for_each_online_member_rcu(c, ca) {
+			struct block_device *bdev = ca->disk_sb.bdev;
 
-		/* XXX: create an anonymous device for multi device filesystems */
-		sb->s_bdev	= bdev;
-		sb->s_dev	= bdev->bd_dev;
-		break;
+			/* XXX: create an anonymous device for multi device filesystems */
+			sb->s_bdev	= bdev;
+			sb->s_dev	= bdev->bd_dev;
+			break;
+		}
 	}
-	rcu_read_unlock();
 
 	c->dev = sb->s_dev;
 

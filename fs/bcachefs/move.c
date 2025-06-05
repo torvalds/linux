@@ -38,30 +38,74 @@ const char * const bch2_data_ops_strs[] = {
 	NULL
 };
 
-static void trace_io_move2(struct bch_fs *c, struct bkey_s_c k,
-			       struct bch_io_opts *io_opts,
-			       struct data_update_opts *data_opts)
-{
-	if (trace_io_move_enabled()) {
-		struct printbuf buf = PRINTBUF;
+struct evacuate_bucket_arg {
+	struct bpos		bucket;
+	int			gen;
+	struct data_update_opts	data_opts;
+};
 
-		bch2_bkey_val_to_text(&buf, c, k);
-		prt_newline(&buf);
-		bch2_data_update_opts_to_text(&buf, c, io_opts, data_opts);
-		trace_io_move(c, buf.buf);
-		printbuf_exit(&buf);
-	}
+static bool evacuate_bucket_pred(struct bch_fs *, void *,
+				 enum btree_id, struct bkey_s_c,
+				 struct bch_io_opts *,
+				 struct data_update_opts *);
+
+static noinline void
+trace_io_move2(struct bch_fs *c, struct bkey_s_c k,
+	       struct bch_io_opts *io_opts,
+	       struct data_update_opts *data_opts)
+{
+	struct printbuf buf = PRINTBUF;
+
+	bch2_bkey_val_to_text(&buf, c, k);
+	prt_newline(&buf);
+	bch2_data_update_opts_to_text(&buf, c, io_opts, data_opts);
+	trace_io_move(c, buf.buf);
+	printbuf_exit(&buf);
 }
 
-static void trace_io_move_read2(struct bch_fs *c, struct bkey_s_c k)
+static noinline void trace_io_move_read2(struct bch_fs *c, struct bkey_s_c k)
 {
-	if (trace_io_move_read_enabled()) {
-		struct printbuf buf = PRINTBUF;
+	struct printbuf buf = PRINTBUF;
 
-		bch2_bkey_val_to_text(&buf, c, k);
-		trace_io_move_read(c, buf.buf);
-		printbuf_exit(&buf);
+	bch2_bkey_val_to_text(&buf, c, k);
+	trace_io_move_read(c, buf.buf);
+	printbuf_exit(&buf);
+}
+
+static noinline void
+trace_io_move_pred2(struct bch_fs *c, struct bkey_s_c k,
+		    struct bch_io_opts *io_opts,
+		    struct data_update_opts *data_opts,
+		    move_pred_fn pred, void *_arg, bool p)
+{
+	struct printbuf buf = PRINTBUF;
+
+	prt_printf(&buf, "%ps: %u", pred, p);
+
+	if (pred == evacuate_bucket_pred) {
+		struct evacuate_bucket_arg *arg = _arg;
+		prt_printf(&buf, " gen=%u", arg->gen);
 	}
+
+	prt_newline(&buf);
+	bch2_bkey_val_to_text(&buf, c, k);
+	prt_newline(&buf);
+	bch2_data_update_opts_to_text(&buf, c, io_opts, data_opts);
+	trace_io_move_pred(c, buf.buf);
+	printbuf_exit(&buf);
+}
+
+static noinline void
+trace_io_move_evacuate_bucket2(struct bch_fs *c, struct bpos bucket, int gen)
+{
+	struct printbuf buf = PRINTBUF;
+
+	prt_printf(&buf, "bucket: ");
+	bch2_bpos_to_text(&buf, bucket);
+	prt_printf(&buf, " gen: %i\n", gen);
+
+	trace_io_move_evacuate_bucket(c, buf.buf);
+	printbuf_exit(&buf);
 }
 
 struct moving_io {
@@ -298,7 +342,8 @@ int bch2_move_extent(struct moving_context *ctxt,
 	struct bch_fs *c = trans->c;
 	int ret = -ENOMEM;
 
-	trace_io_move2(c, k, &io_opts, &data_opts);
+	if (trace_io_move_enabled())
+		trace_io_move2(c, k, &io_opts, &data_opts);
 	this_cpu_add(c->counters[BCH_COUNTER_io_move], k.k->size);
 
 	if (ctxt->stats)
@@ -314,15 +359,13 @@ int bch2_move_extent(struct moving_context *ctxt,
 		return 0;
 	}
 
-	/*
-	 * Before memory allocations & taking nocow locks in
-	 * bch2_data_update_init():
-	 */
-	bch2_trans_unlock(trans);
-
-	struct moving_io *io = kzalloc(sizeof(struct moving_io), GFP_KERNEL);
+	struct moving_io *io = allocate_dropping_locks(trans, ret,
+				kzalloc(sizeof(struct moving_io), _gfp));
 	if (!io)
 		goto err;
+
+	if (ret)
+		goto err_free;
 
 	INIT_LIST_HEAD(&io->io_list);
 	io->write.ctxt		= ctxt;
@@ -342,6 +385,8 @@ int bch2_move_extent(struct moving_context *ctxt,
 
 		io->write.op.c		= c;
 		io->write.data_opts	= data_opts;
+
+		bch2_trans_unlock(trans);
 
 		ret = bch2_data_update_bios_init(&io->write, c, &io_opts);
 		if (ret)
@@ -364,7 +409,8 @@ int bch2_move_extent(struct moving_context *ctxt,
 		atomic_inc(&io->b->count);
 	}
 
-	trace_io_move_read2(c, k);
+	if (trace_io_move_read_enabled())
+		trace_io_move_read2(c, k);
 
 	mutex_lock(&ctxt->lock);
 	atomic_add(io->read_sectors, &ctxt->read_sectors);
@@ -390,9 +436,6 @@ int bch2_move_extent(struct moving_context *ctxt,
 err_free:
 	kfree(io);
 err:
-	if (bch2_err_matches(ret, BCH_ERR_data_update_done))
-		return 0;
-
 	if (bch2_err_matches(ret, EROFS) ||
 	    bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		return ret;
@@ -408,6 +451,9 @@ err:
 		trace_io_move_start_fail(c, buf.buf);
 		printbuf_exit(&buf);
 	}
+
+	if (bch2_err_matches(ret, BCH_ERR_data_update_done))
+		return 0;
 	return ret;
 }
 
@@ -496,6 +542,7 @@ int bch2_move_get_io_opts_one(struct btree_trans *trans,
 		bch2_inode_opts_get(io_opts, c, &inode);
 	}
 	bch2_trans_iter_exit(trans, &inode_iter);
+	/* seem to be spinning here? */
 out:
 	return bch2_get_update_rebalance_opts(trans, io_opts, extent_iter, extent_k);
 }
@@ -910,7 +957,13 @@ static int __bch2_move_data_phys(struct moving_context *ctxt,
 		}
 
 		struct data_update_opts data_opts = {};
-		if (!pred(c, arg, bp.v->btree_id, k, &io_opts, &data_opts)) {
+		bool p = pred(c, arg, bp.v->btree_id, k, &io_opts, &data_opts);
+
+		if (trace_io_move_pred_enabled())
+			trace_io_move_pred2(c, k, &io_opts, &data_opts,
+					    pred, arg, p);
+
+		if (!p) {
 			bch2_trans_iter_exit(trans, &iter);
 			goto next;
 		}
@@ -918,7 +971,7 @@ static int __bch2_move_data_phys(struct moving_context *ctxt,
 		if (data_opts.scrub &&
 		    !bch2_dev_idx_is_online(c, data_opts.read_dev)) {
 			bch2_trans_iter_exit(trans, &iter);
-			ret = -BCH_ERR_device_offline;
+			ret = bch_err_throw(c, device_offline);
 			break;
 		}
 
@@ -993,12 +1046,6 @@ int bch2_move_data_phys(struct bch_fs *c,
 	return ret;
 }
 
-struct evacuate_bucket_arg {
-	struct bpos		bucket;
-	int			gen;
-	struct data_update_opts	data_opts;
-};
-
 static bool evacuate_bucket_pred(struct bch_fs *c, void *_arg,
 				 enum btree_id btree, struct bkey_s_c k,
 				 struct bch_io_opts *io_opts,
@@ -1025,7 +1072,12 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 			 struct bpos bucket, int gen,
 			 struct data_update_opts data_opts)
 {
+	struct bch_fs *c = ctxt->trans->c;
 	struct evacuate_bucket_arg arg = { bucket, gen, data_opts, };
+
+	count_event(c, io_move_evacuate_bucket);
+	if (trace_io_move_evacuate_bucket_enabled())
+		trace_io_move_evacuate_bucket2(c, bucket, gen);
 
 	return __bch2_move_data_phys(ctxt, bucket_in_flight,
 				   bucket.inode,
@@ -1124,7 +1176,7 @@ static bool rereplicate_pred(struct bch_fs *c, void *arg,
 		? c->opts.metadata_replicas
 		: io_opts->data_replicas;
 
-	rcu_read_lock();
+	guard(rcu)();
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	unsigned i = 0;
 	bkey_for_each_ptr(ptrs, ptr) {
@@ -1134,7 +1186,6 @@ static bool rereplicate_pred(struct bch_fs *c, void *arg,
 			data_opts->kill_ptrs |= BIT(i);
 		i++;
 	}
-	rcu_read_unlock();
 
 	if (!data_opts->kill_ptrs &&
 	    (!nr_good || nr_good >= replicas))
@@ -1242,7 +1293,7 @@ static bool drop_extra_replicas_pred(struct bch_fs *c, void *arg,
 	struct extent_ptr_decoded p;
 	unsigned i = 0;
 
-	rcu_read_lock();
+	guard(rcu)();
 	bkey_for_each_ptr_decode(k.k, bch2_bkey_ptrs_c(k), p, entry) {
 		unsigned d = bch2_extent_ptr_durability(c, &p);
 
@@ -1253,7 +1304,6 @@ static bool drop_extra_replicas_pred(struct bch_fs *c, void *arg,
 
 		i++;
 	}
-	rcu_read_unlock();
 
 	return data_opts->kill_ptrs != 0;
 }

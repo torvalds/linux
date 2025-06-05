@@ -890,8 +890,7 @@ static noinline void btree_node_mem_ptr_set(struct btree_trans *trans,
 
 static noinline int btree_node_iter_and_journal_peek(struct btree_trans *trans,
 						     struct btree_path *path,
-						     unsigned flags,
-						     struct bkey_buf *out)
+						     unsigned flags)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_path_level *l = path_l(path);
@@ -915,7 +914,7 @@ static noinline int btree_node_iter_and_journal_peek(struct btree_trans *trans,
 		goto err;
 	}
 
-	bch2_bkey_buf_reassemble(out, c, k);
+	bkey_reassemble(&trans->btree_path_down, k);
 
 	if ((flags & BTREE_ITER_prefetch) &&
 	    c->opts.btree_node_prefetch)
@@ -924,6 +923,22 @@ static noinline int btree_node_iter_and_journal_peek(struct btree_trans *trans,
 err:
 	bch2_btree_and_journal_iter_exit(&jiter);
 	return ret;
+}
+
+static noinline_for_stack int btree_node_missing_err(struct btree_trans *trans,
+						     struct btree_path *path)
+{
+	struct bch_fs *c = trans->c;
+	struct printbuf buf = PRINTBUF;
+
+	prt_str(&buf, "node not found at pos ");
+	bch2_bpos_to_text(&buf, path->pos);
+	prt_str(&buf, " within parent node ");
+	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&path_l(path)->b->key));
+
+	bch2_fs_fatal_error(c, "%s", buf.buf);
+	printbuf_exit(&buf);
+	return bch_err_throw(c, btree_need_topology_repair);
 }
 
 static __always_inline int btree_path_down(struct btree_trans *trans,
@@ -936,51 +951,38 @@ static __always_inline int btree_path_down(struct btree_trans *trans,
 	struct btree *b;
 	unsigned level = path->level - 1;
 	enum six_lock_type lock_type = __btree_lock_want(path, level);
-	struct bkey_buf tmp;
 	int ret;
 
 	EBUG_ON(!btree_node_locked(path, path->level));
 
-	bch2_bkey_buf_init(&tmp);
-
 	if (unlikely(trans->journal_replay_not_finished)) {
-		ret = btree_node_iter_and_journal_peek(trans, path, flags, &tmp);
+		ret = btree_node_iter_and_journal_peek(trans, path, flags);
 		if (ret)
-			goto err;
+			return ret;
 	} else {
 		struct bkey_packed *k = bch2_btree_node_iter_peek(&l->iter, l->b);
-		if (!k) {
-			struct printbuf buf = PRINTBUF;
+		if (unlikely(!k))
+			return btree_node_missing_err(trans, path);
 
-			prt_str(&buf, "node not found at pos ");
-			bch2_bpos_to_text(&buf, path->pos);
-			prt_str(&buf, " within parent node ");
-			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&l->b->key));
+		bch2_bkey_unpack(l->b, &trans->btree_path_down, k);
 
-			bch2_fs_fatal_error(c, "%s", buf.buf);
-			printbuf_exit(&buf);
-			ret = -BCH_ERR_btree_need_topology_repair;
-			goto err;
-		}
-
-		bch2_bkey_buf_unpack(&tmp, c, l->b, k);
-
-		if ((flags & BTREE_ITER_prefetch) &&
+		if (unlikely((flags & BTREE_ITER_prefetch)) &&
 		    c->opts.btree_node_prefetch) {
 			ret = btree_path_prefetch(trans, path);
 			if (ret)
-				goto err;
+				return ret;
 		}
 	}
 
-	b = bch2_btree_node_get(trans, path, tmp.k, level, lock_type, trace_ip);
+	b = bch2_btree_node_get(trans, path, &trans->btree_path_down,
+				level, lock_type, trace_ip);
 	ret = PTR_ERR_OR_ZERO(b);
 	if (unlikely(ret))
-		goto err;
+		return ret;
 
-	if (likely(!trans->journal_replay_not_finished &&
-		   tmp.k->k.type == KEY_TYPE_btree_ptr_v2) &&
-	    unlikely(b != btree_node_mem_ptr(tmp.k)))
+	if (unlikely(b != btree_node_mem_ptr(&trans->btree_path_down)) &&
+	    likely(!trans->journal_replay_not_finished &&
+		   trans->btree_path_down.k.type == KEY_TYPE_btree_ptr_v2))
 		btree_node_mem_ptr_set(trans, path, level + 1, b);
 
 	if (btree_node_read_locked(path, level + 1))
@@ -992,9 +994,7 @@ static __always_inline int btree_path_down(struct btree_trans *trans,
 	bch2_btree_path_level_init(trans, path, b);
 
 	bch2_btree_path_verify_locks(trans, path);
-err:
-	bch2_bkey_buf_exit(&tmp, c);
-	return ret;
+	return 0;
 }
 
 static int bch2_btree_path_traverse_all(struct btree_trans *trans)
@@ -1006,7 +1006,7 @@ static int bch2_btree_path_traverse_all(struct btree_trans *trans)
 	int ret = 0;
 
 	if (trans->in_traverse_all)
-		return -BCH_ERR_transaction_restart_in_traverse_all;
+		return bch_err_throw(c, transaction_restart_in_traverse_all);
 
 	trans->in_traverse_all = true;
 retry_all:
@@ -3568,13 +3568,12 @@ bch2_btree_bkey_cached_common_to_text(struct printbuf *out,
 				      struct btree_bkey_cached_common *b)
 {
 	struct six_lock_count c = six_lock_counts(&b->lock);
-	struct task_struct *owner;
 	pid_t pid;
 
-	rcu_read_lock();
-	owner = READ_ONCE(b->lock.owner);
-	pid = owner ? owner->pid : 0;
-	rcu_read_unlock();
+	scoped_guard(rcu) {
+		struct task_struct *owner = READ_ONCE(b->lock.owner);
+		pid = owner ? owner->pid : 0;
+	}
 
 	prt_printf(out, "\t%px %c ", b, b->cached ? 'c' : 'b');
 	bch2_btree_id_to_text(out, b->btree_id);
@@ -3603,7 +3602,7 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 	prt_printf(out, "%i %s\n", task ? task->pid : 0, trans->fn);
 
 	/* trans->paths is rcu protected vs. freeing */
-	rcu_read_lock();
+	guard(rcu)();
 	out->atomic++;
 
 	struct btree_path *paths = rcu_dereference(trans->paths);
@@ -3646,7 +3645,6 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 	}
 out:
 	--out->atomic;
-	rcu_read_unlock();
 }
 
 void bch2_fs_btree_iter_exit(struct bch_fs *c)

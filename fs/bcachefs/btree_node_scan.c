@@ -363,6 +363,8 @@ static int handle_overwrites(struct bch_fs *c,
 				min_heap_sift_down(nodes_heap, 0, &found_btree_node_heap_cbs, NULL);
 			}
 		}
+
+		cond_resched();
 	}
 
 	return 0;

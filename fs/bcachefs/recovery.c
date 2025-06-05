@@ -879,7 +879,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 use_clean:
 		if (!clean) {
 			bch_err(c, "no superblock clean section found");
-			ret = -BCH_ERR_fsck_repair_impossible;
+			ret = bch_err_throw(c, fsck_repair_impossible);
 			goto err;
 
 		}
@@ -1093,10 +1093,6 @@ use_clean:
 out:
 	bch2_flush_fsck_errs(c);
 
-	if (!c->opts.retain_recovery_info) {
-		bch2_journal_keys_put_initial(c);
-		bch2_find_btree_nodes_exit(&c->found_btree_nodes);
-	}
 	if (!IS_ERR(clean))
 		kfree(clean);
 

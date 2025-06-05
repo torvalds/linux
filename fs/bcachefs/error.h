@@ -105,13 +105,13 @@ void bch2_free_fsck_errs(struct bch_fs *);
 #define fsck_err_wrap(_do)						\
 ({									\
 	int _ret = _do;							\
-	if (_ret != -BCH_ERR_fsck_fix &&				\
-	    _ret != -BCH_ERR_fsck_ignore) {				\
+	if (!bch2_err_matches(_ret, BCH_ERR_fsck_fix) &&		\
+	    !bch2_err_matches(_ret, BCH_ERR_fsck_ignore)) {		\
 		ret = _ret;						\
 		goto fsck_err;						\
 	}								\
 									\
-	_ret == -BCH_ERR_fsck_fix;					\
+	bch2_err_matches(_ret, BCH_ERR_fsck_fix);			\
 })
 
 #define __fsck_err(...)		fsck_err_wrap(bch2_fsck_err(__VA_ARGS__))
@@ -170,10 +170,10 @@ do {									\
 	int _ret = __bch2_bkey_fsck_err(c, k, from,			\
 				BCH_FSCK_ERR_##_err_type,		\
 				_err_msg, ##__VA_ARGS__);		\
-	if (_ret != -BCH_ERR_fsck_fix &&				\
-	    _ret != -BCH_ERR_fsck_ignore)				\
+	if (!bch2_err_matches(_ret, BCH_ERR_fsck_fix) &&		\
+	    !bch2_err_matches(_ret, BCH_ERR_fsck_ignore))		\
 		ret = _ret;						\
-	ret = -BCH_ERR_fsck_delete_bkey;				\
+	ret = bch_err_throw(c, fsck_delete_bkey);			\
 	goto fsck_err;							\
 } while (0)
 

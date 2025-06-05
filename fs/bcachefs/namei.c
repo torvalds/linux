@@ -287,7 +287,7 @@ int bch2_unlink_trans(struct btree_trans *trans,
 	}
 
 	if (deleting_subvol && !inode_u->bi_subvol) {
-		ret = -BCH_ERR_ENOENT_not_subvol;
+		ret = bch_err_throw(c, ENOENT_not_subvol);
 		goto err;
 	}
 
@@ -425,8 +425,8 @@ int bch2_rename_trans(struct btree_trans *trans,
 	}
 
 	ret = bch2_dirent_rename(trans,
-				 src_dir, &src_hash, &src_dir_u->bi_size,
-				 dst_dir, &dst_hash, &dst_dir_u->bi_size,
+				 src_dir, &src_hash,
+				 dst_dir, &dst_hash,
 				 src_name, &src_inum, &src_offset,
 				 dst_name, &dst_inum, &dst_offset,
 				 mode);
@@ -633,7 +633,7 @@ static int __bch2_inum_to_path(struct btree_trans *trans,
 			break;
 
 		if (!inode.bi_dir && !inode.bi_dir_offset) {
-			ret = -BCH_ERR_ENOENT_inode_no_backpointer;
+			ret = bch_err_throw(trans->c, ENOENT_inode_no_backpointer);
 			goto disconnected;
 		}
 
@@ -733,15 +733,6 @@ static int bch2_check_dirent_inode_dirent(struct btree_trans *trans,
 		return __bch2_fsck_write_inode(trans, target);
 	}
 
-	if (bch2_inode_should_have_single_bp(target) &&
-	    !fsck_err(trans, inode_wrong_backpointer,
-		      "dirent points to inode that does not point back:\n%s",
-		      (bch2_bkey_val_to_text(&buf, c, d.s_c),
-		       prt_newline(&buf),
-		       bch2_inode_unpacked_to_text(&buf, target),
-		       buf.buf)))
-		goto err;
-
 	struct bkey_s_c_dirent bp_dirent =
 		bch2_bkey_get_iter_typed(trans, &bp_iter, BTREE_ID_dirents,
 			      SPOS(target->bi_dir, target->bi_dir_offset, target->bi_snapshot),
@@ -768,6 +759,7 @@ static int bch2_check_dirent_inode_dirent(struct btree_trans *trans,
 			ret = __bch2_fsck_write_inode(trans, target);
 		}
 	} else {
+		printbuf_reset(&buf);
 		bch2_bkey_val_to_text(&buf, c, d.s_c);
 		prt_newline(&buf);
 		bch2_bkey_val_to_text(&buf, c, bp_dirent.s_c);
@@ -857,7 +849,8 @@ int __bch2_check_dirent_target(struct btree_trans *trans,
 			n->v.d_inum = cpu_to_le64(target->bi_inum);
 		}
 
-		ret = bch2_trans_update(trans, dirent_iter, &n->k_i, 0);
+		ret = bch2_trans_update(trans, dirent_iter, &n->k_i,
+					BTREE_UPDATE_internal_snapshot_node);
 		if (ret)
 			goto err;
 	}

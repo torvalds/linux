@@ -613,15 +613,12 @@ static long bch2_ioctl_disk_get_idx(struct bch_fs *c,
 	if (!dev)
 		return -EINVAL;
 
-	rcu_read_lock();
+	guard(rcu)();
 	for_each_online_member_rcu(c, ca)
-		if (ca->dev == dev) {
-			rcu_read_unlock();
+		if (ca->dev == dev)
 			return ca->dev_idx;
-		}
-	rcu_read_unlock();
 
-	return -BCH_ERR_ENOENT_dev_idx_not_found;
+	return bch_err_throw(c, ENOENT_dev_idx_not_found);
 }
 
 static long bch2_ioctl_disk_resize(struct bch_fs *c,

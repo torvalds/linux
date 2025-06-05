@@ -232,6 +232,7 @@ enum bch_fsck_flags {
 	x(inode_dir_multiple_links,				206,	FSCK_AUTOFIX)	\
 	x(inode_dir_missing_backpointer,			284,	FSCK_AUTOFIX)	\
 	x(inode_dir_unlinked_but_not_empty,			286,	FSCK_AUTOFIX)	\
+	x(inode_dir_has_nonzero_i_size,				319,	FSCK_AUTOFIX)	\
 	x(inode_multiple_links_but_nlink_0,			207,	FSCK_AUTOFIX)	\
 	x(inode_wrong_backpointer,				208,	FSCK_AUTOFIX)	\
 	x(inode_wrong_nlink,					209,	FSCK_AUTOFIX)	\
@@ -243,6 +244,7 @@ enum bch_fsck_flags {
 	x(inode_parent_has_case_insensitive_not_set,		317,	FSCK_AUTOFIX)	\
 	x(vfs_inode_i_blocks_underflow,				311,	FSCK_AUTOFIX)	\
 	x(vfs_inode_i_blocks_not_zero_at_truncate,		313,	FSCK_AUTOFIX)	\
+	x(vfs_bad_inode_rm,					320,	0)		\
 	x(deleted_inode_but_clean,				211,	FSCK_AUTOFIX)	\
 	x(deleted_inode_missing,				212,	FSCK_AUTOFIX)	\
 	x(deleted_inode_is_dir,					213,	FSCK_AUTOFIX)	\
@@ -328,7 +330,7 @@ enum bch_fsck_flags {
 	x(dirent_stray_data_after_cf_name,			305,	0)		\
 	x(rebalance_work_incorrectly_set,			309,	FSCK_AUTOFIX)	\
 	x(rebalance_work_incorrectly_unset,			310,	FSCK_AUTOFIX)	\
-	x(MAX,							319,	0)
+	x(MAX,							321,	0)
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,

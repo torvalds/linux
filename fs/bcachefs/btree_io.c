@@ -557,7 +557,7 @@ static int __btree_err(int ret,
 		       const char *fmt, ...)
 {
 	if (c->recovery.curr_pass == BCH_RECOVERY_PASS_scan_for_btree_nodes)
-		return -BCH_ERR_fsck_fix;
+		return bch_err_throw(c, fsck_fix);
 
 	bool have_retry = false;
 	int ret2;
@@ -572,9 +572,9 @@ static int __btree_err(int ret,
 	}
 
 	if (!have_retry && ret == -BCH_ERR_btree_node_read_err_want_retry)
-		ret = -BCH_ERR_btree_node_read_err_fixable;
+		ret = bch_err_throw(c, btree_node_read_err_fixable);
 	if (!have_retry && ret == -BCH_ERR_btree_node_read_err_must_retry)
-		ret = -BCH_ERR_btree_node_read_err_bad_node;
+		ret = bch_err_throw(c, btree_node_read_err_bad_node);
 
 	bch2_sb_error_count(c, err_type);
 
@@ -602,14 +602,14 @@ static int __btree_err(int ret,
 		switch (ret) {
 		case -BCH_ERR_btree_node_read_err_fixable:
 			ret2 = bch2_fsck_err_opt(c, FSCK_CAN_FIX, err_type);
-			if (ret2 != -BCH_ERR_fsck_fix &&
-			    ret2 != -BCH_ERR_fsck_ignore) {
+			if (!bch2_err_matches(ret2, BCH_ERR_fsck_fix) &&
+			    !bch2_err_matches(ret2, BCH_ERR_fsck_ignore)) {
 				ret = ret2;
 				goto fsck_err;
 			}
 
 			if (!have_retry)
-				ret = -BCH_ERR_fsck_fix;
+				ret = bch_err_throw(c, fsck_fix);
 			goto out;
 		case -BCH_ERR_btree_node_read_err_bad_node:
 			prt_str(&out, ", ");
@@ -631,14 +631,14 @@ static int __btree_err(int ret,
 	switch (ret) {
 	case -BCH_ERR_btree_node_read_err_fixable:
 		ret2 = __bch2_fsck_err(c, NULL, FSCK_CAN_FIX, err_type, "%s", out.buf);
-		if (ret2 != -BCH_ERR_fsck_fix &&
-		    ret2 != -BCH_ERR_fsck_ignore) {
+		if (!bch2_err_matches(ret2, BCH_ERR_fsck_fix) &&
+		    !bch2_err_matches(ret2, BCH_ERR_fsck_ignore)) {
 			ret = ret2;
 			goto fsck_err;
 		}
 
 		if (!have_retry)
-			ret = -BCH_ERR_fsck_fix;
+			ret = bch_err_throw(c, fsck_fix);
 		goto out;
 	case -BCH_ERR_btree_node_read_err_bad_node:
 		prt_str(&out, ", ");
@@ -660,7 +660,7 @@ fsck_err:
 			       failed, err_msg,				\
 			       msg, ##__VA_ARGS__);			\
 									\
-	if (_ret != -BCH_ERR_fsck_fix) {				\
+	if (!bch2_err_matches(_ret, BCH_ERR_fsck_fix)) {		\
 		ret = _ret;						\
 		goto fsck_err;						\
 	}								\
@@ -1325,14 +1325,13 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 	btree_node_reset_sib_u64s(b);
 
-	rcu_read_lock();
-	bkey_for_each_ptr(bch2_bkey_ptrs(bkey_i_to_s(&b->key)), ptr) {
-		struct bch_dev *ca2 = bch2_dev_rcu(c, ptr->dev);
+	scoped_guard(rcu)
+		bkey_for_each_ptr(bch2_bkey_ptrs(bkey_i_to_s(&b->key)), ptr) {
+			struct bch_dev *ca2 = bch2_dev_rcu(c, ptr->dev);
 
-		if (!ca2 || ca2->mi.state != BCH_MEMBER_STATE_rw)
-			set_btree_node_need_rewrite(b);
-	}
-	rcu_read_unlock();
+			if (!ca2 || ca2->mi.state != BCH_MEMBER_STATE_rw)
+				set_btree_node_need_rewrite(b);
+		}
 
 	if (!ptr_written)
 		set_btree_node_need_rewrite(b);
@@ -1688,7 +1687,7 @@ static int btree_node_read_all_replicas(struct bch_fs *c, struct btree *b, bool 
 
 	ra = kzalloc(sizeof(*ra), GFP_NOFS);
 	if (!ra)
-		return -BCH_ERR_ENOMEM_btree_node_read_all_replicas;
+		return bch_err_throw(c, ENOMEM_btree_node_read_all_replicas);
 
 	closure_init(&ra->cl, NULL);
 	ra->c	= c;
@@ -1870,7 +1869,7 @@ static int __bch2_btree_root_read(struct btree_trans *trans, enum btree_id id,
 		bch2_btree_node_hash_remove(&c->btree_cache, b);
 		mutex_unlock(&c->btree_cache.lock);
 
-		ret = -BCH_ERR_btree_node_read_error;
+		ret = bch_err_throw(c, btree_node_read_error);
 		goto err;
 	}
 
@@ -2020,7 +2019,7 @@ int bch2_btree_node_scrub(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 
 	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_btree_node_scrub))
-		return -BCH_ERR_erofs_no_writes;
+		return bch_err_throw(c, erofs_no_writes);
 
 	struct extent_ptr_decoded pick;
 	int ret = bch2_bkey_pick_read_device(c, k, NULL, &pick, dev);
@@ -2030,7 +2029,7 @@ int bch2_btree_node_scrub(struct btree_trans *trans,
 	struct bch_dev *ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ,
 						BCH_DEV_READ_REF_btree_node_scrub);
 	if (!ca) {
-		ret = -BCH_ERR_device_offline;
+		ret = bch_err_throw(c, device_offline);
 		goto err;
 	}
 
@@ -2167,7 +2166,7 @@ static void btree_node_write_work(struct work_struct *work)
 		bch2_dev_list_has_dev(wbio->wbio.failed, ptr->dev));
 
 	if (!bch2_bkey_nr_ptrs(bkey_i_to_s_c(&wbio->key))) {
-		ret = -BCH_ERR_btree_node_write_all_failed;
+		ret = bch_err_throw(c, btree_node_write_all_failed);
 		goto err;
 	}
 

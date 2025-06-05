@@ -83,18 +83,20 @@ static struct journal_space
 journal_dev_space_available(struct journal *j, struct bch_dev *ca,
 			    enum journal_space_from from)
 {
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct journal_device *ja = &ca->journal;
 	unsigned sectors, buckets, unwritten;
+	unsigned bucket_size_aligned = round_down(ca->mi.bucket_size, block_sectors(c));
 	u64 seq;
 
 	if (from == journal_space_total)
 		return (struct journal_space) {
-			.next_entry	= ca->mi.bucket_size,
-			.total		= ca->mi.bucket_size * ja->nr,
+			.next_entry	= bucket_size_aligned,
+			.total		= bucket_size_aligned * ja->nr,
 		};
 
 	buckets = bch2_journal_dev_buckets_available(j, ja, from);
-	sectors = ja->sectors_free;
+	sectors = round_down(ja->sectors_free, block_sectors(c));
 
 	/*
 	 * We that we don't allocate the space for a journal entry
@@ -109,7 +111,7 @@ journal_dev_space_available(struct journal *j, struct bch_dev *ca,
 			continue;
 
 		/* entry won't fit on this device, skip: */
-		if (unwritten > ca->mi.bucket_size)
+		if (unwritten > bucket_size_aligned)
 			continue;
 
 		if (unwritten >= sectors) {
@@ -119,7 +121,7 @@ journal_dev_space_available(struct journal *j, struct bch_dev *ca,
 			}
 
 			buckets--;
-			sectors = ca->mi.bucket_size;
+			sectors = bucket_size_aligned;
 		}
 
 		sectors -= unwritten;
@@ -127,12 +129,12 @@ journal_dev_space_available(struct journal *j, struct bch_dev *ca,
 
 	if (sectors < ca->mi.bucket_size && buckets) {
 		buckets--;
-		sectors = ca->mi.bucket_size;
+		sectors = bucket_size_aligned;
 	}
 
 	return (struct journal_space) {
 		.next_entry	= sectors,
-		.total		= sectors + buckets * ca->mi.bucket_size,
+		.total		= sectors + buckets * bucket_size_aligned,
 	};
 }
 
@@ -146,7 +148,6 @@ static struct journal_space __journal_space_available(struct journal *j, unsigne
 
 	BUG_ON(nr_devs_want > ARRAY_SIZE(dev_space));
 
-	rcu_read_lock();
 	for_each_member_device_rcu(c, ca, &c->rw_devs[BCH_DATA_journal]) {
 		if (!ca->journal.nr ||
 		    !ca->mi.durability)
@@ -164,7 +165,6 @@ static struct journal_space __journal_space_available(struct journal *j, unsigne
 
 		array_insert_item(dev_space, nr_devs, pos, space);
 	}
-	rcu_read_unlock();
 
 	if (nr_devs < nr_devs_want)
 		return (struct journal_space) { 0, 0 };
@@ -189,8 +189,8 @@ void bch2_journal_space_available(struct journal *j)
 	int ret = 0;
 
 	lockdep_assert_held(&j->lock);
+	guard(rcu)();
 
-	rcu_read_lock();
 	for_each_member_device_rcu(c, ca, &c->rw_devs[BCH_DATA_journal]) {
 		struct journal_device *ja = &ca->journal;
 
@@ -210,7 +210,6 @@ void bch2_journal_space_available(struct journal *j)
 		max_entry_size = min_t(unsigned, max_entry_size, ca->mi.bucket_size);
 		nr_online++;
 	}
-	rcu_read_unlock();
 
 	j->can_discard = can_discard;
 
@@ -221,15 +220,13 @@ void bch2_journal_space_available(struct journal *j)
 			prt_printf(&buf, "insufficient writeable journal devices available: have %u, need %u\n"
 				   "rw journal devs:", nr_online, metadata_replicas_required(c));
 
-			rcu_read_lock();
 			for_each_member_device_rcu(c, ca, &c->rw_devs[BCH_DATA_journal])
 				prt_printf(&buf, " %s", ca->name);
-			rcu_read_unlock();
 
 			bch_err(c, "%s", buf.buf);
 			printbuf_exit(&buf);
 		}
-		ret = -BCH_ERR_insufficient_journal_devices;
+		ret = bch_err_throw(c, insufficient_journal_devices);
 		goto out;
 	}
 
@@ -243,7 +240,7 @@ void bch2_journal_space_available(struct journal *j)
 	total		= j->space[journal_space_total].total;
 
 	if (!j->space[journal_space_discarded].next_entry)
-		ret = -BCH_ERR_journal_full;
+		ret = bch_err_throw(c, journal_full);
 
 	if ((j->space[journal_space_clean_ondisk].next_entry <
 	     j->space[journal_space_clean_ondisk].total) &&
@@ -256,8 +253,7 @@ void bch2_journal_space_available(struct journal *j)
 	bch2_journal_set_watermark(j);
 out:
 	j->cur_entry_sectors	= !ret
-		? round_down(j->space[journal_space_discarded].next_entry,
-			     block_sectors(c))
+		? j->space[journal_space_discarded].next_entry
 		: 0;
 	j->cur_entry_error	= ret;
 
@@ -625,9 +621,9 @@ static u64 journal_seq_to_flush(struct journal *j)
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	u64 seq_to_flush = 0;
 
-	spin_lock(&j->lock);
+	guard(spinlock)(&j->lock);
+	guard(rcu)();
 
-	rcu_read_lock();
 	for_each_rw_member_rcu(c, ca) {
 		struct journal_device *ja = &ca->journal;
 		unsigned nr_buckets, bucket_to_flush;
@@ -642,15 +638,11 @@ static u64 journal_seq_to_flush(struct journal *j)
 		seq_to_flush = max(seq_to_flush,
 				   ja->bucket_seq[bucket_to_flush]);
 	}
-	rcu_read_unlock();
 
 	/* Also flush if the pin fifo is more than half full */
-	seq_to_flush = max_t(s64, seq_to_flush,
-			     (s64) journal_cur_seq(j) -
-			     (j->pin.size >> 1));
-	spin_unlock(&j->lock);
-
-	return seq_to_flush;
+	return max_t(s64, seq_to_flush,
+		     (s64) journal_cur_seq(j) -
+		     (j->pin.size >> 1));
 }
 
 /**

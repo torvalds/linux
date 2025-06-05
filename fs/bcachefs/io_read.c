@@ -56,7 +56,7 @@ static bool bch2_target_congested(struct bch_fs *c, u16 target)
 	if (!target)
 		return false;
 
-	rcu_read_lock();
+	guard(rcu)();
 	devs = bch2_target_to_mask(c, target) ?:
 		&c->rw_devs[BCH_DATA_user];
 
@@ -73,7 +73,6 @@ static bool bch2_target_congested(struct bch_fs *c, u16 target)
 		total += max(congested, 0LL);
 		nr++;
 	}
-	rcu_read_unlock();
 
 	return get_random_u32_below(nr * CONGESTED_MAX) < total;
 }
@@ -138,21 +137,21 @@ static inline int should_promote(struct bch_fs *c, struct bkey_s_c k,
 		BUG_ON(!opts.promote_target);
 
 		if (!(flags & BCH_READ_may_promote))
-			return -BCH_ERR_nopromote_may_not;
+			return bch_err_throw(c, nopromote_may_not);
 
 		if (bch2_bkey_has_target(c, k, opts.promote_target))
-			return -BCH_ERR_nopromote_already_promoted;
+			return bch_err_throw(c, nopromote_already_promoted);
 
 		if (bkey_extent_is_unwritten(k))
-			return -BCH_ERR_nopromote_unwritten;
+			return bch_err_throw(c, nopromote_unwritten);
 
 		if (bch2_target_congested(c, opts.promote_target))
-			return -BCH_ERR_nopromote_congested;
+			return bch_err_throw(c, nopromote_congested);
 	}
 
 	if (rhashtable_lookup_fast(&c->promote_table, &pos,
 				   bch_promote_params))
-		return -BCH_ERR_nopromote_in_flight;
+		return bch_err_throw(c, nopromote_in_flight);
 
 	return 0;
 }
@@ -240,7 +239,7 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 
 	struct promote_op *op = kzalloc(sizeof(*op), GFP_KERNEL);
 	if (!op) {
-		ret = -BCH_ERR_nopromote_enomem;
+		ret = bch_err_throw(c, nopromote_enomem);
 		goto err_put;
 	}
 
@@ -249,7 +248,7 @@ static struct bch_read_bio *__promote_alloc(struct btree_trans *trans,
 
 	if (rhashtable_lookup_insert_fast(&c->promote_table, &op->hash,
 					  bch_promote_params)) {
-		ret = -BCH_ERR_nopromote_in_flight;
+		ret = bch_err_throw(c, nopromote_in_flight);
 		goto err;
 	}
 
@@ -545,7 +544,7 @@ retry:
 
 	if (!bkey_and_val_eq(k, bkey_i_to_s_c(u->k.k))) {
 		/* extent we wanted to read no longer exists: */
-		rbio->ret = -BCH_ERR_data_read_key_overwritten;
+		rbio->ret = bch_err_throw(trans->c, data_read_key_overwritten);
 		goto err;
 	}
 
@@ -1036,7 +1035,7 @@ int __bch2_read_extent(struct btree_trans *trans, struct bch_read_bio *orig,
 
 	if ((bch2_bkey_extent_flags(k) & BIT_ULL(BCH_EXTENT_FLAG_poisoned)) &&
 	    !orig->data_update)
-		return -BCH_ERR_extent_poisoned;
+		return bch_err_throw(c, extent_poisoned);
 retry_pick:
 	ret = bch2_bkey_pick_read_device(c, k, failed, &pick, dev);
 
@@ -1074,7 +1073,7 @@ retry_pick:
 
 		bch_err_ratelimited(c, "%s", buf.buf);
 		printbuf_exit(&buf);
-		ret = -BCH_ERR_data_read_no_encryption_key;
+		ret = bch_err_throw(c, data_read_no_encryption_key);
 		goto err;
 	}
 
@@ -1128,7 +1127,7 @@ retry_pick:
 			if (ca)
 				enumerated_ref_put(&ca->io_ref[READ],
 					BCH_DEV_READ_REF_io_read);
-			rbio->ret = -BCH_ERR_data_read_buffer_too_small;
+			rbio->ret = bch_err_throw(c, data_read_buffer_too_small);
 			goto out_read_done;
 		}
 
@@ -1333,7 +1332,7 @@ hole:
 	 * have to signal that:
 	 */
 	if (u)
-		orig->ret = -BCH_ERR_data_read_key_overwritten;
+		orig->ret = bch_err_throw(c, data_read_key_overwritten);
 
 	zero_fill_bio_iter(&orig->bio, iter);
 out_read_done:
@@ -1510,18 +1509,18 @@ int bch2_fs_io_read_init(struct bch_fs *c)
 					 c->opts.btree_node_size,
 					 c->opts.encoded_extent_max) /
 				   PAGE_SIZE, 0))
-		return -BCH_ERR_ENOMEM_bio_bounce_pages_init;
+		return bch_err_throw(c, ENOMEM_bio_bounce_pages_init);
 
 	if (bioset_init(&c->bio_read, 1, offsetof(struct bch_read_bio, bio),
 			BIOSET_NEED_BVECS))
-		return -BCH_ERR_ENOMEM_bio_read_init;
+		return bch_err_throw(c, ENOMEM_bio_read_init);
 
 	if (bioset_init(&c->bio_read_split, 1, offsetof(struct bch_read_bio, bio),
 			BIOSET_NEED_BVECS))
-		return -BCH_ERR_ENOMEM_bio_read_split_init;
+		return bch_err_throw(c, ENOMEM_bio_read_split_init);
 
 	if (rhashtable_init(&c->promote_table, &bch_promote_params))
-		return -BCH_ERR_ENOMEM_promote_table_init;
+		return bch_err_throw(c, ENOMEM_promote_table_init);
 
 	return 0;
 }

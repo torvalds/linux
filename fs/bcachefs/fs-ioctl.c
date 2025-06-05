@@ -268,13 +268,13 @@ static long bch2_ioctl_subvolume_create(struct bch_fs *c, struct file *filp,
 	}
 
 	if (dst_dentry->d_inode) {
-		error = -BCH_ERR_EEXIST_subvolume_create;
+		error = bch_err_throw(c, EEXIST_subvolume_create);
 		goto err3;
 	}
 
 	dir = dst_path.dentry->d_inode;
 	if (IS_DEADDIR(dir)) {
-		error = -BCH_ERR_ENOENT_directory_dead;
+		error = bch_err_throw(c, ENOENT_directory_dead);
 		goto err3;
 	}
 

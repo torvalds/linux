@@ -492,6 +492,8 @@ static void bch2_cached_btree_node_to_text(struct printbuf *out, struct bch_fs *
 	prt_printf(out, "journal pin %px:\t%llu\n",
 		   &b->writes[1].journal, b->writes[1].journal.seq);
 
+	prt_printf(out, "ob:\t%u\n", b->ob.nr);
+
 	printbuf_indent_sub(out, 2);
 }
 
@@ -508,27 +510,27 @@ static ssize_t bch2_cached_btree_nodes_read(struct file *file, char __user *buf,
 	i->ret	= 0;
 
 	do {
-		struct bucket_table *tbl;
-		struct rhash_head *pos;
-		struct btree *b;
-
 		ret = bch2_debugfs_flush_buf(i);
 		if (ret)
 			return ret;
 
-		rcu_read_lock();
 		i->buf.atomic++;
-		tbl = rht_dereference_rcu(c->btree_cache.table.tbl,
-					  &c->btree_cache.table);
-		if (i->iter < tbl->size) {
-			rht_for_each_entry_rcu(b, pos, tbl, i->iter, hash)
-				bch2_cached_btree_node_to_text(&i->buf, c, b);
-			i->iter++;
-		} else {
-			done = true;
+		scoped_guard(rcu) {
+			struct bucket_table *tbl =
+				rht_dereference_rcu(c->btree_cache.table.tbl,
+						    &c->btree_cache.table);
+			if (i->iter < tbl->size) {
+				struct rhash_head *pos;
+				struct btree *b;
+
+				rht_for_each_entry_rcu(b, pos, tbl, i->iter, hash)
+					bch2_cached_btree_node_to_text(&i->buf, c, b);
+				i->iter++;
+			} else {
+				done = true;
+			}
 		}
 		--i->buf.atomic;
-		rcu_read_unlock();
 	} while (!done);
 
 	if (i->buf.allocation_failure)

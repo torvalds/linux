@@ -199,6 +199,50 @@ DECLARE_EVENT_CLASS(bio,
 		  (unsigned long long)__entry->sector, __entry->nr_sector)
 );
 
+/* errors */
+
+TRACE_EVENT(error_throw,
+	TP_PROTO(struct bch_fs *c, int bch_err, unsigned long ip),
+	TP_ARGS(c, bch_err, ip),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__field(int,		err			)
+		__array(char,		err_str, 32		)
+		__array(char,		ip, 32			)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= c->dev;
+		__entry->err		= bch_err;
+		strscpy(__entry->err_str, bch2_err_str(bch_err), sizeof(__entry->err_str));
+		snprintf(__entry->ip, sizeof(__entry->ip), "%ps", (void *) ip);
+	),
+
+	TP_printk("%d,%d %s ret %s", MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ip, __entry->err_str)
+);
+
+TRACE_EVENT(error_downcast,
+	TP_PROTO(int bch_err, int std_err, unsigned long ip),
+	TP_ARGS(bch_err, std_err, ip),
+
+	TP_STRUCT__entry(
+		__array(char,		bch_err, 32		)
+		__array(char,		std_err, 32		)
+		__array(char,		ip, 32			)
+	),
+
+	TP_fast_assign(
+		strscpy(__entry->bch_err, bch2_err_str(bch_err), sizeof(__entry->bch_err));
+		strscpy(__entry->std_err, bch2_err_str(std_err), sizeof(__entry->std_err));
+		snprintf(__entry->ip, sizeof(__entry->ip), "%ps", (void *) ip);
+	),
+
+	TP_printk("%s ret %s -> %s %s", __entry->ip,
+		  __entry->bch_err, __entry->std_err, __entry->ip)
+);
+
 /* disk_accounting.c */
 
 TRACE_EVENT(accounting_mem_insert,
@@ -1431,28 +1475,19 @@ DEFINE_EVENT(fs_str, data_update,
 	TP_ARGS(c, str)
 );
 
+DEFINE_EVENT(fs_str, io_move_pred,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
+);
+
 DEFINE_EVENT(fs_str, io_move_created_rebalance,
 	TP_PROTO(struct bch_fs *c, const char *str),
 	TP_ARGS(c, str)
 );
 
-TRACE_EVENT(error_downcast,
-	TP_PROTO(int bch_err, int std_err, unsigned long ip),
-	TP_ARGS(bch_err, std_err, ip),
-
-	TP_STRUCT__entry(
-		__array(char,		bch_err, 32		)
-		__array(char,		std_err, 32		)
-		__array(char,		ip, 32			)
-	),
-
-	TP_fast_assign(
-		strscpy(__entry->bch_err, bch2_err_str(bch_err), sizeof(__entry->bch_err));
-		strscpy(__entry->std_err, bch2_err_str(std_err), sizeof(__entry->std_err));
-		snprintf(__entry->ip, sizeof(__entry->ip), "%ps", (void *) ip);
-	),
-
-	TP_printk("%s -> %s %s", __entry->bch_err, __entry->std_err, __entry->ip)
+DEFINE_EVENT(fs_str, io_move_evacuate_bucket,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
 #ifdef CONFIG_BCACHEFS_PATH_TRACEPOINTS
