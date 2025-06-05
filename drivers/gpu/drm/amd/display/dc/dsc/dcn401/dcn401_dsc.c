@@ -17,8 +17,6 @@ static void dsc_write_to_registers(struct display_stream_compressor *dsc, const 
 /* Object I/F functions */
 //static void dsc401_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz);
 //static bool dsc401_get_packed_pps(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg, uint8_t *dsc_packed_pps);
-static void dsc401_wait_disconnect_pending_clear(struct display_stream_compressor *dsc);
-static void dsc401_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz);
 
 static const struct dsc_funcs dcn401_dsc_funcs = {
 	.dsc_get_enc_caps = dsc401_get_enc_caps,
@@ -66,7 +64,7 @@ void dsc401_construct(struct dcn401_dsc *dsc,
 	dsc->max_image_width = 5184;
 }
 
-static void dsc401_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz)
+void dsc401_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz)
 {
 	int min_dsc_unit_required = (pixel_clock_100Hz + MAX_THROUGHPUT_PER_DSC_100HZ - 1) / MAX_THROUGHPUT_PER_DSC_100HZ;
 
@@ -191,7 +189,7 @@ void dsc401_disable(struct display_stream_compressor *dsc)
 		DSC_CLOCK_EN, 0);
 }
 
-static void dsc401_wait_disconnect_pending_clear(struct display_stream_compressor *dsc)
+void dsc401_wait_disconnect_pending_clear(struct display_stream_compressor *dsc)
 {
 	struct dcn401_dsc *dsc401 = TO_DCN401_DSC(dsc);
 
