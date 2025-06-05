@@ -378,13 +378,19 @@ function torture_set {
 	then
 		curflavor=$flavor
 		torture_one "$@"
-		mv $T/last-resdir $T/last-resdir-nodebug || :
+		if test -e $T/last-resdir
+		then
+			mv $T/last-resdir $T/last-resdir-nodebug || :
+		fi
 	fi
 	if test "$do_kasan" = "yes"
 	then
 		curflavor=${flavor}-kasan
 		torture_one "$@" --kasan
-		mv $T/last-resdir $T/last-resdir-kasan || :
+		if test -e $T/last-resdir
+		then
+			mv $T/last-resdir $T/last-resdir-kasan || :
+		fi
 	fi
 	if test "$do_kcsan" = "yes"
 	then
@@ -400,7 +406,10 @@ function torture_set {
 			chk_rdr_state="CONFIG_RCU_TORTURE_TEST_CHK_RDR_STATE=y"
 		fi
 		torture_one "$@" --kconfig "CONFIG_DEBUG_LOCK_ALLOC=y CONFIG_PROVE_LOCKING=y ${kcsan_expert} ${chk_rdr_state}" $kcsan_kmake_tag $cur_kcsan_kmake_args --kcsan
-		mv $T/last-resdir $T/last-resdir-kcsan || :
+		if test -e $T/last-resdir
+		then
+			mv $T/last-resdir $T/last-resdir-kcsan || :
+		fi
 	fi
 }
 
@@ -704,7 +713,14 @@ nfailures=0
 echo FAILURES: | tee -a $T/log
 if test -s "$T/failures"
 then
-	awk < "$T/failures" -v sq="'" '{ print "echo " sq $0 sq; print "sed -e " sq "1,/^ --- .* Test summary:$/d" sq " " $2 "/log | grep Summary: | sed -e " sq "s/^[^S]*/  /" sq; }' | sh | tee -a $T/log | tee "$T/failuresum"
+	awk < "$T/failures" -v sq="'" '
+	{
+		print "echo " sq $0 sq;
+		if ($2 != "")
+			print "sed -e " sq "1,/^ --- .* Test summary:$/d" sq " " $2 "/log | grep Summary: | sed -e " sq "s/^[^S]*/  /" sq;
+		else
+			print "echo " sq "  " sq "Run failed to produce results directory.";
+	}' | sh | tee -a $T/log | tee "$T/failuresum"
 	nfailures="`wc -l "$T/failures" | awk '{ print $1 }'`"
 	grep "^  Summary: " "$T/failuresum" |
 		grep -v '^  Summary: Bugs: [0-9]* (all bugs kcsan)$' > "$T/nonkcsan"
@@ -714,13 +730,13 @@ then
 	fi
 	ret=2
 fi
-if test "$do_kcsan" = "yes"
+if test "$do_kcsan" = "yes" && test -e tools/testing/selftests/rcutorture/res/$ds
 then
 	TORTURE_KCONFIG_KCSAN_ARG=1 tools/testing/selftests/rcutorture/bin/kcsan-collapse.sh tools/testing/selftests/rcutorture/res/$ds > tools/testing/selftests/rcutorture/res/$ds/kcsan.sum
 fi
 echo Started at $startdate, ended at `date`, duration `get_starttime_duration $starttime`. | tee -a $T/log
 echo Summary: Successes: $nsuccesses Failures: $nfailures. | tee -a $T/log
-tdir="`cat $T/successes $T/failures | head -1 | awk '{ print $NF }' | sed -e 's,/[^/]\+/*$,,'`"
+tdir="`cat $T/successes $T/failures | awk 'NF > 1 { print $NF }' | head -1 | sed -e 's,/[^/]\+/*$,,'`"
 if test -n "$tdir"
 then
 	find "$tdir" -name 'ConfigFragment.diags' -print > $T/configerrors
