@@ -638,6 +638,13 @@ static int dpm_async_with_cleanup(struct device *dev, void *fn)
 static void dpm_async_resume_children(struct device *dev, async_func_t func)
 {
 	/*
+	 * Prevent racing with dpm_clear_async_state() during initial list
+	 * walks in dpm_noirq_resume_devices(), dpm_resume_early(), and
+	 * dpm_resume().
+	 */
+	guard(mutex)(&dpm_list_mtx);
+
+	/*
 	 * Start processing "async" children of the device unless it's been
 	 * started already for them.
 	 *
@@ -985,6 +992,8 @@ static void device_resume(struct device *dev, pm_message_t state, bool async)
 	if (!dev->power.is_suspended)
 		goto Complete;
 
+	dev->power.is_suspended = false;
+
 	if (dev->power.direct_complete) {
 		/*
 		 * Allow new children to be added under the device after this
@@ -1047,7 +1056,6 @@ static void device_resume(struct device *dev, pm_message_t state, bool async)
 
  End:
 	error = dpm_run_callback(callback, dev, state, info);
-	dev->power.is_suspended = false;
 
 	device_unlock(dev);
 	dpm_watchdog_clear(&wd);
@@ -1451,7 +1459,7 @@ static int dpm_noirq_suspend_devices(pm_message_t state)
 			 * Move all devices to the target list to resume them
 			 * properly.
 			 */
-			list_splice(&dpm_late_early_list, &dpm_noirq_list);
+			list_splice_init(&dpm_late_early_list, &dpm_noirq_list);
 			break;
 		}
 	}
@@ -1653,7 +1661,7 @@ int dpm_suspend_late(pm_message_t state)
 			 * Move all devices to the target list to resume them
 			 * properly.
 			 */
-			list_splice(&dpm_suspended_list, &dpm_late_early_list);
+			list_splice_init(&dpm_suspended_list, &dpm_late_early_list);
 			break;
 		}
 	}
@@ -1946,7 +1954,7 @@ int dpm_suspend(pm_message_t state)
 			 * Move all devices to the target list to resume them
 			 * properly.
 			 */
-			list_splice(&dpm_prepared_list, &dpm_suspended_list);
+			list_splice_init(&dpm_prepared_list, &dpm_suspended_list);
 			break;
 		}
 	}
