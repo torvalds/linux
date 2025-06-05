@@ -854,8 +854,6 @@ static struct page *__cma_alloc(struct cma *cma, unsigned long count,
 	unsigned long i;
 	const char *name = cma ? cma->name : NULL;
 
-	trace_cma_alloc_start(name, count, align);
-
 	if (!cma || !cma->count)
 		return page;
 
@@ -864,6 +862,8 @@ static struct page *__cma_alloc(struct cma *cma, unsigned long count,
 
 	if (!count)
 		return page;
+
+	trace_cma_alloc_start(name, count, align);
 
 	for (r = 0; r < cma->nranges; r++) {
 		page = NULL;
