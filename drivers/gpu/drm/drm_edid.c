@@ -68,7 +68,7 @@ static int oui(u8 first, u8 second, u8 third)
 
 enum drm_edid_internal_quirk {
 	/* First detailed mode wrong, use largest 60Hz mode */
-	EDID_QUIRK_PREFER_LARGE_60,
+	EDID_QUIRK_PREFER_LARGE_60 = DRM_EDID_QUIRK_NUM,
 	/* Reported 135MHz pixel clock is too high, needs adjustment */
 	EDID_QUIRK_135_CLOCK_TOO_HIGH,
 	/* Prefer the largest mode at 75 Hz */
@@ -2958,6 +2958,12 @@ static bool drm_edid_has_internal_quirk(struct drm_connector *connector,
 {
 	return connector->display_info.quirks & BIT(quirk);
 }
+
+bool drm_edid_has_quirk(struct drm_connector *connector, enum drm_edid_quirk quirk)
+{
+	return connector->display_info.quirks & BIT(quirk);
+}
+EXPORT_SYMBOL(drm_edid_has_quirk);
 
 #define MODE_SIZE(m) ((m)->hdisplay * (m)->vdisplay)
 #define MODE_REFRESH_DIFF(c,t) (abs((c) - (t)))
