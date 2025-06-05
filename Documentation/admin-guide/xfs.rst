@@ -562,7 +562,7 @@ The interesting knobs for XFS workqueues are as follows:
 Zoned Filesystems
 =================
 
-For zoned file systems, the following attribute is exposed in:
+For zoned file systems, the following attributes are exposed in:
 
   /sys/fs/xfs/<dev>/zoned/
 
@@ -572,23 +572,10 @@ For zoned file systems, the following attribute is exposed in:
 	is limited by the capabilities of the backing zoned device, file system
 	size and the max_open_zones mount option.
 
-Zoned Filesystems
-=================
-
-For zoned file systems, the following attributes are exposed in:
-
- /sys/fs/xfs/<dev>/zoned/
-
- max_open_zones                 (Min:  1  Default:  Varies  Max:  UINTMAX)
-        This read-only attribute exposes the maximum number of open zones
-        available for data placement. The value is determined at mount time and
-        is limited by the capabilities of the backing zoned device, file system
-        size and the max_open_zones mount option.
-
- zonegc_low_space               (Min:  0  Default:  0  Max:  100)
-        Define a percentage for how much of the unused space that GC should keep
-        available for writing. A high value will reclaim more of the space
-        occupied by unused blocks, creating a larger buffer against write
-        bursts at the cost of increased write amplification.  Regardless
-        of this value, garbage collection will always aim to free a minimum
-        amount of blocks to keep max_open_zones open for data placement purposes.
+  zonegc_low_space		(Min:  0  Default:  0  Max:  100)
+	Define a percentage for how much of the unused space that GC should keep
+	available for writing. A high value will reclaim more of the space
+	occupied by unused blocks, creating a larger buffer against write
+	bursts at the cost of increased write amplification.  Regardless
+	of this value, garbage collection will always aim to free a minimum
+	amount of blocks to keep max_open_zones open for data placement purposes.

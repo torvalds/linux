@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 #ifndef __IWL_CONFIG_H__
 #define __IWL_CONFIG_H__
@@ -451,8 +451,11 @@ struct iwl_cfg {
 #define IWL_CFG_RF_ID_HR		0x7
 #define IWL_CFG_RF_ID_HR1		0x4
 
-#define IWL_CFG_BW_NO_LIM		(U16_MAX - 1)
-#define IWL_CFG_BW_ANY			U16_MAX
+#define IWL_CFG_NO_160			0x1
+#define IWL_CFG_160			0x0
+
+#define IWL_CFG_NO_320			0x1
+#define IWL_CFG_320			0x0
 
 #define IWL_CFG_CORES_BT		0x0
 #define IWL_CFG_CORES_BT_GNSS		0x5
@@ -464,7 +467,7 @@ struct iwl_cfg {
 #define IWL_CFG_IS_JACKET		0x1
 
 #define IWL_SUBDEVICE_RF_ID(subdevice)	((u16)((subdevice) & 0x00F0) >> 4)
-#define IWL_SUBDEVICE_BW_LIM(subdevice)	((u16)((subdevice) & 0x0200) >> 9)
+#define IWL_SUBDEVICE_NO_160(subdevice)	((u16)((subdevice) & 0x0200) >> 9)
 #define IWL_SUBDEVICE_CORES(subdevice)	((u16)((subdevice) & 0x1C00) >> 10)
 
 struct iwl_dev_info {
@@ -472,10 +475,10 @@ struct iwl_dev_info {
 	u16 subdevice;
 	u16 mac_type;
 	u16 rf_type;
-	u16 bw_limit;
 	u8 mac_step;
 	u8 rf_step;
 	u8 rf_id;
+	u8 no_160;
 	u8 cores;
 	u8 cdb;
 	u8 jacket;
@@ -489,7 +492,7 @@ extern const unsigned int iwl_dev_info_table_size;
 const struct iwl_dev_info *
 iwl_pci_find_dev_info(u16 device, u16 subsystem_device,
 		      u16 mac_type, u8 mac_step, u16 rf_type, u8 cdb,
-		      u8 jacket, u8 rf_id, u8 bw_limit, u8 cores, u8 rf_step);
+		      u8 jacket, u8 rf_id, u8 no_160, u8 cores, u8 rf_step);
 extern const struct pci_device_id iwl_hw_card_ids[];
 #endif
 
@@ -550,7 +553,6 @@ extern const char iwl_ax231_name[];
 extern const char iwl_ax411_name[];
 extern const char iwl_fm_name[];
 extern const char iwl_wh_name[];
-extern const char iwl_sp_name[];
 extern const char iwl_gl_name[];
 extern const char iwl_mtp_name[];
 extern const char iwl_dr_name[];

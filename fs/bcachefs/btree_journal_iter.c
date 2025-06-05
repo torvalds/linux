@@ -288,7 +288,7 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 			.size			= max_t(size_t, keys->size, 8) * 2,
 		};
 
-		new_keys.data = kvmalloc_array(new_keys.size, sizeof(new_keys.data[0]), GFP_KERNEL);
+		new_keys.data = bch2_kvmalloc(new_keys.size * sizeof(new_keys.data[0]), GFP_KERNEL);
 		if (!new_keys.data) {
 			bch_err(c, "%s: error allocating new key array (size %zu)",
 				__func__, new_keys.size);

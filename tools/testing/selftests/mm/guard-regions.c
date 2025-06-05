@@ -271,12 +271,16 @@ FIXTURE_SETUP(guard_regions)
 	self->page_size = (unsigned long)sysconf(_SC_PAGESIZE);
 	setup_sighandler();
 
-	if (variant->backing == ANON_BACKED)
+	switch (variant->backing) {
+	case ANON_BACKED:
 		return;
-
-	self->fd = open_file(
-		variant->backing == SHMEM_BACKED ? "/tmp/" : "",
-		self->path);
+	case LOCAL_FILE_BACKED:
+		self->fd = open_file("", self->path);
+		break;
+	case SHMEM_BACKED:
+		self->fd = memfd_create(self->path, 0);
+		break;
+	}
 
 	/* We truncate file to at least 100 pages, tests can modify as needed. */
 	ASSERT_EQ(ftruncate(self->fd, 100 * self->page_size), 0);
@@ -1696,7 +1700,7 @@ TEST_F(guard_regions, readonly_file)
 	char *ptr;
 	int i;
 
-	if (variant->backing == ANON_BACKED)
+	if (variant->backing != LOCAL_FILE_BACKED)
 		SKIP(return, "Read-only test specific to file-backed");
 
 	/* Map shared so we can populate with pattern, populate it, unmap. */

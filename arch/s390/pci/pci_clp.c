@@ -428,6 +428,8 @@ static void __clp_add(struct clp_fh_list_entry *entry, void *data)
 		return;
 	}
 	zdev = zpci_create_device(entry->fid, entry->fh, entry->config_state);
+	if (IS_ERR(zdev))
+		return;
 	list_add_tail(&zdev->entry, scan_list);
 }
 

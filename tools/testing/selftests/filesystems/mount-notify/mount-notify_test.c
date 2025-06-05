@@ -48,8 +48,16 @@ static uint64_t get_mnt_id(struct __test_metadata *const _metadata,
 
 static const char root_mntpoint_templ[] = "/tmp/mount-notify_test_root.XXXXXX";
 
+static const int mark_cmds[] = {
+	FAN_MARK_ADD,
+	FAN_MARK_REMOVE,
+	FAN_MARK_FLUSH
+};
+
+#define NUM_FAN_FDS ARRAY_SIZE(mark_cmds)
+
 FIXTURE(fanotify) {
-	int fan_fd;
+	int fan_fd[NUM_FAN_FDS];
 	char buf[256];
 	unsigned int rem;
 	void *next;
@@ -61,7 +69,7 @@ FIXTURE(fanotify) {
 
 FIXTURE_SETUP(fanotify)
 {
-	int ret;
+	int i, ret;
 
 	ASSERT_EQ(unshare(CLONE_NEWNS), 0);
 
@@ -89,20 +97,34 @@ FIXTURE_SETUP(fanotify)
 	self->root_id = get_mnt_id(_metadata, "/");
 	ASSERT_NE(self->root_id, 0);
 
-	self->fan_fd = fanotify_init(FAN_REPORT_MNT, 0);
-	ASSERT_GE(self->fan_fd, 0);
-
-	ret = fanotify_mark(self->fan_fd, FAN_MARK_ADD | FAN_MARK_MNTNS,
-			    FAN_MNT_ATTACH | FAN_MNT_DETACH, self->ns_fd, NULL);
-	ASSERT_EQ(ret, 0);
+	for (i = 0; i < NUM_FAN_FDS; i++) {
+		self->fan_fd[i] = fanotify_init(FAN_REPORT_MNT | FAN_NONBLOCK,
+						0);
+		ASSERT_GE(self->fan_fd[i], 0);
+		ret = fanotify_mark(self->fan_fd[i], FAN_MARK_ADD |
+				    FAN_MARK_MNTNS,
+				    FAN_MNT_ATTACH | FAN_MNT_DETACH,
+				    self->ns_fd, NULL);
+		ASSERT_EQ(ret, 0);
+		// On fd[0] we do an extra ADD that changes nothing.
+		// On fd[1]/fd[2] we REMOVE/FLUSH which removes the mark.
+		ret = fanotify_mark(self->fan_fd[i], mark_cmds[i] |
+				    FAN_MARK_MNTNS,
+				    FAN_MNT_ATTACH | FAN_MNT_DETACH,
+				    self->ns_fd, NULL);
+		ASSERT_EQ(ret, 0);
+	}
 
 	self->rem = 0;
 }
 
 FIXTURE_TEARDOWN(fanotify)
 {
+	int i;
+
 	ASSERT_EQ(self->rem, 0);
-	close(self->fan_fd);
+	for (i = 0; i < NUM_FAN_FDS; i++)
+		close(self->fan_fd[i]);
 
 	ASSERT_EQ(fchdir(self->orig_root), 0);
 
@@ -123,8 +145,21 @@ static uint64_t expect_notify(struct __test_metadata *const _metadata,
 	unsigned int thislen;
 
 	if (!self->rem) {
-		ssize_t len = read(self->fan_fd, self->buf, sizeof(self->buf));
-		ASSERT_GT(len, 0);
+		ssize_t len;
+		int i;
+
+		for (i = NUM_FAN_FDS - 1; i >= 0; i--) {
+			len = read(self->fan_fd[i], self->buf,
+				   sizeof(self->buf));
+			if (i > 0) {
+				// Groups 1,2 should get EAGAIN
+				ASSERT_EQ(len, -1);
+				ASSERT_EQ(errno, EAGAIN);
+			} else {
+				// Group 0 should get events
+				ASSERT_GT(len, 0);
+			}
+		}
 
 		self->rem = len;
 		self->next = (void *) self->buf;

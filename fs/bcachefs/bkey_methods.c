@@ -21,7 +21,7 @@
 #include "xattr.h"
 
 const char * const bch2_bkey_types[] = {
-#define x(name, nr) #name,
+#define x(name, nr, ...) #name,
 	BCH_BKEY_TYPES()
 #undef x
 	NULL
@@ -115,7 +115,7 @@ static bool key_type_set_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_
 })
 
 const struct bkey_ops bch2_bkey_ops[] = {
-#define x(name, nr) [KEY_TYPE_##name]	= bch2_bkey_ops_##name,
+#define x(name, nr, ...) [KEY_TYPE_##name]	= bch2_bkey_ops_##name,
 	BCH_BKEY_TYPES()
 #undef x
 };
@@ -155,6 +155,12 @@ static u64 bch2_key_types_allowed[] = {
 #undef x
 };
 
+static const enum bch_bkey_type_flags bch2_bkey_type_flags[] = {
+#define x(name, nr, flags)	[KEY_TYPE_##name] = flags,
+	BCH_BKEY_TYPES()
+#undef x
+};
+
 const char *bch2_btree_node_type_str(enum btree_node_type type)
 {
 	return type == BKEY_TYPE_btree ? "internal btree node" : bch2_btree_id_str(type - 1);
@@ -177,8 +183,18 @@ int __bch2_bkey_validate(struct bch_fs *c, struct bkey_s_c k,
 	if (type >= BKEY_TYPE_NR)
 		return 0;
 
-	bkey_fsck_err_on(k.k->type < KEY_TYPE_MAX &&
-			 (type == BKEY_TYPE_btree || (from.flags & BCH_VALIDATE_commit)) &&
+	enum bch_bkey_type_flags bkey_flags = k.k->type < KEY_TYPE_MAX
+		? bch2_bkey_type_flags[k.k->type]
+		: 0;
+
+	bool strict_key_type_allowed =
+		(from.flags & BCH_VALIDATE_commit) ||
+		type == BKEY_TYPE_btree ||
+		(from.btree < BTREE_ID_NR &&
+		 (bkey_flags & BKEY_TYPE_strict_btree_checks));
+
+	bkey_fsck_err_on(strict_key_type_allowed &&
+			 k.k->type < KEY_TYPE_MAX &&
 			 !(bch2_key_types_allowed[type] & BIT_ULL(k.k->type)),
 			 c, bkey_invalid_type_for_btree,
 			 "invalid key type for btree %s (%s)",

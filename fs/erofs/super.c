@@ -357,7 +357,6 @@ static void erofs_default_options(struct erofs_sb_info *sbi)
 enum {
 	Opt_user_xattr, Opt_acl, Opt_cache_strategy, Opt_dax, Opt_dax_enum,
 	Opt_device, Opt_fsid, Opt_domain_id, Opt_directio,
-	Opt_err
 };
 
 static const struct constant_table erofs_param_cache_strategy[] = {

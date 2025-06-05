@@ -226,6 +226,7 @@ int asoc_sdw_cs_amp_init(struct snd_soc_card *card,
 			 bool playback);
 int asoc_sdw_cs_spk_feedback_rtd_init(struct snd_soc_pcm_runtime *rtd,
 				      struct snd_soc_dai *dai);
+int asoc_sdw_cs35l56_volume_limit(struct snd_soc_card *card, const char *name_prefix);
 
 /* MAXIM codec support */
 int asoc_sdw_maxim_init(struct snd_soc_card *card,

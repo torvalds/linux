@@ -739,4 +739,42 @@ static inline void memcpy_swab(void *_dst, void *_src, size_t len)
 		*--dst = *src++;
 }
 
+#define set_flags(_map, _in, _out)					\
+do {									\
+	unsigned _i;							\
+									\
+	for (_i = 0; _i < ARRAY_SIZE(_map); _i++)			\
+		if ((_in) & (1 << _i))					\
+			(_out) |= _map[_i];				\
+		else							\
+			(_out) &= ~_map[_i];				\
+} while (0)
+
+#define map_flags(_map, _in)						\
+({									\
+	unsigned _out = 0;						\
+									\
+	set_flags(_map, _in, _out);					\
+	_out;								\
+})
+
+#define map_flags_rev(_map, _in)					\
+({									\
+	unsigned _i, _out = 0;						\
+									\
+	for (_i = 0; _i < ARRAY_SIZE(_map); _i++)			\
+		if ((_in) & _map[_i]) {					\
+			(_out) |= 1 << _i;				\
+			(_in) &= ~_map[_i];				\
+		}							\
+	(_out);								\
+})
+
+#define map_defined(_map)						\
+({									\
+	unsigned _in = ~0;						\
+									\
+	map_flags_rev(_map, _in);					\
+})
+
 #endif /* _BCACHEFS_UTIL_H */

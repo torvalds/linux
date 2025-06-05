@@ -75,6 +75,7 @@ void iwl_construct_mld(struct iwl_mld *mld, struct iwl_trans *trans,
 
 	/* Setup async RX handling */
 	spin_lock_init(&mld->async_handlers_lock);
+	INIT_LIST_HEAD(&mld->async_handlers_list);
 	wiphy_work_init(&mld->async_handlers_wk,
 			iwl_mld_async_handlers_wk);
 
@@ -414,8 +415,13 @@ iwl_op_mode_mld_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		wiphy_unlock(mld->wiphy);
 		rtnl_unlock();
 		iwl_fw_flush_dumps(&mld->fwrt);
-		goto free_hw;
+		goto err;
 	}
+
+	/* We are about to stop the FW. Notifications may require an
+	 * operational FW, so handle them all here before we stop.
+	 */
+	wiphy_work_flush(mld->wiphy, &mld->async_handlers_wk);
 
 	iwl_mld_stop_fw(mld);
 
@@ -455,7 +461,8 @@ leds_exit:
 	iwl_mld_leds_exit(mld);
 free_nvm:
 	kfree(mld->nvm_data);
-free_hw:
+err:
+	iwl_trans_op_mode_leave(mld->trans);
 	ieee80211_free_hw(mld->hw);
 	return ERR_PTR(ret);
 }
