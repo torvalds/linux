@@ -25,7 +25,6 @@ int host_gdt_entry_tls_min;
 static int do_set_thread_area(struct task_struct* task, struct user_desc *info)
 {
 	int ret;
-	u32 cpu;
 
 	if (info->entry_number < host_gdt_entry_tls_min ||
 	    info->entry_number >= host_gdt_entry_tls_min + GDT_ENTRY_TLS_ENTRIES)
@@ -41,9 +40,7 @@ static int do_set_thread_area(struct task_struct* task, struct user_desc *info)
 		return 0;
 	}
 
-	cpu = get_cpu();
 	ret = os_set_thread_area(info, task->mm->context.id.pid);
-	put_cpu();
 
 	if (ret)
 		printk(KERN_ERR "PTRACE_SET_THREAD_AREA failed, err = %d, "
