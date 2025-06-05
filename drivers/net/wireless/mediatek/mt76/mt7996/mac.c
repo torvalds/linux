@@ -2353,19 +2353,12 @@ void mt7996_mac_update_stats(struct mt7996_phy *phy)
 void mt7996_mac_sta_rc_work(struct work_struct *work)
 {
 	struct mt7996_dev *dev = container_of(work, struct mt7996_dev, rc_work);
-	struct ieee80211_bss_conf *link_conf;
-	struct ieee80211_link_sta *link_sta;
 	struct mt7996_sta_link *msta_link;
-	struct mt76_vif_link *mlink;
-	struct ieee80211_sta *sta;
 	struct ieee80211_vif *vif;
-	struct mt7996_sta *msta;
 	struct mt7996_vif *mvif;
 	LIST_HEAD(list);
 	u32 changed;
-	u8 link_id;
 
-	rcu_read_lock();
 	spin_lock_bh(&dev->mt76.sta_poll_lock);
 	list_splice_init(&dev->sta_rc_list, &list);
 
@@ -2376,24 +2369,9 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
 
 		changed = msta_link->changed;
 		msta_link->changed = 0;
-
-		sta = wcid_to_sta(&msta_link->wcid);
-		link_id = msta_link->wcid.link_id;
-		msta = msta_link->sta;
-		mvif = msta->vif;
-		vif = container_of((void *)mvif, struct ieee80211_vif, drv_priv);
-
-		mlink = rcu_dereference(mvif->mt76.link[link_id]);
-		if (!mlink)
-			continue;
-
-		link_sta = rcu_dereference(sta->link[link_id]);
-		if (!link_sta)
-			continue;
-
-		link_conf = rcu_dereference(vif->link_conf[link_id]);
-		if (!link_conf)
-			continue;
+		mvif = msta_link->sta->vif;
+		vif = container_of((void *)mvif, struct ieee80211_vif,
+				   drv_priv);
 
 		spin_unlock_bh(&dev->mt76.sta_poll_lock);
 
@@ -2401,17 +2379,18 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
 			       IEEE80211_RC_NSS_CHANGED |
 			       IEEE80211_RC_BW_CHANGED))
 			mt7996_mcu_add_rate_ctrl(dev, msta_link->sta, vif,
-						 link_id, true);
+						 msta_link->wcid.link_id,
+						 true);
 
 		if (changed & IEEE80211_RC_SMPS_CHANGED)
-			mt7996_mcu_set_fixed_field(dev, msta, NULL, link_id,
+			mt7996_mcu_set_fixed_field(dev, msta_link->sta, NULL,
+						   msta_link->wcid.link_id,
 						   RATE_PARAM_MMPS_UPDATE);
 
 		spin_lock_bh(&dev->mt76.sta_poll_lock);
 	}
 
 	spin_unlock_bh(&dev->mt76.sta_poll_lock);
-	rcu_read_unlock();
 }
 
 void mt7996_mac_work(struct work_struct *work)
