@@ -39,6 +39,8 @@
 
 #define AMDGPU_XCP_NO_PARTITION (~0)
 
+#define AMDGPU_XCP_OPS_KFD	(1 << 0)
+
 struct amdgpu_fpriv;
 
 enum AMDGPU_XCP_IP_BLOCK {
@@ -179,6 +181,8 @@ int amdgpu_xcp_select_scheds(struct amdgpu_device *adev,
 			     struct drm_gpu_scheduler ***scheds);
 void amdgpu_xcp_update_supported_modes(struct amdgpu_xcp_mgr *xcp_mgr);
 int amdgpu_xcp_update_partition_sched_list(struct amdgpu_device *adev);
+int amdgpu_xcp_pre_partition_switch(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags);
+int amdgpu_xcp_post_partition_switch(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags);
 void amdgpu_xcp_sysfs_init(struct amdgpu_device *adev);
 void amdgpu_xcp_sysfs_fini(struct amdgpu_device *adev);
 

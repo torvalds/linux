@@ -634,6 +634,33 @@ void amdgpu_xcp_update_supported_modes(struct amdgpu_xcp_mgr *xcp_mgr)
 	}
 }
 
+int amdgpu_xcp_pre_partition_switch(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags)
+{
+	/* TODO:
+	 * Stop user queues and threads, and make sure GPU is empty of work.
+	 */
+
+	if (flags & AMDGPU_XCP_OPS_KFD)
+		amdgpu_amdkfd_device_fini_sw(xcp_mgr->adev);
+
+	return 0;
+}
+
+int amdgpu_xcp_post_partition_switch(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags)
+{
+	int ret = 0;
+
+	if (flags & AMDGPU_XCP_OPS_KFD) {
+		amdgpu_amdkfd_device_probe(xcp_mgr->adev);
+		amdgpu_amdkfd_device_init(xcp_mgr->adev);
+		/* If KFD init failed, return failure */
+		if (!xcp_mgr->adev->kfd.init_complete)
+			ret = -EIO;
+	}
+
+	return ret;
+}
+
 /*====================== xcp sysfs - configuration ======================*/
 #define XCP_CFG_SYSFS_RES_ATTR_SHOW(_name)                         \
 	static ssize_t amdgpu_xcp_res_sysfs_##_name##_show(        \

@@ -34,8 +34,6 @@
 #define XCP_INST_MASK(num_inst, xcp_id)                                        \
 	(num_inst ? GENMASK(num_inst - 1, 0) << (xcp_id * num_inst) : 0)
 
-#define AMDGPU_XCP_OPS_KFD	(1 << 0)
-
 void aqua_vanjaram_doorbell_index_init(struct amdgpu_device *adev)
 {
 	int i;
@@ -369,33 +367,6 @@ static bool __aqua_vanjaram_is_valid_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 	return false;
 }
 
-static int __aqua_vanjaram_pre_partition_switch(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags)
-{
-	/* TODO:
-	 * Stop user queues and threads, and make sure GPU is empty of work.
-	 */
-
-	if (flags & AMDGPU_XCP_OPS_KFD)
-		amdgpu_amdkfd_device_fini_sw(xcp_mgr->adev);
-
-	return 0;
-}
-
-static int __aqua_vanjaram_post_partition_switch(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags)
-{
-	int ret = 0;
-
-	if (flags & AMDGPU_XCP_OPS_KFD) {
-		amdgpu_amdkfd_device_probe(xcp_mgr->adev);
-		amdgpu_amdkfd_device_init(xcp_mgr->adev);
-		/* If KFD init failed, return failure */
-		if (!xcp_mgr->adev->kfd.init_complete)
-			ret = -EIO;
-	}
-
-	return ret;
-}
-
 static void __aqua_vanjaram_update_available_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr)
 {
 	int mode;
@@ -442,7 +413,7 @@ static int aqua_vanjaram_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 			goto out;
 	}
 
-	ret = __aqua_vanjaram_pre_partition_switch(xcp_mgr, flags);
+	ret = amdgpu_xcp_pre_partition_switch(xcp_mgr, flags);
 	if (ret)
 		goto unlock;
 
@@ -455,7 +426,7 @@ static int aqua_vanjaram_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 	*num_xcps = num_xcc / num_xcc_per_xcp;
 	amdgpu_xcp_init(xcp_mgr, *num_xcps, mode);
 
-	ret = __aqua_vanjaram_post_partition_switch(xcp_mgr, flags);
+	ret = amdgpu_xcp_post_partition_switch(xcp_mgr, flags);
 	if (!ret)
 		__aqua_vanjaram_update_available_partition_mode(xcp_mgr);
 unlock:
