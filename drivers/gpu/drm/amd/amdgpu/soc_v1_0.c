@@ -25,6 +25,10 @@
 #include "soc15_common.h"
 #include "soc_v1_0.h"
 #include "amdgpu_ip.h"
+#include "amdgpu_imu.h"
+#include "gfxhub_v12_1.h"
+#include "sdma_v7_1.h"
+#include "gfx_v12_1.h"
 
 #include "gc/gc_12_1_0_offset.h"
 #include "gc/gc_12_1_0_sh_mask.h"
@@ -334,6 +338,413 @@ const struct amdgpu_ip_block_version soc_v1_0_common_ip_block = {
 	.minor = 0,
 	.rev = 0,
 	.funcs = &soc_v1_0_common_ip_funcs,
+};
+
+static enum amdgpu_gfx_partition __soc_v1_0_calc_xcp_mode(struct amdgpu_xcp_mgr *xcp_mgr)
+{
+	struct amdgpu_device *adev = xcp_mgr->adev;
+	int num_xcc, num_xcc_per_xcp = 0, mode = 0;
+
+	num_xcc = NUM_XCC(xcp_mgr->adev->gfx.xcc_mask);
+	if (adev->gfx.funcs &&
+	    adev->gfx.funcs->get_xccs_per_xcp)
+		num_xcc_per_xcp = adev->gfx.funcs->get_xccs_per_xcp(adev);
+	if ((num_xcc_per_xcp) && (num_xcc % num_xcc_per_xcp == 0))
+		mode = num_xcc / num_xcc_per_xcp;
+
+	if (num_xcc_per_xcp == 1)
+		return AMDGPU_CPX_PARTITION_MODE;
+
+	switch (mode) {
+	case 1:
+		return AMDGPU_SPX_PARTITION_MODE;
+	case 2:
+		return AMDGPU_DPX_PARTITION_MODE;
+	case 3:
+		return AMDGPU_TPX_PARTITION_MODE;
+	case 4:
+		return AMDGPU_QPX_PARTITION_MODE;
+	default:
+		return AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE;
+	}
+
+	return AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE;
+}
+
+static int soc_v1_0_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr)
+{
+	enum amdgpu_gfx_partition derv_mode, mode;
+	struct amdgpu_device *adev = xcp_mgr->adev;
+
+	mode = AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE;
+	derv_mode = __soc_v1_0_calc_xcp_mode(xcp_mgr);
+
+	if (amdgpu_sriov_vf(adev))
+		return derv_mode;
+
+	if (adev->nbio.funcs &&
+	    adev->nbio.funcs->get_compute_partition_mode) {
+		mode = adev->nbio.funcs->get_compute_partition_mode(adev);
+		if (mode != derv_mode)
+			dev_warn(adev->dev,
+				 "Mismatch in compute partition mode - reported : %d derived : %d",
+				 mode, derv_mode);
+	}
+
+	return mode;
+}
+
+static int __soc_v1_0_get_xcc_per_xcp(struct amdgpu_xcp_mgr *xcp_mgr, int mode)
+{
+	int num_xcc, num_xcc_per_xcp = 0;
+
+	num_xcc = NUM_XCC(xcp_mgr->adev->gfx.xcc_mask);
+
+	switch (mode) {
+	case AMDGPU_SPX_PARTITION_MODE:
+		num_xcc_per_xcp = num_xcc;
+		break;
+	case AMDGPU_DPX_PARTITION_MODE:
+		num_xcc_per_xcp = num_xcc / 2;
+		break;
+	case AMDGPU_TPX_PARTITION_MODE:
+		num_xcc_per_xcp = num_xcc / 3;
+		break;
+	case AMDGPU_QPX_PARTITION_MODE:
+		num_xcc_per_xcp = num_xcc / 4;
+		break;
+	case AMDGPU_CPX_PARTITION_MODE:
+		num_xcc_per_xcp = 1;
+		break;
+	}
+
+	return num_xcc_per_xcp;
+}
+
+static int __soc_v1_0_get_xcp_ip_info(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
+				      enum AMDGPU_XCP_IP_BLOCK ip_id,
+				      struct amdgpu_xcp_ip *ip)
+{
+	struct amdgpu_device *adev = xcp_mgr->adev;
+	int num_sdma, num_vcn, num_shared_vcn, num_xcp;
+	int num_xcc_xcp, num_sdma_xcp, num_vcn_xcp;
+
+	num_sdma = adev->sdma.num_instances;
+	num_vcn = adev->vcn.num_vcn_inst;
+	num_shared_vcn = 1;
+
+	num_xcc_xcp = adev->gfx.num_xcc_per_xcp;
+	num_xcp = NUM_XCC(adev->gfx.xcc_mask) / num_xcc_xcp;
+
+	switch (xcp_mgr->mode) {
+	case AMDGPU_SPX_PARTITION_MODE:
+	case AMDGPU_DPX_PARTITION_MODE:
+	case AMDGPU_TPX_PARTITION_MODE:
+	case AMDGPU_QPX_PARTITION_MODE:
+	case AMDGPU_CPX_PARTITION_MODE:
+		num_sdma_xcp = DIV_ROUND_UP(num_sdma, num_xcp);
+		num_vcn_xcp = DIV_ROUND_UP(num_vcn, num_xcp);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (num_vcn && num_xcp > num_vcn)
+		num_shared_vcn = num_xcp / num_vcn;
+
+	switch (ip_id) {
+	case AMDGPU_XCP_GFXHUB:
+		ip->inst_mask = XCP_INST_MASK(num_xcc_xcp, xcp_id);
+		ip->ip_funcs = &gfxhub_v12_1_xcp_funcs;
+		break;
+	case AMDGPU_XCP_GFX:
+		ip->inst_mask = XCP_INST_MASK(num_xcc_xcp, xcp_id);
+		ip->ip_funcs = &gfx_v12_1_xcp_funcs;
+		break;
+	case AMDGPU_XCP_SDMA:
+		ip->inst_mask = XCP_INST_MASK(num_sdma_xcp, xcp_id);
+		ip->ip_funcs = &sdma_v7_1_xcp_funcs;
+		break;
+	case AMDGPU_XCP_VCN:
+		ip->inst_mask =
+			XCP_INST_MASK(num_vcn_xcp, xcp_id / num_shared_vcn);
+		/* TODO : Assign IP funcs */
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ip->ip_id = ip_id;
+
+	return 0;
+}
+
+static int soc_v1_0_get_xcp_res_info(struct amdgpu_xcp_mgr *xcp_mgr,
+				     int mode,
+				     struct amdgpu_xcp_cfg *xcp_cfg)
+{
+	struct amdgpu_device *adev = xcp_mgr->adev;
+	int max_res[AMDGPU_XCP_RES_MAX] = {};
+	bool res_lt_xcp;
+	int num_xcp, i;
+	u16 nps_modes;
+
+	if (!(xcp_mgr->supp_xcp_modes & BIT(mode)))
+		return -EINVAL;
+
+	max_res[AMDGPU_XCP_RES_XCC] = NUM_XCC(adev->gfx.xcc_mask);
+	max_res[AMDGPU_XCP_RES_DMA] = adev->sdma.num_instances;
+	max_res[AMDGPU_XCP_RES_DEC] = adev->vcn.num_vcn_inst;
+	max_res[AMDGPU_XCP_RES_JPEG] = adev->jpeg.num_jpeg_inst;
+
+	switch (mode) {
+	case AMDGPU_SPX_PARTITION_MODE:
+		num_xcp = 1;
+		nps_modes = BIT(AMDGPU_NPS1_PARTITION_MODE);
+		break;
+	case AMDGPU_DPX_PARTITION_MODE:
+		num_xcp = 2;
+		nps_modes = BIT(AMDGPU_NPS1_PARTITION_MODE);
+		break;
+	case AMDGPU_TPX_PARTITION_MODE:
+		num_xcp = 3;
+		nps_modes = BIT(AMDGPU_NPS1_PARTITION_MODE) |
+			    BIT(AMDGPU_NPS4_PARTITION_MODE);
+		break;
+	case AMDGPU_QPX_PARTITION_MODE:
+		num_xcp = 4;
+		nps_modes = BIT(AMDGPU_NPS1_PARTITION_MODE) |
+			    BIT(AMDGPU_NPS4_PARTITION_MODE);
+		break;
+	case AMDGPU_CPX_PARTITION_MODE:
+		num_xcp = NUM_XCC(adev->gfx.xcc_mask);
+		nps_modes = BIT(AMDGPU_NPS1_PARTITION_MODE) |
+			    BIT(AMDGPU_NPS4_PARTITION_MODE);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	xcp_cfg->compatible_nps_modes =
+		(adev->gmc.supported_nps_modes & nps_modes);
+	xcp_cfg->num_res = ARRAY_SIZE(max_res);
+
+	for (i = 0; i < xcp_cfg->num_res; i++) {
+		res_lt_xcp = max_res[i] < num_xcp;
+		xcp_cfg->xcp_res[i].id = i;
+		xcp_cfg->xcp_res[i].num_inst =
+			res_lt_xcp ? 1 : max_res[i] / num_xcp;
+		xcp_cfg->xcp_res[i].num_inst =
+			i == AMDGPU_XCP_RES_JPEG ?
+			xcp_cfg->xcp_res[i].num_inst *
+			adev->jpeg.num_jpeg_rings : xcp_cfg->xcp_res[i].num_inst;
+		xcp_cfg->xcp_res[i].num_shared =
+			res_lt_xcp ? num_xcp / max_res[i] : 1;
+	}
+
+	return 0;
+}
+
+static enum amdgpu_gfx_partition __soc_v1_0_get_auto_mode(struct amdgpu_xcp_mgr *xcp_mgr)
+{
+	struct amdgpu_device *adev = xcp_mgr->adev;
+	int num_xcc;
+
+	num_xcc = NUM_XCC(xcp_mgr->adev->gfx.xcc_mask);
+
+	if (adev->gmc.num_mem_partitions == 1)
+		return AMDGPU_SPX_PARTITION_MODE;
+
+	if (adev->gmc.num_mem_partitions == num_xcc)
+		return AMDGPU_CPX_PARTITION_MODE;
+
+	if (adev->gmc.num_mem_partitions == 2)
+		return AMDGPU_DPX_PARTITION_MODE;
+
+	return AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE;
+}
+
+static bool __soc_v1_0_is_valid_mode(struct amdgpu_xcp_mgr *xcp_mgr,
+				     enum amdgpu_gfx_partition mode)
+{
+	struct amdgpu_device *adev = xcp_mgr->adev;
+	int num_xcc, num_xccs_per_xcp;
+
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	switch (mode) {
+	case AMDGPU_SPX_PARTITION_MODE:
+		return adev->gmc.num_mem_partitions == 1 && num_xcc > 0;
+	case AMDGPU_DPX_PARTITION_MODE:
+		return adev->gmc.num_mem_partitions <= 2 && (num_xcc % 4) == 0;
+	case AMDGPU_TPX_PARTITION_MODE:
+		return (adev->gmc.num_mem_partitions == 1 ||
+			adev->gmc.num_mem_partitions == 3) &&
+		       ((num_xcc % 3) == 0);
+	case AMDGPU_QPX_PARTITION_MODE:
+		num_xccs_per_xcp = num_xcc / 4;
+		return (adev->gmc.num_mem_partitions == 1 ||
+			adev->gmc.num_mem_partitions == 4) &&
+		       (num_xccs_per_xcp >= 2);
+	case AMDGPU_CPX_PARTITION_MODE:
+		/* (num_xcc > 1) because 1 XCC is considered SPX, not CPX.
+		 * (num_xcc % adev->gmc.num_mem_partitions) == 0 because
+		 * num_compute_partitions can't be less than num_mem_partitions
+		 */
+		return ((num_xcc > 1) &&
+		       (num_xcc % adev->gmc.num_mem_partitions) == 0);
+	default:
+		return false;
+	}
+
+	return false;
+}
+
+static void __soc_v1_0_update_available_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr)
+{
+	int mode;
+
+	xcp_mgr->avail_xcp_modes = 0;
+
+	for_each_inst(mode, xcp_mgr->supp_xcp_modes) {
+		if (__soc_v1_0_is_valid_mode(xcp_mgr, mode))
+			xcp_mgr->avail_xcp_modes |= BIT(mode);
+	}
+}
+
+static int soc_v1_0_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr,
+					  int mode, int *num_xcps)
+{
+	int num_xcc_per_xcp, num_xcc, ret;
+	struct amdgpu_device *adev;
+	u32 flags = 0;
+
+	adev = xcp_mgr->adev;
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+
+	if (mode == AMDGPU_AUTO_COMPUTE_PARTITION_MODE) {
+		mode = __soc_v1_0_get_auto_mode(xcp_mgr);
+		if (mode == AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE) {
+			dev_err(adev->dev,
+				"Invalid config, no compatible compute partition mode found, available memory partitions: %d",
+				adev->gmc.num_mem_partitions);
+			return -EINVAL;
+		}
+	} else if (!__soc_v1_0_is_valid_mode(xcp_mgr, mode)) {
+		dev_err(adev->dev,
+			"Invalid compute partition mode requested, requested: %s, available memory partitions: %d",
+			amdgpu_gfx_compute_mode_desc(mode), adev->gmc.num_mem_partitions);
+		return -EINVAL;
+	}
+
+	if (adev->kfd.init_complete && !amdgpu_in_reset(adev))
+		flags |= AMDGPU_XCP_OPS_KFD;
+
+	if (flags & AMDGPU_XCP_OPS_KFD) {
+		ret = amdgpu_amdkfd_check_and_lock_kfd(adev);
+		if (ret)
+			goto out;
+	}
+
+	ret = amdgpu_xcp_pre_partition_switch(xcp_mgr, flags);
+	if (ret)
+		goto unlock;
+
+	num_xcc_per_xcp = __soc_v1_0_get_xcc_per_xcp(xcp_mgr, mode);
+	if (adev->gfx.imu.funcs &&
+	    adev->gfx.imu.funcs->switch_compute_partition)
+		adev->gfx.imu.funcs->switch_compute_partition(xcp_mgr->adev, num_xcc_per_xcp);
+
+	/* Init info about new xcps */
+	*num_xcps = num_xcc / num_xcc_per_xcp;
+	amdgpu_xcp_init(xcp_mgr, *num_xcps, mode);
+
+	ret = amdgpu_xcp_post_partition_switch(xcp_mgr, flags);
+	if (!ret)
+		__soc_v1_0_update_available_partition_mode(xcp_mgr);
+unlock:
+	if (flags & AMDGPU_XCP_OPS_KFD)
+		amdgpu_amdkfd_unlock_kfd(adev);
+out:
+	return ret;
+}
+
+#ifdef HAVE_ACPI_DEV_GET_FIRST_MATCH_DEV
+static int __soc_v1_0_get_xcp_mem_id(struct amdgpu_device *adev,
+				     int xcc_id, uint8_t *mem_id)
+{
+	/* memory/spatial modes validation check is already done */
+	*mem_id = xcc_id / adev->gfx.num_xcc_per_xcp;
+	*mem_id /= adev->xcp_mgr->num_xcp_per_mem_partition;
+
+	return 0;
+}
+
+static int soc_v1_0_get_xcp_mem_id(struct amdgpu_xcp_mgr *xcp_mgr,
+				   struct amdgpu_xcp *xcp, uint8_t *mem_id)
+{
+	struct amdgpu_numa_info numa_info;
+	struct amdgpu_device *adev;
+	uint32_t xcc_mask;
+	int r, i, xcc_id;
+
+	adev = xcp_mgr->adev;
+	/* TODO: BIOS is not returning the right info now
+	 * Check on this later
+	 */
+	/*
+	if (adev->gmc.gmc_funcs->query_mem_partition_mode)
+		mode = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
+	*/
+	if (adev->gmc.num_mem_partitions == 1) {
+		/* Only one range */
+		*mem_id = 0;
+		return 0;
+	}
+
+	r = amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_GFX, &xcc_mask);
+	if (r || !xcc_mask)
+		return -EINVAL;
+
+	xcc_id = ffs(xcc_mask) - 1;
+	if (!adev->gmc.is_app_apu)
+		return __soc_v1_0_get_xcp_mem_id(adev, xcc_id, mem_id);
+
+	r = amdgpu_acpi_get_mem_info(adev, xcc_id, &numa_info);
+
+	if (r)
+		return r;
+
+	r = -EINVAL;
+	for (i = 0; i < adev->gmc.num_mem_partitions; ++i) {
+		if (adev->gmc.mem_partitions[i].numa.node == numa_info.nid) {
+			*mem_id = i;
+			r = 0;
+			break;
+		}
+	}
+
+	return r;
+}
+#endif
+
+static int soc_v1_0_get_xcp_ip_details(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
+				       enum AMDGPU_XCP_IP_BLOCK ip_id,
+				       struct amdgpu_xcp_ip *ip)
+{
+	if (!ip)
+		return -EINVAL;
+
+	return __soc_v1_0_get_xcp_ip_info(xcp_mgr, xcp_id, ip_id, ip);
+}
+
+struct amdgpu_xcp_mgr_funcs soc_v1_0_xcp_funcs = {
+	.switch_partition_mode = &soc_v1_0_switch_partition_mode,
+	.query_partition_mode = &soc_v1_0_query_partition_mode,
+	.get_ip_details = &soc_v1_0_get_xcp_ip_details,
+	.get_xcp_res_info = &soc_v1_0_get_xcp_res_info,
+#ifdef HAVE_ACPI_DEV_GET_FIRST_MATCH_DEV
+	.get_xcp_mem_id = &soc_v1_0_get_xcp_mem_id,
+#endif
 };
 
 int soc_v1_0_init_soc_config(struct amdgpu_device *adev)
