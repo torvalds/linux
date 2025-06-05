@@ -1,0 +1,49 @@
+name: Kernel build
+
+on:
+  push:
+    tags:
+      - 'lkss-*'
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y gcc-aarch64-linux-gnu make bc bison flex libssl-dev libelf-dev
+
+    - name: Set configuration
+      run: |
+        ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- make imx_v8_defconfig
+
+    - name: Build kernel
+      run: |
+        ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- make
+
+    - name: Package result
+      run: |
+        mkdir output
+        cp arch/arm64/boot/Image output/
+        make INSTALL_MOD_PATH=output modules_install
+
+    - name: Upload artifact
+      if: github.event_name == 'pull_request'
+      uses: actions/upload-artifact@v4
+      with:
+        name: kernel-artifact
+        path: output/*
+
+    - name: Create release
+      if: startsWith(github.ref, 'refs/tags/lkss-')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: output/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
