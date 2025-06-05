@@ -2356,7 +2356,6 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
 	struct ieee80211_bss_conf *link_conf;
 	struct ieee80211_link_sta *link_sta;
 	struct mt7996_sta_link *msta_link;
-	struct mt7996_vif_link *link;
 	struct mt76_vif_link *mlink;
 	struct ieee80211_sta *sta;
 	struct ieee80211_vif *vif;
@@ -2398,13 +2397,10 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
 
 		spin_unlock_bh(&dev->mt76.sta_poll_lock);
 
-		link = (struct mt7996_vif_link *)mlink;
-
 		if (changed & (IEEE80211_RC_SUPP_RATES_CHANGED |
 			       IEEE80211_RC_NSS_CHANGED |
 			       IEEE80211_RC_BW_CHANGED))
-			mt7996_mcu_add_rate_ctrl(dev, vif, link_conf,
-						 link_sta, link, msta_link,
+			mt7996_mcu_add_rate_ctrl(dev, msta_link->sta, vif,
 						 link_id, true);
 
 		if (changed & IEEE80211_RC_SMPS_CHANGED)

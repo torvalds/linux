@@ -2201,23 +2201,44 @@ mt7996_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb, struct mt7996_dev *dev,
 	memset(ra->rx_rcpi, INIT_RCPI, sizeof(ra->rx_rcpi));
 }
 
-int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
-			     struct ieee80211_vif *vif,
-			     struct ieee80211_bss_conf *link_conf,
-			     struct ieee80211_link_sta *link_sta,
-			     struct mt7996_vif_link *link,
-			     struct mt7996_sta_link *msta_link,
-			     u8 link_id, bool changed)
+int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev, struct mt7996_sta *msta,
+			     struct ieee80211_vif *vif, u8 link_id,
+			     bool changed)
 {
-	struct mt7996_sta *msta = msta_link->sta;
+	struct ieee80211_bss_conf *link_conf;
+	struct ieee80211_link_sta *link_sta;
+	struct mt7996_sta_link *msta_link;
+	struct mt7996_vif_link *link;
+	struct ieee80211_sta *sta;
 	struct sk_buff *skb;
-	int ret;
+	int ret = -ENODEV;
+
+	rcu_read_lock();
+
+	link = mt7996_vif_link(dev, vif, link_id);
+	if (!link)
+		goto error_unlock;
+
+	msta_link = rcu_dereference(msta->link[link_id]);
+	if (!msta_link)
+		goto error_unlock;
+
+	sta = wcid_to_sta(&msta_link->wcid);
+	link_sta = rcu_dereference(sta->link[link_id]);
+	if (!link_sta)
+		goto error_unlock;
+
+	link_conf = rcu_dereference(vif->link_conf[link_id]);
+	if (!link_conf)
+		goto error_unlock;
 
 	skb = __mt76_connac_mcu_alloc_sta_req(&dev->mt76, &link->mt76,
 					      &msta_link->wcid,
 					      MT7996_STA_UPDATE_MAX_SIZE);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
+	if (IS_ERR(skb)) {
+		ret = PTR_ERR(skb);
+		goto error_unlock;
+	}
 
 	/* firmware rc algorithm refers to sta_rec_he for HE control.
 	 * once dev->rc_work changes the settings driver should also
@@ -2231,12 +2252,19 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
 	 */
 	mt7996_mcu_sta_rate_ctrl_tlv(skb, dev, vif, link_conf, link_sta, link);
 
+	rcu_read_unlock();
+
 	ret = mt76_mcu_skb_send_msg(&dev->mt76, skb,
 				    MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
 	if (ret)
 		return ret;
 
 	return mt7996_mcu_add_rate_ctrl_fixed(dev, msta, vif, link_id);
+
+error_unlock:
+	rcu_read_unlock();
+
+	return ret;
 }
 
 static int

@@ -620,13 +620,9 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
 int mt7996_mcu_add_obss_spr(struct mt7996_phy *phy,
 			    struct mt7996_vif_link *link,
 			    struct ieee80211_he_obss_pd *he_obss_pd);
-int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
-			     struct ieee80211_vif *vif,
-			     struct ieee80211_bss_conf *link_conf,
-			     struct ieee80211_link_sta *link_sta,
-			     struct mt7996_vif_link *link,
-			     struct mt7996_sta_link *msta_link,
-			     u8 link_id, bool changed);
+int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev, struct mt7996_sta *msta,
+			     struct ieee80211_vif *vif, u8 link_id,
+			     bool changed);
 int mt7996_set_channel(struct mt76_phy *mphy);
 int mt7996_mcu_set_chan_info(struct mt7996_phy *phy, u16 tag);
 int mt7996_mcu_set_tx(struct mt7996_dev *dev, struct ieee80211_vif *vif,
