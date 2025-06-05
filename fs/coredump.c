@@ -646,6 +646,77 @@ static int umh_coredump_setup(struct subprocess_info *info, struct cred *new)
 }
 
 #ifdef CONFIG_UNIX
+static bool coredump_sock_connect(struct core_name *cn, struct coredump_params *cprm)
+{
+	struct file *file __free(fput) = NULL;
+	struct sockaddr_un addr = {
+		.sun_family = AF_UNIX,
+	};
+	ssize_t addr_len;
+	int retval;
+	struct socket *socket;
+
+	addr_len = strscpy(addr.sun_path, cn->corename);
+	if (addr_len < 0)
+		return false;
+	addr_len += offsetof(struct sockaddr_un, sun_path) + 1;
+
+	/*
+	 * It is possible that the userspace process which is supposed
+	 * to handle the coredump and is listening on the AF_UNIX socket
+	 * coredumps. Userspace should just mark itself non dumpable.
+	 */
+
+	retval = sock_create_kern(&init_net, AF_UNIX, SOCK_STREAM, 0, &socket);
+	if (retval < 0)
+		return false;
+
+	file = sock_alloc_file(socket, 0, NULL);
+	if (IS_ERR(file))
+		return false;
+
+	/*
+	 * Set the thread-group leader pid which is used for the peer
+	 * credentials during connect() below. Then immediately register
+	 * it in pidfs...
+	 */
+	cprm->pid = task_tgid(current);
+	retval = pidfs_register_pid(cprm->pid);
+	if (retval)
+		return false;
+
+	/*
+	 * ... and set the coredump information so userspace has it
+	 * available after connect()...
+	 */
+	pidfs_coredump(cprm);
+
+	retval = kernel_connect(socket, (struct sockaddr *)(&addr), addr_len,
+				O_NONBLOCK | SOCK_COREDUMP);
+	/*
+	 * ... Make sure to only put our reference after connect() took
+	 * its own reference keeping the pidfs entry alive ...
+	 */
+	pidfs_put_pid(cprm->pid);
+
+	if (retval) {
+		if (retval == -EAGAIN)
+			coredump_report_failure("Coredump socket %s receive queue full", addr.sun_path);
+		else
+			coredump_report_failure("Coredump socket connection %s failed %d", addr.sun_path, retval);
+		return false;
+	}
+
+	/* ... and validate that @sk_peer_pid matches @cprm.pid. */
+	if (WARN_ON_ONCE(unix_peer(socket->sk)->sk_peer_pid != cprm->pid))
+		return false;
+
+	cprm->limit = RLIM_INFINITY;
+	cprm->file = no_free_ptr(file);
+
+	return true;
+}
+
 static inline bool coredump_sock_recv(struct file *file, struct coredump_ack *ack, size_t size, int flags)
 {
 	struct msghdr msg = {};
@@ -707,7 +778,7 @@ static inline void coredump_sock_shutdown(struct file *file)
 	kernel_sock_shutdown(socket, SHUT_WR);
 }
 
-static bool coredump_request(struct core_name *cn, struct coredump_params *cprm)
+static bool coredump_sock_request(struct core_name *cn, struct coredump_params *cprm)
 {
 	struct coredump_req req = {
 		.size		= sizeof(struct coredump_req),
@@ -770,6 +841,14 @@ static bool coredump_request(struct core_name *cn, struct coredump_params *cprm)
 	return coredump_sock_mark(cprm->file, COREDUMP_MARK_REQACK);
 }
 #else
+static bool coredump_sock_connect(struct core_name *cn,
+				  struct coredump_params *cprm)
+{
+	coredump_report_failure("Core dump socket support %s disabled", cn->corename);
+	return false;
+}
+static bool coredump_sock_request(struct core_name *cn,
+				  struct coredump_params *cprm) { return false; }
 static inline void coredump_sock_wait(struct file *file) { }
 static inline void coredump_sock_shutdown(struct file *file) { }
 #endif
@@ -994,83 +1073,13 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 	}
 	case COREDUMP_SOCK_REQ:
 		fallthrough;
-	case COREDUMP_SOCK: {
-#ifdef CONFIG_UNIX
-		struct file *file __free(fput) = NULL;
-		struct sockaddr_un addr = {
-			.sun_family = AF_UNIX,
-		};
-		ssize_t addr_len;
-		struct socket *socket;
-
-		addr_len = strscpy(addr.sun_path, cn.corename);
-		if (addr_len < 0)
-			goto close_fail;
-		addr_len += offsetof(struct sockaddr_un, sun_path) + 1;
-
-		/*
-		 * It is possible that the userspace process which is
-		 * supposed to handle the coredump and is listening on
-		 * the AF_UNIX socket coredumps. Userspace should just
-		 * mark itself non dumpable.
-		 */
-
-		retval = sock_create_kern(&init_net, AF_UNIX, SOCK_STREAM, 0, &socket);
-		if (retval < 0)
+	case COREDUMP_SOCK:
+		if (!coredump_sock_connect(&cn, &cprm))
 			goto close_fail;
 
-		file = sock_alloc_file(socket, 0, NULL);
-		if (IS_ERR(file))
+		if (!coredump_sock_request(&cn, &cprm))
 			goto close_fail;
-
-		/*
-		 * Set the thread-group leader pid which is used for the
-		 * peer credentials during connect() below. Then
-		 * immediately register it in pidfs...
-		 */
-		cprm.pid = task_tgid(current);
-		retval = pidfs_register_pid(cprm.pid);
-		if (retval)
-			goto close_fail;
-
-		/*
-		 * ... and set the coredump information so userspace
-		 * has it available after connect()...
-		 */
-		pidfs_coredump(&cprm);
-
-		retval = kernel_connect(socket, (struct sockaddr *)(&addr),
-					addr_len, O_NONBLOCK | SOCK_COREDUMP);
-
-		/*
-		 * ... Make sure to only put our reference after connect() took
-		 * its own reference keeping the pidfs entry alive ...
-		 */
-		pidfs_put_pid(cprm.pid);
-
-		if (retval) {
-			if (retval == -EAGAIN)
-				coredump_report_failure("Coredump socket %s receive queue full", addr.sun_path);
-			else
-				coredump_report_failure("Coredump socket connection %s failed %d", addr.sun_path, retval);
-			goto close_fail;
-		}
-
-		/* ... and validate that @sk_peer_pid matches @cprm.pid. */
-		if (WARN_ON_ONCE(unix_peer(socket->sk)->sk_peer_pid != cprm.pid))
-			goto close_fail;
-
-		cprm.limit = RLIM_INFINITY;
-		cprm.file = no_free_ptr(file);
-
-		if (!coredump_request(&cn, &cprm))
-			goto close_fail;
-#else
-		coredump_report_failure("Core dump socket support %s disabled", cn.corename);
-		goto close_fail;
-#endif
 		break;
-	}
 	default:
 		WARN_ON_ONCE(true);
 		goto close_fail;
