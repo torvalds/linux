@@ -367,24 +367,6 @@ unsigned long vb2_fop_get_unmapped_area(struct file *file, unsigned long addr,
  */
 void vb2_video_unregister_device(struct video_device *vdev);
 
-/**
- * vb2_ops_wait_prepare - helper function to lock a struct &vb2_queue
- *
- * @vq: pointer to &struct vb2_queue
- *
- * ..note:: only use if vq->lock is non-NULL.
- */
-void vb2_ops_wait_prepare(struct vb2_queue *vq);
-
-/**
- * vb2_ops_wait_finish - helper function to unlock a struct &vb2_queue
- *
- * @vq: pointer to &struct vb2_queue
- *
- * ..note:: only use if vq->lock is non-NULL.
- */
-void vb2_ops_wait_finish(struct vb2_queue *vq);
-
 struct media_request;
 int vb2_request_validate(struct media_request *req);
 void vb2_request_queue(struct media_request *req);

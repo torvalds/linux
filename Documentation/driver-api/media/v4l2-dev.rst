@@ -157,10 +157,10 @@ changing the e.g. exposure of the webcam.
 Of course, you can always do all the locking yourself by leaving both lock
 pointers at ``NULL``.
 
-In the case of :ref:`videobuf2 <vb2_framework>` you will need to implement the
-``wait_prepare()`` and ``wait_finish()`` callbacks to unlock/lock if applicable.
-If you use the ``queue->lock`` pointer, then you can use the helper functions
-:c:func:`vb2_ops_wait_prepare` and :c:func:`vb2_ops_wait_finish`.
+In the case of :ref:`videobuf2 <vb2_framework>` you must set the ``queue->lock``
+pointer to the lock you use to serialize the queuing ioctls. This ensures that
+that lock is released while waiting in ``VIDIOC_DQBUF`` for a buffer to arrive,
+and it is retaken afterwards.
 
 The implementation of a hotplug disconnect should also take the lock from
 :c:type:`video_device` before calling v4l2_device_disconnect. If you are also
