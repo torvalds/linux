@@ -24,6 +24,8 @@
 #include <acpi/processor.h>
 #include <linux/context_tracking.h>
 
+#include "internal.h"
+
 /*
  * Include the apic definitions for x86 to have the APIC timer related defines
  * available also for UP (on SMP it gets magically included via linux/smp.h).
@@ -55,6 +57,12 @@ struct cpuidle_driver acpi_idle_driver = {
 };
 
 #ifdef CONFIG_ACPI_PROCESSOR_CSTATE
+void acpi_idle_rescan_dead_smt_siblings(void)
+{
+	if (cpuidle_get_driver() == &acpi_idle_driver)
+		arch_cpu_rescan_dead_smt_siblings();
+}
+
 static
 DEFINE_PER_CPU(struct acpi_processor_cx * [CPUIDLE_STATE_MAX], acpi_cstate);
 
