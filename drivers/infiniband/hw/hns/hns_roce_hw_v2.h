@@ -814,23 +814,15 @@ struct hns_roce_v2_mpt_entry {
 
 #define V2_MPT_BYTE_8_LW_EN_S 7
 
-#define V2_MPT_BYTE_8_MW_CNT_S 8
-#define V2_MPT_BYTE_8_MW_CNT_M GENMASK(31, 8)
-
 #define V2_MPT_BYTE_12_FRE_S 0
 
 #define V2_MPT_BYTE_12_PA_S 1
-
-#define V2_MPT_BYTE_12_MR_MW_S 4
 
 #define V2_MPT_BYTE_12_BPD_S 5
 
 #define V2_MPT_BYTE_12_BQP_S 6
 
 #define V2_MPT_BYTE_12_INNER_PA_VLD_S 7
-
-#define V2_MPT_BYTE_12_MW_BIND_QPN_S 8
-#define V2_MPT_BYTE_12_MW_BIND_QPN_M GENMASK(31, 8)
 
 #define V2_MPT_BYTE_48_PBL_BA_H_S 0
 #define V2_MPT_BYTE_48_PBL_BA_H_M GENMASK(28, 0)
