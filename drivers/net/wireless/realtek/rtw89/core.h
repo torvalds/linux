@@ -3533,6 +3533,7 @@ struct rtw89_vif_link {
 	bool pwr_diff_en;
 	u8 def_tri_idx;
 	struct wiphy_work update_beacon_work;
+	struct wiphy_delayed_work csa_beacon_work;
 	struct rtw89_addr_cam_entry addr_cam;
 	struct rtw89_bssid_cam_entry bssid_cam;
 	struct ieee80211_tx_queue_params tx_params[IEEE80211_NUM_ACS];
@@ -7317,6 +7318,7 @@ void rtw89_complete_cond(struct rtw89_wait_info *wait, unsigned int cond,
 int rtw89_core_start(struct rtw89_dev *rtwdev);
 void rtw89_core_stop(struct rtw89_dev *rtwdev);
 void rtw89_core_update_beacon_work(struct wiphy *wiphy, struct wiphy_work *work);
+void rtw89_core_csa_beacon_work(struct wiphy *wiphy, struct wiphy_work *work);
 void rtw89_roc_work(struct wiphy *wiphy, struct wiphy_work *work);
 void rtw89_roc_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 void rtw89_roc_end(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);

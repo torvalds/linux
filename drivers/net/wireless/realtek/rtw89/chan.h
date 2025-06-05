@@ -143,5 +143,10 @@ int rtw89_chanctx_ops_assign_vif(struct rtw89_dev *rtwdev,
 void rtw89_chanctx_ops_unassign_vif(struct rtw89_dev *rtwdev,
 				    struct rtw89_vif_link *rtwvif_link,
 				    struct ieee80211_chanctx_conf *ctx);
+int rtw89_chanctx_ops_reassign_vif(struct rtw89_dev *rtwdev,
+				   struct rtw89_vif_link *rtwvif_link,
+				   struct ieee80211_chanctx_conf *old_ctx,
+				   struct ieee80211_chanctx_conf *new_ctx,
+				   bool replace);
 
 #endif

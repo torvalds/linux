@@ -2912,3 +2912,35 @@ out:
 		break;
 	}
 }
+
+int rtw89_chanctx_ops_reassign_vif(struct rtw89_dev *rtwdev,
+				   struct rtw89_vif_link *rtwvif_link,
+				   struct ieee80211_chanctx_conf *old_ctx,
+				   struct ieee80211_chanctx_conf *new_ctx,
+				   bool replace)
+{
+	int ret;
+
+	rtw89_chanctx_ops_unassign_vif(rtwdev, rtwvif_link, old_ctx);
+
+	if (!replace)
+		goto assign;
+
+	rtw89_chanctx_ops_remove(rtwdev, old_ctx);
+	ret = rtw89_chanctx_ops_add(rtwdev, new_ctx);
+	if (ret) {
+		rtw89_err(rtwdev, "%s: failed to add chanctx: %d\n",
+			  __func__, ret);
+		return ret;
+	}
+
+assign:
+	ret = rtw89_chanctx_ops_assign_vif(rtwdev, rtwvif_link, new_ctx);
+	if (ret) {
+		rtw89_err(rtwdev, "%s: failed to assign chanctx: %d\n",
+			  __func__, ret);
+		return ret;
+	}
+
+	return 0;
+}

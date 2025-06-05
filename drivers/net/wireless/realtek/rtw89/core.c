@@ -204,6 +204,7 @@ static const struct ieee80211_iface_combination rtw89_iface_combs[] = {
 };
 
 static const u8 rtw89_ext_capa_sta[] = {
+	[0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
 	[2] = WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT,
 	[7] = WLAN_EXT_CAPA8_OPMODE_NOTIF,
 };
@@ -4655,6 +4656,43 @@ void rtw89_core_update_beacon_work(struct wiphy *wiphy, struct wiphy_work *work)
 	rtw89_chip_h2c_update_beacon(rtwdev, rtwvif_link);
 }
 
+void rtw89_core_csa_beacon_work(struct wiphy *wiphy, struct wiphy_work *work)
+{
+	struct rtw89_vif_link *rtwvif_link =
+		container_of(work, struct rtw89_vif_link, csa_beacon_work.work);
+	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+	struct rtw89_dev *rtwdev = rtwvif->rtwdev;
+	struct ieee80211_bss_conf *bss_conf;
+	unsigned int delay;
+
+	lockdep_assert_wiphy(wiphy);
+
+	if (rtwvif_link->net_type != RTW89_NET_TYPE_AP_MODE)
+		return;
+
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+	if (!bss_conf->csa_active) {
+		rcu_read_unlock();
+		return;
+	}
+
+	delay = ieee80211_tu_to_usec(bss_conf->beacon_int);
+
+	rcu_read_unlock();
+
+	if (!ieee80211_beacon_cntdwn_is_complete(vif, rtwvif_link->link_id)) {
+		rtw89_chip_h2c_update_beacon(rtwdev, rtwvif_link);
+
+		wiphy_delayed_work_queue(wiphy, &rtwvif_link->csa_beacon_work,
+					 usecs_to_jiffies(delay));
+	} else {
+		ieee80211_csa_finish(vif, rtwvif_link->link_id);
+	}
+}
+
 int rtw89_wait_for_cond(struct rtw89_wait_info *wait, unsigned int cond)
 {
 	struct completion *cmpl = &wait->completion;
@@ -5505,6 +5543,7 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 	ieee80211_hw_set(hw, SINGLE_SCAN_ON_ALL_BANDS);
 	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
 	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
+	ieee80211_hw_set(hw, CHANCTX_STA_CSA);
 
 	if (chip->support_bandwidths & BIT(NL80211_CHAN_WIDTH_160))
 		ieee80211_hw_set(hw, SUPPORTS_VHT_EXT_NSS_BW);
@@ -5531,6 +5570,7 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
 			    WIPHY_FLAG_TDLS_EXTERNAL_SETUP |
 			    WIPHY_FLAG_AP_UAPSD |
+			    WIPHY_FLAG_HAS_CHANNEL_SWITCH |
 			    WIPHY_FLAG_SUPPORTS_EXT_KEK_KCK;
 
 	if (!chip->support_rnr)
