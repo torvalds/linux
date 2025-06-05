@@ -171,6 +171,7 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 		dvb_ringbuffer_init(&dmxdev->dvr_buffer, mem, DVR_BUFFER_SIZE);
 		if (dmxdev->may_do_mmap)
 			dvb_vb2_init(&dmxdev->dvr_vb2_ctx, "dvr",
+				     &dmxdev->mutex,
 				     file->f_flags & O_NONBLOCK);
 		dvbdev->readers--;
 	}
@@ -815,9 +816,21 @@ static int dvb_demux_open(struct inode *inode, struct file *file)
 	dmxdev->may_do_mmap = 0;
 #endif
 
+	/*
+	 * The mutex passed to dvb_vb2_init is unlocked when a buffer
+	 * is in a blocking wait. However, dmxdevfilter has two mutexes:
+	 * dmxdevfilter->mutex and dmxdev->mutex. So this will not work.
+	 * The solution would be to support unlocking two mutexes in vb2,
+	 * but since this problem has been here since the beginning and
+	 * nobody ever complained, we leave it as-is rather than adding
+	 * that second mutex pointer to vb2.
+	 *
+	 * In the unlikely event that someone complains about this, then
+	 * this comment will hopefully help.
+	 */
 	dvb_ringbuffer_init(&dmxdevfilter->buffer, NULL, 8192);
 	dvb_vb2_init(&dmxdevfilter->vb2_ctx, "demux_filter",
-		     file->f_flags & O_NONBLOCK);
+		     &dmxdevfilter->mutex, file->f_flags & O_NONBLOCK);
 	dmxdevfilter->type = DMXDEV_TYPE_NONE;
 	dvb_dmxdev_filter_state_set(dmxdevfilter, DMXDEV_STATE_ALLOCATED);
 	timer_setup(&dmxdevfilter->timer, dvb_dmxdev_filter_timeout, 0);

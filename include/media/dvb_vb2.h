@@ -72,8 +72,6 @@ struct dvb_buffer {
 /**
  * struct dvb_vb2_ctx - control struct for VB2 handler
  * @vb_q:	pointer to &struct vb2_queue with videobuf2 queue.
- * @mutex:	mutex to serialize vb2 operations. Used by
- *		vb2 core %wait_prepare and %wait_finish operations.
  * @slock:	spin lock used to protect buffer filling at dvb_vb2.c.
  * @dvb_q:	List of buffers that are not filled yet.
  * @buf:	Pointer to the buffer that are currently being filled.
@@ -96,7 +94,6 @@ struct dvb_buffer {
  */
 struct dvb_vb2_ctx {
 	struct vb2_queue	vb_q;
-	struct mutex		mutex;
 	spinlock_t		slock;
 	struct list_head	dvb_q;
 	struct dvb_buffer	*buf;
@@ -114,8 +111,8 @@ struct dvb_vb2_ctx {
 };
 
 #ifndef CONFIG_DVB_MMAP
-static inline int dvb_vb2_init(struct dvb_vb2_ctx *ctx,
-			       const char *name, int non_blocking)
+static inline int dvb_vb2_init(struct dvb_vb2_ctx *ctx, const char *name,
+			       struct mutex *mutex, int non_blocking)
 {
 	return 0;
 };
@@ -138,10 +135,12 @@ static inline __poll_t dvb_vb2_poll(struct dvb_vb2_ctx *ctx,
  *
  * @ctx:	control struct for VB2 handler
  * @name:	name for the VB2 handler
+ * @mutex:	pointer to the mutex that serializes vb2 ioctls
  * @non_blocking:
  *		if not zero, it means that the device is at non-blocking mode
  */
-int dvb_vb2_init(struct dvb_vb2_ctx *ctx, const char *name, int non_blocking);
+int dvb_vb2_init(struct dvb_vb2_ctx *ctx, const char *name,
+		 struct mutex *mutex, int non_blocking);
 
 /**
  * dvb_vb2_release - Releases the VB2 handler allocated resources and
