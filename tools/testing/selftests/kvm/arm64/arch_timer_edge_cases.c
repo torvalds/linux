@@ -191,8 +191,8 @@ static void set_tval_irq(enum arch_timer timer, uint64_t tval_cycles,
 {
 	atomic_set(&shared_data.handled, 0);
 	atomic_set(&shared_data.spurious, 0);
-	timer_set_ctl(timer, ctl);
 	timer_set_tval(timer, tval_cycles);
+	timer_set_ctl(timer, ctl);
 }
 
 static void set_xval_irq(enum arch_timer timer, uint64_t xval, uint32_t ctl,
