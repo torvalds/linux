@@ -497,8 +497,14 @@ struct dml2_core_internal_mode_support {
 	double WriteBandwidth[DML2_MAX_PLANES][DML2_MAX_WRITEBACK];
 	double RequiredPrefetchPixelDataBWLuma[DML2_MAX_PLANES];
 	double RequiredPrefetchPixelDataBWChroma[DML2_MAX_PLANES];
-	/* oto bw should also be considered when calculating peak urgent bw to avoid situations oto/equ mismatches between ms and mp */
-	double RequiredPrefetchBWOTO[DML2_MAX_PLANES];
+	/* Max bandwidth calculated from prefetch schedule should be considered in addition to the pixel data bw to avoid ms/mp mismatches.
+	 * 1. oto bw should also be considered when calculating peak urgent bw to avoid situations oto/equ mismatches between ms and mp
+	 *
+	 * 2. equ bandwidth needs to be considered for calculating peak urgent bw when equ schedule is used in mode support.
+	 *    Some slight difference in variables may cause the pixel data bandwidth to be higher
+	 *    even though overall equ prefetch bandwidths can be lower going from ms to mp
+	 */
+	double RequiredPrefetchBWMax[DML2_MAX_PLANES];
 	double cursor_bw[DML2_MAX_PLANES];
 	double prefetch_cursor_bw[DML2_MAX_PLANES];
 	double prefetch_vmrow_bw[DML2_MAX_PLANES];
@@ -1469,7 +1475,7 @@ struct dml2_core_shared_get_urgent_bandwidth_required_locals {
 	double vm_row_bw;
 	double flip_and_active_bw;
 	double flip_and_prefetch_bw;
-	double flip_and_prefetch_bw_oto;
+	double flip_and_prefetch_bw_max;
 	double active_and_excess_bw;
 };
 
@@ -1881,7 +1887,7 @@ struct dml2_core_calcs_CalculatePrefetchSchedule_params {
 	double *VRatioPrefetchC;
 	double *RequiredPrefetchPixelDataBWLuma;
 	double *RequiredPrefetchPixelDataBWChroma;
-	double *RequiredPrefetchBWOTO;
+	double *RequiredPrefetchBWMax;
 	bool *NotEnoughTimeForDynamicMetadata;
 	double *Tno_bw;
 	double *Tno_bw_flip;
@@ -2118,7 +2124,7 @@ struct dml2_core_calcs_calculate_peak_bandwidth_required_params {
 	double *surface_read_bandwidth_c;
 	double *prefetch_bandwidth_l;
 	double *prefetch_bandwidth_c;
-	double *prefetch_bandwidth_oto;
+	double *prefetch_bandwidth_max;
 	double *excess_vactive_fill_bw_l;
 	double *excess_vactive_fill_bw_c;
 	double *cursor_bw;
