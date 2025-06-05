@@ -1121,8 +1121,8 @@ static void gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, int level,
 }
 
 static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
+					 struct amdgpu_vm *vm,
 					 struct amdgpu_bo *bo,
-					 struct amdgpu_bo_va_mapping *mapping,
 					 uint64_t *flags)
 {
 	struct amdgpu_device *bo_adev = amdgpu_ttm_adev(bo->tbo.bdev);
@@ -1132,7 +1132,6 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 				     AMDGPU_GEM_CREATE_EXT_COHERENT);
 	bool ext_coherent = bo->flags & AMDGPU_GEM_CREATE_EXT_COHERENT;
 	bool uncached = bo->flags & AMDGPU_GEM_CREATE_UNCACHED;
-	struct amdgpu_vm *vm = mapping->bo_va->base.vm;
 	unsigned int mtype_local, mtype;
 	uint32_t gc_ip_version = amdgpu_ip_version(adev, GC_HWIP, 0);
 	bool snoop = false;
@@ -1162,7 +1161,7 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 					mtype = MTYPE_UC;
 				else
 					mtype = MTYPE_NC;
-				if (mapping->bo_va->is_xgmi)
+				if (amdgpu_xgmi_same_hive(adev, bo_adev))
 					snoop = true;
 			}
 		} else {
@@ -1254,7 +1253,8 @@ static void gmc_v9_0_get_vm_pte(struct amdgpu_device *adev,
 	}
 
 	if ((*flags & AMDGPU_PTE_VALID) && bo)
-		gmc_v9_0_get_coherence_flags(adev, bo, mapping, flags);
+		gmc_v9_0_get_coherence_flags(adev, mapping->bo_va->base.vm, bo,
+					     flags);
 }
 
 static void gmc_v9_0_override_vm_pte_flags(struct amdgpu_device *adev,
