@@ -205,17 +205,20 @@ int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (!ac)
 		return -ENOMEM;
 	ac->data.op_data = NULL;
-
-	/*
-	 * Unconditionally cache the SQE for now - this is only needed for
-	 * requests that go async, but prep handlers must ensure that any
-	 * sqe data is stable beyond prep. Since uring_cmd is special in
-	 * that it doesn't read in per-op data, play it safe and ensure that
-	 * any SQE data is stable beyond prep. This can later get relaxed.
-	 */
-	memcpy(ac->sqes, sqe, uring_sqe_size(req->ctx));
-	ioucmd->sqe = ac->sqes;
+	ioucmd->sqe = sqe;
 	return 0;
+}
+
+void io_uring_cmd_sqe_copy(struct io_kiocb *req)
+{
+	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
+	struct io_async_cmd *ac = req->async_data;
+
+	/* Should not happen, as REQ_F_SQE_COPIED covers this */
+	if (WARN_ON_ONCE(ioucmd->sqe == ac->sqes))
+		return;
+	memcpy(ac->sqes, ioucmd->sqe, uring_sqe_size(req->ctx));
+	ioucmd->sqe = ac->sqes;
 }
 
 int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
