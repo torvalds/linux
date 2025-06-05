@@ -727,7 +727,7 @@ xfs_select_zone(
 	for (;;) {
 		prepare_to_wait(&zi->zi_zone_wait, &wait, TASK_UNINTERRUPTIBLE);
 		oz = xfs_select_zone_nowait(mp, write_hint, pack_tight);
-		if (oz)
+		if (oz || xfs_is_shutdown(mp))
 			break;
 		schedule();
 	}
