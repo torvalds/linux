@@ -50,8 +50,18 @@ LIBKVM_riscv += lib/riscv/ucall.c
 # Non-compiled test targets
 TEST_PROGS_x86 += x86/nx_huge_pages_test.sh
 
+# Compiled test targets valid on all architectures with libkvm support
+TEST_GEN_PROGS_COMMON = demand_paging_test
+TEST_GEN_PROGS_COMMON += dirty_log_test
+TEST_GEN_PROGS_COMMON += guest_print_test
+TEST_GEN_PROGS_COMMON += kvm_binary_stats_test
+TEST_GEN_PROGS_COMMON += kvm_create_max_vcpus
+TEST_GEN_PROGS_COMMON += kvm_page_table_test
+TEST_GEN_PROGS_COMMON += set_memory_region_test
+
 # Compiled test targets
-TEST_GEN_PROGS_x86 = x86/cpuid_test
+TEST_GEN_PROGS_x86 = $(TEST_GEN_PROGS_COMMON)
+TEST_GEN_PROGS_x86 += x86/cpuid_test
 TEST_GEN_PROGS_x86 += x86/cr4_cpuid_sync_test
 TEST_GEN_PROGS_x86 += x86/dirty_log_page_splitting_test
 TEST_GEN_PROGS_x86 += x86/feature_msrs_test
@@ -119,27 +129,21 @@ TEST_GEN_PROGS_x86 += x86/triple_fault_event_test
 TEST_GEN_PROGS_x86 += x86/recalc_apic_map_test
 TEST_GEN_PROGS_x86 += access_tracking_perf_test
 TEST_GEN_PROGS_x86 += coalesced_io_test
-TEST_GEN_PROGS_x86 += demand_paging_test
-TEST_GEN_PROGS_x86 += dirty_log_test
 TEST_GEN_PROGS_x86 += dirty_log_perf_test
 TEST_GEN_PROGS_x86 += guest_memfd_test
-TEST_GEN_PROGS_x86 += guest_print_test
 TEST_GEN_PROGS_x86 += hardware_disable_test
-TEST_GEN_PROGS_x86 += kvm_create_max_vcpus
-TEST_GEN_PROGS_x86 += kvm_page_table_test
 TEST_GEN_PROGS_x86 += memslot_modification_stress_test
 TEST_GEN_PROGS_x86 += memslot_perf_test
 TEST_GEN_PROGS_x86 += mmu_stress_test
 TEST_GEN_PROGS_x86 += rseq_test
-TEST_GEN_PROGS_x86 += set_memory_region_test
 TEST_GEN_PROGS_x86 += steal_time
-TEST_GEN_PROGS_x86 += kvm_binary_stats_test
 TEST_GEN_PROGS_x86 += system_counter_offset_test
 TEST_GEN_PROGS_x86 += pre_fault_memory_test
 
 # Compiled outputs used by test targets
 TEST_GEN_PROGS_EXTENDED_x86 += x86/nx_huge_pages_test
 
+TEST_GEN_PROGS_arm64 = $(TEST_GEN_PROGS_COMMON)
 TEST_GEN_PROGS_arm64 += arm64/aarch32_id_regs
 TEST_GEN_PROGS_arm64 += arm64/arch_timer_edge_cases
 TEST_GEN_PROGS_arm64 += arm64/debug-exceptions
@@ -158,22 +162,16 @@ TEST_GEN_PROGS_arm64 += arm64/no-vgic-v3
 TEST_GEN_PROGS_arm64 += access_tracking_perf_test
 TEST_GEN_PROGS_arm64 += arch_timer
 TEST_GEN_PROGS_arm64 += coalesced_io_test
-TEST_GEN_PROGS_arm64 += demand_paging_test
-TEST_GEN_PROGS_arm64 += dirty_log_test
 TEST_GEN_PROGS_arm64 += dirty_log_perf_test
-TEST_GEN_PROGS_arm64 += guest_print_test
 TEST_GEN_PROGS_arm64 += get-reg-list
-TEST_GEN_PROGS_arm64 += kvm_create_max_vcpus
-TEST_GEN_PROGS_arm64 += kvm_page_table_test
 TEST_GEN_PROGS_arm64 += memslot_modification_stress_test
 TEST_GEN_PROGS_arm64 += memslot_perf_test
 TEST_GEN_PROGS_arm64 += mmu_stress_test
 TEST_GEN_PROGS_arm64 += rseq_test
-TEST_GEN_PROGS_arm64 += set_memory_region_test
 TEST_GEN_PROGS_arm64 += steal_time
-TEST_GEN_PROGS_arm64 += kvm_binary_stats_test
 
-TEST_GEN_PROGS_s390 = s390/memop
+TEST_GEN_PROGS_s390 = $(TEST_GEN_PROGS_COMMON)
+TEST_GEN_PROGS_s390 += s390/memop
 TEST_GEN_PROGS_s390 += s390/resets
 TEST_GEN_PROGS_s390 += s390/sync_regs_test
 TEST_GEN_PROGS_s390 += s390/tprot
@@ -182,27 +180,14 @@ TEST_GEN_PROGS_s390 += s390/debug_test
 TEST_GEN_PROGS_s390 += s390/cpumodel_subfuncs_test
 TEST_GEN_PROGS_s390 += s390/shared_zeropage_test
 TEST_GEN_PROGS_s390 += s390/ucontrol_test
-TEST_GEN_PROGS_s390 += demand_paging_test
-TEST_GEN_PROGS_s390 += dirty_log_test
-TEST_GEN_PROGS_s390 += guest_print_test
-TEST_GEN_PROGS_s390 += kvm_create_max_vcpus
-TEST_GEN_PROGS_s390 += kvm_page_table_test
 TEST_GEN_PROGS_s390 += rseq_test
-TEST_GEN_PROGS_s390 += set_memory_region_test
-TEST_GEN_PROGS_s390 += kvm_binary_stats_test
 
+TEST_GEN_PROGS_riscv = $(TEST_GEN_PROGS_COMMON)
 TEST_GEN_PROGS_riscv += riscv/sbi_pmu_test
 TEST_GEN_PROGS_riscv += riscv/ebreak_test
 TEST_GEN_PROGS_riscv += arch_timer
 TEST_GEN_PROGS_riscv += coalesced_io_test
-TEST_GEN_PROGS_riscv += demand_paging_test
-TEST_GEN_PROGS_riscv += dirty_log_test
 TEST_GEN_PROGS_riscv += get-reg-list
-TEST_GEN_PROGS_riscv += guest_print_test
-TEST_GEN_PROGS_riscv += kvm_binary_stats_test
-TEST_GEN_PROGS_riscv += kvm_create_max_vcpus
-TEST_GEN_PROGS_riscv += kvm_page_table_test
-TEST_GEN_PROGS_riscv += set_memory_region_test
 TEST_GEN_PROGS_riscv += steal_time
 
 SPLIT_TESTS += arch_timer

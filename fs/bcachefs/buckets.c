@@ -37,7 +37,8 @@ void bch2_dev_usage_read_fast(struct bch_dev *ca, struct bch_dev_usage *usage)
 void bch2_dev_usage_full_read_fast(struct bch_dev *ca, struct bch_dev_usage_full *usage)
 {
 	memset(usage, 0, sizeof(*usage));
-	acc_u64s_percpu((u64 *) usage, (u64 __percpu *) ca->usage, dev_usage_u64s());
+	acc_u64s_percpu((u64 *) usage, (u64 __percpu *) ca->usage,
+			sizeof(struct bch_dev_usage_full) / sizeof(u64));
 }
 
 static u64 reserve_factor(u64 r)

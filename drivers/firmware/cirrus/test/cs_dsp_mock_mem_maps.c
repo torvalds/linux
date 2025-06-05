@@ -462,36 +462,6 @@ unsigned int cs_dsp_mock_xm_header_get_alg_base_in_words(struct cs_dsp_test *pri
 EXPORT_SYMBOL_NS_GPL(cs_dsp_mock_xm_header_get_alg_base_in_words, "FW_CS_DSP_KUNIT_TEST_UTILS");
 
 /**
- * cs_dsp_mock_xm_header_get_fw_version_from_regmap() - Firmware version.
- *
- * @priv:	Pointer to struct cs_dsp_test.
- *
- * Return: Firmware version word value.
- */
-unsigned int cs_dsp_mock_xm_header_get_fw_version_from_regmap(struct cs_dsp_test *priv)
-{
-	unsigned int xm = cs_dsp_mock_base_addr_for_mem(priv, WMFW_ADSP2_XM);
-	union {
-		struct wmfw_id_hdr adsp2;
-		struct wmfw_v3_id_hdr halo;
-	} hdr;
-
-	switch (priv->dsp->type) {
-	case WMFW_ADSP2:
-		regmap_raw_read(priv->dsp->regmap, xm, &hdr.adsp2, sizeof(hdr.adsp2));
-		return be32_to_cpu(hdr.adsp2.ver);
-	case WMFW_HALO:
-		regmap_raw_read(priv->dsp->regmap, xm, &hdr.halo, sizeof(hdr.halo));
-		return be32_to_cpu(hdr.halo.ver);
-	default:
-		KUNIT_FAIL(priv->test, NULL);
-		return 0;
-	}
-}
-EXPORT_SYMBOL_NS_GPL(cs_dsp_mock_xm_header_get_fw_version_from_regmap,
-		     "FW_CS_DSP_KUNIT_TEST_UTILS");
-
-/**
  * cs_dsp_mock_xm_header_get_fw_version() - Firmware version.
  *
  * @header:	Pointer to struct cs_dsp_mock_xm_header.

@@ -166,7 +166,7 @@ struct iwl_mld_vif {
 
 	struct iwl_mld_emlsr emlsr;
 
-#if CONFIG_PM_SLEEP
+#ifdef CONFIG_PM_SLEEP
 	struct iwl_mld_wowlan_data wowlan_data;
 #endif
 #ifdef CONFIG_IWLWIFI_DEBUGFS

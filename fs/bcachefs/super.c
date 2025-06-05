@@ -70,14 +70,10 @@
 #include <linux/percpu.h>
 #include <linux/random.h>
 #include <linux/sysfs.h>
-#include <crypto/hash.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kent Overstreet <kent.overstreet@gmail.com>");
 MODULE_DESCRIPTION("bcachefs filesystem");
-MODULE_SOFTDEP("pre: chacha20");
-MODULE_SOFTDEP("pre: poly1305");
-MODULE_SOFTDEP("pre: xxhash");
 
 const char * const bch2_fs_flag_strs[] = {
 #define x(n)		#n,
@@ -593,6 +589,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 		free_percpu(c->online_reserved);
 	}
 
+	darray_exit(&c->incompat_versions_requested);
 	darray_exit(&c->btree_roots_extra);
 	free_percpu(c->pcpu);
 	free_percpu(c->usage);
@@ -1002,12 +999,6 @@ static void print_mount_opts(struct bch_fs *c)
 	prt_str(&p, "starting version ");
 	bch2_version_to_text(&p, c->sb.version);
 
-	if (c->opts.read_only) {
-		prt_str(&p, " opts=");
-		first = false;
-		prt_printf(&p, "ro");
-	}
-
 	for (i = 0; i < bch2_opts_nr; i++) {
 		const struct bch_option *opt = &bch2_opt_table[i];
 		u64 v = bch2_opt_get_by_id(&c->opts, i);
@@ -1021,6 +1012,11 @@ static void print_mount_opts(struct bch_fs *c)
 		prt_str(&p, first ? " opts=" : ",");
 		first = false;
 		bch2_opt_to_text(&p, c, c->disk_sb.sb, opt, v, OPT_SHOW_MOUNT_STYLE);
+	}
+
+	if (c->sb.version_incompat_allowed != c->sb.version) {
+		prt_printf(&p, "\n  allowing incompatible features above ");
+		bch2_version_to_text(&p, c->sb.version_incompat_allowed);
 	}
 
 	bch_info(c, "%s", p.buf);
@@ -1767,7 +1763,8 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	up_write(&c->state_lock);
 	return 0;
 err:
-	if (ca->mi.state == BCH_MEMBER_STATE_rw &&
+	if (test_bit(BCH_FS_rw, &c->flags) &&
+	    ca->mi.state == BCH_MEMBER_STATE_rw &&
 	    !percpu_ref_is_zero(&ca->io_ref[READ]))
 		__bch2_dev_read_write(c, ca);
 	up_write(&c->state_lock);

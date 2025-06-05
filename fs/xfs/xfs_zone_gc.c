@@ -162,18 +162,30 @@ struct xfs_zone_gc_data {
 
 /*
  * We aim to keep enough zones free in stock to fully use the open zone limit
- * for data placement purposes.
+ * for data placement purposes. Additionally, the m_zonegc_low_space tunable
+ * can be set to make sure a fraction of the unused blocks are available for
+ * writing.
  */
 bool
 xfs_zoned_need_gc(
 	struct xfs_mount	*mp)
 {
+	s64			available, free;
+
 	if (!xfs_group_marked(mp, XG_TYPE_RTG, XFS_RTG_RECLAIMABLE))
 		return false;
-	if (xfs_estimate_freecounter(mp, XC_FREE_RTAVAILABLE) <
+
+	available = xfs_estimate_freecounter(mp, XC_FREE_RTAVAILABLE);
+
+	if (available <
 	    mp->m_groups[XG_TYPE_RTG].blocks *
 	    (mp->m_max_open_zones - XFS_OPEN_GC_ZONES))
 		return true;
+
+	free = xfs_estimate_freecounter(mp, XC_FREE_RTEXTENTS);
+	if (available < mult_frac(free, mp->m_zonegc_low_space, 100))
+		return true;
+
 	return false;
 }
 

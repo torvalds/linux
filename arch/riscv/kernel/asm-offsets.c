@@ -498,6 +498,12 @@ void asm_offsets(void)
 	DEFINE(STACKFRAME_SIZE_ON_STACK, ALIGN(sizeof(struct stackframe), STACK_ALIGN));
 	OFFSET(STACKFRAME_FP, stackframe, fp);
 	OFFSET(STACKFRAME_RA, stackframe, ra);
+#ifdef CONFIG_FUNCTION_TRACER
+	DEFINE(FTRACE_OPS_FUNC,		offsetof(struct ftrace_ops, func));
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	DEFINE(FTRACE_OPS_DIRECT_CALL,	offsetof(struct ftrace_ops, direct_call));
+#endif /* CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS */
+#endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
 	DEFINE(FREGS_SIZE_ON_STACK, ALIGN(sizeof(struct __arch_ftrace_regs), STACK_ALIGN));
@@ -506,6 +512,13 @@ void asm_offsets(void)
 	DEFINE(FREGS_SP,	    offsetof(struct __arch_ftrace_regs, sp));
 	DEFINE(FREGS_S0,	    offsetof(struct __arch_ftrace_regs, s0));
 	DEFINE(FREGS_T1,	    offsetof(struct __arch_ftrace_regs, t1));
+#ifdef CONFIG_CC_IS_CLANG
+	DEFINE(FREGS_T2,	    offsetof(struct __arch_ftrace_regs, t2));
+	DEFINE(FREGS_T3,	    offsetof(struct __arch_ftrace_regs, t3));
+	DEFINE(FREGS_T4,	    offsetof(struct __arch_ftrace_regs, t4));
+	DEFINE(FREGS_T5,	    offsetof(struct __arch_ftrace_regs, t5));
+	DEFINE(FREGS_T6,	    offsetof(struct __arch_ftrace_regs, t6));
+#endif
 	DEFINE(FREGS_A0,	    offsetof(struct __arch_ftrace_regs, a0));
 	DEFINE(FREGS_A1,	    offsetof(struct __arch_ftrace_regs, a1));
 	DEFINE(FREGS_A2,	    offsetof(struct __arch_ftrace_regs, a2));

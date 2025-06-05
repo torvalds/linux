@@ -718,8 +718,40 @@ max_open_zones_show(
 }
 XFS_SYSFS_ATTR_RO(max_open_zones);
 
+static ssize_t
+zonegc_low_space_store(
+	struct kobject		*kobj,
+	const char		*buf,
+	size_t			count)
+{
+	int			ret;
+	unsigned int		val;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val > 100)
+		return -EINVAL;
+
+	zoned_to_mp(kobj)->m_zonegc_low_space = val;
+
+	return count;
+}
+
+static ssize_t
+zonegc_low_space_show(
+	struct kobject		*kobj,
+	char			*buf)
+{
+	return sysfs_emit(buf, "%u\n",
+			zoned_to_mp(kobj)->m_zonegc_low_space);
+}
+XFS_SYSFS_ATTR_RW(zonegc_low_space);
+
 static struct attribute *xfs_zoned_attrs[] = {
 	ATTR_LIST(max_open_zones),
+	ATTR_LIST(zonegc_low_space),
 	NULL,
 };
 ATTRIBUTE_GROUPS(xfs_zoned);

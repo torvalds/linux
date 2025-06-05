@@ -115,6 +115,78 @@ avs_path_find_variant(struct avs_dev *adev,
 	return NULL;
 }
 
+static struct acpi_nhlt_config *
+avs_nhlt_config_or_default(struct avs_dev *adev, struct avs_tplg_module *t);
+
+int avs_path_set_constraint(struct avs_dev *adev, struct avs_tplg_path_template *template,
+			    struct snd_pcm_hw_constraint_list *rate_list,
+			    struct snd_pcm_hw_constraint_list *channels_list,
+			    struct snd_pcm_hw_constraint_list *sample_bits_list)
+{
+	struct avs_tplg_path *path_template;
+	unsigned int *rlist, *clist, *slist;
+	size_t i;
+
+	i = 0;
+	list_for_each_entry(path_template, &template->path_list, node)
+		i++;
+
+	rlist = kcalloc(i, sizeof(rlist), GFP_KERNEL);
+	clist = kcalloc(i, sizeof(clist), GFP_KERNEL);
+	slist = kcalloc(i, sizeof(slist), GFP_KERNEL);
+
+	i = 0;
+	list_for_each_entry(path_template, &template->path_list, node) {
+		struct avs_tplg_pipeline *pipeline_template;
+
+		list_for_each_entry(pipeline_template, &path_template->ppl_list, node) {
+			struct avs_tplg_module *module_template;
+
+			list_for_each_entry(module_template, &pipeline_template->mod_list, node) {
+				const guid_t *type = &module_template->cfg_ext->type;
+				struct acpi_nhlt_config *blob;
+
+				if (!guid_equal(type, &AVS_COPIER_MOD_UUID) &&
+				    !guid_equal(type, &AVS_WOVHOSTM_MOD_UUID))
+					continue;
+
+				switch (module_template->cfg_ext->copier.dma_type) {
+				case AVS_DMA_DMIC_LINK_INPUT:
+				case AVS_DMA_I2S_LINK_OUTPUT:
+				case AVS_DMA_I2S_LINK_INPUT:
+					break;
+				default:
+					continue;
+				}
+
+				blob = avs_nhlt_config_or_default(adev, module_template);
+				if (IS_ERR(blob))
+					continue;
+
+				rlist[i] = path_template->fe_fmt->sampling_freq;
+				clist[i] = path_template->fe_fmt->num_channels;
+				slist[i] = path_template->fe_fmt->bit_depth;
+				i++;
+			}
+		}
+	}
+
+	if (i) {
+		rate_list->count = i;
+		rate_list->list = rlist;
+		channels_list->count = i;
+		channels_list->list = clist;
+		sample_bits_list->count = i;
+		sample_bits_list->list = slist;
+	} else {
+		kfree(rlist);
+		kfree(clist);
+		kfree(slist);
+	}
+
+	return i;
+}
+
 static void avs_init_node_id(union avs_connector_node_id *node_id,
 			     struct avs_tplg_modcfg_ext *te, u32 dma_id)
 {

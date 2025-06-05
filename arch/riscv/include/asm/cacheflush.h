@@ -80,6 +80,7 @@ void flush_icache_mm(struct mm_struct *mm, bool local);
 
 extern unsigned int riscv_cbom_block_size;
 extern unsigned int riscv_cboz_block_size;
+extern unsigned int riscv_cbop_block_size;
 void riscv_init_cbo_blocksizes(void);
 
 #ifdef CONFIG_RISCV_DMA_NONCOHERENT

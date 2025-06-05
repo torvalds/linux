@@ -278,8 +278,6 @@ CONFIG_LOCK_DOWN_KERNEL_FORCE_INTEGRITY=y
 # CONFIG_INTEGRITY is not set
 CONFIG_LSM="yama,loadpin,safesetid,integrity"
 # CONFIG_CRYPTO_HW is not set
-CONFIG_CRC16=y
-CONFIG_CRC_ITU_T=y
 # CONFIG_XZ_DEC_X86 is not set
 # CONFIG_XZ_DEC_IA64 is not set
 # CONFIG_XZ_DEC_ARM is not set

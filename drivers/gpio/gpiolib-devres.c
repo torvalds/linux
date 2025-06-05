@@ -317,11 +317,15 @@ EXPORT_SYMBOL_GPL(devm_gpiod_put);
  * @dev:	GPIO consumer
  * @desc:	GPIO descriptor to remove resource management from
  *
+ * *DEPRECATED*
+ * This function should not be used. It's been provided as a workaround for
+ * resource ownership issues in the regulator framework and should be replaced
+ * with a better solution.
+ *
  * Remove resource management from a GPIO descriptor. This is needed when
  * you want to hand over lifecycle management of a descriptor to another
  * mechanism.
  */
-
 void devm_gpiod_unhinge(struct device *dev, struct gpio_desc *desc)
 {
 	int ret;

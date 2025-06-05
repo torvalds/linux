@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2024 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  */
 
 #include <linux/firmware.h>
@@ -233,9 +233,19 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 	fw->dvfs_mode = 0;
 
 	fw->sched_mode = ivpu_fw_sched_mode_select(vdev, fw_hdr);
-	fw->primary_preempt_buf_size = fw_hdr->preemption_buffer_1_size;
-	fw->secondary_preempt_buf_size = fw_hdr->preemption_buffer_2_size;
 	ivpu_info(vdev, "Scheduler mode: %s\n", fw->sched_mode ? "HW" : "OS");
+
+	if (fw_hdr->preemption_buffer_1_max_size)
+		fw->primary_preempt_buf_size = fw_hdr->preemption_buffer_1_max_size;
+	else
+		fw->primary_preempt_buf_size = fw_hdr->preemption_buffer_1_size;
+
+	if (fw_hdr->preemption_buffer_2_max_size)
+		fw->secondary_preempt_buf_size = fw_hdr->preemption_buffer_2_max_size;
+	else
+		fw->secondary_preempt_buf_size = fw_hdr->preemption_buffer_2_size;
+	ivpu_dbg(vdev, FW_BOOT, "Preemption buffer sizes: primary %u, secondary %u\n",
+		 fw->primary_preempt_buf_size, fw->secondary_preempt_buf_size);
 
 	if (fw_hdr->ro_section_start_address && !is_within_range(fw_hdr->ro_section_start_address,
 								 fw_hdr->ro_section_size,
@@ -566,7 +576,6 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 
 	boot_params->magic = VPU_BOOT_PARAMS_MAGIC;
 	boot_params->vpu_id = to_pci_dev(vdev->drm.dev)->bus->number;
-	boot_params->frequency = ivpu_hw_pll_freq_get(vdev);
 
 	/*
 	 * This param is a debug firmware feature.  It switches default clock

@@ -1201,6 +1201,13 @@ xfs_mount_zones(
 	xfs_set_freecounter(mp, XC_FREE_RTEXTENTS,
 			iz.available + iz.reclaimable);
 
+	/*
+	 * The user may configure GC to free up a percentage of unused blocks.
+	 * By default this is 0. GC will always trigger at the minimum level
+	 * for keeping max_open_zones available for data placement.
+	 */
+	mp->m_zonegc_low_space = 0;
+
 	error = xfs_zone_gc_mount(mp);
 	if (error)
 		goto out_free_zone_info;

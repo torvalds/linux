@@ -1010,7 +1010,9 @@ struct io_uring_zcrx_ifq_reg {
 	__u64	region_ptr; /* struct io_uring_region_desc * */
 
 	struct io_uring_zcrx_offsets offsets;
-	__u64	__resv[4];
+	__u32	zcrx_id;
+	__u32	__resv2;
+	__u64	__resv[3];
 };
 
 #ifdef __cplusplus

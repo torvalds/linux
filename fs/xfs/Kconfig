@@ -3,7 +3,7 @@ config XFS_FS
 	tristate "XFS filesystem support"
 	depends on BLOCK
 	select EXPORTFS
-	select LIBCRC32C
+	select CRC32
 	select FS_IOMAP
 	help
 	  XFS is a high performance journaling filesystem which originated

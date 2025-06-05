@@ -48,7 +48,7 @@ struct magellan {
 
 static int magellan_crunch_nibbles(unsigned char *data, int count)
 {
-	static unsigned char nibbles[16] = "0AB3D56GH9:K<MN?";
+	static unsigned char nibbles[16] __nonstring = "0AB3D56GH9:K<MN?";
 
 	do {
 		if (data[count] == nibbles[data[count] & 0xf])

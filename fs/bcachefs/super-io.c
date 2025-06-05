@@ -73,13 +73,29 @@ int bch2_set_version_incompat(struct bch_fs *c, enum bcachefs_metadata_version v
 		? 0
 		: -BCH_ERR_may_not_use_incompat_feature;
 
+	mutex_lock(&c->sb_lock);
 	if (!ret) {
-		mutex_lock(&c->sb_lock);
 		SET_BCH_SB_VERSION_INCOMPAT(c->disk_sb.sb,
 			max(BCH_SB_VERSION_INCOMPAT(c->disk_sb.sb), version));
 		bch2_write_super(c);
-		mutex_unlock(&c->sb_lock);
+	} else {
+		darray_for_each(c->incompat_versions_requested, i)
+			if (version == *i)
+				goto out;
+
+		darray_push(&c->incompat_versions_requested, version);
+		struct printbuf buf = PRINTBUF;
+		prt_str(&buf, "requested incompat feature ");
+		bch2_version_to_text(&buf, version);
+		prt_str(&buf, " currently not enabled");
+		prt_printf(&buf, "\n  set version_upgrade=incompat to enable");
+
+		bch_notice(c, "%s", buf.buf);
+		printbuf_exit(&buf);
 	}
+
+out:
+	mutex_unlock(&c->sb_lock);
 
 	return ret;
 }

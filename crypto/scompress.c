@@ -111,10 +111,14 @@ static void scomp_free_streams(struct scomp_alg *alg)
 	struct crypto_acomp_stream __percpu *stream = alg->stream;
 	int i;
 
+	alg->stream = NULL;
+	if (!stream)
+		return;
+
 	for_each_possible_cpu(i) {
 		struct crypto_acomp_stream *ps = per_cpu_ptr(stream, i);
 
-		if (!ps->ctx)
+		if (IS_ERR_OR_NULL(ps->ctx))
 			break;
 
 		alg->free_ctx(ps->ctx);
@@ -132,6 +136,8 @@ static int scomp_alloc_streams(struct scomp_alg *alg)
 	if (!stream)
 		return -ENOMEM;
 
+	alg->stream = stream;
+
 	for_each_possible_cpu(i) {
 		struct crypto_acomp_stream *ps = per_cpu_ptr(stream, i);
 
@@ -143,8 +149,6 @@ static int scomp_alloc_streams(struct scomp_alg *alg)
 
 		spin_lock_init(&ps->lock);
 	}
-
-	alg->stream = stream;
 	return 0;
 }
 

@@ -1447,7 +1447,7 @@ impl_zeroable! {
     {<T: ?Sized + Zeroable>} UnsafeCell<T>,
 
     // SAFETY: All zeros is equivalent to `None` (option layout optimization guarantee:
-    // https://doc.rust-lang.org/stable/std/option/index.html#representation).
+    // <https://doc.rust-lang.org/stable/std/option/index.html#representation>).
     Option<NonZeroU8>, Option<NonZeroU16>, Option<NonZeroU32>, Option<NonZeroU64>,
     Option<NonZeroU128>, Option<NonZeroUsize>,
     Option<NonZeroI8>, Option<NonZeroI16>, Option<NonZeroI32>, Option<NonZeroI64>,
