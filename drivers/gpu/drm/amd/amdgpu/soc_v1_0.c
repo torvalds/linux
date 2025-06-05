@@ -747,9 +747,34 @@ struct amdgpu_xcp_mgr_funcs soc_v1_0_xcp_funcs = {
 #endif
 };
 
+static int soc_v1_0_xcp_mgr_init(struct amdgpu_device *adev)
+{
+	int ret;
+
+	if (amdgpu_sriov_vf(adev))
+		soc_v1_0_xcp_funcs.switch_partition_mode = NULL;
+
+	ret = amdgpu_xcp_mgr_init(adev, AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE,
+				  1, &soc_v1_0_xcp_funcs);
+	if (ret)
+		return ret;
+
+	amdgpu_xcp_update_supported_modes(adev->xcp_mgr);
+	/* TODO: Default memory node affinity init */
+
+	return ret;
+}
+
 int soc_v1_0_init_soc_config(struct amdgpu_device *adev)
 {
+	int ret;
+
+	/*TODO: init soc config */
 	adev->sdma.num_inst_per_xcc = 2;
+
+	ret = soc_v1_0_xcp_mgr_init(adev);
+	if (ret)
+		return ret;
 
 	amdgpu_ip_map_init(adev);
 
