@@ -113,6 +113,7 @@ int ath12k_reg_handle_chan_list(struct ath12k_base *ab,
 				struct ath12k_reg_info *reg_info,
 				enum wmi_vdev_type vdev_type,
 				enum ieee80211_ap_reg_power power_type);
+void ath12k_regd_update_chan_list_work(struct work_struct *work);
 enum wmi_reg_6g_ap_type
 ath12k_reg_ap_pwr_convert(enum ieee80211_ap_reg_power power_type);
 enum ath12k_reg_status ath12k_reg_validate_reg_info(struct ath12k_base *ab,

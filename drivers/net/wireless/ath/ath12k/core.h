@@ -717,7 +717,7 @@ struct ath12k {
 
 	/* protects the radio specific data like debug stats, ppdu_stats_info stats,
 	 * vdev_stop_status info, scan data, ath12k_sta info, ath12k_link_vif info,
-	 * channel context data, survey info, test mode data.
+	 * channel context data, survey info, test mode data, regd_channel_update_queue.
 	 */
 	spinlock_t data_lock;
 
@@ -776,6 +776,8 @@ struct ath12k {
 	struct completion bss_survey_done;
 
 	struct work_struct regd_update_work;
+	struct work_struct regd_channel_update_work;
+	struct list_head regd_channel_update_queue;
 
 	struct wiphy_work wmi_mgmt_tx_work;
 	struct sk_buff_head wmi_mgmt_tx_queue;
