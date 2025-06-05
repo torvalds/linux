@@ -136,7 +136,8 @@ static void dw_edma_pcie_get_vsec_dma_data(struct pci_dev *pdev,
 	map = FIELD_GET(DW_PCIE_VSEC_DMA_MAP, val);
 	if (map != EDMA_MF_EDMA_LEGACY &&
 	    map != EDMA_MF_EDMA_UNROLL &&
-	    map != EDMA_MF_HDMA_COMPAT)
+	    map != EDMA_MF_HDMA_COMPAT &&
+	    map != EDMA_MF_HDMA_NATIVE)
 		return;
 
 	pdata->mf = map;
@@ -291,6 +292,8 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 		pci_dbg(pdev, "Version:\teDMA Unroll (0x%x)\n", chip->mf);
 	else if (chip->mf == EDMA_MF_HDMA_COMPAT)
 		pci_dbg(pdev, "Version:\tHDMA Compatible (0x%x)\n", chip->mf);
+	else if (chip->mf == EDMA_MF_HDMA_NATIVE)
+		pci_dbg(pdev, "Version:\tHDMA Native (0x%x)\n", chip->mf);
 	else
 		pci_dbg(pdev, "Version:\tUnknown (0x%x)\n", chip->mf);
 
