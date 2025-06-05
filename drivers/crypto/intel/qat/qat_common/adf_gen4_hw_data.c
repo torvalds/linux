@@ -262,6 +262,9 @@ bool adf_gen4_services_supported(unsigned long mask)
 	if (mask >= BIT(SVC_BASE_COUNT))
 		return false;
 
+	if (test_bit(SVC_DECOMP, &mask))
+		return false;
+
 	switch (num_svc) {
 	case ADF_ONE_SERVICE:
 		return true;

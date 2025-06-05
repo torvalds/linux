@@ -11,6 +11,7 @@ enum adf_services {
 	SVC_ASYM = 0,
 	SVC_SYM,
 	SVC_DC,
+	SVC_DECOMP,
 	SVC_DCC,
 	SVC_BASE_COUNT
 };
