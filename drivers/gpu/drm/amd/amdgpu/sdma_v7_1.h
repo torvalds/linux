@@ -26,5 +26,6 @@
 
 extern const struct amd_ip_funcs sdma_v7_1_ip_funcs;
 extern const struct amdgpu_ip_block_version sdma_v7_1_ip_block;
+extern struct amdgpu_xcp_ip_funcs sdma_v7_1_xcp_funcs;
 
 #endif /* __SDMA_V7_1_H__ */
