@@ -2334,7 +2334,7 @@ static unsigned long collect_longterm_unpinnable_folios(
 	long i = 0;
 
 	for (folio = pofs_get_folio(pofs, i); folio;
-		 folio = pofs_next_folio(folio, pofs, &i)) {
+	     folio = pofs_next_folio(folio, pofs, &i)) {
 
 		if (folio_is_longterm_pinnable(folio))
 			continue;
