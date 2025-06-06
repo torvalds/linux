@@ -17,12 +17,12 @@
 #define BREAK_INSTR_SIZE	4
 #endif
 
-#ifndef	__ASSEMBLY__
+#ifndef	__ASSEMBLER__
 
 void arch_kgdb_breakpoint(void);
 extern unsigned long kgdb_compiled_break;
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #define DBG_REG_ZERO "zero"
 #define DBG_REG_RA "ra"

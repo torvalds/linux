@@ -5,7 +5,7 @@
  * Author: Jee Heng Sia <jeeheng.sia@starfivetech.com>
  */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #error "Only include this from assembly code"
 #endif
 
