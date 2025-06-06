@@ -505,6 +505,9 @@
 
 	ethphy0: ethernet-phy@1 {
 		reg = <1>;
+		reset-gpios = <&i2c5_pcal6408 2 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10000>;
+		reset-deassert-us = <80000>;
 		realtek,clkout-disable;
 	};
 };
