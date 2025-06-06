@@ -23,6 +23,8 @@ void intel_panel_init_alloc(struct intel_connector *connector);
 int intel_panel_init(struct intel_connector *connector,
 		     const struct drm_edid *fixed_edid);
 void intel_panel_fini(struct intel_connector *connector);
+int intel_panel_register(struct intel_connector *connector);
+void intel_panel_unregister(struct intel_connector *connector);
 enum drm_connector_status
 intel_panel_detect(struct drm_connector *connector, bool force);
 bool intel_panel_use_ssc(struct intel_display *display);

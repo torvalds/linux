@@ -462,3 +462,13 @@ void intel_panel_fini(struct intel_connector *connector)
 		drm_mode_destroy(connector->base.dev, fixed_mode);
 	}
 }
+
+int intel_panel_register(struct intel_connector *connector)
+{
+	return intel_backlight_device_register(connector);
+}
+
+void intel_panel_unregister(struct intel_connector *connector)
+{
+	intel_backlight_device_unregister(connector);
+}
