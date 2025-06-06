@@ -78,6 +78,16 @@ struct drm_bridge_funcs {
 		      enum drm_bridge_attach_flags flags);
 
 	/**
+	 * @destroy:
+	 *
+	 * This callback is invoked when the bridge is about to be
+	 * deallocated.
+	 *
+	 * The @destroy callback is optional.
+	 */
+	void (*destroy)(struct drm_bridge *bridge);
+
+	/**
 	 * @detach:
 	 *
 	 * This callback is invoked whenever our bridge is being detached from a
