@@ -562,3 +562,26 @@ int amdgpu_umc_mca_to_addr(struct amdgpu_device *adev,
 
 	return 0;
 }
+
+int amdgpu_umc_pa2mca(struct amdgpu_device *adev,
+		uint64_t pa, uint64_t *mca, enum amdgpu_memory_partition nps)
+{
+	struct ta_ras_query_address_input addr_in;
+	struct ta_ras_query_address_output addr_out;
+	int ret;
+
+	/* nps: the pa belongs to */
+	addr_in.pa.pa = pa | ((uint64_t)nps << 58);
+	addr_in.addr_type = TA_RAS_PA_TO_MCA;
+	ret = psp_ras_query_address(&adev->psp, &addr_in, &addr_out);
+	if (ret) {
+		dev_warn(adev->dev, "Failed to query RAS MCA address for 0x%llx",
+			pa);
+
+		return ret;
+	}
+
+	*mca = addr_out.ma.err_addr;
+
+	return 0;
+}

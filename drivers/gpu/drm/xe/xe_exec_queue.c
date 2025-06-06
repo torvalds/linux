@@ -114,7 +114,6 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 
 static int __xe_exec_queue_init(struct xe_exec_queue *q)
 {
-	struct xe_vm *vm = q->vm;
 	int i, err;
 	u32 flags = 0;
 
@@ -132,22 +131,13 @@ static int __xe_exec_queue_init(struct xe_exec_queue *q)
 			flags |= XE_LRC_CREATE_RUNALONE;
 	}
 
-	if (vm) {
-		err = xe_vm_lock(vm, true);
-		if (err)
-			return err;
-	}
-
 	for (i = 0; i < q->width; ++i) {
 		q->lrc[i] = xe_lrc_create(q->hwe, q->vm, SZ_16K, q->msix_vec, flags);
 		if (IS_ERR(q->lrc[i])) {
 			err = PTR_ERR(q->lrc[i]);
-			goto err_unlock;
+			goto err_lrc;
 		}
 	}
-
-	if (vm)
-		xe_vm_unlock(vm);
 
 	err = q->ops->init(q);
 	if (err)
@@ -155,9 +145,6 @@ static int __xe_exec_queue_init(struct xe_exec_queue *q)
 
 	return 0;
 
-err_unlock:
-	if (vm)
-		xe_vm_unlock(vm);
 err_lrc:
 	for (i = i - 1; i >= 0; --i)
 		xe_lrc_put(q->lrc[i]);

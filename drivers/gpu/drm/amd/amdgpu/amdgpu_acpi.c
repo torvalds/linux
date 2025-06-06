@@ -1532,5 +1532,35 @@ bool amdgpu_acpi_is_s0ix_active(struct amdgpu_device *adev)
 	return true;
 #endif /* CONFIG_AMD_PMC */
 }
-
 #endif /* CONFIG_SUSPEND */
+
+#if IS_ENABLED(CONFIG_DRM_AMD_ISP)
+static const struct acpi_device_id isp_sensor_ids[] = {
+	{ "OMNI5C10" },
+	{ }
+};
+
+static int isp_match_acpi_device_ids(struct device *dev, const void *data)
+{
+	return acpi_match_device(data, dev) ? 1 : 0;
+}
+
+int amdgpu_acpi_get_isp4_dev_hid(u8 (*hid)[ACPI_ID_LEN])
+{
+	struct device *pdev __free(put_device) = NULL;
+	struct acpi_device *acpi_pdev;
+
+	pdev = bus_find_device(&platform_bus_type, NULL, isp_sensor_ids,
+			       isp_match_acpi_device_ids);
+	if (!pdev)
+		return -EINVAL;
+
+	acpi_pdev = ACPI_COMPANION(pdev);
+	if (!acpi_pdev)
+		return -ENODEV;
+
+	strscpy(*hid, acpi_device_hid(acpi_pdev));
+
+	return 0;
+}
+#endif /* CONFIG_DRM_AMD_ISP */

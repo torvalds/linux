@@ -2023,7 +2023,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 	/* Read DP tunneling information. */
 	status = dpcd_get_tunneling_device_data(link);
 	if (status != DC_OK)
-		dm_error("%s: Read DP tunneling device data failed.\n", __func__);
+		DC_LOG_DP2("%s: Read DP tunneling device data failed.\n", __func__);
 
 	retrieve_cable_id(link);
 	dpcd_write_cable_id_to_dprx(link);
