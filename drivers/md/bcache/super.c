@@ -1733,7 +1733,12 @@ static CLOSURE_CALLBACK(cache_set_flush)
 			mutex_unlock(&b->write_lock);
 		}
 
-	if (ca->alloc_thread)
+	/*
+	 * If the register_cache_set() call to bch_cache_set_alloc() failed,
+	 * ca has not been assigned a value and return error.
+	 * So we need check ca is not NULL during bch_cache_set_unregister().
+	 */
+	if (ca && ca->alloc_thread)
 		kthread_stop(ca->alloc_thread);
 
 	if (c->journal.cur) {
@@ -2233,15 +2238,47 @@ static int cache_alloc(struct cache *ca)
 	bio_init(&ca->journal.bio, NULL, ca->journal.bio.bi_inline_vecs, 8, 0);
 
 	/*
-	 * when ca->sb.njournal_buckets is not zero, journal exists,
-	 * and in bch_journal_replay(), tree node may split,
-	 * so bucket of RESERVE_BTREE type is needed,
-	 * the worst situation is all journal buckets are valid journal,
-	 * and all the keys need to replay,
-	 * so the number of  RESERVE_BTREE type buckets should be as much
-	 * as journal buckets
+	 * When the cache disk is first registered, ca->sb.njournal_buckets
+	 * is zero, and it is assigned in run_cache_set().
+	 *
+	 * When ca->sb.njournal_buckets is not zero, journal exists,
+	 * and in bch_journal_replay(), tree node may split.
+	 * The worst situation is all journal buckets are valid journal,
+	 * and all the keys need to replay, so the number of RESERVE_BTREE
+	 * type buckets should be as much as journal buckets.
+	 *
+	 * If the number of RESERVE_BTREE type buckets is too few, the
+	 * bch_allocator_thread() may hang up and unable to allocate
+	 * bucket. The situation is roughly as follows:
+	 *
+	 * 1. In bch_data_insert_keys(), if the operation is not op->replace,
+	 *    it will call the bch_journal(), which increments the journal_ref
+	 *    counter. This counter is only decremented after bch_btree_insert
+	 *    completes.
+	 *
+	 * 2. When calling bch_btree_insert, if the btree needs to split,
+	 *    it will call btree_split() and btree_check_reserve() to check
+	 *    whether there are enough reserved buckets in the RESERVE_BTREE
+	 *    slot. If not enough, bcache_btree_root() will repeatedly retry.
+	 *
+	 * 3. Normally, the bch_allocator_thread is responsible for filling
+	 *    the reservation slots from the free_inc bucket list. When the
+	 *    free_inc bucket list is exhausted, the bch_allocator_thread
+	 *    will call invalidate_buckets() until free_inc is refilled.
+	 *    Then bch_allocator_thread calls bch_prio_write() once. and
+	 *    bch_prio_write() will call bch_journal_meta() and waits for
+	 *    the journal write to complete.
+	 *
+	 * 4. During journal_write, journal_write_unlocked() is be called.
+	 *    If journal full occurs, journal_reclaim() and btree_flush_write()
+	 *    will be called sequentially, then retry journal_write.
+	 *
+	 * 5. When 2 and 4 occur together, IO will hung up and cannot recover.
+	 *
+	 * Therefore, reserve more RESERVE_BTREE type buckets.
 	 */
-	btree_buckets = ca->sb.njournal_buckets ?: 8;
+	btree_buckets = clamp_t(size_t, ca->sb.nbuckets >> 7,
+				32, SB_JOURNAL_BUCKETS);
 	free = roundup_pow_of_two(ca->sb.nbuckets) >> 10;
 	if (!free) {
 		ret = -EPERM;
