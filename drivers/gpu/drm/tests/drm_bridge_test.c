@@ -8,6 +8,7 @@
 #include <drm/drm_bridge_helper.h>
 #include <drm/drm_kunit_helpers.h>
 
+#include <kunit/device.h>
 #include <kunit/test.h>
 
 /*
@@ -21,20 +22,32 @@ struct drm_bridge_priv {
 	unsigned int enable_count;
 	unsigned int disable_count;
 	struct drm_bridge bridge;
+	void *data;
 };
 
 struct drm_bridge_init_priv {
 	struct drm_device drm;
+	/** @dev: device, only for tests not needing a whole drm_device */
+	struct device *dev;
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	struct drm_encoder encoder;
 	struct drm_bridge_priv *test_bridge;
 	struct drm_connector *connector;
+	bool destroyed;
 };
 
 static struct drm_bridge_priv *bridge_to_priv(struct drm_bridge *bridge)
 {
 	return container_of(bridge, struct drm_bridge_priv, bridge);
+}
+
+static void drm_test_bridge_priv_destroy(struct drm_bridge *bridge)
+{
+	struct drm_bridge_priv *bridge_priv = bridge_to_priv(bridge);
+	struct drm_bridge_init_priv *priv = (struct drm_bridge_init_priv *)bridge_priv->data;
+
+	priv->destroyed = true;
 }
 
 static void drm_test_bridge_enable(struct drm_bridge *bridge)
@@ -52,6 +65,7 @@ static void drm_test_bridge_disable(struct drm_bridge *bridge)
 }
 
 static const struct drm_bridge_funcs drm_test_bridge_legacy_funcs = {
+	.destroy		= drm_test_bridge_priv_destroy,
 	.enable			= drm_test_bridge_enable,
 	.disable		= drm_test_bridge_disable,
 };
@@ -73,6 +87,7 @@ static void drm_test_bridge_atomic_disable(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs drm_test_bridge_atomic_funcs = {
+	.destroy		= drm_test_bridge_priv_destroy,
 	.atomic_enable		= drm_test_bridge_atomic_enable,
 	.atomic_disable		= drm_test_bridge_atomic_disable,
 	.atomic_destroy_state	= drm_atomic_helper_bridge_destroy_state,
@@ -117,6 +132,8 @@ drm_test_bridge_init(struct kunit *test, const struct drm_bridge_funcs *funcs)
 	priv->test_bridge = devm_drm_bridge_alloc(dev, struct drm_bridge_priv, bridge, funcs);
 	if (IS_ERR(priv->test_bridge))
 		return ERR_CAST(priv->test_bridge);
+
+	priv->test_bridge->data = priv;
 
 	drm = &priv->drm;
 	priv->plane = drm_kunit_helper_create_primary_plane(test, drm,
@@ -422,11 +439,83 @@ static struct kunit_suite drm_bridge_helper_reset_crtc_test_suite = {
 	.test_cases = drm_bridge_helper_reset_crtc_tests,
 };
 
+static int drm_test_bridge_alloc_init(struct kunit *test)
+{
+	struct drm_bridge_init_priv *priv;
+
+	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv);
+
+	priv->dev = kunit_device_register(test, "drm-bridge-dev");
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->dev);
+
+	test->priv = priv;
+
+	priv->test_bridge = devm_drm_bridge_alloc(priv->dev, struct drm_bridge_priv, bridge,
+						  &drm_test_bridge_atomic_funcs);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->test_bridge);
+
+	priv->test_bridge->data = priv;
+
+	KUNIT_ASSERT_FALSE(test, priv->destroyed);
+
+	return 0;
+}
+
+/*
+ * Test that a bridge is freed when the device is destroyed in lack of
+ * other drm_bridge_get/put() operations.
+ */
+static void drm_test_drm_bridge_alloc_basic(struct kunit *test)
+{
+	struct drm_bridge_init_priv *priv = test->priv;
+
+	KUNIT_ASSERT_FALSE(test, priv->destroyed);
+
+	kunit_device_unregister(test, priv->dev);
+	KUNIT_EXPECT_TRUE(test, priv->destroyed);
+}
+
+/*
+ * Test that a bridge is not freed when the device is destroyed when there
+ * is still a reference to it, and freed when that reference is put.
+ */
+static void drm_test_drm_bridge_alloc_get_put(struct kunit *test)
+{
+	struct drm_bridge_init_priv *priv = test->priv;
+
+	KUNIT_ASSERT_FALSE(test, priv->destroyed);
+
+	drm_bridge_get(&priv->test_bridge->bridge);
+	KUNIT_EXPECT_FALSE(test, priv->destroyed);
+
+	kunit_device_unregister(test, priv->dev);
+	KUNIT_EXPECT_FALSE(test, priv->destroyed);
+
+	drm_bridge_put(&priv->test_bridge->bridge);
+	KUNIT_EXPECT_TRUE(test, priv->destroyed);
+}
+
+static struct kunit_case drm_bridge_alloc_tests[] = {
+	KUNIT_CASE(drm_test_drm_bridge_alloc_basic),
+	KUNIT_CASE(drm_test_drm_bridge_alloc_get_put),
+	{ }
+};
+
+static struct kunit_suite drm_bridge_alloc_test_suite = {
+	.name = "drm_bridge_alloc",
+	.init = drm_test_bridge_alloc_init,
+	.test_cases = drm_bridge_alloc_tests,
+};
+
 kunit_test_suites(
 	&drm_bridge_get_current_state_test_suite,
 	&drm_bridge_helper_reset_crtc_test_suite,
+	&drm_bridge_alloc_test_suite,
 );
 
 MODULE_AUTHOR("Maxime Ripard <mripard@kernel.org>");
+MODULE_AUTHOR("Luca Ceresoli <luca.ceresoli@bootlin.com>");
+
 MODULE_DESCRIPTION("Kunit test for drm_bridge functions");
 MODULE_LICENSE("GPL");
