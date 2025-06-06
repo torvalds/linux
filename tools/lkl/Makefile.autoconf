@@ -138,9 +138,6 @@ endef
 define kasan_enable
   $(call set_autoconf_var,KASAN,y)
   $(call set_kernel_config,KASAN,y)
-  # default is 20 which should be 1MB but observed 8MB of reserved
-  # memory - half of what we use
-  $(call set_kernel_config,STACK_HASH_ORDER,12)
   $(if $(filter $(1),elf64-x86-64),$(call kasan_x86_64))
   $(if $(filter yes,$(kasan_test)), $(call kasan_test_enable))
 endef
