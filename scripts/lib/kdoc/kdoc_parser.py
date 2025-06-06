@@ -1224,7 +1224,6 @@ class KernelDoc:
 
         if doc_decl.search(line):
             self.entry.identifier = doc_decl.group(1)
-            self.entry.is_kernel_comment = False
 
             decl_start = str(doc_com)       # comment block asterisk
             fn_type = r"(?:\w+\s*\*\s*)?"  # type (for non-functions)
@@ -1242,14 +1241,20 @@ class KernelDoc:
             if r.search(line):
                 self.entry.decl_type = r.group(1)
                 self.entry.identifier = r.group(2)
-                self.entry.is_kernel_comment = True
             #
             # Look for a function description
             #
             elif r2.search(line):
                 self.entry.identifier = r2.group(1)
                 self.entry.decl_type = "function"
-                self.entry.is_kernel_comment = True
+            #
+            # We struck out.
+            #
+            else:
+                self.emit_msg(ln,
+                              f"This comment starts with '/**', but isn't a kernel-doc comment. Refer Documentation/doc-guide/kernel-doc.rst\n{line}")
+                self.state = state.NORMAL
+                return
 
             self.entry.identifier = self.entry.identifier.strip(" ")
 
@@ -1270,11 +1275,6 @@ class KernelDoc:
                 self.state = state.BODY_MAYBE
             else:
                 self.entry.declaration_purpose = ""
-
-            if not self.entry.is_kernel_comment:
-                self.emit_msg(ln,
-                              f"This comment starts with '/**', but isn't a kernel-doc comment. Refer Documentation/doc-guide/kernel-doc.rst\n{line}")
-                self.state = state.NORMAL
 
             if not self.entry.declaration_purpose and self.config.wshort_desc:
                 self.emit_msg(ln,
