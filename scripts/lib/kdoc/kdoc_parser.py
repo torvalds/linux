@@ -1171,16 +1171,24 @@ class KernelDoc:
         with a staticmethod decorator.
         """
 
+        # We support documenting some exported symbols with different
+        # names.  A horrible hack.
+        suffixes = [ '_noprof' ]
+
         # Note: it accepts only one EXPORT_SYMBOL* per line, as having
         # multiple export lines would violate Kernel coding style.
 
         if export_symbol.search(line):
             symbol = export_symbol.group(2)
+            for suffix in suffixes:
+                symbol = symbol.removesuffix(suffix)
             function_set.add(symbol)
             return
 
         if export_symbol_ns.search(line):
             symbol = export_symbol_ns.group(2)
+            for suffix in suffixes:
+                symbol = symbol.removesuffix(suffix)
             function_set.add(symbol)
 
     def process_normal(self, ln, line):
