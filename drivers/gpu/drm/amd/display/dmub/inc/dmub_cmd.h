@@ -795,6 +795,17 @@ enum dmub_ips_rcg_disable_type {
 #define DMUB_IPS1_COMMIT_MASK 0x00000004
 #define DMUB_IPS2_COMMIT_MASK 0x00000008
 
+enum dmub_ips_comand_type {
+	/**
+	 * Start/stop IPS residency measurements for a given IPS mode
+	 */
+	DMUB_CMD__IPS_RESIDENCY_CNTL = 0,
+	/**
+	 * Query IPS residency information for a given IPS mode
+	 */
+	DMUB_CMD__IPS_QUERY_RESIDENCY_INFO = 1,
+};
+
 /**
  * union dmub_fw_boot_options - Boot option definitions for SCRATCH14
  */
@@ -1545,6 +1556,11 @@ enum dmub_cmd_type {
 	 * Command type used for all LSDMA commands.
 	 */
 	DMUB_CMD__LSDMA = 90,
+
+	/**
+	 * Command type use for all IPS commands.
+	 */
+	DMUB_CMD__IPS = 91,
 
 	DMUB_CMD__VBIOS = 128,
 };
@@ -5857,6 +5873,56 @@ struct dmub_rb_cmd_assr_enable {
 };
 
 /**
+ * Current definition of "ips_mode" from driver
+ */
+enum ips_residency_mode {
+	IPS_RESIDENCY__IPS1_MAX,
+	IPS_RESIDENCY__IPS2,
+	IPS_RESIDENCY__IPS1_RCG,
+	IPS_RESIDENCY__IPS1_ONO2_ON,
+};
+
+#define NUM_IPS_HISTOGRAM_BUCKETS 16
+
+/**
+ * IPS residency statistics to be sent to driver - subset of struct dmub_ips_residency_stats
+ */
+struct dmub_ips_residency_info {
+	uint32_t residency_millipercent;
+	uint32_t entry_counter;
+	uint32_t histogram[NUM_IPS_HISTOGRAM_BUCKETS];
+	uint64_t total_time_us;
+	uint64_t total_inactive_time_us;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__IPS_RESIDENCY_CNTL command.
+ */
+struct dmub_cmd_ips_residency_cntl_data {
+	uint8_t panel_inst;
+	uint8_t start_measurement;
+	uint8_t padding[2]; // align to 4-byte boundary
+};
+
+struct dmub_rb_cmd_ips_residency_cntl {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_ips_residency_cntl_data cntl_data;
+};
+
+struct dmub_cmd_ips_query_residency_info_data {
+	union dmub_addr dest;
+	uint32_t size;
+	uint32_t ips_mode;
+	uint8_t panel_inst;
+	uint8_t padding[3]; // align to 4-byte boundary
+};
+
+struct dmub_rb_cmd_ips_query_residency_info {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_ips_query_residency_info_data info_data;
+};
+
+/**
  * union dmub_rb_cmd - DMUB inbox command.
  */
 union dmub_rb_cmd {
@@ -6177,6 +6243,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__LSDMA command.
 	 */
 	struct dmub_rb_cmd_lsdma lsdma;
+
+	struct dmub_rb_cmd_ips_residency_cntl ips_residency_cntl;
+
+	struct dmub_rb_cmd_ips_query_residency_info ips_query_residency_info;
 };
 
 /**

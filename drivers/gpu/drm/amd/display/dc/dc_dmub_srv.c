@@ -1904,85 +1904,53 @@ void dc_dmub_srv_fams2_passthrough_flip(
 	}
 }
 
-bool dc_dmub_srv_ips_residency_cntl(struct dc_dmub_srv *dc_dmub_srv, bool start_measurement)
-{
-	bool result;
 
-	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+bool dc_dmub_srv_ips_residency_cntl(const struct dc_context *ctx, uint8_t panel_inst, bool start_measurement)
+{
+	union dmub_rb_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.ips_residency_cntl.header.type = DMUB_CMD__IPS;
+	cmd.ips_residency_cntl.header.sub_type = DMUB_CMD__IPS_RESIDENCY_CNTL;
+	cmd.ips_residency_cntl.header.payload_bytes = sizeof(struct dmub_cmd_ips_residency_cntl_data);
+
+	// only panel_inst=0 is supported at the moment
+	cmd.ips_residency_cntl.cntl_data.panel_inst = panel_inst;
+	cmd.ips_residency_cntl.cntl_data.start_measurement = start_measurement;
+
+	if (!dc_wake_and_execute_dmub_cmd(ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
 		return false;
 
-	result = dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__IPS_RESIDENCY,
-					   start_measurement, NULL, DM_DMUB_WAIT_TYPE_WAIT);
-
-	return result;
+	return true;
 }
 
-void dc_dmub_srv_ips_query_residency_info(struct dc_dmub_srv *dc_dmub_srv, struct ips_residency_info *output)
+bool dc_dmub_srv_ips_query_residency_info(const struct dc_context *ctx, uint8_t panel_inst, struct dmub_ips_residency_info *driver_info,
+					  enum ips_residency_mode ips_mode)
 {
-	uint32_t i;
-	enum dmub_gpint_command command_code;
+	union dmub_rb_cmd cmd;
+	uint32_t bytes = sizeof(struct dmub_ips_residency_info);
 
-	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
-		return;
+	dmub_flush_buffer_mem(&ctx->dmub_srv->dmub->scratch_mem_fb);
+	memset(&cmd, 0, sizeof(cmd));
 
-	switch (output->ips_mode) {
-	case DMUB_IPS_MODE_IPS1_MAX:
-		command_code = DMUB_GPINT__GET_IPS1_HISTOGRAM_COUNTER;
-		break;
-	case DMUB_IPS_MODE_IPS2:
-		command_code = DMUB_GPINT__GET_IPS2_HISTOGRAM_COUNTER;
-		break;
-	case DMUB_IPS_MODE_IPS1_RCG:
-		command_code = DMUB_GPINT__GET_IPS1_RCG_HISTOGRAM_COUNTER;
-		break;
-	case DMUB_IPS_MODE_IPS1_ONO2_ON:
-		command_code = DMUB_GPINT__GET_IPS1_ONO2_ON_HISTOGRAM_COUNTER;
-		break;
-	default:
-		command_code = DMUB_GPINT__INVALID_COMMAND;
-		break;
-	}
+	cmd.ips_query_residency_info.header.type = DMUB_CMD__IPS;
+	cmd.ips_query_residency_info.header.sub_type = DMUB_CMD__IPS_QUERY_RESIDENCY_INFO;
+	cmd.ips_query_residency_info.header.payload_bytes = sizeof(struct dmub_cmd_ips_query_residency_info_data);
 
-	if (command_code == DMUB_GPINT__INVALID_COMMAND)
-		return;
+	cmd.ips_query_residency_info.info_data.dest.quad_part = ctx->dmub_srv->dmub->scratch_mem_fb.gpu_addr;
+	cmd.ips_query_residency_info.info_data.size = bytes;
+	cmd.ips_query_residency_info.info_data.panel_inst = panel_inst;
+	cmd.ips_query_residency_info.info_data.ips_mode = (uint32_t)ips_mode;
 
-	for (i = 0; i < GPINT_RETRY_NUM; i++) {
-		// false could mean GPINT timeout, in which case we should retry
-		if (dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_PERCENT,
-					      (uint16_t)(output->ips_mode), &output->residency_percent,
-					      DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-			break;
-		udelay(100);
-	}
+	if (!dc_wake_and_execute_dmub_cmd(ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY) ||
+					  cmd.ips_query_residency_info.header.ret_status == 0)
+		return false;
 
-	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_ENTRY_COUNTER,
-				      (uint16_t)(output->ips_mode),
-				       &output->entry_counter, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-		output->entry_counter = 0;
+	// copy the result to the output since ret_status != 0 means the command returned data
+	memcpy(driver_info, ctx->dmub_srv->dmub->scratch_mem_fb.cpu_addr, bytes);
 
-	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_DURATION_US_LO,
-				      (uint16_t)(output->ips_mode),
-				       &output->total_active_time_us[0], DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-		output->total_active_time_us[0] = 0;
-	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_DURATION_US_HI,
-				      (uint16_t)(output->ips_mode),
-				       &output->total_active_time_us[1], DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-		output->total_active_time_us[1] = 0;
-
-	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_INACTIVE_RESIDENCY_DURATION_US_LO,
-				      (uint16_t)(output->ips_mode),
-				       &output->total_inactive_time_us[0], DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-		output->total_inactive_time_us[0] = 0;
-	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_INACTIVE_RESIDENCY_DURATION_US_HI,
-				      (uint16_t)(output->ips_mode),
-				       &output->total_inactive_time_us[1], DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-		output->total_inactive_time_us[1] = 0;
-
-	// NUM_IPS_HISTOGRAM_BUCKETS = 16
-	for (i = 0; i < 16; i++)
-		if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, command_code, i, &output->histogram[i],
-					       DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-			output->histogram[i] = 0;
+	return true;
 }
 
 bool dmub_lsdma_init(struct dc_dmub_srv *dc_dmub_srv)
