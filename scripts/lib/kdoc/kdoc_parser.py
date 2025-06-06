@@ -203,7 +203,6 @@ class KernelDoc:
 
     # Section names
 
-    section_intro = "Introduction"
     section_context = "Context"
     section_return = "Return"
 
@@ -1215,7 +1214,7 @@ class KernelDoc:
             self.entry.new_start_line = ln
 
             if not doc_block.group(1):
-                self.entry.section = self.section_intro
+                self.entry.section = "Introduction"
             else:
                 self.entry.section = doc_block.group(1)
 
