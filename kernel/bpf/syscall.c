@@ -3654,8 +3654,10 @@ static void bpf_raw_tp_link_show_fdinfo(const struct bpf_link *link,
 		container_of(link, struct bpf_raw_tp_link, link);
 
 	seq_printf(seq,
-		   "tp_name:\t%s\n",
-		   raw_tp_link->btp->tp->name);
+		   "tp_name:\t%s\n"
+		   "cookie:\t%llu\n",
+		   raw_tp_link->btp->tp->name,
+		   raw_tp_link->cookie);
 }
 
 static int bpf_copy_to_user(char __user *ubuf, const char *buf, u32 ulen,
