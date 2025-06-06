@@ -308,7 +308,7 @@ static void __cold btrfs_print_data_csum_error(struct btrfs_inode *inode,
 	const u32 csum_size = root->fs_info->csum_size;
 
 	/* For data reloc tree, it's better to do a backref lookup instead. */
-	if (btrfs_root_id(root) == BTRFS_DATA_RELOC_TREE_OBJECTID)
+	if (btrfs_is_data_reloc_root(root))
 		return print_data_reloc_error(inode, logical_start, csum,
 					      csum_expected, mirror_num);
 
