@@ -47,7 +47,6 @@ doc_sect = doc_com + \
                 flags=re.I, cache=False)
 
 doc_content = doc_com_body + KernRe(r'(.*)', cache=False)
-doc_block = doc_com + KernRe(r'DOC:\s*(.*)?', cache=False)
 doc_inline_start = KernRe(r'^\s*/\*\*\s*$', cache=False)
 doc_inline_sect = KernRe(r'\s*\*\s*(@\s*[\w][\w\.]*\s*):(.*)', cache=False)
 doc_inline_end = KernRe(r'^\s*\*/\s*$', cache=False)
@@ -59,6 +58,18 @@ export_symbol = KernRe(r'^\s*EXPORT_SYMBOL(_GPL)?\s*\(\s*(\w+)\s*\)\s*', cache=F
 export_symbol_ns = KernRe(r'^\s*EXPORT_SYMBOL_NS(_GPL)?\s*\(\s*(\w+)\s*,\s*"\S+"\)\s*', cache=False)
 
 type_param = KernRe(r"\@(\w*((\.\w+)|(->\w+))*(\.\.\.)?)", cache=False)
+
+#
+# Tests for the beginning of a kerneldoc block in its various forms.
+#
+doc_block = doc_com + KernRe(r'DOC:\s*(.*)?', cache=False)
+doc_begin_data = KernRe(r"^\s*\*?\s*(struct|union|enum|typedef)\b\s*(\w*)", cache = False)
+doc_begin_func = KernRe(str(doc_com) +			# initial " * '
+                        r"(?:\w+\s*\*\s*)?" + 		# type (not captured)
+                        r'(?:define\s+)?' + 		# possible "define" (not captured)
+                        r'(\w+)\s*(?:\(\w*\))?\s*' +	# name and optional "(...)"
+                        r'(?:[-:].*)?$',		# description (not captured)
+                        cache = False)
 
 #
 # A little helper to get rid of excess white space
@@ -1232,22 +1243,15 @@ class KernelDoc:
         if doc_decl.search(line):
             self.entry.identifier = doc_decl.group(1)
 
-            decl_start = str(doc_com)       # comment block asterisk
-            fn_type = r"(?:\w+\s*\*\s*)?"  # type (for non-functions)
-            parenthesis = r"(?:\(\w*\))?"   # optional parenthesis on function
-            decl_end = r"(?:[-:].*)"         # end of the name part
-
             # Test for data declaration
-            r = KernRe(r"^\s*\*?\s*(struct|union|enum|typedef)\b\s*(\w*)")
-            r2 = KernRe(fr"^{decl_start}{fn_type}(?:define\s+)?(\w+)\s*{parenthesis}\s*{decl_end}?$")
-            if r.search(line):
-                self.entry.decl_type = r.group(1)
-                self.entry.identifier = r.group(2)
+            if doc_begin_data.search(line):
+                self.entry.decl_type = doc_begin_data.group(1)
+                self.entry.identifier = doc_begin_data.group(2)
             #
             # Look for a function description
             #
-            elif r2.search(line):
-                self.entry.identifier = r2.group(1)
+            elif doc_begin_func.search(line):
+                self.entry.identifier = doc_begin_func.group(1)
                 self.entry.decl_type = "function"
             #
             # We struck out.
