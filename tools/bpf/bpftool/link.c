@@ -503,6 +503,7 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 					   json_wtr);
 		jsonw_uint_field(json_wtr, "target_obj_id", info->tracing.target_obj_id);
 		jsonw_uint_field(json_wtr, "target_btf_id", info->tracing.target_btf_id);
+		jsonw_uint_field(json_wtr, "cookie", info->tracing.cookie);
 		break;
 	case BPF_LINK_TYPE_CGROUP:
 		jsonw_lluint_field(json_wtr, "cgroup_id",
@@ -900,6 +901,8 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 			printf("\n\ttarget_obj_id %u  target_btf_id %u  ",
 			       info->tracing.target_obj_id,
 			       info->tracing.target_btf_id);
+		if (info->tracing.cookie)
+			printf("\n\tcookie %llu  ", info->tracing.cookie);
 		break;
 	case BPF_LINK_TYPE_CGROUP:
 		printf("\n\tcgroup_id %zu  ", (size_t)info->cgroup.cgroup_id);
