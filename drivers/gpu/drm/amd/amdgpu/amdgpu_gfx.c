@@ -2228,6 +2228,9 @@ void amdgpu_gfx_profile_ring_begin_use(struct amdgpu_ring *ring)
 	enum PP_SMC_POWER_PROFILE profile;
 	int r;
 
+	if (amdgpu_dpm_is_overdrive_enabled(adev))
+		return;
+
 	if (adev->gfx.num_gfx_rings)
 		profile = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
 	else
@@ -2258,6 +2261,11 @@ void amdgpu_gfx_profile_ring_begin_use(struct amdgpu_ring *ring)
 
 void amdgpu_gfx_profile_ring_end_use(struct amdgpu_ring *ring)
 {
+	struct amdgpu_device *adev = ring->adev;
+
+	if (amdgpu_dpm_is_overdrive_enabled(adev))
+		return;
+
 	atomic_dec(&ring->adev->gfx.total_submission_cnt);
 
 	schedule_delayed_work(&ring->adev->gfx.idle_work, GFX_PROFILE_IDLE_TIMEOUT);
