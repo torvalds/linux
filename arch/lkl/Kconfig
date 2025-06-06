@@ -137,11 +137,13 @@ config STACKTRACE_SUPPORT
 if KASAN
 config KASAN_SHADOW_OFFSET
 	hex "KASAN shadow offset"
-	default "0"
+	default "0x0000200000000000" if OUTPUT_FORMAT = "elf64-x86-64"
+	default "0" if OUTPUT_FORMAT != "elf64-x86-64"
 
 config KASAN_SHADOW_SIZE
 	hex "KASAN shadow size"
-	default "0"
+	default "0x0000100000000000" if OUTPUT_FORMAT = "elf64-x86-64"
+	default "0" if OUTPUT_FORMAT != "elf64-x86-64"
 endif
 
 config BUILTIN_CMDLINE

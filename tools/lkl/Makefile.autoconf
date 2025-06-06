@@ -110,13 +110,6 @@ define nt_host
   $(if $(filter $(1),pe-x86-64),$(call nt64_host))
 endef
 
-define kasan_x86_64
-  $(call set_autoconf_var,KASAN_SHADOW_OFFSET,0x0000200000000000)
-  $(call set_kernel_config,KASAN_SHADOW_OFFSET,0x0000200000000000)
-  $(call set_autoconf_var,KASAN_SHADOW_SIZE,0x0000100000000000)
-  $(call set_kernel_config,KASAN_SHADOW_SIZE,0x0000100000000000)
-endef
-
 define kasan_test_enable
   $(call set_autoconf_var,KASAN_TEST,y)
   $(call set_kernel_config,KUNIT,y)
@@ -127,7 +120,6 @@ endef
 define kasan_enable
   $(call set_autoconf_var,KASAN,y)
   $(call set_kernel_config,KASAN,y)
-  $(if $(filter $(1),elf64-x86-64),$(call kasan_x86_64))
   $(if $(filter yes,$(kasan_test)), $(call kasan_test_enable))
 endef
 
