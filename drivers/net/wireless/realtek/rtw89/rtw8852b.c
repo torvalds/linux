@@ -755,6 +755,7 @@ static const struct rtw89_chip_ops rtw8852b_chip_ops = {
 	.set_txpwr_ctrl		= rtw8852bx_set_txpwr_ctrl,
 	.init_txpwr_unit	= rtw8852bx_init_txpwr_unit,
 	.get_thermal		= rtw8852bx_get_thermal,
+	.chan_to_rf18_val	= NULL,
 	.ctrl_btg_bt_rx		= rtw8852bx_ctrl_btg_bt_rx,
 	.query_ppdu		= rtw8852bx_query_ppdu,
 	.convert_rpl_to_rssi	= rtw8852bx_convert_rpl_to_rssi,

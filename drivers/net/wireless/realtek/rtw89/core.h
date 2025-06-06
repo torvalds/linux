@@ -3646,6 +3646,8 @@ struct rtw89_chip_ops {
 			       enum rtw89_phy_idx phy_idx);
 	int (*init_txpwr_unit)(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
 	u8 (*get_thermal)(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path);
+	u32 (*chan_to_rf18_val)(struct rtw89_dev *rtwdev,
+				const struct rtw89_chan *chan);
 	void (*ctrl_btg_bt_rx)(struct rtw89_dev *rtwdev, bool en,
 			       enum rtw89_phy_idx phy_idx);
 	void (*query_ppdu)(struct rtw89_dev *rtwdev,
@@ -6880,6 +6882,17 @@ static inline u8 rtw89_chip_get_thermal(struct rtw89_dev *rtwdev,
 		return 0x10;
 
 	return chip->ops->get_thermal(rtwdev, rf_path);
+}
+
+static inline u32 rtw89_chip_chan_to_rf18_val(struct rtw89_dev *rtwdev,
+					      const struct rtw89_chan *chan)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (!chip->ops->chan_to_rf18_val)
+		return 0;
+
+	return chip->ops->chan_to_rf18_val(rtwdev, chan);
 }
 
 static inline void rtw89_chip_query_ppdu(struct rtw89_dev *rtwdev,

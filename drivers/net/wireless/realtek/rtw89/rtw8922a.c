@@ -2390,6 +2390,48 @@ static u8 rtw8922a_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_p
 	return clamp_t(int, th, 0, U8_MAX);
 }
 
+static u32 rtw8922a_chan_to_rf18_val(struct rtw89_dev *rtwdev,
+				     const struct rtw89_chan *chan)
+{
+	u32 val = u32_encode_bits(chan->channel, RR_CFGCH_CH);
+
+	switch (chan->band_type) {
+	case RTW89_BAND_2G:
+	default:
+		break;
+	case RTW89_BAND_5G:
+		val |= u32_encode_bits(CFGCH_BAND1_5G, RR_CFGCH_BAND1) |
+		       u32_encode_bits(CFGCH_BAND0_5G, RR_CFGCH_BAND0);
+		break;
+	case RTW89_BAND_6G:
+		val |= u32_encode_bits(CFGCH_BAND1_6G, RR_CFGCH_BAND1) |
+		       u32_encode_bits(CFGCH_BAND0_6G, RR_CFGCH_BAND0);
+		break;
+	}
+
+	switch (chan->band_width) {
+	case RTW89_CHANNEL_WIDTH_5:
+	case RTW89_CHANNEL_WIDTH_10:
+	case RTW89_CHANNEL_WIDTH_20:
+	default:
+		break;
+	case RTW89_CHANNEL_WIDTH_40:
+		val |= u32_encode_bits(CFGCH_BW_V2_40M, RR_CFGCH_BW_V2);
+		break;
+	case RTW89_CHANNEL_WIDTH_80:
+		val |= u32_encode_bits(CFGCH_BW_V2_80M, RR_CFGCH_BW_V2);
+		break;
+	case RTW89_CHANNEL_WIDTH_160:
+		val |= u32_encode_bits(CFGCH_BW_V2_160M, RR_CFGCH_BW_V2);
+		break;
+	case RTW89_CHANNEL_WIDTH_320:
+		val |= u32_encode_bits(CFGCH_BW_V2_320M, RR_CFGCH_BW_V2);
+		break;
+	}
+
+	return val;
+}
+
 static void rtw8922a_btc_set_rfe(struct rtw89_dev *rtwdev)
 {
 	union rtw89_btc_module_info *md = &rtwdev->btc.mdinfo;
@@ -2761,6 +2803,7 @@ static const struct rtw89_chip_ops rtw8922a_chip_ops = {
 	.set_txpwr_ctrl		= rtw8922a_set_txpwr_ctrl,
 	.init_txpwr_unit	= NULL,
 	.get_thermal		= rtw8922a_get_thermal,
+	.chan_to_rf18_val	= rtw8922a_chan_to_rf18_val,
 	.ctrl_btg_bt_rx		= rtw8922a_ctrl_btg_bt_rx,
 	.query_ppdu		= rtw8922a_query_ppdu,
 	.convert_rpl_to_rssi	= rtw8922a_convert_rpl_to_rssi,
