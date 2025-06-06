@@ -56,6 +56,8 @@ int ecryptfs_fill_auth_tok(struct ecryptfs_auth_tok *auth_tok,
 	auth_tok->token_type = ECRYPTFS_PASSWORD;
 	strncpy((char *)auth_tok->token.password.signature, key_desc,
 		ECRYPTFS_PASSWORD_SIG_SIZE);
+	/* Ensure signature string is null terminated as strncpy may not */
+	auth_tok->token.password.signature[ECRYPTFS_PASSWORD_SIG_SIZE] = '\0';
 	auth_tok->token.password.session_key_encryption_key_bytes =
 		ECRYPTFS_MAX_KEY_BYTES;
 	/*
