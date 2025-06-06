@@ -3403,10 +3403,12 @@ static void bpf_tracing_link_show_fdinfo(const struct bpf_link *link,
 	seq_printf(seq,
 		   "attach_type:\t%d\n"
 		   "target_obj_id:\t%u\n"
-		   "target_btf_id:\t%u\n",
+		   "target_btf_id:\t%u\n"
+		   "cookie:\t%llu\n",
 		   tr_link->attach_type,
 		   target_obj_id,
-		   target_btf_id);
+		   target_btf_id,
+		   tr_link->link.cookie);
 }
 
 static int bpf_tracing_link_fill_link_info(const struct bpf_link *link,
