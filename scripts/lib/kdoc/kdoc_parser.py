@@ -1238,26 +1238,18 @@ class KernelDoc:
 
             # Test for data declaration
             r = KernRe(r"^\s*\*?\s*(struct|union|enum|typedef)\b\s*(\w*)")
+            r2 = KernRe(fr"^{decl_start}{fn_type}(?:define\s+)?(\w+)\s*{parenthesis}\s*{decl_end}?$")
             if r.search(line):
                 self.entry.decl_type = r.group(1)
                 self.entry.identifier = r.group(2)
                 self.entry.is_kernel_comment = True
-            else:
-                # Look for foo() or static void foo() - description;
-                # or misspelt identifier
-
-                r1 = KernRe(fr"^{decl_start}{fn_type}(\w+)\s*{parenthesis}\s*{decl_end}?$")
-                r2 = KernRe(fr"^{decl_start}{fn_type}(\w+[^-:]*){parenthesis}\s*{decl_end}$")
-
-                for r in [r1, r2]:
-                    if r.search(line):
-                        self.entry.identifier = r.group(1)
-                        self.entry.decl_type = "function"
-
-                        r = KernRe(r"define\s+")
-                        self.entry.identifier = r.sub("", self.entry.identifier)
-                        self.entry.is_kernel_comment = True
-                        break
+            #
+            # Look for a function description
+            #
+            elif r2.search(line):
+                self.entry.identifier = r2.group(1)
+                self.entry.decl_type = "function"
+                self.entry.is_kernel_comment = True
 
             self.entry.identifier = self.entry.identifier.strip(" ")
 
