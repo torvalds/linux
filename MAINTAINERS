@@ -9147,9 +9147,10 @@ F:	lib/fault-inject.c
 F:	tools/testing/fault-injection/
 
 FBTFT Framebuffer drivers
+M:	Andy Shevchenko <andy@kernel.org>
 L:	dri-devel@lists.freedesktop.org
 L:	linux-fbdev@vger.kernel.org
-S:	Orphan
+S:	Odd fixes
 F:	drivers/staging/fbtft/
 
 FC0011 TUNER DRIVER

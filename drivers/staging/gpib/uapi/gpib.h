@@ -4,8 +4,8 @@
  *    copyright		   : (C) 2002 by Frank Mori Hess
  ***************************************************************************/
 
-#ifndef _GPIB_USER_H
-#define _GPIB_USER_H
+#ifndef _GPIB_H
+#define _GPIB_H
 
 #define GPIB_MAX_NUM_BOARDS 16
 #define GPIB_MAX_NUM_DESCRIPTORS 0x1000
@@ -53,48 +53,6 @@ enum ibsta_bits {
 		EVENT | LOK | REM | CIC | ATN | TACS | LACS | DTAS | DCAS | SRQI,
 };
 
-/* IBERR error codes */
-enum iberr_code {
-	EDVR = 0,		/* system error */
-	ECIC = 1,		/* not CIC */
-	ENOL = 2,		/* no listeners */
-	EADR = 3,		/* CIC and not addressed before I/O */
-	EARG = 4,		/* bad argument to function call */
-	ESAC = 5,		/* not SAC */
-	EABO = 6,		/* I/O operation was aborted */
-	ENEB = 7,		/* non-existent board (GPIB interface offline) */
-	EDMA = 8,		/* DMA hardware error detected */
-	EOIP = 10,		/* new I/O attempted with old I/O in progress  */
-	ECAP = 11,		/* no capability for intended opeation */
-	EFSO = 12,		/* file system operation error */
-	EBUS = 14,		/* bus error */
-	ESTB = 15,		/* lost serial poll bytes */
-	ESRQ = 16,		/* SRQ stuck on */
-	ETAB = 20	       /* Table Overflow */
-};
-
-/* Timeout values and meanings */
-enum gpib_timeout {
-	TNONE = 0,		/* Infinite timeout (disabled)	   */
-	T10us = 1,		/* Timeout of 10 usec (ideal)	   */
-	T30us = 2,		/* Timeout of 30 usec (ideal)	   */
-	T100us = 3,		/* Timeout of 100 usec (ideal)	   */
-	T300us = 4,		/* Timeout of 300 usec (ideal)	   */
-	T1ms = 5,		/* Timeout of 1 msec (ideal)	   */
-	T3ms = 6,		/* Timeout of 3 msec (ideal)	   */
-	T10ms = 7,		/* Timeout of 10 msec (ideal)	   */
-	T30ms = 8,		/* Timeout of 30 msec (ideal)	   */
-	T100ms = 9,		/* Timeout of 100 msec (ideal)	   */
-	T300ms = 10,	/* Timeout of 300 msec (ideal)	   */
-	T1s = 11,		/* Timeout of 1 sec (ideal)	   */
-	T3s = 12,		/* Timeout of 3 sec (ideal)	   */
-	T10s = 13,		/* Timeout of 10 sec (ideal)	   */
-	T30s = 14,		/* Timeout of 30 sec (ideal)	   */
-	T100s = 15,		/* Timeout of 100 sec (ideal)	   */
-	T300s = 16,		/* Timeout of 300 sec (ideal)	   */
-	T1000s = 17		/* Timeout of 1000 sec (maximum)   */
-};
-
 /* End-of-string (EOS) modes for use with ibeos */
 
 enum eos_flags {
@@ -130,9 +88,9 @@ enum bus_control_line {
 enum cmd_byte {
 	GTL = 0x1,	/* go to local			*/
 	SDC = 0x4,	/* selected device clear	*/
-	PPConfig = 0x5,
+	PP_CONFIG = 0x5,
 #ifndef PPC
-	PPC = PPConfig,	/* parallel poll configure	*/
+	PPC = PP_CONFIG, /* parallel poll configure	*/
 #endif
 	GET = 0x8,	/* group execute trigger	*/
 	TCT = 0x9,	/* take control			*/
@@ -166,24 +124,24 @@ static inline unsigned int gpib_address_restrict(unsigned int addr)
 	return addr;
 }
 
-static inline uint8_t MLA(unsigned int addr)
+static inline __u8 MLA(unsigned int addr)
 {
 	return gpib_address_restrict(addr) | LAD;
 }
 
-static inline uint8_t MTA(unsigned int addr)
+static inline __u8 MTA(unsigned int addr)
 {
 	return gpib_address_restrict(addr) | TAD;
 }
 
-static inline uint8_t MSA(unsigned int addr)
+static inline __u8 MSA(unsigned int addr)
 {
-	return gpib_address_restrict(addr) | SAD;
+	return (addr & 0x1f) | SAD;
 }
 
-static inline uint8_t PPE_byte(unsigned int dio_line, int sense)
+static inline __u8 PPE_byte(unsigned int dio_line, int sense)
 {
-	uint8_t cmd;
+	__u8 cmd;
 
 	cmd = PPE;
 	if (sense)
@@ -192,47 +150,42 @@ static inline uint8_t PPE_byte(unsigned int dio_line, int sense)
 	return cmd;
 }
 
-static inline uint8_t CFGn(unsigned int meters)
-{
-	return 0x6 | (meters & 0xf);
-}
-
 /* mask of bits that actually matter in a command byte */
 enum {
 	gpib_command_mask = 0x7f,
 };
 
-static inline int is_PPE(uint8_t command)
+static inline int is_PPE(__u8 command)
 {
 	return (command & 0x70) == 0x60;
 }
 
-static inline int is_PPD(uint8_t command)
+static inline int is_PPD(__u8 command)
 {
 	return (command & 0x70) == 0x70;
 }
 
-static inline int in_addressed_command_group(uint8_t command)
+static inline int in_addressed_command_group(__u8 command)
 {
 	return (command & 0x70) == 0x0;
 }
 
-static inline int in_universal_command_group(uint8_t command)
+static inline int in_universal_command_group(__u8 command)
 {
 	return (command & 0x70) == 0x10;
 }
 
-static inline int in_listen_address_group(uint8_t command)
+static inline int in_listen_address_group(__u8 command)
 {
 	return (command & 0x60) == 0x20;
 }
 
-static inline int in_talk_address_group(uint8_t command)
+static inline int in_talk_address_group(__u8 command)
 {
 	return (command & 0x60) == 0x40;
 }
 
-static inline int in_primary_command_group(uint8_t command)
+static inline int in_primary_command_group(__u8 command)
 {
 	return in_addressed_command_group(command) ||
 		in_universal_command_group(command) ||
@@ -253,75 +206,73 @@ static inline int gpib_address_equal(unsigned int pad1, int sad1, unsigned int p
 }
 
 enum ibask_option {
-	IbaPAD = 0x1,
-	IbaSAD = 0x2,
-	IbaTMO = 0x3,
-	IbaEOT = 0x4,
-	IbaPPC = 0x5,	/* board only */
-	IbaREADDR = 0x6,	/* device only */
-	IbaAUTOPOLL = 0x7,	/* board only */
-	IbaCICPROT = 0x8,	/* board only */
-	IbaIRQ = 0x9,	/* board only */
-	IbaSC = 0xa,	/* board only */
-	IbaSRE = 0xb,	/* board only */
-	IbaEOSrd = 0xc,
-	IbaEOSwrt = 0xd,
-	IbaEOScmp = 0xe,
-	IbaEOSchar = 0xf,
-	IbaPP2 = 0x10,	/* board only */
-	IbaTIMING = 0x11,	/* board only */
-	IbaDMA = 0x12,	/* board only */
-	IbaReadAdjust = 0x13,
-	IbaWriteAdjust = 0x14,
-	IbaEventQueue = 0x15,	/* board only */
-	IbaSPollBit = 0x16,	/* board only */
-	IbaSpollBit = 0x16,	/* board only */
-	IbaSendLLO = 0x17,	/* board only */
-	IbaSPollTime = 0x18,	/* device only */
-	IbaPPollTime = 0x19,	/* board only */
-	IbaEndBitIsNormal = 0x1a,
-	IbaUnAddr = 0x1b,	/* device only */
-	IbaHSCableLength = 0x1f,	/* board only */
-	IbaIst = 0x20,	/* board only */
-	IbaRsv = 0x21,	/* board only */
-	IbaBNA = 0x200,	/* device only */
+	IBA_PAD = 0x1,
+	IBA_SAD = 0x2,
+	IBA_TMO = 0x3,
+	IBA_EOT = 0x4,
+	IBA_PPC = 0x5,	/* board only */
+	IBA_READ_DR = 0x6,	/* device only */
+	IBA_AUTOPOLL = 0x7,	/* board only */
+	IBA_CICPROT = 0x8,	/* board only */
+	IBA_IRQ = 0x9,	/* board only */
+	IBA_SC = 0xa,	/* board only */
+	IBA_SRE = 0xb,	/* board only */
+	IBA_EOS_RD = 0xc,
+	IBA_EOS_WRT = 0xd,
+	IBA_EOS_CMP = 0xe,
+	IBA_EOS_CHAR = 0xf,
+	IBA_PP2 = 0x10,	/* board only */
+	IBA_TIMING = 0x11,	/* board only */
+	IBA_DMA = 0x12,	/* board only */
+	IBA_READ_ADJUST = 0x13,
+	IBA_WRITE_ADJUST = 0x14,
+	IBA_EVENT_QUEUE = 0x15,	/* board only */
+	IBA_SPOLL_BIT = 0x16,	/* board only */
+	IBA_SEND_LLO = 0x17,	/* board only */
+	IBA_SPOLL_TIME = 0x18,	/* device only */
+	IBA_PPOLL_TIME = 0x19,	/* board only */
+	IBA_END_BIT_IS_NORMAL = 0x1a,
+	IBA_UN_ADDR = 0x1b,	/* device only */
+	IBA_HS_CABLE_LENGTH = 0x1f,	/* board only */
+	IBA_IST = 0x20,	/* board only */
+	IBA_RSV = 0x21,	/* board only */
+	IBA_BNA = 0x200,	/* device only */
 	/* linux-gpib extensions */
-	Iba7BitEOS = 0x1000	/* board only. Returns 1 if board supports 7 bit eos compares*/
+	IBA_7_BIT_EOS = 0x1000	/* board only. Returns 1 if board supports 7 bit eos compares*/
 };
 
 enum ibconfig_option {
-	IbcPAD = 0x1,
-	IbcSAD = 0x2,
-	IbcTMO = 0x3,
-	IbcEOT = 0x4,
-	IbcPPC = 0x5,	/* board only */
-	IbcREADDR = 0x6,	/* device only */
-	IbcAUTOPOLL = 0x7,	/* board only */
-	IbcCICPROT = 0x8,	/* board only */
-	IbcIRQ = 0x9,	/* board only */
-	IbcSC = 0xa,	/* board only */
-	IbcSRE = 0xb,	/* board only */
-	IbcEOSrd = 0xc,
-	IbcEOSwrt = 0xd,
-	IbcEOScmp = 0xe,
-	IbcEOSchar = 0xf,
-	IbcPP2 = 0x10,	/* board only */
-	IbcTIMING = 0x11,	/* board only */
-	IbcDMA = 0x12,	/* board only */
-	IbcReadAdjust = 0x13,
-	IbcWriteAdjust = 0x14,
-	IbcEventQueue = 0x15,	/* board only */
-	IbcSPollBit = 0x16,	/* board only */
-	IbcSpollBit = 0x16,	/* board only */
-	IbcSendLLO = 0x17,	/* board only */
-	IbcSPollTime = 0x18,	/* device only */
-	IbcPPollTime = 0x19,	/* board only */
-	IbcEndBitIsNormal = 0x1a,
-	IbcUnAddr = 0x1b,	/* device only */
-	IbcHSCableLength = 0x1f,	/* board only */
-	IbcIst = 0x20,	/* board only */
-	IbcRsv = 0x21,	/* board only */
-	IbcBNA = 0x200	/* device only */
+	IBC_PAD = 0x1,
+	IBC_SAD = 0x2,
+	IBC_TMO = 0x3,
+	IBC_EOT = 0x4,
+	IBC_PPC = 0x5,	/* board only */
+	IBC_READDR = 0x6,	/* device only */
+	IBC_AUTOPOLL = 0x7,	/* board only */
+	IBC_CICPROT = 0x8,	/* board only */
+	IBC_IRQ = 0x9,	/* board only */
+	IBC_SC = 0xa,	/* board only */
+	IBC_SRE = 0xb,	/* board only */
+	IBC_EOS_RD = 0xc,
+	IBC_EOS_WRT = 0xd,
+	IBC_EOS_CMP = 0xe,
+	IBC_EOS_CHAR = 0xf,
+	IBC_PP2 = 0x10,	/* board only */
+	IBC_TIMING = 0x11,	/* board only */
+	IBC_DMA = 0x12,	/* board only */
+	IBC_READ_ADJUST = 0x13,
+	IBC_WRITE_ADJUST = 0x14,
+	IBC_EVENT_QUEUE = 0x15,	/* board only */
+	IBC_SPOLL_BIT = 0x16,	/* board only */
+	IBC_SEND_LLO = 0x17,	/* board only */
+	IBC_SPOLL_TIME = 0x18,	/* device only */
+	IBC_PPOLL_TIME = 0x19,	/* board only */
+	IBC_END_BIT_IS_NORMAL = 0x1a,
+	IBC_UN_ADDR = 0x1b,	/* device only */
+	IBC_HS_CABLE_LENGTH = 0x1f,	/* board only */
+	IBC_IST = 0x20,	/* board only */
+	IBC_RSV = 0x21,	/* board only */
+	IBC_BNA = 0x200	/* device only */
 };
 
 enum t1_delays {
@@ -335,18 +286,17 @@ enum {
 };
 
 enum gpib_events {
-	EventNone = 0,
-	EventDevTrg = 1,
-	EventDevClr = 2,
-	EventIFC = 3
+	EVENT_NONE = 0,
+	EVENT_DEV_TRG = 1,
+	EVENT_DEV_CLR = 2,
+	EVENT_IFC = 3
 };
 
 enum gpib_stb {
-	IbStbRQS = 0x40, /* IEEE 488.1 & 2  */
-	IbStbESB = 0x20, /* IEEE 488.2 only */
-	IbStbMAV = 0x10	 /* IEEE 488.2 only */
+	IB_STB_RQS = 0x40, /* IEEE 488.1 & 2  */
+	IB_STB_ESB = 0x20, /* IEEE 488.2 only */
+	IB_STB_MAV = 0x10	 /* IEEE 488.2 only */
 };
 
-#endif	/* _GPIB_USER_H */
+#endif	/* _GPIB_H */
 
-/* Check for errors */

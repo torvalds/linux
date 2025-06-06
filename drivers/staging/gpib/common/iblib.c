@@ -33,9 +33,10 @@ int ibcac(struct gpib_board *board, int sync, int fallback_to_async)
 		return 0;
 
 	if (sync && (status & LACS) == 0)
-		/* tcs (take control synchronously) can only possibly work when
-		 *  controller is listener.  Error code also needs to be -ETIMEDOUT
-		 *  or it will giveout without doing fallback.
+		/*
+		 * tcs (take control synchronously) can only possibly work when
+		 * controller is listener.  Error code also needs to be -ETIMEDOUT
+		 * or it will giveout without doing fallback.
 		 */
 		retval = -ETIMEDOUT;
 	else
@@ -50,7 +51,8 @@ int ibcac(struct gpib_board *board, int sync, int fallback_to_async)
 	return retval;
 }
 
-/* After ATN is asserted, it should cause any connected devices
+/*
+ * After ATN is asserted, it should cause any connected devices
  * to start listening for command bytes and leave acceptor idle state.
  * So if ATN is asserted and neither NDAC or NRFD are asserted,
  * then there are no devices and ibcmd should error out immediately.
@@ -96,7 +98,7 @@ static int check_for_command_acceptors(struct gpib_board *board)
  *          must be called to initialize the GPIB and enable
  *          the interface to leave the controller idle state.
  */
-int ibcmd(struct gpib_board *board, uint8_t *buf, size_t length, size_t *bytes_written)
+int ibcmd(struct gpib_board *board, u8 *buf, size_t length, size_t *bytes_written)
 {
 	ssize_t ret = 0;
 	int status;
@@ -218,7 +220,8 @@ int ibonline(struct gpib_board *board)
 		board->interface->detach(board);
 		return retval;
 	}
-	/* nios2nommu on 2.6.11 uclinux kernel has weird problems
+	/*
+	 * nios2nommu on 2.6.11 uclinux kernel has weird problems
 	 * with autospoll thread causing huge slowdowns
 	 */
 #ifndef CONFIG_NIOS2
@@ -297,7 +300,7 @@ int iblines(const struct gpib_board *board, short *lines)
  *          calling ibcmd.
  */
 
-int ibrd(struct gpib_board *board, uint8_t *buf, size_t length, int *end_flag, size_t *nbytes)
+int ibrd(struct gpib_board *board, u8 *buf, size_t length, int *end_flag, size_t *nbytes)
 {
 	ssize_t ret = 0;
 	int retval;
@@ -313,7 +316,8 @@ int ibrd(struct gpib_board *board, uint8_t *buf, size_t length, int *end_flag, s
 		if (retval < 0)
 			return retval;
 	}
-	/* XXX resetting timer here could cause timeouts take longer than they should,
+	/*
+	 * XXX resetting timer here could cause timeouts take longer than they should,
 	 * since read_ioctl calls this
 	 * function in a loop, there is probably a similar problem with writes/commands
 	 */
@@ -343,7 +347,7 @@ ibrd_out:
  *	1.  Prior to conducting the poll the interface is placed
  *	    in the controller active state.
  */
-int ibrpp(struct gpib_board *board, uint8_t *result)
+int ibrpp(struct gpib_board *board, u8 *result)
 {
 	int retval = 0;
 
@@ -358,7 +362,7 @@ int ibrpp(struct gpib_board *board, uint8_t *result)
 	return retval;
 }
 
-int ibppc(struct gpib_board *board, uint8_t configuration)
+int ibppc(struct gpib_board *board, u8 configuration)
 {
 	configuration &= 0x1f;
 	board->interface->parallel_poll_configure(board, configuration);
@@ -367,7 +371,7 @@ int ibppc(struct gpib_board *board, uint8_t configuration)
 	return 0;
 }
 
-int ibrsv2(struct gpib_board *board, uint8_t status_byte, int new_reason_for_service)
+int ibrsv2(struct gpib_board *board, u8 status_byte, int new_reason_for_service)
 {
 	int board_status = ibstatus(board);
 	const unsigned int MSS = status_byte & request_service_bit;
@@ -418,12 +422,21 @@ int ibsic(struct gpib_board *board, unsigned int usec_duration)
 	return 0;
 }
 
-	/* FIXME make int */
-void ibrsc(struct gpib_board *board, int request_control)
+int ibrsc(struct gpib_board *board, int request_control)
 {
+	int retval;
+
+	if (!board->interface->request_system_control)
+		return -EPERM;
+
+	retval = board->interface->request_system_control(board, request_control);
+
+	if (retval)
+		return retval;
+
 	board->master = request_control != 0;
-	if (board->interface->request_system_control)
-		board->interface->request_system_control(board, request_control);
+
+	return  0;
 }
 
 /*
@@ -506,15 +519,16 @@ int ibstatus(struct gpib_board *board)
 	return general_ibstatus(board, NULL, 0, 0, NULL);
 }
 
-int general_ibstatus(struct gpib_board *board, const gpib_status_queue_t *device,
-		     int clear_mask, int set_mask, gpib_descriptor_t *desc)
+int general_ibstatus(struct gpib_board *board, const struct gpib_status_queue *device,
+		     int clear_mask, int set_mask, struct gpib_descriptor *desc)
 {
 	int status = 0;
 	short line_status;
 
 	if (board->private_data) {
 		status = board->interface->update_status(board, clear_mask);
-		/* XXX should probably stop having drivers use TIMO bit in
+		/*
+		 * XXX should probably stop having drivers use TIMO bit in
 		 * board->status to avoid confusion
 		 */
 		status &= ~TIMO;
@@ -573,8 +587,8 @@ static void init_wait_info(struct wait_info *winfo)
 	timer_setup_on_stack(&winfo->timer, wait_timeout, 0);
 }
 
-static int wait_satisfied(struct wait_info *winfo, gpib_status_queue_t *status_queue,
-			  int wait_mask, int *status, gpib_descriptor_t *desc)
+static int wait_satisfied(struct wait_info *winfo, struct gpib_status_queue *status_queue,
+			  int wait_mask, int *status, struct gpib_descriptor *desc)
 {
 	struct gpib_board *board = winfo->board;
 	int temp_status;
@@ -623,10 +637,10 @@ static void remove_wait_timer(struct wait_info *winfo)
  * no condition is waited for.
  */
 int ibwait(struct gpib_board *board, int wait_mask, int clear_mask, int set_mask,
-	   int *status, unsigned long usec_timeout, gpib_descriptor_t *desc)
+	   int *status, unsigned long usec_timeout, struct gpib_descriptor *desc)
 {
 	int retval = 0;
-	gpib_status_queue_t *status_queue;
+	struct gpib_status_queue *status_queue;
 	struct wait_info winfo;
 
 	if (desc->is_board)
@@ -677,7 +691,7 @@ int ibwait(struct gpib_board *board, int wait_mask, int clear_mask, int set_mask
  *          well as the interface board itself must be
  *          addressed by calling ibcmd.
  */
-int ibwrt(struct gpib_board *board, uint8_t *buf, size_t cnt, int send_eoi, size_t *bytes_written)
+int ibwrt(struct gpib_board *board, u8 *buf, size_t cnt, int send_eoi, size_t *bytes_written)
 {
 	int ret = 0;
 	int retval;

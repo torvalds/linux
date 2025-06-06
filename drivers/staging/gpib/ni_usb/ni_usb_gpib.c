@@ -74,7 +74,8 @@ static unsigned short ni_usb_timeout_code(unsigned int usec)
 		return 0xff;
 	else if	 (usec <= 300000000)
 		return 0x01;
-	/* NI driver actually uses 0xff for timeout T1000s, which is a bug in their code.
+	/*
+	 * NI driver actually uses 0xff for timeout T1000s, which is a bug in their code.
 	 * I've verified on a usb-b that a code of 0x2 is correct for a 1000 sec timeout
 	 */
 	else if (usec <= 1000000000)
@@ -232,7 +233,8 @@ static int ni_usb_nonblocking_receive_bulk_msg(struct ni_usb_priv *ni_priv,
 	mutex_unlock(&ni_priv->bulk_transfer_lock);
 	if (interruptible) {
 		if (wait_for_completion_interruptible(&context->complete)) {
-			/* If we got interrupted by a signal while
+			/*
+			 * If we got interrupted by a signal while
 			 * waiting for the usb gpib to respond, we
 			 * should send a stop command so it will
 			 * finish up with whatever it was doing and
@@ -240,8 +242,9 @@ static int ni_usb_nonblocking_receive_bulk_msg(struct ni_usb_priv *ni_priv,
 			 */
 			ni_usb_stop(ni_priv);
 			retval = -ERESTARTSYS;
-			/* now do an uninterruptible wait, it shouldn't take long
-			 *	for the board to respond now.
+			/*
+			 * now do an uninterruptible wait, it shouldn't take long
+			 * for the board to respond now.
 			 */
 			wait_for_completion(&context->complete);
 		}
@@ -586,7 +589,7 @@ static int ni_usb_write_registers(struct ni_usb_priv *ni_priv,
 }
 
 // interface functions
-static int ni_usb_read(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int ni_usb_read(struct gpib_board *board, u8 *buffer, size_t length,
 		       int *end, size_t *bytes_read)
 {
 	int retval, parse_retval;
@@ -684,7 +687,8 @@ static int ni_usb_read(struct gpib_board *board, uint8_t *buffer, size_t length,
 		retval = 0;
 		break;
 	case NIUSB_ABORTED_ERROR:
-		/* this is expected if ni_usb_receive_bulk_msg got
+		/*
+		 * this is expected if ni_usb_receive_bulk_msg got
 		 * interrupted by a signal and returned -ERESTARTSYS
 		 */
 		break;
@@ -716,7 +720,7 @@ static int ni_usb_read(struct gpib_board *board, uint8_t *buffer, size_t length,
 	return retval;
 }
 
-static int ni_usb_write(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int ni_usb_write(struct gpib_board *board, u8 *buffer, size_t length,
 			int send_eoi, size_t *bytes_written)
 {
 	int retval;
@@ -794,7 +798,8 @@ static int ni_usb_write(struct gpib_board *board, uint8_t *buffer, size_t length
 		retval = 0;
 		break;
 	case NIUSB_ABORTED_ERROR:
-		/* this is expected if ni_usb_receive_bulk_msg got
+		/*
+		 * this is expected if ni_usb_receive_bulk_msg got
 		 * interrupted by a signal and returned -ERESTARTSYS
 		 */
 		break;
@@ -819,7 +824,7 @@ static int ni_usb_write(struct gpib_board *board, uint8_t *buffer, size_t length
 	return retval;
 }
 
-static int ni_usb_command_chunk(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int ni_usb_command_chunk(struct gpib_board *board, u8 *buffer, size_t length,
 				size_t *command_bytes_written)
 {
 	int retval;
@@ -893,7 +898,8 @@ static int ni_usb_command_chunk(struct gpib_board *board, uint8_t *buffer, size_
 	case NIUSB_NO_ERROR:
 		break;
 	case NIUSB_ABORTED_ERROR:
-		/* this is expected if ni_usb_receive_bulk_msg got
+		/*
+		 * this is expected if ni_usb_receive_bulk_msg got
 		 * interrupted by a signal and returned -ERESTARTSYS
 		 */
 		break;
@@ -912,7 +918,7 @@ static int ni_usb_command_chunk(struct gpib_board *board, uint8_t *buffer, size_
 	return 0;
 }
 
-static int ni_usb_command(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int ni_usb_command(struct gpib_board *board, u8 *buffer, size_t length,
 			  size_t *bytes_written)
 {
 	size_t count;
@@ -1049,7 +1055,7 @@ static int ni_usb_go_to_standby(struct gpib_board *board)
 	return 0;
 }
 
-static void ni_usb_request_system_control(struct gpib_board *board, int request_control)
+static int ni_usb_request_system_control(struct gpib_board *board, int request_control)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1059,7 +1065,7 @@ static void ni_usb_request_system_control(struct gpib_board *board, int request_
 	unsigned int ibsta;
 
 	if (!ni_priv->bus_interface)
-		return; // -ENODEV;
+		return -ENODEV;
 	usb_dev = interface_to_usbdev(ni_priv->bus_interface);
 	if (request_control) {
 		writes[i].device = NIUSB_SUBDEV_TNT4882;
@@ -1091,12 +1097,12 @@ static void ni_usb_request_system_control(struct gpib_board *board, int request_
 	retval = ni_usb_write_registers(ni_priv, writes, i, &ibsta);
 	if (retval < 0) {
 		dev_err(&usb_dev->dev, "register write failed, retval=%i\n", retval);
-		return; // retval;
+		return retval;
 	}
 	if (!request_control)
 		ni_priv->ren_state = 0;
 	ni_usb_soft_update_status(board, ibsta, 0);
-	return; // 0;
+	return 0;
 }
 
 //FIXME maybe the interface should have a "pulse interface clear" function that can return an error?
@@ -1176,7 +1182,7 @@ static void ni_usb_remote_enable(struct gpib_board *board, int enable)
 	return;// 0;
 }
 
-static int ni_usb_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits)
+static int ni_usb_enable_eos(struct gpib_board *board, u8 eos_byte, int compare_8_bits)
 {
 	struct ni_usb_priv *ni_priv = board->private_data;
 
@@ -1192,8 +1198,9 @@ static int ni_usb_enable_eos(struct gpib_board *board, uint8_t eos_byte, int com
 static void ni_usb_disable_eos(struct gpib_board *board)
 {
 	struct ni_usb_priv *ni_priv = board->private_data;
-	/* adapter gets unhappy if you don't zero all the bits
-	 *	for the eos mode and eos char (returns error 4 on reads).
+	/*
+	 * adapter gets unhappy if you don't zero all the bits
+	 * for the eos mode and eos char (returns error 4 on reads).
 	 */
 	ni_priv->eos_mode = 0;
 	ni_priv->eos_char = 0;
@@ -1334,7 +1341,7 @@ static int ni_usb_secondary_address(struct gpib_board *board, unsigned int addre
 	return 0;
 }
 
-static int ni_usb_parallel_poll(struct gpib_board *board, uint8_t *result)
+static int ni_usb_parallel_poll(struct gpib_board *board, u8 *result)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1389,7 +1396,7 @@ static int ni_usb_parallel_poll(struct gpib_board *board, uint8_t *result)
 	return retval;
 }
 
-static void ni_usb_parallel_poll_configure(struct gpib_board *board, uint8_t config)
+static void ni_usb_parallel_poll_configure(struct gpib_board *board, u8 config)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1467,7 +1474,7 @@ static void ni_usb_serial_poll_response(struct gpib_board *board, u8 status)
 	return;// 0;
 }
 
-static uint8_t ni_usb_serial_poll_status(struct gpib_board *board)
+static u8 ni_usb_serial_poll_status(struct gpib_board *board)
 {
 	return 0;
 }
@@ -2045,8 +2052,10 @@ static int ni_usb_hs_wait_for_ready(struct ni_usb_priv *ni_priv)
 			unexpected = 1;
 		}
 		++j;
-		// MC usb-488 (and sometimes NI-USB-HS?) sends 0x8 here; MC usb-488A sends 0x7 here
-		// NI-USB-HS+ sends 0x0
+		/*
+		 * MC usb-488 (and sometimes NI-USB-HS?) sends 0x8 here; MC usb-488A sends 0x7 here
+		 * NI-USB-HS+ sends 0x0
+		 */
 		if (buffer[j] != 0x1 && buffer[j] != 0x8 && buffer[j] != 0x7 && buffer[j] != 0x0) {
 			// [3]
 			dev_err(&usb_dev->dev, "unexpected data: buffer[%i]=0x%x, expected 0x0, 0x1, 0x7 or 0x8\n",
@@ -2127,7 +2136,8 @@ ready_out:
 	return retval;
 }
 
-/* This does some extra init for HS+ models, as observed on Windows.  One of the
+/*
+ * This does some extra init for HS+ models, as observed on Windows.  One of the
  * control requests causes the LED to stop blinking.
  * I'm not sure what the other 2 requests do.  None of these requests are actually required
  * for the adapter to work, maybe they do some init for the analyzer interface
@@ -2198,14 +2208,14 @@ static int ni_usb_hs_plus_extra_init(struct ni_usb_priv *ni_priv)
 }
 
 static inline int ni_usb_device_match(struct usb_interface *interface,
-				      const gpib_board_config_t *config)
+				      const struct gpib_board_config *config)
 {
 	if (gpib_match_device_path(&interface->dev, config->device_path) == 0)
 		return 0;
 	return 1;
 }
 
-static int ni_usb_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int ni_usb_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	int retval;
 	int i, index;
@@ -2343,8 +2353,10 @@ static void ni_usb_detach(struct gpib_board *board)
 	struct ni_usb_priv *ni_priv;
 
 	mutex_lock(&ni_usb_hotplug_lock);
-// under windows, software unplug does chip_reset nec7210 aux command,
-// then writes 0x0 to address 0x10 of device 3
+	/*
+	 * under windows, software unplug does chip_reset nec7210 aux command,
+	 * then writes 0x0 to address 0x10 of device 3
+	 */
 	ni_priv = board->private_data;
 	if (ni_priv) {
 		if (ni_priv->bus_interface) {
@@ -2361,7 +2373,7 @@ static void ni_usb_detach(struct gpib_board *board)
 	mutex_unlock(&ni_usb_hotplug_lock);
 }
 
-static gpib_interface_t ni_usb_gpib_interface = {
+static struct gpib_interface ni_usb_gpib_interface = {
 	.name = "ni_usb_b",
 	.attach = ni_usb_attach,
 	.detach = ni_usb_detach,
