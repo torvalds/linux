@@ -5717,6 +5717,7 @@ void rtw89_mac_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 			handler = rtw89_mac_c2h_ap_handler[func];
 		break;
 	case RTW89_MAC_C2H_CLASS_FWDBG:
+	case RTW89_MAC_C2H_CLASS_ROLE:
 		return;
 	default:
 		rtw89_info(rtwdev, "MAC c2h class %d not support\n", class);
