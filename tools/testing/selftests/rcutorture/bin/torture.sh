@@ -438,6 +438,10 @@ then
 		make -j$MAKE_ALLOTED_CPUS >> "$amcdir/Make.out" 2>&1
 		retcode="$?"
 		echo $retcode > "$amcdir/Make.exitcode"
+		if grep -E -q "Stop|ERROR|Error|error:|warning:" < "$amcdir/Make.out"
+		then
+			retcode=99
+		fi
 		buildphase='"make"'
 	fi
 	if test "$retcode" -eq 0
