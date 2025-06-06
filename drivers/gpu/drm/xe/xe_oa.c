@@ -2603,6 +2603,36 @@ static int xe_oa_init_gt(struct xe_gt *gt)
 	return 0;
 }
 
+static void xe_oa_print_gt_oa_units(struct xe_gt *gt)
+{
+	enum xe_hw_engine_id hwe_id;
+	struct xe_hw_engine *hwe;
+	struct xe_oa_unit *u;
+	char buf[256];
+	int i, n;
+
+	for (i = 0; i < gt->oa.num_oa_units; i++) {
+		u = &gt->oa.oa_unit[i];
+		buf[0] = '\0';
+		n = 0;
+
+		for_each_hw_engine(hwe, gt, hwe_id)
+			if (xe_oa_unit_id(hwe) == u->oa_unit_id)
+				n += scnprintf(buf + n, sizeof(buf) - n, "%s ", hwe->name);
+
+		xe_gt_dbg(gt, "oa_unit %d, type %d, Engines: %s\n", u->oa_unit_id, u->type, buf);
+	}
+}
+
+static void xe_oa_print_oa_units(struct xe_oa *oa)
+{
+	struct xe_gt *gt;
+	int gt_id;
+
+	for_each_gt(gt, oa->xe, gt_id)
+		xe_oa_print_gt_oa_units(gt);
+}
+
 static int xe_oa_init_oa_units(struct xe_oa *oa)
 {
 	struct xe_gt *gt;
@@ -2618,6 +2648,8 @@ static int xe_oa_init_oa_units(struct xe_oa *oa)
 		if (ret)
 			return ret;
 	}
+
+	xe_oa_print_oa_units(oa);
 
 	return 0;
 }
