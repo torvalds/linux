@@ -489,10 +489,28 @@ cleanup:
 	bpf_link__destroy(link);
 }
 
+static int verify_tracing_link_info(int fd, u64 cookie)
+{
+	struct bpf_link_info info;
+	int err;
+	u32 len = sizeof(info);
+
+	err = bpf_link_get_info_by_fd(fd, &info, &len);
+	if (!ASSERT_OK(err, "get_link_info"))
+		return -1;
+
+	if (!ASSERT_EQ(info.type, BPF_LINK_TYPE_TRACING, "link_type"))
+		return -1;
+
+	ASSERT_EQ(info.tracing.cookie, cookie, "tracing_cookie");
+
+	return 0;
+}
+
 static void tracing_subtest(struct test_bpf_cookie *skel)
 {
 	__u64 cookie;
-	int prog_fd;
+	int prog_fd, err;
 	int fentry_fd = -1, fexit_fd = -1, fmod_ret_fd = -1;
 	LIBBPF_OPTS(bpf_test_run_opts, opts);
 	LIBBPF_OPTS(bpf_link_create_opts, link_opts);
@@ -505,6 +523,10 @@ static void tracing_subtest(struct test_bpf_cookie *skel)
 	link_opts.tracing.cookie = cookie;
 	fentry_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_FENTRY, &link_opts);
 	if (!ASSERT_GE(fentry_fd, 0, "fentry.link_create"))
+		goto cleanup;
+
+	err = verify_tracing_link_info(fentry_fd, cookie);
+	if (!ASSERT_OK(err, "verify_tracing_link_info"))
 		goto cleanup;
 
 	cookie = 0x20000000000000L;
