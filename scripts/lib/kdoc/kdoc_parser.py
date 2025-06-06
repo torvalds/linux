@@ -1237,11 +1237,6 @@ class KernelDoc:
             parenthesis = r"(?:\(\w*\))?"   # optional parenthesis on function
             decl_end = r"(?:[-:].*)"         # end of the name part
 
-            # test for pointer declaration type, foo * bar() - desc
-            r = KernRe(fr"^{decl_start}([\w\s]+?){parenthesis}?\s*{decl_end}?$")
-            if r.search(line):
-                self.entry.identifier = r.group(1)
-
             # Test for data declaration
             r = KernRe(r"^\s*\*?\s*(struct|union|enum|typedef)\b\s*(\w*)")
             r2 = KernRe(fr"^{decl_start}{fn_type}(?:define\s+)?(\w+)\s*{parenthesis}\s*{decl_end}?$")
