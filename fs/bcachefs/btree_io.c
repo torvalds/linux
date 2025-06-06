@@ -1045,6 +1045,7 @@ got_good_key:
 		le16_add_cpu(&i->u64s, -next_good_key);
 		memmove_u64s_down(k, (u64 *) k + next_good_key, (u64 *) vstruct_end(i) - (u64 *) k);
 		set_btree_node_need_rewrite(b);
+		set_btree_node_need_rewrite_error(b);
 	}
 fsck_err:
 	printbuf_exit(&buf);
@@ -1305,6 +1306,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 					  (u64 *) vstruct_end(i) - (u64 *) k);
 			set_btree_bset_end(b, b->set);
 			set_btree_node_need_rewrite(b);
+			set_btree_node_need_rewrite_error(b);
 			continue;
 		}
 		if (ret)
@@ -1329,12 +1331,16 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 		bkey_for_each_ptr(bch2_bkey_ptrs(bkey_i_to_s(&b->key)), ptr) {
 			struct bch_dev *ca2 = bch2_dev_rcu(c, ptr->dev);
 
-			if (!ca2 || ca2->mi.state != BCH_MEMBER_STATE_rw)
+			if (!ca2 || ca2->mi.state != BCH_MEMBER_STATE_rw) {
 				set_btree_node_need_rewrite(b);
+				set_btree_node_need_rewrite_degraded(b);
+			}
 		}
 
-	if (!ptr_written)
+	if (!ptr_written) {
 		set_btree_node_need_rewrite(b);
+		set_btree_node_need_rewrite_ptr_written_zero(b);
+	}
 fsck_err:
 	mempool_free(iter, &c->fill_iter);
 	printbuf_exit(&buf);

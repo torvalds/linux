@@ -1138,6 +1138,13 @@ static void bch2_btree_update_done(struct btree_update *as, struct btree_trans *
 			       start_time);
 }
 
+static const char * const btree_node_reawrite_reason_strs[] = {
+#define x(n)	#n,
+	BTREE_NODE_REWRITE_REASON()
+#undef x
+	NULL,
+};
+
 static struct btree_update *
 bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 			unsigned level_start, bool split,
@@ -1235,7 +1242,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	struct btree *b = btree_path_node(path, path->level);
 	as->node_start	= b->data->min_key;
 	as->node_end	= b->data->max_key;
-	as->node_needed_rewrite = btree_node_need_rewrite(b);
+	as->node_needed_rewrite = btree_node_rewrite_reason(b);
 	as->node_written = b->written;
 	as->node_sectors = btree_buf_bytes(b) >> 9;
 	as->node_remaining = __bch2_btree_u64s_remaining(b,
@@ -2699,11 +2706,11 @@ static void bch2_btree_update_to_text(struct printbuf *out, struct btree_update 
 	bch2_bpos_to_text(out, as->node_start);
 	prt_char(out, ' ');
 	bch2_bpos_to_text(out, as->node_end);
-	prt_printf(out, "\nwritten %u/%u u64s_remaining %u need_rewrite %u",
+	prt_printf(out, "\nwritten %u/%u u64s_remaining %u need_rewrite %s",
 		   as->node_written,
 		   as->node_sectors,
 		   as->node_remaining,
-		   as->node_needed_rewrite);
+		   btree_node_reawrite_reason_strs[as->node_needed_rewrite]);
 
 	prt_printf(out, "\nmode=%s nodes_written=%u cl.remaining=%u journal_seq=%llu\n",
 		   bch2_btree_update_modes[as->mode],
