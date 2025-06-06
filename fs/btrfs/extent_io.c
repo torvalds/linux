@@ -1704,7 +1704,7 @@ static int extent_writepage(struct folio *folio, struct btrfs_bio_ctrl *bio_ctrl
 		WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
 		btrfs_err_rl(fs_info,
 	"root %lld ino %llu folio %llu is marked dirty without notifying the fs",
-			     inode->root->root_key.objectid,
+			     btrfs_root_id(inode->root),
 			     btrfs_ino(inode), folio_pos(folio));
 		ret = -EUCLEAN;
 		goto done;

@@ -5554,7 +5554,7 @@ again:
 		goto again;
 	}
 
-	exists = btrfs_find_delayed_tree_ref(head, root->root_key.objectid, parent);
+	exists = btrfs_find_delayed_tree_ref(head, btrfs_root_id(root), parent);
 	mutex_unlock(&head->mutex);
 out:
 	spin_unlock(&delayed_refs->lock);

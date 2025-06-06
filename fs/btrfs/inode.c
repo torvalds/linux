@@ -2881,7 +2881,7 @@ int btrfs_writepage_cow_fixup(struct folio *folio)
 		DEBUG_WARN();
 		btrfs_err_rl(fs_info,
 	"root %lld ino %llu folio %llu is marked dirty without notifying the fs",
-			     BTRFS_I(inode)->root->root_key.objectid,
+			     btrfs_root_id(BTRFS_I(inode)->root),
 			     btrfs_ino(BTRFS_I(inode)),
 			     folio_pos(folio));
 		return -EUCLEAN;
@@ -8023,7 +8023,7 @@ static int btrfs_getattr(struct mnt_idmap *idmap,
 	generic_fillattr(idmap, request_mask, inode, stat);
 	stat->dev = BTRFS_I(inode)->root->anon_dev;
 
-	stat->subvol = BTRFS_I(inode)->root->root_key.objectid;
+	stat->subvol = btrfs_root_id(BTRFS_I(inode)->root);
 	stat->result_mask |= STATX_SUBVOL;
 
 	spin_lock(&BTRFS_I(inode)->lock);
