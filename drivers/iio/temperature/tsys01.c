@@ -207,13 +207,13 @@ static int tsys01_i2c_probe(struct i2c_client *client)
 
 static const struct i2c_device_id tsys01_id[] = {
 	{ "tsys01" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tsys01_id);
 
 static const struct of_device_id tsys01_of_match[] = {
 	{ .compatible = "meas,tsys01", },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, tsys01_of_match);
 

@@ -424,7 +424,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(jsa1212_pm_ops, jsa1212_suspend,
 
 static const struct acpi_device_id jsa1212_acpi_match[] = {
 	{"JSA1212", 0},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, jsa1212_acpi_match);
 

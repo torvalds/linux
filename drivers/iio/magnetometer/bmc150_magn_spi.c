@@ -37,7 +37,7 @@ static const struct spi_device_id bmc150_magn_spi_id[] = {
 	{"bmc150_magn", 0},
 	{"bmc156_magn", 0},
 	{"bmm150_magn", 0},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, bmc150_magn_spi_id);
 

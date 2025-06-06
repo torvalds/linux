@@ -137,19 +137,19 @@ static void ad5592r_spi_remove(struct spi_device *spi)
 
 static const struct spi_device_id ad5592r_spi_ids[] = {
 	{ .name = "ad5592r", },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad5592r_spi_ids);
 
 static const struct of_device_id ad5592r_of_match[] = {
 	{ .compatible = "adi,ad5592r", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ad5592r_of_match);
 
 static const struct acpi_device_id ad5592r_acpi_match[] = {
 	{"ADS5592", },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, ad5592r_acpi_match);
 

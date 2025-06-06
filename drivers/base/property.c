@@ -945,6 +945,33 @@ unsigned int fwnode_get_child_node_count(const struct fwnode_handle *fwnode)
 }
 EXPORT_SYMBOL_GPL(fwnode_get_child_node_count);
 
+/**
+ * fwnode_get_named_child_node_count - number of child nodes with given name
+ * @fwnode: Node which child nodes are counted.
+ * @name: String to match child node name against.
+ *
+ * Scan child nodes and count all the nodes with a specific name. Potential
+ * 'number' -ending after the 'at sign' for scanned names is ignored.
+ * E.g.::
+ *   fwnode_get_named_child_node_count(fwnode, "channel");
+ * would match all the nodes::
+ *   channel { }, channel@0 {}, channel@0xabba {}...
+ *
+ * Return: the number of child nodes with a matching name for a given device.
+ */
+unsigned int fwnode_get_named_child_node_count(const struct fwnode_handle *fwnode,
+					       const char *name)
+{
+	struct fwnode_handle *child;
+	unsigned int count = 0;
+
+	fwnode_for_each_named_child_node(fwnode, child, name)
+		count++;
+
+	return count;
+}
+EXPORT_SYMBOL_GPL(fwnode_get_named_child_node_count);
+
 bool device_dma_supported(const struct device *dev)
 {
 	return fwnode_call_bool_op(dev_fwnode(dev), device_dma_supported);

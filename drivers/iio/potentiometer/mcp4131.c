@@ -403,7 +403,7 @@ static const struct of_device_id mcp4131_dt_ids[] = {
 		.data = &mcp4131_cfg[MCP426x_503] },
 	{ .compatible = "microchip,mcp4262-104",
 		.data = &mcp4131_cfg[MCP426x_104] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, mcp4131_dt_ids);
 
@@ -472,7 +472,7 @@ static const struct spi_device_id mcp4131_id[] = {
 	{ "mcp4262-103", MCP426x_103 },
 	{ "mcp4262-503", MCP426x_503 },
 	{ "mcp4262-104", MCP426x_104 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, mcp4131_id);
 

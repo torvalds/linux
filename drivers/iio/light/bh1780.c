@@ -264,7 +264,7 @@ MODULE_DEVICE_TABLE(i2c, bh1780_id);
 
 static const struct of_device_id of_bh1780_match[] = {
 	{ .compatible = "rohm,bh1780gli", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, of_bh1780_match);
 

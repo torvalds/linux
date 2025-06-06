@@ -887,7 +887,7 @@ static irqreturn_t bma180_trigger_handler(int irq, void *p)
 
 	mutex_unlock(&data->mutex);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan, time_ns);
+	iio_push_to_buffers_with_ts(indio_dev, &data->scan, sizeof(data->scan), time_ns);
 err:
 	iio_trigger_notify_done(indio_dev->trig);
 
