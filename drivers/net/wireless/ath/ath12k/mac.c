@@ -3775,13 +3775,13 @@ static void ath12k_mac_vif_setup_ps(struct ath12k_link_vif *arvif)
 			    psmode, arvif->vdev_id, ret);
 }
 
-static bool ath12k_mac_supports_station_tpc(struct ath12k *ar,
-					    struct ath12k_vif *ahvif,
-					    const struct cfg80211_chan_def *chandef)
+static bool ath12k_mac_supports_tpc(struct ath12k *ar, struct ath12k_vif *ahvif,
+				    const struct cfg80211_chan_def *chandef)
 {
 	return ath12k_wmi_supports_6ghz_cc_ext(ar) &&
 		test_bit(WMI_TLV_SERVICE_EXT_TPC_REG_SUPPORT, ar->ab->wmi_ab.svc_map) &&
-		ahvif->vdev_type == WMI_VDEV_TYPE_STA &&
+		(ahvif->vdev_type == WMI_VDEV_TYPE_STA  ||
+		 ahvif->vdev_type == WMI_VDEV_TYPE_AP) &&
 		ahvif->vdev_subtype == WMI_VDEV_SUBTYPE_NONE &&
 		chandef->chan &&
 		chandef->chan->band == NL80211_BAND_6GHZ;
@@ -9964,7 +9964,7 @@ ath12k_mac_vdev_start_restart(struct ath12k_link_vif *arvif,
 	/* TODO: For now we only set TPC power here. However when
 	 * channel changes, say CSA, it should be updated again.
 	 */
-	if (ath12k_mac_supports_station_tpc(ar, ahvif, chandef)) {
+	if (ath12k_mac_supports_tpc(ar, ahvif, chandef)) {
 		ath12k_mac_fill_reg_tpc_info(ar, arvif, ctx);
 		ath12k_wmi_send_vdev_set_tpc_power(ar, arvif->vdev_id,
 						   &arvif->reg_tpc_info);
@@ -10519,7 +10519,9 @@ void ath12k_mac_fill_reg_tpc_info(struct ath12k *ar,
 	bool is_psd_power = false, is_tpe_present = false;
 	s8 max_tx_power[ATH12K_NUM_PWR_LEVELS],
 		psd_power, tx_power, eirp_power;
+	struct ath12k_vif *ahvif = arvif->ahvif;
 	u16 start_freq, center_freq;
+	u8 reg_6ghz_power_mode;
 
 	chan = ctx->def.chan;
 	start_freq = ath12k_mac_get_6ghz_start_frequency(&ctx->def);
@@ -10675,8 +10677,14 @@ void ath12k_mac_fill_reg_tpc_info(struct ath12k *ar,
 	reg_tpc_info->num_pwr_levels = num_pwr_levels;
 	reg_tpc_info->is_psd_power = is_psd_power;
 	reg_tpc_info->eirp_power = eirp_power;
+	if (ahvif->vdev_type == WMI_VDEV_TYPE_STA)
+		reg_6ghz_power_mode = bss_conf->power_type;
+	else
+		/* For now, LPI is the only supported AP power mode */
+		reg_6ghz_power_mode = IEEE80211_REG_LPI_AP;
+
 	reg_tpc_info->ap_power_type =
-		ath12k_reg_ap_pwr_convert(bss_conf->power_type);
+		ath12k_reg_ap_pwr_convert(reg_6ghz_power_mode);
 }
 
 static void ath12k_mac_parse_tx_pwr_env(struct ath12k *ar,
