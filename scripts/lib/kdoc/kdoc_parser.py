@@ -1688,7 +1688,6 @@ class KernelDoc:
         Besides parsing kernel-doc tags, it also parses export symbols.
         """
 
-        cont = False
         prev = ""
         prev_ln = None
         export_table = set()
@@ -1704,18 +1703,14 @@ class KernelDoc:
                     if self.state == state.PROTO:
                         if line.endswith("\\"):
                             prev += line.rstrip("\\")
-                            cont = True
-
                             if not prev_ln:
                                 prev_ln = ln
-
                             continue
 
-                        if cont:
+                        if prev:
                             ln = prev_ln
                             line = prev + line
                             prev = ""
-                            cont = False
                             prev_ln = None
 
                     self.config.log.debug("%d %s%s: %s",
