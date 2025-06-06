@@ -33,6 +33,10 @@
 
 #include "ad7606.h"
 
+#define AD7606_CALIB_GAIN_MIN	0
+#define AD7606_CALIB_GAIN_STEP	1024
+#define AD7606_CALIB_GAIN_MAX	(63 * AD7606_CALIB_GAIN_STEP)
+
 /*
  * Scales are computed as 5000/32768 and 10000/32768 respectively,
  * so that when applied to the raw values they provide mV values.
@@ -180,6 +184,7 @@ const struct ad7606_chip_info ad7606b_info = {
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 	.sw_setup_cb = ad7606b_sw_mode_setup,
 	.offload_storagebits = 32,
+	.calib_gain_avail = true,
 	.calib_offset_avail = ad7606_calib_offset_avail,
 	.calib_phase_avail = ad7606b_calib_phase_avail,
 };
@@ -195,6 +200,7 @@ const struct ad7606_chip_info ad7606c_16_info = {
 	.scale_setup_cb = ad7606c_16bit_chan_scale_setup,
 	.sw_setup_cb = ad7606b_sw_mode_setup,
 	.offload_storagebits = 32,
+	.calib_gain_avail = true,
 	.calib_offset_avail = ad7606_calib_offset_avail,
 	.calib_phase_avail = ad7606c_calib_phase_avail,
 };
@@ -246,6 +252,7 @@ const struct ad7606_chip_info ad7606c_18_info = {
 	.scale_setup_cb = ad7606c_18bit_chan_scale_setup,
 	.sw_setup_cb = ad7606b_sw_mode_setup,
 	.offload_storagebits = 32,
+	.calib_gain_avail = true,
 	.calib_offset_avail = ad7606c_18bit_calib_offset_avail,
 	.calib_phase_avail = ad7606c_calib_phase_avail,
 };
@@ -306,6 +313,7 @@ static int ad7606_get_chan_config(struct iio_dev *indio_dev, int ch,
 				  bool *bipolar, bool *differential)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
+	struct ad7606_chan_info *ci;
 	unsigned int num_channels = st->chip_info->num_adc_channels;
 	struct device *dev = st->dev;
 	int ret;
@@ -348,6 +356,14 @@ static int ad7606_get_chan_config(struct iio_dev *indio_dev, int ch,
 				reg);
 			return -EINVAL;
 		}
+
+		ci = &st->chan_info[reg - 1];
+
+		ci->r_gain = 0;
+		ret = fwnode_property_read_u32(child, "adi,rfilter-ohms",
+					       &ci->r_gain);
+		if (ret == 0 && ci->r_gain > AD7606_CALIB_GAIN_MAX)
+			return -EINVAL;
 
 		return 0;
 	}
@@ -1352,6 +1368,23 @@ static int ad7606b_sw_mode_setup(struct iio_dev *indio_dev)
 	return st->bops->sw_mode_config(indio_dev);
 }
 
+static int ad7606_set_gain_calib(struct ad7606_state *st)
+{
+	struct ad7606_chan_info *ci;
+	int i, ret;
+
+	for (i = 0; i < st->chip_info->num_adc_channels; i++) {
+		ci = &st->chan_info[i];
+		ret = st->bops->reg_write(st, AD7606_CALIB_GAIN(i),
+					  DIV_ROUND_CLOSEST(ci->r_gain,
+						AD7606_CALIB_GAIN_STEP));
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int ad7606_probe_channels(struct iio_dev *indio_dev)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
@@ -1628,6 +1661,12 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	if (st->sw_mode_en || st->offload_en) {
 		indio_dev->info = &ad7606_info_sw_mode;
 		st->chip_info->sw_setup_cb(indio_dev);
+	}
+
+	if (st->sw_mode_en && st->chip_info->calib_gain_avail) {
+		ret = ad7606_set_gain_calib(st);
+		if (ret)
+			return ret;
 	}
 
 	return devm_iio_device_register(dev, indio_dev);

@@ -66,6 +66,7 @@ typedef int (*ad7606_sw_setup_cb_t)(struct iio_dev *indio_dev);
  * @init_delay_ms:	required delay in milliseconds for initialization
  *			after a restart
  * @offload_storagebits: storage bits used by the offload hw implementation
+ * @calib_gain_avail:   chip supports gain calibration
  * @calib_offset_avail: pointer to offset calibration range/limits array
  * @calib_phase_avail:  pointer to phase calibration range/limits array
  */
@@ -81,6 +82,7 @@ struct ad7606_chip_info {
 	bool				os_req_reset;
 	unsigned long			init_delay_ms;
 	u8				offload_storagebits;
+	bool				calib_gain_avail;
 	const int			*calib_offset_avail;
 	const int			(*calib_phase_avail)[2];
 };
@@ -92,6 +94,8 @@ struct ad7606_chip_info {
  * @range:		voltage range selection, selects which scale to apply
  * @reg_offset:		offset for the register value, to be applied when
  *			writing the value of 'range' to the register value
+ * @r_gain:		gain resistor value in ohms, to be set to match the
+ *                      external r_filter value
  */
 struct ad7606_chan_info {
 #define AD760X_MAX_SCALES		16
@@ -99,6 +103,7 @@ struct ad7606_chan_info {
 	unsigned int			num_scales;
 	unsigned int			range;
 	unsigned int			reg_offset;
+	unsigned int			r_gain;
 };
 
 /**
