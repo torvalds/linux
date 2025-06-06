@@ -4438,9 +4438,20 @@ struct rtw89_h2c_rf_tssi {
 	u8 rfe_type;
 } __packed;
 
-struct rtw89_h2c_rf_iqk {
+struct rtw89_h2c_rf_iqk_v0 {
 	__le32 phy_idx;
 	__le32 dbcc;
+} __packed;
+
+struct rtw89_h2c_rf_iqk {
+	u8 len;
+	u8 ktype;
+	u8 phy;
+	u8 kpath;
+	u8 band;
+	u8 bw;
+	u8 ch;
+	u8 cv;
 } __packed;
 
 struct rtw89_h2c_rf_dpk {
