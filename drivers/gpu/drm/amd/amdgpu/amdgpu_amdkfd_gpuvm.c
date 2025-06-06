@@ -494,7 +494,8 @@ static int vm_update_pds(struct amdgpu_vm *vm, struct amdgpu_sync *sync)
 	return amdgpu_sync_fence(sync, vm->last_update, GFP_KERNEL);
 }
 
-static uint64_t get_pte_flags(struct amdgpu_device *adev, struct kgd_mem *mem)
+static uint64_t get_pte_flags(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+			      struct kgd_mem *mem)
 {
 	uint32_t mapping_flags = AMDGPU_VM_PAGE_READABLE |
 				 AMDGPU_VM_MTYPE_DEFAULT;
@@ -504,7 +505,7 @@ static uint64_t get_pte_flags(struct amdgpu_device *adev, struct kgd_mem *mem)
 	if (mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_EXECUTABLE)
 		mapping_flags |= AMDGPU_VM_PAGE_EXECUTABLE;
 
-	return amdgpu_gem_va_map_flags(adev, mapping_flags);
+	return mapping_flags;
 }
 
 /**
@@ -961,7 +962,7 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 			goto unwind;
 		}
 		attachment[i]->va = va;
-		attachment[i]->pte_flags = get_pte_flags(adev, mem);
+		attachment[i]->pte_flags = get_pte_flags(adev, vm, mem);
 		attachment[i]->adev = adev;
 		list_add(&attachment[i]->list, &mem->attachments);
 

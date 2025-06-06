@@ -1332,13 +1332,14 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 		/* normally,bo_va->flags only contians READABLE and WIRTEABLE bit go here
 		 * but in case of something, we filter the flags in first place
 		 */
-		if (!(mapping->flags & AMDGPU_PTE_READABLE))
+		if (!(mapping->flags & AMDGPU_VM_PAGE_READABLE))
 			update_flags &= ~AMDGPU_PTE_READABLE;
-		if (!(mapping->flags & AMDGPU_PTE_WRITEABLE))
+		if (!(mapping->flags & AMDGPU_VM_PAGE_WRITEABLE))
 			update_flags &= ~AMDGPU_PTE_WRITEABLE;
 
 		/* Apply ASIC specific mapping flags */
-		amdgpu_gmc_get_vm_pte(adev, mapping, &update_flags);
+		amdgpu_gmc_get_vm_pte(adev, vm, bo, mapping->flags,
+				      &update_flags);
 
 		trace_amdgpu_vm_bo_update(mapping);
 
@@ -1479,7 +1480,7 @@ static void amdgpu_vm_free_mapping(struct amdgpu_device *adev,
 				   struct amdgpu_bo_va_mapping *mapping,
 				   struct dma_fence *fence)
 {
-	if (mapping->flags & AMDGPU_PTE_PRT_FLAG(adev))
+	if (mapping->flags & AMDGPU_VM_PAGE_PRT)
 		amdgpu_vm_add_prt_cb(adev, fence);
 	kfree(mapping);
 }
@@ -1758,7 +1759,7 @@ static void amdgpu_vm_bo_insert_map(struct amdgpu_device *adev,
 	list_add(&mapping->list, &bo_va->invalids);
 	amdgpu_vm_it_insert(mapping, &vm->va);
 
-	if (mapping->flags & AMDGPU_PTE_PRT_FLAG(adev))
+	if (mapping->flags & AMDGPU_VM_PAGE_PRT)
 		amdgpu_vm_prt_get(adev);
 
 	if (amdgpu_vm_is_bo_always_valid(vm, bo) && !bo_va->base.moved)
@@ -1818,7 +1819,7 @@ static int amdgpu_vm_verify_parameters(struct amdgpu_device *adev,
 int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		     struct amdgpu_bo_va *bo_va,
 		     uint64_t saddr, uint64_t offset,
-		     uint64_t size, uint64_t flags)
+		     uint64_t size, uint32_t flags)
 {
 	struct amdgpu_bo_va_mapping *mapping, *tmp;
 	struct amdgpu_bo *bo = bo_va->base.bo;
@@ -1877,7 +1878,7 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 int amdgpu_vm_bo_replace_map(struct amdgpu_device *adev,
 			     struct amdgpu_bo_va *bo_va,
 			     uint64_t saddr, uint64_t offset,
-			     uint64_t size, uint64_t flags)
+			     uint64_t size, uint32_t flags)
 {
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_bo *bo = bo_va->base.bo;
@@ -2734,7 +2735,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	dma_fence_put(vm->last_tlb_flush);
 
 	list_for_each_entry_safe(mapping, tmp, &vm->freed, list) {
-		if (mapping->flags & AMDGPU_PTE_PRT_FLAG(adev) && prt_fini_needed) {
+		if (mapping->flags & AMDGPU_VM_PAGE_PRT && prt_fini_needed) {
 			amdgpu_vm_prt_fini(adev, vm);
 			prt_fini_needed = false;
 		}
