@@ -684,8 +684,6 @@ void dpp401_dscl_set_scaler_manual_scale(
 	struct dpp *dpp_base,
 	const struct scaler_data *scl_data);
 
-void dpp401_full_bypass(struct dpp *dpp_base);
-
 void dpp401_dpp_setup(
 	struct dpp *dpp_base,
 	enum surface_pixel_format format,
