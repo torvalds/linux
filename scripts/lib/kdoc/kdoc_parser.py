@@ -1227,7 +1227,9 @@ class KernelDoc:
         """
         STATE_NAME: Looking for the "name - description" line
         """
-
+        #
+        # Check for a DOC: block and handle them specially.
+        #
         if doc_block.search(line):
             self.entry.new_start_line = ln
 
@@ -1238,9 +1240,10 @@ class KernelDoc:
 
             self.entry.identifier = self.entry.section
             self.state = state.DOCBLOCK
-            return
-
-        if doc_decl.search(line):
+        #
+        # Otherwise we're looking for a normal kerneldoc declaration line.
+        #
+        elif doc_decl.search(line):
             self.entry.identifier = doc_decl.group(1)
 
             # Test for data declaration
@@ -1261,15 +1264,19 @@ class KernelDoc:
                               f"This comment starts with '/**', but isn't a kernel-doc comment. Refer Documentation/doc-guide/kernel-doc.rst\n{line}")
                 self.state = state.NORMAL
                 return
-
-            self.entry.identifier = self.entry.identifier.strip(" ")
-
+            #
+            # OK, set up for a new kerneldoc entry.
+            #
             self.state = state.BODY
-
+            self.entry.identifier = self.entry.identifier.strip(" ")
             # if there's no @param blocks need to set up default section here
             self.entry.section = SECTION_DEFAULT
             self.entry.new_start_line = ln + 1
-
+            #
+            # Find the description portion, which *should* be there but
+            # isn't always.
+            # (We should be able to capture this from the previous parsing - someday)
+            #
             r = KernRe("[-:](.*)")
             if r.search(line):
                 self.entry.declaration_purpose = trim_whitespace(r.group(1))
@@ -1290,11 +1297,11 @@ class KernelDoc:
                 self.emit_msg(ln,
                               f"Scanning doc for {self.entry.decl_type} {self.entry.identifier}",
                                   warning=False)
-
-            return
-
+        #
         # Failed to find an identifier. Emit a warning
-        self.emit_msg(ln, f"Cannot find identifier on line:\n{line}")
+        #
+        else:
+            self.emit_msg(ln, f"Cannot find identifier on line:\n{line}")
 
     def process_body(self, ln, line):
         """
