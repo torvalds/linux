@@ -15,6 +15,7 @@
 #include "intel_crtc.h"
 #include "intel_display.h"
 #include "intel_display_core.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_fb_pin.h"

@@ -39,6 +39,7 @@
 #include "i915_drv.h"
 #include "i915_pvinfo.h"
 #include "i915_reg.h"
+#include "display/intel_display_regs.h"
 
 #include "display/i9xx_plane_regs.h"
 #include "display/intel_cursor_regs.h"

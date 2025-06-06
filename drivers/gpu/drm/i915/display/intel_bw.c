@@ -6,6 +6,7 @@
 #include <drm/drm_atomic_state_helper.h>
 
 #include "soc/intel_dram.h"
+
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i915_utils.h"
@@ -13,6 +14,7 @@
 #include "intel_bw.h"
 #include "intel_cdclk.h"
 #include "intel_display_core.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pcode.h"

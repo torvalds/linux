@@ -10,6 +10,7 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_de.h"
+#include "intel_display_regs.h"
 #include "intel_dmc_regs.h"
 #include "intel_dmc_wl.h"
 

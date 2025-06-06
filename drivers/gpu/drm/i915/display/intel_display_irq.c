@@ -13,6 +13,7 @@
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
+#include "intel_display_regs.h"
 #include "intel_display_rpm.h"
 #include "intel_display_rps.h"
 #include "intel_display_trace.h"

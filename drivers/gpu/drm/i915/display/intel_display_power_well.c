@@ -13,6 +13,7 @@
 #include "intel_de.h"
 #include "intel_display_irq.h"
 #include "intel_display_power_well.h"
+#include "intel_display_regs.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_dkl_phy.h"
@@ -30,8 +31,8 @@
 #include "intel_vga.h"
 #include "skl_watermark.h"
 #include "vlv_dpio_phy_regs.h"
-#include "vlv_sideband.h"
 #include "vlv_iosf_sb_reg.h"
+#include "vlv_sideband.h"
 
 struct i915_power_well_regs {
 	i915_reg_t bios;

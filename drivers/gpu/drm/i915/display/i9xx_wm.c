@@ -11,6 +11,7 @@
 #include "intel_bo.h"
 #include "intel_de.h"
 #include "intel_display.h"
+#include "intel_display_regs.h"
 #include "intel_display_trace.h"
 #include "intel_fb.h"
 #include "intel_mchbar_regs.h"

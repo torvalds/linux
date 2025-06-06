@@ -9,6 +9,7 @@
 #include "i9xx_display_sr.h"
 #include "i9xx_wm_regs.h"
 #include "intel_de.h"
+#include "intel_display_regs.h"
 #include "intel_gmbus.h"
 #include "intel_pci_config.h"
 

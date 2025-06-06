@@ -45,7 +45,9 @@
 #include <drm/drm_fourcc.h>
 
 #include "gem/i915_gem_stolen.h"
+
 #include "gt/intel_gt_types.h"
+
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i915_utils.h"
@@ -55,6 +57,7 @@
 #include "intel_cdclk.h"
 #include "intel_de.h"
 #include "intel_display_device.h"
+#include "intel_display_regs.h"
 #include "intel_display_rpm.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"

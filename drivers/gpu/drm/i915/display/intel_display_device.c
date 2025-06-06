@@ -18,6 +18,7 @@
 #include "intel_display_params.h"
 #include "intel_display_power.h"
 #include "intel_display_reg_defs.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_fbc.h"
 #include "intel_step.h"

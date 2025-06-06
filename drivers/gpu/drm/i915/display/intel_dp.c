@@ -36,7 +36,6 @@
 #include <linux/string_helpers.h>
 #include <linux/timekeeping.h>
 #include <linux/types.h>
-
 #include <asm/byteorder.h>
 
 #include <drm/display/drm_dp_helper.h>
@@ -65,6 +64,7 @@
 #include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_display_driver.h"
+#include "intel_display_regs.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"

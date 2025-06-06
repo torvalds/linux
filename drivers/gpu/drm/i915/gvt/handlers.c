@@ -40,6 +40,7 @@
 
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "display/intel_display_regs.h"
 #include "gvt.h"
 #include "i915_pvinfo.h"
 #include "intel_mchbar_regs.h"

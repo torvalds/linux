@@ -12,6 +12,7 @@
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_snps_hdmi_pll.h"
 #include "intel_snps_phy.h"

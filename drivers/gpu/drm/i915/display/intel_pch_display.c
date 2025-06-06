@@ -10,6 +10,7 @@
 #include "intel_crt.h"
 #include "intel_crt_regs.h"
 #include "intel_de.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_dpll.h"
 #include "intel_fdi.h"

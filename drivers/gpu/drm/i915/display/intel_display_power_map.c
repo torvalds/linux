@@ -9,6 +9,7 @@
 #include "intel_display_core.h"
 #include "intel_display_power_map.h"
 #include "intel_display_power_well.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "vlv_iosf_sb_reg.h"
 
