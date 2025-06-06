@@ -29,14 +29,12 @@ SECTIONS
 		. = _etext;
 	}
 
-#ifdef CONFIG_EFI_SBAT
         .sbat : ALIGN(4096) {
 		_sbat = .;
 		*(.sbat)
 		_esbat = ALIGN(4096);
 		. = _esbat;
 	}
-#endif
 
 	.data : ALIGN(4096) {
 		_data = .;
