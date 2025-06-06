@@ -86,14 +86,14 @@ struct ad7606_chip_info {
 };
 
 /**
- * struct ad7606_chan_scale - channel scale configuration
+ * struct ad7606_chan_info - channel configuration
  * @scale_avail:	pointer to the array which stores the available scales
  * @num_scales:		number of elements stored in the scale_avail array
  * @range:		voltage range selection, selects which scale to apply
  * @reg_offset:		offset for the register value, to be applied when
  *			writing the value of 'range' to the register value
  */
-struct ad7606_chan_scale {
+struct ad7606_chan_info {
 #define AD760X_MAX_SCALES		16
 	const unsigned int		(*scale_avail)[2];
 	unsigned int			num_scales;
@@ -106,7 +106,7 @@ struct ad7606_chan_scale {
  * @dev:		pointer to kernel device
  * @chip_info:		entry in the table of chips that describes this device
  * @bops:		bus operations (SPI or parallel)
- * @chan_scales:	scale configuration for channels
+ * @chan_info:		scale configuration for channels
  * @oversampling:	oversampling selection
  * @cnvst_pwm:		pointer to the PWM device connected to the cnvst pin
  * @base_address:	address from where to read data in parallel operation
@@ -137,7 +137,7 @@ struct ad7606_state {
 	struct device			*dev;
 	const struct ad7606_chip_info	*chip_info;
 	const struct ad7606_bus_ops	*bops;
-	struct ad7606_chan_scale	chan_scales[AD760X_MAX_CHANNELS];
+	struct ad7606_chan_info		chan_info[AD760X_MAX_CHANNELS];
 	unsigned int			oversampling;
 	struct pwm_device		*cnvst_pwm;
 	void __iomem			*base_address;
