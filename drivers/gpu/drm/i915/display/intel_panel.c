@@ -463,6 +463,45 @@ void intel_panel_fini(struct intel_connector *connector)
 	}
 }
 
+/*
+ * If the panel was already enabled at probe, and we took over the state, the
+ * panel prepared state is out of sync, and the panel followers won't be
+ * notified. We need to call drm_panel_prepare() on enabled panels.
+ *
+ * It would be natural to handle this e.g. in the connector ->sync_state hook at
+ * intel_modeset_readout_hw_state(), but that's unfortunately too early. We
+ * don't have drm_connector::kdev at that time. For now, figure out the state at
+ * ->late_register, and sync there.
+ */
+static void intel_panel_sync_state(struct intel_connector *connector)
+{
+	struct intel_display *display = to_intel_display(connector);
+	struct drm_connector_state *conn_state;
+	struct intel_crtc *crtc;
+	int ret;
+
+	ret = drm_modeset_lock(&display->drm->mode_config.connection_mutex, NULL);
+	if (ret)
+		return;
+
+	conn_state = connector->base.state;
+
+	crtc = to_intel_crtc(conn_state->crtc);
+	if (crtc) {
+		struct intel_crtc_state *crtc_state;
+
+		crtc_state = to_intel_crtc_state(crtc->base.state);
+
+		if (crtc_state->hw.active) {
+			drm_dbg_kms(display->drm, "[CONNECTOR:%d:%s] Panel prepare\n",
+				    connector->base.base.id, connector->base.name);
+			intel_panel_prepare(crtc_state, conn_state);
+		}
+	}
+
+	drm_modeset_unlock(&display->drm->mode_config.connection_mutex);
+}
+
 const struct drm_panel_funcs dummy_panel_funcs = {
 };
 
@@ -513,6 +552,8 @@ int intel_panel_register(struct intel_connector *connector)
 		drm_dbg_kms(display->drm, "[CONNECTOR:%d:%s] Registered panel device '%s', has fwnode: %s\n",
 			    connector->base.base.id, connector->base.name,
 			    dev_name(dev), str_yes_no(dev_fwnode(dev)));
+
+		intel_panel_sync_state(connector);
 	}
 
 out:
