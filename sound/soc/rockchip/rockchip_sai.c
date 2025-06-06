@@ -378,19 +378,9 @@ static void rockchip_sai_xfer_start(struct rk_sai_dev *sai, int stream)
 static void rockchip_sai_xfer_stop(struct rk_sai_dev *sai, int stream)
 {
 	unsigned int msk = 0, val = 0, clr = 0;
-	bool playback;
-	bool capture;
-
-	if (stream < 0) {
-		playback = true;
-		capture = true;
-	} else if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		playback = true;
-		capture = false;
-	} else {
-		playback = true;
-		capture = false;
-	}
+	bool capture = stream == SNDRV_PCM_STREAM_CAPTURE || stream < 0;
+	bool playback = stream == SNDRV_PCM_STREAM_PLAYBACK || stream < 0;
+	/* could be <= 0 but we don't want to depend on enum values */
 
 	if (playback) {
 		msk |= SAI_XFER_TXS_MASK;
