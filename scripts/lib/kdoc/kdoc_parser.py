@@ -60,6 +60,13 @@ export_symbol_ns = KernRe(r'^\s*EXPORT_SYMBOL_NS(_GPL)?\s*\(\s*(\w+)\s*,\s*"\S+"
 
 type_param = KernRe(r"\@(\w*((\.\w+)|(->\w+))*(\.\.\.)?)", cache=False)
 
+#
+# A little helper to get rid of excess white space
+#
+multi_space = KernRe(r'\s\s+')
+def trim_whitespace(s):
+    return multi_space.sub(' ', s.strip())
+
 class state:
     """
     State machine enums
@@ -1266,12 +1273,7 @@ class KernelDoc:
 
             r = KernRe("[-:](.*)")
             if r.search(line):
-                # strip leading/trailing/multiple spaces
-                self.entry.descr = r.group(1).strip(" ")
-
-                r = KernRe(r"\s+")
-                self.entry.descr = r.sub(" ", self.entry.descr)
-                self.entry.declaration_purpose = self.entry.descr
+                self.entry.declaration_purpose = trim_whitespace(r.group(1))
                 self.state = state.BODY_MAYBE
             else:
                 self.entry.declaration_purpose = ""
