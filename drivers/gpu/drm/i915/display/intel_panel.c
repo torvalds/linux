@@ -463,12 +463,92 @@ void intel_panel_fini(struct intel_connector *connector)
 	}
 }
 
+const struct drm_panel_funcs dummy_panel_funcs = {
+};
+
 int intel_panel_register(struct intel_connector *connector)
 {
-	return intel_backlight_device_register(connector);
+	struct intel_display *display = to_intel_display(connector);
+	struct intel_panel *panel = &connector->panel;
+	int ret;
+
+	ret = intel_backlight_device_register(connector);
+	if (ret)
+		return ret;
+
+	if (connector->base.connector_type == DRM_MODE_CONNECTOR_DSI) {
+		struct device *dev = connector->base.kdev;
+		struct drm_panel *base;
+
+		/* Sanity check. */
+		if (drm_WARN_ON(display->drm, !dev))
+			goto out;
+
+		/*
+		 * We need drm_connector::kdev for allocating the panel, to make
+		 * drm_panel_add_follower() lookups work. The kdev is
+		 * initialized in drm_sysfs_connector_add(), just before the
+		 * connector .late_register() hooks. So we can't allocate the
+		 * panel at connector init time, and can't allocate struct
+		 * intel_panel with a drm_panel sub-struct. For now, use
+		 * __devm_drm_panel_alloc() directly.
+		 *
+		 * The lookups also depend on drm_connector::fwnode being set in
+		 * intel_acpi_assign_connector_fwnodes(). However, if that's
+		 * missing, it will gracefully lead to -EPROBE_DEFER in
+		 * drm_panel_add_follower().
+		 */
+		base = __devm_drm_panel_alloc(dev, sizeof(*base), 0,
+					      &dummy_panel_funcs,
+					      connector->base.connector_type);
+		if (IS_ERR(base)) {
+			ret = PTR_ERR(base);
+			goto err;
+		}
+
+		panel->base = base;
+
+		drm_panel_add(panel->base);
+
+		drm_dbg_kms(display->drm, "[CONNECTOR:%d:%s] Registered panel device '%s', has fwnode: %s\n",
+			    connector->base.base.id, connector->base.name,
+			    dev_name(dev), str_yes_no(dev_fwnode(dev)));
+	}
+
+out:
+	return 0;
+
+err:
+	intel_backlight_device_unregister(connector);
+
+	return ret;
 }
 
 void intel_panel_unregister(struct intel_connector *connector)
 {
+	struct intel_panel *panel = &connector->panel;
+
+	if (panel->base)
+		drm_panel_remove(panel->base);
+
 	intel_backlight_device_unregister(connector);
+}
+
+/* Notify followers, if any, about power being up. */
+void intel_panel_prepare(const struct intel_crtc_state *crtc_state,
+			 const struct drm_connector_state *conn_state)
+{
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
+	struct intel_panel *panel = &connector->panel;
+
+	drm_panel_prepare(panel->base);
+}
+
+/* Notify followers, if any, about power going down. */
+void intel_panel_unprepare(const struct drm_connector_state *old_conn_state)
+{
+	struct intel_connector *connector = to_intel_connector(old_conn_state->connector);
+	struct intel_panel *panel = &connector->panel;
+
+	drm_panel_unprepare(panel->base);
 }

@@ -53,4 +53,8 @@ void intel_panel_add_vbt_sdvo_fixed_mode(struct intel_connector *connector);
 void intel_panel_add_encoder_fixed_mode(struct intel_connector *connector,
 					struct intel_encoder *encoder);
 
+void intel_panel_prepare(const struct intel_crtc_state *crtc_state,
+			 const struct drm_connector_state *conn_state);
+void intel_panel_unprepare(const struct drm_connector_state *old_conn_state);
+
 #endif /* __INTEL_PANEL_H__ */
