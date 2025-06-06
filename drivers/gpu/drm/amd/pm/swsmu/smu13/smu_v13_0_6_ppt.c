@@ -1377,8 +1377,9 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 			return ret;
 		}
 
-		min_clk = pstate_table->gfxclk_pstate.curr.min;
-		max_clk = pstate_table->gfxclk_pstate.curr.max;
+		single_dpm_table = &(dpm_context->dpm_tables.gfx_table);
+		min_clk = single_dpm_table->min;
+		max_clk = single_dpm_table->max;
 
 		if (now < SMU_13_0_6_DSCLK_THRESHOLD) {
 			size += sysfs_emit_at(buf, size, "S: %uMhz *\n",
