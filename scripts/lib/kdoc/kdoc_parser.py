@@ -1678,6 +1678,21 @@ class KernelDoc:
 
         return export_table
 
+    #
+    # The state/action table telling us which function to invoke in
+    # each state.
+    #
+    state_actions = {
+        state.NORMAL:			process_normal,
+        state.NAME:			process_name,
+        state.BODY:			process_body,
+        state.BODY_MAYBE:		process_body,
+        state.BODY_WITH_BLANK_LINE:	process_body,
+        state.INLINE:			process_inline,
+        state.PROTO:			process_proto,
+        state.DOCBLOCK:			process_docblock,
+        }
+
     def parse_kdoc(self):
         """
         Open and process each line of a C source file.
@@ -1729,19 +1744,8 @@ class KernelDoc:
                     self.process_export(export_table, line)
 
                     # Hand this line to the appropriate state handler
-                    if self.state == state.NORMAL:
-                        self.process_normal(ln, line)
-                    elif self.state == state.NAME:
-                        self.process_name(ln, line)
-                    elif self.state in [state.BODY, state.BODY_MAYBE,
-                                        state.BODY_WITH_BLANK_LINE]:
-                        self.process_body(ln, line)
-                    elif self.state == state.INLINE:  # scanning for inline parameters
-                        self.process_inline(ln, line)
-                    elif self.state == state.PROTO:
-                        self.process_proto(ln, line)
-                    elif self.state == state.DOCBLOCK:
-                        self.process_docblock(ln, line)
+                    self.state_actions[self.state](self, ln, line)
+
         except OSError:
             self.config.log.error(f"Error: Cannot open file {self.fname}")
 
