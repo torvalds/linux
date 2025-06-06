@@ -1427,43 +1427,32 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 	if (irq > 0) {
 		ret = devm_request_irq(&pdev->dev, irq, rockchip_sai_isr,
 				       IRQF_SHARED, node->name, sai);
-		if (ret) {
+		if (ret)
 			return dev_err_probe(&pdev->dev, ret,
 					     "Failed to request irq %d\n", irq);
-		}
 	} else {
 		dev_dbg(&pdev->dev, "Asked for an IRQ but got %d\n", irq);
 	}
 
 	sai->mclk = devm_clk_get(&pdev->dev, "mclk");
-	if (IS_ERR(sai->mclk)) {
+	if (IS_ERR(sai->mclk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(sai->mclk),
 				     "Failed to get mclk\n");
-	}
 
-	sai->hclk = devm_clk_get(&pdev->dev, "hclk");
-	if (IS_ERR(sai->hclk)) {
+	sai->hclk = devm_clk_get_enabled(&pdev->dev, "hclk");
+	if (IS_ERR(sai->hclk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(sai->hclk),
 				     "Failed to get hclk\n");
-	}
-
-	ret = clk_prepare_enable(sai->hclk);
-	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "Failed to enable hclk\n");
 
 	regmap_read(sai->regmap, SAI_VERSION, &sai->version);
 
 	ret = rockchip_sai_init_dai(sai, res, &dai);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to initialize DAI: %d\n", ret);
-		goto err_disable_hclk;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "Failed to initialize DAI\n");
 
 	ret = rockchip_sai_parse_paths(sai, node);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to parse paths: %d\n", ret);
-		goto err_disable_hclk;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "Failed to parse paths\n");
 
 	/*
 	 * From here on, all register accesses need to be wrapped in
@@ -1474,10 +1463,8 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 	devm_pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_noresume(&pdev->dev);
 	ret = rockchip_sai_runtime_resume(&pdev->dev);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to resume device: %pe\n", ERR_PTR(ret));
-		goto err_disable_hclk;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "Failed to resume device\n");
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
@@ -1504,8 +1491,6 @@ err_runtime_suspend:
 	/* If we're !CONFIG_PM, we get -ENOSYS and disable manually */
 	if (pm_runtime_put(&pdev->dev))
 		rockchip_sai_runtime_suspend(&pdev->dev);
-err_disable_hclk:
-	clk_disable_unprepare(sai->hclk);
 
 	return ret;
 }
