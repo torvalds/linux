@@ -115,6 +115,11 @@ static void aca_smu_bank_dump(struct amdgpu_device *adev, int idx, int total, st
 	u64 event_id = qctx ? qctx->evid.event_id : RAS_EVENT_INVALID_ID;
 	int i;
 
+	if (adev->debug_disable_ce_logs &&
+	    bank->smu_err_type == ACA_SMU_TYPE_CE &&
+	    !ACA_BANK_ERR_IS_DEFFERED(bank))
+		return;
+
 	RAS_EVENT_LOG(adev, event_id, HW_ERR "Accelerator Check Architecture events logged\n");
 	/* plus 1 for output format, e.g: ACA[08/08]: xxxx */
 	for (i = 0; i < ARRAY_SIZE(aca_regs); i++)
