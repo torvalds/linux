@@ -10,29 +10,43 @@
 
 #include <kunit/test.h>
 
+/*
+ * Mimick the typical "private" struct defined by a bridge driver, which
+ * embeds a bridge plus other fields.
+ *
+ * Having at least one member before @bridge ensures we test non-zero
+ * @bridge offset.
+ */
+struct drm_bridge_priv {
+	unsigned int enable_count;
+	unsigned int disable_count;
+	struct drm_bridge bridge;
+};
+
 struct drm_bridge_init_priv {
 	struct drm_device drm;
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	struct drm_encoder encoder;
-	struct drm_bridge bridge;
+	struct drm_bridge_priv *test_bridge;
 	struct drm_connector *connector;
-	unsigned int enable_count;
-	unsigned int disable_count;
 };
+
+static struct drm_bridge_priv *bridge_to_priv(struct drm_bridge *bridge)
+{
+	return container_of(bridge, struct drm_bridge_priv, bridge);
+}
 
 static void drm_test_bridge_enable(struct drm_bridge *bridge)
 {
-	struct drm_bridge_init_priv *priv =
-		container_of(bridge, struct drm_bridge_init_priv, bridge);
+	struct drm_bridge_priv *priv = bridge_to_priv(bridge);
 
 	priv->enable_count++;
 }
 
 static void drm_test_bridge_disable(struct drm_bridge *bridge)
 {
-	struct drm_bridge_init_priv *priv =
-		container_of(bridge, struct drm_bridge_init_priv, bridge);
+	struct drm_bridge_priv *priv = bridge_to_priv(bridge);
 
 	priv->disable_count++;
 }
@@ -45,8 +59,7 @@ static const struct drm_bridge_funcs drm_test_bridge_legacy_funcs = {
 static void drm_test_bridge_atomic_enable(struct drm_bridge *bridge,
 					  struct drm_atomic_state *state)
 {
-	struct drm_bridge_init_priv *priv =
-		container_of(bridge, struct drm_bridge_init_priv, bridge);
+	struct drm_bridge_priv *priv = bridge_to_priv(bridge);
 
 	priv->enable_count++;
 }
@@ -54,8 +67,7 @@ static void drm_test_bridge_atomic_enable(struct drm_bridge *bridge,
 static void drm_test_bridge_atomic_disable(struct drm_bridge *bridge,
 					   struct drm_atomic_state *state)
 {
-	struct drm_bridge_init_priv *priv =
-		container_of(bridge, struct drm_bridge_init_priv, bridge);
+	struct drm_bridge_priv *priv = bridge_to_priv(bridge);
 
 	priv->disable_count++;
 }
@@ -102,6 +114,10 @@ drm_test_bridge_init(struct kunit *test, const struct drm_bridge_funcs *funcs)
 	if (IS_ERR(priv))
 		return ERR_CAST(priv);
 
+	priv->test_bridge = devm_drm_bridge_alloc(dev, struct drm_bridge_priv, bridge, funcs);
+	if (IS_ERR(priv->test_bridge))
+		return ERR_CAST(priv->test_bridge);
+
 	drm = &priv->drm;
 	priv->plane = drm_kunit_helper_create_primary_plane(test, drm,
 							    NULL,
@@ -125,9 +141,8 @@ drm_test_bridge_init(struct kunit *test, const struct drm_bridge_funcs *funcs)
 
 	enc->possible_crtcs = drm_crtc_mask(priv->crtc);
 
-	bridge = &priv->bridge;
+	bridge = &priv->test_bridge->bridge;
 	bridge->type = DRM_MODE_CONNECTOR_VIRTUAL;
-	bridge->funcs = funcs;
 
 	ret = drm_kunit_bridge_add(test, bridge);
 	if (ret)
@@ -173,7 +188,7 @@ static void drm_test_drm_bridge_get_current_state_atomic(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
 
 retry_commit:
-	bridge = &priv->bridge;
+	bridge = &priv->test_bridge->bridge;
 	bridge_state = drm_atomic_get_bridge_state(state, bridge);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, bridge_state);
 
@@ -228,7 +243,7 @@ static void drm_test_drm_bridge_get_current_state_legacy(struct kunit *test)
 	 * locking. The function would return NULL in all cases anyway,
 	 * so we don't really have any concurrency to worry about.
 	 */
-	bridge = &priv->bridge;
+	bridge = &priv->test_bridge->bridge;
 	KUNIT_EXPECT_NULL(test, drm_bridge_get_current_state(bridge));
 }
 
@@ -253,7 +268,7 @@ static void drm_test_drm_bridge_helper_reset_crtc_atomic(struct kunit *test)
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_bridge_init_priv *priv;
 	struct drm_display_mode *mode;
-	struct drm_bridge *bridge;
+	struct drm_bridge_priv *bridge_priv;
 	int ret;
 
 	priv = drm_test_bridge_init(test, &drm_test_bridge_atomic_funcs);
@@ -279,14 +294,14 @@ retry_commit:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 
-	bridge = &priv->bridge;
-	KUNIT_ASSERT_EQ(test, priv->enable_count, 1);
-	KUNIT_ASSERT_EQ(test, priv->disable_count, 0);
+	bridge_priv = priv->test_bridge;
+	KUNIT_ASSERT_EQ(test, bridge_priv->enable_count, 1);
+	KUNIT_ASSERT_EQ(test, bridge_priv->disable_count, 0);
 
 	drm_modeset_acquire_init(&ctx, 0);
 
 retry_reset:
-	ret = drm_bridge_helper_reset_crtc(bridge, &ctx);
+	ret = drm_bridge_helper_reset_crtc(&bridge_priv->bridge, &ctx);
 	if (ret == -EDEADLK) {
 		drm_modeset_backoff(&ctx);
 		goto retry_reset;
@@ -296,8 +311,8 @@ retry_reset:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 
-	KUNIT_EXPECT_EQ(test, priv->enable_count, 2);
-	KUNIT_EXPECT_EQ(test, priv->disable_count, 1);
+	KUNIT_EXPECT_EQ(test, bridge_priv->enable_count, 2);
+	KUNIT_EXPECT_EQ(test, bridge_priv->disable_count, 1);
 }
 
 /*
@@ -309,7 +324,7 @@ static void drm_test_drm_bridge_helper_reset_crtc_atomic_disabled(struct kunit *
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_bridge_init_priv *priv;
 	struct drm_display_mode *mode;
-	struct drm_bridge *bridge;
+	struct drm_bridge_priv *bridge_priv;
 	int ret;
 
 	priv = drm_test_bridge_init(test, &drm_test_bridge_atomic_funcs);
@@ -318,14 +333,14 @@ static void drm_test_drm_bridge_helper_reset_crtc_atomic_disabled(struct kunit *
 	mode = drm_kunit_display_mode_from_cea_vic(test, &priv->drm, 16);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, mode);
 
-	bridge = &priv->bridge;
-	KUNIT_ASSERT_EQ(test, priv->enable_count, 0);
-	KUNIT_ASSERT_EQ(test, priv->disable_count, 0);
+	bridge_priv = priv->test_bridge;
+	KUNIT_ASSERT_EQ(test, bridge_priv->enable_count, 0);
+	KUNIT_ASSERT_EQ(test, bridge_priv->disable_count, 0);
 
 	drm_modeset_acquire_init(&ctx, 0);
 
 retry_reset:
-	ret = drm_bridge_helper_reset_crtc(bridge, &ctx);
+	ret = drm_bridge_helper_reset_crtc(&bridge_priv->bridge, &ctx);
 	if (ret == -EDEADLK) {
 		drm_modeset_backoff(&ctx);
 		goto retry_reset;
@@ -335,8 +350,8 @@ retry_reset:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 
-	KUNIT_EXPECT_EQ(test, priv->enable_count, 0);
-	KUNIT_EXPECT_EQ(test, priv->disable_count, 0);
+	KUNIT_EXPECT_EQ(test, bridge_priv->enable_count, 0);
+	KUNIT_EXPECT_EQ(test, bridge_priv->disable_count, 0);
 }
 
 /*
@@ -348,7 +363,7 @@ static void drm_test_drm_bridge_helper_reset_crtc_legacy(struct kunit *test)
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_bridge_init_priv *priv;
 	struct drm_display_mode *mode;
-	struct drm_bridge *bridge;
+	struct drm_bridge_priv *bridge_priv;
 	int ret;
 
 	priv = drm_test_bridge_init(test, &drm_test_bridge_legacy_funcs);
@@ -374,14 +389,14 @@ retry_commit:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 
-	bridge = &priv->bridge;
-	KUNIT_ASSERT_EQ(test, priv->enable_count, 1);
-	KUNIT_ASSERT_EQ(test, priv->disable_count, 0);
+	bridge_priv = priv->test_bridge;
+	KUNIT_ASSERT_EQ(test, bridge_priv->enable_count, 1);
+	KUNIT_ASSERT_EQ(test, bridge_priv->disable_count, 0);
 
 	drm_modeset_acquire_init(&ctx, 0);
 
 retry_reset:
-	ret = drm_bridge_helper_reset_crtc(bridge, &ctx);
+	ret = drm_bridge_helper_reset_crtc(&bridge_priv->bridge, &ctx);
 	if (ret == -EDEADLK) {
 		drm_modeset_backoff(&ctx);
 		goto retry_reset;
@@ -391,8 +406,8 @@ retry_reset:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 
-	KUNIT_EXPECT_EQ(test, priv->enable_count, 2);
-	KUNIT_EXPECT_EQ(test, priv->disable_count, 1);
+	KUNIT_EXPECT_EQ(test, bridge_priv->enable_count, 2);
+	KUNIT_EXPECT_EQ(test, bridge_priv->disable_count, 1);
 }
 
 static struct kunit_case drm_bridge_helper_reset_crtc_tests[] = {
