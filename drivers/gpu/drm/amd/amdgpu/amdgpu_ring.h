@@ -271,7 +271,6 @@ struct amdgpu_ring_funcs {
 	int (*reset)(struct amdgpu_ring *ring, unsigned int vmid,
 		     struct amdgpu_fence *timedout_fence);
 	void (*emit_cleaner_shader)(struct amdgpu_ring *ring);
-	bool (*is_guilty)(struct amdgpu_ring *ring);
 };
 
 /**
