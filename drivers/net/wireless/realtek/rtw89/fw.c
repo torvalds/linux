@@ -5919,6 +5919,65 @@ fail:
 }
 EXPORT_SYMBOL(rtw89_fw_h2c_rf_ntfy_mcc);
 
+int rtw89_fw_h2c_rf_ps_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_h2c_rf_ps_info *h2c;
+	const struct rtw89_chan *chan;
+	u32 len = sizeof(*h2c);
+	unsigned int link_id;
+	struct sk_buff *skb;
+	int ret;
+	u8 path;
+	u32 val;
+
+	if (chip->chip_gen != RTW89_CHIP_BE)
+		return 0;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c rf ps info\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_rf_ps_info *)skb->data;
+	h2c->mlo_mode = cpu_to_le32(rtwdev->mlo_dbcc_mode);
+
+	rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id) {
+		chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
+		path = rtw89_phy_get_syn_sel(rtwdev, rtwvif_link->phy_idx);
+		val = rtw89_chip_chan_to_rf18_val(rtwdev, chan);
+
+		if (path >= chip->rf_path_num) {
+			rtw89_err(rtwdev, "unsupported rf path (%d)\n", path);
+			ret = -ENOENT;
+			goto fail;
+		}
+
+		h2c->rf18[path] = cpu_to_le32(val);
+		h2c->pri_ch[path] = chan->primary_channel;
+	}
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_OUTSRC, H2C_CL_OUTSRC_RF_FW_NOTIFY,
+			      H2C_FUNC_OUTSRC_RF_PS_INFO, 0, 0,
+			      sizeof(*h2c));
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+EXPORT_SYMBOL(rtw89_fw_h2c_rf_ps_info);
+
 int rtw89_fw_h2c_rf_pre_ntfy(struct rtw89_dev *rtwdev,
 			     enum rtw89_phy_idx phy_idx)
 {

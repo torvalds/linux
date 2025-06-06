@@ -137,6 +137,8 @@ void rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			can_ps_mode = false;
 	}
 
+	rtw89_fw_h2c_rf_ps_info(rtwdev, rtwvif);
+
 	if (RTW89_CHK_FW_FEATURE(LPS_CH_INFO, &rtwdev->fw))
 		rtw89_fw_h2c_lps_ch_info(rtwdev, rtwvif);
 	else
