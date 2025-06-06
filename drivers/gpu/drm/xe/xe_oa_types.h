@@ -182,6 +182,9 @@ struct xe_oa_stream {
 	/** @gt: gt associated with the oa stream */
 	struct xe_gt *gt;
 
+	/** @oa_unit: oa unit for this stream */
+	struct xe_oa_unit *oa_unit;
+
 	/** @hwe: hardware engine associated with this oa stream */
 	struct xe_hw_engine *hwe;
 

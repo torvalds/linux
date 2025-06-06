@@ -83,7 +83,7 @@ struct xe_oa_config {
 
 struct xe_oa_open_param {
 	struct xe_file *xef;
-	u32 oa_unit_id;
+	struct xe_oa_unit *oa_unit;
 	bool sample;
 	u32 metric_set;
 	enum xe_oa_format_name oa_format;
@@ -200,7 +200,7 @@ static void free_oa_config_bo(struct xe_oa_config_bo *oa_bo, struct dma_fence *l
 
 static const struct xe_oa_regs *__oa_regs(struct xe_oa_stream *stream)
 {
-	return &stream->hwe->oa_unit->regs;
+	return &stream->oa_unit->regs;
 }
 
 static u32 xe_oa_hw_tail_read(struct xe_oa_stream *stream)
@@ -460,7 +460,7 @@ static u32 __oa_ccs_select(struct xe_oa_stream *stream)
 
 static u32 __oactrl_used_bits(struct xe_oa_stream *stream)
 {
-	return stream->hwe->oa_unit->type == DRM_XE_OA_UNIT_TYPE_OAG ?
+	return stream->oa_unit->type == DRM_XE_OA_UNIT_TYPE_OAG ?
 		OAG_OACONTROL_USED_BITS : OAM_OACONTROL_USED_BITS;
 }
 
@@ -481,7 +481,7 @@ static void xe_oa_enable(struct xe_oa_stream *stream)
 		__oa_ccs_select(stream) | OAG_OACONTROL_OA_COUNTER_ENABLE;
 
 	if (GRAPHICS_VER(stream->oa->xe) >= 20 &&
-	    stream->hwe->oa_unit->type == DRM_XE_OA_UNIT_TYPE_OAG)
+	    stream->oa_unit->type == DRM_XE_OA_UNIT_TYPE_OAG)
 		val |= OAG_OACONTROL_OA_PES_DISAG_EN;
 
 	xe_mmio_rmw32(&stream->gt->mmio, regs->oa_ctrl, __oactrl_used_bits(stream), val);
@@ -848,7 +848,7 @@ static void xe_oa_disable_metric_set(struct xe_oa_stream *stream)
 
 static void xe_oa_stream_destroy(struct xe_oa_stream *stream)
 {
-	struct xe_oa_unit *u = stream->hwe->oa_unit;
+	struct xe_oa_unit *u = stream->oa_unit;
 	struct xe_gt *gt = stream->hwe->gt;
 
 	if (WARN_ON(stream != u->exclusive_stream))
@@ -1145,14 +1145,31 @@ static int decode_oa_format(struct xe_oa *oa, u64 fmt, enum xe_oa_format_name *n
 	return -EINVAL;
 }
 
+static struct xe_oa_unit *xe_oa_lookup_oa_unit(struct xe_oa *oa, u32 oa_unit_id)
+{
+	struct xe_gt *gt;
+	int gt_id, i;
+
+	for_each_gt(gt, oa->xe, gt_id) {
+		for (i = 0; i < gt->oa.num_oa_units; i++) {
+			struct xe_oa_unit *u = &gt->oa.oa_unit[i];
+
+			if (u->oa_unit_id == oa_unit_id)
+				return u;
+		}
+	}
+
+	return NULL;
+}
+
 static int xe_oa_set_prop_oa_unit_id(struct xe_oa *oa, u64 value,
 				     struct xe_oa_open_param *param)
 {
-	if (value >= oa->oa_unit_ids) {
+	param->oa_unit = xe_oa_lookup_oa_unit(oa, value);
+	if (!param->oa_unit) {
 		drm_dbg(&oa->xe->drm, "OA unit ID out of range %lld\n", value);
 		return -EINVAL;
 	}
-	param->oa_unit_id = value;
 	return 0;
 }
 
@@ -1683,13 +1700,13 @@ static const struct file_operations xe_oa_fops = {
 static int xe_oa_stream_init(struct xe_oa_stream *stream,
 			     struct xe_oa_open_param *param)
 {
-	struct xe_oa_unit *u = param->hwe->oa_unit;
 	struct xe_gt *gt = param->hwe->gt;
 	unsigned int fw_ref;
 	int ret;
 
 	stream->exec_q = param->exec_q;
 	stream->poll_period_ns = DEFAULT_POLL_PERIOD_NS;
+	stream->oa_unit = param->oa_unit;
 	stream->hwe = param->hwe;
 	stream->gt = stream->hwe->gt;
 	stream->oa_buffer.format = &stream->oa->oa_formats[param->oa_format];
@@ -1710,7 +1727,7 @@ static int xe_oa_stream_init(struct xe_oa_stream *stream,
 	 * buffer whose size, circ_size, is a multiple of the report size
 	 */
 	if (GRAPHICS_VER(stream->oa->xe) >= 20 &&
-	    stream->hwe->oa_unit->type == DRM_XE_OA_UNIT_TYPE_OAG && stream->sample)
+	    stream->oa_unit->type == DRM_XE_OA_UNIT_TYPE_OAG && stream->sample)
 		stream->oa_buffer.circ_size =
 			param->oa_buffer_size -
 			param->oa_buffer_size % stream->oa_buffer.format->size;
@@ -1768,7 +1785,7 @@ static int xe_oa_stream_init(struct xe_oa_stream *stream,
 	drm_dbg(&stream->oa->xe->drm, "opening stream oa config uuid=%s\n",
 		stream->oa_config->uuid);
 
-	WRITE_ONCE(u->exclusive_stream, stream);
+	WRITE_ONCE(stream->oa_unit->exclusive_stream, stream);
 
 	hrtimer_setup(&stream->poll_check_timer, xe_oa_poll_check_timer_cb, CLOCK_MONOTONIC,
 		      HRTIMER_MODE_REL);
@@ -1804,7 +1821,7 @@ static int xe_oa_stream_open_ioctl_locked(struct xe_oa *oa,
 	int ret;
 
 	/* We currently only allow exclusive access */
-	if (param->hwe->oa_unit->exclusive_stream) {
+	if (param->oa_unit->exclusive_stream) {
 		drm_dbg(&oa->xe->drm, "OA unit already in use\n");
 		ret = -EBUSY;
 		goto exit;
@@ -1880,9 +1897,9 @@ static u64 oa_exponent_to_ns(struct xe_gt *gt, int exponent)
 	return div_u64(nom + den - 1, den);
 }
 
-static bool engine_supports_oa_format(const struct xe_hw_engine *hwe, int type)
+static bool oa_unit_supports_oa_format(struct xe_oa_open_param *param, int type)
 {
-	switch (hwe->oa_unit->type) {
+	switch (param->oa_unit->type) {
 	case DRM_XE_OA_UNIT_TYPE_OAG:
 		return type == DRM_XE_OA_FMT_TYPE_OAG || type == DRM_XE_OA_FMT_TYPE_OAR ||
 			type == DRM_XE_OA_FMT_TYPE_OAC || type == DRM_XE_OA_FMT_TYPE_PEC;
@@ -1922,7 +1939,7 @@ static int xe_oa_assign_hwe(struct xe_oa *oa, struct xe_oa_open_param *param)
 		/* Else just get the first hwe attached to the oa unit */
 		for_each_gt(gt, oa->xe, i) {
 			for_each_hw_engine(hwe, gt, id) {
-				if (xe_oa_unit_id(hwe) == param->oa_unit_id) {
+				if (hwe->oa_unit == param->oa_unit) {
 					param->hwe = hwe;
 					goto out;
 				}
@@ -1930,10 +1947,10 @@ static int xe_oa_assign_hwe(struct xe_oa *oa, struct xe_oa_open_param *param)
 		}
 	}
 out:
-	if (!param->hwe || xe_oa_unit_id(param->hwe) != param->oa_unit_id) {
+	if (!param->hwe || param->hwe->oa_unit != param->oa_unit) {
 		drm_dbg(&oa->xe->drm, "Unable to find hwe (%d, %d) for OA unit ID %d\n",
 			param->exec_q ? param->exec_q->class : -1,
-			param->engine_instance, param->oa_unit_id);
+			param->engine_instance, param->oa_unit->oa_unit_id);
 		ret = -EINVAL;
 	}
 
@@ -2014,7 +2031,7 @@ int xe_oa_stream_open_ioctl(struct drm_device *dev, u64 data, struct drm_file *f
 
 	f = &oa->oa_formats[param.oa_format];
 	if (!param.oa_format || !f->size ||
-	    !engine_supports_oa_format(param.hwe, f->type)) {
+	    !oa_unit_supports_oa_format(&param, f->type)) {
 		drm_dbg(&oa->xe->drm, "Invalid OA format %d type %d size %d for class %d\n",
 			param.oa_format, f->type, f->size, param.hwe->class);
 		ret = -EINVAL;
