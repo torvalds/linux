@@ -15,7 +15,7 @@
 #include "sar.h"
 #include "util.h"
 
-#define RTW8922A_FW_FORMAT_MAX 3
+#define RTW8922A_FW_FORMAT_MAX 4
 #define RTW8922A_FW_BASENAME "rtw89/rtw8922a_fw"
 #define RTW8922A_MODULE_FIRMWARE \
 	RTW8922A_FW_BASENAME "-" __stringify(RTW8922A_FW_FORMAT_MAX) ".bin"

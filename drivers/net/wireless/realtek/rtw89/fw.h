@@ -4435,6 +4435,7 @@ struct rtw89_h2c_rf_tssi {
 	u8 pg_thermal[2];
 	u8 ftable[2][128];
 	u8 tssi_mode;
+	u8 rfe_type;
 } __packed;
 
 struct rtw89_h2c_rf_iqk {
