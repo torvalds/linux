@@ -1226,7 +1226,7 @@ static bool iort_pci_rc_supports_canwbs(struct acpi_iort_node *node)
 	pci_rc = (struct acpi_iort_root_complex *)node->node_data;
 	memory_access =
 		(struct acpi_iort_memory_access *)&pci_rc->memory_properties;
-	return memory_access->memory_flags & ACPI_IORT_MF_CANWBS;
+	return true;
 }
 
 static int iort_iommu_xlate(struct device *dev, struct acpi_iort_node *node,
