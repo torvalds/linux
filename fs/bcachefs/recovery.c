@@ -99,9 +99,11 @@ int bch2_btree_lost_data(struct bch_fs *c,
 		goto out;
 	case BTREE_ID_snapshots:
 		ret = __bch2_run_explicit_recovery_pass(c, msg, BCH_RECOVERY_PASS_reconstruct_snapshots, 0) ?: ret;
+		ret = __bch2_run_explicit_recovery_pass(c, msg, BCH_RECOVERY_PASS_check_topology, 0) ?: ret;
 		ret = __bch2_run_explicit_recovery_pass(c, msg, BCH_RECOVERY_PASS_scan_for_btree_nodes, 0) ?: ret;
 		goto out;
 	default:
+		ret = __bch2_run_explicit_recovery_pass(c, msg, BCH_RECOVERY_PASS_check_topology, 0) ?: ret;
 		ret = __bch2_run_explicit_recovery_pass(c, msg, BCH_RECOVERY_PASS_scan_for_btree_nodes, 0) ?: ret;
 		goto out;
 	}
