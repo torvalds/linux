@@ -4996,12 +4996,6 @@ void sdhci_remove_host(struct sdhci_host *host, int dead)
 
 EXPORT_SYMBOL_GPL(sdhci_remove_host);
 
-void sdhci_free_host(struct sdhci_host *host)
-{
-}
-
-EXPORT_SYMBOL_GPL(sdhci_free_host);
-
 /*****************************************************************************\
  *                                                                           *
  * Driver init/exit                                                          *
