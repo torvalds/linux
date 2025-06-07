@@ -948,7 +948,6 @@ err_free:
 	if (c->slot && c->slot->free_slot)
 		c->slot->free_slot(pdev);
 
-	sdhci_free_host(c->host);
 	return err;
 }
 
@@ -972,8 +971,6 @@ static void sdhci_acpi_remove(struct platform_device *pdev)
 
 	if (c->slot && c->slot->free_slot)
 		c->slot->free_slot(pdev);
-
-	sdhci_free_host(c->host);
 }
 
 static void __maybe_unused sdhci_acpi_reset_signal_voltage_if_needed(
