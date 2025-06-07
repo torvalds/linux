@@ -44,9 +44,6 @@ config CRC_T10DIF
 	  The CRC-T10DIF library functions.  Select this if your module uses
 	  any of the functions from <linux/crc-t10dif.h>.
 
-config ARCH_HAS_CRC_T10DIF
-	bool
-
 config CRC_T10DIF_ARCH
 	bool
 	depends on CRC_T10DIF && CRC_OPTIMIZATIONS
@@ -62,9 +59,6 @@ config CRC32
 	help
 	  The CRC32 library functions.  Select this if your module uses any of
 	  the functions from <linux/crc32.h> or <linux/crc32c.h>.
-
-config ARCH_HAS_CRC32
-	bool
 
 config CRC32_ARCH
 	bool
@@ -84,9 +78,6 @@ config CRC64
 	help
 	  The CRC64 library functions.  Select this if your module uses any of
 	  the functions from <linux/crc64.h>.
-
-config ARCH_HAS_CRC64
-	bool
 
 config CRC64_ARCH
 	bool
