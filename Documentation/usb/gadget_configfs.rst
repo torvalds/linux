@@ -369,18 +369,18 @@ For more information on configfs please see
 The concepts described above translate to USB gadgets like this:
 
 1. A gadget has its config group, which has some attributes (idVendor,
-idProduct etc) and default sub-groups (configs, functions, strings).
-Writing to the attributes causes the information to be stored in
-appropriate locations. In the configs, functions and strings sub-groups
-a user can create their sub-groups to represent configurations, functions,
-and groups of strings in a given language.
+   idProduct etc) and default sub-groups (configs, functions, strings).
+   Writing to the attributes causes the information to be stored in appropriate
+   locations. In the configs, functions and strings sub-groups a user can
+   create their sub-groups to represent configurations, functions, and groups
+   of strings in a given language.
 
 2. The user creates configurations and functions, in the configurations
-creates symbolic links to functions. This information is used when the
-gadget's UDC attribute is written to, which means binding the gadget
-to the UDC. The code in drivers/usb/gadget/configfs.c iterates over
-all configurations, and in each configuration it iterates over all
-functions and binds them. This way the whole gadget is bound.
+   creates symbolic links to functions. This information is used when the
+   gadget's UDC attribute is written to, which means binding the gadget to the
+   UDC. The code in drivers/usb/gadget/configfs.c iterates over all
+   configurations, and in each configuration it iterates over all functions and
+   binds them. This way the whole gadget is bound.
 
 3. The file drivers/usb/gadget/configfs.c contains code for
 
@@ -388,13 +388,12 @@ functions and binds them. This way the whole gadget is bound.
 	- gadget's default groups (configs, functions, strings)
 	- associating functions with configurations (symlinks)
 
-4. Each USB function naturally has its own view of what it wants
-configured, so config_groups for particular functions are defined
-in the functions implementation files drivers/usb/gadget/f_*.c.
+4. Each USB function naturally has its own view of what it wants configured, so
+   config_groups for particular functions are defined in the functions
+   implementation files drivers/usb/gadget/f_*.c.
 
 5. Function's code is written in such a way that it uses
-
-usb_get_function_instance(), which, in turn, calls request_module.
-So, provided that modprobe works, modules for particular functions
-are loaded automatically. Please note that the converse is not true:
-after a gadget is disabled and torn down, the modules remain loaded.
+   usb_get_function_instance(), which, in turn, calls request_module.  So,
+   provided that modprobe works, modules for particular functions are loaded
+   automatically. Please note that the converse is not true: after a gadget is
+   disabled and torn down, the modules remain loaded.
