@@ -86,6 +86,7 @@ static struct device_driver faux_driver = {
 	.name		= "faux_driver",
 	.bus		= &faux_bus_type,
 	.probe_type	= PROBE_FORCE_SYNCHRONOUS,
+	.suppress_bind_attrs = true,
 };
 
 static void faux_device_release(struct device *dev)
