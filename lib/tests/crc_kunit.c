@@ -36,14 +36,12 @@ static size_t test_buflen;
  *	  can fit any CRC up to CRC-64.  The CRC is passed in, and is expected
  *	  to be returned in, the least significant bits of the u64.  The
  *	  function is expected to *not* invert the CRC at the beginning and end.
- * @combine_func: Optional function to combine two CRCs.
  */
 struct crc_variant {
 	int bits;
 	bool le;
 	u64 poly;
 	u64 (*func)(u64 crc, const u8 *p, size_t len);
-	u64 (*combine_func)(u64 crc1, u64 crc2, size_t len2);
 };
 
 static u32 rand32(void)
@@ -144,7 +142,7 @@ static size_t generate_random_length(size_t max_length)
 }
 
 /* Test that v->func gives the same CRCs as a reference implementation. */
-static void crc_main_test(struct kunit *test, const struct crc_variant *v)
+static void crc_test(struct kunit *test, const struct crc_variant *v)
 {
 	size_t i;
 
@@ -186,35 +184,6 @@ static void crc_main_test(struct kunit *test, const struct crc_variant *v)
 				    "Wrong result with len=%zu offset=%zu nosimd=%d",
 				    len, offset, nosimd);
 	}
-}
-
-/* Test that CRC(concat(A, B)) == combine_CRCs(CRC(A), CRC(B), len(B)). */
-static void crc_combine_test(struct kunit *test, const struct crc_variant *v)
-{
-	int i;
-
-	for (i = 0; i < 100; i++) {
-		u64 init_crc = generate_random_initial_crc(v);
-		size_t len1 = generate_random_length(CRC_KUNIT_MAX_LEN);
-		size_t len2 = generate_random_length(CRC_KUNIT_MAX_LEN - len1);
-		u64 crc1, crc2, expected_crc, actual_crc;
-
-		prandom_bytes_state(&rng, test_buffer, len1 + len2);
-		crc1 = v->func(init_crc, test_buffer, len1);
-		crc2 = v->func(0, &test_buffer[len1], len2);
-		expected_crc = v->func(init_crc, test_buffer, len1 + len2);
-		actual_crc = v->combine_func(crc1, crc2, len2);
-		KUNIT_EXPECT_EQ_MSG(test, expected_crc, actual_crc,
-				    "CRC combination gave wrong result with len1=%zu len2=%zu\n",
-				    len1, len2);
-	}
-}
-
-static void crc_test(struct kunit *test, const struct crc_variant *v)
-{
-	crc_main_test(test, v);
-	if (v->combine_func)
-		crc_combine_test(test, v);
 }
 
 static __always_inline void
@@ -337,17 +306,11 @@ static u64 crc32_le_wrapper(u64 crc, const u8 *p, size_t len)
 	return crc32_le(crc, p, len);
 }
 
-static u64 crc32_le_combine_wrapper(u64 crc1, u64 crc2, size_t len2)
-{
-	return crc32_le_combine(crc1, crc2, len2);
-}
-
 static const struct crc_variant crc_variant_crc32_le = {
 	.bits = 32,
 	.le = true,
 	.poly = 0xedb88320,
 	.func = crc32_le_wrapper,
-	.combine_func = crc32_le_combine_wrapper,
 };
 
 static void crc32_le_test(struct kunit *test)
