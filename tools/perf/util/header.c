@@ -4326,7 +4326,6 @@ out_delete_evlist:
 int perf_event__process_feature(struct perf_session *session,
 				union perf_event *event)
 {
-	const struct perf_tool *tool = session->tool;
 	struct feat_fd ff = { .fd = 0 };
 	struct perf_record_header_feature *fe = (struct perf_record_header_feature *)event;
 	int type = fe->header.type;
@@ -4342,28 +4341,23 @@ int perf_event__process_feature(struct perf_session *session,
 		return -1;
 	}
 
-	if (!feat_ops[feat].process)
-		return 0;
-
 	ff.buf  = (void *)fe->data;
 	ff.size = event->header.size - sizeof(*fe);
 	ff.ph = &session->header;
 
-	if (feat_ops[feat].process(&ff, NULL)) {
+	if (feat_ops[feat].process && feat_ops[feat].process(&ff, NULL)) {
 		ret = -1;
 		goto out;
 	}
 
-	if (!feat_ops[feat].print || !tool->show_feat_hdr)
-		goto out;
-
-	if (!feat_ops[feat].full_only ||
-	    tool->show_feat_hdr >= SHOW_FEAT_HEADER_FULL_INFO) {
-		feat_ops[feat].print(&ff, stdout);
-	} else {
-		fprintf(stdout, "# %s info available, use -I to display\n",
-			feat_ops[feat].name);
+	if (dump_trace) {
+		printf(", ");
+		if (feat_ops[feat].print)
+			feat_ops[feat].print(&ff, stdout);
+		else
+			printf("# %s", feat_ops[feat].name);
 	}
+
 out:
 	free_event_desc(ff.events);
 	return ret;
