@@ -4399,6 +4399,11 @@ size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp)
 	return ret;
 }
 
+size_t perf_event__fprintf_attr(union perf_event *event, FILE *fp)
+{
+	return perf_event_attr__fprintf(fp, &event->attr.attr, __desc_attr__fprintf, NULL);
+}
+
 int perf_event__process_attr(const struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
 			     struct evlist **pevlist)
@@ -4407,6 +4412,9 @@ int perf_event__process_attr(const struct perf_tool *tool __maybe_unused,
 	u64 *ids;
 	struct evsel *evsel;
 	struct evlist *evlist = *pevlist;
+
+	if (dump_trace)
+		perf_event__fprintf_attr(event, stdout);
 
 	if (evlist == NULL) {
 		*pevlist = evlist = evlist__new();
