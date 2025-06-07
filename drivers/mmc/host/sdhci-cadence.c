@@ -515,7 +515,7 @@ static int sdhci_cdns_probe(struct platform_device *pdev)
 	if (data->init) {
 		ret = data->init(pdev);
 		if (ret)
-			goto free;
+			return ret;
 	}
 	sdhci_enable_v4_mode(host);
 	__sdhci_read_caps(host, &version, NULL, NULL);
@@ -524,33 +524,24 @@ static int sdhci_cdns_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
-		goto free;
+		return ret;
 
 	sdhci_cdns_phy_param_parse(dev->of_node, priv);
 
 	ret = sdhci_cdns_phy_init(priv);
 	if (ret)
-		goto free;
+		return ret;
 
 	if (host->mmc->caps & MMC_CAP_HW_RESET) {
 		priv->rst_hw = devm_reset_control_get_optional_exclusive(dev, NULL);
-		if (IS_ERR(priv->rst_hw)) {
-			ret = dev_err_probe(mmc_dev(host->mmc), PTR_ERR(priv->rst_hw),
+		if (IS_ERR(priv->rst_hw))
+			return dev_err_probe(mmc_dev(host->mmc), PTR_ERR(priv->rst_hw),
 					    "reset controller error\n");
-			goto free;
-		}
 		if (priv->rst_hw)
 			host->mmc_host_ops.card_hw_reset = sdhci_cdns_mmc_hw_reset;
 	}
 
-	ret = sdhci_add_host(host);
-	if (ret)
-		goto free;
-
-	return 0;
-free:
-	sdhci_pltfm_free(pdev);
-	return ret;
+	return sdhci_add_host(host);
 }
 
 #ifdef CONFIG_PM_SLEEP
