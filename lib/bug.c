@@ -183,18 +183,20 @@ static void __warn_printf(const char *fmt, struct pt_regs *regs)
 	printk("%s", fmt);
 }
 
-static enum bug_trap_type __report_bug(unsigned long bugaddr, struct pt_regs *regs)
+static enum bug_trap_type __report_bug(struct bug_entry *bug, unsigned long bugaddr, struct pt_regs *regs)
 {
 	bool warning, once, done, no_cut, has_args;
 	const char *file, *fmt;
 	unsigned line;
 
-	if (!is_valid_bugaddr(bugaddr))
-		return BUG_TRAP_TYPE_NONE;
+	if (!bug) {
+		if (!is_valid_bugaddr(bugaddr))
+			return BUG_TRAP_TYPE_NONE;
 
-	bug = find_bug(bugaddr);
-	if (!bug)
-		return BUG_TRAP_TYPE_NONE;
+		bug = find_bug(bugaddr);
+		if (!bug)
+			return BUG_TRAP_TYPE_NONE;
+	}
 
 	disable_trace_on_warning();
 
@@ -244,13 +246,25 @@ static enum bug_trap_type __report_bug(unsigned long bugaddr, struct pt_regs *re
 	return BUG_TRAP_TYPE_BUG;
 }
 
+enum bug_trap_type report_bug_entry(struct bug_entry *bug, struct pt_regs *regs)
+{
+	enum bug_trap_type ret;
+	bool rcu = false;
+
+	rcu = warn_rcu_enter();
+	ret = __report_bug(bug, 0, regs);
+	warn_rcu_exit(rcu);
+
+	return ret;
+}
+
 enum bug_trap_type report_bug(unsigned long bugaddr, struct pt_regs *regs)
 {
 	enum bug_trap_type ret;
 	bool rcu = false;
 
 	rcu = warn_rcu_enter();
-	ret = __report_bug(bugaddr, regs);
+	ret = __report_bug(NULL, bugaddr, regs);
 	warn_rcu_exit(rcu);
 
 	return ret;
