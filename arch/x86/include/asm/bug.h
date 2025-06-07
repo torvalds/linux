@@ -140,6 +140,9 @@ do {									\
 #ifdef HAVE_ARCH_BUG_FORMAT_ARGS
 
 #ifndef __ASSEMBLY__
+#include <linux/static_call_types.h>
+DECLARE_STATIC_CALL(WARN_trap, __WARN_trap);
+
 struct pt_regs;
 struct sysv_va_list { /* from AMD64 System V ABI */
 	unsigned int gp_offset;
@@ -171,7 +174,7 @@ extern void *__warn_args(struct arch_va_list *args, struct pt_regs *regs);
 #define __WARN_print_arg(flags, format, arg...)				\
 do {									\
 	int __flags = (flags) | BUGFLAG_WARNING | BUGFLAG_ARGS ;	\
-	__WARN_trap(__WARN_bug_entry(__flags, format), ## arg);		\
+	static_call_mod(WARN_trap)(__WARN_bug_entry(__flags, format), ## arg); \
 	asm (""); /* inhibit tail-call optimization */			\
 } while (0)
 

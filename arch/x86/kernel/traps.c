@@ -31,6 +31,7 @@
 #include <linux/kexec.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
+#include <linux/static_call.h>
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/bug.h>
@@ -215,6 +216,9 @@ static inline unsigned long pt_regs_val(struct pt_regs *regs, int nr)
 }
 
 #ifdef HAVE_ARCH_BUG_FORMAT_ARGS
+DEFINE_STATIC_CALL(WARN_trap, __WARN_trap);
+EXPORT_STATIC_CALL_TRAMP(WARN_trap);
+
 /*
  * Create a va_list from an exception context.
  */
