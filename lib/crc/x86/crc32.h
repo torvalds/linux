@@ -7,8 +7,6 @@
  * Copyright 2024 Google LLC
  */
 
-#include <linux/crc32.h>
-#include <linux/module.h>
 #include "crc-pclmul-template.h"
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_crc32);
@@ -16,13 +14,12 @@ static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_pclmulqdq);
 
 DECLARE_CRC_PCLMUL_FUNCS(crc32_lsb, u32);
 
-u32 crc32_le_arch(u32 crc, const u8 *p, size_t len)
+static inline u32 crc32_le_arch(u32 crc, const u8 *p, size_t len)
 {
 	CRC_PCLMUL(crc, p, len, crc32_lsb, crc32_lsb_0xedb88320_consts,
 		   have_pclmulqdq);
 	return crc32_le_base(crc, p, len);
 }
-EXPORT_SYMBOL(crc32_le_arch);
 
 #ifdef CONFIG_X86_64
 #define CRC32_INST "crc32q %1, %q0"
@@ -38,7 +35,7 @@ EXPORT_SYMBOL(crc32_le_arch);
 
 asmlinkage u32 crc32c_x86_3way(u32 crc, const u8 *buffer, size_t len);
 
-u32 crc32c_arch(u32 crc, const u8 *p, size_t len)
+static inline u32 crc32c_arch(u32 crc, const u8 *p, size_t len)
 {
 	size_t num_longs;
 
@@ -70,15 +67,11 @@ u32 crc32c_arch(u32 crc, const u8 *p, size_t len)
 
 	return crc;
 }
-EXPORT_SYMBOL(crc32c_arch);
 
-u32 crc32_be_arch(u32 crc, const u8 *p, size_t len)
-{
-	return crc32_be_base(crc, p, len);
-}
-EXPORT_SYMBOL(crc32_be_arch);
+#define crc32_be_arch crc32_be_base /* not implemented on this arch */
 
-static int __init crc32_x86_init(void)
+#define crc32_mod_init_arch crc32_mod_init_arch
+static inline void crc32_mod_init_arch(void)
 {
 	if (boot_cpu_has(X86_FEATURE_XMM4_2))
 		static_branch_enable(&have_crc32);
@@ -86,16 +79,9 @@ static int __init crc32_x86_init(void)
 		static_branch_enable(&have_pclmulqdq);
 		INIT_CRC_PCLMUL(crc32_lsb);
 	}
-	return 0;
 }
-subsys_initcall(crc32_x86_init);
 
-static void __exit crc32_x86_exit(void)
-{
-}
-module_exit(crc32_x86_exit);
-
-u32 crc32_optimizations(void)
+static inline u32 crc32_optimizations_arch(void)
 {
 	u32 optimizations = 0;
 
@@ -105,7 +91,3 @@ u32 crc32_optimizations(void)
 		optimizations |= CRC32_LE_OPTIMIZATION;
 	return optimizations;
 }
-EXPORT_SYMBOL(crc32_optimizations);
-
-MODULE_DESCRIPTION("x86-optimized CRC32 functions");
-MODULE_LICENSE("GPL");
