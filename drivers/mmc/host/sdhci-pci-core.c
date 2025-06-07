@@ -2162,7 +2162,7 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 	ret = pcim_iomap_regions(pdev, BIT(bar), mmc_hostname(host->mmc));
 	if (ret) {
 		dev_err(&pdev->dev, "cannot request region\n");
-		goto cleanup;
+		return ERR_PTR(ret);
 	}
 
 	host->ioaddr = pcim_iomap_table(pdev)[bar];
@@ -2170,7 +2170,7 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 	if (chip->fixes && chip->fixes->probe_slot) {
 		ret = chip->fixes->probe_slot(slot);
 		if (ret)
-			goto cleanup;
+			return ERR_PTR(ret);
 	}
 
 	host->mmc->pm_caps = MMC_PM_KEEP_POWER;
@@ -2231,9 +2231,6 @@ remove:
 	if (chip->fixes && chip->fixes->remove_slot)
 		chip->fixes->remove_slot(slot, 0);
 
-cleanup:
-	sdhci_free_host(host);
-
 	return ERR_PTR(ret);
 }
 
@@ -2254,8 +2251,6 @@ static void sdhci_pci_remove_slot(struct sdhci_pci_slot *slot)
 
 	if (slot->chip->fixes && slot->chip->fixes->remove_slot)
 		slot->chip->fixes->remove_slot(slot, dead);
-
-	sdhci_free_host(slot->host);
 }
 
 int sdhci_pci_uhs2_add_host(struct sdhci_pci_slot *slot)
