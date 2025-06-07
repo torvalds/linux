@@ -816,11 +816,9 @@ int __remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 	u32 flags;
 	int ret;
 
-	if (test_bit(BLOCK_GROUP_FLAG_NEEDS_FREE_SPACE, &block_group->runtime_flags)) {
-		ret = __add_block_group_free_space(trans, block_group, path);
-		if (ret)
-			return ret;
-	}
+	ret = __add_block_group_free_space(trans, block_group, path);
+	if (ret)
+		return ret;
 
 	info = search_free_space_info(NULL, block_group, path, 0);
 	if (IS_ERR(info))
@@ -1011,11 +1009,9 @@ int __add_to_free_space_tree(struct btrfs_trans_handle *trans,
 	u32 flags;
 	int ret;
 
-	if (test_bit(BLOCK_GROUP_FLAG_NEEDS_FREE_SPACE, &block_group->runtime_flags)) {
-		ret = __add_block_group_free_space(trans, block_group, path);
-		if (ret)
-			return ret;
-	}
+	ret = __add_block_group_free_space(trans, block_group, path);
+	if (ret)
+		return ret;
 
 	info = search_free_space_info(NULL, block_group, path, 0);
 	if (IS_ERR(info))
@@ -1403,9 +1399,12 @@ static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
 					struct btrfs_block_group *block_group,
 					struct btrfs_path *path)
 {
+	bool own_path = false;
 	int ret;
 
-	clear_bit(BLOCK_GROUP_FLAG_NEEDS_FREE_SPACE, &block_group->runtime_flags);
+	if (!test_and_clear_bit(BLOCK_GROUP_FLAG_NEEDS_FREE_SPACE,
+				&block_group->runtime_flags))
+		return 0;
 
 	/*
 	 * While rebuilding the free space tree we may allocate new metadata
@@ -1430,10 +1429,19 @@ static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
 	 */
 	set_bit(BLOCK_GROUP_FLAG_FREE_SPACE_ADDED, &block_group->runtime_flags);
 
+	if (!path) {
+		path = btrfs_alloc_path();
+		if (!path) {
+			btrfs_abort_transaction(trans, -ENOMEM);
+			return -ENOMEM;
+		}
+		own_path = true;
+	}
+
 	ret = add_new_free_space_info(trans, block_group, path);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
-		return ret;
+		goto out;
 	}
 
 	ret = __add_to_free_space_tree(trans, block_group, path,
@@ -1441,33 +1449,23 @@ static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
 	if (ret)
 		btrfs_abort_transaction(trans, ret);
 
-	return 0;
+out:
+	if (own_path)
+		btrfs_free_path(path);
+
+	return ret;
 }
 
 int add_block_group_free_space(struct btrfs_trans_handle *trans,
 			       struct btrfs_block_group *block_group)
 {
-	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct btrfs_path *path = NULL;
-	int ret = 0;
+	int ret;
 
-	if (!btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE))
+	if (!btrfs_fs_compat_ro(trans->fs_info, FREE_SPACE_TREE))
 		return 0;
 
 	mutex_lock(&block_group->free_space_lock);
-	if (!test_bit(BLOCK_GROUP_FLAG_NEEDS_FREE_SPACE, &block_group->runtime_flags))
-		goto out;
-
-	path = btrfs_alloc_path();
-	if (!path) {
-		ret = -ENOMEM;
-		btrfs_abort_transaction(trans, ret);
-		goto out;
-	}
-
-	ret = __add_block_group_free_space(trans, block_group, path);
-out:
-	btrfs_free_path(path);
+	ret = __add_block_group_free_space(trans, block_group, NULL);
 	mutex_unlock(&block_group->free_space_lock);
 	return ret;
 }
