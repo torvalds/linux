@@ -2592,14 +2592,6 @@ int bch2_check_root(struct bch_fs *c)
 	return ret;
 }
 
-static bool darray_u32_has(darray_u32 *d, u32 v)
-{
-	darray_for_each(*d, i)
-		if (*i == v)
-			return true;
-	return false;
-}
-
 static int check_subvol_path(struct btree_trans *trans, struct btree_iter *iter, struct bkey_s_c k)
 {
 	struct bch_fs *c = trans->c;
@@ -2632,7 +2624,7 @@ static int check_subvol_path(struct btree_trans *trans, struct btree_iter *iter,
 
 		u32 parent = le32_to_cpu(s.v->fs_path_parent);
 
-		if (darray_u32_has(&subvol_path, parent)) {
+		if (darray_find(subvol_path, parent)) {
 			printbuf_reset(&buf);
 			prt_printf(&buf, "subvolume loop: ");
 
