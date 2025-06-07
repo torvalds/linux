@@ -507,15 +507,13 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	sc = sdhci_priv(host);
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		ret = -ENOMEM;
-		goto err_pdata_io_clk;
-	}
+	if (!pdata)
+		return -ENOMEM;
 
 	if (pdev->dev.of_node) {
 		ret = sdhci_s3c_parse_dt(&pdev->dev, host, pdata);
 		if (ret)
-			goto err_pdata_io_clk;
+			return ret;
 	} else {
 		memcpy(pdata, pdev->dev.platform_data, sizeof(*pdata));
 	}
@@ -532,8 +530,7 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	sc->clk_io = devm_clk_get(dev, "hsmmc");
 	if (IS_ERR(sc->clk_io)) {
 		dev_err(dev, "failed to get io clock\n");
-		ret = PTR_ERR(sc->clk_io);
-		goto err_pdata_io_clk;
+		return PTR_ERR(sc->clk_io);
 	}
 
 	/* enable the local io clock and keep it running for the moment. */
@@ -661,9 +658,6 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
  err_no_busclks:
 	clk_disable_unprepare(sc->clk_io);
 
- err_pdata_io_clk:
-	sdhci_free_host(host);
-
 	return ret;
 }
 
@@ -685,8 +679,6 @@ static void sdhci_s3c_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	clk_disable_unprepare(sc->clk_io);
-
-	sdhci_free_host(host);
 }
 
 #ifdef CONFIG_PM_SLEEP
