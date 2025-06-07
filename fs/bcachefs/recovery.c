@@ -757,6 +757,11 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (c->opts.nochanges)
 		c->opts.read_only = true;
 
+	if (c->opts.journal_rewind) {
+		bch_info(c, "rewinding journal, fsck required");
+		c->opts.fsck = true;
+	}
+
 	mutex_lock(&c->sb_lock);
 	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
 	bool write_sb = false;
