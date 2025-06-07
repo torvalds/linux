@@ -1995,6 +1995,22 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 			goto err_late;
 	}
 
+	/*
+	 * We just changed the superblock UUID, invalidate cache and send a
+	 * uevent to update /dev/disk/by-uuid
+	 */
+	invalidate_bdev(ca->disk_sb.bdev);
+
+	char uuid_str[37];
+	snprintf(uuid_str, sizeof(uuid_str), "UUID=%pUb", &c->sb.uuid);
+
+	char *envp[] = {
+		"CHANGE=uuid",
+		uuid_str,
+		NULL,
+	};
+	kobject_uevent_env(&ca->disk_sb.bdev->bd_device.kobj, KOBJ_CHANGE, envp);
+
 	up_write(&c->state_lock);
 out:
 	printbuf_exit(&label);
