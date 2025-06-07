@@ -350,8 +350,8 @@ Underflow and overflow are allowed during arithmetic operations, meaning
 the 64-bit or 32-bit value will wrap. If BPF program execution would
 result in division by zero, the destination register is instead set to zero.
 Otherwise, for ``ALU64``, if execution would result in ``LLONG_MIN``
-dividing -1, the destination register is instead set to ``LLONG_MIN``. For
-``ALU``, if execution would result in ``INT_MIN`` dividing -1, the
+divided by -1, the destination register is instead set to ``LLONG_MIN``. For
+``ALU``, if execution would result in ``INT_MIN`` divided by -1, the
 destination register is instead set to ``INT_MIN``.
 
 If execution would result in modulo by zero, for ``ALU64`` the value of
