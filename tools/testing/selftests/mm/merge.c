@@ -2,11 +2,14 @@
 
 #define _GNU_SOURCE
 #include "../kselftest_harness.h"
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
+#include <linux/perf_event.h>
 #include "vm_util.h"
 
 FIXTURE(merge)
@@ -450,6 +453,46 @@ TEST_F(merge, forked_source_vma)
 	ASSERT_TRUE(find_vma_procmap(procmap, ptr2));
 	ASSERT_EQ(procmap->query.vma_start, (unsigned long)ptr2);
 	ASSERT_EQ(procmap->query.vma_end, (unsigned long)ptr2 + 5 * page_size);
+}
+
+TEST_F(merge, handle_uprobe_upon_merged_vma)
+{
+	const size_t attr_sz = sizeof(struct perf_event_attr);
+	unsigned int page_size = self->page_size;
+	const char *probe_file = "./foo";
+	char *carveout = self->carveout;
+	struct perf_event_attr attr;
+	unsigned long type;
+	void *ptr1, *ptr2;
+	int fd;
+
+	fd = open(probe_file, O_RDWR|O_CREAT, 0600);
+	ASSERT_GE(fd, 0);
+
+	ASSERT_EQ(ftruncate(fd, page_size), 0);
+	ASSERT_EQ(read_sysfs("/sys/bus/event_source/devices/uprobe/type", &type), 0);
+
+	memset(&attr, 0, attr_sz);
+	attr.size = attr_sz;
+	attr.type = type;
+	attr.config1 = (__u64)(long)probe_file;
+	attr.config2 = 0x0;
+
+	ASSERT_GE(syscall(__NR_perf_event_open, &attr, 0, -1, -1, 0), 0);
+
+	ptr1 = mmap(&carveout[page_size], 10 * page_size, PROT_EXEC,
+		    MAP_PRIVATE | MAP_FIXED, fd, 0);
+	ASSERT_NE(ptr1, MAP_FAILED);
+
+	ptr2 = mremap(ptr1, page_size, 2 * page_size,
+		      MREMAP_MAYMOVE | MREMAP_FIXED, ptr1 + 5 * page_size);
+	ASSERT_NE(ptr2, MAP_FAILED);
+
+	ASSERT_NE(mremap(ptr2, page_size, page_size,
+			 MREMAP_MAYMOVE | MREMAP_FIXED, ptr1), MAP_FAILED);
+
+	close(fd);
+	remove(probe_file);
 }
 
 TEST_HARNESS_MAIN
