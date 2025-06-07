@@ -148,7 +148,7 @@ CRC Functions
 .. kernel-doc:: lib/crc/crc16.c
    :export:
 
-.. kernel-doc:: lib/crc/crc32.c
+.. kernel-doc:: lib/crc/crc32-main.c
 
 .. kernel-doc:: lib/crc/crc-ccitt.c
    :export:

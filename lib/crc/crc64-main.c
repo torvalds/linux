@@ -38,21 +38,54 @@
 #include <linux/crc64.h>
 #include "crc64table.h"
 
-MODULE_DESCRIPTION("CRC64 calculations");
-MODULE_LICENSE("GPL v2");
-
-u64 crc64_be_generic(u64 crc, const u8 *p, size_t len)
+static inline u64 __maybe_unused
+crc64_be_generic(u64 crc, const u8 *p, size_t len)
 {
 	while (len--)
 		crc = (crc << 8) ^ crc64table[(crc >> 56) ^ *p++];
 	return crc;
 }
-EXPORT_SYMBOL_GPL(crc64_be_generic);
 
-u64 crc64_nvme_generic(u64 crc, const u8 *p, size_t len)
+static inline u64 __maybe_unused
+crc64_nvme_generic(u64 crc, const u8 *p, size_t len)
 {
 	while (len--)
 		crc = (crc >> 8) ^ crc64nvmetable[(crc & 0xff) ^ *p++];
 	return crc;
 }
-EXPORT_SYMBOL_GPL(crc64_nvme_generic);
+
+#ifdef CONFIG_CRC64_ARCH
+#include "crc64.h" /* $(SRCARCH)/crc64.h */
+#else
+#define crc64_be_arch crc64_be_generic
+#define crc64_nvme_arch crc64_nvme_generic
+#endif
+
+u64 crc64_be(u64 crc, const void *p, size_t len)
+{
+	return crc64_be_arch(crc, p, len);
+}
+EXPORT_SYMBOL_GPL(crc64_be);
+
+u64 crc64_nvme(u64 crc, const void *p, size_t len)
+{
+	return ~crc64_nvme_arch(~crc, p, len);
+}
+EXPORT_SYMBOL_GPL(crc64_nvme);
+
+#ifdef crc64_mod_init_arch
+static int __init crc64_mod_init(void)
+{
+	crc64_mod_init_arch();
+	return 0;
+}
+subsys_initcall(crc64_mod_init);
+
+static void __exit crc64_mod_exit(void)
+{
+}
+module_exit(crc64_mod_exit);
+#endif
+
+MODULE_DESCRIPTION("CRC64 library functions");
+MODULE_LICENSE("GPL");

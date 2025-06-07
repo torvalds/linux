@@ -5,33 +5,9 @@
 #include <linux/types.h>
 #include <linux/bitrev.h>
 
-u32 crc32_le_arch(u32 crc, const u8 *p, size_t len);
-u32 crc32_le_base(u32 crc, const u8 *p, size_t len);
-u32 crc32_be_arch(u32 crc, const u8 *p, size_t len);
-u32 crc32_be_base(u32 crc, const u8 *p, size_t len);
-u32 crc32c_arch(u32 crc, const u8 *p, size_t len);
-u32 crc32c_base(u32 crc, const u8 *p, size_t len);
-
-static inline u32 crc32_le(u32 crc, const void *p, size_t len)
-{
-	if (IS_ENABLED(CONFIG_CRC32_ARCH))
-		return crc32_le_arch(crc, p, len);
-	return crc32_le_base(crc, p, len);
-}
-
-static inline u32 crc32_be(u32 crc, const void *p, size_t len)
-{
-	if (IS_ENABLED(CONFIG_CRC32_ARCH))
-		return crc32_be_arch(crc, p, len);
-	return crc32_be_base(crc, p, len);
-}
-
-static inline u32 crc32c(u32 crc, const void *p, size_t len)
-{
-	if (IS_ENABLED(CONFIG_CRC32_ARCH))
-		return crc32c_arch(crc, p, len);
-	return crc32c_base(crc, p, len);
-}
+u32 crc32_le(u32 crc, const void *p, size_t len);
+u32 crc32_be(u32 crc, const void *p, size_t len);
+u32 crc32c(u32 crc, const void *p, size_t len);
 
 /*
  * crc32_optimizations() returns flags that indicate which CRC32 library
