@@ -134,7 +134,7 @@ enum bch_fsck_flags {
 	x(bucket_gens_to_invalid_buckets,			121,	FSCK_AUTOFIX)	\
 	x(bucket_gens_nonzero_for_invalid_buckets,		122,	FSCK_AUTOFIX)	\
 	x(need_discard_freespace_key_to_invalid_dev_bucket,	123,	0)		\
-	x(need_discard_freespace_key_bad,			124,	0)		\
+	x(need_discard_freespace_key_bad,			124,	FSCK_AUTOFIX)	\
 	x(discarding_bucket_not_in_need_discard_btree,		291,	0)		\
 	x(backpointer_bucket_offset_wrong,			125,	0)		\
 	x(backpointer_level_bad,				294,	0)		\
