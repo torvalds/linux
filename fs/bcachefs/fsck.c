@@ -2578,6 +2578,11 @@ static int check_subvol_path(struct btree_trans *trans, struct btree_iter *iter,
 	if (k.k->type != KEY_TYPE_subvolume)
 		return 0;
 
+	subvol_inum start = {
+		.subvol = k.k->p.offset,
+		.inum	= le64_to_cpu(bkey_s_c_to_subvolume(k).v->inode),
+	};
+
 	while (k.k->p.offset != BCACHEFS_ROOT_SUBVOL) {
 		ret = darray_push(&subvol_path, k.k->p.offset);
 		if (ret)
@@ -2596,11 +2601,11 @@ static int check_subvol_path(struct btree_trans *trans, struct btree_iter *iter,
 
 		if (darray_u32_has(&subvol_path, parent)) {
 			printbuf_reset(&buf);
-			prt_printf(&buf, "subvolume loop:\n");
+			prt_printf(&buf, "subvolume loop: ");
 
-			darray_for_each_reverse(subvol_path, i)
-				prt_printf(&buf, "%u ", *i);
-			prt_printf(&buf, "%u", parent);
+			ret = bch2_inum_to_path(trans, start, &buf);
+			if (ret)
+				goto err;
 
 			if (fsck_err(trans, subvol_loop, "%s", buf.buf))
 				ret = reattach_subvol(trans, s);
