@@ -5,12 +5,8 @@
  * Copyright IBM Corp. 2015
  * Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  */
-#define KMSG_COMPONENT	"crc32-vx"
-#define pr_fmt(fmt)	KMSG_COMPONENT ": " fmt
 
-#include <linux/module.h>
 #include <linux/cpufeature.h>
-#include <linux/crc32.h>
 #include <asm/fpu.h>
 #include "crc32-vx.h"
 
@@ -27,7 +23,7 @@
  * operations of VECTOR LOAD MULTIPLE instructions.
  */
 #define DEFINE_CRC32_VX(___fname, ___crc32_vx, ___crc32_sw)		    \
-	u32 ___fname(u32 crc, const u8 *data, size_t datalen)		    \
+	static inline u32 ___fname(u32 crc, const u8 *data, size_t datalen) \
 	{								    \
 		unsigned long prealign, aligned, remaining;		    \
 		DECLARE_KERNEL_FPU_ONSTACK16(vxstate);			    \
@@ -54,14 +50,13 @@
 			crc = ___crc32_sw(crc, data + aligned, remaining);  \
 									    \
 		return crc;						    \
-	}								    \
-	EXPORT_SYMBOL(___fname);
+	}
 
 DEFINE_CRC32_VX(crc32_le_arch, crc32_le_vgfm_16, crc32_le_base)
 DEFINE_CRC32_VX(crc32_be_arch, crc32_be_vgfm_16, crc32_be_base)
 DEFINE_CRC32_VX(crc32c_arch, crc32c_le_vgfm_16, crc32c_base)
 
-u32 crc32_optimizations(void)
+static inline u32 crc32_optimizations_arch(void)
 {
 	if (cpu_has_vx()) {
 		return CRC32_LE_OPTIMIZATION |
@@ -70,8 +65,3 @@ u32 crc32_optimizations(void)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(crc32_optimizations);
-
-MODULE_AUTHOR("Hendrik Brueckner <brueckner@linux.vnet.ibm.com>");
-MODULE_DESCRIPTION("CRC-32 algorithms using z/Architecture Vector Extension Facility");
-MODULE_LICENSE("GPL");
