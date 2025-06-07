@@ -27,6 +27,7 @@ crc32-$(CONFIG_ARM) += arm/crc32-core.o
 crc32-$(CONFIG_ARM64) += arm64/crc32-core.o
 crc32-$(CONFIG_PPC) += powerpc/crc32c-vpmsum_asm.o
 crc32-$(CONFIG_RISCV) += riscv/crc32_lsb.o riscv/crc32_msb.o
+crc32-$(CONFIG_S390) += s390/crc32le-vx.o s390/crc32be-vx.o
 endif
 
 obj-$(CONFIG_CRC64) += crc64.o

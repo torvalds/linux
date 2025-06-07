@@ -74,6 +74,7 @@ config CRC32_ARCH
 	default y if MIPS && CPU_MIPSR6
 	default y if PPC64 && ALTIVEC
 	default y if RISCV && RISCV_ISA_ZBC
+	default y if S390
 
 config CRC64
 	tristate
