@@ -409,6 +409,15 @@ static void ceph_netfs_issue_read(struct netfs_io_subrequest *subreq)
 		struct page **pages;
 		size_t page_off;
 
+		/*
+		 * FIXME: io_iter.count needs to be corrected to aligned
+		 * length. Otherwise, iov_iter_get_pages_alloc2() operates
+		 * with the initial unaligned length value. As a result,
+		 * ceph_msg_data_cursor_init() triggers BUG_ON() in the case
+		 * if msg->sparse_read_total > msg->data_length.
+		 */
+		subreq->io_iter.count = len;
+
 		err = iov_iter_get_pages_alloc2(&subreq->io_iter, &pages, len, &page_off);
 		if (err < 0) {
 			doutc(cl, "%llx.%llx failed to allocate pages, %d\n",
