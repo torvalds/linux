@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
-#include "../include/linux/crc32poly.h"
-#include "../include/generated/autoconf.h"
+#include "../../include/linux/crc32poly.h"
+#include "../../include/generated/autoconf.h"
 #include <inttypes.h>
 
 static uint32_t crc32table_le[256];
