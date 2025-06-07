@@ -30,30 +30,75 @@
 
 #include "crc32table.h"
 
-MODULE_AUTHOR("Matt Domsch <Matt_Domsch@dell.com>");
-MODULE_DESCRIPTION("Various CRC32 calculations");
-MODULE_LICENSE("GPL");
-
-u32 crc32_le_base(u32 crc, const u8 *p, size_t len)
+static inline u32 __maybe_unused
+crc32_le_base(u32 crc, const u8 *p, size_t len)
 {
 	while (len--)
 		crc = (crc >> 8) ^ crc32table_le[(crc & 255) ^ *p++];
 	return crc;
 }
-EXPORT_SYMBOL(crc32_le_base);
 
-u32 crc32c_base(u32 crc, const u8 *p, size_t len)
-{
-	while (len--)
-		crc = (crc >> 8) ^ crc32ctable_le[(crc & 255) ^ *p++];
-	return crc;
-}
-EXPORT_SYMBOL(crc32c_base);
-
-u32 crc32_be_base(u32 crc, const u8 *p, size_t len)
+static inline u32 __maybe_unused
+crc32_be_base(u32 crc, const u8 *p, size_t len)
 {
 	while (len--)
 		crc = (crc << 8) ^ crc32table_be[(crc >> 24) ^ *p++];
 	return crc;
 }
-EXPORT_SYMBOL(crc32_be_base);
+
+static inline u32 __maybe_unused
+crc32c_base(u32 crc, const u8 *p, size_t len)
+{
+	while (len--)
+		crc = (crc >> 8) ^ crc32ctable_le[(crc & 255) ^ *p++];
+	return crc;
+}
+
+#ifdef CONFIG_CRC32_ARCH
+#include "crc32.h" /* $(SRCARCH)/crc32.h */
+
+u32 crc32_optimizations(void)
+{
+	return crc32_optimizations_arch();
+}
+EXPORT_SYMBOL(crc32_optimizations);
+#else
+#define crc32_le_arch crc32_le_base
+#define crc32_be_arch crc32_be_base
+#define crc32c_arch crc32c_base
+#endif
+
+u32 crc32_le(u32 crc, const void *p, size_t len)
+{
+	return crc32_le_arch(crc, p, len);
+}
+EXPORT_SYMBOL(crc32_le);
+
+u32 crc32_be(u32 crc, const void *p, size_t len)
+{
+	return crc32_be_arch(crc, p, len);
+}
+EXPORT_SYMBOL(crc32_be);
+
+u32 crc32c(u32 crc, const void *p, size_t len)
+{
+	return crc32c_arch(crc, p, len);
+}
+EXPORT_SYMBOL(crc32c);
+
+#ifdef crc32_mod_init_arch
+static int __init crc32_mod_init(void)
+{
+	crc32_mod_init_arch();
+	return 0;
+}
+subsys_initcall(crc32_mod_init);
+
+static void __exit crc32_mod_exit(void)
+{
+}
+module_exit(crc32_mod_exit);
+#endif
+
+MODULE_DESCRIPTION("CRC32 library functions");
+MODULE_LICENSE("GPL");

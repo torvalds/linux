@@ -50,16 +50,39 @@ static const u16 t10_dif_crc_table[256] = {
 	0xF0D8, 0x7B6F, 0x6C01, 0xE7B6, 0x42DD, 0xC96A, 0xDE04, 0x55B3
 };
 
-u16 crc_t10dif_generic(u16 crc, const u8 *p, size_t len)
+static inline u16 __maybe_unused
+crc_t10dif_generic(u16 crc, const u8 *p, size_t len)
 {
-	size_t i;
-
-	for (i = 0; i < len; i++)
-		crc = (crc << 8) ^ t10_dif_crc_table[(crc >> 8) ^ p[i]];
-
+	while (len--)
+		crc = (crc << 8) ^ t10_dif_crc_table[(crc >> 8) ^ *p++];
 	return crc;
 }
-EXPORT_SYMBOL(crc_t10dif_generic);
 
-MODULE_DESCRIPTION("T10 DIF CRC calculation");
+#ifdef CONFIG_CRC_T10DIF_ARCH
+#include "crc-t10dif.h" /* $(SRCARCH)/crc-t10dif.h */
+#else
+#define crc_t10dif_arch crc_t10dif_generic
+#endif
+
+u16 crc_t10dif_update(u16 crc, const u8 *p, size_t len)
+{
+	return crc_t10dif_arch(crc, p, len);
+}
+EXPORT_SYMBOL(crc_t10dif_update);
+
+#ifdef crc_t10dif_mod_init_arch
+static int __init crc_t10dif_mod_init(void)
+{
+	crc_t10dif_mod_init_arch();
+	return 0;
+}
+subsys_initcall(crc_t10dif_mod_init);
+
+static void __exit crc_t10dif_mod_exit(void)
+{
+}
+module_exit(crc_t10dif_mod_exit);
+#endif
+
+MODULE_DESCRIPTION("CRC-T10DIF library functions");
 MODULE_LICENSE("GPL");

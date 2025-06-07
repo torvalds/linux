@@ -48,8 +48,8 @@ config ARCH_HAS_CRC_T10DIF
 	bool
 
 config CRC_T10DIF_ARCH
-	tristate
-	default CRC_T10DIF if ARCH_HAS_CRC_T10DIF && CRC_OPTIMIZATIONS
+	bool
+	depends on CRC_T10DIF && CRC_OPTIMIZATIONS
 
 config CRC32
 	tristate
@@ -62,8 +62,8 @@ config ARCH_HAS_CRC32
 	bool
 
 config CRC32_ARCH
-	tristate
-	default CRC32 if ARCH_HAS_CRC32 && CRC_OPTIMIZATIONS
+	bool
+	depends on CRC32 && CRC_OPTIMIZATIONS
 
 config CRC64
 	tristate
@@ -75,11 +75,12 @@ config ARCH_HAS_CRC64
 	bool
 
 config CRC64_ARCH
-	tristate
-	default CRC64 if ARCH_HAS_CRC64 && CRC_OPTIMIZATIONS
+	bool
+	depends on CRC64 && CRC_OPTIMIZATIONS
 
 config CRC_OPTIMIZATIONS
 	bool "Enable optimized CRC implementations" if EXPERT
+	depends on !UML
 	default y
 	help
 	  Disabling this option reduces code size slightly by disabling the
