@@ -54,6 +54,7 @@ config CRC_T10DIF_ARCH
 	default y if ARM64 && KERNEL_MODE_NEON
 	default y if PPC64 && ALTIVEC
 	default y if RISCV && RISCV_ISA_ZBC
+	default y if X86
 
 config CRC32
 	tristate
@@ -76,6 +77,7 @@ config CRC32_ARCH
 	default y if RISCV && RISCV_ISA_ZBC
 	default y if S390
 	default y if SPARC64
+	default y if X86
 
 config CRC64
 	tristate
@@ -90,6 +92,7 @@ config CRC64_ARCH
 	bool
 	depends on CRC64 && CRC_OPTIMIZATIONS
 	default y if RISCV && RISCV_ISA_ZBC && 64BIT
+	default y if X86_64
 
 config CRC_OPTIMIZATIONS
 	bool "Enable optimized CRC implementations" if EXPERT
