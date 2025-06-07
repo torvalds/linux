@@ -246,14 +246,20 @@ static void test_xdp_adjust_frags_tail_grow(void)
 	ASSERT_EQ(topts.retval, XDP_TX, "9Kb+10b retval");
 	ASSERT_EQ(topts.data_size_out, exp_size, "9Kb+10b size");
 
-	for (i = 0; i < 9000; i++)
-		ASSERT_EQ(buf[i], 1, "9Kb+10b-old");
+	for (i = 0; i < 9000; i++) {
+		if (buf[i] != 1)
+			ASSERT_EQ(buf[i], 1, "9Kb+10b-old");
+	}
 
-	for (i = 9000; i < 9010; i++)
-		ASSERT_EQ(buf[i], 0, "9Kb+10b-new");
+	for (i = 9000; i < 9010; i++) {
+		if (buf[i] != 0)
+			ASSERT_EQ(buf[i], 0, "9Kb+10b-new");
+	}
 
-	for (i = 9010; i < 16384; i++)
-		ASSERT_EQ(buf[i], 1, "9Kb+10b-untouched");
+	for (i = 9010; i < 16384; i++) {
+		if (buf[i] != 1)
+			ASSERT_EQ(buf[i], 1, "9Kb+10b-untouched");
+	}
 
 	/* Test a too large grow */
 	memset(buf, 1, 16384);
