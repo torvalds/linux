@@ -163,10 +163,22 @@ struct bug_entry *find_bug(unsigned long bugaddr)
 	return module_find_bug(bugaddr);
 }
 
-static void __warn_printf(const char *fmt)
+static void __warn_printf(const char *fmt, struct pt_regs *regs)
 {
 	if (!fmt)
 		return;
+
+#ifdef HAVE_ARCH_BUG_FORMAT_ARGS
+	if (regs) {
+		struct arch_va_list _args;
+		va_list *args = __warn_args(&_args, regs);
+
+		if (args) {
+			vprintk(fmt, *args);
+			return;
+		}
+	}
+#endif
 
 	printk("%s", fmt);
 }
@@ -193,6 +205,7 @@ static enum bug_trap_type __report_bug(unsigned long bugaddr, struct pt_regs *re
 	once     = bug->flags & BUGFLAG_ONCE;
 	done     = bug->flags & BUGFLAG_DONE;
 	no_cut   = bug->flags & BUGFLAG_NO_CUT_HERE;
+	has_args = bug->flags & BUGFLAG_ARGS;
 
 	if (warning && once) {
 		if (done)
@@ -212,7 +225,7 @@ static enum bug_trap_type __report_bug(unsigned long bugaddr, struct pt_regs *re
 	 */
 	if (!no_cut) {
 		printk(KERN_DEFAULT CUT_HERE);
-		__warn_printf(fmt);
+		__warn_printf(fmt, has_args ? regs : NULL);
 	}
 
 	if (warning) {
