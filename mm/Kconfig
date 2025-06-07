@@ -1355,6 +1355,7 @@ config NUMA_MEMBLKS
 config NUMA_EMU
 	bool "NUMA emulation"
 	depends on NUMA_MEMBLKS
+	depends on X86 || GENERIC_ARCH_NUMA
 	help
 	  Enable NUMA emulation. A flat machine will be split
 	  into virtual nodes when booted with "numa=fake=N", where N is the
