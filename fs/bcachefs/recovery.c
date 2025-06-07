@@ -271,13 +271,24 @@ static int bch2_journal_replay_key(struct btree_trans *trans,
 		goto out;
 
 	struct btree_path *path = btree_iter_path(trans, &iter);
-	if (unlikely(!btree_path_node(path, k->level))) {
+	if (unlikely(!btree_path_node(path, k->level) &&
+		     !k->allocated)) {
+		struct bch_fs *c = trans->c;
+
+		if (!(c->recovery.passes_complete & (BIT_ULL(BCH_RECOVERY_PASS_scan_for_btree_nodes)|
+						     BIT_ULL(BCH_RECOVERY_PASS_check_topology)))) {
+			bch_err(c, "have key in journal replay for btree depth that does not exist, confused");
+			ret = -EINVAL;
+		}
+#if 0
 		bch2_trans_iter_exit(trans, &iter);
 		bch2_trans_node_iter_init(trans, &iter, k->btree_id, k->k->k.p,
 					  BTREE_MAX_DEPTH, 0, iter_flags);
 		ret =   bch2_btree_iter_traverse(trans, &iter) ?:
 			bch2_btree_increase_depth(trans, iter.path, 0) ?:
 			-BCH_ERR_transaction_restart_nested;
+#endif
+		k->overwritten = true;
 		goto out;
 	}
 
