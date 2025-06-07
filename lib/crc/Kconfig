@@ -50,6 +50,7 @@ config ARCH_HAS_CRC_T10DIF
 config CRC_T10DIF_ARCH
 	bool
 	depends on CRC_T10DIF && CRC_OPTIMIZATIONS
+	default y if ARM && KERNEL_MODE_NEON
 
 config CRC32
 	tristate
@@ -64,6 +65,7 @@ config ARCH_HAS_CRC32
 config CRC32_ARCH
 	bool
 	depends on CRC32 && CRC_OPTIMIZATIONS
+	default y if ARM && KERNEL_MODE_NEON
 
 config CRC64
 	tristate
