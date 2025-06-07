@@ -148,9 +148,6 @@ EXPORT_SYMBOL_GPL(sdhci_pltfm_init);
 
 void sdhci_pltfm_free(struct platform_device *pdev)
 {
-	struct sdhci_host *host = platform_get_drvdata(pdev);
-
-	sdhci_free_host(host);
 }
 EXPORT_SYMBOL_GPL(sdhci_pltfm_free);
 
@@ -159,7 +156,6 @@ int sdhci_pltfm_init_and_add_host(struct platform_device *pdev,
 				  size_t priv_size)
 {
 	struct sdhci_host *host;
-	int ret = 0;
 
 	host = sdhci_pltfm_init(pdev, pdata, priv_size);
 	if (IS_ERR(host))
@@ -167,11 +163,7 @@ int sdhci_pltfm_init_and_add_host(struct platform_device *pdev,
 
 	sdhci_get_property(pdev);
 
-	ret = sdhci_add_host(host);
-	if (ret)
-		sdhci_pltfm_free(pdev);
-
-	return ret;
+	return sdhci_add_host(host);
 }
 EXPORT_SYMBOL_GPL(sdhci_pltfm_init_and_add_host);
 
@@ -181,7 +173,6 @@ void sdhci_pltfm_remove(struct platform_device *pdev)
 	int dead = (readl(host->ioaddr + SDHCI_INT_STATUS) == 0xffffffff);
 
 	sdhci_remove_host(host, dead);
-	sdhci_pltfm_free(pdev);
 }
 EXPORT_SYMBOL_GPL(sdhci_pltfm_remove);
 
