@@ -47,9 +47,3 @@ ifeq ($(CONFIG_KERNEL_MODE_NEON),y)
 endif
 
 obj-$(CONFIG_FUNCTION_ERROR_INJECTION) += error-inject.o
-
-obj-$(CONFIG_CRC32_ARCH) += crc32-arm.o
-crc32-arm-y := crc32.o crc32-core.o
-
-obj-$(CONFIG_CRC_T10DIF_ARCH) += crc-t10dif-arm.o
-crc-t10dif-arm-y := crc-t10dif.o crc-t10dif-core.o

@@ -6,11 +6,6 @@
  */
 
 #include <linux/cpufeature.h>
-#include <linux/crc32.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/string.h>
 
 #include <crypto/internal/simd.h>
 
@@ -29,14 +24,14 @@ asmlinkage u32 crc32_armv8_le(u32 init_crc, const u8 buf[], u32 len);
 asmlinkage u32 crc32c_pmull_le(const u8 buf[], u32 len, u32 init_crc);
 asmlinkage u32 crc32c_armv8_le(u32 init_crc, const u8 buf[], u32 len);
 
-static u32 crc32_le_scalar(u32 crc, const u8 *p, size_t len)
+static inline u32 crc32_le_scalar(u32 crc, const u8 *p, size_t len)
 {
 	if (static_branch_likely(&have_crc32))
 		return crc32_armv8_le(crc, p, len);
 	return crc32_le_base(crc, p, len);
 }
 
-u32 crc32_le_arch(u32 crc, const u8 *p, size_t len)
+static inline u32 crc32_le_arch(u32 crc, const u8 *p, size_t len)
 {
 	if (len >= PMULL_MIN_LEN + 15 &&
 	    static_branch_likely(&have_pmull) && crypto_simd_usable()) {
@@ -57,16 +52,15 @@ u32 crc32_le_arch(u32 crc, const u8 *p, size_t len)
 	}
 	return crc32_le_scalar(crc, p, len);
 }
-EXPORT_SYMBOL(crc32_le_arch);
 
-static u32 crc32c_scalar(u32 crc, const u8 *p, size_t len)
+static inline u32 crc32c_scalar(u32 crc, const u8 *p, size_t len)
 {
 	if (static_branch_likely(&have_crc32))
 		return crc32c_armv8_le(crc, p, len);
 	return crc32c_base(crc, p, len);
 }
 
-u32 crc32c_arch(u32 crc, const u8 *p, size_t len)
+static inline u32 crc32c_arch(u32 crc, const u8 *p, size_t len)
 {
 	if (len >= PMULL_MIN_LEN + 15 &&
 	    static_branch_likely(&have_pmull) && crypto_simd_usable()) {
@@ -87,37 +81,21 @@ u32 crc32c_arch(u32 crc, const u8 *p, size_t len)
 	}
 	return crc32c_scalar(crc, p, len);
 }
-EXPORT_SYMBOL(crc32c_arch);
 
-u32 crc32_be_arch(u32 crc, const u8 *p, size_t len)
-{
-	return crc32_be_base(crc, p, len);
-}
-EXPORT_SYMBOL(crc32_be_arch);
+#define crc32_be_arch crc32_be_base /* not implemented on this arch */
 
-static int __init crc32_arm_init(void)
+#define crc32_mod_init_arch crc32_mod_init_arch
+static inline void crc32_mod_init_arch(void)
 {
 	if (elf_hwcap2 & HWCAP2_CRC32)
 		static_branch_enable(&have_crc32);
 	if (elf_hwcap2 & HWCAP2_PMULL)
 		static_branch_enable(&have_pmull);
-	return 0;
 }
-subsys_initcall(crc32_arm_init);
 
-static void __exit crc32_arm_exit(void)
-{
-}
-module_exit(crc32_arm_exit);
-
-u32 crc32_optimizations(void)
+static inline u32 crc32_optimizations_arch(void)
 {
 	if (elf_hwcap2 & (HWCAP2_CRC32 | HWCAP2_PMULL))
 		return CRC32_LE_OPTIMIZATION | CRC32C_OPTIMIZATION;
 	return 0;
 }
-EXPORT_SYMBOL(crc32_optimizations);
-
-MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
-MODULE_DESCRIPTION("Accelerated CRC32(C) using ARM CRC, NEON and Crypto Extensions");
-MODULE_LICENSE("GPL v2");
