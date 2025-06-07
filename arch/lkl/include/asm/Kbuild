@@ -33,3 +33,5 @@ generic-y += termios.h
 generic-y += time.h
 generic-y += user.h
 generic-y += mman.h
+
+generated-y += config.h

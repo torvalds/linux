@@ -41,7 +41,7 @@ all:
 
 conf: $(OUTPUT)Makefile.conf
 
-$(OUTPUT)Makefile.conf $(OUTPUT)include/kernel_config.h $(OUTPUT)/kernel.config: Makefile.autoconf
+$(OUTPUT)Makefile.conf $(OUTPUT)/kernel.config: Makefile.autoconf
 	$(call QUIET_AUTOCONF, headers)$(MAKE) -f Makefile.autoconf -s
 
 include $(OUTPUT)Makefile.conf
@@ -72,8 +72,6 @@ else
 	$(Q)touch bin/stat
 endif
 
-ASM_UAPI_GENERATED:=$(OUTPUT)../../arch/lkl/include/generated/uapi/asm
-ASM_CONFIG:=$(ASM_UAPI_GENERATED)/config.h
 DOT_CONFIG:=$(OUTPUT)../../.config
 
 $(DOT_CONFIG): $(OUTPUT)/kernel.config
@@ -82,13 +80,8 @@ $(DOT_CONFIG): $(OUTPUT)/kernel.config
 	$(Q)$(MAKE) -C ../.. ARCH=lkl $(KOPT) olddefconfig
 	$(Q)$(MAKE) -C ../.. ARCH=lkl $(KOPT) syncconfig
 
-
-$(ASM_CONFIG): $(OUTPUT)include/kernel_config.h
-	$(Q)mkdir -p $$(dirname $@)
-	$(call QUIET_INSTALL, kernel_config.h)cp $<  $@
-
 # rule to build lkl.o
-$(OUTPUT)lib/lkl.o: bin/stat $(ASM_CONFIG) $(DOT_CONFIG)
+$(OUTPUT)lib/lkl.o: bin/stat $(DOT_CONFIG)
 # this workaround is for arm32 linker (ld.gold)
 	$(Q)export PATH="$(srctree)/tools/lkl/bin/:${PATH}" ;\
 	$(MAKE) -C ../.. ARCH=lkl $(KOPT)
@@ -174,7 +167,6 @@ mrproper: clean
 
 clean-conf: mrproper
 	$(call QUIET_CLEAN, Makefile.conf)$(RM) $(OUTPUT)/Makefile.conf
-	$(call QUIET_CLEAN, kernel_config.h)$(RM) $(OUTPUT)/include/kernel_config.h
 	$(call QUIET_CLEAN, kernel.config)$(RM) $(OUTPUT)/kernel.config
 
 headers_install: $(TARGETS)
