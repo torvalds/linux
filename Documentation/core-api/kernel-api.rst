@@ -136,24 +136,24 @@ Arithmetic Overflow Checking
 CRC Functions
 -------------
 
-.. kernel-doc:: lib/crc4.c
+.. kernel-doc:: lib/crc/crc4.c
    :export:
 
-.. kernel-doc:: lib/crc7.c
+.. kernel-doc:: lib/crc/crc7.c
    :export:
 
-.. kernel-doc:: lib/crc8.c
+.. kernel-doc:: lib/crc/crc8.c
    :export:
 
-.. kernel-doc:: lib/crc16.c
+.. kernel-doc:: lib/crc/crc16.c
    :export:
 
-.. kernel-doc:: lib/crc32.c
+.. kernel-doc:: lib/crc/crc32.c
 
-.. kernel-doc:: lib/crc-ccitt.c
+.. kernel-doc:: lib/crc/crc-ccitt.c
    :export:
 
-.. kernel-doc:: lib/crc-itu-t.c
+.. kernel-doc:: lib/crc/crc-itu-t.c
    :export:
 
 Base 2 log and power Functions

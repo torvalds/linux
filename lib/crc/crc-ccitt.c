@@ -1,7 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- *	linux/lib/crc-ccitt.c
- */
 
 #include <linux/types.h>
 #include <linux/module.h>

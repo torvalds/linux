@@ -6361,8 +6361,7 @@ T:	git https://git.kernel.org/pub/scm/linux/kernel/git/ebiggers/linux.git crc-ne
 F:	Documentation/staging/crc*
 F:	arch/*/lib/crc*
 F:	include/linux/crc*
-F:	lib/crc*
-F:	lib/tests/crc_kunit.c
+F:	lib/crc/
 F:	scripts/gen-crc-consts.py
 
 CREATIVE SB0540
