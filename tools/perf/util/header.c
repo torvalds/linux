@@ -1814,6 +1814,9 @@ static void print_bpf_prog_info(struct feat_fd *ff, FILE *fp)
 	root = &env->bpf_progs.infos;
 	next = rb_first(root);
 
+	if (!next)
+		printf("# bpf_prog_info empty\n");
+
 	while (next) {
 		struct bpf_prog_info_node *node;
 
@@ -1837,6 +1840,9 @@ static void print_bpf_btf(struct feat_fd *ff, FILE *fp)
 
 	root = &env->bpf_progs.btfs;
 	next = rb_first(root);
+
+	if (!next)
+		printf("# btf info empty\n");
 
 	while (next) {
 		struct btf_node *node;
