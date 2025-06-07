@@ -122,16 +122,11 @@ choice
 	  If unsure, select Generic.
 
 config POWERPC64_CPU
-	bool "Generic (POWER5 and PowerPC 970 and above)"
-	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
+	bool "Generic 64 bits powerpc"
+	depends on PPC_BOOK3S_64
+	select ARCH_HAS_FAST_MULTIPLIER if CPU_LITTLE_ENDIAN
 	select PPC_64S_HASH_MMU
-
-config POWERPC64_CPU
-	bool "Generic (POWER8 and above)"
-	depends on PPC_BOOK3S_64 && CPU_LITTLE_ENDIAN
-	select ARCH_HAS_FAST_MULTIPLIER
-	select PPC_64S_HASH_MMU
-	select PPC_HAS_LBARX_LHARX
+	select PPC_HAS_LBARX_LHARX if CPU_LITTLE_ENDIAN
 
 config POWERPC_CPU
 	bool "Generic 32 bits powerpc"
