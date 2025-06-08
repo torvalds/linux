@@ -45,6 +45,6 @@ rm -f "${tmpdir}.contents.txt"
 # Create archive and try to normalize metadata for reproducibility.
 tar "${timestamp:+--mtime=$timestamp}" \
     --owner=0 --group=0 --sort=name --numeric-owner --mode=u=rw,go=r,a+X \
-    -I $XZ -cf $tarfile -C "${tmpdir}/" . > /dev/null
+    -I "${XZ}" -cf "${tarfile}" -C "${tmpdir}/" . > /dev/null
 
 rm -rf "${tmpdir}"
