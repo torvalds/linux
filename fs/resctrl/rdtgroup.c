@@ -536,6 +536,8 @@ static ssize_t rdtgroup_cpus_write(struct kernfs_open_file *of,
 		goto unlock;
 	}
 
+	rdt_last_cmd_clear();
+
 	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKED ||
 	    rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP) {
 		ret = -EINVAL;
@@ -3471,6 +3473,8 @@ static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 		ret = -ENODEV;
 		goto out_unlock;
 	}
+
+	rdt_last_cmd_clear();
 
 	/*
 	 * Check that the parent directory for a monitor group is a "mon_groups"
