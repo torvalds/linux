@@ -7,6 +7,7 @@
 #include <dt-bindings/clock/sophgo,sg2044-clk.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/pinctrl-sg2044.h>
 
 #include "sg2044-cpus.dtsi"
 #include "sg2044-reset.h"
@@ -327,6 +328,11 @@
 			reg = <0x70 0x50000000 0x0 0x1000>;
 			#clock-cells = <1>;
 			clocks = <&osc>;
+		};
+
+		pinctrl: pinctrl@7050001000 {
+			compatible = "sophgo,sg2044-pinctrl";
+			reg = <0x70 0x50001000 0x0 0x1000>;
 		};
 
 		clk: clock-controller@7050002000 {
