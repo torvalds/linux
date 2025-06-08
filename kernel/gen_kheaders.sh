@@ -7,6 +7,7 @@ set -e
 tarfile=$1
 srclist=$2
 objlist=$3
+timestamp=$4
 
 dir=$(dirname "${tarfile}")
 tmpdir=${dir}/.tmp_dir
@@ -42,7 +43,7 @@ xargs -0 -P8 -n1 \
 rm -f "${tmpdir}.contents.txt"
 
 # Create archive and try to normalize metadata for reproducibility.
-tar "${KBUILD_BUILD_TIMESTAMP:+--mtime=$KBUILD_BUILD_TIMESTAMP}" \
+tar "${timestamp:+--mtime=$timestamp}" \
     --owner=0 --group=0 --sort=name --numeric-owner --mode=u=rw,go=r,a+X \
     -I $XZ -cf $tarfile -C "${tmpdir}/" . > /dev/null
 
