@@ -496,14 +496,13 @@ void power_supply_put(struct power_supply *psy)
 }
 EXPORT_SYMBOL_GPL(power_supply_put);
 
-#ifdef CONFIG_OF
 static int power_supply_match_device_fwnode(struct device *dev, const void *data)
 {
 	return dev->parent && dev_fwnode(dev->parent) == data;
 }
 
 /**
- * power_supply_get_by_phandle() - Search for a power supply and returns its ref
+ * power_supply_get_by_reference() - Search for a power supply and returns its ref
  * @fwnode: Pointer to fwnode holding phandle property
  * @property: Name of property holding a power supply name
  *
@@ -514,8 +513,8 @@ static int power_supply_match_device_fwnode(struct device *dev, const void *data
  * Return: On success returns a reference to a power supply with
  * matching name equals to value under @property, NULL or ERR_PTR otherwise.
  */
-struct power_supply *power_supply_get_by_phandle(struct fwnode_handle *fwnode,
-						 const char *property)
+struct power_supply *power_supply_get_by_reference(struct fwnode_handle *fwnode,
+						   const char *property)
 {
 	struct fwnode_handle *power_supply_fwnode;
 	struct power_supply *psy = NULL;
@@ -537,7 +536,7 @@ struct power_supply *power_supply_get_by_phandle(struct fwnode_handle *fwnode,
 
 	return psy;
 }
-EXPORT_SYMBOL_GPL(power_supply_get_by_phandle);
+EXPORT_SYMBOL_GPL(power_supply_get_by_reference);
 
 static void devm_power_supply_put(struct device *dev, void *res)
 {
@@ -547,16 +546,16 @@ static void devm_power_supply_put(struct device *dev, void *res)
 }
 
 /**
- * devm_power_supply_get_by_phandle() - Resource managed version of
- *  power_supply_get_by_phandle()
+ * devm_power_supply_get_by_reference() - Resource managed version of
+ *  power_supply_get_by_reference()
  * @dev: Pointer to device holding phandle property
  * @property: Name of property holding a power supply phandle
  *
  * Return: On success returns a reference to a power supply with
  * matching name equals to value under @property, NULL or ERR_PTR otherwise.
  */
-struct power_supply *devm_power_supply_get_by_phandle(struct device *dev,
-						      const char *property)
+struct power_supply *devm_power_supply_get_by_reference(struct device *dev,
+							const char *property)
 {
 	struct power_supply **ptr, *psy;
 
@@ -567,7 +566,7 @@ struct power_supply *devm_power_supply_get_by_phandle(struct device *dev,
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	psy = power_supply_get_by_phandle(dev_fwnode(dev), property);
+	psy = power_supply_get_by_reference(dev_fwnode(dev), property);
 	if (IS_ERR_OR_NULL(psy)) {
 		devres_free(ptr);
 	} else {
@@ -576,8 +575,7 @@ struct power_supply *devm_power_supply_get_by_phandle(struct device *dev,
 	}
 	return psy;
 }
-EXPORT_SYMBOL_GPL(devm_power_supply_get_by_phandle);
-#endif /* CONFIG_OF */
+EXPORT_SYMBOL_GPL(devm_power_supply_get_by_reference);
 
 int power_supply_get_battery_info(struct power_supply *psy,
 				  struct power_supply_battery_info **info_out)
