@@ -107,7 +107,7 @@ enum support_mode {
 };
 
 bool pci_msi_domain_supports(struct pci_dev *dev, unsigned int feature_mask, enum support_mode mode);
-bool pci_setup_msi_device_domain(struct pci_dev *pdev);
+bool pci_setup_msi_device_domain(struct pci_dev *pdev, unsigned int hwsize);
 bool pci_setup_msix_device_domain(struct pci_dev *pdev, unsigned int hwsize);
 
 /* Legacy (!IRQDOMAIN) fallbacks */
