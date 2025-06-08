@@ -76,6 +76,13 @@
 			status = "disabled";
 		};
 
+		syscon: syscon@7050000000 {
+			compatible = "sophgo,sg2044-top-syscon", "syscon";
+			reg = <0x70 0x50000000 0x0 0x1000>;
+			#clock-cells = <1>;
+			clocks = <&osc>;
+		};
+
 		rst: reset-controller@7050003000 {
 			compatible = "sophgo,sg2044-reset",
 				     "sophgo,sg2042-reset";
