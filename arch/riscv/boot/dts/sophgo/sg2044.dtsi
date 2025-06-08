@@ -111,6 +111,30 @@
 			status = "disabled";
 		};
 
+		emmc: mmc@703000a000 {
+			compatible = "sophgo,sg2044-dwcmshc", "sophgo,sg2042-dwcmshc";
+			reg = <0x70 0x3000a000 0x0 0x1000>;
+			clocks = <&clk CLK_GATE_EMMC>,
+				 <&clk CLK_GATE_AXI_EMMC>,
+				 <&clk CLK_GATE_EMMC_100K>;
+			clock-names = "core", "bus", "timer";
+			interrupt-parent = <&intc>;
+			interrupts = <298 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		sd: mmc@703000b000 {
+			compatible = "sophgo,sg2044-dwcmshc", "sophgo,sg2042-dwcmshc";
+			reg = <0x70 0x3000b000 0x0 0x1000>;
+			clocks = <&clk CLK_GATE_SD>,
+				 <&clk CLK_GATE_AXI_SD>,
+				 <&clk CLK_GATE_SD_100K>;
+			clock-names = "core", "bus", "timer";
+			interrupt-parent = <&intc>;
+			interrupts = <300 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
 		i2c0: i2c@7040005000 {
 			compatible = "sophgo,sg2044-i2c", "snps,designware-i2c";
 			reg = <0x70 0x40005000 0x0 0x1000>;
