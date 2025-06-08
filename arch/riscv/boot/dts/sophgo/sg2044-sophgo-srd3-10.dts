@@ -63,6 +63,10 @@
 	};
 };
 
+&pwm {
+	status = "okay";
+};
+
 &sd {
 	bus-width = <4>;
 	no-sdio;
