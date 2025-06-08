@@ -2072,7 +2072,7 @@ static void artpec6_crypto_process_queue(struct artpec6_crypto *ac,
 
 static void artpec6_crypto_timeout(struct timer_list *t)
 {
-	struct artpec6_crypto *ac = from_timer(ac, t, timer);
+	struct artpec6_crypto *ac = timer_container_of(ac, t, timer);
 
 	dev_info_ratelimited(artpec6_crypto_dev, "timeout\n");
 

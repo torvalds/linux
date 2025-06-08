@@ -900,7 +900,8 @@ static void korina_check_media(struct net_device *dev, unsigned int init_media)
 
 static void korina_poll_media(struct timer_list *t)
 {
-	struct korina_private *lp = from_timer(lp, t, media_check_timer);
+	struct korina_private *lp = timer_container_of(lp, t,
+						       media_check_timer);
 	struct net_device *dev = lp->dev;
 
 	korina_check_media(dev, 0);

@@ -167,7 +167,7 @@ static void ssp_wdt_work_func(struct work_struct *work)
 
 static void ssp_wdt_timer_func(struct timer_list *t)
 {
-	struct ssp_data *data = from_timer(data, t, wdt_timer);
+	struct ssp_data *data = timer_container_of(data, t, wdt_timer);
 
 	switch (data->fw_dl_state) {
 	case SSP_FW_DL_STATE_FAIL:

@@ -1307,7 +1307,7 @@ static irqreturn_t lpuart32_int(int irq, void *dev_id)
  */
 static void lpuart_timer_func(struct timer_list *t)
 {
-	struct lpuart_port *sport = from_timer(sport, t, lpuart_timer);
+	struct lpuart_port *sport = timer_container_of(sport, t, lpuart_timer);
 	enum dma_status dmastat;
 	struct dma_chan *chan = sport->dma_rx_chan;
 	struct circ_buf *ring = &sport->rx_ring;

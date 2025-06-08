@@ -2225,7 +2225,7 @@ static int niu_link_status(struct niu *np, int *link_up_p)
 
 static void niu_timer(struct timer_list *t)
 {
-	struct niu *np = from_timer(np, t, timer);
+	struct niu *np = timer_container_of(np, t, timer);
 	unsigned long off;
 	int err, link_up;
 

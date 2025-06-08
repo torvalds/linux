@@ -574,7 +574,7 @@ struct wait_info {
 
 static void wait_timeout(struct timer_list *t)
 {
-	struct wait_info *winfo = from_timer(winfo, t, timer);
+	struct wait_info *winfo = timer_container_of(winfo, t, timer);
 
 	winfo->timed_out = 1;
 	wake_up_interruptible(&winfo->board->wait);

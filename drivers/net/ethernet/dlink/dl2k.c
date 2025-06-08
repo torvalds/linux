@@ -650,7 +650,7 @@ static int rio_open(struct net_device *dev)
 static void
 rio_timer (struct timer_list *t)
 {
-	struct netdev_private *np = from_timer(np, t, timer);
+	struct netdev_private *np = timer_container_of(np, t, timer);
 	struct net_device *dev = pci_get_drvdata(np->pdev);
 	unsigned int entry;
 	int next_tick = 1*HZ;

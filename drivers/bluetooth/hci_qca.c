@@ -474,7 +474,7 @@ static void qca_wq_serial_tx_clock_vote_off(struct work_struct *work)
 
 static void hci_ibs_tx_idle_timeout(struct timer_list *t)
 {
-	struct qca_data *qca = from_timer(qca, t, tx_idle_timer);
+	struct qca_data *qca = timer_container_of(qca, t, tx_idle_timer);
 	struct hci_uart *hu = qca->hu;
 	unsigned long flags;
 
@@ -507,7 +507,7 @@ static void hci_ibs_tx_idle_timeout(struct timer_list *t)
 
 static void hci_ibs_wake_retrans_timeout(struct timer_list *t)
 {
-	struct qca_data *qca = from_timer(qca, t, wake_retrans_timer);
+	struct qca_data *qca = timer_container_of(qca, t, wake_retrans_timer);
 	struct hci_uart *hu = qca->hu;
 	unsigned long flags, retrans_delay;
 	bool retransmit = false;

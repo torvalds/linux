@@ -381,7 +381,8 @@ int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
  */
 static void iwl_bg_statistics_periodic(struct timer_list *t)
 {
-	struct iwl_priv *priv = from_timer(priv, t, statistics_periodic);
+	struct iwl_priv *priv = timer_container_of(priv, t,
+						   statistics_periodic);
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
@@ -537,7 +538,7 @@ static void iwl_continuous_event_trace(struct iwl_priv *priv)
  */
 static void iwl_bg_ucode_trace(struct timer_list *t)
 {
-	struct iwl_priv *priv = from_timer(priv, t, ucode_trace);
+	struct iwl_priv *priv = timer_container_of(priv, t, ucode_trace);
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;

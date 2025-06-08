@@ -78,7 +78,7 @@
 
 void pnic2_timer(struct timer_list *t)
 {
-	struct tulip_private *tp = from_timer(tp, t, timer);
+	struct tulip_private *tp = timer_container_of(tp, t, timer);
 	struct net_device *dev = tp->dev;
 	void __iomem *ioaddr = tp->base_addr;
 	int next_tick = 60*HZ;

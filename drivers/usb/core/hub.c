@@ -697,7 +697,7 @@ static void hub_resubmit_irq_urb(struct usb_hub *hub)
 
 static void hub_retry_irq_urb(struct timer_list *t)
 {
-	struct usb_hub *hub = from_timer(hub, t, irq_urb_retry);
+	struct usb_hub *hub = timer_container_of(hub, t, irq_urb_retry);
 
 	hub_resubmit_irq_urb(hub);
 }

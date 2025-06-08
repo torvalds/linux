@@ -1120,7 +1120,7 @@ static int scif_rtrg_enabled(struct uart_port *port)
 
 static void rx_fifo_timer_fn(struct timer_list *t)
 {
-	struct sci_port *s = from_timer(s, t, rx_fifo_timer);
+	struct sci_port *s = timer_container_of(s, t, rx_fifo_timer);
 	struct uart_port *port = &s->port;
 
 	dev_dbg(port->dev, "Rx timed out\n");

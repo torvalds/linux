@@ -685,7 +685,8 @@ ext:
 void
 bfad_bfa_tmo(struct timer_list *t)
 {
-	struct bfad_s	      *bfad = from_timer(bfad, t, hal_tmo);
+	struct bfad_s	      *bfad = timer_container_of(bfad, t,
+							      hal_tmo);
 	unsigned long	flags;
 	struct list_head	       doneq;
 

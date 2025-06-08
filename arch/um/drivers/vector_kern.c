@@ -1534,7 +1534,7 @@ static const struct net_device_ops vector_netdev_ops = {
 
 static void vector_timer_expire(struct timer_list *t)
 {
-	struct vector_private *vp = from_timer(vp, t, tl);
+	struct vector_private *vp = timer_container_of(vp, t, tl);
 
 	vp->estats.tx_kicks++;
 	napi_schedule(&vp->napi);

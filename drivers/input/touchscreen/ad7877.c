@@ -375,7 +375,7 @@ static inline void ad7877_ts_event_release(struct ad7877 *ts)
 
 static void ad7877_timer(struct timer_list *t)
 {
-	struct ad7877 *ts = from_timer(ts, t, timer);
+	struct ad7877 *ts = timer_container_of(ts, t, timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ts->lock, flags);

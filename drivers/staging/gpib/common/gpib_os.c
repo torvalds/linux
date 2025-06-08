@@ -85,7 +85,7 @@ static int pop_gpib_event_nolock(struct gpib_board *board,
 
 static void watchdog_timeout(struct timer_list *t)
 {
-	struct gpib_board *board = from_timer(board, t, timer);
+	struct gpib_board *board = timer_container_of(board, t, timer);
 
 	set_bit(TIMO_NUM, &board->status);
 	wake_up_interruptible(&board->wait);
@@ -133,7 +133,8 @@ static inline int pseudo_irq_period(void)
 
 static void pseudo_irq_handler(struct timer_list *t)
 {
-	struct gpib_pseudo_irq *pseudo_irq = from_timer(pseudo_irq, t, timer);
+	struct gpib_pseudo_irq *pseudo_irq = timer_container_of(pseudo_irq, t,
+								timer);
 
 	if (pseudo_irq->handler)
 		pseudo_irq->handler(0, pseudo_irq->board);

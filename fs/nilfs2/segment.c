@@ -2485,7 +2485,7 @@ static int nilfs_segctor_construct(struct nilfs_sc_info *sci, int mode)
 
 static void nilfs_construction_timeout(struct timer_list *t)
 {
-	struct nilfs_sc_info *sci = from_timer(sci, t, sc_timer);
+	struct nilfs_sc_info *sci = timer_container_of(sci, t, sc_timer);
 
 	wake_up_process(sci->sc_task);
 }

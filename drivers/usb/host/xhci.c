@@ -385,7 +385,7 @@ static void compliance_mode_recovery(struct timer_list *t)
 	u32 temp;
 	int i;
 
-	xhci = from_timer(xhci, t, comp_mode_recovery_timer);
+	xhci = timer_container_of(xhci, t, comp_mode_recovery_timer);
 	rhub = &xhci->usb3_rhub;
 	hcd = rhub->hcd;
 

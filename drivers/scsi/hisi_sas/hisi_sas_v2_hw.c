@@ -1328,7 +1328,7 @@ static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 
 static void link_timeout_enable_link(struct timer_list *t)
 {
-	struct hisi_hba *hisi_hba = from_timer(hisi_hba, t, timer);
+	struct hisi_hba *hisi_hba = timer_container_of(hisi_hba, t, timer);
 	int i, reg_val;
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
@@ -1349,7 +1349,7 @@ static void link_timeout_enable_link(struct timer_list *t)
 
 static void link_timeout_disable_link(struct timer_list *t)
 {
-	struct hisi_hba *hisi_hba = from_timer(hisi_hba, t, timer);
+	struct hisi_hba *hisi_hba = timer_container_of(hisi_hba, t, timer);
 	int i, reg_val;
 
 	reg_val = hisi_sas_read32(hisi_hba, PHY_STATE);
@@ -2581,7 +2581,8 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 
 static void hisi_sas_internal_abort_quirk_timeout(struct timer_list *t)
 {
-	struct hisi_sas_slot *slot = from_timer(slot, t, internal_abort_timer);
+	struct hisi_sas_slot *slot = timer_container_of(slot, t,
+							internal_abort_timer);
 	struct hisi_sas_port *port = slot->port;
 	struct asd_sas_port *asd_sas_port;
 	struct asd_sas_phy *sas_phy;

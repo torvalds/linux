@@ -667,7 +667,7 @@ static void hdm_request_netinfo(struct most_interface *iface, int channel,
  */
 static void link_stat_timer_handler(struct timer_list *t)
 {
-	struct most_dev *mdev = from_timer(mdev, t, link_stat_timer);
+	struct most_dev *mdev = timer_container_of(mdev, t, link_stat_timer);
 
 	schedule_work(&mdev->poll_work_obj);
 	mdev->link_stat_timer.expires = jiffies + (2 * HZ);

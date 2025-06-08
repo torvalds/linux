@@ -22,7 +22,7 @@ struct process_timer {
 
 static void process_timeout(struct timer_list *t)
 {
-	struct process_timer *timeout = from_timer(timeout, t, timer);
+	struct process_timer *timeout = timer_container_of(timeout, t, timer);
 
 	wake_up_process(timeout->task);
 }

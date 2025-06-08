@@ -149,7 +149,7 @@ static void h5_timed_event(struct timer_list *t)
 {
 	const unsigned char sync_req[] = { 0x01, 0x7e };
 	unsigned char conf_req[3] = { 0x03, 0xfc };
-	struct h5 *h5 = from_timer(h5, t, timer);
+	struct h5 *h5 = timer_container_of(h5, t, timer);
 	struct hci_uart *hu = h5->hu;
 	struct sk_buff *skb;
 	unsigned long flags;

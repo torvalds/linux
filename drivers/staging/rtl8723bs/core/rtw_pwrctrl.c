@@ -175,7 +175,7 @@ exit:
 static void pwr_state_check_handler(struct timer_list *t)
 {
 	struct pwrctrl_priv *pwrctrlpriv =
-		from_timer(pwrctrlpriv, t, pwr_state_check_timer);
+		timer_container_of(pwrctrlpriv, t, pwr_state_check_timer);
 	struct adapter *padapter = pwrctrlpriv->adapter;
 
 	rtw_ps_cmd(padapter);
@@ -674,7 +674,8 @@ exit:
  */
 static void pwr_rpwm_timeout_handler(struct timer_list *t)
 {
-	struct pwrctrl_priv *pwrpriv = from_timer(pwrpriv, t, pwr_rpwm_timer);
+	struct pwrctrl_priv *pwrpriv = timer_container_of(pwrpriv, t,
+							  pwr_rpwm_timer);
 
 	if ((pwrpriv->rpwm == pwrpriv->cpwm) || (pwrpriv->cpwm >= PS_STATE_S2))
 		return;

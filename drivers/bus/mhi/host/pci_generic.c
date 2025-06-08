@@ -1171,7 +1171,8 @@ err_try_reset:
 
 static void health_check(struct timer_list *t)
 {
-	struct mhi_pci_device *mhi_pdev = from_timer(mhi_pdev, t, health_check_timer);
+	struct mhi_pci_device *mhi_pdev = timer_container_of(mhi_pdev, t,
+							     health_check_timer);
 	struct mhi_controller *mhi_cntrl = &mhi_pdev->mhi_cntrl;
 
 	if (!test_bit(MHI_PCI_DEV_STARTED, &mhi_pdev->status) ||
