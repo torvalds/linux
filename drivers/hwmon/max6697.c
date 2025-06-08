@@ -13,7 +13,6 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -90,8 +89,6 @@ struct max6697_data {
 	const struct max6697_chip_data *chip;
 
 	int temp_offset;	/* in degrees C */
-
-	struct mutex update_lock;
 
 #define MAX6697_TEMP_INPUT	0
 #define MAX6697_TEMP_EXT	1
@@ -302,7 +299,6 @@ static int max6697_write(struct device *dev, enum hwmon_sensor_types type,
 		val = clamp_val(val, 0, 255);
 		return regmap_write(regmap, MAX6697_REG_MIN, val);
 	case hwmon_temp_offset:
-		mutex_lock(&data->update_lock);
 		val = clamp_val(val, MAX6581_OFFSET_MIN, MAX6581_OFFSET_MAX);
 		val = DIV_ROUND_CLOSEST(val, 250);
 		if (!val) {	/* disable this (and only this) channel */
@@ -313,11 +309,9 @@ static int max6697_write(struct device *dev, enum hwmon_sensor_types type,
 			ret = regmap_set_bits(regmap, MAX6581_REG_OFFSET_SELECT,
 					      BIT(channel - 1));
 			if (ret)
-				goto unlock;
+				return ret;
 			ret = regmap_write(regmap, MAX6581_REG_OFFSET, val);
 		}
-unlock:
-		mutex_unlock(&data->update_lock);
 		return ret;
 	default:
 		return -EOPNOTSUPP;
@@ -559,7 +553,6 @@ static int max6697_probe(struct i2c_client *client)
 	data->regmap = regmap;
 	data->type = (uintptr_t)i2c_get_match_data(client);
 	data->chip = &max6697_chip_data[data->type];
-	mutex_init(&data->update_lock);
 
 	err = max6697_init_chip(client->dev.of_node, data);
 	if (err)
