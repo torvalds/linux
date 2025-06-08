@@ -585,32 +585,19 @@ int power_supply_get_battery_info(struct power_supply *psy,
 {
 	struct power_supply_resistance_temp_table *resist_table;
 	struct power_supply_battery_info *info;
-	struct device_node *battery_np = NULL;
-	struct fwnode_reference_args args;
-	struct fwnode_handle *fwnode = NULL;
+	struct fwnode_handle *srcnode, *fwnode;
 	const char *value;
-	int err, len, index;
-	const __be32 *list;
+	int err, len, index, proplen;
+	u32 *propdata __free(kfree) = NULL;
 	u32 min_max[2];
 
-	if (psy->dev.of_node) {
-		battery_np = of_parse_phandle(psy->dev.of_node, "monitored-battery", 0);
-		if (!battery_np)
-			return -ENODEV;
+	srcnode = dev_fwnode(&psy->dev);
+	if (!srcnode && psy->dev.parent)
+		srcnode = dev_fwnode(psy->dev.parent);
 
-		fwnode = fwnode_handle_get(of_fwnode_handle(battery_np));
-	} else if (psy->dev.parent) {
-		err = fwnode_property_get_reference_args(
-					dev_fwnode(psy->dev.parent),
-					"monitored-battery", NULL, 0, 0, &args);
-		if (err)
-			return err;
-
-		fwnode = args.fwnode;
-	}
-
-	if (!fwnode)
-		return -ENOENT;
+	fwnode = fwnode_find_reference(srcnode, "monitored-battery", 0);
+	if (IS_ERR(fwnode))
+		return PTR_ERR(fwnode);
 
 	err = fwnode_property_read_string(fwnode, "compatible", &value);
 	if (err)
@@ -740,15 +727,7 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		info->temp_max = min_max[1];
 	}
 
-	/*
-	 * The below code uses raw of-data parsing to parse
-	 * /schemas/types.yaml#/definitions/uint32-matrix
-	 * data, so for now this is only support with of.
-	 */
-	if (!battery_np)
-		goto out_ret_pointer;
-
-	len = of_property_count_u32_elems(battery_np, "ocv-capacity-celsius");
+	len = fwnode_property_count_u32(fwnode, "ocv-capacity-celsius");
 	if (len < 0 && len != -EINVAL) {
 		err = len;
 		goto out_put_node;
@@ -757,13 +736,13 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		err = -EINVAL;
 		goto out_put_node;
 	} else if (len > 0) {
-		of_property_read_u32_array(battery_np, "ocv-capacity-celsius",
+		fwnode_property_read_u32_array(fwnode, "ocv-capacity-celsius",
 					   info->ocv_temp, len);
 	}
 
 	for (index = 0; index < len; index++) {
 		struct power_supply_battery_ocv_table *table;
-		int i, tab_len, size;
+		int i, tab_len;
 
 		char *propname __free(kfree) = kasprintf(GFP_KERNEL, "ocv-capacity-table-%d",
 							 index);
@@ -772,15 +751,28 @@ int power_supply_get_battery_info(struct power_supply *psy,
 			err = -ENOMEM;
 			goto out_put_node;
 		}
-		list = of_get_property(battery_np, propname, &size);
-		if (!list || !size) {
+		proplen = fwnode_property_count_u32(fwnode, propname);
+		if (proplen < 0 || proplen % 2 != 0) {
 			dev_err(&psy->dev, "failed to get %s\n", propname);
 			power_supply_put_battery_info(psy, info);
 			err = -EINVAL;
 			goto out_put_node;
 		}
 
-		tab_len = size / (2 * sizeof(__be32));
+		u32 *propdata __free(kfree) = kcalloc(proplen, sizeof(*propdata), GFP_KERNEL);
+		if (!propdata) {
+			power_supply_put_battery_info(psy, info);
+			err = -EINVAL;
+			goto out_put_node;
+		}
+		err = fwnode_property_read_u32_array(fwnode, propname, propdata, proplen);
+		if (err < 0) {
+			dev_err(&psy->dev, "failed to get %s\n", propname);
+			power_supply_put_battery_info(psy, info);
+			goto out_put_node;
+		}
+
+		tab_len = proplen / 2;
 		info->ocv_table_size[index] = tab_len;
 
 		info->ocv_table[index] = table =
@@ -792,18 +784,36 @@ int power_supply_get_battery_info(struct power_supply *psy,
 		}
 
 		for (i = 0; i < tab_len; i++) {
-			table[i].ocv = be32_to_cpu(*list);
-			list++;
-			table[i].capacity = be32_to_cpu(*list);
-			list++;
+			table[i].ocv = propdata[i*2];
+			table[i].capacity = propdata[i*2+1];
 		}
 	}
 
-	list = of_get_property(battery_np, "resistance-temp-table", &len);
-	if (!list || !len)
+	proplen = fwnode_property_count_u32(fwnode, "resistance-temp-table");
+	if (proplen == 0 || proplen == -EINVAL) {
+		err = 0;
 		goto out_ret_pointer;
+	} else if (proplen < 0 || proplen % 2 != 0) {
+		power_supply_put_battery_info(psy, info);
+		err = (proplen < 0) ? proplen : -EINVAL;
+		goto out_put_node;
+	}
 
-	info->resist_table_size = len / (2 * sizeof(__be32));
+	propdata = kcalloc(proplen, sizeof(*propdata), GFP_KERNEL);
+	if (!propdata) {
+		power_supply_put_battery_info(psy, info);
+		err = -ENOMEM;
+		goto out_put_node;
+	}
+
+	err = fwnode_property_read_u32_array(fwnode, "resistance-temp-table",
+					     propdata, proplen);
+	if (err < 0) {
+		power_supply_put_battery_info(psy, info);
+		goto out_put_node;
+	}
+
+	info->resist_table_size = proplen / 2;
 	info->resist_table = resist_table = devm_kcalloc(&psy->dev,
 							 info->resist_table_size,
 							 sizeof(*resist_table),
@@ -815,8 +825,8 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	}
 
 	for (index = 0; index < info->resist_table_size; index++) {
-		resist_table[index].temp = be32_to_cpu(*list++);
-		resist_table[index].resistance = be32_to_cpu(*list++);
+		resist_table[index].temp = propdata[index*2];
+		resist_table[index].resistance = propdata[index*2+1];
 	}
 
 out_ret_pointer:
@@ -825,7 +835,6 @@ out_ret_pointer:
 
 out_put_node:
 	fwnode_handle_put(fwnode);
-	of_node_put(battery_np);
 	return err;
 }
 EXPORT_SYMBOL_GPL(power_supply_get_battery_info);
