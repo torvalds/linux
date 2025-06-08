@@ -69,7 +69,6 @@
 struct ug3105_chip {
 	struct i2c_client *client;
 	struct power_supply *psy;
-	struct power_supply_battery_info *info;
 	struct delayed_work work;
 	struct mutex lock;
 	int ocv[UG3105_MOV_AVG_WINDOW];		/* micro-volt */
@@ -103,7 +102,8 @@ static int ug3105_read_word(struct i2c_client *client, u8 reg)
 
 static int ug3105_get_status(struct ug3105_chip *chip)
 {
-	int full = chip->info->constant_charge_voltage_max_uv - UG3105_FULL_BAT_HYST_UV;
+	int full = chip->psy->battery_info->constant_charge_voltage_max_uv -
+		   UG3105_FULL_BAT_HYST_UV;
 
 	if (chip->curr > UG3105_CURR_HYST_UA)
 		return POWER_SUPPLY_STATUS_CHARGING;
@@ -164,7 +164,7 @@ static int ug3105_get_capacity(struct ug3105_chip *chip)
 		ocv_diff = ocv_capacity_tbl[i] - chip->ocv_avg;
 		ocv_step = ocv_capacity_tbl[i] - ocv_capacity_tbl[i - 1];
 		/* scale 0-110% down to 0-100% for LiPo HV */
-		if (chip->info->constant_charge_voltage_max_uv >= 4300000)
+		if (chip->psy->battery_info->constant_charge_voltage_max_uv >= 4300000)
 			return (i * 500 - ocv_diff * 500 / ocv_step) / 110;
 		else
 			return i * 5 - ocv_diff * 5 / ocv_step;
@@ -401,12 +401,9 @@ static int ug3105_probe(struct i2c_client *client)
 	if (IS_ERR(psy))
 		return PTR_ERR(psy);
 
-	ret = power_supply_get_battery_info(psy, &chip->info);
-	if (ret)
-		return ret;
-
-	if (chip->info->factory_internal_resistance_uohm == -EINVAL ||
-	    chip->info->constant_charge_voltage_max_uv == -EINVAL) {
+	if (!psy->battery_info ||
+	    psy->battery_info->factory_internal_resistance_uohm == -EINVAL ||
+	    psy->battery_info->constant_charge_voltage_max_uv == -EINVAL) {
 		dev_err(dev, "error required properties are missing\n");
 		return -ENODEV;
 	}
@@ -422,7 +419,7 @@ static int ug3105_probe(struct i2c_client *client)
 	chip->ua_per_unit = 8100000 / curr_sense_res_uohm;
 
 	/* Use provided internal resistance as start point (in milli-ohm) */
-	chip->intern_res_avg = chip->info->factory_internal_resistance_uohm / 1000;
+	chip->intern_res_avg = psy->battery_info->factory_internal_resistance_uohm / 1000;
 	/* Also add it to the internal resistance moving average window */
 	chip->intern_res[0] = chip->intern_res_avg;
 	chip->intern_res_avg_index = 1;
