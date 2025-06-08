@@ -36,6 +36,16 @@
 	status = "okay";
 };
 
+&i2c1 {
+	status = "okay";
+
+	mcu: syscon@17 {
+		compatible = "sophgo,sg2044-hwmon-mcu", "sophgo,sg2042-hwmon-mcu";
+		reg = <0x17>;
+		#thermal-sensor-cells = <1>;
+	};
+};
+
 &sd {
 	bus-width = <4>;
 	no-sdio;
