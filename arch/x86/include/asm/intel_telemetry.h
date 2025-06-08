@@ -59,11 +59,6 @@ struct telemetry_plt_config {
 };
 
 struct telemetry_core_ops {
-	int (*get_sampling_period)(u8 *pss_min_period, u8 *pss_max_period,
-				   u8 *ioss_min_period, u8 *ioss_max_period);
-
-	int (*set_sampling_period)(u8 pss_period, u8 ioss_period);
-
 	int (*get_trace_verbosity)(enum telemetry_unit telem_unit,
 				   u32 *verbosity);
 
@@ -100,11 +95,6 @@ int telemetry_read_eventlog(enum telemetry_unit telem_unit,
 
 int telemetry_raw_read_eventlog(enum telemetry_unit telem_unit,
 				struct telemetry_evtlog *evtlog, int len);
-
-int telemetry_get_sampling_period(u8 *pss_min_period, u8 *pss_max_period,
-				  u8 *ioss_min_period, u8 *ioss_max_period);
-
-int telemetry_set_sampling_period(u8 pss_period, u8 ioss_period);
 
 int telemetry_set_trace_verbosity(enum telemetry_unit telem_unit,
 				  u32 verbosity);

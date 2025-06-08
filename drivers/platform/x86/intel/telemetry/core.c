@@ -21,19 +21,6 @@ struct telemetry_core_config {
 
 static struct telemetry_core_config telm_core_conf;
 
-static int telemetry_def_set_sampling_period(u8 pss_period, u8 ioss_period)
-{
-	return 0;
-}
-
-static int telemetry_def_get_sampling_period(u8 *pss_min_period,
-					     u8 *pss_max_period,
-					     u8 *ioss_min_period,
-					     u8 *ioss_max_period)
-{
-	return 0;
-}
-
 static int telemetry_def_get_trace_verbosity(enum telemetry_unit telem_unit,
 					     u32 *verbosity)
 {
@@ -62,55 +49,11 @@ static int telemetry_def_read_eventlog(enum telemetry_unit telem_unit,
 }
 
 static const struct telemetry_core_ops telm_defpltops = {
-	.set_sampling_period = telemetry_def_set_sampling_period,
-	.get_sampling_period = telemetry_def_get_sampling_period,
 	.get_trace_verbosity = telemetry_def_get_trace_verbosity,
 	.set_trace_verbosity = telemetry_def_set_trace_verbosity,
 	.raw_read_eventlog = telemetry_def_raw_read_eventlog,
 	.read_eventlog = telemetry_def_read_eventlog,
 };
-
-/**
- * telemetry_set_sampling_period() - Sets the IOSS & PSS sampling period
- * @pss_period:  placeholder for PSS Period to be set.
- *		 Set to 0 if not required to be updated
- * @ioss_period: placeholder for IOSS Period to be set
- *		 Set to 0 if not required to be updated
- *
- * All values should be in the form of:
- * bits[6:3] -> value; bits [0:2]-> Exponent; Period = (Value *16^Exponent)
- *
- * Return: 0 success, < 0 for failure
- */
-int telemetry_set_sampling_period(u8 pss_period, u8 ioss_period)
-{
-	return telm_core_conf.telem_ops->set_sampling_period(pss_period,
-							     ioss_period);
-}
-EXPORT_SYMBOL_GPL(telemetry_set_sampling_period);
-
-/**
- * telemetry_get_sampling_period() - Get IOSS & PSS min & max sampling period
- * @pss_min_period:  placeholder for PSS Min Period supported
- * @pss_max_period:  placeholder for PSS Max Period supported
- * @ioss_min_period: placeholder for IOSS Min Period supported
- * @ioss_max_period: placeholder for IOSS Max Period supported
- *
- * All values should be in the form of:
- * bits[6:3] -> value; bits [0:2]-> Exponent; Period = (Value *16^Exponent)
- *
- * Return: 0 success, < 0 for failure
- */
-int telemetry_get_sampling_period(u8 *pss_min_period, u8 *pss_max_period,
-				  u8 *ioss_min_period, u8 *ioss_max_period)
-{
-	return telm_core_conf.telem_ops->get_sampling_period(pss_min_period,
-							     pss_max_period,
-							     ioss_min_period,
-							     ioss_max_period);
-}
-EXPORT_SYMBOL_GPL(telemetry_get_sampling_period);
-
 
 /**
  * telemetry_read_events() - Fetches samples as specified by evtlog.telem_evt_id

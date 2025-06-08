@@ -639,121 +639,6 @@ static int telemetry_setup(struct platform_device *pdev)
 	return 0;
 }
 
-static int telemetry_plt_set_sampling_period(u8 pss_period, u8 ioss_period)
-{
-	u32 telem_ctrl = 0;
-	int ret = 0;
-
-	mutex_lock(&(telm_conf->telem_lock));
-	if (ioss_period) {
-		struct intel_scu_ipc_dev *scu = telm_conf->scu;
-
-		if (TELEM_SAMPLE_PERIOD_INVALID(ioss_period)) {
-			pr_err("IOSS Sampling Period Out of Range\n");
-			ret = -EINVAL;
-			goto out;
-		}
-
-		/* Get telemetry EVENT CTL */
-		ret = intel_scu_ipc_dev_command(scu, IOSS_TELEM,
-					    IOSS_TELEM_EVENT_CTL_READ, NULL, 0,
-					    &telem_ctrl, sizeof(telem_ctrl));
-		if (ret) {
-			pr_err("IOSS TELEM_CTRL Read Failed\n");
-			goto out;
-		}
-
-		/* Disable Telemetry */
-		TELEM_DISABLE(telem_ctrl);
-
-		ret = intel_scu_ipc_dev_command(scu, IOSS_TELEM,
-						IOSS_TELEM_EVENT_CTL_WRITE,
-						&telem_ctrl, sizeof(telem_ctrl),
-						NULL, 0);
-		if (ret) {
-			pr_err("IOSS TELEM_CTRL Event Disable Write Failed\n");
-			goto out;
-		}
-
-		/* Enable Periodic Telemetry Events and enable SRAM trace */
-		TELEM_CLEAR_SAMPLE_PERIOD(telem_ctrl);
-		TELEM_ENABLE_SRAM_EVT_TRACE(telem_ctrl);
-		TELEM_ENABLE_PERIODIC(telem_ctrl);
-		telem_ctrl |= ioss_period;
-
-		ret = intel_scu_ipc_dev_command(scu, IOSS_TELEM,
-						IOSS_TELEM_EVENT_CTL_WRITE,
-						&telem_ctrl, sizeof(telem_ctrl),
-						NULL, 0);
-		if (ret) {
-			pr_err("IOSS TELEM_CTRL Event Enable Write Failed\n");
-			goto out;
-		}
-		telm_conf->ioss_config.curr_period = ioss_period;
-	}
-
-	if (pss_period) {
-		if (TELEM_SAMPLE_PERIOD_INVALID(pss_period)) {
-			pr_err("PSS Sampling Period Out of Range\n");
-			ret = -EINVAL;
-			goto out;
-		}
-
-		/* Get telemetry EVENT CTL */
-		ret = intel_punit_ipc_command(
-				IPC_PUNIT_BIOS_READ_TELE_EVENT_CTRL,
-				0, 0, NULL, &telem_ctrl);
-		if (ret) {
-			pr_err("PSS TELEM_CTRL Read Failed\n");
-			goto out;
-		}
-
-		/* Disable Telemetry */
-		TELEM_DISABLE(telem_ctrl);
-		ret = intel_punit_ipc_command(
-				IPC_PUNIT_BIOS_WRITE_TELE_EVENT_CTRL,
-				0, 0, &telem_ctrl, NULL);
-		if (ret) {
-			pr_err("PSS TELEM_CTRL Event Disable Write Failed\n");
-			goto out;
-		}
-
-		/* Enable Periodic Telemetry Events and enable SRAM trace */
-		TELEM_CLEAR_SAMPLE_PERIOD(telem_ctrl);
-		TELEM_ENABLE_SRAM_EVT_TRACE(telem_ctrl);
-		TELEM_ENABLE_PERIODIC(telem_ctrl);
-		telem_ctrl |= pss_period;
-
-		ret = intel_punit_ipc_command(
-				IPC_PUNIT_BIOS_WRITE_TELE_EVENT_CTRL,
-				0, 0, &telem_ctrl, NULL);
-		if (ret) {
-			pr_err("PSS TELEM_CTRL Event Enable Write Failed\n");
-			goto out;
-		}
-		telm_conf->pss_config.curr_period = pss_period;
-	}
-
-out:
-	mutex_unlock(&(telm_conf->telem_lock));
-	return ret;
-}
-
-
-static int telemetry_plt_get_sampling_period(u8 *pss_min_period,
-					     u8 *pss_max_period,
-					     u8 *ioss_min_period,
-					     u8 *ioss_max_period)
-{
-	*pss_min_period = telm_conf->pss_config.min_period;
-	*pss_max_period = telm_conf->pss_config.max_period;
-	*ioss_min_period = telm_conf->ioss_config.min_period;
-	*ioss_max_period = telm_conf->ioss_config.max_period;
-
-	return 0;
-}
-
-
 static int telem_evtlog_read(enum telemetry_unit telem_unit,
 			     struct telem_ssram_region *ssram_region, u8 len)
 {
@@ -983,8 +868,6 @@ out:
 static const struct telemetry_core_ops telm_pltops = {
 	.get_trace_verbosity = telemetry_plt_get_trace_verbosity,
 	.set_trace_verbosity = telemetry_plt_set_trace_verbosity,
-	.set_sampling_period = telemetry_plt_set_sampling_period,
-	.get_sampling_period = telemetry_plt_get_sampling_period,
 	.raw_read_eventlog = telemetry_plt_raw_read_eventlog,
 	.read_eventlog = telemetry_plt_read_eventlog,
 };
