@@ -73,25 +73,6 @@ int telemetry_read_events(enum telemetry_unit telem_unit,
 EXPORT_SYMBOL_GPL(telemetry_read_events);
 
 /**
- * telemetry_raw_read_events() - Fetch samples specified by evtlog.telem_evt_id
- * @telem_unit: Specify whether IOSS or PSS Read
- * @evtlog:	Array of telemetry_evtlog structs to fill data
- *		evtlog.telem_evt_id specifies the ids to read
- * @len:	Length of array of evtlog
- *
- * The caller must take care of locking in this case.
- *
- * Return: number of eventlogs read for success, < 0 for failure
- */
-int telemetry_raw_read_events(enum telemetry_unit telem_unit,
-			      struct telemetry_evtlog *evtlog, int len)
-{
-	return telm_core_conf.telem_ops->raw_read_eventlog(telem_unit, evtlog,
-							   len, 0);
-}
-EXPORT_SYMBOL_GPL(telemetry_raw_read_events);
-
-/**
  * telemetry_read_eventlog() - Fetch the Telemetry log from PSS or IOSS
  * @telem_unit: Specify whether IOSS or PSS Read
  * @evtlog:	Array of telemetry_evtlog structs to fill data
