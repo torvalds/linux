@@ -347,6 +347,16 @@
 			};
 		};
 
+		pwm: pwm@704000c000 {
+			compatible = "sophgo,sg2044-pwm";
+			reg = <0x70 0x4000c000 0x0 0x1000>;
+			#pwm-cells = <3>;
+			clocks = <&clk CLK_GATE_APB_PWM>;
+			clock-names = "apb";
+			resets = <&rst RST_PWM>;
+			status = "disabled";
+		};
+
 		syscon: syscon@7050000000 {
 			compatible = "sophgo,sg2044-top-syscon", "syscon";
 			reg = <0x70 0x50000000 0x0 0x1000>;
