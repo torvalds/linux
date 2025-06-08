@@ -66,6 +66,8 @@
 #define UG3105_LOW_BAT_UV					3700000
 #define UG3105_FULL_BAT_HYST_UV					38000
 
+#define AMBIENT_TEMP_CELCIUS					25
+
 struct ug3105_chip {
 	struct i2c_client *client;
 	struct power_supply *psy;
@@ -115,62 +117,6 @@ static int ug3105_get_status(struct ug3105_chip *chip)
 		return POWER_SUPPLY_STATUS_FULL;
 
 	return POWER_SUPPLY_STATUS_NOT_CHARGING;
-}
-
-static int ug3105_get_capacity(struct ug3105_chip *chip)
-{
-	/*
-	 * OCV voltages in uV for 0-110% in 5% increments, the 100-110% is
-	 * for LiPo HV (High-Voltage) bateries which can go up to 4.35V
-	 * instead of the usual 4.2V.
-	 */
-	static const int ocv_capacity_tbl[23] = {
-		3350000,
-		3610000,
-		3690000,
-		3710000,
-		3730000,
-		3750000,
-		3770000,
-		3786667,
-		3803333,
-		3820000,
-		3836667,
-		3853333,
-		3870000,
-		3907500,
-		3945000,
-		3982500,
-		4020000,
-		4075000,
-		4110000,
-		4150000,
-		4200000,
-		4250000,
-		4300000,
-	};
-	int i, ocv_diff, ocv_step;
-
-	if (chip->ocv_avg < ocv_capacity_tbl[0])
-		return 0;
-
-	if (chip->status == POWER_SUPPLY_STATUS_FULL)
-		return 100;
-
-	for (i = 1; i < ARRAY_SIZE(ocv_capacity_tbl); i++) {
-		if (chip->ocv_avg > ocv_capacity_tbl[i])
-			continue;
-
-		ocv_diff = ocv_capacity_tbl[i] - chip->ocv_avg;
-		ocv_step = ocv_capacity_tbl[i] - ocv_capacity_tbl[i - 1];
-		/* scale 0-110% down to 0-100% for LiPo HV */
-		if (chip->psy->battery_info->constant_charge_voltage_max_uv >= 4300000)
-			return (i * 500 - ocv_diff * 500 / ocv_step) / 110;
-		else
-			return i * 5 - ocv_diff * 5 / ocv_step;
-	}
-
-	return 100;
 }
 
 static void ug3105_work(struct work_struct *work)
@@ -231,7 +177,12 @@ static void ug3105_work(struct work_struct *work)
 
 	chip->supplied = power_supply_am_i_supplied(psy);
 	chip->status = ug3105_get_status(chip);
-	chip->capacity = ug3105_get_capacity(chip);
+	if (chip->status == POWER_SUPPLY_STATUS_FULL)
+		chip->capacity = 100;
+	else
+		chip->capacity = power_supply_batinfo_ocv2cap(chip->psy->battery_info,
+							      chip->ocv_avg,
+							      AMBIENT_TEMP_CELCIUS);
 
 	/*
 	 * Skip internal resistance calc on charger [un]plug and
@@ -403,7 +354,8 @@ static int ug3105_probe(struct i2c_client *client)
 
 	if (!psy->battery_info ||
 	    psy->battery_info->factory_internal_resistance_uohm == -EINVAL ||
-	    psy->battery_info->constant_charge_voltage_max_uv == -EINVAL) {
+	    psy->battery_info->constant_charge_voltage_max_uv == -EINVAL ||
+	    !psy->battery_info->ocv_table[0]) {
 		dev_err(dev, "error required properties are missing\n");
 		return -ENODEV;
 	}
