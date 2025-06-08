@@ -13,7 +13,6 @@
 #include <linux/hwmon.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
@@ -86,7 +85,6 @@ static const unsigned short normal_i2c[] = {
 /* Client data (each client gets its own) */
 struct lm95245_data {
 	struct regmap *regmap;
-	struct mutex update_lock;
 	int interval;	/* in msecs */
 };
 
@@ -279,20 +277,16 @@ static int lm95245_write_temp(struct device *dev, u32 attr, int channel,
 		ret = regmap_write(regmap, reg, val);
 		return ret;
 	case hwmon_temp_crit_hyst:
-		mutex_lock(&data->update_lock);
 		ret = regmap_read(regmap, LM95245_REG_RW_LOCAL_OS_TCRIT_LIMIT,
 				  &regval);
-		if (ret < 0) {
-			mutex_unlock(&data->update_lock);
+		if (ret < 0)
 			return ret;
-		}
 		/* Clamp to reasonable range to prevent overflow */
 		val = clamp_val(val, -1000000, 1000000);
 		val = regval - val / 1000;
 		val = clamp_val(val, 0, 31);
 		ret = regmap_write(regmap, LM95245_REG_RW_COMMON_HYSTERESIS,
 				   val);
-		mutex_unlock(&data->update_lock);
 		return ret;
 	case hwmon_temp_offset:
 		val = clamp_val(val, -128000, 127875);
@@ -332,14 +326,10 @@ static int lm95245_write_chip(struct device *dev, u32 attr, int channel,
 			      long val)
 {
 	struct lm95245_data *data = dev_get_drvdata(dev);
-	int ret;
 
 	switch (attr) {
 	case hwmon_chip_update_interval:
-		mutex_lock(&data->update_lock);
-		ret = lm95245_set_conversion_rate(data, val);
-		mutex_unlock(&data->update_lock);
-		return ret;
+		return lm95245_set_conversion_rate(data, val);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -541,8 +531,6 @@ static int lm95245_probe(struct i2c_client *client)
 	data->regmap = devm_regmap_init_i2c(client, &lm95245_regmap_config);
 	if (IS_ERR(data->regmap))
 		return PTR_ERR(data->regmap);
-
-	mutex_init(&data->update_lock);
 
 	/* Initialize the LM95245 chip */
 	ret = lm95245_init_client(data);
