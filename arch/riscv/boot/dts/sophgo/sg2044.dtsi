@@ -6,6 +6,7 @@
 #include <dt-bindings/clock/sophgo,sg2044-pll.h>
 #include <dt-bindings/clock/sophgo,sg2044-clk.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
 
 #include "sg2044-cpus.dtsi"
 #include "sg2044-reset.h"
@@ -88,6 +89,75 @@
 			reg-io-width = <4>;
 			resets = <&rst RST_UART3>;
 			status = "disabled";
+		};
+
+		gpio0: gpio@7040009000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x70 0x40009000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clk CLK_GATE_APB_GPIO>,
+				 <&clk CLK_GATE_GPIO_DB>;
+			clock-names = "bus", "db";
+			resets = <&rst RST_GPIO0>;
+
+			porta: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				reg = <0>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				ngpios = <32>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupt-parent = <&intc>;
+				interrupts = <26 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		gpio1: gpio@704000a000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x70 0x4000a000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clk CLK_GATE_APB_GPIO>,
+				 <&clk CLK_GATE_GPIO_DB>;
+			clock-names = "bus", "db";
+			resets = <&rst RST_GPIO1>;
+
+			portb: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				reg = <0>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				ngpios = <32>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupt-parent = <&intc>;
+				interrupts = <27 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		gpio2: gpio@704000b000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x70 0x4000b000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&clk CLK_GATE_APB_GPIO>,
+				 <&clk CLK_GATE_GPIO_DB>;
+			clock-names = "bus", "db";
+			resets = <&rst RST_GPIO2>;
+
+			portc: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				reg = <0>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				ngpios = <32>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupt-parent = <&intc>;
+				interrupts = <28 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 
 		syscon: syscon@7050000000 {
