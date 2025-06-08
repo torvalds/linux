@@ -1101,8 +1101,6 @@ static inline bool uart_console_registered(struct uart_port *port)
 	return uart_console(port) && console_is_registered(port->cons);
 }
 
-struct uart_port *uart_get_console(struct uart_port *ports, int nr,
-				   struct console *c);
 int uart_parse_earlycon(char *p, enum uart_iotype *iotype,
 			resource_size_t *addr, char **options);
 void uart_parse_options(const char *options, int *baud, int *parity, int *bits,

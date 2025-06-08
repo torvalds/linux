@@ -2132,33 +2132,6 @@ void uart_console_write(struct uart_port *port, const char *s,
 EXPORT_SYMBOL_GPL(uart_console_write);
 
 /**
- * uart_get_console - get uart port for console
- * @ports: ports to search in
- * @nr: number of @ports
- * @co: console to search for
- * Returns: uart_port for the console @co
- *
- * Check whether an invalid uart number has been specified (as @co->index), and
- * if so, search for the first available port that does have console support.
- */
-struct uart_port * __init
-uart_get_console(struct uart_port *ports, int nr, struct console *co)
-{
-	int idx = co->index;
-
-	if (idx < 0 || idx >= nr || (ports[idx].iobase == 0 &&
-				     ports[idx].membase == NULL))
-		for (idx = 0; idx < nr; idx++)
-			if (ports[idx].iobase != 0 ||
-			    ports[idx].membase != NULL)
-				break;
-
-	co->index = idx;
-
-	return ports + idx;
-}
-
-/**
  * uart_parse_earlycon - Parse earlycon options
  * @p:	     ptr to 2nd field (ie., just beyond '<name>,')
  * @iotype:  ptr for decoded iotype (out)
