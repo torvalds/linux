@@ -3,6 +3,8 @@
  * Copyright (C) 2025 Inochi Amaoto <inochiama@gmail.com>
  */
 
+#include <dt-bindings/clock/sophgo,sg2044-pll.h>
+#include <dt-bindings/clock/sophgo,sg2044-clk.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
 #include "sg2044-cpus.dtsi"
@@ -32,6 +34,9 @@
 			compatible = "sophgo,sg2044-uart", "snps,dw-apb-uart";
 			reg = <0x70 0x30000000 0x0 0x1000>;
 			clock-frequency = <500000000>;
+			clocks = <&clk CLK_GATE_UART_500M>,
+				 <&clk CLK_GATE_APB_UART>;
+			clock-names = "baudclk", "apb_pclk";
 			interrupt-parent = <&intc>;
 			interrupts = <41 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
@@ -44,6 +49,9 @@
 			compatible = "sophgo,sg2044-uart", "snps,dw-apb-uart";
 			reg = <0x70 0x30001000 0x0 0x1000>;
 			clock-frequency = <500000000>;
+			clocks = <&clk CLK_GATE_UART_500M>,
+				 <&clk CLK_GATE_APB_UART>;
+			clock-names = "baudclk", "apb_pclk";
 			interrupt-parent = <&intc>;
 			interrupts = <42 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
@@ -56,6 +64,9 @@
 			compatible = "sophgo,sg2044-uart", "snps,dw-apb-uart";
 			reg = <0x70 0x30002000 0x0 0x1000>;
 			clock-frequency = <500000000>;
+			clocks = <&clk CLK_GATE_UART_500M>,
+				 <&clk CLK_GATE_APB_UART>;
+			clock-names = "baudclk", "apb_pclk";
 			interrupt-parent = <&intc>;
 			interrupts = <43 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
@@ -68,6 +79,9 @@
 			compatible = "sophgo,sg2044-uart", "snps,dw-apb-uart";
 			reg = <0x70 0x30003000 0x0 0x1000>;
 			clock-frequency = <500000000>;
+			clocks = <&clk CLK_GATE_UART_500M>,
+				 <&clk CLK_GATE_APB_UART>;
+			clock-names = "baudclk", "apb_pclk";
 			interrupt-parent = <&intc>;
 			interrupts = <44 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
@@ -81,6 +95,26 @@
 			reg = <0x70 0x50000000 0x0 0x1000>;
 			#clock-cells = <1>;
 			clocks = <&osc>;
+		};
+
+		clk: clock-controller@7050002000 {
+			compatible = "sophgo,sg2044-clk";
+			reg = <0x70 0x50002000 0x0 0x1000>;
+			#clock-cells = <1>;
+			clocks = <&syscon CLK_FPLL0>, <&syscon CLK_FPLL1>,
+				 <&syscon CLK_FPLL2>, <&syscon CLK_DPLL0>,
+				 <&syscon CLK_DPLL1>, <&syscon CLK_DPLL2>,
+				 <&syscon CLK_DPLL3>, <&syscon CLK_DPLL4>,
+				 <&syscon CLK_DPLL5>, <&syscon CLK_DPLL6>,
+				 <&syscon CLK_DPLL7>, <&syscon CLK_MPLL0>,
+				 <&syscon CLK_MPLL1>, <&syscon CLK_MPLL2>,
+				 <&syscon CLK_MPLL3>, <&syscon CLK_MPLL4>,
+				 <&syscon CLK_MPLL5>;
+			clock-names = "fpll0", "fpll1", "fpll2", "dpll0",
+				      "dpll1", "dpll2", "dpll3", "dpll4",
+				      "dpll5", "dpll6", "dpll7", "mpll0",
+				      "mpll1", "mpll2", "mpll3", "mpll4",
+				      "mpll5";
 		};
 
 		rst: reset-controller@7050003000 {
