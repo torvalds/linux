@@ -18,7 +18,6 @@
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/err.h>
-#include <linux/of.h>
 #include <linux/power_supply.h>
 #include <linux/property.h>
 #include <linux/thermal.h>
@@ -196,24 +195,24 @@ static int __power_supply_populate_supplied_from(struct power_supply *epsy,
 						 void *data)
 {
 	struct power_supply *psy = data;
-	struct device_node *np;
+	struct fwnode_handle *np;
 	int i = 0;
 
 	do {
-		np = of_parse_phandle(psy->dev.of_node, "power-supplies", i++);
-		if (!np)
+		np = fwnode_find_reference(psy->dev.fwnode, "power-supplies", i++);
+		if (IS_ERR(np))
 			break;
 
-		if (np == epsy->dev.of_node) {
+		if (np == epsy->dev.fwnode) {
 			dev_dbg(&psy->dev, "%s: Found supply : %s\n",
 				psy->desc->name, epsy->desc->name);
 			psy->supplied_from[i-1] = (char *)epsy->desc->name;
 			psy->num_supplies++;
-			of_node_put(np);
+			fwnode_handle_put(np);
 			break;
 		}
-		of_node_put(np);
-	} while (np);
+		fwnode_handle_put(np);
+	} while (!IS_ERR(np));
 
 	return 0;
 }
@@ -232,16 +231,16 @@ static int power_supply_populate_supplied_from(struct power_supply *psy)
 static int  __power_supply_find_supply_from_node(struct power_supply *epsy,
 						 void *data)
 {
-	struct device_node *np = data;
+	struct fwnode_handle *fwnode = data;
 
 	/* returning non-zero breaks out of power_supply_for_each_psy loop */
-	if (epsy->dev.of_node == np)
+	if (epsy->dev.fwnode == fwnode)
 		return 1;
 
 	return 0;
 }
 
-static int power_supply_find_supply_from_node(struct device_node *supply_node)
+static int power_supply_find_supply_from_fwnode(struct fwnode_handle *supply_node)
 {
 	int error;
 
@@ -249,7 +248,7 @@ static int power_supply_find_supply_from_node(struct device_node *supply_node)
 	 * power_supply_for_each_psy() either returns its own errors or values
 	 * returned by __power_supply_find_supply_from_node().
 	 *
-	 * __power_supply_find_supply_from_node() will return 0 (no match)
+	 * __power_supply_find_supply_from_fwnode() will return 0 (no match)
 	 * or 1 (match).
 	 *
 	 * We return 0 if power_supply_for_each_psy() returned 1, -EPROBE_DEFER if
@@ -262,7 +261,7 @@ static int power_supply_find_supply_from_node(struct device_node *supply_node)
 
 static int power_supply_check_supplies(struct power_supply *psy)
 {
-	struct device_node *np;
+	struct fwnode_handle *np;
 	int cnt = 0;
 
 	/* If there is already a list honor it */
@@ -270,24 +269,24 @@ static int power_supply_check_supplies(struct power_supply *psy)
 		return 0;
 
 	/* No device node found, nothing to do */
-	if (!psy->dev.of_node)
+	if (!psy->dev.fwnode)
 		return 0;
 
 	do {
 		int ret;
 
-		np = of_parse_phandle(psy->dev.of_node, "power-supplies", cnt++);
-		if (!np)
+		np = fwnode_find_reference(psy->dev.fwnode, "power-supplies", cnt++);
+		if (IS_ERR(np))
 			break;
 
-		ret = power_supply_find_supply_from_node(np);
-		of_node_put(np);
+		ret = power_supply_find_supply_from_fwnode(np);
+		fwnode_handle_put(np);
 
 		if (ret) {
 			dev_dbg(&psy->dev, "Failed to find supply!\n");
 			return ret;
 		}
-	} while (np);
+	} while (!IS_ERR(np));
 
 	/* Missing valid "power-supplies" entries */
 	if (cnt == 1)
@@ -498,14 +497,14 @@ void power_supply_put(struct power_supply *psy)
 EXPORT_SYMBOL_GPL(power_supply_put);
 
 #ifdef CONFIG_OF
-static int power_supply_match_device_node(struct device *dev, const void *data)
+static int power_supply_match_device_fwnode(struct device *dev, const void *data)
 {
-	return dev->parent && dev->parent->of_node == data;
+	return dev->parent && dev_fwnode(dev->parent) == data;
 }
 
 /**
  * power_supply_get_by_phandle() - Search for a power supply and returns its ref
- * @np: Pointer to device node holding phandle property
+ * @fwnode: Pointer to fwnode holding phandle property
  * @property: Name of property holding a power supply name
  *
  * If power supply was found, it increases reference count for the
@@ -515,21 +514,21 @@ static int power_supply_match_device_node(struct device *dev, const void *data)
  * Return: On success returns a reference to a power supply with
  * matching name equals to value under @property, NULL or ERR_PTR otherwise.
  */
-struct power_supply *power_supply_get_by_phandle(struct device_node *np,
-							const char *property)
+struct power_supply *power_supply_get_by_phandle(struct fwnode_handle *fwnode,
+						 const char *property)
 {
-	struct device_node *power_supply_np;
+	struct fwnode_handle *power_supply_fwnode;
 	struct power_supply *psy = NULL;
 	struct device *dev;
 
-	power_supply_np = of_parse_phandle(np, property, 0);
-	if (!power_supply_np)
-		return ERR_PTR(-ENODEV);
+	power_supply_fwnode = fwnode_find_reference(fwnode, property, 0);
+	if (IS_ERR(power_supply_fwnode))
+		return ERR_CAST(power_supply_fwnode);
 
-	dev = class_find_device(&power_supply_class, NULL, power_supply_np,
-				power_supply_match_device_node);
+	dev = class_find_device(&power_supply_class, NULL, power_supply_fwnode,
+				power_supply_match_device_fwnode);
 
-	of_node_put(power_supply_np);
+	fwnode_handle_put(power_supply_fwnode);
 
 	if (dev) {
 		psy = dev_to_psy(dev);
@@ -561,14 +560,14 @@ struct power_supply *devm_power_supply_get_by_phandle(struct device *dev,
 {
 	struct power_supply **ptr, *psy;
 
-	if (!dev->of_node)
+	if (!dev_fwnode(dev))
 		return ERR_PTR(-ENODEV);
 
 	ptr = devres_alloc(devm_power_supply_put, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	psy = power_supply_get_by_phandle(dev->of_node, property);
+	psy = power_supply_get_by_phandle(dev_fwnode(dev), property);
 	if (IS_ERR_OR_NULL(psy)) {
 		devres_free(ptr);
 	} else {

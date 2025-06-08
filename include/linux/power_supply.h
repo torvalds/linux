@@ -808,7 +808,7 @@ static inline struct power_supply *power_supply_get_by_name(const char *name)
 { return NULL; }
 #endif
 #ifdef CONFIG_OF
-extern struct power_supply *power_supply_get_by_phandle(struct device_node *np,
+extern struct power_supply *power_supply_get_by_phandle(struct fwnode_handle *fwnode,
 							const char *property);
 extern struct power_supply *devm_power_supply_get_by_phandle(
 				    struct device *dev, const char *property);
