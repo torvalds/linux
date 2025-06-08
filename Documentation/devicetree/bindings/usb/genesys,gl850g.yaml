@@ -28,6 +28,18 @@ properties:
 
   peer-hub: true
 
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    patternProperties:
+      '^port@':
+        $ref: /schemas/graph.yaml#/properties/port
+
+        properties:
+          reg:
+            minimum: 1
+            maximum: 4
+
 required:
   - compatible
   - reg
