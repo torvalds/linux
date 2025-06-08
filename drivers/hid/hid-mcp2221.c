@@ -55,6 +55,27 @@ enum {
 	MCP2221_ALT_F_NOT_GPIOD = 0xEF,
 };
 
+/* MCP SRAM read offsets cmd: MCP2221_GET_SRAM_SETTINGS */
+enum {
+	MCP2221_SRAM_RD_GP0 = 22,
+	MCP2221_SRAM_RD_GP1 = 23,
+	MCP2221_SRAM_RD_GP2 = 24,
+	MCP2221_SRAM_RD_GP3 = 25,
+};
+
+/* MCP SRAM write offsets cmd: MCP2221_SET_SRAM_SETTINGS */
+enum {
+	MCP2221_SRAM_WR_GP_ENA_ALTER = 7,
+	MCP2221_SRAM_WR_GP0 = 8,
+	MCP2221_SRAM_WR_GP1 = 9,
+	MCP2221_SRAM_WR_GP2 = 10,
+	MCP2221_SRAM_WR_GP3 = 11,
+};
+
+#define MCP2221_SRAM_GP_DESIGN_MASK		0x07
+#define MCP2221_SRAM_GP_DIRECTION_MASK		0x08
+#define MCP2221_SRAM_GP_VALUE_MASK		0x10
+
 /* MCP GPIO direction encoding */
 enum {
 	MCP2221_DIR_OUT = 0x00,
@@ -607,6 +628,80 @@ static const struct i2c_algorithm mcp_i2c_algo = {
 };
 
 #if IS_REACHABLE(CONFIG_GPIOLIB)
+static int mcp_gpio_read_sram(struct mcp2221 *mcp)
+{
+	int ret;
+
+	memset(mcp->txbuf, 0, 64);
+	mcp->txbuf[0] = MCP2221_GET_SRAM_SETTINGS;
+
+	mutex_lock(&mcp->lock);
+	ret = mcp_send_data_req_status(mcp, mcp->txbuf, 64);
+	mutex_unlock(&mcp->lock);
+
+	return ret;
+}
+
+/*
+ * If CONFIG_IIO is not enabled, check for the gpio pins
+ * if they are in gpio mode. For the ones which are not
+ * in gpio mode, set them into gpio mode.
+ */
+static int mcp2221_check_gpio_pinfunc(struct mcp2221 *mcp)
+{
+	int i;
+	int needgpiofix = 0;
+	int ret;
+
+	if (IS_ENABLED(CONFIG_IIO))
+		return 0;
+
+	ret = mcp_gpio_read_sram(mcp);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < MCP_NGPIO; i++) {
+		if ((mcp->mode[i] & MCP2221_SRAM_GP_DESIGN_MASK) != 0x0) {
+			dev_warn(&mcp->hdev->dev,
+				 "GPIO %d not in gpio mode\n", i);
+			needgpiofix = 1;
+		}
+	}
+
+	if (!needgpiofix)
+		return 0;
+
+	/*
+	 * Set all bytes to 0, so Bit 7 is not set. The chip
+	 * only changes content of a register when bit 7 is set.
+	 */
+	memset(mcp->txbuf, 0, 64);
+	mcp->txbuf[0] = MCP2221_SET_SRAM_SETTINGS;
+
+	/*
+	 * Set bit 7 in MCP2221_SRAM_WR_GP_ENA_ALTER to enable
+	 * loading of a new set of gpio settings to GP SRAM
+	 */
+	mcp->txbuf[MCP2221_SRAM_WR_GP_ENA_ALTER] = 0x80;
+	for (i = 0; i < MCP_NGPIO; i++) {
+		if ((mcp->mode[i] & MCP2221_SRAM_GP_DESIGN_MASK) == 0x0) {
+			/* write current GPIO mode */
+			mcp->txbuf[MCP2221_SRAM_WR_GP0 + i] = mcp->mode[i];
+		} else {
+			/* pin is not in gpio mode, set it to input mode */
+			mcp->txbuf[MCP2221_SRAM_WR_GP0 + i] = 0x08;
+			dev_warn(&mcp->hdev->dev,
+				 "Set GPIO mode for gpio pin %d!\n", i);
+		}
+	}
+
+	mutex_lock(&mcp->lock);
+	ret = mcp_send_data_req_status(mcp, mcp->txbuf, 64);
+	mutex_unlock(&mcp->lock);
+
+	return ret;
+}
+
 static int mcp_gpio_get(struct gpio_chip *gc,
 				unsigned int offset)
 {
@@ -1218,6 +1313,8 @@ static int mcp2221_probe(struct hid_device *hdev,
 	ret = devm_gpiochip_add_data(&hdev->dev, mcp->gc, mcp);
 	if (ret)
 		return ret;
+
+	mcp2221_check_gpio_pinfunc(mcp);
 #endif
 
 #if IS_REACHABLE(CONFIG_IIO)
