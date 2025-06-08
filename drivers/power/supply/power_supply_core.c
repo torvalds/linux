@@ -1529,10 +1529,9 @@ __power_supply_register(struct device *parent,
 	dev_set_drvdata(dev, psy);
 	psy->desc = desc;
 	if (cfg) {
+		device_set_node(dev, cfg->fwnode);
 		dev->groups = cfg->attr_grp;
 		psy->drv_data = cfg->drv_data;
-		dev->of_node =
-			cfg->fwnode ? to_of_node(cfg->fwnode) : cfg->of_node;
 		psy->supplied_to = cfg->supplied_to;
 		psy->num_supplicants = cfg->num_supplicants;
 	}
