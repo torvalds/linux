@@ -31,6 +31,26 @@
 		#size-cells = <2>;
 		ranges;
 
+		dmac0: dma-controller@7020000000 {
+			compatible = "snps,axi-dma-1.01a";
+			reg = <0x70 0x20000000 0x0 0x10000>;
+			#dma-cells = <1>;
+			clock-names = "core-clk", "cfgr-clk";
+			clocks = <&clk CLK_GATE_SYSDMA_AXI>,
+				 <&clk CLK_GATE_SYSDMA_AXI>;
+			dma-noncoherent;
+			interrupt-parent = <&intc>;
+			interrupts = <36 IRQ_TYPE_LEVEL_HIGH>;
+			dma-channels = <8>;
+			snps,priority = <0 1 2 3 4 5 6 7>;
+			snps,block-size = <4096 4096 4096 4096
+					   4096 4096 4096 4096>;
+			snps,dma-masters = <2>;
+			snps,data-width = <2>;
+			snps,axi-max-burst-len = <4>;
+			status = "disabled";
+		};
+
 		uart0: serial@7030000000 {
 			compatible = "sophgo,sg2044-uart", "snps,dw-apb-uart";
 			reg = <0x70 0x30000000 0x0 0x1000>;
