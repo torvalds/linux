@@ -237,7 +237,7 @@ EXPORT_SYMBOL(fw_schedule_bus_reset);
 
 static void br_work(struct work_struct *work)
 {
-	struct fw_card *card = container_of(work, struct fw_card, br_work.work);
+	struct fw_card *card = from_work(card, work, br_work.work);
 
 	/* Delay for 2s after last reset per IEEE 1394 clause 8.2.1. */
 	if (card->reset_jiffies != 0 &&
@@ -286,7 +286,7 @@ void fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
 
 static void bm_work(struct work_struct *work)
 {
-	struct fw_card *card = container_of(work, struct fw_card, bm_work.work);
+	struct fw_card *card = from_work(card, work, bm_work.work);
 	struct fw_device *root_device, *irm_device;
 	struct fw_node *root_node;
 	int root_id, new_root_id, irm_id, bm_id, local_id;
