@@ -662,6 +662,7 @@ msm_gpu_create_private_address_space(struct msm_gpu *gpu, struct task_struct *ta
 void msm_gpu_cleanup(struct msm_gpu *gpu);
 
 struct msm_gpu *adreno_load_gpu(struct drm_device *dev);
+bool adreno_has_gpu(struct device_node *node);
 void __init adreno_register(void);
 void __exit adreno_unregister(void);
 
