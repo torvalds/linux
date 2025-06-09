@@ -13,7 +13,7 @@
 #define IWL_BZ_UCODE_API_MAX	99
 
 /* Lowest firmware API version supported */
-#define IWL_BZ_UCODE_API_MIN	93
+#define IWL_BZ_UCODE_API_MIN	94
 
 /* Memory offsets and lengths */
 #define IWL_BZ_SMEM_OFFSET		0x400000
