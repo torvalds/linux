@@ -264,7 +264,7 @@ static int btrfs_get_dev_zones(struct btrfs_device *device, u64 pos,
 	ret = blkdev_report_zones(device->bdev, pos >> SECTOR_SHIFT, *nr_zones,
 				  copy_zone_info_cb, zones);
 	if (ret < 0) {
-		btrfs_err_in_rcu(device->fs_info,
+		btrfs_err(device->fs_info,
 				 "zoned: failed to read zone %llu on %s (devid %llu)",
 				 pos, rcu_str_deref(device->name),
 				 device->devid);
@@ -396,14 +396,14 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 
 	/* We reject devices with a zone size larger than 8GB */
 	if (zone_info->zone_size > BTRFS_MAX_ZONE_SIZE) {
-		btrfs_err_in_rcu(fs_info,
+		btrfs_err(fs_info,
 		"zoned: %s: zone size %llu larger than supported maximum %llu",
 				 rcu_str_deref(device->name),
 				 zone_info->zone_size, BTRFS_MAX_ZONE_SIZE);
 		ret = -EINVAL;
 		goto out;
 	} else if (zone_info->zone_size < BTRFS_MIN_ZONE_SIZE) {
-		btrfs_err_in_rcu(fs_info,
+		btrfs_err(fs_info,
 		"zoned: %s: zone size %llu smaller than supported minimum %u",
 				 rcu_str_deref(device->name),
 				 zone_info->zone_size, BTRFS_MIN_ZONE_SIZE);
@@ -419,7 +419,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 
 	max_active_zones = bdev_max_active_zones(bdev);
 	if (max_active_zones && max_active_zones < BTRFS_MIN_ACTIVE_ZONES) {
-		btrfs_err_in_rcu(fs_info,
+		btrfs_err(fs_info,
 "zoned: %s: max active zones %u is too small, need at least %u active zones",
 				 rcu_str_deref(device->name), max_active_zones,
 				 BTRFS_MIN_ACTIVE_ZONES);
@@ -461,7 +461,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 		zone_info->zone_cache = vcalloc(zone_info->nr_zones,
 						sizeof(struct blk_zone));
 		if (!zone_info->zone_cache) {
-			btrfs_err_in_rcu(device->fs_info,
+			btrfs_err(device->fs_info,
 				"zoned: failed to allocate zone cache for %s",
 				rcu_str_deref(device->name));
 			ret = -ENOMEM;
@@ -498,7 +498,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 	}
 
 	if (nreported != zone_info->nr_zones) {
-		btrfs_err_in_rcu(device->fs_info,
+		btrfs_err(device->fs_info,
 				 "inconsistent number of zones on %s (%u/%u)",
 				 rcu_str_deref(device->name), nreported,
 				 zone_info->nr_zones);
@@ -508,7 +508,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 
 	if (max_active_zones) {
 		if (nactive > max_active_zones) {
-			btrfs_err_in_rcu(device->fs_info,
+			btrfs_err(device->fs_info,
 			"zoned: %u active zones on %s exceeds max_active_zones %u",
 					 nactive, rcu_str_deref(device->name),
 					 max_active_zones);
@@ -539,7 +539,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 			goto out;
 
 		if (nr_zones != BTRFS_NR_SB_LOG_ZONES) {
-			btrfs_err_in_rcu(device->fs_info,
+			btrfs_err(device->fs_info,
 	"zoned: failed to read super block log zone info at devid %llu zone %u",
 					 device->devid, sb_zone);
 			ret = -EUCLEAN;
@@ -557,7 +557,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 		ret = sb_write_pointer(device->bdev,
 				       &zone_info->sb_zones[sb_pos], &sb_wp);
 		if (ret != -ENOENT && ret) {
-			btrfs_err_in_rcu(device->fs_info,
+			btrfs_err(device->fs_info,
 			"zoned: super block log zone corrupted devid %llu zone %u",
 					 device->devid, sb_zone);
 			ret = -EUCLEAN;
@@ -1346,7 +1346,7 @@ static int btrfs_load_zone_info(struct btrfs_fs_info *fs_info, int zone_idx,
 	}
 
 	if (zone.type == BLK_ZONE_TYPE_CONVENTIONAL) {
-		btrfs_err_in_rcu(fs_info,
+		btrfs_err(fs_info,
 		"zoned: unexpected conventional zone %llu on device %s (devid %llu)",
 			zone.start << SECTOR_SHIFT, rcu_str_deref(device->name),
 			device->devid);
@@ -1359,7 +1359,7 @@ static int btrfs_load_zone_info(struct btrfs_fs_info *fs_info, int zone_idx,
 	switch (zone.cond) {
 	case BLK_ZONE_COND_OFFLINE:
 	case BLK_ZONE_COND_READONLY:
-		btrfs_err_in_rcu(fs_info,
+		btrfs_err(fs_info,
 		"zoned: offline/readonly zone %llu on device %s (devid %llu)",
 			  (info->physical >> device->zone_info->zone_size_shift),
 			  rcu_str_deref(device->name), device->devid);

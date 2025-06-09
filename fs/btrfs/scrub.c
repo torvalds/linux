@@ -1045,12 +1045,12 @@ skip:
 		 */
 		if (repaired) {
 			if (dev) {
-				btrfs_err_rl_in_rcu(fs_info,
+				btrfs_err_rl(fs_info,
 		"scrub: fixed up error at logical %llu on dev %s physical %llu",
 					    stripe->logical, btrfs_dev_name(dev),
 					    physical);
 			} else {
-				btrfs_err_rl_in_rcu(fs_info,
+				btrfs_err_rl(fs_info,
 			   "scrub: fixed up error at logical %llu on mirror %u",
 					    stripe->logical, stripe->mirror_num);
 			}
@@ -1059,12 +1059,12 @@ skip:
 
 		/* The remaining are all for unrepaired. */
 		if (dev) {
-			btrfs_err_rl_in_rcu(fs_info,
+			btrfs_err_rl(fs_info,
 "scrub: unable to fixup (regular) error at logical %llu on dev %s physical %llu",
 					    stripe->logical, btrfs_dev_name(dev),
 					    physical);
 		} else {
-			btrfs_err_rl_in_rcu(fs_info,
+			btrfs_err_rl(fs_info,
 	  "scrub: unable to fixup (regular) error at logical %llu on mirror %u",
 					    stripe->logical, stripe->mirror_num);
 		}
@@ -3057,7 +3057,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	if (!is_dev_replace && !readonly &&
 	    !test_bit(BTRFS_DEV_STATE_WRITEABLE, &dev->dev_state)) {
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
-		btrfs_err_in_rcu(fs_info,
+		btrfs_err(fs_info,
 			"scrub: devid %llu: filesystem on %s is not writable",
 				 devid, btrfs_dev_name(dev));
 		ret = -EROFS;
