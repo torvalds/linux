@@ -1468,7 +1468,7 @@ void iwl_mld_mac80211_mgd_prepare_tx(struct ieee80211_hw *hw,
 	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
 	u32 duration = IWL_MLD_SESSION_PROTECTION_ASSOC_TIME_MS;
 
-	/* After a successful association the connection is etalibeshed
+	/* After a successful association the connection is established
 	 * and we can rely on the quota to send the disassociation frame.
 	 */
 	if (info->was_assoc)
