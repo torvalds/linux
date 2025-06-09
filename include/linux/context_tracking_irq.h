@@ -9,6 +9,7 @@ void ct_irq_enter_irqson(void);
 void ct_irq_exit_irqson(void);
 void ct_nmi_enter(void);
 void ct_nmi_exit(void);
+bool ct_in_irq(void);
 #else
 static __always_inline void ct_irq_enter(void) { }
 static __always_inline void ct_irq_exit(void) { }
@@ -16,6 +17,7 @@ static inline void ct_irq_enter_irqson(void) { }
 static inline void ct_irq_exit_irqson(void) { }
 static __always_inline void ct_nmi_enter(void) { }
 static __always_inline void ct_nmi_exit(void) { }
+static __always_inline bool ct_in_irq(void) { return false; }
 #endif
 
 #endif
