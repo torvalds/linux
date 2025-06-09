@@ -1169,7 +1169,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 	} /* equal, nothing need to do */
 
 	if (ret == 0 && new_size != old_size)
-		btrfs_info_in_rcu(fs_info,
+		btrfs_info(fs_info,
 			"resize device %s (devid %llu) from %llu to %llu",
 			btrfs_dev_name(device), device->devid,
 			old_size, new_size);

@@ -951,7 +951,7 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 						  task_pid_nr(current));
 				return ERR_PTR(-EEXIST);
 			}
-			btrfs_info_in_rcu(NULL,
+			btrfs_info(NULL,
 	"devid %llu device path %s changed to %s scanned by %s (%d)",
 					  devid, btrfs_dev_name(device),
 					  path, current->comm,
@@ -7815,7 +7815,7 @@ static void btrfs_dev_stat_print_on_load(struct btrfs_device *dev)
 	if (i == BTRFS_DEV_STAT_VALUES_MAX)
 		return; /* all values == 0, suppress message */
 
-	btrfs_info_in_rcu(dev->fs_info,
+	btrfs_info(dev->fs_info,
 		"bdev %s errs: wr %u, rd %u, flush %u, corrupt %u, gen %u",
 	       btrfs_dev_name(dev),
 	       btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_WRITE_ERRS),

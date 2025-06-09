@@ -839,7 +839,7 @@ int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 		goto out_bio_uninit;
 	}
 
-	btrfs_info_rl_in_rcu(fs_info,
+	btrfs_info_rl(fs_info,
 		"read error corrected: ino %llu off %llu (dev %s sector %llu)",
 			     ino, start, btrfs_dev_name(smap.dev),
 			     smap.physical >> SECTOR_SHIFT);
