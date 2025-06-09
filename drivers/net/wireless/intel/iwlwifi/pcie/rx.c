@@ -1852,7 +1852,12 @@ static void iwl_trans_pcie_handle_reset_interrupt(struct iwl_trans *trans)
 		}
 		fallthrough;
 	case CSR_IPC_STATE_RESET_TOP_READY:
-		/* FIXME: handle this case when requesting TOP reset */
+		if (trans_pcie->fw_reset_state == FW_RESET_TOP_REQUESTED) {
+			IWL_DEBUG_ISR(trans, "TOP Reset continues\n");
+			trans_pcie->fw_reset_state = FW_RESET_OK;
+			wake_up(&trans_pcie->fw_reset_waitq);
+			break;
+		}
 		fallthrough;
 	case CSR_IPC_STATE_RESET_NONE:
 		IWL_FW_CHECK_FAILED(trans,
